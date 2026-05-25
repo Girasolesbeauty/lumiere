@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API = axios.create({
-  baseURL: 'http://localhost:3001/api',
+  baseURL: 'https://lumiere-production-79d0.up.railway.app/api',
 });
 
 // PRODUCTOS
