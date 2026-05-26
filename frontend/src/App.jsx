@@ -409,6 +409,16 @@ function POS() {
 
 function Inventario() {
   const [tab, setTab] = useState("stock");
+  const [productos, setProductos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getProductos().then(res => { setProductos(res.data); setLoading(false); }).catch(() => { setProductos(PRODUCTS.map(p => ({ ...p, nombre: p.name, marca: p.brand, precio: p.price, stock_minimo: p.min, lead_time_dias: p.lead }))); setLoading(false); });
+  }, []);
+
+  const productosAMostrar = productos.length > 0 ? productos : PRODUCTS.map(p => ({ ...p, nombre: p.name, marca: p.brand, precio: p.price, stock_minimo: p.min, lead_time_dias: p.lead }));
+  const alertas = productosAMostrar.filter(p => p.stock <= (p.stock_minimo || p.min) + 3);
+
   return (
     <div className="fade">
       <div className="ph">
@@ -416,49 +426,56 @@ function Inventario() {
         <button className="btn btn-p btn-sm">+ Nuevo producto</button>
       </div>
       <div className="tabs">
-        {["stock", "alertas", "movimientos"].map(t => <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => setTab(t)}>{t.toUpperCase()}</div>)}
+        {["stock", "alertas", "movimientos"].map(t => <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => setTab(t)}>
+          {t.toUpperCase()}{t === "alertas" && alertas.length > 0 && <span style={{ background: "#d97070", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 5 }}>{alertas.length}</span>}
+        </div>)}
       </div>
       {tab === "stock" && (
         <div className="card fade">
+          {loading ? <div style={{ textAlign: "center", color: "#7a706a", padding: 20 }}>Cargando inventario...</div> :
           <table>
             <thead><tr><th>Producto</th><th>Stock</th><th>Minimo</th><th>Lead time</th><th>Punto pedido</th><th>Costo</th><th>Estado</th></tr></thead>
             <tbody>
-              {PRODUCTS.map(p => {
-                const pp = Math.ceil(1.2 * p.lead + p.min);
+              {productosAMostrar.map(p => {
+                const min = p.stock_minimo || p.min || 5;
+                const lead = p.lead_time_dias || p.lead || 7;
+                const pp = Math.ceil(1.2 * lead + min);
                 const needs = p.stock <= pp;
-                const pct = Math.min(Math.round((p.stock / (p.min * 3)) * 100), 100);
+                const pct = Math.min(Math.round((p.stock / (min * 3)) * 100), 100);
                 return (
                   <tr key={p.id}>
-                    <td><div style={{ color: "#f0ece4" }}>{p.name}</div><div style={{ fontSize: 9, color: "#7a706a" }}>{p.brand}</div></td>
+                    <td><div style={{ color: "#f0ece4" }}>{p.nombre || p.name}</div><div style={{ fontSize: 9, color: "#7a706a" }}>{p.marca || p.brand}</div></td>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18 }}>{p.stock}</span>
                         <div style={{ width: 50 }}><div className="pb"><div className="pf" style={{ width: pct + "%", background: pct < 30 ? "#d97070" : pct < 60 ? "#c9a96e" : "#6bbf8e" }} /></div></div>
                       </div>
                     </td>
-                    <td>{p.min}</td>
-                    <td>{p.lead}d</td>
+                    <td>{min}</td>
+                    <td>{lead}d</td>
                     <td style={{ color: "#c9a96e" }}>{pp}u</td>
-                    <td>${p.cost.toLocaleString()}</td>
+                    <td>${(p.costo || p.cost || 0).toLocaleString()}</td>
                     <td><span className={"badge " + (needs ? "br" : "bg")}>{needs ? "PEDIR" : "OK"}</span></td>
                   </tr>
                 );
               })}
             </tbody>
-          </table>
+          </table>}
         </div>
       )}
       {tab === "alertas" && (
         <div className="fade">
-          {PRODUCTS.filter(p => p.stock <= p.min + 3).map(p => (
-            <div key={p.id} style={{ background: "#d9707018", border: "1px solid #d9707033", borderRadius: 6, padding: "12px 16px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <div style={{ fontSize: 12, color: "#c4bdb4" }}>{p.name} - {p.brand}</div>
-                <div style={{ fontSize: 10, color: "#7a706a", marginTop: 2 }}>Stock: {p.stock}u | Minimo: {p.min}u | Lead: {p.lead}d</div>
+          {alertas.length === 0
+            ? <div style={{ textAlign: "center", color: "#6bbf8e", padding: 30, fontSize: 12 }}>No hay alertas de stock por ahora</div>
+            : alertas.map(p => (
+              <div key={p.id} style={{ background: "#d9707018", border: "1px solid #d9707033", borderRadius: 6, padding: "12px 16px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontSize: 12, color: "#c4bdb4" }}>{p.nombre || p.name} - {p.marca || p.brand}</div>
+                  <div style={{ fontSize: 10, color: "#7a706a", marginTop: 2 }}>Stock: {p.stock}u | Minimo: {p.stock_minimo || p.min}u | Lead: {p.lead_time_dias || p.lead}d</div>
+                </div>
+                <button className="btn btn-p btn-sm">Generar OC</button>
               </div>
-              <button className="btn btn-p btn-sm">Generar OC</button>
-            </div>
-          ))}
+            ))}
         </div>
       )}
       {tab === "movimientos" && (
@@ -470,7 +487,6 @@ function Inventario() {
                 { d: "24/05", p: "Serum Vitamina C", t: "Venta", q: -2, r: "F-0041" },
                 { d: "24/05", p: "Crema Hidratante", t: "Ingreso", q: 20, r: "OC-0018" },
                 { d: "23/05", p: "Base Liquida HD", t: "Venta", q: -1, r: "F-0040" },
-                { d: "23/05", p: "Aceite Rosa Mosqueta", t: "Ajuste", q: -1, r: "AJ-0004" },
               ].map((m, i) => (
                 <tr key={i}>
                   <td>{m.d}</td><td>{m.p}</td>
@@ -489,15 +505,65 @@ function Inventario() {
 
 function Clientes() {
   const [tab, setTab] = useState("lista");
+  const [clientes, setClientes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [mensaje, setMensaje] = useState("");
+  const [nuevoCliente, setNuevoCliente] = useState({ nombre: "", email: "", cuit_dni: "", telefono: "", fecha_nacimiento: "" });
   const tierNext = { Bronze: 500, Silver: 1000, Gold: 2000, Platinum: 99999 };
+
+  useEffect(() => {
+    getClientes().then(res => { setClientes(res.data); setLoading(false); }).catch(() => { setClientes(CLIENTS.map(c => ({ ...c, nombre: c.name, puntos: c.points, nivel: c.tier, total_compras: c.total, cuit_dni: c.cuit }))); setLoading(false); });
+  }, []);
+
+  const guardarCliente = async () => {
+    try {
+      const { createCliente } = await import("./api");
+      await createCliente(nuevoCliente);
+      setMensaje("Cliente guardado correctamente!");
+      setShowForm(false);
+      setNuevoCliente({ nombre: "", email: "", cuit_dni: "", telefono: "", fecha_nacimiento: "" });
+      getClientes().then(res => setClientes(res.data));
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) {
+      setMensaje("Error al guardar cliente");
+    }
+  };
+
+  const clientesAMostrar = clientes.length > 0 ? clientes : CLIENTS.map(c => ({ ...c, nombre: c.name, puntos: c.points, nivel: c.tier, total_compras: c.total, cuit_dni: c.cuit }));
+  const platinum = clientesAMostrar.filter(c => (c.nivel || c.tier) === "Platinum").length;
+  const gold = clientesAMostrar.filter(c => (c.nivel || c.tier) === "Gold").length;
+  const silver = clientesAMostrar.filter(c => (c.nivel || c.tier) === "Silver").length;
+
   return (
     <div className="fade">
       <div className="ph">
         <div><div className="pt">Clientes</div><div className="ps">gestion - fidelizacion - historial</div></div>
-        <button className="btn btn-p btn-sm">+ Nuevo cliente</button>
+        <button className="btn btn-p btn-sm" onClick={() => setShowForm(!showForm)}>+ Nuevo cliente</button>
       </div>
+      {mensaje && <div style={{ background: mensaje.includes("Error") ? "#d9707018" : "#6bbf8e18", border: "1px solid " + (mensaje.includes("Error") ? "#d97070" : "#6bbf8e"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#d97070" : "#6bbf8e" }}>{mensaje}</div>}
+      {showForm && (
+        <div className="card fade" style={{ marginBottom: 18 }}>
+          <div className="ct">Nuevo cliente</div>
+          <div className="g2">
+            <div>
+              <div className="fg"><div className="fl">Nombre</div><input className="inp" placeholder="Nombre completo" value={nuevoCliente.nombre} onChange={e => setNuevoCliente(p => ({ ...p, nombre: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Email</div><input className="inp" placeholder="email@gmail.com" value={nuevoCliente.email} onChange={e => setNuevoCliente(p => ({ ...p, email: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">CUIT / DNI</div><input className="inp" placeholder="20-12345678-9" value={nuevoCliente.cuit_dni} onChange={e => setNuevoCliente(p => ({ ...p, cuit_dni: e.target.value }))} /></div>
+            </div>
+            <div>
+              <div className="fg"><div className="fl">Telefono</div><input className="inp" placeholder="+54 9 351 000 0000" value={nuevoCliente.telefono} onChange={e => setNuevoCliente(p => ({ ...p, telefono: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Fecha de nacimiento</div><input className="inp" type="date" value={nuevoCliente.fecha_nacimiento} onChange={e => setNuevoCliente(p => ({ ...p, fecha_nacimiento: e.target.value }))} /></div>
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarCliente}>Guardar</button>
+                <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowForm(false)}>Cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="g3">
-        {[{ t: "Platinum", n: 1, c: "#b888e0" }, { t: "Gold", n: 1, c: "#c9a96e" }, { t: "Silver", n: 2, c: "#7aaed4" }].map(t => (
+        {[{ t: "Platinum", n: platinum, c: "#b888e0" }, { t: "Gold", n: gold, c: "#c9a96e" }, { t: "Silver", n: silver, c: "#7aaed4" }].map(t => (
           <div key={t.t} className="card" style={{ borderTop: "2px solid " + t.c }}>
             <div className="ct">{t.t}</div>
             <div className="metric" style={{ color: t.c, fontSize: 26 }}>{t.n}</div>
@@ -509,30 +575,32 @@ function Clientes() {
       </div>
       {tab === "lista" && (
         <div className="card fade">
+          {loading ? <div style={{ textAlign: "center", color: "#7a706a", padding: 20 }}>Cargando clientes...</div> :
           <table>
-            <thead><tr><th>Cliente</th><th>CUIT</th><th>Compras</th><th>Total</th><th>Puntos</th><th>Nivel</th></tr></thead>
+            <thead><tr><th>Cliente</th><th>CUIT/DNI</th><th>Total compras</th><th>Puntos</th><th>Nivel</th></tr></thead>
             <tbody>
-              {CLIENTS.map(c => {
-                const next = tierNext[c.tier];
-                const pct = Math.min(Math.round((c.points / next) * 100), 100);
+              {clientesAMostrar.map((c, i) => {
+                const nivel = c.nivel || c.tier;
+                const puntos = c.puntos || c.points || 0;
+                const next = tierNext[nivel] || 500;
+                const pct = Math.min(Math.round((puntos / next) * 100), 100);
                 return (
-                  <tr key={c.id}>
-                    <td><div style={{ color: "#f0ece4" }}>{c.name}</div><div style={{ fontSize: 9, color: "#7a706a" }}>{c.email}</div></td>
-                    <td style={{ fontSize: 10 }}>{c.cuit}</td>
-                    <td>{c.purchases}</td>
-                    <td>${c.total.toLocaleString()}</td>
+                  <tr key={c.id || i}>
+                    <td><div style={{ color: "#f0ece4" }}>{c.nombre || c.name}</div><div style={{ fontSize: 9, color: "#7a706a" }}>{c.email}</div></td>
+                    <td style={{ fontSize: 10 }}>{c.cuit_dni || c.cuit}</td>
+                    <td>${(c.total_compras || c.total || 0).toLocaleString()}</td>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, color: "#c9a96e" }}>{c.points.toLocaleString()}</span>
+                        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, color: "#c9a96e" }}>{puntos.toLocaleString()}</span>
                         <div style={{ width: 40 }}><div className="pb"><div className="pf" style={{ width: pct + "%", background: "#c9a96e" }} /></div></div>
                       </div>
                     </td>
-                    <td><TierBadge tier={c.tier} /></td>
+                    <td><TierBadge tier={nivel} /></td>
                   </tr>
                 );
               })}
             </tbody>
-          </table>
+          </table>}
         </div>
       )}
       {tab === "niveles" && (
