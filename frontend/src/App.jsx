@@ -14,9 +14,9 @@ const C = {
 };
 
 const BASE_CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=Inter:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Inter', sans-serif; background: #fafafa; color: #111111; min-height: 100vh; }
+body { font-family: 'Inter', sans-serif; background: #fafafa; color: #111111; min-height: 100vh; -webkit-font-smoothing: antialiased; }
 ::-webkit-scrollbar { width: 3px; }
 ::-webkit-scrollbar-thumb { background: #e0e0e0; border-radius: 2px; }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -26,27 +26,27 @@ body { font-family: 'Inter', sans-serif; background: #fafafa; color: #111111; mi
 .layout { display: flex; min-height: 100vh; }
 .sidebar { width: 210px; background: #111111; border-right: 1px solid #222222; display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 20; overflow-y: auto; }
 .logo { padding: 24px 20px 16px; border-bottom: 1px solid #222222; }
-.logo-name { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 300; letter-spacing: .18em; color: #c9a84c; text-transform: uppercase; }
+.logo-name { font-family: 'Inter', sans-serif; font-size: 18px; font-weight: 700; letter-spacing: .1em; color: #c9a84c; text-transform: uppercase; }
 .logo-sub { font-size: 9px; color: #888888; letter-spacing: .3em; margin-top: 3px; text-transform: uppercase; }
 .nav { padding: 12px 10px; flex: 1; }
 .nav-section { font-size: 8px; letter-spacing: .3em; color: #666666; padding: 10px 10px 4px; text-transform: uppercase; }
-.nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 5px; cursor: pointer; font-size: 11px; letter-spacing: .07em; color: #aaaaaa; transition: all .18s; margin-bottom: 1px; border: 1px solid transparent; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: 500; color: #aaaaaa; transition: all .18s; margin-bottom: 1px; border: 1px solid transparent; }
 .nav-item:hover { color: #ffffff; background: #333333; }
 .nav-item.active { color: #c9a84c; background: #c9a84c18; border-color: #c9a84c44; }
 .nav-icon { font-size: 13px; width: 18px; text-align: center; flex-shrink: 0; }
 .sb-footer { padding: 12px 18px; border-top: 1px solid #222222; }
 .main { margin-left: 210px; flex: 1; padding: 28px 34px; min-height: 100vh; background: #fafafa; }
 .ph { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 26px; }
-.pt { font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 300; letter-spacing: .04em; line-height: 1; color: #111111; }
-.ps { font-size: 9px; color: #999999; letter-spacing: .2em; margin-top: 5px; text-transform: uppercase; }
+.pt { font-family: 'Inter', sans-serif; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; color: #111111; }
+.ps { font-size: 11px; color: #888888; font-weight: 400; margin-top: 5px; }
 .g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 18px; }
 .g3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 18px; }
 .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
 .card { background: #ffffff; border: 1px solid #e8e8e8; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-radius: 8px; padding: 18px; }
-.ct { font-size: 9px; letter-spacing: .22em; text-transform: uppercase; color: #999999; margin-bottom: 10px; }
-.metric { font-family: 'Cormorant Garamond', serif; font-size: 34px; font-weight: 300; line-height: 1; }
-.msub { font-size: 11px; color: #999999; margin-top: 5px; }
-.badge { display: inline-flex; padding: 2px 7px; border-radius: 3px; font-size: 9px; letter-spacing: .08em; font-weight: 500; }
+.ct { font-size: 10px; letter-spacing: .15em; text-transform: uppercase; color: #777777; font-weight: 600; margin-bottom: 10px; }
+.metric { font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 700; line-height: 1; }
+.msub { font-size: 12px; color: #666666; font-weight: 400; margin-top: 5px; }
+.badge { display: inline-flex; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
 .bg { background: #2d7a4f12; color: #2d7a4f; }
 .br { background: #c0392b12; color: #c0392b; }
 .bb { background: #2471a312; color: #2471a3; }
@@ -54,21 +54,21 @@ body { font-family: 'Inter', sans-serif; background: #fafafa; color: #111111; mi
 .ba { background: #c9a84c15; color: #c9a84c; }
 .bw { background: #25d36618; color: #25d366; }
 .bx { background: #f5f5f5; color: #999999; border: 1px solid #e0e0e0; }
-.btn { padding: 9px 18px; border-radius: 5px; font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: .08em; cursor: pointer; border: none; transition: all .18s; }
+.btn { padding: 9px 18px; border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: all .18s; }
 .btn-p { background: #111111; color: #ffffff; font-weight: 500; }
 .btn-p:hover { background: #333333; }
 .btn-g { background: transparent; color: #666666; border: 1px solid #e0e0e0; }
 .btn-g:hover { border-color: #c9a84c; color: #c9a84c; }
 .btn-sm { padding: 5px 11px; font-size: 10px; }
-.inp { width: 100%; background: #ffffff; border: 1px solid #e0e0e0; border-radius: 5px; padding: 9px 13px; color: #111111; font-family: 'DM Mono', monospace; font-size: 12px; outline: none; transition: border-color .18s; }
+.inp { width: 100%; background: #ffffff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 10px 14px; color: #111111; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; outline: none; transition: border-color .18s; }
 .inp:focus { border-color: #c9a84c; }
 .inp::placeholder { color: #bbbbbb; }
-.sel { background: #ffffff; border: 1px solid #e0e0e0; border-radius: 5px; padding: 9px 13px; color: #f0ece4; font-family: 'DM Mono', monospace; font-size: 12px; outline: none; width: 100%; }
+.sel { background: #ffffff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 10px 14px; color: #111111; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; outline: none; width: 100%; }
 .fg { margin-bottom: 12px; }
-.fl { font-size: 9px; color: #999999; letter-spacing: .15em; text-transform: uppercase; margin-bottom: 5px; }
+.fl { font-size: 11px; color: #666666; font-weight: 600; margin-bottom: 6px; }
 .tabs { display: flex; margin-bottom: 20px; border-bottom: 1px solid #e8e8e8; }
-.tab { padding: 8px 16px; font-size: 10px; letter-spacing: .12em; color: #999999; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .18s; }
-.tab.on { color: #111111; border-bottom-color: #c9a84c; }
+.tab { padding: 8px 16px; font-size: 12px; font-weight: 500; color: #888888; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .18s; }
+.tab.on { color: #111111; border-bottom-color: #c9a84c; font-weight: 600; }
 .tab:hover { color: #333333; }
 .divider { height: 1px; background: #e8e8e8; margin: 14px 0; }
 .pb { height: 5px; background: #eeeeee; border-radius: 3px; overflow: hidden; }
@@ -81,8 +81,8 @@ body { font-family: 'Inter', sans-serif; background: #fafafa; color: #111111; mi
 .sw.on .sw-dot { left: 18px; }
 .sw.off .sw-dot { left: 2px; }
 table { width: 100%; border-collapse: collapse; }
-th { text-align: left; font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: #999999; padding: 9px 11px; font-weight: 500; border-bottom: 1px solid #eeeeee; }
-td { padding: 10px 11px; font-size: 11px; color: #444444; border-bottom: 1px solid #f0f0f0; }
+th { text-align: left; font-size: 11px; text-transform: uppercase; color: #888888; padding: 9px 11px; font-weight: 600; border-bottom: 2px solid #eeeeee; letter-spacing: 0.05em; }
+td { padding: 10px 11px; font-size: 12px; color: #222222; font-weight: 400; border-bottom: 1px solid #f0f0f0; }
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: #fafafa; }
 `;
@@ -242,7 +242,7 @@ function Dashboard() {
               { l: "NETO", v: "$" + parseFloat(resumen.neto || 0).toLocaleString(), c: "#c9a84c" }].map(r => (
               <div key={r.l}>
                 <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em" }}>{r.l}</div>
-                <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: r.c, marginTop: 4 }}>{r.v}</div>
+                <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 22, fontWeight: 700, color: r.c, marginTop: 4 }}>{r.v}</div>
               </div>
             ))}
           </div>
@@ -362,7 +362,7 @@ function POS() {
                 <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".12em" }}>{p.marca || p.brand}</div>
                 <div style={{ fontSize: 12, color: "#444444", marginTop: 3 }}>{p.nombre || p.name}</div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 10 }}>
-                  <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, color: "#c9a84c" }}>${(p.precio || p.price).toLocaleString()}</div>
+                  <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#c9a84c" }}>${(p.precio || p.price).toLocaleString()}</div>
                   <span className={"badge " + (p.stock < (p.stock_minimo || p.min) ? "br" : "bg")}>{p.stock}u</span>
                 </div>
               </div>
@@ -410,7 +410,7 @@ function POS() {
           <div style={{ padding: "14px 16px", borderTop: "1px solid #272220" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
               <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em" }}>TOTAL</div>
-              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 28, color: "#c9a84c" }}>${total.toLocaleString()}</div>
+              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 28, fontWeight: 700, color: "#c9a84c" }}>${total.toLocaleString()}</div>
             </div>
             <button className="btn btn-p" style={{ width: "100%", padding: 12, opacity: loading ? 0.7 : 1 }} onClick={emitirFactura} disabled={loading}>
               {loading ? "Emitiendo..." : "Emitir Factura " + tipoFac + " - ARCA"}
@@ -606,7 +606,7 @@ function Clientes() {
                     <td>${(c.total_compras || c.total || 0).toLocaleString()}</td>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, color: "#c9a84c" }}>{puntos.toLocaleString()}</span>
+                        <span style={{ fontFamily: "'Inter',sans-serif", fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>{puntos.toLocaleString()}</span>
                         <div style={{ width: 40 }}><div className="pb"><div className="pf" style={{ width: pct + "%", background: "#c9a84c" }} /></div></div>
                       </div>
                     </td>
@@ -628,7 +628,7 @@ function Clientes() {
           ].map(n => (
             <div key={n.tier} className="card" style={{ borderLeft: "3px solid " + n.c }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-                <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, color: n.c }}>{n.tier}</div>
+                <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: n.c }}>{n.tier}</div>
                 <div style={{ fontSize: 10, color: "#999999" }}>{n.min.toLocaleString()}{n.max ? " - " + n.max.toLocaleString() + " pts" : "+ pts"}</div>
               </div>
               {n.perks.map((p, i) => (
@@ -690,9 +690,9 @@ function Finanzas() {
       {tab === "flujo" && (
         <div className="fade">
           <div className="g3">
-            <div className="card"><div className="ct">Ingresos del mes</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, color: "#2d7a4f" }}>${ingresos.toLocaleString()}</div></div>
-            <div className="card"><div className="ct">Egresos del mes</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, color: "#c0392b" }}>${egresos.toLocaleString()}</div></div>
-            <div className="card"><div className="ct">Resultado neto</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, color: "#c9a84c" }}>${neto.toLocaleString()}</div></div>
+            <div className="card"><div className="ct">Ingresos del mes</div><div style={{ fontFamily: "'Inter',sans-serif", fontSize: 26, fontWeight: 700, color: "#2d7a4f" }}>${ingresos.toLocaleString()}</div></div>
+            <div className="card"><div className="ct">Egresos del mes</div><div style={{ fontFamily: "'Inter',sans-serif", fontSize: 26, fontWeight: 700, color: "#c0392b" }}>${egresos.toLocaleString()}</div></div>
+            <div className="card"><div className="ct">Resultado neto</div><div style={{ fontFamily: "'Inter',sans-serif", fontSize: 26, fontWeight: 700, color: "#c9a84c" }}>${neto.toLocaleString()}</div></div>
           </div>
           <div className="g2">
             <div className="card">
@@ -758,7 +758,7 @@ function Finanzas() {
           <div className="card">
             <div className="ct">Punto de equilibrio</div>
             {loading ? <div style={{ color: "#999999" }}>Calculando...</div> : <>
-              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 48, color: "#c9a84c" }}>${parseFloat(equilibrio?.punto_equilibrio || 0).toLocaleString()}</div>
+              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 48, fontWeight: 700, color: "#c9a84c" }}>${parseFloat(equilibrio?.punto_equilibrio || 0).toLocaleString()}</div>
               <div style={{ fontSize: 11, color: "#999999", marginTop: 4 }}>ventas minimas para cubrir costos</div>
               <div className="divider" />
               {[
@@ -817,7 +817,7 @@ function Informes() {
                   <div className="ct">Clase {t.c}</div>
                   <span className={"badge " + (t.c === "A" ? "bg" : t.c === "B" ? "bb" : "bx")}>{t.n} prov.</span>
                 </div>
-                <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 30, color: t.col }}>{t.pct}</div>
+                <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 30, fontWeight: 700, color: t.col }}>{t.pct}</div>
                 <div style={{ fontSize: 10, color: "#999999" }}>{t.desc}</div>
               </div>
             ))}
@@ -884,7 +884,7 @@ function Informes() {
             {PRODUCTS.slice(0, 5).map((p, i) => (
               <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: i < 4 ? "1px solid #2722201a" : "none" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, color: "#999999", width: 16 }}>{i + 1}</span>
+                  <span style={{ fontFamily: "'Inter',sans-serif", fontSize: 16, fontWeight: 700, color: "#999999", width: 16 }}>{i + 1}</span>
                   <div>
                     <div style={{ fontSize: 11, color: "#444444" }}>{p.name}</div>
                     <div style={{ fontSize: 9, color: "#999999" }}>{p.brand}</div>
@@ -980,7 +980,7 @@ function Cupones() {
           <div className="card">
             <div className="ct">Vista previa</div>
             <div style={{ background: "#fafafa", borderRadius: 7, padding: 20, border: "2px dashed #272220", textAlign: "center", marginBottom: 14 }}>
-              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 28, color: "#c9a84c", letterSpacing: ".1em" }}>{nc.code || "CODIGO"}</div>
+              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 28, fontWeight: 700, color: "#c9a84c", letterSpacing: ".1em" }}>{nc.code || "CODIGO"}</div>
               <div style={{ fontSize: 13, color: "#999999", marginTop: 6 }}>{nc.value ? (nc.type === "%" ? nc.value + "% de descuento" : "$" + parseInt(nc.value || "0").toLocaleString() + " de descuento") : "Descuento"}</div>
             </div>
             {["Codigos cortos y memorables convierten mas", "Inclui el canal: INSTA20, TIKTOK15", "Limite de usos genera urgencia", "Codigos de influencer = seguimiento exacto"].map((t, i) => (
@@ -1052,7 +1052,7 @@ function Fidelizacion() {
                   <tr key={c.id || i}>
                     <td><div style={{ color: "#111111" }}>{c.nombre || c.name}</div><div style={{ fontSize: 9, color: "#999999" }}>{c.email}</div></td>
                     <td><TierBadge tier={nivel} /></td>
-                    <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, color: "#c9a84c" }}>{puntos.toLocaleString()}</td>
+                    <td style={{ fontFamily: "'Inter',sans-serif", fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>{puntos.toLocaleString()}</td>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <div style={{ flex: 1 }}><div className="pb"><div className="pf" style={{ width: pct + "%", background: "#c9a84c" }} /></div></div>
@@ -1224,7 +1224,7 @@ function PortalCliente() {
   return (
     <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#0e0a08 0%,#1a1008 60%,#0e0a08 100%)", fontFamily: "'DM Mono',monospace" }}>
       <div style={{ padding: "16px 32px", borderBottom: "1px solid #ffffff0f", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, fontWeight: 300, letterSpacing: ".18em", color: "#c9a84c" }}>LUMIERE</div>
+        <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, fontWeight: 300, letterSpacing: ".18em", color: "#c9a84c" }}>LUMIERE</div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 11, color: "#ffffff44" }}>{client.email}</span>
           <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#c9a84c", display: "flex", alignItems: "center", justifyContent: "center", color: "#fafafa", fontSize: 13, fontWeight: 600 }}>{client.name[0]}</div>
@@ -1235,13 +1235,13 @@ function PortalCliente() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
               <div style={{ fontSize: 9, color: "#c9a84c88", letterSpacing: ".25em", textTransform: "uppercase", marginBottom: 5 }}>Bienvenida de nuevo</div>
-              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 24, fontWeight: 300, color: "#f0e8de", marginBottom: 14 }}>{client.name}</div>
+              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 24, fontWeight: 700, color: "#f0e8de", marginBottom: 14 }}>{client.name}</div>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 20, background: "#c9a84c15", border: "1px solid #c9a96e44", fontSize: 9, color: "#c9a84c", letterSpacing: ".12em" }}>
                 NIVEL {client.tier.toUpperCase()}
               </div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 52, fontWeight: 300, color: "#c9a84c", lineHeight: 1 }}>{client.points.toLocaleString()}</div>
+              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 52, fontWeight: 700, color: "#c9a84c", lineHeight: 1 }}>{client.points.toLocaleString()}</div>
               <div style={{ fontSize: 9, color: "#ffffff44", letterSpacing: ".2em", marginTop: 3 }}>PUNTOS DISPONIBLES</div>
               <div style={{ fontSize: 10, color: "#ffffff33", marginTop: 6 }}>Proximo nivel: {(2000 - client.points).toLocaleString()} pts</div>
             </div>
@@ -1254,7 +1254,7 @@ function PortalCliente() {
         </div>
         {tab === "canjear" && (
           <div>
-            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, fontWeight: 300, color: "#f0e8de", marginBottom: 14 }}>Canjea tus puntos</div>
+            <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#f0e8de", marginBottom: 14 }}>Canjea tus puntos</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
               {REWARDS_DISPLAY.map(r => {
                 const can = client.points >= r.pts;
@@ -1264,7 +1264,7 @@ function PortalCliente() {
                     <div style={{ fontSize: 24, marginBottom: 8 }}>{r.emoji}</div>
                     <div style={{ fontSize: 11, color: "#e8ddd4" }}>{r.name}</div>
                     <div style={{ fontSize: 9, color: "#ffffff33", letterSpacing: ".1em", marginTop: 2 }}>{r.brand}</div>
-                    <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, color: "#c9a84c", marginTop: 10 }}>{r.pts.toLocaleString()}</div>
+                    <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#c9a84c", marginTop: 10 }}>{r.pts.toLocaleString()}</div>
                     <div style={{ fontSize: 9, color: "#ffffff33" }}>PUNTOS</div>
                     {can && <button style={{ marginTop: 10, width: "100%", padding: "7px", borderRadius: 5, background: "#c9a84c15", border: "1px solid #c9a96e33", color: "#c9a84c", fontFamily: "'DM Mono',monospace", fontSize: 10, cursor: "pointer" }}>Canjear</button>}
                   </div>
@@ -1275,11 +1275,11 @@ function PortalCliente() {
         )}
         {tab === "cupones" && (
           <div>
-            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, fontWeight: 300, color: "#f0e8de", marginBottom: 14 }}>Tus cupones activos</div>
+            <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#f0e8de", marginBottom: 14 }}>Tus cupones activos</div>
             {[{ code: "BDAY10", desc: "$10.000 de descuento por cumpleanos", exp: "Valido hasta: 30/06/2026" }, { code: "INSTA20", desc: "20% off en toda la tienda", exp: "Valido hasta: 31/05/2026" }].map((cp, i) => (
               <div key={i} style={{ background: "#1e1208", border: "1px dashed #c9a96e44", borderRadius: 10, padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <div>
-                  <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, color: "#c9a84c", letterSpacing: ".1em" }}>{cp.code}</div>
+                  <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#c9a84c", letterSpacing: ".1em" }}>{cp.code}</div>
                   <div style={{ fontSize: 11, color: "#ffffff55", marginTop: 3 }}>{cp.desc}</div>
                   <div style={{ fontSize: 10, color: "#ffffff28", marginTop: 4 }}>{cp.exp}</div>
                 </div>
@@ -1290,7 +1290,7 @@ function PortalCliente() {
         )}
         {tab === "historial" && (
           <div>
-            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, fontWeight: 300, color: "#f0e8de", marginBottom: 14 }}>Historial de compras</div>
+            <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#f0e8de", marginBottom: 14 }}>Historial de compras</div>
             {[
               { date: "24/05/2026", items: "Serum Vitamina C x 1", total: 8500, pts: 85, canal: "Local" },
               { date: "10/05/2026", items: "Base Liquida HD, Mascara x 2", total: 13700, pts: 137, canal: "Tiendanube" },
@@ -1302,7 +1302,7 @@ function PortalCliente() {
                   <div style={{ fontSize: 12, color: "#e8ddd4" }}>{h.items}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, color: "#c9a84c" }}>${h.total.toLocaleString()}</div>
+                  <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#c9a84c" }}>${h.total.toLocaleString()}</div>
                   <div style={{ fontSize: 9, color: "#ffffff33", marginTop: 2 }}>+{h.pts} puntos</div>
                 </div>
               </div>
