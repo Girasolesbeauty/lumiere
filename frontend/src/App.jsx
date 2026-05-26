@@ -1335,44 +1335,7 @@ function getPage(id) {
   return <Dashboard />;
 }
 
-function App() {
-  const [page, setPage] = useState("dashboard");
-  return (
-    <>
-      <style>{BASE_CSS}</style>
-      <div className="layout">
-        <aside className="sidebar">
-          <div className="logo">
-            <div className="logo-name">Lumiere</div>
-            <div className="logo-sub">Sistema de gestion</div>
-          </div>
-          <nav className="nav">
-            {NAV_SECTIONS.map(sec => (
-              <div key={sec.section}>
-                <div className="nav-section">{sec.section}</div>
-                {sec.items.map(it => (
-                  <div key={it.id} className={"nav-item " + (page === it.id ? "active" : "")} onClick={() => setPage(it.id)}>
-                    <span className="nav-icon">{it.icon}</span>{it.label}
-                  </div>
-                ))}
-              </div>
-            ))}
-          </nav>
-          <div className="sb-footer">
-            <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-              <StatusDot color="#2d7a4f" label="ARCA" />
-              <StatusDot color="#25d366" label="TIENDANUBE" />
-              <StatusDot color="#25d366" label="WHATSAPP" />
-            </div>
-          </div>
-        </aside>
-        <main className="main">
-          {getPage(page)}
-        </main>
-      </div>
-    </>
-  );
-}
+
 
 // LOGIN SCREEN
 function LoginScreen({ onLogin }) {
@@ -1608,7 +1571,8 @@ export default function AppWrapper() {
   const handleLogin = (u) => {
     setUsuario(u);
     localStorage.setItem("lumiere_user", JSON.stringify(u));
-    if (u.local) setLocal(u.local);
+    // Si el usuario tiene local asignado desde el backend, no mostrar selector
+    // Pero siempre mostrar el selector para poder elegir
   };
 
   const handleLogout = () => {
