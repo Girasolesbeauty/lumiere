@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getProductos, createVenta, getClientes, getFlujo, getPuntoEquilibrio, agregarEgreso } from "./api";
+import { getProductos, createVenta, getClientes, getFlujo, getPuntoEquilibrio, agregarEgreso, getResumenFinanzas, getVentas, getAlertasStock, getCupones, createCupon, updateCupon, getRanking, getReglas, createRegla as createReglaWA, updateRegla as updateReglaWA } from "./api";
 
 const C = {
   bg: "#0c0b0a", surface: "#131110", card: "#1a1714", border: "#272220",
@@ -176,14 +176,33 @@ function TierBadge({ tier }) {
 }
 
 function Dashboard() {
-  const bars = [82, 95, 88, 110, 142];
-  const meses = ["Ene", "Feb", "Mar", "Abr", "May"];
+  const [resumen, setResumen] = useState({ ingresos: 0, egresos: 0, neto: 0 });
+  const [ventas, setVentas] = useState([]);
+  const [clientes, setClientes] = useState([]);
+  const [alertas, setAlertas] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      getResumenFinanzas(),
+      getVentas(),
+      getClientes(),
+      getAlertasStock()
+    ]).then(([r, v, c, a]) => {
+      setResumen(r.data);
+      setVentas(v.data.slice(0, 4));
+      setClientes(c.data.slice(0, 4));
+      setAlertas(a.data);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
   return (
     <div className="fade">
       <div className="ph">
         <div>
           <div className="pt">Dashboard</div>
-          <div className="ps">mayo 2026 - resumen ejecutivo</div>
+          <div className="ps">{new Date().toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })} - resumen ejecutivo</div>
         </div>
         <div style={{ display: "flex", gap: 12 }}>
           <StatusDot color="#25d366" label="TIENDANUBE" />
@@ -191,50 +210,35 @@ function Dashboard() {
         </div>
       </div>
       <div className="g4">
-        <MCard label="Ventas del mes" value="$142k" sub="+ 18% vs abril" />
-        <MCard label="Facturas emitidas" value="41" sub="5 hoy" />
-        <MCard label="Stock critico" value="3" sub="requieren pedido" color="#d97070" />
-        <MCard label="Clientes activos" value="187" sub="+12 este mes" />
+        <MCard label="Ingresos del mes" value={"$" + parseFloat(resumen.ingresos || 0).toLocaleString()} sub="ventas registradas" />
+        <MCard label="Facturas emitidas" value={String(ventas.length)} sub="este mes" />
+        <MCard label="Stock critico" value={String(alertas.length)} sub="requieren pedido" color={alertas.length > 0 ? "#d97070" : "#6bbf8e"} />
+        <MCard label="Clientes activos" value={String(clientes.length)} sub="en la base" />
       </div>
       <div className="g2">
         <div className="card">
-          <div className="ct">Ventas mensuales 2026</div>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 80, marginTop: 10 }}>
-            {bars.map((b, i) => (
-              <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                <div style={{ width: "100%", height: Math.round((b / 142) * 100) + "%", borderRadius: "2px 2px 0 0", background: i === 4 ? "#c9a96e" : "#272220", minHeight: 3 }} />
-                <div style={{ fontSize: 9, color: "#7a706a" }}>{meses[i]}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="card">
           <div className="ct">Ultimas facturas</div>
+          {loading ? <div style={{ color: "#7a706a", fontSize: 11 }}>Cargando...</div> :
           <table>
             <thead><tr><th>Nro</th><th>Cliente</th><th>Total</th><th>Estado</th></tr></thead>
             <tbody>
-              {[
-                { id: "F-0041", client: "Garcia, Maria", total: 17300 },
-                { id: "F-0040", client: "Lopez, Ana", total: 9100 },
-                { id: "F-0039", client: "Cosmetica SA", total: 48600 },
-                { id: "F-0038", client: "Rodriguez, Paula", total: 6200 },
-              ].map(s => (
+              {ventas.length > 0 ? ventas.map(s => (
                 <tr key={s.id}>
-                  <td style={{ color: "#c9a96e" }}>{s.id}</td>
-                  <td>{s.client}</td>
-                  <td>${s.total.toLocaleString()}</td>
-                  <td><span className="badge bg">emitida</span></td>
+                  <td style={{ color: "#c9a96e" }}>{s.numero_factura}</td>
+                  <td>{s.cliente_nombre || "Consumidor final"}</td>
+                  <td>${parseFloat(s.total).toLocaleString()}</td>
+                  <td><span className="badge bg">{s.estado}</span></td>
                 </tr>
-              ))}
+              )) : <tr><td colSpan={4} style={{ color: "#7a706a", textAlign: "center" }}>Sin ventas aun</td></tr>}
             </tbody>
-          </table>
+          </table>}
         </div>
-      </div>
-      <div className="g3">
         <div className="card">
-          <div className="ct">Flujo de caja mayo</div>
+          <div className="ct">Flujo de caja</div>
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
-            {[{ l: "INGRESOS", v: "$142k", c: "#6bbf8e" }, { l: "EGRESOS", v: "$89k", c: "#d97070" }, { l: "NETO", v: "$53k", c: "#c9a96e" }].map(r => (
+            {[{ l: "INGRESOS", v: "$" + parseFloat(resumen.ingresos || 0).toLocaleString(), c: "#6bbf8e" },
+              { l: "EGRESOS", v: "$" + parseFloat(resumen.egresos || 0).toLocaleString(), c: "#d97070" },
+              { l: "NETO", v: "$" + parseFloat(resumen.neto || 0).toLocaleString(), c: "#c9a96e" }].map(r => (
               <div key={r.l}>
                 <div style={{ fontSize: 9, color: "#7a706a", letterSpacing: ".15em" }}>{r.l}</div>
                 <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: r.c, marginTop: 4 }}>{r.v}</div>
@@ -242,21 +246,31 @@ function Dashboard() {
             ))}
           </div>
         </div>
-        <div className="card">
-          <div className="ct">Punto de equilibrio</div>
-          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 34, color: "#c9a96e" }}>$89k</div>
-          <div style={{ fontSize: 11, color: "#6bbf8e", marginTop: 6 }}>Ventas actuales: $142k (+59%)</div>
-          <div className="pb" style={{ marginTop: 10 }}><div className="pf" style={{ width: "100%", background: "#6bbf8e" }} /></div>
-        </div>
+      </div>
+      <div className="g2">
+        {alertas.length > 0 && (
+          <div className="card">
+            <div className="ct">Alertas de stock</div>
+            {alertas.slice(0, 3).map(p => (
+              <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #2722201a" }}>
+                <div>
+                  <div style={{ fontSize: 11, color: "#c4bdb4" }}>{p.nombre}</div>
+                  <div style={{ fontSize: 9, color: "#d97070" }}>Stock: {p.stock}u — necesita pedido</div>
+                </div>
+                <span className="badge br">PEDIR</span>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="card">
           <div className="ct">Top clientes</div>
-          {CLIENTS.slice(0, 4).map(c => (
-            <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          {clientes.map((c, i) => (
+            <div key={c.id || i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <div>
-                <div style={{ fontSize: 11, color: "#c4bdb4" }}>{c.name.split(",")[0]}</div>
-                <div style={{ fontSize: 9, color: "#7a706a" }}>{c.points.toLocaleString()} pts</div>
+                <div style={{ fontSize: 11, color: "#c4bdb4" }}>{(c.nombre || c.name || "").split(",")[0]}</div>
+                <div style={{ fontSize: 9, color: "#7a706a" }}>{(c.puntos || c.points || 0).toLocaleString()} pts</div>
               </div>
-              <TierBadge tier={c.tier} />
+              <TierBadge tier={c.nivel || c.tier || "Bronze"} />
             </div>
           ))}
         </div>
@@ -886,17 +900,44 @@ function Informes() {
 }
 
 function Cupones() {
-  const [cupons, setCupons] = useState(CUPONS_DATA);
+  const [cupons, setCupons] = useState([]);
   const [tab, setTab] = useState("lista");
   const [nc, setNc] = useState({ code: "", desc: "", type: "%", value: "", channel: "Instagram", max: "" });
+  const [mensaje, setMensaje] = useState("");
+
+  useEffect(() => {
+    getCupones().then(res => setCupons(res.data)).catch(() => setCupons(CUPONS_DATA));
+  }, []);
+
+  const guardarCupon = async () => {
+    try {
+      await createCupon({ codigo: nc.code, descripcion: nc.desc, tipo: nc.type, valor: nc.value, canal: nc.channel, max_usos: nc.max || null });
+      setMensaje("Cupon creado!");
+      setNc({ code: "", desc: "", type: "%", value: "", channel: "Instagram", max: "" });
+      getCupones().then(res => setCupons(res.data));
+      setTab("lista");
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al crear cupon"); }
+  };
+
+  const toggleCupon = async (c) => {
+    try {
+      await updateCupon(c.id, { ...c, activo: !c.activo });
+      setCupons(p => p.map(x => x.id === c.id ? { ...x, activo: !x.activo } : x));
+    } catch (e) {}
+  };
+
+  const cuponsAMostrar = cupons.length > 0 ? cupons : CUPONS_DATA.map(c => ({ ...c, activo: c.active, descripcion: c.desc, tipo: c.type, valor: c.value, canal: c.channel, max_usos: c.max, fecha_vencimiento: c.expires }));
+
   return (
     <div className="fade">
       <div className="ph"><div><div className="pt">Cupones</div><div className="ps">codigos - influencers - campanas</div></div></div>
+      {mensaje && <div style={{ background: mensaje.includes("Error") ? "#d9707018" : "#6bbf8e18", border: "1px solid " + (mensaje.includes("Error") ? "#d97070" : "#6bbf8e"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#d97070" : "#6bbf8e" }}>{mensaje}</div>}
       <div className="g4" style={{ marginBottom: 16 }}>
-        <MCard label="Activos" value={String(cupons.filter(c => c.active).length)} color="#6bbf8e" />
-        <MCard label="Usos este mes" value={String(cupons.reduce((s, c) => s + c.uses, 0))} color="#c9a96e" />
-        <MCard label="Venta generada" value="$284k" />
+        <MCard label="Activos" value={String(cuponsAMostrar.filter(c => c.activo || c.active).length)} color="#6bbf8e" />
+        <MCard label="Usos totales" value={String(cuponsAMostrar.reduce((s, c) => s + (c.usos || c.uses || 0), 0))} color="#c9a96e" />
         <MCard label="Influencers" value="1" color="#7aaed4" />
+        <MCard label="Total cupones" value={String(cuponsAMostrar.length)} />
       </div>
       <div className="tabs">
         {[["lista", "CUPONES"], ["nuevo", "CREAR"], ["influencers", "INFLUENCERS"]].map(([id, l]) => (
@@ -908,20 +949,15 @@ function Cupones() {
           <table>
             <thead><tr><th>Codigo</th><th>Descripcion</th><th>Descuento</th><th>Canal</th><th>Usos</th><th>Vence</th><th>Activo</th></tr></thead>
             <tbody>
-              {cupons.map(c => (
+              {cuponsAMostrar.map(c => (
                 <tr key={c.id}>
-                  <td style={{ color: "#c9a96e", letterSpacing: ".06em", fontWeight: 600 }}>{c.code}</td>
-                  <td>{c.desc}</td>
-                  <td>{c.type === "%" ? c.value + "%" : "$" + c.value.toLocaleString()}</td>
-                  <td><span className="badge bb">{c.channel}</span></td>
-                  <td>
-                    <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                      {c.uses}{c.max ? "/" + c.max : ""}
-                      {c.max && <div style={{ width: 40 }}><div className="pb"><div className="pf" style={{ width: Math.min(Math.round((c.uses / c.max) * 100), 100) + "%", background: c.uses >= c.max ? "#d97070" : "#c9a96e" }} /></div></div>}
-                    </div>
-                  </td>
-                  <td style={{ fontSize: 10, color: "#7a706a" }}>{c.expires || "Sin venc."}</td>
-                  <td><Sw on={c.active} toggle={() => setCupons(p => p.map(x => x.id === c.id ? { ...x, active: !x.active } : x))} /></td>
+                  <td style={{ color: "#c9a96e", letterSpacing: ".06em", fontWeight: 600 }}>{c.codigo || c.code}</td>
+                  <td>{c.descripcion || c.desc}</td>
+                  <td>{(c.tipo || c.type) === "%" ? (c.valor || c.value) + "%" : "$" + (c.valor || c.value || 0).toLocaleString()}</td>
+                  <td><span className="badge bb">{c.canal || c.channel}</span></td>
+                  <td>{c.usos || c.uses || 0}{(c.max_usos || c.max) ? "/" + (c.max_usos || c.max) : ""}</td>
+                  <td style={{ fontSize: 10, color: "#7a706a" }}>{c.fecha_vencimiento || c.expires || "Sin venc."}</td>
+                  <td><Sw on={c.activo !== undefined ? c.activo : c.active} toggle={() => toggleCupon(c)} /></td>
                 </tr>
               ))}
             </tbody>
@@ -938,7 +974,7 @@ function Cupones() {
             <div className="fg"><div className="fl">Valor</div><input className="inp" type="number" placeholder={nc.type === "%" ? "15" : "5000"} value={nc.value} onChange={e => setNc(p => ({ ...p, value: e.target.value }))} /></div>
             <div className="fg"><div className="fl">Canal</div><select className="sel" value={nc.channel} onChange={e => setNc(p => ({ ...p, channel: e.target.value }))}><option>Instagram</option><option>TikTok</option><option>Email</option><option>Influencer</option><option>Automatico</option></select></div>
             <div className="fg"><div className="fl">Max. usos (vacio = ilimitado)</div><input className="inp" type="number" placeholder="100" value={nc.max} onChange={e => setNc(p => ({ ...p, max: e.target.value }))} /></div>
-            <button className="btn btn-p" style={{ width: "100%" }}>Crear cupon</button>
+            <button className="btn btn-p" style={{ width: "100%" }} onClick={guardarCupon}>Crear cupon</button>
           </div>
           <div className="card">
             <div className="ct">Vista previa</div>
@@ -955,19 +991,15 @@ function Cupones() {
       {tab === "influencers" && (
         <div className="card fade">
           <table>
-            <thead><tr><th>Influencer</th><th>Codigo</th><th>Red</th><th>Usos</th><th>Venta generada</th><th>Comision</th></tr></thead>
+            <thead><tr><th>Influencer</th><th>Codigo</th><th>Red</th><th>Usos</th><th>Comision</th></tr></thead>
             <tbody>
-              {[
-                { name: "Sofia Moreno", code: "INFLUENCER_SOF", red: "Instagram", uses: 34, venta: 248200, com: "10%" },
-                { name: "Vale Gomez", code: "VALE_COSMO", red: "TikTok", uses: 0, venta: 0, com: "8%" },
-              ].map((inf, i) => (
+              {cuponsAMostrar.filter(c => (c.canal || c.channel) === "Influencer").map((c, i) => (
                 <tr key={i}>
-                  <td><div style={{ color: "#f0ece4" }}>@{inf.name.toLowerCase().replace(" ", "_")}</div><div style={{ fontSize: 9, color: "#7a706a" }}>{inf.name}</div></td>
-                  <td style={{ color: "#c9a96e" }}>{inf.code}</td>
-                  <td><span className="badge bb">{inf.red}</span></td>
-                  <td>{inf.uses}</td>
-                  <td style={{ color: "#6bbf8e" }}>${inf.venta.toLocaleString()}</td>
-                  <td>{inf.com}</td>
+                  <td style={{ color: "#f0ece4" }}>{c.descripcion || c.desc}</td>
+                  <td style={{ color: "#c9a96e" }}>{c.codigo || c.code}</td>
+                  <td><span className="badge bb">Instagram</span></td>
+                  <td>{c.usos || c.uses || 0}</td>
+                  <td>10%</td>
                 </tr>
               ))}
             </tbody>
@@ -981,49 +1013,62 @@ function Cupones() {
 
 function Fidelizacion() {
   const [tab, setTab] = useState("clientes");
+  const [clientes, setClientes] = useState([]);
+  const [loading, setLoading] = useState(true);
   const tierNext = { Bronze: 500, Silver: 1000, Gold: 2000, Platinum: 99999 };
+
+  useEffect(() => {
+    getRanking().then(res => { setClientes(res.data); setLoading(false); }).catch(() => { setClientes(CLIENTS.map(c => ({ ...c, nombre: c.name, puntos: c.points, nivel: c.tier }))); setLoading(false); });
+  }, []);
+
+  const clientesAMostrar = clientes.length > 0 ? clientes : CLIENTS.map(c => ({ ...c, nombre: c.name, puntos: c.points, nivel: c.tier }));
+  const totalPuntos = clientesAMostrar.reduce((s, c) => s + (c.puntos || 0), 0);
+
   return (
     <div className="fade">
       <div className="ph"><div><div className="pt">Fidelizacion</div><div className="ps">puntos - niveles - canjes</div></div></div>
       <div className="g4" style={{ marginBottom: 16 }}>
-        <MCard label="Puntos emitidos" value="6.590" color="#c9a96e" />
-        <MCard label="Puntos canjeados" value="1.240" color="#6bbf8e" />
-        <MCard label="Tasa de canje" value="18%" color="#7aaed4" />
-        <MCard label="Premios activos" value={String(REWARDS_DISPLAY.length)} />
+        <MCard label="Puntos emitidos" value={totalPuntos.toLocaleString()} color="#c9a96e" />
+        <MCard label="Clientes con puntos" value={String(clientesAMostrar.filter(c => (c.puntos || 0) > 0).length)} color="#6bbf8e" />
+        <MCard label="Premios disponibles" value={String(REWARDS_DISPLAY.length)} color="#7aaed4" />
+        <MCard label="Nivel Platinum" value={String(clientesAMostrar.filter(c => (c.nivel || c.tier) === "Platinum").length)} color="#b888e0" />
       </div>
       <div className="tabs">
         {["clientes", "canjes"].map(t => <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => setTab(t)}>{t.toUpperCase()}</div>)}
       </div>
       {tab === "clientes" && (
         <div className="card fade">
+          {loading ? <div style={{ textAlign: "center", color: "#7a706a", padding: 20 }}>Cargando...</div> :
           <table>
             <thead><tr><th>Cliente</th><th>Nivel</th><th>Puntos</th><th>Progreso al proximo nivel</th></tr></thead>
             <tbody>
-              {CLIENTS.map(c => {
-                const next = tierNext[c.tier];
-                const pct = Math.min(Math.round((c.points / next) * 100), 100);
+              {clientesAMostrar.map((c, i) => {
+                const nivel = c.nivel || c.tier || "Bronze";
+                const puntos = c.puntos || c.points || 0;
+                const next = tierNext[nivel] || 500;
+                const pct = Math.min(Math.round((puntos / next) * 100), 100);
                 return (
-                  <tr key={c.id}>
-                    <td><div style={{ color: "#f0ece4" }}>{c.name}</div><div style={{ fontSize: 9, color: "#7a706a" }}>{c.email}</div></td>
-                    <td><TierBadge tier={c.tier} /></td>
-                    <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, color: "#c9a96e" }}>{c.points.toLocaleString()}</td>
+                  <tr key={c.id || i}>
+                    <td><div style={{ color: "#f0ece4" }}>{c.nombre || c.name}</div><div style={{ fontSize: 9, color: "#7a706a" }}>{c.email}</div></td>
+                    <td><TierBadge tier={nivel} /></td>
+                    <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, color: "#c9a96e" }}>{puntos.toLocaleString()}</td>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <div style={{ flex: 1 }}><div className="pb"><div className="pf" style={{ width: pct + "%", background: "#c9a96e" }} /></div></div>
-                        <span style={{ fontSize: 9, color: "#7a706a", width: 50 }}>{c.tier === "Platinum" ? "MAX" : (next - c.points).toLocaleString() + "p"}</span>
+                        <span style={{ fontSize: 9, color: "#7a706a", width: 50 }}>{nivel === "Platinum" ? "MAX" : (next - puntos).toLocaleString() + "p"}</span>
                       </div>
                     </td>
                   </tr>
                 );
               })}
             </tbody>
-          </table>
+          </table>}
         </div>
       )}
       {tab === "canjes" && (
         <div className="card fade">
           <table>
-            <thead><tr><th>Premio</th><th>Puntos requeridos</th><th>Stock</th><th>Canjes</th></tr></thead>
+            <thead><tr><th>Premio</th><th>Puntos requeridos</th><th>Stock</th></tr></thead>
             <tbody>
               {REWARDS_DISPLAY.map(r => (
                 <tr key={r.id}>
@@ -1035,7 +1080,6 @@ function Fidelizacion() {
                   </td>
                   <td style={{ color: "#c9a96e", fontFamily: "'Cormorant Garamond',serif", fontSize: 18 }}>{r.pts}</td>
                   <td><span className={"badge " + (r.stock < 5 ? "br" : "bg")}>{r.stock}u</span></td>
-                  <td>{Math.floor(r.pts / 100)}</td>
                 </tr>
               ))}
             </tbody>
@@ -1047,125 +1091,119 @@ function Fidelizacion() {
 }
 
 function PostventaWA() {
-  const [rules, setRules] = useState(WA_RULES);
+  const [rules, setRules] = useState([]);
   const [tab, setTab] = useState("reglas");
   const [sel, setSel] = useState(null);
-  const toggle = (id) => setRules(p => p.map(r => r.id === id ? { ...r, active: !r.active } : r));
+  const [nuevaRegla, setNuevaRegla] = useState({ nombre: "", disparador: "post_compra", dias: 7, segmento: "Todos", mensaje: "" });
+  const [mensaje, setMensaje] = useState("");
+
+  useEffect(() => {
+    getReglas().then(res => setRules(res.data)).catch(() => setRules(WA_RULES.map(r => ({ ...r, activo: r.active, disparador: r.trigger, dias: 7, segmento: r.segment, mensaje: r.msg }))));
+  }, []);
+
+  const toggle = async (r) => {
+    try {
+      await updateReglaWA(r.id, { ...r, activo: !r.activo });
+      setRules(p => p.map(x => x.id === r.id ? { ...x, activo: !x.activo } : x));
+    } catch (e) {}
+  };
+
+  const guardarRegla = async () => {
+    try {
+      await createReglaWA(nuevaRegla);
+      setMensaje("Regla creada!");
+      setNuevaRegla({ nombre: "", disparador: "post_compra", dias: 7, segmento: "Todos", mensaje: "" });
+      getReglas().then(res => setRules(res.data));
+      setTab("reglas");
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al crear regla"); }
+  };
+
+  const rulesAMostrar = rules.length > 0 ? rules : WA_RULES.map(r => ({ ...r, activo: r.active, mensaje: r.msg }));
+
   return (
     <div className="fade">
       <div className="ph">
         <div><div className="pt">Postventa WhatsApp</div><div className="ps">mensajes automaticos - seguimiento - reactivacion</div></div>
         <StatusDot color="#25d366" label="WHATSAPP BUSINESS" />
       </div>
+      {mensaje && <div style={{ background: mensaje.includes("Error") ? "#d9707018" : "#6bbf8e18", border: "1px solid " + (mensaje.includes("Error") ? "#d97070" : "#6bbf8e"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#d97070" : "#6bbf8e" }}>{mensaje}</div>}
       <div className="g4" style={{ marginBottom: 16 }}>
-        <MCard label="Mensajes enviados" value="344" color="#25d366" />
-        <MCard label="Tasa de apertura" value="72%" color="#6bbf8e" />
-        <MCard label="Recompras generadas" value="38" color="#c9a96e" />
-        <MCard label="Reglas activas" value={String(rules.filter(r => r.active).length)} color="#7aaed4" />
+        <MCard label="Reglas activas" value={String(rulesAMostrar.filter(r => r.activo || r.active).length)} color="#25d366" />
+        <MCard label="Mensajes enviados" value={String(rulesAMostrar.reduce((s, r) => s + (r.sent || 0), 0))} color="#6bbf8e" />
+        <MCard label="Total reglas" value={String(rulesAMostrar.length)} color="#c9a96e" />
+        <MCard label="Tasa apertura" value="72%" color="#7aaed4" />
       </div>
       <div className="tabs">
-        {[["reglas", "REGLAS"], ["programados", "PROGRAMADOS"], ["nueva", "NUEVA REGLA"]].map(([id, l]) => (
+        {[["reglas", "REGLAS"], ["nueva", "NUEVA REGLA"]].map(([id, l]) => (
           <div key={id} className={"tab " + (tab === id ? "on" : "")} onClick={() => { setTab(id); setSel(null); }}>{l}</div>
         ))}
       </div>
       {tab === "reglas" && (
         <div className="fade">
-          {rules.map(r => (
-            <div key={r.id} className="card" style={{ marginBottom: 12, borderLeft: "3px solid " + (r.active ? "#25d366" : "#272220") }}>
+          {rulesAMostrar.map((r, ri) => (
+            <div key={r.id || ri} className="card" style={{ marginBottom: 12, borderLeft: "3px solid " + ((r.activo || r.active) ? "#25d366" : "#272220") }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 6 }}>
-                    <div style={{ fontSize: 13, color: "#f0ece4" }}>{r.name}</div>
+                    <div style={{ fontSize: 13, color: "#f0ece4" }}>{r.nombre || r.name}</div>
                     <span className="badge bw">WhatsApp</span>
-                    {!r.active && <span className="badge bx">PAUSADO</span>}
+                    {!(r.activo || r.active) && <span className="badge bx">PAUSADO</span>}
                   </div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 10, color: "#7a706a", marginBottom: 10 }}>
-                    <span>{r.trigger}</span>
-                    <span>{r.segment}</span>
-                    <span>{r.sent} enviados</span>
-                    <span>{r.sent > 0 ? Math.round((r.opened / r.sent) * 100) : 0}% apertura</span>
+                    <span>{r.disparador || r.trigger}</span>
+                    <span>{r.segmento || r.segment}</span>
+                    {r.sent > 0 && <span>{r.sent} enviados</span>}
                   </div>
-                  {sel === r.id && (
+                  {sel === (r.id || ri) && (
                     <div style={{ background: "#0d1117", borderRadius: 9, overflow: "hidden", border: "1px solid #ffffff08", maxWidth: 320, marginBottom: 12 }}>
                       <div style={{ background: "#1f2937", padding: "10px 14px", display: "flex", alignItems: "center", gap: 9 }}>
-                        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#c9a96e", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#0c0b0a", fontWeight: 600, flexShrink: 0 }}>L</div>
+                        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#c9a96e", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#0c0b0a", fontWeight: 600 }}>L</div>
                         <div><div style={{ fontSize: 12, color: "#e5e7eb" }}>Lumiere Cosmeticos</div><div style={{ fontSize: 9, color: "#6b7280" }}>en linea</div></div>
                       </div>
                       <div style={{ padding: 14, background: "#111827" }}>
                         <div style={{ background: "#1f2d1f", borderRadius: "0 9px 9px 9px", padding: "9px 13px", maxWidth: "85%" }}>
                           <div style={{ fontSize: 12, color: "#d1fae5", lineHeight: 1.55 }}>
-                            {r.msg.replace("{nombre}", "Maria").replace("{producto}", "Serum Vitamina C").replace("{puntos}", "1.240")}
+                            {(r.mensaje || r.msg || "").replace("{nombre}", "Maria").replace("{producto}", "Serum Vitamina C").replace("{puntos}", "1.240")}
                           </div>
-                          <div style={{ fontSize: 9, color: "#6b7280", textAlign: "right", marginTop: 4 }}>10:34</div>
+                          <div style={{ fontSize: 9, color: "#6b7280", textAlign: "right", marginTop: 4 }}>ahora</div>
                         </div>
                       </div>
                     </div>
                   )}
                   <div style={{ display: "flex", gap: 7 }}>
-                    <button className="btn btn-g btn-sm" onClick={() => setSel(sel === r.id ? null : r.id)}>{sel === r.id ? "Ocultar" : "Ver mensaje"}</button>
-                    <button className="btn btn-g btn-sm">Editar</button>
+                    <button className="btn btn-g btn-sm" onClick={() => setSel(sel === (r.id || ri) ? null : (r.id || ri))}>{sel === (r.id || ri) ? "Ocultar" : "Ver mensaje"}</button>
                   </div>
                 </div>
-                <Sw on={r.active} toggle={() => toggle(r.id)} />
+                <Sw on={r.activo || r.active || false} toggle={() => toggle(r)} />
               </div>
             </div>
           ))}
-        </div>
-      )}
-      {tab === "programados" && (
-        <div className="g2 fade">
-          <div className="card">
-            <div className="ct">Cola de mensajes</div>
-            <div style={{ position: "relative", paddingLeft: 20 }}>
-              <div style={{ position: "absolute", left: 6, top: 0, bottom: 0, width: 1, background: "#272220" }} />
-              {[
-                { cl: "Lucia Fernandez", r: "Como te esta yendo?", d: "Hoy", s: "enviado" },
-                { cl: "Ana Lopez", r: "Saludo cumpleanos", d: "28/05", s: "programado" },
-                { cl: "Maria Garcia", r: "Reposicion inteligente", d: "10/06", s: "programado" },
-                { cl: "Paula Rodriguez", r: "Reactivacion inactivos", d: "04/06", s: "programado" },
-              ].map((m, i) => (
-                <div key={i} style={{ position: "relative", marginBottom: 16 }}>
-                  <div style={{ position: "absolute", left: -17, top: 3, width: 9, height: 9, borderRadius: "50%", background: m.s === "enviado" ? "#6bbf8e" : "#7a706a", border: "2px solid #0c0b0a" }} />
-                  <div style={{ fontSize: 12, color: "#f0ece4" }}>{m.cl}</div>
-                  <div style={{ fontSize: 10, color: "#7a706a", marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}>
-                    {m.r} - {m.d}
-                    <span className={"badge " + (m.s === "enviado" ? "bg" : "bb")}>{m.s}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="card">
-            <div className="ct">Proximos 7 dias</div>
-            {[{ d: "Hoy", n: 2 }, { d: "Manana", n: 1 }, { d: "26/05", n: 3 }, { d: "27/05", n: 1 }, { d: "28/05", n: 4 }].map((d, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: i < 4 ? "1px solid #2722201a" : "none" }}>
-                <span style={{ fontSize: 11, color: "#c4bdb4" }}>{d.d}</span>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 70 }}><div className="pb"><div className="pf" style={{ width: Math.round((d.n / 4) * 100) + "%", background: "#25d366" }} /></div></div>
-                  <span className="badge bw">{d.n} msgs</span>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       )}
       {tab === "nueva" && (
         <div className="g2 fade">
           <div className="card">
             <div className="ct">Nueva regla automatica</div>
-            <div className="fg"><div className="fl">Nombre</div><input className="inp" placeholder="Ej: Seguimiento post compra" /></div>
+            <div className="fg"><div className="fl">Nombre</div><input className="inp" placeholder="Ej: Seguimiento post compra" value={nuevaRegla.nombre} onChange={e => setNuevaRegla(p => ({ ...p, nombre: e.target.value }))} /></div>
             <div className="fg"><div className="fl">Disparador</div>
-              <select className="sel"><option>N dias despues de la compra</option><option>Dias sin actividad</option><option>Cumpleanos del cliente</option><option>Puntos por vencer</option></select>
+              <select className="sel" value={nuevaRegla.disparador} onChange={e => setNuevaRegla(p => ({ ...p, disparador: e.target.value }))}>
+                <option value="post_compra">N dias despues de la compra</option>
+                <option value="inactivo">Dias sin actividad</option>
+                <option value="cumpleanos">Cumpleanos del cliente</option>
+              </select>
             </div>
-            <div className="fg"><div className="fl">Dias</div><input className="inp" type="number" placeholder="7" /></div>
+            <div className="fg"><div className="fl">Dias</div><input className="inp" type="number" placeholder="7" value={nuevaRegla.dias} onChange={e => setNuevaRegla(p => ({ ...p, dias: e.target.value }))} /></div>
             <div className="fg"><div className="fl">Segmento</div>
-              <select className="sel"><option>Todos los clientes</option><option>Gold y Platinum</option><option>Solo Tiendanube</option><option>Solo presencial</option></select>
+              <select className="sel" value={nuevaRegla.segmento} onChange={e => setNuevaRegla(p => ({ ...p, segmento: e.target.value }))}>
+                <option>Todos</option><option>Gold y Platinum</option><option>Solo Tiendanube</option><option>Solo presencial</option>
+              </select>
             </div>
             <div className="fg">
-              <div className="fl">Mensaje - usa nombre, producto, puntos entre llaves</div>
-              <textarea className="inp" rows={5} placeholder="Hola nombre! ..." style={{ resize: "vertical" }} />
+              <div className="fl">Mensaje</div>
+              <textarea className="inp" rows={5} placeholder="Hola {nombre}! ..." style={{ resize: "vertical" }} value={nuevaRegla.mensaje} onChange={e => setNuevaRegla(p => ({ ...p, mensaje: e.target.value }))} />
             </div>
-            <button className="btn btn-p" style={{ width: "100%" }}>Crear regla</button>
+            <button className="btn btn-p" style={{ width: "100%" }} onClick={guardarRegla}>Crear regla</button>
           </div>
           <div className="card">
             <div className="ct">Buenas practicas</div>
