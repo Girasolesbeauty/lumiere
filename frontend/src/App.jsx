@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getProductos, createVenta, getClientes } from "./api";
 
 const C = {
   bg: "#0c0b0a", surface: "#131110", card: "#1a1714", border: "#272220",
@@ -1100,10 +1101,10 @@ function PortalCliente() {
 }
 
 const NAV_SECTIONS = [
-  { section: "GESTION", items: [{ id: "dashboard", icon: "◈", label: "Dashboard" }, { id: "pos", icon: "⊕", label: "Punto de Venta" }, { id: "inventory", icon: "⊞", label: "Inventario" }, { id: "clients", icon: "◉", label: "Clientes" }] },
-  { section: "FINANZAS", items: [{ id: "finance", icon: "◎", label: "Finanzas" }, { id: "reports", icon: "◐", label: "Informes" }] },
-  { section: "MARKETING", items: [{ id: "cupones", icon: "★", label: "Cupones" }, { id: "fidelizacion", icon: "◆", label: "Fidelizacion" }, { id: "postventa", icon: "◇", label: "Postventa WA" }] },
-  { section: "CLIENTE", items: [{ id: "portal", icon: "○", label: "Portal Cliente" }] },
+  { section: "GESTION", items: [{ id: "dashboard", icon: "*", label: "Dashboard" }, { id: "pos", icon: "+", label: "Punto de Venta" }, { id: "inventory", icon: "#", label: "Inventario" }, { id: "clients", icon: "@", label: "Clientes" }] },
+  { section: "FINANZAS", items: [{ id: "finance", icon: "$", label: "Finanzas" }, { id: "reports", icon: "%", label: "Informes" }] },
+  { section: "MARKETING", items: [{ id: "cupones", icon: "!", label: "Cupones" }, { id: "fidelizacion", icon: "^", label: "Fidelizacion" }, { id: "postventa", icon: "~", label: "Postventa WA" }] },
+  { section: "CLIENTE", items: [{ id: "portal", icon: "o", label: "Portal Cliente" }] },
 ];
 
 function getPage(id) {
