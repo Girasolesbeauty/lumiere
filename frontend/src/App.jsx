@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getProductos, createVenta, getClientes } from "./api";
+import { getProductos, createVenta, getClientes, getFlujo, getPuntoEquilibrio, agregarEgreso } from "./api";
 
 const C = {
   bg: "#0c0b0a", surface: "#131110", card: "#1a1714", border: "#272220",
@@ -631,38 +631,78 @@ function Clientes() {
 
 function Finanzas() {
   const [tab, setTab] = useState("flujo");
+  const [flujo, setFlujo] = useState(null);
+  const [equilibrio, setEquilibrio] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [nuevoEgreso, setNuevoEgreso] = useState({ concepto: "", importe: "" });
+  const [mensaje, setMensaje] = useState("");
+
+  useEffect(() => {
+    Promise.all([
+      getFlujo(new Date().getMonth() + 1, new Date().getFullYear()),
+      getPuntoEquilibrio()
+    ]).then(([f, e]) => {
+      setFlujo(f.data);
+      setEquilibrio(e.data);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  const guardarEgreso = async () => {
+    try {
+      await agregarEgreso({ concepto: nuevoEgreso.concepto, importe: nuevoEgreso.importe, referencia: "Manual" });
+      setMensaje("Egreso registrado!");
+      setNuevoEgreso({ concepto: "", importe: "" });
+      const f = await getFlujo(new Date().getMonth() + 1, new Date().getFullYear());
+      setFlujo(f.data);
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) {
+      setMensaje("Error al registrar egreso");
+    }
+  };
+
+  const ingresos = flujo?.resumen?.ingresos || 0;
+  const egresos = flujo?.resumen?.egresos || 0;
+  const neto = flujo?.resumen?.neto || 0;
+
   return (
     <div className="fade">
       <div className="ph"><div><div className="pt">Finanzas</div><div className="ps">flujo de efectivo - costos - equilibrio</div></div></div>
+      {mensaje && <div style={{ background: mensaje.includes("Error") ? "#d9707018" : "#6bbf8e18", border: "1px solid " + (mensaje.includes("Error") ? "#d97070" : "#6bbf8e"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#d97070" : "#6bbf8e" }}>{mensaje}</div>}
       <div className="tabs">
         {["flujo", "costos", "equilibrio"].map(t => <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => setTab(t)}>{t.toUpperCase()}</div>)}
       </div>
       {tab === "flujo" && (
         <div className="fade">
           <div className="g3">
-            {[{ l: "Ingresos mayo", v: "$142.300", c: "#6bbf8e" }, { l: "Egresos mayo", v: "$89.150", c: "#d97070" }, { l: "Resultado neto", v: "$53.150", c: "#c9a96e" }].map(m => (
-              <div key={m.l} className="card"><div className="ct">{m.l}</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, color: m.c }}>{m.v}</div></div>
-            ))}
+            <div className="card"><div className="ct">Ingresos del mes</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, color: "#6bbf8e" }}>${ingresos.toLocaleString()}</div></div>
+            <div className="card"><div className="ct">Egresos del mes</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, color: "#d97070" }}>${egresos.toLocaleString()}</div></div>
+            <div className="card"><div className="ct">Resultado neto</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, color: "#c9a96e" }}>${neto.toLocaleString()}</div></div>
           </div>
-          <div className="card">
-            <table>
-              <thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Importe</th></tr></thead>
-              <tbody>
-                {[
-                  { d: "24/05", c: "Ventas del dia", t: "I", imp: 17300 },
-                  { d: "24/05", c: "Compra L'OREAL", t: "E", imp: 42000 },
-                  { d: "23/05", c: "Ventas del dia", t: "I", imp: 54800 },
-                  { d: "22/05", c: "Alquiler local", t: "E", imp: 35000 },
-                  { d: "22/05", c: "Ventas del dia", t: "I", imp: 21400 },
-                ].map((m, i) => (
-                  <tr key={i}>
-                    <td>{m.d}</td><td>{m.c}</td>
-                    <td><span className={"badge " + (m.t === "I" ? "bg" : "br")}>{m.t === "I" ? "Ingreso" : "Egreso"}</span></td>
-                    <td style={{ color: m.t === "I" ? "#6bbf8e" : "#d97070" }}>{m.t === "I" ? "+" : "-"}${m.imp.toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="g2">
+            <div className="card">
+              <div className="ct">Movimientos</div>
+              {loading ? <div style={{ color: "#7a706a", fontSize: 11 }}>Cargando...</div> :
+              <table>
+                <thead><tr><th>Concepto</th><th>Tipo</th><th>Importe</th></tr></thead>
+                <tbody>
+                  {(flujo?.movimientos || []).slice(0, 8).map((m, i) => (
+                    <tr key={i}>
+                      <td>{m.concepto}</td>
+                      <td><span className={"badge " + (m.tipo === "I" ? "bg" : "br")}>{m.tipo === "I" ? "Ingreso" : "Egreso"}</span></td>
+                      <td style={{ color: m.tipo === "I" ? "#6bbf8e" : "#d97070" }}>{m.tipo === "I" ? "+" : "-"}${parseFloat(m.importe).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                  {(flujo?.movimientos || []).length === 0 && <tr><td colSpan={3} style={{ color: "#7a706a", textAlign: "center" }}>Sin movimientos este mes</td></tr>}
+                </tbody>
+              </table>}
+            </div>
+            <div className="card">
+              <div className="ct">Registrar egreso</div>
+              <div className="fg"><div className="fl">Concepto</div><input className="inp" placeholder="Ej: Alquiler, sueldos..." value={nuevoEgreso.concepto} onChange={e => setNuevoEgreso(p => ({ ...p, concepto: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Importe ($)</div><input className="inp" type="number" placeholder="35000" value={nuevoEgreso.importe} onChange={e => setNuevoEgreso(p => ({ ...p, importe: e.target.value }))} /></div>
+              <button className="btn btn-p" style={{ width: "100%" }} onClick={guardarEgreso}>Registrar egreso</button>
+            </div>
           </div>
         </div>
       )}
@@ -702,19 +742,29 @@ function Finanzas() {
         <div className="g2 fade">
           <div className="card">
             <div className="ct">Punto de equilibrio</div>
-            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 48, color: "#c9a96e" }}>$89.000</div>
-            <div style={{ fontSize: 11, color: "#7a706a", marginTop: 4 }}>ventas minimas para cubrir costos</div>
-            <div className="divider" />
-            {[{ l: "Costos fijos", v: "$71.000" }, { l: "Margen promedio", v: "48%" }, { l: "Formula: CF / Margen", v: "$71k / 0.48" }].map(r => (
-              <div key={r.l} style={{ display: "flex", justifyContent: "space-between", marginBottom: 9 }}>
-                <span style={{ fontSize: 11, color: "#7a706a" }}>{r.l}</span>
-                <span style={{ fontSize: 11, color: "#c4bdb4" }}>{r.v}</span>
-              </div>
-            ))}
+            {loading ? <div style={{ color: "#7a706a" }}>Calculando...</div> : <>
+              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 48, color: "#c9a96e" }}>${parseFloat(equilibrio?.punto_equilibrio || 0).toLocaleString()}</div>
+              <div style={{ fontSize: 11, color: "#7a706a", marginTop: 4 }}>ventas minimas para cubrir costos</div>
+              <div className="divider" />
+              {[
+                { l: "Costos fijos", v: "$" + parseFloat(equilibrio?.costos_fijos || 0).toLocaleString() },
+                { l: "Margen promedio", v: (equilibrio?.margen_promedio || 0) + "%" },
+                { l: "Margen seguridad", v: equilibrio?.margen_seguridad || "0%" },
+              ].map(r => (
+                <div key={r.l} style={{ display: "flex", justifyContent: "space-between", marginBottom: 9 }}>
+                  <span style={{ fontSize: 11, color: "#7a706a" }}>{r.l}</span>
+                  <span style={{ fontSize: 11, color: "#c4bdb4" }}>{r.v}</span>
+                </div>
+              ))}
+            </>}
           </div>
           <div className="card">
             <div className="ct">Situacion actual</div>
-            {[{ l: "Ventas actuales", v: "$142.000", c: "#6bbf8e" }, { l: "Punto equilibrio", v: "$89.000", c: "#c9a96e" }, { l: "Margen seguridad", v: "+59%", c: "#6bbf8e" }].map(r => (
+            {[
+              { l: "Ventas actuales", v: "$" + parseFloat(equilibrio?.ventas_actuales || 0).toLocaleString(), c: "#6bbf8e" },
+              { l: "Punto equilibrio", v: "$" + parseFloat(equilibrio?.punto_equilibrio || 0).toLocaleString(), c: "#c9a96e" },
+              { l: "Superado", v: equilibrio?.superado ? "SI" : "NO", c: equilibrio?.superado ? "#6bbf8e" : "#d97070" },
+            ].map(r => (
               <div key={r.l} style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
                 <span style={{ fontSize: 11, color: "#7a706a" }}>{r.l}</span>
                 <span style={{ color: r.c }}>{r.v}</span>
@@ -722,11 +772,6 @@ function Finanzas() {
             ))}
             <div className="pb" style={{ height: 10, marginTop: 8 }}>
               <div className="pf" style={{ width: "100%", background: "linear-gradient(90deg,#d97070 0%,#c9a96e 63%,#6bbf8e 100%)" }} />
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-              <span style={{ fontSize: 9, color: "#7a706a" }}>$0</span>
-              <span style={{ fontSize: 9, color: "#c9a96e" }}>PE $89k</span>
-              <span style={{ fontSize: 9, color: "#6bbf8e" }}>$142k</span>
             </div>
           </div>
         </div>
