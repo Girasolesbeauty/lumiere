@@ -269,32 +269,86 @@ function POS() {
   const [cart, setCart] = useState([]);
   const [clientInput, setClientInput] = useState("");
   const [tipoFac, setTipoFac] = useState("B");
+  const [productos, setProductos] = useState([]);
+  const [clientes, setClientes] = useState([]);
+  const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
+  const [cupon, setCupon] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [mensaje, setMensaje] = useState("");
+
+  useEffect(() => {
+    getProductos().then(res => setProductos(res.data)).catch(() => setProductos(PRODUCTS));
+    getClientes().then(res => setClientes(res.data)).catch(() => setClientes(CLIENTS));
+  }, []);
+
   const add = (p) => setCart(prev => {
     const e = prev.find(i => i.id === p.id);
     return e ? prev.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i) : [...prev, { ...p, qty: 1 }];
   });
   const remove = (id) => setCart(prev => prev.filter(i => i.id !== id));
-  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const total = cart.reduce((s, i) => s + (i.precio || i.price) * i.qty, 0);
+
+  const emitirFactura = async () => {
+    if (cart.length === 0) return setMensaje("Agrega productos al ticket");
+    setLoading(true);
+    try {
+      const items = cart.map(i => ({
+        producto_id: i.id,
+        cantidad: i.qty,
+        precio_unitario: i.precio || i.price
+      }));
+      await createVenta({
+        cliente_id: clienteSeleccionado?.id || null,
+        tipo_factura: tipoFac,
+        items,
+        canal: "presencial",
+        cupon_codigo: cupon || null
+      });
+      setMensaje("Factura emitida correctamente!");
+      setCart([]);
+      setClientInput("");
+      setCupon("");
+      setClienteSeleccionado(null);
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (error) {
+      setMensaje("Error al emitir factura");
+    }
+    setLoading(false);
+  };
+
+  const buscarCliente = (valor) => {
+    setClientInput(valor);
+    const encontrado = clientes.find(c => c.cuit_dni === valor || c.email === valor);
+    setClienteSeleccionado(encontrado || null);
+  };
+
+  const productosAMostrar = productos.length > 0 ? productos : PRODUCTS;
+
   return (
     <div className="fade">
       <div className="ph">
         <div><div className="pt">Punto de Venta</div><div className="ps">facturacion electronica - arca</div></div>
         <StatusDot color="#6bbf8e" label="ARCA CONECTADO" />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 310px", gap: 16, height: "calc(100vh - 150px)" }}>
+      {mensaje && (
+        <div style={{ background: mensaje.includes("Error") ? "#d9707018" : "#6bbf8e18", border: "1px solid " + (mensaje.includes("Error") ? "#d97070" : "#6bbf8e"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#d97070" : "#6bbf8e" }}>
+          {mensaje}
+        </div>
+      )}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 310px", gap: 16, height: "calc(100vh - 180px)" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 12, overflow: "hidden" }}>
           <input className="inp" placeholder="Buscar producto o escanear codigo..." />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, overflowY: "auto", flex: 1 }}>
-            {PRODUCTS.map(p => (
+            {productosAMostrar.map(p => (
               <div key={p.id} onClick={() => add(p)}
                 style={{ background: "#1a1714", border: "1px solid #272220", borderRadius: 7, padding: 14, cursor: "pointer", transition: "border-color .18s" }}
                 onMouseEnter={e => e.currentTarget.style.borderColor = "#c9a96e"}
                 onMouseLeave={e => e.currentTarget.style.borderColor = "#272220"}>
-                <div style={{ fontSize: 9, color: "#7a706a", letterSpacing: ".12em" }}>{p.brand}</div>
-                <div style={{ fontSize: 12, color: "#c4bdb4", marginTop: 3 }}>{p.name}</div>
+                <div style={{ fontSize: 9, color: "#7a706a", letterSpacing: ".12em" }}>{p.marca || p.brand}</div>
+                <div style={{ fontSize: 12, color: "#c4bdb4", marginTop: 3 }}>{p.nombre || p.name}</div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 10 }}>
-                  <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, color: "#c9a96e" }}>${p.price.toLocaleString()}</div>
-                  <span className={"badge " + (p.stock < p.min ? "br" : "bg")}>{p.stock}u</span>
+                  <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, color: "#c9a96e" }}>${(p.precio || p.price).toLocaleString()}</div>
+                  <span className={"badge " + (p.stock < (p.stock_minimo || p.min) ? "br" : "bg")}>{p.stock}u</span>
                 </div>
               </div>
             ))}
@@ -303,7 +357,13 @@ function POS() {
         <div style={{ background: "#131110", border: "1px solid #272220", borderRadius: 8, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <div style={{ padding: "12px 16px", borderBottom: "1px solid #272220", fontSize: 9, letterSpacing: ".2em", color: "#7a706a" }}>COMPROBANTE EN CURSO</div>
           <div style={{ padding: "10px 14px", borderBottom: "1px solid #272220" }}>
-            <input className="inp" placeholder="CUIT / DNI cliente" value={clientInput} onChange={e => setClientInput(e.target.value)} style={{ marginBottom: 8 }} />
+            <input className="inp" placeholder="CUIT / DNI / Email cliente" value={clientInput} onChange={e => buscarCliente(e.target.value)} style={{ marginBottom: 6 }} />
+            {clienteSeleccionado && (
+              <div style={{ fontSize: 10, color: "#6bbf8e", marginBottom: 6 }}>
+                {clienteSeleccionado.nombre} - {clienteSeleccionado.puntos} pts - {clienteSeleccionado.nivel}
+              </div>
+            )}
+            <input className="inp" placeholder="Cupon de descuento (opcional)" value={cupon} onChange={e => setCupon(e.target.value)} style={{ marginBottom: 8 }} />
             <div style={{ display: "flex", gap: 4 }}>
               {["A", "B", "Remito"].map(t => (
                 <button key={t} onClick={() => setTipoFac(t)} className="btn btn-sm"
@@ -319,13 +379,13 @@ function POS() {
               : cart.map(i => (
                 <div key={i.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#1a1714", borderRadius: 5, padding: "8px 10px", marginBottom: 6 }}>
                   <div>
-                    <div style={{ fontSize: 11, color: "#c4bdb4" }}>{i.name}</div>
-                    <div style={{ fontSize: 9, color: "#7a706a" }}>{i.brand}</div>
+                    <div style={{ fontSize: 11, color: "#c4bdb4" }}>{i.nombre || i.name}</div>
+                    <div style={{ fontSize: 9, color: "#7a706a" }}>{i.marca || i.brand}</div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ textAlign: "right" }}>
                       <div style={{ color: "#c9a96e", fontSize: 10 }}>x{i.qty}</div>
-                      <div style={{ fontSize: 11 }}>${(i.price * i.qty).toLocaleString()}</div>
+                      <div style={{ fontSize: 11 }}>${((i.precio || i.price) * i.qty).toLocaleString()}</div>
                     </div>
                     <div onClick={() => remove(i.id)} style={{ cursor: "pointer", color: "#7a706a", fontSize: 16, lineHeight: 1, padding: "0 4px" }}>x</div>
                   </div>
@@ -337,7 +397,9 @@ function POS() {
               <div style={{ fontSize: 9, color: "#7a706a", letterSpacing: ".15em" }}>TOTAL</div>
               <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 28, color: "#c9a96e" }}>${total.toLocaleString()}</div>
             </div>
-            <button className="btn btn-p" style={{ width: "100%", padding: 12 }}>Emitir Factura {tipoFac} - ARCA</button>
+            <button className="btn btn-p" style={{ width: "100%", padding: 12, opacity: loading ? 0.7 : 1 }} onClick={emitirFactura} disabled={loading}>
+              {loading ? "Emitiendo..." : "Emitir Factura " + tipoFac + " - ARCA"}
+            </button>
           </div>
         </div>
       </div>
@@ -1101,10 +1163,10 @@ function PortalCliente() {
 }
 
 const NAV_SECTIONS = [
-  { section: "GESTION", items: [{ id: "dashboard", icon: "*", label: "Dashboard" }, { id: "pos", icon: "+", label: "Punto de Venta" }, { id: "inventory", icon: "#", label: "Inventario" }, { id: "clients", icon: "@", label: "Clientes" }] },
-  { section: "FINANZAS", items: [{ id: "finance", icon: "$", label: "Finanzas" }, { id: "reports", icon: "%", label: "Informes" }] },
-  { section: "MARKETING", items: [{ id: "cupones", icon: "!", label: "Cupones" }, { id: "fidelizacion", icon: "^", label: "Fidelizacion" }, { id: "postventa", icon: "~", label: "Postventa WA" }] },
-  { section: "CLIENTE", items: [{ id: "portal", icon: "o", label: "Portal Cliente" }] },
+  { section: "GESTION", items: [{ id: "dashboard", icon: "◈", label: "Dashboard" }, { id: "pos", icon: "⊕", label: "Punto de Venta" }, { id: "inventory", icon: "⊞", label: "Inventario" }, { id: "clients", icon: "◉", label: "Clientes" }] },
+  { section: "FINANZAS", items: [{ id: "finance", icon: "◎", label: "Finanzas" }, { id: "reports", icon: "◐", label: "Informes" }] },
+  { section: "MARKETING", items: [{ id: "cupones", icon: "★", label: "Cupones" }, { id: "fidelizacion", icon: "◆", label: "Fidelizacion" }, { id: "postventa", icon: "◇", label: "Postventa WA" }] },
+  { section: "CLIENTE", items: [{ id: "portal", icon: "○", label: "Portal Cliente" }] },
 ];
 
 function getPage(id) {
