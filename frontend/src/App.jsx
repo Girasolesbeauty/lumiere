@@ -1459,7 +1459,135 @@ function LocalSelector({ usuario, onSelect }) {
   );
 }
 
-// APP PRINCIPAL CON LOGIN Y MULTI-LOCAL
+// PANEL SIN PERMISO
+function SinPermiso() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", flexDirection: "column", gap: 12 }}>
+      <div style={{ fontSize: 40 }}>🔒</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: "#111111" }}>Sin acceso</div>
+      <div style={{ fontSize: 13, color: "#999999" }}>No tenes permiso para ver esta seccion</div>
+    </div>
+  );
+}
+
+// PANEL DE USUARIOS (solo jefe)
+function Usuarios({ usuario: usuarioActual }) {
+  const [usuarios, setUsuarios] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [mensaje, setMensaje] = useState("");
+  const [nuevoUsuario, setNuevoUsuario] = useState({ nombre: "", email: "", password: "", rol: "vendedora", rol_id: 3, local_id: 1 });
+  const [showForm, setShowForm] = useState(false);
+
+  useEffect(() => {
+    API.get("/auth/usuarios").then(res => { setUsuarios(res.data); setLoading(false); }).catch(() => setLoading(false));
+  }, []);
+
+  const crearUsuario = async () => {
+    try {
+      await API.post("/auth/register", nuevoUsuario);
+      setMensaje("Usuario creado!");
+      setShowForm(false);
+      setNuevoUsuario({ nombre: "", email: "", password: "", rol: "vendedora", rol_id: 3, local_id: 1 });
+      API.get("/auth/usuarios").then(res => setUsuarios(res.data));
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al crear usuario"); }
+  };
+
+  const cambiarPassword = async (id) => {
+    const nueva = prompt("Nueva contrasena:");
+    if (!nueva) return;
+    try {
+      await API.put("/auth/usuarios/" + id + "/password", { password: nueva });
+      setMensaje("Contrasena actualizada!");
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al cambiar contrasena"); }
+  };
+
+  const rolNombre = { jefe: "Jefe", administrativo: "Administrativo", vendedora: "Vendedora" };
+  const rolColor = { jefe: "#c9a84c", administrativo: "#2471a3", vendedora: "#2d7a4f" };
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Usuarios</div><div className="ps">gestion de equipo y permisos</div></div>
+        <button className="btn btn-p btn-sm" onClick={() => setShowForm(!showForm)}>+ Nuevo usuario</button>
+      </div>
+      {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
+      {showForm && (
+        <div className="card fade" style={{ marginBottom: 18 }}>
+          <div className="ct">Nuevo usuario</div>
+          <div className="g2">
+            <div>
+              <div className="fg"><div className="fl">Nombre</div><input className="inp" placeholder="Nombre completo" value={nuevoUsuario.nombre} onChange={e => setNuevoUsuario(p => ({ ...p, nombre: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Email</div><input className="inp" type="email" placeholder="email@ejemplo.com" value={nuevoUsuario.email} onChange={e => setNuevoUsuario(p => ({ ...p, email: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Contraseña</div><input className="inp" type="password" placeholder="Contraseña inicial" value={nuevoUsuario.password} onChange={e => setNuevoUsuario(p => ({ ...p, password: e.target.value }))} /></div>
+            </div>
+            <div>
+              <div className="fg"><div className="fl">Rol</div>
+                <select className="sel" value={nuevoUsuario.rol} onChange={e => {
+                  const rolId = e.target.value === "jefe" ? 1 : e.target.value === "administrativo" ? 2 : 3;
+                  setNuevoUsuario(p => ({ ...p, rol: e.target.value, rol_id: rolId }));
+                }}>
+                  <option value="jefe">Jefe</option>
+                  <option value="administrativo">Administrativo</option>
+                  <option value="vendedora">Vendedora</option>
+                </select>
+              </div>
+              <div className="fg"><div className="fl">Local</div>
+                <select className="sel" value={nuevoUsuario.local_id} onChange={e => setNuevoUsuario(p => ({ ...p, local_id: parseInt(e.target.value) }))}>
+                  <option value={1}>Local 1</option>
+                  <option value={2}>Local 2</option>
+                </select>
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <button className="btn btn-p" style={{ flex: 1 }} onClick={crearUsuario}>Crear</button>
+                <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowForm(false)}>Cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="card">
+        {loading ? <div style={{ color: "#999999", padding: 20 }}>Cargando...</div> :
+        <table>
+          <thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Local</th><th>Acciones</th></tr></thead>
+          <tbody>
+            {usuarios.map(u => (
+              <tr key={u.id}>
+                <td style={{ color: "#111111", fontWeight: 500 }}>{u.nombre}</td>
+                <td>{u.email}</td>
+                <td><span className="badge" style={{ background: (rolColor[u.rol] || "#999999") + "15", color: rolColor[u.rol] || "#999999" }}>{rolNombre[u.rol] || u.rol}</span></td>
+                <td>{u.local_nombre || "—"}</td>
+                <td><button className="btn btn-g btn-sm" onClick={() => cambiarPassword(u.id)}>Cambiar contraseña</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>}
+      </div>
+      <div className="card" style={{ marginTop: 16 }}>
+        <div className="ct">Permisos por rol</div>
+        <div className="g3">
+          {[
+            { rol: "Jefe", color: "#c9a84c", permisos: ["Todo sin restricciones", "Gestión de usuarios", "Todos los locales", "Configuracion del sistema"] },
+            { rol: "Administrativo", color: "#2471a3", permisos: ["Dashboard", "Inventario", "Clientes", "Finanzas e Informes", "Solo lectura en Cupones"] },
+            { rol: "Vendedora", color: "#2d7a4f", permisos: ["Punto de Venta", "Clientes", "Cupones (ver)", "Fidelizacion (ver)", "Postventa WhatsApp", "Alertas de stock"] },
+          ].map(r => (
+            <div key={r.rol} className="card" style={{ borderTop: "3px solid " + r.color }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: "#111111", marginBottom: 10 }}>{r.rol}</div>
+              {r.permisos.map((p, i) => (
+                <div key={i} style={{ display: "flex", gap: 7, marginBottom: 6, fontSize: 12, color: "#444444" }}>
+                  <span style={{ color: r.color }}>✓</span>{p}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// APP PRINCIPAL CON LOGIN, MULTI-LOCAL Y PERMISOS
 export default function AppWrapper() {
   const [usuario, setUsuario] = useState(null);
   const [local, setLocal] = useState(null);
@@ -1469,14 +1597,44 @@ export default function AppWrapper() {
     const token = localStorage.getItem("lumiere_token");
     const user = localStorage.getItem("lumiere_user");
     if (token && user) {
-      try { setUsuario(JSON.parse(user)); } catch (e) {}
+      try {
+        const u = JSON.parse(user);
+        setUsuario(u);
+        if (u.local) setLocal(u.local);
+      } catch (e) {}
     }
   }, []);
+
+  const handleLogin = (u) => {
+    setUsuario(u);
+    localStorage.setItem("lumiere_user", JSON.stringify(u));
+    if (u.local) setLocal(u.local);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("lumiere_token");
+    localStorage.removeItem("lumiere_user");
+    setUsuario(null);
+    setLocal(null);
+    setPage("dashboard");
+  };
+
+  const puedeVer = (modulo) => {
+    if (!usuario) return false;
+    if (usuario.rol === "jefe") return true;
+    return usuario.permisos?.[modulo]?.ver === true;
+  };
+
+  const puedeModificar = (modulo) => {
+    if (!usuario) return false;
+    if (usuario.rol === "jefe") return true;
+    return usuario.permisos?.[modulo]?.modificar === true;
+  };
 
   if (!usuario) return (
     <>
       <style>{BASE_CSS}</style>
-      <LoginScreen onLogin={u => setUsuario(u)} />
+      <LoginScreen onLogin={handleLogin} />
     </>
   );
 
@@ -1488,6 +1646,7 @@ export default function AppWrapper() {
   );
 
   const getPageWithLocal = (id) => {
+    if (!puedeVer(id)) return <SinPermiso />;
     if (id === "dashboard") return <Dashboard localId={local.id} />;
     if (id === "pos") return <POS localId={local.id} />;
     if (id === "inventory") return <Inventario localId={local.id} />;
@@ -1498,8 +1657,23 @@ export default function AppWrapper() {
     if (id === "fidelizacion") return <Fidelizacion localId={local.id} />;
     if (id === "postventa") return <PostventaWA localId={local.id} />;
     if (id === "portal") return <PortalCliente />;
+    if (id === "usuarios") return <Usuarios usuario={usuario} />;
     return <Dashboard localId={local.id} />;
   };
+
+  const NAV_CON_PERMISOS = NAV_SECTIONS.map(sec => ({
+    ...sec,
+    items: sec.items.filter(it => puedeVer(it.id))
+  })).filter(sec => sec.items.length > 0);
+
+  if (usuario.rol === "jefe") {
+    const yaExiste = NAV_CON_PERMISOS.some(s => s.items.some(i => i.id === "usuarios"));
+    if (!yaExiste) {
+      NAV_CON_PERMISOS.push({ section: "CONFIGURACION", items: [{ id: "usuarios", icon: "👥", label: "Usuarios" }] });
+    }
+  }
+
+  const rolBadgeColor = { jefe: "#c9a84c", administrativo: "#2471a3", vendedora: "#2d7a4f" };
 
   return (
     <>
@@ -1511,7 +1685,7 @@ export default function AppWrapper() {
             <div className="logo-sub">{local.nombre}</div>
           </div>
           <nav className="nav">
-            {NAV_SECTIONS.map(sec => (
+            {NAV_CON_PERMISOS.map(sec => (
               <div key={sec.section}>
                 <div className="nav-section">{sec.section}</div>
                 {sec.items.map(it => (
@@ -1523,17 +1697,20 @@ export default function AppWrapper() {
             ))}
           </nav>
           <div className="sb-footer">
-            <div style={{ fontSize: 10, color: "#999999", marginBottom: 8 }}>{usuario?.nombre || "Usuario"}</div>
+            <div style={{ fontSize: 12, color: "#222222", fontWeight: 600, marginBottom: 4 }}>{usuario?.nombre || "Usuario"}</div>
+            <div style={{ marginBottom: 10 }}>
+              <span className="badge" style={{ background: (rolBadgeColor[usuario.rol] || "#999") + "15", color: rolBadgeColor[usuario.rol] || "#999" }}>
+                {usuario.rol}
+              </span>
+            </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
               <StatusDot color="#2d7a4f" label="ARCA" />
               <StatusDot color="#25d366" label="TIENDANUBE" />
             </div>
-            <div style={{ marginTop: 10, fontSize: 9, color: "#999999", cursor: "pointer" }}
-              onClick={() => setLocal(null)}>
+            <div style={{ marginTop: 12, fontSize: 11, color: "#999999", cursor: "pointer" }} onClick={() => setLocal(null)}>
               ⇄ Cambiar local
             </div>
-            <div style={{ marginTop: 6, fontSize: 9, color: "#999999", cursor: "pointer" }}
-              onClick={() => { localStorage.removeItem("lumiere_token"); localStorage.removeItem("lumiere_user"); setUsuario(null); setLocal(null); }}>
+            <div style={{ marginTop: 6, fontSize: 11, color: "#999999", cursor: "pointer" }} onClick={handleLogout}>
               × Cerrar sesion
             </div>
           </div>
