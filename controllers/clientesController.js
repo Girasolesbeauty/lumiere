@@ -1,52 +1,47 @@
 const pool = require('../config/database');
 
-// Obtener todos los clientes
 const getAll = async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM clientes ORDER BY nombre ASC'
-    );
+    const { local_id } = req.query;
+    let query = 'SELECT * FROM clientes';
+    const params = [];
+    if (local_id) {
+      params.push(local_id);
+      query += ` WHERE local_id = $${params.length}`;
+    }
+    query += ' ORDER BY nombre ASC';
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ error: 'Error al obtener clientes' });
   }
 };
 
-// Obtener cliente por ID
 const getById = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query(
-      'SELECT * FROM clientes WHERE id = $1', [id]
-    );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Cliente no encontrado' });
-    }
+    const result = await pool.query('SELECT * FROM clientes WHERE id = $1', [id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Cliente no encontrado' });
     res.json(result.rows[0]);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ error: 'Error al obtener cliente' });
   }
 };
 
-// Crear cliente
 const create = async (req, res) => {
   try {
-    const { nombre, email, cuit_dni, telefono, fecha_nacimiento } = req.body;
+    const { nombre, email, cuit_dni, telefono, fecha_nacimiento, local_id } = req.body;
     const result = await pool.query(
-      `INSERT INTO clientes (nombre, email, cuit_dni, telefono, fecha_nacimiento)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [nombre, email, cuit_dni, telefono, fecha_nacimiento]
+      `INSERT INTO clientes (nombre, email, cuit_dni, telefono, fecha_nacimiento, local_id)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [nombre, email, cuit_dni, telefono, fecha_nacimiento, local_id || 1]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ error: 'Error al crear cliente' });
   }
 };
 
-// Actualizar cliente
 const update = async (req, res) => {
   try {
     const { id } = req.params;
@@ -58,24 +53,20 @@ const update = async (req, res) => {
     );
     res.json(result.rows[0]);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ error: 'Error al actualizar cliente' });
   }
 };
 
-// Eliminar cliente
 const remove = async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query('DELETE FROM clientes WHERE id = $1', [id]);
     res.json({ mensaje: 'Cliente eliminado correctamente' });
   } catch (error) {
-    console.error(error);
     res.status(500).json({ error: 'Error al eliminar cliente' });
   }
 };
 
-// Historial de compras del cliente
 const getHistorial = async (req, res) => {
   try {
     const { id } = req.params;
@@ -97,36 +88,26 @@ const getHistorial = async (req, res) => {
     );
     res.json(result.rows);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ error: 'Error al obtener historial' });
   }
 };
 
-// Agregar puntos al cliente y actualizar nivel
 const agregarPuntos = async (req, res) => {
   try {
     const { id } = req.params;
     const { puntos } = req.body;
-
     const result = await pool.query(
       'UPDATE clientes SET puntos = puntos + $1 WHERE id = $2 RETURNING *',
       [puntos, id]
     );
-
     const cliente = result.rows[0];
     let nivel = 'Bronze';
     if (cliente.puntos >= 2000) nivel = 'Platinum';
     else if (cliente.puntos >= 1000) nivel = 'Gold';
     else if (cliente.puntos >= 500) nivel = 'Silver';
-
-    await pool.query(
-      'UPDATE clientes SET nivel = $1 WHERE id = $2',
-      [nivel, id]
-    );
-
+    await pool.query('UPDATE clientes SET nivel = $1 WHERE id = $2', [nivel, id]);
     res.json({ ...cliente, nivel });
   } catch (error) {
-    console.error(error);
     res.status(500).json({ error: 'Error al agregar puntos' });
   }
 };

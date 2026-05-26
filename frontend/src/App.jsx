@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { getProductos, createVenta, getClientes, getFlujo, getPuntoEquilibrio, agregarEgreso, getResumenFinanzas, getVentas, getAlertasStock, getCupones, createCupon, updateCupon, getRanking, getReglas, createRegla as createReglaWA, updateRegla as updateReglaWA } from "./api";
+import { getProductos, createVenta, getClientes, getFlujo, getPuntoEquilibrio, agregarEgreso, getResumenFinanzas, getVentas, getAlertasStock, getCupones, createCupon, updateCupon, getRanking, getReglas, createRegla as createReglaWA, updateRegla as updateReglaWA, login, register } from "./api";
+import API from "./api";
 
 const C = {
   bg: "#0c0b0a", surface: "#131110", card: "#1a1714", border: "#272220",
@@ -1334,7 +1335,7 @@ function getPage(id) {
   return <Dashboard />;
 }
 
-export default function App() {
+function App() {
   const [page, setPage] = useState("dashboard");
   return (
     <>
@@ -1367,6 +1368,178 @@ export default function App() {
         </aside>
         <main className="main">
           {getPage(page)}
+        </main>
+      </div>
+    </>
+  );
+}
+
+// LOGIN SCREEN
+function LoginScreen({ onLogin }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleLogin = async () => {
+    if (!email || !password) return setError("Completá todos los campos");
+    setLoading(true);
+    try {
+      const res = await login({ email, password });
+      localStorage.setItem("lumiere_token", res.data.token);
+      localStorage.setItem("lumiere_user", JSON.stringify(res.data.usuario));
+      onLogin(res.data.usuario);
+    } catch (e) {
+      setError("Email o contraseña incorrectos");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#0c0b0a", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Mono', monospace" }}>
+      <div style={{ width: 360, background: "#131110", border: "1px solid #272220", borderRadius: 12, padding: 36 }}>
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 300, letterSpacing: ".18em", color: "#c9a96e" }}>LUMIERE</div>
+          <div style={{ fontSize: 9, color: "#7a706a", letterSpacing: ".3em", marginTop: 4 }}>SISTEMA DE GESTION</div>
+        </div>
+        {error && <div style={{ background: "#d9707018", border: "1px solid #d97070", borderRadius: 5, padding: "8px 12px", marginBottom: 16, fontSize: 11, color: "#d97070" }}>{error}</div>}
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 9, color: "#7a706a", letterSpacing: ".15em", marginBottom: 5 }}>EMAIL</div>
+          <input className="inp" type="email" placeholder="tu@email.com" value={email} onChange={e => { setEmail(e.target.value); setError(""); }} />
+        </div>
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 9, color: "#7a706a", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÑA</div>
+          <input className="inp" type="password" placeholder="••••••••" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
+        </div>
+        <button className="btn btn-p" style={{ width: "100%", padding: 13 }} onClick={handleLogin} disabled={loading}>
+          {loading ? "Ingresando..." : "Ingresar"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// LOCAL SELECTOR
+function LocalSelector({ usuario, onSelect }) {
+  const [locales, setLocales] = useState([]);
+
+  useEffect(() => {
+    API.get("/locales").then(res => setLocales(res.data)).catch(() => setLocales([{ id: 1, nombre: "Local 1 - Centro" }, { id: 2, nombre: "Local 2 - Norte" }]));
+  }, []);
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#0c0b0a", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Mono', monospace" }}>
+      <div style={{ width: 420, background: "#131110", border: "1px solid #272220", borderRadius: 12, padding: 36 }}>
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 300, letterSpacing: ".18em", color: "#c9a96e" }}>LUMIERE</div>
+          <div style={{ fontSize: 11, color: "#7a706a", marginTop: 8 }}>Bienvenida, {usuario?.nombre || "usuario"}</div>
+          <div style={{ fontSize: 9, color: "#7a706a", letterSpacing: ".2em", marginTop: 4 }}>SELECCIONA TU LOCAL</div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {locales.map(l => (
+            <div key={l.id} onClick={() => onSelect(l)}
+              style={{ background: "#1a1714", border: "1px solid #272220", borderRadius: 8, padding: "18px 20px", cursor: "pointer", transition: "all .18s", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "#c9a96e"; e.currentTarget.style.background = "#c9a96e0a"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "#272220"; e.currentTarget.style.background = "#1a1714"; }}>
+              <div>
+                <div style={{ fontSize: 14, color: "#f0ece4" }}>{l.nombre}</div>
+                {l.direccion && <div style={{ fontSize: 10, color: "#7a706a", marginTop: 3 }}>{l.direccion}</div>}
+              </div>
+              <span style={{ color: "#c9a96e", fontSize: 16 }}>→</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: 20, textAlign: "center" }}>
+          <div style={{ fontSize: 10, color: "#7a706a", cursor: "pointer" }} onClick={() => { localStorage.removeItem("lumiere_token"); localStorage.removeItem("lumiere_user"); window.location.reload(); }}>
+            Cerrar sesion
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// APP PRINCIPAL CON LOGIN Y MULTI-LOCAL
+export default function AppWrapper() {
+  const [usuario, setUsuario] = useState(null);
+  const [local, setLocal] = useState(null);
+  const [page, setPage] = useState("dashboard");
+
+  useEffect(() => {
+    const token = localStorage.getItem("lumiere_token");
+    const user = localStorage.getItem("lumiere_user");
+    if (token && user) {
+      try { setUsuario(JSON.parse(user)); } catch (e) {}
+    }
+  }, []);
+
+  if (!usuario) return (
+    <>
+      <style>{BASE_CSS}</style>
+      <LoginScreen onLogin={u => setUsuario(u)} />
+    </>
+  );
+
+  if (!local) return (
+    <>
+      <style>{BASE_CSS}</style>
+      <LocalSelector usuario={usuario} onSelect={l => setLocal(l)} />
+    </>
+  );
+
+  const getPageWithLocal = (id) => {
+    if (id === "dashboard") return <Dashboard localId={local.id} />;
+    if (id === "pos") return <POS localId={local.id} />;
+    if (id === "inventory") return <Inventario localId={local.id} />;
+    if (id === "clients") return <Clientes localId={local.id} />;
+    if (id === "finance") return <Finanzas localId={local.id} />;
+    if (id === "reports") return <Informes localId={local.id} />;
+    if (id === "cupones") return <Cupones localId={local.id} />;
+    if (id === "fidelizacion") return <Fidelizacion localId={local.id} />;
+    if (id === "postventa") return <PostventaWA localId={local.id} />;
+    if (id === "portal") return <PortalCliente />;
+    return <Dashboard localId={local.id} />;
+  };
+
+  return (
+    <>
+      <style>{BASE_CSS}</style>
+      <div className="layout">
+        <aside className="sidebar">
+          <div className="logo">
+            <div className="logo-name">Lumiere</div>
+            <div className="logo-sub">{local.nombre}</div>
+          </div>
+          <nav className="nav">
+            {NAV_SECTIONS.map(sec => (
+              <div key={sec.section}>
+                <div className="nav-section">{sec.section}</div>
+                {sec.items.map(it => (
+                  <div key={it.id} className={"nav-item " + (page === it.id ? "active" : "")} onClick={() => setPage(it.id)}>
+                    <span className="nav-icon">{it.icon}</span>{it.label}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </nav>
+          <div className="sb-footer">
+            <div style={{ fontSize: 10, color: "#7a706a", marginBottom: 8 }}>{usuario?.nombre || "Usuario"}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+              <StatusDot color="#6bbf8e" label="ARCA" />
+              <StatusDot color="#25d366" label="TIENDANUBE" />
+            </div>
+            <div style={{ marginTop: 10, fontSize: 9, color: "#7a706a", cursor: "pointer" }}
+              onClick={() => setLocal(null)}>
+              ⇄ Cambiar local
+            </div>
+            <div style={{ marginTop: 6, fontSize: 9, color: "#7a706a", cursor: "pointer" }}
+              onClick={() => { localStorage.removeItem("lumiere_token"); localStorage.removeItem("lumiere_user"); setUsuario(null); setLocal(null); }}>
+              × Cerrar sesion
+            </div>
+          </div>
+        </aside>
+        <main className="main">
+          {getPageWithLocal(page)}
         </main>
       </div>
     </>

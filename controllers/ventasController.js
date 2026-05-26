@@ -1,22 +1,26 @@
 const pool = require('../config/database');
 
-// Obtener todas las ventas
 const getAll = async (req, res) => {
   try {
-    const result = await pool.query(`
+    const { local_id } = req.query;
+    let query = `
       SELECT v.*, c.nombre AS cliente_nombre
       FROM ventas v
       LEFT JOIN clientes c ON v.cliente_id = c.id
-      ORDER BY v.creado_en DESC
-    `);
+    `;
+    const params = [];
+    if (local_id) {
+      params.push(local_id);
+      query += ` WHERE v.local_id = $${params.length}`;
+    }
+    query += ' ORDER BY v.creado_en DESC';
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ error: 'Error al obtener ventas' });
   }
 };
 
-// Obtener venta por ID
 const getById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -26,9 +30,7 @@ const getById = async (req, res) => {
        LEFT JOIN clientes c ON v.cliente_id = c.id
        WHERE v.id = $1`, [id]
     );
-    if (venta.rows.length === 0) {
-      return res.status(404).json({ error: 'Venta no encontrada' });
-    }
+    if (venta.rows.length === 0) return res.status(404).json({ error: 'Venta no encontrada' });
     const items = await pool.query(
       `SELECT vi.*, p.nombre AS producto_nombre
        FROM venta_items vi
@@ -37,20 +39,16 @@ const getById = async (req, res) => {
     );
     res.json({ ...venta.rows[0], items: items.rows });
   } catch (error) {
-    console.error(error);
     res.status(500).json({ error: 'Error al obtener venta' });
   }
 };
 
-// Crear venta
 const create = async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    const { cliente_id, tipo_factura, items, descuento, canal, cupon_codigo, local_id } = req.body;
 
-    const { cliente_id, tipo_factura, items, descuento, canal, cupon_codigo } = req.body;
-
-    // Calcular totales
     let subtotal = 0;
     for (const item of items) {
       subtotal += item.precio_unitario * item.cantidad;
@@ -58,40 +56,29 @@ const create = async (req, res) => {
 
     let descuento_total = descuento || 0;
 
-    // Aplicar cupon si hay
     if (cupon_codigo) {
       const cupon = await client.query(
         'SELECT * FROM cupones WHERE codigo = $1 AND activo = TRUE', [cupon_codigo]
       );
       if (cupon.rows.length > 0) {
         const c = cupon.rows[0];
-        if (c.tipo === '%') {
-          descuento_total = subtotal * (c.valor / 100);
-        } else {
-          descuento_total = c.valor;
-        }
-        await client.query(
-          'UPDATE cupones SET usos = usos + 1 WHERE codigo = $1', [cupon_codigo]
-        );
+        descuento_total = c.tipo === '%' ? subtotal * (c.valor / 100) : c.valor;
+        await client.query('UPDATE cupones SET usos = usos + 1 WHERE codigo = $1', [cupon_codigo]);
       }
     }
 
     const total = subtotal - descuento_total;
-
-    // Generar numero de factura
     const count = await client.query('SELECT COUNT(*) FROM ventas');
     const numero = 'F-' + String(parseInt(count.rows[0].count) + 1).padStart(4, '0');
 
-    // Crear venta
     const venta = await client.query(
-      `INSERT INTO ventas (numero_factura, cliente_id, tipo_factura, subtotal, descuento, total, canal)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [numero, cliente_id, tipo_factura, subtotal, descuento_total, total, canal || 'presencial']
+      `INSERT INTO ventas (numero_factura, cliente_id, tipo_factura, subtotal, descuento, total, canal, local_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [numero, cliente_id, tipo_factura, subtotal, descuento_total, total, canal || 'presencial', local_id || 1]
     );
 
     const ventaId = venta.rows[0].id;
 
-    // Crear items y descontar stock
     for (const item of items) {
       await client.query(
         `INSERT INTO venta_items (venta_id, producto_id, cantidad, precio_unitario, subtotal)
@@ -104,22 +91,18 @@ const create = async (req, res) => {
       );
     }
 
-    // Registrar en caja
     await client.query(
-      `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia)
-       VALUES ($1, 'I', $2, $3)`,
-      ['Venta ' + numero, total, numero]
+      `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id)
+       VALUES ($1, 'I', $2, $3, $4)`,
+      ['Venta ' + numero, total, numero, local_id || 1]
     );
 
-    // Sumar puntos al cliente (1 punto cada $100)
     if (cliente_id) {
       const puntos = Math.floor(total / 100);
       await client.query(
         'UPDATE clientes SET puntos = puntos + $1, total_compras = total_compras + $2 WHERE id = $3',
         [puntos, total, cliente_id]
       );
-
-      // Actualizar nivel
       const clienteResult = await client.query('SELECT puntos FROM clientes WHERE id = $1', [cliente_id]);
       const totalPuntos = clienteResult.rows[0].puntos;
       let nivel = 'Bronze';
@@ -140,42 +123,34 @@ const create = async (req, res) => {
   }
 };
 
-// Resumen de hoy
 const getResumenHoy = async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT 
-        COUNT(*) AS cantidad_ventas,
-        SUM(total) AS total_vendido,
-        AVG(total) AS ticket_promedio
-      FROM ventas
-      WHERE DATE(creado_en) = CURRENT_DATE
-    `);
+    const { local_id } = req.query;
+    let query = `
+      SELECT COUNT(*) AS cantidad_ventas, SUM(total) AS total_vendido, AVG(total) AS ticket_promedio
+      FROM ventas WHERE DATE(creado_en) = CURRENT_DATE
+    `;
+    const params = [];
+    if (local_id) { params.push(local_id); query += ` AND local_id = $${params.length}`; }
+    const result = await pool.query(query, params);
     res.json(result.rows[0]);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ error: 'Error al obtener resumen' });
   }
 };
 
-// Resumen del mes
 const getResumenMes = async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT 
-        COUNT(*) AS cantidad_ventas,
-        SUM(total) AS total_vendido,
-        AVG(total) AS ticket_promedio,
-        DATE_TRUNC('day', creado_en) AS dia,
-        SUM(total) OVER (PARTITION BY DATE_TRUNC('day', creado_en)) AS total_dia
-      FROM ventas
-      WHERE DATE_TRUNC('month', creado_en) = DATE_TRUNC('month', CURRENT_DATE)
-      GROUP BY creado_en
-      ORDER BY creado_en DESC
-    `);
-    res.json(result.rows);
+    const { local_id } = req.query;
+    let query = `
+      SELECT COUNT(*) AS cantidad_ventas, SUM(total) AS total_vendido
+      FROM ventas WHERE DATE_TRUNC('month', creado_en) = DATE_TRUNC('month', CURRENT_DATE)
+    `;
+    const params = [];
+    if (local_id) { params.push(local_id); query += ` AND local_id = $${params.length}`; }
+    const result = await pool.query(query, params);
+    res.json(result.rows[0]);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ error: 'Error al obtener resumen del mes' });
   }
 };

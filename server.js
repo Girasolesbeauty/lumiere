@@ -7,7 +7,6 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middlewares
 app.use(cors({
   origin: ['https://lumiere-beta-nine.vercel.app', 'http://localhost:5173'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -25,13 +24,15 @@ app.use('/api/finanzas', require('./routes/finanzas'));
 app.use('/api/cupones', require('./routes/cupones'));
 app.use('/api/fidelizacion', require('./routes/fidelizacion'));
 app.use('/api/postventa', require('./routes/postventa'));
+app.use('/api/locales', require('./routes/locales'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {
   res.json({ 
     mensaje: 'Lumiere API funcionando',
-    version: '1.0.0',
-    estado: 'OK'
+    version: '2.0.0',
+    estado: 'OK',
+    features: ['multi-local', 'usuarios', 'roles']
   });
 });
 
