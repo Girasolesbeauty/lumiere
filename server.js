@@ -25,6 +25,7 @@ app.use('/api/cupones', require('./routes/cupones'));
 app.use('/api/fidelizacion', require('./routes/fidelizacion'));
 app.use('/api/postventa', require('./routes/postventa'));
 app.use('/api/locales', require('./routes/locales'));
+app.use('/api/comisiones', require('./routes/comisiones'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {

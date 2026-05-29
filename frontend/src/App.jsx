@@ -1314,9 +1314,140 @@ function PortalCliente() {
   );
 }
 
+
+function Comisiones({ localId }) {
+  const [datos, setDatos] = useState(null);
+  const [historial, setHistorial] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [mensaje, setMensaje] = useState("");
+
+  const cargar = () => {
+    setLoading(true);
+    Promise.all([
+      API.get("/comisiones/" + localId),
+      API.get("/comisiones/" + localId + "/historial")
+    ]).then(([d, h]) => {
+      setDatos(d.data);
+      setHistorial(h.data);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  };
+
+  useEffect(() => { cargar(); }, [localId]);
+
+  const marcarPagada = async () => {
+    try {
+      await API.put("/comisiones/" + localId + "/pagar");
+      setMensaje("Comision marcada como pagada!");
+      cargar();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al marcar como pagada"); }
+  };
+
+  const nivelColor = datos?.nivel === 2 ? "#c9a84c" : datos?.nivel === 1 ? "#2d7a4f" : "#999999";
+  const nivelEmoji = datos?.nivel === 2 ? "🏆" : datos?.nivel === 1 ? "⭐" : "🎯";
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Comisiones</div><div className="ps">facturacion del mes - metas - premios</div></div>
+        <button className="btn btn-g btn-sm" onClick={cargar}>Actualizar</button>
+      </div>
+      {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
+      {loading ? <div style={{ textAlign: "center", color: "#999999", padding: 40 }}>Calculando comisiones...</div> : datos && (
+        <>
+          <div className="g3" style={{ marginBottom: 18 }}>
+            <div className="card" style={{ borderTop: "3px solid " + nivelColor }}>
+              <div className="ct">Facturacion del mes</div>
+              <div className="metric" style={{ color: "#111111" }}>${parseFloat(datos.facturacion || 0).toLocaleString()}</div>
+              <div className="msub">solo ventas presenciales</div>
+            </div>
+            <div className="card" style={{ borderTop: "3px solid " + nivelColor }}>
+              <div className="ct">Comision ganada</div>
+              <div className="metric" style={{ color: nivelColor }}>${parseFloat(datos.comision || 0).toLocaleString()}</div>
+              <div className="msub">{nivelEmoji} {datos.nivel === 0 ? "Aun no alcanzada" : datos.nivel === 1 ? "Meta 1 alcanzada!" : "Meta maxima!"}</div>
+            </div>
+            <div className="card">
+              <div className="ct">Proximo objetivo</div>
+              <div className="metric" style={{ color: "#c9a84c" }}>
+                {datos.nivel === 0 ? "$" + parseFloat(datos.falta_nivel1 || 0).toLocaleString() : datos.nivel === 1 ? "$" + parseFloat(datos.falta_nivel2 || 0).toLocaleString() : "MAX"}
+              </div>
+              <div className="msub">{datos.nivel === 2 ? "Meta maxima alcanzada!" : "para el proximo nivel"}</div>
+            </div>
+          </div>
+
+          <div className="g2">
+            <div className="card">
+              <div className="ct">Progreso hacia las metas</div>
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span style={{ fontSize: 12, color: "#444444", fontWeight: 600 }}>Meta 1 — ${parseFloat(datos.umbral_1 || 0).toLocaleString()}</span>
+                  <span style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>+${parseFloat(datos.comision_1 || 0).toLocaleString()}</span>
+                </div>
+                <div className="pb" style={{ height: 10 }}>
+                  <div className="pf" style={{ width: datos.pct_nivel1 + "%", background: datos.nivel >= 1 ? "#2d7a4f" : "#c9a84c" }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+                  <span style={{ fontSize: 10, color: "#999999" }}>${parseFloat(datos.facturacion || 0).toLocaleString()} facturado</span>
+                  <span style={{ fontSize: 10, color: datos.nivel >= 1 ? "#2d7a4f" : "#999999" }}>{datos.pct_nivel1}%</span>
+                </div>
+              </div>
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span style={{ fontSize: 12, color: "#444444", fontWeight: 600 }}>Meta 2 — ${parseFloat(datos.umbral_2 || 0).toLocaleString()}</span>
+                  <span style={{ fontSize: 12, color: "#c9a84c", fontWeight: 600 }}>+${parseFloat(datos.comision_2 || 0).toLocaleString()}</span>
+                </div>
+                <div className="pb" style={{ height: 10 }}>
+                  <div className="pf" style={{ width: datos.pct_nivel2 + "%", background: datos.nivel >= 2 ? "#c9a84c" : "#dddddd" }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+                  <span style={{ fontSize: 10, color: "#999999" }}>${parseFloat(datos.facturacion || 0).toLocaleString()} facturado</span>
+                  <span style={{ fontSize: 10, color: datos.nivel >= 2 ? "#c9a84c" : "#999999" }}>{datos.pct_nivel2}%</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="ct">Estado del mes</div>
+              <div style={{ background: nivelColor + "12", border: "1px solid " + nivelColor + "44", borderRadius: 8, padding: 16, marginBottom: 16, textAlign: "center" }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>{nivelEmoji}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: nivelColor }}>{datos.mensaje}</div>
+              </div>
+              {datos.comision > 0 && (
+                <button className="btn btn-p" style={{ width: "100%" }} onClick={marcarPagada}>
+                  Marcar comision como pagada
+                </button>
+              )}
+            </div>
+          </div>
+
+          {historial.length > 0 && (
+            <div className="card">
+              <div className="ct">Historial de comisiones</div>
+              <table>
+                <thead><tr><th>Mes</th><th>Facturacion</th><th>Comision</th><th>Estado</th></tr></thead>
+                <tbody>
+                  {historial.map((h, i) => (
+                    <tr key={i}>
+                      <td>{h.mes}/{h.anio}</td>
+                      <td>${parseFloat(h.facturacion_mes || 0).toLocaleString()}</td>
+                      <td style={{ color: "#c9a84c", fontWeight: 600 }}>${parseFloat(h.comision_ganada || 0).toLocaleString()}</td>
+                      <td><span className={"badge " + (h.pagada ? "bg" : "ba")}>{h.pagada ? "Pagada" : "Pendiente"}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 const NAV_SECTIONS = [
   { section: "GESTION", items: [{ id: "dashboard", icon: "◈", label: "Dashboard" }, { id: "pos", icon: "⊕", label: "Punto de Venta" }, { id: "inventory", icon: "⊞", label: "Inventario" }, { id: "clients", icon: "◉", label: "Clientes" }] },
-  { section: "FINANZAS", items: [{ id: "finance", icon: "◎", label: "Finanzas" }, { id: "reports", icon: "◐", label: "Informes" }] },
+  { section: "FINANZAS", items: [{ id: "finance", icon: "◎", label: "Finanzas" }, { id: "reports", icon: "◐", label: "Informes" }, { id: "comisiones", icon: "💰", label: "Comisiones" }] },
   { section: "MARKETING", items: [{ id: "cupones", icon: "★", label: "Cupones" }, { id: "fidelizacion", icon: "◆", label: "Fidelizacion" }, { id: "postventa", icon: "◇", label: "Postventa WA" }] },
   { section: "CLIENTE", items: [{ id: "portal", icon: "○", label: "Portal Cliente" }] },
 ];
@@ -1622,6 +1753,7 @@ export default function AppWrapper() {
     if (id === "postventa") return <PostventaWA localId={local.id} />;
     if (id === "portal") return <PortalCliente />;
     if (id === "usuarios") return <Usuarios usuario={usuario} />;
+    if (id === "comisiones") return <Comisiones localId={local.id} />;
     return <Dashboard localId={local.id} />;
   };
 
