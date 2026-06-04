@@ -26,6 +26,7 @@ app.use('/api/fidelizacion', require('./routes/fidelizacion'));
 app.use('/api/postventa', require('./routes/postventa'));
 app.use('/api/locales', require('./routes/locales'));
 app.use('/api/comisiones', require('./routes/comisiones'));
+app.use('/api/arca', require('./routes/arca'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {
