@@ -98,7 +98,7 @@ async function obtenerToken() {
   const signMatch = xml.match(/<sign>(.*?)<\/sign>/s);
   const expMatch = xml.match(/<expirationTime>(.*?)<\/expirationTime>/s);
   
-  if (!tokenMatch || !signMatch) throw new Error('No se pudo obtener token de ARCA');
+  if (!tokenMatch || !signMatch) throw new Error('No se pudo obtener token de ARCA. Respuesta: ' + xml.substring(0, 500));
   
   const token = tokenMatch[1];
   const sign = signMatch[1];
