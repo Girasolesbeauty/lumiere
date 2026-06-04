@@ -280,140 +280,263 @@ function Dashboard() {
   );
 }
 
-function POS() {
+function POS({ localId }) {
   const [cart, setCart] = useState([]);
-  const [clientInput, setClientInput] = useState("");
+  const [dniInput, setDniInput] = useState("");
   const [tipoFac, setTipoFac] = useState("B");
   const [productos, setProductos] = useState([]);
-  const [clientes, setClientes] = useState([]);
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
+  const [buscandoCliente, setBuscandoCliente] = useState(false);
+  const [showNuevoCliente, setShowNuevoCliente] = useState(false);
+  const [nuevoClienteDni, setNuevoClienteDni] = useState({ nombre: "", email: "", telefono: "" });
   const [cupon, setCupon] = useState("");
+  const [cuponAplicado, setCuponAplicado] = useState(null);
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState("");
+  const [busqueda, setBusqueda] = useState("");
+  const [preventa, setPreventa] = useState(false);
+  const [nombrePreventa, setNombrePreventa] = useState("");
 
   useEffect(() => {
     getProductos().then(res => setProductos(res.data)).catch(() => setProductos(PRODUCTS));
-    getClientes().then(res => setClientes(res.data)).catch(() => setClientes(CLIENTS));
-  }, []);
+  }, [localId]);
 
   const add = (p) => setCart(prev => {
     const e = prev.find(i => i.id === p.id);
     return e ? prev.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i) : [...prev, { ...p, qty: 1 }];
   });
   const remove = (id) => setCart(prev => prev.filter(i => i.id !== id));
-  const total = cart.reduce((s, i) => s + (i.precio || i.price) * i.qty, 0);
+  const subtotal = cart.reduce((s, i) => s + (i.precio || i.price) * i.qty, 0);
+  const descuento = cuponAplicado ? (cuponAplicado.tipo === "%" ? subtotal * (cuponAplicado.valor / 100) : cuponAplicado.valor) : 0;
+  const total = subtotal - descuento;
+
+  const buscarClientePorDni = async (dni) => {
+    setDniInput(dni);
+    if (dni.length < 7) { setClienteSeleccionado(null); return; }
+    setBuscandoCliente(true);
+    try {
+      const res = await API.get("/clientes?local_id=" + (localId || 1));
+      const encontrado = res.data.find(c => c.cuit_dni === dni || c.cuit_dni === dni.replace(/[-]/g, ""));
+      if (encontrado) {
+        setClienteSeleccionado(encontrado);
+        setShowNuevoCliente(false);
+      } else {
+        setClienteSeleccionado(null);
+        if (dni.length >= 8) setShowNuevoCliente(true);
+      }
+    } catch (e) {}
+    setBuscandoCliente(false);
+  };
+
+  const crearClienteRapido = async () => {
+    try {
+      const res = await API.post("/clientes", { ...nuevoClienteDni, cuit_dni: dniInput, local_id: localId || 1 });
+      setClienteSeleccionado(res.data);
+      setShowNuevoCliente(false);
+      setMensaje("Cliente creado!");
+      setTimeout(() => setMensaje(""), 2000);
+    } catch (e) { setMensaje("Error al crear cliente"); }
+  };
+
+  const aplicarCupon = async () => {
+    if (!cupon) return;
+    try {
+      const res = await API.get("/cupones");
+      const c = res.data.find(x => (x.codigo || x.code) === cupon.toUpperCase() && (x.activo || x.active));
+      if (c) { setCuponAplicado({ tipo: c.tipo || c.type, valor: parseFloat(c.valor || c.value) }); setMensaje("Cupon aplicado!"); }
+      else setMensaje("Cupon invalido o inactivo");
+      setTimeout(() => setMensaje(""), 2000);
+    } catch (e) {}
+  };
 
   const emitirFactura = async () => {
     if (cart.length === 0) return setMensaje("Agrega productos al ticket");
     setLoading(true);
     try {
-      const items = cart.map(i => ({
-        producto_id: i.id,
-        cantidad: i.qty,
-        precio_unitario: i.precio || i.price
-      }));
-      await createVenta({
+      const items = cart.map(i => ({ producto_id: i.id, cantidad: i.qty, precio_unitario: i.precio || i.price }));
+      const ventaRes = await createVenta({
         cliente_id: clienteSeleccionado?.id || null,
         tipo_factura: tipoFac,
         items,
         canal: "presencial",
-        cupon_codigo: cupon || null
+        cupon_codigo: cupon || null,
+        local_id: localId || 1,
+        es_preventa: preventa,
+        nombre_preventa: preventa ? nombrePreventa : null
       });
-      setMensaje("Factura emitida correctamente!");
+
+      if (!preventa) {
+        try {
+          const arcaRes = await API.post("/arca/emitir", {
+            tipo: tipoFac,
+            items,
+            total,
+            cliente_cuit: clienteSeleccionado?.cuit_dni || null,
+            venta_id: ventaRes.data.id
+          });
+          setMensaje(`✓ ${arcaRes.data.mensaje} | CAE: ${arcaRes.data.cae}`);
+        } catch (arcaErr) {
+          setMensaje("Venta registrada pero error en ARCA: " + arcaErr.message);
+        }
+      } else {
+        setMensaje(`Preventa registrada para ${nombrePreventa}!`);
+      }
+
       setCart([]);
-      setClientInput("");
+      setDniInput("");
       setCupon("");
+      setCuponAplicado(null);
       setClienteSeleccionado(null);
-      setTimeout(() => setMensaje(""), 3000);
+      setShowNuevoCliente(false);
+      setPreventa(false);
+      setNombrePreventa("");
+      setTimeout(() => setMensaje(""), 6000);
     } catch (error) {
       setMensaje("Error al emitir factura");
     }
     setLoading(false);
   };
 
-  const buscarCliente = (valor) => {
-    setClientInput(valor);
-    const encontrado = clientes.find(c => c.cuit_dni === valor || c.email === valor);
-    setClienteSeleccionado(encontrado || null);
-  };
-
-  const productosAMostrar = productos.length > 0 ? productos : PRODUCTS;
+  const productosAMostrar = (productos.length > 0 ? productos : PRODUCTS).filter(p =>
+    !busqueda || (p.nombre || p.name || "").toLowerCase().includes(busqueda.toLowerCase()) ||
+    (p.marca || p.brand || "").toLowerCase().includes(busqueda.toLowerCase())
+  );
 
   return (
     <div className="fade">
       <div className="ph">
         <div><div className="pt">Punto de Venta</div><div className="ps">facturacion electronica - arca</div></div>
-        <StatusDot color="#2d7a4f" label="ARCA CONECTADO" />
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div className="sw-wrap" onClick={() => { setPreventa(!preventa); setMensaje(""); }}>
+            <div className={"sw " + (preventa ? "on" : "off")}><div className="sw-dot" /></div>
+            <span style={{ fontSize: 11, color: preventa ? "#2471a3" : "#999999" }}>Preventa</span>
+          </div>
+          <StatusDot color="#2d7a4f" label="ARCA" />
+        </div>
       </div>
       {mensaje && (
-        <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>
+        <div style={{ background: mensaje.includes("Error") || mensaje.includes("error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") || mensaje.includes("error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") || mensaje.includes("error") ? "#c0392b" : "#2d7a4f" }}>
           {mensaje}
         </div>
       )}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 310px", gap: 16, height: "calc(100vh - 180px)" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, overflow: "hidden" }}>
-          <input className="inp" placeholder="Buscar producto o escanear codigo..." />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 16, height: "calc(100vh - 180px)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
+          <input className="inp" placeholder="Buscar producto por nombre o marca..." value={busqueda} onChange={e => setBusqueda(e.target.value)} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, overflowY: "auto", flex: 1 }}>
             {productosAMostrar.map(p => (
               <div key={p.id} onClick={() => add(p)}
-                style={{ background: "#f8f8f8", border: "1px solid #272220", borderRadius: 7, padding: 14, cursor: "pointer", transition: "border-color .18s" }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = "#c9a84c"}
-                onMouseLeave={e => e.currentTarget.style.borderColor = "#e8e8e8"}>
-                <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".12em" }}>{p.marca || p.brand}</div>
-                <div style={{ fontSize: 12, color: "#444444", marginTop: 3 }}>{p.nombre || p.name}</div>
+                style={{ background: "#ffffff", border: "1px solid #e8e8e8", borderRadius: 7, padding: 14, cursor: "pointer", transition: "all .18s", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "#c9a84c"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "#e8e8e8"; e.currentTarget.style.transform = "translateY(0)"; }}>
+                <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".12em", textTransform: "uppercase" }}>{p.marca || p.brand}</div>
+                <div style={{ fontSize: 12, color: "#333333", marginTop: 3, fontWeight: 500 }}>{p.nombre || p.name}</div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 10 }}>
-                  <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#c9a84c" }}>${(p.precio || p.price).toLocaleString()}</div>
-                  <span className={"badge " + (p.stock < (p.stock_minimo || p.min) ? "br" : "bg")}>{p.stock}u</span>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>${(p.precio || p.price).toLocaleString()}</div>
+                  <span className={"badge " + (p.stock < (p.stock_minimo || p.min || 5) ? "br" : "bg")}>{p.stock}u</span>
                 </div>
               </div>
             ))}
           </div>
         </div>
-        <div style={{ background: "#ffffff", border: "1px solid #272220", borderRadius: 8, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{ padding: "12px 16px", borderBottom: "1px solid #272220", fontSize: 9, letterSpacing: ".2em", color: "#999999" }}>COMPROBANTE EN CURSO</div>
-          <div style={{ padding: "10px 14px", borderBottom: "1px solid #272220" }}>
-            <input className="inp" placeholder="CUIT / DNI / Email cliente" value={clientInput} onChange={e => buscarCliente(e.target.value)} style={{ marginBottom: 6 }} />
-            {clienteSeleccionado && (
-              <div style={{ fontSize: 10, color: "#2d7a4f", marginBottom: 6 }}>
-                {clienteSeleccionado.nombre} - {clienteSeleccionado.puntos} pts - {clienteSeleccionado.nivel}
-              </div>
+        <div style={{ background: "#ffffff", border: "1px solid #e8e8e8", borderRadius: 8, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid #f0f0f0", fontSize: 10, letterSpacing: ".15em", color: "#999999", fontWeight: 600, background: preventa ? "#2471a312" : "#fafafa" }}>
+            {preventa ? "📋 PREVENTA" : "🧾 COMPROBANTE EN CURSO"}
+          </div>
+
+          <div style={{ padding: "10px 14px", borderBottom: "1px solid #f0f0f0" }}>
+            {preventa ? (
+              <input className="inp" placeholder="Nombre del cliente (preventa)" value={nombrePreventa} onChange={e => setNombrePreventa(e.target.value)} />
+            ) : (
+              <>
+                <div style={{ position: "relative", marginBottom: 6 }}>
+                  <input className="inp" placeholder="DNI del cliente (opcional)" value={dniInput} onChange={e => buscarClientePorDni(e.target.value)} />
+                  {buscandoCliente && <div style={{ position: "absolute", right: 10, top: 10, fontSize: 10, color: "#999999" }}>buscando...</div>}
+                </div>
+                {clienteSeleccionado && (
+                  <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f33", borderRadius: 6, padding: "8px 12px", marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#2d7a4f" }}>✓ {clienteSeleccionado.nombre}</div>
+                    <div style={{ fontSize: 10, color: "#666666", marginTop: 2 }}>
+                      {clienteSeleccionado.puntos || 0} puntos · {clienteSeleccionado.nivel || "Bronze"}
+                      {clienteSeleccionado.total_compras > 0 && ` · $${parseFloat(clienteSeleccionado.total_compras).toLocaleString()} historial`}
+                    </div>
+                  </div>
+                )}
+                {showNuevoCliente && !clienteSeleccionado && (
+                  <div style={{ background: "#2471a312", border: "1px solid #2471a333", borderRadius: 6, padding: 10, marginBottom: 6 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "#2471a3", marginBottom: 8 }}>Cliente nuevo — cargar rápido</div>
+                    <input className="inp" placeholder="Nombre completo" value={nuevoClienteDni.nombre} onChange={e => setNuevoClienteDni(p => ({ ...p, nombre: e.target.value }))} style={{ marginBottom: 6 }} />
+                    <input className="inp" placeholder="Teléfono (opcional)" value={nuevoClienteDni.telefono} onChange={e => setNuevoClienteDni(p => ({ ...p, telefono: e.target.value }))} style={{ marginBottom: 6 }} />
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button className="btn btn-p btn-sm" style={{ flex: 1 }} onClick={crearClienteRapido}>Guardar</button>
+                      <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => { setShowNuevoCliente(false); setClienteSeleccionado({ id: null, nombre: "Consumidor Final", puntos: 0, nivel: "Bronze" }); }}>Consumidor Final</button>
+                    </div>
+                  </div>
+                )}
+                {!clienteSeleccionado && !showNuevoCliente && (
+                  <button className="btn btn-g btn-sm" style={{ width: "100%", marginBottom: 6 }} onClick={() => setClienteSeleccionado({ id: null, nombre: "Consumidor Final", puntos: 0, nivel: "Bronze" })}>
+                    Consumidor Final
+                  </button>
+                )}
+                <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
+                  <input className="inp" placeholder="Cupon de descuento" value={cupon} onChange={e => setCupon(e.target.value)} style={{ flex: 1 }} />
+                  <button className="btn btn-g btn-sm" onClick={aplicarCupon}>Aplicar</button>
+                </div>
+                {cuponAplicado && <div style={{ fontSize: 10, color: "#2d7a4f", marginBottom: 4 }}>✓ Descuento: -${descuento.toLocaleString()}</div>}
+              </>
             )}
-            <input className="inp" placeholder="Cupon de descuento (opcional)" value={cupon} onChange={e => setCupon(e.target.value)} style={{ marginBottom: 8 }} />
-            <div style={{ display: "flex", gap: 4 }}>
+            <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
               {["A", "B", "Remito"].map(t => (
                 <button key={t} onClick={() => setTipoFac(t)} className="btn btn-sm"
-                  style={{ flex: 1, background: tipoFac === t ? "#c9a84c15" : "transparent", border: "1px solid " + (tipoFac === t ? "#c9a84c" : "#e8e8e8"), color: tipoFac === t ? "#c9a84c" : "#999999" }}>
+                  style={{ flex: 1, background: tipoFac === t ? "#c9a84c15" : "transparent", border: "1px solid " + (tipoFac === t ? "#c9a84c" : "#e8e8e8"), color: tipoFac === t ? "#c9a84c" : "#999999", fontWeight: tipoFac === t ? 600 : 400 }}>
                   {t === "Remito" ? "Remito" : "Fac. " + t}
                 </button>
               ))}
             </div>
           </div>
+
           <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
             {cart.length === 0
-              ? <div style={{ textAlign: "center", color: "#999999", fontSize: 11, marginTop: 28 }}>Selecciona productos para agregar al ticket</div>
+              ? <div style={{ textAlign: "center", color: "#cccccc", fontSize: 12, marginTop: 28 }}>Seleccioná productos para agregar al ticket</div>
               : cart.map(i => (
-                <div key={i.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8f8f8", borderRadius: 5, padding: "8px 10px", marginBottom: 6 }}>
-                  <div>
-                    <div style={{ fontSize: 11, color: "#444444" }}>{i.nombre || i.name}</div>
-                    <div style={{ fontSize: 9, color: "#999999" }}>{i.marca || i.brand}</div>
+                <div key={i.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fafafa", borderRadius: 6, padding: "8px 10px", marginBottom: 6, border: "1px solid #f0f0f0" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, color: "#333333", fontWeight: 500 }}>{i.nombre || i.name}</div>
+                    <div style={{ fontSize: 10, color: "#999999" }}>{i.marca || i.brand}</div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ color: "#c9a84c", fontSize: 10 }}>x{i.qty}</div>
-                      <div style={{ fontSize: 11 }}>${((i.precio || i.price) * i.qty).toLocaleString()}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <button onClick={() => setCart(prev => prev.map(x => x.id === i.id && x.qty > 1 ? { ...x, qty: x.qty - 1 } : x))} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e8e8e8", background: "white", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>-</button>
+                      <span style={{ fontSize: 12, fontWeight: 600, minWidth: 20, textAlign: "center" }}>{i.qty}</span>
+                      <button onClick={() => add(i)} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e8e8e8", background: "white", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
                     </div>
-                    <div onClick={() => remove(i.id)} style={{ cursor: "pointer", color: "#999999", fontSize: 16, lineHeight: 1, padding: "0 4px" }}>x</div>
+                    <div style={{ textAlign: "right", minWidth: 70 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600 }}>${((i.precio || i.price) * i.qty).toLocaleString()}</div>
+                    </div>
+                    <div onClick={() => remove(i.id)} style={{ cursor: "pointer", color: "#cccccc", fontSize: 18, lineHeight: 1, padding: "0 2px" }}>×</div>
                   </div>
                 </div>
               ))}
           </div>
-          <div style={{ padding: "14px 16px", borderTop: "1px solid #272220" }}>
+
+          <div style={{ padding: "14px 16px", borderTop: "1px solid #f0f0f0", background: "#fafafa" }}>
+            {descuento > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ fontSize: 11, color: "#999999" }}>Subtotal</span>
+                <span style={{ fontSize: 11, color: "#999999" }}>${subtotal.toLocaleString()}</span>
+              </div>
+            )}
+            {descuento > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ fontSize: 11, color: "#2d7a4f" }}>Descuento</span>
+                <span style={{ fontSize: 11, color: "#2d7a4f" }}>-${descuento.toLocaleString()}</span>
+              </div>
+            )}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
-              <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em" }}>TOTAL</div>
-              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 28, fontWeight: 700, color: "#c9a84c" }}>${total.toLocaleString()}</div>
+              <div style={{ fontSize: 11, color: "#999999", fontWeight: 600, letterSpacing: ".1em" }}>TOTAL</div>
+              <div style={{ fontSize: 30, fontWeight: 700, color: "#111111" }}>${total.toLocaleString()}</div>
             </div>
-            <button className="btn btn-p" style={{ width: "100%", padding: 12, opacity: loading ? 0.7 : 1 }} onClick={emitirFactura} disabled={loading}>
-              {loading ? "Emitiendo..." : "Emitir Factura " + tipoFac + " - ARCA"}
+            <button className="btn btn-p" style={{ width: "100%", padding: 13, fontSize: 13, opacity: loading ? 0.7 : 1 }} onClick={emitirFactura} disabled={loading}>
+              {loading ? "Procesando..." : preventa ? "Registrar Preventa" : "Emitir Factura " + tipoFac + " — ARCA"}
             </button>
           </div>
         </div>
