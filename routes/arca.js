@@ -8,20 +8,6 @@ const CUIT = '30717641945';
 const PUNTO_VENTA = 5;
 const CERT_CONTENT = process.env.ARCA_CERT;
 const KEY_CONTENT = process.env.ARCA_KEY;
-const WSAA_URL = 'https://wsaa.afip.gov.ar/ws/services/LoginCms';
-const WSFE_URL = 'https://servicios1.afip.gov.ar/wsfev1/service.asmx';
-
-module.exports = router;
-const express = require('express');
-const router = express.Router();
-const forge = require('node-forge');
-const axios = require('axios');
-const pool = require('../config/database');
-
-const CUIT = '30717641945';
-const PUNTO_VENTA = 5;
-const CERT_CONTENT = process.env.ARCA_CERT;
-const KEY_CONTENT = process.env.ARCA_KEY;
 
 const WSAA_URL = 'https://wsaa.afip.gov.ar/ws/services/LoginCms';
 const WSFE_URL = 'https://servicios1.afip.gov.ar/wsfev1/service.asmx';
