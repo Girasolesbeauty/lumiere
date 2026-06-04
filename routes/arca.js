@@ -276,8 +276,7 @@ router.post('/emitir', async (req, res) => {
     
   } catch (error) {
     console.error('Error ARCA:', error.message);
-    res.status(500).json({ error: 'Error al emitir factura: ' + error.message });
-  }
+    res.status(500).json({ error: 'Error al emitir factura: ' + error.message + ' | Stack: ' + error.stack });
 });
 
 // Verificar conexión con ARCA
