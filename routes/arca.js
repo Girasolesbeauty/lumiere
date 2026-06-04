@@ -159,6 +159,28 @@ router.get('/ultimo-comprobante/:tipo', async (req, res) => {
 });
 
 // Emitir factura electrónica y obtener CAE
+async function obtenerUltimoComprobante(tipo, token, sign) {
+  const tipoNum = tipo === 'A' ? 1 : tipo === 'B' ? 6 : 11;
+  const soapBody = `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <FECompUltimoAutorizado xmlns="http://ar.gov.afip.dif.FEV1/">
+      <Auth>
+        <Token>${token}</Token>
+        <Sign>${sign}</Sign>
+        <Cuit>${CUIT}</Cuit>
+      </Auth>
+      <PtoVta>${PUNTO_VENTA}</PtoVta>
+      <CbteTipo>${tipoNum}</CbteTipo>
+    </FECompUltimoAutorizado>
+  </soap:Body>
+</soap:Envelope>`;
+  const response = await axios.post(WSFE_URL, soapBody, {
+    headers: { 'Content-Type': 'text/xml', 'SOAPAction': 'http://ar.gov.afip.dif.FEV1/FECompUltimoAutorizado' }
+  });
+  const nroMatch = response.data.match(/<CbteNro>(\d+)<\/CbteNro>/);
+  return { data: { siguiente: (nroMatch ? parseInt(nroMatch[1]) : 0) + 1 } };
+}
 router.post('/emitir', async (req, res) => {
   try {
     const { tipo, items, total, cliente_cuit, venta_id } = req.body;
@@ -167,7 +189,7 @@ router.post('/emitir', async (req, res) => {
     const tipoNum = tipo === 'A' ? 1 : tipo === 'B' ? 6 : 11;
     
     // Obtener siguiente número
-    const ultimoRes = await axios.get(`http://localhost:${process.env.PORT || 3001}/api/arca/ultimo-comprobante/${tipo}`);
+    const ultimoRes = await obtenerUltimoComprobante(tipo, token, sign);
     const nroComprobante = ultimoRes.data.siguiente;
     
     const hoy = new Date().toISOString().slice(0, 10).replace(/-/g, '');
