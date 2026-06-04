@@ -296,9 +296,24 @@ function POS({ localId }) {
   const [busqueda, setBusqueda] = useState("");
   const [preventa, setPreventa] = useState(false);
   const [nombrePreventa, setNombrePreventa] = useState("");
+  const [mediosPago, setMediosPago] = useState([]);
+  const [medioPagoSel, setMedioPagoSel] = useState(null);
 
   useEffect(() => {
     getProductos().then(res => setProductos(res.data)).catch(() => setProductos(PRODUCTS));
+    API.get("/medios-pago").then(res => setMediosPago(res.data)).catch(() => {
+      setMediosPago([
+        { id: 1, nombre: "Efectivo", coeficiente: 1 },
+        { id: 2, nombre: "Débito", coeficiente: 1 },
+        { id: 3, nombre: "Transferencia / QR", coeficiente: 1 },
+        { id: 4, nombre: "Crédito 1 cuota", coeficiente: 1 },
+        { id: 10, nombre: "Crédito 2 cuotas con interés", coeficiente: 1.0941 },
+        { id: 11, nombre: "Crédito 3 cuotas con interés", coeficiente: 1.1281 },
+        { id: 12, nombre: "Crédito 4 cuotas con interés", coeficiente: 1.1629 },
+        { id: 13, nombre: "Crédito 5 cuotas con interés", coeficiente: 1.1983 },
+        { id: 14, nombre: "Crédito 6 cuotas con interés", coeficiente: 1.2344 },
+      ]);
+    });
   }, [localId]);
 
   const add = (p) => setCart(prev => {
@@ -306,9 +321,13 @@ function POS({ localId }) {
     return e ? prev.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i) : [...prev, { ...p, qty: 1 }];
   });
   const remove = (id) => setCart(prev => prev.filter(i => i.id !== id));
-  const subtotal = cart.reduce((s, i) => s + (i.precio || i.price) * i.qty, 0);
-  const descuento = cuponAplicado ? (cuponAplicado.tipo === "%" ? subtotal * (cuponAplicado.valor / 100) : cuponAplicado.valor) : 0;
-  const total = subtotal - descuento;
+  
+  const coef = medioPagoSel ? parseFloat(medioPagoSel.coeficiente) : 1;
+  const subtotalBase = cart.reduce((s, i) => s + (i.precio || i.price) * i.qty, 0);
+  const descuento = cuponAplicado ? (cuponAplicado.tipo === "%" ? subtotalBase * (cuponAplicado.valor / 100) : cuponAplicado.valor) : 0;
+  const subtotalConDesc = subtotalBase - descuento;
+  const total = Math.round(subtotalConDesc * coef);
+  const intereses = total - subtotalConDesc;
 
   const buscarClientePorDni = async (dni) => {
     setDniInput(dni);
@@ -317,13 +336,8 @@ function POS({ localId }) {
     try {
       const res = await API.get("/clientes?local_id=" + (localId || 1));
       const encontrado = res.data.find(c => c.cuit_dni === dni || c.cuit_dni === dni.replace(/[-]/g, ""));
-      if (encontrado) {
-        setClienteSeleccionado(encontrado);
-        setShowNuevoCliente(false);
-      } else {
-        setClienteSeleccionado(null);
-        if (dni.length >= 8) setShowNuevoCliente(true);
-      }
+      if (encontrado) { setClienteSeleccionado(encontrado); setShowNuevoCliente(false); }
+      else { setClienteSeleccionado(null); if (dni.length >= 8) setShowNuevoCliente(true); }
     } catch (e) {}
     setBuscandoCliente(false);
   };
@@ -351,6 +365,7 @@ function POS({ localId }) {
 
   const emitirFactura = async () => {
     if (cart.length === 0) return setMensaje("Agrega productos al ticket");
+    if (!medioPagoSel) return setMensaje("Selecciona un medio de pago");
     setLoading(true);
     try {
       const items = cart.map(i => ({ producto_id: i.id, cantidad: i.qty, precio_unitario: i.precio || i.price }));
@@ -361,6 +376,9 @@ function POS({ localId }) {
         canal: "presencial",
         cupon_codigo: cupon || null,
         local_id: localId || 1,
+        medio_pago_id: medioPagoSel.id,
+        medio_pago_nombre: medioPagoSel.nombre,
+        total_con_interes: total,
         es_preventa: preventa,
         nombre_preventa: preventa ? nombrePreventa : null
       });
@@ -374,12 +392,12 @@ function POS({ localId }) {
             cliente_cuit: clienteSeleccionado?.cuit_dni || null,
             venta_id: ventaRes.data.id
           });
-          setMensaje(`✓ ${arcaRes.data.mensaje} | CAE: ${arcaRes.data.cae}`);
+          setMensaje("✓ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
         } catch (arcaErr) {
           setMensaje("Venta registrada pero error en ARCA: " + arcaErr.message);
         }
       } else {
-        setMensaje(`Preventa registrada para ${nombrePreventa}!`);
+        setMensaje("Preventa registrada para " + nombrePreventa + "!");
       }
 
       setCart([]);
@@ -388,9 +406,10 @@ function POS({ localId }) {
       setCuponAplicado(null);
       setClienteSeleccionado(null);
       setShowNuevoCliente(false);
+      setMedioPagoSel(null);
       setPreventa(false);
       setNombrePreventa("");
-      setTimeout(() => setMensaje(""), 6000);
+      setTimeout(() => setMensaje(""), 8000);
     } catch (error) {
       setMensaje("Error al emitir factura");
     }
@@ -401,6 +420,15 @@ function POS({ localId }) {
     !busqueda || (p.nombre || p.name || "").toLowerCase().includes(busqueda.toLowerCase()) ||
     (p.marca || p.brand || "").toLowerCase().includes(busqueda.toLowerCase())
   );
+
+  // Agrupar medios de pago
+  const gruposMedios = {
+    "Efectivo / Transferencia": mediosPago.filter(m => m.tipo === "efectivo" || m.tipo === "transferencia"),
+    "Débito": mediosPago.filter(m => m.tipo === "debito"),
+    "Crédito sin interés": mediosPago.filter(m => m.tipo === "credito" && !m.con_interes),
+    "Crédito con interés": mediosPago.filter(m => m.tipo === "credito" && m.con_interes),
+    "Plataformas": mediosPago.filter(m => m.tipo === "plataforma"),
+  };
 
   return (
     <div className="fade">
@@ -419,7 +447,7 @@ function POS({ localId }) {
           {mensaje}
         </div>
       )}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 16, height: "calc(100vh - 180px)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 16, height: "calc(100vh - 180px)" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
           <input className="inp" placeholder="Buscar producto por nombre o marca..." value={busqueda} onChange={e => setBusqueda(e.target.value)} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, overflowY: "auto", flex: 1 }}>
@@ -438,6 +466,7 @@ function POS({ localId }) {
             ))}
           </div>
         </div>
+
         <div style={{ background: "#ffffff", border: "1px solid #e8e8e8", borderRadius: 8, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
           <div style={{ padding: "12px 16px", borderBottom: "1px solid #f0f0f0", fontSize: 10, letterSpacing: ".15em", color: "#999999", fontWeight: 600, background: preventa ? "#2471a312" : "#fafafa" }}>
             {preventa ? "📋 PREVENTA" : "🧾 COMPROBANTE EN CURSO"}
@@ -452,33 +481,30 @@ function POS({ localId }) {
                   <input className="inp" placeholder="DNI del cliente (opcional)" value={dniInput} onChange={e => buscarClientePorDni(e.target.value)} />
                   {buscandoCliente && <div style={{ position: "absolute", right: 10, top: 10, fontSize: 10, color: "#999999" }}>buscando...</div>}
                 </div>
-                {clienteSeleccionado && (
+                {clienteSeleccionado && clienteSeleccionado.id && (
                   <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f33", borderRadius: 6, padding: "8px 12px", marginBottom: 6 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: "#2d7a4f" }}>✓ {clienteSeleccionado.nombre}</div>
-                    <div style={{ fontSize: 10, color: "#666666", marginTop: 2 }}>
-                      {clienteSeleccionado.puntos || 0} puntos · {clienteSeleccionado.nivel || "Bronze"}
-                      {clienteSeleccionado.total_compras > 0 && ` · $${parseFloat(clienteSeleccionado.total_compras).toLocaleString()} historial`}
-                    </div>
+                    <div style={{ fontSize: 10, color: "#666666", marginTop: 2 }}>{clienteSeleccionado.puntos || 0} pts · {clienteSeleccionado.nivel || "Bronze"}</div>
                   </div>
                 )}
                 {showNuevoCliente && !clienteSeleccionado && (
                   <div style={{ background: "#2471a312", border: "1px solid #2471a333", borderRadius: 6, padding: 10, marginBottom: 6 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "#2471a3", marginBottom: 8 }}>Cliente nuevo — cargar rápido</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "#2471a3", marginBottom: 8 }}>Cliente nuevo</div>
                     <input className="inp" placeholder="Nombre completo" value={nuevoClienteDni.nombre} onChange={e => setNuevoClienteDni(p => ({ ...p, nombre: e.target.value }))} style={{ marginBottom: 6 }} />
                     <input className="inp" placeholder="Teléfono (opcional)" value={nuevoClienteDni.telefono} onChange={e => setNuevoClienteDni(p => ({ ...p, telefono: e.target.value }))} style={{ marginBottom: 6 }} />
                     <div style={{ display: "flex", gap: 6 }}>
                       <button className="btn btn-p btn-sm" style={{ flex: 1 }} onClick={crearClienteRapido}>Guardar</button>
-                      <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => { setShowNuevoCliente(false); setClienteSeleccionado({ id: null, nombre: "Consumidor Final", puntos: 0, nivel: "Bronze" }); }}>Consumidor Final</button>
+                      <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => { setShowNuevoCliente(false); setClienteSeleccionado({ id: null, nombre: "Consumidor Final", puntos: 0 }); }}>Consumidor Final</button>
                     </div>
                   </div>
                 )}
                 {!clienteSeleccionado && !showNuevoCliente && (
-                  <button className="btn btn-g btn-sm" style={{ width: "100%", marginBottom: 6 }} onClick={() => setClienteSeleccionado({ id: null, nombre: "Consumidor Final", puntos: 0, nivel: "Bronze" })}>
+                  <button className="btn btn-g btn-sm" style={{ width: "100%", marginBottom: 6 }} onClick={() => setClienteSeleccionado({ id: null, nombre: "Consumidor Final", puntos: 0 })}>
                     Consumidor Final
                   </button>
                 )}
                 <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
-                  <input className="inp" placeholder="Cupon de descuento" value={cupon} onChange={e => setCupon(e.target.value)} style={{ flex: 1 }} />
+                  <input className="inp" placeholder="Cupon" value={cupon} onChange={e => setCupon(e.target.value)} style={{ flex: 1 }} />
                   <button className="btn btn-g btn-sm" onClick={aplicarCupon}>Aplicar</button>
                 </div>
                 {cuponAplicado && <div style={{ fontSize: 10, color: "#2d7a4f", marginBottom: 4 }}>✓ Descuento: -${descuento.toLocaleString()}</div>}
@@ -496,43 +522,69 @@ function POS({ localId }) {
 
           <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
             {cart.length === 0
-              ? <div style={{ textAlign: "center", color: "#cccccc", fontSize: 12, marginTop: 28 }}>Seleccioná productos para agregar al ticket</div>
+              ? <div style={{ textAlign: "center", color: "#cccccc", fontSize: 12, marginTop: 20 }}>Seleccioná productos</div>
               : cart.map(i => (
                 <div key={i.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fafafa", borderRadius: 6, padding: "8px 10px", marginBottom: 6, border: "1px solid #f0f0f0" }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 12, color: "#333333", fontWeight: 500 }}>{i.nombre || i.name}</div>
                     <div style={{ fontSize: 10, color: "#999999" }}>{i.marca || i.brand}</div>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <button onClick={() => setCart(prev => prev.map(x => x.id === i.id && x.qty > 1 ? { ...x, qty: x.qty - 1 } : x))} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e8e8e8", background: "white", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>-</button>
-                      <span style={{ fontSize: 12, fontWeight: 600, minWidth: 20, textAlign: "center" }}>{i.qty}</span>
-                      <button onClick={() => add(i)} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e8e8e8", background: "white", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
-                    </div>
-                    <div style={{ textAlign: "right", minWidth: 70 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600 }}>${((i.precio || i.price) * i.qty).toLocaleString()}</div>
-                    </div>
-                    <div onClick={() => remove(i.id)} style={{ cursor: "pointer", color: "#cccccc", fontSize: 18, lineHeight: 1, padding: "0 2px" }}>×</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <button onClick={() => setCart(prev => prev.map(x => x.id === i.id && x.qty > 1 ? { ...x, qty: x.qty - 1 } : x))} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e8e8e8", background: "white", cursor: "pointer", fontSize: 14 }}>-</button>
+                    <span style={{ fontSize: 12, fontWeight: 600, minWidth: 20, textAlign: "center" }}>{i.qty}</span>
+                    <button onClick={() => add(i)} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e8e8e8", background: "white", cursor: "pointer", fontSize: 14 }}>+</button>
+                    <div style={{ minWidth: 70, textAlign: "right", fontSize: 12, fontWeight: 600 }}>${((i.precio || i.price) * i.qty).toLocaleString()}</div>
+                    <div onClick={() => remove(i.id)} style={{ cursor: "pointer", color: "#cccccc", fontSize: 18, padding: "0 2px" }}>×</div>
                   </div>
                 </div>
               ))}
+
+            {cart.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <div style={{ fontSize: 10, color: "#999999", fontWeight: 600, marginBottom: 6, letterSpacing: ".1em" }}>MEDIO DE PAGO</div>
+                {Object.entries(gruposMedios).filter(([, items]) => items.length > 0).map(([grupo, items]) => (
+                  <div key={grupo} style={{ marginBottom: 8 }}>
+                    <div style={{ fontSize: 9, color: "#bbbbbb", marginBottom: 4 }}>{grupo}</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                      {items.map(m => (
+                        <button key={m.id} onClick={() => setMedioPagoSel(m)}
+                          style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid", fontSize: 10, cursor: "pointer", transition: "all .15s",
+                            borderColor: medioPagoSel?.id === m.id ? "#c9a84c" : "#e8e8e8",
+                            background: medioPagoSel?.id === m.id ? "#c9a84c15" : "white",
+                            color: medioPagoSel?.id === m.id ? "#c9a84c" : "#666666",
+                            fontWeight: medioPagoSel?.id === m.id ? 600 : 400 }}>
+                          {m.nombre.replace("Crédito ", "").replace(" cuotas", "c").replace(" cuota", "c").replace(" sin interés", " s/i").replace(" con interés", " c/i")}
+                          {m.con_interes && <span style={{ fontSize: 8, color: "#c0392b", marginLeft: 2 }}>+{Math.round((m.coeficiente - 1) * 100)}%</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div style={{ padding: "14px 16px", borderTop: "1px solid #f0f0f0", background: "#fafafa" }}>
             {descuento > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                <span style={{ fontSize: 11, color: "#999999" }}>Subtotal</span>
-                <span style={{ fontSize: 11, color: "#999999" }}>${subtotal.toLocaleString()}</span>
-              </div>
-            )}
-            {descuento > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                <span style={{ fontSize: 11, color: "#2d7a4f" }}>Descuento</span>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ fontSize: 11, color: "#999999" }}>Descuento</span>
                 <span style={{ fontSize: 11, color: "#2d7a4f" }}>-${descuento.toLocaleString()}</span>
               </div>
             )}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
-              <div style={{ fontSize: 11, color: "#999999", fontWeight: 600, letterSpacing: ".1em" }}>TOTAL</div>
+            {intereses > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ fontSize: 11, color: "#c0392b" }}>Intereses ({medioPagoSel?.nombre})</span>
+                <span style={{ fontSize: 11, color: "#c0392b" }}>+${intereses.toLocaleString()}</span>
+              </div>
+            )}
+            {medioPagoSel && intereses > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ fontSize: 10, color: "#999999" }}>Cuota aprox.</span>
+                <span style={{ fontSize: 10, color: "#999999" }}>${Math.round(total / medioPagoSel.cuotas).toLocaleString()} x {medioPagoSel.cuotas}</span>
+              </div>
+            )}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+              <div style={{ fontSize: 11, color: "#999999", fontWeight: 600 }}>TOTAL{medioPagoSel ? " — " + medioPagoSel.nombre : ""}</div>
               <div style={{ fontSize: 30, fontWeight: 700, color: "#111111" }}>${total.toLocaleString()}</div>
             </div>
             <button className="btn btn-p" style={{ width: "100%", padding: 13, fontSize: 13, opacity: loading ? 0.7 : 1 }} onClick={emitirFactura} disabled={loading}>
@@ -544,6 +596,7 @@ function POS({ localId }) {
     </div>
   );
 }
+
 
 function Inventario() {
   const [tab, setTab] = useState("stock");
@@ -772,16 +825,19 @@ function Finanzas() {
   const [flujo, setFlujo] = useState(null);
   const [equilibrio, setEquilibrio] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [nuevoEgreso, setNuevoEgreso] = useState({ concepto: "", importe: "" });
+  const [nuevoEgreso, setNuevoEgreso] = useState({ concepto: "", importe: "", categoria_id: "" });
+  const [categoriasCosto, setCategoriasCosto] = useState([]);
   const [mensaje, setMensaje] = useState("");
 
   useEffect(() => {
     Promise.all([
       getFlujo(new Date().getMonth() + 1, new Date().getFullYear()),
-      getPuntoEquilibrio()
-    ]).then(([f, e]) => {
+      getPuntoEquilibrio(),
+      API.get("/categorias-costo")
+    ]).then(([f, e, cats]) => {
       setFlujo(f.data);
       setEquilibrio(e.data);
+      setCategoriasCosto(cats.data);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -837,7 +893,23 @@ function Finanzas() {
             </div>
             <div className="card">
               <div className="ct">Registrar egreso</div>
-              <div className="fg"><div className="fl">Concepto</div><input className="inp" placeholder="Ej: Alquiler, sueldos..." value={nuevoEgreso.concepto} onChange={e => setNuevoEgreso(p => ({ ...p, concepto: e.target.value }))} /></div>
+              <div className="fg">
+                <div className="fl">Categoria</div>
+                <select className="sel" value={nuevoEgreso.categoria_id || ""} onChange={e => {
+                  const cat = categoriasCosto.find(c => c.id === parseInt(e.target.value));
+                  setNuevoEgreso(p => ({ ...p, categoria_id: e.target.value, concepto: cat?.nombre || "" }));
+                }}>
+                  <option value="">Seleccionar categoria...</option>
+                  {["variable", "fijo", "administrativo", "sueldo"].map(tipo => (
+                    <optgroup key={tipo} label={tipo === "variable" ? "Costos Variables" : tipo === "fijo" ? "Costos Fijos" : tipo === "administrativo" ? "Gastos Administrativos" : "Sueldos"}>
+                      {categoriasCosto.filter(c => c.tipo === tipo).map(c => (
+                        <option key={c.id} value={c.id}>{c.nombre}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+              <div className="fg"><div className="fl">Concepto (detalle)</div><input className="inp" placeholder="Ej: Factura luz enero" value={nuevoEgreso.concepto} onChange={e => setNuevoEgreso(p => ({ ...p, concepto: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Importe ($)</div><input className="inp" type="number" placeholder="35000" value={nuevoEgreso.importe} onChange={e => setNuevoEgreso(p => ({ ...p, importe: e.target.value }))} /></div>
               <button className="btn btn-p" style={{ width: "100%" }} onClick={guardarEgreso}>Registrar egreso</button>
             </div>
