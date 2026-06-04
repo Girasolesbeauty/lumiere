@@ -33,8 +33,9 @@ function generarTRA() {
 
 // Firmar TRA con certificado
 function firmarTRA(tra) {
-  const cert = fs.readFileSync(CERT_PATH, 'utf8');
-  const key = fs.readFileSync(KEY_PATH, 'utf8');
+  const cert = CERT_CONTENT;
+const key = KEY_CONTENT;
+  
   
   const p7 = forge.pkcs7.createSignedData();
   p7.content = forge.util.createBuffer(tra, 'utf8');
