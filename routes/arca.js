@@ -105,7 +105,6 @@ const innerXml = returnMatch ? returnMatch[1]
 const tokenMatch = innerXml.match(/<token>(.*?)<\/token>/s);
 const signMatch = innerXml.match(/<sign>(.*?)<\/sign>/s);
 const expMatch = innerXml.match(/<expirationTime>(.*?)<\/expirationTime>/s);
-  const expMatch = xml.match(/<expirationTime>(.*?)<\/expirationTime>/s);
   
   if (!tokenMatch || !signMatch) throw new Error('No se pudo obtener token de ARCA. Respuesta: ' + xml.substring(0, 500));
   
