@@ -165,9 +165,9 @@ const neto = total;
             <CbteFch>${hoy}</CbteFch>
             <ImpTotal>${total}</ImpTotal>
             <ImpTotConc>0</ImpTotConc>
-            <ImpNeto>${neto}</ImpNeto>
-            <ImpOpEx>0</ImpOpEx>
-            <ImpIVA>${ivaTotal}</ImpIVA>
+           <ImpNeto>0</ImpNeto>
+<ImpOpEx>${total}</ImpOpEx>
+<ImpIVA>0</ImpIVA>
             <ImpTrib>0</ImpTrib>
             <MonId>PES</MonId>
             <MonCotiz>1</MonCotiz>
