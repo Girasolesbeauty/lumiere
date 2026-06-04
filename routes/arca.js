@@ -136,8 +136,8 @@ router.post('/emitir', async (req, res) => {
     const tipoNum = tipo === 'A' ? 1 : tipo === 'B' ? 6 : 11;
     const nroComprobante = await obtenerUltimoComprobante(tipo, token, sign);
     const hoy = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const ivaTotal = tipo === 'A' ? Math.round(total * 0.21 / 1.21 * 100) / 100 : 0;
-    const neto = tipo === 'A' ? Math.round(total / 1.21 * 100) / 100 : total;
+    const ivaTotal = 0;
+const neto = total;
     const docNro = cliente_cuit ? cliente_cuit.replace(/[-]/g, '') : 0;
 
     const soapBody = `<?xml version="1.0" encoding="utf-8"?>
