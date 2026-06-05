@@ -421,15 +421,6 @@ function POS({ localId }) {
     (p.marca || p.brand || "").toLowerCase().includes(busqueda.toLowerCase())
   );
 
-  // Agrupar medios de pago
-  const gruposMedios = {
-    "Efectivo / Transferencia": mediosPago.filter(m => m.tipo === "efectivo" || m.tipo === "transferencia"),
-    "Débito": mediosPago.filter(m => m.tipo === "debito"),
-    "Crédito sin interés": mediosPago.filter(m => m.tipo === "credito" && !m.con_interes),
-    "Crédito con interés": mediosPago.filter(m => m.tipo === "credito" && m.con_interes),
-    "Plataformas": mediosPago.filter(m => m.tipo === "plataforma"),
-  };
-
   const [tabPos, setTabPos] = useState("venta");
   const [preventasPendientes, setPreventasPendientes] = useState([]);
 
@@ -459,6 +450,15 @@ function POS({ localId }) {
       await API.put("/ventas/" + p.id, { estado: "cancelada" });
       cargarPreventas();
     } catch (e) { setMensaje("Error al cargar preventa"); }
+  };
+
+  // Agrupar medios de pago
+  const gruposMedios = {
+    "Efectivo / Transferencia": mediosPago.filter(m => m.tipo === "efectivo" || m.tipo === "transferencia"),
+    "Débito": mediosPago.filter(m => m.tipo === "debito"),
+    "Crédito sin interés": mediosPago.filter(m => m.tipo === "credito" && !m.con_interes),
+    "Crédito con interés": mediosPago.filter(m => m.tipo === "credito" && m.con_interes),
+    "Plataformas": mediosPago.filter(m => m.tipo === "plataforma"),
   };
 
   return (
@@ -1709,19 +1709,7 @@ const NAV_SECTIONS = [
   { section: "CLIENTE", items: [{ id: "portal", icon: "○", label: "Portal Cliente" }] },
 ];
 
-function getPage(id) {
-  if (id === "dashboard") return <Dashboard />;
-  if (id === "pos") return <POS />;
-  if (id === "inventory") return <Inventario />;
-  if (id === "clients") return <Clientes />;
-  if (id === "finance") return <Finanzas />;
-  if (id === "reports") return <Informes />;
-  if (id === "cupones") return <Cupones />;
-  if (id === "fidelizacion") return <Fidelizacion />;
-  if (id === "postventa") return <PostventaWA />;
-  if (id === "portal") return <PortalCliente />;
-  return <Dashboard />;
-}
+
 
 
 
