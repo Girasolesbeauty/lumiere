@@ -430,18 +430,81 @@ function POS({ localId }) {
     "Plataformas": mediosPago.filter(m => m.tipo === "plataforma"),
   };
 
+  const [tabPos, setTabPos] = useState("venta");
+  const [preventasPendientes, setPreventasPendientes] = useState([]);
+
+  const cargarPreventas = async () => {
+    try {
+      const res = await API.get("/ventas?es_preventa=true&local_id=" + (localId || 1));
+      setPreventasPendientes(res.data.filter(v => v.estado === "preventa"));
+    } catch (e) {}
+  };
+
+  useEffect(() => { cargarPreventas(); }, [localId]);
+
+  const confirmarPreventa = async (p) => {
+    try {
+      const res = await API.get("/ventas/" + p.id);
+      const ventaDetalle = res.data;
+      setCart(ventaDetalle.items.map(i => ({
+        id: i.producto_id,
+        nombre: i.producto_nombre,
+        precio: i.precio_unitario,
+        qty: i.cantidad,
+        stock: 99
+      })));
+      setClienteSeleccionado({ id: p.cliente_id, nombre: p.nombre_preventa || p.cliente_nombre || "Consumidor Final", puntos: 0 });
+      setTabPos("venta");
+      setMensaje("Preventa cargada — completá el pago y emití la factura");
+      await API.put("/ventas/" + p.id, { estado: "cancelada" });
+      cargarPreventas();
+    } catch (e) { setMensaje("Error al cargar preventa"); }
+  };
+
   return (
     <div className="fade">
       <div className="ph">
         <div><div className="pt">Punto de Venta</div><div className="ps">facturacion electronica - arca</div></div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <div className="sw-wrap" onClick={() => { setPreventa(!preventa); setMensaje(""); }}>
+          {tabPos === "venta" && <div className="sw-wrap" onClick={() => { setPreventa(!preventa); setMensaje(""); }}>
             <div className={"sw " + (preventa ? "on" : "off")}><div className="sw-dot" /></div>
             <span style={{ fontSize: 11, color: preventa ? "#2471a3" : "#999999" }}>Preventa</span>
-          </div>
+          </div>}
           <StatusDot color="#2d7a4f" label="ARCA" />
         </div>
       </div>
+      <div className="tabs">
+        <div className={"tab " + (tabPos === "venta" ? "on" : "")} onClick={() => setTabPos("venta")}>NUEVA VENTA</div>
+        <div className={"tab " + (tabPos === "preventas" ? "on" : "")} onClick={() => { setTabPos("preventas"); cargarPreventas(); }}>
+          PREVENTAS {preventasPendientes.length > 0 && <span style={{ background: "#2471a3", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{preventasPendientes.length}</span>}
+        </div>
+      </div>
+
+      {tabPos === "preventas" && (
+        <div className="fade">
+          {preventasPendientes.length === 0 ? (
+            <div style={{ textAlign: "center", color: "#999999", padding: 40, fontSize: 13 }}>No hay preventas pendientes</div>
+          ) : (
+            preventasPendientes.map(p => (
+              <div key={p.id} className="card" style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#111111" }}>{p.nombre_preventa || p.cliente_nombre || "Consumidor Final"}</div>
+                  <div style={{ fontSize: 11, color: "#999999", marginTop: 3 }}>
+                    {new Date(p.creado_en).toLocaleDateString('es-AR')} — ${parseFloat(p.total).toLocaleString()}
+                  </div>
+                  <span className="badge bb" style={{ marginTop: 4 }}>Preventa pendiente</span>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn btn-p btn-sm" onClick={() => confirmarPreventa(p)}>Confirmar venta</button>
+                  <button className="btn btn-g btn-sm" onClick={async () => { await API.put("/ventas/" + p.id, { estado: "cancelada" }); cargarPreventas(); }}>Cancelar</button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {tabPos === "venta" && <>
       {mensaje && (
         <div style={{ background: mensaje.includes("Error") || mensaje.includes("error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") || mensaje.includes("error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") || mensaje.includes("error") ? "#c0392b" : "#2d7a4f" }}>
           {mensaje}
