@@ -541,25 +541,24 @@ function POS({ localId }) {
 
             {cart.length > 0 && (
               <div style={{ marginTop: 10 }}>
-                <div style={{ fontSize: 10, color: "#999999", fontWeight: 600, marginBottom: 6, letterSpacing: ".1em" }}>MEDIO DE PAGO</div>
-                {Object.entries(gruposMedios).filter(([, items]) => items.length > 0).map(([grupo, items]) => (
-                  <div key={grupo} style={{ marginBottom: 8 }}>
-                    <div style={{ fontSize: 9, color: "#bbbbbb", marginBottom: 4 }}>{grupo}</div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                      {items.map(m => (
-                        <button key={m.id} onClick={() => setMedioPagoSel(m)}
-                          style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid", fontSize: 10, cursor: "pointer", transition: "all .15s",
-                            borderColor: medioPagoSel?.id === m.id ? "#c9a84c" : "#e8e8e8",
-                            background: medioPagoSel?.id === m.id ? "#c9a84c15" : "white",
-                            color: medioPagoSel?.id === m.id ? "#c9a84c" : "#666666",
-                            fontWeight: medioPagoSel?.id === m.id ? 600 : 400 }}>
-                          {m.nombre.replace("Crédito ", "").replace(" cuotas", "c").replace(" cuota", "c").replace(" sin interés", " s/i").replace(" con interés", " c/i")}
-                          {m.con_interes && <span style={{ fontSize: 8, color: "#c0392b", marginLeft: 2 }}>+{Math.round((m.coeficiente - 1) * 100)}%</span>}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+                <div className="fg">
+                  <div className="fl">Medio de pago</div>
+                  <select className="sel" value={medioPagoSel?.id || ""} onChange={e => {
+                    const m = mediosPago.find(x => x.id === parseInt(e.target.value));
+                    setMedioPagoSel(m || null);
+                  }}>
+                    <option value="">Seleccionar...</option>
+                    {["efectivo", "transferencia", "debito", "credito", "plataforma"].map(tipo => (
+                      <optgroup key={tipo} label={tipo === "efectivo" ? "Efectivo" : tipo === "transferencia" ? "Transferencia" : tipo === "debito" ? "Débito" : tipo === "credito" ? "Crédito" : "Plataformas"}>
+                        {mediosPago.filter(m => m.tipo === tipo).map(m => (
+                          <option key={m.id} value={m.id}>
+                            {m.nombre}{m.con_interes ? ` (+${Math.round((parseFloat(m.coeficiente) - 1) * 100)}%)` : ""}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </div>
               </div>
             )}
           </div>
