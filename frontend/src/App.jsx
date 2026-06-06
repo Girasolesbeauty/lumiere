@@ -1761,7 +1761,6 @@ function Comisiones({ localId }) {
           )}
         </div>
       )}
- </div>
   );
 }
 function Proveedores() {
