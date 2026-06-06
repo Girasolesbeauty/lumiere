@@ -149,7 +149,6 @@ function Sw({ on, toggle }) {
         <div className="sw-dot" />
       </div>
     </div>
-  </div>
   );
 }
 
@@ -278,7 +277,6 @@ function Dashboard() {
         </div>
       </div>
     </div>
-  </div>
   );
 }
 
@@ -601,7 +599,6 @@ function POS({ localId }) {
         </div>
       </div>
     </div>
-  </div>
   );
 }
 
@@ -1680,9 +1677,10 @@ function Comisiones({ localId }) {
         </>
       )}
     </div>
+  </div>
+  </div>
   );
 }
-
 
 function Proveedores() {
   const [tab, setTab] = useState("lista");
