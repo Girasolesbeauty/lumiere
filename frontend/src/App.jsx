@@ -887,19 +887,22 @@ function Finanzas() {
   const [flujo, setFlujo] = useState(null);
   const [equilibrio, setEquilibrio] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [nuevoEgreso, setNuevoEgreso] = useState({ concepto: "", importe: "", categoria_id: "" });
+  const [nuevoEgreso, setNuevoEgreso] = useState({ concepto: "", importe: "", categoria_id: "", forma_pago: "", cuenta_pago_id: "", local_id: "" });
   const [categoriasCosto, setCategoriasCosto] = useState([]);
+  const [cuentasPago, setCuentasPago] = useState([]);
   const [mensaje, setMensaje] = useState("");
 
   useEffect(() => {
     Promise.all([
       getFlujo(new Date().getMonth() + 1, new Date().getFullYear()),
       getPuntoEquilibrio(),
-      API.get("/categorias-costo")
-    ]).then(([f, e, cats]) => {
+      API.get("/categorias-costo"),
+      API.get("/cuentas-pago?solo_pago=true")
+    ]).then(([f, e, cats, cuentas]) => {
       setFlujo(f.data);
       setEquilibrio(e.data);
       setCategoriasCosto(cats.data);
+      setCuentasPago(cuentas.data);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -973,6 +976,39 @@ function Finanzas() {
               </div>
               <div className="fg"><div className="fl">Concepto (detalle)</div><input className="inp" placeholder="Ej: Factura luz enero" value={nuevoEgreso.concepto} onChange={e => setNuevoEgreso(p => ({ ...p, concepto: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Importe ($)</div><input className="inp" type="number" placeholder="35000" value={nuevoEgreso.importe} onChange={e => setNuevoEgreso(p => ({ ...p, importe: e.target.value }))} /></div>
+              <div className="fg">
+                <div className="fl">Forma de pago</div>
+                <select className="sel" value={nuevoEgreso.forma_pago} onChange={e => setNuevoEgreso(p => ({ ...p, forma_pago: e.target.value, cuenta_pago_id: "" }))}>
+                  <option value="">Seleccionar...</option>
+                  <option value="transferencia">Transferencia</option>
+                  <option value="echeck">eCheck</option>
+                  <option value="efectivo">Efectivo</option>
+                </select>
+              </div>
+              {nuevoEgreso.forma_pago && (
+                <div className="fg">
+                  <div className="fl">Cuenta / Caja</div>
+                  <select className="sel" value={nuevoEgreso.cuenta_pago_id} onChange={e => setNuevoEgreso(p => ({ ...p, cuenta_pago_id: e.target.value }))}>
+                    <option value="">Seleccionar cuenta...</option>
+                    {cuentasPago.filter(c => {
+                      if (nuevoEgreso.forma_pago === "efectivo") return c.tipo === "efectivo";
+                      if (nuevoEgreso.forma_pago === "echeck") return c.tipo === "echeck";
+                      return c.tipo === "transferencia";
+                    }).map(c => (
+                      <option key={c.id} value={c.id}>{c.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className="fg">
+                <div className="fl">Local</div>
+                <select className="sel" value={nuevoEgreso.local_id} onChange={e => setNuevoEgreso(p => ({ ...p, local_id: e.target.value }))}>
+                  <option value="">Seleccionar...</option>
+                  <option value="1">Rio Grande</option>
+                  <option value="2">Ushuaia</option>
+                  <option value="compartido">Compartido (50/50)</option>
+                </select>
+              </div>
               <button className="btn btn-p" style={{ width: "100%" }} onClick={guardarEgreso}>Registrar egreso</button>
             </div>
           </div>
