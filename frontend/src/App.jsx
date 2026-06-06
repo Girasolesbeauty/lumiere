@@ -149,6 +149,7 @@ function Sw({ on, toggle }) {
         <div className="sw-dot" />
       </div>
     </div>
+  </div>
   );
 }
 
@@ -277,6 +278,7 @@ function Dashboard() {
         </div>
       </div>
     </div>
+  </div>
   );
 }
 
@@ -288,7 +290,7 @@ function POS({ localId }) {
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [buscandoCliente, setBuscandoCliente] = useState(false);
   const [showNuevoCliente, setShowNuevoCliente] = useState(false);
-  const [nuevoClienteDni, setNuevoClienteDni] = useState({ nombre: "", email: "", telefono: "" });
+  const [nuevoClienteDni, setNuevoClienteDni] = useState({ nombre: "", telefono: "" });
   const [cupon, setCupon] = useState("");
   const [cuponAplicado, setCuponAplicado] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -298,22 +300,20 @@ function POS({ localId }) {
   const [nombrePreventa, setNombrePreventa] = useState("");
   const [mediosPago, setMediosPago] = useState([]);
   const [medioPagoSel, setMedioPagoSel] = useState(null);
+  const [tabPos, setTabPos] = useState("venta");
+  const [preventasPendientes, setPreventasPendientes] = useState([]);
+
+  const cargarPreventas = async () => {
+    try {
+      const res = await API.get("/ventas?es_preventa=true&local_id=" + (localId || 1));
+      setPreventasPendientes((res.data || []).filter(v => v.estado === "preventa"));
+    } catch (e) {}
+  };
 
   useEffect(() => {
     getProductos().then(res => setProductos(res.data)).catch(() => setProductos(PRODUCTS));
-    API.get("/medios-pago").then(res => setMediosPago(res.data)).catch(() => {
-      setMediosPago([
-        { id: 1, nombre: "Efectivo", coeficiente: 1 },
-        { id: 2, nombre: "Débito", coeficiente: 1 },
-        { id: 3, nombre: "Transferencia / QR", coeficiente: 1 },
-        { id: 4, nombre: "Crédito 1 cuota", coeficiente: 1 },
-        { id: 10, nombre: "Crédito 2 cuotas con interés", coeficiente: 1.0941 },
-        { id: 11, nombre: "Crédito 3 cuotas con interés", coeficiente: 1.1281 },
-        { id: 12, nombre: "Crédito 4 cuotas con interés", coeficiente: 1.1629 },
-        { id: 13, nombre: "Crédito 5 cuotas con interés", coeficiente: 1.1983 },
-        { id: 14, nombre: "Crédito 6 cuotas con interés", coeficiente: 1.2344 },
-      ]);
-    });
+    API.get("/medios-pago").then(res => setMediosPago(res.data)).catch(() => setMediosPago([]));
+    cargarPreventas();
   }, [localId]);
 
   const add = (p) => setCart(prev => {
@@ -321,7 +321,7 @@ function POS({ localId }) {
     return e ? prev.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i) : [...prev, { ...p, qty: 1 }];
   });
   const remove = (id) => setCart(prev => prev.filter(i => i.id !== id));
-  
+
   const coef = medioPagoSel ? parseFloat(medioPagoSel.coeficiente) : 1;
   const subtotalBase = cart.reduce((s, i) => s + (i.precio || i.price) * i.qty, 0);
   const descuento = cuponAplicado ? (cuponAplicado.tipo === "%" ? subtotalBase * (cuponAplicado.valor / 100) : cuponAplicado.valor) : 0;
@@ -335,7 +335,7 @@ function POS({ localId }) {
     setBuscandoCliente(true);
     try {
       const res = await API.get("/clientes?local_id=" + (localId || 1));
-      const encontrado = res.data.find(c => c.cuit_dni === dni || c.cuit_dni === dni.replace(/[-]/g, ""));
+      const encontrado = res.data.find(c => c.cuit_dni === dni);
       if (encontrado) { setClienteSeleccionado(encontrado); setShowNuevoCliente(false); }
       else { setClienteSeleccionado(null); if (dni.length >= 8) setShowNuevoCliente(true); }
     } catch (e) {}
@@ -358,7 +358,7 @@ function POS({ localId }) {
       const res = await API.get("/cupones");
       const c = res.data.find(x => (x.codigo || x.code) === cupon.toUpperCase() && (x.activo || x.active));
       if (c) { setCuponAplicado({ tipo: c.tipo || c.type, valor: parseFloat(c.valor || c.value) }); setMensaje("Cupon aplicado!"); }
-      else setMensaje("Cupon invalido o inactivo");
+      else setMensaje("Cupon invalido");
       setTimeout(() => setMensaje(""), 2000);
     } catch (e) {}
   };
@@ -371,27 +371,15 @@ function POS({ localId }) {
       const items = cart.map(i => ({ producto_id: i.id, cantidad: i.qty, precio_unitario: i.precio || i.price }));
       const ventaRes = await createVenta({
         cliente_id: clienteSeleccionado?.id || null,
-        tipo_factura: tipoFac,
-        items,
-        canal: "presencial",
-        cupon_codigo: cupon || null,
-        local_id: localId || 1,
-        medio_pago_id: medioPagoSel.id,
-        medio_pago_nombre: medioPagoSel.nombre,
-        total_con_interes: total,
-        es_preventa: preventa,
+        tipo_factura: tipoFac, items, canal: "presencial",
+        cupon_codigo: cupon || null, local_id: localId || 1,
+        medio_pago_id: medioPagoSel.id, medio_pago_nombre: medioPagoSel.nombre,
+        total_con_interes: total, es_preventa: preventa,
         nombre_preventa: preventa ? nombrePreventa : null
       });
-
       if (!preventa) {
         try {
-          const arcaRes = await API.post("/arca/emitir", {
-            tipo: tipoFac,
-            items,
-            total,
-            cliente_cuit: clienteSeleccionado?.cuit_dni || null,
-            venta_id: ventaRes.data.id
-          });
+          const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaRes.data.id });
           setMensaje("✓ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
         } catch (arcaErr) {
           setMensaje("Venta registrada pero error en ARCA: " + arcaErr.message);
@@ -399,21 +387,25 @@ function POS({ localId }) {
       } else {
         setMensaje("Preventa registrada para " + nombrePreventa + "!");
       }
-
-      setCart([]);
-      setDniInput("");
-      setCupon("");
-      setCuponAplicado(null);
-      setClienteSeleccionado(null);
-      setShowNuevoCliente(false);
-      setMedioPagoSel(null);
-      setPreventa(false);
-      setNombrePreventa("");
+      setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null);
+      setClienteSeleccionado(null); setShowNuevoCliente(false);
+      setMedioPagoSel(null); setPreventa(false); setNombrePreventa("");
       setTimeout(() => setMensaje(""), 8000);
-    } catch (error) {
-      setMensaje("Error al emitir factura");
-    }
+    } catch (error) { setMensaje("Error al emitir factura"); }
     setLoading(false);
+  };
+
+  const confirmarPreventa = async (p) => {
+    try {
+      const res = await API.get("/ventas/" + p.id);
+      const vd = res.data;
+      setCart((vd.items || []).map(i => ({ id: i.producto_id, nombre: i.producto_nombre, precio: i.precio_unitario, qty: i.cantidad, stock: 99 })));
+      setClienteSeleccionado({ id: p.cliente_id, nombre: p.nombre_preventa || "Consumidor Final", puntos: 0 });
+      setTabPos("venta");
+      setMensaje("Preventa cargada!");
+      await API.put("/ventas/" + p.id, { estado: "cancelada" });
+      cargarPreventas();
+    } catch (e) { setMensaje("Error al cargar preventa"); }
   };
 
   const productosAMostrar = (productos.length > 0 ? productos : PRODUCTS).filter(p =>
@@ -421,125 +413,88 @@ function POS({ localId }) {
     (p.marca || p.brand || "").toLowerCase().includes(busqueda.toLowerCase())
   );
 
-  const [tabPos, setTabPos] = useState("venta");
-  const [preventasPendientes, setPreventasPendientes] = useState([]);
-
-  const cargarPreventas = async () => {
-    try {
-      const res = await API.get("/ventas?es_preventa=true&local_id=" + (localId || 1));
-      setPreventasPendientes(res.data.filter(v => v.estado === "preventa"));
-    } catch (e) {}
-  };
-
-  useEffect(() => { cargarPreventas(); }, [localId]);
-
-  const confirmarPreventa = async (p) => {
-    try {
-      const res = await API.get("/ventas/" + p.id);
-      const ventaDetalle = res.data;
-      setCart(ventaDetalle.items.map(i => ({
-        id: i.producto_id,
-        nombre: i.producto_nombre,
-        precio: i.precio_unitario,
-        qty: i.cantidad,
-        stock: 99
-      })));
-      setClienteSeleccionado({ id: p.cliente_id, nombre: p.nombre_preventa || p.cliente_nombre || "Consumidor Final", puntos: 0 });
-      setTabPos("venta");
-      setMensaje("Preventa cargada — completá el pago y emití la factura");
-      await API.put("/ventas/" + p.id, { estado: "cancelada" });
-      cargarPreventas();
-    } catch (e) { setMensaje("Error al cargar preventa"); }
-  };
-
-  // Agrupar medios de pago
-  const gruposMedios = {
-    "Efectivo / Transferencia": mediosPago.filter(m => m.tipo === "efectivo" || m.tipo === "transferencia"),
-    "Débito": mediosPago.filter(m => m.tipo === "debito"),
-    "Crédito sin interés": mediosPago.filter(m => m.tipo === "credito" && !m.con_interes),
-    "Crédito con interés": mediosPago.filter(m => m.tipo === "credito" && m.con_interes),
-    "Plataformas": mediosPago.filter(m => m.tipo === "plataforma"),
-  };
+  if (tabPos === "preventas") {
+    return (
+      <div className="fade">
+        <div className="ph">
+          <div><div className="pt">Punto de Venta</div><div className="ps">facturacion electronica - arca</div></div>
+          <StatusDot color="#2d7a4f" label="ARCA" />
+        </div>
+        <div className="tabs">
+          <div className="tab" onClick={() => setTabPos("venta")}>NUEVA VENTA</div>
+          <div className="tab on" onClick={() => { setTabPos("preventas"); cargarPreventas(); }}>
+            PREVENTAS {preventasPendientes.length > 0 && <span style={{ background: "#2471a3", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{preventasPendientes.length}</span>}
+          </div>
+        </div>
+        {preventasPendientes.length === 0 ? (
+          <div style={{ textAlign: "center", color: "#999999", padding: 40, fontSize: 13 }}>No hay preventas pendientes</div>
+        ) : preventasPendientes.map(p => (
+          <div key={p.id} className="card" style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>{p.nombre_preventa || "Consumidor Final"}</div>
+              <div style={{ fontSize: 11, color: "#999999", marginTop: 3 }}>{new Date(p.creado_en).toLocaleDateString("es-AR")} — ${parseFloat(p.total).toLocaleString()}</div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-p btn-sm" onClick={() => confirmarPreventa(p)}>Confirmar venta</button>
+              <button className="btn btn-g btn-sm" onClick={async () => { await API.put("/ventas/" + p.id, { estado: "cancelada" }); cargarPreventas(); }}>Cancelar</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="fade">
       <div className="ph">
         <div><div className="pt">Punto de Venta</div><div className="ps">facturacion electronica - arca</div></div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          {tabPos === "venta" && <div className="sw-wrap" onClick={() => { setPreventa(!preventa); setMensaje(""); }}>
+          <div className="sw-wrap" onClick={() => { setPreventa(!preventa); setMensaje(""); }}>
             <div className={"sw " + (preventa ? "on" : "off")}><div className="sw-dot" /></div>
             <span style={{ fontSize: 11, color: preventa ? "#2471a3" : "#999999" }}>Preventa</span>
-          </div>}
+          </div>
           <StatusDot color="#2d7a4f" label="ARCA" />
         </div>
       </div>
       <div className="tabs">
-        <div className={"tab " + (tabPos === "venta" ? "on" : "")} onClick={() => setTabPos("venta")}>NUEVA VENTA</div>
-        <div className={"tab " + (tabPos === "preventas" ? "on" : "")} onClick={() => { setTabPos("preventas"); cargarPreventas(); }}>
+        <div className="tab on" onClick={() => setTabPos("venta")}>NUEVA VENTA</div>
+        <div className={"tab"} onClick={() => { setTabPos("preventas"); cargarPreventas(); }}>
           PREVENTAS {preventasPendientes.length > 0 && <span style={{ background: "#2471a3", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{preventasPendientes.length}</span>}
         </div>
       </div>
-
-      {tabPos === "preventas" && (
-        <div className="fade">
-          {preventasPendientes.length === 0 ? (
-            <div style={{ textAlign: "center", color: "#999999", padding: 40, fontSize: 13 }}>No hay preventas pendientes</div>
-          ) : (
-            preventasPendientes.map(p => (
-              <div key={p.id} className="card" style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "#111111" }}>{p.nombre_preventa || p.cliente_nombre || "Consumidor Final"}</div>
-                  <div style={{ fontSize: 11, color: "#999999", marginTop: 3 }}>
-                    {new Date(p.creado_en).toLocaleDateString('es-AR')} — ${parseFloat(p.total).toLocaleString()}
-                  </div>
-                  <span className="badge bb" style={{ marginTop: 4 }}>Preventa pendiente</span>
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button className="btn btn-p btn-sm" onClick={() => confirmarPreventa(p)}>Confirmar venta</button>
-                  <button className="btn btn-g btn-sm" onClick={async () => { await API.put("/ventas/" + p.id, { estado: "cancelada" }); cargarPreventas(); }}>Cancelar</button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {tabPos === "venta" && <>
       {mensaje && (
-        <div style={{ background: mensaje.includes("Error") || mensaje.includes("error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") || mensaje.includes("error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") || mensaje.includes("error") ? "#c0392b" : "#2d7a4f" }}>
+        <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>
           {mensaje}
         </div>
       )}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 16, height: "calc(100vh - 180px)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 16, height: "calc(100vh - 220px)" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
-          <input className="inp" placeholder="Buscar producto por nombre o marca..." value={busqueda} onChange={e => setBusqueda(e.target.value)} />
+          <input className="inp" placeholder="Buscar producto..." value={busqueda} onChange={e => setBusqueda(e.target.value)} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, overflowY: "auto", flex: 1 }}>
             {productosAMostrar.map(p => (
               <div key={p.id} onClick={() => add(p)}
-                style={{ background: "#ffffff", border: "1px solid #e8e8e8", borderRadius: 7, padding: 14, cursor: "pointer", transition: "all .18s", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = "#c9a84c"; e.currentTarget.style.transform = "translateY(-1px)"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = "#e8e8e8"; e.currentTarget.style.transform = "translateY(0)"; }}>
-                <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".12em", textTransform: "uppercase" }}>{p.marca || p.brand}</div>
+                style={{ background: "#ffffff", border: "1px solid #e8e8e8", borderRadius: 7, padding: 14, cursor: "pointer", transition: "all .18s" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "#c9a84c"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "#e8e8e8"; }}>
+                <div style={{ fontSize: 9, color: "#999999", textTransform: "uppercase" }}>{p.marca || p.brand}</div>
                 <div style={{ fontSize: 12, color: "#333333", marginTop: 3, fontWeight: 500 }}>{p.nombre || p.name}</div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 10 }}>
                   <div style={{ fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>${(p.precio || p.price).toLocaleString()}</div>
-                  <span className={"badge " + (p.stock < (p.stock_minimo || p.min || 5) ? "br" : "bg")}>{p.stock}u</span>
+                  <span className={"badge " + (p.stock < (p.stock_minimo || 5) ? "br" : "bg")}>{p.stock}u</span>
                 </div>
               </div>
             ))}
           </div>
         </div>
-
-        <div style={{ background: "#ffffff", border: "1px solid #e8e8e8", borderRadius: 8, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
-          <div style={{ padding: "12px 16px", borderBottom: "1px solid #f0f0f0", fontSize: 10, letterSpacing: ".15em", color: "#999999", fontWeight: 600, background: preventa ? "#2471a312" : "#fafafa" }}>
-            {preventa ? "📋 PREVENTA" : "🧾 COMPROBANTE EN CURSO"}
+        <div style={{ background: "#ffffff", border: "1px solid #e8e8e8", borderRadius: 8, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid #f0f0f0", fontSize: 10, color: "#999999", fontWeight: 600, background: preventa ? "#2471a312" : "#fafafa" }}>
+            {preventa ? "PREVENTA" : "COMPROBANTE EN CURSO"}
           </div>
-
           <div style={{ padding: "10px 14px", borderBottom: "1px solid #f0f0f0" }}>
             {preventa ? (
               <input className="inp" placeholder="Nombre del cliente (preventa)" value={nombrePreventa} onChange={e => setNombrePreventa(e.target.value)} />
             ) : (
-              <>
+              <div>
                 <div style={{ position: "relative", marginBottom: 6 }}>
                   <input className="inp" placeholder="DNI del cliente (opcional)" value={dniInput} onChange={e => buscarClientePorDni(e.target.value)} />
                   {buscandoCliente && <div style={{ position: "absolute", right: 10, top: 10, fontSize: 10, color: "#999999" }}>buscando...</div>}
@@ -547,14 +502,14 @@ function POS({ localId }) {
                 {clienteSeleccionado && clienteSeleccionado.id && (
                   <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f33", borderRadius: 6, padding: "8px 12px", marginBottom: 6 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: "#2d7a4f" }}>✓ {clienteSeleccionado.nombre}</div>
-                    <div style={{ fontSize: 10, color: "#666666", marginTop: 2 }}>{clienteSeleccionado.puntos || 0} pts · {clienteSeleccionado.nivel || "Bronze"}</div>
+                    <div style={{ fontSize: 10, color: "#666666" }}>{clienteSeleccionado.puntos || 0} pts · {clienteSeleccionado.nivel || "Bronze"}</div>
                   </div>
                 )}
                 {showNuevoCliente && !clienteSeleccionado && (
                   <div style={{ background: "#2471a312", border: "1px solid #2471a333", borderRadius: 6, padding: 10, marginBottom: 6 }}>
                     <div style={{ fontSize: 11, fontWeight: 600, color: "#2471a3", marginBottom: 8 }}>Cliente nuevo</div>
                     <input className="inp" placeholder="Nombre completo" value={nuevoClienteDni.nombre} onChange={e => setNuevoClienteDni(p => ({ ...p, nombre: e.target.value }))} style={{ marginBottom: 6 }} />
-                    <input className="inp" placeholder="Teléfono (opcional)" value={nuevoClienteDni.telefono} onChange={e => setNuevoClienteDni(p => ({ ...p, telefono: e.target.value }))} style={{ marginBottom: 6 }} />
+                    <input className="inp" placeholder="Telefono (opcional)" value={nuevoClienteDni.telefono} onChange={e => setNuevoClienteDni(p => ({ ...p, telefono: e.target.value }))} style={{ marginBottom: 6 }} />
                     <div style={{ display: "flex", gap: 6 }}>
                       <button className="btn btn-p btn-sm" style={{ flex: 1 }} onClick={crearClienteRapido}>Guardar</button>
                       <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => { setShowNuevoCliente(false); setClienteSeleccionado({ id: null, nombre: "Consumidor Final", puntos: 0 }); }}>Consumidor Final</button>
@@ -570,62 +525,58 @@ function POS({ localId }) {
                   <input className="inp" placeholder="Cupon" value={cupon} onChange={e => setCupon(e.target.value)} style={{ flex: 1 }} />
                   <button className="btn btn-g btn-sm" onClick={aplicarCupon}>Aplicar</button>
                 </div>
-                {cuponAplicado && <div style={{ fontSize: 10, color: "#2d7a4f", marginBottom: 4 }}>✓ Descuento: -${descuento.toLocaleString()}</div>}
-              </>
+                {cuponAplicado && <div style={{ fontSize: 10, color: "#2d7a4f", marginBottom: 4 }}>Descuento aplicado</div>}
+              </div>
             )}
             <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
               {["A", "B", "Remito"].map(t => (
                 <button key={t} onClick={() => setTipoFac(t)} className="btn btn-sm"
-                  style={{ flex: 1, background: tipoFac === t ? "#c9a84c15" : "transparent", border: "1px solid " + (tipoFac === t ? "#c9a84c" : "#e8e8e8"), color: tipoFac === t ? "#c9a84c" : "#999999", fontWeight: tipoFac === t ? 600 : 400 }}>
+                  style={{ flex: 1, background: tipoFac === t ? "#c9a84c15" : "transparent", border: "1px solid " + (tipoFac === t ? "#c9a84c" : "#e8e8e8"), color: tipoFac === t ? "#c9a84c" : "#999999" }}>
                   {t === "Remito" ? "Remito" : "Fac. " + t}
                 </button>
               ))}
             </div>
           </div>
-
           <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
             {cart.length === 0
-              ? <div style={{ textAlign: "center", color: "#cccccc", fontSize: 12, marginTop: 20 }}>Seleccioná productos</div>
+              ? <div style={{ textAlign: "center", color: "#cccccc", fontSize: 12, marginTop: 20 }}>Selecciona productos</div>
               : cart.map(i => (
                 <div key={i.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fafafa", borderRadius: 6, padding: "8px 10px", marginBottom: 6, border: "1px solid #f0f0f0" }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, color: "#333333", fontWeight: 500 }}>{i.nombre || i.name}</div>
+                    <div style={{ fontSize: 12, fontWeight: 500 }}>{i.nombre || i.name}</div>
                     <div style={{ fontSize: 10, color: "#999999" }}>{i.marca || i.brand}</div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <button onClick={() => setCart(prev => prev.map(x => x.id === i.id && x.qty > 1 ? { ...x, qty: x.qty - 1 } : x))} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e8e8e8", background: "white", cursor: "pointer", fontSize: 14 }}>-</button>
+                    <button onClick={() => setCart(prev => prev.map(x => x.id === i.id && x.qty > 1 ? { ...x, qty: x.qty - 1 } : x))} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e8e8e8", background: "white", cursor: "pointer" }}>-</button>
                     <span style={{ fontSize: 12, fontWeight: 600, minWidth: 20, textAlign: "center" }}>{i.qty}</span>
-                    <button onClick={() => add(i)} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e8e8e8", background: "white", cursor: "pointer", fontSize: 14 }}>+</button>
+                    <button onClick={() => add(i)} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e8e8e8", background: "white", cursor: "pointer" }}>+</button>
                     <div style={{ minWidth: 70, textAlign: "right", fontSize: 12, fontWeight: 600 }}>${((i.precio || i.price) * i.qty).toLocaleString()}</div>
-                    <div onClick={() => remove(i.id)} style={{ cursor: "pointer", color: "#cccccc", fontSize: 18, padding: "0 2px" }}>×</div>
+                    <div onClick={() => remove(i.id)} style={{ cursor: "pointer", color: "#cccccc", fontSize: 18 }}>x</div>
                   </div>
                 </div>
-              ))}
-
+              ))
+            }
             {cart.length > 0 && (
               <div style={{ marginTop: 10 }}>
-                <div className="fg">
-                  <div className="fl">Medio de pago</div>
-                  <select className="sel" value={medioPagoSel?.id || ""} onChange={e => {
-                    const m = mediosPago.find(x => x.id === parseInt(e.target.value));
-                    setMedioPagoSel(m || null);
-                  }}>
-                    <option value="">Seleccionar...</option>
-                    {["efectivo", "transferencia", "debito", "credito", "plataforma"].map(tipo => (
-                      <optgroup key={tipo} label={tipo === "efectivo" ? "Efectivo" : tipo === "transferencia" ? "Transferencia" : tipo === "debito" ? "Débito" : tipo === "credito" ? "Crédito" : "Plataformas"}>
-                        {mediosPago.filter(m => m.tipo === tipo).map(m => (
-                          <option key={m.id} value={m.id}>
-                            {m.nombre}{m.con_interes ? ` (+${Math.round((parseFloat(m.coeficiente) - 1) * 100)}%)` : ""}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                </div>
+                <div className="fl">Medio de pago</div>
+                <select className="sel" value={medioPagoSel?.id || ""} onChange={e => {
+                  const m = mediosPago.find(x => x.id === parseInt(e.target.value));
+                  setMedioPagoSel(m || null);
+                }}>
+                  <option value="">Seleccionar...</option>
+                  {["efectivo", "transferencia", "debito", "credito", "plataforma"].map(tipo => (
+                    <optgroup key={tipo} label={tipo === "efectivo" ? "Efectivo" : tipo === "transferencia" ? "Transferencia" : tipo === "debito" ? "Debito" : tipo === "credito" ? "Credito" : "Plataformas"}>
+                      {mediosPago.filter(m => m.tipo === tipo).map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.nombre}{m.con_interes ? " (+" + Math.round((parseFloat(m.coeficiente) - 1) * 100) + "%)" : ""}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
               </div>
             )}
           </div>
-
           <div style={{ padding: "14px 16px", borderTop: "1px solid #f0f0f0", background: "#fafafa" }}>
             {descuento > 0 && (
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
@@ -635,18 +586,12 @@ function POS({ localId }) {
             )}
             {intereses > 0 && (
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span style={{ fontSize: 11, color: "#c0392b" }}>Intereses ({medioPagoSel?.nombre})</span>
+                <span style={{ fontSize: 11, color: "#c0392b" }}>Intereses</span>
                 <span style={{ fontSize: 11, color: "#c0392b" }}>+${intereses.toLocaleString()}</span>
               </div>
             )}
-            {medioPagoSel && intereses > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span style={{ fontSize: 10, color: "#999999" }}>Cuota aprox.</span>
-                <span style={{ fontSize: 10, color: "#999999" }}>${Math.round(total / medioPagoSel.cuotas).toLocaleString()} x {medioPagoSel.cuotas}</span>
-              </div>
-            )}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-              <div style={{ fontSize: 11, color: "#999999", fontWeight: 600 }}>TOTAL{medioPagoSel ? " — " + medioPagoSel.nombre : ""}</div>
+              <div style={{ fontSize: 11, color: "#999999", fontWeight: 600 }}>TOTAL</div>
               <div style={{ fontSize: 30, fontWeight: 700, color: "#111111" }}>${total.toLocaleString()}</div>
             </div>
             <button className="btn btn-p" style={{ width: "100%", padding: 13, fontSize: 13, opacity: loading ? 0.7 : 1 }} onClick={emitirFactura} disabled={loading}>
@@ -655,8 +600,7 @@ function POS({ localId }) {
           </div>
         </div>
       </div>
-    </>}
-  </div>
+    </div>
   </div>
   );
 }
