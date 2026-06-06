@@ -1702,9 +1702,164 @@ function Comisiones({ localId }) {
   );
 }
 
+
+function Proveedores() {
+  const [tab, setTab] = useState("lista");
+  const [proveedores, setProveedores] = useState([]);
+  const [cuentas, setCuentas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [mensaje, setMensaje] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [nuevo, setNuevo] = useState({ nombre: "", cuit: "", email: "", telefono: "", whatsapp: "", dias_pago: 30, forma_pago: "transferencia", banco: "", cbu: "", alias: "", titular_cuenta: "", categoria: "mercaderia", notas: "" });
+
+  const cargar = () => {
+    Promise.all([API.get("/proveedores"), API.get("/cuentas-pago")])
+      .then(([p, c]) => { setProveedores(p.data); setCuentas(c.data); setLoading(false); })
+      .catch(() => setLoading(false));
+  };
+
+  useEffect(() => { cargar(); }, []);
+
+  const guardar = async () => {
+    try {
+      await API.post("/proveedores", nuevo);
+      setMensaje("Proveedor guardado!");
+      setShowForm(false);
+      setNuevo({ nombre: "", cuit: "", email: "", telefono: "", whatsapp: "", dias_pago: 30, forma_pago: "transferencia", banco: "", cbu: "", alias: "", titular_cuenta: "", categoria: "mercaderia", notas: "" });
+      cargar();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al guardar proveedor"); }
+  };
+
+  const categoriaColor = { mercaderia: "#c9a84c", servicios: "#2471a3", admin: "#7d3c98" };
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Proveedores</div><div className="ps">gestion - datos bancarios - condiciones de pago</div></div>
+        <button className="btn btn-p btn-sm" onClick={() => setShowForm(!showForm)}>+ Nuevo proveedor</button>
+      </div>
+      {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
+      
+      {showForm && (
+        <div className="card fade" style={{ marginBottom: 18 }}>
+          <div className="ct">Nuevo proveedor</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+            <div>
+              <div className="fg"><div className="fl">Nombre</div><input className="inp" placeholder="Nombre del proveedor" value={nuevo.nombre} onChange={e => setNuevo(p => ({ ...p, nombre: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">CUIT</div><input className="inp" placeholder="30-12345678-9" value={nuevo.cuit} onChange={e => setNuevo(p => ({ ...p, cuit: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Categoria</div>
+                <select className="sel" value={nuevo.categoria} onChange={e => setNuevo(p => ({ ...p, categoria: e.target.value }))}>
+                  <option value="mercaderia">Mercaderia</option>
+                  <option value="servicios">Servicios</option>
+                  <option value="admin">Administrativo</option>
+                </select>
+              </div>
+              <div className="fg"><div className="fl">Dias de pago</div><input className="inp" type="number" placeholder="30" value={nuevo.dias_pago} onChange={e => setNuevo(p => ({ ...p, dias_pago: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Forma de pago habitual</div>
+                <select className="sel" value={nuevo.forma_pago} onChange={e => setNuevo(p => ({ ...p, forma_pago: e.target.value }))}>
+                  <option value="transferencia">Transferencia</option>
+                  <option value="echeck">eCheck</option>
+                  <option value="efectivo">Efectivo</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <div className="fg"><div className="fl">Email</div><input className="inp" placeholder="proveedor@email.com" value={nuevo.email} onChange={e => setNuevo(p => ({ ...p, email: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Telefono</div><input className="inp" placeholder="+54 11 0000 0000" value={nuevo.telefono} onChange={e => setNuevo(p => ({ ...p, telefono: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">WhatsApp</div><input className="inp" placeholder="+54 9 11 0000 0000" value={nuevo.whatsapp} onChange={e => setNuevo(p => ({ ...p, whatsapp: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Notas</div><textarea className="inp" rows={3} placeholder="Condiciones especiales, contacto, etc." value={nuevo.notas} onChange={e => setNuevo(p => ({ ...p, notas: e.target.value }))} /></div>
+            </div>
+            <div>
+              <div className="ct" style={{ marginBottom: 10 }}>Datos bancarios</div>
+              <div className="fg"><div className="fl">Banco</div><input className="inp" placeholder="Santander / Galicia / etc." value={nuevo.banco} onChange={e => setNuevo(p => ({ ...p, banco: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">CBU</div><input className="inp" placeholder="0000000000000000000000" value={nuevo.cbu} onChange={e => setNuevo(p => ({ ...p, cbu: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Alias</div><input className="inp" placeholder="alias.proveedor" value={nuevo.alias} onChange={e => setNuevo(p => ({ ...p, alias: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Titular</div><input className="inp" placeholder="Nombre del titular" value={nuevo.titular_cuenta} onChange={e => setNuevo(p => ({ ...p, titular_cuenta: e.target.value }))} /></div>
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <button className="btn btn-p" style={{ flex: 1 }} onClick={guardar}>Guardar</button>
+                <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowForm(false)}>Cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="tabs">
+        <div className={"tab " + (tab === "lista" ? "on" : "")} onClick={() => setTab("lista")}>PROVEEDORES</div>
+        <div className={"tab " + (tab === "cuentas" ? "on" : "")} onClick={() => setTab("cuentas")}>CUENTAS DE PAGO</div>
+      </div>
+
+      {tab === "lista" && (
+        <div className="fade">
+          {loading ? <div style={{ color: "#999999", padding: 20 }}>Cargando...</div> :
+          proveedores.length === 0 ? (
+            <div style={{ textAlign: "center", color: "#999999", padding: 40, fontSize: 13 }}>No hay proveedores cargados aun</div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              {proveedores.map(p => (
+                <div key={p.id} className="card">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: "#111111" }}>{p.nombre}</div>
+                      <div style={{ fontSize: 10, color: "#999999" }}>{p.cuit}</div>
+                    </div>
+                    <span className="badge" style={{ background: (categoriaColor[p.categoria] || "#999") + "15", color: categoriaColor[p.categoria] || "#999" }}>{p.categoria}</span>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+                    <div style={{ background: "#fafafa", borderRadius: 6, padding: "8px 10px" }}>
+                      <div style={{ fontSize: 9, color: "#999999", marginBottom: 3 }}>CONDICION DE PAGO</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#c9a84c" }}>{p.dias_pago} dias</div>
+                      <div style={{ fontSize: 10, color: "#666666" }}>{p.forma_pago}</div>
+                    </div>
+                    <div style={{ background: "#fafafa", borderRadius: 6, padding: "8px 10px" }}>
+                      <div style={{ fontSize: 9, color: "#999999", marginBottom: 3 }}>CONTACTO</div>
+                      {p.telefono && <div style={{ fontSize: 11, color: "#444444" }}>{p.telefono}</div>}
+                      {p.whatsapp && <div style={{ fontSize: 10, color: "#25d366" }}>WA: {p.whatsapp}</div>}
+                      {p.email && <div style={{ fontSize: 10, color: "#2471a3" }}>{p.email}</div>}
+                    </div>
+                  </div>
+                  {(p.cbu || p.alias) && (
+                    <div style={{ background: "#f0f7ff", borderRadius: 6, padding: "8px 10px", marginBottom: 8 }}>
+                      <div style={{ fontSize: 9, color: "#2471a3", marginBottom: 3 }}>DATOS BANCARIOS</div>
+                      {p.banco && <div style={{ fontSize: 11, color: "#444444" }}>{p.banco} — {p.titular_cuenta}</div>}
+                      {p.alias && <div style={{ fontSize: 11, color: "#111111", fontWeight: 600 }}>Alias: {p.alias}</div>}
+                      {p.cbu && <div style={{ fontSize: 10, color: "#666666" }}>CBU: {p.cbu}</div>}
+                    </div>
+                  )}
+                  {p.notas && <div style={{ fontSize: 10, color: "#999999", fontStyle: "italic" }}>{p.notas}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "cuentas" && (
+        <div className="fade">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
+            {cuentas.map(c => (
+              <div key={c.id} className="card" style={{ borderLeft: "3px solid " + (c.tipo === "efectivo" ? "#2d7a4f" : c.tipo === "transferencia" ? "#2471a3" : c.tipo === "echeck" ? "#c9a84c" : "#999999") }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#111111" }}>{c.nombre}</div>
+                  {c.solo_acreditacion && <span className="badge bb" style={{ fontSize: 9 }}>Solo acreditacion</span>}
+                </div>
+                <div style={{ fontSize: 10, color: "#999999", marginBottom: 4 }}>{c.titular}</div>
+                <span className="badge" style={{ background: c.tipo === "efectivo" ? "#2d7a4f12" : c.tipo === "transferencia" ? "#2471a312" : "#c9a84c15", color: c.tipo === "efectivo" ? "#2d7a4f" : c.tipo === "transferencia" ? "#2471a3" : "#c9a84c", fontSize: 9 }}>{c.tipo}</span>
+                {c.alias && <div style={{ fontSize: 11, color: "#444444", marginTop: 6 }}>Alias: {c.alias}</div>}
+                {c.cbu && <div style={{ fontSize: 10, color: "#666666" }}>CBU: {c.cbu}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const NAV_SECTIONS = [
   { section: "GESTION", items: [{ id: "dashboard", icon: "◈", label: "Dashboard" }, { id: "pos", icon: "⊕", label: "Punto de Venta" }, { id: "inventory", icon: "⊞", label: "Inventario" }, { id: "clients", icon: "◉", label: "Clientes" }] },
-  { section: "FINANZAS", items: [{ id: "finance", icon: "◎", label: "Finanzas" }, { id: "reports", icon: "◐", label: "Informes" }, { id: "comisiones", icon: "💰", label: "Comisiones" }] },
+  { section: "FINANZAS", items: [{ id: "finance", icon: "◎", label: "Finanzas" }, { id: "reports", icon: "◐", label: "Informes" }, { id: "comisiones", icon: "💰", label: "Comisiones" }, { id: "proveedores", icon: "🏭", label: "Proveedores" }] },
   { section: "MARKETING", items: [{ id: "cupones", icon: "★", label: "Cupones" }, { id: "fidelizacion", icon: "◆", label: "Fidelizacion" }, { id: "postventa", icon: "◇", label: "Postventa WA" }] },
   { section: "CLIENTE", items: [{ id: "portal", icon: "○", label: "Portal Cliente" }] },
 ];
@@ -1999,6 +2154,7 @@ export default function AppWrapper() {
     if (id === "portal") return <PortalCliente />;
     if (id === "usuarios") return <Usuarios usuario={usuario} />;
     if (id === "comisiones") return <Comisiones localId={local.id} />;
+    if (id === "proveedores") return <Proveedores />;
     return <Dashboard localId={local.id} />;
   };
 
