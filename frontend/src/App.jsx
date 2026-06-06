@@ -824,77 +824,127 @@ function Clientes() {
   );
 }
 
-function Finanzas() {
+function Finanzas({ localId }) {
   const [tab, setTab] = useState("flujo");
+  const [tabLocal, setTabLocal] = useState("rg");
   const [flujo, setFlujo] = useState(null);
+  const [flujoEst, setFlujoEst] = useState(null);
   const [equilibrio, setEquilibrio] = useState(null);
   const [loading, setLoading] = useState(true);
   const [nuevoEgreso, setNuevoEgreso] = useState({ concepto: "", importe: "", categoria_id: "", forma_pago: "", cuenta_pago_id: "", local_id: "" });
   const [categoriasCosto, setCategoriasCosto] = useState([]);
   const [cuentasPago, setCuentasPago] = useState([]);
   const [mensaje, setMensaje] = useState("");
+  const [mesFiltro, setMesFiltro] = useState(new Date().getMonth() + 1);
+  const [anioFiltro, setAnioFiltro] = useState(new Date().getFullYear());
 
-  useEffect(() => {
+  const cargarDatos = (local) => {
+    setLoading(true);
+    const localParam = local || tabLocal;
+    const params = `mes=${mesFiltro}&anio=${anioFiltro}&local_id=${localParam}`;
     Promise.all([
-      getFlujo(new Date().getMonth() + 1, new Date().getFullYear()),
+      API.get(`/finanzas/flujo?${params}`),
+      API.get(`/finanzas/flujo-estructurado?${params}`),
       getPuntoEquilibrio(),
       API.get("/categorias-costo"),
       API.get("/cuentas-pago?solo_pago=true")
-    ]).then(([f, e, cats, cuentas]) => {
+    ]).then(([f, fe, e, cats, cuentas]) => {
       setFlujo(f.data);
+      setFlujoEst(fe.data);
       setEquilibrio(e.data);
       setCategoriasCosto(cats.data);
       setCuentasPago(cuentas.data);
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { cargarDatos(); }, [tabLocal, mesFiltro, anioFiltro]);
 
   const guardarEgreso = async () => {
     try {
-      await agregarEgreso({ concepto: nuevoEgreso.concepto, importe: nuevoEgreso.importe, referencia: "Manual" });
+      await agregarEgreso({ ...nuevoEgreso, referencia: "Manual" });
       setMensaje("Egreso registrado!");
-      setNuevoEgreso({ concepto: "", importe: "" });
-      const f = await getFlujo(new Date().getMonth() + 1, new Date().getFullYear());
-      setFlujo(f.data);
+      setNuevoEgreso({ concepto: "", importe: "", categoria_id: "", forma_pago: "", cuenta_pago_id: "", local_id: "" });
+      cargarDatos();
       setTimeout(() => setMensaje(""), 3000);
-    } catch (e) {
-      setMensaje("Error al registrar egreso");
-    }
+    } catch (e) { setMensaje("Error al registrar egreso"); }
   };
 
-  const ingresos = flujo?.resumen?.ingresos || 0;
-  const egresos = flujo?.resumen?.egresos || 0;
-  const neto = flujo?.resumen?.neto || 0;
+  const meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+  const SeccionFlujo = ({ titulo, detalle, total, color }) => (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: color + "15", borderRadius: "6px 6px 0 0", borderLeft: "3px solid " + color }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: color, letterSpacing: ".1em" }}>{titulo}</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: color }}>${parseFloat(total || 0).toLocaleString()}</span>
+      </div>
+      {Object.entries(detalle || {}).map(([k, v]) => (
+        <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 12px", borderBottom: "1px solid #f0f0f0", background: "#fafafa" }}>
+          <span style={{ fontSize: 12, color: "#444444" }}>{k}</span>
+          <span style={{ fontSize: 12, color: "#666666" }}>${parseFloat(v || 0).toLocaleString()}</span>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <div className="fade">
-      <div className="ph"><div><div className="pt">Finanzas</div><div className="ps">flujo de efectivo - costos - equilibrio</div></div></div>
-      {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
-      <div className="tabs">
-        {["flujo", "costos", "equilibrio"].map(t => <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => setTab(t)}>{t.toUpperCase()}</div>)}
+      <div className="ph">
+        <div><div className="pt">Finanzas</div><div className="ps">flujo de efectivo - costos - equilibrio</div></div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <select className="sel" style={{ width: 120, padding: "6px 10px", fontSize: 12 }} value={mesFiltro} onChange={e => setMesFiltro(parseInt(e.target.value))}>
+            {meses.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
+          </select>
+          <select className="sel" style={{ width: 80, padding: "6px 10px", fontSize: 12 }} value={anioFiltro} onChange={e => setAnioFiltro(parseInt(e.target.value))}>
+            {[2024,2025,2026,2027].map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+        </div>
       </div>
+      {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
+      
+      <div className="tabs">
+        {["flujo", "estructurado", "costos", "equilibrio"].map(t => (
+          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => setTab(t)}>
+            {t === "flujo" ? "MOVIMIENTOS" : t === "estructurado" ? "FLUJO DE EFECTIVO" : t === "costos" ? "COSTOS" : "EQUILIBRIO"}
+          </div>
+        ))}
+      </div>
+
+      {(tab === "flujo" || tab === "estructurado") && (
+        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          {["rg", "ush", "consolidado"].map(l => (
+            <button key={l} onClick={() => setTabLocal(l)} className="btn btn-sm"
+              style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : "#e8e8e8"), color: tabLocal === l ? "#c9a84c" : "#999999", fontWeight: tabLocal === l ? 600 : 400 }}>
+              {l === "rg" ? "Rio Grande" : l === "ush" ? "Ushuaia" : "Consolidado"}
+            </button>
+          ))}
+        </div>
+      )}
+
       {tab === "flujo" && (
         <div className="fade">
           <div className="g3">
-            <div className="card"><div className="ct">Ingresos del mes</div><div style={{ fontFamily: "'Inter',sans-serif", fontSize: 26, fontWeight: 700, color: "#2d7a4f" }}>${ingresos.toLocaleString()}</div></div>
-            <div className="card"><div className="ct">Egresos del mes</div><div style={{ fontFamily: "'Inter',sans-serif", fontSize: 26, fontWeight: 700, color: "#c0392b" }}>${egresos.toLocaleString()}</div></div>
-            <div className="card"><div className="ct">Resultado neto</div><div style={{ fontFamily: "'Inter',sans-serif", fontSize: 26, fontWeight: 700, color: "#c9a84c" }}>${neto.toLocaleString()}</div></div>
+            <div className="card"><div className="ct">Ingresos del mes</div><div style={{ fontSize: 26, fontWeight: 700, color: "#2d7a4f" }}>${parseFloat(flujo?.resumen?.ingresos || 0).toLocaleString()}</div></div>
+            <div className="card"><div className="ct">Egresos del mes</div><div style={{ fontSize: 26, fontWeight: 700, color: "#c0392b" }}>${parseFloat(flujo?.resumen?.egresos || 0).toLocaleString()}</div></div>
+            <div className="card"><div className="ct">Resultado neto</div><div style={{ fontSize: 26, fontWeight: 700, color: "#c9a84c" }}>${parseFloat(flujo?.resumen?.neto || 0).toLocaleString()}</div></div>
           </div>
           <div className="g2">
             <div className="card">
               <div className="ct">Movimientos</div>
-              {loading ? <div style={{ color: "#999999", fontSize: 11 }}>Cargando...</div> :
+              {loading ? <div style={{ color: "#999999" }}>Cargando...</div> :
               <table>
-                <thead><tr><th>Concepto</th><th>Tipo</th><th>Importe</th></tr></thead>
+                <thead><tr><th>Concepto</th><th>Categoria</th><th>Tipo</th><th>Cuenta</th><th>Importe</th></tr></thead>
                 <tbody>
-                  {(flujo?.movimientos || []).slice(0, 8).map((m, i) => (
+                  {(flujo?.movimientos || []).slice(0, 15).map((m, i) => (
                     <tr key={i}>
                       <td>{m.concepto}</td>
+                      <td style={{ fontSize: 10, color: "#999999" }}>{m.categoria_nombre || "—"}</td>
                       <td><span className={"badge " + (m.tipo === "I" ? "bg" : "br")}>{m.tipo === "I" ? "Ingreso" : "Egreso"}</span></td>
+                      <td style={{ fontSize: 10, color: "#999999" }}>{m.cuenta_nombre || m.forma_pago || "—"}</td>
                       <td style={{ color: m.tipo === "I" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "I" ? "+" : "-"}${parseFloat(m.importe).toLocaleString()}</td>
                     </tr>
                   ))}
-                  {(flujo?.movimientos || []).length === 0 && <tr><td colSpan={3} style={{ color: "#999999", textAlign: "center" }}>Sin movimientos este mes</td></tr>}
+                  {(flujo?.movimientos || []).length === 0 && <tr><td colSpan={5} style={{ color: "#999999", textAlign: "center" }}>Sin movimientos</td></tr>}
                 </tbody>
               </table>}
             </div>
@@ -936,9 +986,7 @@ function Finanzas() {
                       if (nuevoEgreso.forma_pago === "efectivo") return c.tipo === "efectivo";
                       if (nuevoEgreso.forma_pago === "echeck") return c.tipo === "echeck";
                       return c.tipo === "transferencia";
-                    }).map(c => (
-                      <option key={c.id} value={c.id}>{c.nombre}</option>
-                    ))}
+                    }).map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                   </select>
                 </div>
               )}
@@ -956,20 +1004,59 @@ function Finanzas() {
           </div>
         </div>
       )}
+
+      {tab === "estructurado" && (
+        <div className="fade">
+          {loading ? <div style={{ color: "#999999", padding: 20 }}>Cargando...</div> : flujoEst && (
+            <div className="g2">
+              <div>
+                <SeccionFlujo titulo="INGRESOS" detalle={flujoEst.ingresos?.detalle} total={flujoEst.ingresos?.total} color="#2d7a4f" />
+                <SeccionFlujo titulo="COSTOS VARIABLES" detalle={flujoEst.variables?.detalle} total={flujoEst.variables?.total} color="#e67e22" />
+                <SeccionFlujo titulo="COSTOS FIJOS" detalle={flujoEst.fijos?.detalle} total={flujoEst.fijos?.total} color="#2471a3" />
+                <SeccionFlujo titulo="GASTOS ADMINISTRATIVOS" detalle={flujoEst.admin?.detalle} total={flujoEst.admin?.total} color="#7d3c98" />
+                <SeccionFlujo titulo="SUELDOS" detalle={flujoEst.sueldos?.detalle} total={flujoEst.sueldos?.total} color="#c0392b" />
+                <SeccionFlujo titulo="IMPUESTOS" detalle={flujoEst.impuestos?.detalle} total={flujoEst.impuestos?.total} color="#c9a84c" />
+                <div style={{ background: (flujoEst.resultado_neto >= 0 ? "#2d7a4f" : "#c0392b"), borderRadius: 8, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "white", letterSpacing: ".1em" }}>RESULTADO NETO</span>
+                  <span style={{ fontSize: 24, fontWeight: 700, color: "white" }}>${parseFloat(flujoEst.resultado_neto || 0).toLocaleString()}</span>
+                </div>
+              </div>
+              <div className="card">
+                <div className="ct">Resumen del mes</div>
+                {[
+                  { l: "Total ingresos", v: flujoEst.ingresos?.total, c: "#2d7a4f" },
+                  { l: "Costos variables", v: flujoEst.variables?.total, c: "#e67e22" },
+                  { l: "Costos fijos", v: flujoEst.fijos?.total, c: "#2471a3" },
+                  { l: "Gastos admin", v: flujoEst.admin?.total, c: "#7d3c98" },
+                  { l: "Sueldos", v: flujoEst.sueldos?.total, c: "#c0392b" },
+                  { l: "Impuestos", v: flujoEst.impuestos?.total, c: "#c9a84c" },
+                  { l: "Total egresos", v: flujoEst.total_egresos, c: "#c0392b" },
+                ].map(r => (
+                  <div key={r.l} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f0f0f0" }}>
+                    <span style={{ fontSize: 12, color: "#444444" }}>{r.l}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: r.c }}>${parseFloat(r.v || 0).toLocaleString()}</span>
+                  </div>
+                ))}
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", marginTop: 4 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700 }}>RESULTADO NETO</span>
+                  <span style={{ fontSize: 18, fontWeight: 700, color: flujoEst.resultado_neto >= 0 ? "#2d7a4f" : "#c0392b" }}>${parseFloat(flujoEst.resultado_neto || 0).toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {tab === "costos" && (
         <div className="g2 fade">
           <div className="card">
             <div className="ct">Costos fijos mensuales</div>
             {[{ l: "Alquiler", v: 35000 }, { l: "Personal", v: 28000 }, { l: "Servicios", v: 4200 }, { l: "Plataformas", v: 3800 }].map(c => (
-              <div key={c.l} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: "1px solid #272220" }}>
+              <div key={c.l} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: "1px solid #f0f0f0" }}>
                 <span style={{ fontSize: 12, color: "#444444" }}>{c.l}</span>
                 <span style={{ color: "#c9a84c" }}>${c.v.toLocaleString()}</span>
               </div>
             ))}
-            <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10 }}>
-              <span style={{ fontSize: 12, color: "#111111" }}>TOTAL FIJOS</span>
-              <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20 }}>$71.000</span>
-            </div>
           </div>
           <div className="card">
             <div className="ct">Margen bruto por producto</div>
@@ -988,12 +1075,13 @@ function Finanzas() {
           </div>
         </div>
       )}
+
       {tab === "equilibrio" && (
         <div className="g2 fade">
           <div className="card">
             <div className="ct">Punto de equilibrio</div>
             {loading ? <div style={{ color: "#999999" }}>Calculando...</div> : <>
-              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 48, fontWeight: 700, color: "#c9a84c" }}>${parseFloat(equilibrio?.punto_equilibrio || 0).toLocaleString()}</div>
+              <div style={{ fontSize: 48, fontWeight: 700, color: "#c9a84c" }}>${parseFloat(equilibrio?.punto_equilibrio || 0).toLocaleString()}</div>
               <div style={{ fontSize: 11, color: "#999999", marginTop: 4 }}>ventas minimas para cubrir costos</div>
               <div className="divider" />
               {[
@@ -1020,9 +1108,6 @@ function Finanzas() {
                 <span style={{ color: r.c }}>{r.v}</span>
               </div>
             ))}
-            <div className="pb" style={{ height: 10, marginTop: 8 }}>
-              <div className="pf" style={{ width: "100%", background: "linear-gradient(90deg,#d97070 0%,#c9a96e 63%,#6bbf8e 100%)" }} />
-            </div>
           </div>
         </div>
       )}
@@ -1677,8 +1762,11 @@ function Comisiones({ localId }) {
         </>
       )}
     </div>
+  </div>
+  </div>
   );
 }
+
 function Proveedores() {
   const [tab, setTab] = useState("lista");
   const [proveedores, setProveedores] = useState([]);
