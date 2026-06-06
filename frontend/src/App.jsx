@@ -654,11 +654,10 @@ function POS({ localId }) {
             </button>
           </div>
         </div>
-</div>
+      </div>
     </>}
   );
 }
-
 
 function Inventario() {
   const [tab, setTab] = useState("stock");
