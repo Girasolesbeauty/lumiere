@@ -1080,7 +1080,7 @@ function Finanzas({ localId }) {
         <div className="g2 fade">
           <div className="card">
             <div className="ct">Punto de equilibrio</div>
-            {loading ? <div style={{ color: "#999999" }}>Calculando...</div> : <>
+            {loading ? <div style={{ color: "#999999" }}>Calculando...</div> : <div>
               <div style={{ fontSize: 48, fontWeight: 700, color: "#c9a84c" }}>${parseFloat(equilibrio?.punto_equilibrio || 0).toLocaleString()}</div>
               <div style={{ fontSize: 11, color: "#999999", marginTop: 4 }}>ventas minimas para cubrir costos</div>
               <div className="divider" />
@@ -1094,7 +1094,7 @@ function Finanzas({ localId }) {
                   <span style={{ fontSize: 11, color: "#444444" }}>{r.v}</span>
                 </div>
               ))}
-            </>}
+            </div>}
           </div>
           <div className="card">
             <div className="ct">Situacion actual</div>
@@ -1675,7 +1675,7 @@ function Comisiones({ localId }) {
       </div>
       {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
       {loading ? <div style={{ textAlign: "center", color: "#999999", padding: 40 }}>Calculando comisiones...</div> : datos && (
-        <>
+        <div>
           <div className="g3" style={{ marginBottom: 18 }}>
             <div className="card" style={{ borderTop: "3px solid " + nivelColor }}>
               <div className="ct">Facturacion del mes</div>
@@ -1759,7 +1759,7 @@ function Comisiones({ localId }) {
               </table>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   </div>
