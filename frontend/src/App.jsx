@@ -1763,7 +1763,6 @@ function Comisiones({ localId }) {
             </div>
           )}
         </div>
-      </div>
     </div>
     ) : null}
   </div>
@@ -2228,7 +2227,7 @@ export default function AppWrapper() {
   const NAV_CON_PERMISOS = NAV_SECTIONS.map(sec => ({
     ...sec,
     items: sec.items.filter(it => puedeVer(it.id))
-  })).filter(sec => sec.items.length > 0);
+  )).filter(sec => sec.items.length > 0);
 
   if (usuario.rol === "jefe") {
     const yaExiste = NAV_CON_PERMISOS.some(s => s.items.some(i => i.id === "usuarios"));
