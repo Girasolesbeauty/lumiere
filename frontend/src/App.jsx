@@ -655,7 +655,8 @@ function POS({ localId }) {
           </div>
         </div>
       </div>
-    </div>
+</div>
+    </>}
   );
 }
 
