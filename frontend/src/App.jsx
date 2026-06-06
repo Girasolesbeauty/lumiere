@@ -1677,11 +1677,8 @@ function Comisiones({ localId }) {
         </>
       )}
     </div>
-  </div>
-  </div>
   );
 }
-
 function Proveedores() {
   const [tab, setTab] = useState("lista");
   const [proveedores, setProveedores] = useState([]);
