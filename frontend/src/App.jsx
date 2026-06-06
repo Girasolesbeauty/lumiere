@@ -1673,8 +1673,14 @@ function Comisiones({ localId }) {
         <div><div className="pt">Comisiones</div><div className="ps">facturacion del mes - metas - premios</div></div>
         <button className="btn btn-g btn-sm" onClick={cargar}>Actualizar</button>
       </div>
-      {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
-      {loading ? <div style={{ textAlign: "center", color: "#999999", padding: 40 }}>Calculando comisiones...</div> : datos && (
+      {mensaje && (
+        <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>
+          {mensaje}
+        </div>
+      )}
+      {loading ? (
+        <div style={{ textAlign: "center", color: "#999999", padding: 40 }}>Calculando comisiones...</div>
+      ) : datos ? (
         <div>
           <div className="g3" style={{ marginBottom: 18 }}>
             <div className="card" style={{ borderTop: "3px solid " + nivelColor }}>
@@ -1695,7 +1701,6 @@ function Comisiones({ localId }) {
               <div className="msub">{datos.nivel === 2 ? "Meta maxima alcanzada!" : "para el proximo nivel"}</div>
             </div>
           </div>
-
           <div className="g2">
             <div className="card">
               <div className="ct">Progreso hacia las metas</div>
@@ -1726,7 +1731,6 @@ function Comisiones({ localId }) {
                 </div>
               </div>
             </div>
-
             <div className="card">
               <div className="ct">Estado del mes</div>
               <div style={{ background: nivelColor + "12", border: "1px solid " + nivelColor + "44", borderRadius: 8, padding: 16, marginBottom: 16, textAlign: "center" }}>
@@ -1740,7 +1744,6 @@ function Comisiones({ localId }) {
               )}
             </div>
           </div>
-
           {historial.length > 0 && (
             <div className="card">
               <div className="ct">Historial de comisiones</div>
@@ -1760,9 +1763,13 @@ function Comisiones({ localId }) {
             </div>
           )}
         </div>
-      )}
+      </div>
+    </div>
+    ) : null}
+  </div>
   );
 }
+
 function Proveedores() {
   const [tab, setTab] = useState("lista");
   const [proveedores, setProveedores] = useState([]);
