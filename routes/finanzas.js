@@ -6,5 +6,6 @@ router.get('/flujo', controller.getFlujo);
 router.post('/egreso', controller.agregarEgreso);
 router.get('/equilibrio', controller.getPuntoEquilibrio);
 router.get('/resumen', controller.getResumen);
+router.get('/flujo-estructurado', controller.getFlujoEstructurado);
 
 module.exports = router;
