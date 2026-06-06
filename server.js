@@ -29,6 +29,10 @@ app.use('/api/comisiones', require('./routes/comisiones'));
 app.use('/api/arca', require('./routes/arca'));
 app.use('/api/medios-pago', require('./routes/medios-pago'));
 app.use('/api/categorias-costo', require('./routes/categorias-costo'));
+app.use('/api/proveedores', require('./routes/proveedores'));
+app.use('/api/cuentas-pago', require('./routes/cuentas-pago'));
+app.use('/api/ordenes-ingreso', require('./routes/ordenes-ingreso'));
+app.use('/api/cuentas-pago', require('./routes/cuentas-pago'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {
