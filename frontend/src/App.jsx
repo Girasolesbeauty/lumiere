@@ -115,7 +115,7 @@ const REWARDS = [
 
 const REWARDS_DISPLAY = REWARDS.map(r => ({
   ...r,
-  emoji: r.emoji === "ok_hand" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨" : r.emoji === "droplet" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§" : r.emoji === "lipstick" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾" : r.emoji === "gift" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â½ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" : r.emoji === "herb" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿" : "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸"
+  emoji: r.emoji === "ok_hand" ? "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨" : r.emoji === "droplet" ? "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§" : r.emoji === "lipstick" ? "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¾" : r.emoji === "gift" ? "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" : r.emoji === "herb" ? "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿" : "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸"
 }));
 
 const CUPONS_DATA = [
@@ -383,7 +383,7 @@ function POS({ localId }) {
       if (!preventa) {
         try {
           const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaRes.data.id });
-          setMensaje("ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
+          setMensaje("ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
         } catch (arcaErr) {
           setMensaje("Venta registrada pero error en ARCA: " + arcaErr.message);
         }
@@ -952,9 +952,9 @@ function Finanzas({ localId }) {
                   {(flujo?.movimientos || []).slice(0, 15).map((m, i) => (
                     <tr key={i}>
                       <td>{m.concepto}</td>
-                      <td style={{ fontSize: 10, color: "#999999" }}>{m.categoria_nombre || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}</td>
+                      <td style={{ fontSize: 10, color: "#999999" }}>{m.categoria_nombre || "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â"}</td>
                       <td><span className={"badge " + (m.tipo === "I" ? "bg" : "br")}>{m.tipo === "I" ? "Ingreso" : "Egreso"}</span></td>
-                      <td style={{ fontSize: 10, color: "#999999" }}>{m.cuenta_nombre || m.forma_pago || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}</td>
+                      <td style={{ fontSize: 10, color: "#999999" }}>{m.cuenta_nombre || m.forma_pago || "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â"}</td>
                       <td style={{ color: m.tipo === "I" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "I" ? "+" : "-"}${parseFloat(m.importe).toLocaleString()}</td>
                     </tr>
                   ))}
@@ -1130,105 +1130,171 @@ function Finanzas({ localId }) {
   );
 }
 
-function Informes() {
-  const [tab, setTab] = useState("abc");
+function Informes({ localId }) {
+  const [tab, setTab] = useState("ventas");
+  const [tabLocal, setTabLocal] = useState("rg");
+  const [loading, setLoading] = useState(true);
+  const [datos, setDatos] = useState(null);
+  const [mes, setMes] = useState(new Date().getMonth() + 1);
+  const [anio, setAnio] = useState(new Date().getFullYear());
+
+  const meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+  const cargar = async () => {
+    setLoading(true);
+    try {
+      const local = tabLocal === "consolidado" ? "" : tabLocal === "rg" ? "1" : "2";
+      const params = "mes=" + mes + "&anio=" + anio + (local ? "&local_id=" + local : "");
+      const [ventasRes, invRes] = await Promise.all([
+        API.get("/ventas?" + params),
+        API.get("/productos")
+      ]);
+      const ventas = ventasRes.data || [];
+      const productos = invRes.data || [];
+      const totalVentas = ventas.reduce((s, v) => s + parseFloat(v.total || 0), 0);
+      const cantVentas = ventas.length;
+      const ticketProm = cantVentas > 0 ? totalVentas / cantVentas : 0;
+      const ventasPorMedio = {};
+      ventas.forEach(v => {
+        const medio = v.medio_pago || "Efectivo";
+        ventasPorMedio[medio] = (ventasPorMedio[medio] || 0) + parseFloat(v.total || 0);
+      });
+      const stockBajo = productos.filter(p => (p.stock || 0) <= (p.stock_minimo || p.min || 5));
+      setDatos({ ventas, totalVentas, cantVentas, ticketProm, ventasPorMedio, stockBajo, productos });
+    } catch (e) {}
+    setLoading(false);
+  };
+
+  useEffect(() => { cargar(); }, [tabLocal, mes, anio]);
+
   return (
     <div className="fade">
       <div className="ph">
-        <div><div className="pt">Informes</div><div className="ps">abc proveedores - inventario - ventas</div></div>
-        <button className="btn btn-g btn-sm">Exportar</button>
+        <div><div className="pt">Informes</div><div className="ps">ventas - stock - medios de pago</div></div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <select className="sel" style={{ width: 120, padding: "6px 10px", fontSize: 12 }} value={mes} onChange={e => setMes(parseInt(e.target.value))}>
+            {meses.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
+          </select>
+          <select className="sel" style={{ width: 80, padding: "6px 10px", fontSize: 12 }} value={anio} onChange={e => setAnio(parseInt(e.target.value))}>
+            {[2024,2025,2026,2027].map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+        </div>
       </div>
-      <div className="tabs">
-        {[["abc", "ABC PROV."], ["inv", "INVENTARIO"], ["ventas", "VENTAS"]].map(([id, l]) => (
-          <div key={id} className={"tab " + (tab === id ? "on" : "")} onClick={() => setTab(id)}>{l}</div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        {["rg", "ush", "consolidado"].map(l => (
+          <button key={l} onClick={() => setTabLocal(l)} className="btn btn-sm"
+            style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : "#e8e8e8"), color: tabLocal === l ? "#c9a84c" : "#999999", fontWeight: tabLocal === l ? 600 : 400 }}>
+            {l === "rg" ? "Rio Grande" : l === "ush" ? "Ushuaia" : "Consolidado"}
+          </button>
         ))}
       </div>
-      {tab === "abc" && (
-        <div className="fade">
-          <div className="g3" style={{ marginBottom: 16 }}>
-            {[{ c: "A", n: 2, pct: "65%", col: "#2d7a4f", desc: "80% de ventas" }, { c: "B", n: 2, pct: "25%", col: "#2471a3", desc: "15% de ventas" }, { c: "C", n: 2, pct: "10%", col: "#999999", desc: "5% de ventas" }].map(t => (
-              <div key={t.c} className="card">
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <div className="ct">Clase {t.c}</div>
-                  <span className={"badge " + (t.c === "A" ? "bg" : t.c === "B" ? "bb" : "bx")}>{t.n} prov.</span>
-                </div>
-                <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 30, fontWeight: 700, color: t.col }}>{t.pct}</div>
-                <div style={{ fontSize: 10, color: "#999999" }}>{t.desc}</div>
+      <div className="tabs">
+        {["ventas", "stock", "medios"].map(t => (
+          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => setTab(t)}>
+            {t === "ventas" ? "VENTAS" : t === "stock" ? "STOCK" : "MEDIOS DE PAGO"}
+          </div>
+        ))}
+      </div>
+      {loading ? (
+        <div style={{ color: "#999999", padding: 30, textAlign: "center" }}>Cargando...</div>
+      ) : datos && (
+        <div>
+          {tab === "ventas" && (
+            <div className="fade">
+              <div className="g3" style={{ marginBottom: 18 }}>
+                <div className="card"><div className="ct">Total ventas</div><div style={{ fontSize: 28, fontWeight: 700, color: "#2d7a4f" }}>${datos.totalVentas.toLocaleString()}</div></div>
+                <div className="card"><div className="ct">Cantidad de ventas</div><div style={{ fontSize: 28, fontWeight: 700, color: "#c9a84c" }}>{datos.cantVentas}</div></div>
+                <div className="card"><div className="ct">Ticket promedio</div><div style={{ fontSize: 28, fontWeight: 700, color: "#2471a3" }}>${Math.round(datos.ticketProm).toLocaleString()}</div></div>
               </div>
-            ))}
-          </div>
-          <div className="card">
-            <table>
-              <thead><tr><th>Proveedor</th><th>Ventas</th><th>%</th><th>Clase</th><th>Acumulado</th></tr></thead>
-              <tbody>
-                {PROVIDERS_ABC.map((p, i) => {
-                  const acum = PROVIDERS_ABC.slice(0, i + 1).reduce((s, x) => s + x.pct, 0);
-                  return (
-                    <tr key={p.name}>
-                      <td style={{ color: "#111111" }}>{p.name}</td>
-                      <td>${p.ventas.toLocaleString()}</td>
-                      <td>{p.pct}%</td>
-                      <td><span className={"badge " + (p.clase === "A" ? "bg" : p.clase === "B" ? "bb" : "bx")}>{p.clase}</span></td>
-                      <td>
-                        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                          <div style={{ flex: 1 }}><div className="pb"><div className="pf" style={{ width: acum + "%", background: p.clase === "A" ? "#2d7a4f" : p.clase === "B" ? "#2471a3" : "#999999" }} /></div></div>
-                          <span style={{ fontSize: 9, color: "#999999", width: 28 }}>{acum}%</span>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-      {tab === "inv" && (
-        <div className="card fade">
-          <table>
-            <thead><tr><th>Producto</th><th>Stock</th><th>Valor stock</th><th>Estado</th></tr></thead>
-            <tbody>
-              {PRODUCTS.map(p => (
-                <tr key={p.id}>
-                  <td><div style={{ color: "#111111" }}>{p.name}</div><div style={{ fontSize: 9, color: "#999999" }}>{p.brand}</div></td>
-                  <td>{p.stock}u</td>
-                  <td style={{ color: "#c9a84c" }}>${(p.stock * p.cost).toLocaleString()}</td>
-                  <td><span className={"badge " + (p.stock < p.min ? "br" : p.stock < p.min * 1.5 ? "ba" : "bg")}>{p.stock < p.min ? "CRITICO" : p.stock < p.min * 1.5 ? "BAJO" : "NORMAL"}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {tab === "ventas" && (
-        <div className="g2 fade">
-          <div className="card">
-            <div className="ct">Ventas por canal</div>
-            {[{ canal: "Presencial (POS)", pct: 62, val: 88226, c: "#c9a84c" }, { canal: "Tiendanube (online)", pct: 38, val: 54074, c: "#7d3c98" }].map(c => (
-              <div key={c.canal} style={{ marginBottom: 14 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                  <span style={{ fontSize: 11, color: "#444444" }}>{c.canal}</span>
-                  <span style={{ fontSize: 11, color: c.c }}>${c.val.toLocaleString()} ({c.pct}%)</span>
-                </div>
-                <div className="pb"><div className="pf" style={{ width: c.pct + "%", background: c.c }} /></div>
+              <div className="card">
+                <div className="ct">Ultimas ventas del mes</div>
+                {datos.ventas.length === 0 ? (
+                  <div style={{ color: "#999999", textAlign: "center", padding: 20, fontSize: 12 }}>Sin ventas en este periodo</div>
+                ) : (
+                  <table>
+                    <thead><tr><th>Fecha</th><th>Cliente</th><th>Medio</th><th>Items</th><th>Total</th></tr></thead>
+                    <tbody>
+                      {datos.ventas.slice(0, 20).map((v, i) => (
+                        <tr key={i}>
+                          <td style={{ fontSize: 11, color: "#999999" }}>{new Date(v.creado_en || v.fecha).toLocaleDateString("es-AR")}</td>
+                          <td style={{ fontSize: 12 }}>{v.cliente_nombre || "Consumidor final"}</td>
+                          <td style={{ fontSize: 11 }}>{v.medio_pago || "-"}</td>
+                          <td style={{ fontSize: 11, color: "#999999" }}>{v.items_count || "-"}</td>
+                          <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${parseFloat(v.total || 0).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
-            ))}
-          </div>
-          <div className="card">
-            <div className="ct">Top 5 productos</div>
-            {PRODUCTS.slice(0, 5).map((p, i) => (
-              <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: i < 4 ? "1px solid #2722201a" : "none" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontFamily: "'Inter',sans-serif", fontSize: 16, fontWeight: 700, color: "#999999", width: 16 }}>{i + 1}</span>
+            </div>
+          )}
+          {tab === "stock" && (
+            <div className="fade">
+              <div className="g2">
+                <div className="card">
+                  <div className="ct">Productos con stock bajo ({datos.stockBajo.length})</div>
+                  {datos.stockBajo.length === 0 ? (
+                    <div style={{ color: "#2d7a4f", textAlign: "center", padding: 20, fontSize: 12 }}>Todos los productos tienen stock suficiente</div>
+                  ) : (
+                    <table>
+                      <thead><tr><th>Producto</th><th>Stock actual</th><th>Minimo</th></tr></thead>
+                      <tbody>
+                        {datos.stockBajo.map((p, i) => (
+                          <tr key={i}>
+                            <td>
+                              <div style={{ fontSize: 12 }}>{p.nombre}</div>
+                              <div style={{ fontSize: 10, color: "#999999" }}>{p.marca}</div>
+                            </td>
+                            <td><span className="badge br">{p.stock || 0}u</span></td>
+                            <td style={{ color: "#999999", fontSize: 12 }}>{p.stock_minimo || p.min || 5}u</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+                <div className="card">
+                  <div className="ct">Resumen de inventario</div>
+                  {[
+                    { l: "Total productos", v: datos.productos.length },
+                    { l: "Con stock bajo", v: datos.stockBajo.length, c: datos.stockBajo.length > 0 ? "#c0392b" : "#2d7a4f" },
+                    { l: "Sin stock", v: datos.productos.filter(p => !p.stock || p.stock === 0).length, c: "#c0392b" },
+                  ].map(r => (
+                    <div key={r.l} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
+                      <span style={{ fontSize: 12, color: "#444444" }}>{r.l}</span>
+                      <span style={{ fontSize: 16, fontWeight: 700, color: r.c || "#111111" }}>{r.v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          {tab === "medios" && (
+            <div className="fade">
+              <div className="card">
+                <div className="ct">Ventas por medio de pago</div>
+                {Object.keys(datos.ventasPorMedio).length === 0 ? (
+                  <div style={{ color: "#999999", textAlign: "center", padding: 20, fontSize: 12 }}>Sin datos para este periodo</div>
+                ) : (
                   <div>
-                    <div style={{ fontSize: 11, color: "#444444" }}>{p.name}</div>
-                    <div style={{ fontSize: 9, color: "#999999" }}>{p.brand}</div>
+                    {Object.entries(datos.ventasPorMedio).sort((a,b) => b[1]-a[1]).map(([medio, total]) => {
+                      const pct = datos.totalVentas > 0 ? Math.round((total / datos.totalVentas) * 100) : 0;
+                      return (
+                        <div key={medio} style={{ marginBottom: 14 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                            <span style={{ fontSize: 12, color: "#444444" }}>{medio}</span>
+                            <span style={{ fontSize: 12, color: "#c9a84c", fontWeight: 600 }}>${total.toLocaleString()} ({pct}%)</span>
+                          </div>
+                          <div className="pb"><div className="pf" style={{ width: pct + "%" }} /></div>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
-                <span style={{ color: "#c9a84c", fontSize: 11 }}>${(p.price * (10 - i)).toLocaleString()}</span>
+                )}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1681,7 +1747,7 @@ function Comisiones({ localId }) {
   };
 
   const nivelColor = datos?.nivel === 2 ? "#c9a84c" : datos?.nivel === 1 ? "#2d7a4f" : "#999999";
-  const nivelEmoji = datos?.nivel === 2 ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â " : datos?.nivel === 1 ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" : "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â½ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¯";
+  const nivelEmoji = datos?.nivel === 2 ? "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â " : datos?.nivel === 1 ? "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" : "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¯";
 
   return (
     <div className="fade">
@@ -2300,7 +2366,7 @@ function LoginScreen({ onLogin }) {
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
-    if (!email || !password) return setError("CompletÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ todos los campos");
+    if (!email || !password) return setError("CompletÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ todos los campos");
     setLoading(true);
     try {
       const res = await login({ email, password });
@@ -2308,7 +2374,7 @@ function LoginScreen({ onLogin }) {
       localStorage.setItem("lumiere_user", JSON.stringify(res.data.usuario));
       onLogin(res.data.usuario);
     } catch (e) {
-      setError("Email o contraseÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±a incorrectos");
+      setError("Email o contraseÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±a incorrectos");
     }
     setLoading(false);
   };
@@ -2326,8 +2392,8 @@ function LoginScreen({ onLogin }) {
           <input className="inp" type="email" placeholder="tu@email.com" value={email} onChange={e => { setEmail(e.target.value); setError(""); }} />
         </div>
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œA</div>
-          <input className="inp" type="password" placeholder="ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
+          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“A</div>
+          <input className="inp" type="password" placeholder="ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
         </div>
         <button className="btn btn-p" style={{ width: "100%", padding: 13 }} onClick={handleLogin} disabled={loading}>
           {loading ? "Ingresando..." : "Ingresar"}
@@ -2363,7 +2429,7 @@ function LocalSelector({ usuario, onSelect }) {
                 <div style={{ fontSize: 14, color: "#111111" }}>{l.nombre}</div>
                 {l.direccion && <div style={{ fontSize: 10, color: "#999999", marginTop: 3 }}>{l.direccion}</div>}
               </div>
-              <span style={{ color: "#c9a84c", fontSize: 16 }}>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢</span>
+              <span style={{ color: "#c9a84c", fontSize: 16 }}>ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢</span>
             </div>
           ))}
         </div>
@@ -2381,7 +2447,7 @@ function LocalSelector({ usuario, onSelect }) {
 function SinPermiso() {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", flexDirection: "column", gap: 12 }}>
-      <div style={{ fontSize: 40 }}>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢</div>
+      <div style={{ fontSize: 40 }}>ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢</div>
       <div style={{ fontSize: 18, fontWeight: 700, color: "#111111" }}>Sin acceso</div>
       <div style={{ fontSize: 13, color: "#999999" }}>No tenes permiso para ver esta seccion</div>
     </div>
@@ -2438,7 +2504,7 @@ function Usuarios({ usuario: usuarioActual }) {
             <div>
               <div className="fg"><div className="fl">Nombre</div><input className="inp" placeholder="Nombre completo" value={nuevoUsuario.nombre} onChange={e => setNuevoUsuario(p => ({ ...p, nombre: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Email</div><input className="inp" type="email" placeholder="email@ejemplo.com" value={nuevoUsuario.email} onChange={e => setNuevoUsuario(p => ({ ...p, email: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">ContraseÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±a</div><input className="inp" type="password" placeholder="ContraseÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±a inicial" value={nuevoUsuario.password} onChange={e => setNuevoUsuario(p => ({ ...p, password: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">ContraseÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±a</div><input className="inp" type="password" placeholder="ContraseÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±a inicial" value={nuevoUsuario.password} onChange={e => setNuevoUsuario(p => ({ ...p, password: e.target.value }))} /></div>
             </div>
             <div>
               <div className="fg"><div className="fl">Rol</div>
@@ -2475,8 +2541,8 @@ function Usuarios({ usuario: usuarioActual }) {
                 <td style={{ color: "#111111", fontWeight: 500 }}>{u.nombre}</td>
                 <td>{u.email}</td>
                 <td><span className="badge" style={{ background: (rolColor[u.rol] || "#999999") + "15", color: rolColor[u.rol] || "#999999" }}>{rolNombre[u.rol] || u.rol}</span></td>
-                <td>{u.local_nombre || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}</td>
-                <td><button className="btn btn-g btn-sm" onClick={() => cambiarPassword(u.id)}>Cambiar contraseÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±a</button></td>
+                <td>{u.local_nombre || "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â"}</td>
+                <td><button className="btn btn-g btn-sm" onClick={() => cambiarPassword(u.id)}>Cambiar contraseÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±a</button></td>
               </tr>
             ))}
           </tbody>
@@ -2487,7 +2553,7 @@ function Usuarios({ usuario: usuarioActual }) {
         <div className="ct">Permisos por rol</div>
         <div className="g3">
           {[
-            { rol: "Jefe", color: "#c9a84c", permisos: ["Todo sin restricciones", "GestiÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n de usuarios", "Todos los locales", "Configuracion del sistema"] },
+            { rol: "Jefe", color: "#c9a84c", permisos: ["Todo sin restricciones", "GestiÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n de usuarios", "Todos los locales", "Configuracion del sistema"] },
             { rol: "Administrativo", color: "#2471a3", permisos: ["Dashboard", "Inventario", "Clientes", "Finanzas e Informes", "Solo lectura en Cupones"] },
             { rol: "Vendedora", color: "#2d7a4f", permisos: ["Punto de Venta", "Clientes", "Cupones (ver)", "Fidelizacion (ver)", "Postventa WhatsApp", "Alertas de stock"] },
           ].map(r => (
@@ -2495,7 +2561,7 @@ function Usuarios({ usuario: usuarioActual }) {
               <div style={{ fontWeight: 700, fontSize: 14, color: "#111111", marginBottom: 10 }}>{r.rol}</div>
               {r.permisos.map((p, i) => (
                 <div key={i} style={{ display: "flex", gap: 7, marginBottom: 6, fontSize: 12, color: "#444444" }}>
-                  <span style={{ color: r.color }}>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“</span>{p}
+                  <span style={{ color: r.color }}>ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ</span>{p}
                 </div>
               ))}
             </div>
@@ -2593,7 +2659,7 @@ export default function AppWrapper() {
   if (usuario.rol === "jefe") {
     const yaExiste = NAV_CON_PERMISOS.some(s => s.items.some(i => i.id === "usuarios"));
     if (!yaExiste) {
-      NAV_CON_PERMISOS.push({ section: "CONFIGURACION", items: [{ id: "usuarios", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¥", label: "Usuarios" }] });
+      NAV_CON_PERMISOS.push({ section: "CONFIGURACION", items: [{ id: "usuarios", icon: "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¥", label: "Usuarios" }] });
     }
   }
 
@@ -2632,10 +2698,10 @@ export default function AppWrapper() {
               <StatusDot color="#25d366" label="TIENDANUBE" />
             </div>
             <div style={{ marginTop: 12, fontSize: 11, color: "#999999", cursor: "pointer" }} onClick={() => setLocal(null)}>
-              ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾ Cambiar local
+              ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¾ Cambiar local
             </div>
             <div style={{ marginTop: 6, fontSize: 11, color: "#999999", cursor: "pointer" }} onClick={handleLogout}>
-              ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Cerrar sesion
+              ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â Cerrar sesion
             </div>
           </div>
         </aside>
