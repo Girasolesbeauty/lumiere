@@ -1763,7 +1763,6 @@ function Comisiones({ localId }) {
             </div>
           )}
         </div>
-      </div>
     </div>
     ) : null}
   </div>
