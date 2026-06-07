@@ -941,7 +941,7 @@ function Finanzas({ localId }) {
                   {(flujo?.movimientos || []).slice(0, 15).map((m, i) => (
                     <tr key={i}>
                       <td>{m.concepto}</td>
-                      <td style={{ fontSize: 10, color: "#999999" }}>{m.categoria_nombre || """"}</td>
+                      <td style={{ fontSize: 10, color: "#999999" }}>{m.categoria_nombre || "—"}</td>
                       <td><span className={"badge " + (m.tipo === "I" ? "bg" : "br")}>{m.tipo === "I" ? "Ingreso" : "Egreso"}</span></td>
                       <td style={{ fontSize: 10, color: "#999999" }}>{m.cuenta_nombre || m.forma_pago || """"}</td>
                       <td style={{ color: m.tipo === "I" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "I" ? "+" : "-"}${parseFloat(m.importe).toLocaleString()}</td>
