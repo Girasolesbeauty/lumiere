@@ -697,7 +697,6 @@ function Inventario() {
         </div>
       )}
     </div>
-  </div>
   );
 }
 
