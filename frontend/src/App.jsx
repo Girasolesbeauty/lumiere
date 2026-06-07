@@ -115,7 +115,7 @@ const REWARDS = [
 
 const REWARDS_DISPLAY = REWARDS.map(r => ({
   ...r,
-  emoji: r.emoji === "ok_hand" ? "âœ¨" : r.emoji === "droplet" ? "ðŸ’§" : r.emoji === "lipstick" ? "ðŸ’„" : r.emoji === "gift" ? "ðŸŽ" : r.emoji === "herb" ? "ðŸŒ¿" : "ðŸŒ¸"
+  emoji: r.emoji === "ok_hand" ? "Ã¢Å“Â¨" : r.emoji === "droplet" ? "Ã°Å¸â€™Â§" : r.emoji === "lipstick" ? "Ã°Å¸â€™â€ž" : r.emoji === "gift" ? "Ã°Å¸Å½Â" : r.emoji === "herb" ? "Ã°Å¸Å’Â¿" : "Ã°Å¸Å’Â¸"
 }));
 
 const CUPONS_DATA = [
@@ -379,7 +379,7 @@ function POS({ localId }) {
       if (!preventa) {
         try {
           const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaRes.data.id });
-          setMensaje("âœ“ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
+          setMensaje("Ã¢Å“â€œ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
         } catch (arcaErr) {
           setMensaje("Venta registrada pero error en ARCA: " + arcaErr.message);
         }
@@ -500,8 +500,8 @@ function POS({ localId }) {
                 </div>
                 {clienteSeleccionado && clienteSeleccionado.id && (
                   <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f33", borderRadius: 6, padding: "8px 12px", marginBottom: 6 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#2d7a4f" }}>âœ“ {clienteSeleccionado.nombre}</div>
-                    <div style={{ fontSize: 10, color: "#666666" }}>{clienteSeleccionado.puntos || 0} pts Â· {clienteSeleccionado.nivel || "Bronze"}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#2d7a4f" }}>Ã¢Å“â€œ {clienteSeleccionado.nombre}</div>
+                    <div style={{ fontSize: 10, color: "#666666" }}>{clienteSeleccionado.puntos || 0} pts Ã‚Â· {clienteSeleccionado.nivel || "Bronze"}</div>
                   </div>
                 )}
                 {showNuevoCliente && !clienteSeleccionado && (
@@ -657,7 +657,7 @@ function Inventario() {
               })}
             </tbody>
           </table>
-        )}
+          )}
         </div>
       )}
       {tab === "alertas" && (
@@ -697,7 +697,6 @@ function Inventario() {
         </div>
       )}
     </div>
-  </div>
   );
 }
 
@@ -942,16 +941,16 @@ function Finanzas({ localId }) {
                   {(flujo?.movimientos || []).slice(0, 15).map((m, i) => (
                     <tr key={i}>
                       <td>{m.concepto}</td>
-                      <td style={{ fontSize: 10, color: "#999999" }}>{m.categoria_nombre || """"}</td>
+                      <td style={{ fontSize: 10, color: "#999999" }}>{m.categoria_nombre || "â€”"}</td>
                       <td><span className={"badge " + (m.tipo === "I" ? "bg" : "br")}>{m.tipo === "I" ? "Ingreso" : "Egreso"}</span></td>
-                      <td style={{ fontSize: 10, color: "#999999" }}>{m.cuenta_nombre || m.forma_pago || """"}</td>
+                      <td style={{ fontSize: 10, color: "#999999" }}>{m.cuenta_nombre || m.forma_pago || "â€”"}</td>
                       <td style={{ color: m.tipo === "I" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "I" ? "+" : "-"}${parseFloat(m.importe).toLocaleString()}</td>
                     </tr>
                   ))}
                   {(flujo?.movimientos || []).length === 0 && (<tr><td colSpan={5} style={{ color: "#999999", textAlign: "center" }}>Sin movimientos</td></tr>)}
                 </tbody>
               </table>
-              }
+              )}
             </div>
             <div className="card">
               <div className="ct">Registrar egreso</div>
@@ -1671,7 +1670,7 @@ function Comisiones({ localId }) {
   };
 
   const nivelColor = datos?.nivel === 2 ? "#c9a84c" : datos?.nivel === 1 ? "#2d7a4f" : "#999999";
-  const nivelEmoji = datos?.nivel === 2 ? "ðŸ†" : datos?.nivel === 1 ? "â­" : "ðŸŽ¯";
+  const nivelEmoji = datos?.nivel === 2 ? "Ã°Å¸Ââ€ " : datos?.nivel === 1 ? "Ã¢Â­Â" : "Ã°Å¸Å½Â¯";
 
   return (
     <div className="fade">
@@ -1934,11 +1933,7 @@ function Caja({ localId, usuario }) {
   const [mensaje, setMensaje] = useState("");
   const [cuentas, setCuentas] = useState([]);
   const [nuevo, setNuevo] = useState({
-    tipo: "ingreso",
-    importe: "",
-    concepto: "",
-    destino_origen: "",
-    cuenta_destino_id: ""
+    tipo: "ingreso", importe: "", concepto: "", destino_origen: "", cuenta_destino_id: ""
   });
 
   const cargar = async () => {
@@ -1961,11 +1956,7 @@ function Caja({ localId, usuario }) {
   const guardar = async () => {
     if (!nuevo.importe || !nuevo.concepto) return setMensaje("Completa importe y concepto");
     try {
-      await API.post("/caja", {
-        ...nuevo,
-        local_id: localId || 1,
-        usuario_id: usuario?.id || null
-      });
+      await API.post("/caja", { ...nuevo, local_id: localId || 1, usuario_id: usuario?.id || null });
       setMensaje(nuevo.tipo === "ingreso" ? "Ingreso registrado!" : "Egreso registrado!");
       setNuevo({ tipo: "ingreso", importe: "", concepto: "", destino_origen: "", cuenta_destino_id: "" });
       cargar();
@@ -2006,7 +1997,7 @@ function Caja({ localId, usuario }) {
             <input className="inp" type="number" placeholder="5000" value={nuevo.importe} onChange={e => setNuevo(p => ({ ...p, importe: e.target.value }))} />
           </div>
           <div className="fg"><div className="fl">Concepto</div>
-            <input className="inp" placeholder={nuevo.tipo === "ingreso" ? "Ej: Venta presencial, deposito recibido..." : "Ej: Pago proveedor, gasto operativo..."} value={nuevo.concepto} onChange={e => setNuevo(p => ({ ...p, concepto: e.target.value }))} />
+            <input className="inp" placeholder={nuevo.tipo === "ingreso" ? "Ej: Venta presencial..." : "Ej: Pago proveedor..."} value={nuevo.concepto} onChange={e => setNuevo(p => ({ ...p, concepto: e.target.value }))} />
           </div>
           {nuevo.tipo === "egreso" && (
             <div>
@@ -2045,8 +2036,9 @@ function Caja({ localId, usuario }) {
         </div>
         <div className="card">
           <div className="ct">Movimientos recientes</div>
-          {loading ? <div style={{ color: "#999999", fontSize: 12 }}>Cargando...</div> :
-          movimientos.length === 0 ? (
+          {loading ? (
+            <div style={{ color: "#999999", fontSize: 12 }}>Cargando...</div>
+          ) : movimientos.length === 0 ? (
             <div style={{ textAlign: "center", color: "#999999", padding: 20, fontSize: 12 }}>Sin movimientos registrados</div>
           ) : (
             <table>
@@ -2058,7 +2050,6 @@ function Caja({ localId, usuario }) {
                     <td>
                       <div style={{ fontSize: 12 }}>{m.concepto}</div>
                       {m.destino_origen && <div style={{ fontSize: 9, color: "#999999" }}>{m.destino_origen.replace(/_/g, " ")}</div>}
-                      {m.cuenta_destino_nombre && <div style={{ fontSize: 9, color: "#2471a3" }}>{m.cuenta_destino_nombre}</div>}
                     </td>
                     <td><span className={"badge " + (m.tipo === "ingreso" ? "bg" : "br")}>{m.tipo}</span></td>
                     <td style={{ color: m.tipo === "ingreso" ? "#2d7a4f" : "#c0392b", fontWeight: 600 }}>
@@ -2076,10 +2067,10 @@ function Caja({ localId, usuario }) {
 }
 
 const NAV_SECTIONS = [
-  { section: "GESTION", items: [{ id: "dashboard", icon: "â—ˆ", label: "Dashboard" }, { id: "pos", icon: "âŠ•", label: "Punto de Venta" }, { id: "inventory", icon: "âŠž", label: "Inventario" }, { id: "clients", icon: "â—‰", label: "Clientes" }, { id: "caja", icon: "$", label: "Caja" }] },
-  { section: "FINANZAS", items: [{ id: "finance", icon: "â—Ž", label: "Finanzas" }, { id: "reports", icon: "â—", label: "Informes" }, { id: "comisiones", icon: "ðŸ’°", label: "Comisiones" }, { id: "proveedores", icon: "ðŸ­", label: "Proveedores" }] },
-  { section: "MARKETING", items: [{ id: "cupones", icon: "â˜…", label: "Cupones" }, { id: "fidelizacion", icon: "â—†", label: "Fidelizacion" }, { id: "postventa", icon: "â—‡", label: "Postventa WA" }] },
-  { section: "CLIENTE", items: [{ id: "portal", icon: "â—‹", label: "Portal Cliente" }] },
+  { section: "GESTION", items: [{ id: "dashboard", icon: "Ã¢â€”Ë†", label: "Dashboard" }, { id: "pos", icon: "Ã¢Å â€¢", label: "Punto de Venta" }, { id: "inventory", icon: "Ã¢Å Å¾", label: "Inventario" }, { id: "caja", icon: "$", label: "Caja" }, { id: "clients", icon: "Ã¢â€”â€°", label: "Clientes" }] },
+  { section: "FINANZAS", items: [{ id: "finance", icon: "Ã¢â€”Å½", label: "Finanzas" }, { id: "reports", icon: "Ã¢â€”Â", label: "Informes" }, { id: "comisiones", icon: "Ã°Å¸â€™Â°", label: "Comisiones" }, { id: "proveedores", icon: "Ã°Å¸ÂÂ­", label: "Proveedores" }] },
+  { section: "MARKETING", items: [{ id: "cupones", icon: "Ã¢Ëœâ€¦", label: "Cupones" }, { id: "fidelizacion", icon: "Ã¢â€”â€ ", label: "Fidelizacion" }, { id: "postventa", icon: "Ã¢â€”â€¡", label: "Postventa WA" }] },
+  { section: "CLIENTE", items: [{ id: "portal", icon: "Ã¢â€”â€¹", label: "Portal Cliente" }] },
 ];
 
 
@@ -2094,7 +2085,7 @@ function LoginScreen({ onLogin }) {
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
-    if (!email || !password) return setError("CompletÃ¡ todos los campos");
+    if (!email || !password) return setError("CompletÃƒÂ¡ todos los campos");
     setLoading(true);
     try {
       const res = await login({ email, password });
@@ -2102,7 +2093,7 @@ function LoginScreen({ onLogin }) {
       localStorage.setItem("lumiere_user", JSON.stringify(res.data.usuario));
       onLogin(res.data.usuario);
     } catch (e) {
-      setError("Email o contraseÃ±a incorrectos");
+      setError("Email o contraseÃƒÂ±a incorrectos");
     }
     setLoading(false);
   };
@@ -2120,8 +2111,8 @@ function LoginScreen({ onLogin }) {
           <input className="inp" type="email" placeholder="tu@email.com" value={email} onChange={e => { setEmail(e.target.value); setError(""); }} />
         </div>
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÃ‘A</div>
-          <input className="inp" type="password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
+          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÃƒâ€˜A</div>
+          <input className="inp" type="password" placeholder="Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
         </div>
         <button className="btn btn-p" style={{ width: "100%", padding: 13 }} onClick={handleLogin} disabled={loading}>
           {loading ? "Ingresando..." : "Ingresar"}
@@ -2157,7 +2148,7 @@ function LocalSelector({ usuario, onSelect }) {
                 <div style={{ fontSize: 14, color: "#111111" }}>{l.nombre}</div>
                 {l.direccion && <div style={{ fontSize: 10, color: "#999999", marginTop: 3 }}>{l.direccion}</div>}
               </div>
-              <span style={{ color: "#c9a84c", fontSize: 16 }}>â†’</span>
+              <span style={{ color: "#c9a84c", fontSize: 16 }}>Ã¢â€ â€™</span>
             </div>
           ))}
         </div>
@@ -2175,7 +2166,7 @@ function LocalSelector({ usuario, onSelect }) {
 function SinPermiso() {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", flexDirection: "column", gap: 12 }}>
-      <div style={{ fontSize: 40 }}>ðŸ”’</div>
+      <div style={{ fontSize: 40 }}>Ã°Å¸â€â€™</div>
       <div style={{ fontSize: 18, fontWeight: 700, color: "#111111" }}>Sin acceso</div>
       <div style={{ fontSize: 13, color: "#999999" }}>No tenes permiso para ver esta seccion</div>
     </div>
@@ -2232,7 +2223,7 @@ function Usuarios({ usuario: usuarioActual }) {
             <div>
               <div className="fg"><div className="fl">Nombre</div><input className="inp" placeholder="Nombre completo" value={nuevoUsuario.nombre} onChange={e => setNuevoUsuario(p => ({ ...p, nombre: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Email</div><input className="inp" type="email" placeholder="email@ejemplo.com" value={nuevoUsuario.email} onChange={e => setNuevoUsuario(p => ({ ...p, email: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">ContraseÃ±a</div><input className="inp" type="password" placeholder="ContraseÃ±a inicial" value={nuevoUsuario.password} onChange={e => setNuevoUsuario(p => ({ ...p, password: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">ContraseÃƒÂ±a</div><input className="inp" type="password" placeholder="ContraseÃƒÂ±a inicial" value={nuevoUsuario.password} onChange={e => setNuevoUsuario(p => ({ ...p, password: e.target.value }))} /></div>
             </div>
             <div>
               <div className="fg"><div className="fl">Rol</div>
@@ -2269,8 +2260,8 @@ function Usuarios({ usuario: usuarioActual }) {
                 <td style={{ color: "#111111", fontWeight: 500 }}>{u.nombre}</td>
                 <td>{u.email}</td>
                 <td><span className="badge" style={{ background: (rolColor[u.rol] || "#999999") + "15", color: rolColor[u.rol] || "#999999" }}>{rolNombre[u.rol] || u.rol}</span></td>
-                <td>{u.local_nombre || """"}</td>
-                <td><button className="btn btn-g btn-sm" onClick={() => cambiarPassword(u.id)}>Cambiar contraseÃ±a</button></td>
+                <td>{u.local_nombre || "â€”"}</td>
+                <td><button className="btn btn-g btn-sm" onClick={() => cambiarPassword(u.id)}>Cambiar contraseÃƒÂ±a</button></td>
               </tr>
             ))}
           </tbody>
@@ -2281,7 +2272,7 @@ function Usuarios({ usuario: usuarioActual }) {
         <div className="ct">Permisos por rol</div>
         <div className="g3">
           {[
-            { rol: "Jefe", color: "#c9a84c", permisos: ["Todo sin restricciones", "GestiÃ³n de usuarios", "Todos los locales", "Configuracion del sistema"] },
+            { rol: "Jefe", color: "#c9a84c", permisos: ["Todo sin restricciones", "GestiÃƒÂ³n de usuarios", "Todos los locales", "Configuracion del sistema"] },
             { rol: "Administrativo", color: "#2471a3", permisos: ["Dashboard", "Inventario", "Clientes", "Finanzas e Informes", "Solo lectura en Cupones"] },
             { rol: "Vendedora", color: "#2d7a4f", permisos: ["Punto de Venta", "Clientes", "Cupones (ver)", "Fidelizacion (ver)", "Postventa WhatsApp", "Alertas de stock"] },
           ].map(r => (
@@ -2289,7 +2280,7 @@ function Usuarios({ usuario: usuarioActual }) {
               <div style={{ fontWeight: 700, fontSize: 14, color: "#111111", marginBottom: 10 }}>{r.rol}</div>
               {r.permisos.map((p, i) => (
                 <div key={i} style={{ display: "flex", gap: 7, marginBottom: 6, fontSize: 12, color: "#444444" }}>
-                  <span style={{ color: r.color }}>âœ“</span>{p}
+                  <span style={{ color: r.color }}>Ã¢Å“â€œ</span>{p}
                 </div>
               ))}
             </div>
@@ -2386,7 +2377,7 @@ export default function AppWrapper() {
   if (usuario.rol === "jefe") {
     const yaExiste = NAV_CON_PERMISOS.some(s => s.items.some(i => i.id === "usuarios"));
     if (!yaExiste) {
-      NAV_CON_PERMISOS.push({ section: "CONFIGURACION", items: [{ id: "usuarios", icon: "ðŸ‘¥", label: "Usuarios" }] });
+      NAV_CON_PERMISOS.push({ section: "CONFIGURACION", items: [{ id: "usuarios", icon: "Ã°Å¸â€˜Â¥", label: "Usuarios" }] });
     }
   }
 
@@ -2425,10 +2416,10 @@ export default function AppWrapper() {
               <StatusDot color="#25d366" label="TIENDANUBE" />
             </div>
             <div style={{ marginTop: 12, fontSize: 11, color: "#999999", cursor: "pointer" }} onClick={() => setLocal(null)}>
-              â‡„ Cambiar local
+              Ã¢â€¡â€ž Cambiar local
             </div>
             <div style={{ marginTop: 6, fontSize: 11, color: "#999999", cursor: "pointer" }} onClick={handleLogout}>
-              Ã— Cerrar sesion
+              Ãƒâ€” Cerrar sesion
             </div>
           </div>
         </aside>
