@@ -504,7 +504,7 @@ function POS({ localId }) {
                 </div>
                 {clienteSeleccionado && clienteSeleccionado.id && (
                   <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f33", borderRadius: 6, padding: "8px 12px", marginBottom: 6 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#2d7a4f" }}>ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ {clienteSeleccionado.nombre}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#2d7a4f" }}>{clienteSeleccionado.nombre}</div>
                     <div style={{ fontSize: 10, color: "#666666" }}>{clienteSeleccionado.puntos || 0} pts - {clienteSeleccionado.nivel || "Bronze"}</div>
                   </div>
                 )}
