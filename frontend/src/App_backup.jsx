@@ -657,7 +657,7 @@ function Inventario() {
               })}
             </tbody>
           </table>
-        )}
+          )}
         </div>
       )}
       {tab === "alertas" && (
@@ -697,7 +697,6 @@ function Inventario() {
         </div>
       )}
     </div>
-  </div>
   );
 }
 
@@ -942,16 +941,16 @@ function Finanzas({ localId }) {
                   {(flujo?.movimientos || []).slice(0, 15).map((m, i) => (
                     <tr key={i}>
                       <td>{m.concepto}</td>
-                      <td style={{ fontSize: 10, color: "#999999" }}>{m.categoria_nombre || """"}</td>
+                      <td style={{ fontSize: 10, color: "#999999" }}>{m.categoria_nombre || "—"}</td>
                       <td><span className={"badge " + (m.tipo === "I" ? "bg" : "br")}>{m.tipo === "I" ? "Ingreso" : "Egreso"}</span></td>
-                      <td style={{ fontSize: 10, color: "#999999" }}>{m.cuenta_nombre || m.forma_pago || """"}</td>
+                      <td style={{ fontSize: 10, color: "#999999" }}>{m.cuenta_nombre || m.forma_pago || "—"}</td>
                       <td style={{ color: m.tipo === "I" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "I" ? "+" : "-"}${parseFloat(m.importe).toLocaleString()}</td>
                     </tr>
                   ))}
                   {(flujo?.movimientos || []).length === 0 && (<tr><td colSpan={5} style={{ color: "#999999", textAlign: "center" }}>Sin movimientos</td></tr>)}
                 </tbody>
               </table>
-              }
+              )}
             </div>
             <div className="card">
               <div className="ct">Registrar egreso</div>
@@ -1927,156 +1926,8 @@ function Proveedores() {
   );
 }
 
-function Caja({ localId, usuario }) {
-  const [movimientos, setMovimientos] = useState([]);
-  const [saldo, setSaldo] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [mensaje, setMensaje] = useState("");
-  const [cuentas, setCuentas] = useState([]);
-  const [nuevo, setNuevo] = useState({
-    tipo: "ingreso",
-    importe: "",
-    concepto: "",
-    destino_origen: "",
-    cuenta_destino_id: ""
-  });
-
-  const cargar = async () => {
-    setLoading(true);
-    try {
-      const [movRes, saldoRes, cuentasRes] = await Promise.all([
-        API.get("/caja?local_id=" + (localId || 1)),
-        API.get("/caja/saldo?local_id=" + (localId || 1)),
-        API.get("/cuentas-pago?solo_pago=true")
-      ]);
-      setMovimientos(movRes.data);
-      setSaldo(saldoRes.data.saldo);
-      setCuentas(cuentasRes.data);
-    } catch (e) {}
-    setLoading(false);
-  };
-
-  useEffect(() => { cargar(); }, [localId]);
-
-  const guardar = async () => {
-    if (!nuevo.importe || !nuevo.concepto) return setMensaje("Completa importe y concepto");
-    try {
-      await API.post("/caja", {
-        ...nuevo,
-        local_id: localId || 1,
-        usuario_id: usuario?.id || null
-      });
-      setMensaje(nuevo.tipo === "ingreso" ? "Ingreso registrado!" : "Egreso registrado!");
-      setNuevo({ tipo: "ingreso", importe: "", concepto: "", destino_origen: "", cuenta_destino_id: "" });
-      cargar();
-      setTimeout(() => setMensaje(""), 3000);
-    } catch (e) { setMensaje("Error al registrar"); }
-  };
-
-  const saldoColor = saldo >= 0 ? "#2d7a4f" : "#c0392b";
-
-  return (
-    <div className="fade">
-      <div className="ph">
-        <div><div className="pt">Caja</div><div className="ps">movimientos de efectivo</div></div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>SALDO ACTUAL</div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: saldoColor }}>${saldo.toLocaleString()}</div>
-        </div>
-      </div>
-      {mensaje && (
-        <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>
-          {mensaje}
-        </div>
-      )}
-      <div className="g2">
-        <div className="card">
-          <div className="ct">Nuevo movimiento</div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-            {["ingreso", "egreso"].map(t => (
-              <button key={t} onClick={() => setNuevo(p => ({ ...p, tipo: t }))} className="btn btn-sm"
-                style={{ flex: 1, background: nuevo.tipo === t ? (t === "ingreso" ? "#2d7a4f15" : "#c0392b15") : "transparent",
-                  border: "1px solid " + (nuevo.tipo === t ? (t === "ingreso" ? "#2d7a4f" : "#c0392b") : "#e8e8e8"),
-                  color: nuevo.tipo === t ? (t === "ingreso" ? "#2d7a4f" : "#c0392b") : "#999999", fontWeight: nuevo.tipo === t ? 600 : 400 }}>
-                {t === "ingreso" ? "Ingreso" : "Egreso"}
-              </button>
-            ))}
-          </div>
-          <div className="fg"><div className="fl">Importe ($)</div>
-            <input className="inp" type="number" placeholder="5000" value={nuevo.importe} onChange={e => setNuevo(p => ({ ...p, importe: e.target.value }))} />
-          </div>
-          <div className="fg"><div className="fl">Concepto</div>
-            <input className="inp" placeholder={nuevo.tipo === "ingreso" ? "Ej: Venta presencial, deposito recibido..." : "Ej: Pago proveedor, gasto operativo..."} value={nuevo.concepto} onChange={e => setNuevo(p => ({ ...p, concepto: e.target.value }))} />
-          </div>
-          {nuevo.tipo === "egreso" && (
-            <div>
-              <div className="fg"><div className="fl">Destino del efectivo</div>
-                <select className="sel" value={nuevo.destino_origen} onChange={e => setNuevo(p => ({ ...p, destino_origen: e.target.value }))}>
-                  <option value="">Seleccionar...</option>
-                  <option value="pago_proveedor">Pago a proveedor</option>
-                  <option value="deposito_cuenta">Deposito en cuenta bancaria</option>
-                  <option value="gasto_operativo">Gasto operativo</option>
-                  <option value="otro">Otro</option>
-                </select>
-              </div>
-              {nuevo.destino_origen === "deposito_cuenta" && (
-                <div className="fg"><div className="fl">Cuenta destino</div>
-                  <select className="sel" value={nuevo.cuenta_destino_id} onChange={e => setNuevo(p => ({ ...p, cuenta_destino_id: e.target.value }))}>
-                    <option value="">Seleccionar cuenta...</option>
-                    {cuentas.filter(c => c.tipo === "transferencia").map(c => (
-                      <option key={c.id} value={c.id}>{c.nombre}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-          )}
-          {nuevo.tipo === "ingreso" && (
-            <div className="fg"><div className="fl">Origen</div>
-              <select className="sel" value={nuevo.destino_origen} onChange={e => setNuevo(p => ({ ...p, destino_origen: e.target.value }))}>
-                <option value="">Seleccionar...</option>
-                <option value="venta_presencial">Venta presencial</option>
-                <option value="deposito_recibido">Deposito recibido</option>
-                <option value="otro">Otro</option>
-              </select>
-            </div>
-          )}
-          <button className="btn btn-p" style={{ width: "100%" }} onClick={guardar}>Registrar</button>
-        </div>
-        <div className="card">
-          <div className="ct">Movimientos recientes</div>
-          {loading ? <div style={{ color: "#999999", fontSize: 12 }}>Cargando...</div> :
-          movimientos.length === 0 ? (
-            <div style={{ textAlign: "center", color: "#999999", padding: 20, fontSize: 12 }}>Sin movimientos registrados</div>
-          ) : (
-            <table>
-              <thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Importe</th></tr></thead>
-              <tbody>
-                {movimientos.slice(0, 15).map((m, i) => (
-                  <tr key={i}>
-                    <td style={{ fontSize: 10, color: "#999999" }}>{new Date(m.creado_en).toLocaleDateString("es-AR")}</td>
-                    <td>
-                      <div style={{ fontSize: 12 }}>{m.concepto}</div>
-                      {m.destino_origen && <div style={{ fontSize: 9, color: "#999999" }}>{m.destino_origen.replace(/_/g, " ")}</div>}
-                      {m.cuenta_destino_nombre && <div style={{ fontSize: 9, color: "#2471a3" }}>{m.cuenta_destino_nombre}</div>}
-                    </td>
-                    <td><span className={"badge " + (m.tipo === "ingreso" ? "bg" : "br")}>{m.tipo}</span></td>
-                    <td style={{ color: m.tipo === "ingreso" ? "#2d7a4f" : "#c0392b", fontWeight: 600 }}>
-                      {m.tipo === "ingreso" ? "+" : "-"}${parseFloat(m.importe).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 const NAV_SECTIONS = [
-  { section: "GESTION", items: [{ id: "dashboard", icon: "â—ˆ", label: "Dashboard" }, { id: "pos", icon: "âŠ•", label: "Punto de Venta" }, { id: "inventory", icon: "âŠž", label: "Inventario" }, { id: "clients", icon: "â—‰", label: "Clientes" }, { id: "caja", icon: "$", label: "Caja" }] },
+  { section: "GESTION", items: [{ id: "dashboard", icon: "â—ˆ", label: "Dashboard" }, { id: "pos", icon: "âŠ•", label: "Punto de Venta" }, { id: "inventory", icon: "âŠž", label: "Inventario" }, { id: "clients", icon: "â—‰", label: "Clientes" }] },
   { section: "FINANZAS", items: [{ id: "finance", icon: "â—Ž", label: "Finanzas" }, { id: "reports", icon: "â—", label: "Informes" }, { id: "comisiones", icon: "ðŸ’°", label: "Comisiones" }, { id: "proveedores", icon: "ðŸ­", label: "Proveedores" }] },
   { section: "MARKETING", items: [{ id: "cupones", icon: "â˜…", label: "Cupones" }, { id: "fidelizacion", icon: "â—†", label: "Fidelizacion" }, { id: "postventa", icon: "â—‡", label: "Postventa WA" }] },
   { section: "CLIENTE", items: [{ id: "portal", icon: "â—‹", label: "Portal Cliente" }] },
@@ -2269,7 +2120,7 @@ function Usuarios({ usuario: usuarioActual }) {
                 <td style={{ color: "#111111", fontWeight: 500 }}>{u.nombre}</td>
                 <td>{u.email}</td>
                 <td><span className="badge" style={{ background: (rolColor[u.rol] || "#999999") + "15", color: rolColor[u.rol] || "#999999" }}>{rolNombre[u.rol] || u.rol}</span></td>
-                <td>{u.local_nombre || """"}</td>
+                <td>{u.local_nombre || "—"}</td>
                 <td><button className="btn btn-g btn-sm" onClick={() => cambiarPassword(u.id)}>Cambiar contraseÃ±a</button></td>
               </tr>
             ))}
@@ -2373,7 +2224,6 @@ export default function AppWrapper() {
     if (id === "portal") return <PortalCliente />;
     if (id === "usuarios") return <Usuarios usuario={usuario} />;
     if (id === "comisiones") return <Comisiones localId={local.id} />;
-    if (id === "caja") return <Caja localId={local.id} usuario={usuario} />;
     if (id === "proveedores") return <Proveedores />;
     return <Dashboard localId={local.id} />;
   };
