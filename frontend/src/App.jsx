@@ -115,7 +115,7 @@ const REWARDS = [
 
 const REWARDS_DISPLAY = REWARDS.map(r => ({
   ...r,
-  emoji: r.emoji === "ok_hand" ? "✨" : r.emoji === "droplet" ? " : r.emoji === "lipstick" ? " : r.emoji === "gift" ? "🎁" : r.emoji === "herb" ? "🌿" : "🌸"
+  emoji: r.emoji === "ok_hand" ? "✨" : r.emoji === "droplet" ? "💧" : r.emoji === "lipstick" ? "💄" : r.emoji === "gift" ? "🎁" : r.emoji === "herb" ? "🌿" : "🌸"
 }));
 
 const CUPONS_DATA = [
@@ -1928,8 +1928,8 @@ function Proveedores() {
 }
 
 const NAV_SECTIONS = [
-  { section: "GESTION", items: [{ id: "dashboard", icon: "◈", label: "Dashboard" }, { id: "pos", icon: "âŠ•", label: "Punto de Venta" }, { id: "inventory", icon: "âŠž", label: "Inventario" }, { id: "clients", icon: "◉", label: "Clientes" }] },
-  { section: "FINANZAS", items: [{ id: "finance", icon: "◎", label: "Finanzas" }, { id: "reports", icon: "â-", label: "Informes" }, { id: "comisiones", icon: ", label: "Comisiones" }, { id: "proveedores", icon: ", label: "Proveedores" }] },
+  { section: "GESTION", items: [{ id: "dashboard", icon: "◈", label: "Dashboard" }, { id: "pos", icon: "⊕", label: "Punto de Venta" }, { id: "inventory", icon: "⊞", label: "Inventario" }, { id: "clients", icon: "◉", label: "Clientes" }] },
+  { section: "FINANZAS", items: [{ id: "finance", icon: "◎", label: "Finanzas" }, { id: "reports", icon: "◐", label: "Informes" }, { id: "comisiones", icon: "💰", label: "Comisiones" }, { id: "proveedores", icon: "🏭", label: "Proveedores" }] },
   { section: "MARKETING", items: [{ id: "cupones", icon: "★", label: "Cupones" }, { id: "fidelizacion", icon: "◆", label: "Fidelizacion" }, { id: "postventa", icon: "◇", label: "Postventa WA" }] },
   { section: "CLIENTE", items: [{ id: "portal", icon: "○", label: "Portal Cliente" }] },
 ];
@@ -1972,7 +1972,7 @@ function LoginScreen({ onLogin }) {
           <input className="inp" type="email" placeholder="tu@email.com" value={email} onChange={e => { setEmail(e.target.value); setError(""); }} />
         </div>
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÍ'A</div>
+          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÑA</div>
           <input className="inp" type="password" placeholder="••••••••" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
         </div>
         <button className="btn btn-p" style={{ width: "100%", padding: 13 }} onClick={handleLogin} disabled={loading}>
@@ -2027,7 +2027,7 @@ function LocalSelector({ usuario, onSelect }) {
 function SinPermiso() {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", flexDirection: "column", gap: 12 }}>
-      <div style={{ fontSize: 40 }}>/div>
+      <div style={{ fontSize: 40 }}>🔒</div>
       <div style={{ fontSize: 18, fontWeight: 700, color: "#111111" }}>Sin acceso</div>
       <div style={{ fontSize: 13, color: "#999999" }}>No tenes permiso para ver esta seccion</div>
     </div>
