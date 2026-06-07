@@ -219,7 +219,7 @@ function Dashboard() {
       <div className="g2">
         <div className="card">
           <div className="ct">Ultimas facturas</div>
-          {loading ? <div style={{ color: "#999999", fontSize: 11 }}>Cargando...</div> :
+          {loading ? <div style={{ color: "#999999", fontSize: 11 }}>Cargando...</div> : (
           <table>
             <thead><tr><th>Nro</th><th>Cliente</th><th>Total</th><th>Estado</th></tr></thead>
             <tbody>
@@ -233,7 +233,7 @@ function Dashboard() {
               )) : (<tr><td colSpan={4} style={{ color: "#999999", textAlign: "center" }}>Sin ventas aun</td></tr>)}
             </tbody>
           </table>
-        }
+          )}
         </div>
         <div className="card">
           <div className="ct">Flujo de caja</div>
@@ -628,7 +628,7 @@ function Inventario() {
       </div>
       {tab === "stock" && (
         <div className="card fade">
-          {loading ? <div style={{ textAlign: "center", color: "#999999", padding: 20 }}>Cargando inventario...</div> :
+          {loading ? <div style={{ textAlign: "center", color: "#999999", padding: 20 }}>Cargando inventario...</div> : (
           <table>
             <thead><tr><th>Producto</th><th>Stock</th><th>Minimo</th><th>Lead time</th><th>Punto pedido</th><th>Costo</th><th>Estado</th></tr></thead>
             <tbody>
@@ -657,7 +657,7 @@ function Inventario() {
               })}
             </tbody>
           </table>
-        }
+        )}
         </div>
       )}
       {tab === "alertas" && (
@@ -773,7 +773,7 @@ function Clientes() {
       </div>
       {tab === "lista" && (
         <div className="card fade">
-          {loading ? <div style={{ textAlign: "center", color: "#999999", padding: 20 }}>Cargando clientes...</div> :
+          {loading ? <div style={{ textAlign: "center", color: "#999999", padding: 20 }}>Cargando clientes...</div> : (
           <table>
             <thead><tr><th>Cliente</th><th>CUIT/DNI</th><th>Total compras</th><th>Puntos</th><th>Nivel</th></tr></thead>
             <tbody>
@@ -799,7 +799,7 @@ function Clientes() {
               })}
             </tbody>
           </table>
-        }
+        )}
         </div>
       )}
       {tab === "niveles" && (
@@ -935,7 +935,7 @@ function Finanzas({ localId }) {
           <div className="g2">
             <div className="card">
               <div className="ct">Movimientos</div>
-              {loading ? <div style={{ color: "#999999" }}>Cargando...</div> :
+              {loading ? <div style={{ color: "#999999" }}>Cargando...</div> : (
               <table>
                 <thead><tr><th>Concepto</th><th>Categoria</th><th>Tipo</th><th>Cuenta</th><th>Importe</th></tr></thead>
                 <tbody>
@@ -1364,7 +1364,7 @@ function Fidelizacion() {
       </div>
       {tab === "clientes" && (
         <div className="card fade">
-          {loading ? <div style={{ textAlign: "center", color: "#999999", padding: 20 }}>Cargando...</div> :
+          {loading ? <div style={{ textAlign: "center", color: "#999999", padding: 20 }}>Cargando...</div> : (
           <table>
             <thead><tr><th>Cliente</th><th>Nivel</th><th>Puntos</th><th>Progreso al proximo nivel</th></tr></thead>
             <tbody>
@@ -1389,7 +1389,7 @@ function Fidelizacion() {
               })}
             </tbody>
           </table>
-        }
+        )}
         </div>
       )}
       {tab === "canjes" && (
@@ -2112,7 +2112,7 @@ function Usuarios({ usuario: usuarioActual }) {
         </div>
       )}
       <div className="card">
-        {loading ? <div style={{ color: "#999999", padding: 20 }}>Cargando...</div> :
+        {loading ? <div style={{ color: "#999999", padding: 20 }}>Cargando...</div> : (
         <table>
           <thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Local</th><th>Acciones</th></tr></thead>
           <tbody>
@@ -2127,7 +2127,7 @@ function Usuarios({ usuario: usuarioActual }) {
             ))}
           </tbody>
         </table>
-      }
+      )}
       </div>
       <div className="card" style={{ marginTop: 16 }}>
         <div className="ct">Permisos por rol</div>
