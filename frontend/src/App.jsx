@@ -695,6 +695,7 @@ function Inventario() {
         </div>
       )}
     </div>
+  </div>
   );
 }
 
@@ -1761,11 +1762,9 @@ function Comisiones({ localId }) {
             </div>
           )}
         </div>
-      </div>
-    </div>
       )}
       {loading && <div style={{ textAlign: "center", color: "#999999", padding: 40 }}>Calculando comisiones...</div>}
-  </div>
+    </div>
   );
 }
 
