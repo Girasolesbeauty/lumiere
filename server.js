@@ -34,6 +34,7 @@ app.use('/api/cuentas-pago', require('./routes/cuentas-pago'));
 app.use('/api/ordenes-ingreso', require('./routes/ordenes-ingreso'));
 app.use('/api/cuentas-pago', require('./routes/cuentas-pago'));
 app.use('/api/caja', require('./routes/caja'));
+app.use('/api/ordenes-ingreso', require('./routes/ordenes-ingreso'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {
