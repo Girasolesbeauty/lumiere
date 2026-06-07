@@ -943,7 +943,7 @@ function Finanzas({ localId }) {
                       <td>{m.concepto}</td>
                       <td style={{ fontSize: 10, color: "#999999" }}>{m.categoria_nombre || "—"}</td>
                       <td><span className={"badge " + (m.tipo === "I" ? "bg" : "br")}>{m.tipo === "I" ? "Ingreso" : "Egreso"}</span></td>
-                      <td style={{ fontSize: 10, color: "#999999" }}>{m.cuenta_nombre || m.forma_pago || """"}</td>
+                      <td style={{ fontSize: 10, color: "#999999" }}>{m.cuenta_nombre || m.forma_pago || "—"}</td>
                       <td style={{ color: m.tipo === "I" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "I" ? "+" : "-"}${parseFloat(m.importe).toLocaleString()}</td>
                     </tr>
                   ))}
@@ -2120,7 +2120,7 @@ function Usuarios({ usuario: usuarioActual }) {
                 <td style={{ color: "#111111", fontWeight: 500 }}>{u.nombre}</td>
                 <td>{u.email}</td>
                 <td><span className="badge" style={{ background: (rolColor[u.rol] || "#999999") + "15", color: rolColor[u.rol] || "#999999" }}>{rolNombre[u.rol] || u.rol}</span></td>
-                <td>{u.local_nombre || """"}</td>
+                <td>{u.local_nombre || "—"}</td>
                 <td><button className="btn btn-g btn-sm" onClick={() => cambiarPassword(u.id)}>Cambiar contraseÃ±a</button></td>
               </tr>
             ))}
