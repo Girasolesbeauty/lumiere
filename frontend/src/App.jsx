@@ -1678,9 +1678,7 @@ function Comisiones({ localId }) {
           {mensaje}
         </div>
       )}
-      {loading ? (
-        <div style={{ textAlign: "center", color: "#999999", padding: 40 }}>Calculando comisiones...</div>
-      ) : datos ? (
+      {!loading && datos && (
         <div>
           <div className="g3" style={{ marginBottom: 18 }}>
             <div className="card" style={{ borderTop: "3px solid " + nivelColor }}>
@@ -1763,8 +1761,10 @@ function Comisiones({ localId }) {
             </div>
           )}
         </div>
+      </div>
     </div>
-    ) : null}
+      )}
+      {loading && <div style={{ textAlign: "center", color: "#999999", padding: 40 }}>Calculando comisiones...</div>}
   </div>
   );
 }
