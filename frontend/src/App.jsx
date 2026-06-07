@@ -230,9 +230,10 @@ function Dashboard() {
                   <td>${parseFloat(s.total).toLocaleString()}</td>
                   <td><span className="badge bg">{s.estado}</span></td>
                 </tr>
-              )) : <tr><td colSpan={4} style={{ color: "#999999", textAlign: "center" }}>Sin ventas aun</td></tr>}
+              )) : (<tr><td colSpan={4} style={{ color: "#999999", textAlign: "center" }}>Sin ventas aun</td></tr>)}
             </tbody>
-          </table>}
+          </table>
+        }
         </div>
         <div className="card">
           <div className="ct">Flujo de caja</div>
@@ -256,7 +257,7 @@ function Dashboard() {
               <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #2722201a" }}>
                 <div>
                   <div style={{ fontSize: 11, color: "#444444" }}>{p.nombre}</div>
-                  <div style={{ fontSize: 9, color: "#c0392b" }}>Stock: {p.stock}u â€” necesita pedido</div>
+                  <div style={{ fontSize: 9, color: "#c0392b" }}>Stock: {p.stock}u "” necesita pedido</div>
                 </div>
                 <span className="badge br">PEDIR</span>
               </div>
@@ -430,7 +431,7 @@ function POS({ localId }) {
           <div key={p.id} className="card" style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 600 }}>{p.nombre_preventa || "Consumidor Final"}</div>
-              <div style={{ fontSize: 11, color: "#999999", marginTop: 3 }}>{new Date(p.creado_en).toLocaleDateString("es-AR")} â€” ${parseFloat(p.total).toLocaleString()}</div>
+              <div style={{ fontSize: 11, color: "#999999", marginTop: 3 }}>{new Date(p.creado_en).toLocaleDateString("es-AR")} "” ${parseFloat(p.total).toLocaleString()}</div>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn btn-p btn-sm" onClick={() => confirmarPreventa(p)}>Confirmar venta</button>
@@ -593,7 +594,7 @@ function POS({ localId }) {
               <div style={{ fontSize: 30, fontWeight: 700, color: "#111111" }}>${total.toLocaleString()}</div>
             </div>
             <button className="btn btn-p" style={{ width: "100%", padding: 13, fontSize: 13, opacity: loading ? 0.7 : 1 }} onClick={emitirFactura} disabled={loading}>
-              {loading ? "Procesando..." : preventa ? "Registrar Preventa" : "Emitir Factura " + tipoFac + " â€” ARCA"}
+              {loading ? "Procesando..." : preventa ? "Registrar Preventa" : "Emitir Factura " + tipoFac + " "” ARCA"}
             </button>
           </div>
         </div>
@@ -655,7 +656,8 @@ function Inventario() {
                 );
               })}
             </tbody>
-          </table>}
+          </table>
+        }
         </div>
       )}
       {tab === "alertas" && (
@@ -796,7 +798,8 @@ function Clientes() {
                 );
               })}
             </tbody>
-          </table>}
+          </table>
+        }
         </div>
       )}
       {tab === "niveles" && (
@@ -939,15 +942,16 @@ function Finanzas({ localId }) {
                   {(flujo?.movimientos || []).slice(0, 15).map((m, i) => (
                     <tr key={i}>
                       <td>{m.concepto}</td>
-                      <td style={{ fontSize: 10, color: "#999999" }}>{m.categoria_nombre || "â€”"}</td>
+                      <td style={{ fontSize: 10, color: "#999999" }}>{m.categoria_nombre || ""”"}</td>
                       <td><span className={"badge " + (m.tipo === "I" ? "bg" : "br")}>{m.tipo === "I" ? "Ingreso" : "Egreso"}</span></td>
-                      <td style={{ fontSize: 10, color: "#999999" }}>{m.cuenta_nombre || m.forma_pago || "â€”"}</td>
+                      <td style={{ fontSize: 10, color: "#999999" }}>{m.cuenta_nombre || m.forma_pago || ""”"}</td>
                       <td style={{ color: m.tipo === "I" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "I" ? "+" : "-"}${parseFloat(m.importe).toLocaleString()}</td>
                     </tr>
                   ))}
-                  {(flujo?.movimientos || []).length === 0 && <tr><td colSpan={5} style={{ color: "#999999", textAlign: "center" }}>Sin movimientos</td></tr>}
+                  {(flujo?.movimientos || []).length === 0 && (<tr><td colSpan={5} style={{ color: "#999999", textAlign: "center" }}>Sin movimientos</td></tr>)}
                 </tbody>
-              </table>}
+              </table>
+              }
             </div>
             <div className="card">
               <div className="ct">Registrar egreso</div>
@@ -1384,7 +1388,8 @@ function Fidelizacion() {
                 );
               })}
             </tbody>
-          </table>}
+          </table>
+        }
         </div>
       )}
       {tab === "canjes" && (
@@ -1705,7 +1710,7 @@ function Comisiones({ localId }) {
               <div className="ct">Progreso hacia las metas</div>
               <div style={{ marginBottom: 20 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <span style={{ fontSize: 12, color: "#444444", fontWeight: 600 }}>Meta 1 â€” ${parseFloat(datos.umbral_1 || 0).toLocaleString()}</span>
+                  <span style={{ fontSize: 12, color: "#444444", fontWeight: 600 }}>Meta 1 "” ${parseFloat(datos.umbral_1 || 0).toLocaleString()}</span>
                   <span style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>+${parseFloat(datos.comision_1 || 0).toLocaleString()}</span>
                 </div>
                 <div className="pb" style={{ height: 10 }}>
@@ -1718,7 +1723,7 @@ function Comisiones({ localId }) {
               </div>
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <span style={{ fontSize: 12, color: "#444444", fontWeight: 600 }}>Meta 2 â€” ${parseFloat(datos.umbral_2 || 0).toLocaleString()}</span>
+                  <span style={{ fontSize: 12, color: "#444444", fontWeight: 600 }}>Meta 2 "” ${parseFloat(datos.umbral_2 || 0).toLocaleString()}</span>
                   <span style={{ fontSize: 12, color: "#c9a84c", fontWeight: 600 }}>+${parseFloat(datos.comision_2 || 0).toLocaleString()}</span>
                 </div>
                 <div className="pb" style={{ height: 10 }}>
@@ -1887,7 +1892,7 @@ function Proveedores() {
                   {(p.cbu || p.alias) && (
                     <div style={{ background: "#f0f7ff", borderRadius: 6, padding: "8px 10px", marginBottom: 8 }}>
                       <div style={{ fontSize: 9, color: "#2471a3", marginBottom: 3 }}>DATOS BANCARIOS</div>
-                      {p.banco && <div style={{ fontSize: 11, color: "#444444" }}>{p.banco} â€” {p.titular_cuenta}</div>}
+                      {p.banco && <div style={{ fontSize: 11, color: "#444444" }}>{p.banco} "” {p.titular_cuenta}</div>}
                       {p.alias && <div style={{ fontSize: 11, color: "#111111", fontWeight: 600 }}>Alias: {p.alias}</div>}
                       {p.cbu && <div style={{ fontSize: 10, color: "#666666" }}>CBU: {p.cbu}</div>}
                     </div>
@@ -1968,7 +1973,7 @@ function LoginScreen({ onLogin }) {
         </div>
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÃ‘A</div>
-          <input className="inp" type="password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
+          <input className="inp" type="password" placeholder=""¢"¢"¢"¢"¢"¢"¢"¢" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
         </div>
         <button className="btn btn-p" style={{ width: "100%", padding: 13 }} onClick={handleLogin} disabled={loading}>
           {loading ? "Ingresando..." : "Ingresar"}
@@ -2116,12 +2121,13 @@ function Usuarios({ usuario: usuarioActual }) {
                 <td style={{ color: "#111111", fontWeight: 500 }}>{u.nombre}</td>
                 <td>{u.email}</td>
                 <td><span className="badge" style={{ background: (rolColor[u.rol] || "#999999") + "15", color: rolColor[u.rol] || "#999999" }}>{rolNombre[u.rol] || u.rol}</span></td>
-                <td>{u.local_nombre || "â€”"}</td>
+                <td>{u.local_nombre || ""”"}</td>
                 <td><button className="btn btn-g btn-sm" onClick={() => cambiarPassword(u.id)}>Cambiar contraseÃ±a</button></td>
               </tr>
             ))}
           </tbody>
-        </table>}
+        </table>
+      }
       </div>
       <div className="card" style={{ marginTop: 16 }}>
         <div className="ct">Permisos por rol</div>
