@@ -115,7 +115,7 @@ const REWARDS = [
 
 const REWARDS_DISPLAY = REWARDS.map(r => ({
   ...r,
-  emoji: r.emoji === "ok_hand" ? "âœ¨" : r.emoji === "droplet" ? "ðŸ’§" : r.emoji === "lipstick" ? "ðŸ’„" : r.emoji === "gift" ? "ðŸŽ" : r.emoji === "herb" ? "ðŸŒ¿" : "ðŸŒ¸"
+  emoji: r.emoji === "ok_hand" ? "✨" : r.emoji === "droplet" ? " : r.emoji === "lipstick" ? " : r.emoji === "gift" ? "🎁" : r.emoji === "herb" ? "🌿" : "🌸"
 }));
 
 const CUPONS_DATA = [
@@ -257,7 +257,7 @@ function Dashboard() {
               <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #2722201a" }}>
                 <div>
                   <div style={{ fontSize: 11, color: "#444444" }}>{p.nombre}</div>
-                  <div style={{ fontSize: 9, color: "#c0392b" }}>Stock: {p.stock}u "” necesita pedido</div>
+                  <div style={{ fontSize: 9, color: "#c0392b" }}>Stock: {p.stock}u "" necesita pedido</div>
                 </div>
                 <span className="badge br">PEDIR</span>
               </div>
@@ -379,7 +379,7 @@ function POS({ localId }) {
       if (!preventa) {
         try {
           const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaRes.data.id });
-          setMensaje("âœ“ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
+          setMensaje("✓ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
         } catch (arcaErr) {
           setMensaje("Venta registrada pero error en ARCA: " + arcaErr.message);
         }
@@ -431,7 +431,7 @@ function POS({ localId }) {
           <div key={p.id} className="card" style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 600 }}>{p.nombre_preventa || "Consumidor Final"}</div>
-              <div style={{ fontSize: 11, color: "#999999", marginTop: 3 }}>{new Date(p.creado_en).toLocaleDateString("es-AR")} "” ${parseFloat(p.total).toLocaleString()}</div>
+              <div style={{ fontSize: 11, color: "#999999", marginTop: 3 }}>{new Date(p.creado_en).toLocaleDateString("es-AR")} "" ${parseFloat(p.total).toLocaleString()}</div>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn btn-p btn-sm" onClick={() => confirmarPreventa(p)}>Confirmar venta</button>
@@ -500,8 +500,8 @@ function POS({ localId }) {
                 </div>
                 {clienteSeleccionado && clienteSeleccionado.id && (
                   <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f33", borderRadius: 6, padding: "8px 12px", marginBottom: 6 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#2d7a4f" }}>âœ“ {clienteSeleccionado.nombre}</div>
-                    <div style={{ fontSize: 10, color: "#666666" }}>{clienteSeleccionado.puntos || 0} pts Â· {clienteSeleccionado.nivel || "Bronze"}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#2d7a4f" }}>✓ {clienteSeleccionado.nombre}</div>
+                    <div style={{ fontSize: 10, color: "#666666" }}>{clienteSeleccionado.puntos || 0} pts · {clienteSeleccionado.nivel || "Bronze"}</div>
                   </div>
                 )}
                 {showNuevoCliente && !clienteSeleccionado && (
@@ -594,7 +594,7 @@ function POS({ localId }) {
               <div style={{ fontSize: 30, fontWeight: 700, color: "#111111" }}>${total.toLocaleString()}</div>
             </div>
             <button className="btn btn-p" style={{ width: "100%", padding: 13, fontSize: 13, opacity: loading ? 0.7 : 1 }} onClick={emitirFactura} disabled={loading}>
-              {loading ? "Procesando..." : preventa ? "Registrar Preventa" : "Emitir Factura " + tipoFac + " "” ARCA"}
+              {loading ? "Procesando..." : preventa ? "Registrar Preventa" : "Emitir Factura " + tipoFac + " - ARCA"}
             </button>
           </div>
         </div>
@@ -942,9 +942,9 @@ function Finanzas({ localId }) {
                   {(flujo?.movimientos || []).slice(0, 15).map((m, i) => (
                     <tr key={i}>
                       <td>{m.concepto}</td>
-                      <td style={{ fontSize: 10, color: "#999999" }}>{m.categoria_nombre || ""”"}</td>
+                      <td style={{ fontSize: 10, color: "#999999" }}>{m.categoria_nombre || """"}</td>
                       <td><span className={"badge " + (m.tipo === "I" ? "bg" : "br")}>{m.tipo === "I" ? "Ingreso" : "Egreso"}</span></td>
-                      <td style={{ fontSize: 10, color: "#999999" }}>{m.cuenta_nombre || m.forma_pago || ""”"}</td>
+                      <td style={{ fontSize: 10, color: "#999999" }}>{m.cuenta_nombre || m.forma_pago || """"}</td>
                       <td style={{ color: m.tipo === "I" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "I" ? "+" : "-"}${parseFloat(m.importe).toLocaleString()}</td>
                     </tr>
                   ))}
@@ -1671,7 +1671,7 @@ function Comisiones({ localId }) {
   };
 
   const nivelColor = datos?.nivel === 2 ? "#c9a84c" : datos?.nivel === 1 ? "#2d7a4f" : "#999999";
-  const nivelEmoji = datos?.nivel === 2 ? "ðŸ†" : datos?.nivel === 1 ? "â­" : "ðŸŽ¯";
+  const nivelEmoji = datos?.nivel === 2 ? "🏆" : datos?.nivel === 1 ? "⭐" : "🎯";
 
   return (
     <div className="fade">
@@ -1710,7 +1710,7 @@ function Comisiones({ localId }) {
               <div className="ct">Progreso hacia las metas</div>
               <div style={{ marginBottom: 20 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <span style={{ fontSize: 12, color: "#444444", fontWeight: 600 }}>Meta 1 "” ${parseFloat(datos.umbral_1 || 0).toLocaleString()}</span>
+                  <span style={{ fontSize: 12, color: "#444444", fontWeight: 600 }}>Meta 1 "" ${parseFloat(datos.umbral_1 || 0).toLocaleString()}</span>
                   <span style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>+${parseFloat(datos.comision_1 || 0).toLocaleString()}</span>
                 </div>
                 <div className="pb" style={{ height: 10 }}>
@@ -1723,7 +1723,7 @@ function Comisiones({ localId }) {
               </div>
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <span style={{ fontSize: 12, color: "#444444", fontWeight: 600 }}>Meta 2 "” ${parseFloat(datos.umbral_2 || 0).toLocaleString()}</span>
+                  <span style={{ fontSize: 12, color: "#444444", fontWeight: 600 }}>Meta 2 "" ${parseFloat(datos.umbral_2 || 0).toLocaleString()}</span>
                   <span style={{ fontSize: 12, color: "#c9a84c", fontWeight: 600 }}>+${parseFloat(datos.comision_2 || 0).toLocaleString()}</span>
                 </div>
                 <div className="pb" style={{ height: 10 }}>
@@ -1892,7 +1892,7 @@ function Proveedores() {
                   {(p.cbu || p.alias) && (
                     <div style={{ background: "#f0f7ff", borderRadius: 6, padding: "8px 10px", marginBottom: 8 }}>
                       <div style={{ fontSize: 9, color: "#2471a3", marginBottom: 3 }}>DATOS BANCARIOS</div>
-                      {p.banco && <div style={{ fontSize: 11, color: "#444444" }}>{p.banco} "” {p.titular_cuenta}</div>}
+                      {p.banco && <div style={{ fontSize: 11, color: "#444444" }}>{p.banco} "" {p.titular_cuenta}</div>}
                       {p.alias && <div style={{ fontSize: 11, color: "#111111", fontWeight: 600 }}>Alias: {p.alias}</div>}
                       {p.cbu && <div style={{ fontSize: 10, color: "#666666" }}>CBU: {p.cbu}</div>}
                     </div>
@@ -1928,10 +1928,10 @@ function Proveedores() {
 }
 
 const NAV_SECTIONS = [
-  { section: "GESTION", items: [{ id: "dashboard", icon: "â—ˆ", label: "Dashboard" }, { id: "pos", icon: "âŠ•", label: "Punto de Venta" }, { id: "inventory", icon: "âŠž", label: "Inventario" }, { id: "clients", icon: "â—‰", label: "Clientes" }] },
-  { section: "FINANZAS", items: [{ id: "finance", icon: "â—Ž", label: "Finanzas" }, { id: "reports", icon: "â—", label: "Informes" }, { id: "comisiones", icon: "ðŸ’°", label: "Comisiones" }, { id: "proveedores", icon: "ðŸ­", label: "Proveedores" }] },
-  { section: "MARKETING", items: [{ id: "cupones", icon: "â˜…", label: "Cupones" }, { id: "fidelizacion", icon: "â—†", label: "Fidelizacion" }, { id: "postventa", icon: "â—‡", label: "Postventa WA" }] },
-  { section: "CLIENTE", items: [{ id: "portal", icon: "â—‹", label: "Portal Cliente" }] },
+  { section: "GESTION", items: [{ id: "dashboard", icon: "◈", label: "Dashboard" }, { id: "pos", icon: "âŠ•", label: "Punto de Venta" }, { id: "inventory", icon: "âŠž", label: "Inventario" }, { id: "clients", icon: "◉", label: "Clientes" }] },
+  { section: "FINANZAS", items: [{ id: "finance", icon: "◎", label: "Finanzas" }, { id: "reports", icon: "â-", label: "Informes" }, { id: "comisiones", icon: ", label: "Comisiones" }, { id: "proveedores", icon: ", label: "Proveedores" }] },
+  { section: "MARKETING", items: [{ id: "cupones", icon: "★", label: "Cupones" }, { id: "fidelizacion", icon: "◆", label: "Fidelizacion" }, { id: "postventa", icon: "◇", label: "Postventa WA" }] },
+  { section: "CLIENTE", items: [{ id: "portal", icon: "○", label: "Portal Cliente" }] },
 ];
 
 
@@ -1946,7 +1946,7 @@ function LoginScreen({ onLogin }) {
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
-    if (!email || !password) return setError("CompletÃ¡ todos los campos");
+    if (!email || !password) return setError("Completá todos los campos");
     setLoading(true);
     try {
       const res = await login({ email, password });
@@ -1954,7 +1954,7 @@ function LoginScreen({ onLogin }) {
       localStorage.setItem("lumiere_user", JSON.stringify(res.data.usuario));
       onLogin(res.data.usuario);
     } catch (e) {
-      setError("Email o contraseÃ±a incorrectos");
+      setError("Email o contraseña incorrectos");
     }
     setLoading(false);
   };
@@ -1972,8 +1972,8 @@ function LoginScreen({ onLogin }) {
           <input className="inp" type="email" placeholder="tu@email.com" value={email} onChange={e => { setEmail(e.target.value); setError(""); }} />
         </div>
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÃ‘A</div>
-          <input className="inp" type="password" placeholder=""¢"¢"¢"¢"¢"¢"¢"¢" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
+          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÍ'A</div>
+          <input className="inp" type="password" placeholder="••••••••" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
         </div>
         <button className="btn btn-p" style={{ width: "100%", padding: 13 }} onClick={handleLogin} disabled={loading}>
           {loading ? "Ingresando..." : "Ingresar"}
@@ -2009,7 +2009,7 @@ function LocalSelector({ usuario, onSelect }) {
                 <div style={{ fontSize: 14, color: "#111111" }}>{l.nombre}</div>
                 {l.direccion && <div style={{ fontSize: 10, color: "#999999", marginTop: 3 }}>{l.direccion}</div>}
               </div>
-              <span style={{ color: "#c9a84c", fontSize: 16 }}>â†’</span>
+              <span style={{ color: "#c9a84c", fontSize: 16 }}>→</span>
             </div>
           ))}
         </div>
@@ -2027,7 +2027,7 @@ function LocalSelector({ usuario, onSelect }) {
 function SinPermiso() {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", flexDirection: "column", gap: 12 }}>
-      <div style={{ fontSize: 40 }}>ðŸ”’</div>
+      <div style={{ fontSize: 40 }}>/div>
       <div style={{ fontSize: 18, fontWeight: 700, color: "#111111" }}>Sin acceso</div>
       <div style={{ fontSize: 13, color: "#999999" }}>No tenes permiso para ver esta seccion</div>
     </div>
@@ -2084,7 +2084,7 @@ function Usuarios({ usuario: usuarioActual }) {
             <div>
               <div className="fg"><div className="fl">Nombre</div><input className="inp" placeholder="Nombre completo" value={nuevoUsuario.nombre} onChange={e => setNuevoUsuario(p => ({ ...p, nombre: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Email</div><input className="inp" type="email" placeholder="email@ejemplo.com" value={nuevoUsuario.email} onChange={e => setNuevoUsuario(p => ({ ...p, email: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">ContraseÃ±a</div><input className="inp" type="password" placeholder="ContraseÃ±a inicial" value={nuevoUsuario.password} onChange={e => setNuevoUsuario(p => ({ ...p, password: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Contraseña</div><input className="inp" type="password" placeholder="Contraseña inicial" value={nuevoUsuario.password} onChange={e => setNuevoUsuario(p => ({ ...p, password: e.target.value }))} /></div>
             </div>
             <div>
               <div className="fg"><div className="fl">Rol</div>
@@ -2121,8 +2121,8 @@ function Usuarios({ usuario: usuarioActual }) {
                 <td style={{ color: "#111111", fontWeight: 500 }}>{u.nombre}</td>
                 <td>{u.email}</td>
                 <td><span className="badge" style={{ background: (rolColor[u.rol] || "#999999") + "15", color: rolColor[u.rol] || "#999999" }}>{rolNombre[u.rol] || u.rol}</span></td>
-                <td>{u.local_nombre || ""”"}</td>
-                <td><button className="btn btn-g btn-sm" onClick={() => cambiarPassword(u.id)}>Cambiar contraseÃ±a</button></td>
+                <td>{u.local_nombre || """"}</td>
+                <td><button className="btn btn-g btn-sm" onClick={() => cambiarPassword(u.id)}>Cambiar contraseña</button></td>
               </tr>
             ))}
           </tbody>
@@ -2133,7 +2133,7 @@ function Usuarios({ usuario: usuarioActual }) {
         <div className="ct">Permisos por rol</div>
         <div className="g3">
           {[
-            { rol: "Jefe", color: "#c9a84c", permisos: ["Todo sin restricciones", "GestiÃ³n de usuarios", "Todos los locales", "Configuracion del sistema"] },
+            { rol: "Jefe", color: "#c9a84c", permisos: ["Todo sin restricciones", "Gestión de usuarios", "Todos los locales", "Configuracion del sistema"] },
             { rol: "Administrativo", color: "#2471a3", permisos: ["Dashboard", "Inventario", "Clientes", "Finanzas e Informes", "Solo lectura en Cupones"] },
             { rol: "Vendedora", color: "#2d7a4f", permisos: ["Punto de Venta", "Clientes", "Cupones (ver)", "Fidelizacion (ver)", "Postventa WhatsApp", "Alertas de stock"] },
           ].map(r => (
@@ -2141,7 +2141,7 @@ function Usuarios({ usuario: usuarioActual }) {
               <div style={{ fontWeight: 700, fontSize: 14, color: "#111111", marginBottom: 10 }}>{r.rol}</div>
               {r.permisos.map((p, i) => (
                 <div key={i} style={{ display: "flex", gap: 7, marginBottom: 6, fontSize: 12, color: "#444444" }}>
-                  <span style={{ color: r.color }}>âœ“</span>{p}
+                  <span style={{ color: r.color }}>✓</span>{p}
                 </div>
               ))}
             </div>
@@ -2237,7 +2237,7 @@ export default function AppWrapper() {
   if (usuario.rol === "jefe") {
     const yaExiste = NAV_CON_PERMISOS.some(s => s.items.some(i => i.id === "usuarios"));
     if (!yaExiste) {
-      NAV_CON_PERMISOS.push({ section: "CONFIGURACION", items: [{ id: "usuarios", icon: "ðŸ‘¥", label: "Usuarios" }] });
+      NAV_CON_PERMISOS.push({ section: "CONFIGURACION", items: [{ id: "usuarios", icon: "👥", label: "Usuarios" }] });
     }
   }
 
@@ -2276,10 +2276,10 @@ export default function AppWrapper() {
               <StatusDot color="#25d366" label="TIENDANUBE" />
             </div>
             <div style={{ marginTop: 12, fontSize: 11, color: "#999999", cursor: "pointer" }} onClick={() => setLocal(null)}>
-              â‡„ Cambiar local
+              ⇄ Cambiar local
             </div>
             <div style={{ marginTop: 6, fontSize: 11, color: "#999999", cursor: "pointer" }} onClick={handleLogout}>
-              Ã— Cerrar sesion
+              × Cerrar sesion
             </div>
           </div>
         </aside>
