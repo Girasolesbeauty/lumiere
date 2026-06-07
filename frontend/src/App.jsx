@@ -115,7 +115,7 @@ const REWARDS = [
 
 const REWARDS_DISPLAY = REWARDS.map(r => ({
   ...r,
-  emoji: r.emoji === "ok_hand" ? "ÃƒÂ¢Ã…â€œÃ‚Â¨" : r.emoji === "droplet" ? "ÃƒÂ°Ã…Â¸Ã¢â‚¬â„¢Ã‚Â§" : r.emoji === "lipstick" ? "ÃƒÂ°Ã…Â¸Ã¢â‚¬â„¢Ã¢â‚¬Å¾" : r.emoji === "gift" ? "ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â" : r.emoji === "herb" ? "ÃƒÂ°Ã…Â¸Ã…â€™Ã‚Â¿" : "ÃƒÂ°Ã…Â¸Ã…â€™Ã‚Â¸"
+  emoji: r.emoji === "ok_hand" ? "ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¨" : r.emoji === "droplet" ? "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â§" : r.emoji === "lipstick" ? "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾" : r.emoji === "gift" ? "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â" : r.emoji === "herb" ? "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã¢â‚¬â„¢Ãƒâ€šÃ‚Â¿" : "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã¢â‚¬â„¢Ãƒâ€šÃ‚Â¸"
 }));
 
 const CUPONS_DATA = [
@@ -383,7 +383,7 @@ function POS({ localId }) {
       if (!preventa) {
         try {
           const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaRes.data.id });
-          setMensaje("ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
+          setMensaje("ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
         } catch (arcaErr) {
           setMensaje("Venta registrada pero error en ARCA: " + arcaErr.message);
         }
@@ -504,8 +504,8 @@ function POS({ localId }) {
                 </div>
                 {clienteSeleccionado && clienteSeleccionado.id && (
                   <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f33", borderRadius: 6, padding: "8px 12px", marginBottom: 6 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#2d7a4f" }}>ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“ {clienteSeleccionado.nombre}</div>
-                    <div style={{ fontSize: 10, color: "#666666" }}>{clienteSeleccionado.puntos || 0} pts Ãƒâ€šÃ‚Â· {clienteSeleccionado.nivel || "Bronze"}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#2d7a4f" }}>ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ {clienteSeleccionado.nombre}</div>
+                    <div style={{ fontSize: 10, color: "#666666" }}>{clienteSeleccionado.puntos || 0} pts - {clienteSeleccionado.nivel || "Bronze"}</div>
                   </div>
                 )}
                 {showNuevoCliente && !clienteSeleccionado && (
@@ -952,9 +952,9 @@ function Finanzas({ localId }) {
                   {(flujo?.movimientos || []).slice(0, 15).map((m, i) => (
                     <tr key={i}>
                       <td>{m.concepto}</td>
-                      <td style={{ fontSize: 10, color: "#999999" }}>{m.categoria_nombre || "Ã¢â‚¬â€"}</td>
+                      <td style={{ fontSize: 10, color: "#999999" }}>{m.categoria_nombre || "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}</td>
                       <td><span className={"badge " + (m.tipo === "I" ? "bg" : "br")}>{m.tipo === "I" ? "Ingreso" : "Egreso"}</span></td>
-                      <td style={{ fontSize: 10, color: "#999999" }}>{m.cuenta_nombre || m.forma_pago || "Ã¢â‚¬â€"}</td>
+                      <td style={{ fontSize: 10, color: "#999999" }}>{m.cuenta_nombre || m.forma_pago || "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}</td>
                       <td style={{ color: m.tipo === "I" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "I" ? "+" : "-"}${parseFloat(m.importe).toLocaleString()}</td>
                     </tr>
                   ))}
@@ -1681,7 +1681,7 @@ function Comisiones({ localId }) {
   };
 
   const nivelColor = datos?.nivel === 2 ? "#c9a84c" : datos?.nivel === 1 ? "#2d7a4f" : "#999999";
-  const nivelEmoji = datos?.nivel === 2 ? "ÃƒÂ°Ã…Â¸Ã‚ÂÃ¢â‚¬Â " : datos?.nivel === 1 ? "ÃƒÂ¢Ã‚Â­Ã‚Â" : "ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¯";
+  const nivelEmoji = datos?.nivel === 2 ? "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã‚Â " : datos?.nivel === 1 ? "ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â" : "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯";
 
   return (
     <div className="fade">
@@ -2096,7 +2096,7 @@ function LoginScreen({ onLogin }) {
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
-    if (!email || !password) return setError("CompletÃƒÆ’Ã‚Â¡ todos los campos");
+    if (!email || !password) return setError("CompletÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ todos los campos");
     setLoading(true);
     try {
       const res = await login({ email, password });
@@ -2104,7 +2104,7 @@ function LoginScreen({ onLogin }) {
       localStorage.setItem("lumiere_user", JSON.stringify(res.data.usuario));
       onLogin(res.data.usuario);
     } catch (e) {
-      setError("Email o contraseÃƒÆ’Ã‚Â±a incorrectos");
+      setError("Email o contraseÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±a incorrectos");
     }
     setLoading(false);
   };
@@ -2122,8 +2122,8 @@ function LoginScreen({ onLogin }) {
           <input className="inp" type="email" placeholder="tu@email.com" value={email} onChange={e => { setEmail(e.target.value); setError(""); }} />
         </div>
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÃƒÆ’Ã¢â‚¬ËœA</div>
-          <input className="inp" type="password" placeholder="ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
+          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“A</div>
+          <input className="inp" type="password" placeholder="ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
         </div>
         <button className="btn btn-p" style={{ width: "100%", padding: 13 }} onClick={handleLogin} disabled={loading}>
           {loading ? "Ingresando..." : "Ingresar"}
@@ -2159,7 +2159,7 @@ function LocalSelector({ usuario, onSelect }) {
                 <div style={{ fontSize: 14, color: "#111111" }}>{l.nombre}</div>
                 {l.direccion && <div style={{ fontSize: 10, color: "#999999", marginTop: 3 }}>{l.direccion}</div>}
               </div>
-              <span style={{ color: "#c9a84c", fontSize: 16 }}>ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢</span>
+              <span style={{ color: "#c9a84c", fontSize: 16 }}>ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢</span>
             </div>
           ))}
         </div>
@@ -2177,7 +2177,7 @@ function LocalSelector({ usuario, onSelect }) {
 function SinPermiso() {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", flexDirection: "column", gap: 12 }}>
-      <div style={{ fontSize: 40 }}>ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ¢â‚¬â„¢</div>
+      <div style={{ fontSize: 40 }}>ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢</div>
       <div style={{ fontSize: 18, fontWeight: 700, color: "#111111" }}>Sin acceso</div>
       <div style={{ fontSize: 13, color: "#999999" }}>No tenes permiso para ver esta seccion</div>
     </div>
@@ -2234,7 +2234,7 @@ function Usuarios({ usuario: usuarioActual }) {
             <div>
               <div className="fg"><div className="fl">Nombre</div><input className="inp" placeholder="Nombre completo" value={nuevoUsuario.nombre} onChange={e => setNuevoUsuario(p => ({ ...p, nombre: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Email</div><input className="inp" type="email" placeholder="email@ejemplo.com" value={nuevoUsuario.email} onChange={e => setNuevoUsuario(p => ({ ...p, email: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">ContraseÃƒÆ’Ã‚Â±a</div><input className="inp" type="password" placeholder="ContraseÃƒÆ’Ã‚Â±a inicial" value={nuevoUsuario.password} onChange={e => setNuevoUsuario(p => ({ ...p, password: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">ContraseÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±a</div><input className="inp" type="password" placeholder="ContraseÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±a inicial" value={nuevoUsuario.password} onChange={e => setNuevoUsuario(p => ({ ...p, password: e.target.value }))} /></div>
             </div>
             <div>
               <div className="fg"><div className="fl">Rol</div>
@@ -2271,8 +2271,8 @@ function Usuarios({ usuario: usuarioActual }) {
                 <td style={{ color: "#111111", fontWeight: 500 }}>{u.nombre}</td>
                 <td>{u.email}</td>
                 <td><span className="badge" style={{ background: (rolColor[u.rol] || "#999999") + "15", color: rolColor[u.rol] || "#999999" }}>{rolNombre[u.rol] || u.rol}</span></td>
-                <td>{u.local_nombre || "Ã¢â‚¬â€"}</td>
-                <td><button className="btn btn-g btn-sm" onClick={() => cambiarPassword(u.id)}>Cambiar contraseÃƒÆ’Ã‚Â±a</button></td>
+                <td>{u.local_nombre || "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}</td>
+                <td><button className="btn btn-g btn-sm" onClick={() => cambiarPassword(u.id)}>Cambiar contraseÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±a</button></td>
               </tr>
             ))}
           </tbody>
@@ -2283,7 +2283,7 @@ function Usuarios({ usuario: usuarioActual }) {
         <div className="ct">Permisos por rol</div>
         <div className="g3">
           {[
-            { rol: "Jefe", color: "#c9a84c", permisos: ["Todo sin restricciones", "GestiÃƒÆ’Ã‚Â³n de usuarios", "Todos los locales", "Configuracion del sistema"] },
+            { rol: "Jefe", color: "#c9a84c", permisos: ["Todo sin restricciones", "GestiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n de usuarios", "Todos los locales", "Configuracion del sistema"] },
             { rol: "Administrativo", color: "#2471a3", permisos: ["Dashboard", "Inventario", "Clientes", "Finanzas e Informes", "Solo lectura en Cupones"] },
             { rol: "Vendedora", color: "#2d7a4f", permisos: ["Punto de Venta", "Clientes", "Cupones (ver)", "Fidelizacion (ver)", "Postventa WhatsApp", "Alertas de stock"] },
           ].map(r => (
@@ -2291,7 +2291,7 @@ function Usuarios({ usuario: usuarioActual }) {
               <div style={{ fontWeight: 700, fontSize: 14, color: "#111111", marginBottom: 10 }}>{r.rol}</div>
               {r.permisos.map((p, i) => (
                 <div key={i} style={{ display: "flex", gap: 7, marginBottom: 6, fontSize: 12, color: "#444444" }}>
-                  <span style={{ color: r.color }}>ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“</span>{p}
+                  <span style={{ color: r.color }}>ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ</span>{p}
                 </div>
               ))}
             </div>
@@ -2388,7 +2388,7 @@ export default function AppWrapper() {
   if (usuario.rol === "jefe") {
     const yaExiste = NAV_CON_PERMISOS.some(s => s.items.some(i => i.id === "usuarios"));
     if (!yaExiste) {
-      NAV_CON_PERMISOS.push({ section: "CONFIGURACION", items: [{ id: "usuarios", icon: "ÃƒÂ°Ã…Â¸Ã¢â‚¬ËœÃ‚Â¥", label: "Usuarios" }] });
+      NAV_CON_PERMISOS.push({ section: "CONFIGURACION", items: [{ id: "usuarios", icon: "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“Ãƒâ€šÃ‚Â¥", label: "Usuarios" }] });
     }
   }
 
@@ -2427,10 +2427,10 @@ export default function AppWrapper() {
               <StatusDot color="#25d366" label="TIENDANUBE" />
             </div>
             <div style={{ marginTop: 12, fontSize: 11, color: "#999999", cursor: "pointer" }} onClick={() => setLocal(null)}>
-              ÃƒÂ¢Ã¢â‚¬Â¡Ã¢â‚¬Å¾ Cambiar local
+              ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ Cambiar local
             </div>
             <div style={{ marginTop: 6, fontSize: 11, color: "#999999", cursor: "pointer" }} onClick={handleLogout}>
-              ÃƒÆ’Ã¢â‚¬â€ Cerrar sesion
+              ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Cerrar sesion
             </div>
           </div>
         </aside>
