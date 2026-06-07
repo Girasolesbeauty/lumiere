@@ -950,7 +950,7 @@ function Finanzas({ localId }) {
                   {(flujo?.movimientos || []).length === 0 && (<tr><td colSpan={5} style={{ color: "#999999", textAlign: "center" }}>Sin movimientos</td></tr>)}
                 </tbody>
               </table>
-              }
+              )}
             </div>
             <div className="card">
               <div className="ct">Registrar egreso</div>
