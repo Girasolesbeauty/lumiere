@@ -630,9 +630,9 @@ function POS({ localId }) {
               <div style={{ marginBottom: 8 }}>1. Buscas a la clienta por DNI</div>
               <div style={{ marginBottom: 8 }}>2. Seleccionas la orden de ingreso (mercaderia en camino)</div>
               <div style={{ marginBottom: 8 }}>3. Eliges el estado de pago</div>
-              <div style={{ marginBottom: 8 }}>4. Si paga completo â†’ se factura ahora</div>
-              <div style={{ marginBottom: 8 }}>5. Cuando llega la mercaderia â†’ WA automatico a la clienta</div>
-              <div>6. Cuando retira â†’ se cobra saldo y se entrega</div>
+              <div style={{ marginBottom: 8 }}>4. Si paga completo →’ se factura ahora</div>
+              <div style={{ marginBottom: 8 }}>5. Cuando llega la mercaderia →’ WA automatico a la clienta</div>
+              <div>6. Cuando retira →’ se cobra saldo y se entrega</div>
             </div>
           </div>
         </div>
