@@ -1,36 +1,34 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
+const axios = require('axios');
 
 const TN_TOKEN = process.env.TIENDANUBE_TOKEN;
 const TN_USER = process.env.TIENDANUBE_USER_ID;
 const TN_BASE = `https://api.tiendanube.com/v1/${TN_USER}`;
-const TN_HEADERS = {
+const tnHeaders = () => ({
   'Authentication': `bearer ${TN_TOKEN}`,
   'Content-Type': 'application/json',
   'User-Agent': 'Lumiere/1.0 (girasolesbeauty@gmail.com)'
-};
+});
 
 const tnFetch = async (method, path, body) => {
-  const res = await fetch(`${TN_BASE}${path}`, {
+  const res = await axios({
     method,
-    headers: TN_HEADERS,
-    body: body ? JSON.stringify(body) : undefined
+    url: `${TN_BASE}${path}`,
+    headers: tnHeaders(),
+    data: body || undefined
   });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`TN ${method} ${path}: ${res.status} - ${err}`);
-  }
-  return res.json();
+  return res.data;
 };
 
 // Verificar conexion
 router.get('/status', async (req, res) => {
   try {
     const store = await tnFetch('GET', '/store');
-    res.json({ ok: true, tienda: store.name, plan: store.plan_name });
+    res.json({ ok: true, tienda: store.name?.es || store.name, plan: store.plan_name });
   } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
+    res.status(500).json({ ok: false, error: e.response?.data?.description || e.message });
   }
 });
 
@@ -42,9 +40,9 @@ router.get('/buscar-producto', async (req, res) => {
     const result = productos.map(p => ({
       id: p.id,
       nombre: p.name?.es || p.name,
-      variantes: p.variants.map(v => ({
+      variantes: (p.variants || []).map(v => ({
         id: v.id,
-        nombre: v.values?.map(val => val.es || val).join(' / ') || 'Default',
+        nombre: (v.values || []).map(val => val.es || val).join(' / ') || 'Default',
         stock: v.stock,
         precio: v.price,
         sku: v.sku
@@ -52,7 +50,7 @@ router.get('/buscar-producto', async (req, res) => {
     }));
     res.json(result);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: e.response?.data?.description || e.message });
   }
 });
 
@@ -77,7 +75,7 @@ router.post('/vinculos', async (req, res) => {
     const result = await pool.query(
       `INSERT INTO tiendanube_vinculos (producto_id, tn_product_id, tn_variant_id_rg, tn_variant_id_ush)
        VALUES ($1, $2, $3, $4) RETURNING *`,
-      [producto_id, tn_product_id, tn_variant_id_rg, tn_variant_id_ush]
+      [producto_id, tn_product_id, tn_variant_id_rg || null, tn_variant_id_ush || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (e) {
@@ -95,71 +93,52 @@ router.delete('/vinculos/:producto_id', async (req, res) => {
   }
 });
 
-// Actualizar stock en Tiendanube para un producto vinculado
+// Actualizar stock en Tiendanube
 router.post('/sync/stock/:producto_id', async (req, res) => {
   try {
     const { producto_id } = req.params;
-    const { local_id, cantidad } = req.body;
-
+    const { local_id } = req.body;
     const vinculo = await pool.query(
       'SELECT * FROM tiendanube_vinculos WHERE producto_id = $1 AND activo = true',
       [producto_id]
     );
     if (!vinculo.rows.length) return res.json({ ok: false, mensaje: 'Sin vinculo TN' });
-
     const v = vinculo.rows[0];
     const variant_id = local_id == 2 ? v.tn_variant_id_ush : v.tn_variant_id_rg;
     if (!variant_id) return res.json({ ok: false, mensaje: 'Sin variante TN para este local' });
-
-    // Get current stock
     const prod = await pool.query('SELECT * FROM productos WHERE id = $1', [producto_id]);
     const nuevoStock = prod.rows[0]?.stock || 0;
-
-    await tnFetch('PUT', `/products/${v.tn_product_id}/variants/${variant_id}`, {
-      stock: nuevoStock
-    });
-
+    await tnFetch('PUT', `/products/${v.tn_product_id}/variants/${variant_id}`, { stock: nuevoStock });
     res.json({ ok: true, stock: nuevoStock });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: e.response?.data?.description || e.message });
   }
 });
 
 // Webhook de Tiendanube - nuevo pedido
 router.post('/webhook', async (req, res) => {
+  res.json({ ok: true });
   try {
-    const { event, store_id } = req.body;
-    res.json({ ok: true }); // Responder rapido a TN
-
+    const { event } = req.body;
     if (event !== 'store/order/paid' && event !== 'store/order/created') return;
-
     const pedido = req.body.payload;
     if (!pedido) return;
-
-    // Descontar stock en Lumiere por cada item del pedido
     for (const item of (pedido.products || [])) {
-      const sku = item.sku || item.variant_id;
-
-      // Buscar vinculo por tn_variant_id
       const vinculo = await pool.query(
-        `SELECT tv.*, p.id as prod_id, p.nombre 
-         FROM tiendanube_vinculos tv 
+        `SELECT tv.*, p.id as prod_id FROM tiendanube_vinculos tv 
          JOIN productos p ON p.id = tv.producto_id
          WHERE (tv.tn_variant_id_rg = $1 OR tv.tn_variant_id_ush = $1) AND tv.activo = true`,
         [String(item.variant_id)]
       );
-
       if (vinculo.rows.length) {
-        const prod_id = vinculo.rows[0].prod_id;
         await pool.query(
           'UPDATE productos SET stock = GREATEST(0, stock - $1) WHERE id = $2',
-          [item.quantity, prod_id]
+          [item.quantity, vinculo.rows[0].prod_id]
         );
-
-        // Registrar como venta en Lumiere
         await pool.query(
           `INSERT INTO ventas (total, medio_pago, canal, estado, cliente_nombre, creado_en)
-           VALUES ($1, 'Tiendanube', 'tiendanube', 'completada', $2, NOW())`,
+           VALUES ($1, 'Tiendanube', 'tiendanube', 'completada', $2, NOW())
+           ON CONFLICT DO NOTHING`,
           [pedido.total || 0, pedido.contact_name || 'Cliente TN']
         );
       }
@@ -175,7 +154,7 @@ router.get('/pedidos', async (req, res) => {
     const pedidos = await tnFetch('GET', '/orders?per_page=20&status=open');
     res.json(pedidos);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: e.response?.data?.description || e.message });
   }
 });
 
@@ -189,7 +168,7 @@ router.post('/registrar-webhook', async (req, res) => {
     });
     res.json({ ok: true, webhook });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: e.response?.data?.description || e.message });
   }
 });
 
