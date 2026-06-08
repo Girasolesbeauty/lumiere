@@ -115,7 +115,7 @@ const REWARDS = [
 
 const REWARDS_DISPLAY = REWARDS.map(r => ({
   ...r,
-  emoji: r.emoji === "ok_hand" ? "ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¨" : r.emoji === "droplet" ? "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â§" : r.emoji === "lipstick" ? "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾" : r.emoji === "gift" ? "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â" : r.emoji === "herb" ? "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã¢â‚¬â„¢Ãƒâ€šÃ‚Â¿" : "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã¢â‚¬â„¢Ãƒâ€šÃ‚Â¸",
+  emoji: r.emoji === "ok_hand" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨" : r.emoji === "droplet" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§" : r.emoji === "lipstick" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾" : r.emoji === "gift" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â½ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" : r.emoji === "herb" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿" : "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸",
 }));
 
 const CUPONS_DATA = [
@@ -243,7 +243,7 @@ function Dashboard({ localId }) {
 
   const Semaforo = ({ valor, umbralOk, umbralAlerta, formato }) => {
     const color = valor >= umbralOk ? "#2d7a4f" : valor >= umbralAlerta ? "#e67e22" : "#c0392b";
-    const icono = valor >= umbralOk ? "ÃƒÂ¢Ã¢â‚¬â€Ã‚Â" : valor >= umbralAlerta ? "ÃƒÂ¢Ã¢â‚¬â€Ã‚Â" : "ÃƒÂ¢Ã¢â‚¬â€Ã‚Â";
+    const icono = valor >= umbralOk ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬ÂÃƒâ€šÃ‚Â" : valor >= umbralAlerta ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬ÂÃƒâ€šÃ‚Â" : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬ÂÃƒâ€šÃ‚Â";
     return <span style={{ color, fontSize: 12, fontWeight: 700 }}>{icono} {formato ? formato(valor) : valor}</span>;
   };
 
@@ -391,7 +391,7 @@ function POS({ localId }) {
   const cargarPreventas = async () => {
     try {
       const res = await API.get("/ventas?es_preventa=true&local_id=" + (localId || 1));
-      setPreventasPendientes((res.data || []).filter(v => v.estado === "preventa"));
+      setPreventasPendientes((res.data || []).filter(v => v.estado === "preventa" || v.estado === "lista_retirar"));
     } catch (e) {}
   };
 
@@ -467,7 +467,7 @@ function POS({ localId }) {
       if (!preventa) {
         try {
           const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaRes.data.id });
-          setMensaje("ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
+          setMensaje("ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
         } catch (arcaErr) {
           setMensaje("Venta registrada pero error en ARCA: " + arcaErr.message);
         }
@@ -505,32 +505,120 @@ function POS({ localId }) {
     return (
       <div className="fade">
         <div className="ph">
-          <div><div className="pt">Punto de Venta</div><div className="ps">facturacion electronica - arca</div></div>
-          <StatusDot color="#2d7a4f" label="ARCA" />
+          <div><div className="pt">Preventas Pendientes</div><div className="ps">stock en transito - estados de pago</div></div>
+          <button className="btn btn-p btn-sm" onClick={() => setTabPos("nueva_preventa")}>+ Nueva preventa</button>
         </div>
         <div className="tabs">
           <div className="tab" onClick={() => setTabPos("venta")}>NUEVA VENTA</div>
           <div className="tab on" onClick={() => { setTabPos("preventas"); cargarPreventas(); }}>
-            PREVENTAS {preventasPendientes.length > 0 && <span style={{ background: "#2471a3", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{preventasPendientes.length}</span>}
+            PREVENTAS {preventasPendientes.length > 0 && <span style={{ background: "#2471a3", color: "white", borderRadius: 10, padding: "1px 7px", fontSize: 10, marginLeft: 4 }}>{preventasPendientes.length}</span>}
           </div>
         </div>
         {preventasPendientes.length === 0 ? (
           <div style={{ textAlign: "center", color: "#999999", padding: 40, fontSize: 13 }}>No hay preventas pendientes</div>
         ) : preventasPendientes.map(p => (
-          <div key={p.id} className="card" style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>{p.nombre_preventa || "Consumidor Final"}</div>
-              <div style={{ fontSize: 11, color: "#999999", marginTop: 3 }}>{new Date(p.creado_en).toLocaleDateString("es-AR")} "" ${parseFloat(p.total).toLocaleString()}</div>
+          <div key={p.id} className="card" style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{p.nombre_preventa || p.cliente_nombre || "Sin nombre"}</div>
+                <div style={{ fontSize: 11, color: "#999999", marginTop: 2 }}>{new Date(p.creado_en).toLocaleDateString("es-AR")} — ${parseFloat(p.total || 0).toLocaleString()}</div>
+                {p.orden_ingreso_id && <div style={{ fontSize: 10, color: "#2471a3", marginTop: 2 }}>Orden #{p.orden_ingreso_id}</div>}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                <span className={"badge " + (p.estado_pago === "pagado" ? "bg" : p.estado_pago === "seniado" ? "ba" : "bb")}>
+                  {p.estado_pago === "pagado" ? "Pagado" : p.estado_pago === "seniado" ? "Seniado" : "Reservado"}
+                </span>
+                {p.estado_pago === "seniado" && p.monto_senia > 0 && (
+                  <span style={{ fontSize: 10, color: "#e67e22" }}>Senia: ${parseFloat(p.monto_senia).toLocaleString()}</span>
+                )}
+                <span className={"badge " + (p.estado === "lista_retirar" ? "bg" : "ba")}>
+                  {p.estado === "lista_retirar" ? "Lista para retirar" : "En transito"}
+                </span>
+              </div>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn btn-p btn-sm" onClick={() => confirmarPreventa(p)}>Confirmar venta</button>
-              <button className="btn btn-g btn-sm" onClick={async () => { await API.put("/ventas/" + p.id, { estado: "cancelada" }); cargarPreventas(); }}>Cancelar</button>
+              {p.estado === "lista_retirar" && (
+                <button className="btn btn-p btn-sm" style={{ flex: 2 }} onClick={() => confirmarPreventa(p)}>Entregar y facturar</button>
+              )}
+              {p.estado !== "lista_retirar" && (
+                <button className="btn btn-g btn-sm" style={{ flex: 2 }} disabled>Esperando mercaderia</button>
+              )}
+              <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={async () => {
+                try {
+                  await API.post("/postventa/enviar", { cliente_id: p.cliente_id, mensaje: "Hola! Tu pedido ya llego al local y esta listo para retirar. Coordina tu envio o pasa cuando quieras!" });
+                  setMensaje("WhatsApp enviado!");
+                  setTimeout(() => setMensaje(""), 3000);
+                } catch (e) { setMensaje("Error al enviar WA"); }
+              }}>WA</button>
+              <button className="btn btn-sm" style={{ flex: 1, border: "1px solid #c0392b22", color: "#c0392b" }} onClick={async () => {
+                await API.put("/ventas/" + p.id, { estado: "cancelada" });
+                cargarPreventas();
+              }}>Cancelar</button>
             </div>
           </div>
         ))}
       </div>
     );
   }
+
+  if (tabPos === "nueva_preventa") {
+    return (
+      <div className="fade">
+        <div className="ph">
+          <div><div className="pt">Nueva Preventa</div><div className="ps">stock en transito</div></div>
+          <button className="btn btn-g btn-sm" onClick={() => setTabPos("preventas")}>Volver</button>
+        </div>
+        <div className="g2">
+          <div className="card">
+            <div className="ct">Datos de la preventa</div>
+            <div className="fg"><div className="fl">Cliente</div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input className="inp" placeholder="DNI del cliente" value={dniInput} onChange={e => setDniInput(e.target.value)} style={{ flex: 1 }} />
+                <button className="btn btn-g btn-sm" onClick={() => buscarClientePorDni(dniInput)}>Buscar</button>
+              </div>
+              {clienteSeleccionado && (
+                <div style={{ fontSize: 11, color: "#2d7a4f", marginTop: 4 }}>{clienteSeleccionado.nombre}</div>
+              )}
+            </div>
+            <div className="fg"><div className="fl">Orden de ingreso (stock en transito)</div>
+              <select className="sel" value={nuevo?.orden_id || ""} onChange={e => setNuevo && setNuevo(p => ({ ...p, orden_id: e.target.value }))}>
+                <option value="">Seleccionar orden...</option>
+              </select>
+            </div>
+            <div className="fg"><div className="fl">Estado de pago</div>
+              <select className="sel" value={estadoPagoPreventa || "reservado"} onChange={e => setEstadoPagoPreventa && setEstadoPagoPreventa(e.target.value)}>
+                <option value="reservado">Reservado (sin pago)</option>
+                <option value="seniado">Seniado (pago parcial)</option>
+                <option value="pagado">Pagado completo</option>
+              </select>
+            </div>
+            {estadoPagoPreventa === "seniado" && (
+              <div className="fg"><div className="fl">Monto de la senia ($)</div>
+                <input className="inp" type="number" placeholder="5000" value={montoSenia || ""} onChange={e => setMontoSenia && setMontoSenia(e.target.value)} />
+              </div>
+            )}
+            <button className="btn btn-p" style={{ width: "100%" }} onClick={() => {
+              setPreventa(true);
+              setTabPos("venta");
+              setMensaje("Completa los productos y confirma la preventa");
+            }}>Continuar en POS</button>
+          </div>
+          <div className="card">
+            <div className="ct">Como funciona la preventa</div>
+            <div style={{ fontSize: 12, color: "#444444", lineHeight: 1.7 }}>
+              <div style={{ marginBottom: 8 }}>1. Buscas a la clienta por DNI</div>
+              <div style={{ marginBottom: 8 }}>2. Seleccionas la orden de ingreso (mercaderia en camino)</div>
+              <div style={{ marginBottom: 8 }}>3. Eliges el estado de pago</div>
+              <div style={{ marginBottom: 8 }}>4. Si paga completo → se factura ahora</div>
+              <div style={{ marginBottom: 8 }}>5. Cuando llega la mercaderia → WA automatico a la clienta</div>
+              <div>6. Cuando retira → se cobra saldo y se entrega</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
 
   return (
     <div className="fade">
@@ -1917,7 +2005,7 @@ function Comisiones({ localId }) {
   };
 
   const nivelColor = datos?.nivel === 2 ? "#c9a84c" : datos?.nivel === 1 ? "#2d7a4f" : "#999999";
-  const nivelEmoji = datos?.nivel === 2 ? "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã‚Â " : datos?.nivel === 1 ? "ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â­Ãƒâ€šÃ‚Â" : "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯";
+  const nivelEmoji = datos?.nivel === 2 ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â " : datos?.nivel === 1 ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" : "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â½ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¯";
 
   return (
     <div className="fade">
@@ -2735,7 +2823,7 @@ function LoginScreen({ onLogin }) {
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
-    if (!email || !password) return setError("CompletÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ todos los campos");
+    if (!email || !password) return setError("CompletÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ todos los campos");
     setLoading(true);
     try {
       const res = await login({ email, password });
@@ -2743,7 +2831,7 @@ function LoginScreen({ onLogin }) {
       localStorage.setItem("lumiere_user", JSON.stringify(res.data.usuario));
       onLogin(res.data.usuario);
     } catch (e) {
-      setError("Email o contraseÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±a incorrectos");
+      setError("Email o contraseÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±a incorrectos");
     }
     setLoading(false);
   };
@@ -2761,8 +2849,8 @@ function LoginScreen({ onLogin }) {
           <input className="inp" type="email" placeholder="tu@email.com" value={email} onChange={e => { setEmail(e.target.value); setError(""); }} />
         </div>
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“A</div>
-          <input className="inp" type="password" placeholder="ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
+          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œA</div>
+          <input className="inp" type="password" placeholder="ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
         </div>
         <button className="btn btn-p" style={{ width: "100%", padding: 13 }} onClick={handleLogin} disabled={loading}>
           {loading ? "Ingresando..." : "Ingresar"}
@@ -2873,7 +2961,7 @@ function Usuarios({ usuario: usuarioActual }) {
             <div>
               <div className="fg"><div className="fl">Nombre</div><input className="inp" placeholder="Nombre completo" value={nuevoUsuario.nombre} onChange={e => setNuevoUsuario(p => ({ ...p, nombre: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Email</div><input className="inp" type="email" placeholder="email@ejemplo.com" value={nuevoUsuario.email} onChange={e => setNuevoUsuario(p => ({ ...p, email: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">ContraseÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±a</div><input className="inp" type="password" placeholder="ContraseÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ inicial" value={nuevoUsuario.password} onChange={e => setNuevoUsuario(p => ({ ...p, password: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">ContraseÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±a</div><input className="inp" type="password" placeholder="ContraseÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¾ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¾ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ inicial" value={nuevoUsuario.password} onChange={e => setNuevoUsuario(p => ({ ...p, password: e.target.value }))} /></div>
             </div>
             <div>
               <div className="fg"><div className="fl">Rol</div>
