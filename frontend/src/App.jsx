@@ -115,7 +115,7 @@ const REWARDS = [
 
 const REWARDS_DISPLAY = REWARDS.map(r => ({
   ...r,
-  emoji: r.emoji === "ok_hand" ? "âœ¨" : r.emoji === "droplet" ? "ðŸ’§" : r.emoji === "lipstick" ? "ðŸ’„" : r.emoji === "gift" ? "ðŸŽ" : r.emoji === "herb" ? "ðŸŒ¿" : "ðŸŒ¸",
+  emoji: r.emoji === "ok_hand" ? "Ã¢Å“Â¨" : r.emoji === "droplet" ? "Ã°Å¸â€™Â§" : r.emoji === "lipstick" ? "Ã°Å¸â€™â€ž" : r.emoji === "gift" ? "Ã°Å¸Å½Â" : r.emoji === "herb" ? "Ã°Å¸Å’Â¿" : "Ã°Å¸Å’Â¸",
 }));
 
 const CUPONS_DATA = [
@@ -243,7 +243,7 @@ function Dashboard({ localId }) {
 
   const Semaforo = ({ valor, umbralOk, umbralAlerta, formato }) => {
     const color = valor >= umbralOk ? "#2d7a4f" : valor >= umbralAlerta ? "#e67e22" : "#c0392b";
-    const icono = valor >= umbralOk ? "●" : valor >= umbralAlerta ? "●" : "●";
+    const icono = valor >= umbralOk ? "â—" : valor >= umbralAlerta ? "â—" : "â—";
     return <span style={{ color, fontSize: 12, fontWeight: 700 }}>{icono} {formato ? formato(valor) : valor}</span>;
   };
 
@@ -467,7 +467,7 @@ function POS({ localId }) {
       if (!preventa) {
         try {
           const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaRes.data.id });
-          setMensaje("âœ“ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
+          setMensaje("Ã¢Å“â€œ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
         } catch (arcaErr) {
           setMensaje("Venta registrada pero error en ARCA: " + arcaErr.message);
         }
@@ -698,58 +698,144 @@ function POS({ localId }) {
   );
 }
 
-function Inventario() {
+function Inventario({ localId }) {
   const [tab, setTab] = useState("stock");
   const [productos, setProductos] = useState([]);
+  const [alertas, setAlertas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [mensaje, setMensaje] = useState("");
+  const [proveedores, setProveedores] = useState([]);
+  const [nuevo, setNuevo] = useState({
+    nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "",
+    stock: "", stock_minimo: "", proveedor_id: "", descripcion: ""
+  });
 
-  useEffect(() => {
-    getProductos().then(res => { setProductos(res.data); setLoading(false); }).catch(() => { setProductos(PRODUCTS.map(p => ({ ...p, nombre: p.name, marca: p.brand, precio: p.price, stock_minimo: p.min, lead_time_dias: p.lead }))); setLoading(false); });
-  }, []);
+  const categorias = ["Capilar", "Facial", "Maquillaje", "Accesorio", "Corporal", "Spa", "Perfume"];
 
-  const productosAMostrar = productos.length > 0 ? productos : PRODUCTS.map(p => ({ ...p, nombre: p.name, marca: p.brand, precio: p.price, stock_minimo: p.min, lead_time_dias: p.lead }));
-  const alertas = productosAMostrar.filter(p => p.stock <= (p.stock_minimo || p.min) + 3);
+  const cargar = async () => {
+    setLoading(true);
+    try {
+      const [prodRes, provRes] = await Promise.all([
+        API.get("/productos"),
+        API.get("/proveedores")
+      ]);
+      const prods = prodRes.data || [];
+      setProductos(prods);
+      setAlertas(prods.filter(p => (p.stock || 0) <= (p.stock_minimo || 5)));
+      setProveedores(provRes.data || []);
+    } catch (e) {}
+    setLoading(false);
+  };
+
+  useEffect(() => { cargar(); }, [localId]);
+
+  const guardarProducto = async () => {
+    if (!nuevo.nombre || !nuevo.precio) return setMensaje("Completa al menos nombre y precio");
+    try {
+      await API.post("/productos", {
+        nombre: nuevo.nombre,
+        marca: nuevo.marca,
+        codigo: nuevo.codigo,
+        categoria: nuevo.categoria,
+        price: parseFloat(nuevo.precio),
+        cost: parseFloat(nuevo.costo) || 0,
+        stock: parseInt(nuevo.stock) || 0,
+        stock_minimo: parseInt(nuevo.stock_minimo) || 5,
+        proveedor_id: nuevo.proveedor_id || null,
+        descripcion: nuevo.descripcion
+      });
+      setMensaje("Producto creado!");
+      setNuevo({ nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "", stock: "", stock_minimo: "", proveedor_id: "", descripcion: "" });
+      setShowForm(false);
+      cargar();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al crear producto: " + (e.response?.data?.error || e.message)); }
+  };
 
   return (
     <div className="fade">
       <div className="ph">
         <div><div className="pt">Inventario</div><div className="ps">stock - punto de pedido - alertas</div></div>
-        <button className="btn btn-p btn-sm">+ Nuevo producto</button>
+        <button className="btn btn-p btn-sm" onClick={() => setShowForm(!showForm)}>+ Nuevo producto</button>
       </div>
+      {mensaje && (
+        <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>
+          {mensaje}
+        </div>
+      )}
+      {showForm && (
+        <div className="card fade" style={{ marginBottom: 18 }}>
+          <div className="ct">Nuevo producto</div>
+          <div className="g2">
+            <div>
+              <div className="fg"><div className="fl">Nombre *</div><input className="inp" placeholder="Ej: Serum Vitamina C" value={nuevo.nombre} onChange={e => setNuevo(p => ({ ...p, nombre: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Marca</div><input className="inp" placeholder="Ej: L'Oreal" value={nuevo.marca} onChange={e => setNuevo(p => ({ ...p, marca: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Codigo</div><input className="inp" placeholder="Ej: SVC-001" value={nuevo.codigo} onChange={e => setNuevo(p => ({ ...p, codigo: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Categoria</div>
+                <select className="sel" value={nuevo.categoria} onChange={e => setNuevo(p => ({ ...p, categoria: e.target.value }))}>
+                  <option value="">Seleccionar...</option>
+                  {categorias.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="fg"><div className="fl">Proveedor</div>
+                <select className="sel" value={nuevo.proveedor_id} onChange={e => setNuevo(p => ({ ...p, proveedor_id: e.target.value }))}>
+                  <option value="">Sin proveedor</option>
+                  {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                </select>
+              </div>
+            </div>
+            <div>
+              <div className="fg"><div className="fl">Precio de venta ($) *</div><input className="inp" type="number" placeholder="2500" value={nuevo.precio} onChange={e => setNuevo(p => ({ ...p, precio: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Costo ($)</div><input className="inp" type="number" placeholder="1200" value={nuevo.costo} onChange={e => setNuevo(p => ({ ...p, costo: e.target.value }))} />
+                {nuevo.precio && nuevo.costo && (
+                  <div style={{ fontSize: 10, color: "#2d7a4f", marginTop: 3 }}>
+                    Margen: {Math.round(((parseFloat(nuevo.precio) - parseFloat(nuevo.costo)) / parseFloat(nuevo.precio)) * 100)}%
+                  </div>
+                )}
+              </div>
+              <div className="fg"><div className="fl">Stock inicial</div><input className="inp" type="number" placeholder="10" value={nuevo.stock} onChange={e => setNuevo(p => ({ ...p, stock: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Stock minimo (alerta)</div><input className="inp" type="number" placeholder="5" value={nuevo.stock_minimo} onChange={e => setNuevo(p => ({ ...p, stock_minimo: e.target.value }))} /></div>
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarProducto}>Crear producto</button>
+                <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowForm(false)}>Cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="tabs">
-        {["stock", "alertas", "movimientos"].map(t => <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => setTab(t)}>
-          {t.toUpperCase()}{t === "alertas" && alertas.length > 0 && <span style={{ background: "#c0392b", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 5 }}>{alertas.length}</span>}
-        </div>)}
+        {["stock", "alertas", "movimientos"].map(t => (
+          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => setTab(t)}>
+            {t === "stock" ? "STOCK" : t === "alertas" ? "ALERTAS" + (alertas.length > 0 ? " (" + alertas.length + ")" : "") : "MOVIMIENTOS"}
+          </div>
+        ))}
       </div>
       {tab === "stock" && (
         <div className="card fade">
-          {loading ? <div style={{ textAlign: "center", color: "#999999", padding: 20 }}>Cargando inventario...</div> : (
+          {loading ? (
+            <div style={{ color: "#999999", padding: 20 }}>Cargando inventario...</div>
+          ) : (
           <table>
-            <thead><tr><th>Producto</th><th>Stock</th><th>Minimo</th><th>Lead time</th><th>Punto pedido</th><th>Costo</th><th>Estado</th></tr></thead>
+            <thead><tr><th>Producto</th><th>Marca</th><th>Categoria</th><th>Codigo</th><th>Precio</th><th>Costo</th><th>Stock</th><th>Estado</th></tr></thead>
             <tbody>
-              {productosAMostrar.map(p => {
-                const min = p.stock_minimo || p.min || 5;
-                const lead = p.lead_time_dias || p.lead || 7;
-                const pp = Math.ceil(1.2 * lead + min);
-                const needs = p.stock <= pp;
-                const pct = Math.min(Math.round((p.stock / (min * 3)) * 100), 100);
+              {productos.map(p => {
+                const bajo = (p.stock || 0) <= (p.stock_minimo || 5);
+                const margen = p.price && p.cost ? Math.round(((p.price - p.cost) / p.price) * 100) : null;
                 return (
                   <tr key={p.id}>
-                    <td><div style={{ color: "#111111" }}>{p.nombre || p.name}</div><div style={{ fontSize: 9, color: "#999999" }}>{p.marca || p.brand}</div></td>
-                    <td>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18 }}>{p.stock}</span>
-                        <div style={{ width: 50 }}><div className="pb"><div className="pf" style={{ width: pct + "%", background: pct < 30 ? "#c0392b" : pct < 60 ? "#c9a84c" : "#2d7a4f" }} /></div></div>
-                      </div>
-                    </td>
-                    <td>{min}</td>
-                    <td>{lead}d</td>
-                    <td style={{ color: "#c9a84c" }}>{pp}u</td>
-                    <td>${(p.costo || p.cost || 0).toLocaleString()}</td>
-                    <td><span className={"badge " + (needs ? "br" : "bg")}>{needs ? "PEDIR" : "OK"}</span></td>
+                    <td style={{ fontWeight: 500 }}>{p.nombre || p.name}</td>
+                    <td style={{ fontSize: 11, color: "#999999" }}>{p.marca || p.brand || "-"}</td>
+                    <td style={{ fontSize: 11, color: "#999999" }}>{p.categoria || "-"}</td>
+                    <td style={{ fontSize: 11, color: "#999999" }}>{p.codigo || "-"}</td>
+                    <td style={{ color: "#c9a84c" }}>${parseFloat(p.price || p.precio || 0).toLocaleString()}</td>
+                    <td style={{ fontSize: 11, color: "#999999" }}>{p.cost || p.costo ? "$" + parseFloat(p.cost || p.costo).toLocaleString() : "-"}</td>
+                    <td><span className={"badge " + (bajo ? "br" : "bg")}>{p.stock || 0}u</span></td>
+                    <td style={{ fontSize: 10, color: margen ? "#2d7a4f" : "#999999" }}>{margen ? margen + "%" : "-"}</td>
                   </tr>
                 );
               })}
+              {productos.length === 0 && <tr><td colSpan={8} style={{ color: "#999999", textAlign: "center" }}>Sin productos</td></tr>}
             </tbody>
           </table>
           )}
@@ -757,17 +843,17 @@ function Inventario() {
       )}
       {tab === "alertas" && (
         <div className="fade">
-          {alertas.length === 0
-            ? <div style={{ textAlign: "center", color: "#2d7a4f", padding: 30, fontSize: 12 }}>No hay alertas de stock por ahora</div>
-            : alertas.map(p => (
-              <div key={p.id} style={{ background: "#c0392b12", border: "1px solid #d9707033", borderRadius: 6, padding: "12px 16px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontSize: 12, color: "#444444" }}>{p.nombre || p.name} - {p.marca || p.brand}</div>
-                  <div style={{ fontSize: 10, color: "#999999", marginTop: 2 }}>Stock: {p.stock}u | Minimo: {p.stock_minimo || p.min}u | Lead: {p.lead_time_dias || p.lead}d</div>
-                </div>
-                <button className="btn btn-p btn-sm">Generar OC</button>
+          {alertas.length === 0 ? (
+            <div style={{ textAlign: "center", color: "#2d7a4f", padding: 30, fontSize: 12 }}>No hay alertas de stock por ahora</div>
+          ) : alertas.map(p => (
+            <div key={p.id} style={{ background: "#c0392b12", border: "1px solid #d9707033", borderRadius: 6, padding: "12px 16px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 12, color: "#444444" }}>{p.nombre || p.name} - {p.marca || p.brand}</div>
+                <div style={{ fontSize: 10, color: "#999999", marginTop: 2 }}>Stock: {p.stock || 0}u | Minimo: {p.stock_minimo || 5}u</div>
               </div>
-            ))}
+              <button className="btn btn-p btn-sm">Generar OC</button>
+            </div>
+          ))}
         </div>
       )}
       {tab === "movimientos" && (
@@ -1831,7 +1917,7 @@ function Comisiones({ localId }) {
   };
 
   const nivelColor = datos?.nivel === 2 ? "#c9a84c" : datos?.nivel === 1 ? "#2d7a4f" : "#999999";
-  const nivelEmoji = datos?.nivel === 2 ? "ðŸ†" : datos?.nivel === 1 ? "â­" : "ðŸŽ¯";
+  const nivelEmoji = datos?.nivel === 2 ? "Ã°Å¸Ââ€ " : datos?.nivel === 1 ? "Ã¢Â­Â" : "Ã°Å¸Å½Â¯";
 
   return (
     <div className="fade">
@@ -2432,7 +2518,7 @@ function OrdenesIngreso({ localId }) {
 }
 
 const NAV_SECTIONS = [
-  { section: "GESTION", items: [{ id: "dashboard", icon: "*", label: "Dashboard" }, { id: "pos", icon: "+", label: "Punto de Venta" }, { id: "inventory", icon: "#", label: "Inventario" }, { id: "caja", icon: "$", label: "Caja" }, { id: "ordenes", icon: "i", label: "Ingresos" }, { id: "clients", icon: "@", label: "Clientes" }] },
+  { section: "GESTION", items: [{ id: "dashboard", icon: "*", label: "Dashboard" }, { id: "pos", icon: "+", label: "Punto de Venta" }, { id: "inventory", icon: "#", label: "Inventario" }, { id: "caja", icon: "$", label: "Caja" }, { id: "ordenes", icon: "i", label: "Ingresos" }, { id: "kits", icon: "K", label: "Kits" }, { id: "clients", icon: "@", label: "Clientes" }] },
   { section: "FINANZAS", items: [{ id: "finance", icon: "%", label: "Finanzas" }, { id: "reports", icon: "~", label: "Informes" }, { id: "comisiones", icon: "c", label: "Comisiones" }, { id: "proveedores", icon: "p", label: "Proveedores" }] },
   { section: "MARKETING", items: [{ id: "cupones", icon: "k", label: "Cupones" }, { id: "fidelizacion", icon: "f", label: "Fidelizacion" }, { id: "postventa", icon: "w", label: "Postventa WA" }] },
   { section: "CLIENTE", items: [{ id: "portal", icon: "o", label: "Portal Cliente" }] },
@@ -2450,7 +2536,7 @@ function LoginScreen({ onLogin }) {
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
-    if (!email || !password) return setError("CompletÃ¡ todos los campos");
+    if (!email || !password) return setError("CompletÃƒÂ¡ todos los campos");
     setLoading(true);
     try {
       const res = await login({ email, password });
@@ -2458,7 +2544,7 @@ function LoginScreen({ onLogin }) {
       localStorage.setItem("lumiere_user", JSON.stringify(res.data.usuario));
       onLogin(res.data.usuario);
     } catch (e) {
-      setError("Email o contraseÃ±a incorrectos");
+      setError("Email o contraseÃƒÂ±a incorrectos");
     }
     setLoading(false);
   };
@@ -2476,8 +2562,8 @@ function LoginScreen({ onLogin }) {
           <input className="inp" type="email" placeholder="tu@email.com" value={email} onChange={e => { setEmail(e.target.value); setError(""); }} />
         </div>
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÃ‘A</div>
-          <input className="inp" type="password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
+          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÃƒâ€˜A</div>
+          <input className="inp" type="password" placeholder="Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
         </div>
         <button className="btn btn-p" style={{ width: "100%", padding: 13 }} onClick={handleLogin} disabled={loading}>
           {loading ? "Ingresando..." : "Ingresar"}
@@ -2588,7 +2674,7 @@ function Usuarios({ usuario: usuarioActual }) {
             <div>
               <div className="fg"><div className="fl">Nombre</div><input className="inp" placeholder="Nombre completo" value={nuevoUsuario.nombre} onChange={e => setNuevoUsuario(p => ({ ...p, nombre: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Email</div><input className="inp" type="email" placeholder="email@ejemplo.com" value={nuevoUsuario.email} onChange={e => setNuevoUsuario(p => ({ ...p, email: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">ContraseÃ±a</div><input className="inp" type="password" placeholder="Contraseâ€šâ€žÆ’â€šâ€žÂ¢ inicial" value={nuevoUsuario.password} onChange={e => setNuevoUsuario(p => ({ ...p, password: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">ContraseÃƒÂ±a</div><input className="inp" type="password" placeholder="ContraseÃ¢â‚¬Å¡Ã¢â‚¬Å¾Ã†â€™Ã¢â‚¬Å¡Ã¢â‚¬Å¾Ã‚Â¢ inicial" value={nuevoUsuario.password} onChange={e => setNuevoUsuario(p => ({ ...p, password: e.target.value }))} /></div>
             </div>
             <div>
               <div className="fg"><div className="fl">Rol</div>
@@ -2731,6 +2817,7 @@ export default function AppWrapper() {
     if (id === "comisiones") return <Comisiones localId={local.id} />;
     if (id === "caja") return <Caja localId={local.id} usuario={usuario} />;
     if (id === "ordenes") return <OrdenesIngreso localId={local.id} />;
+    if (id === "kits") return <Kits />;
     if (id === "proveedores") return <Proveedores />;
     return <Dashboard localId={local.id} />;
   };
