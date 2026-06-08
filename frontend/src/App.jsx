@@ -387,17 +387,6 @@ function POS({ localId }) {
   const [medioPagoSel, setMedioPagoSel] = useState(null);
   const [tabPos, setTabPos] = useState("venta");
   const [preventasPendientes, setPreventasPendientes] = useState([]);
-  const [ordenesTransito, setOrdenesTransito] = useState([]);
-  const [estadoPagoPreventa, setEstadoPagoPreventa] = useState("reservado");
-  const [montoSenia, setMontoSenia] = useState("");
-  const [ordenPreventaId, setOrdenPreventaId] = useState("");
-
-  const cargarOrdenesTransito = async () => {
-    try {
-      const res = await API.get("/ordenes-ingreso?local_id=" + (localId || 1));
-      setOrdenesTransito((res.data || []).filter(o => o.estado === "pendiente"));
-    } catch (e) {}
-  };
 
   const cargarPreventas = async () => {
     try {
@@ -410,7 +399,6 @@ function POS({ localId }) {
     getProductos().then(res => setProductos(res.data)).catch(() => setProductos(PRODUCTS));
     API.get("/medios-pago").then(res => setMediosPago(res.data)).catch(() => setMediosPago([]));
     cargarPreventas();
-    cargarOrdenesTransito();
   }, [localId]);
 
   const add = (p) => setCart(prev => {
@@ -474,10 +462,7 @@ function POS({ localId }) {
         cupon_codigo: cupon || null, local_id: localId || 1,
         medio_pago_id: medioPagoSel.id, medio_pago_nombre: medioPagoSel.nombre,
         total_con_interes: total, es_preventa: preventa,
-        nombre_preventa: preventa ? (clienteSeleccionado?.nombre || nombrePreventa) : null,
-        orden_ingreso_id: preventa ? (ordenPreventaId || null) : null,
-        estado_pago: preventa ? estadoPagoPreventa : "pagado",
-        monto_senia: preventa && estadoPagoPreventa === "seniado" ? parseFloat(montoSenia) || 0 : 0
+        nombre_preventa: preventa ? nombrePreventa : null
       });
       if (!preventa) {
         try {
@@ -491,7 +476,7 @@ function POS({ localId }) {
       }
       setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null);
       setClienteSeleccionado(null); setShowNuevoCliente(false);
-      setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("$"); setEstadoPagoPreventa("reservado"); setMontoSenia(""); setOrdenPreventaId("");
+      setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("$");
       setTimeout(() => setMensaje(""), 8000);
     } catch (error) { setMensaje("Error al emitir factura"); }
     setLoading(false);
@@ -596,16 +581,12 @@ function POS({ localId }) {
               )}
             </div>
             <div className="fg"><div className="fl">Orden de ingreso (stock en transito)</div>
-              <select className="sel" value={ordenPreventaId} onChange={e => setOrdenPreventaId(e.target.value)}>
+              <select className="sel" value={nuevo?.orden_id || ""} onChange={e => setNuevo && setNuevo(p => ({ ...p, orden_id: e.target.value }))}>
                 <option value="">Seleccionar orden...</option>
-                {ordenesTransito.map(o => (
-                  <option key={o.id} value={o.id}>#{o.id} - {o.proveedor_nombre || "Sin proveedor"} ({new Date(o.creado_en).toLocaleDateString("es-AR")})</option>
-                ))}
               </select>
-              {ordenesTransito.length === 0 && <div style={{ fontSize: 10, color: "#e67e22", marginTop: 4 }}>No hay ordenes de ingreso pendientes</div>}
             </div>
             <div className="fg"><div className="fl">Estado de pago</div>
-              <select className="sel" value={estadoPagoPreventa} onChange={e => setEstadoPagoPreventa(e.target.value)}>
+              <select className="sel" value={estadoPagoPreventa || "reservado"} onChange={e => setEstadoPagoPreventa && setEstadoPagoPreventa(e.target.value)}>
                 <option value="reservado">Reservado (sin pago)</option>
                 <option value="seniado">Seniado (pago parcial)</option>
                 <option value="pagado">Pagado completo</option>
@@ -613,15 +594,13 @@ function POS({ localId }) {
             </div>
             {estadoPagoPreventa === "seniado" && (
               <div className="fg"><div className="fl">Monto de la senia ($)</div>
-                <input className="inp" type="number" placeholder="5000" value={montoSenia} onChange={e => setMontoSenia(e.target.value)} />
+                <input className="inp" type="number" placeholder="5000" value={montoSenia || ""} onChange={e => setMontoSenia && setMontoSenia(e.target.value)} />
               </div>
             )}
             <button className="btn btn-p" style={{ width: "100%" }} onClick={() => {
-              if (!clienteSeleccionado) return setMensaje("Selecciona un cliente primero");
-              if (!ordenPreventaId) return setMensaje("Selecciona una orden de ingreso");
               setPreventa(true);
               setTabPos("venta");
-              setMensaje("Agrega los productos y confirma la preventa de " + clienteSeleccionado.nombre);
+              setMensaje("Completa los productos y confirma la preventa");
             }}>Continuar en POS</button>
           </div>
           <div className="card">
@@ -630,9 +609,9 @@ function POS({ localId }) {
               <div style={{ marginBottom: 8 }}>1. Buscas a la clienta por DNI</div>
               <div style={{ marginBottom: 8 }}>2. Seleccionas la orden de ingreso (mercaderia en camino)</div>
               <div style={{ marginBottom: 8 }}>3. Eliges el estado de pago</div>
-              <div style={{ marginBottom: 8 }}>4. Si paga completo → se factura ahora</div>
-              <div style={{ marginBottom: 8 }}>5. Cuando llega la mercaderia → WA automatico a la clienta</div>
-              <div>6. Cuando retira → se cobra saldo y se entrega</div>
+              <div style={{ marginBottom: 8 }}>4. Si paga completo â†’ se factura ahora</div>
+              <div style={{ marginBottom: 8 }}>5. Cuando llega la mercaderia â†’ WA automatico a la clienta</div>
+              <div>6. Cuando retira â†’ se cobra saldo y se entrega</div>
             </div>
           </div>
         </div>
@@ -2825,8 +2804,280 @@ function Kits() {
   );
 }
 
+function Tiendanube() {
+  const [status, setStatus] = useState(null);
+  const [productos, setProductos] = useState([]);
+  const [tab, setTab] = useState("status");
+  const [busquedaTN, setBusquedaTN] = useState("");
+  const [resultadosTN, setResultadosTN] = useState([]);
+  const [productoVinculando, setProductoVinculando] = useState(null);
+  const [vinculoForm, setVinculoForm] = useState({ tn_product_id: "", tn_variant_id_rg: "", tn_variant_id_ush: "" });
+  const [vinculos, setVinculos] = useState({});
+  const [mensaje, setMensaje] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const cargar = async () => {
+    try {
+      const [stRes, prodRes] = await Promise.all([
+        API.get("/tiendanube/status"),
+        API.get("/productos")
+      ]);
+      setStatus(stRes.data);
+      setProductos(prodRes.data);
+      // Cargar vinculos para cada producto
+      const vinculosData = {};
+      for (const p of prodRes.data) {
+        try {
+          const v = await API.get("/tiendanube/vinculos/" + p.id);
+          if (v.data) vinculosData[p.id] = v.data;
+        } catch (e) {}
+      }
+      setVinculos(vinculosData);
+    } catch (e) { setStatus({ ok: false, error: e.message }); }
+  };
+
+  useEffect(() => { cargar(); }, []);
+
+  const buscarEnTN = async () => {
+    if (!busquedaTN) return;
+    setLoading(true);
+    try {
+      const res = await API.get("/tiendanube/buscar-producto?q=" + encodeURIComponent(busquedaTN));
+      setResultadosTN(res.data);
+    } catch (e) { setMensaje("Error al buscar en Tiendanube"); }
+    setLoading(false);
+  };
+
+  const iniciarVinculo = (producto) => {
+    setProductoVinculando(producto);
+    setVinculoForm({ tn_product_id: "", tn_variant_id_rg: "", tn_variant_id_ush: "" });
+    setResultadosTN([]);
+    setBusquedaTN(producto.nombre || producto.name || "");
+    setTab("vincular");
+  };
+
+  const seleccionarProductoTN = (tnProd) => {
+    setVinculoForm(f => ({ ...f, tn_product_id: String(tnProd.id) }));
+  };
+
+  const guardarVinculo = async () => {
+    if (!vinculoForm.tn_product_id) return setMensaje("Selecciona un producto de Tiendanube");
+    if (!vinculoForm.tn_variant_id_rg && !vinculoForm.tn_variant_id_ush) return setMensaje("Selecciona al menos una variante");
+    try {
+      await API.post("/tiendanube/vinculos", { producto_id: productoVinculando.id, ...vinculoForm });
+      setMensaje("Vinculo guardado!");
+      setTab("productos");
+      setProductoVinculando(null);
+      cargar();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al guardar vinculo"); }
+  };
+
+  const eliminarVinculo = async (producto_id) => {
+    try {
+      await API.delete("/tiendanube/vinculos/" + producto_id);
+      setMensaje("Vinculo eliminado");
+      cargar();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al eliminar vinculo"); }
+  };
+
+  const sincStock = async (producto_id, local_id) => {
+    try {
+      await API.post("/tiendanube/sync/stock/" + producto_id, { local_id });
+      setMensaje("Stock sincronizado!");
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al sincronizar stock"); }
+  };
+
+  const registrarWebhook = async () => {
+    try {
+      await API.post("/tiendanube/registrar-webhook", { backend_url: "https://lumiere-production-79d0.up.railway.app" });
+      setMensaje("Webhook registrado! Los pedidos de Tiendanube se van a sincronizar automaticamente.");
+      setTimeout(() => setMensaje(""), 5000);
+    } catch (e) { setMensaje("Error al registrar webhook: " + e.message); }
+  };
+
+  const prodVinculado = productoVinculando && resultadosTN.find(p => String(p.id) === vinculoForm.tn_product_id);
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Tiendanube</div><div className="ps">sincronizacion de stock y pedidos</div></div>
+        {status?.ok && <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#2d7a4f" }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#2d7a4f" }} />
+          {status.tienda}
+        </div>}
+      </div>
+      {mensaje && (
+        <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>
+          {mensaje}
+        </div>
+      )}
+      <div className="tabs">
+        {["status", "productos", "vincular"].map(t => (
+          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => setTab(t)}>
+            {t === "status" ? "ESTADO" : t === "productos" ? "VINCULOS" : "VINCULAR PRODUCTO"}
+          </div>
+        ))}
+      </div>
+      {tab === "status" && (
+        <div className="fade">
+          <div className="g2">
+            <div className="card">
+              <div className="ct">Conexion con Tiendanube</div>
+              {!status ? (
+                <div style={{ color: "#999999" }}>Verificando...</div>
+              ) : status.ok ? (
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#2d7a4f" }} />
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "#2d7a4f" }}>Conectado</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#444444", marginBottom: 6 }}>Tienda: {status.tienda}</div>
+                  <div style={{ fontSize: 12, color: "#444444" }}>Plan: {status.plan}</div>
+                </div>
+              ) : (
+                <div style={{ color: "#c0392b", fontSize: 12 }}>Error de conexion: {status.error}</div>
+              )}
+            </div>
+            <div className="card">
+              <div className="ct">Sincronizacion automatica</div>
+              <div style={{ fontSize: 12, color: "#444444", marginBottom: 12, lineHeight: 1.6 }}>
+                Registra el webhook para que los pedidos de Tiendanube descuenten stock en Lumiere automaticamente.
+              </div>
+              <button className="btn btn-p" style={{ width: "100%" }} onClick={registrarWebhook}>
+                Registrar webhook
+              </button>
+            </div>
+          </div>
+          <div className="card">
+            <div className="ct">Como funciona la sincronizacion</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, fontSize: 12, color: "#444444" }}>
+              <div>
+                <div style={{ fontWeight: 600, marginBottom: 8, color: "#111111" }}>Lumiere → Tiendanube</div>
+                <div style={{ marginBottom: 6 }}>✓ Venta en POS → descuenta variante TN</div>
+                <div style={{ marginBottom: 6 }}>✓ Recepcion mercaderia → suma stock TN</div>
+                <div>✓ Solo productos vinculados manualmente</div>
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, marginBottom: 8, color: "#111111" }}>Tiendanube → Lumiere</div>
+                <div style={{ marginBottom: 6 }}>✓ Pedido pagado → descuenta stock</div>
+                <div style={{ marginBottom: 6 }}>✓ Se registra como venta canal TN</div>
+                <div>✓ Automatico via webhook</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {tab === "productos" && (
+        <div className="fade">
+          <div className="card">
+            <div className="ct">Productos con vinculo Tiendanube</div>
+            <table>
+              <thead><tr><th>Producto</th><th>Vinculo TN</th><th>Variante RG</th><th>Variante USH</th><th>Acciones</th></tr></thead>
+              <tbody>
+                {productos.map(p => {
+                  const v = vinculos[p.id];
+                  return (
+                    <tr key={p.id}>
+                      <td>
+                        <div style={{ fontSize: 12, fontWeight: 500 }}>{p.nombre}</div>
+                        <div style={{ fontSize: 10, color: "#999999" }}>{p.marca || ""}</div>
+                      </td>
+                      <td>{v ? <span className="badge bg">Vinculado #{v.tn_product_id}</span> : <span className="badge ba">Sin vincular</span>}</td>
+                      <td style={{ fontSize: 11, color: "#999999" }}>{v?.tn_variant_id_rg ? "✓ #" + v.tn_variant_id_rg : "-"}</td>
+                      <td style={{ fontSize: 11, color: "#999999" }}>{v?.tn_variant_id_ush ? "✓ #" + v.tn_variant_id_ush : "-"}</td>
+                      <td>
+                        <div style={{ display: "flex", gap: 4 }}>
+                          <button className="btn btn-g btn-sm" onClick={() => iniciarVinculo(p)}>
+                            {v ? "Editar" : "Vincular"}
+                          </button>
+                          {v && (
+                            <button className="btn btn-sm" style={{ border: "1px solid #c0392b22", color: "#c0392b" }} onClick={() => eliminarVinculo(p.id)}>Quitar</button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+      {tab === "vincular" && (
+        <div className="g2 fade">
+          <div className="card">
+            <div className="ct">{productoVinculando ? "Vinculando: " + (productoVinculando.nombre || productoVinculando.name) : "Buscar producto en Tiendanube"}</div>
+            <div className="fg"><div className="fl">Buscar en Tiendanube</div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input className="inp" placeholder="Nombre del producto..." value={busquedaTN} onChange={e => setBusquedaTN(e.target.value)} style={{ flex: 1 }} onKeyDown={e => e.key === "Enter" && buscarEnTN()} />
+                <button className="btn btn-g btn-sm" onClick={buscarEnTN}>{loading ? "..." : "Buscar"}</button>
+              </div>
+            </div>
+            {resultadosTN.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div className="fl" style={{ marginBottom: 6 }}>Resultados ({resultadosTN.length})</div>
+                {resultadosTN.map(tp => (
+                  <div key={tp.id} onClick={() => seleccionarProductoTN(tp)}
+                    style={{ padding: "8px 10px", borderRadius: 6, marginBottom: 4, cursor: "pointer",
+                      background: vinculoForm.tn_product_id === String(tp.id) ? "#c9a84c15" : "#f5f5f5",
+                      border: "1px solid " + (vinculoForm.tn_product_id === String(tp.id) ? "#c9a84c" : "#e8e8e8") }}>
+                    <div style={{ fontSize: 12, fontWeight: 600 }}>{tp.nombre}</div>
+                    <div style={{ fontSize: 10, color: "#999999" }}>{tp.variantes.length} variantes</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {prodVinculado && (
+              <div>
+                <div className="fg"><div className="fl">Variante Rio Grande</div>
+                  <select className="sel" value={vinculoForm.tn_variant_id_rg} onChange={e => setVinculoForm(f => ({ ...f, tn_variant_id_rg: e.target.value }))}>
+                    <option value="">Sin variante RG</option>
+                    {prodVinculado.variantes.map(v => (
+                      <option key={v.id} value={String(v.id)}>{v.nombre} (Stock: {v.stock})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="fg"><div className="fl">Variante Ushuaia</div>
+                  <select className="sel" value={vinculoForm.tn_variant_id_ush} onChange={e => setVinculoForm(f => ({ ...f, tn_variant_id_ush: e.target.value }))}>
+                    <option value="">Sin variante USH</option>
+                    {prodVinculado.variantes.map(v => (
+                      <option key={v.id} value={String(v.id)}>{v.nombre} (Stock: {v.stock})</option>
+                    ))}
+                  </select>
+                </div>
+                <button className="btn btn-p" style={{ width: "100%" }} onClick={guardarVinculo}>Guardar vinculo</button>
+              </div>
+            )}
+          </div>
+          <div className="card">
+            <div className="ct">Instrucciones</div>
+            <div style={{ fontSize: 12, color: "#444444", lineHeight: 1.8 }}>
+              <div style={{ marginBottom: 8 }}>1. Busca el producto en Tiendanube por nombre</div>
+              <div style={{ marginBottom: 8 }}>2. Selecciona el producto correcto de los resultados</div>
+              <div style={{ marginBottom: 8 }}>3. Elegis que variante corresponde a Rio Grande</div>
+              <div style={{ marginBottom: 8 }}>4. Elegis que variante corresponde a Ushuaia</div>
+              <div>5. Guarda el vinculo</div>
+            </div>
+            {productoVinculando && (
+              <div style={{ marginTop: 16, padding: 12, background: "#f5f5f5", borderRadius: 6 }}>
+                <div style={{ fontSize: 11, color: "#999999", marginBottom: 4 }}>Producto Lumiere</div>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>{productoVinculando.nombre}</div>
+                <div style={{ fontSize: 11, color: "#999999" }}>Stock: {productoVinculando.stock || 0}u</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const NAV_SECTIONS = [
   { section: "GESTION", items: [{ id: "dashboard", icon: "*", label: "Dashboard" }, { id: "pos", icon: "+", label: "Punto de Venta" }, { id: "inventory", icon: "#", label: "Inventario" }, { id: "caja", icon: "$", label: "Caja" }, { id: "ordenes", icon: "i", label: "Ingresos" }, { id: "kits", icon: "K", label: "Kits" }, { id: "clients", icon: "@", label: "Clientes" }] },
+  { section: "TIENDANUBE", items: [{ id: "tiendanube", icon: "T", label: "Tiendanube" }] },
   { section: "FINANZAS", items: [{ id: "finance", icon: "%", label: "Finanzas" }, { id: "reports", icon: "~", label: "Informes" }, { id: "comisiones", icon: "c", label: "Comisiones" }, { id: "proveedores", icon: "p", label: "Proveedores" }] },
   { section: "MARKETING", items: [{ id: "cupones", icon: "k", label: "Cupones" }, { id: "fidelizacion", icon: "f", label: "Fidelizacion" }, { id: "postventa", icon: "w", label: "Postventa WA" }] },
   { section: "CLIENTE", items: [{ id: "portal", icon: "o", label: "Portal Cliente" }] },
@@ -3126,6 +3377,7 @@ export default function AppWrapper() {
     if (id === "caja") return <Caja localId={local.id} usuario={usuario} />;
     if (id === "ordenes") return <OrdenesIngreso localId={local.id} />;
     if (id === "kits") return <Kits />;
+    if (id === "tiendanube") return <Tiendanube />;
     if (id === "proveedores") return <Proveedores />;
     return <Dashboard localId={local.id} />;
   };
