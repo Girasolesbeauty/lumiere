@@ -115,7 +115,7 @@ const REWARDS = [
 
 const REWARDS_DISPLAY = REWARDS.map(r => ({
   ...r,
-  emoji: r.emoji === "ok_hand" ? "✨" : r.emoji === "droplet" ? "💧" : r.emoji === "lipstick" ? "💄" : r.emoji === "gift" ? "🎁" : r.emoji === "herb" ? "🌿" : "🌸",
+  emoji: r.emoji === "ok_hand" ? "âœ¨" : r.emoji === "droplet" ? "ðŸ’§" : r.emoji === "lipstick" ? "ðŸ’„" : r.emoji === "gift" ? "ðŸŽ" : r.emoji === "herb" ? "ðŸŒ¿" : "ðŸŒ¸",
 }));
 
 const CUPONS_DATA = [
@@ -176,107 +176,191 @@ function TierBadge({ tier }) {
   return <span className={"badge " + cls}>{tier}</span>;
 }
 
-function Dashboard() {
-  const [resumen, setResumen] = useState({ ingresos: 0, egresos: 0, neto: 0 });
-  const [ventas, setVentas] = useState([]);
-  const [clientes, setClientes] = useState([]);
-  const [alertas, setAlertas] = useState([]);
+function Dashboard({ localId }) {
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [tabLocal, setTabLocal] = useState("rg");
+  const mes = new Date().getMonth() + 1;
+  const anio = new Date().getFullYear();
 
-  useEffect(() => {
-    Promise.all([
-      getResumenFinanzas(),
-      getVentas(),
-      getClientes(),
-      getAlertasStock()
-    ]).then(([r, v, c, a]) => {
-      setResumen(r.data);
-      setVentas(v.data.slice(0, 4));
-      setClientes(c.data.slice(0, 4));
-      setAlertas(a.data);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, []);
+  const cargar = async () => {
+    setLoading(true);
+    try {
+      const local = tabLocal === "rg" ? "1" : tabLocal === "ush" ? "2" : "";
+      const params = "mes=" + mes + "&anio=" + anio + (local ? "&local_id=" + local : "");
+      const [ventasRes, prodRes, clientesRes, finRes] = await Promise.all([
+        API.get("/ventas?" + params),
+        API.get("/productos"),
+        API.get("/clientes"),
+        API.get("/finanzas/flujo?" + params).catch(() => ({ data: { resumen: { ingresos: 0, egresos: 0, neto: 0 } } }))
+      ]);
+      const ventas = ventasRes.data || [];
+      const productos = prodRes.data || [];
+      const clientes = clientesRes.data || [];
+      const fin = finRes.data?.resumen || { ingresos: 0, egresos: 0, neto: 0 };
+
+      const totalVentas = ventas.reduce((s, v) => s + parseFloat(v.total || 0), 0);
+      const cantVentas = ventas.length;
+      const ticketProm = cantVentas > 0 ? totalVentas / cantVentas : 0;
+      const costoVentas = ventas.reduce((s, v) => s + parseFloat(v.costo_total || 0), 0);
+      const margenBruto = totalVentas > 0 ? Math.round(((totalVentas - costoVentas) / totalVentas) * 100) : 0;
+      const stockBajo = productos.filter(p => (p.stock || 0) <= (p.stock_minimo || 5));
+      const sinStock = productos.filter(p => !p.stock || p.stock === 0);
+      const clientesNuevos = clientes.filter(c => {
+        const fecha = new Date(c.creado_en || c.fecha);
+        return fecha.getMonth() + 1 === mes && fecha.getFullYear() === anio;
+      }).length;
+
+      // Ventas por medio de pago
+      const ventasPorMedio = {};
+      ventas.forEach(v => {
+        const m = v.medio_pago || "Efectivo";
+        ventasPorMedio[m] = (ventasPorMedio[m] || 0) + parseFloat(v.total || 0);
+      });
+
+      // Top productos por ventas (from venta_items if available)
+      const prodVentas = {};
+      ventas.forEach(v => {
+        if (v.items) v.items.forEach(i => {
+          prodVentas[i.nombre] = (prodVentas[i.nombre] || 0) + i.cantidad;
+        });
+      });
+
+      setData({ ventas, totalVentas, cantVentas, ticketProm, margenBruto, costoVentas, stockBajo, sinStock, clientesNuevos, clientes, fin, ventasPorMedio, prodVentas, productos });
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+
+  useEffect(() => { cargar(); }, [tabLocal]);
+
+  const KPI = ({ titulo, valor, sub, color, alerta }) => (
+    <div className="card" style={{ borderTop: "3px solid " + (alerta ? "#c0392b" : (color || "#c9a84c")) }}>
+      <div className="ct">{titulo}</div>
+      <div style={{ fontSize: 26, fontWeight: 700, color: alerta ? "#c0392b" : (color || "#111111") }}>{valor}</div>
+      {sub && <div style={{ fontSize: 11, color: "#999999", marginTop: 4 }}>{sub}</div>}
+    </div>
+  );
+
+  const Semaforo = ({ valor, umbralOk, umbralAlerta, formato }) => {
+    const color = valor >= umbralOk ? "#2d7a4f" : valor >= umbralAlerta ? "#e67e22" : "#c0392b";
+    const icono = valor >= umbralOk ? "●" : valor >= umbralAlerta ? "●" : "●";
+    return <span style={{ color, fontSize: 12, fontWeight: 700 }}>{icono} {formato ? formato(valor) : valor}</span>;
+  };
 
   return (
     <div className="fade">
       <div className="ph">
+        <div><div className="pt">Dashboard</div><div className="ps">{"KPIs del mes de " + ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][mes-1]}</div></div>
+        <button className="btn btn-g btn-sm" onClick={cargar}>Actualizar</button>
+      </div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        {["rg","ush","consolidado"].map(l => (
+          <button key={l} onClick={() => setTabLocal(l)} className="btn btn-sm"
+            style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : "#e8e8e8"), color: tabLocal === l ? "#c9a84c" : "#999999", fontWeight: tabLocal === l ? 600 : 400 }}>
+            {l === "rg" ? "Rio Grande" : l === "ush" ? "Ushuaia" : "Consolidado"}
+          </button>
+        ))}
+      </div>
+      {loading ? (
+        <div style={{ textAlign: "center", color: "#999999", padding: 40 }}>Cargando KPIs...</div>
+      ) : data && (
         <div>
-          <div className="pt">Dashboard</div>
-          <div className="ps">{new Date().toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })} - resumen ejecutivo</div>
-        </div>
-        <div style={{ display: "flex", gap: 12 }}>
-          <StatusDot color="#25d366" label="TIENDANUBE" />
-          <StatusDot color="#2d7a4f" label="ARCA" />
-        </div>
-      </div>
-      <div className="g4">
-        <MCard label="Ingresos del mes" value={"$" + parseFloat(resumen.ingresos || 0).toLocaleString()} sub="ventas registradas" />
-        <MCard label="Facturas emitidas" value={String(ventas.length)} sub="este mes" />
-        <MCard label="Stock critico" value={String(alertas.length)} sub="requieren pedido" color={alertas.length > 0 ? "#c0392b" : "#2d7a4f"} />
-        <MCard label="Clientes activos" value={String(clientes.length)} sub="en la base" />
-      </div>
-      <div className="g2">
-        <div className="card">
-          <div className="ct">Ultimas facturas</div>
-          {loading ? <div style={{ color: "#999999", fontSize: 11 }}>Cargando...</div> : (
-          <table>
-            <thead><tr><th>Nro</th><th>Cliente</th><th>Total</th><th>Estado</th></tr></thead>
-            <tbody>
-              {ventas.length > 0 ? ventas.map(s => (
-                <tr key={s.id}>
-                  <td style={{ color: "#c9a84c" }}>{s.numero_factura}</td>
-                  <td>{s.cliente_nombre || "Consumidor final"}</td>
-                  <td>${parseFloat(s.total).toLocaleString()}</td>
-                  <td><span className="badge bg">{s.estado}</span></td>
-                </tr>
-              )) : (<tr><td colSpan={4} style={{ color: "#999999", textAlign: "center" }}>Sin ventas aun</td></tr>)}
-            </tbody>
-          </table>
-          )}
-        </div>
-        <div className="card">
-          <div className="ct">Flujo de caja</div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
-            {[{ l: "INGRESOS", v: "$" + parseFloat(resumen.ingresos || 0).toLocaleString(), c: "#2d7a4f" },
-              { l: "EGRESOS", v: "$" + parseFloat(resumen.egresos || 0).toLocaleString(), c: "#c0392b" },
-              { l: "NETO", v: "$" + parseFloat(resumen.neto || 0).toLocaleString(), c: "#c9a84c" }].map(r => (
-              <div key={r.l}>
-                <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em" }}>{r.l}</div>
-                <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 22, fontWeight: 700, color: r.c, marginTop: 4 }}>{r.v}</div>
-              </div>
-            ))}
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>FINANCIERO</div>
+          <div className="g3" style={{ marginBottom: 20 }}>
+            <KPI titulo="Ventas del mes" valor={"$" + Math.round(data.totalVentas).toLocaleString()} sub={data.cantVentas + " transacciones"} color="#2d7a4f" />
+            <KPI titulo="Resultado neto" valor={"$" + Math.round(data.fin.neto || 0).toLocaleString()} sub={"Ingresos - Egresos"} color={data.fin.neto >= 0 ? "#2d7a4f" : "#c0392b"} alerta={data.fin.neto < 0} />
+            <KPI titulo="Margen bruto" valor={data.margenBruto + "%"} sub="sobre costo de ventas" color={data.margenBruto >= 40 ? "#2d7a4f" : data.margenBruto >= 20 ? "#e67e22" : "#c0392b"} />
           </div>
-        </div>
-      </div>
-      <div className="g2">
-        {alertas.length > 0 && (
-          <div className="card">
-            <div className="ct">Alertas de stock</div>
-            {alertas.slice(0, 3).map(p => (
-              <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #2722201a" }}>
-                <div>
-                  <div style={{ fontSize: 11, color: "#444444" }}>{p.nombre}</div>
-                  <div style={{ fontSize: 9, color: "#c0392b" }}>Stock: {p.stock}u "" necesita pedido</div>
+          <div className="g3" style={{ marginBottom: 20 }}>
+            <KPI titulo="Ticket promedio" valor={"$" + Math.round(data.ticketProm).toLocaleString()} sub="por transaccion" color="#2471a3" />
+            <KPI titulo="Clientes nuevos" valor={data.clientesNuevos} sub="este mes" color="#7d3c98" />
+            <KPI titulo="Total clientes" valor={data.clientes.length} sub="en la base" color="#2471a3" />
+          </div>
+
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#999999", letterSpacing: ".1em", marginBottom: 10, marginTop: 4 }}>INVENTARIO</div>
+          <div className="g3" style={{ marginBottom: 20 }}>
+            <KPI titulo="Productos totales" valor={data.productos.length} sub="en catalogo" />
+            <KPI titulo="Stock bajo" valor={data.stockBajo.length} sub="bajo el minimo" alerta={data.stockBajo.length > 0} color="#e67e22" />
+            <KPI titulo="Sin stock" valor={data.sinStock.length} sub="agotados" alerta={data.sinStock.length > 0} color="#c0392b" />
+          </div>
+
+          <div className="g2" style={{ marginBottom: 20 }}>
+            <div className="card">
+              <div className="ct">Semaforo de salud del negocio</div>
+              {[
+                { l: "Margen bruto", v: data.margenBruto, ok: 40, alerta: 20, fmt: v => v + "%" },
+                { l: "Ticket promedio", v: data.ticketProm, ok: 5000, alerta: 2000, fmt: v => "$" + Math.round(v).toLocaleString() },
+                { l: "Resultado neto", v: data.fin.neto, ok: 1, alerta: 0, fmt: v => "$" + Math.round(v).toLocaleString() },
+                { l: "Stock bajo", v: data.stockBajo.length === 0 ? 1 : data.stockBajo.length > 5 ? -1 : 0, ok: 1, alerta: 0, fmt: () => data.stockBajo.length === 0 ? "OK" : data.stockBajo.length + " productos" },
+              ].map(r => (
+                <div key={r.l} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f5f5f5" }}>
+                  <span style={{ fontSize: 12, color: "#444444" }}>{r.l}</span>
+                  <Semaforo valor={r.v} umbralOk={r.ok} umbralAlerta={r.alerta} formato={r.fmt} />
                 </div>
-                <span className="badge br">PEDIR</span>
-              </div>
-            ))}
-          </div>
-        )}
-        <div className="card">
-          <div className="ct">Top clientes</div>
-          {clientes.map((c, i) => (
-            <div key={c.id || i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <div>
-                <div style={{ fontSize: 11, color: "#444444" }}>{(c.nombre || c.name || "").split(",")[0]}</div>
-                <div style={{ fontSize: 9, color: "#999999" }}>{(c.puntos || c.points || 0).toLocaleString()} pts</div>
-              </div>
-              <TierBadge tier={c.nivel || c.tier || "Bronze"} />
+              ))}
             </div>
-          ))}
+            <div className="card">
+              <div className="ct">Ventas por medio de pago</div>
+              {Object.keys(data.ventasPorMedio).length === 0 ? (
+                <div style={{ color: "#999999", fontSize: 12, textAlign: "center", padding: 20 }}>Sin datos este mes</div>
+              ) : (
+                <div>
+                  {Object.entries(data.ventasPorMedio).sort((a,b) => b[1]-a[1]).slice(0, 6).map(([medio, total]) => {
+                    const pct = data.totalVentas > 0 ? Math.round((total / data.totalVentas) * 100) : 0;
+                    return (
+                      <div key={medio} style={{ marginBottom: 10 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                          <span style={{ fontSize: 11, color: "#444444" }}>{medio}</span>
+                          <span style={{ fontSize: 11, color: "#c9a84c", fontWeight: 600 }}>{pct}%</span>
+                        </div>
+                        <div className="pb"><div className="pf" style={{ width: pct + "%" }} /></div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {data.stockBajo.length > 0 && (
+            <div className="card" style={{ borderLeft: "3px solid #c0392b", marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div className="ct" style={{ color: "#c0392b", margin: 0 }}>Alertas de stock</div>
+                <span style={{ fontSize: 10, background: "#c0392b15", color: "#c0392b", padding: "2px 8px", borderRadius: 10, fontWeight: 700 }}>{data.stockBajo.length} productos</span>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {data.stockBajo.slice(0, 8).map((p, i) => (
+                  <div key={i} style={{ background: "#c0392b08", border: "1px solid #c0392b22", borderRadius: 6, padding: "6px 10px", fontSize: 11 }}>
+                    <div style={{ fontWeight: 600, color: "#444444" }}>{p.nombre}</div>
+                    <div style={{ color: "#c0392b" }}>Stock: {p.stock || 0}u</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="card">
+            <div className="ct">Ultimas ventas</div>
+            {data.ventas.length === 0 ? (
+              <div style={{ color: "#999999", fontSize: 12, textAlign: "center", padding: 20 }}>Sin ventas este mes</div>
+            ) : (
+              <table>
+                <thead><tr><th>Fecha</th><th>Cliente</th><th>Medio</th><th>Total</th></tr></thead>
+                <tbody>
+                  {data.ventas.slice(0, 8).map((v, i) => (
+                    <tr key={i}>
+                      <td style={{ fontSize: 11, color: "#999999" }}>{new Date(v.creado_en || v.fecha).toLocaleDateString("es-AR")}</td>
+                      <td style={{ fontSize: 12 }}>{v.cliente_nombre || "Consumidor final"}</td>
+                      <td style={{ fontSize: 11 }}>{v.medio_pago || "-"}</td>
+                      <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${parseFloat(v.total || 0).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -383,7 +467,7 @@ function POS({ localId }) {
       if (!preventa) {
         try {
           const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaRes.data.id });
-          setMensaje("✓ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
+          setMensaje("âœ“ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
         } catch (arcaErr) {
           setMensaje("Venta registrada pero error en ARCA: " + arcaErr.message);
         }
@@ -1747,7 +1831,7 @@ function Comisiones({ localId }) {
   };
 
   const nivelColor = datos?.nivel === 2 ? "#c9a84c" : datos?.nivel === 1 ? "#2d7a4f" : "#999999";
-  const nivelEmoji = datos?.nivel === 2 ? "🏆" : datos?.nivel === 1 ? "⭐" : "🎯";
+  const nivelEmoji = datos?.nivel === 2 ? "ðŸ†" : datos?.nivel === 1 ? "â­" : "ðŸŽ¯";
 
   return (
     <div className="fade">
@@ -2366,7 +2450,7 @@ function LoginScreen({ onLogin }) {
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
-    if (!email || !password) return setError("Completá todos los campos");
+    if (!email || !password) return setError("CompletÃ¡ todos los campos");
     setLoading(true);
     try {
       const res = await login({ email, password });
@@ -2374,7 +2458,7 @@ function LoginScreen({ onLogin }) {
       localStorage.setItem("lumiere_user", JSON.stringify(res.data.usuario));
       onLogin(res.data.usuario);
     } catch (e) {
-      setError("Email o contraseña incorrectos");
+      setError("Email o contraseÃ±a incorrectos");
     }
     setLoading(false);
   };
@@ -2392,8 +2476,8 @@ function LoginScreen({ onLogin }) {
           <input className="inp" type="email" placeholder="tu@email.com" value={email} onChange={e => { setEmail(e.target.value); setError(""); }} />
         </div>
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÑA</div>
-          <input className="inp" type="password" placeholder="••••••••" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
+          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÃ‘A</div>
+          <input className="inp" type="password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
         </div>
         <button className="btn btn-p" style={{ width: "100%", padding: 13 }} onClick={handleLogin} disabled={loading}>
           {loading ? "Ingresando..." : "Ingresar"}
@@ -2504,7 +2588,7 @@ function Usuarios({ usuario: usuarioActual }) {
             <div>
               <div className="fg"><div className="fl">Nombre</div><input className="inp" placeholder="Nombre completo" value={nuevoUsuario.nombre} onChange={e => setNuevoUsuario(p => ({ ...p, nombre: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Email</div><input className="inp" type="email" placeholder="email@ejemplo.com" value={nuevoUsuario.email} onChange={e => setNuevoUsuario(p => ({ ...p, email: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">Contraseña</div><input className="inp" type="password" placeholder="Contrase‚„ƒ‚„¢ inicial" value={nuevoUsuario.password} onChange={e => setNuevoUsuario(p => ({ ...p, password: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">ContraseÃ±a</div><input className="inp" type="password" placeholder="Contraseâ€šâ€žÆ’â€šâ€žÂ¢ inicial" value={nuevoUsuario.password} onChange={e => setNuevoUsuario(p => ({ ...p, password: e.target.value }))} /></div>
             </div>
             <div>
               <div className="fg"><div className="fl">Rol</div>
