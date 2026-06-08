@@ -115,7 +115,7 @@ const REWARDS = [
 
 const REWARDS_DISPLAY = REWARDS.map(r => ({
   ...r,
-  emoji: r.emoji === "ok_hand" ? "Ã¢Å“Â¨" : r.emoji === "droplet" ? "Ã°Å¸â€™Â§" : r.emoji === "lipstick" ? "Ã°Å¸â€™â€ž" : r.emoji === "gift" ? "Ã°Å¸Å½Â" : r.emoji === "herb" ? "Ã°Å¸Å’Â¿" : "Ã°Å¸Å’Â¸",
+  emoji: r.emoji === "ok_hand" ? "ÃƒÂ¢Ã…â€œÃ‚Â¨" : r.emoji === "droplet" ? "ÃƒÂ°Ã…Â¸Ã¢â‚¬â„¢Ã‚Â§" : r.emoji === "lipstick" ? "ÃƒÂ°Ã…Â¸Ã¢â‚¬â„¢Ã¢â‚¬Å¾" : r.emoji === "gift" ? "ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â" : r.emoji === "herb" ? "ÃƒÂ°Ã…Â¸Ã…â€™Ã‚Â¿" : "ÃƒÂ°Ã…Â¸Ã…â€™Ã‚Â¸",
 }));
 
 const CUPONS_DATA = [
@@ -243,7 +243,7 @@ function Dashboard({ localId }) {
 
   const Semaforo = ({ valor, umbralOk, umbralAlerta, formato }) => {
     const color = valor >= umbralOk ? "#2d7a4f" : valor >= umbralAlerta ? "#e67e22" : "#c0392b";
-    const icono = valor >= umbralOk ? "â—" : valor >= umbralAlerta ? "â—" : "â—";
+    const icono = valor >= umbralOk ? "Ã¢â€”Â" : valor >= umbralAlerta ? "Ã¢â€”Â" : "Ã¢â€”Â";
     return <span style={{ color, fontSize: 12, fontWeight: 700 }}>{icono} {formato ? formato(valor) : valor}</span>;
   };
 
@@ -467,7 +467,7 @@ function POS({ localId }) {
       if (!preventa) {
         try {
           const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaRes.data.id });
-          setMensaje("Ã¢Å“â€œ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
+          setMensaje("ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
         } catch (arcaErr) {
           setMensaje("Venta registrada pero error en ARCA: " + arcaErr.message);
         }
@@ -1917,7 +1917,7 @@ function Comisiones({ localId }) {
   };
 
   const nivelColor = datos?.nivel === 2 ? "#c9a84c" : datos?.nivel === 1 ? "#2d7a4f" : "#999999";
-  const nivelEmoji = datos?.nivel === 2 ? "Ã°Å¸Ââ€ " : datos?.nivel === 1 ? "Ã¢Â­Â" : "Ã°Å¸Å½Â¯";
+  const nivelEmoji = datos?.nivel === 2 ? "ÃƒÂ°Ã…Â¸Ã‚ÂÃ¢â‚¬Â " : datos?.nivel === 1 ? "ÃƒÂ¢Ã‚Â­Ã‚Â" : "ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¯";
 
   return (
     <div className="fade">
@@ -2517,6 +2517,205 @@ function OrdenesIngreso({ localId }) {
   );
 }
 
+function Kits() {
+  const [kits, setKits] = useState([]);
+  const [productos, setProductos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("lista");
+  const [mensaje, setMensaje] = useState("");
+  const [editando, setEditando] = useState(null);
+  const [nuevo, setNuevo] = useState({ nombre: "", descripcion: "", precio: "", items: [] });
+  const [itemTemp, setItemTemp] = useState({ producto_id: "", cantidad: 1 });
+
+  const cargar = async () => {
+    setLoading(true);
+    try {
+      const [kitsRes, prodRes] = await Promise.all([API.get("/kits"), API.get("/productos")]);
+      setKits(kitsRes.data);
+      setProductos(prodRes.data);
+    } catch (e) {}
+    setLoading(false);
+  };
+
+  useEffect(() => { cargar(); }, []);
+
+  const agregarItem = () => {
+    if (!itemTemp.producto_id || !itemTemp.cantidad) return;
+    const prod = productos.find(p => p.id === parseInt(itemTemp.producto_id));
+    const setForm = editando ? setEditando : setNuevo;
+    setForm(f => ({ ...f, items: [...f.items, { ...itemTemp, producto_nombre: prod?.nombre || "", producto_precio: prod?.price || 0 }] }));
+    setItemTemp({ producto_id: "", cantidad: 1 });
+  };
+
+  const quitarItem = (idx) => {
+    const setForm = editando ? setEditando : setNuevo;
+    setForm(f => ({ ...f, items: f.items.filter((_, i) => i !== idx) }));
+  };
+
+  const guardar = async () => {
+    const form = editando || nuevo;
+    if (!form.nombre || form.items.length === 0) return setMensaje("Completa nombre y al menos un producto");
+    try {
+      if (editando) {
+        await API.put("/kits/" + editando.id, form);
+        setMensaje("Kit actualizado!");
+        setEditando(null);
+      } else {
+        await API.post("/kits", form);
+        setMensaje("Kit creado!");
+        setNuevo({ nombre: "", descripcion: "", precio: "", items: [] });
+      }
+      setTab("lista");
+      cargar();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al guardar kit"); }
+  };
+
+  const eliminar = async (id) => {
+    try {
+      await API.delete("/kits/" + id);
+      setMensaje("Kit desactivado");
+      cargar();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al eliminar"); }
+  };
+
+  const vender = async (kit) => {
+    try {
+      await API.post("/kits/" + kit.id + "/vender", { cantidad: 1 });
+      setMensaje("Kit vendido! Stock actualizado.");
+      cargar();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje(e.response?.data?.error || "Error al vender kit"); }
+  };
+
+  const editar = (kit) => {
+    setEditando({ ...kit, items: (kit.items || []).filter(i => i.producto_id).map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad, producto_nombre: i.producto_nombre, producto_precio: i.producto_precio })) });
+    setTab("nuevo");
+  };
+
+  const form = editando || nuevo;
+  const setForm = editando ? setEditando : setNuevo;
+  const precioSugerido = form.items.reduce((s, i) => s + (parseFloat(i.producto_precio || 0) * parseInt(i.cantidad || 1)), 0);
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Kits y Combos</div><div className="ps">packs de productos con descuento de stock automatico</div></div>
+        <button className="btn btn-p btn-sm" onClick={() => { setEditando(null); setNuevo({ nombre: "", descripcion: "", precio: "", items: [] }); setTab("nuevo"); }}>+ Nuevo kit</button>
+      </div>
+      {mensaje && (
+        <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>
+          {mensaje}
+        </div>
+      )}
+      <div className="tabs">
+        <div className={"tab " + (tab === "lista" ? "on" : "")} onClick={() => setTab("lista")}>KITS</div>
+        <div className={"tab " + (tab === "nuevo" ? "on" : "")} onClick={() => setTab("nuevo")}>{editando ? "EDITAR KIT" : "NUEVO KIT"}</div>
+      </div>
+      {tab === "lista" && (
+        <div className="fade">
+          {loading ? (
+            <div style={{ color: "#999999", padding: 20 }}>Cargando...</div>
+          ) : kits.length === 0 ? (
+            <div className="card" style={{ textAlign: "center", color: "#999999", padding: 30 }}>Sin kits creados. Crea tu primer combo!</div>
+          ) : (
+            <div className="g2">
+              {kits.map(kit => {
+                const items = (kit.items || []).filter(i => i.producto_id);
+                const totalPrecioProductos = items.reduce((s, i) => s + (parseFloat(i.producto_precio || 0) * parseInt(i.cantidad || 1)), 0);
+                const ahorro = totalPrecioProductos - parseFloat(kit.precio || 0);
+                return (
+                  <div key={kit.id} className="card" style={{ borderTop: "3px solid #c9a84c" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#111111" }}>{kit.nombre}</div>
+                        {kit.descripcion && <div style={{ fontSize: 11, color: "#999999", marginTop: 2 }}>{kit.descripcion}</div>}
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>${parseFloat(kit.precio || 0).toLocaleString()}</div>
+                        {ahorro > 0 && <div style={{ fontSize: 10, color: "#2d7a4f" }}>Ahorro: ${Math.round(ahorro).toLocaleString()}</div>}
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      {items.map((item, i) => (
+                        <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "4px 0", borderBottom: "1px solid #f5f5f5" }}>
+                          <span style={{ color: "#444444" }}>{item.producto_nombre}</span>
+                          <span style={{ color: "#999999" }}>x{item.cantidad}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button className="btn btn-p btn-sm" style={{ flex: 2 }} onClick={() => vender(kit)}>Vender kit</button>
+                      <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => editar(kit)}>Editar</button>
+                      <button className="btn btn-sm" style={{ flex: 1, border: "1px solid #c0392b22", color: "#c0392b" }} onClick={() => eliminar(kit.id)}>Quitar</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+      {tab === "nuevo" && (
+        <div className="g2 fade">
+          <div className="card">
+            <div className="ct">{editando ? "Editar kit" : "Nuevo kit"}</div>
+            <div className="fg"><div className="fl">Nombre del kit</div>
+              <input className="inp" placeholder="Ej: Kit Cuidado Facial Completo" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
+            </div>
+            <div className="fg"><div className="fl">Descripcion (opcional)</div>
+              <input className="inp" placeholder="Ej: Ideal para piel seca..." value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
+            </div>
+            <div className="fg">
+              <div className="fl">Precio del kit ($) {precioSugerido > 0 && <span style={{ fontSize: 10, color: "#999999", marginLeft: 6 }}>Suma: ${Math.round(precioSugerido).toLocaleString()}</span>}</div>
+              <input className="inp" type="number" placeholder={Math.round(precioSugerido * 0.9) || "15000"} value={form.precio} onChange={e => setForm(f => ({ ...f, precio: e.target.value }))} />
+            </div>
+            <div className="divider" />
+            <div className="ct">Agregar productos al kit</div>
+            <div className="fg"><div className="fl">Producto</div>
+              <select className="sel" value={itemTemp.producto_id} onChange={e => setItemTemp(p => ({ ...p, producto_id: e.target.value }))}>
+                <option value="">Seleccionar...</option>
+                {productos.map(p => <option key={p.id} value={p.id}>{p.nombre} (Stock: {p.stock || 0})</option>)}
+              </select>
+            </div>
+            <div className="fg"><div className="fl">Cantidad</div>
+              <input className="inp" type="number" min="1" value={itemTemp.cantidad} onChange={e => setItemTemp(p => ({ ...p, cantidad: parseInt(e.target.value) || 1 }))} />
+            </div>
+            <button className="btn btn-g btn-sm" style={{ width: "100%", marginBottom: 12 }} onClick={agregarItem}>+ Agregar al kit</button>
+            <button className="btn btn-p" style={{ width: "100%" }} onClick={guardar}>{editando ? "Guardar cambios" : "Crear kit"}</button>
+            {editando && <button className="btn btn-g" style={{ width: "100%", marginTop: 8 }} onClick={() => { setEditando(null); setTab("lista"); }}>Cancelar</button>}
+          </div>
+          <div className="card">
+            <div className="ct">Productos en este kit ({form.items.length})</div>
+            {form.items.length === 0 ? (
+              <div style={{ color: "#999999", fontSize: 12, textAlign: "center", padding: 20 }}>Sin productos agregados</div>
+            ) : (
+              <div>
+                {form.items.map((item, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #f5f5f5" }}>
+                    <div>
+                      <div style={{ fontSize: 12, color: "#444444" }}>{item.producto_nombre}</div>
+                      <div style={{ fontSize: 10, color: "#999999" }}>x{item.cantidad}</div>
+                    </div>
+                    <button onClick={() => quitarItem(i)} style={{ background: "none", border: "none", color: "#c0392b", cursor: "pointer", fontSize: 16 }}>x</button>
+                  </div>
+                ))}
+                <div style={{ marginTop: 12, padding: "10px 0", borderTop: "2px solid #f0f0f0" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 12, color: "#444444" }}>Suma de productos</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "#c9a84c" }}>${Math.round(precioSugerido).toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const NAV_SECTIONS = [
   { section: "GESTION", items: [{ id: "dashboard", icon: "*", label: "Dashboard" }, { id: "pos", icon: "+", label: "Punto de Venta" }, { id: "inventory", icon: "#", label: "Inventario" }, { id: "caja", icon: "$", label: "Caja" }, { id: "ordenes", icon: "i", label: "Ingresos" }, { id: "kits", icon: "K", label: "Kits" }, { id: "clients", icon: "@", label: "Clientes" }] },
   { section: "FINANZAS", items: [{ id: "finance", icon: "%", label: "Finanzas" }, { id: "reports", icon: "~", label: "Informes" }, { id: "comisiones", icon: "c", label: "Comisiones" }, { id: "proveedores", icon: "p", label: "Proveedores" }] },
@@ -2536,7 +2735,7 @@ function LoginScreen({ onLogin }) {
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
-    if (!email || !password) return setError("CompletÃƒÂ¡ todos los campos");
+    if (!email || !password) return setError("CompletÃƒÆ’Ã‚Â¡ todos los campos");
     setLoading(true);
     try {
       const res = await login({ email, password });
@@ -2544,7 +2743,7 @@ function LoginScreen({ onLogin }) {
       localStorage.setItem("lumiere_user", JSON.stringify(res.data.usuario));
       onLogin(res.data.usuario);
     } catch (e) {
-      setError("Email o contraseÃƒÂ±a incorrectos");
+      setError("Email o contraseÃƒÆ’Ã‚Â±a incorrectos");
     }
     setLoading(false);
   };
@@ -2562,8 +2761,8 @@ function LoginScreen({ onLogin }) {
           <input className="inp" type="email" placeholder="tu@email.com" value={email} onChange={e => { setEmail(e.target.value); setError(""); }} />
         </div>
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÃƒâ€˜A</div>
-          <input className="inp" type="password" placeholder="Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
+          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÃƒÆ’Ã¢â‚¬ËœA</div>
+          <input className="inp" type="password" placeholder="ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
         </div>
         <button className="btn btn-p" style={{ width: "100%", padding: 13 }} onClick={handleLogin} disabled={loading}>
           {loading ? "Ingresando..." : "Ingresar"}
@@ -2674,7 +2873,7 @@ function Usuarios({ usuario: usuarioActual }) {
             <div>
               <div className="fg"><div className="fl">Nombre</div><input className="inp" placeholder="Nombre completo" value={nuevoUsuario.nombre} onChange={e => setNuevoUsuario(p => ({ ...p, nombre: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Email</div><input className="inp" type="email" placeholder="email@ejemplo.com" value={nuevoUsuario.email} onChange={e => setNuevoUsuario(p => ({ ...p, email: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">ContraseÃƒÂ±a</div><input className="inp" type="password" placeholder="ContraseÃ¢â‚¬Å¡Ã¢â‚¬Å¾Ã†â€™Ã¢â‚¬Å¡Ã¢â‚¬Å¾Ã‚Â¢ inicial" value={nuevoUsuario.password} onChange={e => setNuevoUsuario(p => ({ ...p, password: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">ContraseÃƒÆ’Ã‚Â±a</div><input className="inp" type="password" placeholder="ContraseÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€ Ã¢â‚¬â„¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ inicial" value={nuevoUsuario.password} onChange={e => setNuevoUsuario(p => ({ ...p, password: e.target.value }))} /></div>
             </div>
             <div>
               <div className="fg"><div className="fl">Rol</div>
