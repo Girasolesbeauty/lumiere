@@ -739,12 +739,11 @@ function Inventario({ localId }) {
         marca: nuevo.marca,
         codigo_barras: nuevo.codigo,
         categoria: nuevo.categoria,
-        price: parseFloat(nuevo.precio),
-        cost: parseFloat(nuevo.costo) || 0,
+        precio: parseFloat(nuevo.precio),
+        costo: parseFloat(nuevo.costo) || 0,
         stock: parseInt(nuevo.stock) || 0,
         stock_minimo: parseInt(nuevo.stock_minimo) || 5,
-        proveedor_id: nuevo.proveedor_id || null,
-        descripcion: nuevo.descripcion
+        local_id: 1
       });
       setMensaje("Producto creado!");
       setNuevo({ nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "", stock: "", stock_minimo: "", proveedor_id: "", descripcion: "" });
