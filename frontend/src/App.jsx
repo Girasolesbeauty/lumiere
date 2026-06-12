@@ -3066,9 +3066,14 @@ export default function AppWrapper() {
   const cargarMisPermisos = async (uid) => {
     try {
       const res = await API.get("/permisos/" + uid);
-      setPermisosActivos(res.data || []);
+      const data = res.data || [];
+      setPermisosActivos(data.map(p => (typeof p === "string" ? p : (p.permiso || p.clave || ""))));
     } catch (e) {}
   };
+
+  useEffect(() => {
+    if (usuario && usuario.id) cargarMisPermisos(usuario.id);
+  }, [usuario]);
 
   const puedeVer = (modulo) => {
     if (!usuario) return false;
