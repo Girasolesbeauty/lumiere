@@ -2716,8 +2716,132 @@ function Kits() {
   );
 }
 
+
+// CIERRE DE CAJA
+function CierreCaja({ localId }) {
+  const hoy = new Date();
+  const fmtFecha = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const [fecha, setFecha] = useState(fmtFecha(hoy));
+  const [ventasDia, setVentasDia] = useState([]);
+  const [movsDia, setMovsDia] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const cargar = async () => {
+    setLoading(true);
+    try {
+      const anio = parseInt(fecha.slice(0, 4));
+      const mes = parseInt(fecha.slice(5, 7));
+      const [ventasRes, movRes] = await Promise.all([
+        API.get("/ventas?mes=" + mes + "&anio=" + anio + "&local_id=" + (localId || 1)),
+        API.get("/caja?local_id=" + (localId || 1))
+      ]);
+      const esMismoDia = (f) => {
+        if (!f) return false;
+        const d = new Date(f);
+        return fmtFecha(d) === fecha;
+      };
+      const ventas = (ventasRes.data || []).filter(v => esMismoDia(v.creado_en || v.fecha) && v.es_preventa !== true);
+      const movs = (movRes.data || []).filter(m => esMismoDia(m.creado_en || m.fecha));
+      setVentasDia(ventas);
+      setMovsDia(movs);
+    } catch (e) {}
+    setLoading(false);
+  };
+
+  useEffect(() => { cargar(); }, [fecha, localId]);
+
+  const porMedio = {};
+  ventasDia.forEach(v => {
+    const m = v.medio_pago || "Efectivo";
+    if (!porMedio[m]) porMedio[m] = { cantidad: 0, total: 0 };
+    porMedio[m].cantidad += 1;
+    porMedio[m].total += parseFloat(v.total || 0);
+  });
+  const mediosOrdenados = Object.entries(porMedio).sort((a, b) => b[1].total - a[1].total);
+  const totalDia = ventasDia.reduce((s, v) => s + parseFloat(v.total || 0), 0);
+
+  const ventasEfectivo = ventasDia.filter(v => (v.medio_pago || "Efectivo").toLowerCase().includes("efectivo")).reduce((s, v) => s + parseFloat(v.total || 0), 0);
+  const ingresosManuales = movsDia.filter(m => m.tipo === "ingreso").reduce((s, m) => s + parseFloat(m.importe || 0), 0);
+  const egresosDia = movsDia.filter(m => m.tipo === "egreso").reduce((s, m) => s + parseFloat(m.importe || 0), 0);
+  const efectivoEsperado = ventasEfectivo + ingresosManuales - egresosDia;
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Cierre de Caja</div><div className="ps">resumen del dia por medio de pago</div></div>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <input className="inp" type="date" style={{ width: 160, padding: "6px 10px", fontSize: 12 }} value={fecha} onChange={e => setFecha(e.target.value)} />
+        </div>
+      </div>
+
+      <div className="g2" style={{ marginBottom: 16 }}>
+        <div className="card" style={{ borderTop: "3px solid #c9a84c" }}>
+          <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>TOTAL DEL DIA</div>
+          <div style={{ fontSize: 30, fontWeight: 700, color: "#2d7a4f" }}>${totalDia.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
+          <div style={{ fontSize: 11, color: "#999999" }}>{ventasDia.length} ventas registradas</div>
+        </div>
+        <div className="card" style={{ borderTop: "3px solid #2d7a4f" }}>
+          <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>EFECTIVO ESPERADO EN CAJA</div>
+          <div style={{ fontSize: 30, fontWeight: 700, color: (efectivoEsperado < 0 ? "#c0392b" : "#222222") }}>${efectivoEsperado.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
+          <div style={{ fontSize: 11, color: "#999999" }}>ventas efectivo ${ventasEfectivo.toLocaleString("es-AR", { maximumFractionDigits: 0 })} + ingresos ${ingresosManuales.toLocaleString("es-AR", { maximumFractionDigits: 0 })} - egresos ${egresosDia.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="card" style={{ textAlign: "center", color: "#999999", fontSize: 12 }}>Cargando...</div>
+      ) : (
+        <div className="g2">
+          <div className="card">
+            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>VENTAS POR MEDIO DE PAGO</div>
+            {mediosOrdenados.length === 0 ? (
+              <div style={{ fontSize: 12, color: "#999999" }}>Sin ventas en esta fecha</div>
+            ) : (
+              <table>
+                <thead><tr><th>Medio</th><th>Cant</th><th>Total</th></tr></thead>
+                <tbody>
+                  {mediosOrdenados.map(([medio, d], i) => (
+                    <tr key={i}>
+                      <td style={{ fontSize: 12 }}>{medio}</td>
+                      <td style={{ fontSize: 12, color: "#999999" }}>{d.cantidad}</td>
+                      <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${d.total.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                    </tr>
+                  ))}
+                  <tr>
+                    <td style={{ fontWeight: 700 }}>TOTAL</td>
+                    <td style={{ fontWeight: 700, color: "#999999" }}>{ventasDia.length}</td>
+                    <td style={{ fontWeight: 700, color: "#2d7a4f" }}>${totalDia.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                  </tr>
+                </tbody>
+              </table>
+            )}
+          </div>
+          <div className="card">
+            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>MOVIMIENTOS DE EFECTIVO DEL DIA</div>
+            {movsDia.length === 0 ? (
+              <div style={{ fontSize: 12, color: "#999999" }}>Sin movimientos en esta fecha</div>
+            ) : (
+              <table>
+                <thead><tr><th>Tipo</th><th>Concepto</th><th>Importe</th></tr></thead>
+                <tbody>
+                  {movsDia.map((m, i) => (
+                    <tr key={i}>
+                      <td><span className="badge" style={{ background: (m.tipo === "ingreso" ? "#2d7a4f15" : "#c0392b15"), color: (m.tipo === "ingreso" ? "#2d7a4f" : "#c0392b") }}>{m.tipo}</span></td>
+                      <td style={{ fontSize: 12 }}>{m.concepto || "-"}</td>
+                      <td style={{ fontWeight: 600, color: (m.tipo === "ingreso" ? "#2d7a4f" : "#c0392b") }}>{(m.tipo === "ingreso" ? "+" : "-")}${parseFloat(m.importe || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const NAV_SECTIONS = [
-  { section: "GESTION", items: [{ id: "dashboard", icon: "*", label: "Dashboard" }, { id: "pos", icon: "+", label: "Punto de Venta" }, { id: "inventory", icon: "#", label: "Inventario" }, { id: "caja", icon: "$", label: "Caja" }, { id: "ordenes", icon: "i", label: "Ingresos" }, { id: "kits", icon: "K", label: "Kits" }, { id: "clients", icon: "@", label: "Clientes" }] },
+  { section: "GESTION", items: [{ id: "dashboard", icon: "*", label: "Dashboard" }, { id: "pos", icon: "+", label: "Punto de Venta" }, { id: "inventory", icon: "#", label: "Inventario" }, { id: "caja", icon: "$", label: "Caja" }, { id: "cierre", icon: "=", label: "Cierre de Caja" }, { id: "ordenes", icon: "i", label: "Ingresos" }, { id: "kits", icon: "K", label: "Kits" }, { id: "clients", icon: "@", label: "Clientes" }] },
   { section: "FINANZAS", items: [{ id: "finance", icon: "%", label: "Finanzas" }, { id: "reports", icon: "~", label: "Informes" }, { id: "comisiones", icon: "c", label: "Comisiones" }, { id: "proveedores", icon: "p", label: "Proveedores" }] },
   { section: "MARKETING", items: [{ id: "cupones", icon: "k", label: "Cupones" }, { id: "fidelizacion", icon: "f", label: "Fidelizacion" }, { id: "postventa", icon: "w", label: "Postventa WA" }] },
   { section: "CLIENTE", items: [{ id: "portal", icon: "o", label: "Portal Cliente" }] },
@@ -3083,7 +3207,7 @@ export default function AppWrapper() {
       "finance": "finanzas.flujo", "reports": "informes.ventas", "comisiones": "comisiones.propias",
       "proveedores": "proveedores.ver", "cupones": "cupones.ver", "fidelizacion": "fidelizacion.ver",
       "postventa": "postventa.ver", "portal": "clientes.ver", "caja": "caja.ver",
-      "ordenes": "ordenes.ver", "kits": "kits.ver", "usuarios": "usuarios.ver",
+      "ordenes": "ordenes.ver", "cierre": "caja.ver", "kits": "kits.ver", "usuarios": "usuarios.ver",
       "dashboard": "pos.ver", "tiendanube": "tiendanube.ver",
     };
     const permiso = mapaModulos[modulo];
@@ -3126,6 +3250,7 @@ export default function AppWrapper() {
     if (id === "usuarios") return <Usuarios usuario={usuario} />;
     if (id === "comisiones") return <Comisiones localId={local.id} />;
     if (id === "caja") return <Caja localId={local.id} usuario={usuario} />;
+    if (id === "cierre") return <CierreCaja localId={local.id} />;
     if (id === "ordenes") return <OrdenesIngreso localId={local.id} />;
     if (id === "kits") return <Kits />;
     if (id === "proveedores") return <Proveedores />;
