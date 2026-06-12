@@ -3173,8 +3173,8 @@ export default function AppWrapper() {
               <StatusDot color="#2d7a4f" label="ARCA" />
               <StatusDot color="#25d366" label="TIENDANUBE" />
             </div>
-            <div style={{ marginTop: 12, fontSize: 11, color: "#999999", cursor: "pointer" }} onClick={() => setLocal(null)}></div>
-            <div style={{ marginTop: 6, fontSize: 11, color: "#999999", cursor: "pointer" }} onClick={handleLogout}></div>
+            <div style={{ marginTop: 12, fontSize: 11, color: "#999999", cursor: "pointer" }} onClick={() => setLocal(null)}>Cambiar local</div>
+            <div style={{ marginTop: 6, fontSize: 11, color: "#999999", cursor: "pointer" }} onClick={handleLogout}>Cerrar sesion</div>
           </div>
         </aside>
         <main className="main">
