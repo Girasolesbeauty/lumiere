@@ -194,7 +194,7 @@ function Dashboard({ localId }) {
         API.get("/clientes"),
         API.get("/finanzas/flujo?" + params).catch(() => ({ data: { resumen: { ingresos: 0, egresos: 0, neto: 0 } } }))
       ]);
-      const ventas = ventasRes.data || [];
+      const ventas = (ventasRes.data || []).filter(v => v.canal !== "prueba" && v.es_preventa !== true);
       const productos = prodRes.data || [];
       const clientes = clientesRes.data || [];
       const fin = finRes.data?.resumen || { ingresos: 0, egresos: 0, neto: 0 };
@@ -368,6 +368,7 @@ function Dashboard({ localId }) {
 function POS({ localId, usuario }) {
   const [cart, setCart] = useState([]);
   const [inicioVenta, setInicioVenta] = useState(null);
+  const [modoPrueba, setModoPrueba] = useState(false);
   const [dniInput, setDniInput] = useState("");
   const [tipoFac, setTipoFac] = useState("B");
   const [productos, setProductos] = useState([]);
@@ -462,7 +463,7 @@ function POS({ localId, usuario }) {
       const duracionSeg = inicioVenta ? Math.round((ahora - inicioVenta) / 1000) : null;
       const ventaRes = await createVenta({
         cliente_id: clienteSeleccionado?.id || null,
-        tipo_factura: tipoFac, items, canal: "presencial",
+        tipo_factura: tipoFac, items, canal: modoPrueba ? "prueba" : "presencial",
         cupon_codigo: cupon || null, local_id: localId || 1,
         medio_pago_id: medioPagoSel.id, medio_pago_nombre: medioPagoSel.nombre,
         total_con_interes: total, es_preventa: preventa,
@@ -471,7 +472,9 @@ function POS({ localId, usuario }) {
         inicio_venta: inicioVenta ? new Date(inicioVenta).toISOString() : null,
         duracion_segundos: duracionSeg
       });
-      if (!preventa) {
+      if (modoPrueba) {
+        setMensaje("🧪 VENTA DE PRUEBA registrada (sin ARCA) - para Productividad");
+      } else if (!preventa) {
         try {
           const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaRes.data.id });
           setMensaje("✅ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
@@ -544,6 +547,12 @@ function POS({ localId, usuario }) {
       <div className="ph">
         <div><div className="pt">Punto de Venta</div><div className="ps">facturacion electronica - arca</div></div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          {usuario?.rol === "jefe" && (
+            <div className="sw-wrap" onClick={() => { setModoPrueba(!modoPrueba); setMensaje(""); }}>
+              <div className={"sw " + (modoPrueba ? "on" : "off")}><div className="sw-dot" /></div>
+              <span style={{ fontSize: 11, color: modoPrueba ? "#c0392b" : "#999999" }}>Modo prueba</span>
+            </div>
+          )}
           <div className="sw-wrap" onClick={() => { setPreventa(!preventa); setMensaje(""); }}>
             <div className={"sw " + (preventa ? "on" : "off")}><div className="sw-dot" /></div>
             <span style={{ fontSize: 11, color: preventa ? "#2471a3" : "#999999" }}>Preventa</span>
@@ -551,6 +560,11 @@ function POS({ localId, usuario }) {
           <StatusDot color="#2d7a4f" label="ARCA" />
         </div>
       </div>
+      {modoPrueba && (
+        <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "10px 16px", marginBottom: 12, fontSize: 12, color: "#c0392b", fontWeight: 600 }}>
+          🧪 MODO PRUEBA ACTIVO — las ventas NO se facturan en ARCA. Desactivalo para vender de verdad.
+        </div>
+      )}
       <div className="tabs">
         <div className="tab on" onClick={() => setTabPos("venta")}>NUEVA VENTA</div>
         <div className={"tab"} onClick={() => { setTabPos("preventas"); cargarPreventas(); }}>
@@ -1326,7 +1340,7 @@ function Informes({ localId }) {
         API.get("/ventas?" + params),
         API.get("/productos")
       ]);
-      const ventas = ventasRes.data || [];
+      const ventas = (ventasRes.data || []).filter(v => v.canal !== "prueba" && v.es_preventa !== true);
       const productos = invRes.data || [];
       const totalVentas = ventas.reduce((s, v) => s + parseFloat(v.total || 0), 0);
       const cantVentas = ventas.length;
@@ -2747,7 +2761,7 @@ function CierreCaja({ localId }) {
         const d = new Date(f);
         return fmtFecha(d) === fecha;
       };
-      const ventas = (ventasRes.data || []).filter(v => esMismoDia(v.creado_en || v.fecha) && v.es_preventa !== true);
+      const ventas = (ventasRes.data || []).filter(v => esMismoDia(v.creado_en || v.fecha) && v.es_preventa !== true && v.canal !== "prueba");
       const movs = (movRes.data || []).filter(m => esMismoDia(m.creado_en || m.fecha));
       setVentasDia(ventas);
       setMovsDia(movs);
