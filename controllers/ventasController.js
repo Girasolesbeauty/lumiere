@@ -4,7 +4,7 @@ const getAll = async (req, res) => {
   try {
     const { local_id, mes, anio, es_preventa } = req.query;
     let query = `
-      SELECT v.*, c.nombre AS cliente_nombre,
+      SELECT v.*, c.nombre AS cliente_nombre, u.nombre AS vendedora_nombre,
         COALESCE(
           json_agg(
             json_build_object(
@@ -17,6 +17,7 @@ const getAll = async (req, res) => {
         ) AS items
       FROM ventas v
       LEFT JOIN clientes c ON v.cliente_id = c.id
+      LEFT JOIN usuarios u ON v.usuario_id = u.id
       LEFT JOIN venta_items vi ON vi.venta_id = v.id
       LEFT JOIN productos p ON vi.producto_id = p.id
       WHERE 1=1
@@ -39,7 +40,7 @@ const getAll = async (req, res) => {
     } else if (es_preventa === 'false') {
       query += ` AND COALESCE(v.es_preventa, FALSE) = FALSE`;
     }
-    query += ' GROUP BY v.id, c.nombre ORDER BY v.creado_en DESC';
+    query += ' GROUP BY v.id, c.nombre, u.nombre ORDER BY v.creado_en DESC';
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
@@ -76,7 +77,8 @@ const create = async (req, res) => {
     await client.query('BEGIN');
     const {
       cliente_id, tipo_factura, items, descuento, canal, cupon_codigo, local_id,
-      medio_pago_id, medio_pago_nombre, total_con_interes, es_preventa, nombre_preventa
+      medio_pago_id, medio_pago_nombre, total_con_interes, es_preventa, nombre_preventa,
+      usuario_id, inicio_venta, duracion_segundos
     } = req.body;
 
     let subtotal = 0;
@@ -108,14 +110,16 @@ const create = async (req, res) => {
     const venta = await client.query(
       `INSERT INTO ventas
         (numero_factura, cliente_id, tipo_factura, subtotal, descuento, total, canal, local_id,
-         medio_pago_id, medio_pago, es_preventa, nombre_preventa, estado_pago)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+         medio_pago_id, medio_pago, es_preventa, nombre_preventa, estado_pago,
+         usuario_id, inicio_venta, duracion_segundos)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
       [
         numero, cliente_id, tipo_factura, subtotal, descuento_total, total,
         canal || 'presencial', local_id || 1,
         medio_pago_id || null, medio_pago_nombre || null,
         es_preventa === true, nombre_preventa || null,
-        es_preventa === true ? 'reservado' : null
+        es_preventa === true ? 'reservado' : null,
+        usuario_id || null, inicio_venta || null, duracion_segundos || null
       ]
     );
 

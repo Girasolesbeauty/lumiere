@@ -365,8 +365,9 @@ function Dashboard({ localId }) {
   );
 }
 
-function POS({ localId }) {
+function POS({ localId, usuario }) {
   const [cart, setCart] = useState([]);
+  const [inicioVenta, setInicioVenta] = useState(null);
   const [dniInput, setDniInput] = useState("");
   const [tipoFac, setTipoFac] = useState("B");
   const [productos, setProductos] = useState([]);
@@ -402,6 +403,7 @@ function POS({ localId }) {
   }, [localId]);
 
   const add = (p) => setCart(prev => {
+    if (prev.length === 0) setInicioVenta(Date.now());
     const e = prev.find(i => i.id === p.id);
     return e ? prev.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i) : [...prev, { ...p, qty: 1 }];
   });
@@ -456,13 +458,18 @@ function POS({ localId }) {
     setLoading(true);
     try {
       const items = cart.map(i => ({ producto_id: i.id, cantidad: i.qty, precio_unitario: i.precio || i.price }));
+      const ahora = Date.now();
+      const duracionSeg = inicioVenta ? Math.round((ahora - inicioVenta) / 1000) : null;
       const ventaRes = await createVenta({
         cliente_id: clienteSeleccionado?.id || null,
         tipo_factura: tipoFac, items, canal: "presencial",
         cupon_codigo: cupon || null, local_id: localId || 1,
         medio_pago_id: medioPagoSel.id, medio_pago_nombre: medioPagoSel.nombre,
         total_con_interes: total, es_preventa: preventa,
-        nombre_preventa: preventa ? nombrePreventa : null
+        nombre_preventa: preventa ? nombrePreventa : null,
+        usuario_id: usuario?.id || null,
+        inicio_venta: inicioVenta ? new Date(inicioVenta).toISOString() : null,
+        duracion_segundos: duracionSeg
       });
       if (!preventa) {
         try {
@@ -474,7 +481,7 @@ function POS({ localId }) {
       } else {
         setMensaje("Preventa registrada para " + nombrePreventa + "!");
       }
-      setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null);
+      setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setInicioVenta(null);
       setClienteSeleccionado(null); setShowNuevoCliente(false);
       setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("$");
       setTimeout(() => setMensaje(""), 8000);
@@ -2840,9 +2847,119 @@ function CierreCaja({ localId }) {
   );
 }
 
+
+// PRODUCTIVIDAD
+function Productividad({ localId }) {
+  const hoy = new Date();
+  const [mes, setMes] = useState(hoy.getMonth() + 1);
+  const [anio, setAnio] = useState(hoy.getFullYear());
+  const [ventas, setVentas] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const cargar = async () => {
+    setLoading(true);
+    try {
+      const res = await API.get("/ventas?mes=" + mes + "&anio=" + anio + "&local_id=" + (localId || 1));
+      setVentas((res.data || []).filter(v => v.es_preventa !== true));
+    } catch (e) {}
+    setLoading(false);
+  };
+
+  useEffect(() => { cargar(); }, [mes, anio, localId]);
+
+  // Agrupar por vendedora
+  const porVend = {};
+  ventas.forEach(v => {
+    const nombre = v.vendedora_nombre || "Sin asignar";
+    if (!porVend[nombre]) porVend[nombre] = { cantidad: 0, total: 0, sumaDuracion: 0, conDuracion: 0, horas: {} };
+    const g = porVend[nombre];
+    g.cantidad += 1;
+    g.total += parseFloat(v.total || 0);
+    if (v.duracion_segundos) { g.sumaDuracion += parseInt(v.duracion_segundos); g.conDuracion += 1; }
+    const f = new Date(v.creado_en || v.fecha);
+    const h = f.getFullYear() + "-" + f.getMonth() + "-" + f.getDate() + "-" + f.getHours();
+    g.horas[h] = true;
+  });
+
+  const ranking = Object.entries(porVend).map(([nombre, g]) => {
+    const ticketProm = g.cantidad > 0 ? g.total / g.cantidad : 0;
+    const tiempoProm = g.conDuracion > 0 ? g.sumaDuracion / g.conDuracion : null;
+    const cantHoras = Object.keys(g.horas).length;
+    const ventasPorHora = cantHoras > 0 ? g.cantidad / cantHoras : 0;
+    return { nombre, cantidad: g.cantidad, total: g.total, ticketProm, tiempoProm, ventasPorHora };
+  }).sort((a, b) => b.total - a.total);
+
+  const fmtTiempo = (seg) => {
+    if (seg === null || seg === undefined) return "-";
+    if (seg < 60) return Math.round(seg) + "s";
+    const m = Math.floor(seg / 60);
+    const s = Math.round(seg % 60);
+    return m + "m " + s + "s";
+  };
+
+  const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+  const totalGeneral = ranking.reduce((s, r) => s + r.total, 0);
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Productividad</div><div className="ps">metricas por vendedora</div></div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <select className="sel" style={{ width: 120, padding: "6px 10px", fontSize: 12 }} value={mes} onChange={e => setMes(parseInt(e.target.value))}>
+            {meses.map((m, i) => (<option key={i} value={i + 1}>{m}</option>))}
+          </select>
+          <select className="sel" style={{ width: 90, padding: "6px 10px", fontSize: 12 }} value={anio} onChange={e => setAnio(parseInt(e.target.value))}>
+            {[hoy.getFullYear(), hoy.getFullYear() - 1].map(a => (<option key={a} value={a}>{a}</option>))}
+          </select>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="card" style={{ textAlign: "center", color: "#999999", fontSize: 12 }}>Cargando...</div>
+      ) : (
+        <div>
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>RANKING DE VENDEDORAS</div>
+            {ranking.length === 0 ? (
+              <div style={{ fontSize: 12, color: "#999999" }}>Sin ventas en este periodo</div>
+            ) : (
+              <table>
+                <thead><tr><th>#</th><th>Vendedora</th><th>Ventas</th><th>Total</th><th>Ticket prom.</th><th>Tiempo prom.</th><th>Ventas/hora</th></tr></thead>
+                <tbody>
+                  {ranking.map((r, i) => (
+                    <tr key={i}>
+                      <td style={{ fontWeight: 700, color: (i === 0 ? "#c9a84c" : "#999999") }}>{i + 1}</td>
+                      <td style={{ fontSize: 12, fontWeight: 600 }}>{r.nombre}</td>
+                      <td style={{ fontSize: 12 }}>{r.cantidad}</td>
+                      <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${r.total.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                      <td style={{ fontSize: 12 }}>${r.ticketProm.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                      <td style={{ fontSize: 12 }}>{fmtTiempo(r.tiempoProm)}</td>
+                      <td style={{ fontSize: 12 }}>{r.ventasPorHora.toFixed(1)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          <div className="g3">
+            {ranking.slice(0, 3).map((r, i) => (
+              <div key={i} className="card" style={{ borderTop: "3px solid " + (i === 0 ? "#c9a84c" : i === 1 ? "#999999" : "#cd7f32") }}>
+                <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>{i === 0 ? "TOP VENDEDORA" : "#" + (i + 1)}</div>
+                <div style={{ fontSize: 18, fontWeight: 700 }}>{r.nombre}</div>
+                <div style={{ fontSize: 13, color: "#2d7a4f", fontWeight: 600 }}>${r.total.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
+                <div style={{ fontSize: 11, color: "#999999" }}>{r.cantidad} ventas - {totalGeneral > 0 ? Math.round(r.total / totalGeneral * 100) : 0}% del total</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const NAV_SECTIONS = [
   { section: "GESTION", items: [{ id: "dashboard", icon: "*", label: "Dashboard" }, { id: "pos", icon: "+", label: "Punto de Venta" }, { id: "inventory", icon: "#", label: "Inventario" }, { id: "caja", icon: "$", label: "Caja" }, { id: "cierre", icon: "=", label: "Cierre de Caja" }, { id: "ordenes", icon: "i", label: "Ingresos" }, { id: "kits", icon: "K", label: "Kits" }, { id: "clients", icon: "@", label: "Clientes" }] },
-  { section: "FINANZAS", items: [{ id: "finance", icon: "%", label: "Finanzas" }, { id: "reports", icon: "~", label: "Informes" }, { id: "comisiones", icon: "c", label: "Comisiones" }, { id: "proveedores", icon: "p", label: "Proveedores" }] },
+  { section: "FINANZAS", items: [{ id: "finance", icon: "%", label: "Finanzas" }, { id: "reports", icon: "~", label: "Informes" }, { id: "comisiones", icon: "c", label: "Comisiones" }, { id: "productividad", icon: "^", label: "Productividad" }, { id: "proveedores", icon: "p", label: "Proveedores" }] },
   { section: "MARKETING", items: [{ id: "cupones", icon: "k", label: "Cupones" }, { id: "fidelizacion", icon: "f", label: "Fidelizacion" }, { id: "postventa", icon: "w", label: "Postventa WA" }] },
   { section: "CLIENTE", items: [{ id: "portal", icon: "o", label: "Portal Cliente" }] },
 ];
@@ -3204,7 +3321,7 @@ export default function AppWrapper() {
     if (usuario.rol === "jefe" || usuario.rol_id === 1) return true;
     const mapaModulos = {
       "pos": "pos.ver", "inventory": "inventario.ver", "clients": "clientes.ver",
-      "finance": "finanzas.flujo", "reports": "informes.ventas", "comisiones": "comisiones.propias",
+      "finance": "finanzas.flujo", "reports": "informes.ventas", "comisiones": "comisiones.propias", "productividad": "informes.ventas",
       "proveedores": "proveedores.ver", "cupones": "cupones.ver", "fidelizacion": "fidelizacion.ver",
       "postventa": "postventa.ver", "portal": "clientes.ver", "caja": "caja.ver",
       "ordenes": "ordenes.ver", "cierre": "caja.ver", "kits": "kits.ver", "usuarios": "usuarios.ver",
@@ -3238,7 +3355,7 @@ export default function AppWrapper() {
   const getPageWithLocal = (id) => {
     if (!puedeVer(id)) return <SinPermiso />;
     if (id === "dashboard") return <Dashboard localId={local.id} />;
-    if (id === "pos") return <POS localId={local.id} />;
+    if (id === "pos") return <POS localId={local.id} usuario={usuario} />;
     if (id === "inventory") return <Inventario localId={local.id} />;
     if (id === "clients") return <Clientes localId={local.id} />;
     if (id === "finance") return <Finanzas localId={local.id} />;
@@ -3251,6 +3368,7 @@ export default function AppWrapper() {
     if (id === "comisiones") return <Comisiones localId={local.id} />;
     if (id === "caja") return <Caja localId={local.id} usuario={usuario} />;
     if (id === "cierre") return <CierreCaja localId={local.id} />;
+    if (id === "productividad") return <Productividad localId={local.id} />;
     if (id === "ordenes") return <OrdenesIngreso localId={local.id} />;
     if (id === "kits") return <Kits />;
     if (id === "proveedores") return <Proveedores />;
