@@ -3541,8 +3541,186 @@ function Productividad({ localId }) {
   );
 }
 
+// CLIENTES ANALITICA
+function ClientesAnalitica({ localId }) {
+  const hoy = new Date();
+  const [ventas, setVentas] = useState([]);
+  const [clientes, setClientes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [meses, setMeses] = useState(6);
+  const [clienteSel, setClienteSel] = useState(null);
+
+  const cargar = async () => {
+    setLoading(true);
+    try {
+      // Traer ventas de los ultimos N meses
+      const proms = [];
+      for (let i = 0; i < meses; i++) {
+        let m = hoy.getMonth() + 1 - i, a = hoy.getFullYear();
+        while (m <= 0) { m += 12; a -= 1; }
+        proms.push(API.get("/ventas?mes=" + m + "&anio=" + a + "&local_id=" + (localId || 1)));
+      }
+      const [clientesRes, ...ventasResults] = await Promise.all([
+        API.get("/clientes"),
+        ...proms
+      ]);
+      let todas = [];
+      ventasResults.forEach(r => { todas = todas.concat(r.data || []); });
+      // Solo ventas reales con cliente identificado
+      const conCliente = todas.filter(v => v.cliente_id && v.es_preventa !== true && v.canal !== "prueba");
+      setVentas(conCliente);
+      setClientes(clientesRes.data || []);
+    } catch (e) {}
+    setLoading(false);
+  };
+
+  useEffect(() => { cargar(); }, [meses, localId]);
+
+  // Agrupar ventas por cliente
+  const porCliente = {};
+  ventas.forEach(v => {
+    const id = v.cliente_id;
+    if (!porCliente[id]) porCliente[id] = { nombre: v.cliente_nombre || "Cliente " + id, compras: [], total: 0, categorias: {} };
+    const g = porCliente[id];
+    g.compras.push(new Date(v.creado_en || v.fecha));
+    g.total += parseFloat(v.total || 0);
+    (v.items || []).forEach(it => {
+      const cat = it.categoria || "Sin categoria";
+      g.categorias[cat] = (g.categorias[cat] || 0) + parseInt(it.cantidad || 0);
+    });
+  });
+
+  const clientesArr = Object.entries(porCliente).map(([id, g]) => {
+    const fechas = g.compras.sort((a, b) => a - b);
+    const cantCompras = fechas.length;
+    let frecuenciaDias = null;
+    if (cantCompras >= 2) {
+      const diffTotal = (fechas[fechas.length - 1] - fechas[0]) / (1000 * 60 * 60 * 24);
+      frecuenciaDias = Math.round(diffTotal / (cantCompras - 1));
+    }
+    const ultimaCompra = fechas[fechas.length - 1];
+    const diasSinComprar = Math.round((hoy - ultimaCompra) / (1000 * 60 * 60 * 24));
+    const catFav = Object.entries(g.categorias).sort((a, b) => b[1] - a[1])[0];
+    return {
+      id, nombre: g.nombre, cantCompras, total: g.total,
+      frecuenciaDias, ultimaCompra, diasSinComprar,
+      categoriaFavorita: catFav ? catFav[0] : "-",
+      categorias: g.categorias
+    };
+  }).sort((a, b) => b.total - a.total);
+
+  // Metricas globales
+  const totalClientesActivos = clientesArr.length;
+  const clientesRecurrentes = clientesArr.filter(c => c.cantCompras >= 2).length;
+  const tasaRetencion = totalClientesActivos > 0 ? Math.round(clientesRecurrentes / totalClientesActivos * 100) : 0;
+  const frecuenciasValidas = clientesArr.filter(c => c.frecuenciaDias !== null);
+  const frecuenciaPromedio = frecuenciasValidas.length > 0 ? Math.round(frecuenciasValidas.reduce((s, c) => s + c.frecuenciaDias, 0) / frecuenciasValidas.length) : null;
+
+  const fmtFecha = (d) => d ? d.toLocaleDateString("es-AR") : "-";
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Analitica de Clientes</div><div className="ps">frecuencia - retencion - preferencias</div></div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <select className="sel" style={{ width: 130, padding: "6px 10px", fontSize: 12 }} value={meses} onChange={e => setMeses(parseInt(e.target.value))}>
+            <option value={3}>Ultimos 3 meses</option>
+            <option value={6}>Ultimos 6 meses</option>
+            <option value={12}>Ultimos 12 meses</option>
+          </select>
+        </div>
+      </div>
+
+      <div style={{ background: "#2471a312", border: "1px solid #2471a3", borderRadius: 6, padding: "8px 14px", marginBottom: 16, fontSize: 11, color: "#2471a3" }}>
+        Nota: este analisis incluye solo ventas con cliente identificado. Las ventas a Consumidor Final no se cuentan.
+      </div>
+
+      {loading ? (
+        <div className="card" style={{ textAlign: "center", color: "#999999", fontSize: 12 }}>Cargando...</div>
+      ) : (
+        <div>
+          <div className="g3" style={{ marginBottom: 16 }}>
+            <div className="card" style={{ borderTop: "3px solid #c9a84c" }}>
+              <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>CLIENTES ACTIVOS</div>
+              <div style={{ fontSize: 26, fontWeight: 700, color: "#222222" }}>{totalClientesActivos}</div>
+              <div style={{ fontSize: 11, color: "#999999" }}>compraron en el periodo</div>
+            </div>
+            <div className="card" style={{ borderTop: "3px solid #2d7a4f" }}>
+              <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>TASA DE RETENCION</div>
+              <div style={{ fontSize: 26, fontWeight: 700, color: "#2d7a4f" }}>{tasaRetencion}%</div>
+              <div style={{ fontSize: 11, color: "#999999" }}>{clientesRecurrentes} volvieron a comprar</div>
+            </div>
+            <div className="card" style={{ borderTop: "3px solid #2471a3" }}>
+              <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>FRECUENCIA PROMEDIO</div>
+              <div style={{ fontSize: 26, fontWeight: 700, color: "#2471a3" }}>{frecuenciaPromedio !== null ? "cada " + frecuenciaPromedio + " dias" : "-"}</div>
+              <div style={{ fontSize: 11, color: "#999999" }}>entre compras</div>
+            </div>
+          </div>
+
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>CLIENTES (ordenados por total gastado)</div>
+            {clientesArr.length === 0 ? (
+              <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 20 }}>Sin ventas con cliente identificado en el periodo</div>
+            ) : (
+              <table>
+                <thead><tr><th>Cliente</th><th>Compras</th><th>Total</th><th>Frecuencia</th><th>Ultima</th><th>Cat. favorita</th><th></th></tr></thead>
+                <tbody>
+                  {clientesArr.map((c, i) => (
+                    <Fragment key={i}>
+                      <tr>
+                        <td style={{ fontSize: 12, fontWeight: 600 }}>{c.nombre}</td>
+                        <td style={{ fontSize: 12 }}>{c.cantCompras}{c.cantCompras >= 2 ? " 🔁" : ""}</td>
+                        <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${c.total.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                        <td style={{ fontSize: 11, color: "#999999" }}>{c.frecuenciaDias !== null ? "cada " + c.frecuenciaDias + "d" : "1 compra"}</td>
+                        <td style={{ fontSize: 11, color: (c.diasSinComprar > 60 ? "#c0392b" : "#999999") }}>{fmtFecha(c.ultimaCompra)}{c.diasSinComprar > 60 ? " (" + c.diasSinComprar + "d)" : ""}</td>
+                        <td style={{ fontSize: 11 }}>{c.categoriaFavorita}</td>
+                        <td><span style={{ cursor: "pointer", color: "#2471a3", fontSize: 11 }} onClick={() => setClienteSel(clienteSel === i ? null : i)}>{clienteSel === i ? "Ocultar" : "Ver"}</span></td>
+                      </tr>
+                      {clienteSel === i && (
+                        <tr>
+                          <td colSpan="7" style={{ background: "#fafafa", padding: "10px 14px" }}>
+                            <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em", marginBottom: 8 }}>PREFERENCIAS DE {c.nombre.toUpperCase()}</div>
+                            {Object.keys(c.categorias).length === 0 ? (
+                              <div style={{ fontSize: 11, color: "#999999" }}>Sin detalle de productos</div>
+                            ) : (
+                              <BarChart data={Object.entries(c.categorias).map(([label, valor]) => ({ label, valor })).sort((a, b) => b.valor - a.valor)} color="#c9a84c" formato={(v) => v + " u"} />
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {clientesArr.filter(c => c.diasSinComprar > 60).length > 0 && (
+            <div className="card">
+              <div style={{ fontSize: 11, color: "#c0392b", letterSpacing: ".1em", marginBottom: 10 }}>CLIENTES PARA REACTIVAR (mas de 60 dias sin comprar)</div>
+              <table>
+                <thead><tr><th>Cliente</th><th>Ultima compra</th><th>Dias sin comprar</th><th>Total historico</th></tr></thead>
+                <tbody>
+                  {clientesArr.filter(c => c.diasSinComprar > 60).sort((a, b) => b.diasSinComprar - a.diasSinComprar).map((c, i) => (
+                    <tr key={i}>
+                      <td style={{ fontSize: 12, fontWeight: 600 }}>{c.nombre}</td>
+                      <td style={{ fontSize: 11, color: "#999999" }}>{fmtFecha(c.ultimaCompra)}</td>
+                      <td><span className="badge" style={{ background: "#c0392b15", color: "#c0392b" }}>{c.diasSinComprar} dias</span></td>
+                      <td style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>${c.total.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const NAV_SECTIONS = [
-  { section: "GESTION", items: [{ id: "dashboard", icon: "*", label: "Dashboard" }, { id: "pos", icon: "+", label: "Punto de Venta" }, { id: "inventory", icon: "#", label: "Inventario" }, { id: "caja", icon: "$", label: "Caja" }, { id: "cierre", icon: "=", label: "Cierre de Caja" }, { id: "ordenes", icon: "i", label: "Ingresos" }, { id: "kits", icon: "K", label: "Kits" }, { id: "giftcards", icon: "G", label: "Gift Cards" }, { id: "clients", icon: "@", label: "Clientes" }] },
+  { section: "GESTION", items: [{ id: "dashboard", icon: "*", label: "Dashboard" }, { id: "pos", icon: "+", label: "Punto de Venta" }, { id: "inventory", icon: "#", label: "Inventario" }, { id: "caja", icon: "$", label: "Caja" }, { id: "cierre", icon: "=", label: "Cierre de Caja" }, { id: "ordenes", icon: "i", label: "Ingresos" }, { id: "kits", icon: "K", label: "Kits" }, { id: "giftcards", icon: "G", label: "Gift Cards" }, { id: "clients", icon: "@", label: "Clientes" }, { id: "clientes-analitica", icon: "&", label: "Analitica Clientes" }] },
   { section: "FINANZAS", items: [{ id: "finance", icon: "%", label: "Finanzas" }, { id: "reports", icon: "~", label: "Informes" }, { id: "comprobantes", icon: "F", label: "Comprobantes" }, { id: "comisiones", icon: "c", label: "Comisiones" }, { id: "productividad", icon: "^", label: "Productividad" }, { id: "proveedores", icon: "p", label: "Proveedores" }] },
   { section: "MARKETING", items: [{ id: "cupones", icon: "k", label: "Cupones" }, { id: "fidelizacion", icon: "f", label: "Fidelizacion" }, { id: "postventa", icon: "w", label: "Postventa WA" }] },
   { section: "CLIENTE", items: [{ id: "portal", icon: "o", label: "Portal Cliente" }] },
@@ -3667,6 +3845,7 @@ function Usuarios({ usuario: usuarioActual }) {
     "Caja": [["caja.ver","Ver caja"],["caja.movimiento","Registrar movimientos"]],
     "Informes": [["informes.ventas","Ver ventas"],["informes.stock","Ver stock"],["informes.medios","Ver medios de pago"]],
     "Comprobantes": [["comprobantes.ver","Ver comprobantes emitidos"]],
+    "Analitica Clientes": [["clientes_analitica.ver","Ver analitica de clientes"]],
     "Comisiones": [["comisiones.propias","Ver propias"],["comisiones.todas","Ver todas"]],
     "Proveedores": [["proveedores.ver","Ver proveedores"],["proveedores.crear","Crear/editar"]],
     "Kits": [["kits.ver","Ver kits"],["kits.crear","Crear/editar"],["kits.vender","Vender kits"]],
@@ -3913,7 +4092,7 @@ export default function AppWrapper() {
       "proveedores": "proveedores.ver", "cupones": "cupones.ver", "fidelizacion": "fidelizacion.ver",
       "postventa": "postventa.ver", "portal": "clientes.ver", "caja": "caja.ver",
       "ordenes": "ordenes.ver", "cierre": "caja.ver", "kits": "kits.ver", "usuarios": "usuarios.ver",
-      "giftcards": "caja.ver",
+      "giftcards": "caja.ver", "clientes-analitica": "clientes_analitica.ver",
       "dashboard": "pos.ver", "tiendanube": "tiendanube.ver",
     };
     const permiso = mapaModulos[modulo];
@@ -3962,6 +4141,7 @@ export default function AppWrapper() {
     if (id === "ordenes") return <OrdenesIngreso localId={local.id} />;
     if (id === "kits") return <Kits />;
     if (id === "giftcards") return <GiftCards localId={local.id} usuario={usuario} />;
+    if (id === "clientes-analitica") return <ClientesAnalitica localId={local.id} />;
     if (id === "proveedores") return <Proveedores />;
     return <Dashboard localId={local.id} />;
   };
