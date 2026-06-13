@@ -2,21 +2,48 @@ const pool = require('../config/database');
 
 const getAll = async (req, res) => {
   try {
-    const { local_id } = req.query;
+    const { local_id, mes, anio, es_preventa } = req.query;
     let query = `
-      SELECT v.*, c.nombre AS cliente_nombre
+      SELECT v.*, c.nombre AS cliente_nombre,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'producto_id', vi.producto_id,
+              'nombre', p.nombre,
+              'cantidad', vi.cantidad,
+              'precio_unitario', vi.precio_unitario
+            )
+          ) FILTER (WHERE vi.id IS NOT NULL), '[]'
+        ) AS items
       FROM ventas v
       LEFT JOIN clientes c ON v.cliente_id = c.id
+      LEFT JOIN venta_items vi ON vi.venta_id = v.id
+      LEFT JOIN productos p ON vi.producto_id = p.id
+      WHERE 1=1
     `;
     const params = [];
     if (local_id) {
       params.push(local_id);
-      query += ` WHERE v.local_id = $${params.length}`;
+      query += ` AND v.local_id = $${params.length}`;
     }
-    query += ' ORDER BY v.creado_en DESC';
+    if (mes) {
+      params.push(parseInt(mes));
+      query += ` AND EXTRACT(MONTH FROM v.creado_en) = $${params.length}`;
+    }
+    if (anio) {
+      params.push(parseInt(anio));
+      query += ` AND EXTRACT(YEAR FROM v.creado_en) = $${params.length}`;
+    }
+    if (es_preventa === 'true') {
+      query += ` AND v.es_preventa = TRUE`;
+    } else if (es_preventa === 'false') {
+      query += ` AND COALESCE(v.es_preventa, FALSE) = FALSE`;
+    }
+    query += ' GROUP BY v.id, c.nombre ORDER BY v.creado_en DESC';
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Error al obtener ventas' });
   }
 };
@@ -47,7 +74,10 @@ const create = async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { cliente_id, tipo_factura, items, descuento, canal, cupon_codigo, local_id } = req.body;
+    const {
+      cliente_id, tipo_factura, items, descuento, canal, cupon_codigo, local_id,
+      medio_pago_id, medio_pago_nombre, total_con_interes, es_preventa, nombre_preventa
+    } = req.body;
 
     let subtotal = 0;
     for (const item of items) {
@@ -67,14 +97,26 @@ const create = async (req, res) => {
       }
     }
 
-    const total = subtotal - descuento_total;
+    // Si el frontend manda el total con interés de cuotas, ese es el total real cobrado
+    const total = (total_con_interes !== undefined && total_con_interes !== null)
+      ? parseFloat(total_con_interes)
+      : subtotal - descuento_total;
+
     const count = await client.query('SELECT COUNT(*) FROM ventas');
     const numero = 'F-' + String(parseInt(count.rows[0].count) + 1).padStart(4, '0');
 
     const venta = await client.query(
-      `INSERT INTO ventas (numero_factura, cliente_id, tipo_factura, subtotal, descuento, total, canal, local_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [numero, cliente_id, tipo_factura, subtotal, descuento_total, total, canal || 'presencial', local_id || 1]
+      `INSERT INTO ventas
+        (numero_factura, cliente_id, tipo_factura, subtotal, descuento, total, canal, local_id,
+         medio_pago_id, medio_pago, es_preventa, nombre_preventa, estado_pago)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+      [
+        numero, cliente_id, tipo_factura, subtotal, descuento_total, total,
+        canal || 'presencial', local_id || 1,
+        medio_pago_id || null, medio_pago_nombre || null,
+        es_preventa === true, nombre_preventa || null,
+        es_preventa === true ? 'reservado' : null
+      ]
     );
 
     const ventaId = venta.rows[0].id;
@@ -91,11 +133,14 @@ const create = async (req, res) => {
       );
     }
 
-    await client.query(
-      `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id)
-       VALUES ($1, 'I', $2, $3, $4)`,
-      ['Venta ' + numero, total, numero, local_id || 1]
-    );
+    // Las preventas no generan movimiento de caja hasta que se cobran
+    if (es_preventa !== true) {
+      await client.query(
+        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id)
+         VALUES ($1, 'I', $2, $3, $4)`,
+        ['Venta ' + numero, total, numero, local_id || 1]
+      );
+    }
 
     if (cliente_id) {
       const puntos = Math.floor(total / 100);
