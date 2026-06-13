@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { getProductos, createVenta, getClientes, getFlujo, getPuntoEquilibrio, agregarEgreso, getResumenFinanzas, getVentas, getAlertasStock, getCupones, createCupon, updateCupon, getRanking, getReglas, createRegla as createReglaWA, updateRegla as updateReglaWA, login, register } from "./api";
 import API from "./api";
 
@@ -2928,6 +2928,148 @@ function Kits() {
 }
 
 
+// COMPROBANTES
+function Comprobantes({ localId }) {
+  const hoy = new Date();
+  const fmtFecha = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  const [desde, setDesde] = useState(fmtFecha(primerDiaMes));
+  const [hasta, setHasta] = useState(fmtFecha(hoy));
+  const [comprobantes, setComprobantes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expandido, setExpandido] = useState(null);
+
+  const cargar = async () => {
+    setLoading(true);
+    try {
+      const anio = parseInt(desde.slice(0, 4));
+      const mesD = parseInt(desde.slice(5, 7));
+      const mesH = parseInt(hasta.slice(5, 7));
+      const anioH = parseInt(hasta.slice(0, 4));
+      // Traer los meses del rango (simple: si es el mismo mes, una sola query; sino varias)
+      const meses = [];
+      let m = mesD, a = anio;
+      while (a < anioH || (a === anioH && m <= mesH)) {
+        meses.push({ m, a });
+        m++;
+        if (m > 12) { m = 1; a++; }
+        if (meses.length > 24) break;
+      }
+      const proms = meses.map(({ m, a }) => API.get("/ventas?mes=" + m + "&anio=" + a + "&local_id=" + (localId || 1)));
+      const results = await Promise.all(proms);
+      let todas = [];
+      results.forEach(r => { todas = todas.concat(r.data || []); });
+      // Solo ventas facturadas (con CAE), no preventas ni prueba, dentro del rango exacto
+      const filtradas = todas.filter(v => {
+        if (!v.cae || v.es_preventa === true || v.canal === "prueba") return false;
+        const f = fmtFecha(new Date(v.creado_en || v.fecha));
+        return f >= desde && f <= hasta;
+      });
+      filtradas.sort((a, b) => new Date(b.creado_en || b.fecha) - new Date(a.creado_en || a.fecha));
+      setComprobantes(filtradas);
+    } catch (e) {}
+    setLoading(false);
+  };
+
+  useEffect(() => { cargar(); }, [desde, hasta, localId]);
+
+  const fmtNro = (v) => {
+    const pv = v.punto_venta || 5;
+    const nro = v.nro_comprobante;
+    if (!nro) return v.numero_factura || "-";
+    return String(pv).padStart(4, "0") + "-" + String(nro).padStart(8, "0");
+  };
+
+  const totalPeriodo = comprobantes.reduce((s, v) => s + parseFloat(v.total || 0), 0);
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Comprobantes</div><div className="ps">facturas emitidas - ARCA</div></div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 9, color: "#999999" }}>Desde</div>
+            <input className="inp" type="date" style={{ width: 140, padding: "6px 8px", fontSize: 12 }} value={desde} onChange={e => setDesde(e.target.value)} />
+          </div>
+          <div>
+            <div style={{ fontSize: 9, color: "#999999" }}>Hasta</div>
+            <input className="inp" type="date" style={{ width: 140, padding: "6px 8px", fontSize: 12 }} value={hasta} onChange={e => setHasta(e.target.value)} />
+          </div>
+        </div>
+      </div>
+
+      <div className="g3" style={{ marginBottom: 16 }}>
+        <div className="card" style={{ borderTop: "3px solid #c9a84c" }}>
+          <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>COMPROBANTES</div>
+          <div style={{ fontSize: 26, fontWeight: 700, color: "#222222" }}>{comprobantes.length}</div>
+        </div>
+        <div className="card" style={{ borderTop: "3px solid #2d7a4f" }}>
+          <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>TOTAL FACTURADO</div>
+          <div style={{ fontSize: 26, fontWeight: 700, color: "#2d7a4f" }}>${totalPeriodo.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
+        </div>
+        <div className="card" style={{ borderTop: "3px solid #2471a3" }}>
+          <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>PERIODO</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#222222", marginTop: 6 }}>{desde.split("-").reverse().join("/")} al {hasta.split("-").reverse().join("/")}</div>
+        </div>
+      </div>
+
+      <div className="card">
+        {loading ? (
+          <div style={{ textAlign: "center", color: "#999999", fontSize: 12 }}>Cargando comprobantes...</div>
+        ) : comprobantes.length === 0 ? (
+          <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 30 }}>No hay comprobantes emitidos en este periodo</div>
+        ) : (
+          <table>
+            <thead><tr><th>Comprobante</th><th>Fecha</th><th>Cliente</th><th>Tipo</th><th>CAE</th><th>Total</th><th></th></tr></thead>
+            <tbody>
+              {comprobantes.map((v, i) => (
+                <Fragment key={i}>
+                  <tr>
+                    <td style={{ fontSize: 12, fontWeight: 600, color: "#c9a84c" }}>{fmtNro(v)}</td>
+                    <td style={{ fontSize: 11, color: "#999999" }}>{new Date(v.creado_en || v.fecha).toLocaleDateString("es-AR")}</td>
+                    <td style={{ fontSize: 12 }}>{v.cliente_nombre || "Consumidor final"}</td>
+                    <td style={{ fontSize: 11 }}>{v.tipo_factura || "B"}</td>
+                    <td style={{ fontSize: 11, color: "#999999" }}>{v.cae || "-"}</td>
+                    <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${parseFloat(v.total || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                    <td><span style={{ cursor: "pointer", color: "#2471a3", fontSize: 11 }} onClick={() => setExpandido(expandido === i ? null : i)}>{expandido === i ? "Ocultar" : "Ver"}</span></td>
+                  </tr>
+                  {expandido === i && (
+                    <tr>
+                      <td colSpan="7" style={{ background: "#fafafa", padding: "10px 14px" }}>
+                        <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em", marginBottom: 6 }}>DETALLE</div>
+                        {(v.items || []).length === 0 ? (
+                          <div style={{ fontSize: 11, color: "#999999" }}>Sin detalle de productos</div>
+                        ) : (
+                          <table>
+                            <thead><tr><th>Producto</th><th>Cant</th><th>Precio</th><th>Subtotal</th></tr></thead>
+                            <tbody>
+                              {v.items.map((it, j) => (
+                                <tr key={j}>
+                                  <td style={{ fontSize: 11 }}>{it.nombre}{it.marca ? " - " + it.marca : ""}</td>
+                                  <td style={{ fontSize: 11, color: "#999999" }}>{it.cantidad}</td>
+                                  <td style={{ fontSize: 11 }}>${parseFloat(it.precio_unitario || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                                  <td style={{ fontSize: 11, fontWeight: 600 }}>${(parseFloat(it.precio_unitario || 0) * parseInt(it.cantidad || 0)).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                        <div style={{ fontSize: 10, color: "#999999", marginTop: 8 }}>
+                          Medio de pago: {v.medio_pago || "-"}{v.cae_vto ? " | CAE vto: " + v.cae_vto : ""}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // CIERRE DE CAJA
 function CierreCaja({ localId }) {
   const hoy = new Date();
@@ -3401,7 +3543,7 @@ function Productividad({ localId }) {
 
 const NAV_SECTIONS = [
   { section: "GESTION", items: [{ id: "dashboard", icon: "*", label: "Dashboard" }, { id: "pos", icon: "+", label: "Punto de Venta" }, { id: "inventory", icon: "#", label: "Inventario" }, { id: "caja", icon: "$", label: "Caja" }, { id: "cierre", icon: "=", label: "Cierre de Caja" }, { id: "ordenes", icon: "i", label: "Ingresos" }, { id: "kits", icon: "K", label: "Kits" }, { id: "giftcards", icon: "G", label: "Gift Cards" }, { id: "clients", icon: "@", label: "Clientes" }] },
-  { section: "FINANZAS", items: [{ id: "finance", icon: "%", label: "Finanzas" }, { id: "reports", icon: "~", label: "Informes" }, { id: "comisiones", icon: "c", label: "Comisiones" }, { id: "productividad", icon: "^", label: "Productividad" }, { id: "proveedores", icon: "p", label: "Proveedores" }] },
+  { section: "FINANZAS", items: [{ id: "finance", icon: "%", label: "Finanzas" }, { id: "reports", icon: "~", label: "Informes" }, { id: "comprobantes", icon: "F", label: "Comprobantes" }, { id: "comisiones", icon: "c", label: "Comisiones" }, { id: "productividad", icon: "^", label: "Productividad" }, { id: "proveedores", icon: "p", label: "Proveedores" }] },
   { section: "MARKETING", items: [{ id: "cupones", icon: "k", label: "Cupones" }, { id: "fidelizacion", icon: "f", label: "Fidelizacion" }, { id: "postventa", icon: "w", label: "Postventa WA" }] },
   { section: "CLIENTE", items: [{ id: "portal", icon: "o", label: "Portal Cliente" }] },
 ];
@@ -3766,7 +3908,7 @@ export default function AppWrapper() {
     if (soloJefe.includes(modulo)) return false;
     const mapaModulos = {
       "pos": "pos.ver", "inventory": "inventario.ver", "clients": "clientes.ver",
-      "finance": "finanzas.flujo", "reports": "informes.ventas", "comisiones": "comisiones.propias",
+      "finance": "finanzas.flujo", "reports": "informes.ventas", "comprobantes": "informes.ventas", "comisiones": "comisiones.propias",
       "proveedores": "proveedores.ver", "cupones": "cupones.ver", "fidelizacion": "fidelizacion.ver",
       "postventa": "postventa.ver", "portal": "clientes.ver", "caja": "caja.ver",
       "ordenes": "ordenes.ver", "cierre": "caja.ver", "kits": "kits.ver", "usuarios": "usuarios.ver",
@@ -3806,6 +3948,7 @@ export default function AppWrapper() {
     if (id === "clients") return <Clientes localId={local.id} />;
     if (id === "finance") return <Finanzas localId={local.id} />;
     if (id === "reports") return <Informes localId={local.id} />;
+    if (id === "comprobantes") return <Comprobantes localId={local.id} />;
     if (id === "cupones") return <Cupones localId={local.id} />;
     if (id === "fidelizacion") return <Fidelizacion localId={local.id} />;
     if (id === "postventa") return <PostventaWA localId={local.id} />;

@@ -197,8 +197,8 @@ const neto = total;
 
     if (venta_id) {
       await pool.query(
-        'UPDATE ventas SET cae = $1, estado = $2 WHERE id = $3',
-        [cae, 'emitida', venta_id]
+        'UPDATE ventas SET cae = $1, estado = $2, nro_comprobante = $3, cae_vto = $4, punto_venta = $5 WHERE id = $6',
+        [cae, 'emitida', nroComprobante, caeFch, PUNTO_VENTA, venta_id]
       );
     }
 
