@@ -3557,9 +3557,12 @@ export default function AppWrapper() {
   const puedeVer = (modulo) => {
     if (!usuario) return false;
     if (usuario.rol === "jefe" || usuario.rol_id === 1) return true;
+    // Modulos exclusivos de jefes (los no-jefes nunca los ven)
+    const soloJefe = ["productividad"];
+    if (soloJefe.includes(modulo)) return false;
     const mapaModulos = {
       "pos": "pos.ver", "inventory": "inventario.ver", "clients": "clientes.ver",
-      "finance": "finanzas.flujo", "reports": "informes.ventas", "comisiones": "comisiones.propias", "productividad": "informes.ventas",
+      "finance": "finanzas.flujo", "reports": "informes.ventas", "comisiones": "comisiones.propias",
       "proveedores": "proveedores.ver", "cupones": "cupones.ver", "fidelizacion": "fidelizacion.ver",
       "postventa": "postventa.ver", "portal": "clientes.ver", "caja": "caja.ver",
       "ordenes": "ordenes.ver", "cierre": "caja.ver", "kits": "kits.ver", "usuarios": "usuarios.ver",
