@@ -1479,7 +1479,7 @@ function Informes({ localId }) {
                           <td style={{ fontSize: 11, color: "#999999" }}>{new Date(v.creado_en || v.fecha).toLocaleDateString("es-AR")}</td>
                           <td style={{ fontSize: 12 }}>{v.cliente_nombre || "Consumidor final"}</td>
                           <td style={{ fontSize: 11 }}>{v.medio_pago || "-"}</td>
-                          <td style={{ fontSize: 11, color: "#999999" }}>{v.items_count || "-"}</td>
+                          <td style={{ fontSize: 11, color: "#999999" }}>{(v.items && v.items.length > 0) ? v.items.reduce((s, it) => s + parseInt(it.cantidad || 0), 0) : "-"}</td>
                           <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${parseFloat(v.total || 0).toLocaleString()}</td>
                         </tr>
                       ))}
