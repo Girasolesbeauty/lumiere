@@ -81,7 +81,7 @@ const create = async (req, res) => {
     const {
       cliente_id, tipo_factura, items, descuento, canal, cupon_codigo, local_id,
       medio_pago_id, medio_pago_nombre, total_con_interes, es_preventa, nombre_preventa,
-      usuario_id, inicio_venta, duracion_segundos
+      usuario_id, inicio_venta, duracion_segundos, monto_gift_card
     } = req.body;
 
     let subtotal = 0;
@@ -114,15 +114,16 @@ const create = async (req, res) => {
       `INSERT INTO ventas
         (numero_factura, cliente_id, tipo_factura, subtotal, descuento, total, canal, local_id,
          medio_pago_id, medio_pago, es_preventa, nombre_preventa, estado_pago,
-         usuario_id, inicio_venta, duracion_segundos)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
+         usuario_id, inicio_venta, duracion_segundos, monto_gift_card)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
       [
         numero, cliente_id, tipo_factura, subtotal, descuento_total, total,
         canal || 'presencial', local_id || 1,
         medio_pago_id || null, medio_pago_nombre || null,
         es_preventa === true, nombre_preventa || null,
         es_preventa === true ? 'reservado' : null,
-        usuario_id || null, inicio_venta || null, duracion_segundos || null
+        usuario_id || null, inicio_venta || null, duracion_segundos || null,
+        parseFloat(monto_gift_card) || 0
       ]
     );
 
@@ -140,12 +141,15 @@ const create = async (req, res) => {
       );
     }
 
-    // Las preventas no generan movimiento de caja hasta que se cobran
-    if (es_preventa !== true) {
+    // Las preventas no generan movimiento de caja hasta que se cobran.
+    // La parte pagada con gift card NO se cuenta (esa plata ya entró al emitir la gift card).
+    const montoGC = parseFloat(monto_gift_card) || 0;
+    const ingresoCaja = total - montoGC;
+    if (es_preventa !== true && ingresoCaja > 0) {
       await client.query(
         `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id)
          VALUES ($1, 'I', $2, $3, $4)`,
-        ['Venta ' + numero, total, numero, local_id || 1]
+        ['Venta ' + numero, ingresoCaja, numero, local_id || 1]
       );
     }
 

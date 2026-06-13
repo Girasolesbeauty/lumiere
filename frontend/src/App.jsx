@@ -389,6 +389,9 @@ function POS({ localId, usuario }) {
   const [medioPagoSel, setMedioPagoSel] = useState(null);
   const [tabPos, setTabPos] = useState("venta");
   const [preventasPendientes, setPreventasPendientes] = useState([]);
+  const [gcCodigo, setGcCodigo] = useState("");
+  const [gcAplicada, setGcAplicada] = useState(null);
+  const [gcMsg, setGcMsg] = useState("");
 
   const cargarPreventas = async () => {
     try {
@@ -416,8 +419,14 @@ function POS({ localId, usuario }) {
   const descuentoManualCalc = descuentoManual ? (tipoDescuento === "%" ? subtotalBase * (parseFloat(descuentoManual) / 100) : parseFloat(descuentoManual)) : 0;
   const descuento = descuentoCupon + descuentoManualCalc;
   const subtotalConDesc = subtotalBase - descuento;
-  const total = Math.round(subtotalConDesc * coef);
-  const intereses = total - subtotalConDesc;
+  // Crédito de gift card aplicado (no puede superar el subtotal con descuento)
+  const gcCredito = gcAplicada ? Math.min(parseFloat(gcAplicada.saldo), subtotalConDesc) : 0;
+  // El interés de cuotas se aplica solo sobre la parte que va con tarjeta/otro medio
+  const parteConMedio = subtotalConDesc - gcCredito;
+  const parteConInteres = Math.round(parteConMedio * coef);
+  const total = gcCredito + parteConInteres;
+  const intereses = parteConInteres - parteConMedio;
+  const restoAPagar = parteConInteres;
 
   const buscarClientePorDni = async (dni) => {
     setDniInput(dni);
@@ -442,6 +451,23 @@ function POS({ localId, usuario }) {
     } catch (e) { setMensaje("Error al crear cliente"); }
   };
 
+  const aplicarGiftCard = async () => {
+    if (!gcCodigo.trim()) return setGcMsg("Ingresa un codigo");
+    try {
+      const res = await API.get("/gift-cards/codigo/" + gcCodigo.trim().toUpperCase());
+      const gc = res.data;
+      if (gc.estado !== "activa") return setGcMsg("Esta gift card esta " + gc.estado);
+      if (parseFloat(gc.saldo) <= 0) return setGcMsg("Sin saldo disponible");
+      setGcAplicada(gc);
+      setGcMsg("");
+    } catch (e) {
+      setGcMsg(e.response?.status === 404 ? "Codigo no encontrado" : "Error al buscar");
+      setGcAplicada(null);
+    }
+  };
+
+  const quitarGiftCard = () => { setGcAplicada(null); setGcCodigo(""); setGcMsg(""); };
+
   const aplicarCupon = async () => {
     if (!cupon) return;
     try {
@@ -455,23 +481,39 @@ function POS({ localId, usuario }) {
 
   const emitirFactura = async () => {
     if (cart.length === 0) return setMensaje("Agrega productos al ticket");
-    if (!medioPagoSel) return setMensaje("Selecciona un medio de pago");
+    if (restoAPagar > 0 && !medioPagoSel) return setMensaje("Selecciona un medio de pago para el resto");
     setLoading(true);
     try {
       const items = cart.map(i => ({ producto_id: i.id, cantidad: i.qty, precio_unitario: i.precio || i.price }));
       const ahora = Date.now();
       const duracionSeg = inicioVenta ? Math.round((ahora - inicioVenta) / 1000) : null;
+      // Etiqueta de medio de pago segun gift card
+      let medioNombre;
+      if (gcAplicada && restoAPagar > 0) medioNombre = "Gift Card + " + (medioPagoSel ? medioPagoSel.nombre : "");
+      else if (gcAplicada) medioNombre = "Gift Card";
+      else medioNombre = medioPagoSel ? medioPagoSel.nombre : "";
       const ventaRes = await createVenta({
         cliente_id: clienteSeleccionado?.id || null,
         tipo_factura: tipoFac, items, canal: modoPrueba ? "prueba" : "presencial",
         cupon_codigo: cupon || null, local_id: localId || 1,
-        medio_pago_id: medioPagoSel.id, medio_pago_nombre: medioPagoSel.nombre,
+        medio_pago_id: medioPagoSel?.id || null, medio_pago_nombre: medioNombre,
         total_con_interes: total, es_preventa: preventa,
         nombre_preventa: preventa ? nombrePreventa : null,
         usuario_id: usuario?.id || null,
         inicio_venta: inicioVenta ? new Date(inicioVenta).toISOString() : null,
-        duracion_segundos: duracionSeg
+        duracion_segundos: duracionSeg,
+        monto_gift_card: gcCredito || 0
       });
+      // Canjear gift card (descuenta saldo) si se aplico y no es preventa
+      if (gcAplicada && !preventa && gcCredito > 0) {
+        try {
+          await API.post("/gift-cards/" + gcAplicada.id + "/canjear", {
+            importe: gcCredito, venta_id: ventaRes.data.id, usuario_id: usuario?.id || null
+          });
+        } catch (gcErr) {
+          setMensaje("Atencion: la venta se registro pero hubo un error al descontar la gift card");
+        }
+      }
       if (modoPrueba) {
         setMensaje("🧪 VENTA DE PRUEBA registrada (sin ARCA) - para Productividad");
       } else if (!preventa) {
@@ -486,6 +528,7 @@ function POS({ localId, usuario }) {
       }
       setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setInicioVenta(null);
       setClienteSeleccionado(null); setShowNuevoCliente(false);
+      setGcAplicada(null); setGcCodigo(""); setGcMsg("");
       setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("$");
       setTimeout(() => setMensaje(""), 8000);
     } catch (error) { setMensaje("Error al emitir factura"); }
@@ -674,7 +717,27 @@ function POS({ localId, usuario }) {
             }
             {cart.length > 0 && (
               <div style={{ marginTop: 10 }}>
-                <div className="fl">Medio de pago</div>
+                <div className="fl">Gift Card (opcional)</div>
+                {gcAplicada ? (
+                  <div style={{ background: "#c9a84c12", border: "1px solid #c9a84c", borderRadius: 6, padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "#c9a84c" }}>{gcAplicada.codigo}</div>
+                      <div style={{ fontSize: 10, color: "#999999" }}>{gcAplicada.beneficiario_nombre} - saldo ${parseFloat(gcAplicada.saldo).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
+                    </div>
+                    <div onClick={quitarGiftCard} style={{ cursor: "pointer", color: "#cccccc", fontSize: 18 }}>x</div>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input className="inp" placeholder="GIFT-XXXX" value={gcCodigo} onChange={e => setGcCodigo(e.target.value.toUpperCase())} style={{ flex: 1 }} />
+                    <button className="btn btn-sm" onClick={aplicarGiftCard}>Aplicar</button>
+                  </div>
+                )}
+                {gcMsg && <div style={{ fontSize: 10, color: "#c0392b", marginTop: 4 }}>{gcMsg}</div>}
+              </div>
+            )}
+            {cart.length > 0 && restoAPagar > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <div className="fl">{gcAplicada ? "Medio de pago (resto $" + restoAPagar.toLocaleString("es-AR", { maximumFractionDigits: 0 }) + ")" : "Medio de pago"}</div>
                 <select className="sel" value={medioPagoSel?.id || ""} onChange={e => {
                   const m = mediosPago.find(x => x.id === parseInt(e.target.value));
                   setMedioPagoSel(m || null);
@@ -706,12 +769,18 @@ function POS({ localId, usuario }) {
                 <span style={{ fontSize: 11, color: "#c0392b" }}>+${intereses.toLocaleString()}</span>
               </div>
             )}
+            {gcCredito > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ fontSize: 11, color: "#c9a84c" }}>Gift Card {gcAplicada?.codigo}</span>
+                <span style={{ fontSize: 11, color: "#c9a84c" }}>-${gcCredito.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</span>
+              </div>
+            )}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
               <div style={{ fontSize: 11, color: "#999999", fontWeight: 600 }}>TOTAL</div>
               <div style={{ fontSize: 30, fontWeight: 700, color: "#111111" }}>${total.toLocaleString()}</div>
             </div>
             <button className="btn btn-p" style={{ width: "100%", padding: 13, fontSize: 13, opacity: loading ? 0.7 : 1 }} onClick={emitirFactura} disabled={loading}>
-              {loading ? "Procesando..." : preventa ? "Registrar Preventa" : "Emitir Factura " + tipoFac + " - ARCA"}
+              {loading ? "Procesando..." : preventa ? "Registrar Preventa" : restoAPagar === 0 && gcAplicada ? "Cobrar con Gift Card - ARCA" : "Emitir Factura " + tipoFac + " - ARCA"}
             </button>
           </div>
         </div>
@@ -2866,6 +2935,7 @@ function CierreCaja({ localId }) {
   const [fecha, setFecha] = useState(fmtFecha(hoy));
   const [ventasDia, setVentasDia] = useState([]);
   const [movsDia, setMovsDia] = useState([]);
+  const [giftCardsDia, setGiftCardsDia] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const cargar = async () => {
@@ -2873,9 +2943,10 @@ function CierreCaja({ localId }) {
     try {
       const anio = parseInt(fecha.slice(0, 4));
       const mes = parseInt(fecha.slice(5, 7));
-      const [ventasRes, movRes] = await Promise.all([
+      const [ventasRes, movRes, gcRes] = await Promise.all([
         API.get("/ventas?mes=" + mes + "&anio=" + anio + "&local_id=" + (localId || 1)),
-        API.get("/caja?local_id=" + (localId || 1))
+        API.get("/caja?local_id=" + (localId || 1)),
+        API.get("/gift-cards?local_id=" + (localId || 1))
       ]);
       const esMismoDia = (f) => {
         if (!f) return false;
@@ -2884,8 +2955,10 @@ function CierreCaja({ localId }) {
       };
       const ventas = (ventasRes.data || []).filter(v => esMismoDia(v.creado_en || v.fecha) && v.es_preventa !== true && v.canal !== "prueba");
       const movs = (movRes.data || []).filter(m => esMismoDia(m.creado_en || m.fecha));
+      const gcs = (gcRes.data || []).filter(g => esMismoDia(g.creado_en));
       setVentasDia(ventas);
       setMovsDia(movs);
+      setGiftCardsDia(gcs);
     } catch (e) {}
     setLoading(false);
   };
@@ -2897,12 +2970,15 @@ function CierreCaja({ localId }) {
     const m = v.medio_pago || "Efectivo";
     if (!porMedio[m]) porMedio[m] = { cantidad: 0, total: 0 };
     porMedio[m].cantidad += 1;
-    porMedio[m].total += parseFloat(v.total || 0);
+    // Descontar la parte pagada con gift card (esa plata entró al emitir, no hoy salvo que se emita hoy)
+    porMedio[m].total += parseFloat(v.total || 0) - parseFloat(v.monto_gift_card || 0);
   });
   const mediosOrdenados = Object.entries(porMedio).sort((a, b) => b[1].total - a[1].total);
-  const totalDia = ventasDia.reduce((s, v) => s + parseFloat(v.total || 0), 0);
+  const totalVentasNeto = ventasDia.reduce((s, v) => s + parseFloat(v.total || 0) - parseFloat(v.monto_gift_card || 0), 0);
+  const totalGiftCardsEmitidas = giftCardsDia.reduce((s, g) => s + parseFloat(g.monto_inicial || 0), 0);
+  const totalDia = totalVentasNeto + totalGiftCardsEmitidas;
 
-  const ventasEfectivo = ventasDia.filter(v => (v.medio_pago || "Efectivo").toLowerCase().includes("efectivo")).reduce((s, v) => s + parseFloat(v.total || 0), 0);
+  const ventasEfectivo = ventasDia.filter(v => (v.medio_pago || "Efectivo").toLowerCase().includes("efectivo")).reduce((s, v) => s + parseFloat(v.total || 0) - parseFloat(v.monto_gift_card || 0), 0);
   const ingresosManuales = movsDia.filter(m => m.tipo === "ingreso").reduce((s, m) => s + parseFloat(m.importe || 0), 0);
   const egresosDia = movsDia.filter(m => m.tipo === "egreso").reduce((s, m) => s + parseFloat(m.importe || 0), 0);
   const efectivoEsperado = ventasEfectivo + ingresosManuales - egresosDia;
@@ -2920,7 +2996,7 @@ function CierreCaja({ localId }) {
         <div className="card" style={{ borderTop: "3px solid #c9a84c" }}>
           <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>TOTAL DEL DIA</div>
           <div style={{ fontSize: 30, fontWeight: 700, color: "#2d7a4f" }}>${totalDia.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
-          <div style={{ fontSize: 11, color: "#999999" }}>{ventasDia.length} ventas registradas</div>
+          <div style={{ fontSize: 11, color: "#999999" }}>{ventasDia.length} ventas{totalGiftCardsEmitidas > 0 ? " + $" + totalGiftCardsEmitidas.toLocaleString("es-AR", { maximumFractionDigits: 0 }) + " en gift cards" : ""}</div>
         </div>
         <div className="card" style={{ borderTop: "3px solid #2d7a4f" }}>
           <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>EFECTIVO ESPERADO EN CAJA</div>
@@ -2935,7 +3011,7 @@ function CierreCaja({ localId }) {
         <div className="g2">
           <div className="card">
             <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>VENTAS POR MEDIO DE PAGO</div>
-            {mediosOrdenados.length === 0 ? (
+            {mediosOrdenados.length === 0 && totalGiftCardsEmitidas === 0 ? (
               <div style={{ fontSize: 12, color: "#999999" }}>Sin ventas en esta fecha</div>
             ) : (
               <table>
@@ -2948,6 +3024,13 @@ function CierreCaja({ localId }) {
                       <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${d.total.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
                     </tr>
                   ))}
+                  {totalGiftCardsEmitidas > 0 && (
+                    <tr>
+                      <td style={{ fontSize: 12, color: "#c9a84c" }}>Gift Cards emitidas</td>
+                      <td style={{ fontSize: 12, color: "#999999" }}>{giftCardsDia.length}</td>
+                      <td style={{ color: "#c9a84c", fontWeight: 600 }}>${totalGiftCardsEmitidas.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                    </tr>
+                  )}
                   <tr>
                     <td style={{ fontWeight: 700 }}>TOTAL</td>
                     <td style={{ fontWeight: 700, color: "#999999" }}>{ventasDia.length}</td>
