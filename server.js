@@ -38,6 +38,7 @@ app.use('/api/ordenes-ingreso', require('./routes/ordenes-ingreso'));
 app.use('/api/kits', require('./routes/kits'));
 app.use('/api/tiendanube', require('./routes/tiendanube'));
 app.use('/api/permisos', require('./routes/permisos'));
+app.use('/api/gift-cards', require('./routes/gift-cards'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {

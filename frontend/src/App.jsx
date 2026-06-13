@@ -2538,6 +2538,127 @@ function OrdenesIngreso({ localId }) {
   );
 }
 
+// GIFT CARDS
+function GiftCards({ localId, usuario }) {
+  const [tab, setTab] = useState("emitir");
+  const [giftcards, setGiftcards] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [mensaje, setMensaje] = useState("");
+  const [nueva, setNueva] = useState({ monto: "", beneficiario_nombre: "", beneficiario_telefono: "", beneficiario_dni: "", comprador_nombre: "" });
+  const [ultima, setUltima] = useState(null);
+
+  const cargar = async () => {
+    setLoading(true);
+    try {
+      const res = await API.get("/gift-cards?local_id=" + (localId || 1));
+      setGiftcards(res.data || []);
+    } catch (e) {}
+    setLoading(false);
+  };
+
+  useEffect(() => { cargar(); }, [localId]);
+
+  const emitir = async () => {
+    if (!nueva.monto || parseFloat(nueva.monto) <= 0) return setMensaje("Ingresa un monto valido");
+    if (!nueva.beneficiario_nombre) return setMensaje("Ingresa el nombre de quien recibe el regalo");
+    try {
+      const res = await API.post("/gift-cards", {
+        monto: parseFloat(nueva.monto),
+        beneficiario_nombre: nueva.beneficiario_nombre,
+        beneficiario_telefono: nueva.beneficiario_telefono || null,
+        beneficiario_dni: nueva.beneficiario_dni || null,
+        comprador_nombre: nueva.comprador_nombre || null,
+        local_id: localId || 1,
+        emitida_por: usuario?.id || null
+      });
+      setUltima(res.data);
+      setMensaje("Gift card emitida! Codigo: " + res.data.codigo);
+      setNueva({ monto: "", beneficiario_nombre: "", beneficiario_telefono: "", beneficiario_dni: "", comprador_nombre: "" });
+      cargar();
+      setTimeout(() => setMensaje(""), 6000);
+    } catch (e) {
+      setMensaje("Error al emitir: " + (e.response?.data?.error || e.message));
+    }
+  };
+
+  const estadoColor = { activa: "#2d7a4f", agotada: "#999999", anulada: "#c0392b" };
+  const totalActivas = giftcards.filter(g => g.estado === "activa").reduce((s, g) => s + parseFloat(g.saldo || 0), 0);
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Gift Cards</div><div className="ps">vouchers de regalo</div></div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>SALDO ACTIVO TOTAL</div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: "#c9a84c" }}>${totalActivas.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
+        </div>
+      </div>
+
+      {mensaje && (
+        <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>
+          {mensaje}
+        </div>
+      )}
+
+      <div className="tabs">
+        <div className={"tab " + (tab === "emitir" ? "on" : "")} onClick={() => setTab("emitir")}>EMITIR</div>
+        <div className={"tab " + (tab === "listado" ? "on" : "")} onClick={() => { setTab("listado"); cargar(); }}>LISTADO {giftcards.length > 0 && <span style={{ background: "#c9a84c", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{giftcards.length}</span>}</div>
+      </div>
+
+      {tab === "emitir" ? (
+        <div className="g2">
+          <div className="card">
+            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 14 }}>NUEVA GIFT CARD</div>
+            <div className="fg"><div className="fl">Monto del regalo ($)</div><input className="inp" type="number" placeholder="200000" value={nueva.monto} onChange={e => setNueva(p => ({ ...p, monto: e.target.value }))} /></div>
+            <div className="fg"><div className="fl">Nombre de quien recibe *</div><input className="inp" placeholder="Ej: Maria Lopez" value={nueva.beneficiario_nombre} onChange={e => setNueva(p => ({ ...p, beneficiario_nombre: e.target.value }))} /></div>
+            <div className="fg"><div className="fl">Telefono (opcional)</div><input className="inp" placeholder="Ej: 2901-555555" value={nueva.beneficiario_telefono} onChange={e => setNueva(p => ({ ...p, beneficiario_telefono: e.target.value }))} /></div>
+            <div className="fg"><div className="fl">DNI (opcional)</div><input className="inp" placeholder="Si lo saben" value={nueva.beneficiario_dni} onChange={e => setNueva(p => ({ ...p, beneficiario_dni: e.target.value }))} /></div>
+            <div className="fg"><div className="fl">Quien lo regala (opcional)</div><input className="inp" placeholder="Nombre del comprador" value={nueva.comprador_nombre} onChange={e => setNueva(p => ({ ...p, comprador_nombre: e.target.value }))} /></div>
+            <button className="btn btn-g" style={{ width: "100%", marginTop: 8 }} onClick={emitir}>Emitir Gift Card</button>
+          </div>
+          <div className="card">
+            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 14 }}>ULTIMA EMITIDA</div>
+            {ultima ? (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <div style={{ fontSize: 11, color: "#999999" }}>CODIGO</div>
+                <div style={{ fontSize: 32, fontWeight: 700, color: "#c9a84c", letterSpacing: ".05em" }}>{ultima.codigo}</div>
+                <div style={{ fontSize: 22, fontWeight: 600, color: "#2d7a4f", marginTop: 8 }}>${parseFloat(ultima.monto_inicial).toLocaleString("es-AR")}</div>
+                <div style={{ fontSize: 13, color: "#444444", marginTop: 6 }}>Para: {ultima.beneficiario_nombre}</div>
+                <div style={{ fontSize: 11, color: "#999999", marginTop: 14, lineHeight: 1.5 }}>Anota este codigo y entregaselo a quien recibe el regalo. Lo va a usar al comprar.</div>
+              </div>
+            ) : (
+              <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: "40px 0" }}>La gift card emitida aparecera aca con su codigo</div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="card">
+          {loading ? (
+            <div style={{ textAlign: "center", color: "#999999", fontSize: 12 }}>Cargando...</div>
+          ) : giftcards.length === 0 ? (
+            <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 30 }}>No hay gift cards emitidas</div>
+          ) : (
+            <table>
+              <thead><tr><th>Codigo</th><th>Beneficiario</th><th>Monto</th><th>Saldo</th><th>Estado</th></tr></thead>
+              <tbody>
+                {giftcards.map((g, i) => (
+                  <tr key={i}>
+                    <td style={{ fontSize: 12, fontWeight: 600, color: "#c9a84c" }}>{g.codigo}</td>
+                    <td style={{ fontSize: 12 }}>{g.beneficiario_nombre}{g.beneficiario_telefono ? " - " + g.beneficiario_telefono : ""}</td>
+                    <td style={{ fontSize: 12, color: "#999999" }}>${parseFloat(g.monto_inicial).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                    <td style={{ fontWeight: 600, color: "#2d7a4f" }}>${parseFloat(g.saldo).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                    <td><span className="badge" style={{ background: (estadoColor[g.estado] || "#999999") + "15", color: estadoColor[g.estado] || "#999999" }}>{g.estado}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Kits() {
   const [kits, setKits] = useState([]);
   const [productos, setProductos] = useState([]);
@@ -3196,7 +3317,7 @@ function Productividad({ localId }) {
 }
 
 const NAV_SECTIONS = [
-  { section: "GESTION", items: [{ id: "dashboard", icon: "*", label: "Dashboard" }, { id: "pos", icon: "+", label: "Punto de Venta" }, { id: "inventory", icon: "#", label: "Inventario" }, { id: "caja", icon: "$", label: "Caja" }, { id: "cierre", icon: "=", label: "Cierre de Caja" }, { id: "ordenes", icon: "i", label: "Ingresos" }, { id: "kits", icon: "K", label: "Kits" }, { id: "clients", icon: "@", label: "Clientes" }] },
+  { section: "GESTION", items: [{ id: "dashboard", icon: "*", label: "Dashboard" }, { id: "pos", icon: "+", label: "Punto de Venta" }, { id: "inventory", icon: "#", label: "Inventario" }, { id: "caja", icon: "$", label: "Caja" }, { id: "cierre", icon: "=", label: "Cierre de Caja" }, { id: "ordenes", icon: "i", label: "Ingresos" }, { id: "kits", icon: "K", label: "Kits" }, { id: "giftcards", icon: "G", label: "Gift Cards" }, { id: "clients", icon: "@", label: "Clientes" }] },
   { section: "FINANZAS", items: [{ id: "finance", icon: "%", label: "Finanzas" }, { id: "reports", icon: "~", label: "Informes" }, { id: "comisiones", icon: "c", label: "Comisiones" }, { id: "productividad", icon: "^", label: "Productividad" }, { id: "proveedores", icon: "p", label: "Proveedores" }] },
   { section: "MARKETING", items: [{ id: "cupones", icon: "k", label: "Cupones" }, { id: "fidelizacion", icon: "f", label: "Fidelizacion" }, { id: "postventa", icon: "w", label: "Postventa WA" }] },
   { section: "CLIENTE", items: [{ id: "portal", icon: "o", label: "Portal Cliente" }] },
@@ -3566,6 +3687,7 @@ export default function AppWrapper() {
       "proveedores": "proveedores.ver", "cupones": "cupones.ver", "fidelizacion": "fidelizacion.ver",
       "postventa": "postventa.ver", "portal": "clientes.ver", "caja": "caja.ver",
       "ordenes": "ordenes.ver", "cierre": "caja.ver", "kits": "kits.ver", "usuarios": "usuarios.ver",
+      "giftcards": "caja.ver",
       "dashboard": "pos.ver", "tiendanube": "tiendanube.ver",
     };
     const permiso = mapaModulos[modulo];
@@ -3612,6 +3734,7 @@ export default function AppWrapper() {
     if (id === "productividad") return <Productividad localId={local.id} />;
     if (id === "ordenes") return <OrdenesIngreso localId={local.id} />;
     if (id === "kits") return <Kits />;
+    if (id === "giftcards") return <GiftCards localId={local.id} usuario={usuario} />;
     if (id === "proveedores") return <Proveedores />;
     return <Dashboard localId={local.id} />;
   };
