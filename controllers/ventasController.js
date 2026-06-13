@@ -11,7 +11,10 @@ const getAll = async (req, res) => {
               'producto_id', vi.producto_id,
               'nombre', p.nombre,
               'cantidad', vi.cantidad,
-              'precio_unitario', vi.precio_unitario
+              'precio_unitario', vi.precio_unitario,
+              'categoria', p.categoria,
+              'marca', p.marca,
+              'costo', p.costo
             )
           ) FILTER (WHERE vi.id IS NOT NULL), '[]'
         ) AS items

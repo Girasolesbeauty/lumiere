@@ -2862,9 +2862,222 @@ function CierreCaja({ localId }) {
 }
 
 
+// ANALITICA - helpers de graficos (SVG puro, sin librerias)
+function BarChart({ data, color, formato }) {
+  const max = Math.max(...data.map(d => d.valor), 1);
+  const fmt = formato || ((v) => v.toLocaleString("es-AR", { maximumFractionDigits: 0 }));
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {data.map((d, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 110, fontSize: 11, color: "#666666", textAlign: "right", flexShrink: 0 }}>{d.label}</div>
+          <div style={{ flex: 1, background: "#f0f0f0", borderRadius: 4, height: 22, position: "relative", overflow: "hidden" }}>
+            <div style={{ width: (d.valor / max * 100) + "%", background: (color || "#c9a84c"), height: "100%", borderRadius: 4, transition: "width .3s" }} />
+          </div>
+          <div style={{ width: 90, fontSize: 11, fontWeight: 600, color: "#222222", flexShrink: 0 }}>{fmt(d.valor)}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DonutChart({ data }) {
+  const total = data.reduce((s, d) => s + d.valor, 0) || 1;
+  const colores = ["#c9a84c", "#2d7a4f", "#2471a3", "#c0392b", "#8e44ad", "#e67e22", "#16a085", "#999999"];
+  let acum = 0;
+  const radio = 70, centro = 90, circ = 2 * Math.PI * radio;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+      <svg width="180" height="180" viewBox="0 0 180 180">
+        {data.map((d, i) => {
+          const frac = d.valor / total;
+          const dash = frac * circ;
+          const offset = circ - (acum / total * circ);
+          acum += d.valor;
+          return (
+            <circle key={i} cx={centro} cy={centro} r={radio} fill="none"
+              stroke={colores[i % colores.length]} strokeWidth="28"
+              strokeDasharray={dash + " " + (circ - dash)} strokeDashoffset={offset}
+              transform={"rotate(-90 " + centro + " " + centro + ")"} />
+          );
+        })}
+        <text x={centro} y={centro + 5} textAnchor="middle" style={{ fontSize: 14, fontWeight: 700, fill: "#222" }}>
+          ${(total / 1000).toFixed(0)}k
+        </text>
+      </svg>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {data.map((d, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11 }}>
+            <div style={{ width: 12, height: 12, borderRadius: 3, background: colores[i % colores.length] }} />
+            <span style={{ color: "#444444" }}>{d.label}</span>
+            <span style={{ color: "#999999" }}>{Math.round(d.valor / total * 100)}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Analitica({ localId }) {
+  const hoy = new Date();
+  const [mes, setMes] = useState(hoy.getMonth() + 1);
+  const [anio, setAnio] = useState(hoy.getFullYear());
+  const [ventasMes, setVentasMes] = useState([]);
+  const [ventasPrev, setVentasPrev] = useState([]);
+  const [evolucion, setEvolucion] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const mesPrev = mes === 1 ? 12 : mes - 1;
+  const anioPrev = mes === 1 ? anio - 1 : anio;
+
+  const cargar = async () => {
+    setLoading(true);
+    try {
+      const limpiar = (arr) => (arr || []).filter(v => v.es_preventa !== true && v.canal !== "prueba");
+      const [actual, previo] = await Promise.all([
+        API.get("/ventas?mes=" + mes + "&anio=" + anio + "&local_id=" + (localId || 1)),
+        API.get("/ventas?mes=" + mesPrev + "&anio=" + anioPrev + "&local_id=" + (localId || 1))
+      ]);
+      setVentasMes(limpiar(actual.data));
+      setVentasPrev(limpiar(previo.data));
+
+      // Evolucion ultimos 6 meses
+      const proms = [];
+      const labels = [];
+      for (let i = 5; i >= 0; i--) {
+        let m = mes - i, a = anio;
+        while (m <= 0) { m += 12; a -= 1; }
+        labels.push({ m, a });
+        proms.push(API.get("/ventas?mes=" + m + "&anio=" + a + "&local_id=" + (localId || 1)));
+      }
+      const results = await Promise.all(proms);
+      const meses3 = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+      setEvolucion(results.map((r, i) => ({
+        label: meses3[labels[i].m - 1] + " " + String(labels[i].a).slice(2),
+        valor: limpiar(r.data).reduce((s, v) => s + parseFloat(v.total || 0), 0)
+      })));
+    } catch (e) {}
+    setLoading(false);
+  };
+
+  useEffect(() => { cargar(); }, [mes, anio, localId]);
+
+  const totalMes = ventasMes.reduce((s, v) => s + parseFloat(v.total || 0), 0);
+  const totalPrev = ventasPrev.reduce((s, v) => s + parseFloat(v.total || 0), 0);
+  const variacion = totalPrev > 0 ? Math.round((totalMes - totalPrev) / totalPrev * 100) : null;
+
+  // Mejor dia y hora
+  const porDiaSemana = [0, 0, 0, 0, 0, 0, 0];
+  const porHora = {};
+  ventasMes.forEach(v => {
+    const f = new Date(v.creado_en || v.fecha);
+    porDiaSemana[f.getDay()] += parseFloat(v.total || 0);
+    porHora[f.getHours()] = (porHora[f.getHours()] || 0) + 1;
+  });
+  const diasNom = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
+  const mejorDiaIdx = porDiaSemana.indexOf(Math.max(...porDiaSemana));
+  const horasArr = Object.entries(porHora).sort((a, b) => b[1] - a[1]);
+  const mejorHora = horasArr.length > 0 ? horasArr[0][0] + ":00 hs" : "-";
+
+  // Por categoria
+  const porCat = {};
+  ventasMes.forEach(v => {
+    (v.items || []).forEach(it => {
+      const cat = it.categoria || "Sin categoria";
+      if (!porCat[cat]) porCat[cat] = { total: 0, unidades: 0 };
+      porCat[cat].total += parseFloat(it.precio_unitario || 0) * parseInt(it.cantidad || 0);
+      porCat[cat].unidades += parseInt(it.cantidad || 0);
+    });
+  });
+  const catData = Object.entries(porCat).map(([label, d]) => ({ label, valor: d.total, unidades: d.unidades })).sort((a, b) => b.valor - a.valor);
+
+  // Margen por marca
+  const porMarca = {};
+  ventasMes.forEach(v => {
+    (v.items || []).forEach(it => {
+      const marca = it.marca || "Sin marca";
+      if (!porMarca[marca]) porMarca[marca] = { venta: 0, costo: 0 };
+      const cant = parseInt(it.cantidad || 0);
+      porMarca[marca].venta += parseFloat(it.precio_unitario || 0) * cant;
+      porMarca[marca].costo += parseFloat(it.costo || 0) * cant;
+    });
+  });
+  const marcaData = Object.entries(porMarca).map(([label, d]) => {
+    const margen = d.venta > 0 ? Math.round((d.venta - d.costo) / d.venta * 100) : 0;
+    return { label, valor: margen, venta: d.venta };
+  }).sort((a, b) => b.venta - a.venta).slice(0, 8);
+
+  const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginBottom: 16 }}>
+        <select className="sel" style={{ width: 120, padding: "6px 10px", fontSize: 12 }} value={mes} onChange={e => setMes(parseInt(e.target.value))}>
+          {meses.map((m, i) => (<option key={i} value={i + 1}>{m}</option>))}
+        </select>
+        <select className="sel" style={{ width: 90, padding: "6px 10px", fontSize: 12 }} value={anio} onChange={e => setAnio(parseInt(e.target.value))}>
+          {[hoy.getFullYear(), hoy.getFullYear() - 1].map(a => (<option key={a} value={a}>{a}</option>))}
+        </select>
+      </div>
+
+      {loading ? (
+        <div className="card" style={{ textAlign: "center", color: "#999999", fontSize: 12 }}>Cargando analitica...</div>
+      ) : (
+        <div>
+          <div className="g3" style={{ marginBottom: 16 }}>
+            <div className="card" style={{ borderTop: "3px solid #c9a84c" }}>
+              <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>FACTURADO ESTE MES</div>
+              <div style={{ fontSize: 26, fontWeight: 700, color: "#2d7a4f" }}>${totalMes.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
+              <div style={{ fontSize: 11, color: "#999999" }}>{ventasMes.length} ventas</div>
+            </div>
+            <div className="card" style={{ borderTop: "3px solid " + (variacion === null ? "#999999" : variacion >= 0 ? "#2d7a4f" : "#c0392b") }}>
+              <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>VS MES ANTERIOR</div>
+              <div style={{ fontSize: 26, fontWeight: 700, color: (variacion === null ? "#999999" : variacion >= 0 ? "#2d7a4f" : "#c0392b") }}>
+                {variacion === null ? "-" : (variacion >= 0 ? "+" : "") + variacion + "%"}
+              </div>
+              <div style={{ fontSize: 11, color: "#999999" }}>${totalPrev.toLocaleString("es-AR", { maximumFractionDigits: 0 })} el mes pasado</div>
+            </div>
+            <div className="card" style={{ borderTop: "3px solid #2471a3" }}>
+              <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>MEJOR DIA / HORA</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#222222" }}>{totalMes > 0 ? diasNom[mejorDiaIdx] : "-"}</div>
+              <div style={{ fontSize: 11, color: "#999999" }}>Hora pico: {mejorHora}</div>
+            </div>
+          </div>
+
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 14 }}>EVOLUCION ULTIMOS 6 MESES</div>
+            <BarChart data={evolucion} color="#c9a84c" formato={(v) => "$" + v.toLocaleString("es-AR", { maximumFractionDigits: 0 })} />
+          </div>
+
+          <div className="g2" style={{ marginBottom: 16 }}>
+            <div className="card">
+              <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 14 }}>VENTAS POR CATEGORIA</div>
+              {catData.length === 0 ? (<div style={{ fontSize: 12, color: "#999999" }}>Sin datos</div>) : (<DonutChart data={catData} />)}
+            </div>
+            <div className="card">
+              <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 14 }}>ROTACION POR CATEGORIA (unidades)</div>
+              {catData.length === 0 ? (<div style={{ fontSize: 12, color: "#999999" }}>Sin datos</div>) : (
+                <BarChart data={catData.map(c => ({ label: c.label, valor: c.unidades }))} color="#2471a3" formato={(v) => v + " u"} />
+              )}
+            </div>
+          </div>
+
+          <div className="card">
+            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 14 }}>MARGEN POR MARCA (%)</div>
+            {marcaData.length === 0 ? (<div style={{ fontSize: 12, color: "#999999" }}>Sin datos de costo cargados</div>) : (
+              <BarChart data={marcaData} color="#2d7a4f" formato={(v) => v + "%"} />
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // PRODUCTIVIDAD
 function Productividad({ localId }) {
   const hoy = new Date();
+  const [subtab, setSubtab] = useState("vendedoras");
   const [mes, setMes] = useState(hoy.getMonth() + 1);
   const [anio, setAnio] = useState(hoy.getFullYear());
   const [ventas, setVentas] = useState([]);
@@ -2917,17 +3130,26 @@ function Productividad({ localId }) {
   return (
     <div className="fade">
       <div className="ph">
-        <div><div className="pt">Productividad</div><div className="ps">metricas por vendedora</div></div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <select className="sel" style={{ width: 120, padding: "6px 10px", fontSize: 12 }} value={mes} onChange={e => setMes(parseInt(e.target.value))}>
-            {meses.map((m, i) => (<option key={i} value={i + 1}>{m}</option>))}
-          </select>
-          <select className="sel" style={{ width: 90, padding: "6px 10px", fontSize: 12 }} value={anio} onChange={e => setAnio(parseInt(e.target.value))}>
-            {[hoy.getFullYear(), hoy.getFullYear() - 1].map(a => (<option key={a} value={a}>{a}</option>))}
-          </select>
-        </div>
+        <div><div className="pt">Productividad</div><div className="ps">metricas y analitica</div></div>
+        {subtab === "vendedoras" && (
+          <div style={{ display: "flex", gap: 8 }}>
+            <select className="sel" style={{ width: 120, padding: "6px 10px", fontSize: 12 }} value={mes} onChange={e => setMes(parseInt(e.target.value))}>
+              {meses.map((m, i) => (<option key={i} value={i + 1}>{m}</option>))}
+            </select>
+            <select className="sel" style={{ width: 90, padding: "6px 10px", fontSize: 12 }} value={anio} onChange={e => setAnio(parseInt(e.target.value))}>
+              {[hoy.getFullYear(), hoy.getFullYear() - 1].map(a => (<option key={a} value={a}>{a}</option>))}
+            </select>
+          </div>
+        )}
       </div>
 
+      <div className="tabs">
+        <div className={"tab " + (subtab === "vendedoras" ? "on" : "")} onClick={() => setSubtab("vendedoras")}>VENDEDORAS</div>
+        <div className={"tab " + (subtab === "analitica" ? "on" : "")} onClick={() => setSubtab("analitica")}>ANALITICA</div>
+      </div>
+
+      {subtab === "analitica" ? (<Analitica localId={localId} />) : (
+      <div>
       {loading ? (
         <div className="card" style={{ textAlign: "center", color: "#999999", fontSize: 12 }}>Cargando...</div>
       ) : (
@@ -2966,6 +3188,8 @@ function Productividad({ localId }) {
             ))}
           </div>
         </div>
+      )}
+      </div>
       )}
     </div>
   );
