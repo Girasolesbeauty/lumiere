@@ -3666,6 +3666,7 @@ function Usuarios({ usuario: usuarioActual }) {
     "Clientes": [["clientes.ver","Ver clientes"],["clientes.crear","Crear clientes"],["clientes.editar","Editar clientes"]],
     "Caja": [["caja.ver","Ver caja"],["caja.movimiento","Registrar movimientos"]],
     "Informes": [["informes.ventas","Ver ventas"],["informes.stock","Ver stock"],["informes.medios","Ver medios de pago"]],
+    "Comprobantes": [["comprobantes.ver","Ver comprobantes emitidos"]],
     "Comisiones": [["comisiones.propias","Ver propias"],["comisiones.todas","Ver todas"]],
     "Proveedores": [["proveedores.ver","Ver proveedores"],["proveedores.crear","Crear/editar"]],
     "Kits": [["kits.ver","Ver kits"],["kits.crear","Crear/editar"],["kits.vender","Vender kits"]],
@@ -3908,7 +3909,7 @@ export default function AppWrapper() {
     if (soloJefe.includes(modulo)) return false;
     const mapaModulos = {
       "pos": "pos.ver", "inventory": "inventario.ver", "clients": "clientes.ver",
-      "finance": "finanzas.flujo", "reports": "informes.ventas", "comprobantes": "informes.ventas", "comisiones": "comisiones.propias",
+      "finance": "finanzas.flujo", "reports": "informes.ventas", "comprobantes": "comprobantes.ver", "comisiones": "comisiones.propias",
       "proveedores": "proveedores.ver", "cupones": "cupones.ver", "fidelizacion": "fidelizacion.ver",
       "postventa": "postventa.ver", "portal": "clientes.ver", "caja": "caja.ver",
       "ordenes": "ordenes.ver", "cierre": "caja.ver", "kits": "kits.ver", "usuarios": "usuarios.ver",
