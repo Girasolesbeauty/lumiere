@@ -594,25 +594,24 @@ function POS({ localId, usuario }) {
                   const sinStock = !p.stock || p.stock === 0;
                   return (
                     <tr key={p.id}
-                      style={{ borderBottom: "1px solid #f5f5f5", cursor: sinStock ? "not-allowed" : "pointer", opacity: sinStock ? 0.5 : 1, transition: "background .15s" }}
-                      onMouseEnter={e => { if (!sinStock) e.currentTarget.style.background = "#fafafa"; }}
+                      style={{ borderBottom: "1px solid #f5f5f5", cursor: sinStock ? "not-allowed" : "pointer", opacity: sinStock ? 0.45 : 1, transition: "background .15s" }}
+                      onMouseEnter={e => { if (!sinStock) e.currentTarget.style.background = "#fffbf4"; }}
                       onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
                       onClick={() => { if (!sinStock) add(p); }}>
-                      <td style={{ padding: "10px 14px" }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#111111" }}>{p.nombre || p.name}</div>
-                        {p.categoria && <div style={{ fontSize: 10, color: "#bbbbbb", marginTop: 2 }}>{p.categoria}</div>}
+                      <td style={{ padding: "5px 14px" }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "#111111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 190 }}>{p.nombre || p.name}</div>
+                        {p.categoria && <div style={{ fontSize: 9, color: "#bbbbbb" }}>{p.categoria}</div>}
                       </td>
-                      <td style={{ padding: "10px 8px", fontSize: 11, color: "#666666" }}>{p.marca || p.brand || "-"}</td>
-                      <td style={{ padding: "10px 8px", fontSize: 10, color: "#aaaaaa", fontFamily: "monospace" }}>{p.codigo_barras || p.codigo || "-"}</td>
-                      <td style={{ padding: "10px 8px", textAlign: "right", fontSize: 14, fontWeight: 700, color: "#c9a84c" }}>${(p.precio || p.price || 0).toLocaleString()}</td>
-                      <td style={{ padding: "10px 8px", textAlign: "center" }}>
+                      <td style={{ padding: "5px 8px", fontSize: 11, color: "#666666", whiteSpace: "nowrap" }}>{p.marca || p.brand || "-"}</td>
+                      <td style={{ padding: "5px 8px", fontSize: 10, color: "#aaaaaa", fontFamily: "monospace" }}>{p.codigo_barras || p.codigo || "-"}</td>
+                      <td style={{ padding: "5px 8px", textAlign: "right", fontSize: 13, fontWeight: 700, color: "#c9a84c", whiteSpace: "nowrap" }}>${(p.precio || p.price || 0).toLocaleString()}</td>
+                      <td style={{ padding: "5px 8px", textAlign: "center" }}>
                         <span className={"badge " + (sinStock ? "br" : bajo ? "ba" : "bg")} style={{ fontSize: 10 }}>{p.stock || 0}u</span>
                       </td>
-                      <td style={{ padding: "10px 8px", textAlign: "right" }}>
+                      <td style={{ padding: "5px 8px", textAlign: "right" }}>
                         {!sinStock && (
-                          <button
-                            onClick={e => { e.stopPropagation(); add(p); }}
-                            style={{ background: "#2d7a4f", color: "white", border: "none", borderRadius: 5, padding: "5px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                          <button onClick={e => { e.stopPropagation(); add(p); }}
+                            style={{ background: "#2d7a4f", color: "white", border: "none", borderRadius: 5, padding: "4px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
                             + Agregar
                           </button>
                         )}
