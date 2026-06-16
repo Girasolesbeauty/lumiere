@@ -534,17 +534,9 @@ function POS({ localId }) {
 
   return (
     <div className="fade">
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: "#111111" }}>Punto de Venta</div>
-          <div style={{ display: "flex", borderBottom: "1px solid #e8e8e8" }}>
-            <div className="tab on" style={{ padding: "4px 14px", fontSize: 11 }} onClick={() => setTabPos("venta")}>NUEVA VENTA</div>
-            <div className="tab" style={{ padding: "4px 14px", fontSize: 11 }} onClick={() => { setTabPos("preventas"); cargarPreventas(); }}>
-              PREVENTAS {preventasPendientes.length > 0 && <span style={{ background: "#2471a3", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{preventasPendientes.length}</span>}
-            </div>
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+      <div className="ph">
+        <div><div className="pt">Punto de Venta</div><div className="ps">facturacion electronica - arca</div></div>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           {usuario?.rol === "jefe" && (
             <div className="sw-wrap" onClick={() => { setModoPrueba(!modoPrueba); setMensaje(""); }}>
               <div className={"sw " + (modoPrueba ? "on" : "off")}><div className="sw-dot" /></div>
@@ -559,17 +551,23 @@ function POS({ localId }) {
         </div>
       </div>
       {modoPrueba && (
-        <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "6px 14px", marginBottom: 6, fontSize: 11, color: "#c0392b", fontWeight: 600, flexShrink: 0 }}>
-          🧪 MODO PRUEBA ACTIVO — las ventas NO se facturan en ARCA.
+        <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "10px 16px", marginBottom: 12, fontSize: 12, color: "#c0392b", fontWeight: 600 }}>
+          🧪 MODO PRUEBA ACTIVO — las ventas NO se facturan en ARCA. Desactivalo para vender de verdad.
         </div>
       )}
+      <div className="tabs">
+        <div className="tab on" onClick={() => setTabPos("venta")}>NUEVA VENTA</div>
+        <div className="tab" onClick={() => { setTabPos("preventas"); cargarPreventas(); }}>
+          PREVENTAS {preventasPendientes.length > 0 && <span style={{ background: "#2471a3", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{preventasPendientes.length}</span>}
+        </div>
+      </div>
       {mensaje && (
-        <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "7px 14px", marginBottom: 6, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f", flexShrink: 0 }}>
+        <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>
           {mensaje}
         </div>
       )}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 420px", gap: 14, height: "calc(100vh - 185px)" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, overflow: "hidden" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 420px", gap: 16, height: "calc(100vh - 220px)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
           <input className="inp" placeholder="🔍  Buscar por nombre, marca o codigo..." value={busqueda} onChange={e => setBusqueda(e.target.value)} />
           <div style={{ overflowY: "auto", flex: 1, background: "#ffffff", border: "1px solid #e8e8e8", borderRadius: 8 }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
