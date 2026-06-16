@@ -367,6 +367,11 @@ function Dashboard({ localId }) {
 
 function POS({ localId, usuario }) {
   const [cart, setCart] = useState([]);
+  const [inicioVenta, setInicioVenta] = useState(null);
+  const [modoPrueba, setModoPrueba] = useState(false);
+  const [gcCodigo, setGcCodigo] = useState("");
+  const [gcAplicada, setGcAplicada] = useState(null);
+  const [gcMsg, setGcMsg] = useState("");
   const [dniInput, setDniInput] = useState("");
   const [tipoFac, setTipoFac] = useState("B");
   const [productos, setProductos] = useState([]);
