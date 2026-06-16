@@ -9,9 +9,10 @@ router.get('/', async (req, res) => {
     let query = `SELECT o.*, p.nombre as proveedor_nombre, p.dias_pago
                  FROM ordenes_ingreso o
                  LEFT JOIN proveedores p ON o.proveedor_id = p.id`;
-    if (estado) query += ` WHERE o.estado = '${estado}'`;
+    const params = [];
+    if (estado) { params.push(estado); query += ` WHERE o.estado = $${params.length}`; }
     query += ' ORDER BY o.creado_en DESC';
-    const result = await pool.query(query);
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener ordenes' });
@@ -29,7 +30,7 @@ router.get('/:id', async (req, res) => {
        WHERE o.id = $1`, [req.params.id]
     );
     const items = await pool.query(
-      'SELECT * FROM ordenes_ingreso_items WHERE orden_id = $1', [req.params.id]
+      'SELECT * FROM ordenes_ingreso_items WHERE orden_id = $1 ORDER BY es_extra, id', [req.params.id]
     );
     res.json({ ...orden.rows[0], items: items.rows });
   } catch (error) {
@@ -37,33 +38,58 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Crear orden
+// Items de una orden (compatibilidad con frontend existente)
+router.get('/:id/items', async (req, res) => {
+  try {
+    const items = await pool.query(
+      'SELECT * FROM ordenes_ingreso_items WHERE orden_id = $1 ORDER BY es_extra, id', [req.params.id]
+    );
+    res.json(items.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener items' });
+  }
+});
+
+// Crear orden (carga de stock en transito, ya dividido RG/USH)
 router.post('/', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const { proveedor_id, fecha_factura, numero_factura, total, forma_pago, cuenta_pago_id, notas, items } = req.body;
 
-    // Calcular fecha vencimiento segun dias del proveedor
     const provRes = await client.query('SELECT dias_pago FROM proveedores WHERE id = $1', [proveedor_id]);
     const dias = provRes.rows[0]?.dias_pago || 30;
-    const fechaVenc = new Date(fecha_factura);
+    const fechaVenc = new Date(fecha_factura || new Date());
     fechaVenc.setDate(fechaVenc.getDate() + dias);
 
     const orden = await client.query(
       `INSERT INTO ordenes_ingreso (proveedor_id, fecha_factura, fecha_vencimiento, numero_factura, total, forma_pago, cuenta_pago_id, notas)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [proveedor_id, fecha_factura, fechaVenc.toISOString().split('T')[0], numero_factura, total, forma_pago, cuenta_pago_id, notas]
+      [proveedor_id, fecha_factura || new Date().toISOString().split('T')[0], fechaVenc.toISOString().split('T')[0], numero_factura, total || 0, forma_pago, cuenta_pago_id, notas]
     );
 
     const ordenId = orden.rows[0].id;
 
     for (const item of items) {
+      const cantRg = parseInt(item.cantidad_rg) || 0;
+      const cantUsh = parseInt(item.cantidad_ush) || 0;
+      const cantTotal = parseInt(item.cantidad_total) || (cantRg + cantUsh);
       await client.query(
-        `INSERT INTO ordenes_ingreso_items (orden_id, producto_id, producto_nombre, cantidad_total, cantidad_rg, cantidad_ush, costo_unitario)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-        [ordenId, item.producto_id, item.producto_nombre, item.cantidad_total, item.cantidad_rg || 0, item.cantidad_ush || 0, item.costo_unitario]
+        `INSERT INTO ordenes_ingreso_items
+          (orden_id, producto_id, producto_nombre, cantidad_total, cantidad_rg, cantidad_ush, costo_unitario, en_transito_ush)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [ordenId, item.producto_id, item.producto_nombre, cantTotal, cantRg, cantUsh, item.costo_unitario || 0, cantUsh]
       );
+      // Sumar al stock en transito del producto (por local)
+      if (item.producto_id) {
+        await client.query(
+          `UPDATE productos SET
+             stock_transito_rg = COALESCE(stock_transito_rg,0) + $1,
+             stock_transito_ush = COALESCE(stock_transito_ush,0) + $2
+           WHERE id = $3`,
+          [cantRg, cantUsh, item.producto_id]
+        );
+      }
     }
 
     await client.query('COMMIT');
@@ -76,32 +102,87 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Confirmar recepcion de item
+// Agregar item EXTRA (regalo del proveedor, no estaba en el pedido) - ya llego fisico
+router.post('/:ordenId/item-extra', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { producto_id, producto_nombre, cantidad, local, costo_unitario } = req.body;
+    const cant = parseInt(cantidad) || 0;
+    if (cant <= 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Cantidad invalida' });
+    }
+    const esRg = local === 'rg';
+    await client.query(
+      `INSERT INTO ordenes_ingreso_items
+        (orden_id, producto_id, producto_nombre, cantidad_total, cantidad_rg, cantidad_ush,
+         costo_unitario, recibido_rg, recibido_ush, es_extra, revisado_rg, revisado_ush)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,TRUE,$10,$11)`,
+      [
+        req.params.ordenId, producto_id || null, producto_nombre, cant,
+        esRg ? cant : 0, esRg ? 0 : cant, costo_unitario || 0,
+        esRg ? cant : 0, esRg ? 0 : cant,
+        esRg, !esRg
+      ]
+    );
+    if (producto_id) {
+      await client.query('UPDATE productos SET stock = stock + $1 WHERE id = $2', [cant, producto_id]);
+    }
+    await client.query('COMMIT');
+    res.json({ ok: true });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: 'Error al agregar item extra: ' + error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Confirmar recepcion de item por local, con cantidad real contada y nota de inconsistencia
 router.put('/:ordenId/items/:itemId/recibir', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { local, cantidad } = req.body;
+    const { local, cantidad, nota } = req.body;
+    const cant = parseInt(cantidad) || 0;
     const itemRes = await client.query('SELECT * FROM ordenes_ingreso_items WHERE id = $1', [req.params.itemId]);
     const item = itemRes.rows[0];
+    if (!item) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Item no encontrado' });
+    }
 
     if (local === 'rg') {
       await client.query(
-        'UPDATE ordenes_ingreso_items SET recibido_rg = recibido_rg + $1 WHERE id = $2',
-        [cantidad, req.params.itemId]
+        'UPDATE ordenes_ingreso_items SET recibido_rg = $1, revisado_rg = TRUE, nota_inconsistencia = COALESCE($2, nota_inconsistencia) WHERE id = $3',
+        [cant, nota || null, req.params.itemId]
       );
-      await client.query('UPDATE productos SET stock = stock + $1 WHERE id = $2', [cantidad, item.producto_id]);
+      if (item.producto_id) {
+        await client.query('UPDATE productos SET stock = stock + $1 WHERE id = $2', [cant, item.producto_id]);
+        await client.query(
+          'UPDATE productos SET stock_transito_rg = GREATEST(COALESCE(stock_transito_rg,0) - $1, 0) WHERE id = $2',
+          [item.cantidad_rg || 0, item.producto_id]
+        );
+      }
     } else {
       await client.query(
-        'UPDATE ordenes_ingreso_items SET recibido_ush = recibido_ush + $1, en_transito_ush = GREATEST(en_transito_ush - $1, 0) WHERE id = $2',
-        [cantidad, req.params.itemId]
+        'UPDATE ordenes_ingreso_items SET recibido_ush = $1, revisado_ush = TRUE, nota_inconsistencia = COALESCE($2, nota_inconsistencia) WHERE id = $3',
+        [cant, nota || null, req.params.itemId]
       );
-      await client.query('UPDATE productos SET stock = stock + $1 WHERE id = $2', [cantidad, item.producto_id]);
+      if (item.producto_id) {
+        await client.query('UPDATE productos SET stock = stock + $1 WHERE id = $2', [cant, item.producto_id]);
+        await client.query(
+          'UPDATE productos SET stock_transito_ush = GREATEST(COALESCE(stock_transito_ush,0) - $1, 0) WHERE id = $2',
+          [item.cantidad_ush || 0, item.producto_id]
+        );
+      }
     }
 
-    // Verificar si la orden esta completa
     const itemsRes = await client.query('SELECT * FROM ordenes_ingreso_items WHERE orden_id = $1', [req.params.ordenId]);
-    const completa = itemsRes.rows.every(i => (i.recibido_rg + i.recibido_ush) >= i.cantidad_total);
+    const completa = itemsRes.rows.every(i =>
+      (i.cantidad_rg > 0 ? i.revisado_rg : true) && (i.cantidad_ush > 0 ? i.revisado_ush : true)
+    );
     if (completa) {
       await client.query("UPDATE ordenes_ingreso SET estado = 'recibida' WHERE id = $1", [req.params.ordenId]);
     }
@@ -110,9 +191,29 @@ router.put('/:ordenId/items/:itemId/recibir', async (req, res) => {
     res.json({ ok: true });
   } catch (error) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: 'Error al confirmar recepcion' });
+    res.status(500).json({ error: 'Error al confirmar recepcion: ' + error.message });
   } finally {
     client.release();
+  }
+});
+
+// Reporte de inconsistencias (para el jefe)
+router.get('/reporte/inconsistencias', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT oi.*, o.numero_factura, o.fecha_factura, p.nombre AS proveedor_nombre
+       FROM ordenes_ingreso_items oi
+       JOIN ordenes_ingreso o ON oi.orden_id = o.id
+       LEFT JOIN proveedores p ON o.proveedor_id = p.id
+       WHERE (oi.revisado_rg = TRUE AND oi.recibido_rg <> oi.cantidad_rg)
+          OR (oi.revisado_ush = TRUE AND oi.recibido_ush <> oi.cantidad_ush)
+          OR oi.es_extra = TRUE
+          OR (oi.nota_inconsistencia IS NOT NULL AND oi.nota_inconsistencia <> '')
+       ORDER BY o.creado_en DESC`
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener inconsistencias: ' + error.message });
   }
 });
 

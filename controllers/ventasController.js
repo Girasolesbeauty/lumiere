@@ -114,8 +114,8 @@ const create = async (req, res) => {
       `INSERT INTO ventas
         (numero_factura, cliente_id, tipo_factura, subtotal, descuento, total, canal, local_id,
          medio_pago_id, medio_pago, es_preventa, nombre_preventa, estado_pago,
-         usuario_id, inicio_venta, duracion_segundos, monto_gift_card)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
+         usuario_id, inicio_venta, duracion_segundos, monto_gift_card, preventa_local)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING *`,
       [
         numero, cliente_id, tipo_factura, subtotal, descuento_total, total,
         canal || 'presencial', local_id || 1,
@@ -123,7 +123,8 @@ const create = async (req, res) => {
         es_preventa === true, nombre_preventa || null,
         es_preventa === true ? 'reservado' : null,
         usuario_id || null, inicio_venta || null, duracion_segundos || null,
-        parseFloat(monto_gift_card) || 0
+        parseFloat(monto_gift_card) || 0,
+        es_preventa === true ? (local_id || 1) : null
       ]
     );
 
@@ -135,10 +136,26 @@ const create = async (req, res) => {
          VALUES ($1, $2, $3, $4, $5)`,
         [ventaId, item.producto_id, item.cantidad, item.precio_unitario, item.precio_unitario * item.cantidad]
       );
-      await client.query(
-        'UPDATE productos SET stock = stock - $1 WHERE id = $2',
-        [item.cantidad, item.producto_id]
-      );
+      if (es_preventa === true) {
+        // Preventa: RESERVA sobre el transito del local (no toca stock real ni transito, suma a reservado)
+        if (local_id === 2) {
+          await client.query(
+            'UPDATE productos SET reservado_ush = COALESCE(reservado_ush, 0) + $1 WHERE id = $2',
+            [item.cantidad, item.producto_id]
+          );
+        } else {
+          await client.query(
+            'UPDATE productos SET reservado_rg = COALESCE(reservado_rg, 0) + $1 WHERE id = $2',
+            [item.cantidad, item.producto_id]
+          );
+        }
+      } else {
+        // Venta normal: descuenta del stock del deposito
+        await client.query(
+          'UPDATE productos SET stock = stock - $1 WHERE id = $2',
+          [item.cantidad, item.producto_id]
+        );
+      }
     }
 
     // Las preventas no generan movimiento de caja hasta que se cobran.
