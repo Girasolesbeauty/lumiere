@@ -534,8 +534,7 @@ function POS({ localId }) {
 
   return (
     <div className="fade">
-      {/* HEADER COMPACTO */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: "#111111" }}>Punto de Venta</div>
           <div style={{ display: "flex", borderBottom: "1px solid #e8e8e8" }}>
@@ -569,7 +568,6 @@ function POS({ localId }) {
           {mensaje}
         </div>
       )}
-      {/* LAYOUT PRINCIPAL */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 420px", gap: 14, height: "calc(100vh - 185px)" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 8, overflow: "hidden" }}>
           <input className="inp" placeholder="🔍  Buscar por nombre, marca o codigo..." value={busqueda} onChange={e => setBusqueda(e.target.value)} />
