@@ -622,8 +622,8 @@ function POS({ localId, usuario }) {
             </table>
           </div>
         </div>
-        <div style={{ background: "#ffffff", border: "1px solid #e8e8e8", borderRadius: 8, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{ padding: "12px 16px", borderBottom: "1px solid #f0f0f0", fontSize: 10, color: "#999999", fontWeight: 600, background: preventa ? "#2471a312" : "#fafafa" }}>
+        <div style={{ background: "#faf8f4", border: "1px solid #ddd9d0", borderRadius: 8, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid #ddd9d0", fontSize: 10, color: "#666666", fontWeight: 700, letterSpacing: ".1em", background: preventa ? "#2471a320" : "#f0ece4" }}>
             {preventa ? "PREVENTA" : "COMPROBANTE EN CURSO"}
           </div>
           <div style={{ padding: "10px 14px", borderBottom: "1px solid #f0f0f0" }}>
@@ -682,12 +682,12 @@ function POS({ localId, usuario }) {
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
             {cart.length === 0
-              ? <div style={{ textAlign: "center", color: "#cccccc", fontSize: 12, marginTop: 20 }}>Selecciona productos</div>
+              ? <div style={{ textAlign: "center", color: "#aaaaaa", fontSize: 12, marginTop: 20 }}>Selecciona productos</div>
               : cart.map(i => (
-                <div key={i.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fafafa", borderRadius: 6, padding: "8px 10px", marginBottom: 6, border: "1px solid #f0f0f0" }}>
+                <div key={i.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#ffffff", borderRadius: 6, padding: "8px 10px", marginBottom: 6, border: "1px solid #e8e4dc" }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 12, fontWeight: 500 }}>{i.nombre || i.name}</div>
-                    <div style={{ fontSize: 10, color: "#999999" }}>{i.marca || i.brand}</div>
+                    <div style={{ fontSize: 10, color: "#888888" }}>{i.marca || i.brand}</div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <button onClick={() => setCart(prev => prev.map(x => x.id === i.id && x.qty > 1 ? { ...x, qty: x.qty - 1 } : x))} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e8e8e8", background: "white", cursor: "pointer" }}>-</button>
@@ -699,28 +699,23 @@ function POS({ localId, usuario }) {
                 </div>
               ))
             }
-            {cart.length > 0 && (
-              <div style={{ marginTop: 10 }}>
-                <div className="fl">Medio de pago</div>
-                <select className="sel" value={medioPagoSel?.id || ""} onChange={e => {
-                  const m = mediosPago.find(x => x.id === parseInt(e.target.value));
-                  setMedioPagoSel(m || null);
-                }}>
-                  <option value="">Seleccionar...</option>
-                  {["efectivo", "transferencia", "debito", "credito", "plataforma"].map(tipo => (
-                    <optgroup key={tipo} label={tipo === "efectivo" ? "Efectivo" : tipo === "transferencia" ? "Transferencia" : tipo === "debito" ? "Debito" : tipo === "credito" ? "Credito" : "Plataformas"}>
-                      {mediosPago.filter(m => m.tipo === tipo).map(m => (
-                        <option key={m.id} value={m.id}>
-                          {m.nombre}{m.con_interes ? " (+" + Math.round((parseFloat(m.coeficiente) - 1) * 100) + "%)" : ""}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
-            )}
           </div>
-          <div style={{ padding: "14px 16px", borderTop: "1px solid #f0f0f0", background: "#fafafa" }}>
+          <div style={{ padding: "12px 16px", borderTop: "1px solid #ddd9d0", background: "#f2ede4" }}>
+            <select className="sel" style={{ marginBottom: 10 }} value={medioPagoSel?.id || ""} onChange={e => {
+              const m = mediosPago.find(x => x.id === parseInt(e.target.value));
+              setMedioPagoSel(m || null);
+            }}>
+              <option value="">Medio de pago...</option>
+              {["efectivo", "transferencia", "debito", "credito", "plataforma"].map(tipo => (
+                <optgroup key={tipo} label={tipo === "efectivo" ? "Efectivo" : tipo === "transferencia" ? "Transferencia" : tipo === "debito" ? "Debito" : tipo === "credito" ? "Credito" : "Plataformas"}>
+                  {mediosPago.filter(m => m.tipo === tipo).map(m => (
+                    <option key={m.id} value={m.id}>
+                      {m.nombre}{m.con_interes ? " (+" + Math.round((parseFloat(m.coeficiente) - 1) * 100) + "%)" : ""}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
             {descuento > 0 && (
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                 <span style={{ fontSize: 11, color: "#999999" }}>Descuento</span>
