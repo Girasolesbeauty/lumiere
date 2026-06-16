@@ -557,21 +557,55 @@ function POS({ localId }) {
       )}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 16, height: "calc(100vh - 220px)" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
-          <input className="inp" placeholder="Buscar producto..." value={busqueda} onChange={e => setBusqueda(e.target.value)} />
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, overflowY: "auto", flex: 1 }}>
-            {productosAMostrar.map(p => (
-              <div key={p.id} onClick={() => add(p)}
-                style={{ background: "#ffffff", border: "1px solid #e8e8e8", borderRadius: 7, padding: 14, cursor: "pointer", transition: "all .18s" }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = "#c9a84c"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = "#e8e8e8"; }}>
-                <div style={{ fontSize: 9, color: "#999999", textTransform: "uppercase" }}>{p.marca || p.brand}</div>
-                <div style={{ fontSize: 12, color: "#333333", marginTop: 3, fontWeight: 500 }}>{p.nombre || p.name}</div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 10 }}>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>${(p.precio || p.price).toLocaleString()}</div>
-                  <span className={"badge " + (p.stock < (p.stock_minimo || 5) ? "br" : "bg")}>{p.stock}u</span>
-                </div>
-              </div>
-            ))}
+          <input className="inp" placeholder="🔍  Buscar por nombre, marca o codigo..." value={busqueda} onChange={e => setBusqueda(e.target.value)} />
+          <div style={{ overflowY: "auto", flex: 1, background: "#ffffff", border: "1px solid #e8e8e8", borderRadius: 8 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead style={{ position: "sticky", top: 0, background: "#f8f8f8", zIndex: 1 }}>
+                <tr>
+                  <th style={{ textAlign: "left", fontSize: 10, color: "#888888", padding: "10px 14px", fontWeight: 600, letterSpacing: ".05em", borderBottom: "2px solid #eeeeee" }}>PRODUCTO</th>
+                  <th style={{ textAlign: "left", fontSize: 10, color: "#888888", padding: "10px 8px", fontWeight: 600, letterSpacing: ".05em", borderBottom: "2px solid #eeeeee" }}>MARCA</th>
+                  <th style={{ textAlign: "left", fontSize: 10, color: "#888888", padding: "10px 8px", fontWeight: 600, letterSpacing: ".05em", borderBottom: "2px solid #eeeeee" }}>CODIGO</th>
+                  <th style={{ textAlign: "right", fontSize: 10, color: "#888888", padding: "10px 8px", fontWeight: 600, letterSpacing: ".05em", borderBottom: "2px solid #eeeeee" }}>PRECIO</th>
+                  <th style={{ textAlign: "center", fontSize: 10, color: "#888888", padding: "10px 8px", fontWeight: 600, letterSpacing: ".05em", borderBottom: "2px solid #eeeeee" }}>STOCK</th>
+                  <th style={{ borderBottom: "2px solid #eeeeee", padding: "10px 8px" }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {productosAMostrar.length === 0 ? (
+                  <tr><td colSpan={6} style={{ textAlign: "center", color: "#cccccc", padding: 30, fontSize: 12 }}>Sin productos</td></tr>
+                ) : productosAMostrar.map(p => {
+                  const bajo = (p.stock || 0) < (p.stock_minimo || 5);
+                  const sinStock = !p.stock || p.stock === 0;
+                  return (
+                    <tr key={p.id}
+                      style={{ borderBottom: "1px solid #f5f5f5", cursor: sinStock ? "not-allowed" : "pointer", opacity: sinStock ? 0.5 : 1, transition: "background .15s" }}
+                      onMouseEnter={e => { if (!sinStock) e.currentTarget.style.background = "#fafafa"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+                      onClick={() => { if (!sinStock) add(p); }}>
+                      <td style={{ padding: "10px 14px" }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#111111" }}>{p.nombre || p.name}</div>
+                        {p.categoria && <div style={{ fontSize: 10, color: "#bbbbbb", marginTop: 2 }}>{p.categoria}</div>}
+                      </td>
+                      <td style={{ padding: "10px 8px", fontSize: 11, color: "#666666" }}>{p.marca || p.brand || "-"}</td>
+                      <td style={{ padding: "10px 8px", fontSize: 10, color: "#aaaaaa", fontFamily: "monospace" }}>{p.codigo_barras || p.codigo || "-"}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "right", fontSize: 14, fontWeight: 700, color: "#c9a84c" }}>${(p.precio || p.price || 0).toLocaleString()}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "center" }}>
+                        <span className={"badge " + (sinStock ? "br" : bajo ? "ba" : "bg")} style={{ fontSize: 10 }}>{p.stock || 0}u</span>
+                      </td>
+                      <td style={{ padding: "10px 8px", textAlign: "right" }}>
+                        {!sinStock && (
+                          <button
+                            onClick={e => { e.stopPropagation(); add(p); }}
+                            style={{ background: "#2d7a4f", color: "white", border: "none", borderRadius: 5, padding: "5px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                            + Agregar
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
         <div style={{ background: "#ffffff", border: "1px solid #e8e8e8", borderRadius: 8, display: "flex", flexDirection: "column", overflow: "hidden" }}>
