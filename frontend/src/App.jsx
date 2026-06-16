@@ -570,9 +570,9 @@ function POS({ localId }) {
         </div>
       )}
       {/* LAYOUT PRINCIPAL */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 420px", gap: 14, flex: 1, minHeight: 0 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 0 }}>
-          <input className="inp" placeholder="🔍  Buscar por nombre, marca o codigo..." value={busqueda} onChange={e => setBusqueda(e.target.value)} style={{ flexShrink: 0 }} />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 420px", gap: 14, height: "calc(100vh - 185px)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, overflow: "hidden" }}>
+          <input className="inp" placeholder="🔍  Buscar por nombre, marca o codigo..." value={busqueda} onChange={e => setBusqueda(e.target.value)} />
           <div style={{ overflowY: "auto", flex: 1, background: "#ffffff", border: "1px solid #e8e8e8", borderRadius: 8 }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead style={{ position: "sticky", top: 0, background: "#f8f8f8", zIndex: 1 }}>
