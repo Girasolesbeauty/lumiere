@@ -3,7 +3,7 @@ import { getProductos, createVenta, getClientes, getFlujo, getPuntoEquilibrio, a
 import API from "./api";
 
 const C = {
-  bg: "#fafafa", surface: "#ffffff", card: "#f5f5f5", border: "#e8e8e8",
+  bg: "#f2f2ef", surface: "#ffffff", card: "#f5f5f5", border: "#e8e8e8",
   accent: "#c9a84c", accentDim: "#c9a84c15", accentHover: "#e8c86a",
   text: "#111111", textSoft: "#444444", textMuted: "#999999",
   green: "#2d7a4f", greenDim: "#2d7a4f12",
@@ -16,7 +16,7 @@ const C = {
 const BASE_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Inter', sans-serif; background: #fafafa; color: #111111; min-height: 100vh; -webkit-font-smoothing: antialiased; }
+body { font-family: 'Inter', sans-serif; background: #f0f0ed; color: #111111; min-height: 100vh; -webkit-font-smoothing: antialiased; }
 ::-webkit-scrollbar { width: 3px; }
 ::-webkit-scrollbar-thumb { background: #e0e0e0; border-radius: 2px; }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -35,10 +35,10 @@ body { font-family: 'Inter', sans-serif; background: #fafafa; color: #111111; mi
 .nav-item.active { color: #ffffff; font-weight: 600; }
 .nav-icon { font-size: 13px; width: 18px; text-align: center; flex-shrink: 0; }
 .sb-footer { padding: 12px 18px; border-top: 1px solid #222222; }
-.main { margin-left: 210px; flex: 1; padding: 28px 34px; min-height: 100vh; background: #fafafa; }
+.main { margin-left: 210px; flex: 1; padding: 28px 34px; min-height: 100vh; background: #f0f0ed; }
 .ph { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 26px; }
 .pt { font-family: 'Inter', sans-serif; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; color: #111111; }
-.ps { font-size: 11px; color: #888888; font-weight: 400; margin-top: 5px; }
+.ps { font-size: 11px; color: #666666; font-weight: 400; margin-top: 5px; }
 .g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 18px; }
 .g3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 18px; }
 .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
@@ -84,7 +84,7 @@ table { width: 100%; border-collapse: collapse; }
 th { text-align: left; font-size: 11px; text-transform: uppercase; color: #888888; padding: 9px 11px; font-weight: 600; border-bottom: 2px solid #eeeeee; letter-spacing: 0.05em; }
 td { padding: 10px 11px; font-size: 12px; color: #222222; font-weight: 400; border-bottom: 1px solid #f0f0f0; }
 tr:last-child td { border-bottom: none; }
-tr:hover td { background: #fafafa; }
+tr:hover td { background: #f0f0ed; }
 `;
 
 const PRODUCTS = [
@@ -115,7 +115,7 @@ const REWARDS = [
 
 const REWARDS_DISPLAY = REWARDS.map(r => ({
   ...r,
-  emoji: r.emoji === "ok_hand" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨" : r.emoji === "droplet" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§" : r.emoji === "lipstick" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾" : r.emoji === "gift" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â½ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" : r.emoji === "herb" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿" : "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸",
+  emoji: r.emoji === "ok_hand" ? "👌" : r.emoji === "droplet" ? "💧" : r.emoji === "lipstick" ? "💄" : r.emoji === "gift" ? "🎁" : r.emoji === "herb" ? "🌿" : "🌸",
 }));
 
 const CUPONS_DATA = [
@@ -243,7 +243,7 @@ function Dashboard({ localId }) {
 
   const Semaforo = ({ valor, umbralOk, umbralAlerta, formato }) => {
     const color = valor >= umbralOk ? "#2d7a4f" : valor >= umbralAlerta ? "#e67e22" : "#c0392b";
-    const icono = valor >= umbralOk ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬ÂÃƒâ€šÃ‚Â" : valor >= umbralAlerta ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬ÂÃƒâ€šÃ‚Â" : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬ÂÃƒâ€šÃ‚Â";
+    const icono = valor >= umbralOk ? "🟢" : valor >= umbralAlerta ? "🟡" : "🔴";
     return <span style={{ color, fontSize: 12, fontWeight: 700 }}>{icono} {formato ? formato(valor) : valor}</span>;
   };
 
@@ -388,7 +388,7 @@ function POS({ localId, usuario }) {
   const [nombrePreventa, setNombrePreventa] = useState("");
   const [mediosPago, setMediosPago] = useState([]);
   const [descuentoManual, setDescuentoManual] = useState("");
-  const [tipoDescuento, setTipoDescuento] = useState("$");
+  const [tipoDescuento, setTipoDescuento] = useState("%");
   const [medioPagoSel, setMedioPagoSel] = useState(null);
   const [tabPos, setTabPos] = useState("venta");
   const [preventasPendientes, setPreventasPendientes] = useState([]);
@@ -472,7 +472,7 @@ function POS({ localId, usuario }) {
       if (!preventa) {
         try {
           const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaRes.data.id });
-          setMensaje("ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
+          setMensaje("✅ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
         } catch (arcaErr) {
           setMensaje("Venta registrada pero error en ARCA: " + arcaErr.message);
         }
@@ -481,7 +481,7 @@ function POS({ localId, usuario }) {
       }
       setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null);
       setClienteSeleccionado(null); setShowNuevoCliente(false);
-      setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("$");
+      setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%");
       setTimeout(() => setMensaje(""), 8000);
     } catch (error) { setMensaje("Error al emitir factura"); }
     setLoading(false);
@@ -1965,7 +1965,7 @@ function Comisiones({ localId }) {
   };
 
   const nivelColor = datos?.nivel === 2 ? "#c9a84c" : datos?.nivel === 1 ? "#2d7a4f" : "#999999";
-  const nivelEmoji = datos?.nivel === 2 ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â " : datos?.nivel === 1 ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" : "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â½ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¯";
+  const nivelEmoji = datos?.nivel === 2 ? "🏆" : datos?.nivel === 1 ? "⭐" : "🎯";
 
   return (
     <div className="fade">
@@ -2787,7 +2787,7 @@ function LoginScreen({ onLogin }) {
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
-    if (!email || !password) return setError("CompletÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ todos los campos");
+    if (!email || !password) return setError("Completá todos los campos");
     setLoading(true);
     try {
       const res = await login({ email, password });
@@ -2795,7 +2795,7 @@ function LoginScreen({ onLogin }) {
       localStorage.setItem("lumiere_user", JSON.stringify(res.data.usuario));
       onLogin(res.data.usuario);
     } catch (e) {
-      setError("Email o contraseÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±a incorrectos");
+      setError("Email o contraseña incorrectos");
     }
     setLoading(false);
   };
@@ -2813,8 +2813,8 @@ function LoginScreen({ onLogin }) {
           <input className="inp" type="email" placeholder="tu@email.com" value={email} onChange={e => { setEmail(e.target.value); setError(""); }} />
         </div>
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œA</div>
-          <input className="inp" type="password" placeholder="ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
+          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÑA</div>
+          <input className="inp" type="password" placeholder="••••••••" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
         </div>
         <button className="btn btn-p" style={{ width: "100%", padding: 13 }} onClick={handleLogin} disabled={loading}>
           {loading ? "Ingresando..." : "Ingresar"}
