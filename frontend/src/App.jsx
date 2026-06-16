@@ -600,7 +600,6 @@ function POS({ localId, usuario }) {
                       onClick={() => { if (!sinStock) add(p); }}>
                       <td style={{ padding: "5px 14px" }}>
                         <div style={{ fontSize: 12, fontWeight: 600, color: "#111111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 190 }}>{p.nombre || p.name}</div>
-                        {p.categoria && <div style={{ fontSize: 9, color: "#bbbbbb" }}>{p.categoria}</div>}
                       </td>
                       <td style={{ padding: "5px 8px", fontSize: 11, color: "#666666", whiteSpace: "nowrap" }}>{p.marca || p.brand || "-"}</td>
                       <td style={{ padding: "5px 8px", fontSize: 10, color: "#aaaaaa", fontFamily: "monospace" }}>{p.codigo_barras || p.codigo || "-"}</td>
