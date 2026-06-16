@@ -533,7 +533,7 @@ function POS({ localId }) {
   }
 
   return (
-    <div className="fade" style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 100px)" }}>
+    <div className="fade">
       {/* HEADER COMPACTO */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
