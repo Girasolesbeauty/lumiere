@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from "react";
+import { useState, useEffect } from "react";
 import { getProductos, createVenta, getClientes, getFlujo, getPuntoEquilibrio, agregarEgreso, getResumenFinanzas, getVentas, getAlertasStock, getCupones, createCupon, updateCupon, getRanking, getReglas, createRegla as createReglaWA, updateRegla as updateReglaWA, login, register } from "./api";
 import API from "./api";
 
@@ -30,9 +30,9 @@ body { font-family: 'Inter', sans-serif; background: #fafafa; color: #111111; mi
 .logo-sub { font-size: 9px; color: #888888; letter-spacing: .3em; margin-top: 3px; text-transform: uppercase; }
 .nav { padding: 12px 10px; flex: 1; }
 .nav-section { font-size: 8px; letter-spacing: .3em; color: #666666; padding: 10px 10px 4px; text-transform: uppercase; }
-.nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: 500; color: #aaaaaa; transition: all .18s; margin-bottom: 1px; border: 1px solid transparent; }
-.nav-item:hover { color: #ffffff; background: #333333; }
-.nav-item.active { color: #c9a84c; background: #c9a84c18; border-color: #c9a84c44; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 7px; cursor: pointer; font-size: 12px; font-weight: 500; color: #888888; transition: all .18s; margin-bottom: 3px; border: 1px solid transparent; }
+.nav-item:hover { color: #ffffff; background: #2a2a2a; }
+.nav-item.active { color: #ffffff; font-weight: 600; }
 .nav-icon { font-size: 13px; width: 18px; text-align: center; flex-shrink: 0; }
 .sb-footer { padding: 12px 18px; border-top: 1px solid #222222; }
 .main { margin-left: 210px; flex: 1; padding: 28px 34px; min-height: 100vh; background: #fafafa; }
@@ -115,7 +115,7 @@ const REWARDS = [
 
 const REWARDS_DISPLAY = REWARDS.map(r => ({
   ...r,
-  emoji: r.emoji === "ok_hand" ? "👌" : r.emoji === "droplet" ? "💧" : r.emoji === "lipstick" ? "💄" : r.emoji === "gift" ? "🎁" : r.emoji === "herb" ? "🌿" : "🌸",
+  emoji: r.emoji === "ok_hand" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨" : r.emoji === "droplet" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§" : r.emoji === "lipstick" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾" : r.emoji === "gift" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â½ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" : r.emoji === "herb" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿" : "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸",
 }));
 
 const CUPONS_DATA = [
@@ -194,7 +194,7 @@ function Dashboard({ localId }) {
         API.get("/clientes"),
         API.get("/finanzas/flujo?" + params).catch(() => ({ data: { resumen: { ingresos: 0, egresos: 0, neto: 0 } } }))
       ]);
-      const ventas = (ventasRes.data || []).filter(v => v.canal !== "prueba" && v.es_preventa !== true);
+      const ventas = ventasRes.data || [];
       const productos = prodRes.data || [];
       const clientes = clientesRes.data || [];
       const fin = finRes.data?.resumen || { ingresos: 0, egresos: 0, neto: 0 };
@@ -243,7 +243,7 @@ function Dashboard({ localId }) {
 
   const Semaforo = ({ valor, umbralOk, umbralAlerta, formato }) => {
     const color = valor >= umbralOk ? "#2d7a4f" : valor >= umbralAlerta ? "#e67e22" : "#c0392b";
-    const icono = valor >= umbralOk ? "🟢" : valor >= umbralAlerta ? "🟡" : "🔴";
+    const icono = valor >= umbralOk ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬ÂÃƒâ€šÃ‚Â" : valor >= umbralAlerta ? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬ÂÃƒâ€šÃ‚Â" : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬ÂÃƒâ€šÃ‚Â";
     return <span style={{ color, fontSize: 12, fontWeight: 700 }}>{icono} {formato ? formato(valor) : valor}</span>;
   };
 
@@ -365,10 +365,8 @@ function Dashboard({ localId }) {
   );
 }
 
-function POS({ localId, usuario }) {
+function POS({ localId }) {
   const [cart, setCart] = useState([]);
-  const [inicioVenta, setInicioVenta] = useState(null);
-  const [modoPrueba, setModoPrueba] = useState(false);
   const [dniInput, setDniInput] = useState("");
   const [tipoFac, setTipoFac] = useState("B");
   const [productos, setProductos] = useState([]);
@@ -389,9 +387,6 @@ function POS({ localId, usuario }) {
   const [medioPagoSel, setMedioPagoSel] = useState(null);
   const [tabPos, setTabPos] = useState("venta");
   const [preventasPendientes, setPreventasPendientes] = useState([]);
-  const [gcCodigo, setGcCodigo] = useState("");
-  const [gcAplicada, setGcAplicada] = useState(null);
-  const [gcMsg, setGcMsg] = useState("");
 
   const cargarPreventas = async () => {
     try {
@@ -407,7 +402,6 @@ function POS({ localId, usuario }) {
   }, [localId]);
 
   const add = (p) => setCart(prev => {
-    if (prev.length === 0) setInicioVenta(Date.now());
     const e = prev.find(i => i.id === p.id);
     return e ? prev.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i) : [...prev, { ...p, qty: 1 }];
   });
@@ -419,14 +413,8 @@ function POS({ localId, usuario }) {
   const descuentoManualCalc = descuentoManual ? (tipoDescuento === "%" ? subtotalBase * (parseFloat(descuentoManual) / 100) : parseFloat(descuentoManual)) : 0;
   const descuento = descuentoCupon + descuentoManualCalc;
   const subtotalConDesc = subtotalBase - descuento;
-  // Crédito de gift card aplicado (no puede superar el subtotal con descuento)
-  const gcCredito = gcAplicada ? Math.min(parseFloat(gcAplicada.saldo), subtotalConDesc) : 0;
-  // El interés de cuotas se aplica solo sobre la parte que va con tarjeta/otro medio
-  const parteConMedio = subtotalConDesc - gcCredito;
-  const parteConInteres = Math.round(parteConMedio * coef);
-  const total = gcCredito + parteConInteres;
-  const intereses = parteConInteres - parteConMedio;
-  const restoAPagar = parteConInteres;
+  const total = Math.round(subtotalConDesc * coef);
+  const intereses = total - subtotalConDesc;
 
   const buscarClientePorDni = async (dni) => {
     setDniInput(dni);
@@ -451,23 +439,6 @@ function POS({ localId, usuario }) {
     } catch (e) { setMensaje("Error al crear cliente"); }
   };
 
-  const aplicarGiftCard = async () => {
-    if (!gcCodigo.trim()) return setGcMsg("Ingresa un codigo");
-    try {
-      const res = await API.get("/gift-cards/codigo/" + gcCodigo.trim().toUpperCase());
-      const gc = res.data;
-      if (gc.estado !== "activa") return setGcMsg("Esta gift card esta " + gc.estado);
-      if (parseFloat(gc.saldo) <= 0) return setGcMsg("Sin saldo disponible");
-      setGcAplicada(gc);
-      setGcMsg("");
-    } catch (e) {
-      setGcMsg(e.response?.status === 404 ? "Codigo no encontrado" : "Error al buscar");
-      setGcAplicada(null);
-    }
-  };
-
-  const quitarGiftCard = () => { setGcAplicada(null); setGcCodigo(""); setGcMsg(""); };
-
   const aplicarCupon = async () => {
     if (!cupon) return;
     try {
@@ -481,54 +452,30 @@ function POS({ localId, usuario }) {
 
   const emitirFactura = async () => {
     if (cart.length === 0) return setMensaje("Agrega productos al ticket");
-    if (restoAPagar > 0 && !medioPagoSel) return setMensaje("Selecciona un medio de pago para el resto");
+    if (!medioPagoSel) return setMensaje("Selecciona un medio de pago");
     setLoading(true);
     try {
       const items = cart.map(i => ({ producto_id: i.id, cantidad: i.qty, precio_unitario: i.precio || i.price }));
-      const ahora = Date.now();
-      const duracionSeg = inicioVenta ? Math.round((ahora - inicioVenta) / 1000) : null;
-      // Etiqueta de medio de pago segun gift card
-      let medioNombre;
-      if (gcAplicada && restoAPagar > 0) medioNombre = "Gift Card + " + (medioPagoSel ? medioPagoSel.nombre : "");
-      else if (gcAplicada) medioNombre = "Gift Card";
-      else medioNombre = medioPagoSel ? medioPagoSel.nombre : "";
       const ventaRes = await createVenta({
         cliente_id: clienteSeleccionado?.id || null,
-        tipo_factura: tipoFac, items, canal: modoPrueba ? "prueba" : "presencial",
+        tipo_factura: tipoFac, items, canal: "presencial",
         cupon_codigo: cupon || null, local_id: localId || 1,
-        medio_pago_id: medioPagoSel?.id || null, medio_pago_nombre: medioNombre,
+        medio_pago_id: medioPagoSel.id, medio_pago_nombre: medioPagoSel.nombre,
         total_con_interes: total, es_preventa: preventa,
-        nombre_preventa: preventa ? nombrePreventa : null,
-        usuario_id: usuario?.id || null,
-        inicio_venta: inicioVenta ? new Date(inicioVenta).toISOString() : null,
-        duracion_segundos: duracionSeg,
-        monto_gift_card: gcCredito || 0
+        nombre_preventa: preventa ? nombrePreventa : null
       });
-      // Canjear gift card (descuenta saldo) si se aplico y no es preventa
-      if (gcAplicada && !preventa && gcCredito > 0) {
-        try {
-          await API.post("/gift-cards/" + gcAplicada.id + "/canjear", {
-            importe: gcCredito, venta_id: ventaRes.data.id, usuario_id: usuario?.id || null
-          });
-        } catch (gcErr) {
-          setMensaje("Atencion: la venta se registro pero hubo un error al descontar la gift card");
-        }
-      }
-      if (modoPrueba) {
-        setMensaje("🧪 VENTA DE PRUEBA registrada (sin ARCA) - para Productividad");
-      } else if (!preventa) {
+      if (!preventa) {
         try {
           const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaRes.data.id });
-          setMensaje("✅ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
+          setMensaje("ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
         } catch (arcaErr) {
           setMensaje("Venta registrada pero error en ARCA: " + arcaErr.message);
         }
       } else {
         setMensaje("Preventa registrada para " + nombrePreventa + "!");
       }
-      setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setInicioVenta(null);
+      setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null);
       setClienteSeleccionado(null); setShowNuevoCliente(false);
-      setGcAplicada(null); setGcCodigo(""); setGcMsg("");
       setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("$");
       setTimeout(() => setMensaje(""), 8000);
     } catch (error) { setMensaje("Error al emitir factura"); }
@@ -590,12 +537,6 @@ function POS({ localId, usuario }) {
       <div className="ph">
         <div><div className="pt">Punto de Venta</div><div className="ps">facturacion electronica - arca</div></div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          {usuario?.rol === "jefe" && (
-            <div className="sw-wrap" onClick={() => { setModoPrueba(!modoPrueba); setMensaje(""); }}>
-              <div className={"sw " + (modoPrueba ? "on" : "off")}><div className="sw-dot" /></div>
-              <span style={{ fontSize: 11, color: modoPrueba ? "#c0392b" : "#999999" }}>Modo prueba</span>
-            </div>
-          )}
           <div className="sw-wrap" onClick={() => { setPreventa(!preventa); setMensaje(""); }}>
             <div className={"sw " + (preventa ? "on" : "off")}><div className="sw-dot" /></div>
             <span style={{ fontSize: 11, color: preventa ? "#2471a3" : "#999999" }}>Preventa</span>
@@ -603,11 +544,6 @@ function POS({ localId, usuario }) {
           <StatusDot color="#2d7a4f" label="ARCA" />
         </div>
       </div>
-      {modoPrueba && (
-        <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "10px 16px", marginBottom: 12, fontSize: 12, color: "#c0392b", fontWeight: 600 }}>
-          🧪 MODO PRUEBA ACTIVO — las ventas NO se facturan en ARCA. Desactivalo para vender de verdad.
-        </div>
-      )}
       <div className="tabs">
         <div className="tab on" onClick={() => setTabPos("venta")}>NUEVA VENTA</div>
         <div className={"tab"} onClick={() => { setTabPos("preventas"); cargarPreventas(); }}>
@@ -717,27 +653,7 @@ function POS({ localId, usuario }) {
             }
             {cart.length > 0 && (
               <div style={{ marginTop: 10 }}>
-                <div className="fl">Gift Card (opcional)</div>
-                {gcAplicada ? (
-                  <div style={{ background: "#c9a84c12", border: "1px solid #c9a84c", borderRadius: 6, padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: "#c9a84c" }}>{gcAplicada.codigo}</div>
-                      <div style={{ fontSize: 10, color: "#999999" }}>{gcAplicada.beneficiario_nombre} - saldo ${parseFloat(gcAplicada.saldo).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
-                    </div>
-                    <div onClick={quitarGiftCard} style={{ cursor: "pointer", color: "#cccccc", fontSize: 18 }}>x</div>
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <input className="inp" placeholder="GIFT-XXXX" value={gcCodigo} onChange={e => setGcCodigo(e.target.value.toUpperCase())} style={{ flex: 1 }} />
-                    <button className="btn btn-sm" onClick={aplicarGiftCard}>Aplicar</button>
-                  </div>
-                )}
-                {gcMsg && <div style={{ fontSize: 10, color: "#c0392b", marginTop: 4 }}>{gcMsg}</div>}
-              </div>
-            )}
-            {cart.length > 0 && restoAPagar > 0 && (
-              <div style={{ marginTop: 10 }}>
-                <div className="fl">{gcAplicada ? "Medio de pago (resto $" + restoAPagar.toLocaleString("es-AR", { maximumFractionDigits: 0 }) + ")" : "Medio de pago"}</div>
+                <div className="fl">Medio de pago</div>
                 <select className="sel" value={medioPagoSel?.id || ""} onChange={e => {
                   const m = mediosPago.find(x => x.id === parseInt(e.target.value));
                   setMedioPagoSel(m || null);
@@ -769,18 +685,12 @@ function POS({ localId, usuario }) {
                 <span style={{ fontSize: 11, color: "#c0392b" }}>+${intereses.toLocaleString()}</span>
               </div>
             )}
-            {gcCredito > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span style={{ fontSize: 11, color: "#c9a84c" }}>Gift Card {gcAplicada?.codigo}</span>
-                <span style={{ fontSize: 11, color: "#c9a84c" }}>-${gcCredito.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</span>
-              </div>
-            )}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
               <div style={{ fontSize: 11, color: "#999999", fontWeight: 600 }}>TOTAL</div>
               <div style={{ fontSize: 30, fontWeight: 700, color: "#111111" }}>${total.toLocaleString()}</div>
             </div>
             <button className="btn btn-p" style={{ width: "100%", padding: 13, fontSize: 13, opacity: loading ? 0.7 : 1 }} onClick={emitirFactura} disabled={loading}>
-              {loading ? "Procesando..." : preventa ? "Registrar Preventa" : restoAPagar === 0 && gcAplicada ? "Cobrar con Gift Card - ARCA" : "Emitir Factura " + tipoFac + " - ARCA"}
+              {loading ? "Procesando..." : preventa ? "Registrar Preventa" : "Emitir Factura " + tipoFac + " - ARCA"}
             </button>
           </div>
         </div>
@@ -799,7 +709,7 @@ function Inventario({ localId }) {
   const [proveedores, setProveedores] = useState([]);
   const [nuevo, setNuevo] = useState({
     nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "",
-    stock: "", stock_minimo: "", stock_transito: "", proveedor_id: "", descripcion: ""
+    stock: "", stock_minimo: "", proveedor_id: "", descripcion: ""
   });
 
   const categorias = ["Capilar", "Facial", "Maquillaje", "Accesorio", "Corporal", "Spa", "Perfume"];
@@ -833,11 +743,10 @@ function Inventario({ localId }) {
         costo: parseFloat(nuevo.costo) || 0,
         stock: parseInt(nuevo.stock) || 0,
         stock_minimo: parseInt(nuevo.stock_minimo) || 5,
-        stock_transito: parseInt(nuevo.stock_transito) || 0,
         local_id: 1
       });
       setMensaje("Producto creado!");
-      setNuevo({ nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "", stock: "", stock_minimo: "", stock_transito: "", proveedor_id: "", descripcion: "" });
+      setNuevo({ nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "", stock: "", stock_minimo: "", proveedor_id: "", descripcion: "" });
       setShowForm(false);
       cargar();
       setTimeout(() => setMensaje(""), 3000);
@@ -887,7 +796,6 @@ function Inventario({ localId }) {
               </div>
               <div className="fg"><div className="fl">Stock inicial</div><input className="inp" type="number" placeholder="10" value={nuevo.stock} onChange={e => setNuevo(p => ({ ...p, stock: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Stock minimo (alerta)</div><input className="inp" type="number" placeholder="5" value={nuevo.stock_minimo} onChange={e => setNuevo(p => ({ ...p, stock_minimo: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">Stock en transito (en camino)</div><input className="inp" type="number" placeholder="0" value={nuevo.stock_transito} onChange={e => setNuevo(p => ({ ...p, stock_transito: e.target.value }))} /></div>
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarProducto}>Crear producto</button>
                 <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowForm(false)}>Cancelar</button>
@@ -909,7 +817,7 @@ function Inventario({ localId }) {
             <div style={{ color: "#999999", padding: 20 }}>Cargando inventario...</div>
           ) : (
           <table>
-            <thead><tr><th>Producto</th><th>Marca</th><th>Categoria</th><th>Codigo</th><th>Precio</th><th>Costo</th><th>Stock</th><th>Transito</th><th>Estado</th></tr></thead>
+            <thead><tr><th>Producto</th><th>Marca</th><th>Categoria</th><th>Codigo</th><th>Precio</th><th>Costo</th><th>Stock</th><th>Estado</th></tr></thead>
             <tbody>
               {productos.map(p => {
                 const bajo = (p.stock || 0) <= (p.stock_minimo || 5);
@@ -923,12 +831,11 @@ function Inventario({ localId }) {
                     <td style={{ color: "#c9a84c" }}>${parseFloat(p.price || p.precio || 0).toLocaleString()}</td>
                     <td style={{ fontSize: 11, color: "#999999" }}>{p.cost || p.costo ? "$" + parseFloat(p.cost || p.costo).toLocaleString() : "-"}</td>
                     <td><span className={"badge " + (bajo ? "br" : "bg")}>{p.stock || 0}u</span></td>
-                    <td style={{ fontSize: 11 }}>{p.stock_transito ? <span style={{ color: "#2471a3" }}>{p.stock_transito}u</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
                     <td style={{ fontSize: 10, color: margen ? "#2d7a4f" : "#999999" }}>{margen ? margen + "%" : "-"}</td>
                   </tr>
                 );
               })}
-              {productos.length === 0 && <tr><td colSpan={9} style={{ color: "#999999", textAlign: "center" }}>Sin productos</td></tr>}
+              {productos.length === 0 && <tr><td colSpan={8} style={{ color: "#999999", textAlign: "center" }}>Sin productos</td></tr>}
             </tbody>
           </table>
           )}
@@ -1412,7 +1319,7 @@ function Informes({ localId }) {
         API.get("/ventas?" + params),
         API.get("/productos")
       ]);
-      const ventas = (ventasRes.data || []).filter(v => v.canal !== "prueba" && v.es_preventa !== true);
+      const ventas = ventasRes.data || [];
       const productos = invRes.data || [];
       const totalVentas = ventas.reduce((s, v) => s + parseFloat(v.total || 0), 0);
       const cantVentas = ventas.length;
@@ -1482,7 +1389,7 @@ function Informes({ localId }) {
                           <td style={{ fontSize: 11, color: "#999999" }}>{new Date(v.creado_en || v.fecha).toLocaleDateString("es-AR")}</td>
                           <td style={{ fontSize: 12 }}>{v.cliente_nombre || "Consumidor final"}</td>
                           <td style={{ fontSize: 11 }}>{v.medio_pago || "-"}</td>
-                          <td style={{ fontSize: 11, color: "#999999" }}>{(v.items && v.items.length > 0) ? v.items.reduce((s, it) => s + parseInt(it.cantidad || 0), 0) : "-"}</td>
+                          <td style={{ fontSize: 11, color: "#999999" }}>{v.items_count || "-"}</td>
                           <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${parseFloat(v.total || 0).toLocaleString()}</td>
                         </tr>
                       ))}
@@ -2010,7 +1917,7 @@ function Comisiones({ localId }) {
   };
 
   const nivelColor = datos?.nivel === 2 ? "#c9a84c" : datos?.nivel === 1 ? "#2d7a4f" : "#999999";
-  const nivelEmoji = datos?.nivel === 2 ? "🏆" : datos?.nivel === 1 ? "⭐" : "🎯";
+  const nivelEmoji = datos?.nivel === 2 ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â " : datos?.nivel === 1 ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" : "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â½ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¯";
 
   return (
     <div className="fade">
@@ -2406,9 +2313,7 @@ function Caja({ localId, usuario }) {
   );
 }
 
-function OrdenesIngreso({ localId, usuario }) {
-  const localActual = localId === 2 ? "ush" : "rg";
-  const localNombre = localId === 2 ? "Ushuaia" : "Rio Grande";
+function OrdenesIngreso({ localId }) {
   const [ordenes, setOrdenes] = useState([]);
   const [productos, setProductos] = useState([]);
   const [proveedores, setProveedores] = useState([]);
@@ -2417,469 +2322,195 @@ function OrdenesIngreso({ localId, usuario }) {
   const [ordenDetalle, setOrdenDetalle] = useState(null);
   const [itemsDetalle, setItemsDetalle] = useState([]);
   const [mensaje, setMensaje] = useState("");
-  const [nueva, setNueva] = useState({ proveedor_id: "", numero_factura: "", total: "", notas: "", items: [] });
-  const [itemTemp, setItemTemp] = useState({ producto_id: "", cantidad_rg: "", cantidad_ush: "", costo_unitario: "" });
-  const [conteo, setConteo] = useState({});
-  const [recibidoHist, setRecibidoHist] = useState([]);
-  const [notaItem, setNotaItem] = useState({});
-  const [extra, setExtra] = useState({ producto_id: "", cantidad: "", costo_unitario: "" });
+  const [nueva, setNueva] = useState({ proveedor_id: "", notas: "", items: [] });
+  const [itemTemp, setItemTemp] = useState({ producto_id: "", cantidad_esperada: "", costo_unitario: "" });
 
   const cargar = async () => {
     setLoading(true);
     try {
       const [ordRes, prodRes, provRes] = await Promise.all([
-        API.get("/ordenes-ingreso"),
+        API.get("/ordenes-ingreso?local_id=" + (localId || 1)),
         API.get("/productos"),
         API.get("/proveedores")
       ]);
-      setOrdenes(ordRes.data || []);
-      setProductos(prodRes.data || []);
-      setProveedores(provRes.data || []);
-    } catch (e) {}
-    setLoading(false);
-  };
-
-  useEffect(() => { cargar(); }, []);
-
-  const cargarRecibido = async () => {
-    try {
-      const res = await API.get("/ordenes-ingreso/reporte/recibido");
-      setRecibidoHist(res.data || []);
-    } catch (e) {}
-  };
-
-  const agregarItem = () => {
-    if (!itemTemp.producto_id) return setMensaje("Elegi un producto");
-    const prod = productos.find(p => p.id === parseInt(itemTemp.producto_id));
-    if (!prod) return;
-    const cantRg = parseInt(itemTemp.cantidad_rg) || 0;
-    const cantUsh = parseInt(itemTemp.cantidad_ush) || 0;
-    if (cantRg + cantUsh === 0) return setMensaje("Ingresa cantidad para algun local");
-    setNueva(p => ({
-      ...p,
-      items: [...p.items, {
-        producto_id: prod.id, producto_nombre: prod.nombre,
-        cantidad_rg: cantRg, cantidad_ush: cantUsh,
-        cantidad_total: cantRg + cantUsh,
-        costo_unitario: parseFloat(itemTemp.costo_unitario) || parseFloat(prod.costo) || 0
-      }]
-    }));
-    setItemTemp({ producto_id: "", cantidad_rg: "", cantidad_ush: "", costo_unitario: "" });
-    setMensaje("");
-  };
-
-  const crearOrden = async () => {
-    if (!nueva.proveedor_id) return setMensaje("Elegi un proveedor");
-    if (nueva.items.length === 0) return setMensaje("Agrega al menos un producto");
-    try {
-      const total = nueva.items.reduce((s, it) => s + it.costo_unitario * it.cantidad_total, 0);
-      await API.post("/ordenes-ingreso", { ...nueva, total: nueva.total || total });
-      setMensaje("Orden creada! Stock en transito cargado.");
-      setNueva({ proveedor_id: "", numero_factura: "", total: "", notas: "", items: [] });
-      cargar();
-      setTab("lista");
-    } catch (e) { setMensaje("Error al crear orden: " + (e.response?.data?.error || e.message)); }
-  };
-
-  const verDetalle = async (orden) => {
-    setOrdenDetalle(orden);
-    try {
-      const res = await API.get("/ordenes-ingreso/" + orden.id + "/items");
-      setItemsDetalle(res.data || []);
-      const c = {};
-      (res.data || []).forEach(it => {
-        c[it.id] = localActual === "rg" ? (it.recibido_rg || it.cantidad_rg) : (it.recibido_ush || it.cantidad_ush);
-      });
-      setConteo(c);
-    } catch (e) {}
-    setTab("recibir");
-  };
-
-  const confirmarItem = async (item) => {
-    const cant = parseInt(conteo[item.id]);
-    if (isNaN(cant) || cant < 0) return setMensaje("Cantidad invalida");
-    try {
-      await API.put("/ordenes-ingreso/" + ordenDetalle.id + "/items/" + item.id + "/recibir", {
-        local: localActual, cantidad: cant, nota: notaItem[item.id] || null, usuario_nombre: usuario?.nombre || null
-      });
-      setMensaje("Item confirmado: " + item.producto_nombre);
-      const res = await API.get("/ordenes-ingreso/" + ordenDetalle.id + "/items");
-      setItemsDetalle(res.data || []);
-      setTimeout(() => setMensaje(""), 2500);
-    } catch (e) { setMensaje("Error al confirmar: " + (e.response?.data?.error || e.message)); }
-  };
-
-  const agregarExtra = async () => {
-    if (!extra.producto_id || !extra.cantidad) return setMensaje("Completa producto y cantidad del extra");
-    const prod = productos.find(p => p.id === parseInt(extra.producto_id));
-    try {
-      await API.post("/ordenes-ingreso/" + ordenDetalle.id + "/item-extra", {
-        producto_id: prod.id, producto_nombre: prod.nombre,
-        cantidad: parseInt(extra.cantidad), local: localActual,
-        costo_unitario: parseFloat(extra.costo_unitario) || 0
-      });
-      setMensaje("Item extra agregado!");
-      setExtra({ producto_id: "", cantidad: "", costo_unitario: "" });
-      const res = await API.get("/ordenes-ingreso/" + ordenDetalle.id + "/items");
-      setItemsDetalle(res.data || []);
-    } catch (e) { setMensaje("Error al agregar extra: " + (e.response?.data?.error || e.message)); }
-  };
-
-  const esperadoLocal = (it) => localActual === "rg" ? it.cantidad_rg : it.cantidad_ush;
-  const recibidoLocal = (it) => localActual === "rg" ? it.recibido_rg : it.recibido_ush;
-  const revisadoLocal = (it) => localActual === "rg" ? it.revisado_rg : it.revisado_ush;
-
-  return (
-    <div className="fade">
-      <div className="ph">
-        <div><div className="pt">Ingreso de Mercaderia</div><div className="ps">recepcion en {localNombre}</div></div>
-        <div style={{ display: "flex", gap: 8 }}>
-          {tab !== "lista" && <button className="btn btn-sm" onClick={() => { setTab("lista"); setOrdenDetalle(null); }}>Volver</button>}
-          {usuario?.rol === "jefe" && tab === "lista" && <button className="btn btn-p btn-sm" onClick={() => setTab("nueva")}>Nueva orden</button>}
-        </div>
-      </div>
-
-      {mensaje && (
-        <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>
-      )}
-
-      {(tab === "lista" || tab === "recibido") && (
-        <div className="tabs">
-          <div className={"tab " + (tab === "lista" ? "on" : "")} onClick={() => setTab("lista")}>POR RECIBIR</div>
-          <div className={"tab " + (tab === "recibido" ? "on" : "")} onClick={() => { setTab("recibido"); cargarRecibido(); }}>STOCK RECIBIDO</div>
-        </div>
-      )}
-
-      {tab === "lista" && (
-        <div className="card">
-          {loading ? (<div style={{ textAlign: "center", color: "#999999", fontSize: 12 }}>Cargando...</div>) : ordenes.length === 0 ? (
-            <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 30 }}>No hay ordenes de ingreso</div>
-          ) : (
-            <table>
-              <thead><tr><th>Factura</th><th>Proveedor</th><th>Fecha</th><th>Estado</th><th>Total</th><th></th></tr></thead>
-              <tbody>
-                {ordenes.filter(o => o.estado !== "recibida" && o.estado !== "pagada").map((o, i) => (
-                  <tr key={i}>
-                    <td style={{ fontSize: 12, fontWeight: 600 }}>{o.numero_factura || "-"}</td>
-                    <td style={{ fontSize: 12 }}>{o.proveedor_nombre || "-"}</td>
-                    <td style={{ fontSize: 11, color: "#999999" }}>{o.fecha_factura ? new Date(o.fecha_factura).toLocaleDateString("es-AR") : "-"}</td>
-                    <td><span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c" }}>{o.estado}</span></td>
-                    <td style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>${parseFloat(o.total || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
-                    <td><button className="btn btn-sm" style={{ background: "#2d7a4f", color: "white" }} onClick={() => verDetalle(o)}>Recibir</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-
-      {tab === "recibido" && (
-        <div className="card">
-          {recibidoHist.length === 0 ? (
-            <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 30 }}>Todavia no hay stock recibido registrado</div>
-          ) : (
-            <table>
-              <thead><tr><th>Producto</th><th>Factura</th><th>Proveedor</th><th>Local</th><th>Cantidad</th><th>Fecha</th><th>Recibido por</th></tr></thead>
-              <tbody>
-                {recibidoHist.map((r, i) => {
-                  const filas = [];
-                  if (r.revisado_rg) filas.push({ local: "RG", cant: r.recibido_rg, fecha: r.fecha_recepcion_rg, por: r.recibido_por_rg });
-                  if (r.revisado_ush) filas.push({ local: "USH", cant: r.recibido_ush, fecha: r.fecha_recepcion_ush, por: r.recibido_por_ush });
-                  return filas.map((f, j) => (
-                    <tr key={i + "-" + j}>
-                      <td style={{ fontSize: 12 }}>{r.producto_nombre}{r.es_extra ? <span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c", marginLeft: 6 }}>extra</span> : ""}</td>
-                      <td style={{ fontSize: 11, color: "#999999" }}>{r.numero_factura || "-"}</td>
-                      <td style={{ fontSize: 11 }}>{r.proveedor_nombre || "-"}</td>
-                      <td style={{ fontSize: 11 }}>{f.local}</td>
-                      <td style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>{f.cant}u</td>
-                      <td style={{ fontSize: 11, color: "#999999" }}>{f.fecha ? new Date(f.fecha).toLocaleDateString("es-AR") + " " + new Date(f.fecha).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "-"}</td>
-                      <td style={{ fontSize: 11 }}>{f.por || "-"}</td>
-                    </tr>
-                  ));
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-      {tab === "nueva" && (
-        <div className="g2">
-          <div className="card">
-            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 14 }}>DATOS DE LA ORDEN</div>
-            <div className="fg"><div className="fl">Proveedor</div>
-              <select className="sel" value={nueva.proveedor_id} onChange={e => setNueva(p => ({ ...p, proveedor_id: e.target.value }))}>
-                <option value="">Seleccionar...</option>
-                {proveedores.map(pr => (<option key={pr.id} value={pr.id}>{pr.nombre}</option>))}
-              </select>
-            </div>
-            <div className="fg"><div className="fl">Numero de factura</div><input className="inp" value={nueva.numero_factura} onChange={e => setNueva(p => ({ ...p, numero_factura: e.target.value }))} /></div>
-            <div className="fg"><div className="fl">Total factura ($)</div><input className="inp" type="number" value={nueva.total} onChange={e => setNueva(p => ({ ...p, total: e.target.value }))} /></div>
-            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", margin: "16px 0 10px" }}>AGREGAR PRODUCTO (dividi por local)</div>
-            <div className="fg"><div className="fl">Producto</div>
-              <select className="sel" value={itemTemp.producto_id} onChange={e => setItemTemp(p => ({ ...p, producto_id: e.target.value }))}>
-                <option value="">Seleccionar...</option>
-                {productos.map(pr => (<option key={pr.id} value={pr.id}>{pr.nombre}</option>))}
-              </select>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <div className="fg" style={{ flex: 1 }}><div className="fl">Cant. RG</div><input className="inp" type="number" value={itemTemp.cantidad_rg} onChange={e => setItemTemp(p => ({ ...p, cantidad_rg: e.target.value }))} /></div>
-              <div className="fg" style={{ flex: 1 }}><div className="fl">Cant. USH</div><input className="inp" type="number" value={itemTemp.cantidad_ush} onChange={e => setItemTemp(p => ({ ...p, cantidad_ush: e.target.value }))} /></div>
-              <div className="fg" style={{ flex: 1 }}><div className="fl">Costo unit.</div><input className="inp" type="number" value={itemTemp.costo_unitario} onChange={e => setItemTemp(p => ({ ...p, costo_unitario: e.target.value }))} /></div>
-            </div>
-            <button className="btn btn-sm" style={{ width: "100%" }} onClick={agregarItem}>+ Agregar a la orden</button>
-          </div>
-          <div className="card">
-            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 14 }}>PRODUCTOS EN LA ORDEN ({nueva.items.length})</div>
-            {nueva.items.length === 0 ? (<div style={{ fontSize: 12, color: "#999999" }}>Todavia no agregaste productos</div>) : (
-              <table>
-                <thead><tr><th>Producto</th><th>RG</th><th>USH</th><th>Costo</th></tr></thead>
-                <tbody>
-                  {nueva.items.map((it, i) => (
-                    <tr key={i}>
-                      <td style={{ fontSize: 11 }}>{it.producto_nombre}</td>
-                      <td style={{ fontSize: 11 }}>{it.cantidad_rg}</td>
-                      <td style={{ fontSize: 11 }}>{it.cantidad_ush}</td>
-                      <td style={{ fontSize: 11 }}>${it.costo_unitario}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-            <button className="btn btn-p" style={{ width: "100%", marginTop: 14 }} onClick={crearOrden}>Crear orden y cargar transito</button>
-          </div>
-        </div>
-      )}
-
-      {tab === "recibir" && ordenDetalle && (
-        <div>
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 4 }}>RECIBIENDO EN {localNombre.toUpperCase()}</div>
-            <div style={{ fontSize: 13, color: "#444444" }}>Factura {ordenDetalle.numero_factura || "-"} - {ordenDetalle.proveedor_nombre || ""}</div>
-            <div style={{ fontSize: 11, color: "#999999", marginTop: 4 }}>Conta la mercaderia fisica y confirma cada item. Si la cantidad no coincide, dejala como llego y agrega una nota.</div>
-            {(() => {
-              const delLocal = itemsDetalle.filter(it => esperadoLocal(it) > 0 || it.es_extra);
-              const recibidos = delLocal.filter(it => revisadoLocal(it)).length;
-              const completo = delLocal.length > 0 && recibidos === delLocal.length;
-              return (
-                <div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 6, background: completo ? "#2d7a4f12" : "#c9a84c12", border: "1px solid " + (completo ? "#2d7a4f" : "#c9a84c"), fontSize: 12, color: completo ? "#2d7a4f" : "#c9a84c", fontWeight: 600 }}>
-                  {completo ? "✓ Recepcion completa: " : "Progreso: "}{recibidos} de {delLocal.length} items recibidos
-                </div>
-              );
-            })()}
-          </div>
-          <div className="card" style={{ marginBottom: 16 }}>
-            <table>
-              <thead><tr><th>Producto</th><th>Esperado</th><th>Contado</th><th>Nota (si hay diferencia)</th><th>Estado</th><th></th></tr></thead>
-              <tbody>
-                {itemsDetalle.filter(it => esperadoLocal(it) > 0 || it.es_extra).map((it, i) => {
-                  const esp = esperadoLocal(it);
-                  const cont = conteo[it.id];
-                  const dif = cont !== undefined && cont !== "" ? parseInt(cont) - esp : 0;
-                  return (
-                    <tr key={i} style={{ background: revisadoLocal(it) ? "#2d7a4f08" : "transparent" }}>
-                      <td style={{ fontSize: 12 }}>{it.producto_nombre}{it.es_extra ? <span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c", marginLeft: 6 }}>extra</span> : ""}</td>
-                      <td style={{ fontSize: 12, color: "#999999" }}>{esp}</td>
-                      <td><input className="inp" type="number" style={{ width: 70, padding: "4px 8px" }} value={conteo[it.id] ?? ""} onChange={e => setConteo(c => ({ ...c, [it.id]: e.target.value }))} /></td>
-                      <td>
-                        {dif !== 0 && !it.es_extra ? (
-                          <input className="inp" placeholder={dif > 0 ? "llegaron " + dif + " de mas" : "faltan " + Math.abs(dif)} style={{ padding: "4px 8px", fontSize: 11 }} value={notaItem[it.id] || ""} onChange={e => setNotaItem(n => ({ ...n, [it.id]: e.target.value }))} />
-                        ) : (<span style={{ fontSize: 11, color: "#999999" }}>{revisadoLocal(it) ? "ok" : "-"}</span>)}
-                      </td>
-                      <td>{revisadoLocal(it) ? <span style={{ fontSize: 11, color: "#2d7a4f", fontWeight: 600 }}>✓ Recibido ({recibidoLocal(it)})</span> : <span style={{ fontSize: 11, color: "#c9a84c" }}>Pendiente</span>}</td>
-                      <td><button className="btn btn-sm" onClick={() => confirmarItem(it)}>{revisadoLocal(it) ? "Recontar" : "Confirmar"}</button></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div className="card">
-            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>AGREGAR ITEM EXTRA (regalo del proveedor, no estaba en la orden)</div>
-            <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-              <div className="fg" style={{ flex: 2, marginBottom: 0 }}><div className="fl">Producto</div>
-                <select className="sel" value={extra.producto_id} onChange={e => setExtra(p => ({ ...p, producto_id: e.target.value }))}>
-                  <option value="">Seleccionar...</option>
-                  {productos.map(pr => (<option key={pr.id} value={pr.id}>{pr.nombre}</option>))}
-                </select>
-              </div>
-              <div className="fg" style={{ flex: 1, marginBottom: 0 }}><div className="fl">Cantidad</div><input className="inp" type="number" value={extra.cantidad} onChange={e => setExtra(p => ({ ...p, cantidad: e.target.value }))} /></div>
-              <button className="btn btn-sm" onClick={agregarExtra}>+ Agregar</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// REPORTE INCONSISTENCIAS
-function Inconsistencias() {
-  const [datos, setDatos] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    API.get("/ordenes-ingreso/reporte/inconsistencias")
-      .then(res => { setDatos(res.data || []); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, []);
-
-  const dif = (recibido, esperado) => (parseInt(recibido) || 0) - (parseInt(esperado) || 0);
-
-  return (
-    <div className="fade">
-      <div className="ph">
-        <div><div className="pt">Inconsistencias de Recepcion</div><div className="ps">diferencias para reclamar a proveedores</div></div>
-      </div>
-      <div className="card">
-        {loading ? (<div style={{ textAlign: "center", color: "#999999", fontSize: 12 }}>Cargando...</div>) : datos.length === 0 ? (
-          <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 30 }}>No hay inconsistencias registradas. Todo llego correcto!</div>
-        ) : (
-          <table>
-            <thead><tr><th>Factura</th><th>Proveedor</th><th>Producto</th><th>Local</th><th>Esperado</th><th>Recibido</th><th>Diferencia</th><th>Nota</th></tr></thead>
-            <tbody>
-              {datos.map((d, i) => {
-                const filas = [];
-                if (d.revisado_rg && d.recibido_rg !== d.cantidad_rg) filas.push({ local: "RG", esp: d.cantidad_rg, rec: d.recibido_rg });
-                if (d.revisado_ush && d.recibido_ush !== d.cantidad_ush) filas.push({ local: "USH", esp: d.cantidad_ush, rec: d.recibido_ush });
-                if (d.es_extra) filas.push({ local: d.cantidad_rg > 0 ? "RG" : "USH", esp: 0, rec: d.cantidad_rg + d.cantidad_ush, extra: true });
-                if (filas.length === 0 && d.nota_inconsistencia) filas.push({ local: "-", esp: "-", rec: "-" });
-                return filas.map((f, j) => (
-                  <tr key={i + "-" + j}>
-                    <td style={{ fontSize: 11 }}>{d.numero_factura || "-"}</td>
-                    <td style={{ fontSize: 11 }}>{d.proveedor_nombre || "-"}</td>
-                    <td style={{ fontSize: 12 }}>{d.producto_nombre}{f.extra ? <span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c", marginLeft: 6 }}>extra/regalo</span> : ""}</td>
-                    <td style={{ fontSize: 11 }}>{f.local}</td>
-                    <td style={{ fontSize: 12, color: "#999999" }}>{f.esp}</td>
-                    <td style={{ fontSize: 12 }}>{f.rec}</td>
-                    <td>{f.extra ? <span style={{ color: "#c9a84c", fontSize: 12 }}>+{f.rec} regalo</span> : (typeof f.esp === "number" ? (() => { const v = dif(f.rec, f.esp); return <span style={{ color: v < 0 ? "#c0392b" : "#2d7a4f", fontWeight: 600, fontSize: 12 }}>{v > 0 ? "+" : ""}{v}</span>; })() : "-")}</td>
-                    <td style={{ fontSize: 11, color: "#666666" }}>{d.nota_inconsistencia || "-"}</td>
-                  </tr>
-                ));
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// GIFT CARDS
-function GiftCards({ localId, usuario }) {
-  const [tab, setTab] = useState("emitir");
-  const [giftcards, setGiftcards] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [mensaje, setMensaje] = useState("");
-  const [nueva, setNueva] = useState({ monto: "", beneficiario_nombre: "", beneficiario_telefono: "", beneficiario_dni: "", comprador_nombre: "" });
-  const [ultima, setUltima] = useState(null);
-
-  const cargar = async () => {
-    setLoading(true);
-    try {
-      const res = await API.get("/gift-cards?local_id=" + (localId || 1));
-      setGiftcards(res.data || []);
+      setOrdenes(ordRes.data);
+      setProductos(prodRes.data);
+      setProveedores(provRes.data);
     } catch (e) {}
     setLoading(false);
   };
 
   useEffect(() => { cargar(); }, [localId]);
 
-  const emitir = async () => {
-    if (!nueva.monto || parseFloat(nueva.monto) <= 0) return setMensaje("Ingresa un monto valido");
-    if (!nueva.beneficiario_nombre) return setMensaje("Ingresa el nombre de quien recibe el regalo");
-    try {
-      const res = await API.post("/gift-cards", {
-        monto: parseFloat(nueva.monto),
-        beneficiario_nombre: nueva.beneficiario_nombre,
-        beneficiario_telefono: nueva.beneficiario_telefono || null,
-        beneficiario_dni: nueva.beneficiario_dni || null,
-        comprador_nombre: nueva.comprador_nombre || null,
-        local_id: localId || 1,
-        emitida_por: usuario?.id || null
-      });
-      setUltima(res.data);
-      setMensaje("Gift card emitida! Codigo: " + res.data.codigo);
-      setNueva({ monto: "", beneficiario_nombre: "", beneficiario_telefono: "", beneficiario_dni: "", comprador_nombre: "" });
-      cargar();
-      setTimeout(() => setMensaje(""), 6000);
-    } catch (e) {
-      setMensaje("Error al emitir: " + (e.response?.data?.error || e.message));
-    }
+  const agregarItem = () => {
+    if (!itemTemp.producto_id || !itemTemp.cantidad_esperada) return;
+    const prod = productos.find(p => p.id === parseInt(itemTemp.producto_id));
+    setNueva(n => ({ ...n, items: [...n.items, { ...itemTemp, producto_nombre: prod?.nombre || "" }] }));
+    setItemTemp({ producto_id: "", cantidad_esperada: "", costo_unitario: "" });
   };
 
-  const estadoColor = { activa: "#2d7a4f", agotada: "#999999", anulada: "#c0392b" };
-  const totalActivas = giftcards.filter(g => g.estado === "activa").reduce((s, g) => s + parseFloat(g.saldo || 0), 0);
+  const crearOrden = async () => {
+    if (!nueva.proveedor_id || nueva.items.length === 0) return setMensaje("Selecciona proveedor y al menos un producto");
+    try {
+      await API.post("/ordenes-ingreso", { ...nueva, local_id: localId || 1 });
+      setMensaje("Orden creada!");
+      setNueva({ proveedor_id: "", notas: "", items: [] });
+      setTab("lista");
+      cargar();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al crear orden"); }
+  };
+
+  const verDetalle = async (orden) => {
+    setOrdenDetalle(orden);
+    const res = await API.get("/ordenes-ingreso/" + orden.id + "/items");
+    setItemsDetalle(res.data.map(i => ({ ...i, cantidad_recibida: i.cantidad_recibida || 0 })));
+    setTab("recibir");
+  };
+
+  const recibirMercaderia = async () => {
+    try {
+      await API.put("/ordenes-ingreso/" + ordenDetalle.id + "/recibir", { items: itemsDetalle });
+      setMensaje("Mercaderia recibida! Stock actualizado.");
+      setTab("lista");
+      setOrdenDetalle(null);
+      cargar();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al recibir"); }
+  };
 
   return (
     <div className="fade">
       <div className="ph">
-        <div><div className="pt">Gift Cards</div><div className="ps">vouchers de regalo</div></div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>SALDO ACTIVO TOTAL</div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: "#c9a84c" }}>${totalActivas.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
-        </div>
+        <div><div className="pt">Ordenes de Ingreso</div><div className="ps">recepcion de mercaderia por local</div></div>
+        <button className="btn btn-p btn-sm" onClick={() => setTab("nueva")}>+ Nueva orden</button>
       </div>
-
       {mensaje && (
         <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>
           {mensaje}
         </div>
       )}
-
       <div className="tabs">
-        <div className={"tab " + (tab === "emitir" ? "on" : "")} onClick={() => setTab("emitir")}>EMITIR</div>
-        <div className={"tab " + (tab === "listado" ? "on" : "")} onClick={() => { setTab("listado"); cargar(); }}>LISTADO {giftcards.length > 0 && <span style={{ background: "#c9a84c", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{giftcards.length}</span>}</div>
+        {["lista", "nueva"].map(t => (
+          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => setTab(t)}>
+            {t === "lista" ? "ORDENES" : t === "nueva" ? "NUEVA ORDEN" : "RECIBIR"}
+          </div>
+        ))}
+        {tab === "recibir" && <div className="tab on">RECIBIR MERCADERIA</div>}
       </div>
-
-      {tab === "emitir" ? (
-        <div className="g2">
+      {tab === "lista" && (
+        <div className="fade">
+          {loading ? (
+            <div style={{ color: "#999999", padding: 20 }}>Cargando...</div>
+          ) : ordenes.length === 0 ? (
+            <div className="card" style={{ textAlign: "center", color: "#999999", padding: 30 }}>Sin ordenes de ingreso</div>
+          ) : (
+            <div className="card">
+              <table>
+                <thead><tr><th>ID</th><th>Proveedor</th><th>Estado</th><th>Fecha</th><th></th></tr></thead>
+                <tbody>
+                  {ordenes.map(o => (
+                    <tr key={o.id}>
+                      <td style={{ color: "#999999", fontSize: 11 }}>#{o.id}</td>
+                      <td>{o.proveedor_nombre || "Sin proveedor"}</td>
+                      <td><span className={"badge " + (o.estado === "recibida" ? "bg" : "ba")}>{o.estado}</span></td>
+                      <td style={{ fontSize: 11, color: "#999999" }}>{new Date(o.creado_en).toLocaleDateString("es-AR")}</td>
+                      <td>
+                        {o.estado === "pendiente" && (
+                          <button className="btn btn-p btn-sm" onClick={() => verDetalle(o)}>Recibir</button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+      {tab === "nueva" && (
+        <div className="g2 fade">
           <div className="card">
-            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 14 }}>NUEVA GIFT CARD</div>
-            <div className="fg"><div className="fl">Monto del regalo ($)</div><input className="inp" type="number" placeholder="200000" value={nueva.monto} onChange={e => setNueva(p => ({ ...p, monto: e.target.value }))} /></div>
-            <div className="fg"><div className="fl">Nombre de quien recibe *</div><input className="inp" placeholder="Ej: Maria Lopez" value={nueva.beneficiario_nombre} onChange={e => setNueva(p => ({ ...p, beneficiario_nombre: e.target.value }))} /></div>
-            <div className="fg"><div className="fl">Telefono (opcional)</div><input className="inp" placeholder="Ej: 2901-555555" value={nueva.beneficiario_telefono} onChange={e => setNueva(p => ({ ...p, beneficiario_telefono: e.target.value }))} /></div>
-            <div className="fg"><div className="fl">DNI (opcional)</div><input className="inp" placeholder="Si lo saben" value={nueva.beneficiario_dni} onChange={e => setNueva(p => ({ ...p, beneficiario_dni: e.target.value }))} /></div>
-            <div className="fg"><div className="fl">Quien lo regala (opcional)</div><input className="inp" placeholder="Nombre del comprador" value={nueva.comprador_nombre} onChange={e => setNueva(p => ({ ...p, comprador_nombre: e.target.value }))} /></div>
-            <button className="btn btn-g" style={{ width: "100%", marginTop: 8 }} onClick={emitir}>Emitir Gift Card</button>
+            <div className="ct">Datos de la orden</div>
+            <div className="fg"><div className="fl">Proveedor</div>
+              <select className="sel" value={nueva.proveedor_id} onChange={e => setNueva(n => ({ ...n, proveedor_id: e.target.value }))}>
+                <option value="">Seleccionar proveedor...</option>
+                {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+              </select>
+            </div>
+            <div className="fg"><div className="fl">Notas</div>
+              <input className="inp" placeholder="Observaciones..." value={nueva.notas} onChange={e => setNueva(n => ({ ...n, notas: e.target.value }))} />
+            </div>
+            <div className="divider" />
+            <div className="ct">Agregar productos</div>
+            <div className="fg"><div className="fl">Producto</div>
+              <select className="sel" value={itemTemp.producto_id} onChange={e => setItemTemp(p => ({ ...p, producto_id: e.target.value }))}>
+                <option value="">Seleccionar...</option>
+                {productos.map(p => <option key={p.id} value={p.id}>{p.nombre} {p.marca ? "- " + p.marca : ""}</option>)}
+              </select>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <div className="fg" style={{ flex: 1 }}><div className="fl">Cantidad</div>
+                <input className="inp" type="number" placeholder="10" value={itemTemp.cantidad_esperada} onChange={e => setItemTemp(p => ({ ...p, cantidad_esperada: e.target.value }))} />
+              </div>
+              <div className="fg" style={{ flex: 1 }}><div className="fl">Costo unit. ($)</div>
+                <input className="inp" type="number" placeholder="1500" value={itemTemp.costo_unitario} onChange={e => setItemTemp(p => ({ ...p, costo_unitario: e.target.value }))} />
+              </div>
+            </div>
+            <button className="btn btn-g btn-sm" style={{ width: "100%", marginBottom: 12 }} onClick={agregarItem}>+ Agregar producto</button>
+            <button className="btn btn-p" style={{ width: "100%" }} onClick={crearOrden}>Crear orden</button>
           </div>
           <div className="card">
-            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 14 }}>ULTIMA EMITIDA</div>
-            {ultima ? (
-              <div style={{ textAlign: "center", padding: "20px 0" }}>
-                <div style={{ fontSize: 11, color: "#999999" }}>CODIGO</div>
-                <div style={{ fontSize: 32, fontWeight: 700, color: "#c9a84c", letterSpacing: ".05em" }}>{ultima.codigo}</div>
-                <div style={{ fontSize: 22, fontWeight: 600, color: "#2d7a4f", marginTop: 8 }}>${parseFloat(ultima.monto_inicial).toLocaleString("es-AR")}</div>
-                <div style={{ fontSize: 13, color: "#444444", marginTop: 6 }}>Para: {ultima.beneficiario_nombre}</div>
-                <div style={{ fontSize: 11, color: "#999999", marginTop: 14, lineHeight: 1.5 }}>Anota este codigo y entregaselo a quien recibe el regalo. Lo va a usar al comprar.</div>
-              </div>
+            <div className="ct">Productos en esta orden ({nueva.items.length})</div>
+            {nueva.items.length === 0 ? (
+              <div style={{ color: "#999999", fontSize: 12, textAlign: "center", padding: 20 }}>Sin productos agregados</div>
             ) : (
-              <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: "40px 0" }}>La gift card emitida aparecera aca con su codigo</div>
+              <table>
+                <thead><tr><th>Producto</th><th>Cant.</th><th>Costo</th></tr></thead>
+                <tbody>
+                  {nueva.items.map((item, i) => (
+                    <tr key={i}>
+                      <td style={{ fontSize: 12 }}>{item.producto_nombre}</td>
+                      <td>{item.cantidad_esperada}</td>
+                      <td>{item.costo_unitario ? "$" + item.costo_unitario : "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
         </div>
-      ) : (
-        <div className="card">
-          {loading ? (
-            <div style={{ textAlign: "center", color: "#999999", fontSize: 12 }}>Cargando...</div>
-          ) : giftcards.length === 0 ? (
-            <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 30 }}>No hay gift cards emitidas</div>
-          ) : (
-            <table>
-              <thead><tr><th>Codigo</th><th>Beneficiario</th><th>Monto</th><th>Saldo</th><th>Estado</th></tr></thead>
-              <tbody>
-                {giftcards.map((g, i) => (
-                  <tr key={i}>
-                    <td style={{ fontSize: 12, fontWeight: 600, color: "#c9a84c" }}>{g.codigo}</td>
-                    <td style={{ fontSize: 12 }}>{g.beneficiario_nombre}{g.beneficiario_telefono ? " - " + g.beneficiario_telefono : ""}</td>
-                    <td style={{ fontSize: 12, color: "#999999" }}>${parseFloat(g.monto_inicial).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
-                    <td style={{ fontWeight: 600, color: "#2d7a4f" }}>${parseFloat(g.saldo).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
-                    <td><span className="badge" style={{ background: (estadoColor[g.estado] || "#999999") + "15", color: estadoColor[g.estado] || "#999999" }}>{g.estado}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+      )}
+      {tab === "recibir" && ordenDetalle && (
+        <div className="card fade">
+          <div className="ct">Recibir mercaderia - Orden #{ordenDetalle.id}</div>
+          <div style={{ fontSize: 12, color: "#999999", marginBottom: 16 }}>
+            Proveedor: {ordenDetalle.proveedor_nombre} | Fecha: {new Date(ordenDetalle.creado_en).toLocaleDateString("es-AR")}
+          </div>
+          <table>
+            <thead><tr><th>Producto</th><th>Esperado</th><th>Recibido</th></tr></thead>
+            <tbody>
+              {itemsDetalle.map((item, i) => (
+                <tr key={i}>
+                  <td>{item.producto_nombre}</td>
+                  <td style={{ color: "#c9a84c" }}>{item.cantidad_esperada}</td>
+                  <td>
+                    <input className="inp" type="number" style={{ width: 70, padding: "4px 8px" }}
+                      value={item.cantidad_recibida}
+                      onChange={e => {
+                        const updated = [...itemsDetalle];
+                        updated[i].cantidad_recibida = parseInt(e.target.value) || 0;
+                        setItemsDetalle(updated);
+                      }} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+            <button className="btn btn-g" style={{ flex: 1 }} onClick={() => { setTab("lista"); setOrdenDetalle(null); }}>Cancelar</button>
+            <button className="btn btn-p" style={{ flex: 2 }} onClick={recibirMercaderia}>Confirmar recepcion y actualizar stock</button>
+          </div>
         </div>
       )}
     </div>
@@ -3085,803 +2716,15 @@ function Kits() {
   );
 }
 
-
-// COMPROBANTES
-function Comprobantes({ localId }) {
-  const hoy = new Date();
-  const fmtFecha = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-  const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-  const [desde, setDesde] = useState(fmtFecha(primerDiaMes));
-  const [hasta, setHasta] = useState(fmtFecha(hoy));
-  const [comprobantes, setComprobantes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [expandido, setExpandido] = useState(null);
-
-  const cargar = async () => {
-    setLoading(true);
-    try {
-      const anio = parseInt(desde.slice(0, 4));
-      const mesD = parseInt(desde.slice(5, 7));
-      const mesH = parseInt(hasta.slice(5, 7));
-      const anioH = parseInt(hasta.slice(0, 4));
-      // Traer los meses del rango (simple: si es el mismo mes, una sola query; sino varias)
-      const meses = [];
-      let m = mesD, a = anio;
-      while (a < anioH || (a === anioH && m <= mesH)) {
-        meses.push({ m, a });
-        m++;
-        if (m > 12) { m = 1; a++; }
-        if (meses.length > 24) break;
-      }
-      const proms = meses.map(({ m, a }) => API.get("/ventas?mes=" + m + "&anio=" + a + "&local_id=" + (localId || 1)));
-      const results = await Promise.all(proms);
-      let todas = [];
-      results.forEach(r => { todas = todas.concat(r.data || []); });
-      // Solo ventas facturadas (con CAE), no preventas ni prueba, dentro del rango exacto
-      const filtradas = todas.filter(v => {
-        if (!v.cae || v.es_preventa === true || v.canal === "prueba") return false;
-        const f = fmtFecha(new Date(v.creado_en || v.fecha));
-        return f >= desde && f <= hasta;
-      });
-      filtradas.sort((a, b) => new Date(b.creado_en || b.fecha) - new Date(a.creado_en || a.fecha));
-      setComprobantes(filtradas);
-    } catch (e) {}
-    setLoading(false);
-  };
-
-  useEffect(() => { cargar(); }, [desde, hasta, localId]);
-
-  const fmtNro = (v) => {
-    const pv = v.punto_venta || 5;
-    const nro = v.nro_comprobante;
-    if (!nro) return v.numero_factura || "-";
-    return String(pv).padStart(4, "0") + "-" + String(nro).padStart(8, "0");
-  };
-
-  const totalPeriodo = comprobantes.reduce((s, v) => s + parseFloat(v.total || 0), 0);
-
-  return (
-    <div className="fade">
-      <div className="ph">
-        <div><div className="pt">Comprobantes</div><div className="ps">facturas emitidas - ARCA</div></div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <div>
-            <div style={{ fontSize: 9, color: "#999999" }}>Desde</div>
-            <input className="inp" type="date" style={{ width: 140, padding: "6px 8px", fontSize: 12 }} value={desde} onChange={e => setDesde(e.target.value)} />
-          </div>
-          <div>
-            <div style={{ fontSize: 9, color: "#999999" }}>Hasta</div>
-            <input className="inp" type="date" style={{ width: 140, padding: "6px 8px", fontSize: 12 }} value={hasta} onChange={e => setHasta(e.target.value)} />
-          </div>
-        </div>
-      </div>
-
-      <div className="g3" style={{ marginBottom: 16 }}>
-        <div className="card" style={{ borderTop: "3px solid #c9a84c" }}>
-          <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>COMPROBANTES</div>
-          <div style={{ fontSize: 26, fontWeight: 700, color: "#222222" }}>{comprobantes.length}</div>
-        </div>
-        <div className="card" style={{ borderTop: "3px solid #2d7a4f" }}>
-          <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>TOTAL FACTURADO</div>
-          <div style={{ fontSize: 26, fontWeight: 700, color: "#2d7a4f" }}>${totalPeriodo.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
-        </div>
-        <div className="card" style={{ borderTop: "3px solid #2471a3" }}>
-          <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>PERIODO</div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#222222", marginTop: 6 }}>{desde.split("-").reverse().join("/")} al {hasta.split("-").reverse().join("/")}</div>
-        </div>
-      </div>
-
-      <div className="card">
-        {loading ? (
-          <div style={{ textAlign: "center", color: "#999999", fontSize: 12 }}>Cargando comprobantes...</div>
-        ) : comprobantes.length === 0 ? (
-          <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 30 }}>No hay comprobantes emitidos en este periodo</div>
-        ) : (
-          <table>
-            <thead><tr><th>Comprobante</th><th>Fecha</th><th>Cliente</th><th>Tipo</th><th>CAE</th><th>Total</th><th></th></tr></thead>
-            <tbody>
-              {comprobantes.map((v, i) => (
-                <Fragment key={i}>
-                  <tr>
-                    <td style={{ fontSize: 12, fontWeight: 600, color: "#c9a84c" }}>{fmtNro(v)}</td>
-                    <td style={{ fontSize: 11, color: "#999999" }}>{new Date(v.creado_en || v.fecha).toLocaleDateString("es-AR")}</td>
-                    <td style={{ fontSize: 12 }}>{v.cliente_nombre || "Consumidor final"}</td>
-                    <td style={{ fontSize: 11 }}>{v.tipo_factura || "B"}</td>
-                    <td style={{ fontSize: 11, color: "#999999" }}>{v.cae || "-"}</td>
-                    <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${parseFloat(v.total || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
-                    <td><span style={{ cursor: "pointer", color: "#2471a3", fontSize: 11 }} onClick={() => setExpandido(expandido === i ? null : i)}>{expandido === i ? "Ocultar" : "Ver"}</span></td>
-                  </tr>
-                  {expandido === i && (
-                    <tr>
-                      <td colSpan="7" style={{ background: "#fafafa", padding: "10px 14px" }}>
-                        <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em", marginBottom: 6 }}>DETALLE</div>
-                        {(v.items || []).length === 0 ? (
-                          <div style={{ fontSize: 11, color: "#999999" }}>Sin detalle de productos</div>
-                        ) : (
-                          <table>
-                            <thead><tr><th>Producto</th><th>Cant</th><th>Precio</th><th>Subtotal</th></tr></thead>
-                            <tbody>
-                              {v.items.map((it, j) => (
-                                <tr key={j}>
-                                  <td style={{ fontSize: 11 }}>{it.nombre}{it.marca ? " - " + it.marca : ""}</td>
-                                  <td style={{ fontSize: 11, color: "#999999" }}>{it.cantidad}</td>
-                                  <td style={{ fontSize: 11 }}>${parseFloat(it.precio_unitario || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
-                                  <td style={{ fontSize: 11, fontWeight: 600 }}>${(parseFloat(it.precio_unitario || 0) * parseInt(it.cantidad || 0)).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        )}
-                        <div style={{ fontSize: 10, color: "#999999", marginTop: 8 }}>
-                          Medio de pago: {v.medio_pago || "-"}{v.cae_vto ? " | CAE vto: " + v.cae_vto : ""}
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// CIERRE DE CAJA
-function CierreCaja({ localId }) {
-  const hoy = new Date();
-  const fmtFecha = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-  const [fecha, setFecha] = useState(fmtFecha(hoy));
-  const [ventasDia, setVentasDia] = useState([]);
-  const [movsDia, setMovsDia] = useState([]);
-  const [giftCardsDia, setGiftCardsDia] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const cargar = async () => {
-    setLoading(true);
-    try {
-      const anio = parseInt(fecha.slice(0, 4));
-      const mes = parseInt(fecha.slice(5, 7));
-      const [ventasRes, movRes, gcRes] = await Promise.all([
-        API.get("/ventas?mes=" + mes + "&anio=" + anio + "&local_id=" + (localId || 1)),
-        API.get("/caja?local_id=" + (localId || 1)),
-        API.get("/gift-cards?local_id=" + (localId || 1))
-      ]);
-      const esMismoDia = (f) => {
-        if (!f) return false;
-        const d = new Date(f);
-        return fmtFecha(d) === fecha;
-      };
-      const ventas = (ventasRes.data || []).filter(v => esMismoDia(v.creado_en || v.fecha) && v.es_preventa !== true && v.canal !== "prueba");
-      const movs = (movRes.data || []).filter(m => esMismoDia(m.creado_en || m.fecha));
-      const gcs = (gcRes.data || []).filter(g => esMismoDia(g.creado_en));
-      setVentasDia(ventas);
-      setMovsDia(movs);
-      setGiftCardsDia(gcs);
-    } catch (e) {}
-    setLoading(false);
-  };
-
-  useEffect(() => { cargar(); }, [fecha, localId]);
-
-  const porMedio = {};
-  ventasDia.forEach(v => {
-    const m = v.medio_pago || "Efectivo";
-    if (!porMedio[m]) porMedio[m] = { cantidad: 0, total: 0 };
-    porMedio[m].cantidad += 1;
-    // Descontar la parte pagada con gift card (esa plata entró al emitir, no hoy salvo que se emita hoy)
-    porMedio[m].total += parseFloat(v.total || 0) - parseFloat(v.monto_gift_card || 0);
-  });
-  const mediosOrdenados = Object.entries(porMedio).sort((a, b) => b[1].total - a[1].total);
-  const totalVentasNeto = ventasDia.reduce((s, v) => s + parseFloat(v.total || 0) - parseFloat(v.monto_gift_card || 0), 0);
-  const totalGiftCardsEmitidas = giftCardsDia.reduce((s, g) => s + parseFloat(g.monto_inicial || 0), 0);
-  const totalDia = totalVentasNeto + totalGiftCardsEmitidas;
-
-  const ventasEfectivo = ventasDia.filter(v => (v.medio_pago || "Efectivo").toLowerCase().includes("efectivo")).reduce((s, v) => s + parseFloat(v.total || 0) - parseFloat(v.monto_gift_card || 0), 0);
-  const ingresosManuales = movsDia.filter(m => m.tipo === "ingreso").reduce((s, m) => s + parseFloat(m.importe || 0), 0);
-  const egresosDia = movsDia.filter(m => m.tipo === "egreso").reduce((s, m) => s + parseFloat(m.importe || 0), 0);
-  const efectivoEsperado = ventasEfectivo + ingresosManuales - egresosDia;
-
-  return (
-    <div className="fade">
-      <div className="ph">
-        <div><div className="pt">Cierre de Caja</div><div className="ps">resumen del dia por medio de pago</div></div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <input className="inp" type="date" style={{ width: 160, padding: "6px 10px", fontSize: 12 }} value={fecha} onChange={e => setFecha(e.target.value)} />
-        </div>
-      </div>
-
-      <div className="g2" style={{ marginBottom: 16 }}>
-        <div className="card" style={{ borderTop: "3px solid #c9a84c" }}>
-          <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>TOTAL DEL DIA</div>
-          <div style={{ fontSize: 30, fontWeight: 700, color: "#2d7a4f" }}>${totalDia.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
-          <div style={{ fontSize: 11, color: "#999999" }}>{ventasDia.length} ventas{totalGiftCardsEmitidas > 0 ? " + $" + totalGiftCardsEmitidas.toLocaleString("es-AR", { maximumFractionDigits: 0 }) + " en gift cards" : ""}</div>
-        </div>
-        <div className="card" style={{ borderTop: "3px solid #2d7a4f" }}>
-          <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>EFECTIVO ESPERADO EN CAJA</div>
-          <div style={{ fontSize: 30, fontWeight: 700, color: (efectivoEsperado < 0 ? "#c0392b" : "#222222") }}>${efectivoEsperado.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
-          <div style={{ fontSize: 11, color: "#999999" }}>ventas efectivo ${ventasEfectivo.toLocaleString("es-AR", { maximumFractionDigits: 0 })} + ingresos ${ingresosManuales.toLocaleString("es-AR", { maximumFractionDigits: 0 })} - egresos ${egresosDia.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="card" style={{ textAlign: "center", color: "#999999", fontSize: 12 }}>Cargando...</div>
-      ) : (
-        <div className="g2">
-          <div className="card">
-            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>VENTAS POR MEDIO DE PAGO</div>
-            {mediosOrdenados.length === 0 && totalGiftCardsEmitidas === 0 ? (
-              <div style={{ fontSize: 12, color: "#999999" }}>Sin ventas en esta fecha</div>
-            ) : (
-              <table>
-                <thead><tr><th>Medio</th><th>Cant</th><th>Total</th></tr></thead>
-                <tbody>
-                  {mediosOrdenados.map(([medio, d], i) => (
-                    <tr key={i}>
-                      <td style={{ fontSize: 12 }}>{medio}</td>
-                      <td style={{ fontSize: 12, color: "#999999" }}>{d.cantidad}</td>
-                      <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${d.total.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
-                    </tr>
-                  ))}
-                  {totalGiftCardsEmitidas > 0 && (
-                    <tr>
-                      <td style={{ fontSize: 12, color: "#c9a84c" }}>Gift Cards emitidas</td>
-                      <td style={{ fontSize: 12, color: "#999999" }}>{giftCardsDia.length}</td>
-                      <td style={{ color: "#c9a84c", fontWeight: 600 }}>${totalGiftCardsEmitidas.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
-                    </tr>
-                  )}
-                  <tr>
-                    <td style={{ fontWeight: 700 }}>TOTAL</td>
-                    <td style={{ fontWeight: 700, color: "#999999" }}>{ventasDia.length}</td>
-                    <td style={{ fontWeight: 700, color: "#2d7a4f" }}>${totalDia.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
-                  </tr>
-                </tbody>
-              </table>
-            )}
-          </div>
-          <div className="card">
-            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>MOVIMIENTOS DE EFECTIVO DEL DIA</div>
-            {movsDia.length === 0 ? (
-              <div style={{ fontSize: 12, color: "#999999" }}>Sin movimientos en esta fecha</div>
-            ) : (
-              <table>
-                <thead><tr><th>Tipo</th><th>Concepto</th><th>Importe</th></tr></thead>
-                <tbody>
-                  {movsDia.map((m, i) => (
-                    <tr key={i}>
-                      <td><span className="badge" style={{ background: (m.tipo === "ingreso" ? "#2d7a4f15" : "#c0392b15"), color: (m.tipo === "ingreso" ? "#2d7a4f" : "#c0392b") }}>{m.tipo}</span></td>
-                      <td style={{ fontSize: 12 }}>{m.concepto || "-"}</td>
-                      <td style={{ fontWeight: 600, color: (m.tipo === "ingreso" ? "#2d7a4f" : "#c0392b") }}>{(m.tipo === "ingreso" ? "+" : "-")}${parseFloat(m.importe || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-
-// ANALITICA - helpers de graficos (SVG puro, sin librerias)
-function BarChart({ data, color, formato }) {
-  const max = Math.max(...data.map(d => d.valor), 1);
-  const fmt = formato || ((v) => v.toLocaleString("es-AR", { maximumFractionDigits: 0 }));
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      {data.map((d, i) => (
-        <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 110, fontSize: 11, color: "#666666", textAlign: "right", flexShrink: 0 }}>{d.label}</div>
-          <div style={{ flex: 1, background: "#f0f0f0", borderRadius: 4, height: 22, position: "relative", overflow: "hidden" }}>
-            <div style={{ width: (d.valor / max * 100) + "%", background: (color || "#c9a84c"), height: "100%", borderRadius: 4, transition: "width .3s" }} />
-          </div>
-          <div style={{ width: 90, fontSize: 11, fontWeight: 600, color: "#222222", flexShrink: 0 }}>{fmt(d.valor)}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function DonutChart({ data }) {
-  const total = data.reduce((s, d) => s + d.valor, 0) || 1;
-  const colores = ["#c9a84c", "#2d7a4f", "#2471a3", "#c0392b", "#8e44ad", "#e67e22", "#16a085", "#999999"];
-  let acum = 0;
-  const radio = 70, centro = 90, circ = 2 * Math.PI * radio;
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
-      <svg width="180" height="180" viewBox="0 0 180 180">
-        {data.map((d, i) => {
-          const frac = d.valor / total;
-          const dash = frac * circ;
-          const offset = circ - (acum / total * circ);
-          acum += d.valor;
-          return (
-            <circle key={i} cx={centro} cy={centro} r={radio} fill="none"
-              stroke={colores[i % colores.length]} strokeWidth="28"
-              strokeDasharray={dash + " " + (circ - dash)} strokeDashoffset={offset}
-              transform={"rotate(-90 " + centro + " " + centro + ")"} />
-          );
-        })}
-        <text x={centro} y={centro + 5} textAnchor="middle" style={{ fontSize: 14, fontWeight: 700, fill: "#222" }}>
-          ${(total / 1000).toFixed(0)}k
-        </text>
-      </svg>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {data.map((d, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11 }}>
-            <div style={{ width: 12, height: 12, borderRadius: 3, background: colores[i % colores.length] }} />
-            <span style={{ color: "#444444" }}>{d.label}</span>
-            <span style={{ color: "#999999" }}>{Math.round(d.valor / total * 100)}%</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function Analitica({ localId }) {
-  const hoy = new Date();
-  const [mes, setMes] = useState(hoy.getMonth() + 1);
-  const [anio, setAnio] = useState(hoy.getFullYear());
-  const [ventasMes, setVentasMes] = useState([]);
-  const [ventasPrev, setVentasPrev] = useState([]);
-  const [evolucion, setEvolucion] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const mesPrev = mes === 1 ? 12 : mes - 1;
-  const anioPrev = mes === 1 ? anio - 1 : anio;
-
-  const cargar = async () => {
-    setLoading(true);
-    try {
-      const limpiar = (arr) => (arr || []).filter(v => v.es_preventa !== true && v.canal !== "prueba");
-      const [actual, previo] = await Promise.all([
-        API.get("/ventas?mes=" + mes + "&anio=" + anio + "&local_id=" + (localId || 1)),
-        API.get("/ventas?mes=" + mesPrev + "&anio=" + anioPrev + "&local_id=" + (localId || 1))
-      ]);
-      setVentasMes(limpiar(actual.data));
-      setVentasPrev(limpiar(previo.data));
-
-      // Evolucion ultimos 6 meses
-      const proms = [];
-      const labels = [];
-      for (let i = 5; i >= 0; i--) {
-        let m = mes - i, a = anio;
-        while (m <= 0) { m += 12; a -= 1; }
-        labels.push({ m, a });
-        proms.push(API.get("/ventas?mes=" + m + "&anio=" + a + "&local_id=" + (localId || 1)));
-      }
-      const results = await Promise.all(proms);
-      const meses3 = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-      setEvolucion(results.map((r, i) => ({
-        label: meses3[labels[i].m - 1] + " " + String(labels[i].a).slice(2),
-        valor: limpiar(r.data).reduce((s, v) => s + parseFloat(v.total || 0), 0)
-      })));
-    } catch (e) {}
-    setLoading(false);
-  };
-
-  useEffect(() => { cargar(); }, [mes, anio, localId]);
-
-  const totalMes = ventasMes.reduce((s, v) => s + parseFloat(v.total || 0), 0);
-  const totalPrev = ventasPrev.reduce((s, v) => s + parseFloat(v.total || 0), 0);
-  const variacion = totalPrev > 0 ? Math.round((totalMes - totalPrev) / totalPrev * 100) : null;
-
-  // Mejor dia y hora
-  const porDiaSemana = [0, 0, 0, 0, 0, 0, 0];
-  const porHora = {};
-  ventasMes.forEach(v => {
-    const f = new Date(v.creado_en || v.fecha);
-    porDiaSemana[f.getDay()] += parseFloat(v.total || 0);
-    porHora[f.getHours()] = (porHora[f.getHours()] || 0) + 1;
-  });
-  const diasNom = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
-  const mejorDiaIdx = porDiaSemana.indexOf(Math.max(...porDiaSemana));
-  const horasArr = Object.entries(porHora).sort((a, b) => b[1] - a[1]);
-  const mejorHora = horasArr.length > 0 ? horasArr[0][0] + ":00 hs" : "-";
-
-  // Por categoria
-  const porCat = {};
-  ventasMes.forEach(v => {
-    (v.items || []).forEach(it => {
-      const cat = it.categoria || "Sin categoria";
-      if (!porCat[cat]) porCat[cat] = { total: 0, unidades: 0 };
-      porCat[cat].total += parseFloat(it.precio_unitario || 0) * parseInt(it.cantidad || 0);
-      porCat[cat].unidades += parseInt(it.cantidad || 0);
-    });
-  });
-  const catData = Object.entries(porCat).map(([label, d]) => ({ label, valor: d.total, unidades: d.unidades })).sort((a, b) => b.valor - a.valor);
-
-  // Margen por marca
-  const porMarca = {};
-  ventasMes.forEach(v => {
-    (v.items || []).forEach(it => {
-      const marca = it.marca || "Sin marca";
-      if (!porMarca[marca]) porMarca[marca] = { venta: 0, costo: 0 };
-      const cant = parseInt(it.cantidad || 0);
-      porMarca[marca].venta += parseFloat(it.precio_unitario || 0) * cant;
-      porMarca[marca].costo += parseFloat(it.costo || 0) * cant;
-    });
-  });
-  const marcaData = Object.entries(porMarca).map(([label, d]) => {
-    const margen = d.venta > 0 ? Math.round((d.venta - d.costo) / d.venta * 100) : 0;
-    return { label, valor: margen, venta: d.venta };
-  }).sort((a, b) => b.venta - a.venta).slice(0, 8);
-
-  const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-
-  return (
-    <div>
-      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginBottom: 16 }}>
-        <select className="sel" style={{ width: 120, padding: "6px 10px", fontSize: 12 }} value={mes} onChange={e => setMes(parseInt(e.target.value))}>
-          {meses.map((m, i) => (<option key={i} value={i + 1}>{m}</option>))}
-        </select>
-        <select className="sel" style={{ width: 90, padding: "6px 10px", fontSize: 12 }} value={anio} onChange={e => setAnio(parseInt(e.target.value))}>
-          {[hoy.getFullYear(), hoy.getFullYear() - 1].map(a => (<option key={a} value={a}>{a}</option>))}
-        </select>
-      </div>
-
-      {loading ? (
-        <div className="card" style={{ textAlign: "center", color: "#999999", fontSize: 12 }}>Cargando analitica...</div>
-      ) : (
-        <div>
-          <div className="g3" style={{ marginBottom: 16 }}>
-            <div className="card" style={{ borderTop: "3px solid #c9a84c" }}>
-              <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>FACTURADO ESTE MES</div>
-              <div style={{ fontSize: 26, fontWeight: 700, color: "#2d7a4f" }}>${totalMes.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
-              <div style={{ fontSize: 11, color: "#999999" }}>{ventasMes.length} ventas</div>
-            </div>
-            <div className="card" style={{ borderTop: "3px solid " + (variacion === null ? "#999999" : variacion >= 0 ? "#2d7a4f" : "#c0392b") }}>
-              <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>VS MES ANTERIOR</div>
-              <div style={{ fontSize: 26, fontWeight: 700, color: (variacion === null ? "#999999" : variacion >= 0 ? "#2d7a4f" : "#c0392b") }}>
-                {variacion === null ? "-" : (variacion >= 0 ? "+" : "") + variacion + "%"}
-              </div>
-              <div style={{ fontSize: 11, color: "#999999" }}>${totalPrev.toLocaleString("es-AR", { maximumFractionDigits: 0 })} el mes pasado</div>
-            </div>
-            <div className="card" style={{ borderTop: "3px solid #2471a3" }}>
-              <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>MEJOR DIA / HORA</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "#222222" }}>{totalMes > 0 ? diasNom[mejorDiaIdx] : "-"}</div>
-              <div style={{ fontSize: 11, color: "#999999" }}>Hora pico: {mejorHora}</div>
-            </div>
-          </div>
-
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 14 }}>EVOLUCION ULTIMOS 6 MESES</div>
-            <BarChart data={evolucion} color="#c9a84c" formato={(v) => "$" + v.toLocaleString("es-AR", { maximumFractionDigits: 0 })} />
-          </div>
-
-          <div className="g2" style={{ marginBottom: 16 }}>
-            <div className="card">
-              <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 14 }}>VENTAS POR CATEGORIA</div>
-              {catData.length === 0 ? (<div style={{ fontSize: 12, color: "#999999" }}>Sin datos</div>) : (<DonutChart data={catData} />)}
-            </div>
-            <div className="card">
-              <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 14 }}>ROTACION POR CATEGORIA (unidades)</div>
-              {catData.length === 0 ? (<div style={{ fontSize: 12, color: "#999999" }}>Sin datos</div>) : (
-                <BarChart data={catData.map(c => ({ label: c.label, valor: c.unidades }))} color="#2471a3" formato={(v) => v + " u"} />
-              )}
-            </div>
-          </div>
-
-          <div className="card">
-            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 14 }}>MARGEN POR MARCA (%)</div>
-            {marcaData.length === 0 ? (<div style={{ fontSize: 12, color: "#999999" }}>Sin datos de costo cargados</div>) : (
-              <BarChart data={marcaData} color="#2d7a4f" formato={(v) => v + "%"} />
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// PRODUCTIVIDAD
-function Productividad({ localId }) {
-  const hoy = new Date();
-  const [subtab, setSubtab] = useState("vendedoras");
-  const [mes, setMes] = useState(hoy.getMonth() + 1);
-  const [anio, setAnio] = useState(hoy.getFullYear());
-  const [ventas, setVentas] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const cargar = async () => {
-    setLoading(true);
-    try {
-      const res = await API.get("/ventas?mes=" + mes + "&anio=" + anio + "&local_id=" + (localId || 1));
-      setVentas((res.data || []).filter(v => v.es_preventa !== true));
-    } catch (e) {}
-    setLoading(false);
-  };
-
-  useEffect(() => { cargar(); }, [mes, anio, localId]);
-
-  // Agrupar por vendedora
-  const porVend = {};
-  ventas.forEach(v => {
-    const nombre = v.vendedora_nombre || "Sin asignar";
-    if (!porVend[nombre]) porVend[nombre] = { cantidad: 0, total: 0, sumaDuracion: 0, conDuracion: 0, horas: {} };
-    const g = porVend[nombre];
-    g.cantidad += 1;
-    g.total += parseFloat(v.total || 0);
-    if (v.duracion_segundos) { g.sumaDuracion += parseInt(v.duracion_segundos); g.conDuracion += 1; }
-    const f = new Date(v.creado_en || v.fecha);
-    const h = f.getFullYear() + "-" + f.getMonth() + "-" + f.getDate() + "-" + f.getHours();
-    g.horas[h] = true;
-  });
-
-  const ranking = Object.entries(porVend).map(([nombre, g]) => {
-    const ticketProm = g.cantidad > 0 ? g.total / g.cantidad : 0;
-    const tiempoProm = g.conDuracion > 0 ? g.sumaDuracion / g.conDuracion : null;
-    const cantHoras = Object.keys(g.horas).length;
-    const ventasPorHora = cantHoras > 0 ? g.cantidad / cantHoras : 0;
-    return { nombre, cantidad: g.cantidad, total: g.total, ticketProm, tiempoProm, ventasPorHora };
-  }).sort((a, b) => b.total - a.total);
-
-  const fmtTiempo = (seg) => {
-    if (seg === null || seg === undefined) return "-";
-    if (seg < 60) return Math.round(seg) + "s";
-    const m = Math.floor(seg / 60);
-    const s = Math.round(seg % 60);
-    return m + "m " + s + "s";
-  };
-
-  const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-  const totalGeneral = ranking.reduce((s, r) => s + r.total, 0);
-
-  return (
-    <div className="fade">
-      <div className="ph">
-        <div><div className="pt">Productividad</div><div className="ps">metricas y analitica</div></div>
-        {subtab === "vendedoras" && (
-          <div style={{ display: "flex", gap: 8 }}>
-            <select className="sel" style={{ width: 120, padding: "6px 10px", fontSize: 12 }} value={mes} onChange={e => setMes(parseInt(e.target.value))}>
-              {meses.map((m, i) => (<option key={i} value={i + 1}>{m}</option>))}
-            </select>
-            <select className="sel" style={{ width: 90, padding: "6px 10px", fontSize: 12 }} value={anio} onChange={e => setAnio(parseInt(e.target.value))}>
-              {[hoy.getFullYear(), hoy.getFullYear() - 1].map(a => (<option key={a} value={a}>{a}</option>))}
-            </select>
-          </div>
-        )}
-      </div>
-
-      <div className="tabs">
-        <div className={"tab " + (subtab === "vendedoras" ? "on" : "")} onClick={() => setSubtab("vendedoras")}>VENDEDORAS</div>
-        <div className={"tab " + (subtab === "analitica" ? "on" : "")} onClick={() => setSubtab("analitica")}>ANALITICA</div>
-      </div>
-
-      {subtab === "analitica" ? (<Analitica localId={localId} />) : (
-      <div>
-      {loading ? (
-        <div className="card" style={{ textAlign: "center", color: "#999999", fontSize: 12 }}>Cargando...</div>
-      ) : (
-        <div>
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>RANKING DE VENDEDORAS</div>
-            {ranking.length === 0 ? (
-              <div style={{ fontSize: 12, color: "#999999" }}>Sin ventas en este periodo</div>
-            ) : (
-              <table>
-                <thead><tr><th>#</th><th>Vendedora</th><th>Ventas</th><th>Total</th><th>Ticket prom.</th><th>Tiempo prom.</th><th>Ventas/hora</th></tr></thead>
-                <tbody>
-                  {ranking.map((r, i) => (
-                    <tr key={i}>
-                      <td style={{ fontWeight: 700, color: (i === 0 ? "#c9a84c" : "#999999") }}>{i + 1}</td>
-                      <td style={{ fontSize: 12, fontWeight: 600 }}>{r.nombre}</td>
-                      <td style={{ fontSize: 12 }}>{r.cantidad}</td>
-                      <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${r.total.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
-                      <td style={{ fontSize: 12 }}>${r.ticketProm.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
-                      <td style={{ fontSize: 12 }}>{fmtTiempo(r.tiempoProm)}</td>
-                      <td style={{ fontSize: 12 }}>{r.ventasPorHora.toFixed(1)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-          <div className="g3">
-            {ranking.slice(0, 3).map((r, i) => (
-              <div key={i} className="card" style={{ borderTop: "3px solid " + (i === 0 ? "#c9a84c" : i === 1 ? "#999999" : "#cd7f32") }}>
-                <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>{i === 0 ? "TOP VENDEDORA" : "#" + (i + 1)}</div>
-                <div style={{ fontSize: 18, fontWeight: 700 }}>{r.nombre}</div>
-                <div style={{ fontSize: 13, color: "#2d7a4f", fontWeight: 600 }}>${r.total.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
-                <div style={{ fontSize: 11, color: "#999999" }}>{r.cantidad} ventas - {totalGeneral > 0 ? Math.round(r.total / totalGeneral * 100) : 0}% del total</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      </div>
-      )}
-    </div>
-  );
-}
-
-// CLIENTES ANALITICA
-function ClientesAnalitica({ localId }) {
-  const hoy = new Date();
-  const [ventas, setVentas] = useState([]);
-  const [clientes, setClientes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [meses, setMeses] = useState(6);
-  const [clienteSel, setClienteSel] = useState(null);
-
-  const cargar = async () => {
-    setLoading(true);
-    try {
-      // Traer ventas de los ultimos N meses
-      const proms = [];
-      for (let i = 0; i < meses; i++) {
-        let m = hoy.getMonth() + 1 - i, a = hoy.getFullYear();
-        while (m <= 0) { m += 12; a -= 1; }
-        proms.push(API.get("/ventas?mes=" + m + "&anio=" + a + "&local_id=" + (localId || 1)));
-      }
-      const [clientesRes, ...ventasResults] = await Promise.all([
-        API.get("/clientes"),
-        ...proms
-      ]);
-      let todas = [];
-      ventasResults.forEach(r => { todas = todas.concat(r.data || []); });
-      // Solo ventas reales con cliente identificado
-      const conCliente = todas.filter(v => v.cliente_id && v.es_preventa !== true && v.canal !== "prueba");
-      setVentas(conCliente);
-      setClientes(clientesRes.data || []);
-    } catch (e) {}
-    setLoading(false);
-  };
-
-  useEffect(() => { cargar(); }, [meses, localId]);
-
-  // Agrupar ventas por cliente
-  const porCliente = {};
-  ventas.forEach(v => {
-    const id = v.cliente_id;
-    if (!porCliente[id]) porCliente[id] = { nombre: v.cliente_nombre || "Cliente " + id, compras: [], total: 0, categorias: {} };
-    const g = porCliente[id];
-    g.compras.push(new Date(v.creado_en || v.fecha));
-    g.total += parseFloat(v.total || 0);
-    (v.items || []).forEach(it => {
-      const cat = it.categoria || "Sin categoria";
-      g.categorias[cat] = (g.categorias[cat] || 0) + parseInt(it.cantidad || 0);
-    });
-  });
-
-  const clientesArr = Object.entries(porCliente).map(([id, g]) => {
-    const fechas = g.compras.sort((a, b) => a - b);
-    const cantCompras = fechas.length;
-    let frecuenciaDias = null;
-    if (cantCompras >= 2) {
-      const diffTotal = (fechas[fechas.length - 1] - fechas[0]) / (1000 * 60 * 60 * 24);
-      frecuenciaDias = Math.round(diffTotal / (cantCompras - 1));
-    }
-    const ultimaCompra = fechas[fechas.length - 1];
-    const diasSinComprar = Math.round((hoy - ultimaCompra) / (1000 * 60 * 60 * 24));
-    const catFav = Object.entries(g.categorias).sort((a, b) => b[1] - a[1])[0];
-    return {
-      id, nombre: g.nombre, cantCompras, total: g.total,
-      frecuenciaDias, ultimaCompra, diasSinComprar,
-      categoriaFavorita: catFav ? catFav[0] : "-",
-      categorias: g.categorias
-    };
-  }).sort((a, b) => b.total - a.total);
-
-  // Metricas globales
-  const totalClientesActivos = clientesArr.length;
-  const clientesRecurrentes = clientesArr.filter(c => c.cantCompras >= 2).length;
-  const tasaRetencion = totalClientesActivos > 0 ? Math.round(clientesRecurrentes / totalClientesActivos * 100) : 0;
-  const frecuenciasValidas = clientesArr.filter(c => c.frecuenciaDias !== null);
-  const frecuenciaPromedio = frecuenciasValidas.length > 0 ? Math.round(frecuenciasValidas.reduce((s, c) => s + c.frecuenciaDias, 0) / frecuenciasValidas.length) : null;
-
-  const fmtFecha = (d) => d ? d.toLocaleDateString("es-AR") : "-";
-
-  return (
-    <div className="fade">
-      <div className="ph">
-        <div><div className="pt">Analitica de Clientes</div><div className="ps">frecuencia - retencion - preferencias</div></div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <select className="sel" style={{ width: 130, padding: "6px 10px", fontSize: 12 }} value={meses} onChange={e => setMeses(parseInt(e.target.value))}>
-            <option value={3}>Ultimos 3 meses</option>
-            <option value={6}>Ultimos 6 meses</option>
-            <option value={12}>Ultimos 12 meses</option>
-          </select>
-        </div>
-      </div>
-
-      <div style={{ background: "#2471a312", border: "1px solid #2471a3", borderRadius: 6, padding: "8px 14px", marginBottom: 16, fontSize: 11, color: "#2471a3" }}>
-        Nota: este analisis incluye solo ventas con cliente identificado. Las ventas a Consumidor Final no se cuentan.
-      </div>
-
-      {loading ? (
-        <div className="card" style={{ textAlign: "center", color: "#999999", fontSize: 12 }}>Cargando...</div>
-      ) : (
-        <div>
-          <div className="g3" style={{ marginBottom: 16 }}>
-            <div className="card" style={{ borderTop: "3px solid #c9a84c" }}>
-              <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>CLIENTES ACTIVOS</div>
-              <div style={{ fontSize: 26, fontWeight: 700, color: "#222222" }}>{totalClientesActivos}</div>
-              <div style={{ fontSize: 11, color: "#999999" }}>compraron en el periodo</div>
-            </div>
-            <div className="card" style={{ borderTop: "3px solid #2d7a4f" }}>
-              <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>TASA DE RETENCION</div>
-              <div style={{ fontSize: 26, fontWeight: 700, color: "#2d7a4f" }}>{tasaRetencion}%</div>
-              <div style={{ fontSize: 11, color: "#999999" }}>{clientesRecurrentes} volvieron a comprar</div>
-            </div>
-            <div className="card" style={{ borderTop: "3px solid #2471a3" }}>
-              <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>FRECUENCIA PROMEDIO</div>
-              <div style={{ fontSize: 26, fontWeight: 700, color: "#2471a3" }}>{frecuenciaPromedio !== null ? "cada " + frecuenciaPromedio + " dias" : "-"}</div>
-              <div style={{ fontSize: 11, color: "#999999" }}>entre compras</div>
-            </div>
-          </div>
-
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>CLIENTES (ordenados por total gastado)</div>
-            {clientesArr.length === 0 ? (
-              <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 20 }}>Sin ventas con cliente identificado en el periodo</div>
-            ) : (
-              <table>
-                <thead><tr><th>Cliente</th><th>Compras</th><th>Total</th><th>Frecuencia</th><th>Ultima</th><th>Cat. favorita</th><th></th></tr></thead>
-                <tbody>
-                  {clientesArr.map((c, i) => (
-                    <Fragment key={i}>
-                      <tr>
-                        <td style={{ fontSize: 12, fontWeight: 600 }}>{c.nombre}</td>
-                        <td style={{ fontSize: 12 }}>{c.cantCompras}{c.cantCompras >= 2 ? " 🔁" : ""}</td>
-                        <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${c.total.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
-                        <td style={{ fontSize: 11, color: "#999999" }}>{c.frecuenciaDias !== null ? "cada " + c.frecuenciaDias + "d" : "1 compra"}</td>
-                        <td style={{ fontSize: 11, color: (c.diasSinComprar > 60 ? "#c0392b" : "#999999") }}>{fmtFecha(c.ultimaCompra)}{c.diasSinComprar > 60 ? " (" + c.diasSinComprar + "d)" : ""}</td>
-                        <td style={{ fontSize: 11 }}>{c.categoriaFavorita}</td>
-                        <td><span style={{ cursor: "pointer", color: "#2471a3", fontSize: 11 }} onClick={() => setClienteSel(clienteSel === i ? null : i)}>{clienteSel === i ? "Ocultar" : "Ver"}</span></td>
-                      </tr>
-                      {clienteSel === i && (
-                        <tr>
-                          <td colSpan="7" style={{ background: "#fafafa", padding: "10px 14px" }}>
-                            <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em", marginBottom: 8 }}>PREFERENCIAS DE {c.nombre.toUpperCase()}</div>
-                            {Object.keys(c.categorias).length === 0 ? (
-                              <div style={{ fontSize: 11, color: "#999999" }}>Sin detalle de productos</div>
-                            ) : (
-                              <BarChart data={Object.entries(c.categorias).map(([label, valor]) => ({ label, valor })).sort((a, b) => b.valor - a.valor)} color="#c9a84c" formato={(v) => v + " u"} />
-                            )}
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-
-          {clientesArr.filter(c => c.diasSinComprar > 60).length > 0 && (
-            <div className="card">
-              <div style={{ fontSize: 11, color: "#c0392b", letterSpacing: ".1em", marginBottom: 10 }}>CLIENTES PARA REACTIVAR (mas de 60 dias sin comprar)</div>
-              <table>
-                <thead><tr><th>Cliente</th><th>Ultima compra</th><th>Dias sin comprar</th><th>Total historico</th></tr></thead>
-                <tbody>
-                  {clientesArr.filter(c => c.diasSinComprar > 60).sort((a, b) => b.diasSinComprar - a.diasSinComprar).map((c, i) => (
-                    <tr key={i}>
-                      <td style={{ fontSize: 12, fontWeight: 600 }}>{c.nombre}</td>
-                      <td style={{ fontSize: 11, color: "#999999" }}>{fmtFecha(c.ultimaCompra)}</td>
-                      <td><span className="badge" style={{ background: "#c0392b15", color: "#c0392b" }}>{c.diasSinComprar} dias</span></td>
-                      <td style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>${c.total.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 const NAV_SECTIONS = [
-  { section: "GESTION", items: [{ id: "dashboard", icon: "*", label: "Dashboard" }, { id: "pos", icon: "+", label: "Punto de Venta" }, { id: "inventory", icon: "#", label: "Inventario" }, { id: "caja", icon: "$", label: "Caja" }, { id: "cierre", icon: "=", label: "Cierre de Caja" }, { id: "ordenes", icon: "i", label: "Ingresos" }, { id: "inconsistencias", icon: "!", label: "Inconsistencias" }, { id: "kits", icon: "K", label: "Kits" }, { id: "giftcards", icon: "G", label: "Gift Cards" }, { id: "clients", icon: "@", label: "Clientes" }, { id: "clientes-analitica", icon: "&", label: "Analitica Clientes" }] },
-  { section: "FINANZAS", items: [{ id: "finance", icon: "%", label: "Finanzas" }, { id: "reports", icon: "~", label: "Informes" }, { id: "comprobantes", icon: "F", label: "Comprobantes" }, { id: "comisiones", icon: "c", label: "Comisiones" }, { id: "productividad", icon: "^", label: "Productividad" }, { id: "proveedores", icon: "p", label: "Proveedores" }] },
-  { section: "MARKETING", items: [{ id: "cupones", icon: "k", label: "Cupones" }, { id: "fidelizacion", icon: "f", label: "Fidelizacion" }, { id: "postventa", icon: "w", label: "Postventa WA" }] },
-  { section: "CLIENTE", items: [{ id: "portal", icon: "o", label: "Portal Cliente" }] },
+  { section: "VENTAS", color: "#e67e22", items: [{ id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "pos", icon: "🛒", label: "Punto de Venta" }] },
+  { section: "STOCK", color: "#7d3c98", items: [{ id: "inventory", icon: "📦", label: "Inventario" }, { id: "ordenes", icon: "🚚", label: "Ingresos" }, { id: "inconsistencias", icon: "⚠️", label: "Inconsistencias" }, { id: "kits", icon: "🎁", label: "Kits" }] },
+  { section: "CAJA", color: "#2d7a4f", items: [{ id: "caja", icon: "💵", label: "Caja" }, { id: "cierre", icon: "🔒", label: "Cierre de Caja" }, { id: "giftcards", icon: "🎀", label: "Gift Cards" }] },
+  { section: "CLIENTES", color: "#c9a84c", items: [{ id: "clients", icon: "👥", label: "Clientes" }, { id: "clientes-analitica", icon: "📈", label: "Analitica Clientes" }, { id: "fidelizacion", icon: "⭐", label: "Fidelizacion" }] },
+  { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "💰", label: "Finanzas" }, { id: "reports", icon: "📋", label: "Informes" }, { id: "comprobantes", icon: "🧾", label: "Comprobantes" }, { id: "comisiones", icon: "💎", label: "Comisiones" }, { id: "proveedores", icon: "🏭", label: "Proveedores" }, { id: "productividad", icon: "🏆", label: "Productividad" }] },
+  { section: "MARKETING", color: "#e74c3c", items: [{ id: "cupones", icon: "🏷️", label: "Cupones" }] },
+  { section: "POSTVENTA", color: "#25d366", items: [{ id: "postventa", icon: "💬", label: "Postventa WA" }] },
+  { section: "CLIENTE", color: "#999999", items: [{ id: "portal", icon: "👤", label: "Portal Cliente" }] },
 ];
 
 
@@ -3896,7 +2739,7 @@ function LoginScreen({ onLogin }) {
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
-    if (!email || !password) return setError("Completá todos los campos");
+    if (!email || !password) return setError("CompletÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ todos los campos");
     setLoading(true);
     try {
       const res = await login({ email, password });
@@ -3904,7 +2747,7 @@ function LoginScreen({ onLogin }) {
       localStorage.setItem("lumiere_user", JSON.stringify(res.data.usuario));
       onLogin(res.data.usuario);
     } catch (e) {
-      setError("Email o contraseña incorrectos");
+      setError("Email o contraseÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±a incorrectos");
     }
     setLoading(false);
   };
@@ -3922,8 +2765,8 @@ function LoginScreen({ onLogin }) {
           <input className="inp" type="email" placeholder="tu@email.com" value={email} onChange={e => { setEmail(e.target.value); setError(""); }} />
         </div>
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÑA</div>
-          <input className="inp" type="password" placeholder="••••••••" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
+          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œA</div>
+          <input className="inp" type="password" placeholder="ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
         </div>
         <button className="btn btn-p" style={{ width: "100%", padding: 13 }} onClick={handleLogin} disabled={loading}>
           {loading ? "Ingresando..." : "Ingresar"}
@@ -4002,8 +2845,6 @@ function Usuarios({ usuario: usuarioActual }) {
     "Clientes": [["clientes.ver","Ver clientes"],["clientes.crear","Crear clientes"],["clientes.editar","Editar clientes"]],
     "Caja": [["caja.ver","Ver caja"],["caja.movimiento","Registrar movimientos"]],
     "Informes": [["informes.ventas","Ver ventas"],["informes.stock","Ver stock"],["informes.medios","Ver medios de pago"]],
-    "Comprobantes": [["comprobantes.ver","Ver comprobantes emitidos"]],
-    "Analitica Clientes": [["clientes_analitica.ver","Ver analitica de clientes"]],
     "Comisiones": [["comisiones.propias","Ver propias"],["comisiones.todas","Ver todas"]],
     "Proveedores": [["proveedores.ver","Ver proveedores"],["proveedores.crear","Crear/editar"]],
     "Kits": [["kits.ver","Ver kits"],["kits.crear","Crear/editar"],["kits.vender","Vender kits"]],
@@ -4229,28 +3070,19 @@ export default function AppWrapper() {
   const cargarMisPermisos = async (uid) => {
     try {
       const res = await API.get("/permisos/" + uid);
-      const data = res.data || [];
-      setPermisosActivos(data.map(p => (typeof p === "string" ? p : (p.permiso || p.clave || ""))));
+      setPermisosActivos(res.data || []);
     } catch (e) {}
   };
-
-  useEffect(() => {
-    if (usuario && usuario.id) cargarMisPermisos(usuario.id);
-  }, [usuario]);
 
   const puedeVer = (modulo) => {
     if (!usuario) return false;
     if (usuario.rol === "jefe" || usuario.rol_id === 1) return true;
-    // Modulos exclusivos de jefes (los no-jefes nunca los ven)
-    const soloJefe = ["productividad", "inconsistencias"];
-    if (soloJefe.includes(modulo)) return false;
     const mapaModulos = {
       "pos": "pos.ver", "inventory": "inventario.ver", "clients": "clientes.ver",
-      "finance": "finanzas.flujo", "reports": "informes.ventas", "comprobantes": "comprobantes.ver", "comisiones": "comisiones.propias",
+      "finance": "finanzas.flujo", "reports": "informes.ventas", "comisiones": "comisiones.propias",
       "proveedores": "proveedores.ver", "cupones": "cupones.ver", "fidelizacion": "fidelizacion.ver",
       "postventa": "postventa.ver", "portal": "clientes.ver", "caja": "caja.ver",
-      "ordenes": "ordenes.ver", "cierre": "caja.ver", "kits": "kits.ver", "usuarios": "usuarios.ver",
-      "giftcards": "caja.ver", "clientes-analitica": "clientes_analitica.ver",
+      "ordenes": "ordenes.ver", "kits": "kits.ver", "usuarios": "usuarios.ver",
       "dashboard": "pos.ver", "tiendanube": "tiendanube.ver",
     };
     const permiso = mapaModulos[modulo];
@@ -4281,12 +3113,11 @@ export default function AppWrapper() {
   const getPageWithLocal = (id) => {
     if (!puedeVer(id)) return <SinPermiso />;
     if (id === "dashboard") return <Dashboard localId={local.id} />;
-    if (id === "pos") return <POS localId={local.id} usuario={usuario} />;
+    if (id === "pos") return <POS localId={local.id} />;
     if (id === "inventory") return <Inventario localId={local.id} />;
     if (id === "clients") return <Clientes localId={local.id} />;
     if (id === "finance") return <Finanzas localId={local.id} />;
     if (id === "reports") return <Informes localId={local.id} />;
-    if (id === "comprobantes") return <Comprobantes localId={local.id} />;
     if (id === "cupones") return <Cupones localId={local.id} />;
     if (id === "fidelizacion") return <Fidelizacion localId={local.id} />;
     if (id === "postventa") return <PostventaWA localId={local.id} />;
@@ -4294,13 +3125,8 @@ export default function AppWrapper() {
     if (id === "usuarios") return <Usuarios usuario={usuario} />;
     if (id === "comisiones") return <Comisiones localId={local.id} />;
     if (id === "caja") return <Caja localId={local.id} usuario={usuario} />;
-    if (id === "cierre") return <CierreCaja localId={local.id} />;
-    if (id === "productividad") return <Productividad localId={local.id} />;
-    if (id === "ordenes") return <OrdenesIngreso localId={local.id} usuario={usuario} />;
-    if (id === "inconsistencias") return <Inconsistencias />;
+    if (id === "ordenes") return <OrdenesIngreso localId={local.id} />;
     if (id === "kits") return <Kits />;
-    if (id === "giftcards") return <GiftCards localId={local.id} usuario={usuario} />;
-    if (id === "clientes-analitica") return <ClientesAnalitica localId={local.id} />;
     if (id === "proveedores") return <Proveedores />;
     return <Dashboard localId={local.id} />;
   };
@@ -4331,12 +3157,20 @@ export default function AppWrapper() {
           <nav className="nav">
             {NAV_CON_PERMISOS.map(sec => (
               <div key={sec.section}>
-                <div className="nav-section">{sec.section}</div>
-                {sec.items.map(it => (
-                  <div key={it.id} className={"nav-item " + (page === it.id ? "active" : "")} onClick={() => setPage(it.id)}>
-                    <span className="nav-icon">{it.icon}</span>{it.label}
-                  </div>
-                ))}
+                <div className="nav-section" style={{ color: sec.color ? sec.color + "99" : "#555555" }}>{sec.section}</div>
+                {sec.items.map(it => {
+                  const isActive = page === it.id;
+                  const col = sec.color || "#c9a84c";
+                  return (
+                    <div key={it.id}
+                      className={"nav-item " + (isActive ? "active" : "")}
+                      style={isActive ? { background: col + "25", borderColor: col + "60", color: "#ffffff" } : {}}
+                      onClick={() => setPage(it.id)}>
+                      <span style={{ fontSize: 15, flexShrink: 0 }}>{it.icon}</span>
+                      <span style={{ color: isActive ? "#ffffff" : "#888888", transition: "color .18s" }}>{it.label}</span>
+                    </div>
+                  );
+                })}
               </div>
             ))}
           </nav>
@@ -4351,8 +3185,8 @@ export default function AppWrapper() {
               <StatusDot color="#2d7a4f" label="ARCA" />
               <StatusDot color="#25d366" label="TIENDANUBE" />
             </div>
-            <div style={{ marginTop: 12, fontSize: 11, color: "#999999", cursor: "pointer" }} onClick={() => setLocal(null)}>Cambiar local</div>
-            <div style={{ marginTop: 6, fontSize: 11, color: "#999999", cursor: "pointer" }} onClick={handleLogout}>Cerrar sesion</div>
+            <div style={{ marginTop: 12, fontSize: 11, color: "#999999", cursor: "pointer" }} onClick={() => setLocal(null)}></div>
+            <div style={{ marginTop: 6, fontSize: 11, color: "#999999", cursor: "pointer" }} onClick={handleLogout}></div>
           </div>
         </aside>
         <main className="main">
