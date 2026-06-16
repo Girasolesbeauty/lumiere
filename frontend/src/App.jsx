@@ -2420,6 +2420,7 @@ function OrdenesIngreso({ localId, usuario }) {
   const [nueva, setNueva] = useState({ proveedor_id: "", numero_factura: "", total: "", notas: "", items: [] });
   const [itemTemp, setItemTemp] = useState({ producto_id: "", cantidad_rg: "", cantidad_ush: "", costo_unitario: "" });
   const [conteo, setConteo] = useState({});
+  const [recibidoHist, setRecibidoHist] = useState([]);
   const [notaItem, setNotaItem] = useState({});
   const [extra, setExtra] = useState({ producto_id: "", cantidad: "", costo_unitario: "" });
 
@@ -2439,6 +2440,13 @@ function OrdenesIngreso({ localId, usuario }) {
   };
 
   useEffect(() => { cargar(); }, []);
+
+  const cargarRecibido = async () => {
+    try {
+      const res = await API.get("/ordenes-ingreso/reporte/recibido");
+      setRecibidoHist(res.data || []);
+    } catch (e) {}
+  };
 
   const agregarItem = () => {
     if (!itemTemp.producto_id) return setMensaje("Elegi un producto");
@@ -2492,7 +2500,7 @@ function OrdenesIngreso({ localId, usuario }) {
     if (isNaN(cant) || cant < 0) return setMensaje("Cantidad invalida");
     try {
       await API.put("/ordenes-ingreso/" + ordenDetalle.id + "/items/" + item.id + "/recibir", {
-        local: localActual, cantidad: cant, nota: notaItem[item.id] || null
+        local: localActual, cantidad: cant, nota: notaItem[item.id] || null, usuario_nombre: usuario?.nombre || null
       });
       setMensaje("Item confirmado: " + item.producto_nombre);
       const res = await API.get("/ordenes-ingreso/" + ordenDetalle.id + "/items");
@@ -2535,6 +2543,13 @@ function OrdenesIngreso({ localId, usuario }) {
         <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>
       )}
 
+      {(tab === "lista" || tab === "recibido") && (
+        <div className="tabs">
+          <div className={"tab " + (tab === "lista" ? "on" : "")} onClick={() => setTab("lista")}>POR RECIBIR</div>
+          <div className={"tab " + (tab === "recibido" ? "on" : "")} onClick={() => { setTab("recibido"); cargarRecibido(); }}>STOCK RECIBIDO</div>
+        </div>
+      )}
+
       {tab === "lista" && (
         <div className="card">
           {loading ? (<div style={{ textAlign: "center", color: "#999999", fontSize: 12 }}>Cargando...</div>) : ordenes.length === 0 ? (
@@ -2543,14 +2558,14 @@ function OrdenesIngreso({ localId, usuario }) {
             <table>
               <thead><tr><th>Factura</th><th>Proveedor</th><th>Fecha</th><th>Estado</th><th>Total</th><th></th></tr></thead>
               <tbody>
-                {ordenes.map((o, i) => (
+                {ordenes.filter(o => o.estado !== "recibida" && o.estado !== "pagada").map((o, i) => (
                   <tr key={i}>
                     <td style={{ fontSize: 12, fontWeight: 600 }}>{o.numero_factura || "-"}</td>
                     <td style={{ fontSize: 12 }}>{o.proveedor_nombre || "-"}</td>
                     <td style={{ fontSize: 11, color: "#999999" }}>{o.fecha_factura ? new Date(o.fecha_factura).toLocaleDateString("es-AR") : "-"}</td>
-                    <td><span className="badge" style={{ background: (o.estado === "recibida" ? "#2d7a4f15" : o.estado === "pagada" ? "#2471a315" : "#c9a84c15"), color: (o.estado === "recibida" ? "#2d7a4f" : o.estado === "pagada" ? "#2471a3" : "#c9a84c") }}>{o.estado}</span></td>
+                    <td><span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c" }}>{o.estado}</span></td>
                     <td style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>${parseFloat(o.total || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
-                    <td><button className="btn btn-p btn-sm" onClick={() => verDetalle(o)}>Recibir</button></td>
+                    <td><button className="btn btn-sm" style={{ background: "#2d7a4f", color: "white" }} onClick={() => verDetalle(o)}>Recibir</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -2559,6 +2574,35 @@ function OrdenesIngreso({ localId, usuario }) {
         </div>
       )}
 
+      {tab === "recibido" && (
+        <div className="card">
+          {recibidoHist.length === 0 ? (
+            <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 30 }}>Todavia no hay stock recibido registrado</div>
+          ) : (
+            <table>
+              <thead><tr><th>Producto</th><th>Factura</th><th>Proveedor</th><th>Local</th><th>Cantidad</th><th>Fecha</th><th>Recibido por</th></tr></thead>
+              <tbody>
+                {recibidoHist.map((r, i) => {
+                  const filas = [];
+                  if (r.revisado_rg) filas.push({ local: "RG", cant: r.recibido_rg, fecha: r.fecha_recepcion_rg, por: r.recibido_por_rg });
+                  if (r.revisado_ush) filas.push({ local: "USH", cant: r.recibido_ush, fecha: r.fecha_recepcion_ush, por: r.recibido_por_ush });
+                  return filas.map((f, j) => (
+                    <tr key={i + "-" + j}>
+                      <td style={{ fontSize: 12 }}>{r.producto_nombre}{r.es_extra ? <span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c", marginLeft: 6 }}>extra</span> : ""}</td>
+                      <td style={{ fontSize: 11, color: "#999999" }}>{r.numero_factura || "-"}</td>
+                      <td style={{ fontSize: 11 }}>{r.proveedor_nombre || "-"}</td>
+                      <td style={{ fontSize: 11 }}>{f.local}</td>
+                      <td style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>{f.cant}u</td>
+                      <td style={{ fontSize: 11, color: "#999999" }}>{f.fecha ? new Date(f.fecha).toLocaleDateString("es-AR") + " " + new Date(f.fecha).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "-"}</td>
+                      <td style={{ fontSize: 11 }}>{f.por || "-"}</td>
+                    </tr>
+                  ));
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
       {tab === "nueva" && (
         <div className="g2">
           <div className="card">
@@ -2613,10 +2657,20 @@ function OrdenesIngreso({ localId, usuario }) {
             <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 4 }}>RECIBIENDO EN {localNombre.toUpperCase()}</div>
             <div style={{ fontSize: 13, color: "#444444" }}>Factura {ordenDetalle.numero_factura || "-"} - {ordenDetalle.proveedor_nombre || ""}</div>
             <div style={{ fontSize: 11, color: "#999999", marginTop: 4 }}>Conta la mercaderia fisica y confirma cada item. Si la cantidad no coincide, dejala como llego y agrega una nota.</div>
+            {(() => {
+              const delLocal = itemsDetalle.filter(it => esperadoLocal(it) > 0 || it.es_extra);
+              const recibidos = delLocal.filter(it => revisadoLocal(it)).length;
+              const completo = delLocal.length > 0 && recibidos === delLocal.length;
+              return (
+                <div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 6, background: completo ? "#2d7a4f12" : "#c9a84c12", border: "1px solid " + (completo ? "#2d7a4f" : "#c9a84c"), fontSize: 12, color: completo ? "#2d7a4f" : "#c9a84c", fontWeight: 600 }}>
+                  {completo ? "✓ Recepcion completa: " : "Progreso: "}{recibidos} de {delLocal.length} items recibidos
+                </div>
+              );
+            })()}
           </div>
           <div className="card" style={{ marginBottom: 16 }}>
             <table>
-              <thead><tr><th>Producto</th><th>Esperado</th><th>Contado</th><th>Nota (si hay diferencia)</th><th></th></tr></thead>
+              <thead><tr><th>Producto</th><th>Esperado</th><th>Contado</th><th>Nota (si hay diferencia)</th><th>Estado</th><th></th></tr></thead>
               <tbody>
                 {itemsDetalle.filter(it => esperadoLocal(it) > 0 || it.es_extra).map((it, i) => {
                   const esp = esperadoLocal(it);
@@ -2632,6 +2686,7 @@ function OrdenesIngreso({ localId, usuario }) {
                           <input className="inp" placeholder={dif > 0 ? "llegaron " + dif + " de mas" : "faltan " + Math.abs(dif)} style={{ padding: "4px 8px", fontSize: 11 }} value={notaItem[it.id] || ""} onChange={e => setNotaItem(n => ({ ...n, [it.id]: e.target.value }))} />
                         ) : (<span style={{ fontSize: 11, color: "#999999" }}>{revisadoLocal(it) ? "ok" : "-"}</span>)}
                       </td>
+                      <td>{revisadoLocal(it) ? <span style={{ fontSize: 11, color: "#2d7a4f", fontWeight: 600 }}>✓ Recibido ({recibidoLocal(it)})</span> : <span style={{ fontSize: 11, color: "#c9a84c" }}>Pendiente</span>}</td>
                       <td><button className="btn btn-sm" onClick={() => confirmarItem(it)}>{revisadoLocal(it) ? "Recontar" : "Confirmar"}</button></td>
                     </tr>
                   );

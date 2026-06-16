@@ -144,7 +144,7 @@ router.put('/:ordenId/items/:itemId/recibir', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { local, cantidad, nota } = req.body;
+    const { local, cantidad, nota, usuario_nombre } = req.body;
     const cant = parseInt(cantidad) || 0;
     const itemRes = await client.query('SELECT * FROM ordenes_ingreso_items WHERE id = $1', [req.params.itemId]);
     const item = itemRes.rows[0];
@@ -155,8 +155,8 @@ router.put('/:ordenId/items/:itemId/recibir', async (req, res) => {
 
     if (local === 'rg') {
       await client.query(
-        'UPDATE ordenes_ingreso_items SET recibido_rg = $1, revisado_rg = TRUE, nota_inconsistencia = COALESCE($2, nota_inconsistencia) WHERE id = $3',
-        [cant, nota || null, req.params.itemId]
+        'UPDATE ordenes_ingreso_items SET recibido_rg = $1, revisado_rg = TRUE, nota_inconsistencia = COALESCE($2, nota_inconsistencia), recibido_por_rg = $3, fecha_recepcion_rg = NOW() WHERE id = $4',
+        [cant, nota || null, usuario_nombre || null, req.params.itemId]
       );
       if (item.producto_id) {
         await client.query('UPDATE productos SET stock = stock + $1 WHERE id = $2', [cant, item.producto_id]);
@@ -167,8 +167,8 @@ router.put('/:ordenId/items/:itemId/recibir', async (req, res) => {
       }
     } else {
       await client.query(
-        'UPDATE ordenes_ingreso_items SET recibido_ush = $1, revisado_ush = TRUE, nota_inconsistencia = COALESCE($2, nota_inconsistencia) WHERE id = $3',
-        [cant, nota || null, req.params.itemId]
+        'UPDATE ordenes_ingreso_items SET recibido_ush = $1, revisado_ush = TRUE, nota_inconsistencia = COALESCE($2, nota_inconsistencia), recibido_por_ush = $3, fecha_recepcion_ush = NOW() WHERE id = $4',
+        [cant, nota || null, usuario_nombre || null, req.params.itemId]
       );
       if (item.producto_id) {
         await client.query('UPDATE productos SET stock = stock + $1 WHERE id = $2', [cant, item.producto_id]);
@@ -194,6 +194,23 @@ router.put('/:ordenId/items/:itemId/recibir', async (req, res) => {
     res.status(500).json({ error: 'Error al confirmar recepcion: ' + error.message });
   } finally {
     client.release();
+  }
+});
+
+// Historial de stock recibido (items ya revisados, con fecha y quien)
+router.get('/reporte/recibido', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT oi.*, o.numero_factura, p.nombre AS proveedor_nombre
+       FROM ordenes_ingreso_items oi
+       JOIN ordenes_ingreso o ON oi.orden_id = o.id
+       LEFT JOIN proveedores p ON o.proveedor_id = p.id
+       WHERE oi.revisado_rg = TRUE OR oi.revisado_ush = TRUE
+       ORDER BY GREATEST(COALESCE(oi.fecha_recepcion_rg, '1970-01-01'), COALESCE(oi.fecha_recepcion_ush, '1970-01-01')) DESC`
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener stock recibido: ' + error.message });
   }
 });
 
