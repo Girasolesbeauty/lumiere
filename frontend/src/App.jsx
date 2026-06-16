@@ -365,7 +365,7 @@ function Dashboard({ localId }) {
   );
 }
 
-function POS({ localId }) {
+function POS({ localId, usuario }) {
   const [cart, setCart] = useState([]);
   const [dniInput, setDniInput] = useState("");
   const [tipoFac, setTipoFac] = useState("B");
