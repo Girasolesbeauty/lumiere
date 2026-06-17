@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import { getProductos, createVenta, getClientes, getFlujo, getPuntoEquilibrio, agregarEgreso, getResumenFinanzas, getVentas, getAlertasStock, getCupones, createCupon, updateCupon, getRanking, getReglas, createRegla as createReglaWA, updateRegla as updateReglaWA, login, register } from "./api";
 import API from "./api";
 
@@ -2356,6 +2356,179 @@ function Caja({ localId, usuario }) {
   );
 }
 
+function CierreCaja({ localId }) {
+  const hoy = new Date();
+  const fmtFecha = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const [fecha, setFecha] = useState(fmtFecha(hoy));
+  const [ventasDia, setVentasDia] = useState([]);
+  const [movsDia, setMovsDia] = useState([]);
+  const [giftCardsDia, setGiftCardsDia] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const resumenRef = useRef(null);
+
+  const cambiarDia = (dias) => {
+    const d = new Date(fecha + "T12:00:00");
+    d.setDate(d.getDate() + dias);
+    setFecha(fmtFecha(d));
+  };
+
+  const esHoy = fecha === fmtFecha(hoy);
+
+  const cargar = async () => {
+    setLoading(true);
+    try {
+      const anio = parseInt(fecha.slice(0, 4));
+      const mes = parseInt(fecha.slice(5, 7));
+      const [ventasRes, movRes, gcRes] = await Promise.all([
+        API.get("/ventas?mes=" + mes + "&anio=" + anio + "&local_id=" + (localId || 1)),
+        API.get("/caja?local_id=" + (localId || 1)),
+        API.get("/gift-cards?local_id=" + (localId || 1))
+      ]);
+      const esMismoDia = (f) => { if (!f) return false; return fmtFecha(new Date(f)) === fecha; };
+      setVentasDia((ventasRes.data || []).filter(v => esMismoDia(v.creado_en || v.fecha) && v.es_preventa !== true && v.canal !== "prueba"));
+      setMovsDia((movRes.data || []).filter(m => esMismoDia(m.creado_en || m.fecha)));
+      setGiftCardsDia((gcRes.data || []).filter(g => esMismoDia(g.creado_en)));
+    } catch (e) {}
+    setLoading(false);
+  };
+
+  useEffect(() => { cargar(); }, [fecha, localId]);
+
+  const porMedio = {};
+  ventasDia.forEach(v => {
+    const m = v.medio_pago || "Efectivo";
+    if (!porMedio[m]) porMedio[m] = { cantidad: 0, total: 0 };
+    porMedio[m].cantidad += 1;
+    porMedio[m].total += parseFloat(v.total || 0) - parseFloat(v.monto_gift_card || 0);
+  });
+  const mediosOrdenados = Object.entries(porMedio).sort((a, b) => b[1].total - a[1].total);
+  const totalVentasNeto = ventasDia.reduce((s, v) => s + parseFloat(v.total || 0) - parseFloat(v.monto_gift_card || 0), 0);
+  const totalGiftCards = giftCardsDia.reduce((s, g) => s + parseFloat(g.monto_inicial || 0), 0);
+  const totalDia = totalVentasNeto + totalGiftCards;
+  const ventasEfectivo = ventasDia.filter(v => (v.medio_pago || "Efectivo").toLowerCase().includes("efectivo")).reduce((s, v) => s + parseFloat(v.total || 0) - parseFloat(v.monto_gift_card || 0), 0);
+  const ingresosManuales = movsDia.filter(m => m.tipo === "ingreso").reduce((s, m) => s + parseFloat(m.importe || 0), 0);
+  const egresosDia = movsDia.filter(m => m.tipo === "egreso").reduce((s, m) => s + parseFloat(m.importe || 0), 0);
+  const efectivoEsperado = ventasEfectivo + ingresosManuales - egresosDia;
+
+  const descargarImagen = async () => {
+    if (!resumenRef.current) return;
+    try {
+      const { default: html2canvas } = await import("https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js");
+      const canvas = await html2canvas(resumenRef.current, { backgroundColor: "#ffffff", scale: 2 });
+      const link = document.createElement("a");
+      link.download = "cierre-" + fecha + ".png";
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } catch (e) {
+      alert("Error al generar imagen: " + e.message);
+    }
+  };
+
+  const fmtDia = (f) => {
+    const [y, m, d] = f.split("-");
+    return d + "/" + m + "/" + y;
+  };
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Cierre de Caja</div><div className="ps">resumen del dia por medio de pago</div></div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button className="btn btn-g btn-sm" onClick={() => cambiarDia(-1)}>← Anterior</button>
+          <input className="inp" type="date" style={{ width: 150, padding: "6px 10px", fontSize: 12 }} value={fecha} onChange={e => setFecha(e.target.value)} />
+          <button className="btn btn-g btn-sm" onClick={() => cambiarDia(1)} disabled={esHoy} style={{ opacity: esHoy ? 0.4 : 1 }}>Siguiente →</button>
+          {esHoy && <span style={{ fontSize: 11, color: "#2d7a4f", fontWeight: 600 }}>HOY</span>}
+          <button className="btn btn-p btn-sm" onClick={descargarImagen}>📲 Descargar</button>
+        </div>
+      </div>
+
+      {!esHoy && (
+        <div style={{ background: "#2471a312", border: "1px solid #2471a3", borderRadius: 6, padding: "8px 14px", marginBottom: 12, fontSize: 11, color: "#2471a3", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>Viendo cierre del {fmtDia(fecha)}</span>
+          <span style={{ cursor: "pointer", fontWeight: 600 }} onClick={() => setFecha(fmtFecha(hoy))}>Ver hoy</span>
+        </div>
+      )}
+
+      <div ref={resumenRef} style={{ background: "#ffffff", padding: 4, borderRadius: 8 }}>
+        <div style={{ padding: "10px 0 16px", borderBottom: "1px solid #f0f0f0", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>LUMIERE — Cierre de Caja</div>
+            <div style={{ fontSize: 11, color: "#999999" }}>{fmtDia(fecha)}</div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 11, color: "#999999" }}>TOTAL DEL DIA</div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: "#2d7a4f" }}>${totalDia.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
+            <div style={{ fontSize: 10, color: "#999999" }}>{ventasDia.length} ventas{totalGiftCards > 0 ? " + $" + totalGiftCards.toLocaleString("es-AR", { maximumFractionDigits: 0 }) + " gift cards" : ""}</div>
+          </div>
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign: "center", color: "#999999", padding: 30 }}>Cargando...</div>
+        ) : (
+          <div className="g2">
+            <div className="card">
+              <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>VENTAS POR MEDIO DE PAGO</div>
+              {mediosOrdenados.length === 0 && totalGiftCards === 0 ? (
+                <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 20 }}>Sin ventas en esta fecha</div>
+              ) : (
+                <table>
+                  <thead><tr><th>Medio</th><th>Cant</th><th>Total</th></tr></thead>
+                  <tbody>
+                    {mediosOrdenados.map(([medio, d], i) => (
+                      <tr key={i}>
+                        <td style={{ fontSize: 12 }}>{medio}</td>
+                        <td style={{ fontSize: 12, color: "#999999" }}>{d.cantidad}</td>
+                        <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${d.total.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                      </tr>
+                    ))}
+                    {totalGiftCards > 0 && (
+                      <tr>
+                        <td style={{ fontSize: 12, color: "#c9a84c" }}>Gift Cards emitidas</td>
+                        <td style={{ fontSize: 12, color: "#999999" }}>{giftCardsDia.length}</td>
+                        <td style={{ color: "#c9a84c", fontWeight: 600 }}>${totalGiftCards.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                      </tr>
+                    )}
+                    <tr style={{ borderTop: "2px solid #eeeeee" }}>
+                      <td style={{ fontWeight: 700 }}>TOTAL</td>
+                      <td style={{ fontWeight: 700, color: "#999999" }}>{ventasDia.length}</td>
+                      <td style={{ fontWeight: 700, color: "#2d7a4f" }}>${totalDia.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <div>
+              <div className="card" style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>EFECTIVO EN CAJA</div>
+                <div style={{ fontSize: 26, fontWeight: 700, color: efectivoEsperado < 0 ? "#c0392b" : "#111111" }}>${efectivoEsperado.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
+                <div style={{ fontSize: 10, color: "#999999", marginTop: 4 }}>ventas ${ventasEfectivo.toLocaleString("es-AR", { maximumFractionDigits: 0 })} + ingresos ${ingresosManuales.toLocaleString("es-AR", { maximumFractionDigits: 0 })} - egresos ${egresosDia.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
+              </div>
+              {movsDia.length > 0 && (
+                <div className="card">
+                  <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>MOVIMIENTOS DE CAJA</div>
+                  <table>
+                    <thead><tr><th>Tipo</th><th>Concepto</th><th>Importe</th></tr></thead>
+                    <tbody>
+                      {movsDia.map((m, i) => (
+                        <tr key={i}>
+                          <td><span className="badge" style={{ background: m.tipo === "ingreso" ? "#2d7a4f15" : "#c0392b15", color: m.tipo === "ingreso" ? "#2d7a4f" : "#c0392b" }}>{m.tipo}</span></td>
+                          <td style={{ fontSize: 11 }}>{m.concepto || "-"}</td>
+                          <td style={{ fontWeight: 600, color: m.tipo === "ingreso" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "ingreso" ? "+" : "-"}${parseFloat(m.importe || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 function OrdenesIngreso({ localId }) {
   const [ordenes, setOrdenes] = useState([]);
   const [productos, setProductos] = useState([]);
@@ -3168,6 +3341,7 @@ export default function AppWrapper() {
     if (id === "usuarios") return <Usuarios usuario={usuario} />;
     if (id === "comisiones") return <Comisiones localId={local.id} />;
     if (id === "caja") return <Caja localId={local.id} usuario={usuario} />;
+    if (id === "cierre") return <CierreCaja localId={local.id} />;
     if (id === "ordenes") return <OrdenesIngreso localId={local.id} />;
     if (id === "kits") return <Kits />;
     if (id === "proveedores") return <Proveedores />;
