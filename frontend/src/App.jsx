@@ -180,8 +180,13 @@ function Dashboard({ localId }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tabLocal, setTabLocal] = useState("rg");
+  const [vencimientos, setVencimientos] = useState([]);
   const mes = new Date().getMonth() + 1;
   const anio = new Date().getFullYear();
+
+  useEffect(() => {
+    API.get("/ordenes-ingreso/alertas/vencimientos").then(res => setVencimientos(res.data || [])).catch(() => {});
+  }, []);
 
   const cargar = async () => {
     setLoading(true);
@@ -253,6 +258,21 @@ function Dashboard({ localId }) {
         <div><div className="pt">Dashboard</div><div className="ps">{"KPIs del mes de " + ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][mes-1]}</div></div>
         <button className="btn btn-g btn-sm" onClick={cargar}>Actualizar</button>
       </div>
+      {vencimientos.length > 0 && (() => {
+        const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+        const vencidas = vencimientos.filter(v => new Date(v.fecha_vencimiento) < hoy).length;
+        const totalAdeudado = vencimientos.reduce((s, v) => s + parseFloat(v.total || 0), 0);
+        return (
+          <div style={{ background: vencidas > 0 ? "#c0392b12" : "#c9a84c12", border: "1px solid " + (vencidas > 0 ? "#c0392b" : "#c9a84c"), borderRadius: 8, padding: "12px 16px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: vencidas > 0 ? "#c0392b" : "#c9a84c" }}>
+                {vencidas > 0 ? vencidas + " factura" + (vencidas > 1 ? "s" : "") + " vencida" + (vencidas > 1 ? "s" : "") + (vencimientos.length > vencidas ? " y " + (vencimientos.length - vencidas) + " por vencer" : "") : vencimientos.length + " factura" + (vencimientos.length > 1 ? "s" : "") + " vence" + (vencimientos.length > 1 ? "n" : "") + " en los proximos 7 dias"}
+              </div>
+              <div style={{ fontSize: 11, color: "#666666", marginTop: 2 }}>Total adeudado: ${totalAdeudado.toLocaleString("es-AR", { maximumFractionDigits: 0 })} - revisalo en Proveedores</div>
+            </div>
+          </div>
+        );
+      })()}
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {["rg","ush","consolidado"].map(l => (
           <button key={l} onClick={() => setTabLocal(l)} className="btn btn-sm"
@@ -2236,6 +2256,8 @@ function Proveedores() {
   const [tab, setTab] = useState("lista");
   const [proveedores, setProveedores] = useState([]);
   const [cuentas, setCuentas] = useState([]);
+  const [vencimientos, setVencimientos] = useState([]);
+  const [todasOrdenes, setTodasOrdenes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [mensaje, setMensaje] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -2247,7 +2269,25 @@ function Proveedores() {
       .catch(() => setLoading(false));
   };
 
+  const cargarCuentasAPagar = () => {
+    Promise.all([API.get("/ordenes-ingreso/alertas/vencimientos"), API.get("/ordenes-ingreso")])
+      .then(([v, o]) => {
+        setVencimientos(v.data || []);
+        setTodasOrdenes((o.data || []).filter(x => x.estado !== "pagada"));
+      })
+      .catch(() => {});
+  };
+
   useEffect(() => { cargar(); }, []);
+
+  const marcarPagada = async (orden) => {
+    try {
+      await API.put("/ordenes-ingreso/" + orden.id + "/pagar", {});
+      setMensaje("Marcada como pagada: " + (orden.numero_factura || ""));
+      cargarCuentasAPagar();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al marcar como pagada"); }
+  };
 
   const guardar = async () => {
     try {
@@ -2317,6 +2357,9 @@ function Proveedores() {
       <div className="tabs">
         <div className={"tab " + (tab === "lista" ? "on" : "")} onClick={() => setTab("lista")}>PROVEEDORES</div>
         <div className={"tab " + (tab === "cuentas" ? "on" : "")} onClick={() => setTab("cuentas")}>CUENTAS DE PAGO</div>
+        <div className={"tab " + (tab === "pagar" ? "on" : "")} onClick={() => { setTab("pagar"); cargarCuentasAPagar(); }}>
+          CUENTAS A PAGAR {vencimientos.length > 0 && <span style={{ background: "#c0392b", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{vencimientos.length}</span>}
+        </div>
       </div>
 
       {tab === "lista" && (
@@ -2382,6 +2425,60 @@ function Proveedores() {
           </div>
         </div>
       )}
+
+      {tab === "pagar" && (() => {
+        const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+        const conUrgencia = todasOrdenes.map(o => {
+          const venc = o.fecha_vencimiento ? new Date(o.fecha_vencimiento) : null;
+          const diasRestantes = venc ? Math.ceil((venc - hoy) / (1000 * 60 * 60 * 24)) : null;
+          let urgencia = "normal";
+          if (diasRestantes !== null) {
+            if (diasRestantes < 0) urgencia = "vencida";
+            else if (diasRestantes <= 7) urgencia = "proxima";
+          }
+          return { ...o, diasRestantes, urgencia };
+        }).sort((a, b) => {
+          const orden = { vencida: 0, proxima: 1, normal: 2 };
+          if (orden[a.urgencia] !== orden[b.urgencia]) return orden[a.urgencia] - orden[b.urgencia];
+          return (a.diasRestantes ?? 999) - (b.diasRestantes ?? 999);
+        });
+        const colores = { vencida: { bg: "#c0392b12", border: "#c0392b", text: "#c0392b" }, proxima: { bg: "#c9a84c12", border: "#c9a84c", text: "#c9a84c" }, normal: { bg: "#fafafa", border: "#e8e8e8", text: "#666666" } };
+        return (
+          <div className="fade">
+            <div className="card" style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 4 }}>RESUMEN</div>
+              <div style={{ display: "flex", gap: 20 }}>
+                <div><span style={{ fontSize: 20, fontWeight: 700, color: "#c0392b" }}>{conUrgencia.filter(o => o.urgencia === "vencida").length}</span><div style={{ fontSize: 10, color: "#999999" }}>vencidas</div></div>
+                <div><span style={{ fontSize: 20, fontWeight: 700, color: "#c9a84c" }}>{conUrgencia.filter(o => o.urgencia === "proxima").length}</span><div style={{ fontSize: 10, color: "#999999" }}>vencen en 7 dias</div></div>
+                <div><span style={{ fontSize: 20, fontWeight: 700, color: "#2d7a4f" }}>${conUrgencia.reduce((s, o) => s + parseFloat(o.total || 0), 0).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</span><div style={{ fontSize: 10, color: "#999999" }}>total pendiente</div></div>
+              </div>
+            </div>
+            {conUrgencia.length === 0 ? (
+              <div className="card"><div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 30 }}>No hay facturas pendientes de pago</div></div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {conUrgencia.map((o, i) => {
+                  const c = colores[o.urgencia];
+                  return (
+                    <div key={i} className="card" style={{ background: c.bg, border: "1px solid " + c.border, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{o.proveedor_nombre || "-"} <span style={{ color: "#999999", fontWeight: 400 }}>- {o.numero_factura || "sin numero"}</span></div>
+                        <div style={{ fontSize: 11, color: c.text, marginTop: 2, fontWeight: 600 }}>
+                          {o.urgencia === "vencida" ? "Vencida hace " + Math.abs(o.diasRestantes) + " dias" : o.urgencia === "proxima" ? (o.diasRestantes === 0 ? "Vence hoy" : "Vence en " + o.diasRestantes + " dias") : "Vence " + new Date(o.fecha_vencimiento).toLocaleDateString("es-AR")}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: "#111111" }}>${parseFloat(o.total || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</span>
+                        <button className="btn btn-sm" style={{ background: "#2d7a4f", color: "white" }} onClick={() => marcarPagada(o)}>Marcar pagada</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
