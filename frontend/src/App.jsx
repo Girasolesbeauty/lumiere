@@ -803,12 +803,17 @@ function POS({ localId, usuario }) {
   );
 }
 
-function Inventario({ localId }) {
+function Inventario({ localId, usuario }) {
   const [tab, setTab] = useState("stock");
   const [productos, setProductos] = useState([]);
   const [alertas, setAlertas] = useState([]);
   const [transito, setTransito] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [ajustando, setAjustando] = useState(null);
+  const [modoAjuste, setModoAjuste] = useState("exacto");
+  const [valorAjuste, setValorAjuste] = useState("");
+  const [motivoAjuste, setMotivoAjuste] = useState("");
+  const [errorAjuste, setErrorAjuste] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [mensaje, setMensaje] = useState("");
   const [proveedores, setProveedores] = useState([]);
@@ -841,6 +846,29 @@ function Inventario({ localId }) {
       const res = await API.get("/productos/stock/transito");
       setTransito(res.data || []);
     } catch (e) {}
+  };
+
+  const abrirAjuste = (p) => {
+    setAjustando(p);
+    setModoAjuste("exacto");
+    setValorAjuste(String(p.stock || 0));
+    setMotivoAjuste("");
+    setErrorAjuste("");
+  };
+
+  const confirmarAjuste = async () => {
+    if (!motivoAjuste.trim()) return setErrorAjuste("El motivo es obligatorio");
+    if (valorAjuste === "" || isNaN(parseInt(valorAjuste))) return setErrorAjuste("Ingresa un numero valido");
+    try {
+      const res = await API.put("/productos/" + ajustando.id + "/ajustar-stock", {
+        modo: modoAjuste, valor: valorAjuste, motivo: motivoAjuste,
+        usuario_id: usuario?.id || null, usuario_nombre: usuario?.nombre || null, local_id: localId || 1
+      });
+      setMensaje("Stock ajustado: " + res.data.stock_anterior + "u -> " + res.data.stock_nuevo + "u");
+      setAjustando(null);
+      cargar();
+      setTimeout(() => setMensaje(""), 4000);
+    } catch (e) { setErrorAjuste(e.response?.data?.error || "Error al ajustar el stock"); }
   };
 
   const guardarProducto = async () => {
@@ -929,7 +957,7 @@ function Inventario({ localId }) {
             <div style={{ color: "#999999", padding: 20 }}>Cargando inventario...</div>
           ) : (
           <table>
-            <thead><tr><th>Producto</th><th>Marca</th><th>Categoria</th><th>Codigo</th><th>Precio</th><th>Costo</th><th>Stock</th><th>Reservado</th><th>Disponible</th><th>Estado</th></tr></thead>
+            <thead><tr><th>Producto</th><th>Marca</th><th>Categoria</th><th>Codigo</th><th>Precio</th><th>Costo</th><th>Stock</th><th>Reservado</th><th>Disponible</th><th>Estado</th><th></th></tr></thead>
             <tbody>
               {productos.map(p => {
                 const reservado = p.reservado || 0;
@@ -948,10 +976,11 @@ function Inventario({ localId }) {
                     <td style={{ fontSize: 11 }}>{reservado > 0 ? <span style={{ color: "#c9a84c", fontWeight: 600 }}>{reservado}u</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
                     <td><span className={"badge " + (bajo ? "br" : "bg")}>{disponible}u</span></td>
                     <td style={{ fontSize: 10, color: margen ? "#2d7a4f" : "#999999" }}>{margen ? margen + "%" : "-"}</td>
+                    <td><button className="btn btn-sm" style={{ fontSize: 10 }} onClick={() => abrirAjuste(p)}>Ajustar</button></td>
                   </tr>
                 );
               })}
-              {productos.length === 0 && <tr><td colSpan={10} style={{ color: "#999999", textAlign: "center" }}>Sin productos</td></tr>}
+              {productos.length === 0 && <tr><td colSpan={11} style={{ color: "#999999", textAlign: "center" }}>Sin productos</td></tr>}
             </tbody>
           </table>
           )}
@@ -1014,6 +1043,37 @@ function Inventario({ localId }) {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+      {ajustando && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+          <div className="card" style={{ width: 400, background: "#ffffff" }}>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Ajustar stock</div>
+            <div style={{ fontSize: 12, color: "#999999", marginBottom: 14 }}>{ajustando.nombre} - stock actual: <b>{ajustando.stock || 0}u</b></div>
+            {errorAjuste && (
+              <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "8px 12px", marginBottom: 10, fontSize: 11, color: "#c0392b" }}>{errorAjuste}</div>
+            )}
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "exacto" ? "#c9a84c15" : "transparent", border: "1px solid " + (modoAjuste === "exacto" ? "#c9a84c" : "#e8e8e8"), color: modoAjuste === "exacto" ? "#c9a84c" : "#999999" }} onClick={() => { setModoAjuste("exacto"); setValorAjuste(String(ajustando.stock || 0)); }}>Poner cantidad exacta</button>
+              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "diferencia" ? "#c9a84c15" : "transparent", border: "1px solid " + (modoAjuste === "diferencia" ? "#c9a84c" : "#e8e8e8"), color: modoAjuste === "diferencia" ? "#c9a84c" : "#999999" }} onClick={() => { setModoAjuste("diferencia"); setValorAjuste(""); }}>Sumar / restar</button>
+            </div>
+            <div className="fg">
+              <div className="fl">{modoAjuste === "exacto" ? "Stock real (numero final)" : "Diferencia (ej: 3 o -2)"}</div>
+              <input className="inp" type="number" placeholder={modoAjuste === "exacto" ? "Ej: 8" : "Ej: -2"} value={valorAjuste} onChange={e => setValorAjuste(e.target.value)} />
+              {modoAjuste === "diferencia" && valorAjuste !== "" && !isNaN(parseInt(valorAjuste)) && (
+                <div style={{ fontSize: 11, color: "#999999", marginTop: 4 }}>Nuevo stock: {(ajustando.stock || 0) + parseInt(valorAjuste)}u</div>
+              )}
+            </div>
+            <div className="fg">
+              <div className="fl">Motivo (obligatorio)</div>
+              <input className="inp" placeholder="Ej: conteo fisico, producto roto, error de carga" value={motivoAjuste} onChange={e => setMotivoAjuste(e.target.value)} />
+            </div>
+            <div style={{ fontSize: 10, color: "#999999", marginBottom: 12 }}>Este ajuste queda registrado con tu nombre y la fecha.</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setAjustando(null)}>Cancelar</button>
+              <button className="btn btn-p" style={{ flex: 1 }} onClick={confirmarAjuste}>Confirmar ajuste</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -3426,7 +3486,7 @@ export default function AppWrapper() {
     if (!puedeVer(id)) return <SinPermiso />;
     if (id === "dashboard") return <Dashboard localId={local.id} />;
     if (id === "pos") return <POS localId={local.id} />;
-    if (id === "inventory") return <Inventario localId={local.id} />;
+    if (id === "inventory") return <Inventario localId={local.id} usuario={usuario} />;
     if (id === "clients") return <Clientes localId={local.id} />;
     if (id === "finance") return <Finanzas localId={local.id} />;
     if (id === "reports") return <Informes localId={local.id} />;

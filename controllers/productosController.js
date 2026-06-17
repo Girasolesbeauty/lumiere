@@ -126,4 +126,70 @@ const getTransito = async (req, res) => {
   }
 };
 
-module.exports = { getAll, getById, create, update, remove, getAlertas, getTransito };
+// Ajuste manual de stock (queda registrado quien, cuando y por que).
+// Acepta modo "exacto" (nuevo valor final) o "diferencia" (+/-).
+const ajustarStock = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { id } = req.params;
+    const { modo, valor, motivo, usuario_id, usuario_nombre, local_id } = req.body;
+
+    if (!motivo || !motivo.trim()) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'El motivo del ajuste es obligatorio' });
+    }
+
+    const prodRes = await client.query('SELECT stock FROM productos WHERE id = $1', [id]);
+    if (prodRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Producto no encontrado' });
+    }
+    const stockAnterior = prodRes.rows[0].stock || 0;
+
+    let stockNuevo;
+    if (modo === 'diferencia') {
+      stockNuevo = stockAnterior + parseInt(valor);
+    } else {
+      stockNuevo = parseInt(valor);
+    }
+    if (isNaN(stockNuevo) || stockNuevo < 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'El stock resultante no puede ser negativo' });
+    }
+
+    await client.query('UPDATE productos SET stock = $1 WHERE id = $2', [stockNuevo, id]);
+    await client.query(
+      `INSERT INTO ajustes_stock (producto_id, stock_anterior, stock_nuevo, diferencia, motivo, usuario_id, usuario_nombre, local_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [id, stockAnterior, stockNuevo, stockNuevo - stockAnterior, motivo.trim(), usuario_id || null, usuario_nombre || null, local_id || 1]
+    );
+
+    await client.query('COMMIT');
+    res.json({ stock_anterior: stockAnterior, stock_nuevo: stockNuevo });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error(error);
+    res.status(500).json({ error: 'Error al ajustar stock: ' + error.message });
+  } finally {
+    client.release();
+  }
+};
+
+// Historial de ajustes (para auditoria)
+const getHistorialAjustes = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT a.*, p.nombre AS producto_nombre
+       FROM ajustes_stock a
+       JOIN productos p ON a.producto_id = p.id
+       ORDER BY a.creado_en DESC
+       LIMIT 200`
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener historial de ajustes' });
+  }
+};
+
+module.exports = { getAll, getById, create, update, remove, getAlertas, getTransito, ajustarStock, getHistorialAjustes };
