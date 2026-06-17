@@ -1,8 +1,8 @@
 const pool = require('../config/database');
 
 // Agrega campos calculados de disponibilidad real (stock - reservado de preventas) sin tocar el resto.
-const conDisponible = (rows, localId) => rows.map(p => {
-  const esUsh = localId === '2' || localId === 2;
+const conDisponible = (rows, local) => rows.map(p => {
+  const esUsh = local === '2' || local === 2 || local === 'ush';
   const reservado = esUsh ? (p.reservado_ush || 0) : (p.reservado_rg || 0);
   const transito = esUsh ? (p.stock_transito_ush || 0) : (p.stock_transito_rg || 0);
   return {
@@ -15,16 +15,11 @@ const conDisponible = (rows, localId) => rows.map(p => {
 
 const getAll = async (req, res) => {
   try {
-    const { local_id } = req.query;
-    let query = 'SELECT * FROM productos WHERE activo = TRUE';
-    const params = [];
-    if (local_id) {
-      params.push(local_id);
-      query += ` AND local_id = $${params.length}`;
-    }
-    query += ' ORDER BY nombre ASC';
-    const result = await pool.query(query, params);
-    res.json(conDisponible(result.rows, local_id));
+    // "local" es solo para calcular disponible/transito por local (no filtra el catalogo, que es unico).
+    const { local } = req.query;
+    let query = 'SELECT * FROM productos WHERE activo = TRUE ORDER BY nombre ASC';
+    const result = await pool.query(query);
+    res.json(conDisponible(result.rows, local));
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener productos' });
   }
@@ -33,10 +28,10 @@ const getAll = async (req, res) => {
 const getById = async (req, res) => {
   try {
     const { id } = req.params;
-    const { local_id } = req.query;
+    const { local } = req.query;
     const result = await pool.query('SELECT * FROM productos WHERE id = $1', [id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Producto no encontrado' });
-    res.json(conDisponible(result.rows, local_id)[0]);
+    res.json(conDisponible(result.rows, local)[0]);
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener producto' });
   }

@@ -404,7 +404,8 @@ function POS({ localId, usuario }) {
   };
 
   useEffect(() => {
-    getProductos().then(res => setProductos(res.data)).catch(() => setProductos(PRODUCTS));
+    const localParam = localId === 2 ? "ush" : "rg";
+    API.get("/productos?local=" + localParam).then(res => setProductos(res.data)).catch(() => setProductos(PRODUCTS));
     API.get("/medios-pago").then(res => setMediosPago(res.data)).catch(() => setMediosPago([]));
     cargarPreventas();
   }, [localId]);
@@ -414,6 +415,11 @@ function POS({ localId, usuario }) {
     return e ? prev.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i) : [...prev, { ...p, qty: 1 }];
   });
   const remove = (id) => setCart(prev => prev.filter(i => i.id !== id));
+
+  const agregarComoPreventa = (p) => {
+    if (!preventa) setPreventa(true);
+    add(p);
+  };
 
   const coef = medioPagoSel ? parseFloat(medioPagoSel.coeficiente) : 1;
   const subtotalBase = cart.reduce((s, i) => s + (i.precio || i.price) * i.qty, 0);
@@ -651,28 +657,36 @@ function POS({ localId, usuario }) {
                   <tr><td colSpan={6} style={{ textAlign: "center", color: "#cccccc", padding: 30, fontSize: 12 }}>Sin productos</td></tr>
                 ) : productosAMostrar.map(p => {
                   const disp = p.disponible !== undefined ? p.disponible : (p.stock || 0);
+                  const transitoLocal = p.transito_local || 0;
+                  const soloTransito = disp <= 0 && transitoLocal > 0;
                   const bajo = disp > 0 && disp < (p.stock_minimo || 5);
-                  const sinStock = !disp || disp <= 0;
+                  const sinStock = disp <= 0 && transitoLocal <= 0;
+                  const accion = soloTransito ? (() => agregarComoPreventa(p)) : (() => add(p));
                   return (
                     <tr key={p.id}
                       style={{ borderBottom: "1px solid #f5f5f5", cursor: sinStock ? "not-allowed" : "pointer", opacity: sinStock ? 0.45 : 1, transition: "background .15s" }}
-                      onMouseEnter={e => { if (!sinStock) e.currentTarget.style.background = "#fffbf4"; }}
+                      onMouseEnter={e => { if (!sinStock) e.currentTarget.style.background = soloTransito ? "#7d3c9808" : "#fffbf4"; }}
                       onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-                      onClick={() => { if (!sinStock) add(p); }}>
+                      onClick={() => { if (!sinStock) accion(); }}>
                       <td style={{ padding: "5px 14px" }}>
                         <div style={{ fontSize: 12, fontWeight: 600, color: "#111111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 190 }}>{p.nombre || p.name}</div>
+                        {!soloTransito && disp > 0 && transitoLocal > 0 && <div style={{ fontSize: 9, color: "#7d3c98" }}>+{transitoLocal} en camino</div>}
                       </td>
                       <td style={{ padding: "5px 8px", fontSize: 11, color: "#666666", whiteSpace: "nowrap" }}>{p.marca || p.brand || "-"}</td>
                       <td style={{ padding: "5px 8px", fontSize: 10, color: "#aaaaaa", fontFamily: "monospace" }}>{p.codigo_barras || p.codigo || "-"}</td>
                       <td style={{ padding: "5px 8px", textAlign: "right", fontSize: 13, fontWeight: 700, color: "#c9a84c", whiteSpace: "nowrap" }}>${(p.precio || p.price || 0).toLocaleString()}</td>
                       <td style={{ padding: "5px 8px", textAlign: "center" }}>
-                        <span className={"badge " + (sinStock ? "br" : bajo ? "ba" : "bg")} style={{ fontSize: 10 }} title={p.reservado > 0 ? p.reservado + "u reservadas en preventas" : ""}>{disp}u</span>
+                        {soloTransito ? (
+                          <span className="badge bp" style={{ fontSize: 10 }} title={transitoLocal + "u en camino, todavia no llegaron"}>0 + {transitoLocal} en camino</span>
+                        ) : (
+                          <span className={"badge " + (sinStock ? "br" : bajo ? "ba" : "bg")} style={{ fontSize: 10 }} title={p.reservado > 0 ? p.reservado + "u reservadas en preventas" : ""}>{disp}u</span>
+                        )}
                       </td>
                       <td style={{ padding: "5px 8px", textAlign: "right" }}>
                         {!sinStock && (
-                          <button onClick={e => { e.stopPropagation(); add(p); }}
-                            style={{ background: "#2d7a4f", color: "white", border: "none", borderRadius: 5, padding: "4px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
-                            + Agregar
+                          <button onClick={e => { e.stopPropagation(); accion(); }}
+                            style={{ background: soloTransito ? "#7d3c98" : "#2d7a4f", color: "white", border: "none", borderRadius: 5, padding: "4px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                            {soloTransito ? "+ Preventa" : "+ Agregar"}
                           </button>
                         )}
                       </td>
