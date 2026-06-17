@@ -196,6 +196,145 @@ const create = async (req, res) => {
   }
 };
 
+// Actualizar campos sueltos de una venta (ej: cancelar una preventa)
+const update = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { id } = req.params;
+    const { estado } = req.body;
+
+    const ventaRes = await client.query('SELECT * FROM ventas WHERE id = $1', [id]);
+    if (ventaRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Venta no encontrada' });
+    }
+    const venta = ventaRes.rows[0];
+
+    // Si se cancela una preventa que tenia reserva activa, liberar lo reservado
+    if (estado === 'cancelada' && venta.es_preventa === true && venta.estado_pago === 'reservado') {
+      const items = await client.query('SELECT * FROM venta_items WHERE venta_id = $1', [id]);
+      for (const item of items.rows) {
+        if (venta.preventa_local === 2) {
+          await client.query(
+            'UPDATE productos SET reservado_ush = GREATEST(COALESCE(reservado_ush, 0) - $1, 0) WHERE id = $2',
+            [item.cantidad, item.producto_id]
+          );
+        } else {
+          await client.query(
+            'UPDATE productos SET reservado_rg = GREATEST(COALESCE(reservado_rg, 0) - $1, 0) WHERE id = $2',
+            [item.cantidad, item.producto_id]
+          );
+        }
+      }
+    }
+
+    await client.query('UPDATE ventas SET estado_pago = $1 WHERE id = $2', [estado, id]);
+    await client.query('COMMIT');
+    res.json({ ok: true });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error(error);
+    res.status(500).json({ error: 'Error al actualizar venta' });
+  } finally {
+    client.release();
+  }
+};
+
+// Confirmar entrega de una preventa: la clienta vino a retirar.
+// Descuenta del STOCK REAL (ya llego al local) y libera la reserva correspondiente.
+// No crea una venta nueva: la preventa pasa a ser la venta confirmada.
+const confirmarEntrega = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { id } = req.params;
+    const { medio_pago_id, medio_pago_nombre, total_con_interes, usuario_id } = req.body;
+
+    const ventaRes = await client.query('SELECT * FROM ventas WHERE id = $1', [id]);
+    if (ventaRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Preventa no encontrada' });
+    }
+    const venta = ventaRes.rows[0];
+
+    if (venta.es_preventa !== true) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Esta venta no es una preventa' });
+    }
+    if (venta.estado_pago === 'confirmada') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Esta preventa ya fue confirmada' });
+    }
+
+    const itemsRes = await client.query('SELECT * FROM venta_items WHERE venta_id = $1', [id]);
+    const items = itemsRes.rows;
+    const esUsh = venta.preventa_local === 2;
+
+    for (const item of items) {
+      // Verificar que haya stock real suficiente antes de descontar
+      const prodRes = await client.query('SELECT stock, nombre FROM productos WHERE id = $1', [item.producto_id]);
+      const stockActual = prodRes.rows[0]?.stock || 0;
+      if (stockActual < item.cantidad) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          error: 'Stock insuficiente para "' + (prodRes.rows[0]?.nombre || 'producto') + '". Disponible: ' + stockActual + ', se necesitan: ' + item.cantidad + '. Puede que la mercaderia aun no haya llegado.'
+        });
+      }
+      // Descuenta del stock real (la clienta se lo lleva)
+      await client.query('UPDATE productos SET stock = stock - $1 WHERE id = $2', [item.cantidad, item.producto_id]);
+      // Libera la reserva (ya no esta "comprometido", ya se entrego)
+      if (esUsh) {
+        await client.query(
+          'UPDATE productos SET reservado_ush = GREATEST(COALESCE(reservado_ush, 0) - $1, 0) WHERE id = $2',
+          [item.cantidad, item.producto_id]
+        );
+      } else {
+        await client.query(
+          'UPDATE productos SET reservado_rg = GREATEST(COALESCE(reservado_rg, 0) - $1, 0) WHERE id = $2',
+          [item.cantidad, item.producto_id]
+        );
+      }
+    }
+
+    // Si se eligio un medio de pago distinto (o no se habia definido), actualizarlo
+    const totalFinal = (total_con_interes !== undefined && total_con_interes !== null)
+      ? parseFloat(total_con_interes)
+      : parseFloat(venta.total);
+
+    await client.query(
+      `UPDATE ventas SET
+        estado_pago = 'confirmada',
+        medio_pago_id = COALESCE($1, medio_pago_id),
+        medio_pago = COALESCE($2, medio_pago),
+        total = $3
+       WHERE id = $4`,
+      [medio_pago_id || null, medio_pago_nombre || null, totalFinal, id]
+    );
+
+    // Ahora si genera el movimiento de caja, porque recien ahora se cobra
+    const montoGC = parseFloat(venta.monto_gift_card) || 0;
+    const ingresoCaja = totalFinal - montoGC;
+    if (ingresoCaja > 0) {
+      await client.query(
+        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id)
+         VALUES ($1, 'I', $2, $3, $4)`,
+        ['Entrega preventa ' + (venta.numero_factura || ''), ingresoCaja, venta.numero_factura, venta.local_id || 1]
+      );
+    }
+
+    await client.query('COMMIT');
+    const actualizada = await pool.query('SELECT * FROM ventas WHERE id = $1', [id]);
+    res.json(actualizada.rows[0]);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error(error);
+    res.status(500).json({ error: 'Error al confirmar entrega: ' + error.message });
+  } finally {
+    client.release();
+  }
+};
+
 const getResumenHoy = async (req, res) => {
   try {
     const { local_id } = req.query;
@@ -228,4 +367,4 @@ const getResumenMes = async (req, res) => {
   }
 };
 
-module.exports = { getAll, getById, create, getResumenHoy, getResumenMes };
+module.exports = { getAll, getById, create, update, confirmarEntrega, getResumenHoy, getResumenMes };

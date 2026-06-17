@@ -392,6 +392,9 @@ function POS({ localId, usuario }) {
   const [medioPagoSel, setMedioPagoSel] = useState(null);
   const [tabPos, setTabPos] = useState("venta");
   const [preventasPendientes, setPreventasPendientes] = useState([]);
+  const [confirmandoPreventa, setConfirmandoPreventa] = useState(null);
+  const [medioPagoConfirmacion, setMedioPagoConfirmacion] = useState("");
+  const [errorConfirmacion, setErrorConfirmacion] = useState("");
 
   const cargarPreventas = async () => {
     try {
@@ -487,17 +490,43 @@ function POS({ localId, usuario }) {
     setLoading(false);
   };
 
-  const confirmarPreventa = async (p) => {
+  const abrirConfirmacionEntrega = (p) => {
+    setConfirmandoPreventa(p);
+    setMedioPagoConfirmacion(p.medio_pago_id || "");
+    setErrorConfirmacion("");
+  };
+
+  const confirmarEntregaPreventa = async () => {
+    if (!confirmandoPreventa) return;
+    if (!medioPagoConfirmacion) return setErrorConfirmacion("Selecciona el medio de pago");
+    setErrorConfirmacion("");
     try {
-      const res = await API.get("/ventas/" + p.id);
-      const vd = res.data;
-      setCart((vd.items || []).map(i => ({ id: i.producto_id, nombre: i.producto_nombre, precio: i.precio_unitario, qty: i.cantidad, stock: 99 })));
-      setClienteSeleccionado({ id: p.cliente_id, nombre: p.nombre_preventa || "Consumidor Final", puntos: 0 });
-      setTabPos("venta");
-      setMensaje("Preventa cargada!");
-      await API.put("/ventas/" + p.id, { estado: "cancelada" });
+      const m = mediosPago.find(x => x.id === parseInt(medioPagoConfirmacion));
+      const totalOriginal = parseFloat(confirmandoPreventa.total || 0);
+      const coefM = m ? parseFloat(m.coeficiente) : 1;
+      const totalConInteres = Math.round(totalOriginal * coefM);
+      await API.put("/ventas/" + confirmandoPreventa.id + "/confirmar-entrega", {
+        medio_pago_id: m?.id || null,
+        medio_pago_nombre: m?.nombre || null,
+        total_con_interes: totalConInteres,
+        usuario_id: usuario?.id || null
+      });
+      setMensaje("Entrega confirmada! Stock descontado y reserva liberada.");
+      setConfirmandoPreventa(null);
       cargarPreventas();
-    } catch (e) { setMensaje("Error al cargar preventa"); }
+      setTimeout(() => setMensaje(""), 5000);
+    } catch (e) {
+      setErrorConfirmacion(e.response?.data?.error || "Error al confirmar la entrega");
+    }
+  };
+
+  const cancelarPreventa = async (p) => {
+    try {
+      await API.put("/ventas/" + p.id, { estado: "cancelada" });
+      setMensaje("Preventa cancelada, reserva liberada.");
+      cargarPreventas();
+      setTimeout(() => setMensaje(""), 4000);
+    } catch (e) { setMensaje("Error al cancelar la preventa"); }
   };
 
   const productosAMostrar = (productos.length > 0 ? productos : PRODUCTS).filter(p =>
@@ -519,20 +548,51 @@ function POS({ localId, usuario }) {
             PREVENTAS {preventasPendientes.length > 0 && <span style={{ background: "#2471a3", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{preventasPendientes.length}</span>}
           </div>
         </div>
+        {mensaje && (
+          <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>
+            {mensaje}
+          </div>
+        )}
         {preventasPendientes.length === 0 ? (
           <div style={{ textAlign: "center", color: "#999999", padding: 40, fontSize: 13 }}>No hay preventas pendientes</div>
         ) : preventasPendientes.map(p => (
           <div key={p.id} className="card" style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 600 }}>{p.nombre_preventa || "Consumidor Final"}</div>
-              <div style={{ fontSize: 11, color: "#999999", marginTop: 3 }}>{new Date(p.creado_en).toLocaleDateString("es-AR")} "" ${parseFloat(p.total).toLocaleString()}</div>
+              <div style={{ fontSize: 11, color: "#999999", marginTop: 3 }}>{new Date(p.creado_en).toLocaleDateString("es-AR")} - ${parseFloat(p.total).toLocaleString()}</div>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn btn-p btn-sm" onClick={() => confirmarPreventa(p)}>Confirmar venta</button>
-              <button className="btn btn-g btn-sm" onClick={async () => { await API.put("/ventas/" + p.id, { estado: "cancelada" }); cargarPreventas(); }}>Cancelar</button>
+              <button className="btn btn-p btn-sm" onClick={() => abrirConfirmacionEntrega(p)}>Confirmar entrega</button>
+              <button className="btn btn-g btn-sm" onClick={() => cancelarPreventa(p)}>Cancelar</button>
             </div>
           </div>
         ))}
+        {confirmandoPreventa && (
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+            <div className="card" style={{ width: 380, background: "#ffffff" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Confirmar entrega</div>
+              <div style={{ fontSize: 12, color: "#999999", marginBottom: 14 }}>{confirmandoPreventa.nombre_preventa || "Consumidor Final"} viene a retirar su pedido. Esto descuenta del stock real y libera la reserva.</div>
+              {errorConfirmacion && (
+                <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "8px 12px", marginBottom: 10, fontSize: 11, color: "#c0392b" }}>{errorConfirmacion}</div>
+              )}
+              <div className="fl">Medio de pago</div>
+              <select className="sel" style={{ marginBottom: 14 }} value={medioPagoConfirmacion} onChange={e => setMedioPagoConfirmacion(e.target.value)}>
+                <option value="">Seleccionar...</option>
+                {["efectivo", "transferencia", "debito", "credito", "plataforma"].map(tipo => (
+                  <optgroup key={tipo} label={tipo === "efectivo" ? "Efectivo" : tipo === "transferencia" ? "Transferencia" : tipo === "debito" ? "Debito" : tipo === "credito" ? "Credito" : "Plataformas"}>
+                    {mediosPago.filter(m => m.tipo === tipo).map(m => (
+                      <option key={m.id} value={m.id}>{m.nombre}{m.con_interes ? " (+" + Math.round((parseFloat(m.coeficiente) - 1) * 100) + "%)" : ""}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setConfirmandoPreventa(null)}>Cancelar</button>
+                <button className="btn btn-p" style={{ flex: 1 }} onClick={confirmarEntregaPreventa}>Confirmar y cobrar</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -590,8 +650,9 @@ function POS({ localId, usuario }) {
                 {productosAMostrar.length === 0 ? (
                   <tr><td colSpan={6} style={{ textAlign: "center", color: "#cccccc", padding: 30, fontSize: 12 }}>Sin productos</td></tr>
                 ) : productosAMostrar.map(p => {
-                  const bajo = (p.stock || 0) < (p.stock_minimo || 5);
-                  const sinStock = !p.stock || p.stock === 0;
+                  const disp = p.disponible !== undefined ? p.disponible : (p.stock || 0);
+                  const bajo = disp > 0 && disp < (p.stock_minimo || 5);
+                  const sinStock = !disp || disp <= 0;
                   return (
                     <tr key={p.id}
                       style={{ borderBottom: "1px solid #f5f5f5", cursor: sinStock ? "not-allowed" : "pointer", opacity: sinStock ? 0.45 : 1, transition: "background .15s" }}
@@ -605,7 +666,7 @@ function POS({ localId, usuario }) {
                       <td style={{ padding: "5px 8px", fontSize: 10, color: "#aaaaaa", fontFamily: "monospace" }}>{p.codigo_barras || p.codigo || "-"}</td>
                       <td style={{ padding: "5px 8px", textAlign: "right", fontSize: 13, fontWeight: 700, color: "#c9a84c", whiteSpace: "nowrap" }}>${(p.precio || p.price || 0).toLocaleString()}</td>
                       <td style={{ padding: "5px 8px", textAlign: "center" }}>
-                        <span className={"badge " + (sinStock ? "br" : bajo ? "ba" : "bg")} style={{ fontSize: 10 }}>{p.stock || 0}u</span>
+                        <span className={"badge " + (sinStock ? "br" : bajo ? "ba" : "bg")} style={{ fontSize: 10 }} title={p.reservado > 0 ? p.reservado + "u reservadas en preventas" : ""}>{disp}u</span>
                       </td>
                       <td style={{ padding: "5px 8px", textAlign: "right" }}>
                         {!sinStock && (
@@ -746,6 +807,7 @@ function Inventario({ localId }) {
   const [tab, setTab] = useState("stock");
   const [productos, setProductos] = useState([]);
   const [alertas, setAlertas] = useState([]);
+  const [transito, setTransito] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [mensaje, setMensaje] = useState("");
@@ -773,6 +835,13 @@ function Inventario({ localId }) {
   };
 
   useEffect(() => { cargar(); }, [localId]);
+
+  const cargarTransito = async () => {
+    try {
+      const res = await API.get("/productos/stock/transito");
+      setTransito(res.data || []);
+    } catch (e) {}
+  };
 
   const guardarProducto = async () => {
     if (!nuevo.nombre || !nuevo.precio) return setMensaje("Completa al menos nombre y precio");
@@ -848,9 +917,9 @@ function Inventario({ localId }) {
         </div>
       )}
       <div className="tabs">
-        {["stock", "alertas", "movimientos"].map(t => (
-          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => setTab(t)}>
-            {t === "stock" ? "STOCK" : t === "alertas" ? "ALERTAS" + (alertas.length > 0 ? " (" + alertas.length + ")" : "") : "MOVIMIENTOS"}
+        {["stock", "transito", "alertas", "movimientos"].map(t => (
+          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "transito") cargarTransito(); }}>
+            {t === "stock" ? "STOCK" : t === "transito" ? "EN TRANSITO" : t === "alertas" ? "ALERTAS" + (alertas.length > 0 ? " (" + alertas.length + ")" : "") : "MOVIMIENTOS"}
           </div>
         ))}
       </div>
@@ -860,10 +929,12 @@ function Inventario({ localId }) {
             <div style={{ color: "#999999", padding: 20 }}>Cargando inventario...</div>
           ) : (
           <table>
-            <thead><tr><th>Producto</th><th>Marca</th><th>Categoria</th><th>Codigo</th><th>Precio</th><th>Costo</th><th>Stock</th><th>Estado</th></tr></thead>
+            <thead><tr><th>Producto</th><th>Marca</th><th>Categoria</th><th>Codigo</th><th>Precio</th><th>Costo</th><th>Stock</th><th>Reservado</th><th>Disponible</th><th>Estado</th></tr></thead>
             <tbody>
               {productos.map(p => {
-                const bajo = (p.stock || 0) <= (p.stock_minimo || 5);
+                const reservado = p.reservado || 0;
+                const disponible = p.disponible !== undefined ? p.disponible : Math.max((p.stock || 0) - reservado, 0);
+                const bajo = disponible <= (p.stock_minimo || 5);
                 const margen = p.price && p.cost ? Math.round(((p.price - p.cost) / p.price) * 100) : null;
                 return (
                   <tr key={p.id}>
@@ -873,14 +944,39 @@ function Inventario({ localId }) {
                     <td style={{ fontSize: 11, color: "#999999" }}>{p.codigo_barras || p.codigo || "-"}</td>
                     <td style={{ color: "#c9a84c" }}>${parseFloat(p.price || p.precio || 0).toLocaleString()}</td>
                     <td style={{ fontSize: 11, color: "#999999" }}>{p.cost || p.costo ? "$" + parseFloat(p.cost || p.costo).toLocaleString() : "-"}</td>
-                    <td><span className={"badge " + (bajo ? "br" : "bg")}>{p.stock || 0}u</span></td>
+                    <td><span className="badge bx">{p.stock || 0}u</span></td>
+                    <td style={{ fontSize: 11 }}>{reservado > 0 ? <span style={{ color: "#c9a84c", fontWeight: 600 }}>{reservado}u</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
+                    <td><span className={"badge " + (bajo ? "br" : "bg")}>{disponible}u</span></td>
                     <td style={{ fontSize: 10, color: margen ? "#2d7a4f" : "#999999" }}>{margen ? margen + "%" : "-"}</td>
                   </tr>
                 );
               })}
-              {productos.length === 0 && <tr><td colSpan={8} style={{ color: "#999999", textAlign: "center" }}>Sin productos</td></tr>}
+              {productos.length === 0 && <tr><td colSpan={10} style={{ color: "#999999", textAlign: "center" }}>Sin productos</td></tr>}
             </tbody>
           </table>
+          )}
+        </div>
+      )}
+      {tab === "transito" && (
+        <div className="card fade">
+          {transito.length === 0 ? (
+            <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 30 }}>No hay stock en transito por el momento</div>
+          ) : (
+            <table>
+              <thead><tr><th>Producto</th><th>Codigo</th><th>Transito RG</th><th>Reservado RG</th><th>Transito USH</th><th>Reservado USH</th></tr></thead>
+              <tbody>
+                {transito.map(p => (
+                  <tr key={p.id}>
+                    <td style={{ fontWeight: 500 }}>{p.nombre}{p.marca ? <span style={{ fontSize: 10, color: "#999999", marginLeft: 6 }}>{p.marca}</span> : ""}</td>
+                    <td style={{ fontSize: 11, color: "#999999" }}>{p.codigo_barras || "-"}</td>
+                    <td>{p.transito_rg > 0 ? <span className="badge bb">{p.transito_rg}u</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
+                    <td>{p.reservado_rg > 0 ? <span style={{ color: "#c9a84c", fontWeight: 600, fontSize: 11 }}>{p.reservado_rg}u</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
+                    <td>{p.transito_ush > 0 ? <span className="badge bb">{p.transito_ush}u</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
+                    <td>{p.reservado_ush > 0 ? <span style={{ color: "#c9a84c", fontWeight: 600, fontSize: 11 }}>{p.reservado_ush}u</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
       )}
