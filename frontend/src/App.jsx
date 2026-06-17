@@ -2699,7 +2699,9 @@ function CierreCaja({ localId }) {
 }
 
 
-function OrdenesIngreso({ localId }) {
+function OrdenesIngreso({ localId, usuario }) {
+  const localActual = localId === 2 ? "ush" : "rg";
+  const localNombre = localId === 2 ? "Ushuaia" : "Rio Grande";
   const [ordenes, setOrdenes] = useState([]);
   const [productos, setProductos] = useState([]);
   const [proveedores, setProveedores] = useState([]);
@@ -2708,197 +2710,358 @@ function OrdenesIngreso({ localId }) {
   const [ordenDetalle, setOrdenDetalle] = useState(null);
   const [itemsDetalle, setItemsDetalle] = useState([]);
   const [mensaje, setMensaje] = useState("");
-  const [nueva, setNueva] = useState({ proveedor_id: "", notas: "", items: [] });
-  const [itemTemp, setItemTemp] = useState({ producto_id: "", cantidad_esperada: "", costo_unitario: "" });
+  const [nueva, setNueva] = useState({ proveedor_id: "", numero_factura: "", total: "", notas: "", items: [] });
+  const [itemTemp, setItemTemp] = useState({ producto_id: "", cantidad_rg: "", cantidad_ush: "", costo_unitario: "" });
+  const [conteo, setConteo] = useState({});
+  const [recibidoHist, setRecibidoHist] = useState([]);
+  const [notaItem, setNotaItem] = useState({});
+  const [extra, setExtra] = useState({ producto_id: "", cantidad: "", costo_unitario: "" });
 
   const cargar = async () => {
     setLoading(true);
     try {
       const [ordRes, prodRes, provRes] = await Promise.all([
-        API.get("/ordenes-ingreso?local_id=" + (localId || 1)),
+        API.get("/ordenes-ingreso"),
         API.get("/productos"),
         API.get("/proveedores")
       ]);
-      setOrdenes(ordRes.data);
-      setProductos(prodRes.data);
-      setProveedores(provRes.data);
+      setOrdenes(ordRes.data || []);
+      setProductos(prodRes.data || []);
+      setProveedores(provRes.data || []);
     } catch (e) {}
     setLoading(false);
   };
 
-  useEffect(() => { cargar(); }, [localId]);
+  useEffect(() => { cargar(); }, []);
+
+  const cargarRecibido = async () => {
+    try {
+      const res = await API.get("/ordenes-ingreso/reporte/recibido");
+      setRecibidoHist(res.data || []);
+    } catch (e) {}
+  };
 
   const agregarItem = () => {
-    if (!itemTemp.producto_id || !itemTemp.cantidad_esperada) return;
+    if (!itemTemp.producto_id) return setMensaje("Elegi un producto");
     const prod = productos.find(p => p.id === parseInt(itemTemp.producto_id));
-    setNueva(n => ({ ...n, items: [...n.items, { ...itemTemp, producto_nombre: prod?.nombre || "" }] }));
-    setItemTemp({ producto_id: "", cantidad_esperada: "", costo_unitario: "" });
+    if (!prod) return;
+    const cantRg = parseInt(itemTemp.cantidad_rg) || 0;
+    const cantUsh = parseInt(itemTemp.cantidad_ush) || 0;
+    if (cantRg + cantUsh === 0) return setMensaje("Ingresa cantidad para algun local");
+    setNueva(p => ({
+      ...p,
+      items: [...p.items, {
+        producto_id: prod.id, producto_nombre: prod.nombre,
+        cantidad_rg: cantRg, cantidad_ush: cantUsh,
+        cantidad_total: cantRg + cantUsh,
+        costo_unitario: parseFloat(itemTemp.costo_unitario) || parseFloat(prod.costo) || 0
+      }]
+    }));
+    setItemTemp({ producto_id: "", cantidad_rg: "", cantidad_ush: "", costo_unitario: "" });
+    setMensaje("");
+  };
+
+  const quitarItemNueva = (idx) => {
+    setNueva(p => ({ ...p, items: p.items.filter((_, i) => i !== idx) }));
   };
 
   const crearOrden = async () => {
-    if (!nueva.proveedor_id || nueva.items.length === 0) return setMensaje("Selecciona proveedor y al menos un producto");
+    if (!nueva.proveedor_id) return setMensaje("Elegi un proveedor");
+    if (nueva.items.length === 0) return setMensaje("Agrega al menos un producto");
     try {
-      await API.post("/ordenes-ingreso", { ...nueva, local_id: localId || 1 });
-      setMensaje("Orden creada!");
-      setNueva({ proveedor_id: "", notas: "", items: [] });
-      setTab("lista");
+      const total = nueva.items.reduce((s, it) => s + it.costo_unitario * it.cantidad_total, 0);
+      await API.post("/ordenes-ingreso", { ...nueva, total: nueva.total || total });
+      setMensaje("Orden creada! Stock en transito cargado.");
+      setNueva({ proveedor_id: "", numero_factura: "", total: "", notas: "", items: [] });
       cargar();
-      setTimeout(() => setMensaje(""), 3000);
-    } catch (e) { setMensaje("Error al crear orden"); }
+      setTab("lista");
+    } catch (e) { setMensaje("Error al crear orden: " + (e.response?.data?.error || e.message)); }
   };
 
   const verDetalle = async (orden) => {
     setOrdenDetalle(orden);
-    const res = await API.get("/ordenes-ingreso/" + orden.id + "/items");
-    setItemsDetalle(res.data.map(i => ({ ...i, cantidad_recibida: i.cantidad_recibida || 0 })));
+    try {
+      const res = await API.get("/ordenes-ingreso/" + orden.id + "/items");
+      setItemsDetalle(res.data || []);
+      const c = {};
+      (res.data || []).forEach(it => {
+        c[it.id] = localActual === "rg" ? (it.recibido_rg || it.cantidad_rg) : (it.recibido_ush || it.cantidad_ush);
+      });
+      setConteo(c);
+    } catch (e) {}
     setTab("recibir");
   };
 
-  const recibirMercaderia = async () => {
+  const confirmarItem = async (item) => {
+    const cant = parseInt(conteo[item.id]);
+    if (isNaN(cant) || cant < 0) return setMensaje("Cantidad invalida");
     try {
-      await API.put("/ordenes-ingreso/" + ordenDetalle.id + "/recibir", { items: itemsDetalle });
-      setMensaje("Mercaderia recibida! Stock actualizado.");
-      setTab("lista");
-      setOrdenDetalle(null);
-      cargar();
-      setTimeout(() => setMensaje(""), 3000);
-    } catch (e) { setMensaje("Error al recibir"); }
+      await API.put("/ordenes-ingreso/" + ordenDetalle.id + "/items/" + item.id + "/recibir", {
+        local: localActual, cantidad: cant, nota: notaItem[item.id] || null, usuario_nombre: usuario?.nombre || null
+      });
+      setMensaje("Item confirmado: " + item.producto_nombre);
+      const res = await API.get("/ordenes-ingreso/" + ordenDetalle.id + "/items");
+      setItemsDetalle(res.data || []);
+      setTimeout(() => setMensaje(""), 2500);
+    } catch (e) { setMensaje("Error al confirmar: " + (e.response?.data?.error || e.message)); }
   };
+
+  const agregarExtra = async () => {
+    if (!extra.producto_id || !extra.cantidad) return setMensaje("Completa producto y cantidad del extra");
+    const prod = productos.find(p => p.id === parseInt(extra.producto_id));
+    try {
+      await API.post("/ordenes-ingreso/" + ordenDetalle.id + "/item-extra", {
+        producto_id: prod.id, producto_nombre: prod.nombre,
+        cantidad: parseInt(extra.cantidad), local: localActual,
+        costo_unitario: parseFloat(extra.costo_unitario) || 0
+      });
+      setMensaje("Item extra agregado!");
+      setExtra({ producto_id: "", cantidad: "", costo_unitario: "" });
+      const res = await API.get("/ordenes-ingreso/" + ordenDetalle.id + "/items");
+      setItemsDetalle(res.data || []);
+    } catch (e) { setMensaje("Error al agregar extra: " + (e.response?.data?.error || e.message)); }
+  };
+
+  const esperadoLocal = (it) => localActual === "rg" ? it.cantidad_rg : it.cantidad_ush;
+  const recibidoLocal = (it) => localActual === "rg" ? it.recibido_rg : it.recibido_ush;
+  const revisadoLocal = (it) => localActual === "rg" ? it.revisado_rg : it.revisado_ush;
 
   return (
     <div className="fade">
       <div className="ph">
-        <div><div className="pt">Ordenes de Ingreso</div><div className="ps">recepcion de mercaderia por local</div></div>
-        <button className="btn btn-p btn-sm" onClick={() => setTab("nueva")}>+ Nueva orden</button>
+        <div><div className="pt">Ingreso de Mercaderia</div><div className="ps">recepcion en {localNombre}</div></div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {tab !== "lista" && tab !== "recibido" && <button className="btn btn-sm" onClick={() => { setTab("lista"); setOrdenDetalle(null); }}>Volver</button>}
+          {usuario?.rol === "jefe" && (tab === "lista" || tab === "recibido") && <button className="btn btn-p btn-sm" onClick={() => setTab("nueva")}>+ Nueva orden</button>}
+        </div>
       </div>
+
       {mensaje && (
-        <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>
-          {mensaje}
+        <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>
+      )}
+
+      {(tab === "lista" || tab === "recibido") && (
+        <div className="tabs">
+          <div className={"tab " + (tab === "lista" ? "on" : "")} onClick={() => setTab("lista")}>POR RECIBIR</div>
+          <div className={"tab " + (tab === "recibido" ? "on" : "")} onClick={() => { setTab("recibido"); cargarRecibido(); }}>STOCK RECIBIDO</div>
         </div>
       )}
-      <div className="tabs">
-        {["lista", "nueva"].map(t => (
-          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => setTab(t)}>
-            {t === "lista" ? "ORDENES" : t === "nueva" ? "NUEVA ORDEN" : "RECIBIR"}
-          </div>
-        ))}
-        {tab === "recibir" && <div className="tab on">RECIBIR MERCADERIA</div>}
-      </div>
+
       {tab === "lista" && (
-        <div className="fade">
-          {loading ? (
-            <div style={{ color: "#999999", padding: 20 }}>Cargando...</div>
-          ) : ordenes.length === 0 ? (
-            <div className="card" style={{ textAlign: "center", color: "#999999", padding: 30 }}>Sin ordenes de ingreso</div>
+        <div className="card">
+          {loading ? (<div style={{ textAlign: "center", color: "#999999", fontSize: 12 }}>Cargando...</div>) : ordenes.filter(o => o.estado !== "recibida" && o.estado !== "pagada").length === 0 ? (
+            <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 30 }}>No hay ordenes pendientes de recibir</div>
           ) : (
-            <div className="card">
-              <table>
-                <thead><tr><th>ID</th><th>Proveedor</th><th>Estado</th><th>Fecha</th><th></th></tr></thead>
-                <tbody>
-                  {ordenes.map(o => (
-                    <tr key={o.id}>
-                      <td style={{ color: "#999999", fontSize: 11 }}>#{o.id}</td>
-                      <td>{o.proveedor_nombre || "Sin proveedor"}</td>
-                      <td><span className={"badge " + (o.estado === "recibida" ? "bg" : "ba")}>{o.estado}</span></td>
-                      <td style={{ fontSize: 11, color: "#999999" }}>{new Date(o.creado_en).toLocaleDateString("es-AR")}</td>
-                      <td>
-                        {o.estado === "pendiente" && (
-                          <button className="btn btn-p btn-sm" onClick={() => verDetalle(o)}>Recibir</button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <table>
+              <thead><tr><th>Factura</th><th>Proveedor</th><th>Fecha</th><th>Estado</th><th>Total</th><th></th></tr></thead>
+              <tbody>
+                {ordenes.filter(o => o.estado !== "recibida" && o.estado !== "pagada").map((o, i) => (
+                  <tr key={i}>
+                    <td style={{ fontSize: 12, fontWeight: 600 }}>{o.numero_factura || "-"}</td>
+                    <td style={{ fontSize: 12 }}>{o.proveedor_nombre || "-"}</td>
+                    <td style={{ fontSize: 11, color: "#999999" }}>{o.fecha_factura ? new Date(o.fecha_factura).toLocaleDateString("es-AR") : "-"}</td>
+                    <td><span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c" }}>{o.estado}</span></td>
+                    <td style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>${parseFloat(o.total || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                    <td><button className="btn btn-sm" style={{ background: "#2d7a4f", color: "white" }} onClick={() => verDetalle(o)}>Recibir</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
       )}
+
+      {tab === "recibido" && (
+        <div className="card">
+          {recibidoHist.length === 0 ? (
+            <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 30 }}>Todavia no hay stock recibido registrado</div>
+          ) : (
+            <table>
+              <thead><tr><th>Producto</th><th>Factura</th><th>Proveedor</th><th>Local</th><th>Cantidad</th><th>Fecha</th><th>Recibido por</th></tr></thead>
+              <tbody>
+                {recibidoHist.map((r, i) => {
+                  const filas = [];
+                  if (r.revisado_rg) filas.push({ local: "RG", cant: r.recibido_rg, fecha: r.fecha_recepcion_rg, por: r.recibido_por_rg });
+                  if (r.revisado_ush) filas.push({ local: "USH", cant: r.recibido_ush, fecha: r.fecha_recepcion_ush, por: r.recibido_por_ush });
+                  return filas.map((f, j) => (
+                    <tr key={i + "-" + j}>
+                      <td style={{ fontSize: 12 }}>{r.producto_nombre}{r.es_extra ? <span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c", marginLeft: 6 }}>extra</span> : ""}</td>
+                      <td style={{ fontSize: 11, color: "#999999" }}>{r.numero_factura || "-"}</td>
+                      <td style={{ fontSize: 11 }}>{r.proveedor_nombre || "-"}</td>
+                      <td style={{ fontSize: 11 }}>{f.local}</td>
+                      <td style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>{f.cant}u</td>
+                      <td style={{ fontSize: 11, color: "#999999" }}>{f.fecha ? new Date(f.fecha).toLocaleDateString("es-AR") + " " + new Date(f.fecha).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "-"}</td>
+                      <td style={{ fontSize: 11 }}>{f.por || "-"}</td>
+                    </tr>
+                  ));
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
       {tab === "nueva" && (
-        <div className="g2 fade">
+        <div className="g2">
           <div className="card">
-            <div className="ct">Datos de la orden</div>
+            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 14 }}>DATOS DE LA ORDEN</div>
             <div className="fg"><div className="fl">Proveedor</div>
-              <select className="sel" value={nueva.proveedor_id} onChange={e => setNueva(n => ({ ...n, proveedor_id: e.target.value }))}>
+              <select className="sel" value={nueva.proveedor_id} onChange={e => setNueva(p => ({ ...p, proveedor_id: e.target.value }))}>
                 <option value="">Seleccionar proveedor...</option>
-                {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                {proveedores.map(pr => (<option key={pr.id} value={pr.id}>{pr.nombre}</option>))}
               </select>
             </div>
-            <div className="fg"><div className="fl">Notas</div>
-              <input className="inp" placeholder="Observaciones..." value={nueva.notas} onChange={e => setNueva(n => ({ ...n, notas: e.target.value }))} />
-            </div>
-            <div className="divider" />
-            <div className="ct">Agregar productos</div>
+            <div className="fg"><div className="fl">Numero de factura</div><input className="inp" value={nueva.numero_factura} onChange={e => setNueva(p => ({ ...p, numero_factura: e.target.value }))} /></div>
+            <div className="fg"><div className="fl">Total factura ($)</div><input className="inp" type="number" value={nueva.total} onChange={e => setNueva(p => ({ ...p, total: e.target.value }))} /></div>
+            <div className="fg"><div className="fl">Notas</div><textarea className="inp" rows={2} placeholder="Observaciones..." value={nueva.notas} onChange={e => setNueva(p => ({ ...p, notas: e.target.value }))} /></div>
+            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", margin: "16px 0 10px" }}>AGREGAR PRODUCTO (dividi por local)</div>
             <div className="fg"><div className="fl">Producto</div>
               <select className="sel" value={itemTemp.producto_id} onChange={e => setItemTemp(p => ({ ...p, producto_id: e.target.value }))}>
                 <option value="">Seleccionar...</option>
-                {productos.map(p => <option key={p.id} value={p.id}>{p.nombre} {p.marca ? "- " + p.marca : ""}</option>)}
+                {productos.map(pr => (<option key={pr.id} value={pr.id}>{pr.nombre}</option>))}
               </select>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <div className="fg" style={{ flex: 1 }}><div className="fl">Cantidad</div>
-                <input className="inp" type="number" placeholder="10" value={itemTemp.cantidad_esperada} onChange={e => setItemTemp(p => ({ ...p, cantidad_esperada: e.target.value }))} />
-              </div>
-              <div className="fg" style={{ flex: 1 }}><div className="fl">Costo unit. ($)</div>
-                <input className="inp" type="number" placeholder="1500" value={itemTemp.costo_unitario} onChange={e => setItemTemp(p => ({ ...p, costo_unitario: e.target.value }))} />
-              </div>
+              <div className="fg" style={{ flex: 1 }}><div className="fl">Cant. Rio Grande</div><input className="inp" type="number" placeholder="10" value={itemTemp.cantidad_rg} onChange={e => setItemTemp(p => ({ ...p, cantidad_rg: e.target.value }))} /></div>
+              <div className="fg" style={{ flex: 1 }}><div className="fl">Cant. Ushuaia</div><input className="inp" type="number" placeholder="0" value={itemTemp.cantidad_ush} onChange={e => setItemTemp(p => ({ ...p, cantidad_ush: e.target.value }))} /></div>
+              <div className="fg" style={{ flex: 1 }}><div className="fl">Costo unit. ($)</div><input className="inp" type="number" placeholder="1500" value={itemTemp.costo_unitario} onChange={e => setItemTemp(p => ({ ...p, costo_unitario: e.target.value }))} /></div>
             </div>
-            <button className="btn btn-g btn-sm" style={{ width: "100%", marginBottom: 12 }} onClick={agregarItem}>+ Agregar producto</button>
-            <button className="btn btn-p" style={{ width: "100%" }} onClick={crearOrden}>Crear orden</button>
+            <button className="btn btn-sm" style={{ width: "100%" }} onClick={agregarItem}>+ Agregar producto</button>
           </div>
           <div className="card">
-            <div className="ct">Productos en esta orden ({nueva.items.length})</div>
-            {nueva.items.length === 0 ? (
-              <div style={{ color: "#999999", fontSize: 12, textAlign: "center", padding: 20 }}>Sin productos agregados</div>
-            ) : (
+            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 14 }}>PRODUCTOS EN ESTA ORDEN ({nueva.items.length})</div>
+            {nueva.items.length === 0 ? (<div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 20 }}>Sin productos agregados</div>) : (
               <table>
-                <thead><tr><th>Producto</th><th>Cant.</th><th>Costo</th></tr></thead>
+                <thead><tr><th>Producto</th><th>RG</th><th>USH</th><th>Costo</th><th></th></tr></thead>
                 <tbody>
-                  {nueva.items.map((item, i) => (
+                  {nueva.items.map((it, i) => (
                     <tr key={i}>
-                      <td style={{ fontSize: 12 }}>{item.producto_nombre}</td>
-                      <td>{item.cantidad_esperada}</td>
-                      <td>{item.costo_unitario ? "$" + item.costo_unitario : "-"}</td>
+                      <td style={{ fontSize: 11 }}>{it.producto_nombre}</td>
+                      <td style={{ fontSize: 11 }}>{it.cantidad_rg}</td>
+                      <td style={{ fontSize: 11 }}>{it.cantidad_ush}</td>
+                      <td style={{ fontSize: 11 }}>${it.costo_unitario}</td>
+                      <td><span style={{ cursor: "pointer", color: "#c0392b", fontSize: 14 }} onClick={() => quitarItemNueva(i)}>x</span></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             )}
+            <button className="btn btn-p" style={{ width: "100%", marginTop: 14 }} onClick={crearOrden}>Crear orden</button>
           </div>
         </div>
       )}
+
       {tab === "recibir" && ordenDetalle && (
-        <div className="card fade">
-          <div className="ct">Recibir mercaderia - Orden #{ordenDetalle.id}</div>
-          <div style={{ fontSize: 12, color: "#999999", marginBottom: 16 }}>
-            Proveedor: {ordenDetalle.proveedor_nombre} | Fecha: {new Date(ordenDetalle.creado_en).toLocaleDateString("es-AR")}
+        <div>
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 4 }}>RECIBIENDO EN {localNombre.toUpperCase()}</div>
+            <div style={{ fontSize: 13, color: "#444444" }}>Factura {ordenDetalle.numero_factura || "-"} - {ordenDetalle.proveedor_nombre || ""}</div>
+            <div style={{ fontSize: 11, color: "#999999", marginTop: 4 }}>Conta la mercaderia fisica y confirma cada item. Si la cantidad no coincide, dejala como llego y agrega una nota.</div>
+            {(() => {
+              const delLocal = itemsDetalle.filter(it => esperadoLocal(it) > 0 || it.es_extra);
+              const recibidos = delLocal.filter(it => revisadoLocal(it)).length;
+              const completo = delLocal.length > 0 && recibidos === delLocal.length;
+              return (
+                <div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 6, background: completo ? "#2d7a4f12" : "#c9a84c12", border: "1px solid " + (completo ? "#2d7a4f" : "#c9a84c"), fontSize: 12, color: completo ? "#2d7a4f" : "#c9a84c", fontWeight: 600 }}>
+                  {completo ? "Recepcion completa: " : "Progreso: "}{recibidos} de {delLocal.length} items recibidos
+                </div>
+              );
+            })()}
           </div>
+          <div className="card" style={{ marginBottom: 16 }}>
+            <table>
+              <thead><tr><th>Producto</th><th>Esperado</th><th>Contado</th><th>Nota (si hay diferencia)</th><th>Estado</th><th></th></tr></thead>
+              <tbody>
+                {itemsDetalle.filter(it => esperadoLocal(it) > 0 || it.es_extra).map((it, i) => {
+                  const esp = esperadoLocal(it);
+                  const cont = conteo[it.id];
+                  const dif = cont !== undefined && cont !== "" ? parseInt(cont) - esp : 0;
+                  return (
+                    <tr key={i} style={{ background: revisadoLocal(it) ? "#2d7a4f08" : "transparent" }}>
+                      <td style={{ fontSize: 12 }}>{it.producto_nombre}{it.es_extra ? <span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c", marginLeft: 6 }}>extra</span> : ""}</td>
+                      <td style={{ fontSize: 12, color: "#999999" }}>{esp}</td>
+                      <td><input className="inp" type="number" style={{ width: 70, padding: "4px 8px" }} value={conteo[it.id] ?? ""} onChange={e => setConteo(c => ({ ...c, [it.id]: e.target.value }))} /></td>
+                      <td>
+                        {dif !== 0 && !it.es_extra ? (
+                          <input className="inp" placeholder={dif > 0 ? "llegaron " + dif + " de mas" : "faltan " + Math.abs(dif)} style={{ padding: "4px 8px", fontSize: 11 }} value={notaItem[it.id] || ""} onChange={e => setNotaItem(n => ({ ...n, [it.id]: e.target.value }))} />
+                        ) : (<span style={{ fontSize: 11, color: "#999999" }}>{revisadoLocal(it) ? "ok" : "-"}</span>)}
+                      </td>
+                      <td>{revisadoLocal(it) ? <span style={{ fontSize: 11, color: "#2d7a4f", fontWeight: 600 }}>Recibido ({recibidoLocal(it)})</span> : <span style={{ fontSize: 11, color: "#c9a84c" }}>Pendiente</span>}</td>
+                      <td><button className="btn btn-sm" onClick={() => confirmarItem(it)}>{revisadoLocal(it) ? "Recontar" : "Confirmar"}</button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="card">
+            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>AGREGAR ITEM EXTRA (regalo del proveedor, no estaba en la orden)</div>
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+              <div className="fg" style={{ flex: 2, marginBottom: 0 }}><div className="fl">Producto</div>
+                <select className="sel" value={extra.producto_id} onChange={e => setExtra(p => ({ ...p, producto_id: e.target.value }))}>
+                  <option value="">Seleccionar...</option>
+                  {productos.map(pr => (<option key={pr.id} value={pr.id}>{pr.nombre}</option>))}
+                </select>
+              </div>
+              <div className="fg" style={{ flex: 1, marginBottom: 0 }}><div className="fl">Cantidad</div><input className="inp" type="number" value={extra.cantidad} onChange={e => setExtra(p => ({ ...p, cantidad: e.target.value }))} /></div>
+              <button className="btn btn-sm" onClick={agregarExtra}>+ Agregar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+// REPORTE INCONSISTENCIAS
+function Inconsistencias() {
+  const [datos, setDatos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    API.get("/ordenes-ingreso/reporte/inconsistencias")
+      .then(res => { setDatos(res.data || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const dif = (recibido, esperado) => (parseInt(recibido) || 0) - (parseInt(esperado) || 0);
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Inconsistencias de Recepcion</div><div className="ps">diferencias para reclamar a proveedores</div></div>
+      </div>
+      <div className="card">
+        {loading ? (<div style={{ textAlign: "center", color: "#999999", fontSize: 12 }}>Cargando...</div>) : datos.length === 0 ? (
+          <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 30 }}>No hay inconsistencias registradas. Todo llego correcto!</div>
+        ) : (
           <table>
-            <thead><tr><th>Producto</th><th>Esperado</th><th>Recibido</th></tr></thead>
+            <thead><tr><th>Factura</th><th>Proveedor</th><th>Producto</th><th>Local</th><th>Esperado</th><th>Recibido</th><th>Diferencia</th><th>Nota</th></tr></thead>
             <tbody>
-              {itemsDetalle.map((item, i) => (
-                <tr key={i}>
-                  <td>{item.producto_nombre}</td>
-                  <td style={{ color: "#c9a84c" }}>{item.cantidad_esperada}</td>
-                  <td>
-                    <input className="inp" type="number" style={{ width: 70, padding: "4px 8px" }}
-                      value={item.cantidad_recibida}
-                      onChange={e => {
-                        const updated = [...itemsDetalle];
-                        updated[i].cantidad_recibida = parseInt(e.target.value) || 0;
-                        setItemsDetalle(updated);
-                      }} />
-                  </td>
-                </tr>
-              ))}
+              {datos.map((d, i) => {
+                const filas = [];
+                if (d.revisado_rg && d.recibido_rg !== d.cantidad_rg) filas.push({ local: "RG", esp: d.cantidad_rg, rec: d.recibido_rg });
+                if (d.revisado_ush && d.recibido_ush !== d.cantidad_ush) filas.push({ local: "USH", esp: d.cantidad_ush, rec: d.recibido_ush });
+                if (d.es_extra) filas.push({ local: d.cantidad_rg > 0 ? "RG" : "USH", esp: 0, rec: d.cantidad_rg + d.cantidad_ush, extra: true });
+                if (filas.length === 0 && d.nota_inconsistencia) filas.push({ local: "-", esp: "-", rec: "-" });
+                return filas.map((f, j) => (
+                  <tr key={i + "-" + j}>
+                    <td style={{ fontSize: 11 }}>{d.numero_factura || "-"}</td>
+                    <td style={{ fontSize: 11 }}>{d.proveedor_nombre || "-"}</td>
+                    <td style={{ fontSize: 12 }}>{d.producto_nombre}{f.extra ? <span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c", marginLeft: 6 }}>extra/regalo</span> : ""}</td>
+                    <td style={{ fontSize: 11 }}>{f.local}</td>
+                    <td style={{ fontSize: 12, color: "#999999" }}>{f.esp}</td>
+                    <td style={{ fontSize: 12 }}>{f.rec}</td>
+                    <td>{f.extra ? <span style={{ color: "#c9a84c", fontSize: 12 }}>+{f.rec} regalo</span> : (typeof f.esp === "number" ? (() => { const v = dif(f.rec, f.esp); return <span style={{ color: v < 0 ? "#c0392b" : "#2d7a4f", fontWeight: 600, fontSize: 12 }}>{v > 0 ? "+" : ""}{v}</span>; })() : "-")}</td>
+                    <td style={{ fontSize: 11, color: "#666666" }}>{d.nota_inconsistencia || "-"}</td>
+                  </tr>
+                ));
+              })}
             </tbody>
           </table>
-          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-            <button className="btn btn-g" style={{ flex: 1 }} onClick={() => { setTab("lista"); setOrdenDetalle(null); }}>Cancelar</button>
-            <button className="btn btn-p" style={{ flex: 2 }} onClick={recibirMercaderia}>Confirmar recepcion y actualizar stock</button>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -3512,8 +3675,9 @@ export default function AppWrapper() {
     if (id === "comisiones") return <Comisiones localId={local.id} />;
     if (id === "caja") return <Caja localId={local.id} usuario={usuario} />;
     if (id === "cierre") return <CierreCaja localId={local.id} />;
-    if (id === "ordenes") return <OrdenesIngreso localId={local.id} />;
+    if (id === "ordenes") return <OrdenesIngreso localId={local.id} usuario={usuario} />;
     if (id === "kits") return <Kits />;
+    if (id === "inconsistencias") return <Inconsistencias />;
     if (id === "proveedores") return <Proveedores />;
     return <Dashboard localId={local.id} />;
   };
