@@ -2932,7 +2932,7 @@ function OrdenesIngreso({ localId, usuario }) {
             <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 14 }}>PRODUCTOS EN ESTA ORDEN ({nueva.items.length})</div>
             {nueva.items.length === 0 ? (<div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 20 }}>Sin productos agregados</div>) : (
               <table>
-                <thead><tr><th>Producto</th><th>RG</th><th>USH</th><th>Costo</th><th></th></tr></thead>
+                <thead><tr><th>Producto</th><th>RG</th><th>USH</th><th>Costo unit.</th><th>Subtotal</th><th></th></tr></thead>
                 <tbody>
                   {nueva.items.map((it, i) => (
                     <tr key={i}>
@@ -2940,12 +2940,37 @@ function OrdenesIngreso({ localId, usuario }) {
                       <td style={{ fontSize: 11 }}>{it.cantidad_rg}</td>
                       <td style={{ fontSize: 11 }}>{it.cantidad_ush}</td>
                       <td style={{ fontSize: 11 }}>${it.costo_unitario}</td>
+                      <td style={{ fontSize: 11, fontWeight: 600 }}>${(it.costo_unitario * it.cantidad_total).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
                       <td><span style={{ cursor: "pointer", color: "#c0392b", fontSize: 14 }} onClick={() => quitarItemNueva(i)}>x</span></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             )}
+            {nueva.items.length > 0 && (() => {
+              const sumaItems = nueva.items.reduce((s, it) => s + it.costo_unitario * it.cantidad_total, 0);
+              const totalFactura = parseFloat(nueva.total) || 0;
+              const coincide = totalFactura === 0 || Math.abs(sumaItems - totalFactura) < 1;
+              return (
+                <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 6, background: coincide ? "#2d7a4f12" : "#c0392b12", border: "1px solid " + (coincide ? "#2d7a4f" : "#c0392b") }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                    <span style={{ color: "#666666" }}>Suma de productos</span>
+                    <span style={{ fontWeight: 600 }}>${sumaItems.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</span>
+                  </div>
+                  {totalFactura > 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginTop: 4 }}>
+                      <span style={{ color: "#666666" }}>Total de la factura</span>
+                      <span style={{ fontWeight: 600 }}>${totalFactura.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</span>
+                    </div>
+                  )}
+                  {!coincide && (
+                    <div style={{ fontSize: 11, color: "#c0392b", fontWeight: 600, marginTop: 6 }}>
+                      Diferencia de ${Math.abs(sumaItems - totalFactura).toLocaleString("es-AR", { maximumFractionDigits: 0 })} - revisa los costos unitarios antes de crear la orden
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
             <button className="btn btn-p" style={{ width: "100%", marginTop: 14 }} onClick={crearOrden}>Crear orden</button>
           </div>
         </div>
