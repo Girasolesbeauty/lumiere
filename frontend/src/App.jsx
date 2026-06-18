@@ -1819,15 +1819,69 @@ function Cupones() {
 function Fidelizacion() {
   const [tab, setTab] = useState("clientes");
   const [clientes, setClientes] = useState([]);
+  const [premios, setPremios] = useState([]);
+  const [canjes, setCanjes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [mensaje, setMensaje] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [nuevoPremio, setNuevoPremio] = useState({ nombre: "", descripcion: "", puntos_requeridos: "", imagen_url: "", stock_total: "", solo_mes_cumpleanos: false });
+  const [codigoValidar, setCodigoValidar] = useState("");
+  const [resultadoValidacion, setResultadoValidacion] = useState(null);
   const tierNext = { Bronze: 500, Silver: 1000, Gold: 2000, Platinum: 99999 };
 
   useEffect(() => {
     getRanking().then(res => { setClientes(res.data); setLoading(false); }).catch(() => { setClientes(CLIENTS.map(c => ({ ...c, nombre: c.name, puntos: c.points, nivel: c.tier }))); setLoading(false); });
+    cargarPremios();
   }, []);
+
+  const cargarPremios = () => {
+    API.get("/fidelizacion/premios?todos=true").then(res => setPremios(res.data || [])).catch(() => {});
+  };
+
+  const cargarCanjes = () => {
+    API.get("/fidelizacion/canjes").then(res => setCanjes(res.data || [])).catch(() => {});
+  };
 
   const clientesAMostrar = clientes.length > 0 ? clientes : CLIENTS.map(c => ({ ...c, nombre: c.name, puntos: c.points, nivel: c.tier }));
   const totalPuntos = clientesAMostrar.reduce((s, c) => s + (c.puntos || 0), 0);
+
+  const guardarPremio = async () => {
+    if (!nuevoPremio.nombre || !nuevoPremio.puntos_requeridos) return setMensaje("Completa nombre y puntos requeridos");
+    try {
+      await API.post("/fidelizacion/premios", {
+        ...nuevoPremio,
+        puntos_requeridos: parseInt(nuevoPremio.puntos_requeridos),
+        stock_total: nuevoPremio.stock_total ? parseInt(nuevoPremio.stock_total) : null
+      });
+      setMensaje("Premio creado!");
+      setShowForm(false);
+      setNuevoPremio({ nombre: "", descripcion: "", puntos_requeridos: "", imagen_url: "", stock_total: "", solo_mes_cumpleanos: false });
+      cargarPremios();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al crear el premio"); }
+  };
+
+  const desactivarPremio = async (p) => {
+    try {
+      await API.delete("/fidelizacion/premios/" + p.id);
+      setMensaje("Premio desactivado");
+      cargarPremios();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al desactivar"); }
+  };
+
+  const validarCodigo = async () => {
+    if (!codigoValidar.trim()) return;
+    setResultadoValidacion(null);
+    try {
+      const res = await API.post("/fidelizacion/validar-canje", { codigo: codigoValidar.trim().toUpperCase() });
+      setResultadoValidacion({ ok: true, mensaje: res.data.mensaje, canje: res.data.canje });
+      setCodigoValidar("");
+      cargarCanjes();
+    } catch (e) {
+      setResultadoValidacion({ ok: false, mensaje: e.response?.data?.error || "Error al validar" });
+    }
+  };
 
   return (
     <div className="fade">
@@ -1835,11 +1889,12 @@ function Fidelizacion() {
       <div className="g4" style={{ marginBottom: 16 }}>
         <MCard label="Puntos emitidos" value={totalPuntos.toLocaleString()} color="#c9a84c" />
         <MCard label="Clientes con puntos" value={String(clientesAMostrar.filter(c => (c.puntos || 0) > 0).length)} color="#2d7a4f" />
-        <MCard label="Premios disponibles" value={String(REWARDS_DISPLAY.length)} color="#2471a3" />
+        <MCard label="Premios activos" value={String(premios.filter(p => p.activo).length)} color="#2471a3" />
         <MCard label="Nivel Platinum" value={String(clientesAMostrar.filter(c => (c.nivel || c.tier) === "Platinum").length)} color="#7d3c98" />
       </div>
+      {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
       <div className="tabs">
-        {["clientes", "canjes"].map(t => <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => setTab(t)}>{t.toUpperCase()}</div>)}
+        {["clientes", "premios", "validar"].map(t => <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "validar") cargarCanjes(); }}>{t === "clientes" ? "CLIENTES" : t === "premios" ? "PREMIOS" : "VALIDAR CANJE"}</div>)}
       </div>
       {tab === "clientes" && (
         <div className="card fade">
@@ -1871,25 +1926,94 @@ function Fidelizacion() {
         )}
         </div>
       )}
-      {tab === "canjes" && (
-        <div className="card fade">
-          <table>
-            <thead><tr><th>Premio</th><th>Puntos requeridos</th><th>Stock</th></tr></thead>
-            <tbody>
-              {REWARDS_DISPLAY.map(r => (
-                <tr key={r.id}>
-                  <td>
-                    <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                      <span style={{ fontSize: 18 }}>{r.emoji}</span>
-                      <div><div style={{ color: "#111111" }}>{r.name}</div><div style={{ fontSize: 9, color: "#999999" }}>{r.brand}</div></div>
+      {tab === "premios" && (
+        <div className="fade">
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+            <button className="btn btn-p btn-sm" onClick={() => setShowForm(!showForm)}>+ Nuevo premio</button>
+          </div>
+          {showForm && (
+            <div className="card" style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 14 }}>NUEVO PREMIO</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div className="fg"><div className="fl">Nombre del premio</div><input className="inp" placeholder="Ej: Envio gratis" value={nuevoPremio.nombre} onChange={e => setNuevoPremio(p => ({ ...p, nombre: e.target.value }))} /></div>
+                <div className="fg"><div className="fl">Puntos requeridos</div><input className="inp" type="number" placeholder="500" value={nuevoPremio.puntos_requeridos} onChange={e => setNuevoPremio(p => ({ ...p, puntos_requeridos: e.target.value }))} /></div>
+              </div>
+              <div className="fg"><div className="fl">Descripcion</div><input className="inp" placeholder="Breve descripcion del premio" value={nuevoPremio.descripcion} onChange={e => setNuevoPremio(p => ({ ...p, descripcion: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">URL de imagen (opcional)</div><input className="inp" placeholder="https://..." value={nuevoPremio.imagen_url} onChange={e => setNuevoPremio(p => ({ ...p, imagen_url: e.target.value }))} /></div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div className="fg"><div className="fl">Stock disponible (vacio = ilimitado)</div><input className="inp" type="number" placeholder="Ej: 10" value={nuevoPremio.stock_total} onChange={e => setNuevoPremio(p => ({ ...p, stock_total: e.target.value }))} /></div>
+                <div className="fg" style={{ display: "flex", alignItems: "center", paddingTop: 18 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer" }}>
+                    <input type="checkbox" checked={nuevoPremio.solo_mes_cumpleanos} onChange={e => setNuevoPremio(p => ({ ...p, solo_mes_cumpleanos: e.target.checked }))} />
+                    Solo disponible en el mes de cumpleanos de la clienta
+                  </label>
+                </div>
+              </div>
+              <button className="btn btn-p" style={{ width: "100%", marginTop: 8 }} onClick={guardarPremio}>Crear premio</button>
+            </div>
+          )}
+          {premios.length === 0 ? (
+            <div className="card"><div style={{ textAlign: "center", color: "#999999", padding: 30, fontSize: 12 }}>No hay premios creados todavia</div></div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
+              {premios.map(p => {
+                const disp = p.stock_total === null ? null : Math.max(p.stock_total - (p.stock_usado || 0), 0);
+                return (
+                  <div key={p.id} className="card" style={{ opacity: p.activo ? 1 : 0.5 }}>
+                    {p.imagen_url && <img src={p.imagen_url} alt={p.nombre} style={{ width: "100%", height: 110, objectFit: "cover", borderRadius: 8, marginBottom: 10 }} />}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{p.nombre}</div>
+                      {p.solo_mes_cumpleanos && <span className="badge" style={{ background: "#7d3c9815", color: "#7d3c98", fontSize: 8 }}>cumple</span>}
                     </div>
-                  </td>
-                  <td style={{ color: "#c9a84c", fontFamily: "'Cormorant Garamond',serif", fontSize: 18 }}>{r.pts}</td>
-                  <td><span className={"badge " + (r.stock < 5 ? "br" : "bg")}>{r.stock}u</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    {p.descripcion && <div style={{ fontSize: 10, color: "#999999", marginTop: 3 }}>{p.descripcion}</div>}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
+                      <span style={{ fontSize: 16, fontWeight: 700, color: "#c9a84c" }}>{p.puntos_requeridos} pts</span>
+                      <span className={"badge " + (disp !== null && disp < 5 ? "br" : "bg")}>{disp === null ? "ilimitado" : disp + "u"}</span>
+                    </div>
+                    {p.activo && <button className="btn btn-sm" style={{ width: "100%", marginTop: 10 }} onClick={() => desactivarPremio(p)}>Desactivar</button>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+      {tab === "validar" && (
+        <div className="fade">
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>VALIDAR CODIGO DE CANJE</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input className="inp" placeholder="PREMIO-XXXX" value={codigoValidar} onChange={e => setCodigoValidar(e.target.value)} onKeyDown={e => e.key === "Enter" && validarCodigo()} style={{ textTransform: "uppercase" }} />
+              <button className="btn btn-p" onClick={validarCodigo}>Validar</button>
+            </div>
+            {resultadoValidacion && (
+              <div style={{ marginTop: 10, padding: "10px 12px", borderRadius: 6, background: resultadoValidacion.ok ? "#2d7a4f12" : "#c0392b12", border: "1px solid " + (resultadoValidacion.ok ? "#2d7a4f" : "#c0392b"), fontSize: 12, color: resultadoValidacion.ok ? "#2d7a4f" : "#c0392b" }}>
+                {resultadoValidacion.mensaje}
+              </div>
+            )}
+          </div>
+          <div className="card">
+            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>HISTORIAL DE CANJES</div>
+            {canjes.length === 0 ? (
+              <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 20 }}>Todavia no hay canjes registrados</div>
+            ) : (
+              <table>
+                <thead><tr><th>Codigo</th><th>Premio</th><th>Clienta</th><th>Puntos</th><th>Estado</th><th>Fecha</th></tr></thead>
+                <tbody>
+                  {canjes.map((c, i) => (
+                    <tr key={i}>
+                      <td style={{ fontFamily: "monospace", fontWeight: 600 }}>{c.codigo}</td>
+                      <td style={{ fontSize: 12 }}>{c.premio_nombre}</td>
+                      <td style={{ fontSize: 12 }}>{c.cliente_nombre}</td>
+                      <td style={{ fontSize: 12 }}>{c.puntos_usados}</td>
+                      <td><span className={"badge " + (c.estado === "usado" ? "bg" : "ba")}>{c.estado}</span></td>
+                      <td style={{ fontSize: 10, color: "#999999" }}>{new Date(c.creado_en).toLocaleDateString("es-AR")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
       )}
     </div>
