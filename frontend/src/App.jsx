@@ -2234,7 +2234,7 @@ function Calculadoras({ usuario }) {
     if (!c) return "";
     const extras = (c.extras || []).map(e => e.label).join(" + ");
     if (c.tipo === "desde_costo") {
-      return `(costo × ${c.margen}${parseFloat(c.iva) > 0 ? " × " + (1 + parseFloat(c.iva) / 100).toFixed(3) : ""})${extras ? " + " + extras : ""}`;
+      return `(costo × ${c.margen}${parseFloat(c.iva) > 0 ? " × " + (1 + parseFloat(c.iva) / 100).toFixed(3) + " (imp.)" : ""})${extras ? " + " + extras : ""}`;
     }
     return `(precio venta × ${c.margen})${extras ? " + " + extras : ""}`;
   };
@@ -2311,7 +2311,7 @@ function Calculadoras({ usuario }) {
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <div className="fg" style={{ flex: 1 }}><div className="fl">Multiplicador de margen</div><input className="inp" type="number" step="0.1" placeholder="2" value={form.margen} onChange={e => setForm(f => ({ ...f, margen: e.target.value }))} /></div>
-                {form.tipo === "desde_costo" && <div className="fg" style={{ flex: 1 }}><div className="fl">IVA (%)</div><input className="inp" type="number" step="0.5" placeholder="17.5" value={form.iva} onChange={e => setForm(f => ({ ...f, iva: e.target.value }))} /></div>}
+                {form.tipo === "desde_costo" && <div className="fg" style={{ flex: 1 }}><div className="fl">Impuestos (%)</div><input className="inp" type="number" step="0.5" placeholder="17.5" value={form.iva} onChange={e => setForm(f => ({ ...f, iva: e.target.value }))} /></div>}
               </div>
               <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 8 }}>CAMPOS EXTRAS (costos adicionales)</div>
               <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
