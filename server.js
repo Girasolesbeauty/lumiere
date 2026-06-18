@@ -8,7 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors({
-  origin: ['https://lumiere-beta-nine.vercel.app', 'http://localhost:5173'],
+  origin: ['https://lumiere-beta-nine.vercel.app', 'http://localhost:5173', 'https://lumiere-portal-clientes.vercel.app'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
@@ -39,6 +39,7 @@ app.use('/api/kits', require('./routes/kits'));
 app.use('/api/tiendanube', require('./routes/tiendanube'));
 app.use('/api/permisos', require('./routes/permisos'));
 app.use('/api/gift-cards', require('./routes/gift-cards'));
+app.use('/api/portal', require('./routes/portal'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {
