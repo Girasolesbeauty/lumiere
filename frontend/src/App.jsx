@@ -848,6 +848,11 @@ function Inventario({ localId, usuario }) {
   const [valorAjuste, setValorAjuste] = useState("");
   const [motivoAjuste, setMotivoAjuste] = useState("");
   const [errorAjuste, setErrorAjuste] = useState("");
+  const [showCalc, setShowCalc] = useState(false);
+  const [calculadoras, setCalculadoras] = useState([]);
+  const [calcSel, setCalcSel] = useState(null);
+  const [calcValores, setCalcValores] = useState({});
+  const [calcResultado, setCalcResultado] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [mensaje, setMensaje] = useState("");
   const [proveedores, setProveedores] = useState([]);
@@ -879,6 +884,14 @@ function Inventario({ localId, usuario }) {
     try {
       const res = await API.get("/productos/stock/transito");
       setTransito(res.data || []);
+    } catch (e) {}
+  };
+
+  const cargarCalculadoras = async () => {
+    try {
+      const res = await API.get("/calculadoras");
+      setCalculadoras(res.data || []);
+      if (res.data?.length > 0) setCalcSel(res.data[0]);
     } catch (e) {}
   };
 
@@ -960,7 +973,13 @@ function Inventario({ localId, usuario }) {
               </div>
             </div>
             <div>
-              <div className="fg"><div className="fl">Precio de venta ($) *</div><input className="inp" type="number" placeholder="2500" value={nuevo.precio} onChange={e => setNuevo(p => ({ ...p, precio: e.target.value }))} /></div>
+              <div className="fg">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div className="fl">Precio de venta ($) *</div>
+                  <span onClick={() => { setShowCalc(true); setCalcValores({ costo: nuevo.costo || "" }); setCalcResultado(null); cargarCalculadoras(); }} style={{ fontSize: 10, color: "#c9a84c", cursor: "pointer", textDecoration: "underline" }}>🧮 Calcular precio</span>
+                </div>
+                <input className="inp" type="number" placeholder="2500" value={nuevo.precio} onChange={e => setNuevo(p => ({ ...p, precio: e.target.value }))} />
+              </div>
               <div className="fg"><div className="fl">Costo ($)</div><input className="inp" type="number" placeholder="1200" value={nuevo.costo} onChange={e => setNuevo(p => ({ ...p, costo: e.target.value }))} />
                 {nuevo.precio && nuevo.costo && (
                   <div style={{ fontSize: 10, color: "#2d7a4f", marginTop: 3 }}>
@@ -1077,6 +1096,68 @@ function Inventario({ localId, usuario }) {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+      {showCalc && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+          <div className="card" style={{ width: 420, background: "#ffffff" }}>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>🧮 Calcular precio</div>
+            <div style={{ fontSize: 11, color: "#999999", marginBottom: 14 }}>El resultado se va a cargar automaticamente en el campo de precio.</div>
+            <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+              {calculadoras.map(c => (
+                <button key={c.id} onClick={() => { setCalcSel(c); setCalcValores({ costo: nuevo.costo || "" }); setCalcResultado(null); }}
+                  style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid", borderColor: calcSel?.id === c.id ? "#c9a84c" : "#e8e8e8", background: calcSel?.id === c.id ? "#c9a84c12" : "transparent", color: calcSel?.id === c.id ? "#c9a84c" : "#666666", fontSize: 11, fontWeight: calcSel?.id === c.id ? 600 : 400, cursor: "pointer" }}>
+                  {c.nombre}
+                </button>
+              ))}
+            </div>
+            {calcSel && (
+              <div>
+                <div style={{ fontSize: 10, color: "#999999", fontFamily: "monospace", marginBottom: 12, background: "#f9f9f9", padding: "6px 10px", borderRadius: 6 }}>
+                  {calcSel.tipo === "desde_costo"
+                    ? `(costo × ${calcSel.margen}${parseFloat(calcSel.iva) > 0 ? " × " + (1 + parseFloat(calcSel.iva) / 100).toFixed(3) + " imp." : ""}) + extras`
+                    : `(precio venta × ${calcSel.margen}) + extras`}
+                </div>
+                {calcSel.tipo === "desde_costo" ? (
+                  <div className="fg"><div className="fl">Costo unitario ($)</div>
+                    <input className="inp" type="number" placeholder="10000" value={calcValores.costo || ""} onChange={e => setCalcValores(v => ({ ...v, costo: e.target.value }))} />
+                  </div>
+                ) : (
+                  <div className="fg"><div className="fl">Precio de venta del proveedor ($)</div>
+                    <input className="inp" type="number" placeholder="15000" value={calcValores.precio_venta || ""} onChange={e => setCalcValores(v => ({ ...v, precio_venta: e.target.value }))} />
+                  </div>
+                )}
+                {(calcSel.extras || []).map(e => (
+                  <div key={e.key} className="fg"><div className="fl">{e.label} ($)</div>
+                    <input className="inp" type="number" placeholder="0" value={calcValores[e.key] || ""} onChange={ev => setCalcValores(v => ({ ...v, [e.key]: ev.target.value }))} />
+                  </div>
+                ))}
+                <button className="btn btn-p" style={{ width: "100%", marginTop: 4 }} onClick={() => {
+                  const extras = (calcSel.extras || []).reduce((s, e) => s + (parseFloat(calcValores[e.key]) || 0), 0);
+                  let precio = 0;
+                  if (calcSel.tipo === "desde_costo") {
+                    const costo = parseFloat(calcValores.costo) || 0;
+                    precio = (costo * parseFloat(calcSel.margen) * (1 + parseFloat(calcSel.iva) / 100)) + extras;
+                  } else {
+                    precio = (parseFloat(calcValores.precio_venta) || 0) * parseFloat(calcSel.margen) + extras;
+                  }
+                  setCalcResultado(Math.round(precio));
+                }}>Calcular</button>
+                {calcResultado !== null && (
+                  <div style={{ marginTop: 12, padding: "12px 16px", borderRadius: 8, background: "#2d7a4f12", border: "1px solid #2d7a4f33", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontSize: 10, color: "#999999" }}>Precio sugerido</div>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: "#2d7a4f" }}>${calcResultado.toLocaleString("es-AR")}</div>
+                    </div>
+                    <button className="btn btn-p" onClick={() => { setNuevo(p => ({ ...p, precio: String(calcResultado) })); setShowCalc(false); setCalcResultado(null); }}>
+                      Usar este precio
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            <button className="btn btn-g" style={{ width: "100%", marginTop: 12 }} onClick={() => { setShowCalc(false); setCalcResultado(null); }}>Cerrar</button>
+          </div>
         </div>
       )}
       {ajustando && (
