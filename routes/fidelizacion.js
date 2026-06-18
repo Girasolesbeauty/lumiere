@@ -1,10 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/fidelizacionController');
-
 router.get('/premios', controller.getPremios);
 router.post('/premios', controller.createPremio);
+router.put('/premios/:id', controller.updatePremio);
+router.delete('/premios/:id', controller.desactivarPremio);
 router.post('/canjear', controller.canjear);
+router.get('/canjes', controller.getCanjes);
+router.post('/validar-canje', controller.validarCanje);
 router.get('/ranking', controller.getRanking);
-
 module.exports = router;

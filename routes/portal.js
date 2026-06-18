@@ -103,4 +103,107 @@ router.get('/mis-datos', verificarTokenCliente, async (req, res) => {
   }
 });
 
+// Premios disponibles para el cliente logueado (respeta stock y mes de cumpleanos)
+router.get('/premios', verificarTokenCliente, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM premios_fidelizacion WHERE activo = TRUE ORDER BY puntos_requeridos ASC');
+    const clienteRes = await pool.query('SELECT fecha_nacimiento FROM clientes WHERE id = $1', [req.clienteId]);
+    const fechaNac = clienteRes.rows[0]?.fecha_nacimiento;
+    const mesActual = new Date().getMonth() + 1;
+    const esMesCumple = fechaNac && (new Date(fechaNac).getMonth() + 1) === mesActual;
+
+    const premios = result.rows
+      .map(p => ({ ...p, disponible: p.stock_total === null ? null : Math.max(p.stock_total - (p.stock_usado || 0), 0) }))
+      .filter(p => p.disponible === null || p.disponible > 0)
+      .filter(p => !p.solo_mes_cumpleanos || esMesCumple);
+
+    res.json(premios);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al obtener premios' });
+  }
+});
+
+// Canjear un premio: genera codigo para mostrar en el local
+router.post('/canjear', verificarTokenCliente, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { premio_id } = req.body;
+    const clienteRes = await client.query('SELECT puntos, fecha_nacimiento FROM clientes WHERE id = $1', [req.clienteId]);
+    if (clienteRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Cliente no encontrado' });
+    }
+    const cliente = clienteRes.rows[0];
+
+    const premioRes = await client.query('SELECT * FROM premios_fidelizacion WHERE id = $1 AND activo = TRUE', [premio_id]);
+    if (premioRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Premio no disponible' });
+    }
+    const premio = premioRes.rows[0];
+
+    if (premio.solo_mes_cumpleanos) {
+      const mesActual = new Date().getMonth() + 1;
+      const esMesCumple = cliente.fecha_nacimiento && (new Date(cliente.fecha_nacimiento).getMonth() + 1) === mesActual;
+      if (!esMesCumple) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Este premio es exclusivo del mes de tu cumpleanos' });
+      }
+    }
+
+    if (premio.stock_total !== null && (premio.stock_total - (premio.stock_usado || 0)) <= 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Este premio ya no tiene stock disponible' });
+    }
+
+    if (cliente.puntos < premio.puntos_requeridos) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'No tenes suficientes puntos para este premio' });
+    }
+
+    await client.query('UPDATE clientes SET puntos = puntos - $1 WHERE id = $2', [premio.puntos_requeridos, req.clienteId]);
+    await client.query('UPDATE premios_fidelizacion SET stock_usado = COALESCE(stock_usado, 0) + 1 WHERE id = $1', [premio_id]);
+
+    const letras = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let codigo, intentos = 0;
+    while (intentos < 10) {
+      codigo = 'PREMIO-' + Array.from({ length: 4 }, () => letras[Math.floor(Math.random() * letras.length)]).join('');
+      const existe = await client.query('SELECT id FROM canjes_premios WHERE codigo = $1', [codigo]);
+      if (existe.rows.length === 0) break;
+      intentos++;
+    }
+
+    await client.query(
+      `INSERT INTO canjes_premios (premio_id, cliente_id, codigo, puntos_usados, estado) VALUES ($1, $2, $3, $4, 'pendiente')`,
+      [premio_id, req.clienteId, codigo, premio.puntos_requeridos]
+    );
+
+    await client.query('COMMIT');
+    res.json({ mensaje: 'Canje realizado! Mostra este codigo en el local', codigo });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error(error);
+    res.status(500).json({ error: 'Error al realizar el canje' });
+  } finally {
+    client.release();
+  }
+});
+
+// Historial de canjes del cliente logueado
+router.get('/mis-canjes', verificarTokenCliente, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT cp.*, p.nombre AS premio_nombre, p.imagen_url
+       FROM canjes_premios cp JOIN premios_fidelizacion p ON cp.premio_id = p.id
+       WHERE cp.cliente_id = $1 ORDER BY cp.creado_en DESC`,
+      [req.clienteId]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener tus canjes' });
+  }
+});
+
 module.exports = router;
