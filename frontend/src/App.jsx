@@ -2147,6 +2147,217 @@ function PostventaWA() {
   );
 }
 
+function Calculadoras({ usuario }) {
+  const [calculadoras, setCalculadoras] = useState([]);
+  const [seleccionada, setSeleccionada] = useState(null);
+  const [valores, setValores] = useState({});
+  const [resultado, setResultado] = useState(null);
+  const [tab, setTab] = useState("usar");
+  const [showForm, setShowForm] = useState(false);
+  const [editando, setEditando] = useState(null);
+  const [form, setForm] = useState({ nombre: "", descripcion: "", tipo: "desde_costo", margen: "2", iva: "17.5", extras: [] });
+  const [extraTemp, setExtraTemp] = useState("");
+  const [mensaje, setMensaje] = useState("");
+  const esJefe = usuario?.rol === "jefe" || usuario?.rol === "administrativo";
+
+  const cargar = () => {
+    API.get("/calculadoras").then(res => {
+      setCalculadoras(res.data || []);
+      if (res.data?.length > 0 && !seleccionada) setSeleccionada(res.data[0]);
+    }).catch(() => {});
+  };
+
+  useEffect(() => { cargar(); }, []);
+
+  useEffect(() => {
+    if (seleccionada) { setValores({}); setResultado(null); }
+  }, [seleccionada?.id]);
+
+  const calcular = () => {
+    if (!seleccionada) return;
+    const extras = (seleccionada.extras || []).reduce((s, e) => s + (parseFloat(valores[e.key]) || 0), 0);
+    let precio = 0;
+    if (seleccionada.tipo === "desde_costo") {
+      const costo = parseFloat(valores.costo) || 0;
+      const margen = parseFloat(seleccionada.margen) || 1;
+      const iva = parseFloat(seleccionada.iva) || 0;
+      precio = (costo * margen * (1 + iva / 100)) + extras;
+    } else {
+      const precioVenta = parseFloat(valores.precio_venta) || 0;
+      const margen = parseFloat(seleccionada.margen) || 1;
+      precio = (precioVenta * margen) + extras;
+    }
+    setResultado(Math.round(precio));
+  };
+
+  const guardar = async () => {
+    if (!form.nombre) return setMensaje("El nombre es obligatorio");
+    try {
+      if (editando) {
+        await API.put("/calculadoras/" + editando.id, { ...form, margen: parseFloat(form.margen), iva: parseFloat(form.iva) });
+        setMensaje("Calculadora actualizada");
+      } else {
+        await API.post("/calculadoras", { ...form, margen: parseFloat(form.margen), iva: parseFloat(form.iva) });
+        setMensaje("Calculadora creada");
+      }
+      setShowForm(false); setEditando(null);
+      setForm({ nombre: "", descripcion: "", tipo: "desde_costo", margen: "2", iva: "17.5", extras: [] });
+      cargar();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al guardar"); }
+  };
+
+  const abrirEditar = (c) => {
+    setEditando(c);
+    setForm({ nombre: c.nombre, descripcion: c.descripcion || "", tipo: c.tipo, margen: String(c.margen), iva: String(c.iva), extras: c.extras || [] });
+    setShowForm(true); setTab("admin");
+  };
+
+  const eliminar = async (c) => {
+    try {
+      await API.delete("/calculadoras/" + c.id);
+      setMensaje("Calculadora eliminada");
+      if (seleccionada?.id === c.id) setSeleccionada(null);
+      cargar();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al eliminar"); }
+  };
+
+  const agregarExtra = () => {
+    if (!extraTemp.trim()) return;
+    const key = extraTemp.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+    setForm(f => ({ ...f, extras: [...f.extras, { label: extraTemp.trim(), key }] }));
+    setExtraTemp("");
+  };
+
+  const formulaTexto = (c) => {
+    if (!c) return "";
+    const extras = (c.extras || []).map(e => e.label).join(" + ");
+    if (c.tipo === "desde_costo") {
+      return `(costo × ${c.margen}${parseFloat(c.iva) > 0 ? " × " + (1 + parseFloat(c.iva) / 100).toFixed(3) : ""})${extras ? " + " + extras : ""}`;
+    }
+    return `(precio venta × ${c.margen})${extras ? " + " + extras : ""}`;
+  };
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Calculadoras de Precio</div><div className="ps">formulas configurables por tipo de producto</div></div>
+        {esJefe && <button className="btn btn-p btn-sm" onClick={() => { setTab("admin"); setShowForm(true); setEditando(null); setForm({ nombre: "", descripcion: "", tipo: "desde_costo", margen: "2", iva: "17.5", extras: [] }); }}>+ Nueva calculadora</button>}
+      </div>
+      {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
+      <div className="tabs">
+        <div className={"tab " + (tab === "usar" ? "on" : "")} onClick={() => setTab("usar")}>CALCULAR</div>
+        {esJefe && <div className={"tab " + (tab === "admin" ? "on" : "")} onClick={() => setTab("admin")}>ADMINISTRAR</div>}
+      </div>
+
+      {tab === "usar" && (
+        <div className="fade">
+          <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+            {calculadoras.map(c => (
+              <button key={c.id} onClick={() => setSeleccionada(c)}
+                style={{ padding: "8px 16px", borderRadius: 7, border: "1px solid", borderColor: seleccionada?.id === c.id ? "#c9a84c55" : "#e8e8e8", background: seleccionada?.id === c.id ? "#c9a84c12" : "transparent", color: seleccionada?.id === c.id ? "#c9a84c" : "#666666", fontSize: 12, fontWeight: seleccionada?.id === c.id ? 600 : 400, cursor: "pointer" }}>
+                {c.nombre}
+              </button>
+            ))}
+          </div>
+          {seleccionada && (
+            <div className="g2">
+              <div className="card">
+                <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 4 }}>FORMULA</div>
+                <div style={{ fontSize: 13, color: "#444444", marginBottom: 16, fontFamily: "monospace" }}>{formulaTexto(seleccionada)}</div>
+                {seleccionada.tipo === "desde_costo" ? (
+                  <div className="fg"><div className="fl">Costo unitario ($)</div>
+                    <input className="inp" type="number" placeholder="10000" value={valores.costo || ""} onChange={e => setValores(v => ({ ...v, costo: e.target.value }))} />
+                  </div>
+                ) : (
+                  <div className="fg"><div className="fl">Precio de venta del proveedor ($)</div>
+                    <input className="inp" type="number" placeholder="15000" value={valores.precio_venta || ""} onChange={e => setValores(v => ({ ...v, precio_venta: e.target.value }))} />
+                  </div>
+                )}
+                {(seleccionada.extras || []).map(e => (
+                  <div key={e.key} className="fg"><div className="fl">{e.label} ($)</div>
+                    <input className="inp" type="number" placeholder="0" value={valores[e.key] || ""} onChange={ev => setValores(v => ({ ...v, [e.key]: ev.target.value }))} />
+                  </div>
+                ))}
+                <button className="btn btn-p" style={{ width: "100%", marginTop: 8 }} onClick={calcular}>Calcular precio</button>
+              </div>
+              <div className="card" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                {resultado !== null ? (
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 8 }}>PRECIO SUGERIDO</div>
+                    <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 48, fontWeight: 700, color: "#c9a84c" }}>${resultado.toLocaleString("es-AR")}</div>
+                    <div style={{ fontSize: 11, color: "#999999", marginTop: 8 }}>con {seleccionada.nombre}</div>
+                  </div>
+                ) : (
+                  <div style={{ textAlign: "center", color: "#cccccc", fontSize: 12 }}>Ingresa los valores y calculá</div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "admin" && esJefe && (
+        <div className="fade">
+          {showForm && (
+            <div className="card" style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 14 }}>{editando ? "EDITAR CALCULADORA" : "NUEVA CALCULADORA"}</div>
+              <div className="fg"><div className="fl">Nombre</div><input className="inp" placeholder="Ej: Capilar, Maquillaje..." value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Descripcion (opcional)</div><input className="inp" placeholder="Para que tipo de productos aplica" value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} /></div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                <button className="btn btn-sm" style={{ flex: 1, background: form.tipo === "desde_costo" ? "#c9a84c15" : "transparent", border: "1px solid " + (form.tipo === "desde_costo" ? "#c9a84c" : "#e8e8e8"), color: form.tipo === "desde_costo" ? "#c9a84c" : "#999999" }} onClick={() => setForm(f => ({ ...f, tipo: "desde_costo" }))}>Desde costo</button>
+                <button className="btn btn-sm" style={{ flex: 1, background: form.tipo === "desde_precio_venta" ? "#c9a84c15" : "transparent", border: "1px solid " + (form.tipo === "desde_precio_venta" ? "#c9a84c" : "#e8e8e8"), color: form.tipo === "desde_precio_venta" ? "#c9a84c" : "#999999" }} onClick={() => setForm(f => ({ ...f, tipo: "desde_precio_venta" }))}>Desde precio venta proveedor</button>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <div className="fg" style={{ flex: 1 }}><div className="fl">Multiplicador de margen</div><input className="inp" type="number" step="0.1" placeholder="2" value={form.margen} onChange={e => setForm(f => ({ ...f, margen: e.target.value }))} /></div>
+                {form.tipo === "desde_costo" && <div className="fg" style={{ flex: 1 }}><div className="fl">IVA (%)</div><input className="inp" type="number" step="0.5" placeholder="17.5" value={form.iva} onChange={e => setForm(f => ({ ...f, iva: e.target.value }))} /></div>}
+              </div>
+              <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 8 }}>CAMPOS EXTRAS (costos adicionales)</div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                <input className="inp" placeholder="Ej: Costo bolsa, Costo envio..." value={extraTemp} onChange={e => setExtraTemp(e.target.value)} onKeyDown={e => e.key === "Enter" && agregarExtra()} style={{ flex: 1 }} />
+                <button className="btn btn-sm" onClick={agregarExtra}>+ Agregar</button>
+              </div>
+              {form.extras.length > 0 && (
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+                  {form.extras.map((e, i) => (
+                    <span key={i} style={{ background: "#f5f5f5", padding: "3px 10px", borderRadius: 12, fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
+                      {e.label}
+                      <span style={{ cursor: "pointer", color: "#c0392b" }} onClick={() => setForm(f => ({ ...f, extras: f.extras.filter((_, j) => j !== i) }))}>×</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div style={{ background: "#f9f9f9", borderRadius: 6, padding: "8px 12px", marginBottom: 12, fontSize: 11, color: "#666666", fontFamily: "monospace" }}>
+                Vista previa: {formulaTexto({ ...form, margen: parseFloat(form.margen), iva: parseFloat(form.iva) })}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-g" style={{ flex: 1 }} onClick={() => { setShowForm(false); setEditando(null); }}>Cancelar</button>
+                <button className="btn btn-p" style={{ flex: 1 }} onClick={guardar}>{editando ? "Guardar cambios" : "Crear calculadora"}</button>
+              </div>
+            </div>
+          )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {calculadoras.map(c => (
+              <div key={c.id} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{c.nombre}</div>
+                  <div style={{ fontSize: 11, color: "#999999", marginTop: 2 }}>{formulaTexto(c)}</div>
+                  {c.descripcion && <div style={{ fontSize: 10, color: "#aaaaaa", marginTop: 2 }}>{c.descripcion}</div>}
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn btn-sm" onClick={() => abrirEditar(c)}>Editar</button>
+                  <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => eliminar(c)}>Eliminar</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PortalCliente() {
   const client = CLIENTS[0];
   const [tab, setTab] = useState("canjear");
@@ -3516,7 +3727,7 @@ const NAV_SECTIONS = [
   { section: "STOCK", color: "#7d3c98", items: [{ id: "inventory", icon: "📦", label: "Inventario" }, { id: "ordenes", icon: "🚚", label: "Ingresos" }, { id: "inconsistencias", icon: "⚠️", label: "Inconsistencias" }, { id: "kits", icon: "🎁", label: "Kits" }] },
   { section: "CAJA", color: "#2d7a4f", items: [{ id: "caja", icon: "💵", label: "Caja" }, { id: "cierre", icon: "🔒", label: "Cierre de Caja" }, { id: "giftcards", icon: "🎀", label: "Gift Cards" }] },
   { section: "CLIENTES", color: "#c9a84c", items: [{ id: "clients", icon: "👥", label: "Clientes" }, { id: "clientes-analitica", icon: "📈", label: "Analitica Clientes" }, { id: "fidelizacion", icon: "⭐", label: "Fidelizacion" }] },
-  { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "💰", label: "Finanzas" }, { id: "reports", icon: "📋", label: "Informes" }, { id: "comprobantes", icon: "🧾", label: "Comprobantes" }, { id: "comisiones", icon: "💎", label: "Comisiones" }, { id: "proveedores", icon: "🏭", label: "Proveedores" }, { id: "productividad", icon: "🏆", label: "Productividad" }] },
+  { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "💰", label: "Finanzas" }, { id: "reports", icon: "📋", label: "Informes" }, { id: "comprobantes", icon: "🧾", label: "Comprobantes" }, { id: "comisiones", icon: "💎", label: "Comisiones" }, { id: "proveedores", icon: "🏭", label: "Proveedores" }, { id: "calculadoras", icon: "🧮", label: "Calculadoras" }, { id: "productividad", icon: "🏆", label: "Productividad" }] },
   { section: "MARKETING", color: "#e74c3c", items: [{ id: "cupones", icon: "🏷️", label: "Cupones" }] },
   { section: "POSTVENTA", color: "#25d366", items: [{ id: "postventa", icon: "💬", label: "Postventa WA" }] },
   { section: "CLIENTE", color: "#999999", items: [{ id: "portal", icon: "👤", label: "Portal Cliente" }] },
@@ -3913,6 +4124,7 @@ export default function AppWrapper() {
     if (id === "clients") return <Clientes localId={local.id} />;
     if (id === "finance") return <Finanzas localId={local.id} />;
     if (id === "reports") return <Informes localId={local.id} />;
+    if (id === "calculadoras") return <Calculadoras usuario={usuario} />;
     if (id === "cupones") return <Cupones localId={local.id} />;
     if (id === "fidelizacion") return <Fidelizacion localId={local.id} />;
     if (id === "postventa") return <PostventaWA localId={local.id} />;

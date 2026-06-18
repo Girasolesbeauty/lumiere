@@ -40,6 +40,7 @@ app.use('/api/tiendanube', require('./routes/tiendanube'));
 app.use('/api/permisos', require('./routes/permisos'));
 app.use('/api/gift-cards', require('./routes/gift-cards'));
 app.use('/api/portal', require('./routes/portal'));
+app.use('/api/calculadoras', require('./routes/calculadoras'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {
