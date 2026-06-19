@@ -449,6 +449,25 @@ function POS({ localId, usuario }) {
     add(p);
   };
 
+  const [showEmitirGC, setShowEmitirGC] = useState(false);
+  const [nuevaGC, setNuevaGC] = useState({ monto: "", beneficiario_nombre: "", beneficiario_telefono: "" });
+  const [errorEmitirGC, setErrorEmitirGC] = useState("");
+  const [gcEmitidaOk, setGcEmitidaOk] = useState(null);
+
+  const emitirGiftCardPOS = async () => {
+    if (!nuevaGC.monto || parseFloat(nuevaGC.monto) <= 0) return setErrorEmitirGC("Ingresa un monto valido");
+    if (!nuevaGC.beneficiario_nombre) return setErrorEmitirGC("Falta el nombre de quien recibe la gift card");
+    setErrorEmitirGC("");
+    try {
+      const res = await API.post("/gift-cards", {
+        ...nuevaGC, cliente_id: clienteSeleccionado?.id || null,
+        local_id: localId || 1, emitida_por: usuario?.id || null
+      });
+      setGcEmitidaOk(res.data);
+      setNuevaGC({ monto: "", beneficiario_nombre: "", beneficiario_telefono: "" });
+    } catch (e) { setErrorEmitirGC(e.response?.data?.error || "Error al emitir la gift card"); }
+  };
+
   const coef = medioPagoSel ? parseFloat(medioPagoSel.coeficiente) : 1;
   const subtotalBase = cart.reduce((s, i) => s + (i.precio || i.price) * i.qty, 0);
   const descuentoCupon = cuponAplicado ? (cuponAplicado.tipo === "%" ? subtotalBase * (cuponAplicado.valor / 100) : cuponAplicado.valor) : 0;
@@ -817,6 +836,7 @@ function POS({ localId, usuario }) {
                 </button>
               ))}
             </div>
+            <button className="btn btn-sm" style={{ width: "100%", marginTop: 8, background: "transparent", border: "1px solid #c9a84c44", color: "#c9a84c" }} onClick={() => { setShowEmitirGC(true); setGcEmitidaOk(null); setErrorEmitirGC(""); }}>🎁 Emitir Gift Card</button>
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
             {cart.length === 0
@@ -899,6 +919,36 @@ function POS({ localId, usuario }) {
           </div>
         </div>
       </div>
+      {showEmitirGC && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+          <div className="card" style={{ width: 380, background: "#ffffff" }}>
+            {!gcEmitidaOk ? (
+              <>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>🎁 Emitir Gift Card</div>
+                {errorEmitirGC && <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "8px 12px", marginBottom: 10, fontSize: 11, color: "#c0392b" }}>{errorEmitirGC}</div>}
+                <div className="fg"><div className="fl">Monto ($)</div><input className="inp" type="number" placeholder="10000" value={nuevaGC.monto} onChange={e => setNuevaGC(p => ({ ...p, monto: e.target.value }))} /></div>
+                <div className="fg"><div className="fl">Nombre de quien la recibe</div><input className="inp" placeholder="Ej: Maria Lopez" value={nuevaGC.beneficiario_nombre} onChange={e => setNuevaGC(p => ({ ...p, beneficiario_nombre: e.target.value }))} /></div>
+                <div className="fg"><div className="fl">Telefono (opcional)</div><input className="inp" placeholder="Ej: 2964123456" value={nuevaGC.beneficiario_telefono} onChange={e => setNuevaGC(p => ({ ...p, beneficiario_telefono: e.target.value }))} /></div>
+                <div style={{ fontSize: 10, color: "#65676B", marginBottom: 14 }}>Se cobra el monto ahora como ingreso de caja. La gift card queda lista para usarse en cualquier venta futura.</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowEmitirGC(false)}>Cancelar</button>
+                  <button className="btn btn-p" style={{ flex: 1 }} onClick={emitirGiftCardPOS}>Emitir y cobrar</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: "#2d7a4f" }}>Gift Card emitida!</div>
+                <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>Entregale este codigo a {gcEmitidaOk.beneficiario_nombre}</div>
+                <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f44", borderRadius: 8, padding: 16, textAlign: "center", marginBottom: 14 }}>
+                  <div style={{ fontFamily: "monospace", fontSize: 24, fontWeight: 700, color: "#2d7a4f" }}>{gcEmitidaOk.codigo}</div>
+                  <div style={{ fontSize: 12, color: "#65676B", marginTop: 4 }}>Saldo: ${parseFloat(gcEmitidaOk.saldo).toLocaleString("es-AR")}</div>
+                </div>
+                <button className="btn btn-p" style={{ width: "100%" }} onClick={() => setShowEmitirGC(false)}>Cerrar</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
