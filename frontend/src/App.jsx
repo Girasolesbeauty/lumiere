@@ -5,7 +5,7 @@ import API from "./api";
 const C = {
   bg: "#f2f2ef", surface: "#ffffff", card: "#f5f5f5", border: "#e8e8e8",
   accent: "#c9a84c", accentDim: "#c9a84c15", accentHover: "#e8c86a",
-  text: "#111111", textSoft: "#444444", textMuted: "#999999",
+  text: "#111111", textSoft: "#444444", textMuted: "#65676B",
   green: "#2d7a4f", greenDim: "#2d7a4f12",
   red: "#c0392b", redDim: "#c0392b12",
   blue: "#2471a3", blueDim: "#2471a312",
@@ -16,7 +16,7 @@ const C = {
 const BASE_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Inter', sans-serif; background: #f0f0ed; color: #111111; min-height: 100vh; -webkit-font-smoothing: antialiased; }
+body { font-family: 'Inter', sans-serif; background: #F0F2F5; color: #1C1E21; min-height: 100vh; -webkit-font-smoothing: antialiased; }
 ::-webkit-scrollbar { width: 3px; }
 ::-webkit-scrollbar-thumb { background: #e0e0e0; border-radius: 2px; }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -24,50 +24,50 @@ body { font-family: 'Inter', sans-serif; background: #f0f0ed; color: #111111; mi
 .fade { animation: fadeUp .25s ease forwards; }
 .pulse { animation: pulse 2s infinite; }
 .layout { display: flex; min-height: 100vh; }
-.sidebar { width: 210px; background: #111111; border-right: 1px solid #222222; display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 20; overflow-y: auto; }
-.logo { padding: 24px 20px 16px; border-bottom: 1px solid #222222; }
-.logo-name { font-family: 'Inter', sans-serif; font-size: 18px; font-weight: 700; letter-spacing: .1em; color: #c9a84c; text-transform: uppercase; }
-.logo-sub { font-size: 9px; color: #888888; letter-spacing: .3em; margin-top: 3px; text-transform: uppercase; }
+.sidebar { width: 220px; background: #1877F2; border-right: none; box-shadow: 2px 0 8px rgba(24,119,242,0.15); display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 20; overflow-y: auto; }
+.logo { padding: 22px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.15); }
+.logo-name { font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 800; letter-spacing: .05em; color: #ffffff; text-transform: uppercase; }
+.logo-sub { font-size: 9px; color: rgba(255,255,255,0.65); letter-spacing: .3em; margin-top: 3px; text-transform: uppercase; }
 .nav { padding: 12px 10px; flex: 1; }
-.nav-section { font-size: 8px; letter-spacing: .3em; color: #666666; padding: 10px 10px 4px; text-transform: uppercase; }
-.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 7px; cursor: pointer; font-size: 12px; font-weight: 500; color: #888888; transition: all .18s; margin-bottom: 3px; border: 1px solid transparent; }
-.nav-item:hover { color: #ffffff; background: #2a2a2a; }
-.nav-item.active { color: #ffffff; font-weight: 600; }
+.nav-section { font-size: 8px; letter-spacing: .25em; color: rgba(255,255,255,0.55); padding: 10px 10px 4px; text-transform: uppercase; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.8); transition: all .18s; margin-bottom: 3px; border: 1px solid transparent; }
+.nav-item:hover { color: #ffffff; background: rgba(255,255,255,0.15); }
+.nav-item.active { color: #ffffff; font-weight: 700; background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.15); }
 .nav-icon { font-size: 13px; width: 18px; text-align: center; flex-shrink: 0; }
-.sb-footer { padding: 12px 18px; border-top: 1px solid #222222; }
-.main { margin-left: 210px; flex: 1; padding: 28px 34px; min-height: 100vh; background: #f0f0ed; }
+.sb-footer { padding: 12px 18px; border-top: 1px solid rgba(255,255,255,0.15); }
+.main { margin-left: 220px; flex: 1; padding: 28px 34px; min-height: 100vh; background: #F0F2F5; }
 .ph { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 26px; }
-.pt { font-family: 'Inter', sans-serif; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; color: #111111; }
-.ps { font-size: 11px; color: #666666; font-weight: 400; margin-top: 5px; }
+.pt { font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; color: #1C1E21; }
+.ps { font-size: 11px; color: #5C5F66; font-weight: 400; margin-top: 5px; }
 .g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 18px; }
 .g3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 18px; }
 .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
-.card { background: #ffffff; border: 1px solid #e8e8e8; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-radius: 8px; padding: 18px; }
-.ct { font-size: 10px; letter-spacing: .15em; text-transform: uppercase; color: #777777; font-weight: 600; margin-bottom: 10px; }
+.card { background: #ffffff; border: 1px solid #E4E6EB; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-radius: 10px; padding: 18px; }
+.ct { font-size: 10px; letter-spacing: .15em; text-transform: uppercase; color: #5C5F66; font-weight: 600; margin-bottom: 10px; }
 .metric { font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 700; line-height: 1; }
-.msub { font-size: 12px; color: #666666; font-weight: 400; margin-top: 5px; }
+.msub { font-size: 12px; color: #5C5F66; font-weight: 400; margin-top: 5px; }
 .badge { display: inline-flex; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
 .bg { background: #2d7a4f12; color: #2d7a4f; }
 .br { background: #c0392b12; color: #c0392b; }
-.bb { background: #2471a312; color: #2471a3; }
+.bb { background: #1877F212; color: #1877F2; }
 .bp { background: #7d3c9812; color: #7d3c98; }
 .ba { background: #c9a84c15; color: #c9a84c; }
 .bw { background: #25d36618; color: #25d366; }
-.bx { background: #f5f5f5; color: #999999; border: 1px solid #e0e0e0; }
-.btn { padding: 9px 18px; border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: all .18s; }
-.btn-p { background: #111111; color: #ffffff; font-weight: 500; }
-.btn-p:hover { background: #333333; }
-.btn-g { background: transparent; color: #666666; border: 1px solid #e0e0e0; }
-.btn-g:hover { border-color: #c9a84c; color: #c9a84c; }
+.bx { background: #F0F2F5; color: #5C5F66; border: 1px solid #E4E6EB; }
+.btn { padding: 9px 18px; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: all .18s; }
+.btn-p { background: #1877F2; color: #ffffff; font-weight: 600; }
+.btn-p:hover { background: #166FE5; }
+.btn-g { background: #E4E6EB; color: #1C1E21; border: none; }
+.btn-g:hover { background: #D8DADF; }
 .btn-sm { padding: 5px 11px; font-size: 10px; }
-.inp { width: 100%; background: #ffffff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 10px 14px; color: #111111; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; outline: none; transition: border-color .18s; }
-.inp:focus { border-color: #c9a84c; }
-.inp::placeholder { color: #bbbbbb; }
-.sel { background: #ffffff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 10px 14px; color: #111111; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; outline: none; width: 100%; }
+.inp { width: 100%; background: #F0F2F5; border: 1px solid #E4E6EB; border-radius: 8px; padding: 10px 14px; color: #1C1E21; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; outline: none; transition: border-color .18s; }
+.inp:focus { border-color: #1877F2; background: #ffffff; }
+.inp::placeholder { color: #9CA1A6; }
+.sel { background: #F0F2F5; border: 1px solid #E4E6EB; border-radius: 8px; padding: 10px 14px; color: #1C1E21; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; outline: none; width: 100%; }
 .fg { margin-bottom: 12px; }
-.fl { font-size: 11px; color: #666666; font-weight: 600; margin-bottom: 6px; }
-.tabs { display: flex; margin-bottom: 20px; border-bottom: 1px solid #e8e8e8; }
-.tab { padding: 8px 16px; font-size: 12px; font-weight: 500; color: #888888; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .18s; }
+.fl { font-size: 11px; color: #5C5F66; font-weight: 600; margin-bottom: 6px; }
+.tabs { display: flex; margin-bottom: 20px; border-bottom: 1px solid #E4E6EB; }
+.tab { padding: 8px 16px; font-size: 12px; font-weight: 500; color: #5C5F66; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .18s; }
 .tab.on { color: #111111; border-bottom-color: #c9a84c; font-weight: 600; }
 .tab:hover { color: #333333; }
 .divider { height: 1px; background: #e8e8e8; margin: 14px 0; }
@@ -242,7 +242,7 @@ function Dashboard({ localId }) {
     <div className="card" style={{ borderTop: "3px solid " + (alerta ? "#c0392b" : (color || "#c9a84c")) }}>
       <div className="ct">{titulo}</div>
       <div style={{ fontSize: 26, fontWeight: 700, color: alerta ? "#c0392b" : (color || "#111111") }}>{valor}</div>
-      {sub && <div style={{ fontSize: 11, color: "#999999", marginTop: 4 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 11, color: "#65676B", marginTop: 4 }}>{sub}</div>}
     </div>
   );
 
@@ -276,16 +276,16 @@ function Dashboard({ localId }) {
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {["rg","ush","consolidado"].map(l => (
           <button key={l} onClick={() => setTabLocal(l)} className="btn btn-sm"
-            style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : "#e8e8e8"), color: tabLocal === l ? "#c9a84c" : "#999999", fontWeight: tabLocal === l ? 600 : 400 }}>
+            style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : "#e8e8e8"), color: tabLocal === l ? "#c9a84c" : "#65676B", fontWeight: tabLocal === l ? 600 : 400 }}>
             {l === "rg" ? "Rio Grande" : l === "ush" ? "Ushuaia" : "Consolidado"}
           </button>
         ))}
       </div>
       {loading ? (
-        <div style={{ textAlign: "center", color: "#999999", padding: 40 }}>Cargando KPIs...</div>
+        <div style={{ textAlign: "center", color: "#65676B", padding: 40 }}>Cargando KPIs...</div>
       ) : data && (
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>FINANCIERO</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#65676B", letterSpacing: ".1em", marginBottom: 10 }}>FINANCIERO</div>
           <div className="g3" style={{ marginBottom: 20 }}>
             <KPI titulo="Ventas del mes" valor={"$" + Math.round(data.totalVentas).toLocaleString()} sub={data.cantVentas + " transacciones"} color="#2d7a4f" />
             <KPI titulo="Resultado neto" valor={"$" + Math.round(data.fin.neto || 0).toLocaleString()} sub={"Ingresos - Egresos"} color={data.fin.neto >= 0 ? "#2d7a4f" : "#c0392b"} alerta={data.fin.neto < 0} />
@@ -297,7 +297,7 @@ function Dashboard({ localId }) {
             <KPI titulo="Total clientes" valor={data.clientes.length} sub="en la base" color="#2471a3" />
           </div>
 
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#999999", letterSpacing: ".1em", marginBottom: 10, marginTop: 4 }}>INVENTARIO</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#65676B", letterSpacing: ".1em", marginBottom: 10, marginTop: 4 }}>INVENTARIO</div>
           <div className="g3" style={{ marginBottom: 20 }}>
             <KPI titulo="Productos totales" valor={data.productos.length} sub="en catalogo" />
             <KPI titulo="Stock bajo" valor={data.stockBajo.length} sub="bajo el minimo" alerta={data.stockBajo.length > 0} color="#e67e22" />
@@ -322,7 +322,7 @@ function Dashboard({ localId }) {
             <div className="card">
               <div className="ct">Ventas por medio de pago</div>
               {Object.keys(data.ventasPorMedio).length === 0 ? (
-                <div style={{ color: "#999999", fontSize: 12, textAlign: "center", padding: 20 }}>Sin datos este mes</div>
+                <div style={{ color: "#65676B", fontSize: 12, textAlign: "center", padding: 20 }}>Sin datos este mes</div>
               ) : (
                 <div>
                   {Object.entries(data.ventasPorMedio).sort((a,b) => b[1]-a[1]).slice(0, 6).map(([medio, total]) => {
@@ -362,14 +362,14 @@ function Dashboard({ localId }) {
           <div className="card">
             <div className="ct">Ultimas ventas</div>
             {data.ventas.length === 0 ? (
-              <div style={{ color: "#999999", fontSize: 12, textAlign: "center", padding: 20 }}>Sin ventas este mes</div>
+              <div style={{ color: "#65676B", fontSize: 12, textAlign: "center", padding: 20 }}>Sin ventas este mes</div>
             ) : (
               <table>
                 <thead><tr><th>Fecha</th><th>Cliente</th><th>Medio</th><th>Total</th></tr></thead>
                 <tbody>
                   {data.ventas.slice(0, 8).map((v, i) => (
                     <tr key={i}>
-                      <td style={{ fontSize: 11, color: "#999999" }}>{new Date(v.creado_en || v.fecha).toLocaleDateString("es-AR")}</td>
+                      <td style={{ fontSize: 11, color: "#65676B" }}>{new Date(v.creado_en || v.fecha).toLocaleDateString("es-AR")}</td>
                       <td style={{ fontSize: 12 }}>{v.cliente_nombre || "Consumidor final"}</td>
                       <td style={{ fontSize: 11 }}>{v.medio_pago || "-"}</td>
                       <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${parseFloat(v.total || 0).toLocaleString()}</td>
@@ -580,12 +580,12 @@ function POS({ localId, usuario }) {
           </div>
         )}
         {preventasPendientes.length === 0 ? (
-          <div style={{ textAlign: "center", color: "#999999", padding: 40, fontSize: 13 }}>No hay preventas pendientes</div>
+          <div style={{ textAlign: "center", color: "#65676B", padding: 40, fontSize: 13 }}>No hay preventas pendientes</div>
         ) : preventasPendientes.map(p => (
           <div key={p.id} className="card" style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 600 }}>{p.nombre_preventa || "Consumidor Final"}</div>
-              <div style={{ fontSize: 11, color: "#999999", marginTop: 3 }}>{new Date(p.creado_en).toLocaleDateString("es-AR")} - ${parseFloat(p.total).toLocaleString()}</div>
+              <div style={{ fontSize: 11, color: "#65676B", marginTop: 3 }}>{new Date(p.creado_en).toLocaleDateString("es-AR")} - ${parseFloat(p.total).toLocaleString()}</div>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn btn-p btn-sm" onClick={() => abrirConfirmacionEntrega(p)}>Confirmar entrega</button>
@@ -597,7 +597,7 @@ function POS({ localId, usuario }) {
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
             <div className="card" style={{ width: 380, background: "#ffffff" }}>
               <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Confirmar entrega</div>
-              <div style={{ fontSize: 12, color: "#999999", marginBottom: 14 }}>{confirmandoPreventa.nombre_preventa || "Consumidor Final"} viene a retirar su pedido. Esto descuenta del stock real y libera la reserva.</div>
+              <div style={{ fontSize: 12, color: "#65676B", marginBottom: 14 }}>{confirmandoPreventa.nombre_preventa || "Consumidor Final"} viene a retirar su pedido. Esto descuenta del stock real y libera la reserva.</div>
               {errorConfirmacion && (
                 <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "8px 12px", marginBottom: 10, fontSize: 11, color: "#c0392b" }}>{errorConfirmacion}</div>
               )}
@@ -631,12 +631,12 @@ function POS({ localId, usuario }) {
           {usuario?.rol === "jefe" && (
             <div className="sw-wrap" onClick={() => { setModoPrueba(!modoPrueba); setMensaje(""); }}>
               <div className={"sw " + (modoPrueba ? "on" : "off")}><div className="sw-dot" /></div>
-              <span style={{ fontSize: 11, color: modoPrueba ? "#c0392b" : "#999999" }}>Modo prueba</span>
+              <span style={{ fontSize: 11, color: modoPrueba ? "#c0392b" : "#65676B" }}>Modo prueba</span>
             </div>
           )}
           <div className="sw-wrap" onClick={() => { setPreventa(!preventa); setMensaje(""); }}>
             <div className={"sw " + (preventa ? "on" : "off")}><div className="sw-dot" /></div>
-            <span style={{ fontSize: 11, color: preventa ? "#2471a3" : "#999999" }}>Preventa</span>
+            <span style={{ fontSize: 11, color: preventa ? "#2471a3" : "#65676B" }}>Preventa</span>
           </div>
           <StatusDot color="#2d7a4f" label="ARCA" />
         </div>
@@ -693,7 +693,7 @@ function POS({ localId, usuario }) {
                         {!soloTransito && disp > 0 && transitoLocal > 0 && <div style={{ fontSize: 9, color: "#7d3c98" }}>+{transitoLocal} en camino</div>}
                       </td>
                       <td style={{ padding: "5px 8px", fontSize: 11, color: "#666666", whiteSpace: "nowrap" }}>{p.marca || p.brand || "-"}</td>
-                      <td style={{ padding: "5px 8px", fontSize: 10, color: "#aaaaaa", fontFamily: "monospace" }}>{p.codigo_barras || p.codigo || "-"}</td>
+                      <td style={{ padding: "5px 8px", fontSize: 10, color: "#8A8D91", fontFamily: "monospace" }}>{p.codigo_barras || p.codigo || "-"}</td>
                       <td style={{ padding: "5px 8px", textAlign: "right", fontSize: 13, fontWeight: 700, color: "#c9a84c", whiteSpace: "nowrap" }}>${(p.precio || p.price || 0).toLocaleString()}</td>
                       <td style={{ padding: "5px 8px", textAlign: "center" }}>
                         {soloTransito ? (
@@ -728,7 +728,7 @@ function POS({ localId, usuario }) {
               <div>
                 <div style={{ position: "relative", marginBottom: 6 }}>
                   <input className="inp" placeholder="DNI del cliente (opcional)" value={dniInput} onChange={e => buscarClientePorDni(e.target.value)} />
-                  {buscandoCliente && <div style={{ position: "absolute", right: 10, top: 10, fontSize: 10, color: "#999999" }}>buscando...</div>}
+                  {buscandoCliente && <div style={{ position: "absolute", right: 10, top: 10, fontSize: 10, color: "#65676B" }}>buscando...</div>}
                 </div>
                 {clienteSeleccionado && clienteSeleccionado.id && (
                   <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f33", borderRadius: 6, padding: "8px 12px", marginBottom: 6 }}>
@@ -769,7 +769,7 @@ function POS({ localId, usuario }) {
             <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
               {["A", "B", "Remito"].map(t => (
                 <button key={t} onClick={() => setTipoFac(t)} className="btn btn-sm"
-                  style={{ flex: 1, background: tipoFac === t ? "#c9a84c15" : "transparent", border: "1px solid " + (tipoFac === t ? "#c9a84c" : "#e8e8e8"), color: tipoFac === t ? "#c9a84c" : "#999999" }}>
+                  style={{ flex: 1, background: tipoFac === t ? "#c9a84c15" : "transparent", border: "1px solid " + (tipoFac === t ? "#c9a84c" : "#e8e8e8"), color: tipoFac === t ? "#c9a84c" : "#65676B" }}>
                   {t === "Remito" ? "Remito" : "Fac. " + t}
                 </button>
               ))}
@@ -777,7 +777,7 @@ function POS({ localId, usuario }) {
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
             {cart.length === 0
-              ? <div style={{ textAlign: "center", color: "#aaaaaa", fontSize: 12, marginTop: 20 }}>Selecciona productos</div>
+              ? <div style={{ textAlign: "center", color: "#8A8D91", fontSize: 12, marginTop: 20 }}>Selecciona productos</div>
               : cart.map(i => (
                 <div key={i.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#ffffff", borderRadius: 6, padding: "8px 10px", marginBottom: 6, border: "1px solid #e8e4dc" }}>
                   <div style={{ flex: 1 }}>
@@ -813,7 +813,7 @@ function POS({ localId, usuario }) {
             </select>
             {descuento > 0 && (
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span style={{ fontSize: 11, color: "#999999" }}>Descuento</span>
+                <span style={{ fontSize: 11, color: "#65676B" }}>Descuento</span>
                 <span style={{ fontSize: 11, color: "#2d7a4f" }}>-${descuento.toLocaleString()}</span>
               </div>
             )}
@@ -824,7 +824,7 @@ function POS({ localId, usuario }) {
               </div>
             )}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-              <div style={{ fontSize: 11, color: "#999999", fontWeight: 600 }}>TOTAL</div>
+              <div style={{ fontSize: 11, color: "#65676B", fontWeight: 600 }}>TOTAL</div>
               <div style={{ fontSize: 30, fontWeight: 700, color: "#111111" }}>${total.toLocaleString()}</div>
             </div>
             <button className="btn btn-p" style={{ width: "100%", padding: 13, fontSize: 13, opacity: loading ? 0.7 : 1 }} onClick={emitirFactura} disabled={loading}>
@@ -1007,7 +1007,7 @@ function Inventario({ localId, usuario }) {
       {tab === "stock" && (
         <div className="card fade">
           {loading ? (
-            <div style={{ color: "#999999", padding: 20 }}>Cargando inventario...</div>
+            <div style={{ color: "#65676B", padding: 20 }}>Cargando inventario...</div>
           ) : (
           <table>
             <thead><tr><th>Producto</th><th>Marca</th><th>Categoria</th><th>Codigo</th><th>Precio</th><th>Costo</th><th>Stock</th><th>Reservado</th><th>Disponible</th><th>Estado</th><th></th></tr></thead>
@@ -1020,20 +1020,20 @@ function Inventario({ localId, usuario }) {
                 return (
                   <tr key={p.id}>
                     <td style={{ fontWeight: 500 }}>{p.nombre || p.name}</td>
-                    <td style={{ fontSize: 11, color: "#999999" }}>{p.marca || p.brand || "-"}</td>
-                    <td style={{ fontSize: 11, color: "#999999" }}>{p.categoria || "-"}</td>
-                    <td style={{ fontSize: 11, color: "#999999" }}>{p.codigo_barras || p.codigo || "-"}</td>
+                    <td style={{ fontSize: 11, color: "#65676B" }}>{p.marca || p.brand || "-"}</td>
+                    <td style={{ fontSize: 11, color: "#65676B" }}>{p.categoria || "-"}</td>
+                    <td style={{ fontSize: 11, color: "#65676B" }}>{p.codigo_barras || p.codigo || "-"}</td>
                     <td style={{ color: "#c9a84c" }}>${parseFloat(p.price || p.precio || 0).toLocaleString()}</td>
-                    <td style={{ fontSize: 11, color: "#999999" }}>{p.cost || p.costo ? "$" + parseFloat(p.cost || p.costo).toLocaleString() : "-"}</td>
+                    <td style={{ fontSize: 11, color: "#65676B" }}>{p.cost || p.costo ? "$" + parseFloat(p.cost || p.costo).toLocaleString() : "-"}</td>
                     <td><span className="badge bx">{p.stock || 0}u</span></td>
                     <td style={{ fontSize: 11 }}>{reservado > 0 ? <span style={{ color: "#c9a84c", fontWeight: 600 }}>{reservado}u</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
                     <td><span className={"badge " + (bajo ? "br" : "bg")}>{disponible}u</span></td>
-                    <td style={{ fontSize: 10, color: margen ? "#2d7a4f" : "#999999" }}>{margen ? margen + "%" : "-"}</td>
+                    <td style={{ fontSize: 10, color: margen ? "#2d7a4f" : "#65676B" }}>{margen ? margen + "%" : "-"}</td>
                     <td><button className="btn btn-sm" style={{ fontSize: 10 }} onClick={() => abrirAjuste(p)}>Ajustar</button></td>
                   </tr>
                 );
               })}
-              {productos.length === 0 && <tr><td colSpan={11} style={{ color: "#999999", textAlign: "center" }}>Sin productos</td></tr>}
+              {productos.length === 0 && <tr><td colSpan={11} style={{ color: "#65676B", textAlign: "center" }}>Sin productos</td></tr>}
             </tbody>
           </table>
           )}
@@ -1042,15 +1042,15 @@ function Inventario({ localId, usuario }) {
       {tab === "transito" && (
         <div className="card fade">
           {transito.length === 0 ? (
-            <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 30 }}>No hay stock en transito por el momento</div>
+            <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 30 }}>No hay stock en transito por el momento</div>
           ) : (
             <table>
               <thead><tr><th>Producto</th><th>Codigo</th><th>Transito RG</th><th>Reservado RG</th><th>Transito USH</th><th>Reservado USH</th></tr></thead>
               <tbody>
                 {transito.map(p => (
                   <tr key={p.id}>
-                    <td style={{ fontWeight: 500 }}>{p.nombre}{p.marca ? <span style={{ fontSize: 10, color: "#999999", marginLeft: 6 }}>{p.marca}</span> : ""}</td>
-                    <td style={{ fontSize: 11, color: "#999999" }}>{p.codigo_barras || "-"}</td>
+                    <td style={{ fontWeight: 500 }}>{p.nombre}{p.marca ? <span style={{ fontSize: 10, color: "#65676B", marginLeft: 6 }}>{p.marca}</span> : ""}</td>
+                    <td style={{ fontSize: 11, color: "#65676B" }}>{p.codigo_barras || "-"}</td>
                     <td>{p.transito_rg > 0 ? <span className="badge bb">{p.transito_rg}u</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
                     <td>{p.reservado_rg > 0 ? <span style={{ color: "#c9a84c", fontWeight: 600, fontSize: 11 }}>{p.reservado_rg}u</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
                     <td>{p.transito_ush > 0 ? <span className="badge bb">{p.transito_ush}u</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
@@ -1070,7 +1070,7 @@ function Inventario({ localId, usuario }) {
             <div key={p.id} style={{ background: "#c0392b12", border: "1px solid #d9707033", borderRadius: 6, padding: "12px 16px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div style={{ fontSize: 12, color: "#444444" }}>{p.nombre || p.name} - {p.marca || p.brand}</div>
-                <div style={{ fontSize: 10, color: "#999999", marginTop: 2 }}>Stock: {p.stock || 0}u | Minimo: {p.stock_minimo || 5}u</div>
+                <div style={{ fontSize: 10, color: "#65676B", marginTop: 2 }}>Stock: {p.stock || 0}u | Minimo: {p.stock_minimo || 5}u</div>
               </div>
               <button className="btn btn-p btn-sm">Generar OC</button>
             </div>
@@ -1102,7 +1102,7 @@ function Inventario({ localId, usuario }) {
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
           <div className="card" style={{ width: 420, background: "#ffffff" }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>🧮 Calcular precio</div>
-            <div style={{ fontSize: 11, color: "#999999", marginBottom: 14 }}>El resultado se va a cargar automaticamente en el campo de precio.</div>
+            <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>El resultado se va a cargar automaticamente en el campo de precio.</div>
             <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
               {calculadoras.map(c => (
                 <button key={c.id} onClick={() => { setCalcSel(c); setCalcValores({ costo: nuevo.costo || "" }); setCalcResultado(null); }}
@@ -1113,7 +1113,7 @@ function Inventario({ localId, usuario }) {
             </div>
             {calcSel && (
               <div>
-                <div style={{ fontSize: 10, color: "#999999", fontFamily: "monospace", marginBottom: 12, background: "#f9f9f9", padding: "6px 10px", borderRadius: 6 }}>
+                <div style={{ fontSize: 10, color: "#65676B", fontFamily: "monospace", marginBottom: 12, background: "#f9f9f9", padding: "6px 10px", borderRadius: 6 }}>
                   {calcSel.tipo === "desde_costo"
                     ? `(costo × ${calcSel.margen}${parseFloat(calcSel.iva) > 0 ? " × " + (1 + parseFloat(calcSel.iva) / 100).toFixed(3) + " imp." : ""}) + extras`
                     : `(precio venta × ${calcSel.margen}) + extras`}
@@ -1146,7 +1146,7 @@ function Inventario({ localId, usuario }) {
                 {calcResultado !== null && (
                   <div style={{ marginTop: 12, padding: "12px 16px", borderRadius: 8, background: "#2d7a4f12", border: "1px solid #2d7a4f33", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
-                      <div style={{ fontSize: 10, color: "#999999" }}>Precio sugerido</div>
+                      <div style={{ fontSize: 10, color: "#65676B" }}>Precio sugerido</div>
                       <div style={{ fontSize: 24, fontWeight: 700, color: "#2d7a4f" }}>${calcResultado.toLocaleString("es-AR")}</div>
                     </div>
                     <button className="btn btn-p" onClick={() => { setNuevo(p => ({ ...p, precio: String(calcResultado) })); setShowCalc(false); setCalcResultado(null); }}>
@@ -1164,26 +1164,26 @@ function Inventario({ localId, usuario }) {
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
           <div className="card" style={{ width: 400, background: "#ffffff" }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Ajustar stock</div>
-            <div style={{ fontSize: 12, color: "#999999", marginBottom: 14 }}>{ajustando.nombre} - stock actual: <b>{ajustando.stock || 0}u</b></div>
+            <div style={{ fontSize: 12, color: "#65676B", marginBottom: 14 }}>{ajustando.nombre} - stock actual: <b>{ajustando.stock || 0}u</b></div>
             {errorAjuste && (
               <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "8px 12px", marginBottom: 10, fontSize: 11, color: "#c0392b" }}>{errorAjuste}</div>
             )}
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "exacto" ? "#c9a84c15" : "transparent", border: "1px solid " + (modoAjuste === "exacto" ? "#c9a84c" : "#e8e8e8"), color: modoAjuste === "exacto" ? "#c9a84c" : "#999999" }} onClick={() => { setModoAjuste("exacto"); setValorAjuste(String(ajustando.stock || 0)); }}>Poner cantidad exacta</button>
-              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "diferencia" ? "#c9a84c15" : "transparent", border: "1px solid " + (modoAjuste === "diferencia" ? "#c9a84c" : "#e8e8e8"), color: modoAjuste === "diferencia" ? "#c9a84c" : "#999999" }} onClick={() => { setModoAjuste("diferencia"); setValorAjuste(""); }}>Sumar / restar</button>
+              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "exacto" ? "#c9a84c15" : "transparent", border: "1px solid " + (modoAjuste === "exacto" ? "#c9a84c" : "#e8e8e8"), color: modoAjuste === "exacto" ? "#c9a84c" : "#65676B" }} onClick={() => { setModoAjuste("exacto"); setValorAjuste(String(ajustando.stock || 0)); }}>Poner cantidad exacta</button>
+              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "diferencia" ? "#c9a84c15" : "transparent", border: "1px solid " + (modoAjuste === "diferencia" ? "#c9a84c" : "#e8e8e8"), color: modoAjuste === "diferencia" ? "#c9a84c" : "#65676B" }} onClick={() => { setModoAjuste("diferencia"); setValorAjuste(""); }}>Sumar / restar</button>
             </div>
             <div className="fg">
               <div className="fl">{modoAjuste === "exacto" ? "Stock real (numero final)" : "Diferencia (ej: 3 o -2)"}</div>
               <input className="inp" type="number" placeholder={modoAjuste === "exacto" ? "Ej: 8" : "Ej: -2"} value={valorAjuste} onChange={e => setValorAjuste(e.target.value)} />
               {modoAjuste === "diferencia" && valorAjuste !== "" && !isNaN(parseInt(valorAjuste)) && (
-                <div style={{ fontSize: 11, color: "#999999", marginTop: 4 }}>Nuevo stock: {(ajustando.stock || 0) + parseInt(valorAjuste)}u</div>
+                <div style={{ fontSize: 11, color: "#65676B", marginTop: 4 }}>Nuevo stock: {(ajustando.stock || 0) + parseInt(valorAjuste)}u</div>
               )}
             </div>
             <div className="fg">
               <div className="fl">Motivo (obligatorio)</div>
               <input className="inp" placeholder="Ej: conteo fisico, producto roto, error de carga" value={motivoAjuste} onChange={e => setMotivoAjuste(e.target.value)} />
             </div>
-            <div style={{ fontSize: 10, color: "#999999", marginBottom: 12 }}>Este ajuste queda registrado con tu nombre y la fecha.</div>
+            <div style={{ fontSize: 10, color: "#65676B", marginBottom: 12 }}>Este ajuste queda registrado con tu nombre y la fecha.</div>
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setAjustando(null)}>Cancelar</button>
               <button className="btn btn-p" style={{ flex: 1 }} onClick={confirmarAjuste}>Confirmar ajuste</button>
@@ -1267,7 +1267,7 @@ function Clientes() {
       </div>
       {tab === "lista" && (
         <div className="card fade">
-          {loading ? <div style={{ textAlign: "center", color: "#999999", padding: 20 }}>Cargando clientes...</div> : (
+          {loading ? <div style={{ textAlign: "center", color: "#65676B", padding: 20 }}>Cargando clientes...</div> : (
           <table>
             <thead><tr><th>Cliente</th><th>CUIT/DNI</th><th>Total compras</th><th>Puntos</th><th>Nivel</th></tr></thead>
             <tbody>
@@ -1278,7 +1278,7 @@ function Clientes() {
                 const pct = Math.min(Math.round((puntos / next) * 100), 100);
                 return (
                   <tr key={c.id || i}>
-                    <td><div style={{ color: "#111111" }}>{c.nombre || c.name}</div><div style={{ fontSize: 9, color: "#999999" }}>{c.email}</div></td>
+                    <td><div style={{ color: "#111111" }}>{c.nombre || c.name}</div><div style={{ fontSize: 9, color: "#65676B" }}>{c.email}</div></td>
                     <td style={{ fontSize: 10 }}>{c.cuit_dni || c.cuit}</td>
                     <td>${(c.total_compras || c.total || 0).toLocaleString()}</td>
                     <td>
@@ -1307,7 +1307,7 @@ function Clientes() {
             <div key={n.tier} className="card" style={{ borderLeft: "3px solid " + n.c }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
                 <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: n.c }}>{n.tier}</div>
-                <div style={{ fontSize: 10, color: "#999999" }}>{n.min.toLocaleString()}{n.max ? " - " + n.max.toLocaleString() + " pts" : "+ pts"}</div>
+                <div style={{ fontSize: 10, color: "#65676B" }}>{n.min.toLocaleString()}{n.max ? " - " + n.max.toLocaleString() + " pts" : "+ pts"}</div>
               </div>
               {n.perks.map((p, i) => (
                 <div key={i} style={{ display: "flex", gap: 7, marginBottom: 6, fontSize: 11, color: "#444444" }}>
@@ -1412,7 +1412,7 @@ function Finanzas({ localId }) {
         <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
           {["rg", "ush", "consolidado"].map(l => (
             <button key={l} onClick={() => setTabLocal(l)} className="btn btn-sm"
-              style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : "#e8e8e8"), color: tabLocal === l ? "#c9a84c" : "#999999", fontWeight: tabLocal === l ? 600 : 400 }}>
+              style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : "#e8e8e8"), color: tabLocal === l ? "#c9a84c" : "#65676B", fontWeight: tabLocal === l ? 600 : 400 }}>
               {l === "rg" ? "Rio Grande" : l === "ush" ? "Ushuaia" : "Consolidado"}
             </button>
           ))}
@@ -1429,20 +1429,20 @@ function Finanzas({ localId }) {
           <div className="g2">
             <div className="card">
               <div className="ct">Movimientos</div>
-              {loading ? <div style={{ color: "#999999" }}>Cargando...</div> : (
+              {loading ? <div style={{ color: "#65676B" }}>Cargando...</div> : (
               <table>
                 <thead><tr><th>Concepto</th><th>Categoria</th><th>Tipo</th><th>Cuenta</th><th>Importe</th></tr></thead>
                 <tbody>
                   {(flujo?.movimientos || []).slice(0, 15).map((m, i) => (
                     <tr key={i}>
                       <td>{m.concepto}</td>
-                      <td style={{ fontSize: 10, color: "#999999" }}>{m.categoria_nombre || "-"}</td>
+                      <td style={{ fontSize: 10, color: "#65676B" }}>{m.categoria_nombre || "-"}</td>
                       <td><span className={"badge " + (m.tipo === "I" ? "bg" : "br")}>{m.tipo === "I" ? "Ingreso" : "Egreso"}</span></td>
-                      <td style={{ fontSize: 10, color: "#999999" }}>{m.cuenta_nombre || m.forma_pago || "-"}</td>
+                      <td style={{ fontSize: 10, color: "#65676B" }}>{m.cuenta_nombre || m.forma_pago || "-"}</td>
                       <td style={{ color: m.tipo === "I" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "I" ? "+" : "-"}${parseFloat(m.importe).toLocaleString()}</td>
                     </tr>
                   ))}
-                  {(flujo?.movimientos || []).length === 0 && (<tr><td colSpan={5} style={{ color: "#999999", textAlign: "center" }}>Sin movimientos</td></tr>)}
+                  {(flujo?.movimientos || []).length === 0 && (<tr><td colSpan={5} style={{ color: "#65676B", textAlign: "center" }}>Sin movimientos</td></tr>)}
                 </tbody>
               </table>
               )}
@@ -1506,7 +1506,7 @@ function Finanzas({ localId }) {
 
       {tab === "estructurado" && (
         <div className="fade">
-          {loading ? <div style={{ color: "#999999", padding: 20 }}>Cargando...</div> : flujoEst && (
+          {loading ? <div style={{ color: "#65676B", padding: 20 }}>Cargando...</div> : flujoEst && (
             <div className="g2">
               <div>
                 <SeccionFlujo titulo="INGRESOS" detalle={flujoEst.ingresos?.detalle} total={flujoEst.ingresos?.total} color="#2d7a4f" />
@@ -1579,9 +1579,9 @@ function Finanzas({ localId }) {
         <div className="g2 fade">
           <div className="card">
             <div className="ct">Punto de equilibrio</div>
-            {loading ? <div style={{ color: "#999999" }}>Calculando...</div> : <div>
+            {loading ? <div style={{ color: "#65676B" }}>Calculando...</div> : <div>
               <div style={{ fontSize: 48, fontWeight: 700, color: "#c9a84c" }}>${parseFloat(equilibrio?.punto_equilibrio || 0).toLocaleString()}</div>
-              <div style={{ fontSize: 11, color: "#999999", marginTop: 4 }}>ventas minimas para cubrir costos</div>
+              <div style={{ fontSize: 11, color: "#65676B", marginTop: 4 }}>ventas minimas para cubrir costos</div>
               <div className="divider" />
               {[
                 { l: "Costos fijos", v: "$" + parseFloat(equilibrio?.costos_fijos || 0).toLocaleString() },
@@ -1589,7 +1589,7 @@ function Finanzas({ localId }) {
                 { l: "Margen seguridad", v: equilibrio?.margen_seguridad || "0%" },
               ].map(r => (
                 <div key={r.l} style={{ display: "flex", justifyContent: "space-between", marginBottom: 9 }}>
-                  <span style={{ fontSize: 11, color: "#999999" }}>{r.l}</span>
+                  <span style={{ fontSize: 11, color: "#65676B" }}>{r.l}</span>
                   <span style={{ fontSize: 11, color: "#444444" }}>{r.v}</span>
                 </div>
               ))}
@@ -1603,7 +1603,7 @@ function Finanzas({ localId }) {
               { l: "Superado", v: equilibrio?.superado ? "SI" : "NO", c: equilibrio?.superado ? "#2d7a4f" : "#c0392b" },
             ].map(r => (
               <div key={r.l} style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-                <span style={{ fontSize: 11, color: "#999999" }}>{r.l}</span>
+                <span style={{ fontSize: 11, color: "#65676B" }}>{r.l}</span>
                 <span style={{ color: r.c }}>{r.v}</span>
               </div>
             ))}
@@ -1667,7 +1667,7 @@ function Informes({ localId }) {
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {["rg", "ush", "consolidado"].map(l => (
           <button key={l} onClick={() => setTabLocal(l)} className="btn btn-sm"
-            style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : "#e8e8e8"), color: tabLocal === l ? "#c9a84c" : "#999999", fontWeight: tabLocal === l ? 600 : 400 }}>
+            style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : "#e8e8e8"), color: tabLocal === l ? "#c9a84c" : "#65676B", fontWeight: tabLocal === l ? 600 : 400 }}>
             {l === "rg" ? "Rio Grande" : l === "ush" ? "Ushuaia" : "Consolidado"}
           </button>
         ))}
@@ -1680,7 +1680,7 @@ function Informes({ localId }) {
         ))}
       </div>
       {loading ? (
-        <div style={{ color: "#999999", padding: 30, textAlign: "center" }}>Cargando...</div>
+        <div style={{ color: "#65676B", padding: 30, textAlign: "center" }}>Cargando...</div>
       ) : datos && (
         <div>
           {tab === "ventas" && (
@@ -1693,17 +1693,17 @@ function Informes({ localId }) {
               <div className="card">
                 <div className="ct">Ultimas ventas del mes</div>
                 {datos.ventas.length === 0 ? (
-                  <div style={{ color: "#999999", textAlign: "center", padding: 20, fontSize: 12 }}>Sin ventas en este periodo</div>
+                  <div style={{ color: "#65676B", textAlign: "center", padding: 20, fontSize: 12 }}>Sin ventas en este periodo</div>
                 ) : (
                   <table>
                     <thead><tr><th>Fecha</th><th>Cliente</th><th>Medio</th><th>Items</th><th>Total</th></tr></thead>
                     <tbody>
                       {datos.ventas.slice(0, 20).map((v, i) => (
                         <tr key={i}>
-                          <td style={{ fontSize: 11, color: "#999999" }}>{new Date(v.creado_en || v.fecha).toLocaleDateString("es-AR")}</td>
+                          <td style={{ fontSize: 11, color: "#65676B" }}>{new Date(v.creado_en || v.fecha).toLocaleDateString("es-AR")}</td>
                           <td style={{ fontSize: 12 }}>{v.cliente_nombre || "Consumidor final"}</td>
                           <td style={{ fontSize: 11 }}>{v.medio_pago || "-"}</td>
-                          <td style={{ fontSize: 11, color: "#999999" }}>{v.items_count || "-"}</td>
+                          <td style={{ fontSize: 11, color: "#65676B" }}>{v.items_count || "-"}</td>
                           <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${parseFloat(v.total || 0).toLocaleString()}</td>
                         </tr>
                       ))}
@@ -1728,10 +1728,10 @@ function Informes({ localId }) {
                           <tr key={i}>
                             <td>
                               <div style={{ fontSize: 12 }}>{p.nombre}</div>
-                              <div style={{ fontSize: 10, color: "#999999" }}>{p.marca}</div>
+                              <div style={{ fontSize: 10, color: "#65676B" }}>{p.marca}</div>
                             </td>
                             <td><span className="badge br">{p.stock || 0}u</span></td>
-                            <td style={{ color: "#999999", fontSize: 12 }}>{p.stock_minimo || p.min || 5}u</td>
+                            <td style={{ color: "#65676B", fontSize: 12 }}>{p.stock_minimo || p.min || 5}u</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1759,7 +1759,7 @@ function Informes({ localId }) {
               <div className="card">
                 <div className="ct">Ventas por medio de pago</div>
                 {Object.keys(datos.ventasPorMedio).length === 0 ? (
-                  <div style={{ color: "#999999", textAlign: "center", padding: 20, fontSize: 12 }}>Sin datos para este periodo</div>
+                  <div style={{ color: "#65676B", textAlign: "center", padding: 20, fontSize: 12 }}>Sin datos para este periodo</div>
                 ) : (
                   <div>
                     {Object.entries(datos.ventasPorMedio).sort((a,b) => b[1]-a[1]).map(([medio, total]) => {
@@ -1842,7 +1842,7 @@ function Cupones() {
                   <td>{(c.tipo || c.type) === "%" ? (c.valor || c.value) + "%" : "$" + (c.valor || c.value || 0).toLocaleString()}</td>
                   <td><span className="badge bb">{c.canal || c.channel}</span></td>
                   <td>{c.usos || c.uses || 0}{(c.max_usos || c.max) ? "/" + (c.max_usos || c.max) : ""}</td>
-                  <td style={{ fontSize: 10, color: "#999999" }}>{c.fecha_vencimiento || c.expires || "Sin venc."}</td>
+                  <td style={{ fontSize: 10, color: "#65676B" }}>{c.fecha_vencimiento || c.expires || "Sin venc."}</td>
                   <td><Sw on={c.activo !== undefined ? c.activo : c.active} toggle={() => toggleCupon(c)} /></td>
                 </tr>
               ))}
@@ -1866,7 +1866,7 @@ function Cupones() {
             <div className="ct">Vista previa</div>
             <div style={{ background: "#fafafa", borderRadius: 7, padding: 20, border: "2px dashed #272220", textAlign: "center", marginBottom: 14 }}>
               <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 28, fontWeight: 700, color: "#c9a84c", letterSpacing: ".1em" }}>{nc.code || "CODIGO"}</div>
-              <div style={{ fontSize: 13, color: "#999999", marginTop: 6 }}>{nc.value ? (nc.type === "%" ? nc.value + "% de descuento" : "$" + parseInt(nc.value || "0").toLocaleString() + " de descuento") : "Descuento"}</div>
+              <div style={{ fontSize: 13, color: "#65676B", marginTop: 6 }}>{nc.value ? (nc.type === "%" ? nc.value + "% de descuento" : "$" + parseInt(nc.value || "0").toLocaleString() + " de descuento") : "Descuento"}</div>
             </div>
             {["Codigos cortos y memorables convierten mas", "Inclui el canal: INSTA20, TIKTOK15", "Limite de usos genera urgencia", "Codigos de influencer = seguimiento exacto"].map((t, i) => (
               <div key={i} style={{ display: "flex", gap: 7, marginBottom: 7, fontSize: 11, color: "#444444" }}><span style={{ color: "#c9a84c" }}>-</span>{t}</div>
@@ -1979,7 +1979,7 @@ function Fidelizacion() {
       </div>
       {tab === "clientes" && (
         <div className="card fade">
-          {loading ? <div style={{ textAlign: "center", color: "#999999", padding: 20 }}>Cargando...</div> : (
+          {loading ? <div style={{ textAlign: "center", color: "#65676B", padding: 20 }}>Cargando...</div> : (
           <table>
             <thead><tr><th>Cliente</th><th>Nivel</th><th>Puntos</th><th>Progreso al proximo nivel</th></tr></thead>
             <tbody>
@@ -1990,13 +1990,13 @@ function Fidelizacion() {
                 const pct = Math.min(Math.round((puntos / next) * 100), 100);
                 return (
                   <tr key={c.id || i}>
-                    <td><div style={{ color: "#111111" }}>{c.nombre || c.name}</div><div style={{ fontSize: 9, color: "#999999" }}>{c.email}</div></td>
+                    <td><div style={{ color: "#111111" }}>{c.nombre || c.name}</div><div style={{ fontSize: 9, color: "#65676B" }}>{c.email}</div></td>
                     <td><TierBadge tier={nivel} /></td>
                     <td style={{ fontFamily: "'Inter',sans-serif", fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>{puntos.toLocaleString()}</td>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <div style={{ flex: 1 }}><div className="pb"><div className="pf" style={{ width: pct + "%", background: "#c9a84c" }} /></div></div>
-                        <span style={{ fontSize: 9, color: "#999999", width: 50 }}>{nivel === "Platinum" ? "MAX" : (next - puntos).toLocaleString() + "p"}</span>
+                        <span style={{ fontSize: 9, color: "#65676B", width: 50 }}>{nivel === "Platinum" ? "MAX" : (next - puntos).toLocaleString() + "p"}</span>
                       </div>
                     </td>
                   </tr>
@@ -2014,7 +2014,7 @@ function Fidelizacion() {
           </div>
           {showForm && (
             <div className="card" style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 14 }}>NUEVO PREMIO</div>
+              <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 14 }}>NUEVO PREMIO</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div className="fg"><div className="fl">Nombre del premio</div><input className="inp" placeholder="Ej: Envio gratis" value={nuevoPremio.nombre} onChange={e => setNuevoPremio(p => ({ ...p, nombre: e.target.value }))} /></div>
                 <div className="fg"><div className="fl">Puntos requeridos</div><input className="inp" type="number" placeholder="500" value={nuevoPremio.puntos_requeridos} onChange={e => setNuevoPremio(p => ({ ...p, puntos_requeridos: e.target.value }))} /></div>
@@ -2034,7 +2034,7 @@ function Fidelizacion() {
             </div>
           )}
           {premios.length === 0 ? (
-            <div className="card"><div style={{ textAlign: "center", color: "#999999", padding: 30, fontSize: 12 }}>No hay premios creados todavia</div></div>
+            <div className="card"><div style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>No hay premios creados todavia</div></div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
               {premios.map(p => {
@@ -2046,7 +2046,7 @@ function Fidelizacion() {
                       <div style={{ fontSize: 13, fontWeight: 600 }}>{p.nombre}</div>
                       {p.solo_mes_cumpleanos && <span className="badge" style={{ background: "#7d3c9815", color: "#7d3c98", fontSize: 8 }}>cumple</span>}
                     </div>
-                    {p.descripcion && <div style={{ fontSize: 10, color: "#999999", marginTop: 3 }}>{p.descripcion}</div>}
+                    {p.descripcion && <div style={{ fontSize: 10, color: "#65676B", marginTop: 3 }}>{p.descripcion}</div>}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
                       <span style={{ fontSize: 16, fontWeight: 700, color: "#c9a84c" }}>{p.puntos_requeridos} pts</span>
                       <span className={"badge " + (disp !== null && disp < 5 ? "br" : "bg")}>{disp === null ? "ilimitado" : disp + "u"}</span>
@@ -2062,7 +2062,7 @@ function Fidelizacion() {
       {tab === "validar" && (
         <div className="fade">
           <div className="card" style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>VALIDAR CODIGO DE CANJE</div>
+            <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 10 }}>VALIDAR CODIGO DE CANJE</div>
             <div style={{ display: "flex", gap: 8 }}>
               <input className="inp" placeholder="PREMIO-XXXX" value={codigoValidar} onChange={e => setCodigoValidar(e.target.value)} onKeyDown={e => e.key === "Enter" && validarCodigo()} style={{ textTransform: "uppercase" }} />
               <button className="btn btn-p" onClick={validarCodigo}>Validar</button>
@@ -2074,9 +2074,9 @@ function Fidelizacion() {
             )}
           </div>
           <div className="card">
-            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>HISTORIAL DE CANJES</div>
+            <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 10 }}>HISTORIAL DE CANJES</div>
             {canjes.length === 0 ? (
-              <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 20 }}>Todavia no hay canjes registrados</div>
+              <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 20 }}>Todavia no hay canjes registrados</div>
             ) : (
               <table>
                 <thead><tr><th>Codigo</th><th>Premio</th><th>Clienta</th><th>Puntos</th><th>Estado</th><th>Fecha</th></tr></thead>
@@ -2088,7 +2088,7 @@ function Fidelizacion() {
                       <td style={{ fontSize: 12 }}>{c.cliente_nombre}</td>
                       <td style={{ fontSize: 12 }}>{c.puntos_usados}</td>
                       <td><span className={"badge " + (c.estado === "usado" ? "bg" : "ba")}>{c.estado}</span></td>
-                      <td style={{ fontSize: 10, color: "#999999" }}>{new Date(c.creado_en).toLocaleDateString("es-AR")}</td>
+                      <td style={{ fontSize: 10, color: "#65676B" }}>{new Date(c.creado_en).toLocaleDateString("es-AR")}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -2161,7 +2161,7 @@ function PostventaWA() {
                     <span className="badge bw">WhatsApp</span>
                     {!(r.activo || r.active) && <span className="badge bx">PAUSADO</span>}
                   </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 10, color: "#999999", marginBottom: 10 }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 10, color: "#65676B", marginBottom: 10 }}>
                     <span>{r.disparador || r.trigger}</span>
                     <span>{r.segmento || r.segment}</span>
                     {r.sent > 0 && <span>{r.sent} enviados</span>}
@@ -2345,7 +2345,7 @@ function Calculadoras({ usuario }) {
           {seleccionada && (
             <div className="g2">
               <div className="card">
-                <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 4 }}>FORMULA</div>
+                <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 4 }}>FORMULA</div>
                 <div style={{ fontSize: 13, color: "#444444", marginBottom: 16, fontFamily: "monospace" }}>{formulaTexto(seleccionada)}</div>
                 {seleccionada.tipo === "desde_costo" ? (
                   <div className="fg"><div className="fl">Costo unitario ($)</div>
@@ -2366,9 +2366,9 @@ function Calculadoras({ usuario }) {
               <div className="card" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
                 {resultado !== null ? (
                   <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 8 }}>PRECIO SUGERIDO</div>
+                    <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 8 }}>PRECIO SUGERIDO</div>
                     <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 48, fontWeight: 700, color: "#c9a84c" }}>${resultado.toLocaleString("es-AR")}</div>
-                    <div style={{ fontSize: 11, color: "#999999", marginTop: 8 }}>con {seleccionada.nombre}</div>
+                    <div style={{ fontSize: 11, color: "#65676B", marginTop: 8 }}>con {seleccionada.nombre}</div>
                   </div>
                 ) : (
                   <div style={{ textAlign: "center", color: "#cccccc", fontSize: 12 }}>Ingresa los valores y calculá</div>
@@ -2383,18 +2383,18 @@ function Calculadoras({ usuario }) {
         <div className="fade">
           {showForm && (
             <div className="card" style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 14 }}>{editando ? "EDITAR CALCULADORA" : "NUEVA CALCULADORA"}</div>
+              <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 14 }}>{editando ? "EDITAR CALCULADORA" : "NUEVA CALCULADORA"}</div>
               <div className="fg"><div className="fl">Nombre</div><input className="inp" placeholder="Ej: Capilar, Maquillaje..." value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Descripcion (opcional)</div><input className="inp" placeholder="Para que tipo de productos aplica" value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} /></div>
               <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                <button className="btn btn-sm" style={{ flex: 1, background: form.tipo === "desde_costo" ? "#c9a84c15" : "transparent", border: "1px solid " + (form.tipo === "desde_costo" ? "#c9a84c" : "#e8e8e8"), color: form.tipo === "desde_costo" ? "#c9a84c" : "#999999" }} onClick={() => setForm(f => ({ ...f, tipo: "desde_costo" }))}>Desde costo</button>
-                <button className="btn btn-sm" style={{ flex: 1, background: form.tipo === "desde_precio_venta" ? "#c9a84c15" : "transparent", border: "1px solid " + (form.tipo === "desde_precio_venta" ? "#c9a84c" : "#e8e8e8"), color: form.tipo === "desde_precio_venta" ? "#c9a84c" : "#999999" }} onClick={() => setForm(f => ({ ...f, tipo: "desde_precio_venta" }))}>Desde precio venta proveedor</button>
+                <button className="btn btn-sm" style={{ flex: 1, background: form.tipo === "desde_costo" ? "#c9a84c15" : "transparent", border: "1px solid " + (form.tipo === "desde_costo" ? "#c9a84c" : "#e8e8e8"), color: form.tipo === "desde_costo" ? "#c9a84c" : "#65676B" }} onClick={() => setForm(f => ({ ...f, tipo: "desde_costo" }))}>Desde costo</button>
+                <button className="btn btn-sm" style={{ flex: 1, background: form.tipo === "desde_precio_venta" ? "#c9a84c15" : "transparent", border: "1px solid " + (form.tipo === "desde_precio_venta" ? "#c9a84c" : "#e8e8e8"), color: form.tipo === "desde_precio_venta" ? "#c9a84c" : "#65676B" }} onClick={() => setForm(f => ({ ...f, tipo: "desde_precio_venta" }))}>Desde precio venta proveedor</button>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <div className="fg" style={{ flex: 1 }}><div className="fl">Multiplicador de margen</div><input className="inp" type="number" step="0.1" placeholder="2" value={form.margen} onChange={e => setForm(f => ({ ...f, margen: e.target.value }))} /></div>
                 {form.tipo === "desde_costo" && <div className="fg" style={{ flex: 1 }}><div className="fl">Impuestos (%)</div><input className="inp" type="number" step="0.5" placeholder="17.5" value={form.iva} onChange={e => setForm(f => ({ ...f, iva: e.target.value }))} /></div>}
               </div>
-              <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 8 }}>CAMPOS EXTRAS (costos adicionales)</div>
+              <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 8 }}>CAMPOS EXTRAS (costos adicionales)</div>
               <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
                 <input className="inp" placeholder="Ej: Costo bolsa, Costo envio..." value={extraTemp} onChange={e => setExtraTemp(e.target.value)} onKeyDown={e => e.key === "Enter" && agregarExtra()} style={{ flex: 1 }} />
                 <button className="btn btn-sm" onClick={agregarExtra}>+ Agregar</button>
@@ -2423,8 +2423,8 @@ function Calculadoras({ usuario }) {
               <div key={c.id} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600 }}>{c.nombre}</div>
-                  <div style={{ fontSize: 11, color: "#999999", marginTop: 2 }}>{formulaTexto(c)}</div>
-                  {c.descripcion && <div style={{ fontSize: 10, color: "#aaaaaa", marginTop: 2 }}>{c.descripcion}</div>}
+                  <div style={{ fontSize: 11, color: "#65676B", marginTop: 2 }}>{formulaTexto(c)}</div>
+                  {c.descripcion && <div style={{ fontSize: 10, color: "#8A8D91", marginTop: 2 }}>{c.descripcion}</div>}
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button className="btn btn-sm" onClick={() => abrirEditar(c)}>Editar</button>
@@ -2565,7 +2565,7 @@ function Comisiones({ localId }) {
     } catch (e) { setMensaje("Error al marcar como pagada"); }
   };
 
-  const nivelColor = datos?.nivel === 2 ? "#c9a84c" : datos?.nivel === 1 ? "#2d7a4f" : "#999999";
+  const nivelColor = datos?.nivel === 2 ? "#c9a84c" : datos?.nivel === 1 ? "#2d7a4f" : "#65676B";
   const nivelEmoji = datos?.nivel === 2 ? "🏆" : datos?.nivel === 1 ? "⭐" : "🎯";
 
   return (
@@ -2612,8 +2612,8 @@ function Comisiones({ localId }) {
                   <div className="pf" style={{ width: datos.pct_nivel1 + "%", background: datos.nivel >= 1 ? "#2d7a4f" : "#c9a84c" }} />
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-                  <span style={{ fontSize: 10, color: "#999999" }}>${parseFloat(datos.facturacion || 0).toLocaleString()} facturado</span>
-                  <span style={{ fontSize: 10, color: datos.nivel >= 1 ? "#2d7a4f" : "#999999" }}>{datos.pct_nivel1}%</span>
+                  <span style={{ fontSize: 10, color: "#65676B" }}>${parseFloat(datos.facturacion || 0).toLocaleString()} facturado</span>
+                  <span style={{ fontSize: 10, color: datos.nivel >= 1 ? "#2d7a4f" : "#65676B" }}>{datos.pct_nivel1}%</span>
                 </div>
               </div>
               <div>
@@ -2625,8 +2625,8 @@ function Comisiones({ localId }) {
                   <div className="pf" style={{ width: datos.pct_nivel2 + "%", background: datos.nivel >= 2 ? "#c9a84c" : "#dddddd" }} />
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-                  <span style={{ fontSize: 10, color: "#999999" }}>${parseFloat(datos.facturacion || 0).toLocaleString()} facturado</span>
-                  <span style={{ fontSize: 10, color: datos.nivel >= 2 ? "#c9a84c" : "#999999" }}>{datos.pct_nivel2}%</span>
+                  <span style={{ fontSize: 10, color: "#65676B" }}>${parseFloat(datos.facturacion || 0).toLocaleString()} facturado</span>
+                  <span style={{ fontSize: 10, color: datos.nivel >= 2 ? "#c9a84c" : "#65676B" }}>{datos.pct_nivel2}%</span>
                 </div>
               </div>
             </div>
@@ -2663,7 +2663,7 @@ function Comisiones({ localId }) {
           )}
         </div>
       )}
-      {loading && <div style={{ textAlign: "center", color: "#999999", padding: 40 }}>Calculando comisiones...</div>}
+      {loading && <div style={{ textAlign: "center", color: "#65676B", padding: 40 }}>Calculando comisiones...</div>}
     </div>
   );
 }
@@ -2780,9 +2780,9 @@ function Proveedores() {
 
       {tab === "lista" && (
         <div className="fade">
-          {loading ? <div style={{ color: "#999999", padding: 20 }}>Cargando...</div> :
+          {loading ? <div style={{ color: "#65676B", padding: 20 }}>Cargando...</div> :
           proveedores.length === 0 ? (
-            <div style={{ textAlign: "center", color: "#999999", padding: 40, fontSize: 13 }}>No hay proveedores cargados aun</div>
+            <div style={{ textAlign: "center", color: "#65676B", padding: 40, fontSize: 13 }}>No hay proveedores cargados aun</div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               {proveedores.map(p => (
@@ -2790,18 +2790,18 @@ function Proveedores() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
                     <div>
                       <div style={{ fontSize: 15, fontWeight: 700, color: "#111111" }}>{p.nombre}</div>
-                      <div style={{ fontSize: 10, color: "#999999" }}>{p.cuit}</div>
+                      <div style={{ fontSize: 10, color: "#65676B" }}>{p.cuit}</div>
                     </div>
                     <span className="badge" style={{ background: (categoriaColor[p.categoria] || "#999") + "15", color: categoriaColor[p.categoria] || "#999" }}>{p.categoria}</span>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
                     <div style={{ background: "#fafafa", borderRadius: 6, padding: "8px 10px" }}>
-                      <div style={{ fontSize: 9, color: "#999999", marginBottom: 3 }}>CONDICION DE PAGO</div>
+                      <div style={{ fontSize: 9, color: "#65676B", marginBottom: 3 }}>CONDICION DE PAGO</div>
                       <div style={{ fontSize: 13, fontWeight: 600, color: "#c9a84c" }}>{p.dias_pago} dias</div>
                       <div style={{ fontSize: 10, color: "#666666" }}>{p.forma_pago}</div>
                     </div>
                     <div style={{ background: "#fafafa", borderRadius: 6, padding: "8px 10px" }}>
-                      <div style={{ fontSize: 9, color: "#999999", marginBottom: 3 }}>CONTACTO</div>
+                      <div style={{ fontSize: 9, color: "#65676B", marginBottom: 3 }}>CONTACTO</div>
                       {p.telefono && <div style={{ fontSize: 11, color: "#444444" }}>{p.telefono}</div>}
                       {p.whatsapp && <div style={{ fontSize: 10, color: "#25d366" }}>WA: {p.whatsapp}</div>}
                       {p.email && <div style={{ fontSize: 10, color: "#2471a3" }}>{p.email}</div>}
@@ -2815,7 +2815,7 @@ function Proveedores() {
                       {p.cbu && <div style={{ fontSize: 10, color: "#666666" }}>CBU: {p.cbu}</div>}
                     </div>
                   )}
-                  {p.notas && <div style={{ fontSize: 10, color: "#999999", fontStyle: "italic" }}>{p.notas}</div>}
+                  {p.notas && <div style={{ fontSize: 10, color: "#65676B", fontStyle: "italic" }}>{p.notas}</div>}
                 </div>
               ))}
             </div>
@@ -2827,12 +2827,12 @@ function Proveedores() {
         <div className="fade">
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
             {cuentas.map(c => (
-              <div key={c.id} className="card" style={{ borderLeft: "3px solid " + (c.tipo === "efectivo" ? "#2d7a4f" : c.tipo === "transferencia" ? "#2471a3" : c.tipo === "echeck" ? "#c9a84c" : "#999999") }}>
+              <div key={c.id} className="card" style={{ borderLeft: "3px solid " + (c.tipo === "efectivo" ? "#2d7a4f" : c.tipo === "transferencia" ? "#2471a3" : c.tipo === "echeck" ? "#c9a84c" : "#65676B") }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#111111" }}>{c.nombre}</div>
                   {c.solo_acreditacion && <span className="badge bb" style={{ fontSize: 9 }}>Solo acreditacion</span>}
                 </div>
-                <div style={{ fontSize: 10, color: "#999999", marginBottom: 4 }}>{c.titular}</div>
+                <div style={{ fontSize: 10, color: "#65676B", marginBottom: 4 }}>{c.titular}</div>
                 <span className="badge" style={{ background: c.tipo === "efectivo" ? "#2d7a4f12" : c.tipo === "transferencia" ? "#2471a312" : "#c9a84c15", color: c.tipo === "efectivo" ? "#2d7a4f" : c.tipo === "transferencia" ? "#2471a3" : "#c9a84c", fontSize: 9 }}>{c.tipo}</span>
                 {c.alias && <div style={{ fontSize: 11, color: "#444444", marginTop: 6 }}>Alias: {c.alias}</div>}
                 {c.cbu && <div style={{ fontSize: 10, color: "#666666" }}>CBU: {c.cbu}</div>}
@@ -2862,15 +2862,15 @@ function Proveedores() {
         return (
           <div className="fade">
             <div className="card" style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 4 }}>RESUMEN</div>
+              <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 4 }}>RESUMEN</div>
               <div style={{ display: "flex", gap: 20 }}>
-                <div><span style={{ fontSize: 20, fontWeight: 700, color: "#c0392b" }}>{conUrgencia.filter(o => o.urgencia === "vencida").length}</span><div style={{ fontSize: 10, color: "#999999" }}>vencidas</div></div>
-                <div><span style={{ fontSize: 20, fontWeight: 700, color: "#c9a84c" }}>{conUrgencia.filter(o => o.urgencia === "proxima").length}</span><div style={{ fontSize: 10, color: "#999999" }}>vencen en 7 dias</div></div>
-                <div><span style={{ fontSize: 20, fontWeight: 700, color: "#2d7a4f" }}>${conUrgencia.reduce((s, o) => s + parseFloat(o.total || 0), 0).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</span><div style={{ fontSize: 10, color: "#999999" }}>total pendiente</div></div>
+                <div><span style={{ fontSize: 20, fontWeight: 700, color: "#c0392b" }}>{conUrgencia.filter(o => o.urgencia === "vencida").length}</span><div style={{ fontSize: 10, color: "#65676B" }}>vencidas</div></div>
+                <div><span style={{ fontSize: 20, fontWeight: 700, color: "#c9a84c" }}>{conUrgencia.filter(o => o.urgencia === "proxima").length}</span><div style={{ fontSize: 10, color: "#65676B" }}>vencen en 7 dias</div></div>
+                <div><span style={{ fontSize: 20, fontWeight: 700, color: "#2d7a4f" }}>${conUrgencia.reduce((s, o) => s + parseFloat(o.total || 0), 0).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</span><div style={{ fontSize: 10, color: "#65676B" }}>total pendiente</div></div>
               </div>
             </div>
             {conUrgencia.length === 0 ? (
-              <div className="card"><div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 30 }}>No hay facturas pendientes de pago</div></div>
+              <div className="card"><div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 30 }}>No hay facturas pendientes de pago</div></div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {conUrgencia.map((o, i) => {
@@ -2878,7 +2878,7 @@ function Proveedores() {
                   return (
                     <div key={i} className="card" style={{ background: c.bg, border: "1px solid " + c.border, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>{o.proveedor_nombre || "-"} <span style={{ color: "#999999", fontWeight: 400 }}>- {o.numero_factura || "sin numero"}</span></div>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{o.proveedor_nombre || "-"} <span style={{ color: "#65676B", fontWeight: 400 }}>- {o.numero_factura || "sin numero"}</span></div>
                         <div style={{ fontSize: 11, color: c.text, marginTop: 2, fontWeight: 600 }}>
                           {o.urgencia === "vencida" ? "Vencida hace " + Math.abs(o.diasRestantes) + " dias" : o.urgencia === "proxima" ? (o.diasRestantes === 0 ? "Vence hoy" : "Vence en " + o.diasRestantes + " dias") : "Vence " + new Date(o.fecha_vencimiento).toLocaleDateString("es-AR")}
                         </div>
@@ -2944,7 +2944,7 @@ function Caja({ localId, usuario }) {
       <div className="ph">
         <div><div className="pt">Caja</div><div className="ps">movimientos de efectivo</div></div>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 10, color: "#999999", letterSpacing: ".1em" }}>SALDO ACTUAL</div>
+          <div style={{ fontSize: 10, color: "#65676B", letterSpacing: ".1em" }}>SALDO ACTUAL</div>
           <div style={{ fontSize: 28, fontWeight: 700, color: saldoColor }}>${saldo.toLocaleString()}</div>
         </div>
       </div>
@@ -2961,7 +2961,7 @@ function Caja({ localId, usuario }) {
               <button key={t} onClick={() => setNuevo(p => ({ ...p, tipo: t }))} className="btn btn-sm"
                 style={{ flex: 1, background: nuevo.tipo === t ? (t === "ingreso" ? "#2d7a4f15" : "#c0392b15") : "transparent",
                   border: "1px solid " + (nuevo.tipo === t ? (t === "ingreso" ? "#2d7a4f" : "#c0392b") : "#e8e8e8"),
-                  color: nuevo.tipo === t ? (t === "ingreso" ? "#2d7a4f" : "#c0392b") : "#999999", fontWeight: nuevo.tipo === t ? 600 : 400 }}>
+                  color: nuevo.tipo === t ? (t === "ingreso" ? "#2d7a4f" : "#c0392b") : "#65676B", fontWeight: nuevo.tipo === t ? 600 : 400 }}>
                 {t === "ingreso" ? "Ingreso" : "Egreso"}
               </button>
             ))}
@@ -3010,19 +3010,19 @@ function Caja({ localId, usuario }) {
         <div className="card">
           <div className="ct">Movimientos recientes</div>
           {loading ? (
-            <div style={{ color: "#999999", fontSize: 12 }}>Cargando...</div>
+            <div style={{ color: "#65676B", fontSize: 12 }}>Cargando...</div>
           ) : movimientos.length === 0 ? (
-            <div style={{ textAlign: "center", color: "#999999", padding: 20, fontSize: 12 }}>Sin movimientos registrados</div>
+            <div style={{ textAlign: "center", color: "#65676B", padding: 20, fontSize: 12 }}>Sin movimientos registrados</div>
           ) : (
             <table>
               <thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Importe</th></tr></thead>
               <tbody>
                 {movimientos.slice(0, 15).map((m, i) => (
                   <tr key={i}>
-                    <td style={{ fontSize: 10, color: "#999999" }}>{new Date(m.creado_en).toLocaleDateString("es-AR")}</td>
+                    <td style={{ fontSize: 10, color: "#65676B" }}>{new Date(m.creado_en).toLocaleDateString("es-AR")}</td>
                     <td>
                       <div style={{ fontSize: 12 }}>{m.concepto}</div>
-                      {m.destino_origen && <div style={{ fontSize: 9, color: "#999999" }}>{m.destino_origen.replace(/_/g, " ")}</div>}
+                      {m.destino_origen && <div style={{ fontSize: 9, color: "#65676B" }}>{m.destino_origen.replace(/_/g, " ")}</div>}
                     </td>
                     <td><span className={"badge " + (m.tipo === "ingreso" ? "bg" : "br")}>{m.tipo}</span></td>
                     <td style={{ color: m.tipo === "ingreso" ? "#2d7a4f" : "#c0392b", fontWeight: 600 }}>
@@ -3136,23 +3136,23 @@ function CierreCaja({ localId }) {
         <div style={{ padding: "10px 0 16px", borderBottom: "1px solid #f0f0f0", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>LUMIERE — Cierre de Caja</div>
-            <div style={{ fontSize: 11, color: "#999999" }}>{fmtDia(fecha)}</div>
+            <div style={{ fontSize: 11, color: "#65676B" }}>{fmtDia(fecha)}</div>
           </div>
           <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 11, color: "#999999" }}>TOTAL DEL DIA</div>
+            <div style={{ fontSize: 11, color: "#65676B" }}>TOTAL DEL DIA</div>
             <div style={{ fontSize: 28, fontWeight: 700, color: "#2d7a4f" }}>${totalDia.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
-            <div style={{ fontSize: 10, color: "#999999" }}>{ventasDia.length} ventas{totalGiftCards > 0 ? " + $" + totalGiftCards.toLocaleString("es-AR", { maximumFractionDigits: 0 }) + " gift cards" : ""}</div>
+            <div style={{ fontSize: 10, color: "#65676B" }}>{ventasDia.length} ventas{totalGiftCards > 0 ? " + $" + totalGiftCards.toLocaleString("es-AR", { maximumFractionDigits: 0 }) + " gift cards" : ""}</div>
           </div>
         </div>
 
         {loading ? (
-          <div style={{ textAlign: "center", color: "#999999", padding: 30 }}>Cargando...</div>
+          <div style={{ textAlign: "center", color: "#65676B", padding: 30 }}>Cargando...</div>
         ) : (
           <div className="g2">
             <div className="card">
-              <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>VENTAS POR MEDIO DE PAGO</div>
+              <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 10 }}>VENTAS POR MEDIO DE PAGO</div>
               {mediosOrdenados.length === 0 && totalGiftCards === 0 ? (
-                <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 20 }}>Sin ventas en esta fecha</div>
+                <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 20 }}>Sin ventas en esta fecha</div>
               ) : (
                 <table>
                   <thead><tr><th>Medio</th><th>Cant</th><th>Total</th></tr></thead>
@@ -3160,20 +3160,20 @@ function CierreCaja({ localId }) {
                     {mediosOrdenados.map(([medio, d], i) => (
                       <tr key={i}>
                         <td style={{ fontSize: 12 }}>{medio}</td>
-                        <td style={{ fontSize: 12, color: "#999999" }}>{d.cantidad}</td>
+                        <td style={{ fontSize: 12, color: "#65676B" }}>{d.cantidad}</td>
                         <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${d.total.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
                       </tr>
                     ))}
                     {totalGiftCards > 0 && (
                       <tr>
                         <td style={{ fontSize: 12, color: "#c9a84c" }}>Gift Cards emitidas</td>
-                        <td style={{ fontSize: 12, color: "#999999" }}>{giftCardsDia.length}</td>
+                        <td style={{ fontSize: 12, color: "#65676B" }}>{giftCardsDia.length}</td>
                         <td style={{ color: "#c9a84c", fontWeight: 600 }}>${totalGiftCards.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
                       </tr>
                     )}
                     <tr style={{ borderTop: "2px solid #eeeeee" }}>
                       <td style={{ fontWeight: 700 }}>TOTAL</td>
-                      <td style={{ fontWeight: 700, color: "#999999" }}>{ventasDia.length}</td>
+                      <td style={{ fontWeight: 700, color: "#65676B" }}>{ventasDia.length}</td>
                       <td style={{ fontWeight: 700, color: "#2d7a4f" }}>${totalDia.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
                     </tr>
                   </tbody>
@@ -3182,13 +3182,13 @@ function CierreCaja({ localId }) {
             </div>
             <div>
               <div className="card" style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>EFECTIVO EN CAJA</div>
+                <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 10 }}>EFECTIVO EN CAJA</div>
                 <div style={{ fontSize: 26, fontWeight: 700, color: efectivoEsperado < 0 ? "#c0392b" : "#111111" }}>${efectivoEsperado.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
-                <div style={{ fontSize: 10, color: "#999999", marginTop: 4 }}>ventas ${ventasEfectivo.toLocaleString("es-AR", { maximumFractionDigits: 0 })} + ingresos ${ingresosManuales.toLocaleString("es-AR", { maximumFractionDigits: 0 })} - egresos ${egresosDia.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
+                <div style={{ fontSize: 10, color: "#65676B", marginTop: 4 }}>ventas ${ventasEfectivo.toLocaleString("es-AR", { maximumFractionDigits: 0 })} + ingresos ${ingresosManuales.toLocaleString("es-AR", { maximumFractionDigits: 0 })} - egresos ${egresosDia.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
               </div>
               {movsDia.length > 0 && (
                 <div className="card">
-                  <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>MOVIMIENTOS DE CAJA</div>
+                  <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 10 }}>MOVIMIENTOS DE CAJA</div>
                   <table>
                     <thead><tr><th>Tipo</th><th>Concepto</th><th>Importe</th></tr></thead>
                     <tbody>
@@ -3362,8 +3362,8 @@ function OrdenesIngreso({ localId, usuario }) {
 
       {tab === "lista" && (
         <div className="card">
-          {loading ? (<div style={{ textAlign: "center", color: "#999999", fontSize: 12 }}>Cargando...</div>) : ordenes.filter(o => o.estado !== "recibida" && o.estado !== "pagada").length === 0 ? (
-            <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 30 }}>No hay ordenes pendientes de recibir</div>
+          {loading ? (<div style={{ textAlign: "center", color: "#65676B", fontSize: 12 }}>Cargando...</div>) : ordenes.filter(o => o.estado !== "recibida" && o.estado !== "pagada").length === 0 ? (
+            <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 30 }}>No hay ordenes pendientes de recibir</div>
           ) : (
             <table>
               <thead><tr><th>Factura</th><th>Proveedor</th><th>Fecha</th><th>Estado</th><th>Total</th><th></th></tr></thead>
@@ -3372,7 +3372,7 @@ function OrdenesIngreso({ localId, usuario }) {
                   <tr key={i}>
                     <td style={{ fontSize: 12, fontWeight: 600 }}>{o.numero_factura || "-"}</td>
                     <td style={{ fontSize: 12 }}>{o.proveedor_nombre || "-"}</td>
-                    <td style={{ fontSize: 11, color: "#999999" }}>{o.fecha_factura ? new Date(o.fecha_factura).toLocaleDateString("es-AR") : "-"}</td>
+                    <td style={{ fontSize: 11, color: "#65676B" }}>{o.fecha_factura ? new Date(o.fecha_factura).toLocaleDateString("es-AR") : "-"}</td>
                     <td><span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c" }}>{o.estado}</span></td>
                     <td style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>${parseFloat(o.total || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
                     <td><button className="btn btn-sm" style={{ background: "#2d7a4f", color: "white" }} onClick={() => verDetalle(o)}>Recibir</button></td>
@@ -3387,7 +3387,7 @@ function OrdenesIngreso({ localId, usuario }) {
       {tab === "recibido" && (
         <div className="card">
           {recibidoHist.length === 0 ? (
-            <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 30 }}>Todavia no hay stock recibido registrado</div>
+            <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 30 }}>Todavia no hay stock recibido registrado</div>
           ) : (
             <table>
               <thead><tr><th>Producto</th><th>Factura</th><th>Proveedor</th><th>Local</th><th>Cantidad</th><th>Fecha</th><th>Recibido por</th></tr></thead>
@@ -3399,11 +3399,11 @@ function OrdenesIngreso({ localId, usuario }) {
                   return filas.map((f, j) => (
                     <tr key={i + "-" + j}>
                       <td style={{ fontSize: 12 }}>{r.producto_nombre}{r.es_extra ? <span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c", marginLeft: 6 }}>extra</span> : ""}</td>
-                      <td style={{ fontSize: 11, color: "#999999" }}>{r.numero_factura || "-"}</td>
+                      <td style={{ fontSize: 11, color: "#65676B" }}>{r.numero_factura || "-"}</td>
                       <td style={{ fontSize: 11 }}>{r.proveedor_nombre || "-"}</td>
                       <td style={{ fontSize: 11 }}>{f.local}</td>
                       <td style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>{f.cant}u</td>
-                      <td style={{ fontSize: 11, color: "#999999" }}>{f.fecha ? new Date(f.fecha).toLocaleDateString("es-AR") + " " + new Date(f.fecha).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "-"}</td>
+                      <td style={{ fontSize: 11, color: "#65676B" }}>{f.fecha ? new Date(f.fecha).toLocaleDateString("es-AR") + " " + new Date(f.fecha).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "-"}</td>
                       <td style={{ fontSize: 11 }}>{f.por || "-"}</td>
                     </tr>
                   ));
@@ -3417,7 +3417,7 @@ function OrdenesIngreso({ localId, usuario }) {
       {tab === "nueva" && (
         <div className="g2">
           <div className="card">
-            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 14 }}>DATOS DE LA ORDEN</div>
+            <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 14 }}>DATOS DE LA ORDEN</div>
             <div className="fg"><div className="fl">Proveedor</div>
               <select className="sel" value={nueva.proveedor_id} onChange={e => setNueva(p => ({ ...p, proveedor_id: e.target.value }))}>
                 <option value="">Seleccionar proveedor...</option>
@@ -3427,7 +3427,7 @@ function OrdenesIngreso({ localId, usuario }) {
             <div className="fg"><div className="fl">Numero de factura</div><input className="inp" value={nueva.numero_factura} onChange={e => setNueva(p => ({ ...p, numero_factura: e.target.value }))} /></div>
             <div className="fg"><div className="fl">Total factura ($)</div><input className="inp" type="number" value={nueva.total} onChange={e => setNueva(p => ({ ...p, total: e.target.value }))} /></div>
             <div className="fg"><div className="fl">Notas</div><textarea className="inp" rows={2} placeholder="Observaciones..." value={nueva.notas} onChange={e => setNueva(p => ({ ...p, notas: e.target.value }))} /></div>
-            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", margin: "16px 0 10px" }}>AGREGAR PRODUCTO (dividi por local)</div>
+            <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", margin: "16px 0 10px" }}>AGREGAR PRODUCTO (dividi por local)</div>
             <div className="fg"><div className="fl">Producto</div>
               <select className="sel" value={itemTemp.producto_id} onChange={e => setItemTemp(p => ({ ...p, producto_id: e.target.value }))}>
                 <option value="">Seleccionar...</option>
@@ -3442,8 +3442,8 @@ function OrdenesIngreso({ localId, usuario }) {
             <button className="btn btn-sm" style={{ width: "100%" }} onClick={agregarItem}>+ Agregar producto</button>
           </div>
           <div className="card">
-            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 14 }}>PRODUCTOS EN ESTA ORDEN ({nueva.items.length})</div>
-            {nueva.items.length === 0 ? (<div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 20 }}>Sin productos agregados</div>) : (
+            <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 14 }}>PRODUCTOS EN ESTA ORDEN ({nueva.items.length})</div>
+            {nueva.items.length === 0 ? (<div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 20 }}>Sin productos agregados</div>) : (
               <table>
                 <thead><tr><th>Producto</th><th>RG</th><th>USH</th><th>Costo unit.</th><th>Subtotal</th><th></th></tr></thead>
                 <tbody>
@@ -3492,9 +3492,9 @@ function OrdenesIngreso({ localId, usuario }) {
       {tab === "recibir" && ordenDetalle && (
         <div>
           <div className="card" style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 4 }}>RECIBIENDO EN {localNombre.toUpperCase()}</div>
+            <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 4 }}>RECIBIENDO EN {localNombre.toUpperCase()}</div>
             <div style={{ fontSize: 13, color: "#444444" }}>Factura {ordenDetalle.numero_factura || "-"} - {ordenDetalle.proveedor_nombre || ""}</div>
-            <div style={{ fontSize: 11, color: "#999999", marginTop: 4 }}>Conta la mercaderia fisica y confirma cada item. Si la cantidad no coincide, dejala como llego y agrega una nota.</div>
+            <div style={{ fontSize: 11, color: "#65676B", marginTop: 4 }}>Conta la mercaderia fisica y confirma cada item. Si la cantidad no coincide, dejala como llego y agrega una nota.</div>
             {(() => {
               const delLocal = itemsDetalle.filter(it => esperadoLocal(it) > 0 || it.es_extra);
               const recibidos = delLocal.filter(it => revisadoLocal(it)).length;
@@ -3517,12 +3517,12 @@ function OrdenesIngreso({ localId, usuario }) {
                   return (
                     <tr key={i} style={{ background: revisadoLocal(it) ? "#2d7a4f08" : "transparent" }}>
                       <td style={{ fontSize: 12 }}>{it.producto_nombre}{it.es_extra ? <span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c", marginLeft: 6 }}>extra</span> : ""}</td>
-                      <td style={{ fontSize: 12, color: "#999999" }}>{esp}</td>
+                      <td style={{ fontSize: 12, color: "#65676B" }}>{esp}</td>
                       <td><input className="inp" type="number" style={{ width: 70, padding: "4px 8px" }} value={conteo[it.id] ?? ""} onChange={e => setConteo(c => ({ ...c, [it.id]: e.target.value }))} /></td>
                       <td>
                         {dif !== 0 && !it.es_extra ? (
                           <input className="inp" placeholder={dif > 0 ? "llegaron " + dif + " de mas" : "faltan " + Math.abs(dif)} style={{ padding: "4px 8px", fontSize: 11 }} value={notaItem[it.id] || ""} onChange={e => setNotaItem(n => ({ ...n, [it.id]: e.target.value }))} />
-                        ) : (<span style={{ fontSize: 11, color: "#999999" }}>{revisadoLocal(it) ? "ok" : "-"}</span>)}
+                        ) : (<span style={{ fontSize: 11, color: "#65676B" }}>{revisadoLocal(it) ? "ok" : "-"}</span>)}
                       </td>
                       <td>{revisadoLocal(it) ? <span style={{ fontSize: 11, color: "#2d7a4f", fontWeight: 600 }}>Recibido ({recibidoLocal(it)})</span> : <span style={{ fontSize: 11, color: "#c9a84c" }}>Pendiente</span>}</td>
                       <td><button className="btn btn-sm" onClick={() => confirmarItem(it)}>{revisadoLocal(it) ? "Recontar" : "Confirmar"}</button></td>
@@ -3533,7 +3533,7 @@ function OrdenesIngreso({ localId, usuario }) {
             </table>
           </div>
           <div className="card">
-            <div style={{ fontSize: 11, color: "#999999", letterSpacing: ".1em", marginBottom: 10 }}>AGREGAR ITEM EXTRA (regalo del proveedor, no estaba en la orden)</div>
+            <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 10 }}>AGREGAR ITEM EXTRA (regalo del proveedor, no estaba en la orden)</div>
             <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
               <div className="fg" style={{ flex: 2, marginBottom: 0 }}><div className="fl">Producto</div>
                 <select className="sel" value={extra.producto_id} onChange={e => setExtra(p => ({ ...p, producto_id: e.target.value }))}>
@@ -3571,8 +3571,8 @@ function Inconsistencias() {
         <div><div className="pt">Inconsistencias de Recepcion</div><div className="ps">diferencias para reclamar a proveedores</div></div>
       </div>
       <div className="card">
-        {loading ? (<div style={{ textAlign: "center", color: "#999999", fontSize: 12 }}>Cargando...</div>) : datos.length === 0 ? (
-          <div style={{ fontSize: 12, color: "#999999", textAlign: "center", padding: 30 }}>No hay inconsistencias registradas. Todo llego correcto!</div>
+        {loading ? (<div style={{ textAlign: "center", color: "#65676B", fontSize: 12 }}>Cargando...</div>) : datos.length === 0 ? (
+          <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 30 }}>No hay inconsistencias registradas. Todo llego correcto!</div>
         ) : (
           <table>
             <thead><tr><th>Factura</th><th>Proveedor</th><th>Producto</th><th>Local</th><th>Esperado</th><th>Recibido</th><th>Diferencia</th><th>Nota</th></tr></thead>
@@ -3589,7 +3589,7 @@ function Inconsistencias() {
                     <td style={{ fontSize: 11 }}>{d.proveedor_nombre || "-"}</td>
                     <td style={{ fontSize: 12 }}>{d.producto_nombre}{f.extra ? <span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c", marginLeft: 6 }}>extra/regalo</span> : ""}</td>
                     <td style={{ fontSize: 11 }}>{f.local}</td>
-                    <td style={{ fontSize: 12, color: "#999999" }}>{f.esp}</td>
+                    <td style={{ fontSize: 12, color: "#65676B" }}>{f.esp}</td>
                     <td style={{ fontSize: 12 }}>{f.rec}</td>
                     <td>{f.extra ? <span style={{ color: "#c9a84c", fontSize: 12 }}>+{f.rec} regalo</span> : (typeof f.esp === "number" ? (() => { const v = dif(f.rec, f.esp); return <span style={{ color: v < 0 ? "#c0392b" : "#2d7a4f", fontWeight: 600, fontSize: 12 }}>{v > 0 ? "+" : ""}{v}</span>; })() : "-")}</td>
                     <td style={{ fontSize: 11, color: "#666666" }}>{d.nota_inconsistencia || "-"}</td>
@@ -3703,9 +3703,9 @@ function Kits() {
       {tab === "lista" && (
         <div className="fade">
           {loading ? (
-            <div style={{ color: "#999999", padding: 20 }}>Cargando...</div>
+            <div style={{ color: "#65676B", padding: 20 }}>Cargando...</div>
           ) : kits.length === 0 ? (
-            <div className="card" style={{ textAlign: "center", color: "#999999", padding: 30 }}>Sin kits creados. Crea tu primer combo!</div>
+            <div className="card" style={{ textAlign: "center", color: "#65676B", padding: 30 }}>Sin kits creados. Crea tu primer combo!</div>
           ) : (
             <div className="g2">
               {kits.map(kit => {
@@ -3717,7 +3717,7 @@ function Kits() {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
                       <div>
                         <div style={{ fontSize: 14, fontWeight: 700, color: "#111111" }}>{kit.nombre}</div>
-                        {kit.descripcion && <div style={{ fontSize: 11, color: "#999999", marginTop: 2 }}>{kit.descripcion}</div>}
+                        {kit.descripcion && <div style={{ fontSize: 11, color: "#65676B", marginTop: 2 }}>{kit.descripcion}</div>}
                       </div>
                       <div style={{ textAlign: "right" }}>
                         <div style={{ fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>${parseFloat(kit.precio || 0).toLocaleString()}</div>
@@ -3728,7 +3728,7 @@ function Kits() {
                       {items.map((item, i) => (
                         <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "4px 0", borderBottom: "1px solid #f5f5f5" }}>
                           <span style={{ color: "#444444" }}>{item.producto_nombre}</span>
-                          <span style={{ color: "#999999" }}>x{item.cantidad}</span>
+                          <span style={{ color: "#65676B" }}>x{item.cantidad}</span>
                         </div>
                       ))}
                     </div>
@@ -3755,7 +3755,7 @@ function Kits() {
               <input className="inp" placeholder="Ej: Ideal para piel seca..." value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
             </div>
             <div className="fg">
-              <div className="fl">Precio del kit ($) {precioSugerido > 0 && <span style={{ fontSize: 10, color: "#999999", marginLeft: 6 }}>Suma: ${Math.round(precioSugerido).toLocaleString()}</span>}</div>
+              <div className="fl">Precio del kit ($) {precioSugerido > 0 && <span style={{ fontSize: 10, color: "#65676B", marginLeft: 6 }}>Suma: ${Math.round(precioSugerido).toLocaleString()}</span>}</div>
               <input className="inp" type="number" placeholder={Math.round(precioSugerido * 0.9) || "15000"} value={form.precio} onChange={e => setForm(f => ({ ...f, precio: e.target.value }))} />
             </div>
             <div className="divider" />
@@ -3776,14 +3776,14 @@ function Kits() {
           <div className="card">
             <div className="ct">Productos en este kit ({form.items.length})</div>
             {form.items.length === 0 ? (
-              <div style={{ color: "#999999", fontSize: 12, textAlign: "center", padding: 20 }}>Sin productos agregados</div>
+              <div style={{ color: "#65676B", fontSize: 12, textAlign: "center", padding: 20 }}>Sin productos agregados</div>
             ) : (
               <div>
                 {form.items.map((item, i) => (
                   <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #f5f5f5" }}>
                     <div>
                       <div style={{ fontSize: 12, color: "#444444" }}>{item.producto_nombre}</div>
-                      <div style={{ fontSize: 10, color: "#999999" }}>x{item.cantidad}</div>
+                      <div style={{ fontSize: 10, color: "#65676B" }}>x{item.cantidad}</div>
                     </div>
                     <button onClick={() => quitarItem(i)} style={{ background: "none", border: "none", color: "#c0392b", cursor: "pointer", fontSize: 16 }}>x</button>
                   </div>
@@ -3811,7 +3811,7 @@ const NAV_SECTIONS = [
   { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "💰", label: "Finanzas" }, { id: "reports", icon: "📋", label: "Informes" }, { id: "comprobantes", icon: "🧾", label: "Comprobantes" }, { id: "comisiones", icon: "💎", label: "Comisiones" }, { id: "proveedores", icon: "🏭", label: "Proveedores" }, { id: "calculadoras", icon: "🧮", label: "Calculadoras" }, { id: "productividad", icon: "🏆", label: "Productividad" }] },
   { section: "MARKETING", color: "#e74c3c", items: [{ id: "cupones", icon: "🏷️", label: "Cupones" }] },
   { section: "POSTVENTA", color: "#25d366", items: [{ id: "postventa", icon: "💬", label: "Postventa WA" }] },
-  { section: "CLIENTE", color: "#999999", items: [{ id: "portal", icon: "👤", label: "Portal Cliente" }] },
+  { section: "CLIENTE", color: "#65676B", items: [{ id: "portal", icon: "👤", label: "Portal Cliente" }] },
 ];
 
 
@@ -3840,19 +3840,19 @@ function LoginScreen({ onLogin }) {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #111111 0%, #222222 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #1877F2 0%, #0E5FD9 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', sans-serif" }}>
       <div style={{ width: 360, background: "#ffffff", border: "1px solid #272220", borderRadius: 12, padding: 36 }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 300, letterSpacing: ".18em", color: "#c9a84c" }}>LUMIERE</div>
-          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".3em", marginTop: 4 }}>SISTEMA DE GESTION</div>
+          <div style={{ fontSize: 9, color: "#65676B", letterSpacing: ".3em", marginTop: 4 }}>SISTEMA DE GESTION</div>
         </div>
         {error && <div style={{ background: "#c0392b12", border: "1px solid #d97070", borderRadius: 5, padding: "8px 12px", marginBottom: 16, fontSize: 11, color: "#c0392b" }}>{error}</div>}
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>EMAIL</div>
+          <div style={{ fontSize: 9, color: "#65676B", letterSpacing: ".15em", marginBottom: 5 }}>EMAIL</div>
           <input className="inp" type="email" placeholder="tu@email.com" value={email} onChange={e => { setEmail(e.target.value); setError(""); }} />
         </div>
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÑA</div>
+          <div style={{ fontSize: 9, color: "#65676B", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÑA</div>
           <input className="inp" type="password" placeholder="••••••••" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
         </div>
         <button className="btn btn-p" style={{ width: "100%", padding: 13 }} onClick={handleLogin} disabled={loading}>
@@ -3872,12 +3872,12 @@ function LocalSelector({ usuario, onSelect }) {
   }, []);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#fafafa", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Mono', monospace" }}>
+    <div style={{ minHeight: "100vh", background: "#F0F2F5", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Mono', monospace" }}>
       <div style={{ width: 420, background: "#ffffff", border: "1px solid #272220", borderRadius: 12, padding: 36 }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 300, letterSpacing: ".18em", color: "#c9a84c" }}>LUMIERE</div>
-          <div style={{ fontSize: 11, color: "#999999", marginTop: 8 }}>Bienvenida, {usuario?.nombre || "usuario"}</div>
-          <div style={{ fontSize: 9, color: "#999999", letterSpacing: ".2em", marginTop: 4 }}>SELECCIONA TU LOCAL</div>
+          <div style={{ fontSize: 11, color: "#65676B", marginTop: 8 }}>Bienvenida, {usuario?.nombre || "usuario"}</div>
+          <div style={{ fontSize: 9, color: "#65676B", letterSpacing: ".2em", marginTop: 4 }}>SELECCIONA TU LOCAL</div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {locales.map(l => (
@@ -3887,14 +3887,14 @@ function LocalSelector({ usuario, onSelect }) {
               onMouseLeave={e => { e.currentTarget.style.borderColor = "#e8e8e8"; e.currentTarget.style.background = "#f8f8f8"; }}>
               <div>
                 <div style={{ fontSize: 14, color: "#111111" }}>{l.nombre}</div>
-                {l.direccion && <div style={{ fontSize: 10, color: "#999999", marginTop: 3 }}>{l.direccion}</div>}
+                {l.direccion && <div style={{ fontSize: 10, color: "#65676B", marginTop: 3 }}>{l.direccion}</div>}
               </div>
               <span style={{ color: "#c9a84c", fontSize: 16 }}></span>
             </div>
           ))}
         </div>
         <div style={{ marginTop: 20, textAlign: "center" }}>
-          <div style={{ fontSize: 10, color: "#999999", cursor: "pointer" }} onClick={() => { localStorage.removeItem("lumiere_token"); localStorage.removeItem("lumiere_user"); window.location.reload(); }}>
+          <div style={{ fontSize: 10, color: "#65676B", cursor: "pointer" }} onClick={() => { localStorage.removeItem("lumiere_token"); localStorage.removeItem("lumiere_user"); window.location.reload(); }}>
             Cerrar sesion
           </div>
         </div>
@@ -3909,7 +3909,7 @@ function SinPermiso() {
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", flexDirection: "column", gap: 12 }}>
       <div style={{ fontSize: 40 }}></div>
       <div style={{ fontSize: 18, fontWeight: 700, color: "#111111" }}>Sin acceso</div>
-      <div style={{ fontSize: 13, color: "#999999" }}>No tenes permiso para ver esta seccion</div>
+      <div style={{ fontSize: 13, color: "#65676B" }}>No tenes permiso para ver esta seccion</div>
     </div>
   );
 }
@@ -4028,7 +4028,7 @@ function Usuarios({ usuario: usuarioActual }) {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                   <div className="ct" style={{ margin: 0 }}>{modulo}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 10, color: "#999999" }}>{activos}/{claves.length}</span>
+                    <span style={{ fontSize: 10, color: "#65676B" }}>{activos}/{claves.length}</span>
                     <div onClick={() => toggleGrupo(perms)} style={{ width: 36, height: 20, borderRadius: 10, background: todosActivos ? "#c9a84c" : "#e0e0e0", cursor: "pointer", position: "relative", transition: "background .2s" }}>
                       <div style={{ position: "absolute", top: 2, left: todosActivos ? 18 : 2, width: 16, height: 16, borderRadius: "50%", background: "white", transition: "left .2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
                     </div>
@@ -4036,7 +4036,7 @@ function Usuarios({ usuario: usuarioActual }) {
                 </div>
                 {perms.map(([clave, label]) => (
                   <div key={clave} onClick={() => togglePermiso(clave)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #f5f5f5", cursor: "pointer" }}>
-                    <span style={{ fontSize: 12, color: permisosUsuario.includes(clave) ? "#111111" : "#999999" }}>{label}</span>
+                    <span style={{ fontSize: 12, color: permisosUsuario.includes(clave) ? "#111111" : "#65676B" }}>{label}</span>
                     <div style={{ width: 28, height: 16, borderRadius: 8, background: permisosUsuario.includes(clave) ? "#2d7a4f" : "#e0e0e0", position: "relative", transition: "background .2s" }}>
                       <div style={{ position: "absolute", top: 2, left: permisosUsuario.includes(clave) ? 14 : 2, width: 12, height: 12, borderRadius: "50%", background: "white", transition: "left .2s" }} />
                     </div>
@@ -4092,7 +4092,7 @@ function Usuarios({ usuario: usuarioActual }) {
         </div>
       )}
       <div className="card">
-        {loading ? <div style={{ color: "#999999", padding: 20 }}>Cargando...</div> : (
+        {loading ? <div style={{ color: "#65676B", padding: 20 }}>Cargando...</div> : (
           <table>
             <thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Local</th><th>Acciones</th></tr></thead>
             <tbody>
@@ -4100,7 +4100,7 @@ function Usuarios({ usuario: usuarioActual }) {
                 <tr key={u.id}>
                   <td style={{ color: "#111111", fontWeight: 500 }}>{u.nombre}</td>
                   <td>{u.email}</td>
-                  <td><span className="badge" style={{ background: (rolColor[u.rol] || "#999999") + "15", color: rolColor[u.rol] || "#999999" }}>{rolNombre[u.rol] || u.rol}</span></td>
+                  <td><span className="badge" style={{ background: (rolColor[u.rol] || "#65676B") + "15", color: rolColor[u.rol] || "#65676B" }}>{rolNombre[u.rol] || u.rol}</span></td>
                   <td>{u.local_nombre || "-"}</td>
                   <td>
                     <div style={{ display: "flex", gap: 4 }}>
@@ -4275,8 +4275,8 @@ export default function AppWrapper() {
               <StatusDot color="#2d7a4f" label="ARCA" />
               <StatusDot color="#25d366" label="TIENDANUBE" />
             </div>
-            <div style={{ marginTop: 12, fontSize: 11, color: "#999999", cursor: "pointer" }} onClick={() => setLocal(null)}></div>
-            <div style={{ marginTop: 6, fontSize: 11, color: "#999999", cursor: "pointer" }} onClick={handleLogout}></div>
+            <div style={{ marginTop: 12, fontSize: 11, color: "#65676B", cursor: "pointer" }} onClick={() => setLocal(null)}></div>
+            <div style={{ marginTop: 6, fontSize: 11, color: "#65676B", cursor: "pointer" }} onClick={handleLogout}></div>
           </div>
         </aside>
         <main className="main">
