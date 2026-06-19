@@ -2445,6 +2445,150 @@ function Calculadoras({ usuario }) {
   );
 }
 
+function GiftCards({ localId, usuario }) {
+  const [tab, setTab] = useState("pendientes");
+  const [giftcards, setGiftcards] = useState([]);
+  const [clientes, setClientes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [mensaje, setMensaje] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [verMov, setVerMov] = useState(null);
+  const [movimientos, setMovimientos] = useState([]);
+  const [nueva, setNueva] = useState({ monto: "", beneficiario_nombre: "", beneficiario_telefono: "", cliente_id: "" });
+
+  const cargar = () => {
+    setLoading(true);
+    Promise.all([API.get("/gift-cards"), API.get("/clientes")])
+      .then(([gc, cl]) => { setGiftcards(gc.data || []); setClientes(cl.data || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  };
+
+  useEffect(() => { cargar(); }, []);
+
+  const emitir = async () => {
+    if (!nueva.monto || parseFloat(nueva.monto) <= 0) return setMensaje("Ingresa un monto valido");
+    if (!nueva.beneficiario_nombre) return setMensaje("Falta el nombre de quien recibe la gift card");
+    try {
+      const res = await API.post("/gift-cards", { ...nueva, local_id: localId || 1, emitida_por: usuario?.id || null });
+      setMensaje("Gift card emitida! Codigo: " + res.data.codigo);
+      setShowForm(false);
+      setNueva({ monto: "", beneficiario_nombre: "", beneficiario_telefono: "", cliente_id: "" });
+      cargar();
+      setTimeout(() => setMensaje(""), 6000);
+    } catch (e) { setMensaje(e.response?.data?.error || "Error al emitir la gift card"); }
+  };
+
+  const verMovimientos = async (gc) => {
+    setVerMov(gc);
+    try {
+      const res = await API.get("/gift-cards/" + gc.id + "/movimientos");
+      setMovimientos(res.data || []);
+    } catch (e) { setMovimientos([]); }
+  };
+
+  const pendientes = giftcards.filter(g => g.estado === "activa" && parseFloat(g.saldo) === parseFloat(g.monto_inicial));
+  const parciales = giftcards.filter(g => g.estado === "activa" && parseFloat(g.saldo) > 0 && parseFloat(g.saldo) < parseFloat(g.monto_inicial));
+  const agotadas = giftcards.filter(g => g.estado === "agotada");
+  const totalEmitido = giftcards.reduce((s, g) => s + parseFloat(g.monto_inicial || 0), 0);
+  const totalSaldoVivo = giftcards.reduce((s, g) => s + parseFloat(g.saldo || 0), 0);
+
+  const listaSegunTab = tab === "pendientes" ? pendientes : tab === "parciales" ? parciales : agotadas;
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Gift Cards</div><div className="ps">emision y seguimiento de saldo</div></div>
+        <button className="btn btn-p btn-sm" onClick={() => setShowForm(true)}>+ Emitir Gift Card</button>
+      </div>
+      <div className="g3" style={{ marginBottom: 16 }}>
+        <MCard label="Total emitido (historico)" value={"$" + totalEmitido.toLocaleString("es-AR", { maximumFractionDigits: 0 })} color="#c9a84c" />
+        <MCard label="Saldo vivo (sin canjear)" value={"$" + totalSaldoVivo.toLocaleString("es-AR", { maximumFractionDigits: 0 })} color="#2d7a4f" />
+        <MCard label="Gift cards emitidas" value={String(giftcards.length)} color="#2C3E5C" />
+      </div>
+      {mensaje && <div style={{ background: mensaje.includes("Error") || mensaje.includes("Falta") || mensaje.includes("valido") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") || mensaje.includes("Falta") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") || mensaje.includes("Falta") ? "#c0392b" : "#2d7a4f", fontWeight: 600 }}>{mensaje}</div>}
+      <div className="tabs">
+        <div className={"tab " + (tab === "pendientes" ? "on" : "")} onClick={() => setTab("pendientes")}>SIN USAR ({pendientes.length})</div>
+        <div className={"tab " + (tab === "parciales" ? "on" : "")} onClick={() => setTab("parciales")}>CON SALDO PARCIAL ({parciales.length})</div>
+        <div className={"tab " + (tab === "agotadas" ? "on" : "")} onClick={() => setTab("agotadas")}>CANJEADAS COMPLETO ({agotadas.length})</div>
+      </div>
+      <div className="card">
+        {loading ? (
+          <div style={{ textAlign: "center", color: "#65676B", padding: 20, fontSize: 12 }}>Cargando...</div>
+        ) : listaSegunTab.length === 0 ? (
+          <div style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>No hay gift cards en esta categoria</div>
+        ) : (
+          <table>
+            <thead><tr><th>Codigo</th><th>Beneficiario</th><th>Monto inicial</th><th>Saldo</th><th>Cliente vinculada</th><th>Emitida</th><th></th></tr></thead>
+            <tbody>
+              {listaSegunTab.map(g => (
+                <tr key={g.id}>
+                  <td style={{ fontFamily: "monospace", fontWeight: 700, color: "#2C3E5C" }}>{g.codigo}</td>
+                  <td style={{ fontSize: 12 }}>{g.beneficiario_nombre}{g.beneficiario_telefono ? <div style={{ fontSize: 10, color: "#65676B" }}>{g.beneficiario_telefono}</div> : null}</td>
+                  <td style={{ fontSize: 12 }}>${parseFloat(g.monto_inicial).toLocaleString("es-AR")}</td>
+                  <td><span className={"badge " + (parseFloat(g.saldo) === 0 ? "br" : parseFloat(g.saldo) < parseFloat(g.monto_inicial) ? "ba" : "bg")}>${parseFloat(g.saldo).toLocaleString("es-AR")}</span></td>
+                  <td style={{ fontSize: 11, color: "#65676B" }}>{g.cliente_nombre || "-"}</td>
+                  <td style={{ fontSize: 10, color: "#65676B" }}>{new Date(g.creado_en).toLocaleDateString("es-AR")}</td>
+                  <td><button className="btn btn-sm" onClick={() => verMovimientos(g)}>Ver historial</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {showForm && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+          <div className="card" style={{ width: 400, background: "#ffffff" }}>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Emitir Gift Card</div>
+            <div className="fg"><div className="fl">Monto ($)</div><input className="inp" type="number" placeholder="10000" value={nueva.monto} onChange={e => setNueva(p => ({ ...p, monto: e.target.value }))} /></div>
+            <div className="fg"><div className="fl">Nombre de quien la recibe</div><input className="inp" placeholder="Ej: Maria Lopez" value={nueva.beneficiario_nombre} onChange={e => setNueva(p => ({ ...p, beneficiario_nombre: e.target.value }))} /></div>
+            <div className="fg"><div className="fl">Telefono (opcional)</div><input className="inp" placeholder="Ej: 2964123456" value={nueva.beneficiario_telefono} onChange={e => setNueva(p => ({ ...p, beneficiario_telefono: e.target.value }))} /></div>
+            <div className="fg"><div className="fl">Vincular a clienta existente (opcional)</div>
+              <select className="sel" value={nueva.cliente_id} onChange={e => setNueva(p => ({ ...p, cliente_id: e.target.value }))}>
+                <option value="">Sin vincular</option>
+                {clientes.map(c => (<option key={c.id} value={c.id}>{c.nombre}</option>))}
+              </select>
+            </div>
+            <div style={{ fontSize: 10, color: "#65676B", marginBottom: 14 }}>Al emitirla se cobra el monto ahora y se genera el ingreso de caja. La factura se hace recien cuando se canjea por productos.</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowForm(false)}>Cancelar</button>
+              <button className="btn btn-p" style={{ flex: 1 }} onClick={emitir}>Emitir y cobrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {verMov && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+          <div className="card" style={{ width: 420, background: "#ffffff" }}>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{verMov.codigo}</div>
+            <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>{verMov.beneficiario_nombre} - Saldo actual: <b style={{ color: "#2d7a4f" }}>${parseFloat(verMov.saldo).toLocaleString("es-AR")}</b></div>
+            {movimientos.length === 0 ? (
+              <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 16 }}>Sin movimientos</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 300, overflowY: "auto" }}>
+                {movimientos.map((m, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, borderBottom: "1px solid #E4E6EB", paddingBottom: 6 }}>
+                    <div>
+                      <span style={{ fontWeight: 600, color: m.tipo === "emision" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "emision" ? "Emision" : "Canje"}</span>
+                      <div style={{ fontSize: 10, color: "#65676B" }}>{new Date(m.creado_en).toLocaleDateString("es-AR")}</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ color: m.tipo === "emision" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "emision" ? "+" : "-"}${parseFloat(m.importe).toLocaleString("es-AR")}</div>
+                      <div style={{ fontSize: 10, color: "#65676B" }}>saldo: ${parseFloat(m.saldo_resultante).toLocaleString("es-AR")}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button className="btn btn-g" style={{ width: "100%", marginTop: 14 }} onClick={() => setVerMov(null)}>Cerrar</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PortalCliente() {
   const client = CLIENTS[0];
   const [tab, setTab] = useState("canjear");
@@ -4220,6 +4364,7 @@ export default function AppWrapper() {
     if (id === "comisiones") return <Comisiones localId={local.id} />;
     if (id === "caja") return <Caja localId={local.id} usuario={usuario} />;
     if (id === "cierre") return <CierreCaja localId={local.id} />;
+    if (id === "giftcards") return <GiftCards localId={local.id} usuario={usuario} />;
     if (id === "ordenes") return <OrdenesIngreso localId={local.id} usuario={usuario} />;
     if (id === "kits") return <Kits />;
     if (id === "inconsistencias") return <Inconsistencias />;
