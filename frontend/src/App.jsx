@@ -2596,6 +2596,17 @@ function GiftCards({ localId, usuario }) {
     } catch (e) { setMovimientos([]); }
   };
 
+  const anularGiftCard = async (gc) => {
+    const motivo = prompt("Motivo de la anulacion (obligatorio):");
+    if (!motivo || !motivo.trim()) return;
+    try {
+      await API.post("/anulaciones/giftcard/" + gc.id, { motivo, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre, usuario_rol: usuario?.rol });
+      setMensaje("Gift card anulada");
+      cargar();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje(e.response?.data?.error || "Error al anular"); }
+  };
+
   const pendientes = giftcards.filter(g => g.estado === "activa" && parseFloat(g.saldo) === parseFloat(g.monto_inicial));
   const parciales = giftcards.filter(g => g.estado === "activa" && parseFloat(g.saldo) > 0 && parseFloat(g.saldo) < parseFloat(g.monto_inicial));
   const agotadas = giftcards.filter(g => g.estado === "agotada");
@@ -2638,7 +2649,7 @@ function GiftCards({ localId, usuario }) {
                   <td><span className={"badge " + (parseFloat(g.saldo) === 0 ? "br" : parseFloat(g.saldo) < parseFloat(g.monto_inicial) ? "ba" : "bg")}>${parseFloat(g.saldo).toLocaleString("es-AR")}</span></td>
                   <td style={{ fontSize: 11, color: "#65676B" }}>{g.cliente_nombre || "-"}</td>
                   <td style={{ fontSize: 10, color: "#65676B" }}>{new Date(g.creado_en).toLocaleDateString("es-AR")}</td>
-                  <td><button className="btn btn-sm" onClick={() => verMovimientos(g)}>Ver historial</button></td>
+                  <td><div style={{ display: "flex", gap: 4 }}><button className="btn btn-sm" onClick={() => verMovimientos(g)}>Ver historial</button>{(usuario?.rol === "jefe" || usuario?.rol === "administrativo") && !g.anulada && <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => anularGiftCard(g)}>Anular</button>}</div></td>
                 </tr>
               ))}
             </tbody>
@@ -3186,6 +3197,17 @@ function Caja({ localId, usuario }) {
 
   useEffect(() => { cargar(); }, [localId]);
 
+  const anularMovimiento = async (m) => {
+    const motivo = prompt("Motivo de la anulacion (obligatorio):");
+    if (!motivo || !motivo.trim()) return;
+    try {
+      await API.post("/anulaciones/movimiento/" + m.id, { motivo, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre, usuario_rol: usuario?.rol });
+      setMensaje("Movimiento anulado");
+      cargar();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje(e.response?.data?.error || "Error al anular"); }
+  };
+
   const guardar = async () => {
     if (!nuevo.importe || !nuevo.concepto) return setMensaje("Completa importe y concepto");
     try {
@@ -3275,19 +3297,21 @@ function Caja({ localId, usuario }) {
             <div style={{ textAlign: "center", color: "#65676B", padding: 20, fontSize: 12 }}>Sin movimientos registrados</div>
           ) : (
             <table>
-              <thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Importe</th></tr></thead>
+              <thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Importe</th><th></th></tr></thead>
               <tbody>
                 {movimientos.slice(0, 15).map((m, i) => (
-                  <tr key={i}>
+                  <tr key={i} style={{ opacity: m.anulado ? 0.4 : 1 }}>
                     <td style={{ fontSize: 10, color: "#65676B" }}>{new Date(m.creado_en).toLocaleDateString("es-AR")}</td>
                     <td>
-                      <div style={{ fontSize: 12 }}>{m.concepto}</div>
+                      <div style={{ fontSize: 12, textDecoration: m.anulado ? "line-through" : "none" }}>{m.concepto}</div>
                       {m.destino_origen && <div style={{ fontSize: 9, color: "#65676B" }}>{m.destino_origen.replace(/_/g, " ")}</div>}
+                      {m.anulado && <div style={{ fontSize: 9, color: "#c0392b" }}>ANULADO: {m.motivo_anulacion}</div>}
                     </td>
                     <td><span className={"badge " + (m.tipo === "ingreso" ? "bg" : "br")}>{m.tipo}</span></td>
                     <td style={{ color: m.tipo === "ingreso" ? "#2d7a4f" : "#c0392b", fontWeight: 600 }}>
                       {m.tipo === "ingreso" ? "+" : "-"}${parseFloat(m.importe).toLocaleString()}
                     </td>
+                    <td>{!m.anulado && (usuario?.rol === "jefe" || usuario?.rol === "administrativo") && <button className="btn btn-sm" style={{ color: "#c0392b", fontSize: 9 }} onClick={() => anularMovimiento(m)}>Anular</button>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -3299,7 +3323,7 @@ function Caja({ localId, usuario }) {
   );
 }
 
-function CierreCaja({ localId }) {
+function CierreCaja({ localId, usuario }) {
   const hoy = new Date();
   const fmtFecha = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   const [fecha, setFecha] = useState(fmtFecha(hoy));
@@ -3467,10 +3491,36 @@ function CierreCaja({ localId }) {
           </div>
         )}
       </div>
+      {!loading && ventasDia.length > 0 && (usuario?.rol === "jefe" || usuario?.rol === "administrativo") && (
+        <div className="card" style={{ marginTop: 14 }}>
+          <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 10 }}>HISTORIAL DE VENTAS DEL DIA</div>
+          <table>
+            <thead><tr><th>Factura</th><th>Cliente</th><th>Total</th><th>Medio</th><th></th></tr></thead>
+            <tbody>
+              {ventasDia.map((v, i) => (
+                <tr key={i} style={{ opacity: v.anulada ? 0.4 : 1 }}>
+                  <td style={{ fontSize: 11, fontFamily: "monospace", textDecoration: v.anulada ? "line-through" : "none" }}>{v.numero_factura}</td>
+                  <td style={{ fontSize: 12 }}>{v.cliente_nombre || "Consumidor final"}{v.anulada && <div style={{ fontSize: 9, color: "#c0392b" }}>ANULADA: {v.motivo_anulacion}</div>}</td>
+                  <td style={{ fontWeight: 600 }}>${parseFloat(v.total).toLocaleString("es-AR")}</td>
+                  <td style={{ fontSize: 11, color: "#65676B" }}>{v.medio_pago}</td>
+                  <td>{!v.anulada && <button className="btn btn-sm" style={{ color: "#c0392b", fontSize: 9 }} onClick={async () => {
+                    const motivo = prompt("Motivo de la anulacion (obligatorio):");
+                    if (!motivo || !motivo.trim()) return;
+                    try {
+                      await API.post("/anulaciones/venta/" + v.id, { motivo, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre, usuario_rol: usuario?.rol });
+                      cargar();
+                      alert("Venta anulada correctamente");
+                    } catch (e) { alert(e.response?.data?.error || "Error al anular"); }
+                  }}>Anular</button>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
-
 
 function OrdenesIngreso({ localId, usuario }) {
   const localActual = localId === 2 ? "ush" : "rg";
@@ -4473,7 +4523,7 @@ export default function AppWrapper() {
     if (id === "usuarios") return <Usuarios usuario={usuario} />;
     if (id === "comisiones") return <Comisiones localId={local.id} />;
     if (id === "caja") return <Caja localId={local.id} usuario={usuario} />;
-    if (id === "cierre") return <CierreCaja localId={local.id} />;
+    if (id === "cierre") return <CierreCaja localId={local.id} usuario={usuario} />;
     if (id === "giftcards") return <GiftCards localId={local.id} usuario={usuario} />;
     if (id === "ordenes") return <OrdenesIngreso localId={local.id} usuario={usuario} />;
     if (id === "kits") return <Kits />;
