@@ -24,13 +24,13 @@ body { font-family: 'Inter', sans-serif; background: #F0F2F5; color: #1C1E21; mi
 .fade { animation: fadeUp .25s ease forwards; }
 .pulse { animation: pulse 2s infinite; }
 .layout { display: flex; min-height: 100vh; }
-.sidebar { width: 220px; background: #1877F2; border-right: none; box-shadow: 2px 0 8px rgba(24,119,242,0.15); display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 20; overflow-y: auto; }
+.sidebar { width: 220px; background: #2C3E5C; border-right: none; box-shadow: 2px 0 8px rgba(0,0,0,0.12); display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 20; overflow-y: auto; }
 .logo { padding: 22px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.15); }
 .logo-name { font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 800; letter-spacing: .05em; color: #ffffff; text-transform: uppercase; }
 .logo-sub { font-size: 9px; color: rgba(255,255,255,0.65); letter-spacing: .3em; margin-top: 3px; text-transform: uppercase; }
 .nav { padding: 12px 10px; flex: 1; }
-.nav-section { font-size: 8px; letter-spacing: .25em; color: rgba(255,255,255,0.55); padding: 10px 10px 4px; text-transform: uppercase; }
-.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.8); transition: all .18s; margin-bottom: 3px; border: 1px solid transparent; }
+.nav-section { font-size: 8px; letter-spacing: .25em; color: rgba(255,255,255,0.75); padding: 10px 10px 4px; text-transform: uppercase; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.95); transition: all .18s; margin-bottom: 3px; border: 1px solid transparent; }
 .nav-item:hover { color: #ffffff; background: rgba(255,255,255,0.15); }
 .nav-item.active { color: #ffffff; font-weight: 700; background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.15); }
 .nav-icon { font-size: 13px; width: 18px; text-align: center; flex-shrink: 0; }
@@ -49,19 +49,19 @@ body { font-family: 'Inter', sans-serif; background: #F0F2F5; color: #1C1E21; mi
 .badge { display: inline-flex; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
 .bg { background: #2d7a4f12; color: #2d7a4f; }
 .br { background: #c0392b12; color: #c0392b; }
-.bb { background: #1877F212; color: #1877F2; }
+.bb { background: #2C3E5C12; color: #2C3E5C; }
 .bp { background: #7d3c9812; color: #7d3c98; }
 .ba { background: #c9a84c15; color: #c9a84c; }
 .bw { background: #25d36618; color: #25d366; }
 .bx { background: #F0F2F5; color: #5C5F66; border: 1px solid #E4E6EB; }
 .btn { padding: 9px 18px; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: all .18s; }
-.btn-p { background: #1877F2; color: #ffffff; font-weight: 600; }
-.btn-p:hover { background: #166FE5; }
+.btn-p { background: #2C3E5C; color: #ffffff; font-weight: 600; }
+.btn-p:hover { background: #233149; }
 .btn-g { background: #E4E6EB; color: #1C1E21; border: none; }
 .btn-g:hover { background: #D8DADF; }
 .btn-sm { padding: 5px 11px; font-size: 10px; }
 .inp { width: 100%; background: #F0F2F5; border: 1px solid #E4E6EB; border-radius: 8px; padding: 10px 14px; color: #1C1E21; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; outline: none; transition: border-color .18s; }
-.inp:focus { border-color: #1877F2; background: #ffffff; }
+.inp:focus { border-color: #2C3E5C; background: #ffffff; }
 .inp::placeholder { color: #9CA1A6; }
 .sel { background: #F0F2F5; border: 1px solid #E4E6EB; border-radius: 8px; padding: 10px 14px; color: #1C1E21; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; outline: none; width: 100%; }
 .fg { margin-bottom: 12px; }
@@ -3840,7 +3840,7 @@ function LoginScreen({ onLogin }) {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #1877F2 0%, #0E5FD9 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #2C3E5C 0%, #1C2A40 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', sans-serif" }}>
       <div style={{ width: 360, background: "#ffffff", border: "1px solid #272220", borderRadius: 12, padding: 36 }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 300, letterSpacing: ".18em", color: "#c9a84c" }}>LUMIERE</div>
