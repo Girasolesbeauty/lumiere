@@ -42,7 +42,7 @@ body { font-family: 'Inter', sans-serif; background: #F0F2F5; color: #1C1E21; mi
 .g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 18px; }
 .g3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 18px; }
 .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
-.card { background: #ffffff; border: 1px solid #E4E6EB; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-radius: 10px; padding: 18px; }
+.card { background: #ffffff; border: 1px solid #E4E6EB; box-shadow: 0 3px 8px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.05); border-radius: 12px; padding: 18px; }
 .ct { font-size: 10px; letter-spacing: .15em; text-transform: uppercase; color: #5C5F66; font-weight: 600; margin-bottom: 10px; }
 .metric { font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 700; line-height: 1; }
 .msub { font-size: 12px; color: #5C5F66; font-weight: 400; margin-top: 5px; }
@@ -54,16 +54,20 @@ body { font-family: 'Inter', sans-serif; background: #F0F2F5; color: #1C1E21; mi
 .ba { background: #c9a84c15; color: #c9a84c; }
 .bw { background: #25d36618; color: #25d366; }
 .bx { background: #F0F2F5; color: #5C5F66; border: 1px solid #E4E6EB; }
-.btn { padding: 9px 18px; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: all .18s; }
-.btn-p { background: #2C3E5C; color: #ffffff; font-weight: 600; }
-.btn-p:hover { background: #233149; }
-.btn-g { background: #E4E6EB; color: #1C1E21; border: none; }
-.btn-g:hover { background: #D8DADF; }
-.btn-sm { padding: 5px 11px; font-size: 10px; }
-.inp { width: 100%; background: #F0F2F5; border: 1px solid #E4E6EB; border-radius: 8px; padding: 10px 14px; color: #1C1E21; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; outline: none; transition: border-color .18s; }
+.btn { padding: 11px 20px; border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; border: none; transition: all .12s; box-shadow: 0 3px 0 rgba(0,0,0,0.18), 0 4px 8px rgba(0,0,0,0.12); position: relative; top: 0; }
+.btn:active { top: 3px; box-shadow: 0 0px 0 rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.1); }
+.btn-p { background: linear-gradient(180deg, #36486A 0%, #2C3E5C 100%); color: #ffffff; font-weight: 700; box-shadow: 0 3px 0 #1C2A40, 0 4px 8px rgba(44,62,92,0.3); }
+.btn-p:active { box-shadow: 0 0px 0 #1C2A40, 0 1px 2px rgba(44,62,92,0.2); }
+.btn-p:hover { background: linear-gradient(180deg, #3D5078 0%, #324567 100%); }
+.btn-g { background: linear-gradient(180deg, #FAFBFC 0%, #E4E6EB 100%); color: #1C1E21; border: none; box-shadow: 0 3px 0 #C7CAD1, 0 4px 6px rgba(0,0,0,0.08); }
+.btn-g:active { box-shadow: 0 0px 0 #C7CAD1, 0 1px 2px rgba(0,0,0,0.06); }
+.btn-g:hover { background: linear-gradient(180deg, #FFFFFF 0%, #D8DADF 100%); }
+.btn-sm { padding: 7px 13px; font-size: 10px; box-shadow: 0 2px 0 rgba(0,0,0,0.15), 0 2px 5px rgba(0,0,0,0.1); }
+.btn-sm:active { box-shadow: 0 0px 0 rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.08); }
+.inp { width: 100%; background: #F0F2F5; border: 1px solid #E4E6EB; border-radius: 10px; padding: 12px 14px; color: #1C1E21; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; outline: none; transition: all .15s; box-shadow: inset 0 1px 3px rgba(0,0,0,0.06); }
 .inp:focus { border-color: #2C3E5C; background: #ffffff; }
 .inp::placeholder { color: #9CA1A6; }
-.sel { background: #F0F2F5; border: 1px solid #E4E6EB; border-radius: 8px; padding: 10px 14px; color: #1C1E21; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; outline: none; width: 100%; }
+.sel { background: #F0F2F5; border: 1px solid #E4E6EB; border-radius: 10px; padding: 12px 14px; color: #1C1E21; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; outline: none; width: 100%; box-shadow: inset 0 1px 3px rgba(0,0,0,0.06); }
 .fg { margin-bottom: 12px; }
 .fl { font-size: 11px; color: #5C5F66; font-weight: 600; margin-bottom: 6px; }
 .tabs { display: flex; margin-bottom: 20px; border-bottom: 1px solid #E4E6EB; }
@@ -705,7 +709,9 @@ function POS({ localId, usuario }) {
                       <td style={{ padding: "5px 8px", textAlign: "right" }}>
                         {!sinStock && (
                           <button onClick={e => { e.stopPropagation(); accion(); }}
-                            style={{ background: soloTransito ? "#7d3c98" : "#2d7a4f", color: "white", border: "none", borderRadius: 5, padding: "4px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                            style={{ background: soloTransito ? "linear-gradient(180deg,#9355b0,#7d3c98)" : "linear-gradient(180deg,#36966a,#2d7a4f)", color: "white", border: "none", borderRadius: 7, padding: "6px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", boxShadow: (soloTransito ? "0 2px 0 #5c2d72, 0 3px 5px rgba(125,60,152,0.3)" : "0 2px 0 #1f5536, 0 3px 5px rgba(45,122,79,0.3)"), position: "relative", top: 0, transition: "all .1s" }}
+                            onMouseDown={e => { e.currentTarget.style.top = "2px"; e.currentTarget.style.boxShadow = "0 0px 0 transparent, 0 1px 2px rgba(0,0,0,0.15)"; }}
+                            onMouseUp={e => { e.currentTarget.style.top = "0"; }}>
                             {soloTransito ? "+ Preventa" : "+ Agregar"}
                           </button>
                         )}
