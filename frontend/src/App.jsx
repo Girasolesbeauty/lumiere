@@ -16,14 +16,14 @@ const C = {
 const BASE_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Inter', sans-serif; background: #F0F2F5; color: #1C1E21; min-height: 100vh; -webkit-font-smoothing: antialiased; }
+body { font-family: 'Inter', sans-serif; background: #F0F2F5; color: #1C1E21; min-height: 100vh; margin: 0; width: 100vw; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
 ::-webkit-scrollbar { width: 3px; }
 ::-webkit-scrollbar-thumb { background: #e0e0e0; border-radius: 2px; }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
 .fade { animation: fadeUp .25s ease forwards; }
 .pulse { animation: pulse 2s infinite; }
-.layout { display: flex; min-height: 100vh; }
+.layout { display: flex; min-height: 100vh; width: 100%; }
 .sidebar { width: 220px; background: #2C3E5C; border-right: none; box-shadow: 2px 0 8px rgba(0,0,0,0.12); display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 20; overflow-y: auto; }
 .logo { padding: 22px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.15); }
 .logo-name { font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 800; letter-spacing: .05em; color: #ffffff; text-transform: uppercase; }
@@ -35,7 +35,7 @@ body { font-family: 'Inter', sans-serif; background: #F0F2F5; color: #1C1E21; mi
 .nav-item.active { color: #ffffff; font-weight: 700; background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.15); }
 .nav-icon { font-size: 13px; width: 18px; text-align: center; flex-shrink: 0; }
 .sb-footer { padding: 12px 18px; border-top: 1px solid rgba(255,255,255,0.15); }
-.main { margin-left: 220px; flex: 1; padding: 28px 34px; min-height: 100vh; background: #F0F2F5; }
+.main { margin-left: 220px; flex: 1; padding: 20px 24px; min-height: 100vh; background: #F0F2F5; width: calc(100vw - 220px); }
 .ph { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 26px; }
 .pt { font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; color: #1C1E21; }
 .ps { font-size: 11px; color: #5C5F66; font-weight: 400; margin-top: 5px; }
