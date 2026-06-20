@@ -16,6 +16,7 @@ const C = {
 const BASE_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 * { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { margin: 0; padding: 0; width: 100%; overflow-x: hidden; }
 body { font-family: 'Inter', sans-serif; background: #F0F2F5; color: #1C1E21; min-height: 100vh; margin: 0; width: 100vw; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
 ::-webkit-scrollbar { width: 3px; }
 ::-webkit-scrollbar-thumb { background: #e0e0e0; border-radius: 2px; }
@@ -5057,7 +5058,7 @@ export default function AppWrapper() {
   return (
     <>
       <style>{BASE_CSS}</style>
-      <div className="layout">
+      <div className="layout" style={{ width: "100vw", margin: 0 }}>
         <aside className="sidebar">
           <div className="logo">
             <div className="logo-name">Lumiere</div>
@@ -5066,7 +5067,7 @@ export default function AppWrapper() {
           <nav className="nav">
             {NAV_CON_PERMISOS.map(sec => (
               <div key={sec.section}>
-                <div className="nav-section" style={{ color: sec.color ? sec.color + "99" : "#555555" }}>{sec.section}</div>
+                <div className="nav-section" style={{ color: "rgba(255,255,255,0.6)" }}>{sec.section}</div>
                 {sec.items.map(it => {
                   const isActive = page === it.id;
                   const col = sec.color || "#c9a84c";
@@ -5076,7 +5077,7 @@ export default function AppWrapper() {
                       style={isActive ? { background: col + "25", borderColor: col + "60", color: "#ffffff" } : {}}
                       onClick={() => setPage(it.id)}>
                       <span style={{ fontSize: 15, flexShrink: 0 }}>{it.icon}</span>
-                      <span style={{ color: isActive ? "#ffffff" : "#888888", transition: "color .18s" }}>{it.label}</span>
+                      <span style={{ color: isActive ? "#ffffff" : "rgba(255,255,255,0.85)", transition: "color .18s" }}>{it.label}</span>
                     </div>
                   );
                 })}
