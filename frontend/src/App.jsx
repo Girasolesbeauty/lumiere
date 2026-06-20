@@ -3323,6 +3323,232 @@ function Caja({ localId, usuario }) {
   );
 }
 
+function Comprobantes({ localId }) {
+  const hoy = new Date();
+  const fmtFecha = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  const [desde, setDesde] = useState(fmtFecha(primerDiaMes));
+  const [hasta, setHasta] = useState(fmtFecha(hoy));
+  const [comprobantes, setComprobantes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expandido, setExpandido] = useState(null);
+
+  const cargar = async () => {
+    setLoading(true);
+    try {
+      const anio = parseInt(desde.slice(0, 4));
+      const mesD = parseInt(desde.slice(5, 7));
+      const mesH = parseInt(hasta.slice(5, 7));
+      const anioH = parseInt(hasta.slice(0, 4));
+      const meses = [];
+      let m = mesD, a = anio;
+      while (a < anioH || (a === anioH && m <= mesH)) {
+        meses.push({ m, a });
+        m++;
+        if (m > 12) { m = 1; a++; }
+        if (meses.length > 24) break;
+      }
+      const proms = meses.map(({ m, a }) => API.get("/ventas?mes=" + m + "&anio=" + a + "&local_id=" + (localId || 1)));
+      const results = await Promise.all(proms);
+      let todas = [];
+      results.forEach(r => { todas = todas.concat(r.data || []); });
+      const filtradas = todas.filter(v => {
+        if (!v.cae || v.es_preventa === true || v.canal === "prueba") return false;
+        const f = fmtFecha(new Date(v.creado_en || v.fecha));
+        return f >= desde && f <= hasta;
+      });
+      filtradas.sort((a, b) => new Date(b.creado_en || b.fecha) - new Date(a.creado_en || a.fecha));
+      setComprobantes(filtradas);
+    } catch (e) {}
+    setLoading(false);
+  };
+
+  useEffect(() => { cargar(); }, [desde, hasta, localId]);
+
+  const fmtNro = (v) => {
+    const pv = v.punto_venta || 5;
+    const nro = v.nro_comprobante;
+    if (!nro) return v.numero_factura || "-";
+    return String(pv).padStart(4, "0") + "-" + String(nro).padStart(8, "0");
+  };
+
+  const totalPeriodo = comprobantes.reduce((s, v) => s + parseFloat(v.total || 0), 0);
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Comprobantes</div><div className="ps">facturas emitidas - ARCA</div></div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div><div style={{ fontSize: 9, color: "#65676B" }}>Desde</div><input className="inp" type="date" style={{ width: 140, padding: "6px 8px", fontSize: 12 }} value={desde} onChange={e => setDesde(e.target.value)} /></div>
+          <div><div style={{ fontSize: 9, color: "#65676B" }}>Hasta</div><input className="inp" type="date" style={{ width: 140, padding: "6px 8px", fontSize: 12 }} value={hasta} onChange={e => setHasta(e.target.value)} /></div>
+        </div>
+      </div>
+      <div className="g3" style={{ marginBottom: 16 }}>
+        <MCard label="Comprobantes" value={String(comprobantes.length)} color="#c9a84c" />
+        <MCard label="Total facturado" value={"$" + totalPeriodo.toLocaleString("es-AR", { maximumFractionDigits: 0 })} color="#2d7a4f" />
+        <MCard label="Periodo" value={desde.split("-").reverse().join("/") + " al " + hasta.split("-").reverse().join("/")} color="#2C3E5C" />
+      </div>
+      <div className="card">
+        {loading ? (
+          <div style={{ textAlign: "center", color: "#65676B", fontSize: 12 }}>Cargando comprobantes...</div>
+        ) : comprobantes.length === 0 ? (
+          <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 30 }}>No hay comprobantes emitidos en este periodo</div>
+        ) : (
+          <table>
+            <thead><tr><th>Comprobante</th><th>Fecha</th><th>Cliente</th><th>Tipo</th><th>CAE</th><th>Total</th><th></th></tr></thead>
+            <tbody>
+              {comprobantes.map((v, i) => (
+                <React.Fragment key={i}>
+                  <tr>
+                    <td style={{ fontSize: 12, fontWeight: 600, color: "#c9a84c" }}>{fmtNro(v)}</td>
+                    <td style={{ fontSize: 11, color: "#65676B" }}>{new Date(v.creado_en || v.fecha).toLocaleDateString("es-AR")}</td>
+                    <td style={{ fontSize: 12 }}>{v.cliente_nombre || "Consumidor final"}</td>
+                    <td style={{ fontSize: 11 }}>{v.tipo_factura || "B"}</td>
+                    <td style={{ fontSize: 11, color: "#65676B" }}>{v.cae || "-"}</td>
+                    <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${parseFloat(v.total || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                    <td><span style={{ cursor: "pointer", color: "#2C3E5C", fontSize: 11 }} onClick={() => setExpandido(expandido === i ? null : i)}>{expandido === i ? "Ocultar" : "Ver"}</span></td>
+                  </tr>
+                  {expandido === i && (
+                    <tr>
+                      <td colSpan="7" style={{ background: "#F0F2F5", padding: "10px 14px" }}>
+                        <div style={{ fontSize: 10, color: "#65676B", letterSpacing: ".1em", marginBottom: 6 }}>DETALLE</div>
+                        {(v.items || []).length === 0 ? (
+                          <div style={{ fontSize: 11, color: "#65676B" }}>Sin detalle de productos</div>
+                        ) : (
+                          <table>
+                            <thead><tr><th>Producto</th><th>Cant</th><th>Precio</th><th>Subtotal</th></tr></thead>
+                            <tbody>
+                              {v.items.map((it, j) => (
+                                <tr key={j}>
+                                  <td style={{ fontSize: 11 }}>{it.nombre}{it.marca ? " - " + it.marca : ""}</td>
+                                  <td style={{ fontSize: 11, color: "#65676B" }}>{it.cantidad}</td>
+                                  <td style={{ fontSize: 11 }}>${parseFloat(it.precio_unitario || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                                  <td style={{ fontSize: 11, fontWeight: 600 }}>${(parseFloat(it.precio_unitario || 0) * parseInt(it.cantidad || 0)).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                        <div style={{ fontSize: 10, color: "#65676B", marginTop: 8 }}>Medio de pago: {v.medio_pago || "-"}{v.cae_vto ? " | CAE vto: " + v.cae_vto : ""}</div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Productividad({ localId }) {
+  const hoy = new Date();
+  const [mes, setMes] = useState(hoy.getMonth() + 1);
+  const [anio, setAnio] = useState(hoy.getFullYear());
+  const [ventas, setVentas] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const cargar = async () => {
+    setLoading(true);
+    try {
+      const res = await API.get("/ventas?mes=" + mes + "&anio=" + anio + "&local_id=" + (localId || 1));
+      setVentas((res.data || []).filter(v => v.es_preventa !== true));
+    } catch (e) {}
+    setLoading(false);
+  };
+
+  useEffect(() => { cargar(); }, [mes, anio, localId]);
+
+  const porVend = {};
+  ventas.forEach(v => {
+    const nombre = v.vendedora_nombre || "Sin asignar";
+    if (!porVend[nombre]) porVend[nombre] = { cantidad: 0, total: 0, sumaDuracion: 0, conDuracion: 0, horas: {} };
+    const g = porVend[nombre];
+    g.cantidad += 1;
+    g.total += parseFloat(v.total || 0);
+    if (v.duracion_segundos) { g.sumaDuracion += parseInt(v.duracion_segundos); g.conDuracion += 1; }
+    const f = new Date(v.creado_en || v.fecha);
+    const h = f.getFullYear() + "-" + f.getMonth() + "-" + f.getDate() + "-" + f.getHours();
+    g.horas[h] = true;
+  });
+
+  const ranking = Object.entries(porVend).map(([nombre, g]) => {
+    const ticketProm = g.cantidad > 0 ? g.total / g.cantidad : 0;
+    const tiempoProm = g.conDuracion > 0 ? g.sumaDuracion / g.conDuracion : null;
+    const cantHoras = Object.keys(g.horas).length;
+    const ventasPorHora = cantHoras > 0 ? g.cantidad / cantHoras : 0;
+    return { nombre, cantidad: g.cantidad, total: g.total, ticketProm, tiempoProm, ventasPorHora };
+  }).sort((a, b) => b.total - a.total);
+
+  const fmtTiempo = (seg) => {
+    if (seg === null || seg === undefined) return "-";
+    if (seg < 60) return Math.round(seg) + "s";
+    const m = Math.floor(seg / 60);
+    const s = Math.round(seg % 60);
+    return m + "m " + s + "s";
+  };
+
+  const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+  const totalGeneral = ranking.reduce((s, r) => s + r.total, 0);
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Productividad</div><div className="ps">metricas por vendedora</div></div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <select className="sel" style={{ width: 120, padding: "6px 10px", fontSize: 12 }} value={mes} onChange={e => setMes(parseInt(e.target.value))}>
+            {meses.map((m, i) => (<option key={i} value={i + 1}>{m}</option>))}
+          </select>
+          <select className="sel" style={{ width: 90, padding: "6px 10px", fontSize: 12 }} value={anio} onChange={e => setAnio(parseInt(e.target.value))}>
+            {[hoy.getFullYear(), hoy.getFullYear() - 1].map(a => (<option key={a} value={a}>{a}</option>))}
+          </select>
+        </div>
+      </div>
+      {loading ? (
+        <div className="card" style={{ textAlign: "center", color: "#65676B", fontSize: 12 }}>Cargando...</div>
+      ) : (
+        <div>
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 10 }}>RANKING DE VENDEDORAS</div>
+            {ranking.length === 0 ? (
+              <div style={{ fontSize: 12, color: "#65676B" }}>Sin ventas en este periodo</div>
+            ) : (
+              <table>
+                <thead><tr><th>#</th><th>Vendedora</th><th>Ventas</th><th>Total</th><th>Ticket prom.</th><th>Tiempo prom.</th><th>Ventas/hora</th></tr></thead>
+                <tbody>
+                  {ranking.map((r, i) => (
+                    <tr key={i}>
+                      <td style={{ fontWeight: 700, color: (i === 0 ? "#c9a84c" : "#65676B") }}>{i + 1}</td>
+                      <td style={{ fontSize: 12, fontWeight: 600 }}>{r.nombre}</td>
+                      <td style={{ fontSize: 12 }}>{r.cantidad}</td>
+                      <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${r.total.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                      <td style={{ fontSize: 12 }}>${r.ticketProm.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                      <td style={{ fontSize: 12 }}>{fmtTiempo(r.tiempoProm)}</td>
+                      <td style={{ fontSize: 12 }}>{r.ventasPorHora.toFixed(1)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          <div className="g3">
+            {ranking.slice(0, 3).map((r, i) => (
+              <div key={i} className="card" style={{ borderTop: "3px solid " + (i === 0 ? "#c9a84c" : i === 1 ? "#65676B" : "#cd7f32") }}>
+                <div style={{ fontSize: 10, color: "#65676B", letterSpacing: ".1em" }}>{i === 0 ? "TOP VENDEDORA" : "#" + (i + 1)}</div>
+                <div style={{ fontSize: 18, fontWeight: 700 }}>{r.nombre}</div>
+                <div style={{ fontSize: 13, color: "#2d7a4f", fontWeight: 600 }}>${r.total.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
+                <div style={{ fontSize: 11, color: "#65676B" }}>{r.cantidad} ventas - {totalGeneral > 0 ? Math.round(r.total / totalGeneral * 100) : 0}% del total</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CierreCaja({ localId, usuario }) {
   const hoy = new Date();
   const fmtFecha = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
@@ -3516,6 +3742,286 @@ function CierreCaja({ localId, usuario }) {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ControlInventario({ localId, usuario }) {
+  const [vista, setVista] = useState("lista");
+  const [controles, setControles] = useState([]);
+  const [config, setConfig] = useState(null);
+  const [showNuevo, setShowNuevo] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
+  const [tipoNuevo, setTipoNuevo] = useState("total");
+  const [categoriaNuevo, setCategoriaNuevo] = useState("");
+  const [categorias, setCategorias] = useState([]);
+  const [controlActivo, setControlActivo] = useState(null);
+  const [items, setItems] = useState([]);
+  const [filtroItems, setFiltroItems] = useState("todos");
+  const [busqueda, setBusqueda] = useState("");
+  const [mensaje, setMensaje] = useState("");
+  const [showFinalizar, setShowFinalizar] = useState(false);
+  const [ajustarStock, setAjustarStock] = useState(true);
+  const [notasFin, setNotasFin] = useState("");
+  const [resultadoFinal, setResultadoFinal] = useState(null);
+
+  const cargar = async () => {
+    try {
+      const [c, cfg, prods] = await Promise.all([
+        API.get("/controles-inventario?local_id=" + (localId || 1)),
+        API.get("/controles-inventario/config?local_id=" + (localId || 1)),
+        API.get("/productos")
+      ]);
+      setControles(c.data || []);
+      setConfig(cfg.data);
+      const cats = [...new Set((prods.data || []).map(p => p.categoria).filter(Boolean))];
+      setCategorias(cats);
+    } catch (e) {}
+  };
+
+  useEffect(() => { cargar(); }, [localId]);
+
+  const abrirControl = async (ctrl) => {
+    try {
+      const res = await API.get("/controles-inventario/" + ctrl.id);
+      setControlActivo(res.data);
+      setItems(res.data.items || []);
+      setVista("conteo");
+    } catch (e) {}
+  };
+
+  const crearNuevo = async () => {
+    if (tipoNuevo === "categoria" && !categoriaNuevo) return setMensaje("Elegi una categoria");
+    try {
+      const res = await API.post("/controles-inventario", {
+        tipo: tipoNuevo, categoria: tipoNuevo === "categoria" ? categoriaNuevo : null,
+        local_id: localId || 1, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre
+      });
+      setShowNuevo(false); setCategoriaNuevo(""); setTipoNuevo("total");
+      abrirControl(res.data);
+    } catch (e) { setMensaje("Error al crear control"); }
+  };
+
+  const contarItem = async (item, valor) => {
+    if (valor === "" || isNaN(parseInt(valor))) return;
+    try {
+      const res = await API.put("/controles-inventario/" + controlActivo.id + "/contar/" + item.id, { stock_contado: parseInt(valor) });
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, ...res.data } : i));
+    } catch (e) {}
+  };
+
+  const finalizarControl = async () => {
+    try {
+      const res = await API.post("/controles-inventario/" + controlActivo.id + "/finalizar", {
+        ajustar_stock: ajustarStock, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre, notas: notasFin
+      });
+      setResultadoFinal(res.data);
+      setShowFinalizar(false);
+      cargar();
+    } catch (e) { setMensaje("Error al finalizar"); }
+  };
+
+  const guardarConfig = async () => {
+    try {
+      await API.put("/controles-inventario/config", { local_id: localId || 1, dias_aviso: config.dias_aviso, avisos_activos: config.avisos_activos });
+      setShowConfig(false);
+      setMensaje("Configuracion guardada");
+      setTimeout(() => setMensaje(""), 2500);
+    } catch (e) { setMensaje("Error al guardar"); }
+  };
+
+  const cancelarControl = async (ctrl) => {
+    if (!confirm("Cancelar este control en curso?")) return;
+    await API.delete("/controles-inventario/" + ctrl.id);
+    cargar();
+  };
+
+  const itemsFiltrados = items
+    .filter(i => filtroItems === "todos" || (filtroItems === "pendientes" && i.estado === "pendiente") || (filtroItems === "faltantes" && i.estado === "faltante") || (filtroItems === "sobrantes" && i.estado === "sobrante") || (filtroItems === "correctos" && i.estado === "correcto"))
+    .filter(i => !busqueda || (i.producto_nombre || "").toLowerCase().includes(busqueda.toLowerCase()) || (i.producto_marca || "").toLowerCase().includes(busqueda.toLowerCase()));
+
+  const totalContados = items.filter(i => i.estado !== "pendiente").length;
+  const totalCorrectos = items.filter(i => i.estado === "correcto").length;
+  const totalFaltantes = items.filter(i => i.estado === "faltante").length;
+  const totalSobrantes = items.filter(i => i.estado === "sobrante").length;
+  const progreso = items.length > 0 ? Math.round((totalContados / items.length) * 100) : 0;
+
+  if (vista === "conteo" && controlActivo) {
+    if (resultadoFinal) {
+      return (
+        <div className="fade">
+          <div className="ph"><div><div className="pt">Control finalizado</div><div className="ps">{controlActivo.tipo === "total" ? "Conteo total" : "Categoria: " + controlActivo.categoria}</div></div></div>
+          <div className="g4" style={{ marginBottom: 16 }}>
+            <MCard label="Items contados" value={String(resultadoFinal.correctos + resultadoFinal.faltantes + resultadoFinal.sobrantes)} color="#2C3E5C" />
+            <MCard label="Correctos" value={String(resultadoFinal.correctos)} color="#2d7a4f" />
+            <MCard label="Faltantes" value={String(resultadoFinal.faltantes)} color="#c0392b" />
+            <MCard label="Sobrantes" value={String(resultadoFinal.sobrantes)} color="#c9a84c" />
+          </div>
+          {resultadoFinal.ajustado && <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f", borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: "#2d7a4f" }}>El stock se ajusto automaticamente con el motivo "Control de inventario #{controlActivo.id}"</div>}
+          <button className="btn btn-p" onClick={() => { setVista("lista"); setControlActivo(null); setItems([]); setResultadoFinal(null); }}>Volver al listado</button>
+        </div>
+      );
+    }
+    return (
+      <div className="fade">
+        <div className="ph">
+          <div><div className="pt">Conteo de inventario #{controlActivo.id}</div><div className="ps">{controlActivo.tipo === "total" ? "Conteo total" : "Categoria: " + controlActivo.categoria}</div></div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn btn-g btn-sm" onClick={() => { setVista("lista"); setControlActivo(null); }}>Guardar y salir</button>
+            <button className="btn btn-p btn-sm" onClick={() => setShowFinalizar(true)} disabled={totalContados === 0}>Finalizar conteo</button>
+          </div>
+        </div>
+        <div className="g4" style={{ marginBottom: 16 }}>
+          <MCard label="Progreso" value={progreso + "%"} sub={totalContados + " / " + items.length} color="#2C3E5C" />
+          <MCard label="Correctos" value={String(totalCorrectos)} color="#2d7a4f" />
+          <MCard label="Faltantes" value={String(totalFaltantes)} color="#c0392b" />
+          <MCard label="Sobrantes" value={String(totalSobrantes)} color="#c9a84c" />
+        </div>
+        <div className="card" style={{ marginBottom: 14 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <input className="inp" placeholder="Buscar producto..." value={busqueda} onChange={e => setBusqueda(e.target.value)} style={{ flex: 1 }} />
+            <select className="sel" value={filtroItems} onChange={e => setFiltroItems(e.target.value)} style={{ width: 160 }}>
+              <option value="todos">Todos</option>
+              <option value="pendientes">Pendientes</option>
+              <option value="correctos">Correctos</option>
+              <option value="faltantes">Faltantes</option>
+              <option value="sobrantes">Sobrantes</option>
+            </select>
+          </div>
+        </div>
+        <div className="card">
+          <table>
+            <thead><tr><th>Producto</th><th>Stock sistema</th><th>Stock contado</th><th>Diferencia</th><th>Estado</th></tr></thead>
+            <tbody>
+              {itemsFiltrados.map(it => (
+                <tr key={it.id} style={{ background: it.estado === "faltante" ? "#c0392b08" : it.estado === "sobrante" ? "#c9a84c08" : it.estado === "correcto" ? "#2d7a4f08" : "transparent" }}>
+                  <td>
+                    <div style={{ fontSize: 12 }}>{it.producto_nombre}</div>
+                    <div style={{ fontSize: 10, color: "#65676B" }}>{it.producto_marca} - {it.producto_categoria}</div>
+                  </td>
+                  <td style={{ fontWeight: 600 }}>{it.stock_sistema}</td>
+                  <td>
+                    <input type="number" className="inp" defaultValue={it.stock_contado ?? ""} style={{ width: 80, padding: "6px 10px", fontSize: 12 }}
+                      onBlur={e => contarItem(it, e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }} />
+                  </td>
+                  <td style={{ fontWeight: 700, color: !it.diferencia ? "#65676B" : it.diferencia < 0 ? "#c0392b" : "#c9a84c" }}>{it.diferencia !== null && it.diferencia !== undefined ? (it.diferencia > 0 ? "+" : "") + it.diferencia : "-"}</td>
+                  <td><span className={"badge " + (it.estado === "correcto" ? "bg" : it.estado === "faltante" ? "br" : it.estado === "sobrante" ? "ba" : "bx")}>{it.estado}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {showFinalizar && (
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+            <div className="card" style={{ width: 420, background: "#ffffff" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Finalizar conteo</div>
+              <div style={{ fontSize: 12, color: "#65676B", marginBottom: 14 }}>{totalContados} items contados - {totalCorrectos} correctos, {totalFaltantes} faltantes, {totalSobrantes} sobrantes</div>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, marginBottom: 12, cursor: "pointer" }}>
+                <input type="checkbox" checked={ajustarStock} onChange={e => setAjustarStock(e.target.checked)} />
+                Ajustar stock automaticamente segun el conteo
+              </label>
+              <div className="fg"><div className="fl">Notas (opcional)</div><input className="inp" value={notasFin} onChange={e => setNotasFin(e.target.value)} /></div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowFinalizar(false)}>Cancelar</button>
+                <button className="btn btn-p" style={{ flex: 1 }} onClick={finalizarControl}>Finalizar</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const enCurso = controles.find(c => c.estado === "en_curso");
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Control de Inventario</div><div className="ps">conteo fisico vs stock del sistema</div></div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn btn-g btn-sm" onClick={() => setShowConfig(true)}>⚙ Config</button>
+          <button className="btn btn-p btn-sm" onClick={() => setShowNuevo(true)}>+ Nuevo control</button>
+        </div>
+      </div>
+      {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 14, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
+      {enCurso && (
+        <div className="card" style={{ background: "#c9a84c08", border: "1px solid #c9a84c44", marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#c9a84c" }}>Hay un control en curso (#{enCurso.id})</div>
+            <div style={{ fontSize: 11, color: "#65676B" }}>{enCurso.tipo === "total" ? "Conteo total" : "Categoria: " + enCurso.categoria} - {new Date(enCurso.creado_en).toLocaleDateString("es-AR")}</div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => cancelarControl(enCurso)}>Cancelar</button>
+            <button className="btn btn-p btn-sm" onClick={() => abrirControl(enCurso)}>Continuar</button>
+          </div>
+        </div>
+      )}
+      <div className="card">
+        <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 10 }}>HISTORIAL DE CONTROLES</div>
+        {controles.filter(c => c.estado === "finalizado").length === 0 ? (
+          <div style={{ textAlign: "center", color: "#65676B", padding: 20, fontSize: 12 }}>Aun no se realizo ningun control finalizado</div>
+        ) : (
+          <table>
+            <thead><tr><th>Fecha</th><th>Tipo</th><th>Items</th><th>Correctos</th><th>Faltantes</th><th>Sobrantes</th><th>Stock ajustado</th></tr></thead>
+            <tbody>
+              {controles.filter(c => c.estado === "finalizado").map(c => (
+                <tr key={c.id}>
+                  <td style={{ fontSize: 11 }}>{new Date(c.finalizado_en).toLocaleDateString("es-AR")}</td>
+                  <td style={{ fontSize: 12 }}>{c.tipo === "total" ? "Total" : c.categoria}</td>
+                  <td>{c.total_items}</td>
+                  <td><span className="badge bg">{c.items_correctos}</span></td>
+                  <td><span className="badge br">{c.items_faltantes}</span></td>
+                  <td><span className="badge ba">{c.items_sobrantes}</span></td>
+                  <td>{c.ajustar_stock ? <span className="badge bg">si</span> : <span className="badge bx">no</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {showNuevo && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+          <div className="card" style={{ width: 400, background: "#ffffff" }}>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Nuevo control de inventario</div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <button className="btn btn-sm" style={{ flex: 1, background: tipoNuevo === "total" ? "#2C3E5C15" : "transparent", border: "1px solid " + (tipoNuevo === "total" ? "#2C3E5C" : "#E4E6EB"), color: tipoNuevo === "total" ? "#2C3E5C" : "#65676B" }} onClick={() => setTipoNuevo("total")}>Conteo total</button>
+              <button className="btn btn-sm" style={{ flex: 1, background: tipoNuevo === "categoria" ? "#2C3E5C15" : "transparent", border: "1px solid " + (tipoNuevo === "categoria" ? "#2C3E5C" : "#E4E6EB"), color: tipoNuevo === "categoria" ? "#2C3E5C" : "#65676B" }} onClick={() => setTipoNuevo("categoria")}>Por categoria</button>
+            </div>
+            {tipoNuevo === "categoria" && (
+              <div className="fg"><div className="fl">Categoria</div>
+                <select className="sel" value={categoriaNuevo} onChange={e => setCategoriaNuevo(e.target.value)}>
+                  <option value="">Elegi una categoria</option>
+                  {categorias.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowNuevo(false)}>Cancelar</button>
+              <button className="btn btn-p" style={{ flex: 1 }} onClick={crearNuevo}>Crear y comenzar</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showConfig && config && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+          <div className="card" style={{ width: 400, background: "#ffffff" }}>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Configuracion de avisos</div>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, marginBottom: 14, cursor: "pointer" }}>
+              <input type="checkbox" checked={config.avisos_activos} onChange={e => setConfig({ ...config, avisos_activos: e.target.checked })} />
+              Mostrar aviso cuando pase mucho tiempo sin control
+            </label>
+            <div className="fg"><div className="fl">Cada cuantos dias avisar (default: 30)</div>
+              <input className="inp" type="number" value={config.dias_aviso} onChange={e => setConfig({ ...config, dias_aviso: parseInt(e.target.value) || 30 })} />
+            </div>
+            <div style={{ fontSize: 10, color: "#65676B", marginBottom: 12 }}>{config.ultimo_control ? "Ultimo control: " + new Date(config.ultimo_control).toLocaleDateString("es-AR") : "Nunca se realizo un control"}</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowConfig(false)}>Cancelar</button>
+              <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarConfig}>Guardar</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -4516,6 +5022,8 @@ export default function AppWrapper() {
     if (id === "finance") return <Finanzas localId={local.id} />;
     if (id === "reports") return <Informes localId={local.id} />;
     if (id === "calculadoras") return <Calculadoras usuario={usuario} />;
+    if (id === "comprobantes") return <Comprobantes localId={local.id} />;
+    if (id === "productividad") return <Productividad localId={local.id} />;
     if (id === "cupones") return <Cupones localId={local.id} />;
     if (id === "fidelizacion") return <Fidelizacion localId={local.id} />;
     if (id === "postventa") return <PostventaWA localId={local.id} />;
