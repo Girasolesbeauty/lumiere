@@ -456,6 +456,10 @@ function POS({ localId, usuario }) {
   const [errorEmitirGC, setErrorEmitirGC] = useState("");
   const [gcEmitidaOk, setGcEmitidaOk] = useState(null);
 
+  const hayRestaPagar = restaPagar > 0;
+  const montoMostrar = hayRestaPagar ? restaPagar : total;
+  const labelTotal = (hayRestaPagar && giftCardAplicada) ? "FALTA PAGAR" : "TOTAL";
+
   const emitirGiftCardPOS = async () => {
     if (!nuevaGC.monto || parseFloat(nuevaGC.monto) <= 0) return setErrorEmitirGC("Ingresa un monto valido");
     if (!nuevaGC.beneficiario_nombre) return setErrorEmitirGC("Falta el nombre de quien recibe la gift card");
@@ -822,7 +826,7 @@ function POS({ localId, usuario }) {
                 <span style={{ fontWeight: 700, color: "#2d7a4f" }}>-${montoAplicadoGC.toLocaleString("es-AR")}</span>
               </div>
             )}
-            {restaPagar > 0 && (
+            {hayRestaPagar && (
             <select className="sel" style={{ marginBottom: 10 }} value={medioPagoSel?.id || ""} onChange={e => {
               const m = mediosPago.find(x => x.id === parseInt(e.target.value));
               setMedioPagoSel(m || null);
@@ -852,8 +856,8 @@ function POS({ localId, usuario }) {
               </div>
             )}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-              <div style={{ fontSize: 11, color: "#65676B", fontWeight: 600 }}>{restaPagar > 0 && giftCardAplicada ? "FALTA PAGAR" : "TOTAL"}</div>
-              <div style={{ fontSize: 30, fontWeight: 700, color: "#111111" }}>${(restaPagar > 0 ? restaPagar : total).toLocaleString()}</div>
+              <div style={{ fontSize: 11, color: "#65676B", fontWeight: 600 }}>{labelTotal}</div>
+              <div style={{ fontSize: 30, fontWeight: 700, color: "#111111" }}>${montoMostrar.toLocaleString()}</div>
             </div>
             <button className="btn btn-p" style={{ width: "100%", padding: 13, fontSize: 13, opacity: loading ? 0.7 : 1 }} onClick={emitirFactura} disabled={loading}>
               {loading ? "Procesando..." : preventa ? "Registrar Preventa" : "Emitir Factura " + tipoFac + " - ARCA"}
