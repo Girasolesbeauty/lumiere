@@ -631,6 +631,105 @@ function POS({ localId, usuario }) {
   if (tabPos === "preventas") {
     return (
       <div className="fade">
+      {showBuscador && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+          <div style={{ background: "#ffffff", borderRadius: 12, width: "70vw", maxHeight: "80vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div style={{ padding: "14px 18px", borderBottom: "1px solid #E4E6EB", display: "flex", gap: 10, alignItems: "center" }}>
+              <input className="inp" placeholder="Buscar por nombre, marca o codigo..." value={busqueda} onChange={e => setBusqueda(e.target.value)} autoFocus style={{ flex: 1 }} />
+              <button className="btn btn-g btn-sm" onClick={() => { setShowBuscador(false); setBusqueda(""); }}>Cerrar</button>
+            </div>
+            <div style={{ overflowY: "auto", flex: 1 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead style={{ position: "sticky", top: 0, background: "#f8f8f8", zIndex: 1 }}>
+                  <tr>
+                    <th style={{ textAlign: "left", fontSize: 10, color: "#65676B", padding: "7px 14px", fontWeight: 600, borderBottom: "2px solid #E4E6EB" }}>PRODUCTO</th>
+                    <th style={{ textAlign: "left", fontSize: 10, color: "#65676B", padding: "7px 8px", fontWeight: 600, borderBottom: "2px solid #E4E6EB" }}>MARCA</th>
+                    <th style={{ textAlign: "left", fontSize: 10, color: "#65676B", padding: "7px 8px", fontWeight: 600, borderBottom: "2px solid #E4E6EB" }}>CODIGO</th>
+                    <th style={{ textAlign: "right", fontSize: 10, color: "#65676B", padding: "7px 8px", fontWeight: 600, borderBottom: "2px solid #E4E6EB" }}>PRECIO</th>
+                    <th style={{ textAlign: "center", fontSize: 10, color: "#65676B", padding: "7px 8px", fontWeight: 600, borderBottom: "2px solid #E4E6EB" }}>STOCK</th>
+                    <th style={{ borderBottom: "2px solid #E4E6EB", padding: "7px 8px", width: 90 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {productosAMostrar.length === 0 ? (
+                    <tr><td colSpan={6} style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>Sin productos</td></tr>
+                  ) : productosAMostrar.map(p => {
+                    const disp = p.disponible !== undefined ? p.disponible : (p.stock || 0);
+                    const transitoLocal = p.transito_local || 0;
+                    const soloTransito = disp <= 0 && transitoLocal > 0;
+                    const bajo = disp > 0 && disp < (p.stock_minimo || 5);
+                    const sinStock = disp <= 0 && transitoLocal <= 0;
+                    const accion = soloTransito ? (() => agregarComoPreventa(p)) : (() => add(p));
+                    return (
+                      <tr key={p.id}
+                        style={{ borderBottom: "1px solid #f5f5f5", cursor: sinStock ? "not-allowed" : "pointer", opacity: sinStock ? 0.45 : 1 }}
+                        onMouseEnter={e => { if (!sinStock) e.currentTarget.style.background = "#f5f5f5"; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+                        onClick={() => { if (!sinStock) accion(); }}>
+                        <td style={{ padding: "5px 14px" }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: "#111111" }}>{p.nombre || p.name}</div>
+                          {!soloTransito && disp > 0 && transitoLocal > 0 && <div style={{ fontSize: 9, color: "#7d3c98" }}>+{transitoLocal} en camino</div>}
+                        </td>
+                        <td style={{ padding: "5px 8px", fontSize: 11, color: "#666666" }}>{p.marca || p.brand || "-"}</td>
+                        <td style={{ padding: "5px 8px", fontSize: 10, color: "#8A8D91", fontFamily: "monospace" }}>{p.codigo_barras || p.codigo || "-"}</td>
+                        <td style={{ padding: "5px 8px", textAlign: "right", fontSize: 13, fontWeight: 700, color: "#c9a84c" }}>${(p.precio || p.price || 0).toLocaleString()}</td>
+                        <td style={{ padding: "5px 8px", textAlign: "center" }}>
+                          {soloTransito ? (
+                            <span className="badge bp" style={{ fontSize: 10 }}>0 + {transitoLocal} en camino</span>
+                          ) : (
+                            <span className={"badge " + (sinStock ? "br" : bajo ? "ba" : "bg")} style={{ fontSize: 10 }}>{disp}u</span>
+                          )}
+                        </td>
+                        <td style={{ padding: "5px 8px", textAlign: "right" }}>
+                          {!sinStock && (
+                            <button onClick={e => { e.stopPropagation(); accion(); }}
+                              style={{ background: soloTransito ? "linear-gradient(180deg,#9355b0,#7d3c98)" : "linear-gradient(180deg,#36966a,#2d7a4f)", color: "white", border: "none", borderRadius: 7, padding: "6px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", boxShadow: (soloTransito ? "0 2px 0 #5c2d72, 0 3px 5px rgba(125,60,152,0.3)" : "0 2px 0 #1f5536, 0 3px 5px rgba(45,122,79,0.3)"), position: "relative", top: 0, transition: "all .1s" }}
+                              onMouseDown={e => { e.currentTarget.style.top = "2px"; e.currentTarget.style.boxShadow = "0 0px 0 transparent, 0 1px 2px rgba(0,0,0,0.15)"; }}
+                              onMouseUp={e => { e.currentTarget.style.top = "0"; }}>
+                              {soloTransito ? "+ Preventa" : "+ Agregar"}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+      {showEmitirGC && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+          <div className="card" style={{ width: 380, background: "#ffffff" }}>
+            {!gcEmitidaOk ? (
+              <>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>🎁 Emitir Gift Card</div>
+                {errorEmitirGC && <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "8px 12px", marginBottom: 10, fontSize: 11, color: "#c0392b" }}>{errorEmitirGC}</div>}
+                <div className="fg"><div className="fl">Monto ($)</div><input className="inp" type="number" placeholder="10000" value={nuevaGC.monto} onChange={e => setNuevaGC(p => ({ ...p, monto: e.target.value }))} /></div>
+                <div className="fg"><div className="fl">Nombre de quien la recibe</div><input className="inp" placeholder="Ej: Maria Lopez" value={nuevaGC.beneficiario_nombre} onChange={e => setNuevaGC(p => ({ ...p, beneficiario_nombre: e.target.value }))} /></div>
+                <div className="fg"><div className="fl">Telefono (opcional)</div><input className="inp" placeholder="Ej: 2964123456" value={nuevaGC.beneficiario_telefono} onChange={e => setNuevaGC(p => ({ ...p, beneficiario_telefono: e.target.value }))} /></div>
+                <div style={{ fontSize: 10, color: "#65676B", marginBottom: 14 }}>Se cobra el monto ahora como ingreso de caja. La gift card queda lista para usarse en cualquier venta futura.</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowEmitirGC(false)}>Cancelar</button>
+                  <button className="btn btn-p" style={{ flex: 1 }} onClick={emitirGiftCardPOS}>Emitir y cobrar</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: "#2d7a4f" }}>Gift Card emitida!</div>
+                <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>Entregale este codigo a {gcEmitidaOk.beneficiario_nombre}</div>
+                <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f44", borderRadius: 8, padding: 16, textAlign: "center", marginBottom: 14 }}>
+                  <div style={{ fontFamily: "monospace", fontSize: 24, fontWeight: 700, color: "#2d7a4f" }}>{gcEmitidaOk.codigo}</div>
+                  <div style={{ fontSize: 12, color: "#65676B", marginTop: 4 }}>Saldo: ${parseFloat(gcEmitidaOk.saldo).toLocaleString("es-AR")}</div>
+                </div>
+                <button className="btn btn-p" style={{ width: "100%" }} onClick={() => setShowEmitirGC(false)}>Cerrar</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
         <div className="ph">
           <div><div className="pt">Punto de Venta</div><div className="ps">facturacion electronica - arca</div></div>
           <StatusDot color="#2d7a4f" label="ARCA" />
@@ -864,105 +963,8 @@ function POS({ localId, usuario }) {
               {textoBotonPOS}
             </button>
           </div>
+        </div>
       </div>
-      {showBuscador && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
-          <div style={{ background: "#ffffff", borderRadius: 12, width: "70vw", maxHeight: "80vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-            <div style={{ padding: "14px 18px", borderBottom: "1px solid #E4E6EB", display: "flex", gap: 10, alignItems: "center" }}>
-              <input className="inp" placeholder="Buscar por nombre, marca o codigo..." value={busqueda} onChange={e => setBusqueda(e.target.value)} autoFocus style={{ flex: 1 }} />
-              <button className="btn btn-g btn-sm" onClick={() => { setShowBuscador(false); setBusqueda(""); }}>Cerrar</button>
-            </div>
-            <div style={{ overflowY: "auto", flex: 1 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead style={{ position: "sticky", top: 0, background: "#f8f8f8", zIndex: 1 }}>
-                  <tr>
-                    <th style={{ textAlign: "left", fontSize: 10, color: "#65676B", padding: "7px 14px", fontWeight: 600, borderBottom: "2px solid #E4E6EB" }}>PRODUCTO</th>
-                    <th style={{ textAlign: "left", fontSize: 10, color: "#65676B", padding: "7px 8px", fontWeight: 600, borderBottom: "2px solid #E4E6EB" }}>MARCA</th>
-                    <th style={{ textAlign: "left", fontSize: 10, color: "#65676B", padding: "7px 8px", fontWeight: 600, borderBottom: "2px solid #E4E6EB" }}>CODIGO</th>
-                    <th style={{ textAlign: "right", fontSize: 10, color: "#65676B", padding: "7px 8px", fontWeight: 600, borderBottom: "2px solid #E4E6EB" }}>PRECIO</th>
-                    <th style={{ textAlign: "center", fontSize: 10, color: "#65676B", padding: "7px 8px", fontWeight: 600, borderBottom: "2px solid #E4E6EB" }}>STOCK</th>
-                    <th style={{ borderBottom: "2px solid #E4E6EB", padding: "7px 8px", width: 90 }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {productosAMostrar.length === 0 ? (
-                    <tr><td colSpan={6} style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>Sin productos</td></tr>
-                  ) : productosAMostrar.map(p => {
-                    const disp = p.disponible !== undefined ? p.disponible : (p.stock || 0);
-                    const transitoLocal = p.transito_local || 0;
-                    const soloTransito = disp <= 0 && transitoLocal > 0;
-                    const bajo = disp > 0 && disp < (p.stock_minimo || 5);
-                    const sinStock = disp <= 0 && transitoLocal <= 0;
-                    const accion = soloTransito ? (() => agregarComoPreventa(p)) : (() => add(p));
-                    return (
-                      <tr key={p.id}
-                        style={{ borderBottom: "1px solid #f5f5f5", cursor: sinStock ? "not-allowed" : "pointer", opacity: sinStock ? 0.45 : 1 }}
-                        onMouseEnter={e => { if (!sinStock) e.currentTarget.style.background = "#f5f5f5"; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-                        onClick={() => { if (!sinStock) accion(); }}>
-                        <td style={{ padding: "5px 14px" }}>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: "#111111" }}>{p.nombre || p.name}</div>
-                          {!soloTransito && disp > 0 && transitoLocal > 0 && <div style={{ fontSize: 9, color: "#7d3c98" }}>+{transitoLocal} en camino</div>}
-                        </td>
-                        <td style={{ padding: "5px 8px", fontSize: 11, color: "#666666" }}>{p.marca || p.brand || "-"}</td>
-                        <td style={{ padding: "5px 8px", fontSize: 10, color: "#8A8D91", fontFamily: "monospace" }}>{p.codigo_barras || p.codigo || "-"}</td>
-                        <td style={{ padding: "5px 8px", textAlign: "right", fontSize: 13, fontWeight: 700, color: "#c9a84c" }}>${(p.precio || p.price || 0).toLocaleString()}</td>
-                        <td style={{ padding: "5px 8px", textAlign: "center" }}>
-                          {soloTransito ? (
-                            <span className="badge bp" style={{ fontSize: 10 }}>0 + {transitoLocal} en camino</span>
-                          ) : (
-                            <span className={"badge " + (sinStock ? "br" : bajo ? "ba" : "bg")} style={{ fontSize: 10 }}>{disp}u</span>
-                          )}
-                        </td>
-                        <td style={{ padding: "5px 8px", textAlign: "right" }}>
-                          {!sinStock && (
-                            <button onClick={e => { e.stopPropagation(); accion(); }}
-                              style={{ background: soloTransito ? "linear-gradient(180deg,#9355b0,#7d3c98)" : "linear-gradient(180deg,#36966a,#2d7a4f)", color: "white", border: "none", borderRadius: 7, padding: "6px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", boxShadow: (soloTransito ? "0 2px 0 #5c2d72, 0 3px 5px rgba(125,60,152,0.3)" : "0 2px 0 #1f5536, 0 3px 5px rgba(45,122,79,0.3)"), position: "relative", top: 0, transition: "all .1s" }}
-                              onMouseDown={e => { e.currentTarget.style.top = "2px"; e.currentTarget.style.boxShadow = "0 0px 0 transparent, 0 1px 2px rgba(0,0,0,0.15)"; }}
-                              onMouseUp={e => { e.currentTarget.style.top = "0"; }}>
-                              {soloTransito ? "+ Preventa" : "+ Agregar"}
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-      {showEmitirGC && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
-          <div className="card" style={{ width: 380, background: "#ffffff" }}>
-            {!gcEmitidaOk ? (
-              <>
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>🎁 Emitir Gift Card</div>
-                {errorEmitirGC && <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "8px 12px", marginBottom: 10, fontSize: 11, color: "#c0392b" }}>{errorEmitirGC}</div>}
-                <div className="fg"><div className="fl">Monto ($)</div><input className="inp" type="number" placeholder="10000" value={nuevaGC.monto} onChange={e => setNuevaGC(p => ({ ...p, monto: e.target.value }))} /></div>
-                <div className="fg"><div className="fl">Nombre de quien la recibe</div><input className="inp" placeholder="Ej: Maria Lopez" value={nuevaGC.beneficiario_nombre} onChange={e => setNuevaGC(p => ({ ...p, beneficiario_nombre: e.target.value }))} /></div>
-                <div className="fg"><div className="fl">Telefono (opcional)</div><input className="inp" placeholder="Ej: 2964123456" value={nuevaGC.beneficiario_telefono} onChange={e => setNuevaGC(p => ({ ...p, beneficiario_telefono: e.target.value }))} /></div>
-                <div style={{ fontSize: 10, color: "#65676B", marginBottom: 14 }}>Se cobra el monto ahora como ingreso de caja. La gift card queda lista para usarse en cualquier venta futura.</div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowEmitirGC(false)}>Cancelar</button>
-                  <button className="btn btn-p" style={{ flex: 1 }} onClick={emitirGiftCardPOS}>Emitir y cobrar</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: "#2d7a4f" }}>Gift Card emitida!</div>
-                <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>Entregale este codigo a {gcEmitidaOk.beneficiario_nombre}</div>
-                <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f44", borderRadius: 8, padding: 16, textAlign: "center", marginBottom: 14 }}>
-                  <div style={{ fontFamily: "monospace", fontSize: 24, fontWeight: 700, color: "#2d7a4f" }}>{gcEmitidaOk.codigo}</div>
-                  <div style={{ fontSize: 12, color: "#65676B", marginTop: 4 }}>Saldo: ${parseFloat(gcEmitidaOk.saldo).toLocaleString("es-AR")}</div>
-                </div>
-                <button className="btn btn-p" style={{ width: "100%" }} onClick={() => setShowEmitirGC(false)}>Cerrar</button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
