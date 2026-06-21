@@ -719,8 +719,7 @@ function POS({ localId, usuario }) {
           {mensaje}
         </div>
       )}
-      <div style={{ height: "calc(100vh - 220px)" }}>
-        <div style={{ background: "#faf8f4", border: "1px solid #ddd9d0", borderRadius: 8, display: "flex", flexDirection: "column", overflow: "hidden", height: "100%" }}>
+      <div style={{ background: "#faf8f4", border: "1px solid #ddd9d0", borderRadius: 8, display: "flex", flexDirection: "column", overflow: "hidden", height: "calc(100vh - 220px)" }}>
           <div style={{ padding: "12px 16px", borderBottom: "1px solid #ddd9d0", fontSize: 10, color: "#666666", fontWeight: 700, letterSpacing: ".1em", background: preventa ? "#2471a320" : "#f0ece4", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>{preventa ? "PREVENTA" : "COMPROBANTE EN CURSO"}</span>
             <button className="btn btn-p btn-sm" onClick={() => setShowBuscador(true)}>🔍 Agregar producto</button>
