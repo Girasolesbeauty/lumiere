@@ -457,6 +457,7 @@ function POS({ localId, usuario }) {
   const [gcEmitidaOk, setGcEmitidaOk] = useState(null);
 
   const hayRestaPagar = restaPagar > 0;
+  const textoBotonPOS = loading ? "Procesando..." : preventa ? "Registrar Preventa" : "Emitir Factura " + tipoFac + " - ARCA";
   const montoMostrar = hayRestaPagar ? restaPagar : total;
   const labelTotal = (hayRestaPagar && giftCardAplicada) ? "FALTA PAGAR" : "TOTAL";
 
@@ -857,13 +858,12 @@ function POS({ localId, usuario }) {
             )}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
               <div style={{ fontSize: 11, color: "#65676B", fontWeight: 600 }}>{labelTotal}</div>
-              <div style={{ fontSize: 30, fontWeight: 700, color: "#111111" }}>${montoMostrar.toLocaleString()}</div>
+              <div style={{ fontSize: 30, fontWeight: 700, color: "#111111" }}>{"$" + montoMostrar.toLocaleString()}</div>
             </div>
             <button className="btn btn-p" style={{ width: "100%", padding: 13, fontSize: 13, opacity: loading ? 0.7 : 1 }} onClick={emitirFactura} disabled={loading}>
-              {loading ? "Procesando..." : preventa ? "Registrar Preventa" : "Emitir Factura " + tipoFac + " - ARCA"}
+              {textoBotonPOS}
             </button>
           </div>
-        </div>
       </div>
       {showBuscador && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
