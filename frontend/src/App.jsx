@@ -25,18 +25,18 @@ body { font-family: 'Inter', sans-serif; background: #F0F2F5; color: #1C1E21; mi
 .fade { animation: fadeUp .25s ease forwards; }
 .pulse { animation: pulse 2s infinite; }
 .layout { display: flex; min-height: 100vh; width: 100%; }
-.sidebar { width: 240px; background: #2C3E5C; border-right: none; box-shadow: 2px 0 8px rgba(0,0,0,0.12); display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 20; overflow-y: auto; }
+.sidebar { width: 220px; background: #2C3E5C; border-right: none; box-shadow: 2px 0 8px rgba(0,0,0,0.12); display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 20; overflow-y: auto; }
 .logo { padding: 22px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.15); }
 .logo-name { font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 800; letter-spacing: .05em; color: #ffffff; text-transform: uppercase; }
 .logo-sub { font-size: 9px; color: rgba(255,255,255,0.65); letter-spacing: .3em; margin-top: 3px; text-transform: uppercase; }
 .nav { padding: 12px 10px; flex: 1; }
 .nav-section { font-size: 8px; letter-spacing: .25em; color: rgba(255,255,255,0.75); padding: 10px 10px 4px; text-transform: uppercase; }
-.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.95); transition: all .18s; margin-bottom: 3px; border: 1px solid transparent; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.95); transition: all .18s; margin-bottom: 3px; border: 1px solid transparent; }
 .nav-item:hover { color: #ffffff; background: rgba(255,255,255,0.15); }
 .nav-item.active { color: #ffffff; font-weight: 700; background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.15); }
 .nav-icon { font-size: 13px; width: 18px; text-align: center; flex-shrink: 0; }
 .sb-footer { padding: 12px 18px; border-top: 1px solid rgba(255,255,255,0.15); }
-.main { margin-left: 240px; flex: 1; padding: 20px 24px; min-height: 100vh; background: #F0F2F5; width: calc(100vw - 240px); }
+.main { margin-left: 220px; flex: 1; padding: 20px 24px; min-height: 100vh; background: #F0F2F5; width: calc(100vw - 220px); }
 .ph { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 26px; }
 .pt { font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; color: #1C1E21; }
 .ps { font-size: 11px; color: #5C5F66; font-weight: 400; margin-top: 5px; }
@@ -451,15 +451,9 @@ function POS({ localId, usuario }) {
   };
 
   const [showEmitirGC, setShowEmitirGC] = useState(false);
-  const [showBuscador, setShowBuscador] = useState(false);
   const [nuevaGC, setNuevaGC] = useState({ monto: "", beneficiario_nombre: "", beneficiario_telefono: "" });
   const [errorEmitirGC, setErrorEmitirGC] = useState("");
   const [gcEmitidaOk, setGcEmitidaOk] = useState(null);
-
-  const hayRestaPagar = restaPagar > 0;
-  const textoBotonPOS = loading ? "Procesando..." : preventa ? "Registrar Preventa" : "Emitir Factura " + tipoFac + " - ARCA";
-  const montoMostrar = hayRestaPagar ? restaPagar : total;
-  const labelTotal = (hayRestaPagar && giftCardAplicada) ? "FALTA PAGAR" : "TOTAL";
 
   const emitirGiftCardPOS = async () => {
     if (!nuevaGC.monto || parseFloat(nuevaGC.monto) <= 0) return setErrorEmitirGC("Ingresa un monto valido");
@@ -631,105 +625,6 @@ function POS({ localId, usuario }) {
   if (tabPos === "preventas") {
     return (
       <div className="fade">
-      {showBuscador && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
-          <div style={{ background: "#ffffff", borderRadius: 12, width: "70vw", maxHeight: "80vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-            <div style={{ padding: "14px 18px", borderBottom: "1px solid #E4E6EB", display: "flex", gap: 10, alignItems: "center" }}>
-              <input className="inp" placeholder="Buscar por nombre, marca o codigo..." value={busqueda} onChange={e => setBusqueda(e.target.value)} autoFocus style={{ flex: 1 }} />
-              <button className="btn btn-g btn-sm" onClick={() => { setShowBuscador(false); setBusqueda(""); }}>Cerrar</button>
-            </div>
-            <div style={{ overflowY: "auto", flex: 1 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead style={{ position: "sticky", top: 0, background: "#f8f8f8", zIndex: 1 }}>
-                  <tr>
-                    <th style={{ textAlign: "left", fontSize: 10, color: "#65676B", padding: "7px 14px", fontWeight: 600, borderBottom: "2px solid #E4E6EB" }}>PRODUCTO</th>
-                    <th style={{ textAlign: "left", fontSize: 10, color: "#65676B", padding: "7px 8px", fontWeight: 600, borderBottom: "2px solid #E4E6EB" }}>MARCA</th>
-                    <th style={{ textAlign: "left", fontSize: 10, color: "#65676B", padding: "7px 8px", fontWeight: 600, borderBottom: "2px solid #E4E6EB" }}>CODIGO</th>
-                    <th style={{ textAlign: "right", fontSize: 10, color: "#65676B", padding: "7px 8px", fontWeight: 600, borderBottom: "2px solid #E4E6EB" }}>PRECIO</th>
-                    <th style={{ textAlign: "center", fontSize: 10, color: "#65676B", padding: "7px 8px", fontWeight: 600, borderBottom: "2px solid #E4E6EB" }}>STOCK</th>
-                    <th style={{ borderBottom: "2px solid #E4E6EB", padding: "7px 8px", width: 90 }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {productosAMostrar.length === 0 ? (
-                    <tr><td colSpan={6} style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>Sin productos</td></tr>
-                  ) : productosAMostrar.map(p => {
-                    const disp = p.disponible !== undefined ? p.disponible : (p.stock || 0);
-                    const transitoLocal = p.transito_local || 0;
-                    const soloTransito = disp <= 0 && transitoLocal > 0;
-                    const bajo = disp > 0 && disp < (p.stock_minimo || 5);
-                    const sinStock = disp <= 0 && transitoLocal <= 0;
-                    const accion = soloTransito ? (() => agregarComoPreventa(p)) : (() => add(p));
-                    return (
-                      <tr key={p.id}
-                        style={{ borderBottom: "1px solid #f5f5f5", cursor: sinStock ? "not-allowed" : "pointer", opacity: sinStock ? 0.45 : 1 }}
-                        onMouseEnter={e => { if (!sinStock) e.currentTarget.style.background = "#f5f5f5"; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-                        onClick={() => { if (!sinStock) accion(); }}>
-                        <td style={{ padding: "5px 14px" }}>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: "#111111" }}>{p.nombre || p.name}</div>
-                          {!soloTransito && disp > 0 && transitoLocal > 0 && <div style={{ fontSize: 9, color: "#7d3c98" }}>+{transitoLocal} en camino</div>}
-                        </td>
-                        <td style={{ padding: "5px 8px", fontSize: 11, color: "#666666" }}>{p.marca || p.brand || "-"}</td>
-                        <td style={{ padding: "5px 8px", fontSize: 10, color: "#8A8D91", fontFamily: "monospace" }}>{p.codigo_barras || p.codigo || "-"}</td>
-                        <td style={{ padding: "5px 8px", textAlign: "right", fontSize: 13, fontWeight: 700, color: "#c9a84c" }}>${(p.precio || p.price || 0).toLocaleString()}</td>
-                        <td style={{ padding: "5px 8px", textAlign: "center" }}>
-                          {soloTransito ? (
-                            <span className="badge bp" style={{ fontSize: 10 }}>0 + {transitoLocal} en camino</span>
-                          ) : (
-                            <span className={"badge " + (sinStock ? "br" : bajo ? "ba" : "bg")} style={{ fontSize: 10 }}>{disp}u</span>
-                          )}
-                        </td>
-                        <td style={{ padding: "5px 8px", textAlign: "right" }}>
-                          {!sinStock && (
-                            <button onClick={e => { e.stopPropagation(); accion(); }}
-                              style={{ background: soloTransito ? "linear-gradient(180deg,#9355b0,#7d3c98)" : "linear-gradient(180deg,#36966a,#2d7a4f)", color: "white", border: "none", borderRadius: 7, padding: "6px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", boxShadow: (soloTransito ? "0 2px 0 #5c2d72, 0 3px 5px rgba(125,60,152,0.3)" : "0 2px 0 #1f5536, 0 3px 5px rgba(45,122,79,0.3)"), position: "relative", top: 0, transition: "all .1s" }}
-                              onMouseDown={e => { e.currentTarget.style.top = "2px"; e.currentTarget.style.boxShadow = "0 0px 0 transparent, 0 1px 2px rgba(0,0,0,0.15)"; }}
-                              onMouseUp={e => { e.currentTarget.style.top = "0"; }}>
-                              {soloTransito ? "+ Preventa" : "+ Agregar"}
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-      {showEmitirGC && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
-          <div className="card" style={{ width: 380, background: "#ffffff" }}>
-            {!gcEmitidaOk ? (
-              <>
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>🎁 Emitir Gift Card</div>
-                {errorEmitirGC && <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "8px 12px", marginBottom: 10, fontSize: 11, color: "#c0392b" }}>{errorEmitirGC}</div>}
-                <div className="fg"><div className="fl">Monto ($)</div><input className="inp" type="number" placeholder="10000" value={nuevaGC.monto} onChange={e => setNuevaGC(p => ({ ...p, monto: e.target.value }))} /></div>
-                <div className="fg"><div className="fl">Nombre de quien la recibe</div><input className="inp" placeholder="Ej: Maria Lopez" value={nuevaGC.beneficiario_nombre} onChange={e => setNuevaGC(p => ({ ...p, beneficiario_nombre: e.target.value }))} /></div>
-                <div className="fg"><div className="fl">Telefono (opcional)</div><input className="inp" placeholder="Ej: 2964123456" value={nuevaGC.beneficiario_telefono} onChange={e => setNuevaGC(p => ({ ...p, beneficiario_telefono: e.target.value }))} /></div>
-                <div style={{ fontSize: 10, color: "#65676B", marginBottom: 14 }}>Se cobra el monto ahora como ingreso de caja. La gift card queda lista para usarse en cualquier venta futura.</div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowEmitirGC(false)}>Cancelar</button>
-                  <button className="btn btn-p" style={{ flex: 1 }} onClick={emitirGiftCardPOS}>Emitir y cobrar</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: "#2d7a4f" }}>Gift Card emitida!</div>
-                <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>Entregale este codigo a {gcEmitidaOk.beneficiario_nombre}</div>
-                <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f44", borderRadius: 8, padding: 16, textAlign: "center", marginBottom: 14 }}>
-                  <div style={{ fontFamily: "monospace", fontSize: 24, fontWeight: 700, color: "#2d7a4f" }}>{gcEmitidaOk.codigo}</div>
-                  <div style={{ fontSize: 12, color: "#65676B", marginTop: 4 }}>Saldo: ${parseFloat(gcEmitidaOk.saldo).toLocaleString("es-AR")}</div>
-                </div>
-                <button className="btn btn-p" style={{ width: "100%" }} onClick={() => setShowEmitirGC(false)}>Cerrar</button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
         <div className="ph">
           <div><div className="pt">Punto de Venta</div><div className="ps">facturacion electronica - arca</div></div>
           <StatusDot color="#2d7a4f" label="ARCA" />
@@ -823,11 +718,71 @@ function POS({ localId, usuario }) {
           {mensaje}
         </div>
       )}
-      <div style={{ background: "#faf8f4", border: "1px solid #ddd9d0", borderRadius: 8, display: "flex", flexDirection: "column", overflow: "hidden", height: "calc(100vh - 220px)" }}>
-          <div style={{ padding: "12px 16px", borderBottom: "1px solid #ddd9d0", fontSize: 10, color: "#666666", fontWeight: 700, letterSpacing: ".1em", background: preventa ? "#2471a320" : "#f0ece4", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span>{preventa ? "PREVENTA" : "COMPROBANTE EN CURSO"}</span>
-            <button className="btn btn-p btn-sm" onClick={() => setShowBuscador(true)}>🔍 Agregar producto</button>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 420px", gap: 16, height: "calc(100vh - 220px)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
+          <input className="inp" placeholder="🔍  Buscar por nombre, marca o codigo..." value={busqueda} onChange={e => setBusqueda(e.target.value)} />
+          <div style={{ overflowY: "auto", flex: 1, background: "#ffffff", border: "1px solid #e8e8e8", borderRadius: 8 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead style={{ position: "sticky", top: 0, background: "#f8f8f8", zIndex: 1 }}>
+                <tr>
+                  <th style={{ textAlign: "left", fontSize: 10, color: "#888888", padding: "7px 14px", fontWeight: 600, letterSpacing: ".05em", borderBottom: "2px solid #eeeeee" }}>PRODUCTO</th>
+                  <th style={{ textAlign: "left", fontSize: 10, color: "#888888", padding: "7px 8px", fontWeight: 600, letterSpacing: ".05em", borderBottom: "2px solid #eeeeee" }}>MARCA</th>
+                  <th style={{ textAlign: "left", fontSize: 10, color: "#888888", padding: "7px 8px", fontWeight: 600, letterSpacing: ".05em", borderBottom: "2px solid #eeeeee" }}>CODIGO</th>
+                  <th style={{ textAlign: "right", fontSize: 10, color: "#888888", padding: "7px 8px", fontWeight: 600, letterSpacing: ".05em", borderBottom: "2px solid #eeeeee" }}>PRECIO</th>
+                  <th style={{ textAlign: "center", fontSize: 10, color: "#888888", padding: "7px 8px", fontWeight: 600, letterSpacing: ".05em", borderBottom: "2px solid #eeeeee" }}>STOCK</th>
+                  <th style={{ borderBottom: "2px solid #eeeeee", padding: "7px 8px", width: 90 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {productosAMostrar.length === 0 ? (
+                  <tr><td colSpan={6} style={{ textAlign: "center", color: "#cccccc", padding: 30, fontSize: 12 }}>Sin productos</td></tr>
+                ) : productosAMostrar.map(p => {
+                  const disp = p.disponible !== undefined ? p.disponible : (p.stock || 0);
+                  const transitoLocal = p.transito_local || 0;
+                  const soloTransito = disp <= 0 && transitoLocal > 0;
+                  const bajo = disp > 0 && disp < (p.stock_minimo || 5);
+                  const sinStock = disp <= 0 && transitoLocal <= 0;
+                  const accion = soloTransito ? (() => agregarComoPreventa(p)) : (() => add(p));
+                  return (
+                    <tr key={p.id}
+                      style={{ borderBottom: "1px solid #f5f5f5", cursor: sinStock ? "not-allowed" : "pointer", opacity: sinStock ? 0.45 : 1, transition: "background .15s" }}
+                      onMouseEnter={e => { if (!sinStock) e.currentTarget.style.background = soloTransito ? "#7d3c9808" : "#fffbf4"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+                      onClick={() => { if (!sinStock) accion(); }}>
+                      <td style={{ padding: "5px 14px" }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "#111111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 190 }}>{p.nombre || p.name}</div>
+                        {!soloTransito && disp > 0 && transitoLocal > 0 && <div style={{ fontSize: 9, color: "#7d3c98" }}>+{transitoLocal} en camino</div>}
+                      </td>
+                      <td style={{ padding: "5px 8px", fontSize: 11, color: "#666666", whiteSpace: "nowrap" }}>{p.marca || p.brand || "-"}</td>
+                      <td style={{ padding: "5px 8px", fontSize: 10, color: "#8A8D91", fontFamily: "monospace" }}>{p.codigo_barras || p.codigo || "-"}</td>
+                      <td style={{ padding: "5px 8px", textAlign: "right", fontSize: 13, fontWeight: 700, color: "#c9a84c", whiteSpace: "nowrap" }}>${(p.precio || p.price || 0).toLocaleString()}</td>
+                      <td style={{ padding: "5px 8px", textAlign: "center" }}>
+                        {soloTransito ? (
+                          <span className="badge bp" style={{ fontSize: 10 }} title={transitoLocal + "u en camino, todavia no llegaron"}>0 + {transitoLocal} en camino</span>
+                        ) : (
+                          <span className={"badge " + (sinStock ? "br" : bajo ? "ba" : "bg")} style={{ fontSize: 10 }} title={p.reservado > 0 ? p.reservado + "u reservadas en preventas" : ""}>{disp}u</span>
+                        )}
+                      </td>
+                      <td style={{ padding: "5px 8px", textAlign: "right" }}>
+                        {!sinStock && (
+                          <button onClick={e => { e.stopPropagation(); accion(); }}
+                            style={{ background: soloTransito ? "linear-gradient(180deg,#9355b0,#7d3c98)" : "linear-gradient(180deg,#36966a,#2d7a4f)", color: "white", border: "none", borderRadius: 7, padding: "6px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", boxShadow: (soloTransito ? "0 2px 0 #5c2d72, 0 3px 5px rgba(125,60,152,0.3)" : "0 2px 0 #1f5536, 0 3px 5px rgba(45,122,79,0.3)"), position: "relative", top: 0, transition: "all .1s" }}
+                            onMouseDown={e => { e.currentTarget.style.top = "2px"; e.currentTarget.style.boxShadow = "0 0px 0 transparent, 0 1px 2px rgba(0,0,0,0.15)"; }}
+                            onMouseUp={e => { e.currentTarget.style.top = "0"; }}>
+                            {soloTransito ? "+ Preventa" : "+ Agregar"}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
+        </div>
+        <div style={{ background: "#faf8f4", border: "1px solid #ddd9d0", borderRadius: 8, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid #ddd9d0", fontSize: 10, color: "#666666", fontWeight: 700, letterSpacing: ".1em", background: preventa ? "#2471a320" : "#f0ece4" }}>
+            {preventa ? "PREVENTA" : "COMPROBANTE EN CURSO"}
           </div>
           <div style={{ padding: "10px 14px", borderBottom: "1px solid #f0f0f0" }}>
             {preventa ? (
@@ -926,7 +881,7 @@ function POS({ localId, usuario }) {
                 <span style={{ fontWeight: 700, color: "#2d7a4f" }}>-${montoAplicadoGC.toLocaleString("es-AR")}</span>
               </div>
             )}
-            {hayRestaPagar && (
+            {restaPagar > 0 && (
             <select className="sel" style={{ marginBottom: 10 }} value={medioPagoSel?.id || ""} onChange={e => {
               const m = mediosPago.find(x => x.id === parseInt(e.target.value));
               setMedioPagoSel(m || null);
@@ -956,15 +911,45 @@ function POS({ localId, usuario }) {
               </div>
             )}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-              <div style={{ fontSize: 11, color: "#65676B", fontWeight: 600 }}>{labelTotal}</div>
-              <div style={{ fontSize: 30, fontWeight: 700, color: "#111111" }}>{"$" + montoMostrar.toLocaleString()}</div>
+              <div style={{ fontSize: 11, color: "#65676B", fontWeight: 600 }}>{restaPagar > 0 && giftCardAplicada ? "FALTA PAGAR" : "TOTAL"}</div>
+              <div style={{ fontSize: 30, fontWeight: 700, color: "#111111" }}>${(restaPagar > 0 ? restaPagar : total).toLocaleString()}</div>
             </div>
             <button className="btn btn-p" style={{ width: "100%", padding: 13, fontSize: 13, opacity: loading ? 0.7 : 1 }} onClick={emitirFactura} disabled={loading}>
-              {textoBotonPOS}
+              {loading ? "Procesando..." : preventa ? "Registrar Preventa" : "Emitir Factura " + tipoFac + " - ARCA"}
             </button>
           </div>
         </div>
       </div>
+      {showEmitirGC && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+          <div className="card" style={{ width: 380, background: "#ffffff" }}>
+            {!gcEmitidaOk ? (
+              <>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>🎁 Emitir Gift Card</div>
+                {errorEmitirGC && <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "8px 12px", marginBottom: 10, fontSize: 11, color: "#c0392b" }}>{errorEmitirGC}</div>}
+                <div className="fg"><div className="fl">Monto ($)</div><input className="inp" type="number" placeholder="10000" value={nuevaGC.monto} onChange={e => setNuevaGC(p => ({ ...p, monto: e.target.value }))} /></div>
+                <div className="fg"><div className="fl">Nombre de quien la recibe</div><input className="inp" placeholder="Ej: Maria Lopez" value={nuevaGC.beneficiario_nombre} onChange={e => setNuevaGC(p => ({ ...p, beneficiario_nombre: e.target.value }))} /></div>
+                <div className="fg"><div className="fl">Telefono (opcional)</div><input className="inp" placeholder="Ej: 2964123456" value={nuevaGC.beneficiario_telefono} onChange={e => setNuevaGC(p => ({ ...p, beneficiario_telefono: e.target.value }))} /></div>
+                <div style={{ fontSize: 10, color: "#65676B", marginBottom: 14 }}>Se cobra el monto ahora como ingreso de caja. La gift card queda lista para usarse en cualquier venta futura.</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowEmitirGC(false)}>Cancelar</button>
+                  <button className="btn btn-p" style={{ flex: 1 }} onClick={emitirGiftCardPOS}>Emitir y cobrar</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: "#2d7a4f" }}>Gift Card emitida!</div>
+                <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>Entregale este codigo a {gcEmitidaOk.beneficiario_nombre}</div>
+                <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f44", borderRadius: 8, padding: 16, textAlign: "center", marginBottom: 14 }}>
+                  <div style={{ fontFamily: "monospace", fontSize: 24, fontWeight: 700, color: "#2d7a4f" }}>{gcEmitidaOk.codigo}</div>
+                  <div style={{ fontSize: 12, color: "#65676B", marginTop: 4 }}>Saldo: ${parseFloat(gcEmitidaOk.saldo).toLocaleString("es-AR")}</div>
+                </div>
+                <button className="btn btn-p" style={{ width: "100%" }} onClick={() => setShowEmitirGC(false)}>Cerrar</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
