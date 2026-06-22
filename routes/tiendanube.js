@@ -3,9 +3,24 @@ const router = express.Router();
 const pool = require('../config/database');
 const axios = require('axios');
 
-const TN_TOKEN = process.env.TIENDANUBE_TOKEN;
-const TN_USER = process.env.TIENDANUBE_USER_ID;
-const TN_BASE = `https://api.tiendanube.com/v1/${TN_USER}`;
+const TN_APP_ID = process.env.TIENDANUBE_APP_ID || '32840';
+const TN_CLIENT_SECRET = process.env.TIENDANUBE_CLIENT_SECRET;
+
+// Cargar token y user_id desde la base (se guardan al autorizar)
+let TN_TOKEN = process.env.TIENDANUBE_TOKEN;
+let TN_USER = process.env.TIENDANUBE_USER_ID;
+
+const cargarCredenciales = async () => {
+  try {
+    const res = await pool.query("SELECT valor FROM configuracion WHERE clave = 'tn_token'");
+    const res2 = await pool.query("SELECT valor FROM configuracion WHERE clave = 'tn_user_id'");
+    if (res.rows.length) TN_TOKEN = res.rows[0].valor;
+    if (res2.rows.length) TN_USER = res2.rows[0].valor;
+  } catch (e) {}
+};
+cargarCredenciales();
+
+const tnBase = () => `https://api.tiendanube.com/v1/${TN_USER}`;
 const tnHeaders = () => ({
   'Authentication': `bearer ${TN_TOKEN}`,
   'Content-Type': 'application/json',
@@ -13,18 +28,58 @@ const tnHeaders = () => ({
 });
 
 const tnFetch = async (method, path, body) => {
-  const res = await axios({
-    method,
-    url: `${TN_BASE}${path}`,
-    headers: tnHeaders(),
-    data: body || undefined
-  });
+  const res = await axios({ method, url: `${tnBase()}${path}`, headers: tnHeaders(), data: body || undefined });
   return res.data;
 };
+
+// OAuth callback - Tiendanube redirige aca despues de autorizar
+router.get('/auth/callback', async (req, res) => {
+  try {
+    const { code } = req.query;
+    if (!code) return res.status(400).send('Falta el codigo de autorizacion');
+
+    const tokenRes = await axios.post('https://www.tiendanube.com/apps/authorize/token', {
+      client_id: TN_APP_ID,
+      client_secret: TN_CLIENT_SECRET,
+      grant_type: 'authorization_code',
+      code: code
+    });
+
+    const { access_token, user_id } = tokenRes.data;
+    TN_TOKEN = access_token;
+    TN_USER = String(user_id);
+
+    // Guardar en base para persistir
+    await pool.query(`
+      INSERT INTO configuracion (clave, valor) VALUES ('tn_token', $1)
+      ON CONFLICT (clave) DO UPDATE SET valor = $1
+    `, [access_token]);
+    await pool.query(`
+      INSERT INTO configuracion (clave, valor) VALUES ('tn_user_id', $1)
+      ON CONFLICT (clave) DO UPDATE SET valor = $1
+    `, [String(user_id)]);
+
+    // Tambien guardar en env para esta sesion
+    process.env.TIENDANUBE_TOKEN = access_token;
+    process.env.TIENDANUBE_USER_ID = String(user_id);
+
+    res.send('<h2>Tiendanube conectada correctamente con Lumiere!</h2><p>Ya podes cerrar esta ventana.</p>');
+  } catch (e) {
+    console.error('Error OAuth TN:', e.response?.data || e.message);
+    res.status(500).send('Error al autorizar: ' + (e.response?.data?.description || e.message));
+  }
+});
+
+// Webhooks de privacidad (requeridos por Tiendanube)
+router.post('/webhooks/store-redact', (req, res) => res.json({ ok: true }));
+router.post('/webhooks/customers-redact', (req, res) => res.json({ ok: true }));
+router.post('/webhooks/customers-data', (req, res) => res.json({ ok: true }));
 
 // Verificar conexion
 router.get('/status', async (req, res) => {
   try {
+    await cargarCredenciales();
+    if (!TN_TOKEN || !TN_USER) return res.json({ ok: false, error: 'No autorizada todavia' });
     const store = await tnFetch('GET', '/store');
     res.json({ ok: true, tienda: store.name?.es || store.name, plan: store.plan_name });
   } catch (e) {
