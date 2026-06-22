@@ -643,15 +643,28 @@ function POS({ localId, usuario }) {
         {preventasPendientes.length === 0 ? (
           <div style={{ textAlign: "center", color: "#65676B", padding: 40, fontSize: 13 }}>No hay preventas pendientes</div>
         ) : preventasPendientes.map(p => (
-          <div key={p.id} className="card" style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>{p.nombre_preventa || "Consumidor Final"}</div>
-              <div style={{ fontSize: 11, color: "#65676B", marginTop: 3 }}>{new Date(p.creado_en).toLocaleDateString("es-AR")} - ${parseFloat(p.total).toLocaleString()}</div>
+          <div key={p.id} className="card" style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{p.nombre_preventa || "Consumidor Final"}</div>
+                {p.cliente_nombre && <div style={{ fontSize: 11, color: "#2d7a4f" }}>{p.cliente_nombre} {p.cliente_dni ? "- DNI: " + p.cliente_dni : ""}</div>}
+                <div style={{ fontSize: 11, color: "#65676B", marginTop: 2 }}>{new Date(p.creado_en).toLocaleDateString("es-AR")} - ${parseFloat(p.total).toLocaleString()}</div>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-p btn-sm" onClick={() => abrirConfirmacionEntrega(p)}>Confirmar entrega</button>
+                <button className="btn btn-g btn-sm" onClick={() => cancelarPreventa(p)}>Cancelar</button>
+              </div>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn btn-p btn-sm" onClick={() => abrirConfirmacionEntrega(p)}>Confirmar entrega</button>
-              <button className="btn btn-g btn-sm" onClick={() => cancelarPreventa(p)}>Cancelar</button>
-            </div>
+            {p.items && p.items.length > 0 && (
+              <div style={{ background: "#f8f8f8", borderRadius: 6, padding: "6px 10px" }}>
+                {p.items.map((it, idx) => (
+                  <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "3px 0", borderBottom: idx < p.items.length - 1 ? "1px solid #f0f0f0" : "none" }}>
+                    <span style={{ color: "#444444" }}>{it.nombre || it.producto_nombre} x{it.cantidad}</span>
+                    <span style={{ color: "#65676B" }}>${parseFloat(it.precio_unitario || 0).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
         {confirmandoPreventa && (
