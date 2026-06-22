@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
-
 // Obtener movimientos de caja por local
 router.get('/', async (req, res) => {
   try {
@@ -24,7 +23,6 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: 'Error al obtener movimientos de caja' });
   }
 });
-
 // Obtener saldo actual de caja
 router.get('/saldo', async (req, res) => {
   try {
@@ -33,7 +31,7 @@ router.get('/saldo', async (req, res) => {
       SELECT 
         SUM(CASE WHEN tipo = 'ingreso' THEN importe ELSE -importe END) as saldo
       FROM movimientos_caja_efectivo
-      WHERE 1=1
+      WHERE (anulado IS NULL OR anulado = FALSE)
     `;
     const params = [];
     if (local_id) {
@@ -46,7 +44,6 @@ router.get('/saldo', async (req, res) => {
     res.status(500).json({ error: 'Error al obtener saldo' });
   }
 });
-
 // Registrar movimiento de caja
 router.post('/', async (req, res) => {
   try {
@@ -62,5 +59,4 @@ router.post('/', async (req, res) => {
     res.status(500).json({ error: 'Error al registrar movimiento: ' + error.message });
   }
 });
-
 module.exports = router;
