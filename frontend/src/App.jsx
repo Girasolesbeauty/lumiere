@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Fragment } from "react";
+﻿import { useState, useEffect, useRef, Fragment } from "react";
 import { getProductos, createVenta, getClientes, getFlujo, getPuntoEquilibrio, agregarEgreso, getResumenFinanzas, getVentas, getAlertasStock, getCupones, createCupon, updateCupon, getRanking, getReglas, createRegla as createReglaWA, updateRegla as updateReglaWA, login, register } from "./api";
 import API from "./api";
 
@@ -718,58 +718,44 @@ function POS({ localId, usuario }) {
           {mensaje}
         </div>
       )}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 540px", gap: 16, height: "calc(100vh - 160px)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 340px", gap: 12, height: "calc(100vh - 160px)" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
-          <input className="inp" placeholder="🔍  Buscar por nombre, marca o codigo..." value={busqueda} onChange={e => setBusqueda(e.target.value)} />
+          <input className="inp" placeholder="Buscar por nombre, marca o codigo..." value={busqueda} onChange={e => setBusqueda(e.target.value)} />
           <div style={{ overflowY: "auto", flex: 1, background: "#ffffff", border: "1px solid #e8e8e8", borderRadius: 8 }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead style={{ position: "sticky", top: 0, background: "#f8f8f8", zIndex: 1 }}>
                 <tr>
-                  <th style={{ textAlign: "left", fontSize: 10, color: "#888888", padding: "7px 14px", fontWeight: 600, letterSpacing: ".05em", borderBottom: "2px solid #eeeeee" }}>PRODUCTO</th>
-                  <th style={{ textAlign: "left", fontSize: 10, color: "#888888", padding: "7px 8px", fontWeight: 600, letterSpacing: ".05em", borderBottom: "2px solid #eeeeee" }}>MARCA</th>
-                  <th style={{ textAlign: "left", fontSize: 10, color: "#888888", padding: "7px 8px", fontWeight: 600, letterSpacing: ".05em", borderBottom: "2px solid #eeeeee" }}>CODIGO</th>
-                  <th style={{ textAlign: "right", fontSize: 10, color: "#888888", padding: "7px 8px", fontWeight: 600, letterSpacing: ".05em", borderBottom: "2px solid #eeeeee" }}>PRECIO</th>
-                  <th style={{ textAlign: "center", fontSize: 10, color: "#888888", padding: "7px 8px", fontWeight: 600, letterSpacing: ".05em", borderBottom: "2px solid #eeeeee" }}>STOCK</th>
-                  <th style={{ borderBottom: "2px solid #eeeeee", padding: "7px 8px", width: 90 }}></th>
+                  <th style={{ textAlign: "left", fontSize: 10, color: "#888888", padding: "7px 10px", fontWeight: 600, borderBottom: "2px solid #eeeeee" }}>PRODUCTO</th>
+                  <th style={{ textAlign: "right", fontSize: 10, color: "#888888", padding: "7px 8px", fontWeight: 600, borderBottom: "2px solid #eeeeee" }}>PRECIO</th>
+                  <th style={{ textAlign: "center", fontSize: 10, color: "#888888", padding: "7px 8px", fontWeight: 600, borderBottom: "2px solid #eeeeee" }}>STOCK</th>
+                  <th style={{ borderBottom: "2px solid #eeeeee", padding: "7px 4px", width: 70 }}></th>
                 </tr>
               </thead>
               <tbody>
                 {productosAMostrar.length === 0 ? (
-                  <tr><td colSpan={6} style={{ textAlign: "center", color: "#cccccc", padding: 30, fontSize: 12 }}>Sin productos</td></tr>
+                  <tr><td colSpan={4} style={{ textAlign: "center", color: "#cccccc", padding: 30, fontSize: 12 }}>Sin productos</td></tr>
                 ) : productosAMostrar.map(p => {
                   const disp = p.disponible !== undefined ? p.disponible : (p.stock || 0);
                   const transitoLocal = p.transito_local || 0;
                   const soloTransito = disp <= 0 && transitoLocal > 0;
-                  const bajo = disp > 0 && disp < (p.stock_minimo || 5);
                   const sinStock = disp <= 0 && transitoLocal <= 0;
                   const accion = soloTransito ? (() => agregarComoPreventa(p)) : (() => add(p));
                   return (
-                    <tr key={p.id}
-                      style={{ borderBottom: "1px solid #f5f5f5", cursor: sinStock ? "not-allowed" : "pointer", opacity: sinStock ? 0.45 : 1, transition: "background .15s" }}
-                      onMouseEnter={e => { if (!sinStock) e.currentTarget.style.background = soloTransito ? "#7d3c9808" : "#fffbf4"; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+                    <tr key={p.id} style={{ borderBottom: "1px solid #f5f5f5", cursor: sinStock ? "not-allowed" : "pointer", opacity: sinStock ? 0.45 : 1 }}
                       onClick={() => { if (!sinStock) accion(); }}>
-                      <td style={{ padding: "5px 14px" }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: "#111111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 190 }}>{p.nombre || p.name}</div>
-                        {!soloTransito && disp > 0 && transitoLocal > 0 && <div style={{ fontSize: 9, color: "#7d3c98" }}>+{transitoLocal} en camino</div>}
+                      <td style={{ padding: "4px 10px" }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: "#111111" }}>{p.nombre || p.name}</div>
+                        <div style={{ fontSize: 9, color: "#888888" }}>{p.marca || p.brand || ""}</div>
                       </td>
-                      <td style={{ padding: "5px 8px", fontSize: 11, color: "#666666", whiteSpace: "nowrap" }}>{p.marca || p.brand || "-"}</td>
-                      <td style={{ padding: "5px 8px", fontSize: 10, color: "#8A8D91", fontFamily: "monospace" }}>{p.codigo_barras || p.codigo || "-"}</td>
-                      <td style={{ padding: "5px 8px", textAlign: "right", fontSize: 13, fontWeight: 700, color: "#c9a84c", whiteSpace: "nowrap" }}>${(p.precio || p.price || 0).toLocaleString()}</td>
-                      <td style={{ padding: "5px 8px", textAlign: "center" }}>
-                        {soloTransito ? (
-                          <span className="badge bp" style={{ fontSize: 10 }} title={transitoLocal + "u en camino, todavia no llegaron"}>0 + {transitoLocal} en camino</span>
-                        ) : (
-                          <span className={"badge " + (sinStock ? "br" : bajo ? "ba" : "bg")} style={{ fontSize: 10 }} title={p.reservado > 0 ? p.reservado + "u reservadas en preventas" : ""}>{disp}u</span>
-                        )}
+                      <td style={{ padding: "4px 8px", textAlign: "right", fontSize: 12, fontWeight: 700, color: "#c9a84c" }}>${(p.precio || p.price || 0).toLocaleString()}</td>
+                      <td style={{ padding: "4px 8px", textAlign: "center" }}>
+                        <span className={"badge " + (sinStock ? "br" : "bg")} style={{ fontSize: 9 }}>{disp}u</span>
                       </td>
-                      <td style={{ padding: "5px 8px", textAlign: "right" }}>
+                      <td style={{ padding: "4px 4px", textAlign: "right" }}>
                         {!sinStock && (
                           <button onClick={e => { e.stopPropagation(); accion(); }}
-                            style={{ background: soloTransito ? "linear-gradient(180deg,#9355b0,#7d3c98)" : "linear-gradient(180deg,#36966a,#2d7a4f)", color: "white", border: "none", borderRadius: 7, padding: "6px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", boxShadow: (soloTransito ? "0 2px 0 #5c2d72, 0 3px 5px rgba(125,60,152,0.3)" : "0 2px 0 #1f5536, 0 3px 5px rgba(45,122,79,0.3)"), position: "relative", top: 0, transition: "all .1s" }}
-                            onMouseDown={e => { e.currentTarget.style.top = "2px"; e.currentTarget.style.boxShadow = "0 0px 0 transparent, 0 1px 2px rgba(0,0,0,0.15)"; }}
-                            onMouseUp={e => { e.currentTarget.style.top = "0"; }}>
-                            {soloTransito ? "+ Preventa" : "+ Agregar"}
+                            style={{ background: soloTransito ? "#7d3c98" : "#2d7a4f", color: "white", border: "none", borderRadius: 5, padding: "4px 8px", fontSize: 10, fontWeight: 600, cursor: "pointer" }}>
+                            {soloTransito ? "+Pre" : "+"}
                           </button>
                         )}
                       </td>
@@ -781,67 +767,12 @@ function POS({ localId, usuario }) {
           </div>
         </div>
         <div style={{ background: "#faf8f4", border: "1px solid #ddd9d0", borderRadius: 8, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{ padding: "12px 16px", borderBottom: "1px solid #ddd9d0", fontSize: 10, color: "#666666", fontWeight: 700, letterSpacing: ".1em", background: preventa ? "#2471a320" : "#f0ece4" }}>
-            {preventa ? "PREVENTA" : "COMPROBANTE EN CURSO"}
+          <div style={{ padding: "10px 14px", borderBottom: "1px solid #ddd9d0", fontSize: 10, color: "#666666", fontWeight: 700, letterSpacing: ".1em", background: preventa ? "#2471a320" : "#f0ece4" }}>
+            {preventa ? "PREVENTA" : "COMPROBANTE EN CURSO"} ({cart.length} items)
           </div>
-          <div style={{ padding: "6px 14px", borderBottom: "1px solid #f0f0f0", maxHeight: 280, overflowY: "auto" }}>
-            {preventa ? (
-              <input className="inp" placeholder="Nombre del cliente (preventa)" value={nombrePreventa} onChange={e => setNombrePreventa(e.target.value)} />
-            ) : (
-              <div>
-                <div style={{ position: "relative", marginBottom: 6 }}>
-                  <input className="inp" placeholder="DNI del cliente (opcional)" value={dniInput} onChange={e => buscarClientePorDni(e.target.value)} />
-                  {buscandoCliente && <div style={{ position: "absolute", right: 10, top: 10, fontSize: 10, color: "#65676B" }}>buscando...</div>}
-                </div>
-                {clienteSeleccionado && clienteSeleccionado.id && (
-                  <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f33", borderRadius: 6, padding: "8px 12px", marginBottom: 6 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#2d7a4f" }}>{clienteSeleccionado.nombre}</div>
-                    <div style={{ fontSize: 10, color: "#666666" }}>{clienteSeleccionado.puntos || 0} pts - {clienteSeleccionado.nivel || "Bronze"}</div>
-                  </div>
-                )}
-                {showNuevoCliente && !clienteSeleccionado && (
-                  <div style={{ background: "#2471a312", border: "1px solid #2471a333", borderRadius: 6, padding: 10, marginBottom: 6 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "#2471a3", marginBottom: 8 }}>Cliente nuevo</div>
-                    <input className="inp" placeholder="Nombre completo" value={nuevoClienteDni.nombre} onChange={e => setNuevoClienteDni(p => ({ ...p, nombre: e.target.value }))} style={{ marginBottom: 6 }} />
-                    <input className="inp" placeholder="Telefono (opcional)" value={nuevoClienteDni.telefono} onChange={e => setNuevoClienteDni(p => ({ ...p, telefono: e.target.value }))} style={{ marginBottom: 6 }} />
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button className="btn btn-p btn-sm" style={{ flex: 1 }} onClick={crearClienteRapido}>Guardar</button>
-                      <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => { setShowNuevoCliente(false); setClienteSeleccionado({ id: null, nombre: "Consumidor Final", puntos: 0 }); }}>Consumidor Final</button>
-                    </div>
-                  </div>
-                )}
-                {!clienteSeleccionado && !showNuevoCliente && (
-                  <button className="btn btn-g btn-sm" style={{ width: "100%", marginBottom: 6 }} onClick={() => setClienteSeleccionado({ id: null, nombre: "Consumidor Final", puntos: 0 })}>
-                    Consumidor Final
-                  </button>
-                )}
-                <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
-                  <input className="inp" placeholder="Cupon" value={cupon} onChange={e => setCupon(e.target.value)} style={{ flex: 1 }} />
-                  <button className="btn btn-g btn-sm" onClick={aplicarCupon}>Aplicar</button>
-                </div>
-                {cuponAplicado && <div style={{ fontSize: 10, color: "#2d7a4f", marginBottom: 4 }}>Descuento aplicado</div>}
-                <div style={{ display: "flex", gap: 6, marginBottom: 4, alignItems: "center" }}>
-                  <input className="inp" type="number" placeholder="Descuento manual ($)" value={descuentoManual} onChange={e => setDescuentoManual(e.target.value)} style={{ flex: 1 }} />
-                  <select className="sel" style={{ width: 60, padding: "10px 6px", fontSize: 11 }} value={tipoDescuento} onChange={e => setTipoDescuento(e.target.value)}>
-                    <option value="$">$</option>
-                    <option value="%">%</option>
-                  </select>
-                </div>
-              </div>
-            )}
-            <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
-              {["A", "B", "Remito"].map(t => (
-                <button key={t} onClick={() => setTipoFac(t)} className="btn btn-sm"
-                  style={{ flex: 1, background: tipoFac === t ? "#c9a84c15" : "transparent", border: "1px solid " + (tipoFac === t ? "#c9a84c" : "#e8e8e8"), color: tipoFac === t ? "#c9a84c" : "#65676B" }}>
-                  {t === "Remito" ? "Remito" : "Fac. " + t}
-                </button>
-              ))}
-            </div>
-            <button className="btn btn-sm" style={{ width: "100%", marginTop: 8, background: "transparent", border: "1px solid #c9a84c44", color: "#c9a84c" }} onClick={() => { setShowEmitirGC(true); setGcEmitidaOk(null); setErrorEmitirGC(""); }}>🎁 Emitir Gift Card</button>
-          </div>
-          <div style={{ flex: 1, overflowY: "auto", padding: 10, minHeight: 180 }}>
+          <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
             {cart.length === 0
-              ? <div style={{ textAlign: "center", color: "#8A8D91", fontSize: 12, marginTop: 20 }}>Selecciona productos</div>
+              ? <div style={{ textAlign: "center", color: "#8A8D91", fontSize: 12, marginTop: 40 }}>Agrega productos desde la lista</div>
               : cart.map(i => (
                 <div key={i.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#ffffff", borderRadius: 6, padding: "8px 10px", marginBottom: 6, border: "1px solid #e8e4dc" }}>
                   <div style={{ flex: 1 }}>
@@ -859,67 +790,120 @@ function POS({ localId, usuario }) {
               ))
             }
           </div>
-          <div style={{ padding: "12px 16px", borderTop: "1px solid #ddd9d0", background: "#f2ede4" }}>
-            {!giftCardAplicada ? (
-              <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-                <input className="inp" placeholder="Codigo Gift Card (GIFT-XXXX)" value={codigoGC} onChange={e => setCodigoGC(e.target.value)} onKeyDown={e => e.key === "Enter" && buscarGiftCard()} style={{ flex: 1, textTransform: "uppercase" }} />
-                <button className="btn btn-sm" onClick={buscarGiftCard} disabled={buscandoGC}>{buscandoGC ? "..." : "Aplicar"}</button>
-              </div>
+          <div style={{ padding: "10px 14px", borderTop: "1px solid #ddd9d0", background: "#f0ece4" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <span style={{ fontSize: 11, color: "#666666", fontWeight: 600 }}>SUBTOTAL</span>
+              <span style={{ fontSize: 20, fontWeight: 700, color: "#111111" }}>${subtotalBase.toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, overflow: "hidden" }}>
+          <div style={{ background: "#faf8f4", border: "1px solid #ddd9d0", borderRadius: 8, padding: "10px 12px", overflowY: "auto", flex: 1 }}>
+            {preventa ? (
+              <div className="fg"><input className="inp" placeholder="Nombre cliente (preventa)" value={nombrePreventa} onChange={e => setNombrePreventa(e.target.value)} style={{ fontSize: 11, padding: "8px 10px" }} /></div>
             ) : (
-              <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f44", borderRadius: 8, padding: "8px 12px", marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#2d7a4f", fontFamily: "monospace" }}>{giftCardAplicada.codigo}</div>
-                  <div style={{ fontSize: 10, color: "#65676B" }}>Saldo disponible: ${parseFloat(giftCardAplicada.saldo).toLocaleString("es-AR")}</div>
+              <div>
+                <div style={{ position: "relative", marginBottom: 6 }}>
+                  <input className="inp" placeholder="DNI del cliente" value={dniInput} onChange={e => buscarClientePorDni(e.target.value)} style={{ fontSize: 11, padding: "8px 10px" }} />
                 </div>
-                <span onClick={quitarGiftCard} style={{ cursor: "pointer", color: "#c0392b", fontSize: 11, fontWeight: 600 }}>Quitar</span>
+                {clienteSeleccionado && clienteSeleccionado.id && (
+                  <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f33", borderRadius: 6, padding: "6px 10px", marginBottom: 6, fontSize: 10 }}>
+                    <div style={{ fontWeight: 600, color: "#2d7a4f" }}>{clienteSeleccionado.nombre}</div>
+                    <div style={{ color: "#666666" }}>{clienteSeleccionado.puntos || 0} pts</div>
+                  </div>
+                )}
+                {showNuevoCliente && !clienteSeleccionado && (
+                  <div style={{ background: "#2471a312", border: "1px solid #2471a333", borderRadius: 6, padding: 8, marginBottom: 6 }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: "#2471a3", marginBottom: 6 }}>Cliente nuevo</div>
+                    <input className="inp" placeholder="Nombre" value={nuevoClienteDni.nombre} onChange={e => setNuevoClienteDni(p => ({ ...p, nombre: e.target.value }))} style={{ marginBottom: 4, fontSize: 11, padding: "6px 10px" }} />
+                    <input className="inp" placeholder="Telefono" value={nuevoClienteDni.telefono} onChange={e => setNuevoClienteDni(p => ({ ...p, telefono: e.target.value }))} style={{ marginBottom: 4, fontSize: 11, padding: "6px 10px" }} />
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <button className="btn btn-p btn-sm" style={{ flex: 1, fontSize: 9 }} onClick={crearClienteRapido}>Guardar</button>
+                      <button className="btn btn-g btn-sm" style={{ flex: 1, fontSize: 9 }} onClick={() => { setShowNuevoCliente(false); setClienteSeleccionado({ id: null, nombre: "Consumidor Final", puntos: 0 }); }}>CF</button>
+                    </div>
+                  </div>
+                )}
+                {!clienteSeleccionado && !showNuevoCliente && (
+                  <button className="btn btn-g btn-sm" style={{ width: "100%", marginBottom: 6, fontSize: 10 }} onClick={() => setClienteSeleccionado({ id: null, nombre: "Consumidor Final", puntos: 0 })}>Consumidor Final</button>
+                )}
+                <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
+                  <input className="inp" placeholder="Cupon" value={cupon} onChange={e => setCupon(e.target.value)} style={{ flex: 1, fontSize: 11, padding: "6px 10px" }} />
+                  <button className="btn btn-g btn-sm" style={{ fontSize: 9 }} onClick={aplicarCupon}>OK</button>
+                </div>
+                {cuponAplicado && <div style={{ fontSize: 9, color: "#2d7a4f", marginBottom: 4 }}>Descuento aplicado</div>}
+                <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
+                  <input className="inp" type="number" placeholder="Desc. manual" value={descuentoManual} onChange={e => setDescuentoManual(e.target.value)} style={{ flex: 1, fontSize: 11, padding: "6px 10px" }} />
+                  <select className="sel" style={{ width: 50, padding: "6px 4px", fontSize: 10 }} value={tipoDescuento} onChange={e => setTipoDescuento(e.target.value)}>
+                    <option value="$">$</option>
+                    <option value="%">%</option>
+                  </select>
+                </div>
               </div>
             )}
-            {errorGC && <div style={{ fontSize: 11, color: "#c0392b", marginBottom: 10 }}>{errorGC}</div>}
+            <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
+              {["A", "B", "Remito"].map(t => (
+                <button key={t} onClick={() => setTipoFac(t)} className="btn btn-sm"
+                  style={{ flex: 1, fontSize: 9, padding: "5px 4px", background: tipoFac === t ? "#c9a84c15" : "transparent", border: "1px solid " + (tipoFac === t ? "#c9a84c" : "#e8e8e8"), color: tipoFac === t ? "#c9a84c" : "#65676B" }}>
+                  {t === "Remito" ? "Rem" : "Fac " + t}
+                </button>
+              ))}
+            </div>
+            <button className="btn btn-sm" style={{ width: "100%", marginBottom: 6, background: "transparent", border: "1px solid #c9a84c44", color: "#c9a84c", fontSize: 9 }} onClick={() => { setShowEmitirGC(true); setGcEmitidaOk(null); setErrorEmitirGC(""); }}>Emitir Gift Card</button>
+            {!giftCardAplicada ? (
+              <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
+                <input className="inp" placeholder="GIFT-XXXX" value={codigoGC} onChange={e => setCodigoGC(e.target.value)} onKeyDown={e => e.key === "Enter" && buscarGiftCard()} style={{ flex: 1, textTransform: "uppercase", fontSize: 11, padding: "6px 10px" }} />
+                <button className="btn btn-sm" style={{ fontSize: 9 }} onClick={buscarGiftCard} disabled={buscandoGC}>GC</button>
+              </div>
+            ) : (
+              <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f44", borderRadius: 6, padding: "6px 8px", marginBottom: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#2d7a4f", fontFamily: "monospace" }}>{giftCardAplicada.codigo}</div>
+                  <div style={{ fontSize: 9, color: "#65676B" }}>${parseFloat(giftCardAplicada.saldo).toLocaleString("es-AR")}</div>
+                </div>
+                <span onClick={quitarGiftCard} style={{ cursor: "pointer", color: "#c0392b", fontSize: 10 }}>X</span>
+              </div>
+            )}
+            {errorGC && <div style={{ fontSize: 9, color: "#c0392b", marginBottom: 6 }}>{errorGC}</div>}
             {giftCardAplicada && (
-              <div style={{ fontSize: 11, marginBottom: 10, display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#65676B" }}>Se descuenta de la gift card</span>
+              <div style={{ fontSize: 10, marginBottom: 6, display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "#65676B" }}>Gift card</span>
                 <span style={{ fontWeight: 700, color: "#2d7a4f" }}>-${montoAplicadoGC.toLocaleString("es-AR")}</span>
               </div>
             )}
             {restaPagar > 0 && (
-            <select className="sel" style={{ marginBottom: 10 }} value={medioPagoSel?.id || ""} onChange={e => {
+            <select className="sel" style={{ marginBottom: 6, fontSize: 11, padding: "8px 10px" }} value={medioPagoSel?.id || ""} onChange={e => {
               const m = mediosPago.find(x => x.id === parseInt(e.target.value));
               setMedioPagoSel(m || null);
             }}>
-              <option value="">{giftCardAplicada ? "Medio de pago para la diferencia..." : "Medio de pago..."}</option>
-              {["efectivo", "transferencia", "debito", "credito", "plataforma"].map(tipo => (
-                <optgroup key={tipo} label={tipo === "efectivo" ? "Efectivo" : tipo === "transferencia" ? "Transferencia" : tipo === "debito" ? "Debito" : tipo === "credito" ? "Credito" : "Plataformas"}>
-                  {mediosPago.filter(m => m.tipo === tipo).map(m => (
-                    <option key={m.id} value={m.id}>
-                      {m.nombre}{m.con_interes ? " (+" + Math.round((parseFloat(m.coeficiente) - 1) * 100) + "%)" : ""}
-                    </option>
-                  ))}
-                </optgroup>
+              <option value="">{giftCardAplicada ? "Pago diferencia..." : "Medio de pago..."}</option>
+              {mediosPago.map(m => (
+                <option key={m.id} value={m.id}>{m.nombre}</option>
               ))}
             </select>
             )}
+          </div>
+          <div style={{ background: "#f0ece4", border: "1px solid #ddd9d0", borderRadius: 8, padding: "10px 12px" }}>
             {descuento > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span style={{ fontSize: 11, color: "#65676B" }}>Descuento</span>
-                <span style={{ fontSize: 11, color: "#2d7a4f" }}>-${descuento.toLocaleString()}</span>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3, fontSize: 10, color: "#2d7a4f" }}>
+                <span>Descuento</span><span>-${descuento.toLocaleString()}</span>
               </div>
             )}
             {intereses > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span style={{ fontSize: 11, color: "#c0392b" }}>Intereses</span>
-                <span style={{ fontSize: 11, color: "#c0392b" }}>+${intereses.toLocaleString()}</span>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3, fontSize: 10, color: "#c0392b" }}>
+                <span>Intereses</span><span>+${intereses.toLocaleString()}</span>
               </div>
             )}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-              <div style={{ fontSize: 11, color: "#65676B", fontWeight: 600 }}>{restaPagar > 0 && giftCardAplicada ? "FALTA PAGAR" : "TOTAL"}</div>
-              <div style={{ fontSize: 30, fontWeight: 700, color: "#111111" }}>${(restaPagar > 0 ? restaPagar : total).toLocaleString()}</div>
+              <div style={{ fontSize: 10, color: "#65676B", fontWeight: 600 }}>{restaPagar > 0 && giftCardAplicada ? "FALTA PAGAR" : "TOTAL"}</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: "#111111" }}>${(restaPagar > 0 ? restaPagar : total).toLocaleString()}</div>
             </div>
-            <button className="btn btn-p" style={{ width: "100%", padding: 13, fontSize: 13, opacity: loading ? 0.7 : 1 }} onClick={emitirFactura} disabled={loading}>
-              {loading ? "Procesando..." : preventa ? "Registrar Preventa" : "Emitir Factura " + tipoFac + " - ARCA"}
+            <button className="btn btn-p" style={{ width: "100%", padding: 11, fontSize: 12, opacity: loading ? 0.7 : 1 }} onClick={emitirFactura} disabled={loading}>
+              {loading ? "Procesando..." : preventa ? "Registrar Preventa" : "Factura " + tipoFac}
             </button>
           </div>
         </div>
       </div>
+
       {showEmitirGC && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
           <div className="card" style={{ width: 380, background: "#ffffff" }}>
