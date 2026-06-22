@@ -4980,13 +4980,16 @@ export default function AppWrapper() {
   const puedeVer = (modulo) => {
     if (!usuario) return false;
     if (usuario.rol === "jefe" || usuario.rol_id === 1) return true;
-    const mapaModulos = {
-      "pos": "pos.ver", "inventory": "inventario.ver", "clients": "clientes.ver",
-      "finance": "finanzas.flujo", "reports": "informes.ventas", "comisiones": "comisiones.propias",
-      "proveedores": "proveedores.ver", "cupones": "cupones.ver", "fidelizacion": "fidelizacion.ver",
-      "postventa": "postventa.ver", "portal": "clientes.ver", "caja": "caja.ver",
-      "ordenes": "ordenes.ver", "kits": "kits.ver", "usuarios": "usuarios.ver",
-      "dashboard": "pos.ver", "tiendanube": "tiendanube.ver",
+ const mapaModulos = {
+      "pos": "pos.ver", "dashboard": "pos.ver",
+      "inventory": "inventario.ver", "ordenes": "ordenes.ver", "inconsistencias": "ordenes.ver", "kits": "kits.ver",
+      "clients": "clientes.ver", "clientes-analitica": "clientes.ver", "fidelizacion": "fidelizacion.ver",
+      "finance": "finanzas.flujo", "reports": "informes.ventas", "comprobantes": "finanzas.flujo",
+      "comisiones": "comisiones.propias", "proveedores": "proveedores.ver",
+      "calculadoras": "finanzas.flujo", "productividad": "finanzas.flujo",
+      "cupones": "cupones.ver", "postventa": "postventa.ver", "portal": "clientes.ver",
+      "caja": "caja.ver", "cierre": "caja.ver", "giftcards": "caja.ver",
+      "usuarios": "usuarios.ver", "tiendanube": "tiendanube.ver",
     };
     const permiso = mapaModulos[modulo];
     if (!permiso) return true;
