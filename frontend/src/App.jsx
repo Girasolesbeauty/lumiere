@@ -4947,6 +4947,7 @@ export default function AppWrapper() {
         const u = JSON.parse(user);
         setUsuario(u);
         if (u.local) setLocal(u.local);
+        cargarMisPermisos(u.id);
       } catch (e) {}
     }
   }, []);
@@ -4954,6 +4955,7 @@ export default function AppWrapper() {
   const handleLogin = (u) => {
     setUsuario(u);
     localStorage.setItem("lumiere_user", JSON.stringify(u));
+    cargarMisPermisos(u.id);
     // Si el usuario tiene local asignado desde el backend, no mostrar selector
     // Pero siempre mostrar el selector para poder elegir
   };
