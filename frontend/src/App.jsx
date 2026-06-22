@@ -718,7 +718,7 @@ function POS({ localId, usuario }) {
           {mensaje}
         </div>
       )}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 420px", gap: 16, height: "calc(100vh - 220px)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 540px", gap: 16, height: "calc(100vh - 160px)" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
           <input className="inp" placeholder="🔍  Buscar por nombre, marca o codigo..." value={busqueda} onChange={e => setBusqueda(e.target.value)} />
           <div style={{ overflowY: "auto", flex: 1, background: "#ffffff", border: "1px solid #e8e8e8", borderRadius: 8 }}>
