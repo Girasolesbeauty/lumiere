@@ -784,7 +784,7 @@ function POS({ localId, usuario }) {
           <div style={{ padding: "12px 16px", borderBottom: "1px solid #ddd9d0", fontSize: 10, color: "#666666", fontWeight: 700, letterSpacing: ".1em", background: preventa ? "#2471a320" : "#f0ece4" }}>
             {preventa ? "PREVENTA" : "COMPROBANTE EN CURSO"}
           </div>
-          <div style={{ padding: "10px 14px", borderBottom: "1px solid #f0f0f0" }}>
+          <div style={{ padding: "6px 14px", borderBottom: "1px solid #f0f0f0", maxHeight: 280, overflowY: "auto" }}>
             {preventa ? (
               <input className="inp" placeholder="Nombre del cliente (preventa)" value={nombrePreventa} onChange={e => setNombrePreventa(e.target.value)} />
             ) : (
@@ -839,7 +839,7 @@ function POS({ localId, usuario }) {
             </div>
             <button className="btn btn-sm" style={{ width: "100%", marginTop: 8, background: "transparent", border: "1px solid #c9a84c44", color: "#c9a84c" }} onClick={() => { setShowEmitirGC(true); setGcEmitidaOk(null); setErrorEmitirGC(""); }}>🎁 Emitir Gift Card</button>
           </div>
-          <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
+          <div style={{ flex: 1, overflowY: "auto", padding: 10, minHeight: 180 }}>
             {cart.length === 0
               ? <div style={{ textAlign: "center", color: "#8A8D91", fontSize: 12, marginTop: 20 }}>Selecciona productos</div>
               : cart.map(i => (
