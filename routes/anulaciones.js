@@ -17,7 +17,6 @@ const registrarAnulacion = async (client, tipo, refId, refCodigo, motivo, usuari
   );
 };
 
-// Anular venta del POS - revierte stock, cancela movimiento de caja, libera reserva si era preventa
 router.post('/venta/:id', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -32,26 +31,22 @@ router.post('/venta/:id', async (req, res) => {
     const items = await client.query('SELECT * FROM venta_items WHERE venta_id = $1', [venta.id]);
     for (const it of items.rows) {
       if (venta.es_preventa === true && venta.estado_pago === 'reservado') {
-        // Liberar reserva por local
         if (venta.preventa_local === 2) {
           await client.query('UPDATE productos SET reservado_ush = GREATEST(COALESCE(reservado_ush,0)-$1,0) WHERE id=$2', [it.cantidad, it.producto_id]);
         } else {
           await client.query('UPDATE productos SET reservado_rg = GREATEST(COALESCE(reservado_rg,0)-$1,0) WHERE id=$2', [it.cantidad, it.producto_id]);
         }
       } else {
-        // Devolver stock real
         await client.query('UPDATE productos SET stock = stock + $1 WHERE id = $2', [it.cantidad, it.producto_id]);
       }
     }
 
-    // Cancelar movimiento de caja asociado
     await client.query(
       `UPDATE movimientos_caja SET anulado = TRUE, anulado_en = NOW(), anulado_por = $1, motivo_anulacion = $2
        WHERE referencia = $3 AND anulado = FALSE`,
       [usuario_nombre || null, motivo.trim(), venta.numero_factura]
     );
 
-    // Devolver puntos al cliente si tenia
     if (venta.cliente_id && parseFloat(venta.total) > 0) {
       const puntosDevolver = Math.floor(parseFloat(venta.total) / 100);
       await client.query(
@@ -60,7 +55,6 @@ router.post('/venta/:id', async (req, res) => {
       );
     }
 
-    // Si uso gift card, devolver el saldo
     const montoGC = parseFloat(venta.monto_gift_card) || 0;
     if (montoGC > 0) {
       const movGC = await client.query(
@@ -94,7 +88,6 @@ router.post('/venta/:id', async (req, res) => {
   } finally { client.release(); }
 });
 
-// Anular gift card - revierte ingreso de caja, deja saldo en cero
 router.post('/giftcard/:id', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -106,8 +99,6 @@ router.post('/giftcard/:id', async (req, res) => {
     const gc = gcRes.rows[0];
     if (gc.anulada) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Ya esta anulada' }); }
 
-    // Solo se puede anular si no se uso o si se quiere forzar el reverso completo
-    // Cancelar el movimiento de caja de la emision
     await client.query(
       `UPDATE movimientos_caja SET anulado = TRUE, anulado_en = NOW(), anulado_por = $1, motivo_anulacion = $2
        WHERE referencia = $3 AND tipo = 'I' AND anulado = FALSE`,
@@ -129,23 +120,43 @@ router.post('/giftcard/:id', async (req, res) => {
   } finally { client.release(); }
 });
 
-// Anular movimiento de caja (ingreso o egreso manual)
 router.post('/movimiento/:id', async (req, res) => {
   try {
     const err = validar(req); if (err) return res.status(400).json({ error: err });
     const { motivo, usuario_id, usuario_nombre } = req.body;
-    const movRes = await pool.query('SELECT * FROM movimientos_caja WHERE id = $1', [req.params.id]);
-    if (movRes.rows.length === 0) return res.status(404).json({ error: 'Movimiento no encontrado' });
-    if (movRes.rows[0].anulado) return res.status(400).json({ error: 'Ya esta anulado' });
 
+    // Buscar en ambas tablas
+    let mov = null;
+    let tabla = null;
+    const res1 = await pool.query('SELECT * FROM movimientos_caja_efectivo WHERE id = $1', [req.params.id]);
+    if (res1.rows.length > 0) { mov = res1.rows[0]; tabla = 'movimientos_caja_efectivo'; }
+    else {
+      const res2 = await pool.query('SELECT * FROM movimientos_caja WHERE id = $1', [req.params.id]);
+      if (res2.rows.length > 0) { mov = res2.rows[0]; tabla = 'movimientos_caja'; }
+    }
+
+    if (!mov) return res.status(404).json({ error: 'Movimiento no encontrado' });
+    if (mov.anulado) return res.status(400).json({ error: 'Ya esta anulado' });
+
+    // Anular en la tabla donde se encontro
     await pool.query(
-      `UPDATE movimientos_caja SET anulado = TRUE, anulado_en = NOW(), anulado_por = $1, motivo_anulacion = $2 WHERE id = $3`,
+      `UPDATE ${tabla} SET anulado = TRUE, anulado_en = NOW(), anulado_por = $1, motivo_anulacion = $2 WHERE id = $3`,
       [usuario_nombre || null, motivo.trim(), req.params.id]
     );
+
+    // Tambien anular en la otra tabla si existe con la misma referencia
+    const otraTabla = tabla === 'movimientos_caja_efectivo' ? 'movimientos_caja' : 'movimientos_caja_efectivo';
+    if (mov.referencia) {
+      await pool.query(
+        `UPDATE ${otraTabla} SET anulado = TRUE, anulado_en = NOW(), anulado_por = $1, motivo_anulacion = $2 WHERE referencia = $3 AND anulado = FALSE`,
+        [usuario_nombre || null, motivo.trim(), mov.referencia]
+      ).catch(() => {});
+    }
+
     await pool.query(
       `INSERT INTO anulaciones (tipo, referencia_id, referencia_codigo, motivo, usuario_id, usuario_nombre, detalle_json)
        VALUES ('movimiento_caja', $1, $2, $3, $4, $5, $6)`,
-      [movRes.rows[0].id, movRes.rows[0].referencia, motivo.trim(), usuario_id || null, usuario_nombre || null, JSON.stringify({ importe: movRes.rows[0].importe, tipo: movRes.rows[0].tipo })]
+      [mov.id, mov.referencia, motivo.trim(), usuario_id || null, usuario_nombre || null, JSON.stringify({ importe: mov.importe, tipo: mov.tipo })]
     );
     res.json({ ok: true });
   } catch (error) {
@@ -154,7 +165,6 @@ router.post('/movimiento/:id', async (req, res) => {
   }
 });
 
-// Revertir un ajuste de stock (reaplica el delta inverso)
 router.post('/ajuste-stock/:id', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -165,7 +175,6 @@ router.post('/ajuste-stock/:id', async (req, res) => {
     if (ajRes.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Ajuste no encontrado' }); }
     const aj = ajRes.rows[0];
 
-    // Aplicar inverso al stock actual
     const stockActual = (await client.query('SELECT stock FROM productos WHERE id = $1', [aj.producto_id])).rows[0]?.stock || 0;
     const nuevoStock = stockActual - aj.diferencia;
     if (nuevoStock < 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'No se puede revertir, dejaria stock negativo' }); }
@@ -186,7 +195,6 @@ router.post('/ajuste-stock/:id', async (req, res) => {
   } finally { client.release(); }
 });
 
-// Anular orden de ingreso de mercaderia - revierte el stock_transito que cargo
 router.post('/orden-ingreso/:id', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -222,7 +230,6 @@ router.post('/orden-ingreso/:id', async (req, res) => {
   } finally { client.release(); }
 });
 
-// Historial de anulaciones
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM anulaciones ORDER BY creado_en DESC LIMIT 200');
