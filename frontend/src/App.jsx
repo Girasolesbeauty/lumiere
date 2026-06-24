@@ -2708,6 +2708,237 @@ function GiftCards({ localId, usuario }) {
   );
 }
 
+
+function Tiendanube({ localId, usuario }) {
+  const [tab, setTab] = useState("pedidos");
+  const [pedidos, setPedidos] = useState([]);
+  const [vinculos, setVinculos] = useState([]);
+  const [productos, setProductos] = useState([]);
+  const [tnProductos, setTnProductos] = useState([]);
+  const [busqTN, setBusqTN] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [mensaje, setMensaje] = useState("");
+  const [status, setStatus] = useState(null);
+  const [vinculando, setVinculando] = useState(null);
+  const [tnSeleccionado, setTnSeleccionado] = useState(null);
+
+  const cargar = async () => {
+    setLoading(true);
+    try {
+      const [pedRes, vincRes, prodRes, stRes] = await Promise.all([
+        API.get("/tiendanube/pedidos-locales"),
+        API.get("/tiendanube/vinculos"),
+        API.get("/productos"),
+        API.get("/tiendanube/status")
+      ]);
+      setPedidos(pedRes.data || []);
+      setVinculos(vincRes.data || []);
+      setProductos(prodRes.data || []);
+      setStatus(stRes.data);
+    } catch (e) {}
+    setLoading(false);
+  };
+
+  useEffect(() => { cargar(); }, []);
+
+  const autorizar = async (p) => {
+    try {
+      await API.post("/tiendanube/pedidos-locales/" + p.id + "/autorizar", { usuario_nombre: usuario?.nombre });
+      setMensaje("Stock descontado para pedido #" + p.numero);
+      cargar();
+      setTimeout(() => setMensaje(""), 4000);
+    } catch (e) { setMensaje(e.response?.data?.error || "Error al autorizar"); }
+  };
+
+  const rechazar = async (p) => {
+    try {
+      await API.post("/tiendanube/pedidos-locales/" + p.id + "/rechazar");
+      setMensaje("Pedido rechazado");
+      cargar();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al rechazar"); }
+  };
+
+  const buscarEnTN = async () => {
+    if (!busqTN.trim()) return;
+    try {
+      const res = await API.get("/tiendanube/buscar-producto?q=" + encodeURIComponent(busqTN));
+      setTnProductos(res.data || []);
+    } catch (e) { setMensaje("Error al buscar en Tiendanube"); }
+  };
+
+  const guardarVinculo = async () => {
+    if (!vinculando || !tnSeleccionado) return;
+    try {
+      await API.post("/tiendanube/vinculos", {
+        producto_id: vinculando.id,
+        tn_product_id: tnSeleccionado.id,
+        tn_variant_id_rg: tnSeleccionado.variantes?.[0]?.id || null,
+        tn_variant_id_ush: tnSeleccionado.variantes?.[1]?.id || tnSeleccionado.variantes?.[0]?.id || null
+      });
+      setMensaje("Vinculado: " + vinculando.nombre + " con " + tnSeleccionado.nombre);
+      setVinculando(null);
+      setTnSeleccionado(null);
+      setTnProductos([]);
+      setBusqTN("");
+      cargar();
+      setTimeout(() => setMensaje(""), 4000);
+    } catch (e) { setMensaje("Error al vincular"); }
+  };
+
+  const desvincular = async (v) => {
+    try {
+      await API.delete("/tiendanube/vinculos/" + v.producto_id);
+      setMensaje("Desvinculado");
+      cargar();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error"); }
+  };
+
+  const pendientes = pedidos.filter(p => p.estado === "pendiente");
+  const procesados = pedidos.filter(p => p.estado !== "pendiente");
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div>
+          <div className="pt">Tiendanube</div>
+          <div className="ps">{status?.ok ? status.tienda + " - conectada" : "sin conexion"}</div>
+        </div>
+        {status?.ok && <span className="badge bg">Conectada</span>}
+      </div>
+      {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
+      <div className="tabs">
+        <div className={"tab " + (tab === "pedidos" ? "on" : "")} onClick={() => setTab("pedidos")}>PEDIDOS {pendientes.length > 0 && <span style={{ background: "#c0392b", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{pendientes.length}</span>}</div>
+        <div className={"tab " + (tab === "vincular" ? "on" : "")} onClick={() => setTab("vincular")}>VINCULAR PRODUCTOS</div>
+        <div className={"tab " + (tab === "historial" ? "on" : "")} onClick={() => setTab("historial")}>HISTORIAL</div>
+      </div>
+      {tab === "pedidos" && (
+        <div className="fade">
+          {pendientes.length === 0 ? (
+            <div className="card" style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>No hay pedidos pendientes de autorizar</div>
+          ) : pendientes.map(p => {
+            const items = p.productos || [];
+            return (
+              <div key={p.id} className="card" style={{ marginBottom: 12, borderLeft: "3px solid #c9a84c" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>Pedido #{p.numero}</div>
+                    <div style={{ fontSize: 11, color: "#65676B" }}>{p.cliente_nombre}{p.cliente_email ? " - " + p.cliente_email : ""}</div>
+                    <div style={{ fontSize: 10, color: "#65676B" }}>{new Date(p.creado_en).toLocaleDateString("es-AR")} {new Date(p.creado_en).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</div>
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>${parseFloat(p.total || 0).toLocaleString("es-AR")}</div>
+                </div>
+                <div style={{ background: "#f8f8f8", borderRadius: 6, padding: "6px 10px", marginBottom: 10 }}>
+                  {items.map((it, idx) => (
+                    <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "3px 0", borderBottom: idx < items.length - 1 ? "1px solid #f0f0f0" : "none" }}>
+                      <span>{it.nombre} x{it.cantidad}</span>
+                      <span style={{ color: "#65676B" }}>${parseFloat(it.precio || 0).toLocaleString("es-AR")}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn btn-p btn-sm" style={{ flex: 2 }} onClick={() => autorizar(p)}>Autorizar descuento de stock</button>
+                  <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => rechazar(p)}>Ignorar</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {tab === "vincular" && (
+        <div className="fade">
+          {vinculando && (
+            <div className="card" style={{ marginBottom: 16, borderLeft: "3px solid #2471a3" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Vincular: {vinculando.nombre}</div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                <input className="inp" placeholder="Buscar en Tiendanube..." value={busqTN} onChange={e => setBusqTN(e.target.value)} onKeyDown={e => e.key === "Enter" && buscarEnTN()} style={{ flex: 1 }} />
+                <button className="btn btn-p btn-sm" onClick={buscarEnTN}>Buscar</button>
+              </div>
+              {tnProductos.length > 0 && (
+                <div style={{ maxHeight: 200, overflowY: "auto", marginBottom: 10 }}>
+                  {tnProductos.map(tp => (
+                    <div key={tp.id} onClick={() => setTnSeleccionado(tp)}
+                      style={{ padding: "8px 10px", borderRadius: 6, marginBottom: 4, cursor: "pointer", background: tnSeleccionado?.id === tp.id ? "#2471a312" : "#f8f8f8", border: "1px solid " + (tnSeleccionado?.id === tp.id ? "#2471a3" : "#e8e8e8") }}>
+                      <div style={{ fontSize: 12, fontWeight: 600 }}>{tp.nombre}</div>
+                      <div style={{ fontSize: 10, color: "#65676B" }}>{(tp.variantes || []).length} variante(s)</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => { setVinculando(null); setTnProductos([]); setTnSeleccionado(null); }}>Cancelar</button>
+                {tnSeleccionado && <button className="btn btn-p btn-sm" style={{ flex: 1 }} onClick={guardarVinculo}>Confirmar vinculo</button>}
+              </div>
+            </div>
+          )}
+          <div className="g2">
+            <div className="card">
+              <div className="ct">PRODUCTOS SIN VINCULAR</div>
+              {productos.filter(p => !vinculos.find(v => v.producto_id === p.id)).length === 0 ? (
+                <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 20 }}>Todos los productos estan vinculados</div>
+              ) : (
+                <div style={{ maxHeight: 400, overflowY: "auto" }}>
+                  {productos.filter(p => !vinculos.find(v => v.producto_id === p.id)).map(p => (
+                    <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid #f5f5f5" }}>
+                      <div>
+                        <div style={{ fontSize: 12 }}>{p.nombre}</div>
+                        <div style={{ fontSize: 10, color: "#65676B" }}>{p.marca || ""}</div>
+                      </div>
+                      <button className="btn btn-sm" style={{ fontSize: 9 }} onClick={() => { setVinculando(p); setTnProductos([]); setTnSeleccionado(null); setBusqTN(p.nombre || ""); }}>Vincular</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="card">
+              <div className="ct">PRODUCTOS VINCULADOS ({vinculos.length})</div>
+              {vinculos.length === 0 ? (
+                <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 20 }}>Sin vinculos creados</div>
+              ) : (
+                <div style={{ maxHeight: 400, overflowY: "auto" }}>
+                  {vinculos.map(v => (
+                    <div key={v.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid #f5f5f5" }}>
+                      <div>
+                        <div style={{ fontSize: 12 }}>{v.producto_nombre}</div>
+                        <div style={{ fontSize: 10, color: "#65676B" }}>TN ID: {v.tn_product_id}</div>
+                      </div>
+                      <button className="btn btn-sm" style={{ color: "#c0392b", fontSize: 9 }} onClick={() => desvincular(v)}>Desvincular</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {tab === "historial" && (
+        <div className="card fade">
+          {procesados.length === 0 ? (
+            <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 30 }}>Sin pedidos procesados todavia</div>
+          ) : (
+            <table>
+              <thead><tr><th>Pedido</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Autorizado por</th><th>Fecha</th></tr></thead>
+              <tbody>
+                {procesados.map(p => (
+                  <tr key={p.id}>
+                    <td style={{ fontWeight: 600 }}>#{p.numero}</td>
+                    <td style={{ fontSize: 12 }}>{p.cliente_nombre}</td>
+                    <td style={{ color: "#c9a84c", fontWeight: 600 }}>${parseFloat(p.total || 0).toLocaleString("es-AR")}</td>
+                    <td><span className={"badge " + (p.estado === "procesado" ? "bg" : "br")}>{p.estado}</span></td>
+                    <td style={{ fontSize: 11, color: "#65676B" }}>{p.autorizado_por || "-"}</td>
+                    <td style={{ fontSize: 10, color: "#65676B" }}>{new Date(p.creado_en).toLocaleDateString("es-AR")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PortalCliente() {
   const client = CLIENTS[0];
   const [tab, setTab] = useState("canjear");
@@ -5030,6 +5261,7 @@ export default function AppWrapper() {
     if (id === "cupones") return <Cupones localId={local.id} />;
     if (id === "fidelizacion") return <Fidelizacion localId={local.id} />;
     if (id === "postventa") return <PostventaWA localId={local.id} />;
+    if (id === "tiendanube") return <Tiendanube localId={local.id} usuario={usuario} />;
     if (id === "portal") return <PortalCliente />;
     if (id === "usuarios") return <Usuarios usuario={usuario} />;
     if (id === "comisiones") return <Comisiones localId={local.id} />;
