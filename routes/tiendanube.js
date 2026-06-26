@@ -246,13 +246,37 @@ router.post('/sync/stock/:producto_id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.response?.data?.description || e.message }); }
 });
 
-// Registrar webhook
+// Listar webhooks ya registrados en TN (para diagnostico)
+router.get('/webhooks-registrados', async (req, res) => {
+  try {
+    const webhooks = await tnFetch('GET', '/webhooks');
+    res.json({ ok: true, webhooks });
+  } catch (e) {
+    const tn = e.response?.data;
+    res.status(500).json({ ok: false, error: tn?.description || tn || e.message });
+  }
+});
+
+// Registrar webhook (idempotente: no duplica si ya existe)
 router.post('/registrar-webhook', async (req, res) => {
   try {
-    const { backend_url } = req.body;
-    const webhook = await tnFetch('POST', '/webhooks', { event: 'store/order/paid', url: `${backend_url}/api/tiendanube/webhook` });
+    let { backend_url } = req.body;
+    if (!backend_url) return res.status(400).json({ ok: false, error: 'Falta backend_url' });
+    backend_url = backend_url.trim().replace(/\/+$/, '');
+    const url = `${backend_url}/api/tiendanube/webhook`;
+    const event = 'store/order/paid';
+
+    const existentes = await tnFetch('GET', '/webhooks');
+    const yaExiste = (existentes || []).find(w => w.event === event && w.url === url);
+    if (yaExiste) return res.json({ ok: true, webhook: yaExiste, mensaje: 'Ya estaba registrado' });
+
+    const webhook = await tnFetch('POST', '/webhooks', { event, url });
     res.json({ ok: true, webhook });
-  } catch (e) { res.status(500).json({ error: e.response?.data?.description || e.message }); }
+  } catch (e) {
+    const tn = e.response?.data;
+    const detalle = tn?.description || (typeof tn === 'object' ? JSON.stringify(tn) : tn) || e.message;
+    res.status(500).json({ ok: false, error: detalle });
+  }
 });
 
 // Obtener pedidos directo de TN API
