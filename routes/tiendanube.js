@@ -75,7 +75,7 @@ router.post('/webhook', async (req, res) => {
   res.json({ ok: true });
   try {
     const { event } = req.body;
-    if (event !== 'store/order/paid' && event !== 'store/order/created') return;
+    if (event !== 'order/paid' && event !== 'order/created') return;
     const pedido = req.body.payload;
     if (!pedido || !pedido.id) return;
 
@@ -264,7 +264,7 @@ router.post('/registrar-webhook', async (req, res) => {
     if (!backend_url) return res.status(400).json({ ok: false, error: 'Falta backend_url' });
     backend_url = backend_url.trim().replace(/\/+$/, '');
     const url = `${backend_url}/api/tiendanube/webhook`;
-    const event = 'store/order/paid';
+    const event = 'order/paid';
 
     const existentes = await tnFetch('GET', '/webhooks');
     const yaExiste = (existentes || []).find(w => w.event === event && w.url === url);
