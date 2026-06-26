@@ -717,7 +717,7 @@ function POS({ localId, usuario }) {
       </div>
       {modoPrueba && (
         <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "10px 16px", marginBottom: 12, fontSize: 12, color: "#c0392b", fontWeight: 600 }}>
-          ?? MODO PRUEBA ACTIVO — las ventas NO se facturan en ARCA. Desactivalo para vender de verdad.
+          ?? MODO PRUEBA ACTIVO â€” las ventas NO se facturan en ARCA. Desactivalo para vender de verdad.
         </div>
       )}
       <div className="tabs">
@@ -1229,8 +1229,8 @@ function Inventario({ localId, usuario }) {
               <div>
                 <div style={{ fontSize: 10, color: "#65676B", fontFamily: "monospace", marginBottom: 12, background: "#f9f9f9", padding: "6px 10px", borderRadius: 6 }}>
                   {calcSel.tipo === "desde_costo"
-                    ? `(costo × ${calcSel.margen}${parseFloat(calcSel.iva) > 0 ? " × " + (1 + parseFloat(calcSel.iva) / 100).toFixed(3) + " imp." : ""}) + extras`
-                    : `(precio venta × ${calcSel.margen}) + extras`}
+                    ? `(costo Ã— ${calcSel.margen}${parseFloat(calcSel.iva) > 0 ? " Ã— " + (1 + parseFloat(calcSel.iva) / 100).toFixed(3) + " imp." : ""}) + extras`
+                    : `(precio venta Ã— ${calcSel.margen}) + extras`}
                 </div>
                 {calcSel.tipo === "desde_costo" ? (
                   <div className="fg"><div className="fl">Costo unitario ($)</div>
@@ -2429,9 +2429,9 @@ function Calculadoras({ usuario }) {
     if (!c) return "";
     const extras = (c.extras || []).map(e => e.label).join(" + ");
     if (c.tipo === "desde_costo") {
-      return `(costo × ${c.margen}${parseFloat(c.iva) > 0 ? " × " + (1 + parseFloat(c.iva) / 100).toFixed(3) + " (imp.)" : ""})${extras ? " + " + extras : ""}`;
+      return `(costo Ã— ${c.margen}${parseFloat(c.iva) > 0 ? " Ã— " + (1 + parseFloat(c.iva) / 100).toFixed(3) + " (imp.)" : ""})${extras ? " + " + extras : ""}`;
     }
-    return `(precio venta × ${c.margen})${extras ? " + " + extras : ""}`;
+    return `(precio venta Ã— ${c.margen})${extras ? " + " + extras : ""}`;
   };
 
   return (
@@ -2485,7 +2485,7 @@ function Calculadoras({ usuario }) {
                     <div style={{ fontSize: 11, color: "#65676B", marginTop: 8 }}>con {seleccionada.nombre}</div>
                   </div>
                 ) : (
-                  <div style={{ textAlign: "center", color: "#cccccc", fontSize: 12 }}>Ingresa los valores y calculá</div>
+                  <div style={{ textAlign: "center", color: "#cccccc", fontSize: 12 }}>Ingresa los valores y calculÃ¡</div>
                 )}
               </div>
             </div>
@@ -2518,7 +2518,7 @@ function Calculadoras({ usuario }) {
                   {form.extras.map((e, i) => (
                     <span key={i} style={{ background: "#f5f5f5", padding: "3px 10px", borderRadius: 12, fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
                       {e.label}
-                      <span style={{ cursor: "pointer", color: "#c0392b" }} onClick={() => setForm(f => ({ ...f, extras: f.extras.filter((_, j) => j !== i) }))}>×</span>
+                      <span style={{ cursor: "pointer", color: "#c0392b" }} onClick={() => setForm(f => ({ ...f, extras: f.extras.filter((_, j) => j !== i) }))}>Ã—</span>
                     </span>
                   ))}
                 </div>
@@ -3874,7 +3874,7 @@ function CierreCaja({ localId, usuario }) {
       <div ref={resumenRef} style={{ background: "#ffffff", padding: 4, borderRadius: 8 }}>
         <div style={{ padding: "10px 0 16px", borderBottom: "1px solid #f0f0f0", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>LUMIERE — Cierre de Caja</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>LUMIERE â€” Cierre de Caja</div>
             <div style={{ fontSize: 11, color: "#65676B" }}>{fmtDia(fecha)}</div>
           </div>
           <div style={{ textAlign: "right" }}>
@@ -4872,7 +4872,7 @@ function LoginScreen({ onLogin }) {
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
-    if (!email || !password) return setError("Completá todos los campos");
+    if (!email || !password) return setError("CompletÃ¡ todos los campos");
     setLoading(true);
     try {
       const res = await login({ email, password });
@@ -4880,7 +4880,7 @@ function LoginScreen({ onLogin }) {
       localStorage.setItem("lumiere_user", JSON.stringify(res.data.usuario));
       onLogin(res.data.usuario);
     } catch (e) {
-      setError("Email o contraseña incorrectos");
+      setError("Email o contraseÃ±a incorrectos");
     }
     setLoading(false);
   };
@@ -4898,8 +4898,8 @@ function LoginScreen({ onLogin }) {
           <input className="inp" type="email" placeholder="tu@email.com" value={email} onChange={e => { setEmail(e.target.value); setError(""); }} />
         </div>
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 9, color: "#65676B", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÑA</div>
-          <input className="inp" type="password" placeholder="••••••••" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
+          <div style={{ fontSize: 9, color: "#65676B", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÃ‘A</div>
+          <input className="inp" type="password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
         </div>
         <button className="btn btn-p" style={{ width: "100%", padding: 13 }} onClick={handleLogin} disabled={loading}>
           {loading ? "Ingresando..." : "Ingresar"}
@@ -5054,7 +5054,7 @@ function Usuarios({ usuario: usuarioActual }) {
         <div className="ph">
           <div>
             <div className="pt">Permisos de {editandoPermisos.nombre}</div>
-            <div className="ps">{rolNombre[editandoPermisos.rol] || editandoPermisos.rol} — {permisosUsuario.length} permisos activos</div>
+            <div className="ps">{rolNombre[editandoPermisos.rol] || editandoPermisos.rol} â€” {permisosUsuario.length} permisos activos</div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button className="btn btn-g btn-sm" onClick={() => setPermisosUsuario([])}>Quitar todo</button>
