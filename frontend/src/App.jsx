@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, Fragment } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import { getProductos, createVenta, getClientes, getFlujo, getPuntoEquilibrio, agregarEgreso, getResumenFinanzas, getVentas, getAlertasStock, getCupones, createCupon, updateCupon, getRanking, getReglas, createRegla as createReglaWA, updateRegla as updateReglaWA, login, register } from "./api";
 import API from "./api";
 
@@ -120,7 +120,7 @@ const REWARDS = [
 
 const REWARDS_DISPLAY = REWARDS.map(r => ({
   ...r,
-  emoji: r.emoji === "ok_hand" ? "👌" : r.emoji === "droplet" ? "💧" : r.emoji === "lipstick" ? "💄" : r.emoji === "gift" ? "🎁" : r.emoji === "herb" ? "🌿" : "🌸",
+  emoji: r.emoji === "ok_hand" ? "??" : r.emoji === "droplet" ? "??" : r.emoji === "lipstick" ? "??" : r.emoji === "gift" ? "??" : r.emoji === "herb" ? "??" : "??",
 }));
 
 const CUPONS_DATA = [
@@ -253,7 +253,7 @@ function Dashboard({ localId }) {
 
   const Semaforo = ({ valor, umbralOk, umbralAlerta, formato }) => {
     const color = valor >= umbralOk ? "#2d7a4f" : valor >= umbralAlerta ? "#e67e22" : "#c0392b";
-    const icono = valor >= umbralOk ? "🟢" : valor >= umbralAlerta ? "🟡" : "🔴";
+    const icono = valor >= umbralOk ? "??" : valor >= umbralAlerta ? "??" : "??";
     return <span style={{ color, fontSize: 12, fontWeight: 700 }}>{icono} {formato ? formato(valor) : valor}</span>;
   };
 
@@ -561,7 +561,7 @@ function POS({ localId, usuario }) {
       if (!preventa) {
         try {
           const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaRes.data.id });
-          setMensaje("✅ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
+          setMensaje("? " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
         } catch (arcaErr) {
           setMensaje("Venta registrada pero error en ARCA: " + arcaErr.message);
         }
@@ -717,7 +717,7 @@ function POS({ localId, usuario }) {
       </div>
       {modoPrueba && (
         <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "10px 16px", marginBottom: 12, fontSize: 12, color: "#c0392b", fontWeight: 600 }}>
-          🧪 MODO PRUEBA ACTIVO — las ventas NO se facturan en ARCA. Desactivalo para vender de verdad.
+          ?? MODO PRUEBA ACTIVO � las ventas NO se facturan en ARCA. Desactivalo para vender de verdad.
         </div>
       )}
       <div className="tabs">
@@ -922,7 +922,7 @@ function POS({ localId, usuario }) {
           <div className="card" style={{ width: 380, background: "#ffffff" }}>
             {!gcEmitidaOk ? (
               <>
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>🎁 Emitir Gift Card</div>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>?? Emitir Gift Card</div>
                 {errorEmitirGC && <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "8px 12px", marginBottom: 10, fontSize: 11, color: "#c0392b" }}>{errorEmitirGC}</div>}
                 <div className="fg"><div className="fl">Monto ($)</div><input className="inp" type="number" placeholder="10000" value={nuevaGC.monto} onChange={e => setNuevaGC(p => ({ ...p, monto: e.target.value }))} /></div>
                 <div className="fg"><div className="fl">Nombre de quien la recibe</div><input className="inp" placeholder="Ej: Maria Lopez" value={nuevaGC.beneficiario_nombre} onChange={e => setNuevaGC(p => ({ ...p, beneficiario_nombre: e.target.value }))} /></div>
@@ -1090,7 +1090,7 @@ function Inventario({ localId, usuario }) {
               <div className="fg">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div className="fl">Precio de venta ($) *</div>
-                  <span onClick={() => { setShowCalc(true); setCalcValores({ costo: nuevo.costo || "" }); setCalcResultado(null); cargarCalculadoras(); }} style={{ fontSize: 10, color: "#c9a84c", cursor: "pointer", textDecoration: "underline" }}>🧮 Calcular precio</span>
+                  <span onClick={() => { setShowCalc(true); setCalcValores({ costo: nuevo.costo || "" }); setCalcResultado(null); cargarCalculadoras(); }} style={{ fontSize: 10, color: "#c9a84c", cursor: "pointer", textDecoration: "underline" }}>?? Calcular precio</span>
                 </div>
                 <input className="inp" type="number" placeholder="2500" value={nuevo.precio} onChange={e => setNuevo(p => ({ ...p, precio: e.target.value }))} />
               </div>
@@ -1215,7 +1215,7 @@ function Inventario({ localId, usuario }) {
       {showCalc && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
           <div className="card" style={{ width: 420, background: "#ffffff" }}>
-            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>🧮 Calcular precio</div>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>?? Calcular precio</div>
             <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>El resultado se va a cargar automaticamente en el campo de precio.</div>
             <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
               {calculadoras.map(c => (
@@ -1229,8 +1229,8 @@ function Inventario({ localId, usuario }) {
               <div>
                 <div style={{ fontSize: 10, color: "#65676B", fontFamily: "monospace", marginBottom: 12, background: "#f9f9f9", padding: "6px 10px", borderRadius: 6 }}>
                   {calcSel.tipo === "desde_costo"
-                    ? `(costo × ${calcSel.margen}${parseFloat(calcSel.iva) > 0 ? " × " + (1 + parseFloat(calcSel.iva) / 100).toFixed(3) + " imp." : ""}) + extras`
-                    : `(precio venta × ${calcSel.margen}) + extras`}
+                    ? `(costo � ${calcSel.margen}${parseFloat(calcSel.iva) > 0 ? " � " + (1 + parseFloat(calcSel.iva) / 100).toFixed(3) + " imp." : ""}) + extras`
+                    : `(precio venta � ${calcSel.margen}) + extras`}
                 </div>
                 {calcSel.tipo === "desde_costo" ? (
                   <div className="fg"><div className="fl">Costo unitario ($)</div>
@@ -2429,9 +2429,9 @@ function Calculadoras({ usuario }) {
     if (!c) return "";
     const extras = (c.extras || []).map(e => e.label).join(" + ");
     if (c.tipo === "desde_costo") {
-      return `(costo × ${c.margen}${parseFloat(c.iva) > 0 ? " × " + (1 + parseFloat(c.iva) / 100).toFixed(3) + " (imp.)" : ""})${extras ? " + " + extras : ""}`;
+      return `(costo � ${c.margen}${parseFloat(c.iva) > 0 ? " � " + (1 + parseFloat(c.iva) / 100).toFixed(3) + " (imp.)" : ""})${extras ? " + " + extras : ""}`;
     }
-    return `(precio venta × ${c.margen})${extras ? " + " + extras : ""}`;
+    return `(precio venta � ${c.margen})${extras ? " + " + extras : ""}`;
   };
 
   return (
@@ -2485,7 +2485,7 @@ function Calculadoras({ usuario }) {
                     <div style={{ fontSize: 11, color: "#65676B", marginTop: 8 }}>con {seleccionada.nombre}</div>
                   </div>
                 ) : (
-                  <div style={{ textAlign: "center", color: "#cccccc", fontSize: 12 }}>Ingresa los valores y calculá</div>
+                  <div style={{ textAlign: "center", color: "#cccccc", fontSize: 12 }}>Ingresa los valores y calcul�</div>
                 )}
               </div>
             </div>
@@ -2518,7 +2518,7 @@ function Calculadoras({ usuario }) {
                   {form.extras.map((e, i) => (
                     <span key={i} style={{ background: "#f5f5f5", padding: "3px 10px", borderRadius: 12, fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
                       {e.label}
-                      <span style={{ cursor: "pointer", color: "#c0392b" }} onClick={() => setForm(f => ({ ...f, extras: f.extras.filter((_, j) => j !== i) }))}>×</span>
+                      <span style={{ cursor: "pointer", color: "#c0392b" }} onClick={() => setForm(f => ({ ...f, extras: f.extras.filter((_, j) => j !== i) }))}>�</span>
                     </span>
                   ))}
                 </div>
@@ -3066,7 +3066,7 @@ function Comisiones({ localId }) {
   };
 
   const nivelColor = datos?.nivel === 2 ? "#c9a84c" : datos?.nivel === 1 ? "#2d7a4f" : "#65676B";
-  const nivelEmoji = datos?.nivel === 2 ? "🏆" : datos?.nivel === 1 ? "⭐" : "🎯";
+  const nivelEmoji = datos?.nivel === 2 ? "??" : datos?.nivel === 1 ? "?" : "??";
 
   return (
     <div className="fade">
@@ -3627,7 +3627,7 @@ function Comprobantes({ localId }) {
             <thead><tr><th>Comprobante</th><th>Fecha</th><th>Cliente</th><th>Tipo</th><th>CAE</th><th>Total</th><th></th></tr></thead>
             <tbody>
               {comprobantes.map((v, i) => (
-                <React.Fragment key={i}>
+                <Fragment key={i}>
                   <tr>
                     <td style={{ fontSize: 12, fontWeight: 600, color: "#c9a84c" }}>{fmtNro(v)}</td>
                     <td style={{ fontSize: 11, color: "#65676B" }}>{new Date(v.creado_en || v.fecha).toLocaleDateString("es-AR")}</td>
@@ -3662,7 +3662,7 @@ function Comprobantes({ localId }) {
                       </td>
                     </tr>
                   )}
-                </React.Fragment>
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -3856,11 +3856,11 @@ function CierreCaja({ localId, usuario }) {
       <div className="ph">
         <div><div className="pt">Cierre de Caja</div><div className="ps">resumen del dia por medio de pago</div></div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button className="btn btn-g btn-sm" onClick={() => cambiarDia(-1)}>← Anterior</button>
+          <button className="btn btn-g btn-sm" onClick={() => cambiarDia(-1)}>? Anterior</button>
           <input className="inp" type="date" style={{ width: 150, padding: "6px 10px", fontSize: 12 }} value={fecha} onChange={e => setFecha(e.target.value)} />
-          <button className="btn btn-g btn-sm" onClick={() => cambiarDia(1)} disabled={esHoy} style={{ opacity: esHoy ? 0.4 : 1 }}>Siguiente →</button>
+          <button className="btn btn-g btn-sm" onClick={() => cambiarDia(1)} disabled={esHoy} style={{ opacity: esHoy ? 0.4 : 1 }}>Siguiente ?</button>
           {esHoy && <span style={{ fontSize: 11, color: "#2d7a4f", fontWeight: 600 }}>HOY</span>}
-          <button className="btn btn-p btn-sm" onClick={descargarImagen}>📲 Descargar</button>
+          <button className="btn btn-p btn-sm" onClick={descargarImagen}>?? Descargar</button>
         </div>
       </div>
 
@@ -3874,7 +3874,7 @@ function CierreCaja({ localId, usuario }) {
       <div ref={resumenRef} style={{ background: "#ffffff", padding: 4, borderRadius: 8 }}>
         <div style={{ padding: "10px 0 16px", borderBottom: "1px solid #f0f0f0", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>LUMIERE — Cierre de Caja</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>LUMIERE � Cierre de Caja</div>
             <div style={{ fontSize: 11, color: "#65676B" }}>{fmtDia(fecha)}</div>
           </div>
           <div style={{ textAlign: "right" }}>
@@ -4171,7 +4171,7 @@ function ControlInventario({ localId, usuario }) {
       <div className="ph">
         <div><div className="pt">Control de Inventario</div><div className="ps">conteo fisico vs stock del sistema</div></div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn btn-g btn-sm" onClick={() => setShowConfig(true)}>⚙ Config</button>
+          <button className="btn btn-g btn-sm" onClick={() => setShowConfig(true)}>? Config</button>
           <button className="btn btn-p btn-sm" onClick={() => setShowNuevo(true)}>+ Nuevo control</button>
         </div>
       </div>
@@ -4849,15 +4849,15 @@ function Kits() {
 }
 
 const NAV_SECTIONS = [
-  { section: "VENTAS", color: "#e67e22", items: [{ id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "pos", icon: "🛒", label: "Punto de Venta" }] },
-  { section: "STOCK", color: "#7d3c98", items: [{ id: "inventory", icon: "📦", label: "Inventario" }, { id: "ordenes", icon: "🚚", label: "Ingresos" }, { id: "inconsistencias", icon: "⚠️", label: "Inconsistencias" }, { id: "kits", icon: "🎁", label: "Kits" }] },
-  { section: "CAJA", color: "#2d7a4f", items: [{ id: "caja", icon: "💵", label: "Caja" }, { id: "cierre", icon: "🔒", label: "Cierre de Caja" }, { id: "giftcards", icon: "🎀", label: "Gift Cards" }] },
-  { section: "CLIENTES", color: "#c9a84c", items: [{ id: "clients", icon: "👥", label: "Clientes" }, { id: "clientes-analitica", icon: "📈", label: "Analitica Clientes" }, { id: "fidelizacion", icon: "⭐", label: "Fidelizacion" }] },
-  { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "💰", label: "Finanzas" }, { id: "reports", icon: "📋", label: "Informes" }, { id: "comprobantes", icon: "🧾", label: "Comprobantes" }, { id: "comisiones", icon: "💎", label: "Comisiones" }, { id: "proveedores", icon: "🏭", label: "Proveedores" }, { id: "calculadoras", icon: "🧮", label: "Calculadoras" }, { id: "productividad", icon: "🏆", label: "Productividad" }] },
-  { section: "MARKETING", color: "#e74c3c", items: [{ id: "cupones", icon: "🏷️", label: "Cupones" }] },
-  { section: "POSTVENTA", color: "#25d366", items: [{ id: "postventa", icon: "💬", label: "Postventa WA" }] },
-  { section: "INTEGRACIONES", color: "#2471a3", items: [{ id: "tiendanube", icon: "🛍️", label: "Tiendanube" }] },
-  { section: "CLIENTE", color: "#65676B", items: [{ id: "portal", icon: "👤", label: "Portal Cliente" }] },
+  { section: "VENTAS", color: "#e67e22", items: [{ id: "dashboard", icon: "??", label: "Dashboard" }, { id: "pos", icon: "??", label: "Punto de Venta" }] },
+  { section: "STOCK", color: "#7d3c98", items: [{ id: "inventory", icon: "??", label: "Inventario" }, { id: "ordenes", icon: "??", label: "Ingresos" }, { id: "inconsistencias", icon: "??", label: "Inconsistencias" }, { id: "kits", icon: "??", label: "Kits" }] },
+  { section: "CAJA", color: "#2d7a4f", items: [{ id: "caja", icon: "??", label: "Caja" }, { id: "cierre", icon: "??", label: "Cierre de Caja" }, { id: "giftcards", icon: "??", label: "Gift Cards" }] },
+  { section: "CLIENTES", color: "#c9a84c", items: [{ id: "clients", icon: "??", label: "Clientes" }, { id: "clientes-analitica", icon: "??", label: "Analitica Clientes" }, { id: "fidelizacion", icon: "?", label: "Fidelizacion" }] },
+  { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "??", label: "Finanzas" }, { id: "reports", icon: "??", label: "Informes" }, { id: "comprobantes", icon: "??", label: "Comprobantes" }, { id: "comisiones", icon: "??", label: "Comisiones" }, { id: "proveedores", icon: "??", label: "Proveedores" }, { id: "calculadoras", icon: "??", label: "Calculadoras" }, { id: "productividad", icon: "??", label: "Productividad" }] },
+  { section: "MARKETING", color: "#e74c3c", items: [{ id: "cupones", icon: "???", label: "Cupones" }] },
+  { section: "POSTVENTA", color: "#25d366", items: [{ id: "postventa", icon: "??", label: "Postventa WA" }] },
+  { section: "INTEGRACIONES", color: "#2471a3", items: [{ id: "tiendanube", icon: "???", label: "Tiendanube" }] },
+  { section: "CLIENTE", color: "#65676B", items: [{ id: "portal", icon: "??", label: "Portal Cliente" }] },
 ];
 
 
@@ -4872,7 +4872,7 @@ function LoginScreen({ onLogin }) {
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
-    if (!email || !password) return setError("Completá todos los campos");
+    if (!email || !password) return setError("Complet� todos los campos");
     setLoading(true);
     try {
       const res = await login({ email, password });
@@ -4880,7 +4880,7 @@ function LoginScreen({ onLogin }) {
       localStorage.setItem("lumiere_user", JSON.stringify(res.data.usuario));
       onLogin(res.data.usuario);
     } catch (e) {
-      setError("Email o contraseña incorrectos");
+      setError("Email o contrase�a incorrectos");
     }
     setLoading(false);
   };
@@ -4898,8 +4898,8 @@ function LoginScreen({ onLogin }) {
           <input className="inp" type="email" placeholder="tu@email.com" value={email} onChange={e => { setEmail(e.target.value); setError(""); }} />
         </div>
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 9, color: "#65676B", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÑA</div>
-          <input className="inp" type="password" placeholder="••••••••" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
+          <div style={{ fontSize: 9, color: "#65676B", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASE�A</div>
+          <input className="inp" type="password" placeholder="��������" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
         </div>
         <button className="btn btn-p" style={{ width: "100%", padding: 13 }} onClick={handleLogin} disabled={loading}>
           {loading ? "Ingresando..." : "Ingresar"}
@@ -5054,7 +5054,7 @@ function Usuarios({ usuario: usuarioActual }) {
         <div className="ph">
           <div>
             <div className="pt">Permisos de {editandoPermisos.nombre}</div>
-            <div className="ps">{rolNombre[editandoPermisos.rol] || editandoPermisos.rol} — {permisosUsuario.length} permisos activos</div>
+            <div className="ps">{rolNombre[editandoPermisos.rol] || editandoPermisos.rol} � {permisosUsuario.length} permisos activos</div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button className="btn btn-g btn-sm" onClick={() => setPermisosUsuario([])}>Quitar todo</button>
