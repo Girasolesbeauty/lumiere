@@ -4852,7 +4852,7 @@ const NAV_SECTIONS = [
   { section: "VENTAS", color: "#e67e22", items: [{ id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "pos", icon: "🛒", label: "Punto de Venta" }] },
   { section: "STOCK", color: "#7d3c98", items: [{ id: "inventory", icon: "📦", label: "Inventario" }, { id: "ordenes", icon: "🚚", label: "Ingresos" }, { id: "inconsistencias", icon: "⚠️", label: "Inconsistencias" }, { id: "kits", icon: "🎁", label: "Kits" }] },
   { section: "CAJA", color: "#2d7a4f", items: [{ id: "caja", icon: "💵", label: "Caja" }, { id: "cierre", icon: "🔒", label: "Cierre de Caja" }, { id: "giftcards", icon: "🎀", label: "Gift Cards" }] },
-  { section: "CLIENTES", color: "#c9a84c", items: [{ id: "clients", icon: "👥", label: "Clientes" }, { id: "clientes-analitica", icon: "📈", label: "Analitica Clientes" }, { id: "fidelizacion", icon: "⭐", label: "Fidelizacion" }] },
+  { section: "CLIENTES", color: "#c9a84c", items: [{ id: "clients", icon: "👥", label: "Clientes" }, { id: "fidelizacion", icon: "⭐", label: "Fidelizacion" }] },
   { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "💰", label: "Finanzas" }, { id: "reports", icon: "📋", label: "Informes" }, { id: "comprobantes", icon: "🧾", label: "Comprobantes" }, { id: "comisiones", icon: "💎", label: "Comisiones" }, { id: "proveedores", icon: "🏭", label: "Proveedores" }, { id: "calculadoras", icon: "🧮", label: "Calculadoras" }, { id: "productividad", icon: "🏆", label: "Productividad" }] },
   { section: "MARKETING", color: "#e74c3c", items: [{ id: "cupones", icon: "🏷️", label: "Cupones" }] },
   { section: "POSTVENTA", color: "#25d366", items: [{ id: "postventa", icon: "💬", label: "Postventa WA" }] },
@@ -5215,7 +5215,7 @@ export default function AppWrapper() {
  const mapaModulos = {
       "pos": "pos.ver", "dashboard": "pos.ver",
       "inventory": "inventario.ver", "ordenes": "ordenes.ver", "inconsistencias": "ordenes.ver", "kits": "kits.ver",
-      "clients": "clientes.ver", "clientes-analitica": "clientes.ver", "fidelizacion": "fidelizacion.ver",
+      "clients": "clientes.ver", "fidelizacion": "fidelizacion.ver",
       "finance": "finanzas.flujo", "reports": "informes.ventas", "comprobantes": "finanzas.flujo",
       "comisiones": "comisiones.propias", "proveedores": "proveedores.ver",
       "calculadoras": "finanzas.flujo", "productividad": "finanzas.flujo",
