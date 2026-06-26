@@ -428,7 +428,7 @@ function POS({ localId, usuario }) {
   const cargarPreventas = async () => {
     try {
       const res = await API.get("/ventas?es_preventa=true&local_id=" + (localId || 1));
-      setPreventasPendientes((res.data || []).filter(v => v.estado !== "cancelada" && v.estado !== "entregada"));
+      setPreventasPendientes((res.data || []).filter(v => v.estado_pago !== "cancelada" && v.estado_pago !== "confirmada"));
     } catch (e) {}
   };
 
