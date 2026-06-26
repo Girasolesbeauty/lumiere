@@ -120,7 +120,7 @@ const REWARDS = [
 
 const REWARDS_DISPLAY = REWARDS.map(r => ({
   ...r,
-  emoji: r.emoji === "ok_hand" ? "??" : r.emoji === "droplet" ? "??" : r.emoji === "lipstick" ? "??" : r.emoji === "gift" ? "??" : r.emoji === "herb" ? "??" : "??",
+  emoji: r.emoji === "ok_hand" ? "👌" : r.emoji === "droplet" ? "💧" : r.emoji === "lipstick" ? "💄" : r.emoji === "gift" ? "🎁" : r.emoji === "herb" ? "🌿" : "🌸",
 }));
 
 const CUPONS_DATA = [
@@ -253,7 +253,7 @@ function Dashboard({ localId }) {
 
   const Semaforo = ({ valor, umbralOk, umbralAlerta, formato }) => {
     const color = valor >= umbralOk ? "#2d7a4f" : valor >= umbralAlerta ? "#e67e22" : "#c0392b";
-    const icono = valor >= umbralOk ? "??" : valor >= umbralAlerta ? "??" : "??";
+    const icono = valor >= umbralOk ? "🟢" : valor >= umbralAlerta ? "🟡" : "🔴";
     return <span style={{ color, fontSize: 12, fontWeight: 700 }}>{icono} {formato ? formato(valor) : valor}</span>;
   };
 
@@ -561,7 +561,7 @@ function POS({ localId, usuario }) {
       if (!preventa) {
         try {
           const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaRes.data.id });
-          setMensaje("? " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
+          setMensaje("✅ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
         } catch (arcaErr) {
           setMensaje("Venta registrada pero error en ARCA: " + arcaErr.message);
         }
@@ -717,7 +717,7 @@ function POS({ localId, usuario }) {
       </div>
       {modoPrueba && (
         <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "10px 16px", marginBottom: 12, fontSize: 12, color: "#c0392b", fontWeight: 600 }}>
-          ?? MODO PRUEBA ACTIVO — las ventas NO se facturan en ARCA. Desactivalo para vender de verdad.
+          🧪 MODO PRUEBA ACTIVO — las ventas NO se facturan en ARCA. Desactivalo para vender de verdad.
         </div>
       )}
       <div className="tabs">
@@ -922,7 +922,7 @@ function POS({ localId, usuario }) {
           <div className="card" style={{ width: 380, background: "#ffffff" }}>
             {!gcEmitidaOk ? (
               <>
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>?? Emitir Gift Card</div>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>🎁 Emitir Gift Card</div>
                 {errorEmitirGC && <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "8px 12px", marginBottom: 10, fontSize: 11, color: "#c0392b" }}>{errorEmitirGC}</div>}
                 <div className="fg"><div className="fl">Monto ($)</div><input className="inp" type="number" placeholder="10000" value={nuevaGC.monto} onChange={e => setNuevaGC(p => ({ ...p, monto: e.target.value }))} /></div>
                 <div className="fg"><div className="fl">Nombre de quien la recibe</div><input className="inp" placeholder="Ej: Maria Lopez" value={nuevaGC.beneficiario_nombre} onChange={e => setNuevaGC(p => ({ ...p, beneficiario_nombre: e.target.value }))} /></div>
@@ -1090,7 +1090,7 @@ function Inventario({ localId, usuario }) {
               <div className="fg">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div className="fl">Precio de venta ($) *</div>
-                  <span onClick={() => { setShowCalc(true); setCalcValores({ costo: nuevo.costo || "" }); setCalcResultado(null); cargarCalculadoras(); }} style={{ fontSize: 10, color: "#c9a84c", cursor: "pointer", textDecoration: "underline" }}>?? Calcular precio</span>
+                  <span onClick={() => { setShowCalc(true); setCalcValores({ costo: nuevo.costo || "" }); setCalcResultado(null); cargarCalculadoras(); }} style={{ fontSize: 10, color: "#c9a84c", cursor: "pointer", textDecoration: "underline" }}>🧮 Calcular precio</span>
                 </div>
                 <input className="inp" type="number" placeholder="2500" value={nuevo.precio} onChange={e => setNuevo(p => ({ ...p, precio: e.target.value }))} />
               </div>
@@ -1215,7 +1215,7 @@ function Inventario({ localId, usuario }) {
       {showCalc && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
           <div className="card" style={{ width: 420, background: "#ffffff" }}>
-            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>?? Calcular precio</div>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>🧮 Calcular precio</div>
             <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>El resultado se va a cargar automaticamente en el campo de precio.</div>
             <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
               {calculadoras.map(c => (
@@ -3066,7 +3066,7 @@ function Comisiones({ localId }) {
   };
 
   const nivelColor = datos?.nivel === 2 ? "#c9a84c" : datos?.nivel === 1 ? "#2d7a4f" : "#65676B";
-  const nivelEmoji = datos?.nivel === 2 ? "??" : datos?.nivel === 1 ? "?" : "??";
+  const nivelEmoji = datos?.nivel === 2 ? "🏆" : datos?.nivel === 1 ? "⭐" : "🎯";
 
   return (
     <div className="fade">
@@ -3856,11 +3856,11 @@ function CierreCaja({ localId, usuario }) {
       <div className="ph">
         <div><div className="pt">Cierre de Caja</div><div className="ps">resumen del dia por medio de pago</div></div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button className="btn btn-g btn-sm" onClick={() => cambiarDia(-1)}>? Anterior</button>
+          <button className="btn btn-g btn-sm" onClick={() => cambiarDia(-1)}>← Anterior</button>
           <input className="inp" type="date" style={{ width: 150, padding: "6px 10px", fontSize: 12 }} value={fecha} onChange={e => setFecha(e.target.value)} />
-          <button className="btn btn-g btn-sm" onClick={() => cambiarDia(1)} disabled={esHoy} style={{ opacity: esHoy ? 0.4 : 1 }}>Siguiente ?</button>
+          <button className="btn btn-g btn-sm" onClick={() => cambiarDia(1)} disabled={esHoy} style={{ opacity: esHoy ? 0.4 : 1 }}>Siguiente →</button>
           {esHoy && <span style={{ fontSize: 11, color: "#2d7a4f", fontWeight: 600 }}>HOY</span>}
-          <button className="btn btn-p btn-sm" onClick={descargarImagen}>?? Descargar</button>
+          <button className="btn btn-p btn-sm" onClick={descargarImagen}>📲 Descargar</button>
         </div>
       </div>
 
@@ -4171,7 +4171,7 @@ function ControlInventario({ localId, usuario }) {
       <div className="ph">
         <div><div className="pt">Control de Inventario</div><div className="ps">conteo fisico vs stock del sistema</div></div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn btn-g btn-sm" onClick={() => setShowConfig(true)}>? Config</button>
+          <button className="btn btn-g btn-sm" onClick={() => setShowConfig(true)}>⚙ Config</button>
           <button className="btn btn-p btn-sm" onClick={() => setShowNuevo(true)}>+ Nuevo control</button>
         </div>
       </div>
@@ -4849,15 +4849,15 @@ function Kits() {
 }
 
 const NAV_SECTIONS = [
-  { section: "VENTAS", color: "#e67e22", items: [{ id: "dashboard", icon: "??", label: "Dashboard" }, { id: "pos", icon: "??", label: "Punto de Venta" }] },
-  { section: "STOCK", color: "#7d3c98", items: [{ id: "inventory", icon: "??", label: "Inventario" }, { id: "ordenes", icon: "??", label: "Ingresos" }, { id: "inconsistencias", icon: "??", label: "Inconsistencias" }, { id: "kits", icon: "??", label: "Kits" }] },
-  { section: "CAJA", color: "#2d7a4f", items: [{ id: "caja", icon: "??", label: "Caja" }, { id: "cierre", icon: "??", label: "Cierre de Caja" }, { id: "giftcards", icon: "??", label: "Gift Cards" }] },
-  { section: "CLIENTES", color: "#c9a84c", items: [{ id: "clients", icon: "??", label: "Clientes" }, { id: "clientes-analitica", icon: "??", label: "Analitica Clientes" }, { id: "fidelizacion", icon: "?", label: "Fidelizacion" }] },
-  { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "??", label: "Finanzas" }, { id: "reports", icon: "??", label: "Informes" }, { id: "comprobantes", icon: "??", label: "Comprobantes" }, { id: "comisiones", icon: "??", label: "Comisiones" }, { id: "proveedores", icon: "??", label: "Proveedores" }, { id: "calculadoras", icon: "??", label: "Calculadoras" }, { id: "productividad", icon: "??", label: "Productividad" }] },
-  { section: "MARKETING", color: "#e74c3c", items: [{ id: "cupones", icon: "???", label: "Cupones" }] },
-  { section: "POSTVENTA", color: "#25d366", items: [{ id: "postventa", icon: "??", label: "Postventa WA" }] },
-  { section: "INTEGRACIONES", color: "#2471a3", items: [{ id: "tiendanube", icon: "???", label: "Tiendanube" }] },
-  { section: "CLIENTE", color: "#65676B", items: [{ id: "portal", icon: "??", label: "Portal Cliente" }] },
+  { section: "VENTAS", color: "#e67e22", items: [{ id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "pos", icon: "🛒", label: "Punto de Venta" }] },
+  { section: "STOCK", color: "#7d3c98", items: [{ id: "inventory", icon: "📦", label: "Inventario" }, { id: "ordenes", icon: "🚚", label: "Ingresos" }, { id: "inconsistencias", icon: "⚠️", label: "Inconsistencias" }, { id: "kits", icon: "🎁", label: "Kits" }] },
+  { section: "CAJA", color: "#2d7a4f", items: [{ id: "caja", icon: "💵", label: "Caja" }, { id: "cierre", icon: "🔒", label: "Cierre de Caja" }, { id: "giftcards", icon: "🎀", label: "Gift Cards" }] },
+  { section: "CLIENTES", color: "#c9a84c", items: [{ id: "clients", icon: "👥", label: "Clientes" }, { id: "clientes-analitica", icon: "📈", label: "Analitica Clientes" }, { id: "fidelizacion", icon: "⭐", label: "Fidelizacion" }] },
+  { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "💰", label: "Finanzas" }, { id: "reports", icon: "📋", label: "Informes" }, { id: "comprobantes", icon: "🧾", label: "Comprobantes" }, { id: "comisiones", icon: "💎", label: "Comisiones" }, { id: "proveedores", icon: "🏭", label: "Proveedores" }, { id: "calculadoras", icon: "🧮", label: "Calculadoras" }, { id: "productividad", icon: "🏆", label: "Productividad" }] },
+  { section: "MARKETING", color: "#e74c3c", items: [{ id: "cupones", icon: "🏷️", label: "Cupones" }] },
+  { section: "POSTVENTA", color: "#25d366", items: [{ id: "postventa", icon: "💬", label: "Postventa WA" }] },
+  { section: "INTEGRACIONES", color: "#2471a3", items: [{ id: "tiendanube", icon: "🛍️", label: "Tiendanube" }] },
+  { section: "CLIENTE", color: "#65676B", items: [{ id: "portal", icon: "👤", label: "Portal Cliente" }] },
 ];
 
 
