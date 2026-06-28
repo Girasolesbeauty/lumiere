@@ -20,6 +20,7 @@ app.use('/api/productos', require('./routes/productos'));
 app.use('/api/clientes', require('./routes/clientes'));
 app.use('/api/ventas', require('./routes/ventas'));
 app.use('/api/inventario', require('./routes/inventario'));
+app.use('/api/insumos', require('./routes/insumos'));
 app.use('/api/finanzas', require('./routes/finanzas'));
 app.use('/api/cupones', require('./routes/cupones'));
 app.use('/api/fidelizacion', require('./routes/fidelizacion'));
