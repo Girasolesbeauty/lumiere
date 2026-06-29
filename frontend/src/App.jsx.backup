@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, Fragment } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import { getProductos, createVenta, getClientes, getFlujo, getPuntoEquilibrio, agregarEgreso, getResumenFinanzas, getVentas, getAlertasStock, getCupones, createCupon, updateCupon, getRanking, getReglas, createRegla as createReglaWA, updateRegla as updateReglaWA, login, register } from "./api";
 import API from "./api";
 
@@ -415,8 +415,6 @@ function POS({ localId, usuario }) {
   const [descuentoManual, setDescuentoManual] = useState("");
   const [tipoDescuento, setTipoDescuento] = useState("%");
   const [medioPagoSel, setMedioPagoSel] = useState(null);
-  const [bolsas, setBolsas] = useState([]);
-  const [bolsaSel, setBolsaSel] = useState("");
   const [codigoGC, setCodigoGC] = useState("");
   const [giftCardAplicada, setGiftCardAplicada] = useState(null);
   const [errorGC, setErrorGC] = useState("");
@@ -438,7 +436,6 @@ function POS({ localId, usuario }) {
     const localParam = localId === 2 ? "ush" : "rg";
     API.get("/productos?local=" + localParam).then(res => setProductos(res.data)).catch(() => setProductos(PRODUCTS));
     API.get("/medios-pago").then(res => setMediosPago(res.data)).catch(() => setMediosPago([]));
-    API.get("/insumos?solo_bolsas=true").then(res => setBolsas(res.data || [])).catch(() => setBolsas([]));
     cargarPreventas();
   }, [localId]);
 
@@ -541,7 +538,6 @@ function POS({ localId, usuario }) {
 
   const emitirFactura = async () => {
     if (cart.length === 0) return setMensaje("Agrega productos al ticket");
-    if (!preventa && bolsaSel === "") return setMensaje("Elegi una bolsa (o Sin bolsa) antes de cobrar");
     if (restaPagar > 0 && !medioPagoSel) return setMensaje("Selecciona un medio de pago para la diferencia");
     setLoading(true);
     try {
@@ -553,8 +549,7 @@ function POS({ localId, usuario }) {
         medio_pago_id: medioPagoSel?.id || null, medio_pago_nombre: restaPagar > 0 ? medioPagoSel?.nombre : "Gift Card",
         total_con_interes: total, es_preventa: preventa,
         nombre_preventa: preventa ? nombrePreventa : null,
-        monto_gift_card: montoAplicadoGC,
-        bolsa_insumo_id: bolsaSel && bolsaSel !== "ninguna" ? parseInt(bolsaSel) : null
+        monto_gift_card: montoAplicadoGC
       });
       if (giftCardAplicada && montoAplicadoGC > 0) {
         try {
@@ -575,7 +570,7 @@ function POS({ localId, usuario }) {
       }
       setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null);
       setClienteSeleccionado(null); setShowNuevoCliente(false);
-      setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%"); setBolsaSel("");
+      setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%");
       quitarGiftCard();
       setTimeout(() => setMensaje(""), 8000);
     } catch (error) { setMensaje("Error al emitir factura"); }
@@ -887,13 +882,6 @@ function POS({ localId, usuario }) {
                 <span style={{ color: "#65676B" }}>Gift card</span>
                 <span style={{ fontWeight: 700, color: "#2d7a4f" }}>-${montoAplicadoGC.toLocaleString("es-AR")}</span>
               </div>
-            )}
-            {!preventa && (
-              <select className="sel" style={{ marginBottom: 6, fontSize: 11, padding: "8px 10px", border: bolsaSel === "" ? "1px solid #c0392b" : "1px solid #E4E6EB" }} value={bolsaSel} onChange={e => setBolsaSel(e.target.value)}>
-                <option value="">Bolsa... (obligatorio)</option>
-                <option value="ninguna">Sin bolsa</option>
-                {bolsas.map(b => (<option key={b.id} value={b.id}>{b.nombre}</option>))}
-              </select>
             )}
             {restaPagar > 0 && (
             <select className="sel" style={{ marginBottom: 6, fontSize: 11, padding: "8px 10px" }} value={medioPagoSel?.id || ""} onChange={e => {
@@ -4860,254 +4848,9 @@ function Kits() {
   );
 }
 
-function Insumos({ localId, usuario }) {
-  const [tab, setTab] = useState("stock");
-  const [insumos, setInsumos] = useState([]);
-  const [proveedores, setProveedores] = useState([]);
-  const [alertas, setAlertas] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [mensaje, setMensaje] = useState("");
-  const [showForm, setShowForm] = useState(false);
-  const [editando, setEditando] = useState(null);
-  const [ajustando, setAjustando] = useState(null);
-  const [modoAjuste, setModoAjuste] = useState("exacto");
-  const [valorAjuste, setValorAjuste] = useState("");
-  const [errorAjuste, setErrorAjuste] = useState("");
-  const [nuevo, setNuevo] = useState({ nombre: "", categoria: "", unidad: "unidad", proveedor_id: "", costo: "", stock_rg: "", stock_ush: "", stock_minimo: "", es_bolsa: false });
-
-  const localNombre = localId === 2 ? "Ushuaia" : "Rio Grande";
-  const stockLocal = (i) => localId === 2 ? (i.stock_ush || 0) : (i.stock_rg || 0);
-
-  const cargar = async () => {
-    setLoading(true);
-    try {
-      const [insRes, provRes, alertRes] = await Promise.all([
-        API.get("/insumos"),
-        API.get("/proveedores"),
-        API.get("/insumos/alertas?local_id=" + (localId || 1))
-      ]);
-      setInsumos(insRes.data || []);
-      setProveedores(provRes.data || []);
-      setAlertas(alertRes.data || []);
-    } catch (e) {}
-    setLoading(false);
-  };
-
-  useEffect(() => { cargar(); }, [localId]);
-
-  const guardar = async () => {
-    if (!nuevo.nombre) return setMensaje("Completa al menos el nombre");
-    try {
-      if (editando) {
-        await API.put("/insumos/" + editando.id, {
-          nombre: nuevo.nombre, categoria: nuevo.categoria, unidad: nuevo.unidad,
-          proveedor_id: nuevo.proveedor_id || null, costo: parseFloat(nuevo.costo) || 0,
-          stock_minimo: parseInt(nuevo.stock_minimo) || 5, es_bolsa: nuevo.es_bolsa
-        });
-        setMensaje("Insumo actualizado!");
-      } else {
-        await API.post("/insumos", {
-          nombre: nuevo.nombre, categoria: nuevo.categoria, unidad: nuevo.unidad,
-          proveedor_id: nuevo.proveedor_id || null, costo: parseFloat(nuevo.costo) || 0,
-          stock_rg: parseInt(nuevo.stock_rg) || 0, stock_ush: parseInt(nuevo.stock_ush) || 0,
-          stock_minimo: parseInt(nuevo.stock_minimo) || 5, es_bolsa: nuevo.es_bolsa
-        });
-        setMensaje("Insumo creado!");
-      }
-      setNuevo({ nombre: "", categoria: "", unidad: "unidad", proveedor_id: "", costo: "", stock_rg: "", stock_ush: "", stock_minimo: "", es_bolsa: false });
-      setShowForm(false); setEditando(null);
-      cargar();
-      setTimeout(() => setMensaje(""), 3000);
-    } catch (e) { setMensaje("Error al guardar: " + (e.response?.data?.error || e.message)); }
-  };
-
-  const abrirEditar = (i) => {
-    setEditando(i);
-    setNuevo({ nombre: i.nombre, categoria: i.categoria || "", unidad: i.unidad || "unidad", proveedor_id: i.proveedor_id || "", costo: i.costo || "", stock_rg: "", stock_ush: "", stock_minimo: i.stock_minimo || "", es_bolsa: i.es_bolsa || false });
-    setShowForm(true);
-  };
-
-  const eliminar = async (i) => {
-    if (!confirm("Quitar el insumo \"" + i.nombre + "\"?")) return;
-    try {
-      await API.delete("/insumos/" + i.id);
-      setMensaje("Insumo quitado");
-      cargar();
-      setTimeout(() => setMensaje(""), 3000);
-    } catch (e) { setMensaje("Error al quitar"); }
-  };
-
-  const abrirAjuste = (i) => {
-    setAjustando(i);
-    setModoAjuste("exacto");
-    setValorAjuste(String(stockLocal(i)));
-    setErrorAjuste("");
-  };
-
-  const confirmarAjuste = async () => {
-    if (valorAjuste === "" || isNaN(parseInt(valorAjuste))) return setErrorAjuste("Ingresa un numero valido");
-    try {
-      const res = await API.put("/insumos/" + ajustando.id + "/ajustar-stock", {
-        local_id: localId || 1, modo: modoAjuste, valor: valorAjuste
-      });
-      setMensaje("Stock ajustado: " + res.data.stock_anterior + "u -> " + res.data.stock_nuevo + "u (" + localNombre + ")");
-      setAjustando(null);
-      cargar();
-      setTimeout(() => setMensaje(""), 4000);
-    } catch (e) { setErrorAjuste(e.response?.data?.error || "Error al ajustar"); }
-  };
-
-  return (
-    <div className="fade">
-      <div className="ph">
-        <div><div className="pt">Insumos</div><div className="ps">stock de uso interno - {localNombre}</div></div>
-        <button className="btn btn-p btn-sm" onClick={() => { setEditando(null); setNuevo({ nombre: "", categoria: "", unidad: "unidad", proveedor_id: "", costo: "", stock_rg: "", stock_ush: "", stock_minimo: "", es_bolsa: false }); setShowForm(!showForm); }}>+ Nuevo insumo</button>
-      </div>
-      {mensaje && (
-        <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>
-          {mensaje}
-        </div>
-      )}
-      {showForm && (
-        <div className="card fade" style={{ marginBottom: 18 }}>
-          <div className="ct">{editando ? "Editar insumo" : "Nuevo insumo"}</div>
-          <div className="g2">
-            <div>
-              <div className="fg"><div className="fl">Nombre *</div><input className="inp" placeholder="Ej: Bolsa chica" value={nuevo.nombre} onChange={e => setNuevo(p => ({ ...p, nombre: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">Categoria</div><input className="inp" placeholder="Ej: Packaging, Limpieza, Oficina" value={nuevo.categoria} onChange={e => setNuevo(p => ({ ...p, categoria: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">Unidad</div>
-                <select className="sel" value={nuevo.unidad} onChange={e => setNuevo(p => ({ ...p, unidad: e.target.value }))}>
-                  <option value="unidad">Unidad</option>
-                  <option value="caja">Caja</option>
-                  <option value="rollo">Rollo</option>
-                  <option value="litro">Litro</option>
-                  <option value="paquete">Paquete</option>
-                </select>
-              </div>
-              <div className="fg"><div className="fl">Proveedor</div>
-                <select className="sel" value={nuevo.proveedor_id} onChange={e => setNuevo(p => ({ ...p, proveedor_id: e.target.value }))}>
-                  <option value="">Sin proveedor</option>
-                  {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                </select>
-              </div>
-            </div>
-            <div>
-              <div className="fg"><div className="fl">Costo de reposicion ($)</div><input className="inp" type="number" placeholder="0" value={nuevo.costo} onChange={e => setNuevo(p => ({ ...p, costo: e.target.value }))} /></div>
-              {!editando && (
-                <div style={{ display: "flex", gap: 8 }}>
-                  <div className="fg" style={{ flex: 1 }}><div className="fl">Stock Rio Grande</div><input className="inp" type="number" placeholder="0" value={nuevo.stock_rg} onChange={e => setNuevo(p => ({ ...p, stock_rg: e.target.value }))} /></div>
-                  <div className="fg" style={{ flex: 1 }}><div className="fl">Stock Ushuaia</div><input className="inp" type="number" placeholder="0" value={nuevo.stock_ush} onChange={e => setNuevo(p => ({ ...p, stock_ush: e.target.value }))} /></div>
-                </div>
-              )}
-              {editando && <div style={{ fontSize: 10, color: "#65676B", marginBottom: 12 }}>El stock se modifica con el boton "Ajustar" de cada insumo, no desde aca.</div>}
-              <div className="fg"><div className="fl">Stock minimo (alerta)</div><input className="inp" type="number" placeholder="5" value={nuevo.stock_minimo} onChange={e => setNuevo(p => ({ ...p, stock_minimo: e.target.value }))} /></div>
-              <div className="fg">
-                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer", padding: "8px 0" }}>
-                  <input type="checkbox" checked={nuevo.es_bolsa} onChange={e => setNuevo(p => ({ ...p, es_bolsa: e.target.checked }))} />
-                  Es una bolsa (aparece en el selector del Punto de Venta)
-                </label>
-              </div>
-              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                <button className="btn btn-p" style={{ flex: 1 }} onClick={guardar}>{editando ? "Guardar cambios" : "Crear insumo"}</button>
-                <button className="btn btn-g" style={{ flex: 1 }} onClick={() => { setShowForm(false); setEditando(null); }}>Cancelar</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      <div className="tabs">
-        {["stock", "alertas"].map(t => (
-          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => setTab(t)}>
-            {t === "stock" ? "STOCK" : "ALERTAS" + (alertas.length > 0 ? " (" + alertas.length + ")" : "")}
-          </div>
-        ))}
-      </div>
-      {tab === "stock" && (
-        <div className="card fade">
-          {loading ? (
-            <div style={{ color: "#65676B", padding: 20 }}>Cargando insumos...</div>
-          ) : insumos.length === 0 ? (
-            <div style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>Sin insumos cargados todavia</div>
-          ) : (
-            <table>
-              <thead><tr><th>Insumo</th><th>Categoria</th><th>Unidad</th><th>Proveedor</th><th>Stock {localNombre}</th><th>Minimo</th><th>Bolsa</th><th></th></tr></thead>
-              <tbody>
-                {insumos.map(i => {
-                  const st = stockLocal(i);
-                  const bajo = st <= (i.stock_minimo || 5);
-                  return (
-                    <tr key={i.id}>
-                      <td style={{ fontWeight: 500 }}>{i.nombre}</td>
-                      <td style={{ fontSize: 11, color: "#65676B" }}>{i.categoria || "-"}</td>
-                      <td style={{ fontSize: 11, color: "#65676B" }}>{i.unidad || "-"}</td>
-                      <td style={{ fontSize: 11, color: "#65676B" }}>{i.proveedor_nombre || "-"}</td>
-                      <td><span className={"badge " + (bajo ? "br" : "bg")}>{st}u</span></td>
-                      <td style={{ fontSize: 11, color: "#65676B" }}>{i.stock_minimo || 5}u</td>
-                      <td>{i.es_bolsa ? <span className="badge ba">Bolsa</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
-                      <td>
-                        <div style={{ display: "flex", gap: 4 }}>
-                          <button className="btn btn-sm" style={{ fontSize: 10 }} onClick={() => abrirAjuste(i)}>Ajustar</button>
-                          <button className="btn btn-sm" style={{ fontSize: 10 }} onClick={() => abrirEditar(i)}>Editar</button>
-                          <button className="btn btn-sm" style={{ fontSize: 10, color: "#c0392b" }} onClick={() => eliminar(i)}>Quitar</button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-      {tab === "alertas" && (
-        <div className="fade">
-          {alertas.length === 0 ? (
-            <div style={{ textAlign: "center", color: "#2d7a4f", padding: 30, fontSize: 12 }}>No hay insumos por debajo del minimo en {localNombre}</div>
-          ) : alertas.map(i => (
-            <div key={i.id} style={{ background: "#c0392b12", border: "1px solid #d9707033", borderRadius: 6, padding: "12px 16px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <div style={{ fontSize: 12, color: "#444444" }}>{i.nombre}{i.categoria ? " - " + i.categoria : ""}</div>
-                <div style={{ fontSize: 10, color: "#65676B", marginTop: 2 }}>Stock {localNombre}: {stockLocal(i)}u | Minimo: {i.stock_minimo || 5}u{i.proveedor_nombre ? " | Proveedor: " + i.proveedor_nombre : ""}</div>
-              </div>
-              <button className="btn btn-p btn-sm" onClick={() => abrirAjuste(i)}>Ajustar stock</button>
-            </div>
-          ))}
-        </div>
-      )}
-      {ajustando && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
-          <div className="card" style={{ width: 400, background: "#ffffff" }}>
-            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Ajustar stock - {localNombre}</div>
-            <div style={{ fontSize: 12, color: "#65676B", marginBottom: 14 }}>{ajustando.nombre} - stock actual: <b>{stockLocal(ajustando)}u</b></div>
-            {errorAjuste && (
-              <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "8px 12px", marginBottom: 10, fontSize: 11, color: "#c0392b" }}>{errorAjuste}</div>
-            )}
-            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "exacto" ? "#c9a84c15" : "transparent", border: "1px solid " + (modoAjuste === "exacto" ? "#c9a84c" : "#e8e8e8"), color: modoAjuste === "exacto" ? "#c9a84c" : "#65676B" }} onClick={() => { setModoAjuste("exacto"); setValorAjuste(String(stockLocal(ajustando))); }}>Poner cantidad exacta</button>
-              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "diferencia" ? "#c9a84c15" : "transparent", border: "1px solid " + (modoAjuste === "diferencia" ? "#c9a84c" : "#e8e8e8"), color: modoAjuste === "diferencia" ? "#c9a84c" : "#65676B" }} onClick={() => { setModoAjuste("diferencia"); setValorAjuste(""); }}>Sumar / restar</button>
-            </div>
-            <div className="fg">
-              <div className="fl">{modoAjuste === "exacto" ? "Stock real (numero final)" : "Diferencia (ej: 10 o -3)"}</div>
-              <input className="inp" type="number" placeholder={modoAjuste === "exacto" ? "Ej: 50" : "Ej: -3"} value={valorAjuste} onChange={e => setValorAjuste(e.target.value)} />
-              {modoAjuste === "diferencia" && valorAjuste !== "" && !isNaN(parseInt(valorAjuste)) && (
-                <div style={{ fontSize: 11, color: "#65676B", marginTop: 4 }}>Nuevo stock: {Math.max(stockLocal(ajustando) + parseInt(valorAjuste), 0)}u</div>
-              )}
-            </div>
-            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setAjustando(null)}>Cancelar</button>
-              <button className="btn btn-p" style={{ flex: 1 }} onClick={confirmarAjuste}>Confirmar ajuste</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-
 const NAV_SECTIONS = [
   { section: "VENTAS", color: "#e67e22", items: [{ id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "pos", icon: "🛒", label: "Punto de Venta" }] },
-  { section: "STOCK", color: "#7d3c98", items: [{ id: "inventory", icon: "📦", label: "Inventario" }, { id: "ordenes", icon: "🚚", label: "Ingresos" }, { id: "inconsistencias", icon: "⚠️", label: "Inconsistencias" }, { id: "kits", icon: "🎁", label: "Kits" }, { id: "insumos", icon: "🛍️", label: "Insumos" }] },
+  { section: "STOCK", color: "#7d3c98", items: [{ id: "inventory", icon: "📦", label: "Inventario" }, { id: "ordenes", icon: "🚚", label: "Ingresos" }, { id: "inconsistencias", icon: "⚠️", label: "Inconsistencias" }, { id: "kits", icon: "🎁", label: "Kits" }] },
   { section: "CAJA", color: "#2d7a4f", items: [{ id: "caja", icon: "💵", label: "Caja" }, { id: "cierre", icon: "🔒", label: "Cierre de Caja" }, { id: "giftcards", icon: "🎀", label: "Gift Cards" }] },
   { section: "CLIENTES", color: "#c9a84c", items: [{ id: "clients", icon: "👥", label: "Clientes" }, { id: "fidelizacion", icon: "⭐", label: "Fidelizacion" }] },
   { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "💰", label: "Finanzas" }, { id: "reports", icon: "📋", label: "Informes" }, { id: "comprobantes", icon: "🧾", label: "Comprobantes" }, { id: "comisiones", icon: "💎", label: "Comisiones" }, { id: "proveedores", icon: "🏭", label: "Proveedores" }, { id: "calculadoras", icon: "🧮", label: "Calculadoras" }, { id: "productividad", icon: "🏆", label: "Productividad" }] },
@@ -5471,7 +5214,7 @@ export default function AppWrapper() {
     if (usuario.rol === "jefe" || usuario.rol_id === 1) return true;
  const mapaModulos = {
       "pos": "pos.ver", "dashboard": "pos.ver",
-      "inventory": "inventario.ver", "ordenes": "ordenes.ver", "inconsistencias": "ordenes.ver", "kits": "kits.ver", "insumos": "inventario.ver",
+      "inventory": "inventario.ver", "ordenes": "ordenes.ver", "inconsistencias": "ordenes.ver", "kits": "kits.ver",
       "clients": "clientes.ver", "fidelizacion": "fidelizacion.ver",
       "finance": "finanzas.flujo", "reports": "informes.ventas", "comprobantes": "finanzas.flujo",
       "comisiones": "comisiones.propias", "proveedores": "proveedores.ver",
@@ -5528,7 +5271,6 @@ export default function AppWrapper() {
     if (id === "giftcards") return <GiftCards localId={local.id} usuario={usuario} />;
     if (id === "ordenes") return <OrdenesIngreso localId={local.id} usuario={usuario} />;
     if (id === "kits") return <Kits />;
-    if (id === "insumos") return <Insumos localId={local.id} usuario={usuario} />;
     if (id === "inconsistencias") return <Inconsistencias />;
     if (id === "proveedores") return <Proveedores />;
     return <Dashboard localId={local.id} />;
