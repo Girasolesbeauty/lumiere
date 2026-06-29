@@ -81,7 +81,7 @@ const create = async (req, res) => {
     const {
       cliente_id, tipo_factura, items, descuento, canal, cupon_codigo, local_id,
       medio_pago_id, medio_pago_nombre, total_con_interes, es_preventa, nombre_preventa,
-      usuario_id, inicio_venta, duracion_segundos, monto_gift_card, bolsa_insumo_id
+      usuario_id, inicio_venta, duracion_segundos, monto_gift_card, insumos_usados
     } = req.body;
 
     let subtotal = 0;
@@ -114,8 +114,8 @@ const create = async (req, res) => {
       `INSERT INTO ventas
         (numero_factura, cliente_id, tipo_factura, subtotal, descuento, total, canal, local_id,
          medio_pago_id, medio_pago, es_preventa, nombre_preventa, estado_pago,
-         usuario_id, inicio_venta, duracion_segundos, monto_gift_card, preventa_local, bolsa_insumo_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING *`,
+         usuario_id, inicio_venta, duracion_segundos, monto_gift_card, preventa_local)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING *`,
       [
         numero, cliente_id, tipo_factura, subtotal, descuento_total, total,
         canal || 'presencial', local_id || 1,
@@ -124,8 +124,7 @@ const create = async (req, res) => {
         es_preventa === true ? 'reservado' : null,
         usuario_id || null, inicio_venta || null, duracion_segundos || null,
         parseFloat(monto_gift_card) || 0,
-        es_preventa === true ? (local_id || 1) : null,
-        bolsa_insumo_id || null
+        es_preventa === true ? (local_id || 1) : null
       ]
     );
 
@@ -159,14 +158,18 @@ const create = async (req, res) => {
       }
     }
 
-    // Descuento de bolsa (insumo). Solo en ventas reales, no en preventas.
-    // Permite stock negativo a proposito: sirve de recordatorio para reponer.
-    if (es_preventa !== true && bolsa_insumo_id) {
-      const colBolsa = local_id === 2 ? 'stock_ush' : 'stock_rg';
-      await client.query(
-        `UPDATE insumos SET ${colBolsa} = ${colBolsa} - 1 WHERE id = $1`,
-        [bolsa_insumo_id]
-      );
+    // Descuento de insumos elegidos en el POS (bolsa, ticket, muestra, etc).
+    // Solo en ventas reales, no en preventas. Permite stock negativo a proposito.
+    if (es_preventa !== true && Array.isArray(insumos_usados) && insumos_usados.length > 0) {
+      const colInsumo = local_id === 2 ? 'stock_ush' : 'stock_rg';
+      for (const insumoId of insumos_usados) {
+        const idNum = parseInt(insumoId);
+        if (!idNum) continue;
+        await client.query(
+          `UPDATE insumos SET ${colInsumo} = ${colInsumo} - 1 WHERE id = $1`,
+          [idNum]
+        );
+      }
     }
 
     // Las preventas no generan movimiento de caja hasta que se cobran.
