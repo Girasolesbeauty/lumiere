@@ -415,8 +415,9 @@ function POS({ localId, usuario }) {
   const [descuentoManual, setDescuentoManual] = useState("");
   const [tipoDescuento, setTipoDescuento] = useState("%");
   const [medioPagoSel, setMedioPagoSel] = useState(null);
-  const [bolsas, setBolsas] = useState([]);
-  const [bolsaSel, setBolsaSel] = useState("");
+  const [insumosPos, setInsumosPos] = useState([]);
+  const [insumosPosActivo, setInsumosPosActivo] = useState(false);
+  const [insumosSel, setInsumosSel] = useState({});
   const [codigoGC, setCodigoGC] = useState("");
   const [giftCardAplicada, setGiftCardAplicada] = useState(null);
   const [errorGC, setErrorGC] = useState("");
@@ -438,7 +439,7 @@ function POS({ localId, usuario }) {
     const localParam = localId === 2 ? "ush" : "rg";
     API.get("/productos?local=" + localParam).then(res => setProductos(res.data)).catch(() => setProductos(PRODUCTS));
     API.get("/medios-pago").then(res => setMediosPago(res.data)).catch(() => setMediosPago([]));
-    API.get("/insumos?solo_bolsas=true").then(res => setBolsas(res.data || [])).catch(() => setBolsas([]));
+    API.get("/insumos/para-pos?local_id=" + (localId || 1)).then(res => { setInsumosPos(res.data?.insumos || []); setInsumosPosActivo(res.data?.activo === true); }).catch(() => { setInsumosPos([]); setInsumosPosActivo(false); });
     cargarPreventas();
   }, [localId]);
 
@@ -541,7 +542,11 @@ function POS({ localId, usuario }) {
 
   const emitirFactura = async () => {
     if (cart.length === 0) return setMensaje("Agrega productos al ticket");
-    if (!preventa && bolsaSel === "") return setMensaje("Elegi una bolsa (o Sin bolsa) antes de cobrar");
+    if (!preventa && insumosPosActivo) {
+      for (const ins of insumosPos) {
+        if (insumosSel[ins.id] === undefined || insumosSel[ins.id] === "") return setMensaje("Elegi una opcion en \"" + ins.nombre + "\" antes de cobrar");
+      }
+    }
     if (restaPagar > 0 && !medioPagoSel) return setMensaje("Selecciona un medio de pago para la diferencia");
     setLoading(true);
     try {
@@ -554,7 +559,7 @@ function POS({ localId, usuario }) {
         total_con_interes: total, es_preventa: preventa,
         nombre_preventa: preventa ? nombrePreventa : null,
         monto_gift_card: montoAplicadoGC,
-        bolsa_insumo_id: bolsaSel && bolsaSel !== "ninguna" ? parseInt(bolsaSel) : null
+        insumos_usados: (!preventa && insumosPosActivo) ? Object.values(insumosSel).filter(v => v && v !== "ninguna").map(v => parseInt(v)) : []
       });
       if (giftCardAplicada && montoAplicadoGC > 0) {
         try {
@@ -575,7 +580,7 @@ function POS({ localId, usuario }) {
       }
       setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null);
       setClienteSeleccionado(null); setShowNuevoCliente(false);
-      setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%"); setBolsaSel("");
+      setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({});
       quitarGiftCard();
       setTimeout(() => setMensaje(""), 8000);
     } catch (error) { setMensaje("Error al emitir factura"); }
@@ -888,13 +893,13 @@ function POS({ localId, usuario }) {
                 <span style={{ fontWeight: 700, color: "#2d7a4f" }}>-${montoAplicadoGC.toLocaleString("es-AR")}</span>
               </div>
             )}
-            {!preventa && (
-              <select className="sel" style={{ marginBottom: 6, fontSize: 11, padding: "8px 10px", border: bolsaSel === "" ? "1px solid #c0392b" : "1px solid #E4E6EB" }} value={bolsaSel} onChange={e => setBolsaSel(e.target.value)}>
-                <option value="">Bolsa... (obligatorio)</option>
-                <option value="ninguna">Sin bolsa</option>
-                {bolsas.map(b => (<option key={b.id} value={b.id}>{b.nombre}</option>))}
+            {!preventa && insumosPosActivo && insumosPos.map(ins => (
+              <select key={ins.id} className="sel" style={{ marginBottom: 6, fontSize: 11, padding: "8px 10px", border: (insumosSel[ins.id] === undefined || insumosSel[ins.id] === "") ? "1px solid #c0392b" : "1px solid #E4E6EB" }} value={insumosSel[ins.id] ?? ""} onChange={e => setInsumosSel(p => ({ ...p, [ins.id]: e.target.value }))}>
+                <option value="">{ins.nombre}... (obligatorio)</option>
+                <option value={ins.id}>{ins.nombre} (descontar 1)</option>
+                <option value="ninguna">No entregue {ins.nombre}</option>
               </select>
-            )}
+            ))}
             {restaPagar > 0 && (
             <select className="sel" style={{ marginBottom: 6, fontSize: 11, padding: "8px 10px" }} value={medioPagoSel?.id || ""} onChange={e => {
               const m = mediosPago.find(x => x.id === parseInt(e.target.value));
@@ -4873,7 +4878,7 @@ function Insumos({ localId, usuario }) {
   const [modoAjuste, setModoAjuste] = useState("exacto");
   const [valorAjuste, setValorAjuste] = useState("");
   const [errorAjuste, setErrorAjuste] = useState("");
-  const [nuevo, setNuevo] = useState({ nombre: "", categoria: "", unidad: "unidad", proveedor_id: "", costo: "", stock_rg: "", stock_ush: "", stock_minimo: "", es_bolsa: false });
+  const [nuevo, setNuevo] = useState({ nombre: "", categoria: "", unidad: "unidad", proveedor_id: "", costo: "", stock_rg: "", stock_ush: "", stock_minimo: "" });
 
   const localNombre = localId === 2 ? "Ushuaia" : "Rio Grande";
   const stockLocal = (i) => localId === 2 ? (i.stock_ush || 0) : (i.stock_rg || 0);
@@ -4902,7 +4907,7 @@ function Insumos({ localId, usuario }) {
         await API.put("/insumos/" + editando.id, {
           nombre: nuevo.nombre, categoria: nuevo.categoria, unidad: nuevo.unidad,
           proveedor_id: nuevo.proveedor_id || null, costo: parseFloat(nuevo.costo) || 0,
-          stock_minimo: parseInt(nuevo.stock_minimo) || 5, es_bolsa: nuevo.es_bolsa
+          stock_minimo: parseInt(nuevo.stock_minimo) || 5
         });
         setMensaje("Insumo actualizado!");
       } else {
@@ -4910,11 +4915,11 @@ function Insumos({ localId, usuario }) {
           nombre: nuevo.nombre, categoria: nuevo.categoria, unidad: nuevo.unidad,
           proveedor_id: nuevo.proveedor_id || null, costo: parseFloat(nuevo.costo) || 0,
           stock_rg: parseInt(nuevo.stock_rg) || 0, stock_ush: parseInt(nuevo.stock_ush) || 0,
-          stock_minimo: parseInt(nuevo.stock_minimo) || 5, es_bolsa: nuevo.es_bolsa
+          stock_minimo: parseInt(nuevo.stock_minimo) || 5
         });
         setMensaje("Insumo creado!");
       }
-      setNuevo({ nombre: "", categoria: "", unidad: "unidad", proveedor_id: "", costo: "", stock_rg: "", stock_ush: "", stock_minimo: "", es_bolsa: false });
+      setNuevo({ nombre: "", categoria: "", unidad: "unidad", proveedor_id: "", costo: "", stock_rg: "", stock_ush: "", stock_minimo: "" });
       setShowForm(false); setEditando(null);
       cargar();
       setTimeout(() => setMensaje(""), 3000);
@@ -4923,7 +4928,7 @@ function Insumos({ localId, usuario }) {
 
   const abrirEditar = (i) => {
     setEditando(i);
-    setNuevo({ nombre: i.nombre, categoria: i.categoria || "", unidad: i.unidad || "unidad", proveedor_id: i.proveedor_id || "", costo: i.costo || "", stock_rg: "", stock_ush: "", stock_minimo: i.stock_minimo || "", es_bolsa: i.es_bolsa || false });
+    setNuevo({ nombre: i.nombre, categoria: i.categoria || "", unidad: i.unidad || "unidad", proveedor_id: i.proveedor_id || "", costo: i.costo || "", stock_rg: "", stock_ush: "", stock_minimo: i.stock_minimo || "" });
     setShowForm(true);
   };
 
@@ -4961,7 +4966,7 @@ function Insumos({ localId, usuario }) {
     <div className="fade">
       <div className="ph">
         <div><div className="pt">Insumos</div><div className="ps">stock de uso interno - {localNombre}</div></div>
-        <button className="btn btn-p btn-sm" onClick={() => { setEditando(null); setNuevo({ nombre: "", categoria: "", unidad: "unidad", proveedor_id: "", costo: "", stock_rg: "", stock_ush: "", stock_minimo: "", es_bolsa: false }); setShowForm(!showForm); }}>+ Nuevo insumo</button>
+        <button className="btn btn-p btn-sm" onClick={() => { setEditando(null); setNuevo({ nombre: "", categoria: "", unidad: "unidad", proveedor_id: "", costo: "", stock_rg: "", stock_ush: "", stock_minimo: "" }); setShowForm(!showForm); }}>+ Nuevo insumo</button>
       </div>
       {mensaje && (
         <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>
@@ -5001,12 +5006,6 @@ function Insumos({ localId, usuario }) {
               )}
               {editando && <div style={{ fontSize: 10, color: "#65676B", marginBottom: 12 }}>El stock se modifica con el boton "Ajustar" de cada insumo, no desde aca.</div>}
               <div className="fg"><div className="fl">Stock minimo (alerta)</div><input className="inp" type="number" placeholder="5" value={nuevo.stock_minimo} onChange={e => setNuevo(p => ({ ...p, stock_minimo: e.target.value }))} /></div>
-              <div className="fg">
-                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer", padding: "8px 0" }}>
-                  <input type="checkbox" checked={nuevo.es_bolsa} onChange={e => setNuevo(p => ({ ...p, es_bolsa: e.target.checked }))} />
-                  Es una bolsa (aparece en el selector del Punto de Venta)
-                </label>
-              </div>
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <button className="btn btn-p" style={{ flex: 1 }} onClick={guardar}>{editando ? "Guardar cambios" : "Crear insumo"}</button>
                 <button className="btn btn-g" style={{ flex: 1 }} onClick={() => { setShowForm(false); setEditando(null); }}>Cancelar</button>
@@ -5030,7 +5029,7 @@ function Insumos({ localId, usuario }) {
             <div style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>Sin insumos cargados todavia</div>
           ) : (
             <table>
-              <thead><tr><th>Insumo</th><th>Categoria</th><th>Unidad</th><th>Proveedor</th><th>Stock {localNombre}</th><th>Minimo</th><th>Bolsa</th><th></th></tr></thead>
+              <thead><tr><th>Insumo</th><th>Categoria</th><th>Unidad</th><th>Proveedor</th><th>Stock {localNombre}</th><th>Minimo</th><th></th></tr></thead>
               <tbody>
                 {insumos.map(i => {
                   const st = stockLocal(i);
@@ -5043,7 +5042,6 @@ function Insumos({ localId, usuario }) {
                       <td style={{ fontSize: 11, color: "#65676B" }}>{i.proveedor_nombre || "-"}</td>
                       <td><span className={"badge " + (bajo ? "br" : "bg")}>{st}u</span></td>
                       <td style={{ fontSize: 11, color: "#65676B" }}>{i.stock_minimo || 5}u</td>
-                      <td>{i.es_bolsa ? <span className="badge ba">Bolsa</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
                       <td>
                         <div style={{ display: "flex", gap: 4 }}>
                           <button className="btn btn-sm" style={{ fontSize: 10 }} onClick={() => abrirAjuste(i)}>Ajustar</button>
@@ -5098,6 +5096,87 @@ function Insumos({ localId, usuario }) {
               <button className="btn btn-p" style={{ flex: 1 }} onClick={confirmarAjuste}>Confirmar ajuste</button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+function ConfigInsumos({ localId }) {
+  const [activo, setActivo] = useState(false);
+  const [insumos, setInsumos] = useState([]);
+  const [seleccionados, setSeleccionados] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [mensaje, setMensaje] = useState("");
+  const localNombre = localId === 2 ? "Ushuaia" : "Rio Grande";
+
+  const cargar = async () => {
+    setLoading(true);
+    try {
+      const res = await API.get("/insumos/config-pos?local_id=" + (localId || 1));
+      setActivo(res.data?.activo === true);
+      setInsumos(res.data?.insumos || []);
+      setSeleccionados((res.data?.insumos || []).filter(i => i.en_pos).map(i => i.id));
+    } catch (e) {}
+    setLoading(false);
+  };
+
+  useEffect(() => { cargar(); }, [localId]);
+
+  const toggle = (id) => {
+    setSeleccionados(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const guardar = async () => {
+    try {
+      await API.put("/insumos/config-pos", { local_id: localId || 1, activo, insumos_ids: seleccionados });
+      setMensaje("Configuracion guardada para " + localNombre + "!");
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al guardar"); }
+  };
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Insumos en el Punto de Venta</div><div className="ps">configuracion de {localNombre}</div></div>
+        <button className="btn btn-p btn-sm" onClick={guardar}>Guardar configuracion</button>
+      </div>
+      {mensaje && (
+        <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>
+      )}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>Descontar insumos en cada venta</div>
+            <div style={{ fontSize: 11, color: "#65676B", marginTop: 2 }}>Si esta activo, en el POS aparece un selector por cada insumo elegido abajo, y la vendedora debe indicar cual entrego antes de cobrar.</div>
+          </div>
+          <div className="sw-wrap" onClick={() => setActivo(!activo)}>
+            <div className={"sw " + (activo ? "on" : "off")}><div className="sw-dot" /></div>
+          </div>
+        </div>
+      </div>
+      {activo && (
+        <div className="card fade">
+          <div className="ct">Insumos que se descuentan en el POS de {localNombre}</div>
+          {loading ? (
+            <div style={{ color: "#65676B", padding: 20 }}>Cargando...</div>
+          ) : insumos.length === 0 ? (
+            <div style={{ textAlign: "center", color: "#65676B", padding: 20, fontSize: 12 }}>No hay insumos cargados. Crealos primero en la seccion Insumos.</div>
+          ) : (
+            <div>
+              {insumos.map(i => (
+                <label key={i.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 8px", borderBottom: "1px solid #f5f5f5", cursor: "pointer" }}>
+                  <input type="checkbox" checked={seleccionados.includes(i.id)} onChange={() => toggle(i.id)} />
+                  <div>
+                    <div style={{ fontSize: 13, color: "#111111" }}>{i.nombre}</div>
+                    {i.categoria && <div style={{ fontSize: 10, color: "#65676B" }}>{i.categoria}</div>}
+                  </div>
+                </label>
+              ))}
+              <div style={{ fontSize: 11, color: "#65676B", marginTop: 12 }}>{seleccionados.length} insumo(s) se mostraran en el POS de {localNombre}.</div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -5471,7 +5550,7 @@ export default function AppWrapper() {
     if (usuario.rol === "jefe" || usuario.rol_id === 1) return true;
  const mapaModulos = {
       "pos": "pos.ver", "dashboard": "pos.ver",
-      "inventory": "inventario.ver", "ordenes": "ordenes.ver", "inconsistencias": "ordenes.ver", "kits": "kits.ver", "insumos": "inventario.ver",
+      "inventory": "inventario.ver", "ordenes": "ordenes.ver", "inconsistencias": "ordenes.ver", "kits": "kits.ver", "insumos": "inventario.ver", "config-insumos": "inventario.ver",
       "clients": "clientes.ver", "fidelizacion": "fidelizacion.ver",
       "finance": "finanzas.flujo", "reports": "informes.ventas", "comprobantes": "finanzas.flujo",
       "comisiones": "comisiones.propias", "proveedores": "proveedores.ver",
@@ -5529,6 +5608,7 @@ export default function AppWrapper() {
     if (id === "ordenes") return <OrdenesIngreso localId={local.id} usuario={usuario} />;
     if (id === "kits") return <Kits />;
     if (id === "insumos") return <Insumos localId={local.id} usuario={usuario} />;
+    if (id === "config-insumos") return <ConfigInsumos localId={local.id} />;
     if (id === "inconsistencias") return <Inconsistencias />;
     if (id === "proveedores") return <Proveedores />;
     return <Dashboard localId={local.id} />;
@@ -5542,7 +5622,7 @@ export default function AppWrapper() {
   if (usuario.rol === "jefe") {
     const yaExiste = NAV_CON_PERMISOS.some(s => s.items.some(i => i.id === "usuarios"));
     if (!yaExiste) {
-      NAV_CON_PERMISOS.push({ section: "CONFIGURACION", items: [{ id: "usuarios", icon: "-", label: "Usuarios" }] });
+      NAV_CON_PERMISOS.push({ section: "CONFIGURACION", items: [{ id: "usuarios", icon: "-", label: "Usuarios" }, { id: "config-insumos", icon: "🛍️", label: "Insumos en POS" }] });
     }
   }
 
