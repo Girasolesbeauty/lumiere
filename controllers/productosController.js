@@ -17,7 +17,10 @@ const getAll = async (req, res) => {
   try {
     // "local" es solo para calcular disponible/transito por local (no filtra el catalogo, que es unico).
     const { local } = req.query;
-    let query = 'SELECT * FROM productos WHERE activo = TRUE ORDER BY nombre ASC';
+    let query = `SELECT p.*, pr.nombre AS proveedor_nombre
+                 FROM productos p
+                 LEFT JOIN proveedores pr ON p.proveedor_id = pr.id
+                 WHERE p.activo = TRUE ORDER BY p.nombre ASC`;
     const result = await pool.query(query);
     res.json(conDisponible(result.rows, local));
   } catch (error) {

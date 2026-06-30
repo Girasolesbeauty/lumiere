@@ -2,6 +2,11 @@
 import { getProductos, createVenta, getClientes, getFlujo, getPuntoEquilibrio, agregarEgreso, getResumenFinanzas, getVentas, getAlertasStock, getCupones, createCupon, updateCupon, getRanking, getReglas, createRegla as createReglaWA, updateRegla as updateReglaWA, login, register } from "./api";
 import API from "./api";
 
+// Formato de moneda argentino: $10.000,00 (punto de miles, coma decimal, 2 decimales)
+const fmt = (n) => "$" + (parseFloat(n) || 0).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Formato de numero sin signo $ (para cantidades)
+const fmtNum = (n) => (parseFloat(n) || 0).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 const C = {
   bg: "#f2f2ef", surface: "#ffffff", card: "#f5f5f5", border: "#e8e8e8",
   accent: "#c9a84c", accentDim: "#c9a84c15", accentHover: "#e8c86a",
@@ -273,7 +278,7 @@ function Dashboard({ localId }) {
               <div style={{ fontSize: 13, fontWeight: 700, color: vencidas > 0 ? "#c0392b" : "#c9a84c" }}>
                 {vencidas > 0 ? vencidas + " factura" + (vencidas > 1 ? "s" : "") + " vencida" + (vencidas > 1 ? "s" : "") + (vencimientos.length > vencidas ? " y " + (vencimientos.length - vencidas) + " por vencer" : "") : vencimientos.length + " factura" + (vencimientos.length > 1 ? "s" : "") + " vence" + (vencimientos.length > 1 ? "n" : "") + " en los proximos 7 dias"}
               </div>
-              <div style={{ fontSize: 11, color: "#666666", marginTop: 2 }}>Total adeudado: ${totalAdeudado.toLocaleString("es-AR", { maximumFractionDigits: 0 })} - revisalo en Proveedores</div>
+              <div style={{ fontSize: 11, color: "#666666", marginTop: 2 }}>Total adeudado: {fmt(totalAdeudado)} - revisalo en Proveedores</div>
             </div>
           </div>
         );
@@ -292,12 +297,12 @@ function Dashboard({ localId }) {
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#65676B", letterSpacing: ".1em", marginBottom: 10 }}>FINANCIERO</div>
           <div className="g3" style={{ marginBottom: 20 }}>
-            <KPI titulo="Ventas del mes" valor={"$" + Math.round(data.totalVentas).toLocaleString()} sub={data.cantVentas + " transacciones"} color="#2d7a4f" />
-            <KPI titulo="Resultado neto" valor={"$" + Math.round(data.fin.neto || 0).toLocaleString()} sub={"Ingresos - Egresos"} color={data.fin.neto >= 0 ? "#2d7a4f" : "#c0392b"} alerta={data.fin.neto < 0} />
+            <KPI titulo="Ventas del mes" valor={fmt(Math.round(data.totalVentas))} sub={data.cantVentas + " transacciones"} color="#2d7a4f" />
+            <KPI titulo="Resultado neto" valor={fmt(Math.round(data.fin.neto || 0))} sub={"Ingresos - Egresos"} color={data.fin.neto >= 0 ? "#2d7a4f" : "#c0392b"} alerta={data.fin.neto < 0} />
             <KPI titulo="Margen bruto" valor={data.margenBruto + "%"} sub="sobre costo de ventas" color={data.margenBruto >= 40 ? "#2d7a4f" : data.margenBruto >= 20 ? "#e67e22" : "#c0392b"} />
           </div>
           <div className="g3" style={{ marginBottom: 20 }}>
-            <KPI titulo="Ticket promedio" valor={"$" + Math.round(data.ticketProm).toLocaleString()} sub="por transaccion" color="#2471a3" />
+            <KPI titulo="Ticket promedio" valor={fmt(Math.round(data.ticketProm))} sub="por transaccion" color="#2471a3" />
             <KPI titulo="Clientes nuevos" valor={data.clientesNuevos} sub="este mes" color="#7d3c98" />
             <KPI titulo="Total clientes" valor={data.clientes.length} sub="en la base" color="#2471a3" />
           </div>
@@ -314,8 +319,8 @@ function Dashboard({ localId }) {
               <div className="ct">Semaforo de salud del negocio</div>
               {[
                 { l: "Margen bruto", v: data.margenBruto, ok: 40, alerta: 20, fmt: v => v + "%" },
-                { l: "Ticket promedio", v: data.ticketProm, ok: 5000, alerta: 2000, fmt: v => "$" + Math.round(v).toLocaleString() },
-                { l: "Resultado neto", v: data.fin.neto, ok: 1, alerta: 0, fmt: v => "$" + Math.round(v).toLocaleString() },
+                { l: "Ticket promedio", v: data.ticketProm, ok: 5000, alerta: 2000, fmt: v => fmt(Math.round(v)) },
+                { l: "Resultado neto", v: data.fin.neto, ok: 1, alerta: 0, fmt: v => fmt(Math.round(v)) },
                 { l: "Stock bajo", v: data.stockBajo.length === 0 ? 1 : data.stockBajo.length > 5 ? -1 : 0, ok: 1, alerta: 0, fmt: () => data.stockBajo.length === 0 ? "OK" : data.stockBajo.length + " productos" },
               ].map(r => (
                 <div key={r.l} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f5f5f5" }}>
@@ -377,7 +382,7 @@ function Dashboard({ localId }) {
                       <td style={{ fontSize: 11, color: "#65676B" }}>{new Date(v.creado_en || v.fecha).toLocaleDateString("es-AR")}</td>
                       <td style={{ fontSize: 12 }}>{v.cliente_nombre || "Consumidor final"}</td>
                       <td style={{ fontSize: 11 }}>{v.medio_pago || "-"}</td>
-                      <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${parseFloat(v.total || 0).toLocaleString()}</td>
+                      <td style={{ color: "#2d7a4f", fontWeight: 600 }}>{fmt(parseFloat(v.total || 0))}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -658,7 +663,7 @@ function POS({ localId, usuario }) {
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>{p.nombre_preventa || "Consumidor Final"}</div>
                 {p.cliente_nombre && <div style={{ fontSize: 11, color: "#2d7a4f" }}>{p.cliente_nombre} {p.cliente_dni ? "- DNI: " + p.cliente_dni : ""}</div>}
-                <div style={{ fontSize: 11, color: "#65676B", marginTop: 2 }}>{new Date(p.creado_en).toLocaleDateString("es-AR")} - ${parseFloat(p.total).toLocaleString()}</div>
+                <div style={{ fontSize: 11, color: "#65676B", marginTop: 2 }}>{new Date(p.creado_en).toLocaleDateString("es-AR")} - {fmt(parseFloat(p.total))}</div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn btn-p btn-sm" onClick={() => abrirConfirmacionEntrega(p)}>Confirmar entrega</button>
@@ -670,7 +675,7 @@ function POS({ localId, usuario }) {
                 {p.items.map((it, idx) => (
                   <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "3px 0", borderBottom: idx < p.items.length - 1 ? "1px solid #f0f0f0" : "none" }}>
                     <span style={{ color: "#444444" }}>{it.nombre || it.producto_nombre} x{it.cantidad}</span>
-                    <span style={{ color: "#65676B" }}>${parseFloat(it.precio_unitario || 0).toLocaleString()}</span>
+                    <span style={{ color: "#65676B" }}>{fmt(parseFloat(it.precio_unitario || 0))}</span>
                   </div>
                 ))}
               </div>
@@ -770,7 +775,7 @@ function POS({ localId, usuario }) {
                         <div style={{ fontSize: 11, fontWeight: 600, color: "#111111" }}>{p.nombre || p.name}</div>
                         <div style={{ fontSize: 9, color: "#888888" }}>{p.marca || p.brand || ""}</div>
                       </td>
-                      <td style={{ padding: "4px 8px", textAlign: "right", fontSize: 12, fontWeight: 700, color: "#c9a84c" }}>${(p.precio || p.price || 0).toLocaleString()}</td>
+                      <td style={{ padding: "4px 8px", textAlign: "right", fontSize: 12, fontWeight: 700, color: "#c9a84c" }}>{fmt((p.precio || p.price || 0))}</td>
                       <td style={{ padding: "4px 8px", textAlign: "center" }}>
                         <span className={"badge " + (sinStock ? "br" : "bg")} style={{ fontSize: 9 }}>{disp}u</span>
                       </td>
@@ -806,7 +811,7 @@ function POS({ localId, usuario }) {
                     <button onClick={() => setCart(prev => prev.map(x => x.id === i.id && x.qty > 1 ? { ...x, qty: x.qty - 1 } : x))} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e8e8e8", background: "white", cursor: "pointer" }}>-</button>
                     <span style={{ fontSize: 12, fontWeight: 600, minWidth: 20, textAlign: "center" }}>{i.qty}</span>
                     <button onClick={() => add(i)} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e8e8e8", background: "white", cursor: "pointer" }}>+</button>
-                    <div style={{ minWidth: 70, textAlign: "right", fontSize: 12, fontWeight: 600 }}>${((i.precio || i.price) * i.qty).toLocaleString()}</div>
+                    <div style={{ minWidth: 70, textAlign: "right", fontSize: 12, fontWeight: 600 }}>{fmt(((i.precio || i.price) * i.qty))}</div>
                     <div onClick={() => remove(i.id)} style={{ cursor: "pointer", color: "#cccccc", fontSize: 18 }}>x</div>
                   </div>
                 </div>
@@ -816,7 +821,7 @@ function POS({ localId, usuario }) {
           <div style={{ padding: "10px 14px", borderTop: "1px solid #ddd9d0", background: "#f0ece4" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
               <span style={{ fontSize: 11, color: "#666666", fontWeight: 600 }}>SUBTOTAL</span>
-              <span style={{ fontSize: 20, fontWeight: 700, color: "#111111" }}>${subtotalBase.toLocaleString()}</span>
+              <span style={{ fontSize: 20, fontWeight: 700, color: "#111111" }}>{fmt(subtotalBase)}</span>
             </div>
           </div>
         </div>
@@ -881,7 +886,7 @@ function POS({ localId, usuario }) {
               <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f44", borderRadius: 6, padding: "6px 8px", marginBottom: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <div style={{ fontSize: 10, fontWeight: 700, color: "#2d7a4f", fontFamily: "monospace" }}>{giftCardAplicada.codigo}</div>
-                  <div style={{ fontSize: 9, color: "#65676B" }}>${parseFloat(giftCardAplicada.saldo).toLocaleString("es-AR")}</div>
+                  <div style={{ fontSize: 9, color: "#65676B" }}>{fmt(parseFloat(giftCardAplicada.saldo))}</div>
                 </div>
                 <span onClick={quitarGiftCard} style={{ cursor: "pointer", color: "#c0392b", fontSize: 10 }}>X</span>
               </div>
@@ -890,7 +895,7 @@ function POS({ localId, usuario }) {
             {giftCardAplicada && (
               <div style={{ fontSize: 10, marginBottom: 6, display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "#65676B" }}>Gift card</span>
-                <span style={{ fontWeight: 700, color: "#2d7a4f" }}>-${montoAplicadoGC.toLocaleString("es-AR")}</span>
+                <span style={{ fontWeight: 700, color: "#2d7a4f" }}>-{fmt(montoAplicadoGC)}</span>
               </div>
             )}
             {!preventa && insumosPosActivo && insumosPos.map(ins => (
@@ -915,17 +920,17 @@ function POS({ localId, usuario }) {
           <div style={{ background: "#f0ece4", border: "1px solid #ddd9d0", borderRadius: 8, padding: "10px 12px" }}>
             {descuento > 0 && (
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3, fontSize: 10, color: "#2d7a4f" }}>
-                <span>Descuento</span><span>-${descuento.toLocaleString()}</span>
+                <span>Descuento</span><span>-{fmt(descuento)}</span>
               </div>
             )}
             {intereses > 0 && (
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3, fontSize: 10, color: "#c0392b" }}>
-                <span>Intereses</span><span>+${intereses.toLocaleString()}</span>
+                <span>Intereses</span><span>+{fmt(intereses)}</span>
               </div>
             )}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
               <div style={{ fontSize: 10, color: "#65676B", fontWeight: 600 }}>{restaPagar > 0 && giftCardAplicada ? "FALTA PAGAR" : "TOTAL"}</div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: "#111111" }}>${(restaPagar > 0 ? restaPagar : total).toLocaleString()}</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: "#111111" }}>{fmt((restaPagar > 0 ? restaPagar : total))}</div>
             </div>
             <button className="btn btn-p" style={{ width: "100%", padding: 11, fontSize: 12, opacity: loading ? 0.7 : 1 }} onClick={emitirFactura} disabled={loading}>
               {loading ? "Procesando..." : preventa ? "Registrar Preventa" : "Factura " + tipoFac}
@@ -956,7 +961,7 @@ function POS({ localId, usuario }) {
                 <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>Entregale este codigo a {gcEmitidaOk.beneficiario_nombre}</div>
                 <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f44", borderRadius: 8, padding: 16, textAlign: "center", marginBottom: 14 }}>
                   <div style={{ fontFamily: "monospace", fontSize: 24, fontWeight: 700, color: "#2d7a4f" }}>{gcEmitidaOk.codigo}</div>
-                  <div style={{ fontSize: 12, color: "#65676B", marginTop: 4 }}>Saldo: ${parseFloat(gcEmitidaOk.saldo).toLocaleString("es-AR")}</div>
+                  <div style={{ fontSize: 12, color: "#65676B", marginTop: 4 }}>Saldo: {fmt(parseFloat(gcEmitidaOk.saldo))}</div>
                 </div>
                 <button className="btn btn-p" style={{ width: "100%" }} onClick={() => setShowEmitirGC(false)}>Cerrar</button>
               </>
@@ -989,6 +994,9 @@ function Inventario({ localId, usuario }) {
   const [proveedores, setProveedores] = useState([]);
   const [editandoProd, setEditandoProd] = useState(null);
   const [eliminandoProd, setEliminandoProd] = useState(null);
+  const [busqueda, setBusqueda] = useState("");
+  const [filtroCat, setFiltroCat] = useState("");
+  const [filtroStock, setFiltroStock] = useState("");
   const [nuevo, setNuevo] = useState({
     nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "",
     stock: "", stock_minimo: "", proveedor_id: "", descripcion: ""
@@ -1178,6 +1186,21 @@ function Inventario({ localId, usuario }) {
         ))}
       </div>
       {tab === "stock" && (
+        <div className="card fade" style={{ marginBottom: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <input className="inp" placeholder="Buscar por nombre, marca, codigo, categoria o proveedor..." value={busqueda} onChange={e => setBusqueda(e.target.value)} style={{ flex: 1, minWidth: 240 }} />
+          <select className="sel" style={{ width: 180 }} value={filtroCat} onChange={e => setFiltroCat(e.target.value)}>
+            <option value="">Todas las categorias</option>
+            {[...new Set(productos.map(p => p.categoria).filter(Boolean))].sort().map(cat => <option key={cat} value={cat}>{cat}</option>)}
+          </select>
+          <select className="sel" style={{ width: 170 }} value={filtroStock} onChange={e => setFiltroStock(e.target.value)}>
+            <option value="">Todo el stock</option>
+            <option value="bajo">Stock bajo</option>
+            <option value="sin">Sin stock</option>
+          </select>
+          {(busqueda || filtroCat || filtroStock) && <button className="btn btn-g btn-sm" onClick={() => { setBusqueda(""); setFiltroCat(""); setFiltroStock(""); }}>Limpiar</button>}
+        </div>
+      )}
+      {tab === "stock" && (
         <div className="card fade">
           {loading ? (
             <div style={{ color: "#65676B", padding: 20 }}>Cargando inventario...</div>
@@ -1185,7 +1208,18 @@ function Inventario({ localId, usuario }) {
           <table>
             <thead><tr><th>Producto</th><th>Marca</th><th>Categoria</th><th>Codigo</th><th>Precio</th><th>Costo</th><th>Stock</th><th>Reservado</th><th>Disponible</th><th>Estado</th><th></th></tr></thead>
             <tbody>
-              {productos.map(p => {
+              {productos.filter(p => {
+                const q = busqueda.trim().toLowerCase();
+                if (q) {
+                  const campos = [p.nombre, p.marca, p.codigo_barras, p.codigo, p.categoria, p.proveedor_nombre].map(x => (x || "").toString().toLowerCase());
+                  if (!campos.some(x => x.includes(q))) return false;
+                }
+                if (filtroCat && p.categoria !== filtroCat) return false;
+                const disp = p.disponible !== undefined ? p.disponible : (p.stock || 0);
+                if (filtroStock === "bajo" && !(disp <= (p.stock_minimo || 5))) return false;
+                if (filtroStock === "sin" && !((p.stock || 0) === 0)) return false;
+                return true;
+              }).map(p => {
                 const reservado = p.reservado || 0;
                 const disponible = p.disponible !== undefined ? p.disponible : Math.max((p.stock || 0) - reservado, 0);
                 const bajo = disponible <= (p.stock_minimo || 5);
@@ -1196,8 +1230,8 @@ function Inventario({ localId, usuario }) {
                     <td style={{ fontSize: 11, color: "#65676B" }}>{p.marca || p.brand || "-"}</td>
                     <td style={{ fontSize: 11, color: "#65676B" }}>{p.categoria || "-"}</td>
                     <td style={{ fontSize: 11, color: "#65676B" }}>{p.codigo_barras || p.codigo || "-"}</td>
-                    <td style={{ color: "#c9a84c" }}>${parseFloat(p.price || p.precio || 0).toLocaleString()}</td>
-                    <td style={{ fontSize: 11, color: "#65676B" }}>{p.cost || p.costo ? "$" + parseFloat(p.cost || p.costo).toLocaleString() : "-"}</td>
+                    <td style={{ color: "#c9a84c" }}>{fmt(parseFloat(p.price || p.precio || 0))}</td>
+                    <td style={{ fontSize: 11, color: "#65676B" }}>{p.cost || p.costo ? fmt(parseFloat(p.cost || p.costo)) : "-"}</td>
                     <td><span className="badge bx">{p.stock || 0}u</span></td>
                     <td style={{ fontSize: 11 }}>{reservado > 0 ? <span style={{ color: "#c9a84c", fontWeight: 600 }}>{reservado}u</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
                     <td><span className={"badge " + (bajo ? "br" : "bg")}>{disponible}u</span></td>
@@ -1326,7 +1360,7 @@ function Inventario({ localId, usuario }) {
                   <div style={{ marginTop: 12, padding: "12px 16px", borderRadius: 8, background: "#2d7a4f12", border: "1px solid #2d7a4f33", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
                       <div style={{ fontSize: 10, color: "#65676B" }}>Precio sugerido</div>
-                      <div style={{ fontSize: 24, fontWeight: 700, color: "#2d7a4f" }}>${calcResultado.toLocaleString("es-AR")}</div>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: "#2d7a4f" }}>{fmt(calcResultado)}</div>
                     </div>
                     <button className="btn btn-p" onClick={() => { setNuevo(p => ({ ...p, precio: String(calcResultado) })); setShowCalc(false); setCalcResultado(null); }}>
                       Usar este precio
@@ -1472,10 +1506,10 @@ function Clientes() {
                   <tr key={c.id || i}>
                     <td><div style={{ color: "#111111" }}>{c.nombre || c.name}</div><div style={{ fontSize: 9, color: "#65676B" }}>{c.email}</div></td>
                     <td style={{ fontSize: 10 }}>{c.cuit_dni || c.cuit}</td>
-                    <td>${(c.total_compras || c.total || 0).toLocaleString()}</td>
+                    <td>{fmt((c.total_compras || c.total || 0))}</td>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                        <span style={{ fontFamily: "'Inter',sans-serif", fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>{puntos.toLocaleString()}</span>
+                        <span style={{ fontFamily: "'Inter',sans-serif", fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>{fmtNum(puntos)}</span>
                         <div style={{ width: 40 }}><div className="pb"><div className="pf" style={{ width: pct + "%", background: "#c9a84c" }} /></div></div>
                       </div>
                     </td>
@@ -1499,7 +1533,7 @@ function Clientes() {
             <div key={n.tier} className="card" style={{ borderLeft: "3px solid " + n.c }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
                 <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: n.c }}>{n.tier}</div>
-                <div style={{ fontSize: 10, color: "#65676B" }}>{n.min.toLocaleString()}{n.max ? " - " + n.max.toLocaleString() + " pts" : "+ pts"}</div>
+                <div style={{ fontSize: 10, color: "#65676B" }}>{fmtNum(n.min)}{n.max ? " - " +fmtNum(n.max) + " pts" : "+ pts"}</div>
               </div>
               {n.perks.map((p, i) => (
                 <div key={i} style={{ display: "flex", gap: 7, marginBottom: 6, fontSize: 11, color: "#444444" }}>
@@ -1566,12 +1600,12 @@ function Finanzas({ localId }) {
     <div style={{ marginBottom: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: color + "15", borderRadius: "6px 6px 0 0", borderLeft: "3px solid " + color }}>
         <span style={{ fontSize: 11, fontWeight: 700, color: color, letterSpacing: ".1em" }}>{titulo}</span>
-        <span style={{ fontSize: 14, fontWeight: 700, color: color }}>${parseFloat(total || 0).toLocaleString()}</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: color }}>{fmt(parseFloat(total || 0))}</span>
       </div>
       {Object.entries(detalle || {}).map(([k, v]) => (
         <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 12px", borderBottom: "1px solid #f0f0f0", background: "#fafafa" }}>
           <span style={{ fontSize: 12, color: "#444444" }}>{k}</span>
-          <span style={{ fontSize: 12, color: "#666666" }}>${parseFloat(v || 0).toLocaleString()}</span>
+          <span style={{ fontSize: 12, color: "#666666" }}>{fmt(parseFloat(v || 0))}</span>
         </div>
       ))}
     </div>
@@ -1614,9 +1648,9 @@ function Finanzas({ localId }) {
       {tab === "flujo" && (
         <div className="fade">
           <div className="g3">
-            <div className="card"><div className="ct">Ingresos del mes</div><div style={{ fontSize: 26, fontWeight: 700, color: "#2d7a4f" }}>${parseFloat(flujo?.resumen?.ingresos || 0).toLocaleString()}</div></div>
-            <div className="card"><div className="ct">Egresos del mes</div><div style={{ fontSize: 26, fontWeight: 700, color: "#c0392b" }}>${parseFloat(flujo?.resumen?.egresos || 0).toLocaleString()}</div></div>
-            <div className="card"><div className="ct">Resultado neto</div><div style={{ fontSize: 26, fontWeight: 700, color: "#c9a84c" }}>${parseFloat(flujo?.resumen?.neto || 0).toLocaleString()}</div></div>
+            <div className="card"><div className="ct">Ingresos del mes</div><div style={{ fontSize: 26, fontWeight: 700, color: "#2d7a4f" }}>{fmt(parseFloat(flujo?.resumen?.ingresos || 0))}</div></div>
+            <div className="card"><div className="ct">Egresos del mes</div><div style={{ fontSize: 26, fontWeight: 700, color: "#c0392b" }}>{fmt(parseFloat(flujo?.resumen?.egresos || 0))}</div></div>
+            <div className="card"><div className="ct">Resultado neto</div><div style={{ fontSize: 26, fontWeight: 700, color: "#c9a84c" }}>{fmt(parseFloat(flujo?.resumen?.neto || 0))}</div></div>
           </div>
           <div className="g2">
             <div className="card">
@@ -1631,7 +1665,7 @@ function Finanzas({ localId }) {
                       <td style={{ fontSize: 10, color: "#65676B" }}>{m.categoria_nombre || "-"}</td>
                       <td><span className={"badge " + (m.tipo === "I" ? "bg" : "br")}>{m.tipo === "I" ? "Ingreso" : "Egreso"}</span></td>
                       <td style={{ fontSize: 10, color: "#65676B" }}>{m.cuenta_nombre || m.forma_pago || "-"}</td>
-                      <td style={{ color: m.tipo === "I" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "I" ? "+" : "-"}${parseFloat(m.importe).toLocaleString()}</td>
+                      <td style={{ color: m.tipo === "I" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "I" ? "+" : "-"}{fmt(parseFloat(m.importe))}</td>
                     </tr>
                   ))}
                   {(flujo?.movimientos || []).length === 0 && (<tr><td colSpan={5} style={{ color: "#65676B", textAlign: "center" }}>Sin movimientos</td></tr>)}
@@ -1709,7 +1743,7 @@ function Finanzas({ localId }) {
                 <SeccionFlujo titulo="IMPUESTOS" detalle={flujoEst.impuestos?.detalle} total={flujoEst.impuestos?.total} color="#c9a84c" />
                 <div style={{ background: (flujoEst.resultado_neto >= 0 ? "#2d7a4f" : "#c0392b"), borderRadius: 8, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: "white", letterSpacing: ".1em" }}>RESULTADO NETO</span>
-                  <span style={{ fontSize: 24, fontWeight: 700, color: "white" }}>${parseFloat(flujoEst.resultado_neto || 0).toLocaleString()}</span>
+                  <span style={{ fontSize: 24, fontWeight: 700, color: "white" }}>{fmt(parseFloat(flujoEst.resultado_neto || 0))}</span>
                 </div>
               </div>
               <div className="card">
@@ -1725,12 +1759,12 @@ function Finanzas({ localId }) {
                 ].map(r => (
                   <div key={r.l} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f0f0f0" }}>
                     <span style={{ fontSize: 12, color: "#444444" }}>{r.l}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: r.c }}>${parseFloat(r.v || 0).toLocaleString()}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: r.c }}>{fmt(parseFloat(r.v || 0))}</span>
                   </div>
                 ))}
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", marginTop: 4 }}>
                   <span style={{ fontSize: 13, fontWeight: 700 }}>RESULTADO NETO</span>
-                  <span style={{ fontSize: 18, fontWeight: 700, color: flujoEst.resultado_neto >= 0 ? "#2d7a4f" : "#c0392b" }}>${parseFloat(flujoEst.resultado_neto || 0).toLocaleString()}</span>
+                  <span style={{ fontSize: 18, fontWeight: 700, color: flujoEst.resultado_neto >= 0 ? "#2d7a4f" : "#c0392b" }}>{fmt(parseFloat(flujoEst.resultado_neto || 0))}</span>
                 </div>
               </div>
             </div>
@@ -1745,7 +1779,7 @@ function Finanzas({ localId }) {
             {[{ l: "Alquiler", v: 35000 }, { l: "Personal", v: 28000 }, { l: "Servicios", v: 4200 }, { l: "Plataformas", v: 3800 }].map(c => (
               <div key={c.l} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: "1px solid #f0f0f0" }}>
                 <span style={{ fontSize: 12, color: "#444444" }}>{c.l}</span>
-                <span style={{ color: "#c9a84c" }}>${c.v.toLocaleString()}</span>
+                <span style={{ color: "#c9a84c" }}>{fmt(c.v)}</span>
               </div>
             ))}
           </div>
@@ -1772,11 +1806,11 @@ function Finanzas({ localId }) {
           <div className="card">
             <div className="ct">Punto de equilibrio</div>
             {loading ? <div style={{ color: "#65676B" }}>Calculando...</div> : <div>
-              <div style={{ fontSize: 48, fontWeight: 700, color: "#c9a84c" }}>${parseFloat(equilibrio?.punto_equilibrio || 0).toLocaleString()}</div>
+              <div style={{ fontSize: 48, fontWeight: 700, color: "#c9a84c" }}>{fmt(parseFloat(equilibrio?.punto_equilibrio || 0))}</div>
               <div style={{ fontSize: 11, color: "#65676B", marginTop: 4 }}>ventas minimas para cubrir costos</div>
               <div className="divider" />
               {[
-                { l: "Costos fijos", v: "$" + parseFloat(equilibrio?.costos_fijos || 0).toLocaleString() },
+                { l: "Costos fijos", v: fmt(parseFloat(equilibrio?.costos_fijos || 0)) },
                 { l: "Margen promedio", v: (equilibrio?.margen_promedio || 0) + "%" },
                 { l: "Margen seguridad", v: equilibrio?.margen_seguridad || "0%" },
               ].map(r => (
@@ -1790,8 +1824,8 @@ function Finanzas({ localId }) {
           <div className="card">
             <div className="ct">Situacion actual</div>
             {[
-              { l: "Ventas actuales", v: "$" + parseFloat(equilibrio?.ventas_actuales || 0).toLocaleString(), c: "#2d7a4f" },
-              { l: "Punto equilibrio", v: "$" + parseFloat(equilibrio?.punto_equilibrio || 0).toLocaleString(), c: "#c9a84c" },
+              { l: "Ventas actuales", v: fmt(parseFloat(equilibrio?.ventas_actuales || 0)), c: "#2d7a4f" },
+              { l: "Punto equilibrio", v: fmt(parseFloat(equilibrio?.punto_equilibrio || 0)), c: "#c9a84c" },
               { l: "Superado", v: equilibrio?.superado ? "SI" : "NO", c: equilibrio?.superado ? "#2d7a4f" : "#c0392b" },
             ].map(r => (
               <div key={r.l} style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
@@ -1878,9 +1912,9 @@ function Informes({ localId }) {
           {tab === "ventas" && (
             <div className="fade">
               <div className="g3" style={{ marginBottom: 18 }}>
-                <div className="card"><div className="ct">Total ventas</div><div style={{ fontSize: 28, fontWeight: 700, color: "#2d7a4f" }}>${datos.totalVentas.toLocaleString()}</div></div>
+                <div className="card"><div className="ct">Total ventas</div><div style={{ fontSize: 28, fontWeight: 700, color: "#2d7a4f" }}>{fmt(datos.totalVentas)}</div></div>
                 <div className="card"><div className="ct">Cantidad de ventas</div><div style={{ fontSize: 28, fontWeight: 700, color: "#c9a84c" }}>{datos.cantVentas}</div></div>
-                <div className="card"><div className="ct">Ticket promedio</div><div style={{ fontSize: 28, fontWeight: 700, color: "#2471a3" }}>${Math.round(datos.ticketProm).toLocaleString()}</div></div>
+                <div className="card"><div className="ct">Ticket promedio</div><div style={{ fontSize: 28, fontWeight: 700, color: "#2471a3" }}>{fmt(Math.round(datos.ticketProm))}</div></div>
               </div>
               <div className="card">
                 <div className="ct">Ultimas ventas del mes</div>
@@ -1896,7 +1930,7 @@ function Informes({ localId }) {
                           <td style={{ fontSize: 12 }}>{v.cliente_nombre || "Consumidor final"}</td>
                           <td style={{ fontSize: 11 }}>{v.medio_pago || "-"}</td>
                           <td style={{ fontSize: 11, color: "#65676B" }}>{v.items_count || "-"}</td>
-                          <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${parseFloat(v.total || 0).toLocaleString()}</td>
+                          <td style={{ color: "#2d7a4f", fontWeight: 600 }}>{fmt(parseFloat(v.total || 0))}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1960,7 +1994,7 @@ function Informes({ localId }) {
                         <div key={medio} style={{ marginBottom: 14 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                             <span style={{ fontSize: 12, color: "#444444" }}>{medio}</span>
-                            <span style={{ fontSize: 12, color: "#c9a84c", fontWeight: 600 }}>${total.toLocaleString()} ({pct}%)</span>
+                            <span style={{ fontSize: 12, color: "#c9a84c", fontWeight: 600 }}>{fmt(total)} ({pct}%)</span>
                           </div>
                           <div className="pb"><div className="pf" style={{ width: pct + "%" }} /></div>
                         </div>
@@ -2031,7 +2065,7 @@ function Cupones() {
                 <tr key={c.id}>
                   <td style={{ color: "#c9a84c", letterSpacing: ".06em", fontWeight: 600 }}>{c.codigo || c.code}</td>
                   <td>{c.descripcion || c.desc}</td>
-                  <td>{(c.tipo || c.type) === "%" ? (c.valor || c.value) + "%" : "$" + (c.valor || c.value || 0).toLocaleString()}</td>
+                  <td>{(c.tipo || c.type) === "%" ? (c.valor || c.value) + "%" : fmt((c.valor || c.value || 0))}</td>
                   <td><span className="badge bb">{c.canal || c.channel}</span></td>
                   <td>{c.usos || c.uses || 0}{(c.max_usos || c.max) ? "/" + (c.max_usos || c.max) : ""}</td>
                   <td style={{ fontSize: 10, color: "#65676B" }}>{c.fecha_vencimiento || c.expires || "Sin venc."}</td>
@@ -2058,7 +2092,7 @@ function Cupones() {
             <div className="ct">Vista previa</div>
             <div style={{ background: "#fafafa", borderRadius: 7, padding: 20, border: "2px dashed #272220", textAlign: "center", marginBottom: 14 }}>
               <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 28, fontWeight: 700, color: "#c9a84c", letterSpacing: ".1em" }}>{nc.code || "CODIGO"}</div>
-              <div style={{ fontSize: 13, color: "#65676B", marginTop: 6 }}>{nc.value ? (nc.type === "%" ? nc.value + "% de descuento" : "$" + parseInt(nc.value || "0").toLocaleString() + " de descuento") : "Descuento"}</div>
+              <div style={{ fontSize: 13, color: "#65676B", marginTop: 6 }}>{nc.value ? (nc.type === "%" ? nc.value + "% de descuento" : fmt(parseInt(nc.value || "0")) + " de descuento") : "Descuento"}</div>
             </div>
             {["Codigos cortos y memorables convierten mas", "Inclui el canal: INSTA20, TIKTOK15", "Limite de usos genera urgencia", "Codigos de influencer = seguimiento exacto"].map((t, i) => (
               <div key={i} style={{ display: "flex", gap: 7, marginBottom: 7, fontSize: 11, color: "#444444" }}><span style={{ color: "#c9a84c" }}>-</span>{t}</div>
@@ -2160,7 +2194,7 @@ function Fidelizacion() {
     <div className="fade">
       <div className="ph"><div><div className="pt">Fidelizacion</div><div className="ps">puntos - niveles - canjes</div></div></div>
       <div className="g4" style={{ marginBottom: 16 }}>
-        <MCard label="Puntos emitidos" value={totalPuntos.toLocaleString()} color="#c9a84c" />
+        <MCard label="Puntos emitidos" value={fmtNum(totalPuntos)} color="#c9a84c" />
         <MCard label="Clientes con puntos" value={String(clientesAMostrar.filter(c => (c.puntos || 0) > 0).length)} color="#2d7a4f" />
         <MCard label="Premios activos" value={String(premios.filter(p => p.activo).length)} color="#2471a3" />
         <MCard label="Nivel Platinum" value={String(clientesAMostrar.filter(c => (c.nivel || c.tier) === "Platinum").length)} color="#7d3c98" />
@@ -2184,11 +2218,11 @@ function Fidelizacion() {
                   <tr key={c.id || i}>
                     <td><div style={{ color: "#111111" }}>{c.nombre || c.name}</div><div style={{ fontSize: 9, color: "#65676B" }}>{c.email}</div></td>
                     <td><TierBadge tier={nivel} /></td>
-                    <td style={{ fontFamily: "'Inter',sans-serif", fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>{puntos.toLocaleString()}</td>
+                    <td style={{ fontFamily: "'Inter',sans-serif", fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>{fmtNum(puntos)}</td>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <div style={{ flex: 1 }}><div className="pb"><div className="pf" style={{ width: pct + "%", background: "#c9a84c" }} /></div></div>
-                        <span style={{ fontSize: 9, color: "#65676B", width: 50 }}>{nivel === "Platinum" ? "MAX" : (next - puntos).toLocaleString() + "p"}</span>
+                        <span style={{ fontSize: 9, color: "#65676B", width: 50 }}>{nivel ===fmtNum("Platinum" ? "MAX" : (next - puntos)) + "p"}</span>
                       </div>
                     </td>
                   </tr>
@@ -2559,7 +2593,7 @@ function Calculadoras({ usuario }) {
                 {resultado !== null ? (
                   <div style={{ textAlign: "center" }}>
                     <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 8 }}>PRECIO SUGERIDO</div>
-                    <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 48, fontWeight: 700, color: "#c9a84c" }}>${resultado.toLocaleString("es-AR")}</div>
+                    <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 48, fontWeight: 700, color: "#c9a84c" }}>{fmt(resultado)}</div>
                     <div style={{ fontSize: 11, color: "#65676B", marginTop: 8 }}>con {seleccionada.nombre}</div>
                   </div>
                 ) : (
@@ -2698,8 +2732,8 @@ function GiftCards({ localId, usuario }) {
         <button className="btn btn-p btn-sm" onClick={() => setShowForm(true)}>+ Emitir Gift Card</button>
       </div>
       <div className="g3" style={{ marginBottom: 16 }}>
-        <MCard label="Total emitido (historico)" value={"$" + totalEmitido.toLocaleString("es-AR", { maximumFractionDigits: 0 })} color="#c9a84c" />
-        <MCard label="Saldo vivo (sin canjear)" value={"$" + totalSaldoVivo.toLocaleString("es-AR", { maximumFractionDigits: 0 })} color="#2d7a4f" />
+        <MCard label="Total emitido (historico)" value={fmt(totalEmitido)} color="#c9a84c" />
+        <MCard label="Saldo vivo (sin canjear)" value={fmt(totalSaldoVivo)} color="#2d7a4f" />
         <MCard label="Gift cards emitidas" value={String(giftcards.length)} color="#2C3E5C" />
       </div>
       {mensaje && <div style={{ background: mensaje.includes("Error") || mensaje.includes("Falta") || mensaje.includes("valido") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") || mensaje.includes("Falta") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") || mensaje.includes("Falta") ? "#c0392b" : "#2d7a4f", fontWeight: 600 }}>{mensaje}</div>}
@@ -2721,8 +2755,8 @@ function GiftCards({ localId, usuario }) {
                 <tr key={g.id}>
                   <td style={{ fontFamily: "monospace", fontWeight: 700, color: "#2C3E5C" }}>{g.codigo}</td>
                   <td style={{ fontSize: 12 }}>{g.beneficiario_nombre}{g.beneficiario_telefono ? <div style={{ fontSize: 10, color: "#65676B" }}>{g.beneficiario_telefono}</div> : null}</td>
-                  <td style={{ fontSize: 12 }}>${parseFloat(g.monto_inicial).toLocaleString("es-AR")}</td>
-                  <td><span className={"badge " + (parseFloat(g.saldo) === 0 ? "br" : parseFloat(g.saldo) < parseFloat(g.monto_inicial) ? "ba" : "bg")}>${parseFloat(g.saldo).toLocaleString("es-AR")}</span></td>
+                  <td style={{ fontSize: 12 }}>{fmt(parseFloat(g.monto_inicial))}</td>
+                  <td><span className={"badge " + (parseFloat(g.saldo) === 0 ? "br" : parseFloat(g.saldo) < parseFloat(g.monto_inicial) ? "ba" : "bg")}>{fmt(parseFloat(g.saldo))}</span></td>
                   <td style={{ fontSize: 11, color: "#65676B" }}>{g.cliente_nombre || "-"}</td>
                   <td style={{ fontSize: 10, color: "#65676B" }}>{new Date(g.creado_en).toLocaleDateString("es-AR")}</td>
                   <td><div style={{ display: "flex", gap: 4 }}><button className="btn btn-sm" onClick={() => verMovimientos(g)}>Ver historial</button>{(usuario?.rol === "jefe" || usuario?.rol === "administrativo") && !g.anulada && <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => anularGiftCard(g)}>Anular</button>}</div></td>
@@ -2759,7 +2793,7 @@ function GiftCards({ localId, usuario }) {
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
           <div className="card" style={{ width: 420, background: "#ffffff" }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{verMov.codigo}</div>
-            <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>{verMov.beneficiario_nombre} - Saldo actual: <b style={{ color: "#2d7a4f" }}>${parseFloat(verMov.saldo).toLocaleString("es-AR")}</b></div>
+            <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>{verMov.beneficiario_nombre} - Saldo actual: <b style={{ color: "#2d7a4f" }}>{fmt(parseFloat(verMov.saldo))}</b></div>
             {movimientos.length === 0 ? (
               <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 16 }}>Sin movimientos</div>
             ) : (
@@ -2771,8 +2805,8 @@ function GiftCards({ localId, usuario }) {
                       <div style={{ fontSize: 10, color: "#65676B" }}>{new Date(m.creado_en).toLocaleDateString("es-AR")}</div>
                     </div>
                     <div style={{ textAlign: "right" }}>
-                      <div style={{ color: m.tipo === "emision" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "emision" ? "+" : "-"}${parseFloat(m.importe).toLocaleString("es-AR")}</div>
-                      <div style={{ fontSize: 10, color: "#65676B" }}>saldo: ${parseFloat(m.saldo_resultante).toLocaleString("es-AR")}</div>
+                      <div style={{ color: m.tipo === "emision" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "emision" ? "+" : "-"}{fmt(parseFloat(m.importe))}</div>
+                      <div style={{ fontSize: 10, color: "#65676B" }}>saldo: {fmt(parseFloat(m.saldo_resultante))}</div>
                     </div>
                   </div>
                 ))}
@@ -2905,13 +2939,13 @@ function Tiendanube({ localId, usuario }) {
                     <div style={{ fontSize: 11, color: "#65676B" }}>{p.cliente_nombre}{p.cliente_email ? " - " + p.cliente_email : ""}</div>
                     <div style={{ fontSize: 10, color: "#65676B" }}>{new Date(p.creado_en).toLocaleDateString("es-AR")} {new Date(p.creado_en).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</div>
                   </div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>${parseFloat(p.total || 0).toLocaleString("es-AR")}</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>{fmt(parseFloat(p.total || 0))}</div>
                 </div>
                 <div style={{ background: "#f8f8f8", borderRadius: 6, padding: "6px 10px", marginBottom: 10 }}>
                   {items.map((it, idx) => (
                     <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "3px 0", borderBottom: idx < items.length - 1 ? "1px solid #f0f0f0" : "none" }}>
                       <span>{it.nombre} x{it.cantidad}</span>
-                      <span style={{ color: "#65676B" }}>${parseFloat(it.precio || 0).toLocaleString("es-AR")}</span>
+                      <span style={{ color: "#65676B" }}>{fmt(parseFloat(it.precio || 0))}</span>
                     </div>
                   ))}
                 </div>
@@ -3002,7 +3036,7 @@ function Tiendanube({ localId, usuario }) {
                   <tr key={p.id}>
                     <td style={{ fontWeight: 600 }}>#{p.numero}</td>
                     <td style={{ fontSize: 12 }}>{p.cliente_nombre}</td>
-                    <td style={{ color: "#c9a84c", fontWeight: 600 }}>${parseFloat(p.total || 0).toLocaleString("es-AR")}</td>
+                    <td style={{ color: "#c9a84c", fontWeight: 600 }}>{fmt(parseFloat(p.total || 0))}</td>
                     <td><span className={"badge " + (p.estado === "procesado" ? "bg" : "br")}>{p.estado}</span></td>
                     <td style={{ fontSize: 11, color: "#65676B" }}>{p.autorizado_por || "-"}</td>
                     <td style={{ fontSize: 10, color: "#65676B" }}>{new Date(p.creado_en).toLocaleDateString("es-AR")}</td>
@@ -3040,9 +3074,9 @@ function PortalCliente() {
               </div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 52, fontWeight: 700, color: "#c9a84c", lineHeight: 1 }}>{client.points.toLocaleString()}</div>
+              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 52, fontWeight: 700, color: "#c9a84c", lineHeight: 1 }}>{fmtNum(client.points)}</div>
               <div style={{ fontSize: 9, color: "#ffffff44", letterSpacing: ".2em", marginTop: 3 }}>PUNTOS DISPONIBLES</div>
-              <div style={{ fontSize: 10, color: "#ffffff33", marginTop: 6 }}>Proximo nivel: {(2000 - client.points).toLocaleString()} pts</div>
+              <div style={{ fontSize: 10, color: "#ffffff33", marginTop: 6 }}>Proximo nivel: {fmtNum((2000 - client.points))} pts</div>
             </div>
           </div>
         </div>
@@ -3063,7 +3097,7 @@ function PortalCliente() {
                     <div style={{ fontSize: 24, marginBottom: 8 }}>{r.emoji}</div>
                     <div style={{ fontSize: 11, color: "#e8ddd4" }}>{r.name}</div>
                     <div style={{ fontSize: 9, color: "#ffffff33", letterSpacing: ".1em", marginTop: 2 }}>{r.brand}</div>
-                    <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#c9a84c", marginTop: 10 }}>{r.pts.toLocaleString()}</div>
+                    <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#c9a84c", marginTop: 10 }}>{fmtNum(r.pts)}</div>
                     <div style={{ fontSize: 9, color: "#ffffff33" }}>PUNTOS</div>
                     {can && <button style={{ marginTop: 10, width: "100%", padding: "7px", borderRadius: 5, background: "#c9a84c15", border: "1px solid #c9a96e33", color: "#c9a84c", fontFamily: "'DM Mono',monospace", fontSize: 10, cursor: "pointer" }}>Canjear</button>}
                   </div>
@@ -3101,7 +3135,7 @@ function PortalCliente() {
                   <div style={{ fontSize: 12, color: "#e8ddd4" }}>{h.items}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#c9a84c" }}>${h.total.toLocaleString()}</div>
+                  <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#c9a84c" }}>{fmt(h.total)}</div>
                   <div style={{ fontSize: 9, color: "#ffffff33", marginTop: 2 }}>+{h.pts} puntos</div>
                 </div>
               </div>
@@ -3162,18 +3196,18 @@ function Comisiones({ localId }) {
           <div className="g3" style={{ marginBottom: 18 }}>
             <div className="card" style={{ borderTop: "3px solid " + nivelColor }}>
               <div className="ct">Facturacion del mes</div>
-              <div className="metric" style={{ color: "#111111" }}>${parseFloat(datos.facturacion || 0).toLocaleString()}</div>
+              <div className="metric" style={{ color: "#111111" }}>{fmt(parseFloat(datos.facturacion || 0))}</div>
               <div className="msub">solo ventas presenciales</div>
             </div>
             <div className="card" style={{ borderTop: "3px solid " + nivelColor }}>
               <div className="ct">Comision ganada</div>
-              <div className="metric" style={{ color: nivelColor }}>${parseFloat(datos.comision || 0).toLocaleString()}</div>
+              <div className="metric" style={{ color: nivelColor }}>{fmt(parseFloat(datos.comision || 0))}</div>
               <div className="msub">{nivelEmoji} {datos.nivel === 0 ? "Aun no alcanzada" : datos.nivel === 1 ? "Meta 1 alcanzada!" : "Meta maxima!"}</div>
             </div>
             <div className="card">
               <div className="ct">Proximo objetivo</div>
               <div className="metric" style={{ color: "#c9a84c" }}>
-                {datos.nivel === 0 ? "$" + parseFloat(datos.falta_nivel1 || 0).toLocaleString() : datos.nivel === 1 ? "$" + parseFloat(datos.falta_nivel2 || 0).toLocaleString() : "MAX"}
+                {datos.nivel === 0 ? fmt(parseFloat(datos.falta_nivel1 || 0)) : datos.nivel === 1 ? fmt(parseFloat(datos.falta_nivel2 || 0)) : "MAX"}
               </div>
               <div className="msub">{datos.nivel === 2 ? "Meta maxima alcanzada!" : "para el proximo nivel"}</div>
             </div>
@@ -3183,27 +3217,27 @@ function Comisiones({ localId }) {
               <div className="ct">Progreso hacia las metas</div>
               <div style={{ marginBottom: 20 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <span style={{ fontSize: 12, color: "#444444", fontWeight: 600 }}>Meta 1 "" ${parseFloat(datos.umbral_1 || 0).toLocaleString()}</span>
-                  <span style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>+${parseFloat(datos.comision_1 || 0).toLocaleString()}</span>
+                  <span style={{ fontSize: 12, color: "#444444", fontWeight: 600 }}>Meta 1 "" {fmt(parseFloat(datos.umbral_1 || 0))}</span>
+                  <span style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>+{fmt(parseFloat(datos.comision_1 || 0))}</span>
                 </div>
                 <div className="pb" style={{ height: 10 }}>
                   <div className="pf" style={{ width: datos.pct_nivel1 + "%", background: datos.nivel >= 1 ? "#2d7a4f" : "#c9a84c" }} />
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-                  <span style={{ fontSize: 10, color: "#65676B" }}>${parseFloat(datos.facturacion || 0).toLocaleString()} facturado</span>
+                  <span style={{ fontSize: 10, color: "#65676B" }}>{fmt(parseFloat(datos.facturacion || 0))} facturado</span>
                   <span style={{ fontSize: 10, color: datos.nivel >= 1 ? "#2d7a4f" : "#65676B" }}>{datos.pct_nivel1}%</span>
                 </div>
               </div>
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <span style={{ fontSize: 12, color: "#444444", fontWeight: 600 }}>Meta 2 "" ${parseFloat(datos.umbral_2 || 0).toLocaleString()}</span>
-                  <span style={{ fontSize: 12, color: "#c9a84c", fontWeight: 600 }}>+${parseFloat(datos.comision_2 || 0).toLocaleString()}</span>
+                  <span style={{ fontSize: 12, color: "#444444", fontWeight: 600 }}>Meta 2 "" {fmt(parseFloat(datos.umbral_2 || 0))}</span>
+                  <span style={{ fontSize: 12, color: "#c9a84c", fontWeight: 600 }}>+{fmt(parseFloat(datos.comision_2 || 0))}</span>
                 </div>
                 <div className="pb" style={{ height: 10 }}>
                   <div className="pf" style={{ width: datos.pct_nivel2 + "%", background: datos.nivel >= 2 ? "#c9a84c" : "#dddddd" }} />
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-                  <span style={{ fontSize: 10, color: "#65676B" }}>${parseFloat(datos.facturacion || 0).toLocaleString()} facturado</span>
+                  <span style={{ fontSize: 10, color: "#65676B" }}>{fmt(parseFloat(datos.facturacion || 0))} facturado</span>
                   <span style={{ fontSize: 10, color: datos.nivel >= 2 ? "#c9a84c" : "#65676B" }}>{datos.pct_nivel2}%</span>
                 </div>
               </div>
@@ -3230,8 +3264,8 @@ function Comisiones({ localId }) {
                   {historial.map((h, i) => (
                     <tr key={i}>
                       <td>{h.mes}/{h.anio}</td>
-                      <td>${parseFloat(h.facturacion_mes || 0).toLocaleString()}</td>
-                      <td style={{ color: "#c9a84c", fontWeight: 600 }}>${parseFloat(h.comision_ganada || 0).toLocaleString()}</td>
+                      <td>{fmt(parseFloat(h.facturacion_mes || 0))}</td>
+                      <td style={{ color: "#c9a84c", fontWeight: 600 }}>{fmt(parseFloat(h.comision_ganada || 0))}</td>
                       <td><span className={"badge " + (h.pagada ? "bg" : "ba")}>{h.pagada ? "Pagada" : "Pendiente"}</span></td>
                     </tr>
                   ))}
@@ -3444,7 +3478,7 @@ function Proveedores() {
               <div style={{ display: "flex", gap: 20 }}>
                 <div><span style={{ fontSize: 20, fontWeight: 700, color: "#c0392b" }}>{conUrgencia.filter(o => o.urgencia === "vencida").length}</span><div style={{ fontSize: 10, color: "#65676B" }}>vencidas</div></div>
                 <div><span style={{ fontSize: 20, fontWeight: 700, color: "#c9a84c" }}>{conUrgencia.filter(o => o.urgencia === "proxima").length}</span><div style={{ fontSize: 10, color: "#65676B" }}>vencen en 7 dias</div></div>
-                <div><span style={{ fontSize: 20, fontWeight: 700, color: "#2d7a4f" }}>${conUrgencia.reduce((s, o) => s + parseFloat(o.total || 0), 0).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</span><div style={{ fontSize: 10, color: "#65676B" }}>total pendiente</div></div>
+                <div><span style={{ fontSize: 20, fontWeight: 700, color: "#2d7a4f" }}>{fmt(conUrgencia.reduce((s, o) => s + parseFloat(o.total || 0), 0))}</span><div style={{ fontSize: 10, color: "#65676B" }}>total pendiente</div></div>
               </div>
             </div>
             {conUrgencia.length === 0 ? (
@@ -3462,7 +3496,7 @@ function Proveedores() {
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                        <span style={{ fontSize: 15, fontWeight: 700, color: "#111111" }}>${parseFloat(o.total || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</span>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: "#111111" }}>{fmt(parseFloat(o.total || 0))}</span>
                         <button className="btn btn-sm" style={{ background: "#2d7a4f", color: "white" }} onClick={() => marcarPagada(o)}>Marcar pagada</button>
                       </div>
                     </div>
@@ -3534,7 +3568,7 @@ function Caja({ localId, usuario }) {
         <div><div className="pt">Caja</div><div className="ps">movimientos de efectivo</div></div>
         <div style={{ textAlign: "right" }}>
           <div style={{ fontSize: 10, color: "#65676B", letterSpacing: ".1em" }}>SALDO ACTUAL</div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: saldoColor }}>${saldo.toLocaleString()}</div>
+          <div style={{ fontSize: 28, fontWeight: 700, color: saldoColor }}>{fmt(saldo)}</div>
         </div>
       </div>
       {mensaje && (
@@ -3616,7 +3650,7 @@ function Caja({ localId, usuario }) {
                     </td>
                     <td><span className={"badge " + (m.tipo === "ingreso" ? "bg" : "br")}>{m.tipo}</span></td>
                     <td style={{ color: m.tipo === "ingreso" ? "#2d7a4f" : "#c0392b", fontWeight: 600 }}>
-                      {m.tipo === "ingreso" ? "+" : "-"}${parseFloat(m.importe).toLocaleString()}
+                      {m.tipo === "ingreso" ? "+" : "-"}{fmt(parseFloat(m.importe))}
                     </td>
                     <td>{!m.anulado && (usuario?.rol === "jefe" || usuario?.rol === "administrativo") && <button className="btn btn-sm" style={{ color: "#c0392b", fontSize: 9 }} onClick={() => anularMovimiento(m)}>Anular</button>}</td>
                   </tr>
@@ -3692,7 +3726,7 @@ function Comprobantes({ localId }) {
       </div>
       <div className="g3" style={{ marginBottom: 16 }}>
         <MCard label="Comprobantes" value={String(comprobantes.length)} color="#c9a84c" />
-        <MCard label="Total facturado" value={"$" + totalPeriodo.toLocaleString("es-AR", { maximumFractionDigits: 0 })} color="#2d7a4f" />
+        <MCard label="Total facturado" value={fmt(totalPeriodo)} color="#2d7a4f" />
         <MCard label="Periodo" value={desde.split("-").reverse().join("/") + " al " + hasta.split("-").reverse().join("/")} color="#2C3E5C" />
       </div>
       <div className="card">
@@ -3712,7 +3746,7 @@ function Comprobantes({ localId }) {
                     <td style={{ fontSize: 12 }}>{v.cliente_nombre || "Consumidor final"}</td>
                     <td style={{ fontSize: 11 }}>{v.tipo_factura || "B"}</td>
                     <td style={{ fontSize: 11, color: "#65676B" }}>{v.cae || "-"}</td>
-                    <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${parseFloat(v.total || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                    <td style={{ color: "#2d7a4f", fontWeight: 600 }}>{fmt(parseFloat(v.total || 0))}</td>
                     <td><span style={{ cursor: "pointer", color: "#2C3E5C", fontSize: 11 }} onClick={() => setExpandido(expandido === i ? null : i)}>{expandido === i ? "Ocultar" : "Ver"}</span></td>
                   </tr>
                   {expandido === i && (
@@ -3729,8 +3763,8 @@ function Comprobantes({ localId }) {
                                 <tr key={j}>
                                   <td style={{ fontSize: 11 }}>{it.nombre}{it.marca ? " - " + it.marca : ""}</td>
                                   <td style={{ fontSize: 11, color: "#65676B" }}>{it.cantidad}</td>
-                                  <td style={{ fontSize: 11 }}>${parseFloat(it.precio_unitario || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
-                                  <td style={{ fontSize: 11, fontWeight: 600 }}>${(parseFloat(it.precio_unitario || 0) * parseInt(it.cantidad || 0)).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                                  <td style={{ fontSize: 11 }}>{fmt(parseFloat(it.precio_unitario || 0))}</td>
+                                  <td style={{ fontSize: 11, fontWeight: 600 }}>{fmt((parseFloat(it.precio_unitario || 0) * parseInt(it.cantidad || 0)))}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -3830,8 +3864,8 @@ function Productividad({ localId }) {
                       <td style={{ fontWeight: 700, color: (i === 0 ? "#c9a84c" : "#65676B") }}>{i + 1}</td>
                       <td style={{ fontSize: 12, fontWeight: 600 }}>{r.nombre}</td>
                       <td style={{ fontSize: 12 }}>{r.cantidad}</td>
-                      <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${r.total.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
-                      <td style={{ fontSize: 12 }}>${r.ticketProm.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                      <td style={{ color: "#2d7a4f", fontWeight: 600 }}>{fmt(r.total)}</td>
+                      <td style={{ fontSize: 12 }}>{fmt(r.ticketProm)}</td>
                       <td style={{ fontSize: 12 }}>{fmtTiempo(r.tiempoProm)}</td>
                       <td style={{ fontSize: 12 }}>{r.ventasPorHora.toFixed(1)}</td>
                     </tr>
@@ -3845,7 +3879,7 @@ function Productividad({ localId }) {
               <div key={i} className="card" style={{ borderTop: "3px solid " + (i === 0 ? "#c9a84c" : i === 1 ? "#65676B" : "#cd7f32") }}>
                 <div style={{ fontSize: 10, color: "#65676B", letterSpacing: ".1em" }}>{i === 0 ? "TOP VENDEDORA" : "#" + (i + 1)}</div>
                 <div style={{ fontSize: 18, fontWeight: 700 }}>{r.nombre}</div>
-                <div style={{ fontSize: 13, color: "#2d7a4f", fontWeight: 600 }}>${r.total.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
+                <div style={{ fontSize: 13, color: "#2d7a4f", fontWeight: 600 }}>{fmt(r.total)}</div>
                 <div style={{ fontSize: 11, color: "#65676B" }}>{r.cantidad} ventas - {totalGeneral > 0 ? Math.round(r.total / totalGeneral * 100) : 0}% del total</div>
               </div>
             ))}
@@ -3957,8 +3991,8 @@ function CierreCaja({ localId, usuario }) {
           </div>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: 11, color: "#65676B" }}>TOTAL DEL DIA</div>
-            <div style={{ fontSize: 28, fontWeight: 700, color: "#2d7a4f" }}>${totalDia.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
-            <div style={{ fontSize: 10, color: "#65676B" }}>{ventasDia.length} ventas{totalGiftCards > 0 ? " + $" + totalGiftCards.toLocaleString("es-AR", { maximumFractionDigits: 0 }) + " gift cards" : ""}</div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: "#2d7a4f" }}>{fmt(totalDia)}</div>
+            <div style={{ fontSize: 10, color: "#65676B" }}>{ventasDia.length} ventas{totalGiftCards > 0 ? " + $" +fmtNum(totalGiftCards) + " gift cards" : ""}</div>
           </div>
         </div>
 
@@ -3978,20 +4012,20 @@ function CierreCaja({ localId, usuario }) {
                       <tr key={i}>
                         <td style={{ fontSize: 12 }}>{medio}</td>
                         <td style={{ fontSize: 12, color: "#65676B" }}>{d.cantidad}</td>
-                        <td style={{ color: "#2d7a4f", fontWeight: 600 }}>${d.total.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                        <td style={{ color: "#2d7a4f", fontWeight: 600 }}>{fmt(d.total)}</td>
                       </tr>
                     ))}
                     {totalGiftCards > 0 && (
                       <tr>
                         <td style={{ fontSize: 12, color: "#c9a84c" }}>Gift Cards emitidas</td>
                         <td style={{ fontSize: 12, color: "#65676B" }}>{giftCardsDia.length}</td>
-                        <td style={{ color: "#c9a84c", fontWeight: 600 }}>${totalGiftCards.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                        <td style={{ color: "#c9a84c", fontWeight: 600 }}>{fmt(totalGiftCards)}</td>
                       </tr>
                     )}
                     <tr style={{ borderTop: "2px solid #eeeeee" }}>
                       <td style={{ fontWeight: 700 }}>TOTAL</td>
                       <td style={{ fontWeight: 700, color: "#65676B" }}>{ventasDia.length}</td>
-                      <td style={{ fontWeight: 700, color: "#2d7a4f" }}>${totalDia.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                      <td style={{ fontWeight: 700, color: "#2d7a4f" }}>{fmt(totalDia)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -4000,8 +4034,8 @@ function CierreCaja({ localId, usuario }) {
             <div>
               <div className="card" style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 10 }}>EFECTIVO EN CAJA</div>
-                <div style={{ fontSize: 26, fontWeight: 700, color: efectivoEsperado < 0 ? "#c0392b" : "#111111" }}>${efectivoEsperado.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
-                <div style={{ fontSize: 10, color: "#65676B", marginTop: 4 }}>ventas ${ventasEfectivo.toLocaleString("es-AR", { maximumFractionDigits: 0 })} + ingresos ${ingresosManuales.toLocaleString("es-AR", { maximumFractionDigits: 0 })} - egresos ${egresosDia.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</div>
+                <div style={{ fontSize: 26, fontWeight: 700, color: efectivoEsperado < 0 ? "#c0392b" : "#111111" }}>{fmt(efectivoEsperado)}</div>
+                <div style={{ fontSize: 10, color: "#65676B", marginTop: 4 }}>ventas {fmt(ventasEfectivo)} + ingresos {fmt(ingresosManuales)} - egresos {fmt(egresosDia)}</div>
               </div>
               {movsDia.length > 0 && (
                 <div className="card">
@@ -4013,7 +4047,7 @@ function CierreCaja({ localId, usuario }) {
                         <tr key={i}>
                           <td><span className="badge" style={{ background: m.tipo === "ingreso" ? "#2d7a4f15" : "#c0392b15", color: m.tipo === "ingreso" ? "#2d7a4f" : "#c0392b" }}>{m.tipo}</span></td>
                           <td style={{ fontSize: 11 }}>{m.concepto || "-"}</td>
-                          <td style={{ fontWeight: 600, color: m.tipo === "ingreso" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "ingreso" ? "+" : "-"}${parseFloat(m.importe || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                          <td style={{ fontWeight: 600, color: m.tipo === "ingreso" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "ingreso" ? "+" : "-"}{fmt(parseFloat(m.importe || 0))}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -4034,7 +4068,7 @@ function CierreCaja({ localId, usuario }) {
                 <tr key={i} style={{ opacity: v.anulada ? 0.4 : 1 }}>
                   <td style={{ fontSize: 11, fontFamily: "monospace", textDecoration: v.anulada ? "line-through" : "none" }}>{v.numero_factura}</td>
                   <td style={{ fontSize: 12 }}>{v.cliente_nombre || "Consumidor final"}{v.anulada && <div style={{ fontSize: 9, color: "#c0392b" }}>ANULADA: {v.motivo_anulacion}</div>}</td>
-                  <td style={{ fontWeight: 600 }}>${parseFloat(v.total).toLocaleString("es-AR")}</td>
+                  <td style={{ fontWeight: 600 }}>{fmt(parseFloat(v.total))}</td>
                   <td style={{ fontSize: 11, color: "#65676B" }}>{v.medio_pago}</td>
                   <td>{!v.anulada && <button className="btn btn-sm" style={{ color: "#c0392b", fontSize: 9 }} onClick={async () => {
                     const motivo = prompt("Motivo de la anulacion (obligatorio):");
@@ -4497,7 +4531,7 @@ function OrdenesIngreso({ localId, usuario }) {
                     <td style={{ fontSize: 12 }}>{o.proveedor_nombre || "-"}</td>
                     <td style={{ fontSize: 11, color: "#65676B" }}>{o.fecha_factura ? new Date(o.fecha_factura).toLocaleDateString("es-AR") : "-"}</td>
                     <td><span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c" }}>{o.estado}</span></td>
-                    <td style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>${parseFloat(o.total || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                    <td style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>{fmt(parseFloat(o.total || 0))}</td>
                     <td><button className="btn btn-sm" style={{ background: "#2d7a4f", color: "white" }} onClick={() => verDetalle(o)}>Recibir</button></td>
                   </tr>
                 ))}
@@ -4576,7 +4610,7 @@ function OrdenesIngreso({ localId, usuario }) {
                       <td style={{ fontSize: 11 }}>{it.cantidad_rg}</td>
                       <td style={{ fontSize: 11 }}>{it.cantidad_ush}</td>
                       <td style={{ fontSize: 11 }}>${it.costo_unitario}</td>
-                      <td style={{ fontSize: 11, fontWeight: 600 }}>${(it.costo_unitario * it.cantidad_total).toLocaleString("es-AR", { maximumFractionDigits: 0 })}</td>
+                      <td style={{ fontSize: 11, fontWeight: 600 }}>{fmt((it.costo_unitario * it.cantidad_total))}</td>
                       <td><span style={{ cursor: "pointer", color: "#c0392b", fontSize: 14 }} onClick={() => quitarItemNueva(i)}>x</span></td>
                     </tr>
                   ))}
@@ -4591,17 +4625,17 @@ function OrdenesIngreso({ localId, usuario }) {
                 <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 6, background: coincide ? "#2d7a4f12" : "#c0392b12", border: "1px solid " + (coincide ? "#2d7a4f" : "#c0392b") }}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                     <span style={{ color: "#666666" }}>Suma de productos</span>
-                    <span style={{ fontWeight: 600 }}>${sumaItems.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</span>
+                    <span style={{ fontWeight: 600 }}>{fmt(sumaItems)}</span>
                   </div>
                   {totalFactura > 0 && (
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginTop: 4 }}>
                       <span style={{ color: "#666666" }}>Total de la factura</span>
-                      <span style={{ fontWeight: 600 }}>${totalFactura.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</span>
+                      <span style={{ fontWeight: 600 }}>{fmt(totalFactura)}</span>
                     </div>
                   )}
                   {!coincide && (
                     <div style={{ fontSize: 11, color: "#c0392b", fontWeight: 600, marginTop: 6 }}>
-                      Diferencia de ${Math.abs(sumaItems - totalFactura).toLocaleString("es-AR", { maximumFractionDigits: 0 })} - revisa los costos unitarios antes de crear la orden
+                      Diferencia de {fmt(Math.abs(sumaItems - totalFactura))} - revisa los costos unitarios antes de crear la orden
                     </div>
                   )}
                 </div>
@@ -4843,8 +4877,8 @@ function Kits() {
                         {kit.descripcion && <div style={{ fontSize: 11, color: "#65676B", marginTop: 2 }}>{kit.descripcion}</div>}
                       </div>
                       <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>${parseFloat(kit.precio || 0).toLocaleString()}</div>
-                        {ahorro > 0 && <div style={{ fontSize: 10, color: "#2d7a4f" }}>Ahorro: ${Math.round(ahorro).toLocaleString()}</div>}
+                        <div style={{ fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>{fmt(parseFloat(kit.precio || 0))}</div>
+                        {ahorro > 0 && <div style={{ fontSize: 10, color: "#2d7a4f" }}>Ahorro: {fmt(Math.round(ahorro))}</div>}
                       </div>
                     </div>
                     <div style={{ marginBottom: 12 }}>
@@ -4878,7 +4912,7 @@ function Kits() {
               <input className="inp" placeholder="Ej: Ideal para piel seca..." value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
             </div>
             <div className="fg">
-              <div className="fl">Precio del kit ($) {precioSugerido > 0 && <span style={{ fontSize: 10, color: "#65676B", marginLeft: 6 }}>Suma: ${Math.round(precioSugerido).toLocaleString()}</span>}</div>
+              <div className="fl">Precio del kit ($) {precioSugerido > 0 && <span style={{ fontSize: 10, color: "#65676B", marginLeft: 6 }}>Suma: {fmt(Math.round(precioSugerido))}</span>}</div>
               <input className="inp" type="number" placeholder={Math.round(precioSugerido * 0.9) || "15000"} value={form.precio} onChange={e => setForm(f => ({ ...f, precio: e.target.value }))} />
             </div>
             <div className="divider" />
@@ -4914,7 +4948,7 @@ function Kits() {
                 <div style={{ marginTop: 12, padding: "10px 0", borderTop: "2px solid #f0f0f0" }}>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <span style={{ fontSize: 12, color: "#444444" }}>Suma de productos</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "#c9a84c" }}>${Math.round(precioSugerido).toLocaleString()}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "#c9a84c" }}>{fmt(Math.round(precioSugerido))}</span>
                   </div>
                 </div>
               </div>
