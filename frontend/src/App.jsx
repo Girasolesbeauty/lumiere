@@ -20,7 +20,7 @@ html, body, #root { margin: 0; padding: 0; width: 100%; overflow-x: hidden; }
 body { font-family: 'Inter', sans-serif; background: #F0F2F5; color: #1C1E21; min-height: 100vh; margin: 0; width: 100vw; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
 ::-webkit-scrollbar { width: 3px; }
 ::-webkit-scrollbar-thumb { background: #e0e0e0; border-radius: 2px; }
-@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeUp { from { opacity: 0; } to { opacity: 1; } }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
 .fade { animation: fadeUp .25s ease forwards; }
 .pulse { animation: pulse 2s infinite; }
@@ -678,7 +678,7 @@ function POS({ localId, usuario }) {
           </div>
         ))}
         {confirmandoPreventa && (
-          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
             <div className="card" style={{ width: 380, background: "#ffffff" }}>
               <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Confirmar entrega</div>
               <div style={{ fontSize: 12, color: "#65676B", marginBottom: 14 }}>{confirmandoPreventa.nombre_preventa || "Consumidor Final"} viene a retirar su pedido. Esto descuenta del stock real y libera la reserva.</div>
@@ -935,7 +935,7 @@ function POS({ localId, usuario }) {
       </div>
 
       {showEmitirGC && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
           <div className="card" style={{ width: 380, background: "#ffffff" }}>
             {!gcEmitidaOk ? (
               <>
@@ -1278,7 +1278,7 @@ function Inventario({ localId, usuario }) {
         </div>
       )}
       {showCalc && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
           <div className="card" style={{ width: 420, background: "#ffffff" }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>🧮 Calcular precio</div>
             <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>El resultado se va a cargar automaticamente en el campo de precio.</div>
@@ -1340,7 +1340,7 @@ function Inventario({ localId, usuario }) {
         </div>
       )}
       {eliminandoProd && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
           <div className="card" style={{ width: 400, background: "#ffffff" }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8, color: "#c0392b" }}>Eliminar producto</div>
             <div style={{ fontSize: 13, color: "#444444", marginBottom: 6 }}>Vas a eliminar <b>{eliminandoProd.nombre}</b> de forma permanente.</div>
@@ -1353,7 +1353,7 @@ function Inventario({ localId, usuario }) {
         </div>
       )}
       {ajustando && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
           <div className="card" style={{ width: 400, background: "#ffffff" }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Ajustar stock</div>
             <div style={{ fontSize: 12, color: "#65676B", marginBottom: 14 }}>{ajustando.nombre} - stock actual: <b>{ajustando.stock || 0}u</b></div>
@@ -2734,7 +2734,7 @@ function GiftCards({ localId, usuario }) {
       </div>
 
       {showForm && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
           <div className="card" style={{ width: 400, background: "#ffffff" }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Emitir Gift Card</div>
             <div className="fg"><div className="fl">Monto ($)</div><input className="inp" type="number" placeholder="10000" value={nueva.monto} onChange={e => setNueva(p => ({ ...p, monto: e.target.value }))} /></div>
@@ -2756,7 +2756,7 @@ function GiftCards({ localId, usuario }) {
       )}
 
       {verMov && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
           <div className="card" style={{ width: 420, background: "#ffffff" }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{verMov.codigo}</div>
             <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>{verMov.beneficiario_nombre} - Saldo actual: <b style={{ color: "#2d7a4f" }}>${parseFloat(verMov.saldo).toLocaleString("es-AR")}</b></div>
@@ -4222,7 +4222,7 @@ function ControlInventario({ localId, usuario }) {
           </table>
         </div>
         {showFinalizar && (
-          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
             <div className="card" style={{ width: 420, background: "#ffffff" }}>
               <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Finalizar conteo</div>
               <div style={{ fontSize: 12, color: "#65676B", marginBottom: 14 }}>{totalContados} items contados - {totalCorrectos} correctos, {totalFaltantes} faltantes, {totalSobrantes} sobrantes</div>
@@ -4290,7 +4290,7 @@ function ControlInventario({ localId, usuario }) {
         )}
       </div>
       {showNuevo && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
           <div className="card" style={{ width: 400, background: "#ffffff" }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Nuevo control de inventario</div>
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
@@ -4313,7 +4313,7 @@ function ControlInventario({ localId, usuario }) {
         </div>
       )}
       {showConfig && config && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
           <div className="card" style={{ width: 400, background: "#ffffff" }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Configuracion de avisos</div>
             <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, marginBottom: 14, cursor: "pointer" }}>
@@ -5134,7 +5134,7 @@ function Insumos({ localId, usuario }) {
         </div>
       )}
       {ajustando && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
           <div className="card" style={{ width: 400, background: "#ffffff" }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Ajustar stock - {localNombre}</div>
             <div style={{ fontSize: 12, color: "#65676B", marginBottom: 14 }}>{ajustando.nombre} - stock actual: <b>{stockLocal(ajustando)}u</b></div>
