@@ -70,7 +70,12 @@ const update = async (req, res) => {
 const remove = async (req, res) => {
   try {
     const { id } = req.params;
-    await pool.query('UPDATE productos SET activo = FALSE WHERE id = $1', [id]);
+    // Si el producto tiene ventas registradas, no se puede borrar (rompe el historial).
+    const ventas = await pool.query('SELECT COUNT(*) FROM venta_items WHERE producto_id = $1', [id]);
+    if (parseInt(ventas.rows[0].count) > 0) {
+      return res.status(400).json({ error: 'Este producto tiene ventas registradas, no se puede borrar. Si ya no lo usas, podes dejarlo sin stock.' });
+    }
+    await pool.query('DELETE FROM productos WHERE id = $1', [id]);
     res.json({ mensaje: 'Producto eliminado correctamente' });
   } catch (error) {
     res.status(500).json({ error: 'Error al eliminar producto' });
