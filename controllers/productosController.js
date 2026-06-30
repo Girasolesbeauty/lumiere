@@ -15,13 +15,17 @@ const conDisponible = (rows, local) => rows.map(p => {
 
 const getAll = async (req, res) => {
   try {
-    // "local" es solo para calcular disponible/transito por local (no filtra el catalogo, que es unico).
     const { local } = req.query;
-    let query = `SELECT p.*, pr.nombre AS proveedor_nombre
-                 FROM productos p
-                 LEFT JOIN proveedores pr ON p.proveedor_id = pr.id
-                 WHERE p.activo = TRUE ORDER BY p.nombre ASC`;
-    const result = await pool.query(query);
+    let result;
+    try {
+      // Intenta traer el nombre del proveedor (para el buscador). Si la columna no existe, cae al SELECT simple.
+      result = await pool.query(`SELECT p.*, pr.nombre AS proveedor_nombre
+                                 FROM productos p
+                                 LEFT JOIN proveedores pr ON p.proveedor_id = pr.id
+                                 WHERE p.activo = TRUE ORDER BY p.nombre ASC`);
+    } catch (e) {
+      result = await pool.query('SELECT * FROM productos WHERE activo = TRUE ORDER BY nombre ASC');
+    }
     res.json(conDisponible(result.rows, local));
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener productos' });
@@ -73,10 +77,9 @@ const update = async (req, res) => {
 const remove = async (req, res) => {
   try {
     const { id } = req.params;
-    // Si el producto tiene ventas registradas, no se puede borrar (rompe el historial).
     const ventas = await pool.query('SELECT COUNT(*) FROM venta_items WHERE producto_id = $1', [id]);
     if (parseInt(ventas.rows[0].count) > 0) {
-      return res.status(400).json({ error: 'Este producto tiene ventas registradas, no se puede borrar. Si ya no lo usas, podes dejarlo sin stock.' });
+      return res.status(400).json({ error: 'Este producto tiene ventas registradas, no se puede borrar.' });
     }
     await pool.query('DELETE FROM productos WHERE id = $1', [id]);
     res.json({ mensaje: 'Producto eliminado correctamente' });
