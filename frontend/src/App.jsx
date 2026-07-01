@@ -2,6 +2,8 @@
 import { getProductos, createVenta, getClientes, getFlujo, getPuntoEquilibrio, agregarEgreso, getResumenFinanzas, getVentas, getAlertasStock, getCupones, createCupon, updateCupon, getRanking, getReglas, createRegla as createReglaWA, updateRegla as updateReglaWA, login, register } from "./api";
 import API from "./api";
 
+const LOGO_TICKET = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAXwAAABPAQAAAADABUPQAAADzElEQVR4nO2WsW7jRhCGvx0REgMYMYGkcADD4iO4TGGc+Qh5BAF5gXuA4DwGUqSL3yB+FPouRbq4Sk0dXLikAwGhFJKTYklqSelyKVJ6CmkxO//MP7s7M3RG81XJf5YXgR9fMnhJWLsYoBGAdQTwICNrcwpWwcKsPLUCrs2scmZmcGPWwrWZXpsVwI2VnJZCBbvexWO/aOAedoHGb28Q7sC001RAZUANJTzDJgTkNEi3OpQNFNCGKgUVFCg6zQ4oUXiGFnKwMGcglwagDFS9CKj3OhKB07pbnxb00YpFGWHMipBtyzuyaMPbmf4CQHKBapfR2UlMy9VFz3ZZQONu5a2Akq281gWhZ5fU5E7LvaoWvkdKB5chyZwCSA/IA/A1why+6DcVIPXrDBysqhEgRgpgHuo061lUc0imMYR4qlLwZ1XGENdTQH7gI6nY38xIWkCmSjtiOKaUTrz4qvgTKBKIgscUWTaNoADUkFp2zPlvIAQ7IZ1fx8Zr54CtIgpb57zrFqWWqIUzGoV0zMDB3ZjSposMHK8RqhFgnQBE3c/jobmymyTtoAKDmS/XiaywCUA8SiFnesXAGegYcOLfA/DtuJq9LJRctGM3SAJ077GYNAEyEHIWg/bSo3NwxfiNLM2AKwoZOkbnslj7Szk7ZAQz9Wl2EZY5/vgLzyktoR4nmSFDucDoUTuOSVpKuJtWPv0eVx3cRoJQMRx5Mt2lu/hAJK33bvb16LOqJ5WXA0ILHTGi1r/wir8xiBu4D0v+O8pEElPue40BZmXNcwZEKBrQtAqQmHvTjqigLRBD8bgDuGtCRu2OeyTieRe2Gn9geVU5hGpDCg9OWTuntakiwjbuj8d1VdPCNgHHNgkruOKWVBwM3RGlFoi6VzadD3FHGwY32WPlc097WHjhcyATVuB6N95O4AxiuBy3XQeokIStob/CCBKIGXdexSGcwEmvSbqb1RmsYD4ZHSvmYKbc2IEUMzOz3JmZwk0B3FjNsnSfa74TeTno3p+TV8Ar4BXwfwBicJMJ4Rvr8ycAW+3+G906nj4CT2njlG/ABQ1tTymHfV/6UoAiBQwd9cthIl3AsvtgWvxM/Mc5LHI+XDVvcs5zrg8jAPsmayNVaDQBnPeLmG5W1rdjiwHwMWNNm/RMM4LvjBbeH48wTFFJgKUnWPCU7U0GwEXOEt6N+BUApKC8+UQOPSXScC/8UPm3p+EAokm3HgO2f8EPOrbIIApU+1OCNaDRT8PeAwDvM8iPnVIGECHBGEzxU3MWRjyYPb8PqxczM/tgtlya63TlPz7qiaBHsxEpAAAAAElFTkSuQmCC";
+
 // Formato de moneda argentino: $10.000,00 (punto de miles, coma decimal, 2 decimales)
 const fmt = (n) => "$" + (parseFloat(n) || 0).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 // Formato de numero sin signo $ (para cantidades)
@@ -424,6 +426,7 @@ function POS({ localId, usuario }) {
   const [insumosPosActivo, setInsumosPosActivo] = useState(false);
   const [insumosSel, setInsumosSel] = useState({});
   const [ultimoRecibo, setUltimoRecibo] = useState(null);
+  const [configTicket, setConfigTicket] = useState({ mostrar_cliente: true, mostrar_numero: true, mostrar_fecha: true, mensaje_pie: "Gracias por tu compra!", texto_extra: "" });
   const [codigoGC, setCodigoGC] = useState("");
   const [giftCardAplicada, setGiftCardAplicada] = useState(null);
   const [errorGC, setErrorGC] = useState("");
@@ -446,6 +449,7 @@ function POS({ localId, usuario }) {
     API.get("/productos?local=" + localParam).then(res => setProductos(res.data)).catch(() => setProductos(PRODUCTS));
     API.get("/medios-pago").then(res => setMediosPago(res.data)).catch(() => setMediosPago([]));
     API.get("/insumos/para-pos?local_id=" + (localId || 1)).then(res => { setInsumosPos(res.data?.insumos || []); setInsumosPosActivo(res.data?.activo === true); }).catch(() => { setInsumosPos([]); setInsumosPosActivo(false); });
+    API.get("/config-ticket").then(res => { if (res.data) setConfigTicket(res.data); }).catch(() => {});
     cargarPreventas();
   }, [localId]);
 
@@ -549,6 +553,7 @@ function POS({ localId, usuario }) {
   const imprimirRecibo = (datos) => {
     const localNombre = localId === 2 ? "Ushuaia" : "Rio Grande";
     const fecha = new Date().toLocaleString("es-AR");
+    const cfg = configTicket || {};
     const lineas = datos.items.map(i =>
       `<tr><td style="text-align:left">${i.cantidad}x ${i.nombre}</td><td style="text-align:right">$${(i.precio_unitario * i.cantidad).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`
     ).join("");
@@ -562,19 +567,20 @@ function POS({ localId, usuario }) {
         td { padding: 1px 0; font-size: 12px; }
         hr { border: none; border-top: 1px dashed #000; margin: 6px 0; }
         .tot { font-size: 15px; font-weight: bold; }
+        img.logo { width: 60mm; display: block; margin: 0 auto 4px; }
       </style></head><body>
-        <div class="c b" style="font-size:16px">LUMIERE</div>
+        <img class="logo" src="${LOGO_TICKET}" />
         <div class="c">${localNombre}</div>
-        <div class="c" style="font-size:10px">${fecha}</div>
-        ${datos.numero ? `<div class="c" style="font-size:10px">Comprobante ${datos.numero}</div>` : ""}
-        ${datos.cliente ? `<div class="c" style="font-size:10px">Cliente: ${datos.cliente}</div>` : ""}
+        ${cfg.mostrar_fecha !== false ? `<div class="c" style="font-size:10px">${fecha}</div>` : ""}
+        ${(cfg.mostrar_numero !== false && datos.numero) ? `<div class="c" style="font-size:10px">Comprobante ${datos.numero}</div>` : ""}
+        ${(cfg.mostrar_cliente !== false && datos.cliente) ? `<div class="c" style="font-size:10px">Cliente: ${datos.cliente}</div>` : ""}
         <hr>
         <table>${lineas}</table>
         <hr>
         <table><tr><td class="tot">TOTAL</td><td class="tot" style="text-align:right">$${datos.total.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr></table>
         <hr>
-        <div class="c">Gracias por tu compra!</div>
-        <div class="c" style="font-size:10px">Te esperamos de nuevo en Lumiere</div>
+        <div class="c">${cfg.mensaje_pie || "Gracias por tu compra!"}</div>
+        ${cfg.texto_extra ? `<div class="c" style="font-size:10px">${cfg.texto_extra}</div>` : ""}
         <br><br>
       </body></html>`;
     const w = window.open("", "_blank", "width=380,height=600");
@@ -5330,6 +5336,60 @@ function ConfigInsumos({ localId }) {
 }
 
 
+function ConfigTicket() {
+  const [cfg, setCfg] = useState({ mostrar_cliente: true, mostrar_numero: true, mostrar_fecha: true, mensaje_pie: "Gracias por tu compra!", texto_extra: "" });
+  const [loading, setLoading] = useState(true);
+  const [mensaje, setMensaje] = useState("");
+
+  useEffect(() => {
+    API.get("/config-ticket").then(res => { if (res.data) setCfg(res.data); setLoading(false); }).catch(() => setLoading(false));
+  }, []);
+
+  const guardar = async () => {
+    try {
+      await API.put("/config-ticket", cfg);
+      setMensaje("Configuracion del ticket guardada!");
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al guardar"); }
+  };
+
+  const Check = ({ campo, label }) => (
+    <label style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 8px", borderBottom: "1px solid #f5f5f5", cursor: "pointer" }}>
+      <input type="checkbox" checked={cfg[campo] !== false} onChange={e => setCfg(p => ({ ...p, [campo]: e.target.checked }))} />
+      <span style={{ fontSize: 13, color: "#111111" }}>{label}</span>
+    </label>
+  );
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Configuracion del Ticket</div><div className="ps">que se imprime en el recibo del cliente</div></div>
+        <button className="btn btn-p btn-sm" onClick={guardar}>Guardar</button>
+      </div>
+      {mensaje && (
+        <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>
+      )}
+      {loading ? <div style={{ color: "#65676B", padding: 20 }}>Cargando...</div> : (
+        <div className="g2">
+          <div className="card">
+            <div className="ct">Datos que se muestran</div>
+            <Check campo="mostrar_fecha" label="Fecha y hora" />
+            <Check campo="mostrar_numero" label="Numero de comprobante" />
+            <Check campo="mostrar_cliente" label="Nombre del cliente" />
+            <div style={{ fontSize: 10, color: "#65676B", marginTop: 10 }}>El logo, el local, los productos y el total siempre se muestran.</div>
+          </div>
+          <div className="card">
+            <div className="ct">Textos del pie</div>
+            <div className="fg"><div className="fl">Mensaje de agradecimiento</div><input className="inp" value={cfg.mensaje_pie || ""} onChange={e => setCfg(p => ({ ...p, mensaje_pie: e.target.value }))} placeholder="Gracias por tu compra!" /></div>
+            <div className="fg"><div className="fl">Texto extra (redes, telefono, direccion)</div><textarea className="inp" rows={3} value={cfg.texto_extra || ""} onChange={e => setCfg(p => ({ ...p, texto_extra: e.target.value }))} placeholder="Ej: @girasoles.beauty | Tel: 2964..." /></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 const NAV_SECTIONS = [
   { section: "VENTAS", color: "#e67e22", items: [{ id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "pos", icon: "🛒", label: "Punto de Venta" }] },
   { section: "STOCK", color: "#7d3c98", items: [{ id: "inventory", icon: "📦", label: "Inventario" }, { id: "ordenes", icon: "🚚", label: "Ingresos" }, { id: "inconsistencias", icon: "⚠️", label: "Inconsistencias" }, { id: "kits", icon: "🎁", label: "Kits" }, { id: "insumos", icon: "🛍️", label: "Insumos" }, { id: "control-inv", icon: "🔍", label: "Control de Inventario" }] },
@@ -5696,7 +5756,7 @@ export default function AppWrapper() {
     if (usuario.rol === "jefe" || usuario.rol_id === 1) return true;
  const mapaModulos = {
       "pos": "pos.ver", "dashboard": "pos.ver",
-      "inventory": "inventario.ver", "ordenes": "ordenes.ver", "inconsistencias": "ordenes.ver", "kits": "kits.ver", "insumos": "inventario.ver", "control-inv": "inventario.ver", "config-insumos": "inventario.ver",
+      "inventory": "inventario.ver", "ordenes": "ordenes.ver", "inconsistencias": "ordenes.ver", "kits": "kits.ver", "insumos": "inventario.ver", "control-inv": "inventario.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
       "clients": "clientes.ver", "fidelizacion": "fidelizacion.ver",
       "finance": "finanzas.flujo", "reports": "informes.ventas", "comprobantes": "finanzas.flujo",
       "comisiones": "comisiones.propias", "proveedores": "proveedores.ver",
@@ -5756,6 +5816,7 @@ export default function AppWrapper() {
     if (id === "insumos") return <Insumos localId={local.id} usuario={usuario} />;
     if (id === "control-inv") return <ControlInventario localId={local.id} usuario={usuario} />;
     if (id === "config-insumos") return <ConfigInsumos localId={local.id} />;
+    if (id === "config-ticket") return <ConfigTicket />;
     if (id === "inconsistencias") return <Inconsistencias />;
     if (id === "proveedores") return <Proveedores />;
     return <Dashboard localId={local.id} />;
@@ -5769,7 +5830,7 @@ export default function AppWrapper() {
   if (usuario.rol === "jefe") {
     const yaExiste = NAV_CON_PERMISOS.some(s => s.items.some(i => i.id === "usuarios"));
     if (!yaExiste) {
-      NAV_CON_PERMISOS.push({ section: "CONFIGURACION", items: [{ id: "usuarios", icon: "-", label: "Usuarios" }, { id: "config-insumos", icon: "🛍️", label: "Insumos en POS" }] });
+      NAV_CON_PERMISOS.push({ section: "CONFIGURACION", items: [{ id: "usuarios", icon: "-", label: "Usuarios" }, { id: "config-insumos", icon: "🛍️", label: "Insumos en POS" }, { id: "config-ticket", icon: "🧾", label: "Ticket" }] });
     }
   }
 

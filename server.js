@@ -28,6 +28,7 @@ app.use('/api/postventa', require('./routes/postventa'));
 app.use('/api/locales', require('./routes/locales'));
 app.use('/api/comisiones', require('./routes/comisiones'));
 app.use('/api/arca', require('./routes/arca'));
+ app.use('/api/config-ticket', require('./routes/config-ticket'));
 app.use('/api/medios-pago', require('./routes/medios-pago'));
 app.use('/api/categorias-costo', require('./routes/categorias-costo'));
 app.use('/api/proveedores', require('./routes/proveedores'));
