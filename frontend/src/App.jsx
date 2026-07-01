@@ -1074,10 +1074,10 @@ function POS({ localId, usuario }) {
           </div>
           <div style={{ background: "#f0ece4", border: "1px solid #ddd9d0", borderRadius: 8, padding: "10px 12px" }}>
             {promoCalc.avisos.length > 0 && (
-              <div style={{ background: "#f39c1218", border: "1px solid #f39c12", borderRadius: 6, padding: "8px 10px", marginBottom: 8, fontSize: 11, color: "#8a6d1a" }}>
+              <div style={{ background: "#2d7a4f", border: "2px solid #1e5637", borderRadius: 8, padding: "12px 14px", marginBottom: 8, fontSize: 13, color: "#ffffff", fontWeight: 700, boxShadow: "0 2px 8px rgba(45,122,79,0.4)" }}>
                 {promoCalc.avisos.map((a, k) => {
                   const prod = productos.find(p => p.id === parseInt(a.productoId));
-                  return <div key={k}>💡 Ofrecele: {a.valor}% off en {prod ? (prod.nombre || prod.name) : "producto"} ({a.promo})</div>;
+                  return <div key={k} style={{ marginBottom: 4 }}>🎁 Ofrecele: {a.valor}% OFF en {prod ? (prod.nombre || prod.name) : "producto"} ({a.promo})</div>;
                 })}
               </div>
             )}
