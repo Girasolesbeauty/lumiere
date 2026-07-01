@@ -5390,13 +5390,255 @@ function ConfigTicket() {
 }
 
 
+function Promociones() {
+  const [promos, setPromos] = useState([]);
+  const [productos, setProductos] = useState([]);
+  const [categorias, setCategorias] = useState([]);
+  const [mediosPago, setMediosPago] = useState([]);
+  const [tab, setTab] = useState("lista");
+  const [loading, setLoading] = useState(true);
+  const [mensaje, setMensaje] = useState("");
+  const [editando, setEditando] = useState(null);
+  const vacio = { nombre: "", tipo: "descuento", valor: "", aplica_a: "todo", productos_ids: [], categorias: [], nx: "", ny: "", mismo_producto: true, producto_descuento_id: "", cross_producto_id: "", cross_producto_regalo_id: "", monto_minimo: "", medio_pago_tipo: "", combinable: false, fecha_inicio: "", fecha_fin: "", activo: true };
+  const [form, setForm] = useState(vacio);
+
+  const cargar = async () => {
+    setLoading(true);
+    try {
+      const [pr, prod] = await Promise.all([API.get("/promociones"), API.get("/productos")]);
+      setPromos(pr.data || []);
+      setProductos(prod.data || []);
+      setCategorias([...new Set((prod.data || []).map(p => p.categoria).filter(Boolean))].sort());
+      try { const mp = await API.get("/medios-pago"); setMediosPago(mp.data || []); } catch (e) {}
+    } catch (e) {}
+    setLoading(false);
+  };
+
+  useEffect(() => { cargar(); }, []);
+
+  const guardar = async () => {
+    if (!form.nombre) return setMensaje("Ponele un nombre a la promo");
+    const payload = {
+      ...form,
+      valor: parseFloat(form.valor) || 0,
+      nx: form.nx ? parseInt(form.nx) : null,
+      ny: form.ny ? parseInt(form.ny) : null,
+      monto_minimo: form.monto_minimo ? parseFloat(form.monto_minimo) : null,
+      producto_descuento_id: form.producto_descuento_id || null,
+      cross_producto_id: form.cross_producto_id || null,
+      cross_producto_regalo_id: form.cross_producto_regalo_id || null,
+      medio_pago_tipo: form.medio_pago_tipo || null,
+      fecha_inicio: form.fecha_inicio || null,
+      fecha_fin: form.fecha_fin || null,
+      productos_ids: form.productos_ids.map(x => parseInt(x)),
+    };
+    try {
+      if (editando) { await API.put("/promociones/" + editando.id, payload); setMensaje("Promocion actualizada!"); }
+      else { await API.post("/promociones", payload); setMensaje("Promocion creada!"); }
+      setForm(vacio); setEditando(null); setTab("lista"); cargar();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error: " + (e.response?.data?.error || e.message)); }
+  };
+
+  const editar = (p) => {
+    setEditando(p);
+    setForm({
+      ...vacio, ...p,
+      valor: p.valor ?? "", nx: p.nx ?? "", ny: p.ny ?? "", monto_minimo: p.monto_minimo ?? "",
+      productos_ids: p.productos_ids || [], categorias: p.categorias || [],
+      producto_descuento_id: p.producto_descuento_id || "", cross_producto_id: p.cross_producto_id || "",
+      cross_producto_regalo_id: p.cross_producto_regalo_id || "", medio_pago_tipo: p.medio_pago_tipo || "",
+      fecha_inicio: p.fecha_inicio ? p.fecha_inicio.slice(0,10) : "", fecha_fin: p.fecha_fin ? p.fecha_fin.slice(0,10) : "",
+    });
+    setTab("nueva");
+  };
+
+  const toggle = async (p) => {
+    try { await API.put("/promociones/" + p.id + "/toggle"); cargar(); } catch (e) {}
+  };
+
+  const eliminar = async (p) => {
+    if (!confirm("Eliminar la promo \"" + p.nombre + "\"?")) return;
+    try { await API.delete("/promociones/" + p.id); setMensaje("Promo eliminada"); cargar(); setTimeout(() => setMensaje(""), 3000); } catch (e) {}
+  };
+
+  const tipoLabel = { descuento: "Descuento % / $", nxm: "NxM (2x1, 3x2...)", cross: "Cross-selling", monto: "Por monto" };
+  const nombreProd = (id) => productos.find(p => p.id === parseInt(id))?.nombre || "-";
+
+  const toggleCat = (cat) => setForm(f => ({ ...f, categorias: f.categorias.includes(cat) ? f.categorias.filter(x => x !== cat) : [...f.categorias, cat] }));
+  const toggleProd = (id) => setForm(f => ({ ...f, productos_ids: f.productos_ids.includes(id) ? f.productos_ids.filter(x => x !== id) : [...f.productos_ids, id] }));
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Promociones</div><div className="ps">descuentos y promos automaticas del POS</div></div>
+        <button className="btn btn-p btn-sm" onClick={() => { setEditando(null); setForm(vacio); setTab("nueva"); }}>+ Nueva promocion</button>
+      </div>
+      {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
+      <div className="tabs">
+        <div className={"tab " + (tab === "lista" ? "on" : "")} onClick={() => setTab("lista")}>PROMOCIONES</div>
+        <div className={"tab " + (tab === "nueva" ? "on" : "")} onClick={() => setTab("nueva")}>{editando ? "EDITAR" : "NUEVA"}</div>
+      </div>
+
+      {tab === "lista" && (
+        <div className="card fade">
+          {loading ? <div style={{ color: "#65676B", padding: 20 }}>Cargando...</div> : promos.length === 0 ? (
+            <div style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>No hay promociones creadas todavia</div>
+          ) : (
+            <table>
+              <thead><tr><th>Nombre</th><th>Tipo</th><th>Detalle</th><th>Medio pago</th><th>Vigencia</th><th>Activa</th><th></th></tr></thead>
+              <tbody>
+                {promos.map(p => (
+                  <tr key={p.id}>
+                    <td style={{ fontWeight: 600 }}>{p.nombre}</td>
+                    <td><span className="badge bb">{tipoLabel[p.tipo] || p.tipo}</span></td>
+                    <td style={{ fontSize: 11, color: "#65676B" }}>
+                      {p.tipo === "descuento" && (p.valor + (p.aplica_a === "todo" ? "% en todo" : "% en seleccion"))}
+                      {p.tipo === "nxm" && ("Lleva " + p.nx + " paga " + p.ny)}
+                      {p.tipo === "cross" && ("Llevando " + nombreProd(p.cross_producto_id) + ", " + p.valor + "% en " + nombreProd(p.cross_producto_regalo_id))}
+                      {p.tipo === "monto" && ("Gastando +$" + p.monto_minimo + ", " + p.valor + "% off")}
+                    </td>
+                    <td style={{ fontSize: 11, color: "#65676B" }}>{p.medio_pago_tipo || "Todos"}</td>
+                    <td style={{ fontSize: 10, color: "#65676B" }}>{p.fecha_inicio ? new Date(p.fecha_inicio).toLocaleDateString("es-AR") : "-"} a {p.fecha_fin ? new Date(p.fecha_fin).toLocaleDateString("es-AR") : "sin fin"}</td>
+                    <td><Sw on={p.activo} toggle={() => toggle(p)} /></td>
+                    <td><div style={{ display: "flex", gap: 4 }}>
+                      <button className="btn btn-sm" style={{ fontSize: 10 }} onClick={() => editar(p)}>Editar</button>
+                      <button className="btn btn-sm" style={{ fontSize: 10, color: "#c0392b" }} onClick={() => eliminar(p)}>Quitar</button>
+                    </div></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {tab === "nueva" && (
+        <div className="card fade">
+          <div className="ct">{editando ? "Editar promocion" : "Nueva promocion"}</div>
+          <div className="g2">
+            <div>
+              <div className="fg"><div className="fl">Nombre de la promo</div><input className="inp" placeholder="Ej: 20% linea facial" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Tipo de promo</div>
+                <select className="sel" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}>
+                  <option value="descuento">Descuento % / $</option>
+                  <option value="nxm">NxM (2x1, 3x2, 4x3...)</option>
+                  <option value="cross">Cross-selling (llevando X, Y con descuento)</option>
+                  <option value="monto">Por monto (gastando +$X)</option>
+                </select>
+              </div>
+
+              {(form.tipo === "descuento" || form.tipo === "monto" || form.tipo === "cross") && (
+                <div className="fg"><div className="fl">Valor del descuento (%)</div><input className="inp" type="number" placeholder="20" value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} /></div>
+              )}
+              {form.tipo === "monto" && (
+                <div className="fg"><div className="fl">Monto minimo de compra ($)</div><input className="inp" type="number" placeholder="50000" value={form.monto_minimo} onChange={e => setForm(f => ({ ...f, monto_minimo: e.target.value }))} /></div>
+              )}
+              {form.tipo === "nxm" && (
+                <div style={{ display: "flex", gap: 8 }}>
+                  <div className="fg" style={{ flex: 1 }}><div className="fl">Lleva (N)</div><input className="inp" type="number" placeholder="2" value={form.nx} onChange={e => setForm(f => ({ ...f, nx: e.target.value }))} /></div>
+                  <div className="fg" style={{ flex: 1 }}><div className="fl">Paga (M)</div><input className="inp" type="number" placeholder="1" value={form.ny} onChange={e => setForm(f => ({ ...f, ny: e.target.value }))} /></div>
+                </div>
+              )}
+              {form.tipo === "nxm" && (
+                <div className="fg"><div className="fl">Producto que se descuenta (el gratis)</div>
+                  <select className="sel" value={form.producto_descuento_id} onChange={e => setForm(f => ({ ...f, producto_descuento_id: e.target.value }))}>
+                    <option value="">El de menor precio del grupo</option>
+                    {productos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                  </select>
+                </div>
+              )}
+              {form.tipo === "cross" && (
+                <div>
+                  <div className="fg"><div className="fl">Producto que dispara (llevando este...)</div>
+                    <select className="sel" value={form.cross_producto_id} onChange={e => setForm(f => ({ ...f, cross_producto_id: e.target.value }))}>
+                      <option value="">Seleccionar...</option>
+                      {productos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                    </select>
+                  </div>
+                  <div className="fg"><div className="fl">Producto con descuento (...este tiene % off)</div>
+                    <select className="sel" value={form.cross_producto_regalo_id} onChange={e => setForm(f => ({ ...f, cross_producto_regalo_id: e.target.value }))}>
+                      <option value="">Seleccionar...</option>
+                      {productos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div>
+              {(form.tipo === "descuento" || form.tipo === "nxm") && (
+                <div className="fg"><div className="fl">Aplica a</div>
+                  <select className="sel" value={form.aplica_a} onChange={e => setForm(f => ({ ...f, aplica_a: e.target.value }))}>
+                    <option value="todo">Todos los productos</option>
+                    <option value="categorias">Categorias especificas</option>
+                    <option value="productos">Productos especificos</option>
+                  </select>
+                </div>
+              )}
+              {form.aplica_a === "categorias" && (form.tipo === "descuento" || form.tipo === "nxm") && (
+                <div className="fg"><div className="fl">Categorias</div>
+                  <div style={{ maxHeight: 120, overflowY: "auto", border: "1px solid #E4E6EB", borderRadius: 8, padding: 8 }}>
+                    {categorias.map(cat => (
+                      <label key={cat} style={{ display: "flex", gap: 8, fontSize: 12, padding: "3px 0", cursor: "pointer" }}>
+                        <input type="checkbox" checked={form.categorias.includes(cat)} onChange={() => toggleCat(cat)} />{cat}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {form.aplica_a === "productos" && (form.tipo === "descuento" || form.tipo === "nxm") && (
+                <div className="fg"><div className="fl">Productos ({form.productos_ids.length})</div>
+                  <div style={{ maxHeight: 120, overflowY: "auto", border: "1px solid #E4E6EB", borderRadius: 8, padding: 8 }}>
+                    {productos.map(p => (
+                      <label key={p.id} style={{ display: "flex", gap: 8, fontSize: 12, padding: "3px 0", cursor: "pointer" }}>
+                        <input type="checkbox" checked={form.productos_ids.includes(p.id)} onChange={() => toggleProd(p.id)} />{p.nombre}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="fg"><div className="fl">Solo con este medio de pago (opcional)</div>
+                <select className="sel" value={form.medio_pago_tipo} onChange={e => setForm(f => ({ ...f, medio_pago_tipo: e.target.value }))}>
+                  <option value="">Cualquier medio de pago</option>
+                  <option value="efectivo">Efectivo</option>
+                  <option value="transferencia">Transferencia</option>
+                  <option value="debito">Debito</option>
+                  <option value="credito">Credito</option>
+                </select>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <div className="fg" style={{ flex: 1 }}><div className="fl">Desde</div><input className="inp" type="date" value={form.fecha_inicio} onChange={e => setForm(f => ({ ...f, fecha_inicio: e.target.value }))} /></div>
+                <div className="fg" style={{ flex: 1 }}><div className="fl">Hasta</div><input className="inp" type="date" value={form.fecha_fin} onChange={e => setForm(f => ({ ...f, fecha_fin: e.target.value }))} /></div>
+              </div>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer", padding: "8px 0" }}>
+                <input type="checkbox" checked={form.combinable} onChange={e => setForm(f => ({ ...f, combinable: e.target.checked }))} />
+                Se puede combinar con otras promociones
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer", padding: "8px 0" }}>
+                <input type="checkbox" checked={form.activo} onChange={e => setForm(f => ({ ...f, activo: e.target.checked }))} />
+                Activa
+              </label>
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <button className="btn btn-p" style={{ flex: 1 }} onClick={guardar}>{editando ? "Guardar cambios" : "Crear promocion"}</button>
+                <button className="btn btn-g" style={{ flex: 1 }} onClick={() => { setForm(vacio); setEditando(null); setTab("lista"); }}>Cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 const NAV_SECTIONS = [
   { section: "VENTAS", color: "#e67e22", items: [{ id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "pos", icon: "🛒", label: "Punto de Venta" }] },
   { section: "STOCK", color: "#7d3c98", items: [{ id: "inventory", icon: "📦", label: "Inventario" }, { id: "ordenes", icon: "🚚", label: "Ingresos" }, { id: "inconsistencias", icon: "⚠️", label: "Inconsistencias" }, { id: "kits", icon: "🎁", label: "Kits" }, { id: "insumos", icon: "🛍️", label: "Insumos" }, { id: "control-inv", icon: "🔍", label: "Control de Inventario" }] },
   { section: "CAJA", color: "#2d7a4f", items: [{ id: "caja", icon: "💵", label: "Caja" }, { id: "cierre", icon: "🔒", label: "Cierre de Caja" }, { id: "giftcards", icon: "🎀", label: "Gift Cards" }] },
   { section: "CLIENTES", color: "#c9a84c", items: [{ id: "clients", icon: "👥", label: "Clientes" }, { id: "fidelizacion", icon: "⭐", label: "Fidelizacion" }] },
   { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "💰", label: "Finanzas" }, { id: "reports", icon: "📋", label: "Informes" }, { id: "comprobantes", icon: "🧾", label: "Comprobantes" }, { id: "comisiones", icon: "💎", label: "Comisiones" }, { id: "proveedores", icon: "🏭", label: "Proveedores" }, { id: "calculadoras", icon: "🧮", label: "Calculadoras" }, { id: "productividad", icon: "🏆", label: "Productividad" }] },
-  { section: "MARKETING", color: "#e74c3c", items: [{ id: "cupones", icon: "🏷️", label: "Cupones" }] },
+  { section: "MARKETING", color: "#e74c3c", items: [{ id: "cupones", icon: "🏷️", label: "Cupones" }, { id: "promociones", icon: "🎉", label: "Promociones" }] },
   { section: "POSTVENTA", color: "#25d366", items: [{ id: "postventa", icon: "💬", label: "Postventa WA" }] },
   { section: "INTEGRACIONES", color: "#2471a3", items: [{ id: "tiendanube", icon: "🛍️", label: "Tiendanube" }] },
   { section: "CLIENTE", color: "#65676B", items: [{ id: "portal", icon: "👤", label: "Portal Cliente" }] },
@@ -5761,7 +6003,7 @@ export default function AppWrapper() {
       "finance": "finanzas.flujo", "reports": "informes.ventas", "comprobantes": "finanzas.flujo",
       "comisiones": "comisiones.propias", "proveedores": "proveedores.ver",
       "calculadoras": "finanzas.flujo", "productividad": "finanzas.flujo",
-      "cupones": "cupones.ver", "postventa": "postventa.ver", "portal": "clientes.ver",
+      "cupones": "cupones.ver", "promociones": "cupones.ver", "postventa": "postventa.ver", "portal": "clientes.ver",
       "caja": "caja.ver", "cierre": "caja.ver", "giftcards": "caja.ver",
       "usuarios": "usuarios.ver", "tiendanube": "tiendanube.ver",
     };
@@ -5802,6 +6044,7 @@ export default function AppWrapper() {
     if (id === "comprobantes") return <Comprobantes localId={local.id} />;
     if (id === "productividad") return <Productividad localId={local.id} />;
     if (id === "cupones") return <Cupones localId={local.id} />;
+    if (id === "promociones") return <Promociones />;
     if (id === "fidelizacion") return <Fidelizacion localId={local.id} />;
     if (id === "postventa") return <PostventaWA localId={local.id} />;
     if (id === "tiendanube") return <Tiendanube localId={local.id} usuario={usuario} />;
