@@ -423,6 +423,7 @@ function POS({ localId, usuario }) {
   const [insumosPos, setInsumosPos] = useState([]);
   const [insumosPosActivo, setInsumosPosActivo] = useState(false);
   const [insumosSel, setInsumosSel] = useState({});
+  const [ultimoRecibo, setUltimoRecibo] = useState(null);
   const [codigoGC, setCodigoGC] = useState("");
   const [giftCardAplicada, setGiftCardAplicada] = useState(null);
   const [errorGC, setErrorGC] = useState("");
@@ -545,6 +546,45 @@ function POS({ localId, usuario }) {
     } catch (e) {}
   };
 
+  const imprimirRecibo = (datos) => {
+    const localNombre = localId === 2 ? "Ushuaia" : "Rio Grande";
+    const fecha = new Date().toLocaleString("es-AR");
+    const lineas = datos.items.map(i =>
+      `<tr><td style="text-align:left">${i.cantidad}x ${i.nombre}</td><td style="text-align:right">$${(i.precio_unitario * i.cantidad).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`
+    ).join("");
+    const html = `
+      <html><head><meta charset="utf-8"><style>
+        @page { size: 80mm auto; margin: 0; }
+        body { width: 72mm; margin: 0 auto; font-family: monospace; font-size: 12px; color: #000; padding: 6px; }
+        .c { text-align: center; }
+        .b { font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; }
+        td { padding: 1px 0; font-size: 12px; }
+        hr { border: none; border-top: 1px dashed #000; margin: 6px 0; }
+        .tot { font-size: 15px; font-weight: bold; }
+      </style></head><body>
+        <div class="c b" style="font-size:16px">LUMIERE</div>
+        <div class="c">${localNombre}</div>
+        <div class="c" style="font-size:10px">${fecha}</div>
+        ${datos.numero ? `<div class="c" style="font-size:10px">Comprobante ${datos.numero}</div>` : ""}
+        ${datos.cliente ? `<div class="c" style="font-size:10px">Cliente: ${datos.cliente}</div>` : ""}
+        <hr>
+        <table>${lineas}</table>
+        <hr>
+        <table><tr><td class="tot">TOTAL</td><td class="tot" style="text-align:right">$${datos.total.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr></table>
+        <hr>
+        <div class="c">Gracias por tu compra!</div>
+        <div class="c" style="font-size:10px">Te esperamos de nuevo en Lumiere</div>
+        <br><br>
+      </body></html>`;
+    const w = window.open("", "_blank", "width=380,height=600");
+    if (!w) { setMensaje("Habilita las ventanas emergentes para imprimir el recibo"); return; }
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { w.print(); w.close(); }, 300);
+  };
+
   const emitirFactura = async () => {
     if (cart.length === 0) return setMensaje("Agrega productos al ticket");
     if (!preventa && insumosPosActivo) {
@@ -577,6 +617,14 @@ function POS({ localId, usuario }) {
         try {
           const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaRes.data.id });
           setMensaje("✅ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
+          const datosRecibo = {
+            items: cart.map(i => ({ nombre: i.nombre || i.name, cantidad: i.qty, precio_unitario: i.precio || i.price })),
+            total: total,
+            cliente: clienteSeleccionado?.nombre || null,
+            numero: arcaRes.data.nroComprobante ? (String(arcaRes.data.puntoVenta || 5).padStart(4,"0") + "-" + String(arcaRes.data.nroComprobante).padStart(8,"0")) : null
+          };
+          setUltimoRecibo(datosRecibo);
+          imprimirRecibo(datosRecibo);
         } catch (arcaErr) {
           setMensaje("Venta registrada pero error en ARCA: " + arcaErr.message);
         }
@@ -935,6 +983,9 @@ function POS({ localId, usuario }) {
             <button className="btn btn-p" style={{ width: "100%", padding: 11, fontSize: 12, opacity: loading ? 0.7 : 1 }} onClick={emitirFactura} disabled={loading}>
               {loading ? "Procesando..." : preventa ? "Registrar Preventa" : "Factura " + tipoFac}
             </button>
+            {ultimoRecibo && (
+              <button className="btn btn-g btn-sm" style={{ width: "100%", marginTop: 6, fontSize: 11 }} onClick={() => imprimirRecibo(ultimoRecibo)}>Reimprimir ultimo recibo</button>
+            )}
           </div>
         </div>
       </div>
