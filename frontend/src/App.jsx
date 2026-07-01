@@ -426,6 +426,7 @@ function POS({ localId, usuario }) {
   const [insumosPosActivo, setInsumosPosActivo] = useState(false);
   const [insumosSel, setInsumosSel] = useState({});
   const [ultimoRecibo, setUltimoRecibo] = useState(null);
+  const [promociones, setPromociones] = useState([]);
   const [configTicket, setConfigTicket] = useState({ mostrar_cliente: true, mostrar_numero: true, mostrar_fecha: true, mensaje_pie: "Gracias por tu compra!", texto_extra: "" });
   const [codigoGC, setCodigoGC] = useState("");
   const [giftCardAplicada, setGiftCardAplicada] = useState(null);
@@ -450,6 +451,7 @@ function POS({ localId, usuario }) {
     API.get("/medios-pago").then(res => setMediosPago(res.data)).catch(() => setMediosPago([]));
     API.get("/insumos/para-pos?local_id=" + (localId || 1)).then(res => { setInsumosPos(res.data?.insumos || []); setInsumosPosActivo(res.data?.activo === true); }).catch(() => { setInsumosPos([]); setInsumosPosActivo(false); });
     API.get("/config-ticket").then(res => { if (res.data) setConfigTicket(res.data); }).catch(() => {});
+    API.get("/promociones?activas=true&vigentes=true").then(res => setPromociones(res.data || [])).catch(() => setPromociones([]));
     cargarPreventas();
   }, [localId]);
 
@@ -483,11 +485,110 @@ function POS({ localId, usuario }) {
     } catch (e) { setErrorEmitirGC(e.response?.data?.error || "Error al emitir la gift card"); }
   };
 
+  // ===== MOTOR DE PROMOCIONES =====
+  // Determina el "tipo" de medio de pago elegido (para promos condicionadas)
+  const medioPagoTipoActual = (() => {
+    if (!medioPagoSel) return null;
+    const n = (medioPagoSel.nombre || "").toLowerCase();
+    if (n.includes("efectivo")) return "efectivo";
+    if (n.includes("transfer")) return "transferencia";
+    if (n.includes("debito") || n.includes("débito")) return "debito";
+    if (n.includes("credito") || n.includes("crédito") || n.includes("cuota")) return "credito";
+    return null;
+  })();
+
+  const precioItem = (i) => (i.precio || i.price || 0);
+  const itemAplica = (promo, i) => {
+    if (promo.aplica_a === "todo") return true;
+    if (promo.aplica_a === "categorias") return (promo.categorias || []).includes(i.categoria);
+    if (promo.aplica_a === "productos") return (promo.productos_ids || []).map(Number).includes(i.id);
+    return false;
+  };
+
+  // Calcula el descuento total de promos y arma avisos de cross-selling
+  const promoCalc = (() => {
+    let totalDesc = 0;
+    const aplicadas = [];
+    const avisos = [];
+    const subBase = cart.reduce((s, i) => s + precioItem(i) * i.qty, 0);
+
+    for (const promo of promociones) {
+      // Filtro por medio de pago (si la promo lo exige)
+      if (promo.medio_pago_tipo && promo.medio_pago_tipo !== medioPagoTipoActual) continue;
+      let desc = 0;
+
+      if (promo.tipo === "descuento") {
+        const base = cart.filter(i => itemAplica(promo, i)).reduce((s, i) => s + precioItem(i) * i.qty, 0);
+        if (base > 0) desc = base * (parseFloat(promo.valor) / 100);
+      }
+
+      else if (promo.tipo === "monto") {
+        if (subBase >= parseFloat(promo.monto_minimo || 0) && parseFloat(promo.monto_minimo || 0) > 0) {
+          desc = subBase * (parseFloat(promo.valor) / 100);
+        }
+      }
+
+      else if (promo.tipo === "nxm") {
+        const nx = parseInt(promo.nx), ny = parseInt(promo.ny);
+        if (nx > 0 && ny > 0 && nx > ny) {
+          const elegibles = cart.filter(i => itemAplica(promo, i));
+          if (promo.mismo_producto) {
+            for (const i of elegibles) {
+              const grupos = Math.floor(i.qty / nx);
+              const gratisPorGrupo = nx - ny;
+              desc += grupos * gratisPorGrupo * precioItem(i);
+            }
+          } else {
+            const totalUnid = elegibles.reduce((s, i) => s + i.qty, 0);
+            const grupos = Math.floor(totalUnid / nx);
+            const gratis = grupos * (nx - ny);
+            // los mas baratos gratis
+            const expandido = [];
+            elegibles.forEach(i => { for (let k = 0; k < i.qty; k++) expandido.push(precioItem(i)); });
+            expandido.sort((a, b) => a - b);
+            for (let k = 0; k < gratis && k < expandido.length; k++) desc += expandido[k];
+          }
+        }
+      }
+
+      else if (promo.tipo === "cross") {
+        const tieneDisparador = cart.some(i => i.id === parseInt(promo.cross_producto_id));
+        const itemRegalo = cart.find(i => i.id === parseInt(promo.cross_producto_regalo_id));
+        if (tieneDisparador && itemRegalo) {
+          desc = precioItem(itemRegalo) * (parseFloat(promo.valor) / 100);
+        } else if (tieneDisparador && !itemRegalo) {
+          const prodRegalo = promo.cross_producto_regalo_id;
+          avisos.push({ promo: promo.nombre, valor: promo.valor, productoId: prodRegalo });
+        }
+      }
+
+      if (desc > 0) {
+        // Regla de combinacion: si NO es combinable, compite; nos quedamos con el mejor set despues.
+        aplicadas.push({ promo, desc, combinable: promo.combinable === true });
+      }
+    }
+
+    // Combinables se suman siempre. No combinables: solo la mejor entre las no combinables.
+    const combinables = aplicadas.filter(a => a.combinable);
+    const noComb = aplicadas.filter(a => !a.combinable);
+    let sumaComb = combinables.reduce((s, a) => s + a.desc, 0);
+    let mejorNoComb = noComb.reduce((m, a) => a.desc > m ? a.desc : m, 0);
+    totalDesc = sumaComb + mejorNoComb;
+
+    const usadas = [...combinables.map(a => a.promo.nombre)];
+    if (mejorNoComb > 0) {
+      const gan = noComb.find(a => a.desc === mejorNoComb);
+      if (gan) usadas.push(gan.promo.nombre);
+    }
+    return { totalDesc, avisos, usadas };
+  })();
+
   const coef = medioPagoSel ? parseFloat(medioPagoSel.coeficiente) : 1;
   const subtotalBase = cart.reduce((s, i) => s + (i.precio || i.price) * i.qty, 0);
   const descuentoCupon = cuponAplicado ? (cuponAplicado.tipo === "%" ? subtotalBase * (cuponAplicado.valor / 100) : cuponAplicado.valor) : 0;
   const descuentoManualCalc = descuentoManual ? (tipoDescuento === "%" ? subtotalBase * (parseFloat(descuentoManual) / 100) : parseFloat(descuentoManual)) : 0;
-  const descuento = descuentoCupon + descuentoManualCalc;
+  const descuentoPromos = promoCalc.totalDesc;
+  const descuento = descuentoCupon + descuentoManualCalc + descuentoPromos;
   const subtotalConDesc = subtotalBase - descuento;
   const total = Math.round(subtotalConDesc * coef);
   const intereses = total - subtotalConDesc;
@@ -972,9 +1073,17 @@ function POS({ localId, usuario }) {
             )}
           </div>
           <div style={{ background: "#f0ece4", border: "1px solid #ddd9d0", borderRadius: 8, padding: "10px 12px" }}>
+            {promoCalc.avisos.length > 0 && (
+              <div style={{ background: "#f39c1218", border: "1px solid #f39c12", borderRadius: 6, padding: "8px 10px", marginBottom: 8, fontSize: 11, color: "#8a6d1a" }}>
+                {promoCalc.avisos.map((a, k) => {
+                  const prod = productos.find(p => p.id === parseInt(a.productoId));
+                  return <div key={k}>💡 Ofrecele: {a.valor}% off en {prod ? (prod.nombre || prod.name) : "producto"} ({a.promo})</div>;
+                })}
+              </div>
+            )}
             {descuento > 0 && (
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3, fontSize: 10, color: "#2d7a4f" }}>
-                <span>Descuento</span><span>-{fmt(descuento)}</span>
+                <span>Descuento{promoCalc.usadas.length > 0 ? " (" + promoCalc.usadas.join(", ") + ")" : ""}</span><span>-{fmt(descuento)}</span>
               </div>
             )}
             {intereses > 0 && (
