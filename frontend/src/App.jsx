@@ -455,6 +455,19 @@ function POS({ localId, usuario }) {
     cargarPreventas();
   }, [localId]);
 
+  const onEscaneo = (e) => {
+    if (e.key !== "Enter") return;
+    const cod = busqueda.trim();
+    if (!cod) return;
+    const lista = productos.length > 0 ? productos : PRODUCTS;
+    // Buscar por codigo de barras exacto (lo que manda el escaner)
+    const exacto = lista.find(p => (p.codigo_barras || p.codigo || "").toString() === cod);
+    if (exacto) {
+      add(exacto);
+      setBusqueda("");
+    }
+  };
+
   const add = (p) => setCart(prev => {
     const e = prev.find(i => i.id === p.id);
     return e ? prev.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i) : [...prev, { ...p, qty: 1 }];
@@ -903,7 +916,7 @@ function POS({ localId, usuario }) {
       )}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 340px", gap: 12, height: "calc(100vh - 160px)" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
-          <input className="inp" placeholder="Buscar por nombre, marca o codigo..." value={busqueda} onChange={e => setBusqueda(e.target.value)} />
+          <input className="inp" placeholder="Escanea o busca por nombre, marca o codigo..." value={busqueda} onChange={e => setBusqueda(e.target.value)} onKeyDown={onEscaneo} autoFocus />
           <div style={{ overflowY: "auto", flex: 1, background: "#ffffff", border: "1px solid #e8e8e8", borderRadius: 8 }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead style={{ position: "sticky", top: 0, background: "#f8f8f8", zIndex: 1 }}>
@@ -3221,51 +3234,51 @@ function PortalCliente() {
   const client = CLIENTS[0];
   const [tab, setTab] = useState("canjear");
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#0e0a08 0%,#1a1008 60%,#0e0a08 100%)", fontFamily: "'DM Mono',monospace" }}>
-      <div style={{ padding: "16px 32px", borderBottom: "1px solid #ffffff0f", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div style={{ minHeight: "100vh", background: "#F0F2F5", fontFamily: "'Inter',sans-serif" }}>
+      <div style={{ padding: "16px 32px", borderBottom: "1px solid #E4E6EB", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, fontWeight: 300, letterSpacing: ".18em", color: "#c9a84c" }}>LUMIERE</div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 11, color: "#ffffff44" }}>{client.email}</span>
-          <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#c9a84c", display: "flex", alignItems: "center", justifyContent: "center", color: "#fafafa", fontSize: 13, fontWeight: 600 }}>{client.name[0]}</div>
+          <span style={{ fontSize: 11, color: "#5C5F66" }}>{client.email}</span>
+          <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#c9a84c", display: "flex", alignItems: "center", justifyContent: "center", color: "#ffffff", fontSize: 13, fontWeight: 600 }}>{client.name[0]}</div>
         </div>
       </div>
       <div style={{ padding: "28px 32px", maxWidth: 860, margin: "0 auto" }}>
-        <div style={{ background: "linear-gradient(135deg,#1e1208,#2a1a0a)", border: "1px solid #c9a96e33", borderRadius: 14, padding: 26, marginBottom: 22 }}>
+        <div style={{ background: "#ffffff", border: "1px solid #E4E6EB", borderRadius: 14, padding: 26, marginBottom: 22 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
               <div style={{ fontSize: 9, color: "#c9a84c88", letterSpacing: ".25em", textTransform: "uppercase", marginBottom: 5 }}>Bienvenida de nuevo</div>
-              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 24, fontWeight: 700, color: "#f0e8de", marginBottom: 14 }}>{client.name}</div>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 20, background: "#c9a84c15", border: "1px solid #c9a96e44", fontSize: 9, color: "#c9a84c", letterSpacing: ".12em" }}>
+              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 24, fontWeight: 700, color: "#1C1E21", marginBottom: 14 }}>{client.name}</div>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 20, background: "#c9a84c15", border: "1px solid #E4E6EB", fontSize: 9, color: "#c9a84c", letterSpacing: ".12em" }}>
                 NIVEL {client.tier.toUpperCase()}
               </div>
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 52, fontWeight: 700, color: "#c9a84c", lineHeight: 1 }}>{fmtNum(client.points)}</div>
-              <div style={{ fontSize: 9, color: "#ffffff44", letterSpacing: ".2em", marginTop: 3 }}>PUNTOS DISPONIBLES</div>
-              <div style={{ fontSize: 10, color: "#ffffff33", marginTop: 6 }}>Proximo nivel: {fmtNum((2000 - client.points))} pts</div>
+              <div style={{ fontSize: 9, color: "#5C5F66", letterSpacing: ".2em", marginTop: 3 }}>PUNTOS DISPONIBLES</div>
+              <div style={{ fontSize: 10, color: "#8a8d92", marginTop: 6 }}>Proximo nivel: {fmtNum((2000 - client.points))} pts</div>
             </div>
           </div>
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
           {[["canjear", "Canjear puntos"], ["cupones", "Mis cupones"], ["historial", "Mis compras"]].map(([id, l]) => (
-            <button key={id} onClick={() => setTab(id)} style={{ padding: "8px 16px", borderRadius: 7, border: "1px solid", borderColor: tab === id ? "#c9a84c55" : "#ffffff0f", background: tab === id ? "#c9a84c12" : "transparent", color: tab === id ? "#c9a84c" : "#ffffff44", fontFamily: "'DM Mono',monospace", fontSize: 11, cursor: "pointer" }}>{l}</button>
+            <button key={id} onClick={() => setTab(id)} style={{ padding: "8px 16px", borderRadius: 7, border: "1px solid", borderColor: tab === id ? "#c9a84c55" : "#E4E6EB", background: tab === id ? "#c9a84c12" : "transparent", color: tab === id ? "#c9a84c" : "#5C5F66", fontFamily: "'Inter',sans-serif", fontSize: 11, cursor: "pointer" }}>{l}</button>
           ))}
         </div>
         {tab === "canjear" && (
           <div>
-            <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#f0e8de", marginBottom: 14 }}>Canjea tus puntos</div>
+            <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#1C1E21", marginBottom: 14 }}>Canjea tus puntos</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
               {REWARDS_DISPLAY.map(r => {
                 const can = client.points >= r.pts;
                 return (
-                  <div key={r.id} style={{ background: can ? "#1e1208" : "#120d07", border: "1px solid " + (can ? "#c9a84c33" : "#ffffff08"), borderRadius: 10, padding: 16, opacity: can ? 1 : 0.5 }}>
-                    {can && <div style={{ background: "#2d7a4f", color: "#fafafa", fontSize: 8, padding: "2px 6px", borderRadius: 3, marginBottom: 8, width: "fit-content" }}>PODES CANJEAR</div>}
+                  <div key={r.id} style={{ background: can ? "#ffffff" : "#ffffff", border: "1px solid " + (can ? "#c9a84c33" : "#ffffff"), borderRadius: 10, padding: 16, opacity: can ? 1 : 0.5 }}>
+                    {can && <div style={{ background: "#2d7a4f", color: "#ffffff", fontSize: 8, padding: "2px 6px", borderRadius: 3, marginBottom: 8, width: "fit-content" }}>PODES CANJEAR</div>}
                     <div style={{ fontSize: 24, marginBottom: 8 }}>{r.emoji}</div>
-                    <div style={{ fontSize: 11, color: "#e8ddd4" }}>{r.name}</div>
-                    <div style={{ fontSize: 9, color: "#ffffff33", letterSpacing: ".1em", marginTop: 2 }}>{r.brand}</div>
+                    <div style={{ fontSize: 11, color: "#1C1E21" }}>{r.name}</div>
+                    <div style={{ fontSize: 9, color: "#8a8d92", letterSpacing: ".1em", marginTop: 2 }}>{r.brand}</div>
                     <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#c9a84c", marginTop: 10 }}>{fmtNum(r.pts)}</div>
-                    <div style={{ fontSize: 9, color: "#ffffff33" }}>PUNTOS</div>
-                    {can && <button style={{ marginTop: 10, width: "100%", padding: "7px", borderRadius: 5, background: "#c9a84c15", border: "1px solid #c9a96e33", color: "#c9a84c", fontFamily: "'DM Mono',monospace", fontSize: 10, cursor: "pointer" }}>Canjear</button>}
+                    <div style={{ fontSize: 9, color: "#8a8d92" }}>PUNTOS</div>
+                    {can && <button style={{ marginTop: 10, width: "100%", padding: "7px", borderRadius: 5, background: "#c9a84c15", border: "1px solid #E4E6EB", color: "#c9a84c", fontFamily: "'Inter',sans-serif", fontSize: 10, cursor: "pointer" }}>Canjear</button>}
                   </div>
                 );
               })}
@@ -3274,35 +3287,35 @@ function PortalCliente() {
         )}
         {tab === "cupones" && (
           <div>
-            <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#f0e8de", marginBottom: 14 }}>Tus cupones activos</div>
+            <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#1C1E21", marginBottom: 14 }}>Tus cupones activos</div>
             {[{ code: "BDAY10", desc: "$10.000 de descuento por cumpleanos", exp: "Valido hasta: 30/06/2026" }, { code: "INSTA20", desc: "20% off en toda la tienda", exp: "Valido hasta: 31/05/2026" }].map((cp, i) => (
-              <div key={i} style={{ background: "#1e1208", border: "1px dashed #c9a96e44", borderRadius: 10, padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div key={i} style={{ background: "#ffffff", border: "1px dashed #E4E6EB", borderRadius: 10, padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <div>
                   <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#c9a84c", letterSpacing: ".1em" }}>{cp.code}</div>
-                  <div style={{ fontSize: 11, color: "#ffffff55", marginTop: 3 }}>{cp.desc}</div>
-                  <div style={{ fontSize: 10, color: "#ffffff28", marginTop: 4 }}>{cp.exp}</div>
+                  <div style={{ fontSize: 11, color: "#5C5F66", marginTop: 3 }}>{cp.desc}</div>
+                  <div style={{ fontSize: 10, color: "#E4E6EB", marginTop: 4 }}>{cp.exp}</div>
                 </div>
-                <button style={{ background: "#c9a84c15", border: "1px solid #c9a96e33", color: "#c9a84c", padding: "7px 14px", borderRadius: 5, fontFamily: "'DM Mono',monospace", fontSize: 10, cursor: "pointer" }}>Copiar</button>
+                <button style={{ background: "#c9a84c15", border: "1px solid #E4E6EB", color: "#c9a84c", padding: "7px 14px", borderRadius: 5, fontFamily: "'Inter',sans-serif", fontSize: 10, cursor: "pointer" }}>Copiar</button>
               </div>
             ))}
           </div>
         )}
         {tab === "historial" && (
           <div>
-            <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#f0e8de", marginBottom: 14 }}>Historial de compras</div>
+            <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#1C1E21", marginBottom: 14 }}>Historial de compras</div>
             {[
               { date: "24/05/2026", items: "Serum Vitamina C x 1", total: 8500, pts: 85, canal: "Local" },
               { date: "10/05/2026", items: "Base Liquida HD, Mascara x 2", total: 13700, pts: 137, canal: "Tiendanube" },
               { date: "28/04/2026", items: "Crema Hidratante FPS50 x 2", total: 12400, pts: 124, canal: "Local" },
             ].map((h, i) => (
-              <div key={i} style={{ background: "#1a1108", border: "1px solid #ffffff08", borderRadius: 10, padding: "14px 18px", marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div key={i} style={{ background: "#ffffff", border: "1px solid #ffffff", borderRadius: 10, padding: "14px 18px", marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <div style={{ fontSize: 10, color: "#ffffff33", marginBottom: 4 }}>{h.date} - {h.canal}</div>
-                  <div style={{ fontSize: 12, color: "#e8ddd4" }}>{h.items}</div>
+                  <div style={{ fontSize: 10, color: "#8a8d92", marginBottom: 4 }}>{h.date} - {h.canal}</div>
+                  <div style={{ fontSize: 12, color: "#1C1E21" }}>{h.items}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#c9a84c" }}>{fmt(h.total)}</div>
-                  <div style={{ fontSize: 9, color: "#ffffff33", marginTop: 2 }}>+{h.pts} puntos</div>
+                  <div style={{ fontSize: 9, color: "#8a8d92", marginTop: 2 }}>+{h.pts} puntos</div>
                 </div>
               </div>
             ))}
