@@ -112,4 +112,15 @@ const agregarPuntos = async (req, res) => {
   }
 };
 
-module.exports = { getAll, getById, create, update, remove, getHistorial, agregarPuntos };
+// Resetea la contrasena del portal: borra el hash para que la clienta se registre de nuevo con su DNI
+const resetearPortal = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query('UPDATE clientes SET password_hash = NULL WHERE id = $1', [id]);
+    res.json({ ok: true, mensaje: 'Contrasena del portal reseteada. La clienta puede volver a registrarse con su DNI.' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al resetear la contrasena del portal' });
+  }
+};
+
+module.exports = { getAll, getById, create, update, remove, getHistorial, agregarPuntos, resetearPortal };

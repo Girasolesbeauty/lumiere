@@ -1646,6 +1646,17 @@ function Clientes() {
     getClientes().then(res => { setClientes(res.data); setLoading(false); }).catch(() => { setClientes(CLIENTS.map(c => ({ ...c, nombre: c.name, puntos: c.points, nivel: c.tier, total_compras: c.total, cuit_dni: c.cuit }))); setLoading(false); });
   }, []);
 
+  const resetearPortalCliente = async (cli) => {
+    if (!confirm("Resetear la contrasena del portal de " + (cli.nombre || cli.name) + "? Va a poder volver a registrarse con su DNI.")) return;
+    try {
+      await API.post("/clientes/" + cli.id + "/resetear-portal");
+      setMensaje("Contrasena del portal reseteada. La clienta ya puede registrarse de nuevo con su DNI.");
+      setTimeout(() => setMensaje(""), 4000);
+    } catch (e) {
+      setMensaje("Error al resetear la contrasena del portal");
+    }
+  };
+
   const guardarCliente = async () => {
     try {
       const { createCliente } = await import("./api");
@@ -1707,7 +1718,7 @@ function Clientes() {
         <div className="card fade">
           {loading ? <div style={{ textAlign: "center", color: "#65676B", padding: 20 }}>Cargando clientes...</div> : (
           <table>
-            <thead><tr><th>Cliente</th><th>CUIT/DNI</th><th>Total compras</th><th>Puntos</th><th>Nivel</th></tr></thead>
+            <thead><tr><th>Cliente</th><th>CUIT/DNI</th><th>Total compras</th><th>Puntos</th><th>Nivel</th><th>Portal</th></tr></thead>
             <tbody>
               {clientesAMostrar.map((c, i) => {
                 const nivel = c.nivel || c.tier;
@@ -1726,6 +1737,7 @@ function Clientes() {
                       </div>
                     </td>
                     <td><TierBadge tier={nivel} /></td>
+                    <td><button className="btn btn-sm" style={{ fontSize: 10 }} onClick={() => resetearPortalCliente(c)}>Resetear clave</button></td>
                   </tr>
                 );
               })}
