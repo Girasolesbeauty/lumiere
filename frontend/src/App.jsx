@@ -426,6 +426,7 @@ function POS({ localId, usuario }) {
   const [insumosPosActivo, setInsumosPosActivo] = useState(false);
   const [insumosSel, setInsumosSel] = useState({});
   const [ultimoRecibo, setUltimoRecibo] = useState(null);
+  const [ventaPendienteArca, setVentaPendienteArca] = useState(null);
   const [promociones, setPromociones] = useState([]);
   const [configTicket, setConfigTicket] = useState({ mostrar_cliente: true, mostrar_numero: true, mostrar_fecha: true, mensaje_pie: "Gracias por tu compra!", texto_extra: "" });
   const [codigoGC, setCodigoGC] = useState("");
@@ -705,7 +706,34 @@ function POS({ localId, usuario }) {
     setTimeout(() => { w.print(); w.close(); }, 300);
   };
 
+  const reintentarFacturacion = async (ventaId) => {
+    setLoading(true);
+    try {
+      const items = cart.map(i => ({ producto_id: i.id, cantidad: i.qty, precio_unitario: i.precio || i.price }));
+      const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaId });
+      setMensaje("✅ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
+      const datosRecibo = {
+        items: cart.map(i => ({ nombre: i.nombre || i.name, cantidad: i.qty, precio_unitario: i.precio || i.price })),
+        total: total, cliente: clienteSeleccionado?.nombre || null,
+        numero: arcaRes.data.nroComprobante ? (String(arcaRes.data.puntoVenta || 5).padStart(4,"0") + "-" + String(arcaRes.data.nroComprobante).padStart(8,"0")) : null
+      };
+      setUltimoRecibo(datosRecibo);
+      imprimirRecibo(datosRecibo);
+      setVentaPendienteArca(null);
+      setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null);
+      setClienteSeleccionado(null); setShowNuevoCliente(false);
+      setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({});
+      quitarGiftCard();
+      setTimeout(() => setMensaje(""), 8000);
+    } catch (arcaErr) {
+      setMensaje("⚠️ ARCA sigue dando error: " + (arcaErr.response?.data?.error || arcaErr.message) + ". Podes reintentar de nuevo.");
+    }
+    setLoading(false);
+  };
+
   const emitirFactura = async () => {
+    // Si hay una venta ya registrada esperando facturacion, reintenta SOLO eso (no duplica la venta)
+    if (ventaPendienteArca) return reintentarFacturacion(ventaPendienteArca);
     if (cart.length === 0) return setMensaje("Agrega productos al ticket");
     if (!preventa && insumosPosActivo) {
       for (const ins of insumosPos) {
@@ -733,6 +761,7 @@ function POS({ localId, usuario }) {
           });
         } catch (gcErr) {}
       }
+      let arcaFallo = false;
       if (!preventa) {
         try {
           const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaRes.data.id });
@@ -746,15 +775,19 @@ function POS({ localId, usuario }) {
           setUltimoRecibo(datosRecibo);
           imprimirRecibo(datosRecibo);
         } catch (arcaErr) {
-          setMensaje("Venta registrada pero error en ARCA: " + arcaErr.message);
+          arcaFallo = true;
+          setVentaPendienteArca(ventaRes.data.id);
+          setMensaje("⚠️ La venta se registro pero ARCA dio error: " + (arcaErr.response?.data?.error || arcaErr.message) + ". Apreta \"Reintentar facturacion\" para volver a intentar (no se duplica la venta).");
         }
       } else {
         setMensaje("Preventa registrada para " + nombrePreventa + "!");
       }
-      setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null);
-      setClienteSeleccionado(null); setShowNuevoCliente(false);
-      setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({});
-      quitarGiftCard();
+      if (!arcaFallo) {
+        setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null);
+        setClienteSeleccionado(null); setShowNuevoCliente(false);
+        setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({});
+        quitarGiftCard();
+      }
       setTimeout(() => setMensaje(""), 8000);
     } catch (error) { setMensaje("Error al emitir factura"); }
     setLoading(false);
@@ -1108,8 +1141,8 @@ function POS({ localId, usuario }) {
               <div style={{ fontSize: 10, color: "#65676B", fontWeight: 600 }}>{restaPagar > 0 && giftCardAplicada ? "FALTA PAGAR" : "TOTAL"}</div>
               <div style={{ fontSize: 24, fontWeight: 700, color: "#111111" }}>{fmt((restaPagar > 0 ? restaPagar : total))}</div>
             </div>
-            <button className="btn btn-p" style={{ width: "100%", padding: 11, fontSize: 12, opacity: loading ? 0.7 : 1 }} onClick={emitirFactura} disabled={loading}>
-              {loading ? "Procesando..." : preventa ? "Registrar Preventa" : "Factura " + tipoFac}
+            <button className="btn btn-p" style={{ width: "100%", padding: 11, fontSize: 12, opacity: loading ? 0.7 : 1, background: ventaPendienteArca ? "#e67e22" : undefined }} onClick={emitirFactura} disabled={loading}>
+              {loading ? "Procesando..." : ventaPendienteArca ? "⚠️ Reintentar facturacion" : preventa ? "Registrar Preventa" : "Factura " + tipoFac}
             </button>
             {ultimoRecibo && (
               <button className="btn btn-g btn-sm" style={{ width: "100%", marginTop: 6, fontSize: 11 }} onClick={() => imprimirRecibo(ultimoRecibo)}>Reimprimir ultimo recibo</button>
