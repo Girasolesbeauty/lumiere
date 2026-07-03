@@ -8,7 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors({
-  origin: ['https://lumiere-beta-nine.vercel.app', 'http://localhost:5173', 'https://lumiere-portal-clientes.vercel.app'],
+  origin: ['https://lumiere-beta-nine.vercel.app', 'http://localhost:5173', 'https://lumiere-portal-clientes.vercel.app', 'https://girasolesbeauty.vercel.app'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
