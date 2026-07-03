@@ -141,4 +141,59 @@ const ejecutarReglas = async (req, res) => {
   }
 };
 
-module.exports = { getReglas, createRegla, updateRegla, getMensajes, ejecutarReglas };
+// Clientes que compraron hace X dias (default 7) para enviar WhatsApp por clic
+const getPendientesWhatsApp = async (req, res) => {
+  try {
+    const dias = parseInt(req.query.dias) || 7;
+    const result = await pool.query(`
+      SELECT DISTINCT ON (c.id) c.id, c.nombre, c.telefono,
+        p.nombre AS ultimo_producto,
+        v.creado_en AS fecha_compra,
+        v.id AS venta_id
+      FROM clientes c
+      JOIN ventas v ON c.id = v.cliente_id
+      JOIN venta_items vi ON v.id = vi.venta_id
+      JOIN productos p ON vi.producto_id = p.id
+      WHERE DATE(v.creado_en) = CURRENT_DATE - ($1 || ' days')::INTERVAL
+        AND c.telefono IS NOT NULL AND c.telefono <> ''
+      ORDER BY c.id, v.creado_en DESC
+    `, [dias]);
+
+    // Marcar si ya se le envio postventa por esta compra (para no repetir)
+    const clientes = [];
+    for (const row of result.rows) {
+      let yaEnviado = false;
+      try {
+        const chk = await pool.query(
+          `SELECT 1 FROM mensajes_enviados WHERE cliente_id = $1 AND estado = 'enviado_wa'
+           AND DATE(creado_en) >= DATE($2) LIMIT 1`,
+          [row.id, row.fecha_compra]
+        );
+        yaEnviado = chk.rows.length > 0;
+      } catch (e) {}
+      clientes.push({ ...row, ya_enviado: yaEnviado });
+    }
+    res.json(clientes);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al obtener pendientes: ' + error.message });
+  }
+};
+
+// Marcar que ya se envio el WhatsApp a un cliente
+const marcarEnviadoWhatsApp = async (req, res) => {
+  try {
+    const { cliente_id, mensaje } = req.body;
+    await pool.query(
+      `INSERT INTO mensajes_enviados (regla_id, cliente_id, mensaje, estado)
+       VALUES (NULL, $1, $2, 'enviado_wa')`,
+      [cliente_id, mensaje || 'Postventa WhatsApp']
+    );
+    res.json({ ok: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al marcar enviado' });
+  }
+};
+
+module.exports = { getReglas, createRegla, updateRegla, getMensajes, ejecutarReglas, getPendientesWhatsApp, marcarEnviadoWhatsApp };

@@ -2544,6 +2544,9 @@ function PostventaWA() {
   const [tab, setTab] = useState("reglas");
   const [sel, setSel] = useState(null);
   const [nuevaRegla, setNuevaRegla] = useState({ nombre: "", disparador: "post_compra", dias: 7, segmento: "Todos", mensaje: "" });
+  const [pendientesWA, setPendientesWA] = useState([]);
+  const [cargandoWA, setCargandoWA] = useState(false);
+  const [plantillaWA, setPlantillaWA] = useState("Hola {nombre}! Soy de Girasoles Beauty 🌻 Te escribo para saber como te fue con tu compra. Cualquier consulta estamos para ayudarte!");
   const [mensaje, setMensaje] = useState("");
 
   useEffect(() => {
@@ -2568,6 +2571,32 @@ function PostventaWA() {
     } catch (e) { setMensaje("Error al crear regla"); }
   };
 
+  const cargarPendientesWA = () => {
+    setCargandoWA(true);
+    API.get("/postventa/pendientes-whatsapp?dias=7")
+      .then(res => setPendientesWA(res.data || []))
+      .catch(() => setPendientesWA([]))
+      .finally(() => setCargandoWA(false));
+  };
+
+  const armarMensajeWA = (cli) => plantillaWA
+    .replace("{nombre}", (cli.nombre || "").split(",")[0].trim())
+    .replace("{producto}", cli.ultimo_producto || "tu compra");
+
+  const enviarWA = async (cli) => {
+    const texto = armarMensajeWA(cli);
+    const tel = (cli.telefono || "").replace(/[^0-9]/g, "");
+    // Argentina: agregar 54 y 9 si no estan (para celulares)
+    let numero = tel;
+    if (!numero.startsWith("54")) numero = "549" + numero;
+    else if (numero.startsWith("54") && !numero.startsWith("549")) numero = "549" + numero.slice(2);
+    window.open("https://wa.me/" + numero + "?text=" + encodeURIComponent(texto), "_blank");
+    try {
+      await API.post("/postventa/marcar-enviado", { cliente_id: cli.id, mensaje: texto });
+      setPendientesWA(prev => prev.map(p => p.id === cli.id ? { ...p, ya_enviado: true } : p));
+    } catch (e) {}
+  };
+
   const rulesAMostrar = rules.length > 0 ? rules : WA_RULES.map(r => ({ ...r, activo: r.active, mensaje: r.msg }));
 
   return (
@@ -2584,8 +2613,8 @@ function PostventaWA() {
         <MCard label="Tasa apertura" value="72%" color="#2471a3" />
       </div>
       <div className="tabs">
-        {[["reglas", "REGLAS"], ["nueva", "NUEVA REGLA"]].map(([id, l]) => (
-          <div key={id} className={"tab " + (tab === id ? "on" : "")} onClick={() => { setTab(id); setSel(null); }}>{l}</div>
+        {[["reglas", "REGLAS"], ["enviar", "ENVIAR HOY"], ["nueva", "NUEVA REGLA"]].map(([id, l]) => (
+          <div key={id} className={"tab " + (tab === id ? "on" : "")} onClick={() => { setTab(id); setSel(null); if (id === "enviar") cargarPendientesWA(); }}>{l}</div>
         ))}
       </div>
       {tab === "reglas" && (
@@ -2659,6 +2688,46 @@ function PostventaWA() {
             {["Mensajes cortos y personales convierten mas", "Inclui siempre el nombre del producto", "Una pregunta abierta invita a responder", "El emoji justo da calidez sin exceso", "Envia en horario diurno (10 a 20hs)"].map((t, i) => (
               <div key={i} style={{ display: "flex", gap: 7, marginBottom: 9, fontSize: 11, color: "#444444" }}><span style={{ color: "#25d366" }}>v</span>{t}</div>
             ))}
+          </div>
+        </div>
+      )}
+      {tab === "enviar" && (
+        <div className="fade">
+          <div className="card" style={{ marginBottom: 12 }}>
+            <div className="ct">Mensaje a enviar (podes editarlo)</div>
+            <textarea className="inp" rows={3} style={{ resize: "vertical" }} value={plantillaWA} onChange={e => setPlantillaWA(e.target.value)} />
+            <div style={{ fontSize: 10, color: "#65676B", marginTop: 6 }}>Usa {"{nombre}"} y {"{producto}"} y se reemplazan solos por los datos de cada cliente.</div>
+          </div>
+          <div className="card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div className="ct" style={{ margin: 0 }}>Clientes que compraron hace 7 dias</div>
+              <button className="btn btn-g btn-sm" onClick={cargarPendientesWA}>Actualizar</button>
+            </div>
+            {cargandoWA ? (
+              <div style={{ color: "#65676B", padding: 20, fontSize: 12 }}>Cargando...</div>
+            ) : pendientesWA.length === 0 ? (
+              <div style={{ textAlign: "center", color: "#65676B", padding: 24, fontSize: 12 }}>No hay clientes con compra de hace 7 dias (o no tienen telefono cargado)</div>
+            ) : (
+              <table>
+                <thead><tr><th>Cliente</th><th>Telefono</th><th>Ultima compra</th><th></th></tr></thead>
+                <tbody>
+                  {pendientesWA.map(cli => (
+                    <tr key={cli.id} style={{ opacity: cli.ya_enviado ? 0.5 : 1 }}>
+                      <td style={{ fontWeight: 600 }}>{cli.nombre}</td>
+                      <td style={{ fontSize: 11 }}>{cli.telefono}</td>
+                      <td style={{ fontSize: 11, color: "#65676B" }}>{cli.ultimo_producto || "-"}</td>
+                      <td style={{ textAlign: "right" }}>
+                        {cli.ya_enviado ? (
+                          <span style={{ fontSize: 10, color: "#2d7a4f", fontWeight: 600 }}>Enviado ✓</span>
+                        ) : (
+                          <button className="btn btn-sm" style={{ background: "#25d366", color: "#ffffff", fontSize: 11, fontWeight: 700 }} onClick={() => enviarWA(cli)}>Enviar WhatsApp</button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       )}
