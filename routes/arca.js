@@ -138,7 +138,21 @@ router.post('/emitir', async (req, res) => {
     const hoy = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const ivaTotal = 0;
 const neto = total;
-    const docNro = cliente_cuit ? cliente_cuit.replace(/[-]/g, '') : 0;
+    // Documento del cliente: elige el tipo correcto segun lo que se cargo.
+    // 80 = CUIT (11 digitos), 96 = DNI (7-8 digitos), 99 = Consumidor Final sin identificar.
+    const docLimpio = cliente_cuit ? cliente_cuit.toString().replace(/[^0-9]/g, '') : '';
+    let docTipo, docNro;
+    if (tipo === 'A') {
+      // Factura A siempre requiere CUIT
+      docTipo = 80;
+      docNro = docLimpio || 0;
+    } else if (docLimpio.length === 11) {
+      docTipo = 80; docNro = docLimpio;           // CUIT
+    } else if (docLimpio.length === 7 || docLimpio.length === 8) {
+      docTipo = 96; docNro = docLimpio;           // DNI
+    } else {
+      docTipo = 99; docNro = 0;                   // Consumidor final sin identificar
+    }
 
     const soapBody = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
@@ -158,7 +172,7 @@ const neto = total;
         <FeDetReq>
           <FECAEDetRequest>
             <Concepto>1</Concepto>
-            <DocTipo>${tipo === 'A' ? 80 : 99}</DocTipo>
+            <DocTipo>${docTipo}</DocTipo>
             <DocNro>${docNro}</DocNro>
             <CbteDesde>${nroComprobante}</CbteDesde>
             <CbteHasta>${nroComprobante}</CbteHasta>
