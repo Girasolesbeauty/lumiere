@@ -1464,9 +1464,9 @@ function Inventario({ localId, usuario }) {
                     <td style={{ fontSize: 11, color: "#65676B" }}>{p.codigo_barras || p.codigo || "-"}</td>
                     <td style={{ color: "#c9a84c" }}>{fmt(parseFloat(p.price || p.precio || 0))}</td>
                     <td style={{ fontSize: 11, color: "#65676B" }}>{p.cost || p.costo ? fmt(parseFloat(p.cost || p.costo)) : "-"}</td>
-                    <td><span className="badge bx">{stockVista}u</span></td>
-                    <td style={{ fontSize: 11 }}>{reservado > 0 ? <span style={{ color: "#c9a84c", fontWeight: 600 }}>{reservado}u</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
-                    <td><span className={"badge " + (bajo ? "br" : "bg")}>{disponible}u</span></td>
+                    <td><span className="badge bx">{stockVista}</span></td>
+                    <td style={{ fontSize: 11 }}>{reservado > 0 ? <span style={{ color: "#c9a84c", fontWeight: 600 }}>{reservado}</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
+                    <td><span className={"badge " + (bajo ? "br" : "bg")}>{disponible}</span></td>
                     <td style={{ fontSize: 10, color: margen ? "#2d7a4f" : "#65676B" }}>{margen ? margen + "%" : "-"}</td>
                     <td>
                       <div style={{ display: "flex", gap: 4 }}>
@@ -1496,10 +1496,10 @@ function Inventario({ localId, usuario }) {
                   <tr key={p.id}>
                     <td style={{ fontWeight: 500 }}>{p.nombre}{p.marca ? <span style={{ fontSize: 10, color: "#65676B", marginLeft: 6 }}>{p.marca}</span> : ""}</td>
                     <td style={{ fontSize: 11, color: "#65676B" }}>{p.codigo_barras || "-"}</td>
-                    <td>{p.transito_rg > 0 ? <span className="badge bb">{p.transito_rg}u</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
-                    <td>{p.reservado_rg > 0 ? <span style={{ color: "#c9a84c", fontWeight: 600, fontSize: 11 }}>{p.reservado_rg}u</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
-                    <td>{p.transito_ush > 0 ? <span className="badge bb">{p.transito_ush}u</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
-                    <td>{p.reservado_ush > 0 ? <span style={{ color: "#c9a84c", fontWeight: 600, fontSize: 11 }}>{p.reservado_ush}u</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
+                    <td>{p.transito_rg > 0 ? <span className="badge bb">{p.transito_rg}</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
+                    <td>{p.reservado_rg > 0 ? <span style={{ color: "#c9a84c", fontWeight: 600, fontSize: 11 }}>{p.reservado_rg}</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
+                    <td>{p.transito_ush > 0 ? <span className="badge bb">{p.transito_ush}</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
+                    <td>{p.reservado_ush > 0 ? <span style={{ color: "#c9a84c", fontWeight: 600, fontSize: 11 }}>{p.reservado_ush}</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1515,7 +1515,7 @@ function Inventario({ localId, usuario }) {
             <div key={p.id} style={{ background: "#c0392b12", border: "1px solid #d9707033", borderRadius: 6, padding: "12px 16px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div style={{ fontSize: 12, color: "#444444" }}>{p.nombre || p.name} - {p.marca || p.brand}</div>
-                <div style={{ fontSize: 10, color: "#65676B", marginTop: 2 }}>Stock: {p.stock || 0}u | Minimo: {p.stock_minimo || 5}u</div>
+                <div style={{ fontSize: 10, color: "#65676B", marginTop: 2 }}>Stock: {p.stock || 0} | Minimo: {p.stock_minimo || 5}</div>
               </div>
               <button className="btn btn-p btn-sm">Generar OC</button>
             </div>
@@ -1622,7 +1622,7 @@ function Inventario({ localId, usuario }) {
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
           <div className="card" style={{ width: 400, background: "#ffffff" }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Ajustar stock</div>
-            <div style={{ fontSize: 12, color: "#65676B", marginBottom: 14 }}>{ajustando.nombre} - stock actual: <b>{(Number(localId) === 2 ? (ajustando.stock_ush || 0) : (ajustando.stock_rg || 0))}u</b></div>
+            <div style={{ fontSize: 12, color: "#65676B", marginBottom: 14 }}>{ajustando.nombre} - stock actual: <b>{(Number(localId) === 2 ? (ajustando.stock_ush || 0) : (ajustando.stock_rg || 0))}</b></div>
             {errorAjuste && (
               <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "8px 12px", marginBottom: 10, fontSize: 11, color: "#c0392b" }}>{errorAjuste}</div>
             )}
@@ -1634,7 +1634,7 @@ function Inventario({ localId, usuario }) {
               <div className="fl">{modoAjuste === "exacto" ? "Stock real (numero final)" : "Diferencia (ej: 3 o -2)"}</div>
               <input className="inp" type="number" placeholder={modoAjuste === "exacto" ? "Ej: 8" : "Ej: -2"} value={valorAjuste} onChange={e => setValorAjuste(e.target.value)} />
               {modoAjuste === "diferencia" && valorAjuste !== "" && !isNaN(parseInt(valorAjuste)) && (
-                <div style={{ fontSize: 11, color: "#65676B", marginTop: 4 }}>Nuevo stock: {(Number(localId) === 2 ? (ajustando.stock_ush || 0) : (ajustando.stock_rg || 0)) + parseInt(valorAjuste)}u</div>
+                <div style={{ fontSize: 11, color: "#65676B", marginTop: 4 }}>Nuevo stock: {(Number(localId) === 2 ? (ajustando.stock_ush || 0) : (ajustando.stock_rg || 0)) + parseInt(valorAjuste)}</div>
               )}
             </div>
             <div className="fg">
