@@ -1221,7 +1221,7 @@ function Inventario({ localId, usuario }) {
     setLoading(true);
     try {
       const [prodRes, provRes] = await Promise.all([
-        API.get("/productos"),
+        API.get("/productos?local=" + (Number(localId) === 2 ? "ush" : "rg")),
         API.get("/proveedores")
       ]);
       const prods = prodRes.data || [];
@@ -1400,7 +1400,7 @@ function Inventario({ localId, usuario }) {
       </div>
       {tab === "stock" && (
         <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-          {[["mi", localId === 2 ? "Ushuaia (mi local)" : "Rio Grande (mi local)"], ["otro", localId === 2 ? "Rio Grande" : "Ushuaia"], ["consolidado", "Consolidado"]].map(([id, l]) => (
+          {[["mi", Number(localId) === 2 ? "Ushuaia (mi local)" : "Rio Grande (mi local)"], ["otro", Number(localId) === 2 ? "Rio Grande" : "Ushuaia"], ["consolidado", "Consolidado"]].map(([id, l]) => (
             <button key={id} className="btn btn-sm" style={{ fontSize: 11, background: vistaLocal === id ? "#c9a84c" : "#ffffff", color: vistaLocal === id ? "#ffffff" : "#65676B", border: "1px solid " + (vistaLocal === id ? "#c9a84c" : "#E4E6EB") }} onClick={() => setVistaLocal(id)}>{l}</button>
           ))}
         </div>
@@ -1452,7 +1452,7 @@ function Inventario({ localId, usuario }) {
                     <td style={{ fontSize: 11, color: "#65676B" }}>{p.codigo_barras || p.codigo || "-"}</td>
                     <td style={{ color: "#c9a84c" }}>{fmt(parseFloat(p.price || p.precio || 0))}</td>
                     <td style={{ fontSize: 11, color: "#65676B" }}>{p.cost || p.costo ? fmt(parseFloat(p.cost || p.costo)) : "-"}</td>
-                    <td><span className="badge bx">{(vistaLocal === "consolidado" ? ((p.stock_rg || 0) + (p.stock_ush || 0)) : vistaLocal === "otro" ? (localId === 2 ? (p.stock_rg || 0) : (p.stock_ush || 0)) : (localId === 2 ? (p.stock_ush || 0) : (p.stock_rg || 0)))}u</span></td>
+                    <td><span className="badge bx">{(vistaLocal === "consolidado" ? ((p.stock_rg || 0) + (p.stock_ush || 0)) : vistaLocal === "otro" ? (Number(localId) === 2 ? (p.stock_rg || 0) : (p.stock_ush || 0)) : (Number(localId) === 2 ? (p.stock_ush || 0) : (p.stock_rg || 0)))}u</span></td>
                     <td style={{ fontSize: 11 }}>{reservado > 0 ? <span style={{ color: "#c9a84c", fontWeight: 600 }}>{reservado}u</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
                     <td><span className={"badge " + (bajo ? "br" : "bg")}>{disponible}u</span></td>
                     <td style={{ fontSize: 10, color: margen ? "#2d7a4f" : "#65676B" }}>{margen ? margen + "%" : "-"}</td>
@@ -4693,7 +4693,7 @@ function OrdenesIngreso({ localId, usuario }) {
     try {
       const [ordRes, prodRes, provRes] = await Promise.all([
         API.get("/ordenes-ingreso"),
-        API.get("/productos"),
+        API.get("/productos?local=" + (Number(localId) === 2 ? "ush" : "rg")),
         API.get("/proveedores")
       ]);
       setOrdenes(ordRes.data || []);
