@@ -7,7 +7,7 @@ router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT k.*, 
-        json_agg(json_build_object('id', ki.id, 'producto_id', ki.producto_id, 'cantidad', ki.cantidad, 'producto_nombre', p.nombre, 'producto_precio', p.price, 'producto_stock', p.stock)) as items
+        json_agg(json_build_object('id', ki.id, 'producto_id', ki.producto_id, 'cantidad', ki.cantidad, 'producto_nombre', p.nombre, 'producto_precio', p.precio, 'producto_stock', p.stock)) as items
       FROM kits k
       LEFT JOIN kit_items ki ON ki.kit_id = k.id
       LEFT JOIN productos p ON p.id = ki.producto_id
