@@ -1440,8 +1440,20 @@ function Inventario({ localId, usuario }) {
                 if (filtroStock === "sin" && !((p.stock || 0) === 0)) return false;
                 return true;
               }).map(p => {
-                const reservado = p.reservado || 0;
-                const disponible = p.disponible !== undefined ? p.disponible : Math.max((p.stock || 0) - reservado, 0);
+                // Stock segun la pestaña (mi local / otro / consolidado)
+                const stockVista = vistaLocal === "consolidado"
+                  ? ((p.stock_rg || 0) + (p.stock_ush || 0))
+                  : vistaLocal === "otro"
+                    ? (Number(localId) === 2 ? (p.stock_rg || 0) : (p.stock_ush || 0))
+                    : (Number(localId) === 2 ? (p.stock_ush || 0) : (p.stock_rg || 0));
+                // Reservado del local que corresponde a la vista
+                const reservadoVista = vistaLocal === "consolidado"
+                  ? ((p.reservado_rg || 0) + (p.reservado_ush || 0))
+                  : vistaLocal === "otro"
+                    ? (Number(localId) === 2 ? (p.reservado_rg || 0) : (p.reservado_ush || 0))
+                    : (Number(localId) === 2 ? (p.reservado_ush || 0) : (p.reservado_rg || 0));
+                const reservado = reservadoVista;
+                const disponible = Math.max(stockVista - reservadoVista, 0);
                 const bajo = disponible <= (p.stock_minimo || 5);
                 const margen = p.price && p.cost ? Math.round(((p.price - p.cost) / p.price) * 100) : null;
                 return (
@@ -1452,7 +1464,7 @@ function Inventario({ localId, usuario }) {
                     <td style={{ fontSize: 11, color: "#65676B" }}>{p.codigo_barras || p.codigo || "-"}</td>
                     <td style={{ color: "#c9a84c" }}>{fmt(parseFloat(p.price || p.precio || 0))}</td>
                     <td style={{ fontSize: 11, color: "#65676B" }}>{p.cost || p.costo ? fmt(parseFloat(p.cost || p.costo)) : "-"}</td>
-                    <td><span className="badge bx">{(vistaLocal === "consolidado" ? ((p.stock_rg || 0) + (p.stock_ush || 0)) : vistaLocal === "otro" ? (Number(localId) === 2 ? (p.stock_rg || 0) : (p.stock_ush || 0)) : (Number(localId) === 2 ? (p.stock_ush || 0) : (p.stock_rg || 0)))}u</span></td>
+                    <td><span className="badge bx">{stockVista}u</span></td>
                     <td style={{ fontSize: 11 }}>{reservado > 0 ? <span style={{ color: "#c9a84c", fontWeight: 600 }}>{reservado}u</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
                     <td><span className={"badge " + (bajo ? "br" : "bg")}>{disponible}u</span></td>
                     <td style={{ fontSize: 10, color: margen ? "#2d7a4f" : "#65676B" }}>{margen ? margen + "%" : "-"}</td>
