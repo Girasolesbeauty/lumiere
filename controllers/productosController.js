@@ -5,10 +5,19 @@ const conDisponible = (rows, local) => rows.map(p => {
   const esUsh = local === '2' || local === 2 || local === 'ush';
   const reservado = esUsh ? (p.reservado_ush || 0) : (p.reservado_rg || 0);
   const transito = esUsh ? (p.stock_transito_ush || 0) : (p.stock_transito_rg || 0);
+  const stockRG = p.stock_rg != null ? p.stock_rg : (p.stock || 0);
+  const stockUSH = p.stock_ush != null ? p.stock_ush : 0;
+  // "stock del local actual" (para la vista Mi local)
+  const stockLocal = esUsh ? stockUSH : stockRG;
   return {
     ...p,
+    stock_rg: stockRG,
+    stock_ush: stockUSH,
+    stock_consolidado: stockRG + stockUSH,
+    stock_local: stockLocal,
     reservado: reservado,
-    disponible: Math.max((p.stock || 0) - reservado, 0),
+    // "disponible" ahora se calcula sobre el stock del local actual
+    disponible: Math.max(stockLocal - reservado, 0),
     transito_local: transito
   };
 });
