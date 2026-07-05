@@ -155,12 +155,13 @@ const ajustarStock = async (req, res) => {
       return res.status(400).json({ error: 'El motivo del ajuste es obligatorio' });
     }
 
-    const prodRes = await client.query('SELECT stock FROM productos WHERE id = $1', [id]);
+    const colStock = (local_id === 2 || local_id === '2') ? 'stock_ush' : 'stock_rg';
+    const prodRes = await client.query(`SELECT ${colStock} AS stock_local FROM productos WHERE id = $1`, [id]);
     if (prodRes.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Producto no encontrado' });
     }
-    const stockAnterior = prodRes.rows[0].stock || 0;
+    const stockAnterior = prodRes.rows[0].stock_local || 0;
 
     let stockNuevo;
     if (modo === 'diferencia') {
@@ -173,7 +174,13 @@ const ajustarStock = async (req, res) => {
       return res.status(400).json({ error: 'El stock resultante no puede ser negativo' });
     }
 
-    await client.query('UPDATE productos SET stock = $1 WHERE id = $2', [stockNuevo, id]);
+    // Ajusta el stock del local elegido y sincroniza el total
+    await client.query(
+      `UPDATE productos SET ${colStock} = $1,
+         stock = CASE WHEN '${colStock}' = 'stock_rg' THEN $1 + COALESCE(stock_ush, 0) ELSE COALESCE(stock_rg, 0) + $1 END
+       WHERE id = $2`,
+      [stockNuevo, id]
+    );
     await client.query(
       `INSERT INTO ajustes_stock (producto_id, stock_anterior, stock_nuevo, diferencia, motivo, usuario_id, usuario_nombre, local_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,

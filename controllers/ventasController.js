@@ -150,9 +150,12 @@ const create = async (req, res) => {
           );
         }
       } else {
-        // Venta normal: descuenta del stock del deposito
+        // Venta normal: descuenta del stock del LOCAL donde se vende, y mantiene "stock" total sincronizado
+        const colStock = (local_id === 2 || local_id === '2') ? 'stock_ush' : 'stock_rg';
         await client.query(
-          'UPDATE productos SET stock = stock - $1 WHERE id = $2',
+          `UPDATE productos SET ${colStock} = COALESCE(${colStock}, 0) - $1,
+             stock = COALESCE(stock_rg, 0) + COALESCE(stock_ush, 0) - $1
+           WHERE id = $2`,
           [item.cantidad, item.producto_id]
         );
       }
@@ -285,18 +288,24 @@ const confirmarEntrega = async (req, res) => {
     const items = itemsRes.rows;
     const esUsh = venta.preventa_local === 2;
 
+    const colStockPreventa = esUsh ? 'stock_ush' : 'stock_rg';
     for (const item of items) {
-      // Verificar que haya stock real suficiente antes de descontar
-      const prodRes = await client.query('SELECT stock, nombre FROM productos WHERE id = $1', [item.producto_id]);
-      const stockActual = prodRes.rows[0]?.stock || 0;
+      // Verificar que haya stock real suficiente en el LOCAL de la preventa antes de descontar
+      const prodRes = await client.query(`SELECT ${colStockPreventa} AS stock_local, nombre FROM productos WHERE id = $1`, [item.producto_id]);
+      const stockActual = prodRes.rows[0]?.stock_local || 0;
       if (stockActual < item.cantidad) {
         await client.query('ROLLBACK');
         return res.status(400).json({
           error: 'Stock insuficiente para "' + (prodRes.rows[0]?.nombre || 'producto') + '". Disponible: ' + stockActual + ', se necesitan: ' + item.cantidad + '. Puede que la mercaderia aun no haya llegado.'
         });
       }
-      // Descuenta del stock real (la clienta se lo lleva)
-      await client.query('UPDATE productos SET stock = stock - $1 WHERE id = $2', [item.cantidad, item.producto_id]);
+      // Descuenta del stock real del local (la clienta se lo lleva) y sincroniza el total
+      await client.query(
+        `UPDATE productos SET ${colStockPreventa} = COALESCE(${colStockPreventa}, 0) - $1,
+           stock = COALESCE(stock_rg, 0) + COALESCE(stock_ush, 0) - $1
+         WHERE id = $2`,
+        [item.cantidad, item.producto_id]
+      );
       // Libera la reserva (ya no esta "comprometido", ya se entrego)
       if (esUsh) {
         await client.query(

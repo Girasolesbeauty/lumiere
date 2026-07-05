@@ -1226,7 +1226,7 @@ function Inventario({ localId, usuario }) {
       ]);
       const prods = prodRes.data || [];
       setProductos(prods);
-      setAlertas(prods.filter(p => (p.stock || 0) <= (p.stock_minimo || 5)));
+      setAlertas(prods.filter(p => (Number(localId) === 2 ? (p.stock_ush || 0) : (p.stock_rg || 0)) <= (p.stock_minimo || 5)));
       setProveedores(provRes.data || []);
     } catch (e) {}
     setLoading(false);
@@ -1252,7 +1252,7 @@ function Inventario({ localId, usuario }) {
   const abrirAjuste = (p) => {
     setAjustando(p);
     setModoAjuste("exacto");
-    setValorAjuste(String(p.stock || 0));
+    setValorAjuste(String(Number(localId) === 2 ? (p.stock_ush || 0) : (p.stock_rg || 0)));
     setMotivoAjuste("");
     setErrorAjuste("");
   };
@@ -1610,7 +1610,7 @@ function Inventario({ localId, usuario }) {
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
           <div className="card" style={{ width: 400, background: "#ffffff" }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Ajustar stock</div>
-            <div style={{ fontSize: 12, color: "#65676B", marginBottom: 14 }}>{ajustando.nombre} - stock actual: <b>{ajustando.stock || 0}u</b></div>
+            <div style={{ fontSize: 12, color: "#65676B", marginBottom: 14 }}>{ajustando.nombre} - stock actual: <b>{(Number(localId) === 2 ? (ajustando.stock_ush || 0) : (ajustando.stock_rg || 0))}u</b></div>
             {errorAjuste && (
               <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "8px 12px", marginBottom: 10, fontSize: 11, color: "#c0392b" }}>{errorAjuste}</div>
             )}
@@ -1622,7 +1622,7 @@ function Inventario({ localId, usuario }) {
               <div className="fl">{modoAjuste === "exacto" ? "Stock real (numero final)" : "Diferencia (ej: 3 o -2)"}</div>
               <input className="inp" type="number" placeholder={modoAjuste === "exacto" ? "Ej: 8" : "Ej: -2"} value={valorAjuste} onChange={e => setValorAjuste(e.target.value)} />
               {modoAjuste === "diferencia" && valorAjuste !== "" && !isNaN(parseInt(valorAjuste)) && (
-                <div style={{ fontSize: 11, color: "#65676B", marginTop: 4 }}>Nuevo stock: {(ajustando.stock || 0) + parseInt(valorAjuste)}u</div>
+                <div style={{ fontSize: 11, color: "#65676B", marginTop: 4 }}>Nuevo stock: {(Number(localId) === 2 ? (ajustando.stock_ush || 0) : (ajustando.stock_rg || 0)) + parseInt(valorAjuste)}u</div>
               )}
             </div>
             <div className="fg">
