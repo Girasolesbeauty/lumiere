@@ -1002,28 +1002,40 @@ function POS({ localId, usuario }) {
           <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
             {cart.length === 0
               ? <div style={{ textAlign: "center", color: "#8A8D91", fontSize: 12, marginTop: 40 }}>Agrega productos desde la lista</div>
-              : cart.map(i => (
-                <div key={i.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#ffffff", borderRadius: 6, padding: "8px 10px", marginBottom: 6, border: "1px solid #e8e4dc" }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 500 }}>{i.nombre || i.name}</div>
-                    <div style={{ fontSize: 10, color: "#888888" }}>{i.marca || i.brand}</div>
+              : cart.map(i => {
+                const precioUnit = i.precio || i.price || 0;
+                const precioConDesc = precioUnit * (1 - (i.descuento_pct || 0) / 100);
+                return (
+                <div key={i.id} style={{ background: "#ffffff", borderRadius: 6, padding: "8px 10px", marginBottom: 6, border: "1px solid #e8e4dc" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 500 }}>{i.nombre || i.name}</div>
+                      <div style={{ fontSize: 10, color: "#888888" }}>{i.marca || i.brand}</div>
+                    </div>
+                    <div onClick={() => remove(i.id)} style={{ cursor: "pointer", color: "#cccccc", fontSize: 18, lineHeight: 1, paddingLeft: 6 }}>x</div>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <button onClick={() => setCart(prev => prev.map(x => x.id === i.id && x.qty > 1 ? { ...x, qty: x.qty - 1 } : x))} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e8e8e8", background: "white", cursor: "pointer" }}>-</button>
-                    <span style={{ fontSize: 12, fontWeight: 600, minWidth: 20, textAlign: "center" }}>{i.qty}</span>
-                    <button onClick={() => add(i)} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e8e8e8", background: "white", cursor: "pointer" }}>+</button>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <button onClick={() => setCart(prev => prev.map(x => x.id === i.id && x.qty > 1 ? { ...x, qty: x.qty - 1 } : x))} style={{ width: 24, height: 24, borderRadius: 4, border: "1px solid #e8e8e8", background: "#f7f7f7", cursor: "pointer", fontSize: 15, fontWeight: 700, lineHeight: 1, color: "#555555" }}>−</button>
+                      <span style={{ fontSize: 13, fontWeight: 600, minWidth: 22, textAlign: "center" }}>{i.qty}</span>
+                      <button onClick={() => add(i)} style={{ width: 24, height: 24, borderRadius: 4, border: "1px solid #e8e8e8", background: "#f7f7f7", cursor: "pointer", fontSize: 15, fontWeight: 700, lineHeight: 1, color: "#555555" }}>+</button>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                      <span style={{ fontSize: 9, color: "#999999" }}>$</span>
+                      <input type="number" min="0" value={i.precio || i.price || ""} onChange={e => { const v = parseFloat(e.target.value) || 0; setCart(prev => prev.map(x => x.id === i.id ? { ...x, precio: v, price: v } : x)); }} style={{ width: 78, fontSize: 11, padding: "4px 6px", border: "1px solid #e8e8e8", borderRadius: 4, textAlign: "right" }} title="Precio unitario (editable)" />
+                    </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-                      <input type="number" min="0" max="100" placeholder="0" value={i.descuento_pct || ""} onChange={e => { const v = e.target.value === "" ? 0 : Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)); setCart(prev => prev.map(x => x.id === i.id ? { ...x, descuento_pct: v } : x)); }} style={{ width: 34, fontSize: 10, padding: "2px 3px", border: "1px solid #e8e8e8", borderRadius: 4, textAlign: "center" }} title="% descuento a este producto" />
-                      <span style={{ fontSize: 9, color: "#888888" }}>%</span>
+                      <input type="number" min="0" max="100" placeholder="0" value={i.descuento_pct || ""} onChange={e => { const v = e.target.value === "" ? 0 : Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)); setCart(prev => prev.map(x => x.id === i.id ? { ...x, descuento_pct: v } : x)); }} style={{ width: 40, fontSize: 11, padding: "4px 5px", border: "1px solid #e8e8e8", borderRadius: 4, textAlign: "center" }} title="% descuento a este producto" />
+                      <span style={{ fontSize: 10, color: "#888888" }}>% off</span>
                     </div>
-                    <div style={{ minWidth: 70, textAlign: "right", fontSize: 12, fontWeight: 600 }}>
-                      {(i.descuento_pct > 0) && <div style={{ fontSize: 9, color: "#aaaaaa", textDecoration: "line-through" }}>{fmt(((i.precio || i.price) * i.qty))}</div>}
-                      {fmt(((i.precio || i.price) * i.qty) * (1 - (i.descuento_pct || 0) / 100))}
+                    <div style={{ marginLeft: "auto", textAlign: "right", minWidth: 72 }}>
+                      {(i.descuento_pct > 0) && <div style={{ fontSize: 9, color: "#aaaaaa", textDecoration: "line-through" }}>{fmt(precioUnit * i.qty)}</div>}
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{fmt(precioConDesc * i.qty)}</div>
                     </div>
-                    <div onClick={() => remove(i.id)} style={{ cursor: "pointer", color: "#cccccc", fontSize: 18 }}>x</div>
                   </div>
                 </div>
-              ))
+                );
+              })
             }
           </div>
           <div style={{ padding: "10px 14px", borderTop: "1px solid #ddd9d0", background: "#f0ece4" }}>
