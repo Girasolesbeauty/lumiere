@@ -4324,18 +4324,14 @@ function CierreCaja({ localId, usuario }) {
         </div>
 
         {/* Total del dia bien grande, estilo protagonista */}
-        <div style={{ background: "linear-gradient(135deg, #2d7a4f, #256b44)", borderRadius: 12, padding: "12px 20px", marginBottom: 14, boxShadow: "0 3px 10px rgba(45,122,79,0.22)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 14, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 10, color: "#ffffffcc", letterSpacing: ".15em", fontWeight: 600 }}>TOTAL DEL DIA</span>
-            <span style={{ fontSize: 30, fontWeight: 800, color: "#ffffff", lineHeight: 1 }}>{fmt(totalDia)}</span>
+        <div style={{ display: "flex", gap: 12, marginBottom: 16, alignItems: "stretch", flexWrap: "wrap" }}>
+          <div style={{ flex: "2 1 300px", background: "linear-gradient(135deg, #2d7a4f, #256b44)", borderRadius: 14, padding: "18px 24px", boxShadow: "0 4px 14px rgba(45,122,79,0.25)", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+            <div style={{ fontSize: 11, color: "#ffffffcc", letterSpacing: ".15em", fontWeight: 600 }}>TOTAL DEL DIA</div>
+            <div style={{ fontSize: 38, fontWeight: 800, color: "#ffffff", lineHeight: 1.1 }}>{fmt(totalDia)}</div>
+            <div style={{ fontSize: 11, color: "#ffffffcc", marginTop: 2 }}>{ventasDia.length} ventas{totalGiftCards > 0 ? " + " + fmt(totalGiftCards) + " en gift cards" : ""}</div>
           </div>
-          <div style={{ fontSize: 11, color: "#ffffffcc" }}>{ventasDia.length} ventas{totalGiftCards > 0 ? " + " + fmt(totalGiftCards) + " en gift cards" : ""}</div>
-        </div>
-
-        {/* Tarjetas tipo dashboard */}
-        <div className="g2" style={{ marginBottom: 16 }}>
-          <MCard label="VENTAS" value={ventasDia.length} sub="del dia" color="#2471a3" />
-          <MCard label="TICKET PROMEDIO" value={fmt(ventasDia.length > 0 ? totalVentasNeto / ventasDia.length : 0)} sub="por venta" color="#8e44ad" />
+          <div style={{ flex: "1 1 150px", display: "flex", flexDirection: "column" }}><MCard label="VENTAS" value={ventasDia.length} sub="del dia" color="#2471a3" /></div>
+          <div style={{ flex: "1 1 150px", display: "flex", flexDirection: "column" }}><MCard label="TICKET PROMEDIO" value={fmt(ventasDia.length > 0 ? totalVentasNeto / ventasDia.length : 0)} sub="por venta" color="#8e44ad" /></div>
         </div>
 
         {loading ? (
