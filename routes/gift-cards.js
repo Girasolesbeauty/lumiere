@@ -94,12 +94,13 @@ router.post('/', async (req, res) => {
     const gc = await client.query(
       `INSERT INTO gift_cards
         (codigo, monto_inicial, saldo, beneficiario_nombre, beneficiario_telefono, beneficiario_dni,
-         cliente_id, comprador_nombre, estado, local_id, emitida_por)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'activa', $9, $10) RETURNING *`,
+         cliente_id, comprador_nombre, estado, local_id, emitida_por, es_migracion)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'activa', $9, $10, $11) RETURNING *`,
       [
         codigo, montoNum, montoNum, beneficiario_nombre,
         beneficiario_telefono || null, beneficiario_dni || null,
-        cliente_id || null, comprador_nombre || null, local_id || 1, emitida_por || null
+        cliente_id || null, comprador_nombre || null, local_id || 1, emitida_por || null,
+        migracion === true
       ]
     );
 

@@ -607,6 +607,9 @@ function POS({ localId, usuario }) {
   const total = Math.round(subtotalConDesc * coef);
   const intereses = total - subtotalConDesc;
   const montoAplicadoGC = giftCardAplicada ? Math.min(parseFloat(giftCardAplicada.saldo), total) : 0;
+  // Si la gift card es de migracion (ya facturada en el sistema viejo), esa parte NO se factura de nuevo en ARCA.
+  const montoGCMigracion = (giftCardAplicada && giftCardAplicada.es_migracion) ? montoAplicadoGC : 0;
+  const totalAFacturar = Math.max(total - montoGCMigracion, 0);
   const restaPagar = Math.max(total - montoAplicadoGC, 0);
 
   const buscarGiftCard = async () => {
@@ -710,7 +713,7 @@ function POS({ localId, usuario }) {
     setLoading(true);
     try {
       const items = cart.map(i => ({ producto_id: i.id, cantidad: i.qty, precio_unitario: (i.precio || i.price) * (1 - (i.descuento_pct || 0) / 100) }));
-      const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaId });
+      const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total: totalAFacturar, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaId });
       setMensaje("✅ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
       const datosRecibo = {
         items: cart.map(i => ({ nombre: i.nombre || i.name, cantidad: i.qty, precio_unitario: (i.precio || i.price) * (1 - (i.descuento_pct || 0) / 100) })),
@@ -762,10 +765,19 @@ function POS({ localId, usuario }) {
         } catch (gcErr) {}
       }
       let arcaFallo = false;
-      if (!preventa) {
+      if (!preventa && totalAFacturar <= 0) {
+        // Todo se pago con gift card de migracion: ya se facturo en el sistema anterior, no se factura de nuevo.
+        setMensaje("✅ Venta registrada. No se factura en ARCA (pagada con gift card ya facturada en el sistema anterior).");
+        const datosReciboMig = {
+          items: cart.map(i => ({ nombre: i.nombre || i.name, cantidad: i.qty, precio_unitario: (i.precio || i.price) * (1 - (i.descuento_pct || 0) / 100) })),
+          total: total, cliente: clienteSeleccionado?.nombre || null, numero: null
+        };
+        setUltimoRecibo(datosReciboMig);
+        imprimirRecibo(datosReciboMig);
+      } else if (!preventa) {
         try {
-          const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaRes.data.id });
-          setMensaje("✅ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
+          const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total: totalAFacturar, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaRes.data.id });
+          setMensaje("✅ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae + (montoGCMigracion > 0 ? " (facturado " + fmt(totalAFacturar) + ", el resto fue gift card ya facturada)" : ""));
           const datosRecibo = {
             items: cart.map(i => ({ nombre: i.nombre || i.name, cantidad: i.qty, precio_unitario: (i.precio || i.price) * (1 - (i.descuento_pct || 0) / 100) })),
             total: total,
