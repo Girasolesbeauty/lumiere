@@ -511,7 +511,7 @@ function POS({ localId, usuario }) {
     return null;
   })();
 
-  const precioItem = (i) => (i.precio || i.price || 0);
+  const precioItem = (i) => (i.precio || i.price || 0) * (1 - (i.descuento_pct || 0) / 100);
   const itemAplica = (promo, i) => {
     if (promo.aplica_a === "todo") return true;
     if (promo.aplica_a === "categorias") return (promo.categorias || []).includes(i.categoria);
@@ -598,7 +598,7 @@ function POS({ localId, usuario }) {
   })();
 
   const coef = medioPagoSel ? parseFloat(medioPagoSel.coeficiente) : 1;
-  const subtotalBase = cart.reduce((s, i) => s + (i.precio || i.price) * i.qty, 0);
+  const subtotalBase = cart.reduce((s, i) => s + (i.precio || i.price) * i.qty * (1 - (i.descuento_pct || 0) / 100), 0);
   const descuentoCupon = cuponAplicado ? (cuponAplicado.tipo === "%" ? subtotalBase * (cuponAplicado.valor / 100) : cuponAplicado.valor) : 0;
   const descuentoManualCalc = descuentoManual ? (tipoDescuento === "%" ? subtotalBase * (parseFloat(descuentoManual) / 100) : parseFloat(descuentoManual)) : 0;
   const descuentoPromos = promoCalc.totalDesc;
@@ -709,11 +709,11 @@ function POS({ localId, usuario }) {
   const reintentarFacturacion = async (ventaId) => {
     setLoading(true);
     try {
-      const items = cart.map(i => ({ producto_id: i.id, cantidad: i.qty, precio_unitario: i.precio || i.price }));
+      const items = cart.map(i => ({ producto_id: i.id, cantidad: i.qty, precio_unitario: (i.precio || i.price) * (1 - (i.descuento_pct || 0) / 100) }));
       const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaId });
       setMensaje("✅ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
       const datosRecibo = {
-        items: cart.map(i => ({ nombre: i.nombre || i.name, cantidad: i.qty, precio_unitario: i.precio || i.price })),
+        items: cart.map(i => ({ nombre: i.nombre || i.name, cantidad: i.qty, precio_unitario: (i.precio || i.price) * (1 - (i.descuento_pct || 0) / 100) })),
         total: total, cliente: clienteSeleccionado?.nombre || null,
         numero: arcaRes.data.nroComprobante ? (String(arcaRes.data.puntoVenta || 5).padStart(4,"0") + "-" + String(arcaRes.data.nroComprobante).padStart(8,"0")) : null
       };
@@ -743,7 +743,7 @@ function POS({ localId, usuario }) {
     if (restaPagar > 0 && !medioPagoSel) return setMensaje("Selecciona un medio de pago para la diferencia");
     setLoading(true);
     try {
-      const items = cart.map(i => ({ producto_id: i.id, cantidad: i.qty, precio_unitario: i.precio || i.price }));
+      const items = cart.map(i => ({ producto_id: i.id, cantidad: i.qty, precio_unitario: (i.precio || i.price) * (1 - (i.descuento_pct || 0) / 100) }));
       const ventaRes = await createVenta({
         cliente_id: clienteSeleccionado?.id || null,
         tipo_factura: tipoFac, items, canal: "presencial",
@@ -767,7 +767,7 @@ function POS({ localId, usuario }) {
           const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaRes.data.id });
           setMensaje("✅ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
           const datosRecibo = {
-            items: cart.map(i => ({ nombre: i.nombre || i.name, cantidad: i.qty, precio_unitario: i.precio || i.price })),
+            items: cart.map(i => ({ nombre: i.nombre || i.name, cantidad: i.qty, precio_unitario: (i.precio || i.price) * (1 - (i.descuento_pct || 0) / 100) })),
             total: total,
             cliente: clienteSeleccionado?.nombre || null,
             numero: arcaRes.data.nroComprobante ? (String(arcaRes.data.puntoVenta || 5).padStart(4,"0") + "-" + String(arcaRes.data.nroComprobante).padStart(8,"0")) : null
@@ -1012,7 +1012,14 @@ function POS({ localId, usuario }) {
                     <button onClick={() => setCart(prev => prev.map(x => x.id === i.id && x.qty > 1 ? { ...x, qty: x.qty - 1 } : x))} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e8e8e8", background: "white", cursor: "pointer" }}>-</button>
                     <span style={{ fontSize: 12, fontWeight: 600, minWidth: 20, textAlign: "center" }}>{i.qty}</span>
                     <button onClick={() => add(i)} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e8e8e8", background: "white", cursor: "pointer" }}>+</button>
-                    <div style={{ minWidth: 70, textAlign: "right", fontSize: 12, fontWeight: 600 }}>{fmt(((i.precio || i.price) * i.qty))}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                      <input type="number" min="0" max="100" placeholder="0" value={i.descuento_pct || ""} onChange={e => { const v = e.target.value === "" ? 0 : Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)); setCart(prev => prev.map(x => x.id === i.id ? { ...x, descuento_pct: v } : x)); }} style={{ width: 34, fontSize: 10, padding: "2px 3px", border: "1px solid #e8e8e8", borderRadius: 4, textAlign: "center" }} title="% descuento a este producto" />
+                      <span style={{ fontSize: 9, color: "#888888" }}>%</span>
+                    </div>
+                    <div style={{ minWidth: 70, textAlign: "right", fontSize: 12, fontWeight: 600 }}>
+                      {(i.descuento_pct > 0) && <div style={{ fontSize: 9, color: "#aaaaaa", textDecoration: "line-through" }}>{fmt(((i.precio || i.price) * i.qty))}</div>}
+                      {fmt(((i.precio || i.price) * i.qty) * (1 - (i.descuento_pct || 0) / 100))}
+                    </div>
                     <div onClick={() => remove(i.id)} style={{ cursor: "pointer", color: "#cccccc", fontSize: 18 }}>x</div>
                   </div>
                 </div>
