@@ -4333,11 +4333,9 @@ function CierreCaja({ localId, usuario }) {
         </div>
 
         {/* Tarjetas tipo dashboard */}
-        <div className="g4" style={{ marginBottom: 16 }}>
+        <div className="g2" style={{ marginBottom: 16 }}>
           <MCard label="VENTAS" value={ventasDia.length} sub="del dia" color="#2471a3" />
           <MCard label="TICKET PROMEDIO" value={fmt(ventasDia.length > 0 ? totalVentasNeto / ventasDia.length : 0)} sub="por venta" color="#8e44ad" />
-          <MCard label="MEDIOS DE PAGO" value={mediosOrdenados.length} sub="usados hoy" color="#c9a84c" />
-          <MCard label="EFECTIVO ESPERADO" value={fmt(efectivoEsperado)} sub="en caja" color="#111111" />
         </div>
 
         {loading ? (
