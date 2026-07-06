@@ -4316,16 +4316,28 @@ function CierreCaja({ localId, usuario }) {
       )}
 
       <div ref={resumenRef} style={{ background: "#ffffff", padding: 4, borderRadius: 8 }}>
-        <div style={{ padding: "10px 0 16px", borderBottom: "1px solid #f0f0f0", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ padding: "6px 4px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>LUMIERE — Cierre de Caja</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Cierre de Caja</div>
             <div style={{ fontSize: 11, color: "#65676B" }}>{fmtDia(fecha)}</div>
           </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 11, color: "#65676B" }}>TOTAL DEL DIA</div>
-            <div style={{ fontSize: 28, fontWeight: 700, color: "#2d7a4f" }}>{fmt(totalDia)}</div>
-            <div style={{ fontSize: 10, color: "#65676B" }}>{ventasDia.length} ventas{totalGiftCards > 0 ? " + $" +fmtNum(totalGiftCards) + " gift cards" : ""}</div>
+        </div>
+
+        {/* Total del dia bien grande, estilo protagonista */}
+        <div style={{ background: "linear-gradient(135deg, #2d7a4f, #256b44)", borderRadius: 14, padding: "22px 24px", marginBottom: 14, boxShadow: "0 4px 14px rgba(45,122,79,0.25)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 11, color: "#ffffffcc", letterSpacing: ".15em", fontWeight: 600 }}>TOTAL DEL DIA</div>
+            <div style={{ fontSize: 40, fontWeight: 800, color: "#ffffff", lineHeight: 1.1 }}>{fmt(totalDia)}</div>
+            <div style={{ fontSize: 11, color: "#ffffffcc", marginTop: 2 }}>{ventasDia.length} ventas{totalGiftCards > 0 ? " + " + fmt(totalGiftCards) + " en gift cards" : ""}</div>
           </div>
+        </div>
+
+        {/* Tarjetas tipo dashboard */}
+        <div className="g4" style={{ marginBottom: 16 }}>
+          <MCard label="VENTAS" value={ventasDia.length} sub="del dia" color="#2471a3" />
+          <MCard label="TICKET PROMEDIO" value={fmt(ventasDia.length > 0 ? totalVentasNeto / ventasDia.length : 0)} sub="por venta" color="#8e44ad" />
+          <MCard label="MEDIOS DE PAGO" value={mediosOrdenados.length} sub="usados hoy" color="#c9a84c" />
+          <MCard label="EFECTIVO ESPERADO" value={fmt(efectivoEsperado)} sub="en caja" color="#111111" />
         </div>
 
         {loading ? (
