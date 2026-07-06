@@ -3006,7 +3006,7 @@ function GiftCards({ localId, usuario }) {
   const [showForm, setShowForm] = useState(false);
   const [verMov, setVerMov] = useState(null);
   const [movimientos, setMovimientos] = useState([]);
-  const [nueva, setNueva] = useState({ monto: "", beneficiario_nombre: "", beneficiario_telefono: "", cliente_id: "" });
+  const [nueva, setNueva] = useState({ monto: "", beneficiario_nombre: "", beneficiario_telefono: "", cliente_id: "", migracion: false });
 
   const cargar = () => {
     setLoading(true);
@@ -3024,7 +3024,7 @@ function GiftCards({ localId, usuario }) {
       const res = await API.post("/gift-cards", { ...nueva, local_id: localId || 1, emitida_por: usuario?.id || null });
       setMensaje("Gift card emitida! Codigo: " + res.data.codigo);
       setShowForm(false);
-      setNueva({ monto: "", beneficiario_nombre: "", beneficiario_telefono: "", cliente_id: "" });
+      setNueva({ monto: "", beneficiario_nombre: "", beneficiario_telefono: "", cliente_id: "", migracion: false });
       cargar();
       setTimeout(() => setMensaje(""), 6000);
     } catch (e) { setMensaje(e.response?.data?.error || "Error al emitir la gift card"); }
@@ -3112,7 +3112,11 @@ function GiftCards({ localId, usuario }) {
                 {clientes.map(c => (<option key={c.id} value={c.id}>{c.nombre}</option>))}
               </select>
             </div>
-            <div style={{ fontSize: 10, color: "#65676B", marginBottom: 14 }}>Al emitirla se cobra el monto ahora y se genera el ingreso de caja. La factura se hace recien cuando se canjea por productos.</div>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "10px 0", cursor: "pointer", marginBottom: 4 }}>
+              <input type="checkbox" checked={nueva.migracion} onChange={e => setNueva(p => ({ ...p, migracion: e.target.checked }))} style={{ marginTop: 2 }} />
+              <span style={{ fontSize: 11, color: "#111111" }}>Gift card ya vendida (del sistema anterior). No cuenta como ingreso de hoy en la caja.</span>
+            </label>
+            <div style={{ fontSize: 10, color: "#65676B", marginBottom: 14 }}>{nueva.migracion ? "Se crea la gift card para poder canjearla, pero NO suma al cierre de hoy (ya se cobro antes)." : "Al emitirla se cobra el monto ahora y se genera el ingreso de caja. La factura se hace recien cuando se canjea por productos."}</div>
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowForm(false)}>Cancelar</button>
               <button className="btn btn-p" style={{ flex: 1 }} onClick={emitir}>Emitir y cobrar</button>

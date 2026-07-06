@@ -68,7 +68,7 @@ router.post('/', async (req, res) => {
     await client.query('BEGIN');
     const {
       monto, beneficiario_nombre, beneficiario_telefono, beneficiario_dni,
-      cliente_id, comprador_nombre, local_id, emitida_por
+      cliente_id, comprador_nombre, local_id, emitida_por, migracion
     } = req.body;
 
     if (!monto || parseFloat(monto) <= 0) {
@@ -110,12 +110,15 @@ router.post('/', async (req, res) => {
       [gcId, montoNum, montoNum, emitida_por || null]
     );
 
-    // La emisión entra como ingreso de caja (NO se factura por ARCA hasta el canje)
-    await client.query(
-      `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id)
-       VALUES ($1, 'I', $2, $3, $4)`,
-      ['Gift Card ' + codigo, montoNum, codigo, local_id || 1]
-    );
+    // Si es una gift card de migración (ya vendida con el software viejo), NO cuenta como ingreso de hoy.
+    if (migracion !== true) {
+      // La emisión entra como ingreso de caja (NO se factura por ARCA hasta el canje)
+      await client.query(
+        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id)
+         VALUES ($1, 'I', $2, $3, $4)`,
+        ['Gift Card ' + codigo, montoNum, codigo, local_id || 1]
+      );
+    }
 
     await client.query('COMMIT');
     res.status(201).json(gc.rows[0]);
