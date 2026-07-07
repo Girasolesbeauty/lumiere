@@ -1503,7 +1503,7 @@ function Inventario({ localId, usuario }) {
                       <div style={{ display: "flex", gap: 4 }}>
                         {vistaLocal === "mi" && <button className="btn btn-sm" style={{ fontSize: 10 }} onClick={() => abrirAjuste(p)}>Ajustar</button>}
                         <button className="btn btn-sm" style={{ fontSize: 10 }} onClick={() => abrirEditarProd(p)}>Editar</button>
-                        {(usuario?.rol === "jefe" || usuario?.rol === "administrativo") && <button className="btn btn-sm" style={{ fontSize: 10, color: "#c0392b" }} onClick={() => setEliminandoProd(p)}>Eliminar</button>}
+                        {(usuario?.rol === "jefe" || usuario?.rol === "admin") && <button className="btn btn-sm" style={{ fontSize: 10, color: "#c0392b" }} onClick={() => setEliminandoProd(p)}>Eliminar</button>}
                       </div>
                     </td>
                   </tr>

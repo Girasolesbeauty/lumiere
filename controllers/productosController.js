@@ -84,16 +84,36 @@ const update = async (req, res) => {
 };
 
 const remove = async (req, res) => {
+  const client = await pool.connect();
   try {
+    await client.query('BEGIN');
     const { id } = req.params;
-    const ventas = await pool.query('SELECT COUNT(*) FROM venta_items WHERE producto_id = $1', [id]);
+
+    // Si tiene ventas reales, NO se borra (protege el historial de ventas)
+    const ventas = await client.query('SELECT COUNT(*) FROM venta_items WHERE producto_id = $1', [id]);
     if (parseInt(ventas.rows[0].count) > 0) {
-      return res.status(400).json({ error: 'Este producto tiene ventas registradas, no se puede borrar.' });
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Este producto tiene ventas registradas, no se puede borrar. Si no lo usas mas, editalo y desactivalo.' });
     }
-    await pool.query('DELETE FROM productos WHERE id = $1', [id]);
+
+    // Borrar primero los vinculos que no son ventas (ajustes de stock, items de kit)
+    await client.query('DELETE FROM ajustes_stock WHERE producto_id = $1', [id]);
+    // kit_items puede no existir en algunos entornos; se intenta y se ignora si falla
+    try { await client.query('DELETE FROM kit_items WHERE producto_id = $1', [id]); } catch (e) {}
+
+    const del = await client.query('DELETE FROM productos WHERE id = $1', [id]);
+    await client.query('COMMIT');
+
+    if (del.rowCount === 0) {
+      return res.status(404).json({ error: 'No se encontro el producto para borrar.' });
+    }
     res.json({ mensaje: 'Producto eliminado correctamente' });
   } catch (error) {
-    res.status(500).json({ error: 'Error al eliminar producto' });
+    await client.query('ROLLBACK');
+    console.error(error);
+    res.status(500).json({ error: 'No se pudo borrar: ' + error.message });
+  } finally {
+    client.release();
   }
 };
 
