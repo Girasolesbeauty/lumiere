@@ -435,12 +435,11 @@ function VentasOnline({ localId, usuario }) {
     if (!medioPagoId) return setMensaje("Elegi el medio de pago");
     setGuardando(true);
     try {
-      const medio = mediosPago.find(m => String(m.id) === String(medioPagoId));
       const items = cart.map(i => ({ producto_id: i.id, cantidad: i.qty, precio_unitario: i.precio || i.price || 0 }));
       await API.post("/ventas/online", {
         items, total,
-        medio_pago_id: medioPagoId || null,
-        medio_pago_nombre: medio?.nombre || null,
+        medio_pago_id: null,
+        medio_pago_nombre: medioPagoId || null,
         local_id: localId || 1,
         usuario_id: usuario?.id || null,
         referencia: referencia || null
@@ -510,7 +509,12 @@ function VentasOnline({ localId, usuario }) {
                 <div className="fl">Medio de pago</div>
                 <select className="inp" value={medioPagoId} onChange={e => setMedioPagoId(e.target.value)}>
                   <option value="">Seleccionar...</option>
-                  {mediosPago.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
+                  <option value="Pago Nube">Pago Nube</option>
+                  <option value="Mercado Pago debito">Mercado Pago debito</option>
+                  <option value="Mercado Pago credito 1 cuota">Mercado Pago credito 1 cuota</option>
+                  <option value="Mercado Pago credito 2 sin interes">Mercado Pago credito 2 sin interes</option>
+                  <option value="Mercado Pago credito 3 sin interes">Mercado Pago credito 3 sin interes</option>
+                  <option value="Mercado Pago credito 4 sin interes">Mercado Pago credito 4 sin interes</option>
                 </select>
               </div>
               <div className="fg" style={{ marginBottom: 10 }}>
