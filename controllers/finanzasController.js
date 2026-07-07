@@ -1,5 +1,14 @@
 const pool = require('../config/database');
 
+// Convierte "rg"/"ush" (o numeros) al id numerico del local. null si es consolidado/vacio.
+function normalizarLocalId(v) {
+  if (v === undefined || v === null || v === '' || v === 'consolidado' || v === 'todos') return null;
+  if (v === 'rg' || v === 'RG') return 1;
+  if (v === 'ush' || v === 'USH') return 2;
+  const n = parseInt(v);
+  return isNaN(n) ? null : n;
+}
+
 // Flujo de caja básico (movimientos)
 const getFlujo = async (req, res) => {
   try {
@@ -18,9 +27,10 @@ const getFlujo = async (req, res) => {
     `;
     const params = [mesActual, anioActual];
 
-    if (local_id && local_id !== 'consolidado') {
+    const localNum = normalizarLocalId(local_id);
+    if (localNum !== null) {
       query += ` AND (m.local_id = $3 OR m.local_id IS NULL)`;
-      params.push(local_id);
+      params.push(localNum);
     }
 
     query += ' ORDER BY m.creado_en DESC';
@@ -55,9 +65,10 @@ const getFlujoEstructurado = async (req, res) => {
       AND EXTRACT(YEAR FROM creado_en) = $2
     `;
     const ventasParams = [mesActual, anioActual];
-    if (local_id && local_id !== 'consolidado') {
+    const localNumV = normalizarLocalId(local_id);
+    if (localNumV !== null) {
       ventasQuery += ` AND local_id = $3`;
-      ventasParams.push(local_id);
+      ventasParams.push(localNumV);
     }
     ventasQuery += ' GROUP BY canal';
     const ventasRes = await pool.query(ventasQuery, ventasParams);
@@ -76,9 +87,10 @@ const getFlujoEstructurado = async (req, res) => {
       AND EXTRACT(YEAR FROM m.creado_en) = $2
     `;
     const egresosParams = [mesActual, anioActual];
-    if (local_id && local_id !== 'consolidado') {
-      egresosQuery += ` AND (m.local_id = $3 OR m.local_id = 'compartido')`;
-      egresosParams.push(local_id);
+    const localNumEg = normalizarLocalId(local_id);
+    if (localNumEg !== null) {
+      egresosQuery += ` AND (m.local_id = $3 OR m.local_id IS NULL)`;
+      egresosParams.push(localNumEg);
     }
 
     const egresosRes = await pool.query(egresosQuery, egresosParams);
