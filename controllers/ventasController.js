@@ -390,4 +390,69 @@ const getResumenMes = async (req, res) => {
   }
 };
 
-module.exports = { getAll, getById, create, update, confirmarEntrega, getResumenHoy, getResumenMes };
+// Registrar una VENTA ONLINE (ya facturada en la tienda online).
+// Descuenta stock del local indicado, suma al cierre, NO factura en ARCA.
+const crearOnline = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { items, total, medio_pago_id, medio_pago_nombre, local_id, usuario_id, referencia } = req.body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'La venta online no tiene productos' });
+    }
+    const totalNum = parseFloat(total) || 0;
+
+    let subtotal = 0;
+    for (const item of items) subtotal += item.precio_unitario * item.cantidad;
+
+    const count = await client.query('SELECT COUNT(*) FROM ventas');
+    const numero = 'ON-' + String(parseInt(count.rows[0].count) + 1).padStart(4, '0');
+
+    const venta = await client.query(
+      `INSERT INTO ventas
+        (numero_factura, cliente_id, tipo_factura, subtotal, descuento, total, canal, local_id,
+         medio_pago_id, medio_pago, es_preventa, estado_pago, usuario_id)
+       VALUES ($1, NULL, NULL, $2, 0, $3, 'online', $4, $5, $6, FALSE, 'pagado', $7) RETURNING *`,
+      [numero, subtotal, totalNum, local_id || 1, medio_pago_id || null, medio_pago_nombre || null, usuario_id || null]
+    );
+    const ventaId = venta.rows[0].id;
+
+    const colStock = (local_id === 2 || local_id === '2') ? 'stock_ush' : 'stock_rg';
+    for (const item of items) {
+      await client.query(
+        `INSERT INTO venta_items (venta_id, producto_id, cantidad, precio_unitario, subtotal)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [ventaId, item.producto_id, item.cantidad, item.precio_unitario, item.precio_unitario * item.cantidad]
+      );
+      // Descuenta del stock del local y sincroniza el total
+      await client.query(
+        `UPDATE productos SET ${colStock} = COALESCE(${colStock}, 0) - $1,
+           stock = COALESCE(stock_rg, 0) + COALESCE(stock_ush, 0) - $1
+         WHERE id = $2`,
+        [item.cantidad, item.producto_id]
+      );
+    }
+
+    // Suma al cierre de caja como ingreso (identificado como venta online)
+    if (totalNum > 0) {
+      await client.query(
+        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id)
+         VALUES ($1, 'I', $2, $3, $4)`,
+        ['Venta online ' + numero + (referencia ? ' (' + referencia + ')' : ''), totalNum, numero, local_id || 1]
+      );
+    }
+
+    await client.query('COMMIT');
+    res.status(201).json(venta.rows[0]);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error(error);
+    res.status(500).json({ error: 'Error al registrar venta online: ' + error.message });
+  } finally {
+    client.release();
+  }
+};
+
+module.exports = { getAll, getById, create, update, confirmarEntrega, getResumenHoy, getResumenMes, crearOnline };

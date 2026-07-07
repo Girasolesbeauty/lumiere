@@ -397,6 +397,136 @@ function Dashboard({ localId }) {
   );
 }
 
+function VentasOnline({ localId, usuario }) {
+  const [productos, setProductos] = useState([]);
+  const [mediosPago, setMediosPago] = useState([]);
+  const [busqueda, setBusqueda] = useState("");
+  const [cart, setCart] = useState([]);
+  const [medioPagoId, setMedioPagoId] = useState("");
+  const [referencia, setReferencia] = useState("");
+  const [mensaje, setMensaje] = useState("");
+  const [guardando, setGuardando] = useState(false);
+
+  useEffect(() => {
+    const localParam = Number(localId) === 2 ? "ush" : "rg";
+    API.get("/productos?local=" + localParam).then(res => setProductos(res.data)).catch(() => {});
+    API.get("/medios-pago").then(res => setMediosPago(res.data)).catch(() => {});
+  }, [localId]);
+
+  const filtrados = busqueda.trim().length > 0
+    ? productos.filter(p => (p.nombre || "").toLowerCase().includes(busqueda.toLowerCase()) || (p.codigo_barras || "").includes(busqueda)).slice(0, 8)
+    : [];
+
+  const add = (p) => {
+    setCart(prev => {
+      const e = prev.find(i => i.id === p.id);
+      return e ? prev.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i) : [...prev, { ...p, qty: 1 }];
+    });
+    setBusqueda("");
+  };
+  const cambiarQty = (id, d) => setCart(prev => prev.map(i => i.id === id ? { ...i, qty: Math.max(1, i.qty + d) } : i));
+  const cambiarPrecio = (id, v) => setCart(prev => prev.map(i => i.id === id ? { ...i, precio: v, price: v } : i));
+  const remove = (id) => setCart(prev => prev.filter(i => i.id !== id));
+
+  const total = cart.reduce((s, i) => s + (i.precio || i.price || 0) * i.qty, 0);
+
+  const registrar = async () => {
+    if (cart.length === 0) return setMensaje("Agrega al menos un producto");
+    if (!medioPagoId) return setMensaje("Elegi el medio de pago");
+    setGuardando(true);
+    try {
+      const medio = mediosPago.find(m => String(m.id) === String(medioPagoId));
+      const items = cart.map(i => ({ producto_id: i.id, cantidad: i.qty, precio_unitario: i.precio || i.price || 0 }));
+      await API.post("/ventas/online", {
+        items, total,
+        medio_pago_id: medioPagoId || null,
+        medio_pago_nombre: medio?.nombre || null,
+        local_id: localId || 1,
+        usuario_id: usuario?.id || null,
+        referencia: referencia || null
+      });
+      setMensaje("Venta online registrada! Se sumo al cierre y se desconto del stock (sin facturar).");
+      setCart([]); setMedioPagoId(""); setReferencia("");
+      const localParam = Number(localId) === 2 ? "ush" : "rg";
+      API.get("/productos?local=" + localParam).then(res => setProductos(res.data)).catch(() => {});
+      setTimeout(() => setMensaje(""), 4000);
+    } catch (e) {
+      setMensaje("Error: " + (e?.response?.data?.error || "no se pudo registrar"));
+    }
+    setGuardando(false);
+  };
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Ventas Online</div><div className="ps">cargar ventas de la tienda (ya facturadas) - descuentan stock y suman al cierre</div></div>
+      </div>
+
+      {mensaje && <div className="card" style={{ marginBottom: 12, padding: 12, background: mensaje.startsWith("Error") ? "#fdecea" : "#eafaf1", color: mensaje.startsWith("Error") ? "#c0392b" : "#1e7e4f", fontSize: 13 }}>{mensaje}</div>}
+
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ flex: "1 1 340px" }}>
+          <div className="card" style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Buscar producto</div>
+            <input className="inp" placeholder="Nombre o codigo de barras" value={busqueda} onChange={e => setBusqueda(e.target.value)} />
+            {filtrados.length > 0 && (
+              <div style={{ marginTop: 8, border: "1px solid #eee", borderRadius: 6 }}>
+                {filtrados.map(p => (
+                  <div key={p.id} onClick={() => add(p)} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 12, display: "flex", justifyContent: "space-between" }}>
+                    <span>{p.nombre}</span>
+                    <span style={{ color: "#888" }}>{fmt(p.precio || p.price || 0)} · stock {Number(localId) === 2 ? (p.stock_ush || 0) : (p.stock_rg || 0)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div style={{ flex: "1 1 340px" }}>
+          <div className="card">
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Productos de la venta</div>
+            {cart.length === 0 ? <div style={{ fontSize: 12, color: "#999", padding: "12px 0" }}>Todavia no agregaste productos</div> : cart.map(i => (
+              <div key={i.id} style={{ background: "#fff", border: "1px solid #eee", borderRadius: 6, padding: "8px 10px", marginBottom: 6 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span style={{ fontSize: 12, fontWeight: 500 }}>{i.nombre || i.name}</span>
+                  <span onClick={() => remove(i.id)} style={{ cursor: "pointer", color: "#ccc", fontSize: 16 }}>x</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <button onClick={() => cambiarQty(i.id, -1)} style={{ width: 24, height: 24, borderRadius: 4, border: "1px solid #e8e8e8", background: "#f7f7f7", cursor: "pointer", fontWeight: 700 }}>−</button>
+                  <span style={{ minWidth: 22, textAlign: "center", fontSize: 13 }}>{i.qty}</span>
+                  <button onClick={() => cambiarQty(i.id, 1)} style={{ width: 24, height: 24, borderRadius: 4, border: "1px solid #e8e8e8", background: "#f7f7f7", cursor: "pointer", fontWeight: 700 }}>+</button>
+                  <span style={{ fontSize: 9, color: "#999", marginLeft: 4 }}>$</span>
+                  <input type="number" value={i.precio || i.price || ""} onChange={e => cambiarPrecio(i.id, parseFloat(e.target.value) || 0)} style={{ width: 80, fontSize: 11, padding: "4px 6px", border: "1px solid #e8e8e8", borderRadius: 4, textAlign: "right" }} />
+                  <span style={{ marginLeft: "auto", fontSize: 13, fontWeight: 600 }}>{fmt((i.precio || i.price || 0) * i.qty)}</span>
+                </div>
+              </div>
+            ))}
+
+            <div style={{ borderTop: "1px solid #eee", marginTop: 10, paddingTop: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 15, fontWeight: 700, marginBottom: 10 }}>
+                <span>Total</span><span>{fmt(total)}</span>
+              </div>
+              <div className="fg" style={{ marginBottom: 8 }}>
+                <div className="fl">Medio de pago</div>
+                <select className="inp" value={medioPagoId} onChange={e => setMedioPagoId(e.target.value)}>
+                  <option value="">Seleccionar...</option>
+                  {mediosPago.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
+                </select>
+              </div>
+              <div className="fg" style={{ marginBottom: 10 }}>
+                <div className="fl">Referencia (opcional)</div>
+                <input className="inp" placeholder="Ej: pedido #123 Tiendanube" value={referencia} onChange={e => setReferencia(e.target.value)} />
+              </div>
+              <button className="btn btn-p" style={{ width: "100%" }} disabled={guardando} onClick={registrar}>{guardando ? "Registrando..." : "Registrar venta online"}</button>
+              <div style={{ fontSize: 10, color: "#888", marginTop: 8, textAlign: "center" }}>No se factura en ARCA (ya facturada en la tienda). Descuenta del stock de {Number(localId) === 2 ? "Ushuaia" : "Rio Grande"}.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function POS({ localId, usuario }) {
   const [cart, setCart] = useState([]);
   const [inicioVenta, setInicioVenta] = useState(null);
@@ -5930,7 +6060,7 @@ function Promociones() {
 
 
 const NAV_SECTIONS = [
-  { section: "VENTAS", color: "#e67e22", items: [{ id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "pos", icon: "🛒", label: "Punto de Venta" }] },
+  { section: "VENTAS", color: "#e67e22", items: [{ id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "pos", icon: "🛒", label: "Punto de Venta" }, { id: "ventas-online", icon: "🌐", label: "Ventas Online" }] },
   { section: "STOCK", color: "#7d3c98", items: [{ id: "inventory", icon: "📦", label: "Inventario" }, { id: "ordenes", icon: "🚚", label: "Ingresos" }, { id: "inconsistencias", icon: "⚠️", label: "Inconsistencias" }, { id: "kits", icon: "🎁", label: "Kits" }, { id: "insumos", icon: "🛍️", label: "Insumos" }, { id: "control-inv", icon: "🔍", label: "Control de Inventario" }] },
   { section: "CAJA", color: "#2d7a4f", items: [{ id: "caja", icon: "💵", label: "Caja" }, { id: "cierre", icon: "🔒", label: "Cierre de Caja" }, { id: "giftcards", icon: "🎀", label: "Gift Cards" }] },
   { section: "CLIENTES", color: "#c9a84c", items: [{ id: "clients", icon: "👥", label: "Clientes" }, { id: "fidelizacion", icon: "⭐", label: "Fidelizacion" }] },
@@ -6333,6 +6463,7 @@ export default function AppWrapper() {
     if (!puedeVer(id)) return <SinPermiso />;
     if (id === "dashboard") return <Dashboard localId={local.id} />;
     if (id === "pos") return <POS localId={local.id} />;
+    if (id === "ventas-online") return <VentasOnline localId={local.id} usuario={usuario} />;
     if (id === "inventory") return <Inventario localId={local.id} usuario={usuario} />;
     if (id === "clients") return <Clientes localId={local.id} />;
     if (id === "finance") return <Finanzas localId={local.id} />;

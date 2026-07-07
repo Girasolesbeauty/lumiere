@@ -5,6 +5,7 @@ const controller = require('../controllers/ventasController');
 router.get('/', controller.getAll);
 router.get('/:id', controller.getById);
 router.post('/', controller.create);
+router.post('/online', controller.crearOnline);
 router.put('/:id', controller.update);
 router.put('/:id/confirmar-entrega', controller.confirmarEntrega);
 router.get('/resumen/hoy', controller.getResumenHoy);
