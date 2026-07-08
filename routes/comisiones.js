@@ -38,19 +38,32 @@ router.get('/:local_id', async (req, res) => {
     let falta_nivel1 = 0;
     let falta_nivel2 = 0;
 
-    if (total >= r.umbral_2) {
-      comision = r.comision_1 + r.comision_2;
-      nivel = 2;
+    // 3 escalones: cada umbral superado suma su comision.
+    const u1 = parseFloat(r.umbral_1) || 0;
+    const u2 = parseFloat(r.umbral_2) || 0;
+    const u3 = parseFloat(r.umbral_3) || 0;
+    const c1 = parseFloat(r.comision_1) || 0;
+    const c2 = parseFloat(r.comision_2) || 0;
+    const c3 = parseFloat(r.comision_3) || 0;
+
+    if (u3 > 0 && total >= u3) {
+      comision = c1 + c2 + c3;
+      nivel = 3;
       mensaje = `Meta maxima alcanzada! Comision: $${comision.toLocaleString()}`;
-    } else if (total >= r.umbral_1) {
-      comision = r.comision_1;
+    } else if (u2 > 0 && total >= u2) {
+      comision = c1 + c2;
+      nivel = 2;
+      if (u3 > 0) falta_nivel2 = u3 - total;
+      mensaje = `Meta 2 alcanzada! Te faltan $${(u3 > 0 ? u3 - total : 0).toLocaleString()} para el ultimo bonus`;
+    } else if (total >= u1) {
+      comision = c1;
       nivel = 1;
-      falta_nivel2 = r.umbral_2 - total;
+      falta_nivel2 = u2 - total;
       mensaje = `Meta 1 alcanzada! Te faltan $${falta_nivel2.toLocaleString()} para el bonus extra`;
     } else {
       comision = 0;
       nivel = 0;
-      falta_nivel1 = r.umbral_1 - total;
+      falta_nivel1 = u1 - total;
       mensaje = `Te faltan $${falta_nivel1.toLocaleString()} para ganar la comision`;
     }
 

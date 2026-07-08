@@ -4061,6 +4061,21 @@ function Comisiones({ localId }) {
                   <span style={{ fontSize: 10, color: datos.nivel >= 2 ? "#c9a84c" : "#65676B" }}>{datos.pct_nivel2}%</span>
                 </div>
               </div>
+              {datos.umbral_3 && parseFloat(datos.umbral_3) > 0 && (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span style={{ fontSize: 12, color: "#444444", fontWeight: 600 }}>Meta 3 "" {fmt(parseFloat(datos.umbral_3 || 0))}</span>
+                  <span style={{ fontSize: 12, color: "#8e44ad", fontWeight: 600 }}>+{fmt(parseFloat(datos.comision_3 || 0))}</span>
+                </div>
+                <div className="pb" style={{ height: 10 }}>
+                  <div className="pf" style={{ width: (datos.pct_nivel3 || Math.min(Math.round((parseFloat(datos.facturacion || 0) / parseFloat(datos.umbral_3 || 1)) * 100), 100)) + "%", background: datos.nivel >= 3 ? "#8e44ad" : "#dddddd" }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+                  <span style={{ fontSize: 10, color: "#65676B" }}>{fmt(parseFloat(datos.facturacion || 0))} facturado</span>
+                  <span style={{ fontSize: 10, color: datos.nivel >= 3 ? "#8e44ad" : "#65676B" }}>{Math.min(Math.round((parseFloat(datos.facturacion || 0) / parseFloat(datos.umbral_3 || 1)) * 100), 100)}%</span>
+                </div>
+              </div>
+              )}
             </div>
             <div className="card">
               <div className="ct">Estado del mes</div>
