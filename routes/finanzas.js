@@ -9,5 +9,7 @@ router.get('/resumen', controller.getResumen);
 router.get('/flujo-estructurado', controller.getFlujoEstructurado);
 router.get('/comisiones', controller.getComisiones);
 router.get('/cmv', controller.getCMV);
+router.post('/facturacion-externa', controller.guardarFacturacionExterna);
+router.get('/facturacion-externa', controller.getFacturacionExterna);
 
 module.exports = router;

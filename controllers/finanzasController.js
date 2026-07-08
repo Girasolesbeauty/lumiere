@@ -366,4 +366,48 @@ const getCMV = async (req, res) => {
   }
 };
 
-module.exports = { getFlujo, getFlujoEstructurado, agregarEgreso, getPuntoEquilibrio, getResumen, getComisiones, getCMV };
+// Guardar/actualizar facturacion del sistema anterior (por local y mes).
+const guardarFacturacionExterna = async (req, res) => {
+  try {
+    const { monto, local_id, mes, anio, descripcion } = req.body;
+    const mesN = parseInt(mes) || (new Date().getMonth() + 1);
+    const anioN = parseInt(anio) || new Date().getFullYear();
+    const localN = parseInt(local_id) || 1;
+    // Si ya existe uno para ese local+mes+anio, lo reemplaza (para no duplicar)
+    await pool.query(
+      'DELETE FROM facturacion_externa WHERE local_id = $1 AND mes = $2 AND anio = $3',
+      [localN, mesN, anioN]
+    );
+    await pool.query(
+      `INSERT INTO facturacion_externa (monto, local_id, mes, anio, descripcion)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [parseFloat(monto) || 0, localN, mesN, anioN, descripcion || 'Sistema anterior']
+    );
+    res.status(201).json({ ok: true, mensaje: 'Facturacion del sistema anterior guardada' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al guardar: ' + error.message });
+  }
+};
+
+// Leer facturacion externa (por mes/anio, opcional local)
+const getFacturacionExterna = async (req, res) => {
+  try {
+    const { mes, anio, local_id } = req.query;
+    const mesN = parseInt(mes) || (new Date().getMonth() + 1);
+    const anioN = parseInt(anio) || new Date().getFullYear();
+    const localNum = normalizarLocalId(local_id);
+    let q = 'SELECT * FROM facturacion_externa WHERE mes = $1 AND anio = $2';
+    const params = [mesN, anioN];
+    if (localNum !== null) { q += ' AND local_id = $3'; params.push(localNum); }
+    q += ' ORDER BY local_id';
+    const r = await pool.query(q, params);
+    const total = r.rows.reduce((s, x) => s + parseFloat(x.monto || 0), 0);
+    res.json({ registros: r.rows, total });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al leer facturacion externa: ' + error.message });
+  }
+};
+
+module.exports = { getFlujo, getFlujoEstructurado, agregarEgreso, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna };

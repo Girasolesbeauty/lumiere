@@ -1964,6 +1964,9 @@ function Finanzas({ localId }) {
   const [flujoEst, setFlujoEst] = useState(null);
   const [comisiones, setComisiones] = useState(null);
   const [cmv, setCmv] = useState(null);
+  const [factExterna, setFactExterna] = useState(null);
+  const [factExtMonto, setFactExtMonto] = useState("");
+  const [factExtLocal, setFactExtLocal] = useState("1");
   const [equilibrio, setEquilibrio] = useState(null);
   const [loading, setLoading] = useState(true);
   const [nuevoEgreso, setNuevoEgreso] = useState({ concepto: "", importe: "", categoria_id: "", forma_pago: "", cuenta_pago_id: "", local_id: "" });
@@ -1982,14 +1985,16 @@ function Finanzas({ localId }) {
       API.get(`/finanzas/flujo-estructurado?${params}`),
       API.get(`/finanzas/comisiones?${params}`),
       API.get(`/finanzas/cmv?${params}`),
+      API.get(`/finanzas/facturacion-externa?mes=${mesFiltro}&anio=${anioFiltro}&local_id=${localParam}`),
       getPuntoEquilibrio(),
       API.get("/categorias-costo"),
       API.get("/cuentas-pago?solo_pago=true")
-    ]).then(([f, fe, com, cmvRes, e, cats, cuentas]) => {
+    ]).then(([f, fe, com, cmvRes, fext, e, cats, cuentas]) => {
       setFlujo(f.data);
       setFlujoEst(fe.data);
       setComisiones(com.data);
       setCmv(cmvRes.data);
+      setFactExterna(fext.data);
       setEquilibrio(e.data);
       setCategoriasCosto(cats.data);
       setCuentasPago(cuentas.data);
@@ -1998,6 +2003,22 @@ function Finanzas({ localId }) {
   };
 
   useEffect(() => { cargarDatos(); }, [tabLocal, mesFiltro, anioFiltro]);
+
+  const guardarFactExterna = async () => {
+    if (!factExtMonto || parseFloat(factExtMonto) <= 0) { setMensaje("Ingresa un monto valido"); return; }
+    try {
+      await API.post("/finanzas/facturacion-externa", {
+        monto: parseFloat(factExtMonto), local_id: parseInt(factExtLocal),
+        mes: mesFiltro, anio: anioFiltro, descripcion: "Sistema anterior"
+      });
+      setMensaje("Facturacion del sistema anterior guardada!");
+      setFactExtMonto("");
+      cargarDatos();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) {
+      setMensaje("Error al guardar la facturacion externa");
+    }
+  };
 
   const guardarEgreso = async () => {
     try {
@@ -2147,9 +2168,21 @@ function Finanzas({ localId }) {
             <div className="card" style={{ marginTop: 14 }}>
               <div className="ct">Resultado neto despues de comisiones e IIBB</div>
               <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: 13 }}>
-                <span style={{ color: "#444" }}>Ventas del mes</span>
+                <span style={{ color: "#444" }}>Ventas del mes (este sistema)</span>
                 <span style={{ fontWeight: 600 }}>{fmt(comisiones.total_ventas)}</span>
               </div>
+              {factExterna && factExterna.total > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: 13 }}>
+                  <span style={{ color: "#444" }}>Facturacion sistema anterior</span>
+                  <span style={{ fontWeight: 600 }}>{fmt(factExterna.total)}</span>
+                </div>
+              )}
+              {factExterna && factExterna.total > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: 13, borderTop: "1px solid #eee" }}>
+                  <span style={{ color: "#444", fontWeight: 600 }}>Facturacion total del mes</span>
+                  <span style={{ fontWeight: 700 }}>{fmt(comisiones.total_ventas + factExterna.total)}</span>
+                </div>
+              )}
               <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: 13, color: "#c0392b" }}>
                 <span>Comisiones por medio de pago</span>
                 <span>- {fmt(comisiones.total_comisiones)}</span>
@@ -2184,6 +2217,36 @@ function Finanzas({ localId }) {
           )}
         </div>
       )}
+
+          <div className="card" style={{ marginTop: 14 }}>
+            <div className="ct">Facturacion del sistema anterior</div>
+            <div style={{ fontSize: 11, color: "#65676B", marginBottom: 10 }}>Carga lo que facturaste con el software viejo este mes. Suma a la facturacion del mes (sin recalcular comisiones).</div>
+            {factExterna && factExterna.registros && factExterna.registros.length > 0 && (
+              <div style={{ marginBottom: 10 }}>
+                {factExterna.registros.map((r, idx) => (
+                  <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "5px 0", borderBottom: "1px solid #f0f0f0" }}>
+                    <span style={{ color: "#444" }}>{r.local_id === 2 ? "Ushuaia" : "Rio Grande"}</span>
+                    <span style={{ fontWeight: 600 }}>{fmt(parseFloat(r.monto))}</span>
+                  </div>
+                ))}
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "8px 0 0", fontWeight: 700 }}>
+                  <span>Total</span><span style={{ color: "#c9a84c" }}>{fmt(factExterna.total)}</span>
+                </div>
+              </div>
+            )}
+            <div className="fg" style={{ marginBottom: 8 }}>
+              <div className="fl">Local</div>
+              <select className="inp" value={factExtLocal} onChange={e => setFactExtLocal(e.target.value)}>
+                <option value="1">Rio Grande</option>
+                <option value="2">Ushuaia</option>
+              </select>
+            </div>
+            <div className="fg" style={{ marginBottom: 10 }}>
+              <div className="fl">Monto facturado</div>
+              <input className="inp" type="number" placeholder="0" value={factExtMonto} onChange={e => setFactExtMonto(e.target.value)} />
+            </div>
+            <button className="btn btn-p" style={{ width: "100%" }} onClick={guardarFactExterna}>Guardar facturacion anterior</button>
+          </div>
 
       {tab === "estructurado" && (
         <div className="fade">
