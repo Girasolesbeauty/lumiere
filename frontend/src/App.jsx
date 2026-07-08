@@ -1962,6 +1962,7 @@ function Finanzas({ localId }) {
   const [tabLocal, setTabLocal] = useState("rg");
   const [flujo, setFlujo] = useState(null);
   const [flujoEst, setFlujoEst] = useState(null);
+  const [comisiones, setComisiones] = useState(null);
   const [equilibrio, setEquilibrio] = useState(null);
   const [loading, setLoading] = useState(true);
   const [nuevoEgreso, setNuevoEgreso] = useState({ concepto: "", importe: "", categoria_id: "", forma_pago: "", cuenta_pago_id: "", local_id: "" });
@@ -1978,12 +1979,14 @@ function Finanzas({ localId }) {
     Promise.all([
       API.get(`/finanzas/flujo?${params}`),
       API.get(`/finanzas/flujo-estructurado?${params}`),
+      API.get(`/finanzas/comisiones?${params}`),
       getPuntoEquilibrio(),
       API.get("/categorias-costo"),
       API.get("/cuentas-pago?solo_pago=true")
-    ]).then(([f, fe, e, cats, cuentas]) => {
+    ]).then(([f, fe, com, e, cats, cuentas]) => {
       setFlujo(f.data);
       setFlujoEst(fe.data);
+      setComisiones(com.data);
       setEquilibrio(e.data);
       setCategoriasCosto(cats.data);
       setCuentasPago(cuentas.data);
@@ -2136,6 +2139,46 @@ function Finanzas({ localId }) {
               <button className="btn btn-p" style={{ width: "100%" }} onClick={guardarEgreso}>Registrar egreso</button>
             </div>
           </div>
+
+          {comisiones && (
+            <div className="card" style={{ marginTop: 14 }}>
+              <div className="ct">Resultado neto despues de comisiones e IIBB</div>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: 13 }}>
+                <span style={{ color: "#444" }}>Ventas del mes</span>
+                <span style={{ fontWeight: 600 }}>{fmt(comisiones.total_ventas)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: 13, color: "#c0392b" }}>
+                <span>Comisiones por medio de pago</span>
+                <span>- {fmt(comisiones.total_comisiones)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: 13, color: "#c0392b" }}>
+                <span>IIBB ({comisiones.iibb_pct}% sobre {fmt(comisiones.base_iibb)}, sin efectivo)</span>
+                <span>- {fmt(comisiones.iibb)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0 4px", borderTop: "2px solid #2d7a4f", marginTop: 6, fontSize: 15, fontWeight: 700 }}>
+                <span>Resultado neto</span>
+                <span style={{ color: "#2d7a4f" }}>{fmt(comisiones.resultado_neto)}</span>
+              </div>
+
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#888", marginBottom: 6 }}>DETALLE DE COMISIONES POR MEDIO DE PAGO</div>
+                <table style={{ width: "100%", fontSize: 11 }}>
+                  <thead><tr style={{ color: "#888", textAlign: "left" }}><th style={{ padding: "4px 0" }}>Medio</th><th>Ventas</th><th style={{ textAlign: "right" }}>Monto</th><th style={{ textAlign: "right" }}>%</th><th style={{ textAlign: "right" }}>Comision</th></tr></thead>
+                  <tbody>
+                    {comisiones.detalle.map((d, idx) => (
+                      <tr key={idx} style={{ borderTop: "1px solid #f0f0f0" }}>
+                        <td style={{ padding: "5px 0" }}>{d.medio}</td>
+                        <td>{d.ventas}</td>
+                        <td style={{ textAlign: "right" }}>{fmt(d.monto)}</td>
+                        <td style={{ textAlign: "right" }}>{d.comision_pct}%</td>
+                        <td style={{ textAlign: "right", color: "#c0392b" }}>{fmt(d.comision)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -2184,13 +2227,25 @@ function Finanzas({ localId }) {
       {tab === "costos" && (
         <div className="g2 fade">
           <div className="card">
-            <div className="ct">Costos fijos mensuales</div>
-            {[{ l: "Alquiler", v: 35000 }, { l: "Personal", v: 28000 }, { l: "Servicios", v: 4200 }, { l: "Plataformas", v: 3800 }].map(c => (
-              <div key={c.l} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: "1px solid #f0f0f0" }}>
-                <span style={{ fontSize: 12, color: "#444444" }}>{c.l}</span>
-                <span style={{ color: "#c9a84c" }}>{fmt(c.v)}</span>
-              </div>
-            ))}
+            <div className="ct">Costos reales del mes (cargados en el flujo)</div>
+            {(() => {
+              const grupos = [];
+              if (flujoEst) {
+                const push = (label, obj) => { if (obj && obj.detalle) Object.entries(obj.detalle).forEach(([k, v]) => grupos.push({ l: k + " (" + label + ")", v })); };
+                push("variable", flujoEst.variables);
+                push("fijo", flujoEst.fijos);
+                push("admin", flujoEst.admin);
+                push("sueldo", flujoEst.sueldos);
+                push("impuesto", flujoEst.impuestos);
+              }
+              if (grupos.length === 0) return <div style={{ fontSize: 12, color: "#999", padding: "10px 0" }}>Todavia no hay costos cargados este mes. Cargalos en la pestaña Flujo.</div>;
+              return grupos.map((c, idx) => (
+                <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: "1px solid #f0f0f0" }}>
+                  <span style={{ fontSize: 12, color: "#444444" }}>{c.l}</span>
+                  <span style={{ color: "#c9a84c" }}>{fmt(c.v)}</span>
+                </div>
+              ));
+            })()}
           </div>
           <div className="card">
             <div className="ct">Margen bruto por producto</div>

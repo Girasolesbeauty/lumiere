@@ -261,4 +261,73 @@ const getResumen = async (req, res) => {
   }
 };
 
-module.exports = { getFlujo, getFlujoEstructurado, agregarEgreso, getPuntoEquilibrio, getResumen };
+// Comisiones por medio de pago + IIBB (4% sobre todo lo que no es efectivo).
+// Toma las ventas del mes (presenciales y online), calcula la comision de cada una
+// segun el % guardado en su medio de pago, y devuelve el detalle + el resultado neto.
+const getComisiones = async (req, res) => {
+  try {
+    const { mes, anio, local_id } = req.query;
+    const mesActual = mes || (new Date().getMonth() + 1);
+    const anioActual = anio || new Date().getFullYear();
+    const localNum = normalizarLocalId(local_id);
+
+    // Ventas del periodo con la comision de su medio de pago
+    let q = `
+      SELECT v.total, v.medio_pago, v.canal,
+             COALESCE(mp.comision, 0) AS comision_pct,
+             COALESCE(mp.tipo, '') AS medio_tipo
+      FROM ventas v
+      LEFT JOIN medios_pago mp ON (mp.id = v.medio_pago_id OR mp.nombre = v.medio_pago)
+      WHERE EXTRACT(MONTH FROM v.creado_en) = $1
+        AND EXTRACT(YEAR FROM v.creado_en) = $2
+        AND COALESCE(v.es_preventa, FALSE) = FALSE
+    `;
+    const params = [mesActual, anioActual];
+    if (localNum !== null) { q += ` AND v.local_id = $3`; params.push(localNum); }
+
+    const result = await pool.query(q, params);
+
+    const IIBB_PCT = 4; // 4% sobre ventas no-efectivo
+    let totalVentas = 0;
+    let totalComisiones = 0;
+    let baseIIBB = 0; // ventas que no son efectivo
+    const porMedio = {}; // detalle agrupado por medio de pago
+
+    for (const r of result.rows) {
+      const total = parseFloat(r.total) || 0;
+      const pct = parseFloat(r.comision_pct) || 0;
+      const nombre = r.medio_pago || 'Sin especificar';
+      const esEfectivo = (r.medio_tipo === 'efectivo') || /efectivo/i.test(nombre);
+
+      const comision = total * (pct / 100);
+      totalVentas += total;
+      totalComisiones += comision;
+      if (!esEfectivo) baseIIBB += total;
+
+      if (!porMedio[nombre]) porMedio[nombre] = { medio: nombre, ventas: 0, monto: 0, comision_pct: pct, comision: 0 };
+      porMedio[nombre].ventas += 1;
+      porMedio[nombre].monto += total;
+      porMedio[nombre].comision += comision;
+    }
+
+    const iibb = baseIIBB * (IIBB_PCT / 100);
+    const resultadoNeto = totalVentas - totalComisiones - iibb;
+
+    res.json({
+      mes: mesActual,
+      anio: anioActual,
+      total_ventas: totalVentas,
+      total_comisiones: totalComisiones,
+      base_iibb: baseIIBB,
+      iibb_pct: IIBB_PCT,
+      iibb: iibb,
+      resultado_neto: resultadoNeto,
+      detalle: Object.values(porMedio).sort((a, b) => b.monto - a.monto)
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al calcular comisiones: ' + error.message });
+  }
+};
+
+module.exports = { getFlujo, getFlujoEstructurado, agregarEgreso, getPuntoEquilibrio, getResumen, getComisiones };
