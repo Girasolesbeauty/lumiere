@@ -205,20 +205,22 @@ function Dashboard({ localId }) {
     try {
       const local = tabLocal === "rg" ? "1" : tabLocal === "ush" ? "2" : "";
       const params = "mes=" + mes + "&anio=" + anio + (local ? "&local_id=" + local : "");
-      const [ventasRes, prodRes, clientesRes, finRes] = await Promise.all([
+      const [ventasRes, prodRes, clientesRes, finRes, factExtRes] = await Promise.all([
         API.get("/ventas?" + params),
         API.get("/productos"),
         API.get("/clientes"),
-        API.get("/finanzas/flujo?" + params).catch(() => ({ data: { resumen: { ingresos: 0, egresos: 0, neto: 0 } } }))
+        API.get("/finanzas/flujo?" + params).catch(() => ({ data: { resumen: { ingresos: 0, egresos: 0, neto: 0 } } })),
+        API.get("/finanzas/facturacion-externa?" + params).catch(() => ({ data: { total: 0 } }))
       ]);
       const ventas = ventasRes.data || [];
       const productos = prodRes.data || [];
       const clientes = clientesRes.data || [];
       const fin = finRes.data?.resumen || { ingresos: 0, egresos: 0, neto: 0 };
 
-      const totalVentas = ventas.reduce((s, v) => s + parseFloat(v.total || 0), 0);
+      const factExterna = parseFloat(factExtRes?.data?.total || 0);
+      const totalVentas = ventas.reduce((s, v) => s + parseFloat(v.total || 0), 0) + factExterna;
       const cantVentas = ventas.length;
-      const ticketProm = cantVentas > 0 ? totalVentas / cantVentas : 0;
+      const ticketProm = cantVentas > 0 ? (totalVentas - factExterna) / cantVentas : 0;
       const costoVentas = ventas.reduce((s, v) => s + parseFloat(v.costo_total || 0), 0);
       const margenBruto = totalVentas > 0 ? Math.round(((totalVentas - costoVentas) / totalVentas) * 100) : 0;
       const stockBajo = productos.filter(p => (p.stock || 0) <= (p.stock_minimo || 5));
