@@ -1980,7 +1980,7 @@ function Finanzas({ localId }) {
     setLoading(true);
     const localParam = local || tabLocal;
     const params = `mes=${mesFiltro}&anio=${anioFiltro}&local_id=${localParam}`;
-    Promise.all([
+    Promise.allSettled([
       API.get(`/finanzas/flujo?${params}`),
       API.get(`/finanzas/flujo-estructurado?${params}`),
       API.get(`/finanzas/comisiones?${params}`),
@@ -1989,17 +1989,18 @@ function Finanzas({ localId }) {
       getPuntoEquilibrio(),
       API.get("/categorias-costo"),
       API.get("/cuentas-pago?solo_pago=true")
-    ]).then(([f, fe, com, cmvRes, fext, e, cats, cuentas]) => {
-      setFlujo(f.data);
-      setFlujoEst(fe.data);
-      setComisiones(com.data);
-      setCmv(cmvRes.data);
-      setFactExterna(fext.data);
-      setEquilibrio(e.data);
-      setCategoriasCosto(cats.data);
-      setCuentasPago(cuentas.data);
+    ]).then((res) => {
+      const val = (i) => res[i].status === "fulfilled" ? res[i].value : null;
+      if (val(0)) setFlujo(val(0).data);
+      if (val(1)) setFlujoEst(val(1).data);
+      if (val(2)) setComisiones(val(2).data);
+      if (val(3)) setCmv(val(3).data);
+      if (val(4)) setFactExterna(val(4).data);
+      if (val(5)) setEquilibrio(val(5).data);
+      if (val(6)) setCategoriasCosto(val(6).data);
+      if (val(7)) setCuentasPago(val(7).data);
       setLoading(false);
-    }).catch(() => setLoading(false));
+    });
   };
 
   useEffect(() => { cargarDatos(); }, [tabLocal, mesFiltro, anioFiltro]);
