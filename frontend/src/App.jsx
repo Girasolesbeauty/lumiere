@@ -3970,147 +3970,120 @@ function PortalCliente() {
 
 function Comisiones({ localId }) {
   const [datos, setDatos] = useState(null);
-  const [historial, setHistorial] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [hist, setHist] = useState(null);
+  const [sel, setSel] = useState([]);
   const [mensaje, setMensaje] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const cargar = () => {
     setLoading(true);
     Promise.all([
-      API.get("/comisiones/" + localId),
-      API.get("/comisiones/" + localId + "/historial")
+      API.get("/comisiones/" + (localId || 1)),
+      API.get("/comisiones/" + (localId || 1) + "/historial")
     ]).then(([d, h]) => {
       setDatos(d.data);
-      setHistorial(h.data);
+      setHist(h.data);
       setLoading(false);
     }).catch(() => setLoading(false));
   };
+  useEffect(() => { cargar(); setSel([]); }, [localId]);
 
-  useEffect(() => { cargar(); }, [localId]);
+  const toggle = (id) => setSel(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
-  const marcarPagada = async () => {
+  const pagarSeleccionadas = async () => {
+    if (sel.length === 0) return setMensaje("Selecciona al menos un dia");
+    if (!confirm("Marcar como pagadas " + sel.length + " comisiones? Se van a sumar como egreso al flujo de efectivo.")) return;
     try {
-      await API.put("/comisiones/" + localId + "/pagar");
-      setMensaje("Comision marcada como pagada!");
+      const res = await API.put("/comisiones/" + (localId || 1) + "/pagar", { ids: sel });
+      setMensaje("Pagadas! Total: " + fmt(res.data.total_pagado) + " (" + res.data.dias_pagados + " dias)");
+      setSel([]);
       cargar();
-      setTimeout(() => setMensaje(""), 3000);
-    } catch (e) { setMensaje("Error al marcar como pagada"); }
+      setTimeout(() => setMensaje(""), 4000);
+    } catch (e) { setMensaje("Error al marcar como pagadas"); }
   };
 
-  const nivelColor = datos?.nivel === 2 ? "#c9a84c" : datos?.nivel === 1 ? "#2d7a4f" : "#65676B";
-  const nivelEmoji = datos?.nivel === 2 ? "🏆" : datos?.nivel === 1 ? "⭐" : "🎯";
+  const localNombre = Number(localId) === 2 ? "Ushuaia" : "Rio Grande";
 
   return (
     <div className="fade">
       <div className="ph">
-        <div><div className="pt">Comisiones</div><div className="ps">facturacion del mes - metas - premios</div></div>
-        <button className="btn btn-g btn-sm" onClick={cargar}>Actualizar</button>
+        <div><div className="pt">Comisiones {localNombre}</div><div className="ps">comision diaria por facturacion - se paga cuando vos marcas</div></div>
       </div>
-      {mensaje && (
-        <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>
-          {mensaje}
-        </div>
-      )}
-      {!loading && datos && (
+
+      {mensaje && <div className="card" style={{ marginBottom: 12, padding: 12, background: mensaje.startsWith("Error") ? "#fdecea" : "#eafaf1", color: mensaje.startsWith("Error") ? "#c0392b" : "#1e7e4f", fontSize: 13 }}>{mensaje}</div>}
+
+      {loading ? <div style={{ color: "#65676B", padding: 20 }}>Cargando...</div> : (
         <div>
-          <div className="g3" style={{ marginBottom: 18 }}>
-            <div className="card" style={{ borderTop: "3px solid " + nivelColor }}>
-              <div className="ct">Facturacion del mes</div>
-              <div className="metric" style={{ color: "#111111" }}>{fmt(parseFloat(datos.facturacion || 0))}</div>
-              <div className="msub">solo ventas presenciales</div>
+          {/* Comision de HOY */}
+          {datos && (
+            <div className="card" style={{ marginBottom: 14 }}>
+              <div className="ct">Comision de hoy</div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 11, color: "#65676B" }}>Facturado hoy</div>
+                  <div style={{ fontSize: 20, fontWeight: 700 }}>{fmt(parseFloat(datos.facturacion || 0))}</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 11, color: "#65676B" }}>Comision</div>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: "#2d7a4f" }}>{fmt(parseFloat(datos.comision || 0))}</div>
+                </div>
+              </div>
+              {/* Metas */}
+              {[[datos.umbral_1, datos.comision_1, 1, "#2d7a4f"], [datos.umbral_2, datos.comision_2, 2, "#c9a84c"], [datos.umbral_3, datos.comision_3, 3, "#8e44ad"]].map(([um, co, niv, col], idx) => (
+                parseFloat(um) > 0 ? (
+                  <div key={idx} style={{ marginBottom: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span style={{ fontSize: 11, color: "#444" }}>Meta {niv}: {fmt(parseFloat(um))}</span>
+                      <span style={{ fontSize: 11, color: col, fontWeight: 600 }}>+{fmt(parseFloat(co))}</span>
+                    </div>
+                    <div className="pb" style={{ height: 8 }}>
+                      <div className="pf" style={{ width: Math.min(Math.round((parseFloat(datos.facturacion || 0) / parseFloat(um)) * 100), 100) + "%", background: (datos.nivel >= niv) ? col : "#dddddd" }} />
+                    </div>
+                  </div>
+                ) : null
+              ))}
             </div>
-            <div className="card" style={{ borderTop: "3px solid " + nivelColor }}>
-              <div className="ct">Comision ganada</div>
-              <div className="metric" style={{ color: nivelColor }}>{fmt(parseFloat(datos.comision || 0))}</div>
-              <div className="msub">{nivelEmoji} {datos.nivel === 0 ? "Aun no alcanzada" : datos.nivel === 1 ? "Meta 1 alcanzada!" : "Meta maxima!"}</div>
-            </div>
+          )}
+
+          {/* Historial diario */}
+          {hist && (
             <div className="card">
-              <div className="ct">Proximo objetivo</div>
-              <div className="metric" style={{ color: "#c9a84c" }}>
-                {datos.nivel === 0 ? fmt(parseFloat(datos.falta_nivel1 || 0)) : datos.nivel === 1 ? fmt(parseFloat(datos.falta_nivel2 || 0)) : "MAX"}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div className="ct" style={{ margin: 0 }}>Historial de comisiones</div>
+                {sel.length > 0 && <button className="btn btn-p btn-sm" onClick={pagarSeleccionadas}>Marcar pagadas ({sel.length})</button>}
               </div>
-              <div className="msub">{datos.nivel === 2 ? "Meta maxima alcanzada!" : "para el proximo nivel"}</div>
-            </div>
-          </div>
-          <div className="g2">
-            <div className="card">
-              <div className="ct">Progreso hacia las metas</div>
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <span style={{ fontSize: 12, color: "#444444", fontWeight: 600 }}>Meta 1 "" {fmt(parseFloat(datos.umbral_1 || 0))}</span>
-                  <span style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>+{fmt(parseFloat(datos.comision_1 || 0))}</span>
+
+              <div className="g2" style={{ marginBottom: 12 }}>
+                <div style={{ background: "#f7f5f0", borderRadius: 8, padding: 10, textAlign: "center" }}>
+                  <div style={{ fontSize: 10, color: "#888" }}>PENDIENTE DE PAGO</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: "#c0392b" }}>{fmt(hist.total_pendiente || 0)}</div>
                 </div>
-                <div className="pb" style={{ height: 10 }}>
-                  <div className="pf" style={{ width: datos.pct_nivel1 + "%", background: datos.nivel >= 1 ? "#2d7a4f" : "#c9a84c" }} />
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-                  <span style={{ fontSize: 10, color: "#65676B" }}>{fmt(parseFloat(datos.facturacion || 0))} facturado</span>
-                  <span style={{ fontSize: 10, color: datos.nivel >= 1 ? "#2d7a4f" : "#65676B" }}>{datos.pct_nivel1}%</span>
+                <div style={{ background: "#f7f5f0", borderRadius: 8, padding: 10, textAlign: "center" }}>
+                  <div style={{ fontSize: 10, color: "#888" }}>YA PAGADO</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: "#2d7a4f" }}>{fmt(hist.total_pagado || 0)}</div>
                 </div>
               </div>
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <span style={{ fontSize: 12, color: "#444444", fontWeight: 600 }}>Meta 2 "" {fmt(parseFloat(datos.umbral_2 || 0))}</span>
-                  <span style={{ fontSize: 12, color: "#c9a84c", fontWeight: 600 }}>+{fmt(parseFloat(datos.comision_2 || 0))}</span>
-                </div>
-                <div className="pb" style={{ height: 10 }}>
-                  <div className="pf" style={{ width: datos.pct_nivel2 + "%", background: datos.nivel >= 2 ? "#c9a84c" : "#dddddd" }} />
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-                  <span style={{ fontSize: 10, color: "#65676B" }}>{fmt(parseFloat(datos.facturacion || 0))} facturado</span>
-                  <span style={{ fontSize: 10, color: datos.nivel >= 2 ? "#c9a84c" : "#65676B" }}>{datos.pct_nivel2}%</span>
-                </div>
-              </div>
-              {datos.umbral_3 && parseFloat(datos.umbral_3) > 0 && (
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <span style={{ fontSize: 12, color: "#444444", fontWeight: 600 }}>Meta 3 "" {fmt(parseFloat(datos.umbral_3 || 0))}</span>
-                  <span style={{ fontSize: 12, color: "#8e44ad", fontWeight: 600 }}>+{fmt(parseFloat(datos.comision_3 || 0))}</span>
-                </div>
-                <div className="pb" style={{ height: 10 }}>
-                  <div className="pf" style={{ width: (datos.pct_nivel3 || Math.min(Math.round((parseFloat(datos.facturacion || 0) / parseFloat(datos.umbral_3 || 1)) * 100), 100)) + "%", background: datos.nivel >= 3 ? "#8e44ad" : "#dddddd" }} />
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-                  <span style={{ fontSize: 10, color: "#65676B" }}>{fmt(parseFloat(datos.facturacion || 0))} facturado</span>
-                  <span style={{ fontSize: 10, color: datos.nivel >= 3 ? "#8e44ad" : "#65676B" }}>{Math.min(Math.round((parseFloat(datos.facturacion || 0) / parseFloat(datos.umbral_3 || 1)) * 100), 100)}%</span>
-                </div>
-              </div>
+
+              {(!hist.registros || hist.registros.length === 0) ? <div style={{ fontSize: 12, color: "#999", padding: "10px 0" }}>Todavia no hay comisiones registradas.</div> : (
+                <table style={{ width: "100%", fontSize: 12 }}>
+                  <thead><tr style={{ color: "#888", textAlign: "left" }}><th style={{ padding: "6px 0" }}></th><th>Fecha</th><th style={{ textAlign: "right" }}>Facturado</th><th style={{ textAlign: "right" }}>Comision</th><th style={{ textAlign: "center" }}>Estado</th></tr></thead>
+                  <tbody>
+                    {hist.registros.map(row => (
+                      <tr key={row.id} style={{ borderTop: "1px solid #f0f0f0" }}>
+                        <td style={{ padding: "7px 0" }}>{!row.pagada && <input type="checkbox" checked={sel.includes(row.id)} onChange={() => toggle(row.id)} />}</td>
+                        <td>{row.fecha ? new Date(row.fecha).toLocaleDateString("es-AR") : "-"}</td>
+                        <td style={{ textAlign: "right" }}>{fmt(parseFloat(row.facturacion_mes || 0))}</td>
+                        <td style={{ textAlign: "right", fontWeight: 600 }}>{fmt(parseFloat(row.comision_ganada || 0))}</td>
+                        <td style={{ textAlign: "center" }}>{row.pagada ? <span style={{ color: "#2d7a4f", fontSize: 11 }}>Pagada</span> : <span style={{ color: "#c0392b", fontSize: 11 }}>Pendiente</span>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               )}
-            </div>
-            <div className="card">
-              <div className="ct">Estado del mes</div>
-              <div style={{ background: nivelColor + "12", border: "1px solid " + nivelColor + "44", borderRadius: 8, padding: 16, marginBottom: 16, textAlign: "center" }}>
-                <div style={{ fontSize: 32, marginBottom: 8 }}>{nivelEmoji}</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: nivelColor }}>{datos.mensaje}</div>
-              </div>
-              {datos.comision > 0 && (
-                <button className="btn btn-p" style={{ width: "100%" }} onClick={marcarPagada}>
-                  Marcar comision como pagada
-                </button>
-              )}
-            </div>
-          </div>
-          {historial.length > 0 && (
-            <div className="card">
-              <div className="ct">Historial de comisiones</div>
-              <table>
-                <thead><tr><th>Mes</th><th>Facturacion</th><th>Comision</th><th>Estado</th></tr></thead>
-                <tbody>
-                  {historial.map((h, i) => (
-                    <tr key={i}>
-                      <td>{h.mes}/{h.anio}</td>
-                      <td>{fmt(parseFloat(h.facturacion_mes || 0))}</td>
-                      <td style={{ color: "#c9a84c", fontWeight: 600 }}>{fmt(parseFloat(h.comision_ganada || 0))}</td>
-                      <td><span className={"badge " + (h.pagada ? "bg" : "ba")}>{h.pagada ? "Pagada" : "Pendiente"}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           )}
         </div>
       )}
-      {loading && <div style={{ textAlign: "center", color: "#65676B", padding: 40 }}>Calculando comisiones...</div>}
     </div>
   );
 }
