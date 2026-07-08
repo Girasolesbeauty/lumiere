@@ -330,4 +330,40 @@ const getComisiones = async (req, res) => {
   }
 };
 
-module.exports = { getFlujo, getFlujoEstructurado, agregarEgreso, getPuntoEquilibrio, getResumen, getComisiones };
+// Costo de Mercaderia Vendida (CMV) del mes: suma el costo de cada producto vendido.
+const getCMV = async (req, res) => {
+  try {
+    const { mes, anio, local_id } = req.query;
+    const mesActual = mes || (new Date().getMonth() + 1);
+    const anioActual = anio || new Date().getFullYear();
+    const localNum = normalizarLocalId(local_id);
+
+    let q = `
+      SELECT COALESCE(SUM(vi.cantidad * COALESCE(p.costo, 0)), 0) AS cmv,
+             COALESCE(SUM(vi.cantidad * vi.precio_unitario), 0) AS ventas
+      FROM venta_items vi
+      JOIN ventas v ON v.id = vi.venta_id
+      JOIN productos p ON p.id = vi.producto_id
+      WHERE EXTRACT(MONTH FROM v.creado_en) = $1
+        AND EXTRACT(YEAR FROM v.creado_en) = $2
+        AND COALESCE(v.es_preventa, FALSE) = FALSE
+    `;
+    const params = [mesActual, anioActual];
+    if (localNum !== null) { q += ` AND v.local_id = $3`; params.push(localNum); }
+
+    const r = await pool.query(q, params);
+    const cmv = parseFloat(r.rows[0].cmv) || 0;
+    const ventas = parseFloat(r.rows[0].ventas) || 0;
+    res.json({
+      cmv,
+      ventas,
+      margen_bruto: ventas - cmv,
+      margen_pct: ventas > 0 ? ((ventas - cmv) / ventas * 100) : 0
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al calcular CMV: ' + error.message });
+  }
+};
+
+module.exports = { getFlujo, getFlujoEstructurado, agregarEgreso, getPuntoEquilibrio, getResumen, getComisiones, getCMV };

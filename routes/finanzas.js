@@ -8,5 +8,6 @@ router.get('/equilibrio', controller.getPuntoEquilibrio);
 router.get('/resumen', controller.getResumen);
 router.get('/flujo-estructurado', controller.getFlujoEstructurado);
 router.get('/comisiones', controller.getComisiones);
+router.get('/cmv', controller.getCMV);
 
 module.exports = router;

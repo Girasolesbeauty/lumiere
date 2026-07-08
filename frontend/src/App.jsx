@@ -1963,6 +1963,7 @@ function Finanzas({ localId }) {
   const [flujo, setFlujo] = useState(null);
   const [flujoEst, setFlujoEst] = useState(null);
   const [comisiones, setComisiones] = useState(null);
+  const [cmv, setCmv] = useState(null);
   const [equilibrio, setEquilibrio] = useState(null);
   const [loading, setLoading] = useState(true);
   const [nuevoEgreso, setNuevoEgreso] = useState({ concepto: "", importe: "", categoria_id: "", forma_pago: "", cuenta_pago_id: "", local_id: "" });
@@ -1980,13 +1981,15 @@ function Finanzas({ localId }) {
       API.get(`/finanzas/flujo?${params}`),
       API.get(`/finanzas/flujo-estructurado?${params}`),
       API.get(`/finanzas/comisiones?${params}`),
+      API.get(`/finanzas/cmv?${params}`),
       getPuntoEquilibrio(),
       API.get("/categorias-costo"),
       API.get("/cuentas-pago?solo_pago=true")
-    ]).then(([f, fe, com, e, cats, cuentas]) => {
+    ]).then(([f, fe, com, cmvRes, e, cats, cuentas]) => {
       setFlujo(f.data);
       setFlujoEst(fe.data);
       setComisiones(com.data);
+      setCmv(cmvRes.data);
       setEquilibrio(e.data);
       setCategoriasCosto(cats.data);
       setCuentasPago(cuentas.data);
@@ -2248,19 +2251,24 @@ function Finanzas({ localId }) {
             })()}
           </div>
           <div className="card">
-            <div className="ct">Margen bruto por producto</div>
-            {PRODUCTS.map(p => {
-              const mg = Math.round(((p.price - p.cost) / p.price) * 100);
-              return (
-                <div key={p.id} style={{ marginBottom: 10 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    <span style={{ fontSize: 11, color: "#444444" }}>{p.name}</span>
-                    <span style={{ fontSize: 11, color: "#2d7a4f" }}>{mg}%</span>
-                  </div>
-                  <div className="pb"><div className="pf" style={{ width: mg + "%", background: "#2d7a4f" }} /></div>
+            <div className="ct">Costo de mercaderia vendida (CMV)</div>
+            {cmv ? (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", fontSize: 13 }}>
+                  <span style={{ color: "#444" }}>Ventas del mes</span>
+                  <span style={{ fontWeight: 600 }}>{fmt(cmv.ventas)}</span>
                 </div>
-              );
-            })}
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", fontSize: 13, color: "#c0392b" }}>
+                  <span>CMV (costo de lo vendido)</span>
+                  <span>- {fmt(cmv.cmv)}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0 4px", borderTop: "2px solid #2d7a4f", marginTop: 6, fontSize: 14, fontWeight: 700 }}>
+                  <span>Margen bruto</span>
+                  <span style={{ color: "#2d7a4f" }}>{fmt(cmv.margen_bruto)} ({Math.round(cmv.margen_pct)}%)</span>
+                </div>
+                <div style={{ fontSize: 10, color: "#888", marginTop: 8 }}>El CMV usa el costo cargado en cada producto vendido este mes.</div>
+              </div>
+            ) : <div style={{ fontSize: 12, color: "#999", padding: "10px 0" }}>Sin datos de CMV este mes.</div>}
           </div>
         </div>
       )}
