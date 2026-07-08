@@ -776,8 +776,9 @@ function POS({ localId, usuario }) {
     if (dni.length < 7) { setClienteSeleccionado(null); return; }
     setBuscandoCliente(true);
     try {
-      const res = await API.get("/clientes?local_id=" + (localId || 1));
-      const encontrado = res.data.find(c => c.cuit_dni === dni);
+      const res = await API.get("/clientes");
+      const dniLimpio = (dni || "").replace(/[^0-9]/g, "");
+      const encontrado = res.data.find(c => (c.cuit_dni || "").replace(/[^0-9]/g, "") === dniLimpio);
       if (encontrado) { setClienteSeleccionado(encontrado); setShowNuevoCliente(false); }
       else { setClienteSeleccionado(null); if (dni.length >= 8) setShowNuevoCliente(true); }
     } catch (e) {}

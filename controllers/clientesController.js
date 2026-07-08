@@ -31,6 +31,17 @@ const getById = async (req, res) => {
 const create = async (req, res) => {
   try {
     const { nombre, email, cuit_dni, telefono, fecha_nacimiento, local_id } = req.body;
+    // Evitar clientes duplicados por DNI/CUIT
+    const dniLimpio = (cuit_dni || '').replace(/[^0-9]/g, '');
+    if (dniLimpio) {
+      const existe = await pool.query(
+        "SELECT id, nombre FROM clientes WHERE REGEXP_REPLACE(cuit_dni, '[^0-9]', '', 'g') = $1",
+        [dniLimpio]
+      );
+      if (existe.rows.length > 0) {
+        return res.status(400).json({ error: 'Ya existe un cliente con ese DNI/CUIT: ' + existe.rows[0].nombre });
+      }
+    }
     const result = await pool.query(
       `INSERT INTO clientes (nombre, email, cuit_dni, telefono, fecha_nacimiento, local_id)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
