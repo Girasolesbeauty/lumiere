@@ -2246,6 +2246,22 @@ function Finanzas({ localId }) {
               <input className="inp" type="number" placeholder="0" value={factExtMonto} onChange={e => setFactExtMonto(e.target.value)} />
             </div>
             <button className="btn btn-p" style={{ width: "100%" }} onClick={guardarFactExterna}>Guardar facturacion anterior</button>
+            {(comisiones || factExterna) && (
+              <div style={{ marginTop: 12, paddingTop: 10, borderTop: "2px solid #c9a84c" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "4px 0" }}>
+                  <span style={{ color: "#444" }}>Ventas este sistema</span>
+                  <span style={{ fontWeight: 600 }}>{fmt(comisiones ? comisiones.total_ventas : 0)}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "4px 0" }}>
+                  <span style={{ color: "#444" }}>Facturacion sistema anterior</span>
+                  <span style={{ fontWeight: 600 }}>{fmt(factExterna ? factExterna.total : 0)}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, padding: "8px 0 0", fontWeight: 700 }}>
+                  <span>Facturacion total del mes</span>
+                  <span style={{ color: "#c9a84c" }}>{fmt((comisiones ? comisiones.total_ventas : 0) + (factExterna ? factExterna.total : 0))}</span>
+                </div>
+              </div>
+            )}
           </div>
 
       {tab === "estructurado" && (
