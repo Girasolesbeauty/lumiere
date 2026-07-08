@@ -515,6 +515,7 @@ function VentasOnline({ localId, usuario }) {
                   <option value="Mercado Pago credito 2 sin interes">Mercado Pago credito 2 sin interes</option>
                   <option value="Mercado Pago credito 3 sin interes">Mercado Pago credito 3 sin interes</option>
                   <option value="Mercado Pago credito 4 sin interes">Mercado Pago credito 4 sin interes</option>
+                  <option value="Gocuotas">Gocuotas</option>
                 </select>
               </div>
               <div className="fg" style={{ marginBottom: 10 }}>
