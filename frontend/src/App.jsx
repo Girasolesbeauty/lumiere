@@ -2924,9 +2924,143 @@ function Fidelizacion() {
   );
 }
 
+function Pedidos({ localId }) {
+  const [pedidos, setPedidos] = useState([]);
+  const [clientes, setClientes] = useState([]);
+  const [productos, setProductos] = useState([]);
+  const [buscarCli, setBuscarCli] = useState("");
+  const [buscarProd, setBuscarProd] = useState("");
+  const [cliSel, setCliSel] = useState(null);
+  const [prodSel, setProdSel] = useState(null);
+  const [mensaje, setMensaje] = useState("");
+
+  const cargar = () => {
+    API.get("/pedidos?estado=esperando").then(res => setPedidos(res.data)).catch(() => {});
+  };
+  useEffect(() => {
+    cargar();
+    getClientes().then(res => setClientes(res.data)).catch(() => {});
+    const localParam = Number(localId) === 2 ? "ush" : "rg";
+    API.get("/productos?local=" + localParam).then(res => setProductos(res.data)).catch(() => {});
+  }, [localId]);
+
+  const cliFiltrados = buscarCli.trim().length > 0
+    ? clientes.filter(c => (c.nombre || "").toLowerCase().includes(buscarCli.toLowerCase()) || (c.cuit_dni || "").includes(buscarCli)).slice(0, 6)
+    : [];
+  const prodFiltrados = buscarProd.trim().length > 0
+    ? productos.filter(p => (p.nombre || "").toLowerCase().includes(buscarProd.toLowerCase())).slice(0, 6)
+    : [];
+
+  const guardar = async () => {
+    if (!cliSel) return setMensaje("Elegi la clienta");
+    if (!prodSel) return setMensaje("Elegi el producto");
+    try {
+      await API.post("/pedidos", { cliente_id: cliSel.id, producto_id: prodSel.id });
+      setMensaje("Pedido anotado! Cuando llegue stock va a aparecer en Postventa.");
+      setCliSel(null); setProdSel(null); setBuscarCli(""); setBuscarProd("");
+      cargar();
+      setTimeout(() => setMensaje(""), 4000);
+    } catch (e) { setMensaje("Error al anotar el pedido"); }
+  };
+
+  const borrar = async (id) => {
+    if (!confirm("Borrar este pedido?")) return;
+    try { await API.delete("/pedidos/" + id); cargar(); } catch (e) {}
+  };
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Pedidos de clientas</div><div className="ps">productos que las clientas estan esperando - avisan en Postventa cuando llega stock</div></div>
+      </div>
+
+      {mensaje && <div className="card" style={{ marginBottom: 12, padding: 12, background: mensaje.startsWith("Error") ? "#fdecea" : "#eafaf1", color: mensaje.startsWith("Error") ? "#c0392b" : "#1e7e4f", fontSize: 13 }}>{mensaje}</div>}
+
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Anotar nuevo pedido</div>
+        <div className="g2">
+          <div>
+            <div className="fl">Clienta</div>
+            {cliSel ? (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f7f5f0", borderRadius: 6 }}>
+                <span style={{ fontSize: 12 }}>{cliSel.nombre} ({cliSel.cuit_dni})</span>
+                <span onClick={() => setCliSel(null)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>cambiar</span>
+              </div>
+            ) : (
+              <div>
+                <input className="inp" placeholder="Buscar clienta por nombre o DNI" value={buscarCli} onChange={e => setBuscarCli(e.target.value)} />
+                {cliFiltrados.length > 0 && (
+                  <div style={{ border: "1px solid #eee", borderRadius: 6, marginTop: 4 }}>
+                    {cliFiltrados.map(cl => (
+                      <div key={cl.id} onClick={() => { setCliSel(cl); setBuscarCli(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 12 }}>{cl.nombre} <span style={{ color: "#999" }}>({cl.cuit_dni})</span></div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <div>
+            <div className="fl">Producto que espera</div>
+            {prodSel ? (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f7f5f0", borderRadius: 6 }}>
+                <span style={{ fontSize: 12 }}>{prodSel.nombre}</span>
+                <span onClick={() => setProdSel(null)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>cambiar</span>
+              </div>
+            ) : (
+              <div>
+                <input className="inp" placeholder="Buscar producto" value={buscarProd} onChange={e => setBuscarProd(e.target.value)} />
+                {prodFiltrados.length > 0 && (
+                  <div style={{ border: "1px solid #eee", borderRadius: 6, marginTop: 4 }}>
+                    {prodFiltrados.map(pr => (
+                      <div key={pr.id} onClick={() => { setProdSel(pr); setBuscarProd(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 12 }}>{pr.nombre} <span style={{ color: (pr.stock_rg || 0) + (pr.stock_ush || 0) > 0 ? "#2d7a4f" : "#c0392b" }}>· stock {(pr.stock_rg || 0) + (pr.stock_ush || 0)}</span></div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+        <button className="btn btn-p" style={{ marginTop: 12 }} onClick={guardar}>Anotar pedido</button>
+      </div>
+
+      <div className="card">
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Pedidos en espera ({pedidos.length})</div>
+        {pedidos.length === 0 ? <div style={{ fontSize: 12, color: "#999", padding: "10px 0" }}>No hay pedidos en espera.</div> : (
+          <table style={{ width: "100%", fontSize: 12 }}>
+            <thead><tr style={{ color: "#888", textAlign: "left" }}><th style={{ padding: "6px 0" }}>Clienta</th><th>Producto</th><th style={{ textAlign: "center" }}>Stock</th><th></th></tr></thead>
+            <tbody>
+              {pedidos.map(p => (
+                <tr key={p.id} style={{ borderTop: "1px solid #f0f0f0" }}>
+                  <td style={{ padding: "8px 0" }}>{p.cliente_nombre}</td>
+                  <td>{p.producto_nombre}</td>
+                  <td style={{ textAlign: "center", color: p.stock_total > 0 ? "#2d7a4f" : "#c0392b", fontWeight: 600 }}>{p.stock_total > 0 ? "Disponible!" : "0"}</td>
+                  <td style={{ textAlign: "right" }}><span onClick={() => borrar(p.id)} style={{ cursor: "pointer", color: "#ccc", fontSize: 15 }}>×</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <div style={{ fontSize: 10, color: "#888", marginTop: 10 }}>Cuando un producto tiene stock, el aviso para la clienta aparece en la seccion Postventa.</div>
+      </div>
+    </div>
+  );
+}
+
 function PostventaWA() {
   const [rules, setRules] = useState([]);
   const [tab, setTab] = useState("reglas");
+  const [pedidosListos, setPedidosListos] = useState([]);
+  const avisarPedido = async (pd) => {
+    const texto = "Hola " + (pd.cliente_nombre || "") + "! Te avisamos que ya tenemos stock de " + pd.producto_nombre + ". Te esperamos! - Girasoles Beauty";
+    let tel = (pd.telefono || "").replace(/[^0-9]/g, "");
+    if (!tel) { alert("Esta clienta no tiene telefono cargado"); return; }
+    let numero = tel;
+    if (!numero.startsWith("54")) numero = "549" + numero;
+    else if (numero.startsWith("54") && !numero.startsWith("549")) numero = "549" + numero.slice(2);
+    window.open("https://wa.me/" + numero + "?text=" + encodeURIComponent(texto), "_blank");
+    try { await API.post("/pedidos/" + pd.id + "/avisar"); setPedidosListos(prev => prev.filter(x => x.id !== pd.id)); } catch (e) {}
+  };
+  useEffect(() => { API.get("/pedidos/con-stock").then(res => setPedidosListos(res.data)).catch(() => {}); }, []);
   const [sel, setSel] = useState(null);
   const [nuevaRegla, setNuevaRegla] = useState({ nombre: "", disparador: "post_compra", dias: 7, segmento: "Todos", mensaje: "" });
   const [pendientesWA, setPendientesWA] = useState([]);
@@ -2998,7 +3132,7 @@ function PostventaWA() {
         <MCard label="Tasa apertura" value="72%" color="#2471a3" />
       </div>
       <div className="tabs">
-        {[["reglas", "REGLAS"], ["enviar", "ENVIAR HOY"], ["nueva", "NUEVA REGLA"]].map(([id, l]) => (
+        {[["reglas", "REGLAS"], ["enviar", "ENVIAR HOY"], ["pedidos", "PEDIDOS LISTOS" + (pedidosListos.length > 0 ? " (" + pedidosListos.length + ")" : "")], ["nueva", "NUEVA REGLA"]].map(([id, l]) => (
           <div key={id} className={"tab " + (tab === id ? "on" : "")} onClick={() => { setTab(id); setSel(null); if (id === "enviar") cargarPendientesWA(); }}>{l}</div>
         ))}
       </div>
@@ -3044,6 +3178,22 @@ function PostventaWA() {
           ))}
         </div>
       )}
+      {tab === "pedidos" && (
+        <div className="card fade">
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Pedidos de clientas con stock disponible</div>
+          <div style={{ fontSize: 11, color: "#888", marginBottom: 12 }}>Productos que las clientas esperaban y ya tienen stock. Envia el aviso por WhatsApp.</div>
+          {pedidosListos.length === 0 ? <div style={{ fontSize: 12, color: "#999", padding: "10px 0" }}>No hay pedidos con stock disponible ahora.</div> : pedidosListos.map(pd => (
+            <div key={pd.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 500 }}>{pd.cliente_nombre}</div>
+                <div style={{ fontSize: 11, color: "#888" }}>{pd.producto_nombre} · stock {pd.stock_total}</div>
+              </div>
+              <button className="btn btn-sm" style={{ background: "#25D366", color: "#fff", fontSize: 12 }} onClick={() => avisarPedido(pd)}>Enviar WhatsApp</button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {tab === "nueva" && (
         <div className="g2 fade">
           <div className="card">
@@ -6255,7 +6405,7 @@ const NAV_SECTIONS = [
   { section: "VENTAS", color: "#e67e22", items: [{ id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "pos", icon: "🛒", label: "Punto de Venta" }, { id: "ventas-online", icon: "🌐", label: "Ventas Online" }] },
   { section: "STOCK", color: "#7d3c98", items: [{ id: "inventory", icon: "📦", label: "Inventario" }, { id: "ordenes", icon: "🚚", label: "Ingresos" }, { id: "inconsistencias", icon: "⚠️", label: "Inconsistencias" }, { id: "kits", icon: "🎁", label: "Kits" }, { id: "insumos", icon: "🛍️", label: "Insumos" }, { id: "control-inv", icon: "🔍", label: "Control de Inventario" }] },
   { section: "CAJA", color: "#2d7a4f", items: [{ id: "caja", icon: "💵", label: "Caja" }, { id: "cierre", icon: "🔒", label: "Cierre de Caja" }, { id: "giftcards", icon: "🎀", label: "Gift Cards" }] },
-  { section: "CLIENTES", color: "#c9a84c", items: [{ id: "clients", icon: "👥", label: "Clientes" }, { id: "fidelizacion", icon: "⭐", label: "Fidelizacion" }] },
+  { section: "CLIENTES", color: "#c9a84c", items: [{ id: "clients", icon: "👥", label: "Clientes" }, { id: "pedidos", icon: "📦", label: "Pedidos" }, { id: "fidelizacion", icon: "⭐", label: "Fidelizacion" }] },
   { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "💰", label: "Finanzas" }, { id: "reports", icon: "📋", label: "Informes" }, { id: "comprobantes", icon: "🧾", label: "Comprobantes" }, { id: "comisiones", icon: "💎", label: "Comisiones" }, { id: "proveedores", icon: "🏭", label: "Proveedores" }, { id: "calculadoras", icon: "🧮", label: "Calculadoras" }, { id: "productividad", icon: "🏆", label: "Productividad" }] },
   { section: "MARKETING", color: "#e74c3c", items: [{ id: "cupones", icon: "🏷️", label: "Cupones" }, { id: "promociones", icon: "🎉", label: "Promociones" }] },
   { section: "POSTVENTA", color: "#25d366", items: [{ id: "postventa", icon: "💬", label: "Postventa WA" }] },
@@ -6658,6 +6808,7 @@ export default function AppWrapper() {
     if (id === "ventas-online") return <VentasOnline localId={local.id} usuario={usuario} />;
     if (id === "inventory") return <Inventario localId={local.id} usuario={usuario} />;
     if (id === "clients") return <Clientes localId={local.id} />;
+    if (id === "pedidos") return <Pedidos localId={local.id} />;
     if (id === "finance") return <Finanzas localId={local.id} />;
     if (id === "reports") return <Informes localId={local.id} />;
     if (id === "calculadoras") return <Calculadoras usuario={usuario} />;
