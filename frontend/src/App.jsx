@@ -3490,12 +3490,13 @@ function GiftCards({ localId, usuario }) {
   const [showForm, setShowForm] = useState(false);
   const [verMov, setVerMov] = useState(null);
   const [movimientos, setMovimientos] = useState([]);
-  const [nueva, setNueva] = useState({ monto: "", beneficiario_nombre: "", beneficiario_telefono: "", cliente_id: "", migracion: false });
+  const [nueva, setNueva] = useState({ monto: "", beneficiario_nombre: "", beneficiario_telefono: "", cliente_id: "", migracion: false, forma_pago: "" });
+  const [mediosPago, setMediosPago] = useState([]);
 
   const cargar = () => {
     setLoading(true);
-    Promise.all([API.get("/gift-cards"), API.get("/clientes")])
-      .then(([gc, cl]) => { setGiftcards(gc.data || []); setClientes(cl.data || []); setLoading(false); })
+    Promise.all([API.get("/gift-cards"), API.get("/clientes"), API.get("/medios-pago")])
+      .then(([gc, cl, mp]) => { setGiftcards(gc.data || []); setClientes(cl.data || []); setMediosPago(mp.data || []); setLoading(false); })
       .catch(() => setLoading(false));
   };
 
@@ -3508,7 +3509,7 @@ function GiftCards({ localId, usuario }) {
       const res = await API.post("/gift-cards", { ...nueva, local_id: localId || 1, emitida_por: usuario?.id || null });
       setMensaje("Gift card emitida! Codigo: " + res.data.codigo);
       setShowForm(false);
-      setNueva({ monto: "", beneficiario_nombre: "", beneficiario_telefono: "", cliente_id: "", migracion: false });
+      setNueva({ monto: "", beneficiario_nombre: "", beneficiario_telefono: "", cliente_id: "", migracion: false, forma_pago: "" });
       cargar();
       setTimeout(() => setMensaje(""), 6000);
     } catch (e) { setMensaje(e.response?.data?.error || "Error al emitir la gift card"); }
@@ -3596,6 +3597,15 @@ function GiftCards({ localId, usuario }) {
                 {clientes.map(c => (<option key={c.id} value={c.id}>{c.nombre}</option>))}
               </select>
             </div>
+            {!nueva.migracion && (
+              <div className="fg" style={{ marginBottom: 8 }}>
+                <div className="fl">Forma de pago</div>
+                <select className="inp" value={nueva.forma_pago} onChange={e => setNueva(p => ({ ...p, forma_pago: e.target.value }))}>
+                  <option value="">Seleccionar...</option>
+                  {mediosPago.map(m => <option key={m.id} value={m.nombre}>{m.nombre}</option>)}
+                </select>
+              </div>
+            )}
             <label style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "10px 0", cursor: "pointer", marginBottom: 4 }}>
               <input type="checkbox" checked={nueva.migracion} onChange={e => setNueva(p => ({ ...p, migracion: e.target.checked }))} style={{ marginTop: 2 }} />
               <span style={{ fontSize: 11, color: "#111111" }}>Gift card ya vendida (del sistema anterior). No cuenta como ingreso de hoy en la caja.</span>
@@ -4742,6 +4752,15 @@ function CierreCaja({ localId, usuario }) {
     if (!porMedio[m]) porMedio[m] = { cantidad: 0, total: 0 };
     porMedio[m].cantidad += 1;
     porMedio[m].total += parseFloat(v.total || 0) - parseFloat(v.monto_gift_card || 0);
+  });
+  // Sumar las gift cards emitidas (ingreso de caja) a su forma de pago
+  (movsDia || []).forEach(mv => {
+    if (mv.tipo === "I" && (mv.concepto || "").startsWith("Gift Card") && mv.forma_pago) {
+      const m = mv.forma_pago;
+      if (!porMedio[m]) porMedio[m] = { cantidad: 0, total: 0 };
+      porMedio[m].cantidad += 1;
+      porMedio[m].total += parseFloat(mv.importe || 0);
+    }
   });
   const mediosOrdenados = Object.entries(porMedio).sort((a, b) => b[1].total - a[1].total);
   const totalVentasNeto = ventasDia.reduce((s, v) => s + parseFloat(v.total || 0) - parseFloat(v.monto_gift_card || 0), 0);

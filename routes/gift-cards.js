@@ -68,7 +68,7 @@ router.post('/', async (req, res) => {
     await client.query('BEGIN');
     const {
       monto, beneficiario_nombre, beneficiario_telefono, beneficiario_dni,
-      cliente_id, comprador_nombre, local_id, emitida_por, migracion
+      cliente_id, comprador_nombre, local_id, emitida_por, migracion, forma_pago
     } = req.body;
 
     if (!monto || parseFloat(monto) <= 0) {
@@ -115,9 +115,9 @@ router.post('/', async (req, res) => {
     if (migracion !== true) {
       // La emisión entra como ingreso de caja (NO se factura por ARCA hasta el canje)
       await client.query(
-        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id)
-         VALUES ($1, 'I', $2, $3, $4)`,
-        ['Gift Card ' + codigo, montoNum, codigo, local_id || 1]
+        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id, forma_pago)
+         VALUES ($1, 'I', $2, $3, $4, $5)`,
+        ['Gift Card ' + codigo, montoNum, codigo, local_id || 1, forma_pago || null]
       );
     }
 
