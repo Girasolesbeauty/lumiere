@@ -81,7 +81,7 @@ const create = async (req, res) => {
     const {
       cliente_id, tipo_factura, items, descuento, canal, cupon_codigo, local_id,
       medio_pago_id, medio_pago_nombre, total_con_interes, es_preventa, nombre_preventa,
-      usuario_id, inicio_venta, duracion_segundos, monto_gift_card, insumos_usados
+      usuario_id, inicio_venta, duracion_segundos, monto_gift_card, insumos_usados, pagos
     } = req.body;
 
     let subtotal = 0;
@@ -129,6 +129,19 @@ const create = async (req, res) => {
     );
 
     const ventaId = venta.rows[0].id;
+
+    // Pago mixto: si vienen varios pagos, se guardan en venta_pagos.
+    if (Array.isArray(pagos) && pagos.length > 0) {
+      for (const p of pagos) {
+        const imp = parseFloat(p.importe) || 0;
+        if (imp <= 0) continue;
+        await client.query(
+          `INSERT INTO venta_pagos (venta_id, medio_pago_id, medio_pago_nombre, importe, gift_card_id)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [ventaId, p.medio_pago_id || null, p.medio_pago_nombre || null, imp, p.gift_card_id || null]
+        );
+      }
+    }
 
     for (const item of items) {
       await client.query(
