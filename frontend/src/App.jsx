@@ -5219,6 +5219,7 @@ function OrdenesIngreso({ localId, usuario }) {
   const [mensaje, setMensaje] = useState("");
   const [nueva, setNueva] = useState({ proveedor_id: "", numero_factura: "", total: "", notas: "", items: [] });
   const [itemTemp, setItemTemp] = useState({ producto_id: "", cantidad_rg: "", cantidad_ush: "", costo_unitario: "" });
+  const [busquedaProd, setBusquedaProd] = useState("");
   const [conteo, setConteo] = useState({});
   const [recibidoHist, setRecibidoHist] = useState([]);
   const [notaItem, setNotaItem] = useState({});
@@ -5423,10 +5424,30 @@ function OrdenesIngreso({ localId, usuario }) {
             <div className="fg"><div className="fl">Notas</div><textarea className="inp" rows={2} placeholder="Observaciones..." value={nueva.notas} onChange={e => setNueva(p => ({ ...p, notas: e.target.value }))} /></div>
             <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", margin: "16px 0 10px" }}>AGREGAR PRODUCTO (dividi por local)</div>
             <div className="fg"><div className="fl">Producto</div>
-              <select className="sel" value={itemTemp.producto_id} onChange={e => setItemTemp(p => ({ ...p, producto_id: e.target.value }))}>
-                <option value="">Seleccionar...</option>
-                {productos.map(pr => (<option key={pr.id} value={pr.id}>{pr.nombre}</option>))}
-              </select>
+              <div style={{ position: "relative" }}>
+                {itemTemp.producto_id ? (
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f7f5f0", borderRadius: 6 }}>
+                    <span style={{ fontSize: 12 }}>{(productos.find(p => String(p.id) === String(itemTemp.producto_id)) || {}).nombre || "Producto"}</span>
+                    <span onClick={() => { setItemTemp(p => ({ ...p, producto_id: "" })); setBusquedaProd(""); }} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>cambiar</span>
+                  </div>
+                ) : (
+                  <div>
+                    <input className="inp" placeholder="Buscar producto por nombre o codigo" value={busquedaProd} onChange={e => setBusquedaProd(e.target.value)} />
+                    {busquedaProd.trim().length > 0 && (
+                      <div style={{ position: "absolute", zIndex: 10, background: "#fff", border: "1px solid #eee", borderRadius: 6, width: "100%", maxHeight: 220, overflowY: "auto", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
+                        {productos.filter(pr => (pr.nombre || "").toLowerCase().includes(busquedaProd.toLowerCase()) || (pr.codigo_barras || "").includes(busquedaProd)).slice(0, 10).map(pr => (
+                          <div key={pr.id} onClick={() => { setItemTemp(p => ({ ...p, producto_id: pr.id })); setBusquedaProd(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 12 }}>
+                            {pr.nombre}{pr.codigo_barras ? <span style={{ color: "#999" }}> · {pr.codigo_barras}</span> : null}
+                          </div>
+                        ))}
+                        {productos.filter(pr => (pr.nombre || "").toLowerCase().includes(busquedaProd.toLowerCase()) || (pr.codigo_barras || "").includes(busquedaProd)).length === 0 && (
+                          <div style={{ padding: "8px 10px", fontSize: 12, color: "#999" }}>Sin resultados</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <div className="fg" style={{ flex: 1 }}><div className="fl">Cant. Rio Grande</div><input className="inp" type="number" placeholder="10" value={itemTemp.cantidad_rg} onChange={e => setItemTemp(p => ({ ...p, cantidad_rg: e.target.value }))} /></div>
