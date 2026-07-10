@@ -3140,6 +3140,7 @@ function Pedidos({ localId }) {
   const [cliSel, setCliSel] = useState(null);
   const [prodSel, setProdSel] = useState(null);
   const [itemNuevo, setItemNuevo] = useState("");
+  const [filtroLista, setFiltroLista] = useState("");
   const [mensaje, setMensaje] = useState("");
 
   const cargar = () => {
@@ -3151,6 +3152,16 @@ function Pedidos({ localId }) {
     const localParam = Number(localId) === 2 ? "ush" : "rg";
     API.get("/productos?local=" + localParam).then(res => setProductos(res.data)).catch(() => {});
   }, [localId]);
+
+  const pedidosFiltrados = filtroLista.trim().length > 0
+    ? pedidos.filter(p => {
+        const t = filtroLista.toLowerCase();
+        return (p.cliente_nombre || "").toLowerCase().includes(t)
+          || (p.telefono || "").includes(filtroLista)
+          || (p.cuit_dni || "").includes(filtroLista)
+          || (p.producto_nombre || "").toLowerCase().includes(t);
+      })
+    : pedidos;
 
   const cliFiltrados = buscarCli.trim().length > 0
     ? clientes.filter(c => (c.nombre || "").toLowerCase().includes(buscarCli.toLowerCase()) || (c.cuit_dni || "").includes(buscarCli) || (c.telefono || "").includes(buscarCli)).slice(0, 6)
@@ -3240,12 +3251,15 @@ function Pedidos({ localId }) {
       </div>
 
       <div className="card">
-        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Pedidos en espera ({pedidos.length})</div>
-        {pedidos.length === 0 ? <div style={{ fontSize: 12, color: "#999", padding: "10px 0" }}>No hay pedidos en espera.</div> : (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, gap: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 600 }}>Pedidos en espera ({pedidos.length})</div>
+          <input className="inp" style={{ maxWidth: 260 }} placeholder="Buscar por clienta, celular, DNI o producto" value={filtroLista} onChange={e => setFiltroLista(e.target.value)} />
+        </div>
+        {pedidos.length === 0 ? <div style={{ fontSize: 12, color: "#999", padding: "10px 0" }}>No hay pedidos en espera.</div> : pedidosFiltrados.length === 0 ? <div style={{ fontSize: 12, color: "#999", padding: "10px 0" }}>No se encontraron pedidos con esa busqueda.</div> : (
           <table style={{ width: "100%", fontSize: 12 }}>
             <thead><tr style={{ color: "#888", textAlign: "left" }}><th style={{ padding: "6px 0" }}>Clienta</th><th>Contacto</th><th>Producto</th><th style={{ textAlign: "center" }}>Stock</th><th></th></tr></thead>
             <tbody>
-              {pedidos.map(p => (
+              {pedidosFiltrados.map(p => (
                 <tr key={p.id} style={{ borderTop: "1px solid #f0f0f0" }}>
                   <td style={{ padding: "8px 0" }}>{p.cliente_nombre}</td>
                   <td style={{ fontSize: 11, color: "#65676B" }}>{p.telefono || "-"}{p.cuit_dni ? " · DNI " + p.cuit_dni : ""}</td>
