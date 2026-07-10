@@ -16,24 +16,42 @@ const getFlujo = async (req, res) => {
     const mesActual = mes || new Date().getMonth() + 1;
     const anioActual = anio || new Date().getFullYear();
 
+    // Unimos las dos tablas de movimientos:
+    // - movimientos_caja (vieja): tipo 'I'/'E', categoria_id
+    // - movimientos_caja_efectivo (nueva, la que usa la seccion Caja): tipo 'ingreso'/'egreso', destino_origen
     let query = `
-      SELECT m.*, cc.nombre as categoria_nombre, cc.tipo as categoria_tipo,
-             cp.nombre as cuenta_nombre
-      FROM movimientos_caja m
-      LEFT JOIN categorias_costo cc ON m.categoria_id = cc.id
-      LEFT JOIN cuentas_pago cp ON m.cuenta_pago_id = cp.id
-      WHERE EXTRACT(MONTH FROM m.creado_en) = $1
-      AND EXTRACT(YEAR FROM m.creado_en) = $2
+      SELECT * FROM (
+        SELECT m.id, m.concepto, m.importe, m.creado_en, m.local_id,
+               CASE WHEN m.tipo = 'I' THEN 'I' ELSE 'E' END AS tipo,
+               cc.nombre as categoria_nombre, cc.tipo as categoria_tipo,
+               cp.nombre as cuenta_nombre,
+               'caja' AS fuente
+        FROM movimientos_caja m
+        LEFT JOIN categorias_costo cc ON m.categoria_id = cc.id
+        LEFT JOIN cuentas_pago cp ON m.cuenta_pago_id = cp.id
+
+        UNION ALL
+
+        SELECT e.id, e.concepto, e.importe, e.creado_en, e.local_id,
+               CASE WHEN e.tipo = 'ingreso' THEN 'I' ELSE 'E' END AS tipo,
+               e.destino_origen as categoria_nombre, NULL as categoria_tipo,
+               NULL as cuenta_nombre,
+               'efectivo' AS fuente
+        FROM movimientos_caja_efectivo e
+        WHERE e.anulado = FALSE OR e.anulado IS NULL
+      ) mov
+      WHERE EXTRACT(MONTH FROM mov.creado_en) = $1
+      AND EXTRACT(YEAR FROM mov.creado_en) = $2
     `;
     const params = [mesActual, anioActual];
 
     const localNum = normalizarLocalId(local_id);
     if (localNum !== null) {
-      query += ` AND (m.local_id = $3 OR m.local_id IS NULL)`;
+      query += ` AND (mov.local_id = $3 OR mov.local_id IS NULL)`;
       params.push(localNum);
     }
 
-    query += ' ORDER BY m.creado_en DESC';
+    query += ' ORDER BY mov.creado_en DESC';
 
     const result = await pool.query(query, params);
 
@@ -75,15 +93,26 @@ const getFlujoEstructurado = async (req, res) => {
 
     // Egresos por categoria
     let egresosQuery = `
-      SELECT 
-        m.importe, m.concepto, m.local_id,
-        cc.nombre as categoria_nombre, cc.tipo as categoria_tipo, cc.subtipo,
-        cp.nombre as cuenta_nombre, m.forma_pago
-      FROM movimientos_caja m
-      LEFT JOIN categorias_costo cc ON m.categoria_id = cc.id
-      LEFT JOIN cuentas_pago cp ON m.cuenta_pago_id = cp.id
-      WHERE m.tipo = 'E'
-      AND EXTRACT(MONTH FROM m.creado_en) = $1
+      SELECT * FROM (
+        SELECT 
+          m.importe, m.concepto, m.local_id,
+          cc.nombre as categoria_nombre, cc.tipo as categoria_tipo, cc.subtipo,
+          cp.nombre as cuenta_nombre, m.forma_pago, m.creado_en, m.tipo
+        FROM movimientos_caja m
+        LEFT JOIN categorias_costo cc ON m.categoria_id = cc.id
+        LEFT JOIN cuentas_pago cp ON m.cuenta_pago_id = cp.id
+        WHERE m.tipo = 'E'
+
+        UNION ALL
+
+        SELECT
+          e.importe, e.concepto, e.local_id,
+          e.destino_origen as categoria_nombre, 'operativo' as categoria_tipo, NULL as subtipo,
+          NULL as cuenta_nombre, 'efectivo' as forma_pago, e.creado_en, 'E' as tipo
+        FROM movimientos_caja_efectivo e
+        WHERE e.tipo = 'egreso' AND (e.anulado = FALSE OR e.anulado IS NULL)
+      ) m
+      WHERE EXTRACT(MONTH FROM m.creado_en) = $1
       AND EXTRACT(YEAR FROM m.creado_en) = $2
     `;
     const egresosParams = [mesActual, anioActual];
