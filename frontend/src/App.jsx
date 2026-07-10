@@ -626,6 +626,7 @@ function POS({ localId, usuario }) {
   const [insumosPos, setInsumosPos] = useState([]);
   const [insumosPosActivo, setInsumosPosActivo] = useState(false);
   const [insumosSel, setInsumosSel] = useState({});
+  const [mostrarInsumos, setMostrarInsumos] = useState(false);
   const [ultimoRecibo, setUltimoRecibo] = useState(null);
   const [ventaPendienteArca, setVentaPendienteArca] = useState(null);
   const [promociones, setPromociones] = useState([]);
@@ -927,7 +928,7 @@ function POS({ localId, usuario }) {
       setVentaPendienteArca(null);
       setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
       setClienteSeleccionado(null); setShowNuevoCliente(false);
-      setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({});
+      setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false);
       quitarGiftCard();
       setTimeout(() => setMensaje(""), 8000);
     } catch (arcaErr) {
@@ -940,11 +941,6 @@ function POS({ localId, usuario }) {
     // Si hay una venta ya registrada esperando facturacion, reintenta SOLO eso (no duplica la venta)
     if (ventaPendienteArca) return reintentarFacturacion(ventaPendienteArca);
     if (cart.length === 0) return setMensaje("Agrega productos al ticket");
-    if (!preventa && insumosPosActivo) {
-      for (const ins of insumosPos) {
-        if (insumosSel[ins.id] === undefined || insumosSel[ins.id] === "") return setMensaje("Elegi una opcion en \"" + ins.nombre + "\" antes de cobrar");
-      }
-    }
     if (restaPagar > 0 && !pagoMixto && !medioPagoSel) return setMensaje("Selecciona un medio de pago para la diferencia");
     if (restaPagar > 0 && pagoMixto) {
       const sumaPagos = pagosMixtos.reduce((s, p) => s + (parseFloat(p.importe) || 0), 0);
@@ -1006,7 +1002,7 @@ function POS({ localId, usuario }) {
       if (!arcaFallo) {
         setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
         setClienteSeleccionado(null); setShowNuevoCliente(false);
-        setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({});
+        setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false);
         quitarGiftCard();
       }
       setTimeout(() => setMensaje(""), 8000);
@@ -1339,13 +1335,29 @@ function POS({ localId, usuario }) {
                 <span style={{ fontWeight: 700, color: "#2d7a4f" }}>-{fmt(montoAplicadoGC)}</span>
               </div>
             )}
-            {!preventa && insumosPosActivo && insumosPos.map(ins => (
-              <select key={ins.id} className="sel" style={{ marginBottom: 6, fontSize: 11, padding: "8px 10px", border: (insumosSel[ins.id] === undefined || insumosSel[ins.id] === "") ? "1px solid #c0392b" : "1px solid #E4E6EB" }} value={insumosSel[ins.id] ?? ""} onChange={e => setInsumosSel(p => ({ ...p, [ins.id]: e.target.value }))}>
-                <option value="">{ins.nombre}... (obligatorio)</option>
-                <option value={ins.id}>{ins.nombre} (descontar 1)</option>
-                <option value="ninguna">No entregue {ins.nombre}</option>
-              </select>
-            ))}
+            {!preventa && insumosPosActivo && insumosPos.length > 0 && (
+              <div style={{ marginBottom: 8 }}>
+                {!mostrarInsumos ? (
+                  <button className="btn btn-sm" style={{ width: "100%", background: "#f7f5f0", color: "#c9a84c", border: "1px dashed #c9a84c" }} onClick={() => setMostrarInsumos(true)}>+ Agregar insumo (bolsa, caja, ramo...)</button>
+                ) : (
+                  <div style={{ background: "#f7f5f0", borderRadius: 8, padding: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: "#65676B" }}>Insumos usados (se descuentan del stock, no se facturan)</span>
+                      <span onClick={() => { setMostrarInsumos(false); setInsumosSel({}); }} style={{ cursor: "pointer", fontSize: 11, color: "#999" }}>ocultar</span>
+                    </div>
+                    {insumosPos.map(ins => {
+                      const marcado = insumosSel[ins.id] && insumosSel[ins.id] !== "ninguna";
+                      return (
+                        <label key={ins.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", fontSize: 12, cursor: "pointer" }}>
+                          <input type="checkbox" checked={!!marcado} onChange={e => setInsumosSel(p => ({ ...p, [ins.id]: e.target.checked ? String(ins.id) : "ninguna" }))} />
+                          <span>{ins.nombre}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
             {restaPagar > 0 && (
               <div style={{ marginBottom: 6 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
