@@ -154,7 +154,18 @@ const getFlujoEstructurado = async (req, res) => {
       }
     });
 
-    const totalIngresos = ventasRes.rows.reduce((s, r) => s + parseFloat(r.total || 0), 0);
+    // Sumar facturacion del sistema anterior como un ingreso mas
+    let factExtQuery = `SELECT COALESCE(SUM(monto), 0) AS total FROM facturacion_externa WHERE mes = $1 AND anio = $2`;
+    const factExtParams = [mesActual, anioActual];
+    const localNumFE = normalizarLocalId(local_id);
+    if (localNumFE !== null) {
+      factExtQuery += ` AND local_id = $3`;
+      factExtParams.push(localNumFE);
+    }
+    const factExtRes = await pool.query(factExtQuery, factExtParams);
+    const factExterna = parseFloat(factExtRes.rows[0]?.total || 0);
+
+    const totalIngresos = ventasRes.rows.reduce((s, r) => s + parseFloat(r.total || 0), 0) + factExterna;
     const totalVariables = Object.values(variables).reduce((s, v) => s + v, 0);
     const totalFijos = Object.values(fijosSinImpuestos).reduce((s, v) => s + v, 0);
     const totalAdmin = Object.values(admin).reduce((s, v) => s + v, 0);
