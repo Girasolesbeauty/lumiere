@@ -55,12 +55,24 @@ const getFlujo = async (req, res) => {
 
     const result = await pool.query(query, params);
 
-    const ingresos = result.rows.filter(r => r.tipo === 'I').reduce((s, r) => s + parseFloat(r.importe), 0);
+    const ingresosMov = result.rows.filter(r => r.tipo === 'I').reduce((s, r) => s + parseFloat(r.importe), 0);
     const egresos = result.rows.filter(r => r.tipo === 'E').reduce((s, r) => s + parseFloat(r.importe), 0);
+
+    // Sumar facturacion del sistema anterior como ingreso (mes de transicion)
+    let factExtQuery = `SELECT COALESCE(SUM(monto), 0) AS total FROM facturacion_externa WHERE mes = $1 AND anio = $2`;
+    const factExtParams = [mesActual, anioActual];
+    if (localNum !== null) {
+      factExtQuery += ` AND local_id = $3`;
+      factExtParams.push(localNum);
+    }
+    const factExtRes = await pool.query(factExtQuery, factExtParams);
+    const factExterna = parseFloat(factExtRes.rows[0]?.total || 0);
+
+    const ingresos = ingresosMov + factExterna;
 
     res.json({
       movimientos: result.rows,
-      resumen: { ingresos, egresos, neto: ingresos - egresos }
+      resumen: { ingresos, egresos, neto: ingresos - egresos, facturacion_anterior: factExterna }
     });
   } catch (error) {
     console.error(error);
