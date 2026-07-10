@@ -107,7 +107,7 @@ const getFlujoEstructurado = async (req, res) => {
 
         SELECT
           e.importe, e.concepto, e.local_id,
-          e.destino_origen as categoria_nombre, 'operativo' as categoria_tipo, NULL as subtipo,
+          e.destino_origen as categoria_nombre, 'variable' as categoria_tipo, NULL as subtipo,
           NULL as cuenta_nombre, 'efectivo' as forma_pago, e.creado_en, 'E' as tipo
         FROM movimientos_caja_efectivo e
         WHERE e.tipo = 'egreso' AND (e.anulado = FALSE OR e.anulado IS NULL)
