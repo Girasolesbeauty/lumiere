@@ -134,4 +134,84 @@ const resetearPortal = async (req, res) => {
   }
 };
 
-module.exports = { getAll, getById, create, update, remove, getHistorial, agregarPuntos, resetearPortal };
+// Migrar puntos de una compra anterior (no factura, solo suma puntos). 1 punto cada $100.
+// Control de duplicados: avisa si ya hay una carga con el mismo monto y fecha para ese cliente.
+const migrarPuntos = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { id } = req.params;
+    const { monto, fecha_compra, usuario_id, confirmar_duplicado } = req.body;
+
+    const montoNum = parseFloat(monto) || 0;
+    if (montoNum <= 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'El monto debe ser mayor a cero' });
+    }
+
+    // Control de duplicado: misma clienta, mismo monto, misma fecha
+    if (fecha_compra && !confirmar_duplicado) {
+      const dup = await client.query(
+        'SELECT id FROM migracion_puntos WHERE cliente_id = $1 AND monto = $2 AND fecha_compra = $3',
+        [id, montoNum, fecha_compra]
+      );
+      if (dup.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          posible_duplicado: true,
+          error: 'Ya hay una carga con ese mismo monto y fecha para esta clienta. Puede ser un duplicado.'
+        });
+      }
+    }
+
+    const puntos = Math.floor(montoNum / 100);
+
+    // Sumar puntos al cliente y recalcular nivel
+    const upd = await client.query(
+      'UPDATE clientes SET puntos = COALESCE(puntos, 0) + $1 WHERE id = $2 RETURNING *',
+      [puntos, id]
+    );
+    if (upd.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Cliente no encontrado' });
+    }
+    const cliente = upd.rows[0];
+    let nivel = 'Bronze';
+    if (cliente.puntos >= 2000) nivel = 'Platinum';
+    else if (cliente.puntos >= 1000) nivel = 'Gold';
+    else if (cliente.puntos >= 500) nivel = 'Silver';
+    await client.query('UPDATE clientes SET nivel = $1 WHERE id = $2', [nivel, id]);
+
+    // Registrar la migracion (para historial y control de duplicados)
+    await client.query(
+      `INSERT INTO migracion_puntos (cliente_id, monto, fecha_compra, puntos, usuario_id)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [id, montoNum, fecha_compra || null, puntos, usuario_id || null]
+    );
+
+    await client.query('COMMIT');
+    res.status(201).json({ ok: true, puntos_sumados: puntos, puntos_totales: cliente.puntos, nivel });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error(error);
+    res.status(500).json({ error: 'Error al migrar puntos: ' + error.message });
+  } finally {
+    client.release();
+  }
+};
+
+// Historial de migraciones de puntos de una clienta
+const getMigracionPuntos = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const r = await pool.query(
+      'SELECT * FROM migracion_puntos WHERE cliente_id = $1 ORDER BY creado_en DESC',
+      [id]
+    );
+    res.json(r.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener historial de migracion' });
+  }
+};
+
+module.exports = { getAll, getById, create, update, remove, getHistorial, agregarPuntos, resetearPortal, migrarPuntos, getMigracionPuntos };

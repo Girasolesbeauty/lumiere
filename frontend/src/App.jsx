@@ -1911,11 +1911,41 @@ function Clientes() {
   const [showForm, setShowForm] = useState(false);
   const [mensaje, setMensaje] = useState("");
   const [nuevoCliente, setNuevoCliente] = useState({ nombre: "", email: "", cuit_dni: "", telefono: "", fecha_nacimiento: "" });
+  const [migrarCli, setMigrarCli] = useState(null);
+  const [migMonto, setMigMonto] = useState("");
+  const [migFecha, setMigFecha] = useState(() => new Date().toISOString().slice(0, 10));
+  const [migHist, setMigHist] = useState([]);
+  const [migMsg, setMigMsg] = useState("");
   const tierNext = { Bronze: 500, Silver: 1000, Gold: 2000, Platinum: 99999 };
 
   useEffect(() => {
     getClientes().then(res => { setClientes(res.data); setLoading(false); }).catch(() => { setClientes(CLIENTS.map(c => ({ ...c, nombre: c.name, puntos: c.points, nivel: c.tier, total_compras: c.total, cuit_dni: c.cuit }))); setLoading(false); });
   }, []);
+
+  const abrirMigrar = async (cli) => {
+    setMigrarCli(cli); setMigMonto(""); setMigFecha(new Date().toISOString().slice(0, 10)); setMigMsg("");
+    try { const r = await API.get("/clientes/" + cli.id + "/migrar-puntos"); setMigHist(r.data || []); } catch (e) { setMigHist([]); }
+  };
+  const guardarMigracion = async (confirmar) => {
+    if (!migMonto || parseFloat(migMonto) <= 0) { setMigMsg("Ingresa un monto valido"); return; }
+    try {
+      await API.post("/clientes/" + migrarCli.id + "/migrar-puntos", {
+        monto: parseFloat(migMonto), fecha_compra: migFecha, confirmar_duplicado: confirmar === true
+      });
+      const puntos = Math.floor(parseFloat(migMonto) / 100);
+      setMigMsg("Listo! Se sumaron " + puntos + " puntos.");
+      setMigMonto("");
+      const r = await API.get("/clientes/" + migrarCli.id + "/migrar-puntos"); setMigHist(r.data || []);
+      // refrescar lista de clientes
+      getClientes().then(res => setClientes(res.data || [])).catch(() => {});
+    } catch (e) {
+      if (e?.response?.status === 409 && e.response.data?.posible_duplicado) {
+        setMigMsg("DUP:" + e.response.data.error);
+      } else {
+        setMigMsg("Error: " + (e?.response?.data?.error || "no se pudo cargar"));
+      }
+    }
+  };
 
   const resetearPortalCliente = async (cli) => {
     if (!confirm("Resetear la contrasena del portal de " + (cli.nombre || cli.name) + "? Va a poder volver a registrarse con su DNI.")) return;
@@ -2008,7 +2038,10 @@ function Clientes() {
                       </div>
                     </td>
                     <td><TierBadge tier={nivel} /></td>
-                    <td><button className="btn btn-sm" style={{ fontSize: 10 }} onClick={() => resetearPortalCliente(c)}>Resetear clave</button></td>
+                    <td>
+                      <button className="btn btn-sm" style={{ fontSize: 10, marginRight: 4 }} onClick={() => resetearPortalCliente(c)}>Resetear clave</button>
+                      <button className="btn btn-sm" style={{ fontSize: 10, background: "#c9a84c", color: "#fff" }} onClick={() => abrirMigrar(c)}>Migrar puntos</button>
+                    </td>
                   </tr>
                 );
               })}
@@ -2037,6 +2070,60 @@ function Clientes() {
               ))}
             </div>
           ))}
+        </div>
+      )}
+    
+      {migrarCli && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={() => setMigrarCli(null)}>
+          <div className="card" style={{ width: 460, maxWidth: "92vw", maxHeight: "88vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <div className="ct" style={{ margin: 0 }}>Migrar puntos de compra anterior</div>
+              <span onClick={() => setMigrarCli(null)} style={{ cursor: "pointer", fontSize: 20, color: "#999" }}>×</span>
+            </div>
+            <div style={{ fontSize: 12, color: "#65676B", marginBottom: 12 }}>{migrarCli.nombre || migrarCli.name} · suma 1 punto cada $100 (no factura)</div>
+
+            {migMsg && (
+              <div style={{ marginBottom: 10, padding: 10, borderRadius: 6, fontSize: 12,
+                background: migMsg.startsWith("Error") ? "#fdecea" : migMsg.startsWith("DUP:") ? "#fff8e1" : "#eafaf1",
+                color: migMsg.startsWith("Error") ? "#c0392b" : migMsg.startsWith("DUP:") ? "#8a6d00" : "#1e7e4f" }}>
+                {migMsg.startsWith("DUP:") ? migMsg.slice(4) : migMsg}
+                {migMsg.startsWith("DUP:") && (
+                  <div style={{ marginTop: 8 }}>
+                    <button className="btn btn-sm" style={{ background: "#c0392b", color: "#fff", marginRight: 6 }} onClick={() => guardarMigracion(true)}>Cargar igual</button>
+                    <button className="btn btn-sm" onClick={() => setMigMsg("")}>Cancelar</button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="fg" style={{ marginBottom: 8 }}>
+              <div className="fl">Monto de la compra</div>
+              <input className="inp" type="number" placeholder="0" value={migMonto} onChange={e => setMigMonto(e.target.value)} />
+              {migMonto && parseFloat(migMonto) > 0 && <div style={{ fontSize: 11, color: "#2d7a4f", marginTop: 4 }}>= {Math.floor(parseFloat(migMonto) / 100)} puntos</div>}
+            </div>
+            <div className="fg" style={{ marginBottom: 12 }}>
+              <div className="fl">Fecha del comprobante</div>
+              <input className="inp" type="date" value={migFecha} onChange={e => setMigFecha(e.target.value)} />
+            </div>
+            <button className="btn btn-p" style={{ width: "100%", marginBottom: 14 }} onClick={() => guardarMigracion(false)}>Cargar puntos</button>
+
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#888", marginBottom: 6 }}>CARGAS ANTERIORES DE ESTA CLIENTA</div>
+            {migHist.length === 0 ? <div style={{ fontSize: 12, color: "#999" }}>Sin cargas previas.</div> : (
+              <table style={{ width: "100%", fontSize: 11 }}>
+                <thead><tr style={{ color: "#888", textAlign: "left" }}><th style={{ padding: "4px 0" }}>Fecha compra</th><th style={{ textAlign: "right" }}>Monto</th><th style={{ textAlign: "right" }}>Puntos</th><th style={{ textAlign: "right" }}>Cargado</th></tr></thead>
+                <tbody>
+                  {migHist.map(h => (
+                    <tr key={h.id} style={{ borderTop: "1px solid #f0f0f0" }}>
+                      <td style={{ padding: "5px 0" }}>{h.fecha_compra ? new Date(h.fecha_compra).toLocaleDateString("es-AR") : "-"}</td>
+                      <td style={{ textAlign: "right" }}>{fmt(parseFloat(h.monto))}</td>
+                      <td style={{ textAlign: "right", color: "#2d7a4f" }}>{h.puntos}</td>
+                      <td style={{ textAlign: "right", color: "#999" }}>{h.creado_en ? new Date(h.creado_en).toLocaleDateString("es-AR") : "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -10,5 +10,7 @@ router.delete('/:id', controller.remove);
 router.get('/:id/historial', controller.getHistorial);
 router.post('/:id/puntos', controller.agregarPuntos);
 router.post('/:id/resetear-portal', controller.resetearPortal);
+router.post('/:id/migrar-puntos', controller.migrarPuntos);
+router.get('/:id/migrar-puntos', controller.getMigracionPuntos);
 
 module.exports = router;
