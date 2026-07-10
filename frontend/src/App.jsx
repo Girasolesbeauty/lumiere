@@ -406,6 +406,7 @@ function VentasOnline({ localId, usuario }) {
   const [cart, setCart] = useState([]);
   const [medioPagoId, setMedioPagoId] = useState("");
   const [referencia, setReferencia] = useState("");
+  const [fechaVenta, setFechaVenta] = useState(() => new Date().toISOString().slice(0, 10));
   const [mensaje, setMensaje] = useState("");
   const [guardando, setGuardando] = useState(false);
 
@@ -444,7 +445,8 @@ function VentasOnline({ localId, usuario }) {
         medio_pago_nombre: medioPagoId || null,
         local_id: localId || 1,
         usuario_id: usuario?.id || null,
-        referencia: referencia || null
+        referencia: referencia || null,
+        fecha: fechaVenta || null
       });
       setMensaje("Venta online registrada! Se sumo al cierre y se desconto del stock (sin facturar).");
       setCart([]); setMedioPagoId(""); setReferencia("");
@@ -519,6 +521,10 @@ function VentasOnline({ localId, usuario }) {
                   <option value="Mercado Pago credito 4 sin interes">Mercado Pago credito 4 sin interes</option>
                   <option value="Gocuotas">Gocuotas</option>
                 </select>
+              </div>
+              <div className="fg" style={{ marginBottom: 8 }}>
+                <div className="fl">Fecha de la venta</div>
+                <input className="inp" type="date" value={fechaVenta} onChange={e => setFechaVenta(e.target.value)} />
               </div>
               <div className="fg" style={{ marginBottom: 10 }}>
                 <div className="fl">Referencia (opcional)</div>

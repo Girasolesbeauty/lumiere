@@ -409,7 +409,9 @@ const crearOnline = async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { items, total, medio_pago_id, medio_pago_nombre, local_id, usuario_id, referencia } = req.body;
+    const { items, total, medio_pago_id, medio_pago_nombre, local_id, usuario_id, referencia, fecha } = req.body;
+    // Si viene fecha, se usa esa (para ventas online de dias anteriores). Si no, ahora.
+    const fechaVenta = fecha ? fecha : null;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       await client.query('ROLLBACK');
@@ -426,9 +428,9 @@ const crearOnline = async (req, res) => {
     const venta = await client.query(
       `INSERT INTO ventas
         (numero_factura, cliente_id, tipo_factura, subtotal, descuento, total, canal, local_id,
-         medio_pago_id, medio_pago, es_preventa, estado_pago, usuario_id)
-       VALUES ($1, NULL, NULL, $2, 0, $3, 'online', $4, $5, $6, FALSE, 'pagado', $7) RETURNING *`,
-      [numero, subtotal, totalNum, local_id || 1, medio_pago_id || null, medio_pago_nombre || null, usuario_id || null]
+         medio_pago_id, medio_pago, es_preventa, estado_pago, usuario_id, creado_en)
+       VALUES ($1, NULL, NULL, $2, 0, $3, 'online', $4, $5, $6, FALSE, 'pagado', $7, COALESCE($8::timestamp, NOW())) RETURNING *`,
+      [numero, subtotal, totalNum, local_id || 1, medio_pago_id || null, medio_pago_nombre || null, usuario_id || null, fechaVenta]
     );
     const ventaId = venta.rows[0].id;
 
@@ -451,9 +453,9 @@ const crearOnline = async (req, res) => {
     // Suma al cierre de caja como ingreso (identificado como venta online)
     if (totalNum > 0) {
       await client.query(
-        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id)
-         VALUES ($1, 'I', $2, $3, $4)`,
-        ['Venta online ' + numero + (referencia ? ' (' + referencia + ')' : ''), totalNum, numero, local_id || 1]
+        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id, creado_en)
+         VALUES ($1, 'I', $2, $3, $4, COALESCE($5::timestamp, NOW()))`,
+        ['Venta online ' + numero + (referencia ? ' (' + referencia + ')' : ''), totalNum, numero, local_id || 1, fechaVenta]
       );
     }
 
