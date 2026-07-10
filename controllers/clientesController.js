@@ -113,9 +113,10 @@ const agregarPuntos = async (req, res) => {
     );
     const cliente = result.rows[0];
     let nivel = 'Bronze';
-    if (cliente.puntos >= 2000) nivel = 'Platinum';
-    else if (cliente.puntos >= 1000) nivel = 'Gold';
-    else if (cliente.puntos >= 500) nivel = 'Silver';
+    if (cliente.puntos >= 20000) nivel = 'Black';
+    else if (cliente.puntos >= 10000) nivel = 'Platinum';
+    else if (cliente.puntos >= 5000) nivel = 'Gold';
+    else if (cliente.puntos >= 2000) nivel = 'Silver';
     await pool.query('UPDATE clientes SET nivel = $1 WHERE id = $2', [nivel, id]);
     res.json({ ...cliente, nivel });
   } catch (error) {
@@ -177,9 +178,10 @@ const migrarPuntos = async (req, res) => {
     }
     const cliente = upd.rows[0];
     let nivel = 'Bronze';
-    if (cliente.puntos >= 2000) nivel = 'Platinum';
-    else if (cliente.puntos >= 1000) nivel = 'Gold';
-    else if (cliente.puntos >= 500) nivel = 'Silver';
+    if (cliente.puntos >= 20000) nivel = 'Black';
+    else if (cliente.puntos >= 10000) nivel = 'Platinum';
+    else if (cliente.puntos >= 5000) nivel = 'Gold';
+    else if (cliente.puntos >= 2000) nivel = 'Silver';
     await client.query('UPDATE clientes SET nivel = $1 WHERE id = $2', [nivel, id]);
 
     // Registrar la migracion (para historial y control de duplicados)

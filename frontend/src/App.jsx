@@ -184,7 +184,7 @@ function MCard({ label, value, sub, color }) {
 }
 
 function TierBadge({ tier }) {
-  const cls = tier === "Platinum" ? "bp" : tier === "Gold" ? "ba" : tier === "Silver" ? "bb" : "bx";
+  const cls = tier === "Black" ? "bp" : tier === "Platinum" ? "bp" : tier === "Gold" ? "ba" : tier === "Silver" ? "bb" : "bx";
   return <span className={"badge " + cls}>{tier}</span>;
 }
 
@@ -1916,7 +1916,7 @@ function Clientes() {
   const [migFecha, setMigFecha] = useState(() => new Date().toISOString().slice(0, 10));
   const [migHist, setMigHist] = useState([]);
   const [migMsg, setMigMsg] = useState("");
-  const tierNext = { Bronze: 500, Silver: 1000, Gold: 2000, Platinum: 99999 };
+  const tierNext = { Bronze: 2000, Silver: 5000, Gold: 10000, Platinum: 20000, Black: 99999 };
 
   useEffect(() => {
     getClientes().then(res => { setClientes(res.data); setLoading(false); }).catch(() => { setClientes(CLIENTS.map(c => ({ ...c, nombre: c.name, puntos: c.points, nivel: c.tier, total_compras: c.total, cuit_dni: c.cuit }))); setLoading(false); });
@@ -2053,10 +2053,11 @@ function Clientes() {
       {tab === "niveles" && (
         <div className="g2 fade">
           {[
-            { tier: "Bronze", min: 0, max: 499, c: "#c9a84c", perks: ["1 pt cada $100", "Cupon bienvenida"] },
-            { tier: "Silver", min: 500, max: 999, c: "#2471a3", perks: ["1.2 pts cada $100", "Acceso preventas", "Envio gratis +$5k"] },
-            { tier: "Gold", min: 1000, max: 1999, c: "#c9a84c", perks: ["1.5 pts cada $100", "5% descuento exclusivo", "Regalo de cumpleanos"] },
-            { tier: "Platinum", min: 2000, max: null, c: "#7d3c98", perks: ["2 pts cada $100", "10% descuento", "Envio gratis siempre", "Lanzamientos anticipados"] },
+            { tier: "Bronze", min: 0, max: 1999, c: "#c9a84c", perks: ["1 pt cada $100", "Cupon bienvenida"] },
+            { tier: "Silver", min: 2000, max: 4999, c: "#2471a3", perks: ["1.2 pts cada $100", "Acceso preventas", "Envio gratis +$5k"] },
+            { tier: "Gold", min: 5000, max: 9999, c: "#c9a84c", perks: ["1.5 pts cada $100", "5% descuento exclusivo", "Regalo de cumpleanos"] },
+            { tier: "Platinum", min: 10000, max: 19999, c: "#7d3c98", perks: ["2 pts cada $100", "10% descuento", "Envio gratis siempre", "Lanzamientos anticipados"] },
+            { tier: "Black", min: 20000, max: null, c: "#1a1a1a", perks: ["2.5 pts cada $100", "15% descuento", "Envio gratis siempre", "Atencion VIP", "Regalos exclusivos"] },
           ].map(n => (
             <div key={n.tier} className="card" style={{ borderLeft: "3px solid " + n.c }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
@@ -2861,7 +2862,7 @@ function Fidelizacion() {
   const [editandoPremio, setEditandoPremio] = useState(null);
   const [codigoValidar, setCodigoValidar] = useState("");
   const [resultadoValidacion, setResultadoValidacion] = useState(null);
-  const tierNext = { Bronze: 500, Silver: 1000, Gold: 2000, Platinum: 99999 };
+  const tierNext = { Bronze: 2000, Silver: 5000, Gold: 10000, Platinum: 20000, Black: 99999 };
 
   useEffect(() => {
     getRanking().then(res => { setClientes(res.data); setLoading(false); }).catch(() => { setClientes(CLIENTS.map(c => ({ ...c, nombre: c.name, puntos: c.points, nivel: c.tier }))); setLoading(false); });
