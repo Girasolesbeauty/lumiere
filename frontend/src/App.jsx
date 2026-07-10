@@ -2858,6 +2858,7 @@ function Fidelizacion() {
   const [showForm, setShowForm] = useState(false);
   const [nuevoPremio, setNuevoPremio] = useState({ nombre: "", descripcion: "", puntos_requeridos: "", imagen_url: "", stock_total: "", solo_mes_cumpleanos: false });
   const [precioCalc, setPrecioCalc] = useState("");
+  const [editandoPremio, setEditandoPremio] = useState(null);
   const [codigoValidar, setCodigoValidar] = useState("");
   const [resultadoValidacion, setResultadoValidacion] = useState(null);
   const tierNext = { Bronze: 500, Silver: 1000, Gold: 2000, Platinum: 99999 };
@@ -2878,15 +2879,35 @@ function Fidelizacion() {
   const clientesAMostrar = clientes.length > 0 ? clientes : CLIENTS.map(c => ({ ...c, nombre: c.name, puntos: c.points, nivel: c.tier }));
   const totalPuntos = clientesAMostrar.reduce((s, c) => s + (c.puntos || 0), 0);
 
+  const editarPremio = (p) => {
+    setEditandoPremio(p);
+    setNuevoPremio({
+      nombre: p.nombre || "", descripcion: p.descripcion || "",
+      puntos_requeridos: String(p.puntos_requeridos || ""),
+      imagen_url: p.imagen_url || "",
+      stock_total: p.stock_total != null ? String(p.stock_total) : "",
+      solo_mes_cumpleanos: p.solo_mes_cumpleanos === true
+    });
+    setShowForm(true);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const guardarPremio = async () => {
     if (!nuevoPremio.nombre || !nuevoPremio.puntos_requeridos) return setMensaje("Completa nombre y puntos requeridos");
     try {
-      await API.post("/fidelizacion/premios", {
+      const datos = {
         ...nuevoPremio,
         puntos_requeridos: parseInt(nuevoPremio.puntos_requeridos),
         stock_total: nuevoPremio.stock_total ? parseInt(nuevoPremio.stock_total) : null
-      });
-      setMensaje("Premio creado!");
+      };
+      if (editandoPremio) {
+        await API.put("/fidelizacion/premios/" + editandoPremio.id, datos);
+        setMensaje("Premio actualizado!");
+        setEditandoPremio(null);
+      } else {
+        await API.post("/fidelizacion/premios", datos);
+        setMensaje("Premio creado!");
+      }
       setShowForm(false);
       setNuevoPremio({ nombre: "", descripcion: "", puntos_requeridos: "", imagen_url: "", stock_total: "", solo_mes_cumpleanos: false });
       cargarPremios();
@@ -2962,7 +2983,7 @@ function Fidelizacion() {
       {tab === "premios" && (
         <div className="fade">
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-            <button className="btn btn-p btn-sm" onClick={() => setShowForm(!showForm)}>+ Nuevo premio</button>
+            <button className="btn btn-p btn-sm" onClick={() => { setShowForm(!showForm); setEditandoPremio(null); setNuevoPremio({ nombre: "", descripcion: "", puntos_requeridos: "", imagen_url: "", stock_total: "", solo_mes_cumpleanos: false }); }}>+ Nuevo premio</button>
           </div>
           {showForm && (
             <div className="card" style={{ marginBottom: 16 }}>
@@ -2997,7 +3018,7 @@ function Fidelizacion() {
                   </label>
                 </div>
               </div>
-              <button className="btn btn-p" style={{ width: "100%", marginTop: 8 }} onClick={guardarPremio}>Crear premio</button>
+              <button className="btn btn-p" style={{ width: "100%", marginTop: 8 }} onClick={guardarPremio}>{editandoPremio ? "Guardar cambios" : "Crear premio"}</button>
             </div>
           )}
           {premios.length === 0 ? (
@@ -3018,7 +3039,10 @@ function Fidelizacion() {
                       <span style={{ fontSize: 16, fontWeight: 700, color: "#c9a84c" }}>{p.puntos_requeridos} pts</span>
                       <span className={"badge " + (disp !== null && disp < 5 ? "br" : "bg")}>{disp === null ? "ilimitado" : disp + "u"}</span>
                     </div>
-                    {p.activo && <button className="btn btn-sm" style={{ width: "100%", marginTop: 10 }} onClick={() => desactivarPremio(p)}>Desactivar</button>}
+                    <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                      <button className="btn btn-sm" style={{ flex: 1, background: "#c9a84c", color: "#fff" }} onClick={() => editarPremio(p)}>Editar</button>
+                      {p.activo && <button className="btn btn-sm" style={{ flex: 1 }} onClick={() => desactivarPremio(p)}>Desactivar</button>}
+                    </div>
                   </div>
                 );
               })}
