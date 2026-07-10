@@ -2946,6 +2946,7 @@ function Fidelizacion() {
         <MCard label="Clientes con puntos" value={String(clientesAMostrar.filter(c => (c.puntos || 0) > 0).length)} color="#2d7a4f" />
         <MCard label="Premios activos" value={String(premios.filter(p => p.activo).length)} color="#2471a3" />
         <MCard label="Nivel Platinum" value={String(clientesAMostrar.filter(c => (c.nivel || c.tier) === "Platinum").length)} color="#7d3c98" />
+        <MCard label="Nivel Black" value={String(clientesAMostrar.filter(c => (c.nivel || c.tier) === "Black").length)} color="#1a1a1a" />
       </div>
       {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
       <div className="tabs">
