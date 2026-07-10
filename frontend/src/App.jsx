@@ -2739,6 +2739,7 @@ function Fidelizacion() {
   const [mensaje, setMensaje] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [nuevoPremio, setNuevoPremio] = useState({ nombre: "", descripcion: "", puntos_requeridos: "", imagen_url: "", stock_total: "", solo_mes_cumpleanos: false });
+  const [precioCalc, setPrecioCalc] = useState("");
   const [codigoValidar, setCodigoValidar] = useState("");
   const [resultadoValidacion, setResultadoValidacion] = useState(null);
   const tierNext = { Bronze: 500, Silver: 1000, Gold: 2000, Platinum: 99999 };
@@ -2851,6 +2852,21 @@ function Fidelizacion() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div className="fg"><div className="fl">Nombre del premio</div><input className="inp" placeholder="Ej: Envio gratis" value={nuevoPremio.nombre} onChange={e => setNuevoPremio(p => ({ ...p, nombre: e.target.value }))} /></div>
                 <div className="fg"><div className="fl">Puntos requeridos</div><input className="inp" type="number" placeholder="500" value={nuevoPremio.puntos_requeridos} onChange={e => setNuevoPremio(p => ({ ...p, puntos_requeridos: e.target.value }))} /></div>
+              </div>
+              <div style={{ background: "#f7f5f0", borderRadius: 8, padding: 12, marginBottom: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6, color: "#c9a84c" }}>💡 Calculadora de puntos sugeridos</div>
+                <div style={{ fontSize: 11, color: "#65676B", marginBottom: 8 }}>Regla: el cliente tiene que gastar 5 veces el valor del regalo. Puntos = precio de venta ÷ 20.</div>
+                <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                  <div style={{ flex: 1 }}>
+                    <div className="fl">Precio de venta del regalo</div>
+                    <input className="inp" type="number" placeholder="8000" value={precioCalc} onChange={e => setPrecioCalc(e.target.value)} />
+                  </div>
+                  <div style={{ textAlign: "center", minWidth: 90 }}>
+                    <div style={{ fontSize: 10, color: "#888" }}>Puntos</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: "#2d7a4f" }}>{precioCalc && parseFloat(precioCalc) > 0 ? Math.round(parseFloat(precioCalc) / 20) : "—"}</div>
+                  </div>
+                  <button className="btn btn-sm" style={{ background: "#c9a84c", color: "#fff", whiteSpace: "nowrap" }} disabled={!precioCalc || parseFloat(precioCalc) <= 0} onClick={() => setNuevoPremio(p => ({ ...p, puntos_requeridos: String(Math.round(parseFloat(precioCalc) / 20)) }))}>Usar estos puntos</button>
+                </div>
               </div>
               <div className="fg"><div className="fl">Descripcion</div><input className="inp" placeholder="Breve descripcion del premio" value={nuevoPremio.descripcion} onChange={e => setNuevoPremio(p => ({ ...p, descripcion: e.target.value }))} /></div>
               <div className="fg"><div className="fl">URL de imagen (opcional)</div><input className="inp" placeholder="https://..." value={nuevoPremio.imagen_url} onChange={e => setNuevoPremio(p => ({ ...p, imagen_url: e.target.value }))} /></div>
