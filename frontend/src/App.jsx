@@ -4725,6 +4725,111 @@ function Caja({ localId, usuario }) {
   );
 }
 
+function CajaRespaldo({ usuario }) {
+  const [total, setTotal] = useState(0);
+  const [movimientos, setMovimientos] = useState([]);
+  const [cuentas, setCuentas] = useState([]);
+  const [modo, setModo] = useState("guardar");
+  const [importe, setImporte] = useState("");
+  const [concepto, setConcepto] = useState("");
+  const [cuentaId, setCuentaId] = useState("");
+  const [mensaje, setMensaje] = useState("");
+
+  const cargar = () => {
+    API.get("/caja-respaldo").then(res => {
+      setTotal(parseFloat(res.data?.total || 0));
+      setMovimientos(res.data?.movimientos || []);
+    }).catch(() => {});
+  };
+  useEffect(() => {
+    cargar();
+    API.get("/cuentas-pago?solo_pago=true").then(res => setCuentas(res.data || [])).catch(() => {});
+  }, []);
+
+  const registrar = async () => {
+    if (!importe || parseFloat(importe) <= 0) return setMensaje("Ingresa un importe valido");
+    try {
+      await API.post("/caja-respaldo/" + modo, {
+        importe: parseFloat(importe),
+        concepto: concepto || null,
+        cuenta_pago_id: cuentaId || null,
+        usuario_id: usuario?.id || null
+      });
+      setMensaje(modo === "guardar" ? "Plata guardada en la reserva!" : "Plata retirada de la reserva!");
+      setImporte(""); setConcepto(""); setCuentaId("");
+      cargar();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) {
+      setMensaje("Error: " + (e?.response?.data?.error || "no se pudo registrar"));
+    }
+  };
+
+  const borrar = async (id) => {
+    if (!confirm("Borrar este movimiento de la reserva?")) return;
+    try { await API.delete("/caja-respaldo/" + id); cargar(); } catch (e) {}
+  };
+
+  return (
+    <div>
+      <div className="ph">
+        <div><div className="pt">Caja de Respaldo</div><div className="ps">plata que tenemos guardada a favor</div></div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 11, color: "#65676B", textTransform: "uppercase", letterSpacing: 1 }}>Total guardado</div>
+          <div style={{ fontSize: 26, fontWeight: 700, color: "#2d7a4f" }}>{fmt(total)}</div>
+        </div>
+      </div>
+
+      {mensaje && <div style={{ background: mensaje.startsWith("Error") ? "#fdecea" : "#eafaf1", color: mensaje.startsWith("Error") ? "#c0392b" : "#1e7e4f", padding: 10, borderRadius: 8, marginBottom: 12, fontSize: 13 }}>{mensaje}</div>}
+
+      <div className="g2" style={{ alignItems: "start" }}>
+        <div className="card">
+          <div className="ct">Nuevo movimiento</div>
+          <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+            <button className="btn" style={{ flex: 1, background: modo === "guardar" ? "#2d7a4f" : "#f0f0f0", color: modo === "guardar" ? "#fff" : "#65676B" }} onClick={() => setModo("guardar")}>Guardar plata</button>
+            <button className="btn" style={{ flex: 1, background: modo === "sacar" ? "#c0392b" : "#f0f0f0", color: modo === "sacar" ? "#fff" : "#65676B" }} onClick={() => setModo("sacar")}>Sacar plata</button>
+          </div>
+          <div className="fg" style={{ marginBottom: 8 }}>
+            <div className="fl">Importe ($)</div>
+            <input className="inp" type="number" placeholder="0" value={importe} onChange={e => setImporte(e.target.value)} />
+          </div>
+          <div className="fg" style={{ marginBottom: 8 }}>
+            <div className="fl">{modo === "guardar" ? "Cuenta de banco de donde sale" : "Cuenta de banco a donde vuelve"} (opcional)</div>
+            <select className="sel" value={cuentaId} onChange={e => setCuentaId(e.target.value)}>
+              <option value="">Seleccionar...</option>
+              {cuentas.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+            </select>
+          </div>
+          <div className="fg" style={{ marginBottom: 12 }}>
+            <div className="fl">Concepto (opcional)</div>
+            <input className="inp" placeholder="Ej: ahorro del mes" value={concepto} onChange={e => setConcepto(e.target.value)} />
+          </div>
+          <button className="btn btn-p" style={{ width: "100%" }} onClick={registrar}>{modo === "guardar" ? "Guardar en la reserva" : "Sacar de la reserva"}</button>
+        </div>
+
+        <div className="card">
+          <div className="ct">Historial de la reserva</div>
+          {movimientos.length === 0 ? <div style={{ fontSize: 12, color: "#999", padding: "10px 0" }}>Sin movimientos todavia.</div> : (
+            <table style={{ width: "100%", fontSize: 12 }}>
+              <thead><tr style={{ color: "#888", textAlign: "left" }}><th style={{ padding: "6px 0" }}>Fecha</th><th>Concepto</th><th style={{ textAlign: "center" }}>Tipo</th><th style={{ textAlign: "right" }}>Importe</th><th></th></tr></thead>
+              <tbody>
+                {movimientos.map(m => (
+                  <tr key={m.id} style={{ borderTop: "1px solid #f0f0f0" }}>
+                    <td style={{ padding: "8px 0" }}>{m.creado_en ? new Date(m.creado_en).toLocaleDateString("es-AR") : "-"}</td>
+                    <td>{m.concepto || "-"}</td>
+                    <td style={{ textAlign: "center" }}><span className="badge" style={{ background: m.tipo === "guardar" ? "#2d7a4f15" : "#c0392b15", color: m.tipo === "guardar" ? "#2d7a4f" : "#c0392b", fontSize: 9 }}>{m.tipo === "guardar" ? "guardado" : "retirado"}</span></td>
+                    <td style={{ textAlign: "right", fontWeight: 600, color: m.tipo === "guardar" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "guardar" ? "+" : "-"}{fmt(parseFloat(m.importe))}</td>
+                    <td style={{ textAlign: "right" }}><span onClick={() => borrar(m.id)} style={{ cursor: "pointer", color: "#ccc", fontSize: 15 }}>×</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Comprobantes({ localId }) {
   const hoy = new Date();
   const fmtFecha = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
@@ -6675,7 +6780,7 @@ function Promociones() {
 const NAV_SECTIONS = [
   { section: "VENTAS", color: "#e67e22", items: [{ id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "pos", icon: "🛒", label: "Punto de Venta" }, { id: "ventas-online", icon: "🌐", label: "Ventas Online" }] },
   { section: "STOCK", color: "#7d3c98", items: [{ id: "inventory", icon: "📦", label: "Inventario" }, { id: "ordenes", icon: "🚚", label: "Ingresos" }, { id: "inconsistencias", icon: "⚠️", label: "Inconsistencias" }, { id: "kits", icon: "🎁", label: "Kits" }, { id: "insumos", icon: "🛍️", label: "Insumos" }, { id: "control-inv", icon: "🔍", label: "Control de Inventario" }] },
-  { section: "CAJA", color: "#2d7a4f", items: [{ id: "caja", icon: "💵", label: "Caja" }, { id: "cierre", icon: "🔒", label: "Cierre de Caja" }, { id: "giftcards", icon: "🎀", label: "Gift Cards" }] },
+  { section: "CAJA", color: "#2d7a4f", items: [{ id: "caja", icon: "💵", label: "Caja" }, { id: "caja-respaldo", icon: "🏦", label: "Caja de Respaldo" }, { id: "cierre", icon: "🔒", label: "Cierre de Caja" }, { id: "giftcards", icon: "🎀", label: "Gift Cards" }] },
   { section: "CLIENTES", color: "#c9a84c", items: [{ id: "clients", icon: "👥", label: "Clientes" }, { id: "pedidos", icon: "📦", label: "Pedidos" }, { id: "fidelizacion", icon: "⭐", label: "Fidelizacion" }] },
   { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "💰", label: "Finanzas" }, { id: "reports", icon: "📋", label: "Informes" }, { id: "comprobantes", icon: "🧾", label: "Comprobantes" }, { id: "comisiones", icon: "💎", label: "Comisiones" }, { id: "proveedores", icon: "🏭", label: "Proveedores" }, { id: "calculadoras", icon: "🧮", label: "Calculadoras" }, { id: "productividad", icon: "🏆", label: "Productividad" }] },
   { section: "MARKETING", color: "#e74c3c", items: [{ id: "cupones", icon: "🏷️", label: "Cupones" }, { id: "promociones", icon: "🎉", label: "Promociones" }] },
@@ -7044,7 +7149,7 @@ export default function AppWrapper() {
       "comisiones": "comisiones.propias", "proveedores": "proveedores.ver",
       "calculadoras": "finanzas.flujo", "productividad": "finanzas.flujo",
       "cupones": "cupones.ver", "promociones": "cupones.ver", "postventa": "postventa.ver", "portal": "clientes.ver",
-      "caja": "caja.ver", "cierre": "caja.ver", "giftcards": "caja.ver",
+      "caja": "caja.ver", "caja-respaldo": "caja.ver", "cierre": "caja.ver", "giftcards": "caja.ver",
       "usuarios": "usuarios.ver", "tiendanube": "tiendanube.ver",
     };
     const permiso = mapaModulos[modulo];
@@ -7094,6 +7199,7 @@ export default function AppWrapper() {
     if (id === "usuarios") return <Usuarios usuario={usuario} />;
     if (id === "comisiones") return <Comisiones localId={local.id} />;
     if (id === "caja") return <Caja localId={local.id} usuario={usuario} />;
+    if (id === "caja-respaldo") return <CajaRespaldo usuario={usuario} />;
     if (id === "cierre") return <CierreCaja localId={local.id} usuario={usuario} />;
     if (id === "giftcards") return <GiftCards localId={local.id} usuario={usuario} />;
     if (id === "ordenes") return <OrdenesIngreso localId={local.id} usuario={usuario} />;

@@ -46,6 +46,7 @@ app.use('/api/gift-cards', require('./routes/gift-cards'));
 app.use('/api/portal', require('./routes/portal'));
 app.use('/api/calculadoras', require('./routes/calculadoras'));
 app.use('/api/anulaciones', require('./routes/anulaciones'));
+app.use('/api/caja-respaldo', require('./routes/cajaRespaldo'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {
