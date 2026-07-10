@@ -523,8 +523,39 @@ function VentasOnline({ localId, usuario }) {
                 </select>
               </div>
               <div className="fg" style={{ marginBottom: 8 }}>
-                <div className="fl">Fecha de la venta</div>
-                <input className="inp" type="date" value={fechaVenta} onChange={e => setFechaVenta(e.target.value)} />
+                <div className="fl">Fecha de la venta (dia / mes / año)</div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {(() => {
+                    const partes = (fechaVenta || "").split("-"); // [YYYY, MM, DD]
+                    const anioSel = partes[0] || String(new Date().getFullYear());
+                    const mesSel = partes[1] || "01";
+                    const diaSel = partes[2] || "01";
+                    const setParte = (tipo, val) => {
+                      let a = anioSel, m = mesSel, d = diaSel;
+                      if (tipo === "d") d = val;
+                      if (tipo === "m") m = val;
+                      if (tipo === "a") a = val;
+                      // Ajustar dia maximo del mes
+                      const maxDia = new Date(parseInt(a), parseInt(m), 0).getDate();
+                      if (parseInt(d) > maxDia) d = String(maxDia).padStart(2, "0");
+                      setFechaVenta(a + "-" + m + "-" + d);
+                    };
+                    const anioActual = new Date().getFullYear();
+                    return (
+                      <>
+                        <select className="inp" style={{ flex: 1 }} value={diaSel} onChange={e => setParte("d", e.target.value)}>
+                          {Array.from({ length: 31 }, (_, k) => String(k + 1).padStart(2, "0")).map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                        <select className="inp" style={{ flex: 1 }} value={mesSel} onChange={e => setParte("m", e.target.value)}>
+                          {[["01","Ene"],["02","Feb"],["03","Mar"],["04","Abr"],["05","May"],["06","Jun"],["07","Jul"],["08","Ago"],["09","Sep"],["10","Oct"],["11","Nov"],["12","Dic"]].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+                        </select>
+                        <select className="inp" style={{ flex: 1 }} value={anioSel} onChange={e => setParte("a", e.target.value)}>
+                          {[anioActual - 1, anioActual, anioActual + 1].map(a => <option key={a} value={String(a)}>{a}</option>)}
+                        </select>
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
               <div className="fg" style={{ marginBottom: 10 }}>
                 <div className="fl">Referencia (opcional)</div>
