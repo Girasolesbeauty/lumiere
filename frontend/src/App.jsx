@@ -2857,7 +2857,7 @@ function Fidelizacion() {
   const [loading, setLoading] = useState(true);
   const [mensaje, setMensaje] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [nuevoPremio, setNuevoPremio] = useState({ nombre: "", descripcion: "", puntos_requeridos: "", imagen_url: "", stock_total: "", solo_mes_cumpleanos: false });
+  const [nuevoPremio, setNuevoPremio] = useState({ nombre: "", descripcion: "", puntos_requeridos: "", imagen_url: "", stock_total: "", solo_mes_cumpleanos: false, nivel_minimo: "Bronze" });
   const [precioCalc, setPrecioCalc] = useState("");
   const [editandoPremio, setEditandoPremio] = useState(null);
   const [codigoValidar, setCodigoValidar] = useState("");
@@ -2887,7 +2887,8 @@ function Fidelizacion() {
       puntos_requeridos: String(p.puntos_requeridos || ""),
       imagen_url: p.imagen_url || "",
       stock_total: p.stock_total != null ? String(p.stock_total) : "",
-      solo_mes_cumpleanos: p.solo_mes_cumpleanos === true
+      solo_mes_cumpleanos: p.solo_mes_cumpleanos === true,
+      nivel_minimo: p.nivel_minimo || "Bronze"
     });
     setShowForm(true);
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
@@ -2910,7 +2911,7 @@ function Fidelizacion() {
         setMensaje("Premio creado!");
       }
       setShowForm(false);
-      setNuevoPremio({ nombre: "", descripcion: "", puntos_requeridos: "", imagen_url: "", stock_total: "", solo_mes_cumpleanos: false });
+      setNuevoPremio({ nombre: "", descripcion: "", puntos_requeridos: "", imagen_url: "", stock_total: "", solo_mes_cumpleanos: false, nivel_minimo: "Bronze" });
       cargarPremios();
       setTimeout(() => setMensaje(""), 3000);
     } catch (e) { setMensaje("Error al crear el premio"); }
@@ -2985,7 +2986,7 @@ function Fidelizacion() {
       {tab === "premios" && (
         <div className="fade">
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-            <button className="btn btn-p btn-sm" onClick={() => { setShowForm(!showForm); setEditandoPremio(null); setNuevoPremio({ nombre: "", descripcion: "", puntos_requeridos: "", imagen_url: "", stock_total: "", solo_mes_cumpleanos: false }); }}>+ Nuevo premio</button>
+            <button className="btn btn-p btn-sm" onClick={() => { setShowForm(!showForm); setEditandoPremio(null); setNuevoPremio({ nombre: "", descripcion: "", puntos_requeridos: "", imagen_url: "", stock_total: "", solo_mes_cumpleanos: false, nivel_minimo: "Bronze" }); }}>+ Nuevo premio</button>
           </div>
           {showForm && (
             <div className="card" style={{ marginBottom: 16 }}>
@@ -3014,6 +3015,16 @@ function Fidelizacion() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div className="fg"><div className="fl">Stock disponible (vacio = ilimitado)</div><input className="inp" type="number" placeholder="Ej: 10" value={nuevoPremio.stock_total} onChange={e => setNuevoPremio(p => ({ ...p, stock_total: e.target.value }))} /></div>
                 <div className="fg" style={{ display: "flex", alignItems: "center", paddingTop: 18 }}>
+                  <div className="fg" style={{ marginBottom: 10 }}>
+                    <div className="fl">Nivel minimo para canjear</div>
+                    <select className="inp" value={nuevoPremio.nivel_minimo} onChange={e => setNuevoPremio(p => ({ ...p, nivel_minimo: e.target.value }))}>
+                      <option value="Bronze">Bronze (todos)</option>
+                      <option value="Silver">Silver o superior</option>
+                      <option value="Gold">Gold o superior</option>
+                      <option value="Platinum">Platinum o superior</option>
+                      <option value="Black">Black (solo Black)</option>
+                    </select>
+                  </div>
                   <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer" }}>
                     <input type="checkbox" checked={nuevoPremio.solo_mes_cumpleanos} onChange={e => setNuevoPremio(p => ({ ...p, solo_mes_cumpleanos: e.target.checked }))} />
                     Solo disponible en el mes de cumpleanos de la clienta
@@ -3035,6 +3046,7 @@ function Fidelizacion() {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                       <div style={{ fontSize: 13, fontWeight: 600 }}>{p.nombre}</div>
                       {p.solo_mes_cumpleanos && <span className="badge" style={{ background: "#7d3c9815", color: "#7d3c98", fontSize: 8 }}>cumple</span>}
+                      {p.nivel_minimo && p.nivel_minimo !== "Bronze" && <span className="badge" style={{ background: "#1a1a1a15", color: "#1a1a1a", fontSize: 8, marginLeft: 4 }}>{p.nivel_minimo}+</span>}
                     </div>
                     {p.descripcion && <div style={{ fontSize: 10, color: "#65676B", marginTop: 3 }}>{p.descripcion}</div>}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>

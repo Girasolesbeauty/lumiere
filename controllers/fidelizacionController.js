@@ -1,5 +1,9 @@
 const pool = require('../config/database');
 
+// Orden de niveles (de menor a mayor). Sirve para validar el nivel minimo de un premio.
+const ORDEN_NIVELES = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Black'];
+const rankNivel = (n) => { const i = ORDEN_NIVELES.indexOf(n); return i < 0 ? 0 : i; };
+
 // Generar codigo unico de canje, ej: PREMIO-A7K2
 const generarCodigo = () => {
   const letras = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -44,14 +48,14 @@ const getPremios = async (req, res) => {
 // Crear premio nuevo
 const createPremio = async (req, res) => {
   try {
-    const { nombre, descripcion, puntos_requeridos, imagen_url, stock_total, solo_mes_cumpleanos } = req.body;
+    const { nombre, descripcion, puntos_requeridos, imagen_url, stock_total, solo_mes_cumpleanos, nivel_minimo } = req.body;
     if (!nombre || !puntos_requeridos) {
       return res.status(400).json({ error: 'Nombre y puntos requeridos son obligatorios' });
     }
     const result = await pool.query(
-      `INSERT INTO premios_fidelizacion (nombre, descripcion, puntos_requeridos, imagen_url, stock_total, solo_mes_cumpleanos)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [nombre, descripcion || null, puntos_requeridos, imagen_url || null, stock_total || null, solo_mes_cumpleanos === true]
+      `INSERT INTO premios_fidelizacion (nombre, descripcion, puntos_requeridos, imagen_url, stock_total, solo_mes_cumpleanos, nivel_minimo)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [nombre, descripcion || null, puntos_requeridos, imagen_url || null, stock_total || null, solo_mes_cumpleanos === true, nivel_minimo || 'Bronze']
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -64,7 +68,7 @@ const createPremio = async (req, res) => {
 const updatePremio = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, descripcion, puntos_requeridos, imagen_url, stock_total, solo_mes_cumpleanos, activo } = req.body;
+    const { nombre, descripcion, puntos_requeridos, imagen_url, stock_total, solo_mes_cumpleanos, activo, nivel_minimo } = req.body;
     const result = await pool.query(
       `UPDATE premios_fidelizacion SET
         nombre = COALESCE($1, nombre),
@@ -73,9 +77,10 @@ const updatePremio = async (req, res) => {
         imagen_url = COALESCE($4, imagen_url),
         stock_total = $5,
         solo_mes_cumpleanos = COALESCE($6, solo_mes_cumpleanos),
-        activo = COALESCE($7, activo)
+        activo = COALESCE($7, activo),
+        nivel_minimo = COALESCE($9, nivel_minimo)
        WHERE id = $8 RETURNING *`,
-      [nombre, descripcion, puntos_requeridos, imagen_url, stock_total, solo_mes_cumpleanos, activo, id]
+      [nombre, descripcion, puntos_requeridos, imagen_url, stock_total, solo_mes_cumpleanos, activo, id, nivel_minimo]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Premio no encontrado' });
     res.json(result.rows[0]);
@@ -107,7 +112,7 @@ const canjear = async (req, res) => {
       return res.status(400).json({ error: 'Faltan datos del canje' });
     }
 
-    const clienteRes = await client.query('SELECT puntos, fecha_nacimiento FROM clientes WHERE id = $1', [cliente_id]);
+    const clienteRes = await client.query('SELECT puntos, fecha_nacimiento, nivel FROM clientes WHERE id = $1', [cliente_id]);
     if (clienteRes.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Cliente no encontrado' });
@@ -120,6 +125,14 @@ const canjear = async (req, res) => {
       return res.status(404).json({ error: 'Premio no disponible' });
     }
     const premio = premioRes.rows[0];
+
+    // Validar nivel minimo del premio
+    if (premio.nivel_minimo && premio.nivel_minimo !== 'Bronze') {
+      if (rankNivel(cliente.nivel) < rankNivel(premio.nivel_minimo)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Este premio es exclusivo para nivel ' + premio.nivel_minimo + ' o superior' });
+      }
+    }
 
     if (premio.solo_mes_cumpleanos) {
       const mesActual = new Date().getMonth() + 1;
