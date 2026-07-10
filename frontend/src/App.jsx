@@ -407,12 +407,16 @@ function VentasOnline({ localId, usuario }) {
   const [medioPagoId, setMedioPagoId] = useState("");
   const [referencia, setReferencia] = useState("");
   const [fechaVenta, setFechaVenta] = useState(() => new Date().toISOString().slice(0, 10));
+  const [clientes, setClientes] = useState([]);
+  const [buscarCli, setBuscarCli] = useState("");
+  const [cliSel, setCliSel] = useState(null);
   const [mensaje, setMensaje] = useState("");
   const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
     const localParam = Number(localId) === 2 ? "ush" : "rg";
     API.get("/productos?local=" + localParam).then(res => setProductos(res.data)).catch(() => {});
+    API.get("/clientes").then(res => setClientes(res.data)).catch(() => {});
     API.get("/medios-pago").then(res => setMediosPago(res.data)).catch(() => {});
   }, [localId]);
 
@@ -446,10 +450,11 @@ function VentasOnline({ localId, usuario }) {
         local_id: localId || 1,
         usuario_id: usuario?.id || null,
         referencia: referencia || null,
-        fecha: fechaVenta || null
+        fecha: fechaVenta || null,
+        cliente_id: cliSel?.id || null
       });
       setMensaje("Venta online registrada! Se sumo al cierre y se desconto del stock (sin facturar).");
-      setCart([]); setMedioPagoId(""); setReferencia("");
+      setCart([]); setMedioPagoId(""); setReferencia(""); setCliSel(null); setBuscarCli("");
       const localParam = Number(localId) === 2 ? "ush" : "rg";
       API.get("/productos?local=" + localParam).then(res => setProductos(res.data)).catch(() => {});
       setTimeout(() => setMensaje(""), 4000);
@@ -521,6 +526,26 @@ function VentasOnline({ localId, usuario }) {
                   <option value="Mercado Pago credito 4 sin interes">Mercado Pago credito 4 sin interes</option>
                   <option value="Gocuotas">Gocuotas</option>
                 </select>
+              </div>
+              <div className="fg" style={{ marginBottom: 8 }}>
+                <div className="fl">Clienta (opcional, para sumar puntos)</div>
+                {cliSel ? (
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f7f5f0", borderRadius: 6 }}>
+                    <span style={{ fontSize: 12 }}>{cliSel.nombre} {cliSel.cuit_dni ? "(" + cliSel.cuit_dni + ")" : ""}</span>
+                    <span onClick={() => { setCliSel(null); setBuscarCli(""); }} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>quitar</span>
+                  </div>
+                ) : (
+                  <div>
+                    <input className="inp" placeholder="Buscar por nombre o DNI" value={buscarCli} onChange={e => setBuscarCli(e.target.value)} />
+                    {buscarCli.trim().length > 0 && (
+                      <div style={{ border: "1px solid #eee", borderRadius: 6, marginTop: 4, maxHeight: 160, overflowY: "auto" }}>
+                        {clientes.filter(cl => (cl.nombre || "").toLowerCase().includes(buscarCli.toLowerCase()) || (cl.cuit_dni || "").includes(buscarCli)).slice(0, 6).map(cl => (
+                          <div key={cl.id} onClick={() => { setCliSel(cl); setBuscarCli(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 12 }}>{cl.nombre} <span style={{ color: "#999" }}>{cl.cuit_dni ? "(" + cl.cuit_dni + ")" : ""}</span></div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="fg" style={{ marginBottom: 8 }}>
                 <div className="fl">Fecha de la venta (dia / mes / año)</div>
@@ -3114,6 +3139,7 @@ function Pedidos({ localId }) {
   const [buscarProd, setBuscarProd] = useState("");
   const [cliSel, setCliSel] = useState(null);
   const [prodSel, setProdSel] = useState(null);
+  const [itemNuevo, setItemNuevo] = useState("");
   const [mensaje, setMensaje] = useState("");
 
   const cargar = () => {
@@ -3127,7 +3153,7 @@ function Pedidos({ localId }) {
   }, [localId]);
 
   const cliFiltrados = buscarCli.trim().length > 0
-    ? clientes.filter(c => (c.nombre || "").toLowerCase().includes(buscarCli.toLowerCase()) || (c.cuit_dni || "").includes(buscarCli)).slice(0, 6)
+    ? clientes.filter(c => (c.nombre || "").toLowerCase().includes(buscarCli.toLowerCase()) || (c.cuit_dni || "").includes(buscarCli) || (c.telefono || "").includes(buscarCli)).slice(0, 6)
     : [];
   const prodFiltrados = buscarProd.trim().length > 0
     ? productos.filter(p => (p.nombre || "").toLowerCase().includes(buscarProd.toLowerCase())).slice(0, 6)
@@ -3135,11 +3161,15 @@ function Pedidos({ localId }) {
 
   const guardar = async () => {
     if (!cliSel) return setMensaje("Elegi la clienta");
-    if (!prodSel) return setMensaje("Elegi el producto");
+    if (!prodSel && !itemNuevo.trim()) return setMensaje("Elegi un producto o escribi una sugerencia");
     try {
-      await API.post("/pedidos", { cliente_id: cliSel.id, producto_id: prodSel.id });
-      setMensaje("Pedido anotado! Cuando llegue stock va a aparecer en Postventa.");
-      setCliSel(null); setProdSel(null); setBuscarCli(""); setBuscarProd("");
+      await API.post("/pedidos", {
+        cliente_id: cliSel.id,
+        producto_id: prodSel ? prodSel.id : null,
+        producto_texto: !prodSel && itemNuevo.trim() ? itemNuevo.trim() : null
+      });
+      setMensaje(prodSel ? "Pedido anotado! Cuando llegue stock va a aparecer en Postventa." : "Sugerencia de producto anotada!");
+      setCliSel(null); setProdSel(null); setBuscarCli(""); setBuscarProd(""); setItemNuevo("");
       cargar();
       setTimeout(() => setMensaje(""), 4000);
     } catch (e) { setMensaje("Error al anotar el pedido"); }
@@ -3194,10 +3224,14 @@ function Pedidos({ localId }) {
                 {prodFiltrados.length > 0 && (
                   <div style={{ border: "1px solid #eee", borderRadius: 6, marginTop: 4 }}>
                     {prodFiltrados.map(pr => (
-                      <div key={pr.id} onClick={() => { setProdSel(pr); setBuscarProd(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 12 }}>{pr.nombre} <span style={{ color: (pr.stock_rg || 0) + (pr.stock_ush || 0) > 0 ? "#2d7a4f" : "#c0392b" }}>· stock {(pr.stock_rg || 0) + (pr.stock_ush || 0)}</span></div>
+                      <div key={pr.id} onClick={() => { setProdSel(pr); setBuscarProd(""); setItemNuevo(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 12 }}>{pr.nombre} <span style={{ color: (pr.stock_rg || 0) + (pr.stock_ush || 0) > 0 ? "#2d7a4f" : "#c0392b" }}>· stock {(pr.stock_rg || 0) + (pr.stock_ush || 0)}</span></div>
                     ))}
                   </div>
                 )}
+                <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px dashed #e0e0e0" }}>
+                  <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>¿No lo encontras? Anotalo como sugerencia de producto a traer:</div>
+                  <input className="inp" placeholder="Ej: Serum vitamina C marca X" value={itemNuevo} onChange={e => setItemNuevo(e.target.value)} />
+                </div>
               </div>
             )}
           </div>
@@ -3209,13 +3243,14 @@ function Pedidos({ localId }) {
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Pedidos en espera ({pedidos.length})</div>
         {pedidos.length === 0 ? <div style={{ fontSize: 12, color: "#999", padding: "10px 0" }}>No hay pedidos en espera.</div> : (
           <table style={{ width: "100%", fontSize: 12 }}>
-            <thead><tr style={{ color: "#888", textAlign: "left" }}><th style={{ padding: "6px 0" }}>Clienta</th><th>Producto</th><th style={{ textAlign: "center" }}>Stock</th><th></th></tr></thead>
+            <thead><tr style={{ color: "#888", textAlign: "left" }}><th style={{ padding: "6px 0" }}>Clienta</th><th>Contacto</th><th>Producto</th><th style={{ textAlign: "center" }}>Stock</th><th></th></tr></thead>
             <tbody>
               {pedidos.map(p => (
                 <tr key={p.id} style={{ borderTop: "1px solid #f0f0f0" }}>
                   <td style={{ padding: "8px 0" }}>{p.cliente_nombre}</td>
-                  <td>{p.producto_nombre}</td>
-                  <td style={{ textAlign: "center", color: p.stock_total > 0 ? "#2d7a4f" : "#c0392b", fontWeight: 600 }}>{p.stock_total > 0 ? "Disponible!" : "0"}</td>
+                  <td style={{ fontSize: 11, color: "#65676B" }}>{p.telefono || "-"}{p.cuit_dni ? " · DNI " + p.cuit_dni : ""}</td>
+                  <td>{p.producto_nombre} {p.es_sugerencia && <span className="badge" style={{ background: "#c9a84c22", color: "#c9a84c", fontSize: 8 }}>sugerencia</span>}</td>
+                  <td style={{ textAlign: "center", color: p.es_sugerencia ? "#999" : (p.stock_total > 0 ? "#2d7a4f" : "#c0392b"), fontWeight: 600 }}>{p.es_sugerencia ? "—" : (p.stock_total > 0 ? "Disponible!" : "0")}</td>
                   <td style={{ textAlign: "right" }}><span onClick={() => borrar(p.id)} style={{ cursor: "pointer", color: "#ccc", fontSize: 15 }}>×</span></td>
                 </tr>
               ))}

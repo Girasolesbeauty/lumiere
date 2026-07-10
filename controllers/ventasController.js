@@ -430,7 +430,7 @@ const crearOnline = async (req, res) => {
         (numero_factura, cliente_id, tipo_factura, subtotal, descuento, total, canal, local_id,
          medio_pago_id, medio_pago, es_preventa, estado_pago, usuario_id, creado_en)
        VALUES ($1, NULL, NULL, $2, 0, $3, 'online', $4, $5, $6, FALSE, 'pagado', $7, COALESCE($8::timestamp, NOW())) RETURNING *`,
-      [numero, subtotal, totalNum, local_id || 1, medio_pago_id || null, medio_pago_nombre || null, usuario_id || null, fechaVenta]
+      [numero, subtotal, totalNum, local_id || 1, medio_pago_id || null, medio_pago_nombre || null, usuario_id || null, fechaVenta, cliente_id || null]
     );
     const ventaId = venta.rows[0].id;
 
@@ -457,6 +457,26 @@ const crearOnline = async (req, res) => {
          VALUES ($1, 'I', $2, $3, $4, COALESCE($5::timestamp, NOW()))`,
         ['Venta online ' + numero + (referencia ? ' (' + referencia + ')' : ''), totalNum, numero, local_id || 1, fechaVenta]
       );
+    }
+
+    // Si la venta online tiene clienta, sumar puntos (1 cada $100) y recalcular nivel
+    if (cliente_id) {
+      const pts = Math.floor(totalNum / 100);
+      if (pts > 0) {
+        const upd = await client.query(
+          'UPDATE clientes SET puntos = COALESCE(puntos, 0) + $1 WHERE id = $2 RETURNING puntos',
+          [pts, cliente_id]
+        );
+        if (upd.rows.length > 0) {
+          const p = upd.rows[0].puntos;
+          let nivel = 'Bronze';
+          if (p >= 20000) nivel = 'Black';
+          else if (p >= 10000) nivel = 'Platinum';
+          else if (p >= 5000) nivel = 'Gold';
+          else if (p >= 2000) nivel = 'Silver';
+          await client.query('UPDATE clientes SET nivel = $1 WHERE id = $2', [nivel, cliente_id]);
+        }
+      }
     }
 
     await client.query('COMMIT');
