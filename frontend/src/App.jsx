@@ -1031,7 +1031,7 @@ function POS({ localId, usuario }) {
         quitarGiftCard();
       }
       setTimeout(() => setMensaje(""), 8000);
-    } catch (error) { setMensaje("Error al emitir factura"); }
+    } catch (error) { setMensaje("Error al emitir factura: " + (error?.response?.data?.error || error?.message || "desconocido")); console.error("DETALLE FACTURA:", error); }
     setLoading(false);
   };
 
