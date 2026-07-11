@@ -435,6 +435,29 @@ function VentasOnline({ localId, usuario }) {
   const cambiarPrecio = (id, v) => setCart(prev => prev.map(i => i.id === id ? { ...i, precio: v, price: v } : i));
   const remove = (id) => setCart(prev => prev.filter(i => i.id !== id));
 
+  // Expande los kits en sus productos componentes (para descontar stock real).
+  // El precio del kit (con descuento) se reparte proporcional entre los componentes.
+  const expandirItemsCart = () => {
+    const out = [];
+    for (const it of cart) {
+      const precioFinal = (it.precio || it.price || 0) * (1 - (it.descuento_pct || 0) / 100);
+      if (it.es_kit && Array.isArray(it.kit_items) && it.kit_items.length > 0) {
+        const comps = it.kit_items.map(ki => {
+          const prod = productos.find(p => String(p.id) === String(ki.producto_id)) || {};
+          return { producto_id: ki.producto_id, cant: (ki.cantidad || 1), base: (parseFloat(prod.precio || prod.price || 0)) * (ki.cantidad || 1) };
+        });
+        const sumaBase = comps.reduce((s, x) => s + x.base, 0) || 1;
+        for (const cmp of comps) {
+          const precioUnitComp = (precioFinal * (cmp.base / sumaBase)) / cmp.cant;
+          out.push({ producto_id: cmp.producto_id, cantidad: cmp.cant * it.qty, precio_unitario: precioUnitComp });
+        }
+      } else {
+        out.push({ producto_id: it.id, cantidad: it.qty, precio_unitario: precioFinal });
+      }
+    }
+    return out;
+  };
+
   const total = cart.reduce((s, i) => s + (i.precio || i.price || 0) * i.qty, 0);
 
   const registrar = async () => {
@@ -606,6 +629,7 @@ function POS({ localId, usuario }) {
   const [dniInput, setDniInput] = useState("");
   const [tipoFac, setTipoFac] = useState("B");
   const [productos, setProductos] = useState([]);
+  const [kitsPos, setKitsPos] = useState([]);
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [buscandoCliente, setBuscandoCliente] = useState(false);
   const [showNuevoCliente, setShowNuevoCliente] = useState(false);
@@ -651,6 +675,7 @@ function POS({ localId, usuario }) {
   useEffect(() => {
     const localParam = localId === 2 ? "ush" : "rg";
     API.get("/productos?local=" + localParam).then(res => setProductos(res.data)).catch(() => setProductos(PRODUCTS));
+    API.get("/kits").then(res => setKitsPos(res.data || [])).catch(() => {});
     API.get("/medios-pago").then(res => setMediosPago(res.data)).catch(() => setMediosPago([]));
     API.get("/insumos/para-pos?local_id=" + (localId || 1)).then(res => { setInsumosPos(res.data?.insumos || []); setInsumosPosActivo(res.data?.activo === true); }).catch(() => { setInsumosPos([]); setInsumosPosActivo(false); });
     API.get("/config-ticket").then(res => { if (res.data) setConfigTicket(res.data); }).catch(() => {});
@@ -915,7 +940,7 @@ function POS({ localId, usuario }) {
   const reintentarFacturacion = async (ventaId) => {
     setLoading(true);
     try {
-      const items = cart.map(i => ({ producto_id: i.id, cantidad: i.qty, precio_unitario: (i.precio || i.price) * (1 - (i.descuento_pct || 0) / 100) }));
+      const items = expandirItemsCart();
       const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total: totalAFacturar, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaId });
       setMensaje("✅ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
       const datosRecibo = {
@@ -949,7 +974,7 @@ function POS({ localId, usuario }) {
     }
     setLoading(true);
     try {
-      const items = cart.map(i => ({ producto_id: i.id, cantidad: i.qty, precio_unitario: (i.precio || i.price) * (1 - (i.descuento_pct || 0) / 100) }));
+      const items = expandirItemsCart();
       const ventaRes = await createVenta({
         cliente_id: clienteSeleccionado?.id || null,
         tipo_factura: tipoFac, items, canal: "presencial",
@@ -1049,7 +1074,21 @@ function POS({ localId, usuario }) {
     } catch (e) { setMensaje("Error al cancelar la preventa"); }
   };
 
-  const productosAMostrar = (productos.length > 0 ? productos : PRODUCTS).filter(p =>
+  // Kits normalizados como si fueran productos (para mostrarlos en el buscador del POS)
+  const kitsComoProducto = (kitsPos || []).filter(k => k.activo !== false).map(k => ({
+    id: "kit-" + k.id,
+    es_kit: true,
+    kit_id: k.id,
+    kit_items: k.items || k.kit_items || [],
+    nombre: k.nombre,
+    marca: "KIT",
+    precio: parseFloat(k.precio || 0),
+    disponible: 9999,
+    stock: 9999
+  }));
+
+  const listaCompleta = [...kitsComoProducto, ...(productos.length > 0 ? productos : PRODUCTS)];
+  const productosAMostrar = listaCompleta.filter(p =>
     !busqueda || (p.nombre || p.name || "").toLowerCase().includes(busqueda.toLowerCase()) ||
     (p.marca || p.brand || "").toLowerCase().includes(busqueda.toLowerCase()) ||
     (p.codigo_barras || p.codigo || "").toLowerCase().includes(busqueda.toLowerCase())
