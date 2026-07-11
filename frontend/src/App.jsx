@@ -1224,7 +1224,7 @@ function POS({ localId, usuario }) {
                   const transitoLocal = p.transito_local || 0;
                   const soloTransito = disp <= 0 && transitoLocal > 0;
                   const sinStock = disp <= 0 && transitoLocal <= 0;
-                  const accion = soloTransito ? (() => agregarComoPreventa(p)) : (() => add(p));
+                  const accion = (soloTransito && !p.es_kit) ? (() => agregarComoPreventa(p)) : (() => add(p));
                   return (
                     <tr key={p.id} style={{ borderBottom: "1px solid #f5f5f5", cursor: sinStock ? "not-allowed" : "pointer", opacity: sinStock ? 0.45 : 1 }}
                       onClick={() => { if (!sinStock) accion(); }}>
