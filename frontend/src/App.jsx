@@ -2035,6 +2035,8 @@ function Clientes() {
   };
 
   const guardarCliente = async () => {
+    if (!nuevoCliente.nombre || !nuevoCliente.nombre.trim()) { setMensaje("El nombre es obligatorio"); return; }
+    if (!nuevoCliente.telefono || !nuevoCliente.telefono.trim()) { setMensaje("El celular es obligatorio"); return; }
     try {
       const { createCliente } = await import("./api");
       await createCliente(nuevoCliente);
@@ -2065,13 +2067,13 @@ function Clientes() {
           <div className="ct">Nuevo cliente</div>
           <div className="g2">
             <div>
-              <div className="fg"><div className="fl">Nombre</div><input className="inp" placeholder="Nombre completo" value={nuevoCliente.nombre} onChange={e => setNuevoCliente(p => ({ ...p, nombre: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">Email</div><input className="inp" placeholder="email@gmail.com" value={nuevoCliente.email} onChange={e => setNuevoCliente(p => ({ ...p, email: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">CUIT / DNI</div><input className="inp" placeholder="20-12345678-9" value={nuevoCliente.cuit_dni} onChange={e => setNuevoCliente(p => ({ ...p, cuit_dni: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Nombre *</div><input className="inp" placeholder="Nombre completo" value={nuevoCliente.nombre} onChange={e => setNuevoCliente(p => ({ ...p, nombre: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Email (opcional)</div><input className="inp" placeholder="email@gmail.com" value={nuevoCliente.email} onChange={e => setNuevoCliente(p => ({ ...p, email: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">CUIT / DNI (opcional)</div><input className="inp" placeholder="20-12345678-9" value={nuevoCliente.cuit_dni} onChange={e => setNuevoCliente(p => ({ ...p, cuit_dni: e.target.value }))} /></div>
             </div>
             <div>
-              <div className="fg"><div className="fl">Telefono</div><input className="inp" placeholder="+54 9 351 000 0000" value={nuevoCliente.telefono} onChange={e => setNuevoCliente(p => ({ ...p, telefono: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">Fecha de nacimiento</div><input className="inp" type="date" value={nuevoCliente.fecha_nacimiento} onChange={e => setNuevoCliente(p => ({ ...p, fecha_nacimiento: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Celular *</div><input className="inp" placeholder="+54 9 351 000 0000" value={nuevoCliente.telefono} onChange={e => setNuevoCliente(p => ({ ...p, telefono: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Fecha de nacimiento (opcional)</div><input className="inp" type="date" value={nuevoCliente.fecha_nacimiento} onChange={e => setNuevoCliente(p => ({ ...p, fecha_nacimiento: e.target.value }))} /></div>
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarCliente}>Guardar</button>
                 <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowForm(false)}>Cancelar</button>

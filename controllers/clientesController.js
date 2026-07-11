@@ -45,7 +45,7 @@ const create = async (req, res) => {
     const result = await pool.query(
       `INSERT INTO clientes (nombre, email, cuit_dni, telefono, fecha_nacimiento, local_id)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [nombre, email, cuit_dni, telefono, fecha_nacimiento, local_id || 1]
+      [nombre, email || null, cuit_dni || null, telefono, (fecha_nacimiento && fecha_nacimiento !== '') ? fecha_nacimiento : null, local_id || 1]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -60,7 +60,7 @@ const update = async (req, res) => {
     const result = await pool.query(
       `UPDATE clientes SET nombre=$1, email=$2, cuit_dni=$3, telefono=$4, fecha_nacimiento=$5
        WHERE id=$6 RETURNING *`,
-      [nombre, email, cuit_dni, telefono, fecha_nacimiento, id]
+      [nombre, email || null, cuit_dni || null, telefono, (fecha_nacimiento && fecha_nacimiento !== '') ? fecha_nacimiento : null, id]
     );
     res.json(result.rows[0]);
   } catch (error) {
