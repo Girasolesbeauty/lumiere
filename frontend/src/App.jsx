@@ -5989,7 +5989,7 @@ function Kits() {
     if (!itemTemp.producto_id || !itemTemp.cantidad) return;
     const prod = productos.find(p => p.id === parseInt(itemTemp.producto_id));
     const setForm = editando ? setEditando : setNuevo;
-    setForm(f => ({ ...f, items: [...f.items, { ...itemTemp, producto_nombre: prod?.nombre || "", producto_precio: prod?.price || 0 }] }));
+    setForm(f => ({ ...f, items: [...f.items, { ...itemTemp, producto_nombre: prod?.nombre || "", producto_precio: (prod?.precio || prod?.price || 0) }] }));
     setItemTemp({ producto_id: "", cantidad: 1 });
   };
 
@@ -6001,13 +6001,16 @@ function Kits() {
   const guardar = async () => {
     const form = editando || nuevo;
     if (!form.nombre || form.items.length === 0) return setMensaje("Completa nombre y al menos un producto");
+    // El precio del kit es la suma de los productos (calculado, no editable)
+    const precioKit = form.items.reduce((s, it) => s + (parseFloat(it.producto_precio || 0) * parseInt(it.cantidad || 1)), 0);
+    const formConPrecio = { ...form, precio: Math.round(precioKit) };
     try {
       if (editando) {
-        await API.put("/kits/" + editando.id, form);
+        await API.put("/kits/" + editando.id, formConPrecio);
         setMensaje("Kit actualizado!");
         setEditando(null);
       } else {
-        await API.post("/kits", form);
+        await API.post("/kits", formConPrecio);
         setMensaje("Kit creado!");
         setNuevo({ nombre: "", descripcion: "", precio: "", items: [] });
       }
@@ -6114,8 +6117,9 @@ function Kits() {
               <input className="inp" placeholder="Ej: Ideal para piel seca..." value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
             </div>
             <div className="fg">
-              <div className="fl">Precio del kit ($) {precioSugerido > 0 && <span style={{ fontSize: 10, color: "#65676B", marginLeft: 6 }}>Suma: {fmt(Math.round(precioSugerido))}</span>}</div>
-              <input className="inp" type="number" placeholder={Math.round(precioSugerido * 0.9) || "15000"} value={form.precio} onChange={e => setForm(f => ({ ...f, precio: e.target.value }))} />
+              <div className="fl">Precio del kit (suma de los productos)</div>
+              <div style={{ padding: "10px 12px", background: "#f7f5f0", borderRadius: 8, fontSize: 18, fontWeight: 700, color: "#2d7a4f" }}>{fmt(Math.round(precioSugerido))}</div>
+              <div style={{ fontSize: 10, color: "#65676B", marginTop: 4 }}>El descuento se aplica despues, al vender el kit en el Punto de Venta.</div>
             </div>
             <div className="divider" />
             <div className="ct">Agregar productos al kit</div>
