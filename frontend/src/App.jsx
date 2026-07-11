@@ -435,28 +435,7 @@ function VentasOnline({ localId, usuario }) {
   const cambiarPrecio = (id, v) => setCart(prev => prev.map(i => i.id === id ? { ...i, precio: v, price: v } : i));
   const remove = (id) => setCart(prev => prev.filter(i => i.id !== id));
 
-  // Expande los kits en sus productos componentes (para descontar stock real).
-  // El precio del kit (con descuento) se reparte proporcional entre los componentes.
-  const expandirItemsCart = () => {
-    const out = [];
-    for (const it of cart) {
-      const precioFinal = (it.precio || it.price || 0) * (1 - (it.descuento_pct || 0) / 100);
-      if (it.es_kit && Array.isArray(it.kit_items) && it.kit_items.length > 0) {
-        const comps = it.kit_items.map(ki => {
-          const prod = productos.find(p => String(p.id) === String(ki.producto_id)) || {};
-          return { producto_id: ki.producto_id, cant: (ki.cantidad || 1), base: (parseFloat(prod.precio || prod.price || 0)) * (ki.cantidad || 1) };
-        });
-        const sumaBase = comps.reduce((s, x) => s + x.base, 0) || 1;
-        for (const cmp of comps) {
-          const precioUnitComp = (precioFinal * (cmp.base / sumaBase)) / cmp.cant;
-          out.push({ producto_id: cmp.producto_id, cantidad: cmp.cant * it.qty, precio_unitario: precioUnitComp });
-        }
-      } else {
-        out.push({ producto_id: it.id, cantidad: it.qty, precio_unitario: precioFinal });
-      }
-    }
-    return out;
-  };
+
 
   const total = cart.reduce((s, i) => s + (i.precio || i.price || 0) * i.qty, 0);
 
@@ -701,6 +680,29 @@ function POS({ localId, usuario }) {
     return e ? prev.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i) : [...prev, { ...p, qty: 1 }];
   });
   const remove = (id) => setCart(prev => prev.filter(i => i.id !== id));
+
+  // Expande los kits en sus productos componentes (para descontar stock real).
+  // El precio del kit (con descuento) se reparte proporcional entre los componentes.
+  const expandirItemsCart = () => {
+    const out = [];
+    for (const it of cart) {
+      const precioFinal = (it.precio || it.price || 0) * (1 - (it.descuento_pct || 0) / 100);
+      if (it.es_kit && Array.isArray(it.kit_items) && it.kit_items.length > 0) {
+        const comps = it.kit_items.map(ki => {
+          const prod = productos.find(p => String(p.id) === String(ki.producto_id)) || {};
+          return { producto_id: ki.producto_id, cant: (ki.cantidad || 1), base: (parseFloat(prod.precio || prod.price || 0)) * (ki.cantidad || 1) };
+        });
+        const sumaBase = comps.reduce((s, x) => s + x.base, 0) || 1;
+        for (const cmp of comps) {
+          const precioUnitComp = (precioFinal * (cmp.base / sumaBase)) / cmp.cant;
+          out.push({ producto_id: cmp.producto_id, cantidad: cmp.cant * it.qty, precio_unitario: precioUnitComp });
+        }
+      } else {
+        out.push({ producto_id: it.id, cantidad: it.qty, precio_unitario: precioFinal });
+      }
+    }
+    return out;
+  };
 
   const agregarComoPreventa = (p) => {
     if (!preventa) setPreventa(true);
