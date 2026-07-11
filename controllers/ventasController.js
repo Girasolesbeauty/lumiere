@@ -409,7 +409,7 @@ const crearOnline = async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { items, total, medio_pago_id, medio_pago_nombre, local_id, usuario_id, referencia, fecha } = req.body;
+    const { items, total, medio_pago_id, medio_pago_nombre, local_id, usuario_id, referencia, fecha, cliente_id } = req.body;
     // Si viene fecha, se usa esa (para ventas online de dias anteriores). Si no, ahora.
     const fechaVenta = fecha ? fecha : null;
 
@@ -429,7 +429,7 @@ const crearOnline = async (req, res) => {
       `INSERT INTO ventas
         (numero_factura, cliente_id, tipo_factura, subtotal, descuento, total, canal, local_id,
          medio_pago_id, medio_pago, es_preventa, estado_pago, usuario_id, creado_en)
-       VALUES ($1, NULL, NULL, $2, 0, $3, 'online', $4, $5, $6, FALSE, 'pagado', $7, COALESCE($8::timestamp, NOW())) RETURNING *`,
+       VALUES ($1, $9, NULL, $2, 0, $3, 'online', $4, $5, $6, FALSE, 'pagado', $7, COALESCE($8::timestamp, NOW())) RETURNING *`,
       [numero, subtotal, totalNum, local_id || 1, medio_pago_id || null, medio_pago_nombre || null, usuario_id || null, fechaVenta, cliente_id || null]
     );
     const ventaId = venta.rows[0].id;
