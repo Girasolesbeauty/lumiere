@@ -4395,7 +4395,7 @@ function Comisiones({ localId }) {
                     {hist.registros.map(row => (
                       <tr key={row.id} style={{ borderTop: "1px solid #f0f0f0" }}>
                         <td style={{ padding: "7px 0" }}>{!row.pagada && <input type="checkbox" checked={sel.includes(row.id)} onChange={() => toggle(row.id)} />}</td>
-                        <td>{row.fecha ? new Date(row.fecha).toLocaleDateString("es-AR") : "-"}</td>
+                        <td>{row.fecha ? (String(row.fecha).slice(8, 10) + "/" + String(row.fecha).slice(5, 7) + "/" + String(row.fecha).slice(0, 4)) : "-"}</td>
                         <td style={{ textAlign: "right" }}>{fmt(parseFloat(row.facturacion_mes || 0))}</td>
                         <td style={{ textAlign: "right", fontWeight: 600 }}>{fmt(parseFloat(row.comision_ganada || 0))}</td>
                         <td style={{ textAlign: "center" }}>{row.pagada ? <span style={{ color: "#2d7a4f", fontSize: 11 }}>Pagada</span> : <span style={{ color: "#c0392b", fontSize: 11 }}>Pendiente</span>}</td>
