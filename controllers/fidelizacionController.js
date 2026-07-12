@@ -141,6 +141,20 @@ const canjear = async (req, res) => {
         await client.query('ROLLBACK');
         return res.status(400).json({ error: 'Este premio es exclusivo del mes de tu cumpleanos' });
       }
+      // Limite: solo 1 premio de cumpleanos por mes. Verificar si ya canjeo otro este mes.
+      const yaCanjeoCumple = await client.query(
+        `SELECT cp.id FROM canjes_premios cp
+         JOIN premios_fidelizacion p ON p.id = cp.premio_id
+         WHERE cp.cliente_id = $1
+           AND p.solo_mes_cumpleanos = TRUE
+           AND EXTRACT(MONTH FROM cp.creado_en) = $2
+           AND EXTRACT(YEAR FROM cp.creado_en) = $3`,
+        [cliente_id, mesActual, new Date().getFullYear()]
+      );
+      if (yaCanjeoCumple.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Ya canjeaste tu premio de cumpleanos este mes' });
+      }
     }
 
     if (premio.stock_total !== null) {
