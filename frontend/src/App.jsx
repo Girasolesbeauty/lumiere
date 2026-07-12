@@ -410,6 +410,7 @@ function VentasOnline({ localId, usuario }) {
   const [clientes, setClientes] = useState([]);
   const [buscarCli, setBuscarCli] = useState("");
   const [cliSel, setCliSel] = useState(null);
+  const [ventasOnlineList, setVentasOnlineList] = useState([]);
   const [mensaje, setMensaje] = useState("");
   const [guardando, setGuardando] = useState(false);
 
@@ -417,6 +418,7 @@ function VentasOnline({ localId, usuario }) {
     const localParam = Number(localId) === 2 ? "ush" : "rg";
     API.get("/productos?local=" + localParam).then(res => setProductos(res.data)).catch(() => {});
     API.get("/clientes").then(res => setClientes(res.data)).catch(() => {});
+    cargarVentasOnline();
     API.get("/medios-pago").then(res => setMediosPago(res.data)).catch(() => {});
   }, [localId]);
 
@@ -439,6 +441,14 @@ function VentasOnline({ localId, usuario }) {
 
   const total = cart.reduce((s, i) => s + (i.precio || i.price || 0) * i.qty, 0);
 
+  const cargarVentasOnline = () => {
+    const hoy = new Date();
+    const m = hoy.getMonth() + 1, a = hoy.getFullYear();
+    API.get("/ventas?mes=" + m + "&anio=" + a + "&local_id=" + (localId || 1))
+      .then(res => setVentasOnlineList((res.data || []).filter(v => v.canal === "online")))
+      .catch(() => {});
+  };
+
   const registrar = async () => {
     if (cart.length === 0) return setMensaje("Agrega al menos un producto");
     if (!medioPagoId) return setMensaje("Elegi el medio de pago");
@@ -456,7 +466,7 @@ function VentasOnline({ localId, usuario }) {
         cliente_id: cliSel?.id || null
       });
       setMensaje("Venta online registrada! Se sumo al cierre y se desconto del stock (sin facturar).");
-      setCart([]); setMedioPagoId(""); setReferencia(""); setCliSel(null); setBuscarCli("");
+      setCart([]); setMedioPagoId(""); setReferencia(""); setCliSel(null); setBuscarCli(""); cargarVentasOnline();
       const localParam = Number(localId) === 2 ? "ush" : "rg";
       API.get("/productos?local=" + localParam).then(res => setProductos(res.data)).catch(() => {});
       setTimeout(() => setMensaje(""), 4000);
@@ -593,6 +603,24 @@ function VentasOnline({ localId, usuario }) {
             </div>
           </div>
         </div>
+      </div>
+    
+      <div className="card" style={{ marginTop: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Ventas online de este mes ({ventasOnlineList.length})</div>
+        {ventasOnlineList.length === 0 ? <div style={{ fontSize: 12, color: "#999" }}>No hay ventas online este mes.</div> : (
+          <table style={{ width: "100%", fontSize: 12 }}>
+            <thead><tr style={{ color: "#888", textAlign: "left" }}><th style={{ padding: "6px 0" }}>Numero</th><th>Fecha</th><th style={{ textAlign: "right" }}>Total</th></tr></thead>
+            <tbody>
+              {ventasOnlineList.map(v => (
+                <tr key={v.id} style={{ borderTop: "1px solid #f0f0f0" }}>
+                  <td style={{ padding: "7px 0" }}>{v.numero_factura}</td>
+                  <td>{v.creado_en ? String(v.creado_en).slice(8, 10) + "/" + String(v.creado_en).slice(5, 7) + "/" + String(v.creado_en).slice(0, 4) : "-"}</td>
+                  <td style={{ textAlign: "right", fontWeight: 600 }}>{fmt(parseFloat(v.total))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
@@ -5127,7 +5155,16 @@ function CierreCaja({ localId, usuario }) {
         API.get("/caja?local_id=" + (localId || 1)),
         API.get("/gift-cards?local_id=" + (localId || 1))
       ]);
-      const esMismoDia = (f) => { if (!f) return false; return fmtFecha(new Date(f)) === fecha; };
+      const esMismoDia = (f) => {
+        if (!f) return false;
+        // Si la fecha viene como texto ISO (ej "2026-07-11..."), comparar los primeros 10 chars
+        // para evitar el corrimiento por zona horaria. Si no, usar el metodo normal.
+        const s = String(f);
+        if (s.length >= 10 && s[4] === "-" && s[7] === "-") {
+          return s.slice(0, 10) === fecha;
+        }
+        return fmtFecha(new Date(f)) === fecha;
+      };
       setVentasDia((ventasRes.data || []).filter(v => esMismoDia(v.creado_en || v.fecha) && v.es_preventa !== true && v.canal !== "prueba"));
       setMovsDia((movRes.data || []).filter(m => esMismoDia(m.creado_en || m.fecha)));
       setGiftCardsDia((gcRes.data || []).filter(g => esMismoDia(g.creado_en)));
