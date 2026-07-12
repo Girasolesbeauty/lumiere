@@ -1462,7 +1462,6 @@ function POS({ localId, usuario }) {
                     <option value="%">%</option>
                   </select>
                 </div>
-                <input className="inp" placeholder="Referencia (ej: Diferencia pedido ON-0105)" value={referenciaVenta} onChange={e => setReferenciaVenta(e.target.value)} style={{ marginBottom: 4, fontSize: 11 }} />
               </div>
             )}
             <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
