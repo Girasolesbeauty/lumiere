@@ -411,6 +411,10 @@ function VentasOnline({ localId, usuario }) {
   const [buscarCli, setBuscarCli] = useState("");
   const [cliSel, setCliSel] = useState(null);
   const [ventasOnlineList, setVentasOnlineList] = useState([]);
+  const [editandoVO, setEditandoVO] = useState(null);
+  const [voTotal, setVoTotal] = useState("");
+  const [voFecha, setVoFecha] = useState("");
+  const [voLocal, setVoLocal] = useState("1");
   const [mensaje, setMensaje] = useState("");
   const [guardando, setGuardando] = useState(false);
 
@@ -441,6 +445,35 @@ function VentasOnline({ localId, usuario }) {
 
   const total = cart.reduce((s, i) => s + (i.precio || i.price || 0) * i.qty, 0);
 
+  const esJefe = usuario?.rol === "jefe" || usuario?.rol === "admin";
+
+  const eliminarVentaOnline = async (v) => {
+    if (!confirm("Eliminar la venta " + v.numero_factura + "? Se revierte el stock y se saca del cierre.")) return;
+    try {
+      await API.delete("/ventas/online/" + v.id);
+      cargarVentasOnline();
+    } catch (e) { alert("Error al eliminar: " + (e?.response?.data?.error || "")); }
+  };
+
+  const abrirEditarVO = (v) => {
+    setEditandoVO(v);
+    setVoTotal(String(v.total));
+    setVoFecha(String(v.creado_en).slice(0, 10));
+    setVoLocal(String(v.local_id));
+  };
+
+  const guardarEditarVO = async () => {
+    try {
+      await API.put("/ventas/online/" + editandoVO.id, {
+        total: parseFloat(voTotal),
+        local_id: Number(voLocal),
+        fecha: voFecha
+      });
+      setEditandoVO(null);
+      cargarVentasOnline();
+    } catch (e) { alert("Error al editar: " + (e?.response?.data?.error || "")); }
+  };
+
   const cargarVentasOnline = () => {
     const hoy = new Date();
     const m = hoy.getMonth() + 1, a = hoy.getFullYear();
@@ -459,7 +492,7 @@ function VentasOnline({ localId, usuario }) {
         items, total,
         medio_pago_id: null,
         medio_pago_nombre: medioPagoId || null,
-        local_id: localId || 1,
+        local_id: Number(localId) === 2 ? 2 : 1,
         usuario_id: usuario?.id || null,
         referencia: referencia || null,
         fecha: fechaVenta || null,
@@ -479,7 +512,10 @@ function VentasOnline({ localId, usuario }) {
   return (
     <div className="fade">
       <div className="ph">
-        <div><div className="pt">Ventas Online</div><div className="ps">cargar ventas de la tienda (ya facturadas) - descuentan stock y suman al cierre</div></div>
+        <div><div className="pt">Ventas Online</div><div className="ps">cargar ventas de la tienda (ya facturadas) - descuentan stock y suman al cierre</div>
+      <div style={{ background: Number(localId) === 2 ? "#2471a315" : "#c9a84c15", color: Number(localId) === 2 ? "#2471a3" : "#c9a84c", padding: "8px 12px", borderRadius: 8, marginBottom: 12, fontSize: 13, fontWeight: 600, textAlign: "center" }}>
+        Cargando ventas en: {Number(localId) === 2 ? "USHUAIA" : "RIO GRANDE"}
+      </div></div>
       </div>
 
       {mensaje && <div className="card" style={{ marginBottom: 12, padding: 12, background: mensaje.startsWith("Error") ? "#fdecea" : "#eafaf1", color: mensaje.startsWith("Error") ? "#c0392b" : "#1e7e4f", fontSize: 13 }}>{mensaje}</div>}
@@ -609,19 +645,52 @@ function VentasOnline({ localId, usuario }) {
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Ventas online de este mes ({ventasOnlineList.length})</div>
         {ventasOnlineList.length === 0 ? <div style={{ fontSize: 12, color: "#999" }}>No hay ventas online este mes.</div> : (
           <table style={{ width: "100%", fontSize: 12 }}>
-            <thead><tr style={{ color: "#888", textAlign: "left" }}><th style={{ padding: "6px 0" }}>Numero</th><th>Fecha</th><th style={{ textAlign: "right" }}>Total</th></tr></thead>
+            <thead><tr style={{ color: "#888", textAlign: "left" }}><th style={{ padding: "6px 0" }}>Numero</th><th>Fecha</th><th style={{ textAlign: "right" }}>Total</th>{esJefe && <th></th>}</tr></thead>
             <tbody>
               {ventasOnlineList.map(v => (
                 <tr key={v.id} style={{ borderTop: "1px solid #f0f0f0" }}>
                   <td style={{ padding: "7px 0" }}>{v.numero_factura}</td>
                   <td>{v.creado_en ? String(v.creado_en).slice(8, 10) + "/" + String(v.creado_en).slice(5, 7) + "/" + String(v.creado_en).slice(0, 4) : "-"}</td>
                   <td style={{ textAlign: "right", fontWeight: 600 }}>{fmt(parseFloat(v.total))}</td>
+                  {esJefe && (
+                    <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                      <span onClick={() => abrirEditarVO(v)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 11, marginRight: 8 }}>editar</span>
+                      <span onClick={() => eliminarVentaOnline(v)} style={{ cursor: "pointer", color: "#c0392b", fontSize: 11 }}>eliminar</span>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </div>
+    
+      {editandoVO && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={() => setEditandoVO(null)}>
+          <div className="card" style={{ width: 400, maxWidth: "92vw" }} onClick={e => e.stopPropagation()}>
+            <div className="ct">Editar venta online {editandoVO.numero_factura}</div>
+            <div className="fg" style={{ marginBottom: 8 }}>
+              <div className="fl">Total ($)</div>
+              <input className="inp" type="number" value={voTotal} onChange={e => setVoTotal(e.target.value)} />
+            </div>
+            <div className="fg" style={{ marginBottom: 8 }}>
+              <div className="fl">Fecha</div>
+              <input className="inp" type="date" value={voFecha} onChange={e => setVoFecha(e.target.value)} />
+            </div>
+            <div className="fg" style={{ marginBottom: 12 }}>
+              <div className="fl">Local</div>
+              <select className="sel" value={voLocal} onChange={e => setVoLocal(e.target.value)}>
+                <option value="1">Rio Grande</option>
+                <option value="2">Ushuaia</option>
+              </select>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarEditarVO}>Guardar</button>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEditandoVO(null)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -411,7 +411,13 @@ const crearOnline = async (req, res) => {
     await client.query('BEGIN');
     const { items, total, medio_pago_id, medio_pago_nombre, local_id, usuario_id, referencia, fecha, cliente_id } = req.body;
     // Si viene fecha, se usa esa (para ventas online de dias anteriores). Si no, ahora.
-    const fechaVenta = fecha ? fecha : null;
+    // Si viene solo la fecha (YYYY-MM-DD), guardarla al mediodia para que ningun
+    // corrimiento de zona horaria la cambie de dia.
+    let fechaVenta = null;
+    if (fecha) {
+      const soloFecha = String(fecha).slice(0, 10);
+      fechaVenta = (soloFecha.length === 10 && soloFecha[4] === '-') ? (soloFecha + ' 12:00:00') : fecha;
+    }
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       await client.query('ROLLBACK');
@@ -490,4 +496,89 @@ const crearOnline = async (req, res) => {
   }
 };
 
-module.exports = { getAll, getById, create, update, confirmarEntrega, getResumenHoy, getResumenMes, crearOnline };
+// Eliminar una venta online (revierte stock y borra el movimiento de caja)
+const eliminarOnline = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { id } = req.params;
+
+    const ventaRes = await client.query("SELECT * FROM ventas WHERE id = $1 AND canal = 'online'", [id]);
+    if (ventaRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Venta online no encontrada' });
+    }
+    const venta = ventaRes.rows[0];
+
+    // Revertir stock de cada item al local de la venta
+    const colStock = (venta.local_id === 2) ? 'stock_ush' : 'stock_rg';
+    const items = await client.query('SELECT producto_id, cantidad FROM venta_items WHERE venta_id = $1', [id]);
+    for (const it of items.rows) {
+      if (it.producto_id) {
+        await client.query(`UPDATE productos SET ${colStock} = COALESCE(${colStock},0) + $1 WHERE id = $2`, [it.cantidad, it.producto_id]);
+      }
+    }
+
+    // Borrar movimiento de caja, items y venta
+    await client.query('DELETE FROM movimientos_caja WHERE referencia = $1', [venta.numero_factura]);
+    await client.query('DELETE FROM venta_items WHERE venta_id = $1', [id]);
+    await client.query('DELETE FROM ventas WHERE id = $1', [id]);
+
+    await client.query('COMMIT');
+    res.json({ ok: true, mensaje: 'Venta online eliminada y stock revertido' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error(error);
+    res.status(500).json({ error: 'Error al eliminar venta online: ' + error.message });
+  } finally {
+    client.release();
+  }
+};
+
+// Editar una venta online (fecha, local, monto). Ajusta el movimiento de caja.
+const editarOnline = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { id } = req.params;
+    const { total, local_id, fecha } = req.body;
+
+    const ventaRes = await client.query("SELECT * FROM ventas WHERE id = $1 AND canal = 'online'", [id]);
+    if (ventaRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Venta online no encontrada' });
+    }
+
+    // Preparar fecha al mediodia si viene solo dia
+    let fechaVenta = null;
+    if (fecha) {
+      const soloFecha = String(fecha).slice(0, 10);
+      fechaVenta = (soloFecha.length === 10 && soloFecha[4] === '-') ? (soloFecha + ' 12:00:00') : fecha;
+    }
+
+    const nuevoTotal = (total !== undefined && total !== null) ? parseFloat(total) : ventaRes.rows[0].total;
+    const nuevoLocal = (local_id !== undefined && local_id !== null) ? (Number(local_id) === 2 ? 2 : 1) : ventaRes.rows[0].local_id;
+
+    await client.query(
+      `UPDATE ventas SET total = $1, subtotal = $1, local_id = $2, creado_en = COALESCE($3::timestamp, creado_en) WHERE id = $4`,
+      [nuevoTotal, nuevoLocal, fechaVenta, id]
+    );
+
+    // Actualizar el movimiento de caja asociado
+    await client.query(
+      `UPDATE movimientos_caja SET importe = $1, local_id = $2, creado_en = COALESCE($3::timestamp, creado_en) WHERE referencia = $4`,
+      [nuevoTotal, nuevoLocal, fechaVenta, ventaRes.rows[0].numero_factura]
+    );
+
+    await client.query('COMMIT');
+    res.json({ ok: true, mensaje: 'Venta online actualizada' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error(error);
+    res.status(500).json({ error: 'Error al editar venta online: ' + error.message });
+  } finally {
+    client.release();
+  }
+};
+
+module.exports = { getAll, getById, create, update, confirmarEntrega, getResumenHoy, getResumenMes, crearOnline, eliminarOnline, editarOnline };
