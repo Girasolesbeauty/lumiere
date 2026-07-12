@@ -719,6 +719,7 @@ function POS({ localId, usuario }) {
   const [nombrePreventa, setNombrePreventa] = useState("");
   const [mediosPago, setMediosPago] = useState([]);
   const [descuentoManual, setDescuentoManual] = useState("");
+  const [referenciaVenta, setReferenciaVenta] = useState("");
   const [tipoDescuento, setTipoDescuento] = useState("%");
   const [medioPagoSel, setMedioPagoSel] = useState(null);
   const [pagoMixto, setPagoMixto] = useState(false);
@@ -1052,7 +1053,7 @@ function POS({ localId, usuario }) {
       setVentaPendienteArca(null);
       setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
       setClienteSeleccionado(null); setShowNuevoCliente(false);
-      setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false);
+      setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false); setReferenciaVenta("");
       quitarGiftCard();
       setTimeout(() => setMensaje(""), 8000);
     } catch (arcaErr) {
@@ -1084,7 +1085,8 @@ function POS({ localId, usuario }) {
         total_con_interes: total, es_preventa: preventa,
         nombre_preventa: preventa ? nombrePreventa : null,
         monto_gift_card: montoAplicadoGC,
-        insumos_usados: (!preventa && insumosPosActivo) ? Object.values(insumosSel).filter(v => v && v !== "ninguna").map(v => parseInt(v)) : []
+        insumos_usados: (!preventa && insumosPosActivo) ? Object.values(insumosSel).filter(v => v && v !== "ninguna").map(v => parseInt(v)) : [],
+        referencia: referenciaVenta || null
       });
       if (giftCardAplicada && montoAplicadoGC > 0) {
         try {
@@ -1441,6 +1443,7 @@ function POS({ localId, usuario }) {
                     <option value="%">%</option>
                   </select>
                 </div>
+                <input className="inp" placeholder="Referencia (ej: Diferencia pedido ON-0105)" value={referenciaVenta} onChange={e => setReferenciaVenta(e.target.value)} style={{ marginBottom: 4, fontSize: 11 }} />
               </div>
             )}
             <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>

@@ -81,8 +81,7 @@ const create = async (req, res) => {
     const {
       cliente_id, tipo_factura, items, descuento, canal, cupon_codigo, local_id,
       medio_pago_id, medio_pago_nombre, total_con_interes, es_preventa, nombre_preventa,
-      usuario_id, inicio_venta, duracion_segundos, monto_gift_card, insumos_usados, pagos
-    } = req.body;
+      usuario_id, inicio_venta, duracion_segundos, monto_gift_card, insumos_usados, pagos, referencia } = req.body;
 
     let subtotal = 0;
     for (const item of items) {
@@ -114,8 +113,8 @@ const create = async (req, res) => {
       `INSERT INTO ventas
         (numero_factura, cliente_id, tipo_factura, subtotal, descuento, total, canal, local_id,
          medio_pago_id, medio_pago, es_preventa, nombre_preventa, estado_pago,
-         usuario_id, inicio_venta, duracion_segundos, monto_gift_card, preventa_local)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING *`,
+         usuario_id, inicio_venta, duracion_segundos, monto_gift_card, preventa_local, referencia)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING *`,
       [
         numero, cliente_id, tipo_factura, subtotal, descuento_total, total,
         canal || 'presencial', local_id || 1,
@@ -124,7 +123,8 @@ const create = async (req, res) => {
         es_preventa === true ? 'reservado' : null,
         usuario_id || null, inicio_venta || null, duracion_segundos || null,
         parseFloat(monto_gift_card) || 0,
-        es_preventa === true ? (local_id || 1) : null
+        es_preventa === true ? (local_id || 1) : null,
+        referencia || null
       ]
     );
 
