@@ -779,6 +779,23 @@ function POS({ localId, usuario }) {
   });
   const remove = (id) => setCart(prev => prev.filter(i => i.id !== id));
 
+  const agregarAjusteDiferencia = () => {
+    const montoStr = prompt("Monto de la diferencia a facturar ($):");
+    if (!montoStr) return;
+    const monto = parseFloat(montoStr);
+    if (isNaN(monto) || monto <= 0) { alert("Monto invalido"); return; }
+    const ref = prompt("Referencia (ej: Diferencia pedido ON-0105):") || "";
+    setCart(prev => [...prev, {
+      id: "ajuste-" + Date.now(),
+      es_ajuste: true,
+      nombre: "Diferencia pedido online" + (ref ? " (" + ref + ")" : ""),
+      precio: monto,
+      qty: 1,
+      disponible: 9999
+    }]);
+    if (ref) setReferenciaVenta(ref);
+  };
+
   // Expande los kits en sus productos componentes (para descontar stock real).
   // El precio del kit (con descuento) se reparte proporcional entre los componentes.
   const expandirItemsCart = () => {
@@ -795,6 +812,8 @@ function POS({ localId, usuario }) {
           const precioUnitComp = (precioFinal * (cmp.base / sumaBase)) / cmp.cant;
           out.push({ producto_id: cmp.producto_id, cantidad: cmp.cant * it.qty, precio_unitario: precioUnitComp });
         }
+      } else if (it.es_ajuste) {
+        out.push({ producto_id: null, cantidad: it.qty, precio_unitario: precioFinal });
       } else {
         out.push({ producto_id: it.id, cantidad: it.qty, precio_unitario: precioFinal });
       }
@@ -1474,6 +1493,11 @@ function POS({ localId, usuario }) {
               <div style={{ fontSize: 10, marginBottom: 6, display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "#65676B" }}>Gift card</span>
                 <span style={{ fontWeight: 700, color: "#2d7a4f" }}>-{fmt(montoAplicadoGC)}</span>
+              </div>
+            )}
+            {!preventa && (
+              <div style={{ marginBottom: 8 }}>
+                <button className="btn btn-sm" style={{ width: "100%", background: "#f7f5f0", color: "#2471a3", border: "1px dashed #2471a3" }} onClick={agregarAjusteDiferencia}>+ Facturar diferencia de pedido online</button>
               </div>
             )}
             {!preventa && insumosPosActivo && insumosPos.length > 0 && (

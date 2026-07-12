@@ -144,6 +144,15 @@ const create = async (req, res) => {
     }
 
     for (const item of items) {
+      // Item de ajuste/diferencia (sin producto): se registra pero NO descuenta stock
+      if (!item.producto_id) {
+        await client.query(
+          `INSERT INTO venta_items (venta_id, producto_id, cantidad, precio_unitario, subtotal)
+           VALUES ($1, NULL, $2, $3, $4)`,
+          [ventaId, item.cantidad, item.precio_unitario, item.precio_unitario * item.cantidad]
+        );
+        continue;
+      }
       await client.query(
         `INSERT INTO venta_items (venta_id, producto_id, cantidad, precio_unitario, subtotal)
          VALUES ($1, $2, $3, $4, $5)`,
