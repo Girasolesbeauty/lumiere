@@ -5805,6 +5805,52 @@ function OrdenesIngreso({ localId, usuario }) {
     } catch (e) { setMensaje("Error al crear orden: " + (e.response?.data?.error || e.message)); }
   };
 
+  const recargarItems = async () => {
+    if (!ordenDetalle) return;
+    try {
+      const res = await API.get("/ordenes-ingreso/" + ordenDetalle.id + "/items");
+      setItemsDetalle(res.data || []);
+    } catch (e) {}
+  };
+
+  const editarItemOrden = async (it) => {
+    const cantStr = prompt("Cantidad total del producto \"" + it.producto_nombre + "\":", it.cantidad_total);
+    if (cantStr === null) return;
+    const cant = parseInt(cantStr);
+    if (isNaN(cant) || cant < 0) { setMensaje("Cantidad invalida"); return; }
+    // Distribucion: si la orden manejaba rg/ush, preguntamos; si no, todo va al total
+    let rg = it.cantidad_rg || 0, ush = it.cantidad_ush || 0;
+    if ((it.cantidad_rg || 0) > 0 || (it.cantidad_ush || 0) > 0) {
+      const rgStr = prompt("Cantidad para RIO GRANDE:", it.cantidad_rg || 0);
+      if (rgStr === null) return;
+      const ushStr = prompt("Cantidad para USHUAIA:", it.cantidad_ush || 0);
+      if (ushStr === null) return;
+      rg = parseInt(rgStr) || 0; ush = parseInt(ushStr) || 0;
+    } else {
+      rg = cant; ush = 0;
+    }
+    const costoStr = prompt("Costo unitario ($):", it.costo_unitario || 0);
+    if (costoStr === null) return;
+    try {
+      await API.put("/ordenes-ingreso/" + ordenDetalle.id + "/items/" + it.id + "/editar", {
+        cantidad_total: cant, cantidad_rg: rg, cantidad_ush: ush, costo_unitario: parseFloat(costoStr) || 0
+      });
+      setMensaje("Item actualizado!");
+      recargarItems();
+      setTimeout(() => setMensaje(""), 2500);
+    } catch (e) { setMensaje("Error: " + (e?.response?.data?.error || e.message)); }
+  };
+
+  const eliminarItemOrden = async (it) => {
+    if (!confirm("Eliminar el producto \"" + it.producto_nombre + "\" de esta orden?")) return;
+    try {
+      await API.delete("/ordenes-ingreso/" + ordenDetalle.id + "/items/" + it.id);
+      setMensaje("Item eliminado!");
+      recargarItems();
+      setTimeout(() => setMensaje(""), 2500);
+    } catch (e) { setMensaje("Error: " + (e?.response?.data?.error || e.message)); }
+  };
+
   const verDetalle = async (orden) => {
     setOrdenDetalle(orden);
     try {
@@ -6050,7 +6096,13 @@ function OrdenesIngreso({ localId, usuario }) {
                   const dif = cont !== undefined && cont !== "" ? parseInt(cont) - esp : 0;
                   return (
                     <tr key={i} style={{ background: revisadoLocal(it) ? "#2d7a4f08" : "transparent" }}>
-                      <td style={{ fontSize: 12 }}>{it.producto_nombre}{it.es_extra ? <span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c", marginLeft: 6 }}>extra</span> : ""}</td>
+                      <td style={{ fontSize: 12 }}>{it.producto_nombre}{it.es_extra ? <span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c", marginLeft: 6 }}>extra</span> : ""}
+                        {!revisadoLocal(it) && (
+                          <span style={{ marginLeft: 8, whiteSpace: "nowrap" }}>
+                            <span onClick={() => editarItemOrden(it)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 10, marginRight: 6 }}>editar</span>
+                            <span onClick={() => eliminarItemOrden(it)} style={{ cursor: "pointer", color: "#c0392b", fontSize: 10 }}>eliminar</span>
+                          </span>
+                        )}</td>
                       <td style={{ fontSize: 12, color: "#65676B" }}>{esp}</td>
                       <td><input className="inp" type="number" style={{ width: 70, padding: "4px 8px" }} value={conteo[it.id] ?? ""} onChange={e => setConteo(c => ({ ...c, [it.id]: e.target.value }))} /></td>
                       <td>

@@ -36,6 +36,7 @@ app.use('/api/categorias-costo', require('./routes/categorias-costo'));
 app.use('/api/proveedores', require('./routes/proveedores'));
 app.use('/api/cuentas-pago', require('./routes/cuentas-pago'));
 app.use('/api/ordenes-ingreso', require('./routes/ordenes-ingreso'));
+app.use('/api/ordenes-ingreso', require('./routes/ordenes-ingreso-editar'));
 app.use('/api/cuentas-pago', require('./routes/cuentas-pago'));
 app.use('/api/caja', require('./routes/caja'));
 app.use('/api/ordenes-ingreso', require('./routes/ordenes-ingreso'));
