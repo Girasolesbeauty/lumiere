@@ -2,16 +2,19 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
 
-// Listar ordenes
+// Listar ordenes (incluye si cada local ya termino de recibir su parte, para no mostrar "Recibir" cuando ya esta hecho)
 router.get('/', async (req, res) => {
   try {
     const { estado } = req.query;
-    let query = `SELECT o.*, p.nombre as proveedor_nombre, p.dias_pago
+    let query = `SELECT o.*, p.nombre as proveedor_nombre, p.dias_pago,
+                   COALESCE(bool_and(CASE WHEN oi.cantidad_rg > 0 THEN oi.revisado_rg ELSE true END), true) AS rg_completo,
+                   COALESCE(bool_and(CASE WHEN oi.cantidad_ush > 0 THEN oi.revisado_ush ELSE true END), true) AS ush_completo
                  FROM ordenes_ingreso o
-                 LEFT JOIN proveedores p ON o.proveedor_id = p.id`;
+                 LEFT JOIN proveedores p ON o.proveedor_id = p.id
+                 LEFT JOIN ordenes_ingreso_items oi ON oi.orden_id = o.id`;
     const params = [];
     if (estado) { params.push(estado); query += ` WHERE o.estado = $${params.length}`; }
-    query += ' ORDER BY o.creado_en DESC';
+    query += ' GROUP BY o.id, p.nombre, p.dias_pago ORDER BY o.creado_en DESC';
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {

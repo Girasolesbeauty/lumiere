@@ -5971,16 +5971,27 @@ function OrdenesIngreso({ localId, usuario }) {
             <table>
               <thead><tr><th>Factura</th><th>Proveedor</th><th>Fecha</th><th>Estado</th><th>Total</th><th></th></tr></thead>
               <tbody>
-                {ordenes.filter(o => o.estado !== "recibida" && o.estado !== "pagada").map((o, i) => (
+                {ordenes.filter(o => o.estado !== "recibida" && o.estado !== "pagada").map((o, i) => {
+                  const completoMiLocal = localActual === "rg" ? o.rg_completo : o.ush_completo;
+                  return (
                   <tr key={i}>
                     <td style={{ fontSize: 12, fontWeight: 600 }}>{o.numero_factura || "-"}</td>
                     <td style={{ fontSize: 12 }}>{o.proveedor_nombre || "-"}</td>
                     <td style={{ fontSize: 11, color: "#65676B" }}>{o.fecha_factura ? new Date(o.fecha_factura).toLocaleDateString("es-AR") : "-"}</td>
-                    <td><span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c" }}>{o.estado}</span></td>
+                    <td>
+                      {completoMiLocal
+                        ? <span className="badge" style={{ background: "#2d7a4f15", color: "#2d7a4f" }}>recibido en {localNombre}</span>
+                        : <span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c" }}>{o.estado}</span>}
+                    </td>
                     <td style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>{fmt(parseFloat(o.total || 0))}</td>
-                    <td><button className="btn btn-sm" style={{ background: "#2d7a4f", color: "white" }} onClick={() => verDetalle(o)}>Recibir</button></td>
+                    <td>
+                      {completoMiLocal
+                        ? <button className="btn btn-sm" style={{ background: "#f0ece4", color: "#2d7a4f", border: "1px solid #2d7a4f" }} onClick={() => verDetalle(o)}>Recibido</button>
+                        : <button className="btn btn-sm" style={{ background: "#2d7a4f", color: "white" }} onClick={() => verDetalle(o)}>Recibir</button>}
+                    </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           )}
