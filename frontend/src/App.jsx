@@ -405,6 +405,8 @@ function VentasOnline({ localId, usuario }) {
   const [busqueda, setBusqueda] = useState("");
   const [cart, setCart] = useState([]);
   const [medioPagoId, setMedioPagoId] = useState("");
+  const [pagoMixto, setPagoMixto] = useState(false);
+  const [pagosMixtos, setPagosMixtos] = useState([]); // [{medio_pago_id, medio_pago_nombre, importe}]
   const [referencia, setReferencia] = useState("");
   const [fechaVenta, setFechaVenta] = useState(() => new Date().toISOString().slice(0, 10));
   const [clientes, setClientes] = useState([]);
@@ -484,14 +486,28 @@ function VentasOnline({ localId, usuario }) {
 
   const registrar = async () => {
     if (cart.length === 0) return setMensaje("Agrega al menos un producto");
-    if (!medioPagoId) return setMensaje("Elegi el medio de pago");
+    let medioPagoIdFinal = null, medioPagoNombreFinal = null, pagosFinal = undefined;
+    if (pagoMixto) {
+      if (pagosMixtos.length === 0 || pagosMixtos.some(p => !p.medio_pago_id)) return setMensaje("Elegi el medio de pago en cada linea del pago dividido");
+      const suma = pagosMixtos.reduce((s, p) => s + (parseFloat(p.importe) || 0), 0);
+      if (Math.abs(suma - total) >= 1) return setMensaje("La suma de los pagos (" + fmt(suma) + ") no coincide con el total (" + fmt(total) + ")");
+      medioPagoIdFinal = pagosMixtos[0].medio_pago_id || null;
+      medioPagoNombreFinal = pagosMixtos.map(p => p.medio_pago_nombre).join(" + ");
+      pagosFinal = pagosMixtos;
+    } else {
+      if (!medioPagoId) return setMensaje("Elegi el medio de pago");
+      const m = mediosPago.find(x => String(x.id) === String(medioPagoId));
+      medioPagoIdFinal = m?.id || null;
+      medioPagoNombreFinal = m?.nombre || null;
+    }
     setGuardando(true);
     try {
       const items = cart.map(i => ({ producto_id: i.id, cantidad: i.qty, precio_unitario: i.precio || i.price || 0 }));
       await API.post("/ventas/online", {
         items, total,
-        medio_pago_id: null,
-        medio_pago_nombre: medioPagoId || null,
+        medio_pago_id: medioPagoIdFinal,
+        medio_pago_nombre: medioPagoNombreFinal,
+        pagos: pagosFinal,
         local_id: Number(localId) === 2 ? 2 : 1,
         usuario_id: usuario?.id || null,
         referencia: referencia || null,
@@ -499,7 +515,7 @@ function VentasOnline({ localId, usuario }) {
         cliente_id: cliSel?.id || null
       });
       setMensaje("Venta online registrada! Se sumo al cierre y se desconto del stock (sin facturar).");
-      setCart([]); setMedioPagoId(""); setReferencia(""); setCliSel(null); setBuscarCli(""); cargarVentasOnline();
+      setCart([]); setMedioPagoId(""); setPagoMixto(false); setPagosMixtos([]); setReferencia(""); setCliSel(null); setBuscarCli(""); cargarVentasOnline();
       const localParam = Number(localId) === 2 ? "ush" : "rg";
       API.get("/productos?local=" + localParam).then(res => setProductos(res.data)).catch(() => {});
       setTimeout(() => setMensaje(""), 4000);
@@ -563,17 +579,44 @@ function VentasOnline({ localId, usuario }) {
                 <span>Total</span><span>{fmt(total)}</span>
               </div>
               <div className="fg" style={{ marginBottom: 8 }}>
-                <div className="fl">Medio de pago</div>
-                <select className="inp" value={medioPagoId} onChange={e => setMedioPagoId(e.target.value)}>
-                  <option value="">Seleccionar...</option>
-                  <option value="Pago Nube">Pago Nube</option>
-                  <option value="Mercado Pago debito">Mercado Pago debito</option>
-                  <option value="Mercado Pago credito 1 cuota">Mercado Pago credito 1 cuota</option>
-                  <option value="Mercado Pago credito 2 sin interes">Mercado Pago credito 2 sin interes</option>
-                  <option value="Mercado Pago credito 3 sin interes">Mercado Pago credito 3 sin interes</option>
-                  <option value="Mercado Pago credito 4 sin interes">Mercado Pago credito 4 sin interes</option>
-                  <option value="Gocuotas">Gocuotas</option>
-                </select>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                  <div className="fl" style={{ marginBottom: 0 }}>{pagoMixto ? "Pago dividido" : "Medio de pago"}</div>
+                  <button type="button" onClick={() => { setPagoMixto(!pagoMixto); if (!pagoMixto) { setPagosMixtos([{ medio_pago_id: null, medio_pago_nombre: "", importe: "" }]); } else { setPagosMixtos([]); } }} style={{ fontSize: 10, padding: "2px 8px", border: "1px solid #c9a84c", borderRadius: 4, background: pagoMixto ? "#c9a84c" : "#fff", color: pagoMixto ? "#fff" : "#c9a84c", cursor: "pointer" }}>{pagoMixto ? "Pago simple" : "Dividir pago"}</button>
+                </div>
+
+                {!pagoMixto && (
+                  <select className="inp" value={medioPagoId} onChange={e => setMedioPagoId(e.target.value)}>
+                    <option value="">Seleccionar...</option>
+                    {mediosPago.map(m => (<option key={m.id} value={m.id}>{m.nombre}</option>))}
+                  </select>
+                )}
+
+                {pagoMixto && (
+                  <div>
+                    {pagosMixtos.map((pg, idx) => (
+                      <div key={idx} style={{ display: "flex", gap: 4, marginBottom: 4, alignItems: "center" }}>
+                        <select className="sel" style={{ fontSize: 11, padding: "6px", flex: 1 }} value={pg.medio_pago_id || ""} onChange={e => {
+                          const m = mediosPago.find(x => x.id === parseInt(e.target.value));
+                          setPagosMixtos(prev => prev.map((x, i) => i === idx ? { ...x, medio_pago_id: m?.id || null, medio_pago_nombre: m?.nombre || "" } : x));
+                        }}>
+                          <option value="">Medio...</option>
+                          {mediosPago.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
+                        </select>
+                        <input type="number" placeholder="$" value={pg.importe} onChange={e => setPagosMixtos(prev => prev.map((x, i) => i === idx ? { ...x, importe: e.target.value } : x))} style={{ width: 90, fontSize: 11, padding: "6px", border: "1px solid #e8e8e8", borderRadius: 4, textAlign: "right" }} />
+                        {pagosMixtos.length > 1 && <span onClick={() => setPagosMixtos(prev => prev.filter((_, i) => i !== idx))} style={{ cursor: "pointer", color: "#ccc", fontSize: 16 }}>×</span>}
+                      </div>
+                    ))}
+                    <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
+                      <button type="button" onClick={() => setPagosMixtos(prev => [...prev, { medio_pago_id: null, medio_pago_nombre: "", importe: "" }])} style={{ fontSize: 10, padding: "4px 8px", border: "1px dashed #c9a84c", borderRadius: 4, background: "#fff", color: "#c9a84c", cursor: "pointer", flex: 1 }}>+ Agregar medio</button>
+                      <button type="button" onClick={() => { const n = pagosMixtos.length || 1; const parte = Math.round((total / n) * 100) / 100; setPagosMixtos(prev => prev.map(x => ({ ...x, importe: String(parte) }))); }} style={{ fontSize: 10, padding: "4px 8px", border: "1px solid #e8e8e8", borderRadius: 4, background: "#f7f7f7", cursor: "pointer", flex: 1 }}>Dividir igual</button>
+                    </div>
+                    {(() => {
+                      const suma = pagosMixtos.reduce((s, p) => s + (parseFloat(p.importe) || 0), 0);
+                      const dif = total - suma;
+                      return <div style={{ fontSize: 10, textAlign: "right", color: Math.abs(dif) < 1 ? "#2d7a4f" : "#c0392b" }}>Suma: {fmt(suma)} / Total: {fmt(total)} {Math.abs(dif) >= 1 ? "(falta " + fmt(dif) + ")" : "✓"}</div>;
+                    })()}
+                  </div>
+                )}
               </div>
               <div className="fg" style={{ marginBottom: 8 }}>
                 <div className="fl">Clienta (opcional, para sumar puntos)</div>

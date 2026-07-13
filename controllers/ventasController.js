@@ -418,7 +418,7 @@ const crearOnline = async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { items, total, medio_pago_id, medio_pago_nombre, local_id, usuario_id, referencia, fecha, cliente_id } = req.body;
+    const { items, total, medio_pago_id, medio_pago_nombre, local_id, usuario_id, referencia, fecha, cliente_id, pagos } = req.body;
     // Si viene fecha, se usa esa (para ventas online de dias anteriores). Si no, ahora.
     // Si viene solo la fecha (YYYY-MM-DD), guardarla al mediodia para que ningun
     // corrimiento de zona horaria la cambie de dia.
@@ -448,6 +448,19 @@ const crearOnline = async (req, res) => {
       [numero, subtotal, totalNum, local_id || 1, medio_pago_id || null, medio_pago_nombre || null, usuario_id || null, fechaVenta, cliente_id || null]
     );
     const ventaId = venta.rows[0].id;
+
+    // Pago mixto: si vienen varios pagos, se guardan en venta_pagos.
+    if (Array.isArray(pagos) && pagos.length > 0) {
+      for (const p of pagos) {
+        const imp = parseFloat(p.importe) || 0;
+        if (imp <= 0) continue;
+        await client.query(
+          `INSERT INTO venta_pagos (venta_id, medio_pago_id, medio_pago_nombre, importe)
+           VALUES ($1, $2, $3, $4)`,
+          [ventaId, p.medio_pago_id || null, p.medio_pago_nombre || null, imp]
+        );
+      }
+    }
 
     const colStock = (local_id === 2 || local_id === '2') ? 'stock_ush' : 'stock_rg';
     for (const item of items) {
@@ -528,8 +541,9 @@ const eliminarOnline = async (req, res) => {
       }
     }
 
-    // Borrar movimiento de caja, items y venta
+    // Borrar movimiento de caja, pagos, items y venta
     await client.query('DELETE FROM movimientos_caja WHERE referencia = $1', [venta.numero_factura]);
+    await client.query('DELETE FROM venta_pagos WHERE venta_id = $1', [id]);
     await client.query('DELETE FROM venta_items WHERE venta_id = $1', [id]);
     await client.query('DELETE FROM ventas WHERE id = $1', [id]);
 
