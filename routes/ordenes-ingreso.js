@@ -127,7 +127,21 @@ router.post('/:ordenId/item-extra', async (req, res) => {
       ]
     );
     if (producto_id) {
-      await client.query('UPDATE productos SET stock = stock + $1 WHERE id = $2', [cant, producto_id]);
+      if (esRg) {
+        await client.query(
+          `UPDATE productos SET stock_rg = COALESCE(stock_rg,0) + $1,
+             stock = COALESCE(stock_rg,0) + $1 + COALESCE(stock_ush,0)
+           WHERE id = $2`,
+          [cant, producto_id]
+        );
+      } else {
+        await client.query(
+          `UPDATE productos SET stock_ush = COALESCE(stock_ush,0) + $1,
+             stock = COALESCE(stock_rg,0) + COALESCE(stock_ush,0) + $1
+           WHERE id = $2`,
+          [cant, producto_id]
+        );
+      }
     }
     await client.query('COMMIT');
     res.json({ ok: true });
@@ -159,7 +173,12 @@ router.put('/:ordenId/items/:itemId/recibir', async (req, res) => {
         [cant, nota || null, usuario_nombre || null, req.params.itemId]
       );
       if (item.producto_id) {
-        await client.query('UPDATE productos SET stock = stock + $1 WHERE id = $2', [cant, item.producto_id]);
+        await client.query(
+          `UPDATE productos SET stock_rg = COALESCE(stock_rg,0) + $1,
+             stock = COALESCE(stock_rg,0) + $1 + COALESCE(stock_ush,0)
+           WHERE id = $2`,
+          [cant, item.producto_id]
+        );
         await client.query(
           'UPDATE productos SET stock_transito_rg = GREATEST(COALESCE(stock_transito_rg,0) - $1, 0) WHERE id = $2',
           [item.cantidad_rg || 0, item.producto_id]
@@ -171,7 +190,12 @@ router.put('/:ordenId/items/:itemId/recibir', async (req, res) => {
         [cant, nota || null, usuario_nombre || null, req.params.itemId]
       );
       if (item.producto_id) {
-        await client.query('UPDATE productos SET stock = stock + $1 WHERE id = $2', [cant, item.producto_id]);
+        await client.query(
+          `UPDATE productos SET stock_ush = COALESCE(stock_ush,0) + $1,
+             stock = COALESCE(stock_rg,0) + COALESCE(stock_ush,0) + $1
+           WHERE id = $2`,
+          [cant, item.producto_id]
+        );
         await client.query(
           'UPDATE productos SET stock_transito_ush = GREATEST(COALESCE(stock_transito_ush,0) - $1, 0) WHERE id = $2',
           [item.cantidad_ush || 0, item.producto_id]
