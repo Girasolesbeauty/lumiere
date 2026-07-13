@@ -6097,12 +6097,10 @@ function OrdenesIngreso({ localId, usuario }) {
                   return (
                     <tr key={i} style={{ background: revisadoLocal(it) ? "#2d7a4f08" : "transparent" }}>
                       <td style={{ fontSize: 12 }}>{it.producto_nombre}{it.es_extra ? <span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c", marginLeft: 6 }}>extra</span> : ""}
-                        {!revisadoLocal(it) && (
-                          <span style={{ marginLeft: 8, whiteSpace: "nowrap" }}>
-                            <span onClick={() => editarItemOrden(it)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 10, marginRight: 6 }}>editar</span>
-                            <span onClick={() => eliminarItemOrden(it)} style={{ cursor: "pointer", color: "#c0392b", fontSize: 10 }}>eliminar</span>
-                          </span>
-                        )}</td>
+                        <span style={{ marginLeft: 8, whiteSpace: "nowrap" }}>
+                          <span onClick={() => editarItemOrden(it)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 10, marginRight: 6 }}>editar</span>
+                          <span onClick={() => eliminarItemOrden(it)} style={{ cursor: "pointer", color: "#c0392b", fontSize: 10 }}>eliminar</span>
+                        </span></td>
                       <td style={{ fontSize: 12, color: "#65676B" }}>{esp}</td>
                       <td><input className="inp" type="number" style={{ width: 70, padding: "4px 8px" }} value={conteo[it.id] ?? ""} onChange={e => setConteo(c => ({ ...c, [it.id]: e.target.value }))} /></td>
                       <td>
