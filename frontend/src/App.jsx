@@ -417,6 +417,9 @@ function VentasOnline({ localId, usuario }) {
   const [voTotal, setVoTotal] = useState("");
   const [voFecha, setVoFecha] = useState("");
   const [voLocal, setVoLocal] = useState("1");
+  const [voItems, setVoItems] = useState([]);
+  const [voBusqueda, setVoBusqueda] = useState("");
+  const [expandidoVO, setExpandidoVO] = useState(null);
   const [mensaje, setMensaje] = useState("");
   const [guardando, setGuardando] = useState(false);
 
@@ -462,14 +465,32 @@ function VentasOnline({ localId, usuario }) {
     setVoTotal(String(v.total));
     setVoFecha(String(v.creado_en).slice(0, 10));
     setVoLocal(String(v.local_id));
+    setVoItems((v.items || []).map(i => ({ producto_id: i.producto_id, nombre: i.nombre, cantidad: i.cantidad, precio_unitario: parseFloat(i.precio_unitario) || 0 })));
+    setVoBusqueda("");
   };
+
+  const voTotalItems = voItems.reduce((s, i) => s + (parseFloat(i.precio_unitario) || 0) * (parseInt(i.cantidad) || 0), 0);
+
+  const voAgregarProducto = (p) => {
+    setVoItems(prev => {
+      const e = prev.find(i => i.producto_id === p.id);
+      if (e) return prev.map(i => i.producto_id === p.id ? { ...i, cantidad: i.cantidad + 1 } : i);
+      return [...prev, { producto_id: p.id, nombre: p.nombre, cantidad: 1, precio_unitario: p.precio || p.price || 0 }];
+    });
+    setVoBusqueda("");
+  };
+  const voQuitarProducto = (producto_id) => setVoItems(prev => prev.filter(i => i.producto_id !== producto_id));
+  const voCambiarCantidad = (producto_id, d) => setVoItems(prev => prev.map(i => i.producto_id === producto_id ? { ...i, cantidad: Math.max(1, i.cantidad + d) } : i));
+  const voCambiarPrecio = (producto_id, v) => setVoItems(prev => prev.map(i => i.producto_id === producto_id ? { ...i, precio_unitario: v } : i));
 
   const guardarEditarVO = async () => {
     try {
+      const huboEdicionDeProductos = voItems.length > 0;
       await API.put("/ventas/online/" + editandoVO.id, {
-        total: parseFloat(voTotal),
+        total: huboEdicionDeProductos ? undefined : parseFloat(voTotal),
         local_id: Number(voLocal),
-        fecha: voFecha
+        fecha: voFecha,
+        items: huboEdicionDeProductos ? voItems.map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad, precio_unitario: i.precio_unitario })) : undefined
       });
       setEditandoVO(null);
       cargarVentasOnline();
@@ -688,13 +709,17 @@ function VentasOnline({ localId, usuario }) {
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Ventas online de este mes ({ventasOnlineList.length})</div>
         {ventasOnlineList.length === 0 ? <div style={{ fontSize: 12, color: "#999" }}>No hay ventas online este mes.</div> : (
           <table style={{ width: "100%", fontSize: 12 }}>
-            <thead><tr style={{ color: "#888", textAlign: "left" }}><th style={{ padding: "6px 0" }}>Numero</th><th>Fecha</th><th style={{ textAlign: "right" }}>Total</th>{esJefe && <th></th>}</tr></thead>
+            <thead><tr style={{ color: "#888", textAlign: "left" }}><th style={{ padding: "6px 0" }}>Numero</th><th>Fecha</th><th style={{ textAlign: "right" }}>Total</th><th></th>{esJefe && <th></th>}</tr></thead>
             <tbody>
               {ventasOnlineList.map(v => (
-                <tr key={v.id} style={{ borderTop: "1px solid #f0f0f0" }}>
+                <Fragment key={v.id}>
+                <tr style={{ borderTop: "1px solid #f0f0f0" }}>
                   <td style={{ padding: "7px 0" }}>{v.numero_factura}</td>
                   <td>{v.creado_en ? String(v.creado_en).slice(8, 10) + "/" + String(v.creado_en).slice(5, 7) + "/" + String(v.creado_en).slice(0, 4) : "-"}</td>
                   <td style={{ textAlign: "right", fontWeight: 600 }}>{fmt(parseFloat(v.total))}</td>
+                  <td style={{ textAlign: "right" }}>
+                    <span onClick={() => setExpandidoVO(expandidoVO === v.id ? null : v.id)} style={{ cursor: "pointer", color: "#2C3E5C", fontSize: 11 }}>{expandidoVO === v.id ? "ocultar" : "ver detalle"}</span>
+                  </td>
                   {esJefe && (
                     <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                       <span onClick={() => abrirEditarVO(v)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 11, marginRight: 8 }}>editar</span>
@@ -702,20 +727,87 @@ function VentasOnline({ localId, usuario }) {
                     </td>
                   )}
                 </tr>
+                {expandidoVO === v.id && (
+                  <tr>
+                    <td colSpan={esJefe ? 5 : 4} style={{ background: "#F0F2F5", padding: "10px 14px" }}>
+                      <div style={{ fontSize: 9, color: "#65676B", letterSpacing: ".1em", marginBottom: 6 }}>PRODUCTOS DE LA VENTA</div>
+                      {(v.items || []).length === 0 ? (
+                        <div style={{ fontSize: 11, color: "#65676B" }}>Sin detalle de productos</div>
+                      ) : (
+                        <table style={{ width: "100%" }}>
+                          <thead><tr><th style={{ textAlign: "left" }}>Producto</th><th>Cant</th><th>Precio</th><th style={{ textAlign: "right" }}>Subtotal</th></tr></thead>
+                          <tbody>
+                            {v.items.map((it, j) => (
+                              <tr key={j}>
+                                <td style={{ fontSize: 11 }}>{it.nombre}{it.marca ? " - " + it.marca : ""}</td>
+                                <td style={{ fontSize: 11, textAlign: "center" }}>{it.cantidad}</td>
+                                <td style={{ fontSize: 11, textAlign: "center" }}>{fmt(parseFloat(it.precio_unitario || 0))}</td>
+                                <td style={{ fontSize: 11, textAlign: "right" }}>{fmt(parseFloat(it.precio_unitario || 0) * it.cantidad)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               ))}
             </tbody>
           </table>
         )}
       </div>
     
-      {editandoVO && (
+      {editandoVO && (() => {
+        const voFiltrados = voBusqueda.trim().length > 0
+          ? productos.filter(p => (p.nombre || "").toLowerCase().includes(voBusqueda.toLowerCase()) || (p.codigo_barras || "").includes(voBusqueda)).slice(0, 8)
+          : [];
+        return (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={() => setEditandoVO(null)}>
-          <div className="card" style={{ width: 400, maxWidth: "92vw" }} onClick={e => e.stopPropagation()}>
+          <div className="card" style={{ width: 480, maxWidth: "92vw", maxHeight: "88vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
             <div className="ct">Editar venta online {editandoVO.numero_factura}</div>
-            <div className="fg" style={{ marginBottom: 8 }}>
-              <div className="fl">Total ($)</div>
-              <input className="inp" type="number" value={voTotal} onChange={e => setVoTotal(e.target.value)} />
+
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#888", marginBottom: 6 }}>PRODUCTOS</div>
+            <div style={{ fontSize: 10, color: "#65676B", marginBottom: 8 }}>Si cambias un producto por otro, se repone el stock del que sacaste y se descuenta el del nuevo.</div>
+            {voItems.length === 0 ? <div style={{ fontSize: 12, color: "#999", marginBottom: 8 }}>Sin productos cargados</div> : voItems.map(i => (
+              <div key={i.producto_id} style={{ background: "#fafafa", border: "1px solid #eee", borderRadius: 6, padding: "8px 10px", marginBottom: 6 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span style={{ fontSize: 12, fontWeight: 500 }}>{i.nombre}</span>
+                  <span onClick={() => voQuitarProducto(i.producto_id)} style={{ cursor: "pointer", color: "#c0392b", fontSize: 14 }}>×</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <button onClick={() => voCambiarCantidad(i.producto_id, -1)} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e8e8e8", background: "#f7f7f7", cursor: "pointer", fontWeight: 700 }}>−</button>
+                  <span style={{ minWidth: 20, textAlign: "center", fontSize: 12 }}>{i.cantidad}</span>
+                  <button onClick={() => voCambiarCantidad(i.producto_id, 1)} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e8e8e8", background: "#f7f7f7", cursor: "pointer", fontWeight: 700 }}>+</button>
+                  <span style={{ fontSize: 9, color: "#999", marginLeft: 4 }}>$</span>
+                  <input type="number" value={i.precio_unitario} onChange={e => voCambiarPrecio(i.producto_id, parseFloat(e.target.value) || 0)} style={{ width: 70, fontSize: 11, padding: "4px 6px", border: "1px solid #e8e8e8", borderRadius: 4, textAlign: "right" }} />
+                  <span style={{ marginLeft: "auto", fontSize: 12, fontWeight: 600 }}>{fmt(i.precio_unitario * i.cantidad)}</span>
+                </div>
+              </div>
+            ))}
+            <div style={{ marginBottom: 10, position: "relative" }}>
+              <input className="inp" placeholder="Agregar producto (nombre o codigo)..." value={voBusqueda} onChange={e => setVoBusqueda(e.target.value)} />
+              {voFiltrados.length > 0 && (
+                <div style={{ border: "1px solid #eee", borderRadius: 6, marginTop: 4 }}>
+                  {voFiltrados.map(p => (
+                    <div key={p.id} onClick={() => voAgregarProducto(p)} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 12, display: "flex", justifyContent: "space-between" }}>
+                      <span>{p.nombre}</span>
+                      <span style={{ color: "#888" }}>{fmt(p.precio || p.price || 0)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, marginBottom: 12, borderTop: "1px solid #eee", paddingTop: 8 }}>
+              <span>Total</span><span>{fmt(voTotalItems)}</span>
+            </div>
+
+            {voItems.length === 0 && (
+              <div className="fg" style={{ marginBottom: 8 }}>
+                <div className="fl">Total ($)</div>
+                <input className="inp" type="number" value={voTotal} onChange={e => setVoTotal(e.target.value)} />
+              </div>
+            )}
             <div className="fg" style={{ marginBottom: 8 }}>
               <div className="fl">Fecha</div>
               <input className="inp" type="date" value={voFecha} onChange={e => setVoFecha(e.target.value)} />
@@ -733,7 +825,8 @@ function VentasOnline({ localId, usuario }) {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

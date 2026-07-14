@@ -550,7 +550,12 @@ const eliminarOnline = async (req, res) => {
     const items = await client.query('SELECT producto_id, cantidad FROM venta_items WHERE venta_id = $1', [id]);
     for (const it of items.rows) {
       if (it.producto_id) {
-        await client.query(`UPDATE productos SET ${colStock} = COALESCE(${colStock},0) + $1 WHERE id = $2`, [it.cantidad, it.producto_id]);
+        await client.query(
+          `UPDATE productos SET ${colStock} = COALESCE(${colStock},0) + $1,
+             stock = COALESCE(stock_rg,0) + COALESCE(stock_ush,0) + $1
+           WHERE id = $2`,
+          [it.cantidad, it.producto_id]
+        );
       }
     }
 
@@ -571,19 +576,22 @@ const eliminarOnline = async (req, res) => {
   }
 };
 
-// Editar una venta online (fecha, local, monto). Ajusta el movimiento de caja.
+// Editar una venta online (fecha, local, monto, y opcionalmente los productos).
+// Si vienen "items", reemplaza los productos de la venta: repone el stock de lo que
+// se llevaba antes y descuenta el stock de lo nuevo (asi funciona un cambio de producto).
 const editarOnline = async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const { id } = req.params;
-    const { total, local_id, fecha } = req.body;
+    const { total, local_id, fecha, items } = req.body;
 
     const ventaRes = await client.query("SELECT * FROM ventas WHERE id = $1 AND canal = 'online'", [id]);
     if (ventaRes.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Venta online no encontrada' });
     }
+    const ventaActual = ventaRes.rows[0];
 
     // Preparar fecha al mediodia si viene solo dia
     let fechaVenta = null;
@@ -592,8 +600,51 @@ const editarOnline = async (req, res) => {
       fechaVenta = (soloFecha.length === 10 && soloFecha[4] === '-') ? (soloFecha + ' 12:00:00') : fecha;
     }
 
-    const nuevoTotal = (total !== undefined && total !== null) ? parseFloat(total) : ventaRes.rows[0].total;
-    const nuevoLocal = (local_id !== undefined && local_id !== null) ? (Number(local_id) === 2 ? 2 : 1) : ventaRes.rows[0].local_id;
+    const nuevoLocal = (local_id !== undefined && local_id !== null) ? (Number(local_id) === 2 ? 2 : 1) : ventaActual.local_id;
+    let nuevoTotal = (total !== undefined && total !== null) ? parseFloat(total) : ventaActual.total;
+
+    if (Array.isArray(items) && items.length > 0) {
+      const colStockAnterior = (ventaActual.local_id === 2) ? 'stock_ush' : 'stock_rg';
+      const colStockNuevo = (nuevoLocal === 2) ? 'stock_ush' : 'stock_rg';
+
+      // Reponer el stock de los productos que se llevaba antes de la edicion
+      const itemsAnteriores = await client.query('SELECT producto_id, cantidad FROM venta_items WHERE venta_id = $1', [id]);
+      for (const it of itemsAnteriores.rows) {
+        if (it.producto_id) {
+          await client.query(
+            `UPDATE productos SET ${colStockAnterior} = COALESCE(${colStockAnterior},0) + $1,
+               stock = COALESCE(stock_rg,0) + COALESCE(stock_ush,0) + $1
+             WHERE id = $2`,
+            [it.cantidad, it.producto_id]
+          );
+        }
+      }
+      await client.query('DELETE FROM venta_items WHERE venta_id = $1', [id]);
+
+      // Cargar los productos nuevos y descontar su stock
+      let nuevoSubtotal = 0;
+      for (const item of items) {
+        const cantidad = parseInt(item.cantidad) || 0;
+        const precioUnitario = parseFloat(item.precio_unitario) || 0;
+        if (cantidad <= 0) continue;
+        nuevoSubtotal += precioUnitario * cantidad;
+        await client.query(
+          `INSERT INTO venta_items (venta_id, producto_id, cantidad, precio_unitario, subtotal)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [id, item.producto_id, cantidad, precioUnitario, precioUnitario * cantidad]
+        );
+        if (item.producto_id) {
+          await client.query(
+            `UPDATE productos SET ${colStockNuevo} = COALESCE(${colStockNuevo}, 0) - $1,
+               stock = COALESCE(stock_rg, 0) + COALESCE(stock_ush, 0) - $1
+             WHERE id = $2`,
+            [cantidad, item.producto_id]
+          );
+        }
+      }
+      // El total de una venta con productos siempre sale de la suma de los productos
+      nuevoTotal = nuevoSubtotal;
+    }
 
     await client.query(
       `UPDATE ventas SET total = $1, subtotal = $1, local_id = $2, creado_en = COALESCE($3::timestamp, creado_en) WHERE id = $4`,
@@ -603,7 +654,7 @@ const editarOnline = async (req, res) => {
     // Actualizar el movimiento de caja asociado
     await client.query(
       `UPDATE movimientos_caja SET importe = $1, local_id = $2, creado_en = COALESCE($3::timestamp, creado_en) WHERE referencia = $4`,
-      [nuevoTotal, nuevoLocal, fechaVenta, ventaRes.rows[0].numero_factura]
+      [nuevoTotal, nuevoLocal, fechaVenta, ventaActual.numero_factura]
     );
 
     await client.query('COMMIT');
