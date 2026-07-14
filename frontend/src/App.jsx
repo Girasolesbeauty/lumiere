@@ -5246,6 +5246,7 @@ function Comprobantes({ localId }) {
   const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
   const [desde, setDesde] = useState(fmtFecha(primerDiaMes));
   const [hasta, setHasta] = useState(fmtFecha(hoy));
+  const [tabLocal, setTabLocal] = useState(localId === 2 ? "ush" : "rg");
   const [comprobantes, setComprobantes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandido, setExpandido] = useState(null);
@@ -5265,7 +5266,8 @@ function Comprobantes({ localId }) {
         if (m > 12) { m = 1; a++; }
         if (meses.length > 24) break;
       }
-      const proms = meses.map(({ m, a }) => API.get("/ventas?mes=" + m + "&anio=" + a + "&local_id=" + (localId || 1)));
+      const localParam = tabLocal === "rg" ? "&local_id=1" : tabLocal === "ush" ? "&local_id=2" : "";
+      const proms = meses.map(({ m, a }) => API.get("/ventas?mes=" + m + "&anio=" + a + localParam));
       const results = await Promise.all(proms);
       let todas = [];
       results.forEach(r => { todas = todas.concat(r.data || []); });
@@ -5280,7 +5282,7 @@ function Comprobantes({ localId }) {
     setLoading(false);
   };
 
-  useEffect(() => { cargar(); }, [desde, hasta, localId]);
+  useEffect(() => { cargar(); }, [desde, hasta, tabLocal]);
 
   const fmtNro = (v) => {
     const pv = v.punto_venta || 5;
@@ -5299,6 +5301,14 @@ function Comprobantes({ localId }) {
           <div><div style={{ fontSize: 9, color: "#65676B" }}>Desde</div><input className="inp" type="date" style={{ width: 140, padding: "6px 8px", fontSize: 12 }} value={desde} onChange={e => setDesde(e.target.value)} /></div>
           <div><div style={{ fontSize: 9, color: "#65676B" }}>Hasta</div><input className="inp" type="date" style={{ width: 140, padding: "6px 8px", fontSize: 12 }} value={hasta} onChange={e => setHasta(e.target.value)} /></div>
         </div>
+      </div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        {["rg", "ush", "consolidado"].map(l => (
+          <button key={l} onClick={() => setTabLocal(l)} className="btn btn-sm"
+            style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : "#e8e8e8"), color: tabLocal === l ? "#c9a84c" : "#65676B", fontWeight: tabLocal === l ? 600 : 400 }}>
+            {l === "rg" ? "Rio Grande" : l === "ush" ? "Ushuaia" : "Consolidado"}
+          </button>
+        ))}
       </div>
       <div className="g3" style={{ marginBottom: 16 }}>
         <MCard label="Comprobantes" value={String(comprobantes.length)} color="#c9a84c" />
