@@ -1704,6 +1704,7 @@ function Inventario({ localId, usuario }) {
   const [busqueda, setBusqueda] = useState("");
   const [filtroCat, setFiltroCat] = useState("");
   const [filtroStock, setFiltroStock] = useState("");
+  const [filtroMarcaAlertas, setFiltroMarcaAlertas] = useState("");
   const [vistaLocal, setVistaLocal] = useState("mi");
   const [nuevo, setNuevo] = useState({
     nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "",
@@ -2004,9 +2005,20 @@ function Inventario({ localId, usuario }) {
       )}
       {tab === "alertas" && (
         <div className="fade">
+          {alertas.length > 0 && (
+            <div className="card fade" style={{ marginBottom: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <select className="sel" style={{ width: 200 }} value={filtroMarcaAlertas} onChange={e => setFiltroMarcaAlertas(e.target.value)}>
+                <option value="">Todas las marcas</option>
+                {[...new Set(alertas.map(p => p.marca).filter(Boolean))].sort().map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+              {filtroMarcaAlertas && <button className="btn btn-g btn-sm" onClick={() => setFiltroMarcaAlertas("")}>Limpiar</button>}
+            </div>
+          )}
           {alertas.length === 0 ? (
             <div style={{ textAlign: "center", color: "#2d7a4f", padding: 30, fontSize: 12 }}>No hay alertas de stock por ahora</div>
-          ) : alertas.map(p => (
+          ) : alertas.filter(p => !filtroMarcaAlertas || p.marca === filtroMarcaAlertas).length === 0 ? (
+            <div style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>No hay alertas para esa marca</div>
+          ) : alertas.filter(p => !filtroMarcaAlertas || p.marca === filtroMarcaAlertas).map(p => (
             <div key={p.id} style={{ background: "#c0392b12", border: "1px solid #d9707033", borderRadius: 6, padding: "12px 16px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div style={{ fontSize: 12, color: "#444444" }}>{p.nombre || p.name} - {p.marca || p.brand}</div>
