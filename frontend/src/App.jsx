@@ -7459,9 +7459,17 @@ function Usuarios({ usuario: usuarioActual }) {
   const TODOS_PERMISOS = {
     "POS": [["pos.ver","Ver Punto de Venta"],["pos.venta","Registrar ventas"],["pos.preventa","Hacer preventas"],["pos.descuento","Aplicar descuentos"]],
     "Finanzas": [["finanzas.flujo","Ver flujo de efectivo"],["finanzas.egreso","Registrar egresos"],["finanzas.equilibrio","Ver punto de equilibrio"],["finanzas.costos","Ver costos"]],
+    "Comprobantes": [["comprobantes.ver","Ver comprobantes"]],
+    "Calculadoras": [["calculadoras.ver","Ver calculadoras de precio"]],
+    "Productividad": [["productividad.ver","Ver productividad"]],
     "Inventario": [["inventario.ver","Ver stock"],["inventario.crear","Crear productos"],["inventario.alertas","Ver alertas"]],
+    "Insumos": [["insumos.ver","Ver insumos"]],
+    "Control de Inventario": [["control_inv.ver","Ver control de inventario"]],
     "Clientes": [["clientes.ver","Ver clientes"],["clientes.crear","Crear clientes"],["clientes.editar","Editar clientes"]],
     "Caja": [["caja.ver","Ver caja"],["caja.movimiento","Registrar movimientos"]],
+    "Giftcards": [["giftcards.ver","Ver gift cards"]],
+    "Caja de Respaldo": [["caja_respaldo.ver","Ver caja de respaldo"]],
+    "Cierre de Caja": [["cierre_caja.ver","Ver cierre de caja"]],
     "Informes": [["informes.ventas","Ver ventas"],["informes.stock","Ver stock"],["informes.medios","Ver medios de pago"]],
     "Comisiones": [["comisiones.propias","Ver propias"],["comisiones.todas","Ver todas"]],
     "Proveedores": [["proveedores.ver","Ver proveedores"],["proveedores.crear","Crear/editar"]],
@@ -7699,13 +7707,13 @@ export default function AppWrapper() {
     if (usuario.rol === "jefe" || usuario.rol_id === 1) return true;
  const mapaModulos = {
       "pos": "pos.ver", "dashboard": "pos.ver",
-      "inventory": "inventario.ver", "ordenes": "ordenes.ver", "inconsistencias": "ordenes.ver", "kits": "kits.ver", "insumos": "inventario.ver", "control-inv": "inventario.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
+      "inventory": "inventario.ver", "ordenes": "ordenes.ver", "inconsistencias": "ordenes.ver", "kits": "kits.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
       "clients": "clientes.ver", "fidelizacion": "fidelizacion.ver",
-      "finance": "finanzas.flujo", "reports": "informes.ventas", "comprobantes": "finanzas.flujo",
+      "finance": "finanzas.flujo", "reports": "informes.ventas", "comprobantes": "comprobantes.ver",
       "comisiones": "comisiones.propias", "proveedores": "proveedores.ver",
-      "calculadoras": "finanzas.flujo", "productividad": "finanzas.flujo",
+      "calculadoras": "calculadoras.ver", "productividad": "productividad.ver",
       "cupones": "cupones.ver", "promociones": "cupones.ver", "postventa": "postventa.ver", "portal": "clientes.ver",
-      "caja": "caja.ver", "caja-respaldo": "caja.ver", "cierre": "caja.ver", "giftcards": "caja.ver",
+      "caja": "caja.ver", "caja-respaldo": "caja_respaldo.ver", "cierre": "cierre_caja.ver", "giftcards": "giftcards.ver",
       "usuarios": "usuarios.ver", "tiendanube": "tiendanube.ver",
     };
     const permiso = mapaModulos[modulo];
