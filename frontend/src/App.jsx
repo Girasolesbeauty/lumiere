@@ -2172,6 +2172,7 @@ function Clientes() {
   const [migFecha, setMigFecha] = useState(() => new Date().toISOString().slice(0, 10));
   const [migHist, setMigHist] = useState([]);
   const [migMsg, setMigMsg] = useState("");
+  const [busqueda, setBusqueda] = useState("");
   const tierNext = { Bronze: 2000, Silver: 5000, Gold: 10000, Platinum: 20000, Black: 99999 };
 
   useEffect(() => {
@@ -2234,6 +2235,12 @@ function Clientes() {
   const platinum = clientesAMostrar.filter(c => (c.nivel || c.tier) === "Platinum").length;
   const gold = clientesAMostrar.filter(c => (c.nivel || c.tier) === "Gold").length;
   const silver = clientesAMostrar.filter(c => (c.nivel || c.tier) === "Silver").length;
+  const clientesFiltrados = clientesAMostrar.filter(c => {
+    const q = busqueda.trim().toLowerCase();
+    if (!q) return true;
+    const campos = [c.nombre || c.name, c.email, c.cuit_dni || c.cuit, c.telefono || c.phone].map(x => (x || "").toString().toLowerCase());
+    return campos.some(x => x.includes(q));
+  });
 
   return (
     <div className="fade">
@@ -2274,12 +2281,16 @@ function Clientes() {
         {["lista", "niveles"].map(t => <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => setTab(t)}>{t.toUpperCase()}</div>)}
       </div>
       {tab === "lista" && (
-        <div className="card fade">
+        <div className="card fade" style={{ marginBottom: 12 }}>
+          <input className="inp" placeholder="Buscar por nombre, celular, email o CUIT/DNI..." value={busqueda} onChange={e => setBusqueda(e.target.value)} style={{ marginBottom: 14 }} />
           {loading ? <div style={{ textAlign: "center", color: "#65676B", padding: 20 }}>Cargando clientes...</div> : (
           <table>
-            <thead><tr><th>Cliente</th><th>CUIT/DNI</th><th>Total compras</th><th>Puntos</th><th>Nivel</th><th>Portal</th></tr></thead>
+            <thead><tr><th>Cliente</th><th>Celular</th><th>CUIT/DNI</th><th>Total compras</th><th>Puntos</th><th>Nivel</th><th>Portal</th></tr></thead>
             <tbody>
-              {clientesAMostrar.map((c, i) => {
+              {clientesFiltrados.length === 0 && (
+                <tr><td colSpan={7} style={{ textAlign: "center", color: "#65676B", padding: 20 }}>No se encontraron clientes</td></tr>
+              )}
+              {clientesFiltrados.map((c, i) => {
                 const nivel = c.nivel || c.tier;
                 const puntos = c.puntos || c.points || 0;
                 const next = tierNext[nivel] || 500;
@@ -2287,6 +2298,7 @@ function Clientes() {
                 return (
                   <tr key={c.id || i}>
                     <td><div style={{ color: "#111111" }}>{c.nombre || c.name}</div><div style={{ fontSize: 9, color: "#65676B" }}>{c.email}</div></td>
+                    <td style={{ fontSize: 11 }}>{c.telefono || c.phone || "-"}</td>
                     <td style={{ fontSize: 10 }}>{c.cuit_dni || c.cuit}</td>
                     <td>{fmt((c.total_compras || c.total || 0))}</td>
                     <td>
