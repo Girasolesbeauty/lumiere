@@ -2983,15 +2983,72 @@ function Informes({ localId }) {
   );
 }
 
+const NIVELES_INF = {
+  inicial: { label: "Nivel Inicial", pct: 2, emoji: "\uD83C\uDF31" },
+  medio: { label: "Nivel Medio", pct: 3, emoji: "\uD83C\uDF38" },
+  alto: { label: "Nivel Alto", pct: 4, emoji: "\uD83D\uDC8E" },
+  top: { label: "Top Influencer", pct: 5, emoji: "\uD83D\uDC51" }
+};
+
 function Cupones() {
   const [cupons, setCupons] = useState([]);
   const [tab, setTab] = useState("lista");
   const [nc, setNc] = useState({ code: "", desc: "", type: "%", value: "", channel: "Instagram", max: "" });
   const [mensaje, setMensaje] = useState("");
+  const [influencers, setInfluencers] = useState([]);
+  const [showNuevoInf, setShowNuevoInf] = useState(false);
+  const [nuevoInf, setNuevoInf] = useState({ nombre: "", instagram: "", telefono: "", nivel: "inicial", cuponModo: "nuevo", cupon_id: "", nuevoCodigo: "", nuevoTipo: "%", nuevoValor: "" });
+  const [pagandoInf, setPagandoInf] = useState(null);
+  const [montoPago, setMontoPago] = useState("");
+  const [notaPago, setNotaPago] = useState("");
+
+  const cargarInfluencers = () => {
+    API.get("/influencers").then(res => setInfluencers(res.data || [])).catch(() => {});
+  };
 
   useEffect(() => {
     getCupones().then(res => setCupons(res.data)).catch(() => setCupons(CUPONS_DATA));
+    cargarInfluencers();
   }, []);
+
+  const guardarInfluencer = async () => {
+    if (!nuevoInf.nombre.trim()) return setMensaje("Falta el nombre de la influencer");
+    if (nuevoInf.cuponModo === "existente" && !nuevoInf.cupon_id) return setMensaje("Elegi un cupon existente");
+    if (nuevoInf.cuponModo === "nuevo" && !nuevoInf.nuevoCodigo.trim()) return setMensaje("Falta el codigo del cupon nuevo");
+    try {
+      await API.post("/influencers", {
+        nombre: nuevoInf.nombre, instagram: nuevoInf.instagram || null, telefono: nuevoInf.telefono || null,
+        nivel: nuevoInf.nivel,
+        cupon_id: nuevoInf.cuponModo === "existente" ? parseInt(nuevoInf.cupon_id) : null,
+        crear_cupon: nuevoInf.cuponModo === "nuevo" ? { codigo: nuevoInf.nuevoCodigo, tipo: nuevoInf.nuevoTipo, valor: parseFloat(nuevoInf.nuevoValor) || 0 } : null
+      });
+      setMensaje("Influencer agregada!");
+      setShowNuevoInf(false);
+      setNuevoInf({ nombre: "", instagram: "", telefono: "", nivel: "inicial", cuponModo: "nuevo", cupon_id: "", nuevoCodigo: "", nuevoTipo: "%", nuevoValor: "" });
+      cargarInfluencers();
+      getCupones().then(res => setCupons(res.data));
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error: " + (e?.response?.data?.error || "no se pudo crear")); }
+  };
+
+  const toggleInfluencer = async (inf) => {
+    try {
+      await API.put("/influencers/" + inf.id, { activo: !inf.activo });
+      cargarInfluencers();
+    } catch (e) {}
+  };
+
+  const registrarPagoInf = async () => {
+    const monto = parseFloat(montoPago);
+    if (isNaN(monto) || monto <= 0) return setMensaje("Monto invalido");
+    try {
+      await API.post("/influencers/" + pagandoInf.id + "/pagos", { monto, notas: notaPago || null });
+      setMensaje("Pago registrado!");
+      setPagandoInf(null); setMontoPago(""); setNotaPago("");
+      cargarInfluencers();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al registrar pago"); }
+  };
 
   const guardarCupon = async () => {
     try {
@@ -3020,7 +3077,7 @@ function Cupones() {
       <div className="g4" style={{ marginBottom: 16 }}>
         <MCard label="Activos" value={String(cuponsAMostrar.filter(c => c.activo || c.active).length)} color="#2d7a4f" />
         <MCard label="Usos totales" value={String(cuponsAMostrar.reduce((s, c) => s + (c.usos || c.uses || 0), 0))} color="#c9a84c" />
-        <MCard label="Influencers" value="1" color="#2471a3" />
+        <MCard label="Influencers" value={String(influencers.filter(i => i.activo).length)} color="#2471a3" />
         <MCard label="Total cupones" value={String(cuponsAMostrar.length)} />
       </div>
       <div className="tabs">
@@ -3075,20 +3132,87 @@ function Cupones() {
       {tab === "influencers" && (
         <div className="card fade">
           <table>
-            <thead><tr><th>Influencer</th><th>Codigo</th><th>Red</th><th>Usos</th><th>Comision</th></tr></thead>
+            <thead><tr><th>Influencer</th><th>Nivel</th><th>Cupon</th><th>Vendido</th><th>Comision</th><th>Pagado</th><th>Pendiente</th><th>Activa</th><th></th></tr></thead>
             <tbody>
-              {cuponsAMostrar.filter(c => (c.canal || c.channel) === "Influencer").map((c, i) => (
-                <tr key={i}>
-                  <td style={{ color: "#111111" }}>{c.descripcion || c.desc}</td>
-                  <td style={{ color: "#c9a84c" }}>{c.codigo || c.code}</td>
-                  <td><span className="badge bb">Instagram</span></td>
-                  <td>{c.usos || c.uses || 0}</td>
-                  <td>10%</td>
-                </tr>
-              ))}
+              {influencers.map(inf => {
+                const niv = NIVELES_INF[inf.nivel] || NIVELES_INF.inicial;
+                return (
+                  <tr key={inf.id}>
+                    <td style={{ color: "#111111", fontWeight: 600 }}>{inf.nombre}{inf.instagram ? <div style={{ fontSize: 10, color: "#888" }}>@{inf.instagram}</div> : null}</td>
+                    <td><span className="badge bb">{niv.emoji} {niv.label} ({inf.comision_pct}%)</span></td>
+                    <td style={{ color: "#c9a84c" }}>{inf.cupon_codigo || "-"}</td>
+                    <td>{fmt(parseFloat(inf.total_vendido || 0))}</td>
+                    <td style={{ color: "#2d7a4f", fontWeight: 600 }}>{fmt(parseFloat(inf.comision_generada || 0))}</td>
+                    <td>{fmt(parseFloat(inf.total_pagado || 0))}</td>
+                    <td style={{ color: parseFloat(inf.pendiente || 0) > 0 ? "#c0392b" : "#2d7a4f", fontWeight: 600 }}>{fmt(parseFloat(inf.pendiente || 0))}</td>
+                    <td><Sw on={inf.activo} toggle={() => toggleInfluencer(inf)} /></td>
+                    <td><span onClick={() => setPagandoInf(inf)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 11, whiteSpace: "nowrap" }}>Registrar pago</span></td>
+                  </tr>
+                );
+              })}
+              {influencers.length === 0 && (
+                <tr><td colSpan={9} style={{ textAlign: "center", color: "#999", padding: 20, fontSize: 12 }}>Todavia no hay influencers cargadas</td></tr>
+              )}
             </tbody>
           </table>
-          <div style={{ marginTop: 12 }}><button className="btn btn-p btn-sm">+ Agregar influencer</button></div>
+          <div style={{ marginTop: 12 }}><button className="btn btn-p btn-sm" onClick={() => setShowNuevoInf(true)}>+ Agregar influencer</button></div>
+        </div>
+      )}
+
+      {showNuevoInf && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={() => setShowNuevoInf(false)}>
+          <div className="card" style={{ width: 440, maxWidth: "92vw" }} onClick={e => e.stopPropagation()}>
+            <div className="ct">Agregar influencer</div>
+            <div className="fg"><div className="fl">Nombre</div><input className="inp" value={nuevoInf.nombre} onChange={e => setNuevoInf(p => ({ ...p, nombre: e.target.value }))} /></div>
+            <div className="fg"><div className="fl">Instagram (opcional)</div><input className="inp" placeholder="usuario" value={nuevoInf.instagram} onChange={e => setNuevoInf(p => ({ ...p, instagram: e.target.value }))} /></div>
+            <div className="fg"><div className="fl">Telefono (opcional)</div><input className="inp" value={nuevoInf.telefono} onChange={e => setNuevoInf(p => ({ ...p, telefono: e.target.value }))} /></div>
+            <div className="fg">
+              <div className="fl">Nivel</div>
+              <select className="sel" value={nuevoInf.nivel} onChange={e => setNuevoInf(p => ({ ...p, nivel: e.target.value }))}>
+                {Object.entries(NIVELES_INF).map(([k, v]) => <option key={k} value={k}>{v.emoji} {v.label} ({v.pct}%)</option>)}
+              </select>
+            </div>
+            <div className="fg">
+              <div className="fl">Cupon</div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+                <button type="button" onClick={() => setNuevoInf(p => ({ ...p, cuponModo: "nuevo" }))} style={{ flex: 1, fontSize: 11, padding: "6px", border: "1px solid " + (nuevoInf.cuponModo === "nuevo" ? "#c9a84c" : "#e8e8e8"), borderRadius: 4, background: nuevoInf.cuponModo === "nuevo" ? "#c9a84c15" : "#fff", color: nuevoInf.cuponModo === "nuevo" ? "#c9a84c" : "#65676B", cursor: "pointer" }}>Crear cupon nuevo</button>
+                <button type="button" onClick={() => setNuevoInf(p => ({ ...p, cuponModo: "existente" }))} style={{ flex: 1, fontSize: 11, padding: "6px", border: "1px solid " + (nuevoInf.cuponModo === "existente" ? "#c9a84c" : "#e8e8e8"), borderRadius: 4, background: nuevoInf.cuponModo === "existente" ? "#c9a84c15" : "#fff", color: nuevoInf.cuponModo === "existente" ? "#c9a84c" : "#65676B", cursor: "pointer" }}>Usar cupon existente</button>
+              </div>
+              {nuevoInf.cuponModo === "nuevo" ? (
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input className="inp" placeholder="CODIGO" style={{ flex: 2 }} value={nuevoInf.nuevoCodigo} onChange={e => setNuevoInf(p => ({ ...p, nuevoCodigo: e.target.value.toUpperCase() }))} />
+                  <select className="sel" style={{ flex: 1 }} value={nuevoInf.nuevoTipo} onChange={e => setNuevoInf(p => ({ ...p, nuevoTipo: e.target.value }))}>
+                    <option value="%">%</option><option value="$">$</option>
+                  </select>
+                  <input className="inp" type="number" placeholder="5" style={{ flex: 1 }} value={nuevoInf.nuevoValor} onChange={e => setNuevoInf(p => ({ ...p, nuevoValor: e.target.value }))} />
+                </div>
+              ) : (
+                <select className="sel" value={nuevoInf.cupon_id} onChange={e => setNuevoInf(p => ({ ...p, cupon_id: e.target.value }))}>
+                  <option value="">Seleccionar cupon...</option>
+                  {cuponsAMostrar.map(c => <option key={c.id} value={c.id}>{c.codigo || c.code}</option>)}
+                </select>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarInfluencer}>Guardar</button>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowNuevoInf(false)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pagandoInf && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={() => setPagandoInf(null)}>
+          <div className="card" style={{ width: 360, maxWidth: "92vw" }} onClick={e => e.stopPropagation()}>
+            <div className="ct">Registrar pago a {pagandoInf.nombre}</div>
+            <div style={{ fontSize: 12, color: "#65676B", marginBottom: 10 }}>Pendiente: {fmt(parseFloat(pagandoInf.pendiente || 0))}</div>
+            <div className="fg"><div className="fl">Monto ($)</div><input className="inp" type="number" value={montoPago} onChange={e => setMontoPago(e.target.value)} /></div>
+            <div className="fg"><div className="fl">Nota (opcional)</div><input className="inp" placeholder="Ej: transferencia" value={notaPago} onChange={e => setNotaPago(e.target.value)} /></div>
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button className="btn btn-p" style={{ flex: 1 }} onClick={registrarPagoInf}>Guardar</button>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setPagandoInf(null)}>Cancelar</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

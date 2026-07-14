@@ -48,6 +48,7 @@ app.use('/api/portal', require('./routes/portal'));
 app.use('/api/calculadoras', require('./routes/calculadoras'));
 app.use('/api/anulaciones', require('./routes/anulaciones'));
 app.use('/api/caja-respaldo', require('./routes/cajaRespaldo'));
+app.use('/api/influencers', require('./routes/influencers'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {

@@ -89,6 +89,7 @@ const create = async (req, res) => {
     }
 
     let descuento_total = descuento || 0;
+    let cuponId = null;
 
     if (cupon_codigo) {
       const cupon = await client.query(
@@ -96,6 +97,7 @@ const create = async (req, res) => {
       );
       if (cupon.rows.length > 0) {
         const c = cupon.rows[0];
+        cuponId = c.id;
         descuento_total = c.tipo === '%' ? subtotal * (c.valor / 100) : c.valor;
         await client.query('UPDATE cupones SET usos = usos + 1 WHERE codigo = $1', [cupon_codigo]);
       }
@@ -113,8 +115,8 @@ const create = async (req, res) => {
       `INSERT INTO ventas
         (numero_factura, cliente_id, tipo_factura, subtotal, descuento, total, canal, local_id,
          medio_pago_id, medio_pago, es_preventa, nombre_preventa, estado_pago,
-         usuario_id, inicio_venta, duracion_segundos, monto_gift_card, preventa_local, referencia)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING *`,
+         usuario_id, inicio_venta, duracion_segundos, monto_gift_card, preventa_local, referencia, cupon_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING *`,
       [
         numero, cliente_id, tipo_factura, subtotal, descuento_total, total,
         canal || 'presencial', local_id || 1,
@@ -124,7 +126,8 @@ const create = async (req, res) => {
         usuario_id || null, inicio_venta || null, duracion_segundos || null,
         parseFloat(monto_gift_card) || 0,
         es_preventa === true ? (local_id || 1) : null,
-        referencia || null
+        referencia || null,
+        cuponId
       ]
     );
 
@@ -418,7 +421,7 @@ const crearOnline = async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { items, total, medio_pago_id, medio_pago_nombre, local_id, usuario_id, referencia, fecha, cliente_id, pagos } = req.body;
+    const { items, total, medio_pago_id, medio_pago_nombre, local_id, usuario_id, referencia, fecha, cliente_id, pagos, cupon_codigo } = req.body;
     // Si viene fecha, se usa esa (para ventas online de dias anteriores). Si no, ahora.
     // Si viene solo la fecha (YYYY-MM-DD), guardarla al mediodia para que ningun
     // corrimiento de zona horaria la cambie de dia.
@@ -437,15 +440,25 @@ const crearOnline = async (req, res) => {
     let subtotal = 0;
     for (const item of items) subtotal += item.precio_unitario * item.cantidad;
 
+    // Cupon (ej: codigo de influencer) - solo se registra el vinculo, el total ya viene calculado.
+    let cuponId = null;
+    if (cupon_codigo) {
+      const cupon = await client.query('SELECT * FROM cupones WHERE codigo = $1 AND activo = TRUE', [cupon_codigo]);
+      if (cupon.rows.length > 0) {
+        cuponId = cupon.rows[0].id;
+        await client.query('UPDATE cupones SET usos = usos + 1 WHERE codigo = $1', [cupon_codigo]);
+      }
+    }
+
     const count = await client.query('SELECT COUNT(*) FROM ventas');
     const numero = 'ON-' + String(parseInt(count.rows[0].count) + 1).padStart(4, '0');
 
     const venta = await client.query(
       `INSERT INTO ventas
         (numero_factura, cliente_id, tipo_factura, subtotal, descuento, total, canal, local_id,
-         medio_pago_id, medio_pago, es_preventa, estado_pago, usuario_id, creado_en)
-       VALUES ($1, $9, NULL, $2, 0, $3, 'online', $4, $5, $6, FALSE, 'pagado', $7, COALESCE($8::timestamp, NOW())) RETURNING *`,
-      [numero, subtotal, totalNum, local_id || 1, medio_pago_id || null, medio_pago_nombre || null, usuario_id || null, fechaVenta, cliente_id || null]
+         medio_pago_id, medio_pago, es_preventa, estado_pago, usuario_id, creado_en, cupon_id)
+       VALUES ($1, $9, NULL, $2, 0, $3, 'online', $4, $5, $6, FALSE, 'pagado', $7, COALESCE($8::timestamp, NOW()), $10) RETURNING *`,
+      [numero, subtotal, totalNum, local_id || 1, medio_pago_id || null, medio_pago_nombre || null, usuario_id || null, fechaVenta, cliente_id || null, cuponId]
     );
     const ventaId = venta.rows[0].id;
 
