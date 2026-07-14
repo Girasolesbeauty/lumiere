@@ -3004,6 +3004,7 @@ function Cupones() {
   const [clientesInf, setClientesInf] = useState([]);
   const [buscarCliInf, setBuscarCliInf] = useState("");
   const [cliSelInf, setCliSelInf] = useState(null);
+  const [editandoInf, setEditandoInf] = useState(null);
 
   const cargarInfluencers = () => {
     API.get("/influencers").then(res => setInfluencers(res.data || [])).catch(() => {});
@@ -3015,26 +3016,55 @@ function Cupones() {
     API.get("/clientes").then(res => setClientesInf(res.data || [])).catch(() => {});
   }, []);
 
+  const abrirNuevoInf = () => {
+    setEditandoInf(null);
+    setNuevoInf({ nombre: "", instagram: "", telefono: "", nivel: "inicial", cuponModo: "nuevo", cupon_id: "", nuevoCodigo: "", nuevoTipo: "%", nuevoValor: "" });
+    setCliSelInf(null); setBuscarCliInf("");
+    setShowNuevoInf(true);
+  };
+
+  const abrirEditarInf = (inf) => {
+    setEditandoInf(inf);
+    setNuevoInf({
+      nombre: inf.nombre || "", instagram: inf.instagram || "", telefono: inf.telefono || "",
+      nivel: inf.nivel || "inicial", cuponModo: "existente", cupon_id: inf.cupon_id || "",
+      nuevoCodigo: "", nuevoTipo: "%", nuevoValor: ""
+    });
+    setCliSelInf(inf.cliente_id ? { id: inf.cliente_id, nombre: inf.cliente_nombre || "Clienta vinculada" } : null);
+    setBuscarCliInf("");
+    setShowNuevoInf(true);
+  };
+
   const guardarInfluencer = async () => {
     if (!nuevoInf.nombre.trim()) return setMensaje("Falta el nombre de la influencer");
-    if (nuevoInf.cuponModo === "existente" && !nuevoInf.cupon_id) return setMensaje("Elegi un cupon existente");
-    if (nuevoInf.cuponModo === "nuevo" && !nuevoInf.nuevoCodigo.trim()) return setMensaje("Falta el codigo del cupon nuevo");
+    if (!editandoInf && nuevoInf.cuponModo === "existente" && !nuevoInf.cupon_id) return setMensaje("Elegi un cupon existente");
+    if (!editandoInf && nuevoInf.cuponModo === "nuevo" && !nuevoInf.nuevoCodigo.trim()) return setMensaje("Falta el codigo del cupon nuevo");
     try {
-      await API.post("/influencers", {
-        nombre: nuevoInf.nombre, instagram: nuevoInf.instagram || null, telefono: nuevoInf.telefono || null,
-        nivel: nuevoInf.nivel,
-        cupon_id: nuevoInf.cuponModo === "existente" ? parseInt(nuevoInf.cupon_id) : null,
-        crear_cupon: nuevoInf.cuponModo === "nuevo" ? { codigo: nuevoInf.nuevoCodigo, tipo: nuevoInf.nuevoTipo, valor: parseFloat(nuevoInf.nuevoValor) || 0 } : null,
-        cliente_id: cliSelInf?.id || null
-      });
-      setMensaje("Influencer agregada!");
+      if (editandoInf) {
+        await API.put("/influencers/" + editandoInf.id, {
+          nombre: nuevoInf.nombre, instagram: nuevoInf.instagram || null, telefono: nuevoInf.telefono || null,
+          nivel: nuevoInf.nivel,
+          cliente_id: cliSelInf?.id || null
+        });
+        setMensaje("Influencer actualizada!");
+      } else {
+        await API.post("/influencers", {
+          nombre: nuevoInf.nombre, instagram: nuevoInf.instagram || null, telefono: nuevoInf.telefono || null,
+          nivel: nuevoInf.nivel,
+          cupon_id: nuevoInf.cuponModo === "existente" ? parseInt(nuevoInf.cupon_id) : null,
+          crear_cupon: nuevoInf.cuponModo === "nuevo" ? { codigo: nuevoInf.nuevoCodigo, tipo: nuevoInf.nuevoTipo, valor: parseFloat(nuevoInf.nuevoValor) || 0 } : null,
+          cliente_id: cliSelInf?.id || null
+        });
+        setMensaje("Influencer agregada!");
+      }
       setShowNuevoInf(false);
+      setEditandoInf(null);
       setNuevoInf({ nombre: "", instagram: "", telefono: "", nivel: "inicial", cuponModo: "nuevo", cupon_id: "", nuevoCodigo: "", nuevoTipo: "%", nuevoValor: "" });
       setCliSelInf(null); setBuscarCliInf("");
       cargarInfluencers();
       getCupones().then(res => setCupons(res.data));
       setTimeout(() => setMensaje(""), 3000);
-    } catch (e) { setMensaje("Error: " + (e?.response?.data?.error || "no se pudo crear")); }
+    } catch (e) { setMensaje("Error: " + (e?.response?.data?.error || "no se pudo guardar")); }
   };
 
   const toggleInfluencer = async (inf) => {
@@ -3152,7 +3182,10 @@ function Cupones() {
                     <td>{fmt(parseFloat(inf.total_pagado || 0))}</td>
                     <td style={{ color: parseFloat(inf.pendiente || 0) > 0 ? "#c0392b" : "#2d7a4f", fontWeight: 600 }}>{fmt(parseFloat(inf.pendiente || 0))}</td>
                     <td><Sw on={inf.activo} toggle={() => toggleInfluencer(inf)} /></td>
-                    <td><span onClick={() => setPagandoInf(inf)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 11, whiteSpace: "nowrap" }}>Registrar pago</span></td>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      <span onClick={() => abrirEditarInf(inf)} style={{ cursor: "pointer", color: "#65676B", fontSize: 11, marginRight: 8 }}>editar</span>
+                      <span onClick={() => setPagandoInf(inf)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 11 }}>Registrar pago</span>
+                    </td>
                   </tr>
                 );
               })}
@@ -3161,14 +3194,14 @@ function Cupones() {
               )}
             </tbody>
           </table>
-          <div style={{ marginTop: 12 }}><button className="btn btn-p btn-sm" onClick={() => setShowNuevoInf(true)}>+ Agregar influencer</button></div>
+          <div style={{ marginTop: 12 }}><button className="btn btn-p btn-sm" onClick={abrirNuevoInf}>+ Agregar influencer</button></div>
         </div>
       )}
 
       {showNuevoInf && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={() => setShowNuevoInf(false)}>
           <div className="card" style={{ width: 440, maxWidth: "92vw" }} onClick={e => e.stopPropagation()}>
-            <div className="ct">Agregar influencer</div>
+            <div className="ct">{editandoInf ? "Editar influencer" : "Agregar influencer"}</div>
             <div className="fg"><div className="fl">Nombre</div><input className="inp" value={nuevoInf.nombre} onChange={e => setNuevoInf(p => ({ ...p, nombre: e.target.value }))} /></div>
             <div className="fg"><div className="fl">Instagram (opcional)</div><input className="inp" placeholder="usuario" value={nuevoInf.instagram} onChange={e => setNuevoInf(p => ({ ...p, instagram: e.target.value }))} /></div>
             <div className="fg"><div className="fl">Telefono (opcional)</div><input className="inp" value={nuevoInf.telefono} onChange={e => setNuevoInf(p => ({ ...p, telefono: e.target.value }))} /></div>
@@ -3178,6 +3211,7 @@ function Cupones() {
                 {Object.entries(NIVELES_INF).map(([k, v]) => <option key={k} value={k}>{v.emoji} {v.label} ({v.pct}%)</option>)}
               </select>
             </div>
+            {!editandoInf && (
             <div className="fg">
               <div className="fl">Cupon</div>
               <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
@@ -3199,6 +3233,7 @@ function Cupones() {
                 </select>
               )}
             </div>
+            )}
             <div className="fg">
               <div className="fl">Vincular con una clienta (opcional, para que tenga acceso al portal)</div>
               {cliSelInf ? (
