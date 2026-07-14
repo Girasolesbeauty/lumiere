@@ -142,8 +142,8 @@ const getFlujoEstructurado = async (req, res) => {
         .filter(r => r.categoria_tipo === tipo)
         .reduce((acc, r) => {
           const nombre = r.categoria_nombre || r.concepto || 'Otros';
-          // Si es compartido, dividir entre 2
-          const importe = r.local_id === 'compartido' ? parseFloat(r.importe) / 2 : parseFloat(r.importe);
+          // Si es compartido (local_id NULL), dividir entre 2
+          const importe = r.local_id === null ? parseFloat(r.importe) / 2 : parseFloat(r.importe);
           if (!acc[nombre]) acc[nombre] = 0;
           acc[nombre] += importe;
           return acc;
@@ -215,12 +215,11 @@ const agregarEgreso = async (req, res) => {
   try {
     const { concepto, importe, referencia, categoria_id, forma_pago, cuenta_pago_id, local_id, usuario_id } = req.body;
 
-    // Si es compartido, crear dos registros (50% cada local)
+    // Si es compartido, se guarda con local_id NULL (asi se identifica como "de ambos locales" y se reparte 50/50 al mostrarlo)
     if (local_id === 'compartido') {
-      const mitad = parseFloat(importe) / 2;
       await pool.query(
         `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, categoria_id, forma_pago, cuenta_pago_id, local_id, usuario_id)
-         VALUES ($1, 'E', $2, $3, $4, $5, $6, 'compartido', $7)`,
+         VALUES ($1, 'E', $2, $3, $4, $5, $6, NULL, $7)`,
         [concepto, importe, referencia, categoria_id, forma_pago, cuenta_pago_id || null, usuario_id || null]
       );
     } else {
