@@ -206,4 +206,40 @@ router.get('/mis-canjes', verificarTokenCliente, async (req, res) => {
   }
 });
 
+// Datos del sector influencer (solo si esta clienta esta vinculada a una influencer). 404 si no aplica.
+router.get('/mi-influencer', verificarTokenCliente, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT i.*, c.codigo AS cupon_codigo, c.valor AS cupon_valor, c.tipo AS cupon_tipo,
+        COALESCE(v.total_vendido, 0) AS total_vendido,
+        COALESCE(v.cant_ventas, 0) AS cant_ventas,
+        ROUND(COALESCE(v.total_vendido, 0) * i.comision_pct / 100, 2) AS comision_generada,
+        COALESCE(p.total_pagado, 0) AS total_pagado,
+        ROUND(COALESCE(v.total_vendido, 0) * i.comision_pct / 100, 2) - COALESCE(p.total_pagado, 0) AS pendiente
+      FROM influencers i
+      LEFT JOIN cupones c ON c.id = i.cupon_id
+      LEFT JOIN (
+        SELECT cupon_id, SUM(total) AS total_vendido, COUNT(*) AS cant_ventas
+        FROM ventas
+        WHERE cupon_id IS NOT NULL
+        GROUP BY cupon_id
+      ) v ON v.cupon_id = i.cupon_id
+      LEFT JOIN (
+        SELECT influencer_id, SUM(monto) AS total_pagado
+        FROM influencer_pagos
+        GROUP BY influencer_id
+      ) p ON p.influencer_id = i.id
+      WHERE i.cliente_id = $1 AND i.activo = TRUE
+    `, [req.clienteId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No sos una influencer registrada' });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al obtener tus datos de influencer' });
+  }
+});
+
 module.exports = router;

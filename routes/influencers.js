@@ -9,6 +9,7 @@ router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT i.*, c.codigo AS cupon_codigo, c.valor AS cupon_valor, c.tipo AS cupon_tipo, c.activo AS cupon_activo,
+        cl.nombre AS cliente_nombre,
         COALESCE(v.total_vendido, 0) AS total_vendido,
         COALESCE(v.cant_ventas, 0) AS cant_ventas,
         ROUND(COALESCE(v.total_vendido, 0) * i.comision_pct / 100, 2) AS comision_generada,
@@ -16,6 +17,7 @@ router.get('/', async (req, res) => {
         ROUND(COALESCE(v.total_vendido, 0) * i.comision_pct / 100, 2) - COALESCE(p.total_pagado, 0) AS pendiente
       FROM influencers i
       LEFT JOIN cupones c ON c.id = i.cupon_id
+      LEFT JOIN clientes cl ON cl.id = i.cliente_id
       LEFT JOIN (
         SELECT cupon_id, SUM(total) AS total_vendido, COUNT(*) AS cant_ventas
         FROM ventas
@@ -37,11 +39,12 @@ router.get('/', async (req, res) => {
 });
 
 // Crear influencer. Puede vincular un cupon existente (cupon_id) o crear uno nuevo (crear_cupon: {codigo, tipo, valor, canal}).
+// cliente_id (opcional): vincula con una clienta ya existente para que tenga acceso al portal.
 router.post('/', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { nombre, instagram, telefono, nivel, comision_pct, cupon_id, crear_cupon } = req.body;
+    const { nombre, instagram, telefono, nivel, comision_pct, cupon_id, crear_cupon, cliente_id } = req.body;
 
     if (!nombre || !nombre.trim()) {
       await client.query('ROLLBACK');
@@ -65,9 +68,9 @@ router.post('/', async (req, res) => {
     }
 
     const result = await client.query(
-      `INSERT INTO influencers (nombre, instagram, telefono, nivel, comision_pct, cupon_id, activo)
-       VALUES ($1, $2, $3, $4, $5, $6, TRUE) RETURNING *`,
-      [nombre.trim(), instagram || null, telefono || null, nivelFinal, pctFinal, cuponIdFinal]
+      `INSERT INTO influencers (nombre, instagram, telefono, nivel, comision_pct, cupon_id, cliente_id, activo)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE) RETURNING *`,
+      [nombre.trim(), instagram || null, telefono || null, nivelFinal, pctFinal, cuponIdFinal, cliente_id || null]
     );
 
     await client.query('COMMIT');
@@ -81,11 +84,11 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Editar influencer (nombre, contacto, nivel, comision, activo, o cambiar de cupon)
+// Editar influencer (nombre, contacto, nivel, comision, activo, cupon o clienta vinculada)
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, instagram, telefono, nivel, comision_pct, cupon_id, activo } = req.body;
+    const { nombre, instagram, telefono, nivel, comision_pct, cupon_id, cliente_id, activo } = req.body;
 
     const actual = await pool.query('SELECT * FROM influencers WHERE id = $1', [id]);
     if (actual.rows.length === 0) return res.status(404).json({ error: 'Influencer no encontrada' });
@@ -99,14 +102,15 @@ router.put('/:id', async (req, res) => {
     const result = await pool.query(
       `UPDATE influencers SET
         nombre = $1, instagram = $2, telefono = $3, nivel = $4, comision_pct = $5,
-        cupon_id = $6, activo = $7
-       WHERE id = $8 RETURNING *`,
+        cupon_id = $6, cliente_id = $7, activo = $8
+       WHERE id = $9 RETURNING *`,
       [
         nombre !== undefined ? nombre.trim() : a.nombre,
         instagram !== undefined ? instagram : a.instagram,
         telefono !== undefined ? telefono : a.telefono,
         nivelFinal, pctFinal,
         cupon_id !== undefined ? cupon_id : a.cupon_id,
+        cliente_id !== undefined ? cliente_id : a.cliente_id,
         activo !== undefined ? activo : a.activo,
         id
       ]

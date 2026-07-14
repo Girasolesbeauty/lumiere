@@ -3001,6 +3001,9 @@ function Cupones() {
   const [pagandoInf, setPagandoInf] = useState(null);
   const [montoPago, setMontoPago] = useState("");
   const [notaPago, setNotaPago] = useState("");
+  const [clientesInf, setClientesInf] = useState([]);
+  const [buscarCliInf, setBuscarCliInf] = useState("");
+  const [cliSelInf, setCliSelInf] = useState(null);
 
   const cargarInfluencers = () => {
     API.get("/influencers").then(res => setInfluencers(res.data || [])).catch(() => {});
@@ -3009,6 +3012,7 @@ function Cupones() {
   useEffect(() => {
     getCupones().then(res => setCupons(res.data)).catch(() => setCupons(CUPONS_DATA));
     cargarInfluencers();
+    API.get("/clientes").then(res => setClientesInf(res.data || [])).catch(() => {});
   }, []);
 
   const guardarInfluencer = async () => {
@@ -3020,11 +3024,13 @@ function Cupones() {
         nombre: nuevoInf.nombre, instagram: nuevoInf.instagram || null, telefono: nuevoInf.telefono || null,
         nivel: nuevoInf.nivel,
         cupon_id: nuevoInf.cuponModo === "existente" ? parseInt(nuevoInf.cupon_id) : null,
-        crear_cupon: nuevoInf.cuponModo === "nuevo" ? { codigo: nuevoInf.nuevoCodigo, tipo: nuevoInf.nuevoTipo, valor: parseFloat(nuevoInf.nuevoValor) || 0 } : null
+        crear_cupon: nuevoInf.cuponModo === "nuevo" ? { codigo: nuevoInf.nuevoCodigo, tipo: nuevoInf.nuevoTipo, valor: parseFloat(nuevoInf.nuevoValor) || 0 } : null,
+        cliente_id: cliSelInf?.id || null
       });
       setMensaje("Influencer agregada!");
       setShowNuevoInf(false);
       setNuevoInf({ nombre: "", instagram: "", telefono: "", nivel: "inicial", cuponModo: "nuevo", cupon_id: "", nuevoCodigo: "", nuevoTipo: "%", nuevoValor: "" });
+      setCliSelInf(null); setBuscarCliInf("");
       cargarInfluencers();
       getCupones().then(res => setCupons(res.data));
       setTimeout(() => setMensaje(""), 3000);
@@ -3191,6 +3197,26 @@ function Cupones() {
                   <option value="">Seleccionar cupon...</option>
                   {cuponsAMostrar.map(c => <option key={c.id} value={c.id}>{c.codigo || c.code}</option>)}
                 </select>
+              )}
+            </div>
+            <div className="fg">
+              <div className="fl">Vincular con una clienta (opcional, para que tenga acceso al portal)</div>
+              {cliSelInf ? (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f7f5f0", borderRadius: 6 }}>
+                  <span style={{ fontSize: 12 }}>{cliSelInf.nombre} {cliSelInf.cuit_dni ? "(" + cliSelInf.cuit_dni + ")" : ""}</span>
+                  <span onClick={() => { setCliSelInf(null); setBuscarCliInf(""); }} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>quitar</span>
+                </div>
+              ) : (
+                <div>
+                  <input className="inp" placeholder="Buscar por nombre o DNI" value={buscarCliInf} onChange={e => setBuscarCliInf(e.target.value)} />
+                  {buscarCliInf.trim().length > 0 && (
+                    <div style={{ border: "1px solid #eee", borderRadius: 6, marginTop: 4, maxHeight: 160, overflowY: "auto" }}>
+                      {clientesInf.filter(cl => (cl.nombre || "").toLowerCase().includes(buscarCliInf.toLowerCase()) || (cl.cuit_dni || "").includes(buscarCliInf)).slice(0, 6).map(cl => (
+                        <div key={cl.id} onClick={() => { setCliSelInf(cl); setBuscarCliInf(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 12 }}>{cl.nombre} <span style={{ color: "#999" }}>{cl.cuit_dni ? "(" + cl.cuit_dni + ")" : ""}</span></div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
