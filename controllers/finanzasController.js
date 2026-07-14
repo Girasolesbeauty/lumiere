@@ -55,8 +55,14 @@ const getFlujo = async (req, res) => {
 
     const result = await pool.query(query, params);
 
-    const ingresosMov = result.rows.filter(r => r.tipo === 'I').reduce((s, r) => s + parseFloat(r.importe), 0);
-    const egresos = result.rows.filter(r => r.tipo === 'E').reduce((s, r) => s + parseFloat(r.importe), 0);
+    // Si estamos viendo un local especifico (no consolidado), los movimientos compartidos
+    // (local_id NULL, ej: facturas de proveedores que siempre se reparten 50/50) cuentan por la mitad.
+    // En Consolidado se cuentan enteros (una sola vez).
+    const importeEfectivo = (r) => (localNum !== null && r.local_id === null) ? parseFloat(r.importe) / 2 : parseFloat(r.importe);
+
+    const ingresosMov = result.rows.filter(r => r.tipo === 'I').reduce((s, r) => s + importeEfectivo(r), 0);
+    const egresos = result.rows.filter(r => r.tipo === 'E').reduce((s, r) => s + importeEfectivo(r), 0);
+    const movimientosAjustados = result.rows.map(r => ({ ...r, importe: importeEfectivo(r) }));
 
     // Sumar facturacion del sistema anterior como ingreso (mes de transicion)
     let factExtQuery = `SELECT COALESCE(SUM(monto), 0) AS total FROM facturacion_externa WHERE mes = $1 AND anio = $2`;
@@ -71,7 +77,7 @@ const getFlujo = async (req, res) => {
     const ingresos = ingresosMov + factExterna;
 
     res.json({
-      movimientos: result.rows,
+      movimientos: movimientosAjustados,
       resumen: { ingresos, egresos, neto: ingresos - egresos, facturacion_anterior: factExterna }
     });
   } catch (error) {
