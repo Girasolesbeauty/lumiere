@@ -3964,7 +3964,7 @@ function Calculadoras({ usuario }) {
       setForm({ nombre: "", descripcion: "", tipo: "desde_costo", margen: "2", iva: "17.5", extras: [] });
       cargar();
       setTimeout(() => setMensaje(""), 3000);
-    } catch (e) { setMensaje("Error al guardar"); }
+    } catch (e) { setMensaje("Error: " + (e?.response?.data?.error || "no se pudo guardar")); }
   };
 
   const abrirEditar = (c) => {

@@ -18,8 +18,8 @@ router.post('/', async (req, res) => {
     const { nombre, descripcion, tipo, margen, iva, extras } = req.body;
     if (!nombre || !tipo) return res.status(400).json({ error: 'Nombre y tipo son obligatorios' });
     const result = await pool.query(
-      `INSERT INTO calculadoras_precio (nombre, descripcion, tipo, margen, iva, extras)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      `INSERT INTO calculadoras_precio (nombre, descripcion, tipo, margen, iva, extras, activo)
+       VALUES ($1, $2, $3, $4, $5, $6, TRUE) RETURNING *`,
       [nombre, descripcion || null, tipo, parseFloat(margen) || 2, parseFloat(iva) || 0, JSON.stringify(extras || [])]
     );
     res.status(201).json(result.rows[0]);
