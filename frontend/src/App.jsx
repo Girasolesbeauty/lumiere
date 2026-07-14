@@ -5250,6 +5250,9 @@ function Comprobantes({ localId }) {
   const [comprobantes, setComprobantes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandido, setExpandido] = useState(null);
+  const [configTicket, setConfigTicket] = useState({ mostrar_cliente: true, mostrar_numero: true, mostrar_fecha: true, mensaje_pie: "Gracias por tu compra!", texto_extra: "" });
+
+  useEffect(() => { API.get("/config-ticket").then(res => { if (res.data) setConfigTicket(res.data); }).catch(() => {}); }, []);
 
   const cargar = async () => {
     setLoading(true);
@@ -5293,6 +5296,49 @@ function Comprobantes({ localId }) {
 
   const totalPeriodo = comprobantes.reduce((s, v) => s + parseFloat(v.total || 0), 0);
 
+  const reimprimir = (v) => {
+    const localNombre = (v.local_id === 2 || v.local_id === "2") ? "Ushuaia" : "Rio Grande";
+    const fecha = new Date(v.creado_en || v.fecha).toLocaleString("es-AR");
+    const cfg = configTicket || {};
+    const items = v.items || [];
+    const lineas = items.map(i =>
+      `<tr><td style="text-align:left">${i.cantidad}x ${i.nombre}</td><td style="text-align:right">$${(parseFloat(i.precio_unitario) * i.cantidad).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`
+    ).join("");
+    const html = `
+      <html><head><meta charset="utf-8"><style>
+        @page { size: 80mm auto; margin: 0; }
+        body { width: 72mm; margin: 0 auto; font-family: monospace; font-size: 12px; color: #000; padding: 6px; }
+        .c { text-align: center; }
+        .b { font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; }
+        td { padding: 1px 0; font-size: 12px; }
+        hr { border: none; border-top: 1px dashed #000; margin: 6px 0; }
+        .tot { font-size: 15px; font-weight: bold; }
+        img.logo { width: 60mm; display: block; margin: 0 auto 4px; }
+      </style></head><body>
+        <img class="logo" src="${LOGO_TICKET}" />
+        <div class="c">${localNombre}</div>
+        <div class="c" style="font-size:9px; color:#555">REIMPRESION</div>
+        ${cfg.mostrar_fecha !== false ? `<div class="c" style="font-size:10px">${fecha}</div>` : ""}
+        ${(cfg.mostrar_numero !== false) ? `<div class="c" style="font-size:10px">Comprobante ${fmtNro(v)}</div>` : ""}
+        ${(cfg.mostrar_cliente !== false && v.cliente_nombre) ? `<div class="c" style="font-size:10px">Cliente: ${v.cliente_nombre}</div>` : ""}
+        <hr>
+        <table>${lineas}</table>
+        <hr>
+        <table><tr><td class="tot">TOTAL</td><td class="tot" style="text-align:right">$${parseFloat(v.total || 0).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr></table>
+        <hr>
+        <div class="c">${cfg.mensaje_pie || "Gracias por tu compra!"}</div>
+        ${cfg.texto_extra ? `<div class="c" style="font-size:10px">${cfg.texto_extra}</div>` : ""}
+        <br><br>
+      </body></html>`;
+    const w = window.open("", "_blank", "width=380,height=600");
+    if (!w) { alert("Habilita las ventanas emergentes para imprimir el recibo"); return; }
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { w.print(); w.close(); }, 300);
+  };
+
   return (
     <div className="fade">
       <div className="ph">
@@ -5333,7 +5379,11 @@ function Comprobantes({ localId }) {
                     <td style={{ fontSize: 11 }}>{v.tipo_factura || "B"}</td>
                     <td style={{ fontSize: 11, color: "#65676B" }}>{v.cae || "-"}</td>
                     <td style={{ color: "#2d7a4f", fontWeight: 600 }}>{fmt(parseFloat(v.total || 0))}</td>
-                    <td><span style={{ cursor: "pointer", color: "#2C3E5C", fontSize: 11 }} onClick={() => setExpandido(expandido === i ? null : i)}>{expandido === i ? "Ocultar" : "Ver"}</span></td>
+                    <td>
+                      <span style={{ cursor: "pointer", color: "#2C3E5C", fontSize: 11 }} onClick={() => setExpandido(expandido === i ? null : i)}>{expandido === i ? "Ocultar" : "Ver"}</span>
+                      {" "}
+                      <span style={{ cursor: "pointer", color: "#c9a84c", fontSize: 11, marginLeft: 8 }} onClick={() => reimprimir(v)}>Reimprimir</span>
+                    </td>
                   </tr>
                   {expandido === i && (
                     <tr>
