@@ -213,21 +213,21 @@ const getFlujoEstructurado = async (req, res) => {
 // Agregar egreso mejorado
 const agregarEgreso = async (req, res) => {
   try {
-    const { concepto, importe, referencia, categoria_id, forma_pago, cuenta_pago_id, local_id } = req.body;
+    const { concepto, importe, referencia, categoria_id, forma_pago, cuenta_pago_id, local_id, usuario_id } = req.body;
 
     // Si es compartido, crear dos registros (50% cada local)
     if (local_id === 'compartido') {
       const mitad = parseFloat(importe) / 2;
       await pool.query(
-        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, categoria_id, forma_pago, cuenta_pago_id, local_id)
-         VALUES ($1, 'E', $2, $3, $4, $5, $6, 'compartido')`,
-        [concepto, importe, referencia, categoria_id, forma_pago, cuenta_pago_id || null]
+        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, categoria_id, forma_pago, cuenta_pago_id, local_id, usuario_id)
+         VALUES ($1, 'E', $2, $3, $4, $5, $6, 'compartido', $7)`,
+        [concepto, importe, referencia, categoria_id, forma_pago, cuenta_pago_id || null, usuario_id || null]
       );
     } else {
       await pool.query(
-        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, categoria_id, forma_pago, cuenta_pago_id, local_id)
-         VALUES ($1, 'E', $2, $3, $4, $5, $6, $7)`,
-        [concepto, importe, referencia || 'Manual', categoria_id, forma_pago, cuenta_pago_id || null, local_id || 1]
+        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, categoria_id, forma_pago, cuenta_pago_id, local_id, usuario_id)
+         VALUES ($1, 'E', $2, $3, $4, $5, $6, $7, $8)`,
+        [concepto, importe, referencia || 'Manual', categoria_id, forma_pago, cuenta_pago_id || null, local_id || 1, usuario_id || null]
       );
     }
 
@@ -235,6 +235,27 @@ const agregarEgreso = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al agregar egreso: ' + error.message });
+  }
+};
+
+// Ultimo egreso registrado por un usuario (para que sepa donde dejo la carga de datos)
+const getMiUltimoEgreso = async (req, res) => {
+  try {
+    const { usuario_id } = req.query;
+    if (!usuario_id) return res.status(400).json({ error: 'Falta usuario_id' });
+    const result = await pool.query(
+      `SELECT concepto, importe, creado_en
+       FROM movimientos_caja
+       WHERE usuario_id = $1 AND tipo = 'E'
+       ORDER BY creado_en DESC
+       LIMIT 1`,
+      [usuario_id]
+    );
+    if (result.rows.length === 0) return res.json(null);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al obtener el ultimo egreso' });
   }
 };
 
@@ -462,4 +483,4 @@ const getFacturacionExterna = async (req, res) => {
   }
 };
 
-module.exports = { getFlujo, getFlujoEstructurado, agregarEgreso, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna };
+module.exports = { getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna };

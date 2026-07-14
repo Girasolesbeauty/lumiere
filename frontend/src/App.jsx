@@ -2377,7 +2377,7 @@ function Clientes() {
   );
 }
 
-function Finanzas({ localId }) {
+function Finanzas({ localId, usuario }) {
   const [tab, setTab] = useState("flujo");
   const [tabLocal, setTabLocal] = useState("rg");
   const [flujo, setFlujo] = useState(null);
@@ -2395,6 +2395,16 @@ function Finanzas({ localId }) {
   const [mensaje, setMensaje] = useState("");
   const [mesFiltro, setMesFiltro] = useState(new Date().getMonth() + 1);
   const [anioFiltro, setAnioFiltro] = useState(new Date().getFullYear());
+  const [ultimoEgreso, setUltimoEgreso] = useState(null);
+
+  const cargarUltimoEgreso = () => {
+    if (!usuario?.id) return;
+    API.get("/finanzas/mi-ultimo-egreso?usuario_id=" + usuario.id)
+      .then(res => setUltimoEgreso(res.data || null))
+      .catch(() => {});
+  };
+
+  useEffect(() => { cargarUltimoEgreso(); }, [usuario?.id]);
 
   const cargarDatos = (local) => {
     setLoading(true);
@@ -2443,10 +2453,11 @@ function Finanzas({ localId }) {
 
   const guardarEgreso = async () => {
     try {
-      await agregarEgreso({ ...nuevoEgreso, referencia: "Manual" });
+      await agregarEgreso({ ...nuevoEgreso, referencia: "Manual", usuario_id: usuario?.id || null });
       setMensaje("Egreso registrado!");
       setNuevoEgreso({ concepto: "", importe: "", categoria_id: "", forma_pago: "", cuenta_pago_id: "", local_id: "" });
       cargarDatos();
+      cargarUltimoEgreso();
       setTimeout(() => setMensaje(""), 3000);
     } catch (e) { setMensaje("Error al registrar egreso"); }
   };
@@ -2532,6 +2543,11 @@ function Finanzas({ localId }) {
             </div>
             <div className="card">
               <div className="ct">Registrar egreso</div>
+              {ultimoEgreso && (
+                <div style={{ background: "#c9a84c12", border: "1px solid #c9a84c", borderRadius: 6, padding: "8px 12px", marginBottom: 12, fontSize: 11, color: "#8a6d1f" }}>
+                  Ultima vez que cargaste datos: {new Date(ultimoEgreso.creado_en).toLocaleDateString("es-AR")} a las {new Date(ultimoEgreso.creado_en).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })} - {ultimoEgreso.concepto} ({fmt(parseFloat(ultimoEgreso.importe))})
+                </div>
+              )}
               <div className="fg">
                 <div className="fl">Categoria</div>
                 <select className="sel" value={nuevoEgreso.categoria_id || ""} onChange={e => {
@@ -7653,7 +7669,7 @@ export default function AppWrapper() {
     if (id === "inventory") return <Inventario localId={local.id} usuario={usuario} />;
     if (id === "clients") return <Clientes localId={local.id} />;
     if (id === "pedidos") return <Pedidos localId={local.id} />;
-    if (id === "finance") return <Finanzas localId={local.id} />;
+    if (id === "finance") return <Finanzas localId={local.id} usuario={usuario} />;
     if (id === "reports") return <Informes localId={local.id} />;
     if (id === "calculadoras") return <Calculadoras usuario={usuario} />;
     if (id === "comprobantes") return <Comprobantes localId={local.id} />;
