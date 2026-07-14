@@ -399,7 +399,7 @@ function Dashboard({ localId }) {
   );
 }
 
-function VentasOnline({ localId, usuario }) {
+function VentasOnline({ localId, usuario, permisosActivos }) {
   const [productos, setProductos] = useState([]);
   const [mediosPago, setMediosPago] = useState([]);
   const [busqueda, setBusqueda] = useState("");
@@ -450,7 +450,7 @@ function VentasOnline({ localId, usuario }) {
 
   const total = cart.reduce((s, i) => s + (i.precio || i.price || 0) * i.qty, 0);
 
-  const esJefe = usuario?.rol === "jefe" || usuario?.rol === "admin";
+  const esJefe = usuario?.rol === "jefe" || usuario?.rol === "admin" || (permisosActivos || []).includes("ventas_online.editar");
 
   const eliminarVentaOnline = async (v) => {
     if (!confirm("Eliminar la venta " + v.numero_factura + "? Se revierte el stock y se saca del cierre.")) return;
@@ -490,7 +490,9 @@ function VentasOnline({ localId, usuario }) {
         total: huboEdicionDeProductos ? undefined : parseFloat(voTotal),
         local_id: Number(voLocal),
         fecha: voFecha,
-        items: huboEdicionDeProductos ? voItems.map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad, precio_unitario: i.precio_unitario })) : undefined
+        items: huboEdicionDeProductos ? voItems.map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad, precio_unitario: i.precio_unitario })) : undefined,
+        usuario_id: usuario?.id || null,
+        usuario_nombre: usuario?.nombre || null
       });
       setEditandoVO(null);
       cargarVentasOnline();
@@ -827,6 +829,80 @@ function VentasOnline({ localId, usuario }) {
         </div>
         );
       })()}
+    </div>
+  );
+}
+
+function Auditoria() {
+  const [registros, setRegistros] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filtroTipo, setFiltroTipo] = useState("");
+
+  const cargar = () => {
+    setLoading(true);
+    API.get("/anulaciones").then(res => setRegistros(res.data || [])).catch(() => {}).finally(() => setLoading(false));
+  };
+  useEffect(() => { cargar(); }, []);
+
+  const tipoLabel = {
+    venta: "Anulacion de venta",
+    giftcard: "Anulacion de gift card",
+    movimiento_caja: "Anulacion de movimiento",
+    ajuste_stock: "Reversion de ajuste de stock",
+    orden_ingreso: "Anulacion de orden de ingreso",
+    venta_online_editada: "Edicion de venta online"
+  };
+  const localLabel = (l) => (l === 2 || l === "2") ? "Ushuaia" : "Rio Grande";
+  const tipos = [...new Set(registros.map(r => r.tipo))];
+  const filtrados = registros.filter(r => !filtroTipo || r.tipo === filtroTipo);
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Auditoria</div><div className="ps">anulaciones y modificaciones registradas por el equipo</div></div>
+        <button className="btn btn-g btn-sm" onClick={cargar}>Actualizar</button>
+      </div>
+      <div className="card fade" style={{ marginBottom: 12 }}>
+        <select className="sel" style={{ width: 280 }} value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}>
+          <option value="">Todos los tipos</option>
+          {tipos.map(t => <option key={t} value={t}>{tipoLabel[t] || t}</option>)}
+        </select>
+      </div>
+      <div className="card">
+        {loading ? (
+          <div style={{ color: "#65676B", padding: 20 }}>Cargando...</div>
+        ) : filtrados.length === 0 ? (
+          <div style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>Sin registros</div>
+        ) : (
+          <table>
+            <thead><tr><th>Fecha</th><th>Tipo</th><th>Referencia</th><th>Usuario</th><th>Detalle</th></tr></thead>
+            <tbody>
+              {filtrados.map(r => {
+                let detalle = null;
+                try { detalle = r.detalle_json ? (typeof r.detalle_json === "string" ? JSON.parse(r.detalle_json) : r.detalle_json) : null; } catch (e) {}
+                return (
+                  <tr key={r.id}>
+                    <td style={{ fontSize: 11, color: "#65676B", whiteSpace: "nowrap" }}>{r.creado_en ? new Date(r.creado_en).toLocaleString("es-AR") : "-"}</td>
+                    <td style={{ fontSize: 11 }}>{tipoLabel[r.tipo] || r.tipo}</td>
+                    <td style={{ fontSize: 11 }}>{r.referencia_codigo || r.referencia_id}</td>
+                    <td style={{ fontSize: 11 }}>{r.usuario_nombre || "-"}</td>
+                    <td style={{ fontSize: 10, color: "#65676B" }}>
+                      {r.tipo === "venta_online_editada" && detalle ? (
+                        <div>
+                          {parseFloat(detalle.total_anterior) !== parseFloat(detalle.total_nuevo) && <div>Total: {fmt(parseFloat(detalle.total_anterior || 0))} {"->"} {fmt(parseFloat(detalle.total_nuevo || 0))}</div>}
+                          {detalle.local_anterior !== detalle.local_nuevo && <div>Local: {localLabel(detalle.local_anterior)} {"->"} {localLabel(detalle.local_nuevo)}</div>}
+                          <div>Antes: {(detalle.items_anteriores || []).map(i => i.cantidad + "x " + (i.nombre || ("prod #" + i.producto_id))).join(", ") || "sin productos"}</div>
+                          <div>Despues: {(detalle.items_nuevos || []).map(i => i.cantidad + "x " + (i.nombre || ("prod #" + i.producto_id))).join(", ") || "sin productos"}</div>
+                        </div>
+                      ) : (r.motivo || "-")}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }
@@ -7564,6 +7640,7 @@ function Usuarios({ usuario: usuarioActual }) {
   const TODOS_PERMISOS = {
     "POS": [["pos.ver","Ver Punto de Venta"],["pos.venta","Registrar ventas"],["pos.preventa","Hacer preventas"],["pos.descuento","Aplicar descuentos"]],
     "Finanzas": [["finanzas.flujo","Ver flujo de efectivo"],["finanzas.egreso","Registrar egresos"],["finanzas.equilibrio","Ver punto de equilibrio"],["finanzas.costos","Ver costos"]],
+    "Ventas Online": [["ventas_online.editar","Editar/eliminar ventas online"]],
     "Comprobantes": [["comprobantes.ver","Ver comprobantes"]],
     "Calculadoras": [["calculadoras.ver","Ver calculadoras de precio"]],
     "Productividad": [["productividad.ver","Ver productividad"]],
@@ -7850,7 +7927,8 @@ export default function AppWrapper() {
     if (!puedeVer(id)) return <SinPermiso />;
     if (id === "dashboard") return <Dashboard localId={local.id} />;
     if (id === "pos") return <POS localId={local.id} />;
-    if (id === "ventas-online") return <VentasOnline localId={local.id} usuario={usuario} />;
+    if (id === "ventas-online") return <VentasOnline localId={local.id} usuario={usuario} permisosActivos={permisosActivos} />;
+    if (id === "auditoria") return <Auditoria />;
     if (id === "inventory") return <Inventario localId={local.id} usuario={usuario} />;
     if (id === "clients") return <Clientes localId={local.id} />;
     if (id === "pedidos") return <Pedidos localId={local.id} />;
@@ -7890,7 +7968,7 @@ export default function AppWrapper() {
   if (usuario.rol === "jefe") {
     const yaExiste = NAV_CON_PERMISOS.some(s => s.items.some(i => i.id === "usuarios"));
     if (!yaExiste) {
-      NAV_CON_PERMISOS.push({ section: "CONFIGURACION", items: [{ id: "usuarios", icon: "-", label: "Usuarios" }, { id: "config-insumos", icon: "🛍️", label: "Insumos en POS" }, { id: "config-ticket", icon: "🧾", label: "Ticket" }] });
+      NAV_CON_PERMISOS.push({ section: "CONFIGURACION", items: [{ id: "usuarios", icon: "-", label: "Usuarios" }, { id: "config-insumos", icon: "🛍️", label: "Insumos en POS" }, { id: "config-ticket", icon: "🧾", label: "Ticket" }, { id: "auditoria", icon: "🔍", label: "Auditoria" }] });
     }
   }
 

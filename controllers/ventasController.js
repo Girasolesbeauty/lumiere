@@ -584,7 +584,7 @@ const editarOnline = async (req, res) => {
   try {
     await client.query('BEGIN');
     const { id } = req.params;
-    const { total, local_id, fecha, items } = req.body;
+    const { total, local_id, fecha, items, usuario_id, usuario_nombre } = req.body;
 
     const ventaRes = await client.query("SELECT * FROM ventas WHERE id = $1 AND canal = 'online'", [id]);
     if (ventaRes.rows.length === 0) {
@@ -592,6 +592,11 @@ const editarOnline = async (req, res) => {
       return res.status(404).json({ error: 'Venta online no encontrada' });
     }
     const ventaActual = ventaRes.rows[0];
+    const itemsAntesDeTocar = (await client.query(
+      `SELECT vi.producto_id, vi.cantidad, vi.precio_unitario, p.nombre
+       FROM venta_items vi LEFT JOIN productos p ON p.id = vi.producto_id
+       WHERE vi.venta_id = $1`, [id]
+    )).rows;
 
     // Preparar fecha al mediodia si viene solo dia
     let fechaVenta = null;
@@ -608,8 +613,7 @@ const editarOnline = async (req, res) => {
       const colStockNuevo = (nuevoLocal === 2) ? 'stock_ush' : 'stock_rg';
 
       // Reponer el stock de los productos que se llevaba antes de la edicion
-      const itemsAnteriores = await client.query('SELECT producto_id, cantidad FROM venta_items WHERE venta_id = $1', [id]);
-      for (const it of itemsAnteriores.rows) {
+      for (const it of itemsAntesDeTocar) {
         if (it.producto_id) {
           await client.query(
             `UPDATE productos SET ${colStockAnterior} = COALESCE(${colStockAnterior},0) + $1,
@@ -655,6 +659,29 @@ const editarOnline = async (req, res) => {
     await client.query(
       `UPDATE movimientos_caja SET importe = $1, local_id = $2, creado_en = COALESCE($3::timestamp, creado_en) WHERE referencia = $4`,
       [nuevoTotal, nuevoLocal, fechaVenta, ventaActual.numero_factura]
+    );
+
+    // Dejar registro de la modificacion para que el jefe pueda auditar que se cambio y quien lo hizo
+    const itemsDespuesDelCambio = (await client.query(
+      `SELECT vi.producto_id, vi.cantidad, vi.precio_unitario, p.nombre
+       FROM venta_items vi LEFT JOIN productos p ON p.id = vi.producto_id
+      WHERE vi.venta_id = $1`, [id]
+    )).rows;
+    await client.query(
+      `INSERT INTO anulaciones (tipo, referencia_id, referencia_codigo, motivo, usuario_id, usuario_nombre, detalle_json)
+       VALUES ('venta_online_editada', $1, $2, $3, $4, $5, $6)`,
+      [
+        id, ventaActual.numero_factura, 'Edicion de venta online',
+        usuario_id || null, usuario_nombre || null,
+        JSON.stringify({
+          items_anteriores: itemsAntesDeTocar,
+          items_nuevos: itemsDespuesDelCambio,
+          total_anterior: parseFloat(ventaActual.total),
+          total_nuevo: nuevoTotal,
+          local_anterior: ventaActual.local_id,
+          local_nuevo: nuevoLocal
+        })
+      ]
     );
 
     await client.query('COMMIT');
