@@ -7281,6 +7281,8 @@ function Promociones() {
   const [loading, setLoading] = useState(true);
   const [mensaje, setMensaje] = useState("");
   const [editando, setEditando] = useState(null);
+  const [promoBusquedaProd, setPromoBusquedaProd] = useState("");
+  const [promoFiltroCat, setPromoFiltroCat] = useState("");
   const vacio = { nombre: "", tipo: "descuento", valor: "", aplica_a: "todo", productos_ids: [], categorias: [], nx: "", ny: "", mismo_producto: true, producto_descuento_id: "", cross_producto_id: "", cross_producto_regalo_id: "", monto_minimo: "", medio_pago_tipo: "", combinable: false, fecha_inicio: "", fecha_fin: "", activo: true };
   const [form, setForm] = useState(vacio);
 
@@ -7349,6 +7351,16 @@ function Promociones() {
 
   const toggleCat = (cat) => setForm(f => ({ ...f, categorias: f.categorias.includes(cat) ? f.categorias.filter(x => x !== cat) : [...f.categorias, cat] }));
   const toggleProd = (id) => setForm(f => ({ ...f, productos_ids: f.productos_ids.includes(id) ? f.productos_ids.filter(x => x !== id) : [...f.productos_ids, id] }));
+
+  const productosFiltradosPromo = productos.filter(p => {
+    if (promoFiltroCat && p.categoria !== promoFiltroCat) return false;
+    const q = promoBusquedaProd.trim().toLowerCase();
+    if (q) {
+      const campos = [p.nombre, p.marca, p.codigo_barras, p.codigo].map(x => (x || "").toString().toLowerCase());
+      if (!campos.some(x => x.includes(q))) return false;
+    }
+    return true;
+  });
 
   return (
     <div className="fade">
@@ -7470,11 +7482,20 @@ function Promociones() {
                 </div>
               )}
               {form.aplica_a === "productos" && (form.tipo === "descuento" || form.tipo === "nxm") && (
-                <div className="fg"><div className="fl">Productos ({form.productos_ids.length})</div>
-                  <div style={{ maxHeight: 120, overflowY: "auto", border: "1px solid #E4E6EB", borderRadius: 8, padding: 8 }}>
-                    {productos.map(p => (
+                <div className="fg"><div className="fl">Productos ({form.productos_ids.length} seleccionados)</div>
+                  <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                    <input className="inp" placeholder="Buscar por nombre, marca o codigo..." value={promoBusquedaProd} onChange={e => setPromoBusquedaProd(e.target.value)} style={{ flex: 2, fontSize: 12, padding: "6px 8px" }} />
+                    <select className="sel" value={promoFiltroCat} onChange={e => setPromoFiltroCat(e.target.value)} style={{ flex: 1, fontSize: 12, padding: "6px 8px" }}>
+                      <option value="">Todas las categorias</option>
+                      {categorias.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ maxHeight: 160, overflowY: "auto", border: "1px solid #E4E6EB", borderRadius: 8, padding: 8 }}>
+                    {productosFiltradosPromo.length === 0 ? (
+                      <div style={{ fontSize: 11, color: "#999", padding: "6px 0" }}>No hay productos que coincidan</div>
+                    ) : productosFiltradosPromo.map(p => (
                       <label key={p.id} style={{ display: "flex", gap: 8, fontSize: 12, padding: "3px 0", cursor: "pointer" }}>
-                        <input type="checkbox" checked={form.productos_ids.includes(p.id)} onChange={() => toggleProd(p.id)} />{p.nombre}
+                        <input type="checkbox" checked={form.productos_ids.includes(p.id)} onChange={() => toggleProd(p.id)} />{p.nombre}{p.marca ? <span style={{ color: "#999", fontSize: 10 }}> - {p.marca}</span> : ""}
                       </label>
                     ))}
                   </div>
