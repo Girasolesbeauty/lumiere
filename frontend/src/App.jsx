@@ -1157,7 +1157,10 @@ function POS({ localId, usuario }) {
 
   const coef = medioPagoSel ? parseFloat(medioPagoSel.coeficiente) : 1;
   const subtotalBase = cart.reduce((s, i) => s + (i.precio || i.price) * i.qty * (1 - (i.descuento_pct || 0) / 100), 0);
-  const descuentoCupon = cuponAplicado ? (cuponAplicado.tipo === "%" ? subtotalBase * (cuponAplicado.valor / 100) : cuponAplicado.valor) : 0;
+  const medioPagoTextoActual = (pagoMixto && pagosMixtos.length > 0 ? pagosMixtos.map(p => p.medio_pago_nombre).join(" + ") : (medioPagoSel?.nombre || "")).toLowerCase();
+  const cuponCumpleCondicion = !!(cuponAplicado && cuponAplicado.condicion_medio_pago && cuponAplicado.valor_condicional !== null && cuponAplicado.valor_condicional !== undefined && medioPagoTextoActual.includes(String(cuponAplicado.condicion_medio_pago).toLowerCase()));
+  const valorCuponAplicado = cuponAplicado ? (cuponCumpleCondicion ? cuponAplicado.valor_condicional : cuponAplicado.valor) : 0;
+  const descuentoCupon = cuponAplicado ? (cuponAplicado.tipo === "%" ? subtotalBase * (valorCuponAplicado / 100) : valorCuponAplicado) : 0;
   const descuentoManualCalc = descuentoManual ? (tipoDescuento === "%" ? subtotalBase * (parseFloat(descuentoManual) / 100) : parseFloat(descuentoManual)) : 0;
   const descuentoPromos = promoCalc.totalDesc;
   const descuento = descuentoCupon + descuentoManualCalc + descuentoPromos;
@@ -1675,7 +1678,16 @@ function POS({ localId, usuario }) {
                   <input className="inp" placeholder="Cupon" value={cupon} onChange={e => setCupon(e.target.value)} style={{ flex: 1, fontSize: 11, padding: "6px 10px" }} />
                   <button className="btn btn-g btn-sm" style={{ fontSize: 9 }} onClick={aplicarCupon}>OK</button>
                 </div>
-                {cuponAplicado && <div style={{ fontSize: 9, color: "#2d7a4f", marginBottom: 4 }}>Descuento aplicado{cuponAplicado.condicion_medio_pago ? " (" + cuponAplicado.valor_condicional + (cuponAplicado.tipo === "%" ? "% si paga con " : "$ si paga con ") + cuponAplicado.condicion_medio_pago + ")" : ""}</div>}
+                {cuponAplicado && cuponAplicado.condicion_medio_pago && cuponAplicado.valor_condicional !== null && cuponAplicado.valor_condicional !== undefined && (
+                  <div style={{ fontSize: 9, color: cuponCumpleCondicion ? "#2d7a4f" : "#a06b00", marginBottom: 4 }}>
+                    {cuponCumpleCondicion
+                      ? "Descuento aplicado: " + cuponAplicado.valor_condicional + (cuponAplicado.tipo === "%" ? "% (paga con " : "$ (paga con ") + cuponAplicado.condicion_medio_pago + ")"
+                      : "Este cupon da " + cuponAplicado.valor_condicional + (cuponAplicado.tipo === "%" ? "% " : "$ ") + "solo si paga con " + cuponAplicado.condicion_medio_pago + " (elegi ese medio de pago abajo)"}
+                  </div>
+                )}
+                {cuponAplicado && (!cuponAplicado.condicion_medio_pago || cuponAplicado.valor_condicional === null || cuponAplicado.valor_condicional === undefined) && (
+                  <div style={{ fontSize: 9, color: "#2d7a4f", marginBottom: 4 }}>Descuento aplicado</div>
+                )}
                 {cuponAplicado && cuponAplicado.regalo_producto_nombre && subtotalBase >= (cuponAplicado.regalo_monto_minimo || 0) && (
                   <div style={{ fontSize: 9, color: "#7d3c98", background: "#7d3c9812", border: "1px solid #7d3c9840", borderRadius: 4, padding: "4px 6px", marginBottom: 4 }}>
                     🎁 Este cupón habilita un regalo: agregá "{cuponAplicado.regalo_producto_nombre}" al ticket con precio $0
