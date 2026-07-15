@@ -47,6 +47,13 @@ router.post('/venta/:id', async (req, res) => {
       [usuario_nombre || null, motivo.trim(), venta.numero_factura]
     );
 
+    // Si esa venta habia acreditado efectivo en Caja automaticamente, revertirlo tambien
+    await client.query(
+      `UPDATE movimientos_caja_efectivo SET anulado = TRUE
+       WHERE concepto = $1 AND tipo = 'ingreso' AND (anulado = FALSE OR anulado IS NULL)`,
+      ['Venta ' + venta.numero_factura]
+    );
+
     if (venta.cliente_id && parseFloat(venta.total) > 0) {
       const puntosDevolver = Math.floor(parseFloat(venta.total) / 100);
       await client.query(

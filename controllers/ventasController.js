@@ -1,5 +1,33 @@
 const pool = require('../config/database');
 
+// Si una venta del POS se cobro (total o parcialmente) en efectivo, suma ese ingreso
+// automaticamente a la Caja (movimientos_caja_efectivo), para no tener que cargarlo a mano.
+const acreditarEfectivoEnCaja = async (client, { pagos, medio_pago_id, medio_pago_nombre, monto, local_id, usuario_id, concepto }) => {
+  const tramos = (Array.isArray(pagos) && pagos.length > 0)
+    ? pagos.map(p => ({ medio_pago_id: p.medio_pago_id || null, medio_pago_nombre: p.medio_pago_nombre || null, importe: parseFloat(p.importe) || 0 }))
+    : [{ medio_pago_id: medio_pago_id || null, medio_pago_nombre: medio_pago_nombre || null, importe: parseFloat(monto) || 0 }];
+
+  let totalEfectivo = 0;
+  for (const t of tramos) {
+    if (t.importe <= 0) continue;
+    let esEfectivo = false;
+    if (t.medio_pago_id) {
+      const mp = await client.query('SELECT tipo, nombre FROM medios_pago WHERE id = $1', [t.medio_pago_id]);
+      if (mp.rows.length > 0) esEfectivo = mp.rows[0].tipo === 'efectivo' || /efectivo/i.test(mp.rows[0].nombre || '');
+    }
+    if (!esEfectivo && t.medio_pago_nombre) esEfectivo = /efectivo/i.test(t.medio_pago_nombre);
+    if (esEfectivo) totalEfectivo += t.importe;
+  }
+
+  if (totalEfectivo > 0) {
+    await client.query(
+      `INSERT INTO movimientos_caja_efectivo (tipo, importe, concepto, destino_origen, local_id, usuario_id)
+       VALUES ('ingreso', $1, $2, 'venta_presencial', $3, $4)`,
+      [totalEfectivo, concepto, local_id || 1, usuario_id || null]
+    );
+  }
+};
+
 const getAll = async (req, res) => {
   try {
     const { local_id, mes, anio, es_preventa } = req.query;
@@ -210,6 +238,10 @@ const create = async (req, res) => {
          VALUES ($1, 'I', $2, $3, $4)`,
         ['Venta ' + numero, ingresoCaja, numero, local_id || 1]
       );
+      await acreditarEfectivoEnCaja(client, {
+        pagos, medio_pago_id, medio_pago_nombre, monto: ingresoCaja,
+        local_id: local_id || 1, usuario_id, concepto: 'Venta ' + numero
+      });
     }
 
     if (cliente_id) {
@@ -369,6 +401,10 @@ const confirmarEntrega = async (req, res) => {
          VALUES ($1, 'I', $2, $3, $4)`,
         ['Entrega preventa ' + (venta.numero_factura || ''), ingresoCaja, venta.numero_factura, venta.local_id || 1]
       );
+      await acreditarEfectivoEnCaja(client, {
+        pagos: null, medio_pago_id, medio_pago_nombre, monto: ingresoCaja,
+        local_id: venta.local_id || 1, usuario_id, concepto: 'Entrega preventa ' + (venta.numero_factura || '')
+      });
     }
 
     await client.query('COMMIT');
@@ -665,7 +701,7 @@ const editarOnline = async (req, res) => {
     const itemsDespuesDelCambio = (await client.query(
       `SELECT vi.producto_id, vi.cantidad, vi.precio_unitario, p.nombre
        FROM venta_items vi LEFT JOIN productos p ON p.id = vi.producto_id
-      WHERE vi.venta_id = $1`, [id]
+       WHERE vi.venta_id = $1`, [id]
     )).rows;
     await client.query(
       `INSERT INTO anulaciones (tipo, referencia_id, referencia_codigo, motivo, usuario_id, usuario_nombre, detalle_json)
