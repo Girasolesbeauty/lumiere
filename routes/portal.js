@@ -242,4 +242,21 @@ router.get('/mi-influencer', verificarTokenCliente, async (req, res) => {
   }
 });
 
+// Regalos de campana asignados a esta influencer (solo si esta vinculada). Lista vacia si no aplica.
+router.get('/mis-regalos', verificarTokenCliente, async (req, res) => {
+  try {
+    const inf = await pool.query('SELECT id FROM influencers WHERE cliente_id = $1 AND activo = TRUE', [req.clienteId]);
+    if (inf.rows.length === 0) return res.json([]);
+    const result = await pool.query(
+      `SELECT id, producto_nombre, campana, codigo, estado, creado_en, entregado_en
+       FROM influencer_regalos WHERE influencer_id = $1 ORDER BY creado_en DESC`,
+      [inf.rows[0].id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al obtener tus regalos' });
+  }
+});
+
 module.exports = router;

@@ -3199,7 +3199,7 @@ const NIVELES_INF = {
   top: { label: "Top Influencer", pct: 5, emoji: "\uD83D\uDC51" }
 };
 
-function Cupones() {
+function Cupones({ localId, usuario }) {
   const [cupons, setCupons] = useState([]);
   const [tab, setTab] = useState("lista");
   const [nc, setNc] = useState({ code: "", desc: "", type: "%", value: "", channel: "Instagram", max: "" });
@@ -3214,16 +3214,75 @@ function Cupones() {
   const [buscarCliInf, setBuscarCliInf] = useState("");
   const [cliSelInf, setCliSelInf] = useState(null);
   const [editandoInf, setEditandoInf] = useState(null);
+  const [productosCat, setProductosCat] = useState([]);
+  const [regalos, setRegalos] = useState([]);
+  const [regalandoInf, setRegalandoInf] = useState(null);
+  const [nuevoRegalo, setNuevoRegalo] = useState({ campana: "", producto_id: "", producto_nombre: "" });
+  const [buscarProdRegalo, setBuscarProdRegalo] = useState("");
+  const [codigoValidarRegalo, setCodigoValidarRegalo] = useState("");
+  const [resultadoValidarRegalo, setResultadoValidarRegalo] = useState(null);
 
   const cargarInfluencers = () => {
     API.get("/influencers").then(res => setInfluencers(res.data || [])).catch(() => {});
   };
 
+  const cargarRegalos = () => {
+    API.get("/influencer-regalos").then(res => setRegalos(res.data || [])).catch(() => {});
+  };
+
   useEffect(() => {
     getCupones().then(res => setCupons(res.data)).catch(() => setCupons(CUPONS_DATA));
     cargarInfluencers();
+    cargarRegalos();
     API.get("/clientes").then(res => setClientesInf(res.data || [])).catch(() => {});
+    API.get("/productos").then(res => setProductosCat(res.data || [])).catch(() => {});
   }, []);
+
+  const abrirRegalo = (inf) => {
+    setRegalandoInf(inf);
+    setNuevoRegalo({ campana: "", producto_id: "", producto_nombre: "" });
+    setBuscarProdRegalo("");
+  };
+
+  const guardarRegalo = async () => {
+    if (!nuevoRegalo.producto_id) return setMensaje("Elegi un producto para el regalo");
+    try {
+      const res = await API.post("/influencer-regalos", {
+        influencer_id: regalandoInf.id,
+        producto_id: nuevoRegalo.producto_id,
+        campana: nuevoRegalo.campana || null
+      });
+      setMensaje("Regalo asignado! Codigo para " + regalandoInf.nombre + ": " + res.data.codigo);
+      setRegalandoInf(null);
+      cargarRegalos();
+      setTimeout(() => setMensaje(""), 8000);
+    } catch (e) { setMensaje("Error: " + (e?.response?.data?.error || "no se pudo asignar el regalo")); }
+  };
+
+  const cancelarRegalo = async (r) => {
+    if (!confirm("Cancelar el regalo " + r.codigo + "?")) return;
+    try {
+      await API.put("/influencer-regalos/" + r.id + "/cancelar");
+      cargarRegalos();
+    } catch (e) { setMensaje("Error al cancelar: " + (e?.response?.data?.error || "")); }
+  };
+
+  const validarRegalo = async () => {
+    if (!codigoValidarRegalo.trim()) return;
+    setResultadoValidarRegalo(null);
+    try {
+      const res = await API.post("/influencer-regalos/validar", {
+        codigo: codigoValidarRegalo.trim().toUpperCase(),
+        usuario_nombre: usuario?.nombre || null,
+        local_id: localId || 1
+      });
+      setResultadoValidarRegalo({ ok: true, mensaje: res.data.mensaje });
+      setCodigoValidarRegalo("");
+      cargarRegalos();
+    } catch (e) {
+      setResultadoValidarRegalo({ ok: false, mensaje: e?.response?.data?.error || "Error al validar" });
+    }
+  };
 
   const abrirNuevoInf = () => {
     setEditandoInf(null);
@@ -3393,7 +3452,8 @@ function Cupones() {
                     <td><Sw on={inf.activo} toggle={() => toggleInfluencer(inf)} /></td>
                     <td style={{ whiteSpace: "nowrap" }}>
                       <span onClick={() => abrirEditarInf(inf)} style={{ cursor: "pointer", color: "#65676B", fontSize: 11, marginRight: 8 }}>editar</span>
-                      <span onClick={() => setPagandoInf(inf)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 11 }}>Registrar pago</span>
+                      <span onClick={() => setPagandoInf(inf)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 11, marginRight: 8 }}>Registrar pago</span>
+                      <span onClick={() => abrirRegalo(inf)} style={{ cursor: "pointer", color: "#7d3c98", fontSize: 11 }}>+ Regalo</span>
                     </td>
                   </tr>
                 );
@@ -3404,6 +3464,52 @@ function Cupones() {
             </tbody>
           </table>
           <div style={{ marginTop: 12 }}><button className="btn btn-p btn-sm" onClick={abrirNuevoInf}>+ Agregar influencer</button></div>
+        </div>
+      )}
+
+      {tab === "influencers" && (
+        <div className="card fade" style={{ marginTop: 16 }}>
+          <div className="ct">Regalos de campaña</div>
+          <div style={{ fontSize: 11, color: "#65676B", marginBottom: 12 }}>Cuando le asignas un regalo a una influencer, le aparece en su portal con un codigo. Ella lo retira en el local mostrando ese codigo, y aca abajo lo validas para descontar el stock.</div>
+
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 16, flexWrap: "wrap" }}>
+            <div style={{ flex: "1 1 260px" }}>
+              <input className="inp" placeholder="Codigo del regalo (ej: REGALO-A7K2)" value={codigoValidarRegalo} onChange={e => setCodigoValidarRegalo(e.target.value.toUpperCase())} />
+            </div>
+            <button className="btn btn-p btn-sm" onClick={validarRegalo}>Validar y entregar</button>
+          </div>
+          {resultadoValidarRegalo && (
+            <div style={{ marginBottom: 12, padding: 10, borderRadius: 6, fontSize: 12,
+              background: resultadoValidarRegalo.ok ? "#eafaf1" : "#fdecea",
+              color: resultadoValidarRegalo.ok ? "#1e7e4f" : "#c0392b" }}>
+              {resultadoValidarRegalo.mensaje}
+            </div>
+          )}
+
+          {regalos.length === 0 ? (
+            <div style={{ textAlign: "center", color: "#65676B", padding: 20, fontSize: 12 }}>Todavia no asignaste ningun regalo</div>
+          ) : (
+            <table>
+              <thead><tr><th>Influencer</th><th>Regalo</th><th>Campaña</th><th>Codigo</th><th>Estado</th><th></th></tr></thead>
+              <tbody>
+                {regalos.map(r => (
+                  <tr key={r.id}>
+                    <td style={{ fontSize: 12 }}>{r.influencer_nombre}</td>
+                    <td style={{ fontSize: 12 }}>{r.producto_nombre}</td>
+                    <td style={{ fontSize: 11, color: "#65676B" }}>{r.campana || "-"}</td>
+                    <td style={{ fontSize: 11, fontWeight: 600, color: "#7d3c98" }}>{r.codigo}</td>
+                    <td>
+                      <span className="badge" style={{
+                        background: r.estado === "entregado" ? "#2d7a4f15" : r.estado === "cancelado" ? "#c0392b15" : "#c9a84c15",
+                        color: r.estado === "entregado" ? "#2d7a4f" : r.estado === "cancelado" ? "#c0392b" : "#c9a84c"
+                      }}>{r.estado}</span>
+                    </td>
+                    <td>{r.estado === "pendiente" && <span onClick={() => cancelarRegalo(r)} style={{ cursor: "pointer", color: "#c0392b", fontSize: 11 }}>cancelar</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 
@@ -3485,6 +3591,44 @@ function Cupones() {
           </div>
         </div>
       )}
+
+      {regalandoInf && (() => {
+        const prodsFiltrados = buscarProdRegalo.trim().length > 0
+          ? productosCat.filter(p => (p.nombre || "").toLowerCase().includes(buscarProdRegalo.toLowerCase())).slice(0, 8)
+          : [];
+        return (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={() => setRegalandoInf(null)}>
+          <div className="card" style={{ width: 420, maxWidth: "92vw" }} onClick={e => e.stopPropagation()}>
+            <div className="ct">Asignar regalo a {regalandoInf.nombre}</div>
+            <div className="fg"><div className="fl">Campaña (opcional)</div><input className="inp" placeholder="Ej: Dia de la madre 2026" value={nuevoRegalo.campana} onChange={e => setNuevoRegalo(p => ({ ...p, campana: e.target.value }))} /></div>
+            <div className="fg">
+              <div className="fl">Producto de regalo</div>
+              {nuevoRegalo.producto_id ? (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f7f5f0", borderRadius: 6 }}>
+                  <span style={{ fontSize: 12 }}>{nuevoRegalo.producto_nombre}</span>
+                  <span onClick={() => setNuevoRegalo(p => ({ ...p, producto_id: "", producto_nombre: "" }))} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>quitar</span>
+                </div>
+              ) : (
+                <div>
+                  <input className="inp" placeholder="Buscar producto por nombre..." value={buscarProdRegalo} onChange={e => setBuscarProdRegalo(e.target.value)} />
+                  {prodsFiltrados.length > 0 && (
+                    <div style={{ border: "1px solid #eee", borderRadius: 6, marginTop: 4, maxHeight: 160, overflowY: "auto" }}>
+                      {prodsFiltrados.map(p => (
+                        <div key={p.id} onClick={() => { setNuevoRegalo(f => ({ ...f, producto_id: p.id, producto_nombre: p.nombre })); setBuscarProdRegalo(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 12 }}>{p.nombre}{p.marca ? <span style={{ color: "#999" }}> - {p.marca}</span> : ""}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarRegalo}>Asignar y generar codigo</button>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setRegalandoInf(null)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+        );
+      })()}
     </div>
   );
 }
@@ -7958,7 +8102,7 @@ export default function AppWrapper() {
     if (id === "calculadoras") return <Calculadoras usuario={usuario} />;
     if (id === "comprobantes") return <Comprobantes localId={local.id} />;
     if (id === "productividad") return <Productividad localId={local.id} />;
-    if (id === "cupones") return <Cupones localId={local.id} />;
+    if (id === "cupones") return <Cupones localId={local.id} usuario={usuario} />;
     if (id === "promociones") return <Promociones />;
     if (id === "fidelizacion") return <Fidelizacion localId={local.id} />;
     if (id === "postventa") return <PostventaWA localId={local.id} />;
