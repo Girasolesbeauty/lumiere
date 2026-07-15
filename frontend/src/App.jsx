@@ -1221,7 +1221,16 @@ function POS({ localId, usuario }) {
     try {
       const res = await API.get("/cupones");
       const c = res.data.find(x => (x.codigo || x.code) === cupon.toUpperCase() && (x.activo || x.active));
-      if (c) { setCuponAplicado({ tipo: c.tipo || c.type, valor: parseFloat(c.valor || c.value) }); setMensaje("Cupon aplicado!"); }
+      if (c) {
+        setCuponAplicado({
+          tipo: c.tipo || c.type, valor: parseFloat(c.valor || c.value),
+          condicion_medio_pago: c.condicion_medio_pago || null,
+          valor_condicional: c.valor_condicional !== null && c.valor_condicional !== undefined ? parseFloat(c.valor_condicional) : null,
+          regalo_producto_nombre: c.regalo_producto_nombre || null,
+          regalo_monto_minimo: c.regalo_monto_minimo !== null && c.regalo_monto_minimo !== undefined ? parseFloat(c.regalo_monto_minimo) : null
+        });
+        setMensaje("Cupon aplicado!");
+      }
       else setMensaje("Cupon invalido");
       setTimeout(() => setMensaje(""), 2000);
     } catch (e) {}
@@ -1666,7 +1675,12 @@ function POS({ localId, usuario }) {
                   <input className="inp" placeholder="Cupon" value={cupon} onChange={e => setCupon(e.target.value)} style={{ flex: 1, fontSize: 11, padding: "6px 10px" }} />
                   <button className="btn btn-g btn-sm" style={{ fontSize: 9 }} onClick={aplicarCupon}>OK</button>
                 </div>
-                {cuponAplicado && <div style={{ fontSize: 9, color: "#2d7a4f", marginBottom: 4 }}>Descuento aplicado</div>}
+                {cuponAplicado && <div style={{ fontSize: 9, color: "#2d7a4f", marginBottom: 4 }}>Descuento aplicado{cuponAplicado.condicion_medio_pago ? " (" + cuponAplicado.valor_condicional + (cuponAplicado.tipo === "%" ? "% si paga con " : "$ si paga con ") + cuponAplicado.condicion_medio_pago + ")" : ""}</div>}
+                {cuponAplicado && cuponAplicado.regalo_producto_nombre && subtotalBase >= (cuponAplicado.regalo_monto_minimo || 0) && (
+                  <div style={{ fontSize: 9, color: "#7d3c98", background: "#7d3c9812", border: "1px solid #7d3c9840", borderRadius: 4, padding: "4px 6px", marginBottom: 4 }}>
+                    🎁 Este cupón habilita un regalo: agregá "{cuponAplicado.regalo_producto_nombre}" al ticket con precio $0
+                  </div>
+                )}
                 <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
                   <input className="inp" type="number" placeholder="Desc. manual" value={descuentoManual} onChange={e => setDescuentoManual(e.target.value)} style={{ flex: 1, fontSize: 11, padding: "6px 10px" }} />
                   <select className="sel" style={{ width: 50, padding: "6px 4px", fontSize: 10 }} value={tipoDescuento} onChange={e => setTipoDescuento(e.target.value)}>
@@ -3221,6 +3235,9 @@ function Cupones({ localId, usuario }) {
   const [buscarProdRegalo, setBuscarProdRegalo] = useState("");
   const [codigoValidarRegalo, setCodigoValidarRegalo] = useState("");
   const [resultadoValidarRegalo, setResultadoValidarRegalo] = useState(null);
+  const [editandoCupon, setEditandoCupon] = useState(null);
+  const [cuponForm, setCuponForm] = useState({ descripcion: "", tipo: "%", valor: "", canal: "Influencer", max_usos: "", fecha_vencimiento: "", condicion_medio_pago: "", valor_condicional: "", regalo_producto_id: "", regalo_producto_nombre: "", regalo_monto_minimo: "" });
+  const [buscarProdCupon, setBuscarProdCupon] = useState("");
 
   const cargarInfluencers = () => {
     API.get("/influencers").then(res => setInfluencers(res.data || [])).catch(() => {});
@@ -3372,6 +3389,51 @@ function Cupones({ localId, usuario }) {
     } catch (e) {}
   };
 
+  const abrirEditarCupon = (inf) => {
+    const c = cuponsAMostrar.find(x => x.id === inf.cupon_id);
+    if (!c) return setMensaje("Esta influencer no tiene un cupon vinculado");
+    setEditandoCupon(c);
+    setCuponForm({
+      descripcion: c.descripcion || c.desc || "",
+      tipo: c.tipo || c.type || "%",
+      valor: c.valor ?? c.value ?? "",
+      canal: c.canal || c.channel || "Influencer",
+      max_usos: c.max_usos ?? c.max ?? "",
+      fecha_vencimiento: c.fecha_vencimiento ? String(c.fecha_vencimiento).slice(0, 10) : "",
+      condicion_medio_pago: c.condicion_medio_pago || "",
+      valor_condicional: c.valor_condicional ?? "",
+      regalo_producto_id: c.regalo_producto_id || "",
+      regalo_producto_nombre: c.regalo_producto_nombre || "",
+      regalo_monto_minimo: c.regalo_monto_minimo ?? ""
+    });
+    setBuscarProdCupon("");
+  };
+
+  const guardarCuponEditado = async () => {
+    if (!editandoCupon) return;
+    try {
+      await updateCupon(editandoCupon.id, {
+        descripcion: cuponForm.descripcion,
+        tipo: cuponForm.tipo,
+        valor: parseFloat(cuponForm.valor) || 0,
+        canal: cuponForm.canal,
+        max_usos: cuponForm.max_usos === "" ? null : parseInt(cuponForm.max_usos),
+        fecha_vencimiento: cuponForm.fecha_vencimiento || null,
+        activo: editandoCupon.activo !== undefined ? editandoCupon.activo : true,
+        condicion_medio_pago: cuponForm.condicion_medio_pago || null,
+        valor_condicional: cuponForm.valor_condicional === "" ? null : parseFloat(cuponForm.valor_condicional),
+        regalo_producto_id: cuponForm.regalo_producto_id || null,
+        regalo_producto_nombre: cuponForm.regalo_producto_nombre || null,
+        regalo_monto_minimo: cuponForm.regalo_monto_minimo === "" ? null : parseFloat(cuponForm.regalo_monto_minimo)
+      });
+      setMensaje("Cupon actualizado!");
+      setEditandoCupon(null);
+      getCupones().then(res => setCupons(res.data));
+      cargarInfluencers();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error: " + (e?.response?.data?.error || "no se pudo actualizar el cupon")); }
+  };
+
   const cuponsAMostrar = cupons.length > 0 ? cupons : CUPONS_DATA.map(c => ({ ...c, activo: c.active, descripcion: c.desc, tipo: c.type, valor: c.value, canal: c.channel, max_usos: c.max, fecha_vencimiento: c.expires }));
 
   return (
@@ -3452,6 +3514,7 @@ function Cupones({ localId, usuario }) {
                     <td><Sw on={inf.activo} toggle={() => toggleInfluencer(inf)} /></td>
                     <td style={{ whiteSpace: "nowrap" }}>
                       <span onClick={() => abrirEditarInf(inf)} style={{ cursor: "pointer", color: "#65676B", fontSize: 11, marginRight: 8 }}>editar</span>
+                      {inf.cupon_id && <span onClick={() => abrirEditarCupon(inf)} style={{ cursor: "pointer", color: "#2471a3", fontSize: 11, marginRight: 8 }}>editar cupón</span>}
                       <span onClick={() => setPagandoInf(inf)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 11, marginRight: 8 }}>Registrar pago</span>
                       <span onClick={() => abrirRegalo(inf)} style={{ cursor: "pointer", color: "#7d3c98", fontSize: 11 }}>+ Regalo</span>
                     </td>
@@ -3629,6 +3692,59 @@ function Cupones({ localId, usuario }) {
         </div>
         );
       })()}
+
+      {editandoCupon && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={() => setEditandoCupon(null)}>
+          <div className="card" style={{ width: 440, maxWidth: "92vw" }} onClick={e => e.stopPropagation()}>
+            <div className="ct">Editar cupón {editandoCupon.codigo || editandoCupon.code}</div>
+            <div className="fg"><div className="fl">Descripción</div><input className="inp" value={cuponForm.descripcion} onChange={e => setCuponForm(p => ({ ...p, descripcion: e.target.value }))} /></div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <div className="fg" style={{ flex: 1 }}><div className="fl">Tipo</div><select className="sel" value={cuponForm.tipo} onChange={e => setCuponForm(p => ({ ...p, tipo: e.target.value }))}><option value="%">Porcentaje (%)</option><option value="$">Monto fijo ($)</option></select></div>
+              <div className="fg" style={{ flex: 1 }}><div className="fl">Valor</div><input className="inp" type="number" value={cuponForm.valor} onChange={e => setCuponForm(p => ({ ...p, valor: e.target.value }))} /></div>
+            </div>
+            <div className="fg"><div className="fl">Canal</div><input className="inp" value={cuponForm.canal} onChange={e => setCuponForm(p => ({ ...p, canal: e.target.value }))} /></div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <div className="fg" style={{ flex: 1 }}><div className="fl">Max. usos (vacío = ilimitado)</div><input className="inp" type="number" value={cuponForm.max_usos} onChange={e => setCuponForm(p => ({ ...p, max_usos: e.target.value }))} /></div>
+              <div className="fg" style={{ flex: 1 }}><div className="fl">Vence (opcional)</div><input className="inp" type="date" value={cuponForm.fecha_vencimiento} onChange={e => setCuponForm(p => ({ ...p, fecha_vencimiento: e.target.value }))} /></div>
+            </div>
+            <div style={{ borderTop: "1px solid #eee", marginTop: 6, paddingTop: 10 }}>
+              <div style={{ fontSize: 11, color: "#65676B", marginBottom: 8 }}>Condición especial (opcional). Ej: 15% si paga por "Transferencia", en vez del {cuponForm.valor || "-"}{cuponForm.tipo === "%" ? "%" : "$"} de base.</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <div className="fg" style={{ flex: 1 }}><div className="fl">Medio de pago</div><input className="inp" placeholder="Ej: Transferencia" value={cuponForm.condicion_medio_pago} onChange={e => setCuponForm(p => ({ ...p, condicion_medio_pago: e.target.value }))} /></div>
+                <div className="fg" style={{ flex: 1 }}><div className="fl">Valor con esa condición</div><input className="inp" type="number" placeholder="15" value={cuponForm.valor_condicional} onChange={e => setCuponForm(p => ({ ...p, valor_condicional: e.target.value }))} /></div>
+              </div>
+            </div>
+            <div style={{ borderTop: "1px solid #eee", marginTop: 6, paddingTop: 10 }}>
+              <div style={{ fontSize: 11, color: "#65676B", marginBottom: 8 }}>Regalo por monto mínimo (opcional). Ej: 1 mascarilla de regalo en compras desde $20.000. En el POS avisa a la vendedora para que agregue el producto al ticket con precio $0.</div>
+              <div className="fg">
+                <div className="fl">Producto de regalo</div>
+                {cuponForm.regalo_producto_id ? (
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f7f5f0", borderRadius: 6 }}>
+                    <span style={{ fontSize: 12 }}>{cuponForm.regalo_producto_nombre}</span>
+                    <span onClick={() => setCuponForm(p => ({ ...p, regalo_producto_id: "", regalo_producto_nombre: "" }))} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>quitar</span>
+                  </div>
+                ) : (
+                  <div>
+                    <input className="inp" placeholder="Buscar producto por nombre..." value={buscarProdCupon} onChange={e => setBuscarProdCupon(e.target.value)} />
+                    {buscarProdCupon.trim().length > 0 && (
+                      <div style={{ border: "1px solid #eee", borderRadius: 6, marginTop: 4, maxHeight: 160, overflowY: "auto" }}>
+                        {productosCat.filter(p => (p.nombre || "").toLowerCase().includes(buscarProdCupon.toLowerCase())).slice(0, 8).map(p => (
+                          <div key={p.id} onClick={() => { setCuponForm(f => ({ ...f, regalo_producto_id: p.id, regalo_producto_nombre: p.nombre })); setBuscarProdCupon(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 12 }}>{p.nombre}{p.marca ? <span style={{ color: "#999" }}> - {p.marca}</span> : ""}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="fg"><div className="fl">Monto mínimo de compra ($)</div><input className="inp" type="number" placeholder="20000" value={cuponForm.regalo_monto_minimo} onChange={e => setCuponForm(p => ({ ...p, regalo_monto_minimo: e.target.value }))} /></div>
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarCuponEditado}>Guardar</button>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEditandoCupon(null)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

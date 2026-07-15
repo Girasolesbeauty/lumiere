@@ -4,12 +4,16 @@ const pool = require('../config/database');
 
 // Calcula (y guarda) la comision de un dia para un local, segun las metas diarias.
 async function calcularYGuardarDia(local_id, fecha) {
-  // Facturacion presencial del dia
+  // Facturacion presencial del dia. Las ventas con cupon de una influencer NO suman
+  // a la comision de las vendedoras (esa venta ya genera comision para la influencer).
   const fact = await pool.query(
     `SELECT COALESCE(SUM(total), 0) AS total
      FROM ventas
      WHERE local_id = $1 AND canal = 'presencial'
-       AND DATE(creado_en) = $2`,
+       AND DATE(creado_en) = $2
+       AND (cupon_id IS NULL OR cupon_id NOT IN (
+         SELECT cupon_id FROM influencers WHERE cupon_id IS NOT NULL
+       ))`,
     [local_id, fecha]
   );
   const total = parseFloat(fact.rows[0].total) || 0;

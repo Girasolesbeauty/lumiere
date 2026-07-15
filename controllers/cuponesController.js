@@ -63,11 +63,20 @@ const validar = async (req, res) => {
 // Crear cupon
 const create = async (req, res) => {
   try {
-    const { codigo, descripcion, tipo, valor, canal, max_usos, fecha_vencimiento } = req.body;
+    const {
+      codigo, descripcion, tipo, valor, canal, max_usos, fecha_vencimiento,
+      condicion_medio_pago, valor_condicional,
+      regalo_producto_id, regalo_producto_nombre, regalo_monto_minimo
+    } = req.body;
     const result = await pool.query(
-      `INSERT INTO cupones (codigo, descripcion, tipo, valor, canal, max_usos, fecha_vencimiento)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [codigo.toUpperCase(), descripcion, tipo, valor, canal, max_usos, fecha_vencimiento]
+      `INSERT INTO cupones (codigo, descripcion, tipo, valor, canal, max_usos, fecha_vencimiento,
+         condicion_medio_pago, valor_condicional, regalo_producto_id, regalo_producto_nombre, regalo_monto_minimo)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+      [
+        codigo.toUpperCase(), descripcion, tipo, valor, canal, max_usos, fecha_vencimiento,
+        condicion_medio_pago || null, valor_condicional || null,
+        regalo_producto_id || null, regalo_producto_nombre || null, regalo_monto_minimo || null
+      ]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -80,12 +89,22 @@ const create = async (req, res) => {
 const update = async (req, res) => {
   try {
     const { id } = req.params;
-    const { descripcion, tipo, valor, canal, max_usos, fecha_vencimiento, activo } = req.body;
+    const {
+      descripcion, tipo, valor, canal, max_usos, fecha_vencimiento, activo,
+      condicion_medio_pago, valor_condicional,
+      regalo_producto_id, regalo_producto_nombre, regalo_monto_minimo
+    } = req.body;
     const result = await pool.query(
-      `UPDATE cupones SET descripcion=$1, tipo=$2, valor=$3, canal=$4, 
-       max_usos=$5, fecha_vencimiento=$6, activo=$7
-       WHERE id=$8 RETURNING *`,
-      [descripcion, tipo, valor, canal, max_usos, fecha_vencimiento, activo, id]
+      `UPDATE cupones SET descripcion=$1, tipo=$2, valor=$3, canal=$4,
+       max_usos=$5, fecha_vencimiento=$6, activo=$7, condicion_medio_pago=$8, valor_condicional=$9,
+       regalo_producto_id=$10, regalo_producto_nombre=$11, regalo_monto_minimo=$12
+       WHERE id=$13 RETURNING *`,
+      [
+        descripcion, tipo, valor, canal, max_usos, fecha_vencimiento, activo,
+        condicion_medio_pago || null, valor_condicional || null,
+        regalo_producto_id || null, regalo_producto_nombre || null, regalo_monto_minimo || null,
+        id
+      ]
     );
     res.json(result.rows[0]);
   } catch (error) {
