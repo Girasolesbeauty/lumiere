@@ -126,13 +126,18 @@ const create = async (req, res) => {
       if (cupon.rows.length > 0) {
         const c = cupon.rows[0];
         cuponId = c.id;
-        // Si el cupon tiene una condicion de medio de pago (ej: "15% en Transferencia"),
-        // usamos el valor condicional cuando el medio de pago de la venta la cumple.
-        const medioTexto = (medio_pago_nombre || '').toLowerCase();
-        const cumpleCondicion = c.condicion_medio_pago && c.valor_condicional !== null
-          && medioTexto.includes(String(c.condicion_medio_pago).toLowerCase());
-        const valorAplicado = cumpleCondicion ? parseFloat(c.valor_condicional) : parseFloat(c.valor);
-        descuento_total = c.tipo === '%' ? subtotal * (valorAplicado / 100) : valorAplicado;
+        // Si el cupon exige un monto minimo de compra para el descuento, y no se llega,
+        // el cupon queda vinculado a la venta (para comision de influencer) pero sin descuento.
+        const cumpleMinimo = !c.descuento_monto_minimo || subtotal >= parseFloat(c.descuento_monto_minimo);
+        if (cumpleMinimo) {
+          // Si el cupon tiene una condicion de medio de pago (ej: "15% en Transferencia"),
+          // usamos el valor condicional cuando el medio de pago de la venta la cumple.
+          const medioTexto = (medio_pago_nombre || '').toLowerCase();
+          const cumpleCondicion = c.condicion_medio_pago && c.valor_condicional !== null
+            && medioTexto.includes(String(c.condicion_medio_pago).toLowerCase());
+          const valorAplicado = cumpleCondicion ? parseFloat(c.valor_condicional) : parseFloat(c.valor);
+          descuento_total = c.tipo === '%' ? subtotal * (valorAplicado / 100) : valorAplicado;
+        }
         await client.query('UPDATE cupones SET usos = usos + 1 WHERE codigo = $1', [cupon_codigo]);
       }
     }

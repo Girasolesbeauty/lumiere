@@ -1159,8 +1159,9 @@ function POS({ localId, usuario }) {
   const subtotalBase = cart.reduce((s, i) => s + (i.precio || i.price) * i.qty * (1 - (i.descuento_pct || 0) / 100), 0);
   const medioPagoTextoActual = (pagoMixto && pagosMixtos.length > 0 ? pagosMixtos.map(p => p.medio_pago_nombre).join(" + ") : (medioPagoSel?.nombre || "")).toLowerCase();
   const cuponCumpleCondicion = !!(cuponAplicado && cuponAplicado.condicion_medio_pago && cuponAplicado.valor_condicional !== null && cuponAplicado.valor_condicional !== undefined && medioPagoTextoActual.includes(String(cuponAplicado.condicion_medio_pago).toLowerCase()));
+  const cuponCumpleMinimo = !!(cuponAplicado && (!cuponAplicado.descuento_monto_minimo || subtotalBase >= cuponAplicado.descuento_monto_minimo));
   const valorCuponAplicado = cuponAplicado ? (cuponCumpleCondicion ? cuponAplicado.valor_condicional : cuponAplicado.valor) : 0;
-  const descuentoCupon = cuponAplicado ? (cuponAplicado.tipo === "%" ? subtotalBase * (valorCuponAplicado / 100) : valorCuponAplicado) : 0;
+  const descuentoCupon = (cuponAplicado && cuponCumpleMinimo) ? (cuponAplicado.tipo === "%" ? subtotalBase * (valorCuponAplicado / 100) : valorCuponAplicado) : 0;
   const descuentoManualCalc = descuentoManual ? (tipoDescuento === "%" ? subtotalBase * (parseFloat(descuentoManual) / 100) : parseFloat(descuentoManual)) : 0;
   const descuentoPromos = promoCalc.totalDesc;
   const descuento = descuentoCupon + descuentoManualCalc + descuentoPromos;
@@ -1230,7 +1231,8 @@ function POS({ localId, usuario }) {
           condicion_medio_pago: c.condicion_medio_pago || null,
           valor_condicional: c.valor_condicional !== null && c.valor_condicional !== undefined ? parseFloat(c.valor_condicional) : null,
           regalo_producto_nombre: c.regalo_producto_nombre || null,
-          regalo_monto_minimo: c.regalo_monto_minimo !== null && c.regalo_monto_minimo !== undefined ? parseFloat(c.regalo_monto_minimo) : null
+          regalo_monto_minimo: c.regalo_monto_minimo !== null && c.regalo_monto_minimo !== undefined ? parseFloat(c.regalo_monto_minimo) : null,
+          descuento_monto_minimo: c.descuento_monto_minimo !== null && c.descuento_monto_minimo !== undefined ? parseFloat(c.descuento_monto_minimo) : null
         });
         setMensaje("Cupon aplicado!");
       }
@@ -1678,14 +1680,19 @@ function POS({ localId, usuario }) {
                   <input className="inp" placeholder="Cupon" value={cupon} onChange={e => setCupon(e.target.value)} style={{ flex: 1, fontSize: 11, padding: "6px 10px" }} />
                   <button className="btn btn-g btn-sm" style={{ fontSize: 9 }} onClick={aplicarCupon}>OK</button>
                 </div>
-                {cuponAplicado && cuponAplicado.condicion_medio_pago && cuponAplicado.valor_condicional !== null && cuponAplicado.valor_condicional !== undefined && (
+                {cuponAplicado && !cuponCumpleMinimo && (
+                  <div style={{ fontSize: 9, color: "#a06b00", marginBottom: 4 }}>
+                    Este cupon requiere una compra minima de {fmt(cuponAplicado.descuento_monto_minimo)} (todavia faltan {fmt(Math.max(cuponAplicado.descuento_monto_minimo - subtotalBase, 0))})
+                  </div>
+                )}
+                {cuponAplicado && cuponCumpleMinimo && cuponAplicado.condicion_medio_pago && cuponAplicado.valor_condicional !== null && cuponAplicado.valor_condicional !== undefined && (
                   <div style={{ fontSize: 9, color: cuponCumpleCondicion ? "#2d7a4f" : "#a06b00", marginBottom: 4 }}>
                     {cuponCumpleCondicion
                       ? "Descuento aplicado: " + cuponAplicado.valor_condicional + (cuponAplicado.tipo === "%" ? "% (paga con " : "$ (paga con ") + cuponAplicado.condicion_medio_pago + ")"
                       : "Este cupon da " + cuponAplicado.valor_condicional + (cuponAplicado.tipo === "%" ? "% " : "$ ") + "solo si paga con " + cuponAplicado.condicion_medio_pago + " (elegi ese medio de pago abajo)"}
                   </div>
                 )}
-                {cuponAplicado && (!cuponAplicado.condicion_medio_pago || cuponAplicado.valor_condicional === null || cuponAplicado.valor_condicional === undefined) && (
+                {cuponAplicado && cuponCumpleMinimo && (!cuponAplicado.condicion_medio_pago || cuponAplicado.valor_condicional === null || cuponAplicado.valor_condicional === undefined) && (
                   <div style={{ fontSize: 9, color: "#2d7a4f", marginBottom: 4 }}>Descuento aplicado</div>
                 )}
                 {cuponAplicado && cuponAplicado.regalo_producto_nombre && subtotalBase >= (cuponAplicado.regalo_monto_minimo || 0) && (
@@ -3248,7 +3255,7 @@ function Cupones({ localId, usuario }) {
   const [codigoValidarRegalo, setCodigoValidarRegalo] = useState("");
   const [resultadoValidarRegalo, setResultadoValidarRegalo] = useState(null);
   const [editandoCupon, setEditandoCupon] = useState(null);
-  const [cuponForm, setCuponForm] = useState({ descripcion: "", tipo: "%", valor: "", canal: "Influencer", max_usos: "", fecha_vencimiento: "", condicion_medio_pago: "", valor_condicional: "", regalo_producto_id: "", regalo_producto_nombre: "", regalo_monto_minimo: "" });
+  const [cuponForm, setCuponForm] = useState({ descripcion: "", tipo: "%", valor: "", canal: "Influencer", max_usos: "", fecha_vencimiento: "", condicion_medio_pago: "", valor_condicional: "", regalo_producto_id: "", regalo_producto_nombre: "", regalo_monto_minimo: "", descuento_monto_minimo: "" });
   const [buscarProdCupon, setBuscarProdCupon] = useState("");
   const [mediosPago, setMediosPago] = useState([]);
 
@@ -3418,7 +3425,8 @@ function Cupones({ localId, usuario }) {
       valor_condicional: c.valor_condicional ?? "",
       regalo_producto_id: c.regalo_producto_id || "",
       regalo_producto_nombre: c.regalo_producto_nombre || "",
-      regalo_monto_minimo: c.regalo_monto_minimo ?? ""
+      regalo_monto_minimo: c.regalo_monto_minimo ?? "",
+      descuento_monto_minimo: c.descuento_monto_minimo ?? ""
     });
     setBuscarProdCupon("");
   };
@@ -3438,7 +3446,8 @@ function Cupones({ localId, usuario }) {
         valor_condicional: cuponForm.valor_condicional === "" ? null : parseFloat(cuponForm.valor_condicional),
         regalo_producto_id: cuponForm.regalo_producto_id || null,
         regalo_producto_nombre: cuponForm.regalo_producto_nombre || null,
-        regalo_monto_minimo: cuponForm.regalo_monto_minimo === "" ? null : parseFloat(cuponForm.regalo_monto_minimo)
+        regalo_monto_minimo: cuponForm.regalo_monto_minimo === "" ? null : parseFloat(cuponForm.regalo_monto_minimo),
+        descuento_monto_minimo: cuponForm.descuento_monto_minimo === "" ? null : parseFloat(cuponForm.descuento_monto_minimo)
       });
       setMensaje("Cupon actualizado!");
       setEditandoCupon(null);
@@ -3721,6 +3730,7 @@ function Cupones({ localId, usuario }) {
               <div className="fg" style={{ flex: 1 }}><div className="fl">Max. usos (vacío = ilimitado)</div><input className="inp" type="number" value={cuponForm.max_usos} onChange={e => setCuponForm(p => ({ ...p, max_usos: e.target.value }))} /></div>
               <div className="fg" style={{ flex: 1 }}><div className="fl">Vence (opcional)</div><input className="inp" type="date" value={cuponForm.fecha_vencimiento} onChange={e => setCuponForm(p => ({ ...p, fecha_vencimiento: e.target.value }))} /></div>
             </div>
+            <div className="fg"><div className="fl">Compra mínima para que aplique el descuento (opcional, vacío = sin mínimo)</div><input className="inp" type="number" placeholder="Sin minimo" value={cuponForm.descuento_monto_minimo} onChange={e => setCuponForm(p => ({ ...p, descuento_monto_minimo: e.target.value }))} /></div>
             <div style={{ borderTop: "1px solid #eee", marginTop: 6, paddingTop: 10 }}>
               <div style={{ fontSize: 11, color: "#65676B", marginBottom: 8 }}>Condición especial (opcional). Ej: 15% si paga por "Transferencia", en vez del {cuponForm.valor || "-"}{cuponForm.tipo === "%" ? "%" : "$"} de base.</div>
               <div style={{ display: "flex", gap: 8 }}>
@@ -3756,7 +3766,7 @@ function Cupones({ localId, usuario }) {
                   </div>
                 )}
               </div>
-              <div className="fg"><div className="fl">Monto mínimo de compra ($)</div><input className="inp" type="number" placeholder="20000" value={cuponForm.regalo_monto_minimo} onChange={e => setCuponForm(p => ({ ...p, regalo_monto_minimo: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Compra mínima para el regalo ($)</div><input className="inp" type="number" placeholder="20000" value={cuponForm.regalo_monto_minimo} onChange={e => setCuponForm(p => ({ ...p, regalo_monto_minimo: e.target.value }))} /></div>
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
               <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarCuponEditado}>Guardar</button>
