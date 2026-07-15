@@ -3238,6 +3238,7 @@ function Cupones({ localId, usuario }) {
   const [editandoCupon, setEditandoCupon] = useState(null);
   const [cuponForm, setCuponForm] = useState({ descripcion: "", tipo: "%", valor: "", canal: "Influencer", max_usos: "", fecha_vencimiento: "", condicion_medio_pago: "", valor_condicional: "", regalo_producto_id: "", regalo_producto_nombre: "", regalo_monto_minimo: "" });
   const [buscarProdCupon, setBuscarProdCupon] = useState("");
+  const [mediosPago, setMediosPago] = useState([]);
 
   const cargarInfluencers = () => {
     API.get("/influencers").then(res => setInfluencers(res.data || [])).catch(() => {});
@@ -3253,6 +3254,7 @@ function Cupones({ localId, usuario }) {
     cargarRegalos();
     API.get("/clientes").then(res => setClientesInf(res.data || [])).catch(() => {});
     API.get("/productos").then(res => setProductosCat(res.data || [])).catch(() => {});
+    API.get("/medios-pago").then(res => setMediosPago(res.data || [])).catch(() => {});
   }, []);
 
   const abrirRegalo = (inf) => {
@@ -3710,7 +3712,13 @@ function Cupones({ localId, usuario }) {
             <div style={{ borderTop: "1px solid #eee", marginTop: 6, paddingTop: 10 }}>
               <div style={{ fontSize: 11, color: "#65676B", marginBottom: 8 }}>Condición especial (opcional). Ej: 15% si paga por "Transferencia", en vez del {cuponForm.valor || "-"}{cuponForm.tipo === "%" ? "%" : "$"} de base.</div>
               <div style={{ display: "flex", gap: 8 }}>
-                <div className="fg" style={{ flex: 1 }}><div className="fl">Medio de pago</div><input className="inp" placeholder="Ej: Transferencia" value={cuponForm.condicion_medio_pago} onChange={e => setCuponForm(p => ({ ...p, condicion_medio_pago: e.target.value }))} /></div>
+                <div className="fg" style={{ flex: 1 }}>
+                  <div className="fl">Medio de pago</div>
+                  <select className="sel" value={cuponForm.condicion_medio_pago} onChange={e => setCuponForm(p => ({ ...p, condicion_medio_pago: e.target.value }))}>
+                    <option value="">Sin condición (no cambia)</option>
+                    {mediosPago.map(m => <option key={m.id} value={m.nombre}>{m.nombre}</option>)}
+                  </select>
+                </div>
                 <div className="fg" style={{ flex: 1 }}><div className="fl">Valor con esa condición</div><input className="inp" type="number" placeholder="15" value={cuponForm.valor_condicional} onChange={e => setCuponForm(p => ({ ...p, valor_condicional: e.target.value }))} /></div>
               </div>
             </div>
