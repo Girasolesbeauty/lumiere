@@ -936,6 +936,8 @@ function POS({ localId, usuario }) {
   const [medioPagoSel, setMedioPagoSel] = useState(null);
   const [pagoMixto, setPagoMixto] = useState(false);
   const [pagosMixtos, setPagosMixtos] = useState([]); // [{medio_pago_id, medio_pago_nombre, importe}]
+  const [itemsSinStock, setItemsSinStock] = useState(null); // [{id, nombre, stockActual, cantidad}] o null
+  const [justificacionesStock, setJustificacionesStock] = useState({}); // { [producto_id]: motivo }
   const [insumosPos, setInsumosPos] = useState([]);
   const [insumosPosActivo, setInsumosPosActivo] = useState(false);
   const [insumosSel, setInsumosSel] = useState({});
@@ -1317,6 +1319,20 @@ function POS({ localId, usuario }) {
       if (pagosMixtos.some(p => !p.medio_pago_id)) return setMensaje("Elegi el medio de pago en cada linea del pago dividido");
       if (Math.abs(sumaPagos - restaPagar) >= 1) return setMensaje("La suma de los pagos (" + fmt(sumaPagos) + ") debe ser igual al total (" + fmt(restaPagar) + ")");
     }
+    // Si algun producto ya esta en 0 (o esta venta lo dejaria en negativo), pedimos el motivo
+    // antes de mandar la venta. Los kits se validan por sus componentes en el backend.
+    if (!preventa) {
+      const faltantes = [];
+      for (const it of cart) {
+        if (it.es_ajuste || it.es_kit) continue;
+        const stockActual = Number(localId) === 2 ? (it.stock_ush || 0) : (it.stock_rg || 0);
+        const resultante = stockActual - it.qty;
+        if (resultante < 0 && !(justificacionesStock[it.id] && justificacionesStock[it.id].trim())) {
+          faltantes.push({ id: it.id, nombre: it.nombre || it.name, stockActual, cantidad: it.qty });
+        }
+      }
+      if (faltantes.length > 0) { setItemsSinStock(faltantes); return; }
+    }
     setLoading(true);
     try {
       const items = expandirItemsCart();
@@ -1331,7 +1347,9 @@ function POS({ localId, usuario }) {
         nombre_preventa: preventa ? nombrePreventa : null,
         monto_gift_card: montoAplicadoGC,
         insumos_usados: (!preventa && insumosPosActivo) ? Object.values(insumosSel).filter(v => v && v !== "ninguna").map(v => parseInt(v)) : [],
-        referencia: referenciaVenta || null
+        referencia: referenciaVenta || null,
+        usuario_id: usuario?.id || null, usuario_nombre: usuario?.nombre || null,
+        justificaciones_stock: justificacionesStock
       });
       if (giftCardAplicada && montoAplicadoGC > 0) {
         try {
@@ -1374,10 +1392,19 @@ function POS({ localId, usuario }) {
         setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
         setClienteSeleccionado(null); setShowNuevoCliente(false);
         setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false);
+        setJustificacionesStock({}); setItemsSinStock(null);
         quitarGiftCard();
       }
       setTimeout(() => setMensaje(""), 8000);
-    } catch (error) { setMensaje("Error al emitir factura: " + (error?.response?.data?.error || error?.message || "desconocido")); console.error("DETALLE FACTURA:", error); }
+    } catch (error) {
+      if (error?.response?.status === 409 && error?.response?.data?.error === 'stock_insuficiente') {
+        const prods = error.response.data.productos || [];
+        setItemsSinStock(prods.map(p => ({ id: p.producto_id, nombre: p.nombre, stockActual: p.stock_disponible, cantidad: p.cantidad_pedida })));
+      } else {
+        setMensaje("Error al emitir factura: " + (error?.response?.data?.error || error?.message || "desconocido"));
+      }
+      console.error("DETALLE FACTURA:", error);
+    }
     setLoading(false);
   };
 
@@ -1875,6 +1902,31 @@ function POS({ localId, usuario }) {
                 <button className="btn btn-p" style={{ width: "100%" }} onClick={() => setShowEmitirGC(false)}>Cerrar</button>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {itemsSinStock && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
+          <div className="card" style={{ width: 440, background: "#ffffff" }}>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: "#c0392b" }}>⚠️ Sin stock suficiente</div>
+            <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>Estos productos quedarian con stock negativo. Escribi el motivo para poder facturar igual (queda registrado en Inconsistencias).</div>
+            {itemsSinStock.map(it => (
+              <div key={it.id} style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>{it.nombre}</div>
+                <div style={{ fontSize: 10, color: "#c0392b", marginBottom: 4 }}>Stock disponible: {it.stockActual} · Pediste: {it.cantidad}</div>
+                <input className="inp" placeholder="Motivo (ej: se conto mal el stock fisico)" value={justificacionesStock[it.id] || ""} onChange={e => setJustificacionesStock(p => ({ ...p, [it.id]: e.target.value }))} />
+              </div>
+            ))}
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setItemsSinStock(null)}>Cancelar</button>
+              <button className="btn btn-p" style={{ flex: 1 }} onClick={() => {
+                const faltaMotivo = itemsSinStock.some(it => !(justificacionesStock[it.id] && justificacionesStock[it.id].trim()));
+                if (faltaMotivo) return setMensaje("Completa el motivo de cada producto");
+                setItemsSinStock(null);
+                emitirFactura();
+              }}>Confirmar y facturar</button>
+            </div>
           </div>
         </div>
       )}
@@ -6938,11 +6990,16 @@ function OrdenesIngreso({ localId, usuario }) {
 function Inconsistencias() {
   const [datos, setDatos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [datosStock, setDatosStock] = useState([]);
+  const [loadingStock, setLoadingStock] = useState(true);
 
   useEffect(() => {
     API.get("/ordenes-ingreso/reporte/inconsistencias")
       .then(res => { setDatos(res.data || []); setLoading(false); })
       .catch(() => setLoading(false));
+    API.get("/ordenes-ingreso/reporte/inconsistencias-stock")
+      .then(res => { setDatosStock(res.data || []); setLoadingStock(false); })
+      .catch(() => setLoadingStock(false));
   }, []);
 
   const dif = (recibido, esperado) => (parseInt(recibido) || 0) - (parseInt(esperado) || 0);
@@ -6978,6 +7035,32 @@ function Inconsistencias() {
                   </tr>
                 ));
               })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="ph" style={{ marginTop: 24 }}>
+        <div><div className="pt">Ventas sin stock suficiente</div><div className="ps">se vendio en 0 (o quedaria negativo) y la vendedora justifico el motivo</div></div>
+      </div>
+      <div className="card">
+        {loadingStock ? (<div style={{ textAlign: "center", color: "#65676B", fontSize: 12 }}>Cargando...</div>) : datosStock.length === 0 ? (
+          <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 30 }}>No hay ventas sin stock registradas.</div>
+        ) : (
+          <table>
+            <thead><tr><th>Fecha</th><th>Venta</th><th>Producto</th><th>Stock disponible</th><th>Vendido</th><th>Motivo</th><th>Vendedora</th></tr></thead>
+            <tbody>
+              {datosStock.map(d => (
+                <tr key={d.id}>
+                  <td style={{ fontSize: 11, color: "#65676B" }}>{new Date(d.creado_en).toLocaleString("es-AR")}</td>
+                  <td style={{ fontSize: 11 }}>{d.venta_numero_factura || "-"}</td>
+                  <td style={{ fontSize: 12 }}>{d.producto_nombre}</td>
+                  <td style={{ fontSize: 12, color: "#c0392b", fontWeight: 600 }}>{d.stock_disponible}</td>
+                  <td style={{ fontSize: 12 }}>{d.cantidad_vendida}</td>
+                  <td style={{ fontSize: 11 }}>{d.justificacion}</td>
+                  <td style={{ fontSize: 11, color: "#65676B" }}>{d.usuario_nombre || "-"}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         )}

@@ -261,6 +261,18 @@ router.get('/reporte/inconsistencias', async (req, res) => {
   }
 });
 
+// Ventas donde se vendio sin stock suficiente (quedaria en negativo) y la vendedora justifico
+router.get('/reporte/inconsistencias-stock', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM inconsistencias_stock ORDER BY creado_en DESC`
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener inconsistencias de stock: ' + error.message });
+  }
+});
+
 // Marcar orden como pagada
 router.put('/:id/pagar', async (req, res) => {
   try {

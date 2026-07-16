@@ -109,11 +109,44 @@ const create = async (req, res) => {
     const {
       cliente_id, tipo_factura, items, descuento, canal, cupon_codigo, local_id,
       medio_pago_id, medio_pago_nombre, total_con_interes, es_preventa, nombre_preventa,
-      usuario_id, inicio_venta, duracion_segundos, monto_gift_card, insumos_usados, pagos, referencia } = req.body;
+      usuario_id, usuario_nombre, inicio_venta, duracion_segundos, monto_gift_card, insumos_usados, pagos, referencia,
+      justificaciones_stock } = req.body;
 
     let subtotal = 0;
     for (const item of items) {
       subtotal += item.precio_unitario * item.cantidad;
+    }
+
+    // Si un producto ya esta en 0 (o esta venta lo dejaria en negativo), hace falta una
+    // justificacion puntual para esa linea; si no la hay, se rechaza la venta entera aca
+    // (no se llega a tocar la base) y el POS le pide el motivo a la vendedora.
+    const itemsJustificados = [];
+    if (es_preventa !== true) {
+      const justificaciones = justificaciones_stock || {};
+      const faltantes = [];
+      for (const item of items) {
+        if (!item.producto_id) continue;
+        const prodRes = await client.query(
+          'SELECT id, nombre, stock_rg, stock_ush FROM productos WHERE id = $1 FOR UPDATE',
+          [item.producto_id]
+        );
+        if (prodRes.rows.length === 0) continue;
+        const prod = prodRes.rows[0];
+        const stockActual = (local_id === 2 || local_id === '2') ? (prod.stock_ush || 0) : (prod.stock_rg || 0);
+        const resultante = stockActual - item.cantidad;
+        if (resultante < 0) {
+          const motivo = (justificaciones[item.producto_id] || justificaciones[String(item.producto_id)] || '').trim();
+          if (!motivo) {
+            faltantes.push({ producto_id: item.producto_id, nombre: prod.nombre, stock_disponible: stockActual, cantidad_pedida: item.cantidad });
+          } else {
+            itemsJustificados.push({ producto_id: item.producto_id, nombre: prod.nombre, stock_disponible: stockActual, cantidad: item.cantidad, motivo });
+          }
+        }
+      }
+      if (faltantes.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'stock_insuficiente', productos: faltantes });
+      }
     }
 
     let descuento_total = descuento || 0;
@@ -225,6 +258,16 @@ const create = async (req, res) => {
       }
     }
 
+    // Deja constancia de cada linea que se vendio sin stock suficiente, con su justificacion.
+    for (const j of itemsJustificados) {
+      await client.query(
+        `INSERT INTO inconsistencias_stock
+          (producto_id, producto_nombre, local_id, cantidad_vendida, stock_disponible, justificacion, venta_numero_factura, usuario_id, usuario_nombre)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [j.producto_id, j.nombre, local_id || 1, j.cantidad, j.stock_disponible, j.motivo, numero, usuario_id || null, usuario_nombre || null]
+      );
+    }
+
     // Descuento de insumos elegidos en el POS (bolsa, ticket, muestra, etc).
     // Solo en ventas reales, no en preventas. Permite stock negativo a proposito.
     if (es_preventa !== true && Array.isArray(insumos_usados) && insumos_usados.length > 0) {
@@ -275,7 +318,7 @@ const create = async (req, res) => {
   } catch (error) {
     await client.query('ROLLBACK');
     console.error(error);
-    res.status(500).json({ error: 'Error al crear venta' });
+    res.status(500).json({ error: 'Error al crear venta: ' + error.message });
   } finally {
     client.release();
   }
