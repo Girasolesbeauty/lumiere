@@ -2073,7 +2073,7 @@ function Inventario({ localId, usuario }) {
         costo: parseFloat(nuevo.costo) || 0,
         stock: parseInt(nuevo.stock) || 0,
         stock_minimo: parseInt(nuevo.stock_minimo) || 5,
-        local_id: 1
+        local_id: localId || 1
       });
       setMensaje("Producto creado!");
       setNuevo({ nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "", stock: "", stock_minimo: "", proveedor_id: "", descripcion: "" });
