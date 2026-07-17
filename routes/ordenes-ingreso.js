@@ -93,6 +93,16 @@ router.post('/', async (req, res) => {
           [cantRg, cantUsh, item.producto_id]
         );
       }
+      // Si el item vino de una factura cargada (tiene el nombre tal cual aparecia ahi),
+      // guardamos la vinculacion para que la proxima factura de este proveedor la reconozca sola.
+      if (item.nombre_factura && item.producto_id) {
+        await client.query(
+          `INSERT INTO proveedor_producto_alias (proveedor_id, nombre_factura, producto_id)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (proveedor_id, nombre_factura) DO UPDATE SET producto_id = EXCLUDED.producto_id`,
+          [proveedor_id, item.nombre_factura, item.producto_id]
+        );
+      }
     }
 
     await client.query('COMMIT');

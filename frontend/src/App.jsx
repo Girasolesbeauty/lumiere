@@ -6582,6 +6582,11 @@ function OrdenesIngreso({ localId, usuario }) {
   const [recibidoHist, setRecibidoHist] = useState([]);
   const [notaItem, setNotaItem] = useState({});
   const [extra, setExtra] = useState({ producto_id: "", cantidad: "", costo_unitario: "" });
+  const [facturaForm, setFacturaForm] = useState({ proveedor_id: "", numero_factura: "" });
+  const [facturaArchivo, setFacturaArchivo] = useState(null);
+  const [facturaItems, setFacturaItems] = useState(null);
+  const [facturaProcesando, setFacturaProcesando] = useState(false);
+  const [facturaBuscarProd, setFacturaBuscarProd] = useState({});
 
   const cargar = async () => {
     setLoading(true);
@@ -6642,6 +6647,59 @@ function OrdenesIngreso({ localId, usuario }) {
       cargar();
       setTab("lista");
     } catch (e) { setMensaje("Error al crear orden: " + (e.response?.data?.error || e.message)); }
+  };
+
+  const procesarFactura = async () => {
+    if (!facturaForm.proveedor_id) return setMensaje("Elegi el proveedor primero");
+    if (!facturaArchivo) return setMensaje("Elegi el archivo de la factura");
+    setFacturaProcesando(true);
+    setMensaje("");
+    try {
+      const fd = new FormData();
+      fd.append("archivo", facturaArchivo);
+      fd.append("proveedor_id", facturaForm.proveedor_id);
+      const res = await API.post("/facturas-proveedor/parsear", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      const items = res.data.items || [];
+      if (items.length === 0) {
+        setMensaje(res.data.aviso || "No se detecto ningun producto automaticamente. Cargala a mano en '+ Nueva orden'.");
+        setFacturaItems(null);
+      } else {
+        setFacturaItems(items.map(it => ({
+          nombre_crudo: it.nombre_crudo, cantidad: it.cantidad, costo_unitario: it.costo_unitario,
+          producto_id: it.producto_id_sugerido || "", producto_nombre: it.producto_nombre_sugerido || "",
+          es_alias_conocido: it.es_alias_conocido
+        })));
+      }
+    } catch (e) { setMensaje("Error al procesar la factura: " + (e.response?.data?.error || e.message)); }
+    setFacturaProcesando(false);
+  };
+
+  const quitarItemFactura = (idx) => setFacturaItems(prev => prev.filter((_, i) => i !== idx));
+
+  const vincularItemFactura = (idx, prod) => {
+    setFacturaItems(prev => prev.map((it, i) => i === idx ? { ...it, producto_id: prod.id, producto_nombre: prod.nombre } : it));
+    setFacturaBuscarProd(prev => ({ ...prev, [idx]: "" }));
+  };
+
+  const confirmarFactura = async () => {
+    if (!facturaItems || facturaItems.length === 0) return;
+    if (facturaItems.some(it => !it.producto_id)) return setMensaje("Vincula un producto para cada fila (o eliminala con la 'x')");
+    try {
+      const items = facturaItems.map(it => ({
+        producto_id: it.producto_id, producto_nombre: it.producto_nombre, nombre_factura: it.nombre_crudo,
+        cantidad_rg: localActual === "rg" ? it.cantidad : 0,
+        cantidad_ush: localActual === "ush" ? it.cantidad : 0,
+        cantidad_total: it.cantidad, costo_unitario: parseFloat(it.costo_unitario) || 0
+      }));
+      const total = items.reduce((s, it) => s + it.costo_unitario * it.cantidad_total, 0);
+      await API.post("/ordenes-ingreso", {
+        proveedor_id: facturaForm.proveedor_id, numero_factura: facturaForm.numero_factura, total, notas: "Cargada desde factura", items
+      });
+      setMensaje("Orden creada desde la factura! Stock en transito cargado.");
+      setFacturaItems(null); setFacturaArchivo(null); setFacturaForm({ proveedor_id: "", numero_factura: "" });
+      cargar();
+      setTab("lista");
+    } catch (e) { setMensaje("Error al crear la orden: " + (e.response?.data?.error || e.message)); }
   };
 
   const recargarItems = async () => {
@@ -6743,7 +6801,8 @@ function OrdenesIngreso({ localId, usuario }) {
       <div className="ph">
         <div><div className="pt">Ingreso de Mercaderia</div><div className="ps">recepcion en {localNombre}</div></div>
         <div style={{ display: "flex", gap: 8 }}>
-          {tab !== "lista" && tab !== "recibido" && <button className="btn btn-sm" onClick={() => { setTab("lista"); setOrdenDetalle(null); }}>Volver</button>}
+          {tab !== "lista" && tab !== "recibido" && <button className="btn btn-sm" onClick={() => { setTab("lista"); setOrdenDetalle(null); setFacturaItems(null); setFacturaArchivo(null); }}>Volver</button>}
+          {usuario?.rol === "jefe" && (tab === "lista" || tab === "recibido") && <button className="btn btn-sm" onClick={() => setTab("factura")}>📄 Cargar factura</button>}
           {usuario?.rol === "jefe" && (tab === "lista" || tab === "recibido") && <button className="btn btn-p btn-sm" onClick={() => setTab("nueva")}>+ Nueva orden</button>}
         </div>
       </div>
@@ -6820,6 +6879,71 @@ function OrdenesIngreso({ localId, usuario }) {
                 })}
               </tbody>
             </table>
+          )}
+        </div>
+      )}
+
+      {tab === "factura" && (
+        <div className="fade">
+          {!facturaItems ? (
+            <div className="card" style={{ maxWidth: 480 }}>
+              <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 14 }}>CARGAR FACTURA DEL PROVEEDOR</div>
+              <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>Subi la factura (PDF, foto/escaneo, o Excel/CSV) y el sistema va a tratar de reconocer los productos. Vas a poder revisar y corregir todo antes de crear la orden.</div>
+              <div className="fg"><div className="fl">Proveedor</div>
+                <select className="sel" value={facturaForm.proveedor_id} onChange={e => setFacturaForm(p => ({ ...p, proveedor_id: e.target.value }))}>
+                  <option value="">Seleccionar proveedor...</option>
+                  {proveedores.map(pr => (<option key={pr.id} value={pr.id}>{pr.nombre}</option>))}
+                </select>
+              </div>
+              <div className="fg"><div className="fl">Numero de factura (opcional)</div><input className="inp" value={facturaForm.numero_factura} onChange={e => setFacturaForm(p => ({ ...p, numero_factura: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Archivo de la factura</div>
+                <input className="inp" type="file" accept=".pdf,.xlsx,.xls,.csv,image/*" onChange={e => setFacturaArchivo(e.target.files[0] || null)} />
+              </div>
+              <button className="btn btn-p" style={{ width: "100%", marginTop: 8 }} disabled={facturaProcesando} onClick={procesarFactura}>
+                {facturaProcesando ? "Procesando..." : "Procesar factura"}
+              </button>
+            </div>
+          ) : (
+            <div className="card">
+              <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 4 }}>REVISA LOS PRODUCTOS DETECTADOS</div>
+              <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>Se van a cargar en {localNombre}. Corregi el producto vinculado donde haga falta, ajusta cantidad/costo, o quita filas que no correspondan.</div>
+              <table>
+                <thead><tr><th>Nombre en la factura</th><th>Cant.</th><th>Costo unit.</th><th>Producto vinculado</th><th></th></tr></thead>
+                <tbody>
+                  {facturaItems.map((it, idx) => (
+                    <tr key={idx}>
+                      <td style={{ fontSize: 11, color: "#65676B" }}>{it.nombre_crudo}</td>
+                      <td><input className="inp" type="number" style={{ width: 60, padding: "4px 6px" }} value={it.cantidad} onChange={e => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, cantidad: parseInt(e.target.value) || 0 } : x))} /></td>
+                      <td><input className="inp" type="number" style={{ width: 90, padding: "4px 6px" }} value={it.costo_unitario} onChange={e => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, costo_unitario: e.target.value } : x))} /></td>
+                      <td>
+                        {it.producto_id ? (
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontSize: 12, color: it.es_alias_conocido ? "#2d7a4f" : "#111111" }}>{it.producto_nombre}</span>
+                            <span onClick={() => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, producto_id: "", producto_nombre: "" } : x))} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 11, whiteSpace: "nowrap" }}>cambiar</span>
+                          </div>
+                        ) : (
+                          <div>
+                            <input className="inp" placeholder="Buscar producto..." style={{ fontSize: 11 }} value={facturaBuscarProd[idx] || ""} onChange={e => setFacturaBuscarProd(p => ({ ...p, [idx]: e.target.value }))} />
+                            {(facturaBuscarProd[idx] || "").trim().length > 0 && (
+                              <div style={{ border: "1px solid #eee", borderRadius: 6, marginTop: 4, maxHeight: 140, overflowY: "auto", position: "relative", zIndex: 5, background: "#fff" }}>
+                                {productos.filter(p => (p.nombre || "").toLowerCase().includes((facturaBuscarProd[idx] || "").toLowerCase())).slice(0, 8).map(p => (
+                                  <div key={p.id} onClick={() => vincularItemFactura(idx, p)} style={{ padding: "6px 8px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 11 }}>{p.nombre}</div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td><span onClick={() => quitarItemFactura(idx)} style={{ cursor: "pointer", color: "#c0392b", fontSize: 13 }}>✕</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                <button className="btn btn-g" onClick={() => { setFacturaItems(null); setFacturaArchivo(null); }}>Cancelar</button>
+                <button className="btn btn-p" onClick={confirmarFactura}>Confirmar y crear orden de ingreso</button>
+              </div>
+            </div>
           )}
         </div>
       )}
