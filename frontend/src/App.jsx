@@ -6702,6 +6702,31 @@ function OrdenesIngreso({ localId, usuario }) {
     } catch (e) { setMensaje("Error al crear la orden: " + (e.response?.data?.error || e.message)); }
   };
 
+  const eliminarOrden = async (ordenId) => {
+    if (!confirm("Eliminar esta orden completa? Se revierte el stock que haya sumado (Rio Grande y Ushuaia) y no se puede deshacer.")) return;
+    try {
+      await API.delete("/ordenes-ingreso/" + ordenId, { data: { usuario_rol: usuario?.rol } });
+      setMensaje("Orden eliminada");
+      if (ordenDetalle?.id === ordenId) { setOrdenDetalle(null); setTab("lista"); }
+      cargar();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error: " + (e?.response?.data?.error || e.message)); }
+  };
+
+  const quitarLocalOrden = async (local) => {
+    if (!ordenDetalle) return;
+    const nombreLocal = local === "rg" ? "Rio Grande" : "Ushuaia";
+    if (!confirm("Quitar " + nombreLocal + " de esta orden? Se revierte el stock que haya sumado ese local (en transito o ya recibido), sin tocar el otro local.")) return;
+    try {
+      await API.put("/ordenes-ingreso/" + ordenDetalle.id + "/quitar-local", { local, usuario_rol: usuario?.rol });
+      setMensaje(nombreLocal + " quitado de la orden");
+      const res = await API.get("/ordenes-ingreso/" + ordenDetalle.id + "/items");
+      setItemsDetalle(res.data || []);
+      cargar();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error: " + (e?.response?.data?.error || e.message)); }
+  };
+
   const recargarItems = async () => {
     if (!ordenDetalle) return;
     try {
@@ -6839,10 +6864,11 @@ function OrdenesIngreso({ localId, usuario }) {
                         : <span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c" }}>{o.estado}</span>}
                     </td>
                     <td style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>{fmt(parseFloat(o.total || 0))}</td>
-                    <td>
+                    <td style={{ whiteSpace: "nowrap" }}>
                       {completoMiLocal
                         ? <button className="btn btn-sm" style={{ background: "#f0ece4", color: "#2d7a4f", border: "1px solid #2d7a4f" }} onClick={() => verDetalle(o)}>Recibido</button>
                         : <button className="btn btn-sm" style={{ background: "#2d7a4f", color: "white" }} onClick={() => verDetalle(o)}>Recibir</button>}
+                      {usuario?.rol === "jefe" && <span onClick={() => eliminarOrden(o.id)} style={{ cursor: "pointer", color: "#c0392b", fontSize: 11, marginLeft: 8 }}>eliminar</span>}
                     </td>
                   </tr>
                   );
@@ -7056,6 +7082,17 @@ function OrdenesIngreso({ localId, usuario }) {
               return (
                 <div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 6, background: completo ? "#2d7a4f12" : "#c9a84c12", border: "1px solid " + (completo ? "#2d7a4f" : "#c9a84c"), fontSize: 12, color: completo ? "#2d7a4f" : "#c9a84c", fontWeight: 600 }}>
                   {completo ? "Recepcion completa: " : "Progreso: "}{recibidos} de {delLocal.length} items recibidos
+                </div>
+              );
+            })()}
+            {usuario?.rol === "jefe" && (() => {
+              const tieneRg = itemsDetalle.some(it => (it.cantidad_rg || 0) > 0);
+              const tieneUsh = itemsDetalle.some(it => (it.cantidad_ush || 0) > 0);
+              return (
+                <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                  {tieneRg && <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => quitarLocalOrden("rg")}>Quitar Rio Grande de esta orden</button>}
+                  {tieneUsh && <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => quitarLocalOrden("ush")}>Quitar Ushuaia de esta orden</button>}
+                  <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => eliminarOrden(ordenDetalle.id)}>Eliminar orden completa</button>
                 </div>
               );
             })()}

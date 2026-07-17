@@ -115,6 +115,158 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Quitar un solo local (rg o ush) de todos los items de una orden, revirtiendo el stock que ese
+// local haya sumado (en transito o ya recibido), sin tocar el otro local. Uso: cuando un local
+// no usa este flujo y ya cargo el stock a mano en Inventario, para no duplicarlo. Solo el jefe.
+router.put('/:id/quitar-local', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { id } = req.params;
+    const { local, usuario_rol } = req.body;
+    if (usuario_rol !== 'jefe') {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'Solo el jefe puede hacer esto' });
+    }
+    if (local !== 'rg' && local !== 'ush') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Local invalido' });
+    }
+
+    const itemsRes = await client.query('SELECT * FROM ordenes_ingreso_items WHERE orden_id = $1', [id]);
+    for (const item of itemsRes.rows) {
+      const cantLocal = local === 'rg' ? (item.cantidad_rg || 0) : (item.cantidad_ush || 0);
+      const otroLocalCant = local === 'rg' ? (item.cantidad_ush || 0) : (item.cantidad_rg || 0);
+      if (cantLocal <= 0) continue;
+
+      if (item.producto_id) {
+        if (local === 'rg') {
+          if (item.revisado_rg) {
+            await client.query(
+              `UPDATE productos SET stock_rg = GREATEST(COALESCE(stock_rg,0) - $1, 0),
+                 stock = GREATEST(COALESCE(stock_rg,0) - $1, 0) + COALESCE(stock_ush,0)
+               WHERE id = $2`,
+              [item.recibido_rg || 0, item.producto_id]
+            );
+          } else {
+            await client.query(
+              `UPDATE productos SET stock_transito_rg = GREATEST(COALESCE(stock_transito_rg,0) - $1, 0) WHERE id = $2`,
+              [item.cantidad_rg, item.producto_id]
+            );
+          }
+        } else {
+          if (item.revisado_ush) {
+            await client.query(
+              `UPDATE productos SET stock_ush = GREATEST(COALESCE(stock_ush,0) - $1, 0),
+                 stock = COALESCE(stock_rg,0) + GREATEST(COALESCE(stock_ush,0) - $1, 0)
+               WHERE id = $2`,
+              [item.recibido_ush || 0, item.producto_id]
+            );
+          } else {
+            await client.query(
+              `UPDATE productos SET stock_transito_ush = GREATEST(COALESCE(stock_transito_ush,0) - $1, 0) WHERE id = $2`,
+              [item.cantidad_ush, item.producto_id]
+            );
+          }
+        }
+      }
+
+      if (otroLocalCant > 0) {
+        // El item tambien tiene cantidad para el otro local: solo se limpia este lado, el item sigue.
+        if (local === 'rg') {
+          await client.query(
+            `UPDATE ordenes_ingreso_items SET cantidad_rg = 0, recibido_rg = 0, revisado_rg = FALSE, cantidad_total = $1 WHERE id = $2`,
+            [otroLocalCant, item.id]
+          );
+        } else {
+          await client.query(
+            `UPDATE ordenes_ingreso_items SET cantidad_ush = 0, recibido_ush = 0, revisado_ush = FALSE, en_transito_ush = 0, cantidad_total = $1 WHERE id = $2`,
+            [otroLocalCant, item.id]
+          );
+        }
+      } else {
+        // El item era solo de este local: se elimina directamente.
+        await client.query('DELETE FROM ordenes_ingreso_items WHERE id = $1', [item.id]);
+      }
+    }
+
+    const restantes = await client.query(
+      'SELECT COALESCE(SUM(costo_unitario * cantidad_total), 0) AS total FROM ordenes_ingreso_items WHERE orden_id = $1',
+      [id]
+    );
+    await client.query('UPDATE ordenes_ingreso SET total = $1 WHERE id = $2', [restantes.rows[0].total, id]);
+
+    await client.query('COMMIT');
+    res.json({ ok: true });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: 'Error al quitar el local: ' + error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Eliminar una orden completa: revierte todo el stock que haya sumado (ambos locales, en transito
+// o ya recibido) y borra la orden. No se puede deshacer. Solo el jefe.
+router.delete('/:id', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { id } = req.params;
+    const { usuario_rol } = req.body;
+    if (usuario_rol !== 'jefe') {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'Solo el jefe puede eliminar una orden' });
+    }
+
+    const itemsRes = await client.query('SELECT * FROM ordenes_ingreso_items WHERE orden_id = $1', [id]);
+    for (const item of itemsRes.rows) {
+      if (!item.producto_id) continue;
+      if ((item.cantidad_rg || 0) > 0) {
+        if (item.revisado_rg) {
+          await client.query(
+            `UPDATE productos SET stock_rg = GREATEST(COALESCE(stock_rg,0) - $1, 0),
+               stock = GREATEST(COALESCE(stock_rg,0) - $1, 0) + COALESCE(stock_ush,0)
+             WHERE id = $2`,
+            [item.recibido_rg || 0, item.producto_id]
+          );
+        } else {
+          await client.query(
+            `UPDATE productos SET stock_transito_rg = GREATEST(COALESCE(stock_transito_rg,0) - $1, 0) WHERE id = $2`,
+            [item.cantidad_rg, item.producto_id]
+          );
+        }
+      }
+      if ((item.cantidad_ush || 0) > 0) {
+        if (item.revisado_ush) {
+          await client.query(
+            `UPDATE productos SET stock_ush = GREATEST(COALESCE(stock_ush,0) - $1, 0),
+               stock = COALESCE(stock_rg,0) + GREATEST(COALESCE(stock_ush,0) - $1, 0)
+             WHERE id = $2`,
+            [item.recibido_ush || 0, item.producto_id]
+          );
+        } else {
+          await client.query(
+            `UPDATE productos SET stock_transito_ush = GREATEST(COALESCE(stock_transito_ush,0) - $1, 0) WHERE id = $2`,
+            [item.cantidad_ush, item.producto_id]
+          );
+        }
+      }
+    }
+
+    await client.query('DELETE FROM ordenes_ingreso_items WHERE orden_id = $1', [id]);
+    await client.query('DELETE FROM ordenes_ingreso WHERE id = $1', [id]);
+
+    await client.query('COMMIT');
+    res.json({ ok: true });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: 'Error al eliminar la orden: ' + error.message });
+  } finally {
+    client.release();
+  }
+});
+
 // Agregar item EXTRA (regalo del proveedor, no estaba en el pedido) - ya llego fisico
 router.post('/:ordenId/item-extra', async (req, res) => {
   const client = await pool.connect();
