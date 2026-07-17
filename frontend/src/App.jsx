@@ -6666,6 +6666,7 @@ function OrdenesIngreso({ localId, usuario }) {
       } else {
         setFacturaItems(items.map(it => ({
           nombre_crudo: it.nombre_crudo, cantidad: it.cantidad, costo_unitario: it.costo_unitario,
+          codigo_interno: it.codigo_interno || "", codigo_barras: it.codigo_barras || "",
           producto_id: it.producto_id_sugerido || "", producto_nombre: it.producto_nombre_sugerido || "",
           es_alias_conocido: it.es_alias_conocido
         })));
@@ -6687,6 +6688,7 @@ function OrdenesIngreso({ localId, usuario }) {
     try {
       const items = facturaItems.map(it => ({
         producto_id: it.producto_id, producto_nombre: it.producto_nombre, nombre_factura: it.nombre_crudo,
+        codigo_factura: it.codigo_interno || null,
         cantidad_rg: localActual === "rg" ? it.cantidad : 0,
         cantidad_ush: localActual === "ush" ? it.cantidad : 0,
         cantidad_total: it.cantidad, costo_unitario: parseFloat(it.costo_unitario) || 0
@@ -6934,11 +6936,12 @@ function OrdenesIngreso({ localId, usuario }) {
               <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 4 }}>REVISA LOS PRODUCTOS DETECTADOS</div>
               <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>Se van a cargar en {localNombre}. Corregi el producto vinculado donde haga falta, ajusta cantidad/costo, o quita filas que no correspondan.</div>
               <table>
-                <thead><tr><th>Nombre en la factura</th><th>Cant.</th><th>Costo unit.</th><th>Producto vinculado</th><th></th></tr></thead>
+                <thead><tr><th>Nombre en la factura</th><th>Codigo</th><th>Cant.</th><th>Costo unit.</th><th>Producto vinculado</th><th></th></tr></thead>
                 <tbody>
                   {facturaItems.map((it, idx) => (
                     <tr key={idx}>
                       <td style={{ fontSize: 11, color: "#65676B" }}>{it.nombre_crudo}</td>
+                      <td style={{ fontSize: 10, color: "#999" }}>{it.codigo_interno || "-"}</td>
                       <td><input className="inp" type="number" style={{ width: 60, padding: "4px 6px" }} value={it.cantidad} onChange={e => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, cantidad: parseInt(e.target.value) || 0 } : x))} /></td>
                       <td><input className="inp" type="number" style={{ width: 90, padding: "4px 6px" }} value={it.costo_unitario} onChange={e => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, costo_unitario: e.target.value } : x))} /></td>
                       <td>

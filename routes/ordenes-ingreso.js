@@ -95,11 +95,23 @@ router.post('/', async (req, res) => {
       }
       // Si el item vino de una factura cargada (tiene el nombre tal cual aparecia ahi),
       // guardamos la vinculacion para que la proxima factura de este proveedor la reconozca sola.
-      if (item.nombre_factura && item.producto_id) {
+      // Si la factura traia ademas el codigo interno del proveedor, se guarda con esa clave
+      // (mas confiable: el proveedor repite siempre el mismo codigo aunque la descripcion
+      // varie un poco de una factura a otra); si no hay codigo, se guarda por nombre.
+      if (item.producto_id && item.codigo_factura) {
+        await client.query(
+          `INSERT INTO proveedor_producto_alias (proveedor_id, nombre_factura, codigo_factura, producto_id)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (proveedor_id, codigo_factura) WHERE codigo_factura IS NOT NULL
+           DO UPDATE SET producto_id = EXCLUDED.producto_id, nombre_factura = EXCLUDED.nombre_factura`,
+          [proveedor_id, item.nombre_factura || item.codigo_factura, item.codigo_factura, item.producto_id]
+        );
+      } else if (item.producto_id && item.nombre_factura) {
         await client.query(
           `INSERT INTO proveedor_producto_alias (proveedor_id, nombre_factura, producto_id)
            VALUES ($1, $2, $3)
-           ON CONFLICT (proveedor_id, nombre_factura) DO UPDATE SET producto_id = EXCLUDED.producto_id`,
+           ON CONFLICT (proveedor_id, nombre_factura) WHERE codigo_factura IS NULL
+           DO UPDATE SET producto_id = EXCLUDED.producto_id`,
           [proveedor_id, item.nombre_factura, item.producto_id]
         );
       }
