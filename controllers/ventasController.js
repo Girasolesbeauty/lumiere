@@ -151,6 +151,9 @@ const create = async (req, res) => {
 
     let descuento_total = descuento || 0;
     let cuponId = null;
+    // Preventa (factura al confirmar entrega) o pagada 100% con gift card ya facturada:
+    // no corresponde facturar ahora en ARCA.
+    const totalGCInicial = parseFloat(monto_gift_card) || 0;
 
     if (cupon_codigo) {
       const cupon = await client.query(
@@ -183,12 +186,16 @@ const create = async (req, res) => {
     const count = await client.query('SELECT COUNT(*) FROM ventas');
     const numero = 'F-' + String(parseInt(count.rows[0].count) + 1).padStart(4, '0');
 
+    // Se calcula reci\u00e9n ac\u00e1 porque depende de 'total', que se define m\u00e1s arriba.
+    const estadoFacturacionInicial = (es_preventa === true || totalGCInicial >= total) ? 'no_aplica' : 'pendiente';
+
     const venta = await client.query(
       `INSERT INTO ventas
         (numero_factura, cliente_id, tipo_factura, subtotal, descuento, total, canal, local_id,
          medio_pago_id, medio_pago, es_preventa, nombre_preventa, estado_pago,
-         usuario_id, inicio_venta, duracion_segundos, monto_gift_card, preventa_local, referencia, cupon_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING *`,
+         usuario_id, inicio_venta, duracion_segundos, monto_gift_card, preventa_local, referencia, cupon_id,
+         estado_facturacion)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING *`,
       [
         numero, cliente_id, tipo_factura, subtotal, descuento_total, total,
         canal || 'presencial', local_id || 1,
@@ -199,7 +206,8 @@ const create = async (req, res) => {
         parseFloat(monto_gift_card) || 0,
         es_preventa === true ? (local_id || 1) : null,
         referencia || null,
-        cuponId
+        cuponId,
+        estadoFacturacionInicial
       ]
     );
 
@@ -546,8 +554,8 @@ const crearOnline = async (req, res) => {
     const venta = await client.query(
       `INSERT INTO ventas
         (numero_factura, cliente_id, tipo_factura, subtotal, descuento, total, canal, local_id,
-         medio_pago_id, medio_pago, es_preventa, estado_pago, usuario_id, creado_en, cupon_id)
-       VALUES ($1, $9, NULL, $2, 0, $3, 'online', $4, $5, $6, FALSE, 'pagado', $7, COALESCE($8::timestamp, NOW()), $10) RETURNING *`,
+         medio_pago_id, medio_pago, es_preventa, estado_pago, usuario_id, creado_en, cupon_id, estado_facturacion)
+       VALUES ($1, $9, NULL, $2, 0, $3, 'online', $4, $5, $6, FALSE, 'pagado', $7, COALESCE($8::timestamp, NOW()), $10, 'no_aplica') RETURNING *`,
       [numero, subtotal, totalNum, local_id || 1, medio_pago_id || null, medio_pago_nombre || null, usuario_id || null, fechaVenta, cliente_id || null, cuponId]
     );
     const ventaId = venta.rows[0].id;

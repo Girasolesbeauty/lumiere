@@ -118,43 +118,29 @@ async function obtenerUltimoComprobante(tipo, token, sign) {
   return (nroMatch ? parseInt(nroMatch[1]) : 0) + 1;
 }
 
-router.get('/ultimo-comprobante/:tipo', async (req, res) => {
-  try {
-    const { tipo } = req.params;
-    const { token, sign } = await obtenerToken();
-    const siguiente = await obtenerUltimoComprobante(tipo, token, sign);
-    res.json({ siguiente });
-  } catch (error) {
-    res.status(500).json({ error: 'Error: ' + error.message });
+// --- Lógica reutilizable: pedir CAE para una venta puntual ---
+async function intentarEmitirCAE({ tipo, items, total, cliente_cuit, venta_id }) {
+  const { token, sign } = await obtenerToken();
+  const tipoNum = tipo === 'A' ? 1 : tipo === 'B' ? 6 : 11;
+  const nroComprobante = await obtenerUltimoComprobante(tipo, token, sign);
+  const hoy = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const ivaTotal = 0;
+  const neto = total;
+
+  const docLimpio = cliente_cuit ? cliente_cuit.toString().replace(/[^0-9]/g, '') : '';
+  let docTipo, docNro;
+  if (tipo === 'A') {
+    docTipo = 80;
+    docNro = docLimpio || 0;
+  } else if (docLimpio.length === 11) {
+    docTipo = 80; docNro = docLimpio;
+  } else if (docLimpio.length === 7 || docLimpio.length === 8) {
+    docTipo = 96; docNro = docLimpio;
+  } else {
+    docTipo = 99; docNro = 0;
   }
-});
 
-router.post('/emitir', async (req, res) => {
-  try {
-    const { tipo, items, total, cliente_cuit, venta_id } = req.body;
-    const { token, sign } = await obtenerToken();
-    const tipoNum = tipo === 'A' ? 1 : tipo === 'B' ? 6 : 11;
-    const nroComprobante = await obtenerUltimoComprobante(tipo, token, sign);
-    const hoy = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const ivaTotal = 0;
-const neto = total;
-    // Documento del cliente: elige el tipo correcto segun lo que se cargo.
-    // 80 = CUIT (11 digitos), 96 = DNI (7-8 digitos), 99 = Consumidor Final sin identificar.
-    const docLimpio = cliente_cuit ? cliente_cuit.toString().replace(/[^0-9]/g, '') : '';
-    let docTipo, docNro;
-    if (tipo === 'A') {
-      // Factura A siempre requiere CUIT
-      docTipo = 80;
-      docNro = docLimpio || 0;
-    } else if (docLimpio.length === 11) {
-      docTipo = 80; docNro = docLimpio;           // CUIT
-    } else if (docLimpio.length === 7 || docLimpio.length === 8) {
-      docTipo = 96; docNro = docLimpio;           // DNI
-    } else {
-      docTipo = 99; docNro = 0;                   // Consumidor final sin identificar
-    }
-
-    const soapBody = `<?xml version="1.0" encoding="utf-8"?>
+  const soapBody = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
   <soap:Body>
     <FECAESolicitar xmlns="http://ar.gov.afip.dif.FEV1/">
@@ -193,39 +179,65 @@ const neto = total;
   </soap:Body>
 </soap:Envelope>`;
 
-    const response = await axios.post(WSFE_URL, soapBody, {
-      headers: { 'Content-Type': 'text/xml', 'SOAPAction': 'http://ar.gov.afip.dif.FEV1/FECAESolicitar' }
-    });
+  const response = await axios.post(WSFE_URL, soapBody, {
+    headers: { 'Content-Type': 'text/xml', 'SOAPAction': 'http://ar.gov.afip.dif.FEV1/FECAESolicitar' }
+  });
 
-    const caeMatch = response.data.match(/<CAE>(.*?)<\/CAE>/);
-    const caeFchMatch = response.data.match(/<CAEFchVto>(.*?)<\/CAEFchVto>/);
-    const resultMatch = response.data.match(/<Resultado>(.*?)<\/Resultado>/);
+  const caeMatch = response.data.match(/<CAE>(.*?)<\/CAE>/);
+  const caeFchMatch = response.data.match(/<CAEFchVto>(.*?)<\/CAEFchVto>/);
+  const resultMatch = response.data.match(/<Resultado>(.*?)<\/Resultado>/);
 
-    if (!caeMatch || resultMatch?.[1] !== 'A') {
-      const errMatch = response.data.match(/<Msg>(.*?)<\/Msg>/);
-      throw new Error(errMatch ? errMatch[1] : 'ARCA rechazo la factura. Respuesta: ' + response.data.substring(0, 300));
-    }
+  if (!caeMatch || resultMatch?.[1] !== 'A') {
+    const errMatch = response.data.match(/<Msg>(.*?)<\/Msg>/);
+    throw new Error(errMatch ? errMatch[1] : 'ARCA rechazo la factura. Respuesta: ' + response.data.substring(0, 300));
+  }
 
-    const cae = caeMatch[1];
-    const caeFch = caeFchMatch ? caeFchMatch[1] : '';
+  const cae = caeMatch[1];
+  const caeFch = caeFchMatch ? caeFchMatch[1] : '';
 
-    if (venta_id) {
-      await pool.query(
-        'UPDATE ventas SET cae = $1, estado = $2, nro_comprobante = $3, cae_vto = $4, punto_venta = $5 WHERE id = $6',
-        [cae, 'emitida', nroComprobante, caeFch, PUNTO_VENTA, venta_id]
-      );
-    }
+  if (venta_id) {
+    await pool.query(
+      `UPDATE ventas SET cae = $1, estado = $2, nro_comprobante = $3, cae_vto = $4, punto_venta = $5,
+         estado_facturacion = 'facturada', intentos_facturacion = intentos_facturacion + 1, ultimo_error_facturacion = NULL
+       WHERE id = $6`,
+      [cae, 'emitida', nroComprobante, caeFch, PUNTO_VENTA, venta_id]
+    );
+  }
 
-    res.json({
-      cae,
-      caeFch,
-      nroComprobante,
-      tipo,
-      puntoVenta: PUNTO_VENTA,
-      mensaje: `Factura ${tipo} N° ${String(PUNTO_VENTA).padStart(4,'0')}-${String(nroComprobante).padStart(8,'0')} emitida correctamente`
-    });
+  return {
+    cae, caeFch, nroComprobante, tipo, puntoVenta: PUNTO_VENTA,
+    mensaje: `Factura ${tipo} N° ${String(PUNTO_VENTA).padStart(4,'0')}-${String(nroComprobante).padStart(8,'0')} emitida correctamente`
+  };
+}
+
+async function marcarError(venta_id, mensaje) {
+  if (!venta_id) return;
+  await pool.query(
+    `UPDATE ventas SET intentos_facturacion = intentos_facturacion + 1, ultimo_error_facturacion = $1
+     WHERE id = $2`,
+    [mensaje, venta_id]
+  );
+}
+
+router.get('/ultimo-comprobante/:tipo', async (req, res) => {
+  try {
+    const { tipo } = req.params;
+    const { token, sign } = await obtenerToken();
+    const siguiente = await obtenerUltimoComprobante(tipo, token, sign);
+    res.json({ siguiente });
+  } catch (error) {
+    res.status(500).json({ error: 'Error: ' + error.message });
+  }
+});
+
+router.post('/emitir', async (req, res) => {
+  const { venta_id } = req.body;
+  try {
+    const resultado = await intentarEmitirCAE(req.body);
+    res.json(resultado);
   } catch (error) {
     console.error('Error ARCA emitir:', error.message);
+    await marcarError(venta_id, error.message);
     res.status(500).json({ error: 'Error al emitir factura: ' + error.message });
   }
 });
@@ -237,6 +249,62 @@ router.get('/estado', async (req, res) => {
   } catch (error) {
     res.status(500).json({ estado: 'error', mensaje: error.message });
   }
+});
+
+// --- NUEVO: cantidad de facturas realmente pendientes (para el badge del POS) ---
+router.get('/pendientes/count', async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT COUNT(*) FROM ventas
+       WHERE canal = 'presencial' AND es_preventa = FALSE
+         AND (cae IS NULL OR cae = '')
+         AND monto_gift_card < total
+         AND estado_facturacion != 'no_aplica'`
+    );
+    res.json({ pendientes: parseInt(r.rows[0].count) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- NUEVO: reintentar todas las pendientes (se llama desde un cron cada X minutos) ---
+router.post('/reintentar-pendientes', async (req, res) => {
+  const pendientes = await pool.query(
+    `SELECT v.id, v.tipo_factura, v.total, c.cuit_dni AS cliente_cuit
+     FROM ventas v
+     LEFT JOIN clientes c ON v.cliente_id = c.id
+     WHERE v.canal = 'presencial' AND v.es_preventa = FALSE
+       AND (v.cae IS NULL OR v.cae = '')
+       AND v.monto_gift_card < v.total
+       AND v.estado_facturacion != 'no_aplica'
+     ORDER BY v.id ASC`
+  );
+
+  const resultados = [];
+  // Serial, no en paralelo: la numeración de comprobante depende del último autorizado en ARCA
+  for (const venta of pendientes.rows) {
+    const itemsRes = await pool.query(
+      `SELECT vi.producto_id, vi.cantidad, vi.precio_unitario
+       FROM venta_items vi WHERE vi.venta_id = $1`,
+      [venta.id]
+    );
+    const items = itemsRes.rows;
+    try {
+      const r = await intentarEmitirCAE({
+        tipo: venta.tipo_factura || 'B',
+        items,
+        total: parseFloat(venta.total) - parseFloat(venta.monto_gift_card || 0),
+        cliente_cuit: venta.cliente_cuit,
+        venta_id: venta.id
+      });
+      resultados.push({ venta_id: venta.id, ok: true, cae: r.cae });
+    } catch (error) {
+      await marcarError(venta.id, error.message);
+      resultados.push({ venta_id: venta.id, ok: false, error: error.message });
+    }
+  }
+
+  res.json({ procesadas: resultados.length, resultados });
 });
 
 module.exports = router;
