@@ -118,7 +118,7 @@ async function obtenerUltimoComprobante(tipo, token, sign) {
   return (nroMatch ? parseInt(nroMatch[1]) : 0) + 1;
 }
 
-// --- Lógica reutilizable: pedir CAE para una venta puntual ---
+// --- Logica reutilizable: pedir CAE para una venta puntual ---
 async function intentarEmitirCAE({ tipo, items, total, cliente_cuit, venta_id }) {
   const { token, sign } = await obtenerToken();
   const tipoNum = tipo === 'A' ? 1 : tipo === 'B' ? 6 : 11;
@@ -251,7 +251,7 @@ router.get('/estado', async (req, res) => {
   }
 });
 
-// --- NUEVO: cantidad de facturas realmente pendientes (para el badge del POS) ---
+// --- Cantidad de facturas realmente pendientes (para el badge del POS) ---
 router.get('/pendientes/count', async (req, res) => {
   try {
     const r = await pool.query(
@@ -267,10 +267,10 @@ router.get('/pendientes/count', async (req, res) => {
   }
 });
 
-// --- NUEVO: reintentar todas las pendientes (se llama desde un cron cada X minutos) ---
+// --- Reintentar todas las pendientes (se llama desde un cron cada X minutos) ---
 router.post('/reintentar-pendientes', async (req, res) => {
   const pendientes = await pool.query(
-    `SELECT v.id, v.tipo_factura, v.total, c.cuit_dni AS cliente_cuit
+    `SELECT v.id, v.tipo_factura, v.total, v.monto_gift_card, c.cuit_dni AS cliente_cuit
      FROM ventas v
      LEFT JOIN clientes c ON v.cliente_id = c.id
      WHERE v.canal = 'presencial' AND v.es_preventa = FALSE
@@ -281,7 +281,7 @@ router.post('/reintentar-pendientes', async (req, res) => {
   );
 
   const resultados = [];
-  // Serial, no en paralelo: la numeración de comprobante depende del último autorizado en ARCA
+  // Serial, no en paralelo: la numeracion de comprobante depende del ultimo autorizado en ARCA
   for (const venta of pendientes.rows) {
     const itemsRes = await pool.query(
       `SELECT vi.producto_id, vi.cantidad, vi.precio_unitario
