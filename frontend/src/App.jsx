@@ -1346,7 +1346,7 @@ function POS({ localId, usuario }) {
         total_con_interes: total, es_preventa: preventa,
         nombre_preventa: preventa ? nombrePreventa : null,
         monto_gift_card: montoAplicadoGC,
-        insumos_usados: (!preventa && insumosPosActivo) ? Object.values(insumosSel).filter(v => v && v !== "ninguna").map(v => parseInt(v)) : [],
+        insumos_usados: (!preventa && insumosPosActivo) ? Object.entries(insumosSel).flatMap(([id, cant]) => Array(cant > 0 ? cant : 0).fill(parseInt(id))) : [],
         referencia: referenciaVenta || null,
         usuario_id: usuario?.id || null, usuario_nombre: usuario?.nombre || null,
         justificaciones_stock: justificacionesStock
@@ -1782,12 +1782,16 @@ function POS({ localId, usuario }) {
                       <span onClick={() => { setMostrarInsumos(false); setInsumosSel({}); }} style={{ cursor: "pointer", fontSize: 11, color: "#999" }}>ocultar</span>
                     </div>
                     {insumosPos.map(ins => {
-                      const marcado = insumosSel[ins.id] && insumosSel[ins.id] !== "ninguna";
+                      const cantidad = insumosSel[ins.id] || 0;
                       return (
-                        <label key={ins.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", fontSize: 12, cursor: "pointer" }}>
-                          <input type="checkbox" checked={!!marcado} onChange={e => setInsumosSel(p => ({ ...p, [ins.id]: e.target.checked ? String(ins.id) : "ninguna" }))} />
+                        <div key={ins.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 0", fontSize: 12 }}>
                           <span>{ins.nombre}</span>
-                        </label>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <button type="button" onClick={() => setInsumosSel(p => ({ ...p, [ins.id]: Math.max(0, (p[ins.id] || 0) - 1) }))} style={{ width: 24, height: 24, borderRadius: 6, border: "1px solid #ddd", background: "#fff", cursor: "pointer", lineHeight: 1 }}>-</button>
+                            <span style={{ minWidth: 16, textAlign: "center", fontWeight: cantidad > 0 ? 700 : 400, color: cantidad > 0 ? "#c9a84c" : "#999" }}>{cantidad}</span>
+                            <button type="button" onClick={() => setInsumosSel(p => ({ ...p, [ins.id]: (p[ins.id] || 0) + 1 }))} style={{ width: 24, height: 24, borderRadius: 6, border: "1px solid #ddd", background: "#fff", cursor: "pointer", lineHeight: 1 }}>+</button>
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
