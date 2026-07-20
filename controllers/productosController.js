@@ -77,12 +77,13 @@ const create = async (req, res) => {
 const update = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, marca, precio, costo, stock, stock_minimo, lead_time_dias, categoria, codigo_barras } = req.body;
+    const { nombre, marca, precio, costo, stock, stock_minimo, lead_time_dias, categoria, codigo_barras, activo } = req.body;
     const result = await pool.query(
       `UPDATE productos SET nombre=$1, marca=$2, precio=$3, costo=$4, stock=$5, 
-       stock_minimo=$6, lead_time_dias=$7, categoria=$8, codigo_barras=$9
-       WHERE id=$10 RETURNING *`,
-      [nombre, marca, precio, costo, stock, stock_minimo, lead_time_dias, categoria, codigo_barras, id]
+       stock_minimo=$6, lead_time_dias=$7, categoria=$8, codigo_barras=$9,
+       activo=COALESCE($10, activo)
+       WHERE id=$11 RETURNING *`,
+      [nombre, marca, precio, costo, stock, stock_minimo, lead_time_dias, categoria, codigo_barras, activo, id]
     );
     res.json(result.rows[0]);
   } catch (error) {

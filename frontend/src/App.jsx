@@ -1346,7 +1346,7 @@ function POS({ localId, usuario }) {
         total_con_interes: total, es_preventa: preventa,
         nombre_preventa: preventa ? nombrePreventa : null,
         monto_gift_card: montoAplicadoGC,
-        insumos_usados: (!preventa && insumosPosActivo) ? Object.entries(insumosSel).flatMap(([id, cant]) => Array(cant > 0 ? cant : 0).fill(parseInt(id))) : [],
+        insumos_usados: (!preventa && insumosPosActivo) ? Object.values(insumosSel).filter(v => v && v !== "ninguna").map(v => parseInt(v)) : [],
         referencia: referenciaVenta || null,
         usuario_id: usuario?.id || null, usuario_nombre: usuario?.nombre || null,
         justificaciones_stock: justificacionesStock
@@ -1782,16 +1782,12 @@ function POS({ localId, usuario }) {
                       <span onClick={() => { setMostrarInsumos(false); setInsumosSel({}); }} style={{ cursor: "pointer", fontSize: 11, color: "#999" }}>ocultar</span>
                     </div>
                     {insumosPos.map(ins => {
-                      const cantidad = insumosSel[ins.id] || 0;
+                      const marcado = insumosSel[ins.id] && insumosSel[ins.id] !== "ninguna";
                       return (
-                        <div key={ins.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 0", fontSize: 12 }}>
+                        <label key={ins.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", fontSize: 12, cursor: "pointer" }}>
+                          <input type="checkbox" checked={!!marcado} onChange={e => setInsumosSel(p => ({ ...p, [ins.id]: e.target.checked ? String(ins.id) : "ninguna" }))} />
                           <span>{ins.nombre}</span>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <button type="button" onClick={() => setInsumosSel(p => ({ ...p, [ins.id]: Math.max(0, (p[ins.id] || 0) - 1) }))} style={{ width: 24, height: 24, padding: 0, borderRadius: 6, border: "1px solid #ddd", background: "#fff", color: "#333", fontSize: 15, fontWeight: 700, lineHeight: "1", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box" }}>−</button>
-                            <span style={{ minWidth: 16, textAlign: "center", fontWeight: cantidad > 0 ? 700 : 400, color: cantidad > 0 ? "#c9a84c" : "#999" }}>{cantidad}</span>
-                            <button type="button" onClick={() => setInsumosSel(p => ({ ...p, [ins.id]: (p[ins.id] || 0) + 1 }))} style={{ width: 24, height: 24, padding: 0, borderRadius: 6, border: "1px solid #ddd", background: "#fff", color: "#333", fontSize: 15, fontWeight: 700, lineHeight: "1", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box" }}>+</button>
-                          </div>
-                        </div>
+                        </label>
                       );
                     })}
                   </div>
@@ -2031,7 +2027,8 @@ function Inventario({ localId, usuario }) {
     setNuevo({
       nombre: p.nombre || "", marca: p.marca || "", codigo: p.codigo_barras || p.codigo || "",
       categoria: p.categoria || "", precio: p.precio || p.price || "", costo: p.costo || p.cost || "",
-      stock: "", stock_minimo: p.stock_minimo || "", proveedor_id: p.proveedor_id || "", descripcion: ""
+      stock: "", stock_minimo: p.stock_minimo || "", proveedor_id: p.proveedor_id || "", descripcion: "",
+      activo: p.activo !== false
     });
     setShowForm(true);
   };
@@ -2045,7 +2042,8 @@ function Inventario({ localId, usuario }) {
         costo: parseFloat(nuevo.costo) || 0,
         stock: editandoProd.stock || 0,
         stock_minimo: parseInt(nuevo.stock_minimo) || 5,
-        lead_time_dias: editandoProd.lead_time_dias || 0
+        lead_time_dias: editandoProd.lead_time_dias || 0,
+        activo: nuevo.activo !== false
       });
       setMensaje("Producto actualizado!");
       setNuevo({ nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "", stock: "", stock_minimo: "", proveedor_id: "", descripcion: "" });
@@ -2137,6 +2135,12 @@ function Inventario({ localId, usuario }) {
               {!editandoProd && (<div className="fg"><div className="fl">Stock inicial</div><input className="inp" type="number" placeholder="10" value={nuevo.stock} onChange={e => setNuevo(p => ({ ...p, stock: e.target.value }))} /></div>)}
               {editandoProd && <div style={{ fontSize: 10, color: "#65676B", marginBottom: 12 }}>El stock se modifica con el boton "Ajustar".</div>}
               <div className="fg"><div className="fl">Stock minimo (alerta)</div><input className="inp" type="number" placeholder="5" value={nuevo.stock_minimo} onChange={e => setNuevo(p => ({ ...p, stock_minimo: e.target.value }))} /></div>
+              {editandoProd && (
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer", marginBottom: 12 }}>
+                  <input type="checkbox" checked={nuevo.activo !== false} onChange={e => setNuevo(p => ({ ...p, activo: e.target.checked }))} />
+                  <span>Producto activo (si lo desmarcás, deja de aparecer en el POS y en las listas, pero no borra su historial)</span>
+                </label>
+              )}
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <button className="btn btn-p" style={{ flex: 1 }} onClick={editandoProd ? guardarEdicionProd : guardarProducto}>{editandoProd ? "Guardar cambios" : "Crear producto"}</button>
                 <button className="btn btn-g" style={{ flex: 1 }} onClick={() => { setShowForm(false); setEditandoProd(null); }}>Cancelar</button>
