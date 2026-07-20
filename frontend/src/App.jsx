@@ -1787,9 +1787,9 @@ function POS({ localId, usuario }) {
                         <div key={ins.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 0", fontSize: 12 }}>
                           <span>{ins.nombre}</span>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <button type="button" onClick={() => setInsumosSel(p => ({ ...p, [ins.id]: Math.max(0, (p[ins.id] || 0) - 1) }))} style={{ width: 24, height: 24, borderRadius: 6, border: "1px solid #ddd", background: "#fff", cursor: "pointer", lineHeight: 1 }}>-</button>
+                            <button type="button" onClick={() => setInsumosSel(p => ({ ...p, [ins.id]: Math.max(0, (p[ins.id] || 0) - 1) }))} style={{ width: 24, height: 24, padding: 0, borderRadius: 6, border: "1px solid #ddd", background: "#fff", color: "#333", fontSize: 15, fontWeight: 700, lineHeight: "1", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box" }}>−</button>
                             <span style={{ minWidth: 16, textAlign: "center", fontWeight: cantidad > 0 ? 700 : 400, color: cantidad > 0 ? "#c9a84c" : "#999" }}>{cantidad}</span>
-                            <button type="button" onClick={() => setInsumosSel(p => ({ ...p, [ins.id]: (p[ins.id] || 0) + 1 }))} style={{ width: 24, height: 24, borderRadius: 6, border: "1px solid #ddd", background: "#fff", cursor: "pointer", lineHeight: 1 }}>+</button>
+                            <button type="button" onClick={() => setInsumosSel(p => ({ ...p, [ins.id]: (p[ins.id] || 0) + 1 }))} style={{ width: 24, height: 24, padding: 0, borderRadius: 6, border: "1px solid #ddd", background: "#fff", color: "#333", fontSize: 15, fontWeight: 700, lineHeight: "1", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box" }}>+</button>
                           </div>
                         </div>
                       );
