@@ -7079,13 +7079,13 @@ function OrdenesIngreso({ localId, usuario }) {
 
       {tab === "lista" && (
         <div className="card">
-          {loading ? (<div style={{ textAlign: "center", color: "#65676B", fontSize: 12 }}>Cargando...</div>) : ordenes.filter(o => o.estado !== "recibida" && o.estado !== "pagada").length === 0 ? (
+          {loading ? (<div style={{ textAlign: "center", color: "#65676B", fontSize: 12 }}>Cargando...</div>) : ordenes.filter(o => o.estado !== "recibida" && o.estado !== "pagada" && (localActual === "rg" ? o.rg_tiene_items : o.ush_tiene_items)).length === 0 ? (
             <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 30 }}>No hay ordenes pendientes de recibir</div>
           ) : (
             <table>
               <thead><tr><th>Factura</th><th>Proveedor</th><th>Fecha</th><th>Estado</th><th>Total</th><th></th></tr></thead>
               <tbody>
-                {ordenes.filter(o => o.estado !== "recibida" && o.estado !== "pagada").map((o, i) => {
+                {ordenes.filter(o => o.estado !== "recibida" && o.estado !== "pagada" && (localActual === "rg" ? o.rg_tiene_items : o.ush_tiene_items)).map((o, i) => {
                   const completoMiLocal = localActual === "rg" ? o.rg_completo : o.ush_completo;
                   return (
                   <tr key={i}>

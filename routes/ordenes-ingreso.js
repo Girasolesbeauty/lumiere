@@ -7,6 +7,8 @@ router.get('/', async (req, res) => {
   try {
     const { estado } = req.query;
     let query = `SELECT o.*, p.nombre as proveedor_nombre, p.dias_pago,
+                   COALESCE(bool_or(oi.cantidad_rg > 0), false) AS rg_tiene_items,
+                   COALESCE(bool_or(oi.cantidad_ush > 0), false) AS ush_tiene_items,
                    COALESCE(bool_and(CASE WHEN oi.cantidad_rg > 0 THEN oi.revisado_rg ELSE true END), true) AS rg_completo,
                    COALESCE(bool_and(CASE WHEN oi.cantidad_ush > 0 THEN oi.revisado_ush ELSE true END), true) AS ush_completo
                  FROM ordenes_ingreso o
