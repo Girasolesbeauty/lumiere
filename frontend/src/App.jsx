@@ -1959,6 +1959,7 @@ function Inventario({ localId, usuario }) {
   const [filtroCat, setFiltroCat] = useState("");
   const [filtroStock, setFiltroStock] = useState("");
   const [filtroEstadoProd, setFiltroEstadoProd] = useState("activos");
+  const [filtroProveedorValor, setFiltroProveedorValor] = useState("");
   const [filtroMarcaAlertas, setFiltroMarcaAlertas] = useState("");
   const [vistaLocal, setVistaLocal] = useState("mi");
   const [nuevo, setNuevo] = useState({
@@ -2151,9 +2152,9 @@ function Inventario({ localId, usuario }) {
         </div>
       )}
       <div className="tabs">
-        {["stock", "transito", "alertas", "movimientos"].map(t => (
+        {["stock", "valorizacion", "transito", "alertas", "movimientos"].map(t => (
           <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "transito") cargarTransito(); }}>
-            {t === "stock" ? "STOCK" : t === "transito" ? "EN TRANSITO" : t === "alertas" ? "ALERTAS" + (alertas.length > 0 ? " (" + alertas.length + ")" : "") : "MOVIMIENTOS"}
+            {t === "stock" ? "STOCK" : t === "valorizacion" ? "VALORIZACION" : t === "transito" ? "EN TRANSITO" : t === "alertas" ? "ALERTAS" + (alertas.length > 0 ? " (" + alertas.length + ")" : "") : "MOVIMIENTOS"}
           </div>
         ))}
       </div>
@@ -2255,6 +2256,76 @@ function Inventario({ localId, usuario }) {
           )}
         </div>
       )}
+      {tab === "valorizacion" && (() => {
+        const activos = productos.filter(p => p.activo !== false);
+        const proveedoresConProd = [...new Set(activos.map(p => p.proveedor_nombre).filter(Boolean))].sort();
+        const filtrados = filtroProveedorValor ? activos.filter(p => p.proveedor_nombre === filtroProveedorValor) : activos;
+        const stockDe = (p) => vistaLocal === "consolidado"
+          ? ((p.stock_rg || 0) + (p.stock_ush || 0))
+          : vistaLocal === "otro"
+            ? (Number(localId) === 2 ? (p.stock_rg || 0) : (p.stock_ush || 0))
+            : (Number(localId) === 2 ? (p.stock_ush || 0) : (p.stock_rg || 0));
+        const filas = filtrados.map(p => {
+          const stockP = stockDe(p);
+          const costoU = parseFloat(p.costo) || 0;
+          const precioU = parseFloat(p.precio) || 0;
+          return { ...p, stockP, valorCosto: costoU * stockP, valorVenta: precioU * stockP };
+        });
+        const totalCosto = filas.reduce((a, f) => a + f.valorCosto, 0);
+        const totalVenta = filas.reduce((a, f) => a + f.valorVenta, 0);
+        const gananciaPotencial = totalVenta - totalCosto;
+        const margenPct = totalVenta > 0 ? (gananciaPotencial / totalVenta) * 100 : 0;
+        return (
+          <div>
+            <div className="card fade" style={{ marginBottom: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <select className="sel" style={{ width: 220 }} value={filtroProveedorValor} onChange={e => setFiltroProveedorValor(e.target.value)}>
+                <option value="">Todos los proveedores</option>
+                {proveedoresConProd.map(pn => <option key={pn} value={pn}>{pn}</option>)}
+              </select>
+              <div style={{ display: "flex", gap: 6 }}>
+                {[["mi", Number(localId) === 2 ? "Ushuaia" : "Rio Grande"], ["otro", Number(localId) === 2 ? "Rio Grande" : "Ushuaia"], ["consolidado", "Consolidado"]].map(([id, l]) => (
+                  <div key={id} className={"tab " + (vistaLocal === id ? "on" : "")} style={{ fontSize: 11 }} onClick={() => setVistaLocal(id)}>{l}</div>
+                ))}
+              </div>
+              <div style={{ fontSize: 10, color: "#65676B" }}>Solo productos activos. Basado en el costo y precio cargados en cada producto.</div>
+            </div>
+            <div className="g3" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
+              <div className="card">
+                <div style={{ fontSize: 11, color: "#65676B" }}>Valor de mercadería (a costo)</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "#1C1E21" }}>{fmt(totalCosto)}</div>
+              </div>
+              <div className="card">
+                <div style={{ fontSize: 11, color: "#65676B" }}>Total si se vendiera todo</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "#c9a84c" }}>{fmt(totalVenta)}</div>
+              </div>
+              <div className="card">
+                <div style={{ fontSize: 11, color: "#65676B" }}>Ganancia potencial</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "#2d7a4f" }}>{fmt(gananciaPotencial)}</div>
+                <div style={{ fontSize: 11, color: "#2d7a4f" }}>{margenPct.toFixed(1)}% de margen</div>
+              </div>
+            </div>
+            <div className="card fade">
+              <table>
+                <thead><tr><th>Producto</th><th>Proveedor</th><th>Stock</th><th>Costo unit.</th><th>Precio unit.</th><th>Valor a costo</th><th>Valor a venta</th></tr></thead>
+                <tbody>
+                  {filas.map(f => (
+                    <tr key={f.id}>
+                      <td style={{ fontWeight: 500 }}>{f.nombre}</td>
+                      <td style={{ fontSize: 11, color: "#65676B" }}>{f.proveedor_nombre || "-"}</td>
+                      <td><span className="badge bx">{f.stockP}</span></td>
+                      <td style={{ fontSize: 11 }}>{fmt(parseFloat(f.costo) || 0)}</td>
+                      <td style={{ fontSize: 11 }}>{fmt(parseFloat(f.precio) || 0)}</td>
+                      <td>{fmt(f.valorCosto)}</td>
+                      <td style={{ color: "#c9a84c" }}>{fmt(f.valorVenta)}</td>
+                    </tr>
+                  ))}
+                  {filas.length === 0 && <tr><td colSpan={7} style={{ color: "#65676B", textAlign: "center" }}>Sin productos para este filtro</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
       {tab === "transito" && (
         <div className="card fade">
           {transito.length === 0 ? (
