@@ -6862,10 +6862,13 @@ function OrdenesIngreso({ localId, usuario }) {
         setFacturaItems(null);
       } else {
         setFacturaItems(items.map(it => ({
-          nombre_crudo: it.nombre_crudo, cantidad: it.cantidad, costo_unitario: it.costo_unitario,
+          nombre_crudo: it.nombre_crudo, cantidad: it.cantidad,
           codigo_interno: it.codigo_interno || "", codigo_barras: it.codigo_barras || "",
           producto_id: it.producto_id_sugerido || "", producto_nombre: it.producto_nombre_sugerido || "",
-          es_alias_conocido: it.es_alias_conocido
+          es_alias_conocido: it.es_alias_conocido,
+          // El costo NO sale de la factura -- se usa siempre el que ya esta cargado en el producto.
+          // Por defecto toda la cantidad detectada va a Rio Grande; se puede repartir antes de confirmar.
+          cantidad_rg: it.cantidad, cantidad_ush: 0
         })));
       }
     } catch (e) { setMensaje("Error al procesar la factura: " + (e.response?.data?.error || e.message)); }
@@ -6882,19 +6885,51 @@ function OrdenesIngreso({ localId, usuario }) {
   const confirmarFactura = async () => {
     if (!facturaItems || facturaItems.length === 0) return;
     if (facturaItems.some(it => !it.producto_id)) return setMensaje("Vincula un producto para cada fila (o eliminala con la 'x')");
+    if (facturaItems.some(it => (parseInt(it.cantidad_rg) || 0) + (parseInt(it.cantidad_ush) || 0) <= 0)) {
+      return setMensaje("Cada fila necesita cantidad para Rio Grande, Ushuaia, o ambos.");
+    }
     try {
-      const items = facturaItems.map(it => ({
-        producto_id: it.producto_id, producto_nombre: it.producto_nombre, nombre_factura: it.nombre_crudo,
-        codigo_factura: it.codigo_interno || null,
-        cantidad_rg: localActual === "rg" ? it.cantidad : 0,
-        cantidad_ush: localActual === "ush" ? it.cantidad : 0,
-        cantidad_total: it.cantidad, costo_unitario: parseFloat(it.costo_unitario) || 0
-      }));
-      const total = items.reduce((s, it) => s + it.costo_unitario * it.cantidad_total, 0);
-      await API.post("/ordenes-ingreso", {
-        proveedor_id: facturaForm.proveedor_id, numero_factura: facturaForm.numero_factura, total, notas: "Cargada desde factura", items
-      });
-      setMensaje("Orden creada desde la factura! Stock en transito cargado.");
+      const costoDe = (productoId) => {
+        const prod = productos.find(p => String(p.id) === String(productoId));
+        return parseFloat(prod?.costo) || 0;
+      };
+
+      const itemsRG = facturaItems
+        .filter(it => (parseInt(it.cantidad_rg) || 0) > 0)
+        .map(it => ({
+          producto_id: it.producto_id, producto_nombre: it.producto_nombre, nombre_factura: it.nombre_crudo,
+          codigo_factura: it.codigo_interno || null,
+          cantidad_rg: parseInt(it.cantidad_rg) || 0, cantidad_ush: 0,
+          cantidad_total: parseInt(it.cantidad_rg) || 0, costo_unitario: costoDe(it.producto_id)
+        }));
+      const itemsUSH = facturaItems
+        .filter(it => (parseInt(it.cantidad_ush) || 0) > 0)
+        .map(it => ({
+          producto_id: it.producto_id, producto_nombre: it.producto_nombre, nombre_factura: it.nombre_crudo,
+          codigo_factura: it.codigo_interno || null,
+          cantidad_rg: 0, cantidad_ush: parseInt(it.cantidad_ush) || 0,
+          cantidad_total: parseInt(it.cantidad_ush) || 0, costo_unitario: costoDe(it.producto_id)
+        }));
+
+      let creadas = 0;
+      if (itemsRG.length > 0) {
+        const totalRG = itemsRG.reduce((s, it) => s + it.costo_unitario * it.cantidad_total, 0);
+        await API.post("/ordenes-ingreso", {
+          proveedor_id: facturaForm.proveedor_id, numero_factura: facturaForm.numero_factura,
+          total: totalRG, notas: "Cargada desde factura - Rio Grande", items: itemsRG
+        });
+        creadas++;
+      }
+      if (itemsUSH.length > 0) {
+        const totalUSH = itemsUSH.reduce((s, it) => s + it.costo_unitario * it.cantidad_total, 0);
+        await API.post("/ordenes-ingreso", {
+          proveedor_id: facturaForm.proveedor_id, numero_factura: facturaForm.numero_factura,
+          total: totalUSH, notas: "Cargada desde factura - Ushuaia", items: itemsUSH
+        });
+        creadas++;
+      }
+
+      setMensaje(creadas > 1 ? "2 ordenes creadas (Rio Grande y Ushuaia). Stock en transito cargado." : "Orden creada desde la factura! Stock en transito cargado.");
       setFacturaItems(null); setFacturaArchivo(null); setFacturaForm({ proveedor_id: "", numero_factura: "" });
       cargar();
       setTab("lista");
@@ -7131,16 +7166,20 @@ function OrdenesIngreso({ localId, usuario }) {
           ) : (
             <div className="card">
               <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 4 }}>REVISA LOS PRODUCTOS DETECTADOS</div>
-              <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>Se van a cargar en {localNombre}. Corregi el producto vinculado donde haga falta, ajusta cantidad/costo, o quita filas que no correspondan.</div>
+              <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>Corregi el producto vinculado donde haga falta, y reparti la cantidad entre Rio Grande y Ushuaia (por defecto va todo a Rio Grande). El costo se toma del que ya tiene cargado cada producto, no de la factura.</div>
               <table>
-                <thead><tr><th>Nombre en la factura</th><th>Codigo</th><th>Cant.</th><th>Costo unit.</th><th>Producto vinculado</th><th></th></tr></thead>
+                <thead><tr><th>Nombre en la factura</th><th>Codigo</th><th>Cant. RG</th><th>Cant. USH</th><th>Costo (del producto)</th><th>Producto vinculado</th><th></th></tr></thead>
                 <tbody>
-                  {facturaItems.map((it, idx) => (
+                  {facturaItems.map((it, idx) => {
+                    const prodVinculado = productos.find(p => String(p.id) === String(it.producto_id));
+                    const costoProducto = parseFloat(prodVinculado?.costo) || 0;
+                    return (
                     <tr key={idx}>
                       <td style={{ fontSize: 11, color: "#65676B" }}>{it.nombre_crudo}</td>
                       <td style={{ fontSize: 10, color: "#999" }}>{it.codigo_interno || "-"}</td>
-                      <td><input className="inp" type="number" style={{ width: 60, padding: "4px 6px" }} value={it.cantidad} onChange={e => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, cantidad: parseInt(e.target.value) || 0 } : x))} /></td>
-                      <td><input className="inp" type="number" style={{ width: 90, padding: "4px 6px" }} value={it.costo_unitario} onChange={e => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, costo_unitario: e.target.value } : x))} /></td>
+                      <td><input className="inp" type="number" style={{ width: 60, padding: "4px 6px" }} value={it.cantidad_rg} onChange={e => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, cantidad_rg: parseInt(e.target.value) || 0 } : x))} /></td>
+                      <td><input className="inp" type="number" style={{ width: 60, padding: "4px 6px" }} value={it.cantidad_ush} onChange={e => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, cantidad_ush: parseInt(e.target.value) || 0 } : x))} /></td>
+                      <td style={{ fontSize: 11, color: it.producto_id ? "#444" : "#ccc" }}>{it.producto_id ? fmt(costoProducto) : "-"}</td>
                       <td>
                         {it.producto_id ? (
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
@@ -7162,12 +7201,13 @@ function OrdenesIngreso({ localId, usuario }) {
                       </td>
                       <td><span onClick={() => quitarItemFactura(idx)} style={{ cursor: "pointer", color: "#c0392b", fontSize: 13 }}>✕</span></td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
               <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
                 <button className="btn btn-g" onClick={() => { setFacturaItems(null); setFacturaArchivo(null); }}>Cancelar</button>
-                <button className="btn btn-p" onClick={confirmarFactura}>Confirmar y crear orden de ingreso</button>
+                <button className="btn btn-p" onClick={confirmarFactura}>Confirmar y crear orden{facturaItems.some(it => it.cantidad_rg > 0) && facturaItems.some(it => it.cantidad_ush > 0) ? "es" : ""} de ingreso</button>
               </div>
             </div>
           )}
