@@ -1960,6 +1960,7 @@ function Inventario({ localId, usuario }) {
   const [filtroStock, setFiltroStock] = useState("");
   const [filtroEstadoProd, setFiltroEstadoProd] = useState("activos");
   const [filtroMarcasValor, setFiltroMarcasValor] = useState([]);
+  const [marcaDropdownOpen, setMarcaDropdownOpen] = useState(false);
   const [filtroMarcaAlertas, setFiltroMarcaAlertas] = useState("");
   const [vistaLocal, setVistaLocal] = useState("mi");
   const [nuevo, setNuevo] = useState({
@@ -2281,26 +2282,31 @@ function Inventario({ localId, usuario }) {
         return (
           <div>
             <div className="card fade" style={{ marginBottom: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", flex: 1, minWidth: 240 }}>
-                {marcasConProd.length === 0 && <span style={{ fontSize: 11, color: "#999" }}>No hay marcas cargadas</span>}
-                {marcasConProd.map(mn => (
-                  <span
-                    key={mn}
-                    onClick={() => toggleMarca(mn)}
-                    className="badge"
-                    style={{
-                      cursor: "pointer",
-                      padding: "5px 10px",
-                      border: "1px solid " + (filtroMarcasValor.includes(mn) ? "#c9a84c" : "#ddd"),
-                      background: filtroMarcasValor.includes(mn) ? "#c9a84c22" : "#fff",
-                      color: filtroMarcasValor.includes(mn) ? "#8a6d1f" : "#444",
-                      fontWeight: filtroMarcasValor.includes(mn) ? 700 : 400
-                    }}
-                  >
-                    {mn}
-                  </span>
-                ))}
-                {filtroMarcasValor.length > 0 && <button className="btn btn-g btn-sm" onClick={() => setFiltroMarcasValor([])}>Limpiar ({filtroMarcasValor.length})</button>}
+              <div style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  className="sel"
+                  style={{ width: 240, textAlign: "left", cursor: "pointer", background: "#fff" }}
+                  onClick={() => setMarcaDropdownOpen(o => !o)}
+                >
+                  {filtroMarcasValor.length === 0 ? "Todas las marcas" : filtroMarcasValor.length + " marca" + (filtroMarcasValor.length > 1 ? "s" : "") + " seleccionada" + (filtroMarcasValor.length > 1 ? "s" : "")}
+                  <span style={{ float: "right", color: "#999" }}>▾</span>
+                </button>
+                {marcaDropdownOpen && (
+                  <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, width: 260, maxHeight: 280, overflowY: "auto", background: "#fff", border: "1px solid #ddd", borderRadius: 8, boxShadow: "0 4px 14px rgba(0,0,0,0.12)", zIndex: 20, padding: 8 }}>
+                    {marcasConProd.length === 0 && <div style={{ fontSize: 11, color: "#999", padding: 6 }}>No hay marcas cargadas</div>}
+                    {marcasConProd.map(mn => (
+                      <label key={mn} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 4px", fontSize: 12, cursor: "pointer" }}>
+                        <input type="checkbox" checked={filtroMarcasValor.includes(mn)} onChange={() => toggleMarca(mn)} />
+                        <span>{mn}</span>
+                      </label>
+                    ))}
+                    <div style={{ display: "flex", gap: 6, marginTop: 6, borderTop: "1px solid #eee", paddingTop: 6 }}>
+                      {filtroMarcasValor.length > 0 && <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => setFiltroMarcasValor([])}>Limpiar</button>}
+                      <button className="btn btn-p btn-sm" style={{ flex: 1 }} onClick={() => setMarcaDropdownOpen(false)}>Listo</button>
+                    </div>
+                  </div>
+                )}
               </div>
               <div style={{ display: "flex", gap: 6 }}>
                 {[["mi", Number(localId) === 2 ? "Ushuaia" : "Rio Grande"], ["otro", Number(localId) === 2 ? "Rio Grande" : "Ushuaia"], ["consolidado", "Consolidado"]].map(([id, l]) => (
