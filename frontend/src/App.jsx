@@ -4367,12 +4367,50 @@ function PostventaWA() {
     try { await API.post("/pedidos/" + pd.id + "/avisar"); setPedidosListos(prev => prev.filter(x => x.id !== pd.id)); } catch (e) {}
   };
   useEffect(() => { API.get("/pedidos/con-stock").then(res => setPedidosListos(res.data)).catch(() => {}); }, []);
+  useEffect(() => { cargarMensajesReales(); }, []);
   const [sel, setSel] = useState(null);
   const [nuevaRegla, setNuevaRegla] = useState({ nombre: "", disparador: "post_compra", dias: 7, segmento: "Todos", mensaje: "" });
   const [pendientesWA, setPendientesWA] = useState([]);
   const [cargandoWA, setCargandoWA] = useState(false);
   const [plantillaWA, setPlantillaWA] = useState("Hola {nombre}! Soy de Girasoles Beauty 🌻 Te escribo para saber como te fue con tu compra. Cualquier consulta estamos para ayudarte!");
   const [mensaje, setMensaje] = useState("");
+  const [mensajesReales, setMensajesReales] = useState([]);
+  const [cargandoMensajes, setCargandoMensajes] = useState(false);
+  const [ejecutando, setEjecutando] = useState(false);
+
+  const cargarMensajesReales = () => {
+    setCargandoMensajes(true);
+    API.get("/postventa/mensajes")
+      .then(res => setMensajesReales(res.data || []))
+      .catch(() => setMensajesReales([]))
+      .finally(() => setCargandoMensajes(false));
+  };
+
+  const ejecutarReglasAhora = async () => {
+    setEjecutando(true);
+    try {
+      const res = await API.post("/postventa/ejecutar");
+      setMensaje((res.data?.mensajes_generados || 0) + " mensajes nuevos generados segun las reglas activas");
+      cargarMensajesReales();
+      setTimeout(() => setMensaje(""), 4000);
+    } catch (e) {
+      setMensaje("Error al ejecutar reglas: " + (e.response?.data?.error || e.message));
+    }
+    setEjecutando(false);
+  };
+
+  const enviarMensajeReal = async (m) => {
+    const tel = (m.telefono || "").replace(/[^0-9]/g, "");
+    if (!tel) { setMensaje("Este cliente no tiene telefono cargado"); return; }
+    let numero = tel;
+    if (!numero.startsWith("54")) numero = "549" + numero;
+    else if (numero.startsWith("54") && !numero.startsWith("549")) numero = "549" + numero.slice(2);
+    window.open("https://wa.me/" + numero + "?text=" + encodeURIComponent(m.mensaje), "_blank");
+    try {
+      await API.put("/postventa/mensajes/" + m.id + "/marcar-enviado");
+      setMensajesReales(prev => prev.map(x => x.id === m.id ? { ...x, estado: "enviado_wa" } : x));
+    } catch (e) {}
+  };
 
   useEffect(() => {
     getReglas().then(res => setRules(res.data)).catch(() => setRules(WA_RULES.map(r => ({ ...r, activo: r.active, disparador: r.trigger, dias: 7, segmento: r.segment, mensaje: r.msg }))));
@@ -4433,17 +4471,24 @@ function PostventaWA() {
       {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
       <div className="g4" style={{ marginBottom: 16 }}>
         <MCard label="Reglas activas" value={String(rulesAMostrar.filter(r => r.activo || r.active).length)} color="#25d366" />
-        <MCard label="Mensajes enviados" value={String(rulesAMostrar.reduce((s, r) => s + (r.sent || 0), 0))} color="#2d7a4f" />
-        <MCard label="Total reglas" value={String(rulesAMostrar.length)} color="#c9a84c" />
-        <MCard label="Tasa apertura" value="72%" color="#2471a3" />
+        <MCard label="Mensajes enviados" value={String(mensajesReales.filter(m => m.estado === "enviado_wa").length)} color="#2d7a4f" />
+        <MCard label="Pendientes de enviar" value={String(mensajesReales.filter(m => m.estado === "programado").length)} color="#c9a84c" />
+        <MCard label="Total reglas" value={String(rulesAMostrar.length)} color="#2471a3" />
       </div>
       <div className="tabs">
-        {[["reglas", "REGLAS"], ["enviar", "ENVIAR HOY"], ["pedidos", "PEDIDOS LISTOS" + (pedidosListos.length > 0 ? " (" + pedidosListos.length + ")" : "")], ["nueva", "NUEVA REGLA"]].map(([id, l]) => (
-          <div key={id} className={"tab " + (tab === id ? "on" : "")} onClick={() => { setTab(id); setSel(null); if (id === "enviar") cargarPendientesWA(); }}>{l}</div>
+        {[["reglas", "REGLAS"], ["enviar", "ENVIAR HOY"], ["enviados", "MENSAJES ENVIADOS"], ["pedidos", "PEDIDOS LISTOS" + (pedidosListos.length > 0 ? " (" + pedidosListos.length + ")" : "")], ["nueva", "NUEVA REGLA"]].map(([id, l]) => (
+          <div key={id} className={"tab " + (tab === id ? "on" : "")} onClick={() => { setTab(id); setSel(null); if (id === "enviar") cargarPendientesWA(); if (id === "enviados") cargarMensajesReales(); }}>{l}</div>
         ))}
       </div>
       {tab === "reglas" && (
         <div className="fade">
+          <div className="card" style={{ marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>Generar mensajes segun las reglas activas</div>
+              <div style={{ fontSize: 11, color: "#65676B" }}>Revisa cada regla activa (post-compra, inactividad, cumpleanos) y arma los mensajes que correspondan para hoy, sin repetir los que ya se generaron.</div>
+            </div>
+            <button className="btn btn-p btn-sm" disabled={ejecutando} onClick={ejecutarReglasAhora}>{ejecutando ? "Generando..." : "Generar mensajes de hoy"}</button>
+          </div>
           {rulesAMostrar.map((r, ri) => (
             <div key={r.id || ri} className="card" style={{ marginBottom: 12, borderLeft: "3px solid " + ((r.activo || r.active) ? "#25d366" : "#e8e8e8") }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -4497,6 +4542,40 @@ function PostventaWA() {
               <button className="btn btn-sm" style={{ background: "#25D366", color: "#fff", fontSize: 12 }} onClick={() => avisarPedido(pd)}>Enviar WhatsApp</button>
             </div>
           ))}
+        </div>
+      )}
+
+      {tab === "enviados" && (
+        <div className="card fade">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <div className="ct" style={{ margin: 0 }}>Mensajes generados por las reglas</div>
+            <button className="btn btn-g btn-sm" onClick={cargarMensajesReales}>Actualizar</button>
+          </div>
+          {cargandoMensajes ? (
+            <div style={{ color: "#65676B", padding: 20, fontSize: 12 }}>Cargando...</div>
+          ) : mensajesReales.length === 0 ? (
+            <div style={{ textAlign: "center", color: "#65676B", padding: 24, fontSize: 12 }}>Todavia no hay mensajes generados. Anda a "Reglas" y toca "Generar mensajes de hoy".</div>
+          ) : (
+            <table>
+              <thead><tr><th>Cliente</th><th>Telefono</th><th>Regla</th><th>Mensaje</th><th>Estado</th><th></th></tr></thead>
+              <tbody>
+                {mensajesReales.map(m => (
+                  <tr key={m.id}>
+                    <td style={{ fontWeight: 600 }}>{m.cliente_nombre}</td>
+                    <td style={{ fontSize: 11 }}>{m.telefono || "-"}</td>
+                    <td style={{ fontSize: 11, color: "#65676B" }}>{m.regla_nombre || "Enviar hoy (7 dias)"}</td>
+                    <td style={{ fontSize: 11, color: "#65676B", maxWidth: 260 }}>{m.mensaje}</td>
+                    <td>{m.estado === "enviado_wa" ? <span className="badge bg">Enviado</span> : <span className="badge bx">Pendiente</span>}</td>
+                    <td style={{ textAlign: "right" }}>
+                      {m.estado !== "enviado_wa" && (
+                        <button className="btn btn-sm" style={{ background: "#25d366", color: "#fff", fontSize: 11, fontWeight: 700 }} onClick={() => enviarMensajeReal(m)}>Enviar WhatsApp</button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 

@@ -9,5 +9,6 @@ router.get('/mensajes', controller.getMensajes);
 router.post('/ejecutar', controller.ejecutarReglas);
 router.get('/pendientes-whatsapp', controller.getPendientesWhatsApp);
 router.post('/marcar-enviado', controller.marcarEnviadoWhatsApp);
+router.put('/mensajes/:id/marcar-enviado', controller.marcarMensajeEnviado);
 
 module.exports = router;

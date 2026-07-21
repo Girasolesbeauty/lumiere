@@ -54,7 +54,7 @@ const getMensajes = async (req, res) => {
       SELECT m.*, c.nombre AS cliente_nombre, c.telefono, r.nombre AS regla_nombre
       FROM mensajes_enviados m
       JOIN clientes c ON m.cliente_id = c.id
-      JOIN reglas_postventa r ON m.regla_id = r.id
+      LEFT JOIN reglas_postventa r ON m.regla_id = r.id
       ORDER BY m.creado_en DESC
     `);
     res.json(result.rows);
@@ -109,8 +109,17 @@ const ejecutarReglas = async (req, res) => {
         clientes = result.rows;
       }
 
-      // Registrar mensajes
+      // Registrar mensajes (evitando duplicar si esta regla ya le genero un mensaje
+      // a este cliente hoy -- por ejemplo si "Ejecutar reglas" se aprieta mas de una vez).
       for (const cliente of clientes) {
+        const yaExiste = await pool.query(
+          `SELECT 1 FROM mensajes_enviados
+           WHERE regla_id = $1 AND cliente_id = $2 AND DATE(creado_en) = CURRENT_DATE
+           LIMIT 1`,
+          [regla.id, cliente.id]
+        );
+        if (yaExiste.rows.length > 0) continue;
+
         const mensaje = regla.mensaje
           .replace('{nombre}', cliente.nombre.split(',')[0])
           .replace('{producto}', cliente.ultimo_producto || 'tu producto')
@@ -196,4 +205,20 @@ const marcarEnviadoWhatsApp = async (req, res) => {
   }
 };
 
-module.exports = { getReglas, createRegla, updateRegla, getMensajes, ejecutarReglas, getPendientesWhatsApp, marcarEnviadoWhatsApp };
+// Marcar un mensaje real (generado por una regla) como enviado por WhatsApp
+const marcarMensajeEnviado = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `UPDATE mensajes_enviados SET estado = 'enviado_wa' WHERE id = $1 RETURNING *`,
+      [id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Mensaje no encontrado' });
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al marcar mensaje como enviado' });
+  }
+};
+
+module.exports = { getReglas, createRegla, updateRegla, getMensajes, ejecutarReglas, getPendientesWhatsApp, marcarEnviadoWhatsApp, marcarMensajeEnviado };
