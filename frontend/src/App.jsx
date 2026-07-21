@@ -2045,7 +2045,8 @@ function Inventario({ localId, usuario }) {
         stock: editandoProd.stock || 0,
         stock_minimo: parseInt(nuevo.stock_minimo) || 5,
         lead_time_dias: editandoProd.lead_time_dias || 0,
-        activo: nuevo.activo !== false
+        activo: nuevo.activo !== false,
+        proveedor_id: nuevo.proveedor_id || null
       });
       setMensaje("Producto actualizado!");
       setNuevo({ nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "", stock: "", stock_minimo: "", proveedor_id: "", descripcion: "" });
@@ -2077,7 +2078,8 @@ function Inventario({ localId, usuario }) {
         costo: parseFloat(nuevo.costo) || 0,
         stock: parseInt(nuevo.stock) || 0,
         stock_minimo: parseInt(nuevo.stock_minimo) || 5,
-        local_id: localId || 1
+        local_id: localId || 1,
+        proveedor_id: nuevo.proveedor_id || null
       });
       setMensaje("Producto creado!");
       setNuevo({ nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "", stock: "", stock_minimo: "", proveedor_id: "", descripcion: "" });
@@ -2241,7 +2243,7 @@ function Inventario({ localId, usuario }) {
                         {vistaLocal === "mi" && <button className="btn btn-sm" style={{ fontSize: 10 }} onClick={() => abrirAjuste(p)}>Ajustar</button>}
                         <button className="btn btn-sm" style={{ fontSize: 10 }} onClick={() => abrirEditarProd(p)}>Editar</button>
                         {p.activo === false ? (
-                          <button className="btn btn-sm" style={{ fontSize: 10, color: "#2d7a4f" }} onClick={async () => { try { await API.put("/productos/" + p.id, { nombre: p.nombre, marca: p.marca, codigo_barras: p.codigo_barras, categoria: p.categoria, precio: p.precio, costo: p.costo, stock: p.stock, stock_minimo: p.stock_minimo, lead_time_dias: p.lead_time_dias, activo: true }); setMensaje("Producto reactivado"); cargar(); setTimeout(() => setMensaje(""), 3000); } catch (e) { setMensaje("Error al reactivar"); } }}>Reactivar</button>
+                          <button className="btn btn-sm" style={{ fontSize: 10, color: "#2d7a4f" }} onClick={async () => { try { await API.put("/productos/" + p.id, { nombre: p.nombre, marca: p.marca, codigo_barras: p.codigo_barras, categoria: p.categoria, precio: p.precio, costo: p.costo, stock: p.stock, stock_minimo: p.stock_minimo, lead_time_dias: p.lead_time_dias, activo: true, proveedor_id: p.proveedor_id || null }); setMensaje("Producto reactivado"); cargar(); setTimeout(() => setMensaje(""), 3000); } catch (e) { setMensaje("Error al reactivar"); } }}>Reactivar</button>
                         ) : (
                           (usuario?.rol === "jefe" || usuario?.rol === "admin") && <button className="btn btn-sm" style={{ fontSize: 10, color: "#c0392b" }} onClick={() => setEliminandoProd(p)}>Eliminar</button>
                         )}

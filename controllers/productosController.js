@@ -61,7 +61,7 @@ const getById = async (req, res) => {
 
 const create = async (req, res) => {
   try {
-    const { nombre, marca, precio, costo, stock, stock_minimo, lead_time_dias, categoria, codigo_barras, local_id } = req.body;
+    const { nombre, marca, precio, costo, stock, stock_minimo, lead_time_dias, categoria, codigo_barras, local_id, proveedor_id } = req.body;
     // El stock inicial se carga en el local donde se creo el producto (stock_rg o stock_ush),
     // no solo en el campo "stock" agregado -- si no, cualquier operacion que mire el stock de
     // un local puntual (vender, ajustar, alertas) lo ve en 0 aunque el total muestre el numero real.
@@ -70,9 +70,9 @@ const create = async (req, res) => {
     const stockRg = esUsh ? 0 : stockInicial;
     const stockUsh = esUsh ? stockInicial : 0;
     const result = await pool.query(
-      `INSERT INTO productos (nombre, marca, precio, costo, stock, stock_rg, stock_ush, stock_minimo, lead_time_dias, categoria, codigo_barras, local_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
-      [nombre, marca, precio, costo, stockInicial, stockRg, stockUsh, stock_minimo, lead_time_dias, categoria, codigo_barras, local_id || 1]
+      `INSERT INTO productos (nombre, marca, precio, costo, stock, stock_rg, stock_ush, stock_minimo, lead_time_dias, categoria, codigo_barras, local_id, proveedor_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+      [nombre, marca, precio, costo, stockInicial, stockRg, stockUsh, stock_minimo, lead_time_dias, categoria, codigo_barras, local_id || 1, proveedor_id || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -83,13 +83,13 @@ const create = async (req, res) => {
 const update = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, marca, precio, costo, stock, stock_minimo, lead_time_dias, categoria, codigo_barras, activo } = req.body;
+    const { nombre, marca, precio, costo, stock, stock_minimo, lead_time_dias, categoria, codigo_barras, activo, proveedor_id } = req.body;
     const result = await pool.query(
       `UPDATE productos SET nombre=$1, marca=$2, precio=$3, costo=$4, stock=$5, 
        stock_minimo=$6, lead_time_dias=$7, categoria=$8, codigo_barras=$9,
-       activo=COALESCE($10, activo)
-       WHERE id=$11 RETURNING *`,
-      [nombre, marca, precio, costo, stock, stock_minimo, lead_time_dias, categoria, codigo_barras, activo, id]
+       activo=COALESCE($10, activo), proveedor_id=$11
+       WHERE id=$12 RETURNING *`,
+      [nombre, marca, precio, costo, stock, stock_minimo, lead_time_dias, categoria, codigo_barras, activo, proveedor_id || null, id]
     );
     res.json(result.rows[0]);
   } catch (error) {
