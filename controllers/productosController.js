@@ -24,16 +24,22 @@ const conDisponible = (rows, local) => rows.map(p => {
 
 const getAll = async (req, res) => {
   try {
-    const { local } = req.query;
+    const { local, estado } = req.query;
+    // estado: 'activos' (default, no rompe nada de lo que ya usa este endpoint),
+    // 'inactivos', o 'todos'.
+    let where = 'WHERE p.activo = TRUE';
+    if (estado === 'inactivos') where = 'WHERE p.activo = FALSE';
+    else if (estado === 'todos') where = '';
+    let whereSimple = where.replace('p.activo', 'activo');
     let result;
     try {
       // Intenta traer el nombre del proveedor (para el buscador). Si la columna no existe, cae al SELECT simple.
       result = await pool.query(`SELECT p.*, pr.nombre AS proveedor_nombre
                                  FROM productos p
                                  LEFT JOIN proveedores pr ON p.proveedor_id = pr.id
-                                 WHERE p.activo = TRUE ORDER BY p.nombre ASC`);
+                                 ${where} ORDER BY p.nombre ASC`);
     } catch (e) {
-      result = await pool.query('SELECT * FROM productos WHERE activo = TRUE ORDER BY nombre ASC');
+      result = await pool.query(`SELECT * FROM productos ${whereSimple} ORDER BY nombre ASC`);
     }
     res.json(conDisponible(result.rows, local));
   } catch (error) {

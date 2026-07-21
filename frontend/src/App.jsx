@@ -1958,6 +1958,7 @@ function Inventario({ localId, usuario }) {
   const [busqueda, setBusqueda] = useState("");
   const [filtroCat, setFiltroCat] = useState("");
   const [filtroStock, setFiltroStock] = useState("");
+  const [filtroEstadoProd, setFiltroEstadoProd] = useState("activos");
   const [filtroMarcaAlertas, setFiltroMarcaAlertas] = useState("");
   const [vistaLocal, setVistaLocal] = useState("mi");
   const [nuevo, setNuevo] = useState({
@@ -1971,7 +1972,7 @@ function Inventario({ localId, usuario }) {
     setLoading(true);
     try {
       const [prodRes, provRes] = await Promise.all([
-        API.get("/productos?local=" + (Number(localId) === 2 ? "ush" : "rg")),
+        API.get("/productos?local=" + (Number(localId) === 2 ? "ush" : "rg") + "&estado=" + filtroEstadoProd),
         API.get("/proveedores")
       ]);
       const prods = prodRes.data || [];
@@ -1982,7 +1983,7 @@ function Inventario({ localId, usuario }) {
     setLoading(false);
   };
 
-  useEffect(() => { cargar(); }, [localId]);
+  useEffect(() => { cargar(); }, [localId, filtroEstadoProd]);
 
   const cargarTransito = async () => {
     try {
@@ -2175,6 +2176,11 @@ function Inventario({ localId, usuario }) {
             <option value="bajo">Stock bajo</option>
             <option value="sin">Sin stock</option>
           </select>
+          <select className="sel" style={{ width: 150 }} value={filtroEstadoProd} onChange={e => setFiltroEstadoProd(e.target.value)}>
+            <option value="activos">Activos</option>
+            <option value="inactivos">Inactivos</option>
+            <option value="todos">Todos</option>
+          </select>
           {(busqueda || filtroCat || filtroStock) && <button className="btn btn-g btn-sm" onClick={() => { setBusqueda(""); setFiltroCat(""); setFiltroStock(""); }}>Limpiar</button>}
         </div>
       )}
@@ -2216,7 +2222,10 @@ function Inventario({ localId, usuario }) {
                 const margen = p.price && p.cost ? Math.round(((p.price - p.cost) / p.price) * 100) : null;
                 return (
                   <tr key={p.id}>
-                    <td style={{ fontWeight: 500 }}>{p.nombre || p.name}</td>
+                    <td style={{ fontWeight: 500 }}>
+                      {p.nombre || p.name}
+                      {p.activo === false && <span className="badge br" style={{ marginLeft: 6, fontSize: 9 }}>Inactivo</span>}
+                    </td>
                     <td style={{ fontSize: 11, color: "#65676B" }}>{p.marca || p.brand || "-"}</td>
                     <td style={{ fontSize: 11, color: "#65676B" }}>{p.categoria || "-"}</td>
                     <td style={{ fontSize: 11, color: "#65676B" }}>{p.codigo_barras || p.codigo || "-"}</td>
@@ -2230,7 +2239,11 @@ function Inventario({ localId, usuario }) {
                       <div style={{ display: "flex", gap: 4 }}>
                         {vistaLocal === "mi" && <button className="btn btn-sm" style={{ fontSize: 10 }} onClick={() => abrirAjuste(p)}>Ajustar</button>}
                         <button className="btn btn-sm" style={{ fontSize: 10 }} onClick={() => abrirEditarProd(p)}>Editar</button>
-                        {(usuario?.rol === "jefe" || usuario?.rol === "admin") && <button className="btn btn-sm" style={{ fontSize: 10, color: "#c0392b" }} onClick={() => setEliminandoProd(p)}>Eliminar</button>}
+                        {p.activo === false ? (
+                          <button className="btn btn-sm" style={{ fontSize: 10, color: "#2d7a4f" }} onClick={async () => { try { await API.put("/productos/" + p.id, { nombre: p.nombre, marca: p.marca, codigo_barras: p.codigo_barras, categoria: p.categoria, precio: p.precio, costo: p.costo, stock: p.stock, stock_minimo: p.stock_minimo, lead_time_dias: p.lead_time_dias, activo: true }); setMensaje("Producto reactivado"); cargar(); setTimeout(() => setMensaje(""), 3000); } catch (e) { setMensaje("Error al reactivar"); } }}>Reactivar</button>
+                        ) : (
+                          (usuario?.rol === "jefe" || usuario?.rol === "admin") && <button className="btn btn-sm" style={{ fontSize: 10, color: "#c0392b" }} onClick={() => setEliminandoProd(p)}>Eliminar</button>
+                        )}
                       </div>
                     </td>
                   </tr>
