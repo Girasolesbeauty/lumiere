@@ -1959,7 +1959,7 @@ function Inventario({ localId, usuario }) {
   const [filtroCat, setFiltroCat] = useState("");
   const [filtroStock, setFiltroStock] = useState("");
   const [filtroEstadoProd, setFiltroEstadoProd] = useState("activos");
-  const [filtroProveedorValor, setFiltroProveedorValor] = useState("");
+  const [filtroMarcasValor, setFiltroMarcasValor] = useState([]);
   const [filtroMarcaAlertas, setFiltroMarcaAlertas] = useState("");
   const [vistaLocal, setVistaLocal] = useState("mi");
   const [nuevo, setNuevo] = useState({
@@ -2260,8 +2260,9 @@ function Inventario({ localId, usuario }) {
       )}
       {tab === "valorizacion" && (() => {
         const activos = productos.filter(p => p.activo !== false);
-        const proveedoresConProd = [...new Set(activos.map(p => p.proveedor_nombre).filter(Boolean))].sort();
-        const filtrados = filtroProveedorValor ? activos.filter(p => p.proveedor_nombre === filtroProveedorValor) : activos;
+        const marcasConProd = [...new Set(activos.map(p => p.marca).filter(Boolean))].sort();
+        const filtrados = filtroMarcasValor.length > 0 ? activos.filter(p => filtroMarcasValor.includes(p.marca)) : activos;
+        const toggleMarca = (mn) => setFiltroMarcasValor(prev => prev.includes(mn) ? prev.filter(x => x !== mn) : [...prev, mn]);
         const stockDe = (p) => vistaLocal === "consolidado"
           ? ((p.stock_rg || 0) + (p.stock_ush || 0))
           : vistaLocal === "otro"
@@ -2280,10 +2281,27 @@ function Inventario({ localId, usuario }) {
         return (
           <div>
             <div className="card fade" style={{ marginBottom: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <select className="sel" style={{ width: 220 }} value={filtroProveedorValor} onChange={e => setFiltroProveedorValor(e.target.value)}>
-                <option value="">Todos los proveedores</option>
-                {proveedoresConProd.map(pn => <option key={pn} value={pn}>{pn}</option>)}
-              </select>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", flex: 1, minWidth: 240 }}>
+                {marcasConProd.length === 0 && <span style={{ fontSize: 11, color: "#999" }}>No hay marcas cargadas</span>}
+                {marcasConProd.map(mn => (
+                  <span
+                    key={mn}
+                    onClick={() => toggleMarca(mn)}
+                    className="badge"
+                    style={{
+                      cursor: "pointer",
+                      padding: "5px 10px",
+                      border: "1px solid " + (filtroMarcasValor.includes(mn) ? "#c9a84c" : "#ddd"),
+                      background: filtroMarcasValor.includes(mn) ? "#c9a84c22" : "#fff",
+                      color: filtroMarcasValor.includes(mn) ? "#8a6d1f" : "#444",
+                      fontWeight: filtroMarcasValor.includes(mn) ? 700 : 400
+                    }}
+                  >
+                    {mn}
+                  </span>
+                ))}
+                {filtroMarcasValor.length > 0 && <button className="btn btn-g btn-sm" onClick={() => setFiltroMarcasValor([])}>Limpiar ({filtroMarcasValor.length})</button>}
+              </div>
               <div style={{ display: "flex", gap: 6 }}>
                 {[["mi", Number(localId) === 2 ? "Ushuaia" : "Rio Grande"], ["otro", Number(localId) === 2 ? "Rio Grande" : "Ushuaia"], ["consolidado", "Consolidado"]].map(([id, l]) => (
                   <div key={id} className={"tab " + (vistaLocal === id ? "on" : "")} style={{ fontSize: 11 }} onClick={() => setVistaLocal(id)}>{l}</div>
