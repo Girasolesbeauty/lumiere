@@ -8433,6 +8433,7 @@ function Usuarios({ usuario: usuarioActual }) {
   const rolNombre = { jefe: "Jefe", administrativo: "Administrativo", vendedora: "Vendedora" };
 
   const TODOS_PERMISOS = {
+    "Dashboard": [["dashboard.ver","Ver Dashboard"]],
     "POS": [["pos.ver","Ver Punto de Venta"],["pos.venta","Registrar ventas"],["pos.preventa","Hacer preventas"],["pos.descuento","Aplicar descuentos"]],
     "Finanzas": [["finanzas.flujo","Ver flujo de efectivo"],["finanzas.egreso","Registrar egresos"],["finanzas.equilibrio","Ver punto de equilibrio"],["finanzas.costos","Ver costos"]],
     "Ventas Online": [["ventas_online.editar","Editar/eliminar ventas online"]],
@@ -8683,7 +8684,7 @@ export default function AppWrapper() {
     if (!usuario) return false;
     if (usuario.rol === "jefe" || usuario.rol_id === 1) return true;
  const mapaModulos = {
-      "pos": "pos.ver", "dashboard": "pos.ver",
+      "pos": "pos.ver", "dashboard": "dashboard.ver",
       "inventory": "inventario.ver", "ordenes": "ordenes.ver", "inconsistencias": "ordenes.ver", "kits": "kits.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
       "clients": "clientes.ver", "fidelizacion": "fidelizacion.ver",
       "finance": "finanzas.flujo", "reports": "informes.ventas", "comprobantes": "comprobantes.ver",
