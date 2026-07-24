@@ -1281,7 +1281,16 @@ function POS({ localId, usuario }) {
     w.document.write(html);
     w.document.close();
     w.focus();
-    setTimeout(() => { w.print(); w.close(); }, 300);
+    // Importante: no cerrar la ventana enseguida despues de w.print() -- una impresora
+    // termica puede tardar en terminar de recibir el trabajo, y cerrar de golpe corta
+    // la impresion a mitad de camino. Esperamos el evento "afterprint" (se dispara cuando
+    // el dialogo de impresion se cierra, haya impreso o cancelado), y si por algun motivo
+    // el navegador no lo dispara, hay un cierre de respaldo mas tarde (5s) en vez de 300ms.
+    let yaCerro = false;
+    const cerrarUnaVez = () => { if (!yaCerro) { yaCerro = true; try { w.close(); } catch (e) {} } };
+    w.onafterprint = cerrarUnaVez;
+    setTimeout(() => { w.print(); }, 300);
+    setTimeout(cerrarUnaVez, 5000);
   };
 
   const reintentarFacturacion = async (ventaId) => {
@@ -6198,7 +6207,11 @@ function Comprobantes({ localId }) {
     w.document.write(html);
     w.document.close();
     w.focus();
-    setTimeout(() => { w.print(); w.close(); }, 300);
+    let yaCerro = false;
+    const cerrarUnaVez = () => { if (!yaCerro) { yaCerro = true; try { w.close(); } catch (e) {} } };
+    w.onafterprint = cerrarUnaVez;
+    setTimeout(() => { w.print(); }, 300);
+    setTimeout(cerrarUnaVez, 5000);
   };
 
   return (
