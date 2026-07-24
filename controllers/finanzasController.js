@@ -488,4 +488,71 @@ const getFacturacionExterna = async (req, res) => {
   }
 };
 
-module.exports = { getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna };
+// Listado detallado de movimientos (movimientos_caja), con busqueda y filtro de fechas,
+// para la pantalla de "ver todo" -- separado del resumen mensual de getFlujo.
+const getMovimientosDetalle = async (req, res) => {
+  try {
+    const { desde, hasta, busqueda, tipo, local_id } = req.query;
+    let query = `
+      SELECT m.id, m.concepto, m.importe, m.tipo, m.creado_en, m.local_id, m.forma_pago,
+             m.categoria_id, cc.nombre AS categoria_nombre,
+             m.cuenta_pago_id, cp.nombre AS cuenta_nombre
+      FROM movimientos_caja m
+      LEFT JOIN categorias_costo cc ON m.categoria_id = cc.id
+      LEFT JOIN cuentas_pago cp ON m.cuenta_pago_id = cp.id
+      WHERE 1=1
+    `;
+    const params = [];
+    if (desde) { params.push(desde); query += ` AND m.creado_en >= $${params.length}`; }
+    if (hasta) { params.push(hasta); query += ` AND m.creado_en < $${params.length}`; }
+    if (tipo === 'I' || tipo === 'E') { params.push(tipo); query += ` AND m.tipo = $${params.length}`; }
+    const localNum = normalizarLocalId(local_id);
+    if (localNum !== null) { params.push(localNum); query += ` AND m.local_id = $${params.length}`; }
+    if (busqueda && busqueda.trim()) {
+      params.push('%' + busqueda.trim() + '%');
+      query += ` AND (m.concepto ILIKE $${params.length} OR cc.nombre ILIKE $${params.length})`;
+    }
+    query += ' ORDER BY m.creado_en DESC LIMIT 500';
+    const r = await pool.query(query, params);
+    res.json(r.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al obtener el detalle de movimientos: ' + error.message });
+  }
+};
+
+// Editar un movimiento manual (categoria, cuenta, forma de pago, importe, concepto)
+const updateMovimiento = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { concepto, importe, categoria_id, forma_pago, cuenta_pago_id, local_id } = req.body;
+    const r = await pool.query(
+      `UPDATE movimientos_caja
+       SET concepto = COALESCE($1, concepto), importe = COALESCE($2, importe),
+           categoria_id = COALESCE($3, categoria_id), forma_pago = COALESCE($4, forma_pago),
+           cuenta_pago_id = $5, local_id = COALESCE($6, local_id)
+       WHERE id = $7 RETURNING *`,
+      [concepto, importe, categoria_id, forma_pago, cuenta_pago_id || null, local_id, id]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Movimiento no encontrado' });
+    res.json(r.rows[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al editar el movimiento: ' + error.message });
+  }
+};
+
+// Eliminar un movimiento manual
+const deleteMovimiento = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const r = await pool.query('DELETE FROM movimientos_caja WHERE id = $1 RETURNING id', [id]);
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Movimiento no encontrado' });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al eliminar el movimiento: ' + error.message });
+  }
+};
+
+module.exports = { getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, deleteMovimiento };

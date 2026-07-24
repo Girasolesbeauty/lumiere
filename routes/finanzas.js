@@ -12,5 +12,8 @@ router.get('/comisiones', controller.getComisiones);
 router.get('/cmv', controller.getCMV);
 router.post('/facturacion-externa', controller.guardarFacturacionExterna);
 router.get('/facturacion-externa', controller.getFacturacionExterna);
+router.get('/movimientos-detalle', controller.getMovimientosDetalle);
+router.put('/movimientos/:id', controller.updateMovimiento);
+router.delete('/movimientos/:id', controller.deleteMovimiento);
 
 module.exports = router;

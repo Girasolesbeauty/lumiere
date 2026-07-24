@@ -2788,6 +2788,46 @@ function Finanzas({ localId, usuario }) {
   const [nuevoEgreso, setNuevoEgreso] = useState({ concepto: "", importe: "", categoria_id: "", forma_pago: "", cuenta_pago_id: "", local_id: "" });
   const [categoriasCosto, setCategoriasCosto] = useState([]);
   const [cuentasPago, setCuentasPago] = useState([]);
+  const [detalleMovs, setDetalleMovs] = useState([]);
+  const [detalleLoading, setDetalleLoading] = useState(false);
+  const [detalleBusqueda, setDetalleBusqueda] = useState("");
+  const [detalleDesde, setDetalleDesde] = useState("");
+  const [detalleHasta, setDetalleHasta] = useState("");
+  const [editandoMov, setEditandoMov] = useState(null);
+
+  const cargarDetalle = () => {
+    setDetalleLoading(true);
+    const params = new URLSearchParams();
+    if (detalleBusqueda.trim()) params.set("busqueda", detalleBusqueda.trim());
+    if (detalleDesde) params.set("desde", detalleDesde);
+    if (detalleHasta) params.set("hasta", detalleHasta);
+    API.get("/finanzas/movimientos-detalle?" + params.toString())
+      .then(res => setDetalleMovs(res.data || []))
+      .catch(() => setDetalleMovs([]))
+      .finally(() => setDetalleLoading(false));
+  };
+
+  const guardarEdicionMov = async () => {
+    try {
+      await API.put("/finanzas/movimientos/" + editandoMov.id, {
+        concepto: editandoMov.concepto, importe: parseFloat(editandoMov.importe),
+        categoria_id: editandoMov.categoria_id || null, forma_pago: editandoMov.forma_pago,
+        cuenta_pago_id: editandoMov.cuenta_pago_id || null, local_id: editandoMov.local_id
+      });
+      setEditandoMov(null);
+      cargarDetalle();
+      setMensaje("Movimiento actualizado");
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al editar: " + (e.response?.data?.error || e.message)); }
+  };
+
+  const borrarMov = async (m) => {
+    if (!confirm("Borrar el movimiento \"" + m.concepto + "\" por " + fmt(parseFloat(m.importe)) + "?")) return;
+    try {
+      await API.delete("/finanzas/movimientos/" + m.id);
+      cargarDetalle();
+    } catch (e) { setMensaje("Error al borrar: " + (e.response?.data?.error || e.message)); }
+  };
   const [mensaje, setMensaje] = useState("");
   const [mesFiltro, setMesFiltro] = useState(new Date().getMonth() + 1);
   const [anioFiltro, setAnioFiltro] = useState(new Date().getFullYear());
@@ -2891,9 +2931,9 @@ function Finanzas({ localId, usuario }) {
       {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
       
       <div className="tabs">
-        {["flujo", "estructurado", "costos", "equilibrio"].map(t => (
-          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => setTab(t)}>
-            {t === "flujo" ? "MOVIMIENTOS" : t === "estructurado" ? "FLUJO DE EFECTIVO" : t === "costos" ? "COSTOS" : "EQUILIBRIO"}
+        {["flujo", "detalle", "estructurado", "costos", "equilibrio"].map(t => (
+          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "detalle") cargarDetalle(); }}>
+            {t === "flujo" ? "MOVIMIENTOS" : t === "detalle" ? "DETALLE / EDITAR" : t === "estructurado" ? "FLUJO DE EFECTIVO" : t === "costos" ? "COSTOS" : "EQUILIBRIO"}
           </div>
         ))}
       </div>
@@ -3096,6 +3136,96 @@ function Finanzas({ localId, usuario }) {
               </div>
             )}
           </div>
+
+      {tab === "detalle" && (
+        <div className="fade">
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+              <div className="fg" style={{ flex: 2, minWidth: 200, marginBottom: 0 }}>
+                <div className="fl">Buscar (concepto o categoria)</div>
+                <input className="inp" placeholder="Ej: Sueldo Sabrina" value={detalleBusqueda} onChange={e => setDetalleBusqueda(e.target.value)} onKeyDown={e => e.key === "Enter" && cargarDetalle()} />
+              </div>
+              <div className="fg" style={{ marginBottom: 0 }}>
+                <div className="fl">Desde</div>
+                <input className="inp" type="date" value={detalleDesde} onChange={e => setDetalleDesde(e.target.value)} />
+              </div>
+              <div className="fg" style={{ marginBottom: 0 }}>
+                <div className="fl">Hasta</div>
+                <input className="inp" type="date" value={detalleHasta} onChange={e => setDetalleHasta(e.target.value)} />
+              </div>
+              <button className="btn btn-p btn-sm" onClick={cargarDetalle}>Buscar</button>
+              {(detalleBusqueda || detalleDesde || detalleHasta) && <button className="btn btn-g btn-sm" onClick={() => { setDetalleBusqueda(""); setDetalleDesde(""); setDetalleHasta(""); setTimeout(cargarDetalle, 0); }}>Limpiar</button>}
+            </div>
+          </div>
+          <div className="card">
+            {detalleLoading ? (
+              <div style={{ color: "#65676B", padding: 20, fontSize: 12 }}>Cargando...</div>
+            ) : detalleMovs.length === 0 ? (
+              <div style={{ textAlign: "center", color: "#65676B", padding: 24, fontSize: 12 }}>Sin movimientos para este filtro (recorda que solo muestra hasta 500 a la vez, los mas recientes primero).</div>
+            ) : (
+              <table>
+                <thead><tr><th>Fecha</th><th>Concepto</th><th>Categoria</th><th>Tipo</th><th>Medio</th><th>Cuenta</th><th>Importe</th><th></th></tr></thead>
+                <tbody>
+                  {detalleMovs.map(m => (
+                    <tr key={m.id}>
+                      <td style={{ fontSize: 10, color: "#65676B" }}>{new Date(m.creado_en).toLocaleString("es-AR")}</td>
+                      <td>{m.concepto}</td>
+                      <td style={{ fontSize: 11, color: "#65676B" }}>{m.categoria_nombre || "-"}</td>
+                      <td><span className={"badge " + (m.tipo === "I" ? "bg" : "br")}>{m.tipo === "I" ? "Ingreso" : "Egreso"}</span></td>
+                      <td style={{ fontSize: 11, color: "#65676B" }}>{m.forma_pago || "-"}</td>
+                      <td style={{ fontSize: 11, color: "#65676B" }}>{m.cuenta_nombre || "-"}</td>
+                      <td style={{ color: m.tipo === "I" ? "#2d7a4f" : "#c0392b", fontWeight: 600 }}>{m.tipo === "I" ? "+" : "-"}{fmt(parseFloat(m.importe))}</td>
+                      <td style={{ display: "flex", gap: 6 }}>
+                        <button className="btn btn-sm" style={{ fontSize: 10 }} onClick={() => setEditandoMov({ ...m })}>Editar</button>
+                        <button className="btn btn-sm" style={{ fontSize: 10, color: "#c0392b" }} onClick={() => borrarMov(m)}>Borrar</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {editandoMov && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={() => setEditandoMov(null)}>
+              <div className="card" style={{ width: 420, maxWidth: "90vw" }} onClick={e => e.stopPropagation()}>
+                <div className="ct">Editar movimiento</div>
+                <div className="fg"><div className="fl">Concepto</div><input className="inp" value={editandoMov.concepto || ""} onChange={e => setEditandoMov(p => ({ ...p, concepto: e.target.value }))} /></div>
+                <div className="fg"><div className="fl">Importe ($)</div><input className="inp" type="number" value={editandoMov.importe || ""} onChange={e => setEditandoMov(p => ({ ...p, importe: e.target.value }))} /></div>
+                <div className="fg">
+                  <div className="fl">Categoria</div>
+                  <select className="sel" value={editandoMov.categoria_id || ""} onChange={e => setEditandoMov(p => ({ ...p, categoria_id: e.target.value ? parseInt(e.target.value) : null }))}>
+                    <option value="">Sin categoria</option>
+                    {categoriasCosto.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                  </select>
+                </div>
+                <div className="fg">
+                  <div className="fl">Medio de pago</div>
+                  <select className="sel" value={editandoMov.forma_pago || ""} onChange={e => setEditandoMov(p => ({ ...p, forma_pago: e.target.value, cuenta_pago_id: null }))}>
+                    <option value="">-</option>
+                    <option value="efectivo">Efectivo</option>
+                    <option value="transferencia">Transferencia</option>
+                    <option value="echeck">E-cheq</option>
+                  </select>
+                </div>
+                {editandoMov.forma_pago && editandoMov.forma_pago !== "efectivo" && (
+                  <div className="fg">
+                    <div className="fl">Cuenta / Banco</div>
+                    <select className="sel" value={editandoMov.cuenta_pago_id || ""} onChange={e => setEditandoMov(p => ({ ...p, cuenta_pago_id: e.target.value ? parseInt(e.target.value) : null }))}>
+                      <option value="">-</option>
+                      {cuentasPago.filter(c => c.tipo === editandoMov.forma_pago).map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                    </select>
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                  <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEditandoMov(null)}>Cancelar</button>
+                  <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarEdicionMov}>Guardar cambios</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {tab === "estructurado" && (
         <div className="fade">
@@ -8650,7 +8780,7 @@ export default function AppWrapper() {
         const u = JSON.parse(user);
         setUsuario(u);
         if (u.local) setLocal(u.local);
-        cargarMisPermisos(u.id);
+        cargarMisPermisos(u.id, u.rol === "jefe" || u.rol_id === 1);
       } catch (e) {}
     }
   }, []);
@@ -8658,7 +8788,7 @@ export default function AppWrapper() {
   const handleLogin = (u) => {
     setUsuario(u);
     localStorage.setItem("lumiere_user", JSON.stringify(u));
-    cargarMisPermisos(u.id);
+    cargarMisPermisos(u.id, u.rol === "jefe" || u.rol_id === 1);
     // Si el usuario tiene local asignado desde el backend, no mostrar selector
     // Pero siempre mostrar el selector para poder elegir
   };
@@ -8673,10 +8803,22 @@ export default function AppWrapper() {
 
   const [permisosActivos, setPermisosActivos] = useState([]);
 
-  const cargarMisPermisos = async (uid) => {
+  const cargarMisPermisos = async (uid, esJefe) => {
     try {
       const res = await API.get("/permisos/" + uid);
-      setPermisosActivos(res.data || []);
+      const permisos = res.data || [];
+      setPermisosActivos(permisos);
+      // Si no puede ver el dashboard (y no es jefe, que ve todo), arrancar en la primera
+      // seccion a la que si tenga acceso, en vez de mostrarle "sin permiso" al abrir el software.
+      if (!esJefe && !permisos.includes("dashboard.ver")) {
+        const ordenPrioridad = ["pos", "ventas-online", "clients", "inventory", "caja", "reports"];
+        const mapaModulos2 = {
+          "pos": "pos.ver", "ventas-online": "ventas_online.editar", "inventory": "inventario.ver",
+          "clients": "clientes.ver", "caja": "caja.ver", "reports": "informes.ventas"
+        };
+        const disponible = ordenPrioridad.find(id => !mapaModulos2[id] || permisos.includes(mapaModulos2[id]));
+        setPage(disponible || "pos");
+      }
     } catch (e) {}
   };
 
