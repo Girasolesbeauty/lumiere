@@ -60,7 +60,16 @@ const getFlujo = async (req, res) => {
     // En Consolidado se cuentan enteros (una sola vez).
     const importeEfectivo = (r) => (localNum !== null && r.local_id === null) ? parseFloat(r.importe) / 2 : parseFloat(r.importe);
 
-    const ingresosMov = result.rows.filter(r => r.tipo === 'I').reduce((s, r) => s + importeEfectivo(r), 0);
+    // Ingresos: se calculan igual que en el Dashboard y en "Flujo de Efectivo" --
+    // ventas reales (POS + online) + facturacion del sistema anterior. Los "ingresos"
+    // manuales que se puedan cargar a mano en este formulario NO se suman aca para no
+    // duplicar ni mostrar un numero distinto al del resto del sistema.
+    let ventasQuery = `SELECT COALESCE(SUM(total), 0) AS total FROM ventas WHERE EXTRACT(MONTH FROM creado_en) = $1 AND EXTRACT(YEAR FROM creado_en) = $2`;
+    const ventasParams = [mesActual, anioActual];
+    if (localNum !== null) { ventasQuery += ` AND local_id = $3`; ventasParams.push(localNum); }
+    const ventasRes = await pool.query(ventasQuery, ventasParams);
+    const totalVentas = parseFloat(ventasRes.rows[0]?.total || 0);
+
     const egresos = result.rows.filter(r => r.tipo === 'E').reduce((s, r) => s + importeEfectivo(r), 0);
     const movimientosAjustados = result.rows.map(r => ({ ...r, importe: importeEfectivo(r) }));
 
@@ -74,7 +83,7 @@ const getFlujo = async (req, res) => {
     const factExtRes = await pool.query(factExtQuery, factExtParams);
     const factExterna = parseFloat(factExtRes.rows[0]?.total || 0);
 
-    const ingresos = ingresosMov + factExterna;
+    const ingresos = totalVentas + factExterna;
 
     res.json({
       movimientos: movimientosAjustados,
