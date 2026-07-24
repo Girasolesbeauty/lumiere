@@ -87,6 +87,14 @@ const getFlujo = async (req, res) => {
 };
 
 // Flujo estructurado por categorias
+// Traduce los valores internos de destino_origen (de la Caja diaria) a etiquetas legibles.
+const ETIQUETAS_DESTINO_ORIGEN = {
+  gasto_operativo: 'Gasto operativo',
+  pago_proveedor: 'Pago a proveedor',
+  otro: 'Otro'
+};
+const etiquetaDestinoOrigen = (valor) => ETIQUETAS_DESTINO_ORIGEN[valor] || valor || 'Otros';
+
 const getFlujoEstructurado = async (req, res) => {
   try {
     const { mes, anio, local_id } = req.query;
@@ -147,7 +155,9 @@ const getFlujoEstructurado = async (req, res) => {
       return egresosRes.rows
         .filter(r => r.categoria_tipo === tipo)
         .reduce((acc, r) => {
-          const nombre = r.categoria_nombre || r.concepto || 'Otros';
+          // Traduce valores internos de la Caja diaria (ej: 'gasto_operativo') a etiquetas legibles.
+          // Para categorias reales (ej: 'Sueldo Cintia') no hace nada, ya que no estan en el mapa.
+          const nombre = etiquetaDestinoOrigen(r.categoria_nombre || r.concepto);
           // Si es compartido (local_id NULL), dividir entre 2
           const importe = r.local_id === null ? parseFloat(r.importe) / 2 : parseFloat(r.importe);
           if (!acc[nombre]) acc[nombre] = 0;
