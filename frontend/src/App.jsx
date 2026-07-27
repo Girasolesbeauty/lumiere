@@ -4508,6 +4508,9 @@ function Pedidos({ localId }) {
   const [itemNuevo, setItemNuevo] = useState("");
   const [filtroLista, setFiltroLista] = useState("");
   const [mensaje, setMensaje] = useState("");
+  const [sinRegistrar, setSinRegistrar] = useState(false);
+  const [nombreManual, setNombreManual] = useState("");
+  const [telefonoManual, setTelefonoManual] = useState("");
 
   const cargar = () => {
     API.get("/pedidos?estado=esperando").then(res => setPedidos(res.data)).catch(() => {});
@@ -4537,16 +4540,23 @@ function Pedidos({ localId }) {
     : [];
 
   const guardar = async () => {
-    if (!cliSel) return setMensaje("Elegi la clienta");
+    if (sinRegistrar) {
+      if (!nombreManual.trim() || !telefonoManual.trim()) return setMensaje("El nombre y el celular son obligatorios");
+    } else if (!cliSel) {
+      return setMensaje("Elegi la clienta, o marca 'Clienta sin registrar' si no esta en el sistema");
+    }
     if (!prodSel && !itemNuevo.trim()) return setMensaje("Elegi un producto o escribi una sugerencia");
     try {
       await API.post("/pedidos", {
-        cliente_id: cliSel.id,
+        cliente_id: sinRegistrar ? null : cliSel.id,
+        nombre_manual: sinRegistrar ? nombreManual.trim() : null,
+        telefono_manual: sinRegistrar ? telefonoManual.trim() : null,
         producto_id: prodSel ? prodSel.id : null,
         producto_texto: !prodSel && itemNuevo.trim() ? itemNuevo.trim() : null
       });
       setMensaje(prodSel ? "Pedido anotado! Cuando llegue stock va a aparecer en Postventa." : "Sugerencia de producto anotada!");
       setCliSel(null); setProdSel(null); setBuscarCli(""); setBuscarProd(""); setItemNuevo("");
+      setSinRegistrar(false); setNombreManual(""); setTelefonoManual("");
       cargar();
       setTimeout(() => setMensaje(""), 4000);
     } catch (e) { setMensaje("Error al anotar el pedido"); }
@@ -4569,8 +4579,19 @@ function Pedidos({ localId }) {
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Anotar nuevo pedido</div>
         <div className="g2">
           <div>
-            <div className="fl">Clienta</div>
-            {cliSel ? (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div className="fl" style={{ marginBottom: 0 }}>Clienta</div>
+              <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#65676B", cursor: "pointer" }}>
+                <input type="checkbox" checked={sinRegistrar} onChange={e => { setSinRegistrar(e.target.checked); setCliSel(null); setBuscarCli(""); }} />
+                Clienta sin registrar
+              </label>
+            </div>
+            {sinRegistrar ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+                <input className="inp" placeholder="Nombre de la clienta (obligatorio)" value={nombreManual} onChange={e => setNombreManual(e.target.value)} />
+                <input className="inp" placeholder="Celular (obligatorio)" value={telefonoManual} onChange={e => setTelefonoManual(e.target.value)} />
+              </div>
+            ) : cliSel ? (
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f7f5f0", borderRadius: 6 }}>
                 <span style={{ fontSize: 12 }}>{cliSel.nombre} ({cliSel.cuit_dni})</span>
                 <span onClick={() => setCliSel(null)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>cambiar</span>
@@ -4627,7 +4648,7 @@ function Pedidos({ localId }) {
             <tbody>
               {pedidosFiltrados.map(p => (
                 <tr key={p.id} style={{ borderTop: "1px solid #f0f0f0" }}>
-                  <td style={{ padding: "8px 0" }}>{p.cliente_nombre}</td>
+                  <td style={{ padding: "8px 0" }}>{p.cliente_nombre} {p.clienta_sin_registrar && <span className="badge" style={{ background: "#65676B22", color: "#65676B", fontSize: 8 }}>sin registrar</span>}</td>
                   <td style={{ fontSize: 11, color: "#65676B" }}>{p.telefono || "-"}{p.cuit_dni ? " · DNI " + p.cuit_dni : ""}</td>
                   <td>{p.producto_nombre} {p.es_sugerencia && <span className="badge" style={{ background: "#c9a84c22", color: "#c9a84c", fontSize: 8 }}>sugerencia</span>}</td>
                   <td style={{ textAlign: "center", color: p.es_sugerencia ? "#999" : (p.stock_total > 0 ? "#2d7a4f" : "#c0392b"), fontWeight: 600 }}>{p.es_sugerencia ? "—" : (p.stock_total > 0 ? "Disponible!" : "0")}</td>
