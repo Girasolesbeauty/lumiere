@@ -104,12 +104,11 @@ const ETIQUETAS_DESTINO_ORIGEN = {
 };
 const etiquetaDestinoOrigen = (valor) => ETIQUETAS_DESTINO_ORIGEN[valor] || valor || 'Otros';
 
-const getFlujoEstructurado = async (req, res) => {
-  try {
-    const { mes, anio, local_id } = req.query;
-    const mesActual = mes || new Date().getMonth() + 1;
-    const anioActual = anio || new Date().getFullYear();
-
+// Logica compartida: calcula el flujo estructurado (ingresos por canal + egresos por tipo)
+// para un mes/anio/local puntual. La usan tanto getFlujoEstructurado (la pantalla de
+// Flujo de Efectivo) como getAnalisisFinanciero (el analizador nuevo), para no duplicar
+// las mismas consultas dos veces.
+async function calcularFlujoEstructurado(mesActual, anioActual, local_id) {
     // Ingresos por ventas
     let ventasQuery = `
       SELECT SUM(total) as total, canal
@@ -210,7 +209,7 @@ const getFlujoEstructurado = async (req, res) => {
     const totalImpuestos = Object.values(impuestos).reduce((s, v) => s + v, 0);
     const totalEgresos = totalVariables + totalFijos + totalAdmin + totalSueldos + totalImpuestos;
 
-    res.json({
+    return {
       mes: mesActual,
       anio: anioActual,
       local_id: local_id || 'consolidado',
@@ -228,7 +227,16 @@ const getFlujoEstructurado = async (req, res) => {
       impuestos: { detalle: impuestos, total: totalImpuestos },
       total_egresos: totalEgresos,
       resultado_neto: totalIngresos - totalEgresos
-    });
+    };
+}
+
+const getFlujoEstructurado = async (req, res) => {
+  try {
+    const { mes, anio, local_id } = req.query;
+    const mesActual = mes || new Date().getMonth() + 1;
+    const anioActual = anio || new Date().getFullYear();
+    const datos = await calcularFlujoEstructurado(mesActual, anioActual, local_id);
+    res.json(datos);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al obtener flujo estructurado' });
@@ -574,4 +582,120 @@ const deleteMovimiento = async (req, res) => {
   }
 };
 
-module.exports = { getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, deleteMovimiento };
+// --- Analizador financiero: calificacion + comparacion mes a mes + benchmarks generales de retail ---
+
+// Convierte un porcentaje a un puntaje 0-100 segun 3 umbrales (bueno / regular / alto),
+// para metricas donde "menor es mejor" (costos como % de ingresos).
+function puntajeMenorEsMejor(pct, bueno, regular, alto) {
+  if (pct <= bueno) return 100;
+  if (pct <= regular) return 70;
+  if (pct <= alto) return 40;
+  return 15;
+}
+
+const getAnalisisFinanciero = async (req, res) => {
+  try {
+    const { mes, anio, local_id } = req.query;
+    const mesActual = parseInt(mes) || new Date().getMonth() + 1;
+    const anioActual = parseInt(anio) || new Date().getFullYear();
+    const mesAnteriorNum = mesActual === 1 ? 12 : mesActual - 1;
+    const anioMesAnterior = mesActual === 1 ? anioActual - 1 : anioActual;
+
+    const actual = await calcularFlujoEstructurado(mesActual, anioActual, local_id);
+    const anterior = await calcularFlujoEstructurado(mesAnteriorNum, anioMesAnterior, local_id);
+
+    const ingresos = actual.ingresos.total;
+    const margenNetoPct = ingresos > 0 ? (actual.resultado_neto / ingresos) * 100 : 0;
+    const variablesPct = ingresos > 0 ? (actual.variables.total / ingresos) * 100 : 0;
+    const fijosPct = ingresos > 0 ? (actual.fijos.total / ingresos) * 100 : 0;
+    const adminPct = ingresos > 0 ? (actual.admin.total / ingresos) * 100 : 0;
+    const sueldosPct = ingresos > 0 ? (actual.sueldos.total / ingresos) * 100 : 0;
+
+    // Comparacion contra el mes anterior (contra vos mismo)
+    const ingresosAnterior = anterior.ingresos.total;
+    const margenNetoPctAnterior = ingresosAnterior > 0 ? (anterior.resultado_neto / ingresosAnterior) * 100 : 0;
+    const variacionIngresos = ingresosAnterior > 0 ? ((ingresos - ingresosAnterior) / ingresosAnterior) * 100 : null;
+
+    // Puntaje de margen neto (mayor es mejor)
+    let puntajeMargen;
+    if (margenNetoPct >= 15) puntajeMargen = 100;
+    else if (margenNetoPct >= 8) puntajeMargen = 75;
+    else if (margenNetoPct >= 0) puntajeMargen = 50;
+    else puntajeMargen = 15;
+
+    // Puntajes de estructura de costos (contra parametros generales de retail)
+    const puntajeVariables = puntajeMenorEsMejor(variablesPct, 60, 70, 80);
+    const puntajeFijos = puntajeMenorEsMejor(fijosPct, 15, 25, 35);
+    const puntajeAdmin = puntajeMenorEsMejor(adminPct, 10, 15, 22);
+    const puntajeSueldos = puntajeMenorEsMejor(sueldosPct, 30, 40, 50);
+
+    let puntajeBase = (puntajeMargen + puntajeVariables + puntajeFijos + puntajeAdmin + puntajeSueldos) / 5;
+
+    // Ajuste por tendencia contra vos mismo: si el margen neto mejoro respecto al mes
+    // anterior, suma; si empeoro, resta (acotado para no sacar el puntaje de 0-100).
+    let ajusteTendencia = 0;
+    if (ingresosAnterior > 0) {
+      const deltaMargen = margenNetoPct - margenNetoPctAnterior;
+      ajusteTendencia = Math.max(-10, Math.min(10, deltaMargen));
+    }
+    const puntajeFinal = Math.round(Math.max(0, Math.min(100, puntajeBase + ajusteTendencia)));
+
+    let calificacion, color;
+    if (puntajeFinal >= 85) { calificacion = 'Excelente'; color = '#2d7a4f'; }
+    else if (puntajeFinal >= 70) { calificacion = 'Buena'; color = '#5a9c3f'; }
+    else if (puntajeFinal >= 50) { calificacion = 'Regular'; color = '#c9a84c'; }
+    else if (puntajeFinal >= 30) { calificacion = 'Preocupante'; color = '#e07b39'; }
+    else { calificacion = 'Critica'; color = '#c0392b'; }
+
+    // Metricas individuales con su estado, para mostrar en tarjetas
+    const metrica = (nombre, valorPct, puntaje, comentarioBueno, comentarioMalo) => ({
+      nombre, valor: parseFloat(valorPct.toFixed(1)), puntaje,
+      estado: puntaje >= 70 ? 'bien' : puntaje >= 40 ? 'regular' : 'mal',
+      comentario: puntaje >= 70 ? comentarioBueno : comentarioMalo
+    });
+
+    const metricas = [
+      metrica('Margen neto', margenNetoPct, puntajeMargen,
+        'Buen margen neto sobre lo que factura.',
+        'El margen neto esta bajo (o negativo) -- lo que factura casi no alcanza a cubrir los costos.'),
+      metrica('Costos variables (mercaderia, comisiones, envios)', variablesPct, puntajeVariables,
+        'Los costos variables estan en un rango sano frente a la facturacion.',
+        'Los costos variables se llevan una porcion muy grande de la facturacion. Revisar precios de compra o markup.'),
+      metrica('Costos fijos (alquiler, servicios, seguros)', fijosPct, puntajeFijos,
+        'Los costos fijos son livianos frente a la facturacion.',
+        'Los costos fijos pesan mucho frente a la facturacion actual.'),
+      metrica('Gastos administrativos y marketing', adminPct, puntajeAdmin,
+        'Los gastos administrativos estan controlados.',
+        'Los gastos administrativos/marketing son altos en relacion a lo que factura.'),
+      metrica('Sueldos', sueldosPct, puntajeSueldos,
+        'La carga de sueldos esta en un rango razonable.',
+        'Los sueldos se llevan una porcion muy grande de la facturacion.')
+    ];
+
+    res.json({
+      mes: mesActual,
+      anio: anioActual,
+      local_id: local_id || 'consolidado',
+      puntaje: puntajeFinal,
+      calificacion,
+      color,
+      ingresos_mes: ingresos,
+      resultado_neto_mes: actual.resultado_neto,
+      margen_neto_pct: parseFloat(margenNetoPct.toFixed(1)),
+      comparacion_mes_anterior: {
+        mes: mesAnteriorNum,
+        anio: anioMesAnterior,
+        ingresos: ingresosAnterior,
+        margen_neto_pct: parseFloat(margenNetoPctAnterior.toFixed(1)),
+        variacion_ingresos_pct: variacionIngresos !== null ? parseFloat(variacionIngresos.toFixed(1)) : null,
+        tendencia: ingresosAnterior === 0 ? 'sin_datos' : (margenNetoPct >= margenNetoPctAnterior ? 'mejora' : 'empeora')
+      },
+      metricas
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al calcular el analisis financiero: ' + error.message });
+  }
+};
+
+module.exports = { getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, deleteMovimiento, getAnalisisFinanciero };

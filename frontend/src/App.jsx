@@ -2803,6 +2803,17 @@ function Finanzas({ localId, usuario }) {
   const [detalleDesde, setDetalleDesde] = useState("");
   const [detalleHasta, setDetalleHasta] = useState("");
   const [editandoMov, setEditandoMov] = useState(null);
+  const [analisis, setAnalisis] = useState(null);
+  const [analisisLoading, setAnalisisLoading] = useState(false);
+
+  const cargarAnalisis = () => {
+    setAnalisisLoading(true);
+    const params = `mes=${mesFiltro}&anio=${anioFiltro}&local_id=${tabLocal}`;
+    API.get(`/finanzas/analisis?${params}`)
+      .then(res => setAnalisis(res.data))
+      .catch(() => setAnalisis(null))
+      .finally(() => setAnalisisLoading(false));
+  };
 
   const cargarDetalle = () => {
     setDetalleLoading(true);
@@ -2879,6 +2890,7 @@ function Finanzas({ localId, usuario }) {
   };
 
   useEffect(() => { cargarDatos(); }, [tabLocal, mesFiltro, anioFiltro]);
+  useEffect(() => { if (tab === "analisis") cargarAnalisis(); }, [tabLocal, mesFiltro, anioFiltro]);
 
   const guardarFactExterna = async () => {
     if (!factExtMonto || parseFloat(factExtMonto) <= 0) { setMensaje("Ingresa un monto valido"); return; }
@@ -2940,9 +2952,9 @@ function Finanzas({ localId, usuario }) {
       {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
       
       <div className="tabs">
-        {["flujo", "detalle", "estructurado", "costos", "equilibrio"].map(t => (
-          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "detalle") cargarDetalle(); }}>
-            {t === "flujo" ? "MOVIMIENTOS" : t === "detalle" ? "DETALLE / EDITAR" : t === "estructurado" ? "FLUJO DE EFECTIVO" : t === "costos" ? "COSTOS" : "EQUILIBRIO"}
+        {["flujo", "detalle", "estructurado", "analisis", "costos", "equilibrio"].map(t => (
+          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "detalle") cargarDetalle(); if (t === "analisis") cargarAnalisis(); }}>
+            {t === "flujo" ? "MOVIMIENTOS" : t === "detalle" ? "DETALLE / EDITAR" : t === "estructurado" ? "FLUJO DE EFECTIVO" : t === "analisis" ? "ANALISIS" : t === "costos" ? "COSTOS" : "EQUILIBRIO"}
           </div>
         ))}
       </div>
@@ -3274,6 +3286,58 @@ function Finanzas({ localId, usuario }) {
                 </div>
               </div>
             </div>
+          )}
+        </div>
+      )}
+
+      {tab === "analisis" && (
+        <div className="fade">
+          {analisisLoading ? (
+            <div style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>Calculando...</div>
+          ) : !analisis ? (
+            <div style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>No se pudo calcular el analisis. Probá recargar.</div>
+          ) : (
+            <>
+              <div className="card" style={{ display: "flex", alignItems: "center", gap: 24, marginBottom: 16, flexWrap: "wrap" }}>
+                <div style={{ width: 120, height: 120, borderRadius: "50%", border: "8px solid " + analisis.color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <div style={{ fontSize: 34, fontWeight: 700, color: analisis.color }}>{analisis.puntaje}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em" }}>CALIFICACION FINANCIERA DEL MES</div>
+                  <div style={{ fontSize: 26, fontWeight: 700, color: analisis.color, margin: "2px 0 8px" }}>{analisis.calificacion}</div>
+                  <div style={{ fontSize: 12, color: "#444" }}>
+                    Margen neto: <b style={{ color: analisis.color }}>{analisis.margen_neto_pct}%</b> sobre {fmt(analisis.ingresos_mes)} facturados este mes.
+                  </div>
+                  {analisis.comparacion_mes_anterior.tendencia !== "sin_datos" && (
+                    <div style={{ fontSize: 12, color: analisis.comparacion_mes_anterior.tendencia === "mejora" ? "#2d7a4f" : "#c0392b", marginTop: 4 }}>
+                      {analisis.comparacion_mes_anterior.tendencia === "mejora" ? "▲ Mejoraste" : "▼ Empeoraste"} respecto al mes anterior
+                      {analisis.comparacion_mes_anterior.variacion_ingresos_pct !== null && (
+                        <> (facturación {analisis.comparacion_mes_anterior.variacion_ingresos_pct >= 0 ? "+" : ""}{analisis.comparacion_mes_anterior.variacion_ingresos_pct}%, margen neto {analisis.margen_neto_pct - analisis.comparacion_mes_anterior.margen_neto_pct >= 0 ? "+" : ""}{(analisis.margen_neto_pct - analisis.comparacion_mes_anterior.margen_neto_pct).toFixed(1)} pts)</>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="card" style={{ marginBottom: 16 }}>
+                {analisis.metricas.map((m, i) => (
+                  <div key={i} style={{ padding: "12px 0", borderBottom: i < analisis.metricas.length - 1 ? "1px solid #f0f0f0" : "none" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>{m.nombre}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: m.estado === "bien" ? "#2d7a4f" : m.estado === "regular" ? "#c9a84c" : "#c0392b" }}>{m.valor}%</span>
+                    </div>
+                    <div style={{ height: 6, background: "#eee", borderRadius: 3, marginTop: 6, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: m.puntaje + "%", background: m.estado === "bien" ? "#2d7a4f" : m.estado === "regular" ? "#c9a84c" : "#c0392b" }} />
+                    </div>
+                    <div style={{ fontSize: 11, color: "#65676B", marginTop: 6 }}>{m.comentario}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ fontSize: 10, color: "#999", padding: "0 4px" }}>
+                La calificación combina tu propia evolución mes a mes con parámetros generales de referencia para retail (no son una norma exacta para tu rubro puntual, sino una guía). "Margen neto" es lo que queda de la facturación una vez pagados todos los costos.
+              </div>
+            </>
           )}
         </div>
       )}

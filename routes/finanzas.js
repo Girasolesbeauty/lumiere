@@ -15,5 +15,6 @@ router.get('/facturacion-externa', controller.getFacturacionExterna);
 router.get('/movimientos-detalle', controller.getMovimientosDetalle);
 router.put('/movimientos/:id', controller.updateMovimiento);
 router.delete('/movimientos/:id', controller.deleteMovimiento);
+router.get('/analisis', controller.getAnalisisFinanciero);
 
 module.exports = router;
