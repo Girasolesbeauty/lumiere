@@ -376,9 +376,11 @@ const getComisiones = async (req, res) => {
     const anioActual = anio || new Date().getFullYear();
     const localNum = normalizarLocalId(local_id);
 
-    // Ventas del periodo con la comision de su medio de pago
+    // Ventas del periodo con la comision de su medio de pago.
+    // Se resta la parte pagada con gift card: esa plata ya genero su comision el dia
+    // que se emitio la gift card (mas abajo), asi que no se vuelve a comisionar ahora.
     let q = `
-      SELECT v.total, v.medio_pago, v.canal,
+      SELECT (v.total - COALESCE(v.monto_gift_card, 0)) AS total, v.medio_pago, v.canal,
              COALESCE(mp.comision, 0) AS comision_pct,
              COALESCE(mp.tipo, '') AS medio_tipo
       FROM ventas v
@@ -392,28 +394,51 @@ const getComisiones = async (req, res) => {
 
     const result = await pool.query(q, params);
 
+    // Gift cards emitidas en el periodo: cuentan como una venta mas (con la comision de
+    // su medio de pago), ya que la vendedora hizo una venta real al colocarla.
+    let qGC = `
+      SELECT m.importe AS total, m.forma_pago AS medio_pago,
+             COALESCE(mp.comision, 0) AS comision_pct,
+             COALESCE(mp.tipo, '') AS medio_tipo
+      FROM movimientos_caja m
+      LEFT JOIN medios_pago mp ON mp.nombre = m.forma_pago
+      WHERE m.tipo = 'I' AND m.concepto ILIKE 'Gift Card%'
+        AND EXTRACT(MONTH FROM m.creado_en) = $1
+        AND EXTRACT(YEAR FROM m.creado_en) = $2
+    `;
+    const paramsGC = [mesActual, anioActual];
+    if (localNum !== null) { qGC += ` AND m.local_id = $3`; paramsGC.push(localNum); }
+    const resultGC = await pool.query(qGC, paramsGC);
+
     const IIBB_PCT = 4; // 4% sobre ventas no-efectivo
     let totalVentas = 0;
     let totalComisiones = 0;
     let baseIIBB = 0; // ventas que no son efectivo
     const porMedio = {}; // detalle agrupado por medio de pago
 
-    for (const r of result.rows) {
-      const total = parseFloat(r.total) || 0;
-      const pct = parseFloat(r.comision_pct) || 0;
-      const nombre = r.medio_pago || 'Sin especificar';
-      const esEfectivo = (r.medio_tipo === 'efectivo') || /efectivo/i.test(nombre);
+    const acumular = (rows, esGiftCard) => {
+      for (const r of rows) {
+        const total = parseFloat(r.total) || 0;
+        if (total === 0) continue;
+        const pct = parseFloat(r.comision_pct) || 0;
+        const nombreBase = r.medio_pago || 'Sin especificar';
+        const nombre = esGiftCard ? nombreBase + ' (venta de gift card)' : nombreBase;
+        const esEfectivo = (r.medio_tipo === 'efectivo') || /efectivo/i.test(nombreBase);
 
-      const comision = total * (pct / 100);
-      totalVentas += total;
-      totalComisiones += comision;
-      if (!esEfectivo) baseIIBB += total;
+        const comision = total * (pct / 100);
+        totalVentas += total;
+        totalComisiones += comision;
+        if (!esEfectivo) baseIIBB += total;
 
-      if (!porMedio[nombre]) porMedio[nombre] = { medio: nombre, ventas: 0, monto: 0, comision_pct: pct, comision: 0 };
-      porMedio[nombre].ventas += 1;
-      porMedio[nombre].monto += total;
-      porMedio[nombre].comision += comision;
-    }
+        if (!porMedio[nombre]) porMedio[nombre] = { medio: nombre, ventas: 0, monto: 0, comision_pct: pct, comision: 0 };
+        porMedio[nombre].ventas += 1;
+        porMedio[nombre].monto += total;
+        porMedio[nombre].comision += comision;
+      }
+    };
+
+    acumular(result.rows, false);
+    acumular(resultGC.rows, true);
 
     const iibb = baseIIBB * (IIBB_PCT / 100);
     const resultadoNeto = totalVentas - totalComisiones - iibb;
