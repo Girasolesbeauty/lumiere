@@ -385,7 +385,7 @@ const getComisiones = async (req, res) => {
       LEFT JOIN medios_pago mp ON (mp.id = v.medio_pago_id OR mp.nombre = v.medio_pago)
       WHERE EXTRACT(MONTH FROM v.creado_en) = $1
         AND EXTRACT(YEAR FROM v.creado_en) = $2
-        AND COALESCE(v.es_preventa, FALSE) = FALSE
+        AND (COALESCE(v.es_preventa, FALSE) = FALSE OR v.estado_pago = 'confirmada')
     `;
     const params = [mesActual, anioActual];
     if (localNum !== null) { q += ` AND v.local_id = $3`; params.push(localNum); }
@@ -451,7 +451,7 @@ const getCMV = async (req, res) => {
       JOIN productos p ON p.id = vi.producto_id
       WHERE EXTRACT(MONTH FROM v.creado_en) = $1
         AND EXTRACT(YEAR FROM v.creado_en) = $2
-        AND COALESCE(v.es_preventa, FALSE) = FALSE
+        AND (COALESCE(v.es_preventa, FALSE) = FALSE OR v.estado_pago = 'confirmada')
     `;
     const params = [mesActual, anioActual];
     if (localNum !== null) { q += ` AND v.local_id = $3`; params.push(localNum); }
