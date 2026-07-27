@@ -9050,7 +9050,7 @@ export default function AppWrapper() {
   const getPageWithLocal = (id) => {
     if (!puedeVer(id)) return <SinPermiso />;
     if (id === "dashboard") return <Dashboard localId={local.id} />;
-    if (id === "pos") return <POS localId={local.id} />;
+    if (id === "pos") return <POS localId={local.id} usuario={usuario} />;
     if (id === "ventas-online") return <VentasOnline localId={local.id} usuario={usuario} permisosActivos={permisosActivos} />;
     if (id === "auditoria") return <Auditoria />;
     if (id === "inventory") return <Inventario localId={local.id} usuario={usuario} />;
