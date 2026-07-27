@@ -4152,7 +4152,7 @@ function Cupones({ localId, usuario }) {
   );
 }
 
-function Fidelizacion() {
+function Fidelizacion({ usuario }) {
   const [tab, setTab] = useState("clientes");
   const [clientes, setClientes] = useState([]);
   const [premios, setPremios] = useState([]);
@@ -4165,6 +4165,11 @@ function Fidelizacion() {
   const [editandoPremio, setEditandoPremio] = useState(null);
   const [codigoValidar, setCodigoValidar] = useState("");
   const [resultadoValidacion, setResultadoValidacion] = useState(null);
+  const [dniBuscar, setDniBuscar] = useState("");
+  const [buscandoDni, setBuscandoDni] = useState(false);
+  const [clienteDni, setClienteDni] = useState(null);
+  const [errorDni, setErrorDni] = useState("");
+  const [canjeandoId, setCanjeandoId] = useState(null);
   const tierNext = { Bronze: 2000, Silver: 5000, Gold: 10000, Platinum: 20000, Black: 99999 };
 
   useEffect(() => {
@@ -4242,6 +4247,37 @@ function Fidelizacion() {
     }
   };
 
+  const buscarPorDni = async () => {
+    if (!dniBuscar.trim()) return;
+    setBuscandoDni(true);
+    setErrorDni("");
+    setClienteDni(null);
+    try {
+      const res = await API.get("/fidelizacion/buscar-por-dni?dni=" + encodeURIComponent(dniBuscar.trim()));
+      setClienteDni(res.data);
+    } catch (e) {
+      setErrorDni(e.response?.data?.error || "Error al buscar");
+    }
+    setBuscandoDni(false);
+  };
+
+  const canjearEnLocal = async (premio) => {
+    if (!clienteDni?.cliente?.id) return;
+    setCanjeandoId(premio.id);
+    try {
+      await API.post("/fidelizacion/canjear-en-local", {
+        cliente_id: clienteDni.cliente.id, premio_id: premio.id,
+        usuario_nombre: usuario?.nombre || null
+      });
+      setMensaje("Premio \"" + premio.nombre + "\" canjeado y entregado correctamente");
+      setTimeout(() => setMensaje(""), 4000);
+      buscarPorDni(); // refresca puntos y lista de premios disponibles
+    } catch (e) {
+      setMensaje("Error al canjear: " + (e.response?.data?.error || e.message));
+    }
+    setCanjeandoId(null);
+  };
+
   return (
     <div className="fade">
       <div className="ph"><div><div className="pt">Fidelizacion</div><div className="ps">puntos - niveles - canjes</div></div></div>
@@ -4254,7 +4290,7 @@ function Fidelizacion() {
       </div>
       {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
       <div className="tabs">
-        {["clientes", "premios", "validar"].map(t => <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "validar") cargarCanjes(); }}>{t === "clientes" ? "CLIENTES" : t === "premios" ? "PREMIOS" : "VALIDAR CANJE"}</div>)}
+        {["clientes", "premios", "canjear-local", "validar"].map(t => <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "validar") cargarCanjes(); }}>{t === "clientes" ? "CLIENTES" : t === "premios" ? "PREMIOS" : t === "canjear-local" ? "CANJEAR EN LOCAL" : "VALIDAR CANJE"}</div>)}
       </div>
       {tab === "clientes" && (
         <div className="card fade">
@@ -4364,6 +4400,58 @@ function Fidelizacion() {
                 );
               })}
             </div>
+          )}
+        </div>
+      )}
+      {tab === "canjear-local" && (
+        <div className="fade">
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Buscar clienta por DNI</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input className="inp" placeholder="Ej: 32456789" value={dniBuscar} onChange={e => setDniBuscar(e.target.value)} onKeyDown={e => e.key === "Enter" && buscarPorDni()} style={{ maxWidth: 260 }} />
+              <button className="btn btn-p btn-sm" disabled={buscandoDni} onClick={buscarPorDni}>{buscandoDni ? "Buscando..." : "Buscar"}</button>
+            </div>
+            {errorDni && <div style={{ color: "#c0392b", fontSize: 12, marginTop: 8 }}>{errorDni}</div>}
+          </div>
+
+          {clienteDni && (
+            <>
+              <div className="card" style={{ marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 700 }}>{clienteDni.cliente.nombre}</div>
+                  <div style={{ fontSize: 11, color: "#65676B" }}>DNI {clienteDni.cliente.cuit_dni} {clienteDni.cliente.telefono ? "· " + clienteDni.cliente.telefono : ""}</div>
+                  <span className="badge" style={{ marginTop: 6, display: "inline-block" }}>Nivel {clienteDni.cliente.nivel}</span>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: "#c9a84c" }}>{fmtNum(clienteDni.cliente.puntos)}</div>
+                  <div style={{ fontSize: 10, color: "#65676B", letterSpacing: ".1em" }}>PUNTOS DISPONIBLES</div>
+                </div>
+              </div>
+
+              <div style={{ fontSize: 12, color: "#65676B", marginBottom: 10 }}>Premios que ya puede canjear ahora mismo:</div>
+              {clienteDni.premios.length === 0 ? (
+                <div className="card" style={{ textAlign: "center", color: "#65676B", padding: 24, fontSize: 12 }}>No hay premios disponibles para su nivel en este momento.</div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+                  {clienteDni.premios.map(p => (
+                    <div key={p.id} className="card" style={{ opacity: p.puede_canjear ? 1 : 0.55 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{p.nombre}</div>
+                      {p.descripcion && <div style={{ fontSize: 11, color: "#65676B", margin: "4px 0" }}>{p.descripcion}</div>}
+                      <div style={{ fontSize: 18, fontWeight: 700, color: "#c9a84c", marginTop: 6 }}>{fmtNum(p.puntos_requeridos)} pts</div>
+                      {p.solo_mes_cumpleanos && <span className="badge" style={{ fontSize: 9, marginTop: 4 }}>Solo mes de cumpleaños</span>}
+                      <button
+                        className="btn btn-p btn-sm"
+                        style={{ width: "100%", marginTop: 10 }}
+                        disabled={!p.puede_canjear || canjeandoId === p.id}
+                        onClick={() => canjearEnLocal(p)}
+                      >
+                        {canjeandoId === p.id ? "Canjeando..." : p.puede_canjear ? "Canjear ahora" : "Puntos insuficientes"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -8954,7 +9042,7 @@ export default function AppWrapper() {
     if (id === "productividad") return <Productividad localId={local.id} />;
     if (id === "cupones") return <Cupones localId={local.id} usuario={usuario} />;
     if (id === "promociones") return <Promociones />;
-    if (id === "fidelizacion") return <Fidelizacion localId={local.id} />;
+    if (id === "fidelizacion") return <Fidelizacion localId={local.id} usuario={usuario} />;
     if (id === "postventa") return <PostventaWA localId={local.id} />;
     if (id === "tiendanube") return <Tiendanube localId={local.id} usuario={usuario} />;
     if (id === "portal") return <PortalCliente />;

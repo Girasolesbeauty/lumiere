@@ -6,6 +6,8 @@ router.post('/premios', controller.createPremio);
 router.put('/premios/:id', controller.updatePremio);
 router.delete('/premios/:id', controller.desactivarPremio);
 router.post('/canjear', controller.canjear);
+router.get('/buscar-por-dni', controller.buscarClientePorDni);
+router.post('/canjear-en-local', controller.canjearEnLocal);
 router.get('/canjes', controller.getCanjes);
 router.post('/validar-canje', controller.validarCanje);
 router.get('/ranking', controller.getRanking);
