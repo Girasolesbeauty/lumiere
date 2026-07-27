@@ -8745,6 +8745,7 @@ function Usuarios({ usuario: usuarioActual }) {
   const [editandoPermisos, setEditandoPermisos] = useState(null);
   const [permisosUsuario, setPermisosUsuario] = useState([]);
   const [nuevoUsuario, setNuevoUsuario] = useState({ nombre: "", email: "", password: "", rol: "vendedora", rol_id: 3, local_id: 1 });
+  const [editandoUsuario, setEditandoUsuario] = useState(null);
   const rolColor = { jefe: "#c9a84c", administrativo: "#2471a3", vendedora: "#2d7a4f" };
   const rolNombre = { jefe: "Jefe", administrativo: "Administrativo", vendedora: "Vendedora" };
 
@@ -8792,6 +8793,22 @@ function Usuarios({ usuario: usuarioActual }) {
       setMensaje("Usuario creado!");
       setShowForm(false);
       setNuevoUsuario({ nombre: "", email: "", password: "", rol: "vendedora", rol_id: 3, local_id: 1 });
+      cargar();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error: " + (e.response?.data?.error || e.message)); }
+  };
+
+  const abrirEditarUsuario = (u) => {
+    setEditandoUsuario({ id: u.id, nombre: u.nombre || "", email: u.email || "", rol: u.rol || "vendedora", rol_id: u.rol_id || (u.rol === "jefe" ? 1 : u.rol === "administrativo" ? 2 : 3), local_id: u.local_id || 1 });
+    setShowForm(false);
+  };
+
+  const guardarEdicionUsuario = async () => {
+    if (!editandoUsuario.nombre || !editandoUsuario.email) return setMensaje("Completa nombre y email");
+    try {
+      await API.put("/auth/usuarios/" + editandoUsuario.id, editandoUsuario);
+      setMensaje("Usuario actualizado!");
+      setEditandoUsuario(null);
       cargar();
       setTimeout(() => setMensaje(""), 3000);
     } catch (e) { setMensaje("Error: " + (e.response?.data?.error || e.message)); }
@@ -8890,6 +8907,39 @@ function Usuarios({ usuario: usuarioActual }) {
         <button className="btn btn-p btn-sm" onClick={() => setShowForm(!showForm)}>+ Nuevo usuario</button>
       </div>
       {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
+      {editandoUsuario && (
+        <div className="card fade" style={{ marginBottom: 18 }}>
+          <div className="ct">Editar usuario</div>
+          <div className="g2">
+            <div>
+              <div className="fg"><div className="fl">Nombre</div><input className="inp" value={editandoUsuario.nombre} onChange={e => setEditandoUsuario(p => ({ ...p, nombre: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Email</div><input className="inp" type="email" value={editandoUsuario.email} onChange={e => setEditandoUsuario(p => ({ ...p, email: e.target.value }))} /></div>
+            </div>
+            <div>
+              <div className="fg"><div className="fl">Rol</div>
+                <select className="sel" value={editandoUsuario.rol} onChange={e => {
+                  const rolId = e.target.value === "jefe" ? 1 : e.target.value === "administrativo" ? 2 : 3;
+                  setEditandoUsuario(p => ({ ...p, rol: e.target.value, rol_id: rolId }));
+                }}>
+                  <option value="jefe">Jefe</option>
+                  <option value="administrativo">Administrativo</option>
+                  <option value="vendedora">Vendedora</option>
+                </select>
+              </div>
+              <div className="fg"><div className="fl">Local</div>
+                <select className="sel" value={editandoUsuario.local_id} onChange={e => setEditandoUsuario(p => ({ ...p, local_id: parseInt(e.target.value) }))}>
+                  <option value={1}>Rio Grande</option>
+                  <option value={2}>Ushuaia</option>
+                </select>
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarEdicionUsuario}>Guardar cambios</button>
+                <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEditandoUsuario(null)}>Cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {showForm && (
         <div className="card fade" style={{ marginBottom: 18 }}>
           <div className="ct">Nuevo usuario</div>
@@ -8938,6 +8988,7 @@ function Usuarios({ usuario: usuarioActual }) {
                   <td>
                     <div style={{ display: "flex", gap: 4 }}>
                       <button className="btn btn-p btn-sm" onClick={() => abrirPermisos(u)}>Permisos</button>
+                      <button className="btn btn-g btn-sm" onClick={() => abrirEditarUsuario(u)}>Editar</button>
                       <button className="btn btn-g btn-sm" onClick={() => cambiarPassword(u.id)}>Contrasena</button>
                     </div>
                   </td>
