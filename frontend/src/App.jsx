@@ -2548,6 +2548,7 @@ function Clientes() {
   const [showForm, setShowForm] = useState(false);
   const [mensaje, setMensaje] = useState("");
   const [nuevoCliente, setNuevoCliente] = useState({ nombre: "", email: "", cuit_dni: "", telefono: "", fecha_nacimiento: "" });
+  const [editandoCliente, setEditandoCliente] = useState(null);
   const [migrarCli, setMigrarCli] = useState(null);
   const [migMonto, setMigMonto] = useState("");
   const [migFecha, setMigFecha] = useState(() => new Date().toISOString().slice(0, 10));
@@ -2612,6 +2613,29 @@ function Clientes() {
     }
   };
 
+  const abrirEditarCliente = (c) => {
+    setEditandoCliente({
+      id: c.id, nombre: c.nombre || "", email: c.email || "",
+      cuit_dni: c.cuit_dni || "", telefono: c.telefono || "",
+      fecha_nacimiento: c.fecha_nacimiento ? String(c.fecha_nacimiento).slice(0, 10) : ""
+    });
+    setShowForm(false);
+  };
+
+  const guardarEdicionCliente = async () => {
+    if (!editandoCliente.nombre.trim()) { setMensaje("El nombre es obligatorio"); return; }
+    if (!editandoCliente.telefono.trim()) { setMensaje("El celular es obligatorio"); return; }
+    try {
+      await API.put("/clientes/" + editandoCliente.id, editandoCliente);
+      setMensaje("Datos de la clienta actualizados!");
+      setEditandoCliente(null);
+      getClientes().then(res => setClientes(res.data));
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) {
+      setMensaje("Error al actualizar: " + (e.response?.data?.error || e.message));
+    }
+  };
+
   const clientesAMostrar = clientes.length > 0 ? clientes : CLIENTS.map(c => ({ ...c, nombre: c.name, puntos: c.points, nivel: c.tier, total_compras: c.total, cuit_dni: c.cuit }));
   const platinum = clientesAMostrar.filter(c => (c.nivel || c.tier) === "Platinum").length;
   const gold = clientesAMostrar.filter(c => (c.nivel || c.tier) === "Gold").length;
@@ -2630,6 +2654,26 @@ function Clientes() {
         <button className="btn btn-p btn-sm" onClick={() => setShowForm(!showForm)}>+ Nuevo cliente</button>
       </div>
       {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
+      {editandoCliente && (
+        <div className="card fade" style={{ marginBottom: 18 }}>
+          <div className="ct">Editar clienta</div>
+          <div className="g2">
+            <div>
+              <div className="fg"><div className="fl">Nombre *</div><input className="inp" value={editandoCliente.nombre} onChange={e => setEditandoCliente(p => ({ ...p, nombre: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Email (opcional)</div><input className="inp" value={editandoCliente.email} onChange={e => setEditandoCliente(p => ({ ...p, email: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">CUIT / DNI (opcional)</div><input className="inp" value={editandoCliente.cuit_dni} onChange={e => setEditandoCliente(p => ({ ...p, cuit_dni: e.target.value }))} /></div>
+            </div>
+            <div>
+              <div className="fg"><div className="fl">Celular *</div><input className="inp" value={editandoCliente.telefono} onChange={e => setEditandoCliente(p => ({ ...p, telefono: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Fecha de nacimiento (opcional)</div><input className="inp" type="date" value={editandoCliente.fecha_nacimiento} onChange={e => setEditandoCliente(p => ({ ...p, fecha_nacimiento: e.target.value }))} /></div>
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarEdicionCliente}>Guardar cambios</button>
+                <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEditandoCliente(null)}>Cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {showForm && (
         <div className="card fade" style={{ marginBottom: 18 }}>
           <div className="ct">Nuevo cliente</div>
@@ -2690,6 +2734,7 @@ function Clientes() {
                     </td>
                     <td><TierBadge tier={nivel} /></td>
                     <td>
+                      <button className="btn btn-sm" style={{ fontSize: 10, marginRight: 4 }} onClick={() => abrirEditarCliente(c)}>Editar</button>
                       <button className="btn btn-sm" style={{ fontSize: 10, marginRight: 4 }} onClick={() => resetearPortalCliente(c)}>Resetear clave</button>
                       <button className="btn btn-sm" style={{ fontSize: 10, background: "#c9a84c", color: "#fff" }} onClick={() => abrirMigrar(c)}>Migrar puntos</button>
                     </td>
