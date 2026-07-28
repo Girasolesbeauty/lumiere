@@ -2125,7 +2125,8 @@ function Inventario({ localId, usuario }) {
         </div>
       )}
       {showForm && (
-        <div className="card fade" style={{ marginBottom: 18 }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }} onClick={() => { setShowForm(false); setEditandoProd(null); }}>
+        <div className="card fade" style={{ marginBottom: 18, maxWidth: 640, width: "100%", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
           <div className="ct">{editandoProd ? "Editar producto" : "Nuevo producto"}</div>
           <div className="g2">
             <div>
@@ -2175,6 +2176,7 @@ function Inventario({ localId, usuario }) {
               </div>
             </div>
           </div>
+        </div>
         </div>
       )}
       <div className="tabs">
@@ -2682,7 +2684,8 @@ function Clientes({ usuario }) {
       </div>
       {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
       {editandoCliente && (
-        <div className="card fade" style={{ marginBottom: 18 }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }} onClick={() => setEditandoCliente(null)}>
+        <div className="card fade" style={{ marginBottom: 18, maxWidth: 560, width: "100%" }} onClick={e => e.stopPropagation()}>
           <div className="ct">Editar clienta</div>
           <div className="g2">
             <div>
@@ -2699,6 +2702,7 @@ function Clientes({ usuario }) {
               </div>
             </div>
           </div>
+        </div>
         </div>
       )}
       {showForm && (
