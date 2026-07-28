@@ -10,4 +10,5 @@ router.get('/alertas/stock', controller.getAlertas);
 router.get('/stock/transito', controller.getTransito);
 router.put('/:id/ajustar-stock', controller.ajustarStock);
 router.get('/stock/ajustes', controller.getHistorialAjustes);
+router.post('/recalcular-stock-minimo', controller.recalcularStockMinimo);
 module.exports = router;
