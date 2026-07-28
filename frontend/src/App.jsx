@@ -1262,7 +1262,7 @@ function POS({ localId, usuario }) {
         .tot { font-size: 15px; font-weight: bold; }
         img.logo { width: 60mm; display: block; margin: 0 auto 4px; }
       </style></head><body>
-        <img class="logo" src="${LOGO_TICKET}" />
+        <img class="logo" src="${cfg.logo_ticket_url || LOGO_TICKET}" />
         <div class="c">${localNombre}</div>
         ${cfg.mostrar_fecha !== false ? `<div class="c" style="font-size:10px">${fecha}</div>` : ""}
         ${(cfg.mostrar_numero !== false && datos.numero) ? `<div class="c" style="font-size:10px">Comprobante ${datos.numero}</div>` : ""}
@@ -5652,6 +5652,302 @@ function Tiendanube({ localId, usuario }) {
   );
 }
 
+function ConfiguracionNegocio() {
+  const [tab, setTab] = useState("general");
+  const [mensaje, setMensaje] = useState("");
+  const ok = (txt) => { setMensaje(txt); setTimeout(() => setMensaje(""), 3000); };
+  const err = (e) => { setMensaje("Error: " + (e.response?.data?.error || e.message)); setTimeout(() => setMensaje(""), 5000); };
+
+  // ---- General ----
+  const [general, setGeneral] = useState({ nombre_negocio: "", logo_url: "" });
+  const [loadingGeneral, setLoadingGeneral] = useState(true);
+  useEffect(() => { API.get("/configuracion").then(r => { setGeneral(r.data); setLoadingGeneral(false); }).catch(() => setLoadingGeneral(false)); }, []);
+  const guardarGeneral = async () => {
+    try { await API.put("/configuracion", general); ok("Configuracion guardada!"); } catch (e) { err(e); }
+  };
+
+  // ---- Locales ----
+  const [locales, setLocales] = useState([]);
+  const [editandoLocal, setEditandoLocal] = useState(null);
+  const [nuevoLocal, setNuevoLocal] = useState(null);
+  const cargarLocales = () => API.get("/locales").then(r => setLocales(r.data)).catch(() => {});
+  useEffect(() => { cargarLocales(); }, []);
+  const guardarLocal = async (loc) => {
+    try {
+      if (loc.id) await API.put("/locales/" + loc.id, loc);
+      else await API.post("/locales", loc);
+      setEditandoLocal(null); setNuevoLocal(null);
+      cargarLocales();
+      ok("Local guardado!");
+    } catch (e) { err(e); }
+  };
+
+  // ---- Medios de pago ----
+  const [medios, setMedios] = useState([]);
+  const [editandoMedio, setEditandoMedio] = useState(null);
+  const cargarMedios = () => API.get("/medios-pago?todos=true").then(r => setMedios(r.data)).catch(() => {});
+  useEffect(() => { cargarMedios(); }, []);
+  const guardarMedio = async () => {
+    try {
+      if (editandoMedio.id) await API.put("/medios-pago/" + editandoMedio.id, editandoMedio);
+      else await API.post("/medios-pago", editandoMedio);
+      setEditandoMedio(null);
+      cargarMedios();
+      ok("Medio de pago guardado!");
+    } catch (e) { err(e); }
+  };
+  const desactivarMedio = async (m) => {
+    if (!confirm("Desactivar \"" + m.nombre + "\"? Ya no va a aparecer para elegir en ventas nuevas.")) return;
+    try { await API.delete("/medios-pago/" + m.id); cargarMedios(); } catch (e) { err(e); }
+  };
+
+  // ---- Categorias de costo ----
+  const [categorias, setCategorias] = useState([]);
+  const [editandoCat, setEditandoCat] = useState(null);
+  const cargarCategorias = () => API.get("/categorias-costo").then(r => setCategorias(r.data)).catch(() => {});
+  useEffect(() => { cargarCategorias(); }, []);
+  const guardarCategoria = async () => {
+    if (!editandoCat.nombre?.trim() || !editandoCat.tipo) return setMensaje("Nombre y tipo son obligatorios");
+    try {
+      if (editandoCat.id) await API.put("/categorias-costo/" + editandoCat.id, editandoCat);
+      else await API.post("/categorias-costo", editandoCat);
+      setEditandoCat(null);
+      cargarCategorias();
+      ok("Categoria guardada!");
+    } catch (e) { err(e); }
+  };
+  const borrarCategoria = async (c) => {
+    if (!confirm("Borrar la categoria \"" + c.nombre + "\"?")) return;
+    try { await API.delete("/categorias-costo/" + c.id); cargarCategorias(); } catch (e) { err(e); }
+  };
+
+  // ---- Cuentas de pago ----
+  const [cuentas, setCuentas] = useState([]);
+  const [editandoCuenta, setEditandoCuenta] = useState(null);
+  const cargarCuentas = () => API.get("/cuentas-pago").then(r => setCuentas(r.data)).catch(() => {});
+  useEffect(() => { cargarCuentas(); }, []);
+  const guardarCuenta = async () => {
+    try {
+      if (editandoCuenta.id) await API.put("/cuentas-pago/" + editandoCuenta.id, editandoCuenta);
+      else await API.post("/cuentas-pago", editandoCuenta);
+      setEditandoCuenta(null);
+      cargarCuentas();
+      ok("Cuenta guardada!");
+    } catch (e) { err(e); }
+  };
+
+  const TABS = [["general", "GENERAL"], ["locales", "LOCALES"], ["medios", "MEDIOS DE PAGO"], ["categorias", "CATEGORIAS DE COSTO"], ["cuentas", "CUENTAS / BANCOS"]];
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Configuracion del Negocio</div><div className="ps">nombre, logo, locales, medios de pago y categorias -- solo para el rol jefe (o quien tenga el permiso habilitado)</div></div>
+      </div>
+      {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
+      <div className="tabs">
+        {TABS.map(([id, label]) => <div key={id} className={"tab " + (tab === id ? "on" : "")} onClick={() => setTab(id)}>{label}</div>)}
+      </div>
+
+      {tab === "general" && (
+        loadingGeneral ? <div style={{ color: "#65676B", padding: 20 }}>Cargando...</div> : (
+          <div className="card fade" style={{ maxWidth: 480 }}>
+            <div className="ct">Datos generales</div>
+            <div className="fg"><div className="fl">Nombre del negocio</div><input className="inp" value={general.nombre_negocio || ""} onChange={e => setGeneral(p => ({ ...p, nombre_negocio: e.target.value }))} /></div>
+            <div className="fg"><div className="fl">Logo (URL de la imagen)</div><input className="inp" value={general.logo_url || ""} onChange={e => setGeneral(p => ({ ...p, logo_url: e.target.value }))} placeholder="https://..." /></div>
+            {general.logo_url && <img src={general.logo_url} alt="Logo" style={{ maxWidth: 160, marginBottom: 10, display: "block" }} />}
+            <button className="btn btn-p" onClick={guardarGeneral}>Guardar</button>
+          </div>
+        )
+      )}
+
+      {tab === "locales" && (
+        <div className="fade">
+          <div style={{ fontSize: 11, color: "#65676B", marginBottom: 12, background: "#f7f5f0", padding: 10, borderRadius: 6 }}>
+            Ojo: podes editar el nombre y la direccion de los locales que ya existen. Agregar un local nuevo (un 3ro, 4to, etc.) queda guardado, pero el resto del sistema (POS, inventario, finanzas) hoy esta armado para 2 locales especificamente y no va a funcionar del todo con mas -- eso es un cambio mas grande que todavia no hicimos.
+          </div>
+          <table>
+            <thead><tr><th>Nombre</th><th>Direccion</th><th></th></tr></thead>
+            <tbody>
+              {locales.map(l => (
+                <tr key={l.id}>
+                  {editandoLocal?.id === l.id ? (
+                    <>
+                      <td><input className="inp" value={editandoLocal.nombre} onChange={e => setEditandoLocal(p => ({ ...p, nombre: e.target.value }))} /></td>
+                      <td><input className="inp" value={editandoLocal.direccion || ""} onChange={e => setEditandoLocal(p => ({ ...p, direccion: e.target.value }))} /></td>
+                      <td>
+                        <button className="btn btn-p btn-sm" onClick={() => guardarLocal(editandoLocal)}>Guardar</button>
+                        <button className="btn btn-g btn-sm" onClick={() => setEditandoLocal(null)}>Cancelar</button>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td>{l.nombre}</td>
+                      <td style={{ color: "#65676B" }}>{l.direccion || "-"}</td>
+                      <td><button className="btn btn-sm" onClick={() => setEditandoLocal({ id: l.id, nombre: l.nombre, direccion: l.direccion || "" })}>Editar</button></td>
+                    </>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {nuevoLocal ? (
+            <div className="card fade" style={{ marginTop: 12, maxWidth: 400 }}>
+              <div className="ct">Nuevo local</div>
+              <div className="fg"><div className="fl">Nombre</div><input className="inp" value={nuevoLocal.nombre} onChange={e => setNuevoLocal(p => ({ ...p, nombre: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Direccion</div><input className="inp" value={nuevoLocal.direccion} onChange={e => setNuevoLocal(p => ({ ...p, direccion: e.target.value }))} /></div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-p" style={{ flex: 1 }} onClick={() => guardarLocal(nuevoLocal)}>Crear</button>
+                <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setNuevoLocal(null)}>Cancelar</button>
+              </div>
+            </div>
+          ) : (
+            <button className="btn btn-g btn-sm" style={{ marginTop: 12 }} onClick={() => setNuevoLocal({ nombre: "", direccion: "" })}>+ Nuevo local</button>
+          )}
+        </div>
+      )}
+
+      {tab === "medios" && (
+        <div className="fade">
+          <table>
+            <thead><tr><th>Nombre</th><th>Tipo</th><th>Cuotas</th><th>Comision %</th><th>Online</th><th>Activo</th><th></th></tr></thead>
+            <tbody>
+              {medios.map(m => (
+                <tr key={m.id}>
+                  <td style={{ fontWeight: 500 }}>{m.nombre}</td>
+                  <td style={{ fontSize: 11, color: "#65676B" }}>{m.tipo}</td>
+                  <td>{m.cuotas}{m.con_interes ? " (c/interes)" : ""}</td>
+                  <td>{m.comision}%</td>
+                  <td>{m.disponible_online !== false ? "Si" : "No"}</td>
+                  <td>{m.activo ? "Si" : "No"}</td>
+                  <td>
+                    <button className="btn btn-sm" onClick={() => setEditandoMedio({ ...m })}>Editar</button>
+                    {m.activo && <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => desactivarMedio(m)}>Desactivar</button>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {editandoMedio ? (
+            <div className="card fade" style={{ marginTop: 12, maxWidth: 420 }}>
+              <div className="ct">{editandoMedio.id ? "Editar medio de pago" : "Nuevo medio de pago"}</div>
+              <div className="fg"><div className="fl">Nombre</div><input className="inp" value={editandoMedio.nombre || ""} onChange={e => setEditandoMedio(p => ({ ...p, nombre: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Tipo</div>
+                <select className="sel" value={editandoMedio.tipo || "efectivo"} onChange={e => setEditandoMedio(p => ({ ...p, tipo: e.target.value }))}>
+                  <option value="efectivo">Efectivo</option>
+                  <option value="debito">Debito</option>
+                  <option value="credito">Credito</option>
+                  <option value="transferencia">Transferencia</option>
+                  <option value="plataforma">Plataforma (Mercado Pago, etc.)</option>
+                </select>
+              </div>
+              <div className="fg"><div className="fl">Cuotas</div><input className="inp" type="number" value={editandoMedio.cuotas || 1} onChange={e => setEditandoMedio(p => ({ ...p, cuotas: parseInt(e.target.value) || 1 }))} /></div>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, marginBottom: 10 }}>
+                <input type="checkbox" checked={editandoMedio.con_interes || false} onChange={e => setEditandoMedio(p => ({ ...p, con_interes: e.target.checked }))} /> Con interes
+              </label>
+              <div className="fg"><div className="fl">Comision (%)</div><input className="inp" type="number" step="0.01" value={editandoMedio.comision || 0} onChange={e => setEditandoMedio(p => ({ ...p, comision: parseFloat(e.target.value) || 0 }))} /></div>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, marginBottom: 10 }}>
+                <input type="checkbox" checked={editandoMedio.disponible_online !== false} onChange={e => setEditandoMedio(p => ({ ...p, disponible_online: e.target.checked }))} /> Disponible para elegir en Ventas Online
+              </label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarMedio}>Guardar</button>
+                <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEditandoMedio(null)}>Cancelar</button>
+              </div>
+            </div>
+          ) : (
+            <button className="btn btn-g btn-sm" style={{ marginTop: 12 }} onClick={() => setEditandoMedio({ nombre: "", tipo: "efectivo", cuotas: 1, con_interes: false, coeficiente: 1, comision: 0, disponible_online: true })}>+ Nuevo medio de pago</button>
+          )}
+        </div>
+      )}
+
+      {tab === "categorias" && (
+        <div className="fade">
+          <table>
+            <thead><tr><th>Nombre</th><th>Tipo</th><th>Subtipo</th><th></th></tr></thead>
+            <tbody>
+              {categorias.map(c => (
+                <tr key={c.id}>
+                  <td style={{ fontWeight: 500 }}>{c.nombre}</td>
+                  <td style={{ fontSize: 11, color: "#65676B" }}>{c.tipo}</td>
+                  <td style={{ fontSize: 11, color: "#999" }}>{c.subtipo || "-"}</td>
+                  <td>
+                    <button className="btn btn-sm" onClick={() => setEditandoCat({ ...c })}>Editar</button>
+                    <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => borrarCategoria(c)}>Borrar</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {editandoCat ? (
+            <div className="card fade" style={{ marginTop: 12, maxWidth: 400 }}>
+              <div className="ct">{editandoCat.id ? "Editar categoria" : "Nueva categoria de costo"}</div>
+              <div className="fg"><div className="fl">Nombre</div><input className="inp" value={editandoCat.nombre || ""} onChange={e => setEditandoCat(p => ({ ...p, nombre: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Tipo</div>
+                <select className="sel" value={editandoCat.tipo || "variable"} onChange={e => setEditandoCat(p => ({ ...p, tipo: e.target.value }))}>
+                  <option value="variable">Variable (mercaderia, comisiones, envios)</option>
+                  <option value="fijo">Fijo (alquiler, servicios, seguros)</option>
+                  <option value="administrativo">Administrativo / marketing</option>
+                  <option value="sueldo">Sueldo</option>
+                </select>
+              </div>
+              <div className="fg"><div className="fl">Subtipo (opcional, texto libre)</div><input className="inp" value={editandoCat.subtipo || ""} onChange={e => setEditandoCat(p => ({ ...p, subtipo: e.target.value }))} /></div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarCategoria}>Guardar</button>
+                <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEditandoCat(null)}>Cancelar</button>
+              </div>
+            </div>
+          ) : (
+            <button className="btn btn-g btn-sm" style={{ marginTop: 12 }} onClick={() => setEditandoCat({ nombre: "", tipo: "variable", subtipo: "" })}>+ Nueva categoria</button>
+          )}
+        </div>
+      )}
+
+      {tab === "cuentas" && (
+        <div className="fade">
+          <table>
+            <thead><tr><th>Nombre</th><th>Tipo</th><th>Banco</th><th>Titular</th><th></th></tr></thead>
+            <tbody>
+              {cuentas.map(c => (
+                <tr key={c.id}>
+                  <td style={{ fontWeight: 500 }}>{c.nombre}</td>
+                  <td style={{ fontSize: 11, color: "#65676B" }}>{c.tipo}</td>
+                  <td style={{ fontSize: 11 }}>{c.banco || "-"}</td>
+                  <td style={{ fontSize: 11, color: "#999" }}>{c.titular || "-"}</td>
+                  <td><button className="btn btn-sm" onClick={() => setEditandoCuenta({ ...c })}>Editar</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {editandoCuenta ? (
+            <div className="card fade" style={{ marginTop: 12, maxWidth: 420 }}>
+              <div className="ct">{editandoCuenta.id ? "Editar cuenta" : "Nueva cuenta / billetera"}</div>
+              <div className="fg"><div className="fl">Nombre</div><input className="inp" value={editandoCuenta.nombre || ""} onChange={e => setEditandoCuenta(p => ({ ...p, nombre: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Tipo</div>
+                <select className="sel" value={editandoCuenta.tipo || "transferencia"} onChange={e => setEditandoCuenta(p => ({ ...p, tipo: e.target.value }))}>
+                  <option value="transferencia">Transferencia bancaria</option>
+                  <option value="billetera">Billetera virtual</option>
+                  <option value="debito">Debito</option>
+                  <option value="credito">Credito</option>
+                </select>
+              </div>
+              <div className="fg"><div className="fl">Banco / plataforma</div><input className="inp" value={editandoCuenta.banco || ""} onChange={e => setEditandoCuenta(p => ({ ...p, banco: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Titular</div><input className="inp" value={editandoCuenta.titular || ""} onChange={e => setEditandoCuenta(p => ({ ...p, titular: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">CBU / CVU (opcional)</div><input className="inp" value={editandoCuenta.cbu || ""} onChange={e => setEditandoCuenta(p => ({ ...p, cbu: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Alias (opcional)</div><input className="inp" value={editandoCuenta.alias || ""} onChange={e => setEditandoCuenta(p => ({ ...p, alias: e.target.value }))} /></div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarCuenta}>Guardar</button>
+                <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEditandoCuenta(null)}>Cancelar</button>
+              </div>
+            </div>
+          ) : (
+            <button className="btn btn-g btn-sm" style={{ marginTop: 12 }} onClick={() => setEditandoCuenta({ nombre: "", tipo: "transferencia", banco: "", titular: "", cbu: "", alias: "", solo_acreditacion: false })}>+ Nueva cuenta</button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 function PortalCliente() {
   const client = CLIENTS[0];
   const [tab, setTab] = useState("canjear");
@@ -6434,7 +6730,7 @@ function Comprobantes({ localId }) {
         .tot { font-size: 15px; font-weight: bold; }
         img.logo { width: 60mm; display: block; margin: 0 auto 4px; }
       </style></head><body>
-        <img class="logo" src="${LOGO_TICKET}" />
+        <img class="logo" src="${cfg.logo_ticket_url || LOGO_TICKET}" />
         <div class="c">${localNombre}</div>
         <div class="c" style="font-size:9px; color:#555">REIMPRESION</div>
         ${cfg.mostrar_fecha !== false ? `<div class="c" style="font-size:10px">${fecha}</div>` : ""}
@@ -8425,6 +8721,12 @@ function ConfigTicket() {
             <div style={{ fontSize: 10, color: "#65676B", marginTop: 10 }}>El logo, el local, los productos y el total siempre se muestran.</div>
           </div>
           <div className="card">
+            <div className="ct">Logo del ticket</div>
+            <div className="fg"><div className="fl">URL de la imagen (subida a algun hosting de imagenes)</div><input className="inp" value={cfg.logo_ticket_url || ""} onChange={e => setCfg(p => ({ ...p, logo_ticket_url: e.target.value }))} placeholder="https://..." /></div>
+            {cfg.logo_ticket_url && <img src={cfg.logo_ticket_url} alt="Logo del ticket" style={{ maxWidth: 160, marginTop: 6, display: "block" }} />}
+            <div style={{ fontSize: 10, color: "#65676B", marginTop: 6 }}>Si lo dejas vacio, se usa el logo por defecto del sistema.</div>
+          </div>
+          <div className="card">
             <div className="ct">Textos del pie</div>
             <div className="fg"><div className="fl">Mensaje de agradecimiento</div><input className="inp" value={cfg.mensaje_pie || ""} onChange={e => setCfg(p => ({ ...p, mensaje_pie: e.target.value }))} placeholder="Gracias por tu compra!" /></div>
             <div className="fg"><div className="fl">Texto extra (redes, telefono, direccion)</div><textarea className="inp" rows={3} value={cfg.texto_extra || ""} onChange={e => setCfg(p => ({ ...p, texto_extra: e.target.value }))} placeholder="Ej: @girasoles.beauty | Tel: 2964..." /></div>
@@ -8709,6 +9011,7 @@ const NAV_SECTIONS = [
   { section: "POSTVENTA", color: "#25d366", items: [{ id: "postventa", icon: "💬", label: "Postventa WA" }] },
   { section: "INTEGRACIONES", color: "#2471a3", items: [{ id: "tiendanube", icon: "🛍️", label: "Tiendanube" }] },
   { section: "CLIENTE", color: "#65676B", items: [{ id: "portal", icon: "👤", label: "Portal Cliente" }] },
+  { section: "NEGOCIO", color: "#8e44ad", items: [{ id: "config-negocio", icon: "⚙️", label: "Configuracion del Negocio" }] },
 ];
 
 
@@ -8824,6 +9127,7 @@ function Usuarios({ usuario: usuarioActual }) {
   const rolNombre = { jefe: "Jefe", administrativo: "Administrativo", vendedora: "Vendedora" };
 
   const TODOS_PERMISOS = {
+    "Configuracion del Negocio": [["config_negocio.editar","Editar configuracion del negocio"]],
     "Dashboard": [["dashboard.ver","Ver Dashboard"]],
     "POS": [["pos.ver","Ver Punto de Venta"],["pos.venta","Registrar ventas"],["pos.preventa","Hacer preventas"],["pos.descuento","Aplicar descuentos"]],
     "Finanzas": [["finanzas.flujo","Ver flujo de efectivo"],["finanzas.egreso","Registrar egresos"],["finanzas.equilibrio","Ver punto de equilibrio"],["finanzas.costos","Ver costos"]],
@@ -9145,7 +9449,7 @@ export default function AppWrapper() {
       "calculadoras": "calculadoras.ver", "productividad": "productividad.ver",
       "cupones": "cupones.ver", "promociones": "cupones.ver", "postventa": "postventa.ver", "portal": "clientes.ver",
       "caja": "caja.ver", "caja-respaldo": "caja_respaldo.ver", "cierre": "cierre_caja.ver", "giftcards": "giftcards.ver",
-      "usuarios": "usuarios.ver", "tiendanube": "tiendanube.ver",
+      "usuarios": "usuarios.ver", "tiendanube": "tiendanube.ver", "config-negocio": "config_negocio.editar",
     };
     const permiso = mapaModulos[modulo];
     if (!permiso) return true;
@@ -9192,6 +9496,7 @@ export default function AppWrapper() {
     if (id === "postventa") return <PostventaWA localId={local.id} />;
     if (id === "tiendanube") return <Tiendanube localId={local.id} usuario={usuario} />;
     if (id === "portal") return <PortalCliente />;
+    if (id === "config-negocio") return <ConfiguracionNegocio />;
     if (id === "usuarios") return <Usuarios usuario={usuario} />;
     if (id === "comisiones") return <Comisiones localId={local.id} />;
     if (id === "caja") return <Caja localId={local.id} usuario={usuario} />;
