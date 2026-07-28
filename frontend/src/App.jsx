@@ -1969,6 +1969,20 @@ function Inventario({ localId, usuario }) {
   const [filtroStock, setFiltroStock] = useState("");
   const [filtroEstadoProd, setFiltroEstadoProd] = useState("activos");
   const [filtroMarcasValor, setFiltroMarcasValor] = useState([]);
+  const [recalculando, setRecalculando] = useState(false);
+
+  const recalcularStockMinimo = async () => {
+    setRecalculando(true);
+    try {
+      const res = await API.post("/productos/recalcular-stock-minimo");
+      setMensaje(res.data.productos_actualizados + " productos actualizados segun su ritmo real de venta");
+      cargar();
+      setTimeout(() => setMensaje(""), 5000);
+    } catch (e) {
+      setMensaje("Error al recalcular: " + (e.response?.data?.error || e.message));
+    }
+    setRecalculando(false);
+  };
   const [marcaDropdownOpen, setMarcaDropdownOpen] = useState(false);
   const [filtroMarcaAlertas, setFiltroMarcaAlertas] = useState("");
   const [vistaLocal, setVistaLocal] = useState("mi");
@@ -2194,6 +2208,7 @@ function Inventario({ localId, usuario }) {
             <option value="inactivos">Inactivos</option>
             <option value="todos">Todos</option>
           </select>
+          <button className="btn btn-g btn-sm" disabled={recalculando} onClick={recalcularStockMinimo}>{recalculando ? "Recalculando..." : "Recalcular stock minimo"}</button>
           {(busqueda || filtroCat || filtroStock) && <button className="btn btn-g btn-sm" onClick={() => { setBusqueda(""); setFiltroCat(""); setFiltroStock(""); }}>Limpiar</button>}
         </div>
       )}

@@ -248,4 +248,45 @@ const getHistorialAjustes = async (req, res) => {
   }
 };
 
-module.exports = { getAll, getById, create, update, remove, getAlertas, getTransito, ajustarStock, getHistorialAjustes };
+// Recalcula el stock minimo de cada producto segun su propio ritmo de venta real:
+// promedio diario vendido en los ultimos 60 dias x 30 dias de colchon deseado.
+// Los productos sin ninguna venta en esos 60 dias no se tocan (podria ser estacional
+// o nuevo, y llevarlo a 0 rompería la alerta de reposicion sin sentido).
+const recalcularStockMinimo = async (req, res) => {
+  try {
+    const DIAS_HISTORIAL = 60;
+    const DIAS_COLCHON = 30;
+    const result = await pool.query(`
+      SELECT vi.producto_id, SUM(vi.cantidad) AS total_vendido
+      FROM venta_items vi
+      JOIN ventas v ON v.id = vi.venta_id
+      WHERE v.creado_en >= NOW() - INTERVAL '${DIAS_HISTORIAL} days'
+        AND (COALESCE(v.es_preventa, FALSE) = FALSE OR v.estado_pago = 'confirmada')
+      GROUP BY vi.producto_id
+    `);
+
+    let actualizados = 0;
+    const detalle = [];
+    for (const row of result.rows) {
+      const totalVendido = parseFloat(row.total_vendido) || 0;
+      const promedioDiario = totalVendido / DIAS_HISTORIAL;
+      if (promedioDiario <= 0) continue;
+      const nuevoMinimo = Math.max(1, Math.ceil(promedioDiario * DIAS_COLCHON));
+      const upd = await pool.query(
+        'UPDATE productos SET stock_minimo = $1 WHERE id = $2 AND activo = TRUE RETURNING nombre, stock_minimo',
+        [nuevoMinimo, row.producto_id]
+      );
+      if (upd.rows.length > 0) {
+        actualizados++;
+        detalle.push({ producto: upd.rows[0].nombre, stock_minimo_nuevo: upd.rows[0].stock_minimo });
+      }
+    }
+
+    res.json({ mensaje: 'Stock minimo recalculado', productos_actualizados: actualizados, detalle });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al recalcular stock minimo: ' + error.message });
+  }
+};
+
+module.exports = { getAll, getById, create, update, remove, getAlertas, getTransito, ajustarStock, getHistorialAjustes, recalcularStockMinimo };
