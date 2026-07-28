@@ -5790,8 +5790,10 @@ function ConfiguracionNegocio() {
               ))}
             </tbody>
           </table>
-          {nuevoLocal ? (
-            <div className="card fade" style={{ marginTop: 12, maxWidth: 400 }}>
+          <button className="btn btn-g btn-sm" style={{ marginTop: 12 }} onClick={() => setNuevoLocal({ nombre: "", direccion: "" })}>+ Nuevo local</button>
+          {nuevoLocal && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={() => setNuevoLocal(null)}>
+            <div className="card fade" style={{ marginTop: 12, maxWidth: 400, width: "90vw" }} onClick={e => e.stopPropagation()}>
               <div className="ct">Nuevo local</div>
               <div className="fg"><div className="fl">Nombre</div><input className="inp" value={nuevoLocal.nombre} onChange={e => setNuevoLocal(p => ({ ...p, nombre: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Direccion</div><input className="inp" value={nuevoLocal.direccion} onChange={e => setNuevoLocal(p => ({ ...p, direccion: e.target.value }))} /></div>
@@ -5800,8 +5802,7 @@ function ConfiguracionNegocio() {
                 <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setNuevoLocal(null)}>Cancelar</button>
               </div>
             </div>
-          ) : (
-            <button className="btn btn-g btn-sm" style={{ marginTop: 12 }} onClick={() => setNuevoLocal({ nombre: "", direccion: "" })}>+ Nuevo local</button>
+            </div>
           )}
         </div>
       )}
@@ -5827,8 +5828,10 @@ function ConfiguracionNegocio() {
               ))}
             </tbody>
           </table>
-          {editandoMedio ? (
-            <div className="card fade" style={{ marginTop: 12, maxWidth: 420 }}>
+          <button className="btn btn-g btn-sm" style={{ marginTop: 12 }} onClick={() => setEditandoMedio({ nombre: "", tipo: "efectivo", cuotas: 1, con_interes: false, coeficiente: 1, comision: 0, disponible_online: true })}>+ Nuevo medio de pago</button>
+          {editandoMedio && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={() => setEditandoMedio(null)}>
+            <div className="card fade" style={{ marginTop: 12, maxWidth: 420, width: "90vw", maxHeight: "85vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
               <div className="ct">{editandoMedio.id ? "Editar medio de pago" : "Nuevo medio de pago"}</div>
               <div className="fg"><div className="fl">Nombre</div><input className="inp" value={editandoMedio.nombre || ""} onChange={e => setEditandoMedio(p => ({ ...p, nombre: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Tipo</div>
@@ -5853,8 +5856,7 @@ function ConfiguracionNegocio() {
                 <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEditandoMedio(null)}>Cancelar</button>
               </div>
             </div>
-          ) : (
-            <button className="btn btn-g btn-sm" style={{ marginTop: 12 }} onClick={() => setEditandoMedio({ nombre: "", tipo: "efectivo", cuotas: 1, con_interes: false, coeficiente: 1, comision: 0, disponible_online: true })}>+ Nuevo medio de pago</button>
+            </div>
           )}
         </div>
       )}
@@ -5877,8 +5879,10 @@ function ConfiguracionNegocio() {
               ))}
             </tbody>
           </table>
-          {editandoCat ? (
-            <div className="card fade" style={{ marginTop: 12, maxWidth: 400 }}>
+          <button className="btn btn-g btn-sm" style={{ marginTop: 12 }} onClick={() => setEditandoCat({ nombre: "", tipo: "variable", subtipo: "" })}>+ Nueva categoria</button>
+          {editandoCat && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={() => setEditandoCat(null)}>
+            <div className="card fade" style={{ marginTop: 12, maxWidth: 400, width: "90vw" }} onClick={e => e.stopPropagation()}>
               <div className="ct">{editandoCat.id ? "Editar categoria" : "Nueva categoria de costo"}</div>
               <div className="fg"><div className="fl">Nombre</div><input className="inp" value={editandoCat.nombre || ""} onChange={e => setEditandoCat(p => ({ ...p, nombre: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Tipo</div>
@@ -5895,8 +5899,7 @@ function ConfiguracionNegocio() {
                 <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEditandoCat(null)}>Cancelar</button>
               </div>
             </div>
-          ) : (
-            <button className="btn btn-g btn-sm" style={{ marginTop: 12 }} onClick={() => setEditandoCat({ nombre: "", tipo: "variable", subtipo: "" })}>+ Nueva categoria</button>
+            </div>
           )}
         </div>
       )}
@@ -5917,8 +5920,10 @@ function ConfiguracionNegocio() {
               ))}
             </tbody>
           </table>
-          {editandoCuenta ? (
-            <div className="card fade" style={{ marginTop: 12, maxWidth: 420 }}>
+          <button className="btn btn-g btn-sm" style={{ marginTop: 12 }} onClick={() => setEditandoCuenta({ nombre: "", tipo: "transferencia", banco: "", titular: "", cbu: "", alias: "", solo_acreditacion: false })}>+ Nueva cuenta</button>
+          {editandoCuenta && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={() => setEditandoCuenta(null)}>
+            <div className="card fade" style={{ marginTop: 12, maxWidth: 420, width: "90vw", maxHeight: "85vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
               <div className="ct">{editandoCuenta.id ? "Editar cuenta" : "Nueva cuenta / billetera"}</div>
               <div className="fg"><div className="fl">Nombre</div><input className="inp" value={editandoCuenta.nombre || ""} onChange={e => setEditandoCuenta(p => ({ ...p, nombre: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Tipo</div>
@@ -5938,8 +5943,7 @@ function ConfiguracionNegocio() {
                 <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEditandoCuenta(null)}>Cancelar</button>
               </div>
             </div>
-          ) : (
-            <button className="btn btn-g btn-sm" style={{ marginTop: 12 }} onClick={() => setEditandoCuenta({ nombre: "", tipo: "transferencia", banco: "", titular: "", cbu: "", alias: "", solo_acreditacion: false })}>+ Nueva cuenta</button>
+            </div>
           )}
         </div>
       )}
