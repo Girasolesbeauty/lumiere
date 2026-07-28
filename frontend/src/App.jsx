@@ -2541,7 +2541,7 @@ function Inventario({ localId, usuario }) {
   );
 }
 
-function Clientes() {
+function Clientes({ usuario }) {
   const [tab, setTab] = useState("lista");
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -2620,6 +2620,18 @@ function Clientes() {
       fecha_nacimiento: c.fecha_nacimiento ? String(c.fecha_nacimiento).slice(0, 10) : ""
     });
     setShowForm(false);
+  };
+
+  const eliminarCliente = async (c) => {
+    if (!confirm("Eliminar a \"" + c.nombre + "\" de forma permanente? Esta accion no se puede deshacer.")) return;
+    try {
+      await API.delete("/clientes/" + c.id);
+      setMensaje("Cliente eliminado");
+      getClientes().then(res => setClientes(res.data));
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) {
+      setMensaje("Error al eliminar: " + (e.response?.data?.error || "revisa que no tenga ventas asociadas"));
+    }
   };
 
   const guardarEdicionCliente = async () => {
@@ -2737,6 +2749,7 @@ function Clientes() {
                       <button className="btn btn-sm" style={{ fontSize: 10, marginRight: 4 }} onClick={() => abrirEditarCliente(c)}>Editar</button>
                       <button className="btn btn-sm" style={{ fontSize: 10, marginRight: 4 }} onClick={() => resetearPortalCliente(c)}>Resetear clave</button>
                       <button className="btn btn-sm" style={{ fontSize: 10, background: "#c9a84c", color: "#fff" }} onClick={() => abrirMigrar(c)}>Migrar puntos</button>
+                      {usuario?.rol === "jefe" && <button className="btn btn-sm" style={{ fontSize: 10, marginLeft: 4, color: "#c0392b" }} onClick={() => eliminarCliente(c)}>Eliminar</button>}
                     </td>
                   </tr>
                 );
@@ -4597,7 +4610,8 @@ function Pedidos({ localId }) {
         nombre_manual: sinRegistrar ? nombreManual.trim() : null,
         telefono_manual: sinRegistrar ? telefonoManual.trim() : null,
         producto_id: prodSel ? prodSel.id : null,
-        producto_texto: !prodSel && itemNuevo.trim() ? itemNuevo.trim() : null
+        producto_texto: !prodSel && itemNuevo.trim() ? itemNuevo.trim() : null,
+        local_id: localId || 1
       });
       setMensaje(prodSel ? "Pedido anotado! Cuando llegue stock va a aparecer en Postventa." : "Sugerencia de producto anotada!");
       setCliSel(null); setProdSel(null); setBuscarCli(""); setBuscarProd(""); setItemNuevo("");
@@ -4693,7 +4707,7 @@ function Pedidos({ localId }) {
             <tbody>
               {pedidosFiltrados.map(p => (
                 <tr key={p.id} style={{ borderTop: "1px solid #f0f0f0" }}>
-                  <td style={{ padding: "8px 0" }}>{p.cliente_nombre} {p.clienta_sin_registrar && <span className="badge" style={{ background: "#65676B22", color: "#65676B", fontSize: 8 }}>sin registrar</span>}</td>
+                  <td style={{ padding: "8px 0" }}>{p.cliente_nombre} {p.clienta_sin_registrar && <span className="badge" style={{ background: "#65676B22", color: "#65676B", fontSize: 8 }}>sin registrar</span>} <span className="badge" style={{ background: p.local_id === 2 ? "#2471a322" : "#c9a84c22", color: p.local_id === 2 ? "#2471a3" : "#8a6d1f", fontSize: 8 }}>{p.local_nombre}</span></td>
                   <td style={{ fontSize: 11, color: "#65676B" }}>{p.telefono || "-"}{p.cuit_dni ? " · DNI " + p.cuit_dni : ""}</td>
                   <td>{p.producto_nombre} {p.es_sugerencia && <span className="badge" style={{ background: "#c9a84c22", color: "#c9a84c", fontSize: 8 }}>sugerencia</span>}</td>
                   <td style={{ textAlign: "center", color: p.es_sugerencia ? "#999" : (p.stock_total > 0 ? "#2d7a4f" : "#c0392b"), fontWeight: 600 }}>{p.es_sugerencia ? "—" : (p.stock_total > 0 ? "Disponible!" : "0")}</td>
@@ -9150,7 +9164,7 @@ export default function AppWrapper() {
     if (id === "ventas-online") return <VentasOnline localId={local.id} usuario={usuario} permisosActivos={permisosActivos} />;
     if (id === "auditoria") return <Auditoria />;
     if (id === "inventory") return <Inventario localId={local.id} usuario={usuario} />;
-    if (id === "clients") return <Clientes localId={local.id} />;
+    if (id === "clients") return <Clientes localId={local.id} usuario={usuario} />;
     if (id === "pedidos") return <Pedidos localId={local.id} />;
     if (id === "finance") return <Finanzas localId={local.id} usuario={usuario} />;
     if (id === "reports") return <Informes localId={local.id} />;

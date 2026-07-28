@@ -7,7 +7,7 @@ const pool = require('../config/database');
 // son obligatorios (no se puede anotar un pedido sin poder contactar a la clienta despues).
 router.post('/', async (req, res) => {
   try {
-    const { cliente_id, producto_id, producto_texto, nombre_manual, telefono_manual } = req.body;
+    const { cliente_id, producto_id, producto_texto, nombre_manual, telefono_manual, local_id } = req.body;
 
     if (!cliente_id && !(nombre_manual && nombre_manual.trim() && telefono_manual && telefono_manual.trim())) {
       return res.status(400).json({ error: 'Elegi una clienta registrada, o cargá su nombre y celular' });
@@ -16,10 +16,10 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Elegi un producto o escribi una sugerencia' });
     }
     const r = await pool.query(
-      `INSERT INTO pedidos_clientas (cliente_id, producto_id, producto_texto, nombre_manual, telefono_manual)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      `INSERT INTO pedidos_clientas (cliente_id, producto_id, producto_texto, nombre_manual, telefono_manual, local_id)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [cliente_id || null, producto_id || null, producto_texto ? producto_texto.trim() : null,
-       cliente_id ? null : nombre_manual.trim(), cliente_id ? null : telefono_manual.trim()]
+       cliente_id ? null : nombre_manual.trim(), cliente_id ? null : telefono_manual.trim(), local_id || 1]
     );
     res.status(201).json(r.rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -35,7 +35,8 @@ router.get('/', async (req, res) => {
              c.cuit_dni, (p.cliente_id IS NULL) AS clienta_sin_registrar,
              COALESCE(pr.nombre, p.producto_texto) AS producto_nombre,
              (p.producto_id IS NULL) AS es_sugerencia,
-             (COALESCE(pr.stock_rg, 0) + COALESCE(pr.stock_ush, 0)) AS stock_total
+             CASE WHEN p.local_id = 2 THEN 'Ushuaia' ELSE 'Rio Grande' END AS local_nombre,
+             CASE WHEN p.local_id = 2 THEN COALESCE(pr.stock_ush, 0) ELSE COALESCE(pr.stock_rg, 0) END AS stock_total
       FROM pedidos_clientas p
       LEFT JOIN clientes c ON c.id = p.cliente_id
       LEFT JOIN productos pr ON pr.id = p.producto_id`;
@@ -55,14 +56,14 @@ router.get('/con-stock', async (req, res) => {
              COALESCE(c.telefono, p.telefono_manual) AS telefono,
              c.cuit_dni,
              pr.nombre AS producto_nombre,
-             (COALESCE(pr.stock_rg, 0) + COALESCE(pr.stock_ush, 0)) AS stock_total
+             CASE WHEN p.local_id = 2 THEN COALESCE(pr.stock_ush, 0) ELSE COALESCE(pr.stock_rg, 0) END AS stock_total
       FROM pedidos_clientas p
       LEFT JOIN clientes c ON c.id = p.cliente_id
       JOIN productos pr ON pr.id = p.producto_id
       WHERE p.estado = 'esperando'
         AND p.avisado = FALSE
         AND p.producto_id IS NOT NULL
-        AND (COALESCE(pr.stock_rg, 0) + COALESCE(pr.stock_ush, 0)) > 0
+        AND (CASE WHEN p.local_id = 2 THEN COALESCE(pr.stock_ush, 0) ELSE COALESCE(pr.stock_rg, 0) END) > 0
       ORDER BY p.creado_en DESC`);
     res.json(r.rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
