@@ -249,15 +249,20 @@ const getHistorialAjustes = async (req, res) => {
 };
 
 // Recalcula el stock minimo de cada producto segun su propio ritmo de venta real:
-// promedio diario vendido en los ultimos 60 dias x 30 dias de colchon deseado.
-// Los productos sin ninguna venta en esos 60 dias no se tocan (podria ser estacional
-// o nuevo, y llevarlo a 0 rompería la alerta de reposicion sin sentido).
+// promedio diario vendido x 30 dias de colchon deseado. Usa hasta 60 dias de historial,
+// pero si el producto (o el negocio) tiene menos dias de datos, promedia sobre los dias
+// reales disponibles en vez de dividir siempre por 60 -- si no, el promedio sale mas bajo
+// de lo real y el stock minimo queda subestimado justo cuando el producto es nuevo.
+// Con menos de 14 dias de historia, se prefiere no tocar el producto: muy poca info
+// para que el numero sea confiable, y podria salir muy errático.
 const recalcularStockMinimo = async (req, res) => {
   try {
     const DIAS_HISTORIAL = 60;
     const DIAS_COLCHON = 30;
+    const DIAS_MINIMOS_CONFIABLES = 14;
     const result = await pool.query(`
-      SELECT vi.producto_id, SUM(vi.cantidad) AS total_vendido
+      SELECT vi.producto_id, SUM(vi.cantidad) AS total_vendido,
+             MIN(v.creado_en) AS primera_venta
       FROM venta_items vi
       JOIN ventas v ON v.id = vi.venta_id
       WHERE v.creado_en >= NOW() - INTERVAL '${DIAS_HISTORIAL} days'
@@ -266,11 +271,18 @@ const recalcularStockMinimo = async (req, res) => {
     `);
 
     let actualizados = 0;
+    let omitidosPocaHistoria = 0;
     const detalle = [];
     for (const row of result.rows) {
       const totalVendido = parseFloat(row.total_vendido) || 0;
-      const promedioDiario = totalVendido / DIAS_HISTORIAL;
-      if (promedioDiario <= 0) continue;
+      if (totalVendido <= 0) continue;
+
+      const diasDesdePrimeraVenta = Math.max(1, Math.ceil((Date.now() - new Date(row.primera_venta).getTime()) / (1000 * 60 * 60 * 24)));
+      const diasReales = Math.min(DIAS_HISTORIAL, diasDesdePrimeraVenta);
+
+      if (diasReales < DIAS_MINIMOS_CONFIABLES) { omitidosPocaHistoria++; continue; }
+
+      const promedioDiario = totalVendido / diasReales;
       const nuevoMinimo = Math.max(1, Math.ceil(promedioDiario * DIAS_COLCHON));
       const upd = await pool.query(
         'UPDATE productos SET stock_minimo = $1 WHERE id = $2 AND activo = TRUE RETURNING nombre, stock_minimo',
@@ -278,11 +290,11 @@ const recalcularStockMinimo = async (req, res) => {
       );
       if (upd.rows.length > 0) {
         actualizados++;
-        detalle.push({ producto: upd.rows[0].nombre, stock_minimo_nuevo: upd.rows[0].stock_minimo });
+        detalle.push({ producto: upd.rows[0].nombre, stock_minimo_nuevo: upd.rows[0].stock_minimo, dias_usados: diasReales });
       }
     }
 
-    res.json({ mensaje: 'Stock minimo recalculado', productos_actualizados: actualizados, detalle });
+    res.json({ mensaje: 'Stock minimo recalculado', productos_actualizados: actualizados, omitidos_por_poca_historia: omitidosPocaHistoria, detalle });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al recalcular stock minimo: ' + error.message });

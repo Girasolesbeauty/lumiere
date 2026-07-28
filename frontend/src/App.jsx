@@ -1975,7 +1975,7 @@ function Inventario({ localId, usuario }) {
     setRecalculando(true);
     try {
       const res = await API.post("/productos/recalcular-stock-minimo");
-      setMensaje(res.data.productos_actualizados + " productos actualizados segun su ritmo real de venta");
+      setMensaje(res.data.productos_actualizados + " productos actualizados" + (res.data.omitidos_por_poca_historia > 0 ? " (" + res.data.omitidos_por_poca_historia + " sin tocar por tener menos de 14 dias de historia)" : ""));
       cargar();
       setTimeout(() => setMensaje(""), 5000);
     } catch (e) {
