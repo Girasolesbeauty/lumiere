@@ -4605,7 +4605,8 @@ function Fidelizacion({ usuario }) {
   );
 }
 
-function Pedidos({ localId }) {
+function Pedidos({ localId, paletaActual }) {
+  const pal = paletaActual || PALETA_CLARA;
   const [pedidos, setPedidos] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [productos, setProductos] = useState([]);
@@ -4682,7 +4683,7 @@ function Pedidos({ localId }) {
         <div><div className="pt">Pedidos de clientas</div><div className="ps">productos que las clientas estan esperando - avisan en Postventa cuando llega stock</div></div>
       </div>
 
-      {mensaje && <div className="card" style={{ marginBottom: 12, padding: 12, background: mensaje.startsWith("Error") ? "#fdecea" : "#eafaf1", color: mensaje.startsWith("Error") ? "#c0392b" : "#1e7e4f", fontSize: 13 }}>{mensaje}</div>}
+      {mensaje && <div className="card" style={{ marginBottom: 12, padding: 12, background: mensaje.startsWith("Error") ? pal.redDim : pal.greenDim, color: mensaje.startsWith("Error") ? pal.red : pal.green, fontSize: 13 }}>{mensaje}</div>}
 
       <div className="card" style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Anotar nuevo pedido</div>
@@ -4690,7 +4691,7 @@ function Pedidos({ localId }) {
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div className="fl" style={{ marginBottom: 0 }}>Clienta</div>
-              <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#65676B", cursor: "pointer" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: pal.textMuted, cursor: "pointer" }}>
                 <input type="checkbox" checked={sinRegistrar} onChange={e => { setSinRegistrar(e.target.checked); setCliSel(null); setBuscarCli(""); }} />
                 Clienta sin registrar
               </label>
@@ -4701,7 +4702,7 @@ function Pedidos({ localId }) {
                 <input className="inp" placeholder="Celular (obligatorio)" value={telefonoManual} onChange={e => setTelefonoManual(e.target.value)} />
               </div>
             ) : cliSel ? (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f7f5f0", borderRadius: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: pal.bg, borderRadius: 6 }}>
                 <span style={{ fontSize: 12 }}>{cliSel.nombre} ({cliSel.cuit_dni})</span>
                 <span onClick={() => setCliSel(null)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>cambiar</span>
               </div>
@@ -4709,9 +4710,9 @@ function Pedidos({ localId }) {
               <div>
                 <input className="inp" placeholder="Buscar clienta por nombre o DNI" value={buscarCli} onChange={e => setBuscarCli(e.target.value)} />
                 {cliFiltrados.length > 0 && (
-                  <div style={{ border: "1px solid #eee", borderRadius: 6, marginTop: 4 }}>
+                  <div style={{ border: "1px solid " + pal.border, borderRadius: 6, marginTop: 4 }}>
                     {cliFiltrados.map(cl => (
-                      <div key={cl.id} onClick={() => { setCliSel(cl); setBuscarCli(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 12 }}>{cl.nombre} <span style={{ color: "#999" }}>({cl.cuit_dni})</span></div>
+                      <div key={cl.id} onClick={() => { setCliSel(cl); setBuscarCli(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid " + pal.border, fontSize: 12 }}>{cl.nombre} <span style={{ color: pal.textMuted }}>({cl.cuit_dni})</span></div>
                     ))}
                   </div>
                 )}
@@ -4721,7 +4722,7 @@ function Pedidos({ localId }) {
           <div>
             <div className="fl">Producto que espera</div>
             {prodSel ? (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f7f5f0", borderRadius: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: pal.bg, borderRadius: 6 }}>
                 <span style={{ fontSize: 12 }}>{prodSel.nombre}</span>
                 <span onClick={() => setProdSel(null)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>cambiar</span>
               </div>
@@ -4729,14 +4730,14 @@ function Pedidos({ localId }) {
               <div>
                 <input className="inp" placeholder="Buscar producto" value={buscarProd} onChange={e => setBuscarProd(e.target.value)} />
                 {prodFiltrados.length > 0 && (
-                  <div style={{ border: "1px solid #eee", borderRadius: 6, marginTop: 4 }}>
+                  <div style={{ border: "1px solid " + pal.border, borderRadius: 6, marginTop: 4 }}>
                     {prodFiltrados.map(pr => (
-                      <div key={pr.id} onClick={() => { setProdSel(pr); setBuscarProd(""); setItemNuevo(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 12 }}>{pr.nombre} <span style={{ color: (pr.stock_rg || 0) + (pr.stock_ush || 0) > 0 ? "#2d7a4f" : "#c0392b" }}>· stock {(pr.stock_rg || 0) + (pr.stock_ush || 0)}</span></div>
+                      <div key={pr.id} onClick={() => { setProdSel(pr); setBuscarProd(""); setItemNuevo(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid " + pal.border, fontSize: 12 }}>{pr.nombre} <span style={{ color: (pr.stock_rg || 0) + (pr.stock_ush || 0) > 0 ? "#2d7a4f" : "#c0392b" }}>· stock {(pr.stock_rg || 0) + (pr.stock_ush || 0)}</span></div>
                     ))}
                   </div>
                 )}
                 <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px dashed #e0e0e0" }}>
-                  <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>¿No lo encontras? Anotalo como sugerencia de producto a traer:</div>
+                  <div style={{ fontSize: 11, color: pal.textMuted, marginBottom: 4 }}>¿No lo encontras? Anotalo como sugerencia de producto a traer:</div>
                   <input className="inp" placeholder="Ej: Serum vitamina C marca X" value={itemNuevo} onChange={e => setItemNuevo(e.target.value)} />
                 </div>
               </div>
@@ -4751,23 +4752,23 @@ function Pedidos({ localId }) {
           <div style={{ fontSize: 13, fontWeight: 600 }}>Pedidos en espera ({pedidos.length})</div>
           <input className="inp" style={{ maxWidth: 260 }} placeholder="Buscar por clienta, celular, DNI o producto" value={filtroLista} onChange={e => setFiltroLista(e.target.value)} />
         </div>
-        {pedidos.length === 0 ? <div style={{ fontSize: 12, color: "#999", padding: "10px 0" }}>No hay pedidos en espera.</div> : pedidosFiltrados.length === 0 ? <div style={{ fontSize: 12, color: "#999", padding: "10px 0" }}>No se encontraron pedidos con esa busqueda.</div> : (
+        {pedidos.length === 0 ? <div style={{ fontSize: 12, color: pal.textMuted, padding: "10px 0" }}>No hay pedidos en espera.</div> : pedidosFiltrados.length === 0 ? <div style={{ fontSize: 12, color: pal.textMuted, padding: "10px 0" }}>No se encontraron pedidos con esa busqueda.</div> : (
           <table style={{ width: "100%", fontSize: 12 }}>
-            <thead><tr style={{ color: "#888", textAlign: "left" }}><th style={{ padding: "6px 0" }}>Clienta</th><th>Contacto</th><th>Producto</th><th style={{ textAlign: "center" }}>Stock</th><th></th></tr></thead>
+            <thead><tr style={{ color: pal.textMuted, textAlign: "left" }}><th style={{ padding: "6px 0" }}>Clienta</th><th>Contacto</th><th>Producto</th><th style={{ textAlign: "center" }}>Stock</th><th></th></tr></thead>
             <tbody>
               {pedidosFiltrados.map(p => (
                 <tr key={p.id} style={{ borderTop: "1px solid #f0f0f0" }}>
-                  <td style={{ padding: "8px 0" }}>{p.cliente_nombre} {p.clienta_sin_registrar && <span className="badge" style={{ background: "#65676B22", color: "#65676B", fontSize: 8 }}>sin registrar</span>} <span className="badge" style={{ background: p.local_id === 2 ? "#2471a322" : "#c9a84c22", color: p.local_id === 2 ? "#2471a3" : "#8a6d1f", fontSize: 8 }}>{p.local_nombre}</span></td>
-                  <td style={{ fontSize: 11, color: "#65676B" }}>{p.telefono || "-"}{p.cuit_dni ? " · DNI " + p.cuit_dni : ""}</td>
+                  <td style={{ padding: "8px 0" }}>{p.cliente_nombre} {p.clienta_sin_registrar && <span className="badge" style={{ background: "#65676B22", color: pal.textMuted, fontSize: 8 }}>sin registrar</span>} <span className="badge" style={{ background: p.local_id === 2 ? "#2471a322" : "#c9a84c22", color: p.local_id === 2 ? "#2471a3" : "#8a6d1f", fontSize: 8 }}>{p.local_nombre}</span></td>
+                  <td style={{ fontSize: 11, color: pal.textMuted }}>{p.telefono || "-"}{p.cuit_dni ? " · DNI " + p.cuit_dni : ""}</td>
                   <td>{p.producto_nombre} {p.es_sugerencia && <span className="badge" style={{ background: "#c9a84c22", color: "#c9a84c", fontSize: 8 }}>sugerencia</span>}</td>
-                  <td style={{ textAlign: "center", color: p.es_sugerencia ? "#999" : (p.stock_total > 0 ? "#2d7a4f" : "#c0392b"), fontWeight: 600 }}>{p.es_sugerencia ? "—" : (p.stock_total > 0 ? "Disponible!" : "0")}</td>
+                  <td style={{ textAlign: "center", color: p.es_sugerencia ? pal.textMuted : (p.stock_total > 0 ? "#2d7a4f" : "#c0392b"), fontWeight: 600 }}>{p.es_sugerencia ? "—" : (p.stock_total > 0 ? "Disponible!" : "0")}</td>
                   <td style={{ textAlign: "right" }}><span onClick={() => borrar(p.id)} style={{ cursor: "pointer", color: "#ccc", fontSize: 15 }}>×</span></td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
-        <div style={{ fontSize: 10, color: "#888", marginTop: 10 }}>Cuando un producto tiene stock, el aviso para la clienta aparece en la seccion Postventa.</div>
+        <div style={{ fontSize: 10, color: pal.textMuted, marginTop: 10 }}>Cuando un producto tiene stock, el aviso para la clienta aparece en la seccion Postventa.</div>
       </div>
     </div>
   );
@@ -9531,7 +9532,7 @@ export default function AppWrapper() {
     if (id === "auditoria") return <Auditoria />;
     if (id === "inventory") return <Inventario localId={local.id} usuario={usuario} />;
     if (id === "clients") return <Clientes localId={local.id} usuario={usuario} />;
-    if (id === "pedidos") return <Pedidos localId={local.id} />;
+    if (id === "pedidos") return <Pedidos localId={local.id} paletaActual={paletaActual} />;
     if (id === "finance") return <Finanzas localId={local.id} usuario={usuario} />;
     if (id === "reports") return <Informes localId={local.id} />;
     if (id === "calculadoras") return <Calculadoras usuario={usuario} />;
