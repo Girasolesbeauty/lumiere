@@ -7365,7 +7365,8 @@ function CierreCaja({ localId, usuario, paletaActual }) {
   );
 }
 
-function ControlInventario({ localId, usuario }) {
+function ControlInventario({ localId, usuario, paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
   const [vista, setVista] = useState("lista");
   const [controles, setControles] = useState([]);
   const [config, setConfig] = useState(null);
@@ -7575,11 +7576,11 @@ function ControlInventario({ localId, usuario }) {
             {mensaje && <div style={{ color: "#c0392b", fontSize: 12, marginBottom: 12 }}>{mensaje}</div>}
             {itemEscaneado ? (
               <div style={{ textAlign: "center", padding: 10 }}>
-                <div style={{ fontSize: 12, color: "#65676B" }}>{itemEscaneado.producto_marca} · {itemEscaneado.producto_categoria}</div>
+                <div style={{ fontSize: 12, color: p.textMuted }}>{itemEscaneado.producto_marca} · {itemEscaneado.producto_categoria}</div>
                 <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 14 }}>{itemEscaneado.producto_nombre}</div>
-                <div style={{ fontSize: 12, color: "#65676B" }}>El sistema dice que deberia haber</div>
+                <div style={{ fontSize: 12, color: p.textMuted }}>El sistema dice que deberia haber</div>
                 <div style={{ fontSize: 46, fontWeight: 700, color: "#2C3E5C", lineHeight: 1, margin: "4px 0 16px" }}>{itemEscaneado.stock_sistema}</div>
-                <div style={{ fontSize: 12, color: "#65676B", marginBottom: 6 }}>Contaste en el estante:</div>
+                <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 6 }}>Contaste en el estante:</div>
                 <input type="number" className="inp" autoFocus value={valorContado} onChange={e => setValorContado(e.target.value)}
                   style={{ fontSize: 28, textAlign: "center", fontWeight: 700, padding: "12px", marginBottom: 14 }} />
                 <div style={{ display: "flex", gap: 8 }}>
@@ -7594,7 +7595,7 @@ function ControlInventario({ localId, usuario }) {
               </div>
             ) : (
               <div style={{ textAlign: "center", padding: 20 }}>
-                <div style={{ fontSize: 13, color: "#65676B", marginBottom: 14 }}>Apunta la camara al codigo de barras de cada producto en el estante.</div>
+                <div style={{ fontSize: 13, color: p.textMuted, marginBottom: 14 }}>Apunta la camara al codigo de barras de cada producto en el estante.</div>
                 <button className="btn btn-p" style={{ width: "100%", fontSize: 15, padding: "14px" }} onClick={abrirCamaraInv}>📷 Empezar a escanear</button>
               </div>
             )}
@@ -7622,7 +7623,7 @@ function ControlInventario({ localId, usuario }) {
                 <tr key={it.id} style={{ background: it.estado === "faltante" ? "#c0392b08" : it.estado === "sobrante" ? "#c9a84c08" : it.estado === "correcto" ? "#2d7a4f08" : "transparent" }}>
                   <td>
                     <div style={{ fontSize: 12 }}>{it.producto_nombre}</div>
-                    <div style={{ fontSize: 10, color: "#65676B" }}>{it.producto_marca} - {it.producto_categoria}</div>
+                    <div style={{ fontSize: 10, color: p.textMuted }}>{it.producto_marca} - {it.producto_categoria}</div>
                   </td>
                   <td style={{ fontWeight: 600 }}>{it.stock_sistema}</td>
                   <td>
@@ -7630,7 +7631,7 @@ function ControlInventario({ localId, usuario }) {
                       onBlur={e => contarItem(it, e.target.value)}
                       onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }} />
                   </td>
-                  <td style={{ fontWeight: 700, color: !it.diferencia ? "#65676B" : it.diferencia < 0 ? "#c0392b" : "#c9a84c" }}>{it.diferencia !== null && it.diferencia !== undefined ? (it.diferencia > 0 ? "+" : "") + it.diferencia : "-"}</td>
+                  <td style={{ fontWeight: 700, color: !it.diferencia ? p.textMuted : it.diferencia < 0 ? "#c0392b" : "#c9a84c" }}>{it.diferencia !== null && it.diferencia !== undefined ? (it.diferencia > 0 ? "+" : "") + it.diferencia : "-"}</td>
                   <td><span className={"badge " + (it.estado === "correcto" ? "bg" : it.estado === "faltante" ? "br" : it.estado === "sobrante" ? "ba" : "bx")}>{it.estado}</span></td>
                 </tr>
               ))}
@@ -7641,9 +7642,9 @@ function ControlInventario({ localId, usuario }) {
         )}
         {showFinalizar && (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
-            <div className="card" style={{ width: 420, background: "#ffffff" }}>
+            <div className="card" style={{ width: 420, background: p.card }}>
               <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Finalizar conteo</div>
-              <div style={{ fontSize: 12, color: "#65676B", marginBottom: 14 }}>{totalContados} items contados - {totalCorrectos} correctos, {totalFaltantes} faltantes, {totalSobrantes} sobrantes</div>
+              <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 14 }}>{totalContados} items contados - {totalCorrectos} correctos, {totalFaltantes} faltantes, {totalSobrantes} sobrantes</div>
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, marginBottom: 12, cursor: "pointer" }}>
                 <input type="checkbox" checked={ajustarStock} onChange={e => setAjustarStock(e.target.checked)} />
                 Ajustar stock automaticamente segun el conteo
@@ -7676,7 +7677,7 @@ function ControlInventario({ localId, usuario }) {
         <div className="card" style={{ background: "#c9a84c08", border: "1px solid #c9a84c44", marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: "#c9a84c" }}>Hay un control en curso (#{enCurso.id})</div>
-            <div style={{ fontSize: 11, color: "#65676B" }}>{enCurso.tipo === "total" ? "Conteo total" : "Categoria: " + enCurso.categoria} - {new Date(enCurso.creado_en).toLocaleDateString("es-AR")}</div>
+            <div style={{ fontSize: 11, color: p.textMuted }}>{enCurso.tipo === "total" ? "Conteo total" : "Categoria: " + enCurso.categoria} - {new Date(enCurso.creado_en).toLocaleDateString("es-AR")}</div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => cancelarControl(enCurso)}>Cancelar</button>
@@ -7685,9 +7686,9 @@ function ControlInventario({ localId, usuario }) {
         </div>
       )}
       <div className="card">
-        <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 10 }}>HISTORIAL DE CONTROLES</div>
+        <div style={{ fontSize: 11, color: p.textMuted, letterSpacing: ".1em", marginBottom: 10 }}>HISTORIAL DE CONTROLES</div>
         {controles.filter(c => c.estado === "finalizado").length === 0 ? (
-          <div style={{ textAlign: "center", color: "#65676B", padding: 20, fontSize: 12 }}>Aun no se realizo ningun control finalizado</div>
+          <div style={{ textAlign: "center", color: p.textMuted, padding: 20, fontSize: 12 }}>Aun no se realizo ningun control finalizado</div>
         ) : (
           <table>
             <thead><tr><th>Fecha</th><th>Tipo</th><th>Items</th><th>Correctos</th><th>Faltantes</th><th>Sobrantes</th><th>Stock ajustado</th></tr></thead>
@@ -7709,11 +7710,11 @@ function ControlInventario({ localId, usuario }) {
       </div>
       {showNuevo && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
-          <div className="card" style={{ width: 400, background: "#ffffff" }}>
+          <div className="card" style={{ width: 400, background: p.card }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Nuevo control de inventario</div>
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              <button className="btn btn-sm" style={{ flex: 1, background: tipoNuevo === "total" ? "#2C3E5C15" : "transparent", border: "1px solid " + (tipoNuevo === "total" ? "#2C3E5C" : "#E4E6EB"), color: tipoNuevo === "total" ? "#2C3E5C" : "#65676B" }} onClick={() => setTipoNuevo("total")}>Conteo total</button>
-              <button className="btn btn-sm" style={{ flex: 1, background: tipoNuevo === "categoria" ? "#2C3E5C15" : "transparent", border: "1px solid " + (tipoNuevo === "categoria" ? "#2C3E5C" : "#E4E6EB"), color: tipoNuevo === "categoria" ? "#2C3E5C" : "#65676B" }} onClick={() => setTipoNuevo("categoria")}>Por categoria</button>
+              <button className="btn btn-sm" style={{ flex: 1, background: tipoNuevo === "total" ? "#2C3E5C15" : "transparent", border: "1px solid " + (tipoNuevo === "total" ? "#2C3E5C" : p.border), color: tipoNuevo === "total" ? "#2C3E5C" : p.textMuted }} onClick={() => setTipoNuevo("total")}>Conteo total</button>
+              <button className="btn btn-sm" style={{ flex: 1, background: tipoNuevo === "categoria" ? "#2C3E5C15" : "transparent", border: "1px solid " + (tipoNuevo === "categoria" ? "#2C3E5C" : p.border), color: tipoNuevo === "categoria" ? "#2C3E5C" : p.textMuted }} onClick={() => setTipoNuevo("categoria")}>Por categoria</button>
             </div>
             {tipoNuevo === "categoria" && (
               <div className="fg"><div className="fl">Categoria</div>
@@ -7732,7 +7733,7 @@ function ControlInventario({ localId, usuario }) {
       )}
       {showConfig && config && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
-          <div className="card" style={{ width: 400, background: "#ffffff" }}>
+          <div className="card" style={{ width: 400, background: p.card }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Configuracion de avisos</div>
             <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, marginBottom: 14, cursor: "pointer" }}>
               <input type="checkbox" checked={config.avisos_activos} onChange={e => setConfig({ ...config, avisos_activos: e.target.checked })} />
@@ -7741,7 +7742,7 @@ function ControlInventario({ localId, usuario }) {
             <div className="fg"><div className="fl">Cada cuantos dias avisar (default: 30)</div>
               <input className="inp" type="number" value={config.dias_aviso} onChange={e => setConfig({ ...config, dias_aviso: parseInt(e.target.value) || 30 })} />
             </div>
-            <div style={{ fontSize: 10, color: "#65676B", marginBottom: 12 }}>{config.ultimo_control ? "Ultimo control: " + new Date(config.ultimo_control).toLocaleDateString("es-AR") : "Nunca se realizo un control"}</div>
+            <div style={{ fontSize: 10, color: p.textMuted, marginBottom: 12 }}>{config.ultimo_control ? "Ultimo control: " + new Date(config.ultimo_control).toLocaleDateString("es-AR") : "Nunca se realizo un control"}</div>
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowConfig(false)}>Cancelar</button>
               <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarConfig}>Guardar</button>
@@ -9821,7 +9822,7 @@ export default function AppWrapper() {
     if (id === "ordenes") return <OrdenesIngreso localId={local.id} usuario={usuario} />;
     if (id === "kits") return <Kits />;
     if (id === "insumos") return <Insumos localId={local.id} usuario={usuario} />;
-    if (id === "control-inv") return <ControlInventario localId={local.id} usuario={usuario} />;
+    if (id === "control-inv") return <ControlInventario localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "config-insumos") return <ConfigInsumos localId={local.id} />;
     if (id === "config-ticket") return <ConfigTicket />;
     if (id === "inconsistencias") return <Inconsistencias />;
