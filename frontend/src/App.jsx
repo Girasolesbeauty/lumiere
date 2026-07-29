@@ -9,95 +9,125 @@ const fmt = (n) => "$" + (parseFloat(n) || 0).toLocaleString("es-AR", { minimumF
 // Formato de numero sin signo $ (para cantidades)
 const fmtNum = (n) => (parseFloat(n) || 0).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const C = {
-  bg: "#f2f2ef", surface: "#ffffff", card: "#f5f5f5", border: "#e8e8e8",
+const PALETA_CLARA = {
+  bg: "#F0F2F5", sidebar: "#2C3E5C", surface: "#ffffff", card: "#ffffff", border: "#E4E6EB",
   accent: "#c9a84c", accentDim: "#c9a84c15", accentHover: "#e8c86a",
-  text: "#111111", textSoft: "#444444", textMuted: "#65676B",
+  text: "#1C1E21", textSoft: "#333333", textMuted: "#5C5F66",
   green: "#2d7a4f", greenDim: "#2d7a4f12",
   red: "#c0392b", redDim: "#c0392b12",
-  blue: "#2471a3", blueDim: "#2471a312",
+  blue: "#2C3E5C", blueDim: "#2C3E5C12",
   purple: "#7d3c98", purpleDim: "#7d3c9812",
   wa: "#25d366", waDim: "#25d36618",
+  navText: "rgba(255,255,255,0.95)", navTextDim: "rgba(255,255,255,0.75)",
+  navHover: "rgba(255,255,255,0.15)", navActive: "rgba(255,255,255,0.2)", navActiveBorder: "rgba(255,255,255,0.15)",
+  logoText: "#ffffff", logoSub: "rgba(255,255,255,0.65)",
+  scrollThumb: "#e0e0e0", inpBg: "#F0F2F5", placeholder: "#9CA1A6",
+  tdText: "#222222", trHover: "#f0f0ed", shadowCol: "rgba(0,0,0,0.12)", shadowSoft: "rgba(0,0,0,0.07)",
 };
 
-const BASE_CSS = `
+const PALETA_OSCURA = {
+  bg: "#14171c", sidebar: "#16202e", surface: "#1e232b", card: "#1e232b", border: "#2c333d",
+  accent: "#c9a84c", accentDim: "#3a3220", accentHover: "#e8c86a",
+  text: "#eef1f5", textSoft: "#c3cbd6", textMuted: "#8b93a1",
+  green: "#3fa96a", greenDim: "#16261e",
+  red: "#e0564a", redDim: "#3a1f20",
+  blue: "#4a90c2", blueDim: "#1a2733",
+  purple: "#a06bc0", purpleDim: "#2a1f30",
+  wa: "#25d366", waDim: "#163527",
+  navText: "rgba(255,255,255,0.95)", navTextDim: "rgba(255,255,255,0.75)",
+  navHover: "rgba(255,255,255,0.12)", navActive: "rgba(255,255,255,0.18)", navActiveBorder: "rgba(255,255,255,0.15)",
+  logoText: "#ffffff", logoSub: "rgba(255,255,255,0.65)",
+  scrollThumb: "#3a4351", inpBg: "#14171c", placeholder: "#7c8698",
+  tdText: "#dde2e8", trHover: "#232a35", shadowCol: "rgba(0,0,0,0.35)", shadowSoft: "rgba(0,0,0,0.25)",
+};
+
+// Mantiene "C" con el nombre viejo (paleta clara) para no romper nada que ya la use directo.
+const C = PALETA_CLARA;
+
+const getBaseCss = (p) => `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { margin: 0; padding: 0; width: 100%; overflow-x: hidden; }
-body { font-family: 'Inter', sans-serif; background: #F0F2F5; color: #1C1E21; min-height: 100vh; margin: 0; width: 100vw; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+body { font-family: 'Inter', sans-serif; background: ${p.bg}; color: ${p.text}; min-height: 100vh; margin: 0; width: 100vw; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
 ::-webkit-scrollbar { width: 3px; }
-::-webkit-scrollbar-thumb { background: #e0e0e0; border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: ${p.scrollThumb}; border-radius: 2px; }
 @keyframes fadeUp { from { opacity: 0; } to { opacity: 1; } }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
 .fade { animation: fadeUp .25s ease forwards; }
 .pulse { animation: pulse 2s infinite; }
 .layout { display: flex; min-height: 100vh; width: 100%; }
-.sidebar { width: 220px; background: #2C3E5C; border-right: none; box-shadow: 2px 0 8px rgba(0,0,0,0.12); display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 20; overflow-y: auto; }
+.sidebar { width: 220px; background: ${p.sidebar}; border-right: none; box-shadow: 2px 0 8px ${p.shadowCol}; display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 20; overflow-y: auto; }
 .logo { padding: 22px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.15); }
-.logo-name { font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 800; letter-spacing: .05em; color: #ffffff; text-transform: uppercase; }
-.logo-sub { font-size: 9px; color: rgba(255,255,255,0.65); letter-spacing: .3em; margin-top: 3px; text-transform: uppercase; }
+.logo-name { font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 800; letter-spacing: .05em; color: ${p.logoText}; text-transform: uppercase; }
+.logo-sub { font-size: 9px; color: ${p.logoSub}; letter-spacing: .3em; margin-top: 3px; text-transform: uppercase; }
 .nav { padding: 12px 10px; flex: 1; }
-.nav-section { font-size: 8px; letter-spacing: .25em; color: rgba(255,255,255,0.75); padding: 10px 10px 4px; text-transform: uppercase; }
-.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.95); transition: all .18s; margin-bottom: 3px; border: 1px solid transparent; }
-.nav-item:hover { color: #ffffff; background: rgba(255,255,255,0.15); }
-.nav-item.active { color: #ffffff; font-weight: 700; background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.15); }
+.nav-section { font-size: 8px; letter-spacing: .25em; color: ${p.navTextDim}; padding: 10px 10px 4px; text-transform: uppercase; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 500; color: ${p.navText}; transition: all .18s; margin-bottom: 3px; border: 1px solid transparent; }
+.nav-item:hover { color: ${p.logoText}; background: ${p.navHover}; }
+.nav-item.active { color: ${p.logoText}; font-weight: 700; background: ${p.navActive}; border-color: ${p.navActiveBorder}; }
 .nav-icon { font-size: 13px; width: 18px; text-align: center; flex-shrink: 0; }
 .sb-footer { padding: 12px 18px; border-top: 1px solid rgba(255,255,255,0.15); }
-.main { margin-left: 220px; flex: 1; padding: 20px 24px; min-height: 100vh; background: #F0F2F5; width: calc(100vw - 220px); }
+.main { margin-left: 220px; flex: 1; padding: 20px 24px; min-height: 100vh; background: ${p.bg}; width: calc(100vw - 220px); }
 .ph { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 26px; }
-.pt { font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; color: #1C1E21; }
-.ps { font-size: 11px; color: #5C5F66; font-weight: 400; margin-top: 5px; }
+.pt { font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; color: ${p.text}; }
+.ps { font-size: 11px; color: ${p.textMuted}; font-weight: 400; margin-top: 5px; }
 .g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 18px; }
 .g3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 18px; }
 .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
-.card { background: #ffffff; border: 1px solid #E4E6EB; box-shadow: 0 3px 8px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.05); border-radius: 12px; padding: 18px; }
-.ct { font-size: 10px; letter-spacing: .15em; text-transform: uppercase; color: #5C5F66; font-weight: 600; margin-bottom: 10px; }
-.metric { font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 700; line-height: 1; }
-.msub { font-size: 12px; color: #5C5F66; font-weight: 400; margin-top: 5px; }
+.card { background: ${p.card}; border: 1px solid ${p.border}; box-shadow: 0 3px 8px ${p.shadowSoft}, 0 1px 2px ${p.shadowSoft}; border-radius: 12px; padding: 18px; }
+.ct { font-size: 10px; letter-spacing: .15em; text-transform: uppercase; color: ${p.textMuted}; font-weight: 600; margin-bottom: 10px; }
+.metric { font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 700; line-height: 1; color: ${p.text}; }
+.msub { font-size: 12px; color: ${p.textMuted}; font-weight: 400; margin-top: 5px; }
 .badge { display: inline-flex; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
-.bg { background: #2d7a4f12; color: #2d7a4f; }
-.br { background: #c0392b12; color: #c0392b; }
-.bb { background: #2C3E5C12; color: #2C3E5C; }
-.bp { background: #7d3c9812; color: #7d3c98; }
-.ba { background: #c9a84c15; color: #c9a84c; }
-.bw { background: #25d36618; color: #25d366; }
-.bx { background: #F0F2F5; color: #5C5F66; border: 1px solid #E4E6EB; }
-.btn { padding: 11px 20px; border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; border: none; transition: all .12s; box-shadow: 0 3px 0 rgba(0,0,0,0.18), 0 4px 8px rgba(0,0,0,0.12); position: relative; top: 0; }
-.btn:active { top: 3px; box-shadow: 0 0px 0 rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.1); }
+.bg { background: ${p.greenDim}; color: ${p.green}; }
+.br { background: ${p.redDim}; color: ${p.red}; }
+.bb { background: ${p.blueDim}; color: ${p.blue}; }
+.bp { background: ${p.purpleDim}; color: ${p.purple}; }
+.ba { background: ${p.accentDim}; color: ${p.accentHover}; }
+.bw { background: ${p.waDim}; color: ${p.wa}; }
+.bx { background: ${p.bg}; color: ${p.textMuted}; border: 1px solid ${p.border}; }
+.btn { padding: 11px 20px; border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; border: none; transition: all .12s; box-shadow: 0 3px 0 ${p.shadowCol}, 0 4px 8px ${p.shadowSoft}; position: relative; top: 0; }
+.btn:active { top: 3px; box-shadow: 0 0px 0 ${p.shadowCol}, 0 1px 2px ${p.shadowSoft}; }
 .btn-p { background: linear-gradient(180deg, #36486A 0%, #2C3E5C 100%); color: #ffffff; font-weight: 700; box-shadow: 0 3px 0 #1C2A40, 0 4px 8px rgba(44,62,92,0.3); }
 .btn-p:active { box-shadow: 0 0px 0 #1C2A40, 0 1px 2px rgba(44,62,92,0.2); }
 .btn-p:hover { background: linear-gradient(180deg, #3D5078 0%, #324567 100%); }
-.btn-g { background: linear-gradient(180deg, #FAFBFC 0%, #E4E6EB 100%); color: #1C1E21; border: none; box-shadow: 0 3px 0 #C7CAD1, 0 4px 6px rgba(0,0,0,0.08); }
-.btn-g:active { box-shadow: 0 0px 0 #C7CAD1, 0 1px 2px rgba(0,0,0,0.06); }
-.btn-g:hover { background: linear-gradient(180deg, #FFFFFF 0%, #D8DADF 100%); }
-.btn-sm { padding: 7px 13px; font-size: 10px; box-shadow: 0 2px 0 rgba(0,0,0,0.15), 0 2px 5px rgba(0,0,0,0.1); }
-.btn-sm:active { box-shadow: 0 0px 0 rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.08); }
-.inp { width: 100%; background: #F0F2F5; border: 1px solid #E4E6EB; border-radius: 10px; padding: 12px 14px; color: #1C1E21; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; outline: none; transition: all .15s; box-shadow: inset 0 1px 3px rgba(0,0,0,0.06); }
-.inp:focus { border-color: #2C3E5C; background: #ffffff; }
-.inp::placeholder { color: #9CA1A6; }
-.sel { background: #F0F2F5; border: 1px solid #E4E6EB; border-radius: 10px; padding: 12px 14px; color: #1C1E21; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; outline: none; width: 100%; box-shadow: inset 0 1px 3px rgba(0,0,0,0.06); }
+.btn-g { background: ${p.card}; color: ${p.text}; border: 1px solid ${p.border}; box-shadow: 0 3px 0 ${p.shadowCol}, 0 4px 6px ${p.shadowSoft}; }
+.btn-g:active { box-shadow: 0 0px 0 ${p.shadowCol}, 0 1px 2px ${p.shadowSoft}; }
+.btn-g:hover { background: ${p.navHover === "rgba(255,255,255,0.12)" ? p.bg : p.bg}; }
+.btn-sm { padding: 7px 13px; font-size: 10px; box-shadow: 0 2px 0 ${p.shadowSoft}, 0 2px 5px ${p.shadowSoft}; }
+.btn-sm:active { box-shadow: 0 0px 0 ${p.shadowSoft}, 0 1px 2px ${p.shadowSoft}; }
+.inp { width: 100%; background: ${p.inpBg}; border: 1px solid ${p.border}; border-radius: 10px; padding: 12px 14px; color: ${p.text}; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; outline: none; transition: all .15s; box-shadow: inset 0 1px 3px ${p.shadowSoft}; }
+.inp:focus { border-color: #2C3E5C; background: ${p.card}; }
+.inp::placeholder { color: ${p.placeholder}; }
+.sel { background: ${p.inpBg}; border: 1px solid ${p.border}; border-radius: 10px; padding: 12px 14px; color: ${p.text}; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; outline: none; width: 100%; box-shadow: inset 0 1px 3px ${p.shadowSoft}; }
 .fg { margin-bottom: 12px; }
-.fl { font-size: 11px; color: #5C5F66; font-weight: 600; margin-bottom: 6px; }
-.tabs { display: flex; margin-bottom: 20px; border-bottom: 1px solid #E4E6EB; }
-.tab { padding: 8px 16px; font-size: 12px; font-weight: 500; color: #5C5F66; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .18s; }
-.tab.on { color: #111111; border-bottom-color: #c9a84c; font-weight: 600; }
-.tab:hover { color: #333333; }
-.divider { height: 1px; background: #e8e8e8; margin: 14px 0; }
-.pb { height: 5px; background: #eeeeee; border-radius: 3px; overflow: hidden; }
+.fl { font-size: 11px; color: ${p.textMuted}; font-weight: 600; margin-bottom: 6px; }
+.tabs { display: flex; margin-bottom: 20px; border-bottom: 1px solid ${p.border}; }
+.tab { padding: 8px 16px; font-size: 12px; font-weight: 500; color: ${p.textMuted}; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .18s; }
+.tab.on { color: ${p.text}; border-bottom-color: ${p.accent}; font-weight: 600; }
+.tab:hover { color: ${p.textSoft}; }
+.divider { height: 1px; background: ${p.border}; margin: 14px 0; }
+.pb { height: 5px; background: ${p.bg}; border-radius: 3px; overflow: hidden; }
 .pf { height: 100%; border-radius: 3px; transition: width .5s; }
 .sw-wrap { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .sw { width: 34px; height: 18px; border-radius: 9px; position: relative; transition: background .2s; flex-shrink: 0; }
 .sw.on { background: #6bbf8e; }
-.sw.off { background: #dddddd; }
+.sw.off { background: ${p.border}; }
 .sw-dot { position: absolute; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: white; transition: left .2s; }
 .sw.on .sw-dot { left: 18px; }
 .sw.off .sw-dot { left: 2px; }
 table { width: 100%; border-collapse: collapse; }
-th { text-align: left; font-size: 11px; text-transform: uppercase; color: #888888; padding: 9px 11px; font-weight: 600; border-bottom: 2px solid #eeeeee; letter-spacing: 0.05em; }
-td { padding: 10px 11px; font-size: 12px; color: #222222; font-weight: 400; border-bottom: 1px solid #f0f0f0; }
+th { text-align: left; font-size: 11px; text-transform: uppercase; color: ${p.textMuted}; padding: 9px 11px; font-weight: 600; border-bottom: 2px solid ${p.border}; letter-spacing: 0.05em; }
+td { padding: 10px 11px; font-size: 12px; color: ${p.tdText}; font-weight: 400; border-bottom: 1px solid ${p.border}; }
 tr:last-child td { border-bottom: none; }
-tr:hover td { background: #f0f0ed; }
+tr:hover td { background: ${p.trHover}; }
 `;
+
+// Preferencia de tema guardada en este navegador/PC (no depende de la cuenta ni del backend).
+const obtenerTemaGuardado = () => {
+  try { return localStorage.getItem("lumiere_tema") || "claro"; } catch (e) { return "claro"; }
+};
+const guardarTema = (tema) => { try { localStorage.setItem("lumiere_tema", tema); } catch (e) {} };
 
 const PRODUCTS = [
   { id: 1, name: "Serum Vitamina C", brand: "L'OREAL", price: 8500, stock: 12, min: 5, cost: 4200, lead: 7 },
@@ -9394,6 +9424,13 @@ export default function AppWrapper() {
   const [usuario, setUsuario] = useState(null);
   const [local, setLocal] = useState(null);
   const [page, setPage] = useState("dashboard");
+  const [tema, setTema] = useState(obtenerTemaGuardado());
+  const paletaActual = tema === "oscuro" ? PALETA_OSCURA : PALETA_CLARA;
+  const alternarTema = () => {
+    const nuevo = tema === "oscuro" ? "claro" : "oscuro";
+    setTema(nuevo);
+    guardarTema(nuevo);
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("lumiere_token");
@@ -9472,14 +9509,14 @@ export default function AppWrapper() {
 
   if (!usuario) return (
     <>
-      <style>{BASE_CSS}</style>
+      <style>{getBaseCss(paletaActual)}</style>
       <LoginScreen onLogin={handleLogin} />
     </>
   );
 
   if (!local) return (
     <>
-      <style>{BASE_CSS}</style>
+      <style>{getBaseCss(paletaActual)}</style>
       <LocalSelector usuario={usuario} onSelect={l => setLocal(l)} />
     </>
   );
@@ -9538,7 +9575,7 @@ export default function AppWrapper() {
 
   return (
     <>
-      <style>{BASE_CSS}</style>
+      <style>{getBaseCss(paletaActual)}</style>
       <div className="layout" style={{ width: "100vw", margin: 0 }}>
         <aside className="sidebar">
           <div className="logo">
@@ -9566,7 +9603,7 @@ export default function AppWrapper() {
             ))}
           </nav>
           <div className="sb-footer">
-            <div style={{ fontSize: 12, color: "#222222", fontWeight: 600, marginBottom: 4 }}>{usuario?.nombre || "Usuario"}</div>
+            <div style={{ fontSize: 12, color: paletaActual.logoText, fontWeight: 600, marginBottom: 4 }}>{usuario?.nombre || "Usuario"}</div>
             <div style={{ marginBottom: 10 }}>
               <span className="badge" style={{ background: (rolBadgeColor[usuario.rol] || "#999") + "15", color: rolBadgeColor[usuario.rol] || "#999" }}>
                 {usuario.rol}
@@ -9576,8 +9613,15 @@ export default function AppWrapper() {
               <StatusDot color="#2d7a4f" label="ARCA" />
               <StatusDot color="#25d366" label="TIENDANUBE" />
             </div>
-            <div style={{ marginTop: 12, fontSize: 11, color: "#65676B", cursor: "pointer" }} onClick={() => setLocal(null)}>Cambiar local</div>
-            <div style={{ marginTop: 6, fontSize: 11, color: "#65676B", cursor: "pointer" }} onClick={handleLogout}>Cerrar sesion</div>
+            <div
+              onClick={alternarTema}
+              style={{ marginTop: 12, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", padding: "6px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.15)" }}
+            >
+              <span style={{ fontSize: 11, color: paletaActual.navTextDim }}>{tema === "oscuro" ? "🌙 Fondo oscuro" : "☀️ Fondo claro"}</span>
+              <div className={"sw " + (tema === "oscuro" ? "on" : "off")}><div className="sw-dot" /></div>
+            </div>
+            <div style={{ marginTop: 12, fontSize: 11, color: paletaActual.navTextDim, cursor: "pointer" }} onClick={() => setLocal(null)}>Cambiar local</div>
+            <div style={{ marginTop: 6, fontSize: 11, color: paletaActual.navTextDim, cursor: "pointer" }} onClick={handleLogout}>Cerrar sesion</div>
           </div>
         </aside>
         <main className="main">
