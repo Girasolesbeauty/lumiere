@@ -937,7 +937,8 @@ function Auditoria() {
   );
 }
 
-function POS({ localId, usuario }) {
+function POS({ localId, usuario, paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
   const [cart, setCart] = useState([]);
   const [inicioVenta, setInicioVenta] = useState(null);
   const [modoPrueba, setModoPrueba] = useState(false);
@@ -1540,7 +1541,7 @@ function POS({ localId, usuario }) {
               </div>
             </div>
             {p.items && p.items.length > 0 && (
-              <div style={{ background: "#f8f8f8", borderRadius: 6, padding: "6px 10px" }}>
+              <div style={{ background: p.bg, borderRadius: 6, padding: "6px 10px" }}>
                 {p.items.map((it, idx) => (
                   <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "3px 0", borderBottom: idx < p.items.length - 1 ? "1px solid #f0f0f0" : "none" }}>
                     <span style={{ color: "#444444" }}>{it.nombre || it.producto_nombre} x{it.cantidad}</span>
@@ -1553,7 +1554,7 @@ function POS({ localId, usuario }) {
         ))}
         {confirmandoPreventa && (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
-            <div className="card" style={{ width: 380, background: "#ffffff" }}>
+            <div className="card" style={{ width: 380, background: p.card }}>
               <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Confirmar entrega</div>
               <div style={{ fontSize: 12, color: "#65676B", marginBottom: 14 }}>{confirmandoPreventa.nombre_preventa || "Consumidor Final"} viene a retirar su pedido. Esto descuenta del stock real y libera la reserva.</div>
               {errorConfirmacion && (
@@ -1618,9 +1619,9 @@ function POS({ localId, usuario }) {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 340px", gap: 12, height: "calc(100vh - 160px)" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
           <input className="inp" placeholder="Escanea o busca por nombre, marca o codigo..." value={busqueda} onChange={e => setBusqueda(e.target.value)} onKeyDown={onEscaneo} autoFocus />
-          <div style={{ overflowY: "auto", flex: 1, background: "#ffffff", border: "1px solid #e8e8e8", borderRadius: 8 }}>
+          <div style={{ overflowY: "auto", flex: 1, background: p.card, border: "1px solid #e8e8e8", borderRadius: 8 }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead style={{ position: "sticky", top: 0, background: "#f8f8f8", zIndex: 1 }}>
+              <thead style={{ position: "sticky", top: 0, background: p.bg, zIndex: 1 }}>
                 <tr>
                   <th style={{ textAlign: "left", fontSize: 10, color: "#888888", padding: "7px 10px", fontWeight: 600, borderBottom: "2px solid #eeeeee" }}>PRODUCTO</th>
                   <th style={{ textAlign: "right", fontSize: 10, color: "#888888", padding: "7px 8px", fontWeight: 600, borderBottom: "2px solid #eeeeee" }}>PRECIO</th>
@@ -1663,8 +1664,8 @@ function POS({ localId, usuario }) {
             </table>
           </div>
         </div>
-        <div style={{ background: "#faf8f4", border: "1px solid #ddd9d0", borderRadius: 8, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{ padding: "10px 14px", borderBottom: "1px solid #ddd9d0", fontSize: 10, color: "#666666", fontWeight: 700, letterSpacing: ".1em", background: preventa ? "#2471a320" : "#f0ece4" }}>
+        <div style={{ background: p.bg, border: "1px solid #ddd9d0", borderRadius: 8, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ padding: "10px 14px", borderBottom: "1px solid #ddd9d0", fontSize: 10, color: "#666666", fontWeight: 700, letterSpacing: ".1em", background: preventa ? "#2471a320" : p.bg }}>
             {preventa ? "PREVENTA" : "COMPROBANTE EN CURSO"} ({cart.length} items)
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
@@ -1674,7 +1675,7 @@ function POS({ localId, usuario }) {
                 const precioUnit = i.precio || i.price || 0;
                 const precioConDesc = precioUnit * (1 - (i.descuento_pct || 0) / 100);
                 return (
-                <div key={i.id} style={{ background: "#ffffff", borderRadius: 6, padding: "8px 10px", marginBottom: 6, border: "1px solid #e8e4dc" }}>
+                <div key={i.id} style={{ background: p.card, borderRadius: 6, padding: "8px 10px", marginBottom: 6, border: "1px solid #e8e4dc" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, fontWeight: 500 }}>{i.nombre || i.name}</div>
@@ -1684,9 +1685,9 @@ function POS({ localId, usuario }) {
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <button onClick={() => setCart(prev => prev.map(x => x.id === i.id && x.qty > 1 ? { ...x, qty: x.qty - 1 } : x))} style={{ width: 24, height: 24, borderRadius: 4, border: "1px solid #e8e8e8", background: "#f7f7f7", cursor: "pointer", fontSize: 15, fontWeight: 700, lineHeight: 1, color: "#555555" }}>−</button>
+                      <button onClick={() => setCart(prev => prev.map(x => x.id === i.id && x.qty > 1 ? { ...x, qty: x.qty - 1 } : x))} style={{ width: 24, height: 24, borderRadius: 4, border: "1px solid #e8e8e8", background: p.bg, cursor: "pointer", fontSize: 15, fontWeight: 700, lineHeight: 1, color: p.textMuted }}>−</button>
                       <span style={{ fontSize: 13, fontWeight: 600, minWidth: 22, textAlign: "center" }}>{i.qty}</span>
-                      <button onClick={() => add(i)} style={{ width: 24, height: 24, borderRadius: 4, border: "1px solid #e8e8e8", background: "#f7f7f7", cursor: "pointer", fontSize: 15, fontWeight: 700, lineHeight: 1, color: "#555555" }}>+</button>
+                      <button onClick={() => add(i)} style={{ width: 24, height: 24, borderRadius: 4, border: "1px solid #e8e8e8", background: p.bg, cursor: "pointer", fontSize: 15, fontWeight: 700, lineHeight: 1, color: p.textMuted }}>+</button>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
                       <span style={{ fontSize: 9, color: "#999999" }}>$</span>
@@ -1706,7 +1707,7 @@ function POS({ localId, usuario }) {
               })
             }
           </div>
-          <div style={{ padding: "10px 14px", borderTop: "1px solid #ddd9d0", background: "#f0ece4" }}>
+          <div style={{ padding: "10px 14px", borderTop: "1px solid #ddd9d0", background: p.bg }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
               <span style={{ fontSize: 11, color: "#666666", fontWeight: 600 }}>SUBTOTAL</span>
               <span style={{ fontSize: 20, fontWeight: 700, color: "#111111" }}>{fmt(subtotalBase)}</span>
@@ -1714,7 +1715,7 @@ function POS({ localId, usuario }) {
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8, overflow: "hidden" }}>
-          <div style={{ background: "#faf8f4", border: "1px solid #ddd9d0", borderRadius: 8, padding: "10px 12px", overflowY: "auto", flex: 1 }}>
+          <div style={{ background: p.bg, border: "1px solid #ddd9d0", borderRadius: 8, padding: "10px 12px", overflowY: "auto", flex: 1 }}>
             {preventa ? (
               <div className="fg"><input className="inp" placeholder="Nombre cliente (preventa)" value={nombrePreventa} onChange={e => setNombrePreventa(e.target.value)} style={{ fontSize: 11, padding: "8px 10px" }} /></div>
             ) : (
@@ -1778,7 +1779,7 @@ function POS({ localId, usuario }) {
             <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
               {["A", "B", "Remito"].map(t => (
                 <button key={t} onClick={() => setTipoFac(t)} className="btn btn-sm"
-                  style={{ flex: 1, fontSize: 9, padding: "5px 4px", background: tipoFac === t ? "#c9a84c15" : "transparent", border: "1px solid " + (tipoFac === t ? "#c9a84c" : "#e8e8e8"), color: tipoFac === t ? "#c9a84c" : "#65676B" }}>
+                  style={{ flex: 1, fontSize: 9, padding: "5px 4px", background: tipoFac === t ? "#c9a84c15" : "transparent", border: "1px solid " + (tipoFac === t ? "#c9a84c" : p.border), color: tipoFac === t ? "#c9a84c" : "#65676B" }}>
                   {t === "Remito" ? "Rem" : "Fac " + t}
                 </button>
               ))}
@@ -1807,15 +1808,15 @@ function POS({ localId, usuario }) {
             )}
             {!preventa && (
               <div style={{ marginBottom: 8 }}>
-                <button className="btn btn-sm" style={{ width: "100%", background: "#f7f5f0", color: "#2471a3", border: "1px dashed #2471a3" }} onClick={agregarAjusteDiferencia}>+ Facturar diferencia de pedido online</button>
+                <button className="btn btn-sm" style={{ width: "100%", background: p.bg, color: "#2471a3", border: "1px dashed #2471a3" }} onClick={agregarAjusteDiferencia}>+ Facturar diferencia de pedido online</button>
               </div>
             )}
             {!preventa && insumosPosActivo && insumosPos.length > 0 && (
               <div style={{ marginBottom: 8 }}>
                 {!mostrarInsumos ? (
-                  <button className="btn btn-sm" style={{ width: "100%", background: "#f7f5f0", color: "#c9a84c", border: "1px dashed #c9a84c" }} onClick={() => setMostrarInsumos(true)}>+ Agregar insumo (bolsa, caja, ramo...)</button>
+                  <button className="btn btn-sm" style={{ width: "100%", background: p.bg, color: "#c9a84c", border: "1px dashed #c9a84c" }} onClick={() => setMostrarInsumos(true)}>+ Agregar insumo (bolsa, caja, ramo...)</button>
                 ) : (
-                  <div style={{ background: "#f7f5f0", borderRadius: 8, padding: 10 }}>
+                  <div style={{ background: p.bg, borderRadius: 8, padding: 10 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                       <span style={{ fontSize: 11, fontWeight: 600, color: "#65676B" }}>Insumos usados (se descuentan del stock, no se facturan)</span>
                       <span onClick={() => { setMostrarInsumos(false); setInsumosSel({}); }} style={{ cursor: "pointer", fontSize: 11, color: "#999" }}>ocultar</span>
@@ -1837,7 +1838,7 @@ function POS({ localId, usuario }) {
               <div style={{ marginBottom: 6 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                   <span style={{ fontSize: 10, color: "#888" }}>{pagoMixto ? "Pago dividido" : "Medio de pago"}</span>
-                  <button onClick={() => { setPagoMixto(!pagoMixto); if (!pagoMixto) { setPagosMixtos([{ medio_pago_id: null, medio_pago_nombre: "", importe: "" }]); } else { setPagosMixtos([]); } }} style={{ fontSize: 10, padding: "2px 8px", border: "1px solid #c9a84c", borderRadius: 4, background: pagoMixto ? "#c9a84c" : "#fff", color: pagoMixto ? "#fff" : "#c9a84c", cursor: "pointer" }}>{pagoMixto ? "Pago simple" : "Dividir pago"}</button>
+                  <button onClick={() => { setPagoMixto(!pagoMixto); if (!pagoMixto) { setPagosMixtos([{ medio_pago_id: null, medio_pago_nombre: "", importe: "" }]); } else { setPagosMixtos([]); } }} style={{ fontSize: 10, padding: "2px 8px", border: "1px solid #c9a84c", borderRadius: 4, background: pagoMixto ? "#c9a84c" : p.card, color: pagoMixto ? p.card : "#c9a84c", cursor: "pointer" }}>{pagoMixto ? "Pago simple" : "Dividir pago"}</button>
                 </div>
 
                 {!pagoMixto && (
@@ -1868,8 +1869,8 @@ function POS({ localId, usuario }) {
                       </div>
                     ))}
                     <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
-                      <button onClick={() => setPagosMixtos(prev => [...prev, { medio_pago_id: null, medio_pago_nombre: "", importe: "" }])} style={{ fontSize: 10, padding: "4px 8px", border: "1px dashed #c9a84c", borderRadius: 4, background: "#fff", color: "#c9a84c", cursor: "pointer", flex: 1 }}>+ Agregar medio</button>
-                      <button onClick={() => { const n = pagosMixtos.length || 1; const parte = Math.round((restaPagar / n) * 100) / 100; setPagosMixtos(prev => prev.map(x => ({ ...x, importe: String(parte) }))); }} style={{ fontSize: 10, padding: "4px 8px", border: "1px solid #e8e8e8", borderRadius: 4, background: "#f7f7f7", cursor: "pointer", flex: 1 }}>Dividir igual</button>
+                      <button onClick={() => setPagosMixtos(prev => [...prev, { medio_pago_id: null, medio_pago_nombre: "", importe: "" }])} style={{ fontSize: 10, padding: "4px 8px", border: "1px dashed #c9a84c", borderRadius: 4, background: p.card, color: "#c9a84c", cursor: "pointer", flex: 1 }}>+ Agregar medio</button>
+                      <button onClick={() => { const n = pagosMixtos.length || 1; const parte = Math.round((restaPagar / n) * 100) / 100; setPagosMixtos(prev => prev.map(x => ({ ...x, importe: String(parte) }))); }} style={{ fontSize: 10, padding: "4px 8px", border: "1px solid #e8e8e8", borderRadius: 4, background: p.bg, cursor: "pointer", flex: 1 }}>Dividir igual</button>
                     </div>
                     {(() => {
                       const suma = pagosMixtos.reduce((s, p) => s + (parseFloat(p.importe) || 0), 0);
@@ -1881,9 +1882,9 @@ function POS({ localId, usuario }) {
               </div>
             )}
           </div>
-          <div style={{ background: "#f0ece4", border: "1px solid #ddd9d0", borderRadius: 8, padding: "10px 12px" }}>
+          <div style={{ background: p.bg, border: "1px solid #ddd9d0", borderRadius: 8, padding: "10px 12px" }}>
             {promoCalc.avisos.length > 0 && (
-              <div style={{ background: "#2d7a4f", border: "2px solid #1e5637", borderRadius: 8, padding: "12px 14px", marginBottom: 8, fontSize: 13, color: "#ffffff", fontWeight: 700, boxShadow: "0 2px 8px rgba(45,122,79,0.4)" }}>
+              <div style={{ background: "#2d7a4f", border: "2px solid #1e5637", borderRadius: 8, padding: "12px 14px", marginBottom: 8, fontSize: 13, color: p.card, fontWeight: 700, boxShadow: "0 2px 8px rgba(45,122,79,0.4)" }}>
                 {promoCalc.avisos.map((a, k) => {
                   const prod = productos.find(p => p.id === parseInt(a.productoId));
                   return <div key={k} style={{ marginBottom: 4 }}>🎁 Ofrecele: {a.valor}% OFF en {prod ? (prod.nombre || prod.name) : "producto"} ({a.promo})</div>;
@@ -1916,7 +1917,7 @@ function POS({ localId, usuario }) {
 
       {showEmitirGC && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
-          <div className="card" style={{ width: 380, background: "#ffffff" }}>
+          <div className="card" style={{ width: 380, background: p.card }}>
             {!gcEmitidaOk ? (
               <>
                 <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>🎁 Emitir Gift Card</div>
@@ -1947,7 +1948,7 @@ function POS({ localId, usuario }) {
 
       {itemsSinStock && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
-          <div className="card" style={{ width: 440, background: "#ffffff" }}>
+          <div className="card" style={{ width: 440, background: p.card }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: "#c0392b" }}>⚠️ Sin stock suficiente</div>
             <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>Estos productos quedarian con stock negativo. Escribi el motivo para poder facturar igual (queda registrado en Inconsistencias).</div>
             {itemsSinStock.map(it => (
@@ -6982,7 +6983,8 @@ function Productividad({ localId }) {
   );
 }
 
-function CierreCaja({ localId, usuario }) {
+function CierreCaja({ localId, usuario, paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
   const hoy = new Date();
   const fmtFecha = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   const [fecha, setFecha] = useState(fmtFecha(hoy));
@@ -7058,7 +7060,7 @@ function CierreCaja({ localId, usuario }) {
     if (!resumenRef.current) return;
     try {
       const { default: html2canvas } = await import("https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js");
-      const canvas = await html2canvas(resumenRef.current, { backgroundColor: "#ffffff", scale: 2 });
+      const canvas = await html2canvas(resumenRef.current, { backgroundColor: p.card, scale: 2 });
       const link = document.createElement("a");
       link.download = "cierre-" + fecha + ".png";
       link.href = canvas.toDataURL("image/png");
@@ -7093,7 +7095,7 @@ function CierreCaja({ localId, usuario }) {
         </div>
       )}
 
-      <div ref={resumenRef} style={{ background: "#ffffff", padding: 4, borderRadius: 8 }}>
+      <div ref={resumenRef} style={{ background: p.card, padding: 4, borderRadius: 8 }}>
         <div style={{ padding: "6px 4px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Cierre de Caja</div>
@@ -7105,7 +7107,7 @@ function CierreCaja({ localId, usuario }) {
         <div style={{ display: "flex", gap: 12, marginBottom: 16, alignItems: "stretch", flexWrap: "wrap" }}>
           <div style={{ flex: "2 1 300px", background: "linear-gradient(135deg, #2d7a4f, #256b44)", borderRadius: 14, padding: "18px 24px", boxShadow: "0 4px 14px rgba(45,122,79,0.25)", display: "flex", flexDirection: "column", justifyContent: "center" }}>
             <div style={{ fontSize: 11, color: "#ffffffcc", letterSpacing: ".15em", fontWeight: 600 }}>TOTAL DEL DIA</div>
-            <div style={{ fontSize: 38, fontWeight: 800, color: "#ffffff", lineHeight: 1.1 }}>{fmt(totalDia)}</div>
+            <div style={{ fontSize: 38, fontWeight: 800, color: p.card, lineHeight: 1.1 }}>{fmt(totalDia)}</div>
             <div style={{ fontSize: 11, color: "#ffffffcc", marginTop: 2 }}>{ventasDia.length} ventas{totalGiftCards > 0 ? " + " + fmt(totalGiftCards) + " en gift cards" : ""}</div>
           </div>
           <div style={{ flex: "1 1 150px", display: "flex", flexDirection: "column" }}><MCard label="VENTAS" value={ventasDia.length} sub="del dia" color="#2471a3" /></div>
@@ -9524,7 +9526,7 @@ export default function AppWrapper() {
   const getPageWithLocal = (id) => {
     if (!puedeVer(id)) return <SinPermiso />;
     if (id === "dashboard") return <Dashboard localId={local.id} />;
-    if (id === "pos") return <POS localId={local.id} usuario={usuario} />;
+    if (id === "pos") return <POS localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "ventas-online") return <VentasOnline localId={local.id} usuario={usuario} permisosActivos={permisosActivos} />;
     if (id === "auditoria") return <Auditoria />;
     if (id === "inventory") return <Inventario localId={local.id} usuario={usuario} />;
@@ -9546,7 +9548,7 @@ export default function AppWrapper() {
     if (id === "comisiones") return <Comisiones localId={local.id} />;
     if (id === "caja") return <Caja localId={local.id} usuario={usuario} />;
     if (id === "caja-respaldo") return <CajaRespaldo usuario={usuario} />;
-    if (id === "cierre") return <CierreCaja localId={local.id} usuario={usuario} />;
+    if (id === "cierre") return <CierreCaja localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "giftcards") return <GiftCards localId={local.id} usuario={usuario} />;
     if (id === "ordenes") return <OrdenesIngreso localId={local.id} usuario={usuario} />;
     if (id === "kits") return <Kits />;
