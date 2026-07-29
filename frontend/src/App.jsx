@@ -7383,6 +7383,78 @@ function ControlInventario({ localId, usuario }) {
   const [ajustarStock, setAjustarStock] = useState(true);
   const [notasFin, setNotasFin] = useState("");
   const [resultadoFinal, setResultadoFinal] = useState(null);
+  const [modoScan, setModoScan] = useState(false);
+  const [productosTodos, setProductosTodos] = useState([]);
+  const [escaneandoInv, setEscaneandoInv] = useState(false);
+  const [errorCamaraInv, setErrorCamaraInv] = useState("");
+  const [itemEscaneado, setItemEscaneado] = useState(null);
+  const [valorContado, setValorContado] = useState("");
+  const scannerInvRef = useRef(null);
+
+  useEffect(() => {
+    if (modoScan && productosTodos.length === 0) {
+      API.get("/productos").then(res => setProductosTodos(res.data || [])).catch(() => {});
+    }
+  }, [modoScan]);
+
+  const cerrarCamaraInv = async () => {
+    if (scannerInvRef.current) {
+      try { await scannerInvRef.current.stop(); scannerInvRef.current.clear(); } catch (e) {}
+      scannerInvRef.current = null;
+    }
+    setEscaneandoInv(false);
+  };
+
+  const buscarItemPorCodigo = (codigo) => {
+    const prod = productosTodos.find(pr => (pr.codigo_barras || "").trim() === codigo.trim());
+    if (!prod) return null;
+    return items.find(it => it.producto_id === prod.id || it.producto_nombre === prod.nombre) || null;
+  };
+
+  const abrirCamaraInv = () => { setErrorCamaraInv(""); setEscaneandoInv(true); };
+
+  useEffect(() => {
+    if (!escaneandoInv) return;
+    let cancelado = false;
+    (async () => {
+      try {
+        const mod = await import("https://cdn.jsdelivr.net/npm/html5-qrcode/+esm");
+        if (cancelado) return;
+        const { Html5Qrcode } = mod;
+        const scanner = new Html5Qrcode("lector-camara-inv");
+        scannerInvRef.current = scanner;
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 260, height: 140 } },
+          (textoDecodificado) => {
+            const item = buscarItemPorCodigo(textoDecodificado);
+            cerrarCamaraInv();
+            if (item) {
+              setItemEscaneado(item);
+              setValorContado(item.stock_contado !== null && item.stock_contado !== undefined ? String(item.stock_contado) : "");
+            } else {
+              setMensaje("Ese codigo no corresponde a ningun producto de este control");
+              setTimeout(() => setMensaje(""), 3000);
+            }
+          },
+          () => {}
+        );
+      } catch (e) {
+        setErrorCamaraInv("No se pudo abrir la camara. Revisa los permisos del navegador.");
+        setEscaneandoInv(false);
+      }
+    })();
+    return () => { cancelado = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [escaneandoInv]);
+
+  const confirmarConteoEscaneado = async () => {
+    if (valorContado === "" || isNaN(parseInt(valorContado))) return;
+    await contarItem(itemEscaneado, valorContado);
+    setItemEscaneado(null);
+    setValorContado("");
+    abrirCamaraInv();
+  };
 
   const cargar = async () => {
     try {
@@ -7486,6 +7558,8 @@ function ControlInventario({ localId, usuario }) {
         <div className="ph">
           <div><div className="pt">Conteo de inventario #{controlActivo.id}</div><div className="ps">{controlActivo.tipo === "total" ? "Conteo total" : "Categoria: " + controlActivo.categoria}</div></div>
           <div style={{ display: "flex", gap: 8 }}>
+            <button className={"btn btn-sm " + (modoScan ? "btn-g" : "btn-p")} onClick={() => setModoScan(false)}>📋 Lista</button>
+            <button className={"btn btn-sm " + (modoScan ? "btn-p" : "btn-g")} onClick={() => setModoScan(true)}>📷 Escanear</button>
             <button className="btn btn-g btn-sm" onClick={() => { setVista("lista"); setControlActivo(null); }}>Guardar y salir</button>
             <button className="btn btn-p btn-sm" onClick={() => setShowFinalizar(true)} disabled={totalContados === 0}>Finalizar conteo</button>
           </div>
@@ -7496,6 +7570,38 @@ function ControlInventario({ localId, usuario }) {
           <MCard label="Faltantes" value={String(totalFaltantes)} color="#c0392b" />
           <MCard label="Sobrantes" value={String(totalSobrantes)} color="#c9a84c" />
         </div>
+        {modoScan ? (
+          <div className="card" style={{ maxWidth: 480 }}>
+            {mensaje && <div style={{ color: "#c0392b", fontSize: 12, marginBottom: 12 }}>{mensaje}</div>}
+            {itemEscaneado ? (
+              <div style={{ textAlign: "center", padding: 10 }}>
+                <div style={{ fontSize: 12, color: "#65676B" }}>{itemEscaneado.producto_marca} · {itemEscaneado.producto_categoria}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 14 }}>{itemEscaneado.producto_nombre}</div>
+                <div style={{ fontSize: 12, color: "#65676B" }}>El sistema dice que deberia haber</div>
+                <div style={{ fontSize: 46, fontWeight: 700, color: "#2C3E5C", lineHeight: 1, margin: "4px 0 16px" }}>{itemEscaneado.stock_sistema}</div>
+                <div style={{ fontSize: 12, color: "#65676B", marginBottom: 6 }}>Contaste en el estante:</div>
+                <input type="number" className="inp" autoFocus value={valorContado} onChange={e => setValorContado(e.target.value)}
+                  style={{ fontSize: 28, textAlign: "center", fontWeight: 700, padding: "12px", marginBottom: 14 }} />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn btn-g" style={{ flex: 1 }} onClick={() => { setItemEscaneado(null); abrirCamaraInv(); }}>Cancelar</button>
+                  <button className="btn btn-p" style={{ flex: 1 }} onClick={confirmarConteoEscaneado}>Confirmar y seguir</button>
+                </div>
+              </div>
+            ) : escaneandoInv ? (
+              <div>
+                <div id="lector-camara-inv" style={{ width: "100%", borderRadius: 8, overflow: "hidden" }} />
+                <button className="btn btn-g btn-sm" style={{ width: "100%", marginTop: 10 }} onClick={cerrarCamaraInv}>Cancelar</button>
+              </div>
+            ) : (
+              <div style={{ textAlign: "center", padding: 20 }}>
+                <div style={{ fontSize: 13, color: "#65676B", marginBottom: 14 }}>Apunta la camara al codigo de barras de cada producto en el estante.</div>
+                <button className="btn btn-p" style={{ width: "100%", fontSize: 15, padding: "14px" }} onClick={abrirCamaraInv}>📷 Empezar a escanear</button>
+              </div>
+            )}
+            {errorCamaraInv && <div style={{ color: "#c0392b", fontSize: 12, marginTop: 10 }}>{errorCamaraInv}</div>}
+          </div>
+        ) : (
+        <>
         <div className="card" style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <input className="inp" placeholder="Buscar producto..." value={busqueda} onChange={e => setBusqueda(e.target.value)} style={{ flex: 1 }} />
@@ -7531,6 +7637,8 @@ function ControlInventario({ localId, usuario }) {
             </tbody>
           </table>
         </div>
+        </>
+        )}
         {showFinalizar && (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
             <div className="card" style={{ width: 420, background: "#ffffff" }}>
