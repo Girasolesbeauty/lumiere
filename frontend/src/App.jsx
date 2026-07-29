@@ -957,6 +957,142 @@ function Auditoria() {
   );
 }
 
+function BuscarPrecio({ localId, paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
+  const [productos, setProductos] = useState([]);
+  const [busqueda, setBusqueda] = useState("");
+  const [loading, setLoading] = useState(true);
+  const inputRef = useRef(null);
+  const [escaneando, setEscaneando] = useState(false);
+  const [errorCamara, setErrorCamara] = useState("");
+  const scannerRef = useRef(null);
+
+  const abrirCamara = async () => {
+    setErrorCamara("");
+    setEscaneando(true);
+  };
+
+  const cerrarCamara = async () => {
+    if (scannerRef.current) {
+      try { await scannerRef.current.stop(); scannerRef.current.clear(); } catch (e) {}
+      scannerRef.current = null;
+    }
+    setEscaneando(false);
+  };
+
+  useEffect(() => {
+    if (!escaneando) return;
+    let cancelado = false;
+    (async () => {
+      try {
+        const mod = await import("https://cdn.jsdelivr.net/npm/html5-qrcode/+esm");
+        if (cancelado) return;
+        const { Html5Qrcode } = mod;
+        const scanner = new Html5Qrcode("lector-camara");
+        scannerRef.current = scanner;
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 260, height: 140 } },
+          (textoDecodificado) => {
+            setBusqueda(textoDecodificado);
+            cerrarCamara();
+          },
+          () => {}
+        );
+      } catch (e) {
+        setErrorCamara("No se pudo abrir la camara. Revisa los permisos del navegador, o escribi el codigo a mano.");
+        setEscaneando(false);
+      }
+    })();
+    return () => { cancelado = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [escaneando]);
+
+  useEffect(() => {
+    API.get("/productos").then(res => setProductos(res.data || [])).catch(() => {}).finally(() => setLoading(false));
+    if (inputRef.current) inputRef.current.focus();
+  }, []);
+
+  const norm = (s) => (s || "").toString().toLowerCase().trim();
+  const q = norm(busqueda);
+
+  const resultados = q.length === 0 ? [] : productos.filter(prod =>
+    norm(prod.nombre).includes(q) ||
+    norm(prod.marca).includes(q) ||
+    norm(prod.codigo_barras).includes(q)
+  ).slice(0, 30);
+
+  // Si escanean un codigo de barras exacto (o lo tipean y aprietan Enter), mostramos ese
+  // producto solo, bien grande, en vez de una lista para elegir.
+  const matchExacto = q.length > 0 ? productos.find(prod => norm(prod.codigo_barras) === q) : null;
+
+  const stockDe = (prod) => {
+    const esUsh = Number(localId) === 2;
+    return esUsh ? (prod.stock_ush ?? prod.stock ?? 0) : (prod.stock_rg ?? prod.stock ?? 0);
+  };
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Buscar precio</div><div className="ps">escanea o escribi el nombre, marca o codigo del producto</div></div>
+      </div>
+      <input
+        ref={inputRef}
+        className="inp"
+        style={{ fontSize: 18, padding: "16px 16px", marginBottom: 10 }}
+        placeholder="Escanea o busca..."
+        value={busqueda}
+        onChange={e => setBusqueda(e.target.value)}
+        autoFocus
+      />
+      {!escaneando ? (
+        <button className="btn btn-p" style={{ width: "100%", marginBottom: 16, fontSize: 15, padding: "14px" }} onClick={abrirCamara}>📷 Escanear con la camara</button>
+      ) : (
+        <div className="card" style={{ marginBottom: 16, padding: 10 }}>
+          <div id="lector-camara" style={{ width: "100%", borderRadius: 8, overflow: "hidden" }} />
+          <button className="btn btn-g btn-sm" style={{ width: "100%", marginTop: 10 }} onClick={cerrarCamara}>Cancelar</button>
+        </div>
+      )}
+      {errorCamara && <div style={{ color: "#c0392b", fontSize: 12, marginBottom: 12 }}>{errorCamara}</div>}
+      {loading ? (
+        <div style={{ textAlign: "center", color: p.textMuted, padding: 30 }}>Cargando productos...</div>
+      ) : q.length === 0 ? (
+        <div style={{ textAlign: "center", color: p.textMuted, padding: 40, fontSize: 13 }}>Escribi o escanea un producto para ver su precio.</div>
+      ) : matchExacto ? (
+        <div className="card" style={{ textAlign: "center", padding: 30 }}>
+          <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 6 }}>{matchExacto.marca}</div>
+          <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>{matchExacto.nombre}</div>
+          <div style={{ fontSize: 48, fontWeight: 700, color: "#c9a84c", lineHeight: 1 }}>{fmt(matchExacto.precio || 0)}</div>
+          <div style={{ marginTop: 16 }}>
+            <span className={"badge " + (stockDe(matchExacto) > 0 ? "bg" : "br")} style={{ fontSize: 13, padding: "6px 14px" }}>
+              {stockDe(matchExacto) > 0 ? stockDe(matchExacto) + " en stock" : "Sin stock"}
+            </span>
+          </div>
+          <button className="btn btn-g btn-sm" style={{ marginTop: 20 }} onClick={() => { setBusqueda(""); inputRef.current?.focus(); }}>Buscar otro</button>
+        </div>
+      ) : resultados.length === 0 ? (
+        <div style={{ textAlign: "center", color: p.textMuted, padding: 40, fontSize: 13 }}>No se encontro ningun producto con "{busqueda}".</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {resultados.map(prod => (
+            <div key={prod.id} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 14, cursor: "pointer" }}
+              onClick={() => setBusqueda(prod.codigo_barras || prod.nombre)}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{prod.nombre}</div>
+                <div style={{ fontSize: 11, color: p.textMuted }}>{prod.marca}</div>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 12 }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: "#c9a84c" }}>{fmt(prod.precio || 0)}</div>
+                <span className={"badge " + (stockDe(prod) > 0 ? "bg" : "br")} style={{ fontSize: 10 }}>{stockDe(prod) > 0 ? stockDe(prod) + "u" : "sin stock"}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function POS({ localId, usuario, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [cart, setCart] = useState([]);
@@ -2910,7 +3046,8 @@ function Clientes({ usuario }) {
   );
 }
 
-function Finanzas({ localId, usuario }) {
+function Finanzas({ localId, usuario, paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState("flujo");
   const [tabLocal, setTabLocal] = useState("rg");
   const [flujo, setFlujo] = useState(null);
@@ -3056,9 +3193,9 @@ function Finanzas({ localId, usuario }) {
         <span style={{ fontSize: 14, fontWeight: 700, color: color }}>{fmt(parseFloat(total || 0))}</span>
       </div>
       {Object.entries(detalle || {}).map(([k, v]) => (
-        <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 12px", borderBottom: "1px solid #f0f0f0", background: "#fafafa" }}>
-          <span style={{ fontSize: 12, color: "#444444" }}>{k}</span>
-          <span style={{ fontSize: 12, color: "#666666" }}>{fmt(parseFloat(v || 0))}</span>
+        <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 12px", borderBottom: "1px solid " + p.border, background: p.bg }}>
+          <span style={{ fontSize: 12, color: p.text }}>{k}</span>
+          <span style={{ fontSize: 12, color: p.textMuted }}>{fmt(parseFloat(v || 0))}</span>
         </div>
       ))}
     </div>
@@ -3091,7 +3228,7 @@ function Finanzas({ localId, usuario }) {
         <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
           {["rg", "ush", "consolidado"].map(l => (
             <button key={l} onClick={() => setTabLocal(l)} className="btn btn-sm"
-              style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : "#e8e8e8"), color: tabLocal === l ? "#c9a84c" : "#65676B", fontWeight: tabLocal === l ? 600 : 400 }}>
+              style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : p.border), color: tabLocal === l ? "#c9a84c" : p.textMuted, fontWeight: tabLocal === l ? 600 : 400 }}>
               {l === "rg" ? "Rio Grande" : l === "ush" ? "Ushuaia" : "Consolidado"}
             </button>
           ))}
@@ -3108,20 +3245,20 @@ function Finanzas({ localId, usuario }) {
           <div className="g2">
             <div className="card">
               <div className="ct">Movimientos</div>
-              {loading ? <div style={{ color: "#65676B" }}>Cargando...</div> : (
+              {loading ? <div style={{ color: p.textMuted }}>Cargando...</div> : (
               <table>
                 <thead><tr><th>Concepto</th><th>Categoria</th><th>Tipo</th><th>Cuenta</th><th>Importe</th></tr></thead>
                 <tbody>
                   {(flujo?.movimientos || []).slice(0, 15).map((m, i) => (
                     <tr key={i}>
                       <td>{m.concepto}</td>
-                      <td style={{ fontSize: 10, color: "#65676B" }}>{m.categoria_nombre || "-"}</td>
+                      <td style={{ fontSize: 10, color: p.textMuted }}>{m.categoria_nombre || "-"}</td>
                       <td><span className={"badge " + (m.tipo === "I" ? "bg" : "br")}>{m.tipo === "I" ? "Ingreso" : "Egreso"}</span></td>
-                      <td style={{ fontSize: 10, color: "#65676B" }}>{m.cuenta_nombre || m.forma_pago || "-"}</td>
+                      <td style={{ fontSize: 10, color: p.textMuted }}>{m.cuenta_nombre || m.forma_pago || "-"}</td>
                       <td style={{ color: m.tipo === "I" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "I" ? "+" : "-"}{fmt(parseFloat(m.importe))}</td>
                     </tr>
                   ))}
-                  {(flujo?.movimientos || []).length === 0 && (<tr><td colSpan={5} style={{ color: "#65676B", textAlign: "center" }}>Sin movimientos</td></tr>)}
+                  {(flujo?.movimientos || []).length === 0 && (<tr><td colSpan={5} style={{ color: p.textMuted, textAlign: "center" }}>Sin movimientos</td></tr>)}
                 </tbody>
               </table>
               )}
@@ -3190,18 +3327,18 @@ function Finanzas({ localId, usuario }) {
             <div className="card" style={{ marginTop: 14 }}>
               <div className="ct">Resultado neto despues de comisiones e IIBB</div>
               <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: 13 }}>
-                <span style={{ color: "#444" }}>Ventas del mes (este sistema)</span>
+                <span style={{ color: p.text }}>Ventas del mes (este sistema)</span>
                 <span style={{ fontWeight: 600 }}>{fmt(comisiones.total_ventas)}</span>
               </div>
               {factExterna && factExterna.total > 0 && (
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: 13 }}>
-                  <span style={{ color: "#444" }}>Facturacion sistema anterior</span>
+                  <span style={{ color: p.text }}>Facturacion sistema anterior</span>
                   <span style={{ fontWeight: 600 }}>{fmt(factExterna.total)}</span>
                 </div>
               )}
               {factExterna && factExterna.total > 0 && (
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: 13, borderTop: "1px solid #eee" }}>
-                  <span style={{ color: "#444", fontWeight: 600 }}>Facturacion total del mes</span>
+                  <span style={{ color: p.text, fontWeight: 600 }}>Facturacion total del mes</span>
                   <span style={{ fontWeight: 700 }}>{fmt(comisiones.total_ventas + factExterna.total)}</span>
                 </div>
               )}
@@ -3219,12 +3356,12 @@ function Finanzas({ localId, usuario }) {
               </div>
 
               <div style={{ marginTop: 14 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "#888", marginBottom: 6 }}>DETALLE DE COMISIONES POR MEDIO DE PAGO</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: p.textMuted, marginBottom: 6 }}>DETALLE DE COMISIONES POR MEDIO DE PAGO</div>
                 <table style={{ width: "100%", fontSize: 11 }}>
-                  <thead><tr style={{ color: "#888", textAlign: "left" }}><th style={{ padding: "4px 0" }}>Medio</th><th>Ventas</th><th style={{ textAlign: "right" }}>Monto</th><th style={{ textAlign: "right" }}>%</th><th style={{ textAlign: "right" }}>Comision</th></tr></thead>
+                  <thead><tr style={{ color: p.textMuted, textAlign: "left" }}><th style={{ padding: "4px 0" }}>Medio</th><th>Ventas</th><th style={{ textAlign: "right" }}>Monto</th><th style={{ textAlign: "right" }}>%</th><th style={{ textAlign: "right" }}>Comision</th></tr></thead>
                   <tbody>
                     {comisiones.detalle.map((d, idx) => (
-                      <tr key={idx} style={{ borderTop: "1px solid #f0f0f0" }}>
+                      <tr key={idx} style={{ borderTop: "1px solid " + p.border }}>
                         <td style={{ padding: "5px 0" }}>{d.medio}</td>
                         <td>{d.ventas}</td>
                         <td style={{ textAlign: "right" }}>{fmt(d.monto)}</td>
@@ -3242,12 +3379,12 @@ function Finanzas({ localId, usuario }) {
 
           <div className="card" style={{ marginTop: 14 }}>
             <div className="ct">Facturacion del sistema anterior</div>
-            <div style={{ fontSize: 11, color: "#65676B", marginBottom: 10 }}>Carga lo que facturaste con el software viejo este mes. Suma a la facturacion del mes (sin recalcular comisiones).</div>
+            <div style={{ fontSize: 11, color: p.textMuted, marginBottom: 10 }}>Carga lo que facturaste con el software viejo este mes. Suma a la facturacion del mes (sin recalcular comisiones).</div>
             {factExterna && factExterna.registros && factExterna.registros.length > 0 && (
               <div style={{ marginBottom: 10 }}>
                 {factExterna.registros.map((r, idx) => (
-                  <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "5px 0", borderBottom: "1px solid #f0f0f0" }}>
-                    <span style={{ color: "#444" }}>{r.local_id === 2 ? "Ushuaia" : "Rio Grande"}</span>
+                  <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "5px 0", borderBottom: "1px solid " + p.border }}>
+                    <span style={{ color: p.text }}>{r.local_id === 2 ? "Ushuaia" : "Rio Grande"}</span>
                     <span style={{ fontWeight: 600 }}>{fmt(parseFloat(r.monto))}</span>
                   </div>
                 ))}
@@ -3271,11 +3408,11 @@ function Finanzas({ localId, usuario }) {
             {(comisiones || factExterna) && (
               <div style={{ marginTop: 12, paddingTop: 10, borderTop: "2px solid #c9a84c" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "4px 0" }}>
-                  <span style={{ color: "#444" }}>Ventas este sistema</span>
+                  <span style={{ color: p.text }}>Ventas este sistema</span>
                   <span style={{ fontWeight: 600 }}>{fmt(comisiones ? comisiones.total_ventas : 0)}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "4px 0" }}>
-                  <span style={{ color: "#444" }}>Facturacion sistema anterior</span>
+                  <span style={{ color: p.text }}>Facturacion sistema anterior</span>
                   <span style={{ fontWeight: 600 }}>{fmt(factExterna ? factExterna.total : 0)}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, padding: "8px 0 0", fontWeight: 700 }}>
@@ -3308,21 +3445,21 @@ function Finanzas({ localId, usuario }) {
           </div>
           <div className="card">
             {detalleLoading ? (
-              <div style={{ color: "#65676B", padding: 20, fontSize: 12 }}>Cargando...</div>
+              <div style={{ color: p.textMuted, padding: 20, fontSize: 12 }}>Cargando...</div>
             ) : detalleMovs.length === 0 ? (
-              <div style={{ textAlign: "center", color: "#65676B", padding: 24, fontSize: 12 }}>Sin movimientos para este filtro (recorda que solo muestra hasta 500 a la vez, los mas recientes primero).</div>
+              <div style={{ textAlign: "center", color: p.textMuted, padding: 24, fontSize: 12 }}>Sin movimientos para este filtro (recorda que solo muestra hasta 500 a la vez, los mas recientes primero).</div>
             ) : (
               <table>
                 <thead><tr><th>Fecha</th><th>Concepto</th><th>Categoria</th><th>Tipo</th><th>Medio</th><th>Cuenta</th><th>Importe</th><th></th></tr></thead>
                 <tbody>
                   {detalleMovs.map(m => (
                     <tr key={m.id}>
-                      <td style={{ fontSize: 10, color: "#65676B" }}>{new Date(m.creado_en).toLocaleString("es-AR")}</td>
+                      <td style={{ fontSize: 10, color: p.textMuted }}>{new Date(m.creado_en).toLocaleString("es-AR")}</td>
                       <td>{m.concepto}</td>
-                      <td style={{ fontSize: 11, color: "#65676B" }}>{m.categoria_nombre || "-"}</td>
+                      <td style={{ fontSize: 11, color: p.textMuted }}>{m.categoria_nombre || "-"}</td>
                       <td><span className={"badge " + (m.tipo === "I" ? "bg" : "br")}>{m.tipo === "I" ? "Ingreso" : "Egreso"}</span></td>
-                      <td style={{ fontSize: 11, color: "#65676B" }}>{m.forma_pago || "-"}</td>
-                      <td style={{ fontSize: 11, color: "#65676B" }}>{m.cuenta_nombre || "-"}</td>
+                      <td style={{ fontSize: 11, color: p.textMuted }}>{m.forma_pago || "-"}</td>
+                      <td style={{ fontSize: 11, color: p.textMuted }}>{m.cuenta_nombre || "-"}</td>
                       <td style={{ color: m.tipo === "I" ? "#2d7a4f" : "#c0392b", fontWeight: 600 }}>{m.tipo === "I" ? "+" : "-"}{fmt(parseFloat(m.importe))}</td>
                       <td style={{ display: "flex", gap: 6 }}>
                         <button className="btn btn-sm" style={{ fontSize: 10 }} onClick={() => setEditandoMov({ ...m })}>Editar</button>
@@ -3378,7 +3515,7 @@ function Finanzas({ localId, usuario }) {
 
       {tab === "estructurado" && (
         <div className="fade">
-          {loading ? <div style={{ color: "#65676B", padding: 20 }}>Cargando...</div> : flujoEst && (
+          {loading ? <div style={{ color: p.textMuted, padding: 20 }}>Cargando...</div> : flujoEst && (
             <div className="g2">
               <div>
                 <SeccionFlujo titulo="INGRESOS" detalle={flujoEst.ingresos?.detalle} total={flujoEst.ingresos?.total} color="#2d7a4f" />
@@ -3403,8 +3540,8 @@ function Finanzas({ localId, usuario }) {
                   { l: "Impuestos", v: flujoEst.impuestos?.total, c: "#c9a84c" },
                   { l: "Total egresos", v: flujoEst.total_egresos, c: "#c0392b" },
                 ].map(r => (
-                  <div key={r.l} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f0f0f0" }}>
-                    <span style={{ fontSize: 12, color: "#444444" }}>{r.l}</span>
+                  <div key={r.l} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid " + p.border }}>
+                    <span style={{ fontSize: 12, color: p.text }}>{r.l}</span>
                     <span style={{ fontSize: 12, fontWeight: 600, color: r.c }}>{fmt(parseFloat(r.v || 0))}</span>
                   </div>
                 ))}
@@ -3421,9 +3558,9 @@ function Finanzas({ localId, usuario }) {
       {tab === "analisis" && (
         <div className="fade">
           {analisisLoading ? (
-            <div style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>Calculando...</div>
+            <div style={{ textAlign: "center", color: p.textMuted, padding: 30, fontSize: 12 }}>Calculando...</div>
           ) : !analisis ? (
-            <div style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>No se pudo calcular el analisis. Probá recargar.</div>
+            <div style={{ textAlign: "center", color: p.textMuted, padding: 30, fontSize: 12 }}>No se pudo calcular el analisis. Probá recargar.</div>
           ) : (
             <>
               <div className="card" style={{ display: "flex", alignItems: "center", gap: 24, marginBottom: 16, flexWrap: "wrap" }}>
@@ -3431,9 +3568,9 @@ function Finanzas({ localId, usuario }) {
                   <div style={{ fontSize: 34, fontWeight: 700, color: analisis.color }}>{analisis.puntaje}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em" }}>CALIFICACION FINANCIERA DEL MES</div>
+                  <div style={{ fontSize: 11, color: p.textMuted, letterSpacing: ".1em" }}>CALIFICACION FINANCIERA DEL MES</div>
                   <div style={{ fontSize: 26, fontWeight: 700, color: analisis.color, margin: "2px 0 8px" }}>{analisis.calificacion}</div>
-                  <div style={{ fontSize: 12, color: "#444" }}>
+                  <div style={{ fontSize: 12, color: p.text }}>
                     Margen neto: <b style={{ color: analisis.color }}>{analisis.margen_neto_pct}%</b> sobre {fmt(analisis.ingresos_mes)} facturados este mes.
                   </div>
                   {analisis.comparacion_mes_anterior.tendencia !== "sin_datos" && (
@@ -3449,20 +3586,20 @@ function Finanzas({ localId, usuario }) {
 
               <div className="card" style={{ marginBottom: 16 }}>
                 {analisis.metricas.map((m, i) => (
-                  <div key={i} style={{ padding: "12px 0", borderBottom: i < analisis.metricas.length - 1 ? "1px solid #f0f0f0" : "none" }}>
+                  <div key={i} style={{ padding: "12px 0", borderBottom: i < analisis.metricas.length - 1 ? "1px solid " + p.border : "none" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <span style={{ fontSize: 13, fontWeight: 600 }}>{m.nombre}</span>
                       <span style={{ fontSize: 13, fontWeight: 700, color: m.estado === "bien" ? "#2d7a4f" : m.estado === "regular" ? "#c9a84c" : "#c0392b" }}>{m.valor}%</span>
                     </div>
-                    <div style={{ height: 6, background: "#eee", borderRadius: 3, marginTop: 6, overflow: "hidden" }}>
+                    <div style={{ height: 6, background: p.border, borderRadius: 3, marginTop: 6, overflow: "hidden" }}>
                       <div style={{ height: "100%", width: m.puntaje + "%", background: m.estado === "bien" ? "#2d7a4f" : m.estado === "regular" ? "#c9a84c" : "#c0392b" }} />
                     </div>
-                    <div style={{ fontSize: 11, color: "#65676B", marginTop: 6 }}>{m.comentario}</div>
+                    <div style={{ fontSize: 11, color: p.textMuted, marginTop: 6 }}>{m.comentario}</div>
                   </div>
                 ))}
               </div>
 
-              <div style={{ fontSize: 10, color: "#999", padding: "0 4px" }}>
+              <div style={{ fontSize: 10, color: p.textMuted, padding: "0 4px" }}>
                 La calificación combina tu propia evolución mes a mes con parámetros generales de referencia para retail (no son una norma exacta para tu rubro puntual, sino una guía). "Margen neto" es lo que queda de la facturación una vez pagados todos los costos.
               </div>
             </>
@@ -3484,10 +3621,10 @@ function Finanzas({ localId, usuario }) {
                 push("sueldo", flujoEst.sueldos);
                 push("impuesto", flujoEst.impuestos);
               }
-              if (grupos.length === 0) return <div style={{ fontSize: 12, color: "#999", padding: "10px 0" }}>Todavia no hay costos cargados este mes. Cargalos en la pestaña Flujo.</div>;
+              if (grupos.length === 0) return <div style={{ fontSize: 12, color: p.textMuted, padding: "10px 0" }}>Todavia no hay costos cargados este mes. Cargalos en la pestaña Flujo.</div>;
               return grupos.map((c, idx) => (
-                <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: "1px solid #f0f0f0" }}>
-                  <span style={{ fontSize: 12, color: "#444444" }}>{c.l}</span>
+                <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: "1px solid " + p.border }}>
+                  <span style={{ fontSize: 12, color: p.text }}>{c.l}</span>
                   <span style={{ color: "#c9a84c" }}>{fmt(c.v)}</span>
                 </div>
               ));
@@ -3498,7 +3635,7 @@ function Finanzas({ localId, usuario }) {
             {cmv ? (
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", fontSize: 13 }}>
-                  <span style={{ color: "#444" }}>Ventas del mes</span>
+                  <span style={{ color: p.text }}>Ventas del mes</span>
                   <span style={{ fontWeight: 600 }}>{fmt(cmv.ventas)}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", fontSize: 13, color: "#c0392b" }}>
@@ -3509,9 +3646,9 @@ function Finanzas({ localId, usuario }) {
                   <span>Margen bruto</span>
                   <span style={{ color: "#2d7a4f" }}>{fmt(cmv.margen_bruto)} ({Math.round(cmv.margen_pct)}%)</span>
                 </div>
-                <div style={{ fontSize: 10, color: "#888", marginTop: 8 }}>El CMV usa el costo cargado en cada producto vendido este mes.</div>
+                <div style={{ fontSize: 10, color: p.textMuted, marginTop: 8 }}>El CMV usa el costo cargado en cada producto vendido este mes.</div>
               </div>
-            ) : <div style={{ fontSize: 12, color: "#999", padding: "10px 0" }}>Sin datos de CMV este mes.</div>}
+            ) : <div style={{ fontSize: 12, color: p.textMuted, padding: "10px 0" }}>Sin datos de CMV este mes.</div>}
           </div>
         </div>
       )}
@@ -3520,9 +3657,9 @@ function Finanzas({ localId, usuario }) {
         <div className="g2 fade">
           <div className="card">
             <div className="ct">Punto de equilibrio</div>
-            {loading ? <div style={{ color: "#65676B" }}>Calculando...</div> : <div>
+            {loading ? <div style={{ color: p.textMuted }}>Calculando...</div> : <div>
               <div style={{ fontSize: 48, fontWeight: 700, color: "#c9a84c" }}>{fmt(parseFloat(equilibrio?.punto_equilibrio || 0))}</div>
-              <div style={{ fontSize: 11, color: "#65676B", marginTop: 4 }}>ventas minimas para cubrir costos</div>
+              <div style={{ fontSize: 11, color: p.textMuted, marginTop: 4 }}>ventas minimas para cubrir costos</div>
               <div className="divider" />
               {[
                 { l: "Costos fijos", v: fmt(parseFloat(equilibrio?.costos_fijos || 0)) },
@@ -3530,8 +3667,8 @@ function Finanzas({ localId, usuario }) {
                 { l: "Margen seguridad", v: equilibrio?.margen_seguridad || "0%" },
               ].map(r => (
                 <div key={r.l} style={{ display: "flex", justifyContent: "space-between", marginBottom: 9 }}>
-                  <span style={{ fontSize: 11, color: "#65676B" }}>{r.l}</span>
-                  <span style={{ fontSize: 11, color: "#444444" }}>{r.v}</span>
+                  <span style={{ fontSize: 11, color: p.textMuted }}>{r.l}</span>
+                  <span style={{ fontSize: 11, color: p.text }}>{r.v}</span>
                 </div>
               ))}
             </div>}
@@ -3544,7 +3681,7 @@ function Finanzas({ localId, usuario }) {
               { l: "Superado", v: equilibrio?.superado ? "SI" : "NO", c: equilibrio?.superado ? "#2d7a4f" : "#c0392b" },
             ].map(r => (
               <div key={r.l} style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-                <span style={{ fontSize: 11, color: "#65676B" }}>{r.l}</span>
+                <span style={{ fontSize: 11, color: p.textMuted }}>{r.l}</span>
                 <span style={{ color: r.c }}>{r.v}</span>
               </div>
             ))}
@@ -9063,7 +9200,7 @@ function Promociones() {
 
 
 const NAV_SECTIONS = [
-  { section: "VENTAS", color: "#e67e22", items: [{ id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "pos", icon: "🛒", label: "Punto de Venta" }, { id: "ventas-online", icon: "🌐", label: "Ventas Online" }] },
+  { section: "VENTAS", color: "#e67e22", items: [{ id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "pos", icon: "🛒", label: "Punto de Venta" }, { id: "ventas-online", icon: "🌐", label: "Ventas Online" }, { id: "buscar-precio", icon: "🔎", label: "Buscar Precio" }] },
   { section: "STOCK", color: "#7d3c98", items: [{ id: "inventory", icon: "📦", label: "Inventario" }, { id: "ordenes", icon: "🚚", label: "Ingresos" }, { id: "inconsistencias", icon: "⚠️", label: "Inconsistencias" }, { id: "kits", icon: "🎁", label: "Kits" }, { id: "insumos", icon: "🛍️", label: "Insumos" }, { id: "control-inv", icon: "🔍", label: "Control de Inventario" }] },
   { section: "CAJA", color: "#2d7a4f", items: [{ id: "caja", icon: "💵", label: "Caja" }, { id: "caja-respaldo", icon: "🏦", label: "Caja de Respaldo" }, { id: "cierre", icon: "🔒", label: "Cierre de Caja" }, { id: "giftcards", icon: "🎀", label: "Gift Cards" }] },
   { section: "CLIENTES", color: "#c9a84c", items: [{ id: "clients", icon: "👥", label: "Clientes" }, { id: "pedidos", icon: "📦", label: "Pedidos" }, { id: "fidelizacion", icon: "⭐", label: "Fidelizacion" }] },
@@ -9549,12 +9686,13 @@ export default function AppWrapper() {
     if (!puedeVer(id)) return <SinPermiso />;
     if (id === "dashboard") return <Dashboard localId={local.id} />;
     if (id === "pos") return <POS localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "buscar-precio") return <BuscarPrecio localId={local.id} paletaActual={paletaActual} />;
     if (id === "ventas-online") return <VentasOnline localId={local.id} usuario={usuario} permisosActivos={permisosActivos} />;
     if (id === "auditoria") return <Auditoria />;
     if (id === "inventory") return <Inventario localId={local.id} usuario={usuario} />;
     if (id === "clients") return <Clientes localId={local.id} usuario={usuario} />;
     if (id === "pedidos") return <Pedidos localId={local.id} paletaActual={paletaActual} />;
-    if (id === "finance") return <Finanzas localId={local.id} usuario={usuario} />;
+    if (id === "finance") return <Finanzas localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "reports") return <Informes localId={local.id} />;
     if (id === "calculadoras") return <Calculadoras usuario={usuario} />;
     if (id === "comprobantes") return <Comprobantes localId={local.id} />;
