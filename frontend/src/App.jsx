@@ -7375,6 +7375,10 @@ function ControlInventario({ localId, usuario, paletaActual }) {
   const [tipoNuevo, setTipoNuevo] = useState("total");
   const [categoriaNuevo, setCategoriaNuevo] = useState("");
   const [categorias, setCategorias] = useState([]);
+  const [marcaNuevo, setMarcaNuevo] = useState("");
+  const [marcas, setMarcas] = useState([]);
+  const [proveedorNuevo, setProveedorNuevo] = useState("");
+  const [proveedores, setProveedores] = useState([]);
   const [controlActivo, setControlActivo] = useState(null);
   const [items, setItems] = useState([]);
   const [filtroItems, setFiltroItems] = useState("todos");
@@ -7459,15 +7463,19 @@ function ControlInventario({ localId, usuario, paletaActual }) {
 
   const cargar = async () => {
     try {
-      const [c, cfg, prods] = await Promise.all([
+      const [c, cfg, prods, provs] = await Promise.all([
         API.get("/controles-inventario?local_id=" + (localId || 1)),
         API.get("/controles-inventario/config?local_id=" + (localId || 1)),
-        API.get("/productos")
+        API.get("/productos"),
+        API.get("/proveedores").catch(() => ({ data: [] }))
       ]);
       setControles(c.data || []);
       setConfig(cfg.data);
       const cats = [...new Set((prods.data || []).map(p => p.categoria).filter(Boolean))];
       setCategorias(cats);
+      const marcasUnicas = [...new Set((prods.data || []).map(p => p.marca).filter(Boolean))].sort();
+      setMarcas(marcasUnicas);
+      setProveedores(provs.data || []);
     } catch (e) {}
   };
 
@@ -7484,14 +7492,19 @@ function ControlInventario({ localId, usuario, paletaActual }) {
 
   const crearNuevo = async () => {
     if (tipoNuevo === "categoria" && !categoriaNuevo) return setMensaje("Elegi una categoria");
+    if (tipoNuevo === "marca" && !marcaNuevo) return setMensaje("Elegi una marca");
+    if (tipoNuevo === "proveedor" && !proveedorNuevo) return setMensaje("Elegi un proveedor");
     try {
       const res = await API.post("/controles-inventario", {
-        tipo: tipoNuevo, categoria: tipoNuevo === "categoria" ? categoriaNuevo : null,
+        tipo: tipoNuevo,
+        categoria: tipoNuevo === "categoria" ? categoriaNuevo : null,
+        marca: tipoNuevo === "marca" ? marcaNuevo : null,
+        proveedor_id: tipoNuevo === "proveedor" ? proveedorNuevo : null,
         local_id: localId || 1, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre
       });
-      setShowNuevo(false); setCategoriaNuevo(""); setTipoNuevo("total");
+      setShowNuevo(false); setCategoriaNuevo(""); setMarcaNuevo(""); setProveedorNuevo(""); setTipoNuevo("total");
       abrirControl(res.data);
-    } catch (e) { setMensaje("Error al crear control"); }
+    } catch (e) { setMensaje(e.response?.data?.error || "Error al crear control"); }
   };
 
   const contarItem = async (item, valor) => {
@@ -7712,9 +7725,11 @@ function ControlInventario({ localId, usuario, paletaActual }) {
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
           <div className="card" style={{ width: 400, background: p.card }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Nuevo control de inventario</div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              <button className="btn btn-sm" style={{ flex: 1, background: tipoNuevo === "total" ? "#2C3E5C15" : "transparent", border: "1px solid " + (tipoNuevo === "total" ? "#2C3E5C" : p.border), color: tipoNuevo === "total" ? "#2C3E5C" : p.textMuted }} onClick={() => setTipoNuevo("total")}>Conteo total</button>
-              <button className="btn btn-sm" style={{ flex: 1, background: tipoNuevo === "categoria" ? "#2C3E5C15" : "transparent", border: "1px solid " + (tipoNuevo === "categoria" ? "#2C3E5C" : p.border), color: tipoNuevo === "categoria" ? "#2C3E5C" : p.textMuted }} onClick={() => setTipoNuevo("categoria")}>Por categoria</button>
+            <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+              <button className="btn btn-sm" style={{ flex: 1, minWidth: 90, background: tipoNuevo === "total" ? "#2C3E5C15" : "transparent", border: "1px solid " + (tipoNuevo === "total" ? "#2C3E5C" : p.border), color: tipoNuevo === "total" ? "#2C3E5C" : p.textMuted }} onClick={() => setTipoNuevo("total")}>Conteo total</button>
+              <button className="btn btn-sm" style={{ flex: 1, minWidth: 90, background: tipoNuevo === "categoria" ? "#2C3E5C15" : "transparent", border: "1px solid " + (tipoNuevo === "categoria" ? "#2C3E5C" : p.border), color: tipoNuevo === "categoria" ? "#2C3E5C" : p.textMuted }} onClick={() => setTipoNuevo("categoria")}>Categoria</button>
+              <button className="btn btn-sm" style={{ flex: 1, minWidth: 90, background: tipoNuevo === "marca" ? "#2C3E5C15" : "transparent", border: "1px solid " + (tipoNuevo === "marca" ? "#2C3E5C" : p.border), color: tipoNuevo === "marca" ? "#2C3E5C" : p.textMuted }} onClick={() => setTipoNuevo("marca")}>Marca</button>
+              <button className="btn btn-sm" style={{ flex: 1, minWidth: 90, background: tipoNuevo === "proveedor" ? "#2C3E5C15" : "transparent", border: "1px solid " + (tipoNuevo === "proveedor" ? "#2C3E5C" : p.border), color: tipoNuevo === "proveedor" ? "#2C3E5C" : p.textMuted }} onClick={() => setTipoNuevo("proveedor")}>Proveedor</button>
             </div>
             {tipoNuevo === "categoria" && (
               <div className="fg"><div className="fl">Categoria</div>
@@ -7722,6 +7737,25 @@ function ControlInventario({ localId, usuario, paletaActual }) {
                   <option value="">Elegi una categoria</option>
                   {categorias.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
+                {categorias.length === 0 && <div style={{ fontSize: 10, color: p.textMuted, marginTop: 4 }}>Ningun producto tiene categoria cargada todavia.</div>}
+              </div>
+            )}
+            {tipoNuevo === "marca" && (
+              <div className="fg"><div className="fl">Marca</div>
+                <select className="sel" value={marcaNuevo} onChange={e => setMarcaNuevo(e.target.value)}>
+                  <option value="">Elegi una marca</option>
+                  {marcas.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+                {marcas.length === 0 && <div style={{ fontSize: 10, color: p.textMuted, marginTop: 4 }}>Ningun producto tiene marca cargada todavia.</div>}
+              </div>
+            )}
+            {tipoNuevo === "proveedor" && (
+              <div className="fg"><div className="fl">Proveedor</div>
+                <select className="sel" value={proveedorNuevo} onChange={e => setProveedorNuevo(e.target.value)}>
+                  <option value="">Elegi un proveedor</option>
+                  {proveedores.map(pr => <option key={pr.id} value={pr.id}>{pr.nombre}</option>)}
+                </select>
+                {proveedores.length === 0 && <div style={{ fontSize: 10, color: p.textMuted, marginTop: 4 }}>No hay proveedores cargados todavia.</div>}
               </div>
             )}
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
