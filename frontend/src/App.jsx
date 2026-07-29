@@ -121,6 +121,26 @@ th { text-align: left; font-size: 11px; text-transform: uppercase; color: ${p.te
 td { padding: 10px 11px; font-size: 12px; color: ${p.tdText}; font-weight: 400; border-bottom: 1px solid ${p.border}; }
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: ${p.trHover}; }
+.mobile-topbar { display: none; align-items: center; justify-content: space-between; background: ${p.sidebar}; color: ${p.logoText}; padding: 12px 16px; position: sticky; top: 0; z-index: 30; }
+.mobile-menu-btn { background: transparent; border: none; color: ${p.logoText}; font-size: 22px; line-height: 1; cursor: pointer; padding: 4px 8px; }
+.mobile-overlay { display: none; }
+@media (max-width: 860px) {
+  .mobile-topbar { display: flex; }
+  .sidebar { transform: translateX(-100%); transition: transform .22s ease; top: 0; }
+  .sidebar.abierto { transform: translateX(0); }
+  .main { margin-left: 0 !important; width: 100vw !important; padding: 14px !important; }
+  .mobile-overlay.abierto { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 19; }
+  .g4 { grid-template-columns: repeat(2,1fr) !important; }
+  .g3 { grid-template-columns: repeat(2,1fr) !important; }
+  .g2 { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 520px) {
+  .g4, .g3 { grid-template-columns: 1fr !important; }
+  table { display: block; overflow-x: auto; white-space: nowrap; }
+  .pt { font-size: 20px !important; }
+  .metric { font-size: 24px !important; }
+  .ph { flex-direction: column; align-items: flex-start !important; gap: 10px; }
+}
 `;
 
 // Preferencia de tema guardada en este navegador/PC (no depende de la cuenta ni del backend).
@@ -9428,6 +9448,7 @@ export default function AppWrapper() {
   const [local, setLocal] = useState(null);
   const [page, setPage] = useState("dashboard");
   const [tema, setTema] = useState(obtenerTemaGuardado());
+  const [menuAbierto, setMenuAbierto] = useState(false);
   const paletaActual = tema === "oscuro" ? PALETA_OSCURA : PALETA_CLARA;
   const alternarTema = () => {
     const nuevo = tema === "oscuro" ? "claro" : "oscuro";
@@ -9579,8 +9600,14 @@ export default function AppWrapper() {
   return (
     <>
       <style>{getBaseCss(paletaActual)}</style>
+      <div className="mobile-topbar">
+        <button className="mobile-menu-btn" onClick={() => setMenuAbierto(true)} aria-label="Abrir menu">☰</button>
+        <div className="logo-name" style={{ fontSize: 16 }}>Lumiere</div>
+        <div style={{ width: 30 }} />
+      </div>
+      <div className={"mobile-overlay " + (menuAbierto ? "abierto" : "")} onClick={() => setMenuAbierto(false)} />
       <div className="layout" style={{ width: "100vw", margin: 0 }}>
-        <aside className="sidebar">
+        <aside className={"sidebar " + (menuAbierto ? "abierto" : "")}>
           <div className="logo">
             <div className="logo-name">Lumiere</div>
             <div className="logo-sub">{local.nombre}</div>
@@ -9596,7 +9623,7 @@ export default function AppWrapper() {
                     <div key={it.id}
                       className={"nav-item " + (isActive ? "active" : "")}
                       style={isActive ? { background: col + "25", borderColor: col + "60", color: "#ffffff" } : {}}
-                      onClick={() => setPage(it.id)}>
+                      onClick={() => { setPage(it.id); setMenuAbierto(false); }}>
                       <span style={{ fontSize: 15, flexShrink: 0 }}>{it.icon}</span>
                       <span style={{ color: isActive ? "#ffffff" : "rgba(255,255,255,0.85)", transition: "color .18s" }}>{it.label}</span>
                     </div>
