@@ -46,6 +46,7 @@ const crearControl = async (req, res) => {
     const { tipo, categoria, marca, proveedor_id, local_id, usuario_id, usuario_nombre } = req.body;
     const localNum = local_id === 2 || local_id === '2' ? 2 : 1;
     const colStock = localNum === 2 ? 'stock_ush' : 'stock_rg';
+    const colCantidadIngreso = localNum === 2 ? 'cantidad_ush' : 'cantidad_rg';
 
     let filtroValor = null;
     let where = 'WHERE p.activo = TRUE';
@@ -65,7 +66,7 @@ const crearControl = async (req, res) => {
     }
 
     const prods = await client.query(
-      `SELECT p.id, p.nombre, p.marca, p.categoria, p.${colStock} AS stock_sistema
+      `SELECT p.id, p.nombre, p.marca, p.categoria, p.costo, p.${colStock} AS stock_sistema
        FROM productos p ${where} ORDER BY p.nombre ASC`,
       params
     );
@@ -75,18 +76,54 @@ const crearControl = async (req, res) => {
       return res.status(400).json({ error: 'No hay productos activos que coincidan con ese filtro' });
     }
 
+    // El periodo a analizar arranca donde termino el ultimo control finalizado de este local
+    // (o, si nunca se hizo ninguno, los ultimos 30 dias) -- asi se puede ver cuanto entro y
+    // se vendio de cada producto desde la ultima vez que se conto de verdad.
+    const ultimoRes = await client.query(
+      `SELECT MAX(finalizado_en) AS ultimo FROM controles_inventario WHERE local_id = $1 AND estado = 'finalizado'`,
+      [localNum]
+    );
+    const periodoDesde = ultimoRes.rows[0].ultimo || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
     const controlRes = await client.query(
-      `INSERT INTO controles_inventario (tipo, filtro_valor, local_id, usuario_id, usuario_nombre, estado)
-       VALUES ($1, $2, $3, $4, $5, 'en_curso') RETURNING *`,
-      [tipo, filtroValor, localNum, usuario_id || null, usuario_nombre || null]
+      `INSERT INTO controles_inventario (tipo, filtro_valor, local_id, usuario_id, usuario_nombre, estado, periodo_desde)
+       VALUES ($1, $2, $3, $4, $5, 'en_curso', $6) RETURNING *`,
+      [tipo, filtroValor, localNum, usuario_id || null, usuario_nombre || null, periodoDesde]
     );
     const control = controlRes.rows[0];
 
     for (const prod of prods.rows) {
+      // Cuanto se vendio de este producto desde periodoDesde (excluyendo preventas aun no confirmadas)
+      let vendido = 0;
+      try {
+        const vRes = await client.query(
+          `SELECT COALESCE(SUM(vi.cantidad), 0) AS total
+           FROM venta_items vi JOIN ventas v ON vi.venta_id = v.id
+           WHERE vi.producto_id = $1 AND v.local_id = $2 AND v.creado_en >= $3
+             AND (COALESCE(v.es_preventa, FALSE) = FALSE OR v.estado_pago = 'confirmada')`,
+          [prod.id, localNum, periodoDesde]
+        );
+        vendido = parseInt(vRes.rows[0].total) || 0;
+      } catch (e) { /* si algo no calza, seguimos con 0 en vez de frenar todo el control */ }
+
+      // Cuanto entro de este producto (ordenes de ingreso ya recibidas) desde periodoDesde.
+      // Si el nombre real de la tabla/columnas en tu base es distinto, esto va a devolver 0
+      // en vez de romper la creacion del control -- avisanos y lo ajustamos.
+      let ingresado = 0;
+      try {
+        const iRes = await client.query(
+          `SELECT COALESCE(SUM(oii.${colCantidadIngreso}), 0) AS total
+           FROM ordenes_ingreso_items oii JOIN ordenes_ingreso oi ON oii.orden_id = oi.id
+           WHERE oii.producto_id = $1 AND oi.creado_en >= $2`,
+          [prod.id, periodoDesde]
+        );
+        ingresado = parseInt(iRes.rows[0].total) || 0;
+      } catch (e) { /* idem: si falla, 0 y seguimos */ }
+
       await client.query(
-        `INSERT INTO controles_inventario_items (control_id, producto_id, producto_nombre, producto_marca, producto_categoria, stock_sistema, estado)
-         VALUES ($1, $2, $3, $4, $5, $6, 'pendiente')`,
-        [control.id, prod.id, prod.nombre, prod.marca, prod.categoria, prod.stock_sistema || 0]
+        `INSERT INTO controles_inventario_items (control_id, producto_id, producto_nombre, producto_marca, producto_categoria, stock_sistema, estado, ingresado_periodo, vendido_periodo, costo_unitario)
+         VALUES ($1, $2, $3, $4, $5, $6, 'pendiente', $7, $8, $9)`,
+        [control.id, prod.id, prod.nombre, prod.marca, prod.categoria, prod.stock_sistema || 0, ingresado, vendido, prod.costo || 0]
       );
     }
 
@@ -145,11 +182,17 @@ const finalizarControl = async (req, res) => {
 
     const items = await client.query('SELECT * FROM controles_inventario_items WHERE control_id = $1', [id]);
     let correctos = 0, faltantes = 0, sobrantes = 0;
+    let totalIngresado = 0, totalVendido = 0, valorPerdidaEstimado = 0, valorSobranteEstimado = 0;
 
     for (const it of items.rows) {
       if (it.estado === 'correcto') correctos++;
       else if (it.estado === 'faltante') faltantes++;
       else if (it.estado === 'sobrante') sobrantes++;
+
+      totalIngresado += it.ingresado_periodo || 0;
+      totalVendido += it.vendido_periodo || 0;
+      if (it.diferencia < 0) valorPerdidaEstimado += Math.abs(it.diferencia) * parseFloat(it.costo_unitario || 0);
+      else if (it.diferencia > 0) valorSobranteEstimado += it.diferencia * parseFloat(it.costo_unitario || 0);
 
       if (ajustar_stock === true && it.stock_contado !== null && it.stock_contado !== undefined) {
         await client.query(
@@ -179,7 +222,11 @@ const finalizarControl = async (req, res) => {
     );
 
     await client.query('COMMIT');
-    res.json({ correctos, faltantes, sobrantes, ajustado: ajustar_stock === true });
+    res.json({
+      correctos, faltantes, sobrantes, ajustado: ajustar_stock === true,
+      total_ingresado: totalIngresado, total_vendido: totalVendido,
+      valor_perdida_estimado: valorPerdidaEstimado, valor_sobrante_estimado: valorSobranteEstimado
+    });
   } catch (e) {
     await client.query('ROLLBACK');
     console.error(e);

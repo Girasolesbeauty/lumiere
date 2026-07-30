@@ -7555,12 +7555,34 @@ function ControlInventario({ localId, usuario, paletaActual }) {
     if (resultadoFinal) {
       return (
         <div className="fade">
-          <div className="ph"><div><div className="pt">Control finalizado</div><div className="ps">{controlActivo.tipo === "total" ? "Conteo total" : "Categoria: " + controlActivo.categoria}</div></div></div>
+          <div className="ph"><div><div className="pt">Control finalizado</div><div className="ps">{controlActivo.tipo === "total" ? "Conteo total" : controlActivo.tipo === "categoria" ? "Categoria: " + controlActivo.filtro_valor : controlActivo.tipo === "marca" ? "Marca: " + controlActivo.filtro_valor : "Proveedor"}</div></div></div>
           <div className="g4" style={{ marginBottom: 16 }}>
             <MCard label="Items contados" value={String(resultadoFinal.correctos + resultadoFinal.faltantes + resultadoFinal.sobrantes)} color="#2C3E5C" />
             <MCard label="Correctos" value={String(resultadoFinal.correctos)} color="#2d7a4f" />
             <MCard label="Faltantes" value={String(resultadoFinal.faltantes)} color="#c0392b" />
             <MCard label="Sobrantes" value={String(resultadoFinal.sobrantes)} color="#c9a84c" />
+          </div>
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="ct">Analisis de mermas (desde el ultimo control)</div>
+            <div className="g2" style={{ marginBottom: 0 }}>
+              <div>
+                <div style={{ fontSize: 11, color: "#65676B" }}>Entraron en el periodo</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: "#2d7a4f" }}>+{resultadoFinal.total_ingresado} unidades</div>
+                <div style={{ fontSize: 11, color: "#65676B", marginTop: 10 }}>Se vendieron en el periodo</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: "#c0392b" }}>-{resultadoFinal.total_vendido} unidades</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: "#65676B" }}>Valor estimado de lo faltante (posible perdida)</div>
+                <div style={{ fontSize: 26, fontWeight: 700, color: "#c0392b" }}>{fmt(resultadoFinal.valor_perdida_estimado || 0)}</div>
+                {resultadoFinal.valor_sobrante_estimado > 0 && (
+                  <>
+                    <div style={{ fontSize: 11, color: "#65676B", marginTop: 10 }}>Valor estimado de lo sobrante</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: "#c9a84c" }}>{fmt(resultadoFinal.valor_sobrante_estimado)}</div>
+                  </>
+                )}
+              </div>
+            </div>
+            <div style={{ fontSize: 10, color: "#65676B", marginTop: 12 }}>Este valor es una estimacion en base al costo cargado de cada producto y la diferencia entre lo contado y lo que el sistema esperaba, considerando lo que entro y se vendio en el periodo. No reemplaza una revision manual de casos puntuales.</div>
           </div>
           {resultadoFinal.ajustado && <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f", borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: "#2d7a4f" }}>El stock se ajusto automaticamente con el motivo "Control de inventario #{controlActivo.id}"</div>}
           <button className="btn btn-p" onClick={() => { setVista("lista"); setControlActivo(null); setItems([]); setResultadoFinal(null); }}>Volver al listado</button>
@@ -7590,7 +7612,10 @@ function ControlInventario({ localId, usuario, paletaActual }) {
             {itemEscaneado ? (
               <div style={{ textAlign: "center", padding: 10 }}>
                 <div style={{ fontSize: 12, color: p.textMuted }}>{itemEscaneado.producto_marca} · {itemEscaneado.producto_categoria}</div>
-                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 14 }}>{itemEscaneado.producto_nombre}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>{itemEscaneado.producto_nombre}</div>
+                <div style={{ fontSize: 11, color: p.textMuted, marginBottom: 10 }}>
+                  Desde el ultimo control: <span style={{ color: "#2d7a4f", fontWeight: 600 }}>+{itemEscaneado.ingresado_periodo || 0} entraron</span> · <span style={{ color: "#c0392b", fontWeight: 600 }}>-{itemEscaneado.vendido_periodo || 0} se vendieron</span>
+                </div>
                 <div style={{ fontSize: 12, color: p.textMuted }}>El sistema dice que deberia haber</div>
                 <div style={{ fontSize: 46, fontWeight: 700, color: "#2C3E5C", lineHeight: 1, margin: "4px 0 16px" }}>{itemEscaneado.stock_sistema}</div>
                 <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 6 }}>Contaste en el estante:</div>
@@ -7630,13 +7655,16 @@ function ControlInventario({ localId, usuario, paletaActual }) {
         </div>
         <div className="card">
           <table>
-            <thead><tr><th>Producto</th><th>Stock sistema</th><th>Stock contado</th><th>Diferencia</th><th>Estado</th></tr></thead>
+            <thead><tr><th>Producto</th><th>Ingreso / Venta (periodo)</th><th>Stock sistema</th><th>Stock contado</th><th>Diferencia</th><th>Estado</th></tr></thead>
             <tbody>
               {itemsFiltrados.map(it => (
                 <tr key={it.id} style={{ background: it.estado === "faltante" ? "#c0392b08" : it.estado === "sobrante" ? "#c9a84c08" : it.estado === "correcto" ? "#2d7a4f08" : "transparent" }}>
                   <td>
                     <div style={{ fontSize: 12 }}>{it.producto_nombre}</div>
                     <div style={{ fontSize: 10, color: p.textMuted }}>{it.producto_marca} - {it.producto_categoria}</div>
+                  </td>
+                  <td style={{ fontSize: 11, color: p.textMuted }}>
+                    <span style={{ color: "#2d7a4f" }}>+{it.ingresado_periodo || 0}</span> · <span style={{ color: "#c0392b" }}>-{it.vendido_periodo || 0}</span>
                   </td>
                   <td style={{ fontWeight: 600 }}>{it.stock_sistema}</td>
                   <td>
@@ -7687,14 +7715,16 @@ function ControlInventario({ localId, usuario, paletaActual }) {
       </div>
       {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 14, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
       {enCurso && (
-        <div className="card" style={{ background: "#c9a84c08", border: "1px solid #c9a84c44", marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className="card pulse" style={{ background: "#c9a84c15", border: "2px solid #c9a84c", marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#c9a84c" }}>Hay un control en curso (#{enCurso.id})</div>
-            <div style={{ fontSize: 11, color: p.textMuted }}>{enCurso.tipo === "total" ? "Conteo total" : "Categoria: " + enCurso.categoria} - {new Date(enCurso.creado_en).toLocaleDateString("es-AR")}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#c9a84c" }}>⚠️ Tenes un control de inventario sin terminar (#{enCurso.id})</div>
+            <div style={{ fontSize: 11, color: p.textMuted, marginTop: 2 }}>
+              {enCurso.tipo === "total" ? "Conteo total" : enCurso.tipo === "categoria" ? "Categoria: " + enCurso.filtro_valor : enCurso.tipo === "marca" ? "Marca: " + enCurso.filtro_valor : "Proveedor"} · iniciado el {new Date(enCurso.creado_en).toLocaleDateString("es-AR")}
+            </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => cancelarControl(enCurso)}>Cancelar</button>
-            <button className="btn btn-p btn-sm" onClick={() => abrirControl(enCurso)}>Continuar</button>
+            <button className="btn btn-p btn-sm" onClick={() => abrirControl(enCurso)}>Continuar ahora</button>
           </div>
         </div>
       )}
