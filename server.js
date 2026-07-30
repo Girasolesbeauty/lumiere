@@ -32,6 +32,7 @@ app.use('/api/arca', require('./routes/arca'));
  app.use('/api/config-ticket', require('./routes/config-ticket'));
 app.use('/api/configuracion', require('./routes/configuracion'));
 app.use('/api/controles-inventario', require('./routes/controles-inventario'));
+app.use('/api/reclamos-proveedores', require('./routes/reclamos-proveedores'));
 app.use('/api/promociones', require('./routes/promociones'));
 app.use('/api/medios-pago', require('./routes/medios-pago'));
 app.use('/api/categorias-costo', require('./routes/categorias-costo'));

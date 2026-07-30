@@ -6373,6 +6373,178 @@ function Comisiones({ localId }) {
   );
 }
 
+function ReclamosProveedores({ localId, usuario, paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
+  const [reclamos, setReclamos] = useState([]);
+  const [filtroEstado, setFiltroEstado] = useState("");
+  const [mensaje, setMensaje] = useState("");
+  const [showNuevo, setShowNuevo] = useState(false);
+  const [productos, setProductos] = useState([]);
+  const [proveedores, setProveedores] = useState([]);
+  const [buscarProd, setBuscarProd] = useState("");
+  const [nuevo, setNuevo] = useState({ producto_id: "", producto_nombre: "", proveedor_id: "", proveedor_nombre: "", cantidad: 1, motivo: "" });
+  const [editandoResolucion, setEditandoResolucion] = useState(null);
+
+  const cargar = () => {
+    const params = filtroEstado ? "?estado=" + filtroEstado : "";
+    API.get("/reclamos-proveedores" + params).then(res => setReclamos(res.data || [])).catch(() => {});
+  };
+  useEffect(() => { cargar(); }, [filtroEstado]);
+  useEffect(() => {
+    API.get("/productos").then(res => setProductos(res.data || [])).catch(() => {});
+    API.get("/proveedores").then(res => setProveedores(res.data || [])).catch(() => {});
+  }, []);
+
+  const elegirProducto = (prod) => {
+    const prov = proveedores.find(pr => pr.id === prod.proveedor_id);
+    setNuevo(p2 => ({ ...p2, producto_id: prod.id, producto_nombre: prod.nombre, proveedor_id: prod.proveedor_id || "", proveedor_nombre: prov?.nombre || "" }));
+    setBuscarProd("");
+  };
+
+  const crearReclamo = async () => {
+    if (!nuevo.producto_id) return setMensaje("Elegi un producto");
+    if (!nuevo.proveedor_id) return setMensaje("Elegi un proveedor");
+    if (!nuevo.motivo.trim()) return setMensaje("El motivo es obligatorio");
+    try {
+      await API.post("/reclamos-proveedores", { ...nuevo, local_id: localId || 1, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre });
+      setMensaje("Reclamo cargado!");
+      setShowNuevo(false);
+      setNuevo({ producto_id: "", producto_nombre: "", proveedor_id: "", proveedor_nombre: "", cantidad: 1, motivo: "" });
+      cargar();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje(e.response?.data?.error || "Error al crear el reclamo"); }
+  };
+
+  const cambiarEstado = async (r, estado) => {
+    try {
+      await API.put("/reclamos-proveedores/" + r.id, { estado });
+      cargar();
+    } catch (e) { setMensaje("Error al actualizar"); }
+  };
+
+  const guardarResolucion = async () => {
+    try {
+      await API.put("/reclamos-proveedores/" + editandoResolucion.id, { estado: editandoResolucion.estado, resolucion: editandoResolucion.resolucion });
+      setEditandoResolucion(null);
+      cargar();
+    } catch (e) { setMensaje("Error al guardar"); }
+  };
+
+  const coloresEstado = { pendiente: "ba", enviado: "bb", resuelto: "bg", rechazado: "br" };
+  const productosFiltrados = buscarProd.trim().length > 0 ? productos.filter(pr => (pr.nombre || "").toLowerCase().includes(buscarProd.toLowerCase())).slice(0, 8) : [];
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Reclamos a Proveedores</div><div className="ps">productos con falla o desperfecto para reclamar</div></div>
+        <button className="btn btn-p btn-sm" onClick={() => setShowNuevo(true)}>+ Nuevo reclamo</button>
+      </div>
+      {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 14, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+        {["", "pendiente", "enviado", "resuelto", "rechazado"].map(e => (
+          <div key={e} className={"tab " + (filtroEstado === e ? "on" : "")} onClick={() => setFiltroEstado(e)}>{e === "" ? "Todos" : e.charAt(0).toUpperCase() + e.slice(1)}</div>
+        ))}
+      </div>
+
+      <div className="card">
+        {reclamos.length === 0 ? (
+          <div style={{ textAlign: "center", color: p.textMuted, padding: 30, fontSize: 12 }}>No hay reclamos para este filtro.</div>
+        ) : (
+          <table>
+            <thead><tr><th>Fecha</th><th>Producto</th><th>Proveedor</th><th>Cantidad</th><th>Motivo</th><th>Estado</th><th></th></tr></thead>
+            <tbody>
+              {reclamos.map(r => (
+                <tr key={r.id}>
+                  <td style={{ fontSize: 11, color: p.textMuted }}>{new Date(r.creado_en).toLocaleDateString("es-AR")}</td>
+                  <td style={{ fontWeight: 600 }}>{r.producto_nombre}</td>
+                  <td style={{ fontSize: 11, color: p.textMuted }}>{r.proveedor_nombre}</td>
+                  <td>{r.cantidad}</td>
+                  <td style={{ fontSize: 11, maxWidth: 200 }}>{r.motivo}{r.resolucion && <div style={{ color: p.textMuted, marginTop: 4 }}>Resolucion: {r.resolucion}</div>}</td>
+                  <td><span className={"badge " + (coloresEstado[r.estado] || "bx")}>{r.estado}</span></td>
+                  <td>
+                    {r.estado === "pendiente" && <button className="btn btn-sm" onClick={() => cambiarEstado(r, "enviado")}>Marcar enviado</button>}
+                    {(r.estado === "pendiente" || r.estado === "enviado") && (
+                      <button className="btn btn-sm" style={{ marginLeft: 4 }} onClick={() => setEditandoResolucion({ id: r.id, estado: "resuelto", resolucion: "" })}>Cerrar</button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {showNuevo && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={() => setShowNuevo(false)}>
+          <div className="card fade" style={{ maxWidth: 440, width: "90vw" }} onClick={e => e.stopPropagation()}>
+            <div className="ct">Nuevo reclamo</div>
+            <div className="fg"><div className="fl">Producto</div>
+              {nuevo.producto_id ? (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: p.bg, borderRadius: 6 }}>
+                  <span style={{ fontSize: 12 }}>{nuevo.producto_nombre}</span>
+                  <span onClick={() => setNuevo(p2 => ({ ...p2, producto_id: "", producto_nombre: "" }))} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 11 }}>cambiar</span>
+                </div>
+              ) : (
+                <div>
+                  <input className="inp" placeholder="Buscar producto..." value={buscarProd} onChange={e => setBuscarProd(e.target.value)} />
+                  {productosFiltrados.length > 0 && (
+                    <div style={{ border: "1px solid " + p.border, borderRadius: 6, marginTop: 4 }}>
+                      {productosFiltrados.map(pr => (
+                        <div key={pr.id} onClick={() => elegirProducto(pr)} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid " + p.border, fontSize: 12 }}>{pr.nombre}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="fg"><div className="fl">Proveedor</div>
+              <select className="sel" value={nuevo.proveedor_id} onChange={e => {
+                const prov = proveedores.find(pr => pr.id === parseInt(e.target.value));
+                setNuevo(p2 => ({ ...p2, proveedor_id: e.target.value, proveedor_nombre: prov?.nombre || "" }));
+              }}>
+                <option value="">Elegi un proveedor</option>
+                {proveedores.map(pr => <option key={pr.id} value={pr.id}>{pr.nombre}</option>)}
+              </select>
+            </div>
+            <div className="fg"><div className="fl">Cantidad</div>
+              <input className="inp" type="number" min="1" value={nuevo.cantidad} onChange={e => setNuevo(p2 => ({ ...p2, cantidad: e.target.value }))} />
+            </div>
+            <div className="fg"><div className="fl">Motivo</div>
+              <textarea className="inp" rows={3} placeholder="Ej: llego con el precinto roto, o no funciona el mecanismo..." value={nuevo.motivo} onChange={e => setNuevo(p2 => ({ ...p2, motivo: e.target.value }))} />
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowNuevo(false)}>Cancelar</button>
+              <button className="btn btn-p" style={{ flex: 1 }} onClick={crearReclamo}>Guardar reclamo</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editandoResolucion && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={() => setEditandoResolucion(null)}>
+          <div className="card fade" style={{ maxWidth: 400, width: "90vw" }} onClick={e => e.stopPropagation()}>
+            <div className="ct">Cerrar reclamo</div>
+            <div className="fg"><div className="fl">Resultado</div>
+              <select className="sel" value={editandoResolucion.estado} onChange={e => setEditandoResolucion(p2 => ({ ...p2, estado: e.target.value }))}>
+                <option value="resuelto">Resuelto (el proveedor respondio bien)</option>
+                <option value="rechazado">Rechazado (el proveedor no lo acepto)</option>
+              </select>
+            </div>
+            <div className="fg"><div className="fl">Que paso (ej: nos mando reemplazo, nos hizo nota de credito, etc.)</div>
+              <textarea className="inp" rows={3} value={editandoResolucion.resolucion} onChange={e => setEditandoResolucion(p2 => ({ ...p2, resolucion: e.target.value }))} />
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEditandoResolucion(null)}>Cancelar</button>
+              <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarResolucion}>Guardar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Proveedores() {
   const [tab, setTab] = useState("lista");
   const [proveedores, setProveedores] = useState([]);
@@ -9388,7 +9560,7 @@ const NAV_SECTIONS = [
   { section: "STOCK", color: "#7d3c98", items: [{ id: "inventory", icon: "📦", label: "Inventario" }, { id: "ordenes", icon: "🚚", label: "Ingresos" }, { id: "inconsistencias", icon: "⚠️", label: "Inconsistencias" }, { id: "kits", icon: "🎁", label: "Kits" }, { id: "insumos", icon: "🛍️", label: "Insumos" }, { id: "control-inv", icon: "🔍", label: "Control de Inventario" }] },
   { section: "CAJA", color: "#2d7a4f", items: [{ id: "caja", icon: "💵", label: "Caja" }, { id: "caja-respaldo", icon: "🏦", label: "Caja de Respaldo" }, { id: "cierre", icon: "🔒", label: "Cierre de Caja" }, { id: "giftcards", icon: "🎀", label: "Gift Cards" }] },
   { section: "CLIENTES", color: "#c9a84c", items: [{ id: "clients", icon: "👥", label: "Clientes" }, { id: "pedidos", icon: "📦", label: "Pedidos" }, { id: "fidelizacion", icon: "⭐", label: "Fidelizacion" }] },
-  { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "💰", label: "Finanzas" }, { id: "reports", icon: "📋", label: "Informes" }, { id: "comprobantes", icon: "🧾", label: "Comprobantes" }, { id: "comisiones", icon: "💎", label: "Comisiones" }, { id: "proveedores", icon: "🏭", label: "Proveedores" }, { id: "calculadoras", icon: "🧮", label: "Calculadoras" }, { id: "productividad", icon: "🏆", label: "Productividad" }] },
+  { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "💰", label: "Finanzas" }, { id: "reports", icon: "📋", label: "Informes" }, { id: "comprobantes", icon: "🧾", label: "Comprobantes" }, { id: "comisiones", icon: "💎", label: "Comisiones" }, { id: "proveedores", icon: "🏭", label: "Proveedores" }, { id: "reclamos-proveedores", icon: "📮", label: "Reclamos a Proveedores" }, { id: "calculadoras", icon: "🧮", label: "Calculadoras" }, { id: "productividad", icon: "🏆", label: "Productividad" }] },
   { section: "MARKETING", color: "#e74c3c", items: [{ id: "cupones", icon: "🏷️", label: "Cupones" }, { id: "promociones", icon: "🎉", label: "Promociones" }] },
   { section: "POSTVENTA", color: "#25d366", items: [{ id: "postventa", icon: "💬", label: "Postventa WA" }] },
   { section: "INTEGRACIONES", color: "#2471a3", items: [{ id: "tiendanube", icon: "🛍️", label: "Tiendanube" }] },
@@ -9902,6 +10074,7 @@ export default function AppWrapper() {
     if (id === "config-ticket") return <ConfigTicket />;
     if (id === "inconsistencias") return <Inconsistencias />;
     if (id === "proveedores") return <Proveedores />;
+    if (id === "reclamos-proveedores") return <ReclamosProveedores localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     return <Dashboard localId={local.id} />;
   };
 
