@@ -68,7 +68,8 @@ router.post('/', async (req, res) => {
     await client.query('BEGIN');
     const {
       monto, beneficiario_nombre, beneficiario_telefono, beneficiario_dni,
-      cliente_id, comprador_nombre, local_id, emitida_por, migracion, forma_pago
+      cliente_id, comprador_nombre, local_id, emitida_por, migracion, forma_pago,
+      es_devolucion, venta_origen_id
     } = req.body;
 
     if (!monto || parseFloat(monto) <= 0) {
@@ -111,13 +112,23 @@ router.post('/', async (req, res) => {
       [gcId, montoNum, montoNum, emitida_por || null]
     );
 
-    // Si es una gift card de migración (ya vendida con el software viejo), NO cuenta como ingreso de hoy.
-    if (migracion !== true) {
-      // La emisión entra como ingreso de caja (NO se factura por ARCA hasta el canje)
+    // Si es migracion (ya vendida con el software viejo) O es un credito por una devolucion
+    // (la clienta ya habia pagado eso en OTRA venta), NO es plata nueva entrando hoy --
+    // no se registra como ingreso de caja, para no duplicar esa plata.
+    if (migracion !== true && es_devolucion !== true) {
       await client.query(
         `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id, forma_pago)
          VALUES ($1, 'I', $2, $3, $4, $5)`,
         ['Gift Card ' + codigo, montoNum, codigo, local_id || 1, forma_pago || null]
+      );
+    } else if (es_devolucion === true) {
+      // Igual dejamos un registro (importe 0) para que quede visible en el historial de
+      // movimientos de referencia, sin sumar plata. Se guarda la venta de origen en el
+      // concepto para poder rastrear despues de que devolucion vino.
+      await client.query(
+        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id)
+         VALUES ($1, 'I', 0, $2, $3)`,
+        ['Gift Card ' + codigo + ' (credito por devolucion' + (venta_origen_id ? ', venta #' + venta_origen_id : '') + ')', codigo, local_id || 1]
       );
     }
 
@@ -132,7 +143,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Canjear (descontar saldo) - se usará en la Entrega 2 desde el POS
+// Canjear (descontar saldo)
 router.post('/:id/canjear', async (req, res) => {
   const client = await pool.connect();
   try {
