@@ -1228,13 +1228,14 @@ function POS({ localId, usuario, paletaActual }) {
   };
 
   const [showEmitirGC, setShowEmitirGC] = useState(false);
-  const [nuevaGC, setNuevaGC] = useState({ monto: "", beneficiario_nombre: "", beneficiario_telefono: "" });
+  const [nuevaGC, setNuevaGC] = useState({ monto: "", beneficiario_nombre: "", beneficiario_telefono: "", es_devolucion: false, venta_origen_numero: "" });
   const [errorEmitirGC, setErrorEmitirGC] = useState("");
   const [gcEmitidaOk, setGcEmitidaOk] = useState(null);
 
   const emitirGiftCardPOS = async () => {
     if (!nuevaGC.monto || parseFloat(nuevaGC.monto) <= 0) return setErrorEmitirGC("Ingresa un monto valido");
     if (!nuevaGC.beneficiario_nombre) return setErrorEmitirGC("Falta el nombre de quien recibe la gift card");
+    if (nuevaGC.es_devolucion && !nuevaGC.venta_origen_numero.trim()) return setErrorEmitirGC("Falta el numero de comprobante de la compra original");
     setErrorEmitirGC("");
     try {
       const res = await API.post("/gift-cards", {
@@ -1242,7 +1243,7 @@ function POS({ localId, usuario, paletaActual }) {
         local_id: localId || 1, emitida_por: usuario?.id || null
       });
       setGcEmitidaOk(res.data);
-      setNuevaGC({ monto: "", beneficiario_nombre: "", beneficiario_telefono: "" });
+      setNuevaGC({ monto: "", beneficiario_nombre: "", beneficiario_telefono: "", es_devolucion: false, venta_origen_numero: "" });
     } catch (e) { setErrorEmitirGC(e.response?.data?.error || "Error al emitir la gift card"); }
   };
 
@@ -2081,10 +2082,20 @@ function POS({ localId, usuario, paletaActual }) {
                 <div className="fg"><div className="fl">Monto ($)</div><input className="inp" type="number" placeholder="10000" value={nuevaGC.monto} onChange={e => setNuevaGC(p => ({ ...p, monto: e.target.value }))} /></div>
                 <div className="fg"><div className="fl">Nombre de quien la recibe</div><input className="inp" placeholder="Ej: Maria Lopez" value={nuevaGC.beneficiario_nombre} onChange={e => setNuevaGC(p => ({ ...p, beneficiario_nombre: e.target.value }))} /></div>
                 <div className="fg"><div className="fl">Telefono (opcional)</div><input className="inp" placeholder="Ej: 2964123456" value={nuevaGC.beneficiario_telefono} onChange={e => setNuevaGC(p => ({ ...p, beneficiario_telefono: e.target.value }))} /></div>
+                <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12, cursor: "pointer", margin: "8px 0 4px", padding: 8, background: nuevaGC.es_devolucion ? "#c9a84c15" : "transparent", borderRadius: 6 }}>
+                  <input type="checkbox" checked={nuevaGC.es_devolucion} onChange={e => setNuevaGC(p => ({ ...p, es_devolucion: e.target.checked }))} style={{ marginTop: 2 }} />
+                  <span>Es un <b>credito por devolucion</b> (la clienta ya habia pagado esta plata en otra venta, no hay que cobrarla de nuevo ni sumarla como ingreso de hoy)</span>
+                </label>
+                {nuevaGC.es_devolucion && (
+                  <div className="fg"><div className="fl">N° de comprobante de la compra original *</div>
+                    <input className="inp" placeholder="Ej: F-0344" value={nuevaGC.venta_origen_numero} onChange={e => setNuevaGC(p => ({ ...p, venta_origen_numero: e.target.value }))} />
+                    <div style={{ fontSize: 10, color: "#65676B", marginTop: 4 }}>Lo encontras en el ticket que le dimos a la clienta cuando compro.</div>
+                  </div>
+                )}
                 <div style={{ fontSize: 10, color: temaPal.textMuted, marginBottom: 14 }}>Se cobra el monto ahora como ingreso de caja. La gift card queda lista para usarse en cualquier venta futura.</div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowEmitirGC(false)}>Cancelar</button>
-                  <button className="btn btn-p" style={{ flex: 1 }} onClick={emitirGiftCardPOS}>Emitir y cobrar</button>
+                    <button className="btn btn-p" style={{ flex: 1 }} onClick={emitirGiftCardPOS}>{nuevaGC.es_devolucion ? "Emitir credito" : "Emitir y cobrar"}</button>
                 </div>
               </>
             ) : (

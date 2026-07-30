@@ -69,7 +69,7 @@ router.post('/', async (req, res) => {
     const {
       monto, beneficiario_nombre, beneficiario_telefono, beneficiario_dni,
       cliente_id, comprador_nombre, local_id, emitida_por, migracion, forma_pago,
-      es_devolucion, venta_origen_id
+      es_devolucion, venta_origen_numero
     } = req.body;
 
     if (!monto || parseFloat(monto) <= 0) {
@@ -79,6 +79,22 @@ router.post('/', async (req, res) => {
     if (!beneficiario_nombre) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Falta el nombre del beneficiario' });
+    }
+    if (es_devolucion === true && !(venta_origen_numero || '').trim()) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Falta el numero de comprobante de la compra original' });
+    }
+
+    // Si es un credito por devolucion, buscamos la venta real para vincularla (para poder
+    // rastrear despues de que compra vino este credito). Si no se encuentra el numero, no
+    // frenamos la emision -- igual queda guardado el numero como referencia de texto.
+    let ventaOrigenId = null;
+    if (es_devolucion === true && venta_origen_numero) {
+      const ventaRes = await client.query(
+        'SELECT id FROM ventas WHERE numero_factura = $1 LIMIT 1',
+        [venta_origen_numero.trim()]
+      );
+      if (ventaRes.rows.length > 0) ventaOrigenId = ventaRes.rows[0].id;
     }
 
     // Generar código único (reintenta si choca)
@@ -95,13 +111,15 @@ router.post('/', async (req, res) => {
     const gc = await client.query(
       `INSERT INTO gift_cards
         (codigo, monto_inicial, saldo, beneficiario_nombre, beneficiario_telefono, beneficiario_dni,
-         cliente_id, comprador_nombre, estado, local_id, emitida_por, es_migracion)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'activa', $9, $10, $11) RETURNING *`,
+         cliente_id, comprador_nombre, estado, local_id, emitida_por, es_migracion, venta_origen_id, venta_origen_numero)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'activa', $9, $10, $11, $12, $13) RETURNING *`,
       [
         codigo, montoNum, montoNum, beneficiario_nombre,
         beneficiario_telefono || null, beneficiario_dni || null,
         cliente_id || null, comprador_nombre || null, local_id || 1, emitida_por || null,
-        migracion === true
+        migracion === true,
+        es_devolucion === true ? ventaOrigenId : null,
+        es_devolucion === true ? venta_origen_numero.trim() : null
       ]
     );
 
@@ -123,12 +141,12 @@ router.post('/', async (req, res) => {
       );
     } else if (es_devolucion === true) {
       // Igual dejamos un registro (importe 0) para que quede visible en el historial de
-      // movimientos de referencia, sin sumar plata. Se guarda la venta de origen en el
-      // concepto para poder rastrear despues de que devolucion vino.
+      // movimientos de referencia, sin sumar plata. Queda la venta de origen mencionada
+      // en el concepto (el vinculo real ya quedo guardado en gift_cards.venta_origen_id).
       await client.query(
         `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id)
          VALUES ($1, 'I', 0, $2, $3)`,
-        ['Gift Card ' + codigo + ' (credito por devolucion' + (venta_origen_id ? ', venta #' + venta_origen_id : '') + ')', codigo, local_id || 1]
+        ['Gift Card ' + codigo + ' (credito por devolucion, compra #' + venta_origen_numero + ')', codigo, local_id || 1]
       );
     }
 
