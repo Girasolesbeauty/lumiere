@@ -6373,6 +6373,224 @@ function Comisiones({ localId }) {
   );
 }
 
+function CambioDevolucion({ localId, usuario, paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
+  const [mensaje, setMensaje] = useState("");
+  const [paso, setPaso] = useState(1);
+
+  const [numeroVenta, setNumeroVenta] = useState("");
+  const [buscando, setBuscando] = useState(false);
+  const [ventaOrigen, setVentaOrigen] = useState(null);
+  const [itemDevuelto, setItemDevuelto] = useState(null);
+  const [cantidadDevuelta, setCantidadDevuelta] = useState(1);
+
+  const [productos, setProductos] = useState([]);
+  const [buscarProdNuevo, setBuscarProdNuevo] = useState("");
+  const [prodNuevo, setProdNuevo] = useState(null);
+  const [cantidadNueva, setCantidadNueva] = useState(1);
+
+  const [resolucion, setResolucion] = useState("");
+  const [medioPago, setMedioPago] = useState("");
+  const [medios, setMedios] = useState([]);
+  const [beneficiarioNombre, setBeneficiarioNombre] = useState("");
+  const [resultado, setResultado] = useState(null);
+  const [procesando, setProcesando] = useState(false);
+
+  useEffect(() => {
+    API.get("/productos").then(res => setProductos(res.data || [])).catch(() => {});
+    API.get("/medios-pago").then(res => setMedios(res.data || [])).catch(() => {});
+  }, []);
+
+  const buscarVenta = async () => {
+    if (!numeroVenta.trim()) return;
+    setBuscando(true);
+    setMensaje("");
+    try {
+      const res = await API.get("/cambios/venta/" + encodeURIComponent(numeroVenta.trim()));
+      setVentaOrigen(res.data);
+    } catch (e) { setMensaje(e.response?.data?.error || "No se encontro esa venta"); setVentaOrigen(null); }
+    setBuscando(false);
+  };
+
+  const elegirItemDevuelto = (item) => { setItemDevuelto(item); setCantidadDevuelta(1); setPaso(2); };
+
+  const valorDevueltoTotal = itemDevuelto ? parseFloat(itemDevuelto.precio_unitario || 0) * cantidadDevuelta : 0;
+  const valorNuevoTotal = prodNuevo ? parseFloat(prodNuevo.precio || 0) * cantidadNueva : 0;
+  const diferencia = valorNuevoTotal - valorDevueltoTotal;
+
+  const stockDe = (prod) => (Number(localId) === 2 ? (prod.stock_ush ?? 0) : (prod.stock_rg ?? 0));
+  const productosFiltrados = buscarProdNuevo.trim().length > 0 ? productos.filter(pr => (pr.nombre || "").toLowerCase().includes(buscarProdNuevo.toLowerCase())).slice(0, 8) : [];
+
+  const confirmar = async () => {
+    if (diferencia > 0 && (!resolucion || resolucion !== "cobro" || !medioPago)) return setMensaje("Elegi el medio de pago para cobrar la diferencia");
+    if (diferencia < 0 && !resolucion) return setMensaje("Elegi que hacer con la diferencia a favor");
+    if (diferencia < 0 && resolucion === "credito" && !beneficiarioNombre.trim()) return setMensaje("Falta el nombre de quien recibe el credito");
+    setProcesando(true);
+    setMensaje("");
+    try {
+      const res = await API.post("/cambios", {
+        venta_origen_id: ventaOrigen?.id || null,
+        venta_origen_numero: ventaOrigen?.numero_factura || numeroVenta.trim(),
+        producto_devuelto_id: itemDevuelto.producto_id,
+        cantidad_devuelta: cantidadDevuelta,
+        valor_devuelto_unitario: itemDevuelto.precio_unitario,
+        producto_nuevo_id: prodNuevo.id,
+        cantidad_nueva: cantidadNueva,
+        local_id: localId || 1, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre,
+        resolucion_diferencia: diferencia === 0 ? null : resolucion,
+        medio_pago: diferencia > 0 ? medioPago : null,
+        beneficiario_nombre: resolucion === "credito" ? beneficiarioNombre : null
+      });
+      setResultado(res.data);
+      setPaso(4);
+    } catch (e) { setMensaje(e.response?.data?.error || "Error al procesar el cambio"); }
+    setProcesando(false);
+  };
+
+  const reiniciar = () => {
+    setPaso(1); setNumeroVenta(""); setVentaOrigen(null); setItemDevuelto(null); setCantidadDevuelta(1);
+    setProdNuevo(null); setBuscarProdNuevo(""); setCantidadNueva(1); setResolucion(""); setMedioPago("");
+    setBeneficiarioNombre(""); setResultado(null); setMensaje("");
+  };
+
+  return (
+    <div className="fade">
+      <div className="ph"><div><div className="pt">Cambio / Devolucion</div><div className="ps">devolver un producto y llevarse otro, resolviendo la diferencia</div></div></div>
+      {mensaje && <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: "#c0392b" }}>{mensaje}</div>}
+
+      {paso === 4 && resultado ? (
+        <div className="card" style={{ maxWidth: 480, textAlign: "center", padding: 30 }}>
+          <div style={{ fontSize: 40, marginBottom: 10 }}>✅</div>
+          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 10 }}>Cambio procesado</div>
+          <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 4 }}>Stock devuelto: {resultado.cambio.producto_devuelto_nombre} (+{resultado.cambio.cantidad_devuelta})</div>
+          <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 14 }}>Stock entregado: {resultado.cambio.producto_nuevo_nombre} (-{resultado.cambio.cantidad_nueva})</div>
+          {resultado.cambio.diferencia > 0 && <div style={{ fontSize: 14, fontWeight: 700, color: "#c0392b" }}>Se cobro la diferencia: {fmt(resultado.cambio.diferencia)}</div>}
+          {resultado.cambio.diferencia < 0 && resultado.gift_card && (
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#c9a84c" }}>Credito emitido: {resultado.gift_card.codigo} por {fmt(Math.abs(resultado.cambio.diferencia))}</div>
+          )}
+          {resultado.cambio.diferencia < 0 && !resultado.gift_card && (
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#2d7a4f" }}>Se devolvio en efectivo: {fmt(Math.abs(resultado.cambio.diferencia))}</div>
+          )}
+          {resultado.cambio.diferencia === 0 && <div style={{ fontSize: 14, fontWeight: 700, color: p.textMuted }}>Cambio sin diferencia de precio</div>}
+          <button className="btn btn-p" style={{ marginTop: 20, width: "100%" }} onClick={reiniciar}>Hacer otro cambio</button>
+        </div>
+      ) : (
+        <>
+          {/* Paso 1: buscar la venta y elegir que se devuelve */}
+          <div className="card" style={{ marginBottom: 14, maxWidth: 560 }}>
+            <div className="ct">1. Producto que devuelve</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input className="inp" placeholder="N° de comprobante (ej: F-0344)" value={numeroVenta} onChange={e => setNumeroVenta(e.target.value)} disabled={!!ventaOrigen} />
+              {!ventaOrigen && <button className="btn btn-p btn-sm" disabled={buscando} onClick={buscarVenta}>{buscando ? "Buscando..." : "Buscar"}</button>}
+              {ventaOrigen && <button className="btn btn-g btn-sm" onClick={reiniciar}>Cambiar</button>}
+            </div>
+            {ventaOrigen && !itemDevuelto && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontSize: 11, color: p.textMuted, marginBottom: 8 }}>Elegi que producto de esa venta devuelve:</div>
+                {ventaOrigen.items.map(it => (
+                  <div key={it.id} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, cursor: "pointer", padding: 10 }} onClick={() => elegirItemDevuelto(it)}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 600 }}>{it.producto_nombre}</div>
+                      <div style={{ fontSize: 10, color: p.textMuted }}>Cantidad comprada: {it.cantidad} · {fmt(it.precio_unitario)} c/u</div>
+                    </div>
+                    <span style={{ color: "#c9a84c", fontSize: 11 }}>elegir</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {itemDevuelto && (
+              <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center", padding: 10, background: p.bg, borderRadius: 6 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600 }}>{itemDevuelto.producto_nombre}</div>
+                  <div style={{ fontSize: 10, color: p.textMuted }}>{fmt(itemDevuelto.precio_unitario)} c/u</div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 11, color: p.textMuted }}>Cantidad a devolver:</span>
+                  <input type="number" min="1" max={itemDevuelto.cantidad} className="inp" style={{ width: 60, padding: "4px 8px" }} value={cantidadDevuelta} onChange={e => setCantidadDevuelta(Math.max(1, Math.min(itemDevuelto.cantidad, parseInt(e.target.value) || 1)))} />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Paso 2: elegir el producto nuevo */}
+          {itemDevuelto && (
+            <div className="card" style={{ marginBottom: 14, maxWidth: 560 }}>
+              <div className="ct">2. Producto que se lleva a cambio</div>
+              {prodNuevo ? (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 10, background: p.bg, borderRadius: 6 }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600 }}>{prodNuevo.nombre}</div>
+                    <div style={{ fontSize: 10, color: p.textMuted }}>{fmt(prodNuevo.precio)} c/u · stock disponible: {stockDe(prodNuevo)}</div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <input type="number" min="1" className="inp" style={{ width: 60, padding: "4px 8px" }} value={cantidadNueva} onChange={e => setCantidadNueva(Math.max(1, parseInt(e.target.value) || 1))} />
+                    <span onClick={() => setProdNuevo(null)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 11 }}>cambiar</span>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <input className="inp" placeholder="Buscar producto..." value={buscarProdNuevo} onChange={e => setBuscarProdNuevo(e.target.value)} />
+                  {productosFiltrados.length > 0 && (
+                    <div style={{ border: "1px solid " + p.border, borderRadius: 6, marginTop: 4 }}>
+                      {productosFiltrados.map(pr => (
+                        <div key={pr.id} onClick={() => { setProdNuevo(pr); setBuscarProdNuevo(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid " + p.border, fontSize: 12, display: "flex", justifyContent: "space-between" }}>
+                          <span>{pr.nombre}</span><span style={{ color: p.textMuted }}>{fmt(pr.precio)} · stock {stockDe(pr)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Paso 3: diferencia */}
+          {itemDevuelto && prodNuevo && (
+            <div className="card" style={{ marginBottom: 14, maxWidth: 560 }}>
+              <div className="ct">3. Diferencia</div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
+                <span>Valor devuelto</span><span>{fmt(valorDevueltoTotal)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 10 }}>
+                <span>Valor del nuevo</span><span>{fmt(valorNuevoTotal)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 16, fontWeight: 700, borderTop: "1px solid " + p.border, paddingTop: 10, marginBottom: 14 }}>
+                <span>{diferencia > 0 ? "Falta cobrar" : diferencia < 0 ? "Queda a favor de la clienta" : "Sin diferencia"}</span>
+                <span style={{ color: diferencia > 0 ? "#c0392b" : diferencia < 0 ? "#c9a84c" : p.textMuted }}>{fmt(Math.abs(diferencia))}</span>
+              </div>
+
+              {diferencia > 0 && (
+                <div className="fg"><div className="fl">Medio de pago para la diferencia</div>
+                  <select className="sel" value={medioPago} onChange={e => { setMedioPago(e.target.value); setResolucion("cobro"); }}>
+                    <option value="">Elegi un medio de pago</option>
+                    {medios.map(m => <option key={m.id} value={m.nombre}>{m.nombre}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {diferencia < 0 && (
+                <>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                    <button className="btn btn-sm" style={{ flex: 1, background: resolucion === "credito" ? "#c9a84c15" : "transparent", border: "1px solid " + (resolucion === "credito" ? "#c9a84c" : p.border) }} onClick={() => setResolucion("credito")}>Credito a favor</button>
+                    <button className="btn btn-sm" style={{ flex: 1, background: resolucion === "efectivo" ? "#2d7a4f15" : "transparent", border: "1px solid " + (resolucion === "efectivo" ? "#2d7a4f" : p.border) }} onClick={() => setResolucion("efectivo")}>Devolver en efectivo</button>
+                  </div>
+                  {resolucion === "credito" && (
+                    <div className="fg"><div className="fl">Nombre de quien recibe el credito</div>
+                      <input className="inp" value={beneficiarioNombre} onChange={e => setBeneficiarioNombre(e.target.value)} placeholder="Ej: Maria Lopez" />
+                    </div>
+                  )}
+                </>
+              )}
+
+              <button className="btn btn-p" style={{ width: "100%", marginTop: 8 }} disabled={procesando} onClick={confirmar}>{procesando ? "Procesando..." : "Confirmar cambio"}</button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function ReclamosProveedores({ localId, usuario, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
   const [reclamos, setReclamos] = useState([]);
@@ -9556,7 +9774,7 @@ function Promociones() {
 
 
 const NAV_SECTIONS = [
-  { section: "VENTAS", color: "#e67e22", items: [{ id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "pos", icon: "🛒", label: "Punto de Venta" }, { id: "ventas-online", icon: "🌐", label: "Ventas Online" }, { id: "buscar-precio", icon: "🔎", label: "Buscar Precio" }] },
+  { section: "VENTAS", color: "#e67e22", items: [{ id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "pos", icon: "🛒", label: "Punto de Venta" }, { id: "ventas-online", icon: "🌐", label: "Ventas Online" }, { id: "buscar-precio", icon: "🔎", label: "Buscar Precio" }, { id: "cambio-devolucion", icon: "🔄", label: "Cambio / Devolucion" }] },
   { section: "STOCK", color: "#7d3c98", items: [{ id: "inventory", icon: "📦", label: "Inventario" }, { id: "ordenes", icon: "🚚", label: "Ingresos" }, { id: "inconsistencias", icon: "⚠️", label: "Inconsistencias" }, { id: "kits", icon: "🎁", label: "Kits" }, { id: "insumos", icon: "🛍️", label: "Insumos" }, { id: "control-inv", icon: "🔍", label: "Control de Inventario" }] },
   { section: "CAJA", color: "#2d7a4f", items: [{ id: "caja", icon: "💵", label: "Caja" }, { id: "caja-respaldo", icon: "🏦", label: "Caja de Respaldo" }, { id: "cierre", icon: "🔒", label: "Cierre de Caja" }, { id: "giftcards", icon: "🎀", label: "Gift Cards" }] },
   { section: "CLIENTES", color: "#c9a84c", items: [{ id: "clients", icon: "👥", label: "Clientes" }, { id: "pedidos", icon: "📦", label: "Pedidos" }, { id: "fidelizacion", icon: "⭐", label: "Fidelizacion" }] },
@@ -10043,6 +10261,7 @@ export default function AppWrapper() {
     if (id === "dashboard") return <Dashboard localId={local.id} />;
     if (id === "pos") return <POS localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "buscar-precio") return <BuscarPrecio localId={local.id} paletaActual={paletaActual} />;
+    if (id === "cambio-devolucion") return <CambioDevolucion localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "ventas-online") return <VentasOnline localId={local.id} usuario={usuario} permisosActivos={permisosActivos} />;
     if (id === "auditoria") return <Auditoria />;
     if (id === "inventory") return <Inventario localId={local.id} usuario={usuario} />;
