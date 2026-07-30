@@ -6763,7 +6763,8 @@ function ReclamosProveedores({ localId, usuario, paletaActual }) {
   );
 }
 
-function Proveedores() {
+function Proveedores({ paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState("lista");
   const [proveedores, setProveedores] = useState([]);
   const [cuentas, setCuentas] = useState([]);
@@ -6875,42 +6876,42 @@ function Proveedores() {
 
       {tab === "lista" && (
         <div className="fade">
-          {loading ? <div style={{ color: "#65676B", padding: 20 }}>Cargando...</div> :
+          {loading ? <div style={{ color: temaPal.textMuted, padding: 20 }}>Cargando...</div> :
           proveedores.length === 0 ? (
-            <div style={{ textAlign: "center", color: "#65676B", padding: 40, fontSize: 13 }}>No hay proveedores cargados aun</div>
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 40, fontSize: 13 }}>No hay proveedores cargados aun</div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               {proveedores.map(p => (
                 <div key={p.id} className="card">
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
                     <div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: "#111111" }}>{p.nombre}</div>
-                      <div style={{ fontSize: 10, color: "#65676B" }}>{p.cuit}</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: temaPal.text }}>{p.nombre}</div>
+                      <div style={{ fontSize: 10, color: temaPal.textMuted }}>{p.cuit}</div>
                     </div>
-                    <span className="badge" style={{ background: (categoriaColor[p.categoria] || "#999") + "15", color: categoriaColor[p.categoria] || "#999" }}>{p.categoria}</span>
+                    <span className="badge" style={{ background: (categoriaColor[p.categoria] || temaPal.textMuted) + "15", color: categoriaColor[p.categoria] || temaPal.textMuted }}>{p.categoria}</span>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
-                    <div style={{ background: "#fafafa", borderRadius: 6, padding: "8px 10px" }}>
-                      <div style={{ fontSize: 9, color: "#65676B", marginBottom: 3 }}>CONDICION DE PAGO</div>
+                    <div style={{ background: temaPal.bg, borderRadius: 6, padding: "8px 10px" }}>
+                      <div style={{ fontSize: 9, color: temaPal.textMuted, marginBottom: 3 }}>CONDICION DE PAGO</div>
                       <div style={{ fontSize: 13, fontWeight: 600, color: "#c9a84c" }}>{p.dias_pago} dias</div>
-                      <div style={{ fontSize: 10, color: "#666666" }}>{p.forma_pago}</div>
+                      <div style={{ fontSize: 10, color: temaPal.textMuted }}>{p.forma_pago}</div>
                     </div>
-                    <div style={{ background: "#fafafa", borderRadius: 6, padding: "8px 10px" }}>
-                      <div style={{ fontSize: 9, color: "#65676B", marginBottom: 3 }}>CONTACTO</div>
-                      {p.telefono && <div style={{ fontSize: 11, color: "#444444" }}>{p.telefono}</div>}
+                    <div style={{ background: temaPal.bg, borderRadius: 6, padding: "8px 10px" }}>
+                      <div style={{ fontSize: 9, color: temaPal.textMuted, marginBottom: 3 }}>CONTACTO</div>
+                      {p.telefono && <div style={{ fontSize: 11, color: temaPal.text }}>{p.telefono}</div>}
                       {p.whatsapp && <div style={{ fontSize: 10, color: "#25d366" }}>WA: {p.whatsapp}</div>}
                       {p.email && <div style={{ fontSize: 10, color: "#2471a3" }}>{p.email}</div>}
                     </div>
                   </div>
                   {(p.cbu || p.alias) && (
-                    <div style={{ background: "#f0f7ff", borderRadius: 6, padding: "8px 10px", marginBottom: 8 }}>
+                    <div style={{ background: temaPal.bg, borderRadius: 6, padding: "8px 10px", marginBottom: 8 }}>
                       <div style={{ fontSize: 9, color: "#2471a3", marginBottom: 3 }}>DATOS BANCARIOS</div>
-                      {p.banco && <div style={{ fontSize: 11, color: "#444444" }}>{p.banco} "" {p.titular_cuenta}</div>}
-                      {p.alias && <div style={{ fontSize: 11, color: "#111111", fontWeight: 600 }}>Alias: {p.alias}</div>}
-                      {p.cbu && <div style={{ fontSize: 10, color: "#666666" }}>CBU: {p.cbu}</div>}
+                      {p.banco && <div style={{ fontSize: 11, color: temaPal.text }}>{p.banco} "" {p.titular_cuenta}</div>}
+                      {p.alias && <div style={{ fontSize: 11, color: temaPal.text, fontWeight: 600 }}>Alias: {p.alias}</div>}
+                      {p.cbu && <div style={{ fontSize: 10, color: temaPal.textMuted }}>CBU: {p.cbu}</div>}
                     </div>
                   )}
-                  {p.notas && <div style={{ fontSize: 10, color: "#65676B", fontStyle: "italic" }}>{p.notas}</div>}
+                  {p.notas && <div style={{ fontSize: 10, color: temaPal.textMuted, fontStyle: "italic" }}>{p.notas}</div>}
                 </div>
               ))}
             </div>
@@ -6922,15 +6923,15 @@ function Proveedores() {
         <div className="fade">
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
             {cuentas.map(c => (
-              <div key={c.id} className="card" style={{ borderLeft: "3px solid " + (c.tipo === "efectivo" ? "#2d7a4f" : c.tipo === "transferencia" ? "#2471a3" : c.tipo === "echeck" ? "#c9a84c" : "#65676B") }}>
+              <div key={c.id} className="card" style={{ borderLeft: "3px solid " + (c.tipo === "efectivo" ? "#2d7a4f" : c.tipo === "transferencia" ? "#2471a3" : c.tipo === "echeck" ? "#c9a84c" : temaPal.textMuted) }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#111111" }}>{c.nombre}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: temaPal.text }}>{c.nombre}</div>
                   {c.solo_acreditacion && <span className="badge bb" style={{ fontSize: 9 }}>Solo acreditacion</span>}
                 </div>
-                <div style={{ fontSize: 10, color: "#65676B", marginBottom: 4 }}>{c.titular}</div>
+                <div style={{ fontSize: 10, color: temaPal.textMuted, marginBottom: 4 }}>{c.titular}</div>
                 <span className="badge" style={{ background: c.tipo === "efectivo" ? "#2d7a4f12" : c.tipo === "transferencia" ? "#2471a312" : "#c9a84c15", color: c.tipo === "efectivo" ? "#2d7a4f" : c.tipo === "transferencia" ? "#2471a3" : "#c9a84c", fontSize: 9 }}>{c.tipo}</span>
-                {c.alias && <div style={{ fontSize: 11, color: "#444444", marginTop: 6 }}>Alias: {c.alias}</div>}
-                {c.cbu && <div style={{ fontSize: 10, color: "#666666" }}>CBU: {c.cbu}</div>}
+                {c.alias && <div style={{ fontSize: 11, color: temaPal.text, marginTop: 6 }}>Alias: {c.alias}</div>}
+                {c.cbu && <div style={{ fontSize: 10, color: temaPal.textMuted }}>CBU: {c.cbu}</div>}
               </div>
             ))}
           </div>
@@ -6953,19 +6954,19 @@ function Proveedores() {
           if (orden[a.urgencia] !== orden[b.urgencia]) return orden[a.urgencia] - orden[b.urgencia];
           return (a.diasRestantes ?? 999) - (b.diasRestantes ?? 999);
         });
-        const colores = { vencida: { bg: "#c0392b12", border: "#c0392b", text: "#c0392b" }, proxima: { bg: "#c9a84c12", border: "#c9a84c", text: "#c9a84c" }, normal: { bg: "#fafafa", border: "#e8e8e8", text: "#666666" } };
+        const colores = { vencida: { bg: "#c0392b12", border: "#c0392b", text: "#c0392b" }, proxima: { bg: "#c9a84c12", border: "#c9a84c", text: "#c9a84c" }, normal: { bg: temaPal.bg, border: temaPal.border, text: temaPal.textMuted } };
         return (
           <div className="fade">
             <div className="card" style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 4 }}>RESUMEN</div>
+              <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 4 }}>RESUMEN</div>
               <div style={{ display: "flex", gap: 20 }}>
-                <div><span style={{ fontSize: 20, fontWeight: 700, color: "#c0392b" }}>{conUrgencia.filter(o => o.urgencia === "vencida").length}</span><div style={{ fontSize: 10, color: "#65676B" }}>vencidas</div></div>
-                <div><span style={{ fontSize: 20, fontWeight: 700, color: "#c9a84c" }}>{conUrgencia.filter(o => o.urgencia === "proxima").length}</span><div style={{ fontSize: 10, color: "#65676B" }}>vencen en 7 dias</div></div>
-                <div><span style={{ fontSize: 20, fontWeight: 700, color: "#2d7a4f" }}>{fmt(conUrgencia.reduce((s, o) => s + parseFloat(o.total || 0), 0))}</span><div style={{ fontSize: 10, color: "#65676B" }}>total pendiente</div></div>
+                <div><span style={{ fontSize: 20, fontWeight: 700, color: "#c0392b" }}>{conUrgencia.filter(o => o.urgencia === "vencida").length}</span><div style={{ fontSize: 10, color: temaPal.textMuted }}>vencidas</div></div>
+                <div><span style={{ fontSize: 20, fontWeight: 700, color: "#c9a84c" }}>{conUrgencia.filter(o => o.urgencia === "proxima").length}</span><div style={{ fontSize: 10, color: temaPal.textMuted }}>vencen en 7 dias</div></div>
+                <div><span style={{ fontSize: 20, fontWeight: 700, color: "#2d7a4f" }}>{fmt(conUrgencia.reduce((s, o) => s + parseFloat(o.total || 0), 0))}</span><div style={{ fontSize: 10, color: temaPal.textMuted }}>total pendiente</div></div>
               </div>
             </div>
             {conUrgencia.length === 0 ? (
-              <div className="card"><div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 30 }}>No hay facturas pendientes de pago</div></div>
+              <div className="card"><div style={{ fontSize: 12, color: temaPal.textMuted, textAlign: "center", padding: 30 }}>No hay facturas pendientes de pago</div></div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {conUrgencia.map((o, i) => {
@@ -6973,13 +6974,13 @@ function Proveedores() {
                   return (
                     <div key={i} className="card" style={{ background: c.bg, border: "1px solid " + c.border, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>{o.proveedor_nombre || "-"} <span style={{ color: "#65676B", fontWeight: 400 }}>- {o.numero_factura || "sin numero"}</span></div>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{o.proveedor_nombre || "-"} <span style={{ color: temaPal.textMuted, fontWeight: 400 }}>- {o.numero_factura || "sin numero"}</span></div>
                         <div style={{ fontSize: 11, color: c.text, marginTop: 2, fontWeight: 600 }}>
                           {o.urgencia === "vencida" ? "Vencida hace " + Math.abs(o.diasRestantes) + " dias" : o.urgencia === "proxima" ? (o.diasRestantes === 0 ? "Vence hoy" : "Vence en " + o.diasRestantes + " dias") : "Vence " + new Date(o.fecha_vencimiento).toLocaleDateString("es-AR")}
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                        <span style={{ fontSize: 15, fontWeight: 700, color: "#111111" }}>{fmt(parseFloat(o.total || 0))}</span>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: temaPal.text }}>{fmt(parseFloat(o.total || 0))}</span>
                         <button className="btn btn-sm" style={{ background: "#2d7a4f", color: "white" }} onClick={() => marcarPagada(o)}>Marcar pagada</button>
                       </div>
                     </div>
@@ -10292,7 +10293,7 @@ export default function AppWrapper() {
     if (id === "config-insumos") return <ConfigInsumos localId={local.id} />;
     if (id === "config-ticket") return <ConfigTicket />;
     if (id === "inconsistencias") return <Inconsistencias />;
-    if (id === "proveedores") return <Proveedores />;
+    if (id === "proveedores") return <Proveedores paletaActual={paletaActual} />;
     if (id === "reclamos-proveedores") return <ReclamosProveedores localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     return <Dashboard localId={local.id} />;
   };
