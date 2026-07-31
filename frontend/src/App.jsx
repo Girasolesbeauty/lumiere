@@ -1121,6 +1121,7 @@ function POS({ localId, usuario, paletaActual }) {
   const [referenciaVenta, setReferenciaVenta] = useState("");
   const [tipoDescuento, setTipoDescuento] = useState("%");
   const [medioPagoSel, setMedioPagoSel] = useState(null);
+  const [montoRecibidoEfectivo, setMontoRecibidoEfectivo] = useState("");
   const [pagoMixto, setPagoMixto] = useState(false);
   const [pagosMixtos, setPagosMixtos] = useState([]); // [{medio_pago_id, medio_pago_nombre, importe}]
   const [itemsSinStock, setItemsSinStock] = useState(null); // [{id, nombre, stockActual, cantidad}] o null
@@ -1458,7 +1459,9 @@ function POS({ localId, usuario, paletaActual }) {
         <hr>
         <table>${lineas}</table>
         <hr>
-        <table><tr><td class="tot">TOTAL</td><td class="tot" style="text-align:right">$${datos.total.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr></table>
+        <table><tr><td class="tot">TOTAL</td><td class="tot" style="text-align:right">$${datos.total.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>${
+          datos.monto_recibido != null ? `<tr><td>Recibido</td><td style="text-align:right">$${datos.monto_recibido.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td></tr><tr><td>Vuelto</td><td style="text-align:right">$${(datos.vuelto || 0).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td></tr>` : ''
+        }</table>
         <hr>
         <div class="c">${cfg.mensaje_pie || "Gracias por tu compra!"}</div>
         ${cfg.texto_extra ? `<div class="c" style="font-size:10px">${cfg.texto_extra}</div>` : ""}
@@ -1511,6 +1514,9 @@ function POS({ localId, usuario, paletaActual }) {
     if (ventaPendienteArca) return reintentarFacturacion(ventaPendienteArca);
     if (cart.length === 0) return setMensaje("Agrega productos al ticket");
     if (restaPagar > 0 && !pagoMixto && !medioPagoSel) return setMensaje("Selecciona un medio de pago para la diferencia");
+    if (restaPagar > 0 && !pagoMixto && medioPagoSel?.tipo === "efectivo" && montoRecibidoEfectivo !== "" && parseFloat(montoRecibidoEfectivo) < restaPagar) {
+      return setMensaje("El efectivo recibido no alcanza para cubrir el total");
+    }
     if (restaPagar > 0 && pagoMixto) {
       const sumaPagos = pagosMixtos.reduce((s, p) => s + (parseFloat(p.importe) || 0), 0);
       if (pagosMixtos.some(p => !p.medio_pago_id)) return setMensaje("Elegi el medio de pago en cada linea del pago dividido");
@@ -1573,7 +1579,9 @@ function POS({ localId, usuario, paletaActual }) {
             items: cart.map(i => ({ nombre: i.nombre || i.name, cantidad: i.qty, precio_unitario: (i.precio || i.price) * (1 - (i.descuento_pct || 0) / 100) })),
             total: total,
             cliente: clienteSeleccionado?.nombre || null,
-            numero: arcaRes.data.nroComprobante ? (String(arcaRes.data.puntoVenta || 5).padStart(4,"0") + "-" + String(arcaRes.data.nroComprobante).padStart(8,"0")) : null
+            numero: arcaRes.data.nroComprobante ? (String(arcaRes.data.puntoVenta || 5).padStart(4,"0") + "-" + String(arcaRes.data.nroComprobante).padStart(8,"0")) : null,
+            monto_recibido: (medioPagoSel?.tipo === "efectivo" && montoRecibidoEfectivo !== "") ? parseFloat(montoRecibidoEfectivo) : null,
+            vuelto: (medioPagoSel?.tipo === "efectivo" && montoRecibidoEfectivo !== "") ? Math.max(parseFloat(montoRecibidoEfectivo) - restaPagar, 0) : null
           };
           setUltimoRecibo(datosRecibo);
           imprimirRecibo(datosRecibo);
@@ -1589,7 +1597,7 @@ function POS({ localId, usuario, paletaActual }) {
         setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
         setClienteSeleccionado(null); setShowNuevoCliente(false);
         setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false);
-        setJustificacionesStock({}); setItemsSinStock(null);
+        setJustificacionesStock({}); setItemsSinStock(null); setMontoRecibidoEfectivo("");
         quitarGiftCard();
       }
       setTimeout(() => setMensaje(""), 8000);
@@ -2002,12 +2010,34 @@ function POS({ localId, usuario, paletaActual }) {
                   <select className="sel" style={{ fontSize: 11, padding: "8px 10px", width: "100%" }} value={medioPagoSel?.id || ""} onChange={e => {
                     const m = mediosPago.find(x => x.id === parseInt(e.target.value));
                     setMedioPagoSel(m || null);
+                    setMontoRecibidoEfectivo("");
                   }}>
                     <option value="">{giftCardAplicada ? "Pago diferencia..." : "Medio de pago..."}</option>
                     {mediosPago.map(m => (
                       <option key={m.id} value={m.id}>{m.nombre}</option>
                     ))}
                   </select>
+                )}
+
+                {!pagoMixto && medioPagoSel && medioPagoSel.tipo === "efectivo" && (
+                  <div style={{ marginTop: 8, padding: 10, background: temaPal.bg, borderRadius: 6 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                      <span style={{ fontSize: 11, color: temaPal.textMuted }}>Con cuanto paga?</span>
+                      <input type="number" className="inp" style={{ width: 110, padding: "5px 8px", fontSize: 12 }} placeholder={String(restaPagar)}
+                        value={montoRecibidoEfectivo} onChange={e => setMontoRecibidoEfectivo(e.target.value)} />
+                    </div>
+                    {montoRecibidoEfectivo !== "" && (
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: 12, fontWeight: 600 }}>Vuelto</span>
+                        <span style={{ fontSize: 18, fontWeight: 700, color: (parseFloat(montoRecibidoEfectivo) - restaPagar) < 0 ? "#c0392b" : "#2d7a4f" }}>
+                          {fmt(Math.max(parseFloat(montoRecibidoEfectivo) - restaPagar, 0))}
+                        </span>
+                      </div>
+                    )}
+                    {montoRecibidoEfectivo !== "" && parseFloat(montoRecibidoEfectivo) < restaPagar && (
+                      <div style={{ fontSize: 10, color: "#c0392b", marginTop: 4 }}>Falta {fmt(restaPagar - parseFloat(montoRecibidoEfectivo))}</div>
+                    )}
+                  </div>
                 )}
 
                 {pagoMixto && (
