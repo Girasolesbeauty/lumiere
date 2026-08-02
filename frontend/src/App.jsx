@@ -2173,6 +2173,13 @@ function POS({ localId, usuario, paletaActual }) {
 
 function Inventario({ localId, usuario }) {
   const [tab, setTab] = useState("stock");
+  const [ajustesHistorial, setAjustesHistorial] = useState([]);
+  const [buscarAjuste, setBuscarAjuste] = useState("");
+  const [cargandoAjustes, setCargandoAjustes] = useState(false);
+  const cargarAjustesHistorial = () => {
+    setCargandoAjustes(true);
+    API.get("/productos/stock/ajustes").then(res => setAjustesHistorial(res.data || [])).catch(() => {}).finally(() => setCargandoAjustes(false));
+  };
   const [productos, setProductos] = useState([]);
   const [alertas, setAlertas] = useState([]);
   const [transito, setTransito] = useState([]);
@@ -2408,9 +2415,9 @@ function Inventario({ localId, usuario }) {
         </div>
       )}
       <div className="tabs">
-        {["stock", "valorizacion", "transito", "alertas", "movimientos"].map(t => (
-          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "transito") cargarTransito(); }}>
-            {t === "stock" ? "STOCK" : t === "valorizacion" ? "VALORIZACION" : t === "transito" ? "EN TRANSITO" : t === "alertas" ? "ALERTAS" + (alertas.length > 0 ? " (" + alertas.length + ")" : "") : "MOVIMIENTOS"}
+        {["stock", "valorizacion", "transito", "alertas", "ajustes"].map(t => (
+          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "transito") cargarTransito(); if (t === "ajustes") cargarAjustesHistorial(); }}>
+            {t === "stock" ? "STOCK" : t === "valorizacion" ? "VALORIZACION" : t === "transito" ? "EN TRANSITO" : t === "alertas" ? "ALERTAS" + (alertas.length > 0 ? " (" + alertas.length + ")" : "") : "HISTORIAL DE AJUSTES"}
           </div>
         ))}
       </div>
@@ -2655,25 +2662,39 @@ function Inventario({ localId, usuario }) {
           ))}
         </div>
       )}
-      {tab === "movimientos" && (
-        <div className="card fade">
-          <table>
-            <thead><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cantidad</th><th>Referencia</th></tr></thead>
-            <tbody>
-              {[
-                { d: "24/05", p: "Serum Vitamina C", t: "Venta", q: -2, r: "F-0041" },
-                { d: "24/05", p: "Crema Hidratante", t: "Ingreso", q: 20, r: "OC-0018" },
-                { d: "23/05", p: "Base Liquida HD", t: "Venta", q: -1, r: "F-0040" },
-              ].map((m, i) => (
-                <tr key={i}>
-                  <td>{m.d}</td><td>{m.p}</td>
-                  <td><span className={"badge " + (m.t === "Venta" ? "bb" : m.t === "Ingreso" ? "bg" : "ba")}>{m.t}</span></td>
-                  <td style={{ color: m.q > 0 ? "#2d7a4f" : "#c0392b" }}>{m.q > 0 ? "+" : ""}{m.q}</td>
-                  <td style={{ color: "#c9a84c" }}>{m.r}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {tab === "ajustes" && (
+        <div className="fade">
+          <div className="card" style={{ marginBottom: 12 }}>
+            <input className="inp" placeholder="Buscar por nombre de producto..." value={buscarAjuste} onChange={e => setBuscarAjuste(e.target.value)} />
+          </div>
+          <div className="card fade">
+            {cargandoAjustes ? (
+              <div style={{ textAlign: "center", color: "#65676B", padding: 20, fontSize: 12 }}>Cargando...</div>
+            ) : (
+              <table>
+                <thead><tr><th>Fecha</th><th>Producto</th><th>Local</th><th>Anterior</th><th>Nuevo</th><th>Diferencia</th><th>Motivo</th><th>Usuario</th></tr></thead>
+                <tbody>
+                  {ajustesHistorial
+                    .filter(a => (a.producto_nombre || "").toLowerCase().includes(buscarAjuste.toLowerCase()))
+                    .map((a, i) => (
+                      <tr key={a.id || i}>
+                        <td style={{ fontSize: 11, color: "#65676B" }}>{new Date(a.creado_en).toLocaleString("es-AR")}</td>
+                        <td style={{ fontWeight: 600 }}>{a.producto_nombre}</td>
+                        <td style={{ fontSize: 11, color: "#65676B" }}>{Number(a.local_id) === 2 ? "Ushuaia" : "Rio Grande"}</td>
+                        <td>{a.stock_anterior}</td>
+                        <td>{a.stock_nuevo}</td>
+                        <td style={{ fontWeight: 700, color: a.diferencia > 0 ? "#2d7a4f" : a.diferencia < 0 ? "#c0392b" : "#65676B" }}>{a.diferencia > 0 ? "+" : ""}{a.diferencia}</td>
+                        <td style={{ fontSize: 11 }}>{a.motivo}</td>
+                        <td style={{ fontSize: 11, color: "#65676B" }}>{a.usuario_nombre || "-"}</td>
+                      </tr>
+                    ))}
+                  {ajustesHistorial.filter(a => (a.producto_nombre || "").toLowerCase().includes(buscarAjuste.toLowerCase())).length === 0 && (
+                    <tr><td colSpan={8} style={{ textAlign: "center", color: "#65676B" }}>Sin ajustes para este filtro</td></tr>
+                  )}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
       )}
       {showCalc && (
