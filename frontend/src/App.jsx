@@ -2276,12 +2276,40 @@ function Inventario({ localId, usuario }) {
         usuario_id: usuario?.id, usuario_nombre: usuario?.nombre,
         notas: nuevoTraspaso.notas || null
       });
-      setMensaje(res.data.cantidad + " x " + res.data.producto_nombre + " traspasadas!");
+      setMensaje(res.data.cantidad + " x " + res.data.producto_nombre + " en camino! Falta que " + (Number(res.data.local_destino) === 2 ? "Ushuaia" : "Rio Grande") + " confirme la recepcion.");
       setShowNuevoTraspaso(false);
       cargarTraspasos();
       cargar();
-      setTimeout(() => setMensaje(""), 4000);
+      setTimeout(() => setMensaje(""), 5000);
     } catch (e) { setErrorTraspaso(e?.response?.data?.error || "No se pudo registrar el traspaso"); }
+  };
+
+  const [showRecibirTraspaso, setShowRecibirTraspaso] = useState(null);
+  const [cantidadRecibida, setCantidadRecibida] = useState("");
+  const [notaRecepcion, setNotaRecepcion] = useState("");
+  const [errorRecepcion, setErrorRecepcion] = useState("");
+
+  const abrirRecibirTraspaso = (t) => {
+    setErrorRecepcion("");
+    setCantidadRecibida(String(t.cantidad));
+    setNotaRecepcion("");
+    setShowRecibirTraspaso(t);
+  };
+
+  const confirmarRecepcionTraspaso = async () => {
+    if (cantidadRecibida === "" || isNaN(parseInt(cantidadRecibida)) || parseInt(cantidadRecibida) < 0) return setErrorRecepcion("Cantidad invalida");
+    try {
+      await API.put("/traspasos/" + showRecibirTraspaso.id + "/recibir", {
+        cantidad_recibida: cantidadRecibida,
+        usuario_nombre: usuario?.nombre,
+        nota: notaRecepcion || null
+      });
+      setMensaje("Recepcion confirmada!");
+      setShowRecibirTraspaso(null);
+      cargarTraspasos();
+      cargar();
+      setTimeout(() => setMensaje(""), 4000);
+    } catch (e) { setErrorRecepcion(e?.response?.data?.error || "No se pudo confirmar la recepcion"); }
   };
 
   const abrirNuevoCanje = () => {
@@ -2792,9 +2820,25 @@ function Inventario({ localId, usuario }) {
       {tab === "traspasos" && (
         <div className="fade">
           <div className="card" style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <div style={{ fontSize: 11, color: "#65676B" }}>Mandar mercaderia de un local al otro (ej: un producto que no rota en Rio Grande se manda a Ushuaia)</div>
+            <div style={{ fontSize: 11, color: "#65676B" }}>Mandar mercaderia de un local al otro (ej: un producto que no rota en Rio Grande se manda a Ushuaia). El destino no lo suma a su stock vendible hasta que confirma que lo recibio, igual que con las ordenes de ingreso.</div>
             <button className="btn btn-p btn-sm" onClick={abrirNuevoTraspaso}>+ Nuevo traspaso</button>
           </div>
+
+          {traspasos.filter(t => t.estado !== "recibido" && Number(t.local_destino) === Number(localId || 1)).length > 0 && (
+            <div className="card pulse" style={{ background: "#c9a84c15", border: "2px solid #c9a84c", marginBottom: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#c9a84c", marginBottom: 10 }}>⚠️ Tenes traspasos en camino hacia este local, pendientes de confirmar</div>
+              {traspasos.filter(t => t.estado !== "recibido" && Number(t.local_destino) === Number(localId || 1)).map(t => (
+                <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderTop: "1px solid #c9a84c33" }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{t.cantidad} x {t.producto_nombre}</div>
+                    <div style={{ fontSize: 11, color: "#65676B" }}>Desde {Number(t.local_origen) === 2 ? "Ushuaia" : "Rio Grande"} · enviado el {new Date(t.creado_en).toLocaleDateString("es-AR")}{t.notas ? " · " + t.notas : ""}</div>
+                  </div>
+                  <button className="btn btn-p btn-sm" onClick={() => abrirRecibirTraspaso(t)}>Confirmar recepcion</button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="card fade">
             {cargandoTraspasos ? (
               <div style={{ textAlign: "center", color: "#65676B", padding: 20, fontSize: 12 }}>Cargando...</div>
@@ -2802,15 +2846,20 @@ function Inventario({ localId, usuario }) {
               <div style={{ textAlign: "center", color: "#65676B", padding: 20, fontSize: 12 }}>Todavia no se registro ningun traspaso</div>
             ) : (
               <table>
-                <thead><tr><th>Fecha</th><th>Producto</th><th>Cantidad</th><th>De</th><th>A</th><th>Notas</th><th>Usuario</th></tr></thead>
+                <thead><tr><th>Fecha</th><th>Producto</th><th>Cantidad</th><th>De</th><th>A</th><th>Estado</th><th>Notas</th><th>Usuario</th></tr></thead>
                 <tbody>
                   {traspasos.map(t => (
                     <tr key={t.id}>
                       <td style={{ fontSize: 11, color: "#65676B" }}>{new Date(t.creado_en).toLocaleString("es-AR")}</td>
                       <td style={{ fontWeight: 600 }}>{t.producto_nombre}</td>
-                      <td>{t.cantidad}</td>
+                      <td>{t.cantidad}{t.estado === "recibido" && t.cantidad_recibida !== null && Number(t.cantidad_recibida) !== Number(t.cantidad) ? <span style={{ color: "#c0392b", fontSize: 10 }}> (llegaron {t.cantidad_recibida})</span> : ""}</td>
                       <td style={{ fontSize: 11 }}>{Number(t.local_origen) === 2 ? "Ushuaia" : "Rio Grande"}</td>
                       <td style={{ fontSize: 11 }}>{Number(t.local_destino) === 2 ? "Ushuaia" : "Rio Grande"}</td>
+                      <td>
+                        <span className="badge" style={{ background: t.estado === "recibido" ? "#2d7a4f15" : "#c9a84c15", color: t.estado === "recibido" ? "#2d7a4f" : "#c9a84c" }}>
+                          {t.estado === "recibido" ? "Recibido" : "En transito"}
+                        </span>
+                      </td>
                       <td style={{ fontSize: 11, color: "#65676B" }}>{t.notas || "-"}</td>
                       <td style={{ fontSize: 11, color: "#65676B" }}>{t.usuario_nombre || "-"}</td>
                     </tr>
@@ -2818,6 +2867,21 @@ function Inventario({ localId, usuario }) {
                 </tbody>
               </table>
             )}
+          </div>
+        </div>
+      )}
+      {showRecibirTraspaso && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={() => setShowRecibirTraspaso(null)}>
+          <div className="card" style={{ width: 380, maxWidth: "92vw" }} onClick={e => e.stopPropagation()}>
+            <div className="ct">Confirmar recepcion</div>
+            <div style={{ fontSize: 12, color: "#65676B", marginBottom: 10 }}>{showRecibirTraspaso.producto_nombre} · enviaron {showRecibirTraspaso.cantidad} desde {Number(showRecibirTraspaso.local_origen) === 2 ? "Ushuaia" : "Rio Grande"}</div>
+            <div className="fg"><div className="fl">Cantidad que llego de verdad</div><input className="inp" type="number" autoFocus value={cantidadRecibida} onChange={e => setCantidadRecibida(e.target.value)} /></div>
+            <div className="fg"><div className="fl">Nota (opcional, ej: llego uno roto)</div><input className="inp" value={notaRecepcion} onChange={e => setNotaRecepcion(e.target.value)} /></div>
+            {errorRecepcion && <div style={{ color: "#c0392b", fontSize: 12, marginBottom: 8 }}>{errorRecepcion}</div>}
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button className="btn btn-p" style={{ flex: 1 }} onClick={confirmarRecepcionTraspaso}>Confirmar</button>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowRecibirTraspaso(null)}>Cancelar</button>
+            </div>
           </div>
         </div>
       )}
@@ -2880,7 +2944,7 @@ function Inventario({ localId, usuario }) {
                   const stockOrigen = Number(nuevoTraspaso.local_origen) === 2 ? prodSel?.stock_ush : prodSel?.stock_rg;
                   return (
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f7f5f0", borderRadius: 6 }}>
-                      <span style={{ fontSize: 12 }}>{prodSel?.nombre} <span style={{ color: "#999" }}>(stock en origen: {stockOrigen})</span></span>
+                      <span style={{ fontSize: 12, color: "#222" }}>{prodSel?.nombre} <span style={{ color: "#999" }}>(stock en origen: {stockOrigen})</span></span>
                       <span onClick={() => setNuevoTraspaso(p => ({ ...p, producto_id: "" }))} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>cambiar</span>
                     </div>
                   );
@@ -2932,7 +2996,7 @@ function Inventario({ localId, usuario }) {
                   const prodSel = productos.find(pr => pr.id === nuevoCanje.producto_id);
                   return (
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f7f5f0", borderRadius: 6 }}>
-                      <span style={{ fontSize: 12 }}>{prodSel?.nombre} <span style={{ color: "#999" }}>(stock: {prodSel?.stock_local})</span></span>
+                      <span style={{ fontSize: 12, color: "#222" }}>{prodSel?.nombre} <span style={{ color: "#999" }}>(stock: {prodSel?.stock_local})</span></span>
                       <span onClick={() => setNuevoCanje(p => ({ ...p, producto_id: "" }))} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>cambiar</span>
                     </div>
                   );
