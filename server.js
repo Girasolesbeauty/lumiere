@@ -28,6 +28,7 @@ app.use('/api/fidelizacion', require('./routes/fidelizacion'));
 app.use('/api/postventa', require('./routes/postventa'));
 app.use('/api/locales', require('./routes/locales'));
 app.use('/api/comisiones', require('./routes/comisiones'));
+app.use('/api/empleados', require('./routes/empleados'));
 app.use('/api/arca', require('./routes/arca'));
  app.use('/api/config-ticket', require('./routes/config-ticket'));
 app.use('/api/configuracion', require('./routes/configuracion'));

@@ -6311,6 +6311,12 @@ function Comisiones({ localId }) {
   const [mensaje, setMensaje] = useState("");
   const [loading, setLoading] = useState(true);
 
+  const [empleados, setEmpleados] = useState([]);
+  const [showNuevoEmp, setShowNuevoEmp] = useState(false);
+  const [editandoEmp, setEditandoEmp] = useState(null);
+  const [nuevoEmp, setNuevoEmp] = useState({ nombre: "", comision_pct: "" });
+  const [mensajeEmp, setMensajeEmp] = useState("");
+
   const cargar = () => {
     setLoading(true);
     Promise.all([
@@ -6322,9 +6328,55 @@ function Comisiones({ localId }) {
       setLoading(false);
     }).catch(() => setLoading(false));
   };
-  useEffect(() => { cargar(); setSel([]); }, [localId]);
+
+  const cargarEmpleados = () => {
+    API.get("/empleados?local_id=" + (localId || 1)).then(res => setEmpleados(res.data || [])).catch(() => {});
+  };
+
+  useEffect(() => { cargar(); cargarEmpleados(); setSel([]); }, [localId]);
 
   const toggle = (id) => setSel(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const abrirNuevaEmp = () => {
+    setEditandoEmp(null);
+    setNuevoEmp({ nombre: "", comision_pct: "" });
+    setShowNuevoEmp(true);
+  };
+
+  const abrirEditarEmp = (emp) => {
+    setEditandoEmp(emp);
+    setNuevoEmp({ nombre: emp.nombre || "", comision_pct: emp.comision_pct ?? "" });
+    setShowNuevoEmp(true);
+  };
+
+  const guardarEmpleada = async () => {
+    if (!nuevoEmp.nombre.trim()) return setMensajeEmp("Falta el nombre de la empleada");
+    try {
+      if (editandoEmp) {
+        await API.put("/empleados/" + editandoEmp.id, {
+          nombre: nuevoEmp.nombre, comision_pct: nuevoEmp.comision_pct
+        });
+        setMensajeEmp("Empleada actualizada!");
+      } else {
+        await API.post("/empleados", {
+          nombre: nuevoEmp.nombre, local_id: localId || 1, comision_pct: nuevoEmp.comision_pct
+        });
+        setMensajeEmp("Empleada agregada!");
+      }
+      setShowNuevoEmp(false);
+      setEditandoEmp(null);
+      setNuevoEmp({ nombre: "", comision_pct: "" });
+      cargarEmpleados();
+      setTimeout(() => setMensajeEmp(""), 3000);
+    } catch (e) { setMensajeEmp("Error: " + (e?.response?.data?.error || "no se pudo guardar")); }
+  };
+
+  const toggleEmpleada = async (emp) => {
+    try {
+      await API.put("/empleados/" + emp.id, { activo: !emp.activo });
+      cargarEmpleados();
+    } catch (e) {}
+  };
 
   const pagarSeleccionadas = async () => {
     if (sel.length === 0) return setMensaje("Selecciona al menos un dia");
@@ -6416,6 +6468,49 @@ function Comisiones({ localId }) {
                   </tbody>
                 </table>
               )}
+            </div>
+          )}
+
+          {/* Empleadas del local, con su comision individual */}
+          <div className="card" style={{ marginTop: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div className="ct" style={{ margin: 0 }}>Empleadas</div>
+              <button className="btn btn-p btn-sm" onClick={abrirNuevaEmp}>+ Agregar empleada</button>
+            </div>
+            <div style={{ fontSize: 11, color: "#65676B", marginBottom: 12 }}>Comision individual de cada vendedora del local (independiente de la comision por facturacion de arriba). Si alguien deja de trabajar, desactivala en vez de borrarla.</div>
+
+            {mensajeEmp && <div style={{ background: mensajeEmp.startsWith("Error") ? "#fdecea" : "#eafaf1", color: mensajeEmp.startsWith("Error") ? "#c0392b" : "#1e7e4f", borderRadius: 6, padding: "8px 12px", marginBottom: 10, fontSize: 12 }}>{mensajeEmp}</div>}
+
+            {empleados.length === 0 ? (
+              <div style={{ textAlign: "center", color: "#999", padding: 20, fontSize: 12 }}>Todavia no hay empleadas cargadas en este local</div>
+            ) : (
+              <table style={{ width: "100%", fontSize: 12 }}>
+                <thead><tr style={{ color: "#888", textAlign: "left" }}><th style={{ padding: "6px 0" }}>Nombre</th><th style={{ textAlign: "right" }}>Comision</th><th style={{ textAlign: "center" }}>Activa</th><th></th></tr></thead>
+                <tbody>
+                  {empleados.map(emp => (
+                    <tr key={emp.id} style={{ borderTop: "1px solid #f0f0f0" }}>
+                      <td style={{ padding: "7px 0", fontWeight: 600, color: emp.activo ? "#111" : "#999" }}>{emp.nombre}</td>
+                      <td style={{ textAlign: "right" }}>{parseFloat(emp.comision_pct || 0)}%</td>
+                      <td style={{ textAlign: "center" }}><Sw on={emp.activo} toggle={() => toggleEmpleada(emp)} /></td>
+                      <td style={{ textAlign: "right" }}><span onClick={() => abrirEditarEmp(emp)} style={{ cursor: "pointer", color: "#65676B", fontSize: 11 }}>editar</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {showNuevoEmp && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={() => setShowNuevoEmp(false)}>
+              <div className="card" style={{ width: 380, maxWidth: "92vw" }} onClick={e => e.stopPropagation()}>
+                <div className="ct">{editandoEmp ? "Editar empleada" : "Agregar empleada"}</div>
+                <div className="fg"><div className="fl">Nombre</div><input className="inp" value={nuevoEmp.nombre} onChange={e => setNuevoEmp(p => ({ ...p, nombre: e.target.value }))} /></div>
+                <div className="fg"><div className="fl">Comision (%)</div><input className="inp" type="number" step="0.01" value={nuevoEmp.comision_pct} onChange={e => setNuevoEmp(p => ({ ...p, comision_pct: e.target.value }))} /></div>
+                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                  <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarEmpleada}>Guardar</button>
+                  <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowNuevoEmp(false)}>Cancelar</button>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -7943,6 +8038,18 @@ function ControlInventario({ localId, usuario, paletaActual }) {
     } catch (e) {}
   };
 
+  // Ver el detalle (solo lectura) de un control ya finalizado: que se conto en cada item.
+  const verDetalleControl = async (ctrl) => {
+    try {
+      const res = await API.get("/controles-inventario/" + ctrl.id);
+      setControlActivo(res.data);
+      setItems(res.data.items || []);
+      setFiltroItems("todos");
+      setBusqueda("");
+      setVista("detalle");
+    } catch (e) { setMensaje("No se pudo cargar el detalle de este control"); }
+  };
+
   const crearNuevo = async () => {
     if (tipoNuevo === "categoria" && !categoriaNuevo) return setMensaje("Elegi una categoria");
     if (tipoNuevo === "marca" && !marcaNuevo) return setMensaje("Elegi una marca");
@@ -8003,6 +8110,73 @@ function ControlInventario({ localId, usuario, paletaActual }) {
   const totalFaltantes = items.filter(i => i.estado === "faltante").length;
   const totalSobrantes = items.filter(i => i.estado === "sobrante").length;
   const progreso = items.length > 0 ? Math.round((totalContados / items.length) * 100) : 0;
+
+  if (vista === "detalle" && controlActivo) {
+    return (
+      <div className="fade">
+        <div className="ph">
+          <div>
+            <div className="pt">Control finalizado #{controlActivo.id}</div>
+            <div className="ps">
+              {controlActivo.tipo === "total" ? "Conteo total" : controlActivo.tipo === "categoria" ? "Categoria: " + controlActivo.filtro_valor : controlActivo.tipo === "marca" ? "Marca: " + controlActivo.filtro_valor : "Proveedor"}
+              {" · "}{controlActivo.finalizado_en ? new Date(controlActivo.finalizado_en).toLocaleDateString("es-AR") : ""}
+              {controlActivo.usuario_nombre ? " · realizado por " + controlActivo.usuario_nombre : ""}
+            </div>
+          </div>
+          <button className="btn btn-g btn-sm" onClick={() => { setVista("lista"); setControlActivo(null); setItems([]); }}>Volver al listado</button>
+        </div>
+        <div className="g4" style={{ marginBottom: 16 }}>
+          <MCard label="Items" value={String(items.length)} color="#2C3E5C" />
+          <MCard label="Correctos" value={String(totalCorrectos)} color="#2d7a4f" />
+          <MCard label="Faltantes" value={String(totalFaltantes)} color="#c0392b" />
+          <MCard label="Sobrantes" value={String(totalSobrantes)} color="#c9a84c" />
+        </div>
+        {controlActivo.ajustar_stock && <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f", borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: "#2d7a4f" }}>El stock se ajusto automaticamente con este control</div>}
+        {controlActivo.notas && <div className="card" style={{ marginBottom: 14, fontSize: 12 }}><div className="ct">Notas</div>{controlActivo.notas}</div>}
+        <div className="card" style={{ marginBottom: 14 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <input className="inp" placeholder="Buscar producto..." value={busqueda} onChange={e => setBusqueda(e.target.value)} style={{ flex: 1 }} />
+            <select className="sel" value={filtroItems} onChange={e => setFiltroItems(e.target.value)} style={{ width: 160 }}>
+              <option value="todos">Todos</option>
+              <option value="correctos">Correctos</option>
+              <option value="faltantes">Faltantes</option>
+              <option value="sobrantes">Sobrantes</option>
+            </select>
+          </div>
+        </div>
+        <div className="card">
+          <table>
+            <thead><tr><th>Producto</th><th>Ingreso / Venta (periodo)</th><th>Stock sistema</th><th>Stock contado</th><th>Diferencia</th><th>Estado</th></tr></thead>
+            <tbody>
+              {itemsFiltrados.map(it => (
+                <tr key={it.id} style={{ background: it.estado === "faltante" ? "#c0392b08" : it.estado === "sobrante" ? "#c9a84c08" : it.estado === "correcto" ? "#2d7a4f08" : "transparent" }}>
+                  <td>
+                    <div style={{ fontSize: 12 }}>{it.producto_nombre}</div>
+                    <div style={{ fontSize: 10, color: p.textMuted }}>{it.producto_marca} - {it.producto_categoria}</div>
+                  </td>
+                  <td style={{ fontSize: 11, color: p.textMuted }}>
+                    <span style={{ color: "#2d7a4f" }}>+{it.ingresado_periodo || 0}</span> · <span style={{ color: "#c0392b" }}>-{it.vendido_periodo || 0}</span>
+                  </td>
+                  <td style={{ fontWeight: 600 }}>{it.stock_sistema}</td>
+                  <td style={{ fontWeight: 600 }}>{it.stock_contado ?? "-"}</td>
+                  <td style={{ fontWeight: 600, color: it.diferencia < 0 ? "#c0392b" : it.diferencia > 0 ? "#c9a84c" : "#2d7a4f" }}>{it.diferencia > 0 ? "+" : ""}{it.diferencia ?? 0}</td>
+                  <td>
+                    <span className="badge" style={{
+                      background: it.estado === "correcto" ? "#2d7a4f15" : it.estado === "faltante" ? "#c0392b15" : it.estado === "sobrante" ? "#c9a84c15" : "#88888815",
+                      color: it.estado === "correcto" ? "#2d7a4f" : it.estado === "faltante" ? "#c0392b" : it.estado === "sobrante" ? "#c9a84c" : "#888"
+                    }}>{it.estado}</span>
+                  </td>
+                </tr>
+              ))}
+              {itemsFiltrados.length === 0 && (
+                <tr><td colSpan={6} style={{ textAlign: "center", color: "#999", padding: 20, fontSize: 12 }}>No hay items que coincidan con el filtro</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
 
   if (vista === "conteo" && controlActivo) {
     if (resultadoFinal) {
@@ -8187,17 +8361,18 @@ function ControlInventario({ localId, usuario, paletaActual }) {
           <div style={{ textAlign: "center", color: p.textMuted, padding: 20, fontSize: 12 }}>Aun no se realizo ningun control finalizado</div>
         ) : (
           <table>
-            <thead><tr><th>Fecha</th><th>Tipo</th><th>Items</th><th>Correctos</th><th>Faltantes</th><th>Sobrantes</th><th>Stock ajustado</th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Tipo</th><th>Items</th><th>Correctos</th><th>Faltantes</th><th>Sobrantes</th><th>Stock ajustado</th><th></th></tr></thead>
             <tbody>
               {controles.filter(c => c.estado === "finalizado").map(c => (
-                <tr key={c.id}>
+                <tr key={c.id} onClick={() => verDetalleControl(c)} style={{ cursor: "pointer" }}>
                   <td style={{ fontSize: 11 }}>{new Date(c.finalizado_en).toLocaleDateString("es-AR")}</td>
-                  <td style={{ fontSize: 12 }}>{c.tipo === "total" ? "Total" : c.categoria}</td>
-                  <td>{c.total_items}</td>
+                  <td style={{ fontSize: 12 }}>{c.tipo === "total" ? "Total" : c.filtro_valor}</td>
+                  <td>{(c.items_correctos || 0) + (c.items_faltantes || 0) + (c.items_sobrantes || 0)}</td>
                   <td><span className="badge bg">{c.items_correctos}</span></td>
                   <td><span className="badge br">{c.items_faltantes}</span></td>
                   <td><span className="badge ba">{c.items_sobrantes}</span></td>
                   <td>{c.ajustar_stock ? <span className="badge bg">si</span> : <span className="badge bx">no</span>}</td>
+                  <td style={{ color: "#65676B", fontSize: 11 }}>ver detalle</td>
                 </tr>
               ))}
             </tbody>
