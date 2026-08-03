@@ -1518,11 +1518,13 @@ function POS({ localId, usuario, paletaActual }) {
     // Si hay una venta ya registrada esperando facturacion, reintenta SOLO eso (no duplica la venta)
     if (ventaPendienteArca) return reintentarFacturacion(ventaPendienteArca);
     if (cart.length === 0) return setMensaje("Agrega productos al ticket");
-    if (restaPagar > 0 && !pagoMixto && !medioPagoSel) return setMensaje("Selecciona un medio de pago para la diferencia");
-    if (restaPagar > 0 && !pagoMixto && medioPagoSel?.tipo === "efectivo" && montoRecibidoEfectivo !== "" && parseFloat(montoRecibidoEfectivo) < restaPagar) {
+    // En preventa el medio de pago de la diferencia no hace falta saberlo ahora: se elige
+    // recien cuando la clienta viene a retirar y se confirma la entrega.
+    if (!preventa && restaPagar > 0 && !pagoMixto && !medioPagoSel) return setMensaje("Selecciona un medio de pago para la diferencia");
+    if (!preventa && restaPagar > 0 && !pagoMixto && medioPagoSel?.tipo === "efectivo" && montoRecibidoEfectivo !== "" && parseFloat(montoRecibidoEfectivo) < restaPagar) {
       return setMensaje("El efectivo recibido no alcanza para cubrir el total");
     }
-    if (restaPagar > 0 && pagoMixto) {
+    if (!preventa && restaPagar > 0 && pagoMixto) {
       const sumaPagos = pagosMixtos.reduce((s, p) => s + (parseFloat(p.importe) || 0), 0);
       if (pagosMixtos.some(p => !p.medio_pago_id)) return setMensaje("Elegi el medio de pago en cada linea del pago dividido");
       if (Math.abs(sumaPagos - restaPagar) >= 1) return setMensaje("La suma de los pagos (" + fmt(sumaPagos) + ") debe ser igual al total (" + fmt(restaPagar) + ")");
@@ -2043,7 +2045,7 @@ function POS({ localId, usuario, paletaActual }) {
                 )}
               </div>
             )}
-            {restaPagar > 0 && (
+            {!preventa && restaPagar > 0 && (
               <div style={{ marginBottom: 6 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                   <span style={{ fontSize: 10, color: temaPal.textMuted }}>{pagoMixto ? "Pago dividido" : "Medio de pago"}</span>
