@@ -2226,6 +2226,92 @@ function Inventario({ localId, usuario }) {
     stock: "", stock_minimo: "", proveedor_id: "", descripcion: ""
   });
 
+  // Traspasos de stock entre locales
+  const [traspasos, setTraspasos] = useState([]);
+  const [cargandoTraspasos, setCargandoTraspasos] = useState(false);
+  const [showNuevoTraspaso, setShowNuevoTraspaso] = useState(false);
+  const [nuevoTraspaso, setNuevoTraspaso] = useState({ producto_id: "", local_origen: localId || 1, local_destino: (Number(localId) === 2 ? 1 : 2), cantidad: "", notas: "" });
+  const [buscarProdTraspaso, setBuscarProdTraspaso] = useState("");
+  const [errorTraspaso, setErrorTraspaso] = useState("");
+
+  // Canjes de mercaderia con empleadas (pago en especie)
+  const [canjes, setCanjes] = useState([]);
+  const [cargandoCanjes, setCargandoCanjes] = useState(false);
+  const [empleadosCanje, setEmpleadosCanje] = useState([]);
+  const [showNuevoCanje, setShowNuevoCanje] = useState(false);
+  const [nuevoCanje, setNuevoCanje] = useState({ empleado_id: "", producto_id: "", cantidad: "", valor_unitario: "", notas: "" });
+  const [buscarProdCanje, setBuscarProdCanje] = useState("");
+  const [errorCanje, setErrorCanje] = useState("");
+
+  const cargarTraspasos = () => {
+    setCargandoTraspasos(true);
+    API.get("/traspasos?local_id=" + (localId || 1)).then(res => setTraspasos(res.data || [])).catch(() => {}).finally(() => setCargandoTraspasos(false));
+  };
+
+  const cargarCanjes = () => {
+    setCargandoCanjes(true);
+    API.get("/canjes-empleados?local_id=" + (localId || 1)).then(res => setCanjes(res.data || [])).catch(() => {}).finally(() => setCargandoCanjes(false));
+  };
+
+  const cargarEmpleadosCanje = () => {
+    API.get("/empleados?local_id=" + (localId || 1)).then(res => setEmpleadosCanje((res.data || []).filter(e => e.activo))).catch(() => {});
+  };
+
+  const abrirNuevoTraspaso = () => {
+    setErrorTraspaso("");
+    setNuevoTraspaso({ producto_id: "", local_origen: localId || 1, local_destino: (Number(localId) === 2 ? 1 : 2), cantidad: "", notas: "" });
+    setBuscarProdTraspaso("");
+    setShowNuevoTraspaso(true);
+  };
+
+  const guardarTraspaso = async () => {
+    if (!nuevoTraspaso.producto_id) return setErrorTraspaso("Elegi un producto");
+    if (!nuevoTraspaso.cantidad || parseInt(nuevoTraspaso.cantidad) <= 0) return setErrorTraspaso("Cantidad invalida");
+    try {
+      const res = await API.post("/traspasos", {
+        producto_id: nuevoTraspaso.producto_id,
+        cantidad: nuevoTraspaso.cantidad,
+        local_origen: nuevoTraspaso.local_origen,
+        local_destino: nuevoTraspaso.local_destino,
+        usuario_id: usuario?.id, usuario_nombre: usuario?.nombre,
+        notas: nuevoTraspaso.notas || null
+      });
+      setMensaje(res.data.cantidad + " x " + res.data.producto_nombre + " traspasadas!");
+      setShowNuevoTraspaso(false);
+      cargarTraspasos();
+      cargar();
+      setTimeout(() => setMensaje(""), 4000);
+    } catch (e) { setErrorTraspaso(e?.response?.data?.error || "No se pudo registrar el traspaso"); }
+  };
+
+  const abrirNuevoCanje = () => {
+    setErrorCanje("");
+    setNuevoCanje({ empleado_id: "", producto_id: "", cantidad: "", valor_unitario: "", notas: "" });
+    setBuscarProdCanje("");
+    setShowNuevoCanje(true);
+  };
+
+  const guardarCanje = async () => {
+    if (!nuevoCanje.producto_id) return setErrorCanje("Elegi un producto");
+    if (!nuevoCanje.cantidad || parseInt(nuevoCanje.cantidad) <= 0) return setErrorCanje("Cantidad invalida");
+    try {
+      await API.post("/canjes-empleados", {
+        empleado_id: nuevoCanje.empleado_id || null,
+        producto_id: nuevoCanje.producto_id,
+        cantidad: nuevoCanje.cantidad,
+        valor_unitario: nuevoCanje.valor_unitario || null,
+        local_id: localId || 1,
+        usuario_id: usuario?.id, usuario_nombre: usuario?.nombre,
+        notas: nuevoCanje.notas || null
+      });
+      setMensaje("Canje registrado!");
+      setShowNuevoCanje(false);
+      cargarCanjes();
+      cargar();
+      setTimeout(() => setMensaje(""), 4000);
+    } catch (e) { setErrorCanje(e?.response?.data?.error || "No se pudo registrar el canje"); }
+  };
+
   const categorias = ["Capilar", "Facial", "Maquillaje", "Accesorio", "Corporal", "Spa", "Perfume"];
 
   const cargar = async () => {
@@ -2415,9 +2501,15 @@ function Inventario({ localId, usuario }) {
         </div>
       )}
       <div className="tabs">
-        {["stock", "valorizacion", "transito", "alertas", "ajustes"].map(t => (
-          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "transito") cargarTransito(); if (t === "ajustes") cargarAjustesHistorial(); }}>
-            {t === "stock" ? "STOCK" : t === "valorizacion" ? "VALORIZACION" : t === "transito" ? "EN TRANSITO" : t === "alertas" ? "ALERTAS" + (alertas.length > 0 ? " (" + alertas.length + ")" : "") : "HISTORIAL DE AJUSTES"}
+        {["stock", "valorizacion", "transito", "alertas", "ajustes", "traspasos", "canjes"].map(t => (
+          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => {
+            setTab(t);
+            if (t === "transito") cargarTransito();
+            if (t === "ajustes") cargarAjustesHistorial();
+            if (t === "traspasos") cargarTraspasos();
+            if (t === "canjes") { cargarCanjes(); cargarEmpleadosCanje(); }
+          }}>
+            {t === "stock" ? "STOCK" : t === "valorizacion" ? "VALORIZACION" : t === "transito" ? "EN TRANSITO" : t === "alertas" ? "ALERTAS" + (alertas.length > 0 ? " (" + alertas.length + ")" : "") : t === "ajustes" ? "HISTORIAL DE AJUSTES" : t === "traspasos" ? "TRASPASOS ENTRE LOCALES" : "CANJE CON EMPLEADAS"}
           </div>
         ))}
       </div>
@@ -2694,6 +2786,185 @@ function Inventario({ localId, usuario }) {
                 </tbody>
               </table>
             )}
+          </div>
+        </div>
+      )}
+      {tab === "traspasos" && (
+        <div className="fade">
+          <div className="card" style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ fontSize: 11, color: "#65676B" }}>Mandar mercaderia de un local al otro (ej: un producto que no rota en Rio Grande se manda a Ushuaia)</div>
+            <button className="btn btn-p btn-sm" onClick={abrirNuevoTraspaso}>+ Nuevo traspaso</button>
+          </div>
+          <div className="card fade">
+            {cargandoTraspasos ? (
+              <div style={{ textAlign: "center", color: "#65676B", padding: 20, fontSize: 12 }}>Cargando...</div>
+            ) : traspasos.length === 0 ? (
+              <div style={{ textAlign: "center", color: "#65676B", padding: 20, fontSize: 12 }}>Todavia no se registro ningun traspaso</div>
+            ) : (
+              <table>
+                <thead><tr><th>Fecha</th><th>Producto</th><th>Cantidad</th><th>De</th><th>A</th><th>Notas</th><th>Usuario</th></tr></thead>
+                <tbody>
+                  {traspasos.map(t => (
+                    <tr key={t.id}>
+                      <td style={{ fontSize: 11, color: "#65676B" }}>{new Date(t.creado_en).toLocaleString("es-AR")}</td>
+                      <td style={{ fontWeight: 600 }}>{t.producto_nombre}</td>
+                      <td>{t.cantidad}</td>
+                      <td style={{ fontSize: 11 }}>{Number(t.local_origen) === 2 ? "Ushuaia" : "Rio Grande"}</td>
+                      <td style={{ fontSize: 11 }}>{Number(t.local_destino) === 2 ? "Ushuaia" : "Rio Grande"}</td>
+                      <td style={{ fontSize: 11, color: "#65676B" }}>{t.notas || "-"}</td>
+                      <td style={{ fontSize: 11, color: "#65676B" }}>{t.usuario_nombre || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
+      {tab === "canjes" && (
+        <div className="fade">
+          <div className="card" style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ fontSize: 11, color: "#65676B" }}>Pagos en especie: se le entrega mercaderia a una empleada en vez de (o ademas de) dinero. Descuenta del stock sin generar venta ni factura.</div>
+            <button className="btn btn-p btn-sm" onClick={abrirNuevoCanje}>+ Nuevo canje</button>
+          </div>
+          <div className="card fade">
+            {cargandoCanjes ? (
+              <div style={{ textAlign: "center", color: "#65676B", padding: 20, fontSize: 12 }}>Cargando...</div>
+            ) : canjes.length === 0 ? (
+              <div style={{ textAlign: "center", color: "#65676B", padding: 20, fontSize: 12 }}>Todavia no se registro ningun canje</div>
+            ) : (
+              <table>
+                <thead><tr><th>Fecha</th><th>Empleada</th><th>Producto</th><th>Cantidad</th><th>Valor</th><th>Notas</th></tr></thead>
+                <tbody>
+                  {canjes.map(c => (
+                    <tr key={c.id}>
+                      <td style={{ fontSize: 11, color: "#65676B" }}>{new Date(c.creado_en).toLocaleString("es-AR")}</td>
+                      <td style={{ fontWeight: 600 }}>{c.empleado_nombre || "-"}</td>
+                      <td>{c.producto_nombre}</td>
+                      <td>{c.cantidad}</td>
+                      <td style={{ color: "#2d7a4f", fontWeight: 600 }}>{fmt(parseFloat(c.valor_total || 0))}</td>
+                      <td style={{ fontSize: 11, color: "#65676B" }}>{c.notas || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
+      {showNuevoTraspaso && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={() => setShowNuevoTraspaso(false)}>
+          <div className="card" style={{ width: 420, maxWidth: "92vw" }} onClick={e => e.stopPropagation()}>
+            <div className="ct">Nuevo traspaso entre locales</div>
+            <div className="g2" style={{ marginBottom: 10 }}>
+              <div className="fg">
+                <div className="fl">Desde</div>
+                <select className="sel" value={nuevoTraspaso.local_origen} onChange={e => { const v = parseInt(e.target.value); setNuevoTraspaso(p => ({ ...p, local_origen: v, local_destino: v === 2 ? 1 : 2, producto_id: "" })); setBuscarProdTraspaso(""); }}>
+                  <option value={1}>Rio Grande</option>
+                  <option value={2}>Ushuaia</option>
+                </select>
+              </div>
+              <div className="fg">
+                <div className="fl">Hacia</div>
+                <select className="sel" value={nuevoTraspaso.local_destino} onChange={e => { const v = parseInt(e.target.value); setNuevoTraspaso(p => ({ ...p, local_destino: v, local_origen: v === 2 ? 1 : 2, producto_id: "" })); setBuscarProdTraspaso(""); }}>
+                  <option value={1}>Rio Grande</option>
+                  <option value={2}>Ushuaia</option>
+                </select>
+              </div>
+            </div>
+            <div className="fg">
+              <div className="fl">Producto</div>
+              {nuevoTraspaso.producto_id ? (
+                (() => {
+                  const prodSel = productos.find(pr => pr.id === nuevoTraspaso.producto_id);
+                  const stockOrigen = Number(nuevoTraspaso.local_origen) === 2 ? prodSel?.stock_ush : prodSel?.stock_rg;
+                  return (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f7f5f0", borderRadius: 6 }}>
+                      <span style={{ fontSize: 12 }}>{prodSel?.nombre} <span style={{ color: "#999" }}>(stock en origen: {stockOrigen})</span></span>
+                      <span onClick={() => setNuevoTraspaso(p => ({ ...p, producto_id: "" }))} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>cambiar</span>
+                    </div>
+                  );
+                })()
+              ) : (
+                <div>
+                  <input className="inp" placeholder="Buscar producto..." value={buscarProdTraspaso} onChange={e => setBuscarProdTraspaso(e.target.value)} />
+                  {buscarProdTraspaso.trim().length > 0 && (
+                    <div style={{ border: "1px solid #eee", borderRadius: 6, marginTop: 4, maxHeight: 180, overflowY: "auto" }}>
+                      {productos
+                        .filter(pr => (pr.nombre || "").toLowerCase().includes(buscarProdTraspaso.toLowerCase()))
+                        .filter(pr => (Number(nuevoTraspaso.local_origen) === 2 ? (pr.stock_ush || 0) : (pr.stock_rg || 0)) > 0)
+                        .slice(0, 8).map(pr => (
+                        <div key={pr.id} onClick={() => { setNuevoTraspaso(p => ({ ...p, producto_id: pr.id })); setBuscarProdTraspaso(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 12 }}>
+                          {pr.nombre} <span style={{ color: "#999" }}>(stock: {Number(nuevoTraspaso.local_origen) === 2 ? pr.stock_ush : pr.stock_rg})</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="fg"><div className="fl">Cantidad</div><input className="inp" type="number" value={nuevoTraspaso.cantidad} onChange={e => setNuevoTraspaso(p => ({ ...p, cantidad: e.target.value }))} /></div>
+            <div className="fg"><div className="fl">Notas (opcional)</div><input className="inp" placeholder="Ej: no rota en este local" value={nuevoTraspaso.notas} onChange={e => setNuevoTraspaso(p => ({ ...p, notas: e.target.value }))} /></div>
+            {errorTraspaso && <div style={{ color: "#c0392b", fontSize: 12, marginBottom: 8 }}>{errorTraspaso}</div>}
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarTraspaso}>Confirmar traspaso</button>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowNuevoTraspaso(false)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showNuevoCanje && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={() => setShowNuevoCanje(false)}>
+          <div className="card" style={{ width: 420, maxWidth: "92vw" }} onClick={e => e.stopPropagation()}>
+            <div className="ct">Nuevo canje con empleada</div>
+            <div className="fg">
+              <div className="fl">Empleada</div>
+              <select className="sel" value={nuevoCanje.empleado_id} onChange={e => setNuevoCanje(p => ({ ...p, empleado_id: e.target.value }))}>
+                <option value="">Seleccionar...</option>
+                {empleadosCanje.map(emp => <option key={emp.id} value={emp.id}>{emp.nombre}</option>)}
+              </select>
+              {empleadosCanje.length === 0 && <div style={{ fontSize: 11, color: "#999", marginTop: 4 }}>No hay empleadas activas cargadas para este local (se cargan en Comisiones).</div>}
+            </div>
+            <div className="fg">
+              <div className="fl">Producto</div>
+              {nuevoCanje.producto_id ? (
+                (() => {
+                  const prodSel = productos.find(pr => pr.id === nuevoCanje.producto_id);
+                  return (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f7f5f0", borderRadius: 6 }}>
+                      <span style={{ fontSize: 12 }}>{prodSel?.nombre} <span style={{ color: "#999" }}>(stock: {prodSel?.stock_local})</span></span>
+                      <span onClick={() => setNuevoCanje(p => ({ ...p, producto_id: "" }))} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>cambiar</span>
+                    </div>
+                  );
+                })()
+              ) : (
+                <div>
+                  <input className="inp" placeholder="Buscar producto..." value={buscarProdCanje} onChange={e => setBuscarProdCanje(e.target.value)} />
+                  {buscarProdCanje.trim().length > 0 && (
+                    <div style={{ border: "1px solid #eee", borderRadius: 6, marginTop: 4, maxHeight: 180, overflowY: "auto" }}>
+                      {productos
+                        .filter(pr => (pr.nombre || "").toLowerCase().includes(buscarProdCanje.toLowerCase()))
+                        .filter(pr => (pr.stock_local || 0) > 0)
+                        .slice(0, 8).map(pr => (
+                        <div key={pr.id} onClick={() => { setNuevoCanje(p => ({ ...p, producto_id: pr.id, valor_unitario: pr.precio || "" })); setBuscarProdCanje(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 12 }}>
+                          {pr.nombre} <span style={{ color: "#999" }}>(stock: {pr.stock_local})</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="g2">
+              <div className="fg"><div className="fl">Cantidad</div><input className="inp" type="number" value={nuevoCanje.cantidad} onChange={e => setNuevoCanje(p => ({ ...p, cantidad: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Valor unitario</div><input className="inp" type="number" value={nuevoCanje.valor_unitario} onChange={e => setNuevoCanje(p => ({ ...p, valor_unitario: e.target.value }))} /></div>
+            </div>
+            <div className="fg"><div className="fl">Notas (opcional)</div><input className="inp" placeholder="Ej: pago parcial de la quincena" value={nuevoCanje.notas} onChange={e => setNuevoCanje(p => ({ ...p, notas: e.target.value }))} /></div>
+            {errorCanje && <div style={{ color: "#c0392b", fontSize: 12, marginBottom: 8 }}>{errorCanje}</div>}
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarCanje}>Confirmar canje</button>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowNuevoCanje(false)}>Cancelar</button>
+            </div>
           </div>
         </div>
       )}

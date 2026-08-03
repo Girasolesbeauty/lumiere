@@ -29,6 +29,8 @@ app.use('/api/postventa', require('./routes/postventa'));
 app.use('/api/locales', require('./routes/locales'));
 app.use('/api/comisiones', require('./routes/comisiones'));
 app.use('/api/empleados', require('./routes/empleados'));
+app.use('/api/traspasos', require('./routes/traspasos'));
+app.use('/api/canjes-empleados', require('./routes/canjes-empleados'));
 app.use('/api/arca', require('./routes/arca'));
  app.use('/api/config-ticket', require('./routes/config-ticket'));
 app.use('/api/configuracion', require('./routes/configuracion'));
