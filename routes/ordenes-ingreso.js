@@ -236,35 +236,21 @@ router.delete('/:id', async (req, res) => {
     const itemsRes = await client.query('SELECT * FROM ordenes_ingreso_items WHERE orden_id = $1', [id]);
     for (const item of itemsRes.rows) {
       if (!item.producto_id) continue;
-      if ((item.cantidad_rg || 0) > 0) {
-        if (item.revisado_rg) {
-          await client.query(
-            `UPDATE productos SET stock_rg = GREATEST(COALESCE(stock_rg,0) - $1, 0),
-               stock = GREATEST(COALESCE(stock_rg,0) - $1, 0) + COALESCE(stock_ush,0)
-             WHERE id = $2`,
-            [item.recibido_rg || 0, item.producto_id]
-          );
-        } else {
-          await client.query(
-            `UPDATE productos SET stock_transito_rg = GREATEST(COALESCE(stock_transito_rg,0) - $1, 0) WHERE id = $2`,
-            [item.cantidad_rg, item.producto_id]
-          );
-        }
+      // Si el item ya fue recibido (revisado_rg/ush = true), esa mercaderia llego de verdad y
+      // esta fisicamente en el local -- borrar el registro administrativo de la orden NO debe
+      // restarle stock real al producto. Solo se libera el "en transito" de lo que todavia NO
+      // se habia confirmado como recibido (eso si es correcto revertirlo, porque nunca llego).
+      if ((item.cantidad_rg || 0) > 0 && !item.revisado_rg) {
+        await client.query(
+          `UPDATE productos SET stock_transito_rg = GREATEST(COALESCE(stock_transito_rg,0) - $1, 0) WHERE id = $2`,
+          [item.cantidad_rg, item.producto_id]
+        );
       }
-      if ((item.cantidad_ush || 0) > 0) {
-        if (item.revisado_ush) {
-          await client.query(
-            `UPDATE productos SET stock_ush = GREATEST(COALESCE(stock_ush,0) - $1, 0),
-               stock = COALESCE(stock_rg,0) + GREATEST(COALESCE(stock_ush,0) - $1, 0)
-             WHERE id = $2`,
-            [item.recibido_ush || 0, item.producto_id]
-          );
-        } else {
-          await client.query(
-            `UPDATE productos SET stock_transito_ush = GREATEST(COALESCE(stock_transito_ush,0) - $1, 0) WHERE id = $2`,
-            [item.cantidad_ush, item.producto_id]
-          );
-        }
+      if ((item.cantidad_ush || 0) > 0 && !item.revisado_ush) {
+        await client.query(
+          `UPDATE productos SET stock_transito_ush = GREATEST(COALESCE(stock_transito_ush,0) - $1, 0) WHERE id = $2`,
+          [item.cantidad_ush, item.producto_id]
+        );
       }
     }
 
@@ -383,9 +369,13 @@ router.put('/:ordenId/items/:itemId/recibir', async (req, res) => {
     }
 
     const itemsRes = await client.query('SELECT * FROM ordenes_ingreso_items WHERE orden_id = $1', [req.params.ordenId]);
-    const completa = itemsRes.rows.every(i =>
-      (i.cantidad_rg > 0 ? i.revisado_rg : true) && (i.cantidad_ush > 0 ? i.revisado_ush : true)
-    );
+    const completa = itemsRes.rows.every(i => {
+      // Un item con cantidad 0 en los dos locales es un dato raro (no deberia pasar) --
+      // por seguridad, no lo damos por "hecho" solo, exigimos que se haya revisado al menos
+      // uno de los dos lados para que cuente como resuelto.
+      if ((i.cantidad_rg || 0) === 0 && (i.cantidad_ush || 0) === 0) return i.revisado_rg || i.revisado_ush;
+      return (i.cantidad_rg > 0 ? i.revisado_rg : true) && (i.cantidad_ush > 0 ? i.revisado_ush : true);
+    });
     if (completa) {
       await client.query("UPDATE ordenes_ingreso SET estado = 'recibida' WHERE id = $1", [req.params.ordenId]);
     }
