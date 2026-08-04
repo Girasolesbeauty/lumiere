@@ -56,6 +56,7 @@ router.get('/con-stock', async (req, res) => {
              COALESCE(c.telefono, p.telefono_manual) AS telefono,
              c.cuit_dni,
              pr.nombre AS producto_nombre,
+             CASE WHEN p.local_id = 2 THEN 'Ushuaia' ELSE 'Rio Grande' END AS local_nombre,
              CASE WHEN p.local_id = 2 THEN COALESCE(pr.stock_ush, 0) ELSE COALESCE(pr.stock_rg, 0) END AS stock_total
       FROM pedidos_clientas p
       LEFT JOIN clientes c ON c.id = p.cliente_id

@@ -5177,8 +5177,9 @@ function PostventaWA() {
           {pedidosListos.length === 0 ? <div style={{ fontSize: 12, color: "#999", padding: "10px 0" }}>No hay pedidos con stock disponible ahora.</div> : pedidosListos.map(pd => (
             <div key={pd.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>{pd.cliente_nombre}</div>
+                <div style={{ fontSize: 13, fontWeight: 500 }}>{pd.cliente_nombre} <span className="badge" style={{ background: pd.local_id === 2 ? "#2471a322" : "#c9a84c22", color: pd.local_id === 2 ? "#2471a3" : "#8a6d1f", fontSize: 9, marginLeft: 4 }}>{pd.local_nombre}</span></div>
                 <div style={{ fontSize: 11, color: "#888" }}>{pd.producto_nombre} · stock {pd.stock_total}</div>
+                <div style={{ fontSize: 11, color: "#888" }}>📱 {pd.telefono || "sin telefono"}</div>
               </div>
               <button className="btn btn-sm" style={{ background: "#25D366", color: "#fff", fontSize: 12 }} onClick={() => avisarPedido(pd)}>Enviar WhatsApp</button>
             </div>
