@@ -6654,6 +6654,8 @@ function Tareas({ usuario, localId, paletaActual }) {
   const [showNuevo, setShowNuevo] = useState(false);
   const [nuevo, setNuevo] = useState({ titulo: "", descripcion: "", urgencia: "media", asignado_a: "" });
   const [editando, setEditando] = useState(null);
+  const [marcandoError, setMarcandoError] = useState(null);
+  const [notaErrorInput, setNotaErrorInput] = useState("");
 
   const cargar = () => {
     const params = new URLSearchParams();
@@ -6681,8 +6683,17 @@ function Tareas({ usuario, localId, paletaActual }) {
     try { await API.put("/tareas/" + t.id, { estado }); cargar(); } catch (e) { setMensaje("Error al actualizar"); }
   };
 
+  const confirmarError = async () => {
+    if (!notaErrorInput.trim()) return setMensaje("Contá qué falta o qué paso");
+    try {
+      await API.put("/tareas/" + marcandoError.id, { estado: "error", nota_error: notaErrorInput.trim() });
+      setMarcandoError(null); setNotaErrorInput("");
+      cargar();
+    } catch (e) { setMensaje(e.response?.data?.error || "Error al marcar"); }
+  };
+
   const colorUrgencia = { baja: p.textMuted, media: "#2471a3", alta: "#e67e22", urgente: "#c0392b" };
-  const labelEstado = { pendiente: "Pendiente", en_curso: "En curso", finalizada: "Finalizada" };
+  const labelEstado = { pendiente: "Pendiente", en_curso: "En curso", finalizada: "Finalizada", error: "Error" };
 
   return (
     <div className="fade">
@@ -6736,17 +6747,24 @@ function Tareas({ usuario, localId, paletaActual }) {
                   <span className="badge" style={{ background: (colorUrgencia[t.urgencia] || p.textMuted) + "20", color: colorUrgencia[t.urgencia] || p.textMuted, fontSize: 9 }}>{t.urgencia}</span>
                 </div>
                 {t.descripcion && <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 6 }}>{t.descripcion}</div>}
+                {t.estado === "error" && t.nota_error && (
+                  <div style={{ fontSize: 12, color: "#c0392b", background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "6px 10px", marginBottom: 6 }}>
+                    ⚠️ {t.nota_error}
+                  </div>
+                )}
                 <div style={{ fontSize: 10, color: p.textMuted }}>
                   Para: <b>{t.asignado_nombre}</b> · Creada el {new Date(t.creado_en).toLocaleDateString("es-AR")}
                   {t.finalizada_en && <> · Finalizada el {new Date(t.finalizada_en).toLocaleDateString("es-AR")}</>}
                 </div>
               </div>
               <div style={{ textAlign: "right" }}>
-                <span className={"badge " + (t.estado === "finalizada" ? "bg" : t.estado === "en_curso" ? "bb" : "bx")} style={{ marginBottom: 8, display: "inline-block" }}>{labelEstado[t.estado]}</span>
+                <span className={"badge " + (t.estado === "finalizada" ? "bg" : t.estado === "en_curso" ? "bb" : t.estado === "error" ? "br" : "bx")} style={{ marginBottom: 8, display: "inline-block" }}>{labelEstado[t.estado]}</span>
                 {t.estado !== "finalizada" && (String(t.asignado_a) === String(usuario?.id) || esJefe) && (
-                  <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                  <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
                     {t.estado === "pendiente" && <button className="btn btn-sm" onClick={() => cambiarEstado(t, "en_curso")}>Empezar</button>}
                     {t.estado === "en_curso" && <button className="btn btn-p btn-sm" onClick={() => cambiarEstado(t, "finalizada")}>Finalizar</button>}
+                    {(t.estado === "pendiente" || t.estado === "en_curso") && <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => { setMarcandoError(t); setNotaErrorInput(""); }}>Marcar error</button>}
+                    {t.estado === "error" && <button className="btn btn-p btn-sm" onClick={() => cambiarEstado(t, "en_curso")}>Resolver y seguir</button>}
                   </div>
                 )}
               </div>
@@ -6754,6 +6772,22 @@ function Tareas({ usuario, localId, paletaActual }) {
           </div>
         ))}
       </div>
+
+      {marcandoError && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={() => setMarcandoError(null)}>
+          <div className="card fade" style={{ maxWidth: 420, width: "90vw" }} onClick={e => e.stopPropagation()}>
+            <div className="ct">Marcar con error</div>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>{marcandoError.titulo}</div>
+            <div className="fg"><div className="fl">Que falta o que paso?</div>
+              <textarea className="inp" rows={3} autoFocus value={notaErrorInput} onChange={e => setNotaErrorInput(e.target.value)} placeholder="Ej: falta el codigo de barras del producto para poder cargarlo" />
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setMarcandoError(null)}>Cancelar</button>
+              <button className="btn btn-p" style={{ flex: 1, background: "#c0392b" }} onClick={confirmarError}>Marcar error</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showNuevo && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={() => setShowNuevo(false)}>

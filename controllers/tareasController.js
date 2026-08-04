@@ -38,17 +38,24 @@ const crearTarea = async (req, res) => {
 const actualizarTarea = async (req, res) => {
   try {
     const { id } = req.params;
-    const { titulo, descripcion, urgencia, estado, asignado_a, asignado_nombre } = req.body;
+    const { titulo, descripcion, urgencia, estado, asignado_a, asignado_nombre, nota_error } = req.body;
 
     const actual = await pool.query('SELECT * FROM tareas WHERE id = $1', [id]);
     if (actual.rows.length === 0) return res.status(404).json({ error: 'Tarea no encontrada' });
     const t = actual.rows[0];
+
+    if (estado === 'error' && !(nota_error || '').trim()) {
+      return res.status(400).json({ error: 'Contá qué falta o qué paso para marcarla con error' });
+    }
 
     let iniciada_en = t.iniciada_en;
     let finalizada_en = t.finalizada_en;
     if (estado === 'en_curso' && !iniciada_en) iniciada_en = new Date();
     if (estado === 'finalizada' && !finalizada_en) finalizada_en = new Date();
     if (estado && estado !== 'finalizada') finalizada_en = null;
+    // Al resolver el error y volver a trabajarla, se limpia la nota vieja (a menos que se
+    // este justamente marcando el error ahora, en cuyo caso se guarda la nueva).
+    const notaErrorFinal = estado === 'error' ? nota_error.trim() : (estado ? null : t.nota_error);
 
     const r = await pool.query(
       `UPDATE tareas SET
@@ -59,9 +66,10 @@ const actualizarTarea = async (req, res) => {
         asignado_a = COALESCE($5, asignado_a),
         asignado_nombre = COALESCE($6, asignado_nombre),
         iniciada_en = $7,
-        finalizada_en = $8
-       WHERE id = $9 RETURNING *`,
-      [titulo, descripcion, urgencia, estado, asignado_a, asignado_nombre, iniciada_en, finalizada_en, id]
+        finalizada_en = $8,
+        nota_error = $9
+       WHERE id = $10 RETURNING *`,
+      [titulo, descripcion, urgencia, estado, asignado_a, asignado_nombre, iniciada_en, finalizada_en, notaErrorFinal, id]
     );
     res.json(r.rows[0]);
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
