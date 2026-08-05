@@ -134,4 +134,26 @@ router.put('/:local_id/pagar', async (req, res) => {
   }
 });
 
+// Calcula y guarda la comision de un dia (por defecto, ayer) para TODOS los locales.
+// Pensado para llamarse a mano (recuperar un dia que se paso) o desde un cron diario,
+// asi el calculo no depende de que alguien abra la pantalla de Comisiones ese dia.
+router.post('/cerrar-dia', async (req, res) => {
+  try {
+    const { fecha } = req.body || {};
+    let fechaCalcular = fecha;
+    if (!fechaCalcular) {
+      const ayer = new Date();
+      ayer.setDate(ayer.getDate() - 1);
+      fechaCalcular = ayer.toISOString().slice(0, 10);
+    }
+    const locales = await pool.query('SELECT id FROM locales WHERE activo = TRUE ORDER BY id');
+    const resultados = [];
+    for (const loc of locales.rows) {
+      const data = await calcularYGuardarDia(loc.id, fechaCalcular);
+      resultados.push({ local_id: loc.id, ...data });
+    }
+    res.json({ fecha: fechaCalcular, resultados });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 module.exports = router;

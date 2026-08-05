@@ -6312,8 +6312,22 @@ function Comisiones({ localId }) {
   const [mensaje, setMensaje] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const cargar = () => {
+  const cargar = async () => {
     setLoading(true);
+    // Antes de mostrar los datos, nos aseguramos de que los ultimos 7 dias esten calculados
+    // (por si alguno se quedo sin calcular porque nadie abrio esta pantalla ese dia).
+    // Recalcular un dia ya calculado no hace dano -- no toca si ya esta pagado o no.
+    try {
+      const hoy = new Date();
+      const fechas = [];
+      for (let i = 1; i <= 7; i++) {
+        const d = new Date(hoy);
+        d.setDate(d.getDate() - i);
+        fechas.push(d.toISOString().slice(0, 10));
+      }
+      await Promise.all(fechas.map(f => API.post("/comisiones/cerrar-dia", { fecha: f }).catch(() => {})));
+    } catch (e) { /* si falla, seguimos igual con la carga normal */ }
+
     Promise.all([
       API.get("/comisiones/" + (localId || 1)),
       API.get("/comisiones/" + (localId || 1) + "/historial")
