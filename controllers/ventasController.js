@@ -110,7 +110,7 @@ const create = async (req, res) => {
       cliente_id, tipo_factura, items, descuento, canal, cupon_codigo, local_id,
       medio_pago_id, medio_pago_nombre, total_con_interes, es_preventa, nombre_preventa,
       usuario_id, usuario_nombre, inicio_venta, duracion_segundos, monto_gift_card, insumos_usados, pagos, referencia,
-      justificaciones_stock, monto_sena, sena_medio_pago_id, sena_medio_pago_nombre, sena_referencia } = req.body;
+      justificaciones_stock } = req.body;
 
     let subtotal = 0;
     for (const item of items) {
@@ -189,15 +189,13 @@ const create = async (req, res) => {
     // Se calcula reci\u00e9n ac\u00e1 porque depende de 'total', que se define m\u00e1s arriba.
     const estadoFacturacionInicial = (es_preventa === true || totalGCInicial >= total) ? 'no_aplica' : 'pendiente';
 
-    const montoSenaInicial = (es_preventa === true) ? (parseFloat(monto_sena) || 0) : 0;
-
     const venta = await client.query(
       `INSERT INTO ventas
         (numero_factura, cliente_id, tipo_factura, subtotal, descuento, total, canal, local_id,
          medio_pago_id, medio_pago, es_preventa, nombre_preventa, estado_pago,
          usuario_id, inicio_venta, duracion_segundos, monto_gift_card, preventa_local, referencia, cupon_id,
-         estado_facturacion, monto_sena, sena_medio_pago_id, sena_medio_pago_nombre, sena_referencia)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25) RETURNING *`,
+         estado_facturacion)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING *`,
       [
         numero, cliente_id, tipo_factura, subtotal, descuento_total, total,
         canal || 'presencial', local_id || 1,
@@ -209,11 +207,7 @@ const create = async (req, res) => {
         es_preventa === true ? (local_id || 1) : null,
         referencia || null,
         cuponId,
-        estadoFacturacionInicial,
-        montoSenaInicial,
-        montoSenaInicial > 0 ? (sena_medio_pago_id || null) : null,
-        montoSenaInicial > 0 ? (sena_medio_pago_nombre || null) : null,
-        montoSenaInicial > 0 ? (sena_referencia || null) : null
+        estadoFacturacionInicial
       ]
     );
 
@@ -296,9 +290,12 @@ const create = async (req, res) => {
       }
     }
 
-    // Las preventas no generan movimiento de caja hasta que se cobran... salvo la seña,
-    // que es plata que entra de verdad hoy (aunque el producto siga en transito).
-    // La parte pagada con gift card NO se cuenta (esa plata ya entró al emitir la gift card).
+    // Las preventas no generan movimiento de caja hasta que se cobran.
+    // La parte pagada con gift card NO se cuenta (esa plata ya entro al emitir la gift card).
+    // OJO: el ingreso en movimientos_caja_efectivo (la "Caja" que se cuenta contra lo fisico)
+    // NO se acredita aca -- se acredita recien cuando ARCA confirma la factura de verdad
+    // (ver arca.js). Asi, si una venta falla al facturar y se vuelve a cargar por error,
+    // no queda plata fantasma sumada en la Caja por algo que nunca se facturo.
     const montoGC = parseFloat(monto_gift_card) || 0;
     const ingresoCaja = total - montoGC;
     if (es_preventa !== true && ingresoCaja > 0) {
@@ -307,20 +304,6 @@ const create = async (req, res) => {
          VALUES ($1, 'I', $2, $3, $4)`,
         ['Venta ' + numero, ingresoCaja, numero, local_id || 1]
       );
-      await acreditarEfectivoEnCaja(client, {
-        pagos, medio_pago_id, medio_pago_nombre, monto: ingresoCaja,
-        local_id: local_id || 1, usuario_id, concepto: 'Venta ' + numero
-      });
-    } else if (es_preventa === true && montoSenaInicial > 0) {
-      await client.query(
-        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id)
-         VALUES ($1, 'I', $2, $3, $4)`,
-        ['Seña preventa ' + numero, montoSenaInicial, sena_referencia || numero, local_id || 1]
-      );
-      await acreditarEfectivoEnCaja(client, {
-        pagos: null, medio_pago_id: sena_medio_pago_id, medio_pago_nombre: sena_medio_pago_nombre, monto: montoSenaInicial,
-        local_id: local_id || 1, usuario_id, concepto: 'Seña preventa ' + numero
-      });
     }
 
     if (cliente_id) {
@@ -471,21 +454,18 @@ const confirmarEntrega = async (req, res) => {
       [medio_pago_id || null, medio_pago_nombre || null, totalFinal, id]
     );
 
-    // Ahora si genera el movimiento de caja, porque recien ahora se cobra el saldo.
-    // Si hubo una seña, esa plata ya entro a caja cuando se cargo la preventa: no se vuelve a cobrar.
+    // Ahora si genera el movimiento de caja, porque recien ahora se cobra
     const montoGC = parseFloat(venta.monto_gift_card) || 0;
-    const montoSenaYaPagada = parseFloat(venta.monto_sena) || 0;
-    const ingresoCaja = totalFinal - montoGC - montoSenaYaPagada;
+    const ingresoCaja = totalFinal - montoGC;
     if (ingresoCaja > 0) {
-      const conceptoEntrega = (montoSenaYaPagada > 0 ? 'Saldo entrega preventa ' : 'Entrega preventa ') + (venta.numero_factura || '');
       await client.query(
         `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id)
          VALUES ($1, 'I', $2, $3, $4)`,
-        [conceptoEntrega, ingresoCaja, venta.numero_factura, venta.local_id || 1]
+        ['Entrega preventa ' + (venta.numero_factura || ''), ingresoCaja, venta.numero_factura, venta.local_id || 1]
       );
       await acreditarEfectivoEnCaja(client, {
         pagos: null, medio_pago_id, medio_pago_nombre, monto: ingresoCaja,
-        local_id: venta.local_id || 1, usuario_id, concepto: conceptoEntrega
+        local_id: venta.local_id || 1, usuario_id, concepto: 'Entrega preventa ' + (venta.numero_factura || '')
       });
     }
 
@@ -813,4 +793,4 @@ const editarOnline = async (req, res) => {
   }
 };
 
-module.exports = { getAll, getById, create, update, confirmarEntrega, getResumenHoy, getResumenMes, crearOnline, eliminarOnline, editarOnline };
+module.exports = { getAll, getById, create, update, confirmarEntrega, getResumenHoy, getResumenMes, crearOnline, eliminarOnline, editarOnline, acreditarEfectivoEnCaja };

@@ -3,14 +3,26 @@ const router = express.Router();
 const forge = require('node-forge');
 const axios = require('axios');
 const pool = require('../config/database');
-
-const CUIT = '30717641945';
-const PUNTO_VENTA = 5;
-const CERT_CONTENT = process.env.ARCA_CERT;
-const KEY_CONTENT = process.env.ARCA_KEY;
+const { acreditarEfectivoEnCaja } = require('../controllers/ventasController');
 
 const WSAA_URL = 'https://wsaa.afip.gov.ar/ws/services/LoginCms';
 const WSFE_URL = 'https://servicios1.afip.gov.ar/wsfev1/service.asmx';
+
+// Lee los datos fiscales (CUIT, punto de venta, certificado y clave) desde la configuracion
+// del negocio guardada en la base. Si algun campo no esta cargado ahi, cae a las variables
+// de entorno ARCA_CERT/ARCA_KEY (asi esta copia sigue funcionando igual que antes, sin
+// obligar a recargar el certificado si ya estaba puesto por variable de entorno).
+async function obtenerConfigArca() {
+  const r = await pool.query('SELECT cuit, punto_venta, arca_cert, arca_key FROM configuracion_negocio WHERE id = 1');
+  const fila = r.rows[0] || {};
+  const cuit = (fila.cuit || process.env.ARCA_CUIT || '').replace(/[^0-9]/g, '');
+  const puntoVenta = parseInt(fila.punto_venta) || parseInt(process.env.ARCA_PUNTO_VENTA) || 1;
+  const cert = fila.arca_cert || process.env.ARCA_CERT;
+  const key = fila.arca_key || process.env.ARCA_KEY;
+  if (!cuit) throw new Error('Falta configurar el CUIT en Configuracion del Negocio antes de facturar');
+  if (!cert || !key) throw new Error('Falta configurar el certificado de ARCA en Configuracion del Negocio antes de facturar');
+  return { cuit, puntoVenta, cert, key };
+}
 
 function generarTRA() {
   const ahora = new Date();
@@ -27,9 +39,7 @@ function generarTRA() {
 </loginTicketRequest>`;
 }
 
-function firmarTRA(tra) {
-  const cert = CERT_CONTENT;
-  const key = KEY_CONTENT;
+function firmarTRA(tra, cert, key) {
   const p7 = forge.pkcs7.createSignedData();
   p7.content = forge.util.createBuffer(tra, 'utf8');
   p7.addCertificate(cert);
@@ -52,7 +62,7 @@ function firmarTRA(tra) {
   return Buffer.from(der, 'binary').toString('base64');
 }
 
-async function obtenerToken() {
+async function obtenerToken(cfg) {
   const tokenGuardado = await pool.query(
     `SELECT token, sign, expiracion FROM arca_tokens 
      WHERE expiracion > NOW() 
@@ -62,7 +72,7 @@ async function obtenerToken() {
     return { token: tokenGuardado.rows[0].token, sign: tokenGuardado.rows[0].sign };
   }
   const tra = generarTRA();
-  const cms = firmarTRA(tra);
+  const cms = firmarTRA(tra, cfg.cert, cfg.key);
   const soapBody = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
   <soap:Body>
@@ -95,7 +105,7 @@ async function obtenerToken() {
   return { token, sign };
 }
 
-async function obtenerUltimoComprobante(tipo, token, sign) {
+async function obtenerUltimoComprobante(tipo, token, sign, cfg) {
   const tipoNum = tipo === 'A' ? 1 : tipo === 'B' ? 6 : 11;
   const soapBody = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
@@ -104,9 +114,9 @@ async function obtenerUltimoComprobante(tipo, token, sign) {
       <Auth>
         <Token>${token}</Token>
         <Sign>${sign}</Sign>
-        <Cuit>${CUIT}</Cuit>
+        <Cuit>${cfg.cuit}</Cuit>
       </Auth>
-      <PtoVta>${PUNTO_VENTA}</PtoVta>
+      <PtoVta>${cfg.puntoVenta}</PtoVta>
       <CbteTipo>${tipoNum}</CbteTipo>
     </FECompUltimoAutorizado>
   </soap:Body>
@@ -120,9 +130,10 @@ async function obtenerUltimoComprobante(tipo, token, sign) {
 
 // --- Logica reutilizable: pedir CAE para una venta puntual ---
 async function intentarEmitirCAE({ tipo, items, total, cliente_cuit, venta_id }) {
-  const { token, sign } = await obtenerToken();
+  const cfg = await obtenerConfigArca();
+  const { token, sign } = await obtenerToken(cfg);
   const tipoNum = tipo === 'A' ? 1 : tipo === 'B' ? 6 : 11;
-  const nroComprobante = await obtenerUltimoComprobante(tipo, token, sign);
+  const nroComprobante = await obtenerUltimoComprobante(tipo, token, sign, cfg);
   const hoy = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const ivaTotal = 0;
   const neto = total;
@@ -147,12 +158,12 @@ async function intentarEmitirCAE({ tipo, items, total, cliente_cuit, venta_id })
       <Auth>
         <Token>${token}</Token>
         <Sign>${sign}</Sign>
-        <Cuit>${CUIT}</Cuit>
+        <Cuit>${cfg.cuit}</Cuit>
       </Auth>
       <FeCAEReq>
         <FeCabReq>
           <CantReg>1</CantReg>
-          <PtoVta>${PUNTO_VENTA}</PtoVta>
+          <PtoVta>${cfg.puntoVenta}</PtoVta>
           <CbteTipo>${tipoNum}</CbteTipo>
         </FeCabReq>
         <FeDetReq>
@@ -200,13 +211,46 @@ async function intentarEmitirCAE({ tipo, items, total, cliente_cuit, venta_id })
       `UPDATE ventas SET cae = $1, estado = $2, nro_comprobante = $3, cae_vto = $4, punto_venta = $5,
          estado_facturacion = 'facturada', intentos_facturacion = intentos_facturacion + 1, ultimo_error_facturacion = NULL
        WHERE id = $6`,
-      [cae, 'emitida', nroComprobante, caeFch, PUNTO_VENTA, venta_id]
+      [cae, 'emitida', nroComprobante, caeFch, cfg.puntoVenta, venta_id]
     );
+
+    // Recien ahora que ARCA confirmo la factura de verdad, se acredita el efectivo en la
+    // Caja (movimientos_caja_efectivo). Asi, si una venta fallo al facturar y alguien la
+    // volvio a cargar de nuevo por error (pensando que no habia funcionado), la version
+    // que quedo sin facturar nunca suma plata fantasma a la Caja -- solo la que
+    // efectivamente se emitio.
+    try {
+      const ventaRow = await pool.query(
+        `SELECT local_id, usuario_id, medio_pago_id, medio_pago, monto_gift_card, total, numero_factura
+         FROM ventas WHERE id = $1`, [venta_id]
+      );
+      if (ventaRow.rows.length > 0) {
+        const v = ventaRow.rows[0];
+        const pagosMixtos = await pool.query(
+          `SELECT medio_pago_id, medio_pago_nombre, importe FROM venta_pagos WHERE venta_id = $1`,
+          [venta_id]
+        );
+        const montoGC = parseFloat(v.monto_gift_card) || 0;
+        const ingresoCaja = parseFloat(v.total) - montoGC;
+        if (ingresoCaja > 0) {
+          await acreditarEfectivoEnCaja(pool, {
+            pagos: pagosMixtos.rows.length > 0 ? pagosMixtos.rows : null,
+            medio_pago_id: v.medio_pago_id, medio_pago_nombre: v.medio_pago,
+            monto: ingresoCaja, local_id: v.local_id || 1, usuario_id: v.usuario_id,
+            concepto: 'Venta ' + (v.numero_factura || '')
+          });
+        }
+      }
+    } catch (e) {
+      console.error('No se pudo acreditar el efectivo en Caja para la venta ' + venta_id + ':', e.message);
+      // No frenamos la respuesta de la factura por esto -- la factura ya se emitio bien,
+      // esto solo afecta el resumen de Caja y se puede corregir a mano si hace falta.
+    }
   }
 
   return {
-    cae, caeFch, nroComprobante, tipo, puntoVenta: PUNTO_VENTA,
-    mensaje: `Factura ${tipo} N° ${String(PUNTO_VENTA).padStart(4,'0')}-${String(nroComprobante).padStart(8,'0')} emitida correctamente`
+    cae, caeFch, nroComprobante, tipo, puntoVenta: cfg.puntoVenta,
+    mensaje: `Factura ${tipo} N° ${String(cfg.puntoVenta).padStart(4,'0')}-${String(nroComprobante).padStart(8,'0')} emitida correctamente`
   };
 }
 
@@ -222,8 +266,9 @@ async function marcarError(venta_id, mensaje) {
 router.get('/ultimo-comprobante/:tipo', async (req, res) => {
   try {
     const { tipo } = req.params;
-    const { token, sign } = await obtenerToken();
-    const siguiente = await obtenerUltimoComprobante(tipo, token, sign);
+    const cfg = await obtenerConfigArca();
+    const { token, sign } = await obtenerToken(cfg);
+    const siguiente = await obtenerUltimoComprobante(tipo, token, sign, cfg);
     res.json({ siguiente });
   } catch (error) {
     res.status(500).json({ error: 'Error: ' + error.message });
@@ -244,8 +289,9 @@ router.post('/emitir', async (req, res) => {
 
 router.get('/estado', async (req, res) => {
   try {
-    await obtenerToken();
-    res.json({ estado: 'conectado', cuit: CUIT, puntoVenta: PUNTO_VENTA });
+    const cfg = await obtenerConfigArca();
+    await obtenerToken(cfg);
+    res.json({ estado: 'conectado', cuit: cfg.cuit, puntoVenta: cfg.puntoVenta });
   } catch (error) {
     res.status(500).json({ estado: 'error', mensaje: error.message });
   }
