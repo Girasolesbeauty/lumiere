@@ -29,7 +29,7 @@ router.get('/saldo', async (req, res) => {
     const { local_id } = req.query;
     let query = `
       SELECT 
-        SUM(CASE WHEN tipo = 'ingreso' THEN importe ELSE -importe END) as saldo
+        SUM(CASE WHEN tipo IN ('ingreso', 'I') THEN importe ELSE -importe END) as saldo
       FROM movimientos_caja_efectivo
       WHERE (anulado IS NULL OR anulado = FALSE)
     `;
