@@ -3121,7 +3121,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
   const [factExtLocal, setFactExtLocal] = useState("1");
   const [equilibrio, setEquilibrio] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [nuevoEgreso, setNuevoEgreso] = useState({ concepto: "", importe: "", categoria_id: "", forma_pago: "", cuenta_pago_id: "", local_id: "" });
+  const [nuevoEgreso, setNuevoEgreso] = useState({ concepto: "", importe: "", categoria_id: "", forma_pago: "", cuenta_pago_id: "", local_id: "", fecha: new Date().toISOString().slice(0, 10) });
   const [categoriasCosto, setCategoriasCosto] = useState([]);
   const [cuentasPago, setCuentasPago] = useState([]);
   const [detalleMovs, setDetalleMovs] = useState([]);
@@ -3239,7 +3239,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
     try {
       await agregarEgreso({ ...nuevoEgreso, referencia: "Manual", usuario_id: usuario?.id || null });
       setMensaje("Egreso registrado!");
-      setNuevoEgreso({ concepto: "", importe: "", categoria_id: "", forma_pago: "", cuenta_pago_id: "", local_id: "" });
+      setNuevoEgreso({ concepto: "", importe: "", categoria_id: "", forma_pago: "", cuenta_pago_id: "", local_id: "", fecha: new Date().toISOString().slice(0, 10) });
       cargarDatos();
       cargarUltimoEgreso();
       setTimeout(() => setMensaje(""), 3000);
@@ -3350,6 +3350,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
               </div>
               <div className="fg"><div className="fl">Concepto (detalle)</div><input className="inp" placeholder="Ej: Factura luz enero" value={nuevoEgreso.concepto} onChange={e => setNuevoEgreso(p => ({ ...p, concepto: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Importe ($)</div><input className="inp" type="number" placeholder="35000" value={nuevoEgreso.importe} onChange={e => setNuevoEgreso(p => ({ ...p, importe: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Fecha del gasto</div><input className="inp" type="date" value={nuevoEgreso.fecha} onChange={e => setNuevoEgreso(p => ({ ...p, fecha: e.target.value }))} /></div>
               <div className="fg">
                 <div className="fl">Forma de pago</div>
                 <select className="sel" value={nuevoEgreso.forma_pago} onChange={e => setNuevoEgreso(p => ({ ...p, forma_pago: e.target.value, cuenta_pago_id: "" }))}>
@@ -5915,11 +5916,26 @@ function ConfiguracionNegocio() {
   const err = (e) => { setMensaje("Error: " + (e.response?.data?.error || e.message)); setTimeout(() => setMensaje(""), 5000); };
 
   // ---- General ----
-  const [general, setGeneral] = useState({ nombre_negocio: "", logo_url: "" });
+  const [general, setGeneral] = useState({ nombre_negocio: "", logo_url: "", cuit: "", punto_venta: 1, arca_cert_configurado: false, arca_key_configurado: false });
   const [loadingGeneral, setLoadingGeneral] = useState(true);
   useEffect(() => { API.get("/configuracion").then(r => { setGeneral(r.data); setLoadingGeneral(false); }).catch(() => setLoadingGeneral(false)); }, []);
   const guardarGeneral = async () => {
     try { await API.put("/configuracion", general); ok("Configuracion guardada!"); } catch (e) { err(e); }
+  };
+
+  // ---- Datos fiscales (ARCA) ----
+  const [certInput, setCertInput] = useState("");
+  const [keyInput, setKeyInput] = useState("");
+  const guardarFiscal = async () => {
+    try {
+      const res = await API.put("/configuracion", {
+        cuit: general.cuit, punto_venta: general.punto_venta,
+        arca_cert: certInput.trim() || undefined, arca_key: keyInput.trim() || undefined
+      });
+      setGeneral(p2 => ({ ...p2, ...res.data }));
+      setCertInput(""); setKeyInput("");
+      ok("Datos fiscales guardados!");
+    } catch (e) { err(e); }
   };
 
   // ---- Locales ----
@@ -5992,7 +6008,7 @@ function ConfiguracionNegocio() {
     } catch (e) { err(e); }
   };
 
-  const TABS = [["general", "GENERAL"], ["locales", "LOCALES"], ["medios", "MEDIOS DE PAGO"], ["categorias", "CATEGORIAS DE COSTO"], ["cuentas", "CUENTAS / BANCOS"]];
+  const TABS = [["general", "GENERAL"], ["fiscal", "DATOS FISCALES (ARCA)"], ["locales", "LOCALES"], ["medios", "MEDIOS DE PAGO"], ["categorias", "CATEGORIAS DE COSTO"], ["cuentas", "CUENTAS / BANCOS"]];
 
   return (
     <div className="fade">
@@ -6012,6 +6028,38 @@ function ConfiguracionNegocio() {
             <div className="fg"><div className="fl">Logo (URL de la imagen)</div><input className="inp" value={general.logo_url || ""} onChange={e => setGeneral(p => ({ ...p, logo_url: e.target.value }))} placeholder="https://..." /></div>
             {general.logo_url && <img src={general.logo_url} alt="Logo" style={{ maxWidth: 160, marginBottom: 10, display: "block" }} />}
             <button className="btn btn-p" onClick={guardarGeneral}>Guardar</button>
+          </div>
+        )
+      )}
+
+      {tab === "fiscal" && (
+        loadingGeneral ? <div style={{ color: "#65676B", padding: 20 }}>Cargando...</div> : (
+          <div className="card fade" style={{ maxWidth: 520 }}>
+            <div className="ct">Datos fiscales para facturar con ARCA</div>
+            <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14, background: "#f7f5f0", padding: 10, borderRadius: 6 }}>
+              Estos datos son los que usa el sistema para facturar electronicamente. Tienen que
+              ser los del CUIT que va a emitir las facturas -- si estas armando una copia nueva
+              para otro negocio, cambialos por los de ese negocio antes de vender de verdad.
+            </div>
+            <div className="fg"><div className="fl">CUIT (sin guiones)</div>
+              <input className="inp" value={general.cuit || ""} onChange={e => setGeneral(p => ({ ...p, cuit: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="Ej: 30717641945" maxLength={11} />
+            </div>
+            <div className="fg"><div className="fl">Punto de venta</div>
+              <input className="inp" type="number" value={general.punto_venta || 1} onChange={e => setGeneral(p => ({ ...p, punto_venta: parseInt(e.target.value) || 1 }))} />
+            </div>
+            <div className="divider" />
+            <div className="fg">
+              <div className="fl">Certificado (.crt) — {general.arca_cert_configurado ? <span style={{ color: "#2d7a4f" }}>ya configurado ✓</span> : <span style={{ color: "#c0392b" }}>falta configurar</span>}</div>
+              <textarea className="inp" rows={4} style={{ fontFamily: "monospace", fontSize: 11 }} value={certInput} onChange={e => setCertInput(e.target.value)} placeholder={"Pega aca el contenido completo del archivo .crt (empieza con -----BEGIN CERTIFICATE-----)" + (general.arca_cert_configurado ? ". Dejalo vacio para no cambiar el que ya esta cargado." : "")} />
+            </div>
+            <div className="fg">
+              <div className="fl">Clave privada (.key) — {general.arca_key_configurado ? <span style={{ color: "#2d7a4f" }}>ya configurada ✓</span> : <span style={{ color: "#c0392b" }}>falta configurar</span>}</div>
+              <textarea className="inp" rows={4} style={{ fontFamily: "monospace", fontSize: 11 }} value={keyInput} onChange={e => setKeyInput(e.target.value)} placeholder={"Pega aca el contenido completo de la clave privada (empieza con -----BEGIN PRIVATE KEY-----)" + (general.arca_key_configurado ? ". Dejala vacia para no cambiar la que ya esta cargada." : "")} />
+            </div>
+            <div style={{ fontSize: 10, color: "#65676B", marginBottom: 12 }}>
+              Por seguridad, una vez guardados el certificado y la clave nunca se vuelven a mostrar en pantalla — solo se confirma si estan cargados o no.
+            </div>
+            <button className="btn btn-p" onClick={guardarFiscal}>Guardar datos fiscales</button>
           </div>
         )
       )}
