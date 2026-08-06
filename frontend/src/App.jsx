@@ -8349,10 +8349,11 @@ function ControlInventario({ localId, usuario, paletaActual }) {
         </div>
         <div className="card">
           <table>
-            <thead><tr><th>Producto</th><th>Ingreso / Venta (periodo)</th><th>Stock sistema</th><th>Stock contado</th><th>Diferencia</th><th>Estado</th></tr></thead>
+            <thead><tr><th>Codigo</th><th>Producto</th><th>Ingreso / Venta (periodo)</th><th>Stock sistema</th><th>Stock contado</th><th>Diferencia</th><th>Estado</th></tr></thead>
             <tbody>
               {itemsFiltrados.map(it => (
                 <tr key={it.id} style={{ background: it.estado === "faltante" ? "#c0392b08" : it.estado === "sobrante" ? "#c9a84c08" : it.estado === "correcto" ? "#2d7a4f08" : "transparent" }}>
+                  <td style={{ fontSize: 11, color: p.textMuted, fontFamily: "monospace" }}>{it.producto_codigo || "-"}</td>
                   <td>
                     <div style={{ fontSize: 12 }}>{it.producto_nombre}</div>
                     <div style={{ fontSize: 10, color: p.textMuted }}>{it.producto_marca} - {it.producto_categoria}</div>

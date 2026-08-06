@@ -66,7 +66,7 @@ const crearControl = async (req, res) => {
     }
 
     const prods = await client.query(
-      `SELECT p.id, p.nombre, p.marca, p.categoria, p.costo, p.${colStock} AS stock_sistema
+      `SELECT p.id, p.nombre, p.marca, p.categoria, p.costo, p.codigo_barras, p.${colStock} AS stock_sistema
        FROM productos p ${where} ORDER BY p.nombre ASC`,
       params
     );
@@ -121,9 +121,9 @@ const crearControl = async (req, res) => {
       } catch (e) { /* idem: si falla, 0 y seguimos */ }
 
       await client.query(
-        `INSERT INTO controles_inventario_items (control_id, producto_id, producto_nombre, producto_marca, producto_categoria, stock_sistema, estado, ingresado_periodo, vendido_periodo, costo_unitario)
-         VALUES ($1, $2, $3, $4, $5, $6, 'pendiente', $7, $8, $9)`,
-        [control.id, prod.id, prod.nombre, prod.marca, prod.categoria, prod.stock_sistema || 0, ingresado, vendido, prod.costo || 0]
+        `INSERT INTO controles_inventario_items (control_id, producto_id, producto_nombre, producto_marca, producto_categoria, producto_codigo, stock_sistema, estado, ingresado_periodo, vendido_periodo, costo_unitario)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'pendiente', $8, $9, $10)`,
+        [control.id, prod.id, prod.nombre, prod.marca, prod.categoria, prod.codigo_barras, prod.stock_sistema || 0, ingresado, vendido, prod.costo || 0]
       );
     }
 
