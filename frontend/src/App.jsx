@@ -7545,7 +7545,8 @@ function CajaRespaldo({ usuario }) {
   );
 }
 
-function Comprobantes({ localId }) {
+function Comprobantes({ localId, paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
   const hoy = new Date();
   const fmtFecha = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
@@ -7653,14 +7654,14 @@ function Comprobantes({ localId }) {
       <div className="ph">
         <div><div className="pt">Comprobantes</div><div className="ps">facturas emitidas - ARCA</div></div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <div><div style={{ fontSize: 9, color: "#65676B" }}>Desde</div><input className="inp" type="date" style={{ width: 140, padding: "6px 8px", fontSize: 12 }} value={desde} onChange={e => setDesde(e.target.value)} /></div>
-          <div><div style={{ fontSize: 9, color: "#65676B" }}>Hasta</div><input className="inp" type="date" style={{ width: 140, padding: "6px 8px", fontSize: 12 }} value={hasta} onChange={e => setHasta(e.target.value)} /></div>
+          <div><div style={{ fontSize: 9, color: p.textMuted }}>Desde</div><input className="inp" type="date" style={{ width: 140, padding: "6px 8px", fontSize: 12 }} value={desde} onChange={e => setDesde(e.target.value)} /></div>
+          <div><div style={{ fontSize: 9, color: p.textMuted }}>Hasta</div><input className="inp" type="date" style={{ width: 140, padding: "6px 8px", fontSize: 12 }} value={hasta} onChange={e => setHasta(e.target.value)} /></div>
         </div>
       </div>
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {["rg", "ush", "consolidado"].map(l => (
           <button key={l} onClick={() => setTabLocal(l)} className="btn btn-sm"
-            style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : "#e8e8e8"), color: tabLocal === l ? "#c9a84c" : "#65676B", fontWeight: tabLocal === l ? 600 : 400 }}>
+            style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : p.border), color: tabLocal === l ? "#c9a84c" : p.textMuted, fontWeight: tabLocal === l ? 600 : 400 }}>
             {l === "rg" ? "Rio Grande" : l === "ush" ? "Ushuaia" : "Consolidado"}
           </button>
         ))}
@@ -7672,9 +7673,9 @@ function Comprobantes({ localId }) {
       </div>
       <div className="card">
         {loading ? (
-          <div style={{ textAlign: "center", color: "#65676B", fontSize: 12 }}>Cargando comprobantes...</div>
+          <div style={{ textAlign: "center", color: p.textMuted, fontSize: 12 }}>Cargando comprobantes...</div>
         ) : comprobantes.length === 0 ? (
-          <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 30 }}>No hay comprobantes emitidos en este periodo</div>
+          <div style={{ fontSize: 12, color: p.textMuted, textAlign: "center", padding: 30 }}>No hay comprobantes emitidos en este periodo</div>
         ) : (
           <table>
             <thead><tr><th>Comprobante</th><th>Fecha</th><th>Cliente</th><th>Tipo</th><th>CAE</th><th>Total</th><th></th></tr></thead>
@@ -7683,10 +7684,10 @@ function Comprobantes({ localId }) {
                 <Fragment key={i}>
                   <tr>
                     <td style={{ fontSize: 12, fontWeight: 600, color: "#c9a84c" }}>{fmtNro(v)}</td>
-                    <td style={{ fontSize: 11, color: "#65676B" }}>{new Date(v.creado_en || v.fecha).toLocaleDateString("es-AR")}</td>
+                    <td style={{ fontSize: 11, color: p.textMuted }}>{new Date(v.creado_en || v.fecha).toLocaleDateString("es-AR")}</td>
                     <td style={{ fontSize: 12 }}>{v.cliente_nombre || "Consumidor final"}</td>
                     <td style={{ fontSize: 11 }}>{v.tipo_factura || "B"}</td>
-                    <td style={{ fontSize: 11, color: "#65676B" }}>{v.cae || "-"}</td>
+                    <td style={{ fontSize: 11, color: p.textMuted }}>{v.cae || "-"}</td>
                     <td style={{ color: "#2d7a4f", fontWeight: 600 }}>{fmt(parseFloat(v.total || 0))}</td>
                     <td>
                       <span style={{ cursor: "pointer", color: "#2C3E5C", fontSize: 11 }} onClick={() => setExpandido(expandido === i ? null : i)}>{expandido === i ? "Ocultar" : "Ver"}</span>
@@ -7696,10 +7697,10 @@ function Comprobantes({ localId }) {
                   </tr>
                   {expandido === i && (
                     <tr>
-                      <td colSpan="7" style={{ background: "#F0F2F5", padding: "10px 14px" }}>
-                        <div style={{ fontSize: 10, color: "#65676B", letterSpacing: ".1em", marginBottom: 6 }}>DETALLE</div>
+                      <td colSpan="7" style={{ background: p.bg, padding: "10px 14px" }}>
+                        <div style={{ fontSize: 10, color: p.textMuted, letterSpacing: ".1em", marginBottom: 6 }}>DETALLE</div>
                         {(v.items || []).length === 0 ? (
-                          <div style={{ fontSize: 11, color: "#65676B" }}>Sin detalle de productos</div>
+                          <div style={{ fontSize: 11, color: p.textMuted }}>Sin detalle de productos</div>
                         ) : (
                           <table>
                             <thead><tr><th>Producto</th><th>Cant</th><th>Precio</th><th>Subtotal</th></tr></thead>
@@ -7707,7 +7708,7 @@ function Comprobantes({ localId }) {
                               {v.items.map((it, j) => (
                                 <tr key={j}>
                                   <td style={{ fontSize: 11 }}>{it.nombre}{it.marca ? " - " + it.marca : ""}</td>
-                                  <td style={{ fontSize: 11, color: "#65676B" }}>{it.cantidad}</td>
+                                  <td style={{ fontSize: 11, color: p.textMuted }}>{it.cantidad}</td>
                                   <td style={{ fontSize: 11 }}>{fmt(parseFloat(it.precio_unitario || 0))}</td>
                                   <td style={{ fontSize: 11, fontWeight: 600 }}>{fmt((parseFloat(it.precio_unitario || 0) * parseInt(it.cantidad || 0)))}</td>
                                 </tr>
@@ -7715,7 +7716,7 @@ function Comprobantes({ localId }) {
                             </tbody>
                           </table>
                         )}
-                        <div style={{ fontSize: 10, color: "#65676B", marginTop: 8 }}>Medio de pago: {v.medio_pago || "-"}{v.cae_vto ? " | CAE vto: " + v.cae_vto : ""}</div>
+                        <div style={{ fontSize: 10, color: p.textMuted, marginTop: 8 }}>Medio de pago: {v.medio_pago || "-"}{v.cae_vto ? " | CAE vto: " + v.cae_vto : ""}</div>
                       </td>
                     </tr>
                   )}
@@ -10565,7 +10566,7 @@ export default function AppWrapper() {
     if (id === "finance") return <Finanzas localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "reports") return <Informes localId={local.id} />;
     if (id === "calculadoras") return <Calculadoras usuario={usuario} />;
-    if (id === "comprobantes") return <Comprobantes localId={local.id} />;
+    if (id === "comprobantes") return <Comprobantes localId={local.id} paletaActual={paletaActual} />;
     if (id === "productividad") return <Productividad localId={local.id} />;
     if (id === "cupones") return <Cupones localId={local.id} usuario={usuario} />;
     if (id === "promociones") return <Promociones />;
