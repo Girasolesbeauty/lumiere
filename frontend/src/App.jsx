@@ -10518,7 +10518,8 @@ function SinPermiso() {
   );
 }
 
-function Usuarios({ usuario: usuarioActual }) {
+function Usuarios({ usuario: usuarioActual, paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [mensaje, setMensaje] = useState("");
@@ -10660,16 +10661,16 @@ function Usuarios({ usuario: usuarioActual }) {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                   <div className="ct" style={{ margin: 0 }}>{modulo}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 10, color: "#65676B" }}>{activos}/{claves.length}</span>
-                    <div onClick={() => toggleGrupo(perms)} style={{ width: 36, height: 20, borderRadius: 10, background: todosActivos ? "#c9a84c" : "#e0e0e0", cursor: "pointer", position: "relative", transition: "background .2s" }}>
+                    <span style={{ fontSize: 10, color: temaPal.textMuted }}>{activos}/{claves.length}</span>
+                    <div onClick={() => toggleGrupo(perms)} style={{ width: 36, height: 20, borderRadius: 10, background: todosActivos ? "#c9a84c" : temaPal.border, cursor: "pointer", position: "relative", transition: "background .2s" }}>
                       <div style={{ position: "absolute", top: 2, left: todosActivos ? 18 : 2, width: 16, height: 16, borderRadius: "50%", background: "white", transition: "left .2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
                     </div>
                   </div>
                 </div>
                 {perms.map(([clave, label]) => (
                   <div key={clave} onClick={() => togglePermiso(clave)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #f5f5f5", cursor: "pointer" }}>
-                    <span style={{ fontSize: 12, color: permisosUsuario.includes(clave) ? "#111111" : "#65676B" }}>{label}</span>
-                    <div style={{ width: 28, height: 16, borderRadius: 8, background: permisosUsuario.includes(clave) ? "#2d7a4f" : "#e0e0e0", position: "relative", transition: "background .2s" }}>
+                    <span style={{ fontSize: 12, color: permisosUsuario.includes(clave) ? temaPal.text : temaPal.textMuted }}>{label}</span>
+                    <div style={{ width: 28, height: 16, borderRadius: 8, background: permisosUsuario.includes(clave) ? "#2d7a4f" : temaPal.border, position: "relative", transition: "background .2s" }}>
                       <div style={{ position: "absolute", top: 2, left: permisosUsuario.includes(clave) ? 14 : 2, width: 12, height: 12, borderRadius: "50%", background: "white", transition: "left .2s" }} />
                     </div>
                   </div>
@@ -10757,15 +10758,15 @@ function Usuarios({ usuario: usuarioActual }) {
         </div>
       )}
       <div className="card">
-        {loading ? <div style={{ color: "#65676B", padding: 20 }}>Cargando...</div> : (
+        {loading ? <div style={{ color: temaPal.textMuted, padding: 20 }}>Cargando...</div> : (
           <table>
             <thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Local</th><th>Acciones</th></tr></thead>
             <tbody>
               {usuarios.map(u => (
                 <tr key={u.id}>
-                  <td style={{ color: "#111111", fontWeight: 500 }}>{u.nombre}</td>
+                  <td style={{ color: temaPal.text, fontWeight: 500 }}>{u.nombre}</td>
                   <td>{u.email}</td>
-                  <td><span className="badge" style={{ background: (rolColor[u.rol] || "#65676B") + "15", color: rolColor[u.rol] || "#65676B" }}>{rolNombre[u.rol] || u.rol}</span></td>
+                  <td><span className="badge" style={{ background: (rolColor[u.rol] || temaPal.textMuted) + "15", color: rolColor[u.rol] || temaPal.textMuted }}>{rolNombre[u.rol] || u.rol}</span></td>
                   <td>{u.local_nombre || "-"}</td>
                   <td>
                     <div style={{ display: "flex", gap: 4 }}>
@@ -10912,7 +10913,7 @@ export default function AppWrapper() {
     if (id === "tiendanube") return <Tiendanube localId={local.id} usuario={usuario} />;
     if (id === "portal") return <PortalCliente />;
     if (id === "config-negocio") return <ConfiguracionNegocio />;
-    if (id === "usuarios") return <Usuarios usuario={usuario} />;
+    if (id === "usuarios") return <Usuarios usuario={usuario} paletaActual={paletaActual} />;
     if (id === "comisiones") return <Comisiones localId={local.id} paletaActual={paletaActual} />;
     if (id === "caja") return <Caja localId={local.id} usuario={usuario} />;
     if (id === "caja-respaldo") return <CajaRespaldo usuario={usuario} />;
