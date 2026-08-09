@@ -120,6 +120,8 @@ router.get('/:local_id/historial', async (req, res) => {
   try {
     const { local_id } = req.params;
     const { desde, hasta } = req.query;
+
+    // La LISTA que se muestra si se filtra por fecha (mes, dia puntual, etc.)
     let q = 'SELECT * FROM comisiones WHERE local_id = $1 AND fecha IS NOT NULL';
     const params = [local_id];
     if (desde) { params.push(desde); q += ` AND fecha >= $${params.length}`; }
@@ -127,14 +129,21 @@ router.get('/:local_id/historial', async (req, res) => {
     q += ' ORDER BY fecha DESC';
     const r = await pool.query(q, params);
 
-    const pagosManuales = await pool.query(
-      'SELECT * FROM pagos_comision_manual WHERE local_id = $1 ORDER BY creado_en DESC',
-      [local_id]
-    );
+    let qPagos = 'SELECT * FROM pagos_comision_manual WHERE local_id = $1';
+    const paramsPagos = [local_id];
+    if (desde) { paramsPagos.push(desde); qPagos += ` AND DATE(creado_en) >= $${paramsPagos.length}`; }
+    if (hasta) { paramsPagos.push(hasta); qPagos += ` AND DATE(creado_en) <= $${paramsPagos.length}`; }
+    qPagos += ' ORDER BY creado_en DESC';
+    const pagosManuales = await pool.query(qPagos, paramsPagos);
 
-    const totalGanado = r.rows.reduce((s, x) => s + parseFloat(x.comision_ganada || 0), 0);
-    const totalPagadoPorDia = r.rows.filter(x => x.pagada).reduce((s, x) => s + parseFloat(x.comision_ganada || 0), 0);
-    const totalPagadoManual = pagosManuales.rows.reduce((s, x) => s + parseFloat(x.monto || 0), 0);
+    // Los TOTALES (pendiente/pagado/ganado) siempre son el saldo real completo, sin
+    // filtrar por fecha -- si no, "pendiente" daria un numero raro al mirar un solo mes.
+    const rTodo = await pool.query('SELECT comision_ganada, pagada FROM comisiones WHERE local_id = $1 AND fecha IS NOT NULL', [local_id]);
+    const pagosManualesTodo = await pool.query('SELECT monto FROM pagos_comision_manual WHERE local_id = $1', [local_id]);
+
+    const totalGanado = rTodo.rows.reduce((s, x) => s + parseFloat(x.comision_ganada || 0), 0);
+    const totalPagadoPorDia = rTodo.rows.filter(x => x.pagada).reduce((s, x) => s + parseFloat(x.comision_ganada || 0), 0);
+    const totalPagadoManual = pagosManualesTodo.rows.reduce((s, x) => s + parseFloat(x.monto || 0), 0);
     const totalPagado = totalPagadoPorDia + totalPagadoManual;
     const totalPendiente = Math.max(totalGanado - totalPagado, 0);
 

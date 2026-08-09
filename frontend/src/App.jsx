@@ -6361,6 +6361,21 @@ function Comisiones({ localId, paletaActual }) {
   const [mensaje, setMensaje] = useState("");
   const [loading, setLoading] = useState(true);
 
+  const hoyRef = new Date();
+  const primerDiaMes = (m, a) => new Date(a, m - 1, 1).toISOString().slice(0, 10);
+  const ultimoDiaMes = (m, a) => new Date(a, m, 0).toISOString().slice(0, 10);
+  const [filtroMes, setFiltroMes] = useState(hoyRef.getMonth() + 1);
+  const [filtroAnio, setFiltroAnio] = useState(hoyRef.getFullYear());
+  const [filtroDesde, setFiltroDesde] = useState(primerDiaMes(hoyRef.getMonth() + 1, hoyRef.getFullYear()));
+  const [filtroHasta, setFiltroHasta] = useState(ultimoDiaMes(hoyRef.getMonth() + 1, hoyRef.getFullYear()));
+
+  const elegirMes = (m, a) => {
+    setFiltroMes(m); setFiltroAnio(a);
+    setFiltroDesde(primerDiaMes(m, a));
+    setFiltroHasta(ultimoDiaMes(m, a));
+  };
+  const verTodo = () => { setFiltroDesde(""); setFiltroHasta(""); };
+
   const cargar = async () => {
     setLoading(true);
     // Antes de mostrar los datos, nos aseguramos de que los ultimos 7 dias esten calculados
@@ -6377,16 +6392,21 @@ function Comisiones({ localId, paletaActual }) {
       await Promise.all(fechas.map(f => API.post("/comisiones/cerrar-dia", { fecha: f }).catch(() => {})));
     } catch (e) { /* si falla, seguimos igual con la carga normal */ }
 
+    const params = new URLSearchParams();
+    if (filtroDesde) params.set("desde", filtroDesde);
+    if (filtroHasta) params.set("hasta", filtroHasta);
+    const qs = params.toString() ? "?" + params.toString() : "";
+
     Promise.all([
       API.get("/comisiones/" + (localId || 1)),
-      API.get("/comisiones/" + (localId || 1) + "/historial")
+      API.get("/comisiones/" + (localId || 1) + "/historial" + qs)
     ]).then(([d, h]) => {
       setDatos(d.data);
       setHist(h.data);
       setLoading(false);
     }).catch(() => setLoading(false));
   };
-  useEffect(() => { cargar(); setSel([]); }, [localId]);
+  useEffect(() => { cargar(); setSel([]); }, [localId, filtroDesde, filtroHasta]);
 
   const toggle = (id) => setSel(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
@@ -6500,6 +6520,22 @@ function Comisiones({ localId, paletaActual }) {
                 <div className="ct" style={{ margin: 0 }}>Historial de comisiones</div>
                 {sel.length > 0 && <button className="btn btn-p btn-sm" onClick={abrirPagar}>Marcar pagadas ({sel.length})</button>}
                 <button className="btn btn-g btn-sm" onClick={abrirPagoManual}>💰 Registrar pago total</button>
+              </div>
+
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 14, padding: 10, background: p.bg, borderRadius: 8 }}>
+                <select className="sel" style={{ width: 130, padding: "6px 8px", fontSize: 12 }} value={filtroMes} onChange={e => elegirMes(parseInt(e.target.value), filtroAnio)}>
+                  {["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"].map((m, i) => (
+                    <option key={i} value={i + 1}>{m}</option>
+                  ))}
+                </select>
+                <select className="sel" style={{ width: 90, padding: "6px 8px", fontSize: 12 }} value={filtroAnio} onChange={e => elegirMes(filtroMes, parseInt(e.target.value))}>
+                  {[hoyRef.getFullYear(), hoyRef.getFullYear() - 1].map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+                <span style={{ fontSize: 11, color: p.textMuted }}>o un rango puntual:</span>
+                <input className="inp" type="date" style={{ width: 140, padding: "6px 8px", fontSize: 12 }} value={filtroDesde} onChange={e => setFiltroDesde(e.target.value)} />
+                <span style={{ fontSize: 11, color: p.textMuted }}>a</span>
+                <input className="inp" type="date" style={{ width: 140, padding: "6px 8px", fontSize: 12 }} value={filtroHasta} onChange={e => setFiltroHasta(e.target.value)} />
+                <button className="btn btn-g btn-sm" onClick={verTodo}>Ver todo</button>
               </div>
 
               <div className="g2" style={{ marginBottom: 12 }}>
