@@ -738,54 +738,39 @@ const getAnalisisFinanciero = async (req, res) => {
   }
 };
 
-// Compara la facturacion del mes actual contra el mes anterior, tomando la misma
-// cantidad de dias en los dos (por defecto, del dia 1 hasta hoy) -- asi es una
-// comparacion pareja, no todo el mes anterior contra lo que va del actual.
+// Compara la facturacion entre dos rangos de fechas cualquiera, elegidos libremente
+// (pueden ser meses distintos, con distinta cantidad de dias cada uno, o el mismo mes
+// del año pasado, lo que sea).
 const getComparativaMeses = async (req, res) => {
   try {
-    const { local_id, dias } = req.query;
+    const { local_id, desde1, hasta1, desde2, hasta2 } = req.query;
+    if (!desde1 || !hasta1 || !desde2 || !hasta2) {
+      return res.status(400).json({ error: 'Elegi las fechas de los dos periodos a comparar' });
+    }
     const localNum = normalizarLocalId(local_id);
-    const hoy = new Date();
-    const diaHasta = dias ? parseInt(dias) : hoy.getDate();
 
-    const mesActualNum = hoy.getMonth() + 1;
-    const anioActualNum = hoy.getFullYear();
-    let mesAnteriorNum = mesActualNum - 1;
-    let anioAnteriorNum = anioActualNum;
-    if (mesAnteriorNum === 0) { mesAnteriorNum = 12; anioAnteriorNum -= 1; }
-
-    // Si el mes tiene menos dias que "dias" (ej: pedir hasta el 31 en un mes de 30),
-    // se topea al ultimo dia real de ese mes, para no romper la consulta.
-    const diasEnMes = (m, a) => new Date(a, m, 0).getDate();
-    const diaHastaActual = Math.min(diaHasta, diasEnMes(mesActualNum, anioActualNum));
-    const diaHastaAnterior = Math.min(diaHasta, diasEnMes(mesAnteriorNum, anioAnteriorNum));
-
-    const consultarPeriodo = async (mes, anio, diaFin) => {
+    const consultarPeriodo = async (desde, hasta) => {
       let q = `SELECT COALESCE(SUM(total), 0) AS total, COUNT(*) AS cantidad
                 FROM ventas
-                WHERE EXTRACT(MONTH FROM creado_en) = $1 AND EXTRACT(YEAR FROM creado_en) = $2
-                  AND EXTRACT(DAY FROM creado_en) <= $3`;
-      const params = [mes, anio, diaFin];
-      if (localNum !== null) { q += ' AND local_id = $4'; params.push(localNum); }
+                WHERE DATE(creado_en) >= $1 AND DATE(creado_en) <= $2`;
+      const params = [desde, hasta];
+      if (localNum !== null) { q += ' AND local_id = $3'; params.push(localNum); }
       const r = await pool.query(q, params);
       return { total: parseFloat(r.rows[0].total) || 0, cantidad: parseInt(r.rows[0].cantidad) || 0 };
     };
 
-    const actual = await consultarPeriodo(mesActualNum, anioActualNum, diaHastaActual);
-    const anterior = await consultarPeriodo(mesAnteriorNum, anioAnteriorNum, diaHastaAnterior);
-    const variacionPct = anterior.total > 0 ? ((actual.total - anterior.total) / anterior.total) * 100 : null;
-
-    const nombresMes = ['', 'Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const periodo1 = await consultarPeriodo(desde1, hasta1);
+    const periodo2 = await consultarPeriodo(desde2, hasta2);
+    const variacionPct = periodo2.total > 0 ? ((periodo1.total - periodo2.total) / periodo2.total) * 100 : null;
 
     res.json({
-      dias: diaHasta,
-      mes_actual: { mes: mesActualNum, anio: anioActualNum, nombre: nombresMes[mesActualNum], hasta_dia: diaHastaActual, ...actual },
-      mes_anterior: { mes: mesAnteriorNum, anio: anioAnteriorNum, nombre: nombresMes[mesAnteriorNum], hasta_dia: diaHastaAnterior, ...anterior },
+      periodo_1: { desde: desde1, hasta: hasta1, ...periodo1 },
+      periodo_2: { desde: desde2, hasta: hasta2, ...periodo2 },
       variacion_pct: variacionPct
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Error al comparar meses: ' + error.message });
+    res.status(500).json({ error: 'Error al comparar periodos: ' + error.message });
   }
 };
 

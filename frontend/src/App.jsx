@@ -3134,12 +3134,31 @@ function Finanzas({ localId, usuario, paletaActual }) {
   const [analisisLoading, setAnalisisLoading] = useState(false);
   const [comparativa, setComparativa] = useState(null);
   const [comparativaLoading, setComparativaLoading] = useState(false);
-  const [diasComparar, setDiasComparar] = useState(new Date().getDate());
 
-  const cargarComparativa = (dias) => {
+  // Valores por defecto: este mes (del 1 a hoy) contra el mismo tramo del mes pasado
+  const hoyComp = new Date();
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const defDesde1 = iso(new Date(hoyComp.getFullYear(), hoyComp.getMonth(), 1));
+  const defHasta1 = iso(hoyComp);
+  const mesPasado = new Date(hoyComp.getFullYear(), hoyComp.getMonth() - 1, 1);
+  const defDesde2 = iso(mesPasado);
+  const defHasta2 = iso(new Date(mesPasado.getFullYear(), mesPasado.getMonth(), Math.min(hoyComp.getDate(), new Date(mesPasado.getFullYear(), mesPasado.getMonth() + 1, 0).getDate())));
+
+  const [comp1Desde, setComp1Desde] = useState(defDesde1);
+  const [comp1Hasta, setComp1Hasta] = useState(defHasta1);
+  const [comp2Desde, setComp2Desde] = useState(defDesde2);
+  const [comp2Hasta, setComp2Hasta] = useState(defHasta2);
+
+  const fmtDiaCorto = (f) => {
+    if (!f) return "";
+    const [y, m, d] = f.split("-");
+    return d + "/" + m + "/" + y;
+  };
+
+  const cargarComparativa = () => {
     setComparativaLoading(true);
-    const d = dias || diasComparar;
-    API.get(`/finanzas/comparar-meses?local_id=${tabLocal}&dias=${d}`)
+    const params = `local_id=${tabLocal}&desde1=${comp1Desde}&hasta1=${comp1Hasta}&desde2=${comp2Desde}&hasta2=${comp2Hasta}`;
+    API.get(`/finanzas/comparar-meses?${params}`)
       .then(res => setComparativa(res.data))
       .catch(() => setComparativa(null))
       .finally(() => setComparativaLoading(false));
@@ -3634,13 +3653,26 @@ function Finanzas({ localId, usuario, paletaActual }) {
       {tab === "comparativa" && (
         <div className="fade">
           <div className="card" style={{ marginBottom: 16 }}>
-            <div className="ct">¿Cuantos dias comparar?</div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <input className="inp" type="number" min="1" max="31" style={{ width: 100 }} value={diasComparar} onChange={e => setDiasComparar(Math.max(1, Math.min(31, parseInt(e.target.value) || 1)))} />
-              <span style={{ fontSize: 12, color: "#65676B" }}>del dia 1 al dia elegido, del mes actual contra el mismo tramo del mes anterior</span>
-              <button className="btn btn-p btn-sm" onClick={() => cargarComparativa(diasComparar)}>Comparar</button>
-              <button className="btn btn-g btn-sm" onClick={() => { setDiasComparar(new Date().getDate()); cargarComparativa(new Date().getDate()); }}>Hasta hoy</button>
+            <div className="ct">Elegi los dos periodos a comparar</div>
+            <div className="g2" style={{ marginBottom: 0 }}>
+              <div>
+                <div className="fl">Periodo 1</div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input className="inp" type="date" value={comp1Desde} onChange={e => setComp1Desde(e.target.value)} />
+                  <span style={{ fontSize: 11, color: "#65676B" }}>a</span>
+                  <input className="inp" type="date" value={comp1Hasta} onChange={e => setComp1Hasta(e.target.value)} />
+                </div>
+              </div>
+              <div>
+                <div className="fl">Periodo 2</div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input className="inp" type="date" value={comp2Desde} onChange={e => setComp2Desde(e.target.value)} />
+                  <span style={{ fontSize: 11, color: "#65676B" }}>a</span>
+                  <input className="inp" type="date" value={comp2Hasta} onChange={e => setComp2Hasta(e.target.value)} />
+                </div>
+              </div>
             </div>
+            <button className="btn btn-p btn-sm" style={{ marginTop: 10 }} onClick={cargarComparativa}>Comparar</button>
           </div>
 
           {comparativaLoading ? (
@@ -3651,29 +3683,29 @@ function Finanzas({ localId, usuario, paletaActual }) {
             <>
               <div className="g2" style={{ marginBottom: 16 }}>
                 <div className="card">
-                  <div className="ct">{comparativa.mes_anterior.nombre} {comparativa.mes_anterior.anio} (del 1 al {comparativa.mes_anterior.hasta_dia})</div>
-                  <div className="metric">{fmt(comparativa.mes_anterior.total)}</div>
-                  <div className="msub">{comparativa.mes_anterior.cantidad} ventas</div>
+                  <div className="ct">Periodo 2: {fmtDiaCorto(comparativa.periodo_2.desde)} al {fmtDiaCorto(comparativa.periodo_2.hasta)}</div>
+                  <div className="metric">{fmt(comparativa.periodo_2.total)}</div>
+                  <div className="msub">{comparativa.periodo_2.cantidad} ventas</div>
                 </div>
                 <div className="card" style={{ borderTop: "3px solid #c9a84c" }}>
-                  <div className="ct">{comparativa.mes_actual.nombre} {comparativa.mes_actual.anio} (del 1 al {comparativa.mes_actual.hasta_dia})</div>
-                  <div className="metric">{fmt(comparativa.mes_actual.total)}</div>
-                  <div className="msub">{comparativa.mes_actual.cantidad} ventas</div>
+                  <div className="ct">Periodo 1: {fmtDiaCorto(comparativa.periodo_1.desde)} al {fmtDiaCorto(comparativa.periodo_1.hasta)}</div>
+                  <div className="metric">{fmt(comparativa.periodo_1.total)}</div>
+                  <div className="msub">{comparativa.periodo_1.cantidad} ventas</div>
                 </div>
               </div>
 
               <div className="card" style={{ textAlign: "center", padding: 24 }}>
                 <div className="ct">Variacion</div>
                 {comparativa.variacion_pct === null ? (
-                  <div style={{ fontSize: 14, color: "#65676B" }}>No hay facturacion del mes anterior para comparar</div>
+                  <div style={{ fontSize: 14, color: "#65676B" }}>No hay facturacion en el periodo 2 para comparar</div>
                 ) : (
                   <>
                     <div style={{ fontSize: 42, fontWeight: 700, color: comparativa.variacion_pct >= 0 ? "#2d7a4f" : "#c0392b" }}>
                       {comparativa.variacion_pct >= 0 ? "+" : ""}{comparativa.variacion_pct.toFixed(1)}%
                     </div>
                     <div style={{ fontSize: 12, color: "#65676B", marginTop: 6 }}>
-                      {comparativa.variacion_pct >= 0 ? "Facturando mas" : "Facturando menos"} que el mismo tramo del mes anterior
-                      ({fmt(Math.abs(comparativa.mes_actual.total - comparativa.mes_anterior.total))} de diferencia)
+                      Periodo 1 {comparativa.variacion_pct >= 0 ? "factura mas" : "factura menos"} que el periodo 2
+                      ({fmt(Math.abs(comparativa.periodo_1.total - comparativa.periodo_2.total))} de diferencia)
                     </div>
                   </>
                 )}
