@@ -118,6 +118,26 @@ router.put('/:local_id/pagar', async (req, res) => {
     let totalPagado = 0;
     for (const row of sel.rows) {
       totalPagado += parseFloat(row.comision_ganada || 0);
+    }
+
+    // Si es canje, validar en el servidor (no confiar solo en el frontend) que lo
+    // seleccionado alcance para cubrir el producto con el 20% de descuento de empleada.
+    if (formaValida === 'canje') {
+      const prodRes = await client.query('SELECT precio FROM productos WHERE id = $1', [producto_canje_id]);
+      if (prodRes.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Producto de canje no encontrado' });
+      }
+      const DESCUENTO_EMPLEADA = 0.20;
+      const cant = parseInt(cantidad_canje) || 1;
+      const costoCanje = parseFloat(prodRes.rows[0].precio || 0) * (1 - DESCUENTO_EMPLEADA) * cant;
+      if (costoCanje > totalPagado) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Lo seleccionado ($' + totalPagado.toFixed(0) + ') no alcanza para este canje ($' + costoCanje.toFixed(0) + ' con el 20% de descuento de empleada)' });
+      }
+    }
+
+    for (const row of sel.rows) {
       await client.query('UPDATE comisiones SET pagada = TRUE, pagada_en = NOW() WHERE id = $1', [row.id]);
     }
 

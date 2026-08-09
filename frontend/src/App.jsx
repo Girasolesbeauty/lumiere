@@ -6404,8 +6404,17 @@ function Comisiones({ localId, paletaActual }) {
     if (productos.length === 0) API.get("/productos").then(res => setProductos(res.data || [])).catch(() => {});
   };
 
+  // Suma de las comisiones tildadas (con eso se paga el canje)
+  const totalSeleccionado = (hist?.registros || []).filter(r => sel.includes(r.id)).reduce((s, r) => s + parseFloat(r.comision_ganada || 0), 0);
+  // Las empleadas tienen 20% de descuento automatico sobre el precio de lista
+  const DESCUENTO_EMPLEADA = 0.20;
+  const precioConDescuento = prodCanje ? parseFloat(prodCanje.precio || 0) * (1 - DESCUENTO_EMPLEADA) : 0;
+  const costoCanje = precioConDescuento * cantidadCanje;
+  const canjeNoAlcanza = formaPago === "canje" && prodCanje && costoCanje > totalSeleccionado;
+
   const confirmarPagar = async () => {
     if (formaPago === "canje" && !prodCanje) return setMensaje("Elegi el producto del canje");
+    if (canjeNoAlcanza) return setMensaje("Lo seleccionado no alcanza para este canje");
     try {
       const res = await API.put("/comisiones/" + (localId || 1) + "/pagar", {
         ids: sel, forma_pago: formaPago,
@@ -6505,6 +6514,10 @@ function Comisiones({ localId, paletaActual }) {
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={() => setShowPagar(false)}>
           <div className="card fade" style={{ maxWidth: 440, width: "90vw" }} onClick={e => e.stopPropagation()}>
             <div className="ct">Marcar {sel.length} dia(s) como pagados</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: p.bg, borderRadius: 6, marginBottom: 12 }}>
+              <span style={{ fontSize: 12, color: p.textMuted }}>Total seleccionado</span>
+              <span style={{ fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>{fmt(totalSeleccionado)}</span>
+            </div>
             <div className="fg"><div className="fl">¿Como se pago?</div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn btn-sm" style={{ flex: 1, background: formaPago === "efectivo" ? "#2d7a4f15" : "transparent", border: "1px solid " + (formaPago === "efectivo" ? "#2d7a4f" : p.border) }} onClick={() => setFormaPago("efectivo")}>Efectivo</button>
@@ -6515,10 +6528,10 @@ function Comisiones({ localId, paletaActual }) {
 
             {formaPago === "canje" && (
               <>
-                <div className="fg"><div className="fl">Producto del canje</div>
+                <div className="fg"><div className="fl">Producto del canje (20% de descuento de empleada ya aplicado)</div>
                   {prodCanje ? (
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: p.bg, borderRadius: 6 }}>
-                      <span style={{ fontSize: 12 }}>{prodCanje.nombre}</span>
+                      <span style={{ fontSize: 12 }}>{prodCanje.nombre} <span style={{ color: p.textMuted }}>({fmt(precioConDescuento)} c/u)</span></span>
                       <span onClick={() => setProdCanje(null)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 11 }}>cambiar</span>
                     </div>
                   ) : (
@@ -6527,7 +6540,9 @@ function Comisiones({ localId, paletaActual }) {
                       {buscarProdCanje.trim().length > 0 && (
                         <div style={{ border: "1px solid " + p.border, borderRadius: 6, marginTop: 4 }}>
                           {productos.filter(pr => (pr.nombre || "").toLowerCase().includes(buscarProdCanje.toLowerCase())).slice(0, 8).map(pr => (
-                            <div key={pr.id} onClick={() => { setProdCanje(pr); setBuscarProdCanje(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid " + p.border, fontSize: 12 }}>{pr.nombre}</div>
+                            <div key={pr.id} onClick={() => { setProdCanje(pr); setBuscarProdCanje(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid " + p.border, fontSize: 12, display: "flex", justifyContent: "space-between" }}>
+                              <span>{pr.nombre}</span><span style={{ color: p.textMuted }}>{fmt((pr.precio || 0) * 0.8)} c/u</span>
+                            </div>
                           ))}
                         </div>
                       )}
@@ -6537,12 +6552,23 @@ function Comisiones({ localId, paletaActual }) {
                 <div className="fg"><div className="fl">Cantidad</div>
                   <input className="inp" type="number" min="1" value={cantidadCanje} onChange={e => setCantidadCanje(Math.max(1, parseInt(e.target.value) || 1))} />
                 </div>
+                {prodCanje && (
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, marginBottom: 10 }}>
+                    <span>Costo del canje</span>
+                    <span style={{ color: canjeNoAlcanza ? "#c0392b" : "#2d7a4f" }}>{fmt(costoCanje)}</span>
+                  </div>
+                )}
+                {canjeNoAlcanza && (
+                  <div style={{ fontSize: 11, color: "#c0392b", background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "8px 10px", marginBottom: 10 }}>
+                    Lo seleccionado no alcanza para este canje — faltan {fmt(costoCanje - totalSeleccionado)}. Tildá algun dia mas de comision antes de confirmar.
+                  </div>
+                )}
               </>
             )}
 
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
               <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowPagar(false)}>Cancelar</button>
-              <button className="btn btn-p" style={{ flex: 1 }} onClick={confirmarPagar}>Confirmar pago</button>
+              <button className="btn btn-p" style={{ flex: 1, opacity: canjeNoAlcanza ? 0.5 : 1 }} disabled={canjeNoAlcanza} onClick={confirmarPagar}>Confirmar pago</button>
             </div>
           </div>
         </div>
