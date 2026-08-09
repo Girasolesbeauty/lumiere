@@ -294,21 +294,36 @@ const getMiUltimoEgreso = async (req, res) => {
 // Punto de equilibrio
 const getPuntoEquilibrio = async (req, res) => {
   try {
+    // Solo cuentan los egresos categorizados como "fijo" (alquiler, sueldos, servicios) --
+    // los variables (mercaderia, comisiones) ya estan implicitos en el margen, y si se
+    // suman aca tambien, el punto de equilibrio queda mal calculado (contando el mismo
+    // costo dos veces, o de menos si esa categoria nunca se cargo bien).
     const costosFijos = await pool.query(`
-      SELECT SUM(importe) AS total_egresos
-      FROM movimientos_caja
-      WHERE tipo = 'E'
-      AND DATE_TRUNC('month', creado_en) = DATE_TRUNC('month', CURRENT_DATE)
+      SELECT COALESCE(SUM(m.importe), 0) AS total_egresos
+      FROM movimientos_caja m
+      JOIN categorias_costo cc ON m.categoria_id = cc.id
+      WHERE m.tipo = 'E' AND cc.tipo IN ('fijo', 'sueldo')
+        AND DATE_TRUNC('month', m.creado_en) = DATE_TRUNC('month', CURRENT_DATE)
     `);
 
-    const margen = await pool.query(`
-      SELECT AVG((precio - costo) / precio * 100) AS margen_promedio
-      FROM productos
-      WHERE activo = TRUE AND costo > 0
+    // Margen real, ponderado por lo que efectivamente se vendio en los ultimos 60 dias
+    // (no un promedio simple entre todos los productos del catalogo, que pesa igual un
+    // producto que nunca se vende que el mas vendido).
+    const margenReal = await pool.query(`
+      SELECT
+        COALESCE(SUM(vi.cantidad * vi.precio_unitario), 0) AS ingresos,
+        COALESCE(SUM(vi.cantidad * COALESCE(p.costo, 0)), 0) AS costos
+      FROM venta_items vi
+      JOIN ventas v ON vi.venta_id = v.id
+      JOIN productos p ON vi.producto_id = p.id
+      WHERE v.creado_en >= NOW() - INTERVAL '60 days'
+        AND (COALESCE(v.es_preventa, FALSE) = FALSE OR v.estado_pago = 'confirmada')
     `);
 
     const totalEgresos = parseFloat(costosFijos.rows[0].total_egresos) || 0;
-    const margenPromedio = parseFloat(margen.rows[0].margen_promedio) / 100 || 0.48;
+    const ingresosReales = parseFloat(margenReal.rows[0].ingresos) || 0;
+    const costosReales = parseFloat(margenReal.rows[0].costos) || 0;
+    const margenPromedio = ingresosReales > 0 ? (ingresosReales - costosReales) / ingresosReales : 0.48;
     const puntoEquilibrio = margenPromedio > 0 ? totalEgresos / margenPromedio : 0;
 
     const ventas = await pool.query(`
@@ -318,7 +333,7 @@ const getPuntoEquilibrio = async (req, res) => {
     `);
 
     const totalVentas = parseFloat(ventas.rows[0].total_ventas) || 0;
-    const margenSeguridad = totalVentas > 0
+    const margenSeguridad = totalVentas > 0 && puntoEquilibrio > 0
       ? ((totalVentas - puntoEquilibrio) / puntoEquilibrio * 100).toFixed(1)
       : 0;
 
