@@ -16,5 +16,6 @@ router.get('/movimientos-detalle', controller.getMovimientosDetalle);
 router.put('/movimientos/:id', controller.updateMovimiento);
 router.delete('/movimientos/:id', controller.deleteMovimiento);
 router.get('/analisis', controller.getAnalisisFinanciero);
+router.get('/comparar-meses', controller.getComparativaMeses);
 
 module.exports = router;

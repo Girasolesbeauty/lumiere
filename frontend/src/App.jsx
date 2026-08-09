@@ -3132,6 +3132,18 @@ function Finanzas({ localId, usuario, paletaActual }) {
   const [editandoMov, setEditandoMov] = useState(null);
   const [analisis, setAnalisis] = useState(null);
   const [analisisLoading, setAnalisisLoading] = useState(false);
+  const [comparativa, setComparativa] = useState(null);
+  const [comparativaLoading, setComparativaLoading] = useState(false);
+  const [diasComparar, setDiasComparar] = useState(new Date().getDate());
+
+  const cargarComparativa = (dias) => {
+    setComparativaLoading(true);
+    const d = dias || diasComparar;
+    API.get(`/finanzas/comparar-meses?local_id=${tabLocal}&dias=${d}`)
+      .then(res => setComparativa(res.data))
+      .catch(() => setComparativa(null))
+      .finally(() => setComparativaLoading(false));
+  };
 
   const cargarAnalisis = () => {
     setAnalisisLoading(true);
@@ -3218,6 +3230,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
 
   useEffect(() => { cargarDatos(); }, [tabLocal, mesFiltro, anioFiltro]);
   useEffect(() => { if (tab === "analisis") cargarAnalisis(); }, [tabLocal, mesFiltro, anioFiltro]);
+  useEffect(() => { if (tab === "comparativa") cargarComparativa(); }, [tabLocal]);
 
   const guardarFactExterna = async () => {
     if (!factExtMonto || parseFloat(factExtMonto) <= 0) { setMensaje("Ingresa un monto valido"); return; }
@@ -3279,9 +3292,9 @@ function Finanzas({ localId, usuario, paletaActual }) {
       {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
       
       <div className="tabs">
-        {["flujo", "detalle", "estructurado", "analisis", "costos", "equilibrio"].map(t => (
-          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "detalle") cargarDetalle(); if (t === "analisis") cargarAnalisis(); }}>
-            {t === "flujo" ? "MOVIMIENTOS" : t === "detalle" ? "DETALLE / EDITAR" : t === "estructurado" ? "FLUJO DE EFECTIVO" : t === "analisis" ? "ANALISIS" : t === "costos" ? "COSTOS" : "EQUILIBRIO"}
+        {["flujo", "detalle", "estructurado", "comparativa", "analisis", "costos", "equilibrio"].map(t => (
+          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "detalle") cargarDetalle(); if (t === "analisis") cargarAnalisis(); if (t === "comparativa") cargarComparativa(); }}>
+            {t === "flujo" ? "MOVIMIENTOS" : t === "detalle" ? "DETALLE / EDITAR" : t === "estructurado" ? "FLUJO DE EFECTIVO" : t === "comparativa" ? "COMPARAR MESES" : t === "analisis" ? "ANALISIS" : t === "costos" ? "COSTOS" : "EQUILIBRIO"}
           </div>
         ))}
       </div>
@@ -3614,6 +3627,58 @@ function Finanzas({ localId, usuario, paletaActual }) {
                 </div>
               </div>
             </div>
+          )}
+        </div>
+      )}
+
+      {tab === "comparativa" && (
+        <div className="fade">
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="ct">¿Cuantos dias comparar?</div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input className="inp" type="number" min="1" max="31" style={{ width: 100 }} value={diasComparar} onChange={e => setDiasComparar(Math.max(1, Math.min(31, parseInt(e.target.value) || 1)))} />
+              <span style={{ fontSize: 12, color: "#65676B" }}>del dia 1 al dia elegido, del mes actual contra el mismo tramo del mes anterior</span>
+              <button className="btn btn-p btn-sm" onClick={() => cargarComparativa(diasComparar)}>Comparar</button>
+              <button className="btn btn-g btn-sm" onClick={() => { setDiasComparar(new Date().getDate()); cargarComparativa(new Date().getDate()); }}>Hasta hoy</button>
+            </div>
+          </div>
+
+          {comparativaLoading ? (
+            <div style={{ textAlign: "center", color: "#65676B", padding: 30 }}>Calculando...</div>
+          ) : !comparativa ? (
+            <div style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>Todavia no hay datos para comparar.</div>
+          ) : (
+            <>
+              <div className="g2" style={{ marginBottom: 16 }}>
+                <div className="card">
+                  <div className="ct">{comparativa.mes_anterior.nombre} {comparativa.mes_anterior.anio} (del 1 al {comparativa.mes_anterior.hasta_dia})</div>
+                  <div className="metric">{fmt(comparativa.mes_anterior.total)}</div>
+                  <div className="msub">{comparativa.mes_anterior.cantidad} ventas</div>
+                </div>
+                <div className="card" style={{ borderTop: "3px solid #c9a84c" }}>
+                  <div className="ct">{comparativa.mes_actual.nombre} {comparativa.mes_actual.anio} (del 1 al {comparativa.mes_actual.hasta_dia})</div>
+                  <div className="metric">{fmt(comparativa.mes_actual.total)}</div>
+                  <div className="msub">{comparativa.mes_actual.cantidad} ventas</div>
+                </div>
+              </div>
+
+              <div className="card" style={{ textAlign: "center", padding: 24 }}>
+                <div className="ct">Variacion</div>
+                {comparativa.variacion_pct === null ? (
+                  <div style={{ fontSize: 14, color: "#65676B" }}>No hay facturacion del mes anterior para comparar</div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 42, fontWeight: 700, color: comparativa.variacion_pct >= 0 ? "#2d7a4f" : "#c0392b" }}>
+                      {comparativa.variacion_pct >= 0 ? "+" : ""}{comparativa.variacion_pct.toFixed(1)}%
+                    </div>
+                    <div style={{ fontSize: 12, color: "#65676B", marginTop: 6 }}>
+                      {comparativa.variacion_pct >= 0 ? "Facturando mas" : "Facturando menos"} que el mismo tramo del mes anterior
+                      ({fmt(Math.abs(comparativa.mes_actual.total - comparativa.mes_anterior.total))} de diferencia)
+                    </div>
+                  </>
+                )}
+              </div>
+            </>
           )}
         </div>
       )}
