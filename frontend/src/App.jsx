@@ -8091,23 +8091,39 @@ function CierreCaja({ localId, usuario, paletaActual }) {
           </div>
           {productosDia.length === 0 ? (
             <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>No se vendio ningun producto este dia.</div>
-          ) : (
-            <table>
-              <thead><tr><th>Producto</th><th>Marca</th><th>Cantidad vendida</th><th>Stock actual</th></tr></thead>
-              <tbody>
-                {productosDia
-                  .filter(pr => (pr.nombre || "").toLowerCase().includes(buscarProdDia.toLowerCase()))
-                  .map(pr => (
-                    <tr key={pr.producto_id}>
-                      <td style={{ fontWeight: 600 }}>{pr.nombre}</td>
-                      <td style={{ fontSize: 11, color: temaPal.textMuted }}>{pr.marca}</td>
-                      <td style={{ fontWeight: 700, color: "#2471a3" }}>{pr.cantidad_vendida}</td>
-                      <td style={{ fontWeight: 700, color: parseInt(pr.stock_actual) <= 0 ? "#c0392b" : temaPal.text }}>{pr.stock_actual}</td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          )}
+          ) : (() => {
+            // Analisis ABC: A = productos que juntos ya suman hasta el 80% de la facturacion
+            // del dia, B = hasta el 95%, C = el resto. Se calcula sobre la lista completa
+            // (ya ordenada por facturacion, de mayor a menor), antes de aplicar el buscador.
+            const totalFacturadoDia = productosDia.reduce((s, pr) => s + parseFloat(pr.total_facturado || 0), 0);
+            let acumulado = 0;
+            const conCategoria = productosDia.map(pr => {
+              acumulado += parseFloat(pr.total_facturado || 0);
+              const pct = totalFacturadoDia > 0 ? (acumulado / totalFacturadoDia) * 100 : 0;
+              const categoria = pct <= 80 ? "A" : pct <= 95 ? "B" : "C";
+              return { ...pr, categoria };
+            });
+            const colorCat = { A: "#2d7a4f", B: "#c9a84c", C: "#65676B" };
+            return (
+              <table>
+                <thead><tr><th>ABC</th><th>Producto</th><th>Marca</th><th>Cantidad vendida</th><th>Facturado</th><th>Stock actual</th></tr></thead>
+                <tbody>
+                  {conCategoria
+                    .filter(pr => (pr.nombre || "").toLowerCase().includes(buscarProdDia.toLowerCase()))
+                    .map(pr => (
+                      <tr key={pr.producto_id}>
+                        <td><span className="badge" style={{ background: colorCat[pr.categoria] + "20", color: colorCat[pr.categoria] }}>{pr.categoria}</span></td>
+                        <td style={{ fontWeight: 600 }}>{pr.nombre}</td>
+                        <td style={{ fontSize: 11, color: temaPal.textMuted }}>{pr.marca}</td>
+                        <td style={{ fontWeight: 700, color: "#2471a3" }}>{pr.cantidad_vendida}</td>
+                        <td style={{ fontWeight: 700 }}>{fmt(parseFloat(pr.total_facturado))}</td>
+                        <td style={{ fontWeight: 700, color: parseInt(pr.stock_actual) <= 0 ? "#c0392b" : temaPal.text }}>{pr.stock_actual}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            );
+          })()}
         </div>
       )}
     </div>

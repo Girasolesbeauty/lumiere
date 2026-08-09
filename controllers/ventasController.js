@@ -824,14 +824,15 @@ const getProductosVendidosDia = async (req, res) => {
 
     const r = await pool.query(
       `SELECT p.id AS producto_id, p.nombre, p.marca, p.${colStock} AS stock_actual,
-              SUM(vi.cantidad) AS cantidad_vendida
+              SUM(vi.cantidad) AS cantidad_vendida,
+              SUM(vi.cantidad * vi.precio_unitario) AS total_facturado
        FROM venta_items vi
        JOIN ventas v ON vi.venta_id = v.id
        JOIN productos p ON vi.producto_id = p.id
        WHERE v.local_id = $1 AND DATE(v.creado_en) = $2
          AND v.es_preventa = FALSE AND v.canal != 'prueba'
        GROUP BY p.id, p.nombre, p.marca, p.${colStock}
-       ORDER BY cantidad_vendida DESC`,
+       ORDER BY total_facturado DESC`,
       [localNum, fecha]
     );
     res.json(r.rows);
