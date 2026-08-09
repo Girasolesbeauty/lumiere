@@ -7845,7 +7845,11 @@ function CierreCaja({ localId, usuario, paletaActual }) {
   const [movsDia, setMovsDia] = useState([]);
   const [giftCardsDia, setGiftCardsDia] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("resumen");
+  const [productosDia, setProductosDia] = useState([]);
+  const [buscarProdDia, setBuscarProdDia] = useState("");
   const resumenRef = useRef(null);
+  const productosRef = useRef(null);
 
   const cambiarDia = (dias) => {
     const d = new Date(fecha + "T12:00:00");
@@ -7884,6 +7888,13 @@ function CierreCaja({ localId, usuario, paletaActual }) {
 
   useEffect(() => { cargar(); }, [fecha, localId]);
 
+  const cargarProductosDia = () => {
+    API.get("/ventas/productos-vendidos?fecha=" + fecha + "&local_id=" + (localId || 1))
+      .then(res => setProductosDia(res.data || []))
+      .catch(() => setProductosDia([]));
+  };
+  useEffect(() => { if (tab === "productos") cargarProductosDia(); }, [tab, fecha, localId]);
+
   const porMedio = {};
   ventasDia.forEach(v => {
     const m = v.medio_pago || "Efectivo";
@@ -7909,13 +7920,13 @@ function CierreCaja({ localId, usuario, paletaActual }) {
   const egresosDia = movsDia.filter(m => m.tipo === "egreso").reduce((s, m) => s + parseFloat(m.importe || 0), 0);
   const efectivoEsperado = ventasEfectivo + ingresosManuales - egresosDia;
 
-  const descargarImagen = async () => {
-    if (!resumenRef.current) return;
+  const descargarImagen = async (ref = resumenRef, nombreArchivo = "cierre-" + fecha) => {
+    if (!ref.current) return;
     try {
       const { default: html2canvas } = await import("https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js");
-      const canvas = await html2canvas(resumenRef.current, { backgroundColor: temaPal.card, scale: 2 });
+      const canvas = await html2canvas(ref.current, { backgroundColor: temaPal.card, scale: 2 });
       const link = document.createElement("a");
-      link.download = "cierre-" + fecha + ".png";
+      link.download = nombreArchivo + ".png";
       link.href = canvas.toDataURL("image/png");
       link.click();
     } catch (e) {
@@ -7948,6 +7959,13 @@ function CierreCaja({ localId, usuario, paletaActual }) {
         </div>
       )}
 
+      <div className="tabs">
+        <div className={"tab " + (tab === "resumen" ? "on" : "")} onClick={() => setTab("resumen")}>RESUMEN</div>
+        <div className={"tab " + (tab === "productos" ? "on" : "")} onClick={() => setTab("productos")}>PRODUCTOS VENDIDOS</div>
+      </div>
+
+      {tab === "resumen" && (
+      <>
       <div ref={resumenRef} style={{ background: temaPal.card, padding: 4, borderRadius: 8 }}>
         <div style={{ padding: "6px 4px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
@@ -8054,6 +8072,42 @@ function CierreCaja({ localId, usuario, paletaActual }) {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+      </>
+      )}
+
+      {tab === "productos" && (
+        <div className="card" ref={productosRef}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: temaPal.text }}>Productos vendidos</div>
+              <div style={{ fontSize: 11, color: temaPal.textMuted }}>{fmtDia(fecha)}</div>
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input className="inp" style={{ width: 200, padding: "6px 10px", fontSize: 12 }} placeholder="Buscar producto..." value={buscarProdDia} onChange={e => setBuscarProdDia(e.target.value)} />
+              <button className="btn btn-p btn-sm" onClick={() => descargarImagen(productosRef, "productos-vendidos-" + fecha)}>📲 Descargar</button>
+            </div>
+          </div>
+          {productosDia.length === 0 ? (
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>No se vendio ningun producto este dia.</div>
+          ) : (
+            <table>
+              <thead><tr><th>Producto</th><th>Marca</th><th>Cantidad vendida</th><th>Stock actual</th></tr></thead>
+              <tbody>
+                {productosDia
+                  .filter(pr => (pr.nombre || "").toLowerCase().includes(buscarProdDia.toLowerCase()))
+                  .map(pr => (
+                    <tr key={pr.producto_id}>
+                      <td style={{ fontWeight: 600 }}>{pr.nombre}</td>
+                      <td style={{ fontSize: 11, color: temaPal.textMuted }}>{pr.marca}</td>
+                      <td style={{ fontWeight: 700, color: "#2471a3" }}>{pr.cantidad_vendida}</td>
+                      <td style={{ fontWeight: 700, color: parseInt(pr.stock_actual) <= 0 ? "#c0392b" : temaPal.text }}>{pr.stock_actual}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
     </div>

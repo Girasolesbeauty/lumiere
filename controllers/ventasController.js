@@ -110,7 +110,7 @@ const create = async (req, res) => {
       cliente_id, tipo_factura, items, descuento, canal, cupon_codigo, local_id,
       medio_pago_id, medio_pago_nombre, total_con_interes, es_preventa, nombre_preventa,
       usuario_id, usuario_nombre, inicio_venta, duracion_segundos, monto_gift_card, insumos_usados, pagos, referencia,
-      justificaciones_stock } = req.body;
+      justificaciones_stock, monto_sena, sena_medio_pago_id, sena_medio_pago_nombre, sena_referencia } = req.body;
 
     let subtotal = 0;
     for (const item of items) {
@@ -189,13 +189,15 @@ const create = async (req, res) => {
     // Se calcula reci\u00e9n ac\u00e1 porque depende de 'total', que se define m\u00e1s arriba.
     const estadoFacturacionInicial = (es_preventa === true || totalGCInicial >= total) ? 'no_aplica' : 'pendiente';
 
+    const montoSenaInicial = (es_preventa === true) ? (parseFloat(monto_sena) || 0) : 0;
+
     const venta = await client.query(
       `INSERT INTO ventas
         (numero_factura, cliente_id, tipo_factura, subtotal, descuento, total, canal, local_id,
          medio_pago_id, medio_pago, es_preventa, nombre_preventa, estado_pago,
          usuario_id, inicio_venta, duracion_segundos, monto_gift_card, preventa_local, referencia, cupon_id,
-         estado_facturacion)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING *`,
+         estado_facturacion, monto_sena, sena_medio_pago_id, sena_medio_pago_nombre, sena_referencia)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25) RETURNING *`,
       [
         numero, cliente_id, tipo_factura, subtotal, descuento_total, total,
         canal || 'presencial', local_id || 1,
@@ -207,7 +209,11 @@ const create = async (req, res) => {
         es_preventa === true ? (local_id || 1) : null,
         referencia || null,
         cuponId,
-        estadoFacturacionInicial
+        estadoFacturacionInicial,
+        montoSenaInicial,
+        montoSenaInicial > 0 ? (sena_medio_pago_id || null) : null,
+        montoSenaInicial > 0 ? (sena_medio_pago_nombre || null) : null,
+        montoSenaInicial > 0 ? (sena_referencia || null) : null
       ]
     );
 
@@ -290,12 +296,13 @@ const create = async (req, res) => {
       }
     }
 
-    // Las preventas no generan movimiento de caja hasta que se cobran.
-    // La parte pagada con gift card NO se cuenta (esa plata ya entro al emitir la gift card).
-    // OJO: el ingreso en movimientos_caja_efectivo (la "Caja" que se cuenta contra lo fisico)
-    // NO se acredita aca -- se acredita recien cuando ARCA confirma la factura de verdad
-    // (ver arca.js). Asi, si una venta falla al facturar y se vuelve a cargar por error,
-    // no queda plata fantasma sumada en la Caja por algo que nunca se facturo.
+    // Las preventas no generan movimiento de caja hasta que se cobran... salvo la seña,
+    // que es plata que entra de verdad hoy (aunque el producto siga en transito).
+    // La parte pagada con gift card NO se cuenta (esa plata ya entró al emitir la gift card).
+    // OJO: para una venta normal (no preventa), el ingreso en movimientos_caja_efectivo
+    // (la "Caja" que se cuenta contra lo fisico) YA NO se acredita aca -- se acredita recien
+    // cuando ARCA confirma la factura de verdad (ver arca.js). Asi, si una venta falla al
+    // facturar y se vuelve a cargar por error, no queda plata fantasma sumada en la Caja.
     const montoGC = parseFloat(monto_gift_card) || 0;
     const ingresoCaja = total - montoGC;
     if (es_preventa !== true && ingresoCaja > 0) {
@@ -304,6 +311,16 @@ const create = async (req, res) => {
          VALUES ($1, 'I', $2, $3, $4)`,
         ['Venta ' + numero, ingresoCaja, numero, local_id || 1]
       );
+    } else if (es_preventa === true && montoSenaInicial > 0) {
+      await client.query(
+        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id)
+         VALUES ($1, 'I', $2, $3, $4)`,
+        ['Seña preventa ' + numero, montoSenaInicial, sena_referencia || numero, local_id || 1]
+      );
+      await acreditarEfectivoEnCaja(client, {
+        pagos: null, medio_pago_id: sena_medio_pago_id, medio_pago_nombre: sena_medio_pago_nombre, monto: montoSenaInicial,
+        local_id: local_id || 1, usuario_id, concepto: 'Seña preventa ' + numero
+      });
     }
 
     if (cliente_id) {
@@ -454,18 +471,21 @@ const confirmarEntrega = async (req, res) => {
       [medio_pago_id || null, medio_pago_nombre || null, totalFinal, id]
     );
 
-    // Ahora si genera el movimiento de caja, porque recien ahora se cobra
+    // Ahora si genera el movimiento de caja, porque recien ahora se cobra el saldo.
+    // Si hubo una seña, esa plata ya entro a caja cuando se cargo la preventa: no se vuelve a cobrar.
     const montoGC = parseFloat(venta.monto_gift_card) || 0;
-    const ingresoCaja = totalFinal - montoGC;
+    const montoSenaYaPagada = parseFloat(venta.monto_sena) || 0;
+    const ingresoCaja = totalFinal - montoGC - montoSenaYaPagada;
     if (ingresoCaja > 0) {
+      const conceptoEntrega = (montoSenaYaPagada > 0 ? 'Saldo entrega preventa ' : 'Entrega preventa ') + (venta.numero_factura || '');
       await client.query(
         `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id)
          VALUES ($1, 'I', $2, $3, $4)`,
-        ['Entrega preventa ' + (venta.numero_factura || ''), ingresoCaja, venta.numero_factura, venta.local_id || 1]
+        [conceptoEntrega, ingresoCaja, venta.numero_factura, venta.local_id || 1]
       );
       await acreditarEfectivoEnCaja(client, {
         pagos: null, medio_pago_id, medio_pago_nombre, monto: ingresoCaja,
-        local_id: venta.local_id || 1, usuario_id, concepto: 'Entrega preventa ' + (venta.numero_factura || '')
+        local_id: venta.local_id || 1, usuario_id, concepto: conceptoEntrega
       });
     }
 
@@ -793,4 +813,32 @@ const editarOnline = async (req, res) => {
   }
 };
 
-module.exports = { getAll, getById, create, update, confirmarEntrega, getResumenHoy, getResumenMes, crearOnline, eliminarOnline, editarOnline, acreditarEfectivoEnCaja };
+// Productos vendidos en un dia puntual, con la cantidad total y el stock actual de cada uno
+// (para el detalle dentro de Cierre de Caja).
+const getProductosVendidosDia = async (req, res) => {
+  try {
+    const { fecha, local_id } = req.query;
+    if (!fecha) return res.status(400).json({ error: 'Falta la fecha' });
+    const localNum = local_id === '2' || local_id === 2 ? 2 : 1;
+    const colStock = localNum === 2 ? 'stock_ush' : 'stock_rg';
+
+    const r = await pool.query(
+      `SELECT p.id AS producto_id, p.nombre, p.marca, p.${colStock} AS stock_actual,
+              SUM(vi.cantidad) AS cantidad_vendida
+       FROM venta_items vi
+       JOIN ventas v ON vi.venta_id = v.id
+       JOIN productos p ON vi.producto_id = p.id
+       WHERE v.local_id = $1 AND DATE(v.creado_en) = $2
+         AND v.es_preventa = FALSE AND v.canal != 'prueba'
+       GROUP BY p.id, p.nombre, p.marca, p.${colStock}
+       ORDER BY cantidad_vendida DESC`,
+      [localNum, fecha]
+    );
+    res.json(r.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al obtener productos vendidos: ' + error.message });
+  }
+};
+
+module.exports = { getAll, getById, create, update, confirmarEntrega, getResumenHoy, getResumenMes, crearOnline, eliminarOnline, editarOnline, acreditarEfectivoEnCaja, getProductosVendidosDia };
