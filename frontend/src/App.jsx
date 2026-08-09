@@ -6391,6 +6391,8 @@ function Comisiones({ localId, paletaActual }) {
   const toggle = (id) => setSel(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   const [showPagar, setShowPagar] = useState(false);
+  const [modoPago, setModoPago] = useState("dias"); // "dias" (tildados) o "manual" (monto suelto)
+  const [montoManual, setMontoManual] = useState("");
   const [formaPago, setFormaPago] = useState("efectivo");
   const [productos, setProductos] = useState([]);
   const [buscarProdCanje, setBuscarProdCanje] = useState("");
@@ -6399,13 +6401,23 @@ function Comisiones({ localId, paletaActual }) {
 
   const abrirPagar = () => {
     if (sel.length === 0) return setMensaje("Selecciona al menos un dia");
+    setModoPago("dias");
     setFormaPago("efectivo"); setProdCanje(null); setBuscarProdCanje(""); setCantidadCanje(1);
     setShowPagar(true);
     if (productos.length === 0) API.get("/productos").then(res => setProductos(res.data || [])).catch(() => {});
   };
 
-  // Suma de las comisiones tildadas (con eso se paga el canje)
-  const totalSeleccionado = (hist?.registros || []).filter(r => sel.includes(r.id)).reduce((s, r) => s + parseFloat(r.comision_ganada || 0), 0);
+  const abrirPagoManual = () => {
+    setModoPago("manual");
+    setMontoManual(""); setFormaPago("efectivo"); setProdCanje(null); setBuscarProdCanje(""); setCantidadCanje(1);
+    setShowPagar(true);
+    if (productos.length === 0) API.get("/productos").then(res => setProductos(res.data || [])).catch(() => {});
+  };
+
+  // Suma de las comisiones tildadas (modo "dias"), o el monto escrito a mano (modo "manual")
+  const totalSeleccionado = modoPago === "manual"
+    ? (parseFloat(montoManual) || 0)
+    : (hist?.registros || []).filter(r => sel.includes(r.id)).reduce((s, r) => s + parseFloat(r.comision_ganada || 0), 0);
   // Las empleadas tienen 20% de descuento automatico sobre el precio de lista
   const DESCUENTO_EMPLEADA = 0.20;
   const precioConDescuento = prodCanje ? parseFloat(prodCanje.precio || 0) * (1 - DESCUENTO_EMPLEADA) : 0;
@@ -6413,18 +6425,29 @@ function Comisiones({ localId, paletaActual }) {
   const canjeNoAlcanza = formaPago === "canje" && prodCanje && costoCanje > totalSeleccionado;
 
   const confirmarPagar = async () => {
+    if (modoPago === "manual" && (!montoManual || parseFloat(montoManual) <= 0)) return setMensaje("Ingresa el monto pagado");
     if (formaPago === "canje" && !prodCanje) return setMensaje("Elegi el producto del canje");
     if (canjeNoAlcanza) return setMensaje("Lo seleccionado no alcanza para este canje");
     try {
-      const res = await API.put("/comisiones/" + (localId || 1) + "/pagar", {
-        ids: sel, forma_pago: formaPago,
-        producto_canje_id: prodCanje?.id, producto_canje_nombre: prodCanje?.nombre, cantidad_canje: cantidadCanje
-      });
-      setMensaje("Pagadas! Total: " + fmt(res.data.total_pagado) + " (" + res.data.dias_pagados + " dias)");
-      setSel([]); setShowPagar(false);
+      let res;
+      if (modoPago === "manual") {
+        res = await API.post("/comisiones/" + (localId || 1) + "/pago-manual", {
+          monto: montoManual, forma_pago: formaPago,
+          producto_canje_id: prodCanje?.id, producto_canje_nombre: prodCanje?.nombre, cantidad_canje: cantidadCanje
+        });
+        setMensaje("Pago registrado! Total: " + fmt(res.data.monto));
+      } else {
+        res = await API.put("/comisiones/" + (localId || 1) + "/pagar", {
+          ids: sel, forma_pago: formaPago,
+          producto_canje_id: prodCanje?.id, producto_canje_nombre: prodCanje?.nombre, cantidad_canje: cantidadCanje
+        });
+        setMensaje("Pagadas! Total: " + fmt(res.data.total_pagado) + " (" + res.data.dias_pagados + " dias)");
+        setSel([]);
+      }
+      setShowPagar(false);
       cargar();
       setTimeout(() => setMensaje(""), 4000);
-    } catch (e) { setMensaje(e.response?.data?.error || "Error al marcar como pagadas"); }
+    } catch (e) { setMensaje(e.response?.data?.error || "Error al registrar el pago"); }
   };
 
   const localNombre = Number(localId) === 2 ? "Ushuaia" : "Rio Grande";
@@ -6476,6 +6499,7 @@ function Comisiones({ localId, paletaActual }) {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <div className="ct" style={{ margin: 0 }}>Historial de comisiones</div>
                 {sel.length > 0 && <button className="btn btn-p btn-sm" onClick={abrirPagar}>Marcar pagadas ({sel.length})</button>}
+                <button className="btn btn-g btn-sm" onClick={abrirPagoManual}>💰 Registrar pago total</button>
               </div>
 
               <div className="g2" style={{ marginBottom: 12 }}>
@@ -6488,6 +6512,18 @@ function Comisiones({ localId, paletaActual }) {
                   <div style={{ fontSize: 18, fontWeight: 700, color: "#2d7a4f" }}>{fmt(hist.total_pagado || 0)}</div>
                 </div>
               </div>
+
+              {hist.pagos_manuales && hist.pagos_manuales.length > 0 && (
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 10, color: p.textMuted, letterSpacing: ".1em", marginBottom: 6 }}>PAGOS TOTALES REGISTRADOS</div>
+                  {hist.pagos_manuales.map(pm => (
+                    <div key={pm.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "6px 0", borderBottom: "1px solid " + p.border }}>
+                      <span style={{ color: p.textMuted }}>{new Date(pm.creado_en).toLocaleDateString("es-AR")} · {pm.forma_pago === "canje" ? "Canje: " + pm.producto_canje_nombre : pm.forma_pago}</span>
+                      <span style={{ fontWeight: 700 }}>{fmt(parseFloat(pm.monto))}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {(!hist.registros || hist.registros.length === 0) ? <div style={{ fontSize: 12, color: p.textMuted, padding: "10px 0" }}>Todavia no hay comisiones registradas.</div> : (
                 <table style={{ width: "100%", fontSize: 12 }}>
@@ -6513,11 +6549,18 @@ function Comisiones({ localId, paletaActual }) {
       {showPagar && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={() => setShowPagar(false)}>
           <div className="card fade" style={{ maxWidth: 440, width: "90vw" }} onClick={e => e.stopPropagation()}>
-            <div className="ct">Marcar {sel.length} dia(s) como pagados</div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: p.bg, borderRadius: 6, marginBottom: 12 }}>
-              <span style={{ fontSize: 12, color: p.textMuted }}>Total seleccionado</span>
-              <span style={{ fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>{fmt(totalSeleccionado)}</span>
-            </div>
+            <div className="ct">{modoPago === "manual" ? "Registrar pago total" : "Marcar " + sel.length + " dia(s) como pagados"}</div>
+            {modoPago === "manual" ? (
+              <div className="fg"><div className="fl">Monto total pagado</div>
+                <input className="inp" type="number" autoFocus placeholder="Ej: 150000" value={montoManual} onChange={e => setMontoManual(e.target.value)} style={{ fontSize: 18, fontWeight: 700 }} />
+                <div style={{ fontSize: 10, color: p.textMuted, marginTop: 4 }}>Este monto se descuenta directo del total adeudado, sin necesitar tildar dias puntuales.</div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: p.bg, borderRadius: 6, marginBottom: 12 }}>
+                <span style={{ fontSize: 12, color: p.textMuted }}>Total seleccionado</span>
+                <span style={{ fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>{fmt(totalSeleccionado)}</span>
+              </div>
+            )}
             <div className="fg"><div className="fl">¿Como se pago?</div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn btn-sm" style={{ flex: 1, background: formaPago === "efectivo" ? "#2d7a4f15" : "transparent", border: "1px solid " + (formaPago === "efectivo" ? "#2d7a4f" : p.border) }} onClick={() => setFormaPago("efectivo")}>Efectivo</button>
