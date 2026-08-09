@@ -238,7 +238,8 @@ function TierBadge({ tier }) {
   return <span className={"badge " + cls}>{tier}</span>;
 }
 
-function Dashboard({ localId }) {
+function Dashboard({ localId, paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tabLocal, setTabLocal] = useState("rg");
@@ -305,8 +306,8 @@ function Dashboard({ localId }) {
   const KPI = ({ titulo, valor, sub, color, alerta }) => (
     <div className="card" style={{ borderTop: "3px solid " + (alerta ? "#c0392b" : (color || "#c9a84c")) }}>
       <div className="ct">{titulo}</div>
-      <div style={{ fontSize: 26, fontWeight: 700, color: alerta ? "#c0392b" : (color || "#111111") }}>{valor}</div>
-      {sub && <div style={{ fontSize: 11, color: "#65676B", marginTop: 4 }}>{sub}</div>}
+      <div style={{ fontSize: 26, fontWeight: 700, color: alerta ? "#c0392b" : (color || p.text) }}>{valor}</div>
+      {sub && <div style={{ fontSize: 11, color: p.textMuted, marginTop: 4 }}>{sub}</div>}
     </div>
   );
 
@@ -332,7 +333,7 @@ function Dashboard({ localId }) {
               <div style={{ fontSize: 13, fontWeight: 700, color: vencidas > 0 ? "#c0392b" : "#c9a84c" }}>
                 {vencidas > 0 ? vencidas + " factura" + (vencidas > 1 ? "s" : "") + " vencida" + (vencidas > 1 ? "s" : "") + (vencimientos.length > vencidas ? " y " + (vencimientos.length - vencidas) + " por vencer" : "") : vencimientos.length + " factura" + (vencimientos.length > 1 ? "s" : "") + " vence" + (vencimientos.length > 1 ? "n" : "") + " en los proximos 7 dias"}
               </div>
-              <div style={{ fontSize: 11, color: "#666666", marginTop: 2 }}>Total adeudado: {fmt(totalAdeudado)} - revisalo en Proveedores</div>
+              <div style={{ fontSize: 11, color: p.textMuted, marginTop: 2 }}>Total adeudado: {fmt(totalAdeudado)} - revisalo en Proveedores</div>
             </div>
           </div>
         );
@@ -340,16 +341,16 @@ function Dashboard({ localId }) {
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {["rg","ush","consolidado"].map(l => (
           <button key={l} onClick={() => setTabLocal(l)} className="btn btn-sm"
-            style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : "#e8e8e8"), color: tabLocal === l ? "#c9a84c" : "#65676B", fontWeight: tabLocal === l ? 600 : 400 }}>
+            style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : p.border), color: tabLocal === l ? "#c9a84c" : p.textMuted, fontWeight: tabLocal === l ? 600 : 400 }}>
             {l === "rg" ? "Rio Grande" : l === "ush" ? "Ushuaia" : "Consolidado"}
           </button>
         ))}
       </div>
       {loading ? (
-        <div style={{ textAlign: "center", color: "#65676B", padding: 40 }}>Cargando KPIs...</div>
+        <div style={{ textAlign: "center", color: p.textMuted, padding: 40 }}>Cargando KPIs...</div>
       ) : data && (
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#65676B", letterSpacing: ".1em", marginBottom: 10 }}>FINANCIERO</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: p.textMuted, letterSpacing: ".1em", marginBottom: 10 }}>FINANCIERO</div>
           <div className="g3" style={{ marginBottom: 20 }}>
             <KPI titulo="Ventas del mes" valor={fmt(Math.round(data.totalVentas))} sub={data.cantVentas + " transacciones"} color="#2d7a4f" />
             <KPI titulo="Resultado neto" valor={fmt(Math.round(data.fin.neto || 0))} sub={"Ingresos - Egresos"} color={data.fin.neto >= 0 ? "#2d7a4f" : "#c0392b"} alerta={data.fin.neto < 0} />
@@ -361,7 +362,7 @@ function Dashboard({ localId }) {
             <KPI titulo="Total clientes" valor={data.clientes.length} sub="en la base" color="#2471a3" />
           </div>
 
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#65676B", letterSpacing: ".1em", marginBottom: 10, marginTop: 4 }}>INVENTARIO</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: p.textMuted, letterSpacing: ".1em", marginBottom: 10, marginTop: 4 }}>INVENTARIO</div>
           <div className="g3" style={{ marginBottom: 20 }}>
             <KPI titulo="Productos totales" valor={data.productos.length} sub="en catalogo" />
             <KPI titulo="Stock bajo" valor={data.stockBajo.length} sub="bajo el minimo" alerta={data.stockBajo.length > 0} color="#e67e22" />
@@ -377,8 +378,8 @@ function Dashboard({ localId }) {
                 { l: "Resultado neto", v: data.fin.neto, ok: 1, alerta: 0, fmt: v => fmt(Math.round(v)) },
                 { l: "Stock bajo", v: data.stockBajo.length === 0 ? 1 : data.stockBajo.length > 5 ? -1 : 0, ok: 1, alerta: 0, fmt: () => data.stockBajo.length === 0 ? "OK" : data.stockBajo.length + " productos" },
               ].map(r => (
-                <div key={r.l} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f5f5f5" }}>
-                  <span style={{ fontSize: 12, color: "#444444" }}>{r.l}</span>
+                <div key={r.l} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid " + p.border }}>
+                  <span style={{ fontSize: 12, color: p.text }}>{r.l}</span>
                   <Semaforo valor={r.v} umbralOk={r.ok} umbralAlerta={r.alerta} formato={r.fmt} />
                 </div>
               ))}
@@ -386,7 +387,7 @@ function Dashboard({ localId }) {
             <div className="card">
               <div className="ct">Ventas por medio de pago</div>
               {Object.keys(data.ventasPorMedio).length === 0 ? (
-                <div style={{ color: "#65676B", fontSize: 12, textAlign: "center", padding: 20 }}>Sin datos este mes</div>
+                <div style={{ color: p.textMuted, fontSize: 12, textAlign: "center", padding: 20 }}>Sin datos este mes</div>
               ) : (
                 <div>
                   {Object.entries(data.ventasPorMedio).sort((a,b) => b[1]-a[1]).slice(0, 6).map(([medio, total]) => {
@@ -394,7 +395,7 @@ function Dashboard({ localId }) {
                     return (
                       <div key={medio} style={{ marginBottom: 10 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                          <span style={{ fontSize: 11, color: "#444444" }}>{medio}</span>
+                          <span style={{ fontSize: 11, color: p.text }}>{medio}</span>
                           <span style={{ fontSize: 11, color: "#c9a84c", fontWeight: 600 }}>{pct}%</span>
                         </div>
                         <div className="pb"><div className="pf" style={{ width: pct + "%" }} /></div>
@@ -407,7 +408,7 @@ function Dashboard({ localId }) {
           </div>
 
           {data.stockBajo.length > 0 && (
-            <div className="card" style={{ borderLeft: "3px solid #c0392b", marginBottom: 16 }}>
+            <div className="card" style={{ borderLeft: "3px solid " + p.border, marginBottom: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <div className="ct" style={{ color: "#c0392b", margin: 0 }}>Alertas de stock</div>
                 <span style={{ fontSize: 10, background: "#c0392b15", color: "#c0392b", padding: "2px 8px", borderRadius: 10, fontWeight: 700 }}>{data.stockBajo.length} productos</span>
@@ -415,7 +416,7 @@ function Dashboard({ localId }) {
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {data.stockBajo.slice(0, 8).map((p, i) => (
                   <div key={i} style={{ background: "#c0392b08", border: "1px solid #c0392b22", borderRadius: 6, padding: "6px 10px", fontSize: 11 }}>
-                    <div style={{ fontWeight: 600, color: "#444444" }}>{p.nombre}</div>
+                    <div style={{ fontWeight: 600, color: p.text }}>{p.nombre}</div>
                     <div style={{ color: "#c0392b" }}>Stock: {p.stock || 0}u</div>
                   </div>
                 ))}
@@ -426,14 +427,14 @@ function Dashboard({ localId }) {
           <div className="card">
             <div className="ct">Ultimas ventas</div>
             {data.ventas.length === 0 ? (
-              <div style={{ color: "#65676B", fontSize: 12, textAlign: "center", padding: 20 }}>Sin ventas este mes</div>
+              <div style={{ color: p.textMuted, fontSize: 12, textAlign: "center", padding: 20 }}>Sin ventas este mes</div>
             ) : (
               <table>
                 <thead><tr><th>Fecha</th><th>Cliente</th><th>Medio</th><th>Total</th></tr></thead>
                 <tbody>
                   {data.ventas.slice(0, 8).map((v, i) => (
                     <tr key={i}>
-                      <td style={{ fontSize: 11, color: "#65676B" }}>{new Date(v.creado_en || v.fecha).toLocaleDateString("es-AR")}</td>
+                      <td style={{ fontSize: 11, color: p.textMuted }}>{new Date(v.creado_en || v.fecha).toLocaleDateString("es-AR")}</td>
                       <td style={{ fontSize: 12 }}>{v.cliente_nombre || "Consumidor final"}</td>
                       <td style={{ fontSize: 11 }}>{v.medio_pago || "-"}</td>
                       <td style={{ color: "#2d7a4f", fontWeight: 600 }}>{fmt(parseFloat(v.total || 0))}</td>
@@ -449,7 +450,8 @@ function Dashboard({ localId }) {
   );
 }
 
-function VentasOnline({ localId, usuario, permisosActivos }) {
+function VentasOnline({ localId, usuario, permisosActivos, paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
   const [productos, setProductos] = useState([]);
   const [mediosPago, setMediosPago] = useState([]);
   const [busqueda, setBusqueda] = useState("");
@@ -607,7 +609,7 @@ function VentasOnline({ localId, usuario, permisosActivos }) {
       </div></div>
       </div>
 
-      {mensaje && <div className="card" style={{ marginBottom: 12, padding: 12, background: mensaje.startsWith("Error") ? "#fdecea" : "#eafaf1", color: mensaje.startsWith("Error") ? "#c0392b" : "#1e7e4f", fontSize: 13 }}>{mensaje}</div>}
+      {mensaje && <div className="card" style={{ marginBottom: 12, padding: 12, background: mensaje.startsWith("Error") ? temaPal.redDim : temaPal.greenDim, color: mensaje.startsWith("Error") ? "#c0392b" : "#1e7e4f", fontSize: 13 }}>{mensaje}</div>}
 
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
         <div style={{ flex: "1 1 340px" }}>
@@ -615,11 +617,11 @@ function VentasOnline({ localId, usuario, permisosActivos }) {
             <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Buscar producto</div>
             <input className="inp" placeholder="Nombre o codigo de barras" value={busqueda} onChange={e => setBusqueda(e.target.value)} />
             {filtrados.length > 0 && (
-              <div style={{ marginTop: 8, border: "1px solid #eee", borderRadius: 6 }}>
+              <div style={{ marginTop: 8, border: "1px solid " + temaPal.border, borderRadius: 6 }}>
                 {filtrados.map(p => (
-                  <div key={p.id} onClick={() => add(p)} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 12, display: "flex", justifyContent: "space-between" }}>
+                  <div key={p.id} onClick={() => add(p)} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid " + temaPal.border, fontSize: 12, display: "flex", justifyContent: "space-between" }}>
                     <span>{p.nombre}</span>
-                    <span style={{ color: "#888" }}>{fmt(p.precio || p.price || 0)} · stock {Number(localId) === 2 ? (p.stock_ush || 0) : (p.stock_rg || 0)}</span>
+                    <span style={{ color: temaPal.textMuted }}>{fmt(p.precio || p.price || 0)} · stock {Number(localId) === 2 ? (p.stock_ush || 0) : (p.stock_rg || 0)}</span>
                   </div>
                 ))}
               </div>
@@ -630,31 +632,31 @@ function VentasOnline({ localId, usuario, permisosActivos }) {
         <div style={{ flex: "1 1 340px" }}>
           <div className="card">
             <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Productos de la venta</div>
-            {cart.length === 0 ? <div style={{ fontSize: 12, color: "#999", padding: "12px 0" }}>Todavia no agregaste productos</div> : cart.map(i => (
-              <div key={i.id} style={{ background: "#fff", border: "1px solid #eee", borderRadius: 6, padding: "8px 10px", marginBottom: 6 }}>
+            {cart.length === 0 ? <div style={{ fontSize: 12, color: temaPal.textMuted, padding: "12px 0" }}>Todavia no agregaste productos</div> : cart.map(i => (
+              <div key={i.id} style={{ background: temaPal.card, border: "1px solid " + temaPal.border, borderRadius: 6, padding: "8px 10px", marginBottom: 6 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                   <span style={{ fontSize: 12, fontWeight: 500 }}>{i.nombre || i.name}</span>
-                  <span onClick={() => remove(i.id)} style={{ cursor: "pointer", color: "#ccc", fontSize: 16 }}>x</span>
+                  <span onClick={() => remove(i.id)} style={{ cursor: "pointer", color: temaPal.textMuted, fontSize: 16 }}>x</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <button onClick={() => cambiarQty(i.id, -1)} style={{ width: 24, height: 24, borderRadius: 4, border: "1px solid #e8e8e8", background: "#f7f7f7", cursor: "pointer", fontWeight: 700 }}>−</button>
+                  <button onClick={() => cambiarQty(i.id, -1)} style={{ width: 24, height: 24, borderRadius: 4, border: "1px solid " + temaPal.border, background: temaPal.bg, cursor: "pointer", fontWeight: 700 }}>−</button>
                   <span style={{ minWidth: 22, textAlign: "center", fontSize: 13 }}>{i.qty}</span>
-                  <button onClick={() => cambiarQty(i.id, 1)} style={{ width: 24, height: 24, borderRadius: 4, border: "1px solid #e8e8e8", background: "#f7f7f7", cursor: "pointer", fontWeight: 700 }}>+</button>
-                  <span style={{ fontSize: 9, color: "#999", marginLeft: 4 }}>$</span>
-                  <input type="number" value={i.precio || i.price || ""} onChange={e => cambiarPrecio(i.id, parseFloat(e.target.value) || 0)} style={{ width: 80, fontSize: 11, padding: "4px 6px", border: "1px solid #e8e8e8", borderRadius: 4, textAlign: "right" }} />
+                  <button onClick={() => cambiarQty(i.id, 1)} style={{ width: 24, height: 24, borderRadius: 4, border: "1px solid " + temaPal.border, background: temaPal.bg, cursor: "pointer", fontWeight: 700 }}>+</button>
+                  <span style={{ fontSize: 9, color: temaPal.textMuted, marginLeft: 4 }}>$</span>
+                  <input type="number" value={i.precio || i.price || ""} onChange={e => cambiarPrecio(i.id, parseFloat(e.target.value) || 0)} style={{ width: 80, fontSize: 11, padding: "4px 6px", border: "1px solid " + temaPal.border, borderRadius: 4, textAlign: "right" }} />
                   <span style={{ marginLeft: "auto", fontSize: 13, fontWeight: 600 }}>{fmt((i.precio || i.price || 0) * i.qty)}</span>
                 </div>
               </div>
             ))}
 
-            <div style={{ borderTop: "1px solid #eee", marginTop: 10, paddingTop: 10 }}>
+            <div style={{ borderTop: "1px solid " + temaPal.border, marginTop: 10, paddingTop: 10 }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 15, fontWeight: 700, marginBottom: 10 }}>
                 <span>Total</span><span>{fmt(total)}</span>
               </div>
               <div className="fg" style={{ marginBottom: 8 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                   <div className="fl" style={{ marginBottom: 0 }}>{pagoMixto ? "Pago dividido" : "Medio de pago"}</div>
-                  <button type="button" onClick={() => { setPagoMixto(!pagoMixto); if (!pagoMixto) { setPagosMixtos([{ medio_pago_id: null, medio_pago_nombre: "", importe: "" }]); } else { setPagosMixtos([]); } }} style={{ fontSize: 10, padding: "2px 8px", border: "1px solid #c9a84c", borderRadius: 4, background: pagoMixto ? "#c9a84c" : "#fff", color: pagoMixto ? "#fff" : "#c9a84c", cursor: "pointer" }}>{pagoMixto ? "Pago simple" : "Dividir pago"}</button>
+                  <button type="button" onClick={() => { setPagoMixto(!pagoMixto); if (!pagoMixto) { setPagosMixtos([{ medio_pago_id: null, medio_pago_nombre: "", importe: "" }]); } else { setPagosMixtos([]); } }} style={{ fontSize: 10, padding: "2px 8px", border: "1px solid " + temaPal.border, borderRadius: 4, background: pagoMixto ? "#c9a84c" : temaPal.card, color: pagoMixto ? temaPal.card : "#c9a84c", cursor: "pointer" }}>{pagoMixto ? "Pago simple" : "Dividir pago"}</button>
                 </div>
 
                 {!pagoMixto && (
@@ -675,13 +677,13 @@ function VentasOnline({ localId, usuario, permisosActivos }) {
                           <option value="">Medio...</option>
                           {mediosPago.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
                         </select>
-                        <input type="number" placeholder="$" value={pg.importe} onChange={e => setPagosMixtos(prev => prev.map((x, i) => i === idx ? { ...x, importe: e.target.value } : x))} style={{ width: 90, fontSize: 11, padding: "6px", border: "1px solid #e8e8e8", borderRadius: 4, textAlign: "right" }} />
-                        {pagosMixtos.length > 1 && <span onClick={() => setPagosMixtos(prev => prev.filter((_, i) => i !== idx))} style={{ cursor: "pointer", color: "#ccc", fontSize: 16 }}>×</span>}
+                        <input type="number" placeholder="$" value={pg.importe} onChange={e => setPagosMixtos(prev => prev.map((x, i) => i === idx ? { ...x, importe: e.target.value } : x))} style={{ width: 90, fontSize: 11, padding: "6px", border: "1px solid " + temaPal.border, borderRadius: 4, textAlign: "right" }} />
+                        {pagosMixtos.length > 1 && <span onClick={() => setPagosMixtos(prev => prev.filter((_, i) => i !== idx))} style={{ cursor: "pointer", color: temaPal.textMuted, fontSize: 16 }}>×</span>}
                       </div>
                     ))}
                     <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
-                      <button type="button" onClick={() => setPagosMixtos(prev => [...prev, { medio_pago_id: null, medio_pago_nombre: "", importe: "" }])} style={{ fontSize: 10, padding: "4px 8px", border: "1px dashed #c9a84c", borderRadius: 4, background: "#fff", color: "#c9a84c", cursor: "pointer", flex: 1 }}>+ Agregar medio</button>
-                      <button type="button" onClick={() => { const n = pagosMixtos.length || 1; const parte = Math.round((total / n) * 100) / 100; setPagosMixtos(prev => prev.map(x => ({ ...x, importe: String(parte) }))); }} style={{ fontSize: 10, padding: "4px 8px", border: "1px solid #e8e8e8", borderRadius: 4, background: "#f7f7f7", cursor: "pointer", flex: 1 }}>Dividir igual</button>
+                      <button type="button" onClick={() => setPagosMixtos(prev => [...prev, { medio_pago_id: null, medio_pago_nombre: "", importe: "" }])} style={{ fontSize: 10, padding: "4px 8px", border: "1px dashed " + temaPal.border, borderRadius: 4, background: temaPal.card, color: "#c9a84c", cursor: "pointer", flex: 1 }}>+ Agregar medio</button>
+                      <button type="button" onClick={() => { const n = pagosMixtos.length || 1; const parte = Math.round((total / n) * 100) / 100; setPagosMixtos(prev => prev.map(x => ({ ...x, importe: String(parte) }))); }} style={{ fontSize: 10, padding: "4px 8px", border: "1px solid " + temaPal.border, borderRadius: 4, background: temaPal.bg, cursor: "pointer", flex: 1 }}>Dividir igual</button>
                     </div>
                     {(() => {
                       const suma = pagosMixtos.reduce((s, p) => s + (parseFloat(p.importe) || 0), 0);
@@ -694,7 +696,7 @@ function VentasOnline({ localId, usuario, permisosActivos }) {
               <div className="fg" style={{ marginBottom: 8 }}>
                 <div className="fl">Clienta (opcional, para sumar puntos)</div>
                 {cliSel ? (
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f7f5f0", borderRadius: 6 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: temaPal.bg, borderRadius: 6 }}>
                     <span style={{ fontSize: 12 }}>{cliSel.nombre} {cliSel.cuit_dni ? "(" + cliSel.cuit_dni + ")" : ""}</span>
                     <span onClick={() => { setCliSel(null); setBuscarCli(""); }} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>quitar</span>
                   </div>
@@ -702,9 +704,9 @@ function VentasOnline({ localId, usuario, permisosActivos }) {
                   <div>
                     <input className="inp" placeholder="Buscar por nombre o DNI" value={buscarCli} onChange={e => setBuscarCli(e.target.value)} />
                     {buscarCli.trim().length > 0 && (
-                      <div style={{ border: "1px solid #eee", borderRadius: 6, marginTop: 4, maxHeight: 160, overflowY: "auto" }}>
+                      <div style={{ border: "1px solid " + temaPal.border, borderRadius: 6, marginTop: 4, maxHeight: 160, overflowY: "auto" }}>
                         {clientes.filter(cl => (cl.nombre || "").toLowerCase().includes(buscarCli.toLowerCase()) || (cl.cuit_dni || "").includes(buscarCli)).slice(0, 6).map(cl => (
-                          <div key={cl.id} onClick={() => { setCliSel(cl); setBuscarCli(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 12 }}>{cl.nombre} <span style={{ color: "#999" }}>{cl.cuit_dni ? "(" + cl.cuit_dni + ")" : ""}</span></div>
+                          <div key={cl.id} onClick={() => { setCliSel(cl); setBuscarCli(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid " + temaPal.border, fontSize: 12 }}>{cl.nombre} <span style={{ color: temaPal.textMuted }}>{cl.cuit_dni ? "(" + cl.cuit_dni + ")" : ""}</span></div>
                         ))}
                       </div>
                     )}
@@ -751,7 +753,7 @@ function VentasOnline({ localId, usuario, permisosActivos }) {
                 <input className="inp" placeholder="Ej: pedido #123 Tiendanube" value={referencia} onChange={e => setReferencia(e.target.value)} />
               </div>
               <button className="btn btn-p" style={{ width: "100%" }} disabled={guardando} onClick={registrar}>{guardando ? "Registrando..." : "Registrar venta online"}</button>
-              <div style={{ fontSize: 10, color: "#888", marginTop: 8, textAlign: "center" }}>No se factura en ARCA (ya facturada en la tienda). Descuenta del stock de {Number(localId) === 2 ? "Ushuaia" : "Rio Grande"}.</div>
+              <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 8, textAlign: "center" }}>No se factura en ARCA (ya facturada en la tienda). Descuenta del stock de {Number(localId) === 2 ? "Ushuaia" : "Rio Grande"}.</div>
             </div>
           </div>
         </div>
@@ -759,13 +761,13 @@ function VentasOnline({ localId, usuario, permisosActivos }) {
     
       <div className="card" style={{ marginTop: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Ventas online de este mes ({ventasOnlineList.length})</div>
-        {ventasOnlineList.length === 0 ? <div style={{ fontSize: 12, color: "#999" }}>No hay ventas online este mes.</div> : (
+        {ventasOnlineList.length === 0 ? <div style={{ fontSize: 12, color: temaPal.textMuted }}>No hay ventas online este mes.</div> : (
           <table style={{ width: "100%", fontSize: 12 }}>
-            <thead><tr style={{ color: "#888", textAlign: "left" }}><th style={{ padding: "6px 0" }}>Numero</th><th>Fecha</th><th style={{ textAlign: "right" }}>Total</th><th></th>{esJefe && <th></th>}</tr></thead>
+            <thead><tr style={{ color: temaPal.textMuted, textAlign: "left" }}><th style={{ padding: "6px 0" }}>Numero</th><th>Fecha</th><th style={{ textAlign: "right" }}>Total</th><th></th>{esJefe && <th></th>}</tr></thead>
             <tbody>
               {ventasOnlineList.map(v => (
                 <Fragment key={v.id}>
-                <tr style={{ borderTop: "1px solid #f0f0f0" }}>
+                <tr style={{ borderTop: "1px solid " + temaPal.border }}>
                   <td style={{ padding: "7px 0" }}>{v.numero_factura}</td>
                   <td>{v.creado_en ? String(v.creado_en).slice(8, 10) + "/" + String(v.creado_en).slice(5, 7) + "/" + String(v.creado_en).slice(0, 4) : "-"}</td>
                   <td style={{ textAlign: "right", fontWeight: 600 }}>{fmt(parseFloat(v.total))}</td>
@@ -781,10 +783,10 @@ function VentasOnline({ localId, usuario, permisosActivos }) {
                 </tr>
                 {expandidoVO === v.id && (
                   <tr>
-                    <td colSpan={esJefe ? 5 : 4} style={{ background: "#F0F2F5", padding: "10px 14px" }}>
-                      <div style={{ fontSize: 9, color: "#65676B", letterSpacing: ".1em", marginBottom: 6 }}>PRODUCTOS DE LA VENTA</div>
+                    <td colSpan={esJefe ? 5 : 4} style={{ background: temaPal.bg, padding: "10px 14px" }}>
+                      <div style={{ fontSize: 9, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 6 }}>PRODUCTOS DE LA VENTA</div>
                       {(v.items || []).length === 0 ? (
-                        <div style={{ fontSize: 11, color: "#65676B" }}>Sin detalle de productos</div>
+                        <div style={{ fontSize: 11, color: temaPal.textMuted }}>Sin detalle de productos</div>
                       ) : (
                         <table style={{ width: "100%" }}>
                           <thead><tr><th style={{ textAlign: "left" }}>Producto</th><th>Cant</th><th>Precio</th><th style={{ textAlign: "right" }}>Subtotal</th></tr></thead>
@@ -819,20 +821,20 @@ function VentasOnline({ localId, usuario, permisosActivos }) {
           <div className="card" style={{ width: 480, maxWidth: "92vw", maxHeight: "88vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
             <div className="ct">Editar venta online {editandoVO.numero_factura}</div>
 
-            <div style={{ fontSize: 11, fontWeight: 600, color: "#888", marginBottom: 6 }}>PRODUCTOS</div>
-            <div style={{ fontSize: 10, color: "#65676B", marginBottom: 8 }}>Si cambias un producto por otro, se repone el stock del que sacaste y se descuenta el del nuevo.</div>
-            {voItems.length === 0 ? <div style={{ fontSize: 12, color: "#999", marginBottom: 8 }}>Sin productos cargados</div> : voItems.map(i => (
-              <div key={i.producto_id} style={{ background: "#fafafa", border: "1px solid #eee", borderRadius: 6, padding: "8px 10px", marginBottom: 6 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: temaPal.textMuted, marginBottom: 6 }}>PRODUCTOS</div>
+            <div style={{ fontSize: 10, color: temaPal.textMuted, marginBottom: 8 }}>Si cambias un producto por otro, se repone el stock del que sacaste y se descuenta el del nuevo.</div>
+            {voItems.length === 0 ? <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 8 }}>Sin productos cargados</div> : voItems.map(i => (
+              <div key={i.producto_id} style={{ background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 6, padding: "8px 10px", marginBottom: 6 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                   <span style={{ fontSize: 12, fontWeight: 500 }}>{i.nombre}</span>
                   <span onClick={() => voQuitarProducto(i.producto_id)} style={{ cursor: "pointer", color: "#c0392b", fontSize: 14 }}>×</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <button onClick={() => voCambiarCantidad(i.producto_id, -1)} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e8e8e8", background: "#f7f7f7", cursor: "pointer", fontWeight: 700 }}>−</button>
+                  <button onClick={() => voCambiarCantidad(i.producto_id, -1)} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid " + temaPal.border, background: temaPal.bg, cursor: "pointer", fontWeight: 700 }}>−</button>
                   <span style={{ minWidth: 20, textAlign: "center", fontSize: 12 }}>{i.cantidad}</span>
-                  <button onClick={() => voCambiarCantidad(i.producto_id, 1)} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e8e8e8", background: "#f7f7f7", cursor: "pointer", fontWeight: 700 }}>+</button>
-                  <span style={{ fontSize: 9, color: "#999", marginLeft: 4 }}>$</span>
-                  <input type="number" value={i.precio_unitario} onChange={e => voCambiarPrecio(i.producto_id, parseFloat(e.target.value) || 0)} style={{ width: 70, fontSize: 11, padding: "4px 6px", border: "1px solid #e8e8e8", borderRadius: 4, textAlign: "right" }} />
+                  <button onClick={() => voCambiarCantidad(i.producto_id, 1)} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid " + temaPal.border, background: temaPal.bg, cursor: "pointer", fontWeight: 700 }}>+</button>
+                  <span style={{ fontSize: 9, color: temaPal.textMuted, marginLeft: 4 }}>$</span>
+                  <input type="number" value={i.precio_unitario} onChange={e => voCambiarPrecio(i.producto_id, parseFloat(e.target.value) || 0)} style={{ width: 70, fontSize: 11, padding: "4px 6px", border: "1px solid " + temaPal.border, borderRadius: 4, textAlign: "right" }} />
                   <span style={{ marginLeft: "auto", fontSize: 12, fontWeight: 600 }}>{fmt(i.precio_unitario * i.cantidad)}</span>
                 </div>
               </div>
@@ -840,17 +842,17 @@ function VentasOnline({ localId, usuario, permisosActivos }) {
             <div style={{ marginBottom: 10, position: "relative" }}>
               <input className="inp" placeholder="Agregar producto (nombre o codigo)..." value={voBusqueda} onChange={e => setVoBusqueda(e.target.value)} />
               {voFiltrados.length > 0 && (
-                <div style={{ border: "1px solid #eee", borderRadius: 6, marginTop: 4 }}>
+                <div style={{ border: "1px solid " + temaPal.border, borderRadius: 6, marginTop: 4 }}>
                   {voFiltrados.map(p => (
-                    <div key={p.id} onClick={() => voAgregarProducto(p)} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 12, display: "flex", justifyContent: "space-between" }}>
+                    <div key={p.id} onClick={() => voAgregarProducto(p)} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid " + temaPal.border, fontSize: 12, display: "flex", justifyContent: "space-between" }}>
                       <span>{p.nombre}</span>
-                      <span style={{ color: "#888" }}>{fmt(p.precio || p.price || 0)}</span>
+                      <span style={{ color: temaPal.textMuted }}>{fmt(p.precio || p.price || 0)}</span>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, marginBottom: 12, borderTop: "1px solid #eee", paddingTop: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, marginBottom: 12, borderTop: "1px solid " + temaPal.border, paddingTop: 8 }}>
               <span>Total</span><span>{fmt(voTotalItems)}</span>
             </div>
 
@@ -883,7 +885,8 @@ function VentasOnline({ localId, usuario, permisosActivos }) {
   );
 }
 
-function Auditoria() {
+function Auditoria({ paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
   const [registros, setRegistros] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtroTipo, setFiltroTipo] = useState("");
@@ -920,9 +923,9 @@ function Auditoria() {
       </div>
       <div className="card">
         {loading ? (
-          <div style={{ color: "#65676B", padding: 20 }}>Cargando...</div>
+          <div style={{ color: p.textMuted, padding: 20 }}>Cargando...</div>
         ) : filtrados.length === 0 ? (
-          <div style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>Sin registros</div>
+          <div style={{ textAlign: "center", color: p.textMuted, padding: 30, fontSize: 12 }}>Sin registros</div>
         ) : (
           <table>
             <thead><tr><th>Fecha</th><th>Tipo</th><th>Referencia</th><th>Usuario</th><th>Detalle</th></tr></thead>
@@ -932,11 +935,11 @@ function Auditoria() {
                 try { detalle = r.detalle_json ? (typeof r.detalle_json === "string" ? JSON.parse(r.detalle_json) : r.detalle_json) : null; } catch (e) {}
                 return (
                   <tr key={r.id}>
-                    <td style={{ fontSize: 11, color: "#65676B", whiteSpace: "nowrap" }}>{r.creado_en ? new Date(r.creado_en).toLocaleString("es-AR") : "-"}</td>
+                    <td style={{ fontSize: 11, color: p.textMuted, whiteSpace: "nowrap" }}>{r.creado_en ? new Date(r.creado_en).toLocaleString("es-AR") : "-"}</td>
                     <td style={{ fontSize: 11 }}>{tipoLabel[r.tipo] || r.tipo}</td>
                     <td style={{ fontSize: 11 }}>{r.referencia_codigo || r.referencia_id}</td>
                     <td style={{ fontSize: 11 }}>{r.usuario_nombre || "-"}</td>
-                    <td style={{ fontSize: 10, color: "#65676B" }}>
+                    <td style={{ fontSize: 10, color: p.textMuted }}>
                       {r.tipo === "venta_online_editada" && detalle ? (
                         <div>
                           {parseFloat(detalle.total_anterior) !== parseFloat(detalle.total_nuevo) && <div>Total: {fmt(parseFloat(detalle.total_anterior || 0))} {"->"} {fmt(parseFloat(detalle.total_nuevo || 0))}</div>}
@@ -2171,7 +2174,8 @@ function POS({ localId, usuario, paletaActual }) {
   );
 }
 
-function Inventario({ localId, usuario }) {
+function Inventario({ localId, usuario, paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState("stock");
   const [ajustesHistorial, setAjustesHistorial] = useState([]);
   const [buscarAjuste, setBuscarAjuste] = useState("");
@@ -2397,7 +2401,7 @@ function Inventario({ localId, usuario }) {
                 )}
               </div>
               {!editandoProd && (<div className="fg"><div className="fl">Stock inicial</div><input className="inp" type="number" placeholder="10" value={nuevo.stock} onChange={e => setNuevo(p => ({ ...p, stock: e.target.value }))} /></div>)}
-              {editandoProd && <div style={{ fontSize: 10, color: "#65676B", marginBottom: 12 }}>El stock se modifica con el boton "Ajustar".</div>}
+              {editandoProd && <div style={{ fontSize: 10, color: temaPal.textMuted, marginBottom: 12 }}>El stock se modifica con el boton "Ajustar".</div>}
               <div className="fg"><div className="fl">Stock minimo (alerta)</div><input className="inp" type="number" placeholder="5" value={nuevo.stock_minimo} onChange={e => setNuevo(p => ({ ...p, stock_minimo: e.target.value }))} /></div>
               {editandoProd && (
                 <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer", marginBottom: 12 }}>
@@ -2424,7 +2428,7 @@ function Inventario({ localId, usuario }) {
       {tab === "stock" && (
         <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
           {[["mi", Number(localId) === 2 ? "Ushuaia (mi local)" : "Rio Grande (mi local)"], ["otro", Number(localId) === 2 ? "Rio Grande" : "Ushuaia"], ["consolidado", "Consolidado"]].map(([id, l]) => (
-            <button key={id} className="btn btn-sm" style={{ fontSize: 11, background: vistaLocal === id ? "#c9a84c" : "#ffffff", color: vistaLocal === id ? "#ffffff" : "#65676B", border: "1px solid " + (vistaLocal === id ? "#c9a84c" : "#E4E6EB") }} onClick={() => setVistaLocal(id)}>{l}</button>
+            <button key={id} className="btn btn-sm" style={{ fontSize: 11, background: vistaLocal === id ? "#c9a84c" : temaPal.card, color: vistaLocal === id ? temaPal.card : temaPal.textMuted, border: "1px solid " + (vistaLocal === id ? "#c9a84c" : temaPal.border) }} onClick={() => setVistaLocal(id)}>{l}</button>
           ))}
         </div>
       )}
@@ -2452,7 +2456,7 @@ function Inventario({ localId, usuario }) {
       {tab === "stock" && (
         <div className="card fade">
           {loading ? (
-            <div style={{ color: "#65676B", padding: 20 }}>Cargando inventario...</div>
+            <div style={{ color: temaPal.textMuted, padding: 20 }}>Cargando inventario...</div>
           ) : (
           <table>
             <thead><tr><th>Producto</th><th>Marca</th><th>Categoria</th><th>Codigo</th><th>Precio</th><th>Costo</th><th>Stock</th><th>Reservado</th><th>Disponible</th><th>Estado</th><th></th></tr></thead>
@@ -2491,15 +2495,15 @@ function Inventario({ localId, usuario }) {
                       {p.nombre || p.name}
                       {p.activo === false && <span className="badge br" style={{ marginLeft: 6, fontSize: 9 }}>Inactivo</span>}
                     </td>
-                    <td style={{ fontSize: 11, color: "#65676B" }}>{p.marca || p.brand || "-"}</td>
-                    <td style={{ fontSize: 11, color: "#65676B" }}>{p.categoria || "-"}</td>
-                    <td style={{ fontSize: 11, color: "#65676B" }}>{p.codigo_barras || p.codigo || "-"}</td>
+                    <td style={{ fontSize: 11, color: temaPal.textMuted }}>{p.marca || p.brand || "-"}</td>
+                    <td style={{ fontSize: 11, color: temaPal.textMuted }}>{p.categoria || "-"}</td>
+                    <td style={{ fontSize: 11, color: temaPal.textMuted }}>{p.codigo_barras || p.codigo || "-"}</td>
                     <td style={{ color: "#c9a84c" }}>{fmt(parseFloat(p.price || p.precio || 0))}</td>
-                    <td style={{ fontSize: 11, color: "#65676B" }}>{p.cost || p.costo ? fmt(parseFloat(p.cost || p.costo)) : "-"}</td>
+                    <td style={{ fontSize: 11, color: temaPal.textMuted }}>{p.cost || p.costo ? fmt(parseFloat(p.cost || p.costo)) : "-"}</td>
                     <td><span className="badge bx">{stockVista}</span></td>
-                    <td style={{ fontSize: 11 }}>{reservado > 0 ? <span style={{ color: "#c9a84c", fontWeight: 600 }}>{reservado}</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
+                    <td style={{ fontSize: 11 }}>{reservado > 0 ? <span style={{ color: "#c9a84c", fontWeight: 600 }}>{reservado}</span> : <span style={{ color: temaPal.textMuted }}>-</span>}</td>
                     <td><span className={"badge " + (bajo ? "br" : "bg")}>{disponible}</span></td>
-                    <td style={{ fontSize: 10, color: margen ? "#2d7a4f" : "#65676B" }}>{margen ? margen + "%" : "-"}</td>
+                    <td style={{ fontSize: 10, color: margen ? "#2d7a4f" : temaPal.textMuted }}>{margen ? margen + "%" : "-"}</td>
                     <td>
                       <div style={{ display: "flex", gap: 4 }}>
                         {vistaLocal === "mi" && <button className="btn btn-sm" style={{ fontSize: 10 }} onClick={() => abrirAjuste(p)}>Ajustar</button>}
@@ -2514,7 +2518,7 @@ function Inventario({ localId, usuario }) {
                   </tr>
                 );
               })}
-              {productos.length === 0 && <tr><td colSpan={11} style={{ color: "#65676B", textAlign: "center" }}>Sin productos</td></tr>}
+              {productos.length === 0 && <tr><td colSpan={11} style={{ color: temaPal.textMuted, textAlign: "center" }}>Sin productos</td></tr>}
             </tbody>
           </table>
           )}
@@ -2547,22 +2551,22 @@ function Inventario({ localId, usuario }) {
                 <button
                   type="button"
                   className="sel"
-                  style={{ width: 240, textAlign: "left", cursor: "pointer", background: "#fff" }}
+                  style={{ width: 240, textAlign: "left", cursor: "pointer", background: temaPal.card }}
                   onClick={() => setMarcaDropdownOpen(o => !o)}
                 >
                   {filtroMarcasValor.length === 0 ? "Todas las marcas" : filtroMarcasValor.length + " marca" + (filtroMarcasValor.length > 1 ? "s" : "") + " seleccionada" + (filtroMarcasValor.length > 1 ? "s" : "")}
-                  <span style={{ float: "right", color: "#999" }}>▾</span>
+                  <span style={{ float: "right", color: temaPal.textMuted }}>▾</span>
                 </button>
                 {marcaDropdownOpen && (
-                  <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, width: 260, maxHeight: 280, overflowY: "auto", background: "#fff", border: "1px solid #ddd", borderRadius: 8, boxShadow: "0 4px 14px rgba(0,0,0,0.12)", zIndex: 20, padding: 8 }}>
-                    {marcasConProd.length === 0 && <div style={{ fontSize: 11, color: "#999", padding: 6 }}>No hay marcas cargadas</div>}
+                  <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, width: 260, maxHeight: 280, overflowY: "auto", background: temaPal.card, border: "1px solid " + temaPal.border, borderRadius: 8, boxShadow: "0 4px 14px rgba(0,0,0,0.12)", zIndex: 20, padding: 8 }}>
+                    {marcasConProd.length === 0 && <div style={{ fontSize: 11, color: temaPal.textMuted, padding: 6 }}>No hay marcas cargadas</div>}
                     {marcasConProd.map(mn => (
                       <label key={mn} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 4px", fontSize: 12, cursor: "pointer" }}>
                         <input type="checkbox" checked={filtroMarcasValor.includes(mn)} onChange={() => toggleMarca(mn)} />
                         <span>{mn}</span>
                       </label>
                     ))}
-                    <div style={{ display: "flex", gap: 6, marginTop: 6, borderTop: "1px solid #eee", paddingTop: 6 }}>
+                    <div style={{ display: "flex", gap: 6, marginTop: 6, borderTop: "1px solid " + temaPal.border, paddingTop: 6 }}>
                       {filtroMarcasValor.length > 0 && <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => setFiltroMarcasValor([])}>Limpiar</button>}
                       <button className="btn btn-p btn-sm" style={{ flex: 1 }} onClick={() => setMarcaDropdownOpen(false)}>Listo</button>
                     </div>
@@ -2574,19 +2578,19 @@ function Inventario({ localId, usuario }) {
                   <div key={id} className={"tab " + (vistaLocal === id ? "on" : "")} style={{ fontSize: 11 }} onClick={() => setVistaLocal(id)}>{l}</div>
                 ))}
               </div>
-              <div style={{ fontSize: 10, color: "#65676B" }}>Solo productos activos. Basado en el costo y precio cargados en cada producto.</div>
+              <div style={{ fontSize: 10, color: temaPal.textMuted }}>Solo productos activos. Basado en el costo y precio cargados en cada producto.</div>
             </div>
             <div className="g3" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
               <div className="card">
-                <div style={{ fontSize: 11, color: "#65676B" }}>Valor de mercadería (a costo)</div>
-                <div style={{ fontSize: 22, fontWeight: 700, color: "#1C1E21" }}>{fmt(totalCosto)}</div>
+                <div style={{ fontSize: 11, color: temaPal.textMuted }}>Valor de mercadería (a costo)</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: temaPal.text }}>{fmt(totalCosto)}</div>
               </div>
               <div className="card">
-                <div style={{ fontSize: 11, color: "#65676B" }}>Total si se vendiera todo</div>
+                <div style={{ fontSize: 11, color: temaPal.textMuted }}>Total si se vendiera todo</div>
                 <div style={{ fontSize: 22, fontWeight: 700, color: "#c9a84c" }}>{fmt(totalVenta)}</div>
               </div>
               <div className="card">
-                <div style={{ fontSize: 11, color: "#65676B" }}>Ganancia potencial</div>
+                <div style={{ fontSize: 11, color: temaPal.textMuted }}>Ganancia potencial</div>
                 <div style={{ fontSize: 22, fontWeight: 700, color: "#2d7a4f" }}>{fmt(gananciaPotencial)}</div>
                 <div style={{ fontSize: 11, color: "#2d7a4f" }}>{margenPct.toFixed(1)}% de margen</div>
               </div>
@@ -2598,7 +2602,7 @@ function Inventario({ localId, usuario }) {
                   {filas.map(f => (
                     <tr key={f.id}>
                       <td style={{ fontWeight: 500 }}>{f.nombre}</td>
-                      <td style={{ fontSize: 11, color: "#65676B" }}>{f.proveedor_nombre || "-"}</td>
+                      <td style={{ fontSize: 11, color: temaPal.textMuted }}>{f.proveedor_nombre || "-"}</td>
                       <td><span className="badge bx">{f.stockP}</span></td>
                       <td style={{ fontSize: 11 }}>{fmt(parseFloat(f.costo) || 0)}</td>
                       <td style={{ fontSize: 11 }}>{fmt(parseFloat(f.precio) || 0)}</td>
@@ -2606,7 +2610,7 @@ function Inventario({ localId, usuario }) {
                       <td style={{ color: "#c9a84c" }}>{fmt(f.valorVenta)}</td>
                     </tr>
                   ))}
-                  {filas.length === 0 && <tr><td colSpan={7} style={{ color: "#65676B", textAlign: "center" }}>Sin productos para este filtro</td></tr>}
+                  {filas.length === 0 && <tr><td colSpan={7} style={{ color: temaPal.textMuted, textAlign: "center" }}>Sin productos para este filtro</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -2616,19 +2620,19 @@ function Inventario({ localId, usuario }) {
       {tab === "transito" && (
         <div className="card fade">
           {transito.length === 0 ? (
-            <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 30 }}>No hay stock en transito por el momento</div>
+            <div style={{ fontSize: 12, color: temaPal.textMuted, textAlign: "center", padding: 30 }}>No hay stock en transito por el momento</div>
           ) : (
             <table>
               <thead><tr><th>Producto</th><th>Codigo</th><th>Transito RG</th><th>Reservado RG</th><th>Transito USH</th><th>Reservado USH</th></tr></thead>
               <tbody>
                 {transito.map(p => (
                   <tr key={p.id}>
-                    <td style={{ fontWeight: 500 }}>{p.nombre}{p.marca ? <span style={{ fontSize: 10, color: "#65676B", marginLeft: 6 }}>{p.marca}</span> : ""}</td>
-                    <td style={{ fontSize: 11, color: "#65676B" }}>{p.codigo_barras || "-"}</td>
-                    <td>{p.transito_rg > 0 ? <span className="badge bb">{p.transito_rg}</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
-                    <td>{p.reservado_rg > 0 ? <span style={{ color: "#c9a84c", fontWeight: 600, fontSize: 11 }}>{p.reservado_rg}</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
-                    <td>{p.transito_ush > 0 ? <span className="badge bb">{p.transito_ush}</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
-                    <td>{p.reservado_ush > 0 ? <span style={{ color: "#c9a84c", fontWeight: 600, fontSize: 11 }}>{p.reservado_ush}</span> : <span style={{ color: "#cccccc" }}>-</span>}</td>
+                    <td style={{ fontWeight: 500 }}>{p.nombre}{p.marca ? <span style={{ fontSize: 10, color: temaPal.textMuted, marginLeft: 6 }}>{p.marca}</span> : ""}</td>
+                    <td style={{ fontSize: 11, color: temaPal.textMuted }}>{p.codigo_barras || "-"}</td>
+                    <td>{p.transito_rg > 0 ? <span className="badge bb">{p.transito_rg}</span> : <span style={{ color: temaPal.textMuted }}>-</span>}</td>
+                    <td>{p.reservado_rg > 0 ? <span style={{ color: "#c9a84c", fontWeight: 600, fontSize: 11 }}>{p.reservado_rg}</span> : <span style={{ color: temaPal.textMuted }}>-</span>}</td>
+                    <td>{p.transito_ush > 0 ? <span className="badge bb">{p.transito_ush}</span> : <span style={{ color: temaPal.textMuted }}>-</span>}</td>
+                    <td>{p.reservado_ush > 0 ? <span style={{ color: "#c9a84c", fontWeight: 600, fontSize: 11 }}>{p.reservado_ush}</span> : <span style={{ color: temaPal.textMuted }}>-</span>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -2650,12 +2654,12 @@ function Inventario({ localId, usuario }) {
           {alertas.length === 0 ? (
             <div style={{ textAlign: "center", color: "#2d7a4f", padding: 30, fontSize: 12 }}>No hay alertas de stock por ahora</div>
           ) : alertas.filter(p => !filtroMarcaAlertas || p.marca === filtroMarcaAlertas).length === 0 ? (
-            <div style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>No hay alertas para esa marca</div>
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>No hay alertas para esa marca</div>
           ) : alertas.filter(p => !filtroMarcaAlertas || p.marca === filtroMarcaAlertas).map(p => (
             <div key={p.id} style={{ background: "#c0392b12", border: "1px solid #d9707033", borderRadius: 6, padding: "12px 16px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <div style={{ fontSize: 12, color: "#444444" }}>{p.nombre || p.name} - {p.marca || p.brand}</div>
-                <div style={{ fontSize: 10, color: "#65676B", marginTop: 2 }}>Stock: {p.stock || 0} | Minimo: {p.stock_minimo || 5}</div>
+                <div style={{ fontSize: 12, color: temaPal.text }}>{p.nombre || p.name} - {p.marca || p.brand}</div>
+                <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 2 }}>Stock: {p.stock || 0} | Minimo: {p.stock_minimo || 5}</div>
               </div>
               <button className="btn btn-p btn-sm">Generar OC</button>
             </div>
@@ -2669,7 +2673,7 @@ function Inventario({ localId, usuario }) {
           </div>
           <div className="card fade">
             {cargandoAjustes ? (
-              <div style={{ textAlign: "center", color: "#65676B", padding: 20, fontSize: 12 }}>Cargando...</div>
+              <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 20, fontSize: 12 }}>Cargando...</div>
             ) : (
               <table>
                 <thead><tr><th>Fecha</th><th>Producto</th><th>Local</th><th>Anterior</th><th>Nuevo</th><th>Diferencia</th><th>Motivo</th><th>Usuario</th></tr></thead>
@@ -2678,18 +2682,18 @@ function Inventario({ localId, usuario }) {
                     .filter(a => (a.producto_nombre || "").toLowerCase().includes(buscarAjuste.toLowerCase()))
                     .map((a, i) => (
                       <tr key={a.id || i}>
-                        <td style={{ fontSize: 11, color: "#65676B" }}>{new Date(a.creado_en).toLocaleString("es-AR")}</td>
+                        <td style={{ fontSize: 11, color: temaPal.textMuted }}>{new Date(a.creado_en).toLocaleString("es-AR")}</td>
                         <td style={{ fontWeight: 600 }}>{a.producto_nombre}</td>
-                        <td style={{ fontSize: 11, color: "#65676B" }}>{Number(a.local_id) === 2 ? "Ushuaia" : "Rio Grande"}</td>
+                        <td style={{ fontSize: 11, color: temaPal.textMuted }}>{Number(a.local_id) === 2 ? "Ushuaia" : "Rio Grande"}</td>
                         <td>{a.stock_anterior}</td>
                         <td>{a.stock_nuevo}</td>
-                        <td style={{ fontWeight: 700, color: a.diferencia > 0 ? "#2d7a4f" : a.diferencia < 0 ? "#c0392b" : "#65676B" }}>{a.diferencia > 0 ? "+" : ""}{a.diferencia}</td>
+                        <td style={{ fontWeight: 700, color: a.diferencia > 0 ? "#2d7a4f" : a.diferencia < 0 ? "#c0392b" : temaPal.textMuted }}>{a.diferencia > 0 ? "+" : ""}{a.diferencia}</td>
                         <td style={{ fontSize: 11 }}>{a.motivo}</td>
-                        <td style={{ fontSize: 11, color: "#65676B" }}>{a.usuario_nombre || "-"}</td>
+                        <td style={{ fontSize: 11, color: temaPal.textMuted }}>{a.usuario_nombre || "-"}</td>
                       </tr>
                     ))}
                   {ajustesHistorial.filter(a => (a.producto_nombre || "").toLowerCase().includes(buscarAjuste.toLowerCase())).length === 0 && (
-                    <tr><td colSpan={8} style={{ textAlign: "center", color: "#65676B" }}>Sin ajustes para este filtro</td></tr>
+                    <tr><td colSpan={8} style={{ textAlign: "center", color: temaPal.textMuted }}>Sin ajustes para este filtro</td></tr>
                   )}
                 </tbody>
               </table>
@@ -2699,20 +2703,20 @@ function Inventario({ localId, usuario }) {
       )}
       {showCalc && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
-          <div className="card" style={{ width: 420, background: "#ffffff" }}>
+          <div className="card" style={{ width: 420, background: temaPal.card }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>🧮 Calcular precio</div>
-            <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>El resultado se va a cargar automaticamente en el campo de precio.</div>
+            <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 14 }}>El resultado se va a cargar automaticamente en el campo de precio.</div>
             <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
               {calculadoras.map(c => (
                 <button key={c.id} onClick={() => { setCalcSel(c); setCalcValores({ costo: nuevo.costo || "" }); setCalcResultado(null); }}
-                  style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid", borderColor: calcSel?.id === c.id ? "#c9a84c" : "#e8e8e8", background: calcSel?.id === c.id ? "#c9a84c12" : "transparent", color: calcSel?.id === c.id ? "#c9a84c" : "#666666", fontSize: 11, fontWeight: calcSel?.id === c.id ? 600 : 400, cursor: "pointer" }}>
+                  style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid", borderColor: calcSel?.id === c.id ? "#c9a84c" : temaPal.border, background: calcSel?.id === c.id ? "#c9a84c12" : "transparent", color: calcSel?.id === c.id ? "#c9a84c" : temaPal.textMuted, fontSize: 11, fontWeight: calcSel?.id === c.id ? 600 : 400, cursor: "pointer" }}>
                   {c.nombre}
                 </button>
               ))}
             </div>
             {calcSel && (
               <div>
-                <div style={{ fontSize: 10, color: "#65676B", fontFamily: "monospace", marginBottom: 12, background: "#f9f9f9", padding: "6px 10px", borderRadius: 6 }}>
+                <div style={{ fontSize: 10, color: temaPal.textMuted, fontFamily: "monospace", marginBottom: 12, background: temaPal.bg, padding: "6px 10px", borderRadius: 6 }}>
                   {calcSel.tipo === "desde_costo"
                     ? `(costo × ${calcSel.margen}${parseFloat(calcSel.iva) > 0 ? " × " + (1 + parseFloat(calcSel.iva) / 100).toFixed(3) + " imp." : ""}) + extras`
                     : `(precio venta × ${calcSel.margen}) + extras`}
@@ -2745,7 +2749,7 @@ function Inventario({ localId, usuario }) {
                 {calcResultado !== null && (
                   <div style={{ marginTop: 12, padding: "12px 16px", borderRadius: 8, background: "#2d7a4f12", border: "1px solid #2d7a4f33", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
-                      <div style={{ fontSize: 10, color: "#65676B" }}>Precio sugerido</div>
+                      <div style={{ fontSize: 10, color: temaPal.textMuted }}>Precio sugerido</div>
                       <div style={{ fontSize: 24, fontWeight: 700, color: "#2d7a4f" }}>{fmt(calcResultado)}</div>
                     </div>
                     <button className="btn btn-p" onClick={() => { setNuevo(p => ({ ...p, precio: String(calcResultado) })); setShowCalc(false); setCalcResultado(null); }}>
@@ -2761,10 +2765,10 @@ function Inventario({ localId, usuario }) {
       )}
       {eliminandoProd && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
-          <div className="card" style={{ width: 400, background: "#ffffff" }}>
+          <div className="card" style={{ width: 400, background: temaPal.card }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8, color: "#c0392b" }}>Eliminar producto</div>
-            <div style={{ fontSize: 13, color: "#444444", marginBottom: 6 }}>Vas a eliminar <b>{eliminandoProd.nombre}</b> de forma permanente.</div>
-            <div style={{ fontSize: 11, color: "#65676B", marginBottom: 16 }}>Esta accion no se puede deshacer. Si el producto tiene ventas registradas, el sistema no lo va a borrar para no romper el historial.</div>
+            <div style={{ fontSize: 13, color: temaPal.text, marginBottom: 6 }}>Vas a eliminar <b>{eliminandoProd.nombre}</b> de forma permanente.</div>
+            <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 16 }}>Esta accion no se puede deshacer. Si el producto tiene ventas registradas, el sistema no lo va a borrar para no romper el historial.</div>
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEliminandoProd(null)}>Cancelar</button>
               <button className="btn btn-p" style={{ flex: 1, background: "#c0392b" }} onClick={eliminarProd}>Si, eliminar</button>
@@ -2774,28 +2778,28 @@ function Inventario({ localId, usuario }) {
       )}
       {ajustando && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
-          <div className="card" style={{ width: 400, background: "#ffffff" }}>
+          <div className="card" style={{ width: 400, background: temaPal.card }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Ajustar stock</div>
-            <div style={{ fontSize: 12, color: "#65676B", marginBottom: 14 }}>{ajustando.nombre} - stock actual: <b>{(Number(localId) === 2 ? (ajustando.stock_ush || 0) : (ajustando.stock_rg || 0))}</b></div>
+            <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 14 }}>{ajustando.nombre} - stock actual: <b>{(Number(localId) === 2 ? (ajustando.stock_ush || 0) : (ajustando.stock_rg || 0))}</b></div>
             {errorAjuste && (
-              <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "8px 12px", marginBottom: 10, fontSize: 11, color: "#c0392b" }}>{errorAjuste}</div>
+              <div style={{ background: "#c0392b12", border: "1px solid " + temaPal.border, borderRadius: 6, padding: "8px 12px", marginBottom: 10, fontSize: 11, color: "#c0392b" }}>{errorAjuste}</div>
             )}
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "exacto" ? "#c9a84c15" : "transparent", border: "1px solid " + (modoAjuste === "exacto" ? "#c9a84c" : "#e8e8e8"), color: modoAjuste === "exacto" ? "#c9a84c" : "#65676B" }} onClick={() => { setModoAjuste("exacto"); setValorAjuste(String(Number(localId) === 2 ? (ajustando.stock_ush || 0) : (ajustando.stock_rg || 0))); }}>Poner cantidad exacta</button>
-              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "diferencia" ? "#c9a84c15" : "transparent", border: "1px solid " + (modoAjuste === "diferencia" ? "#c9a84c" : "#e8e8e8"), color: modoAjuste === "diferencia" ? "#c9a84c" : "#65676B" }} onClick={() => { setModoAjuste("diferencia"); setValorAjuste(""); }}>Sumar / restar</button>
+              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "exacto" ? "#c9a84c15" : "transparent", border: "1px solid " + (modoAjuste === "exacto" ? "#c9a84c" : temaPal.border), color: modoAjuste === "exacto" ? "#c9a84c" : temaPal.textMuted }} onClick={() => { setModoAjuste("exacto"); setValorAjuste(String(Number(localId) === 2 ? (ajustando.stock_ush || 0) : (ajustando.stock_rg || 0))); }}>Poner cantidad exacta</button>
+              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "diferencia" ? "#c9a84c15" : "transparent", border: "1px solid " + (modoAjuste === "diferencia" ? "#c9a84c" : temaPal.border), color: modoAjuste === "diferencia" ? "#c9a84c" : temaPal.textMuted }} onClick={() => { setModoAjuste("diferencia"); setValorAjuste(""); }}>Sumar / restar</button>
             </div>
             <div className="fg">
               <div className="fl">{modoAjuste === "exacto" ? "Stock real (numero final)" : "Diferencia (ej: 3 o -2)"}</div>
               <input className="inp" type="number" placeholder={modoAjuste === "exacto" ? "Ej: 8" : "Ej: -2"} value={valorAjuste} onChange={e => setValorAjuste(e.target.value)} />
               {modoAjuste === "diferencia" && valorAjuste !== "" && !isNaN(parseInt(valorAjuste)) && (
-                <div style={{ fontSize: 11, color: "#65676B", marginTop: 4 }}>Nuevo stock: {(Number(localId) === 2 ? (ajustando.stock_ush || 0) : (ajustando.stock_rg || 0)) + parseInt(valorAjuste)}</div>
+                <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>Nuevo stock: {(Number(localId) === 2 ? (ajustando.stock_ush || 0) : (ajustando.stock_rg || 0)) + parseInt(valorAjuste)}</div>
               )}
             </div>
             <div className="fg">
               <div className="fl">Motivo (obligatorio)</div>
               <input className="inp" placeholder="Ej: conteo fisico, producto roto, error de carga" value={motivoAjuste} onChange={e => setMotivoAjuste(e.target.value)} />
             </div>
-            <div style={{ fontSize: 10, color: "#65676B", marginBottom: 12 }}>Este ajuste queda registrado con tu nombre y la fecha.</div>
+            <div style={{ fontSize: 10, color: temaPal.textMuted, marginBottom: 12 }}>Este ajuste queda registrado con tu nombre y la fecha.</div>
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setAjustando(null)}>Cancelar</button>
               <button className="btn btn-p" style={{ flex: 1 }} onClick={confirmarAjuste}>Confirmar ajuste</button>
@@ -2807,7 +2811,8 @@ function Inventario({ localId, usuario }) {
   );
 }
 
-function Clientes({ usuario }) {
+function Clientes({ usuario, paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState("lista");
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -2988,12 +2993,12 @@ function Clientes({ usuario }) {
       {tab === "lista" && (
         <div className="card fade" style={{ marginBottom: 12 }}>
           <input className="inp" placeholder="Buscar por nombre, celular, email o CUIT/DNI..." value={busqueda} onChange={e => setBusqueda(e.target.value)} style={{ marginBottom: 14 }} />
-          {loading ? <div style={{ textAlign: "center", color: "#65676B", padding: 20 }}>Cargando clientes...</div> : (
+          {loading ? <div style={{ textAlign: "center", color: p.textMuted, padding: 20 }}>Cargando clientes...</div> : (
           <table>
             <thead><tr><th>Cliente</th><th>Celular</th><th>CUIT/DNI</th><th>Total compras</th><th>Puntos</th><th>Nivel</th><th>Portal</th></tr></thead>
             <tbody>
               {clientesFiltrados.length === 0 && (
-                <tr><td colSpan={7} style={{ textAlign: "center", color: "#65676B", padding: 20 }}>No se encontraron clientes</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: "center", color: p.textMuted, padding: 20 }}>No se encontraron clientes</td></tr>
               )}
               {clientesFiltrados.map((c, i) => {
                 const nivel = c.nivel || c.tier;
@@ -3002,7 +3007,7 @@ function Clientes({ usuario }) {
                 const pct = Math.min(Math.round((puntos / next) * 100), 100);
                 return (
                   <tr key={c.id || i}>
-                    <td><div style={{ color: "#111111" }}>{c.nombre || c.name}</div><div style={{ fontSize: 9, color: "#65676B" }}>{c.email}</div></td>
+                    <td><div style={{ color: p.text }}>{c.nombre || c.name}</div><div style={{ fontSize: 9, color: p.textMuted }}>{c.email}</div></td>
                     <td style={{ fontSize: 11 }}>{c.telefono || c.phone || "-"}</td>
                     <td style={{ fontSize: 10 }}>{c.cuit_dni || c.cuit}</td>
                     <td>{fmt((c.total_compras || c.total || 0))}</td>
@@ -3016,7 +3021,7 @@ function Clientes({ usuario }) {
                     <td>
                       <button className="btn btn-sm" style={{ fontSize: 10, marginRight: 4 }} onClick={() => abrirEditarCliente(c)}>Editar</button>
                       <button className="btn btn-sm" style={{ fontSize: 10, marginRight: 4 }} onClick={() => resetearPortalCliente(c)}>Resetear clave</button>
-                      <button className="btn btn-sm" style={{ fontSize: 10, background: "#c9a84c", color: "#fff" }} onClick={() => abrirMigrar(c)}>Migrar puntos</button>
+                      <button className="btn btn-sm" style={{ fontSize: 10, background: "#c9a84c", color: p.card }} onClick={() => abrirMigrar(c)}>Migrar puntos</button>
                       {usuario?.rol === "jefe" && <button className="btn btn-sm" style={{ fontSize: 10, marginLeft: 4, color: "#c0392b" }} onClick={() => eliminarCliente(c)}>Eliminar</button>}
                     </td>
                   </tr>
@@ -3034,15 +3039,15 @@ function Clientes({ usuario }) {
             { tier: "Silver", min: 2000, max: 4999, c: "#2471a3", perks: ["1.2 pts cada $100", "Acceso preventas", "Envio gratis +$5k"] },
             { tier: "Gold", min: 5000, max: 9999, c: "#c9a84c", perks: ["1.5 pts cada $100", "5% descuento exclusivo", "Regalo de cumpleanos"] },
             { tier: "Platinum", min: 10000, max: 19999, c: "#7d3c98", perks: ["2 pts cada $100", "10% descuento", "Envio gratis siempre", "Lanzamientos anticipados"] },
-            { tier: "Black", min: 20000, max: null, c: "#1a1a1a", perks: ["2.5 pts cada $100", "15% descuento", "Envio gratis siempre", "Atencion VIP", "Regalos exclusivos"] },
+            { tier: "Black", min: 20000, max: null, c: p.text, perks: ["2.5 pts cada $100", "15% descuento", "Envio gratis siempre", "Atencion VIP", "Regalos exclusivos"] },
           ].map(n => (
             <div key={n.tier} className="card" style={{ borderLeft: "3px solid " + n.c }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
                 <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: n.c }}>{n.tier}</div>
-                <div style={{ fontSize: 10, color: "#65676B" }}>{fmtNum(n.min)}{n.max ? " - " +fmtNum(n.max) + " pts" : "+ pts"}</div>
+                <div style={{ fontSize: 10, color: p.textMuted }}>{fmtNum(n.min)}{n.max ? " - " +fmtNum(n.max) + " pts" : "+ pts"}</div>
               </div>
               {n.perks.map((p, i) => (
-                <div key={i} style={{ display: "flex", gap: 7, marginBottom: 6, fontSize: 11, color: "#444444" }}>
+                <div key={i} style={{ display: "flex", gap: 7, marginBottom: 6, fontSize: 11, color: p.text }}>
                   <span style={{ color: n.c }}>v</span>{p}
                 </div>
               ))}
@@ -3056,18 +3061,18 @@ function Clientes({ usuario }) {
           <div className="card" style={{ width: 460, maxWidth: "92vw", maxHeight: "88vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
               <div className="ct" style={{ margin: 0 }}>Migrar puntos de compra anterior</div>
-              <span onClick={() => setMigrarCli(null)} style={{ cursor: "pointer", fontSize: 20, color: "#999" }}>×</span>
+              <span onClick={() => setMigrarCli(null)} style={{ cursor: "pointer", fontSize: 20, color: p.textMuted }}>×</span>
             </div>
-            <div style={{ fontSize: 12, color: "#65676B", marginBottom: 12 }}>{migrarCli.nombre || migrarCli.name} · suma 1 punto cada $100 (no factura)</div>
+            <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 12 }}>{migrarCli.nombre || migrarCli.name} · suma 1 punto cada $100 (no factura)</div>
 
             {migMsg && (
               <div style={{ marginBottom: 10, padding: 10, borderRadius: 6, fontSize: 12,
-                background: migMsg.startsWith("Error") ? "#fdecea" : migMsg.startsWith("DUP:") ? "#fff8e1" : "#eafaf1",
+                background: migMsg.startsWith("Error") ? p.redDim : migMsg.startsWith("DUP:") ? "#fff8e1" : p.greenDim,
                 color: migMsg.startsWith("Error") ? "#c0392b" : migMsg.startsWith("DUP:") ? "#8a6d00" : "#1e7e4f" }}>
                 {migMsg.startsWith("DUP:") ? migMsg.slice(4) : migMsg}
                 {migMsg.startsWith("DUP:") && (
                   <div style={{ marginTop: 8 }}>
-                    <button className="btn btn-sm" style={{ background: "#c0392b", color: "#fff", marginRight: 6 }} onClick={() => guardarMigracion(true)}>Cargar igual</button>
+                    <button className="btn btn-sm" style={{ background: "#c0392b", color: p.card, marginRight: 6 }} onClick={() => guardarMigracion(true)}>Cargar igual</button>
                     <button className="btn btn-sm" onClick={() => setMigMsg("")}>Cancelar</button>
                   </div>
                 )}
@@ -3085,17 +3090,17 @@ function Clientes({ usuario }) {
             </div>
             <button className="btn btn-p" style={{ width: "100%", marginBottom: 14 }} onClick={() => guardarMigracion(false)}>Cargar puntos</button>
 
-            <div style={{ fontSize: 11, fontWeight: 600, color: "#888", marginBottom: 6 }}>CARGAS ANTERIORES DE ESTA CLIENTA</div>
-            {migHist.length === 0 ? <div style={{ fontSize: 12, color: "#999" }}>Sin cargas previas.</div> : (
+            <div style={{ fontSize: 11, fontWeight: 600, color: p.textMuted, marginBottom: 6 }}>CARGAS ANTERIORES DE ESTA CLIENTA</div>
+            {migHist.length === 0 ? <div style={{ fontSize: 12, color: p.textMuted }}>Sin cargas previas.</div> : (
               <table style={{ width: "100%", fontSize: 11 }}>
-                <thead><tr style={{ color: "#888", textAlign: "left" }}><th style={{ padding: "4px 0" }}>Fecha compra</th><th style={{ textAlign: "right" }}>Monto</th><th style={{ textAlign: "right" }}>Puntos</th><th style={{ textAlign: "right" }}>Cargado</th></tr></thead>
+                <thead><tr style={{ color: p.textMuted, textAlign: "left" }}><th style={{ padding: "4px 0" }}>Fecha compra</th><th style={{ textAlign: "right" }}>Monto</th><th style={{ textAlign: "right" }}>Puntos</th><th style={{ textAlign: "right" }}>Cargado</th></tr></thead>
                 <tbody>
                   {migHist.map(h => (
-                    <tr key={h.id} style={{ borderTop: "1px solid #f0f0f0" }}>
+                    <tr key={h.id} style={{ borderTop: "1px solid " + p.border }}>
                       <td style={{ padding: "5px 0" }}>{h.fecha_compra ? new Date(h.fecha_compra).toLocaleDateString("es-AR") : "-"}</td>
                       <td style={{ textAlign: "right" }}>{fmt(parseFloat(h.monto))}</td>
                       <td style={{ textAlign: "right", color: "#2d7a4f" }}>{h.puntos}</td>
-                      <td style={{ textAlign: "right", color: "#999" }}>{h.creado_en ? new Date(h.creado_en).toLocaleDateString("es-AR") : "-"}</td>
+                      <td style={{ textAlign: "right", color: p.textMuted }}>{h.creado_en ? new Date(h.creado_en).toLocaleDateString("es-AR") : "-"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -3852,7 +3857,8 @@ function Finanzas({ localId, usuario, paletaActual }) {
   );
 }
 
-function Informes({ localId }) {
+function Informes({ localId, paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState("ventas");
   const [tabLocal, setTabLocal] = useState("rg");
   const [loading, setLoading] = useState(true);
@@ -3905,7 +3911,7 @@ function Informes({ localId }) {
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {["rg", "ush", "consolidado"].map(l => (
           <button key={l} onClick={() => setTabLocal(l)} className="btn btn-sm"
-            style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : "#e8e8e8"), color: tabLocal === l ? "#c9a84c" : "#65676B", fontWeight: tabLocal === l ? 600 : 400 }}>
+            style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : p.border), color: tabLocal === l ? "#c9a84c" : p.textMuted, fontWeight: tabLocal === l ? 600 : 400 }}>
             {l === "rg" ? "Rio Grande" : l === "ush" ? "Ushuaia" : "Consolidado"}
           </button>
         ))}
@@ -3918,7 +3924,7 @@ function Informes({ localId }) {
         ))}
       </div>
       {loading ? (
-        <div style={{ color: "#65676B", padding: 30, textAlign: "center" }}>Cargando...</div>
+        <div style={{ color: p.textMuted, padding: 30, textAlign: "center" }}>Cargando...</div>
       ) : datos && (
         <div>
           {tab === "ventas" && (
@@ -3931,17 +3937,17 @@ function Informes({ localId }) {
               <div className="card">
                 <div className="ct">Ultimas ventas del mes</div>
                 {datos.ventas.length === 0 ? (
-                  <div style={{ color: "#65676B", textAlign: "center", padding: 20, fontSize: 12 }}>Sin ventas en este periodo</div>
+                  <div style={{ color: p.textMuted, textAlign: "center", padding: 20, fontSize: 12 }}>Sin ventas en este periodo</div>
                 ) : (
                   <table>
                     <thead><tr><th>Fecha</th><th>Cliente</th><th>Medio</th><th>Items</th><th>Total</th></tr></thead>
                     <tbody>
                       {datos.ventas.slice(0, 20).map((v, i) => (
                         <tr key={i}>
-                          <td style={{ fontSize: 11, color: "#65676B" }}>{new Date(v.creado_en || v.fecha).toLocaleDateString("es-AR")}</td>
+                          <td style={{ fontSize: 11, color: p.textMuted }}>{new Date(v.creado_en || v.fecha).toLocaleDateString("es-AR")}</td>
                           <td style={{ fontSize: 12 }}>{v.cliente_nombre || "Consumidor final"}</td>
                           <td style={{ fontSize: 11 }}>{v.medio_pago || "-"}</td>
-                          <td style={{ fontSize: 11, color: "#65676B" }}>{v.items_count || "-"}</td>
+                          <td style={{ fontSize: 11, color: p.textMuted }}>{v.items_count || "-"}</td>
                           <td style={{ color: "#2d7a4f", fontWeight: 600 }}>{fmt(parseFloat(v.total || 0))}</td>
                         </tr>
                       ))}
@@ -3966,10 +3972,10 @@ function Informes({ localId }) {
                           <tr key={i}>
                             <td>
                               <div style={{ fontSize: 12 }}>{p.nombre}</div>
-                              <div style={{ fontSize: 10, color: "#65676B" }}>{p.marca}</div>
+                              <div style={{ fontSize: 10, color: p.textMuted }}>{p.marca}</div>
                             </td>
                             <td><span className="badge br">{p.stock || 0}u</span></td>
-                            <td style={{ color: "#65676B", fontSize: 12 }}>{p.stock_minimo || p.min || 5}u</td>
+                            <td style={{ color: p.textMuted, fontSize: 12 }}>{p.stock_minimo || p.min || 5}u</td>
                           </tr>
                         ))}
                       </tbody>
@@ -3983,9 +3989,9 @@ function Informes({ localId }) {
                     { l: "Con stock bajo", v: datos.stockBajo.length, c: datos.stockBajo.length > 0 ? "#c0392b" : "#2d7a4f" },
                     { l: "Sin stock", v: datos.productos.filter(p => !p.stock || p.stock === 0).length, c: "#c0392b" },
                   ].map(r => (
-                    <div key={r.l} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
-                      <span style={{ fontSize: 12, color: "#444444" }}>{r.l}</span>
-                      <span style={{ fontSize: 16, fontWeight: 700, color: r.c || "#111111" }}>{r.v}</span>
+                    <div key={r.l} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid " + p.border }}>
+                      <span style={{ fontSize: 12, color: p.text }}>{r.l}</span>
+                      <span style={{ fontSize: 16, fontWeight: 700, color: r.c || p.text }}>{r.v}</span>
                     </div>
                   ))}
                 </div>
@@ -3997,7 +4003,7 @@ function Informes({ localId }) {
               <div className="card">
                 <div className="ct">Ventas por medio de pago</div>
                 {Object.keys(datos.ventasPorMedio).length === 0 ? (
-                  <div style={{ color: "#65676B", textAlign: "center", padding: 20, fontSize: 12 }}>Sin datos para este periodo</div>
+                  <div style={{ color: p.textMuted, textAlign: "center", padding: 20, fontSize: 12 }}>Sin datos para este periodo</div>
                 ) : (
                   <div>
                     {Object.entries(datos.ventasPorMedio).sort((a,b) => b[1]-a[1]).map(([medio, total]) => {
@@ -4005,7 +4011,7 @@ function Informes({ localId }) {
                       return (
                         <div key={medio} style={{ marginBottom: 14 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                            <span style={{ fontSize: 12, color: "#444444" }}>{medio}</span>
+                            <span style={{ fontSize: 12, color: p.text }}>{medio}</span>
                             <span style={{ fontSize: 12, color: "#c9a84c", fontWeight: 600 }}>{fmt(total)} ({pct}%)</span>
                           </div>
                           <div className="pb"><div className="pf" style={{ width: pct + "%" }} /></div>
@@ -4030,7 +4036,8 @@ const NIVELES_INF = {
   top: { label: "Top Influencer", pct: 5, emoji: "\uD83D\uDC51" }
 };
 
-function Cupones({ localId, usuario }) {
+function Cupones({ localId, usuario, paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
   const [cupons, setCupons] = useState([]);
   const [tab, setTab] = useState("lista");
   const [nc, setNc] = useState({ code: "", desc: "", type: "%", value: "", channel: "Instagram", max: "" });
@@ -4284,7 +4291,7 @@ function Cupones({ localId, usuario }) {
                   <td>{(c.tipo || c.type) === "%" ? (c.valor || c.value) + "%" : fmt((c.valor || c.value || 0))}</td>
                   <td><span className="badge bb">{c.canal || c.channel}</span></td>
                   <td>{c.usos || c.uses || 0}{(c.max_usos || c.max) ? "/" + (c.max_usos || c.max) : ""}</td>
-                  <td style={{ fontSize: 10, color: "#65676B" }}>{c.fecha_vencimiento || c.expires || "Sin venc."}</td>
+                  <td style={{ fontSize: 10, color: temaPal.textMuted }}>{c.fecha_vencimiento || c.expires || "Sin venc."}</td>
                   <td><Sw on={c.activo !== undefined ? c.activo : c.active} toggle={() => toggleCupon(c)} /></td>
                 </tr>
               ))}
@@ -4306,12 +4313,12 @@ function Cupones({ localId, usuario }) {
           </div>
           <div className="card">
             <div className="ct">Vista previa</div>
-            <div style={{ background: "#fafafa", borderRadius: 7, padding: 20, border: "2px dashed #272220", textAlign: "center", marginBottom: 14 }}>
+            <div style={{ background: temaPal.bg, borderRadius: 7, padding: 20, border: "2px dashed #272220", textAlign: "center", marginBottom: 14 }}>
               <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 28, fontWeight: 700, color: "#c9a84c", letterSpacing: ".1em" }}>{nc.code || "CODIGO"}</div>
-              <div style={{ fontSize: 13, color: "#65676B", marginTop: 6 }}>{nc.value ? (nc.type === "%" ? nc.value + "% de descuento" : fmt(parseInt(nc.value || "0")) + " de descuento") : "Descuento"}</div>
+              <div style={{ fontSize: 13, color: temaPal.textMuted, marginTop: 6 }}>{nc.value ? (nc.type === "%" ? nc.value + "% de descuento" : fmt(parseInt(nc.value || "0")) + " de descuento") : "Descuento"}</div>
             </div>
             {["Codigos cortos y memorables convierten mas", "Inclui el canal: INSTA20, TIKTOK15", "Limite de usos genera urgencia", "Codigos de influencer = seguimiento exacto"].map((t, i) => (
-              <div key={i} style={{ display: "flex", gap: 7, marginBottom: 7, fontSize: 11, color: "#444444" }}><span style={{ color: "#c9a84c" }}>-</span>{t}</div>
+              <div key={i} style={{ display: "flex", gap: 7, marginBottom: 7, fontSize: 11, color: temaPal.text }}><span style={{ color: "#c9a84c" }}>-</span>{t}</div>
             ))}
           </div>
         </div>
@@ -4325,7 +4332,7 @@ function Cupones({ localId, usuario }) {
                 const niv = NIVELES_INF[inf.nivel] || NIVELES_INF.inicial;
                 return (
                   <tr key={inf.id}>
-                    <td style={{ color: "#111111", fontWeight: 600 }}>{inf.nombre}{inf.instagram ? <div style={{ fontSize: 10, color: "#888" }}>@{inf.instagram}</div> : null}</td>
+                    <td style={{ color: temaPal.text, fontWeight: 600 }}>{inf.nombre}{inf.instagram ? <div style={{ fontSize: 10, color: temaPal.textMuted }}>@{inf.instagram}</div> : null}</td>
                     <td><span className="badge bb">{niv.emoji} {niv.label} ({inf.comision_pct}%)</span></td>
                     <td style={{ color: "#c9a84c" }}>{inf.cupon_codigo || "-"}</td>
                     <td>{fmt(parseFloat(inf.total_vendido || 0))}</td>
@@ -4334,7 +4341,7 @@ function Cupones({ localId, usuario }) {
                     <td style={{ color: parseFloat(inf.pendiente || 0) > 0 ? "#c0392b" : "#2d7a4f", fontWeight: 600 }}>{fmt(parseFloat(inf.pendiente || 0))}</td>
                     <td><Sw on={inf.activo} toggle={() => toggleInfluencer(inf)} /></td>
                     <td style={{ whiteSpace: "nowrap" }}>
-                      <span onClick={() => abrirEditarInf(inf)} style={{ cursor: "pointer", color: "#65676B", fontSize: 11, marginRight: 8 }}>editar</span>
+                      <span onClick={() => abrirEditarInf(inf)} style={{ cursor: "pointer", color: temaPal.textMuted, fontSize: 11, marginRight: 8 }}>editar</span>
                       {inf.cupon_id && <span onClick={() => abrirEditarCupon(inf)} style={{ cursor: "pointer", color: "#2471a3", fontSize: 11, marginRight: 8 }}>editar cupón</span>}
                       <span onClick={() => setPagandoInf(inf)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 11, marginRight: 8 }}>Registrar pago</span>
                       <span onClick={() => abrirRegalo(inf)} style={{ cursor: "pointer", color: "#7d3c98", fontSize: 11 }}>+ Regalo</span>
@@ -4343,7 +4350,7 @@ function Cupones({ localId, usuario }) {
                 );
               })}
               {influencers.length === 0 && (
-                <tr><td colSpan={9} style={{ textAlign: "center", color: "#999", padding: 20, fontSize: 12 }}>Todavia no hay influencers cargadas</td></tr>
+                <tr><td colSpan={9} style={{ textAlign: "center", color: temaPal.textMuted, padding: 20, fontSize: 12 }}>Todavia no hay influencers cargadas</td></tr>
               )}
             </tbody>
           </table>
@@ -4354,7 +4361,7 @@ function Cupones({ localId, usuario }) {
       {tab === "influencers" && (
         <div className="card fade" style={{ marginTop: 16 }}>
           <div className="ct">Regalos de campaña</div>
-          <div style={{ fontSize: 11, color: "#65676B", marginBottom: 12 }}>Cuando le asignas un regalo a una influencer, le aparece en su portal con un codigo. Ella lo retira en el local mostrando ese codigo, y aca abajo lo validas para descontar el stock.</div>
+          <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 12 }}>Cuando le asignas un regalo a una influencer, le aparece en su portal con un codigo. Ella lo retira en el local mostrando ese codigo, y aca abajo lo validas para descontar el stock.</div>
 
           <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 16, flexWrap: "wrap" }}>
             <div style={{ flex: "1 1 260px" }}>
@@ -4364,14 +4371,14 @@ function Cupones({ localId, usuario }) {
           </div>
           {resultadoValidarRegalo && (
             <div style={{ marginBottom: 12, padding: 10, borderRadius: 6, fontSize: 12,
-              background: resultadoValidarRegalo.ok ? "#eafaf1" : "#fdecea",
+              background: resultadoValidarRegalo.ok ? temaPal.greenDim : temaPal.redDim,
               color: resultadoValidarRegalo.ok ? "#1e7e4f" : "#c0392b" }}>
               {resultadoValidarRegalo.mensaje}
             </div>
           )}
 
           {regalos.length === 0 ? (
-            <div style={{ textAlign: "center", color: "#65676B", padding: 20, fontSize: 12 }}>Todavia no asignaste ningun regalo</div>
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 20, fontSize: 12 }}>Todavia no asignaste ningun regalo</div>
           ) : (
             <table>
               <thead><tr><th>Influencer</th><th>Regalo</th><th>Campaña</th><th>Codigo</th><th>Estado</th><th></th></tr></thead>
@@ -4380,7 +4387,7 @@ function Cupones({ localId, usuario }) {
                   <tr key={r.id}>
                     <td style={{ fontSize: 12 }}>{r.influencer_nombre}</td>
                     <td style={{ fontSize: 12 }}>{r.producto_nombre}</td>
-                    <td style={{ fontSize: 11, color: "#65676B" }}>{r.campana || "-"}</td>
+                    <td style={{ fontSize: 11, color: temaPal.textMuted }}>{r.campana || "-"}</td>
                     <td style={{ fontSize: 11, fontWeight: 600, color: "#7d3c98" }}>{r.codigo}</td>
                     <td>
                       <span className="badge" style={{
@@ -4414,8 +4421,8 @@ function Cupones({ localId, usuario }) {
             <div className="fg">
               <div className="fl">Cupon</div>
               <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
-                <button type="button" onClick={() => setNuevoInf(p => ({ ...p, cuponModo: "nuevo" }))} style={{ flex: 1, fontSize: 11, padding: "6px", border: "1px solid " + (nuevoInf.cuponModo === "nuevo" ? "#c9a84c" : "#e8e8e8"), borderRadius: 4, background: nuevoInf.cuponModo === "nuevo" ? "#c9a84c15" : "#fff", color: nuevoInf.cuponModo === "nuevo" ? "#c9a84c" : "#65676B", cursor: "pointer" }}>Crear cupon nuevo</button>
-                <button type="button" onClick={() => setNuevoInf(p => ({ ...p, cuponModo: "existente" }))} style={{ flex: 1, fontSize: 11, padding: "6px", border: "1px solid " + (nuevoInf.cuponModo === "existente" ? "#c9a84c" : "#e8e8e8"), borderRadius: 4, background: nuevoInf.cuponModo === "existente" ? "#c9a84c15" : "#fff", color: nuevoInf.cuponModo === "existente" ? "#c9a84c" : "#65676B", cursor: "pointer" }}>Usar cupon existente</button>
+                <button type="button" onClick={() => setNuevoInf(p => ({ ...p, cuponModo: "nuevo" }))} style={{ flex: 1, fontSize: 11, padding: "6px", border: "1px solid " + (nuevoInf.cuponModo === "nuevo" ? "#c9a84c" : temaPal.border), borderRadius: 4, background: nuevoInf.cuponModo === "nuevo" ? "#c9a84c15" : temaPal.card, color: nuevoInf.cuponModo === "nuevo" ? "#c9a84c" : temaPal.textMuted, cursor: "pointer" }}>Crear cupon nuevo</button>
+                <button type="button" onClick={() => setNuevoInf(p => ({ ...p, cuponModo: "existente" }))} style={{ flex: 1, fontSize: 11, padding: "6px", border: "1px solid " + (nuevoInf.cuponModo === "existente" ? "#c9a84c" : temaPal.border), borderRadius: 4, background: nuevoInf.cuponModo === "existente" ? "#c9a84c15" : temaPal.card, color: nuevoInf.cuponModo === "existente" ? "#c9a84c" : temaPal.textMuted, cursor: "pointer" }}>Usar cupon existente</button>
               </div>
               {nuevoInf.cuponModo === "nuevo" ? (
                 <div style={{ display: "flex", gap: 6 }}>
@@ -4436,7 +4443,7 @@ function Cupones({ localId, usuario }) {
             <div className="fg">
               <div className="fl">Vincular con una clienta (opcional, para que tenga acceso al portal)</div>
               {cliSelInf ? (
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f7f5f0", borderRadius: 6 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: temaPal.bg, borderRadius: 6 }}>
                   <span style={{ fontSize: 12 }}>{cliSelInf.nombre} {cliSelInf.cuit_dni ? "(" + cliSelInf.cuit_dni + ")" : ""}</span>
                   <span onClick={() => { setCliSelInf(null); setBuscarCliInf(""); }} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>quitar</span>
                 </div>
@@ -4444,9 +4451,9 @@ function Cupones({ localId, usuario }) {
                 <div>
                   <input className="inp" placeholder="Buscar por nombre o DNI" value={buscarCliInf} onChange={e => setBuscarCliInf(e.target.value)} />
                   {buscarCliInf.trim().length > 0 && (
-                    <div style={{ border: "1px solid #eee", borderRadius: 6, marginTop: 4, maxHeight: 160, overflowY: "auto" }}>
+                    <div style={{ border: "1px solid " + temaPal.border, borderRadius: 6, marginTop: 4, maxHeight: 160, overflowY: "auto" }}>
                       {clientesInf.filter(cl => (cl.nombre || "").toLowerCase().includes(buscarCliInf.toLowerCase()) || (cl.cuit_dni || "").includes(buscarCliInf)).slice(0, 6).map(cl => (
-                        <div key={cl.id} onClick={() => { setCliSelInf(cl); setBuscarCliInf(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 12 }}>{cl.nombre} <span style={{ color: "#999" }}>{cl.cuit_dni ? "(" + cl.cuit_dni + ")" : ""}</span></div>
+                        <div key={cl.id} onClick={() => { setCliSelInf(cl); setBuscarCliInf(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid " + temaPal.border, fontSize: 12 }}>{cl.nombre} <span style={{ color: temaPal.textMuted }}>{cl.cuit_dni ? "(" + cl.cuit_dni + ")" : ""}</span></div>
                       ))}
                     </div>
                   )}
@@ -4465,7 +4472,7 @@ function Cupones({ localId, usuario }) {
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={() => setPagandoInf(null)}>
           <div className="card" style={{ width: 360, maxWidth: "92vw" }} onClick={e => e.stopPropagation()}>
             <div className="ct">Registrar pago a {pagandoInf.nombre}</div>
-            <div style={{ fontSize: 12, color: "#65676B", marginBottom: 10 }}>Pendiente: {fmt(parseFloat(pagandoInf.pendiente || 0))}</div>
+            <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 10 }}>Pendiente: {fmt(parseFloat(pagandoInf.pendiente || 0))}</div>
             <div className="fg"><div className="fl">Monto ($)</div><input className="inp" type="number" value={montoPago} onChange={e => setMontoPago(e.target.value)} /></div>
             <div className="fg"><div className="fl">Nota (opcional)</div><input className="inp" placeholder="Ej: transferencia" value={notaPago} onChange={e => setNotaPago(e.target.value)} /></div>
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
@@ -4488,7 +4495,7 @@ function Cupones({ localId, usuario }) {
             <div className="fg">
               <div className="fl">Producto de regalo</div>
               {nuevoRegalo.producto_id ? (
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f7f5f0", borderRadius: 6 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: temaPal.bg, borderRadius: 6 }}>
                   <span style={{ fontSize: 12 }}>{nuevoRegalo.producto_nombre}</span>
                   <span onClick={() => setNuevoRegalo(p => ({ ...p, producto_id: "", producto_nombre: "" }))} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>quitar</span>
                 </div>
@@ -4496,9 +4503,9 @@ function Cupones({ localId, usuario }) {
                 <div>
                   <input className="inp" placeholder="Buscar producto por nombre..." value={buscarProdRegalo} onChange={e => setBuscarProdRegalo(e.target.value)} />
                   {prodsFiltrados.length > 0 && (
-                    <div style={{ border: "1px solid #eee", borderRadius: 6, marginTop: 4, maxHeight: 160, overflowY: "auto" }}>
+                    <div style={{ border: "1px solid " + temaPal.border, borderRadius: 6, marginTop: 4, maxHeight: 160, overflowY: "auto" }}>
                       {prodsFiltrados.map(p => (
-                        <div key={p.id} onClick={() => { setNuevoRegalo(f => ({ ...f, producto_id: p.id, producto_nombre: p.nombre })); setBuscarProdRegalo(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 12 }}>{p.nombre}{p.marca ? <span style={{ color: "#999" }}> - {p.marca}</span> : ""}</div>
+                        <div key={p.id} onClick={() => { setNuevoRegalo(f => ({ ...f, producto_id: p.id, producto_nombre: p.nombre })); setBuscarProdRegalo(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid " + temaPal.border, fontSize: 12 }}>{p.nombre}{p.marca ? <span style={{ color: temaPal.textMuted }}> - {p.marca}</span> : ""}</div>
                       ))}
                     </div>
                   )}
@@ -4529,8 +4536,8 @@ function Cupones({ localId, usuario }) {
               <div className="fg" style={{ flex: 1 }}><div className="fl">Vence (opcional)</div><input className="inp" type="date" value={cuponForm.fecha_vencimiento} onChange={e => setCuponForm(p => ({ ...p, fecha_vencimiento: e.target.value }))} /></div>
             </div>
             <div className="fg"><div className="fl">Compra mínima para que aplique el descuento (opcional, vacío = sin mínimo)</div><input className="inp" type="number" placeholder="Sin minimo" value={cuponForm.descuento_monto_minimo} onChange={e => setCuponForm(p => ({ ...p, descuento_monto_minimo: e.target.value }))} /></div>
-            <div style={{ borderTop: "1px solid #eee", marginTop: 6, paddingTop: 10 }}>
-              <div style={{ fontSize: 11, color: "#65676B", marginBottom: 8 }}>Condición especial (opcional). Ej: 15% si paga por "Transferencia", en vez del {cuponForm.valor || "-"}{cuponForm.tipo === "%" ? "%" : "$"} de base.</div>
+            <div style={{ borderTop: "1px solid " + temaPal.border, marginTop: 6, paddingTop: 10 }}>
+              <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 8 }}>Condición especial (opcional). Ej: 15% si paga por "Transferencia", en vez del {cuponForm.valor || "-"}{cuponForm.tipo === "%" ? "%" : "$"} de base.</div>
               <div style={{ display: "flex", gap: 8 }}>
                 <div className="fg" style={{ flex: 1 }}>
                   <div className="fl">Medio de pago</div>
@@ -4542,12 +4549,12 @@ function Cupones({ localId, usuario }) {
                 <div className="fg" style={{ flex: 1 }}><div className="fl">Valor con esa condición</div><input className="inp" type="number" placeholder="15" value={cuponForm.valor_condicional} onChange={e => setCuponForm(p => ({ ...p, valor_condicional: e.target.value }))} /></div>
               </div>
             </div>
-            <div style={{ borderTop: "1px solid #eee", marginTop: 6, paddingTop: 10 }}>
-              <div style={{ fontSize: 11, color: "#65676B", marginBottom: 8 }}>Regalo por monto mínimo (opcional). Ej: 1 mascarilla de regalo en compras desde $20.000. En el POS avisa a la vendedora para que agregue el producto al ticket con precio $0.</div>
+            <div style={{ borderTop: "1px solid " + temaPal.border, marginTop: 6, paddingTop: 10 }}>
+              <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 8 }}>Regalo por monto mínimo (opcional). Ej: 1 mascarilla de regalo en compras desde $20.000. En el POS avisa a la vendedora para que agregue el producto al ticket con precio $0.</div>
               <div className="fg">
                 <div className="fl">Producto de regalo</div>
                 {cuponForm.regalo_producto_id ? (
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f7f5f0", borderRadius: 6 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: temaPal.bg, borderRadius: 6 }}>
                     <span style={{ fontSize: 12 }}>{cuponForm.regalo_producto_nombre}</span>
                     <span onClick={() => setCuponForm(p => ({ ...p, regalo_producto_id: "", regalo_producto_nombre: "" }))} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>quitar</span>
                   </div>
@@ -4555,9 +4562,9 @@ function Cupones({ localId, usuario }) {
                   <div>
                     <input className="inp" placeholder="Buscar producto por nombre..." value={buscarProdCupon} onChange={e => setBuscarProdCupon(e.target.value)} />
                     {buscarProdCupon.trim().length > 0 && (
-                      <div style={{ border: "1px solid #eee", borderRadius: 6, marginTop: 4, maxHeight: 160, overflowY: "auto" }}>
+                      <div style={{ border: "1px solid " + temaPal.border, borderRadius: 6, marginTop: 4, maxHeight: 160, overflowY: "auto" }}>
                         {productosCat.filter(p => (p.nombre || "").toLowerCase().includes(buscarProdCupon.toLowerCase())).slice(0, 8).map(p => (
-                          <div key={p.id} onClick={() => { setCuponForm(f => ({ ...f, regalo_producto_id: p.id, regalo_producto_nombre: p.nombre })); setBuscarProdCupon(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 12 }}>{p.nombre}{p.marca ? <span style={{ color: "#999" }}> - {p.marca}</span> : ""}</div>
+                          <div key={p.id} onClick={() => { setCuponForm(f => ({ ...f, regalo_producto_id: p.id, regalo_producto_nombre: p.nombre })); setBuscarProdCupon(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid " + temaPal.border, fontSize: 12 }}>{p.nombre}{p.marca ? <span style={{ color: temaPal.textMuted }}> - {p.marca}</span> : ""}</div>
                         ))}
                       </div>
                     )}
@@ -4577,7 +4584,8 @@ function Cupones({ localId, usuario }) {
   );
 }
 
-function Fidelizacion({ usuario }) {
+function Fidelizacion({ usuario, paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState("clientes");
   const [clientes, setClientes] = useState([]);
   const [premios, setPremios] = useState([]);
@@ -4711,7 +4719,7 @@ function Fidelizacion({ usuario }) {
         <MCard label="Clientes con puntos" value={String(clientesAMostrar.filter(c => (c.puntos || 0) > 0).length)} color="#2d7a4f" />
         <MCard label="Premios activos" value={String(premios.filter(p => p.activo).length)} color="#2471a3" />
         <MCard label="Nivel Platinum" value={String(clientesAMostrar.filter(c => (c.nivel || c.tier) === "Platinum").length)} color="#7d3c98" />
-        <MCard label="Nivel Black" value={String(clientesAMostrar.filter(c => (c.nivel || c.tier) === "Black").length)} color="#1a1a1a" />
+        <MCard label="Nivel Black" value={String(clientesAMostrar.filter(c => (c.nivel || c.tier) === "Black").length)} color=temaPal.text />
       </div>
       {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
       <div className="tabs">
@@ -4719,7 +4727,7 @@ function Fidelizacion({ usuario }) {
       </div>
       {tab === "clientes" && (
         <div className="card fade">
-          {loading ? <div style={{ textAlign: "center", color: "#65676B", padding: 20 }}>Cargando...</div> : (
+          {loading ? <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 20 }}>Cargando...</div> : (
           <table>
             <thead><tr><th>Cliente</th><th>Nivel</th><th>Puntos</th><th>Progreso al proximo nivel</th></tr></thead>
             <tbody>
@@ -4730,13 +4738,13 @@ function Fidelizacion({ usuario }) {
                 const pct = Math.min(Math.round((puntos / next) * 100), 100);
                 return (
                   <tr key={c.id || i}>
-                    <td><div style={{ color: "#111111" }}>{c.nombre || c.name}</div><div style={{ fontSize: 9, color: "#65676B" }}>{c.email}</div></td>
+                    <td><div style={{ color: temaPal.text }}>{c.nombre || c.name}</div><div style={{ fontSize: 9, color: temaPal.textMuted }}>{c.email}</div></td>
                     <td><TierBadge tier={nivel} /></td>
                     <td style={{ fontFamily: "'Inter',sans-serif", fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>{fmtNum(puntos)}</td>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <div style={{ flex: 1 }}><div className="pb"><div className="pf" style={{ width: pct + "%", background: "#c9a84c" }} /></div></div>
-                        <span style={{ fontSize: 9, color: "#65676B", width: 50 }}>{nivel ===fmtNum("Platinum" ? "MAX" : (next - puntos)) + "p"}</span>
+                        <span style={{ fontSize: 9, color: temaPal.textMuted, width: 50 }}>{nivel ===fmtNum("Platinum" ? "MAX" : (next - puntos)) + "p"}</span>
                       </div>
                     </td>
                   </tr>
@@ -4754,24 +4762,24 @@ function Fidelizacion({ usuario }) {
           </div>
           {showForm && (
             <div className="card" style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 14 }}>NUEVO PREMIO</div>
+              <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 14 }}>NUEVO PREMIO</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div className="fg"><div className="fl">Nombre del premio</div><input className="inp" placeholder="Ej: Envio gratis" value={nuevoPremio.nombre} onChange={e => setNuevoPremio(p => ({ ...p, nombre: e.target.value }))} /></div>
                 <div className="fg"><div className="fl">Puntos requeridos</div><input className="inp" type="number" placeholder="500" value={nuevoPremio.puntos_requeridos} onChange={e => setNuevoPremio(p => ({ ...p, puntos_requeridos: e.target.value }))} /></div>
               </div>
-              <div style={{ background: "#f7f5f0", borderRadius: 8, padding: 12, marginBottom: 10 }}>
+              <div style={{ background: temaPal.bg, borderRadius: 8, padding: 12, marginBottom: 10 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6, color: "#c9a84c" }}>💡 Calculadora de puntos sugeridos</div>
-                <div style={{ fontSize: 11, color: "#65676B", marginBottom: 8 }}>Regla: el cliente tiene que gastar 5 veces el valor del regalo. Puntos = precio de venta ÷ 20.</div>
+                <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 8 }}>Regla: el cliente tiene que gastar 5 veces el valor del regalo. Puntos = precio de venta ÷ 20.</div>
                 <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
                   <div style={{ flex: 1 }}>
                     <div className="fl">Precio de venta del regalo</div>
                     <input className="inp" type="number" placeholder="8000" value={precioCalc} onChange={e => setPrecioCalc(e.target.value)} />
                   </div>
                   <div style={{ textAlign: "center", minWidth: 90 }}>
-                    <div style={{ fontSize: 10, color: "#888" }}>Puntos</div>
+                    <div style={{ fontSize: 10, color: temaPal.textMuted }}>Puntos</div>
                     <div style={{ fontSize: 20, fontWeight: 700, color: "#2d7a4f" }}>{precioCalc && parseFloat(precioCalc) > 0 ? Math.round(parseFloat(precioCalc) / 20) : "—"}</div>
                   </div>
-                  <button className="btn btn-sm" style={{ background: "#c9a84c", color: "#fff", whiteSpace: "nowrap" }} disabled={!precioCalc || parseFloat(precioCalc) <= 0} onClick={() => setNuevoPremio(p => ({ ...p, puntos_requeridos: String(Math.round(parseFloat(precioCalc) / 20)) }))}>Usar estos puntos</button>
+                  <button className="btn btn-sm" style={{ background: "#c9a84c", color: temaPal.card, whiteSpace: "nowrap" }} disabled={!precioCalc || parseFloat(precioCalc) <= 0} onClick={() => setNuevoPremio(p => ({ ...p, puntos_requeridos: String(Math.round(parseFloat(precioCalc) / 20)) }))}>Usar estos puntos</button>
                 </div>
               </div>
               <div className="fg"><div className="fl">Descripcion</div><input className="inp" placeholder="Breve descripcion del premio" value={nuevoPremio.descripcion} onChange={e => setNuevoPremio(p => ({ ...p, descripcion: e.target.value }))} /></div>
@@ -4799,7 +4807,7 @@ function Fidelizacion({ usuario }) {
             </div>
           )}
           {premios.length === 0 ? (
-            <div className="card"><div style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>No hay premios creados todavia</div></div>
+            <div className="card"><div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>No hay premios creados todavia</div></div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
               {premios.map(p => {
@@ -4810,15 +4818,15 @@ function Fidelizacion({ usuario }) {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                       <div style={{ fontSize: 13, fontWeight: 600 }}>{p.nombre}</div>
                       {p.solo_mes_cumpleanos && <span className="badge" style={{ background: "#7d3c9815", color: "#7d3c98", fontSize: 8 }}>cumple</span>}
-                      {p.nivel_minimo && p.nivel_minimo !== "Bronze" && <span className="badge" style={{ background: "#1a1a1a15", color: "#1a1a1a", fontSize: 8, marginLeft: 4 }}>{p.nivel_minimo}+</span>}
+                      {p.nivel_minimo && p.nivel_minimo !== "Bronze" && <span className="badge" style={{ background: "#1a1a1a15", color: temaPal.text, fontSize: 8, marginLeft: 4 }}>{p.nivel_minimo}+</span>}
                     </div>
-                    {p.descripcion && <div style={{ fontSize: 10, color: "#65676B", marginTop: 3 }}>{p.descripcion}</div>}
+                    {p.descripcion && <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 3 }}>{p.descripcion}</div>}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
                       <span style={{ fontSize: 16, fontWeight: 700, color: "#c9a84c" }}>{p.puntos_requeridos} pts</span>
                       <span className={"badge " + (disp !== null && disp < 5 ? "br" : "bg")}>{disp === null ? "ilimitado" : disp + "u"}</span>
                     </div>
                     <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-                      <button className="btn btn-sm" style={{ flex: 1, background: "#c9a84c", color: "#fff" }} onClick={() => editarPremio(p)}>Editar</button>
+                      <button className="btn btn-sm" style={{ flex: 1, background: "#c9a84c", color: temaPal.card }} onClick={() => editarPremio(p)}>Editar</button>
                       {p.activo && <button className="btn btn-sm" style={{ flex: 1 }} onClick={() => desactivarPremio(p)}>Desactivar</button>}
                     </div>
                   </div>
@@ -4844,24 +4852,24 @@ function Fidelizacion({ usuario }) {
               <div className="card" style={{ marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
                 <div>
                   <div style={{ fontSize: 16, fontWeight: 700 }}>{clienteDni.cliente.nombre}</div>
-                  <div style={{ fontSize: 11, color: "#65676B" }}>DNI {clienteDni.cliente.cuit_dni} {clienteDni.cliente.telefono ? "· " + clienteDni.cliente.telefono : ""}</div>
+                  <div style={{ fontSize: 11, color: temaPal.textMuted }}>DNI {clienteDni.cliente.cuit_dni} {clienteDni.cliente.telefono ? "· " + clienteDni.cliente.telefono : ""}</div>
                   <span className="badge" style={{ marginTop: 6, display: "inline-block" }}>Nivel {clienteDni.cliente.nivel}</span>
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 28, fontWeight: 700, color: "#c9a84c" }}>{fmtNum(clienteDni.cliente.puntos)}</div>
-                  <div style={{ fontSize: 10, color: "#65676B", letterSpacing: ".1em" }}>PUNTOS DISPONIBLES</div>
+                  <div style={{ fontSize: 10, color: temaPal.textMuted, letterSpacing: ".1em" }}>PUNTOS DISPONIBLES</div>
                 </div>
               </div>
 
-              <div style={{ fontSize: 12, color: "#65676B", marginBottom: 10 }}>Premios que ya puede canjear ahora mismo:</div>
+              <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 10 }}>Premios que ya puede canjear ahora mismo:</div>
               {clienteDni.premios.length === 0 ? (
-                <div className="card" style={{ textAlign: "center", color: "#65676B", padding: 24, fontSize: 12 }}>No hay premios disponibles para su nivel en este momento.</div>
+                <div className="card" style={{ textAlign: "center", color: temaPal.textMuted, padding: 24, fontSize: 12 }}>No hay premios disponibles para su nivel en este momento.</div>
               ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
                   {clienteDni.premios.map(p => (
                     <div key={p.id} className="card" style={{ opacity: p.puede_canjear ? 1 : 0.55 }}>
                       <div style={{ fontWeight: 600, fontSize: 13 }}>{p.nombre}</div>
-                      {p.descripcion && <div style={{ fontSize: 11, color: "#65676B", margin: "4px 0" }}>{p.descripcion}</div>}
+                      {p.descripcion && <div style={{ fontSize: 11, color: temaPal.textMuted, margin: "4px 0" }}>{p.descripcion}</div>}
                       <div style={{ fontSize: 18, fontWeight: 700, color: "#c9a84c", marginTop: 6 }}>{fmtNum(p.puntos_requeridos)} pts</div>
                       {p.solo_mes_cumpleanos && <span className="badge" style={{ fontSize: 9, marginTop: 4 }}>Solo mes de cumpleaños</span>}
                       <button
@@ -4883,7 +4891,7 @@ function Fidelizacion({ usuario }) {
       {tab === "validar" && (
         <div className="fade">
           <div className="card" style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 10 }}>VALIDAR CODIGO DE CANJE</div>
+            <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 10 }}>VALIDAR CODIGO DE CANJE</div>
             <div style={{ display: "flex", gap: 8 }}>
               <input className="inp" placeholder="PREMIO-XXXX" value={codigoValidar} onChange={e => setCodigoValidar(e.target.value)} onKeyDown={e => e.key === "Enter" && validarCodigo()} style={{ textTransform: "uppercase" }} />
               <button className="btn btn-p" onClick={validarCodigo}>Validar</button>
@@ -4895,9 +4903,9 @@ function Fidelizacion({ usuario }) {
             )}
           </div>
           <div className="card">
-            <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 10 }}>HISTORIAL DE CANJES</div>
+            <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 10 }}>HISTORIAL DE CANJES</div>
             {canjes.length === 0 ? (
-              <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 20 }}>Todavia no hay canjes registrados</div>
+              <div style={{ fontSize: 12, color: temaPal.textMuted, textAlign: "center", padding: 20 }}>Todavia no hay canjes registrados</div>
             ) : (
               <table>
                 <thead><tr><th>Codigo</th><th>Premio</th><th>Clienta</th><th>Puntos</th><th>Estado</th><th>Fecha</th></tr></thead>
@@ -4909,7 +4917,7 @@ function Fidelizacion({ usuario }) {
                       <td style={{ fontSize: 12 }}>{c.cliente_nombre}</td>
                       <td style={{ fontSize: 12 }}>{c.puntos_usados}</td>
                       <td><span className={"badge " + (c.estado === "usado" ? "bg" : "ba")}>{c.estado}</span></td>
-                      <td style={{ fontSize: 10, color: "#65676B" }}>{new Date(c.creado_en).toLocaleDateString("es-AR")}</td>
+                      <td style={{ fontSize: 10, color: temaPal.textMuted }}>{new Date(c.creado_en).toLocaleDateString("es-AR")}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -5091,7 +5099,8 @@ function Pedidos({ localId, paletaActual }) {
   );
 }
 
-function PostventaWA() {
+function PostventaWA({ paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
   const [rules, setRules] = useState([]);
   const [tab, setTab] = useState("reglas");
   const [pedidosListos, setPedidosListos] = useState([]);
@@ -5224,20 +5233,20 @@ function PostventaWA() {
           <div className="card" style={{ marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 600 }}>Generar mensajes segun las reglas activas</div>
-              <div style={{ fontSize: 11, color: "#65676B" }}>Revisa cada regla activa (post-compra, inactividad, cumpleanos) y arma los mensajes que correspondan para hoy, sin repetir los que ya se generaron.</div>
+              <div style={{ fontSize: 11, color: temaPal.textMuted }}>Revisa cada regla activa (post-compra, inactividad, cumpleanos) y arma los mensajes que correspondan para hoy, sin repetir los que ya se generaron.</div>
             </div>
             <button className="btn btn-p btn-sm" disabled={ejecutando} onClick={ejecutarReglasAhora}>{ejecutando ? "Generando..." : "Generar mensajes de hoy"}</button>
           </div>
           {rulesAMostrar.map((r, ri) => (
-            <div key={r.id || ri} className="card" style={{ marginBottom: 12, borderLeft: "3px solid " + ((r.activo || r.active) ? "#25d366" : "#e8e8e8") }}>
+            <div key={r.id || ri} className="card" style={{ marginBottom: 12, borderLeft: "3px solid " + ((r.activo || r.active) ? "#25d366" : temaPal.border) }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 6 }}>
-                    <div style={{ fontSize: 13, color: "#111111" }}>{r.nombre || r.name}</div>
+                    <div style={{ fontSize: 13, color: temaPal.text }}>{r.nombre || r.name}</div>
                     <span className="badge bw">WhatsApp</span>
                     {!(r.activo || r.active) && <span className="badge bx">PAUSADO</span>}
                   </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 10, color: "#65676B", marginBottom: 10 }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 10, color: temaPal.textMuted, marginBottom: 10 }}>
                     <span>{r.disparador || r.trigger}</span>
                     <span>{r.segmento || r.segment}</span>
                     {r.sent > 0 && <span>{r.sent} enviados</span>}
@@ -5245,7 +5254,7 @@ function PostventaWA() {
                   {sel === (r.id || ri) && (
                     <div style={{ background: "#0d1117", borderRadius: 9, overflow: "hidden", border: "1px solid #ffffff08", maxWidth: 320, marginBottom: 12 }}>
                       <div style={{ background: "#1f2937", padding: "10px 14px", display: "flex", alignItems: "center", gap: 9 }}>
-                        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#c9a84c", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fafafa", fontWeight: 600 }}>L</div>
+                        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#c9a84c", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: temaPal.bg, fontWeight: 600 }}>L</div>
                         <div><div style={{ fontSize: 12, color: "#e5e7eb" }}>Lumiere Cosmeticos</div><div style={{ fontSize: 9, color: "#6b7280" }}>en linea</div></div>
                       </div>
                       <div style={{ padding: 14, background: "#111827" }}>
@@ -5271,15 +5280,15 @@ function PostventaWA() {
       {tab === "pedidos" && (
         <div className="card fade">
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Pedidos de clientas con stock disponible</div>
-          <div style={{ fontSize: 11, color: "#888", marginBottom: 12 }}>Productos que las clientas esperaban y ya tienen stock. Envia el aviso por WhatsApp.</div>
-          {pedidosListos.length === 0 ? <div style={{ fontSize: 12, color: "#999", padding: "10px 0" }}>No hay pedidos con stock disponible ahora.</div> : pedidosListos.map(pd => (
-            <div key={pd.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
+          <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 12 }}>Productos que las clientas esperaban y ya tienen stock. Envia el aviso por WhatsApp.</div>
+          {pedidosListos.length === 0 ? <div style={{ fontSize: 12, color: temaPal.textMuted, padding: "10px 0" }}>No hay pedidos con stock disponible ahora.</div> : pedidosListos.map(pd => (
+            <div key={pd.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid " + temaPal.border }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 500 }}>{pd.cliente_nombre} <span className="badge" style={{ background: pd.local_id === 2 ? "#2471a322" : "#c9a84c22", color: pd.local_id === 2 ? "#2471a3" : "#8a6d1f", fontSize: 9, marginLeft: 4 }}>{pd.local_nombre}</span></div>
-                <div style={{ fontSize: 11, color: "#888" }}>{pd.producto_nombre} · stock {pd.stock_total}</div>
-                <div style={{ fontSize: 11, color: "#888" }}>📱 {pd.telefono || "sin telefono"}</div>
+                <div style={{ fontSize: 11, color: temaPal.textMuted }}>{pd.producto_nombre} · stock {pd.stock_total}</div>
+                <div style={{ fontSize: 11, color: temaPal.textMuted }}>📱 {pd.telefono || "sin telefono"}</div>
               </div>
-              <button className="btn btn-sm" style={{ background: "#25D366", color: "#fff", fontSize: 12 }} onClick={() => avisarPedido(pd)}>Enviar WhatsApp</button>
+              <button className="btn btn-sm" style={{ background: "#25D366", color: temaPal.card, fontSize: 12 }} onClick={() => avisarPedido(pd)}>Enviar WhatsApp</button>
             </div>
           ))}
         </div>
@@ -5292,9 +5301,9 @@ function PostventaWA() {
             <button className="btn btn-g btn-sm" onClick={cargarMensajesReales}>Actualizar</button>
           </div>
           {cargandoMensajes ? (
-            <div style={{ color: "#65676B", padding: 20, fontSize: 12 }}>Cargando...</div>
+            <div style={{ color: temaPal.textMuted, padding: 20, fontSize: 12 }}>Cargando...</div>
           ) : mensajesReales.length === 0 ? (
-            <div style={{ textAlign: "center", color: "#65676B", padding: 24, fontSize: 12 }}>Todavia no hay mensajes generados. Anda a "Reglas" y toca "Generar mensajes de hoy".</div>
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 24, fontSize: 12 }}>Todavia no hay mensajes generados. Anda a "Reglas" y toca "Generar mensajes de hoy".</div>
           ) : (
             <table>
               <thead><tr><th>Cliente</th><th>Telefono</th><th>Regla</th><th>Mensaje</th><th>Estado</th><th></th></tr></thead>
@@ -5303,12 +5312,12 @@ function PostventaWA() {
                   <tr key={m.id}>
                     <td style={{ fontWeight: 600 }}>{m.cliente_nombre}</td>
                     <td style={{ fontSize: 11 }}>{m.telefono || "-"}</td>
-                    <td style={{ fontSize: 11, color: "#65676B" }}>{m.regla_nombre || "Enviar hoy (7 dias)"}</td>
-                    <td style={{ fontSize: 11, color: "#65676B", maxWidth: 260 }}>{m.mensaje}</td>
+                    <td style={{ fontSize: 11, color: temaPal.textMuted }}>{m.regla_nombre || "Enviar hoy (7 dias)"}</td>
+                    <td style={{ fontSize: 11, color: temaPal.textMuted, maxWidth: 260 }}>{m.mensaje}</td>
                     <td>{m.estado === "enviado_wa" ? <span className="badge bg">Enviado</span> : <span className="badge bx">Pendiente</span>}</td>
                     <td style={{ textAlign: "right" }}>
                       {m.estado !== "enviado_wa" && (
-                        <button className="btn btn-sm" style={{ background: "#25d366", color: "#fff", fontSize: 11, fontWeight: 700 }} onClick={() => enviarMensajeReal(m)}>Enviar WhatsApp</button>
+                        <button className="btn btn-sm" style={{ background: "#25d366", color: temaPal.card, fontSize: 11, fontWeight: 700 }} onClick={() => enviarMensajeReal(m)}>Enviar WhatsApp</button>
                       )}
                     </td>
                   </tr>
@@ -5346,7 +5355,7 @@ function PostventaWA() {
           <div className="card">
             <div className="ct">Buenas practicas</div>
             {["Mensajes cortos y personales convierten mas", "Inclui siempre el nombre del producto", "Una pregunta abierta invita a responder", "El emoji justo da calidez sin exceso", "Envia en horario diurno (10 a 20hs)"].map((t, i) => (
-              <div key={i} style={{ display: "flex", gap: 7, marginBottom: 9, fontSize: 11, color: "#444444" }}><span style={{ color: "#25d366" }}>v</span>{t}</div>
+              <div key={i} style={{ display: "flex", gap: 7, marginBottom: 9, fontSize: 11, color: temaPal.text }}><span style={{ color: "#25d366" }}>v</span>{t}</div>
             ))}
           </div>
         </div>
@@ -5356,7 +5365,7 @@ function PostventaWA() {
           <div className="card" style={{ marginBottom: 12 }}>
             <div className="ct">Mensaje a enviar (podes editarlo)</div>
             <textarea className="inp" rows={3} style={{ resize: "vertical" }} value={plantillaWA} onChange={e => setPlantillaWA(e.target.value)} />
-            <div style={{ fontSize: 10, color: "#65676B", marginTop: 6 }}>Usa {"{nombre}"} y {"{producto}"} y se reemplazan solos por los datos de cada cliente.</div>
+            <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 6 }}>Usa {"{nombre}"} y {"{producto}"} y se reemplazan solos por los datos de cada cliente.</div>
           </div>
           <div className="card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -5364,9 +5373,9 @@ function PostventaWA() {
               <button className="btn btn-g btn-sm" onClick={cargarPendientesWA}>Actualizar</button>
             </div>
             {cargandoWA ? (
-              <div style={{ color: "#65676B", padding: 20, fontSize: 12 }}>Cargando...</div>
+              <div style={{ color: temaPal.textMuted, padding: 20, fontSize: 12 }}>Cargando...</div>
             ) : pendientesWA.length === 0 ? (
-              <div style={{ textAlign: "center", color: "#65676B", padding: 24, fontSize: 12 }}>No hay clientes con compra de hace 7 dias (o no tienen telefono cargado)</div>
+              <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 24, fontSize: 12 }}>No hay clientes con compra de hace 7 dias (o no tienen telefono cargado)</div>
             ) : (
               <table>
                 <thead><tr><th>Cliente</th><th>Telefono</th><th>Ultima compra</th><th></th></tr></thead>
@@ -5375,12 +5384,12 @@ function PostventaWA() {
                     <tr key={cli.id} style={{ opacity: cli.ya_enviado ? 0.5 : 1 }}>
                       <td style={{ fontWeight: 600 }}>{cli.nombre}</td>
                       <td style={{ fontSize: 11 }}>{cli.telefono}</td>
-                      <td style={{ fontSize: 11, color: "#65676B" }}>{cli.ultimo_producto || "-"}</td>
+                      <td style={{ fontSize: 11, color: temaPal.textMuted }}>{cli.ultimo_producto || "-"}</td>
                       <td style={{ textAlign: "right" }}>
                         {cli.ya_enviado ? (
                           <span style={{ fontSize: 10, color: "#2d7a4f", fontWeight: 600 }}>Enviado ✓</span>
                         ) : (
-                          <button className="btn btn-sm" style={{ background: "#25d366", color: "#ffffff", fontSize: 11, fontWeight: 700 }} onClick={() => enviarWA(cli)}>Enviar WhatsApp</button>
+                          <button className="btn btn-sm" style={{ background: "#25d366", color: temaPal.card, fontSize: 11, fontWeight: 700 }} onClick={() => enviarWA(cli)}>Enviar WhatsApp</button>
                         )}
                       </td>
                     </tr>
@@ -5395,7 +5404,8 @@ function PostventaWA() {
   );
 }
 
-function Calculadoras({ usuario }) {
+function Calculadoras({ usuario, paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
   const [calculadoras, setCalculadoras] = useState([]);
   const [seleccionada, setSeleccionada] = useState(null);
   const [valores, setValores] = useState({});
@@ -5504,7 +5514,7 @@ function Calculadoras({ usuario }) {
           <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
             {calculadoras.map(c => (
               <button key={c.id} onClick={() => setSeleccionada(c)}
-                style={{ padding: "8px 16px", borderRadius: 7, border: "1px solid", borderColor: seleccionada?.id === c.id ? "#c9a84c55" : "#e8e8e8", background: seleccionada?.id === c.id ? "#c9a84c12" : "transparent", color: seleccionada?.id === c.id ? "#c9a84c" : "#666666", fontSize: 12, fontWeight: seleccionada?.id === c.id ? 600 : 400, cursor: "pointer" }}>
+                style={{ padding: "8px 16px", borderRadius: 7, border: "1px solid", borderColor: seleccionada?.id === c.id ? "#c9a84c55" : p.border, background: seleccionada?.id === c.id ? "#c9a84c12" : "transparent", color: seleccionada?.id === c.id ? "#c9a84c" : p.textMuted, fontSize: 12, fontWeight: seleccionada?.id === c.id ? 600 : 400, cursor: "pointer" }}>
                 {c.nombre}
               </button>
             ))}
@@ -5512,8 +5522,8 @@ function Calculadoras({ usuario }) {
           {seleccionada && (
             <div className="g2">
               <div className="card">
-                <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 4 }}>FORMULA</div>
-                <div style={{ fontSize: 13, color: "#444444", marginBottom: 16, fontFamily: "monospace" }}>{formulaTexto(seleccionada)}</div>
+                <div style={{ fontSize: 11, color: p.textMuted, letterSpacing: ".1em", marginBottom: 4 }}>FORMULA</div>
+                <div style={{ fontSize: 13, color: p.text, marginBottom: 16, fontFamily: "monospace" }}>{formulaTexto(seleccionada)}</div>
                 {seleccionada.tipo === "desde_costo" ? (
                   <div className="fg"><div className="fl">Costo unitario ($)</div>
                     <input className="inp" type="number" placeholder="10000" value={valores.costo || ""} onChange={e => setValores(v => ({ ...v, costo: e.target.value }))} />
@@ -5533,12 +5543,12 @@ function Calculadoras({ usuario }) {
               <div className="card" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
                 {resultado !== null ? (
                   <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 8 }}>PRECIO SUGERIDO</div>
+                    <div style={{ fontSize: 11, color: p.textMuted, letterSpacing: ".1em", marginBottom: 8 }}>PRECIO SUGERIDO</div>
                     <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 48, fontWeight: 700, color: "#c9a84c" }}>{fmt(resultado)}</div>
-                    <div style={{ fontSize: 11, color: "#65676B", marginTop: 8 }}>con {seleccionada.nombre}</div>
+                    <div style={{ fontSize: 11, color: p.textMuted, marginTop: 8 }}>con {seleccionada.nombre}</div>
                   </div>
                 ) : (
-                  <div style={{ textAlign: "center", color: "#cccccc", fontSize: 12 }}>Ingresa los valores y calculá</div>
+                  <div style={{ textAlign: "center", color: p.textMuted, fontSize: 12 }}>Ingresa los valores y calculá</div>
                 )}
               </div>
             </div>
@@ -5550,18 +5560,18 @@ function Calculadoras({ usuario }) {
         <div className="fade">
           {showForm && (
             <div className="card" style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 14 }}>{editando ? "EDITAR CALCULADORA" : "NUEVA CALCULADORA"}</div>
+              <div style={{ fontSize: 11, color: p.textMuted, letterSpacing: ".1em", marginBottom: 14 }}>{editando ? "EDITAR CALCULADORA" : "NUEVA CALCULADORA"}</div>
               <div className="fg"><div className="fl">Nombre</div><input className="inp" placeholder="Ej: Capilar, Maquillaje..." value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Descripcion (opcional)</div><input className="inp" placeholder="Para que tipo de productos aplica" value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} /></div>
               <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                <button className="btn btn-sm" style={{ flex: 1, background: form.tipo === "desde_costo" ? "#c9a84c15" : "transparent", border: "1px solid " + (form.tipo === "desde_costo" ? "#c9a84c" : "#e8e8e8"), color: form.tipo === "desde_costo" ? "#c9a84c" : "#65676B" }} onClick={() => setForm(f => ({ ...f, tipo: "desde_costo" }))}>Desde costo</button>
-                <button className="btn btn-sm" style={{ flex: 1, background: form.tipo === "desde_precio_venta" ? "#c9a84c15" : "transparent", border: "1px solid " + (form.tipo === "desde_precio_venta" ? "#c9a84c" : "#e8e8e8"), color: form.tipo === "desde_precio_venta" ? "#c9a84c" : "#65676B" }} onClick={() => setForm(f => ({ ...f, tipo: "desde_precio_venta" }))}>Desde precio venta proveedor</button>
+                <button className="btn btn-sm" style={{ flex: 1, background: form.tipo === "desde_costo" ? "#c9a84c15" : "transparent", border: "1px solid " + (form.tipo === "desde_costo" ? "#c9a84c" : p.border), color: form.tipo === "desde_costo" ? "#c9a84c" : p.textMuted }} onClick={() => setForm(f => ({ ...f, tipo: "desde_costo" }))}>Desde costo</button>
+                <button className="btn btn-sm" style={{ flex: 1, background: form.tipo === "desde_precio_venta" ? "#c9a84c15" : "transparent", border: "1px solid " + (form.tipo === "desde_precio_venta" ? "#c9a84c" : p.border), color: form.tipo === "desde_precio_venta" ? "#c9a84c" : p.textMuted }} onClick={() => setForm(f => ({ ...f, tipo: "desde_precio_venta" }))}>Desde precio venta proveedor</button>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <div className="fg" style={{ flex: 1 }}><div className="fl">Multiplicador de margen</div><input className="inp" type="number" step="0.1" placeholder="2" value={form.margen} onChange={e => setForm(f => ({ ...f, margen: e.target.value }))} /></div>
                 {form.tipo === "desde_costo" && <div className="fg" style={{ flex: 1 }}><div className="fl">Impuestos (%)</div><input className="inp" type="number" step="0.5" placeholder="17.5" value={form.iva} onChange={e => setForm(f => ({ ...f, iva: e.target.value }))} /></div>}
               </div>
-              <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 8 }}>CAMPOS EXTRAS (costos adicionales)</div>
+              <div style={{ fontSize: 11, color: p.textMuted, letterSpacing: ".1em", marginBottom: 8 }}>CAMPOS EXTRAS (costos adicionales)</div>
               <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
                 <input className="inp" placeholder="Ej: Costo bolsa, Costo envio..." value={extraTemp} onChange={e => setExtraTemp(e.target.value)} onKeyDown={e => e.key === "Enter" && agregarExtra()} style={{ flex: 1 }} />
                 <button className="btn btn-sm" onClick={agregarExtra}>+ Agregar</button>
@@ -5569,14 +5579,14 @@ function Calculadoras({ usuario }) {
               {form.extras.length > 0 && (
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
                   {form.extras.map((e, i) => (
-                    <span key={i} style={{ background: "#f5f5f5", padding: "3px 10px", borderRadius: 12, fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
+                    <span key={i} style={{ background: p.bg, padding: "3px 10px", borderRadius: 12, fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
                       {e.label}
                       <span style={{ cursor: "pointer", color: "#c0392b" }} onClick={() => setForm(f => ({ ...f, extras: f.extras.filter((_, j) => j !== i) }))}>×</span>
                     </span>
                   ))}
                 </div>
               )}
-              <div style={{ background: "#f9f9f9", borderRadius: 6, padding: "8px 12px", marginBottom: 12, fontSize: 11, color: "#666666", fontFamily: "monospace" }}>
+              <div style={{ background: p.bg, borderRadius: 6, padding: "8px 12px", marginBottom: 12, fontSize: 11, color: p.textMuted, fontFamily: "monospace" }}>
                 Vista previa: {formulaTexto({ ...form, margen: parseFloat(form.margen), iva: parseFloat(form.iva) })}
               </div>
               <div style={{ display: "flex", gap: 8 }}>
@@ -5590,8 +5600,8 @@ function Calculadoras({ usuario }) {
               <div key={c.id} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600 }}>{c.nombre}</div>
-                  <div style={{ fontSize: 11, color: "#65676B", marginTop: 2 }}>{formulaTexto(c)}</div>
-                  {c.descripcion && <div style={{ fontSize: 10, color: "#8A8D91", marginTop: 2 }}>{c.descripcion}</div>}
+                  <div style={{ fontSize: 11, color: p.textMuted, marginTop: 2 }}>{formulaTexto(c)}</div>
+                  {c.descripcion && <div style={{ fontSize: 10, color: p.textMuted, marginTop: 2 }}>{c.descripcion}</div>}
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button className="btn btn-sm" onClick={() => abrirEditar(c)}>Editar</button>
@@ -5606,7 +5616,8 @@ function Calculadoras({ usuario }) {
   );
 }
 
-function GiftCards({ localId, usuario }) {
+function GiftCards({ localId, usuario, paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState("pendientes");
   const [giftcards, setGiftcards] = useState([]);
   const [clientes, setClientes] = useState([]);
@@ -5686,9 +5697,9 @@ function GiftCards({ localId, usuario }) {
       </div>
       <div className="card">
         {loading ? (
-          <div style={{ textAlign: "center", color: "#65676B", padding: 20, fontSize: 12 }}>Cargando...</div>
+          <div style={{ textAlign: "center", color: p.textMuted, padding: 20, fontSize: 12 }}>Cargando...</div>
         ) : listaSegunTab.length === 0 ? (
-          <div style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>No hay gift cards en esta categoria</div>
+          <div style={{ textAlign: "center", color: p.textMuted, padding: 30, fontSize: 12 }}>No hay gift cards en esta categoria</div>
         ) : (
           <table>
             <thead><tr><th>Codigo</th><th>Beneficiario</th><th>Monto inicial</th><th>Saldo</th><th>Cliente vinculada</th><th>Emitida</th><th></th></tr></thead>
@@ -5696,11 +5707,11 @@ function GiftCards({ localId, usuario }) {
               {listaSegunTab.map(g => (
                 <tr key={g.id}>
                   <td style={{ fontFamily: "monospace", fontWeight: 700, color: "#2C3E5C" }}>{g.codigo}</td>
-                  <td style={{ fontSize: 12 }}>{g.beneficiario_nombre}{g.beneficiario_telefono ? <div style={{ fontSize: 10, color: "#65676B" }}>{g.beneficiario_telefono}</div> : null}</td>
+                  <td style={{ fontSize: 12 }}>{g.beneficiario_nombre}{g.beneficiario_telefono ? <div style={{ fontSize: 10, color: p.textMuted }}>{g.beneficiario_telefono}</div> : null}</td>
                   <td style={{ fontSize: 12 }}>{fmt(parseFloat(g.monto_inicial))}</td>
                   <td><span className={"badge " + (parseFloat(g.saldo) === 0 ? "br" : parseFloat(g.saldo) < parseFloat(g.monto_inicial) ? "ba" : "bg")}>{fmt(parseFloat(g.saldo))}</span></td>
-                  <td style={{ fontSize: 11, color: "#65676B" }}>{g.cliente_nombre || "-"}</td>
-                  <td style={{ fontSize: 10, color: "#65676B" }}>{new Date(g.creado_en).toLocaleDateString("es-AR")}</td>
+                  <td style={{ fontSize: 11, color: p.textMuted }}>{g.cliente_nombre || "-"}</td>
+                  <td style={{ fontSize: 10, color: p.textMuted }}>{new Date(g.creado_en).toLocaleDateString("es-AR")}</td>
                   <td><div style={{ display: "flex", gap: 4 }}><button className="btn btn-sm" onClick={() => verMovimientos(g)}>Ver historial</button>{(usuario?.rol === "jefe" || usuario?.rol === "administrativo") && !g.anulada && <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => anularGiftCard(g)}>Anular</button>}</div></td>
                 </tr>
               ))}
@@ -5711,7 +5722,7 @@ function GiftCards({ localId, usuario }) {
 
       {showForm && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
-          <div className="card" style={{ width: 400, background: "#ffffff" }}>
+          <div className="card" style={{ width: 400, background: p.card }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Emitir Gift Card</div>
             <div className="fg"><div className="fl">Monto ($)</div><input className="inp" type="number" placeholder="10000" value={nueva.monto} onChange={e => setNueva(p => ({ ...p, monto: e.target.value }))} /></div>
             <div className="fg"><div className="fl">Nombre de quien la recibe</div><input className="inp" placeholder="Ej: Maria Lopez" value={nueva.beneficiario_nombre} onChange={e => setNueva(p => ({ ...p, beneficiario_nombre: e.target.value }))} /></div>
@@ -5733,9 +5744,9 @@ function GiftCards({ localId, usuario }) {
             )}
             <label style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "10px 0", cursor: "pointer", marginBottom: 4 }}>
               <input type="checkbox" checked={nueva.migracion} onChange={e => setNueva(p => ({ ...p, migracion: e.target.checked }))} style={{ marginTop: 2 }} />
-              <span style={{ fontSize: 11, color: "#111111" }}>Gift card ya vendida (del sistema anterior). No cuenta como ingreso de hoy en la caja.</span>
+              <span style={{ fontSize: 11, color: p.text }}>Gift card ya vendida (del sistema anterior). No cuenta como ingreso de hoy en la caja.</span>
             </label>
-            <div style={{ fontSize: 10, color: "#65676B", marginBottom: 14 }}>{nueva.migracion ? "Se crea la gift card para poder canjearla, pero NO suma al cierre de hoy (ya se cobro antes)." : "Al emitirla se cobra el monto ahora y se genera el ingreso de caja. La factura se hace recien cuando se canjea por productos."}</div>
+            <div style={{ fontSize: 10, color: p.textMuted, marginBottom: 14 }}>{nueva.migracion ? "Se crea la gift card para poder canjearla, pero NO suma al cierre de hoy (ya se cobro antes)." : "Al emitirla se cobra el monto ahora y se genera el ingreso de caja. La factura se hace recien cuando se canjea por productos."}</div>
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowForm(false)}>Cancelar</button>
               <button className="btn btn-p" style={{ flex: 1 }} onClick={emitir}>Emitir y cobrar</button>
@@ -5746,22 +5757,22 @@ function GiftCards({ localId, usuario }) {
 
       {verMov && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
-          <div className="card" style={{ width: 420, background: "#ffffff" }}>
+          <div className="card" style={{ width: 420, background: p.card }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{verMov.codigo}</div>
-            <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>{verMov.beneficiario_nombre} - Saldo actual: <b style={{ color: "#2d7a4f" }}>{fmt(parseFloat(verMov.saldo))}</b></div>
+            <div style={{ fontSize: 11, color: p.textMuted, marginBottom: 14 }}>{verMov.beneficiario_nombre} - Saldo actual: <b style={{ color: "#2d7a4f" }}>{fmt(parseFloat(verMov.saldo))}</b></div>
             {movimientos.length === 0 ? (
-              <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 16 }}>Sin movimientos</div>
+              <div style={{ fontSize: 12, color: p.textMuted, textAlign: "center", padding: 16 }}>Sin movimientos</div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 300, overflowY: "auto" }}>
                 {movimientos.map((m, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, borderBottom: "1px solid #E4E6EB", paddingBottom: 6 }}>
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, borderBottom: "1px solid " + p.border, paddingBottom: 6 }}>
                     <div>
                       <span style={{ fontWeight: 600, color: m.tipo === "emision" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "emision" ? "Emision" : "Canje"}</span>
-                      <div style={{ fontSize: 10, color: "#65676B" }}>{new Date(m.creado_en).toLocaleDateString("es-AR")}</div>
+                      <div style={{ fontSize: 10, color: p.textMuted }}>{new Date(m.creado_en).toLocaleDateString("es-AR")}</div>
                     </div>
                     <div style={{ textAlign: "right" }}>
                       <div style={{ color: m.tipo === "emision" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "emision" ? "+" : "-"}{fmt(parseFloat(m.importe))}</div>
-                      <div style={{ fontSize: 10, color: "#65676B" }}>saldo: {fmt(parseFloat(m.saldo_resultante))}</div>
+                      <div style={{ fontSize: 10, color: p.textMuted }}>saldo: {fmt(parseFloat(m.saldo_resultante))}</div>
                     </div>
                   </div>
                 ))}
@@ -5776,7 +5787,8 @@ function GiftCards({ localId, usuario }) {
 }
 
 
-function Tiendanube({ localId, usuario }) {
+function Tiendanube({ localId, usuario, paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState("pedidos");
   const [pedidos, setPedidos] = useState([]);
   const [vinculos, setVinculos] = useState([]);
@@ -5883,24 +5895,24 @@ function Tiendanube({ localId, usuario }) {
       {tab === "pedidos" && (
         <div className="fade">
           {pendientes.length === 0 ? (
-            <div className="card" style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>No hay pedidos pendientes de autorizar</div>
+            <div className="card" style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>No hay pedidos pendientes de autorizar</div>
           ) : pendientes.map(p => {
             const items = p.productos || [];
             return (
-              <div key={p.id} className="card" style={{ marginBottom: 12, borderLeft: "3px solid #c9a84c" }}>
+              <div key={p.id} className="card" style={{ marginBottom: 12, borderLeft: "3px solid " + temaPal.border }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 700 }}>Pedido #{p.numero}</div>
-                    <div style={{ fontSize: 11, color: "#65676B" }}>{p.cliente_nombre}{p.cliente_email ? " - " + p.cliente_email : ""}</div>
-                    <div style={{ fontSize: 10, color: "#65676B" }}>{new Date(p.creado_en).toLocaleDateString("es-AR")} {new Date(p.creado_en).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</div>
+                    <div style={{ fontSize: 11, color: temaPal.textMuted }}>{p.cliente_nombre}{p.cliente_email ? " - " + p.cliente_email : ""}</div>
+                    <div style={{ fontSize: 10, color: temaPal.textMuted }}>{new Date(p.creado_en).toLocaleDateString("es-AR")} {new Date(p.creado_en).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</div>
                   </div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>{fmt(parseFloat(p.total || 0))}</div>
                 </div>
-                <div style={{ background: "#f8f8f8", borderRadius: 6, padding: "6px 10px", marginBottom: 10 }}>
+                <div style={{ background: temaPal.bg, borderRadius: 6, padding: "6px 10px", marginBottom: 10 }}>
                   {items.map((it, idx) => (
-                    <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "3px 0", borderBottom: idx < items.length - 1 ? "1px solid #f0f0f0" : "none" }}>
+                    <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "3px 0", borderBottom: idx < items.length - 1 ? "1px solid " + temaPal.border : "none" }}>
                       <span>{it.nombre} x{it.cantidad}</span>
-                      <span style={{ color: "#65676B" }}>{fmt(parseFloat(it.precio || 0))}</span>
+                      <span style={{ color: temaPal.textMuted }}>{fmt(parseFloat(it.precio || 0))}</span>
                     </div>
                   ))}
                 </div>
@@ -5926,9 +5938,9 @@ function Tiendanube({ localId, usuario }) {
                 <div style={{ maxHeight: 200, overflowY: "auto", marginBottom: 10 }}>
                   {tnProductos.map(tp => (
                     <div key={tp.id} onClick={() => setTnSeleccionado(tp)}
-                      style={{ padding: "8px 10px", borderRadius: 6, marginBottom: 4, cursor: "pointer", background: tnSeleccionado?.id === tp.id ? "#2471a312" : "#f8f8f8", border: "1px solid " + (tnSeleccionado?.id === tp.id ? "#2471a3" : "#e8e8e8") }}>
+                      style={{ padding: "8px 10px", borderRadius: 6, marginBottom: 4, cursor: "pointer", background: tnSeleccionado?.id === tp.id ? "#2471a312" : temaPal.bg, border: "1px solid " + (tnSeleccionado?.id === tp.id ? "#2471a3" : temaPal.border) }}>
                       <div style={{ fontSize: 12, fontWeight: 600 }}>{tp.nombre}</div>
-                      <div style={{ fontSize: 10, color: "#65676B" }}>{(tp.variantes || []).length} variante(s)</div>
+                      <div style={{ fontSize: 10, color: temaPal.textMuted }}>{(tp.variantes || []).length} variante(s)</div>
                     </div>
                   ))}
                 </div>
@@ -5943,14 +5955,14 @@ function Tiendanube({ localId, usuario }) {
             <div className="card">
               <div className="ct">PRODUCTOS SIN VINCULAR</div>
               {productos.filter(p => !vinculos.find(v => v.producto_id === p.id)).length === 0 ? (
-                <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 20 }}>Todos los productos estan vinculados</div>
+                <div style={{ fontSize: 12, color: temaPal.textMuted, textAlign: "center", padding: 20 }}>Todos los productos estan vinculados</div>
               ) : (
                 <div style={{ maxHeight: 400, overflowY: "auto" }}>
                   {productos.filter(p => !vinculos.find(v => v.producto_id === p.id)).map(p => (
-                    <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid #f5f5f5" }}>
+                    <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid " + temaPal.border }}>
                       <div>
                         <div style={{ fontSize: 12 }}>{p.nombre}</div>
-                        <div style={{ fontSize: 10, color: "#65676B" }}>{p.marca || ""}</div>
+                        <div style={{ fontSize: 10, color: temaPal.textMuted }}>{p.marca || ""}</div>
                       </div>
                       <button className="btn btn-sm" style={{ fontSize: 9 }} onClick={() => { setVinculando(p); setTnProductos([]); setTnSeleccionado(null); setBusqTN(p.nombre || ""); }}>Vincular</button>
                     </div>
@@ -5961,14 +5973,14 @@ function Tiendanube({ localId, usuario }) {
             <div className="card">
               <div className="ct">PRODUCTOS VINCULADOS ({vinculos.length})</div>
               {vinculos.length === 0 ? (
-                <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 20 }}>Sin vinculos creados</div>
+                <div style={{ fontSize: 12, color: temaPal.textMuted, textAlign: "center", padding: 20 }}>Sin vinculos creados</div>
               ) : (
                 <div style={{ maxHeight: 400, overflowY: "auto" }}>
                   {vinculos.map(v => (
-                    <div key={v.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid #f5f5f5" }}>
+                    <div key={v.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid " + temaPal.border }}>
                       <div>
                         <div style={{ fontSize: 12 }}>{v.producto_nombre}</div>
-                        <div style={{ fontSize: 10, color: "#65676B" }}>TN ID: {v.tn_product_id}</div>
+                        <div style={{ fontSize: 10, color: temaPal.textMuted }}>TN ID: {v.tn_product_id}</div>
                       </div>
                       <button className="btn btn-sm" style={{ color: "#c0392b", fontSize: 9 }} onClick={() => desvincular(v)}>Desvincular</button>
                     </div>
@@ -5982,7 +5994,7 @@ function Tiendanube({ localId, usuario }) {
       {tab === "historial" && (
         <div className="card fade">
           {procesados.length === 0 ? (
-            <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 30 }}>Sin pedidos procesados todavia</div>
+            <div style={{ fontSize: 12, color: temaPal.textMuted, textAlign: "center", padding: 30 }}>Sin pedidos procesados todavia</div>
           ) : (
             <table>
               <thead><tr><th>Pedido</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Autorizado por</th><th>Fecha</th></tr></thead>
@@ -5993,8 +6005,8 @@ function Tiendanube({ localId, usuario }) {
                     <td style={{ fontSize: 12 }}>{p.cliente_nombre}</td>
                     <td style={{ color: "#c9a84c", fontWeight: 600 }}>{fmt(parseFloat(p.total || 0))}</td>
                     <td><span className={"badge " + (p.estado === "procesado" ? "bg" : "br")}>{p.estado}</span></td>
-                    <td style={{ fontSize: 11, color: "#65676B" }}>{p.autorizado_por || "-"}</td>
-                    <td style={{ fontSize: 10, color: "#65676B" }}>{new Date(p.creado_en).toLocaleDateString("es-AR")}</td>
+                    <td style={{ fontSize: 11, color: temaPal.textMuted }}>{p.autorizado_por || "-"}</td>
+                    <td style={{ fontSize: 10, color: temaPal.textMuted }}>{new Date(p.creado_en).toLocaleDateString("es-AR")}</td>
                   </tr>
                 ))}
               </tbody>
@@ -6006,7 +6018,8 @@ function Tiendanube({ localId, usuario }) {
   );
 }
 
-function ConfiguracionNegocio() {
+function ConfiguracionNegocio({ paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState("general");
   const [mensaje, setMensaje] = useState("");
   const ok = (txt) => { setMensaje(txt); setTimeout(() => setMensaje(""), 3000); };
@@ -6118,7 +6131,7 @@ function ConfiguracionNegocio() {
       </div>
 
       {tab === "general" && (
-        loadingGeneral ? <div style={{ color: "#65676B", padding: 20 }}>Cargando...</div> : (
+        loadingGeneral ? <div style={{ color: p.textMuted, padding: 20 }}>Cargando...</div> : (
           <div className="card fade" style={{ maxWidth: 480 }}>
             <div className="ct">Datos generales</div>
             <div className="fg"><div className="fl">Nombre del negocio</div><input className="inp" value={general.nombre_negocio || ""} onChange={e => setGeneral(p => ({ ...p, nombre_negocio: e.target.value }))} /></div>
@@ -6130,10 +6143,10 @@ function ConfiguracionNegocio() {
       )}
 
       {tab === "fiscal" && (
-        loadingGeneral ? <div style={{ color: "#65676B", padding: 20 }}>Cargando...</div> : (
+        loadingGeneral ? <div style={{ color: p.textMuted, padding: 20 }}>Cargando...</div> : (
           <div className="card fade" style={{ maxWidth: 520 }}>
             <div className="ct">Datos fiscales para facturar con ARCA</div>
-            <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14, background: "#f7f5f0", padding: 10, borderRadius: 6 }}>
+            <div style={{ fontSize: 11, color: p.textMuted, marginBottom: 14, background: p.bg, padding: 10, borderRadius: 6 }}>
               Estos datos son los que usa el sistema para facturar electronicamente. Tienen que
               ser los del CUIT que va a emitir las facturas -- si estas armando una copia nueva
               para otro negocio, cambialos por los de ese negocio antes de vender de verdad.
@@ -6153,7 +6166,7 @@ function ConfiguracionNegocio() {
               <div className="fl">Clave privada (.key) — {general.arca_key_configurado ? <span style={{ color: "#2d7a4f" }}>ya configurada ✓</span> : <span style={{ color: "#c0392b" }}>falta configurar</span>}</div>
               <textarea className="inp" rows={4} style={{ fontFamily: "monospace", fontSize: 11 }} value={keyInput} onChange={e => setKeyInput(e.target.value)} placeholder={"Pega aca el contenido completo de la clave privada (empieza con -----BEGIN PRIVATE KEY-----)" + (general.arca_key_configurado ? ". Dejala vacia para no cambiar la que ya esta cargada." : "")} />
             </div>
-            <div style={{ fontSize: 10, color: "#65676B", marginBottom: 12 }}>
+            <div style={{ fontSize: 10, color: p.textMuted, marginBottom: 12 }}>
               Por seguridad, una vez guardados el certificado y la clave nunca se vuelven a mostrar en pantalla — solo se confirma si estan cargados o no.
             </div>
             <button className="btn btn-p" onClick={guardarFiscal}>Guardar datos fiscales</button>
@@ -6163,7 +6176,7 @@ function ConfiguracionNegocio() {
 
       {tab === "locales" && (
         <div className="fade">
-          <div style={{ fontSize: 11, color: "#65676B", marginBottom: 12, background: "#f7f5f0", padding: 10, borderRadius: 6 }}>
+          <div style={{ fontSize: 11, color: p.textMuted, marginBottom: 12, background: p.bg, padding: 10, borderRadius: 6 }}>
             Ojo: podes editar el nombre y la direccion de los locales que ya existen. Agregar un local nuevo (un 3ro, 4to, etc.) queda guardado, pero el resto del sistema (POS, inventario, finanzas) hoy esta armado para 2 locales especificamente y no va a funcionar del todo con mas -- eso es un cambio mas grande que todavia no hicimos.
           </div>
           <table>
@@ -6183,7 +6196,7 @@ function ConfiguracionNegocio() {
                   ) : (
                     <>
                       <td>{l.nombre}</td>
-                      <td style={{ color: "#65676B" }}>{l.direccion || "-"}</td>
+                      <td style={{ color: p.textMuted }}>{l.direccion || "-"}</td>
                       <td><button className="btn btn-sm" onClick={() => setEditandoLocal({ id: l.id, nombre: l.nombre, direccion: l.direccion || "" })}>Editar</button></td>
                     </>
                   )}
@@ -6216,7 +6229,7 @@ function ConfiguracionNegocio() {
               {medios.map(m => (
                 <tr key={m.id}>
                   <td style={{ fontWeight: 500 }}>{m.nombre}</td>
-                  <td style={{ fontSize: 11, color: "#65676B" }}>{m.tipo}</td>
+                  <td style={{ fontSize: 11, color: p.textMuted }}>{m.tipo}</td>
                   <td>{m.cuotas}{m.con_interes ? " (c/interes)" : ""}</td>
                   <td>{m.comision}%</td>
                   <td>{m.disponible_online !== false ? "Si" : "No"}</td>
@@ -6270,8 +6283,8 @@ function ConfiguracionNegocio() {
               {categorias.map(c => (
                 <tr key={c.id}>
                   <td style={{ fontWeight: 500 }}>{c.nombre}</td>
-                  <td style={{ fontSize: 11, color: "#65676B" }}>{c.tipo}</td>
-                  <td style={{ fontSize: 11, color: "#999" }}>{c.subtipo || "-"}</td>
+                  <td style={{ fontSize: 11, color: p.textMuted }}>{c.tipo}</td>
+                  <td style={{ fontSize: 11, color: p.textMuted }}>{c.subtipo || "-"}</td>
                   <td>
                     <button className="btn btn-sm" onClick={() => setEditandoCat({ ...c })}>Editar</button>
                     <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => borrarCategoria(c)}>Borrar</button>
@@ -6313,9 +6326,9 @@ function ConfiguracionNegocio() {
               {cuentas.map(c => (
                 <tr key={c.id}>
                   <td style={{ fontWeight: 500 }}>{c.nombre}</td>
-                  <td style={{ fontSize: 11, color: "#65676B" }}>{c.tipo}</td>
+                  <td style={{ fontSize: 11, color: p.textMuted }}>{c.tipo}</td>
                   <td style={{ fontSize: 11 }}>{c.banco || "-"}</td>
-                  <td style={{ fontSize: 11, color: "#999" }}>{c.titular || "-"}</td>
+                  <td style={{ fontSize: 11, color: p.textMuted }}>{c.titular || "-"}</td>
                   <td><button className="btn btn-sm" onClick={() => setEditandoCuenta({ ...c })}>Editar</button></td>
                 </tr>
               ))}
@@ -6353,55 +6366,56 @@ function ConfiguracionNegocio() {
 }
 
 
-function PortalCliente() {
+function PortalCliente({ paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
   const client = CLIENTS[0];
   const [tab, setTab] = useState("canjear");
   return (
-    <div style={{ minHeight: "100vh", background: "#F0F2F5", fontFamily: "'Inter',sans-serif" }}>
-      <div style={{ padding: "16px 32px", borderBottom: "1px solid #E4E6EB", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div style={{ minHeight: "100vh", background: p.bg, fontFamily: "'Inter',sans-serif" }}>
+      <div style={{ padding: "16px 32px", borderBottom: "1px solid " + p.border, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, fontWeight: 300, letterSpacing: ".18em", color: "#c9a84c" }}>LUMIERE</div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 11, color: "#5C5F66" }}>{client.email}</span>
-          <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#c9a84c", display: "flex", alignItems: "center", justifyContent: "center", color: "#ffffff", fontSize: 13, fontWeight: 600 }}>{client.name[0]}</div>
+          <span style={{ fontSize: 11, color: p.textMuted }}>{client.email}</span>
+          <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#c9a84c", display: "flex", alignItems: "center", justifyContent: "center", color: p.card, fontSize: 13, fontWeight: 600 }}>{client.name[0]}</div>
         </div>
       </div>
       <div style={{ padding: "28px 32px", maxWidth: 860, margin: "0 auto" }}>
-        <div style={{ background: "#ffffff", border: "1px solid #E4E6EB", borderRadius: 14, padding: 26, marginBottom: 22 }}>
+        <div style={{ background: p.card, border: "1px solid " + p.border, borderRadius: 14, padding: 26, marginBottom: 22 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
               <div style={{ fontSize: 9, color: "#c9a84c88", letterSpacing: ".25em", textTransform: "uppercase", marginBottom: 5 }}>Bienvenida de nuevo</div>
-              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 24, fontWeight: 700, color: "#1C1E21", marginBottom: 14 }}>{client.name}</div>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 20, background: "#c9a84c15", border: "1px solid #E4E6EB", fontSize: 9, color: "#c9a84c", letterSpacing: ".12em" }}>
+              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 24, fontWeight: 700, color: p.text, marginBottom: 14 }}>{client.name}</div>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 20, background: "#c9a84c15", border: "1px solid " + p.border, fontSize: 9, color: "#c9a84c", letterSpacing: ".12em" }}>
                 NIVEL {client.tier.toUpperCase()}
               </div>
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 52, fontWeight: 700, color: "#c9a84c", lineHeight: 1 }}>{fmtNum(client.points)}</div>
-              <div style={{ fontSize: 9, color: "#5C5F66", letterSpacing: ".2em", marginTop: 3 }}>PUNTOS DISPONIBLES</div>
-              <div style={{ fontSize: 10, color: "#8a8d92", marginTop: 6 }}>Proximo nivel: {fmtNum((2000 - client.points))} pts</div>
+              <div style={{ fontSize: 9, color: p.textMuted, letterSpacing: ".2em", marginTop: 3 }}>PUNTOS DISPONIBLES</div>
+              <div style={{ fontSize: 10, color: p.textMuted, marginTop: 6 }}>Proximo nivel: {fmtNum((2000 - client.points))} pts</div>
             </div>
           </div>
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
           {[["canjear", "Canjear puntos"], ["cupones", "Mis cupones"], ["historial", "Mis compras"]].map(([id, l]) => (
-            <button key={id} onClick={() => setTab(id)} style={{ padding: "8px 16px", borderRadius: 7, border: "1px solid", borderColor: tab === id ? "#c9a84c55" : "#E4E6EB", background: tab === id ? "#c9a84c12" : "transparent", color: tab === id ? "#c9a84c" : "#5C5F66", fontFamily: "'Inter',sans-serif", fontSize: 11, cursor: "pointer" }}>{l}</button>
+            <button key={id} onClick={() => setTab(id)} style={{ padding: "8px 16px", borderRadius: 7, border: "1px solid", borderColor: tab === id ? "#c9a84c55" : p.border, background: tab === id ? "#c9a84c12" : "transparent", color: tab === id ? "#c9a84c" : p.textMuted, fontFamily: "'Inter',sans-serif", fontSize: 11, cursor: "pointer" }}>{l}</button>
           ))}
         </div>
         {tab === "canjear" && (
           <div>
-            <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#1C1E21", marginBottom: 14 }}>Canjea tus puntos</div>
+            <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: p.text, marginBottom: 14 }}>Canjea tus puntos</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
               {REWARDS_DISPLAY.map(r => {
                 const can = client.points >= r.pts;
                 return (
-                  <div key={r.id} style={{ background: can ? "#ffffff" : "#ffffff", border: "1px solid " + (can ? "#c9a84c33" : "#ffffff"), borderRadius: 10, padding: 16, opacity: can ? 1 : 0.5 }}>
-                    {can && <div style={{ background: "#2d7a4f", color: "#ffffff", fontSize: 8, padding: "2px 6px", borderRadius: 3, marginBottom: 8, width: "fit-content" }}>PODES CANJEAR</div>}
+                  <div key={r.id} style={{ background: can ? p.card : p.card, border: "1px solid " + (can ? "#c9a84c33" : p.card), borderRadius: 10, padding: 16, opacity: can ? 1 : 0.5 }}>
+                    {can && <div style={{ background: "#2d7a4f", color: p.card, fontSize: 8, padding: "2px 6px", borderRadius: 3, marginBottom: 8, width: "fit-content" }}>PODES CANJEAR</div>}
                     <div style={{ fontSize: 24, marginBottom: 8 }}>{r.emoji}</div>
-                    <div style={{ fontSize: 11, color: "#1C1E21" }}>{r.name}</div>
-                    <div style={{ fontSize: 9, color: "#8a8d92", letterSpacing: ".1em", marginTop: 2 }}>{r.brand}</div>
+                    <div style={{ fontSize: 11, color: p.text }}>{r.name}</div>
+                    <div style={{ fontSize: 9, color: p.textMuted, letterSpacing: ".1em", marginTop: 2 }}>{r.brand}</div>
                     <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#c9a84c", marginTop: 10 }}>{fmtNum(r.pts)}</div>
-                    <div style={{ fontSize: 9, color: "#8a8d92" }}>PUNTOS</div>
-                    {can && <button style={{ marginTop: 10, width: "100%", padding: "7px", borderRadius: 5, background: "#c9a84c15", border: "1px solid #E4E6EB", color: "#c9a84c", fontFamily: "'Inter',sans-serif", fontSize: 10, cursor: "pointer" }}>Canjear</button>}
+                    <div style={{ fontSize: 9, color: p.textMuted }}>PUNTOS</div>
+                    {can && <button style={{ marginTop: 10, width: "100%", padding: "7px", borderRadius: 5, background: "#c9a84c15", border: "1px solid " + p.border, color: "#c9a84c", fontFamily: "'Inter',sans-serif", fontSize: 10, cursor: "pointer" }}>Canjear</button>}
                   </div>
                 );
               })}
@@ -6410,35 +6424,35 @@ function PortalCliente() {
         )}
         {tab === "cupones" && (
           <div>
-            <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#1C1E21", marginBottom: 14 }}>Tus cupones activos</div>
+            <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: p.text, marginBottom: 14 }}>Tus cupones activos</div>
             {[{ code: "BDAY10", desc: "$10.000 de descuento por cumpleanos", exp: "Valido hasta: 30/06/2026" }, { code: "INSTA20", desc: "20% off en toda la tienda", exp: "Valido hasta: 31/05/2026" }].map((cp, i) => (
-              <div key={i} style={{ background: "#ffffff", border: "1px dashed #E4E6EB", borderRadius: 10, padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div key={i} style={{ background: p.card, border: "1px dashed " + p.border, borderRadius: 10, padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <div>
                   <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#c9a84c", letterSpacing: ".1em" }}>{cp.code}</div>
-                  <div style={{ fontSize: 11, color: "#5C5F66", marginTop: 3 }}>{cp.desc}</div>
-                  <div style={{ fontSize: 10, color: "#E4E6EB", marginTop: 4 }}>{cp.exp}</div>
+                  <div style={{ fontSize: 11, color: p.textMuted, marginTop: 3 }}>{cp.desc}</div>
+                  <div style={{ fontSize: 10, color: p.border, marginTop: 4 }}>{cp.exp}</div>
                 </div>
-                <button style={{ background: "#c9a84c15", border: "1px solid #E4E6EB", color: "#c9a84c", padding: "7px 14px", borderRadius: 5, fontFamily: "'Inter',sans-serif", fontSize: 10, cursor: "pointer" }}>Copiar</button>
+                <button style={{ background: "#c9a84c15", border: "1px solid " + p.border, color: "#c9a84c", padding: "7px 14px", borderRadius: 5, fontFamily: "'Inter',sans-serif", fontSize: 10, cursor: "pointer" }}>Copiar</button>
               </div>
             ))}
           </div>
         )}
         {tab === "historial" && (
           <div>
-            <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#1C1E21", marginBottom: 14 }}>Historial de compras</div>
+            <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: p.text, marginBottom: 14 }}>Historial de compras</div>
             {[
               { date: "24/05/2026", items: "Serum Vitamina C x 1", total: 8500, pts: 85, canal: "Local" },
               { date: "10/05/2026", items: "Base Liquida HD, Mascara x 2", total: 13700, pts: 137, canal: "Tiendanube" },
               { date: "28/04/2026", items: "Crema Hidratante FPS50 x 2", total: 12400, pts: 124, canal: "Local" },
             ].map((h, i) => (
-              <div key={i} style={{ background: "#ffffff", border: "1px solid #ffffff", borderRadius: 10, padding: "14px 18px", marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div key={i} style={{ background: p.card, border: "1px solid " + p.border, borderRadius: 10, padding: "14px 18px", marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <div style={{ fontSize: 10, color: "#8a8d92", marginBottom: 4 }}>{h.date} - {h.canal}</div>
-                  <div style={{ fontSize: 12, color: "#1C1E21" }}>{h.items}</div>
+                  <div style={{ fontSize: 10, color: p.textMuted, marginBottom: 4 }}>{h.date} - {h.canal}</div>
+                  <div style={{ fontSize: 12, color: p.text }}>{h.items}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#c9a84c" }}>{fmt(h.total)}</div>
-                  <div style={{ fontSize: 9, color: "#8a8d92", marginTop: 2 }}>+{h.pts} puntos</div>
+                  <div style={{ fontSize: 9, color: p.textMuted, marginTop: 2 }}>+{h.pts} puntos</div>
                 </div>
               </div>
             ))}
@@ -7553,7 +7567,8 @@ function Proveedores({ paletaActual }) {
   );
 }
 
-function Caja({ localId, usuario }) {
+function Caja({ localId, usuario, paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
   const [movimientos, setMovimientos] = useState([]);
   const [saldo, setSaldo] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -7609,7 +7624,7 @@ function Caja({ localId, usuario }) {
       <div className="ph">
         <div><div className="pt">Caja</div><div className="ps">movimientos de efectivo</div></div>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 10, color: "#65676B", letterSpacing: ".1em" }}>SALDO ACTUAL</div>
+          <div style={{ fontSize: 10, color: p.textMuted, letterSpacing: ".1em" }}>SALDO ACTUAL</div>
           <div style={{ fontSize: 28, fontWeight: 700, color: saldoColor }}>{fmt(saldo)}</div>
         </div>
       </div>
@@ -7625,8 +7640,8 @@ function Caja({ localId, usuario }) {
             {["ingreso", "egreso"].map(t => (
               <button key={t} onClick={() => setNuevo(p => ({ ...p, tipo: t }))} className="btn btn-sm"
                 style={{ flex: 1, background: nuevo.tipo === t ? (t === "ingreso" ? "#2d7a4f15" : "#c0392b15") : "transparent",
-                  border: "1px solid " + (nuevo.tipo === t ? (t === "ingreso" ? "#2d7a4f" : "#c0392b") : "#e8e8e8"),
-                  color: nuevo.tipo === t ? (t === "ingreso" ? "#2d7a4f" : "#c0392b") : "#65676B", fontWeight: nuevo.tipo === t ? 600 : 400 }}>
+                  border: "1px solid " + (nuevo.tipo === t ? (t === "ingreso" ? "#2d7a4f" : "#c0392b") : p.border),
+                  color: nuevo.tipo === t ? (t === "ingreso" ? "#2d7a4f" : "#c0392b") : p.textMuted, fontWeight: nuevo.tipo === t ? 600 : 400 }}>
                 {t === "ingreso" ? "Ingreso" : "Egreso"}
               </button>
             ))}
@@ -7675,19 +7690,19 @@ function Caja({ localId, usuario }) {
         <div className="card">
           <div className="ct">Movimientos recientes</div>
           {loading ? (
-            <div style={{ color: "#65676B", fontSize: 12 }}>Cargando...</div>
+            <div style={{ color: p.textMuted, fontSize: 12 }}>Cargando...</div>
           ) : movimientos.length === 0 ? (
-            <div style={{ textAlign: "center", color: "#65676B", padding: 20, fontSize: 12 }}>Sin movimientos registrados</div>
+            <div style={{ textAlign: "center", color: p.textMuted, padding: 20, fontSize: 12 }}>Sin movimientos registrados</div>
           ) : (
             <table>
               <thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Importe</th><th></th></tr></thead>
               <tbody>
                 {movimientos.slice(0, 15).map((m, i) => (
                   <tr key={i} style={{ opacity: m.anulado ? 0.4 : 1 }}>
-                    <td style={{ fontSize: 10, color: "#65676B" }}>{new Date(m.creado_en).toLocaleDateString("es-AR")}</td>
+                    <td style={{ fontSize: 10, color: p.textMuted }}>{new Date(m.creado_en).toLocaleDateString("es-AR")}</td>
                     <td>
                       <div style={{ fontSize: 12, textDecoration: m.anulado ? "line-through" : "none" }}>{m.concepto}</div>
-                      {m.destino_origen && <div style={{ fontSize: 9, color: "#65676B" }}>{m.destino_origen.replace(/_/g, " ")}</div>}
+                      {m.destino_origen && <div style={{ fontSize: 9, color: p.textMuted }}>{m.destino_origen.replace(/_/g, " ")}</div>}
                       {m.anulado && <div style={{ fontSize: 9, color: "#c0392b" }}>ANULADO: {m.motivo_anulacion}</div>}
                     </td>
                     <td><span className={"badge " + (m.tipo === "ingreso" ? "bg" : "br")}>{m.tipo}</span></td>
@@ -7706,7 +7721,8 @@ function Caja({ localId, usuario }) {
   );
 }
 
-function CajaRespaldo({ usuario }) {
+function CajaRespaldo({ usuario, paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
   const [total, setTotal] = useState(0);
   const [movimientos, setMovimientos] = useState([]);
   const [cuentas, setCuentas] = useState([]);
@@ -7755,19 +7771,19 @@ function CajaRespaldo({ usuario }) {
       <div className="ph">
         <div><div className="pt">Caja de Respaldo</div><div className="ps">plata que tenemos guardada a favor</div></div>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 11, color: "#65676B", textTransform: "uppercase", letterSpacing: 1 }}>Total guardado</div>
+          <div style={{ fontSize: 11, color: p.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Total guardado</div>
           <div style={{ fontSize: 26, fontWeight: 700, color: "#2d7a4f" }}>{fmt(total)}</div>
         </div>
       </div>
 
-      {mensaje && <div style={{ background: mensaje.startsWith("Error") ? "#fdecea" : "#eafaf1", color: mensaje.startsWith("Error") ? "#c0392b" : "#1e7e4f", padding: 10, borderRadius: 8, marginBottom: 12, fontSize: 13 }}>{mensaje}</div>}
+      {mensaje && <div style={{ background: mensaje.startsWith("Error") ? p.redDim : p.greenDim, color: mensaje.startsWith("Error") ? "#c0392b" : "#1e7e4f", padding: 10, borderRadius: 8, marginBottom: 12, fontSize: 13 }}>{mensaje}</div>}
 
       <div className="g2" style={{ alignItems: "start" }}>
         <div className="card">
           <div className="ct">Nuevo movimiento</div>
           <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-            <button className="btn" style={{ flex: 1, background: modo === "guardar" ? "#2d7a4f" : "#f0f0f0", color: modo === "guardar" ? "#fff" : "#65676B" }} onClick={() => setModo("guardar")}>Guardar plata</button>
-            <button className="btn" style={{ flex: 1, background: modo === "sacar" ? "#c0392b" : "#f0f0f0", color: modo === "sacar" ? "#fff" : "#65676B" }} onClick={() => setModo("sacar")}>Sacar plata</button>
+            <button className="btn" style={{ flex: 1, background: modo === "guardar" ? "#2d7a4f" : p.border, color: modo === "guardar" ? p.card : p.textMuted }} onClick={() => setModo("guardar")}>Guardar plata</button>
+            <button className="btn" style={{ flex: 1, background: modo === "sacar" ? "#c0392b" : p.border, color: modo === "sacar" ? p.card : p.textMuted }} onClick={() => setModo("sacar")}>Sacar plata</button>
           </div>
           <div className="fg" style={{ marginBottom: 8 }}>
             <div className="fl">Importe ($)</div>
@@ -7789,17 +7805,17 @@ function CajaRespaldo({ usuario }) {
 
         <div className="card">
           <div className="ct">Historial de la reserva</div>
-          {movimientos.length === 0 ? <div style={{ fontSize: 12, color: "#999", padding: "10px 0" }}>Sin movimientos todavia.</div> : (
+          {movimientos.length === 0 ? <div style={{ fontSize: 12, color: p.textMuted, padding: "10px 0" }}>Sin movimientos todavia.</div> : (
             <table style={{ width: "100%", fontSize: 12 }}>
-              <thead><tr style={{ color: "#888", textAlign: "left" }}><th style={{ padding: "6px 0" }}>Fecha</th><th>Concepto</th><th style={{ textAlign: "center" }}>Tipo</th><th style={{ textAlign: "right" }}>Importe</th><th></th></tr></thead>
+              <thead><tr style={{ color: p.textMuted, textAlign: "left" }}><th style={{ padding: "6px 0" }}>Fecha</th><th>Concepto</th><th style={{ textAlign: "center" }}>Tipo</th><th style={{ textAlign: "right" }}>Importe</th><th></th></tr></thead>
               <tbody>
                 {movimientos.map(m => (
-                  <tr key={m.id} style={{ borderTop: "1px solid #f0f0f0" }}>
+                  <tr key={m.id} style={{ borderTop: "1px solid " + p.border }}>
                     <td style={{ padding: "8px 0" }}>{m.creado_en ? new Date(m.creado_en).toLocaleDateString("es-AR") : "-"}</td>
                     <td>{m.concepto || "-"}</td>
                     <td style={{ textAlign: "center" }}><span className="badge" style={{ background: m.tipo === "guardar" ? "#2d7a4f15" : "#c0392b15", color: m.tipo === "guardar" ? "#2d7a4f" : "#c0392b", fontSize: 9 }}>{m.tipo === "guardar" ? "guardado" : "retirado"}</span></td>
                     <td style={{ textAlign: "right", fontWeight: 600, color: m.tipo === "guardar" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "guardar" ? "+" : "-"}{fmt(parseFloat(m.importe))}</td>
-                    <td style={{ textAlign: "right" }}><span onClick={() => borrar(m.id)} style={{ cursor: "pointer", color: "#ccc", fontSize: 15 }}>×</span></td>
+                    <td style={{ textAlign: "right" }}><span onClick={() => borrar(m.id)} style={{ cursor: "pointer", color: p.textMuted, fontSize: 15 }}>×</span></td>
                   </tr>
                 ))}
               </tbody>
@@ -7996,7 +8012,8 @@ function Comprobantes({ localId, paletaActual }) {
   );
 }
 
-function Productividad({ localId }) {
+function Productividad({ localId, paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
   const hoy = new Date();
   const [mes, setMes] = useState(hoy.getMonth() + 1);
   const [anio, setAnio] = useState(hoy.getFullYear());
@@ -8060,20 +8077,20 @@ function Productividad({ localId }) {
         </div>
       </div>
       {loading ? (
-        <div className="card" style={{ textAlign: "center", color: "#65676B", fontSize: 12 }}>Cargando...</div>
+        <div className="card" style={{ textAlign: "center", color: p.textMuted, fontSize: 12 }}>Cargando...</div>
       ) : (
         <div>
           <div className="card" style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 10 }}>RANKING DE VENDEDORAS</div>
+            <div style={{ fontSize: 11, color: p.textMuted, letterSpacing: ".1em", marginBottom: 10 }}>RANKING DE VENDEDORAS</div>
             {ranking.length === 0 ? (
-              <div style={{ fontSize: 12, color: "#65676B" }}>Sin ventas en este periodo</div>
+              <div style={{ fontSize: 12, color: p.textMuted }}>Sin ventas en este periodo</div>
             ) : (
               <table>
                 <thead><tr><th>#</th><th>Vendedora</th><th>Ventas</th><th>Total</th><th>Ticket prom.</th><th>Tiempo prom.</th><th>Ventas/hora</th></tr></thead>
                 <tbody>
                   {ranking.map((r, i) => (
                     <tr key={i}>
-                      <td style={{ fontWeight: 700, color: (i === 0 ? "#c9a84c" : "#65676B") }}>{i + 1}</td>
+                      <td style={{ fontWeight: 700, color: (i === 0 ? "#c9a84c" : p.textMuted) }}>{i + 1}</td>
                       <td style={{ fontSize: 12, fontWeight: 600 }}>{r.nombre}</td>
                       <td style={{ fontSize: 12 }}>{r.cantidad}</td>
                       <td style={{ color: "#2d7a4f", fontWeight: 600 }}>{fmt(r.total)}</td>
@@ -8088,11 +8105,11 @@ function Productividad({ localId }) {
           </div>
           <div className="g3">
             {ranking.slice(0, 3).map((r, i) => (
-              <div key={i} className="card" style={{ borderTop: "3px solid " + (i === 0 ? "#c9a84c" : i === 1 ? "#65676B" : "#cd7f32") }}>
-                <div style={{ fontSize: 10, color: "#65676B", letterSpacing: ".1em" }}>{i === 0 ? "TOP VENDEDORA" : "#" + (i + 1)}</div>
+              <div key={i} className="card" style={{ borderTop: "3px solid " + (i === 0 ? "#c9a84c" : i === 1 ? p.textMuted : "#cd7f32") }}>
+                <div style={{ fontSize: 10, color: p.textMuted, letterSpacing: ".1em" }}>{i === 0 ? "TOP VENDEDORA" : "#" + (i + 1)}</div>
                 <div style={{ fontSize: 18, fontWeight: 700 }}>{r.nombre}</div>
                 <div style={{ fontSize: 13, color: "#2d7a4f", fontWeight: 600 }}>{fmt(r.total)}</div>
-                <div style={{ fontSize: 11, color: "#65676B" }}>{r.cantidad} ventas - {totalGeneral > 0 ? Math.round(r.total / totalGeneral * 100) : 0}% del total</div>
+                <div style={{ fontSize: 11, color: p.textMuted }}>{r.cantidad} ventas - {totalGeneral > 0 ? Math.round(r.total / totalGeneral * 100) : 0}% del total</div>
               </div>
             ))}
           </div>
@@ -8850,7 +8867,8 @@ function ControlInventario({ localId, usuario, paletaActual }) {
   );
 }
 
-function OrdenesIngreso({ localId, usuario }) {
+function OrdenesIngreso({ localId, usuario, paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
   const localActual = localId === 2 ? "ush" : "rg";
   const localNombre = localId === 2 ? "Ushuaia" : "Rio Grande";
   const [ordenes, setOrdenes] = useState([]);
@@ -9168,8 +9186,8 @@ function OrdenesIngreso({ localId, usuario }) {
 
       {tab === "lista" && (
         <div className="card">
-          {loading ? (<div style={{ textAlign: "center", color: "#65676B", fontSize: 12 }}>Cargando...</div>) : ordenes.filter(o => o.estado !== "recibida" && o.estado !== "pagada" && (localActual === "rg" ? o.rg_tiene_items : o.ush_tiene_items)).length === 0 ? (
-            <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 30 }}>No hay ordenes pendientes de recibir</div>
+          {loading ? (<div style={{ textAlign: "center", color: temaPal.textMuted, fontSize: 12 }}>Cargando...</div>) : ordenes.filter(o => o.estado !== "recibida" && o.estado !== "pagada" && (localActual === "rg" ? o.rg_tiene_items : o.ush_tiene_items)).length === 0 ? (
+            <div style={{ fontSize: 12, color: temaPal.textMuted, textAlign: "center", padding: 30 }}>No hay ordenes pendientes de recibir</div>
           ) : (
             <table>
               <thead><tr><th>Factura</th><th>Proveedor</th><th>Fecha</th><th>Estado</th><th>Total</th><th></th></tr></thead>
@@ -9180,7 +9198,7 @@ function OrdenesIngreso({ localId, usuario }) {
                   <tr key={i}>
                     <td style={{ fontSize: 12, fontWeight: 600 }}>{o.numero_factura || "-"}</td>
                     <td style={{ fontSize: 12 }}>{o.proveedor_nombre || "-"}</td>
-                    <td style={{ fontSize: 11, color: "#65676B" }}>{o.fecha_factura ? new Date(o.fecha_factura).toLocaleDateString("es-AR") : "-"}</td>
+                    <td style={{ fontSize: 11, color: temaPal.textMuted }}>{o.fecha_factura ? new Date(o.fecha_factura).toLocaleDateString("es-AR") : "-"}</td>
                     <td>
                       {completoMiLocal
                         ? <span className="badge" style={{ background: "#2d7a4f15", color: "#2d7a4f" }}>recibido en {localNombre}</span>
@@ -9189,7 +9207,7 @@ function OrdenesIngreso({ localId, usuario }) {
                     <td style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>{fmt(parseFloat(o.total || 0))}</td>
                     <td style={{ whiteSpace: "nowrap" }}>
                       {completoMiLocal
-                        ? <button className="btn btn-sm" style={{ background: "#f0ece4", color: "#2d7a4f", border: "1px solid #2d7a4f" }} onClick={() => verDetalle(o)}>Recibido</button>
+                        ? <button className="btn btn-sm" style={{ background: temaPal.bg, color: "#2d7a4f", border: "1px solid #2d7a4f" }} onClick={() => verDetalle(o)}>Recibido</button>
                         : <button className="btn btn-sm" style={{ background: "#2d7a4f", color: "white" }} onClick={() => verDetalle(o)}>Recibir</button>}
                       {usuario?.rol === "jefe" && <span onClick={() => eliminarOrden(o.id)} style={{ cursor: "pointer", color: "#c0392b", fontSize: 11, marginLeft: 8 }}>eliminar</span>}
                     </td>
@@ -9205,7 +9223,7 @@ function OrdenesIngreso({ localId, usuario }) {
       {tab === "recibido" && (
         <div className="card">
           {recibidoHist.length === 0 ? (
-            <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 30 }}>Todavia no hay stock recibido registrado</div>
+            <div style={{ fontSize: 12, color: temaPal.textMuted, textAlign: "center", padding: 30 }}>Todavia no hay stock recibido registrado</div>
           ) : (
             <table>
               <thead><tr><th>Producto</th><th>Factura</th><th>Proveedor</th><th>Local</th><th>Cantidad</th><th>Fecha</th><th>Recibido por</th></tr></thead>
@@ -9217,11 +9235,11 @@ function OrdenesIngreso({ localId, usuario }) {
                   return filas.map((f, j) => (
                     <tr key={i + "-" + j}>
                       <td style={{ fontSize: 12 }}>{r.producto_nombre}{r.es_extra ? <span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c", marginLeft: 6 }}>extra</span> : ""}</td>
-                      <td style={{ fontSize: 11, color: "#65676B" }}>{r.numero_factura || "-"}</td>
+                      <td style={{ fontSize: 11, color: temaPal.textMuted }}>{r.numero_factura || "-"}</td>
                       <td style={{ fontSize: 11 }}>{r.proveedor_nombre || "-"}</td>
                       <td style={{ fontSize: 11 }}>{f.local}</td>
                       <td style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>{f.cant}u</td>
-                      <td style={{ fontSize: 11, color: "#65676B" }}>{f.fecha ? new Date(f.fecha).toLocaleDateString("es-AR") + " " + new Date(f.fecha).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "-"}</td>
+                      <td style={{ fontSize: 11, color: temaPal.textMuted }}>{f.fecha ? new Date(f.fecha).toLocaleDateString("es-AR") + " " + new Date(f.fecha).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "-"}</td>
                       <td style={{ fontSize: 11 }}>{f.por || "-"}</td>
                     </tr>
                   ));
@@ -9236,8 +9254,8 @@ function OrdenesIngreso({ localId, usuario }) {
         <div className="fade">
           {!facturaItems ? (
             <div className="card" style={{ maxWidth: 480 }}>
-              <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 14 }}>CARGAR FACTURA DEL PROVEEDOR</div>
-              <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>Subi la factura (PDF, foto/escaneo, o Excel/CSV) y el sistema va a tratar de reconocer los productos. Vas a poder revisar y corregir todo antes de crear la orden.</div>
+              <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 14 }}>CARGAR FACTURA DEL PROVEEDOR</div>
+              <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 14 }}>Subi la factura (PDF, foto/escaneo, o Excel/CSV) y el sistema va a tratar de reconocer los productos. Vas a poder revisar y corregir todo antes de crear la orden.</div>
               <div className="fg"><div className="fl">Proveedor</div>
                 <select className="sel" value={facturaForm.proveedor_id} onChange={e => setFacturaForm(p => ({ ...p, proveedor_id: e.target.value }))}>
                   <option value="">Seleccionar proveedor...</option>
@@ -9254,8 +9272,8 @@ function OrdenesIngreso({ localId, usuario }) {
             </div>
           ) : (
             <div className="card">
-              <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 4 }}>REVISA LOS PRODUCTOS DETECTADOS</div>
-              <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14 }}>Corregi el producto vinculado donde haga falta, y reparti la cantidad entre Rio Grande y Ushuaia (por defecto va todo a Rio Grande). El costo se toma del que ya tiene cargado cada producto, no de la factura.</div>
+              <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 4 }}>REVISA LOS PRODUCTOS DETECTADOS</div>
+              <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 14 }}>Corregi el producto vinculado donde haga falta, y reparti la cantidad entre Rio Grande y Ushuaia (por defecto va todo a Rio Grande). El costo se toma del que ya tiene cargado cada producto, no de la factura.</div>
               <table>
                 <thead><tr><th>Nombre en la factura</th><th>Codigo</th><th>Cant. RG</th><th>Cant. USH</th><th>Costo (del producto)</th><th>Producto vinculado</th><th></th></tr></thead>
                 <tbody>
@@ -9264,24 +9282,24 @@ function OrdenesIngreso({ localId, usuario }) {
                     const costoProducto = parseFloat(prodVinculado?.costo) || 0;
                     return (
                     <tr key={idx}>
-                      <td style={{ fontSize: 11, color: "#65676B" }}>{it.nombre_crudo}</td>
-                      <td style={{ fontSize: 10, color: "#999" }}>{it.codigo_interno || "-"}</td>
+                      <td style={{ fontSize: 11, color: temaPal.textMuted }}>{it.nombre_crudo}</td>
+                      <td style={{ fontSize: 10, color: temaPal.textMuted }}>{it.codigo_interno || "-"}</td>
                       <td><input className="inp" type="number" style={{ width: 60, padding: "4px 6px" }} value={it.cantidad_rg} onChange={e => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, cantidad_rg: parseInt(e.target.value) || 0 } : x))} /></td>
                       <td><input className="inp" type="number" style={{ width: 60, padding: "4px 6px" }} value={it.cantidad_ush} onChange={e => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, cantidad_ush: parseInt(e.target.value) || 0 } : x))} /></td>
-                      <td style={{ fontSize: 11, color: it.producto_id ? "#444" : "#ccc" }}>{it.producto_id ? fmt(costoProducto) : "-"}</td>
+                      <td style={{ fontSize: 11, color: it.producto_id ? temaPal.text : temaPal.textMuted }}>{it.producto_id ? fmt(costoProducto) : "-"}</td>
                       <td>
                         {it.producto_id ? (
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
-                            <span style={{ fontSize: 12, color: it.es_alias_conocido ? "#2d7a4f" : "#111111" }}>{it.producto_nombre}</span>
+                            <span style={{ fontSize: 12, color: it.es_alias_conocido ? "#2d7a4f" : temaPal.text }}>{it.producto_nombre}</span>
                             <span onClick={() => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, producto_id: "", producto_nombre: "" } : x))} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 11, whiteSpace: "nowrap" }}>cambiar</span>
                           </div>
                         ) : (
                           <div>
                             <input className="inp" placeholder="Buscar producto..." style={{ fontSize: 11 }} value={facturaBuscarProd[idx] || ""} onChange={e => setFacturaBuscarProd(p => ({ ...p, [idx]: e.target.value }))} />
                             {(facturaBuscarProd[idx] || "").trim().length > 0 && (
-                              <div style={{ border: "1px solid #eee", borderRadius: 6, marginTop: 4, maxHeight: 140, overflowY: "auto", position: "relative", zIndex: 5, background: "#fff" }}>
+                              <div style={{ border: "1px solid " + temaPal.border, borderRadius: 6, marginTop: 4, maxHeight: 140, overflowY: "auto", position: "relative", zIndex: 5, background: temaPal.card }}>
                                 {productos.filter(p => (p.nombre || "").toLowerCase().includes((facturaBuscarProd[idx] || "").toLowerCase())).slice(0, 8).map(p => (
-                                  <div key={p.id} onClick={() => vincularItemFactura(idx, p)} style={{ padding: "6px 8px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 11 }}>{p.nombre}</div>
+                                  <div key={p.id} onClick={() => vincularItemFactura(idx, p)} style={{ padding: "6px 8px", cursor: "pointer", borderBottom: "1px solid " + temaPal.border, fontSize: 11 }}>{p.nombre}</div>
                                 ))}
                               </div>
                             )}
@@ -9306,7 +9324,7 @@ function OrdenesIngreso({ localId, usuario }) {
       {tab === "nueva" && (
         <div className="g2">
           <div className="card">
-            <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 14 }}>DATOS DE LA ORDEN</div>
+            <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 14 }}>DATOS DE LA ORDEN</div>
             <div className="fg"><div className="fl">Proveedor</div>
               <select className="sel" value={nueva.proveedor_id} onChange={e => setNueva(p => ({ ...p, proveedor_id: e.target.value }))}>
                 <option value="">Seleccionar proveedor...</option>
@@ -9316,11 +9334,11 @@ function OrdenesIngreso({ localId, usuario }) {
             <div className="fg"><div className="fl">Numero de factura</div><input className="inp" value={nueva.numero_factura} onChange={e => setNueva(p => ({ ...p, numero_factura: e.target.value }))} /></div>
             <div className="fg"><div className="fl">Total factura ($)</div><input className="inp" type="number" value={nueva.total} onChange={e => setNueva(p => ({ ...p, total: e.target.value }))} /></div>
             <div className="fg"><div className="fl">Notas</div><textarea className="inp" rows={2} placeholder="Observaciones..." value={nueva.notas} onChange={e => setNueva(p => ({ ...p, notas: e.target.value }))} /></div>
-            <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", margin: "16px 0 10px" }}>AGREGAR PRODUCTO (dividi por local)</div>
+            <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", margin: "16px 0 10px" }}>AGREGAR PRODUCTO (dividi por local)</div>
             <div className="fg"><div className="fl">Producto</div>
               <div style={{ position: "relative" }}>
                 {itemTemp.producto_id ? (
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f7f5f0", borderRadius: 6 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: temaPal.bg, borderRadius: 6 }}>
                     <span style={{ fontSize: 12 }}>{(productos.find(p => String(p.id) === String(itemTemp.producto_id)) || {}).nombre || "Producto"}</span>
                     <span onClick={() => { setItemTemp(p => ({ ...p, producto_id: "" })); setBusquedaProd(""); }} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>cambiar</span>
                   </div>
@@ -9328,14 +9346,14 @@ function OrdenesIngreso({ localId, usuario }) {
                   <div>
                     <input className="inp" placeholder="Buscar producto por nombre o codigo" value={busquedaProd} onChange={e => setBusquedaProd(e.target.value)} />
                     {busquedaProd.trim().length > 0 && (
-                      <div style={{ position: "absolute", zIndex: 10, background: "#fff", border: "1px solid #eee", borderRadius: 6, width: "100%", maxHeight: 220, overflowY: "auto", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
+                      <div style={{ position: "absolute", zIndex: 10, background: temaPal.card, border: "1px solid " + temaPal.border, borderRadius: 6, width: "100%", maxHeight: 220, overflowY: "auto", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
                         {productos.filter(pr => (pr.nombre || "").toLowerCase().includes(busquedaProd.toLowerCase()) || (pr.codigo_barras || "").includes(busquedaProd)).slice(0, 10).map(pr => (
-                          <div key={pr.id} onClick={() => { setItemTemp(p => ({ ...p, producto_id: pr.id })); setBusquedaProd(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid #f2f2f2", fontSize: 12 }}>
-                            {pr.nombre}{pr.codigo_barras ? <span style={{ color: "#999" }}> · {pr.codigo_barras}</span> : null}
+                          <div key={pr.id} onClick={() => { setItemTemp(p => ({ ...p, producto_id: pr.id })); setBusquedaProd(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid " + temaPal.border, fontSize: 12 }}>
+                            {pr.nombre}{pr.codigo_barras ? <span style={{ color: temaPal.textMuted }}> · {pr.codigo_barras}</span> : null}
                           </div>
                         ))}
                         {productos.filter(pr => (pr.nombre || "").toLowerCase().includes(busquedaProd.toLowerCase()) || (pr.codigo_barras || "").includes(busquedaProd)).length === 0 && (
-                          <div style={{ padding: "8px 10px", fontSize: 12, color: "#999" }}>Sin resultados</div>
+                          <div style={{ padding: "8px 10px", fontSize: 12, color: temaPal.textMuted }}>Sin resultados</div>
                         )}
                       </div>
                     )}
@@ -9351,8 +9369,8 @@ function OrdenesIngreso({ localId, usuario }) {
             <button className="btn btn-sm" style={{ width: "100%" }} onClick={agregarItem}>+ Agregar producto</button>
           </div>
           <div className="card">
-            <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 14 }}>PRODUCTOS EN ESTA ORDEN ({nueva.items.length})</div>
-            {nueva.items.length === 0 ? (<div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 20 }}>Sin productos agregados</div>) : (
+            <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 14 }}>PRODUCTOS EN ESTA ORDEN ({nueva.items.length})</div>
+            {nueva.items.length === 0 ? (<div style={{ fontSize: 12, color: temaPal.textMuted, textAlign: "center", padding: 20 }}>Sin productos agregados</div>) : (
               <table>
                 <thead><tr><th>Producto</th><th>RG</th><th>USH</th><th>Costo unit.</th><th>Subtotal</th><th></th></tr></thead>
                 <tbody>
@@ -9376,12 +9394,12 @@ function OrdenesIngreso({ localId, usuario }) {
               return (
                 <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 6, background: coincide ? "#2d7a4f12" : "#c0392b12", border: "1px solid " + (coincide ? "#2d7a4f" : "#c0392b") }}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-                    <span style={{ color: "#666666" }}>Suma de productos</span>
+                    <span style={{ color: temaPal.textMuted }}>Suma de productos</span>
                     <span style={{ fontWeight: 600 }}>{fmt(sumaItems)}</span>
                   </div>
                   {totalFactura > 0 && (
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginTop: 4 }}>
-                      <span style={{ color: "#666666" }}>Total de la factura</span>
+                      <span style={{ color: temaPal.textMuted }}>Total de la factura</span>
                       <span style={{ fontWeight: 600 }}>{fmt(totalFactura)}</span>
                     </div>
                   )}
@@ -9401,9 +9419,9 @@ function OrdenesIngreso({ localId, usuario }) {
       {tab === "recibir" && ordenDetalle && (
         <div>
           <div className="card" style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 4 }}>RECIBIENDO EN {localNombre.toUpperCase()}</div>
-            <div style={{ fontSize: 13, color: "#444444" }}>Factura {ordenDetalle.numero_factura || "-"} - {ordenDetalle.proveedor_nombre || ""}</div>
-            <div style={{ fontSize: 11, color: "#65676B", marginTop: 4 }}>Conta la mercaderia fisica y confirma cada item. Si la cantidad no coincide, dejala como llego y agrega una nota.</div>
+            <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 4 }}>RECIBIENDO EN {localNombre.toUpperCase()}</div>
+            <div style={{ fontSize: 13, color: temaPal.text }}>Factura {ordenDetalle.numero_factura || "-"} - {ordenDetalle.proveedor_nombre || ""}</div>
+            <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>Conta la mercaderia fisica y confirma cada item. Si la cantidad no coincide, dejala como llego y agrega una nota.</div>
             {(() => {
               const delLocal = itemsDetalle.filter(it => esperadoLocal(it) > 0 || it.es_extra);
               const recibidos = delLocal.filter(it => revisadoLocal(it)).length;
@@ -9441,12 +9459,12 @@ function OrdenesIngreso({ localId, usuario }) {
                           <span onClick={() => editarItemOrden(it)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 10, marginRight: 6 }}>editar</span>
                           <span onClick={() => eliminarItemOrden(it)} style={{ cursor: "pointer", color: "#c0392b", fontSize: 10 }}>eliminar</span>
                         </span></td>
-                      <td style={{ fontSize: 12, color: "#65676B" }}>{esp}</td>
+                      <td style={{ fontSize: 12, color: temaPal.textMuted }}>{esp}</td>
                       <td><input className="inp" type="number" style={{ width: 70, padding: "4px 8px" }} value={conteo[it.id] ?? ""} onChange={e => setConteo(c => ({ ...c, [it.id]: e.target.value }))} /></td>
                       <td>
                         {dif !== 0 && !it.es_extra ? (
                           <input className="inp" placeholder={dif > 0 ? "llegaron " + dif + " de mas" : "faltan " + Math.abs(dif)} style={{ padding: "4px 8px", fontSize: 11 }} value={notaItem[it.id] || ""} onChange={e => setNotaItem(n => ({ ...n, [it.id]: e.target.value }))} />
-                        ) : (<span style={{ fontSize: 11, color: "#65676B" }}>{revisadoLocal(it) ? "ok" : "-"}</span>)}
+                        ) : (<span style={{ fontSize: 11, color: temaPal.textMuted }}>{revisadoLocal(it) ? "ok" : "-"}</span>)}
                       </td>
                       <td>{revisadoLocal(it) ? <span style={{ fontSize: 11, color: "#2d7a4f", fontWeight: 600 }}>Recibido ({recibidoLocal(it)})</span> : <span style={{ fontSize: 11, color: "#c9a84c" }}>Pendiente</span>}</td>
                       <td><button className="btn btn-sm" onClick={() => confirmarItem(it)}>{revisadoLocal(it) ? "Recontar" : "Confirmar"}</button></td>
@@ -9457,7 +9475,7 @@ function OrdenesIngreso({ localId, usuario }) {
             </table>
           </div>
           <div className="card">
-            <div style={{ fontSize: 11, color: "#65676B", letterSpacing: ".1em", marginBottom: 10 }}>AGREGAR ITEM EXTRA (regalo del proveedor, no estaba en la orden)</div>
+            <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 10 }}>AGREGAR ITEM EXTRA (regalo del proveedor, no estaba en la orden)</div>
             <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
               <div className="fg" style={{ flex: 2, marginBottom: 0 }}><div className="fl">Producto</div>
                 <select className="sel" value={extra.producto_id} onChange={e => setExtra(p => ({ ...p, producto_id: e.target.value }))}>
@@ -9477,7 +9495,8 @@ function OrdenesIngreso({ localId, usuario }) {
 
 
 // REPORTE INCONSISTENCIAS
-function Inconsistencias() {
+function Inconsistencias({ paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
   const [datos, setDatos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [datosStock, setDatosStock] = useState([]);
@@ -9500,8 +9519,8 @@ function Inconsistencias() {
         <div><div className="pt">Inconsistencias de Recepcion</div><div className="ps">diferencias para reclamar a proveedores</div></div>
       </div>
       <div className="card">
-        {loading ? (<div style={{ textAlign: "center", color: "#65676B", fontSize: 12 }}>Cargando...</div>) : datos.length === 0 ? (
-          <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 30 }}>No hay inconsistencias registradas. Todo llego correcto!</div>
+        {loading ? (<div style={{ textAlign: "center", color: p.textMuted, fontSize: 12 }}>Cargando...</div>) : datos.length === 0 ? (
+          <div style={{ fontSize: 12, color: p.textMuted, textAlign: "center", padding: 30 }}>No hay inconsistencias registradas. Todo llego correcto!</div>
         ) : (
           <table>
             <thead><tr><th>Factura</th><th>Proveedor</th><th>Producto</th><th>Local</th><th>Esperado</th><th>Recibido</th><th>Diferencia</th><th>Nota</th></tr></thead>
@@ -9518,10 +9537,10 @@ function Inconsistencias() {
                     <td style={{ fontSize: 11 }}>{d.proveedor_nombre || "-"}</td>
                     <td style={{ fontSize: 12 }}>{d.producto_nombre}{f.extra ? <span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c", marginLeft: 6 }}>extra/regalo</span> : ""}</td>
                     <td style={{ fontSize: 11 }}>{f.local}</td>
-                    <td style={{ fontSize: 12, color: "#65676B" }}>{f.esp}</td>
+                    <td style={{ fontSize: 12, color: p.textMuted }}>{f.esp}</td>
                     <td style={{ fontSize: 12 }}>{f.rec}</td>
                     <td>{f.extra ? <span style={{ color: "#c9a84c", fontSize: 12 }}>+{f.rec} regalo</span> : (typeof f.esp === "number" ? (() => { const v = dif(f.rec, f.esp); return <span style={{ color: v < 0 ? "#c0392b" : "#2d7a4f", fontWeight: 600, fontSize: 12 }}>{v > 0 ? "+" : ""}{v}</span>; })() : "-")}</td>
-                    <td style={{ fontSize: 11, color: "#666666" }}>{d.nota_inconsistencia || "-"}</td>
+                    <td style={{ fontSize: 11, color: p.textMuted }}>{d.nota_inconsistencia || "-"}</td>
                   </tr>
                 ));
               })}
@@ -9534,21 +9553,21 @@ function Inconsistencias() {
         <div><div className="pt">Ventas sin stock suficiente</div><div className="ps">se vendio en 0 (o quedaria negativo) y la vendedora justifico el motivo</div></div>
       </div>
       <div className="card">
-        {loadingStock ? (<div style={{ textAlign: "center", color: "#65676B", fontSize: 12 }}>Cargando...</div>) : datosStock.length === 0 ? (
-          <div style={{ fontSize: 12, color: "#65676B", textAlign: "center", padding: 30 }}>No hay ventas sin stock registradas.</div>
+        {loadingStock ? (<div style={{ textAlign: "center", color: p.textMuted, fontSize: 12 }}>Cargando...</div>) : datosStock.length === 0 ? (
+          <div style={{ fontSize: 12, color: p.textMuted, textAlign: "center", padding: 30 }}>No hay ventas sin stock registradas.</div>
         ) : (
           <table>
             <thead><tr><th>Fecha</th><th>Venta</th><th>Producto</th><th>Stock disponible</th><th>Vendido</th><th>Motivo</th><th>Vendedora</th></tr></thead>
             <tbody>
               {datosStock.map(d => (
                 <tr key={d.id}>
-                  <td style={{ fontSize: 11, color: "#65676B" }}>{new Date(d.creado_en).toLocaleString("es-AR")}</td>
+                  <td style={{ fontSize: 11, color: p.textMuted }}>{new Date(d.creado_en).toLocaleString("es-AR")}</td>
                   <td style={{ fontSize: 11 }}>{d.venta_numero_factura || "-"}</td>
                   <td style={{ fontSize: 12 }}>{d.producto_nombre}</td>
                   <td style={{ fontSize: 12, color: "#c0392b", fontWeight: 600 }}>{d.stock_disponible}</td>
                   <td style={{ fontSize: 12 }}>{d.cantidad_vendida}</td>
                   <td style={{ fontSize: 11 }}>{d.justificacion}</td>
-                  <td style={{ fontSize: 11, color: "#65676B" }}>{d.usuario_nombre || "-"}</td>
+                  <td style={{ fontSize: 11, color: p.textMuted }}>{d.usuario_nombre || "-"}</td>
                 </tr>
               ))}
             </tbody>
@@ -9559,7 +9578,8 @@ function Inconsistencias() {
   );
 }
 
-function Kits() {
+function Kits({ paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
   const [kits, setKits] = useState([]);
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -9661,9 +9681,9 @@ function Kits() {
       {tab === "lista" && (
         <div className="fade">
           {loading ? (
-            <div style={{ color: "#65676B", padding: 20 }}>Cargando...</div>
+            <div style={{ color: temaPal.textMuted, padding: 20 }}>Cargando...</div>
           ) : kits.length === 0 ? (
-            <div className="card" style={{ textAlign: "center", color: "#65676B", padding: 30 }}>Sin kits creados. Crea tu primer combo!</div>
+            <div className="card" style={{ textAlign: "center", color: temaPal.textMuted, padding: 30 }}>Sin kits creados. Crea tu primer combo!</div>
           ) : (
             <div className="g2">
               {kits.map(kit => {
@@ -9671,11 +9691,11 @@ function Kits() {
                 const totalPrecioProductos = items.reduce((s, i) => s + (parseFloat(i.producto_precio || 0) * parseInt(i.cantidad || 1)), 0);
                 const ahorro = totalPrecioProductos - parseFloat(kit.precio || 0);
                 return (
-                  <div key={kit.id} className="card" style={{ borderTop: "3px solid #c9a84c" }}>
+                  <div key={kit.id} className="card" style={{ borderTop: "3px solid " + temaPal.border }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
                       <div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: "#111111" }}>{kit.nombre}</div>
-                        {kit.descripcion && <div style={{ fontSize: 11, color: "#65676B", marginTop: 2 }}>{kit.descripcion}</div>}
+                        <div style={{ fontSize: 14, fontWeight: 700, color: temaPal.text }}>{kit.nombre}</div>
+                        {kit.descripcion && <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 2 }}>{kit.descripcion}</div>}
                       </div>
                       <div style={{ textAlign: "right" }}>
                         <div style={{ fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>{fmt(parseFloat(kit.precio || 0))}</div>
@@ -9684,9 +9704,9 @@ function Kits() {
                     </div>
                     <div style={{ marginBottom: 12 }}>
                       {items.map((item, i) => (
-                        <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "4px 0", borderBottom: "1px solid #f5f5f5" }}>
-                          <span style={{ color: "#444444" }}>{item.producto_nombre}</span>
-                          <span style={{ color: "#65676B" }}>x{item.cantidad}</span>
+                        <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "4px 0", borderBottom: "1px solid " + temaPal.border }}>
+                          <span style={{ color: temaPal.text }}>{item.producto_nombre}</span>
+                          <span style={{ color: temaPal.textMuted }}>x{item.cantidad}</span>
                         </div>
                       ))}
                     </div>
@@ -9714,8 +9734,8 @@ function Kits() {
             </div>
             <div className="fg">
               <div className="fl">Precio del kit (suma de los productos)</div>
-              <div style={{ padding: "10px 12px", background: "#f7f5f0", borderRadius: 8, fontSize: 18, fontWeight: 700, color: "#2d7a4f" }}>{fmt(Math.round(precioSugerido))}</div>
-              <div style={{ fontSize: 10, color: "#65676B", marginTop: 4 }}>El descuento se aplica despues, al vender el kit en el Punto de Venta.</div>
+              <div style={{ padding: "10px 12px", background: temaPal.bg, borderRadius: 8, fontSize: 18, fontWeight: 700, color: "#2d7a4f" }}>{fmt(Math.round(precioSugerido))}</div>
+              <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 4 }}>El descuento se aplica despues, al vender el kit en el Punto de Venta.</div>
             </div>
             <div className="divider" />
             <div className="ct">Agregar productos al kit</div>
@@ -9735,21 +9755,21 @@ function Kits() {
           <div className="card">
             <div className="ct">Productos en este kit ({form.items.length})</div>
             {form.items.length === 0 ? (
-              <div style={{ color: "#65676B", fontSize: 12, textAlign: "center", padding: 20 }}>Sin productos agregados</div>
+              <div style={{ color: temaPal.textMuted, fontSize: 12, textAlign: "center", padding: 20 }}>Sin productos agregados</div>
             ) : (
               <div>
                 {form.items.map((item, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #f5f5f5" }}>
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid " + temaPal.border }}>
                     <div>
-                      <div style={{ fontSize: 12, color: "#444444" }}>{item.producto_nombre}</div>
-                      <div style={{ fontSize: 10, color: "#65676B" }}>x{item.cantidad}</div>
+                      <div style={{ fontSize: 12, color: temaPal.text }}>{item.producto_nombre}</div>
+                      <div style={{ fontSize: 10, color: temaPal.textMuted }}>x{item.cantidad}</div>
                     </div>
                     <button onClick={() => quitarItem(i)} style={{ background: "none", border: "none", color: "#c0392b", cursor: "pointer", fontSize: 16 }}>x</button>
                   </div>
                 ))}
-                <div style={{ marginTop: 12, padding: "10px 0", borderTop: "2px solid #f0f0f0" }}>
+                <div style={{ marginTop: 12, padding: "10px 0", borderTop: "2px solid " + temaPal.border }}>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: 12, color: "#444444" }}>Suma de productos</span>
+                    <span style={{ fontSize: 12, color: temaPal.text }}>Suma de productos</span>
                     <span style={{ fontSize: 14, fontWeight: 700, color: "#c9a84c" }}>{fmt(Math.round(precioSugerido))}</span>
                   </div>
                 </div>
@@ -9762,7 +9782,8 @@ function Kits() {
   );
 }
 
-function Insumos({ localId, usuario }) {
+function Insumos({ localId, usuario, paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState("stock");
   const [insumos, setInsumos] = useState([]);
   const [proveedores, setProveedores] = useState([]);
@@ -9901,7 +9922,7 @@ function Insumos({ localId, usuario }) {
                   <div className="fg" style={{ flex: 1 }}><div className="fl">Stock Ushuaia</div><input className="inp" type="number" placeholder="0" value={nuevo.stock_ush} onChange={e => setNuevo(p => ({ ...p, stock_ush: e.target.value }))} /></div>
                 </div>
               )}
-              {editando && <div style={{ fontSize: 10, color: "#65676B", marginBottom: 12 }}>El stock se modifica con el boton "Ajustar" de cada insumo, no desde aca.</div>}
+              {editando && <div style={{ fontSize: 10, color: temaPal.textMuted, marginBottom: 12 }}>El stock se modifica con el boton "Ajustar" de cada insumo, no desde aca.</div>}
               <div className="fg"><div className="fl">Stock minimo (alerta)</div><input className="inp" type="number" placeholder="5" value={nuevo.stock_minimo} onChange={e => setNuevo(p => ({ ...p, stock_minimo: e.target.value }))} /></div>
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <button className="btn btn-p" style={{ flex: 1 }} onClick={guardar}>{editando ? "Guardar cambios" : "Crear insumo"}</button>
@@ -9921,9 +9942,9 @@ function Insumos({ localId, usuario }) {
       {tab === "stock" && (
         <div className="card fade">
           {loading ? (
-            <div style={{ color: "#65676B", padding: 20 }}>Cargando insumos...</div>
+            <div style={{ color: temaPal.textMuted, padding: 20 }}>Cargando insumos...</div>
           ) : insumos.length === 0 ? (
-            <div style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>Sin insumos cargados todavia</div>
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>Sin insumos cargados todavia</div>
           ) : (
             <table>
               <thead><tr><th>Insumo</th><th>Categoria</th><th>Unidad</th><th>Proveedor</th><th>Stock {localNombre}</th><th>Minimo</th><th></th></tr></thead>
@@ -9934,11 +9955,11 @@ function Insumos({ localId, usuario }) {
                   return (
                     <tr key={i.id}>
                       <td style={{ fontWeight: 500 }}>{i.nombre}</td>
-                      <td style={{ fontSize: 11, color: "#65676B" }}>{i.categoria || "-"}</td>
-                      <td style={{ fontSize: 11, color: "#65676B" }}>{i.unidad || "-"}</td>
-                      <td style={{ fontSize: 11, color: "#65676B" }}>{i.proveedor_nombre || "-"}</td>
+                      <td style={{ fontSize: 11, color: temaPal.textMuted }}>{i.categoria || "-"}</td>
+                      <td style={{ fontSize: 11, color: temaPal.textMuted }}>{i.unidad || "-"}</td>
+                      <td style={{ fontSize: 11, color: temaPal.textMuted }}>{i.proveedor_nombre || "-"}</td>
                       <td><span className={"badge " + (bajo ? "br" : "bg")}>{st}u</span></td>
-                      <td style={{ fontSize: 11, color: "#65676B" }}>{i.stock_minimo || 5}u</td>
+                      <td style={{ fontSize: 11, color: temaPal.textMuted }}>{i.stock_minimo || 5}u</td>
                       <td>
                         <div style={{ display: "flex", gap: 4 }}>
                           <button className="btn btn-sm" style={{ fontSize: 10 }} onClick={() => abrirAjuste(i)}>Ajustar</button>
@@ -9961,8 +9982,8 @@ function Insumos({ localId, usuario }) {
           ) : alertas.map(i => (
             <div key={i.id} style={{ background: "#c0392b12", border: "1px solid #d9707033", borderRadius: 6, padding: "12px 16px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <div style={{ fontSize: 12, color: "#444444" }}>{i.nombre}{i.categoria ? " - " + i.categoria : ""}</div>
-                <div style={{ fontSize: 10, color: "#65676B", marginTop: 2 }}>Stock {localNombre}: {stockLocal(i)}u | Minimo: {i.stock_minimo || 5}u{i.proveedor_nombre ? " | Proveedor: " + i.proveedor_nombre : ""}</div>
+                <div style={{ fontSize: 12, color: temaPal.text }}>{i.nombre}{i.categoria ? " - " + i.categoria : ""}</div>
+                <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 2 }}>Stock {localNombre}: {stockLocal(i)}u | Minimo: {i.stock_minimo || 5}u{i.proveedor_nombre ? " | Proveedor: " + i.proveedor_nombre : ""}</div>
               </div>
               <button className="btn btn-p btn-sm" onClick={() => abrirAjuste(i)}>Ajustar stock</button>
             </div>
@@ -9971,21 +9992,21 @@ function Insumos({ localId, usuario }) {
       )}
       {ajustando && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
-          <div className="card" style={{ width: 400, background: "#ffffff" }}>
+          <div className="card" style={{ width: 400, background: temaPal.card }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Ajustar stock - {localNombre}</div>
-            <div style={{ fontSize: 12, color: "#65676B", marginBottom: 14 }}>{ajustando.nombre} - stock actual: <b>{stockLocal(ajustando)}u</b></div>
+            <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 14 }}>{ajustando.nombre} - stock actual: <b>{stockLocal(ajustando)}u</b></div>
             {errorAjuste && (
-              <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "8px 12px", marginBottom: 10, fontSize: 11, color: "#c0392b" }}>{errorAjuste}</div>
+              <div style={{ background: "#c0392b12", border: "1px solid " + temaPal.border, borderRadius: 6, padding: "8px 12px", marginBottom: 10, fontSize: 11, color: "#c0392b" }}>{errorAjuste}</div>
             )}
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "exacto" ? "#c9a84c15" : "transparent", border: "1px solid " + (modoAjuste === "exacto" ? "#c9a84c" : "#e8e8e8"), color: modoAjuste === "exacto" ? "#c9a84c" : "#65676B" }} onClick={() => { setModoAjuste("exacto"); setValorAjuste(String(stockLocal(ajustando))); }}>Poner cantidad exacta</button>
-              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "diferencia" ? "#c9a84c15" : "transparent", border: "1px solid " + (modoAjuste === "diferencia" ? "#c9a84c" : "#e8e8e8"), color: modoAjuste === "diferencia" ? "#c9a84c" : "#65676B" }} onClick={() => { setModoAjuste("diferencia"); setValorAjuste(""); }}>Sumar / restar</button>
+              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "exacto" ? "#c9a84c15" : "transparent", border: "1px solid " + (modoAjuste === "exacto" ? "#c9a84c" : temaPal.border), color: modoAjuste === "exacto" ? "#c9a84c" : temaPal.textMuted }} onClick={() => { setModoAjuste("exacto"); setValorAjuste(String(stockLocal(ajustando))); }}>Poner cantidad exacta</button>
+              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "diferencia" ? "#c9a84c15" : "transparent", border: "1px solid " + (modoAjuste === "diferencia" ? "#c9a84c" : temaPal.border), color: modoAjuste === "diferencia" ? "#c9a84c" : temaPal.textMuted }} onClick={() => { setModoAjuste("diferencia"); setValorAjuste(""); }}>Sumar / restar</button>
             </div>
             <div className="fg">
               <div className="fl">{modoAjuste === "exacto" ? "Stock real (numero final)" : "Diferencia (ej: 10 o -3)"}</div>
               <input className="inp" type="number" placeholder={modoAjuste === "exacto" ? "Ej: 50" : "Ej: -3"} value={valorAjuste} onChange={e => setValorAjuste(e.target.value)} />
               {modoAjuste === "diferencia" && valorAjuste !== "" && !isNaN(parseInt(valorAjuste)) && (
-                <div style={{ fontSize: 11, color: "#65676B", marginTop: 4 }}>Nuevo stock: {Math.max(stockLocal(ajustando) + parseInt(valorAjuste), 0)}u</div>
+                <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>Nuevo stock: {Math.max(stockLocal(ajustando) + parseInt(valorAjuste), 0)}u</div>
               )}
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
@@ -10000,7 +10021,8 @@ function Insumos({ localId, usuario }) {
 }
 
 
-function ConfigInsumos({ localId }) {
+function ConfigInsumos({ localId, paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
   const [activo, setActivo] = useState(false);
   const [insumos, setInsumos] = useState([]);
   const [seleccionados, setSeleccionados] = useState([]);
@@ -10046,7 +10068,7 @@ function ConfigInsumos({ localId }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: 14, fontWeight: 600 }}>Descontar insumos en cada venta</div>
-            <div style={{ fontSize: 11, color: "#65676B", marginTop: 2 }}>Si esta activo, en el POS aparece un selector por cada insumo elegido abajo, y la vendedora debe indicar cual entrego antes de cobrar.</div>
+            <div style={{ fontSize: 11, color: p.textMuted, marginTop: 2 }}>Si esta activo, en el POS aparece un selector por cada insumo elegido abajo, y la vendedora debe indicar cual entrego antes de cobrar.</div>
           </div>
           <div className="sw-wrap" onClick={() => setActivo(!activo)}>
             <div className={"sw " + (activo ? "on" : "off")}><div className="sw-dot" /></div>
@@ -10057,21 +10079,21 @@ function ConfigInsumos({ localId }) {
         <div className="card fade">
           <div className="ct">Insumos que se descuentan en el POS de {localNombre}</div>
           {loading ? (
-            <div style={{ color: "#65676B", padding: 20 }}>Cargando...</div>
+            <div style={{ color: p.textMuted, padding: 20 }}>Cargando...</div>
           ) : insumos.length === 0 ? (
-            <div style={{ textAlign: "center", color: "#65676B", padding: 20, fontSize: 12 }}>No hay insumos cargados. Crealos primero en la seccion Insumos.</div>
+            <div style={{ textAlign: "center", color: p.textMuted, padding: 20, fontSize: 12 }}>No hay insumos cargados. Crealos primero en la seccion Insumos.</div>
           ) : (
             <div>
               {insumos.map(i => (
-                <label key={i.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 8px", borderBottom: "1px solid #f5f5f5", cursor: "pointer" }}>
+                <label key={i.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 8px", borderBottom: "1px solid " + p.border, cursor: "pointer" }}>
                   <input type="checkbox" checked={seleccionados.includes(i.id)} onChange={() => toggle(i.id)} />
                   <div>
-                    <div style={{ fontSize: 13, color: "#111111" }}>{i.nombre}</div>
-                    {i.categoria && <div style={{ fontSize: 10, color: "#65676B" }}>{i.categoria}</div>}
+                    <div style={{ fontSize: 13, color: p.text }}>{i.nombre}</div>
+                    {i.categoria && <div style={{ fontSize: 10, color: p.textMuted }}>{i.categoria}</div>}
                   </div>
                 </label>
               ))}
-              <div style={{ fontSize: 11, color: "#65676B", marginTop: 12 }}>{seleccionados.length} insumo(s) se mostraran en el POS de {localNombre}.</div>
+              <div style={{ fontSize: 11, color: p.textMuted, marginTop: 12 }}>{seleccionados.length} insumo(s) se mostraran en el POS de {localNombre}.</div>
             </div>
           )}
         </div>
@@ -10081,7 +10103,8 @@ function ConfigInsumos({ localId }) {
 }
 
 
-function ConfigTicket() {
+function ConfigTicket({ paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
   const [cfg, setCfg] = useState({ mostrar_cliente: true, mostrar_numero: true, mostrar_fecha: true, mensaje_pie: "Gracias por tu compra!", texto_extra: "" });
   const [loading, setLoading] = useState(true);
   const [mensaje, setMensaje] = useState("");
@@ -10099,9 +10122,9 @@ function ConfigTicket() {
   };
 
   const Check = ({ campo, label }) => (
-    <label style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 8px", borderBottom: "1px solid #f5f5f5", cursor: "pointer" }}>
+    <label style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 8px", borderBottom: "1px solid " + p.border, cursor: "pointer" }}>
       <input type="checkbox" checked={cfg[campo] !== false} onChange={e => setCfg(p => ({ ...p, [campo]: e.target.checked }))} />
-      <span style={{ fontSize: 13, color: "#111111" }}>{label}</span>
+      <span style={{ fontSize: 13, color: p.text }}>{label}</span>
     </label>
   );
 
@@ -10114,20 +10137,20 @@ function ConfigTicket() {
       {mensaje && (
         <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>
       )}
-      {loading ? <div style={{ color: "#65676B", padding: 20 }}>Cargando...</div> : (
+      {loading ? <div style={{ color: p.textMuted, padding: 20 }}>Cargando...</div> : (
         <div className="g2">
           <div className="card">
             <div className="ct">Datos que se muestran</div>
             <Check campo="mostrar_fecha" label="Fecha y hora" />
             <Check campo="mostrar_numero" label="Numero de comprobante" />
             <Check campo="mostrar_cliente" label="Nombre del cliente" />
-            <div style={{ fontSize: 10, color: "#65676B", marginTop: 10 }}>El logo, el local, los productos y el total siempre se muestran.</div>
+            <div style={{ fontSize: 10, color: p.textMuted, marginTop: 10 }}>El logo, el local, los productos y el total siempre se muestran.</div>
           </div>
           <div className="card">
             <div className="ct">Logo del ticket</div>
             <div className="fg"><div className="fl">URL de la imagen (subida a algun hosting de imagenes)</div><input className="inp" value={cfg.logo_ticket_url || ""} onChange={e => setCfg(p => ({ ...p, logo_ticket_url: e.target.value }))} placeholder="https://..." /></div>
             {cfg.logo_ticket_url && <img src={cfg.logo_ticket_url} alt="Logo del ticket" style={{ maxWidth: 160, marginTop: 6, display: "block" }} />}
-            <div style={{ fontSize: 10, color: "#65676B", marginTop: 6 }}>Si lo dejas vacio, se usa el logo por defecto del sistema.</div>
+            <div style={{ fontSize: 10, color: p.textMuted, marginTop: 6 }}>Si lo dejas vacio, se usa el logo por defecto del sistema.</div>
           </div>
           <div className="card">
             <div className="ct">Textos del pie</div>
@@ -10141,7 +10164,8 @@ function ConfigTicket() {
 }
 
 
-function Promociones() {
+function Promociones({ paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
   const [promos, setPromos] = useState([]);
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
@@ -10245,8 +10269,8 @@ function Promociones() {
 
       {tab === "lista" && (
         <div className="card fade">
-          {loading ? <div style={{ color: "#65676B", padding: 20 }}>Cargando...</div> : promos.length === 0 ? (
-            <div style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>No hay promociones creadas todavia</div>
+          {loading ? <div style={{ color: temaPal.textMuted, padding: 20 }}>Cargando...</div> : promos.length === 0 ? (
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>No hay promociones creadas todavia</div>
           ) : (
             <table>
               <thead><tr><th>Nombre</th><th>Tipo</th><th>Detalle</th><th>Medio pago</th><th>Vigencia</th><th>Activa</th><th></th></tr></thead>
@@ -10255,14 +10279,14 @@ function Promociones() {
                   <tr key={p.id}>
                     <td style={{ fontWeight: 600 }}>{p.nombre}</td>
                     <td><span className="badge bb">{tipoLabel[p.tipo] || p.tipo}</span></td>
-                    <td style={{ fontSize: 11, color: "#65676B" }}>
+                    <td style={{ fontSize: 11, color: temaPal.textMuted }}>
                       {p.tipo === "descuento" && (p.valor + (p.aplica_a === "todo" ? "% en todo" : "% en seleccion"))}
                       {p.tipo === "nxm" && ("Lleva " + p.nx + " paga " + p.ny)}
                       {p.tipo === "cross" && ("Llevando " + nombreProd(p.cross_producto_id) + ", " + p.valor + "% en " + nombreProd(p.cross_producto_regalo_id))}
                       {p.tipo === "monto" && ("Gastando +$" + p.monto_minimo + ", " + p.valor + "% off")}
                     </td>
-                    <td style={{ fontSize: 11, color: "#65676B" }}>{p.medio_pago_tipo || "Todos"}</td>
-                    <td style={{ fontSize: 10, color: "#65676B" }}>{p.fecha_inicio ? new Date(p.fecha_inicio).toLocaleDateString("es-AR") : "-"} a {p.fecha_fin ? new Date(p.fecha_fin).toLocaleDateString("es-AR") : "sin fin"}</td>
+                    <td style={{ fontSize: 11, color: temaPal.textMuted }}>{p.medio_pago_tipo || "Todos"}</td>
+                    <td style={{ fontSize: 10, color: temaPal.textMuted }}>{p.fecha_inicio ? new Date(p.fecha_inicio).toLocaleDateString("es-AR") : "-"} a {p.fecha_fin ? new Date(p.fecha_fin).toLocaleDateString("es-AR") : "sin fin"}</td>
                     <td><Sw on={p.activo} toggle={() => toggle(p)} /></td>
                     <td><div style={{ display: "flex", gap: 4 }}>
                       <button className="btn btn-sm" style={{ fontSize: 10 }} onClick={() => editar(p)}>Editar</button>
@@ -10341,7 +10365,7 @@ function Promociones() {
               )}
               {form.aplica_a === "categorias" && (form.tipo === "descuento" || form.tipo === "nxm") && (
                 <div className="fg"><div className="fl">Categorias</div>
-                  <div style={{ maxHeight: 120, overflowY: "auto", border: "1px solid #E4E6EB", borderRadius: 8, padding: 8 }}>
+                  <div style={{ maxHeight: 120, overflowY: "auto", border: "1px solid " + temaPal.border, borderRadius: 8, padding: 8 }}>
                     {categorias.map(cat => (
                       <label key={cat} style={{ display: "flex", gap: 8, fontSize: 12, padding: "3px 0", cursor: "pointer" }}>
                         <input type="checkbox" checked={form.categorias.includes(cat)} onChange={() => toggleCat(cat)} />{cat}
@@ -10359,12 +10383,12 @@ function Promociones() {
                       {categorias.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                     </select>
                   </div>
-                  <div style={{ maxHeight: 160, overflowY: "auto", border: "1px solid #E4E6EB", borderRadius: 8, padding: 8 }}>
+                  <div style={{ maxHeight: 160, overflowY: "auto", border: "1px solid " + temaPal.border, borderRadius: 8, padding: 8 }}>
                     {productosFiltradosPromo.length === 0 ? (
-                      <div style={{ fontSize: 11, color: "#999", padding: "6px 0" }}>No hay productos que coincidan</div>
+                      <div style={{ fontSize: 11, color: temaPal.textMuted, padding: "6px 0" }}>No hay productos que coincidan</div>
                     ) : productosFiltradosPromo.map(p => (
                       <label key={p.id} style={{ display: "flex", gap: 8, fontSize: 12, padding: "3px 0", cursor: "pointer" }}>
-                        <input type="checkbox" checked={form.productos_ids.includes(p.id)} onChange={() => toggleProd(p.id)} />{p.nombre}{p.marca ? <span style={{ color: "#999", fontSize: 10 }}> - {p.marca}</span> : ""}
+                        <input type="checkbox" checked={form.productos_ids.includes(p.id)} onChange={() => toggleProd(p.id)} />{p.nombre}{p.marca ? <span style={{ color: temaPal.textMuted, fontSize: 10 }}> - {p.marca}</span> : ""}
                       </label>
                     ))}
                   </div>
@@ -10414,7 +10438,7 @@ const NAV_SECTIONS = [
   { section: "MARKETING", color: "#e74c3c", items: [{ id: "cupones", icon: "🏷️", label: "Cupones" }, { id: "promociones", icon: "🎉", label: "Promociones" }] },
   { section: "POSTVENTA", color: "#25d366", items: [{ id: "postventa", icon: "💬", label: "Postventa WA" }] },
   { section: "INTEGRACIONES", color: "#2471a3", items: [{ id: "tiendanube", icon: "🛍️", label: "Tiendanube" }] },
-  { section: "CLIENTE", color: "#65676B", items: [{ id: "portal", icon: "👤", label: "Portal Cliente" }] },
+  { section: "CLIENTE", color: temaPal.textMuted, items: [{ id: "portal", icon: "👤", label: "Portal Cliente" }] },
   { section: "NEGOCIO", color: "#8e44ad", items: [{ id: "config-negocio", icon: "⚙️", label: "Configuracion del Negocio" }] },
 ];
 
@@ -10891,44 +10915,44 @@ export default function AppWrapper() {
 
   const getPageWithLocal = (id) => {
     if (!puedeVer(id)) return <SinPermiso />;
-    if (id === "dashboard") return <Dashboard localId={local.id} />;
+    if (id === "dashboard") return <Dashboard localId={local.id} paletaActual={paletaActual} />;
     if (id === "pos") return <POS localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "buscar-precio") return <BuscarPrecio localId={local.id} paletaActual={paletaActual} />;
     if (id === "cambio-devolucion") return <CambioDevolucion localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
-    if (id === "ventas-online") return <VentasOnline localId={local.id} usuario={usuario} permisosActivos={permisosActivos} />;
-    if (id === "auditoria") return <Auditoria />;
-    if (id === "inventory") return <Inventario localId={local.id} usuario={usuario} />;
-    if (id === "clients") return <Clientes localId={local.id} usuario={usuario} />;
+    if (id === "ventas-online") return <VentasOnline localId={local.id} usuario={usuario} permisosActivos={permisosActivos} paletaActual={paletaActual} />;
+    if (id === "auditoria") return <Auditoria paletaActual={paletaActual} />;
+    if (id === "inventory") return <Inventario localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "clients") return <Clientes usuario={usuario} paletaActual={paletaActual} />;
     if (id === "pedidos") return <Pedidos localId={local.id} paletaActual={paletaActual} />;
     if (id === "finance") return <Finanzas localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
-    if (id === "reports") return <Informes localId={local.id} />;
-    if (id === "calculadoras") return <Calculadoras usuario={usuario} />;
+    if (id === "reports") return <Informes localId={local.id} paletaActual={paletaActual} />;
+    if (id === "calculadoras") return <Calculadoras usuario={usuario} paletaActual={paletaActual} />;
     if (id === "comprobantes") return <Comprobantes localId={local.id} paletaActual={paletaActual} />;
-    if (id === "productividad") return <Productividad localId={local.id} />;
-    if (id === "cupones") return <Cupones localId={local.id} usuario={usuario} />;
-    if (id === "promociones") return <Promociones />;
-    if (id === "fidelizacion") return <Fidelizacion localId={local.id} usuario={usuario} />;
+    if (id === "productividad") return <Productividad localId={local.id} paletaActual={paletaActual} />;
+    if (id === "cupones") return <Cupones localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "promociones") return <Promociones paletaActual={paletaActual} />;
+    if (id === "fidelizacion") return <Fidelizacion usuario={usuario} paletaActual={paletaActual} />;
     if (id === "tareas") return <Tareas usuario={usuario} localId={local.id} paletaActual={paletaActual} />;
-    if (id === "postventa") return <PostventaWA localId={local.id} />;
-    if (id === "tiendanube") return <Tiendanube localId={local.id} usuario={usuario} />;
-    if (id === "portal") return <PortalCliente />;
-    if (id === "config-negocio") return <ConfiguracionNegocio />;
+    if (id === "postventa") return <PostventaWA paletaActual={paletaActual} />;
+    if (id === "tiendanube") return <Tiendanube localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "portal") return <PortalCliente paletaActual={paletaActual} />;
+    if (id === "config-negocio") return <ConfiguracionNegocio paletaActual={paletaActual} />;
     if (id === "usuarios") return <Usuarios usuario={usuario} paletaActual={paletaActual} />;
     if (id === "comisiones") return <Comisiones localId={local.id} paletaActual={paletaActual} />;
-    if (id === "caja") return <Caja localId={local.id} usuario={usuario} />;
-    if (id === "caja-respaldo") return <CajaRespaldo usuario={usuario} />;
+    if (id === "caja") return <Caja localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "caja-respaldo") return <CajaRespaldo usuario={usuario} paletaActual={paletaActual} />;
     if (id === "cierre") return <CierreCaja localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
-    if (id === "giftcards") return <GiftCards localId={local.id} usuario={usuario} />;
-    if (id === "ordenes") return <OrdenesIngreso localId={local.id} usuario={usuario} />;
-    if (id === "kits") return <Kits />;
-    if (id === "insumos") return <Insumos localId={local.id} usuario={usuario} />;
+    if (id === "giftcards") return <GiftCards localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "ordenes") return <OrdenesIngreso localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "kits") return <Kits paletaActual={paletaActual} />;
+    if (id === "insumos") return <Insumos localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "control-inv") return <ControlInventario localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
-    if (id === "config-insumos") return <ConfigInsumos localId={local.id} />;
-    if (id === "config-ticket") return <ConfigTicket />;
-    if (id === "inconsistencias") return <Inconsistencias />;
+    if (id === "config-insumos") return <ConfigInsumos localId={local.id} paletaActual={paletaActual} />;
+    if (id === "config-ticket") return <ConfigTicket paletaActual={paletaActual} />;
+    if (id === "inconsistencias") return <Inconsistencias paletaActual={paletaActual} />;
     if (id === "proveedores") return <Proveedores paletaActual={paletaActual} />;
     if (id === "reclamos-proveedores") return <ReclamosProveedores localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
-    return <Dashboard localId={local.id} />;
+    return <Dashboard localId={local.id} paletaActual={paletaActual} />;
   };
 
   const NAV_CON_PERMISOS = NAV_SECTIONS.map(sec => ({
