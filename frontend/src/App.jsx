@@ -6353,7 +6353,8 @@ function PortalCliente() {
 }
 
 
-function Comisiones({ localId }) {
+function Comisiones({ localId, paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
   const [datos, setDatos] = useState(null);
   const [hist, setHist] = useState(null);
   const [sel, setSel] = useState([]);
@@ -6389,16 +6390,32 @@ function Comisiones({ localId }) {
 
   const toggle = (id) => setSel(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
-  const pagarSeleccionadas = async () => {
+  const [showPagar, setShowPagar] = useState(false);
+  const [formaPago, setFormaPago] = useState("efectivo");
+  const [productos, setProductos] = useState([]);
+  const [buscarProdCanje, setBuscarProdCanje] = useState("");
+  const [prodCanje, setProdCanje] = useState(null);
+  const [cantidadCanje, setCantidadCanje] = useState(1);
+
+  const abrirPagar = () => {
     if (sel.length === 0) return setMensaje("Selecciona al menos un dia");
-    if (!confirm("Marcar como pagadas " + sel.length + " comisiones? Se van a sumar como egreso al flujo de efectivo.")) return;
+    setFormaPago("efectivo"); setProdCanje(null); setBuscarProdCanje(""); setCantidadCanje(1);
+    setShowPagar(true);
+    if (productos.length === 0) API.get("/productos").then(res => setProductos(res.data || [])).catch(() => {});
+  };
+
+  const confirmarPagar = async () => {
+    if (formaPago === "canje" && !prodCanje) return setMensaje("Elegi el producto del canje");
     try {
-      const res = await API.put("/comisiones/" + (localId || 1) + "/pagar", { ids: sel });
+      const res = await API.put("/comisiones/" + (localId || 1) + "/pagar", {
+        ids: sel, forma_pago: formaPago,
+        producto_canje_id: prodCanje?.id, producto_canje_nombre: prodCanje?.nombre, cantidad_canje: cantidadCanje
+      });
       setMensaje("Pagadas! Total: " + fmt(res.data.total_pagado) + " (" + res.data.dias_pagados + " dias)");
-      setSel([]);
+      setSel([]); setShowPagar(false);
       cargar();
       setTimeout(() => setMensaje(""), 4000);
-    } catch (e) { setMensaje("Error al marcar como pagadas"); }
+    } catch (e) { setMensaje(e.response?.data?.error || "Error al marcar como pagadas"); }
   };
 
   const localNombre = Number(localId) === 2 ? "Ushuaia" : "Rio Grande";
@@ -6409,9 +6426,9 @@ function Comisiones({ localId }) {
         <div><div className="pt">Comisiones {localNombre}</div><div className="ps">comision diaria por facturacion - se paga cuando vos marcas</div></div>
       </div>
 
-      {mensaje && <div className="card" style={{ marginBottom: 12, padding: 12, background: mensaje.startsWith("Error") ? "#fdecea" : "#eafaf1", color: mensaje.startsWith("Error") ? "#c0392b" : "#1e7e4f", fontSize: 13 }}>{mensaje}</div>}
+      {mensaje && <div className="card" style={{ marginBottom: 12, padding: 12, background: mensaje.startsWith("Error") ? p.redDim : p.greenDim, color: mensaje.startsWith("Error") ? "#c0392b" : "#1e7e4f", fontSize: 13 }}>{mensaje}</div>}
 
-      {loading ? <div style={{ color: "#65676B", padding: 20 }}>Cargando...</div> : (
+      {loading ? <div style={{ color: p.textMuted, padding: 20 }}>Cargando...</div> : (
         <div>
           {/* Comision de HOY */}
           {datos && (
@@ -6419,11 +6436,11 @@ function Comisiones({ localId }) {
               <div className="ct">Comision de hoy</div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <div>
-                  <div style={{ fontSize: 11, color: "#65676B" }}>Facturado hoy</div>
+                  <div style={{ fontSize: 11, color: p.textMuted }}>Facturado hoy</div>
                   <div style={{ fontSize: 20, fontWeight: 700 }}>{fmt(parseFloat(datos.facturacion || 0))}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 11, color: "#65676B" }}>Comision</div>
+                  <div style={{ fontSize: 11, color: p.textMuted }}>Comision</div>
                   <div style={{ fontSize: 28, fontWeight: 800, color: "#2d7a4f" }}>{fmt(parseFloat(datos.comision || 0))}</div>
                 </div>
               </div>
@@ -6432,11 +6449,11 @@ function Comisiones({ localId }) {
                 parseFloat(um) > 0 ? (
                   <div key={idx} style={{ marginBottom: 8 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span style={{ fontSize: 11, color: "#444" }}>Meta {niv}: {fmt(parseFloat(um))}</span>
+                      <span style={{ fontSize: 11, color: p.text }}>Meta {niv}: {fmt(parseFloat(um))}</span>
                       <span style={{ fontSize: 11, color: col, fontWeight: 600 }}>+{fmt(parseFloat(co))}</span>
                     </div>
                     <div className="pb" style={{ height: 8 }}>
-                      <div className="pf" style={{ width: Math.min(Math.round((parseFloat(datos.facturacion || 0) / parseFloat(um)) * 100), 100) + "%", background: (datos.nivel >= niv) ? col : "#dddddd" }} />
+                      <div className="pf" style={{ width: Math.min(Math.round((parseFloat(datos.facturacion || 0) / parseFloat(um)) * 100), 100) + "%", background: (datos.nivel >= niv) ? col : p.border }} />
                     </div>
                   </div>
                 ) : null
@@ -6449,26 +6466,26 @@ function Comisiones({ localId }) {
             <div className="card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <div className="ct" style={{ margin: 0 }}>Historial de comisiones</div>
-                {sel.length > 0 && <button className="btn btn-p btn-sm" onClick={pagarSeleccionadas}>Marcar pagadas ({sel.length})</button>}
+                {sel.length > 0 && <button className="btn btn-p btn-sm" onClick={abrirPagar}>Marcar pagadas ({sel.length})</button>}
               </div>
 
               <div className="g2" style={{ marginBottom: 12 }}>
-                <div style={{ background: "#f7f5f0", borderRadius: 8, padding: 10, textAlign: "center" }}>
-                  <div style={{ fontSize: 10, color: "#888" }}>PENDIENTE DE PAGO</div>
+                <div style={{ background: p.bg, borderRadius: 8, padding: 10, textAlign: "center" }}>
+                  <div style={{ fontSize: 10, color: p.textMuted }}>PENDIENTE DE PAGO</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: "#c0392b" }}>{fmt(hist.total_pendiente || 0)}</div>
                 </div>
-                <div style={{ background: "#f7f5f0", borderRadius: 8, padding: 10, textAlign: "center" }}>
-                  <div style={{ fontSize: 10, color: "#888" }}>YA PAGADO</div>
+                <div style={{ background: p.bg, borderRadius: 8, padding: 10, textAlign: "center" }}>
+                  <div style={{ fontSize: 10, color: p.textMuted }}>YA PAGADO</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: "#2d7a4f" }}>{fmt(hist.total_pagado || 0)}</div>
                 </div>
               </div>
 
-              {(!hist.registros || hist.registros.length === 0) ? <div style={{ fontSize: 12, color: "#999", padding: "10px 0" }}>Todavia no hay comisiones registradas.</div> : (
+              {(!hist.registros || hist.registros.length === 0) ? <div style={{ fontSize: 12, color: p.textMuted, padding: "10px 0" }}>Todavia no hay comisiones registradas.</div> : (
                 <table style={{ width: "100%", fontSize: 12 }}>
-                  <thead><tr style={{ color: "#888", textAlign: "left" }}><th style={{ padding: "6px 0" }}></th><th>Fecha</th><th style={{ textAlign: "right" }}>Facturado</th><th style={{ textAlign: "right" }}>Comision</th><th style={{ textAlign: "center" }}>Estado</th></tr></thead>
+                  <thead><tr style={{ color: p.textMuted, textAlign: "left" }}><th style={{ padding: "6px 0" }}></th><th>Fecha</th><th style={{ textAlign: "right" }}>Facturado</th><th style={{ textAlign: "right" }}>Comision</th><th style={{ textAlign: "center" }}>Estado</th></tr></thead>
                   <tbody>
                     {hist.registros.map(row => (
-                      <tr key={row.id} style={{ borderTop: "1px solid #f0f0f0" }}>
+                      <tr key={row.id} style={{ borderTop: "1px solid " + p.border }}>
                         <td style={{ padding: "7px 0" }}>{!row.pagada && <input type="checkbox" checked={sel.includes(row.id)} onChange={() => toggle(row.id)} />}</td>
                         <td>{row.fecha ? (String(row.fecha).slice(8, 10) + "/" + String(row.fecha).slice(5, 7) + "/" + String(row.fecha).slice(0, 4)) : "-"}</td>
                         <td style={{ textAlign: "right" }}>{fmt(parseFloat(row.facturacion_mes || 0))}</td>
@@ -6481,6 +6498,53 @@ function Comisiones({ localId }) {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {showPagar && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={() => setShowPagar(false)}>
+          <div className="card fade" style={{ maxWidth: 440, width: "90vw" }} onClick={e => e.stopPropagation()}>
+            <div className="ct">Marcar {sel.length} dia(s) como pagados</div>
+            <div className="fg"><div className="fl">¿Como se pago?</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-sm" style={{ flex: 1, background: formaPago === "efectivo" ? "#2d7a4f15" : "transparent", border: "1px solid " + (formaPago === "efectivo" ? "#2d7a4f" : p.border) }} onClick={() => setFormaPago("efectivo")}>Efectivo</button>
+                <button className="btn btn-sm" style={{ flex: 1, background: formaPago === "transferencia" ? "#2471a315" : "transparent", border: "1px solid " + (formaPago === "transferencia" ? "#2471a3" : p.border) }} onClick={() => setFormaPago("transferencia")}>Transferencia</button>
+                <button className="btn btn-sm" style={{ flex: 1, background: formaPago === "canje" ? "#c9a84c15" : "transparent", border: "1px solid " + (formaPago === "canje" ? "#c9a84c" : p.border) }} onClick={() => setFormaPago("canje")}>Canje</button>
+              </div>
+            </div>
+
+            {formaPago === "canje" && (
+              <>
+                <div className="fg"><div className="fl">Producto del canje</div>
+                  {prodCanje ? (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: p.bg, borderRadius: 6 }}>
+                      <span style={{ fontSize: 12 }}>{prodCanje.nombre}</span>
+                      <span onClick={() => setProdCanje(null)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 11 }}>cambiar</span>
+                    </div>
+                  ) : (
+                    <div>
+                      <input className="inp" placeholder="Buscar producto..." value={buscarProdCanje} onChange={e => setBuscarProdCanje(e.target.value)} />
+                      {buscarProdCanje.trim().length > 0 && (
+                        <div style={{ border: "1px solid " + p.border, borderRadius: 6, marginTop: 4 }}>
+                          {productos.filter(pr => (pr.nombre || "").toLowerCase().includes(buscarProdCanje.toLowerCase())).slice(0, 8).map(pr => (
+                            <div key={pr.id} onClick={() => { setProdCanje(pr); setBuscarProdCanje(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid " + p.border, fontSize: 12 }}>{pr.nombre}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="fg"><div className="fl">Cantidad</div>
+                  <input className="inp" type="number" min="1" value={cantidadCanje} onChange={e => setCantidadCanje(Math.max(1, parseInt(e.target.value) || 1))} />
+                </div>
+              </>
+            )}
+
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowPagar(false)}>Cancelar</button>
+              <button className="btn btn-p" style={{ flex: 1 }} onClick={confirmarPagar}>Confirmar pago</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -10647,7 +10711,7 @@ export default function AppWrapper() {
     if (id === "portal") return <PortalCliente />;
     if (id === "config-negocio") return <ConfiguracionNegocio />;
     if (id === "usuarios") return <Usuarios usuario={usuario} />;
-    if (id === "comisiones") return <Comisiones localId={local.id} />;
+    if (id === "comisiones") return <Comisiones localId={local.id} paletaActual={paletaActual} />;
     if (id === "caja") return <Caja localId={local.id} usuario={usuario} />;
     if (id === "caja-respaldo") return <CajaRespaldo usuario={usuario} />;
     if (id === "cierre") return <CierreCaja localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
