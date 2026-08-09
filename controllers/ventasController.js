@@ -33,6 +33,7 @@ const getAll = async (req, res) => {
     const { local_id, mes, anio, es_preventa } = req.query;
     let query = `
       SELECT v.*, c.nombre AS cliente_nombre, u.nombre AS vendedora_nombre,
+        COALESCE(SUM(vi.cantidad * COALESCE(p.costo, 0)), 0) AS costo_total,
         COALESCE(
           json_agg(
             json_build_object(
