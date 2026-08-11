@@ -10447,7 +10447,7 @@ const NAV_SECTIONS = [
   { section: "MARKETING", color: "#e74c3c", items: [{ id: "cupones", icon: "🏷️", label: "Cupones" }, { id: "promociones", icon: "🎉", label: "Promociones" }] },
   { section: "POSTVENTA", color: "#25d366", items: [{ id: "postventa", icon: "💬", label: "Postventa WA" }] },
   { section: "INTEGRACIONES", color: "#2471a3", items: [{ id: "tiendanube", icon: "🛍️", label: "Tiendanube" }] },
-  { section: "CLIENTE", color: temaPal.textMuted, items: [{ id: "portal", icon: "👤", label: "Portal Cliente" }] },
+  { section: "CLIENTE", color: PALETA_CLARA.textMuted, items: [{ id: "portal", icon: "👤", label: "Portal Cliente" }] },
   { section: "NEGOCIO", color: "#8e44ad", items: [{ id: "config-negocio", icon: "⚙️", label: "Configuracion del Negocio" }] },
 ];
 
