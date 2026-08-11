@@ -4719,7 +4719,7 @@ function Fidelizacion({ usuario, paletaActual }) {
         <MCard label="Clientes con puntos" value={String(clientesAMostrar.filter(c => (c.puntos || 0) > 0).length)} color="#2d7a4f" />
         <MCard label="Premios activos" value={String(premios.filter(p => p.activo).length)} color="#2471a3" />
         <MCard label="Nivel Platinum" value={String(clientesAMostrar.filter(c => (c.nivel || c.tier) === "Platinum").length)} color="#7d3c98" />
-        <MCard label="Nivel Black" value={String(clientesAMostrar.filter(c => (c.nivel || c.tier) === "Black").length)} color=temaPal.text />
+        <MCard label="Nivel Black" value={String(clientesAMostrar.filter(c => (c.nivel || c.tier) === "Black").length)} color={temaPal.text} />
       </div>
       {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
       <div className="tabs">
@@ -8231,7 +8231,7 @@ function CierreCaja({ localId, usuario, paletaActual }) {
           <input className="inp" type="date" style={{ width: 150, padding: "6px 10px", fontSize: 12 }} value={fecha} onChange={e => setFecha(e.target.value)} />
           <button className="btn btn-g btn-sm" onClick={() => cambiarDia(1)} disabled={esHoy} style={{ opacity: esHoy ? 0.4 : 1 }}>Siguiente →</button>
           {esHoy && <span style={{ fontSize: 11, color: "#2d7a4f", fontWeight: 600 }}>HOY</span>}
-          <button className="btn btn-p btn-sm" onClick={() => descargarImagen()}>📲 Descargar</button>
+          <button className="btn btn-p btn-sm" onClick={() => descargarImagen()} style={{ display: tab === "resumen" ? "inline-flex" : "none" }}>📲 Descargar</button>
         </div>
       </div>
 
