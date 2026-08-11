@@ -8231,7 +8231,7 @@ function CierreCaja({ localId, usuario, paletaActual }) {
           <input className="inp" type="date" style={{ width: 150, padding: "6px 10px", fontSize: 12 }} value={fecha} onChange={e => setFecha(e.target.value)} />
           <button className="btn btn-g btn-sm" onClick={() => cambiarDia(1)} disabled={esHoy} style={{ opacity: esHoy ? 0.4 : 1 }}>Siguiente →</button>
           {esHoy && <span style={{ fontSize: 11, color: "#2d7a4f", fontWeight: 600 }}>HOY</span>}
-          <button className="btn btn-p btn-sm" onClick={descargarImagen}>📲 Descargar</button>
+          <button className="btn btn-p btn-sm" onClick={() => descargarImagen()}>📲 Descargar</button>
         </div>
       </div>
 
