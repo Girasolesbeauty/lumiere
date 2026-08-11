@@ -451,7 +451,16 @@ function Dashboard({ localId, paletaActual }) {
 }
 
 function VentasOnline({ localId, usuario, permisosActivos, paletaActual }) {
-  const temaPal = paletaActual || PALETA_CLARA;
+  // Definimos la paleta de respaldo aquí mismo por seguridad
+  const PALETA_CLARA_BASE = {
+    bg: "#F0F2F5", sidebar: "#2C3E5C", surface: "#ffffff", card: "#ffffff", border: "#E4E6EB",
+    accent: "#c9a84c", accentDim: "#c9a84c15", accentHover: "#e8c86a",
+    text: "#1C1E21", textSoft: "#333333", textMuted: "#5C5F66",
+    tdText: "#222222", trHover: "#f0f0ed", shadowSoft: "rgba(0,0,0,0.07)"
+  };
+
+  // Asignamos el tema, garantizando que siempre sea un objeto
+  const temaPal = paletaActual || PALETA_CLARA_BASE;
   const [productos, setProductos] = useState([]);
   const [mediosPago, setMediosPago] = useState([]);
   const [busqueda, setBusqueda] = useState("");
