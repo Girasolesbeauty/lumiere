@@ -2459,9 +2459,22 @@ function Inventario({ localId, usuario, paletaActual }) {
           <div className="ct">{editandoProd ? "Editar producto" : "Nuevo producto"}</div>
           <div className="g2">
             <div>
-              <div className="fg"><div className="fl">Nombre *</div><input className="inp" placeholder="Ej: Serum Vitamina C" value={nuevo.nombre} onChange={e => setNuevo(p => ({ ...p, nombre: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Nombre *</div><input id="nuevoProdNombre" className="inp" placeholder="Ej: Serum Vitamina C" value={nuevo.nombre} onChange={e => setNuevo(p => ({ ...p, nombre: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Marca</div><input className="inp" placeholder="Ej: L'Oreal" value={nuevo.marca} onChange={e => setNuevo(p => ({ ...p, marca: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">Codigo</div><input className="inp" placeholder="Ej: SVC-001" value={nuevo.codigo} onChange={e => setNuevo(p => ({ ...p, codigo: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Codigo (se puede escanear con el lector fisico)</div>
+                <input
+                  className="inp" placeholder="Escaneá o escribí el codigo..." value={nuevo.codigo}
+                  autoFocus={!editandoProd}
+                  onChange={e => setNuevo(p => ({ ...p, codigo: e.target.value }))}
+                  onKeyDown={e => {
+                    if (e.key !== "Enter") return;
+                    e.preventDefault();
+                    // El lector fisico escribe el codigo y manda Enter solo -- al llegar,
+                    // saltamos directo al campo Nombre para seguir cargando sin usar el mouse.
+                    document.getElementById("nuevoProdNombre")?.focus();
+                  }}
+                />
+              </div>
               <div className="fg"><div className="fl">Categoria</div>
                 <select className="sel" value={nuevo.categoria} onChange={e => setNuevo(p => ({ ...p, categoria: e.target.value }))}>
                   <option value="">Seleccionar...</option>
