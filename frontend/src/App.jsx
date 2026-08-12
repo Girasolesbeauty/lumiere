@@ -1573,7 +1573,6 @@ function POS({ localId, usuario, paletaActual }) {
           });
         } catch (gcErr) {}
       }
-      let arcaFallo = false;
       if (!preventa && totalAFacturar <= 0) {
         // Todo se pago con gift card de migracion: ya se facturo en el sistema anterior, no se factura de nuevo.
         setMensaje("✅ Venta registrada. No se factura en ARCA (pagada con gift card ya facturada en el sistema anterior).");
@@ -1598,20 +1597,21 @@ function POS({ localId, usuario, paletaActual }) {
           setUltimoRecibo(datosRecibo);
           imprimirRecibo(datosRecibo);
         } catch (arcaErr) {
-          arcaFallo = true;
           setVentaPendienteArca(ventaRes.data.id);
           setMensaje("⚠️ La venta se registro pero ARCA dio error: " + (arcaErr.response?.data?.error || arcaErr.message) + ". Apreta \"Reintentar facturacion\" para volver a intentar (no se duplica la venta).");
         }
       } else {
         setMensaje("Preventa registrada para " + nombrePreventa + "!");
       }
-      if (!arcaFallo) {
-        setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
-        setClienteSeleccionado(null); setShowNuevoCliente(false);
-        setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false);
-        setJustificacionesStock({}); setItemsSinStock(null); setMontoRecibidoEfectivo("");
-        quitarGiftCard();
-      }
+      // El carrito se limpia siempre, haya fallado ARCA o no -- la venta ya quedo guardada
+      // de forma segura y su factura se puede reintentar despues (boton "Reintentar
+      // facturacion", o el cron automatico), sin necesidad de tener bloqueado el mostrador
+      // mientras tanto.
+      setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
+      setClienteSeleccionado(null); setShowNuevoCliente(false);
+      setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false);
+      setJustificacionesStock({}); setItemsSinStock(null); setMontoRecibidoEfectivo("");
+      quitarGiftCard();
       setTimeout(() => setMensaje(""), 8000);
     } catch (error) {
       if (error?.response?.status === 409 && error?.response?.data?.error === 'stock_insuficiente') {
@@ -3209,6 +3209,9 @@ function Finanzas({ localId, usuario, paletaActual }) {
       });
       setEditandoMov(null);
       cargarDetalle();
+      cargarDatos();
+      if (tab === "costos") cargarCostosDetalle();
+      if (tab === "analisis") cargarAnalisis();
       setMensaje("Movimiento actualizado");
       setTimeout(() => setMensaje(""), 3000);
     } catch (e) { setMensaje("Error al editar: " + (e.response?.data?.error || e.message)); }
@@ -3643,6 +3646,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
                 <SeccionFlujo titulo="GASTOS ADMINISTRATIVOS" detalle={flujoEst.admin?.detalle} total={flujoEst.admin?.total} color="#7d3c98" />
                 <SeccionFlujo titulo="SUELDOS" detalle={flujoEst.sueldos?.detalle} total={flujoEst.sueldos?.total} color="#c0392b" />
                 <SeccionFlujo titulo="IMPUESTOS" detalle={flujoEst.impuestos?.detalle} total={flujoEst.impuestos?.total} color="#c9a84c" />
+                <SeccionFlujo titulo="COMISIONES MEDIOS DE PAGO" detalle={flujoEst.comisiones_medios_pago?.detalle} total={flujoEst.comisiones_medios_pago?.total} color="#8e44ad" />
                 <div style={{ background: (flujoEst.resultado_neto >= 0 ? "#2d7a4f" : "#c0392b"), borderRadius: 8, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: "white", letterSpacing: ".1em" }}>RESULTADO NETO</span>
                   <span style={{ fontSize: 24, fontWeight: 700, color: "white" }}>{fmt(parseFloat(flujoEst.resultado_neto || 0))}</span>
@@ -3657,6 +3661,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
                   { l: "Gastos admin", v: flujoEst.admin?.total, c: "#7d3c98" },
                   { l: "Sueldos", v: flujoEst.sueldos?.total, c: "#c0392b" },
                   { l: "Impuestos", v: flujoEst.impuestos?.total, c: "#c9a84c" },
+                  { l: "Comisiones medios de pago", v: flujoEst.comisiones_medios_pago?.total, c: "#8e44ad" },
                   { l: "Total egresos", v: flujoEst.total_egresos, c: "#c0392b" },
                 ].map(r => (
                   <div key={r.l} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid " + p.border }}>
@@ -3804,6 +3809,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
                 push("admin", flujoEst.admin);
                 push("sueldo", flujoEst.sueldos);
                 push("impuesto", flujoEst.impuestos);
+                push("comision medio de pago", flujoEst.comisiones_medios_pago);
               }
               if (grupos.length === 0) return <div style={{ fontSize: 12, color: p.textMuted, padding: "10px 0" }}>Todavia no hay costos cargados este mes. Cargalos en la pestaña Flujo.</div>;
               return grupos.map((c, idx) => (
