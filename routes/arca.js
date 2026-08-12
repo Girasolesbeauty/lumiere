@@ -313,7 +313,63 @@ router.get('/pendientes/count', async (req, res) => {
   }
 });
 
+// Lista completa (no solo el numero) de ventas pendientes de facturar, para mostrar
+// en una pantalla donde se puedan ver y reintentar una por una.
+router.get('/pendientes', async (req, res) => {
+  try {
+    const { local_id } = req.query;
+    let q = `SELECT v.id, v.numero_factura, v.total, v.creado_en, v.ultimo_error_facturacion,
+                    v.intentos_facturacion, v.local_id, c.nombre AS cliente_nombre
+             FROM ventas v
+             LEFT JOIN clientes c ON v.cliente_id = c.id
+             WHERE v.canal = 'presencial' AND v.es_preventa = FALSE
+               AND (v.cae IS NULL OR v.cae = '')
+               AND v.monto_gift_card < v.total
+               AND v.estado_facturacion != 'no_aplica'`;
+    const params = [];
+    if (local_id) { params.push(local_id); q += ` AND v.local_id = $${params.length}`; }
+    q += ' ORDER BY v.creado_en ASC';
+    const r = await pool.query(q, params);
+    res.json(r.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // --- Reintentar todas las pendientes (se llama desde un cron cada X minutos) ---
+// Reintentar UNA venta puntual (desde el panel de pendientes) -- usa los datos ya
+// guardados de esa venta, no lo que haya en el carrito actual del POS. Asi se puede
+// reintentar cualquier pendiente de la lista, no solo la ultima que fallo en esta sesion.
+router.post('/reintentar/:venta_id', async (req, res) => {
+  try {
+    const { venta_id } = req.params;
+    const ventaRes = await pool.query(
+      `SELECT v.id, v.tipo_factura, v.total, v.monto_gift_card, c.cuit_dni AS cliente_cuit
+       FROM ventas v
+       LEFT JOIN clientes c ON v.cliente_id = c.id
+       WHERE v.id = $1`,
+      [venta_id]
+    );
+    if (ventaRes.rows.length === 0) return res.status(404).json({ error: 'Venta no encontrada' });
+    const venta = ventaRes.rows[0];
+    const itemsRes = await pool.query(
+      `SELECT vi.producto_id, vi.cantidad, vi.precio_unitario FROM venta_items vi WHERE vi.venta_id = $1`,
+      [venta.id]
+    );
+    const resultado = await intentarEmitirCAE({
+      tipo: venta.tipo_factura || 'B',
+      items: itemsRes.rows,
+      total: parseFloat(venta.total) - parseFloat(venta.monto_gift_card || 0),
+      cliente_cuit: venta.cliente_cuit,
+      venta_id: venta.id
+    });
+    res.json(resultado);
+  } catch (error) {
+    await marcarError(req.params.venta_id, error.message);
+    res.status(500).json({ error: 'Error al emitir factura: ' + error.message });
+  }
+});
+
 router.post('/reintentar-pendientes', async (req, res) => {
   const pendientes = await pool.query(
     `SELECT v.id, v.tipo_factura, v.total, v.monto_gift_card, c.cuit_dni AS cliente_cuit

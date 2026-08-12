@@ -1155,6 +1155,29 @@ function POS({ localId, usuario, paletaActual }) {
   const [confirmandoPreventa, setConfirmandoPreventa] = useState(null);
   const [medioPagoConfirmacion, setMedioPagoConfirmacion] = useState("");
   const [errorConfirmacion, setErrorConfirmacion] = useState("");
+  const [pendientesArcaList, setPendientesArcaList] = useState([]);
+  const [reintentandoId, setReintentandoId] = useState(null);
+
+  const cargarPendientesArca = async () => {
+    try {
+      const res = await API.get("/arca/pendientes?local_id=" + (localId || 1));
+      setPendientesArcaList(res.data || []);
+    } catch (e) {}
+  };
+  useEffect(() => { cargarPendientesArca(); }, [localId]);
+
+  const reintentarPendienteDeLista = async (ventaId) => {
+    setReintentandoId(ventaId);
+    try {
+      const r = await API.post("/arca/reintentar/" + ventaId);
+      setMensaje("✅ Factura N° " + String(r.data.puntoVenta || 5).padStart(4, "0") + "-" + String(r.data.nroComprobante).padStart(8, "0") + " emitida | CAE: " + r.data.cae);
+      cargarPendientesArca();
+      setTimeout(() => setMensaje(""), 6000);
+    } catch (e) {
+      setMensaje("⚠️ Sigue fallando: " + (e.response?.data?.error || e.message));
+    }
+    setReintentandoId(null);
+  };
 
   const cargarPreventas = async () => {
     try {
@@ -1598,6 +1621,7 @@ function POS({ localId, usuario, paletaActual }) {
           imprimirRecibo(datosRecibo);
         } catch (arcaErr) {
           setVentaPendienteArca(ventaRes.data.id);
+          cargarPendientesArca();
           setMensaje("⚠️ La venta se registro pero ARCA dio error: " + (arcaErr.response?.data?.error || arcaErr.message) + ". Apreta \"Reintentar facturacion\" para volver a intentar (no se duplica la venta).");
         }
       } else {
@@ -1696,6 +1720,9 @@ function POS({ localId, usuario, paletaActual }) {
           <div className="tab on" onClick={() => { setTabPos("preventas"); cargarPreventas(); }}>
             PREVENTAS {preventasPendientes.length > 0 && <span style={{ background: "#2471a3", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{preventasPendientes.length}</span>}
           </div>
+          <div className="tab" onClick={() => { setTabPos("pendientes-arca"); cargarPendientesArca(); }}>
+            FACTURAS PENDIENTES {pendientesArcaList.length > 0 && <span style={{ background: "#c0392b", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{pendientesArcaList.length}</span>}
+          </div>
         </div>
         {mensaje && (
           <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>
@@ -1759,6 +1786,57 @@ function POS({ localId, usuario, paletaActual }) {
     );
   }
 
+  if (tabPos === "pendientes-arca") {
+    return (
+      <div className="fade">
+        <div className="ph">
+          <div><div className="pt">Punto de Venta</div><div className="ps">facturacion electronica - arca</div></div>
+          <StatusDot color="#2d7a4f" label="ARCA" />
+        </div>
+        <div className="tabs">
+          <div className="tab" onClick={() => setTabPos("venta")}>NUEVA VENTA</div>
+          <div className="tab" onClick={() => { setTabPos("preventas"); cargarPreventas(); }}>
+            PREVENTAS {preventasPendientes.length > 0 && <span style={{ background: "#2471a3", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{preventasPendientes.length}</span>}
+          </div>
+          <div className="tab on" onClick={() => { setTabPos("pendientes-arca"); cargarPendientesArca(); }}>
+            FACTURAS PENDIENTES {pendientesArcaList.length > 0 && <span style={{ background: "#c0392b", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{pendientesArcaList.length}</span>}
+          </div>
+        </div>
+        {mensaje && (
+          <div style={{ background: mensaje.includes("Error") || mensaje.includes("⚠️") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") || mensaje.includes("⚠️") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") || mensaje.includes("⚠️") ? "#c0392b" : "#2d7a4f" }}>
+            {mensaje}
+          </div>
+        )}
+        <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 14, background: temaPal.bg, padding: 10, borderRadius: 6 }}>
+          Estas ventas ya estan guardadas y cobradas -- solo falta que ARCA les confirme la factura.
+          Podes reintentarlas una por una cuando quieras, o esperar a que se reintenten solas.
+        </div>
+        {pendientesArcaList.length === 0 ? (
+          <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 40, fontSize: 12 }}>No hay facturas pendientes en este local. 🎉</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {pendientesArcaList.map(v => (
+              <div key={v.id} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>{v.cliente_nombre || "Consumidor final"} · {fmt(parseFloat(v.total))}</div>
+                  <div style={{ fontSize: 11, color: temaPal.textMuted }}>
+                    {new Date(v.creado_en).toLocaleString("es-AR")} · {v.intentos_facturacion || 0} intento(s)
+                  </div>
+                  {v.ultimo_error_facturacion && (
+                    <div style={{ fontSize: 10, color: "#c0392b", marginTop: 3 }}>{v.ultimo_error_facturacion}</div>
+                  )}
+                </div>
+                <button className="btn btn-p btn-sm" disabled={reintentandoId === v.id} onClick={() => reintentarPendienteDeLista(v.id)}>
+                  {reintentandoId === v.id ? "Reintentando..." : "Reintentar"}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="fade">
       <div className="ph">
@@ -1786,6 +1864,9 @@ function POS({ localId, usuario, paletaActual }) {
         <div className="tab on" onClick={() => setTabPos("venta")}>NUEVA VENTA</div>
         <div className="tab" onClick={() => { setTabPos("preventas"); cargarPreventas(); }}>
           PREVENTAS {preventasPendientes.length > 0 && <span style={{ background: "#2471a3", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{preventasPendientes.length}</span>}
+        </div>
+        <div className="tab" onClick={() => { setTabPos("pendientes-arca"); cargarPendientesArca(); }}>
+          FACTURAS PENDIENTES {pendientesArcaList.length > 0 && <span style={{ background: "#c0392b", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{pendientesArcaList.length}</span>}
         </div>
       </div>
       {mensaje && (
