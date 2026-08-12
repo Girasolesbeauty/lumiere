@@ -246,20 +246,24 @@ const getFlujoEstructurado = async (req, res) => {
 // Agregar egreso mejorado
 const agregarEgreso = async (req, res) => {
   try {
-    const { concepto, importe, referencia, categoria_id, forma_pago, cuenta_pago_id, local_id, usuario_id } = req.body;
+    const { concepto, importe, referencia, categoria_id, forma_pago, cuenta_pago_id, local_id, usuario_id, fecha } = req.body;
+    // Si viene una fecha del formulario, se usa esa para creado_en -- asi un gasto que
+    // en realidad se pago el 29/7 pero se carga hoy queda contabilizado en julio, no en
+    // el mes en que se tipeo. Si no viene fecha, se usa el momento actual (NOW()).
+    const fechaCarga = fecha ? new Date(fecha + 'T12:00:00') : new Date();
 
     // Si es compartido, se guarda con local_id NULL (asi se identifica como "de ambos locales" y se reparte 50/50 al mostrarlo)
     if (local_id === 'compartido') {
       await pool.query(
-        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, categoria_id, forma_pago, cuenta_pago_id, local_id, usuario_id)
-         VALUES ($1, 'E', $2, $3, $4, $5, $6, NULL, $7)`,
-        [concepto, importe, referencia, categoria_id, forma_pago, cuenta_pago_id || null, usuario_id || null]
+        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, categoria_id, forma_pago, cuenta_pago_id, local_id, usuario_id, creado_en)
+         VALUES ($1, 'E', $2, $3, $4, $5, $6, NULL, $7, $8)`,
+        [concepto, importe, referencia, categoria_id, forma_pago, cuenta_pago_id || null, usuario_id || null, fechaCarga]
       );
     } else {
       await pool.query(
-        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, categoria_id, forma_pago, cuenta_pago_id, local_id, usuario_id)
-         VALUES ($1, 'E', $2, $3, $4, $5, $6, $7, $8)`,
-        [concepto, importe, referencia || 'Manual', categoria_id, forma_pago, cuenta_pago_id || null, local_id || 1, usuario_id || null]
+        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, categoria_id, forma_pago, cuenta_pago_id, local_id, usuario_id, creado_en)
+         VALUES ($1, 'E', $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [concepto, importe, referencia || 'Manual', categoria_id, forma_pago, cuenta_pago_id || null, local_id || 1, usuario_id || null, fechaCarga]
       );
     }
 
@@ -592,14 +596,18 @@ const getMovimientosDetalle = async (req, res) => {
 const updateMovimiento = async (req, res) => {
   try {
     const { id } = req.params;
-    const { concepto, importe, categoria_id, forma_pago, cuenta_pago_id, local_id } = req.body;
+    const { concepto, importe, categoria_id, forma_pago, cuenta_pago_id, local_id, fecha } = req.body;
+    // local_id se maneja aparte de COALESCE: "compartido" tiene que poder guardar NULL de
+    // verdad (50/50 entre los dos locales), y COALESCE nunca deja pisar un valor con NULL.
+    const localIdFinal = local_id === 'compartido' ? null : (local_id || null);
+    const fechaFinal = fecha ? new Date(fecha + 'T12:00:00') : null;
     const r = await pool.query(
       `UPDATE movimientos_caja
        SET concepto = COALESCE($1, concepto), importe = COALESCE($2, importe),
            categoria_id = COALESCE($3, categoria_id), forma_pago = COALESCE($4, forma_pago),
-           cuenta_pago_id = $5, local_id = COALESCE($6, local_id)
-       WHERE id = $7 RETURNING *`,
-      [concepto, importe, categoria_id, forma_pago, cuenta_pago_id || null, local_id, id]
+           cuenta_pago_id = $5, local_id = $6, creado_en = COALESCE($7, creado_en)
+       WHERE id = $8 RETURNING *`,
+      [concepto, importe, categoria_id, forma_pago, cuenta_pago_id || null, localIdFinal, fechaFinal, id]
     );
     if (r.rows.length === 0) return res.status(404).json({ error: 'Movimiento no encontrado' });
     res.json(r.rows[0]);

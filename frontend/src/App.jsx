@@ -3204,7 +3204,8 @@ function Finanzas({ localId, usuario, paletaActual }) {
       await API.put("/finanzas/movimientos/" + editandoMov.id, {
         concepto: editandoMov.concepto, importe: parseFloat(editandoMov.importe),
         categoria_id: editandoMov.categoria_id || null, forma_pago: editandoMov.forma_pago,
-        cuenta_pago_id: editandoMov.cuenta_pago_id || null, local_id: editandoMov.local_id
+        cuenta_pago_id: editandoMov.cuenta_pago_id || null, local_id: editandoMov.local_id,
+        fecha: editandoMov.fecha || null
       });
       setEditandoMov(null);
       cargarDetalle();
@@ -3587,6 +3588,15 @@ function Finanzas({ localId, usuario, paletaActual }) {
                 <div className="ct">Editar movimiento</div>
                 <div className="fg"><div className="fl">Concepto</div><input className="inp" value={editandoMov.concepto || ""} onChange={e => setEditandoMov(p => ({ ...p, concepto: e.target.value }))} /></div>
                 <div className="fg"><div className="fl">Importe ($)</div><input className="inp" type="number" value={editandoMov.importe || ""} onChange={e => setEditandoMov(p => ({ ...p, importe: e.target.value }))} /></div>
+                <div className="fg"><div className="fl">Fecha</div><input className="inp" type="date" value={editandoMov.creado_en ? new Date(editandoMov.creado_en).toISOString().slice(0, 10) : ""} onChange={e => setEditandoMov(p => ({ ...p, fecha: e.target.value }))} /></div>
+                <div className="fg">
+                  <div className="fl">Local</div>
+                  <select className="sel" value={editandoMov.local_id === null ? "compartido" : (editandoMov.local_id || "")} onChange={e => setEditandoMov(p => ({ ...p, local_id: e.target.value === "compartido" ? "compartido" : parseInt(e.target.value) }))}>
+                    <option value="1">Rio Grande</option>
+                    <option value="2">Ushuaia</option>
+                    <option value="compartido">Compartido (50/50 entre los dos)</option>
+                  </select>
+                </div>
                 <div className="fg">
                   <div className="fl">Categoria</div>
                   <select className="sel" value={editandoMov.categoria_id || ""} onChange={e => setEditandoMov(p => ({ ...p, categoria_id: e.target.value ? parseInt(e.target.value) : null }))}>
