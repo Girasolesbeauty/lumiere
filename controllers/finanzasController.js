@@ -158,6 +158,40 @@ async function calcularFlujoEstructurado(mesActual, anioActual, local_id) {
 
     const egresosRes = await pool.query(egresosQuery, egresosParams);
 
+    // Comisiones reales de medios de pago sobre las ventas del mes -- esto NUNCA se estaba
+    // restando en ningun lado, asi que el "resultado neto" quedaba de mas por el monto
+    // exacto de lo que se llevan las tarjetas/plataformas. Contempla tanto ventas con un
+    // solo medio de pago, como las que se pagaron con varios medios mezclados (venta_pagos).
+    let comisionesQuery = `
+      WITH pagos_detalle AS (
+        SELECT vp.medio_pago_id, vp.importe, v.creado_en, v.local_id
+        FROM venta_pagos vp
+        JOIN ventas v ON vp.venta_id = v.id
+        UNION ALL
+        SELECT v.medio_pago_id, v.total AS importe, v.creado_en, v.local_id
+        FROM ventas v
+        WHERE v.medio_pago_id IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM venta_pagos vp WHERE vp.venta_id = v.id)
+      )
+      SELECT mp.nombre, mp.comision, COALESCE(SUM(pd.importe), 0) AS total_vendido
+      FROM pagos_detalle pd
+      JOIN medios_pago mp ON pd.medio_pago_id = mp.id
+      WHERE EXTRACT(MONTH FROM pd.creado_en) = $1 AND EXTRACT(YEAR FROM pd.creado_en) = $2
+    `;
+    const comisionesParams = [mesActual, anioActual];
+    const localNumCom = normalizarLocalId(local_id);
+    if (localNumCom !== null) {
+      comisionesQuery += ` AND pd.local_id = $3`;
+      comisionesParams.push(localNumCom);
+    }
+    comisionesQuery += ' GROUP BY mp.id, mp.nombre, mp.comision HAVING mp.comision > 0';
+    const comisionesRes = await pool.query(comisionesQuery, comisionesParams);
+    const comisiones = comisionesRes.rows.reduce((acc, r) => {
+      const calc = parseFloat(r.total_vendido) * (parseFloat(r.comision) / 100);
+      if (calc > 0) acc[r.nombre] = calc;
+      return acc;
+    }, {});
+
     // Agrupar egresos por tipo de categoria
     const agrupar = (tipo) => {
       return egresosRes.rows
@@ -207,7 +241,8 @@ async function calcularFlujoEstructurado(mesActual, anioActual, local_id) {
     const totalAdmin = Object.values(admin).reduce((s, v) => s + v, 0);
     const totalSueldos = Object.values(sueldos).reduce((s, v) => s + v, 0);
     const totalImpuestos = Object.values(impuestos).reduce((s, v) => s + v, 0);
-    const totalEgresos = totalVariables + totalFijos + totalAdmin + totalSueldos + totalImpuestos;
+    const totalComisiones = Object.values(comisiones).reduce((s, v) => s + v, 0);
+    const totalEgresos = totalVariables + totalFijos + totalAdmin + totalSueldos + totalImpuestos + totalComisiones;
 
     return {
       mes: mesActual,
@@ -225,6 +260,7 @@ async function calcularFlujoEstructurado(mesActual, anioActual, local_id) {
       admin: { detalle: admin, total: totalAdmin },
       sueldos: { detalle: sueldos, total: totalSueldos },
       impuestos: { detalle: impuestos, total: totalImpuestos },
+      comisiones_medios_pago: { detalle: comisiones, total: totalComisiones },
       total_egresos: totalEgresos,
       resultado_neto: totalIngresos - totalEgresos
     };
