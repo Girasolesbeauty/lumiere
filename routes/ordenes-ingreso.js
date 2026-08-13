@@ -333,37 +333,43 @@ router.put('/:ordenId/items/:itemId/recibir', async (req, res) => {
     }
 
     if (local === 'rg') {
+      // Idempotente: solo se suma al stock real la DIFERENCIA contra lo que ya estaba
+      // cargado antes -- asi, si "Recibir" se toca dos veces con el mismo numero (doble
+      // clic, reintento de red, etc), no se duplica el stock. Si se corrige de 2 a 3,
+      // solo se suma 1, no los 3 de nuevo.
+      const diffRg = cant - (item.recibido_rg || 0);
       await client.query(
         'UPDATE ordenes_ingreso_items SET recibido_rg = $1, revisado_rg = TRUE, nota_inconsistencia = COALESCE($2, nota_inconsistencia), recibido_por_rg = $3, fecha_recepcion_rg = NOW() WHERE id = $4',
         [cant, nota || null, usuario_nombre || null, req.params.itemId]
       );
-      if (item.producto_id) {
+      if (item.producto_id && diffRg !== 0) {
         await client.query(
-          `UPDATE productos SET stock_rg = COALESCE(stock_rg,0) + $1,
-             stock = COALESCE(stock_rg,0) + $1 + COALESCE(stock_ush,0)
+          `UPDATE productos SET stock_rg = GREATEST(COALESCE(stock_rg,0) + $1, 0),
+             stock = GREATEST(COALESCE(stock_rg,0) + $1, 0) + COALESCE(stock_ush,0)
            WHERE id = $2`,
-          [cant, item.producto_id]
+          [diffRg, item.producto_id]
         );
         await client.query(
           'UPDATE productos SET stock_transito_rg = GREATEST(COALESCE(stock_transito_rg,0) - $1, 0) WHERE id = $2',
-          [item.cantidad_rg || 0, item.producto_id]
+          [diffRg, item.producto_id]
         );
       }
     } else {
+      const diffUsh = cant - (item.recibido_ush || 0);
       await client.query(
         'UPDATE ordenes_ingreso_items SET recibido_ush = $1, revisado_ush = TRUE, nota_inconsistencia = COALESCE($2, nota_inconsistencia), recibido_por_ush = $3, fecha_recepcion_ush = NOW() WHERE id = $4',
         [cant, nota || null, usuario_nombre || null, req.params.itemId]
       );
-      if (item.producto_id) {
+      if (item.producto_id && diffUsh !== 0) {
         await client.query(
-          `UPDATE productos SET stock_ush = COALESCE(stock_ush,0) + $1,
-             stock = COALESCE(stock_rg,0) + COALESCE(stock_ush,0) + $1
+          `UPDATE productos SET stock_ush = GREATEST(COALESCE(stock_ush,0) + $1, 0),
+             stock = COALESCE(stock_rg,0) + GREATEST(COALESCE(stock_ush,0) + $1, 0)
            WHERE id = $2`,
-          [cant, item.producto_id]
+          [diffUsh, item.producto_id]
         );
         await client.query(
           'UPDATE productos SET stock_transito_ush = GREATEST(COALESCE(stock_transito_ush,0) - $1, 0) WHERE id = $2',
-          [item.cantidad_ush || 0, item.producto_id]
+          [diffUsh, item.producto_id]
         );
       }
     }
