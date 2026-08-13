@@ -9247,9 +9247,12 @@ function OrdenesIngreso({ localId, usuario, paletaActual }) {
     setTab("recibir");
   };
 
+  const [confirmandoId, setConfirmandoId] = useState(null);
   const confirmarItem = async (item) => {
+    if (confirmandoId) return; // ya hay una confirmacion en curso, ignora clics de mas
     const cant = parseInt(conteo[item.id]);
     if (isNaN(cant) || cant < 0) return setMensaje("Cantidad invalida");
+    setConfirmandoId(item.id);
     try {
       await API.put("/ordenes-ingreso/" + ordenDetalle.id + "/items/" + item.id + "/recibir", {
         local: localActual, cantidad: cant, nota: notaItem[item.id] || null, usuario_nombre: usuario?.nombre || null
@@ -9259,6 +9262,7 @@ function OrdenesIngreso({ localId, usuario, paletaActual }) {
       setItemsDetalle(res.data || []);
       setTimeout(() => setMensaje(""), 2500);
     } catch (e) { setMensaje("Error al confirmar: " + (e.response?.data?.error || e.message)); }
+    setConfirmandoId(null);
   };
 
   const agregarExtra = async () => {
@@ -9586,7 +9590,7 @@ function OrdenesIngreso({ localId, usuario, paletaActual }) {
                         ) : (<span style={{ fontSize: 11, color: temaPal.textMuted }}>{revisadoLocal(it) ? "ok" : "-"}</span>)}
                       </td>
                       <td>{revisadoLocal(it) ? <span style={{ fontSize: 11, color: "#2d7a4f", fontWeight: 600 }}>Recibido ({recibidoLocal(it)})</span> : <span style={{ fontSize: 11, color: "#c9a84c" }}>Pendiente</span>}</td>
-                      <td><button className="btn btn-sm" onClick={() => confirmarItem(it)}>{revisadoLocal(it) ? "Recontar" : "Confirmar"}</button></td>
+                      <td><button className="btn btn-sm" disabled={confirmandoId === it.id} onClick={() => confirmarItem(it)}>{confirmandoId === it.id ? "Confirmando..." : revisadoLocal(it) ? "Recontar" : "Confirmar"}</button></td>
                     </tr>
                   );
                 })}
