@@ -3383,7 +3383,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
     try {
       await agregarEgreso({ ...nuevoEgreso, referencia: "Manual", usuario_id: usuario?.id || null });
       setMensaje("Egreso registrado!");
-      setNuevoEgreso({ concepto: "", importe: "", categoria_id: "", forma_pago: "", cuenta_pago_id: "", local_id: "", fecha: new Date().toISOString().slice(0, 10) });
+      setNuevoEgreso(prev => ({ concepto: "", importe: "", categoria_id: "", forma_pago: "", cuenta_pago_id: "", local_id: "", fecha: prev.fecha }));
       cargarDatos();
       cargarUltimoEgreso();
       setTimeout(() => setMensaje(""), 3000);
@@ -3494,7 +3494,13 @@ function Finanzas({ localId, usuario, paletaActual }) {
               </div>
               <div className="fg"><div className="fl">Concepto (detalle)</div><input className="inp" placeholder="Ej: Factura luz enero" value={nuevoEgreso.concepto} onChange={e => setNuevoEgreso(p => ({ ...p, concepto: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Importe ($)</div><input className="inp" type="number" placeholder="35000" value={nuevoEgreso.importe} onChange={e => setNuevoEgreso(p => ({ ...p, importe: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">Fecha del gasto</div><input className="inp" type="date" value={nuevoEgreso.fecha} onChange={e => setNuevoEgreso(p => ({ ...p, fecha: e.target.value }))} /></div>
+              <div className="fg">
+                <div className="fl">Fecha del gasto</div>
+                <input className="inp" type="date" value={nuevoEgreso.fecha} onChange={e => setNuevoEgreso(p => ({ ...p, fecha: e.target.value }))} />
+                <div style={{ fontSize: 10, color: "#c9a84c", marginTop: 3 }}>
+                  ⚠️ Esta fecha se mantiene para el proximo costo que cargues -- si es de otro dia, cambiala antes de guardar.
+                </div>
+              </div>
               <div className="fg">
                 <div className="fl">Forma de pago</div>
                 <select className="sel" value={nuevoEgreso.forma_pago} onChange={e => setNuevoEgreso(p => ({ ...p, forma_pago: e.target.value, cuenta_pago_id: "" }))}>
