@@ -2278,6 +2278,7 @@ function Inventario({ localId, usuario, paletaActual }) {
   // --- Que pedir (sugerencia de compra por proveedor) ---
   const [proveedoresCompra, setProveedoresCompra] = useState([]);
   const [proveedorCompraSel, setProveedorCompraSel] = useState("");
+  const [localCompraSel, setLocalCompraSel] = useState("consolidado");
   const [diasAnalisis, setDiasAnalisis] = useState(30);
   const [diasCobertura, setDiasCobertura] = useState(45);
   const [sugerenciaCompra, setSugerenciaCompra] = useState(null);
@@ -2292,7 +2293,7 @@ function Inventario({ localId, usuario, paletaActual }) {
     if (!proveedorCompraSel) return;
     setCargandoSugerencia(true);
     const params = new URLSearchParams({
-      proveedor_id: proveedorCompraSel, local_id: localId || 1,
+      proveedor_id: proveedorCompraSel, local_id: localCompraSel,
       dias_analisis: diasAnalisis, dias_cobertura: diasCobertura
     });
     API.get("/productos/sugerencia-compra?" + params.toString())
@@ -2841,6 +2842,14 @@ function Inventario({ localId, usuario, paletaActual }) {
                 <select className="sel" value={proveedorCompraSel} onChange={e => setProveedorCompraSel(e.target.value)}>
                   <option value="">Elegi un proveedor...</option>
                   {proveedoresCompra.map(pr => <option key={pr.id} value={pr.id}>{pr.nombre}</option>)}
+                </select>
+              </div>
+              <div className="fg" style={{ marginBottom: 0, minWidth: 180 }}>
+                <div className="fl">Stock a considerar</div>
+                <select className="sel" value={localCompraSel} onChange={e => setLocalCompraSel(e.target.value)}>
+                  <option value="consolidado">Consolidado (los dos locales)</option>
+                  <option value="1">Solo Rio Grande</option>
+                  <option value="2">Solo Ushuaia</option>
                 </select>
               </div>
               <div className="fg" style={{ marginBottom: 0, width: 160 }}>

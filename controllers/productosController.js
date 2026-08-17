@@ -313,12 +313,20 @@ const getSugerenciaCompra = async (req, res) => {
 
     const diasAnalisis = parseInt(dias_analisis) || 30;
     const diasCobertura = parseInt(dias_cobertura) || 45;
+    const esConsolidado = !local_id || local_id === 'consolidado';
     const esUsh = local_id === '2' || local_id === 2;
-    const colStock = esUsh ? 'stock_ush' : 'stock_rg';
-    const colTransito = esUsh ? 'stock_transito_ush' : 'stock_transito_rg';
+
+    // En modo consolidado se suman los dos locales (stock real + lo que ya viene en camino
+    // en cualquiera de los dos); si se elige un local puntual, solo cuenta el de ese local.
+    const colStockSelect = esConsolidado
+      ? '(COALESCE(stock_rg,0) + COALESCE(stock_ush,0))'
+      : (esUsh ? 'COALESCE(stock_ush,0)' : 'COALESCE(stock_rg,0)');
+    const colTransitoSelect = esConsolidado
+      ? '(COALESCE(stock_transito_rg,0) + COALESCE(stock_transito_ush,0))'
+      : (esUsh ? 'COALESCE(stock_transito_ush,0)' : 'COALESCE(stock_transito_rg,0)');
 
     const productosRes = await pool.query(
-      `SELECT id, nombre, marca, codigo_barras, ${colStock} AS stock_actual, ${colTransito} AS en_transito,
+      `SELECT id, nombre, marca, codigo_barras, ${colStockSelect} AS stock_actual, ${colTransitoSelect} AS en_transito,
               COALESCE(stock_minimo, 0) AS stock_minimo, COALESCE(lead_time_dias, 0) AS lead_time_dias
        FROM productos
        WHERE proveedor_id = $1 AND activo = TRUE
@@ -335,7 +343,8 @@ const getSugerenciaCompra = async (req, res) => {
         AND v.creado_en >= NOW() - ($2 || ' days')::interval
         AND (COALESCE(v.es_preventa, FALSE) = FALSE OR v.estado_pago = 'confirmada')`;
     const ventasParams = [proveedor_id, diasAnalisis];
-    if (local_id) { ventasParams.push(local_id); ventasQuery += ` AND v.local_id = $${ventasParams.length}`; }
+    // En consolidado, las ventas de los dos locales se suman todas (no se filtra por local_id).
+    if (!esConsolidado && local_id) { ventasParams.push(local_id); ventasQuery += ` AND v.local_id = $${ventasParams.length}`; }
     ventasQuery += ' GROUP BY vi.producto_id';
     const ventasRes = await pool.query(ventasQuery, ventasParams);
 
@@ -360,7 +369,7 @@ const getSugerenciaCompra = async (req, res) => {
     });
 
     productos.sort((a, b) => (b.necesita_pedido - a.necesita_pedido) || (a.stock_actual - b.stock_actual));
-    res.json({ dias_analisis: diasAnalisis, dias_cobertura: diasCobertura, productos });
+    res.json({ dias_analisis: diasAnalisis, dias_cobertura: diasCobertura, consolidado: esConsolidado, productos });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al calcular la sugerencia de compra: ' + error.message });
