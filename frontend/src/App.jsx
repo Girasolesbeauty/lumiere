@@ -2292,9 +2292,11 @@ function Inventario({ localId, usuario, paletaActual }) {
   const calcularSugerenciaCompra = () => {
     if (!proveedorCompraSel) return;
     setCargandoSugerencia(true);
+    const dAnalisis = Math.max(1, parseInt(diasAnalisis) || 30);
+    const dCobertura = Math.max(1, parseInt(diasCobertura) || 45);
     const params = new URLSearchParams({
       proveedor_id: proveedorCompraSel, local_id: localCompraSel,
-      dias_analisis: diasAnalisis, dias_cobertura: diasCobertura
+      dias_analisis: dAnalisis, dias_cobertura: dCobertura
     });
     API.get("/productos/sugerencia-compra?" + params.toString())
       .then(res => setSugerenciaCompra(res.data))
@@ -2854,11 +2856,11 @@ function Inventario({ localId, usuario, paletaActual }) {
               </div>
               <div className="fg" style={{ marginBottom: 0, width: 160 }}>
                 <div className="fl">Ventas de los ultimos (dias)</div>
-                <input className="inp" type="number" min="7" value={diasAnalisis} onChange={e => setDiasAnalisis(Math.max(7, parseInt(e.target.value) || 30))} />
+                <input className="inp" type="number" min="1" value={diasAnalisis} onChange={e => setDiasAnalisis(e.target.value)} onBlur={e => setDiasAnalisis(Math.max(1, parseInt(e.target.value) || 30))} />
               </div>
               <div className="fg" style={{ marginBottom: 0, width: 160 }}>
                 <div className="fl">Cubrir los proximos (dias)</div>
-                <input className="inp" type="number" min="7" value={diasCobertura} onChange={e => setDiasCobertura(Math.max(7, parseInt(e.target.value) || 45))} />
+                <input className="inp" type="number" min="1" value={diasCobertura} onChange={e => setDiasCobertura(e.target.value)} onBlur={e => setDiasCobertura(Math.max(1, parseInt(e.target.value) || 45))} />
               </div>
               <button className="btn btn-p" style={{ height: 38 }} onClick={calcularSugerenciaCompra} disabled={!proveedorCompraSel}>Calcular</button>
             </div>
