@@ -301,4 +301,70 @@ const recalcularStockMinimo = async (req, res) => {
   }
 };
 
-module.exports = { getAll, getById, create, update, remove, getAlertas, getTransito, ajustarStock, getHistorialAjustes, recalcularStockMinimo };
+// Sugerencia de compra: para un proveedor puntual, calcula cuanto pedir de cada producto
+// segun el ritmo real de venta en el periodo elegido (configurable). Devuelve stock minimo,
+// punto de pedido (igual formula que las alertas, para que sea consistente en todo el
+// sistema) y el lote recomendado a pedir para cubrir "dias_cobertura" hacia adelante,
+// descontando lo que ya esta en camino (transito).
+const getSugerenciaCompra = async (req, res) => {
+  try {
+    const { proveedor_id, local_id, dias_analisis, dias_cobertura } = req.query;
+    if (!proveedor_id) return res.status(400).json({ error: 'Elegi un proveedor' });
+
+    const diasAnalisis = parseInt(dias_analisis) || 30;
+    const diasCobertura = parseInt(dias_cobertura) || 45;
+    const esUsh = local_id === '2' || local_id === 2;
+    const colStock = esUsh ? 'stock_ush' : 'stock_rg';
+    const colTransito = esUsh ? 'stock_transito_ush' : 'stock_transito_rg';
+
+    const productosRes = await pool.query(
+      `SELECT id, nombre, marca, codigo_barras, ${colStock} AS stock_actual, ${colTransito} AS en_transito,
+              COALESCE(stock_minimo, 0) AS stock_minimo, COALESCE(lead_time_dias, 0) AS lead_time_dias
+       FROM productos
+       WHERE proveedor_id = $1 AND activo = TRUE
+       ORDER BY nombre ASC`,
+      [proveedor_id]
+    );
+
+    let ventasQuery = `
+      SELECT vi.producto_id, SUM(vi.cantidad) AS vendido
+      FROM venta_items vi
+      JOIN ventas v ON v.id = vi.venta_id
+      JOIN productos p ON p.id = vi.producto_id
+      WHERE p.proveedor_id = $1
+        AND v.creado_en >= NOW() - ($2 || ' days')::interval
+        AND (COALESCE(v.es_preventa, FALSE) = FALSE OR v.estado_pago = 'confirmada')`;
+    const ventasParams = [proveedor_id, diasAnalisis];
+    if (local_id) { ventasParams.push(local_id); ventasQuery += ` AND v.local_id = $${ventasParams.length}`; }
+    ventasQuery += ' GROUP BY vi.producto_id';
+    const ventasRes = await pool.query(ventasQuery, ventasParams);
+
+    const ventasPorProducto = {};
+    ventasRes.rows.forEach(r => { ventasPorProducto[r.producto_id] = parseFloat(r.vendido) || 0; });
+
+    const productos = productosRes.rows.map(p => {
+      const vendidoPeriodo = ventasPorProducto[p.id] || 0;
+      const ritmoDiario = vendidoPeriodo / diasAnalisis;
+      const puntoPedido = Math.ceil(1.2 * p.lead_time_dias + p.stock_minimo);
+      const stockObjetivo = Math.ceil(ritmoDiario * diasCobertura);
+      const stockActual = p.stock_actual || 0;
+      const enTransito = p.en_transito || 0;
+      const loteRecomendado = Math.max(stockObjetivo - stockActual - enTransito, 0);
+      return {
+        id: p.id, nombre: p.nombre, marca: p.marca, codigo_barras: p.codigo_barras,
+        stock_actual: stockActual, en_transito: enTransito,
+        stock_minimo: p.stock_minimo, punto_pedido: puntoPedido,
+        vendido_periodo: vendidoPeriodo, ritmo_diario: Math.round(ritmoDiario * 100) / 100,
+        lote_recomendado: loteRecomendado, necesita_pedido: stockActual <= puntoPedido
+      };
+    });
+
+    productos.sort((a, b) => (b.necesita_pedido - a.necesita_pedido) || (a.stock_actual - b.stock_actual));
+    res.json({ dias_analisis: diasAnalisis, dias_cobertura: diasCobertura, productos });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al calcular la sugerencia de compra: ' + error.message });
+  }
+};
+
+module.exports = { getAll, getById, create, update, remove, getAlertas, getTransito, ajustarStock, getHistorialAjustes, recalcularStockMinimo, getSugerenciaCompra };

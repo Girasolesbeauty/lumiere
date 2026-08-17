@@ -2274,6 +2274,33 @@ function Inventario({ localId, usuario, paletaActual }) {
     setCargandoAjustes(true);
     API.get("/productos/stock/ajustes").then(res => setAjustesHistorial(res.data || [])).catch(() => {}).finally(() => setCargandoAjustes(false));
   };
+
+  // --- Que pedir (sugerencia de compra por proveedor) ---
+  const [proveedoresCompra, setProveedoresCompra] = useState([]);
+  const [proveedorCompraSel, setProveedorCompraSel] = useState("");
+  const [diasAnalisis, setDiasAnalisis] = useState(30);
+  const [diasCobertura, setDiasCobertura] = useState(45);
+  const [sugerenciaCompra, setSugerenciaCompra] = useState(null);
+  const [cargandoSugerencia, setCargandoSugerencia] = useState(false);
+  const [soloNecesitan, setSoloNecesitan] = useState(true);
+
+  const cargarProveedoresCompra = () => {
+    API.get("/proveedores").then(res => setProveedoresCompra(res.data || [])).catch(() => {});
+  };
+
+  const calcularSugerenciaCompra = () => {
+    if (!proveedorCompraSel) return;
+    setCargandoSugerencia(true);
+    const params = new URLSearchParams({
+      proveedor_id: proveedorCompraSel, local_id: localId || 1,
+      dias_analisis: diasAnalisis, dias_cobertura: diasCobertura
+    });
+    API.get("/productos/sugerencia-compra?" + params.toString())
+      .then(res => setSugerenciaCompra(res.data))
+      .catch(() => setSugerenciaCompra(null))
+      .finally(() => setCargandoSugerencia(false));
+  };
+
   const [productos, setProductos] = useState([]);
   const [alertas, setAlertas] = useState([]);
   const [transito, setTransito] = useState([]);
@@ -2522,9 +2549,9 @@ function Inventario({ localId, usuario, paletaActual }) {
         </div>
       )}
       <div className="tabs">
-        {["stock", "valorizacion", "transito", "alertas", "ajustes"].map(t => (
-          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "transito") cargarTransito(); if (t === "ajustes") cargarAjustesHistorial(); }}>
-            {t === "stock" ? "STOCK" : t === "valorizacion" ? "VALORIZACION" : t === "transito" ? "EN TRANSITO" : t === "alertas" ? "ALERTAS" + (alertas.length > 0 ? " (" + alertas.length + ")" : "") : "HISTORIAL DE AJUSTES"}
+        {["stock", "valorizacion", "transito", "alertas", "ajustes", "compra"].map(t => (
+          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "transito") cargarTransito(); if (t === "ajustes") cargarAjustesHistorial(); if (t === "compra" && proveedoresCompra.length === 0) cargarProveedoresCompra(); }}>
+            {t === "stock" ? "STOCK" : t === "valorizacion" ? "VALORIZACION" : t === "transito" ? "EN TRANSITO" : t === "alertas" ? "ALERTAS" + (alertas.length > 0 ? " (" + alertas.length + ")" : "") : t === "ajustes" ? "HISTORIAL DE AJUSTES" : "QUE PEDIR"}
           </div>
         ))}
       </div>
@@ -2802,6 +2829,77 @@ function Inventario({ localId, usuario, paletaActual }) {
               </table>
             )}
           </div>
+        </div>
+      )}
+      {tab === "compra" && (
+        <div className="fade">
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="ct">Calcular que pedir</div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+              <div className="fg" style={{ marginBottom: 0, minWidth: 220 }}>
+                <div className="fl">Proveedor</div>
+                <select className="sel" value={proveedorCompraSel} onChange={e => setProveedorCompraSel(e.target.value)}>
+                  <option value="">Elegi un proveedor...</option>
+                  {proveedoresCompra.map(pr => <option key={pr.id} value={pr.id}>{pr.nombre}</option>)}
+                </select>
+              </div>
+              <div className="fg" style={{ marginBottom: 0, width: 160 }}>
+                <div className="fl">Ventas de los ultimos (dias)</div>
+                <input className="inp" type="number" min="7" value={diasAnalisis} onChange={e => setDiasAnalisis(Math.max(7, parseInt(e.target.value) || 30))} />
+              </div>
+              <div className="fg" style={{ marginBottom: 0, width: 160 }}>
+                <div className="fl">Cubrir los proximos (dias)</div>
+                <input className="inp" type="number" min="7" value={diasCobertura} onChange={e => setDiasCobertura(Math.max(7, parseInt(e.target.value) || 45))} />
+              </div>
+              <button className="btn btn-p" style={{ height: 38 }} onClick={calcularSugerenciaCompra} disabled={!proveedorCompraSel}>Calcular</button>
+            </div>
+            <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 8 }}>
+              Calcula el ritmo real de venta de cada producto de este proveedor en el periodo elegido, y sugiere cuanto pedir
+              para cubrir los proximos dias sin quedarte sin stock, descontando lo que ya esta en camino.
+            </div>
+          </div>
+
+          {cargandoSugerencia ? (
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30 }}>Calculando...</div>
+          ) : !sugerenciaCompra ? (
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>Elegi un proveedor y tocá "Calcular" para ver la sugerencia.</div>
+          ) : (
+            <div className="card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div className="ct" style={{ margin: 0 }}>Sugerencia de compra</div>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: temaPal.textMuted, cursor: "pointer" }}>
+                  <input type="checkbox" checked={soloNecesitan} onChange={e => setSoloNecesitan(e.target.checked)} />
+                  Mostrar solo los que hay que pedir
+                </label>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Producto</th><th>Stock actual</th><th>En transito</th><th>Vendido en el periodo</th>
+                    <th>Stock minimo</th><th>Punto de pedido</th><th>Lote recomendado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sugerenciaCompra.productos
+                    .filter(p => !soloNecesitan || p.necesita_pedido)
+                    .map(p => (
+                      <tr key={p.id} style={{ background: p.necesita_pedido ? "#c0392b08" : "transparent" }}>
+                        <td style={{ fontWeight: 600 }}>{p.nombre} <span style={{ color: temaPal.textMuted, fontWeight: 400 }}>{p.marca}</span></td>
+                        <td style={{ fontWeight: 700, color: p.necesita_pedido ? "#c0392b" : temaPal.text }}>{p.stock_actual}</td>
+                        <td style={{ color: temaPal.textMuted }}>{p.en_transito}</td>
+                        <td>{p.vendido_periodo} <span style={{ color: temaPal.textMuted, fontSize: 10 }}>({p.ritmo_diario}/dia)</span></td>
+                        <td style={{ color: temaPal.textMuted }}>{p.stock_minimo}</td>
+                        <td style={{ color: temaPal.textMuted }}>{p.punto_pedido}</td>
+                        <td style={{ fontWeight: 700, color: p.lote_recomendado > 0 ? "#2471a3" : temaPal.textMuted }}>{p.lote_recomendado > 0 ? p.lote_recomendado : "-"}</td>
+                      </tr>
+                    ))}
+                  {sugerenciaCompra.productos.filter(p => !soloNecesitan || p.necesita_pedido).length === 0 && (
+                    <tr><td colSpan={7} style={{ textAlign: "center", color: temaPal.textMuted, padding: 20 }}>Ningun producto de este proveedor necesita pedido ahora.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
       {showCalc && (
