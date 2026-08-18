@@ -3403,12 +3403,14 @@ function Finanzas({ localId, usuario, paletaActual }) {
       .finally(() => setAnalisisLoading(false));
   };
 
+  const [detalleTipo, setDetalleTipo] = useState("");
   const cargarDetalle = () => {
     setDetalleLoading(true);
     const params = new URLSearchParams();
     if (detalleBusqueda.trim()) params.set("busqueda", detalleBusqueda.trim());
     if (detalleDesde) params.set("desde", detalleDesde);
     if (detalleHasta) params.set("hasta", detalleHasta);
+    if (detalleTipo) params.set("tipo", detalleTipo);
     API.get("/finanzas/movimientos-detalle?" + params.toString())
       .then(res => setDetalleMovs(res.data || []))
       .catch(() => setDetalleMovs([]))
@@ -3782,6 +3784,14 @@ function Finanzas({ localId, usuario, paletaActual }) {
                 <input className="inp" placeholder="Ej: Sueldo Sabrina" value={detalleBusqueda} onChange={e => setDetalleBusqueda(e.target.value)} onKeyDown={e => e.key === "Enter" && cargarDetalle()} />
               </div>
               <div className="fg" style={{ marginBottom: 0 }}>
+                <div className="fl">Tipo</div>
+                <select className="sel" value={detalleTipo} onChange={e => setDetalleTipo(e.target.value)}>
+                  <option value="">Todos</option>
+                  <option value="I">Solo ingresos</option>
+                  <option value="E">Solo egresos</option>
+                </select>
+              </div>
+              <div className="fg" style={{ marginBottom: 0 }}>
                 <div className="fl">Desde</div>
                 <input className="inp" type="date" value={detalleDesde} onChange={e => setDetalleDesde(e.target.value)} />
               </div>
@@ -3790,7 +3800,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
                 <input className="inp" type="date" value={detalleHasta} onChange={e => setDetalleHasta(e.target.value)} />
               </div>
               <button className="btn btn-p btn-sm" onClick={cargarDetalle}>Buscar</button>
-              {(detalleBusqueda || detalleDesde || detalleHasta) && <button className="btn btn-g btn-sm" onClick={() => { setDetalleBusqueda(""); setDetalleDesde(""); setDetalleHasta(""); setTimeout(cargarDetalle, 0); }}>Limpiar</button>}
+              {(detalleBusqueda || detalleDesde || detalleHasta || detalleTipo) && <button className="btn btn-g btn-sm" onClick={() => { setDetalleBusqueda(""); setDetalleDesde(""); setDetalleHasta(""); setDetalleTipo(""); setTimeout(cargarDetalle, 0); }}>Limpiar</button>}
             </div>
           </div>
           <div className="card">
