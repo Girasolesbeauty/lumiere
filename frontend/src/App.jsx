@@ -1558,16 +1558,26 @@ function POS({ localId, usuario, paletaActual }) {
       if (Math.abs(sumaPagos - restaPagar) >= 1) return setMensaje("La suma de los pagos (" + fmt(sumaPagos) + ") debe ser igual al total (" + fmt(restaPagar) + ")");
     }
     // Si algun producto ya esta en 0 (o esta venta lo dejaria en negativo), pedimos el motivo
-    // antes de mandar la venta. Los kits se validan por sus componentes en el backend.
+    // antes de mandar la venta -- salvo que ademas no haya nada en transito, en cuyo caso
+    // se bloquea directo, sin poder justificar (no existe fisicamente y no hay nada en camino).
+    // Los kits se validan por sus componentes en el backend.
     if (!preventa) {
+      const sinStockNiTransito = [];
       const faltantes = [];
       for (const it of cart) {
         if (it.es_ajuste || it.es_kit) continue;
         const stockActual = Number(localId) === 2 ? (it.stock_ush || 0) : (it.stock_rg || 0);
         const resultante = stockActual - it.qty;
-        if (resultante < 0 && !(justificacionesStock[it.id] && justificacionesStock[it.id].trim())) {
-          faltantes.push({ id: it.id, nombre: it.nombre || it.name, stockActual, cantidad: it.qty });
+        if (resultante < 0) {
+          if ((it.transito_local || 0) <= 0) {
+            sinStockNiTransito.push({ id: it.id, nombre: it.nombre || it.name, stockActual, cantidad: it.qty });
+          } else if (!(justificacionesStock[it.id] && justificacionesStock[it.id].trim())) {
+            faltantes.push({ id: it.id, nombre: it.nombre || it.name, stockActual, cantidad: it.qty });
+          }
         }
+      }
+      if (sinStockNiTransito.length > 0) {
+        return setMensaje("No se puede vender (sin stock ni nada en camino): " + sinStockNiTransito.map(i => i.nombre).join(", ") + ". Sacalo del ticket o carga primero una orden de ingreso.");
       }
       if (faltantes.length > 0) { setItemsSinStock(faltantes); return; }
     }
@@ -1638,7 +1648,10 @@ function POS({ localId, usuario, paletaActual }) {
       quitarGiftCard();
       setTimeout(() => setMensaje(""), 8000);
     } catch (error) {
-      if (error?.response?.status === 409 && error?.response?.data?.error === 'stock_insuficiente') {
+      if (error?.response?.status === 409 && error?.response?.data?.error === 'sin_stock_sin_transito') {
+        const prods = error.response.data.productos || [];
+        setMensaje("No se puede vender (sin stock ni nada en camino): " + prods.map(p => p.nombre).join(", "));
+      } else if (error?.response?.status === 409 && error?.response?.data?.error === 'stock_insuficiente') {
         const prods = error.response.data.productos || [];
         setItemsSinStock(prods.map(p => ({ id: p.producto_id, nombre: p.nombre, stockActual: p.stock_disponible, cantidad: p.cantidad_pedida })));
       } else {

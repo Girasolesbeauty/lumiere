@@ -119,23 +119,32 @@ const create = async (req, res) => {
     }
 
     // Si un producto ya esta en 0 (o esta venta lo dejaria en negativo), hace falta una
-    // justificacion puntual para esa linea; si no la hay, se rechaza la venta entera aca
-    // (no se llega a tocar la base) y el POS le pide el motivo a la vendedora.
+    // justificacion puntual para esa linea -- PERO si ademas no hay absolutamente nada
+    // en camino (transito 0), no se permite vender de ninguna forma: no existe fisicamente
+    // y no hay ninguna entrega prevista que lo vaya a cubrir. Si hay algo en transito, se
+    // sigue permitiendo con justificacion (puede llegar en cualquier momento).
     const itemsJustificados = [];
     if (es_preventa !== true) {
       const justificaciones = justificaciones_stock || {};
       const faltantes = [];
+      const sinStockNiTransito = [];
       for (const item of items) {
         if (!item.producto_id) continue;
         const prodRes = await client.query(
-          'SELECT id, nombre, stock_rg, stock_ush FROM productos WHERE id = $1 FOR UPDATE',
+          'SELECT id, nombre, stock_rg, stock_ush, stock_transito_rg, stock_transito_ush FROM productos WHERE id = $1 FOR UPDATE',
           [item.producto_id]
         );
         if (prodRes.rows.length === 0) continue;
         const prod = prodRes.rows[0];
-        const stockActual = (local_id === 2 || local_id === '2') ? (prod.stock_ush || 0) : (prod.stock_rg || 0);
+        const esUsh = local_id === 2 || local_id === '2';
+        const stockActual = esUsh ? (prod.stock_ush || 0) : (prod.stock_rg || 0);
+        const transitoActual = esUsh ? (prod.stock_transito_ush || 0) : (prod.stock_transito_rg || 0);
         const resultante = stockActual - item.cantidad;
         if (resultante < 0) {
+          if (transitoActual <= 0) {
+            sinStockNiTransito.push({ producto_id: item.producto_id, nombre: prod.nombre, stock_disponible: stockActual, cantidad_pedida: item.cantidad });
+            continue;
+          }
           const motivo = (justificaciones[item.producto_id] || justificaciones[String(item.producto_id)] || '').trim();
           if (!motivo) {
             faltantes.push({ producto_id: item.producto_id, nombre: prod.nombre, stock_disponible: stockActual, cantidad_pedida: item.cantidad });
@@ -143,6 +152,10 @@ const create = async (req, res) => {
             itemsJustificados.push({ producto_id: item.producto_id, nombre: prod.nombre, stock_disponible: stockActual, cantidad: item.cantidad, motivo });
           }
         }
+      }
+      if (sinStockNiTransito.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'sin_stock_sin_transito', productos: sinStockNiTransito });
       }
       if (faltantes.length > 0) {
         await client.query('ROLLBACK');
