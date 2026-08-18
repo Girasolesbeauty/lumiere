@@ -3415,6 +3415,21 @@ function Finanzas({ localId, usuario, paletaActual }) {
       .finally(() => setDetalleLoading(false));
   };
 
+  // --- Costos por local (segmentado, para ver de un vistazo que quedo cargado en cada uno) ---
+  const [costosPorLocalLoading, setCostosPorLocalLoading] = useState(false);
+  const [costosPorLocalMovs, setCostosPorLocalMovs] = useState([]);
+  const cargarCostosPorLocal = () => {
+    setCostosPorLocalLoading(true);
+    const desde = `${anioFiltro}-${String(mesFiltro).padStart(2, "0")}-01`;
+    const ultimoDia = new Date(anioFiltro, mesFiltro, 0).getDate();
+    const hasta = `${anioFiltro}-${String(mesFiltro).padStart(2, "0")}-${String(ultimoDia).padStart(2, "0")}`;
+    const params = new URLSearchParams({ desde, hasta, tipo: "E" });
+    API.get("/finanzas/movimientos-detalle?" + params.toString())
+      .then(res => setCostosPorLocalMovs(res.data || []))
+      .catch(() => setCostosPorLocalMovs([]))
+      .finally(() => setCostosPorLocalLoading(false));
+  };
+
   const guardarEdicionMov = async () => {
     try {
       await API.put("/finanzas/movimientos/" + editandoMov.id, {
@@ -3545,9 +3560,9 @@ function Finanzas({ localId, usuario, paletaActual }) {
       {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
       
       <div className="tabs">
-        {["flujo", "detalle", "estructurado", "comparativa", "analisis", "costos", "equilibrio"].map(t => (
-          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "detalle") cargarDetalle(); if (t === "analisis") cargarAnalisis(); if (t === "comparativa") cargarComparativa(); }}>
-            {t === "flujo" ? "MOVIMIENTOS" : t === "detalle" ? "DETALLE / EDITAR" : t === "estructurado" ? "FLUJO DE EFECTIVO" : t === "comparativa" ? "COMPARAR MESES" : t === "analisis" ? "ANALISIS" : t === "costos" ? "COSTOS" : "EQUILIBRIO"}
+        {["flujo", "detalle", "estructurado", "comparativa", "analisis", "costos", "porlocal", "equilibrio"].map(t => (
+          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "detalle") cargarDetalle(); if (t === "analisis") cargarAnalisis(); if (t === "comparativa") cargarComparativa(); if (t === "porlocal") cargarCostosPorLocal(); }}>
+            {t === "flujo" ? "MOVIMIENTOS" : t === "detalle" ? "DETALLE / EDITAR" : t === "estructurado" ? "FLUJO DE EFECTIVO" : t === "comparativa" ? "COMPARAR MESES" : t === "analisis" ? "ANALISIS" : t === "costos" ? "COSTOS" : t === "porlocal" ? "COSTOS POR LOCAL" : "EQUILIBRIO"}
           </div>
         ))}
       </div>
@@ -4018,6 +4033,55 @@ function Finanzas({ localId, usuario, paletaActual }) {
         </div>
       )}
 
+      {tab === "porlocal" && (
+        <div className="fade">
+          <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14, background: "#f7f5f0", padding: 10, borderRadius: 6 }}>
+            Costos de {["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"][mesFiltro]} {anioFiltro},
+            separados segun a que local quedaron cargados -- util para detectar si algo se cargo por duplicado en mas de un lado, o mal categorizado.
+          </div>
+          {costosPorLocalLoading ? (
+            <div style={{ textAlign: "center", color: "#65676B", padding: 30 }}>Cargando...</div>
+          ) : (() => {
+            const grupos = { 1: [], 2: [], compartido: [] };
+            costosPorLocalMovs.forEach(m => {
+              const key = m.local_id === 1 ? 1 : m.local_id === 2 ? 2 : "compartido";
+              grupos[key].push(m);
+            });
+            const columnas = [
+              { key: 1, titulo: "RIO GRANDE" },
+              { key: 2, titulo: "USHUAIA" },
+              { key: "compartido", titulo: "COMPARTIDO (50/50)" }
+            ];
+            return (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                {columnas.map(col => {
+                  const items = grupos[col.key];
+                  const total = items.reduce((s, m) => s + parseFloat(m.importe || 0), 0);
+                  return (
+                    <div key={col.key} className="card">
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                        <div className="ct" style={{ margin: 0 }}>{col.titulo}</div>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: "#c9a84c" }}>{fmt(total)}</span>
+                      </div>
+                      {items.length === 0 ? (
+                        <div style={{ fontSize: 11, color: "#65676B", padding: "10px 0", textAlign: "center" }}>Sin costos cargados</div>
+                      ) : items.map(m => (
+                        <div key={m.id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 11, borderBottom: "1px solid #f0f0f0" }}>
+                          <div>
+                            <div style={{ fontWeight: 600 }}>{m.concepto}</div>
+                            <div style={{ color: "#65676B" }}>{m.categoria_nombre || "Sin categoria"} · {new Date(m.creado_en).toLocaleDateString("es-AR")}</div>
+                          </div>
+                          <div style={{ fontWeight: 700, whiteSpace: "nowrap", marginLeft: 8 }}>{fmt(parseFloat(m.importe))}</div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
+      )}
       {tab === "costos" && (
         <div className="g2 fade">
           <div className="card">
