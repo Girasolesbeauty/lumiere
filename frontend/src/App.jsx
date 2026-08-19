@@ -2320,6 +2320,58 @@ function Inventario({ localId, usuario, paletaActual }) {
   const [productos, setProductos] = useState([]);
   const [alertas, setAlertas] = useState([]);
   const [transito, setTransito] = useState([]);
+
+  // --- Traspasos entre locales ---
+  const [traspasos, setTraspasos] = useState([]);
+  const [cargandoTraspasos, setCargandoTraspasos] = useState(false);
+  const [showNuevoTraspaso, setShowNuevoTraspaso] = useState(false);
+  const [buscarProdTraspaso, setBuscarProdTraspaso] = useState("");
+  const [prodTraspaso, setProdTraspaso] = useState(null);
+  const [cantidadTraspaso, setCantidadTraspaso] = useState(1);
+  const [notasTraspaso, setNotasTraspaso] = useState("");
+  const [recibiendoTraspaso, setRecibiendoTraspaso] = useState(null);
+  const [cantidadRecibidaInput, setCantidadRecibidaInput] = useState("");
+  const [notaRecepcionInput, setNotaRecepcionInput] = useState("");
+
+  const cargarTraspasos = () => {
+    setCargandoTraspasos(true);
+    API.get("/traspasos?local_id=" + (localId || 1))
+      .then(res => setTraspasos(res.data || []))
+      .catch(() => setTraspasos([]))
+      .finally(() => setCargandoTraspasos(false));
+  };
+
+  const localDestinoTraspaso = Number(localId) === 2 ? 1 : 2;
+
+  const crearTraspaso = async () => {
+    if (!prodTraspaso) return setMensaje("Elegi el producto a mandar");
+    try {
+      await API.post("/traspasos", {
+        producto_id: prodTraspaso.id, cantidad: cantidadTraspaso,
+        local_origen: localId || 1, local_destino: localDestinoTraspaso,
+        usuario_id: usuario?.id, usuario_nombre: usuario?.nombre, notas: notasTraspaso || null
+      });
+      setMensaje("Traspaso enviado!");
+      setShowNuevoTraspaso(false); setProdTraspaso(null); setBuscarProdTraspaso(""); setCantidadTraspaso(1); setNotasTraspaso("");
+      cargarTraspasos();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje(e.response?.data?.error || "Error al crear el traspaso"); }
+  };
+
+  const confirmarRecepcionTraspaso = async (tr) => {
+    try {
+      await API.put("/traspasos/" + tr.id + "/recibir", {
+        cantidad_recibida: cantidadRecibidaInput === "" ? tr.cantidad : parseInt(cantidadRecibidaInput),
+        usuario_nombre: usuario?.nombre,
+        nota: notaRecepcionInput || null
+      });
+      setMensaje("Recepcion confirmada!");
+      setRecibiendoTraspaso(null); setCantidadRecibidaInput(""); setNotaRecepcionInput("");
+      cargarTraspasos();
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje(e.response?.data?.error || "Error al confirmar"); }
+  };
+
   const [loading, setLoading] = useState(true);
   const [ajustando, setAjustando] = useState(null);
   const [modoAjuste, setModoAjuste] = useState("exacto");
@@ -2565,9 +2617,9 @@ function Inventario({ localId, usuario, paletaActual }) {
         </div>
       )}
       <div className="tabs">
-        {["stock", "valorizacion", "transito", "alertas", "ajustes", "compra"].map(t => (
-          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "transito") cargarTransito(); if (t === "ajustes") cargarAjustesHistorial(); if (t === "compra" && proveedoresCompra.length === 0) cargarProveedoresCompra(); }}>
-            {t === "stock" ? "STOCK" : t === "valorizacion" ? "VALORIZACION" : t === "transito" ? "EN TRANSITO" : t === "alertas" ? "ALERTAS" + (alertas.length > 0 ? " (" + alertas.length + ")" : "") : t === "ajustes" ? "HISTORIAL DE AJUSTES" : "QUE PEDIR"}
+        {["stock", "valorizacion", "transito", "alertas", "ajustes", "compra", "traspasos"].map(t => (
+          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "transito") cargarTransito(); if (t === "ajustes") cargarAjustesHistorial(); if (t === "compra" && proveedoresCompra.length === 0) cargarProveedoresCompra(); if (t === "traspasos") cargarTraspasos(); }}>
+            {t === "stock" ? "STOCK" : t === "valorizacion" ? "VALORIZACION" : t === "transito" ? "EN TRANSITO" : t === "alertas" ? "ALERTAS" + (alertas.length > 0 ? " (" + alertas.length + ")" : "") : t === "ajustes" ? "HISTORIAL DE AJUSTES" : t === "compra" ? "QUE PEDIR" : "TRASPASOS ENTRE LOCALES"}
           </div>
         ))}
       </div>
@@ -2922,6 +2974,111 @@ function Inventario({ localId, usuario, paletaActual }) {
                   )}
                 </tbody>
               </table>
+            </div>
+          )}
+        </div>
+      )}
+      {tab === "traspasos" && (
+        <div className="fade">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+            <div style={{ fontSize: 11, color: temaPal.textMuted, background: temaPal.bg, padding: 10, borderRadius: 6, flex: 1, marginRight: 10 }}>
+              Manda stock desde <b>{Number(localId) === 2 ? "Ushuaia" : "Rio Grande"}</b> hacia <b>{localDestinoTraspaso === 2 ? "Ushuaia" : "Rio Grande"}</b>.
+              Al crear el traspaso, el stock se descuenta al instante del local de origen y queda "en tránsito" hasta que el destino confirme que lo recibió.
+            </div>
+            <button className="btn btn-p btn-sm" onClick={() => setShowNuevoTraspaso(true)}>+ Nuevo traspaso</button>
+          </div>
+
+          {cargandoTraspasos ? (
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30 }}>Cargando...</div>
+          ) : traspasos.length === 0 ? (
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>No hay traspasos registrados todavia.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {traspasos.map(tr => {
+                const esDestino = Number(tr.local_destino) === Number(localId);
+                const esOrigen = Number(tr.local_origen) === Number(localId);
+                const pendiente = tr.estado === "en_transito";
+                return (
+                  <div key={tr.id} className="card">
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700 }}>{tr.producto_nombre} · {tr.cantidad}u</div>
+                        <div style={{ fontSize: 11, color: temaPal.textMuted }}>
+                          {tr.local_origen === 2 ? "Ushuaia" : "Rio Grande"} → {tr.local_destino === 2 ? "Ushuaia" : "Rio Grande"}
+                          {" · "}{new Date(tr.creado_en).toLocaleString("es-AR")}
+                          {tr.usuario_nombre && " · " + tr.usuario_nombre}
+                        </div>
+                        {tr.notas && <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 3 }}>📝 {tr.notas}</div>}
+                        {tr.nota_inconsistencia && <div style={{ fontSize: 11, color: "#c0392b", marginTop: 3 }}>⚠️ {tr.nota_inconsistencia}</div>}
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <span className={"badge " + (pendiente ? "bx" : "bg")}>{pendiente ? "En transito" : "Recibido (" + tr.cantidad_recibida + "u)"}</span>
+                        {pendiente && esDestino && (
+                          <div style={{ marginTop: 8 }}>
+                            <button className="btn btn-p btn-sm" onClick={() => { setRecibiendoTraspaso(tr); setCantidadRecibidaInput(String(tr.cantidad)); }}>Confirmar recepcion</button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {showNuevoTraspaso && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={() => setShowNuevoTraspaso(false)}>
+              <div className="card fade" style={{ maxWidth: 440, width: "90vw", background: temaPal.card }} onClick={e => e.stopPropagation()}>
+                <div className="ct">Nuevo traspaso: {Number(localId) === 2 ? "Ushuaia" : "Rio Grande"} → {localDestinoTraspaso === 2 ? "Ushuaia" : "Rio Grande"}</div>
+                <div className="fg"><div className="fl">Producto</div>
+                  {prodTraspaso ? (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: temaPal.bg, borderRadius: 6 }}>
+                      <span style={{ fontSize: 12 }}>{prodTraspaso.nombre} <span style={{ color: temaPal.textMuted }}>(stock actual: {Number(localId) === 2 ? prodTraspaso.stock_ush : prodTraspaso.stock_rg})</span></span>
+                      <span onClick={() => setProdTraspaso(null)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 11 }}>cambiar</span>
+                    </div>
+                  ) : (
+                    <div>
+                      <input className="inp" placeholder="Buscar producto..." value={buscarProdTraspaso} onChange={e => setBuscarProdTraspaso(e.target.value)} />
+                      {buscarProdTraspaso.trim().length > 0 && (
+                        <div style={{ border: "1px solid " + temaPal.border, borderRadius: 6, marginTop: 4, maxHeight: 200, overflowY: "auto" }}>
+                          {productos.filter(pr => (pr.nombre || "").toLowerCase().includes(buscarProdTraspaso.toLowerCase())).slice(0, 8).map(pr => (
+                            <div key={pr.id} onClick={() => { setProdTraspaso(pr); setBuscarProdTraspaso(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid " + temaPal.border, fontSize: 12 }}>{pr.nombre}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="fg"><div className="fl">Cantidad</div>
+                  <input className="inp" type="number" min="1" value={cantidadTraspaso} onChange={e => setCantidadTraspaso(Math.max(1, parseInt(e.target.value) || 1))} />
+                </div>
+                <div className="fg"><div className="fl">Notas (opcional)</div>
+                  <input className="inp" placeholder="Ej: para reponer stock bajo" value={notasTraspaso} onChange={e => setNotasTraspaso(e.target.value)} />
+                </div>
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowNuevoTraspaso(false)}>Cancelar</button>
+                  <button className="btn btn-p" style={{ flex: 1 }} onClick={crearTraspaso}>Enviar traspaso</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {recibiendoTraspaso && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={() => setRecibiendoTraspaso(null)}>
+              <div className="card fade" style={{ maxWidth: 400, width: "90vw", background: temaPal.card }} onClick={e => e.stopPropagation()}>
+                <div className="ct">Confirmar recepcion</div>
+                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>{recibiendoTraspaso.producto_nombre}</div>
+                <div className="fg"><div className="fl">¿Cuanto llego realmente? (se mandaron {recibiendoTraspaso.cantidad})</div>
+                  <input className="inp" type="number" min="0" value={cantidadRecibidaInput} onChange={e => setCantidadRecibidaInput(e.target.value)} />
+                </div>
+                <div className="fg"><div className="fl">Nota (opcional, ej: si llego menos de lo esperado)</div>
+                  <input className="inp" placeholder="Ej: llego 1 roto" value={notaRecepcionInput} onChange={e => setNotaRecepcionInput(e.target.value)} />
+                </div>
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setRecibiendoTraspaso(null)}>Cancelar</button>
+                  <button className="btn btn-p" style={{ flex: 1 }} onClick={() => confirmarRecepcionTraspaso(recibiendoTraspaso)}>Confirmar</button>
+                </div>
+              </div>
             </div>
           )}
         </div>

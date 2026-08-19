@@ -56,6 +56,7 @@ app.use('/api/caja-respaldo', require('./routes/cajaRespaldo'));
 app.use('/api/influencers', require('./routes/influencers'));
 app.use('/api/influencer-regalos', require('./routes/influencer-regalos'));
 app.use('/api/facturas-proveedor', require('./routes/facturas-proveedor'));
+app.use('/api/traspasos', require('./routes/traspasos'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {
