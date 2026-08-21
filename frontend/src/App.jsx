@@ -1129,6 +1129,8 @@ function POS({ localId, usuario, paletaActual }) {
   const [preventa, setPreventa] = useState(false);
   const [tipoReserva, setTipoReserva] = useState("preventa"); // "preventa" (sin stock) o "sena" (con stock, se lo reserva)
   const [nombrePreventa, setNombrePreventa] = useState("");
+  const [montoSena, setMontoSena] = useState("");
+  const [senaMedioPagoId, setSenaMedioPagoId] = useState("");
   const [mediosPago, setMediosPago] = useState([]);
   const [descuentoManual, setDescuentoManual] = useState("");
   const [referenciaVenta, setReferenciaVenta] = useState("");
@@ -1536,7 +1538,7 @@ function POS({ localId, usuario, paletaActual }) {
       setVentaPendienteArca(null);
       setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
       setClienteSeleccionado(null); setShowNuevoCliente(false);
-      setMedioPagoSel(null); setPreventa(false); setTipoReserva("preventa"); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false); setReferenciaVenta("");
+      setMedioPagoSel(null); setPreventa(false); setTipoReserva("preventa"); setNombrePreventa(""); setMontoSena(""); setSenaMedioPagoId(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false); setReferenciaVenta("");
       quitarGiftCard();
       setTimeout(() => setMensaje(""), 8000);
     } catch (arcaErr) {
@@ -1582,6 +1584,13 @@ function POS({ localId, usuario, paletaActual }) {
       }
       if (faltantes.length > 0) { setItemsSinStock(faltantes); return; }
     }
+    if (preventa && tipoReserva === "sena") {
+      if (!nombrePreventa.trim()) return setMensaje("Escribi el nombre de la clienta");
+      const montoSenaNum = parseFloat(montoSena);
+      if (!montoSenaNum || montoSenaNum <= 0) return setMensaje("Poné el monto de la seña");
+      if (montoSenaNum > total) return setMensaje("La seña no puede ser mayor al total (" + fmt(total) + ")");
+      if (!senaMedioPagoId) return setMensaje("Elegi con que medio de pago se cobro la seña");
+    }
     setLoading(true);
     try {
       const items = expandirItemsCart();
@@ -1594,6 +1603,10 @@ function POS({ localId, usuario, paletaActual }) {
         pagos: pagoMixto && pagosMixtos.length > 0 ? pagosMixtos : undefined,
         total_con_interes: total, es_preventa: preventa,
         nombre_preventa: preventa ? nombrePreventa : null,
+        monto_sena: (preventa && tipoReserva === "sena") ? montoSena : null,
+        sena_medio_pago_id: (preventa && tipoReserva === "sena") ? (senaMedioPagoId || null) : null,
+        sena_medio_pago_nombre: (preventa && tipoReserva === "sena") ? (mediosPago.find(m => m.id === parseInt(senaMedioPagoId))?.nombre || null) : null,
+        sena_referencia: (preventa && tipoReserva === "sena") ? "Seña " + nombrePreventa : null,
         monto_gift_card: montoAplicadoGC,
         insumos_usados: (!preventa && insumosPosActivo) ? Object.values(insumosSel).filter(v => v && v !== "ninguna").map(v => parseInt(v)) : [],
         referencia: referenciaVenta || null,
@@ -1644,7 +1657,7 @@ function POS({ localId, usuario, paletaActual }) {
       // mientras tanto.
       setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
       setClienteSeleccionado(null); setShowNuevoCliente(false);
-      setMedioPagoSel(null); setPreventa(false); setTipoReserva("preventa"); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false);
+      setMedioPagoSel(null); setPreventa(false); setTipoReserva("preventa"); setNombrePreventa(""); setMontoSena(""); setSenaMedioPagoId(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false);
       setJustificacionesStock({}); setItemsSinStock(null); setMontoRecibidoEfectivo("");
       quitarGiftCard();
       setTimeout(() => setMensaje(""), 8000);
@@ -1999,6 +2012,22 @@ function POS({ localId, usuario, paletaActual }) {
           <div style={{ background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 8, padding: "10px 12px", overflowY: "auto", flex: 1 }}>
             {preventa ? (
               <div className="fg"><input className="inp" placeholder={tipoReserva === "sena" ? "Nombre cliente (seña)" : "Nombre cliente (preventa)"} value={nombrePreventa} onChange={e => setNombrePreventa(e.target.value)} style={{ fontSize: 11, padding: "8px 10px" }} /></div>
+              {tipoReserva === "sena" && (
+                <>
+                  <div className="fg" style={{ display: "flex", gap: 6 }}>
+                    <input className="inp" type="number" placeholder="Monto de la seña ($)" value={montoSena} onChange={e => setMontoSena(e.target.value)} style={{ fontSize: 11, padding: "8px 10px", flex: 1 }} />
+                    <select className="sel" value={senaMedioPagoId} onChange={e => setSenaMedioPagoId(e.target.value)} style={{ fontSize: 11, padding: "8px 10px", flex: 1 }}>
+                      <option value="">Medio de pago...</option>
+                      {mediosPago.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
+                    </select>
+                  </div>
+                  {montoSena !== "" && (
+                    <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: -6, marginBottom: 6 }}>
+                      Queda pendiente de cobrar: {fmt(Math.max(total - (parseFloat(montoSena) || 0), 0))} (se cobra cuando venga a buscarlo)
+                    </div>
+                  )}
+                </>
+              )}
             ) : (
               <div>
                 <div style={{ position: "relative", marginBottom: 6 }}>
