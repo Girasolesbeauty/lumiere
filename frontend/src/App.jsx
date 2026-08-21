@@ -1127,6 +1127,7 @@ function POS({ localId, usuario, paletaActual }) {
   const [mensaje, setMensaje] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [preventa, setPreventa] = useState(false);
+  const [tipoReserva, setTipoReserva] = useState("preventa"); // "preventa" (sin stock) o "sena" (con stock, se lo reserva)
   const [nombrePreventa, setNombrePreventa] = useState("");
   const [mediosPago, setMediosPago] = useState([]);
   const [descuentoManual, setDescuentoManual] = useState("");
@@ -1535,7 +1536,7 @@ function POS({ localId, usuario, paletaActual }) {
       setVentaPendienteArca(null);
       setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
       setClienteSeleccionado(null); setShowNuevoCliente(false);
-      setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false); setReferenciaVenta("");
+      setMedioPagoSel(null); setPreventa(false); setTipoReserva("preventa"); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false); setReferenciaVenta("");
       quitarGiftCard();
       setTimeout(() => setMensaje(""), 8000);
     } catch (arcaErr) {
@@ -1635,7 +1636,7 @@ function POS({ localId, usuario, paletaActual }) {
           setMensaje("⚠️ La venta se registro pero ARCA dio error: " + (arcaErr.response?.data?.error || arcaErr.message) + ". Apreta \"Reintentar facturacion\" para volver a intentar (no se duplica la venta).");
         }
       } else {
-        setMensaje("Preventa registrada para " + nombrePreventa + "!");
+        setMensaje((tipoReserva === "sena" ? "Seña registrada para " : "Preventa registrada para ") + nombrePreventa + "!");
       }
       // El carrito se limpia siempre, haya fallado ARCA o no -- la venta ya quedo guardada
       // de forma segura y su factura se puede reintentar despues (boton "Reintentar
@@ -1643,7 +1644,7 @@ function POS({ localId, usuario, paletaActual }) {
       // mientras tanto.
       setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
       setClienteSeleccionado(null); setShowNuevoCliente(false);
-      setMedioPagoSel(null); setPreventa(false); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false);
+      setMedioPagoSel(null); setPreventa(false); setTipoReserva("preventa"); setNombrePreventa(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false);
       setJustificacionesStock({}); setItemsSinStock(null); setMontoRecibidoEfectivo("");
       quitarGiftCard();
       setTimeout(() => setMensaje(""), 8000);
@@ -1861,13 +1862,22 @@ function POS({ localId, usuario, paletaActual }) {
               <span style={{ fontSize: 11, color: modoPrueba ? "#c0392b" : temaPal.textMuted }}>Modo prueba</span>
             </div>
           )}
-          <div className="sw-wrap" onClick={() => { setPreventa(!preventa); setMensaje(""); }}>
-            <div className={"sw " + (preventa ? "on" : "off")}><div className="sw-dot" /></div>
-            <span style={{ fontSize: 11, color: preventa ? "#2471a3" : temaPal.textMuted }}>Preventa</span>
+          <div className="sw-wrap" onClick={() => { setPreventa(!preventa || tipoReserva !== "preventa"); setTipoReserva("preventa"); setMensaje(""); }}>
+            <div className={"sw " + (preventa && tipoReserva === "preventa" ? "on" : "off")}><div className="sw-dot" /></div>
+            <span style={{ fontSize: 11, color: preventa && tipoReserva === "preventa" ? "#2471a3" : temaPal.textMuted }}>Preventa</span>
+          </div>
+          <div className="sw-wrap" onClick={() => { setPreventa(!preventa || tipoReserva !== "sena"); setTipoReserva("sena"); setMensaje(""); }}>
+            <div className={"sw " + (preventa && tipoReserva === "sena" ? "on" : "off")}><div className="sw-dot" /></div>
+            <span style={{ fontSize: 11, color: preventa && tipoReserva === "sena" ? "#c9a84c" : temaPal.textMuted }}>Señar</span>
           </div>
           <StatusDot color="#2d7a4f" label="ARCA" />
         </div>
       </div>
+      {preventa && tipoReserva === "sena" && (
+        <div style={{ background: "#c9a84c12", border: "1px solid #c9a84c", borderRadius: 6, padding: "10px 16px", marginBottom: 12, fontSize: 12, color: "#8a6d1f" }}>
+          💰 Modo Seña: para productos que <b>ya tenemos</b> pero la clienta no se los lleva ahora. Se reserva el stock (nadie mas se lo puede llevar) y cobrás la seña — el resto se cobra cuando venga a buscarlo.
+        </div>
+      )}
       {modoPrueba && (
         <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "10px 16px", marginBottom: 12, fontSize: 12, color: "#c0392b", fontWeight: 600 }}>
           🧪 MODO PRUEBA ACTIVO — las ventas NO se facturan en ARCA. Desactivalo para vender de verdad.
@@ -1988,7 +1998,7 @@ function POS({ localId, usuario, paletaActual }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 8, overflow: "hidden" }}>
           <div style={{ background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 8, padding: "10px 12px", overflowY: "auto", flex: 1 }}>
             {preventa ? (
-              <div className="fg"><input className="inp" placeholder="Nombre cliente (preventa)" value={nombrePreventa} onChange={e => setNombrePreventa(e.target.value)} style={{ fontSize: 11, padding: "8px 10px" }} /></div>
+              <div className="fg"><input className="inp" placeholder={tipoReserva === "sena" ? "Nombre cliente (seña)" : "Nombre cliente (preventa)"} value={nombrePreventa} onChange={e => setNombrePreventa(e.target.value)} style={{ fontSize: 11, padding: "8px 10px" }} /></div>
             ) : (
               <div>
                 <div style={{ position: "relative", marginBottom: 6 }}>
@@ -2199,7 +2209,7 @@ function POS({ localId, usuario, paletaActual }) {
               <div style={{ fontSize: 24, fontWeight: 700, color: temaPal.text }}>{fmt((restaPagar > 0 ? restaPagar : total))}</div>
             </div>
             <button className="btn btn-p" style={{ width: "100%", padding: 11, fontSize: 12, opacity: loading ? 0.7 : 1, background: ventaPendienteArca ? "#e67e22" : undefined }} onClick={emitirFactura} disabled={loading}>
-              {loading ? "Procesando..." : ventaPendienteArca ? "⚠️ Reintentar facturacion" : preventa ? "Registrar Preventa" : "Factura " + tipoFac}
+              {loading ? "Procesando..." : ventaPendienteArca ? "⚠️ Reintentar facturacion" : preventa ? (tipoReserva === "sena" ? "Registrar Seña" : "Registrar Preventa") : "Factura " + tipoFac}
             </button>
             {ultimoRecibo && (
               <button className="btn btn-g btn-sm" style={{ width: "100%", marginTop: 6, fontSize: 11 }} onClick={() => imprimirRecibo(ultimoRecibo)}>Reimprimir ultimo recibo</button>
