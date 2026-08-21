@@ -5410,6 +5410,7 @@ function Fidelizacion({ usuario, paletaActual }) {
 
 function Pedidos({ localId, paletaActual }) {
   const pal = paletaActual || PALETA_CLARA;
+  const [tab, setTab] = useState("espera");
   const [pedidos, setPedidos] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [productos, setProductos] = useState([]);
@@ -5423,6 +5424,22 @@ function Pedidos({ localId, paletaActual }) {
   const [sinRegistrar, setSinRegistrar] = useState(false);
   const [nombreManual, setNombreManual] = useState("");
   const [telefonoManual, setTelefonoManual] = useState("");
+
+  const [pedidosListos, setPedidosListos] = useState([]);
+  const cargarPedidosListos = () => {
+    API.get("/pedidos/con-stock").then(res => setPedidosListos(res.data)).catch(() => {});
+  };
+  const avisarPedido = async (pd) => {
+    const texto = "Hola " + (pd.cliente_nombre || "") + "! Te avisamos que ya tenemos stock de " + pd.producto_nombre + ". Te esperamos! - Girasoles Beauty";
+    let tel = (pd.telefono || "").replace(/[^0-9]/g, "");
+    if (!tel) { alert("Esta clienta no tiene telefono cargado"); return; }
+    let numero = tel;
+    if (!numero.startsWith("54")) numero = "549" + numero;
+    else if (numero.startsWith("54") && !numero.startsWith("549")) numero = "549" + numero.slice(2);
+    window.open("https://wa.me/" + numero + "?text=" + encodeURIComponent(texto), "_blank");
+    try { await API.post("/pedidos/" + pd.id + "/avisar"); setPedidosListos(prev => prev.filter(x => x.id !== pd.id)); } catch (e) {}
+  };
+  useEffect(() => { cargarPedidosListos(); }, []);
 
   const cargar = () => {
     API.get("/pedidos?estado=esperando").then(res => setPedidos(res.data)).catch(() => {});
@@ -5483,11 +5500,37 @@ function Pedidos({ localId, paletaActual }) {
   return (
     <div className="fade">
       <div className="ph">
-        <div><div className="pt">Pedidos de clientas</div><div className="ps">productos que las clientas estan esperando - avisan en Postventa cuando llega stock</div></div>
+        <div><div className="pt">Pedidos de clientas</div><div className="ps">productos que las clientas estan esperando</div></div>
+      </div>
+
+      <div className="tabs">
+        <div className={"tab " + (tab === "espera" ? "on" : "")} onClick={() => setTab("espera")}>LISTA DE ESPERA</div>
+        <div className={"tab " + (tab === "listos" ? "on" : "")} onClick={() => { setTab("listos"); cargarPedidosListos(); }}>
+          YA HAY STOCK{pedidosListos.length > 0 ? " (" + pedidosListos.length + ")" : ""}
+        </div>
       </div>
 
       {mensaje && <div className="card" style={{ marginBottom: 12, padding: 12, background: mensaje.startsWith("Error") ? pal.redDim : pal.greenDim, color: mensaje.startsWith("Error") ? pal.red : pal.green, fontSize: 13 }}>{mensaje}</div>}
 
+      {tab === "listos" && (
+        <div className="card fade">
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Pedidos con stock disponible</div>
+          <div style={{ fontSize: 11, color: pal.textMuted, marginBottom: 12 }}>Productos que las clientas esperaban y ya tienen stock. Envia el aviso por WhatsApp.</div>
+          {pedidosListos.length === 0 ? <div style={{ fontSize: 12, color: pal.textMuted, padding: "10px 0" }}>No hay pedidos con stock disponible ahora.</div> : pedidosListos.map(pd => (
+            <div key={pd.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid " + pal.border }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 500 }}>{pd.cliente_nombre} <span className="badge" style={{ background: pd.local_id === 2 ? "#2471a322" : "#c9a84c22", color: pd.local_id === 2 ? "#2471a3" : "#8a6d1f", fontSize: 9, marginLeft: 4 }}>{pd.local_nombre}</span></div>
+                <div style={{ fontSize: 11, color: pal.textMuted }}>{pd.producto_nombre} · stock {pd.stock_total}</div>
+                <div style={{ fontSize: 11, color: pal.textMuted }}>📱 {pd.telefono || "sin telefono"}</div>
+              </div>
+              <button className="btn btn-sm" style={{ background: "#25D366", color: pal.card, fontSize: 12 }} onClick={() => avisarPedido(pd)}>Enviar WhatsApp</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === "espera" && (
+      <>
       <div className="card" style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Anotar nuevo pedido</div>
         <div className="g2">
@@ -5496,6 +5539,7 @@ function Pedidos({ localId, paletaActual }) {
               <div className="fl" style={{ marginBottom: 0 }}>Clienta</div>
               <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: pal.textMuted, cursor: "pointer" }}>
                 <input type="checkbox" checked={sinRegistrar} onChange={e => { setSinRegistrar(e.target.checked); setCliSel(null); setBuscarCli(""); }} />
+
                 Clienta sin registrar
               </label>
             </div>
@@ -5571,8 +5615,10 @@ function Pedidos({ localId, paletaActual }) {
             </tbody>
           </table>
         )}
-        <div style={{ fontSize: 10, color: pal.textMuted, marginTop: 10 }}>Cuando un producto tiene stock, el aviso para la clienta aparece en la seccion Postventa.</div>
+        <div style={{ fontSize: 10, color: pal.textMuted, marginTop: 10 }}>Cuando un producto tiene stock, el aviso para la clienta aparece en la pestaña "Ya hay stock", arriba.</div>
       </div>
+      </>
+      )}
     </div>
   );
 }
@@ -5581,18 +5627,6 @@ function PostventaWA({ paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [rules, setRules] = useState([]);
   const [tab, setTab] = useState("reglas");
-  const [pedidosListos, setPedidosListos] = useState([]);
-  const avisarPedido = async (pd) => {
-    const texto = "Hola " + (pd.cliente_nombre || "") + "! Te avisamos que ya tenemos stock de " + pd.producto_nombre + ". Te esperamos! - Girasoles Beauty";
-    let tel = (pd.telefono || "").replace(/[^0-9]/g, "");
-    if (!tel) { alert("Esta clienta no tiene telefono cargado"); return; }
-    let numero = tel;
-    if (!numero.startsWith("54")) numero = "549" + numero;
-    else if (numero.startsWith("54") && !numero.startsWith("549")) numero = "549" + numero.slice(2);
-    window.open("https://wa.me/" + numero + "?text=" + encodeURIComponent(texto), "_blank");
-    try { await API.post("/pedidos/" + pd.id + "/avisar"); setPedidosListos(prev => prev.filter(x => x.id !== pd.id)); } catch (e) {}
-  };
-  useEffect(() => { API.get("/pedidos/con-stock").then(res => setPedidosListos(res.data)).catch(() => {}); }, []);
   useEffect(() => { cargarMensajesReales(); }, []);
   const [sel, setSel] = useState(null);
   const [nuevaRegla, setNuevaRegla] = useState({ nombre: "", disparador: "post_compra", dias: 7, segmento: "Todos", mensaje: "" });
@@ -5702,7 +5736,7 @@ function PostventaWA({ paletaActual }) {
         <MCard label="Total reglas" value={String(rulesAMostrar.length)} color="#2471a3" />
       </div>
       <div className="tabs">
-        {[["reglas", "REGLAS"], ["enviar", "ENVIAR HOY"], ["enviados", "MENSAJES ENVIADOS"], ["pedidos", "PEDIDOS LISTOS" + (pedidosListos.length > 0 ? " (" + pedidosListos.length + ")" : "")], ["nueva", "NUEVA REGLA"]].map(([id, l]) => (
+        {[["reglas", "REGLAS"], ["enviar", "ENVIAR HOY"], ["enviados", "MENSAJES ENVIADOS"], ["nueva", "NUEVA REGLA"]].map(([id, l]) => (
           <div key={id} className={"tab " + (tab === id ? "on" : "")} onClick={() => { setTab(id); setSel(null); if (id === "enviar") cargarPendientesWA(); if (id === "enviados") cargarMensajesReales(); }}>{l}</div>
         ))}
       </div>
@@ -5755,23 +5789,6 @@ function PostventaWA({ paletaActual }) {
           ))}
         </div>
       )}
-      {tab === "pedidos" && (
-        <div className="card fade">
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Pedidos de clientas con stock disponible</div>
-          <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 12 }}>Productos que las clientas esperaban y ya tienen stock. Envia el aviso por WhatsApp.</div>
-          {pedidosListos.length === 0 ? <div style={{ fontSize: 12, color: temaPal.textMuted, padding: "10px 0" }}>No hay pedidos con stock disponible ahora.</div> : pedidosListos.map(pd => (
-            <div key={pd.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid " + temaPal.border }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>{pd.cliente_nombre} <span className="badge" style={{ background: pd.local_id === 2 ? "#2471a322" : "#c9a84c22", color: pd.local_id === 2 ? "#2471a3" : "#8a6d1f", fontSize: 9, marginLeft: 4 }}>{pd.local_nombre}</span></div>
-                <div style={{ fontSize: 11, color: temaPal.textMuted }}>{pd.producto_nombre} · stock {pd.stock_total}</div>
-                <div style={{ fontSize: 11, color: temaPal.textMuted }}>📱 {pd.telefono || "sin telefono"}</div>
-              </div>
-              <button className="btn btn-sm" style={{ background: "#25D366", color: temaPal.card, fontSize: 12 }} onClick={() => avisarPedido(pd)}>Enviar WhatsApp</button>
-            </div>
-          ))}
-        </div>
-      )}
-
       {tab === "enviados" && (
         <div className="card fade">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
