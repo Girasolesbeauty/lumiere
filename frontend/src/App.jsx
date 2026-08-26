@@ -2011,23 +2011,25 @@ function POS({ localId, usuario, paletaActual }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 8, overflow: "hidden" }}>
           <div style={{ background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 8, padding: "10px 12px", overflowY: "auto", flex: 1 }}>
             {preventa ? (
-              <div className="fg"><input className="inp" placeholder={tipoReserva === "sena" ? "Nombre cliente (seña)" : "Nombre cliente (preventa)"} value={nombrePreventa} onChange={e => setNombrePreventa(e.target.value)} style={{ fontSize: 11, padding: "8px 10px" }} /></div>
-              {tipoReserva === "sena" && (
-                <>
-                  <div className="fg" style={{ display: "flex", gap: 6 }}>
-                    <input className="inp" type="number" placeholder="Monto de la seña ($)" value={montoSena} onChange={e => setMontoSena(e.target.value)} style={{ fontSize: 11, padding: "8px 10px", flex: 1 }} />
-                    <select className="sel" value={senaMedioPagoId} onChange={e => setSenaMedioPagoId(e.target.value)} style={{ fontSize: 11, padding: "8px 10px", flex: 1 }}>
-                      <option value="">Medio de pago...</option>
-                      {mediosPago.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
-                    </select>
-                  </div>
-                  {montoSena !== "" && (
-                    <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: -6, marginBottom: 6 }}>
-                      Queda pendiente de cobrar: {fmt(Math.max(total - (parseFloat(montoSena) || 0), 0))} (se cobra cuando venga a buscarlo)
+              <>
+                <div className="fg"><input className="inp" placeholder={tipoReserva === "sena" ? "Nombre cliente (seña)" : "Nombre cliente (preventa)"} value={nombrePreventa} onChange={e => setNombrePreventa(e.target.value)} style={{ fontSize: 11, padding: "8px 10px" }} /></div>
+                {tipoReserva === "sena" && (
+                  <>
+                    <div className="fg" style={{ display: "flex", gap: 6 }}>
+                      <input className="inp" type="number" placeholder="Monto de la seña ($)" value={montoSena} onChange={e => setMontoSena(e.target.value)} style={{ fontSize: 11, padding: "8px 10px", flex: 1 }} />
+                      <select className="sel" value={senaMedioPagoId} onChange={e => setSenaMedioPagoId(e.target.value)} style={{ fontSize: 11, padding: "8px 10px", flex: 1 }}>
+                        <option value="">Medio de pago...</option>
+                        {mediosPago.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
+                      </select>
                     </div>
-                  )}
-                </>
-              )}
+                    {montoSena !== "" && (
+                      <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: -6, marginBottom: 6 }}>
+                        Queda pendiente de cobrar: {fmt(Math.max(total - (parseFloat(montoSena) || 0), 0))} (se cobra cuando venga a buscarlo)
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
             ) : (
               <div>
                 <div style={{ position: "relative", marginBottom: 6 }}>
