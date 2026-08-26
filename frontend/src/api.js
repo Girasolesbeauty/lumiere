@@ -1,7 +1,11 @@
 import axios from 'axios';
 
+// La URL del backend se lee de una variable de entorno (VITE_API_URL), asi el mismo
+// codigo sirve para cualquier copia del sistema -- cada cliente la configura en su propio
+// Vercel, sin tocar ni una linea de codigo. Si no esta configurada (como en esta copia
+// original), sigue funcionando exactamente igual que siempre, apuntando al backend real.
 const API = axios.create({
-  baseURL: 'https://lumiere-production-79d0.up.railway.app/api',
+  baseURL: import.meta.env.VITE_API_URL || 'https://lumiere-production-79d0.up.railway.app/api',
 });
 
 // PRODUCTOS
