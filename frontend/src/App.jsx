@@ -124,6 +124,7 @@ tr:hover td { background: ${p.trHover}; }
 .mobile-topbar { display: none; align-items: center; justify-content: space-between; background: ${p.sidebar}; color: ${p.logoText}; padding: 12px 16px; position: sticky; top: 0; z-index: 30; }
 .mobile-menu-btn { background: transparent; border: none; color: ${p.logoText}; font-size: 22px; line-height: 1; cursor: pointer; padding: 4px 8px; }
 .mobile-overlay { display: none; }
+.pos-grid { display: grid; grid-template-columns: 1fr 1fr 340px; gap: 12px; height: calc(100vh - 160px); }
 @media (max-width: 860px) {
   .mobile-topbar { display: flex; }
   .sidebar { transform: translateX(-100%); transition: transform .22s ease; top: 0; }
@@ -133,6 +134,12 @@ tr:hover td { background: ${p.trHover}; }
   .g4 { grid-template-columns: repeat(2,1fr) !important; }
   .g3 { grid-template-columns: repeat(2,1fr) !important; }
   .g2 { grid-template-columns: 1fr !important; }
+  /* POS en el celular: las 3 columnas (buscar producto / carrito / pago) se apilan
+     una debajo de otra en vez de lado a lado, y cada una tiene su propio scroll
+     acotado -- asi se puede vender desde el celular sin depender del wifi del local. */
+  .pos-grid { grid-template-columns: 1fr !important; height: auto !important; gap: 14px !important; }
+  .pos-grid > div { max-height: 46vh; }
+  .pos-grid > div:last-child { max-height: none; }
 }
 @media (max-width: 520px) {
   .g4, .g3 { grid-template-columns: 1fr !important; }
@@ -1914,7 +1921,7 @@ function POS({ localId, usuario, paletaActual }) {
           {mensaje}
         </div>
       )}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 340px", gap: 12, height: "calc(100vh - 160px)" }}>
+            <div className="pos-grid">
         <div style={{ display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
           <input className="inp" placeholder="Escanea o busca por nombre, marca o codigo..." value={busqueda} onChange={e => setBusqueda(e.target.value)} onKeyDown={onEscaneo} autoFocus />
           <div style={{ overflowY: "auto", flex: 1, background: temaPal.card, border: "1px solid " + temaPal.border, borderRadius: 8 }}>
