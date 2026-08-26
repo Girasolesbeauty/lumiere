@@ -5471,11 +5471,13 @@ function Pedidos({ localId, paletaActual }) {
   const [telefonoManual, setTelefonoManual] = useState("");
 
   const [pedidosListos, setPedidosListos] = useState([]);
+  const [nombreNegocio, setNombreNegocio] = useState("");
+  useEffect(() => { API.get("/configuracion").then(res => setNombreNegocio(res.data?.nombre_negocio || "")).catch(() => {}); }, []);
   const cargarPedidosListos = () => {
     API.get("/pedidos/con-stock").then(res => setPedidosListos(res.data)).catch(() => {});
   };
   const avisarPedido = async (pd) => {
-    const texto = "Hola " + (pd.cliente_nombre || "") + "! Te avisamos que ya tenemos stock de " + pd.producto_nombre + ". Te esperamos! - Girasoles Beauty";
+    const texto = "Hola " + (pd.cliente_nombre || "") + "! Te avisamos que ya tenemos stock de " + pd.producto_nombre + ". Te esperamos!" + (nombreNegocio ? " - " + nombreNegocio : "");
     let tel = (pd.telefono || "").replace(/[^0-9]/g, "");
     if (!tel) { alert("Esta clienta no tiene telefono cargado"); return; }
     let numero = tel;
@@ -5677,7 +5679,7 @@ function PostventaWA({ paletaActual }) {
   const [nuevaRegla, setNuevaRegla] = useState({ nombre: "", disparador: "post_compra", dias: 7, segmento: "Todos", mensaje: "" });
   const [pendientesWA, setPendientesWA] = useState([]);
   const [cargandoWA, setCargandoWA] = useState(false);
-  const [plantillaWA, setPlantillaWA] = useState("Hola {nombre}! Soy de Girasoles Beauty 🌻 Te escribo para saber como te fue con tu compra. Cualquier consulta estamos para ayudarte!");
+  const [plantillaWA, setPlantillaWA] = useState("Hola {nombre}! Te escribo para saber como te fue con tu compra. Cualquier consulta estamos para ayudarte!");
   const [mensaje, setMensaje] = useState("");
   const [mensajesReales, setMensajesReales] = useState([]);
   const [cargandoMensajes, setCargandoMensajes] = useState(false);
@@ -10468,7 +10470,7 @@ function ConfigTicket({ paletaActual }) {
           <div className="card">
             <div className="ct">Textos del pie</div>
             <div className="fg"><div className="fl">Mensaje de agradecimiento</div><input className="inp" value={cfg.mensaje_pie || ""} onChange={e => setCfg(p => ({ ...p, mensaje_pie: e.target.value }))} placeholder="Gracias por tu compra!" /></div>
-            <div className="fg"><div className="fl">Texto extra (redes, telefono, direccion)</div><textarea className="inp" rows={3} value={cfg.texto_extra || ""} onChange={e => setCfg(p => ({ ...p, texto_extra: e.target.value }))} placeholder="Ej: @girasoles.beauty | Tel: 2964..." /></div>
+            <div className="fg"><div className="fl">Texto extra (redes, telefono, direccion)</div><textarea className="inp" rows={3} value={cfg.texto_extra || ""} onChange={e => setCfg(p => ({ ...p, texto_extra: e.target.value }))} placeholder="Ej: @tu_negocio | Tel: 2964..." /></div>
           </div>
         </div>
       )}
