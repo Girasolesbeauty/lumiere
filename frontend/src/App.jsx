@@ -144,8 +144,12 @@ tr:hover td { background: ${p.trHover}; }
 `;
 
 // Preferencia de tema guardada en este navegador/PC (no depende de la cuenta ni del backend).
+// El tema "de fabrica" (antes de que alguien lo cambie a mano) se puede configurar por
+// copia con la variable de entorno VITE_TEMA_DEFAULT -- si no esta configurada, sigue
+// siendo "claro" como siempre.
+const TEMA_POR_DEFECTO = (import.meta.env.VITE_TEMA_DEFAULT === "oscuro") ? "oscuro" : "claro";
 const obtenerTemaGuardado = () => {
-  try { return localStorage.getItem("lumiere_tema") || "claro"; } catch (e) { return "claro"; }
+  try { return localStorage.getItem("lumiere_tema") || TEMA_POR_DEFECTO; } catch (e) { return TEMA_POR_DEFECTO; }
 };
 const guardarTema = (tema) => { try { localStorage.setItem("lumiere_tema", tema); } catch (e) {} };
 
@@ -759,7 +763,7 @@ function VentasOnline({ localId, usuario, permisosActivos, paletaActual }) {
               </div>
               <div className="fg" style={{ marginBottom: 10 }}>
                 <div className="fl">Referencia (opcional)</div>
-                <input className="inp" placeholder="Ej: pedido #123 Tiendanube" value={referencia} onChange={e => setReferencia(e.target.value)} />
+                <input className="inp" placeholder="Ej: pedido #123" value={referencia} onChange={e => setReferencia(e.target.value)} />
               </div>
               <button className="btn btn-p" style={{ width: "100%" }} disabled={guardando} onClick={registrar}>{guardando ? "Registrando..." : "Registrar venta online"}</button>
               <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 8, textAlign: "center" }}>No se factura en ARCA (ya facturada en la tienda). Descuenta del stock de {Number(localId) === 2 ? "Ushuaia" : "Rio Grande"}.</div>
@@ -5879,7 +5883,7 @@ function PostventaWA({ paletaActual }) {
             <div className="fg"><div className="fl">Dias</div><input className="inp" type="number" placeholder="7" value={nuevaRegla.dias} onChange={e => setNuevaRegla(p => ({ ...p, dias: e.target.value }))} /></div>
             <div className="fg"><div className="fl">Segmento</div>
               <select className="sel" value={nuevaRegla.segmento} onChange={e => setNuevaRegla(p => ({ ...p, segmento: e.target.value }))}>
-                <option>Todos</option><option>Gold y Platinum</option><option>Solo Tiendanube</option><option>Solo presencial</option>
+                <option>Todos</option><option>Gold y Platinum</option><option>Solo presencial</option>
               </select>
             </div>
             <div className="fg">
@@ -6323,237 +6327,6 @@ function GiftCards({ localId, usuario, paletaActual }) {
 }
 
 
-function Tiendanube({ localId, usuario, paletaActual }) {
-  const temaPal = paletaActual || PALETA_CLARA;
-  const [tab, setTab] = useState("pedidos");
-  const [pedidos, setPedidos] = useState([]);
-  const [vinculos, setVinculos] = useState([]);
-  const [productos, setProductos] = useState([]);
-  const [tnProductos, setTnProductos] = useState([]);
-  const [busqTN, setBusqTN] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [mensaje, setMensaje] = useState("");
-  const [status, setStatus] = useState(null);
-  const [vinculando, setVinculando] = useState(null);
-  const [tnSeleccionado, setTnSeleccionado] = useState(null);
-
-  const cargar = async () => {
-    setLoading(true);
-    try {
-      const [pedRes, vincRes, prodRes, stRes] = await Promise.all([
-        API.get("/tiendanube/pedidos-locales"),
-        API.get("/tiendanube/vinculos"),
-        API.get("/productos"),
-        API.get("/tiendanube/status")
-      ]);
-      setPedidos(pedRes.data || []);
-      setVinculos(vincRes.data || []);
-      setProductos(prodRes.data || []);
-      setStatus(stRes.data);
-    } catch (e) {}
-    setLoading(false);
-  };
-
-  useEffect(() => { cargar(); }, []);
-
-  const autorizar = async (p) => {
-    try {
-      await API.post("/tiendanube/pedidos-locales/" + p.id + "/autorizar", { usuario_nombre: usuario?.nombre });
-      setMensaje("Stock descontado para pedido #" + p.numero);
-      cargar();
-      setTimeout(() => setMensaje(""), 4000);
-    } catch (e) { setMensaje(e.response?.data?.error || "Error al autorizar"); }
-  };
-
-  const rechazar = async (p) => {
-    try {
-      await API.post("/tiendanube/pedidos-locales/" + p.id + "/rechazar");
-      setMensaje("Pedido rechazado");
-      cargar();
-      setTimeout(() => setMensaje(""), 3000);
-    } catch (e) { setMensaje("Error al rechazar"); }
-  };
-
-  const buscarEnTN = async () => {
-    if (!busqTN.trim()) return;
-    try {
-      const res = await API.get("/tiendanube/buscar-producto?q=" + encodeURIComponent(busqTN));
-      setTnProductos(res.data || []);
-    } catch (e) { setMensaje("Error al buscar en Tiendanube"); }
-  };
-
-  const guardarVinculo = async () => {
-    if (!vinculando || !tnSeleccionado) return;
-    try {
-      await API.post("/tiendanube/vinculos", {
-        producto_id: vinculando.id,
-        tn_product_id: tnSeleccionado.id,
-        tn_variant_id_rg: tnSeleccionado.variantes?.[0]?.id || null,
-        tn_variant_id_ush: tnSeleccionado.variantes?.[1]?.id || tnSeleccionado.variantes?.[0]?.id || null
-      });
-      setMensaje("Vinculado: " + vinculando.nombre + " con " + tnSeleccionado.nombre);
-      setVinculando(null);
-      setTnSeleccionado(null);
-      setTnProductos([]);
-      setBusqTN("");
-      cargar();
-      setTimeout(() => setMensaje(""), 4000);
-    } catch (e) { setMensaje("Error al vincular"); }
-  };
-
-  const desvincular = async (v) => {
-    try {
-      await API.delete("/tiendanube/vinculos/" + v.producto_id);
-      setMensaje("Desvinculado");
-      cargar();
-      setTimeout(() => setMensaje(""), 3000);
-    } catch (e) { setMensaje("Error"); }
-  };
-
-  const pendientes = pedidos.filter(p => p.estado === "pendiente");
-  const procesados = pedidos.filter(p => p.estado !== "pendiente");
-
-  return (
-    <div className="fade">
-      <div className="ph">
-        <div>
-          <div className="pt">Tiendanube</div>
-          <div className="ps">{status?.ok ? status.tienda + " - conectada" : "sin conexion"}</div>
-        </div>
-        {status?.ok && <span className="badge bg">Conectada</span>}
-      </div>
-      {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
-      <div className="tabs">
-        <div className={"tab " + (tab === "pedidos" ? "on" : "")} onClick={() => setTab("pedidos")}>PEDIDOS {pendientes.length > 0 && <span style={{ background: "#c0392b", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{pendientes.length}</span>}</div>
-        <div className={"tab " + (tab === "vincular" ? "on" : "")} onClick={() => setTab("vincular")}>VINCULAR PRODUCTOS</div>
-        <div className={"tab " + (tab === "historial" ? "on" : "")} onClick={() => setTab("historial")}>HISTORIAL</div>
-      </div>
-      {tab === "pedidos" && (
-        <div className="fade">
-          {pendientes.length === 0 ? (
-            <div className="card" style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>No hay pedidos pendientes de autorizar</div>
-          ) : pendientes.map(p => {
-            const items = p.productos || [];
-            return (
-              <div key={p.id} className="card" style={{ marginBottom: 12, borderLeft: "3px solid " + temaPal.border }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 700 }}>Pedido #{p.numero}</div>
-                    <div style={{ fontSize: 11, color: temaPal.textMuted }}>{p.cliente_nombre}{p.cliente_email ? " - " + p.cliente_email : ""}</div>
-                    <div style={{ fontSize: 10, color: temaPal.textMuted }}>{new Date(p.creado_en).toLocaleDateString("es-AR")} {new Date(p.creado_en).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</div>
-                  </div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>{fmt(parseFloat(p.total || 0))}</div>
-                </div>
-                <div style={{ background: temaPal.bg, borderRadius: 6, padding: "6px 10px", marginBottom: 10 }}>
-                  {items.map((it, idx) => (
-                    <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "3px 0", borderBottom: idx < items.length - 1 ? "1px solid " + temaPal.border : "none" }}>
-                      <span>{it.nombre} x{it.cantidad}</span>
-                      <span style={{ color: temaPal.textMuted }}>{fmt(parseFloat(it.precio || 0))}</span>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button className="btn btn-p btn-sm" style={{ flex: 2 }} onClick={() => autorizar(p)}>Autorizar descuento de stock</button>
-                  <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => rechazar(p)}>Ignorar</button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {tab === "vincular" && (
-        <div className="fade">
-          {vinculando && (
-            <div className="card" style={{ marginBottom: 16, borderLeft: "3px solid #2471a3" }}>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Vincular: {vinculando.nombre}</div>
-              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                <input className="inp" placeholder="Buscar en Tiendanube..." value={busqTN} onChange={e => setBusqTN(e.target.value)} onKeyDown={e => e.key === "Enter" && buscarEnTN()} style={{ flex: 1 }} />
-                <button className="btn btn-p btn-sm" onClick={buscarEnTN}>Buscar</button>
-              </div>
-              {tnProductos.length > 0 && (
-                <div style={{ maxHeight: 200, overflowY: "auto", marginBottom: 10 }}>
-                  {tnProductos.map(tp => (
-                    <div key={tp.id} onClick={() => setTnSeleccionado(tp)}
-                      style={{ padding: "8px 10px", borderRadius: 6, marginBottom: 4, cursor: "pointer", background: tnSeleccionado?.id === tp.id ? "#2471a312" : temaPal.bg, border: "1px solid " + (tnSeleccionado?.id === tp.id ? "#2471a3" : temaPal.border) }}>
-                      <div style={{ fontSize: 12, fontWeight: 600 }}>{tp.nombre}</div>
-                      <div style={{ fontSize: 10, color: temaPal.textMuted }}>{(tp.variantes || []).length} variante(s)</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div style={{ display: "flex", gap: 8 }}>
-                <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => { setVinculando(null); setTnProductos([]); setTnSeleccionado(null); }}>Cancelar</button>
-                {tnSeleccionado && <button className="btn btn-p btn-sm" style={{ flex: 1 }} onClick={guardarVinculo}>Confirmar vinculo</button>}
-              </div>
-            </div>
-          )}
-          <div className="g2">
-            <div className="card">
-              <div className="ct">PRODUCTOS SIN VINCULAR</div>
-              {productos.filter(p => !vinculos.find(v => v.producto_id === p.id)).length === 0 ? (
-                <div style={{ fontSize: 12, color: temaPal.textMuted, textAlign: "center", padding: 20 }}>Todos los productos estan vinculados</div>
-              ) : (
-                <div style={{ maxHeight: 400, overflowY: "auto" }}>
-                  {productos.filter(p => !vinculos.find(v => v.producto_id === p.id)).map(p => (
-                    <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid " + temaPal.border }}>
-                      <div>
-                        <div style={{ fontSize: 12 }}>{p.nombre}</div>
-                        <div style={{ fontSize: 10, color: temaPal.textMuted }}>{p.marca || ""}</div>
-                      </div>
-                      <button className="btn btn-sm" style={{ fontSize: 9 }} onClick={() => { setVinculando(p); setTnProductos([]); setTnSeleccionado(null); setBusqTN(p.nombre || ""); }}>Vincular</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="card">
-              <div className="ct">PRODUCTOS VINCULADOS ({vinculos.length})</div>
-              {vinculos.length === 0 ? (
-                <div style={{ fontSize: 12, color: temaPal.textMuted, textAlign: "center", padding: 20 }}>Sin vinculos creados</div>
-              ) : (
-                <div style={{ maxHeight: 400, overflowY: "auto" }}>
-                  {vinculos.map(v => (
-                    <div key={v.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid " + temaPal.border }}>
-                      <div>
-                        <div style={{ fontSize: 12 }}>{v.producto_nombre}</div>
-                        <div style={{ fontSize: 10, color: temaPal.textMuted }}>TN ID: {v.tn_product_id}</div>
-                      </div>
-                      <button className="btn btn-sm" style={{ color: "#c0392b", fontSize: 9 }} onClick={() => desvincular(v)}>Desvincular</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-      {tab === "historial" && (
-        <div className="card fade">
-          {procesados.length === 0 ? (
-            <div style={{ fontSize: 12, color: temaPal.textMuted, textAlign: "center", padding: 30 }}>Sin pedidos procesados todavia</div>
-          ) : (
-            <table>
-              <thead><tr><th>Pedido</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Autorizado por</th><th>Fecha</th></tr></thead>
-              <tbody>
-                {procesados.map(p => (
-                  <tr key={p.id}>
-                    <td style={{ fontWeight: 600 }}>#{p.numero}</td>
-                    <td style={{ fontSize: 12 }}>{p.cliente_nombre}</td>
-                    <td style={{ color: "#c9a84c", fontWeight: 600 }}>{fmt(parseFloat(p.total || 0))}</td>
-                    <td><span className={"badge " + (p.estado === "procesado" ? "bg" : "br")}>{p.estado}</span></td>
-                    <td style={{ fontSize: 11, color: temaPal.textMuted }}>{p.autorizado_por || "-"}</td>
-                    <td style={{ fontSize: 10, color: temaPal.textMuted }}>{new Date(p.creado_en).toLocaleDateString("es-AR")}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function ConfiguracionNegocio({ paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState("general");
@@ -6978,7 +6751,7 @@ function PortalCliente({ paletaActual }) {
             <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: p.text, marginBottom: 14 }}>Historial de compras</div>
             {[
               { date: "24/05/2026", items: "Serum Vitamina C x 1", total: 8500, pts: 85, canal: "Local" },
-              { date: "10/05/2026", items: "Base Liquida HD, Mascara x 2", total: 13700, pts: 137, canal: "Tiendanube" },
+              { date: "10/05/2026", items: "Base Liquida HD, Mascara x 2", total: 13700, pts: 137, canal: "Online" },
               { date: "28/04/2026", items: "Crema Hidratante FPS50 x 2", total: 12400, pts: 124, canal: "Local" },
             ].map((h, i) => (
               <div key={i} style={{ background: p.card, border: "1px solid " + p.border, borderRadius: 10, padding: "14px 18px", marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -10977,7 +10750,6 @@ const NAV_SECTIONS = [
   { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "💰", label: "Finanzas" }, { id: "reports", icon: "📋", label: "Informes" }, { id: "comprobantes", icon: "🧾", label: "Comprobantes" }, { id: "comisiones", icon: "💎", label: "Comisiones" }, { id: "proveedores", icon: "🏭", label: "Proveedores" }, { id: "reclamos-proveedores", icon: "📮", label: "Reclamos a Proveedores" }, { id: "calculadoras", icon: "🧮", label: "Calculadoras" }, { id: "productividad", icon: "🏆", label: "Productividad" }] },
   { section: "MARKETING", color: "#e74c3c", items: [{ id: "cupones", icon: "🏷️", label: "Cupones" }, { id: "promociones", icon: "🎉", label: "Promociones" }] },
   { section: "POSTVENTA", color: "#25d366", items: [{ id: "postventa", icon: "💬", label: "Postventa WA" }] },
-  { section: "INTEGRACIONES", color: "#2471a3", items: [{ id: "tiendanube", icon: "🛍️", label: "Tiendanube" }] },
   { section: "CLIENTE", color: PALETA_CLARA.textMuted, items: [{ id: "portal", icon: "👤", label: "Portal Cliente" }] },
   { section: "NEGOCIO", color: "#8e44ad", items: [{ id: "config-negocio", icon: "⚙️", label: "Configuracion del Negocio" }] },
 ];
@@ -11118,8 +10890,7 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
     "Kits": [["kits.ver","Ver kits"],["kits.crear","Crear/editar"],["kits.vender","Vender kits"]],
     "Ordenes de Ingreso": [["ordenes.ver","Ver ordenes"],["ordenes.crear","Crear ordenes"],["ordenes.recibir","Recibir mercaderia"]],
     "Usuarios": [["usuarios.ver","Ver usuarios"],["usuarios.crear","Crear usuarios"],["usuarios.permisos","Modificar permisos"]],
-    "Marketing": [["cupones.ver","Ver cupones"],["cupones.gestionar","Gestionar cupones"],["fidelizacion.ver","Ver fidelizacion"],["fidelizacion.gestionar","Gestionar fidelizacion"],["postventa.ver","Ver postventa WA"],["postventa.gestionar","Gestionar postventa WA"]],
-    "Tiendanube": [["tiendanube.ver","Ver Tiendanube"]]
+    "Marketing": [["cupones.ver","Ver cupones"],["cupones.gestionar","Gestionar cupones"],["fidelizacion.ver","Ver fidelizacion"],["fidelizacion.gestionar","Gestionar fidelizacion"],["postventa.ver","Ver postventa WA"],["postventa.gestionar","Gestionar postventa WA"]]
   };
 
   const cargar = async () => {
@@ -11426,7 +11197,7 @@ export default function AppWrapper() {
       "calculadoras": "calculadoras.ver", "productividad": "productividad.ver",
       "cupones": "cupones.ver", "promociones": "cupones.ver", "postventa": "postventa.ver", "portal": "clientes.ver",
       "caja": "caja.ver", "caja-respaldo": "caja_respaldo.ver", "cierre": "cierre_caja.ver", "giftcards": "giftcards.ver",
-      "usuarios": "usuarios.ver", "tiendanube": "tiendanube.ver", "config-negocio": "config_negocio.editar",
+      "usuarios": "usuarios.ver", "config-negocio": "config_negocio.editar",
     };
     const permiso = mapaModulos[modulo];
     if (!permiso) return true;
@@ -11474,7 +11245,6 @@ export default function AppWrapper() {
     if (id === "fidelizacion") return <Fidelizacion usuario={usuario} paletaActual={paletaActual} />;
     if (id === "tareas") return <Tareas usuario={usuario} localId={local.id} paletaActual={paletaActual} />;
     if (id === "postventa") return <PostventaWA paletaActual={paletaActual} />;
-    if (id === "tiendanube") return <Tiendanube localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "portal") return <PortalCliente paletaActual={paletaActual} />;
     if (id === "config-negocio") return <ConfiguracionNegocio paletaActual={paletaActual} />;
     if (id === "usuarios") return <Usuarios usuario={usuario} paletaActual={paletaActual} />;
@@ -11553,7 +11323,6 @@ export default function AppWrapper() {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
               <StatusDot color="#2d7a4f" label="ARCA" />
-              <StatusDot color="#25d366" label="TIENDANUBE" />
             </div>
             <div
               onClick={alternarTema}
