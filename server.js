@@ -7,8 +7,14 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// La lista de paginas permitidas (CORS) se puede extender con la variable de entorno
+// EXTRA_CORS_ORIGINS (separadas por coma) -- asi cada copia del sistema (real, demo,
+// o un cliente nuevo) puede agregar su propia URL sin tocar el codigo. La lista de
+// abajo sigue funcionando igual que siempre como base fija.
+const origenesBase = ['https://lumiere-beta-nine.vercel.app', 'http://localhost:5173', 'https://lumiere-portal-clientes.vercel.app', 'https://girasolesbeauty.vercel.app'];
+const origenesExtra = (process.env.EXTRA_CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
 app.use(cors({
-  origin: ['https://lumiere-beta-nine.vercel.app', 'http://localhost:5173', 'https://lumiere-portal-clientes.vercel.app', 'https://girasolesbeauty.vercel.app'],
+  origin: [...origenesBase, ...origenesExtra],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
