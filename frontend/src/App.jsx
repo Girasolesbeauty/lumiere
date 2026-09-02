@@ -268,17 +268,25 @@ function Dashboard({ localId, paletaActual }) {
     try {
       const local = tabLocal === "rg" ? "1" : tabLocal === "ush" ? "2" : "";
       const params = "mes=" + mes + "&anio=" + anio + (local ? "&local_id=" + local : "");
-      const [ventasRes, prodRes, clientesRes, finRes, factExtRes] = await Promise.all([
+      let mesAnt = mes - 1, anioAnt = anio;
+      if (mesAnt === 0) { mesAnt = 12; anioAnt = anio - 1; }
+      const paramsAnt = "mes=" + mesAnt + "&anio=" + anioAnt + (local ? "&local_id=" + local : "");
+      const [ventasRes, prodRes, clientesRes, finRes, factExtRes, usuariosRes, ventasAntRes] = await Promise.all([
         API.get("/ventas?" + params),
         API.get("/productos"),
         API.get("/clientes"),
         API.get("/finanzas/flujo?" + params).catch(() => ({ data: { resumen: { ingresos: 0, egresos: 0, neto: 0 } } })),
-        API.get("/finanzas/facturacion-externa?" + params).catch(() => ({ data: { total: 0 } }))
+        API.get("/finanzas/facturacion-externa?" + params).catch(() => ({ data: { total: 0 } })),
+        API.get("/auth/usuarios").catch(() => ({ data: [] })),
+        API.get("/ventas?" + paramsAnt).catch(() => ({ data: [] }))
       ]);
       const ventas = ventasRes.data || [];
       const productos = prodRes.data || [];
       const clientes = clientesRes.data || [];
       const fin = finRes.data?.resumen || { ingresos: 0, egresos: 0, neto: 0 };
+      const todosLosUsuarios = usuariosRes.data || [];
+      const totalMesAnterior = (ventasAntRes.data || []).reduce((s, v) => s + parseFloat(v.total || 0), 0);
+      const nombresMeses = ["", "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
       const factExterna = parseFloat(factExtRes?.data?.total || 0);
       const totalVentas = ventas.reduce((s, v) => s + parseFloat(v.total || 0), 0) + factExterna;
@@ -326,8 +334,13 @@ function Dashboard({ localId, paletaActual }) {
         .slice(0, 5)
         .map(([nombre, cantidad]) => ({ nombre: nombre.length > 22 ? nombre.slice(0, 22) + "..." : nombre, cantidad }));
 
-      // Ventas por vendedora (para el grafico de barras horizontal)
+      // Ventas por vendedora (para el grafico de barras horizontal) -- se arranca con
+      // TODAS las vendedoras del local (aunque no hayan vendido nada este mes), para que
+      // la comparacion sea justa y no solo aparezcan las que ya tienen ventas cargadas.
       const porVendedora = {};
+      todosLosUsuarios
+        .filter(u => u.rol === "vendedora" && (!local || String(u.local_id) === local))
+        .forEach(u => { porVendedora[u.nombre] = 0; });
       ventas.forEach(v => {
         const nombre = v.vendedora_nombre || "Sin asignar";
         porVendedora[nombre] = (porVendedora[nombre] || 0) + parseFloat(v.total || 0);
@@ -336,10 +349,29 @@ function Dashboard({ localId, paletaActual }) {
         .sort((a, b) => b[1] - a[1])
         .map(([nombre, total]) => ({ nombre, total: Math.round(total) }));
 
+      // Ventas por categoria de producto (que rubro sostiene mas el negocio)
+      const porCategoria = {};
+      ventas.forEach(v => {
+        if (v.items) v.items.forEach(i => {
+          const cat = i.categoria || "Sin categoria";
+          porCategoria[cat] = (porCategoria[cat] || 0) + (i.cantidad * (i.precio_unitario || 0));
+        });
+      });
+      const ventasPorCategoria = Object.entries(porCategoria)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6)
+        .map(([nombre, total]) => ({ nombre, total: Math.round(total) }));
+
       // Medios de pago (para el grafico de torta)
       const mediosPagoChart = Object.entries(ventasPorMedio).map(([nombre, total]) => ({ nombre, total: Math.round(total) }));
 
-      setData({ ventas, totalVentas, cantVentas, ticketProm, margenBruto, costoVentas, stockBajo, sinStock, clientesNuevos, clientes, fin, ventasPorMedio, prodVentas, productos, facturacionDiaria, topProductos, ventasPorVendedora, mediosPagoChart });
+      // Comparacion con el mes anterior (para ver de un vistazo si vas mejor o peor)
+      const comparativoMeses = [
+        { mes: nombresMeses[mesAnt], total: Math.round(totalMesAnterior) },
+        { mes: nombresMeses[mes], total: Math.round(totalVentas - factExterna) }
+      ];
+
+      setData({ ventas, totalVentas, cantVentas, ticketProm, margenBruto, costoVentas, stockBajo, sinStock, clientesNuevos, clientes, fin, ventasPorMedio, prodVentas, productos, facturacionDiaria, topProductos, ventasPorVendedora, mediosPagoChart, ventasPorCategoria, comparativoMeses });
     } catch (e) { console.error(e); }
     setLoading(false);
   };
@@ -520,6 +552,46 @@ function Dashboard({ localId, paletaActual }) {
                     <Tooltip formatter={v => fmt(v)} contentStyle={{ background: p.card, border: "1px solid " + p.border, borderRadius: 8, fontSize: 12 }} />
                     <Legend wrapperStyle={{ fontSize: 10, color: p.textMuted }} />
                   </PieChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+
+          <div className="g3" style={{ marginBottom: 20 }}>
+            <div className="card">
+              <div className="ct">Este mes vs el anterior</div>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={data.comparativoMeses}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={p.border} />
+                  <XAxis dataKey="mes" tick={{ fontSize: 11, fill: p.textMuted }} />
+                  <YAxis tick={{ fontSize: 10, fill: p.textMuted }} tickFormatter={v => v >= 1000 ? (v / 1000) + "k" : v} />
+                  <Tooltip formatter={v => fmt(v)} contentStyle={{ background: p.card, border: "1px solid " + p.border, borderRadius: 8, fontSize: 12 }} />
+                  <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+                    {data.comparativoMeses.map((entry, i) => (
+                      <Cell key={i} fill={i === data.comparativoMeses.length - 1 ? "#c9a84c" : (p.border === "#e8e4dc" ? "#d8d3c8" : "#3a4152")} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              {data.comparativoMeses[0].total > 0 && (
+                <div style={{ textAlign: "center", fontSize: 12, fontWeight: 700, marginTop: -6, color: data.comparativoMeses[1].total >= data.comparativoMeses[0].total ? "#2d7a4f" : "#c0392b" }}>
+                  {data.comparativoMeses[1].total >= data.comparativoMeses[0].total ? "▲" : "▼"} {Math.abs(Math.round((data.comparativoMeses[1].total - data.comparativoMeses[0].total) / data.comparativoMeses[0].total * 100))}%
+                </div>
+              )}
+            </div>
+            <div className="card" style={{ gridColumn: "span 2" }}>
+              <div className="ct">Ventas por categoria de producto</div>
+              {data.ventasPorCategoria.length === 0 ? (
+                <div style={{ color: p.textMuted, fontSize: 12, textAlign: "center", padding: 20 }}>Sin datos este mes</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={data.ventasPorCategoria} layout="vertical" margin={{ left: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={p.border} horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 10, fill: p.textMuted }} tickFormatter={v => v >= 1000 ? (v / 1000) + "k" : v} />
+                    <YAxis type="category" dataKey="nombre" tick={{ fontSize: 10, fill: p.text }} width={110} />
+                    <Tooltip formatter={v => fmt(v)} contentStyle={{ background: p.card, border: "1px solid " + p.border, borderRadius: 8, fontSize: 12 }} />
+                    <Bar dataKey="total" fill="#7d3c98" radius={[0, 4, 4, 0]} />
+                  </BarChart>
                 </ResponsiveContainer>
               )}
             </div>
