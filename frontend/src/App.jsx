@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useRef, Fragment } from "react";
 import { getProductos, createVenta, getClientes, getFlujo, getPuntoEquilibrio, agregarEgreso, getResumenFinanzas, getVentas, getAlertasStock, getCupones, createCupon, updateCupon, getRanking, getReglas, createRegla as createReglaWA, updateRegla as updateReglaWA, login, register } from "./api";
 import API from "./api";
+import { BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 const LOGO_TICKET = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAXwAAABPAQAAAADABUPQAAADzElEQVR4nO2WsW7jRhCGvx0REgMYMYGkcADD4iO4TGGc+Qh5BAF5gXuA4DwGUqSL3yB+FPouRbq4Sk0dXLikAwGhFJKTYklqSelyKVJ6CmkxO//MP7s7M3RG81XJf5YXgR9fMnhJWLsYoBGAdQTwICNrcwpWwcKsPLUCrs2scmZmcGPWwrWZXpsVwI2VnJZCBbvexWO/aOAedoHGb28Q7sC001RAZUANJTzDJgTkNEi3OpQNFNCGKgUVFCg6zQ4oUXiGFnKwMGcglwagDFS9CKj3OhKB07pbnxb00YpFGWHMipBtyzuyaMPbmf4CQHKBapfR2UlMy9VFz3ZZQONu5a2Akq281gWhZ5fU5E7LvaoWvkdKB5chyZwCSA/IA/A1why+6DcVIPXrDBysqhEgRgpgHuo061lUc0imMYR4qlLwZ1XGENdTQH7gI6nY38xIWkCmSjtiOKaUTrz4qvgTKBKIgscUWTaNoADUkFp2zPlvIAQ7IZ1fx8Zr54CtIgpb57zrFqWWqIUzGoV0zMDB3ZjSposMHK8RqhFgnQBE3c/jobmymyTtoAKDmS/XiaywCUA8SiFnesXAGegYcOLfA/DtuJq9LJRctGM3SAJ077GYNAEyEHIWg/bSo3NwxfiNLM2AKwoZOkbnslj7Szk7ZAQz9Wl2EZY5/vgLzyktoR4nmSFDucDoUTuOSVpKuJtWPv0eVx3cRoJQMRx5Mt2lu/hAJK33bvb16LOqJ5WXA0ILHTGi1r/wir8xiBu4D0v+O8pEElPue40BZmXNcwZEKBrQtAqQmHvTjqigLRBD8bgDuGtCRu2OeyTieRe2Gn9geVU5hGpDCg9OWTuntakiwjbuj8d1VdPCNgHHNgkruOKWVBwM3RGlFoi6VzadD3FHGwY32WPlc097WHjhcyATVuB6N95O4AxiuBy3XQeokIStob/CCBKIGXdexSGcwEmvSbqb1RmsYD4ZHSvmYKbc2IEUMzOz3JmZwk0B3FjNsnSfa74TeTno3p+TV8Ar4BXwfwBicJMJ4Rvr8ycAW+3+G906nj4CT2njlG/ABQ1tTymHfV/6UoAiBQwd9cthIl3AsvtgWvxM/Mc5LHI+XDVvcs5zrg8jAPsmayNVaDQBnPeLmG5W1rdjiwHwMWNNm/RMM4LvjBbeH48wTFFJgKUnWPCU7U0GwEXOEt6N+BUApKC8+UQOPSXScC/8UPm3p+EAokm3HgO2f8EPOrbIIApU+1OCNaDRT8PeAwDvM8iPnVIGECHBGEzxU3MWRjyYPb8PqxczM/tgtlya63TlPz7qiaBHsxEpAAAAAElFTkSuQmCC";
 
@@ -307,7 +308,38 @@ function Dashboard({ localId, paletaActual }) {
         });
       });
 
-      setData({ ventas, totalVentas, cantVentas, ticketProm, margenBruto, costoVentas, stockBajo, sinStock, clientesNuevos, clientes, fin, ventasPorMedio, prodVentas, productos });
+      // --- Datos para los graficos ---
+      // Facturacion por dia del mes (para el grafico de barras/linea)
+      const porDia = {};
+      ventas.forEach(v => {
+        const dia = new Date(v.creado_en).getDate();
+        porDia[dia] = (porDia[dia] || 0) + parseFloat(v.total || 0);
+      });
+      const diasEnMes = new Date(anio, mes, 0).getDate();
+      const facturacionDiaria = Array.from({ length: diasEnMes }, (_, i) => ({
+        dia: String(i + 1), total: Math.round(porDia[i + 1] || 0)
+      }));
+
+      // Top 5 productos mas vendidos (para el grafico de barras horizontal)
+      const topProductos = Object.entries(prodVentas)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([nombre, cantidad]) => ({ nombre: nombre.length > 22 ? nombre.slice(0, 22) + "..." : nombre, cantidad }));
+
+      // Ventas por vendedora (para el grafico de barras horizontal)
+      const porVendedora = {};
+      ventas.forEach(v => {
+        const nombre = v.vendedora_nombre || "Sin asignar";
+        porVendedora[nombre] = (porVendedora[nombre] || 0) + parseFloat(v.total || 0);
+      });
+      const ventasPorVendedora = Object.entries(porVendedora)
+        .sort((a, b) => b[1] - a[1])
+        .map(([nombre, total]) => ({ nombre, total: Math.round(total) }));
+
+      // Medios de pago (para el grafico de torta)
+      const mediosPagoChart = Object.entries(ventasPorMedio).map(([nombre, total]) => ({ nombre, total: Math.round(total) }));
+
+      setData({ ventas, totalVentas, cantVentas, ticketProm, margenBruto, costoVentas, stockBajo, sinStock, clientesNuevos, clientes, fin, ventasPorMedio, prodVentas, productos, facturacionDiaria, topProductos, ventasPorVendedora, mediosPagoChart });
     } catch (e) { console.error(e); }
     setLoading(false);
   };
@@ -414,6 +446,81 @@ function Dashboard({ localId, paletaActual }) {
                     );
                   })}
                 </div>
+              )}
+            </div>
+          </div>
+
+          <div style={{ fontSize: 11, fontWeight: 700, color: p.textMuted, letterSpacing: ".1em", marginBottom: 10, marginTop: 4 }}>GRAFICOS</div>
+          <div className="g2" style={{ marginBottom: 16 }}>
+            <div className="card" style={{ gridColumn: "span 2" }}>
+              <div className="ct">Facturacion por dia del mes</div>
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={data.facturacionDiaria}>
+                  <defs>
+                    <linearGradient id="gradFactDiaria" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#c9a84c" stopOpacity={0.55} />
+                      <stop offset="95%" stopColor="#c9a84c" stopOpacity={0.03} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke={p.border} />
+                  <XAxis dataKey="dia" tick={{ fontSize: 10, fill: p.textMuted }} interval={2} />
+                  <YAxis tick={{ fontSize: 10, fill: p.textMuted }} tickFormatter={v => v >= 1000 ? (v / 1000) + "k" : v} />
+                  <Tooltip formatter={v => fmt(v)} labelFormatter={d => "Dia " + d} contentStyle={{ background: p.card, border: "1px solid " + p.border, borderRadius: 8, fontSize: 12 }} />
+                  <Area type="monotone" dataKey="total" stroke="#c9a84c" strokeWidth={2.5} fill="url(#gradFactDiaria)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="g3" style={{ marginBottom: 20 }}>
+            <div className="card">
+              <div className="ct">Top 5 productos mas vendidos</div>
+              {data.topProductos.length === 0 ? (
+                <div style={{ color: p.textMuted, fontSize: 12, textAlign: "center", padding: 20 }}>Sin datos este mes</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={data.topProductos} layout="vertical" margin={{ left: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={p.border} horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 10, fill: p.textMuted }} />
+                    <YAxis type="category" dataKey="nombre" tick={{ fontSize: 10, fill: p.text }} width={110} />
+                    <Tooltip formatter={v => v + " unidades"} contentStyle={{ background: p.card, border: "1px solid " + p.border, borderRadius: 8, fontSize: 12 }} />
+                    <Bar dataKey="cantidad" fill="#2471a3" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+            <div className="card">
+              <div className="ct">Ventas por vendedora</div>
+              {data.ventasPorVendedora.length === 0 ? (
+                <div style={{ color: p.textMuted, fontSize: 12, textAlign: "center", padding: 20 }}>Sin datos este mes</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={data.ventasPorVendedora} layout="vertical" margin={{ left: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={p.border} horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 10, fill: p.textMuted }} tickFormatter={v => v >= 1000 ? (v / 1000) + "k" : v} />
+                    <YAxis type="category" dataKey="nombre" tick={{ fontSize: 10, fill: p.text }} width={90} />
+                    <Tooltip formatter={v => fmt(v)} contentStyle={{ background: p.card, border: "1px solid " + p.border, borderRadius: 8, fontSize: 12 }} />
+                    <Bar dataKey="total" fill="#2d7a4f" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+            <div className="card">
+              <div className="ct">Ventas por medio de pago</div>
+              {data.mediosPagoChart.length === 0 ? (
+                <div style={{ color: p.textMuted, fontSize: 12, textAlign: "center", padding: 20 }}>Sin datos este mes</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie data={data.mediosPagoChart} dataKey="total" nameKey="nombre" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={2}>
+                      {data.mediosPagoChart.map((entry, i) => (
+                        <Cell key={i} fill={["#c9a84c", "#2471a3", "#2d7a4f", "#7d3c98", "#e67e22", "#c0392b"][i % 6]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={v => fmt(v)} contentStyle={{ background: p.card, border: "1px solid " + p.border, borderRadius: 8, fontSize: 12 }} />
+                    <Legend wrapperStyle={{ fontSize: 10, color: p.textMuted }} />
+                  </PieChart>
+                </ResponsiveContainer>
               )}
             </div>
           </div>
