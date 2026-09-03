@@ -126,6 +126,10 @@ tr:hover td { background: ${p.trHover}; }
 .mobile-menu-btn { background: transparent; border: none; color: ${p.logoText}; font-size: 22px; line-height: 1; cursor: pointer; padding: 4px 8px; }
 .mobile-overlay { display: none; }
 .pos-grid { display: grid; grid-template-columns: 1fr 1fr 340px; gap: 12px; height: calc(100vh - 160px); }
+.dash-cols { display: grid; grid-template-columns: 360px 1fr; gap: 20px; align-items: start; }
+@media (max-width: 1180px) {
+  .dash-cols { grid-template-columns: 1fr; }
+}
 @media (max-width: 860px) {
   .mobile-topbar { display: flex; }
   .sidebar { transform: translateX(-100%); transition: transform .22s ease; top: 0; }
@@ -255,20 +259,24 @@ function Dashboard({ localId, paletaActual }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tabLocal, setTabLocal] = useState("rg");
+  const [tabDash, setTabDash] = useState("resumen");
   const [vencimientos, setVencimientos] = useState([]);
+  const [alertasInsumos, setAlertasInsumos] = useState([]);
+  const [inconsistenciasStock, setInconsistenciasStock] = useState([]);
   const mes = new Date().getMonth() + 1;
   const anio = new Date().getFullYear();
 
   useEffect(() => {
     API.get("/ordenes-ingreso/alertas/vencimientos").then(res => setVencimientos(res.data || [])).catch(() => {});
-  }, []);
+    API.get("/insumos/alertas?local_id=" + (localId || 1)).then(res => setAlertasInsumos(res.data || [])).catch(() => {});
+    API.get("/ordenes-ingreso/reporte/inconsistencias-stock").then(res => setInconsistenciasStock(res.data || [])).catch(() => {});
+  }, [localId]);
 
   const cargar = async () => {
     setLoading(true);
     try {
       const local = tabLocal === "rg" ? "1" : tabLocal === "ush" ? "2" : "";
-      const params = "mes=" + mes + "&anio=" + anio + (local ? "&local_id=" + local : "");
-      let mesAnt = mes - 1, anioAnt = anio;
+      const params = "mes=" + mes + "&anio=" + anio + (local ? "&local_id=" + local : "");      let mesAnt = mes - 1, anioAnt = anio;
       if (mesAnt === 0) { mesAnt = 12; anioAnt = anio - 1; }
       const paramsAnt = "mes=" + mesAnt + "&anio=" + anioAnt + (local ? "&local_id=" + local : "");
       const [ventasRes, prodRes, clientesRes, finRes, factExtRes, usuariosRes, ventasAntRes] = await Promise.all([
@@ -398,21 +406,7 @@ function Dashboard({ localId, paletaActual }) {
         <div><div className="pt">Dashboard</div><div className="ps">{"KPIs del mes de " + ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][mes-1]}</div></div>
         <button className="btn btn-g btn-sm" onClick={cargar}>Actualizar</button>
       </div>
-      {vencimientos.length > 0 && (() => {
-        const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-        const vencidas = vencimientos.filter(v => new Date(v.fecha_vencimiento) < hoy).length;
-        const totalAdeudado = vencimientos.reduce((s, v) => s + parseFloat(v.total || 0), 0);
-        return (
-          <div style={{ background: vencidas > 0 ? "#c0392b12" : "#c9a84c12", border: "1px solid " + (vencidas > 0 ? "#c0392b" : "#c9a84c"), borderRadius: 8, padding: "12px 16px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: vencidas > 0 ? "#c0392b" : "#c9a84c" }}>
-                {vencidas > 0 ? vencidas + " factura" + (vencidas > 1 ? "s" : "") + " vencida" + (vencidas > 1 ? "s" : "") + (vencimientos.length > vencidas ? " y " + (vencimientos.length - vencidas) + " por vencer" : "") : vencimientos.length + " factura" + (vencimientos.length > 1 ? "s" : "") + " vence" + (vencimientos.length > 1 ? "n" : "") + " en los proximos 7 dias"}
-              </div>
-              <div style={{ fontSize: 11, color: p.textMuted, marginTop: 2 }}>Total adeudado: {fmt(totalAdeudado)} - revisalo en Proveedores</div>
-            </div>
-          </div>
-        );
-      })()}
+
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {["rg","ush","consolidado"].map(l => (
           <button key={l} onClick={() => setTabLocal(l)} className="btn btn-sm"
@@ -421,30 +415,41 @@ function Dashboard({ localId, paletaActual }) {
           </button>
         ))}
       </div>
+
+      {(() => {
+        const totalAlertas = (data?.stockBajo.length || 0) + (data?.sinStock.length || 0) + vencimientos.length + alertasInsumos.length + inconsistenciasStock.length;
+        return (
+          <div className="tabs">
+            <div className={"tab " + (tabDash === "resumen" ? "on" : "")} onClick={() => setTabDash("resumen")}>RESUMEN</div>
+            <div className={"tab " + (tabDash === "alertas" ? "on" : "")} onClick={() => setTabDash("alertas")}>
+              ALERTAS{totalAlertas > 0 ? " (" + totalAlertas + ")" : ""}
+            </div>
+          </div>
+        );
+      })()}
+
       {loading ? (
         <div style={{ textAlign: "center", color: p.textMuted, padding: 40 }}>Cargando KPIs...</div>
-      ) : data && (
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: p.textMuted, letterSpacing: ".1em", marginBottom: 10 }}>FINANCIERO</div>
-          <div className="g3" style={{ marginBottom: 20 }}>
-            <KPI titulo="Ventas del mes" valor={fmt(Math.round(data.totalVentas))} sub={data.cantVentas + " transacciones"} color="#2d7a4f" />
-            <KPI titulo="Resultado neto" valor={fmt(Math.round(data.fin.neto || 0))} sub={"Ingresos - Egresos"} color={data.fin.neto >= 0 ? "#2d7a4f" : "#c0392b"} alerta={data.fin.neto < 0} />
-            <KPI titulo="Margen bruto" valor={data.margenBruto + "%"} sub="sobre costo de ventas" color={data.margenBruto >= 40 ? "#2d7a4f" : data.margenBruto >= 20 ? "#e67e22" : "#c0392b"} />
-          </div>
-          <div className="g3" style={{ marginBottom: 20 }}>
-            <KPI titulo="Ticket promedio" valor={fmt(Math.round(data.ticketProm))} sub="por transaccion" color="#2471a3" />
-            <KPI titulo="Clientes nuevos" valor={data.clientesNuevos} sub="este mes" color="#7d3c98" />
-            <KPI titulo="Total clientes" valor={data.clientes.length} sub="en la base" color="#2471a3" />
-          </div>
+      ) : data && tabDash === "resumen" && (
+        <div className="dash-cols">
+          <div className="dash-col-cards">
+            <div style={{ fontSize: 11, fontWeight: 700, color: p.textMuted, letterSpacing: ".1em", marginBottom: 10 }}>FINANCIERO</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
+              <KPI titulo="Ventas del mes" valor={fmt(Math.round(data.totalVentas))} sub={data.cantVentas + " transacciones"} color="#2d7a4f" />
+              <KPI titulo="Resultado neto" valor={fmt(Math.round(data.fin.neto || 0))} sub={"Ingresos - Egresos"} color={data.fin.neto >= 0 ? "#2d7a4f" : "#c0392b"} alerta={data.fin.neto < 0} />
+              <KPI titulo="Margen bruto" valor={data.margenBruto + "%"} sub="sobre costo de ventas" color={data.margenBruto >= 40 ? "#2d7a4f" : data.margenBruto >= 20 ? "#e67e22" : "#c0392b"} />
+              <KPI titulo="Ticket promedio" valor={fmt(Math.round(data.ticketProm))} sub="por transaccion" color="#2471a3" />
+              <KPI titulo="Clientes nuevos" valor={data.clientesNuevos} sub="este mes" color="#7d3c98" />
+              <KPI titulo="Total clientes" valor={data.clientes.length} sub="en la base" color="#2471a3" />
+            </div>
 
-          <div style={{ fontSize: 11, fontWeight: 700, color: p.textMuted, letterSpacing: ".1em", marginBottom: 10, marginTop: 4 }}>INVENTARIO</div>
-          <div className="g3" style={{ marginBottom: 20 }}>
-            <KPI titulo="Productos totales" valor={data.productos.length} sub="en catalogo" />
-            <KPI titulo="Stock bajo" valor={data.stockBajo.length} sub="bajo el minimo" alerta={data.stockBajo.length > 0} color="#e67e22" />
-            <KPI titulo="Sin stock" valor={data.sinStock.length} sub="agotados" alerta={data.sinStock.length > 0} color="#c0392b" />
-          </div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: p.textMuted, letterSpacing: ".1em", marginBottom: 10 }}>INVENTARIO</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
+              <KPI titulo="Productos totales" valor={data.productos.length} sub="en catalogo" />
+              <KPI titulo="Stock bajo" valor={data.stockBajo.length} sub="bajo el minimo" alerta={data.stockBajo.length > 0} color="#e67e22" />
+              <KPI titulo="Sin stock" valor={data.sinStock.length} sub="agotados" alerta={data.sinStock.length > 0} color="#c0392b" />
+            </div>
 
-          <div className="g2" style={{ marginBottom: 20 }}>
             <div className="card">
               <div className="ct">Semaforo de salud del negocio</div>
               {[
@@ -459,34 +464,12 @@ function Dashboard({ localId, paletaActual }) {
                 </div>
               ))}
             </div>
-            <div className="card">
-              <div className="ct">Ventas por medio de pago</div>
-              {Object.keys(data.ventasPorMedio).length === 0 ? (
-                <div style={{ color: p.textMuted, fontSize: 12, textAlign: "center", padding: 20 }}>Sin datos este mes</div>
-              ) : (
-                <div>
-                  {Object.entries(data.ventasPorMedio).sort((a,b) => b[1]-a[1]).slice(0, 6).map(([medio, total]) => {
-                    const pct = data.totalVentas > 0 ? Math.round((total / data.totalVentas) * 100) : 0;
-                    return (
-                      <div key={medio} style={{ marginBottom: 10 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                          <span style={{ fontSize: 11, color: p.text }}>{medio}</span>
-                          <span style={{ fontSize: 11, color: "#c9a84c", fontWeight: 600 }}>{pct}%</span>
-                        </div>
-                        <div className="pb"><div className="pf" style={{ width: pct + "%" }} /></div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
           </div>
 
-          <div style={{ fontSize: 11, fontWeight: 700, color: p.textMuted, letterSpacing: ".1em", marginBottom: 10, marginTop: 4 }}>GRAFICOS</div>
-          <div className="g2" style={{ marginBottom: 16 }}>
-            <div className="card" style={{ gridColumn: "span 2" }}>
+          <div className="dash-col-charts">
+            <div className="card" style={{ marginBottom: 14 }}>
               <div className="ct">Facturacion por dia del mes</div>
-              <ResponsiveContainer width="100%" height={220}>
+              <ResponsiveContainer width="100%" height={210}>
                 <AreaChart data={data.facturacionDiaria}>
                   <defs>
                     <linearGradient id="gradFactDiaria" x1="0" y1="0" x2="0" y2="1">
@@ -496,53 +479,92 @@ function Dashboard({ localId, paletaActual }) {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke={p.border} />
                   <XAxis dataKey="dia" tick={{ fontSize: 10, fill: p.textMuted }} interval={2} />
-                  <YAxis tick={{ fontSize: 10, fill: p.textMuted }} tickFormatter={v => v >= 1000 ? (v / 1000) + "k" : v} />
+                  <YAxis tick={{ fontSize: 10, fill: p.textMuted }} tickFormatter={v => v >= 1000 ? (v / 1000) + "k" : v} width={38} />
                   <Tooltip formatter={v => fmt(v)} labelFormatter={d => "Dia " + d} contentStyle={{ background: p.card, border: "1px solid " + p.border, borderRadius: 8, fontSize: 12 }} />
                   <Area type="monotone" dataKey="total" stroke="#c9a84c" strokeWidth={2.5} fill="url(#gradFactDiaria)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-          </div>
 
-          <div className="g3" style={{ marginBottom: 20 }}>
-            <div className="card">
+            <div className="card" style={{ marginBottom: 14 }}>
+              <div className="ct">Este mes vs el anterior</div>
+              <ResponsiveContainer width="100%" height={170}>
+                <BarChart data={data.comparativoMeses}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={p.border} />
+                  <XAxis dataKey="mes" tick={{ fontSize: 11, fill: p.textMuted }} />
+                  <YAxis tick={{ fontSize: 10, fill: p.textMuted }} tickFormatter={v => v >= 1000 ? (v / 1000) + "k" : v} width={38} />
+                  <Tooltip formatter={v => fmt(v)} contentStyle={{ background: p.card, border: "1px solid " + p.border, borderRadius: 8, fontSize: 12 }} />
+                  <Bar dataKey="total" radius={[4, 4, 0, 0]} barSize={60}>
+                    {data.comparativoMeses.map((entry, i) => (
+                      <Cell key={i} fill={i === data.comparativoMeses.length - 1 ? "#c9a84c" : p.border} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              {data.comparativoMeses[0].total > 0 && (
+                <div style={{ textAlign: "center", fontSize: 12, fontWeight: 700, color: data.comparativoMeses[1].total >= data.comparativoMeses[0].total ? "#2d7a4f" : "#c0392b" }}>
+                  {data.comparativoMeses[1].total >= data.comparativoMeses[0].total ? "▲" : "▼"} {Math.abs(Math.round((data.comparativoMeses[1].total - data.comparativoMeses[0].total) / data.comparativoMeses[0].total * 100))}% vs mes anterior
+                </div>
+              )}
+            </div>
+
+            <div className="card" style={{ marginBottom: 14 }}>
               <div className="ct">Top 5 productos mas vendidos</div>
               {data.topProductos.length === 0 ? (
                 <div style={{ color: p.textMuted, fontSize: 12, textAlign: "center", padding: 20 }}>Sin datos este mes</div>
               ) : (
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={data.topProductos} layout="vertical" margin={{ left: 10 }}>
+                <ResponsiveContainer width="100%" height={Math.max(160, data.topProductos.length * 34)}>
+                  <BarChart data={data.topProductos} layout="vertical" margin={{ left: 10, right: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={p.border} horizontal={false} />
                     <XAxis type="number" tick={{ fontSize: 10, fill: p.textMuted }} />
-                    <YAxis type="category" dataKey="nombre" tick={{ fontSize: 10, fill: p.text }} width={110} />
+                    <YAxis type="category" dataKey="nombre" tick={{ fontSize: 10, fill: p.text }} width={120} />
                     <Tooltip formatter={v => v + " unidades"} contentStyle={{ background: p.card, border: "1px solid " + p.border, borderRadius: 8, fontSize: 12 }} />
-                    <Bar dataKey="cantidad" fill="#2471a3" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="cantidad" fill="#2471a3" radius={[0, 4, 4, 0]} barSize={18} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
             </div>
-            <div className="card">
+
+            <div className="card" style={{ marginBottom: 14 }}>
               <div className="ct">Ventas por vendedora</div>
               {data.ventasPorVendedora.length === 0 ? (
-                <div style={{ color: p.textMuted, fontSize: 12, textAlign: "center", padding: 20 }}>Sin datos este mes</div>
+                <div style={{ color: p.textMuted, fontSize: 12, textAlign: "center", padding: 20 }}>Sin vendedoras cargadas en este local</div>
               ) : (
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={data.ventasPorVendedora} layout="vertical" margin={{ left: 10 }}>
+                <ResponsiveContainer width="100%" height={Math.max(160, data.ventasPorVendedora.length * 34)}>
+                  <BarChart data={data.ventasPorVendedora} layout="vertical" margin={{ left: 10, right: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={p.border} horizontal={false} />
                     <XAxis type="number" tick={{ fontSize: 10, fill: p.textMuted }} tickFormatter={v => v >= 1000 ? (v / 1000) + "k" : v} />
-                    <YAxis type="category" dataKey="nombre" tick={{ fontSize: 10, fill: p.text }} width={90} />
+                    <YAxis type="category" dataKey="nombre" tick={{ fontSize: 10, fill: p.text }} width={100} />
                     <Tooltip formatter={v => fmt(v)} contentStyle={{ background: p.card, border: "1px solid " + p.border, borderRadius: 8, fontSize: 12 }} />
-                    <Bar dataKey="total" fill="#2d7a4f" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="total" fill="#2d7a4f" radius={[0, 4, 4, 0]} barSize={18} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
             </div>
+
+            <div className="card" style={{ marginBottom: 14 }}>
+              <div className="ct">Ventas por categoria de producto</div>
+              {data.ventasPorCategoria.length === 0 ? (
+                <div style={{ color: p.textMuted, fontSize: 12, textAlign: "center", padding: 20 }}>Sin datos este mes</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={Math.max(160, data.ventasPorCategoria.length * 34)}>
+                  <BarChart data={data.ventasPorCategoria} layout="vertical" margin={{ left: 10, right: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={p.border} horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 10, fill: p.textMuted }} tickFormatter={v => v >= 1000 ? (v / 1000) + "k" : v} />
+                    <YAxis type="category" dataKey="nombre" tick={{ fontSize: 10, fill: p.text }} width={110} />
+                    <Tooltip formatter={v => fmt(v)} contentStyle={{ background: p.card, border: "1px solid " + p.border, borderRadius: 8, fontSize: 12 }} />
+                    <Bar dataKey="total" fill="#7d3c98" radius={[0, 4, 4, 0]} barSize={18} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
             <div className="card">
               <div className="ct">Ventas por medio de pago</div>
               {data.mediosPagoChart.length === 0 ? (
                 <div style={{ color: p.textMuted, fontSize: 12, textAlign: "center", padding: 20 }}>Sin datos este mes</div>
               ) : (
-                <ResponsiveContainer width="100%" height={220}>
+                <ResponsiveContainer width="100%" height={230}>
                   <PieChart>
                     <Pie data={data.mediosPagoChart} dataKey="total" nameKey="nombre" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={2}>
                       {data.mediosPagoChart.map((entry, i) => (
@@ -556,84 +578,99 @@ function Dashboard({ localId, paletaActual }) {
               )}
             </div>
           </div>
+        </div>
+      )}
 
-          <div className="g3" style={{ marginBottom: 20 }}>
-            <div className="card">
-              <div className="ct">Este mes vs el anterior</div>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={data.comparativoMeses}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={p.border} />
-                  <XAxis dataKey="mes" tick={{ fontSize: 11, fill: p.textMuted }} />
-                  <YAxis tick={{ fontSize: 10, fill: p.textMuted }} tickFormatter={v => v >= 1000 ? (v / 1000) + "k" : v} />
-                  <Tooltip formatter={v => fmt(v)} contentStyle={{ background: p.card, border: "1px solid " + p.border, borderRadius: 8, fontSize: 12 }} />
-                  <Bar dataKey="total" radius={[4, 4, 0, 0]}>
-                    {data.comparativoMeses.map((entry, i) => (
-                      <Cell key={i} fill={i === data.comparativoMeses.length - 1 ? "#c9a84c" : (p.border === "#e8e4dc" ? "#d8d3c8" : "#3a4152")} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-              {data.comparativoMeses[0].total > 0 && (
-                <div style={{ textAlign: "center", fontSize: 12, fontWeight: 700, marginTop: -6, color: data.comparativoMeses[1].total >= data.comparativoMeses[0].total ? "#2d7a4f" : "#c0392b" }}>
-                  {data.comparativoMeses[1].total >= data.comparativoMeses[0].total ? "▲" : "▼"} {Math.abs(Math.round((data.comparativoMeses[1].total - data.comparativoMeses[0].total) / data.comparativoMeses[0].total * 100))}%
+      {!loading && data && tabDash === "alertas" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {vencimientos.length > 0 && (() => {
+            const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+            const vencidas = vencimientos.filter(v => new Date(v.fecha_vencimiento) < hoy).length;
+            const totalAdeudado = vencimientos.reduce((s, v) => s + parseFloat(v.total || 0), 0);
+            return (
+              <div className="card" style={{ borderLeft: "3px solid " + (vencidas > 0 ? "#c0392b" : "#c9a84c") }}>
+                <div className="ct" style={{ color: vencidas > 0 ? "#c0392b" : "#c9a84c" }}>Facturas de proveedores</div>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>
+                  {vencidas > 0 ? vencidas + " factura" + (vencidas > 1 ? "s" : "") + " vencida" + (vencidas > 1 ? "s" : "") + (vencimientos.length > vencidas ? " y " + (vencimientos.length - vencidas) + " por vencer" : "") : vencimientos.length + " factura" + (vencimientos.length > 1 ? "s" : "") + " vence" + (vencimientos.length > 1 ? "n" : "") + " en los proximos 7 dias"}
                 </div>
-              )}
-            </div>
-            <div className="card" style={{ gridColumn: "span 2" }}>
-              <div className="ct">Ventas por categoria de producto</div>
-              {data.ventasPorCategoria.length === 0 ? (
-                <div style={{ color: p.textMuted, fontSize: 12, textAlign: "center", padding: 20 }}>Sin datos este mes</div>
-              ) : (
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={data.ventasPorCategoria} layout="vertical" margin={{ left: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={p.border} horizontal={false} />
-                    <XAxis type="number" tick={{ fontSize: 10, fill: p.textMuted }} tickFormatter={v => v >= 1000 ? (v / 1000) + "k" : v} />
-                    <YAxis type="category" dataKey="nombre" tick={{ fontSize: 10, fill: p.text }} width={110} />
-                    <Tooltip formatter={v => fmt(v)} contentStyle={{ background: p.card, border: "1px solid " + p.border, borderRadius: 8, fontSize: 12 }} />
-                    <Bar dataKey="total" fill="#7d3c98" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
+                <div style={{ fontSize: 11, color: p.textMuted, marginTop: 2 }}>Total adeudado: {fmt(totalAdeudado)} - revisalo en Proveedores</div>
+              </div>
+            );
+          })()}
 
           {data.stockBajo.length > 0 && (
-            <div className="card" style={{ borderLeft: "3px solid " + p.border, marginBottom: 16 }}>
+            <div className="card" style={{ borderLeft: "3px solid #e67e22" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <div className="ct" style={{ color: "#c0392b", margin: 0 }}>Alertas de stock</div>
-                <span style={{ fontSize: 10, background: "#c0392b15", color: "#c0392b", padding: "2px 8px", borderRadius: 10, fontWeight: 700 }}>{data.stockBajo.length} productos</span>
+                <div className="ct" style={{ color: "#e67e22", margin: 0 }}>Stock bajo el minimo</div>
+                <span style={{ fontSize: 10, background: "#e67e2215", color: "#e67e22", padding: "2px 8px", borderRadius: 10, fontWeight: 700 }}>{data.stockBajo.length} productos</span>
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {data.stockBajo.slice(0, 8).map((p, i) => (
-                  <div key={i} style={{ background: "#c0392b08", border: "1px solid #c0392b22", borderRadius: 6, padding: "6px 10px", fontSize: 11 }}>
-                    <div style={{ fontWeight: 600, color: p.text }}>{p.nombre}</div>
-                    <div style={{ color: "#c0392b" }}>Stock: {p.stock || 0}u</div>
+                {data.stockBajo.map((prod, i) => (
+                  <div key={i} style={{ background: "#e67e2208", border: "1px solid #e67e2222", borderRadius: 6, padding: "6px 10px", fontSize: 11 }}>
+                    <div style={{ fontWeight: 600, color: p.text }}>{prod.nombre}</div>
+                    <div style={{ color: "#e67e22" }}>Stock: {prod.stock || 0}u</div>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          <div className="card">
-            <div className="ct">Ultimas ventas</div>
-            {data.ventas.length === 0 ? (
-              <div style={{ color: p.textMuted, fontSize: 12, textAlign: "center", padding: 20 }}>Sin ventas este mes</div>
-            ) : (
+          {data.sinStock.length > 0 && (
+            <div className="card" style={{ borderLeft: "3px solid #c0392b" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div className="ct" style={{ color: "#c0392b", margin: 0 }}>Sin stock (agotados)</div>
+                <span style={{ fontSize: 10, background: "#c0392b15", color: "#c0392b", padding: "2px 8px", borderRadius: 10, fontWeight: 700 }}>{data.sinStock.length} productos</span>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {data.sinStock.map((prod, i) => (
+                  <div key={i} style={{ background: "#c0392b08", border: "1px solid #c0392b22", borderRadius: 6, padding: "6px 10px", fontSize: 11, fontWeight: 600, color: p.text }}>
+                    {prod.nombre}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {alertasInsumos.length > 0 && (
+            <div className="card" style={{ borderLeft: "3px solid #2471a3" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div className="ct" style={{ color: "#2471a3", margin: 0 }}>Insumos bajos</div>
+                <span style={{ fontSize: 10, background: "#2471a315", color: "#2471a3", padding: "2px 8px", borderRadius: 10, fontWeight: 700 }}>{alertasInsumos.length}</span>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {alertasInsumos.map((ins, i) => (
+                  <div key={i} style={{ background: "#2471a308", border: "1px solid #2471a322", borderRadius: 6, padding: "6px 10px", fontSize: 11 }}>
+                    <div style={{ fontWeight: 600, color: p.text }}>{ins.nombre}</div>
+                    <div style={{ color: "#2471a3" }}>Stock: {ins.stock ?? ins.cantidad ?? 0}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {inconsistenciasStock.length > 0 && (
+            <div className="card" style={{ borderLeft: "3px solid #7d3c98" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div className="ct" style={{ color: "#7d3c98", margin: 0 }}>Inconsistencias de ordenes de ingreso</div>
+                <span style={{ fontSize: 10, background: "#7d3c9815", color: "#7d3c98", padding: "2px 8px", borderRadius: 10, fontWeight: 700 }}>{inconsistenciasStock.length}</span>
+              </div>
               <table>
-                <thead><tr><th>Fecha</th><th>Cliente</th><th>Medio</th><th>Total</th></tr></thead>
+                <thead><tr><th>Producto</th><th>Detalle</th></tr></thead>
                 <tbody>
-                  {data.ventas.slice(0, 8).map((v, i) => (
+                  {inconsistenciasStock.slice(0, 15).map((inc, i) => (
                     <tr key={i}>
-                      <td style={{ fontSize: 11, color: p.textMuted }}>{new Date(v.creado_en || v.fecha).toLocaleDateString("es-AR")}</td>
-                      <td style={{ fontSize: 12 }}>{v.cliente_nombre || "Consumidor final"}</td>
-                      <td style={{ fontSize: 11 }}>{v.medio_pago || "-"}</td>
-                      <td style={{ color: "#2d7a4f", fontWeight: 600 }}>{fmt(parseFloat(v.total || 0))}</td>
+                      <td style={{ fontSize: 12, fontWeight: 600 }}>{inc.producto_nombre || inc.nombre}</td>
+                      <td style={{ fontSize: 11, color: p.textMuted }}>{inc.nota_inconsistencia || inc.detalle || "-"}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            )}
-          </div>
+            </div>
+          )}
+
+          {vencimientos.length === 0 && data.stockBajo.length === 0 && data.sinStock.length === 0 && alertasInsumos.length === 0 && inconsistenciasStock.length === 0 && (
+            <div className="card" style={{ textAlign: "center", color: p.textMuted, padding: 40 }}>Sin alertas por ahora 🎉</div>
+          )}
         </div>
       )}
     </div>
