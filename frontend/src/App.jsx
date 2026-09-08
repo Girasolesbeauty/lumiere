@@ -9401,7 +9401,7 @@ function ControlInventario({ localId, usuario, paletaActual }) {
   );
 }
 
-function OrdenesIngreso({ localId, usuario, paletaActual }) {
+function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const localActual = localId === 2 ? "ush" : "rg";
   const localNombre = localId === 2 ? "Ushuaia" : "Rio Grande";
@@ -9706,8 +9706,8 @@ function OrdenesIngreso({ localId, usuario, paletaActual }) {
         <div><div className="pt">Ingreso de Mercaderia</div><div className="ps">recepcion en {localNombre}</div></div>
         <div style={{ display: "flex", gap: 8 }}>
           {tab !== "lista" && tab !== "recibido" && <button className="btn btn-sm" onClick={() => { setTab("lista"); setOrdenDetalle(null); setFacturaItems(null); setFacturaArchivo(null); }}>Volver</button>}
-          {usuario?.rol === "jefe" && (tab === "lista" || tab === "recibido") && <button className="btn btn-sm" onClick={() => setTab("factura")}>📄 Cargar factura</button>}
-          {usuario?.rol === "jefe" && (tab === "lista" || tab === "recibido") && <button className="btn btn-p btn-sm" onClick={() => setTab("nueva")}>+ Nueva orden</button>}
+          {(usuario?.rol === "jefe" || (permisosActivos || []).includes("ordenes.crear")) && (tab === "lista" || tab === "recibido") && <button className="btn btn-sm" onClick={() => setTab("factura")}>📄 Cargar factura</button>}
+          {(usuario?.rol === "jefe" || (permisosActivos || []).includes("ordenes.crear")) && (tab === "lista" || tab === "recibido") && <button className="btn btn-p btn-sm" onClick={() => setTab("nueva")}>+ Nueva orden</button>}
         </div>
       </div>
 
@@ -11478,7 +11478,7 @@ export default function AppWrapper() {
     if (id === "caja-respaldo") return <CajaRespaldo usuario={usuario} paletaActual={paletaActual} />;
     if (id === "cierre") return <CierreCaja localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "giftcards") return <GiftCards localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
-    if (id === "ordenes") return <OrdenesIngreso localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "ordenes") return <OrdenesIngreso localId={local.id} usuario={usuario} permisosActivos={permisosActivos} paletaActual={paletaActual} />;
     if (id === "kits") return <Kits paletaActual={paletaActual} />;
     if (id === "insumos") return <Insumos localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "control-inv") return <ControlInventario localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
