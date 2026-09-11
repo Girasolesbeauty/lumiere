@@ -9518,6 +9518,40 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
 
   const quitarItemFactura = (idx) => setFacturaItems(prev => prev.filter((_, i) => i !== idx));
 
+  // Crear un producto nuevo al vuelo (desde la carga de factura o desde "Nueva orden"
+  // manual), sin perder lo que ya se venia cargando. onCreado recibe el producto recien
+  // creado para que quien llamo decida como vincularlo a su item.
+  const [modalCrearProd, setModalCrearProd] = useState(null); // { onCreado } o null
+  const [nuevoProdRapido, setNuevoProdRapido] = useState(null);
+  const abrirCrearProductoRapido = (prefill, onCreado) => {
+    setModalCrearProd({ onCreado });
+    setNuevoProdRapido({
+      nombre: prefill.nombre || "", codigo_barras: prefill.codigo_barras || "",
+      marca: "", precio: "", costo: prefill.costo || "",
+      stock_minimo: 5, lead_time_dias: 7, categoria: "",
+      proveedor_id: prefill.proveedor_id || ""
+    });
+  };
+  const guardarProductoRapido = async () => {
+    if (!nuevoProdRapido.nombre.trim()) return setMensaje("Poné el nombre del producto");
+    try {
+      const res = await API.post("/productos", {
+        ...nuevoProdRapido,
+        precio: parseFloat(nuevoProdRapido.precio) || 0,
+        costo: parseFloat(nuevoProdRapido.costo) || 0,
+        stock: 0, local_id: localId || 1,
+        proveedor_id: nuevoProdRapido.proveedor_id || null
+      });
+      const nuevoProd = res.data;
+      setProductos(prev => [...prev, nuevoProd]);
+      modalCrearProd.onCreado(nuevoProd);
+      setModalCrearProd(null);
+      setNuevoProdRapido(null);
+      setMensaje("Producto \"" + nuevoProd.nombre + "\" creado y vinculado!");
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (e) { setMensaje("Error al crear el producto: " + (e.response?.data?.error || e.message)); }
+  };
+
   const vincularItemFactura = (idx, prod) => {
     setFacturaItems(prev => prev.map((it, i) => i === idx ? { ...it, producto_id: prod.id, producto_nombre: prod.nombre } : it));
     setFacturaBuscarProd(prev => ({ ...prev, [idx]: "" }));
@@ -9841,6 +9875,12 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
                                 ))}
                               </div>
                             )}
+                            <div onClick={() => abrirCrearProductoRapido(
+                              { nombre: it.nombre_crudo, codigo_barras: it.codigo_interno || it.codigo_barras, costo: it.costo_unitario, proveedor_id: facturaForm.proveedor_id },
+                              (nuevoProd) => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, producto_id: nuevoProd.id, producto_nombre: nuevoProd.nombre } : x))
+                            )} style={{ cursor: "pointer", color: "#2471a3", fontSize: 11, marginTop: 4, fontWeight: 600 }}>
+                              + Este producto no existe, crearlo
+                            </div>
                           </div>
                         )}
                       </td>
@@ -9891,7 +9931,15 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
                           </div>
                         ))}
                         {productos.filter(pr => (pr.nombre || "").toLowerCase().includes(busquedaProd.toLowerCase()) || (pr.codigo_barras || "").includes(busquedaProd)).length === 0 && (
-                          <div style={{ padding: "8px 10px", fontSize: 12, color: temaPal.textMuted }}>Sin resultados</div>
+                          <div style={{ padding: "8px 10px" }}>
+                            <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 6 }}>Sin resultados</div>
+                            <div onClick={() => abrirCrearProductoRapido(
+                              { nombre: busquedaProd, codigo_barras: /^\d+$/.test(busquedaProd) ? busquedaProd : "", proveedor_id: nueva.proveedor_id },
+                              (nuevoProd) => { setItemTemp(p => ({ ...p, producto_id: nuevoProd.id })); setBusquedaProd(""); }
+                            )} style={{ cursor: "pointer", color: "#2471a3", fontSize: 12, fontWeight: 600 }}>
+                              + Este producto no existe, crearlo
+                            </div>
+                          </div>
                         )}
                       </div>
                     )}
@@ -10023,6 +10071,37 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
               </div>
               <div className="fg" style={{ flex: 1, marginBottom: 0 }}><div className="fl">Cantidad</div><input className="inp" type="number" value={extra.cantidad} onChange={e => setExtra(p => ({ ...p, cantidad: e.target.value }))} /></div>
               <button className="btn btn-sm" onClick={agregarExtra}>+ Agregar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalCrearProd && nuevoProdRapido && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60 }} onClick={() => { setModalCrearProd(null); setNuevoProdRapido(null); }}>
+          <div className="card fade" style={{ maxWidth: 440, width: "90vw", background: temaPal.card, maxHeight: "85vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div className="ct">Crear producto nuevo</div>
+            <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 12 }}>
+              No se toca lo que ya cargaste de la orden -- al guardar, este producto queda vinculado solo a este item.
+            </div>
+            <div className="fg"><div className="fl">Nombre *</div><input className="inp" value={nuevoProdRapido.nombre} onChange={e => setNuevoProdRapido(p => ({ ...p, nombre: e.target.value }))} autoFocus /></div>
+            <div className="fg"><div className="fl">Codigo (se puede escanear)</div><input className="inp" value={nuevoProdRapido.codigo_barras} onChange={e => setNuevoProdRapido(p => ({ ...p, codigo_barras: e.target.value }))} /></div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <div className="fg" style={{ flex: 1 }}><div className="fl">Marca</div><input className="inp" value={nuevoProdRapido.marca} onChange={e => setNuevoProdRapido(p => ({ ...p, marca: e.target.value }))} /></div>
+              <div className="fg" style={{ flex: 1 }}><div className="fl">Categoria</div><input className="inp" value={nuevoProdRapido.categoria} onChange={e => setNuevoProdRapido(p => ({ ...p, categoria: e.target.value }))} /></div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <div className="fg" style={{ flex: 1 }}><div className="fl">Costo ($)</div><input className="inp" type="number" value={nuevoProdRapido.costo} onChange={e => setNuevoProdRapido(p => ({ ...p, costo: e.target.value }))} /></div>
+              <div className="fg" style={{ flex: 1 }}><div className="fl">Precio de venta ($)</div><input className="inp" type="number" value={nuevoProdRapido.precio} onChange={e => setNuevoProdRapido(p => ({ ...p, precio: e.target.value }))} /></div>
+            </div>
+            <div className="fg"><div className="fl">Proveedor</div>
+              <select className="sel" value={nuevoProdRapido.proveedor_id} onChange={e => setNuevoProdRapido(p => ({ ...p, proveedor_id: e.target.value }))}>
+                <option value="">Sin proveedor</option>
+                {proveedores.map(pr => <option key={pr.id} value={pr.id}>{pr.nombre}</option>)}
+              </select>
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => { setModalCrearProd(null); setNuevoProdRapido(null); }}>Cancelar</button>
+              <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarProductoRapido}>Crear y vincular</button>
             </div>
           </div>
         </div>
