@@ -364,7 +364,12 @@ const getSugerenciaCompra = async (req, res) => {
         stock_actual: stockActual, en_transito: enTransito,
         stock_minimo: p.stock_minimo, punto_pedido: puntoPedido,
         vendido_periodo: vendidoPeriodo, ritmo_diario: Math.round(ritmoDiario * 100) / 100,
-        lote_recomendado: loteRecomendado, necesita_pedido: stockActual <= puntoPedido
+        // "Necesita pedido" no depende solo del punto de pedido fijo (que da 0 si el
+        // producto nunca tuvo cargado un stock minimo) -- tambien se dispara si, segun
+        // el ritmo REAL de venta de este periodo, hace falta reponer (lote_recomendado > 0).
+        // Asi, un producto sin stock minimo configurado pero que se esta por quedar sin
+        // stock igual aparece en la lista.
+        lote_recomendado: loteRecomendado, necesita_pedido: (stockActual <= puntoPedido) || (loteRecomendado > 0)
       };
     });
 
