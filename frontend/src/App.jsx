@@ -8733,7 +8733,11 @@ function CierreCaja({ localId, usuario, paletaActual }) {
   const totalGiftCards = giftCardsDia.reduce((s, g) => s + parseFloat(g.monto_inicial || 0), 0);
   const totalDia = totalVentasNeto + totalGiftCards;
   const ventasEfectivo = ventasDia.filter(v => (v.medio_pago || "Efectivo").toLowerCase().includes("efectivo")).reduce((s, v) => s + parseFloat(v.total || 0) - parseFloat(v.monto_gift_card || 0), 0);
-  const ingresosManuales = movsDia.filter(m => m.tipo === "ingreso").reduce((s, m) => s + parseFloat(m.importe || 0), 0);
+  // Cada venta en efectivo genera SU PROPIO ingreso automatico en movimientos_caja_efectivo
+  // (concepto "Venta F-...", para que el saldo de caja se actualice solo). Esa plata ya esta
+  // contada en "ventasEfectivo" arriba -- si tambien se suma aca, queda contada dos veces.
+  // Por eso los ingresos "manuales" excluyen los que empiezan con "Venta " (los automaticos).
+  const ingresosManuales = movsDia.filter(m => m.tipo === "ingreso" && !(m.concepto || "").startsWith("Venta ")).reduce((s, m) => s + parseFloat(m.importe || 0), 0);
   const egresosDia = movsDia.filter(m => m.tipo === "egreso").reduce((s, m) => s + parseFloat(m.importe || 0), 0);
   const efectivoEsperado = ventasEfectivo + ingresosManuales - egresosDia;
 
