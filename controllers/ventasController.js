@@ -130,26 +130,43 @@ const create = async (req, res) => {
       const sinStockNiTransito = [];
       for (const item of items) {
         if (!item.producto_id) continue;
-        const prodRes = await client.query(
-          'SELECT id, nombre, stock_rg, stock_ush, stock_transito_rg, stock_transito_ush FROM productos WHERE id = $1 FOR UPDATE',
-          [item.producto_id]
-        );
-        if (prodRes.rows.length === 0) continue;
-        const prod = prodRes.rows[0];
-        const esUsh = local_id === 2 || local_id === '2';
-        const stockActual = esUsh ? (prod.stock_ush || 0) : (prod.stock_rg || 0);
-        const transitoActual = esUsh ? (prod.stock_transito_ush || 0) : (prod.stock_transito_rg || 0);
+        let stockActual, transitoActual, nombreItem;
+        if (item.variante_id) {
+          // Producto con variante (ej: Talle M): el stock real vive en la variante, no
+          // en el producto general -- ahi puede estar en 0 aunque la variante si tenga.
+          const varRes = await client.query(
+            'SELECT id, valor, stock_rg, stock_ush FROM producto_variantes WHERE id = $1 FOR UPDATE',
+            [item.variante_id]
+          );
+          if (varRes.rows.length === 0) continue;
+          const variante = varRes.rows[0];
+          const esUshV = local_id === 2 || local_id === '2';
+          stockActual = esUshV ? (variante.stock_ush || 0) : (variante.stock_rg || 0);
+          transitoActual = 0; // las variantes todavia no manejan transito por separado
+          nombreItem = (item.producto_nombre || '') + ' - ' + variante.valor;
+        } else {
+          const prodRes = await client.query(
+            'SELECT id, nombre, stock_rg, stock_ush, stock_transito_rg, stock_transito_ush FROM productos WHERE id = $1 FOR UPDATE',
+            [item.producto_id]
+          );
+          if (prodRes.rows.length === 0) continue;
+          const prod = prodRes.rows[0];
+          const esUsh = local_id === 2 || local_id === '2';
+          stockActual = esUsh ? (prod.stock_ush || 0) : (prod.stock_rg || 0);
+          transitoActual = esUsh ? (prod.stock_transito_ush || 0) : (prod.stock_transito_rg || 0);
+          nombreItem = prod.nombre;
+        }
         const resultante = stockActual - item.cantidad;
         if (resultante < 0) {
           if (transitoActual <= 0) {
-            sinStockNiTransito.push({ producto_id: item.producto_id, nombre: prod.nombre, stock_disponible: stockActual, cantidad_pedida: item.cantidad });
+            sinStockNiTransito.push({ producto_id: item.producto_id, nombre: nombreItem, stock_disponible: stockActual, cantidad_pedida: item.cantidad });
             continue;
           }
           const motivo = (justificaciones[item.producto_id] || justificaciones[String(item.producto_id)] || '').trim();
           if (!motivo) {
-            faltantes.push({ producto_id: item.producto_id, nombre: prod.nombre, stock_disponible: stockActual, cantidad_pedida: item.cantidad });
+            faltantes.push({ producto_id: item.producto_id, nombre: nombreItem, stock_disponible: stockActual, cantidad_pedida: item.cantidad });
           } else {
-            itemsJustificados.push({ producto_id: item.producto_id, nombre: prod.nombre, stock_disponible: stockActual, cantidad: item.cantidad, motivo });
+            itemsJustificados.push({ producto_id: item.producto_id, nombre: nombreItem, stock_disponible: stockActual, cantidad: item.cantidad, motivo });
           }
         }
       }
@@ -257,9 +274,9 @@ const create = async (req, res) => {
         continue;
       }
       await client.query(
-        `INSERT INTO venta_items (venta_id, producto_id, cantidad, precio_unitario, subtotal)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [ventaId, item.producto_id, item.cantidad, item.precio_unitario, item.precio_unitario * item.cantidad]
+        `INSERT INTO venta_items (venta_id, producto_id, cantidad, precio_unitario, subtotal, variante_id, variante_valor)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [ventaId, item.producto_id, item.cantidad, item.precio_unitario, item.precio_unitario * item.cantidad, item.variante_id || null, item.variante_valor || null]
       );
       if (es_preventa === true) {
         // Preventa: RESERVA sobre el transito del local (no toca stock real ni transito, suma a reservado)
@@ -274,6 +291,14 @@ const create = async (req, res) => {
             [item.cantidad, item.producto_id]
           );
         }
+      } else if (item.variante_id) {
+        // Venta de un producto CON variante (ej: Talle M): descuenta del stock de esa
+        // variante puntual, no del producto general -- cada variante lleva su propio stock.
+        const colStockVar = (local_id === 2 || local_id === '2') ? 'stock_ush' : 'stock_rg';
+        await client.query(
+          `UPDATE producto_variantes SET ${colStockVar} = COALESCE(${colStockVar}, 0) - $1 WHERE id = $2`,
+          [item.cantidad, item.variante_id]
+        );
       } else {
         // Venta normal: descuenta del stock del LOCAL donde se vende, y mantiene "stock" total sincronizado
         const colStock = (local_id === 2 || local_id === '2') ? 'stock_ush' : 'stock_rg';

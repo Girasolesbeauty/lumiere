@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, Fragment } from "react";
+﻿çimport { useState, useEffect, useRef, Fragment } from "react";
 import { getProductos, createVenta, getClientes, getFlujo, getPuntoEquilibrio, agregarEgreso, getResumenFinanzas, getVentas, getAlertasStock, getCupones, createCupon, updateCupon, getRanking, getReglas, createRegla as createReglaWA, updateRegla as updateReglaWA, login, register } from "./api";
 import API from "./api";
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
@@ -1441,10 +1441,28 @@ function POS({ localId, usuario, paletaActual }) {
   };
 
   const add = (p) => setCart(prev => {
-    const e = prev.find(i => i.id === p.id);
-    return e ? prev.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i) : [...prev, { ...p, qty: 1 }];
+    const e = prev.find(i => i.id === p.id && (i.variante_id || null) === (p.variante_id || null));
+    return e ? prev.map(i => (i.id === p.id && (i.variante_id || null) === (p.variante_id || null)) ? { ...i, qty: i.qty + 1 } : i) : [...prev, { ...p, qty: 1 }];
   });
   const remove = (id) => setCart(prev => prev.filter(i => i.id !== id));
+
+  // Elegir variante (talle/color) antes de agregar al carrito, para productos que las tienen.
+  const [seleccionandoVarianteProd, setSeleccionandoVarianteProd] = useState(null);
+  const [variantesDisponibles, setVariantesDisponibles] = useState([]);
+  const abrirSelectorVariante = (p) => {
+    setSeleccionandoVarianteProd(p);
+    API.get("/productos/" + p.id + "/variantes").then(res => setVariantesDisponibles(res.data || [])).catch(() => setVariantesDisponibles([]));
+  };
+  const agregarVarianteAlCarrito = (variante) => {
+    const stockLocal = Number(localId) === 2 ? (variante.stock_ush || 0) : (variante.stock_rg || 0);
+    add({
+      ...seleccionandoVarianteProd,
+      variante_id: variante.id, variante_valor: variante.valor,
+      nombre: (seleccionandoVarianteProd.nombre || "") + " - " + variante.valor,
+      stock_rg: variante.stock_rg, stock_ush: variante.stock_ush, disponible: stockLocal
+    });
+    setSeleccionandoVarianteProd(null);
+  };
 
   const agregarAjusteDiferencia = () => {
     const montoStr = prompt("Monto de la diferencia a facturar ($):");
@@ -2158,7 +2176,7 @@ function POS({ localId, usuario, paletaActual }) {
                   const transitoLocal = p.transito_local || 0;
                   const soloTransito = disp <= 0 && transitoLocal > 0;
                   const sinStock = disp <= 0 && transitoLocal <= 0;
-                  const accion = (soloTransito && !p.es_kit) ? (() => agregarComoPreventa(p)) : (() => add(p));
+                  const accion = p.tiene_variantes ? (() => abrirSelectorVariante(p)) : (soloTransito && !p.es_kit) ? (() => agregarComoPreventa(p)) : (() => add(p));
                   return (
                     <tr key={p.id} style={{ borderBottom: "1px solid " + temaPal.border, cursor: sinStock ? "not-allowed" : "pointer", opacity: sinStock ? 0.45 : 1 }}
                       onClick={() => { if (!sinStock) accion(); }}>
@@ -2541,6 +2559,40 @@ function POS({ localId, usuario, paletaActual }) {
           </div>
         </div>
       )}
+
+      {seleccionandoVarianteProd && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: 20 }} onClick={() => setSeleccionandoVarianteProd(null)}>
+          <div className="card fade" style={{ maxWidth: 420, width: "95vw", background: temaPal.card, maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div className="ct">Elegí {seleccionandoVarianteProd.tipo_variante || "la variante"}</div>
+            <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 12 }}>{seleccionandoVarianteProd.nombre}</div>
+            {variantesDisponibles.length === 0 ? (
+              <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 20, fontSize: 12 }}>Este producto todavia no tiene variantes cargadas.</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {variantesDisponibles.map(v => {
+                  const stockLocal = Number(localId) === 2 ? (v.stock_ush || 0) : (v.stock_rg || 0);
+                  const sinStock = stockLocal <= 0;
+                  return (
+                    <div key={v.id} onClick={() => !sinStock && agregarVarianteAlCarrito(v)}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, borderRadius: 8, background: temaPal.bg, border: "1px solid " + temaPal.border, cursor: sinStock ? "not-allowed" : "pointer", opacity: sinStock ? 0.5 : 1 }}>
+                      {v.imagen_url ? (
+                        <img src={v.imagen_url} style={{ width: 40, height: 40, borderRadius: 6, objectFit: "cover" }} />
+                      ) : (
+                        <div style={{ width: 40, height: 40, borderRadius: 6, background: temaPal.border, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>📷</div>
+                      )}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: 13 }}>{v.valor}</div>
+                        <div style={{ fontSize: 11, color: sinStock ? "#c0392b" : temaPal.textMuted }}>{sinStock ? "Sin stock" : "Stock: " + stockLocal}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <button className="btn btn-g" style={{ width: "100%", marginTop: 14 }} onClick={() => setSeleccionandoVarianteProd(null)}>Cancelar</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2680,8 +2732,53 @@ function Inventario({ localId, usuario, paletaActual }) {
   const [vistaLocal, setVistaLocal] = useState("mi");
   const [nuevo, setNuevo] = useState({
     nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "",
-    stock: "", stock_minimo: "", proveedor_id: "", descripcion: ""
+    stock: "", stock_minimo: "", proveedor_id: "", descripcion: "",
+    tiene_variantes: false, tipo_variante: ""
   });
+  const [gestionandoVariantesDe, setGestionandoVariantesDe] = useState(null); // producto (con id) o null
+  const [variantesProd, setVariantesProd] = useState([]);
+  const [nuevaVariante, setNuevaVariante] = useState({ valor: "", codigo_barras: "", stock_rg: "", stock_ush: "", imagen_url: "" });
+
+  const cargarVariantes = (productoId) => {
+    API.get("/productos/" + productoId + "/variantes").then(res => setVariantesProd(res.data || [])).catch(() => setVariantesProd([]));
+  };
+  const abrirGestionVariantes = (prod) => {
+    setGestionandoVariantesDe(prod);
+    setNuevaVariante({ valor: "", codigo_barras: "", stock_rg: "", stock_ush: "", imagen_url: "" });
+    cargarVariantes(prod.id);
+  };
+  const agregarVariante = async () => {
+    if (!nuevaVariante.valor.trim()) return setMensaje("Poné el valor de la variante (ej: S, Rojo)");
+    try {
+      await API.post("/productos/" + gestionandoVariantesDe.id + "/variantes", nuevaVariante);
+      setNuevaVariante({ valor: "", codigo_barras: "", stock_rg: "", stock_ush: "", imagen_url: "" });
+      cargarVariantes(gestionandoVariantesDe.id);
+    } catch (e) { setMensaje(e.response?.data?.error || "Error al agregar la variante"); }
+  };
+  const editarStockVariante = async (v, campo, valor) => {
+    try {
+      await API.put("/productos/variantes/" + v.id, { [campo]: valor });
+      cargarVariantes(gestionandoVariantesDe.id);
+    } catch (e) { setMensaje("Error al actualizar"); }
+  };
+  const borrarVariante = async (v) => {
+    if (!confirm("Borrar la variante \"" + v.valor + "\"?")) return;
+    try {
+      await API.delete("/productos/variantes/" + v.id);
+      cargarVariantes(gestionandoVariantesDe.id);
+    } catch (e) { setMensaje("Error al borrar la variante"); }
+  };
+  // Subir imagen de una variante (usa el mismo servicio de imagenes que el resto de la app, via base64)
+  const subirImagenVariante = async (v, file) => {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        await API.put("/productos/variantes/" + v.id, { imagen_url: reader.result });
+        cargarVariantes(gestionandoVariantesDe.id);
+      } catch (e) { setMensaje("Error al subir la imagen"); }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const categorias = ["Capilar", "Facial", "Maquillaje", "Accesorio", "Corporal", "Spa", "Perfume"];
 
@@ -2746,8 +2843,9 @@ function Inventario({ localId, usuario, paletaActual }) {
       nombre: p.nombre || "", marca: p.marca || "", codigo: p.codigo_barras || p.codigo || "",
       categoria: p.categoria || "", precio: p.precio || p.price || "", costo: p.costo || p.cost || "",
       stock: "", stock_minimo: p.stock_minimo || "", proveedor_id: p.proveedor_id || "", descripcion: "",
-      activo: p.activo !== false
+      activo: p.activo !== false, tiene_variantes: p.tiene_variantes || false, tipo_variante: p.tipo_variante || ""
     });
+    if (p.tiene_variantes) cargarVariantes(p.id); else setVariantesProd([]);
     setShowForm(true);
   };
 
@@ -2762,10 +2860,12 @@ function Inventario({ localId, usuario, paletaActual }) {
         stock_minimo: parseInt(nuevo.stock_minimo) || 5,
         lead_time_dias: editandoProd.lead_time_dias || 0,
         activo: nuevo.activo !== false,
-        proveedor_id: nuevo.proveedor_id || null
+        proveedor_id: nuevo.proveedor_id || null,
+        tiene_variantes: nuevo.tiene_variantes || false,
+        tipo_variante: nuevo.tiene_variantes ? nuevo.tipo_variante : null
       });
       setMensaje("Producto actualizado!");
-      setNuevo({ nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "", stock: "", stock_minimo: "", proveedor_id: "", descripcion: "" });
+      setNuevo({ nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "", stock: "", stock_minimo: "", proveedor_id: "", descripcion: "", tiene_variantes: false, tipo_variante: "" });
       setShowForm(false); setEditandoProd(null);
       cargar();
       setTimeout(() => setMensaje(""), 3000);
@@ -2785,7 +2885,7 @@ function Inventario({ localId, usuario, paletaActual }) {
   const guardarProducto = async () => {
     if (!nuevo.nombre || !nuevo.precio) return setMensaje("Completa al menos nombre y precio");
     try {
-      await API.post("/productos", {
+      const res = await API.post("/productos", {
         nombre: nuevo.nombre,
         marca: nuevo.marca,
         codigo_barras: nuevo.codigo,
@@ -2795,13 +2895,18 @@ function Inventario({ localId, usuario, paletaActual }) {
         stock: parseInt(nuevo.stock) || 0,
         stock_minimo: parseInt(nuevo.stock_minimo) || 5,
         local_id: localId || 1,
-        proveedor_id: nuevo.proveedor_id || null
+        proveedor_id: nuevo.proveedor_id || null,
+        tiene_variantes: nuevo.tiene_variantes || false,
+        tipo_variante: nuevo.tiene_variantes ? nuevo.tipo_variante : null
       });
       setMensaje("Producto creado!");
-      setNuevo({ nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "", stock: "", stock_minimo: "", proveedor_id: "", descripcion: "" });
+      const tieneVariantes = nuevo.tiene_variantes;
+      const prodCreado = res.data;
+      setNuevo({ nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "", stock: "", stock_minimo: "", proveedor_id: "", descripcion: "", tiene_variantes: false, tipo_variante: "" });
       setShowForm(false);
       cargar();
       setTimeout(() => setMensaje(""), 3000);
+      if (tieneVariantes) abrirGestionVariantes(prodCreado);
     } catch (e) { setMensaje("Error al crear producto: " + (e.response?.data?.error || e.message)); }
   };
 
@@ -2869,6 +2974,16 @@ function Inventario({ localId, usuario, paletaActual }) {
               {!editandoProd && (<div className="fg"><div className="fl">Stock inicial</div><input className="inp" type="number" placeholder="10" value={nuevo.stock} onChange={e => setNuevo(p => ({ ...p, stock: e.target.value }))} /></div>)}
               {editandoProd && <div style={{ fontSize: 10, color: temaPal.textMuted, marginBottom: 12 }}>El stock se modifica con el boton "Ajustar".</div>}
               <div className="fg"><div className="fl">Stock minimo (alerta)</div><input className="inp" type="number" placeholder="5" value={nuevo.stock_minimo} onChange={e => setNuevo(p => ({ ...p, stock_minimo: e.target.value }))} /></div>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer", marginBottom: 12 }}>
+                <input type="checkbox" checked={nuevo.tiene_variantes || false} onChange={e => setNuevo(p => ({ ...p, tiene_variantes: e.target.checked }))} />
+                <span>Este producto tiene variantes (ej: talles, colores)</span>
+              </label>
+              {nuevo.tiene_variantes && (
+                <div className="fg"><div className="fl">Tipo de variante</div><input className="inp" placeholder="Ej: Talle, Color" value={nuevo.tipo_variante} onChange={e => setNuevo(p => ({ ...p, tipo_variante: e.target.value }))} /></div>
+              )}
+              {editandoProd && nuevo.tiene_variantes && (
+                <button className="btn btn-g btn-sm" style={{ marginBottom: 12 }} onClick={() => abrirGestionVariantes(editandoProd)}>🎨 Gestionar variantes ({variantesProd.length || 0})</button>
+              )}
               {editandoProd && (
                 <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer", marginBottom: 12 }}>
                   <input type="checkbox" checked={nuevo.activo !== false} onChange={e => setNuevo(p => ({ ...p, activo: e.target.checked }))} />
@@ -3454,6 +3569,61 @@ function Inventario({ localId, usuario, paletaActual }) {
               <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setAjustando(null)}>Cancelar</button>
               <button className="btn btn-p" style={{ flex: 1 }} onClick={confirmarAjuste}>Confirmar ajuste</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {gestionandoVariantesDe && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: 20 }} onClick={() => setGestionandoVariantesDe(null)}>
+          <div className="card fade" style={{ maxWidth: 560, width: "95vw", background: temaPal.card, maxHeight: "85vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div className="ct">Variantes de {gestionandoVariantesDe.nombre}</div>
+            <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 14 }}>
+              Tipo de variante: <b>{gestionandoVariantesDe.tipo_variante || "sin definir"}</b>. Cada una lleva su propio stock por local.
+            </div>
+
+            {variantesProd.length === 0 ? (
+              <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 16, fontSize: 12 }}>Todavia no cargaste ninguna variante.</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                {variantesProd.map(v => (
+                  <div key={v.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: 10, background: temaPal.bg, borderRadius: 8 }}>
+                    <label style={{ cursor: "pointer" }}>
+                      {v.imagen_url ? (
+                        <img src={v.imagen_url} style={{ width: 44, height: 44, borderRadius: 6, objectFit: "cover" }} />
+                      ) : (
+                        <div style={{ width: 44, height: 44, borderRadius: 6, background: temaPal.border, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>📷</div>
+                      )}
+                      <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => e.target.files[0] && subirImagenVariante(v, e.target.files[0])} />
+                    </label>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>{v.valor}</div>
+                      <div style={{ fontSize: 10, color: temaPal.textMuted }}>{v.codigo_barras || "sin codigo"}</div>
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: 9, color: temaPal.textMuted }}>Rio Grande</div>
+                      <input className="inp" type="number" style={{ width: 55, fontSize: 12, padding: "4px 6px" }} defaultValue={v.stock_rg} onBlur={e => editarStockVariante(v, "stock_rg", e.target.value)} />
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: 9, color: temaPal.textMuted }}>Ushuaia</div>
+                      <input className="inp" type="number" style={{ width: 55, fontSize: 12, padding: "4px 6px" }} defaultValue={v.stock_ush} onBlur={e => editarStockVariante(v, "stock_ush", e.target.value)} />
+                    </div>
+                    <span onClick={() => borrarVariante(v)} style={{ cursor: "pointer", color: "#c0392b", fontSize: 16 }}>×</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ borderTop: "1px solid " + temaPal.border, paddingTop: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Agregar variante nueva</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <input className="inp" placeholder={"Valor (ej: " + (gestionandoVariantesDe.tipo_variante || "Talle") + ")"} style={{ flex: "1 1 100px" }} value={nuevaVariante.valor} onChange={e => setNuevaVariante(p => ({ ...p, valor: e.target.value }))} />
+                <input className="inp" placeholder="Codigo (opcional)" style={{ flex: "1 1 100px" }} value={nuevaVariante.codigo_barras} onChange={e => setNuevaVariante(p => ({ ...p, codigo_barras: e.target.value }))} />
+                <input className="inp" type="number" placeholder="Stock RG" style={{ width: 80 }} value={nuevaVariante.stock_rg} onChange={e => setNuevaVariante(p => ({ ...p, stock_rg: e.target.value }))} />
+                <input className="inp" type="number" placeholder="Stock USH" style={{ width: 80 }} value={nuevaVariante.stock_ush} onChange={e => setNuevaVariante(p => ({ ...p, stock_ush: e.target.value }))} />
+                <button className="btn btn-p btn-sm" onClick={agregarVariante}>+ Agregar</button>
+              </div>
+            </div>
+            <button className="btn btn-g" style={{ width: "100%", marginTop: 16 }} onClick={() => setGestionandoVariantesDe(null)}>Cerrar</button>
           </div>
         </div>
       )}
