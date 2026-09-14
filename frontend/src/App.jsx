@@ -11,35 +11,35 @@ const fmt = (n) => "$" + (parseFloat(n) || 0).toLocaleString("es-AR", { minimumF
 const fmtNum = (n) => (parseFloat(n) || 0).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const PALETA_CLARA = {
-  bg: "#F0F2F5", sidebar: "#2C3E5C", surface: "#ffffff", card: "#ffffff", border: "#E4E6EB",
+  bg: "#F7F8FA", sidebar: "#1B2431", surface: "#ffffff", card: "#ffffff", border: "#E2E5EA",
   accent: "#c9a84c", accentDim: "#c9a84c15", accentHover: "#e8c86a",
-  text: "#1C1E21", textSoft: "#333333", textMuted: "#5C5F66",
-  green: "#2d7a4f", greenDim: "#2d7a4f12",
-  red: "#c0392b", redDim: "#c0392b12",
-  blue: "#2C3E5C", blueDim: "#2C3E5C12",
+  text: "#131722", textSoft: "#2A2E39", textMuted: "#5C5F66",
+  green: "#089981", greenDim: "#08998112",
+  red: "#f23645", redDim: "#f2364512",
+  blue: "#1B2431", blueDim: "#1B243112",
   purple: "#7d3c98", purpleDim: "#7d3c9812",
   wa: "#25d366", waDim: "#25d36618",
   navText: "rgba(255,255,255,0.95)", navTextDim: "rgba(255,255,255,0.75)",
   navHover: "rgba(255,255,255,0.15)", navActive: "rgba(255,255,255,0.2)", navActiveBorder: "rgba(255,255,255,0.15)",
   logoText: "#ffffff", logoSub: "rgba(255,255,255,0.65)",
-  scrollThumb: "#e0e0e0", inpBg: "#F0F2F5", placeholder: "#9CA1A6",
-  tdText: "#222222", trHover: "#f0f0ed", shadowCol: "rgba(0,0,0,0.12)", shadowSoft: "rgba(0,0,0,0.07)",
+  scrollThumb: "#e0e0e0", inpBg: "#F7F8FA", placeholder: "#9CA1A6",
+  tdText: "#131722", trHover: "#f0f1f3", shadowCol: "rgba(0,0,0,0.08)", shadowSoft: "rgba(0,0,0,0.04)",
 };
 
 const PALETA_OSCURA = {
-  bg: "#14171c", sidebar: "#16202e", surface: "#1e232b", card: "#1e232b", border: "#2c333d",
+  bg: "#0d1117", sidebar: "#0d1117", surface: "#161b22", card: "#161b22", border: "#22272e",
   accent: "#c9a84c", accentDim: "#3a3220", accentHover: "#e8c86a",
-  text: "#eef1f5", textSoft: "#c3cbd6", textMuted: "#8b93a1",
-  green: "#3fa96a", greenDim: "#16261e",
-  red: "#e0564a", redDim: "#3a1f20",
-  blue: "#4a90c2", blueDim: "#1a2733",
+  text: "#d1d4dc", textSoft: "#b2b5be", textMuted: "#787b86",
+  green: "#089981", greenDim: "#0899811a",
+  red: "#f23645", redDim: "#f236451a",
+  blue: "#2962ff", blueDim: "#2962ff1a",
   purple: "#a06bc0", purpleDim: "#2a1f30",
   wa: "#25d366", waDim: "#163527",
-  navText: "rgba(255,255,255,0.95)", navTextDim: "rgba(255,255,255,0.75)",
-  navHover: "rgba(255,255,255,0.12)", navActive: "rgba(255,255,255,0.18)", navActiveBorder: "rgba(255,255,255,0.15)",
-  logoText: "#ffffff", logoSub: "rgba(255,255,255,0.65)",
-  scrollThumb: "#3a4351", inpBg: "#14171c", placeholder: "#7c8698",
-  tdText: "#dde2e8", trHover: "#232a35", shadowCol: "rgba(0,0,0,0.35)", shadowSoft: "rgba(0,0,0,0.25)",
+  navText: "rgba(255,255,255,0.9)", navTextDim: "rgba(255,255,255,0.6)",
+  navHover: "rgba(255,255,255,0.08)", navActive: "rgba(201,168,76,0.12)", navActiveBorder: "rgba(201,168,76,0.3)",
+  logoText: "#ffffff", logoSub: "rgba(255,255,255,0.5)",
+  scrollThumb: "#2a2e39", inpBg: "#0d1117", placeholder: "#5d606b",
+  tdText: "#d1d4dc", trHover: "#1c212b", shadowCol: "rgba(0,0,0,0.5)", shadowSoft: "rgba(0,0,0,0.3)",
 };
 
 // Mantiene "C" con el nombre viejo (paleta clara) para no romper nada que ya la use directo.
@@ -57,7 +57,7 @@ body { font-family: 'Inter', sans-serif; background: ${p.bg}; color: ${p.text}; 
 .fade { animation: fadeUp .25s ease forwards; }
 .pulse { animation: pulse 2s infinite; }
 .layout { display: flex; min-height: 100vh; width: 100%; }
-.sidebar { width: 220px; background: ${p.sidebar}; border-right: none; box-shadow: 2px 0 8px ${p.shadowCol}; display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 20; overflow-y: auto; transition: width .18s ease; }
+.sidebar { width: 220px; background: ${p.sidebar}; border-right: 1px solid ${p.border}; box-shadow: none; display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 20; overflow-y: auto; transition: width .18s ease; }
 .sidebar.comprimido { width: 64px; }
 .sidebar.comprimido .logo-sub, .sidebar.comprimido .nav-section, .sidebar.comprimido .nav-item span:last-child, .sidebar.comprimido .sb-footer { display: none; }
 .sidebar.comprimido .logo { padding: 18px 0; text-align: center; }
@@ -89,7 +89,7 @@ body { font-family: 'Inter', sans-serif; background: ${p.bg}; color: ${p.text}; 
 .g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 18px; }
 .g3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 18px; }
 .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
-.card { background: ${p.card}; border: 1px solid ${p.border}; box-shadow: 0 4px 14px ${p.shadowSoft}, 0 1px 3px ${p.shadowSoft}; border-radius: 16px; padding: 18px; }
+.card { background: ${p.card}; border: 1px solid ${p.border}; box-shadow: none; border-radius: 6px; padding: 18px; }
 .ct { font-size: 10px; letter-spacing: .15em; text-transform: uppercase; color: ${p.textMuted}; font-weight: 600; margin-bottom: 10px; }
 .metric { font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 700; line-height: 1; color: ${p.text}; }
 .msub { font-size: 12px; color: ${p.textMuted}; font-weight: 400; margin-top: 5px; }
@@ -101,8 +101,8 @@ body { font-family: 'Inter', sans-serif; background: ${p.bg}; color: ${p.text}; 
 .ba { background: ${p.accentDim}; color: ${p.accentHover}; }
 .bw { background: ${p.waDim}; color: ${p.wa}; }
 .bx { background: ${p.bg}; color: ${p.textMuted}; border: 1px solid ${p.border}; }
-.btn { padding: 11px 22px; border-radius: 12px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; border: none; transition: all .12s; box-shadow: 0 3px 0 ${p.shadowCol}, 0 4px 8px ${p.shadowSoft}; position: relative; top: 0; }
-.btn:active { top: 3px; box-shadow: 0 0px 0 ${p.shadowCol}, 0 1px 2px ${p.shadowSoft}; }
+.btn { padding: 10px 20px; border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; border: none; transition: all .12s; box-shadow: none; position: relative; top: 0; }
+.btn:active { filter: brightness(0.92); }
 .btn-p { background: linear-gradient(180deg, #36486A 0%, #2C3E5C 100%); color: #ffffff; font-weight: 700; box-shadow: 0 3px 0 #1C2A40, 0 4px 8px rgba(44,62,92,0.3); }
 .btn-p:active { box-shadow: 0 0px 0 #1C2A40, 0 1px 2px rgba(44,62,92,0.2); }
 .btn-p:hover { background: linear-gradient(180deg, #3D5078 0%, #324567 100%); }
@@ -111,10 +111,10 @@ body { font-family: 'Inter', sans-serif; background: ${p.bg}; color: ${p.text}; 
 .btn-g:hover { background: ${p.navHover === "rgba(255,255,255,0.12)" ? p.bg : p.bg}; }
 .btn-sm { padding: 7px 13px; font-size: 10px; box-shadow: 0 2px 0 ${p.shadowSoft}, 0 2px 5px ${p.shadowSoft}; }
 .btn-sm:active { box-shadow: 0 0px 0 ${p.shadowSoft}, 0 1px 2px ${p.shadowSoft}; }
-.inp { width: 100%; background: ${p.inpBg}; border: 1px solid ${p.border}; border-radius: 12px; padding: 12px 14px; color: ${p.text}; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; outline: none; transition: all .15s; box-shadow: inset 0 1px 3px ${p.shadowSoft}; }
-.inp:focus { border-color: #2C3E5C; background: ${p.card}; }
+.inp { width: 100%; background: ${p.inpBg}; border: 1px solid ${p.border}; border-radius: 6px; padding: 11px 13px; color: ${p.text}; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; outline: none; transition: all .15s; box-shadow: none; }
+.inp:focus { border-color: ${p.accent}; }
 .inp::placeholder { color: ${p.placeholder}; }
-.sel { background: ${p.inpBg}; border: 1px solid ${p.border}; border-radius: 12px; padding: 12px 14px; color: ${p.text}; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; outline: none; width: 100%; box-shadow: inset 0 1px 3px ${p.shadowSoft}; }
+.sel { background: ${p.inpBg}; border: 1px solid ${p.border}; border-radius: 6px; padding: 11px 13px; color: ${p.text}; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; outline: none; width: 100%; box-shadow: none; }
 .fg { margin-bottom: 12px; }
 .fl { font-size: 11px; color: ${p.textMuted}; font-weight: 600; margin-bottom: 6px; }
 .tabs { display: flex; margin-bottom: 20px; border-bottom: 1px solid ${p.border}; }
