@@ -11,7 +11,7 @@ const fmt = (n) => "$" + (parseFloat(n) || 0).toLocaleString("es-AR", { minimumF
 const fmtNum = (n) => (parseFloat(n) || 0).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const PALETA_CLARA = {
-  bg: "#F7F8FA", sidebar: "#1B2431", surface: "#ffffff", card: "#ffffff", border: "#E2E5EA",
+  bg: "#EEF0F3", sidebar: "#1B2431", surface: "#ffffff", card: "#ffffff", border: "#D7DBE1",
   accent: "#c9a84c", accentDim: "#c9a84c15", accentHover: "#e8c86a",
   text: "#131722", textSoft: "#2A2E39", textMuted: "#5C5F66",
   green: "#089981", greenDim: "#08998112",
@@ -22,15 +22,15 @@ const PALETA_CLARA = {
   navText: "rgba(255,255,255,0.95)", navTextDim: "rgba(255,255,255,0.75)",
   navHover: "rgba(255,255,255,0.15)", navActive: "rgba(255,255,255,0.2)", navActiveBorder: "rgba(255,255,255,0.15)",
   logoText: "#ffffff", logoSub: "rgba(255,255,255,0.65)",
-  scrollThumb: "#e0e0e0", inpBg: "#F7F8FA", placeholder: "#9CA1A6",
-  tdText: "#131722", trHover: "#f0f1f3", shadowCol: "rgba(0,0,0,0.08)", shadowSoft: "rgba(0,0,0,0.04)",
+  scrollThumb: "#e0e0e0", inpBg: "#EEF0F3", placeholder: "#9CA1A6",
+  tdText: "#131722", trHover: "#f0f1f3", shadowCol: "rgba(20,25,35,0.10)", shadowSoft: "rgba(20,25,35,0.06)",
 };
 
 const PALETA_OSCURA = {
-  bg: "#0d1117", sidebar: "#0d1117", surface: "#161b22", card: "#161b22", border: "#22272e",
+  bg: "#090c10", sidebar: "#0d1117", surface: "#1a1f28", card: "#1a1f28", border: "#2d333d",
   accent: "#c9a84c", accentDim: "#3a3220", accentHover: "#e8c86a",
-  text: "#d1d4dc", textSoft: "#b2b5be", textMuted: "#787b86",
-  green: "#089981", greenDim: "#0899811a",
+  text: "#e6e8ec", textSoft: "#b2b5be", textMuted: "#858a94",
+  green: "#0ab894", greenDim: "#0899811a",
   red: "#f23645", redDim: "#f236451a",
   blue: "#2962ff", blueDim: "#2962ff1a",
   purple: "#a06bc0", purpleDim: "#2a1f30",
@@ -38,8 +38,8 @@ const PALETA_OSCURA = {
   navText: "rgba(255,255,255,0.9)", navTextDim: "rgba(255,255,255,0.6)",
   navHover: "rgba(255,255,255,0.08)", navActive: "rgba(201,168,76,0.12)", navActiveBorder: "rgba(201,168,76,0.3)",
   logoText: "#ffffff", logoSub: "rgba(255,255,255,0.5)",
-  scrollThumb: "#2a2e39", inpBg: "#0d1117", placeholder: "#5d606b",
-  tdText: "#d1d4dc", trHover: "#1c212b", shadowCol: "rgba(0,0,0,0.5)", shadowSoft: "rgba(0,0,0,0.3)",
+  scrollThumb: "#333a46", inpBg: "#12161d", placeholder: "#5d606b",
+  tdText: "#e6e8ec", trHover: "#232a35", shadowCol: "rgba(0,0,0,0.5)", shadowSoft: "rgba(0,0,0,0.35)",
 };
 
 // Mantiene "C" con el nombre viejo (paleta clara) para no romper nada que ya la use directo.
@@ -89,7 +89,7 @@ body { font-family: 'Inter', sans-serif; background: ${p.bg}; color: ${p.text}; 
 .g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 18px; }
 .g3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 18px; }
 .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
-.card { background: ${p.card}; border: 1px solid ${p.border}; box-shadow: none; border-radius: 6px; padding: 18px; }
+.card { background: ${p.card}; border: 1px solid ${p.border}; box-shadow: 0 1px 3px ${p.shadowSoft}, 0 1px 2px ${p.shadowCol}; border-radius: 6px; padding: 18px; }
 .ct { font-size: 10px; letter-spacing: .15em; text-transform: uppercase; color: ${p.textMuted}; font-weight: 600; margin-bottom: 10px; }
 .metric { font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 700; line-height: 1; color: ${p.text}; }
 .msub { font-size: 12px; color: ${p.textMuted}; font-weight: 400; margin-top: 5px; }
@@ -2170,7 +2170,7 @@ function POS({ localId, usuario, paletaActual }) {
           {mensaje}
         </div>
       )}
-            <div className="pos-grid" style={mostrarPago ? { gridTemplateColumns: "1fr" } : {}}>
+            <div className="pos-grid" style={{ gridTemplateColumns: mostrarPago ? "1fr" : "1fr 1fr" }}>
         <div className="pos-col-1" style={{ display: mostrarPago ? "none" : "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
           <input className="inp" placeholder="Escanea o busca por nombre, marca o codigo..." value={busqueda} onChange={e => setBusqueda(e.target.value)} onKeyDown={onEscaneo} autoFocus />
           <div style={{ overflowY: "auto", flex: 1, background: temaPal.card, border: "1px solid " + temaPal.border, borderRadius: 8 }}>
