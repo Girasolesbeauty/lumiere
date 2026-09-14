@@ -57,7 +57,17 @@ body { font-family: 'Inter', sans-serif; background: ${p.bg}; color: ${p.text}; 
 .fade { animation: fadeUp .25s ease forwards; }
 .pulse { animation: pulse 2s infinite; }
 .layout { display: flex; min-height: 100vh; width: 100%; }
-.sidebar { width: 220px; background: ${p.sidebar}; border-right: none; box-shadow: 2px 0 8px ${p.shadowCol}; display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 20; overflow-y: auto; }
+.sidebar { width: 220px; background: ${p.sidebar}; border-right: none; box-shadow: 2px 0 8px ${p.shadowCol}; display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 20; overflow-y: auto; transition: width .18s ease; }
+.sidebar.comprimido { width: 64px; }
+.sidebar.comprimido .logo-sub, .sidebar.comprimido .nav-section, .sidebar.comprimido .nav-item span:last-child, .sidebar.comprimido .sb-footer { display: none; }
+.sidebar.comprimido .logo { padding: 18px 0; text-align: center; }
+.sidebar.comprimido .logo-name { font-size: 20px; }
+.sidebar.comprimido .nav-item { justify-content: center; padding: 9px 0; }
+.sidebar-toggle { position: absolute; top: 18px; right: -12px; width: 24px; height: 24px; border-radius: 50%; background: ${p.accent}; color: #fff; border: 2px solid ${p.sidebar}; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; z-index: 21; transition: transform .18s ease; box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
+.sidebar.comprimido .sidebar-toggle { transform: rotate(180deg); }
+@media (max-width: 860px) {
+  .sidebar-toggle { display: none; }
+}
 .logo { padding: 22px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.15); }
 .logo-name { font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 800; letter-spacing: .05em; color: ${p.logoText}; text-transform: uppercase; }
 .logo-sub { font-size: 9px; color: ${p.logoSub}; letter-spacing: .3em; margin-top: 3px; text-transform: uppercase; }
@@ -68,7 +78,8 @@ body { font-family: 'Inter', sans-serif; background: ${p.bg}; color: ${p.text}; 
 .nav-item.active { color: ${p.logoText}; font-weight: 700; background: ${p.navActive}; border-color: ${p.navActiveBorder}; }
 .nav-icon { font-size: 13px; width: 18px; text-align: center; flex-shrink: 0; }
 .sb-footer { padding: 12px 18px; border-top: 1px solid rgba(255,255,255,0.15); }
-.main { margin-left: 220px; flex: 1; padding: 20px 24px; min-height: 100vh; background: ${p.bg}; width: calc(100vw - 220px); }
+.main { margin-left: 220px; flex: 1; padding: 20px 24px; min-height: 100vh; background: ${p.bg}; width: calc(100vw - 220px); transition: margin-left .18s ease, width .18s ease; }
+.main.comprimido { margin-left: 64px; width: calc(100vw - 64px); }
 .ph { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 26px; }
 .pt { font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; color: ${p.text}; }
 .ps { font-size: 11px; color: ${p.textMuted}; font-weight: 400; margin-top: 5px; }
@@ -11606,6 +11617,14 @@ export default function AppWrapper() {
   const [page, setPage] = useState("dashboard");
   const [tema, setTema] = useState(obtenerTemaGuardado());
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const [sidebarComprimido, setSidebarComprimido] = useState(() => {
+    try { return localStorage.getItem("lumiere_sidebar_comprimido") === "1"; } catch (e) { return false; }
+  });
+  const toggleSidebar = () => setSidebarComprimido(prev => {
+    const nuevo = !prev;
+    try { localStorage.setItem("lumiere_sidebar_comprimido", nuevo ? "1" : "0"); } catch (e) {}
+    return nuevo;
+  });
   const paletaActual = tema === "oscuro" ? PALETA_OSCURA : PALETA_CLARA;
   const alternarTema = () => {
     const nuevo = tema === "oscuro" ? "claro" : "oscuro";
@@ -11767,7 +11786,8 @@ export default function AppWrapper() {
       </div>
       <div className={"mobile-overlay " + (menuAbierto ? "abierto" : "")} onClick={() => setMenuAbierto(false)} />
       <div className="layout" style={{ width: "100vw", margin: 0 }}>
-        <aside className={"sidebar " + (menuAbierto ? "abierto" : "")}>
+        <aside className={"sidebar " + (menuAbierto ? "abierto " : "") + (sidebarComprimido ? "comprimido" : "")}>
+          <div className="sidebar-toggle" onClick={toggleSidebar} title={sidebarComprimido ? "Expandir menu" : "Comprimir menu"}>‹</div>
           <div className="logo">
             <div className="logo-name">Lumiere</div>
             <div className="logo-sub">{local.nombre}</div>
@@ -11813,7 +11833,7 @@ export default function AppWrapper() {
             <div style={{ marginTop: 6, fontSize: 11, color: paletaActual.navTextDim, cursor: "pointer" }} onClick={handleLogout}>Cerrar sesion</div>
           </div>
         </aside>
-        <main className="main">
+        <main className={"main " + (sidebarComprimido ? "comprimido" : "")}>
           {getPageWithLocal(page)}
         </main>
       </div>
