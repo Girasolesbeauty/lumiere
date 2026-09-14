@@ -63,7 +63,10 @@ body { font-family: 'Inter', sans-serif; background: ${p.bg}; color: ${p.text}; 
 .sidebar.comprimido .logo { padding: 18px 0; text-align: center; }
 .sidebar.comprimido .logo-name { font-size: 20px; }
 .sidebar.comprimido .nav-item { justify-content: center; padding: 9px 0; }
-.sidebar-toggle { position: absolute; top: 18px; right: -12px; width: 24px; height: 24px; border-radius: 50%; background: ${p.accent}; color: #fff; border: 2px solid ${p.sidebar}; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; z-index: 21; transition: transform .18s ease; box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
+.sidebar-toggle-row { display: flex; justify-content: flex-end; padding: 10px 14px 0; }
+.sidebar-toggle { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,0.12); color: #fff; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; transition: transform .18s ease, background .15s; }
+.sidebar-toggle:hover { background: rgba(255,255,255,0.22); }
+.sidebar.comprimido .sidebar-toggle-row { justify-content: center; padding: 10px 0 0; }
 .sidebar.comprimido .sidebar-toggle { transform: rotate(180deg); }
 @media (max-width: 860px) {
   .sidebar-toggle { display: none; }
@@ -11787,10 +11790,12 @@ export default function AppWrapper() {
       <div className={"mobile-overlay " + (menuAbierto ? "abierto" : "")} onClick={() => setMenuAbierto(false)} />
       <div className="layout" style={{ width: "100vw", margin: 0 }}>
         <aside className={"sidebar " + (menuAbierto ? "abierto " : "") + (sidebarComprimido ? "comprimido" : "")}>
-          <div className="sidebar-toggle" onClick={toggleSidebar} title={sidebarComprimido ? "Expandir menu" : "Comprimir menu"}>‹</div>
+          <div className="sidebar-toggle-row">
+            <div className="sidebar-toggle" onClick={toggleSidebar} title={sidebarComprimido ? "Expandir menu" : "Comprimir menu"}>‹</div>
+          </div>
           <div className="logo">
-            <div className="logo-name">Lumiere</div>
-            <div className="logo-sub">{local.nombre}</div>
+            <div className="logo-name">{sidebarComprimido ? "L" : "Lumiere"}</div>
+            {!sidebarComprimido && <div className="logo-sub">{local.nombre}</div>}
           </div>
           <nav className="nav">
             {NAV_CON_PERMISOS.map(sec => (
