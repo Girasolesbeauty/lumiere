@@ -886,7 +886,7 @@ function VentasOnline({ localId, usuario, permisosActivos, paletaActual }) {
               <div key={i.id} style={{ background: temaPal.card, border: "1px solid " + temaPal.border, borderRadius: 6, padding: "8px 10px", marginBottom: 6 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                   <span style={{ fontSize: 12, fontWeight: 500 }}>{i.nombre || i.name}</span>
-                  <span onClick={() => remove(i.id)} style={{ cursor: "pointer", color: temaPal.textMuted, fontSize: 16 }}>x</span>
+                  <span onClick={() => remove(i.id)} title="Sacar del comprobante" style={{ cursor: "pointer", color: "#c0392b", fontSize: 14 }}>🗑️</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <button onClick={() => cambiarQty(i.id, -1)} style={{ width: 24, height: 24, borderRadius: 4, border: "1px solid " + temaPal.border, background: temaPal.bg, cursor: "pointer", fontWeight: 700 }}>−</button>
@@ -2235,7 +2235,7 @@ function POS({ localId, usuario, paletaActual }) {
                       <div style={{ fontSize: 12, fontWeight: 500 }}>{i.nombre || i.name}</div>
                       <div style={{ fontSize: 10, color: temaPal.textMuted }}>{i.marca || i.brand}</div>
                     </div>
-                    <div onClick={() => remove(i.id)} style={{ cursor: "pointer", color: temaPal.textMuted, fontSize: 18, lineHeight: 1, paddingLeft: 6 }}>x</div>
+                    <div onClick={() => remove(i.id)} title="Sacar del comprobante" style={{ cursor: "pointer", color: "#c0392b", fontSize: 15, lineHeight: 1, paddingLeft: 6, display: "flex", alignItems: "center" }}>🗑️</div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
