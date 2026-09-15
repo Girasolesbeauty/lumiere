@@ -2170,7 +2170,7 @@ function POS({ localId, usuario, paletaActual }) {
           {mensaje}
         </div>
       )}
-            <div className="pos-grid" style={{ gridTemplateColumns: mostrarPago ? "1fr" : "1fr 1fr" }}>
+            <div className="pos-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
         <div className="pos-col-1" style={{ display: mostrarPago ? "none" : "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
           <input className="inp" placeholder="Escanea o busca por nombre, marca o codigo..." value={busqueda} onChange={e => setBusqueda(e.target.value)} onKeyDown={onEscaneo} autoFocus />
           <div style={{ overflowY: "auto", flex: 1, background: temaPal.card, border: "1px solid " + temaPal.border, borderRadius: 8 }}>
@@ -2218,7 +2218,7 @@ function POS({ localId, usuario, paletaActual }) {
             </table>
           </div>
         </div>
-        <div className="pos-col-2" style={{ display: mostrarPago ? "none" : "flex", background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 8, flexDirection: "column", overflow: "hidden" }}>
+        <div className="pos-col-2" style={{ display: "flex", background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 8, flexDirection: "column", overflow: "hidden" }}>
           <div style={{ padding: "10px 14px", borderBottom: "1px solid " + temaPal.border, fontSize: 10, color: temaPal.textMuted, fontWeight: 700, letterSpacing: ".1em", background: preventa ? "#2471a320" : temaPal.bg }}>
             {preventa ? "PREVENTA" : "COMPROBANTE EN CURSO"} ({cart.length} items)
           </div>
@@ -2269,7 +2269,7 @@ function POS({ localId, usuario, paletaActual }) {
             <button className="btn btn-p" style={{ width: "100%" }} disabled={cart.length === 0} onClick={() => setMostrarPago(true)}>Continuar →</button>
           </div>
         </div>
-        <div className="pos-col-3" style={{ display: mostrarPago ? "flex" : "none", flexDirection: "column", gap: 8, overflow: "hidden", maxWidth: mostrarPago ? 440 : "none", width: mostrarPago ? "100%" : "auto", margin: mostrarPago ? "0 auto" : "0" }}>
+        <div className="pos-col-3" style={{ display: mostrarPago ? "flex" : "none", flexDirection: "column", gap: 8, overflow: "hidden" }}>
           {mostrarPago && (
             <div onClick={() => setMostrarPago(false)} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", color: temaPal.textMuted, fontSize: 12, marginBottom: 8 }}>
               ← Volver al carrito
@@ -2299,7 +2299,7 @@ function POS({ localId, usuario, paletaActual }) {
             ) : (
               <div>
                 <div style={{ position: "relative", marginBottom: 6 }}>
-                  <input className="inp" placeholder="DNI del cliente" value={dniInput} onChange={e => buscarClientePorDni(e.target.value)} style={{ fontSize: 11, padding: "8px 10px" }} />
+                  <input className="inp" placeholder="DNI del cliente" value={dniInput} onChange={e => buscarClientePorDni(e.target.value)} style={{ fontSize: 14, padding: "11px 13px" }} />
                 </div>
                 {clienteSeleccionado && clienteSeleccionado.id && (
                   <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f33", borderRadius: 6, padding: "6px 10px", marginBottom: 6, fontSize: 10 }}>
@@ -8072,6 +8072,39 @@ function Proveedores({ paletaActual }) {
   const [showForm, setShowForm] = useState(false);
   const [nuevo, setNuevo] = useState({ nombre: "", cuit: "", email: "", telefono: "", whatsapp: "", dias_pago: 30, forma_pago: "transferencia", banco: "", cbu: "", alias: "", titular_cuenta: "", categoria: "mercaderia", notas: "" });
 
+  // --- Compras por periodo ---
+  const [comprasDesde, setComprasDesde] = useState("");
+  const [comprasHasta, setComprasHasta] = useState("");
+  const [reporteCompras, setReporteCompras] = useState(null);
+  const [cargandoCompras, setCargandoCompras] = useState(false);
+  const [proveedorExpandido, setProveedorExpandido] = useState(null);
+  const [detalleComprasProv, setDetalleComprasProv] = useState({});
+
+  const cargarReporteCompras = () => {
+    setCargandoCompras(true);
+    setProveedorExpandido(null);
+    const params = new URLSearchParams();
+    if (comprasDesde) params.set("desde", comprasDesde);
+    if (comprasHasta) params.set("hasta", comprasHasta);
+    API.get("/proveedores/reporte-compras?" + params.toString())
+      .then(res => setReporteCompras(res.data || []))
+      .catch(() => setReporteCompras([]))
+      .finally(() => setCargandoCompras(false));
+  };
+
+  const abrirDetalleCompras = (proveedorId) => {
+    if (proveedorExpandido === proveedorId) { setProveedorExpandido(null); return; }
+    setProveedorExpandido(proveedorId);
+    if (detalleComprasProv[proveedorId]) return;
+    const params = new URLSearchParams();
+    if (comprasDesde) params.set("desde", comprasDesde);
+    if (comprasHasta) params.set("hasta", comprasHasta);
+    API.get("/proveedores/" + proveedorId + "/ordenes?" + params.toString())
+      .then(res => setDetalleComprasProv(prev => ({ ...prev, [proveedorId]: res.data || [] })))
+      .catch(() => {});
+  };
+
+
   const cargar = () => {
     Promise.all([API.get("/proveedores"), API.get("/cuentas-pago")])
       .then(([p, c]) => { setProveedores(p.data); setCuentas(c.data); setLoading(false); })
@@ -8169,7 +8202,67 @@ function Proveedores({ paletaActual }) {
         <div className={"tab " + (tab === "pagar" ? "on" : "")} onClick={() => { setTab("pagar"); cargarCuentasAPagar(); }}>
           CUENTAS A PAGAR {vencimientos.length > 0 && <span style={{ background: "#c0392b", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{vencimientos.length}</span>}
         </div>
+        <div className={"tab " + (tab === "compras" ? "on" : "")} onClick={() => setTab("compras")}>COMPRAS POR PERIODO</div>
       </div>
+
+      {tab === "compras" && (
+        <div className="fade">
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="ct">Cuanto se compro, por proveedor</div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+              <div className="fg" style={{ marginBottom: 0 }}>
+                <div className="fl">Desde</div>
+                <input className="inp" type="date" value={comprasDesde} onChange={e => setComprasDesde(e.target.value)} />
+              </div>
+              <div className="fg" style={{ marginBottom: 0 }}>
+                <div className="fl">Hasta</div>
+                <input className="inp" type="date" value={comprasHasta} onChange={e => setComprasHasta(e.target.value)} />
+              </div>
+              <button className="btn btn-p" style={{ height: 40 }} onClick={cargarReporteCompras}>Buscar</button>
+            </div>
+          </div>
+
+          {cargandoCompras ? (
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30 }}>Calculando...</div>
+          ) : reporteCompras === null ? (
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>Elegi un rango de fechas y tocá "Buscar".</div>
+          ) : reporteCompras.length === 0 ? (
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>No hay compras registradas en ese rango.</div>
+          ) : (
+            <div className="card">
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "2px solid " + temaPal.border, marginBottom: 4, fontSize: 11, color: temaPal.textMuted, fontWeight: 700 }}>
+                <span>PROVEEDOR</span>
+                <span>TOTAL COMPRADO</span>
+              </div>
+              {reporteCompras.map(r => {
+                const expandido = proveedorExpandido === r.proveedor_id;
+                return (
+                  <div key={r.proveedor_id}>
+                    <div onClick={() => abrirDetalleCompras(r.proveedor_id)} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid " + temaPal.border, cursor: "pointer" }}>
+                      <span style={{ fontSize: 13 }}>{expandido ? "▾" : "▸"} {r.proveedor_nombre} <span style={{ color: temaPal.textMuted, fontSize: 11 }}>({r.cantidad_ordenes} factura{r.cantidad_ordenes != 1 ? "s" : ""})</span></span>
+                      <span style={{ fontWeight: 700, color: "#c9a84c" }}>{fmt(parseFloat(r.total_comprado))}</span>
+                    </div>
+                    {expandido && (
+                      <div style={{ padding: "6px 0 10px 16px" }}>
+                        {(detalleComprasProv[r.proveedor_id] || []).map(o => (
+                          <div key={o.id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 11, color: temaPal.textMuted }}>
+                            <span>{o.numero_factura || "sin numero"} · {new Date(o.fecha_factura).toLocaleDateString("es-AR")} · {o.estado}</span>
+                            <span>{fmt(parseFloat(o.total))}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0 0", marginTop: 6, borderTop: "2px solid " + temaPal.border, fontWeight: 700 }}>
+                <span>TOTAL DEL PERIODO</span>
+                <span>{fmt(reporteCompras.reduce((s, r) => s + parseFloat(r.total_comprado), 0))}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {tab === "lista" && (
         <div className="fade">
