@@ -117,10 +117,11 @@ body { font-family: 'Inter', sans-serif; background: ${p.bg}; color: ${p.text}; 
 .sel { background: ${p.inpBg}; border: 1px solid ${p.border}; border-radius: 6px; padding: 11px 13px; color: ${p.text}; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; outline: none; width: 100%; box-shadow: none; }
 .fg { margin-bottom: 12px; }
 .fl { font-size: 11px; color: ${p.textMuted}; font-weight: 600; margin-bottom: 6px; }
-.tabs { display: flex; margin-bottom: 20px; border-bottom: 1px solid ${p.border}; }
-.tab { padding: 8px 16px; font-size: 12px; font-weight: 500; color: ${p.textMuted}; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .18s; }
-.tab.on { color: ${p.text}; border-bottom-color: ${p.accent}; font-weight: 600; }
-.tab:hover { color: ${p.textSoft}; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; border-bottom: none; }
+.tab { padding: 9px 16px; font-size: 12px; font-weight: 600; color: ${p.textMuted}; cursor: pointer; border: 1px solid ${p.border}; border-radius: 6px; background: ${p.card}; margin-bottom: 0; transition: all .15s; }
+.tab.on { color: #fff; border-color: ${p.accent}; background: ${p.accent}; font-weight: 700; }
+.tab:hover { color: ${p.text}; border-color: ${p.accent}; }
+.tab.on:hover { color: #fff; }
 .divider { height: 1px; background: ${p.border}; margin: 14px 0; }
 .pb { height: 5px; background: ${p.bg}; border-radius: 3px; overflow: hidden; }
 .pf { height: 100%; border-radius: 3px; transition: width .5s; }
