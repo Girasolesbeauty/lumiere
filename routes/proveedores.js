@@ -19,7 +19,7 @@ router.get('/', async (req, res) => {
 // vos al proveedor, este mira lo que le vendiste a tus clientas de su mercaderia).
 router.get('/reporte-ventas', async (req, res) => {
   try {
-    const { desde, hasta, local_id } = req.query;
+    const { desde, hasta, local_id, proveedor_id } = req.query;
     let q = `
       SELECT p.id AS proveedor_id, p.nombre AS proveedor_nombre,
              COUNT(DISTINCT vi.venta_id) AS cantidad_ventas,
@@ -33,12 +33,14 @@ router.get('/reporte-ventas', async (req, res) => {
     `;
     const params = [];
     if (desde) { params.push(desde); q += ` AND v.creado_en >= $${params.length}`; }
-    if (hasta) { params.push(hasta); q += ` AND v.creado_en <= ($${params.length + 1}::date + interval '1 day')`; params.push(hasta); }
+    if (hasta) { params.push(hasta); q += ` AND v.creado_en < ($${params.length}::date + interval '1 day')`; }
     if (local_id) { params.push(local_id); q += ` AND v.local_id = $${params.length}`; }
+    if (proveedor_id) { params.push(proveedor_id); q += ` AND p.id = $${params.length}`; }
     q += ' GROUP BY p.id, p.nombre ORDER BY total_vendido DESC';
     const r = await pool.query(q, params);
     res.json(r.rows);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Error al obtener el reporte de ventas: ' + error.message });
   }
 });
@@ -58,12 +60,13 @@ router.get('/:id/productos-vendidos', async (req, res) => {
     `;
     const params = [req.params.id];
     if (desde) { params.push(desde); q += ` AND v.creado_en >= $${params.length}`; }
-    if (hasta) { params.push(hasta); q += ` AND v.creado_en <= ($${params.length + 1}::date + interval '1 day')`; params.push(hasta); }
+    if (hasta) { params.push(hasta); q += ` AND v.creado_en < ($${params.length}::date + interval '1 day')`; }
     if (local_id) { params.push(local_id); q += ` AND v.local_id = $${params.length}`; }
     q += ' GROUP BY pr.id, pr.nombre ORDER BY total_vendido DESC';
     const r = await pool.query(q, params);
     res.json(r.rows);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Error al obtener el detalle: ' + error.message });
   }
 });

@@ -118,7 +118,7 @@ body { font-family: 'Inter', sans-serif; background: ${p.bg}; color: ${p.text}; 
 .fg { margin-bottom: 12px; }
 .fl { font-size: 11px; color: ${p.textMuted}; font-weight: 600; margin-bottom: 6px; }
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; border-bottom: none; }
-.tab { padding: 9px 16px; font-size: 12px; font-weight: 600; color: ${p.textMuted}; cursor: pointer; border: 1px solid ${p.border}; border-radius: 6px; background: ${p.card}; margin-bottom: 0; transition: all .15s; }
+.tab { padding: 6px 14px; font-size: 12px; font-weight: 600; color: ${p.textMuted}; cursor: pointer; border: 1px solid ${p.border}; border-radius: 20px; background: ${p.card}; margin-bottom: 0; transition: all .15s; }
 .tab.on { color: #fff; border-color: ${p.accent}; background: ${p.accent}; font-weight: 700; }
 .tab:hover { color: ${p.text}; border-color: ${p.accent}; }
 .tab.on:hover { color: #fff; }
@@ -8108,6 +8108,7 @@ function Proveedores({ paletaActual }) {
   // --- Ventas por proveedor ---
   const [ventasDesde, setVentasDesde] = useState("");
   const [ventasHasta, setVentasHasta] = useState("");
+  const [ventasProveedorSel, setVentasProveedorSel] = useState("");
   const [reporteVentas, setReporteVentas] = useState(null);
   const [cargandoVentas, setCargandoVentas] = useState(false);
   const [provVentasExpandido, setProvVentasExpandido] = useState(null);
@@ -8119,6 +8120,7 @@ function Proveedores({ paletaActual }) {
     const params = new URLSearchParams();
     if (ventasDesde) params.set("desde", ventasDesde);
     if (ventasHasta) params.set("hasta", ventasHasta);
+    if (ventasProveedorSel) params.set("proveedor_id", ventasProveedorSel);
     API.get("/proveedores/reporte-ventas?" + params.toString())
       .then(res => setReporteVentas(res.data || []))
       .catch(() => setReporteVentas([]))
@@ -8311,6 +8313,13 @@ function Proveedores({ paletaActual }) {
               <div className="fg" style={{ marginBottom: 0 }}>
                 <div className="fl">Hasta</div>
                 <input className="inp" type="date" value={ventasHasta} onChange={e => setVentasHasta(e.target.value)} />
+              </div>
+              <div className="fg" style={{ marginBottom: 0, minWidth: 200 }}>
+                <div className="fl">Proveedor</div>
+                <select className="sel" value={ventasProveedorSel} onChange={e => setVentasProveedorSel(e.target.value)}>
+                  <option value="">Todos</option>
+                  {proveedores.map(pr => <option key={pr.id} value={pr.id}>{pr.nombre}</option>)}
+                </select>
               </div>
               <button className="btn btn-p" style={{ height: 40 }} onClick={cargarReporteVentas}>Buscar</button>
             </div>
