@@ -119,8 +119,8 @@ body { font-family: 'Inter', sans-serif; background: ${p.bg}; color: ${p.text}; 
 .fl { font-size: 11px; color: ${p.textMuted}; font-weight: 600; margin-bottom: 6px; }
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; border-bottom: none; }
 .tab { padding: 6px 14px; font-size: 12px; font-weight: 600; color: ${p.textMuted}; cursor: pointer; border: 1px solid ${p.border}; border-radius: 20px; background: ${p.card}; margin-bottom: 0; transition: all .15s; }
-.tab.on { color: #fff; border-color: ${p.accent}; background: ${p.accent}; font-weight: 700; }
-.tab:hover { color: ${p.text}; border-color: ${p.accent}; }
+.tab.on { color: #fff; border-color: ${p.green}; background: ${p.green}; font-weight: 700; }
+.tab:hover { color: ${p.text}; border-color: ${p.green}; }
 .tab.on:hover { color: #fff; }
 .divider { height: 1px; background: ${p.border}; margin: 14px 0; }
 .pb { height: 5px; background: ${p.bg}; border-radius: 3px; overflow: hidden; }
