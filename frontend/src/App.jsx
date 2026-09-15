@@ -118,7 +118,7 @@ body { font-family: 'Inter', sans-serif; background: ${p.bg}; color: ${p.text}; 
 .fg { margin-bottom: 12px; }
 .fl { font-size: 11px; color: ${p.textMuted}; font-weight: 600; margin-bottom: 6px; }
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; border-bottom: none; }
-.tab { padding: 9px 17px; font-size: 12px; font-weight: 600; color: ${p.textMuted}; cursor: pointer; border: 1px solid ${p.border}; border-radius: 8px; background: ${p.card}; margin-bottom: 0; transition: all .15s; }
+.tab { padding: 6px 16px; font-size: 12px; font-weight: 600; color: ${p.textMuted}; cursor: pointer; border: 1px solid ${p.border}; border-radius: 8px; background: ${p.card}; margin-bottom: 0; transition: all .15s; }
 .tab.on { color: #fff; border-color: #3d8b5f; background: #3d8b5f; font-weight: 700; }
 .tab:hover { color: ${p.text}; border-color: #3d8b5f; }
 .tab.on:hover { color: #fff; }
