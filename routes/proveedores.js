@@ -14,6 +14,60 @@ router.get('/', async (req, res) => {
 // Reporte de compras por proveedor en un rango de fechas (usa fecha_factura de cada
 // orden de ingreso). Va ANTES de /:id para que Express no confunda "reporte-compras"
 // con un id de proveedor.
+// Reporte de VENTAS por proveedor: cuanto se vendio de los productos de cada proveedor
+// en un rango de fechas (distinto del reporte de compras -- ese mira lo que le compraste
+// vos al proveedor, este mira lo que le vendiste a tus clientas de su mercaderia).
+router.get('/reporte-ventas', async (req, res) => {
+  try {
+    const { desde, hasta, local_id } = req.query;
+    let q = `
+      SELECT p.id AS proveedor_id, p.nombre AS proveedor_nombre,
+             COUNT(DISTINCT vi.venta_id) AS cantidad_ventas,
+             COALESCE(SUM(vi.cantidad), 0) AS unidades_vendidas,
+             COALESCE(SUM(vi.cantidad * vi.precio_unitario), 0) AS total_vendido
+      FROM proveedores p
+      JOIN productos pr ON pr.proveedor_id = p.id
+      JOIN venta_items vi ON vi.producto_id = pr.id
+      JOIN ventas v ON v.id = vi.venta_id
+      WHERE COALESCE(v.es_preventa, FALSE) = FALSE
+    `;
+    const params = [];
+    if (desde) { params.push(desde); q += ` AND v.creado_en >= $${params.length}`; }
+    if (hasta) { params.push(hasta); q += ` AND v.creado_en <= ($${params.length + 1}::date + interval '1 day')`; params.push(hasta); }
+    if (local_id) { params.push(local_id); q += ` AND v.local_id = $${params.length}`; }
+    q += ' GROUP BY p.id, p.nombre ORDER BY total_vendido DESC';
+    const r = await pool.query(q, params);
+    res.json(r.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener el reporte de ventas: ' + error.message });
+  }
+});
+
+// Detalle: que productos puntuales de ese proveedor se vendieron en el periodo.
+router.get('/:id/productos-vendidos', async (req, res) => {
+  try {
+    const { desde, hasta, local_id } = req.query;
+    let q = `
+      SELECT pr.id AS producto_id, pr.nombre AS producto_nombre,
+             SUM(vi.cantidad) AS unidades_vendidas,
+             SUM(vi.cantidad * vi.precio_unitario) AS total_vendido
+      FROM venta_items vi
+      JOIN ventas v ON v.id = vi.venta_id
+      JOIN productos pr ON pr.id = vi.producto_id
+      WHERE pr.proveedor_id = $1 AND COALESCE(v.es_preventa, FALSE) = FALSE
+    `;
+    const params = [req.params.id];
+    if (desde) { params.push(desde); q += ` AND v.creado_en >= $${params.length}`; }
+    if (hasta) { params.push(hasta); q += ` AND v.creado_en <= ($${params.length + 1}::date + interval '1 day')`; params.push(hasta); }
+    if (local_id) { params.push(local_id); q += ` AND v.local_id = $${params.length}`; }
+    q += ' GROUP BY pr.id, pr.nombre ORDER BY total_vendido DESC';
+    const r = await pool.query(q, params);
+    res.json(r.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener el detalle: ' + error.message });
+  }
+});
+
 router.get('/reporte-compras', async (req, res) => {
   try {
     const { desde, hasta, proveedor_id } = req.query;

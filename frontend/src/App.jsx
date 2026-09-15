@@ -8104,6 +8104,38 @@ function Proveedores({ paletaActual }) {
       .catch(() => {});
   };
 
+  // --- Ventas por proveedor ---
+  const [ventasDesde, setVentasDesde] = useState("");
+  const [ventasHasta, setVentasHasta] = useState("");
+  const [reporteVentas, setReporteVentas] = useState(null);
+  const [cargandoVentas, setCargandoVentas] = useState(false);
+  const [provVentasExpandido, setProvVentasExpandido] = useState(null);
+  const [detalleVentasProv, setDetalleVentasProv] = useState({});
+
+  const cargarReporteVentas = () => {
+    setCargandoVentas(true);
+    setProvVentasExpandido(null);
+    const params = new URLSearchParams();
+    if (ventasDesde) params.set("desde", ventasDesde);
+    if (ventasHasta) params.set("hasta", ventasHasta);
+    API.get("/proveedores/reporte-ventas?" + params.toString())
+      .then(res => setReporteVentas(res.data || []))
+      .catch(() => setReporteVentas([]))
+      .finally(() => setCargandoVentas(false));
+  };
+
+  const abrirDetalleVentas = (proveedorId) => {
+    if (provVentasExpandido === proveedorId) { setProvVentasExpandido(null); return; }
+    setProvVentasExpandido(proveedorId);
+    if (detalleVentasProv[proveedorId]) return;
+    const params = new URLSearchParams();
+    if (ventasDesde) params.set("desde", ventasDesde);
+    if (ventasHasta) params.set("hasta", ventasHasta);
+    API.get("/proveedores/" + proveedorId + "/productos-vendidos?" + params.toString())
+      .then(res => setDetalleVentasProv(prev => ({ ...prev, [proveedorId]: res.data || [] })))
+      .catch(() => {});
+  };
+
 
   const cargar = () => {
     Promise.all([API.get("/proveedores"), API.get("/cuentas-pago")])
@@ -8203,6 +8235,7 @@ function Proveedores({ paletaActual }) {
           CUENTAS A PAGAR {vencimientos.length > 0 && <span style={{ background: "#c0392b", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{vencimientos.length}</span>}
         </div>
         <div className={"tab " + (tab === "compras" ? "on" : "")} onClick={() => setTab("compras")}>COMPRAS POR PERIODO</div>
+        <div className={"tab " + (tab === "ventas" ? "on" : "")} onClick={() => setTab("ventas")}>VENTAS POR PROVEEDOR</div>
       </div>
 
       {tab === "compras" && (
@@ -8258,6 +8291,66 @@ function Proveedores({ paletaActual }) {
               <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0 0", marginTop: 6, borderTop: "2px solid " + temaPal.border, fontWeight: 700 }}>
                 <span>TOTAL DEL PERIODO</span>
                 <span>{fmt(reporteCompras.reduce((s, r) => s + parseFloat(r.total_comprado), 0))}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "ventas" && (
+        <div className="fade">
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="ct">Cuanto se vendio, de la mercaderia de cada proveedor</div>
+            <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 10 }}>No es lo que le compraste al proveedor -- es lo que vendiste vos de sus productos a tus clientas.</div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+              <div className="fg" style={{ marginBottom: 0 }}>
+                <div className="fl">Desde</div>
+                <input className="inp" type="date" value={ventasDesde} onChange={e => setVentasDesde(e.target.value)} />
+              </div>
+              <div className="fg" style={{ marginBottom: 0 }}>
+                <div className="fl">Hasta</div>
+                <input className="inp" type="date" value={ventasHasta} onChange={e => setVentasHasta(e.target.value)} />
+              </div>
+              <button className="btn btn-p" style={{ height: 40 }} onClick={cargarReporteVentas}>Buscar</button>
+            </div>
+          </div>
+
+          {cargandoVentas ? (
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30 }}>Calculando...</div>
+          ) : reporteVentas === null ? (
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>Elegi un rango de fechas y tocá "Buscar".</div>
+          ) : reporteVentas.length === 0 ? (
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>No hay ventas registradas en ese rango.</div>
+          ) : (
+            <div className="card">
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "2px solid " + temaPal.border, marginBottom: 4, fontSize: 11, color: temaPal.textMuted, fontWeight: 700 }}>
+                <span>PROVEEDOR</span>
+                <span>TOTAL VENDIDO</span>
+              </div>
+              {reporteVentas.map(r => {
+                const expandido = provVentasExpandido === r.proveedor_id;
+                return (
+                  <div key={r.proveedor_id}>
+                    <div onClick={() => abrirDetalleVentas(r.proveedor_id)} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid " + temaPal.border, cursor: "pointer" }}>
+                      <span style={{ fontSize: 13 }}>{expandido ? "▾" : "▸"} {r.proveedor_nombre} <span style={{ color: temaPal.textMuted, fontSize: 11 }}>({r.unidades_vendidas} unidades en {r.cantidad_ventas} venta{r.cantidad_ventas != 1 ? "s" : ""})</span></span>
+                      <span style={{ fontWeight: 700, color: "#2d7a4f" }}>{fmt(parseFloat(r.total_vendido))}</span>
+                    </div>
+                    {expandido && (
+                      <div style={{ padding: "6px 0 10px 16px" }}>
+                        {(detalleVentasProv[r.proveedor_id] || []).map(p => (
+                          <div key={p.producto_id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 11, color: temaPal.textMuted }}>
+                            <span>{p.producto_nombre} ({p.unidades_vendidas}u)</span>
+                            <span>{fmt(parseFloat(p.total_vendido))}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0 0", marginTop: 6, borderTop: "2px solid " + temaPal.border, fontWeight: 700 }}>
+                <span>TOTAL DEL PERIODO</span>
+                <span>{fmt(reporteVentas.reduce((s, r) => s + parseFloat(r.total_vendido), 0))}</span>
               </div>
             </div>
           )}
