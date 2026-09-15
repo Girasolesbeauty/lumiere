@@ -2174,6 +2174,7 @@ function POS({ localId, usuario, paletaActual }) {
             <div className="pos-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
         <div className="pos-col-1" style={{ display: mostrarPago ? "none" : "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
           <input className="inp" placeholder="Escanea o busca por nombre, marca o codigo..." value={busqueda} onChange={e => setBusqueda(e.target.value)} onKeyDown={onEscaneo} autoFocus />
+          {busqueda.trim().length > 0 && (
           <div style={{ overflowY: "auto", flex: 1, background: temaPal.card, border: "1px solid " + temaPal.border, borderRadius: 8 }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead style={{ position: "sticky", top: 0, background: temaPal.bg, zIndex: 1 }}>
@@ -2218,10 +2219,11 @@ function POS({ localId, usuario, paletaActual }) {
               </tbody>
             </table>
           </div>
+          )}
         </div>
         <div className="pos-col-2" style={{ display: "flex", background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 8, flexDirection: "column", overflow: "hidden" }}>
           <div style={{ padding: "10px 14px", borderBottom: "1px solid " + temaPal.border, fontSize: 10, color: temaPal.textMuted, fontWeight: 700, letterSpacing: ".1em", background: preventa ? "#2471a320" : temaPal.bg }}>
-            {preventa ? "PREVENTA" : "COMPROBANTE EN CURSO"} ({cart.length} items)
+            {preventa ? "PREVENTA" : "CARRITO DE COMPRAS"} ({cart.length} items)
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
             {cart.length === 0
