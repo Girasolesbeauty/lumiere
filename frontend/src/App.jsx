@@ -2619,19 +2619,13 @@ function POS({ localId, usuario, paletaActual }) {
   );
 }
 
-function Inventario({ localId, usuario, paletaActual }) {
+function Compras({ localId, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
-  const [tab, setTab] = useState("stock");
-  const [ajustesHistorial, setAjustesHistorial] = useState([]);
-  const [buscarAjuste, setBuscarAjuste] = useState("");
-  const [cargandoAjustes, setCargandoAjustes] = useState(false);
-  const cargarAjustesHistorial = () => {
-    setCargandoAjustes(true);
-    API.get("/productos/stock/ajustes").then(res => setAjustesHistorial(res.data || [])).catch(() => {}).finally(() => setCargandoAjustes(false));
-  };
+  const [tab, setTab] = useState("quepedir");
+  const [proveedores, setProveedores] = useState([]);
+  useEffect(() => { API.get("/proveedores").then(res => setProveedores(res.data || [])).catch(() => {}); }, []);
 
   // --- Que pedir (sugerencia de compra por proveedor) ---
-  const [proveedoresCompra, setProveedoresCompra] = useState([]);
   const [proveedorCompraSel, setProveedorCompraSel] = useState("");
   const [localCompraSel, setLocalCompraSel] = useState("consolidado");
   const [diasAnalisis, setDiasAnalisis] = useState(30);
@@ -2639,10 +2633,6 @@ function Inventario({ localId, usuario, paletaActual }) {
   const [sugerenciaCompra, setSugerenciaCompra] = useState(null);
   const [cargandoSugerencia, setCargandoSugerencia] = useState(false);
   const [soloNecesitan, setSoloNecesitan] = useState(true);
-
-  const cargarProveedoresCompra = () => {
-    API.get("/proveedores").then(res => setProveedoresCompra(res.data || [])).catch(() => {});
-  };
 
   const calcularSugerenciaCompra = () => {
     if (!proveedorCompraSel) return;
@@ -2657,6 +2647,304 @@ function Inventario({ localId, usuario, paletaActual }) {
       .then(res => setSugerenciaCompra(res.data))
       .catch(() => setSugerenciaCompra(null))
       .finally(() => setCargandoSugerencia(false));
+  };
+
+  // --- Compras por periodo ---
+  const [comprasDesde, setComprasDesde] = useState("");
+  const [comprasHasta, setComprasHasta] = useState("");
+  const [reporteCompras, setReporteCompras] = useState(null);
+  const [cargandoCompras, setCargandoCompras] = useState(false);
+  const [proveedorExpandido, setProveedorExpandido] = useState(null);
+  const [detalleComprasProv, setDetalleComprasProv] = useState({});
+
+  const cargarReporteCompras = () => {
+    setCargandoCompras(true);
+    setProveedorExpandido(null);
+    const params = new URLSearchParams();
+    if (comprasDesde) params.set("desde", comprasDesde);
+    if (comprasHasta) params.set("hasta", comprasHasta);
+    API.get("/proveedores/reporte-compras?" + params.toString())
+      .then(res => setReporteCompras(res.data || []))
+      .catch(() => setReporteCompras([]))
+      .finally(() => setCargandoCompras(false));
+  };
+
+  const abrirDetalleCompras = (proveedorId) => {
+    if (proveedorExpandido === proveedorId) { setProveedorExpandido(null); return; }
+    setProveedorExpandido(proveedorId);
+    if (detalleComprasProv[proveedorId]) return;
+    const params = new URLSearchParams();
+    if (comprasDesde) params.set("desde", comprasDesde);
+    if (comprasHasta) params.set("hasta", comprasHasta);
+    API.get("/proveedores/" + proveedorId + "/ordenes?" + params.toString())
+      .then(res => setDetalleComprasProv(prev => ({ ...prev, [proveedorId]: res.data || [] })))
+      .catch(() => {});
+  };
+
+  // --- Ventas por proveedor ---
+  const [ventasDesde, setVentasDesde] = useState("");
+  const [ventasHasta, setVentasHasta] = useState("");
+  const [ventasProveedorSel, setVentasProveedorSel] = useState("");
+  const [reporteVentas, setReporteVentas] = useState(null);
+  const [cargandoVentas, setCargandoVentas] = useState(false);
+  const [provVentasExpandido, setProvVentasExpandido] = useState(null);
+  const [detalleVentasProv, setDetalleVentasProv] = useState({});
+
+  const cargarReporteVentas = () => {
+    setCargandoVentas(true);
+    setProvVentasExpandido(null);
+    const params = new URLSearchParams();
+    if (ventasDesde) params.set("desde", ventasDesde);
+    if (ventasHasta) params.set("hasta", ventasHasta);
+    if (ventasProveedorSel) params.set("proveedor_id", ventasProveedorSel);
+    API.get("/proveedores/reporte-ventas?" + params.toString())
+      .then(res => setReporteVentas(res.data || []))
+      .catch(() => setReporteVentas([]))
+      .finally(() => setCargandoVentas(false));
+  };
+
+  const abrirDetalleVentas = (proveedorId) => {
+    if (provVentasExpandido === proveedorId) { setProvVentasExpandido(null); return; }
+    setProvVentasExpandido(proveedorId);
+    if (detalleVentasProv[proveedorId]) return;
+    const params = new URLSearchParams();
+    if (ventasDesde) params.set("desde", ventasDesde);
+    if (ventasHasta) params.set("hasta", ventasHasta);
+    API.get("/proveedores/" + proveedorId + "/productos-vendidos?" + params.toString())
+      .then(res => setDetalleVentasProv(prev => ({ ...prev, [proveedorId]: res.data || [] })))
+      .catch(() => {});
+  };
+
+  return (
+    <div className="fade">
+      <div className="ph">
+        <div><div className="pt">Compras</div><div className="ps">que pedir, compras por periodo, ventas por proveedor</div></div>
+      </div>
+      <div className="tabs">
+        <div className={"tab " + (tab === "quepedir" ? "on" : "")} onClick={() => setTab("quepedir")}>QUE PEDIR</div>
+        <div className={"tab " + (tab === "compras" ? "on" : "")} onClick={() => setTab("compras")}>COMPRAS POR PERIODO</div>
+        <div className={"tab " + (tab === "ventas" ? "on" : "")} onClick={() => setTab("ventas")}>VENTAS POR PROVEEDOR</div>
+      </div>
+
+      {tab === "quepedir" && (
+        <div className="fade">
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="ct">Calcular que pedir</div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+              <div className="fg" style={{ marginBottom: 0, minWidth: 220 }}>
+                <div className="fl">Proveedor</div>
+                <select className="sel" value={proveedorCompraSel} onChange={e => setProveedorCompraSel(e.target.value)}>
+                  <option value="">Elegi un proveedor...</option>
+                  {proveedores.map(pr => <option key={pr.id} value={pr.id}>{pr.nombre}</option>)}
+                </select>
+              </div>
+              <div className="fg" style={{ marginBottom: 0, minWidth: 180 }}>
+                <div className="fl">Stock a considerar</div>
+                <select className="sel" value={localCompraSel} onChange={e => setLocalCompraSel(e.target.value)}>
+                  <option value="consolidado">Consolidado (los dos locales)</option>
+                  <option value="1">Solo Rio Grande</option>
+                  <option value="2">Solo Ushuaia</option>
+                </select>
+              </div>
+              <div className="fg" style={{ marginBottom: 0, width: 160 }}>
+                <div className="fl">Ventas de los ultimos (dias)</div>
+                <input className="inp" type="number" min="1" value={diasAnalisis} onChange={e => setDiasAnalisis(e.target.value)} onBlur={e => setDiasAnalisis(Math.max(1, parseInt(e.target.value) || 30))} />
+              </div>
+              <div className="fg" style={{ marginBottom: 0, width: 160 }}>
+                <div className="fl">Cubrir los proximos (dias)</div>
+                <input className="inp" type="number" min="1" value={diasCobertura} onChange={e => setDiasCobertura(e.target.value)} onBlur={e => setDiasCobertura(Math.max(1, parseInt(e.target.value) || 45))} />
+              </div>
+              <button className="btn btn-p" style={{ height: 38 }} onClick={calcularSugerenciaCompra} disabled={!proveedorCompraSel}>Calcular</button>
+            </div>
+            <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 8 }}>
+              Calcula el ritmo real de venta de cada producto de este proveedor en el periodo elegido, y sugiere cuanto pedir
+              para cubrir los proximos dias sin quedarte sin stock, descontando lo que ya esta en camino.
+            </div>
+          </div>
+
+          {cargandoSugerencia ? (
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30 }}>Calculando...</div>
+          ) : !sugerenciaCompra ? (
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>Elegi un proveedor y tocá "Calcular" para ver la sugerencia.</div>
+          ) : (
+            <div className="card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div className="ct" style={{ margin: 0 }}>Sugerencia de compra</div>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: temaPal.textMuted, cursor: "pointer" }}>
+                  <input type="checkbox" checked={soloNecesitan} onChange={e => setSoloNecesitan(e.target.checked)} />
+                  Mostrar solo los que hay que pedir
+                </label>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Producto</th><th>Stock actual</th><th>En transito</th><th>Vendido en el periodo</th>
+                    <th>Stock minimo</th><th>Punto de pedido</th><th>Lote recomendado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sugerenciaCompra.productos
+                    .filter(p => !soloNecesitan || p.necesita_pedido)
+                    .map(p => (
+                      <tr key={p.id} style={{ background: p.necesita_pedido ? "#c0392b08" : "transparent" }}>
+                        <td style={{ fontWeight: 600 }}>{p.nombre} <span style={{ color: temaPal.textMuted, fontWeight: 400 }}>{p.marca}</span></td>
+                        <td style={{ fontWeight: 700, color: p.necesita_pedido ? "#c0392b" : temaPal.text }}>{p.stock_actual}</td>
+                        <td style={{ color: temaPal.textMuted }}>{p.en_transito}</td>
+                        <td>{p.vendido_periodo} <span style={{ color: temaPal.textMuted, fontSize: 10 }}>({p.ritmo_diario}/dia)</span></td>
+                        <td style={{ color: temaPal.textMuted }}>{p.stock_minimo}</td>
+                        <td style={{ color: temaPal.textMuted }}>{p.punto_pedido}</td>
+                        <td style={{ fontWeight: 700, color: p.lote_recomendado > 0 ? "#2471a3" : temaPal.textMuted }}>{p.lote_recomendado > 0 ? p.lote_recomendado : "-"}</td>
+                      </tr>
+                    ))}
+                  {sugerenciaCompra.productos.filter(p => !soloNecesitan || p.necesita_pedido).length === 0 && (
+                    <tr><td colSpan={7} style={{ textAlign: "center", color: temaPal.textMuted, padding: 20 }}>Ningun producto de este proveedor necesita pedido ahora.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "compras" && (
+        <div className="fade">
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="ct">Cuanto se compro, por proveedor</div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+              <div className="fg" style={{ marginBottom: 0 }}>
+                <div className="fl">Desde</div>
+                <input className="inp" type="date" value={comprasDesde} onChange={e => setComprasDesde(e.target.value)} />
+              </div>
+              <div className="fg" style={{ marginBottom: 0 }}>
+                <div className="fl">Hasta</div>
+                <input className="inp" type="date" value={comprasHasta} onChange={e => setComprasHasta(e.target.value)} />
+              </div>
+              <button className="btn btn-p" style={{ height: 40 }} onClick={cargarReporteCompras}>Buscar</button>
+            </div>
+          </div>
+
+          {cargandoCompras ? (
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30 }}>Calculando...</div>
+          ) : reporteCompras === null ? (
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>Elegi un rango de fechas y tocá "Buscar".</div>
+          ) : reporteCompras.length === 0 ? (
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>No hay compras registradas en ese rango.</div>
+          ) : (
+            <div className="card">
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "2px solid " + temaPal.border, marginBottom: 4, fontSize: 11, color: temaPal.textMuted, fontWeight: 700 }}>
+                <span>PROVEEDOR</span>
+                <span>TOTAL COMPRADO</span>
+              </div>
+              {reporteCompras.map(r => {
+                const expandido = proveedorExpandido === r.proveedor_id;
+                return (
+                  <div key={r.proveedor_id}>
+                    <div onClick={() => abrirDetalleCompras(r.proveedor_id)} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid " + temaPal.border, cursor: "pointer" }}>
+                      <span style={{ fontSize: 13 }}>{expandido ? "▾" : "▸"} {r.proveedor_nombre} <span style={{ color: temaPal.textMuted, fontSize: 11 }}>({r.cantidad_ordenes} factura{r.cantidad_ordenes != 1 ? "s" : ""})</span></span>
+                      <span style={{ fontWeight: 700, color: "#c9a84c" }}>{fmt(parseFloat(r.total_comprado))}</span>
+                    </div>
+                    {expandido && (
+                      <div style={{ padding: "6px 0 10px 16px" }}>
+                        {(detalleComprasProv[r.proveedor_id] || []).map(o => (
+                          <div key={o.id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 11, color: temaPal.textMuted }}>
+                            <span>{o.numero_factura || "sin numero"} · {new Date(o.fecha_factura).toLocaleDateString("es-AR")} · {o.estado}</span>
+                            <span>{fmt(parseFloat(o.total))}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0 0", marginTop: 6, borderTop: "2px solid " + temaPal.border, fontWeight: 700 }}>
+                <span>TOTAL DEL PERIODO</span>
+                <span>{fmt(reporteCompras.reduce((s, r) => s + parseFloat(r.total_comprado), 0))}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "ventas" && (
+        <div className="fade">
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="ct">Cuanto se vendio, de la mercaderia de cada proveedor</div>
+            <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 10 }}>No es lo que le compraste al proveedor -- es lo que vendiste vos de sus productos a tus clientas.</div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+              <div className="fg" style={{ marginBottom: 0 }}>
+                <div className="fl">Desde</div>
+                <input className="inp" type="date" value={ventasDesde} onChange={e => setVentasDesde(e.target.value)} />
+              </div>
+              <div className="fg" style={{ marginBottom: 0 }}>
+                <div className="fl">Hasta</div>
+                <input className="inp" type="date" value={ventasHasta} onChange={e => setVentasHasta(e.target.value)} />
+              </div>
+              <div className="fg" style={{ marginBottom: 0, minWidth: 200 }}>
+                <div className="fl">Proveedor</div>
+                <select className="sel" value={ventasProveedorSel} onChange={e => setVentasProveedorSel(e.target.value)}>
+                  <option value="">Todos</option>
+                  {proveedores.map(pr => <option key={pr.id} value={pr.id}>{pr.nombre}</option>)}
+                </select>
+              </div>
+              <button className="btn btn-p" style={{ height: 40 }} onClick={cargarReporteVentas}>Buscar</button>
+            </div>
+          </div>
+
+          {cargandoVentas ? (
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30 }}>Calculando...</div>
+          ) : reporteVentas === null ? (
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>Elegi un rango de fechas y tocá "Buscar".</div>
+          ) : reporteVentas.length === 0 ? (
+            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>No hay ventas registradas en ese rango.</div>
+          ) : (
+            <div className="card">
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "2px solid " + temaPal.border, marginBottom: 4, fontSize: 11, color: temaPal.textMuted, fontWeight: 700 }}>
+                <span>PROVEEDOR</span>
+                <span>TOTAL VENDIDO</span>
+              </div>
+              {reporteVentas.map(r => {
+                const expandido = provVentasExpandido === r.proveedor_id;
+                return (
+                  <div key={r.proveedor_id}>
+                    <div onClick={() => abrirDetalleVentas(r.proveedor_id)} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid " + temaPal.border, cursor: "pointer" }}>
+                      <span style={{ fontSize: 13 }}>{expandido ? "▾" : "▸"} {r.proveedor_nombre} <span style={{ color: temaPal.textMuted, fontSize: 11 }}>({r.unidades_vendidas} unidades en {r.cantidad_ventas} venta{r.cantidad_ventas != 1 ? "s" : ""})</span></span>
+                      <span style={{ fontWeight: 700, color: "#2d7a4f" }}>{fmt(parseFloat(r.total_vendido))}</span>
+                    </div>
+                    {expandido && (
+                      <div style={{ padding: "6px 0 10px 16px" }}>
+                        {(detalleVentasProv[r.proveedor_id] || []).map(p => (
+                          <div key={p.producto_id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 11, color: temaPal.textMuted }}>
+                            <span>{p.producto_nombre} ({p.unidades_vendidas}u)</span>
+                            <span>{fmt(parseFloat(p.total_vendido))}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0 0", marginTop: 6, borderTop: "2px solid " + temaPal.border, fontWeight: 700 }}>
+                <span>TOTAL DEL PERIODO</span>
+                <span>{fmt(reporteVentas.reduce((s, r) => s + parseFloat(r.total_vendido), 0))}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+function Inventario({ localId, usuario, paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const [tab, setTab] = useState("stock");
+  const [ajustesHistorial, setAjustesHistorial] = useState([]);
+  const [buscarAjuste, setBuscarAjuste] = useState("");
+  const [cargandoAjustes, setCargandoAjustes] = useState(false);
+  const cargarAjustesHistorial = () => {
+    setCargandoAjustes(true);
+    API.get("/productos/stock/ajustes").then(res => setAjustesHistorial(res.data || [])).catch(() => {}).finally(() => setCargandoAjustes(false));
   };
 
   const [productos, setProductos] = useState([]);
@@ -3022,9 +3310,9 @@ function Inventario({ localId, usuario, paletaActual }) {
         </div>
       )}
       <div className="tabs">
-        {["stock", "valorizacion", "transito", "alertas", "ajustes", "compra", "traspasos"].map(t => (
-          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "transito") cargarTransito(); if (t === "ajustes") cargarAjustesHistorial(); if (t === "compra" && proveedoresCompra.length === 0) cargarProveedoresCompra(); if (t === "traspasos") cargarTraspasos(); }}>
-            {t === "stock" ? "STOCK" : t === "valorizacion" ? "VALORIZACION" : t === "transito" ? "EN TRANSITO" : t === "alertas" ? "ALERTAS" + (alertas.length > 0 ? " (" + alertas.length + ")" : "") : t === "ajustes" ? "HISTORIAL DE AJUSTES" : t === "compra" ? "QUE PEDIR" : "TRASPASOS ENTRE LOCALES"}
+        {["stock", "valorizacion", "transito", "alertas", "ajustes", "traspasos"].map(t => (
+          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "transito") cargarTransito(); if (t === "ajustes") cargarAjustesHistorial(); if (t === "traspasos") cargarTraspasos(); }}>
+            {t === "stock" ? "STOCK" : t === "valorizacion" ? "VALORIZACION" : t === "transito" ? "EN TRANSITO" : t === "alertas" ? "ALERTAS" + (alertas.length > 0 ? " (" + alertas.length + ")" : "") : t === "ajustes" ? "HISTORIAL DE AJUSTES" : "TRASPASOS ENTRE LOCALES"}
           </div>
         ))}
       </div>
@@ -3302,85 +3590,6 @@ function Inventario({ localId, usuario, paletaActual }) {
               </table>
             )}
           </div>
-        </div>
-      )}
-      {tab === "compra" && (
-        <div className="fade">
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div className="ct">Calcular que pedir</div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-              <div className="fg" style={{ marginBottom: 0, minWidth: 220 }}>
-                <div className="fl">Proveedor</div>
-                <select className="sel" value={proveedorCompraSel} onChange={e => setProveedorCompraSel(e.target.value)}>
-                  <option value="">Elegi un proveedor...</option>
-                  {proveedoresCompra.map(pr => <option key={pr.id} value={pr.id}>{pr.nombre}</option>)}
-                </select>
-              </div>
-              <div className="fg" style={{ marginBottom: 0, minWidth: 180 }}>
-                <div className="fl">Stock a considerar</div>
-                <select className="sel" value={localCompraSel} onChange={e => setLocalCompraSel(e.target.value)}>
-                  <option value="consolidado">Consolidado (los dos locales)</option>
-                  <option value="1">Solo Rio Grande</option>
-                  <option value="2">Solo Ushuaia</option>
-                </select>
-              </div>
-              <div className="fg" style={{ marginBottom: 0, width: 160 }}>
-                <div className="fl">Ventas de los ultimos (dias)</div>
-                <input className="inp" type="number" min="1" value={diasAnalisis} onChange={e => setDiasAnalisis(e.target.value)} onBlur={e => setDiasAnalisis(Math.max(1, parseInt(e.target.value) || 30))} />
-              </div>
-              <div className="fg" style={{ marginBottom: 0, width: 160 }}>
-                <div className="fl">Cubrir los proximos (dias)</div>
-                <input className="inp" type="number" min="1" value={diasCobertura} onChange={e => setDiasCobertura(e.target.value)} onBlur={e => setDiasCobertura(Math.max(1, parseInt(e.target.value) || 45))} />
-              </div>
-              <button className="btn btn-p" style={{ height: 38 }} onClick={calcularSugerenciaCompra} disabled={!proveedorCompraSel}>Calcular</button>
-            </div>
-            <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 8 }}>
-              Calcula el ritmo real de venta de cada producto de este proveedor en el periodo elegido, y sugiere cuanto pedir
-              para cubrir los proximos dias sin quedarte sin stock, descontando lo que ya esta en camino.
-            </div>
-          </div>
-
-          {cargandoSugerencia ? (
-            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30 }}>Calculando...</div>
-          ) : !sugerenciaCompra ? (
-            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>Elegi un proveedor y tocá "Calcular" para ver la sugerencia.</div>
-          ) : (
-            <div className="card">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <div className="ct" style={{ margin: 0 }}>Sugerencia de compra</div>
-                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: temaPal.textMuted, cursor: "pointer" }}>
-                  <input type="checkbox" checked={soloNecesitan} onChange={e => setSoloNecesitan(e.target.checked)} />
-                  Mostrar solo los que hay que pedir
-                </label>
-              </div>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Producto</th><th>Stock actual</th><th>En transito</th><th>Vendido en el periodo</th>
-                    <th>Stock minimo</th><th>Punto de pedido</th><th>Lote recomendado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sugerenciaCompra.productos
-                    .filter(p => !soloNecesitan || p.necesita_pedido)
-                    .map(p => (
-                      <tr key={p.id} style={{ background: p.necesita_pedido ? "#c0392b08" : "transparent" }}>
-                        <td style={{ fontWeight: 600 }}>{p.nombre} <span style={{ color: temaPal.textMuted, fontWeight: 400 }}>{p.marca}</span></td>
-                        <td style={{ fontWeight: 700, color: p.necesita_pedido ? "#c0392b" : temaPal.text }}>{p.stock_actual}</td>
-                        <td style={{ color: temaPal.textMuted }}>{p.en_transito}</td>
-                        <td>{p.vendido_periodo} <span style={{ color: temaPal.textMuted, fontSize: 10 }}>({p.ritmo_diario}/dia)</span></td>
-                        <td style={{ color: temaPal.textMuted }}>{p.stock_minimo}</td>
-                        <td style={{ color: temaPal.textMuted }}>{p.punto_pedido}</td>
-                        <td style={{ fontWeight: 700, color: p.lote_recomendado > 0 ? "#2471a3" : temaPal.textMuted }}>{p.lote_recomendado > 0 ? p.lote_recomendado : "-"}</td>
-                      </tr>
-                    ))}
-                  {sugerenciaCompra.productos.filter(p => !soloNecesitan || p.necesita_pedido).length === 0 && (
-                    <tr><td colSpan={7} style={{ textAlign: "center", color: temaPal.textMuted, padding: 20 }}>Ningun producto de este proveedor necesita pedido ahora.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
         </div>
       )}
       {tab === "traspasos" && (
@@ -8073,72 +8282,6 @@ function Proveedores({ paletaActual }) {
   const [showForm, setShowForm] = useState(false);
   const [nuevo, setNuevo] = useState({ nombre: "", cuit: "", email: "", telefono: "", whatsapp: "", dias_pago: 30, forma_pago: "transferencia", banco: "", cbu: "", alias: "", titular_cuenta: "", categoria: "mercaderia", notas: "" });
 
-  // --- Compras por periodo ---
-  const [comprasDesde, setComprasDesde] = useState("");
-  const [comprasHasta, setComprasHasta] = useState("");
-  const [reporteCompras, setReporteCompras] = useState(null);
-  const [cargandoCompras, setCargandoCompras] = useState(false);
-  const [proveedorExpandido, setProveedorExpandido] = useState(null);
-  const [detalleComprasProv, setDetalleComprasProv] = useState({});
-
-  const cargarReporteCompras = () => {
-    setCargandoCompras(true);
-    setProveedorExpandido(null);
-    const params = new URLSearchParams();
-    if (comprasDesde) params.set("desde", comprasDesde);
-    if (comprasHasta) params.set("hasta", comprasHasta);
-    API.get("/proveedores/reporte-compras?" + params.toString())
-      .then(res => setReporteCompras(res.data || []))
-      .catch(() => setReporteCompras([]))
-      .finally(() => setCargandoCompras(false));
-  };
-
-  const abrirDetalleCompras = (proveedorId) => {
-    if (proveedorExpandido === proveedorId) { setProveedorExpandido(null); return; }
-    setProveedorExpandido(proveedorId);
-    if (detalleComprasProv[proveedorId]) return;
-    const params = new URLSearchParams();
-    if (comprasDesde) params.set("desde", comprasDesde);
-    if (comprasHasta) params.set("hasta", comprasHasta);
-    API.get("/proveedores/" + proveedorId + "/ordenes?" + params.toString())
-      .then(res => setDetalleComprasProv(prev => ({ ...prev, [proveedorId]: res.data || [] })))
-      .catch(() => {});
-  };
-
-  // --- Ventas por proveedor ---
-  const [ventasDesde, setVentasDesde] = useState("");
-  const [ventasHasta, setVentasHasta] = useState("");
-  const [ventasProveedorSel, setVentasProveedorSel] = useState("");
-  const [reporteVentas, setReporteVentas] = useState(null);
-  const [cargandoVentas, setCargandoVentas] = useState(false);
-  const [provVentasExpandido, setProvVentasExpandido] = useState(null);
-  const [detalleVentasProv, setDetalleVentasProv] = useState({});
-
-  const cargarReporteVentas = () => {
-    setCargandoVentas(true);
-    setProvVentasExpandido(null);
-    const params = new URLSearchParams();
-    if (ventasDesde) params.set("desde", ventasDesde);
-    if (ventasHasta) params.set("hasta", ventasHasta);
-    if (ventasProveedorSel) params.set("proveedor_id", ventasProveedorSel);
-    API.get("/proveedores/reporte-ventas?" + params.toString())
-      .then(res => setReporteVentas(res.data || []))
-      .catch(() => setReporteVentas([]))
-      .finally(() => setCargandoVentas(false));
-  };
-
-  const abrirDetalleVentas = (proveedorId) => {
-    if (provVentasExpandido === proveedorId) { setProvVentasExpandido(null); return; }
-    setProvVentasExpandido(proveedorId);
-    if (detalleVentasProv[proveedorId]) return;
-    const params = new URLSearchParams();
-    if (ventasDesde) params.set("desde", ventasDesde);
-    if (ventasHasta) params.set("hasta", ventasHasta);
-    API.get("/proveedores/" + proveedorId + "/productos-vendidos?" + params.toString())
-      .then(res => setDetalleVentasProv(prev => ({ ...prev, [proveedorId]: res.data || [] })))
-      .catch(() => {});
-  };
-
 
   const cargar = () => {
     Promise.all([API.get("/proveedores"), API.get("/cuentas-pago")])
@@ -8237,135 +8380,7 @@ function Proveedores({ paletaActual }) {
         <div className={"tab " + (tab === "pagar" ? "on" : "")} onClick={() => { setTab("pagar"); cargarCuentasAPagar(); }}>
           CUENTAS A PAGAR {vencimientos.length > 0 && <span style={{ background: "#c0392b", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{vencimientos.length}</span>}
         </div>
-        <div className={"tab " + (tab === "compras" ? "on" : "")} onClick={() => setTab("compras")}>COMPRAS POR PERIODO</div>
-        <div className={"tab " + (tab === "ventas" ? "on" : "")} onClick={() => setTab("ventas")}>VENTAS POR PROVEEDOR</div>
       </div>
-
-      {tab === "compras" && (
-        <div className="fade">
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div className="ct">Cuanto se compro, por proveedor</div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-              <div className="fg" style={{ marginBottom: 0 }}>
-                <div className="fl">Desde</div>
-                <input className="inp" type="date" value={comprasDesde} onChange={e => setComprasDesde(e.target.value)} />
-              </div>
-              <div className="fg" style={{ marginBottom: 0 }}>
-                <div className="fl">Hasta</div>
-                <input className="inp" type="date" value={comprasHasta} onChange={e => setComprasHasta(e.target.value)} />
-              </div>
-              <button className="btn btn-p" style={{ height: 40 }} onClick={cargarReporteCompras}>Buscar</button>
-            </div>
-          </div>
-
-          {cargandoCompras ? (
-            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30 }}>Calculando...</div>
-          ) : reporteCompras === null ? (
-            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>Elegi un rango de fechas y tocá "Buscar".</div>
-          ) : reporteCompras.length === 0 ? (
-            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>No hay compras registradas en ese rango.</div>
-          ) : (
-            <div className="card">
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "2px solid " + temaPal.border, marginBottom: 4, fontSize: 11, color: temaPal.textMuted, fontWeight: 700 }}>
-                <span>PROVEEDOR</span>
-                <span>TOTAL COMPRADO</span>
-              </div>
-              {reporteCompras.map(r => {
-                const expandido = proveedorExpandido === r.proveedor_id;
-                return (
-                  <div key={r.proveedor_id}>
-                    <div onClick={() => abrirDetalleCompras(r.proveedor_id)} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid " + temaPal.border, cursor: "pointer" }}>
-                      <span style={{ fontSize: 13 }}>{expandido ? "▾" : "▸"} {r.proveedor_nombre} <span style={{ color: temaPal.textMuted, fontSize: 11 }}>({r.cantidad_ordenes} factura{r.cantidad_ordenes != 1 ? "s" : ""})</span></span>
-                      <span style={{ fontWeight: 700, color: "#c9a84c" }}>{fmt(parseFloat(r.total_comprado))}</span>
-                    </div>
-                    {expandido && (
-                      <div style={{ padding: "6px 0 10px 16px" }}>
-                        {(detalleComprasProv[r.proveedor_id] || []).map(o => (
-                          <div key={o.id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 11, color: temaPal.textMuted }}>
-                            <span>{o.numero_factura || "sin numero"} · {new Date(o.fecha_factura).toLocaleDateString("es-AR")} · {o.estado}</span>
-                            <span>{fmt(parseFloat(o.total))}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0 0", marginTop: 6, borderTop: "2px solid " + temaPal.border, fontWeight: 700 }}>
-                <span>TOTAL DEL PERIODO</span>
-                <span>{fmt(reporteCompras.reduce((s, r) => s + parseFloat(r.total_comprado), 0))}</span>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {tab === "ventas" && (
-        <div className="fade">
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div className="ct">Cuanto se vendio, de la mercaderia de cada proveedor</div>
-            <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 10 }}>No es lo que le compraste al proveedor -- es lo que vendiste vos de sus productos a tus clientas.</div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-              <div className="fg" style={{ marginBottom: 0 }}>
-                <div className="fl">Desde</div>
-                <input className="inp" type="date" value={ventasDesde} onChange={e => setVentasDesde(e.target.value)} />
-              </div>
-              <div className="fg" style={{ marginBottom: 0 }}>
-                <div className="fl">Hasta</div>
-                <input className="inp" type="date" value={ventasHasta} onChange={e => setVentasHasta(e.target.value)} />
-              </div>
-              <div className="fg" style={{ marginBottom: 0, minWidth: 200 }}>
-                <div className="fl">Proveedor</div>
-                <select className="sel" value={ventasProveedorSel} onChange={e => setVentasProveedorSel(e.target.value)}>
-                  <option value="">Todos</option>
-                  {proveedores.map(pr => <option key={pr.id} value={pr.id}>{pr.nombre}</option>)}
-                </select>
-              </div>
-              <button className="btn btn-p" style={{ height: 40 }} onClick={cargarReporteVentas}>Buscar</button>
-            </div>
-          </div>
-
-          {cargandoVentas ? (
-            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30 }}>Calculando...</div>
-          ) : reporteVentas === null ? (
-            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>Elegi un rango de fechas y tocá "Buscar".</div>
-          ) : reporteVentas.length === 0 ? (
-            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>No hay ventas registradas en ese rango.</div>
-          ) : (
-            <div className="card">
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "2px solid " + temaPal.border, marginBottom: 4, fontSize: 11, color: temaPal.textMuted, fontWeight: 700 }}>
-                <span>PROVEEDOR</span>
-                <span>TOTAL VENDIDO</span>
-              </div>
-              {reporteVentas.map(r => {
-                const expandido = provVentasExpandido === r.proveedor_id;
-                return (
-                  <div key={r.proveedor_id}>
-                    <div onClick={() => abrirDetalleVentas(r.proveedor_id)} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid " + temaPal.border, cursor: "pointer" }}>
-                      <span style={{ fontSize: 13 }}>{expandido ? "▾" : "▸"} {r.proveedor_nombre} <span style={{ color: temaPal.textMuted, fontSize: 11 }}>({r.unidades_vendidas} unidades en {r.cantidad_ventas} venta{r.cantidad_ventas != 1 ? "s" : ""})</span></span>
-                      <span style={{ fontWeight: 700, color: "#2d7a4f" }}>{fmt(parseFloat(r.total_vendido))}</span>
-                    </div>
-                    {expandido && (
-                      <div style={{ padding: "6px 0 10px 16px" }}>
-                        {(detalleVentasProv[r.proveedor_id] || []).map(p => (
-                          <div key={p.producto_id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 11, color: temaPal.textMuted }}>
-                            <span>{p.producto_nombre} ({p.unidades_vendidas}u)</span>
-                            <span>{fmt(parseFloat(p.total_vendido))}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0 0", marginTop: 6, borderTop: "2px solid " + temaPal.border, fontWeight: 700 }}>
-                <span>TOTAL DEL PERIODO</span>
-                <span>{fmt(reporteVentas.reduce((s, r) => s + parseFloat(r.total_vendido), 0))}</span>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {tab === "lista" && (
         <div className="fade">
@@ -11442,7 +11457,7 @@ const NAV_SECTIONS = [
   { section: "CAJA", color: "#2d7a4f", items: [{ id: "caja", icon: "💵", label: "Caja" }, { id: "caja-respaldo", icon: "🏦", label: "Caja de Respaldo" }, { id: "cierre", icon: "🔒", label: "Cierre de Caja" }, { id: "giftcards", icon: "🎀", label: "Gift Cards" }] },
   { section: "CLIENTES", color: "#c9a84c", items: [{ id: "clients", icon: "👥", label: "Clientes" }, { id: "pedidos", icon: "📦", label: "Pedidos" }, { id: "fidelizacion", icon: "⭐", label: "Fidelizacion" }] },
   { section: "EQUIPO", color: "#2471a3", items: [{ id: "tareas", icon: "📝", label: "Tareas" }] },
-  { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "💰", label: "Finanzas" }, { id: "reports", icon: "📋", label: "Informes" }, { id: "comprobantes", icon: "🧾", label: "Comprobantes" }, { id: "comisiones", icon: "💎", label: "Comisiones" }, { id: "proveedores", icon: "🏭", label: "Proveedores" }, { id: "reclamos-proveedores", icon: "📮", label: "Reclamos a Proveedores" }, { id: "calculadoras", icon: "🧮", label: "Calculadoras" }, { id: "productividad", icon: "🏆", label: "Productividad" }] },
+  { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "💰", label: "Finanzas" }, { id: "reports", icon: "📋", label: "Informes" }, { id: "comprobantes", icon: "🧾", label: "Comprobantes" }, { id: "comisiones", icon: "💎", label: "Comisiones" }, { id: "proveedores", icon: "🏭", label: "Proveedores" }, { id: "compras", icon: "🛒", label: "Compras" }, { id: "reclamos-proveedores", icon: "📮", label: "Reclamos a Proveedores" }, { id: "calculadoras", icon: "🧮", label: "Calculadoras" }, { id: "productividad", icon: "🏆", label: "Productividad" }] },
   { section: "MARKETING", color: "#e74c3c", items: [{ id: "cupones", icon: "🏷️", label: "Cupones" }, { id: "promociones", icon: "🎉", label: "Promociones" }] },
   { section: "POSTVENTA", color: "#25d366", items: [{ id: "postventa", icon: "💬", label: "Postventa WA" }] },
   { section: "CLIENTE", color: PALETA_CLARA.textMuted, items: [{ id: "portal", icon: "👤", label: "Portal Cliente" }] },
@@ -11896,7 +11911,7 @@ export default function AppWrapper() {
       "inventory": "inventario.ver", "ordenes": "ordenes.ver", "inconsistencias": "ordenes.ver", "kits": "kits.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
       "clients": "clientes.ver", "fidelizacion": "fidelizacion.ver",
       "finance": "finanzas.flujo", "reports": "informes.ventas", "comprobantes": "comprobantes.ver",
-      "comisiones": "comisiones.propias", "proveedores": "proveedores.ver",
+      "comisiones": "comisiones.propias", "proveedores": "proveedores.ver", "compras": "proveedores.ver",
       "calculadoras": "calculadoras.ver", "productividad": "productividad.ver",
       "cupones": "cupones.ver", "promociones": "cupones.ver", "postventa": "postventa.ver", "portal": "clientes.ver",
       "caja": "caja.ver", "caja-respaldo": "caja_respaldo.ver", "cierre": "cierre_caja.ver", "giftcards": "giftcards.ver",
@@ -11964,6 +11979,7 @@ export default function AppWrapper() {
     if (id === "config-ticket") return <ConfigTicket paletaActual={paletaActual} />;
     if (id === "inconsistencias") return <Inconsistencias paletaActual={paletaActual} />;
     if (id === "proveedores") return <Proveedores paletaActual={paletaActual} />;
+    if (id === "compras") return <Compras localId={local.id} paletaActual={paletaActual} />;
     if (id === "reclamos-proveedores") return <ReclamosProveedores localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     return <Dashboard localId={local.id} paletaActual={paletaActual} />;
   };
