@@ -1369,7 +1369,6 @@ function POS({ localId, usuario, paletaActual }) {
   const [mensaje, setMensaje] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [preventa, setPreventa] = useState(false);
-  const [mostrarPago, setMostrarPago] = useState(false);
   const [tipoReserva, setTipoReserva] = useState("preventa"); // "preventa" (sin stock) o "sena" (con stock, se lo reserva)
   const [nombrePreventa, setNombrePreventa] = useState("");
   const [montoSena, setMontoSena] = useState("");
@@ -1797,7 +1796,7 @@ function POS({ localId, usuario, paletaActual }) {
       setUltimoRecibo(datosRecibo);
       imprimirRecibo(datosRecibo);
       setVentaPendienteArca(null);
-      setCart([]); setMostrarPago(false); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
+      setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
       setClienteSeleccionado(null); setShowNuevoCliente(false);
       setMedioPagoSel(null); setPreventa(false); setTipoReserva("preventa"); setNombrePreventa(""); setMontoSena(""); setSenaMedioPagoId(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false); setReferenciaVenta("");
       quitarGiftCard();
@@ -1916,7 +1915,7 @@ function POS({ localId, usuario, paletaActual }) {
       // de forma segura y su factura se puede reintentar despues (boton "Reintentar
       // facturacion", o el cron automatico), sin necesidad de tener bloqueado el mostrador
       // mientras tanto.
-      setCart([]); setMostrarPago(false); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
+      setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
       setClienteSeleccionado(null); setShowNuevoCliente(false);
       setMedioPagoSel(null); setPreventa(false); setTipoReserva("preventa"); setNombrePreventa(""); setMontoSena(""); setSenaMedioPagoId(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false);
       setJustificacionesStock({}); setItemsSinStock(null); setMontoRecibidoEfectivo("");
@@ -2172,7 +2171,7 @@ function POS({ localId, usuario, paletaActual }) {
         </div>
       )}
             <div className="pos-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
-        <div className="pos-col-1" style={{ display: mostrarPago ? "none" : "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
+        <div className="pos-col-1" style={{ display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
           <input className="inp" placeholder="Escanea o busca por nombre, marca o codigo..." value={busqueda} onChange={e => setBusqueda(e.target.value)} onKeyDown={onEscaneo} autoFocus />
           {busqueda.trim().length > 0 && (
           <div style={{ overflowY: "auto", flex: 1, background: temaPal.card, border: "1px solid " + temaPal.border, borderRadius: 8 }}>
@@ -2220,8 +2219,7 @@ function POS({ localId, usuario, paletaActual }) {
             </table>
           </div>
           )}
-        </div>
-        <div className="pos-col-2" style={{ display: "flex", background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 8, flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 8, flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
           <div style={{ padding: "10px 14px", borderBottom: "1px solid " + temaPal.border, fontSize: 10, color: temaPal.textMuted, fontWeight: 700, letterSpacing: ".1em", background: preventa ? "#2471a320" : temaPal.bg }}>
             {preventa ? "PREVENTA" : "CARRITO DE COMPRAS"} ({cart.length} items)
           </div>
@@ -2265,19 +2263,14 @@ function POS({ localId, usuario, paletaActual }) {
             }
           </div>
           <div style={{ padding: "10px 14px", borderTop: "1px solid " + temaPal.border, background: temaPal.bg }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
               <span style={{ fontSize: 11, color: temaPal.textMuted, fontWeight: 600 }}>SUBTOTAL</span>
               <span style={{ fontSize: 20, fontWeight: 700, color: temaPal.text }}>{fmt(subtotalBase)}</span>
             </div>
-            <button className="btn btn-p" style={{ width: "100%" }} disabled={cart.length === 0} onClick={() => setMostrarPago(true)}>Continuar →</button>
+          </div>
           </div>
         </div>
-        <div className="pos-col-3" style={{ display: mostrarPago ? "flex" : "none", flexDirection: "column", gap: 8, overflow: "hidden" }}>
-          {mostrarPago && (
-            <div onClick={() => setMostrarPago(false)} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", color: temaPal.textMuted, fontSize: 12, marginBottom: 8 }}>
-              ← Volver al carrito
-            </div>
-          )}
+        <div className="pos-col-2" style={{ display: "flex", flexDirection: "column", gap: 8, overflow: "hidden" }}>
           <div style={{ background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 8, padding: "10px 12px", overflowY: "auto", flex: 1 }}>
             {preventa ? (
               <>
