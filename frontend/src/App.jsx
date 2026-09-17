@@ -1392,6 +1392,8 @@ function POS({ localId, usuario, paletaActual }) {
   const [promociones, setPromociones] = useState([]);
   const [configTicket, setConfigTicket] = useState({ mostrar_cliente: true, mostrar_numero: true, mostrar_fecha: true, mensaje_pie: "Gracias por tu compra!", texto_extra: "" });
   const [codigoGC, setCodigoGC] = useState("");
+  const [mostrarTipoFac, setMostrarTipoFac] = useState(false);
+  const [mostrarExtras, setMostrarExtras] = useState(false);
   const [giftCardAplicada, setGiftCardAplicada] = useState(null);
   const [errorGC, setErrorGC] = useState("");
   const [buscandoGC, setBuscandoGC] = useState(false);
@@ -1663,11 +1665,12 @@ function POS({ localId, usuario, paletaActual }) {
   const totalAFacturar = Math.max(total - montoGCMigracion, 0);
   const restaPagar = Math.max(total - montoAplicadoGC, 0);
 
-  const buscarGiftCard = async () => {
-    if (!codigoGC.trim()) return;
+  const buscarGiftCard = async (codigoParam) => {
+    const codigo = (codigoParam !== undefined ? codigoParam : codigoGC).trim();
+    if (!codigo) return;
     setErrorGC(""); setBuscandoGC(true);
     try {
-      const res = await API.get("/gift-cards/codigo/" + codigoGC.trim().toUpperCase());
+      const res = await API.get("/gift-cards/codigo/" + codigo.toUpperCase());
       if (res.data.estado === "agotada" || parseFloat(res.data.saldo) <= 0) {
         setErrorGC("Esta gift card ya no tiene saldo disponible");
       } else {
@@ -1709,11 +1712,12 @@ function POS({ localId, usuario, paletaActual }) {
     } catch (e) { setMensaje("Error al crear cliente"); }
   };
 
-  const aplicarCupon = async () => {
-    if (!cupon) return;
+  const aplicarCupon = async (codigoParam) => {
+    const codigo = codigoParam !== undefined ? codigoParam : cupon;
+    if (!codigo) return;
     try {
       const res = await API.get("/cupones");
-      const c = res.data.find(x => (x.codigo || x.code) === cupon.toUpperCase() && (x.activo || x.active));
+      const c = res.data.find(x => (x.codigo || x.code) === codigo.toUpperCase() && (x.activo || x.active));
       if (c) {
         setCuponAplicado({
           tipo: c.tipo || c.type, valor: parseFloat(c.valor || c.value),
@@ -1728,6 +1732,21 @@ function POS({ localId, usuario, paletaActual }) {
       else setMensaje("Cupon invalido");
       setTimeout(() => setMensaje(""), 2000);
     } catch (e) {}
+  };
+
+  // Un solo campo detecta solo si es un codigo de Gift Card (empieza con GIFT) o un cupon de descuento.
+  const [codigoPromo, setCodigoPromo] = useState("");
+  const aplicarCodigoPromo = () => {
+    const val = codigoPromo.trim();
+    if (!val) return;
+    if (val.toUpperCase().startsWith("GIFT")) {
+      setCodigoGC(val);
+      buscarGiftCard(val);
+    } else {
+      setCupon(val);
+      aplicarCupon(val);
+    }
+    setCodigoPromo("");
   };
 
   const imprimirRecibo = (datos) => {
@@ -2294,8 +2313,9 @@ function POS({ localId, usuario, paletaActual }) {
               </>
             ) : (
               <div>
-                <div style={{ position: "relative", marginBottom: 6 }}>
-                  <input className="inp" placeholder="DNI del cliente" value={dniInput} onChange={e => buscarClientePorDni(e.target.value)} style={{ fontSize: 14, padding: "11px 13px" }} />
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, background: temaPal.card, border: "2px solid " + temaPal.border, borderRadius: 8, padding: "2px 10px" }}>
+                  <span style={{ fontSize: 15 }}>🪪</span>
+                  <input placeholder="DNI del cliente" value={dniInput} onChange={e => buscarClientePorDni(e.target.value)} style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 15, fontWeight: 600, color: temaPal.text, padding: "10px 0" }} />
                 </div>
                 {clienteSeleccionado && clienteSeleccionado.id && (
                   <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f33", borderRadius: 6, padding: "6px 10px", marginBottom: 6, fontSize: 10 }}>
@@ -2315,11 +2335,12 @@ function POS({ localId, usuario, paletaActual }) {
                   </div>
                 )}
                 {!clienteSeleccionado && !showNuevoCliente && (
-                  <button className="btn btn-g btn-sm" style={{ width: "100%", marginBottom: 6, fontSize: 10 }} onClick={() => setClienteSeleccionado({ id: null, nombre: "Consumidor Final", puntos: 0 })}>Consumidor Final</button>
+                  <button className="btn btn-g btn-sm" style={{ width: "100%", marginBottom: 10, fontSize: 10 }} onClick={() => setClienteSeleccionado({ id: null, nombre: "Consumidor Final", puntos: 0 })}>Consumidor Final</button>
                 )}
+
                 <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
-                  <input className="inp" placeholder="Cupon" value={cupon} onChange={e => setCupon(e.target.value)} style={{ flex: 1, fontSize: 11, padding: "6px 10px" }} />
-                  <button className="btn btn-g btn-sm" style={{ fontSize: 9 }} onClick={aplicarCupon}>OK</button>
+                  <input className="inp" placeholder="Cupon o codigo de Gift Card" value={codigoPromo} onChange={e => setCodigoPromo(e.target.value)} onKeyDown={e => e.key === "Enter" && aplicarCodigoPromo()} style={{ flex: 1, fontSize: 11, padding: "8px 10px" }} />
+                  <button className="btn btn-sm" style={{ background: "#c9a84c", color: "#1B2431", fontWeight: 700 }} onClick={aplicarCodigoPromo}>Aplicar</button>
                 </div>
                 {cuponAplicado && !cuponCumpleMinimo && (
                   <div style={{ fontSize: 9, color: "#a06b00", marginBottom: 4 }}>
@@ -2341,63 +2362,71 @@ function POS({ localId, usuario, paletaActual }) {
                     🎁 Este cupón habilita un regalo: agregá "{cuponAplicado.regalo_producto_nombre}" al ticket con precio $0
                   </div>
                 )}
-                <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
-                  <input className="inp" type="number" placeholder="Desc. manual" value={descuentoManual} onChange={e => setDescuentoManual(e.target.value)} style={{ flex: 1, fontSize: 11, padding: "6px 10px" }} />
-                  <select className="sel" style={{ width: 50, padding: "6px 4px", fontSize: 10 }} value={tipoDescuento} onChange={e => setTipoDescuento(e.target.value)}>
+                {giftCardAplicada && (
+                  <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f44", borderRadius: 6, padding: "6px 8px", marginBottom: 4, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: "#2d7a4f", fontFamily: "monospace" }}>{giftCardAplicada.codigo}</div>
+                      <div style={{ fontSize: 9, color: temaPal.textMuted }}>Saldo: {fmt(parseFloat(giftCardAplicada.saldo))} · Se aplica: {fmt(montoAplicadoGC)}</div>
+                    </div>
+                    <span onClick={quitarGiftCard} style={{ cursor: "pointer", color: "#c0392b", fontSize: 10 }}>✕</span>
+                  </div>
+                )}
+                {errorGC && <div style={{ fontSize: 9, color: "#c0392b", marginBottom: 4 }}>{errorGC}</div>}
+
+                <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
+                  <input className="inp" type="number" placeholder="Desc. manual" value={descuentoManual} onChange={e => setDescuentoManual(e.target.value)} style={{ flex: 1, fontSize: 11, padding: "8px 10px" }} />
+                  <select className="sel" style={{ width: 55, padding: "8px 4px", fontSize: 10 }} value={tipoDescuento} onChange={e => setTipoDescuento(e.target.value)}>
                     <option value="$">$</option>
                     <option value="%">%</option>
                   </select>
                 </div>
               </div>
             )}
-            <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
-              {["A", "B", "Remito"].map(t => (
-                <button key={t} onClick={() => setTipoFac(t)} className="btn btn-sm"
-                  style={{ flex: 1, fontSize: 9, padding: "5px 4px", background: tipoFac === t ? "#c9a84c15" : "transparent", border: "1px solid " + (tipoFac === t ? "#c9a84c" : temaPal.border), color: tipoFac === t ? "#c9a84c" : temaPal.textMuted }}>
-                  {t === "Remito" ? "Rem" : "Fac " + t}
-                </button>
-              ))}
-            </div>
-            <button className="btn btn-sm" style={{ width: "100%", marginBottom: 6, background: "transparent", border: "1px solid #c9a84c44", color: "#c9a84c", fontSize: 9 }} onClick={() => { setShowEmitirGC(true); setGcEmitidaOk(null); setErrorEmitirGC(""); }}>Emitir Gift Card</button>
-            {!giftCardAplicada ? (
-              <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
-                <input className="inp" placeholder="GIFT-XXXX" value={codigoGC} onChange={e => setCodigoGC(e.target.value)} onKeyDown={e => e.key === "Enter" && buscarGiftCard()} style={{ flex: 1, textTransform: "uppercase", fontSize: 11, padding: "6px 10px" }} />
-                <button className="btn btn-sm" style={{ fontSize: 9 }} onClick={buscarGiftCard} disabled={buscandoGC}>GC</button>
-              </div>
-            ) : (
-              <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f44", borderRadius: 6, padding: "6px 8px", marginBottom: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#2d7a4f", fontFamily: "monospace" }}>{giftCardAplicada.codigo}</div>
-                  <div style={{ fontSize: 9, color: temaPal.textMuted }}>{fmt(parseFloat(giftCardAplicada.saldo))}</div>
+
+            <div style={{ marginBottom: 6, position: "relative" }}>
+              <button className="btn btn-sm" style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#c9a84c18", border: "1px solid #c9a84c", color: "#c9a84c" }} onClick={() => setMostrarTipoFac(v => !v)}>
+                <span>{tipoFac === "Remito" ? "Remito" : "Factura " + tipoFac}</span>
+                <span>{mostrarTipoFac ? "▲" : "▼"}</span>
+              </button>
+              {mostrarTipoFac && (
+                <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+                  {["A", "B", "Remito"].map(t => (
+                    <button key={t} onClick={() => { setTipoFac(t); setMostrarTipoFac(false); }} className="btn btn-sm"
+                      style={{ flex: 1, fontSize: 9, padding: "6px 4px", background: tipoFac === t ? "#c9a84c" : temaPal.bg, border: "1px solid " + (tipoFac === t ? "#c9a84c" : temaPal.border), color: tipoFac === t ? "#1B2431" : temaPal.textMuted, fontWeight: tipoFac === t ? 700 : 500 }}>
+                      {t === "Remito" ? "Remito" : "Factura " + t}
+                    </button>
+                  ))}
                 </div>
-                <span onClick={quitarGiftCard} style={{ cursor: "pointer", color: "#c0392b", fontSize: 10 }}>X</span>
-              </div>
-            )}
-            {errorGC && <div style={{ fontSize: 9, color: "#c0392b", marginBottom: 6 }}>{errorGC}</div>}
-            {giftCardAplicada && (
-              <div style={{ fontSize: 10, marginBottom: 6, display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: temaPal.textMuted }}>Gift card</span>
-                <span style={{ fontWeight: 700, color: "#2d7a4f" }}>-{fmt(montoAplicadoGC)}</span>
-              </div>
-            )}
-            {!preventa && (
+              )}
+            </div>
+
+            <div style={{ marginBottom: 8 }}>
+              <button className="btn btn-sm" style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", background: temaPal.bg, border: "1px solid " + temaPal.border, color: temaPal.textMuted }} onClick={() => setMostrarExtras(v => !v)}>
+                <span>+ Extras</span>
+                <span>{mostrarExtras ? "▲" : "▼"}</span>
+              </button>
+              {mostrarExtras && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+                  <button className="btn btn-sm" style={{ width: "100%", background: "#c9a84c18", color: "#c9a84c", border: "1px solid #c9a84c66" }} onClick={() => { setShowEmitirGC(true); setGcEmitidaOk(null); setErrorEmitirGC(""); }}>🎁 Emitir Gift Card</button>
+                  {!preventa && (
+                    <button className="btn btn-sm" style={{ width: "100%", background: "#2471a318", color: "#2471a3", border: "1px solid #2471a366" }} onClick={agregarAjusteDiferencia}>🌐 Facturar diferencia de pedido online</button>
+                  )}
+                  {!preventa && insumosPosActivo && insumosPos.length > 0 && !mostrarInsumos && (
+                    <button className="btn btn-sm" style={{ width: "100%", background: "#7d3c9818", color: "#a06bc0", border: "1px solid #7d3c9866" }} onClick={() => setMostrarInsumos(true)}>📦 Agregar insumo (bolsa, caja, ramo...)</button>
+                  )}
+                </div>
+              )}
+            </div>
+            {!preventa && insumosPosActivo && insumosPos.length > 0 && mostrarInsumos && (
               <div style={{ marginBottom: 8 }}>
-                <button className="btn btn-sm" style={{ width: "100%", background: temaPal.bg, color: "#2471a3", border: "1px dashed #2471a3" }} onClick={agregarAjusteDiferencia}>+ Facturar diferencia de pedido online</button>
-              </div>
-            )}
-            {!preventa && insumosPosActivo && insumosPos.length > 0 && (
-              <div style={{ marginBottom: 8 }}>
-                {!mostrarInsumos ? (
-                  <button className="btn btn-sm" style={{ width: "100%", background: temaPal.bg, color: "#c9a84c", border: "1px dashed #c9a84c" }} onClick={() => setMostrarInsumos(true)}>+ Agregar insumo (bolsa, caja, ramo...)</button>
-                ) : (
-                  <div style={{ background: temaPal.bg, borderRadius: 8, padding: 10 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: temaPal.textMuted }}>Insumos usados (se descuentan del stock, no se facturan)</span>
-                      <span onClick={() => { setMostrarInsumos(false); setInsumosSel({}); }} style={{ cursor: "pointer", fontSize: 11, color: temaPal.textMuted }}>ocultar</span>
-                    </div>
-                    {insumosPos.map(ins => {
-                      const marcado = insumosSel[ins.id] && insumosSel[ins.id] !== "ninguna";
-                      return (
+                <div style={{ background: temaPal.bg, borderRadius: 8, padding: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: temaPal.textMuted }}>Insumos usados (se descuentan del stock, no se facturan)</span>
+                    <span onClick={() => { setMostrarInsumos(false); setInsumosSel({}); }} style={{ cursor: "pointer", fontSize: 11, color: temaPal.textMuted }}>ocultar</span>
+                  </div>
+                  {insumosPos.map(ins => {
+                    const marcado = insumosSel[ins.id] && insumosSel[ins.id] !== "ninguna";
+                    return (
                         <label key={ins.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", fontSize: 12, cursor: "pointer" }}>
                           <input type="checkbox" checked={!!marcado} onChange={e => setInsumosSel(p => ({ ...p, [ins.id]: e.target.checked ? String(ins.id) : "ninguna" }))} />
                           <span>{ins.nombre}</span>
@@ -2405,7 +2434,6 @@ function POS({ localId, usuario, paletaActual }) {
                       );
                     })}
                   </div>
-                )}
               </div>
             )}
             {restaPagar > 0 && (
