@@ -16,7 +16,8 @@ router.get('/', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Insumos configurados para el POS de un local (para mostrar los selectores en la venta)
+// Insumos configurados para el POS de un local (para mostrar los selectores en la venta).
+// Incluye el precio sugerido a cobrar al cliente, para precargarlo solo en el POS.
 router.get('/para-pos', async (req, res) => {
   try {
     const { local_id } = req.query;
@@ -26,7 +27,7 @@ router.get('/para-pos', async (req, res) => {
     const activo = locRes.rows.length ? locRes.rows[0].descuenta_insumos === true : false;
     if (!activo) return res.json({ activo: false, insumos: [] });
     const result = await pool.query(`
-      SELECT i.id, i.nombre, i.stock_rg, i.stock_ush
+      SELECT i.id, i.nombre, i.stock_rg, i.stock_ush, COALESCE(i.precio_sugerido_cliente, 0) AS precio_sugerido_cliente
       FROM pos_insumos_config c
       JOIN insumos i ON i.id = c.insumo_id
       WHERE c.local_id = $1 AND c.activo = TRUE AND i.activo = TRUE
@@ -101,16 +102,16 @@ router.get('/alertas', async (req, res) => {
 // Crear insumo
 router.post('/', async (req, res) => {
   try {
-    const { nombre, categoria, unidad, proveedor_id, costo, stock_rg, stock_ush, stock_minimo } = req.body;
+    const { nombre, categoria, unidad, proveedor_id, costo, stock_rg, stock_ush, stock_minimo, precio_sugerido_cliente } = req.body;
     if (!nombre) return res.status(400).json({ error: 'El nombre es obligatorio' });
     const result = await pool.query(
-      `INSERT INTO insumos (nombre, categoria, unidad, proveedor_id, costo, stock_rg, stock_ush, stock_minimo)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      `INSERT INTO insumos (nombre, categoria, unidad, proveedor_id, costo, stock_rg, stock_ush, stock_minimo, precio_sugerido_cliente)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
       [
         nombre, categoria || null, unidad || 'unidad',
         proveedor_id || null, parseFloat(costo) || 0,
         parseInt(stock_rg) || 0, parseInt(stock_ush) || 0,
-        parseInt(stock_minimo) || 5
+        parseInt(stock_minimo) || 5, parseFloat(precio_sugerido_cliente) || 0
       ]
     );
     res.status(201).json(result.rows[0]);
@@ -120,7 +121,7 @@ router.post('/', async (req, res) => {
 // Editar insumo (datos generales, no el stock)
 router.put('/:id', async (req, res) => {
   try {
-    const { nombre, categoria, unidad, proveedor_id, costo, stock_minimo } = req.body;
+    const { nombre, categoria, unidad, proveedor_id, costo, stock_minimo, precio_sugerido_cliente } = req.body;
     const result = await pool.query(
       `UPDATE insumos SET
         nombre = COALESCE($1, nombre),
@@ -128,13 +129,15 @@ router.put('/:id', async (req, res) => {
         unidad = COALESCE($3, unidad),
         proveedor_id = $4,
         costo = COALESCE($5, costo),
-        stock_minimo = COALESCE($6, stock_minimo)
-       WHERE id = $7 RETURNING *`,
+        stock_minimo = COALESCE($6, stock_minimo),
+        precio_sugerido_cliente = COALESCE($7, precio_sugerido_cliente)
+       WHERE id = $8 RETURNING *`,
       [
         nombre || null, categoria || null, unidad || null,
         proveedor_id || null,
         costo !== undefined ? parseFloat(costo) : null,
         stock_minimo !== undefined ? parseInt(stock_minimo) : null,
+        precio_sugerido_cliente !== undefined ? parseFloat(precio_sugerido_cliente) : null,
         req.params.id
       ]
     );

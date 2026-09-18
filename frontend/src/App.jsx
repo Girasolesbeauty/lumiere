@@ -2423,15 +2423,41 @@ function POS({ localId, usuario, paletaActual }) {
                 <div style={{ background: temaPal.bg, borderRadius: 8, padding: 10 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                     <span style={{ fontSize: 11, fontWeight: 600, color: temaPal.textMuted }}>Insumos usados (se descuentan del stock, no se facturan)</span>
-                    <span onClick={() => { setMostrarInsumos(false); setInsumosSel({}); }} style={{ cursor: "pointer", fontSize: 11, color: temaPal.textMuted }}>ocultar</span>
+                    <span onClick={() => { setMostrarInsumos(false); setInsumosSel({}); setCart(prev => prev.filter(x => !String(x.id).startsWith("insumo-"))); }} style={{ cursor: "pointer", fontSize: 11, color: temaPal.textMuted }}>ocultar</span>
                   </div>
                   {insumosPos.map(ins => {
                     const marcado = insumosSel[ins.id] && insumosSel[ins.id] !== "ninguna";
+                    const idCartInsumo = "insumo-" + ins.id;
+                    const enCarrito = cart.find(x => x.id === idCartInsumo);
                     return (
-                        <label key={ins.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", fontSize: 12, cursor: "pointer" }}>
-                          <input type="checkbox" checked={!!marcado} onChange={e => setInsumosSel(p => ({ ...p, [ins.id]: e.target.checked ? String(ins.id) : "ninguna" }))} />
-                          <span>{ins.nombre}</span>
-                        </label>
+                        <div key={ins.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0" }}>
+                          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer", flex: 1 }}>
+                            <input type="checkbox" checked={!!marcado} onChange={e => {
+                              setInsumosSel(p => ({ ...p, [ins.id]: e.target.checked ? String(ins.id) : "ninguna" }));
+                              if (!e.target.checked) {
+                                setCart(prev => prev.filter(x => x.id !== idCartInsumo));
+                              } else if (ins.precio_sugerido_cliente > 0) {
+                                setCart(prev => [...prev.filter(x => x.id !== idCartInsumo), { id: idCartInsumo, nombre: ins.nombre + " (envoltorio)", precio: ins.precio_sugerido_cliente, price: ins.precio_sugerido_cliente, qty: 1, es_ajuste: true }]);
+                              }
+                            }} />
+                            <span>{ins.nombre}</span>
+                          </label>
+                          {marcado && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                              <span style={{ fontSize: 9, color: temaPal.textMuted }}>$ al cliente</span>
+                              <input type="number" min="0" placeholder="0" defaultValue={enCarrito ? (enCarrito.precio || enCarrito.price) : (ins.precio_sugerido_cliente || "")}
+                                onBlur={e => {
+                                  const monto = parseFloat(e.target.value) || 0;
+                                  setCart(prev => {
+                                    const sinEste = prev.filter(x => x.id !== idCartInsumo);
+                                    if (monto <= 0) return sinEste;
+                                    return [...sinEste, { id: idCartInsumo, nombre: ins.nombre + " (envoltorio)", precio: monto, price: monto, qty: 1, es_ajuste: true }];
+                                  });
+                                }}
+                                style={{ width: 60, fontSize: 10, padding: "4px 6px", border: "1px solid " + temaPal.border, borderRadius: 4, textAlign: "right" }} />
+                            </div>
+                          )}
+                        </div>
                       );
                     })}
                   </div>
@@ -10843,7 +10869,7 @@ function Insumos({ localId, usuario, paletaActual }) {
   const [modoAjuste, setModoAjuste] = useState("exacto");
   const [valorAjuste, setValorAjuste] = useState("");
   const [errorAjuste, setErrorAjuste] = useState("");
-  const [nuevo, setNuevo] = useState({ nombre: "", categoria: "", unidad: "unidad", proveedor_id: "", costo: "", stock_rg: "", stock_ush: "", stock_minimo: "" });
+  const [nuevo, setNuevo] = useState({ nombre: "", categoria: "", unidad: "unidad", proveedor_id: "", costo: "", stock_rg: "", stock_ush: "", stock_minimo: "", precio_sugerido_cliente: "" });
 
   const localNombre = localId === 2 ? "Ushuaia" : "Rio Grande";
   const stockLocal = (i) => localId === 2 ? (i.stock_ush || 0) : (i.stock_rg || 0);
@@ -10872,7 +10898,8 @@ function Insumos({ localId, usuario, paletaActual }) {
         await API.put("/insumos/" + editando.id, {
           nombre: nuevo.nombre, categoria: nuevo.categoria, unidad: nuevo.unidad,
           proveedor_id: nuevo.proveedor_id || null, costo: parseFloat(nuevo.costo) || 0,
-          stock_minimo: parseInt(nuevo.stock_minimo) || 5
+          stock_minimo: parseInt(nuevo.stock_minimo) || 5,
+          precio_sugerido_cliente: parseFloat(nuevo.precio_sugerido_cliente) || 0
         });
         setMensaje("Insumo actualizado!");
       } else {
@@ -10880,11 +10907,12 @@ function Insumos({ localId, usuario, paletaActual }) {
           nombre: nuevo.nombre, categoria: nuevo.categoria, unidad: nuevo.unidad,
           proveedor_id: nuevo.proveedor_id || null, costo: parseFloat(nuevo.costo) || 0,
           stock_rg: parseInt(nuevo.stock_rg) || 0, stock_ush: parseInt(nuevo.stock_ush) || 0,
-          stock_minimo: parseInt(nuevo.stock_minimo) || 5
+          stock_minimo: parseInt(nuevo.stock_minimo) || 5,
+          precio_sugerido_cliente: parseFloat(nuevo.precio_sugerido_cliente) || 0
         });
         setMensaje("Insumo creado!");
       }
-      setNuevo({ nombre: "", categoria: "", unidad: "unidad", proveedor_id: "", costo: "", stock_rg: "", stock_ush: "", stock_minimo: "" });
+      setNuevo({ nombre: "", categoria: "", unidad: "unidad", proveedor_id: "", costo: "", stock_rg: "", stock_ush: "", stock_minimo: "", precio_sugerido_cliente: "" });
       setShowForm(false); setEditando(null);
       cargar();
       setTimeout(() => setMensaje(""), 3000);
@@ -10893,7 +10921,7 @@ function Insumos({ localId, usuario, paletaActual }) {
 
   const abrirEditar = (i) => {
     setEditando(i);
-    setNuevo({ nombre: i.nombre, categoria: i.categoria || "", unidad: i.unidad || "unidad", proveedor_id: i.proveedor_id || "", costo: i.costo || "", stock_rg: "", stock_ush: "", stock_minimo: i.stock_minimo || "" });
+    setNuevo({ nombre: i.nombre, categoria: i.categoria || "", unidad: i.unidad || "unidad", proveedor_id: i.proveedor_id || "", costo: i.costo || "", stock_rg: "", stock_ush: "", stock_minimo: i.stock_minimo || "", precio_sugerido_cliente: i.precio_sugerido_cliente || "" });
     setShowForm(true);
   };
 
@@ -10931,7 +10959,7 @@ function Insumos({ localId, usuario, paletaActual }) {
     <div className="fade">
       <div className="ph">
         <div><div className="pt">Insumos</div><div className="ps">stock de uso interno - {localNombre}</div></div>
-        <button className="btn btn-p btn-sm" onClick={() => { setEditando(null); setNuevo({ nombre: "", categoria: "", unidad: "unidad", proveedor_id: "", costo: "", stock_rg: "", stock_ush: "", stock_minimo: "" }); setShowForm(!showForm); }}>+ Nuevo insumo</button>
+        <button className="btn btn-p btn-sm" onClick={() => { setEditando(null); setNuevo({ nombre: "", categoria: "", unidad: "unidad", proveedor_id: "", costo: "", stock_rg: "", stock_ush: "", stock_minimo: "", precio_sugerido_cliente: "" }); setShowForm(!showForm); }}>+ Nuevo insumo</button>
       </div>
       {mensaje && (
         <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>
@@ -10963,6 +10991,9 @@ function Insumos({ localId, usuario, paletaActual }) {
             </div>
             <div>
               <div className="fg"><div className="fl">Costo de reposicion ($)</div><input className="inp" type="number" placeholder="0" value={nuevo.costo} onChange={e => setNuevo(p => ({ ...p, costo: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Precio a cobrarle al cliente ($, opcional)</div><input className="inp" type="number" placeholder="0" value={nuevo.precio_sugerido_cliente} onChange={e => setNuevo(p => ({ ...p, precio_sugerido_cliente: e.target.value }))} />
+                <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 3 }}>Si le ponés algo, en el POS va a aparecer precargado este monto cuando se use este insumo (se puede cambiar en el momento). Si lo dejás en 0, sigue siendo gratis para la clienta.</div>
+              </div>
               {!editando && (
                 <div style={{ display: "flex", gap: 8 }}>
                   <div className="fg" style={{ flex: 1 }}><div className="fl">Stock Rio Grande</div><input className="inp" type="number" placeholder="0" value={nuevo.stock_rg} onChange={e => setNuevo(p => ({ ...p, stock_rg: e.target.value }))} /></div>
