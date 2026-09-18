@@ -2338,9 +2338,18 @@ function POS({ localId, usuario, paletaActual }) {
                   <button className="btn btn-g btn-sm" style={{ width: "100%", marginBottom: 10, fontSize: 10 }} onClick={() => setClienteSeleccionado({ id: null, nombre: "Consumidor Final", puntos: 0 })}>Consumidor Final</button>
                 )}
 
-                <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
-                  <input className="inp" placeholder="Cupon o codigo de Gift Card" value={codigoPromo} onChange={e => setCodigoPromo(e.target.value)} onKeyDown={e => e.key === "Enter" && aplicarCodigoPromo()} style={{ flex: 1, fontSize: 11, padding: "8px 10px" }} />
-                  <button className="btn btn-sm" style={{ background: "#c9a84c", color: "#1B2431", fontWeight: 700 }} onClick={aplicarCodigoPromo}>Aplicar</button>
+                <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
+                  <div style={{ flex: 1, display: "flex", gap: 4 }}>
+                    <input className="inp" placeholder="Cupon o Gift Card" value={codigoPromo} onChange={e => setCodigoPromo(e.target.value)} onKeyDown={e => e.key === "Enter" && aplicarCodigoPromo()} style={{ flex: 1, fontSize: 11, padding: "8px 10px", minWidth: 0 }} />
+                    <button className="btn btn-sm" style={{ background: "#c9a84c", color: "#1B2431", fontWeight: 700, padding: "8px 10px" }} onClick={aplicarCodigoPromo}>OK</button>
+                  </div>
+                  <div style={{ flex: 1, display: "flex", gap: 4 }}>
+                    <input className="inp" type="number" placeholder="Desc. manual" value={descuentoManual} onChange={e => setDescuentoManual(e.target.value)} style={{ flex: 1, fontSize: 11, padding: "8px 10px", minWidth: 0 }} />
+                    <select className="sel" style={{ width: 50, padding: "8px 4px", fontSize: 10 }} value={tipoDescuento} onChange={e => setTipoDescuento(e.target.value)}>
+                      <option value="$">$</option>
+                      <option value="%">%</option>
+                    </select>
+                  </div>
                 </div>
                 {cuponAplicado && !cuponCumpleMinimo && (
                   <div style={{ fontSize: 9, color: "#a06b00", marginBottom: 4 }}>
@@ -2371,15 +2380,7 @@ function POS({ localId, usuario, paletaActual }) {
                     <span onClick={quitarGiftCard} style={{ cursor: "pointer", color: "#c0392b", fontSize: 10 }}>✕</span>
                   </div>
                 )}
-                {errorGC && <div style={{ fontSize: 9, color: "#c0392b", marginBottom: 4 }}>{errorGC}</div>}
-
-                <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
-                  <input className="inp" type="number" placeholder="Desc. manual" value={descuentoManual} onChange={e => setDescuentoManual(e.target.value)} style={{ flex: 1, fontSize: 11, padding: "8px 10px" }} />
-                  <select className="sel" style={{ width: 55, padding: "8px 4px", fontSize: 10 }} value={tipoDescuento} onChange={e => setTipoDescuento(e.target.value)}>
-                    <option value="$">$</option>
-                    <option value="%">%</option>
-                  </select>
-                </div>
+                {errorGC && <div style={{ fontSize: 9, color: "#c0392b", marginBottom: 10 }}>{errorGC}</div>}
               </div>
             )}
 
