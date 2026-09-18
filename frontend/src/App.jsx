@@ -2384,7 +2384,7 @@ function POS({ localId, usuario, paletaActual }) {
             )}
 
             <div style={{ marginBottom: 6, position: "relative" }}>
-              <button className="btn btn-sm" style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#c9a84c18", border: "1px solid #c9a84c", color: "#c9a84c" }} onClick={() => setMostrarTipoFac(v => !v)}>
+              <button className="btn btn-sm" style={{ width: "100%", display: "flex", justifyContent: "center", alignItems: "center", gap: 8, background: "#c9a84c18", border: "1px solid #c9a84c", color: "#c9a84c" }} onClick={() => setMostrarTipoFac(v => !v)}>
                 <span>{tipoFac === "Remito" ? "Remito" : "Factura " + tipoFac}</span>
                 <span>{mostrarTipoFac ? "▲" : "▼"}</span>
               </button>
@@ -2392,7 +2392,7 @@ function POS({ localId, usuario, paletaActual }) {
                 <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
                   {["A", "B", "Remito"].map(t => (
                     <button key={t} onClick={() => { setTipoFac(t); setMostrarTipoFac(false); }} className="btn btn-sm"
-                      style={{ flex: 1, fontSize: 9, padding: "6px 4px", background: tipoFac === t ? "#c9a84c" : temaPal.bg, border: "1px solid " + (tipoFac === t ? "#c9a84c" : temaPal.border), color: tipoFac === t ? "#1B2431" : temaPal.textMuted, fontWeight: tipoFac === t ? 700 : 500 }}>
+                      style={{ flex: 1, fontSize: 9, padding: "6px 4px", textAlign: "center", background: tipoFac === t ? "#c9a84c" : temaPal.bg, border: "1px solid " + (tipoFac === t ? "#c9a84c" : temaPal.border), color: tipoFac === t ? "#1B2431" : temaPal.textMuted, fontWeight: tipoFac === t ? 700 : 500 }}>
                       {t === "Remito" ? "Remito" : "Factura " + t}
                     </button>
                   ))}
@@ -2401,7 +2401,7 @@ function POS({ localId, usuario, paletaActual }) {
             </div>
 
             <div style={{ marginBottom: 8 }}>
-              <button className="btn btn-sm" style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", background: temaPal.bg, border: "1px solid " + temaPal.border, color: temaPal.textMuted }} onClick={() => setMostrarExtras(v => !v)}>
+              <button className="btn btn-sm" style={{ width: "100%", display: "flex", justifyContent: "center", alignItems: "center", gap: 8, background: temaPal.bg, border: "1px solid " + temaPal.border, color: temaPal.textMuted }} onClick={() => setMostrarExtras(v => !v)}>
                 <span>+ Extras</span>
                 <span>{mostrarExtras ? "▲" : "▼"}</span>
               </button>
