@@ -1808,7 +1808,7 @@ function POS({ localId, usuario, paletaActual }) {
       const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total: totalAFacturar, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaId });
       setMensaje("✅ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae);
       const datosRecibo = {
-        items: cart.map(i => ({ nombre: i.nombre || i.name, cantidad: i.qty, precio_unitario: (i.precio || i.price) * (1 - (i.descuento_pct || 0) / 100) })),
+        items: cart.filter(i => !String(i.id).startsWith("insumo-")).map(i => ({ nombre: i.nombre || i.name, cantidad: i.qty, precio_unitario: (i.precio || i.price) * (1 - (i.descuento_pct || 0) / 100) })),
         total: total, cliente: clienteSeleccionado?.nombre || null,
         numero: arcaRes.data.nroComprobante ? (String(arcaRes.data.puntoVenta || 5).padStart(4,"0") + "-" + String(arcaRes.data.nroComprobante).padStart(8,"0")) : null
       };
@@ -1903,7 +1903,7 @@ function POS({ localId, usuario, paletaActual }) {
         // Todo se pago con gift card de migracion: ya se facturo en el sistema anterior, no se factura de nuevo.
         setMensaje("✅ Venta registrada. No se factura en ARCA (pagada con gift card ya facturada en el sistema anterior).");
         const datosReciboMig = {
-          items: cart.map(i => ({ nombre: i.nombre || i.name, cantidad: i.qty, precio_unitario: (i.precio || i.price) * (1 - (i.descuento_pct || 0) / 100) })),
+          items: cart.filter(i => !String(i.id).startsWith("insumo-")).map(i => ({ nombre: i.nombre || i.name, cantidad: i.qty, precio_unitario: (i.precio || i.price) * (1 - (i.descuento_pct || 0) / 100) })),
           total: total, cliente: clienteSeleccionado?.nombre || null, numero: null
         };
         setUltimoRecibo(datosReciboMig);
@@ -1913,7 +1913,7 @@ function POS({ localId, usuario, paletaActual }) {
           const arcaRes = await API.post("/arca/emitir", { tipo: tipoFac, items, total: totalAFacturar, cliente_cuit: clienteSeleccionado?.cuit_dni || null, venta_id: ventaRes.data.id });
           setMensaje("✅ " + arcaRes.data.mensaje + " | CAE: " + arcaRes.data.cae + (montoGCMigracion > 0 ? " (facturado " + fmt(totalAFacturar) + ", el resto fue gift card ya facturada)" : ""));
           const datosRecibo = {
-            items: cart.map(i => ({ nombre: i.nombre || i.name, cantidad: i.qty, precio_unitario: (i.precio || i.price) * (1 - (i.descuento_pct || 0) / 100) })),
+            items: cart.filter(i => !String(i.id).startsWith("insumo-")).map(i => ({ nombre: i.nombre || i.name, cantidad: i.qty, precio_unitario: (i.precio || i.price) * (1 - (i.descuento_pct || 0) / 100) })),
             total: total,
             cliente: clienteSeleccionado?.nombre || null,
             numero: arcaRes.data.nroComprobante ? (String(arcaRes.data.puntoVenta || 5).padStart(4,"0") + "-" + String(arcaRes.data.nroComprobante).padStart(8,"0")) : null,
@@ -2436,8 +2436,9 @@ function POS({ localId, usuario, paletaActual }) {
                               setInsumosSel(p => ({ ...p, [ins.id]: e.target.checked ? String(ins.id) : "ninguna" }));
                               if (!e.target.checked) {
                                 setCart(prev => prev.filter(x => x.id !== idCartInsumo));
-                              } else if (ins.precio_sugerido_cliente > 0) {
-                                setCart(prev => [...prev.filter(x => x.id !== idCartInsumo), { id: idCartInsumo, nombre: ins.nombre + " (envoltorio)", precio: ins.precio_sugerido_cliente, price: ins.precio_sugerido_cliente, qty: 1, es_ajuste: true }]);
+                              } else {
+                                const precio = ins.precio_sugerido_cliente || 0;
+                                setCart(prev => [...prev.filter(x => x.id !== idCartInsumo), { id: idCartInsumo, nombre: ins.nombre, precio, price: precio, qty: 1, es_ajuste: true }]);
                               }
                             }} />
                             <span>{ins.nombre}</span>
@@ -2450,8 +2451,7 @@ function POS({ localId, usuario, paletaActual }) {
                                   const monto = parseFloat(e.target.value) || 0;
                                   setCart(prev => {
                                     const sinEste = prev.filter(x => x.id !== idCartInsumo);
-                                    if (monto <= 0) return sinEste;
-                                    return [...sinEste, { id: idCartInsumo, nombre: ins.nombre + " (envoltorio)", precio: monto, price: monto, qty: 1, es_ajuste: true }];
+                                    return [...sinEste, { id: idCartInsumo, nombre: ins.nombre, precio: monto, price: monto, qty: 1, es_ajuste: true }];
                                   });
                                 }}
                                 style={{ width: 60, fontSize: 10, padding: "4px 6px", border: "1px solid " + temaPal.border, borderRadius: 4, textAlign: "right" }} />
