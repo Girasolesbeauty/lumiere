@@ -4225,6 +4225,8 @@ function Finanzas({ localId, usuario, paletaActual }) {
   const [factExterna, setFactExterna] = useState(null);
   const [factExtMonto, setFactExtMonto] = useState("");
   const [factExtLocal, setFactExtLocal] = useState("1");
+  const [mostrarFacAnterior, setMostrarFacAnterior] = useState(false);
+  useEffect(() => { API.get("/configuracion").then(r => setMostrarFacAnterior(r.data?.mostrar_facturacion_anterior === true)).catch(() => {}); }, []);
   const [equilibrio, setEquilibrio] = useState(null);
   const [loading, setLoading] = useState(true);
   const [nuevoEgreso, setNuevoEgreso] = useState({ concepto: "", importe: "", categoria_id: "", forma_pago: "", cuenta_pago_id: "", local_id: "", fecha: new Date().toISOString().slice(0, 10) });
@@ -4605,6 +4607,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
         </div>
       )}
 
+          {mostrarFacAnterior && (
           <div className="card" style={{ marginTop: 14 }}>
             <div className="ct">Facturacion del sistema anterior</div>
             <div style={{ fontSize: 11, color: p.textMuted, marginBottom: 10 }}>Carga lo que facturaste con el software viejo este mes. Suma a la facturacion del mes (sin recalcular comisiones).</div>
@@ -4650,6 +4653,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
               </div>
             )}
           </div>
+          )}
 
       {tab === "detalle" && (
         <div className="fade">
