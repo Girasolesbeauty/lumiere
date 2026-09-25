@@ -45,6 +45,14 @@ const PALETA_OSCURA = {
 // Mantiene "C" con el nombre viejo (paleta clara) para no romper nada que ya la use directo.
 const C = PALETA_CLARA;
 
+// Nombres reales de los locales, tal como los configuro cada cuenta (tabla "locales" de
+// la base). Arrancan con estos valores por defecto (para no romper nada mientras carga),
+// pero AppWrapper los actualiza apenas trae la lista real de locales al iniciar sesion.
+// Como es un objeto mutable a nivel de modulo (no un estado de React), cualquier
+// componente puede leerlo en el momento sin necesidad de que se lo pasen como prop.
+let NOMBRES_LOCALES = { 1: "Rio Grande", 2: "Ushuaia" };
+const nombreLocal = (id) => NOMBRES_LOCALES[Number(id)] || NOMBRES_LOCALES[1];
+
 const getBaseCss = (p) => `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -426,7 +434,7 @@ function Dashboard({ localId, paletaActual }) {
         {["rg","ush","consolidado"].map(l => (
           <button key={l} onClick={() => setTabLocal(l)} className="btn btn-sm"
             style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : p.border), color: tabLocal === l ? "#c9a84c" : p.textMuted, fontWeight: tabLocal === l ? 600 : 400 }}>
-            {l === "rg" ? "Rio Grande" : l === "ush" ? "Ushuaia" : "Consolidado"}
+            {l === "rg" ? nombreLocal(1) : l === "ush" ? nombreLocal(2) : "Consolidado"}
           </button>
         ))}
       </div>
@@ -1004,7 +1012,7 @@ function VentasOnline({ localId, usuario, permisosActivos, paletaActual }) {
                 <input className="inp" placeholder="Ej: pedido #123" value={referencia} onChange={e => setReferencia(e.target.value)} />
               </div>
               <button className="btn btn-p" style={{ width: "100%" }} disabled={guardando} onClick={registrar}>{guardando ? "Registrando..." : "Registrar venta online"}</button>
-              <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 8, textAlign: "center" }}>No se factura en ARCA (ya facturada en la tienda). Descuenta del stock de {Number(localId) === 2 ? "Ushuaia" : "Rio Grande"}.</div>
+              <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 8, textAlign: "center" }}>No se factura en ARCA (ya facturada en la tienda). Descuenta del stock de {nombreLocal(localId)}.</div>
             </div>
           </div>
         </div>
@@ -1156,7 +1164,7 @@ function Auditoria({ paletaActual }) {
     orden_ingreso: "Anulacion de orden de ingreso",
     venta_online_editada: "Edicion de venta online"
   };
-  const localLabel = (l) => (l === 2 || l === "2") ? "Ushuaia" : "Rio Grande";
+  const localLabel = (l) => nombreLocal(l);
   const tipos = [...new Set(registros.map(r => r.tipo))];
   const filtrados = registros.filter(r => !filtroTipo || r.tipo === filtroTipo);
 
@@ -1750,7 +1758,7 @@ function POS({ localId, usuario, paletaActual }) {
   };
 
   const imprimirRecibo = (datos) => {
-    const localNombre = localId === 2 ? "Ushuaia" : "Rio Grande";
+    const localNombre = nombreLocal(localId);
     const fecha = new Date().toLocaleString("es-AR");
     const cfg = configTicket || {};
     const lineas = datos.items.map(i =>
@@ -3368,7 +3376,7 @@ function Inventario({ localId, usuario, paletaActual }) {
       </div>
       {tab === "stock" && (
         <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-          {[["mi", Number(localId) === 2 ? "Ushuaia (mi local)" : "Rio Grande (mi local)"], ["otro", Number(localId) === 2 ? "Rio Grande" : "Ushuaia"], ["consolidado", "Consolidado"]].map(([id, l]) => (
+          {[["mi", nombreLocal(localId) + " (mi local)"], ["otro", Number(localId) === 2 ? nombreLocal(1) : nombreLocal(2)], ["consolidado", "Consolidado"]].map(([id, l]) => (
             <button key={id} className="btn btn-sm" style={{ fontSize: 11, background: vistaLocal === id ? "#c9a84c" : temaPal.card, color: vistaLocal === id ? temaPal.card : temaPal.textMuted, border: "1px solid " + (vistaLocal === id ? "#c9a84c" : temaPal.border) }} onClick={() => setVistaLocal(id)}>{l}</button>
           ))}
         </div>
@@ -3515,7 +3523,7 @@ function Inventario({ localId, usuario, paletaActual }) {
                 )}
               </div>
               <div style={{ display: "flex", gap: 6 }}>
-                {[["mi", Number(localId) === 2 ? "Ushuaia" : "Rio Grande"], ["otro", Number(localId) === 2 ? "Rio Grande" : "Ushuaia"], ["consolidado", "Consolidado"]].map(([id, l]) => (
+                {[["mi", nombreLocal(localId)], ["otro", Number(localId) === 2 ? nombreLocal(1) : nombreLocal(2)], ["consolidado", "Consolidado"]].map(([id, l]) => (
                   <div key={id} className={"tab " + (vistaLocal === id ? "on" : "")} style={{ fontSize: 11 }} onClick={() => setVistaLocal(id)}>{l}</div>
                 ))}
               </div>
@@ -3625,7 +3633,7 @@ function Inventario({ localId, usuario, paletaActual }) {
                       <tr key={a.id || i}>
                         <td style={{ fontSize: 11, color: temaPal.textMuted }}>{new Date(a.creado_en).toLocaleString("es-AR")}</td>
                         <td style={{ fontWeight: 600 }}>{a.producto_nombre}</td>
-                        <td style={{ fontSize: 11, color: temaPal.textMuted }}>{Number(a.local_id) === 2 ? "Ushuaia" : "Rio Grande"}</td>
+                        <td style={{ fontSize: 11, color: temaPal.textMuted }}>{nombreLocal(a.local_id)}</td>
                         <td>{a.stock_anterior}</td>
                         <td>{a.stock_nuevo}</td>
                         <td style={{ fontWeight: 700, color: a.diferencia > 0 ? "#2d7a4f" : a.diferencia < 0 ? "#c0392b" : temaPal.textMuted }}>{a.diferencia > 0 ? "+" : ""}{a.diferencia}</td>
@@ -3646,7 +3654,7 @@ function Inventario({ localId, usuario, paletaActual }) {
         <div className="fade">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
             <div style={{ fontSize: 11, color: temaPal.textMuted, background: temaPal.bg, padding: 10, borderRadius: 6, flex: 1, marginRight: 10 }}>
-              Manda stock desde <b>{Number(localId) === 2 ? "Ushuaia" : "Rio Grande"}</b> hacia <b>{localDestinoTraspaso === 2 ? "Ushuaia" : "Rio Grande"}</b>.
+              Manda stock desde <b>{nombreLocal(localId)}</b> hacia <b>{nombreLocal(localDestinoTraspaso)}</b>.
               Al crear el traspaso, el stock se descuenta al instante del local de origen y queda "en tránsito" hasta que el destino confirme que lo recibió.
             </div>
             <button className="btn btn-p btn-sm" onClick={() => setShowNuevoTraspaso(true)}>+ Nuevo traspaso</button>
@@ -3668,7 +3676,7 @@ function Inventario({ localId, usuario, paletaActual }) {
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 700 }}>{tr.producto_nombre} · {tr.cantidad}u</div>
                         <div style={{ fontSize: 11, color: temaPal.textMuted }}>
-                          {tr.local_origen === 2 ? "Ushuaia" : "Rio Grande"} → {tr.local_destino === 2 ? "Ushuaia" : "Rio Grande"}
+                          {nombreLocal(tr.local_origen)} → {nombreLocal(tr.local_destino)}
                           {" · "}{new Date(tr.creado_en).toLocaleString("es-AR")}
                           {tr.usuario_nombre && " · " + tr.usuario_nombre}
                         </div>
@@ -3693,7 +3701,7 @@ function Inventario({ localId, usuario, paletaActual }) {
           {showNuevoTraspaso && (
             <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={() => setShowNuevoTraspaso(false)}>
               <div className="card fade" style={{ maxWidth: 440, width: "90vw", background: temaPal.card }} onClick={e => e.stopPropagation()}>
-                <div className="ct">Nuevo traspaso: {Number(localId) === 2 ? "Ushuaia" : "Rio Grande"} → {localDestinoTraspaso === 2 ? "Ushuaia" : "Rio Grande"}</div>
+                <div className="ct">Nuevo traspaso: {nombreLocal(localId)} → {nombreLocal(localDestinoTraspaso)}</div>
                 <div className="fg"><div className="fl">Producto</div>
                   {prodTraspaso ? (
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: temaPal.bg, borderRadius: 6 }}>
@@ -4452,7 +4460,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
           {["rg", "ush", "consolidado"].map(l => (
             <button key={l} onClick={() => setTabLocal(l)} className="btn btn-sm"
               style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : p.border), color: tabLocal === l ? "#c9a84c" : p.textMuted, fontWeight: tabLocal === l ? 600 : 400 }}>
-              {l === "rg" ? "Rio Grande" : l === "ush" ? "Ushuaia" : "Consolidado"}
+              {l === "rg" ? nombreLocal(1) : l === "ush" ? nombreLocal(2) : "Consolidado"}
             </button>
           ))}
         </div>
@@ -4615,7 +4623,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
               <div style={{ marginBottom: 10 }}>
                 {factExterna.registros.map((r, idx) => (
                   <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "5px 0", borderBottom: "1px solid " + p.border }}>
-                    <span style={{ color: p.text }}>{r.local_id === 2 ? "Ushuaia" : "Rio Grande"}</span>
+                    <span style={{ color: p.text }}>{nombreLocal(r.local_id)}</span>
                     <span style={{ fontWeight: 600 }}>{fmt(parseFloat(r.monto))}</span>
                   </div>
                 ))}
@@ -5113,7 +5121,7 @@ function Informes({ localId, paletaActual }) {
         {["rg", "ush", "consolidado"].map(l => (
           <button key={l} onClick={() => setTabLocal(l)} className="btn btn-sm"
             style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : p.border), color: tabLocal === l ? "#c9a84c" : p.textMuted, fontWeight: tabLocal === l ? 600 : 400 }}>
-            {l === "rg" ? "Rio Grande" : l === "ush" ? "Ushuaia" : "Consolidado"}
+            {l === "rg" ? nombreLocal(1) : l === "ush" ? nombreLocal(2) : "Consolidado"}
           </button>
         ))}
       </div>
@@ -7570,7 +7578,7 @@ function Comisiones({ localId, paletaActual }) {
     } catch (e) { setMensaje(e.response?.data?.error || "Error al registrar el pago"); }
   };
 
-  const localNombre = Number(localId) === 2 ? "Ushuaia" : "Rio Grande";
+  const localNombre = nombreLocal(localId);
 
   return (
     <div className="fade">
@@ -8875,7 +8883,7 @@ function Comprobantes({ localId, paletaActual }) {
   const totalPeriodo = comprobantes.reduce((s, v) => s + parseFloat(v.total || 0), 0);
 
   const reimprimir = (v) => {
-    const localNombre = (v.local_id === 2 || v.local_id === "2") ? "Ushuaia" : "Rio Grande";
+    const localNombre = nombreLocal(v.local_id);
     const fecha = new Date(v.creado_en || v.fecha).toLocaleString("es-AR");
     const cfg = configTicket || {};
     const items = v.items || [];
@@ -8934,7 +8942,7 @@ function Comprobantes({ localId, paletaActual }) {
         {["rg", "ush", "consolidado"].map(l => (
           <button key={l} onClick={() => setTabLocal(l)} className="btn btn-sm"
             style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : p.border), color: tabLocal === l ? "#c9a84c" : p.textMuted, fontWeight: tabLocal === l ? 600 : 400 }}>
-            {l === "rg" ? "Rio Grande" : l === "ush" ? "Ushuaia" : "Consolidado"}
+            {l === "rg" ? nombreLocal(1) : l === "ush" ? nombreLocal(2) : "Consolidado"}
           </button>
         ))}
       </div>
@@ -9864,7 +9872,7 @@ function ControlInventario({ localId, usuario, paletaActual }) {
 function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const localActual = localId === 2 ? "ush" : "rg";
-  const localNombre = localId === 2 ? "Ushuaia" : "Rio Grande";
+  const localNombre = nombreLocal(localId);
   const [ordenes, setOrdenes] = useState([]);
   const [productos, setProductos] = useState([]);
   const [proveedores, setProveedores] = useState([]);
@@ -10084,11 +10092,11 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
 
   const quitarLocalOrden = async (local) => {
     if (!ordenDetalle) return;
-    const nombreLocal = local === "rg" ? "Rio Grande" : "Ushuaia";
-    if (!confirm("Quitar " + nombreLocal + " de esta orden? Se revierte el stock que haya sumado ese local (en transito o ya recibido), sin tocar el otro local.")) return;
+    const nombreLocalCalc = local === "rg" ? nombreLocal(1) : nombreLocal(2);
+    if (!confirm("Quitar " + nombreLocalCalc + " de esta orden? Se revierte el stock que haya sumado ese local (en transito o ya recibido), sin tocar el otro local.")) return;
     try {
       await API.put("/ordenes-ingreso/" + ordenDetalle.id + "/quitar-local", { local, usuario_rol: usuario?.rol });
-      setMensaje(nombreLocal + " quitado de la orden");
+      setMensaje(nombreLocalCalc + " quitado de la orden");
       const res = await API.get("/ordenes-ingreso/" + ordenDetalle.id + "/items");
       setItemsDetalle(res.data || []);
       cargar();
@@ -10875,7 +10883,7 @@ function Insumos({ localId, usuario, paletaActual }) {
   const [errorAjuste, setErrorAjuste] = useState("");
   const [nuevo, setNuevo] = useState({ nombre: "", categoria: "", unidad: "unidad", proveedor_id: "", costo: "", stock_rg: "", stock_ush: "", stock_minimo: "", precio_sugerido_cliente: "" });
 
-  const localNombre = localId === 2 ? "Ushuaia" : "Rio Grande";
+  const localNombre = nombreLocal(localId);
   const stockLocal = (i) => localId === 2 ? (i.stock_ush || 0) : (i.stock_rg || 0);
 
   const cargar = async () => {
@@ -11110,7 +11118,7 @@ function ConfigInsumos({ localId, paletaActual }) {
   const [seleccionados, setSeleccionados] = useState([]);
   const [loading, setLoading] = useState(true);
   const [mensaje, setMensaje] = useState("");
-  const localNombre = localId === 2 ? "Ushuaia" : "Rio Grande";
+  const localNombre = nombreLocal(localId);
 
   const cargar = async () => {
     setLoading(true);
@@ -11894,6 +11902,7 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
 export default function AppWrapper() {
   const [usuario, setUsuario] = useState(null);
   const [local, setLocal] = useState(null);
+  const [nombresLocalesVersion, setNombresLocalesVersion] = useState(0);
   const [page, setPage] = useState("dashboard");
   const [tema, setTema] = useState(obtenerTemaGuardado());
   const [menuAbierto, setMenuAbierto] = useState(false);
@@ -11923,6 +11932,17 @@ export default function AppWrapper() {
         cargarMisPermisos(u.id, u.rol === "jefe" || u.rol_id === 1);
       } catch (e) {}
     }
+    // Trae los nombres reales de los locales configurados en esta cuenta (ej: "Local
+    // Centro"/"Local Norte" en vez de "Rio Grande"/"Ushuaia"), y fuerza un re-render
+    // para que se vean actualizados en toda la app desde el primer momento.
+    API.get("/locales").then(res => {
+      const lista = res.data || [];
+      const l1 = lista.find(l => Number(l.id) === 1);
+      const l2 = lista.find(l => Number(l.id) === 2);
+      if (l1?.nombre) NOMBRES_LOCALES[1] = l1.nombre;
+      if (l2?.nombre) NOMBRES_LOCALES[2] = l2.nombre;
+      setNombresLocalesVersion(v => v + 1);
+    }).catch(() => {});
   }, []);
 
   const handleLogin = (u) => {
