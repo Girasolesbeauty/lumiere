@@ -6,87 +6,187 @@ Lumiere es un sistema de gestión para comercios minoristas con uno o dos locale
 - **Jefe**: ve y configura todo.
 - **Admin / Administrativo**: casi todo; algunas configuraciones son solo del jefe.
 - **Vendedora/vendedor**: ve lo que el jefe le habilite en **Configuración → Usuarios** (permisos por sección). Si alguien no ve una sección del menú, es porque no tiene ese permiso: tiene que pedírselo al jefe.
+Abajo a la izquierda del menú están **Cambiar local**, **Cerrar sesión** y el interruptor de **fondo claro / oscuro**. El botón **‹** achica el menú.
 
 ## Menú (secciones)
 
 ### VENTAS
-- **Dashboard**: resumen del mes por local o consolidado: ventas, resultado neto, margen, ticket promedio, clientes, stock bajo, facturación diaria, medios de pago, ventas por vendedora y alertas.
-- **Punto de Venta**: donde se vende y se factura. Ver "Cómo vender".
-- **Ventas Online**: registrar ventas hechas por otros canales (Tienda Nube, Instagram, Mercado Libre, etc.) que ya se facturaron por otro lado. No vuelven a facturarse en ARCA; sí descuentan stock y suman a las ventas.
-- **Buscar Precio**: buscar un producto (escribiendo o escaneando con la cámara del celular) para ver precio, stock de cada local y promos. Tiene botones para copiar el precio o compartir un mensaje prolijo por WhatsApp o Instagram. El mensaje se puede editar ("Editar mensaje"): solo para ese envío, o como plantilla para todos los productos (jefe/admin).
-- **Cambio / Devolución**: buscar la venta original (por número de ticket, factura, DNI o nombre) y hacer el cambio: qué vuelve, qué se lleva, si vuelve al stock, y cómo se resuelve la diferencia (se cobra, se devuelve en efectivo o queda como crédito en gift card).
+- **Dashboard**: resumen del mes por local o consolidado.
+  - Ventas del mes, resultado neto, margen bruto, ticket promedio, clientes nuevos, stock bajo y sin stock.
+  - Facturación diaria, medios de pago, ventas por vendedora y alertas.
+  - Arriba se elige el local (o Consolidado) y se actualiza con **Actualizar**.
+- **Punto de Venta**: donde se vende y se factura. Ver "Cómo vender (Punto de Venta)".
+  - Pestañas: **Nueva venta**, **Preventas**, **Facturas pendientes** y **Cambios / devoluciones**.
+  - Arriba: **Modo prueba**, **Preventa**, **Señar**, el sonido y los modos de vista (Clásico, Catálogo, Celular, Táctil). **Atajos** muestra las teclas rápidas.
+- **Ventas Online**: registrar ventas hechas por otros canales (Tienda Nube, Instagram, Mercado Libre, Pedidos Ya, TikTok Shop, etc.) que ya se facturaron por su plataforma.
+  - No se vuelven a facturar en ARCA; sí descuentan stock y suman a las ventas.
+  - Se cargan canal, N° de pedido, comprobante ya emitido (opcional), productos, envío cobrado, medio de pago y fecha.
+  - Si el pedido parece estar cargado, avisa para no duplicarlo.
+- **Buscar Precio**: buscar un producto (escribiendo o escaneando con la cámara del celular) para ver precio, stock de cada local y promos.
+  - Copiar el precio o compartir un mensaje prolijo por WhatsApp o Instagram.
+  - **Editar mensaje**: solo para ese envío, o como plantilla para todos los productos (jefe/admin).
+- **Cambio / Devolución**: buscar la compra (N° de ticket, factura, DNI o nombre), elegir qué devuelve y qué se lleva y resolver la diferencia.
+  - Pestañas **Nuevo cambio / devolución** e **Historial**.
+  - Se puede hacer sin ticket (se toma el precio actual).
 
 ### STOCK
-- **Inventario**: productos, precios, costos, stock por local, variantes (talles/colores), fotos, categorías, activar/desactivar. Tiene "Recalcular stock mínimo", que usa las ventas reales.
-- **Ingresos**: órdenes de mercadería que llega de proveedores (se puede cargar desde la foto/PDF de la factura). Quedan "en camino" hasta que se reciben. Al recibir, se cuenta lo que llegó en cada local; si llegó menos o con problemas, se anota y aparece para reclamar al proveedor.
-- **Inconsistencias**: diferencias al recibir mercadería y ventas hechas sin stock (con el motivo que puso la vendedora).
-- **Kits**: combos de productos que descuentan el stock de cada componente.
-- **Insumos**: stock de uso interno (bolsas, cajas, papel de regalo...).
-- **Control de Inventario**: conteo físico contra el stock del sistema, con ajuste de diferencias.
+- **Inventario**: productos, precios, costos, stock por local, variantes, fotos, categorías, marcas y proveedores.
+  - Pestañas: **Stock** (con filtros: stock bajo, sin stock, con reservas, sin costo cargado, sin código), **Valorización** (mercadería a costo, a precio de lista y ganancia potencial, por categoría), **En tránsito**, **Traspasos** e **Historial de ajustes**.
+  - Botones **+ Nuevo producto** y **📥 Exportar**. En cada producto: **± Ajustar**, editar, desactivar/reactivar y eliminar.
+- **Ingresos**: mercadería que llega de proveedores.
+  - **📄 Cargar factura** lee la foto o PDF de la factura y detecta los productos.
+  - **+ Nueva orden** para cargar a mano.
+  - Las órdenes quedan "por recibir" (mercadería en camino) hasta que se tocan **📦 Recibir mercadería** y se cuenta lo que llegó en cada local.
+  - La pestaña **Stock recibido** muestra el historial.
+- **Inconsistencias**: diferencias al recibir mercadería (para reclamar al proveedor) y ventas hechas sin stock suficiente, con el motivo que puso la vendedora.
+- **Kits**: combos de productos. El precio es la suma de los productos y al venderlo descuenta el stock de cada componente. Botón **Vender kit**.
+- **Insumos**: stock de uso interno (bolsas, cajas, papel, limpieza), con costo de reposición, precio opcional para cobrarle al cliente y stock mínimo.
+- **Control de Inventario**: conteo físico contra el stock del sistema.
+  - Conteo total o por categoría, marca o proveedor.
+  - Se cuenta desde la lista o escaneando con la cámara.
+  - Muestra faltantes y sobrantes con su valor (posible pérdida) y ajusta el stock al finalizar.
+  - En **⚙ Config** se elige cada cuántos días avisar que toca hacer control.
 
 ### CAJA
-- **Caja**: movimientos de efectivo (ingresos y egresos) y saldo.
-- **Caja de Respaldo**: plata guardada aparte, a favor.
-- **Cierre de Caja**: resumen del día: total vendido (grande, en verde), ventas por medio de pago, movimientos de efectivo y **arqueo**: fondo de cambio + ventas en efectivo + otros ingresos − egresos = lo que debería haber. Se cuenta por billetes o el total, se ve si cuadra, sobra o falta, y se toca **Cerrar caja**. Tiene historial de cierres y se puede descargar como imagen.
-- **Gift Cards**: emisión y seguimiento de saldo.
+- **Caja**: saldo actual de efectivo y movimientos.
+  - **Nuevo movimiento**: ingreso o egreso con importe, concepto y destino (pago a proveedor, depósito en cuenta bancaria, gasto operativo, otro).
+  - Los movimientos se pueden **Anular**.
+- **Caja de Respaldo**: plata guardada aparte (ahorro, reserva). **Guardar plata** / **Sacar plata**, con total guardado e historial.
+- **Cierre de Caja**: resumen del día.
+  - Total vendido (en verde), ventas por medio de pago, movimientos de efectivo y ventas del día (con Anular).
+  - **Arqueo**: fondo de cambio + ventas en efectivo + otros ingresos − egresos = lo que debería haber. Se cuenta por billetes o el total, se ve si cuadra, sobra o falta, y se toca **Cerrar caja**.
+  - Pestañas **Productos vendidos** (con análisis ABC) e **Historial de cierres**. Botón **📲 Descargar** como imagen.
+- **Gift Cards**: **+ Emitir Gift Card** (monto, a quién, cliente vinculado, forma de pago). Se ve el saldo de cada una, su historial, y se pueden anular.
 
 ### CLIENTES
-- **Clientes**: datos, historial de compras y puntos.
-- **Pedidos**: productos que un cliente está esperando. Cuando llega stock aparecen en "Listos para avisar" con botón de WhatsApp; los avisados quedan en historial y se ve si después compró ("ventas recuperadas"). Los pedidos se pueden editar.
-- **Fidelización**: puntos, niveles y canjes.
+- **Clientes**: alta y edición (nombre, celular, email, CUIT/DNI, cumpleaños), total de compras, puntos, nivel y acceso al portal.
+  - **Migrar puntos**: cargar puntos de compras hechas antes de usar Lumiere.
+  - **Resetear clave** del portal.
+- **Pedidos**: productos que un cliente está esperando.
+  - **+ Anotar pedido**.
+  - Cuando llega stock aparecen para avisar por WhatsApp. Los avisados quedan en historial y se ve si después compró.
+  - Pestañas: en espera (por cliente o por producto), **Avisados** y **Estadísticas** (ventas recuperadas, conversión, espera promedio, sugerencias de productos que no vendemos).
+- **Fidelización**: puntos y niveles (Bronze, Silver, Gold, Platinum, Black).
+  - Premios para canjear con puntos (**+ Nuevo premio**, con calculadora de puntos sugeridos, stock y nivel mínimo).
+  - Buscar cliente por DNI para ver qué puede canjear, **Validar código de canje** e historial de canjes.
 
 ### EQUIPO
-- **Tareas**: tareas para el equipo.
+- **Tareas**: **+ Nueva tarea** con título, descripción, urgencia (baja, media, alta, urgente) y a quién se asigna.
+  - La persona toca **Empezar** y **Finalizar**, o **Marcar error** si falta algo.
+  - Muestra la rapidez de resolución por vendedora.
 
 ### FINANZAS
-- **Finanzas**: arriba siempre Ingresos, Egresos, Resultado neto y Margen neto del mes (elegís local y mes con las flechas). Pestañas:
+- **Finanzas**: arriba siempre Ingresos, Egresos, Resultado neto y Margen neto del mes (se elige local y mes con las flechas). Pestañas:
   - *Resumen*: en qué se fue la plata, margen de lo vendido (CMV), comisiones de medios de pago e IIBB estimado (el % se puede cambiar), y el formulario **Registrar egreso**.
   - *Movimientos*: ver, buscar, editar o borrar egresos cargados. Los que genera el sistema (ventas, gift cards, cambios, pagos de comisiones) dicen "automático" y no se editan desde acá.
   - *Estado de resultados*: ingresos menos cada tipo de costo, con % sobre ingresos.
   - *Análisis*: calificación de la salud financiera del mes.
   - *Comparar*: dos períodos (atajos: este mes vs mes pasado, vs mismo mes del año pasado, últimos 7 días).
   - *Costos por local* y *Punto de equilibrio* (cuánto hay que vender para cubrir los costos fijos, cuánto falta y cuánto vender por día).
-- **Comprobantes**: facturas emitidas en ARCA, ventas que quedaron sin facturar (con botón "↻ Facturar" para reintentar) y anuladas. Búsqueda, filtros, reimpresión con CAE y botón **Excel para el contador**.
-- **Comisiones**: comisiones de vendedores y desafíos de venta. En *Configuración* (jefe/admin) se activa o desactiva cada cosa y se elige el tipo de comisión: por metas de monto, % de ventas, % por tramos o % sobre el excedente; diaria, semanal o mensual. Tiene simulador.
-- **Compras y proveedores**: pestañas *Qué pedir*, *Proveedores*, *Ventas por proveedor*, *Compras por período* y *Reclamos*. Ver "Cómo pedir mercadería".
-- **Calculadoras**: fórmulas de precio por tipo de producto.
-- **Productividad**: métricas por vendedora.
+- **Comprobantes**: facturas emitidas en ARCA, ventas que quedaron sin facturar (con **↻ Facturar** para reintentar) y anuladas.
+  - Búsqueda, filtros por fecha, local, estado y tipo (A, B, C).
+  - Reimpresión con CAE y botón **Excel para el contador**.
+- **Comisiones**: comisiones de vendedores y desafíos de venta.
+  - Pestañas **Comisiones**, **Desafíos** y **Configuración** (jefe/admin).
+  - En Configuración se activa o desactiva cada cosa y se elige el tipo de comisión (por metas de monto, % de ventas, % por tramos o % sobre el excedente; diaria, semanal o mensual), con simulador.
+- **Compras y proveedores**: pestañas *Qué pedir*, *Proveedores* (con cuentas a pagar y cuentas de pago), *Ventas por proveedor*, *Compras por período* y *Reclamos*.
+- **Calculadoras**: fórmulas de precio por tipo de producto (desde el costo o desde el precio de venta del proveedor, con margen, impuestos y costos extra). Pestañas **Calcular** y **Administrar**.
+- **Productividad**: ranking de vendedoras con ventas, total, ticket promedio, tiempo promedio por venta y ventas por hora.
 
 ### MARKETING
-- **Cupones**: códigos de descuento, influencers, campañas.
-- **Promociones**: descuentos y promos automáticas que el Punto de Venta aplica solo.
+- **Cupones**: códigos de descuento (% o monto fijo, canal, usos máximos, vencimiento).
+  - Influencers con su cupón y su comisión (con **Registrar pago**).
+  - Regalos de campaña con código (**Validar y entregar**).
+- **Promociones**: descuentos automáticos que el Punto de Venta aplica solo.
+  - Tipos: descuento % o $, NxM (2x1, 3x2), cross-selling (llevando X, Y con descuento) y por monto (gastando más de $X).
+  - Por producto, categoría o todos, opcionalmente con un medio de pago, y con vigencia.
 
 ### POSTVENTA
-- **Postventa WA**: mensajes de WhatsApp de seguimiento y reactivación.
+- **Postventa WA**: reglas automáticas de mensajes de WhatsApp (N días después de la compra, días sin actividad, cumpleaños), por segmento.
+  - **Generar mensajes según las reglas activas** arma la lista para enviar uno por uno.
+
+### CLIENTE
+- **Portal Cliente**: vista del portal donde el cliente ve sus puntos, canjea premios, copia sus cupones y ve su historial de compras.
 
 ### NEGOCIO y CONFIGURACIÓN
-- **Configuración del Negocio** (jefe): nombre, logo, locales (nombres), medios de pago (con su % de comisión), categorías, datos fiscales para ARCA (CUIT, punto de venta, certificado), cómo se entrega el ticket (imprimir o enviar), etc.
-- **Usuarios**: crear usuarios, rol, local y permisos.
-- **Insumos en POS**: qué insumos se ofrecen al vender.
-- **Ticket**: qué se imprime en el ticket.
-- **Auditoría**: anulaciones y modificaciones hechas por el equipo.
+- **Configuración del Negocio** (jefe):
+  - Nombre y logo, y qué pasa con el ticket al terminar una venta (imprimir, enviar por WhatsApp o preguntar).
+  - Datos fiscales de ARCA (CUIT, punto de venta, certificado y clave).
+  - Locales (nombre y dirección).
+  - Medios de pago (tipo, cuotas, comisión %, si es online, activo).
+  - Categorías de gastos (variable, fijo, administrativo/marketing, sueldo).
+  - Cuentas bancarias y billeteras.
+- **Usuarios**: crear usuarios (nombre, email, contraseña inicial, rol y local), editarlos y darles permisos por sección (**Dar todo** / **Quitar todo**).
+- **Insumos en POS**: activar **Descontar insumos en cada venta** y elegir cuáles se ofrecen.
+- **Ticket**: qué datos salen en el ticket, el logo, el mensaje de agradecimiento y un texto extra (redes, teléfono, dirección).
+- **Auditoría**: anulaciones y modificaciones hechas por el equipo, con fecha, usuario y detalle.
 
 ## Cómo hacer las tareas más comunes
 
 ### Cómo vender (Punto de Venta)
 Hay 4 modos de vista arriba: **Clásico**, **Catálogo** (con fotos, ideal para cafeterías), **Celular** y **Táctil**.
-1. Escaneá o buscá los productos (F2 va al buscador). Si el producto tiene variantes, elegí la variante. Para cambiar la cantidad usá − / +, o tocá el número para escribirla. El 🏷 de cada producto permite descuento (5/10/15/20% u otro) o cambiar el precio.
-2. Si hace falta, **📦 Agregar insumo** (bolsa, caja...) desde el carrito.
-3. En Clásico tocá **Continuar →** (F9). En Catálogo/Táctil/Celular tocá **Cobrar →**.
-4. Cargá el **DNI** del cliente (F4). Si no está registrado se puede dar de alta ahí mismo, o elegir **Consumidor final**. Con cliente cargado se puede ver su **Ficha** (compras, ticket promedio, ideas para venderle).
-5. Descuento general, cupón o gift card en **Descuentos**.
-6. Elegí el **medio de pago** (Efectivo, Débito, Transferencia, Crédito...). En efectivo podés poner con cuánto paga y ves el vuelto. **Dividir pago** para pagar con varios medios.
+1. Escaneá o buscá los productos (F2 va al buscador). Si el producto tiene variantes, elegí la variante.
+   - Para cambiar la cantidad usá − / +, o tocá el número para escribirla.
+   - El 🏷 de cada producto permite descuento (5/10/15/20% u otro) o cambiar el precio.
+2. Si hace falta, tocá **📦 Agregar insumo** (bolsa, caja...) desde el carrito.
+3. En Clásico tocá **Continuar →** (F9). En Catálogo, Táctil o Celular tocá **Cobrar →**.
+4. Cargá el **DNI** del cliente (F4).
+   - Si no está registrado, se puede dar de alta ahí mismo, o elegir **Consumidor final**.
+   - Con cliente cargado se puede ver su **Ficha** (compras, ticket promedio, ideas para venderle).
+5. Si corresponde, cargá el descuento general, el cupón o la gift card en **Descuentos**.
+6. Elegí el **medio de pago** (Efectivo, Débito, Transferencia, Crédito...).
+   - En efectivo podés poner con cuánto paga y ves el vuelto.
+   - **Dividir pago** permite pagar con varios medios.
 7. Elegí el comprobante (Factura B, Factura A o Remito) y tocá **Cobrar** (F9). Se factura en ARCA y se imprime o envía el ticket.
-- **Poner en espera** (F8): guarda la venta para retomarla después (por ejemplo si el cliente se fue a probar algo). Se retoma desde la fila "EN ESPERA".
-- **Modo prueba** (jefe/admin): para practicar; no registra la venta, no descuenta stock ni factura.
-- **Preventa / Seña**: para vender algo que todavía no llegó (reserva sobre lo que está en camino).
-- Si ARCA falla, la venta queda registrada y se reintenta con "Reintentar facturación" o desde Comprobantes.
+
+### Cómo cambiar la vista del Punto de Venta
+Arriba del Punto de Venta elegí **Clásico** (buscador y carrito), **Catálogo** (grilla con fotos de productos y categorías), **Celular** (pensado para vender desde el teléfono) o **Táctil** (botones grandes para pantallas táctiles). Queda guardado en esa computadora.
+
+### Cómo dividir un pago entre varios medios
+En el cobro, en **Medio de pago**, tocá **Dividir pago**. Agregá cada medio con su importe (por ejemplo parte en efectivo y parte con débito) hasta completar el total; **Dividir igual** lo reparte en partes iguales. Después **Cobrar**.
+
+### Cómo poner una venta en espera y retomarla
+Con productos en el carrito tocá **⏸ Poner en espera** (F8) y poné un nombre para reconocerla ("rubia campera roja"). El carrito queda libre para atender a otro. Para retomarla, tocá su nombre en la fila **EN ESPERA** (arriba, debajo del buscador); con la ✕ se descarta. Las ventas en espera quedan guardadas en esa computadora.
+
+### Cómo aplicar un descuento
+- A un producto: tocá el 🏷 del producto en el carrito y elegí 5, 10, 15, 20% u otro %, o cambiá el precio.
+- A toda la venta: en el cobro, **Descuentos** → elegí % o $ y escribí el valor en "Desc. general".
+- Con cupón: escribí el código en **Cupón o gift card** y tocá **Aplicar**.
+Las promociones configuradas en Promociones se aplican solas.
+
+### Cómo cobrar con una gift card
+En el cobro, en **Descuentos**, escribí el código de la gift card (empieza con GIFT) en **Cupón o gift card** → **Aplicar**. Se descuenta su saldo; si no alcanza, la diferencia se paga con otro medio.
+
+### Cómo hacer una preventa o tomar una seña
+Para vender algo que todavía no llegó (está en camino): activá **Preventa** arriba del Punto de Venta, armá el carrito y registrala a nombre del cliente. Para cobrar una parte por adelantado, activá **Señar**, poné el monto de la seña y con qué medio se cobró. Las preventas quedan en la pestaña **Preventas**, donde se completan cuando llega la mercadería.
+
+### Cómo usar el modo prueba
+Activá **Modo prueba** arriba del Punto de Venta (jefe o admin). Sirve para practicar o enseñar: la venta de prueba no se registra, no descuenta stock, no factura en ARCA ni mueve la caja; el ticket sale marcado "PRUEBA – NO VÁLIDO". Acordate de desactivarlo para vender de verdad.
+
+### Cómo vender un kit
+En el Punto de Venta buscá el kit como cualquier producto, o desde **Kits** tocá **Vender kit**. Se descuenta el stock de cada producto que lo compone.
+
+### Cómo reintentar una factura que falló
+Si ARCA dio error, la venta igual queda registrada. En el Punto de Venta tocá **Reintentar facturación**, o andá a **Comprobantes** → filtro **Sin facturar** → **↻ Facturar** en esa venta. También está la pestaña **Facturas pendientes** del Punto de Venta.
+
+### Cómo reimprimir un ticket o factura
+**Comprobantes** → buscá la venta (por número, cliente, DNI o CAE) → tocá 🖨️. La reimpresión sale con el CAE y dice REIMPRESIÓN.
+
+### Cómo registrar una venta online
+**Ventas Online** → elegí el canal (o escribí uno nuevo) → N° de pedido → comprobante ya emitido si lo tenés → agregá los productos → envío cobrado (opcional) → medio de pago → fecha → cliente (opcional, suma puntos) → guardar. No se factura de nuevo en ARCA.
+
+### Cómo buscar un precio y mandárselo a un cliente
+**Buscar Precio** → escribí o escaneá con 📷 → se ve el precio, el stock de cada local y las promos → **Copiar** o **Compartir** el mensaje para WhatsApp o Instagram. Con **✏️ Editar mensaje** lo cambiás para ese envío o como plantilla.
 
 ### Desafíos de venta
 Si están activados (Comisiones → Configuración), al identificar a un cliente que tiene al menos 2 compras anteriores se compara el carrito con su ticket promedio: si lo supera, el desafío queda **superado**. Se mide una sola vez por venta, en el momento de cargar el DNI: agregar productos después no cuenta; sacar productos sí descuenta. Al juntar la cantidad de desafíos del mes configurada, la vendedora gana un producto de regalo (se entrega desde Comisiones → Desafíos).
 
 ### Cómo hacer un cambio o devolución
-Cambio / Devolución → buscar la venta → marcar qué vuelve (y si vuelve al stock) → agregar lo que se lleva → resolver la diferencia (cobrar, devolver efectivo o crédito en gift card) → confirmar.
+1. **Cambio / Devolución** → buscá la compra por N° de ticket, factura, DNI o nombre. Si no tiene ticket, elegí "No tiene el ticket" (se toma el precio actual).
+2. Marcá qué **devuelve** y si vuelve al stock, y el motivo.
+3. Elegí si se lleva otra cosa (**Sí, lo cambia**) y agregá lo que se lleva, o **No, solo devuelve**.
+4. Resolvé la diferencia: si paga más, elegí con qué paga (entra a la caja, no hace factura nueva). Si queda a favor, elegí **Crédito a favor** (gift card) o **Devolver efectivo** (sale de la caja).
+5. Confirmá. Se puede imprimir el comprobante del cambio.
 
 ### Cómo anular una venta
 Desde **Cierre de Caja** → "Ventas del día" → **Anular** (pide motivo; jefe/administrativo). El stock vuelve al local. Si la venta ya tenía CAE, ante ARCA hay que emitir la nota de crédito (desde el portal de ARCA o el contador); Comprobantes avisa cuáles faltan.
@@ -94,21 +194,105 @@ Desde **Cierre de Caja** → "Ventas del día" → **Anular** (pide motivo; jefe
 ### Cómo cerrar la caja
 Cierre de Caja → revisá el total y los medios de pago → en **Arqueo de efectivo** poné el fondo de cambio, contá la plata por billetes (o el total) → si hay diferencia, anotá el motivo → **🔒 Cerrar caja**. Se puede corregir después con "Corregir".
 
+### Qué hacer si la caja no cuadra
+En el arqueo, revisá:
+- que el **fondo de cambio** sea el correcto;
+- los **movimientos de efectivo** del día (retiros o pagos que no se cargaron);
+- ventas cobradas en efectivo que en realidad fueron con otro medio (o al revés);
+- vueltos mal dados.
+Si no aparece, cerrá la caja igual y anotá la diferencia en observaciones: queda en el **Historial de cierres**.
+
+### Cómo registrar un movimiento de caja
+**Caja** → **Nuevo movimiento** → ingreso o egreso → importe → concepto → destino u origen (pago a proveedor, depósito en cuenta bancaria, gasto operativo, otro) → **Registrar**. Para un depósito bancario elegí la cuenta destino. Si te equivocaste, usá **Anular**.
+
+### Cómo guardar o sacar plata de la caja de respaldo
+**Caja de Respaldo** → **Guardar plata** o **Sacar plata** → importe y concepto (opcional). Se ve el total guardado y el historial.
+
+### Cómo emitir una gift card
+**Gift Cards** → **+ Emitir Gift Card** → monto → nombre de quien la recibe → teléfono (opcional) → cliente vinculado (opcional) → forma de pago → **Emitir y cobrar**. También se puede emitir desde el Punto de Venta con **🎁 Emitir gift card**. El código empieza con GIFT.
+
+### Cómo ver el saldo de una gift card
+**Gift Cards** → buscá el código o el nombre → se ve el monto inicial, el saldo y **Ver historial** con cada uso.
+
 ### Cómo cargar un gasto (egreso)
 Finanzas → Resumen → **Registrar egreso**: categoría, concepto, importe, fecha del gasto, local (local 1, local 2 o **Compartido**, con el % que le toca a cada uno) y cómo se pagó → **Registrar egreso**. Si un egreso quedó sin categoría, en Finanzas aparece un aviso con "Categorizar".
+
+### Cómo corregir o categorizar un egreso
+Finanzas → **Movimientos** → buscá el egreso (o tocá **Solo sin categoría**) → ✏️ → cambiá categoría, importe, fecha, local o forma de pago → **Guardar cambios**. Con ✕ se borra (pide confirmación).
+
+### Cómo cambiar el reparto de gastos compartidos
+Al cargar un egreso **Compartido**, mové la barra o tocá 50/50, 60/40, 70/30 u 80/20. Para dejarlo como reparto por defecto del negocio, tocá **Usar X/Y como reparto por defecto** (jefe/admin). La próxima vez que cargues un gasto de la misma categoría, te propone el último reparto usado.
+
+### Cómo ver si el negocio gana plata
+**Finanzas**: arriba están Ingresos, Egresos, Resultado neto y Margen neto del mes. En **Estado de resultados** ves cada tipo de costo, en **Análisis** una calificación, y en **Punto de equilibrio** cuánto hay que vender para no perder plata y cuánto vender por día.
+
+### Cómo comparar dos meses
+Finanzas → **Comparar** → tocá un atajo (este mes vs mes pasado, vs mismo mes del año pasado, últimos 7 días) o elegí las fechas. Compara facturación, cantidad de ventas y ticket promedio.
+
+### Cómo crear un producto
+**Inventario** → **+ Nuevo producto** → código de barras (se puede escanear), nombre, marca, categoría, proveedor, costo, precio, stock inicial y stock mínimo → foto opcional → guardar. Con **🧮 Calcular precio** se usa una calculadora para sugerir el precio.
+
+### Cómo cargar un producto con talles o colores (variantes)
+Al crear o editar el producto, tildá **Tiene variantes (talles, colores...)**, escribí el tipo de variante (Talle, Color) y agregá cada variante con **+ Agregar** (valor, código y stock de cada local). Al vender, el Punto de Venta pide elegir la variante.
+
+### Cómo ajustar el stock de un producto
+**Inventario** → buscá el producto → **± Ajustar** → **Contar** (poner la cantidad real) o **Sumar / restar** → motivo (obligatorio) → confirmar. Queda en **Historial de ajustes** con tu nombre y la fecha.
+
+### Cómo desactivar o eliminar un producto
+**Inventario** → editar el producto → destildá **Producto activo** (deja de aparecer en el Punto de Venta sin borrar su historial). Para reactivarlo, filtrá **Inactivos** → **Reactivar**. Eliminar lo borra para siempre (pide confirmación): conviene desactivar.
+
+### Cómo pasar mercadería de un local al otro (traspaso)
+**Inventario** → **Traspasos** → **+ Nuevo traspaso** → producto, cantidad, hacia qué local y notas → **Enviar traspaso**. La mercadería queda en tránsito hasta que el otro local toca **Confirmar recepción** (con nota si llegó menos).
+
+### Cómo ver cuánto vale la mercadería
+**Inventario** → **Valorización**: mercadería a costo, si se vendiera todo a precio de lista, la ganancia potencial y el detalle por categoría. Con **📥 Exportar** se descarga el inventario.
+
+### Cómo cargar una factura de proveedor
+**Ingresos** → **📄 Cargar factura** → proveedor → número de factura (opcional) → subí la foto o el PDF. Revisá los productos detectados: vinculá cada uno con el producto de Lumiere (o **Crear producto nuevo**) y repartí la cantidad entre los locales → **Crear orden**. Queda como mercadería en camino.
+
+### Cómo cargar una orden de ingreso a mano
+**Ingresos** → **+ Nueva orden** → proveedor, número y total de factura, notas → agregá cada producto con su costo y la cantidad para cada local → **Crear orden**.
+
+### Cómo recibir mercadería
+Ingresos → la orden "por recibir" → **📦 Recibir mercadería** → contá lo que llegó en cada local y confirmá cada producto. Si llegó menos o con problemas, anotalo: aparece en Compras y proveedores → Reclamos → "Llegó distinto en Ingresos".
+
+### Cómo registrar un regalo del proveedor
+Al recibir una orden, en **🎁 Ítem extra** buscá el producto que vino de regalo, la cantidad y el local → **+ Agregar**. Suma al stock y queda registrado como extra.
+
+### Cómo hacer un control de inventario (conteo)
+**Control de Inventario** → **+ Nuevo control** → conteo total o por categoría, marca o proveedor → **Crear y comenzar**. Contá desde la lista o con **📷 Escanear** (apuntá al código de cada producto y escribí cuántos hay). Se puede **Guardar y salir** y seguir después. Al **Finalizar conteo** se ven faltantes y sobrantes con su valor y se ajusta el stock.
+
+### Cómo crear un kit o combo
+**Kits** → **+ Nuevo kit** → nombre y descripción → agregá los productos con su cantidad → guardar. El precio es la suma de los productos; el descuento se aplica al venderlo.
+
+### Cómo cargar insumos y descontarlos al vender
+1. **Insumos** → **+ Nuevo insumo** → nombre, categoría, unidad, proveedor, costo de reposición, precio al cliente (opcional) y stock mínimo.
+2. **Configuración → Insumos en POS** → activá **Descontar insumos en cada venta** y elegí cuáles ofrecer.
+3. Al vender aparece **📦 Agregar insumo** en el carrito.
+
+### Cómo calcular el precio de venta
+**Calculadoras** → pestaña **Calcular** → elegí la calculadora → poné el costo (o el precio de venta del proveedor) → **Calcular precio**. En **Administrar** se crean las fórmulas (margen, impuestos y costos extra como bolsa o envío).
 
 ### Cómo pedir mercadería (Qué pedir)
 Compras y proveedores → **Qué pedir** → elegí el proveedor, para qué local y para cuántos días querés que alcance. El sistema calcula con las ventas reales de cada producto:
 - **Stock mínimo** = venta diaria × días de colchón (7 por defecto).
 - **Punto de pedido** = venta diaria × días que demora el proveedor + stock mínimo.
 - **A pedir** = lo que se va a vender en la demora + los días a cubrir + stock mínimo − (stock + en camino − reservado).
-Las cantidades se pueden editar. Si un local tiene de sobra, sugiere traspasar. Después: **Copiar pedido**, **Enviar por WhatsApp** al proveedor, o **Registrar como mercadería en camino** (crea la orden que después se recibe en Ingresos). En "Ajustar cálculo" se cambia la demora del proveedor y los días de colchón.
+Las cantidades se pueden editar. Si un local tiene de sobra, sugiere traspasar. Después tenés tres opciones:
+- **Copiar pedido**;
+- **Enviar por WhatsApp** al proveedor;
+- **Registrar como mercadería en camino**, que crea la orden que después se recibe en Ingresos.
+En "Ajustar cálculo" se cambia la demora del proveedor y los días de colchón.
 
-### Cómo recibir mercadería
-Ingresos → la orden "por recibir" → **Recibir** → contá lo que llegó en cada local. Si llegó menos o con problemas, anotalo: aparece en Compras y proveedores → Reclamos → "Llegó distinto en Ingresos".
+### Cómo cargar o editar un proveedor
+Compras y proveedores → **Proveedores** → **+ Nuevo proveedor** (o ✏️ Editar): nombre, CUIT, qué vende, días para pagar, forma de pago, WhatsApp, teléfono, email, banco, alias, CBU, titular y notas. Con ✕ se desactiva (no se borran sus compras).
 
 ### Cómo reclamar a un proveedor
-Compras y proveedores → **Reclamos**. Lo que llegó distinto en Ingresos aparece arriba: **Reclamar** (sale armado con producto, factura y cantidad) o **Reclamar las N** de una factura juntas con un solo WhatsApp; **No reclamar** para descartar. Para otros casos, **+ Nuevo reclamo**. Después: Marcar enviado → Cerrar reclamo (resuelto o rechazado).
+Compras y proveedores → **Reclamos**. Lo que llegó distinto en Ingresos aparece arriba:
+- **Reclamar**: sale armado con el producto, la factura y la cantidad.
+- **Reclamar las N**: carga juntas todas las de una factura y arma un solo WhatsApp.
+- **No reclamar**: la descarta.
+Para otros casos, **+ Nuevo reclamo**. Después: **Marcar enviado** → **Cerrar reclamo** (resuelto o rechazado).
 
 ### ¿Llego a pagarle al proveedor?
 Compras y proveedores → **Ventas por proveedor**: por proveedor, lo que le debés contra lo vendido de sus productos desde la compra, la proyección al vencimiento y, si no llega, cuánto hay que vender por día y qué productos suyos conviene empujar con promociones.
@@ -116,11 +300,105 @@ Compras y proveedores → **Ventas por proveedor**: por proveedor, lo que le deb
 ### Cómo pagar a un proveedor
 Compras y proveedores → Proveedores → **Cuentas a pagar** → **Pagar** (fecha, forma y cuenta). En la tarjeta del proveedor están el alias y CBU con botón Copiar. Marcar pagada no crea un egreso en Finanzas: si querés que figure, cargalo como egreso.
 
+### Cómo dar de alta un cliente
+**Clientes** → **+ Nuevo cliente** → nombre, celular, email, CUIT/DNI y cumpleaños → **Guardar**. También se puede dar de alta desde el Punto de Venta al cargar un DNI que no existe.
+
+### Cómo cargar puntos de compras anteriores
+**Clientes** → en el cliente, **Migrar puntos** → monto de la compra y fecha del comprobante → **Cargar puntos**. Se ven las cargas anteriores para no repetirlas.
+
+### Cómo anotar un pedido de un cliente
+**Pedidos** → **+ Anotar pedido** → buscá el cliente (o cargá nombre y celular si no está registrado) → el producto que espera (o escribí una sugerencia si no lo vendemos) → local → guardar. Cuando llegue stock aparece para avisarle.
+
 ### Cómo avisarle a un cliente que llegó lo que esperaba
 Pedidos → **Listos para avisar** → botón de WhatsApp (se abre el mensaje listo) → queda en "Avisados". Si después compra, se marca solo (o con "Compró").
 
+### Cómo crear un premio para canjear con puntos
+**Fidelización** → **+ Nuevo premio** → nombre, puntos requeridos (la calculadora sugiere los puntos según el precio del regalo), descripción, stock y nivel mínimo → guardar.
+
+### Cómo validar un canje de puntos
+**Fidelización** → **Validar código de canje** → escribí el código que muestra el cliente (PREMIO-XXXX) → **Validar**. Para ver qué puede canjear un cliente, buscalo por DNI.
+
+### Cómo crear un cupón de descuento
+**Cupones** → **Nuevo cupón** → código (ej: VERANO30), descripción, tipo (porcentaje o monto fijo), valor, canal, usos máximos y vencimiento → **Crear cupón**. En el Punto de Venta se aplica escribiendo el código en **Cupón o gift card**.
+
+### Cómo trabajar con influencers
+**Cupones** → **+ Agregar influencer** → nombre, Instagram, teléfono → crear un cupón nuevo o usar uno existente. Se ve cuánto se vendió con su cupón y su comisión; **Registrar pago** cuando se le paga. Con **+ Regalo** se le asigna un producto de regalo con código.
+
+### Cómo crear una promoción automática
+**Promociones** → **+ Nueva promoción** → nombre → tipo:
+- descuento % / $;
+- NxM (2x1, 3x2);
+- cross-selling (llevando X, Y con descuento);
+- por monto (gastando más de $X).
+Después elegí a qué aplica (todos, categorías o productos), si es solo con un medio de pago, y las fechas desde y hasta. El Punto de Venta la aplica sola.
+
+### Cómo mandar mensajes de postventa por WhatsApp
+**Postventa WA** → **Nueva regla automática** → nombre, disparador (N días después de la compra, días sin actividad o cumpleaños), segmento y mensaje (con {nombre}) → **Crear regla**. Después **Generar mensajes según las reglas activas** y enviá cada uno con **Enviar WhatsApp**.
+
+### Cómo crear y asignar una tarea
+**Tareas** → **+ Nueva tarea** → título, descripción, urgencia y a quién → **Crear tarea**. La persona la ve en Pendientes y toca **Empezar** / **Finalizar**.
+
+### Cómo configurar las comisiones
+**Comisiones** → **Configuración** (jefe/admin) → activá **Comisiones para vendedores** → elegí el local, el tipo (metas de monto, % de ventas, % por tramos o % sobre el excedente) y el período (diaria, semanal o mensual) → probá con el simulador → **Guardar comisión**.
+
+### Cómo pagar comisiones
+**Comisiones** → pestaña **Comisiones** → tildá los días a pagar (o pagá un monto suelto) → **Pagar** → forma de pago (efectivo, transferencia o canje por productos con descuento de empleada) → confirmar. Queda registrado como egreso.
+
+### Cómo entregar el premio de un desafío
+**Comisiones** → **Desafíos** → elegí el mes → en la vendedora que llegó a la meta, entregá el premio eligiendo el producto (hasta el monto configurado). Se descuenta del stock.
+
+### Cómo activar o desactivar comisiones y desafíos
+**Comisiones** → **Configuración** → en "Qué usa este negocio" tocá el interruptor de **Comisiones para vendedores** o de **Desafíos de venta**. Se guarda al tocarlo.
+
+### Cómo crear un usuario y darle permisos
+**Configuración → Usuarios** → **+ Nuevo usuario** → nombre, email, contraseña inicial, rol (Jefe, Administrativo, Vendedora) y local → **Crear**. Después **Permisos** → tildá las secciones que puede ver o usar (o **Dar todo** / **Quitar todo**) → **Guardar permisos**.
+
+### Cómo cambiar el nombre o los datos del negocio
+**Configuración del Negocio** → **Datos generales** → nombre del negocio y logo → **Guardar**. Ahí también se elige si el ticket se imprime, se envía por WhatsApp o se pregunta cada vez.
+
+### Cómo cambiar el nombre de un local
+**Configuración del Negocio** → Locales → **Editar** → nombre y dirección → guardar. El nombre se usa en todo el sistema.
+
+### Cómo agregar un medio de pago
+**Configuración del Negocio** → Medios de pago → **+ Nuevo medio de pago** → nombre, tipo (efectivo, débito, crédito, transferencia, plataforma), cuotas y comisión % → guardar. La comisión se usa en Finanzas para calcular lo que se lleva cada medio.
+
+### Cómo configurar la factura electrónica (ARCA)
+**Configuración del Negocio** → **Datos fiscales para facturar con ARCA** → CUIT (sin guiones), punto de venta, certificado y clave → **Guardar datos fiscales**. Cada dato muestra si ya está configurado. Si no sabés cómo obtener el certificado, pedíselo a tu contador.
+
+### Cómo personalizar el ticket
+**Configuración → Ticket** → qué datos se muestran (fecha, número, cliente), logo del ticket, mensaje de agradecimiento y texto extra (redes, teléfono, dirección) → **Guardar**.
+
+### Cómo cargar categorías de gastos y cuentas bancarias
+**Configuración del Negocio** → Categorías → **+ Nueva categoría** (variable, fijo, administrativo/marketing o sueldo). Cuentas → **+ Nueva cuenta** (transferencia bancaria o billetera virtual, banco, titular, CBU/CVU, alias).
+
+### Cómo ver quién anuló o modificó algo
+**Configuración → Auditoría** → filtrá por tipo. Muestra fecha, tipo, referencia, usuario y detalle de cada anulación o modificación.
+
 ### Documentación para el contador
 Comprobantes → elegir el período → **Excel para el contador**. Finanzas → Estado de resultados para el resultado del mes.
+
+## Problemas frecuentes
+
+### El ticket no se imprime
+El navegador tiene que permitir ventanas emergentes de Lumiere: tocá el ícono de ventana bloqueada en la barra de direcciones y elegí "Permitir siempre". Revisá que la impresora térmica esté encendida y sea la predeterminada. En Configuración del Negocio se puede elegir enviar el ticket por WhatsApp en vez de imprimir.
+
+### ARCA dio error al facturar
+La venta queda registrada igual. Reintentá con **Reintentar facturación** o desde **Comprobantes** → **↻ Facturar**. Si el error sigue, revisá los datos fiscales en Configuración del Negocio o consultá a tu contador; el mensaje del error se ve en el detalle del comprobante.
+
+### No me deja vender un producto sin stock
+Si el producto no tiene stock y tampoco hay nada en camino, no se puede vender: cargá primero el ingreso o ajustá el stock si es un error. Si hay mercadería en camino, se puede vender escribiendo el motivo (queda en Inconsistencias).
+
+### La cámara no escanea
+El navegador tiene que tener permiso para usar la cámara (tocá el candado de la barra de direcciones → Cámara → Permitir). Acercá el código de barras con buena luz. Siempre se puede escribir el código a mano.
+
+### No veo una sección del menú
+Tu usuario no tiene ese permiso. Pedíselo al jefe: Configuración → Usuarios → Permisos.
+
+### Un producto figura sin stock pero hay
+Revisá en qué local está el stock (el Punto de Venta muestra el del local elegido) y si hay un traspaso sin confirmar. Si es un error de carga, corregilo con **± Ajustar** en Inventario.
+
+### Me equivoqué en una venta
+Si todavía no la cobraste, sacá o cambiá los productos del carrito. Si ya la cobraste, anulala desde Cierre de Caja (jefe/administrativo) o hacé un cambio/devolución si el cliente ya se llevó el producto.
 
 ## Atajos del Punto de Venta
 F2 buscar · F4 DNI · F8 poner en espera · F9 continuar/cobrar · Esc cerrar · ? ver todos los atajos.
