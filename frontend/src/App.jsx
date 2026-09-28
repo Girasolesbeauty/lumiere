@@ -2581,6 +2581,7 @@ function POS({ localId, usuario, paletaActual }) {
   const [gcEmitidaOk, setGcEmitidaOk] = useState(null);
 
   const emitirGiftCardPOS = async () => {
+    if (modoPrueba) return setErrorEmitirGC("Modo prueba activo: las gift cards no se emiten. Desactivalo para emitir una de verdad.");
     if (!nuevaGC.monto || parseFloat(nuevaGC.monto) <= 0) return setErrorEmitirGC("Ingresa un monto valido");
     if (!nuevaGC.beneficiario_nombre) return setErrorEmitirGC("Falta el nombre de quien recibe la gift card");
     if (nuevaGC.es_devolucion && !nuevaGC.venta_origen_numero.trim()) return setErrorEmitirGC("Falta el numero de comprobante de la compra original");
@@ -2821,6 +2822,7 @@ function POS({ localId, usuario, paletaActual }) {
         .tot { font-size: 15px; font-weight: bold; }
         img.logo { width: 60mm; display: block; margin: 0 auto 4px; }
       </style></head><body>
+        ${datos.prueba ? `<div class="c b" style="font-size:16px;border:2px solid #000;padding:4px;margin-bottom:6px">*** PRUEBA - NO VÁLIDO ***<br><span style="font-size:10px">venta de práctica, no registrada</span></div>` : ""}
         <img class="logo" src="${cfg.logo_ticket_url || LOGO_TICKET}" />
         <div class="c">${localNombre}</div>
         ${cfg.mostrar_fecha !== false ? `<div class="c" style="font-size:10px">${fecha}</div>` : ""}
@@ -2890,6 +2892,34 @@ function POS({ localId, usuario, paletaActual }) {
       const sumaPagos = pagosMixtos.reduce((s, p) => s + (parseFloat(p.importe) || 0), 0);
       if (pagosMixtos.some(p => !p.medio_pago_id)) return setMensaje("Elegi el medio de pago en cada linea del pago dividido");
       if (Math.abs(sumaPagos - restaPagar) >= 1) return setMensaje("La suma de los pagos (" + fmt(sumaPagos) + ") debe ser igual al total (" + fmt(restaPagar) + ")");
+    }
+    // MODO PRUEBA: se simula la venta completa para practicar, sin registrar nada real
+    // (no crea la venta, no descuenta stock, no factura en ARCA, no mueve caja, no usa
+    // gift cards ni suma desafios). Muestra la confirmacion e imprime un ticket marcado PRUEBA.
+    if (modoPrueba) {
+      if (preventa) {
+        setMensaje("🧪 Prueba: " + (tipoReserva === "sena" ? "la seña" : "la preventa") + " no se registró (modo prueba activo).");
+      setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
+      setClienteSeleccionado(null); setShowNuevoCliente(false); setPreventa(false); setTipoReserva("preventa"); setNombrePreventa(""); setMontoSena(""); setSenaMedioPagoId(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false); setReferenciaVenta("");
+      setJustificacionesStock({}); setItemsSinStock(null); setMontoRecibidoEfectivo(""); quitarGiftCard();
+        return;
+      }
+      const datosPrueba = {
+        items: cart.filter(i => !String(i.id).startsWith("insumo-")).map(i => ({ nombre: i.nombre || i.name, cantidad: i.qty, precio_unitario: (i.precio || i.price) * (1 - (i.descuento_pct || 0) / 100) })),
+        total: total, cliente: clienteSeleccionado?.nombre || null, numero: "PRUEBA", prueba: true,
+        monto_recibido: (medioPagoSel?.tipo === "efectivo" && montoRecibidoEfectivo !== "") ? parseFloat(montoRecibidoEfectivo) : null,
+        vuelto: (medioPagoSel?.tipo === "efectivo" && montoRecibidoEfectivo !== "") ? Math.max(parseFloat(montoRecibidoEfectivo) - restaPagar, 0) : null,
+      };
+      const medioTxt = pagoMixto && pagosMixtos.length > 0 ? pagosMixtos.map(x => x.medio_pago_nombre).join(" + ") : (restaPagar > 0 ? medioPagoSel?.nombre : "Gift Card");
+      setUltimoRecibo(datosPrueba);
+      if (modoTicket === "imprimir") imprimirRecibo(datosPrueba);
+      setTelefonoTicket(clienteSeleccionado?.telefono || "");
+      setVentaConfirmada({ ...datosPrueba, medio: medioTxt || "", fecha: new Date(), reto: reto ? { meta: reto.meta, vendido: subtotalConDesc, logrado: subtotalConDesc > reto.meta, cliente: reto.cliente } : null });
+      setReto(null);
+      setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
+      setClienteSeleccionado(null); setShowNuevoCliente(false); setPreventa(false); setTipoReserva("preventa"); setNombrePreventa(""); setMontoSena(""); setSenaMedioPagoId(""); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false); setReferenciaVenta("");
+      setJustificacionesStock({}); setItemsSinStock(null); setMontoRecibidoEfectivo(""); quitarGiftCard();
+      return;
     }
     // Si algun producto ya esta en 0 (o esta venta lo dejaria en negativo), pedimos el motivo
     // antes de mandar la venta -- salvo que ademas no haya nada en transito, en cuyo caso
@@ -3873,7 +3903,7 @@ function POS({ localId, usuario, paletaActual }) {
               <div style={{ fontSize: 28, fontWeight: 800, color: temaPal.text, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.01em" }}><CountUp value={restaPagar > 0 ? restaPagar : total} formato={fmt} duracion={450} /></div>
             </div>
             <button className="btn btn-p" style={{ width: "100%", padding: 11, fontSize: 12, opacity: loading ? 0.7 : 1, background: ventaPendienteArca ? "#e67e22" : undefined }} onClick={emitirFactura} disabled={loading}>
-              {loading ? "Procesando..." : ventaPendienteArca ? "⚠️ Reintentar facturacion" : preventa ? (tipoReserva === "sena" ? "Registrar Seña" : "Registrar Preventa") : "Cobrar · Factura " + tipoFac}
+              {loading ? "Procesando..." : ventaPendienteArca ? "⚠️ Reintentar facturacion" : modoPrueba ? "🧪 Cobrar (prueba)" : preventa ? (tipoReserva === "sena" ? "Registrar Seña" : "Registrar Preventa") : "Cobrar · Factura " + tipoFac}
               {!loading && <span className="kbd" style={{ marginLeft: 8, background: "rgba(255,255,255,0.15)", color: "#fff", borderColor: "rgba(255,255,255,0.3)" }}>F9</span>}
             </button>
             {ultimoRecibo && (
@@ -3965,7 +3995,7 @@ function POS({ localId, usuario, paletaActual }) {
       <div className="ph" style={{ flexWrap: "wrap", gap: 10, alignItems: "center" }}>
         <div style={{ flexShrink: 0 }}><div className="pt" style={{ whiteSpace: "nowrap" }}>Punto de Venta</div><div className="ps">facturación electrónica · arca</div></div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
-          {usuario?.rol === "jefe" && (
+          {(usuario?.rol === "jefe" || usuario?.rol === "admin") && (
             <div className="sw-wrap" onClick={() => { setModoPrueba(!modoPrueba); setMensaje(""); }}>
               <div className={"sw " + (modoPrueba ? "on" : "off")}><div className="sw-dot" /></div>
               <span style={{ fontSize: 11, color: modoPrueba ? "#c0392b" : temaPal.textMuted }}>Modo prueba</span>
@@ -3999,7 +4029,7 @@ function POS({ localId, usuario, paletaActual }) {
       )}
       {modoPrueba && (
         <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "10px 16px", marginBottom: 12, fontSize: 12, color: "#c0392b", fontWeight: 600 }}>
-          🧪 MODO PRUEBA ACTIVO — las ventas NO se facturan en ARCA. Desactivalo para vender de verdad.
+          🧪 MODO PRUEBA ACTIVO — las ventas son de práctica: no se registran, no descuentan stock, no se facturan en ARCA ni mueven la caja. Desactivalo para vender de verdad.
         </div>
       )}
       <div className="tabs">
@@ -4195,7 +4225,8 @@ function POS({ localId, usuario, paletaActual }) {
               }} />
             ))}
             <div className="pop-in" style={{ width: 64, height: 64, borderRadius: "50%", background: temaPal.greenDim, color: temaPal.green, fontSize: 34, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", animationDelay: "120ms" }}>✓</div>
-            <div style={{ fontSize: 18, fontWeight: 800 }}>Venta registrada</div>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>{ventaConfirmada.prueba ? "Venta de prueba" : "Venta registrada"}</div>
+            {ventaConfirmada.prueba && <div className="tag tag-bad" style={{ margin: "6px auto 0", fontSize: 11 }}>🧪 PRUEBA · no se registró ni se facturó</div>}
             <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 4 }}>
               {[ventaConfirmada.numero ? "Comprobante " + ventaConfirmada.numero : null, ventaConfirmada.medio, ventaConfirmada.cliente].filter(Boolean).join(" · ")}
             </div>
