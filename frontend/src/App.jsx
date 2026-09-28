@@ -345,6 +345,22 @@ button.tab { font-family: inherit; }
 .fin-reparto input[type=range]:focus-visible { outline: 2px solid ${p.accent}; outline-offset: 3px; }
 @media (max-width: 980px) { .fin-grid { grid-template-columns: 1fr; } .fin-lado { order: -1; } .fin-form { position: static; } .fin-grid3 { grid-template-columns: 1fr; } }
 @media (max-width: 640px) { .fin-grid2 { grid-template-columns: 1fr; } }
+/* --- Compras: que pedir y cobertura de pagos --- */
+.qp-fila { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+.qp-tabla td { vertical-align: middle; }
+.qp-urgente td:first-child { box-shadow: inset 3px 0 0 ${p.red}; }
+.qp-inp, .qp-cants input { width: 58px; height: 32px; border-radius: 8px; border: 1px solid ${p.border}; background: ${p.inpBg}; color: ${p.text}; font-family: inherit; font-size: 14px; font-weight: 800; text-align: center; outline: none; font-variant-numeric: tabular-nums; }
+.qp-inp:focus, .qp-cants input:focus { border-color: ${p.accent}; box-shadow: 0 0 0 2px ${p.accentDim}; }
+.qp-inp.con, .qp-cants input.con { border-color: ${p.accent}; background: ${p.accentDim}; color: ${p.accent}; }
+.qp-cants { display: inline-flex; gap: 6px; }
+.qp-cants label { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 9px; color: ${p.textMuted}; font-weight: 700; max-width: 70px; }
+.qp-cants label span { max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qp-barra { position: sticky; bottom: calc(env(safe-area-inset-bottom, 0px) + 8px); z-index: 5; margin-top: 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 14px; border-radius: 12px; background: ${p.card}; border: 1px solid ${p.accent}88; box-shadow: 0 8px 24px ${p.shadowCol}; }
+.cob-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; align-items: start; }
+.cob-barra { position: relative; height: 12px; border-radius: 99px; background: ${p.bg}; border: 1px solid ${p.border}; overflow: hidden; }
+.cob-barra > div { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 99px; transition: width .7s cubic-bezier(.2,.7,.2,1); }
+.cob-proy { background: repeating-linear-gradient(45deg, ${p.textMuted}33 0 6px, transparent 6px 12px); }
+@media (max-width: 420px) { .cob-grid { grid-template-columns: 1fr; } }
 /* --- Comprobantes --- */
 .comp-tipo { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 5px; border: 1.5px solid; font-size: 11px; font-weight: 900; margin-right: 8px; vertical-align: middle; }
 .comp-detalle { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 20px; text-align: left; white-space: normal; }
@@ -4602,35 +4618,152 @@ function POS({ localId, usuario, paletaActual }) {
 
 function Compras({ localId, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
+  const p = temaPal;
   const [tab, setTab] = useState("quepedir");
   const [proveedores, setProveedores] = useState([]);
-  useEffect(() => { API.get("/proveedores").then(res => setProveedores(res.data || [])).catch(() => {}); }, []);
+  const [nombreNegocio, setNombreNegocio] = useState("");
+  const [aviso, setAviso] = useState("");
+  const avisar = (t) => { setAviso(t); setTimeout(() => setAviso(a => (a === t ? "" : a)), 4500); };
+  useEffect(() => {
+    API.get("/proveedores").then(res => setProveedores(res.data || [])).catch(() => {});
+    API.get("/configuracion").then(res => setNombreNegocio(res.data?.nombre_negocio || "")).catch(() => {});
+  }, []);
 
-  // --- Que pedir (sugerencia de compra por proveedor) ---
-  const [proveedorCompraSel, setProveedorCompraSel] = useState("");
-  const [localCompraSel, setLocalCompraSel] = useState("consolidado");
+  // ================= QUE PEDIR =================
+  const [provSel, setProvSel] = useState("");
+  const [vistaLocal, setVistaLocal] = useState("todos"); // todos | 1 | 2
+  const [diasCobertura, setDiasCobertura] = useState(30);
   const [diasAnalisis, setDiasAnalisis] = useState(30);
-  const [diasCobertura, setDiasCobertura] = useState(45);
-  const [sugerenciaCompra, setSugerenciaCompra] = useState(null);
-  const [cargandoSugerencia, setCargandoSugerencia] = useState(false);
-  const [soloNecesitan, setSoloNecesitan] = useState(true);
+  const [diasSeguridad, setDiasSeguridad] = useState(7);
+  const [leadTime, setLeadTime] = useState(""); // "" = la de los productos
+  const [sug, setSug] = useState(null);
+  const [cargandoSug, setCargandoSug] = useState(false);
+  const [soloPedir, setSoloPedir] = useState(true);
+  const [buscarProd, setBuscarProd] = useState("");
+  const [cant, setCant] = useState({}); // { productoId: { 1: n, 2: n } }
+  const [confirmarOrden, setConfirmarOrden] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [verAjustes, setVerAjustes] = useState(false);
 
-  const calcularSugerenciaCompra = () => {
-    if (!proveedorCompraSel) return;
-    setCargandoSugerencia(true);
-    const dAnalisis = Math.max(1, parseInt(diasAnalisis) || 30);
-    const dCobertura = Math.max(1, parseInt(diasCobertura) || 45);
-    const params = new URLSearchParams({
-      proveedor_id: proveedorCompraSel, local_id: localCompraSel,
-      dias_analisis: dAnalisis, dias_cobertura: dCobertura
+  const calcularSug = () => {
+    if (!provSel) { setSug(null); return; }
+    setCargandoSug(true);
+    const q = new URLSearchParams({ proveedor_id: provSel, dias_analisis: diasAnalisis, dias_cobertura: diasCobertura, dias_seguridad: diasSeguridad });
+    if (leadTime !== "") q.set("lead_time", leadTime);
+    API.get("/productos/sugerencia-compra?" + q.toString())
+      .then(res => {
+        setSug(res.data);
+        const c = {};
+        (res.data.productos || []).forEach(pr => { c[pr.id] = { 1: pr.por_local[1].sugerido, 2: pr.por_local[2].sugerido, t: pr.sugerido }; });
+        setCant(c);
+        if (leadTime === "") setLeadTime(String(res.data.lead_time_comun));
+      })
+      .catch(e => { setSug(null); avisar("Error: " + (e.response?.data?.error || "no se pudo calcular")); })
+      .finally(() => setCargandoSug(false));
+  };
+  useEffect(() => { setLeadTime(""); }, [provSel]);
+  useEffect(() => { const t = setTimeout(calcularSug, 300); return () => clearTimeout(t); }, [provSel, diasAnalisis, diasCobertura, diasSeguridad, leadTime]);
+
+  // Cantidad a pedir de un producto segun la vista (por local o total)
+  const cantDe = (id, l) => Math.max(0, parseInt((cant[id] || {})[l]) || 0);
+  const cantPedido = (pr) => (vistaLocal === "todos" ? cantDe(pr.id, 1) + cantDe(pr.id, 2) : cantDe(pr.id, parseInt(vistaLocal)));
+  const setCantDe = (id, l, v) => setCant(x => ({ ...x, [id]: { ...(x[id] || {}), [l]: v === "" ? "" : Math.max(0, parseInt(v) || 0) } }));
+  const datoLocal = (pr) => (vistaLocal === "todos" ? pr : { ...pr, ...pr.por_local[parseInt(vistaLocal)] });
+
+  const productos = (sug?.productos || []);
+  const filtrados = productos.filter(pr => {
+    if (buscarProd.trim() && !((pr.nombre || "") + " " + (pr.marca || "") + " " + (pr.codigo_barras || "")).toLowerCase().includes(buscarProd.toLowerCase())) return false;
+    if (soloPedir) return cantPedido(pr) > 0 || datoLocal(pr).necesita_pedido;
+    return true;
+  });
+  const enPedido = productos.filter(pr => cantPedido(pr) > 0);
+  const unidades = enPedido.reduce((s, pr) => s + cantPedido(pr), 0);
+  const costoTotal = enPedido.reduce((s, pr) => s + cantPedido(pr) * pr.costo, 0);
+  const urgentes = productos.filter(pr => datoLocal(pr).necesita_pedido).length;
+  const provObj = sug?.proveedor || proveedores.find(x => String(x.id) === String(provSel));
+
+  const textoPedido = () => {
+    const lineas = enPedido.map(pr => {
+      const n = cantPedido(pr);
+      const detalleLocal = vistaLocal === "todos" && cantDe(pr.id, 1) > 0 && cantDe(pr.id, 2) > 0
+        ? " (" + nombreLocal(1) + ": " + cantDe(pr.id, 1) + " · " + nombreLocal(2) + ": " + cantDe(pr.id, 2) + ")" : "";
+      return "• " + n + " × " + pr.nombre + (pr.marca ? " — " + pr.marca : "") + (pr.codigo_barras ? " [" + pr.codigo_barras + "]" : "") + detalleLocal;
     });
-    API.get("/productos/sugerencia-compra?" + params.toString())
-      .then(res => setSugerenciaCompra(res.data))
-      .catch(() => setSugerenciaCompra(null))
-      .finally(() => setCargandoSugerencia(false));
+    const para = vistaLocal === "todos" ? "" : " para " + nombreLocal(parseInt(vistaLocal));
+    return "¡Hola" + (provObj?.nombre ? " " + provObj.nombre : "") + "! Te paso el pedido" + (nombreNegocio ? " de " + nombreNegocio : "") + para + ":\n\n" +
+      lineas.join("\n") + "\n\nTotal: " + unidades + " unidades. ¡Gracias!";
+  };
+  const copiarPedido = async () => {
+    if (enPedido.length === 0) return avisar("Error: no hay productos con cantidad para pedir");
+    try { await navigator.clipboard.writeText(textoPedido()); avisar("✓ Pedido copiado: pegalo en WhatsApp o en un mail"); }
+    catch (e) { avisar("Error: no se pudo copiar"); }
+  };
+  const telProveedor = String(provObj?.whatsapp || provObj?.telefono || "").replace(/\D/g, "");
+  const whatsappPedido = () => {
+    if (enPedido.length === 0) return avisar("Error: no hay productos con cantidad para pedir");
+    let tel = telProveedor;
+    if (tel.length === 10) tel = "549" + tel;
+    window.open("https://wa.me/" + tel + "?text=" + encodeURIComponent(textoPedido()), "_blank");
+  };
+  const registrarEnCamino = async () => {
+    setGuardando(true);
+    try {
+      const items = enPedido.map(pr => {
+        const c1 = vistaLocal === "2" ? 0 : cantDe(pr.id, 1);
+        const c2 = vistaLocal === "1" ? 0 : cantDe(pr.id, 2);
+        return { producto_id: pr.id, producto_nombre: pr.nombre, cantidad_rg: c1, cantidad_ush: c2, cantidad_total: c1 + c2, costo_unitario: pr.costo };
+      }).filter(it => it.cantidad_total > 0);
+      await API.post("/ordenes-ingreso", {
+        proveedor_id: parseInt(provSel), numero_factura: null,
+        total: items.reduce((s, it) => s + it.cantidad_total * it.costo_unitario, 0),
+        notas: "Pedido armado en Qué pedir (" + items.length + " productos)", items,
+      });
+      setConfirmarOrden(false);
+      avisar("✓ Pedido registrado: " + unidades + " unidades quedaron como mercadería en camino. Lo recibís desde Ingresos.");
+      calcularSug();
+    } catch (e) { avisar("Error: " + (e.response?.data?.error || "no se pudo registrar el pedido")); }
+    setGuardando(false);
+  };
+  const guardarLead = async () => {
+    try {
+      const r = await API.put("/productos/lead-time-proveedor", { proveedor_id: parseInt(provSel), lead_time_dias: parseInt(leadTime) || 0 });
+      avisar("✓ Demora de " + leadTime + " días guardada en " + r.data.productos_actualizados + " productos de " + (provObj?.nombre || "este proveedor"));
+    } catch (e) { avisar("Error: " + (e.response?.data?.error || "no se pudo guardar")); }
+  };
+  const guardarMinimos = async () => {
+    try {
+      const items = productos.filter(pr => pr.ritmo_diario > 0).map(pr => ({ id: pr.id, stock_minimo: pr.punto_pedido }));
+      const r = await API.post("/productos/guardar-minimos", { items });
+      avisar("✓ Stock mínimo actualizado en " + r.data.productos_actualizados + " productos: las alertas de stock bajo avisan justo al llegar al punto de pedido");
+    } catch (e) { avisar("Error: " + (e.response?.data?.error || "no se pudo guardar")); }
   };
 
-  // --- Compras por periodo ---
+  // ================= VENTAS POR PROVEEDOR (¿llegamos a pagarle?) =================
+  const [cobProv, setCobProv] = useState("");
+  const [cobModo, setCobModo] = useState("compra"); // compra = desde la compra impaga mas vieja | rango
+  const [cobDesde, setCobDesde] = useState(isoLocal(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
+  const [cobHasta, setCobHasta] = useState(isoLocal(new Date()));
+  const [cob, setCob] = useState(null);
+  const [cargandoCob, setCargandoCob] = useState(false);
+  const [cobAbierto, setCobAbierto] = useState(null);
+  const cargarCob = () => {
+    setCargandoCob(true);
+    const q = new URLSearchParams();
+    if (cobProv) q.set("proveedor_id", cobProv);
+    if (cobModo === "rango") { q.set("desde", cobDesde); q.set("hasta", cobHasta); }
+    API.get("/proveedores/cobertura-pagos?" + q.toString())
+      .then(res => setCob(res.data)).catch(() => setCob(null)).finally(() => setCargandoCob(false));
+  };
+  useEffect(() => { if (tab === "ventas") cargarCob(); }, [tab, cobProv, cobModo, cobDesde, cobHasta]);
+  const fmtD = (f) => { if (!f) return ""; const [y, m, d] = String(f).slice(0, 10).split("-"); return d + "/" + m; };
+  const ESTADO_COB = {
+    cubierto: { l: "✓ Ya está cubierto", c: p.green, cls: "tag-ok" },
+    llega: { l: "Llega al vencimiento", c: p.accent, cls: "tag-warn" },
+    no_llega: { l: "No llega: hay que empujar", c: p.red, cls: "tag-bad" },
+    sin_deuda: { l: "Sin deuda", c: p.textMuted, cls: "tag-neutral" },
+  };
+
+  // ================= COMPRAS POR PERIODO =================
   const [comprasDesde, setComprasDesde] = useState("");
   const [comprasHasta, setComprasHasta] = useState("");
   const [reporteCompras, setReporteCompras] = useState(null);
@@ -4662,128 +4795,336 @@ function Compras({ localId, paletaActual }) {
       .catch(() => {});
   };
 
-  // --- Ventas por proveedor ---
-  const [ventasDesde, setVentasDesde] = useState("");
-  const [ventasHasta, setVentasHasta] = useState("");
-  const [ventasProveedorSel, setVentasProveedorSel] = useState("");
-  const [reporteVentas, setReporteVentas] = useState(null);
-  const [cargandoVentas, setCargandoVentas] = useState(false);
-  const [provVentasExpandido, setProvVentasExpandido] = useState(null);
-  const [detalleVentasProv, setDetalleVentasProv] = useState({});
-
-  const cargarReporteVentas = () => {
-    setCargandoVentas(true);
-    setProvVentasExpandido(null);
-    const params = new URLSearchParams();
-    if (ventasDesde) params.set("desde", ventasDesde);
-    if (ventasHasta) params.set("hasta", ventasHasta);
-    if (ventasProveedorSel) params.set("proveedor_id", ventasProveedorSel);
-    API.get("/proveedores/reporte-ventas?" + params.toString())
-      .then(res => setReporteVentas(res.data || []))
-      .catch(() => setReporteVentas([]))
-      .finally(() => setCargandoVentas(false));
-  };
-
-  const abrirDetalleVentas = (proveedorId) => {
-    if (provVentasExpandido === proveedorId) { setProvVentasExpandido(null); return; }
-    setProvVentasExpandido(proveedorId);
-    if (detalleVentasProv[proveedorId]) return;
-    const params = new URLSearchParams();
-    if (ventasDesde) params.set("desde", ventasDesde);
-    if (ventasHasta) params.set("hasta", ventasHasta);
-    API.get("/proveedores/" + proveedorId + "/productos-vendidos?" + params.toString())
-      .then(res => setDetalleVentasProv(prev => ({ ...prev, [proveedorId]: res.data || [] })))
-      .catch(() => {});
-  };
+  const colorDias = (d) => (d === null || d === undefined ? p.textMuted : d <= 7 ? p.red : d <= 20 ? p.warn : p.green);
 
   return (
     <div className="fade">
-      <div className="ph">
-        <div><div className="pt">Compras</div><div className="ps">que pedir, compras por periodo, ventas por proveedor</div></div>
+      <div className="dash-head">
+        <div><div className="pt">Compras</div><div className="ps">qué pedir, cuánto se compró y si lo vendido alcanza para pagar</div></div>
       </div>
-      <div className="tabs">
-        <div className={"tab " + (tab === "quepedir" ? "on" : "")} onClick={() => setTab("quepedir")}>QUE PEDIR</div>
-        <div className={"tab " + (tab === "compras" ? "on" : "")} onClick={() => setTab("compras")}>COMPRAS POR PERIODO</div>
-        <div className={"tab " + (tab === "ventas" ? "on" : "")} onClick={() => setTab("ventas")}>VENTAS POR PROVEEDOR</div>
+      {aviso && <div className={"pop-in cc-aviso " + (aviso.startsWith("Error") ? "bad" : "ok")} role="status">{aviso}</div>}
+      <div className="tabs" role="tablist">
+        {[["quepedir", "Qué pedir"], ["ventas", "Ventas por proveedor"], ["compras", "Compras por período"]].map(([k, l]) => (
+          <button key={k} role="tab" aria-selected={tab === k} className={"tab " + (tab === k ? "on" : "")} onClick={() => setTab(k)}>{l}</button>
+        ))}
       </div>
 
       {tab === "quepedir" && (
         <div className="fade">
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div className="ct">Calcular que pedir</div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-              <div className="fg" style={{ marginBottom: 0, minWidth: 220 }}>
+          <div className="chart-card" style={{ marginBottom: 12 }}>
+            <div className="qp-fila">
+              <div style={{ flex: "2 1 220px" }}>
                 <div className="fl">Proveedor</div>
-                <select className="sel" value={proveedorCompraSel} onChange={e => setProveedorCompraSel(e.target.value)}>
-                  <option value="">Elegi un proveedor...</option>
+                <select className="sel" value={provSel} onChange={e => setProvSel(e.target.value)} aria-label="Proveedor">
+                  <option value="">Elegí un proveedor...</option>
                   {proveedores.map(pr => <option key={pr.id} value={pr.id}>{pr.nombre}</option>)}
                 </select>
               </div>
-              <div className="fg" style={{ marginBottom: 0, minWidth: 180 }}>
-                <div className="fl">Stock a considerar</div>
-                <select className="sel" value={localCompraSel} onChange={e => setLocalCompraSel(e.target.value)}>
-                  <option value="consolidado">Consolidado (los dos locales)</option>
-                  <option value="1">Solo {nombreLocal(1)}</option>
-                  <option value="2">Solo {nombreLocal(2)}</option>
+              <div>
+                <div className="fl">Para</div>
+                <div className="seg" role="group" aria-label="Local">
+                  {[["todos", "Los dos locales"], ["1", nombreLocal(1)], ["2", nombreLocal(2)]].map(([k, l]) => (
+                    <button key={k} className={vistaLocal === k ? "on" : ""} onClick={() => setVistaLocal(k)}>{l}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="fl">Que alcance para</div>
+                <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                  <div className="seg" role="group" aria-label="Días a cubrir">
+                    {[15, 30, 45, 60].map(d => <button key={d} className={parseInt(diasCobertura) === d ? "on" : ""} onClick={() => setDiasCobertura(d)}>{d}</button>)}
+                  </div>
+                  <input className="mini-inp" type="number" min="1" max="365" value={diasCobertura} onChange={e => setDiasCobertura(Math.max(1, Math.min(365, parseInt(e.target.value) || 1)))} style={{ width: 54, height: 34 }} aria-label="Días a cubrir" />
+                  <span style={{ fontSize: 12, color: p.textMuted }}>días</span>
+                </div>
+              </div>
+            </div>
+            <button className="chip-btn" style={{ marginTop: 10 }} onClick={() => setVerAjustes(v => !v)} aria-expanded={verAjustes}>⚙ {verAjustes ? "Ocultar" : "Ajustar"} cálculo · ventas de {diasAnalisis} días · demora {leadTime || "—"} días · colchón {diasSeguridad} días</button>
+            {verAjustes && (
+              <div className="qp-fila pop-in" style={{ marginTop: 10, paddingTop: 10, borderTop: "1px dashed " + p.border }}>
+                <div>
+                  <div className="fl">Basarse en las ventas de los últimos</div>
+                  <div className="seg" role="group" aria-label="Período de ventas">
+                    {[30, 60, 90].map(d => <button key={d} className={diasAnalisis === d ? "on" : ""} onClick={() => setDiasAnalisis(d)}>{d} días</button>)}
+                  </div>
+                </div>
+                <div>
+                  <div className="fl">Demora del proveedor en entregar</div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <input className="mini-inp" type="number" min="0" max="180" value={leadTime} onChange={e => setLeadTime(e.target.value === "" ? "" : String(Math.max(0, Math.min(180, parseInt(e.target.value) || 0))))} style={{ width: 60, height: 34 }} aria-label="Demora en días" />
+                    <span style={{ fontSize: 12, color: p.textMuted }}>días</span>
+                    {provSel && sug && String(sug.lead_time_comun) !== String(leadTime) && leadTime !== "" && <button className="mini-chip" onClick={guardarLead}>Guardar para este proveedor</button>}
+                  </div>
+                </div>
+                <div>
+                  <div className="fl">Colchón de seguridad</div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <input className="mini-inp" type="number" min="0" max="90" value={diasSeguridad} onChange={e => setDiasSeguridad(Math.max(0, Math.min(90, parseInt(e.target.value) || 0)))} style={{ width: 60, height: 34 }} aria-label="Días de colchón" />
+                    <span style={{ fontSize: 12, color: p.textMuted }}>días de venta</span>
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, color: p.textMuted, flex: "1 1 100%", lineHeight: 1.6 }}>
+                  <b style={{ color: p.text }}>Stock mínimo</b> = venta diaria × {diasSeguridad} días de colchón ·{" "}
+                  <b style={{ color: p.text }}>Punto de pedido</b> = venta diaria × {leadTime || "—"} días de demora + stock mínimo ·{" "}
+                  <b style={{ color: p.text }}>A pedir</b> = lo que se va a vender en demora + {diasCobertura} días + stock mínimo − (stock + en camino − reservado).
+                  Todo se recalcula solo con las ventas reales de cada producto.
+                </div>
+              </div>
+            )}
+          </div>
+
+          {!provSel ? (
+            <div className="empty chart-card">Elegí un proveedor y te armo la lista de lo que hay que pedirle.</div>
+          ) : cargandoSug && !sug ? (
+            <div className="skel" style={{ height: 260 }} />
+          ) : !sug ? null : (
+            <>
+              <div className="kpi-grid" style={{ opacity: cargandoSug ? 0.6 : 1 }}>
+                <KpiCard p={p} titulo="Productos a pedir" valor={enPedido.length} color={p.accent} indice={0} sub={"de " + productos.length + " del proveedor"} />
+                <KpiCard p={p} titulo="Unidades" valor={unidades} color="#2471a3" indice={1} sub={"para " + diasCobertura + " días"} />
+                <KpiCard p={p} titulo="Costo estimado" valor={costoTotal} formato={fmt} color={p.red} indice={2} sub="al costo cargado" />
+                <KpiCard p={p} titulo="Urgentes" valor={urgentes} color={urgentes > 0 ? p.red : p.green} indice={3} sub={urgentes > 0 ? "ya pasaron el punto de pedido" : "ninguno por debajo"} />
+              </div>
+
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
+                <div style={{ position: "relative", flex: "1 1 220px" }}>
+                  <span aria-hidden="true" style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", opacity: .5 }}>🔍</span>
+                  <input className="inp" style={{ paddingLeft: 34 }} placeholder="Buscar producto" value={buscarProd} onChange={e => setBuscarProd(e.target.value)} aria-label="Buscar producto" />
+                </div>
+                <div className="seg" role="group" aria-label="Qué mostrar">
+                  <button className={soloPedir ? "on" : ""} onClick={() => setSoloPedir(true)}>Lo que hay que pedir</button>
+                  <button className={!soloPedir ? "on" : ""} onClick={() => setSoloPedir(false)}>Todos ({productos.length})</button>
+                </div>
+              </div>
+
+              <div className="chart-card" style={{ padding: 0, overflow: "hidden", opacity: cargandoSug ? 0.6 : 1 }}>
+                {filtrados.length === 0 ? (
+                  <div className="empty">{soloPedir ? "✓ Con este cálculo no hace falta pedirle nada a este proveedor." : "No hay productos."}</div>
+                ) : (
+                  <div style={{ overflowX: "auto" }}>
+                    <table className="qp-tabla">
+                      <thead>
+                        <tr>
+                          <th>Producto</th>
+                          <th style={{ textAlign: "right" }}>Stock</th>
+                          <th style={{ textAlign: "right" }}>Vende</th>
+                          <th style={{ textAlign: "right" }}>Alcanza</th>
+                          <th style={{ textAlign: "right" }} title="Cuando el stock llega a este número, hay que pedir">Pto. pedido</th>
+                          <th style={{ textAlign: "center" }}>Pedir</th>
+                          <th style={{ textAlign: "right" }}>Costo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filtrados.map(pr => {
+                          const d = datoLocal(pr);
+                          const n = cantPedido(pr);
+                          const hint = vistaLocal === "todos"
+                            ? [1, 2].map(l => { const o = l === 1 ? 2 : 1; const nec = pr.por_local[l].sugerido; const sobra = pr.por_local[o].excedente; return nec > 0 && sobra > 0 ? { a: l, de: o, n: Math.min(nec, sobra) } : null; }).find(Boolean)
+                            : (() => { const l = parseInt(vistaLocal); const o = l === 1 ? 2 : 1; const nec = pr.por_local[l].sugerido; const sobra = pr.por_local[o].excedente; return nec > 0 && sobra > 0 ? { a: l, de: o, n: Math.min(nec, sobra) } : null; })();
+                          return (
+                            <tr key={pr.id} className={d.necesita_pedido ? "qp-urgente" : ""}>
+                              <td style={{ minWidth: 170 }}>
+                                <div style={{ fontWeight: 700, fontSize: 12 }}>{pr.nombre}</div>
+                                <div style={{ fontSize: 10, color: p.textMuted, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: 2 }}>
+                                  {pr.marca && <span>{pr.marca}</span>}
+                                  {d.necesita_pedido && <span className="tag tag-bad">urgente</span>}
+                                  {pr.sin_ventas && <span className="tag tag-neutral">sin ventas</span>}
+                                  {pr.tiene_variantes && <span className="tag tag-neutral" title="El stock incluye todas sus variantes">{pr.cantidad_variantes} variantes</span>}
+                                  {pr.dias_venta < sug.dias_analisis && <span className="tag tag-neutral" title={"Producto nuevo: se midió sobre " + pr.dias_venta + " días"}>nuevo</span>}
+                                </div>
+                                {hint && <div style={{ fontSize: 10, color: p.accent, marginTop: 3 }}>💡 {nombreLocal(hint.de)} tiene {hint.n} de sobra: podés traspasarlas a {nombreLocal(hint.a)}</div>}
+                              </td>
+                              <td style={{ textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
+                                <b>{d.stock}</b>
+                                {vistaLocal === "todos" && <div style={{ fontSize: 10, color: p.textMuted }}>{pr.por_local[1].stock} / {pr.por_local[2].stock}</div>}
+                                {d.transito > 0 && <div style={{ fontSize: 10, color: "#2471a3" }}>+{d.transito} en camino</div>}
+                                {d.reservado > 0 && <div style={{ fontSize: 10, color: p.warn }}>−{d.reservado} reservado</div>}
+                              </td>
+                              <td style={{ textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
+                                {d.ritmo_diario > 0 ? <><b>{d.ritmo_diario}</b><span style={{ fontSize: 10, color: p.textMuted }}>/día</span></> : <span style={{ color: p.textMuted }}>—</span>}
+                                <div style={{ fontSize: 10, color: p.textMuted }}>{d.vendido} en {pr.dias_venta} días</div>
+                              </td>
+                              <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                                {d.dias_de_stock === null || d.dias_de_stock === undefined ? <span style={{ color: p.textMuted }}>—</span>
+                                  : <b style={{ color: colorDias(d.dias_de_stock) }}>{d.dias_de_stock > 365 ? "+1 año" : d.dias_de_stock + " días"}</b>}
+                              </td>
+                              <td style={{ textAlign: "right", color: p.textMuted, fontVariantNumeric: "tabular-nums" }} title={"Mínimo " + d.stock_minimo_calc + " + demora"}>{d.punto_pedido || "—"}</td>
+                              <td style={{ textAlign: "center", whiteSpace: "nowrap" }}>
+                                {vistaLocal === "todos" ? (
+                                  <div className="qp-cants">
+                                    {[1, 2].map(l => (
+                                      <label key={l} title={nombreLocal(l) + (pr.por_local[l].sugerido > 0 ? " · sugerido " + pr.por_local[l].sugerido : "")}>
+                                        <span>{nombreLocal(l).slice(0, 12)}</span>
+                                        <input type="number" min="0" value={(cant[pr.id] || {})[l] ?? ""} onChange={e => setCantDe(pr.id, l, e.target.value)} aria-label={"Cantidad para " + nombreLocal(l) + " de " + pr.nombre} className={cantDe(pr.id, l) > 0 ? "con" : ""} />
+                                      </label>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <input type="number" min="0" className={"qp-inp" + (n > 0 ? " con" : "")} value={(cant[pr.id] || {})[parseInt(vistaLocal)] ?? ""} onChange={e => setCantDe(pr.id, parseInt(vistaLocal), e.target.value)} aria-label={"Cantidad de " + pr.nombre} />
+                                )}
+                              </td>
+                              <td style={{ textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", color: n > 0 ? p.text : p.textMuted }}>{n > 0 ? fmt(n * pr.costo) : "—"}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="qp-barra">
+                <div style={{ fontSize: 13 }}>
+                  <b>{enPedido.length}</b> productos · <b>{unidades}</b> unidades · <b style={{ color: p.red }}>{fmt(costoTotal)}</b>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <button className="btn btn-g btn-sm" onClick={copiarPedido} disabled={enPedido.length === 0}>📋 Copiar pedido</button>
+                  {telProveedor.length >= 8 && <button className="btn btn-sm" style={{ background: p.wa, color: "#fff" }} onClick={whatsappPedido} disabled={enPedido.length === 0}>💬 Enviar por WhatsApp</button>}
+                  <button className="btn btn-p btn-sm" onClick={() => enPedido.length ? setConfirmarOrden(true) : avisar("Error: no hay productos con cantidad para pedir")} disabled={enPedido.length === 0}>🚚 Registrar como mercadería en camino</button>
+                </div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                <button className="chip-btn" onClick={guardarMinimos} title="Actualiza el stock mínimo de estos productos con su punto de pedido">Guardar puntos de pedido como stock mínimo (alertas)</button>
+              </div>
+            </>
+          )}
+
+          {confirmarOrden && (
+            <div className="pos-overlay" onClick={() => !guardando && setConfirmarOrden(false)}>
+              <div className="card pop-in" role="dialog" aria-label="Confirmar pedido" style={{ width: 440, maxWidth: "95vw", background: p.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+                <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 8 }}>🚚 Registrar el pedido a {provObj?.nombre}</div>
+                <div style={{ fontSize: 13, color: p.textSoft, lineHeight: 1.6, marginBottom: 12 }}>
+                  Se crea una orden con <b>{enPedido.length} productos ({unidades} unidades)</b> por <b>{fmt(costoTotal)}</b>:
+                  <ul style={{ margin: "6px 0 0 18px" }}>
+                    <li>Queda como <b>mercadería en camino</b> (así no se vuelve a sugerir pedirla).</li>
+                    <li>Aparece en <b>Ingresos</b> para recibirla cuando llegue.</li>
+                    <li>Cuenta como <b>deuda con el proveedor</b> hasta que la marques pagada. Cuando llegue la factura, podés corregir precios y cantidades.</li>
+                  </ul>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setConfirmarOrden(false)} disabled={guardando}>Cancelar</button>
+                  <button className="btn btn-p" style={{ flex: 1 }} onClick={registrarEnCamino} disabled={guardando}>{guardando ? "Registrando..." : "Registrar pedido"}</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "ventas" && (
+        <div className="fade">
+          <div className="chart-card" style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 10 }}>
+              Compara lo que le debés a cada proveedor con lo que ya vendiste de sus productos. Si a este ritmo no llegás a juntar la plata antes del vencimiento, te sugiere qué productos suyos empujar con promociones.
+            </div>
+            <div className="qp-fila">
+              <div style={{ flex: "1 1 220px" }}>
+                <div className="fl">Proveedor</div>
+                <select className="sel" value={cobProv} onChange={e => setCobProv(e.target.value)} aria-label="Proveedor">
+                  <option value="">Todos los que tienen deuda o ventas</option>
+                  {proveedores.map(pr => <option key={pr.id} value={pr.id}>{pr.nombre}</option>)}
                 </select>
               </div>
-              <div className="fg" style={{ marginBottom: 0, width: 160 }}>
-                <div className="fl">Ventas de los ultimos (dias)</div>
-                <input className="inp" type="number" min="1" value={diasAnalisis} onChange={e => setDiasAnalisis(e.target.value)} onBlur={e => setDiasAnalisis(Math.max(1, parseInt(e.target.value) || 30))} />
+              <div>
+                <div className="fl">Ventas a contar</div>
+                <div className="seg" role="group" aria-label="Período">
+                  <button className={cobModo === "compra" ? "on" : ""} onClick={() => setCobModo("compra")}>Desde que le compramos</button>
+                  <button className={cobModo === "rango" ? "on" : ""} onClick={() => setCobModo("rango")}>Elegir fechas</button>
+                </div>
               </div>
-              <div className="fg" style={{ marginBottom: 0, width: 160 }}>
-                <div className="fl">Cubrir los proximos (dias)</div>
-                <input className="inp" type="number" min="1" value={diasCobertura} onChange={e => setDiasCobertura(e.target.value)} onBlur={e => setDiasCobertura(Math.max(1, parseInt(e.target.value) || 45))} />
-              </div>
-              <button className="btn btn-p" style={{ height: 38 }} onClick={calcularSugerenciaCompra} disabled={!proveedorCompraSel}>Calcular</button>
-            </div>
-            <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 8 }}>
-              Calcula el ritmo real de venta de cada producto de este proveedor en el periodo elegido, y sugiere cuanto pedir
-              para cubrir los proximos dias sin quedarte sin stock, descontando lo que ya esta en camino.
+              {cobModo === "rango" && (
+                <div style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
+                  <input className="inp" type="date" style={{ width: 150 }} value={cobDesde} max={cobHasta} onChange={e => e.target.value && setCobDesde(e.target.value)} aria-label="Desde" />
+                  <input className="inp" type="date" style={{ width: 150 }} value={cobHasta} min={cobDesde} onChange={e => e.target.value && setCobHasta(e.target.value)} aria-label="Hasta" />
+                </div>
+              )}
             </div>
           </div>
 
-          {cargandoSugerencia ? (
-            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30 }}>Calculando...</div>
-          ) : !sugerenciaCompra ? (
-            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>Elegi un proveedor y tocá "Calcular" para ver la sugerencia.</div>
-          ) : (
-            <div className="card">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <div className="ct" style={{ margin: 0 }}>Sugerencia de compra</div>
-                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: temaPal.textMuted, cursor: "pointer" }}>
-                  <input type="checkbox" checked={soloNecesitan} onChange={e => setSoloNecesitan(e.target.checked)} />
-                  Mostrar solo los que hay que pedir
-                </label>
-              </div>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Producto</th><th>Stock actual</th><th>En transito</th><th>Vendido en el periodo</th>
-                    <th>Stock minimo</th><th>Punto de pedido</th><th>Lote recomendado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sugerenciaCompra.productos
-                    .filter(p => !soloNecesitan || p.necesita_pedido)
-                    .map(p => (
-                      <tr key={p.id} style={{ background: p.necesita_pedido ? "#c0392b08" : "transparent" }}>
-                        <td style={{ fontWeight: 600 }}>{p.nombre} <span style={{ color: temaPal.textMuted, fontWeight: 400 }}>{p.marca}</span></td>
-                        <td style={{ fontWeight: 700, color: p.necesita_pedido ? "#c0392b" : temaPal.text }}>{p.stock_actual}</td>
-                        <td style={{ color: temaPal.textMuted }}>{p.en_transito}</td>
-                        <td>{p.vendido_periodo} <span style={{ color: temaPal.textMuted, fontSize: 10 }}>({p.ritmo_diario}/dia)</span></td>
-                        <td style={{ color: temaPal.textMuted }}>{p.stock_minimo}</td>
-                        <td style={{ color: temaPal.textMuted }}>{p.punto_pedido}</td>
-                        <td style={{ fontWeight: 700, color: p.lote_recomendado > 0 ? "#2471a3" : temaPal.textMuted }}>{p.lote_recomendado > 0 ? p.lote_recomendado : "-"}</td>
-                      </tr>
-                    ))}
-                  {sugerenciaCompra.productos.filter(p => !soloNecesitan || p.necesita_pedido).length === 0 && (
-                    <tr><td colSpan={7} style={{ textAlign: "center", color: temaPal.textMuted, padding: 20 }}>Ningun producto de este proveedor necesita pedido ahora.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {cargandoCob && !cob ? <div className="skel" style={{ height: 240 }} /> : !cob ? <div className="empty">No se pudo calcular. Probá de nuevo.</div> : (() => {
+            const lista = cob.proveedores || [];
+            const deudaT = lista.reduce((s, x) => s + x.deuda, 0);
+            const vendT = lista.reduce((s, x) => s + x.vendido, 0);
+            const noLlegan = lista.filter(x => x.estado === "no_llega").length;
+            return (
+              <>
+                <div className="kpi-grid kpi-3" style={{ opacity: cargandoCob ? 0.6 : 1 }}>
+                  <KpiCard p={p} titulo="Le debés a proveedores" valor={deudaT} formato={fmt} color={p.red} indice={0} sub={lista.filter(x => x.deuda > 0).length + " proveedores con deuda"} />
+                  <KpiCard p={p} titulo="Vendido de sus productos" valor={vendT} formato={fmt} color={p.green} indice={1} sub={cobModo === "compra" ? "desde cada compra impaga" : fmtD(cobDesde) + " al " + fmtD(cobHasta)} />
+                  <KpiCard p={p} titulo="No llegan a cubrirse" valor={noLlegan} color={noLlegan > 0 ? p.red : p.green} indice={2} sub={noLlegan > 0 ? "hay que empujar sus productos" : "a este ritmo se llega con todos ✓"} />
+                </div>
+                {lista.length === 0 ? <div className="empty chart-card">No hay deudas ni ventas para mostrar.</div> : (
+                  <div className="cob-grid">
+                    {lista.map((x, i) => {
+                      const e = ESTADO_COB[x.estado];
+                      const pct = x.deuda > 0 ? Math.min(100, x.vendido / x.deuda * 100) : 100;
+                      const pctProy = x.deuda > 0 ? Math.min(100, x.proyeccion_al_vencimiento / x.deuda * 100) : 100;
+                      const abierto = cobAbierto === x.proveedor_id;
+                      return (
+                        <div key={x.proveedor_id} className="chart-card anim-in" style={{ animationDelay: Math.min(i * 40, 300) + "ms", borderTop: "3px solid " + e.c }}>
+                          <div className="chart-head">
+                            <div className="chart-title">{x.proveedor_nombre}</div>
+                            <span className={"tag " + e.cls}>{e.l}</span>
+                          </div>
+                          {x.deuda > 0 && (
+                            <>
+                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}>
+                                <span>Vendido <b style={{ color: p.green }}>{fmt(x.vendido)}</b></span>
+                                <span>de <b>{fmt(x.deuda)}</b> que le debés</span>
+                              </div>
+                              <div className="cob-barra" title={"Proyección al vencimiento: " + fmt(x.proyeccion_al_vencimiento)}>
+                                <div className="cob-proy" style={{ width: pctProy + "%" }} />
+                                <div className="cob-real" style={{ width: pct + "%", background: e.c }} />
+                              </div>
+                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: p.textMuted, marginTop: 4 }}>
+                                <span>{x.cobertura_pct}% cubierto</span>
+                                <span>proyección al vencimiento: {Math.round(pctProy)}%</span>
+                              </div>
+                            </>
+                          )}
+                          <div style={{ marginTop: 8 }}>
+                            {x.deuda > 0 && <div className="cc-linea"><span>Vence</span><b style={{ color: x.dias_al_vencimiento !== null && x.dias_al_vencimiento < 0 ? p.red : p.text }}>{x.proximo_vencimiento ? fmtD(x.proximo_vencimiento) + (x.dias_al_vencimiento < 0 ? " (vencida hace " + (-x.dias_al_vencimiento) + " días)" : " · en " + x.dias_al_vencimiento + " días") : "sin fecha"}</b></div>}
+                            <div className="cc-linea"><span>Ventas {x.deuda > 0 && cobModo === "compra" ? "desde el " + fmtD(x.desde) : "del período"}</span><b>{fmt(x.vendido)} · {Math.round(x.unidades)} u.</b></div>
+                            <div className="cc-linea"><span>Ritmo actual (últimos 30 días)</span><b>{fmt(x.ritmo_diario)}/día</b></div>
+                          </div>
+                          {x.estado === "no_llega" && (
+                            <div className="cc-dif falta" style={{ display: "block", marginTop: 10 }}>
+                              <div style={{ fontSize: 13, fontWeight: 700 }}>
+                                Faltan {fmt(x.falta)}{x.venta_diaria_necesaria ? <>: hay que vender <b>{fmt(x.venta_diaria_necesaria)} por día</b> de sus productos</> : " y la deuda ya venció"}
+                              </div>
+                            </div>
+                          )}
+                          {(x.para_empujar || []).length > 0 && (
+                            <div style={{ marginTop: 10 }}>
+                              <div className="comp-det-tit">PARA EMPUJAR (MÁS PLATA PARADA EN STOCK)</div>
+                              {x.para_empujar.map(pe => (
+                                <div key={pe.id} className="cc-linea" style={{ padding: "4px 0" }}>
+                                  <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pe.nombre}{pe.marca ? <span style={{ color: p.textMuted }}> · {pe.marca}</span> : ""}</span>
+                                  <b style={{ whiteSpace: "nowrap" }}>{pe.stock} u. · {fmt(parseFloat(pe.valor_stock))}</b>
+                                </div>
+                              ))}
+                              <div style={{ fontSize: 11, color: p.textMuted, marginTop: 4 }}>Idea: armá una promo en <b>Promociones</b> o destacalos en el local y en redes.</div>
+                            </div>
+                          )}
+                          {x.cantidad_ordenes > 0 && (
+                            <>
+                              <button className="chip-btn" style={{ marginTop: 10 }} onClick={() => setCobAbierto(abierto ? null : x.proveedor_id)} aria-expanded={abierto}>{abierto ? "Ocultar" : "Ver"} {x.cantidad_ordenes} compra{x.cantidad_ordenes !== 1 ? "s" : ""} sin pagar</button>
+                              {abierto && x.ordenes.map(o => (
+                                <div key={o.id} className="cc-linea" style={{ padding: "4px 0" }}>
+                                  <span>{o.numero_factura || "Pedido sin factura"} · {fmtD(o.fecha)} · <span style={{ color: p.textMuted }}>{o.estado || "pendiente"}</span></span>
+                                  <b>{fmt(parseFloat(o.total))}{o.vence ? <span style={{ fontWeight: 400, color: p.textMuted }}> · vence {fmtD(o.vence)}</span> : ""}</b>
+                                </div>
+                              ))}
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
 
@@ -4840,73 +5181,6 @@ function Compras({ localId, paletaActual }) {
               <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0 0", marginTop: 6, borderTop: "2px solid " + temaPal.border, fontWeight: 700 }}>
                 <span>TOTAL DEL PERIODO</span>
                 <span>{fmt(reporteCompras.reduce((s, r) => s + parseFloat(r.total_comprado), 0))}</span>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {tab === "ventas" && (
-        <div className="fade">
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div className="ct">Cuanto se vendio, de la mercaderia de cada proveedor</div>
-            <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 10 }}>No es lo que le compraste al proveedor -- es lo que vendiste vos de sus productos a tus clientes.</div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-              <div className="fg" style={{ marginBottom: 0 }}>
-                <div className="fl">Desde</div>
-                <input className="inp" type="date" value={ventasDesde} onChange={e => setVentasDesde(e.target.value)} />
-              </div>
-              <div className="fg" style={{ marginBottom: 0 }}>
-                <div className="fl">Hasta</div>
-                <input className="inp" type="date" value={ventasHasta} onChange={e => setVentasHasta(e.target.value)} />
-              </div>
-              <div className="fg" style={{ marginBottom: 0, minWidth: 200 }}>
-                <div className="fl">Proveedor</div>
-                <select className="sel" value={ventasProveedorSel} onChange={e => setVentasProveedorSel(e.target.value)}>
-                  <option value="">Todos</option>
-                  {proveedores.map(pr => <option key={pr.id} value={pr.id}>{pr.nombre}</option>)}
-                </select>
-              </div>
-              <button className="btn btn-p" style={{ height: 40 }} onClick={cargarReporteVentas}>Buscar</button>
-            </div>
-          </div>
-
-          {cargandoVentas ? (
-            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30 }}>Calculando...</div>
-          ) : reporteVentas === null ? (
-            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>Elegi un rango de fechas y tocá "Buscar".</div>
-          ) : reporteVentas.length === 0 ? (
-            <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>No hay ventas registradas en ese rango.</div>
-          ) : (
-            <div className="card">
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "2px solid " + temaPal.border, marginBottom: 4, fontSize: 11, color: temaPal.textMuted, fontWeight: 700 }}>
-                <span>PROVEEDOR</span>
-                <span>TOTAL VENDIDO</span>
-              </div>
-              {reporteVentas.map(r => {
-                const expandido = provVentasExpandido === r.proveedor_id;
-                return (
-                  <div key={r.proveedor_id}>
-                    <div onClick={() => abrirDetalleVentas(r.proveedor_id)} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid " + temaPal.border, cursor: "pointer" }}>
-                      <span style={{ fontSize: 13 }}>{expandido ? "▾" : "▸"} {r.proveedor_nombre} <span style={{ color: temaPal.textMuted, fontSize: 11 }}>({r.unidades_vendidas} unidades en {r.cantidad_ventas} venta{r.cantidad_ventas != 1 ? "s" : ""})</span></span>
-                      <span style={{ fontWeight: 700, color: "#2d7a4f" }}>{fmt(parseFloat(r.total_vendido))}</span>
-                    </div>
-                    {expandido && (
-                      <div style={{ padding: "6px 0 10px 16px" }}>
-                        {(detalleVentasProv[r.proveedor_id] || []).map(p => (
-                          <div key={p.producto_id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 11, color: temaPal.textMuted }}>
-                            <span>{p.producto_nombre} ({p.unidades_vendidas}u)</span>
-                            <span>{fmt(parseFloat(p.total_vendido))}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0 0", marginTop: 6, borderTop: "2px solid " + temaPal.border, fontWeight: 700 }}>
-                <span>TOTAL DEL PERIODO</span>
-                <span>{fmt(reporteVentas.reduce((s, r) => s + parseFloat(r.total_vendido), 0))}</span>
               </div>
             </div>
           )}

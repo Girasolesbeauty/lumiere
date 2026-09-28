@@ -299,24 +299,23 @@ const getHistorialAjustes = async (req, res) => {
   }
 };
 
-// Recalcula el stock minimo de cada producto segun su propio ritmo de venta real:
-// promedio diario vendido x 30 dias de colchon deseado. Usa hasta 60 dias de historial,
-// pero si el producto (o el negocio) tiene menos dias de datos, promedia sobre los dias
-// reales disponibles en vez de dividir siempre por 60 -- si no, el promedio sale mas bajo
-// de lo real y el stock minimo queda subestimado justo cuando el producto es nuevo.
-// Con menos de 14 dias de historia, se prefiere no tocar el producto: muy poca info
-// para que el numero sea confiable, y podria salir muy errático.
+// Recalcula el "stock minimo" de cada producto (lo que usan las alertas de stock bajo) con la
+// misma formula que "Que pedir": punto de pedido = venta diaria x (demora del proveedor + dias
+// de seguridad). Usa hasta 60 dias de ventas; con menos de 14 dias de historia no toca el
+// producto (muy poca info para que el numero sea confiable).
 const recalcularStockMinimo = async (req, res) => {
   try {
     const DIAS_HISTORIAL = 60;
-    const DIAS_COLCHON = 30;
+    const DIAS_SEGURIDAD = Math.min(90, Math.max(0, parseInt(req.body && req.body.dias_seguridad) || 7));
     const DIAS_MINIMOS_CONFIABLES = 14;
     const result = await pool.query(`
-      SELECT vi.producto_id, SUM(vi.cantidad) AS total_vendido,
-             MIN(v.creado_en) AS primera_venta
+      SELECT vi.producto_id, SUM(vi.cantidad) AS total_vendido, MIN(v.creado_en) AS primera_venta,
+             MAX(COALESCE(p.lead_time_dias, 7)) AS lead_time
       FROM venta_items vi
       JOIN ventas v ON v.id = vi.venta_id
+      JOIN productos p ON p.id = vi.producto_id
       WHERE v.creado_en >= NOW() - INTERVAL '${DIAS_HISTORIAL} days'
+        AND COALESCE(v.anulada, FALSE) = FALSE AND COALESCE(v.canal, '') <> 'prueba'
         AND (COALESCE(v.es_preventa, FALSE) = FALSE OR v.estado_pago = 'confirmada')
       GROUP BY vi.producto_id
     `);
@@ -327,14 +326,11 @@ const recalcularStockMinimo = async (req, res) => {
     for (const row of result.rows) {
       const totalVendido = parseFloat(row.total_vendido) || 0;
       if (totalVendido <= 0) continue;
-
       const diasDesdePrimeraVenta = Math.max(1, Math.ceil((Date.now() - new Date(row.primera_venta).getTime()) / (1000 * 60 * 60 * 24)));
       const diasReales = Math.min(DIAS_HISTORIAL, diasDesdePrimeraVenta);
-
       if (diasReales < DIAS_MINIMOS_CONFIABLES) { omitidosPocaHistoria++; continue; }
-
-      const promedioDiario = totalVendido / diasReales;
-      const nuevoMinimo = Math.max(1, Math.ceil(promedioDiario * DIAS_COLCHON));
+      const ritmo = totalVendido / diasReales;
+      const nuevoMinimo = Math.max(1, Math.ceil(ritmo * (parseInt(row.lead_time) || 7)) + Math.ceil(ritmo * DIAS_SEGURIDAD));
       const upd = await pool.query(
         'UPDATE productos SET stock_minimo = $1 WHERE id = $2 AND activo = TRUE RETURNING nombre, stock_minimo',
         [nuevoMinimo, row.producto_id]
@@ -344,7 +340,6 @@ const recalcularStockMinimo = async (req, res) => {
         detalle.push({ producto: upd.rows[0].nombre, stock_minimo_nuevo: upd.rows[0].stock_minimo, dias_usados: diasReales });
       }
     }
-
     res.json({ mensaje: 'Stock minimo recalculado', productos_actualizados: actualizados, omitidos_por_poca_historia: omitidosPocaHistoria, detalle });
   } catch (error) {
     console.error(error);
@@ -352,84 +347,168 @@ const recalcularStockMinimo = async (req, res) => {
   }
 };
 
-// Sugerencia de compra: para un proveedor puntual, calcula cuanto pedir de cada producto
-// segun el ritmo real de venta en el periodo elegido (configurable). Devuelve stock minimo,
-// punto de pedido (igual formula que las alertas, para que sea consistente en todo el
-// sistema) y el lote recomendado a pedir para cubrir "dias_cobertura" hacia adelante,
-// descontando lo que ya esta en camino (transito).
+const VENTA_VALIDA_SQL = `COALESCE(v.anulada, FALSE) = FALSE AND COALESCE(v.canal, '') <> 'prueba'
+  AND (COALESCE(v.es_preventa, FALSE) = FALSE OR v.estado_pago = 'confirmada')`;
+
+// Formula unica de reposicion (la usan "Que pedir" y "Recalcular stock minimo"):
+//   stock minimo (colchon)  = venta diaria x dias de seguridad
+//   punto de pedido         = venta diaria x demora del proveedor + stock minimo
+//   cuanto pedir            = venta diaria x (demora + dias a cubrir) + stock minimo - disponible
+// "Disponible" = stock + lo que ya viene en camino - lo reservado por preventas.
+const calcularReposicion = ({ vendido, diasVenta, stock, transito, reservado, leadTime, diasSeguridad, diasCobertura }) => {
+  const ritmo = diasVenta > 0 ? vendido / diasVenta : 0;
+  const disponible = stock + transito - reservado;
+  const minimo = ritmo > 0 ? Math.ceil(ritmo * diasSeguridad) : 0;
+  const puntoPedido = ritmo > 0 ? Math.ceil(ritmo * leadTime) + minimo : 0;
+  const objetivo = ritmo > 0 ? Math.ceil(ritmo * (leadTime + diasCobertura)) + minimo : 0;
+  const sugerido = Math.max(0, objetivo - disponible);
+  return {
+    ritmo_diario: Math.round(ritmo * 100) / 100,
+    disponible, stock_minimo_calc: minimo, punto_pedido: puntoPedido, sugerido, objetivo,
+    // Lo que sobra por encima de lo que hace falta (se puede traspasar a otro local)
+    excedente: Math.max(0, disponible - objetivo),
+    dias_de_stock: ritmo > 0 ? Math.floor(Math.max(0, stock - reservado) / ritmo) : null,
+    necesita_pedido: ritmo > 0 && disponible <= puntoPedido,
+  };
+};
+
+// Sugerencia de compra para un proveedor: cada producto con su ritmo real de venta por local,
+// el punto de pedido, cuanto pedir para cubrir N dias y el costo estimado del pedido.
 const getSugerenciaCompra = async (req, res) => {
   try {
-    const { proveedor_id, local_id, dias_analisis, dias_cobertura } = req.query;
+    const { proveedor_id } = req.query;
     if (!proveedor_id) return res.status(400).json({ error: 'Elegi un proveedor' });
+    const diasAnalisis = Math.min(365, Math.max(7, parseInt(req.query.dias_analisis) || 30));
+    const diasCobertura = Math.min(365, Math.max(1, parseInt(req.query.dias_cobertura) || 30));
+    const diasSeguridad = Math.min(90, Math.max(0, parseInt(req.query.dias_seguridad ?? 7) || 0));
+    const leadOverride = req.query.lead_time !== undefined && req.query.lead_time !== '' ? Math.max(0, parseInt(req.query.lead_time) || 0) : null;
 
-    const diasAnalisis = parseInt(dias_analisis) || 30;
-    const diasCobertura = parseInt(dias_cobertura) || 45;
-    const esConsolidado = !local_id || local_id === 'consolidado';
-    const esUsh = local_id === '2' || local_id === 2;
+    const hayVariantes = !!(await pool.query(`SELECT to_regclass('producto_variantes') AS t`)).rows[0].t;
+    const [provRes, prodRes, ventasRes, varRes] = await Promise.all([
+      pool.query('SELECT id, nombre, whatsapp, telefono, email FROM proveedores WHERE id = $1', [proveedor_id]),
+      pool.query(`
+        SELECT id, nombre, marca, codigo_barras, categoria, COALESCE(costo, 0) AS costo, COALESCE(precio, 0) AS precio,
+          COALESCE(stock_rg, 0) AS stock_rg, COALESCE(stock_ush, 0) AS stock_ush,
+          COALESCE(stock_transito_rg, 0) AS transito_rg, COALESCE(stock_transito_ush, 0) AS transito_ush,
+          COALESCE(reservado_rg, 0) AS reservado_rg, COALESCE(reservado_ush, 0) AS reservado_ush,
+          COALESCE(stock_minimo, 0) AS stock_minimo, COALESCE(lead_time_dias, 7) AS lead_time_dias,
+          GREATEST(1, LEAST($2::int, CEIL(EXTRACT(EPOCH FROM (NOW() - COALESCE(creado_en, NOW() - INTERVAL '365 days'))) / 86400)::int)) AS dias_vida
+        FROM productos WHERE proveedor_id = $1 AND activo = TRUE ORDER BY nombre`, [proveedor_id, diasAnalisis]),
+      pool.query(`
+        SELECT vi.producto_id, v.local_id, SUM(vi.cantidad) AS vendido
+        FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id JOIN productos p ON p.id = vi.producto_id
+        WHERE p.proveedor_id = $1 AND v.creado_en >= NOW() - ($2 || ' days')::interval AND ${VENTA_VALIDA_SQL}
+        GROUP BY vi.producto_id, v.local_id`, [proveedor_id, diasAnalisis]),
+      // Productos con variantes (talles, colores): su stock esta en cada variante
+      !hayVariantes ? { rows: [] } : pool.query(`
+        SELECT pv.producto_id, SUM(COALESCE(pv.stock_rg, 0)) AS stock_rg, SUM(COALESCE(pv.stock_ush, 0)) AS stock_ush, COUNT(*) AS cantidad
+        FROM producto_variantes pv JOIN productos p ON p.id = pv.producto_id
+        WHERE p.proveedor_id = $1 AND COALESCE(pv.activo, TRUE) = TRUE
+        GROUP BY pv.producto_id`, [proveedor_id]),
+    ]);
+    if (provRes.rows.length === 0) return res.status(404).json({ error: 'Proveedor no encontrado' });
 
-    // En modo consolidado se suman los dos locales (stock real + lo que ya viene en camino
-    // en cualquiera de los dos); si se elige un local puntual, solo cuenta el de ese local.
-    const colStockSelect = esConsolidado
-      ? '(COALESCE(stock_rg,0) + COALESCE(stock_ush,0))'
-      : (esUsh ? 'COALESCE(stock_ush,0)' : 'COALESCE(stock_rg,0)');
-    const colTransitoSelect = esConsolidado
-      ? '(COALESCE(stock_transito_rg,0) + COALESCE(stock_transito_ush,0))'
-      : (esUsh ? 'COALESCE(stock_transito_ush,0)' : 'COALESCE(stock_transito_rg,0)');
+    const vendidos = {};
+    ventasRes.rows.forEach(r => {
+      const k = r.producto_id;
+      if (!vendidos[k]) vendidos[k] = { 1: 0, 2: 0 };
+      vendidos[k][Number(r.local_id) === 2 ? 2 : 1] += parseFloat(r.vendido) || 0;
+    });
+    const variantes = {};
+    varRes.rows.forEach(r => { variantes[r.producto_id] = r; });
 
-    const productosRes = await pool.query(
-      `SELECT id, nombre, marca, codigo_barras, ${colStockSelect} AS stock_actual, ${colTransitoSelect} AS en_transito,
-              COALESCE(stock_minimo, 0) AS stock_minimo, COALESCE(lead_time_dias, 0) AS lead_time_dias
-       FROM productos
-       WHERE proveedor_id = $1 AND activo = TRUE
-       ORDER BY nombre ASC`,
-      [proveedor_id]
-    );
+    // Demora del proveedor: la que se eligio en pantalla, o la mas comun entre sus productos
+    const conteoLead = {};
+    prodRes.rows.forEach(p => { conteoLead[p.lead_time_dias] = (conteoLead[p.lead_time_dias] || 0) + 1; });
+    const leadComun = prodRes.rows.length ? parseInt(Object.entries(conteoLead).sort((a, b) => b[1] - a[1])[0][0]) : 7;
 
-    let ventasQuery = `
-      SELECT vi.producto_id, SUM(vi.cantidad) AS vendido
-      FROM venta_items vi
-      JOIN ventas v ON v.id = vi.venta_id
-      JOIN productos p ON p.id = vi.producto_id
-      WHERE p.proveedor_id = $1
-        AND v.creado_en >= NOW() - ($2 || ' days')::interval
-        AND (COALESCE(v.es_preventa, FALSE) = FALSE OR v.estado_pago = 'confirmada')`;
-    const ventasParams = [proveedor_id, diasAnalisis];
-    // En consolidado, las ventas de los dos locales se suman todas (no se filtra por local_id).
-    if (!esConsolidado && local_id) { ventasParams.push(local_id); ventasQuery += ` AND v.local_id = $${ventasParams.length}`; }
-    ventasQuery += ' GROUP BY vi.producto_id';
-    const ventasRes = await pool.query(ventasQuery, ventasParams);
-
-    const ventasPorProducto = {};
-    ventasRes.rows.forEach(r => { ventasPorProducto[r.producto_id] = parseFloat(r.vendido) || 0; });
-
-    const productos = productosRes.rows.map(p => {
-      const vendidoPeriodo = ventasPorProducto[p.id] || 0;
-      const ritmoDiario = vendidoPeriodo / diasAnalisis;
-      const puntoPedido = Math.ceil(1.2 * p.lead_time_dias + p.stock_minimo);
-      const stockObjetivo = Math.ceil(ritmoDiario * diasCobertura);
-      const stockActual = p.stock_actual || 0;
-      const enTransito = p.en_transito || 0;
-      const loteRecomendado = Math.max(stockObjetivo - stockActual - enTransito, 0);
+    const productos = prodRes.rows.map(p => {
+      const leadTime = leadOverride !== null ? leadOverride : parseInt(p.lead_time_dias);
+      // Un producto nuevo se mide sobre los dias que lleva cargado, no sobre todo el periodo
+      const diasVenta = Math.max(7, Math.min(diasAnalisis, parseInt(p.dias_vida) || diasAnalisis));
+      const vv = variantes[p.id];
+      const stock = {
+        1: parseInt(p.stock_rg) + (vv ? parseInt(vv.stock_rg) || 0 : 0),
+        2: parseInt(p.stock_ush) + (vv ? parseInt(vv.stock_ush) || 0 : 0),
+      };
+      const vend = vendidos[p.id] || { 1: 0, 2: 0 };
+      const porLocal = {};
+      [1, 2].forEach(l => {
+        porLocal[l] = {
+          stock: stock[l],
+          transito: parseInt(l === 1 ? p.transito_rg : p.transito_ush) || 0,
+          reservado: parseInt(l === 1 ? p.reservado_rg : p.reservado_ush) || 0,
+          vendido: vend[l],
+          ...calcularReposicion({
+            vendido: vend[l], diasVenta, stock: stock[l],
+            transito: parseInt(l === 1 ? p.transito_rg : p.transito_ush) || 0,
+            reservado: parseInt(l === 1 ? p.reservado_rg : p.reservado_ush) || 0,
+            leadTime, diasSeguridad, diasCobertura,
+          }),
+        };
+      });
+      const total = calcularReposicion({
+        vendido: vend[1] + vend[2], diasVenta, stock: stock[1] + stock[2],
+        transito: porLocal[1].transito + porLocal[2].transito,
+        reservado: porLocal[1].reservado + porLocal[2].reservado,
+        leadTime, diasSeguridad, diasCobertura,
+      });
       return {
-        id: p.id, nombre: p.nombre, marca: p.marca, codigo_barras: p.codigo_barras,
-        stock_actual: stockActual, en_transito: enTransito,
-        stock_minimo: p.stock_minimo, punto_pedido: puntoPedido,
-        vendido_periodo: vendidoPeriodo, ritmo_diario: Math.round(ritmoDiario * 100) / 100,
-        // "Necesita pedido" no depende solo del punto de pedido fijo (que da 0 si el
-        // producto nunca tuvo cargado un stock minimo) -- tambien se dispara si, segun
-        // el ritmo REAL de venta de este periodo, hace falta reponer (lote_recomendado > 0).
-        // Asi, un producto sin stock minimo configurado pero que se esta por quedar sin
-        // stock igual aparece en la lista.
-        lote_recomendado: loteRecomendado, necesita_pedido: (stockActual <= puntoPedido) || (loteRecomendado > 0)
+        id: p.id, nombre: p.nombre, marca: p.marca, codigo_barras: p.codigo_barras, categoria: p.categoria,
+        costo: parseFloat(p.costo), precio: parseFloat(p.precio),
+        lead_time_dias: leadTime, dias_venta: diasVenta, stock_minimo_guardado: parseInt(p.stock_minimo),
+        tiene_variantes: !!vv, cantidad_variantes: vv ? parseInt(vv.cantidad) : 0,
+        vendido: vend[1] + vend[2], stock: stock[1] + stock[2],
+        transito: porLocal[1].transito + porLocal[2].transito, reservado: porLocal[1].reservado + porLocal[2].reservado,
+        ...total,
+        por_local: porLocal,
+        sin_ventas: vend[1] + vend[2] === 0,
       };
     });
+    const orden = (x) => (x.necesita_pedido ? 0 : x.sugerido > 0 ? 1 : x.sin_ventas ? 3 : 2);
+    productos.sort((a, b) => orden(a) - orden(b) || (a.dias_de_stock ?? 9999) - (b.dias_de_stock ?? 9999));
 
-    productos.sort((a, b) => (b.necesita_pedido - a.necesita_pedido) || (a.stock_actual - b.stock_actual));
-    res.json({ dias_analisis: diasAnalisis, dias_cobertura: diasCobertura, consolidado: esConsolidado, productos });
+    res.json({
+      proveedor: provRes.rows[0],
+      dias_analisis: diasAnalisis, dias_cobertura: diasCobertura, dias_seguridad: diasSeguridad,
+      lead_time: leadOverride !== null ? leadOverride : leadComun, lead_time_comun: leadComun,
+      productos,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al calcular la sugerencia de compra: ' + error.message });
   }
 };
 
-module.exports = { getAll, getById, create, update, remove, getAlertas, getTransito, ajustarStock, getHistorialAjustes, recalcularStockMinimo, getSugerenciaCompra, cambiarEstado, getImagenes, getImagen, guardarImagen, borrarImagen };
+// Guarda la demora de entrega del proveedor en todos sus productos
+const guardarLeadTimeProveedor = async (req, res) => {
+  try {
+    const provId = parseInt(req.body.proveedor_id);
+    const dias = parseInt(req.body.lead_time_dias);
+    if (!provId || isNaN(dias) || dias < 0 || dias > 180) return res.status(400).json({ error: 'Poné una demora entre 0 y 180 días' });
+    const r = await pool.query('UPDATE productos SET lead_time_dias = $1 WHERE proveedor_id = $2 AND activo = TRUE', [dias, provId]);
+    res.json({ ok: true, productos_actualizados: r.rowCount });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al guardar la demora: ' + error.message });
+  }
+};
+
+// Guarda el punto de pedido calculado como "stock minimo" de cada producto (lo usan las
+// alertas de stock bajo): asi el aviso salta justo cuando hay que volver a pedir.
+const guardarMinimos = async (req, res) => {
+  try {
+    const items = Array.isArray(req.body.items) ? req.body.items : [];
+    let n = 0;
+    for (const it of items) {
+      const id = parseInt(it.id); const min = parseInt(it.stock_minimo);
+      if (!id || isNaN(min) || min < 0) continue;
+      const r = await pool.query('UPDATE productos SET stock_minimo = $1 WHERE id = $2', [min, id]);
+      n += r.rowCount;
+    }
+    res.json({ ok: true, productos_actualizados: n });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al guardar: ' + error.message });
+  }
+};
+
+module.exports = { guardarLeadTimeProveedor, guardarMinimos, getAll, getById, create, update, remove, getAlertas, getTransito, ajustarStock, getHistorialAjustes, recalcularStockMinimo, getSugerenciaCompra, cambiarEstado, getImagenes, getImagen, guardarImagen, borrarImagen };
