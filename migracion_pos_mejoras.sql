@@ -100,3 +100,24 @@ CREATE TABLE IF NOT EXISTS producto_imagenes (
 ALTER TABLE pedidos_clientas ADD COLUMN IF NOT EXISTS mensaje_enviado TEXT;
 ALTER TABLE pedidos_clientas ADD COLUMN IF NOT EXISTS avisado_por TEXT;
 ALTER TABLE pedidos_clientas ADD COLUMN IF NOT EXISTS concretado_en TIMESTAMP;
+
+-- 8) Cierre de caja: arqueo del efectivo por dia y local (contado vs esperado).
+--    (la ruta /api/caja/cierre tambien la crea sola si falta)
+CREATE TABLE IF NOT EXISTS cierres_caja (
+  id SERIAL PRIMARY KEY,
+  local_id INTEGER NOT NULL DEFAULT 1,
+  fecha DATE NOT NULL,
+  fondo_inicial NUMERIC(12,2) DEFAULT 0,
+  efectivo_esperado NUMERIC(12,2) DEFAULT 0,
+  efectivo_contado NUMERIC(12,2) DEFAULT 0,
+  diferencia NUMERIC(12,2) DEFAULT 0,
+  billetes JSONB,
+  total_dia NUMERIC(12,2) DEFAULT 0,
+  cantidad_ventas INTEGER DEFAULT 0,
+  observaciones TEXT,
+  usuario_id INTEGER,
+  usuario_nombre TEXT,
+  creado_en TIMESTAMP DEFAULT now(),
+  actualizado_en TIMESTAMP DEFAULT now(),
+  UNIQUE (local_id, fecha)
+);

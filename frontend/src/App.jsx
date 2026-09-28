@@ -314,6 +314,42 @@ button.tab { font-family: inherit; }
 .pago-tipo:active { transform: scale(.97); }
 .pago-tipo.on { border-color: ${p.accent}; background: ${p.accentDim}; color: ${p.accent}; box-shadow: inset 0 0 0 1px ${p.accent}; }
 /* --- Ingreso de mercaderia --- */
+/* --- Cierre de caja --- */
+.cc-nav { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.cc-top { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 2fr); gap: 12px; align-items: stretch; }
+.cc-hero { background: linear-gradient(135deg, #2d7a4f, #1f6a41); border-radius: 14px; padding: 20px 24px; box-shadow: 0 6px 18px rgba(45,122,79,0.28); color: #fff; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.cc-hero-lbl { font-size: 11px; letter-spacing: .15em; font-weight: 700; color: #ffffffcc; }
+.cc-hero-val { font-size: 40px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cc-hero-sub { font-size: 11px; color: #ffffffd9; margin-top: 4px; }
+.cc-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.cc-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.cc-medio { display: grid; grid-template-columns: 10px minmax(0,1fr) auto auto; gap: 8px; align-items: center; font-size: 12px; margin-bottom: 4px; }
+.cc-medio-nom { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-medio-cant { font-size: 11px; color: ${p.textMuted}; font-variant-numeric: tabular-nums; }
+.cc-medio-tot { font-weight: 700; font-variant-numeric: tabular-nums; min-width: 96px; text-align: right; }
+.cc-bar { height: 6px; background: ${p.bg}; border-radius: 99px; overflow: hidden; }
+.cc-bar > div { height: 100%; border-radius: 99px; transition: width .6s cubic-bezier(.2,.7,.2,1); }
+.cc-total-row { display: flex; justify-content: space-between; font-size: 14px; font-weight: 800; border-top: 2px solid ${p.border}; padding-top: 10px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.cc-linea { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 12px; padding: 6px 0; border-bottom: 1px dashed ${p.border}; color: ${p.textSoft}; }
+.cc-linea b { font-variant-numeric: tabular-nums; color: ${p.text}; }
+.cc-esperado { border-bottom: none; font-size: 14px; font-weight: 800; color: ${p.text}; padding-top: 10px; }
+.cc-esperado b { color: ${p.green}; font-size: 18px; }
+.cc-inp { width: 130px !important; padding: 5px 8px !important; font-size: 12px !important; text-align: right; }
+.cc-billetes { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 6px; }
+.cc-bill { display: flex; align-items: center; gap: 6px; border: 1px solid ${p.border}; border-radius: 8px; padding: 5px 8px; background: ${p.inpBg}; cursor: text; transition: border-color .15s; }
+.cc-bill:focus-within { border-color: ${p.accent}; box-shadow: 0 0 0 2px ${p.accentDim}; }
+.cc-bill-den { font-size: 12px; font-weight: 700; flex: 1; font-variant-numeric: tabular-nums; }
+.cc-bill input { width: 44px; border: none; background: transparent; color: ${p.text}; font-family: inherit; font-size: 13px; font-weight: 700; text-align: right; outline: none; }
+.cc-bill input::-webkit-outer-spin-button, .cc-bill input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.cc-dif { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding: 10px 14px; border-radius: 10px; border: 1px solid ${p.border}; background: ${p.bg}; color: ${p.text}; transition: background .2s, border-color .2s, color .2s; }
+.cc-dif.ok { background: ${p.greenDim}; border-color: ${p.green}66; color: ${p.green}; }
+.cc-dif.sobra { background: ${p.warnDim}; border-color: ${p.warn}66; color: ${p.warn}; }
+.cc-dif.falta { background: ${p.redDim}; border-color: ${p.red}66; color: ${p.red}; }
+.cc-aviso { padding: 8px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; margin-bottom: 12px; }
+.cc-aviso.ok { background: ${p.greenDim}; color: ${p.green}; border: 1px solid ${p.green}55; }
+.cc-aviso.bad { background: ${p.redDim}; color: ${p.red}; border: 1px solid ${p.red}55; }
+@media (max-width: 980px) { .cc-top, .cc-grid { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .cc-kpis { grid-template-columns: 1fr 1fr; } .cc-hero-val { font-size: 32px; } }
 .oi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
 .oi-seccion { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; margin: 4px 0 10px; }
 .oi-card { text-align: left; border-radius: 10px; }
@@ -12226,18 +12262,31 @@ function Productividad({ localId, paletaActual }) {
   );
 }
 
+const BILLETES_AR = [20000, 10000, 2000, 1000, 500, 200, 100];
+
 function CierreCaja({ localId, usuario, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
+  const p = temaPal;
   const hoy = new Date();
   const fmtFecha = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   const [fecha, setFecha] = useState(fmtFecha(hoy));
-  const [ventasDia, setVentasDia] = useState([]);
-  const [movsDia, setMovsDia] = useState([]);
-  const [giftCardsDia, setGiftCardsDia] = useState([]);
+  const [datos, setDatos] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [tab, setTab] = useState("resumen");
   const [productosDia, setProductosDia] = useState([]);
   const [buscarProdDia, setBuscarProdDia] = useState("");
+  const [cierres, setCierres] = useState([]);
+  // Arqueo
+  const [fondo, setFondo] = useState("");
+  const [modoConteo, setModoConteo] = useState("billetes"); // billetes | total
+  const [billetes, setBilletes] = useState({});
+  const [monedas, setMonedas] = useState("");
+  const [contadoTotal, setContadoTotal] = useState("");
+  const [obs, setObs] = useState("");
+  const [editandoArqueo, setEditandoArqueo] = useState(true);
+  const [guardando, setGuardando] = useState(false);
+  const [aviso, setAviso] = useState("");
   const resumenRef = useRef(null);
   const productosRef = useRef(null);
 
@@ -12246,36 +12295,42 @@ function CierreCaja({ localId, usuario, paletaActual }) {
     d.setDate(d.getDate() + dias);
     setFecha(fmtFecha(d));
   };
-
   const esHoy = fecha === fmtFecha(hoy);
+  const fmtDia = (f) => { const [y, m, d] = f.split("-"); return d + "/" + m + "/" + y; };
+  const diaLargo = (f) => new Date(f + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
 
-  const cargar = async () => {
-    setLoading(true);
-    try {
-      const anio = parseInt(fecha.slice(0, 4));
-      const mes = parseInt(fecha.slice(5, 7));
-      const [ventasRes, movRes, gcRes] = await Promise.all([
-        API.get("/ventas?mes=" + mes + "&anio=" + anio + "&local_id=" + (localId || 1)),
-        API.get("/caja?local_id=" + (localId || 1)),
-        API.get("/gift-cards?local_id=" + (localId || 1))
-      ]);
-      const esMismoDia = (f) => {
-        if (!f) return false;
-        // Si la fecha viene como texto ISO (ej "2026-07-11..."), comparar los primeros 10 chars
-        // para evitar el corrimiento por zona horaria. Si no, usar el metodo normal.
-        const s = String(f);
-        if (s.length >= 10 && s[4] === "-" && s[7] === "-") {
-          return s.slice(0, 10) === fecha;
-        }
-        return fmtFecha(new Date(f)) === fecha;
-      };
-      setVentasDia((ventasRes.data || []).filter(v => esMismoDia(v.creado_en || v.fecha) && v.es_preventa !== true && v.canal !== "prueba"));
-      setMovsDia((movRes.data || []).filter(m => esMismoDia(m.creado_en || m.fecha)));
-      setGiftCardsDia((gcRes.data || []).filter(g => esMismoDia(g.creado_en)));
-    } catch (e) {}
-    setLoading(false);
+  // Carga el arqueo guardado en el formulario (o lo deja listo para contar)
+  const prepararArqueo = (d) => {
+    const c = d?.cierre;
+    if (c) {
+      const b = c.billetes || {};
+      setFondo(String(parseFloat(c.fondo_inicial) || 0));
+      setBilletes(b.billetes || {});
+      setMonedas(b.monedas ? String(b.monedas) : "");
+      setModoConteo(b.modo === "total" ? "total" : "billetes");
+      setContadoTotal(String(parseFloat(c.efectivo_contado) || 0));
+      setObs(c.observaciones || "");
+      setEditandoArqueo(false);
+    } else {
+      setFondo(d && d.fondo_sugerido ? String(d.fondo_sugerido) : "");
+      setBilletes({}); setMonedas(""); setContadoTotal(""); setObs("");
+      setModoConteo("billetes");
+      setEditandoArqueo(true);
+    }
   };
 
+  const cargar = async () => {
+    setLoading(true); setError("");
+    try {
+      const res = await API.get("/caja/cierre?fecha=" + fecha + "&local_id=" + (localId || 1));
+      setDatos(res.data);
+      prepararArqueo(res.data);
+    } catch (e) {
+      setDatos(null);
+      setError(e.response?.data?.error || "No se pudo cargar el cierre");
+    }
+    setLoading(false);
+  };
   useEffect(() => { cargar(); }, [fecha, localId]);
 
   const cargarProductosDia = () => {
@@ -12284,41 +12339,46 @@ function CierreCaja({ localId, usuario, paletaActual }) {
       .catch(() => setProductosDia([]));
   };
   useEffect(() => { if (tab === "productos") cargarProductosDia(); }, [tab, fecha, localId]);
+  const cargarCierres = () => {
+    API.get("/caja/cierres?local_id=" + (localId || 1)).then(res => setCierres(res.data || [])).catch(() => setCierres([]));
+  };
+  useEffect(() => { if (tab === "historial") cargarCierres(); }, [tab, localId]);
 
-  const porMedio = {};
-  ventasDia.forEach(v => {
-    const m = v.medio_pago || "Efectivo";
-    if (!porMedio[m]) porMedio[m] = { cantidad: 0, total: 0 };
-    porMedio[m].cantidad += 1;
-    porMedio[m].total += parseFloat(v.total || 0) - parseFloat(v.monto_gift_card || 0);
-  });
-  // Sumar las gift cards emitidas (ingreso de caja) a su forma de pago
-  (movsDia || []).forEach(mv => {
-    if (mv.tipo === "I" && (mv.concepto || "").startsWith("Gift Card") && mv.forma_pago) {
-      const m = mv.forma_pago;
-      if (!porMedio[m]) porMedio[m] = { cantidad: 0, total: 0 };
-      porMedio[m].cantidad += 1;
-      porMedio[m].total += parseFloat(mv.importe || 0);
-    }
-  });
-  const mediosOrdenados = Object.entries(porMedio).sort((a, b) => b[1].total - a[1].total);
-  const totalVentasNeto = ventasDia.reduce((s, v) => s + parseFloat(v.total || 0) - parseFloat(v.monto_gift_card || 0), 0);
-  const totalGiftCards = giftCardsDia.reduce((s, g) => s + parseFloat(g.monto_inicial || 0), 0);
-  const totalDia = totalVentasNeto + totalGiftCards;
-  const ventasEfectivo = ventasDia.filter(v => (v.medio_pago || "Efectivo").toLowerCase().includes("efectivo")).reduce((s, v) => s + parseFloat(v.total || 0) - parseFloat(v.monto_gift_card || 0), 0);
-  // Cada venta en efectivo genera SU PROPIO ingreso automatico en movimientos_caja_efectivo
-  // (concepto "Venta F-...", para que el saldo de caja se actualice solo). Esa plata ya esta
-  // contada en "ventasEfectivo" arriba -- si tambien se suma aca, queda contada dos veces.
-  // Por eso los ingresos "manuales" excluyen los que empiezan con "Venta " (los automaticos).
-  const ingresosManuales = movsDia.filter(m => m.tipo === "ingreso" && !(m.concepto || "").startsWith("Venta ")).reduce((s, m) => s + parseFloat(m.importe || 0), 0);
-  const egresosDia = movsDia.filter(m => m.tipo === "egreso").reduce((s, m) => s + parseFloat(m.importe || 0), 0);
-  const efectivoEsperado = ventasEfectivo + ingresosManuales - egresosDia;
+  const r = datos?.resumen || {};
+  const medios = datos?.medios || [];
+  const movs = datos?.movimientos || [];
+  const ventas = datos?.ventas || [];
+  const cierre = datos?.cierre || null;
+
+  const efectivoEsperado = (parseFloat(fondo) || 0) + (r.efectivo_del_dia || 0);
+  const totalBilletes = BILLETES_AR.reduce((s, b) => s + b * (parseInt(billetes[b]) || 0), 0) + (parseFloat(monedas) || 0);
+  const hayConteo = modoConteo === "billetes" ? (totalBilletes > 0 || Object.values(billetes).some(v => v !== "" && v !== undefined)) : contadoTotal !== "";
+  const contado = modoConteo === "billetes" ? totalBilletes : (parseFloat(contadoTotal) || 0);
+  const diferencia = contado - efectivoEsperado;
+  const estadoDif = Math.abs(diferencia) < 1 ? "ok" : diferencia > 0 ? "sobra" : "falta";
+
+  const guardarArqueo = async () => {
+    if (!hayConteo) return setAviso("Contá el efectivo de la caja antes de cerrar");
+    if (estadoDif !== "ok" && !obs.trim()) return setAviso("Hay una diferencia: anotá en observaciones a qué se debe (o qué se revisó)");
+    setGuardando(true); setAviso("");
+    try {
+      await API.post("/caja/cierre", {
+        local_id: localId || 1, fecha, fondo_inicial: parseFloat(fondo) || 0, efectivo_contado: contado,
+        billetes: { modo: modoConteo, billetes, monedas: parseFloat(monedas) || 0 },
+        observaciones: obs, usuario_id: usuario?.id || null, usuario_nombre: usuario?.nombre || null,
+      });
+      await cargar();
+      setAviso("✓ Caja cerrada");
+      setTimeout(() => setAviso(""), 3000);
+    } catch (e) { setAviso("Error: " + (e.response?.data?.error || "no se pudo guardar el cierre")); }
+    setGuardando(false);
+  };
 
   const descargarImagen = async (ref = resumenRef, nombreArchivo = "cierre-" + fecha) => {
     if (!ref.current) return;
     try {
       const { default: html2canvas } = await import("https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js");
-      const canvas = await html2canvas(ref.current, { backgroundColor: temaPal.card, scale: 2 });
+      const canvas = await html2canvas(ref.current, { backgroundColor: temaPal.bg, scale: 2, ignoreElements: el => el.classList && el.classList.contains("no-captura") });
       const link = document.createElement("a");
       link.download = nombreArchivo + ".png";
       link.href = canvas.toDataURL("image/png");
@@ -12328,152 +12388,267 @@ function CierreCaja({ localId, usuario, paletaActual }) {
     }
   };
 
-  const fmtDia = (f) => {
-    const [y, m, d] = f.split("-");
-    return d + "/" + m + "/" + y;
+  const anularVenta = async (v) => {
+    const motivo = prompt("Motivo de la anulación de " + (v.numero_factura || "la venta") + " (obligatorio):");
+    if (!motivo || !motivo.trim()) return;
+    try {
+      await API.post("/anulaciones/venta/" + v.id, { motivo, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre, usuario_rol: usuario?.rol });
+      cargar();
+      setAviso("✓ Venta anulada"); setTimeout(() => setAviso(""), 3000);
+    } catch (e) { alert(e.response?.data?.error || "Error al anular"); }
   };
+
+  const colorMedio = (i, efectivo) => efectivo ? p.green : ["#2471a3", "#8e44ad", "#c9a84c", "#d35400", "#16a085", "#7f8c8d"][i % 6];
+  const maxMedio = Math.max(1, ...medios.map(m => m.total), r.total_gift_cards || 0);
+  const esIngreso = (t) => ["ingreso", "I"].includes(String(t || "").trim());
+  const puedeVerVentas = usuario?.rol === "jefe" || usuario?.rol === "administrativo" || usuario?.rol === "admin";
 
   return (
     <div className="fade">
-      <div className="ph">
-        <div><div className="pt">Cierre de Caja</div><div className="ps">resumen del dia por medio de pago</div></div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button className="btn btn-g btn-sm" onClick={() => cambiarDia(-1)}>← Anterior</button>
-          <input className="inp" type="date" style={{ width: 150, padding: "6px 10px", fontSize: 12 }} value={fecha} onChange={e => setFecha(e.target.value)} />
-          <button className="btn btn-g btn-sm" onClick={() => cambiarDia(1)} disabled={esHoy} style={{ opacity: esHoy ? 0.4 : 1 }}>Siguiente →</button>
-          {esHoy && <span style={{ fontSize: 11, color: "#2d7a4f", fontWeight: 600 }}>HOY</span>}
-          <button className="btn btn-p btn-sm" onClick={() => descargarImagen()} style={{ display: tab === "resumen" ? "inline-flex" : "none" }}>📲 Descargar</button>
+      <div className="ph" style={{ flexWrap: "wrap", gap: 10 }}>
+        <div><div className="pt">Cierre de Caja</div><div className="ps">ventas del día por medio de pago y arqueo del efectivo</div></div>
+        <div className="cc-nav">
+          <button className="btn btn-g btn-sm" onClick={() => cambiarDia(-1)} aria-label="Día anterior">←</button>
+          <input className="inp" type="date" style={{ width: 150, padding: "6px 10px", fontSize: 12 }} value={fecha} max={fmtFecha(hoy)} onChange={e => e.target.value && setFecha(e.target.value)} aria-label="Fecha del cierre" />
+          <button className="btn btn-g btn-sm" onClick={() => cambiarDia(1)} disabled={esHoy} style={{ opacity: esHoy ? 0.4 : 1 }} aria-label="Día siguiente">→</button>
+          {esHoy ? <span className="tag tag-ok">HOY</span> : <button className="chip-btn" onClick={() => setFecha(fmtFecha(hoy))}>Ir a hoy</button>}
+          {tab === "resumen" && <button className="btn btn-p btn-sm" onClick={() => descargarImagen()}>📲 Descargar</button>}
         </div>
       </div>
 
-      {!esHoy && (
-        <div style={{ background: "#2471a312", border: "1px solid #2471a3", borderRadius: 6, padding: "8px 14px", marginBottom: 12, fontSize: 11, color: "#2471a3", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span>Viendo cierre del {fmtDia(fecha)}</span>
-          <span style={{ cursor: "pointer", fontWeight: 600 }} onClick={() => setFecha(fmtFecha(hoy))}>Ver hoy</span>
-        </div>
-      )}
-
-      <div className="tabs">
-        <div className={"tab " + (tab === "resumen" ? "on" : "")} onClick={() => setTab("resumen")}>RESUMEN</div>
-        <div className={"tab " + (tab === "productos" ? "on" : "")} onClick={() => setTab("productos")}>PRODUCTOS VENDIDOS</div>
+      <div className="tabs" role="tablist">
+        <button role="tab" aria-selected={tab === "resumen"} className={"tab " + (tab === "resumen" ? "on" : "")} onClick={() => setTab("resumen")}>RESUMEN Y ARQUEO</button>
+        <button role="tab" aria-selected={tab === "productos"} className={"tab " + (tab === "productos" ? "on" : "")} onClick={() => setTab("productos")}>PRODUCTOS VENDIDOS</button>
+        <button role="tab" aria-selected={tab === "historial"} className={"tab " + (tab === "historial" ? "on" : "")} onClick={() => setTab("historial")}>HISTORIAL DE CIERRES</button>
       </div>
+
+      {aviso && <div className={"pop-in cc-aviso " + (aviso.startsWith("✓") ? "ok" : "bad")} role="status">{aviso}</div>}
 
       {tab === "resumen" && (
-      <>
-      <div ref={resumenRef} style={{ background: temaPal.card, padding: 4, borderRadius: 8 }}>
-        <div style={{ padding: "6px 4px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        loading && !datos ? (
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: temaPal.text }}>Cierre de Caja</div>
-            <div style={{ fontSize: 11, color: temaPal.textMuted }}>{fmtDia(fecha)}</div>
+            <div className="skel" style={{ height: 120, borderRadius: 14, marginBottom: 12 }} />
+            <div className="cc-grid"><div className="skel" style={{ height: 260 }} /><div className="skel" style={{ height: 260 }} /></div>
           </div>
-        </div>
-
-        {/* Total del dia bien grande, estilo protagonista */}
-        <div style={{ display: "flex", gap: 12, marginBottom: 16, alignItems: "stretch", flexWrap: "wrap" }}>
-          <div style={{ flex: "2 1 300px", background: "linear-gradient(135deg, #2d7a4f, #256b44)", borderRadius: 14, padding: "18px 24px", boxShadow: "0 4px 14px rgba(45,122,79,0.25)", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-            <div style={{ fontSize: 11, color: "#ffffffcc", letterSpacing: ".15em", fontWeight: 600 }}>TOTAL DEL DIA</div>
-            <div style={{ fontSize: 38, fontWeight: 800, color: temaPal.card, lineHeight: 1.1 }}>{fmt(totalDia)}</div>
-            <div style={{ fontSize: 11, color: "#ffffffcc", marginTop: 2 }}>{ventasDia.length} ventas{totalGiftCards > 0 ? " + " + fmt(totalGiftCards) + " en gift cards" : ""}</div>
-          </div>
-          <div style={{ flex: "1 1 150px", display: "flex", flexDirection: "column" }}><MCard label="VENTAS" value={ventasDia.length} sub="del dia" color="#2471a3" /></div>
-          <div style={{ flex: "1 1 150px", display: "flex", flexDirection: "column" }}><MCard label="TICKET PROMEDIO" value={fmt(ventasDia.length > 0 ? totalVentasNeto / ventasDia.length : 0)} sub="por venta" color="#8e44ad" /></div>
-        </div>
-
-        {loading ? (
-          <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30 }}>Cargando...</div>
+        ) : error ? (
+          <div className="card empty" style={{ padding: 30 }}>{error} <button className="chip-btn" style={{ marginLeft: 8 }} onClick={cargar}>Reintentar</button></div>
         ) : (
-          <div className="g2">
-            <div className="card">
-              <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 10 }}>VENTAS POR MEDIO DE PAGO</div>
-              {mediosOrdenados.length === 0 && totalGiftCards === 0 ? (
-                <div style={{ fontSize: 12, color: temaPal.textMuted, textAlign: "center", padding: 20 }}>Sin ventas en esta fecha</div>
+        <>
+        <div ref={resumenRef} style={{ background: p.bg, padding: 2, opacity: loading ? 0.6 : 1, transition: "opacity .2s" }}>
+          {/* Total del dia bien grande, en verde */}
+          <div className="cc-top">
+            <div className="cc-hero anim-in">
+              <div className="cc-hero-lbl">TOTAL DEL DÍA</div>
+              <div className="cc-hero-val"><CountUp value={r.total_dia || 0} formato={fmt} /></div>
+              <div className="cc-hero-sub">
+                <span style={{ textTransform: "capitalize" }}>{diaLargo(fecha)}</span> · {nombreLocal(localId || 1)}
+                {r.total_gift_cards > 0 && <> · incluye {fmt(r.total_gift_cards)} en gift cards</>}
+              </div>
+            </div>
+            <div className="cc-kpis">
+              <KpiCard p={p} titulo="Ventas" valor={r.cantidad_ventas || 0} color="#2471a3" chico indice={1}
+                sub={r.anuladas > 0 ? <span className="tag tag-bad">{r.anuladas} anulada{r.anuladas !== 1 ? "s" : ""}</span> : "del día"} />
+              <KpiCard p={p} titulo="Ticket promedio" valor={r.ticket_promedio || 0} formato={fmt} color="#8e44ad" chico indice={2} sub="por venta" />
+              <KpiCard p={p} titulo="Efectivo esperado" valor={efectivoEsperado} formato={fmt} color={p.green} chico indice={3}
+                sub={cierre ? (Math.abs(parseFloat(cierre.diferencia)) < 1 ? <span className="tag tag-ok">✓ caja cerrada</span> : <span className={"tag " + (parseFloat(cierre.diferencia) < 0 ? "tag-bad" : "tag-warn")}>cerrada · {parseFloat(cierre.diferencia) > 0 ? "+" : ""}{fmt(cierre.diferencia)}</span>) : <span className="tag tag-warn">sin arquear</span>} />
+            </div>
+          </div>
+
+          {r.pendientes_arca > 0 && (
+            <div className="dash-alert" style={{ marginTop: 12, marginBottom: 0 }}>
+              <span>⚠️ <b>{r.pendientes_arca} venta{r.pendientes_arca !== 1 ? "s" : ""} sin facturar en ARCA</b> este día. Están sumadas al total; reintentá la facturación desde el Punto de Venta.</span>
+            </div>
+          )}
+
+          <div className="cc-grid" style={{ marginTop: 12 }}>
+            {/* Medios de pago */}
+            <div className="chart-card anim-in" style={{ animationDelay: "120ms" }}>
+              <div className="chart-head">
+                <div className="chart-title">Ventas por medio de pago</div>
+                <div className="chart-meta">{r.cantidad_ventas || 0} ventas</div>
+              </div>
+              {medios.length === 0 && !(r.total_gift_cards > 0) ? (
+                <div className="empty">Sin ventas en esta fecha</div>
               ) : (
-                <table>
-                  <thead><tr><th>Medio</th><th>Cant</th><th>Total</th></tr></thead>
-                  <tbody>
-                    {mediosOrdenados.map(([medio, d], i) => (
-                      <tr key={i}>
-                        <td style={{ fontSize: 12 }}>{medio}</td>
-                        <td style={{ fontSize: 12, color: temaPal.textMuted }}>{d.cantidad}</td>
-                        <td style={{ color: "#2d7a4f", fontWeight: 600 }}>{fmt(d.total)}</td>
-                      </tr>
-                    ))}
-                    {totalGiftCards > 0 && (
-                      <tr>
-                        <td style={{ fontSize: 12, color: "#c9a84c" }}>Gift Cards emitidas</td>
-                        <td style={{ fontSize: 12, color: temaPal.textMuted }}>{giftCardsDia.length}</td>
-                        <td style={{ color: "#c9a84c", fontWeight: 600 }}>{fmt(totalGiftCards)}</td>
-                      </tr>
-                    )}
-                    <tr style={{ borderTop: "2px solid " + temaPal.border }}>
-                      <td style={{ fontWeight: 700 }}>TOTAL</td>
-                      <td style={{ fontWeight: 700, color: temaPal.textMuted }}>{ventasDia.length}</td>
-                      <td style={{ fontWeight: 700, color: "#2d7a4f" }}>{fmt(totalDia)}</td>
-                    </tr>
-                  </tbody>
-                </table>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {medios.map((m, i) => (
+                    <div key={m.nombre}>
+                      <div className="cc-medio">
+                        <span className="dot" style={{ background: colorMedio(i, m.efectivo) }} />
+                        <span className="cc-medio-nom">{m.nombre}{m.efectivo && <span className="tag tag-ok" style={{ marginLeft: 6 }}>a caja</span>}</span>
+                        <span className="cc-medio-cant">{m.cantidad > 0 ? m.cantidad + " vta" + (m.cantidad !== 1 ? "s" : "") : ""}</span>
+                        <span className="cc-medio-tot">{fmt(m.total)}</span>
+                      </div>
+                      <div className="cc-bar"><div style={{ width: (m.total / maxMedio * 100) + "%", background: colorMedio(i, m.efectivo) }} /></div>
+                    </div>
+                  ))}
+                  {r.total_gift_cards > 0 && (
+                    <div>
+                      <div className="cc-medio">
+                        <span className="dot" style={{ background: p.accent }} />
+                        <span className="cc-medio-nom">🎁 Gift cards vendidas</span>
+                        <span className="cc-medio-cant">{r.cantidad_gift_cards}</span>
+                        <span className="cc-medio-tot" style={{ color: p.accent }}>{fmt(r.total_gift_cards)}</span>
+                      </div>
+                      <div className="cc-bar"><div style={{ width: (r.total_gift_cards / maxMedio * 100) + "%", background: p.accent }} /></div>
+                    </div>
+                  )}
+                  <div className="cc-total-row">
+                    <span>TOTAL</span><span style={{ color: p.green }}>{fmt(r.total_dia || 0)}</span>
+                  </div>
+                  {r.pagado_gift_card > 0 && (
+                    <div style={{ fontSize: 11, color: p.textMuted }}>Además se cobraron {fmt(r.pagado_gift_card)} con gift cards ya vendidas (no es plata nueva, no suma al total).</div>
+                  )}
+                </div>
               )}
             </div>
-            <div>
-              <div className="card" style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 10 }}>EFECTIVO EN CAJA</div>
-                <div style={{ fontSize: 26, fontWeight: 700, color: efectivoEsperado < 0 ? "#c0392b" : temaPal.text }}>{fmt(efectivoEsperado)}</div>
-                <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 4 }}>ventas {fmt(ventasEfectivo)} + ingresos {fmt(ingresosManuales)} - egresos {fmt(egresosDia)}</div>
+
+            {/* Arqueo de efectivo */}
+            <div className="chart-card anim-in" style={{ animationDelay: "180ms", borderTop: "3px solid " + p.green }}>
+              <div className="chart-head">
+                <div className="chart-title">💵 Arqueo de efectivo</div>
+                {cierre && !editandoArqueo && <button className="chip-btn no-captura" onClick={() => setEditandoArqueo(true)}>✏️ Corregir</button>}
               </div>
-              {movsDia.length > 0 && (
-                <div className="card">
-                  <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 10 }}>MOVIMIENTOS DE CAJA</div>
-                  <table>
-                    <thead><tr><th>Tipo</th><th>Concepto</th><th>Importe</th></tr></thead>
-                    <tbody>
-                      {movsDia.map((m, i) => (
-                        <tr key={i}>
-                          <td><span className="badge" style={{ background: m.tipo === "ingreso" ? "#2d7a4f15" : "#c0392b15", color: m.tipo === "ingreso" ? "#2d7a4f" : "#c0392b" }}>{m.tipo}</span></td>
-                          <td style={{ fontSize: 11 }}>{m.concepto || "-"}</td>
-                          <td style={{ fontWeight: 600, color: m.tipo === "ingreso" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "ingreso" ? "+" : "-"}{fmt(parseFloat(m.importe || 0))}</td>
-                        </tr>
+
+              <div className="cc-linea">
+                <span>Fondo de cambio (al abrir)</span>
+                {editandoArqueo
+                  ? <input className="inp cc-inp" type="number" min="0" inputMode="decimal" placeholder="0" value={fondo} onChange={e => setFondo(e.target.value)} aria-label="Fondo de cambio" />
+                  : <b>{fmt(parseFloat(fondo) || 0)}</b>}
+              </div>
+              <div className="cc-linea"><span>+ Ventas en efectivo</span><b>{fmt(r.ventas_efectivo || 0)}</b></div>
+              {r.gift_cards_efectivo > 0 && <div className="cc-linea"><span>+ Gift cards cobradas en efectivo</span><b>{fmt(r.gift_cards_efectivo)}</b></div>}
+              <div className="cc-linea"><span>+ Otros ingresos (señas, etc.)</span><b>{fmt(r.ingresos || 0)}</b></div>
+              <div className="cc-linea"><span>− Egresos y retiros</span><b style={{ color: (r.egresos || 0) > 0 ? p.red : undefined }}>{fmt(r.egresos || 0)}</b></div>
+              <div className="cc-linea cc-esperado"><span>Debería haber en caja</span><b>{fmt(efectivoEsperado)}</b></div>
+
+              {editandoArqueo ? (
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "14px 0 8px", gap: 8, flexWrap: "wrap" }}>
+                    <div style={{ fontSize: 12, fontWeight: 700 }}>¿Cuánto hay?</div>
+                    <div className="seg" role="group" aria-label="Forma de contar">
+                      <button className={modoConteo === "billetes" ? "on" : ""} onClick={() => setModoConteo("billetes")}>Por billetes</button>
+                      <button className={modoConteo === "total" ? "on" : ""} onClick={() => setModoConteo("total")}>Total</button>
+                    </div>
+                  </div>
+                  {modoConteo === "billetes" ? (
+                    <div className="cc-billetes">
+                      {BILLETES_AR.map(b => (
+                        <label key={b} className="cc-bill">
+                          <span className="cc-bill-den">${b.toLocaleString("es-AR")}</span>
+                          <span style={{ color: p.textMuted, fontSize: 11 }}>×</span>
+                          <input type="number" min="0" inputMode="numeric" placeholder="0" value={billetes[b] ?? ""} onChange={e => setBilletes(x => ({ ...x, [b]: e.target.value }))} aria-label={"Cantidad de billetes de " + b} />
+                        </label>
                       ))}
-                    </tbody>
-                  </table>
+                      <label className="cc-bill">
+                        <span className="cc-bill-den">Monedas</span>
+                        <span style={{ color: p.textMuted, fontSize: 11 }}>$</span>
+                        <input type="number" min="0" inputMode="decimal" placeholder="0" value={monedas} onChange={e => setMonedas(e.target.value)} aria-label="Monedas y otros" style={{ width: 70 }} />
+                      </label>
+                    </div>
+                  ) : (
+                    <input className="inp" type="number" min="0" inputMode="decimal" placeholder="Efectivo contado en la caja" value={contadoTotal} onChange={e => setContadoTotal(e.target.value)} aria-label="Efectivo contado" autoFocus />
+                  )}
+                </div>
+              ) : null}
+
+              <div className={"cc-dif " + (hayConteo || cierre ? estadoDif : "nada")}>
+                <div>
+                  <div style={{ fontSize: 11, opacity: .8 }}>Contado</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{hayConteo || cierre ? fmt(contado) : "—"}</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 11, opacity: .8 }}>{!(hayConteo || cierre) ? "Diferencia" : estadoDif === "ok" ? "La caja cuadra" : estadoDif === "sobra" ? "Sobra" : "Falta"}</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>
+                    {!(hayConteo || cierre) ? "—" : estadoDif === "ok" ? "✓" : (diferencia > 0 ? "+" : "−") + fmt(Math.abs(diferencia))}
+                  </div>
+                </div>
+              </div>
+
+              {editandoArqueo ? (
+                <>
+                  <input className="inp" style={{ marginTop: 10 }} placeholder={estadoDif !== "ok" && hayConteo ? "Observaciones (obligatorio si hay diferencia)" : "Observaciones (opcional)"} value={obs} onChange={e => setObs(e.target.value)} aria-label="Observaciones del cierre" />
+                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    {cierre && <button className="btn btn-g" style={{ flex: 1 }} onClick={() => prepararArqueo(datos)}>Cancelar</button>}
+                    <button className="btn btn-p" style={{ flex: 2, padding: 11 }} onClick={guardarArqueo} disabled={guardando}>
+                      {guardando ? "Guardando..." : cierre ? "Guardar corrección" : "🔒 Cerrar caja"}
+                    </button>
+                  </div>
+                </>
+              ) : cierre && (
+                <div style={{ fontSize: 11, color: p.textMuted, marginTop: 10 }}>
+                  🔒 Cerrada por <b style={{ color: p.text }}>{cierre.usuario_nombre || "—"}</b>
+                  {cierre.actualizado_en && <> · {new Date(cierre.actualizado_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</>}
+                  {cierre.observaciones && <div style={{ marginTop: 4, color: p.text }}>📝 {cierre.observaciones}</div>}
                 </div>
               )}
             </div>
           </div>
-        )}
-      </div>
-      {!loading && ventasDia.length > 0 && (usuario?.rol === "jefe" || usuario?.rol === "administrativo") && (
-        <div className="card" style={{ marginTop: 14 }}>
-          <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 10 }}>HISTORIAL DE VENTAS DEL DIA</div>
-          <table>
-            <thead><tr><th>Factura</th><th>Cliente</th><th>Total</th><th>Medio</th><th></th></tr></thead>
-            <tbody>
-              {ventasDia.map((v, i) => (
-                <tr key={i} style={{ opacity: v.anulada ? 0.4 : 1 }}>
-                  <td style={{ fontSize: 11, fontFamily: "monospace", textDecoration: v.anulada ? "line-through" : "none" }}>{v.numero_factura}</td>
-                  <td style={{ fontSize: 12 }}>{v.cliente_nombre || "Consumidor final"}{v.anulada && <div style={{ fontSize: 9, color: "#c0392b" }}>ANULADA: {v.motivo_anulacion}</div>}</td>
-                  <td style={{ fontWeight: 600 }}>{fmt(parseFloat(v.total))}</td>
-                  <td style={{ fontSize: 11, color: temaPal.textMuted }}>{v.medio_pago}</td>
-                  <td>{!v.anulada && <button className="btn btn-sm" style={{ color: "#c0392b", fontSize: 9 }} onClick={async () => {
-                    const motivo = prompt("Motivo de la anulacion (obligatorio):");
-                    if (!motivo || !motivo.trim()) return;
-                    try {
-                      await API.post("/anulaciones/venta/" + v.id, { motivo, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre, usuario_rol: usuario?.rol });
-                      cargar();
-                      alert("Venta anulada correctamente");
-                    } catch (e) { alert(e.response?.data?.error || "Error al anular"); }
-                  }}>Anular</button>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+          {movs.length > 0 && (
+            <div className="chart-card anim-in" style={{ marginTop: 12, animationDelay: "240ms" }}>
+              <div className="chart-head">
+                <div className="chart-title">Movimientos de efectivo</div>
+                <div className="chart-meta">{movs.length} movimiento{movs.length !== 1 ? "s" : ""}</div>
+              </div>
+              <div style={{ overflowX: "auto" }}>
+                <table>
+                  <thead><tr><th>Hora</th><th>Concepto</th><th style={{ textAlign: "right" }}>Importe</th></tr></thead>
+                  <tbody>
+                    {movs.map(m => {
+                      const ing = esIngreso(m.tipo);
+                      const auto = ing && String(m.concepto || "").startsWith("Venta ");
+                      return (
+                        <tr key={m.id} style={{ opacity: auto ? 0.65 : 1 }}>
+                          <td style={{ fontSize: 11, color: p.textMuted, fontVariantNumeric: "tabular-nums" }}>{m.hora}</td>
+                          <td style={{ fontSize: 12 }}>{m.concepto || "-"}{auto && <span className="tag tag-neutral" style={{ marginLeft: 6 }}>automático</span>}</td>
+                          <td style={{ textAlign: "right", fontWeight: 700, color: ing ? p.green : p.red, fontVariantNumeric: "tabular-nums" }}>{ing ? "+" : "−"}{fmt(parseFloat(m.importe || 0))}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
-      )}
-      </>
+
+        {puedeVerVentas && ventas.length > 0 && (
+          <div className="chart-card" style={{ marginTop: 12 }}>
+            <div className="chart-head">
+              <div className="chart-title">Ventas del día</div>
+              <div className="chart-meta">{ventas.length} comprobante{ventas.length !== 1 ? "s" : ""}</div>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table>
+                <thead><tr><th>Hora</th><th>Comprobante</th><th>Cliente</th><th>Vendió</th><th>Medio</th><th style={{ textAlign: "right" }}>Total</th><th></th></tr></thead>
+                <tbody>
+                  {ventas.map(v => (
+                    <tr key={v.id} style={{ opacity: v.anulada ? 0.5 : 1 }}>
+                      <td style={{ fontSize: 11, color: p.textMuted, fontVariantNumeric: "tabular-nums" }}>{v.hora}</td>
+                      <td style={{ fontSize: 11, fontFamily: "monospace", textDecoration: v.anulada ? "line-through" : "none" }}>
+                        {v.numero_factura || "-"}
+                        {v.pendiente_arca && !v.anulada && <span className="tag tag-warn" style={{ marginLeft: 6, fontFamily: "inherit" }}>sin facturar</span>}
+                      </td>
+                      <td style={{ fontSize: 12 }}>{v.cliente_nombre || "Consumidor final"}{v.anulada && <div style={{ fontSize: 10, color: p.red }}>ANULADA: {v.motivo_anulacion}</div>}</td>
+                      <td style={{ fontSize: 11, color: p.textMuted }}>{v.vendedora_nombre || "-"}</td>
+                      <td style={{ fontSize: 11, color: p.textMuted }}>{v.medio_pago || "-"}</td>
+                      <td style={{ textAlign: "right", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmt(parseFloat(v.total))}</td>
+                      <td style={{ textAlign: "right" }}>{!v.anulada && <button className="icon-btn peligro" style={{ width: "auto", padding: "0 8px", fontSize: 11 }} onClick={() => anularVenta(v)}>Anular</button>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+        </>
+        )
       )}
 
       {tab === "productos" && (
         <div className="card" ref={productosRef}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: temaPal.text }}>Productos vendidos</div>
               <div style={{ fontSize: 11, color: temaPal.textMuted }}>{fmtDia(fecha)}</div>
@@ -12499,6 +12674,7 @@ function CierreCaja({ localId, usuario, paletaActual }) {
             });
             const colorCat = { A: "#2d7a4f", B: "#c9a84c", C: "#65676B" };
             return (
+              <div style={{ overflowX: "auto" }}>
               <table>
                 <thead><tr><th>ABC</th><th>Producto</th><th>Marca</th><th>Cantidad vendida</th><th>Facturado</th><th>Stock actual</th></tr></thead>
                 <tbody>
@@ -12516,10 +12692,55 @@ function CierreCaja({ localId, usuario, paletaActual }) {
                     ))}
                 </tbody>
               </table>
+              </div>
             );
           })()}
         </div>
       )}
+
+      {tab === "historial" && (() => {
+        const conDif = cierres.filter(c => Math.abs(parseFloat(c.diferencia)) >= 1);
+        const netoDif = cierres.reduce((s, c) => s + (parseFloat(c.diferencia) || 0), 0);
+        return (
+          <>
+            <div className="kpi-grid kpi-3">
+              <KpiCard p={p} titulo="Cierres registrados" valor={cierres.length} color="#2471a3" chico indice={0} sub="últimos 60" />
+              <KpiCard p={p} titulo="Con diferencia" valor={conDif.length} color={conDif.length > 0 ? p.warn : p.green} chico indice={1} sub={cierres.length > 0 ? Math.round((cierres.length - conDif.length) / cierres.length * 100) + "% cuadraron" : "—"} />
+              <KpiCard p={p} titulo="Diferencia acumulada" valor={netoDif} formato={fmt} color={netoDif < -1 ? p.red : p.green} chico indice={2} sub="sobrantes − faltantes" />
+            </div>
+            <div className="chart-card">
+              {cierres.length === 0 ? (
+                <div className="empty">Todavía no hay cierres guardados en este local. Se registran al tocar <b>🔒 Cerrar caja</b> en el resumen del día.</div>
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  <table>
+                    <thead><tr><th>Día</th><th style={{ textAlign: "right" }}>Vendido</th><th style={{ textAlign: "right" }}>Esperado</th><th style={{ textAlign: "right" }}>Contado</th><th style={{ textAlign: "right" }}>Diferencia</th><th>Cerró</th><th>Observaciones</th></tr></thead>
+                    <tbody>
+                      {cierres.map(c => {
+                        const d = parseFloat(c.diferencia) || 0;
+                        const f = c.fecha_txt || String(c.fecha).slice(0, 10);
+                        return (
+                          <tr key={c.id} style={{ cursor: "pointer" }} onClick={() => { setFecha(f); setTab("resumen"); }} title="Ver ese día">
+                            <td style={{ fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}>{fmtDia(f)}</td>
+                            <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmt(c.total_dia)}</td>
+                            <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", color: p.textMuted }}>{fmt(c.efectivo_esperado)}</td>
+                            <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmt(c.efectivo_contado)}</td>
+                            <td style={{ textAlign: "right" }}>
+                              {Math.abs(d) < 1 ? <span className="tag tag-ok">✓ cuadra</span> : <span className={"tag " + (d < 0 ? "tag-bad" : "tag-warn")}>{d > 0 ? "+" : "−"}{fmt(Math.abs(d))}</span>}
+                            </td>
+                            <td style={{ fontSize: 11, color: p.textMuted }}>{c.usuario_nombre || "-"}</td>
+                            <td style={{ fontSize: 11, color: p.textMuted, maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={c.observaciones || ""}>{c.observaciones || ""}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 }
