@@ -345,6 +345,11 @@ button.tab { font-family: inherit; }
 .fin-reparto input[type=range]:focus-visible { outline: 2px solid ${p.accent}; outline-offset: 3px; }
 @media (max-width: 980px) { .fin-grid { grid-template-columns: 1fr; } .fin-lado { order: -1; } .fin-form { position: static; } .fin-grid3 { grid-template-columns: 1fr; } }
 @media (max-width: 640px) { .fin-grid2 { grid-template-columns: 1fr; } }
+/* --- Comprobantes --- */
+.comp-tipo { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 5px; border: 1.5px solid; font-size: 11px; font-weight: 900; margin-right: 8px; vertical-align: middle; }
+.comp-detalle { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 20px; text-align: left; white-space: normal; }
+.comp-det-tit { font-size: 10px; font-weight: 800; letter-spacing: .08em; color: ${p.textMuted}; margin-bottom: 4px; }
+@media (max-width: 760px) { .comp-detalle { grid-template-columns: 1fr; } }
 /* --- Cierre de caja --- */
 .cc-nav { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .cc-top { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 2fr); gap: 12px; align-items: stretch; }
@@ -11945,63 +11950,71 @@ function CajaRespaldo({ usuario, paletaActual }) {
 function Comprobantes({ localId, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
   const hoy = new Date();
-  const fmtFecha = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-  const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-  const [desde, setDesde] = useState(fmtFecha(primerDiaMes));
-  const [hasta, setHasta] = useState(fmtFecha(hoy));
-  const [tabLocal, setTabLocal] = useState(localId === 2 ? "ush" : "rg");
-  const [comprobantes, setComprobantes] = useState([]);
+  const [desde, setDesde] = useState(isoLocal(new Date(hoy.getFullYear(), hoy.getMonth(), 1)));
+  const [hasta, setHasta] = useState(isoLocal(hoy));
+  const [tabLocal, setTabLocal] = useState("todos");
+  const [estado, setEstado] = useState("");
+  const [tipo, setTipo] = useState("");
+  const [busqueda, setBusqueda] = useState("");
+  const [datos, setDatos] = useState({ comprobantes: [], resumen: null });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [expandido, setExpandido] = useState(null);
-  const [configTicket, setConfigTicket] = useState({ mostrar_cliente: true, mostrar_numero: true, mostrar_fecha: true, mensaje_pie: "Gracias por tu compra!", texto_extra: "" });
+  const [reintentando, setReintentando] = useState(null);
+  const [aviso, setAviso] = useState("");
+  const [configTicket, setConfigTicket] = useState({});
+  const avisar = (t) => { setAviso(t); setTimeout(() => setAviso(a => (a === t ? "" : a)), 4000); };
 
   useEffect(() => { API.get("/config-ticket").then(res => { if (res.data) setConfigTicket(res.data); }).catch(() => {}); }, []);
 
-  const cargar = async () => {
-    setLoading(true);
+  const cargar = async (qTexto) => {
+    setLoading(true); setError("");
     try {
-      const anio = parseInt(desde.slice(0, 4));
-      const mesD = parseInt(desde.slice(5, 7));
-      const mesH = parseInt(hasta.slice(5, 7));
-      const anioH = parseInt(hasta.slice(0, 4));
-      const meses = [];
-      let m = mesD, a = anio;
-      while (a < anioH || (a === anioH && m <= mesH)) {
-        meses.push({ m, a });
-        m++;
-        if (m > 12) { m = 1; a++; }
-        if (meses.length > 24) break;
-      }
-      const localParam = tabLocal === "rg" ? "&local_id=1" : tabLocal === "ush" ? "&local_id=2" : "";
-      const proms = meses.map(({ m, a }) => API.get("/ventas?mes=" + m + "&anio=" + a + localParam));
-      const results = await Promise.all(proms);
-      let todas = [];
-      results.forEach(r => { todas = todas.concat(r.data || []); });
-      const filtradas = todas.filter(v => {
-        if (!v.cae || v.es_preventa === true || v.canal === "prueba") return false;
-        const f = fmtFecha(new Date(v.creado_en || v.fecha));
-        return f >= desde && f <= hasta;
-      });
-      filtradas.sort((a, b) => new Date(b.creado_en || b.fecha) - new Date(a.creado_en || a.fecha));
-      setComprobantes(filtradas);
-    } catch (e) {}
+      const q = new URLSearchParams({ desde, hasta });
+      if (tabLocal !== "todos") q.set("local_id", tabLocal);
+      if (estado) q.set("estado", estado);
+      if (tipo) q.set("tipo", tipo);
+      const b = qTexto !== undefined ? qTexto : busqueda;
+      if (b.trim()) q.set("q", b.trim());
+      const res = await API.get("/comprobantes?" + q.toString());
+      setDatos(res.data || { comprobantes: [], resumen: null });
+    } catch (e) { setError(e.response?.data?.error || "No se pudieron cargar los comprobantes"); }
     setLoading(false);
   };
+  useEffect(() => { cargar(); }, [desde, hasta, tabLocal, estado, tipo]);
+  // Buscar mientras se escribe (con una pequeña pausa)
+  const primeraBusqueda = useRef(true);
+  useEffect(() => {
+    if (primeraBusqueda.current) { primeraBusqueda.current = false; return; }
+    const t = setTimeout(() => cargar(), 350); return () => clearTimeout(t);
+  }, [busqueda]);
 
-  useEffect(() => { cargar(); }, [desde, hasta, tabLocal]);
-
-  const fmtNro = (v) => {
-    const pv = v.punto_venta || 5;
-    const nro = v.nro_comprobante;
-    if (!nro) return v.numero_factura || "-";
-    return String(pv).padStart(4, "0") + "-" + String(nro).padStart(8, "0");
+  const preset = (k) => {
+    const h = new Date();
+    if (k === "hoy") { setDesde(isoLocal(h)); setHasta(isoLocal(h)); }
+    else if (k === "mes") { setDesde(isoLocal(new Date(h.getFullYear(), h.getMonth(), 1))); setHasta(isoLocal(h)); }
+    else if (k === "pasado") { setDesde(isoLocal(new Date(h.getFullYear(), h.getMonth() - 1, 1))); setHasta(isoLocal(new Date(h.getFullYear(), h.getMonth(), 0))); }
   };
 
-  const totalPeriodo = comprobantes.reduce((s, v) => s + parseFloat(v.total || 0), 0);
+  const fmtNro = (v) => {
+    if (!v.nro_comprobante) return v.numero_factura || "—";
+    return String(v.punto_venta || 5).padStart(4, "0") + "-" + String(v.nro_comprobante).padStart(8, "0");
+  };
+  const fmtDia = (f) => { if (!f) return ""; const [y, m, d] = String(f).slice(0, 10).split("-"); return d + "/" + m + "/" + y; };
+  const fmtCaeVto = (x) => { const s = String(x || ""); return /^\d{8}$/.test(s) ? s.slice(6, 8) + "/" + s.slice(4, 6) + "/" + s.slice(0, 4) : s; };
+  const estadoDe = (v) => (v.anulada ? "anulado" : v.cae ? "emitido" : "pendiente");
+
+  const reintentar = async (v) => {
+    setReintentando(v.id);
+    try {
+      await API.post("/arca/reintentar/" + v.id);
+      avisar("✓ Factura emitida: " + (v.cliente_nombre || "consumidor final") + " · " + fmt(parseFloat(v.total)));
+      cargar();
+    } catch (e) { avisar("Error: ARCA sigue rechazando la factura — " + (e.response?.data?.error || e.message)); cargar(); }
+    setReintentando(null);
+  };
 
   const reimprimir = (v) => {
-    const localNombre = nombreLocal(v.local_id);
-    const fecha = new Date(v.creado_en || v.fecha).toLocaleString("es-AR");
     const cfg = configTicket || {};
     const items = v.items || [];
     const lineas = items.map(i =>
@@ -12011,34 +12024,29 @@ function Comprobantes({ localId, paletaActual }) {
       <html><head><meta charset="utf-8"><style>
         @page { size: 80mm auto; margin: 0; }
         body { width: 72mm; margin: 0 auto; font-family: monospace; font-size: 12px; color: #000; padding: 6px; }
-        .c { text-align: center; }
-        .b { font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; }
-        td { padding: 1px 0; font-size: 12px; }
+        .c { text-align: center; } .b { font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; } td { padding: 1px 0; font-size: 12px; }
         hr { border: none; border-top: 1px dashed #000; margin: 6px 0; }
         .tot { font-size: 15px; font-weight: bold; }
         img.logo { width: 60mm; display: block; margin: 0 auto 4px; }
       </style></head><body>
         <img class="logo" src="${cfg.logo_ticket_url || LOGO_TICKET}" />
-        <div class="c">${localNombre}</div>
-        <div class="c" style="font-size:9px; color:#555">REIMPRESION</div>
-        ${cfg.mostrar_fecha !== false ? `<div class="c" style="font-size:10px">${fecha}</div>` : ""}
-        ${(cfg.mostrar_numero !== false) ? `<div class="c" style="font-size:10px">Comprobante ${fmtNro(v)}</div>` : ""}
-        ${(cfg.mostrar_cliente !== false && v.cliente_nombre) ? `<div class="c" style="font-size:10px">Cliente: ${v.cliente_nombre}</div>` : ""}
-        <hr>
-        <table>${lineas}</table>
-        <hr>
+        <div class="c">${nombreLocal(v.local_id)}</div>
+        <div class="c" style="font-size:9px; color:#555">REIMPRESIÓN${v.anulada ? " · ANULADA" : ""}</div>
+        ${cfg.mostrar_fecha !== false ? `<div class="c" style="font-size:10px">${fmtDia(v.fecha)} ${v.hora || ""}</div>` : ""}
+        ${cfg.mostrar_numero !== false ? `<div class="c b" style="font-size:11px">Factura ${v.tipo_factura || "B"} ${fmtNro(v)}</div>` : ""}
+        ${(cfg.mostrar_cliente !== false && v.cliente_nombre) ? `<div class="c" style="font-size:10px">Cliente: ${v.cliente_nombre}${v.cuit_dni ? " (" + v.cuit_dni + ")" : ""}</div>` : ""}
+        <hr><table>${lineas}</table><hr>
         <table><tr><td class="tot">TOTAL</td><td class="tot" style="text-align:right">$${parseFloat(v.total || 0).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr></table>
+        ${v.cae ? `<hr><div style="font-size:10px">CAE: ${v.cae}</div><div style="font-size:10px">Vto. CAE: ${fmtCaeVto(v.cae_vto)}</div>` : ""}
         <hr>
         <div class="c">${cfg.mensaje_pie || "Gracias por tu compra!"}</div>
         ${cfg.texto_extra ? `<div class="c" style="font-size:10px">${cfg.texto_extra}</div>` : ""}
         <br><br>
       </body></html>`;
     const w = window.open("", "_blank", "width=380,height=600");
-    if (!w) { alert("Habilita las ventanas emergentes para imprimir el recibo"); return; }
-    w.document.write(html);
-    w.document.close();
-    w.focus();
+    if (!w) { avisar("Error: habilitá las ventanas emergentes para imprimir"); return; }
+    w.document.write(html); w.document.close(); w.focus();
     let yaCerro = false;
     const cerrarUnaVez = () => { if (!yaCerro) { yaCerro = true; try { w.close(); } catch (e) {} } };
     w.onafterprint = cerrarUnaVez;
@@ -12046,81 +12054,171 @@ function Comprobantes({ localId, paletaActual }) {
     setTimeout(cerrarUnaVez, 5000);
   };
 
+  // Planilla para el contador: CSV con ; y coma decimal, que Excel en español abre directo
+  const descargarExcel = () => {
+    const filas = datos.comprobantes;
+    if (filas.length === 0) return avisar("Error: no hay comprobantes para descargar en este filtro");
+    const num = (n) => (parseFloat(n) || 0).toFixed(2).replace(".", ",");
+    const txt = (s) => '"' + String(s ?? "").replace(/"/g, '""') + '"';
+    const cab = ["Fecha", "Hora", "Tipo", "Punto de venta", "Número", "Comprobante", "Cliente", "CUIT/DNI", "Local", "Medio de pago", "Total", "CAE", "Vto CAE", "Estado"];
+    const lineas = filas.map(v => [
+      fmtDia(v.fecha), v.hora, v.tipo_factura || "B", v.punto_venta || "", v.nro_comprobante || "", fmtNro(v),
+      v.cliente_nombre || "Consumidor final", v.cuit_dni || "", nombreLocal(v.local_id), v.medio_pago || "",
+      num(v.total), v.cae || "", fmtCaeVto(v.cae_vto), estadoDe(v),
+    ].map((x, i) => (i === 10 ? x : txt(x))).join(";"));
+    const csv = "﻿" + cab.map(txt).join(";") + "\n" + lineas.join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = "comprobantes_" + desde + "_al_" + hasta + ".csv";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  };
+
+  const r = datos.resumen;
+  const lista = datos.comprobantes;
+  const colorTipo = { A: "#2471a3", B: p.accent, C: "#8e44ad" };
+
   return (
     <div className="fade">
-      <div className="ph">
-        <div><div className="pt">Comprobantes</div><div className="ps">facturas emitidas - ARCA</div></div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <div><div style={{ fontSize: 9, color: p.textMuted }}>Desde</div><input className="inp" type="date" style={{ width: 140, padding: "6px 8px", fontSize: 12 }} value={desde} onChange={e => setDesde(e.target.value)} /></div>
-          <div><div style={{ fontSize: 9, color: p.textMuted }}>Hasta</div><input className="inp" type="date" style={{ width: 140, padding: "6px 8px", fontSize: 12 }} value={hasta} onChange={e => setHasta(e.target.value)} /></div>
+      <div className="dash-head">
+        <div><div className="pt">Comprobantes</div><div className="ps">facturas emitidas en ARCA, pendientes y anuladas</div></div>
+        <div className="dash-actions">
+          <div className="seg" role="group" aria-label="Local">
+            {[["todos", "Todos"], ["1", nombreLocal(1)], ["2", nombreLocal(2)]].map(([k, l]) => (
+              <button key={k} className={tabLocal === k ? "on" : ""} onClick={() => setTabLocal(k)}>{l}</button>
+            ))}
+          </div>
+          <button className="btn btn-p btn-sm" onClick={descargarExcel}>📥 Excel para el contador</button>
         </div>
       </div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        {["rg", "ush", "consolidado"].map(l => (
-          <button key={l} onClick={() => setTabLocal(l)} className="btn btn-sm"
-            style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : p.border), color: tabLocal === l ? "#c9a84c" : p.textMuted, fontWeight: tabLocal === l ? 600 : 400 }}>
-            {l === "rg" ? nombreLocal(1) : l === "ush" ? nombreLocal(2) : "Consolidado"}
-          </button>
-        ))}
+
+      {aviso && <div className={"pop-in cc-aviso " + (aviso.startsWith("Error") ? "bad" : "ok")} role="status">{aviso}</div>}
+
+      <div className="chart-card" style={{ marginBottom: 12 }}>
+        <div className="fin-filtros">
+          <div className="seg" role="group" aria-label="Período rápido">
+            <button onClick={() => preset("hoy")} className={desde === isoLocal(hoy) && hasta === isoLocal(hoy) ? "on" : ""}>Hoy</button>
+            <button onClick={() => preset("mes")} className={desde === isoLocal(new Date(hoy.getFullYear(), hoy.getMonth(), 1)) && hasta === isoLocal(hoy) ? "on" : ""}>Este mes</button>
+            <button onClick={() => preset("pasado")} className={desde === isoLocal(new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1)) && hasta === isoLocal(new Date(hoy.getFullYear(), hoy.getMonth(), 0)) ? "on" : ""}>Mes pasado</button>
+          </div>
+          <input className="inp" type="date" style={{ width: 150 }} value={desde} max={hasta} onChange={e => e.target.value && setDesde(e.target.value)} aria-label="Desde" />
+          <span style={{ fontSize: 11, color: p.textMuted }}>al</span>
+          <input className="inp" type="date" style={{ width: 150 }} value={hasta} min={desde} onChange={e => e.target.value && setHasta(e.target.value)} aria-label="Hasta" />
+          <div style={{ position: "relative", flex: "1 1 220px" }}>
+            <span aria-hidden="true" style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", opacity: .5 }}>🔍</span>
+            <input className="inp" style={{ paddingLeft: 34 }} placeholder="N° de comprobante, cliente, DNI/CUIT o CAE" value={busqueda} onChange={e => setBusqueda(e.target.value)} aria-label="Buscar comprobante" />
+          </div>
+        </div>
       </div>
-      <div className="g3" style={{ marginBottom: 16 }}>
-        <MCard label="Comprobantes" value={String(comprobantes.length)} color="#c9a84c" />
-        <MCard label="Total facturado" value={fmt(totalPeriodo)} color="#2d7a4f" />
-        <MCard label="Periodo" value={desde.split("-").reverse().join("/") + " al " + hasta.split("-").reverse().join("/")} color="#2C3E5C" />
+
+      <div className="kpi-grid">
+        {!r ? [0, 1, 2, 3].map(i => <div key={i} className="skel" style={{ height: 92 }} />) : (
+          <>
+            <KpiCard p={p} titulo="Facturado en ARCA" valor={r.total_emitido} formato={fmt} color={p.green} indice={0}
+              sub={r.por_tipo.length > 0 ? r.por_tipo.map(t => t.tipo + ": " + t.cantidad).join(" · ") : "sin facturas"} />
+            <KpiCard p={p} titulo="Comprobantes emitidos" valor={r.emitidos} color={p.accent} indice={1} sub={fmtDia(desde) + " al " + fmtDia(hasta)} />
+            <KpiCard p={p} titulo="Sin facturar" valor={r.pendientes} color={r.pendientes > 0 ? p.warn : p.green} indice={2}
+              tag={r.pendientes > 0 ? <button className="mini-chip" onClick={() => setEstado("pendientes")}>Ver</button> : null}
+              sub={r.pendientes > 0 ? fmt(r.total_pendiente) + " esperando CAE" : "todo facturado ✓"} />
+            <KpiCard p={p} titulo="Anulados" valor={r.anulados} color={r.anulados > 0 ? p.red : p.textMuted} indice={3}
+              sub={r.anulados_con_cae > 0 ? r.anulados_con_cae + " tenían CAE" : "en el período"} />
+          </>
+        )}
       </div>
-      <div className="card">
-        {loading ? (
-          <div style={{ textAlign: "center", color: p.textMuted, fontSize: 12 }}>Cargando comprobantes...</div>
-        ) : comprobantes.length === 0 ? (
-          <div style={{ fontSize: 12, color: p.textMuted, textAlign: "center", padding: 30 }}>No hay comprobantes emitidos en este periodo</div>
-        ) : (
-          <table>
-            <thead><tr><th>Comprobante</th><th>Fecha</th><th>Cliente</th><th>Tipo</th><th>CAE</th><th>Total</th><th></th></tr></thead>
-            <tbody>
-              {comprobantes.map((v, i) => (
-                <Fragment key={i}>
-                  <tr>
-                    <td style={{ fontSize: 12, fontWeight: 600, color: "#c9a84c" }}>{fmtNro(v)}</td>
-                    <td style={{ fontSize: 11, color: p.textMuted }}>{new Date(v.creado_en || v.fecha).toLocaleDateString("es-AR")}</td>
-                    <td style={{ fontSize: 12 }}>{v.cliente_nombre || "Consumidor final"}</td>
-                    <td style={{ fontSize: 11 }}>{v.tipo_factura || "B"}</td>
-                    <td style={{ fontSize: 11, color: p.textMuted }}>{v.cae || "-"}</td>
-                    <td style={{ color: "#2d7a4f", fontWeight: 600 }}>{fmt(parseFloat(v.total || 0))}</td>
-                    <td>
-                      <span style={{ cursor: "pointer", color: "#2C3E5C", fontSize: 11 }} onClick={() => setExpandido(expandido === i ? null : i)}>{expandido === i ? "Ocultar" : "Ver"}</span>
-                      {" "}
-                      <span style={{ cursor: "pointer", color: "#c9a84c", fontSize: 11, marginLeft: 8 }} onClick={() => reimprimir(v)}>Reimprimir</span>
-                    </td>
-                  </tr>
-                  {expandido === i && (
-                    <tr>
-                      <td colSpan="7" style={{ background: p.bg, padding: "10px 14px" }}>
-                        <div style={{ fontSize: 10, color: p.textMuted, letterSpacing: ".1em", marginBottom: 6 }}>DETALLE</div>
-                        {(v.items || []).length === 0 ? (
-                          <div style={{ fontSize: 11, color: p.textMuted }}>Sin detalle de productos</div>
-                        ) : (
-                          <table>
-                            <thead><tr><th>Producto</th><th>Cant</th><th>Precio</th><th>Subtotal</th></tr></thead>
-                            <tbody>
-                              {v.items.map((it, j) => (
-                                <tr key={j}>
-                                  <td style={{ fontSize: 11 }}>{it.nombre}{it.marca ? " - " + it.marca : ""}</td>
-                                  <td style={{ fontSize: 11, color: p.textMuted }}>{it.cantidad}</td>
-                                  <td style={{ fontSize: 11 }}>{fmt(parseFloat(it.precio_unitario || 0))}</td>
-                                  <td style={{ fontSize: 11, fontWeight: 600 }}>{fmt((parseFloat(it.precio_unitario || 0) * parseInt(it.cantidad || 0)))}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        )}
-                        <div style={{ fontSize: 10, color: p.textMuted, marginTop: 8 }}>Medio de pago: {v.medio_pago || "-"}{v.cae_vto ? " | CAE vto: " + v.cae_vto : ""}</div>
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
+
+      {r && r.anulados_con_cae > 0 && (
+        <div className="dash-alert">
+          <span>⚠️ <b>{r.anulados_con_cae} factura{r.anulados_con_cae !== 1 ? "s" : ""} con CAE anulada{r.anulados_con_cae !== 1 ? "s" : ""}</b> en el sistema. Ante ARCA siguen vigentes: hay que emitir la nota de crédito desde el portal de ARCA (o avisale al contador).</span>
+          <button className="chip-btn" onClick={() => setEstado("anulados")}>Ver cuáles</button>
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
+        <div className="seg" role="group" aria-label="Estado">
+          {[["", "Todos"], ["emitidos", "Emitidos"], ["pendientes", "Sin facturar"], ["anulados", "Anulados"]].map(([k, l]) => (
+            <button key={k} className={estado === k ? "on" : ""} onClick={() => setEstado(k)}>{l}</button>
+          ))}
+        </div>
+        <div className="seg" role="group" aria-label="Tipo de factura">
+          {[["", "A, B y C"], ["A", "A"], ["B", "B"], ["C", "C"]].map(([k, l]) => (
+            <button key={k} className={tipo === k ? "on" : ""} onClick={() => setTipo(k)}>{l}</button>
+          ))}
+        </div>
+        <span style={{ marginLeft: "auto", fontSize: 12, color: p.textMuted }}>{lista.length} comprobante{lista.length !== 1 ? "s" : ""}{lista.length >= 2000 ? " (se muestran los 2000 más recientes)" : ""}</span>
+      </div>
+
+      <div className="chart-card" style={{ padding: 0, overflow: "hidden", opacity: loading && lista.length ? 0.6 : 1, transition: "opacity .2s" }}>
+        {loading && lista.length === 0 ? <div style={{ padding: 16 }}><div className="skel" style={{ height: 220 }} /></div>
+        : error ? <div className="empty">{error} <button className="chip-btn" onClick={() => cargar()}>Reintentar</button></div>
+        : lista.length === 0 ? <div className="empty">No hay comprobantes con este filtro.</div> : (
+          <div style={{ overflowX: "auto" }}>
+            <table>
+              <thead><tr><th>Comprobante</th><th>Cliente</th><th style={{ textAlign: "right" }}>Total</th><th></th></tr></thead>
+              <tbody>
+                {lista.map(v => {
+                  const est = estadoDe(v);
+                  const abierto = expandido === v.id;
+                  return (
+                    <Fragment key={v.id}>
+                      <tr style={{ cursor: "pointer", opacity: est === "anulado" ? 0.6 : 1 }} onClick={() => setExpandido(abierto ? null : v.id)}>
+                        <td style={{ whiteSpace: "nowrap" }}>
+                          <span className="comp-tipo" style={{ color: colorTipo[v.tipo_factura || "B"], borderColor: colorTipo[v.tipo_factura || "B"] }}>{v.tipo_factura || "B"}</span>
+                          <span style={{ fontFamily: "ui-monospace, Consolas, monospace", fontSize: 12, fontWeight: 700, textDecoration: est === "anulado" ? "line-through" : "none" }}>{fmtNro(v)}</span>
+                          <div style={{ fontSize: 11, color: p.textMuted, fontVariantNumeric: "tabular-nums", marginTop: 2, paddingLeft: 28 }}>{fmtDia(v.fecha)} · {v.hora}</div>
+                        </td>
+                        <td style={{ fontSize: 12, maxWidth: 220 }}>
+                          <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={v.cliente_nombre || ""}>{v.cliente_nombre || "Consumidor final"}</div>
+                          <div style={{ fontSize: 10, color: p.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{[v.cuit_dni, v.medio_pago].filter(Boolean).join(" · ")}</div>
+                        </td>
+                        <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                          <div style={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmt(parseFloat(v.total || 0))}</div>
+                          {est === "emitido" && <span className="tag tag-ok">✓ CAE</span>}
+                          {est === "pendiente" && <span className="tag tag-warn">sin facturar</span>}
+                          {est === "anulado" && <span className="tag tag-bad">anulada</span>}
+                        </td>
+                        <td style={{ textAlign: "right", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
+                          {est === "pendiente" && <button className="mini-chip" disabled={reintentando === v.id} onClick={() => reintentar(v)}>{reintentando === v.id ? "Facturando..." : "↻ Facturar"}</button>}
+                          <button className="icon-btn" onClick={() => reimprimir(v)} aria-label={"Reimprimir " + fmtNro(v)} title="Reimprimir">🖨️</button>
+                          <button className="icon-btn" onClick={() => setExpandido(abierto ? null : v.id)} aria-label={abierto ? "Ocultar detalle" : "Ver detalle"} aria-expanded={abierto}>{abierto ? "▴" : "▾"}</button>
+                        </td>
+                      </tr>
+                      {abierto && (
+                        <tr>
+                          <td colSpan="4" style={{ background: p.bg, padding: "12px 16px" }}>
+                            <div className="comp-detalle">
+                              <div>
+                                <div className="comp-det-tit">PRODUCTOS</div>
+                                {(v.items || []).length === 0 ? <div style={{ fontSize: 11, color: p.textMuted }}>Sin detalle</div> : v.items.map((it, j) => (
+                                  <div key={j} className="cc-linea" style={{ padding: "4px 0" }}>
+                                    <span>{it.cantidad}× {it.nombre}{it.marca ? <span style={{ color: p.textMuted }}> · {it.marca}</span> : ""}</span>
+                                    <b>{fmt(parseFloat(it.precio_unitario || 0) * parseFloat(it.cantidad || 0))}</b>
+                                  </div>
+                                ))}
+                              </div>
+                              <div>
+                                <div className="comp-det-tit">DATOS</div>
+                                <div className="cc-linea" style={{ padding: "4px 0" }}><span>Local</span><b>{nombreLocal(v.local_id)}</b></div>
+                                {v.vendedora_nombre && <div className="cc-linea" style={{ padding: "4px 0" }}><span>Vendió</span><b>{v.vendedora_nombre}</b></div>}
+                                {(v.pagos || []).length > 0
+                                  ? v.pagos.map((pg, j) => <div key={j} className="cc-linea" style={{ padding: "4px 0" }}><span>Pagó con {pg.nombre}</span><b>{fmt(parseFloat(pg.importe))}</b></div>)
+                                  : <div className="cc-linea" style={{ padding: "4px 0" }}><span>Medio de pago</span><b>{v.medio_pago || "—"}</b></div>}
+                                {parseFloat(v.monto_gift_card) > 0 && <div className="cc-linea" style={{ padding: "4px 0" }}><span>Gift card</span><b>{fmt(parseFloat(v.monto_gift_card))}</b></div>}
+                                {v.cae && <div className="cc-linea" style={{ padding: "4px 0" }}><span>CAE</span><b style={{ fontFamily: "ui-monospace, Consolas, monospace" }}>{v.cae}</b></div>}
+                                {v.cae_vto && <div className="cc-linea" style={{ padding: "4px 0" }}><span>Vencimiento CAE</span><b>{fmtCaeVto(v.cae_vto)}</b></div>}
+                                {v.numero_factura && v.nro_comprobante && <div className="cc-linea" style={{ padding: "4px 0" }}><span>N° interno</span><b>{v.numero_factura}</b></div>}
+                                {est === "pendiente" && v.ultimo_error_facturacion && <div style={{ fontSize: 11, color: p.warn, marginTop: 6 }}>Último error de ARCA{v.intentos_facturacion ? " (" + v.intentos_facturacion + " intentos)" : ""}: {v.ultimo_error_facturacion}</div>}
+                                {est === "anulado" && <div style={{ fontSize: 11, color: p.red, marginTop: 6 }}>Anulada{v.anulada_por ? " por " + v.anulada_por : ""}: {v.motivo_anulacion || "sin motivo"}{v.cae ? ". Ante ARCA sigue vigente: falta la nota de crédito." : ""}</div>}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

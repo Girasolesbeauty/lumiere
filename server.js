@@ -26,6 +26,7 @@ app.use('/api/productos', require('./routes/productos'));
 app.use('/api/clientes', require('./routes/clientes'));
 app.use('/api/pedidos', require('./routes/pedidos'));
 app.use('/api/ventas', require('./routes/ventas'));
+app.use('/api/comprobantes', require('./routes/comprobantes'));
 app.use('/api/inventario', require('./routes/inventario'));
 app.use('/api/insumos', require('./routes/insumos'));
 app.use('/api/finanzas', require('./routes/finanzas'));

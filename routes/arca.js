@@ -134,7 +134,7 @@ async function intentarEmitirCAE({ tipo, items, total, cliente_cuit, venta_id })
   const { token, sign } = await obtenerToken(cfg);
   const tipoNum = tipo === 'A' ? 1 : tipo === 'B' ? 6 : 11;
   const nroComprobante = await obtenerUltimoComprobante(tipo, token, sign, cfg);
-  const hoy = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).replace(/-/g, '');
   const ivaTotal = 0;
   const neto = total;
 

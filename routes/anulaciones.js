@@ -30,6 +30,7 @@ router.post('/venta/:id', async (req, res) => {
 
     const items = await client.query('SELECT * FROM venta_items WHERE venta_id = $1', [venta.id]);
     for (const it of items.rows) {
+      if (!it.producto_id) continue; // linea de ajuste, no tiene stock
       if (venta.es_preventa === true && venta.estado_pago === 'reservado') {
         if (venta.preventa_local === 2) {
           await client.query('UPDATE productos SET reservado_ush = GREATEST(COALESCE(reservado_ush,0)-$1,0) WHERE id=$2', [it.cantidad, it.producto_id]);
@@ -37,7 +38,17 @@ router.post('/venta/:id', async (req, res) => {
           await client.query('UPDATE productos SET reservado_rg = GREATEST(COALESCE(reservado_rg,0)-$1,0) WHERE id=$2', [it.cantidad, it.producto_id]);
         }
       } else {
-        await client.query('UPDATE productos SET stock = stock + $1 WHERE id = $2', [it.cantidad, it.producto_id]);
+        // Vuelve al stock del LOCAL donde se desconto (antes sumaba solo al "stock" total y el
+        // local seguia viendolo agotado). Una preventa entregada descuenta del local de la preventa.
+        const localStock = venta.es_preventa === true ? venta.preventa_local : venta.local_id;
+        const col = Number(localStock) === 2 ? 'stock_ush' : 'stock_rg';
+        if (it.variante_id) {
+          await client.query(`UPDATE producto_variantes SET ${col} = COALESCE(${col}, 0) + $1 WHERE id = $2`, [it.cantidad, it.variante_id]);
+        } else {
+          await client.query(
+            `UPDATE productos SET ${col} = COALESCE(${col}, 0) + $1, stock = COALESCE(stock_rg, 0) + COALESCE(stock_ush, 0) + $1 WHERE id = $2`,
+            [it.cantidad, it.producto_id]);
+        }
       }
     }
 
