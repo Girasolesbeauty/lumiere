@@ -57,6 +57,11 @@ const NOMBRES_SECCION = {
   'config-insumos': 'Insumos en POS', 'config-ticket': 'Ticket', auditoria: 'Auditoría',
 };
 
+// Manual para el centro de ayuda (buscador sin IA, gratis)
+router.get('/manual', (req, res) => {
+  res.json({ texto: MANUAL });
+});
+
 router.get('/estado', (req, res) => {
   res.json({ disponible: !!process.env.ANTHROPIC_API_KEY });
 });

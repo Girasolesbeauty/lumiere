@@ -394,6 +394,10 @@ button.tab { font-family: inherit; }
 .ayuda-pensando { display: inline-flex; gap: 4px; align-items: center; }
 .ayuda-pensando span { width: 6px; height: 6px; border-radius: 50%; background: ${p.textMuted}; animation: pulse 1s ease-in-out infinite; }
 .ayuda-pensando span:nth-child(2) { animation-delay: .15s; } .ayuda-pensando span:nth-child(3) { animation-delay: .3s; }
+.ayuda-art { flex-shrink: 0; background: ${p.card}; border: 1px solid ${p.border}; border-radius: 10px; overflow: hidden; }
+.ayuda-art.abierto { border-color: ${p.accent}88; }
+.ayuda-art-tit { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px; text-align: left; font-family: inherit; color: ${p.text}; background: transparent; border: none; padding: 10px 12px; cursor: pointer; }
+.ayuda-art-tit:hover { background: ${p.trHover}; }
 .ayuda-error { font-size: 12px; color: ${p.red}; background: ${p.redDim}; border-radius: 8px; padding: 8px 10px; }
 .ayuda-pie { display: flex; gap: 8px; align-items: flex-end; padding: 10px; border-top: 1px solid ${p.border}; background: ${p.card}; }
 .ayuda-pie textarea { flex: 1; resize: none; max-height: 110px; font-family: inherit; font-size: 14px; padding: 10px 12px; border-radius: 10px; border: 1px solid ${p.border}; background: ${p.inpBg}; color: ${p.text}; outline: none; }
@@ -16034,8 +16038,10 @@ const SUGERENCIAS_AYUDA = {
 const SUGERENCIAS_GENERALES = ["¿Cómo hago una venta?", "¿Cómo cierro la caja?", "¿Cómo cargo un gasto?"];
 
 // Formato minimo para las respuestas: **negrita**, listas con "-" o "1." y parrafos
-const textoConNegrita = (t) => String(t).split(/(\*\*[^*]+\*\*)/g).map((parte, i) =>
-  parte.startsWith("**") && parte.endsWith("**") && parte.length > 4 ? <b key={i}>{parte.slice(2, -2)}</b> : <Fragment key={i}>{parte}</Fragment>);
+const textoConNegrita = (t) => String(t).split(/(\*\*[^*]+\*\*|\*[^*\s][^*]*\*)/g).map((parte, i) =>
+  parte.startsWith("**") && parte.endsWith("**") && parte.length > 4 ? <b key={i}>{parte.slice(2, -2)}</b>
+    : parte.startsWith("*") && parte.endsWith("*") && parte.length > 2 ? <i key={i}>{parte.slice(1, -1)}</i>
+    : <Fragment key={i}>{parte}</Fragment>);
 const renderRespuesta = (texto) => {
   const bloques = [];
   let lista = null;
@@ -16057,28 +16063,122 @@ const renderRespuesta = (texto) => {
   return bloques;
 };
 
+// ===== Centro de ayuda (gratis, sin IA): buscador sobre el manual de Lumiere =====
+// Si el servidor tiene configurada una clave de IA, ademas aparece la pestaña "Preguntar a la IA".
+const TEMAS_POR_SECCION = {
+  dashboard: ["Dashboard"], pos: ["Cómo vender (Punto de Venta)", "Desafíos de venta", "Atajos del Punto de Venta"],
+  "ventas-online": ["Ventas Online"], "buscar-precio": ["Buscar Precio"], "cambio-devolucion": ["Cómo hacer un cambio o devolución"],
+  inventory: ["Inventario", "Cómo pedir mercadería (Qué pedir)"], ordenes: ["Cómo recibir mercadería", "Ingresos", "Cómo reclamar a un proveedor"],
+  inconsistencias: ["Inconsistencias", "Cómo reclamar a un proveedor"], kits: ["Kits"], insumos: ["Insumos"], "control-inv": ["Control de Inventario"],
+  caja: ["Caja", "Cómo cerrar la caja"], "caja-respaldo": ["Caja de Respaldo"], cierre: ["Cómo cerrar la caja", "Cómo anular una venta", "Cierre de Caja"],
+  giftcards: ["Gift Cards"], clients: ["Clientes"], pedidos: ["Cómo avisarle a un cliente que llegó lo que esperaba", "Pedidos"], fidelizacion: ["Fidelización"],
+  tareas: ["Tareas"], finance: ["Cómo cargar un gasto (egreso)", "Finanzas", "Documentación para el contador"],
+  comprobantes: ["Comprobantes", "Documentación para el contador", "Cómo anular una venta"], comisiones: ["Comisiones", "Desafíos de venta"],
+  compras: ["Cómo pedir mercadería (Qué pedir)", "¿Llego a pagarle al proveedor?", "Cómo pagar a un proveedor", "Cómo reclamar a un proveedor"],
+  calculadoras: ["Calculadoras"], productividad: ["Productividad"], cupones: ["Cupones"], promociones: ["Promociones"], postventa: ["Postventa WA"],
+  "config-negocio": ["Configuración del Negocio"], usuarios: ["Usuarios", "Roles y permisos"],
+};
+const TEMAS_POPULARES = ["Cómo vender (Punto de Venta)", "Cómo cerrar la caja", "Cómo cargar un gasto (egreso)", "Cómo pedir mercadería (Qué pedir)"];
+// Palabras que la gente usa distinto a como se llaman en el sistema
+const SINONIMOS_AYUDA = {
+  gasto: ["egreso"], gastos: ["egreso"], pagar: ["pago", "egreso"], plata: ["caja", "efectivo"], dinero: ["caja", "efectivo"], efectivo: ["caja"],
+  factura: ["comprobante", "facturar", "arca"], facturar: ["comprobante", "arca"], afip: ["arca"], devolver: ["devolucion", "cambio"], devolucion: ["cambio"],
+  pedir: ["pedido", "compras", "proveedor"], compra: ["compras", "proveedor"], reponer: ["pedir", "compras"], mercaderia: ["ingresos", "recibir"],
+  stock: ["inventario"], producto: ["inventario"], productos: ["inventario"], clienta: ["cliente"], vendedora: ["usuarios", "comisiones"], vendedor: ["usuarios", "comisiones"],
+  sueldo: ["egreso", "comisiones"], contador: ["excel", "comprobantes"], anular: ["anulacion", "anulada"], borrar: ["anular", "eliminar"],
+  descuento: ["cupon", "promociones"], oferta: ["promociones"], reto: ["desafio"], retos: ["desafio"], arqueo: ["cierre", "caja"], cerrar: ["cierre"],
+  reclamo: ["reclamar", "reclamos"], falla: ["reclamo"], faltante: ["reclamo", "ingresos"], whatsapp: ["avisar", "enviar"], ticket: ["comprobante", "imprimir"],
+  permiso: ["permisos", "usuarios"], clave: ["usuarios"], local: ["locales"], sucursal: ["local", "locales"], tarjeta: ["medio", "pago"],
+};
+const PALABRAS_VACIAS = new Set("como hago hacer que el la los las de del un una unos unas para en y o se mi me te lo al por con es son cual cuales donde cuando puedo quiero necesito tengo hay a sobre esto esta este".split(" "));
+const normalizarTexto = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9ñ ]/g, " ");
+
+// Convierte el manual (markdown) en articulos buscables
+const armarArticulosAyuda = (md) => {
+  const arts = [];
+  let h2 = "", h3 = "", actual = null;
+  const cerrar = () => { if (actual) { actual.cuerpo = actual.cuerpo.join("\n").trim(); if (actual.cuerpo) arts.push(actual); actual = null; } };
+  String(md).split("\n").forEach(linea => {
+    if (linea.startsWith("# ")) return;
+    if (linea.startsWith("## ")) {
+      cerrar(); h2 = linea.slice(3).trim(); h3 = "";
+      if (!/Menú/.test(h2) && !/tareas más comunes/.test(h2)) actual = { titulo: h2.replace(/^Atajos del Punto de Venta$/, "Atajos del Punto de Venta"), grupo: "General", cuerpo: [] };
+      return;
+    }
+    if (linea.startsWith("### ")) {
+      cerrar(); h3 = linea.slice(4).trim();
+      if (/tareas más comunes/.test(h2)) actual = { titulo: h3, grupo: "Cómo hacer", cuerpo: [] };
+      return;
+    }
+    if (/Menú/.test(h2)) {
+      const m = linea.match(/^- \*\*([^*]+)\*\*(?: \([^)]*\))?:\s*(.*)$/);
+      if (m) { cerrar(); actual = { titulo: m[1].trim(), grupo: h3 ? "Sección · " + h3.replace(/ y .*/, "") : "Sección", cuerpo: [m[2]] }; return; }
+      if (actual && /^\s+-/.test(linea)) { actual.cuerpo.push(linea.trim()); return; }
+      if (actual && !linea.trim()) return;
+      if (actual && !/^\s/.test(linea)) cerrar();
+      return;
+    }
+    if (actual) actual.cuerpo.push(linea);
+  });
+  cerrar();
+  return arts.map(a => ({ ...a, _t: normalizarTexto(a.titulo), _c: normalizarTexto(a.cuerpo) }));
+};
+const buscarAyuda = (arts, consulta) => {
+  const palabras = normalizarTexto(consulta).split(/\s+/).filter(w => w.length > 1 && !PALABRAS_VACIAS.has(w));
+  if (!palabras.length) return [];
+  const conSinonimos = palabras.map(w => [w, ...(SINONIMOS_AYUDA[w] || [])]);
+  return arts.map(a => {
+    let puntos = 0, cubiertas = 0;
+    conSinonimos.forEach(grupo => {
+      let mejor = 0;
+      grupo.forEach((w, i) => {
+        const raiz = w.length > 5 ? w.slice(0, w.length - 2) : w; // "reclamar" encuentra "reclamo"
+        const peso = i === 0 ? 1 : 0.7;
+        if (a._t.includes(raiz)) mejor = Math.max(mejor, 5 * peso);
+        else if (a._c.includes(raiz)) mejor = Math.max(mejor, 1.5 * peso);
+      });
+      if (mejor > 0) cubiertas++;
+      puntos += mejor;
+    });
+    if (a.grupo === "Cómo hacer") puntos *= 1.15;
+    return { a, puntos: puntos * (cubiertas / conSinonimos.length) };
+  }).filter(x => x.puntos > 0).sort((x, y) => y.puntos - x.puntos).slice(0, 6).map(x => x.a);
+};
+
 function AsistenteAyuda({ usuario, seccion, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
-  const [disponible, setDisponible] = useState(false);
   const [abierto, setAbierto] = useState(false);
+  const [modo, setModo] = useState("buscar"); // buscar | ia
+  const [iaDisponible, setIaDisponible] = useState(false);
+  const [articulos, setArticulos] = useState(null);
+  const [consulta, setConsulta] = useState("");
+  const [abiertoArt, setAbiertoArt] = useState(null);
+  // IA (solo si el servidor tiene clave)
   const [mensajes, setMensajes] = useState(() => { try { return JSON.parse(sessionStorage.getItem("lumiere_ayuda") || "[]"); } catch (e) { return []; } });
   const [texto, setTexto] = useState("");
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const finRef = useRef(null);
   const inputRef = useRef(null);
+  const buscarRef = useRef(null);
 
-  useEffect(() => { API.get("/asistente/estado").then(r => setDisponible(!!r.data?.disponible)).catch(() => setDisponible(false)); }, []);
+  useEffect(() => { API.get("/asistente/estado").then(r => setIaDisponible(!!r.data?.disponible)).catch(() => setIaDisponible(false)); }, []);
+  useEffect(() => {
+    if (!abierto || articulos) return;
+    API.get("/asistente/manual").then(r => setArticulos(armarArticulosAyuda(r.data?.texto || ""))).catch(() => setArticulos([]));
+  }, [abierto]);
   useEffect(() => { try { sessionStorage.setItem("lumiere_ayuda", JSON.stringify(mensajes.slice(-30))); } catch (e) {} }, [mensajes]);
-  useEffect(() => { if (abierto) setTimeout(() => { finRef.current?.scrollIntoView({ block: "end" }); inputRef.current?.focus(); }, 30); }, [abierto, mensajes.length, cargando]);
+  useEffect(() => {
+    if (!abierto) return;
+    setTimeout(() => { if (modo === "ia") { finRef.current?.scrollIntoView({ block: "end" }); inputRef.current?.focus(); } else buscarRef.current?.focus(); }, 30);
+  }, [abierto, modo, mensajes.length, cargando]);
   useEffect(() => {
     if (!abierto) return;
     const h = (e) => { if (e.key === "Escape") setAbierto(false); };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [abierto]);
-
-  if (!disponible) return null;
+  useEffect(() => { setAbiertoArt(null); }, [consulta]);
 
   const enviar = async (pregunta) => {
     const q = (pregunta ?? texto).trim();
@@ -16088,56 +16188,103 @@ function AsistenteAyuda({ usuario, seccion, paletaActual }) {
     try {
       const r = await API.post("/asistente", { mensajes: nuevos, seccion, rol: usuario?.rol || "" });
       setMensajes(m => [...m, { rol: "asistente", texto: r.data?.texto || "" }]);
-    } catch (e) {
-      setError(e.response?.data?.error || "No se pudo conectar con el asistente. Probá de nuevo.");
-    }
+    } catch (e) { setError(e.response?.data?.error || "No se pudo conectar con el asistente. Probá de nuevo."); }
     setCargando(false);
   };
-  const sugerencias = SUGERENCIAS_AYUDA[seccion] || SUGERENCIAS_GENERALES;
+
+  const lista = articulos || [];
+  const resultados = consulta.trim() ? buscarAyuda(lista, consulta) : [];
+  const deLaSeccion = (TEMAS_POR_SECCION[seccion] || []).map(t => lista.find(a => a.titulo === t)).filter(Boolean);
+  const populares = TEMAS_POPULARES.map(t => lista.find(a => a.titulo === t)).filter(a => a && !deLaSeccion.includes(a));
+  const articuloJSX = (a, i) => {
+    const clave = a.titulo + i;
+    const ab = abiertoArt === clave;
+    return (
+      <div key={clave} className={"ayuda-art" + (ab ? " abierto" : "")}>
+        <button className="ayuda-art-tit" onClick={() => setAbiertoArt(ab ? null : clave)} aria-expanded={ab}>
+          <span style={{ minWidth: 0 }}>
+            <span style={{ display: "block", fontSize: 13, fontWeight: 700 }}>{a.titulo}</span>
+            <span style={{ display: "block", fontSize: 10, color: p.textMuted }}>{a.grupo}</span>
+          </span>
+          <span aria-hidden="true" style={{ color: p.textMuted }}>{ab ? "▴" : "▾"}</span>
+        </button>
+        {ab && <div className="ayuda-msg ia" style={{ maxWidth: "100%", border: "none", padding: "2px 12px 10px" }}>{renderRespuesta(a.cuerpo)}</div>}
+      </div>
+    );
+  };
 
   return (
     <>
       {!abierto && (
-        <button className={"ayuda-fab" + (seccion === "pos" ? " arriba" : "")} onClick={() => setAbierto(true)} aria-label="Abrir el asistente de ayuda">
-          <span aria-hidden="true">✨</span> Ayuda
+        <button className={"ayuda-fab" + (seccion === "pos" ? " arriba" : "")} onClick={() => setAbierto(true)} aria-label="Abrir la ayuda">
+          <span aria-hidden="true">❓</span> Ayuda
         </button>
       )}
       {abierto && (
-        <div className="ayuda-panel pop-in" role="dialog" aria-label="Asistente de ayuda">
+        <div className="ayuda-panel pop-in" role="dialog" aria-label="Ayuda de Lumiere">
           <div className="ayuda-head">
             <div>
-              <div style={{ fontSize: 14, fontWeight: 800 }}>✨ Asistente de Lumiere</div>
-              <div style={{ fontSize: 11, opacity: .8 }}>Preguntá cómo hacer cualquier cosa en el sistema</div>
+              <div style={{ fontSize: 14, fontWeight: 800 }}>❓ Ayuda de Lumiere</div>
+              <div style={{ fontSize: 11, opacity: .8 }}>Buscá cómo hacer cualquier cosa en el sistema</div>
             </div>
             <div style={{ display: "flex", gap: 4 }}>
-              {mensajes.length > 0 && <button className="icon-btn" style={{ color: "inherit" }} onClick={() => { setMensajes([]); setError(""); }} title="Nueva conversación" aria-label="Nueva conversación">↺</button>}
-              <button className="icon-btn" style={{ color: "inherit" }} onClick={() => setAbierto(false)} aria-label="Cerrar el asistente">✕</button>
+              {modo === "ia" && mensajes.length > 0 && <button className="icon-btn" style={{ color: "inherit" }} onClick={() => { setMensajes([]); setError(""); }} title="Nueva conversación" aria-label="Nueva conversación">↺</button>}
+              <button className="icon-btn" style={{ color: "inherit" }} onClick={() => setAbierto(false)} aria-label="Cerrar la ayuda">✕</button>
             </div>
           </div>
-          <div className="ayuda-cuerpo" aria-live="polite">
-            {mensajes.length === 0 && (
-              <div className="ayuda-bienvenida">
-                <div style={{ fontSize: 13, marginBottom: 10 }}>¡Hola{usuario?.nombre ? " " + usuario.nombre.split(" ")[0] : ""}! ¿En qué te ayudo? Podés preguntarme cómo hacer una tarea o qué significa algo.</div>
-                {sugerencias.map(s => <button key={s} className="ayuda-sug" onClick={() => enviar(s)}>{s}</button>)}
+          {iaDisponible && (
+            <div className="seg" role="group" aria-label="Tipo de ayuda" style={{ display: "flex", margin: "10px 12px 0" }}>
+              <button style={{ flex: 1 }} className={modo === "buscar" ? "on" : ""} onClick={() => setModo("buscar")}>🔍 Buscar en la ayuda</button>
+              <button style={{ flex: 1 }} className={modo === "ia" ? "on" : ""} onClick={() => setModo("ia")}>✨ Preguntar a la IA</button>
+            </div>
+          )}
+
+          {modo === "buscar" ? (
+            <>
+              <div style={{ padding: "10px 12px", borderBottom: "1px solid " + p.border }}>
+                <input ref={buscarRef} className="inp" type="search" placeholder="Ej: cerrar la caja, gasto compartido, anular venta..." value={consulta} onChange={e => setConsulta(e.target.value)} aria-label="Buscar en la ayuda" />
               </div>
-            )}
-            {mensajes.map((m, i) => (
-              <div key={i} className={"ayuda-msg " + (m.rol === "usuario" ? "yo" : "ia")}>
-                {m.rol === "usuario" ? m.texto : renderRespuesta(m.texto)}
+              <div className="ayuda-cuerpo" style={{ gap: 6 }} aria-live="polite">
+                {!articulos ? <div className="skel" style={{ height: 120 }} /> : consulta.trim() ? (
+                  resultados.length === 0
+                    ? <div style={{ fontSize: 13, color: p.textMuted, padding: 8 }}>No encontré nada con "{consulta}". Probá con otras palabras (por ejemplo "caja", "egreso", "proveedor") o consultá al dueño del sistema.</div>
+                    : <>{resultados.map(articuloJSX)}</>
+                ) : (
+                  <>
+                    {deLaSeccion.length > 0 && <div className="comp-det-tit" style={{ margin: "2px 4px" }}>EN ESTA PANTALLA</div>}
+                    {deLaSeccion.map(articuloJSX)}
+                    {populares.length > 0 && <div className="comp-det-tit" style={{ margin: "8px 4px 2px" }}>LO MÁS CONSULTADO</div>}
+                    {populares.map(articuloJSX)}
+                  </>
+                )}
               </div>
-            ))}
-            {cargando && <div className="ayuda-msg ia ayuda-pensando" aria-label="El asistente está escribiendo"><span /><span /><span /></div>}
-            {error && <div className="ayuda-error" role="alert">{error}</div>}
-            <div ref={finRef} />
-          </div>
-          <div className="ayuda-pie">
-            <textarea ref={inputRef} rows={1} placeholder="Escribí tu pregunta..." value={texto} maxLength={1500}
-              onChange={e => setTexto(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); } }}
-              aria-label="Tu pregunta" />
-            <button className="btn btn-p" onClick={() => enviar()} disabled={cargando || !texto.trim()} aria-label="Enviar">➤</button>
-          </div>
-          <div style={{ fontSize: 10, color: p.textMuted, textAlign: "center", padding: "0 10px 8px" }}>Las respuestas las genera una IA: si algo no coincide con lo que ves, avisale al dueño del sistema.</div>
+            </>
+          ) : (
+            <>
+              <div className="ayuda-cuerpo" aria-live="polite">
+                {mensajes.length === 0 && (
+                  <div className="ayuda-bienvenida">
+                    <div style={{ fontSize: 13, marginBottom: 10 }}>¡Hola{usuario?.nombre ? " " + usuario.nombre.split(" ")[0] : ""}! Preguntame cómo hacer una tarea o qué significa algo.</div>
+                    {(SUGERENCIAS_AYUDA[seccion] || SUGERENCIAS_GENERALES).map(s => <button key={s} className="ayuda-sug" onClick={() => enviar(s)}>{s}</button>)}
+                  </div>
+                )}
+                {mensajes.map((m, i) => (
+                  <div key={i} className={"ayuda-msg " + (m.rol === "usuario" ? "yo" : "ia")}>{m.rol === "usuario" ? m.texto : renderRespuesta(m.texto)}</div>
+                ))}
+                {cargando && <div className="ayuda-msg ia ayuda-pensando" aria-label="El asistente está escribiendo"><span /><span /><span /></div>}
+                {error && <div className="ayuda-error" role="alert">{error}</div>}
+                <div ref={finRef} />
+              </div>
+              <div className="ayuda-pie">
+                <textarea ref={inputRef} rows={1} placeholder="Escribí tu pregunta..." value={texto} maxLength={1500}
+                  onChange={e => setTexto(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); } }}
+                  aria-label="Tu pregunta" />
+                <button className="btn btn-p" onClick={() => enviar()} disabled={cargando || !texto.trim()} aria-label="Enviar">➤</button>
+              </div>
+              <div style={{ fontSize: 10, color: p.textMuted, textAlign: "center", padding: "0 10px 8px" }}>Las respuestas las genera una IA: si algo no coincide con lo que ves, avisale al dueño del sistema.</div>
+            </>
+          )}
         </div>
       )}
     </>
