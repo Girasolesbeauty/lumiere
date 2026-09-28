@@ -314,6 +314,30 @@ button.tab { font-family: inherit; }
 .pago-tipo:active { transform: scale(.97); }
 .pago-tipo.on { border-color: ${p.accent}; background: ${p.accentDim}; color: ${p.accent}; box-shadow: inset 0 0 0 1px ${p.accent}; }
 /* --- Ingreso de mercaderia --- */
+/* --- Finanzas --- */
+.fin-mes { display: inline-flex; align-items: center; gap: 4px; background: ${p.card}; border: 1px solid ${p.border}; border-radius: 8px; padding: 3px; }
+.fin-mes .sel { padding: 5px 8px; font-size: 12px; border: none; background: transparent; }
+.fin-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.fin-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.fin-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.fin-form { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); }
+.fin-filtros { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.fin-sec { border-bottom: 1px solid ${p.border}; }
+.fin-sec-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 11px 16px; font-size: 13px; font-weight: 800; border-left: 3px solid transparent; background: ${p.bg}; font-variant-numeric: tabular-nums; }
+.fin-sec-row { display: flex; justify-content: space-between; gap: 10px; padding: 7px 16px 7px 28px; font-size: 12px; color: ${p.textSoft}; font-variant-numeric: tabular-nums; }
+.fin-sec-row:hover { background: ${p.trHover}; }
+.fin-resultado { display: flex; justify-content: space-between; align-items: center; padding: 16px; color: #fff; font-weight: 800; letter-spacing: .08em; font-size: 13px; }
+.fin-resultado span:last-child { font-size: 24px; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.fin-stack { display: flex; height: 14px; border-radius: 99px; overflow: hidden; background: ${p.bg}; margin-bottom: 12px; }
+.fin-stack > div { height: 100%; transition: width .6s cubic-bezier(.2,.7,.2,1); }
+.fin-score { width: 124px; height: 124px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; background: conic-gradient(var(--c) calc(var(--v) * 1%), ${p.border} 0); }
+.fin-score > div { width: 100px; height: 100px; border-radius: 50%; background: ${p.card}; display: flex; align-items: baseline; justify-content: center; padding-top: 32px; font-size: 32px; font-weight: 800; color: var(--c); font-variant-numeric: tabular-nums; }
+.fin-score span { font-size: 12px; color: ${p.textMuted}; font-weight: 600; margin-left: 2px; }
+.fin-meta { position: relative; height: 14px; border-radius: 99px; background: ${p.bg}; border: 1px solid ${p.border}; margin-top: 18px; }
+.fin-meta-fill { height: 100%; border-radius: 99px; transition: width .8s cubic-bezier(.2,.7,.2,1); }
+.fin-meta-proy { position: absolute; top: -5px; bottom: -5px; width: 2px; background: ${p.text}; opacity: .55; }
+@media (max-width: 980px) { .fin-grid { grid-template-columns: 1fr; } .fin-lado { order: -1; } .fin-form { position: static; } .fin-grid3 { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .fin-grid2 { grid-template-columns: 1fr; } }
 /* --- Cierre de caja --- */
 .cc-nav { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .cc-top { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 2fr); gap: 12px; align-items: stretch; }
@@ -6355,754 +6379,751 @@ function Clientes({ usuario, paletaActual }) {
   );
 }
 
+const MESES_NOMBRE = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+// Fecha local (no UTC): toISOString daba el dia siguiente despues de las 21 hs
+const isoLocal = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const GRUPOS_EGRESO = [
+  { k: "variables", l: "Costos variables", c: "#e67e22", ayuda: "mercadería, envíos, gastos del día a día" },
+  { k: "fijos", l: "Costos fijos", c: "#2471a3", ayuda: "alquiler, servicios, seguros" },
+  { k: "admin", l: "Administrativos y marketing", c: "#7d3c98", ayuda: "contador, publicidad, sistemas" },
+  { k: "sueldos", l: "Sueldos y comisiones", c: "#c0392b", ayuda: "sueldos y comisiones de vendedores" },
+  { k: "impuestos", l: "Impuestos", c: "#b7950b", ayuda: "931, IIBB, municipales" },
+  { k: "comisiones_medios_pago", l: "Comisiones de medios de pago", c: "#8e44ad", ayuda: "lo que cobran tarjetas y plataformas" },
+];
+
 function Finanzas({ localId, usuario, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
-  const [tab, setTab] = useState("flujo");
-  const [tabLocal, setTabLocal] = useState("rg");
-  const [flujo, setFlujo] = useState(null);
+  const hoy = new Date();
+  const [tab, setTab] = useState("resumen");
+  const [tabLocal, setTabLocal] = useState("consolidado");
+  const [mesFiltro, setMesFiltro] = useState(hoy.getMonth() + 1);
+  const [anioFiltro, setAnioFiltro] = useState(hoy.getFullYear());
+  const [loading, setLoading] = useState(true);
   const [flujoEst, setFlujoEst] = useState(null);
   const [comisiones, setComisiones] = useState(null);
   const [cmv, setCmv] = useState(null);
-  const [factExterna, setFactExterna] = useState(null);
-  const [factExtMonto, setFactExtMonto] = useState("");
-  const [factExtLocal, setFactExtLocal] = useState("1");
-  const [mostrarFacAnterior, setMostrarFacAnterior] = useState(false);
-  useEffect(() => { API.get("/configuracion").then(r => setMostrarFacAnterior(r.data?.mostrar_facturacion_anterior === true)).catch(() => {}); }, []);
   const [equilibrio, setEquilibrio] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [nuevoEgreso, setNuevoEgreso] = useState({ concepto: "", importe: "", categoria_id: "", forma_pago: "", cuenta_pago_id: "", local_id: "", fecha: new Date().toISOString().slice(0, 10) });
+  const [analisis, setAnalisis] = useState(null);
+  const [factExterna, setFactExterna] = useState(null);
   const [categoriasCosto, setCategoriasCosto] = useState([]);
   const [cuentasPago, setCuentasPago] = useState([]);
+  const [mostrarFacAnterior, setMostrarFacAnterior] = useState(false);
+  const [mensaje, setMensaje] = useState("");
+  const avisar = (t) => { setMensaje(t); setTimeout(() => setMensaje(m => (m === t ? "" : m)), 3500); };
+  const esJefe = ["jefe", "admin", "administrativo"].includes(usuario?.rol);
+
+  // --- Registrar egreso ---
+  const egresoVacio = (fecha) => ({ concepto: "", importe: "", categoria_id: "", forma_pago: "", cuenta_pago_id: "", local_id: "", fecha: fecha || isoLocal(new Date()) });
+  const [nuevoEgreso, setNuevoEgreso] = useState(egresoVacio());
+  const [guardandoEgreso, setGuardandoEgreso] = useState(false);
+  const [ultimoEgreso, setUltimoEgreso] = useState(null);
+  const [factExtMonto, setFactExtMonto] = useState("");
+  const [factExtLocal, setFactExtLocal] = useState("1");
+  const [editIibb, setEditIibb] = useState(null);
+  const [verDetalleCom, setVerDetalleCom] = useState(false);
+
+  // --- Movimientos ---
+  const rangoMes = (m, a) => [a + "-" + String(m).padStart(2, "0") + "-01", a + "-" + String(m).padStart(2, "0") + "-" + String(new Date(a, m, 0).getDate()).padStart(2, "0")];
   const [detalleMovs, setDetalleMovs] = useState([]);
   const [detalleLoading, setDetalleLoading] = useState(false);
   const [detalleBusqueda, setDetalleBusqueda] = useState("");
-  const [detalleDesde, setDetalleDesde] = useState("");
-  const [detalleHasta, setDetalleHasta] = useState("");
+  const [detalleTipo, setDetalleTipo] = useState("");
+  const [detalleDesde, setDetalleDesde] = useState(rangoMes(hoy.getMonth() + 1, hoy.getFullYear())[0]);
+  const [detalleHasta, setDetalleHasta] = useState(rangoMes(hoy.getMonth() + 1, hoy.getFullYear())[1]);
+  const [soloSinCategoria, setSoloSinCategoria] = useState(false);
   const [editandoMov, setEditandoMov] = useState(null);
-  const [analisis, setAnalisis] = useState(null);
-  const [analisisLoading, setAnalisisLoading] = useState(false);
+  const [borrandoMov, setBorrandoMov] = useState(null);
+
+  // --- Comparar ---
   const [comparativa, setComparativa] = useState(null);
   const [comparativaLoading, setComparativaLoading] = useState(false);
+  const mesPasadoIni = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
+  const [comp1Desde, setComp1Desde] = useState(isoLocal(new Date(hoy.getFullYear(), hoy.getMonth(), 1)));
+  const [comp1Hasta, setComp1Hasta] = useState(isoLocal(hoy));
+  const [comp2Desde, setComp2Desde] = useState(isoLocal(mesPasadoIni));
+  const [comp2Hasta, setComp2Hasta] = useState(isoLocal(new Date(mesPasadoIni.getFullYear(), mesPasadoIni.getMonth(), Math.min(hoy.getDate(), new Date(mesPasadoIni.getFullYear(), mesPasadoIni.getMonth() + 1, 0).getDate()))));
 
-  // Valores por defecto: este mes (del 1 a hoy) contra el mismo tramo del mes pasado
-  const hoyComp = new Date();
-  const iso = (d) => d.toISOString().slice(0, 10);
-  const defDesde1 = iso(new Date(hoyComp.getFullYear(), hoyComp.getMonth(), 1));
-  const defHasta1 = iso(hoyComp);
-  const mesPasado = new Date(hoyComp.getFullYear(), hoyComp.getMonth() - 1, 1);
-  const defDesde2 = iso(mesPasado);
-  const defHasta2 = iso(new Date(mesPasado.getFullYear(), mesPasado.getMonth(), Math.min(hoyComp.getDate(), new Date(mesPasado.getFullYear(), mesPasado.getMonth() + 1, 0).getDate())));
+  // --- Por local ---
+  const [costosPorLocalMovs, setCostosPorLocalMovs] = useState([]);
+  const [costosPorLocalLoading, setCostosPorLocalLoading] = useState(false);
 
-  const [comp1Desde, setComp1Desde] = useState(defDesde1);
-  const [comp1Hasta, setComp1Hasta] = useState(defHasta1);
-  const [comp2Desde, setComp2Desde] = useState(defDesde2);
-  const [comp2Hasta, setComp2Hasta] = useState(defHasta2);
-
-  const fmtDiaCorto = (f) => {
-    if (!f) return "";
-    const [y, m, d] = f.split("-");
-    return d + "/" + m + "/" + y;
+  const params = `mes=${mesFiltro}&anio=${anioFiltro}&local_id=${tabLocal}`;
+  const cargarDatos = () => {
+    setLoading(true);
+    Promise.allSettled([
+      API.get(`/finanzas/flujo-estructurado?${params}`),
+      API.get(`/finanzas/comisiones?${params}`),
+      API.get(`/finanzas/cmv?${params}`),
+      API.get(`/finanzas/facturacion-externa?${params}`),
+      API.get(`/finanzas/equilibrio?${params}`),
+      API.get(`/finanzas/analisis?${params}`),
+    ]).then(res => {
+      const val = (i) => (res[i].status === "fulfilled" ? res[i].value.data : null);
+      setFlujoEst(val(0)); setComisiones(val(1)); setCmv(val(2)); setFactExterna(val(3)); setEquilibrio(val(4)); setAnalisis(val(5));
+      setLoading(false);
+    });
   };
-
-  const cargarComparativa = () => {
-    setComparativaLoading(true);
-    const params = `local_id=${tabLocal}&desde1=${comp1Desde}&hasta1=${comp1Hasta}&desde2=${comp2Desde}&hasta2=${comp2Hasta}`;
-    API.get(`/finanzas/comparar-meses?${params}`)
-      .then(res => setComparativa(res.data))
-      .catch(() => setComparativa(null))
-      .finally(() => setComparativaLoading(false));
+  useEffect(() => { cargarDatos(); }, [tabLocal, mesFiltro, anioFiltro]);
+  useEffect(() => {
+    API.get("/configuracion").then(r => setMostrarFacAnterior(r.data?.mostrar_facturacion_anterior === true)).catch(() => {});
+    API.get("/categorias-costo").then(r => setCategoriasCosto(r.data || [])).catch(() => {});
+    API.get("/cuentas-pago?solo_pago=true").then(r => setCuentasPago(r.data || [])).catch(() => {});
+  }, []);
+  const cargarUltimoEgreso = () => {
+    if (!usuario?.id) return;
+    API.get("/finanzas/mi-ultimo-egreso?usuario_id=" + usuario.id).then(res => setUltimoEgreso(res.data || null)).catch(() => {});
   };
+  useEffect(() => { cargarUltimoEgreso(); }, [usuario?.id]);
 
-  const cargarAnalisis = () => {
-    setAnalisisLoading(true);
-    const params = `mes=${mesFiltro}&anio=${anioFiltro}&local_id=${tabLocal}`;
-    API.get(`/finanzas/analisis?${params}`)
-      .then(res => setAnalisis(res.data))
-      .catch(() => setAnalisis(null))
-      .finally(() => setAnalisisLoading(false));
-  };
+  // Al cambiar de mes, el rango de Movimientos acompaña
+  useEffect(() => { const [d, h] = rangoMes(mesFiltro, anioFiltro); setDetalleDesde(d); setDetalleHasta(h); }, [mesFiltro, anioFiltro]);
 
-  const [detalleTipo, setDetalleTipo] = useState("");
-  const cargarDetalle = () => {
+  const cargarDetalle = (extra = {}) => {
     setDetalleLoading(true);
-    const params = new URLSearchParams();
-    if (detalleBusqueda.trim()) params.set("busqueda", detalleBusqueda.trim());
-    if (detalleDesde) params.set("desde", detalleDesde);
-    if (detalleHasta) params.set("hasta", detalleHasta);
-    if (detalleTipo) params.set("tipo", detalleTipo);
-    API.get("/finanzas/movimientos-detalle?" + params.toString())
+    const q = new URLSearchParams();
+    const b = extra.busqueda !== undefined ? extra.busqueda : detalleBusqueda;
+    if (b.trim()) q.set("busqueda", b.trim());
+    const d = extra.desde !== undefined ? extra.desde : detalleDesde;
+    const h = extra.hasta !== undefined ? extra.hasta : detalleHasta;
+    if (d) q.set("desde", d);
+    if (h) q.set("hasta", h);
+    const t = extra.tipo !== undefined ? extra.tipo : detalleTipo;
+    if (t) q.set("tipo", t);
+    if (tabLocal !== "consolidado") q.set("local_id", tabLocal);
+    if (extra.sinCategoria !== undefined ? extra.sinCategoria : soloSinCategoria) q.set("sin_categoria", "1");
+    API.get("/finanzas/movimientos-detalle?" + q.toString())
       .then(res => setDetalleMovs(res.data || []))
       .catch(() => setDetalleMovs([]))
       .finally(() => setDetalleLoading(false));
   };
+  useEffect(() => { if (tab === "movimientos") cargarDetalle(); }, [tab, tabLocal, detalleDesde, detalleHasta, detalleTipo, soloSinCategoria]);
 
-  // --- Costos por local (segmentado, para ver de un vistazo que quedo cargado en cada uno) ---
-  const [costosPorLocalLoading, setCostosPorLocalLoading] = useState(false);
-  const [costosPorLocalMovs, setCostosPorLocalMovs] = useState([]);
-  const cargarCostosPorLocal = () => {
-    setCostosPorLocalLoading(true);
-    const desde = `${anioFiltro}-${String(mesFiltro).padStart(2, "0")}-01`;
-    const ultimoDia = new Date(anioFiltro, mesFiltro, 0).getDate();
-    const hasta = `${anioFiltro}-${String(mesFiltro).padStart(2, "0")}-${String(ultimoDia).padStart(2, "0")}`;
-    const params = new URLSearchParams({ desde, hasta, tipo: "E" });
-    API.get("/finanzas/movimientos-detalle?" + params.toString())
-      .then(res => setCostosPorLocalMovs(res.data || []))
-      .catch(() => setCostosPorLocalMovs([]))
-      .finally(() => setCostosPorLocalLoading(false));
+  const cargarComparativa = () => {
+    setComparativaLoading(true);
+    API.get(`/finanzas/comparar-meses?local_id=${tabLocal}&desde1=${comp1Desde}&hasta1=${comp1Hasta}&desde2=${comp2Desde}&hasta2=${comp2Hasta}`)
+      .then(res => setComparativa(res.data)).catch(() => setComparativa(null)).finally(() => setComparativaLoading(false));
   };
-
-  const guardarEdicionMov = async () => {
-    try {
-      await API.put("/finanzas/movimientos/" + editandoMov.id, {
-        concepto: editandoMov.concepto, importe: parseFloat(editandoMov.importe),
-        categoria_id: editandoMov.categoria_id || null, forma_pago: editandoMov.forma_pago,
-        cuenta_pago_id: editandoMov.cuenta_pago_id || null, local_id: editandoMov.local_id,
-        fecha: editandoMov.fecha || null
-      });
-      setEditandoMov(null);
-      cargarDetalle();
-      cargarDatos();
-      if (tab === "costos") cargarCostosDetalle();
-      if (tab === "analisis") cargarAnalisis();
-      setMensaje("Movimiento actualizado");
-      setTimeout(() => setMensaje(""), 3000);
-    } catch (e) { setMensaje("Error al editar: " + (e.response?.data?.error || e.message)); }
-  };
-
-  const borrarMov = async (m) => {
-    if (!confirm("Borrar el movimiento \"" + m.concepto + "\" por " + fmt(parseFloat(m.importe)) + "?")) return;
-    try {
-      await API.delete("/finanzas/movimientos/" + m.id);
-      cargarDetalle();
-    } catch (e) { setMensaje("Error al borrar: " + (e.response?.data?.error || e.message)); }
-  };
-  const [mensaje, setMensaje] = useState("");
-  const [mesFiltro, setMesFiltro] = useState(new Date().getMonth() + 1);
-  const [anioFiltro, setAnioFiltro] = useState(new Date().getFullYear());
-  const [ultimoEgreso, setUltimoEgreso] = useState(null);
-
-  const cargarUltimoEgreso = () => {
-    if (!usuario?.id) return;
-    API.get("/finanzas/mi-ultimo-egreso?usuario_id=" + usuario.id)
-      .then(res => setUltimoEgreso(res.data || null))
-      .catch(() => {});
-  };
-
-  useEffect(() => { cargarUltimoEgreso(); }, [usuario?.id]);
-
-  const cargarDatos = (local) => {
-    setLoading(true);
-    const localParam = local || tabLocal;
-    const params = `mes=${mesFiltro}&anio=${anioFiltro}&local_id=${localParam}`;
-    Promise.allSettled([
-      API.get(`/finanzas/flujo?${params}`),
-      API.get(`/finanzas/flujo-estructurado?${params}`),
-      API.get(`/finanzas/comisiones?${params}`),
-      API.get(`/finanzas/cmv?${params}`),
-      API.get(`/finanzas/facturacion-externa?mes=${mesFiltro}&anio=${anioFiltro}&local_id=${localParam}`),
-      getPuntoEquilibrio(),
-      API.get("/categorias-costo"),
-      API.get("/cuentas-pago?solo_pago=true")
-    ]).then((res) => {
-      const val = (i) => res[i].status === "fulfilled" ? res[i].value : null;
-      if (val(0)) setFlujo(val(0).data);
-      if (val(1)) setFlujoEst(val(1).data);
-      if (val(2)) setComisiones(val(2).data);
-      if (val(3)) setCmv(val(3).data);
-      if (val(4)) setFactExterna(val(4).data);
-      if (val(5)) setEquilibrio(val(5).data);
-      if (val(6)) setCategoriasCosto(val(6).data);
-      if (val(7)) setCuentasPago(val(7).data);
-      setLoading(false);
-    });
-  };
-
-  useEffect(() => { cargarDatos(); }, [tabLocal, mesFiltro, anioFiltro]);
-  useEffect(() => { if (tab === "analisis") cargarAnalisis(); }, [tabLocal, mesFiltro, anioFiltro]);
-  useEffect(() => { if (tab === "comparativa") cargarComparativa(); }, [tabLocal]);
-
-  const guardarFactExterna = async () => {
-    if (!factExtMonto || parseFloat(factExtMonto) <= 0) { setMensaje("Ingresa un monto valido"); return; }
-    try {
-      await API.post("/finanzas/facturacion-externa", {
-        monto: parseFloat(factExtMonto), local_id: parseInt(factExtLocal),
-        mes: mesFiltro, anio: anioFiltro, descripcion: "Sistema anterior"
-      });
-      setMensaje("Facturacion del sistema anterior guardada!");
-      setFactExtMonto("");
-      cargarDatos();
-      setTimeout(() => setMensaje(""), 3000);
-    } catch (e) {
-      setMensaje("Error al guardar la facturacion externa");
+  useEffect(() => { if (tab === "comparar") cargarComparativa(); }, [tab, tabLocal, comp1Desde, comp1Hasta, comp2Desde, comp2Hasta]);
+  const presetComparar = (tipo) => {
+    const h = new Date();
+    if (tipo === "mes") {
+      const ini = new Date(h.getFullYear(), h.getMonth() - 1, 1);
+      setComp1Desde(isoLocal(new Date(h.getFullYear(), h.getMonth(), 1))); setComp1Hasta(isoLocal(h));
+      setComp2Desde(isoLocal(ini)); setComp2Hasta(isoLocal(new Date(ini.getFullYear(), ini.getMonth(), Math.min(h.getDate(), new Date(ini.getFullYear(), ini.getMonth() + 1, 0).getDate()))));
+    } else if (tipo === "anio") {
+      setComp1Desde(isoLocal(new Date(h.getFullYear(), h.getMonth(), 1))); setComp1Hasta(isoLocal(h));
+      setComp2Desde(isoLocal(new Date(h.getFullYear() - 1, h.getMonth(), 1))); setComp2Hasta(isoLocal(new Date(h.getFullYear() - 1, h.getMonth(), h.getDate())));
+    } else if (tipo === "semana") {
+      const d = (n) => { const x = new Date(h); x.setDate(x.getDate() - n); return isoLocal(x); };
+      setComp1Desde(d(6)); setComp1Hasta(d(0)); setComp2Desde(d(13)); setComp2Hasta(d(7));
     }
   };
 
+  const cargarCostosPorLocal = () => {
+    setCostosPorLocalLoading(true);
+    const [desde, hasta] = rangoMes(mesFiltro, anioFiltro);
+    API.get("/finanzas/movimientos-detalle?" + new URLSearchParams({ desde, hasta, tipo: "E" }).toString())
+      .then(res => setCostosPorLocalMovs(res.data || [])).catch(() => setCostosPorLocalMovs([])).finally(() => setCostosPorLocalLoading(false));
+  };
+  useEffect(() => { if (tab === "porlocal") cargarCostosPorLocal(); }, [tab, mesFiltro, anioFiltro]);
+
   const guardarEgreso = async () => {
+    const e = nuevoEgreso;
+    if (!e.concepto.trim()) return avisar("Error: escribí el concepto (o elegí una categoría)");
+    if (!(parseFloat(e.importe) > 0)) return avisar("Error: poné un importe mayor a 0");
+    if (!e.local_id) return avisar("Error: elegí a qué local corresponde");
+    setGuardandoEgreso(true);
     try {
-      await agregarEgreso({ ...nuevoEgreso, referencia: "Manual", usuario_id: usuario?.id || null });
-      setMensaje("Egreso registrado!");
-      setNuevoEgreso(prev => ({ concepto: "", importe: "", categoria_id: "", forma_pago: "", cuenta_pago_id: "", local_id: "", fecha: prev.fecha }));
-      cargarDatos();
-      cargarUltimoEgreso();
-      setTimeout(() => setMensaje(""), 3000);
-    } catch (e) { setMensaje("Error al registrar egreso"); }
+      await API.post("/finanzas/egreso", { ...e, referencia: "Manual", usuario_id: usuario?.id || null });
+      avisar("✓ Egreso registrado: " + e.concepto + " · " + fmt(parseFloat(e.importe)));
+      setNuevoEgreso(prev => ({ ...egresoVacio(prev.fecha), local_id: prev.local_id }));
+      cargarDatos(); cargarUltimoEgreso();
+    } catch (err) { avisar("Error: " + (err.response?.data?.error || "no se pudo registrar el egreso")); }
+    setGuardandoEgreso(false);
   };
 
-  const meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  const guardarEdicionMov = async () => {
+    const m = editandoMov;
+    if (!(parseFloat(m.importe) > 0)) return avisar("Error: el importe tiene que ser mayor a 0");
+    try {
+      await API.put("/finanzas/movimientos/" + m.id, {
+        concepto: m.concepto, importe: parseFloat(m.importe),
+        categoria_id: m.categoria_id || null, forma_pago: m.forma_pago || null,
+        cuenta_pago_id: m.cuenta_pago_id || null, local_id: m.local_id === null ? "compartido" : m.local_id,
+        fecha: m.fecha || null,
+      });
+      setEditandoMov(null);
+      cargarDetalle(); cargarDatos();
+      avisar("✓ Movimiento actualizado");
+    } catch (e) { avisar("Error al editar: " + (e.response?.data?.error || e.message)); }
+  };
+  const borrarMov = async (m) => {
+    try {
+      await API.delete("/finanzas/movimientos/" + m.id);
+      setBorrandoMov(null);
+      cargarDetalle(); cargarDatos();
+      avisar("✓ Movimiento borrado");
+    } catch (e) { setBorrandoMov(null); avisar("Error: " + (e.response?.data?.error || e.message)); }
+  };
 
-  const SeccionFlujo = ({ titulo, detalle, total, color }) => (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: color + "15", borderRadius: "6px 6px 0 0", borderLeft: "3px solid " + color }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: color, letterSpacing: ".1em" }}>{titulo}</span>
-        <span style={{ fontSize: 14, fontWeight: 700, color: color }}>{fmt(parseFloat(total || 0))}</span>
-      </div>
-      {Object.entries(detalle || {}).map(([k, v]) => (
-        <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 12px", borderBottom: "1px solid " + p.border, background: p.bg }}>
-          <span style={{ fontSize: 12, color: p.text }}>{k}</span>
-          <span style={{ fontSize: 12, color: p.textMuted }}>{fmt(parseFloat(v || 0))}</span>
-        </div>
-      ))}
-    </div>
+  const guardarFactExterna = async () => {
+    if (!(parseFloat(factExtMonto) > 0)) return avisar("Error: ingresá un monto válido");
+    try {
+      await API.post("/finanzas/facturacion-externa", { monto: parseFloat(factExtMonto), local_id: parseInt(factExtLocal), mes: mesFiltro, anio: anioFiltro, descripcion: "Sistema anterior" });
+      setFactExtMonto(""); cargarDatos();
+      avisar("✓ Facturación del sistema anterior guardada");
+    } catch (e) { avisar("Error al guardar la facturación anterior"); }
+  };
+  const guardarIibb = async () => {
+    try {
+      await API.put("/configuracion", { iibb_pct: parseFloat(editIibb) });
+      setEditIibb(null); cargarDatos();
+      avisar("✓ % de IIBB actualizado");
+    } catch (e) { avisar("Error: " + (e.response?.data?.error || "no se pudo guardar")); }
+  };
+
+  const moverMes = (d) => {
+    let m = mesFiltro + d, a = anioFiltro;
+    if (m < 1) { m = 12; a--; } else if (m > 12) { m = 1; a++; }
+    setMesFiltro(m); setAnioFiltro(a);
+  };
+  const esMesActual = mesFiltro === hoy.getMonth() + 1 && anioFiltro === hoy.getFullYear();
+  const fmtDiaCorto = (f) => { if (!f) return ""; const [y, m, d] = String(f).slice(0, 10).split("-"); return d + "/" + m + "/" + y; };
+  const pctDe = (v, total) => (total > 0 ? (v / total) * 100 : 0);
+  const nombreLocalMov = (lid) => (lid === null || lid === undefined ? "Compartido" : nombreLocal(lid));
+
+  const ing = flujoEst?.ingresos?.total || 0;
+  const egr = flujoEst?.total_egresos || 0;
+  const neto = flujoEst?.resultado_neto || 0;
+  const margenNeto = ing > 0 ? (neto / ing) * 100 : 0;
+  const cmpAnt = analisis?.comparacion_mes_anterior;
+  const varIng = cmpAnt && cmpAnt.variacion_ingresos_pct !== null && cmpAnt.variacion_ingresos_pct !== undefined ? cmpAnt.variacion_ingresos_pct : null;
+  const tagVar = (v, invertir) => v === null ? null : (
+    <span className={"tag " + ((invertir ? v <= 0 : v >= 0) ? "tag-ok" : "tag-bad")}>{v >= 0 ? "▲" : "▼"} {Math.abs(v).toFixed(1)}%</span>
   );
+  const colorEstado = (e) => (e === "bien" ? p.green : e === "regular" ? p.warn : p.red);
+
+  // Lista para "¿en qué se fue la plata?"
+  const grupos = GRUPOS_EGRESO.map(g => ({ ...g, total: flujoEst?.[g.k]?.total || 0, detalle: flujoEst?.[g.k]?.detalle || {} })).filter(g => g.total > 0).sort((a, b) => b.total - a.total);
+  const topCategorias = GRUPOS_EGRESO.flatMap(g => Object.entries(flujoEst?.[g.k]?.detalle || {}).map(([n, v]) => ({ n, v, c: g.c }))).sort((a, b) => b.v - a.v).slice(0, 6);
+  const maxGrupo = Math.max(1, ...grupos.map(g => g.total));
+
+  const tabs = [
+    ["resumen", "Resumen"], ["movimientos", "Movimientos"], ["resultados", "Estado de resultados"],
+    ["analisis", "Análisis"], ["comparar", "Comparar"], ["porlocal", "Costos por local"], ["equilibrio", "Punto de equilibrio"],
+  ];
 
   return (
     <div className="fade">
-      <div className="ph">
-        <div><div className="pt">Finanzas</div><div className="ps">flujo de efectivo - costos - equilibrio</div></div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <select className="sel" style={{ width: 120, padding: "6px 10px", fontSize: 12 }} value={mesFiltro} onChange={e => setMesFiltro(parseInt(e.target.value))}>
-            {meses.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
-          </select>
-          <select className="sel" style={{ width: 80, padding: "6px 10px", fontSize: 12 }} value={anioFiltro} onChange={e => setAnioFiltro(parseInt(e.target.value))}>
-            {[2024,2025,2026,2027].map(a => <option key={a} value={a}>{a}</option>)}
-          </select>
+      <div className="dash-head">
+        <div>
+          <div className="pt">Finanzas</div>
+          <div className="ps">ingresos, egresos y resultado · {MESES_NOMBRE[mesFiltro - 1].toLowerCase()} {anioFiltro}{tabLocal !== "consolidado" ? " · " + nombreLocal(tabLocal === "rg" ? 1 : 2) : ""}</div>
+        </div>
+        <div className="dash-actions">
+          <div className="seg" role="group" aria-label="Local">
+            {[["consolidado", "Todos"], ["rg", nombreLocal(1)], ["ush", nombreLocal(2)]].map(([k, l]) => (
+              <button key={k} className={tabLocal === k ? "on" : ""} onClick={() => setTabLocal(k)}>{l}</button>
+            ))}
+          </div>
+          <div className="fin-mes">
+            <button className="icon-btn" onClick={() => moverMes(-1)} aria-label="Mes anterior">‹</button>
+            <select className="sel" value={mesFiltro} onChange={e => setMesFiltro(parseInt(e.target.value))} aria-label="Mes">
+              {MESES_NOMBRE.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+            </select>
+            <select className="sel" value={anioFiltro} onChange={e => setAnioFiltro(parseInt(e.target.value))} aria-label="Año">
+              {Array.from({ length: hoy.getFullYear() - 2023 + 1 }, (_, i) => 2024 + i).map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+            <button className="icon-btn" onClick={() => moverMes(1)} disabled={esMesActual} style={{ opacity: esMesActual ? 0.35 : 1 }} aria-label="Mes siguiente">›</button>
+          </div>
         </div>
       </div>
-      {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
-      
-      <div className="tabs">
-        {["flujo", "detalle", "estructurado", "comparativa", "analisis", "costos", "porlocal", "equilibrio"].map(t => (
-          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "detalle") cargarDetalle(); if (t === "analisis") cargarAnalisis(); if (t === "comparativa") cargarComparativa(); if (t === "porlocal") cargarCostosPorLocal(); }}>
-            {t === "flujo" ? "MOVIMIENTOS" : t === "detalle" ? "DETALLE / EDITAR" : t === "estructurado" ? "FLUJO DE EFECTIVO" : t === "comparativa" ? "COMPARAR MESES" : t === "analisis" ? "ANALISIS" : t === "costos" ? "COSTOS" : t === "porlocal" ? "COSTOS POR LOCAL" : "EQUILIBRIO"}
-          </div>
+
+      {mensaje && <div className={"pop-in cc-aviso " + (mensaje.startsWith("Error") ? "bad" : "ok")} role="status">{mensaje}</div>}
+
+      {/* KPIs del mes: mismos numeros en todas las pestañas */}
+      <div className="kpi-grid" style={{ opacity: loading && flujoEst ? 0.6 : 1, transition: "opacity .2s" }}>
+        {loading && !flujoEst ? [0, 1, 2, 3].map(i => <div key={i} className="skel" style={{ height: 96 }} />) : (
+          <>
+            <KpiCard p={p} titulo="Ingresos" valor={ing} formato={fmt} color={p.green} indice={0} tag={tagVar(varIng)}
+              sub={(flujoEst?.cantidad_ventas || 0) + " ventas" + (varIng !== null ? " · vs mes anterior" : "")} />
+            <KpiCard p={p} titulo="Egresos" valor={egr} formato={fmt} color={p.red} indice={1}
+              sub={ing > 0 ? Math.round(pctDe(egr, ing)) + "% de lo que entró" : "sin ingresos"} />
+            <KpiCard p={p} titulo="Resultado neto" valor={neto} formato={fmt} color={neto >= 0 ? p.green : p.red} indice={2}
+              sub={neto >= 0 ? "ganancia del mes" : "pérdida del mes"} />
+            <KpiCard p={p} titulo="Margen neto" valor={margenNeto.toFixed(1) + "%"} color={p.accent} indice={3}
+              tag={analisis ? <span className="tag" style={{ background: analisis.color + "22", color: analisis.color }}>{analisis.calificacion}</span> : null}
+              sub="lo que queda de cada $100" />
+          </>
+        )}
+      </div>
+
+      <div className="tabs" role="tablist">
+        {tabs.map(([k, l]) => (
+          <button key={k} role="tab" aria-selected={tab === k} className={"tab " + (tab === k ? "on" : "")} onClick={() => setTab(k)}>{l}</button>
         ))}
       </div>
 
-      {(tab === "flujo" || tab === "estructurado") && (
-        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-          {["rg", "ush", "consolidado"].map(l => (
-            <button key={l} onClick={() => setTabLocal(l)} className="btn btn-sm"
-              style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : p.border), color: tabLocal === l ? "#c9a84c" : p.textMuted, fontWeight: tabLocal === l ? 600 : 400 }}>
-              {l === "rg" ? nombreLocal(1) : l === "ush" ? nombreLocal(2) : "Consolidado"}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {tab === "flujo" && (
-        <div className="fade">
-          <div className="g3">
-            <div className="card"><div className="ct">Ingresos del mes</div><div style={{ fontSize: 26, fontWeight: 700, color: "#2d7a4f" }}>{fmt(parseFloat(flujo?.resumen?.ingresos || 0))}</div></div>
-            <div className="card"><div className="ct">Egresos del mes</div><div style={{ fontSize: 26, fontWeight: 700, color: "#c0392b" }}>{fmt(parseFloat(flujo?.resumen?.egresos || 0))}</div></div>
-            <div className="card"><div className="ct">Resultado neto</div><div style={{ fontSize: 26, fontWeight: 700, color: "#c9a84c" }}>{fmt(parseFloat(flujo?.resumen?.neto || 0))}</div></div>
-          </div>
-          <div className="g2">
-            <div className="card">
-              <div className="ct">Movimientos</div>
-              {loading ? <div style={{ color: p.textMuted }}>Cargando...</div> : (
-              <table>
-                <thead><tr><th>Concepto</th><th>Categoria</th><th>Tipo</th><th>Cuenta</th><th>Importe</th></tr></thead>
-                <tbody>
-                  {(flujo?.movimientos || []).slice(0, 15).map((m, i) => (
-                    <tr key={i}>
-                      <td>{m.concepto}</td>
-                      <td style={{ fontSize: 10, color: p.textMuted }}>{m.categoria_nombre || "-"}</td>
-                      <td><span className={"badge " + (m.tipo === "I" ? "bg" : "br")}>{m.tipo === "I" ? "Ingreso" : "Egreso"}</span></td>
-                      <td style={{ fontSize: 10, color: p.textMuted }}>{m.cuenta_nombre || m.forma_pago || "-"}</td>
-                      <td style={{ color: m.tipo === "I" ? "#2d7a4f" : "#c0392b" }}>{m.tipo === "I" ? "+" : "-"}{fmt(parseFloat(m.importe))}</td>
-                    </tr>
-                  ))}
-                  {(flujo?.movimientos || []).length === 0 && (<tr><td colSpan={5} style={{ color: p.textMuted, textAlign: "center" }}>Sin movimientos</td></tr>)}
-                </tbody>
-              </table>
-              )}
-            </div>
-            <div className="card">
-              <div className="ct">Registrar egreso</div>
-              {ultimoEgreso && (
-                <div style={{ background: "#c9a84c12", border: "1px solid #c9a84c", borderRadius: 6, padding: "8px 12px", marginBottom: 12, fontSize: 11, color: "#8a6d1f" }}>
-                  Ultima vez que cargaste datos: {new Date(ultimoEgreso.creado_en).toLocaleDateString("es-AR")} a las {new Date(ultimoEgreso.creado_en).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })} - {ultimoEgreso.concepto} ({fmt(parseFloat(ultimoEgreso.importe))})
+      {/* ============ RESUMEN ============ */}
+      {tab === "resumen" && (
+        <div className="fin-grid">
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
+            <div className="chart-card anim-in">
+              <div className="chart-head">
+                <div className="chart-title">¿En qué se fue la plata?</div>
+                <div className="chart-meta">{fmt(egr)} en egresos</div>
+              </div>
+              {flujoEst?.sin_categoria > 0 && (
+                <div className="dash-alert" style={{ marginBottom: 12 }}>
+                  <span>⚠️ Hay <b>{flujoEst.sin_categoria} egreso{flujoEst.sin_categoria !== 1 ? "s" : ""} sin categoría</b>. Categorizalos para que el análisis sea exacto.</span>
+                  <button className="chip-btn" onClick={() => { setSoloSinCategoria(true); setDetalleTipo("E"); setTab("movimientos"); }}>Categorizar →</button>
                 </div>
               )}
-              <div className="fg">
-                <div className="fl">Categoria</div>
-                <select className="sel" value={nuevoEgreso.categoria_id || ""} onChange={e => {
-                  const cat = categoriasCosto.find(c => c.id === parseInt(e.target.value));
-                  setNuevoEgreso(p => ({ ...p, categoria_id: e.target.value, concepto: cat?.nombre || "" }));
-                }}>
-                  <option value="">Seleccionar categoria...</option>
-                  {["variable", "fijo", "administrativo", "sueldo"].map(tipo => (
-                    <optgroup key={tipo} label={tipo === "variable" ? "Costos Variables" : tipo === "fijo" ? "Costos Fijos" : tipo === "administrativo" ? "Gastos Administrativos" : "Sueldos"}>
-                      {categoriasCosto.filter(c => c.tipo === tipo).map(c => (
-                        <option key={c.id} value={c.id}>{c.nombre}</option>
+              {grupos.length === 0 ? <div className="empty">Todavía no hay egresos cargados este mes.</div> : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+                  {grupos.map(g => (
+                    <div key={g.k}>
+                      <div className="cc-medio">
+                        <span className="dot" style={{ background: g.c }} />
+                        <span className="cc-medio-nom" title={g.ayuda}>{g.l}</span>
+                        <span className="cc-medio-cant">{ing > 0 ? pctDe(g.total, ing).toFixed(1) + "% de ingresos" : ""}</span>
+                        <span className="cc-medio-tot">{fmt(g.total)}</span>
+                      </div>
+                      <div className="cc-bar"><div style={{ width: (g.total / maxGrupo * 100) + "%", background: g.c }} /></div>
+                    </div>
+                  ))}
+                  {topCategorias.length > 0 && (
+                    <div style={{ marginTop: 6, paddingTop: 10, borderTop: "1px dashed " + p.border }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: p.textMuted, marginBottom: 6 }}>LOS GASTOS MÁS GRANDES</div>
+                      {topCategorias.map(c => (
+                        <div key={c.n} className="cc-linea" style={{ padding: "4px 0" }}>
+                          <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}><span className="dot" style={{ background: c.c }} /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.n}</span></span>
+                          <b>{fmt(c.v)}</b>
+                        </div>
                       ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
-              <div className="fg"><div className="fl">Concepto (detalle)</div><input className="inp" placeholder="Ej: Factura luz enero" value={nuevoEgreso.concepto} onChange={e => setNuevoEgreso(p => ({ ...p, concepto: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">Importe ($)</div><input className="inp" type="number" placeholder="35000" value={nuevoEgreso.importe} onChange={e => setNuevoEgreso(p => ({ ...p, importe: e.target.value }))} /></div>
-              <div className="fg">
-                <div className="fl">Fecha del gasto</div>
-                <input className="inp" type="date" value={nuevoEgreso.fecha} onChange={e => setNuevoEgreso(p => ({ ...p, fecha: e.target.value }))} />
-                <div style={{ fontSize: 10, color: "#c9a84c", marginTop: 3 }}>
-                  ⚠️ Esta fecha se mantiene para el proximo costo que cargues -- si es de otro dia, cambiala antes de guardar.
-                </div>
-              </div>
-              <div className="fg">
-                <div className="fl">Forma de pago</div>
-                <select className="sel" value={nuevoEgreso.forma_pago} onChange={e => setNuevoEgreso(p => ({ ...p, forma_pago: e.target.value, cuenta_pago_id: "" }))}>
-                  <option value="">Seleccionar...</option>
-                  <option value="transferencia">Transferencia</option>
-                  <option value="echeck">eCheck</option>
-                  <option value="efectivo">Efectivo</option>
-                </select>
-              </div>
-              {nuevoEgreso.forma_pago && (
-                <div className="fg">
-                  <div className="fl">Cuenta / Caja</div>
-                  <select className="sel" value={nuevoEgreso.cuenta_pago_id} onChange={e => setNuevoEgreso(p => ({ ...p, cuenta_pago_id: e.target.value }))}>
-                    <option value="">Seleccionar cuenta...</option>
-                    {cuentasPago.filter(c => {
-                      if (nuevoEgreso.forma_pago === "efectivo") return c.tipo === "efectivo";
-                      if (nuevoEgreso.forma_pago === "echeck") return c.tipo === "echeck";
-                      return c.tipo === "transferencia";
-                    }).map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                  </select>
-                </div>
-              )}
-              <div className="fg">
-                <div className="fl">Local</div>
-                <select className="sel" value={nuevoEgreso.local_id} onChange={e => setNuevoEgreso(p => ({ ...p, local_id: e.target.value }))}>
-                  <option value="">Seleccionar...</option>
-                  <option value="1">Rio Grande</option>
-                  <option value="2">Ushuaia</option>
-                  <option value="compartido">Compartido (50/50)</option>
-                </select>
-              </div>
-              <button className="btn btn-p" style={{ width: "100%" }} onClick={guardarEgreso}>Registrar egreso</button>
-            </div>
-          </div>
-
-          {comisiones && (
-            <div className="card" style={{ marginTop: 14 }}>
-              <div className="ct">Resultado neto despues de comisiones e IIBB</div>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: 13 }}>
-                <span style={{ color: p.text }}>Ventas del mes (este sistema)</span>
-                <span style={{ fontWeight: 600 }}>{fmt(comisiones.total_ventas)}</span>
-              </div>
-              {factExterna && factExterna.total > 0 && (
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: 13 }}>
-                  <span style={{ color: p.text }}>Facturacion sistema anterior</span>
-                  <span style={{ fontWeight: 600 }}>{fmt(factExterna.total)}</span>
-                </div>
-              )}
-              {factExterna && factExterna.total > 0 && (
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: 13, borderTop: "1px solid #eee" }}>
-                  <span style={{ color: p.text, fontWeight: 600 }}>Facturacion total del mes</span>
-                  <span style={{ fontWeight: 700 }}>{fmt(comisiones.total_ventas + factExterna.total)}</span>
-                </div>
-              )}
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: 13, color: "#c0392b" }}>
-                <span>Comisiones por medio de pago</span>
-                <span>- {fmt(comisiones.total_comisiones)}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: 13, color: "#c0392b" }}>
-                <span>IIBB ({comisiones.iibb_pct}% sobre {fmt(comisiones.base_iibb)}, sin efectivo)</span>
-                <span>- {fmt(comisiones.iibb)}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0 4px", borderTop: "2px solid #2d7a4f", marginTop: 6, fontSize: 15, fontWeight: 700 }}>
-                <span>Resultado neto</span>
-                <span style={{ color: "#2d7a4f" }}>{fmt(comisiones.resultado_neto)}</span>
-              </div>
-
-              <div style={{ marginTop: 14 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: p.textMuted, marginBottom: 6 }}>DETALLE DE COMISIONES POR MEDIO DE PAGO</div>
-                <table style={{ width: "100%", fontSize: 11 }}>
-                  <thead><tr style={{ color: p.textMuted, textAlign: "left" }}><th style={{ padding: "4px 0" }}>Medio</th><th>Ventas</th><th style={{ textAlign: "right" }}>Monto</th><th style={{ textAlign: "right" }}>%</th><th style={{ textAlign: "right" }}>Comision</th></tr></thead>
-                  <tbody>
-                    {comisiones.detalle.map((d, idx) => (
-                      <tr key={idx} style={{ borderTop: "1px solid " + p.border }}>
-                        <td style={{ padding: "5px 0" }}>{d.medio}</td>
-                        <td>{d.ventas}</td>
-                        <td style={{ textAlign: "right" }}>{fmt(d.monto)}</td>
-                        <td style={{ textAlign: "right" }}>{d.comision_pct}%</td>
-                        <td style={{ textAlign: "right", color: "#c0392b" }}>{fmt(d.comision)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-          {mostrarFacAnterior && (
-          <div className="card" style={{ marginTop: 14 }}>
-            <div className="ct">Facturacion del sistema anterior</div>
-            <div style={{ fontSize: 11, color: p.textMuted, marginBottom: 10 }}>Carga lo que facturaste con el software viejo este mes. Suma a la facturacion del mes (sin recalcular comisiones).</div>
-            {factExterna && factExterna.registros && factExterna.registros.length > 0 && (
-              <div style={{ marginBottom: 10 }}>
-                {factExterna.registros.map((r, idx) => (
-                  <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "5px 0", borderBottom: "1px solid " + p.border }}>
-                    <span style={{ color: p.text }}>{nombreLocal(r.local_id)}</span>
-                    <span style={{ fontWeight: 600 }}>{fmt(parseFloat(r.monto))}</span>
-                  </div>
-                ))}
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "8px 0 0", fontWeight: 700 }}>
-                  <span>Total</span><span style={{ color: "#c9a84c" }}>{fmt(factExterna.total)}</span>
-                </div>
-              </div>
-            )}
-            <div className="fg" style={{ marginBottom: 8 }}>
-              <div className="fl">Local</div>
-              <select className="inp" value={factExtLocal} onChange={e => setFactExtLocal(e.target.value)}>
-                <option value="1">Rio Grande</option>
-                <option value="2">Ushuaia</option>
-              </select>
-            </div>
-            <div className="fg" style={{ marginBottom: 10 }}>
-              <div className="fl">Monto facturado</div>
-              <input className="inp" type="number" placeholder="0" value={factExtMonto} onChange={e => setFactExtMonto(e.target.value)} />
-            </div>
-            <button className="btn btn-p" style={{ width: "100%" }} onClick={guardarFactExterna}>Guardar facturacion anterior</button>
-            {(comisiones || factExterna) && (
-              <div style={{ marginTop: 12, paddingTop: 10, borderTop: "2px solid #c9a84c" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "4px 0" }}>
-                  <span style={{ color: p.text }}>Ventas este sistema</span>
-                  <span style={{ fontWeight: 600 }}>{fmt(comisiones ? comisiones.total_ventas : 0)}</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "4px 0" }}>
-                  <span style={{ color: p.text }}>Facturacion sistema anterior</span>
-                  <span style={{ fontWeight: 600 }}>{fmt(factExterna ? factExterna.total : 0)}</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, padding: "8px 0 0", fontWeight: 700 }}>
-                  <span>Facturacion total del mes</span>
-                  <span style={{ color: "#c9a84c" }}>{fmt((comisiones ? comisiones.total_ventas : 0) + (factExterna ? factExterna.total : 0))}</span>
-                </div>
-              </div>
-            )}
-          </div>
-          )}
-
-      {tab === "detalle" && (
-        <div className="fade">
-          <div className="card" style={{ marginBottom: 14 }}>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
-              <div className="fg" style={{ flex: 2, minWidth: 200, marginBottom: 0 }}>
-                <div className="fl">Buscar (concepto o categoria)</div>
-                <input className="inp" placeholder="Ej: Sueldo Sabrina" value={detalleBusqueda} onChange={e => setDetalleBusqueda(e.target.value)} onKeyDown={e => e.key === "Enter" && cargarDetalle()} />
-              </div>
-              <div className="fg" style={{ marginBottom: 0 }}>
-                <div className="fl">Tipo</div>
-                <select className="sel" value={detalleTipo} onChange={e => setDetalleTipo(e.target.value)}>
-                  <option value="">Todos</option>
-                  <option value="I">Solo ingresos</option>
-                  <option value="E">Solo egresos</option>
-                </select>
-              </div>
-              <div className="fg" style={{ marginBottom: 0 }}>
-                <div className="fl">Desde</div>
-                <input className="inp" type="date" value={detalleDesde} onChange={e => setDetalleDesde(e.target.value)} />
-              </div>
-              <div className="fg" style={{ marginBottom: 0 }}>
-                <div className="fl">Hasta</div>
-                <input className="inp" type="date" value={detalleHasta} onChange={e => setDetalleHasta(e.target.value)} />
-              </div>
-              <button className="btn btn-p btn-sm" onClick={cargarDetalle}>Buscar</button>
-              {(detalleBusqueda || detalleDesde || detalleHasta || detalleTipo) && <button className="btn btn-g btn-sm" onClick={() => { setDetalleBusqueda(""); setDetalleDesde(""); setDetalleHasta(""); setDetalleTipo(""); setTimeout(cargarDetalle, 0); }}>Limpiar</button>}
-            </div>
-          </div>
-          <div className="card">
-            {detalleLoading ? (
-              <div style={{ color: p.textMuted, padding: 20, fontSize: 12 }}>Cargando...</div>
-            ) : detalleMovs.length === 0 ? (
-              <div style={{ textAlign: "center", color: p.textMuted, padding: 24, fontSize: 12 }}>Sin movimientos para este filtro (recorda que solo muestra hasta 500 a la vez, los mas recientes primero).</div>
-            ) : (
-              <table>
-                <thead><tr><th>Fecha</th><th>Concepto</th><th>Categoria</th><th>Tipo</th><th>Medio</th><th>Cuenta</th><th>Importe</th><th></th></tr></thead>
-                <tbody>
-                  {detalleMovs.map(m => (
-                    <tr key={m.id}>
-                      <td style={{ fontSize: 10, color: p.textMuted }}>{new Date(m.creado_en).toLocaleString("es-AR")}</td>
-                      <td>{m.concepto}</td>
-                      <td style={{ fontSize: 11, color: p.textMuted }}>{m.categoria_nombre || "-"}</td>
-                      <td><span className={"badge " + (m.tipo === "I" ? "bg" : "br")}>{m.tipo === "I" ? "Ingreso" : "Egreso"}</span></td>
-                      <td style={{ fontSize: 11, color: p.textMuted }}>{m.forma_pago || "-"}</td>
-                      <td style={{ fontSize: 11, color: p.textMuted }}>{m.cuenta_nombre || "-"}</td>
-                      <td style={{ color: m.tipo === "I" ? "#2d7a4f" : "#c0392b", fontWeight: 600 }}>{m.tipo === "I" ? "+" : "-"}{fmt(parseFloat(m.importe))}</td>
-                      <td style={{ display: "flex", gap: 6 }}>
-                        <button className="btn btn-sm" style={{ fontSize: 10 }} onClick={() => setEditandoMov({ ...m })}>Editar</button>
-                        <button className="btn btn-sm" style={{ fontSize: 10, color: "#c0392b" }} onClick={() => borrarMov(m)}>Borrar</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-
-          {editandoMov && (
-            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={() => setEditandoMov(null)}>
-              <div className="card" style={{ width: 420, maxWidth: "90vw" }} onClick={e => e.stopPropagation()}>
-                <div className="ct">Editar movimiento</div>
-                <div className="fg"><div className="fl">Concepto</div><input className="inp" value={editandoMov.concepto || ""} onChange={e => setEditandoMov(p => ({ ...p, concepto: e.target.value }))} /></div>
-                <div className="fg"><div className="fl">Importe ($)</div><input className="inp" type="number" value={editandoMov.importe || ""} onChange={e => setEditandoMov(p => ({ ...p, importe: e.target.value }))} /></div>
-                <div className="fg"><div className="fl">Fecha</div><input className="inp" type="date" value={editandoMov.creado_en ? new Date(editandoMov.creado_en).toISOString().slice(0, 10) : ""} onChange={e => setEditandoMov(p => ({ ...p, fecha: e.target.value }))} /></div>
-                <div className="fg">
-                  <div className="fl">Local</div>
-                  <select className="sel" value={editandoMov.local_id === null ? "compartido" : (editandoMov.local_id || "")} onChange={e => setEditandoMov(p => ({ ...p, local_id: e.target.value === "compartido" ? "compartido" : parseInt(e.target.value) }))}>
-                    <option value="1">Rio Grande</option>
-                    <option value="2">Ushuaia</option>
-                    <option value="compartido">Compartido (50/50 entre los dos)</option>
-                  </select>
-                </div>
-                <div className="fg">
-                  <div className="fl">Categoria</div>
-                  <select className="sel" value={editandoMov.categoria_id || ""} onChange={e => setEditandoMov(p => ({ ...p, categoria_id: e.target.value ? parseInt(e.target.value) : null }))}>
-                    <option value="">Sin categoria</option>
-                    {categoriasCosto.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                  </select>
-                </div>
-                <div className="fg">
-                  <div className="fl">Medio de pago</div>
-                  <select className="sel" value={editandoMov.forma_pago || ""} onChange={e => setEditandoMov(p => ({ ...p, forma_pago: e.target.value, cuenta_pago_id: null }))}>
-                    <option value="">-</option>
-                    <option value="efectivo">Efectivo</option>
-                    <option value="transferencia">Transferencia</option>
-                    <option value="echeck">E-cheq</option>
-                  </select>
-                </div>
-                {editandoMov.forma_pago && editandoMov.forma_pago !== "efectivo" && (
-                  <div className="fg">
-                    <div className="fl">Cuenta / Banco</div>
-                    <select className="sel" value={editandoMov.cuenta_pago_id || ""} onChange={e => setEditandoMov(p => ({ ...p, cuenta_pago_id: e.target.value ? parseInt(e.target.value) : null }))}>
-                      <option value="">-</option>
-                      {cuentasPago.filter(c => c.tipo === editandoMov.forma_pago).map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                    </select>
-                  </div>
-                )}
-                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                  <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEditandoMov(null)}>Cancelar</button>
-                  <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarEdicionMov}>Guardar cambios</button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {tab === "estructurado" && (
-        <div className="fade">
-          {loading ? <div style={{ color: p.textMuted, padding: 20 }}>Cargando...</div> : flujoEst && (
-            <div className="g2">
-              <div>
-                <SeccionFlujo titulo="INGRESOS" detalle={flujoEst.ingresos?.detalle} total={flujoEst.ingresos?.total} color="#2d7a4f" />
-                <SeccionFlujo titulo="COSTOS VARIABLES" detalle={flujoEst.variables?.detalle} total={flujoEst.variables?.total} color="#e67e22" />
-                <SeccionFlujo titulo="COSTOS FIJOS" detalle={flujoEst.fijos?.detalle} total={flujoEst.fijos?.total} color="#2471a3" />
-                <SeccionFlujo titulo="GASTOS ADMINISTRATIVOS" detalle={flujoEst.admin?.detalle} total={flujoEst.admin?.total} color="#7d3c98" />
-                <SeccionFlujo titulo="SUELDOS" detalle={flujoEst.sueldos?.detalle} total={flujoEst.sueldos?.total} color="#c0392b" />
-                <SeccionFlujo titulo="IMPUESTOS" detalle={flujoEst.impuestos?.detalle} total={flujoEst.impuestos?.total} color="#c9a84c" />
-                <SeccionFlujo titulo="COMISIONES MEDIOS DE PAGO" detalle={flujoEst.comisiones_medios_pago?.detalle} total={flujoEst.comisiones_medios_pago?.total} color="#8e44ad" />
-                <div style={{ background: (flujoEst.resultado_neto >= 0 ? "#2d7a4f" : "#c0392b"), borderRadius: 8, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "white", letterSpacing: ".1em" }}>RESULTADO NETO</span>
-                  <span style={{ fontSize: 24, fontWeight: 700, color: "white" }}>{fmt(parseFloat(flujoEst.resultado_neto || 0))}</span>
-                </div>
-              </div>
-              <div className="card">
-                <div className="ct">Resumen del mes</div>
-                {[
-                  { l: "Total ingresos", v: flujoEst.ingresos?.total, c: "#2d7a4f" },
-                  { l: "Costos variables", v: flujoEst.variables?.total, c: "#e67e22" },
-                  { l: "Costos fijos", v: flujoEst.fijos?.total, c: "#2471a3" },
-                  { l: "Gastos admin", v: flujoEst.admin?.total, c: "#7d3c98" },
-                  { l: "Sueldos", v: flujoEst.sueldos?.total, c: "#c0392b" },
-                  { l: "Impuestos", v: flujoEst.impuestos?.total, c: "#c9a84c" },
-                  { l: "Comisiones medios de pago", v: flujoEst.comisiones_medios_pago?.total, c: "#8e44ad" },
-                  { l: "Total egresos", v: flujoEst.total_egresos, c: "#c0392b" },
-                ].map(r => (
-                  <div key={r.l} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid " + p.border }}>
-                    <span style={{ fontSize: 12, color: p.text }}>{r.l}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: r.c }}>{fmt(parseFloat(r.v || 0))}</span>
-                  </div>
-                ))}
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", marginTop: 4 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700 }}>RESULTADO NETO</span>
-                  <span style={{ fontSize: 18, fontWeight: 700, color: flujoEst.resultado_neto >= 0 ? "#2d7a4f" : "#c0392b" }}>{fmt(parseFloat(flujoEst.resultado_neto || 0))}</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {tab === "comparativa" && (
-        <div className="fade">
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div className="ct">Elegi los dos periodos a comparar</div>
-            <div className="g2" style={{ marginBottom: 0 }}>
-              <div>
-                <div className="fl">Periodo 1</div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <input className="inp" type="date" value={comp1Desde} onChange={e => setComp1Desde(e.target.value)} />
-                  <span style={{ fontSize: 11, color: "#65676B" }}>a</span>
-                  <input className="inp" type="date" value={comp1Hasta} onChange={e => setComp1Hasta(e.target.value)} />
-                </div>
-              </div>
-              <div>
-                <div className="fl">Periodo 2</div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <input className="inp" type="date" value={comp2Desde} onChange={e => setComp2Desde(e.target.value)} />
-                  <span style={{ fontSize: 11, color: "#65676B" }}>a</span>
-                  <input className="inp" type="date" value={comp2Hasta} onChange={e => setComp2Hasta(e.target.value)} />
-                </div>
-              </div>
-            </div>
-            <button className="btn btn-p btn-sm" style={{ marginTop: 10 }} onClick={cargarComparativa}>Comparar</button>
-          </div>
-
-          {comparativaLoading ? (
-            <div style={{ textAlign: "center", color: "#65676B", padding: 30 }}>Calculando...</div>
-          ) : !comparativa ? (
-            <div style={{ textAlign: "center", color: "#65676B", padding: 30, fontSize: 12 }}>Todavia no hay datos para comparar.</div>
-          ) : (
-            <>
-              <div className="g2" style={{ marginBottom: 16 }}>
-                <div className="card">
-                  <div className="ct">Periodo 2: {fmtDiaCorto(comparativa.periodo_2.desde)} al {fmtDiaCorto(comparativa.periodo_2.hasta)}</div>
-                  <div className="metric">{fmt(comparativa.periodo_2.total)}</div>
-                  <div className="msub">{comparativa.periodo_2.cantidad} ventas</div>
-                </div>
-                <div className="card" style={{ borderTop: "3px solid #c9a84c" }}>
-                  <div className="ct">Periodo 1: {fmtDiaCorto(comparativa.periodo_1.desde)} al {fmtDiaCorto(comparativa.periodo_1.hasta)}</div>
-                  <div className="metric">{fmt(comparativa.periodo_1.total)}</div>
-                  <div className="msub">{comparativa.periodo_1.cantidad} ventas</div>
-                </div>
-              </div>
-
-              <div className="card" style={{ textAlign: "center", padding: 24 }}>
-                <div className="ct">Variacion</div>
-                {comparativa.variacion_pct === null ? (
-                  <div style={{ fontSize: 14, color: "#65676B" }}>No hay facturacion en el periodo 2 para comparar</div>
-                ) : (
-                  <>
-                    <div style={{ fontSize: 42, fontWeight: 700, color: comparativa.variacion_pct >= 0 ? "#2d7a4f" : "#c0392b" }}>
-                      {comparativa.variacion_pct >= 0 ? "+" : ""}{comparativa.variacion_pct.toFixed(1)}%
-                    </div>
-                    <div style={{ fontSize: 12, color: "#65676B", marginTop: 6 }}>
-                      Periodo 1 {comparativa.variacion_pct >= 0 ? "factura mas" : "factura menos"} que el periodo 2
-                      ({fmt(Math.abs(comparativa.periodo_1.total - comparativa.periodo_2.total))} de diferencia)
-                    </div>
-                  </>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {tab === "analisis" && (
-        <div className="fade">
-          {analisisLoading ? (
-            <div style={{ textAlign: "center", color: p.textMuted, padding: 30, fontSize: 12 }}>Calculando...</div>
-          ) : !analisis ? (
-            <div style={{ textAlign: "center", color: p.textMuted, padding: 30, fontSize: 12 }}>No se pudo calcular el analisis. Probá recargar.</div>
-          ) : (
-            <>
-              <div className="card" style={{ display: "flex", alignItems: "center", gap: 24, marginBottom: 16, flexWrap: "wrap" }}>
-                <div style={{ width: 120, height: 120, borderRadius: "50%", border: "8px solid " + analisis.color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <div style={{ fontSize: 34, fontWeight: 700, color: analisis.color }}>{analisis.puntaje}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, color: p.textMuted, letterSpacing: ".1em" }}>CALIFICACION FINANCIERA DEL MES</div>
-                  <div style={{ fontSize: 26, fontWeight: 700, color: analisis.color, margin: "2px 0 8px" }}>{analisis.calificacion}</div>
-                  <div style={{ fontSize: 12, color: p.text }}>
-                    Margen neto: <b style={{ color: analisis.color }}>{analisis.margen_neto_pct}%</b> sobre {fmt(analisis.ingresos_mes)} facturados este mes.
-                  </div>
-                  {analisis.comparacion_mes_anterior.tendencia !== "sin_datos" && (
-                    <div style={{ fontSize: 12, color: analisis.comparacion_mes_anterior.tendencia === "mejora" ? "#2d7a4f" : "#c0392b", marginTop: 4 }}>
-                      {analisis.comparacion_mes_anterior.tendencia === "mejora" ? "▲ Mejoraste" : "▼ Empeoraste"} respecto al mes anterior
-                      {analisis.comparacion_mes_anterior.variacion_ingresos_pct !== null && (
-                        <> (facturación {analisis.comparacion_mes_anterior.variacion_ingresos_pct >= 0 ? "+" : ""}{analisis.comparacion_mes_anterior.variacion_ingresos_pct}%, margen neto {analisis.margen_neto_pct - analisis.comparacion_mes_anterior.margen_neto_pct >= 0 ? "+" : ""}{(analisis.margen_neto_pct - analisis.comparacion_mes_anterior.margen_neto_pct).toFixed(1)} pts)</>
-                      )}
                     </div>
                   )}
                 </div>
+              )}
+            </div>
+
+            <div className="fin-grid2">
+              <div className="chart-card anim-in" style={{ animationDelay: "60ms" }}>
+                <div className="chart-head"><div className="chart-title">Margen de lo vendido</div><div className="chart-meta">CMV</div></div>
+                {cmv && cmv.ventas > 0 ? (
+                  <>
+                    <div className="cc-linea"><span>Ventas de productos</span><b>{fmt(cmv.ventas)}</b></div>
+                    <div className="cc-linea"><span>− Costo de lo vendido</span><b style={{ color: p.red }}>{fmt(cmv.cmv)}</b></div>
+                    <div className="cc-linea cc-esperado"><span>Margen bruto</span><b>{fmt(cmv.margen_bruto)}</b></div>
+                    <div className="cc-bar" style={{ height: 8, marginTop: 4 }}><div style={{ width: Math.max(0, Math.min(100, cmv.margen_pct)) + "%", background: p.green }} /></div>
+                    <div style={{ fontSize: 11, color: p.textMuted, marginTop: 6 }}>Ganás <b style={{ color: p.text }}>{Math.round(cmv.margen_pct)}%</b> sobre lo que vendés, antes de gastos.</div>
+                    {cmv.items_sin_costo > 0 && <div style={{ fontSize: 11, color: p.warn, marginTop: 6 }}>⚠ {cmv.items_sin_costo} producto{cmv.items_sin_costo !== 1 ? "s" : ""} vendido{cmv.items_sin_costo !== 1 ? "s" : ""} sin costo cargado: el margen real es menor.</div>}
+                  </>
+                ) : <div className="empty">Sin ventas de productos este mes.</div>}
               </div>
 
-              <div className="card" style={{ marginBottom: 16 }}>
-                {analisis.metricas.map((m, i) => (
-                  <div key={i} style={{ padding: "12px 0", borderBottom: i < analisis.metricas.length - 1 ? "1px solid " + p.border : "none" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: 13, fontWeight: 600 }}>{m.nombre}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: m.estado === "bien" ? "#2d7a4f" : m.estado === "regular" ? "#c9a84c" : "#c0392b" }}>{m.valor}%</span>
+              <div className="chart-card anim-in" style={{ animationDelay: "120ms" }}>
+                <div className="chart-head"><div className="chart-title">Comisiones e IIBB</div><div className="chart-meta">sobre lo cobrado</div></div>
+                {comisiones && comisiones.total_ventas > 0 ? (
+                  <>
+                    <div className="cc-linea"><span>Cobrado en el mes</span><b>{fmt(comisiones.total_ventas)}</b></div>
+                    <div className="cc-linea"><span>− Comisiones de medios de pago</span><b style={{ color: p.red }}>{fmt(comisiones.total_comisiones)}</b></div>
+                    <div className="cc-linea">
+                      <span>− IIBB estimado{" "}
+                        {editIibb === null
+                          ? <button className="mini-chip" onClick={() => esJefe && setEditIibb(String(comisiones.iibb_pct))} title={esJefe ? "Cambiar el %" : ""} disabled={!esJefe}>{comisiones.iibb_pct}%{esJefe ? " ✏️" : ""}</button>
+                          : <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+                              <input className="inp" type="number" min="0" max="30" step="0.1" value={editIibb} onChange={e => setEditIibb(e.target.value)} style={{ width: 64, padding: "3px 6px", fontSize: 12 }} aria-label="Porcentaje de IIBB" autoFocus onKeyDown={e => e.key === "Enter" && guardarIibb()} />
+                              <button className="mini-chip" onClick={guardarIibb}>OK</button>
+                              <button className="mini-chip" onClick={() => setEditIibb(null)}>✕</button>
+                            </span>}
+                      </span>
+                      <b style={{ color: p.red }}>{fmt(comisiones.iibb)}</b>
                     </div>
-                    <div style={{ height: 6, background: p.border, borderRadius: 3, marginTop: 6, overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: m.puntaje + "%", background: m.estado === "bien" ? "#2d7a4f" : m.estado === "regular" ? "#c9a84c" : "#c0392b" }} />
-                    </div>
-                    <div style={{ fontSize: 11, color: p.textMuted, marginTop: 6 }}>{m.comentario}</div>
-                  </div>
+                    <div className="cc-linea cc-esperado"><span>Te queda</span><b>{fmt(comisiones.resultado_neto)}</b></div>
+                    <div style={{ fontSize: 11, color: p.textMuted, marginTop: 2 }}>IIBB sobre {fmt(comisiones.base_iibb)} cobrados sin efectivo. Es una estimación: si lo pagás, cargalo como egreso con categoría de impuesto.</div>
+                    <button className="chip-btn" style={{ marginTop: 8 }} onClick={() => setVerDetalleCom(v => !v)}>{verDetalleCom ? "Ocultar detalle" : "Ver por medio de pago"}</button>
+                    {verDetalleCom && (
+                      <div style={{ overflowX: "auto", marginTop: 8 }}>
+                        <table>
+                          <thead><tr><th>Medio</th><th style={{ textAlign: "right" }}>Cobrado</th><th style={{ textAlign: "right" }}>%</th><th style={{ textAlign: "right" }}>Comisión</th></tr></thead>
+                          <tbody>
+                            {comisiones.detalle.map(d => (
+                              <tr key={d.medio}>
+                                <td style={{ fontSize: 12 }}>{d.medio}</td>
+                                <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmt(d.monto)}</td>
+                                <td style={{ textAlign: "right", color: p.textMuted }}>{d.comision_pct}%</td>
+                                <td style={{ textAlign: "right", color: d.comision > 0 ? p.red : p.textMuted, fontVariantNumeric: "tabular-nums" }}>{fmt(d.comision)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </>
+                ) : <div className="empty">Sin cobros este mes.</div>}
+              </div>
+            </div>
+          </div>
+
+          <div className="fin-lado" style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
+            <div className="chart-card anim-in fin-form" style={{ animationDelay: "80ms", borderTop: "3px solid " + p.red }}>
+              <div className="chart-head"><div className="chart-title">Registrar egreso</div></div>
+              {ultimoEgreso && (
+                <div style={{ fontSize: 11, color: p.textMuted, background: p.bg, borderRadius: 8, padding: "7px 10px", marginBottom: 12 }}>
+                  Tu última carga: <b style={{ color: p.text }}>{ultimoEgreso.concepto}</b> ({fmt(parseFloat(ultimoEgreso.importe))}) · {new Date(ultimoEgreso.creado_en).toLocaleDateString("es-AR")}
+                </div>
+              )}
+              <div className="fg">
+                <div className="fl">Categoría</div>
+                <select className="sel" style={{ width: "100%" }} value={nuevoEgreso.categoria_id || ""} onChange={e => {
+                  const cat = categoriasCosto.find(c => c.id === parseInt(e.target.value));
+                  setNuevoEgreso(x => ({ ...x, categoria_id: e.target.value, concepto: x.concepto && !categoriasCosto.some(c => c.nombre === x.concepto) ? x.concepto : (cat?.nombre || "") }));
+                }}>
+                  <option value="">Elegir categoría...</option>
+                  {[["variable", "Costos variables"], ["fijo", "Costos fijos"], ["administrativo", "Administrativos y marketing"], ["sueldo", "Sueldos"]].map(([t, l]) => (
+                    <optgroup key={t} label={l}>{categoriasCosto.filter(c => c.tipo === t).map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}</optgroup>
+                  ))}
+                </select>
+              </div>
+              <div className="fg"><div className="fl">Concepto *</div><input className="inp" placeholder="Ej: Factura de luz de agosto" value={nuevoEgreso.concepto} onChange={e => setNuevoEgreso(x => ({ ...x, concepto: e.target.value }))} /></div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <div className="fg"><div className="fl">Importe *</div><input className="inp" type="number" min="0" inputMode="decimal" placeholder="$ 0" value={nuevoEgreso.importe} onChange={e => setNuevoEgreso(x => ({ ...x, importe: e.target.value }))} /></div>
+                <div className="fg"><div className="fl">Fecha del gasto</div><input className="inp" type="date" value={nuevoEgreso.fecha} max={isoLocal(new Date())} onChange={e => setNuevoEgreso(x => ({ ...x, fecha: e.target.value }))} /></div>
+              </div>
+              {nuevoEgreso.fecha !== isoLocal(new Date()) && <div style={{ fontSize: 11, color: p.warn, marginTop: -6, marginBottom: 10 }}>Se carga con fecha {fmtDiaCorto(nuevoEgreso.fecha)} (la fecha queda para el próximo egreso).</div>}
+              <div className="fg">
+                <div className="fl">Local *</div>
+                <div className="seg" role="group" aria-label="Local del egreso" style={{ display: "flex" }}>
+                  {[["1", nombreLocal(1)], ["2", nombreLocal(2)], ["compartido", "Los dos (50/50)"]].map(([k, l]) => (
+                    <button key={k} style={{ flex: 1 }} className={nuevoEgreso.local_id === k ? "on" : ""} onClick={() => setNuevoEgreso(x => ({ ...x, local_id: k }))}>{l}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="fg">
+                <div className="fl">Cómo se pagó</div>
+                <div className="seg" role="group" aria-label="Forma de pago" style={{ display: "flex" }}>
+                  {[["efectivo", "Efectivo"], ["transferencia", "Transferencia"], ["echeck", "eCheq"]].map(([k, l]) => (
+                    <button key={k} style={{ flex: 1 }} className={nuevoEgreso.forma_pago === k ? "on" : ""} onClick={() => setNuevoEgreso(x => ({ ...x, forma_pago: x.forma_pago === k ? "" : k, cuenta_pago_id: "" }))}>{l}</button>
+                  ))}
+                </div>
+              </div>
+              {nuevoEgreso.forma_pago && cuentasPago.some(c => c.tipo === nuevoEgreso.forma_pago) && (
+                <div className="fg">
+                  <div className="fl">Cuenta / caja</div>
+                  <select className="sel" style={{ width: "100%" }} value={nuevoEgreso.cuenta_pago_id} onChange={e => setNuevoEgreso(x => ({ ...x, cuenta_pago_id: e.target.value }))}>
+                    <option value="">Elegir cuenta...</option>
+                    {cuentasPago.filter(c => c.tipo === nuevoEgreso.forma_pago).map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                  </select>
+                </div>
+              )}
+              <button className="btn btn-p" style={{ width: "100%", padding: 12 }} onClick={guardarEgreso} disabled={guardandoEgreso}>{guardandoEgreso ? "Guardando..." : "Registrar egreso"}</button>
+            </div>
+
+            {mostrarFacAnterior && (
+              <div className="chart-card anim-in" style={{ animationDelay: "140ms" }}>
+                <div className="chart-head"><div className="chart-title">Facturación del sistema anterior</div></div>
+                <div style={{ fontSize: 11, color: p.textMuted, marginBottom: 10 }}>Lo facturado este mes con el software anterior. Se suma a los ingresos del mes.</div>
+                {factExterna?.registros?.map(r => (
+                  <div key={r.id || r.local_id} className="cc-linea"><span>{nombreLocal(r.local_id)}</span><b>{fmt(parseFloat(r.monto))}</b></div>
+                ))}
+                <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                  <select className="sel" value={factExtLocal} onChange={e => setFactExtLocal(e.target.value)} aria-label="Local">
+                    <option value="1">{nombreLocal(1)}</option><option value="2">{nombreLocal(2)}</option>
+                  </select>
+                  <input className="inp" type="number" min="0" placeholder="Monto" value={factExtMonto} onChange={e => setFactExtMonto(e.target.value)} />
+                  <button className="btn btn-p btn-sm" onClick={guardarFactExterna}>Guardar</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ============ MOVIMIENTOS ============ */}
+      {tab === "movimientos" && (() => {
+        const totI = detalleMovs.filter(m => m.tipo === "I").reduce((s, m) => s + parseFloat(m.importe || 0), 0);
+        const totE = detalleMovs.filter(m => m.tipo !== "I").reduce((s, m) => s + parseFloat(m.importe || 0), 0);
+        return (
+          <div className="fade">
+            <div className="chart-card" style={{ marginBottom: 12 }}>
+              <div className="fin-filtros">
+                <div style={{ position: "relative", flex: "2 1 220px" }}>
+                  <span aria-hidden="true" style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", opacity: .5 }}>🔍</span>
+                  <input className="inp" style={{ paddingLeft: 34 }} placeholder="Buscar concepto o categoría" value={detalleBusqueda} onChange={e => setDetalleBusqueda(e.target.value)} onKeyDown={e => e.key === "Enter" && cargarDetalle()} aria-label="Buscar movimiento" />
+                </div>
+                <div className="seg" role="group" aria-label="Tipo">
+                  {[["", "Todos"], ["E", "Egresos"], ["I", "Ingresos"]].map(([k, l]) => <button key={k} className={detalleTipo === k ? "on" : ""} onClick={() => setDetalleTipo(k)}>{l}</button>)}
+                </div>
+                <input className="inp" type="date" style={{ width: 150 }} value={detalleDesde} onChange={e => setDetalleDesde(e.target.value)} aria-label="Desde" />
+                <input className="inp" type="date" style={{ width: 150 }} value={detalleHasta} onChange={e => setDetalleHasta(e.target.value)} aria-label="Hasta" />
+                <button className="btn btn-p btn-sm" onClick={() => cargarDetalle()}>Buscar</button>
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 10 }}>
+                <button className={"chip-btn" + (soloSinCategoria ? " on" : "")} style={soloSinCategoria ? { borderColor: p.warn, color: p.warn } : null} onClick={() => setSoloSinCategoria(v => !v)}>⚠ Solo sin categoría</button>
+                {(detalleBusqueda || detalleTipo || soloSinCategoria) && <button className="chip-btn" onClick={() => { setDetalleBusqueda(""); setDetalleTipo(""); setSoloSinCategoria(false); const [d, h] = rangoMes(mesFiltro, anioFiltro); setDetalleDesde(d); setDetalleHasta(h); cargarDetalle({ busqueda: "", tipo: "", sinCategoria: false, desde: d, hasta: h }); }}>Limpiar filtros</button>}
+                <span style={{ marginLeft: "auto", fontSize: 12, color: p.textMuted }}>
+                  {detalleMovs.length} movimiento{detalleMovs.length !== 1 ? "s" : ""}
+                  {totE > 0 && <> · <b style={{ color: p.red }}>−{fmt(totE)}</b></>}
+                  {totI > 0 && <> · <b style={{ color: p.green }}>+{fmt(totI)}</b></>}
+                </span>
+              </div>
+            </div>
+            <div className="chart-card" style={{ padding: 0, overflow: "hidden" }}>
+              {detalleLoading ? <div style={{ padding: 16 }}><div className="skel" style={{ height: 180 }} /></div>
+              : detalleMovs.length === 0 ? <div className="empty">Sin movimientos para este filtro.</div> : (
+                <div style={{ overflowX: "auto" }}>
+                  <table>
+                    <thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Local</th><th>Pago</th><th style={{ textAlign: "right" }}>Importe</th><th></th></tr></thead>
+                    <tbody>
+                      {detalleMovs.map(m => (
+                        <tr key={m.id}>
+                          <td style={{ fontSize: 11, color: p.textMuted, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{fmtDiaCorto(m.fecha)}</td>
+                          <td style={{ fontSize: 12 }}>{m.concepto}{m.automatico && <span className="tag tag-neutral" style={{ marginLeft: 6 }}>automático</span>}</td>
+                          <td style={{ fontSize: 11 }}>{m.categoria_nombre ? <span style={{ color: p.textMuted }}>{m.categoria_nombre}</span> : m.tipo === "E" ? <span className="tag tag-warn">sin categoría</span> : <span style={{ color: p.textMuted }}>—</span>}</td>
+                          <td style={{ fontSize: 11, color: p.textMuted, whiteSpace: "nowrap" }}>{nombreLocalMov(m.local_id)}</td>
+                          <td style={{ fontSize: 11, color: p.textMuted }}>{m.cuenta_nombre || m.forma_pago || "—"}</td>
+                          <td style={{ textAlign: "right", fontWeight: 700, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", color: m.tipo === "I" ? p.green : p.red }}>{m.tipo === "I" ? "+" : "−"}{fmt(parseFloat(m.importe))}</td>
+                          <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                            {!m.automatico && <>
+                              <button className="icon-btn" onClick={() => setEditandoMov({ ...m })} aria-label={"Editar " + m.concepto} title="Editar">✏️</button>
+                              <button className="icon-btn peligro" onClick={() => setBorrandoMov(m)} aria-label={"Borrar " + m.concepto} title="Borrar">✕</button>
+                            </>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            {detalleMovs.length >= 500 && <div style={{ fontSize: 11, color: p.textMuted, marginTop: 6 }}>Se muestran los 500 más recientes: acotá las fechas para ver el resto.</div>}
+          </div>
+        );
+      })()}
+
+      {editandoMov && (
+        <div className="pos-overlay" onClick={() => setEditandoMov(null)}>
+          <div className="card pop-in" role="dialog" aria-label="Editar movimiento" style={{ width: 440, maxWidth: "95vw", background: p.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontSize: 15, fontWeight: 800 }}>Editar movimiento</div>
+              <button className="icon-btn" onClick={() => setEditandoMov(null)} aria-label="Cerrar">✕</button>
+            </div>
+            <div className="fg"><div className="fl">Concepto</div><input className="inp" value={editandoMov.concepto || ""} onChange={e => setEditandoMov(x => ({ ...x, concepto: e.target.value }))} /></div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div className="fg"><div className="fl">Importe</div><input className="inp" type="number" min="0" value={editandoMov.importe || ""} onChange={e => setEditandoMov(x => ({ ...x, importe: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Fecha</div><input className="inp" type="date" value={editandoMov.fecha || ""} onChange={e => setEditandoMov(x => ({ ...x, fecha: e.target.value }))} /></div>
+            </div>
+            <div className="fg">
+              <div className="fl">Categoría</div>
+              <select className="sel" style={{ width: "100%" }} value={editandoMov.categoria_id || ""} onChange={e => setEditandoMov(x => ({ ...x, categoria_id: e.target.value ? parseInt(e.target.value) : null }))}>
+                <option value="">Sin categoría</option>
+                {[["variable", "Costos variables"], ["fijo", "Costos fijos"], ["administrativo", "Administrativos y marketing"], ["sueldo", "Sueldos"]].map(([t, l]) => (
+                  <optgroup key={t} label={l}>{categoriasCosto.filter(c => c.tipo === t).map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}</optgroup>
+                ))}
+              </select>
+            </div>
+            <div className="fg">
+              <div className="fl">Local</div>
+              <div className="seg" role="group" aria-label="Local" style={{ display: "flex" }}>
+                {[[1, nombreLocal(1)], [2, nombreLocal(2)], [null, "Los dos (50/50)"]].map(([k, l]) => (
+                  <button key={String(k)} style={{ flex: 1 }} className={(editandoMov.local_id ?? null) === k ? "on" : ""} onClick={() => setEditandoMov(x => ({ ...x, local_id: k }))}>{l}</button>
                 ))}
               </div>
-
-              <div style={{ fontSize: 10, color: p.textMuted, padding: "0 4px" }}>
-                La calificación combina tu propia evolución mes a mes con parámetros generales de referencia para retail (no son una norma exacta para tu rubro puntual, sino una guía). "Margen neto" es lo que queda de la facturación una vez pagados todos los costos.
+            </div>
+            <div className="fg">
+              <div className="fl">Cómo se pagó</div>
+              <div className="seg" role="group" aria-label="Forma de pago" style={{ display: "flex" }}>
+                {[["efectivo", "Efectivo"], ["transferencia", "Transferencia"], ["echeck", "eCheq"]].map(([k, l]) => (
+                  <button key={k} style={{ flex: 1 }} className={editandoMov.forma_pago === k ? "on" : ""} onClick={() => setEditandoMov(x => ({ ...x, forma_pago: k, cuenta_pago_id: null }))}>{l}</button>
+                ))}
               </div>
-            </>
+            </div>
+            {editandoMov.forma_pago && cuentasPago.some(c => c.tipo === editandoMov.forma_pago) && (
+              <div className="fg">
+                <div className="fl">Cuenta / caja</div>
+                <select className="sel" style={{ width: "100%" }} value={editandoMov.cuenta_pago_id || ""} onChange={e => setEditandoMov(x => ({ ...x, cuenta_pago_id: e.target.value ? parseInt(e.target.value) : null }))}>
+                  <option value="">—</option>
+                  {cuentasPago.filter(c => c.tipo === editandoMov.forma_pago).map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                </select>
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEditandoMov(null)}>Cancelar</button>
+              <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarEdicionMov}>Guardar cambios</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {borrandoMov && (
+        <div className="pos-overlay" onClick={() => setBorrandoMov(null)}>
+          <div className="card pop-in" role="alertdialog" aria-label="Confirmar borrado" style={{ width: 380, maxWidth: "95vw", background: p.card, textAlign: "center" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 30 }}>🗑️</div>
+            <div style={{ fontSize: 15, fontWeight: 800, margin: "6px 0" }}>¿Borrar este movimiento?</div>
+            <div style={{ fontSize: 13, color: p.textMuted, marginBottom: 14 }}>{borrandoMov.concepto} · <b style={{ color: p.text }}>{fmt(parseFloat(borrandoMov.importe))}</b><br />No se puede deshacer.</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setBorrandoMov(null)}>Cancelar</button>
+              <button className="btn btn-p" style={{ flex: 1, background: p.red, borderColor: p.red }} onClick={() => borrarMov(borrandoMov)}>Sí, borrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============ ESTADO DE RESULTADOS ============ */}
+      {tab === "resultados" && (
+        loading && !flujoEst ? <div className="skel" style={{ height: 300 }} /> : flujoEst && (
+          <div className="fin-grid">
+            <div className="chart-card anim-in" style={{ padding: 0, overflow: "hidden" }}>
+              {[{ k: "ingresos", l: "Ingresos", c: p.green, signo: "+" }, ...GRUPOS_EGRESO.map(g => ({ ...g, signo: "−" }))].map(sec => {
+                const d = flujoEst[sec.k] || { detalle: {}, total: 0 };
+                if (sec.k !== "ingresos" && !(d.total > 0)) return null;
+                return (
+                  <div key={sec.k} className="fin-sec">
+                    <div className="fin-sec-head" style={{ borderLeftColor: sec.c }}>
+                      <span style={{ color: sec.c }}>{sec.l}</span>
+                      <span style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
+                        {sec.k !== "ingresos" && ing > 0 && <span style={{ fontSize: 11, color: p.textMuted, fontWeight: 600 }}>{pctDe(d.total, ing).toFixed(1)}%</span>}
+                        <b style={{ color: sec.c }}>{sec.signo}{fmt(d.total)}</b>
+                      </span>
+                    </div>
+                    {Object.entries(d.detalle || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
+                      <div key={k} className="fin-sec-row"><span>{k}</span><span>{fmt(v)}</span></div>
+                    ))}
+                  </div>
+                );
+              })}
+              <div className="fin-resultado" style={{ background: neto >= 0 ? p.green : p.red }}>
+                <span>RESULTADO NETO</span>
+                <span>{fmt(neto)}</span>
+              </div>
+            </div>
+            <div className="chart-card anim-in" style={{ animationDelay: "80ms" }}>
+              <div className="chart-head"><div className="chart-title">De cada $100 que entraron</div></div>
+              {ing > 0 ? (
+                <>
+                  <div className="fin-stack" role="img" aria-label="Distribución de los ingresos">
+                    {GRUPOS_EGRESO.map(g => { const v = flujoEst[g.k]?.total || 0; return v > 0 ? <div key={g.k} title={g.l + ": " + pctDe(v, ing).toFixed(1) + "%"} style={{ width: Math.min(100, pctDe(v, ing)) + "%", background: g.c }} /> : null; })}
+                    {neto > 0 && <div title={"Ganancia: " + margenNeto.toFixed(1) + "%"} style={{ width: margenNeto + "%", background: p.green }} />}
+                  </div>
+                  {GRUPOS_EGRESO.filter(g => (flujoEst[g.k]?.total || 0) > 0).map(g => (
+                    <div key={g.k} className="cc-linea"><span style={{ display: "flex", alignItems: "center", gap: 6 }}><span className="dot" style={{ background: g.c }} />{g.l}</span><b>${pctDe(flujoEst[g.k].total, ing).toFixed(1)}</b></div>
+                  ))}
+                  <div className="cc-linea cc-esperado"><span style={{ display: "flex", alignItems: "center", gap: 6 }}><span className="dot" style={{ background: neto >= 0 ? p.green : p.red }} />{neto >= 0 ? "Te quedan de ganancia" : "Te faltan"}</span><b style={{ color: neto >= 0 ? p.green : p.red }}>${Math.abs(margenNeto).toFixed(1)}</b></div>
+                </>
+              ) : <div className="empty">Sin ingresos este mes.</div>}
+            </div>
+          </div>
+        )
+      )}
+
+      {/* ============ ANALISIS ============ */}
+      {tab === "analisis" && (
+        !analisis ? (loading ? <div className="skel" style={{ height: 300 }} /> : <div className="empty">No se pudo calcular el análisis. Probá recargar.</div>) : (
+          <>
+            <div className="chart-card anim-in" style={{ display: "flex", alignItems: "center", gap: 24, marginBottom: 12, flexWrap: "wrap" }}>
+              <div className="fin-score" style={{ "--c": analisis.color, "--v": analisis.puntaje }}>
+                <div><CountUp value={analisis.puntaje} formato={v => String(Math.round(v))} /><span>/100</span></div>
+              </div>
+              <div style={{ flex: 1, minWidth: 220 }}>
+                <div style={{ fontSize: 11, color: p.textMuted, letterSpacing: ".1em", fontWeight: 700 }}>SALUD FINANCIERA DEL MES</div>
+                <div style={{ fontSize: 26, fontWeight: 800, color: analisis.color, margin: "2px 0 6px" }}>{analisis.calificacion}</div>
+                <div style={{ fontSize: 13 }}>Margen neto de <b style={{ color: analisis.color }}>{analisis.margen_neto_pct}%</b> sobre {fmt(analisis.ingresos_mes)} de ingresos.</div>
+                {cmpAnt && cmpAnt.tendencia !== "sin_datos" && (
+                  <div style={{ fontSize: 12, color: cmpAnt.tendencia === "mejora" ? p.green : p.red, marginTop: 4 }}>
+                    {cmpAnt.tendencia === "mejora" ? "▲ Mejor" : "▼ Peor"} que {MESES_NOMBRE[cmpAnt.mes - 1].toLowerCase()}
+                    {cmpAnt.variacion_ingresos_pct !== null && <> · ingresos {cmpAnt.variacion_ingresos_pct >= 0 ? "+" : ""}{cmpAnt.variacion_ingresos_pct}% · margen {(analisis.margen_neto_pct - cmpAnt.margen_neto_pct) >= 0 ? "+" : ""}{(analisis.margen_neto_pct - cmpAnt.margen_neto_pct).toFixed(1)} pts</>}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="fin-grid2">
+              {analisis.metricas.map((m, i) => (
+                <div key={i} className="chart-card anim-in" style={{ animationDelay: (i * 50) + "ms", borderLeft: "3px solid " + colorEstado(m.estado) }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>{m.nombre}</span>
+                    <span style={{ fontSize: 18, fontWeight: 800, color: colorEstado(m.estado), fontVariantNumeric: "tabular-nums" }}>{m.valor}%</span>
+                  </div>
+                  <div className="cc-bar" style={{ margin: "8px 0" }}><div style={{ width: m.puntaje + "%", background: colorEstado(m.estado) }} /></div>
+                  <div style={{ fontSize: 12, color: p.textMuted }}>{m.comentario}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: p.textMuted, padding: "10px 4px 0" }}>
+              La calificación combina tu evolución contra el mes anterior con parámetros generales de comercios minoristas: es una guía, no una norma exacta para tu rubro. Los % son sobre los ingresos del mes.
+            </div>
+          </>
+        )
+      )}
+
+      {/* ============ COMPARAR ============ */}
+      {tab === "comparar" && (
+        <div className="fade">
+          <div className="chart-card" style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+              <button className="chip-btn" onClick={() => presetComparar("mes")}>Este mes vs mes pasado</button>
+              <button className="chip-btn" onClick={() => presetComparar("anio")}>Este mes vs mismo mes del año pasado</button>
+              <button className="chip-btn" onClick={() => presetComparar("semana")}>Últimos 7 días vs 7 anteriores</button>
+            </div>
+            <div className="fin-grid2">
+              {[["A comparar", comp1Desde, setComp1Desde, comp1Hasta, setComp1Hasta, p.accent], ["Contra", comp2Desde, setComp2Desde, comp2Hasta, setComp2Hasta, p.textMuted]].map(([l, d, sd, h, sh, c]) => (
+                <div key={l}>
+                  <div className="fl" style={{ color: c }}>{l}</div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <input className="inp" type="date" value={d} onChange={e => sd(e.target.value)} aria-label={l + " desde"} />
+                    <span style={{ fontSize: 11, color: p.textMuted }}>al</span>
+                    <input className="inp" type="date" value={h} onChange={e => sh(e.target.value)} aria-label={l + " hasta"} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {comparativaLoading && !comparativa ? <div className="skel" style={{ height: 160 }} /> : !comparativa ? <div className="empty">Elegí dos períodos para comparar.</div> : (
+            <div className="kpi-grid kpi-3" style={{ opacity: comparativaLoading ? 0.6 : 1 }}>
+              {[
+                ["Facturación", comparativa.periodo_1.total, comparativa.periodo_2.total, comparativa.variacion_pct, fmt],
+                ["Cantidad de ventas", comparativa.periodo_1.cantidad, comparativa.periodo_2.cantidad, comparativa.variacion_cantidad_pct, v => String(Math.round(v))],
+                ["Ticket promedio", comparativa.periodo_1.ticket_promedio, comparativa.periodo_2.ticket_promedio, comparativa.variacion_ticket_pct, fmt],
+              ].map(([t, a, b, v, f], i) => (
+                <KpiCard key={t} p={p} titulo={t} valor={a} formato={f} color={v === null ? p.accent : v >= 0 ? p.green : p.red} indice={i}
+                  tag={tagVar(v)} sub={"antes: " + f(b)} />
+              ))}
+            </div>
+          )}
+          {comparativa && (
+            <div style={{ fontSize: 11, color: p.textMuted }}>
+              {fmtDiaCorto(comparativa.periodo_1.desde)} al {fmtDiaCorto(comparativa.periodo_1.hasta)} ({comparativa.periodo_1.dias} días, {fmt(comparativa.periodo_1.promedio_diario)} por día)
+              {" "}contra {fmtDiaCorto(comparativa.periodo_2.desde)} al {fmtDiaCorto(comparativa.periodo_2.hasta)} ({comparativa.periodo_2.dias} días, {fmt(comparativa.periodo_2.promedio_diario)} por día).
+            </div>
           )}
         </div>
       )}
 
+      {/* ============ COSTOS POR LOCAL ============ */}
       {tab === "porlocal" && (
         <div className="fade">
-          <div style={{ fontSize: 11, color: "#65676B", marginBottom: 14, background: "#f7f5f0", padding: 10, borderRadius: 6 }}>
-            Costos de {["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"][mesFiltro]} {anioFiltro},
-            separados segun a que local quedaron cargados -- util para detectar si algo se cargo por duplicado en mas de un lado, o mal categorizado.
+          <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 12 }}>
+            Egresos de {MESES_NOMBRE[mesFiltro - 1].toLowerCase()} {anioFiltro} según a qué local quedaron cargados. Sirve para detectar algo cargado dos veces o en el local equivocado.
           </div>
-          {costosPorLocalLoading ? (
-            <div style={{ textAlign: "center", color: "#65676B", padding: 30 }}>Cargando...</div>
-          ) : (() => {
-            const grupos = { 1: [], 2: [], compartido: [] };
-            costosPorLocalMovs.forEach(m => {
-              const key = m.local_id === 1 ? 1 : m.local_id === 2 ? 2 : "compartido";
-              grupos[key].push(m);
-            });
-            const columnas = [
-              { key: 1, titulo: "RIO GRANDE" },
-              { key: 2, titulo: "USHUAIA" },
-              { key: "compartido", titulo: "COMPARTIDO (50/50)" }
-            ];
+          {costosPorLocalLoading ? <div className="skel" style={{ height: 240 }} /> : (() => {
+            const cols = [{ key: 1, titulo: nombreLocal(1) }, { key: 2, titulo: nombreLocal(2) }, { key: "compartido", titulo: "Compartido (50/50)" }];
+            const gruposL = { 1: [], 2: [], compartido: [] };
+            costosPorLocalMovs.forEach(m => gruposL[m.local_id === 1 ? 1 : m.local_id === 2 ? 2 : "compartido"].push(m));
             return (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-                {columnas.map(col => {
-                  const items = grupos[col.key];
+              <div className="fin-grid3">
+                {cols.map(col => {
+                  const items = gruposL[col.key];
                   const total = items.reduce((s, m) => s + parseFloat(m.importe || 0), 0);
                   return (
-                    <div key={col.key} className="card">
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                        <div className="ct" style={{ margin: 0 }}>{col.titulo}</div>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: "#c9a84c" }}>{fmt(total)}</span>
-                      </div>
-                      {items.length === 0 ? (
-                        <div style={{ fontSize: 11, color: "#65676B", padding: "10px 0", textAlign: "center" }}>Sin costos cargados</div>
-                      ) : items.map(m => (
-                        <div key={m.id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 11, borderBottom: "1px solid #f0f0f0" }}>
-                          <div>
-                            <div style={{ fontWeight: 600 }}>{m.concepto}</div>
-                            <div style={{ color: "#65676B" }}>{m.categoria_nombre || "Sin categoria"} · {new Date(m.creado_en).toLocaleDateString("es-AR")}</div>
-                          </div>
-                          <div style={{ fontWeight: 700, whiteSpace: "nowrap", marginLeft: 8 }}>{fmt(parseFloat(m.importe))}</div>
+                    <div key={col.key} className="chart-card">
+                      <div className="chart-head"><div className="chart-title">{col.titulo}</div><b style={{ color: p.red, fontVariantNumeric: "tabular-nums" }}>{fmt(total)}</b></div>
+                      {items.length === 0 ? <div className="empty">Sin egresos cargados</div> : items.map(m => (
+                        <div key={m.id} className="cc-linea" style={{ alignItems: "flex-start" }}>
+                          <span style={{ minWidth: 0 }}>
+                            <span style={{ display: "block", fontWeight: 600, color: p.text }}>{m.concepto}</span>
+                            <span style={{ fontSize: 11, color: p.textMuted }}>{m.categoria_nombre || "Sin categoría"} · {fmtDiaCorto(m.fecha)}</span>
+                          </span>
+                          <b style={{ whiteSpace: "nowrap" }}>{fmt(parseFloat(m.importe))}</b>
                         </div>
                       ))}
                     </div>
@@ -7113,87 +7134,64 @@ function Finanzas({ localId, usuario, paletaActual }) {
           })()}
         </div>
       )}
-      {tab === "costos" && (
-        <div className="g2 fade">
-          <div className="card">
-            <div className="ct">Costos reales del mes (cargados en el flujo)</div>
-            {(() => {
-              const grupos = [];
-              if (flujoEst) {
-                const push = (label, obj) => { if (obj && obj.detalle) Object.entries(obj.detalle).forEach(([k, v]) => grupos.push({ l: k + " (" + label + ")", v })); };
-                push("variable", flujoEst.variables);
-                push("fijo", flujoEst.fijos);
-                push("admin", flujoEst.admin);
-                push("sueldo", flujoEst.sueldos);
-                push("impuesto", flujoEst.impuestos);
-                push("comision medio de pago", flujoEst.comisiones_medios_pago);
-              }
-              if (grupos.length === 0) return <div style={{ fontSize: 12, color: p.textMuted, padding: "10px 0" }}>Todavia no hay costos cargados este mes. Cargalos en la pestaña Flujo.</div>;
-              return grupos.map((c, idx) => (
-                <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: "1px solid " + p.border }}>
-                  <span style={{ fontSize: 12, color: p.text }}>{c.l}</span>
-                  <span style={{ color: "#c9a84c" }}>{fmt(c.v)}</span>
-                </div>
-              ));
-            })()}
-          </div>
-          <div className="card">
-            <div className="ct">Costo de mercaderia vendida (CMV)</div>
-            {cmv ? (
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", fontSize: 13 }}>
-                  <span style={{ color: p.text }}>Ventas del mes</span>
-                  <span style={{ fontWeight: 600 }}>{fmt(cmv.ventas)}</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", fontSize: 13, color: "#c0392b" }}>
-                  <span>CMV (costo de lo vendido)</span>
-                  <span>- {fmt(cmv.cmv)}</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0 4px", borderTop: "2px solid #2d7a4f", marginTop: 6, fontSize: 14, fontWeight: 700 }}>
-                  <span>Margen bruto</span>
-                  <span style={{ color: "#2d7a4f" }}>{fmt(cmv.margen_bruto)} ({Math.round(cmv.margen_pct)}%)</span>
-                </div>
-                <div style={{ fontSize: 10, color: p.textMuted, marginTop: 8 }}>El CMV usa el costo cargado en cada producto vendido este mes.</div>
-              </div>
-            ) : <div style={{ fontSize: 12, color: p.textMuted, padding: "10px 0" }}>Sin datos de CMV este mes.</div>}
-          </div>
-        </div>
-      )}
 
+      {/* ============ PUNTO DE EQUILIBRIO ============ */}
       {tab === "equilibrio" && (
-        <div className="g2 fade">
-          <div className="card">
-            <div className="ct">Punto de equilibrio</div>
-            {loading ? <div style={{ color: p.textMuted }}>Calculando...</div> : <div>
-              <div style={{ fontSize: 48, fontWeight: 700, color: "#c9a84c" }}>{fmt(parseFloat(equilibrio?.punto_equilibrio || 0))}</div>
-              <div style={{ fontSize: 11, color: p.textMuted, marginTop: 4 }}>ventas minimas para cubrir costos</div>
-              <div className="divider" />
-              {[
-                { l: "Costos fijos", v: fmt(parseFloat(equilibrio?.costos_fijos || 0)) },
-                { l: "Margen promedio", v: (equilibrio?.margen_promedio || 0) + "%" },
-                { l: "Margen seguridad", v: equilibrio?.margen_seguridad || "0%" },
-              ].map(r => (
-                <div key={r.l} style={{ display: "flex", justifyContent: "space-between", marginBottom: 9 }}>
-                  <span style={{ fontSize: 11, color: p.textMuted }}>{r.l}</span>
-                  <span style={{ fontSize: 11, color: p.text }}>{r.v}</span>
-                </div>
-              ))}
-            </div>}
-          </div>
-          <div className="card">
-            <div className="ct">Situacion actual</div>
-            {[
-              { l: "Ventas actuales", v: fmt(parseFloat(equilibrio?.ventas_actuales || 0)), c: "#2d7a4f" },
-              { l: "Punto equilibrio", v: fmt(parseFloat(equilibrio?.punto_equilibrio || 0)), c: "#c9a84c" },
-              { l: "Superado", v: equilibrio?.superado ? "SI" : "NO", c: equilibrio?.superado ? "#2d7a4f" : "#c0392b" },
-            ].map(r => (
-              <div key={r.l} style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-                <span style={{ fontSize: 11, color: p.textMuted }}>{r.l}</span>
-                <span style={{ color: r.c }}>{r.v}</span>
+        !equilibrio ? <div className="skel" style={{ height: 260 }} /> : (() => {
+          const e = equilibrio;
+          const pe = e.punto_equilibrio || 0;
+          const avance = pe > 0 ? Math.min(100, (e.ventas_actuales / pe) * 100) : 0;
+          const marcaProy = pe > 0 ? Math.min(100, (e.proyeccion_fin_mes / pe) * 100) : 0;
+          return (
+            <div className="fin-grid">
+              <div className="chart-card anim-in">
+                <div className="chart-head"><div className="chart-title">¿Cuánto hay que vender para no perder plata?</div></div>
+                {pe <= 0 ? (
+                  <div className="empty">{e.costos_fijos <= 0 ? "Cargá los costos fijos del mes (alquiler, sueldos, servicios) para calcularlo." : "Falta el costo de los productos para calcular el margen."}</div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 40, fontWeight: 800, color: p.accent, fontVariantNumeric: "tabular-nums", lineHeight: 1.1 }}><CountUp value={pe} formato={fmt} /></div>
+                    <div style={{ fontSize: 12, color: p.textMuted, marginTop: 4 }}>ventas mínimas del mes para cubrir todos los costos fijos</div>
+                    <div className="fin-meta">
+                      <div className="fin-meta-fill" style={{ width: avance + "%", background: e.superado ? p.green : p.accent }} />
+                      {e.es_mes_actual && !e.superado && marcaProy > avance && <div className="fin-meta-proy" style={{ left: marcaProy + "%" }} title="Proyección a fin de mes" />}
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginTop: 6 }}>
+                      <span>Vendido: <b style={{ color: e.superado ? p.green : p.text }}>{fmt(e.ventas_actuales)}</b></span>
+                      <b style={{ color: e.superado ? p.green : p.accent }}>{Math.round(avance)}%</b>
+                    </div>
+                    <div className={"cc-dif " + (e.superado ? "ok" : "sobra")} style={{ marginTop: 14 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>
+                        {e.superado
+                          ? "✓ Superaste el punto de equilibrio: todo lo que vendas de acá en más deja ganancia."
+                          : e.es_mes_actual
+                            ? <>Faltan {fmt(pe - e.ventas_actuales)}.{e.venta_diaria_necesaria > 0 && <> Necesitás vender <b>{fmt(e.venta_diaria_necesaria)} por día</b> en los {e.dias_mes - e.dias_transcurridos} días que quedan.</>}</>
+                            : <>Ese mes no se llegó: faltaron {fmt(pe - e.ventas_actuales)}.</>}
+                      </div>
+                    </div>
+                    {e.es_mes_actual && (
+                      <div style={{ fontSize: 12, color: p.textMuted, marginTop: 10 }}>
+                        Al ritmo actual ({e.dias_transcurridos} de {e.dias_mes} días) cerrarías el mes en <b style={{ color: e.proyeccion_fin_mes >= pe ? p.green : p.red }}>{fmt(e.proyeccion_fin_mes)}</b>.
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
-            ))}
-          </div>
-        </div>
+              <div className="chart-card anim-in" style={{ animationDelay: "80ms" }}>
+                <div className="chart-head"><div className="chart-title">Cómo se calcula</div></div>
+                {Object.entries(e.costos_fijos_detalle || {}).filter(([, v]) => v > 0).map(([k, v]) => <div key={k} className="cc-linea"><span>{k}</span><b>{fmt(v)}</b></div>)}
+                <div className="cc-linea cc-esperado" style={{ fontSize: 13 }}><span>Costos fijos del mes</span><b style={{ color: p.text, fontSize: 15 }}>{fmt(e.costos_fijos)}</b></div>
+                <div className="divider" />
+                <div className="cc-linea"><span>Margen bruto de lo vendido</span><b>{e.margen_bruto_pct}%</b></div>
+                <div className="cc-linea"><span>− Comisiones de medios de pago</span><b>{e.comisiones_pct}%</b></div>
+                <div className="cc-linea cc-esperado" style={{ fontSize: 13 }}><span>Margen de contribución</span><b style={{ fontSize: 15 }}>{e.margen_promedio}%</b></div>
+                <div style={{ fontSize: 11, color: p.textMuted, marginTop: 8 }}>
+                  Punto de equilibrio = costos fijos ÷ margen de contribución.{e.margen_base === "60dias" ? " Como no hubo ventas ese mes, el margen sale de los últimos 60 días." : ""}
+                </div>
+              </div>
+            </div>
+          );
+        })()
       )}
     </div>
   );

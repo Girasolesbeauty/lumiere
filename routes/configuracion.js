@@ -42,6 +42,13 @@ router.put('/', async (req, res) => {
       const txt = String(req.body.mensaje_precio || '').slice(0, 2000).trim();
       await pool.query('UPDATE configuracion_negocio SET mensaje_precio = $1 WHERE id = 1', [txt || null]);
     }
+    // % de Ingresos Brutos estimado en Finanzas (0 = no se calcula)
+    if (Object.prototype.hasOwnProperty.call(req.body, 'iibb_pct')) {
+      const pct = parseFloat(req.body.iibb_pct);
+      if (isNaN(pct) || pct < 0 || pct > 30) return res.status(400).json({ error: 'El % de IIBB tiene que estar entre 0 y 30' });
+      await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS iibb_pct NUMERIC(5,2) DEFAULT 4');
+      await pool.query('UPDATE configuracion_negocio SET iibb_pct = $1 WHERE id = 1', [pct]);
+    }
     const r = await pool.query(
       `UPDATE configuracion_negocio SET nombre_negocio = COALESCE($1, nombre_negocio),
          logo_url = CASE WHEN $4 THEN $2 ELSE logo_url END,
