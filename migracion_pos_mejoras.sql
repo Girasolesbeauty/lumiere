@@ -121,3 +121,6 @@ CREATE TABLE IF NOT EXISTS cierres_caja (
   actualizado_en TIMESTAMP DEFAULT now(),
   UNIQUE (local_id, fecha)
 );
+
+-- 9) Plantilla editable del mensaje de "Buscar precio" (NULL = mensaje original).
+ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS mensaje_precio TEXT;

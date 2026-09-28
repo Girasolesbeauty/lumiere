@@ -2,9 +2,19 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
 
+// Plantilla del mensaje de "Buscar precio" (texto que se manda al cliente). La columna se crea
+// sola la primera vez, para no depender de correr una migracion en cada base.
+let columnaMensajeLista = false;
+const asegurarColumnaMensaje = async () => {
+  if (columnaMensajeLista) return;
+  await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS mensaje_precio TEXT');
+  columnaMensajeLista = true;
+};
+
 // Leer la configuracion general (nombre del negocio, logo)
 router.get('/', async (req, res) => {
   try {
+    try { await asegurarColumnaMensaje(); } catch (e) {}
     const r = await pool.query('SELECT * FROM configuracion_negocio WHERE id = 1');
     if (!r.rows.length) return res.json({ nombre_negocio: 'Mi Negocio', logo_url: null });
     res.json(r.rows[0]);
@@ -25,6 +35,13 @@ router.put('/', async (req, res) => {
     // El logo solo se toca si vino en el pedido (antes, guardar otra cosa -- por ejemplo
     // los datos fiscales -- mandaba logo_url vacio y borraba el logo sin querer).
     const tocaLogo = Object.prototype.hasOwnProperty.call(req.body, 'logo_url');
+    // Mensaje de Buscar precio: solo se toca si vino; vacio = volver al mensaje original.
+    const tocaMensaje = Object.prototype.hasOwnProperty.call(req.body, 'mensaje_precio');
+    if (tocaMensaje) {
+      await asegurarColumnaMensaje();
+      const txt = String(req.body.mensaje_precio || '').slice(0, 2000).trim();
+      await pool.query('UPDATE configuracion_negocio SET mensaje_precio = $1 WHERE id = 1', [txt || null]);
+    }
     const r = await pool.query(
       `UPDATE configuracion_negocio SET nombre_negocio = COALESCE($1, nombre_negocio),
          logo_url = CASE WHEN $4 THEN $2 ELSE logo_url END,

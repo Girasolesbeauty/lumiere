@@ -1820,11 +1820,26 @@ function Auditoria({ paletaActual }) {
 // Buscar precio: pensado para usar desde el celular. Se escanea (o se busca) el producto,
 // se ve el precio, el stock de cada local y las promos, y se copia/comparte el precio con
 // un formato prolijo para mandarlo por WhatsApp o Instagram.
-function BuscarPrecio({ localId, paletaActual }) {
+// Mensaje que se le manda al cliente desde "Buscar precio". Cada negocio lo puede cambiar
+// (se guarda en la configuracion); las {variables} se completan con los datos del producto.
+const PLANTILLA_PRECIO_BASE = "✨ *{producto}* ✨\n_{marca}_\n\n💰 *{precio}*\n{promos}\n{disponibilidad}\n\n💛 {negocio} · {reservar}";
+const VARIABLES_PRECIO = [
+  ["producto", "Producto"], ["marca", "Marca"], ["precio", "Precio"], ["promos", "Promos"],
+  ["disponibilidad", "Disponibilidad"], ["negocio", "Nombre del negocio"], ["reservar", "Cómo reservar"],
+];
+
+function BuscarPrecio({ localId, paletaActual, usuario }) {
   const p = paletaActual || PALETA_CLARA;
   const [productos, setProductos] = useState([]);
   const [promociones, setPromociones] = useState([]);
   const [nombreNegocio, setNombreNegocio] = useState("");
+  const [plantillaGuardada, setPlantillaGuardada] = useState("");
+  const [editor, setEditor] = useState(null); // null = cerrado | "este" | "plantilla"
+  const [borradorPlantilla, setBorradorPlantilla] = useState("");
+  const [mensajeEditado, setMensajeEditado] = useState(null); // cambio solo para este envio
+  const [avisoPlantilla, setAvisoPlantilla] = useState("");
+  const plantillaRef = useRef(null);
+  const puedeGuardarPlantilla = ["jefe", "admin", "administrativo"].includes(usuario?.rol);
   const [busqueda, setBusqueda] = useState("");
   const [seleccionado, setSeleccionado] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1840,7 +1855,7 @@ function BuscarPrecio({ localId, paletaActual }) {
   useEffect(() => {
     API.get("/productos").then(res => setProductos((res.data || []).filter(x => x.activo !== false))).catch(() => {}).finally(() => setLoading(false));
     API.get("/promociones?activas=true&vigentes=true").then(res => setPromociones(res.data || [])).catch(() => {});
-    API.get("/configuracion").then(res => setNombreNegocio(res.data?.nombre_negocio || "")).catch(() => {});
+    API.get("/configuracion").then(res => { setNombreNegocio(res.data?.nombre_negocio || ""); setPlantillaGuardada(res.data?.mensaje_precio || ""); }).catch(() => {});
     if (inputRef.current) inputRef.current.focus();
   }, []);
 
@@ -1930,25 +1945,55 @@ function BuscarPrecio({ localId, paletaActual }) {
 
   // ---- mensaje para compartir ----
   const precioTxt = (n) => fmt(Math.round(n)).replace(",00", "");
-  const armarMensaje = (prod, fmtSalida) => {
+  const armarMensaje = (prod, fmtSalida, plantilla) => {
     const wa = fmtSalida === "whatsapp";
-    const b = (t) => (wa ? "*" + t + "*" : t);
-    const it = (t) => (wa ? "_" + t + "_" : t);
     const precio = parseFloat(prod.precio || 0);
     const hayStock = stockLocal(prod, 1) + stockLocal(prod, 2) > 0;
-    const lineas = [
-      "✨ " + b(prod.nombre) + " ✨",
-      prod.marca ? it(prod.marca) : null,
-      "",
-      "💰 " + b(precioTxt(precio)),
-    ];
-    promosDe(prod).filter(pr => pr.tipo === "descuento" && parseFloat(pr.valor) > 0).slice(0, 2).forEach(pr => {
-      lineas.push("🎁 " + pr.valor + "% OFF" + textoCondicion(pr) + ": " + b(precioTxt(precio * (1 - parseFloat(pr.valor) / 100))));
+    const vals = {
+      producto: prod.nombre || "",
+      marca: prod.marca || "",
+      precio: precioTxt(precio),
+      promos: promosDe(prod).filter(pr => pr.tipo === "descuento" && parseFloat(pr.valor) > 0).slice(0, 2)
+        .map(pr => "🎁 " + pr.valor + "% OFF" + textoCondicion(pr) + ": *" + precioTxt(precio * (1 - parseFloat(pr.valor) / 100)) + "*").join("\n"),
+      disponibilidad: hayStock ? "✅ ¡Disponible!" : "📦 Consultanos por disponibilidad",
+      negocio: nombreNegocio || "",
+      reservar: wa ? "respondé este mensaje para reservarlo" : "escribinos por DM para reservarlo",
+    };
+    // Una linea que solo tiene variables vacias (ej: producto sin marca, sin promos) no se manda
+    const lineas = [];
+    (plantilla || PLANTILLA_PRECIO_BASE).split("\n").forEach(linea => {
+      const vars = linea.match(/\{(\w+)\}/g);
+      if (vars && vars.every(v => !vals[v.slice(1, -1)])) return;
+      lineas.push(linea.replace(/\{(\w+)\}/g, (m, k) => (k in vals ? vals[k] : m)));
     });
-    lineas.push(hayStock ? "✅ ¡Disponible!" : "📦 Consultanos por disponibilidad");
-    lineas.push("");
-    lineas.push((nombreNegocio ? "💛 " + nombreNegocio : "💛") + (wa ? " · respondé este mensaje para reservarlo" : " · escribinos por DM para reservarlo"));
-    return lineas.filter(x => x !== null).join("\n");
+    let texto = lineas.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+    // Instagram no tiene negrita/cursiva: se sacan los * y _
+    if (!wa) texto = texto.replace(/\*([^*\n]+)\*/g, "$1").replace(/(^|\s)_([^_\n]+)_(?=\s|$)/g, "$1$2");
+    return texto;
+  };
+  const abrirEditor = (modo) => {
+    setAvisoPlantilla("");
+    if (modo === "plantilla") setBorradorPlantilla(plantillaGuardada || PLANTILLA_PRECIO_BASE);
+    if (modo === "este" && mensajeEditado === null) setMensajeEditado(armarMensaje(seleccionado, formato, plantillaGuardada));
+    setEditor(modo);
+  };
+  const insertarVariable = (k) => {
+    const ta = plantillaRef.current;
+    const txt = "{" + k + "}";
+    const ini = ta ? ta.selectionStart : borradorPlantilla.length;
+    const fin = ta ? ta.selectionEnd : borradorPlantilla.length;
+    setBorradorPlantilla(borradorPlantilla.slice(0, ini) + txt + borradorPlantilla.slice(fin));
+    setTimeout(() => { if (ta) { ta.focus(); ta.selectionStart = ta.selectionEnd = ini + txt.length; } }, 0);
+  };
+  const guardarPlantilla = async (texto) => {
+    const valor = texto.trim() === PLANTILLA_PRECIO_BASE ? "" : texto.trim();
+    try {
+      await API.put("/configuracion", { mensaje_precio: valor });
+      setPlantillaGuardada(valor);
+      setBorradorPlantilla(valor || PLANTILLA_PRECIO_BASE);
+      setAvisoPlantilla(valor ? "✓ Mensaje guardado: se usa en todos los productos" : "✓ Se volvió al mensaje original");
+      setTimeout(() => setAvisoPlantilla(""), 3500);
+    } catch (e) { setAvisoPlantilla("Error: " + (e.response?.data?.error || "no se pudo guardar")); }
   };
   const copiarTexto = async (texto, etiqueta) => {
     try {
@@ -1976,7 +2021,10 @@ function BuscarPrecio({ localId, paletaActual }) {
   );
 
   const prod = seleccionado;
-  const mensaje = prod ? armarMensaje(prod, formato) : "";
+  // El cambio "solo para este envio" se descarta al cambiar de producto o de formato
+  useEffect(() => { setMensajeEditado(null); setEditor(ed => (ed === "este" ? null : ed)); }, [seleccionado?.id, formato]);
+  const mensaje = !prod ? "" : editor === "este" && mensajeEditado !== null ? mensajeEditado
+    : armarMensaje(prod, formato, editor === "plantilla" ? borradorPlantilla : plantillaGuardada);
 
   return (
     <div className="fade" style={{ textAlign: "left", maxWidth: 720, margin: "0 auto" }}>
@@ -2084,6 +2132,48 @@ function BuscarPrecio({ localId, paletaActual }) {
                 <button className={formato === "instagram" ? "on" : ""} onClick={() => setFormato("instagram")}>📸 Instagram</button>
               </div>
             </div>
+            {editor === null ? (
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+                <button className="chip-btn" onClick={() => abrirEditor("este")}>✏️ Editar mensaje</button>
+              </div>
+            ) : (
+              <div className="pop-in" style={{ border: "1px solid " + p.accent + "88", background: p.accentDim, borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+                  <div className="seg" role="group" aria-label="Qué editar">
+                    <button className={editor === "este" ? "on" : ""} onClick={() => abrirEditor("este")}>Solo este envío</button>
+                    {puedeGuardarPlantilla && <button className={editor === "plantilla" ? "on" : ""} onClick={() => abrirEditor("plantilla")}>Mensaje de siempre</button>}
+                  </div>
+                  <button className="icon-btn" onClick={() => { setEditor(null); setMensajeEditado(null); }} aria-label="Cerrar editor">✕</button>
+                </div>
+                {editor === "este" ? (
+                  <>
+                    <textarea className="inp" rows={7} value={mensajeEditado ?? ""} onChange={e => setMensajeEditado(e.target.value)} aria-label="Texto del mensaje" style={{ fontFamily: "inherit", fontSize: 13, lineHeight: 1.5, resize: "vertical" }} />
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 11, color: p.textMuted }}>Este cambio es solo para este envío.</span>
+                      <button className="mini-chip" onClick={() => setMensajeEditado(armarMensaje(prod, formato, plantillaGuardada))}>↺ Volver al automático</button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 11, color: p.textMuted, marginBottom: 6 }}>
+                      Es el mensaje que se arma para <b>todos los productos</b>. Tocá un dato para agregarlo donde está el cursor. En WhatsApp, <b>*texto*</b> sale en negrita y <i>_texto_</i> en cursiva.
+                    </div>
+                    <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 8 }}>
+                      {VARIABLES_PRECIO.map(([k, l]) => <button key={k} className="mini-chip" onClick={() => insertarVariable(k)} title={"Inserta {" + k + "}"}>+ {l}</button>)}
+                    </div>
+                    <textarea ref={plantillaRef} className="inp" rows={8} value={borradorPlantilla} onChange={e => setBorradorPlantilla(e.target.value)} aria-label="Plantilla del mensaje" style={{ fontFamily: "monospace", fontSize: 12, lineHeight: 1.5, resize: "vertical" }} />
+                    {!nombreNegocio && borradorPlantilla.includes("{negocio}") && (
+                      <div style={{ fontSize: 11, color: p.warn, marginTop: 6 }}>⚠ El negocio no tiene nombre cargado: completalo en Configuración del negocio o sacá {"{negocio}"} del mensaje.</div>
+                    )}
+                    <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                      <button className="btn btn-g btn-sm" onClick={() => setBorradorPlantilla(PLANTILLA_PRECIO_BASE)}>↺ Mensaje original</button>
+                      <button className="btn btn-p btn-sm" style={{ flex: 1 }} onClick={() => guardarPlantilla(borradorPlantilla)} disabled={!borradorPlantilla.trim()}>Guardar para todos los productos</button>
+                    </div>
+                  </>
+                )}
+                {avisoPlantilla && <div role="status" style={{ fontSize: 12, fontWeight: 700, marginTop: 8, color: avisoPlantilla.startsWith("✓") ? p.green : p.red }}>{avisoPlantilla}</div>}
+              </div>
+            )}
             <div aria-label="Vista previa del mensaje" style={{ background: formato === "whatsapp" ? "#005c4b" : "linear-gradient(135deg,#833ab4,#c13584 60%,#e1306c)", color: "#fff", borderRadius: "14px 14px 4px 14px", padding: "12px 14px", fontSize: 13, lineHeight: 1.5, whiteSpace: "pre-wrap", marginBottom: 12, marginLeft: "auto", maxWidth: 420, boxShadow: "0 2px 6px rgba(0,0,0,.2)" }}>
               {formato === "whatsapp"
                 ? mensaje.split(/(\*[^*]+\*|_[^_]+_)/g).map((parte, k) => parte.startsWith("*") && parte.endsWith("*") && parte.length > 2 ? <b key={k}>{parte.slice(1, -1)}</b> : parte.startsWith("_") && parte.endsWith("_") && parte.length > 2 ? <i key={k}>{parte.slice(1, -1)}</i> : <Fragment key={k}>{parte}</Fragment>)
@@ -15485,7 +15575,7 @@ export default function AppWrapper() {
     if (!puedeVer(id)) return <SinPermiso />;
     if (id === "dashboard") return <Dashboard localId={local.id} paletaActual={paletaActual} />;
     if (id === "pos") return <POS localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
-    if (id === "buscar-precio") return <BuscarPrecio localId={local.id} paletaActual={paletaActual} />;
+    if (id === "buscar-precio") return <BuscarPrecio localId={local.id} paletaActual={paletaActual} usuario={usuario} />;
     if (id === "cambio-devolucion") return <CambioDevolucion localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "ventas-online") return <VentasOnline localId={local.id} usuario={usuario} permisosActivos={permisosActivos} paletaActual={paletaActual} />;
     if (id === "auditoria") return <Auditoria paletaActual={paletaActual} />;
