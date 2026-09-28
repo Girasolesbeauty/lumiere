@@ -97,6 +97,18 @@ const update = async (req, res) => {
   }
 };
 
+// Activar / desactivar un producto sin tocar el resto de sus datos
+const cambiarEstado = async (req, res) => {
+  try {
+    const activo = req.body && req.body.activo !== false;
+    const r = await pool.query('UPDATE productos SET activo = $1 WHERE id = $2 RETURNING id, nombre, activo', [activo, req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Producto no encontrado' });
+    res.json(r.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al cambiar el estado del producto' });
+  }
+};
+
 const remove = async (req, res) => {
   const client = await pool.connect();
   try {
@@ -381,4 +393,4 @@ const getSugerenciaCompra = async (req, res) => {
   }
 };
 
-module.exports = { getAll, getById, create, update, remove, getAlertas, getTransito, ajustarStock, getHistorialAjustes, recalcularStockMinimo, getSugerenciaCompra };
+module.exports = { getAll, getById, create, update, remove, getAlertas, getTransito, ajustarStock, getHistorialAjustes, recalcularStockMinimo, getSugerenciaCompra, cambiarEstado };

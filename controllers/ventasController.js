@@ -578,7 +578,25 @@ const crearOnline = async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { items, total, medio_pago_id, medio_pago_nombre, local_id, usuario_id, referencia, fecha, cliente_id, pagos, cupon_codigo } = req.body;
+    const { items, total, medio_pago_id, medio_pago_nombre, local_id, usuario_id, referencia, fecha, cliente_id, pagos, cupon_codigo,
+            plataforma, comprobante_externo, costo_envio, forzar } = req.body;
+    const plataformaTxt = plataforma ? String(plataforma).trim().slice(0, 40) : null;
+    const referenciaTxt = referencia ? String(referencia).trim() : null;
+    const envio = Math.max(parseFloat(costo_envio) || 0, 0);
+
+    // Evitar cargar dos veces el mismo pedido de la misma plataforma
+    if (plataformaTxt && referenciaTxt && !forzar) {
+      const dup = await client.query(
+        `SELECT numero_factura, creado_en FROM ventas
+          WHERE canal = 'online' AND LOWER(plataforma) = LOWER($1) AND LOWER(TRIM(referencia)) = LOWER($2)
+          LIMIT 1`,
+        [plataformaTxt, referenciaTxt]
+      );
+      if (dup.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'pedido_duplicado', numero_factura: dup.rows[0].numero_factura, creado_en: dup.rows[0].creado_en });
+      }
+    }
     // Si viene fecha, se usa esa (para ventas online de dias anteriores). Si no, ahora.
     // Si viene solo la fecha (YYYY-MM-DD), guardarla al mediodia para que ningun
     // corrimiento de zona horaria la cambie de dia.
@@ -607,17 +625,22 @@ const crearOnline = async (req, res) => {
       }
     }
 
-    const count = await client.query('SELECT COUNT(*) FROM ventas');
-    const numero = 'ON-' + String(parseInt(count.rows[0].count) + 1).padStart(4, '0');
-
+    // El numero sale del id de la venta (antes se contaban las ventas y, despues de
+    // borrar una, el numero se podia repetir).
     const venta = await client.query(
       `INSERT INTO ventas
         (numero_factura, cliente_id, tipo_factura, subtotal, descuento, total, canal, local_id,
-         medio_pago_id, medio_pago, es_preventa, estado_pago, usuario_id, creado_en, cupon_id, estado_facturacion)
-       VALUES ($1, $9, NULL, $2, 0, $3, 'online', $4, $5, $6, FALSE, 'pagado', $7, COALESCE($8::timestamp, NOW()), $10, 'no_aplica') RETURNING *`,
-      [numero, subtotal, totalNum, local_id || 1, medio_pago_id || null, medio_pago_nombre || null, usuario_id || null, fechaVenta, cliente_id || null, cuponId]
+         medio_pago_id, medio_pago, es_preventa, estado_pago, usuario_id, creado_en, cupon_id, estado_facturacion,
+         referencia, plataforma, comprobante_externo, costo_envio)
+       VALUES ('ON-TMP', $8, NULL, $1, 0, $2, 'online', $3, $4, $5, FALSE, 'pagado', $6, COALESCE($7::timestamp, NOW()), $9, 'no_aplica',
+         $10, $11, $12, $13) RETURNING *`,
+      [subtotal, totalNum, local_id || 1, medio_pago_id || null, medio_pago_nombre || null, usuario_id || null, fechaVenta, cliente_id || null, cuponId,
+       referenciaTxt, plataformaTxt, comprobante_externo ? String(comprobante_externo).trim() : null, envio]
     );
     const ventaId = venta.rows[0].id;
+    const numero = 'ON-' + String(ventaId).padStart(4, '0');
+    await client.query('UPDATE ventas SET numero_factura = $1 WHERE id = $2', [numero, ventaId]);
+    venta.rows[0].numero_factura = numero;
 
     // Pago mixto: si vienen varios pagos, se guardan en venta_pagos.
     if (Array.isArray(pagos) && pagos.length > 0) {
@@ -653,7 +676,7 @@ const crearOnline = async (req, res) => {
       await client.query(
         `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id, creado_en)
          VALUES ($1, 'I', $2, $3, $4, COALESCE($5::timestamp, NOW()))`,
-        ['Venta online ' + numero + (referencia ? ' (' + referencia + ')' : ''), totalNum, numero, local_id || 1, fechaVenta]
+        ['Venta online ' + numero + (plataformaTxt ? ' ' + plataformaTxt : '') + (referenciaTxt ? ' (' + referenciaTxt + ')' : ''), totalNum, numero, local_id || 1, fechaVenta]
       );
     }
 
@@ -742,6 +765,7 @@ const editarOnline = async (req, res) => {
     await client.query('BEGIN');
     const { id } = req.params;
     const { total, local_id, fecha, items, usuario_id, usuario_nombre } = req.body;
+    const tiene = (k) => Object.prototype.hasOwnProperty.call(req.body, k);
 
     const ventaRes = await client.query("SELECT * FROM ventas WHERE id = $1 AND canal = 'online'", [id]);
     if (ventaRes.rows.length === 0) {
@@ -803,13 +827,27 @@ const editarOnline = async (req, res) => {
           );
         }
       }
-      // El total de una venta con productos siempre sale de la suma de los productos
-      nuevoTotal = nuevoSubtotal;
+      // El total de una venta con productos es la suma de los productos mas el envio
+      const envioEdit = tiene('costo_envio') ? Math.max(parseFloat(req.body.costo_envio) || 0, 0) : (parseFloat(ventaActual.costo_envio) || 0);
+      nuevoTotal = nuevoSubtotal + envioEdit;
     }
 
     await client.query(
       `UPDATE ventas SET total = $1, subtotal = $1, local_id = $2, creado_en = COALESCE($3::timestamp, creado_en) WHERE id = $4`,
       [nuevoTotal, nuevoLocal, fechaVenta, id]
+    );
+    // Datos del canal online (solo si vinieron)
+    await client.query(
+      `UPDATE ventas SET
+         plataforma = CASE WHEN $1 THEN $2 ELSE plataforma END,
+         referencia = CASE WHEN $3 THEN $4 ELSE referencia END,
+         comprobante_externo = CASE WHEN $5 THEN $6 ELSE comprobante_externo END,
+         costo_envio = CASE WHEN $7 THEN $8 ELSE costo_envio END,
+         subtotal = total - COALESCE(CASE WHEN $7 THEN $8 ELSE costo_envio END, 0)
+       WHERE id = $9`,
+      [tiene('plataforma'), req.body.plataforma || null, tiene('referencia'), req.body.referencia || null,
+       tiene('comprobante_externo'), req.body.comprobante_externo || null,
+       tiene('costo_envio'), Math.max(parseFloat(req.body.costo_envio) || 0, 0), id]
     );
 
     // Actualizar el movimiento de caja asociado

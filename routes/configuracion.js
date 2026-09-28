@@ -14,10 +14,26 @@ router.get('/', async (req, res) => {
 // Guardar la configuracion general
 router.put('/', async (req, res) => {
   try {
-    const { nombre_negocio, logo_url } = req.body;
+    const { nombre_negocio, logo_url, modo_ticket, retos_activo, retos_meta_mensual, retos_premio_monto } = req.body;
+    // Desafios de venta: se guardan solo si vinieron en el pedido.
+    const retosActivo = typeof retos_activo === 'boolean' ? retos_activo : null;
+    const retosMeta = parseInt(retos_meta_mensual) > 0 ? parseInt(retos_meta_mensual) : null;
+    const retosMonto = parseFloat(retos_premio_monto) >= 0 ? parseFloat(retos_premio_monto) : null;
+    // modo_ticket: que pasa al terminar una venta en el POS -- "imprimir" (ticket en la
+    // impresora, lo de siempre), "enviar" (link por WhatsApp) o "preguntar" (la vendedora elige).
+    const modoValido = ['imprimir', 'enviar', 'preguntar'].includes(modo_ticket) ? modo_ticket : null;
+    // El logo solo se toca si vino en el pedido (antes, guardar otra cosa -- por ejemplo
+    // los datos fiscales -- mandaba logo_url vacio y borraba el logo sin querer).
+    const tocaLogo = Object.prototype.hasOwnProperty.call(req.body, 'logo_url');
     const r = await pool.query(
-      `UPDATE configuracion_negocio SET nombre_negocio = COALESCE($1, nombre_negocio), logo_url = $2 WHERE id = 1 RETURNING *`,
-      [nombre_negocio, logo_url || null]
+      `UPDATE configuracion_negocio SET nombre_negocio = COALESCE($1, nombre_negocio),
+         logo_url = CASE WHEN $4 THEN $2 ELSE logo_url END,
+         modo_ticket = COALESCE($3, modo_ticket),
+         retos_activo = COALESCE($5, retos_activo),
+         retos_meta_mensual = COALESCE($6, retos_meta_mensual),
+         retos_premio_monto = COALESCE($7, retos_premio_monto)
+       WHERE id = 1 RETURNING *`,
+      [nombre_negocio, logo_url || null, modoValido, tocaLogo, retosActivo, retosMeta, retosMonto]
     );
     res.json(r.rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }

@@ -12,4 +12,5 @@ router.post('/', controller.create);
 router.put('/:id', controller.update);
 router.delete('/:id', controller.remove);
 router.put('/:id/ajustar-stock', controller.ajustarStock);
+router.put('/:id/estado', controller.cambiarEstado);
 module.exports = router;

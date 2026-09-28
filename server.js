@@ -63,6 +63,8 @@ app.use('/api/influencer-regalos', require('./routes/influencer-regalos'));
 app.use('/api/facturas-proveedor', require('./routes/facturas-proveedor'));
 app.use('/api/traspasos', require('./routes/traspasos'));
 app.use('/api/productos', require('./routes/producto-variantes'));
+app.use('/api/pos', require('./routes/pos'));
+app.use('/api/retos', require('./routes/retos'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {

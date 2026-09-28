@@ -2,54 +2,142 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
 
-// Calcula (y guarda) la comision de un dia para un local, segun las metas diarias.
-async function calcularYGuardarDia(local_id, fecha) {
-  const fact = await pool.query(
+// ===================== Tipos de comision =====================
+// La comision es del LOCAL (equipo). Cada local tiene una regla (tabla reglas_comision):
+//   tipo:
+//     - metas_monto        premio fijo al superar cada meta de ventas (hasta 3, se suman)
+//     - porcentaje         % de lo vendido (opcional: solo si se supera un minimo)
+//     - porcentaje_tramos  % segun el tramo alcanzado (ej: 1% hasta $1M, 2% desde $1M)
+//     - excedente          % solo sobre lo vendido por encima de una meta
+//   periodo: diaria | semanal (lunes a domingo) | mensual
+// Aunque el periodo sea semanal o mensual, se sigue guardando una fila por dia: cada dia
+// suma lo que la comision del periodo crecio ese dia. Asi el pago por dias sigue igual.
+const TIPOS_COMISION = ['metas_monto', 'porcentaje', 'porcentaje_tramos', 'excedente'];
+const PERIODOS_COMISION = ['diaria', 'semanal', 'mensual'];
+
+const num = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+
+function normalizarRegla(r) {
+  if (!r) return null;
+  let tramos = r.tramos;
+  if (typeof tramos === 'string') { try { tramos = JSON.parse(tramos); } catch (e) { tramos = []; } }
+  tramos = (Array.isArray(tramos) ? tramos : [])
+    .map(t => ({ desde: num(t.desde), pct: num(t.pct) }))
+    .filter(t => t.pct > 0)
+    .sort((a, b) => a.desde - b.desde);
+  return {
+    local_id: r.local_id,
+    tipo: TIPOS_COMISION.includes(r.tipo) ? r.tipo : 'metas_monto',
+    periodo: PERIODOS_COMISION.includes(r.periodo) ? r.periodo : 'diaria',
+    umbral_1: num(r.umbral_1), comision_1: num(r.comision_1),
+    umbral_2: num(r.umbral_2), comision_2: num(r.comision_2),
+    umbral_3: num(r.umbral_3), comision_3: num(r.comision_3),
+    porcentaje: num(r.porcentaje), minimo: num(r.minimo), tramos,
+  };
+}
+
+// Comision que corresponde a un total vendido en el periodo, segun la regla.
+function calcularComision(total, r) {
+  if (!r || total <= 0) return { comision: 0, nivel: 0 };
+  if (r.tipo === 'porcentaje') {
+    if (total < r.minimo) return { comision: 0, nivel: 0 };
+    return { comision: total * r.porcentaje / 100, nivel: 1 };
+  }
+  if (r.tipo === 'porcentaje_tramos') {
+    let idx = -1;
+    r.tramos.forEach((t, k) => { if (total >= t.desde) idx = k; });
+    if (idx < 0) return { comision: 0, nivel: 0 };
+    return { comision: total * r.tramos[idx].pct / 100, nivel: idx + 1 };
+  }
+  if (r.tipo === 'excedente') {
+    const exced = total - r.minimo;
+    if (exced <= 0) return { comision: 0, nivel: 0 };
+    return { comision: exced * r.porcentaje / 100, nivel: 1 };
+  }
+  // metas_monto (lo de siempre): los premios de cada meta alcanzada se suman
+  const { umbral_1: u1, comision_1: c1, umbral_2: u2, comision_2: c2, umbral_3: u3, comision_3: c3 } = r;
+  if (u3 > 0 && total >= u3) return { comision: c1 + c2 + c3, nivel: 3 };
+  if (u2 > 0 && total >= u2) return { comision: c1 + c2, nivel: 2 };
+  if (u1 > 0 && total >= u1) return { comision: c1, nivel: 1 };
+  return { comision: 0, nivel: 0 };
+}
+
+// Fechas como texto 'YYYY-MM-DD' (se calculan en UTC para no correrse por el huso horario)
+const aTexto = (d) => d.toISOString().slice(0, 10);
+const deTexto = (f) => { const [y, m, d] = String(f).slice(0, 10).split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); };
+function inicioPeriodo(fecha, periodo) {
+  const d = deTexto(fecha);
+  if (periodo === 'mensual') return aTexto(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)));
+  if (periodo === 'semanal') { d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return aTexto(d); }
+  return aTexto(d);
+}
+
+// Ventas presenciales del local entre dos fechas (inclusive), sin las de cupones de influencers
+async function ventasEntre(local_id, desde, hasta) {
+  const r = await pool.query(
     `SELECT COALESCE(SUM(total), 0) AS total
      FROM ventas
      WHERE local_id = $1 AND canal = 'presencial'
-       AND DATE(creado_en) = $2
+       AND DATE(creado_en) BETWEEN $2 AND $3
        AND (cupon_id IS NULL OR cupon_id NOT IN (
          SELECT cupon_id FROM influencers WHERE cupon_id IS NOT NULL
        ))`,
-    [local_id, fecha]
+    [local_id, desde, hasta]
   );
-  const total = parseFloat(fact.rows[0].total) || 0;
+  return parseFloat(r.rows[0].total) || 0;
+}
 
-  const reglas = await pool.query('SELECT * FROM reglas_comision WHERE local_id = $1 ORDER BY id LIMIT 1', [local_id]);
-  if (reglas.rows.length === 0) return { facturacion: total, comision: 0, nivel: 0 };
-  const r = reglas.rows[0];
+async function leerRegla(local_id) {
+  const r = await pool.query('SELECT * FROM reglas_comision WHERE local_id = $1 ORDER BY id LIMIT 1', [local_id]);
+  return normalizarRegla(r.rows[0]);
+}
 
-  const u1 = parseFloat(r.umbral_1) || 0, c1 = parseFloat(r.comision_1) || 0;
-  const u2 = parseFloat(r.umbral_2) || 0, c2 = parseFloat(r.comision_2) || 0;
-  const u3 = parseFloat(r.umbral_3) || 0, c3 = parseFloat(r.comision_3) || 0;
+// Calcula (y guarda) la comision de un dia para un local, segun la regla del local.
+async function calcularYGuardarDia(local_id, fecha) {
+  const fechaTxt = String(fecha).slice(0, 10);
+  const totalDia = await ventasEntre(local_id, fechaTxt, fechaTxt);
+  const regla = await leerRegla(local_id);
+  if (!regla) return { facturacion: totalDia, comision: 0, nivel: 0 };
 
-  let comision = 0, nivel = 0;
-  if (u3 > 0 && total >= u3) { comision = c1 + c2 + c3; nivel = 3; }
-  else if (u2 > 0 && total >= u2) { comision = c1 + c2; nivel = 2; }
-  else if (u1 > 0 && total >= u1) { comision = c1; nivel = 1; }
+  const inicio = inicioPeriodo(fechaTxt, regla.periodo);
+  const totalPeriodo = regla.periodo === 'diaria' ? totalDia : await ventasEntre(local_id, inicio, fechaTxt);
+  const totalPrevio = Math.max(totalPeriodo - totalDia, 0);
+  const hasta = calcularComision(totalPeriodo, regla);
+  const previo = calcularComision(totalPrevio, regla);
+  const comision = Math.round((hasta.comision - previo.comision) * 100) / 100;
 
-  const mes = new Date(fecha).getMonth() + 1;
-  const anio = new Date(fecha).getFullYear();
+  const d = deTexto(fechaTxt);
+  const mes = d.getUTCMonth() + 1;
+  const anio = d.getUTCFullYear();
 
   const existe = await pool.query(
-    'SELECT id, pagada FROM comisiones WHERE local_id = $1 AND fecha = $2',
-    [local_id, fecha]
+    'SELECT id, pagada, comision_ganada FROM comisiones WHERE local_id = $1 AND fecha = $2',
+    [local_id, fechaTxt]
   );
+  let comisionGuardada = comision;
   if (existe.rows.length > 0) {
-    await pool.query(
-      'UPDATE comisiones SET facturacion_mes = $1, comision_ganada = $2, mes = $3, anio = $4 WHERE id = $5',
-      [total, comision, mes, anio, existe.rows[0].id]
-    );
+    // Un dia ya pagado no se recalcula (si se cambio la regla despues, no cambia lo pagado)
+    if (existe.rows[0].pagada) {
+      comisionGuardada = parseFloat(existe.rows[0].comision_ganada) || 0;
+    } else {
+      await pool.query(
+        'UPDATE comisiones SET facturacion_mes = $1, comision_ganada = $2, mes = $3, anio = $4 WHERE id = $5',
+        [totalDia, comision, mes, anio, existe.rows[0].id]
+      );
+    }
   } else {
     await pool.query(
       `INSERT INTO comisiones (local_id, fecha, mes, anio, facturacion_mes, comision_ganada, pagada)
        VALUES ($1, $2, $3, $4, $5, $6, FALSE)`,
-      [local_id, fecha, mes, anio, total, comision]
+      [local_id, fechaTxt, mes, anio, totalDia, comision]
     );
   }
 
-  return { facturacion: total, comision, nivel, umbral_1: u1, comision_1: c1, umbral_2: u2, comision_2: c2, umbral_3: u3, comision_3: c3 };
+  return {
+    ...regla,
+    facturacion: totalDia, comision: comisionGuardada, nivel: hasta.nivel,
+    inicio_periodo: inicio, facturacion_periodo: totalPeriodo, comision_periodo: Math.round(hasta.comision * 100) / 100,
+  };
 }
 
 // Valida (si corresponde) y registra en Finanzas / Caja de efectivo / stock el pago de
@@ -104,6 +192,62 @@ async function procesarPagoComision(client, { local_id, monto, forma_pago, produ
 
   return { error: null, forma_pago: formaValida };
 }
+
+// ===================== Configuracion de comisiones =====================
+// Reglas de todos los locales activos (para la pestaña "Configuracion de comisiones")
+router.get('/config/reglas', async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT l.id AS local_id, l.nombre AS local_nombre, rc.*
+         FROM locales l
+         LEFT JOIN LATERAL (SELECT * FROM reglas_comision WHERE local_id = l.id ORDER BY id LIMIT 1) rc ON true
+        WHERE l.activo = TRUE
+        ORDER BY l.id`
+    );
+    res.json(r.rows.map(x => ({ ...normalizarRegla({ ...x, local_id: x.local_id }), local_nombre: x.local_nombre, configurada: !!x.id })));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Guardar la regla de un local
+router.put('/config/reglas/:local_id', async (req, res) => {
+  try {
+    const localId = parseInt(req.params.local_id);
+    const b = req.body || {};
+    const regla = normalizarRegla({ ...b, local_id: localId });
+    if (regla.tipo === 'porcentaje' || regla.tipo === 'excedente') {
+      if (!(regla.porcentaje > 0) || regla.porcentaje > 100) return res.status(400).json({ error: 'El porcentaje tiene que estar entre 0 y 100' });
+    }
+    if (regla.tipo === 'excedente' && !(regla.minimo > 0)) return res.status(400).json({ error: 'Falta la meta a partir de la cual se paga el %' });
+    if (regla.tipo === 'porcentaje_tramos' && regla.tramos.length === 0) return res.status(400).json({ error: 'Carga al menos un tramo' });
+    if (regla.tipo === 'metas_monto' && !(regla.umbral_1 > 0)) return res.status(400).json({ error: 'Carga al menos la primera meta' });
+
+    const valores = [regla.tipo, regla.periodo, regla.umbral_1, regla.comision_1, regla.umbral_2, regla.comision_2,
+      regla.umbral_3, regla.comision_3, regla.porcentaje, regla.minimo, JSON.stringify(regla.tramos), localId];
+    const upd = await pool.query(
+      `UPDATE reglas_comision SET tipo = $1, periodo = $2, umbral_1 = $3, comision_1 = $4, umbral_2 = $5, comision_2 = $6,
+         umbral_3 = $7, comision_3 = $8, porcentaje = $9, minimo = $10, tramos = $11::jsonb
+       WHERE id = (SELECT id FROM reglas_comision WHERE local_id = $12 ORDER BY id LIMIT 1) RETURNING *`,
+      valores
+    );
+    let fila = upd.rows[0];
+    if (!fila) {
+      const ins = await pool.query(
+        `INSERT INTO reglas_comision (tipo, periodo, umbral_1, comision_1, umbral_2, comision_2, umbral_3, comision_3, porcentaje, minimo, tramos, local_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12) RETURNING *`,
+        valores
+      );
+      fila = ins.rows[0];
+    }
+    res.json(normalizarRegla(fila));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Simulador: cuanto se cobraria con una regla (sin guardarla) si el local vende X en el periodo
+router.post('/config/simular', (req, res) => {
+  const regla = normalizarRegla(req.body.regla || {});
+  const total = num(req.body.total);
+  res.json({ total, ...calcularComision(total, regla) });
+});
 
 // GET comision de HOY para un local (calcula y guarda)
 router.get('/:local_id', async (req, res) => {
