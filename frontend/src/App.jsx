@@ -375,6 +375,32 @@ button.tab { font-family: inherit; }
 .cob-barra > div { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 99px; transition: width .7s cubic-bezier(.2,.7,.2,1); }
 .cob-proy { background: repeating-linear-gradient(45deg, ${p.textMuted}33 0 6px, transparent 6px 12px); }
 @media (max-width: 420px) { .cob-grid { grid-template-columns: 1fr; } }
+/* --- Asistente de ayuda --- */
+.ayuda-fab { position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 60; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 13px; font-weight: 800; padding: 11px 16px; border-radius: 999px; border: none; cursor: pointer; background: ${p.accent}; color: #1B2431; box-shadow: 0 6px 20px ${p.shadowCol}; transition: transform .15s ease, box-shadow .15s ease; }
+.ayuda-fab:hover { transform: translateY(-2px); box-shadow: 0 10px 26px ${p.shadowCol}; }
+.ayuda-fab:focus-visible { outline: 2px solid ${p.text}; outline-offset: 3px; }
+.ayuda-fab.arriba { bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+.ayuda-panel { position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 95; width: min(400px, calc(100vw - 24px)); height: min(620px, calc(100dvh - 90px)); display: flex; flex-direction: column; background: ${p.card}; border: 1px solid ${p.border}; border-radius: 16px; box-shadow: 0 18px 50px ${p.shadowCol}; overflow: hidden; text-align: left; }
+.ayuda-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 14px 14px 12px 16px; background: ${p.sidebar}; color: ${p.logoText}; }
+.ayuda-cuerpo { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: ${p.bg}; }
+.ayuda-bienvenida { display: flex; flex-direction: column; gap: 6px; }
+.ayuda-sug { font-family: inherit; text-align: left; font-size: 12px; font-weight: 600; padding: 9px 12px; border-radius: 10px; border: 1px solid ${p.border}; background: ${p.card}; color: ${p.text}; cursor: pointer; transition: border-color .15s; }
+.ayuda-sug:hover { border-color: ${p.accent}; }
+.ayuda-msg { max-width: 88%; font-size: 13px; line-height: 1.55; padding: 9px 12px; border-radius: 14px; overflow-wrap: anywhere; }
+.ayuda-msg.yo { align-self: flex-end; background: ${p.accent}; color: #1B2431; border-bottom-right-radius: 4px; white-space: pre-wrap; }
+.ayuda-msg.ia { align-self: flex-start; background: ${p.card}; color: ${p.text}; border: 1px solid ${p.border}; border-bottom-left-radius: 4px; }
+.ayuda-msg p { margin: 0 0 6px; } .ayuda-msg p:last-child { margin-bottom: 0; }
+.ayuda-msg ol, .ayuda-msg ul { margin: 2px 0 6px; padding-left: 20px; } .ayuda-msg li { margin: 2px 0; }
+.ayuda-pensando { display: inline-flex; gap: 4px; align-items: center; }
+.ayuda-pensando span { width: 6px; height: 6px; border-radius: 50%; background: ${p.textMuted}; animation: pulse 1s ease-in-out infinite; }
+.ayuda-pensando span:nth-child(2) { animation-delay: .15s; } .ayuda-pensando span:nth-child(3) { animation-delay: .3s; }
+.ayuda-error { font-size: 12px; color: ${p.red}; background: ${p.redDim}; border-radius: 8px; padding: 8px 10px; }
+.ayuda-pie { display: flex; gap: 8px; align-items: flex-end; padding: 10px; border-top: 1px solid ${p.border}; background: ${p.card}; }
+.ayuda-pie textarea { flex: 1; resize: none; max-height: 110px; font-family: inherit; font-size: 14px; padding: 10px 12px; border-radius: 10px; border: 1px solid ${p.border}; background: ${p.inpBg}; color: ${p.text}; outline: none; }
+.ayuda-pie textarea:focus { border-color: ${p.accent}; }
+.ayuda-pie .btn { padding: 10px 14px; border-radius: 10px; }
+@media (max-width: 560px) { .ayuda-panel { right: 0; left: 0; bottom: 0; width: 100%; height: 85dvh; border-radius: 16px 16px 0 0; } }
+@media (prefers-reduced-motion: reduce) { .ayuda-pensando span { animation: none; } }
 /* --- Proveedores y reclamos --- */
 .prov-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; align-items: stretch; }
 .rec-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; align-items: start; }
@@ -15993,6 +16019,131 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
 
 
 // APP PRINCIPAL CON LOGIN, MULTI-LOCAL Y PERMISOS
+// ===== Asistente de ayuda con IA (boton flotante en todas las pantallas) =====
+const SUGERENCIAS_AYUDA = {
+  pos: ["¿Cómo divido un pago entre efectivo y tarjeta?", "¿Cómo pongo una venta en espera?", "¿Cómo funciona el desafío?"],
+  cierre: ["¿Cómo hago el arqueo de la caja?", "¿Qué hago si la caja no cuadra?", "¿Cómo anulo una venta?"],
+  finance: ["¿Cómo cargo un gasto compartido entre locales?", "¿Qué es el punto de equilibrio?", "¿Qué significa el margen neto?"],
+  compras: ["¿Cómo armo un pedido al proveedor?", "¿Qué es el punto de pedido?", "¿Cómo reclamo algo que llegó mal?"],
+  ordenes: ["¿Cómo recibo mercadería?", "¿Qué hago si llegó menos de lo facturado?", "¿Cómo cargo una factura del proveedor?"],
+  inventory: ["¿Cómo cargo un producto con talles?", "¿Cómo recalculo el stock mínimo?", "¿Cómo ajusto el stock?"],
+  comprobantes: ["¿Cómo reintento una factura que falló?", "¿Cómo le paso las facturas al contador?", "¿Qué hago con una factura anulada?"],
+  pedidos: ["¿Cómo le aviso a un cliente que llegó su pedido?", "¿Qué significa 'Compró'?"],
+  comisiones: ["¿Cómo configuro las comisiones?", "¿Cómo desactivo los desafíos?", "¿Cómo pago comisiones?"],
+};
+const SUGERENCIAS_GENERALES = ["¿Cómo hago una venta?", "¿Cómo cierro la caja?", "¿Cómo cargo un gasto?"];
+
+// Formato minimo para las respuestas: **negrita**, listas con "-" o "1." y parrafos
+const textoConNegrita = (t) => String(t).split(/(\*\*[^*]+\*\*)/g).map((parte, i) =>
+  parte.startsWith("**") && parte.endsWith("**") && parte.length > 4 ? <b key={i}>{parte.slice(2, -2)}</b> : <Fragment key={i}>{parte}</Fragment>);
+const renderRespuesta = (texto) => {
+  const bloques = [];
+  let lista = null;
+  const cerrarLista = () => { if (lista) { bloques.push(lista.tipo === "ol" ? <ol key={bloques.length}>{lista.items}</ol> : <ul key={bloques.length}>{lista.items}</ul>); lista = null; } };
+  String(texto).split("\n").forEach((linea, i) => {
+    const l = linea.trim();
+    const num = l.match(/^\d+[.)]\s+(.*)$/);
+    const vi = l.match(/^[-•*]\s+(.*)$/);
+    if (num || vi) {
+      const tipo = num ? "ol" : "ul";
+      if (!lista || lista.tipo !== tipo) { cerrarLista(); lista = { tipo, items: [] }; }
+      lista.items.push(<li key={i}>{textoConNegrita((num || vi)[1])}</li>);
+    } else {
+      cerrarLista();
+      if (l) bloques.push(<p key={i}>{textoConNegrita(l.replace(/^#+\s*/, ""))}</p>);
+    }
+  });
+  cerrarLista();
+  return bloques;
+};
+
+function AsistenteAyuda({ usuario, seccion, paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
+  const [disponible, setDisponible] = useState(false);
+  const [abierto, setAbierto] = useState(false);
+  const [mensajes, setMensajes] = useState(() => { try { return JSON.parse(sessionStorage.getItem("lumiere_ayuda") || "[]"); } catch (e) { return []; } });
+  const [texto, setTexto] = useState("");
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState("");
+  const finRef = useRef(null);
+  const inputRef = useRef(null);
+
+  useEffect(() => { API.get("/asistente/estado").then(r => setDisponible(!!r.data?.disponible)).catch(() => setDisponible(false)); }, []);
+  useEffect(() => { try { sessionStorage.setItem("lumiere_ayuda", JSON.stringify(mensajes.slice(-30))); } catch (e) {} }, [mensajes]);
+  useEffect(() => { if (abierto) setTimeout(() => { finRef.current?.scrollIntoView({ block: "end" }); inputRef.current?.focus(); }, 30); }, [abierto, mensajes.length, cargando]);
+  useEffect(() => {
+    if (!abierto) return;
+    const h = (e) => { if (e.key === "Escape") setAbierto(false); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [abierto]);
+
+  if (!disponible) return null;
+
+  const enviar = async (pregunta) => {
+    const q = (pregunta ?? texto).trim();
+    if (!q || cargando) return;
+    const nuevos = [...mensajes, { rol: "usuario", texto: q }];
+    setMensajes(nuevos); setTexto(""); setError(""); setCargando(true);
+    try {
+      const r = await API.post("/asistente", { mensajes: nuevos, seccion, rol: usuario?.rol || "" });
+      setMensajes(m => [...m, { rol: "asistente", texto: r.data?.texto || "" }]);
+    } catch (e) {
+      setError(e.response?.data?.error || "No se pudo conectar con el asistente. Probá de nuevo.");
+    }
+    setCargando(false);
+  };
+  const sugerencias = SUGERENCIAS_AYUDA[seccion] || SUGERENCIAS_GENERALES;
+
+  return (
+    <>
+      {!abierto && (
+        <button className={"ayuda-fab" + (seccion === "pos" ? " arriba" : "")} onClick={() => setAbierto(true)} aria-label="Abrir el asistente de ayuda">
+          <span aria-hidden="true">✨</span> Ayuda
+        </button>
+      )}
+      {abierto && (
+        <div className="ayuda-panel pop-in" role="dialog" aria-label="Asistente de ayuda">
+          <div className="ayuda-head">
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 800 }}>✨ Asistente de Lumiere</div>
+              <div style={{ fontSize: 11, opacity: .8 }}>Preguntá cómo hacer cualquier cosa en el sistema</div>
+            </div>
+            <div style={{ display: "flex", gap: 4 }}>
+              {mensajes.length > 0 && <button className="icon-btn" style={{ color: "inherit" }} onClick={() => { setMensajes([]); setError(""); }} title="Nueva conversación" aria-label="Nueva conversación">↺</button>}
+              <button className="icon-btn" style={{ color: "inherit" }} onClick={() => setAbierto(false)} aria-label="Cerrar el asistente">✕</button>
+            </div>
+          </div>
+          <div className="ayuda-cuerpo" aria-live="polite">
+            {mensajes.length === 0 && (
+              <div className="ayuda-bienvenida">
+                <div style={{ fontSize: 13, marginBottom: 10 }}>¡Hola{usuario?.nombre ? " " + usuario.nombre.split(" ")[0] : ""}! ¿En qué te ayudo? Podés preguntarme cómo hacer una tarea o qué significa algo.</div>
+                {sugerencias.map(s => <button key={s} className="ayuda-sug" onClick={() => enviar(s)}>{s}</button>)}
+              </div>
+            )}
+            {mensajes.map((m, i) => (
+              <div key={i} className={"ayuda-msg " + (m.rol === "usuario" ? "yo" : "ia")}>
+                {m.rol === "usuario" ? m.texto : renderRespuesta(m.texto)}
+              </div>
+            ))}
+            {cargando && <div className="ayuda-msg ia ayuda-pensando" aria-label="El asistente está escribiendo"><span /><span /><span /></div>}
+            {error && <div className="ayuda-error" role="alert">{error}</div>}
+            <div ref={finRef} />
+          </div>
+          <div className="ayuda-pie">
+            <textarea ref={inputRef} rows={1} placeholder="Escribí tu pregunta..." value={texto} maxLength={1500}
+              onChange={e => setTexto(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); } }}
+              aria-label="Tu pregunta" />
+            <button className="btn btn-p" onClick={() => enviar()} disabled={cargando || !texto.trim()} aria-label="Enviar">➤</button>
+          </div>
+          <div style={{ fontSize: 10, color: p.textMuted, textAlign: "center", padding: "0 10px 8px" }}>Las respuestas las genera una IA: si algo no coincide con lo que ves, avisale al dueño del sistema.</div>
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function AppWrapper() {
   const [usuario, setUsuario] = useState(null);
   const [local, setLocal] = useState(null);
@@ -16234,6 +16385,7 @@ export default function AppWrapper() {
         <main className={"main " + (sidebarComprimido ? "comprimido" : "")}>
           {getPageWithLocal(page)}
         </main>
+        <AsistenteAyuda usuario={usuario} seccion={page} paletaActual={paletaActual} />
       </div>
     </>
   );
