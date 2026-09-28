@@ -3198,7 +3198,9 @@ function POS({ localId, usuario, paletaActual }) {
                   const transitoLocal = p.transito_local || 0;
                   const soloTransito = disp <= 0 && transitoLocal > 0;
                   const sinStock = disp <= 0 && transitoLocal <= 0;
-                  const accion = p.tiene_variantes ? (() => abrirSelectorVariante(p)) : (soloTransito && !p.es_kit) ? (() => agregarComoPreventa(p)) : (() => add(p));
+                  const accionBase = p.tiene_variantes ? (() => abrirSelectorVariante(p)) : (soloTransito && !p.es_kit) ? (() => agregarComoPreventa(p)) : (() => add(p));
+                  // Al agregar, se cierra la lista de resultados y el cursor vuelve al buscador
+                  const accion = () => { accionBase(); setBusqueda(""); setTimeout(() => busquedaRef.current?.focus(), 30); };
                   return (
                     <tr key={p.id} style={{ borderBottom: "1px solid " + temaPal.border, cursor: sinStock ? "not-allowed" : "pointer", opacity: sinStock ? 0.45 : 1 }}
                       onClick={() => { if (!sinStock) accion(); }}>
