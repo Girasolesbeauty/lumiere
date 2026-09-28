@@ -7260,185 +7260,6 @@ function Finanzas({ localId, usuario, paletaActual }) {
   );
 }
 
-function Informes({ localId, paletaActual }) {
-  const p = paletaActual || PALETA_CLARA;
-  const [tab, setTab] = useState("ventas");
-  const [tabLocal, setTabLocal] = useState("rg");
-  const [loading, setLoading] = useState(true);
-  const [datos, setDatos] = useState(null);
-  const [mes, setMes] = useState(new Date().getMonth() + 1);
-  const [anio, setAnio] = useState(new Date().getFullYear());
-
-  const meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-
-  const cargar = async () => {
-    setLoading(true);
-    try {
-      const local = tabLocal === "consolidado" ? "" : tabLocal === "rg" ? "1" : "2";
-      const params = "mes=" + mes + "&anio=" + anio + (local ? "&local_id=" + local : "");
-      const [ventasRes, invRes] = await Promise.all([
-        API.get("/ventas?" + params),
-        API.get("/productos")
-      ]);
-      const ventas = ventasRes.data || [];
-      const productos = invRes.data || [];
-      const totalVentas = ventas.reduce((s, v) => s + parseFloat(v.total || 0), 0);
-      const cantVentas = ventas.length;
-      const ticketProm = cantVentas > 0 ? totalVentas / cantVentas : 0;
-      const ventasPorMedio = {};
-      ventas.forEach(v => {
-        const medio = v.medio_pago || "Efectivo";
-        ventasPorMedio[medio] = (ventasPorMedio[medio] || 0) + parseFloat(v.total || 0);
-      });
-      const stockBajo = productos.filter(p => (p.stock || 0) <= (p.stock_minimo || p.min || 5));
-      setDatos({ ventas, totalVentas, cantVentas, ticketProm, ventasPorMedio, stockBajo, productos });
-    } catch (e) {}
-    setLoading(false);
-  };
-
-  useEffect(() => { cargar(); }, [tabLocal, mes, anio]);
-
-  return (
-    <div className="fade">
-      <div className="ph">
-        <div><div className="pt">Informes</div><div className="ps">ventas - stock - medios de pago</div></div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <select className="sel" style={{ width: 120, padding: "6px 10px", fontSize: 12 }} value={mes} onChange={e => setMes(parseInt(e.target.value))}>
-            {meses.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
-          </select>
-          <select className="sel" style={{ width: 80, padding: "6px 10px", fontSize: 12 }} value={anio} onChange={e => setAnio(parseInt(e.target.value))}>
-            {[2024,2025,2026,2027].map(a => <option key={a} value={a}>{a}</option>)}
-          </select>
-        </div>
-      </div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        {["rg", "ush", "consolidado"].map(l => (
-          <button key={l} onClick={() => setTabLocal(l)} className="btn btn-sm"
-            style={{ background: tabLocal === l ? "#c9a84c15" : "transparent", border: "1px solid " + (tabLocal === l ? "#c9a84c" : p.border), color: tabLocal === l ? "#c9a84c" : p.textMuted, fontWeight: tabLocal === l ? 600 : 400 }}>
-            {l === "rg" ? nombreLocal(1) : l === "ush" ? nombreLocal(2) : "Consolidado"}
-          </button>
-        ))}
-      </div>
-      <div className="tabs">
-        {["ventas", "stock", "medios"].map(t => (
-          <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => setTab(t)}>
-            {t === "ventas" ? "VENTAS" : t === "stock" ? "STOCK" : "MEDIOS DE PAGO"}
-          </div>
-        ))}
-      </div>
-      {loading ? (
-        <div style={{ color: p.textMuted, padding: 30, textAlign: "center" }}>Cargando...</div>
-      ) : datos && (
-        <div>
-          {tab === "ventas" && (
-            <div className="fade">
-              <div className="g3" style={{ marginBottom: 18 }}>
-                <div className="card"><div className="ct">Total ventas</div><div style={{ fontSize: 28, fontWeight: 700, color: "#2d7a4f" }}>{fmt(datos.totalVentas)}</div></div>
-                <div className="card"><div className="ct">Cantidad de ventas</div><div style={{ fontSize: 28, fontWeight: 700, color: "#c9a84c" }}>{datos.cantVentas}</div></div>
-                <div className="card"><div className="ct">Ticket promedio</div><div style={{ fontSize: 28, fontWeight: 700, color: "#2471a3" }}>{fmt(Math.round(datos.ticketProm))}</div></div>
-              </div>
-              <div className="card">
-                <div className="ct">Ultimas ventas del mes</div>
-                {datos.ventas.length === 0 ? (
-                  <div style={{ color: p.textMuted, textAlign: "center", padding: 20, fontSize: 12 }}>Sin ventas en este periodo</div>
-                ) : (
-                  <table>
-                    <thead><tr><th>Fecha</th><th>Cliente</th><th>Medio</th><th>Items</th><th>Total</th></tr></thead>
-                    <tbody>
-                      {datos.ventas.slice(0, 20).map((v, i) => (
-                        <tr key={i}>
-                          <td style={{ fontSize: 11, color: p.textMuted }}>{new Date(v.creado_en || v.fecha).toLocaleDateString("es-AR")}</td>
-                          <td style={{ fontSize: 12 }}>{v.cliente_nombre || "Consumidor final"}</td>
-                          <td style={{ fontSize: 11 }}>{v.medio_pago || "-"}</td>
-                          <td style={{ fontSize: 11, color: p.textMuted }}>{v.items_count || "-"}</td>
-                          <td style={{ color: "#2d7a4f", fontWeight: 600 }}>{fmt(parseFloat(v.total || 0))}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
-          )}
-          {tab === "stock" && (
-            <div className="fade">
-              <div className="g2">
-                <div className="card">
-                  <div className="ct">Productos con stock bajo ({datos.stockBajo.length})</div>
-                  {datos.stockBajo.length === 0 ? (
-                    <div style={{ color: "#2d7a4f", textAlign: "center", padding: 20, fontSize: 12 }}>Todos los productos tienen stock suficiente</div>
-                  ) : (
-                    <table>
-                      <thead><tr><th>Producto</th><th>Stock actual</th><th>Minimo</th></tr></thead>
-                      <tbody>
-                        {datos.stockBajo.map((p, i) => (
-                          <tr key={i}>
-                            <td>
-                              <div style={{ fontSize: 12 }}>{p.nombre}</div>
-                              <div style={{ fontSize: 10, color: p.textMuted }}>{p.marca}</div>
-                            </td>
-                            <td><span className="badge br">{p.stock || 0}u</span></td>
-                            <td style={{ color: p.textMuted, fontSize: 12 }}>{p.stock_minimo || p.min || 5}u</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-                <div className="card">
-                  <div className="ct">Resumen de inventario</div>
-                  {[
-                    { l: "Total productos", v: datos.productos.length },
-                    { l: "Con stock bajo", v: datos.stockBajo.length, c: datos.stockBajo.length > 0 ? "#c0392b" : "#2d7a4f" },
-                    { l: "Sin stock", v: datos.productos.filter(p => !p.stock || p.stock === 0).length, c: "#c0392b" },
-                  ].map(r => (
-                    <div key={r.l} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid " + p.border }}>
-                      <span style={{ fontSize: 12, color: p.text }}>{r.l}</span>
-                      <span style={{ fontSize: 16, fontWeight: 700, color: r.c || p.text }}>{r.v}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-          {tab === "medios" && (
-            <div className="fade">
-              <div className="card">
-                <div className="ct">Ventas por medio de pago</div>
-                {Object.keys(datos.ventasPorMedio).length === 0 ? (
-                  <div style={{ color: p.textMuted, textAlign: "center", padding: 20, fontSize: 12 }}>Sin datos para este periodo</div>
-                ) : (
-                  <div>
-                    {Object.entries(datos.ventasPorMedio).sort((a,b) => b[1]-a[1]).map(([medio, total]) => {
-                      const pct = datos.totalVentas > 0 ? Math.round((total / datos.totalVentas) * 100) : 0;
-                      return (
-                        <div key={medio} style={{ marginBottom: 14 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                            <span style={{ fontSize: 12, color: p.text }}>{medio}</span>
-                            <span style={{ fontSize: 12, color: "#c9a84c", fontWeight: 600 }}>{fmt(total)} ({pct}%)</span>
-                          </div>
-                          <div className="pb"><div className="pf" style={{ width: pct + "%" }} /></div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-const NIVELES_INF = {
-  inicial: { label: "Nivel Inicial", pct: 2, emoji: "\uD83C\uDF31" },
-  medio: { label: "Nivel Medio", pct: 3, emoji: "\uD83C\uDF38" },
-  alto: { label: "Nivel Alto", pct: 4, emoji: "\uD83D\uDC8E" },
-  top: { label: "Top Influencer", pct: 5, emoji: "\uD83D\uDC51" }
-};
-
 function Cupones({ localId, usuario, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [cupons, setCupons] = useState([]);
@@ -15135,7 +14956,7 @@ const NAV_SECTIONS = [
   { section: "CAJA", color: "#2d7a4f", items: [{ id: "caja", icon: "💵", label: "Caja" }, { id: "caja-respaldo", icon: "🏦", label: "Caja de Respaldo" }, { id: "cierre", icon: "🔒", label: "Cierre de Caja" }, { id: "giftcards", icon: "🎀", label: "Gift Cards" }] },
   { section: "CLIENTES", color: "#c9a84c", items: [{ id: "clients", icon: "👥", label: "Clientes" }, { id: "pedidos", icon: "📦", label: "Pedidos" }, { id: "fidelizacion", icon: "⭐", label: "Fidelizacion" }] },
   { section: "EQUIPO", color: "#2471a3", items: [{ id: "tareas", icon: "📝", label: "Tareas" }] },
-  { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "💰", label: "Finanzas" }, { id: "reports", icon: "📋", label: "Informes" }, { id: "comprobantes", icon: "🧾", label: "Comprobantes" }, { id: "comisiones", icon: "💎", label: "Comisiones" }, { id: "proveedores", icon: "🏭", label: "Proveedores" }, { id: "compras", icon: "🛒", label: "Compras" }, { id: "reclamos-proveedores", icon: "📮", label: "Reclamos a Proveedores" }, { id: "calculadoras", icon: "🧮", label: "Calculadoras" }, { id: "productividad", icon: "🏆", label: "Productividad" }] },
+  { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "💰", label: "Finanzas" }, { id: "comprobantes", icon: "🧾", label: "Comprobantes" }, { id: "comisiones", icon: "💎", label: "Comisiones" }, { id: "proveedores", icon: "🏭", label: "Proveedores" }, { id: "compras", icon: "🛒", label: "Compras" }, { id: "reclamos-proveedores", icon: "📮", label: "Reclamos a Proveedores" }, { id: "calculadoras", icon: "🧮", label: "Calculadoras" }, { id: "productividad", icon: "🏆", label: "Productividad" }] },
   { section: "MARKETING", color: "#e74c3c", items: [{ id: "cupones", icon: "🏷️", label: "Cupones" }, { id: "promociones", icon: "🎉", label: "Promociones" }] },
   { section: "POSTVENTA", color: "#25d366", items: [{ id: "postventa", icon: "💬", label: "Postventa WA" }] },
   { section: "CLIENTE", color: PALETA_CLARA.textMuted, items: [{ id: "portal", icon: "👤", label: "Portal Cliente" }] },
@@ -15272,7 +15093,6 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
     "Giftcards": [["giftcards.ver","Ver gift cards"]],
     "Caja de Respaldo": [["caja_respaldo.ver","Ver caja de respaldo"]],
     "Cierre de Caja": [["cierre_caja.ver","Ver cierre de caja"]],
-    "Informes": [["informes.ventas","Ver ventas"],["informes.stock","Ver stock"],["informes.medios","Ver medios de pago"]],
     "Comisiones": [["comisiones.propias","Ver propias"],["comisiones.todas","Ver todas"]],
     "Proveedores": [["proveedores.ver","Ver proveedores"],["proveedores.crear","Crear/editar"]],
     "Kits": [["kits.ver","Ver kits"],["kits.crear","Crear/editar"],["kits.vender","Vender kits"]],
@@ -15582,10 +15402,10 @@ export default function AppWrapper() {
       // Si no puede ver el dashboard (y no es jefe, que ve todo), arrancar en la primera
       // seccion a la que si tenga acceso, en vez de mostrarle "sin permiso" al abrir el software.
       if (!esJefe && !permisos.includes("dashboard.ver")) {
-        const ordenPrioridad = ["pos", "ventas-online", "clients", "inventory", "caja", "reports"];
+        const ordenPrioridad = ["pos", "ventas-online", "clients", "inventory", "caja"];
         const mapaModulos2 = {
           "pos": "pos.ver", "ventas-online": "ventas_online.editar", "inventory": "inventario.ver",
-          "clients": "clientes.ver", "caja": "caja.ver", "reports": "informes.ventas"
+          "clients": "clientes.ver", "caja": "caja.ver"
         };
         const disponible = ordenPrioridad.find(id => !mapaModulos2[id] || permisos.includes(mapaModulos2[id]));
         setPage(disponible || "pos");
@@ -15600,7 +15420,7 @@ export default function AppWrapper() {
       "pos": "pos.ver", "dashboard": "dashboard.ver",
       "inventory": "inventario.ver", "ordenes": "ordenes.ver", "inconsistencias": "ordenes.ver", "kits": "kits.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
       "clients": "clientes.ver", "fidelizacion": "fidelizacion.ver",
-      "finance": "finanzas.flujo", "reports": "informes.ventas", "comprobantes": "comprobantes.ver",
+      "finance": "finanzas.flujo", "comprobantes": "comprobantes.ver",
       "comisiones": "comisiones.propias", "proveedores": "proveedores.ver", "compras": "proveedores.ver",
       "calculadoras": "calculadoras.ver", "productividad": "productividad.ver",
       "cupones": "cupones.ver", "promociones": "cupones.ver", "postventa": "postventa.ver", "portal": "clientes.ver",
@@ -15644,7 +15464,6 @@ export default function AppWrapper() {
     if (id === "clients") return <Clientes usuario={usuario} paletaActual={paletaActual} />;
     if (id === "pedidos") return <Pedidos localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "finance") return <Finanzas localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
-    if (id === "reports") return <Informes localId={local.id} paletaActual={paletaActual} />;
     if (id === "calculadoras") return <Calculadoras usuario={usuario} paletaActual={paletaActual} />;
     if (id === "comprobantes") return <Comprobantes localId={local.id} paletaActual={paletaActual} />;
     if (id === "productividad") return <Productividad localId={local.id} paletaActual={paletaActual} />;
