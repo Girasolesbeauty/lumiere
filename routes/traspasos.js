@@ -83,9 +83,9 @@ router.post('/', async (req, res) => {
     try {
       await client.query(
         `INSERT INTO ajustes_stock (producto_id, stock_anterior, stock_nuevo, diferencia, motivo, usuario_id, usuario_nombre, local_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+         VALUES ($1, $2, $3, $4, 'Traspaso a ' || COALESCE((SELECT nombre FROM locales WHERE id = $8::int), 'local ' || $8::text) || ' (en transito)', $5, $6, $7)`,
         [producto_id, stockOrigenActual, stockOrigenActual - cant, -cant,
-         'Traspaso a ' + (destino === 2 ? 'Ushuaia' : 'Rio Grande') + ' (en transito)', usuario_id || null, usuario_nombre || null, origen]
+         usuario_id || null, usuario_nombre || null, origen, destino]
       );
     } catch (e2) { /* si no existe ajustes_stock en este entorno, no frena el traspaso */ }
 
@@ -154,9 +154,9 @@ router.put('/:id/recibir', async (req, res) => {
     try {
       await client.query(
         `INSERT INTO ajustes_stock (producto_id, stock_anterior, stock_nuevo, diferencia, motivo, usuario_id, usuario_nombre, local_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+         VALUES ($1, $2, $3, $4, 'Recepcion de traspaso desde ' || COALESCE((SELECT nombre FROM locales WHERE id = $8::int), 'local ' || $8::text), $5, $6, $7)`,
         [traspaso.producto_id, stockDestinoAnterior, stockDestinoAnterior + cantRecibida, cantRecibida,
-         'Recepcion de traspaso desde ' + (traspaso.local_origen === 2 ? 'Ushuaia' : 'Rio Grande'), null, usuario_nombre || null, destino]
+         null, usuario_nombre || null, destino, traspaso.local_origen]
       );
     } catch (e2) { /* no frena la recepcion si no existe ajustes_stock */ }
 

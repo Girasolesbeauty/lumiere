@@ -42,6 +42,13 @@ router.put('/', async (req, res) => {
       const txt = String(req.body.mensaje_precio || '').slice(0, 2000).trim();
       await pool.query('UPDATE configuracion_negocio SET mensaje_precio = $1 WHERE id = 1', [txt || null]);
     }
+    // Reparto por defecto de los gastos compartidos: % que le toca al local 1
+    if (Object.prototype.hasOwnProperty.call(req.body, 'reparto_local1_pct')) {
+      const pct = parseFloat(req.body.reparto_local1_pct);
+      if (isNaN(pct) || pct < 0 || pct > 100) return res.status(400).json({ error: 'El reparto tiene que estar entre 0 y 100' });
+      await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS reparto_local1_pct NUMERIC(5,2) DEFAULT 50');
+      await pool.query('UPDATE configuracion_negocio SET reparto_local1_pct = $1 WHERE id = 1', [pct]);
+    }
     // % de Ingresos Brutos estimado en Finanzas (0 = no se calcula)
     if (Object.prototype.hasOwnProperty.call(req.body, 'iibb_pct')) {
       const pct = parseFloat(req.body.iibb_pct);

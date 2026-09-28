@@ -50,6 +50,29 @@ const obtenerIibbPct = async () => {
   } catch (e) { return 4; }
 };
 
+// Gastos compartidos entre los dos locales: cada uno guarda que % le toca al local 1
+// (el resto es del local 2). Los viejos, sin % guardado, usan el reparto por defecto del
+// negocio (configurable; 50 si nunca se cambio). Las columnas se crean solas si faltan.
+let columnasRepartoListas = false;
+const asegurarReparto = async () => {
+  if (columnasRepartoListas) return;
+  await pool.query('ALTER TABLE movimientos_caja ADD COLUMN IF NOT EXISTS pct_local1 NUMERIC(5,2)');
+  await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS reparto_local1_pct NUMERIC(5,2) DEFAULT 50');
+  columnasRepartoListas = true;
+};
+const obtenerRepartoDefault = async () => {
+  try {
+    await asegurarReparto();
+    const r = await pool.query('SELECT reparto_local1_pct FROM configuracion_negocio WHERE id = 1');
+    const v = r.rows[0] ? r.rows[0].reparto_local1_pct : null;
+    return v === null || v === undefined ? 50 : num(v);
+  } catch (e) { return 50; }
+};
+const pctValido = (v) => { const n = parseFloat(v); return !isNaN(n) && n >= 0 && n <= 100 ? n : null; };
+// Parte de un gasto compartido que le corresponde a un local
+const parteDelLocal = (importe, pctLocal1, localNum) => (localNum === 1 ? importe * pctLocal1 / 100 : importe * (100 - pctLocal1) / 100);
+const pctDeFila = (row, porDefecto) => (row.pct_local1 !== null && row.pct_local1 !== undefined ? num(row.pct_local1) : porDefecto);
+
 // Comisiones de los medios de pago sobre lo cobrado en el mes. Una venta con pago
 // dividido reparte su importe entre sus medios; la parte pagada con gift card no se
 // comisiona (ya se comisiono al venderse la gift card, que tambien se cuenta aca).
@@ -127,12 +150,13 @@ const CANALES = { presencial: 'Ventas en el local', online: 'Ventas online' };
 // Los egresos sin categoria se clasifican por su concepto para que no queden afuera
 // del resultado (antes, el Flujo de Efectivo los ignoraba y Movimientos si los sumaba).
 async function obtenerEgresos(mes, anio, localNum) {
+  const porDefecto = await obtenerRepartoDefault();
   const params = [mes, anio];
   let filtro = '';
   if (localNum !== null) { params.push(localNum); filtro = ` AND (x.local_id = $3 OR x.local_id IS NULL)`; }
   const r = await pool.query(`
     SELECT * FROM (
-      SELECT m.importe, m.concepto, m.local_id, m.creado_en,
+      SELECT m.importe, m.concepto, m.local_id, m.creado_en, m.pct_local1,
         COALESCE(cc.tipo, CASE WHEN m.concepto ILIKE '%comisi%' THEN 'sueldo' ELSE 'variable' END) AS categoria_tipo,
         COALESCE(cc.nombre, CASE
           WHEN m.concepto ILIKE '%comisi%' THEN 'Comisiones de vendedores'
@@ -142,16 +166,16 @@ async function obtenerEgresos(mes, anio, localNum) {
       LEFT JOIN categorias_costo cc ON m.categoria_id = cc.id
       WHERE m.tipo = 'E' AND ${NO_ANULADO('m')}
       UNION ALL
-      SELECT e.importe, e.concepto, e.local_id, e.creado_en, 'variable', e.destino_origen
+      SELECT e.importe, e.concepto, e.local_id, e.creado_en, NULL::numeric, 'variable', e.destino_origen
       FROM movimientos_caja_efectivo e
       WHERE e.tipo IN ('egreso', 'E') AND ${NO_ANULADO('e')}
         AND COALESCE(e.destino_origen, '') <> 'Pago de comisiones'
     ) x
     WHERE ${EN_MES('x.creado_en', 1, 2)} ${filtro}`, params);
-  // Viendo un local, lo compartido (local_id NULL) cuenta la mitad; en consolidado, entero.
+  // Viendo un local, lo compartido (local_id NULL) cuenta solo su parte; en consolidado, entero.
   return r.rows.map(row => ({
     ...row,
-    importe: localNum !== null && row.local_id === null ? num(row.importe) / 2 : num(row.importe),
+    importe: localNum !== null && row.local_id === null ? parteDelLocal(num(row.importe), pctDeFila(row, porDefecto), localNum) : num(row.importe),
   }));
 }
 
@@ -253,10 +277,11 @@ const getFlujo = async (req, res) => {
     const localNum = normalizarLocalId(req.query.local_id);
     const params = [mes, anio];
     if (localNum !== null) params.push(localNum);
+    const porDefecto = await obtenerRepartoDefault();
     const [movs, est] = await Promise.all([
       pool.query(`
         SELECT * FROM (
-          SELECT m.id, m.concepto, m.importe, m.creado_en, m.local_id,
+          SELECT m.id, m.concepto, m.importe, m.creado_en, m.local_id, m.pct_local1,
                  CASE WHEN m.tipo = 'I' THEN 'I' ELSE 'E' END AS tipo,
                  cc.nombre AS categoria_nombre, cc.tipo AS categoria_tipo, cp.nombre AS cuenta_nombre, m.forma_pago,
                  'caja' AS fuente
@@ -265,7 +290,7 @@ const getFlujo = async (req, res) => {
           LEFT JOIN cuentas_pago cp ON m.cuenta_pago_id = cp.id
           WHERE ${NO_ANULADO('m')}
           UNION ALL
-          SELECT e.id, e.concepto, e.importe, e.creado_en, e.local_id,
+          SELECT e.id, e.concepto, e.importe, e.creado_en, e.local_id, NULL::numeric,
                  CASE WHEN e.tipo IN ('ingreso', 'I') THEN 'I' ELSE 'E' END AS tipo,
                  e.destino_origen, NULL, NULL, 'efectivo', 'efectivo' AS fuente
           FROM movimientos_caja_efectivo e
@@ -275,7 +300,7 @@ const getFlujo = async (req, res) => {
         ORDER BY mov.creado_en DESC`, params),
       calcularFlujoEstructurado(mes, anio, req.query.local_id),
     ]);
-    const movimientos = movs.rows.map(r => ({ ...r, importe: localNum !== null && r.local_id === null ? num(r.importe) / 2 : num(r.importe) }));
+    const movimientos = movs.rows.map(r => ({ ...r, importe: localNum !== null && r.local_id === null ? parteDelLocal(num(r.importe), pctDeFila(r, porDefecto), localNum) : num(r.importe) }));
     res.json({
       movimientos,
       resumen: {
@@ -302,7 +327,7 @@ const getFlujoEstructurado = async (req, res) => {
 // Agregar egreso mejorado
 const agregarEgreso = async (req, res) => {
   try {
-    const { concepto, importe, referencia, categoria_id, forma_pago, cuenta_pago_id, local_id, usuario_id, fecha } = req.body;
+    const { concepto, importe, referencia, categoria_id, forma_pago, cuenta_pago_id, local_id, usuario_id, fecha, pct_local1 } = req.body;
     // Si viene una fecha del formulario, se usa esa para creado_en -- asi un gasto que
     // en realidad se pago el 29/7 pero se carga hoy queda contabilizado en julio, no en
     // el mes en que se tipeo. Si no viene fecha, se usa el momento actual (NOW()).
@@ -311,12 +336,16 @@ const agregarEgreso = async (req, res) => {
     if (fecha && !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ error: 'Fecha invalida' });
     const fechaCarga = fecha ? new Date(fecha + 'T12:00:00') : new Date();
 
-    // Si es compartido, se guarda con local_id NULL (asi se identifica como "de ambos locales" y se reparte 50/50 al mostrarlo)
+    // Si es compartido, se guarda con local_id NULL y el % que le toca al local 1 (el resto
+    // es del local 2). Si no vino un %, se usa el reparto por defecto del negocio.
     if (local_id === 'compartido') {
+      const pct = pctValido(pct_local1);
+      const pctFinal = pct !== null ? pct : await obtenerRepartoDefault();
+      await asegurarReparto();
       await pool.query(
-        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, categoria_id, forma_pago, cuenta_pago_id, local_id, usuario_id, creado_en)
-         VALUES ($1, 'E', $2, $3, $4, $5, $6, NULL, $7, $8)`,
-        [concepto, importe, referencia, categoria_id, forma_pago, cuenta_pago_id || null, usuario_id || null, fechaCarga]
+        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, categoria_id, forma_pago, cuenta_pago_id, local_id, usuario_id, creado_en, pct_local1)
+         VALUES ($1, 'E', $2, $3, $4, $5, $6, NULL, $7, $8, $9)`,
+        [concepto, importe, referencia, categoria_id || null, forma_pago || null, cuenta_pago_id || null, usuario_id || null, fechaCarga, pctFinal]
       );
     } else {
       await pool.query(
@@ -537,8 +566,9 @@ const getFacturacionExterna = async (req, res) => {
 const getMovimientosDetalle = async (req, res) => {
   try {
     const { desde, hasta, busqueda, tipo, local_id } = req.query;
+    const porDefecto = await obtenerRepartoDefault();
     let query = `
-      SELECT m.id, m.concepto, m.importe, m.tipo, m.creado_en, m.local_id, m.forma_pago, m.referencia,
+      SELECT m.id, m.concepto, m.importe, m.tipo, m.creado_en, m.local_id, m.forma_pago, m.referencia, m.pct_local1,
              m.categoria_id, cc.nombre AS categoria_nombre, cc.tipo AS categoria_tipo,
              m.cuenta_pago_id, cp.nombre AS cuenta_nombre,
              to_char(${AR('m.creado_en')}, 'YYYY-MM-DD') AS fecha,
@@ -564,10 +594,28 @@ const getMovimientosDetalle = async (req, res) => {
     }
     query += ' ORDER BY m.creado_en DESC LIMIT 500';
     const r = await pool.query(query, params);
-    res.json(r.rows);
+    res.json(r.rows.map(row => (row.local_id === null ? { ...row, pct_local1: pctDeFila(row, porDefecto) } : row)));
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al obtener el detalle de movimientos: ' + error.message });
+  }
+};
+
+// % sugerido para un gasto compartido: el ultimo que se uso en esa misma categoria
+// (ej: si el alquiler siempre se reparte 70/30, lo propone solo), o el del negocio.
+const getRepartoSugerido = async (req, res) => {
+  try {
+    const porDefecto = await obtenerRepartoDefault();
+    const cat = parseInt(req.query.categoria_id);
+    if (cat) {
+      const r = await pool.query(
+        `SELECT pct_local1 FROM movimientos_caja WHERE categoria_id = $1 AND local_id IS NULL AND pct_local1 IS NOT NULL
+         ORDER BY creado_en DESC LIMIT 1`, [cat]);
+      if (r.rows[0]) return res.json({ pct_local1: num(r.rows[0].pct_local1), origen: 'categoria', por_defecto: porDefecto });
+    }
+    res.json({ pct_local1: porDefecto, origen: 'negocio', por_defecto: porDefecto });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener el reparto: ' + error.message });
   }
 };
 
@@ -575,7 +623,7 @@ const getMovimientosDetalle = async (req, res) => {
 const updateMovimiento = async (req, res) => {
   try {
     const { id } = req.params;
-    const { concepto, importe, categoria_id, forma_pago, cuenta_pago_id, local_id, fecha } = req.body;
+    const { concepto, importe, categoria_id, forma_pago, cuenta_pago_id, local_id, fecha, pct_local1 } = req.body;
     if (importe !== undefined && importe !== null && !(parseFloat(importe) > 0)) return res.status(400).json({ error: 'El importe tiene que ser mayor a 0' });
     // local_id se maneja aparte de COALESCE: "compartido" tiene que poder guardar NULL de
     // verdad (50/50 entre los dos locales), y COALESCE nunca deja pisar un valor con NULL.
@@ -583,13 +631,17 @@ const updateMovimiento = async (req, res) => {
     const fechaFinal = fecha ? new Date(fecha + 'T12:00:00') : null;
     // La categoria se puede quitar (null) solo si vino en el pedido
     const tocaCategoria = Object.prototype.hasOwnProperty.call(req.body, 'categoria_id');
+    // % del local 1 solo para los compartidos (si no vino, se deja el que tenia)
+    await asegurarReparto();
+    const pct = localIdFinal === null ? pctValido(pct_local1) : null;
     const r = await pool.query(
       `UPDATE movimientos_caja
        SET concepto = COALESCE($1, concepto), importe = COALESCE($2, importe),
            categoria_id = CASE WHEN $9 THEN $3 ELSE categoria_id END, forma_pago = COALESCE($4, forma_pago),
-           cuenta_pago_id = $5, local_id = $6, creado_en = COALESCE($7, creado_en)
+           cuenta_pago_id = $5, local_id = $6, creado_en = COALESCE($7, creado_en),
+           pct_local1 = CASE WHEN $6::int IS NOT NULL THEN NULL ELSE COALESCE($10, pct_local1) END
        WHERE id = $8 RETURNING *`,
-      [concepto, importe, categoria_id || null, forma_pago, cuenta_pago_id || null, localIdFinal, fechaFinal, id, tocaCategoria]
+      [concepto, importe, categoria_id || null, forma_pago, cuenta_pago_id || null, localIdFinal, fechaFinal, id, tocaCategoria, pct]
     );
     if (r.rows.length === 0) return res.status(404).json({ error: 'Movimiento no encontrado' });
     res.json(r.rows[0]);
@@ -772,4 +824,4 @@ const getComparativaMeses = async (req, res) => {
   }
 };
 
-module.exports = { getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };
+module.exports = { getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };

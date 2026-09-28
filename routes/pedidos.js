@@ -49,7 +49,7 @@ router.get('/', async (req, res) => {
              c.cuit_dni, (p.cliente_id IS NULL) AS clienta_sin_registrar,
              COALESCE(pr.nombre, p.producto_texto) AS producto_nombre,
              (p.producto_id IS NULL) AS es_sugerencia,
-             CASE WHEN p.local_id = 2 THEN 'Ushuaia' ELSE 'Rio Grande' END AS local_nombre,
+             COALESCE((SELECT l.nombre FROM locales l WHERE l.id = COALESCE(p.local_id, 1)), 'Local ' || COALESCE(p.local_id, 1)) AS local_nombre,
              CASE WHEN p.local_id = 2 THEN COALESCE(pr.stock_ush, 0) ELSE COALESCE(pr.stock_rg, 0) END AS stock_total
       FROM pedidos_clientas p
       LEFT JOIN clientes c ON c.id = p.cliente_id
@@ -70,7 +70,7 @@ router.get('/con-stock', async (req, res) => {
              COALESCE(c.telefono, p.telefono_manual) AS telefono,
              c.cuit_dni,
              pr.nombre AS producto_nombre,
-             CASE WHEN p.local_id = 2 THEN 'Ushuaia' ELSE 'Rio Grande' END AS local_nombre,
+             COALESCE((SELECT l.nombre FROM locales l WHERE l.id = COALESCE(p.local_id, 1)), 'Local ' || COALESCE(p.local_id, 1)) AS local_nombre,
              CASE WHEN p.local_id = 2 THEN COALESCE(pr.stock_ush, 0) ELSE COALESCE(pr.stock_rg, 0) END AS stock_total
       FROM pedidos_clientas p
       LEFT JOIN clientes c ON c.id = p.cliente_id

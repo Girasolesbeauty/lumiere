@@ -52,7 +52,7 @@ const C = PALETA_CLARA;
 // pero AppWrapper los actualiza apenas trae la lista real de locales al iniciar sesion.
 // Como es un objeto mutable a nivel de modulo (no un estado de React), cualquier
 // componente puede leerlo en el momento sin necesidad de que se lo pasen como prop.
-let NOMBRES_LOCALES = { 1: "Rio Grande", 2: "Ushuaia" };
+let NOMBRES_LOCALES = { 1: "Local 1", 2: "Local 2" };
 const nombreLocal = (id) => NOMBRES_LOCALES[Number(id)] || NOMBRES_LOCALES[1];
 
 const getBaseCss = (p) => `
@@ -336,6 +336,13 @@ button.tab { font-family: inherit; }
 .fin-meta { position: relative; height: 14px; border-radius: 99px; background: ${p.bg}; border: 1px solid ${p.border}; margin-top: 18px; }
 .fin-meta-fill { height: 100%; border-radius: 99px; transition: width .8s cubic-bezier(.2,.7,.2,1); }
 .fin-meta-proy { position: absolute; top: -5px; bottom: -5px; width: 2px; background: ${p.text}; opacity: .55; }
+.fin-reparto { margin-top: 8px; padding: 10px 12px; border-radius: 10px; border: 1px solid ${p.accent}66; background: ${p.accentDim}; display: flex; flex-direction: column; gap: 8px; }
+.fin-reparto-fila { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; font-variant-numeric: tabular-nums; flex-wrap: wrap; }
+.fin-reparto-imp { color: ${p.textMuted}; }
+.fin-reparto input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 8px; border-radius: 99px; background: linear-gradient(90deg, ${p.accent} var(--v), #2471a3 var(--v)); outline: none; cursor: pointer; }
+.fin-reparto input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: ${p.card}; border: 2px solid ${p.text}; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+.fin-reparto input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: ${p.card}; border: 2px solid ${p.text}; }
+.fin-reparto input[type=range]:focus-visible { outline: 2px solid ${p.accent}; outline-offset: 3px; }
 @media (max-width: 980px) { .fin-grid { grid-template-columns: 1fr; } .fin-lado { order: -1; } .fin-form { position: static; } .fin-grid3 { grid-template-columns: 1fr; } }
 @media (max-width: 640px) { .fin-grid2 { grid-template-columns: 1fr; } }
 /* --- Cierre de caja --- */
@@ -4711,8 +4718,8 @@ function Compras({ localId, paletaActual }) {
                 <div className="fl">Stock a considerar</div>
                 <select className="sel" value={localCompraSel} onChange={e => setLocalCompraSel(e.target.value)}>
                   <option value="consolidado">Consolidado (los dos locales)</option>
-                  <option value="1">Solo Rio Grande</option>
-                  <option value="2">Solo Ushuaia</option>
+                  <option value="1">Solo {nombreLocal(1)}</option>
+                  <option value="2">Solo {nombreLocal(2)}</option>
                 </select>
               </div>
               <div className="fg" style={{ marginBottom: 0, width: 160 }}>
@@ -6046,11 +6053,11 @@ function Inventario({ localId, usuario, paletaActual }) {
                       <div style={{ fontSize: 10, color: temaPal.textMuted }}>{v.codigo_barras || "sin codigo"}</div>
                     </div>
                     <div style={{ textAlign: "center" }}>
-                      <div style={{ fontSize: 9, color: temaPal.textMuted }}>Rio Grande</div>
+                      <div style={{ fontSize: 9, color: temaPal.textMuted }}>{nombreLocal(1)}</div>
                       <input className="inp" type="number" style={{ width: 55, fontSize: 12, padding: "4px 6px" }} defaultValue={v.stock_rg} onBlur={e => editarStockVariante(v, "stock_rg", e.target.value)} />
                     </div>
                     <div style={{ textAlign: "center" }}>
-                      <div style={{ fontSize: 9, color: temaPal.textMuted }}>Ushuaia</div>
+                      <div style={{ fontSize: 9, color: temaPal.textMuted }}>{nombreLocal(2)}</div>
                       <input className="inp" type="number" style={{ width: 55, fontSize: 12, padding: "4px 6px" }} defaultValue={v.stock_ush} onBlur={e => editarStockVariante(v, "stock_ush", e.target.value)} />
                     </div>
                     <span onClick={() => borrarVariante(v)} style={{ cursor: "pointer", color: "#c0392b", fontSize: 16 }}>×</span>
@@ -6420,6 +6427,44 @@ function Finanzas({ localId, usuario, paletaActual }) {
   const [factExtMonto, setFactExtMonto] = useState("");
   const [factExtLocal, setFactExtLocal] = useState("1");
   const [editIibb, setEditIibb] = useState(null);
+  // Reparto de gastos compartidos: % que le toca al local 1 (el resto, al local 2)
+  const [repartoPct, setRepartoPct] = useState(50);
+  const [repartoDefault, setRepartoDefault] = useState(50);
+  const [repartoOrigen, setRepartoOrigen] = useState("negocio");
+  const sugerirReparto = (categoriaId) => {
+    API.get("/finanzas/reparto-sugerido" + (categoriaId ? "?categoria_id=" + categoriaId : ""))
+      .then(r => { setRepartoPct(r.data.pct_local1); setRepartoDefault(r.data.por_defecto); setRepartoOrigen(r.data.origen); })
+      .catch(() => {});
+  };
+  useEffect(() => { sugerirReparto(null); }, []);
+  const guardarRepartoDefault = async (pct) => {
+    try {
+      await API.put("/configuracion", { reparto_local1_pct: pct });
+      setRepartoDefault(pct);
+      avisar("✓ Reparto por defecto: " + nombreLocal(1) + " " + pct + "% · " + nombreLocal(2) + " " + (100 - pct) + "%");
+    } catch (e) { avisar("Error: " + (e.response?.data?.error || "no se pudo guardar")); }
+  };
+  // Control para repartir un gasto compartido entre los dos locales
+  const controlReparto = (pct, setPct, importe, extra) => {
+    const v = Math.max(0, Math.min(100, Math.round(parseFloat(pct) || 0)));
+    const imp = parseFloat(importe) || 0;
+    return (
+      <div className="fin-reparto">
+        <div className="fin-reparto-fila">
+          <span><b>{nombreLocal(1)}</b> {v}%{imp > 0 && <span className="fin-reparto-imp"> · {fmt(imp * v / 100)}</span>}</span>
+          <span style={{ textAlign: "right" }}><b>{nombreLocal(2)}</b> {100 - v}%{imp > 0 && <span className="fin-reparto-imp"> · {fmt(imp * (100 - v) / 100)}</span>}</span>
+        </div>
+        <input type="range" min="0" max="100" step="5" value={v} onChange={e => setPct(parseInt(e.target.value))}
+          aria-label={"Porcentaje para " + nombreLocal(1)} style={{ "--v": v + "%" }} />
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+          {[50, 60, 70, 80].map(x => <button key={x} type="button" className={"mini-chip" + (v === x ? " on" : "")} onClick={() => setPct(x)}>{x}/{100 - x}</button>)}
+          <input className="mini-inp" type="number" min="0" max="100" value={v} onChange={e => setPct(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))} aria-label={"% exacto para " + nombreLocal(1)} style={{ width: 54 }} />
+          <span style={{ fontSize: 11, color: p.textMuted }}>% {nombreLocal(1)}</span>
+        </div>
+        {extra}
+      </div>
+    );
+  };
   const [verDetalleCom, setVerDetalleCom] = useState(false);
 
   // --- Movimientos ---
@@ -6534,7 +6579,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
     if (!e.local_id) return avisar("Error: elegí a qué local corresponde");
     setGuardandoEgreso(true);
     try {
-      await API.post("/finanzas/egreso", { ...e, referencia: "Manual", usuario_id: usuario?.id || null });
+      await API.post("/finanzas/egreso", { ...e, referencia: "Manual", usuario_id: usuario?.id || null, pct_local1: e.local_id === "compartido" ? repartoPct : undefined });
       avisar("✓ Egreso registrado: " + e.concepto + " · " + fmt(parseFloat(e.importe)));
       setNuevoEgreso(prev => ({ ...egresoVacio(prev.fecha), local_id: prev.local_id }));
       cargarDatos(); cargarUltimoEgreso();
@@ -6551,6 +6596,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
         categoria_id: m.categoria_id || null, forma_pago: m.forma_pago || null,
         cuenta_pago_id: m.cuenta_pago_id || null, local_id: m.local_id === null ? "compartido" : m.local_id,
         fecha: m.fecha || null,
+        pct_local1: m.local_id === null || m.local_id === undefined ? (m.pct_local1 ?? repartoDefault) : undefined,
       });
       setEditandoMov(null);
       cargarDetalle(); cargarDatos();
@@ -6590,7 +6636,11 @@ function Finanzas({ localId, usuario, paletaActual }) {
   const esMesActual = mesFiltro === hoy.getMonth() + 1 && anioFiltro === hoy.getFullYear();
   const fmtDiaCorto = (f) => { if (!f) return ""; const [y, m, d] = String(f).slice(0, 10).split("-"); return d + "/" + m + "/" + y; };
   const pctDe = (v, total) => (total > 0 ? (v / total) * 100 : 0);
-  const nombreLocalMov = (lid) => (lid === null || lid === undefined ? "Compartido" : nombreLocal(lid));
+  const nombreLocalMov = (lid, pct) => {
+    if (lid !== null && lid !== undefined) return nombreLocal(lid);
+    const v = Math.round(parseFloat(pct ?? repartoDefault));
+    return "Compartido " + v + "/" + (100 - v);
+  };
 
   const ing = flujoEst?.ingresos?.total || 0;
   const egr = flujoEst?.total_egresos || 0;
@@ -6779,6 +6829,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
                 <select className="sel" style={{ width: "100%" }} value={nuevoEgreso.categoria_id || ""} onChange={e => {
                   const cat = categoriasCosto.find(c => c.id === parseInt(e.target.value));
                   setNuevoEgreso(x => ({ ...x, categoria_id: e.target.value, concepto: x.concepto && !categoriasCosto.some(c => c.nombre === x.concepto) ? x.concepto : (cat?.nombre || "") }));
+                  sugerirReparto(e.target.value || null);
                 }}>
                   <option value="">Elegir categoría...</option>
                   {[["variable", "Costos variables"], ["fijo", "Costos fijos"], ["administrativo", "Administrativos y marketing"], ["sueldo", "Sueldos"]].map(([t, l]) => (
@@ -6795,10 +6846,16 @@ function Finanzas({ localId, usuario, paletaActual }) {
               <div className="fg">
                 <div className="fl">Local *</div>
                 <div className="seg" role="group" aria-label="Local del egreso" style={{ display: "flex" }}>
-                  {[["1", nombreLocal(1)], ["2", nombreLocal(2)], ["compartido", "Los dos (50/50)"]].map(([k, l]) => (
+                  {[["1", nombreLocal(1)], ["2", nombreLocal(2)], ["compartido", "Compartido"]].map(([k, l]) => (
                     <button key={k} style={{ flex: 1 }} className={nuevoEgreso.local_id === k ? "on" : ""} onClick={() => setNuevoEgreso(x => ({ ...x, local_id: k }))}>{l}</button>
                   ))}
                 </div>
+                {nuevoEgreso.local_id === "compartido" && controlReparto(repartoPct, setRepartoPct, nuevoEgreso.importe, (
+                  <div style={{ fontSize: 11, color: p.textMuted, marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                    {repartoOrigen === "categoria" ? "Propuesto según el último gasto de esta categoría." : "Reparto por defecto del negocio."}
+                    {esJefe && repartoPct !== repartoDefault && <button type="button" className="mini-chip" onClick={() => guardarRepartoDefault(repartoPct)}>Usar {repartoPct}/{100 - repartoPct} como reparto por defecto</button>}
+                  </div>
+                ))}
               </div>
               <div className="fg">
                 <div className="fl">Cómo se pagó</div>
@@ -6881,7 +6938,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
                           <td style={{ fontSize: 11, color: p.textMuted, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{fmtDiaCorto(m.fecha)}</td>
                           <td style={{ fontSize: 12 }}>{m.concepto}{m.automatico && <span className="tag tag-neutral" style={{ marginLeft: 6 }}>automático</span>}</td>
                           <td style={{ fontSize: 11 }}>{m.categoria_nombre ? <span style={{ color: p.textMuted }}>{m.categoria_nombre}</span> : m.tipo === "E" ? <span className="tag tag-warn">sin categoría</span> : <span style={{ color: p.textMuted }}>—</span>}</td>
-                          <td style={{ fontSize: 11, color: p.textMuted, whiteSpace: "nowrap" }}>{nombreLocalMov(m.local_id)}</td>
+                          <td style={{ fontSize: 11, color: p.textMuted, whiteSpace: "nowrap" }}><span title={m.local_id === null ? nombreLocal(1) + " " + Math.round(m.pct_local1 ?? repartoDefault) + "% · " + nombreLocal(2) + " " + (100 - Math.round(m.pct_local1 ?? repartoDefault)) + "%" : ""}>{nombreLocalMov(m.local_id, m.pct_local1)}</span></td>
                           <td style={{ fontSize: 11, color: p.textMuted }}>{m.cuenta_nombre || m.forma_pago || "—"}</td>
                           <td style={{ textAlign: "right", fontWeight: 700, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", color: m.tipo === "I" ? p.green : p.red }}>{m.tipo === "I" ? "+" : "−"}{fmt(parseFloat(m.importe))}</td>
                           <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
@@ -6926,10 +6983,11 @@ function Finanzas({ localId, usuario, paletaActual }) {
             <div className="fg">
               <div className="fl">Local</div>
               <div className="seg" role="group" aria-label="Local" style={{ display: "flex" }}>
-                {[[1, nombreLocal(1)], [2, nombreLocal(2)], [null, "Los dos (50/50)"]].map(([k, l]) => (
-                  <button key={String(k)} style={{ flex: 1 }} className={(editandoMov.local_id ?? null) === k ? "on" : ""} onClick={() => setEditandoMov(x => ({ ...x, local_id: k }))}>{l}</button>
+                {[[1, nombreLocal(1)], [2, nombreLocal(2)], [null, "Compartido"]].map(([k, l]) => (
+                  <button key={String(k)} style={{ flex: 1 }} className={(editandoMov.local_id ?? null) === k ? "on" : ""} onClick={() => setEditandoMov(x => ({ ...x, local_id: k, pct_local1: k === null ? (x.pct_local1 ?? repartoDefault) : x.pct_local1 }))}>{l}</button>
                 ))}
               </div>
+              {(editandoMov.local_id ?? null) === null && controlReparto(editandoMov.pct_local1 ?? repartoDefault, v => setEditandoMov(x => ({ ...x, pct_local1: v })), editandoMov.importe)}
             </div>
             <div className="fg">
               <div className="fl">Cómo se pagó</div>
@@ -7103,10 +7161,10 @@ function Finanzas({ localId, usuario, paletaActual }) {
       {tab === "porlocal" && (
         <div className="fade">
           <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 12 }}>
-            Egresos de {MESES_NOMBRE[mesFiltro - 1].toLowerCase()} {anioFiltro} según a qué local quedaron cargados. Sirve para detectar algo cargado dos veces o en el local equivocado.
+            Egresos de {MESES_NOMBRE[mesFiltro - 1].toLowerCase()} {anioFiltro} según a qué local quedaron cargados. Los compartidos se reparten con el % de cada gasto (por defecto {nombreLocal(1)} {repartoDefault}% · {nombreLocal(2)} {100 - repartoDefault}%). Sirve para detectar algo cargado dos veces o en el local equivocado.
           </div>
           {costosPorLocalLoading ? <div className="skel" style={{ height: 240 }} /> : (() => {
-            const cols = [{ key: 1, titulo: nombreLocal(1) }, { key: 2, titulo: nombreLocal(2) }, { key: "compartido", titulo: "Compartido (50/50)" }];
+            const cols = [{ key: 1, titulo: nombreLocal(1) }, { key: 2, titulo: nombreLocal(2) }, { key: "compartido", titulo: "Compartidos" }];
             const gruposL = { 1: [], 2: [], compartido: [] };
             costosPorLocalMovs.forEach(m => gruposL[m.local_id === 1 ? 1 : m.local_id === 2 ? 2 : "compartido"].push(m));
             return (
@@ -7114,14 +7172,19 @@ function Finanzas({ localId, usuario, paletaActual }) {
                 {cols.map(col => {
                   const items = gruposL[col.key];
                   const total = items.reduce((s, m) => s + parseFloat(m.importe || 0), 0);
+                  const parteCompartida = col.key === "compartido" ? 0 : gruposL.compartido.reduce((s, m) => {
+                    const pct = parseFloat(m.pct_local1 ?? repartoDefault);
+                    return s + parseFloat(m.importe || 0) * (col.key === 1 ? pct : 100 - pct) / 100;
+                  }, 0);
                   return (
                     <div key={col.key} className="chart-card">
                       <div className="chart-head"><div className="chart-title">{col.titulo}</div><b style={{ color: p.red, fontVariantNumeric: "tabular-nums" }}>{fmt(total)}</b></div>
+                      {parteCompartida > 0 && <div style={{ fontSize: 11, color: p.textMuted, marginTop: -6, marginBottom: 8 }}>+ {fmt(parteCompartida)} de su parte de los compartidos = <b style={{ color: p.text }}>{fmt(total + parteCompartida)}</b></div>}
                       {items.length === 0 ? <div className="empty">Sin egresos cargados</div> : items.map(m => (
                         <div key={m.id} className="cc-linea" style={{ alignItems: "flex-start" }}>
                           <span style={{ minWidth: 0 }}>
                             <span style={{ display: "block", fontWeight: 600, color: p.text }}>{m.concepto}</span>
-                            <span style={{ fontSize: 11, color: p.textMuted }}>{m.categoria_nombre || "Sin categoría"} · {fmtDiaCorto(m.fecha)}</span>
+                            <span style={{ fontSize: 11, color: p.textMuted }}>{m.categoria_nombre || "Sin categoría"} · {fmtDiaCorto(m.fecha)}{m.local_id === null && <> · <b style={{ color: p.accent }}>{Math.round(m.pct_local1 ?? repartoDefault)}/{100 - Math.round(m.pct_local1 ?? repartoDefault)}</b></>}</span>
                           </span>
                           <b style={{ whiteSpace: "nowrap" }}>{fmt(parseFloat(m.importe))}</b>
                         </div>
@@ -13401,7 +13464,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
           producto_id: it.producto_id_sugerido || "", producto_nombre: it.producto_nombre_sugerido || "",
           es_alias_conocido: it.es_alias_conocido,
           // El costo NO sale de la factura -- se usa siempre el que ya esta cargado en el producto.
-          // Por defecto toda la cantidad detectada va a Rio Grande; se puede repartir antes de confirmar.
+          // Por defecto toda la cantidad detectada va al local 1; se puede repartir antes de confirmar.
           cantidad_rg: it.cantidad, cantidad_ush: 0
         })));
       }
@@ -13454,7 +13517,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
     if (!facturaItems || facturaItems.length === 0) return;
     if (facturaItems.some(it => !it.producto_id)) return setMensaje("Vincula un producto para cada fila (o eliminala con la 'x')");
     if (facturaItems.some(it => (parseInt(it.cantidad_rg) || 0) + (parseInt(it.cantidad_ush) || 0) <= 0)) {
-      return setMensaje("Cada fila necesita cantidad para Rio Grande, Ushuaia, o ambos.");
+      return setMensaje("Cada fila necesita cantidad para " + nombreLocal(1) + ", " + nombreLocal(2) + ", o ambos.");
     }
     try {
       const costoDe = (productoId) => {
@@ -13484,7 +13547,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
         const totalRG = itemsRG.reduce((s, it) => s + it.costo_unitario * it.cantidad_total, 0);
         await API.post("/ordenes-ingreso", {
           proveedor_id: facturaForm.proveedor_id, numero_factura: facturaForm.numero_factura,
-          total: totalRG, notas: "Cargada desde factura - Rio Grande", items: itemsRG
+          total: totalRG, notas: "Cargada desde factura - " + nombreLocal(1), items: itemsRG
         });
         creadas++;
       }
@@ -13492,12 +13555,12 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
         const totalUSH = itemsUSH.reduce((s, it) => s + it.costo_unitario * it.cantidad_total, 0);
         await API.post("/ordenes-ingreso", {
           proveedor_id: facturaForm.proveedor_id, numero_factura: facturaForm.numero_factura,
-          total: totalUSH, notas: "Cargada desde factura - Ushuaia", items: itemsUSH
+          total: totalUSH, notas: "Cargada desde factura - " + nombreLocal(2), items: itemsUSH
         });
         creadas++;
       }
 
-      setMensaje(creadas > 1 ? "2 ordenes creadas (Rio Grande y Ushuaia). Stock en transito cargado." : "Orden creada desde la factura! Stock en transito cargado.");
+      setMensaje(creadas > 1 ? "2 ordenes creadas (" + nombreLocal(1) + " y " + nombreLocal(2) + "). Stock en transito cargado." : "Orden creada desde la factura! Stock en transito cargado.");
       setFacturaItems(null); setFacturaArchivo(null); setFacturaForm({ proveedor_id: "", numero_factura: "" });
       cargar();
       setTab("lista");
@@ -13505,7 +13568,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
   };
 
   const eliminarOrden = async (ordenId) => {
-    if (!confirm("Eliminar esta orden completa? Se revierte el stock que haya sumado (Rio Grande y Ushuaia) y no se puede deshacer.")) return;
+    if (!confirm("Eliminar esta orden completa? Se revierte el stock que haya sumado (" + nombreLocal(1) + " y " + nombreLocal(2) + ") y no se puede deshacer.")) return;
     try {
       await API.delete("/ordenes-ingreso/" + ordenId, { data: { usuario_rol: usuario?.rol } });
       setMensaje("Orden eliminada");
@@ -13808,7 +13871,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
           ) : (
             <div className="card">
               <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 4 }}>REVISA LOS PRODUCTOS DETECTADOS</div>
-              <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 14 }}>Corregi el producto vinculado donde haga falta, y reparti la cantidad entre Rio Grande y Ushuaia (por defecto va todo a Rio Grande). El costo se toma del que ya tiene cargado cada producto, no de la factura.</div>
+              <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 14 }}>Corregi el producto vinculado donde haga falta, y reparti la cantidad entre {nombreLocal(1)} y {nombreLocal(2)} (por defecto va todo a {nombreLocal(1)}). El costo se toma del que ya tiene cargado cada producto, no de la factura.</div>
               <table>
                 <thead><tr><th>Nombre en la factura</th><th>Codigo</th><th>Cant. RG</th><th>Cant. USH</th><th>Costo (del producto)</th><th>Producto vinculado</th><th></th></tr></thead>
                 <tbody>
@@ -13911,8 +13974,8 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
               </div>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <div className="fg" style={{ flex: 1 }}><div className="fl">Cant. Rio Grande</div><input className="inp" type="number" placeholder="10" value={itemTemp.cantidad_rg} onChange={e => setItemTemp(p => ({ ...p, cantidad_rg: e.target.value }))} /></div>
-              <div className="fg" style={{ flex: 1 }}><div className="fl">Cant. Ushuaia</div><input className="inp" type="number" placeholder="0" value={itemTemp.cantidad_ush} onChange={e => setItemTemp(p => ({ ...p, cantidad_ush: e.target.value }))} /></div>
+              <div className="fg" style={{ flex: 1 }}><div className="fl">Cant. {nombreLocal(1)}</div><input className="inp" type="number" placeholder="10" value={itemTemp.cantidad_rg} onChange={e => setItemTemp(p => ({ ...p, cantidad_rg: e.target.value }))} /></div>
+              <div className="fg" style={{ flex: 1 }}><div className="fl">Cant. {nombreLocal(2)}</div><input className="inp" type="number" placeholder="0" value={itemTemp.cantidad_ush} onChange={e => setItemTemp(p => ({ ...p, cantidad_ush: e.target.value }))} /></div>
               <div className="fg" style={{ flex: 1 }}><div className="fl">Costo unit. ($)</div><input className="inp" type="number" placeholder="1500" value={itemTemp.costo_unitario} onChange={e => setItemTemp(p => ({ ...p, costo_unitario: e.target.value }))} /></div>
             </div>
             <button className="btn btn-sm" style={{ width: "100%" }} onClick={agregarItem}>+ Agregar producto</button>
@@ -13921,7 +13984,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
             <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 14 }}>PRODUCTOS EN ESTA ORDEN ({nueva.items.length})</div>
             {nueva.items.length === 0 ? (<div style={{ fontSize: 12, color: temaPal.textMuted, textAlign: "center", padding: 20 }}>Sin productos agregados</div>) : (
               <table>
-                <thead><tr><th>Producto</th><th>RG</th><th>USH</th><th>Costo unit.</th><th>Subtotal</th><th></th></tr></thead>
+                <thead><tr><th>Producto</th><th>{nombreLocal(1)}</th><th>{nombreLocal(2)}</th><th>Costo unit.</th><th>Subtotal</th><th></th></tr></thead>
                 <tbody>
                   {nueva.items.map((it, i) => (
                     <tr key={i}>
@@ -14160,9 +14223,9 @@ function Inconsistencias({ paletaActual }) {
             <tbody>
               {datos.map((d, i) => {
                 const filas = [];
-                if (d.revisado_rg && d.recibido_rg !== d.cantidad_rg) filas.push({ local: "RG", esp: d.cantidad_rg, rec: d.recibido_rg });
-                if (d.revisado_ush && d.recibido_ush !== d.cantidad_ush) filas.push({ local: "USH", esp: d.cantidad_ush, rec: d.recibido_ush });
-                if (d.es_extra) filas.push({ local: d.cantidad_rg > 0 ? "RG" : "USH", esp: 0, rec: d.cantidad_rg + d.cantidad_ush, extra: true });
+                if (d.revisado_rg && d.recibido_rg !== d.cantidad_rg) filas.push({ local: nombreLocal(1), esp: d.cantidad_rg, rec: d.recibido_rg });
+                if (d.revisado_ush && d.recibido_ush !== d.cantidad_ush) filas.push({ local: nombreLocal(2), esp: d.cantidad_ush, rec: d.recibido_ush });
+                if (d.es_extra) filas.push({ local: d.cantidad_rg > 0 ? nombreLocal(1) : nombreLocal(2), esp: 0, rec: d.cantidad_rg + d.cantidad_ush, extra: true });
                 if (filas.length === 0 && d.nota_inconsistencia) filas.push({ local: "-", esp: "-", rec: "-" });
                 return filas.map((f, j) => (
                   <tr key={i + "-" + j}>
@@ -14556,8 +14619,8 @@ function Insumos({ localId, usuario, paletaActual }) {
               </div>
               {!editando && (
                 <div style={{ display: "flex", gap: 8 }}>
-                  <div className="fg" style={{ flex: 1 }}><div className="fl">Stock Rio Grande</div><input className="inp" type="number" placeholder="0" value={nuevo.stock_rg} onChange={e => setNuevo(p => ({ ...p, stock_rg: e.target.value }))} /></div>
-                  <div className="fg" style={{ flex: 1 }}><div className="fl">Stock Ushuaia</div><input className="inp" type="number" placeholder="0" value={nuevo.stock_ush} onChange={e => setNuevo(p => ({ ...p, stock_ush: e.target.value }))} /></div>
+                  <div className="fg" style={{ flex: 1 }}><div className="fl">Stock {nombreLocal(1)}</div><input className="inp" type="number" placeholder="0" value={nuevo.stock_rg} onChange={e => setNuevo(p => ({ ...p, stock_rg: e.target.value }))} /></div>
+                  <div className="fg" style={{ flex: 1 }}><div className="fl">Stock {nombreLocal(2)}</div><input className="inp" type="number" placeholder="0" value={nuevo.stock_ush} onChange={e => setNuevo(p => ({ ...p, stock_ush: e.target.value }))} /></div>
                 </div>
               )}
               {editando && <div style={{ fontSize: 10, color: temaPal.textMuted, marginBottom: 12 }}>El stock se modifica con el boton "Ajustar" de cada insumo, no desde aca.</div>}
@@ -15371,8 +15434,8 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
               </div>
               <div className="fg"><div className="fl">Local</div>
                 <select className="sel" value={editandoUsuario.local_id} onChange={e => setEditandoUsuario(p => ({ ...p, local_id: parseInt(e.target.value) }))}>
-                  <option value={1}>Rio Grande</option>
-                  <option value={2}>Ushuaia</option>
+                  <option value={1}>{nombreLocal(1)}</option>
+                  <option value={2}>{nombreLocal(2)}</option>
                 </select>
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
@@ -15405,8 +15468,8 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
               </div>
               <div className="fg"><div className="fl">Local</div>
                 <select className="sel" value={nuevoUsuario.local_id} onChange={e => setNuevoUsuario(p => ({ ...p, local_id: parseInt(e.target.value) }))}>
-                  <option value={1}>Rio Grande</option>
-                  <option value={2}>Ushuaia</option>
+                  <option value={1}>{nombreLocal(1)}</option>
+                  <option value={2}>{nombreLocal(2)}</option>
                 </select>
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>

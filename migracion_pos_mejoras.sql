@@ -124,3 +124,9 @@ CREATE TABLE IF NOT EXISTS cierres_caja (
 
 -- 9) Plantilla editable del mensaje de "Buscar precio" (NULL = mensaje original).
 ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS mensaje_precio TEXT;
+
+-- 10) Finanzas: % de IIBB configurable y reparto de gastos compartidos entre locales
+--     (las rutas tambien las crean solas si faltan).
+ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS iibb_pct NUMERIC(5,2) DEFAULT 4;
+ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS reparto_local1_pct NUMERIC(5,2) DEFAULT 50;
+ALTER TABLE movimientos_caja ADD COLUMN IF NOT EXISTS pct_local1 NUMERIC(5,2);
