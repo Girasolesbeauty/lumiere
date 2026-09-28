@@ -215,6 +215,48 @@ button.tab { font-family: inherit; }
 .tipo-chip { display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 999px; border: 1px solid ${p.accent}; background: ${p.accentDim}; color: ${p.accent}; cursor: pointer; }
 .bp-sticky { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 15; padding-top: 4px; }
 @media (max-width: 860px) { .bp-sticky { top: calc(52px + env(safe-area-inset-top, 0px)); } }
+/* --- POS: modos Catalogo, Tactil y Celular --- */
+.pos-cat { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 12px; height: calc(100vh - 170px); }
+.pos-cat.pos-tactil { grid-template-columns: 170px minmax(0, 1fr) 400px; }
+.pos-cat-izq { display: flex; flex-direction: column; gap: 10px; min-height: 0; min-width: 0; }
+.pos-cat-cats { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; flex-shrink: 0; }
+.pos-cat-cats.vertical { flex-direction: column; overflow-y: auto; overflow-x: hidden; padding: 0; }
+.pos-cat-cats.vertical .chip-btn { text-align: left; border-radius: 10px; }
+.pos-cat-scroll { flex: 1; overflow-y: auto; min-height: 0; padding-right: 2px; }
+.pos-cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.pos-cat-grid.grande { grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)); gap: 12px; }
+.pos-tile { font-family: inherit; text-align: left; padding: 0; border: 1px solid ${p.border}; border-radius: 10px; background: ${p.card}; color: ${p.text}; cursor: pointer; overflow: hidden; display: flex; flex-direction: column; transition: transform .12s ease, border-color .15s, box-shadow .15s; }
+.pos-tile:hover { border-color: ${p.accent}; box-shadow: 0 4px 14px ${p.shadowSoft}; }
+.pos-tile:active { transform: scale(.97); }
+.pos-tile.en-carrito { border-color: ${p.accent}; box-shadow: 0 0 0 1px ${p.accent}; }
+.pos-tile.agotado { opacity: .5; }
+.pos-tile-img { position: relative; aspect-ratio: 1 / 1; background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; }
+.pos-tile-ini { font-size: 30px; font-weight: 900; color: ${p.textMuted}; letter-spacing: .02em; }
+.pos-tile-cant { position: absolute; top: 6px; right: 6px; min-width: 26px; height: 26px; border-radius: 13px; background: ${p.accent}; color: #1B2431; font-weight: 900; font-size: 13px; display: flex; align-items: center; justify-content: center; padding: 0 6px; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+.pos-tile-agotado { position: absolute; bottom: 6px; left: 6px; font-size: 10px; font-weight: 800; background: ${p.red}; color: #fff; border-radius: 4px; padding: 2px 6px; }
+.pos-tile-var { position: absolute; top: 6px; left: 6px; font-size: 14px; }
+.pos-tile-info { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.pos-tile-nombre { font-size: 12px; font-weight: 700; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pos-tile-precio { font-size: 14px; font-weight: 900; color: ${p.accent}; font-variant-numeric: tabular-nums; margin-top: auto; }
+.pos-tactil .pos-tile-nombre { font-size: 14px; }
+.pos-tactil .pos-tile-precio { font-size: 17px; }
+.pos-tactil .chip-btn { font-size: 14px; padding: 12px 14px; }
+.pos-tactil .inp { font-size: 16px; padding: 13px 14px; }
+.pos-tactil .btn { min-height: 44px; }
+.pos-cat-der { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.pos-cat-carrito { flex: 0 1 42%; min-height: 150px; display: flex; flex-direction: column; }
+.pos-cat-der .pos-col-2 { flex: 1; min-height: 0; }
+.pos-movil { max-width: 560px; margin: 0 auto; padding-bottom: 96px; }
+.pos-movil-barra { display: flex; gap: 8px; margin-bottom: 10px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 12; background: ${p.bg}; padding: 4px 0; }
+.pos-movil-carrito > div { max-height: none !important; }
+.pos-movil .kbd { display: none; }
+.pos-movil-pie { position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); background: ${p.card}; border-top: 1px solid ${p.border}; box-shadow: 0 -6px 20px ${p.shadowCol}; }
+.pos-movil-hoja { width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto; background: ${p.bg}; border-radius: 16px 16px 0 0; padding: 16px 14px calc(16px + env(safe-area-inset-bottom, 0px)); }
+.pos-movil-hoja .pos-col-2 { overflow: visible !important; }
+.pos-movil-hoja .pos-col-2 > div { overflow: visible !important; flex: none !important; }
+@media (min-width: 861px) { .main .pos-movil-pie { left: 220px; } .main.comprimido .pos-movil-pie { left: 64px; } }
+@media (max-width: 1100px) { .pos-cat { grid-template-columns: 1fr; height: auto; } .pos-cat.pos-tactil { grid-template-columns: 1fr; } .pos-cat-cats.vertical { flex-direction: row; overflow-x: auto; } .pos-cat-scroll { max-height: 60vh; } }
+@media (max-width: 700px) { .pos-modo-txt { display: none; } }
 .skel { background: ${p.border}; border-radius: 8px; animation: pulse 1.4s ease-in-out infinite; }
 .chip { border-radius: 6px; padding: 6px 10px; font-size: 11px; border: 1px solid ${p.border}; background: ${p.bg}; color: ${p.text}; }
 .seg button:focus-visible, button.tab:focus-visible, .btn:focus-visible { outline: 2px solid ${p.accent}; outline-offset: 2px; }
@@ -1975,6 +2017,16 @@ function BuscarPrecio({ localId, paletaActual }) {
   );
 }
 
+// Productos sin foto en el catalogo: un color fijo segun la categoria y las iniciales
+const COLORES_TILE = ["#c9a84c", "#2962ff", "#089981", "#a06bc0", "#ff9800", "#f23645", "#00897b", "#5c6bc0"];
+const colorTile = (txt) => {
+  let h = 0; const t = String(txt || "");
+  for (let k = 0; k < t.length; k++) h = (h * 31 + t.charCodeAt(k)) >>> 0;
+  const c = COLORES_TILE[h % COLORES_TILE.length];
+  return "linear-gradient(135deg, " + c + "33, " + c + "11)";
+};
+const inicialesProd = (nombre) => String(nombre || "?").split(/\s+/).filter(w => /[A-Za-zÁÉÍÓÚÑ0-9]/.test(w)).slice(0, 2).map(w => w[0]).join("").toUpperCase();
+
 function POS({ localId, usuario, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [cart, setCart] = useState([]);
@@ -2052,6 +2104,34 @@ function POS({ localId, usuario, paletaActual }) {
   const [nombreEspera, setNombreEspera] = useState(null); // null = cerrado; texto = pidiendo el nombre
   // Desafio para la vendedora: superar el ticket promedio de la clienta. { meta, cliente, clienteId }
   const [reto, setReto] = useState(null);
+  const [retoDescartadoId, setRetoDescartadoId] = useState(null); // clienta a la que se le dijo "Ahora no" en esta venta
+
+  // ---- Modo de vista del POS (cada dispositivo recuerda el suyo) ----
+  const [modoVista, setModoVistaState] = useState(() => {
+    try { const g = localStorage.getItem("lumiere_pos_modo"); if (g) return g; } catch (e) {}
+    return (typeof window !== "undefined" && window.innerWidth < 700) ? "celular" : "clasico";
+  });
+  const setModoVista = (m) => { setModoVistaState(m); try { localStorage.setItem("lumiere_pos_modo", m); } catch (e) {} };
+  const [catalogoCat, setCatalogoCat] = useState("");
+  const [catalogoSoloStock, setCatalogoSoloStock] = useState(false);
+  const [catalogoLimite, setCatalogoLimite] = useState(120);
+  const [imagenesProd, setImagenesProd] = useState({});
+  const [cobroMovilAbierto, setCobroMovilAbierto] = useState(false);
+  const [escaneandoPos, setEscaneandoPos] = useState(false);
+  const scannerPosRef = useRef(null);
+  const listaCompletaRef = useRef([]);
+  const accionProductoRef = useRef(() => {});
+  const ultimoEscaneoRef = useRef({ codigo: "", t: 0 });
+  const [tecladoItem, setTecladoItem] = useState(null); // { item, valor } para el teclado numerico
+  // Fotos de productos: se cargan solo en los modos que las muestran
+  useEffect(() => {
+    if (modoVista !== "catalogo" && modoVista !== "tactil") return;
+    API.get("/productos/imagenes/todas").then(r => {
+      const m = {};
+      (r.data || []).forEach(x => { m[x.producto_id] = x.imagen; });
+      setImagenesProd(m);
+    }).catch(() => {});
+  }, [modoVista]);
   // Configuracion de los desafios y progreso del mes de la vendedora logueada
   const [retosConfig, setRetosConfig] = useState({ activo: true, meta_mensual: 10, premio_monto: 50000 });
   const [retosMes, setRetosMes] = useState(null); // { logrados, intentados, premio }
@@ -2220,7 +2300,7 @@ function POS({ localId, usuario, paletaActual }) {
     setClienteSeleccionado(null); setShowNuevoCliente(false); setDescuentoManual(""); setTipoDescuento("%");
     setInsumosSel({}); setMostrarInsumos(false); setMontoRecibidoEfectivo(""); setReferenciaVenta("");
     setJustificacionesStock({}); setItemsSinStock(null); quitarGiftCard();
-    setFichaCliente(null); fichaClienteIdRef.current = null; setReto(null);
+    setFichaCliente(null); fichaClienteIdRef.current = null; setReto(null); setRetoDescartadoId(null);
   };
 
   const horaCorta = () => new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
@@ -2290,6 +2370,39 @@ function POS({ localId, usuario, paletaActual }) {
       setVentaConfirmada(v => (v && v.reto ? { ...v, retoMes: r.data } : v));
     }).catch(() => {});
   };
+  useEffect(() => {
+    if (!escaneandoPos) return;
+    let cancelado = false;
+    (async () => {
+      try {
+        const mod = await import("https://cdn.jsdelivr.net/npm/html5-qrcode/+esm");
+        if (cancelado) return;
+        const scanner = new mod.Html5Qrcode("lector-pos");
+        scannerPosRef.current = scanner;
+        await scanner.start({ facingMode: "environment" }, { fps: 12, qrbox: (w, h) => ({ width: Math.min(w * 0.85, 320), height: Math.min(h * 0.45, 140) }) },
+          (texto) => {
+            const ahora = Date.now();
+            // El mismo codigo seguido se ignora 1,5 s (si no, suma varias veces el mismo producto)
+            if (texto === ultimoEscaneoRef.current.codigo && ahora - ultimoEscaneoRef.current.t < 1500) return;
+            ultimoEscaneoRef.current = { codigo: texto, t: ahora };
+            try { navigator.vibrate && navigator.vibrate(60); } catch (e) {}
+            const prod = listaCompletaRef.current.find(x => String(x.codigo_barras || x.codigo || "") === texto);
+            if (prod) accionProductoRef.current(prod);
+            else mostrarAvisoEscaneo("Código no encontrado: " + texto);
+          }, () => {});
+      } catch (e) {
+        mostrarAvisoEscaneo("No se pudo abrir la cámara (revisá los permisos)");
+        setEscaneandoPos(false);
+      }
+    })();
+    return () => {
+      cancelado = true;
+      if (scannerPosRef.current) { const sc = scannerPosRef.current; scannerPosRef.current = null; sc.stop().then(() => sc.clear()).catch(() => {}); }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [escaneandoPos]);
+  useEffect(() => { if (ventaConfirmada) { setCobroMovilAbierto(false); setEscaneandoPos(false); } }, [ventaConfirmada]);
+
   const cerrarConfirmacion = () => {
     setVentaConfirmada(null);
     setTimeout(() => busquedaRef.current?.focus(), 50);
@@ -2866,6 +2979,8 @@ function POS({ localId, usuario, paletaActual }) {
   }));
 
   const listaCompleta = [...kitsComoProducto, ...(productos.length > 0 ? productos : PRODUCTS)];
+  listaCompletaRef.current = listaCompleta;
+  accionProductoRef.current = accionProducto;
   const productosAMostrar = listaCompleta.filter(p =>
     !busqueda || (p.nombre || p.name || "").toLowerCase().includes(busqueda.toLowerCase()) ||
     (p.marca || p.brand || "").toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -3105,60 +3220,9 @@ function POS({ localId, usuario, paletaActual }) {
     );
   }
 
-  return (
-    <div className="fade">
-      <div className="ph">
-        <div><div className="pt">Punto de Venta</div><div className="ps">facturacion electronica - arca</div></div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          {usuario?.rol === "jefe" && (
-            <div className="sw-wrap" onClick={() => { setModoPrueba(!modoPrueba); setMensaje(""); }}>
-              <div className={"sw " + (modoPrueba ? "on" : "off")}><div className="sw-dot" /></div>
-              <span style={{ fontSize: 11, color: modoPrueba ? "#c0392b" : temaPal.textMuted }}>Modo prueba</span>
-            </div>
-          )}
-          <div className="sw-wrap" onClick={() => { setPreventa(!preventa || tipoReserva !== "preventa"); setTipoReserva("preventa"); setMensaje(""); }}>
-            <div className={"sw " + (preventa && tipoReserva === "preventa" ? "on" : "off")}><div className="sw-dot" /></div>
-            <span style={{ fontSize: 11, color: preventa && tipoReserva === "preventa" ? "#2471a3" : temaPal.textMuted }}>Preventa</span>
-          </div>
-          <div className="sw-wrap" onClick={() => { setPreventa(!preventa || tipoReserva !== "sena"); setTipoReserva("sena"); setMensaje(""); }}>
-            <div className={"sw " + (preventa && tipoReserva === "sena" ? "on" : "off")}><div className="sw-dot" /></div>
-            <span style={{ fontSize: 11, color: preventa && tipoReserva === "sena" ? "#c9a84c" : temaPal.textMuted }}>Señar</span>
-          </div>
-          <button className="btn btn-g btn-sm" title={sonidoOn ? "Silenciar el sonido al escanear" : "Activar sonido al escanear"} aria-pressed={sonidoOn}
-            onClick={() => { const v = !sonidoOn; setSonidoOn(v); try { localStorage.setItem("lumiere_pos_sonido", v ? "on" : "off"); } catch (e) {} }}>
-            {sonidoOn ? "🔊" : "🔇"}
-          </button>
-          <button className="btn btn-g btn-sm" onClick={() => setMostrarAtajos(true)} title="Ver atajos de teclado (?)">⌨ Atajos</button>
-          <StatusDot color="#2d7a4f" label="ARCA" />
-        </div>
-      </div>
-      {preventa && tipoReserva === "sena" && (
-        <div style={{ background: "#c9a84c12", border: "1px solid #c9a84c", borderRadius: 6, padding: "10px 16px", marginBottom: 12, fontSize: 12, color: "#8a6d1f" }}>
-          💰 Modo Seña: para productos que <b>ya tenemos</b> pero la clienta no se los lleva ahora. Se reserva el stock (nadie mas se lo puede llevar) y cobrás la seña — el resto se cobra cuando venga a buscarlo.
-        </div>
-      )}
-      {modoPrueba && (
-        <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "10px 16px", marginBottom: 12, fontSize: 12, color: "#c0392b", fontWeight: 600 }}>
-          🧪 MODO PRUEBA ACTIVO — las ventas NO se facturan en ARCA. Desactivalo para vender de verdad.
-        </div>
-      )}
-      <div className="tabs">
-        <div className="tab on" onClick={() => setTabPos("venta")}>NUEVA VENTA</div>
-        <div className="tab" onClick={() => { setTabPos("preventas"); cargarPreventas(); }}>
-          PREVENTAS {preventasPendientes.length > 0 && <span style={{ background: "#2471a3", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{preventasPendientes.length}</span>}
-        </div>
-        <div className="tab" onClick={() => { setTabPos("pendientes-arca"); cargarPendientesArca(); }}>
-          FACTURAS PENDIENTES {pendientesArcaList.length > 0 && <span style={{ background: "#c0392b", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{pendientesArcaList.length}</span>}
-        </div>
-        {tabCambios}
-      </div>
-      {mensaje && (
-        <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>
-          {mensaje}
-        </div>
-      )}
-            <div className="pos-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
-        <div className="pos-col-1" style={{ display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
+  // ================= Piezas del POS (se combinan segun el modo de vista) =================
+  const buscadorJSX = (
+    <>
           <div style={{ position: "relative" }}>
             <input ref={busquedaRef} className="inp" placeholder="Escaneá o buscá por nombre, marca o código..." value={busqueda} onChange={e => setBusqueda(e.target.value)} onKeyDown={onEscaneo} autoFocus style={{ paddingRight: 44 }} />
             <span className="kbd" style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)" }}>F2</span>
@@ -3227,6 +3291,9 @@ function POS({ localId, usuario, paletaActual }) {
             </table>
           </div>
           )}
+    </>
+  );
+  const carritoJSX = (
           <div style={{ background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 8, flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
           <div style={{ padding: "10px 14px", borderBottom: "1px solid " + temaPal.border, fontSize: 10, color: temaPal.textMuted, fontWeight: 700, letterSpacing: ".1em", background: preventa ? "#2471a320" : temaPal.bg }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, minHeight: 22 }}>
@@ -3271,7 +3338,7 @@ function POS({ localId, usuario, paletaActual }) {
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                       <button onClick={() => cambiarCantidad(i, -1)} aria-label="Restar uno" style={{ width: 26, height: 26, borderRadius: 4, border: "1px solid " + temaPal.border, background: temaPal.bg, cursor: "pointer", fontSize: 15, fontWeight: 700, lineHeight: 1, color: temaPal.textMuted }}>−</button>
-                      <span style={{ fontSize: 13, fontWeight: 600, minWidth: 22, textAlign: "center", fontVariantNumeric: "tabular-nums" }}>{i.qty}</span>
+                      <button onClick={() => setTecladoItem({ item: i, valor: String(i.qty) })} title="Tocá para escribir la cantidad" style={{ fontSize: 13, fontWeight: 700, minWidth: 30, textAlign: "center", fontVariantNumeric: "tabular-nums", background: "transparent", border: "1px dashed " + temaPal.border, borderRadius: 4, color: temaPal.text, cursor: "pointer", padding: "2px 4px", fontFamily: "inherit" }}>{i.qty}</button>
                       <button onClick={() => cambiarCantidad(i, 1)} aria-label="Sumar uno" style={{ width: 26, height: 26, borderRadius: 4, border: "1px solid " + temaPal.border, background: temaPal.bg, cursor: "pointer", fontSize: 15, fontWeight: 700, lineHeight: 1, color: temaPal.textMuted }}>+</button>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
@@ -3311,7 +3378,8 @@ function POS({ localId, usuario, paletaActual }) {
             </div>
           </div>
           </div>
-        </div>
+  );
+  const panelCobroJSX = (
         <div className="pos-col-2" style={{ display: "flex", flexDirection: "column", gap: 8, overflow: "hidden" }}>
           <div style={{ background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 8, padding: "10px 12px", overflowY: "auto", flex: 1 }}>
             {preventa ? (
@@ -3572,6 +3640,36 @@ function POS({ localId, usuario, paletaActual }) {
             )}
           </div>
           <div style={{ background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 8, padding: "10px 12px" }}>
+            {!reto && !preventa && retosConfig.activo && fichaCliente && clienteSeleccionado?.id && clienteSeleccionado.id === fichaCliente.cliente?.id
+              && fichaCliente.compras >= 2 && fichaCliente.ticket_promedio > 0 && cart.length > 0
+              && subtotalConDesc < fichaCliente.ticket_promedio && retoDescartadoId !== fichaCliente.cliente.id && (() => {
+              // El desafio se ofrece cuando ya hay productos en el carrito pero todavia no
+              // llegan al ticket promedio de la clienta (si ya lo supera, no tiene gracia).
+              const meta = Math.round(fichaCliente.ticket_promedio);
+              const falta = Math.max(meta - subtotalConDesc + 1, 0);
+              const nombreCorto = (fichaCliente.cliente.nombre || "La clienta").split(/[ ,]+/).filter(Boolean)[0];
+              return (
+                <div className="reto-card pop-in" role="status" style={{ marginBottom: 10 }}>
+                  <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                    <span style={{ fontSize: 24, lineHeight: 1 }} aria-hidden="true">🎯</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: temaPal.accent, letterSpacing: ".1em" }}>DESAFÍO</div>
+                      <div style={{ fontSize: 12, marginTop: 2 }}>{nombreCorto} suele gastar <b>{fmt(meta).replace(",00", "")}</b> y hoy lleva <b>{fmt(Math.round(subtotalConDesc)).replace(",00", "")}</b>.</div>
+                      <div style={{ fontSize: 13, fontWeight: 800, marginTop: 2 }}>¡Te faltan {fmt(Math.round(falta)).replace(",00", "")} para superarlo!</div>
+                      <div className="reto-bar" style={{ marginTop: 6 }}><div className="reto-fill" style={{ width: Math.min(subtotalConDesc / meta, 1) * 100 + "%", background: temaPal.accent }} /></div>
+                      {retosMes && <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 4 }}>Llevás {retosMes.logrados || 0} de {retosConfig.meta_mensual} desafíos este mes</div>}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                    <button className="btn btn-sm" style={{ flex: 2, background: temaPal.accent, color: "#1B2431", fontWeight: 800 }}
+                      onClick={() => { setReto({ meta, cliente: fichaCliente.cliente.nombre, clienteId: fichaCliente.cliente.id }); sonar("ok"); }}>
+                      Acepto el reto
+                    </button>
+                    <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => setRetoDescartadoId(fichaCliente.cliente.id)}>Ahora no</button>
+                  </div>
+                </div>
+              );
+            })()}
             {reto && !preventa && (() => {
               const progreso = Math.min(subtotalConDesc / reto.meta, 1);
               const superado = subtotalConDesc > reto.meta;
@@ -3623,7 +3721,205 @@ function POS({ localId, usuario, paletaActual }) {
             )}
           </div>
         </div>
+  );
+
+  // ---- Catalogo (modo Catalogo y Tactil) ----
+  const categoriasCatalogo = [...new Set(listaCompleta.filter(x => !x.es_kit).map(x => x.categoria).filter(Boolean))].sort();
+  const hayKits = listaCompleta.some(x => x.es_kit);
+  const qCat = (busqueda || "").toLowerCase().trim();
+  const productosCatalogo = listaCompleta.filter(x => {
+    if (x.activo === false) return false;
+    if (catalogoCat === "__kits") { if (!x.es_kit) return false; }
+    else if (catalogoCat && x.categoria !== catalogoCat) return false;
+    if (catalogoSoloStock && !x.es_kit && (x.disponible !== undefined ? x.disponible : (x.stock || 0)) <= 0) return false;
+    if (!qCat) return true;
+    return ((x.nombre || x.name || "") + " " + (x.marca || x.brand || "") + " " + (x.codigo_barras || x.codigo || "")).toLowerCase().includes(qCat);
+  }).sort((a, b) => (imagenesProd[b.id] ? 1 : 0) - (imagenesProd[a.id] ? 1 : 0) || String(a.nombre || "").localeCompare(String(b.nombre || ""))).slice(0, catalogoLimite);
+  const cantEnCarrito = (id) => cart.filter(i => i.id === id).reduce((s2, i) => s2 + i.qty, 0);
+
+  const catalogoGridJSX = (grande) => (
+    <div className={"pos-cat-grid" + (grande ? " grande" : "")}>
+      {productosCatalogo.length === 0 && <div className="empty" style={{ gridColumn: "1 / -1" }}>No hay productos {qCat ? "con \"" + busqueda + "\"" : "en esta categoría"}.</div>}
+      {productosCatalogo.map(x => {
+        const disp = x.es_kit ? 1 : (x.disponible !== undefined ? x.disponible : (x.stock || 0));
+        const sinSt = disp <= 0 && !(x.transito_local > 0) && !x.es_kit;
+        const enCarro = cantEnCarrito(x.id);
+        return (
+          <button key={x.id} className={"pos-tile" + (sinSt ? " agotado" : "") + (enCarro ? " en-carrito" : "")} onClick={() => accionProducto(x)} title={(x.nombre || "") + (sinSt ? " · sin stock" : "")}>
+            <div className="pos-tile-img" style={imagenesProd[x.id] ? { backgroundImage: "url(" + imagenesProd[x.id] + ")" } : { background: colorTile(x.categoria || x.nombre) }}>
+              {!imagenesProd[x.id] && <span className="pos-tile-ini">{inicialesProd(x.nombre || x.name)}</span>}
+              {enCarro > 0 && <span className="pos-tile-cant">{enCarro}</span>}
+              {sinSt && <span className="pos-tile-agotado">Sin stock</span>}
+              {x.tiene_variantes && <span className="pos-tile-var">🎨</span>}
+            </div>
+            <div className="pos-tile-info">
+              <div className="pos-tile-nombre">{x.nombre || x.name}</div>
+              <div className="pos-tile-precio">{fmt(x.precio || x.price || 0).replace(",00", "")}</div>
+            </div>
+          </button>
+        );
+      })}
+      {productosCatalogo.length >= catalogoLimite && (
+        <button className="chip-btn" style={{ gridColumn: "1 / -1", justifySelf: "center", padding: "10px 18px" }} onClick={() => setCatalogoLimite(l => l + 120)}>Ver más productos</button>
+      )}
+    </div>
+  );
+  const categoriasJSX = (vertical) => (
+    <div className={"pos-cat-cats" + (vertical ? " vertical" : "")} role="tablist" aria-label="Categorías">
+      {[["", "Todo"], ...categoriasCatalogo.map(c => [c, c]), ...(hayKits ? [["__kits", "🎁 Kits"]] : [])].map(([id, l]) => (
+        <button key={id || "todo"} role="tab" aria-selected={catalogoCat === id} className={"chip-btn" + (catalogoCat === id ? " on" : "")} onClick={() => { setCatalogoCat(id); setCatalogoLimite(120); }}>{l}</button>
+      ))}
+    </div>
+  );
+  const buscadorCatalogoJSX = (
+    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <div style={{ position: "relative", flex: 1 }}>
+        <span aria-hidden="true" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", opacity: .55 }}>🔍</span>
+        <input ref={busquedaRef} className="inp" placeholder="Buscar o escanear..." value={busqueda} onChange={e => setBusqueda(e.target.value)} onKeyDown={onEscaneo} style={{ paddingLeft: 36 }} aria-label="Buscar producto" />
       </div>
+      <label className="chip-btn" style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+        <input type="checkbox" checked={catalogoSoloStock} onChange={e => setCatalogoSoloStock(e.target.checked)} /> Solo con stock
+      </label>
+    </div>
+  );
+
+  // ---- Modo Celular: escaner con la camara del telefono ----
+  const resultadosMovilJSX = busqueda.trim().length > 0 && (
+    <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 10 }}>
+      {productosAMostrar.slice(0, 20).map(x => {
+        const disp = x.es_kit ? 1 : (x.disponible !== undefined ? x.disponible : (x.stock || 0));
+        return (
+          <button key={x.id} onClick={() => { accionProducto(x); setBusqueda(""); }} style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "12px 14px", background: "transparent", border: "none", borderBottom: "1px solid " + temaPal.border, color: temaPal.text, fontFamily: "inherit", textAlign: "left", cursor: "pointer", minHeight: 54 }}>
+            <span style={{ minWidth: 0 }}><b style={{ fontSize: 14 }}>{x.nombre || x.name}</b><div style={{ fontSize: 11, color: temaPal.textMuted }}>{x.marca || ""}</div></span>
+            <span style={{ textAlign: "right", whiteSpace: "nowrap" }}><b style={{ color: temaPal.accent }}>{fmt(x.precio || x.price || 0).replace(",00", "")}</b><div><span className={"tag " + (disp > 0 ? "tag-ok" : "tag-bad")}>{disp} u.</span></div></span>
+          </button>
+        );
+      })}
+      {productosAMostrar.length === 0 && <div className="empty">Sin resultados</div>}
+    </div>
+  );
+
+
+  return (
+    <div className="fade">
+      <div className="ph" style={{ flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+        <div style={{ flexShrink: 0 }}><div className="pt" style={{ whiteSpace: "nowrap" }}>Punto de Venta</div><div className="ps">facturación electrónica · arca</div></div>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+          {usuario?.rol === "jefe" && (
+            <div className="sw-wrap" onClick={() => { setModoPrueba(!modoPrueba); setMensaje(""); }}>
+              <div className={"sw " + (modoPrueba ? "on" : "off")}><div className="sw-dot" /></div>
+              <span style={{ fontSize: 11, color: modoPrueba ? "#c0392b" : temaPal.textMuted }}>Modo prueba</span>
+            </div>
+          )}
+          <div className="sw-wrap" onClick={() => { setPreventa(!preventa || tipoReserva !== "preventa"); setTipoReserva("preventa"); setMensaje(""); }}>
+            <div className={"sw " + (preventa && tipoReserva === "preventa" ? "on" : "off")}><div className="sw-dot" /></div>
+            <span style={{ fontSize: 11, color: preventa && tipoReserva === "preventa" ? "#2471a3" : temaPal.textMuted }}>Preventa</span>
+          </div>
+          <div className="sw-wrap" onClick={() => { setPreventa(!preventa || tipoReserva !== "sena"); setTipoReserva("sena"); setMensaje(""); }}>
+            <div className={"sw " + (preventa && tipoReserva === "sena" ? "on" : "off")}><div className="sw-dot" /></div>
+            <span style={{ fontSize: 11, color: preventa && tipoReserva === "sena" ? "#c9a84c" : temaPal.textMuted }}>Señar</span>
+          </div>
+          <button className="btn btn-g btn-sm" title={sonidoOn ? "Silenciar el sonido al escanear" : "Activar sonido al escanear"} aria-pressed={sonidoOn}
+            onClick={() => { const v = !sonidoOn; setSonidoOn(v); try { localStorage.setItem("lumiere_pos_sonido", v ? "on" : "off"); } catch (e) {} }}>
+            {sonidoOn ? "🔊" : "🔇"}
+          </button>
+          <div className="seg" role="group" aria-label="Modo de vista" title="Cómo se ve el Punto de Venta en este dispositivo">
+            {[["clasico", "🖥", "Clásico"], ["catalogo", "🖼", "Catálogo"], ["celular", "📱", "Celular"], ["tactil", "👆", "Táctil"]].map(([id, ic, l]) => (
+              <button key={id} className={modoVista === id ? "on" : ""} aria-pressed={modoVista === id} onClick={() => setModoVista(id)} title={"Modo " + l}><span aria-hidden="true">{ic}</span><span className="pos-modo-txt"> {l}</span></button>
+            ))}
+          </div>
+          {modoVista !== "celular" && <button className="btn btn-g btn-sm" onClick={() => setMostrarAtajos(true)} title="Ver atajos de teclado (?)">⌨ Atajos</button>}
+          <StatusDot color="#2d7a4f" label="ARCA" />
+        </div>
+      </div>
+      {preventa && tipoReserva === "sena" && (
+        <div style={{ background: "#c9a84c12", border: "1px solid #c9a84c", borderRadius: 6, padding: "10px 16px", marginBottom: 12, fontSize: 12, color: "#8a6d1f" }}>
+          💰 Modo Seña: para productos que <b>ya tenemos</b> pero la clienta no se los lleva ahora. Se reserva el stock (nadie mas se lo puede llevar) y cobrás la seña — el resto se cobra cuando venga a buscarlo.
+        </div>
+      )}
+      {modoPrueba && (
+        <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "10px 16px", marginBottom: 12, fontSize: 12, color: "#c0392b", fontWeight: 600 }}>
+          🧪 MODO PRUEBA ACTIVO — las ventas NO se facturan en ARCA. Desactivalo para vender de verdad.
+        </div>
+      )}
+      <div className="tabs">
+        <div className="tab on" onClick={() => setTabPos("venta")}>NUEVA VENTA</div>
+        <div className="tab" onClick={() => { setTabPos("preventas"); cargarPreventas(); }}>
+          PREVENTAS {preventasPendientes.length > 0 && <span style={{ background: "#2471a3", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{preventasPendientes.length}</span>}
+        </div>
+        <div className="tab" onClick={() => { setTabPos("pendientes-arca"); cargarPendientesArca(); }}>
+          FACTURAS PENDIENTES {pendientesArcaList.length > 0 && <span style={{ background: "#c0392b", color: "white", borderRadius: 10, fontSize: 8, padding: "1px 5px", marginLeft: 4 }}>{pendientesArcaList.length}</span>}
+        </div>
+        {tabCambios}
+      </div>
+      {mensaje && (
+        <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>
+          {mensaje}
+        </div>
+      )}
+      {modoVista === "clasico" && (
+        <div className="pos-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
+          <div className="pos-col-1" style={{ display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
+            {buscadorJSX}
+            {carritoJSX}
+          </div>
+          {panelCobroJSX}
+        </div>
+      )}
+
+      {(modoVista === "catalogo" || modoVista === "tactil") && (
+        <div className={"pos-cat" + (modoVista === "tactil" ? " pos-tactil" : "")}>
+          {modoVista === "tactil" && categoriasJSX(true)}
+          <div className="pos-cat-izq">
+            {buscadorCatalogoJSX}
+            {avisoEscaneo && <div className="pop-in" role="alert" style={{ background: temaPal.redDim, border: "1px solid " + temaPal.red, color: temaPal.red, borderRadius: 6, padding: "8px 12px", fontSize: 12, fontWeight: 700 }}>⚠ {avisoEscaneo}</div>}
+            {modoVista === "catalogo" && categoriasJSX(false)}
+            <div className="pos-cat-scroll">{catalogoGridJSX(modoVista === "tactil")}</div>
+          </div>
+          <div className="pos-cat-der">
+            <div className="pos-cat-carrito">{carritoJSX}</div>
+            {panelCobroJSX}
+          </div>
+        </div>
+      )}
+
+      {modoVista === "celular" && (
+        <div className="pos-movil">
+          <div className="pos-movil-barra">
+            <div style={{ position: "relative", flex: 1 }}>
+              <input ref={busquedaRef} className="inp" type="search" enterKeyHint="search" placeholder="Buscar producto..." value={busqueda} onChange={e => setBusqueda(e.target.value)} onKeyDown={onEscaneo} style={{ fontSize: 16, padding: "13px 14px", borderRadius: 12 }} aria-label="Buscar producto" />
+            </div>
+            <button className="btn btn-p" style={{ minWidth: 54, fontSize: 22, borderRadius: 12, padding: "0 12px" }} onClick={() => setEscaneandoPos(v => !v)} aria-label={escaneandoPos ? "Cerrar cámara" : "Escanear con la cámara"}>{escaneandoPos ? "✕" : "📷"}</button>
+          </div>
+          {escaneandoPos && (
+            <div className="card pop-in" style={{ padding: 8, marginBottom: 10 }}>
+              <div id="lector-pos" style={{ width: "100%", minHeight: 200, borderRadius: 10, overflow: "hidden", background: "#000" }} />
+              <div style={{ fontSize: 11, color: temaPal.textMuted, textAlign: "center", marginTop: 6 }}>Escaneo continuo: cada código que leas se suma al carrito</div>
+            </div>
+          )}
+          {avisoEscaneo && <div className="pop-in" role="alert" style={{ background: temaPal.redDim, color: temaPal.red, borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 700, marginBottom: 10 }}>⚠ {avisoEscaneo}</div>}
+          {resultadosMovilJSX}
+          <div className="pos-movil-carrito">{carritoJSX}</div>
+          <div className="pos-movil-pie">
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: temaPal.textMuted }}>TOTAL · {cart.reduce((s2, i) => s2 + i.qty, 0)} u.</div>
+              <div style={{ fontSize: 24, fontWeight: 900, fontVariantNumeric: "tabular-nums" }}><CountUp value={restaPagar > 0 ? restaPagar : total} formato={fmt} duracion={350} /></div>
+            </div>
+            <button className="btn btn-p" style={{ padding: "14px 20px", fontSize: 15, borderRadius: 12 }} disabled={cart.length === 0} onClick={() => setCobroMovilAbierto(true)}>Cobrar →</button>
+          </div>
+          {cobroMovilAbierto && (
+            <div className="pos-overlay" style={{ alignItems: "flex-end", padding: 0 }} onClick={() => setCobroMovilAbierto(false)}>
+              <div className="pop-in pos-movil-hoja" onClick={e => e.stopPropagation()}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                  <div style={{ fontSize: 16, fontWeight: 800 }}>Cobro</div>
+                  <button onClick={() => setCobroMovilAbierto(false)} aria-label="Cerrar" style={{ background: "transparent", border: "none", fontSize: 20, cursor: "pointer", color: temaPal.textMuted }}>✕</button>
+                </div>
+                {panelCobroJSX}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {mostrarFicha && fichaCliente && (() => {
         const f = fichaCliente;
@@ -3652,31 +3948,6 @@ function POS({ localId, usuario, paletaActual }) {
                   </div>
                 ))}
               </div>
-              {retosConfig.activo && f.compras >= 2 && f.ticket_promedio > 0 && (() => {
-                const aceptado = reto && reto.clienteId === f.cliente.id;
-                return (
-                  <div className="reto-card pop-in" style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 12 }}>
-                    <span style={{ fontSize: 26 }} aria-hidden="true">🎯</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: temaPal.accent, letterSpacing: ".1em" }}>DESAFÍO PARA VOS</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, marginTop: 2 }}>Superá su ticket promedio de {fmt(Math.round(f.ticket_promedio))}</div>
-                      {retosMes && (
-                        <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 3 }}>
-                          Llevás {retosMes.logrados || 0} de {retosConfig.meta_mensual} este mes · premio: producto de hasta {fmt(retosConfig.premio_monto).replace(",00", "")}
-                        </div>
-                      )}
-                    </div>
-                    {aceptado ? (
-                      <span className="tag tag-ok" style={{ fontSize: 11, padding: "5px 10px" }}>✓ Reto aceptado</span>
-                    ) : (
-                      <button className="btn btn-sm" style={{ background: temaPal.accent, color: "#1B2431", fontWeight: 800 }}
-                        onClick={() => { setReto({ meta: Math.round(f.ticket_promedio), cliente: f.cliente.nombre, clienteId: f.cliente.id }); sonar("ok"); }}>
-                        Acepto el reto
-                      </button>
-                    )}
-                  </div>
-                );
-              })()}
               {ideas.length > 0 && (
                 <div style={{ marginBottom: 14 }}>
                   <div style={{ fontSize: 10, fontWeight: 700, color: temaPal.accent, letterSpacing: ".08em", marginBottom: 6 }}>IDEAS PARA VENDER</div>
@@ -3781,6 +4052,37 @@ function POS({ localId, usuario, paletaActual }) {
           </div>
         </div>
       )}
+
+      {tecladoItem && (() => {
+        const tocar = (t) => setTecladoItem(tk => {
+          if (t === "⌫") return { ...tk, valor: tk.valor.slice(0, -1) };
+          if (t === "C") return { ...tk, valor: "" };
+          const v = (tk.valor === "0" ? "" : tk.valor) + t;
+          return { ...tk, valor: v.slice(0, 4) };
+        });
+        const confirmarTeclado = () => {
+          const n = parseInt(tecladoItem.valor);
+          if (n > 0) setCart(prev => prev.map(x => claveItem(x) === claveItem(tecladoItem.item) ? { ...x, qty: n } : x));
+          setTecladoItem(null);
+        };
+        return (
+          <div className="pos-overlay" onClick={() => setTecladoItem(null)}>
+            <div className="card pop-in" role="dialog" aria-label="Cantidad" style={{ width: 300, background: temaPal.card, textAlign: "center" }} onClick={e => e.stopPropagation()}>
+              <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 4 }}>{tecladoItem.item.nombre || tecladoItem.item.name}</div>
+              <div style={{ fontSize: 40, fontWeight: 900, fontVariantNumeric: "tabular-nums", minHeight: 50, marginBottom: 10 }}>{tecladoItem.valor || "0"}</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                {["1", "2", "3", "4", "5", "6", "7", "8", "9", "C", "0", "⌫"].map(t => (
+                  <button key={t} onClick={() => tocar(t)} style={{ height: 58, fontSize: 22, fontWeight: 800, borderRadius: 10, border: "1px solid " + temaPal.border, background: t === "C" || t === "⌫" ? temaPal.bg : temaPal.card, color: temaPal.text, cursor: "pointer", fontFamily: "inherit" }}>{t}</button>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                <button className="btn btn-g" style={{ flex: 1, padding: 14 }} onClick={() => setTecladoItem(null)}>Cancelar</button>
+                <button className="btn btn-p" style={{ flex: 1, padding: 14 }} onClick={confirmarTeclado}>Listo</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {mostrarAtajos && (
         <div className="pos-overlay" onClick={() => setMostrarAtajos(false)}>
@@ -4331,6 +4633,39 @@ function Inventario({ localId, usuario, paletaActual }) {
   const [filtroMarcaAlertas, setFiltroMarcaAlertas] = useState("");
   const [vistaLocal, setVistaLocal] = useState("mi");
   const [filtroMarcaInv, setFiltroMarcaInv] = useState("");
+  // Foto del producto (modo Catalogo del POS): { imagen: dataURL|null, cambiada: bool }
+  const [fotoProd, setFotoProd] = useState({ imagen: null, cambiada: false });
+  const [procesandoFoto, setProcesandoFoto] = useState(false);
+  // Achica la foto en el navegador (lado mayor 360 px, JPEG) antes de guardarla
+  const prepararFoto = (file) => {
+    if (!file) return;
+    setProcesandoFoto(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const max = 360;
+        const escala = Math.min(1, max / Math.max(img.width, img.height));
+        const c = document.createElement("canvas");
+        c.width = Math.round(img.width * escala); c.height = Math.round(img.height * escala);
+        const ctx = c.getContext("2d");
+        ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        setFotoProd({ imagen: c.toDataURL("image/jpeg", 0.78), cambiada: true });
+        setProcesandoFoto(false);
+      };
+      img.onerror = () => { setProcesandoFoto(false); setMensaje("Error: no se pudo leer la imagen"); };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  };
+  const guardarFotoDe = async (productoId) => {
+    if (!fotoProd.cambiada || !productoId) return;
+    try {
+      if (fotoProd.imagen) await API.put("/productos/" + productoId + "/imagen", { imagen: fotoProd.imagen });
+      else await API.delete("/productos/" + productoId + "/imagen");
+    } catch (e) { setMensaje("Error: el producto se guardó pero la foto no (" + (e.response?.data?.error || e.message) + ")"); }
+  };
   const [filtroProvInv, setFiltroProvInv] = useState("");
   const [ordenInv, setOrdenInv] = useState({ campo: "nombre", dir: "asc" });
   const [limiteInv, setLimiteInv] = useState(100);
@@ -4451,6 +4786,8 @@ function Inventario({ localId, usuario, paletaActual }) {
       activo: p.activo !== false, tiene_variantes: p.tiene_variantes || false, tipo_variante: p.tipo_variante || ""
     });
     if (p.tiene_variantes) cargarVariantes(p.id); else setVariantesProd([]);
+    setFotoProd({ imagen: null, cambiada: false });
+    API.get("/productos/" + p.id + "/imagen").then(r => setFotoProd(f => (f.cambiada ? f : { imagen: r.data?.imagen || null, cambiada: false }))).catch(() => {});
     setShowForm(true);
   };
 
@@ -4469,6 +4806,7 @@ function Inventario({ localId, usuario, paletaActual }) {
         tiene_variantes: nuevo.tiene_variantes || false,
         tipo_variante: nuevo.tiene_variantes ? nuevo.tipo_variante : null
       });
+      await guardarFotoDe(editandoProd.id);
       setMensaje("Producto actualizado!");
       setNuevo({ nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "", stock: "", stock_minimo: "", proveedor_id: "", descripcion: "", tiene_variantes: false, tipo_variante: "" });
       setShowForm(false); setEditandoProd(null);
@@ -4507,6 +4845,7 @@ function Inventario({ localId, usuario, paletaActual }) {
       setMensaje("Producto creado!");
       const tieneVariantes = nuevo.tiene_variantes;
       const prodCreado = res.data;
+      await guardarFotoDe(prodCreado?.id);
       setNuevo({ nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "", stock: "", stock_minimo: "", proveedor_id: "", descripcion: "", tiene_variantes: false, tipo_variante: "" });
       setShowForm(false);
       cargar();
@@ -4634,7 +4973,7 @@ function Inventario({ localId, usuario, paletaActual }) {
         </div>
         <div className="dash-actions">
           <button className="btn btn-g btn-sm" onClick={exportarCSV} title="Descargar la lista filtrada para abrir en Excel">📥 Exportar</button>
-          <button className="btn btn-p btn-sm" onClick={() => { setEditandoProd(null); setNuevo({ nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "", stock: "", stock_minimo: "", proveedor_id: "", descripcion: "", tiene_variantes: false, tipo_variante: "" }); setShowForm(true); }}>+ Nuevo producto</button>
+          <button className="btn btn-p btn-sm" onClick={() => { setEditandoProd(null); setFotoProd({ imagen: null, cambiada: false }); setNuevo({ nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "", stock: "", stock_minimo: "", proveedor_id: "", descripcion: "", tiene_variantes: false, tipo_variante: "" }); setShowForm(true); }}>+ Nuevo producto</button>
         </div>
       </div>
       {mensaje && (
@@ -4652,6 +4991,17 @@ function Inventario({ localId, usuario, paletaActual }) {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
               <div>
+                <div className="fg" style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                  <label title="Foto para el modo Catálogo del Punto de Venta" style={{ width: 84, height: 84, flexShrink: 0, borderRadius: 10, border: "1px dashed " + temaPal.border, background: fotoProd.imagen ? "center / cover no-repeat url(" + fotoProd.imagen + ")" : temaPal.bg, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 26 }}>
+                    {!fotoProd.imagen && (procesandoFoto ? "…" : "📷")}
+                    <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { prepararFoto(e.target.files && e.target.files[0]); e.target.value = ""; }} />
+                  </label>
+                  <div style={{ fontSize: 11, color: temaPal.textMuted }}>
+                    <div style={{ fontWeight: 700, color: temaPal.text, marginBottom: 2 }}>Foto del producto (opcional)</div>
+                    Se ve en el modo Catálogo del Punto de Venta. Se achica sola.
+                    {fotoProd.imagen && <div><button type="button" className="chip-btn" style={{ marginTop: 6, fontSize: 10, padding: "3px 8px" }} onClick={() => setFotoProd({ imagen: null, cambiada: true })}>Quitar foto</button></div>}
+                  </div>
+                </div>
                 <div className="fg"><div className="fl">Código de barras (se puede escanear)</div>
                   <input className="inp" placeholder="Escaneá o escribí el código..." value={nuevo.codigo} autoFocus={!editandoProd}
                     onChange={e => setNuevo(p => ({ ...p, codigo: e.target.value }))}

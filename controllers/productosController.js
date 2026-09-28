@@ -97,6 +97,45 @@ const update = async (req, res) => {
   }
 };
 
+// ---- Fotos de productos (modo Catalogo del POS) ----
+// Se guardan en una tabla aparte (producto_imagenes) para que la lista de productos no
+// se vuelva pesada. El navegador las achica antes de mandarlas (miniaturas JPEG).
+const TAMANO_MAX_IMAGEN = 400 * 1024;
+const getImagenes = async (req, res) => {
+  try {
+    const r = await pool.query('SELECT producto_id, imagen FROM producto_imagenes');
+    res.json(r.rows);
+  } catch (error) {
+    // Si la tabla todavia no existe (falta la migracion), se devuelve vacio
+    res.json([]);
+  }
+};
+const getImagen = async (req, res) => {
+  try {
+    const r = await pool.query('SELECT imagen FROM producto_imagenes WHERE producto_id = $1', [req.params.id]);
+    res.json({ imagen: r.rows[0] ? r.rows[0].imagen : null });
+  } catch (error) { res.json({ imagen: null }); }
+};
+const guardarImagen = async (req, res) => {
+  try {
+    const imagen = String((req.body && req.body.imagen) || '');
+    if (!/^data:image\/(jpeg|png|webp);base64,/.test(imagen)) return res.status(400).json({ error: 'La imagen no es valida' });
+    if (imagen.length > TAMANO_MAX_IMAGEN) return res.status(400).json({ error: 'La imagen es muy pesada' });
+    await pool.query(
+      `INSERT INTO producto_imagenes (producto_id, imagen, actualizado_en) VALUES ($1, $2, NOW())
+       ON CONFLICT (producto_id) DO UPDATE SET imagen = EXCLUDED.imagen, actualizado_en = NOW()`,
+      [req.params.id, imagen]
+    );
+    res.json({ ok: true });
+  } catch (error) { res.status(500).json({ error: 'Error al guardar la imagen' }); }
+};
+const borrarImagen = async (req, res) => {
+  try {
+    await pool.query('DELETE FROM producto_imagenes WHERE producto_id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (error) { res.status(500).json({ error: 'Error al borrar la imagen' }); }
+};
+
 // Activar / desactivar un producto sin tocar el resto de sus datos
 const cambiarEstado = async (req, res) => {
   try {
@@ -393,4 +432,4 @@ const getSugerenciaCompra = async (req, res) => {
   }
 };
 
-module.exports = { getAll, getById, create, update, remove, getAlertas, getTransito, ajustarStock, getHistorialAjustes, recalcularStockMinimo, getSugerenciaCompra, cambiarEstado };
+module.exports = { getAll, getById, create, update, remove, getAlertas, getTransito, ajustarStock, getHistorialAjustes, recalcularStockMinimo, getSugerenciaCompra, cambiarEstado, getImagenes, getImagen, guardarImagen, borrarImagen };

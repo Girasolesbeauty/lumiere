@@ -87,3 +87,11 @@ ALTER TABLE cambios_productos ADD COLUMN IF NOT EXISTS detalle JSONB;
 ALTER TABLE cambios_productos ADD COLUMN IF NOT EXISTS motivo TEXT;
 ALTER TABLE cambios_productos ADD COLUMN IF NOT EXISTS tipo VARCHAR(20) DEFAULT 'cambio';
 ALTER TABLE cambios_productos ADD COLUMN IF NOT EXISTS cliente_id INTEGER;
+
+-- 6) Fotos de productos para el modo Catalogo del POS (tabla aparte para no hacer pesada
+--    la lista de productos). Se borran solas si se borra el producto.
+CREATE TABLE IF NOT EXISTS producto_imagenes (
+  producto_id INTEGER PRIMARY KEY REFERENCES productos(id) ON DELETE CASCADE,
+  imagen TEXT NOT NULL,
+  actualizado_en TIMESTAMP DEFAULT NOW()
+);
