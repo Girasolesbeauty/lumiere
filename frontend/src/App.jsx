@@ -8140,6 +8140,31 @@ function Pedidos({ localId, usuario, paletaActual }) {
   const [nombreNegocio, setNombreNegocio] = useState("");
   const [borrando, setBorrando] = useState(null);
   const [guardandoPed, setGuardandoPed] = useState(false);
+  // Edicion de un pedido: { p, productoSel, texto, buscar, nombre, telefono, local }
+  const [editando, setEditando] = useState(null);
+  const abrirEditar = (p) => setEditando({
+    p, productoSel: p.producto_id ? { id: p.producto_id, nombre: p.producto_nombre } : null,
+    texto: p.producto_id ? "" : (p.producto_nombre || ""), buscar: "",
+    nombre: p.nombre_manual || p.cliente_nombre || "", telefono: p.telefono_manual || p.telefono || "",
+    local: String(p.local_id || 1),
+  });
+  const guardarEdicion = async () => {
+    const e = editando;
+    if (!e.productoSel && !e.texto.trim()) return setMensaje("Error: elegí un producto o escribí una sugerencia");
+    const sinReg = !e.p.cliente_id;
+    if (sinReg && (!e.nombre.trim() || !e.telefono.trim())) return setMensaje("Error: el nombre y el celular son obligatorios");
+    try {
+      await API.put("/pedidos/" + e.p.id, {
+        producto_id: e.productoSel ? e.productoSel.id : null,
+        producto_texto: e.productoSel ? null : e.texto.trim(),
+        ...(sinReg ? { nombre_manual: e.nombre.trim(), telefono_manual: e.telefono.trim() } : {}),
+        local_id: parseInt(e.local),
+      });
+      setEditando(null);
+      setMensaje("✓ Pedido actualizado");
+      cargar(); cargarPedidosListos();
+    } catch (err) { setMensaje("Error: " + (err.response?.data?.error || "no se pudo guardar")); }
+  };
   // Avisados
   const hoyTxt = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
   const txtFecha = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
@@ -8621,7 +8646,10 @@ function Pedidos({ localId, usuario, paletaActual }) {
                     {g.pedidos.map(p => (
                       <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "5px 0", fontSize: 12, borderTop: "1px solid " + pal.border }}>
                         <span>{p.cliente_nombre}<LocalTag p={p} /> <span style={{ color: pal.textMuted }}>· {p.telefono || "sin teléfono"} · hace {diasDesde(p.creado_en)} d</span></span>
-                        <button className="icon-btn peligro" onClick={() => setBorrando(p)} aria-label="Borrar pedido">✕</button>
+                        <span style={{ whiteSpace: "nowrap" }}>
+                          <button className="icon-btn" onClick={() => abrirEditar(p)} aria-label="Editar pedido" title="Editar">✏️</button>
+                          <button className="icon-btn peligro" onClick={() => setBorrando(p)} aria-label="Borrar pedido" title="Borrar">✕</button>
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -8645,7 +8673,10 @@ function Pedidos({ localId, usuario, paletaActual }) {
                           <td style={{ fontSize: 12 }}>{p.producto_nombre}{p.es_sugerencia && <span className="tag tag-warn" style={{ marginLeft: 6 }}>sugerencia</span>}</td>
                           <td style={{ textAlign: "center" }}>{p.es_sugerencia ? <span style={{ color: pal.textMuted }}>—</span> : p.stock_total > 0 ? <span className="tag tag-ok">¡Disponible!</span> : <span className="tag tag-bad">0</span>}</td>
                           <td style={{ textAlign: "center", fontSize: 12, fontWeight: 700, color: d > 30 ? pal.red : d > 14 ? pal.warn : pal.textMuted }}>{d} d</td>
-                          <td style={{ textAlign: "right" }}><button className="icon-btn peligro" onClick={() => setBorrando(p)} aria-label={"Borrar el pedido de " + p.cliente_nombre}>✕</button></td>
+                          <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                            <button className="icon-btn" onClick={() => abrirEditar(p)} aria-label={"Editar el pedido de " + p.cliente_nombre} title="Editar">✏️</button>
+                            <button className="icon-btn peligro" onClick={() => setBorrando(p)} aria-label={"Borrar el pedido de " + p.cliente_nombre} title="Borrar">✕</button>
+                          </td>
                         </tr>
                       );
                     })}
@@ -8657,6 +8688,71 @@ function Pedidos({ localId, usuario, paletaActual }) {
           <div style={{ fontSize: 11, color: pal.textMuted, marginTop: 8 }}>Cuando un producto esperado tiene stock, el aviso aparece en la pestaña <b>Ya hay stock</b>.</div>
         </>
       )}
+
+      {editando && (() => {
+        const e = editando;
+        const set = (cambios) => setEditando(x => ({ ...x, ...cambios }));
+        const resultados = e.buscar.trim().length > 0
+          ? productos.filter(pr => ((pr.nombre || "") + " " + (pr.marca || "") + " " + (pr.codigo_barras || "")).toLowerCase().includes(e.buscar.toLowerCase())).slice(0, 6)
+          : [];
+        return (
+          <div className="pos-overlay" onClick={() => setEditando(null)}>
+            <div className="card pop-in" role="dialog" aria-label="Editar pedido" style={{ width: 460, maxWidth: "95vw", background: pal.card, textAlign: "left" }} onClick={ev => ev.stopPropagation()}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <div style={{ fontSize: 15, fontWeight: 800 }}>Editar pedido</div>
+                <button className="icon-btn" onClick={() => setEditando(null)} aria-label="Cerrar">✕</button>
+              </div>
+
+              <div className="fl">👤 Cliente</div>
+              {e.p.cliente_id ? (
+                <div style={{ padding: "8px 10px", background: pal.bg, borderRadius: 8, fontSize: 12, marginBottom: 12 }}>
+                  <b>{e.p.cliente_nombre}</b> <span style={{ color: pal.textMuted }}>· {e.p.telefono || "sin teléfono"}</span>
+                  <div style={{ fontSize: 11, color: pal.textMuted, marginTop: 2 }}>Está registrado: sus datos se cambian desde Clientes.</div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+                  <input className="inp" placeholder="Nombre *" value={e.nombre} onChange={ev => set({ nombre: ev.target.value })} />
+                  <input className="inp" type="tel" placeholder="Celular *" value={e.telefono} onChange={ev => set({ telefono: ev.target.value })} />
+                </div>
+              )}
+
+              <div className="fl">📦 Producto</div>
+              {e.productoSel ? (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: pal.bg, borderRadius: 8, marginBottom: 12 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700 }}>{e.productoSel.nombre}</span>
+                  <button className="mini-chip" onClick={() => set({ productoSel: null })}>cambiar</button>
+                </div>
+              ) : (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ position: "relative" }}>
+                    <input className="inp" autoFocus placeholder="Buscar producto" value={e.buscar} onChange={ev => set({ buscar: ev.target.value })} />
+                    {resultados.length > 0 && (
+                      <div style={{ position: "absolute", left: 0, right: 0, top: "calc(100% + 4px)", zIndex: 20, background: pal.card, border: "1px solid " + pal.border, borderRadius: 8, boxShadow: "0 8px 24px " + pal.shadowCol }}>
+                        {resultados.map(pr => (
+                          <div key={pr.id} onClick={() => set({ productoSel: { id: pr.id, nombre: pr.nombre }, buscar: "", texto: "" })} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid " + pal.border, fontSize: 12 }}>{pr.nombre}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <input className="inp" style={{ marginTop: 6 }} placeholder="O escribí una sugerencia (producto que no vendemos)" value={e.texto} onChange={ev => set({ texto: ev.target.value })} />
+                </div>
+              )}
+
+              <div className="fl">📍 Local</div>
+              <div className="seg" role="group" aria-label="Local del pedido" style={{ marginBottom: 14 }}>
+                {[["1", nombreLocal(1)], ["2", nombreLocal(2)]].map(([id, l]) => (
+                  <button key={id} className={e.local === id ? "on" : ""} onClick={() => set({ local: id })}>{l}</button>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEditando(null)}>Cancelar</button>
+                <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarEdicion}>Guardar cambios</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {borrando && (
         <div className="pos-overlay" onClick={() => setBorrando(null)}>

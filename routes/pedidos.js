@@ -216,6 +216,34 @@ router.get('/avisados', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Editar un pedido: producto (o sugerencia), datos de contacto si no esta registrado, y local
+router.put('/:id', async (req, res) => {
+  try {
+    const actual = await pool.query('SELECT * FROM pedidos_clientas WHERE id = $1', [req.params.id]);
+    if (!actual.rows.length) return res.status(404).json({ error: 'Pedido no encontrado' });
+    const p = actual.rows[0];
+    const b = req.body || {};
+    const tiene = (k) => Object.prototype.hasOwnProperty.call(b, k);
+    let productoId = tiene('producto_id') ? (b.producto_id || null) : p.producto_id;
+    let productoTexto = tiene('producto_texto') ? (b.producto_texto ? String(b.producto_texto).trim() : null) : p.producto_texto;
+    if (productoId) productoTexto = null;
+    if (!productoId && !productoTexto) return res.status(400).json({ error: 'Elegí un producto o escribí una sugerencia' });
+    let nombre = p.nombre_manual, tel = p.telefono_manual;
+    if (!p.cliente_id) {
+      if (tiene('nombre_manual')) nombre = String(b.nombre_manual || '').trim();
+      if (tiene('telefono_manual')) tel = String(b.telefono_manual || '').trim();
+      if (!nombre || !tel) return res.status(400).json({ error: 'El nombre y el celular son obligatorios' });
+    }
+    const localId = tiene('local_id') ? (parseInt(b.local_id) === 2 ? 2 : 1) : p.local_id;
+    const r = await pool.query(
+      `UPDATE pedidos_clientas SET producto_id = $1, producto_texto = $2, nombre_manual = $3, telefono_manual = $4, local_id = $5
+       WHERE id = $6 RETURNING *`,
+      [productoId, productoTexto, nombre, tel, localId, p.id]
+    );
+    res.json(r.rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // La clienta vino y compro el producto avisado
 router.post('/:id/concretar', async (req, res) => {
   try {
