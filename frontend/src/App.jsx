@@ -368,6 +368,10 @@ button.tab { font-family: inherit; }
 .prov-pago:last-child { border-bottom: none; }
 .prov-form { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-height: 70vh; overflow-y: auto; padding-right: 4px; }
 @media (max-width: 640px) { .prov-form { grid-template-columns: 1fr; } .prov-grid, .rec-grid { grid-template-columns: 1fr; } }
+.rec-pend-grupo { padding: 10px 0; border-top: 1px dashed ${p.border}; }
+.rec-pend-grupo:first-of-type { border-top: none; padding-top: 0; }
+.rec-pend-fila { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 8px; }
+.rec-pend-fila:hover { background: ${p.trHover}; }
 /* --- Comprobantes --- */
 .comp-tipo { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 5px; border: 1.5px solid; font-size: 11px; font-weight: 900; margin-right: 8px; vertical-align: middle; }
 .comp-detalle { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 20px; text-align: left; white-space: normal; }
@@ -11584,7 +11588,11 @@ function ReclamosProveedores({ localId, usuario, paletaActual }) {
   const [productos, setProductos] = useState([]);
   const [proveedores, setProveedores] = useState([]);
   const [buscarProd, setBuscarProd] = useState("");
-  const vacio = { producto_id: "", producto_nombre: "", proveedor_id: "", proveedor_nombre: "", cantidad: 1, motivo: "" };
+  const vacio = { producto_id: "", producto_nombre: "", proveedor_id: "", proveedor_nombre: "", cantidad: 1, motivo: "", tipo: "falla" };
+  // Diferencias al recibir en Ingresos que todavia no se reclamaron
+  const [pendientes, setPendientes] = useState([]);
+  const [verPendientes, setVerPendientes] = useState(true);
+  const [procesando, setProcesando] = useState(null);
   const [nuevo, setNuevo] = useState(vacio);
   const [cerrando, setCerrando] = useState(null);
   const [borrando, setBorrando] = useState(null);
@@ -11593,6 +11601,43 @@ function ReclamosProveedores({ localId, usuario, paletaActual }) {
   const cargar = () => {
     setCargando(true);
     API.get("/reclamos-proveedores").then(res => setReclamos(res.data || [])).catch(() => {}).finally(() => setCargando(false));
+    API.get("/reclamos-proveedores/pendientes-recepcion").then(res => setPendientes(res.data || [])).catch(() => setPendientes([]));
+  };
+  const motivoDe = (d) => (d.faltante > 0
+    ? "Faltaron " + d.faltante + " de " + d.esperado + " facturados" + (d.numero_factura ? " (factura " + d.numero_factura + ")" : "") + (d.nota ? ". Al recibir se anotó: " + d.nota : "")
+    : "Al recibir" + (d.numero_factura ? " la factura " + d.numero_factura : "") + " se anotó: " + (d.nota || "problema con el producto"));
+  const datosDesdePendiente = (d) => ({
+    producto_id: d.producto_id || "", producto_nombre: d.producto_nombre, proveedor_id: d.proveedor_id || "", proveedor_nombre: d.proveedor_nombre || "",
+    cantidad: d.faltante > 0 ? d.faltante : 1, motivo: motivoDe(d), tipo: d.tipo, local_id: d.local_id,
+    orden_id: d.orden_id, orden_item_id: d.orden_item_id, local_recepcion: d.local, numero_factura: d.numero_factura || null,
+  });
+  const reclamarPendiente = (d) => { setNuevo(datosDesdePendiente(d)); setShowNuevo(true); };
+  const descartarPendiente = async (d) => {
+    try {
+      await API.post("/reclamos-proveedores/descartar-pendiente", { orden_item_id: d.orden_item_id, local: d.local });
+      setPendientes(x => x.filter(y => !(y.orden_item_id === d.orden_item_id && y.local === d.local)));
+      avisar("✓ Listo, no se reclama: " + d.producto_nombre);
+    } catch (e) { avisar("Error: no se pudo descartar"); }
+  };
+  // Reclama todas las diferencias de una factura juntas y arma un solo WhatsApp al proveedor
+  const reclamarFactura = async (grupo) => {
+    setProcesando(grupo.clave);
+    try {
+      for (const d of grupo.items) {
+        await API.post("/reclamos-proveedores", { ...datosDesdePendiente(d), estado: "pendiente", usuario_id: usuario?.id, usuario_nombre: usuario?.nombre });
+      }
+      const prov = proveedores.find(x => x.id === grupo.proveedor_id);
+      const tel = telWhatsapp(prov?.whatsapp || prov?.telefono);
+      if (tel.length >= 8) {
+        const texto = "¡Hola" + (prov?.nombre ? " " + prov.nombre : "") + "! Recibimos " + (grupo.numero_factura ? "la factura " + grupo.numero_factura : "el pedido") + " y encontramos estas diferencias:\n\n" +
+          grupo.items.map(d => "• " + d.producto_nombre + ": " + (d.faltante > 0 ? "faltaron " + d.faltante + " de " + d.esperado : d.nota)).join("\n") +
+          "\n\n¿Cómo lo resolvemos? ¡Gracias!";
+        window.open("https://wa.me/" + tel + "?text=" + encodeURIComponent(texto), "_blank");
+      }
+      avisar("✓ " + grupo.items.length + " reclamo" + (grupo.items.length !== 1 ? "s" : "") + " cargado" + (grupo.items.length !== 1 ? "s" : "") + (tel.length >= 8 ? " y el mensaje listo en WhatsApp" : ""));
+      cargar();
+    } catch (e) { avisar("Error: no se pudieron cargar los reclamos"); cargar(); }
+    setProcesando(null);
   };
   useEffect(() => {
     cargar();
@@ -11611,7 +11656,7 @@ function ReclamosProveedores({ localId, usuario, paletaActual }) {
     if (!(parseInt(nuevo.cantidad) > 0)) return avisar("Error: la cantidad tiene que ser mayor a 0");
     if (!nuevo.motivo.trim()) return avisar("Error: contá qué falla tiene");
     try {
-      await API.post("/reclamos-proveedores", { ...nuevo, local_id: localId || 1, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre });
+      await API.post("/reclamos-proveedores", { ...nuevo, local_id: nuevo.local_id || localId || 1, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre });
       avisar("✓ Reclamo cargado");
       setShowNuevo(false); setNuevo(vacio); cargar();
     } catch (e) { avisar("Error: " + (e.response?.data?.error || "no se pudo crear el reclamo")); }
@@ -11627,7 +11672,7 @@ function ReclamosProveedores({ localId, usuario, paletaActual }) {
     const prov = proveedores.find(x => x.id === r.proveedor_id);
     const tel = telWhatsapp(prov?.whatsapp || prov?.telefono);
     const texto = "¡Hola" + (prov?.nombre ? " " + prov.nombre : "") + "! Les escribimos por un reclamo:\n\n" +
-      "• Producto: " + r.producto_nombre + "\n• Cantidad: " + r.cantidad + "\n• Problema: " + r.motivo + "\n\n¿Cómo lo podemos resolver? ¡Gracias!";
+      "• Producto: " + r.producto_nombre + "\n• Cantidad: " + r.cantidad + (r.numero_factura ? "\n• Factura: " + r.numero_factura : "") + "\n• Problema: " + r.motivo + "\n\n¿Cómo lo podemos resolver? ¡Gracias!";
     window.open("https://wa.me/" + tel + "?text=" + encodeURIComponent(texto), "_blank");
     if (r.estado === "pendiente") cambiarEstado(r, "enviado");
   };
@@ -11636,6 +11681,7 @@ function ReclamosProveedores({ localId, usuario, paletaActual }) {
     catch (e) { setBorrando(null); avisar("Error: no se pudo borrar"); }
   };
 
+  const TIPOS_RECLAMO = { faltante: "Faltante", danado: "Llegó dañado", distinto: "Distinto al pedido", falla: "Falla / defecto" };
   const ESTADOS = { pendiente: { l: "Pendiente", cls: "tag-warn" }, enviado: { l: "Enviado al proveedor", cls: "tag-neutral" }, resuelto: { l: "Resuelto", cls: "tag-ok" }, rechazado: { l: "Rechazado", cls: "tag-bad" } };
   const cuenta = (e) => reclamos.filter(r => (e === "abiertos" ? ["pendiente", "enviado"].includes(r.estado) : e === "" ? true : r.estado === e)).length;
   const lista = reclamos.filter(r => (filtroEstado === "abiertos" ? ["pendiente", "enviado"].includes(r.estado) : filtroEstado === "" ? true : r.estado === filtroEstado) && (!filtroProv || String(r.proveedor_id) === filtroProv));
@@ -11657,6 +11703,48 @@ function ReclamosProveedores({ localId, usuario, paletaActual }) {
         </select>
         <button className="btn btn-p btn-sm" style={{ marginLeft: "auto" }} onClick={() => { setNuevo(vacio); setShowNuevo(true); }}>+ Nuevo reclamo</button>
       </div>
+      {pendientes.length > 0 && (() => {
+        const grupos = [];
+        pendientes.forEach(d => {
+          const clave = d.orden_id + "-" + (d.proveedor_id || "");
+          let g = grupos.find(x => x.clave === clave);
+          if (!g) { g = { clave, numero_factura: d.numero_factura, proveedor_id: d.proveedor_id, proveedor_nombre: d.proveedor_nombre, fecha: d.fecha_factura, items: [] }; grupos.push(g); }
+          g.items.push(d);
+        });
+        return (
+          <div className="chart-card anim-in" style={{ marginBottom: 12, borderTop: "3px solid " + p.warn }}>
+            <div className="chart-head">
+              <div className="chart-title">📦 Llegó distinto en Ingresos · {pendientes.length} sin reclamar</div>
+              <button className="chip-btn" onClick={() => setVerPendientes(v => !v)} aria-expanded={verPendientes}>{verPendientes ? "Ocultar" : "Ver"}</button>
+            </div>
+            {verPendientes && grupos.map(g => (
+              <div key={g.clave} className="rec-pend-grupo">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
+                  <div style={{ fontSize: 12 }}><b>{g.proveedor_nombre || "Sin proveedor"}</b> <span style={{ color: p.textMuted }}>· {g.numero_factura ? "factura " + g.numero_factura : "pedido sin factura"}{g.fecha ? " · " + g.fecha.split("-").reverse().slice(0, 2).join("/") : ""}</span></div>
+                  {g.items.length > 1 && <button className="mini-chip" disabled={procesando === g.clave} onClick={() => reclamarFactura(g)}>{procesando === g.clave ? "Cargando..." : "Reclamar las " + g.items.length}</button>}
+                </div>
+                {g.items.map(d => (
+                  <div key={d.orden_item_id + d.local} className="rec-pend-fila">
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700 }}>{d.producto_nombre} <span className="tag tag-neutral" style={{ marginLeft: 4 }}>{nombreLocal(d.local_id)}</span></div>
+                      <div style={{ fontSize: 11, color: d.faltante > 0 ? p.red : p.warn, marginTop: 2 }}>
+                        {d.faltante > 0 ? "Faltaron " + d.faltante + " (se facturaron " + d.esperado + ", llegaron " + d.recibido + ")" : "Con problema"}
+                        {d.nota && <span style={{ color: p.textMuted }}> · “{d.nota}”</span>}
+                        {d.recibido_por && <span style={{ color: p.textMuted }}> · recibió {d.recibido_por}</span>}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                      <button className="mini-chip" style={{ borderColor: p.accent, color: p.accent }} onClick={() => reclamarPendiente(d)}>Reclamar</button>
+                      <button className="mini-chip" onClick={() => descartarPendiente(d)} title="No hace falta reclamarlo">No reclamar</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
       {unidadesAbiertas > 0 && filtroEstado === "abiertos" && (
         <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 10 }}>Hay <b style={{ color: p.text }}>{unidadesAbiertas} unidades</b> en reclamos sin resolver.</div>
       )}
@@ -11676,7 +11764,7 @@ function ReclamosProveedores({ localId, usuario, paletaActual }) {
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 800 }}>{r.cantidad} × {r.producto_nombre}</div>
-                    <div style={{ fontSize: 11, color: p.textMuted, marginTop: 2 }}>{r.proveedor_nombre || "—"} · {nombreLocal(r.local_id)} · {new Date(r.creado_en).toLocaleDateString("es-AR")}{abierto && dias > 0 ? " · hace " + dias + " día" + (dias !== 1 ? "s" : "") : ""}</div>
+                    <div style={{ fontSize: 11, color: p.textMuted, marginTop: 2 }}>{r.tipo && TIPOS_RECLAMO[r.tipo] ? <b style={{ color: p.text }}>{TIPOS_RECLAMO[r.tipo]} · </b> : null}{r.numero_factura ? "📄 " + r.numero_factura + " · " : ""}{r.proveedor_nombre || "—"} · {nombreLocal(r.local_id)} · {new Date(r.creado_en).toLocaleDateString("es-AR")}{abierto && dias > 0 ? " · hace " + dias + " día" + (dias !== 1 ? "s" : "") : ""}</div>
                   </div>
                   <span className={"tag " + e.cls}>{e.l}</span>
                 </div>
@@ -11702,11 +11790,17 @@ function ReclamosProveedores({ localId, usuario, paletaActual }) {
               <div style={{ fontSize: 15, fontWeight: 800 }}>Nuevo reclamo</div>
               <button className="icon-btn" onClick={() => setShowNuevo(false)} aria-label="Cerrar">✕</button>
             </div>
+            {nuevo.orden_item_id && <div style={{ fontSize: 11, color: p.textMuted, background: p.bg, borderRadius: 8, padding: "6px 10px", marginBottom: 10 }}>📦 Viene de la recepción{nuevo.numero_factura ? " de la factura " + nuevo.numero_factura : ""} en {nombreLocal(nuevo.local_id)}. Revisá y guardá.</div>}
+            <div className="fg"><div className="fl">Tipo de reclamo</div>
+              <div className="seg" role="group" aria-label="Tipo de reclamo" style={{ display: "flex", flexWrap: "wrap" }}>
+                {Object.entries(TIPOS_RECLAMO).map(([k, l]) => <button key={k} style={{ flex: "1 1 auto" }} className={nuevo.tipo === k ? "on" : ""} onClick={() => setNuevo(x => ({ ...x, tipo: k }))}>{l}</button>)}
+              </div>
+            </div>
             <div className="fg"><div className="fl">Producto *</div>
-              {nuevo.producto_id ? (
+              {nuevo.producto_id || nuevo.orden_item_id ? (
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: p.bg, borderRadius: 8 }}>
                   <span style={{ fontSize: 12, fontWeight: 700 }}>{nuevo.producto_nombre}</span>
-                  <button className="mini-chip" onClick={() => setNuevo(x => ({ ...x, producto_id: "", producto_nombre: "" }))}>cambiar</button>
+                  {!nuevo.orden_item_id && <button className="mini-chip" onClick={() => setNuevo(x => ({ ...x, producto_id: "", producto_nombre: "" }))}>cambiar</button>}
                 </div>
               ) : (
                 <div style={{ position: "relative" }}>
@@ -11730,7 +11824,7 @@ function ReclamosProveedores({ localId, usuario, paletaActual }) {
               </div>
               <div className="fg"><div className="fl">Cantidad *</div><input className="inp" type="number" min="1" value={nuevo.cantidad} onChange={e => setNuevo(x => ({ ...x, cantidad: e.target.value }))} /></div>
             </div>
-            <div className="fg"><div className="fl">¿Qué falla tiene? *</div>
+            <div className="fg"><div className="fl">¿Qué pasó? *</div>
               <textarea className="inp" rows={3} placeholder="Ej: llegó con el precinto roto, no funciona el aplicador, vencido..." value={nuevo.motivo} onChange={e => setNuevo(x => ({ ...x, motivo: e.target.value }))} />
             </div>
             <div style={{ display: "flex", gap: 8 }}>
