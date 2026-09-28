@@ -164,6 +164,8 @@ button.tab { font-family: inherit; }
 .dash-alert b { color: ${p.warn}; }
 .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 12px; }
 .kpi-grid-sm { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 12px; margin-bottom: 14px; }
+.kpi-3 { grid-template-columns: repeat(3, minmax(0,1fr)) !important; }
+@media (max-width: 700px) { .kpi-3 { grid-template-columns: 1fr !important; } }
 .kpi { background: ${p.card}; border: 1px solid ${p.border}; border-radius: 8px; padding: 14px 16px; box-shadow: 0 1px 2px ${p.shadowSoft}; min-width: 0; }
 .kpi-label { font-size: 11px; font-weight: 600; color: ${p.textMuted}; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
 .kpi-val { font-size: 24px; font-weight: 700; color: ${p.text}; line-height: 1.1; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -311,6 +313,28 @@ button.tab { font-family: inherit; }
 .pago-tipo:hover { border-color: ${p.accent}; }
 .pago-tipo:active { transform: scale(.97); }
 .pago-tipo.on { border-color: ${p.accent}; background: ${p.accentDim}; color: ${p.accent}; box-shadow: inset 0 0 0 1px ${p.accent}; }
+/* --- Ingreso de mercaderia --- */
+.oi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
+.oi-seccion { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; margin: 4px 0 10px; }
+.oi-card { text-align: left; border-radius: 10px; }
+.oi-card.pendiente { padding: 14px 16px; background: linear-gradient(180deg, ${p.accentDim}, ${p.card} 70%); border: 1px solid ${p.accent}88; box-shadow: 0 2px 10px ${p.shadowSoft}; }
+.oi-card.recibida { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: ${p.card}; border: 1px solid ${p.border}; opacity: .8; }
+.oi-card.recibida:hover { opacity: 1; }
+.oi-check { width: 26px; height: 26px; border-radius: 50%; background: ${p.greenDim}; color: ${p.green}; font-weight: 900; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.oi-btn-recibir { flex: 1; font-family: inherit; font-size: 14px; font-weight: 800; padding: 11px 14px; border-radius: 8px; border: none; cursor: pointer; background: ${p.accent}; color: #1B2431; box-shadow: 0 2px 0 rgba(0,0,0,.25); transition: filter .15s, transform .1s; }
+.oi-btn-recibir:hover { filter: brightness(1.08); }
+.oi-btn-recibir:active { transform: translateY(1px); }
+.oi-item { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 10px 14px; border-bottom: 1px solid ${p.border}; text-align: left; }
+.oi-item:last-child { border-bottom: none; }
+.oi-cont { width: 52px; height: 30px; border: none; background: transparent; color: ${p.text}; text-align: center; font-size: 15px; font-weight: 800; font-family: inherit; outline: none; -moz-appearance: textfield; }
+.oi-cont::-webkit-outer-spin-button, .oi-cont::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+@media (max-width: 700px) { .oi-item { grid-template-columns: 1fr; } }
+.ped-grupo { border-bottom: 1px solid ${p.border}; }
+.ped-grupo summary { display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer; list-style: none; font-size: 13px; }
+.ped-grupo summary::-webkit-details-marker { display: none; }
+.ped-grupo summary:hover { background: ${p.trHover}; }
+.ped-grupo[open] summary { background: ${p.bg}; }
+.ped-cuenta { min-width: 88px; text-align: right; font-weight: 800; color: ${p.accent}; font-size: 12px; }
 .skel { background: ${p.border}; border-radius: 8px; animation: pulse 1.4s ease-in-out infinite; }
 .chip { border-radius: 6px; padding: 6px 10px; font-size: 11px; border: 1px solid ${p.border}; background: ${p.bg}; color: ${p.text}; }
 .seg button:focus-visible, button.tab:focus-visible, .btn:focus-visible { outline: 2px solid ${p.accent}; outline-offset: 2px; }
@@ -321,7 +345,7 @@ button.tab { font-family: inherit; }
   .dash-grid2 { grid-template-columns: 1fr; }
 }
 @media (max-width: 520px) {
-  .kpi-grid-sm { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .kpi-grid-sm { grid-template-columns: 1fr; }
   .kpi-val { font-size: 20px; }
 }
 @media (max-width: 1180px) {
@@ -1470,7 +1494,7 @@ function VentasOnline({ localId, usuario, permisosActivos, paletaActual }) {
           </div>
 
           <div className="fg">
-            <div className="fl">Clienta (opcional, suma puntos)</div>
+            <div className="fl">Cliente (opcional, suma puntos)</div>
             {cliSel ? (
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: p.greenDim, border: "1px solid " + p.green, borderRadius: 6 }}>
                 <span style={{ fontSize: 12, fontWeight: 600 }}>{cliSel.nombre} <span style={{ color: p.textMuted, fontWeight: 400 }}>{cliSel.cuit_dni ? "· " + cliSel.cuit_dni : ""}</span></span>
@@ -1542,7 +1566,7 @@ function VentasOnline({ localId, usuario, permisosActivos, paletaActual }) {
           ))}
         </div>
 
-        <input className="inp" placeholder="Buscar por N°, pedido, comprobante, clienta o medio de pago" value={buscarLista} onChange={e => setBuscarLista(e.target.value)} style={{ marginBottom: 10 }} />
+        <input className="inp" placeholder="Buscar por N°, pedido, comprobante, cliente o medio de pago" value={buscarLista} onChange={e => setBuscarLista(e.target.value)} style={{ marginBottom: 10 }} />
 
         {listaFiltrada.length === 0 ? (
           <div className="empty">{ventasOnlineList.length === 0 ? "No hay ventas online en este mes." : "Ninguna venta coincide con el filtro."}</div>
@@ -1550,7 +1574,7 @@ function VentasOnline({ localId, usuario, permisosActivos, paletaActual }) {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%" }}>
               <thead>
-                <tr><th>N°</th><th>Fecha</th><th>Canal</th><th>Pedido</th><th>Clienta</th><th>Pago</th><th style={{ textAlign: "right" }}>Total</th><th></th></tr>
+                <tr><th>N°</th><th>Fecha</th><th>Canal</th><th>Pedido</th><th>Cliente</th><th>Pago</th><th style={{ textAlign: "right" }}>Total</th><th></th></tr>
               </thead>
               <tbody>
                 {listaFiltrada.map(v => (
@@ -2015,10 +2039,10 @@ function BuscarPrecio({ localId, paletaActual }) {
             </div>
           )}
 
-          {/* Compartir con la clienta */}
+          {/* Compartir con el cliente */}
           <div style={{ padding: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-              <div style={{ fontSize: 13, fontWeight: 800 }}>Enviarle el precio a la clienta</div>
+              <div style={{ fontSize: 13, fontWeight: 800 }}>Enviarle el precio al cliente</div>
               <div className="seg" role="group" aria-label="Formato del mensaje">
                 <button className={formato === "whatsapp" ? "on" : ""} onClick={() => setFormato("whatsapp")}>💬 WhatsApp</button>
                 <button className={formato === "instagram" ? "on" : ""} onClick={() => setFormato("instagram")}>📸 Instagram</button>
@@ -2052,7 +2076,7 @@ function BuscarPrecio({ localId, paletaActual }) {
         <div className="anim-in" style={{ textAlign: "center", padding: "30px 10px" }}>
           <div style={{ fontSize: 44, marginBottom: 8 }} aria-hidden="true">🏷️</div>
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Escaneá o buscá un producto</div>
-          <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 18 }}>Vas a ver el precio, el stock de cada local y un mensaje listo para mandarle a la clienta.</div>
+          <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 18 }}>Vas a ver el precio, el stock de cada local y un mensaje listo para mandarle al cliente.</div>
           <button className="btn btn-p" style={{ padding: "14px 22px", fontSize: 15, borderRadius: 12 }} onClick={() => { setErrorCamara(""); setEscaneando(true); }}>📷 Escanear con la cámara</button>
           {recientes.length > 0 && (
             <div style={{ marginTop: 26, textAlign: "left" }}>
@@ -2140,7 +2164,7 @@ function POS({ localId, usuario, paletaActual }) {
   const [reintentandoId, setReintentandoId] = useState(null);
 
   // ===== Mejoras de caja: atajos, ventas en espera, sonido, botones rapidos, sugerencias,
-  // ficha de la clienta y confirmacion de venta =====
+  // ficha del cliente y confirmacion de venta =====
   const busquedaRef = useRef(null);
   const dniRef = useRef(null);
   const [sonidoOn, setSonidoOn] = useState(() => { try { return localStorage.getItem("lumiere_pos_sonido") !== "off"; } catch (e) { return true; } });
@@ -2156,9 +2180,9 @@ function POS({ localId, usuario, paletaActual }) {
   const fichaClienteIdRef = useRef(null);
   const [mostrarAtajos, setMostrarAtajos] = useState(false);
   const [nombreEspera, setNombreEspera] = useState(null); // null = cerrado; texto = pidiendo el nombre
-  // Desafio para la vendedora: superar el ticket promedio de la clienta. { meta, cliente, clienteId }
+  // Desafio para la vendedora: superar el ticket promedio del cliente. { meta, cliente, clienteId }
   const [reto, setReto] = useState(null);
-  const [retoDescartadoId, setRetoDescartadoId] = useState(null); // clienta a la que se le dijo "Ahora no" en esta venta
+  const [retoDescartadoId, setRetoDescartadoId] = useState(null); // cliente a la que se le dijo "Ahora no" en esta venta
 
   // ---- Modo de vista del POS (cada dispositivo recuerda el suyo) ----
   const [modoVista, setModoVistaState] = useState(() => {
@@ -2383,7 +2407,7 @@ function POS({ localId, usuario, paletaActual }) {
   };
   const descartarEspera = (v) => setVentasEnEspera(prev => prev.filter(x => x.id !== v.id));
 
-  // Ficha de la clienta (ventana emergente con info para ayudar a vender)
+  // Ficha del cliente (ventana emergente con info para ayudar a vender)
   const cargarFicha = async (clienteId, abrir) => {
     if (!clienteId) { setFichaCliente(null); fichaClienteIdRef.current = null; return; }
     if (fichaClienteIdRef.current === clienteId) { if (abrir && fichaCliente) setMostrarFicha(true); return; }
@@ -2391,7 +2415,7 @@ function POS({ localId, usuario, paletaActual }) {
     setReto(r => (r && r.clienteId !== clienteId ? null : r));
     try {
       const r = await API.get("/pos/cliente/" + clienteId + "/resumen");
-      if (fichaClienteIdRef.current !== clienteId) return; // ya se eligio otra clienta
+      if (fichaClienteIdRef.current !== clienteId) return; // ya se eligio otra cliente
       setFichaCliente(r.data);
       const tieneAlgo = r.data && (r.data.compras > 0 || (r.data.gift_cards || []).length > 0 || (r.data.pendientes || []).length > 0 || (r.data.dias_cumple !== null && r.data.dias_cumple <= 15));
       if (abrir && tieneAlgo) setMostrarFicha(true);
@@ -2480,7 +2504,7 @@ function POS({ localId, usuario, paletaActual }) {
   };
   const enviarTicketWhatsApp = (d) => {
     let tel = (telefonoTicket || "").replace(/[^0-9]/g, "");
-    if (!tel) return setMensaje("Escribi el telefono de la clienta para enviarle el ticket");
+    if (!tel) return setMensaje("Escribi el telefono del cliente para enviarle el ticket");
     if (tel.startsWith("0")) tel = tel.slice(1);
     if (!tel.startsWith("54")) tel = "549" + tel;
     window.open("https://wa.me/" + tel + "?text=" + encodeURIComponent(textoTicketWhatsApp(d)), "_blank");
@@ -2713,7 +2737,7 @@ function POS({ localId, usuario, paletaActual }) {
 
   // Cada tecla del DNI dispara una busqueda; solo vale la respuesta del ultimo DNI tipeado
   // (si no, una respuesta vieja -- por ejemplo de los primeros 7 digitos -- podia llegar
-  // tarde y pisar a la clienta correcta).
+  // tarde y pisar al cliente correcta).
   const ultimoDniBuscadoRef = useRef("");
   const buscarClientePorDni = async (dni) => {
     setDniInput(dni);
@@ -2892,7 +2916,7 @@ function POS({ localId, usuario, paletaActual }) {
       if (faltantes.length > 0) { setItemsSinStock(faltantes); return; }
     }
     if (preventa && tipoReserva === "sena") {
-      if (!nombrePreventa.trim()) return setMensaje("Escribi el nombre de la clienta");
+      if (!nombrePreventa.trim()) return setMensaje("Escribi el nombre del cliente");
       const montoSenaNum = parseFloat(montoSena);
       if (!montoSenaNum || montoSenaNum <= 0) return setMensaje("Poné el monto de la seña");
       if (montoSenaNum > total) return setMensaje("La seña no puede ser mayor al total (" + fmt(total) + ")");
@@ -3068,12 +3092,12 @@ function POS({ localId, usuario, paletaActual }) {
     return [...opciones].filter(v => v >= base).sort((a, b) => a - b).slice(0, 5);
   };
 
-  // Ideas para la vendedora a partir de la ficha de la clienta
+  // Ideas para la vendedora a partir de la ficha del cliente
   const ideasVenta = (f) => {
     const ideas = [];
     if (!f) return ideas;
     if (f.dias_cumple !== null && f.dias_cumple !== undefined && f.dias_cumple <= 15) {
-      ideas.push({ icono: "🎂", texto: f.dias_cumple === 0 ? "¡Hoy es su cumpleaños! Saludala y ofrecele un regalo o cupón." : "Cumple años en " + f.dias_cumple + " día" + (f.dias_cumple > 1 ? "s" : "") + ": buen momento para ofrecerle algo especial." });
+      ideas.push({ icono: "🎂", texto: f.dias_cumple === 0 ? "¡Hoy es su cumpleaños! Saludalo y ofrecele un regalo o cupón." : "Cumple años en " + f.dias_cumple + " día" + (f.dias_cumple > 1 ? "s" : "") + ": buen momento para ofrecerle algo especial." });
     }
     (f.gift_cards || []).forEach(g => ideas.push({ icono: "🎁", texto: "Tiene una gift card con " + fmt(g.saldo) + " de saldo (" + g.codigo + "). Recordáselo: la puede usar hoy." }));
     if ((f.pendientes || []).length > 0) ideas.push({ icono: "📦", texto: "Tiene " + f.pendientes.length + " preventa/seña pendiente. Fijate si viene a retirarla." });
@@ -3082,7 +3106,7 @@ function POS({ localId, usuario, paletaActual }) {
     });
     if ((f.cliente?.puntos || 0) > 0) ideas.push({ icono: "⭐", texto: "Tiene " + f.cliente.puntos + " puntos acumulados." });
     if (f.compras === 0) ideas.push({ icono: "👋", texto: "Es su primera compra: contale de los puntos y las promociones." });
-    else if (f.compras >= 5) ideas.push({ icono: "💛", texto: "Clienta frecuente: ya lleva " + f.compras + " compras." });
+    else if (f.compras >= 5) ideas.push({ icono: "💛", texto: "Cliente frecuente: ya lleva " + f.compras + " compras." });
     return ideas;
   };
 
@@ -3465,7 +3489,7 @@ function POS({ localId, usuario, paletaActual }) {
             {preventa ? (
               <div className="pc-sec">
                 <div className="pc-tit"><span>{tipoReserva === "sena" ? "💰 SEÑA" : "📦 PREVENTA"}</span></div>
-                <input className="inp" placeholder={tipoReserva === "sena" ? "Nombre de la clienta (seña)" : "Nombre de la clienta (preventa)"} value={nombrePreventa} onChange={e => setNombrePreventa(e.target.value)} style={{ marginBottom: tipoReserva === "sena" ? 8 : 0 }} />
+                <input className="inp" placeholder={tipoReserva === "sena" ? "Nombre del cliente (seña)" : "Nombre del cliente (preventa)"} value={nombrePreventa} onChange={e => setNombrePreventa(e.target.value)} style={{ marginBottom: tipoReserva === "sena" ? 8 : 0 }} />
                 {tipoReserva === "sena" && (
                   <>
                     <div style={{ display: "flex", gap: 6 }}>
@@ -3496,7 +3520,7 @@ function POS({ localId, usuario, paletaActual }) {
                         <div style={{ fontSize: 11, color: temaPal.textMuted }}>⭐ {clienteSeleccionado.puntos || 0} pts{fichaCliente ? " · " + fichaCliente.compras + " compras" : ""}{clienteSeleccionado.nivel ? " · " + clienteSeleccionado.nivel : ""}</div>
                       </div>
                       {fichaCliente && <button className="mini-chip" onClick={() => setMostrarFicha(true)} title="Ver la ficha con ideas para vender">ℹ Ficha{ideasVenta(fichaCliente).length > 0 ? " (" + ideasVenta(fichaCliente).length + ")" : ""}</button>}
-                      <button className="icon-btn" onClick={() => { setClienteSeleccionado(null); setDniInput(""); setFichaCliente(null); fichaClienteIdRef.current = null; setShowNuevoCliente(false); setTimeout(() => dniRef.current?.focus(), 30); }} aria-label="Cambiar clienta" title="Cambiar clienta">✕</button>
+                      <button className="icon-btn" onClick={() => { setClienteSeleccionado(null); setDniInput(""); setFichaCliente(null); fichaClienteIdRef.current = null; setShowNuevoCliente(false); setTimeout(() => dniRef.current?.focus(), 30); }} aria-label="Cambiar cliente" title="Cambiar cliente">✕</button>
                     </div>
                   ) : clienteSeleccionado && !clienteSeleccionado.id ? (
                     <div className="cli-card">
@@ -3508,20 +3532,20 @@ function POS({ localId, usuario, paletaActual }) {
                     <>
                       <div style={{ display: "flex", gap: 6 }}>
                         <div style={{ position: "relative", flex: 1 }}>
-                          <input ref={dniRef} className="inp" inputMode="numeric" placeholder="DNI de la clienta" value={dniInput} onChange={e => buscarClientePorDni(e.target.value)} style={{ fontSize: 15, fontWeight: 700, padding: "10px 12px", letterSpacing: ".03em" }} aria-label="DNI de la clienta" />
+                          <input ref={dniRef} className="inp" inputMode="numeric" placeholder="DNI del cliente" value={dniInput} onChange={e => buscarClientePorDni(e.target.value)} style={{ fontSize: 15, fontWeight: 700, padding: "10px 12px", letterSpacing: ".03em" }} aria-label="DNI del cliente" />
                           {buscandoCliente && <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: temaPal.textMuted }}>buscando…</span>}
                         </div>
                         <button className="btn btn-g btn-sm" style={{ whiteSpace: "nowrap" }} onClick={() => { setShowNuevoCliente(false); setClienteSeleccionado({ id: null, nombre: "Consumidor Final", puntos: 0 }); }}>Consumidor final</button>
                       </div>
                       {showNuevoCliente && (
                         <div className="pop-in" style={{ marginTop: 8, padding: 10, borderRadius: 8, background: temaPal.blueDim, border: "1px solid " + temaPal.border }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>No está registrada. ¿La damos de alta?</div>
+                          <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>No está registrado. ¿Lo damos de alta?</div>
                           <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
                             <input className="inp" placeholder="Nombre" value={nuevoClienteDni.nombre} onChange={e => setNuevoClienteDni(p => ({ ...p, nombre: e.target.value }))} style={{ flex: 1, padding: "7px 10px", fontSize: 12 }} />
                             <input className="inp" type="tel" placeholder="Teléfono" value={nuevoClienteDni.telefono} onChange={e => setNuevoClienteDni(p => ({ ...p, telefono: e.target.value }))} style={{ flex: 1, padding: "7px 10px", fontSize: 12 }} />
                           </div>
                           <div style={{ display: "flex", gap: 6 }}>
-                            <button className="btn btn-p btn-sm" style={{ flex: 1 }} onClick={crearClienteRapido}>Guardar clienta</button>
+                            <button className="btn btn-p btn-sm" style={{ flex: 1 }} onClick={crearClienteRapido}>Guardar cliente</button>
                             <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => { setShowNuevoCliente(false); setClienteSeleccionado({ id: null, nombre: "Consumidor Final", puntos: 0 }); }}>Seguir sin registrar</button>
                           </div>
                         </div>
@@ -3780,10 +3804,10 @@ function POS({ localId, usuario, paletaActual }) {
               && fichaCliente.compras >= 2 && fichaCliente.ticket_promedio > 0 && cart.length > 0
               && subtotalConDesc < fichaCliente.ticket_promedio && retoDescartadoId !== fichaCliente.cliente.id && (() => {
               // El desafio se ofrece cuando ya hay productos en el carrito pero todavia no
-              // llegan al ticket promedio de la clienta (si ya lo supera, no tiene gracia).
+              // llegan al ticket promedio del cliente (si ya lo supera, no tiene gracia).
               const meta = Math.round(fichaCliente.ticket_promedio);
               const falta = Math.max(meta - subtotalConDesc + 1, 0);
-              const nombreCorto = (fichaCliente.cliente.nombre || "La clienta").split(/[ ,]+/).filter(Boolean)[0];
+              const nombreCorto = (fichaCliente.cliente.nombre || "El cliente").split(/[ ,]+/).filter(Boolean)[0];
               return (
                 <div className="reto-card pop-in" role="status" style={{ marginBottom: 10 }}>
                   <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
@@ -3970,7 +3994,7 @@ function POS({ localId, usuario, paletaActual }) {
       </div>
       {preventa && tipoReserva === "sena" && (
         <div style={{ background: "#c9a84c12", border: "1px solid #c9a84c", borderRadius: 6, padding: "10px 16px", marginBottom: 12, fontSize: 12, color: "#8a6d1f" }}>
-          💰 Modo Seña: para productos que <b>ya tenemos</b> pero la clienta no se los lleva ahora. Se reserva el stock (nadie mas se lo puede llevar) y cobrás la seña — el resto se cobra cuando venga a buscarlo.
+          💰 Modo Seña: para productos que <b>ya tenemos</b> pero el cliente no se los lleva ahora. Se reserva el stock (nadie mas se lo puede llevar) y cobrás la seña — el resto se cobra cuando venga a buscarlo.
         </div>
       )}
       {modoPrueba && (
@@ -4181,7 +4205,7 @@ function POS({ localId, usuario, paletaActual }) {
                 <div className="trofeo" style={{ fontSize: 40, animationDelay: "250ms" }} aria-hidden="true">🏆</div>
                 <div style={{ fontSize: 17, fontWeight: 900, color: temaPal.accent, marginTop: 2 }}>¡Desafío superado!</div>
                 <div style={{ fontSize: 12, color: temaPal.text, marginTop: 4 }}>
-                  Vendiste {fmt(Math.round(ventaConfirmada.reto.vendido - ventaConfirmada.reto.meta)).replace(",00", "")} más que el ticket promedio de {ventaConfirmada.reto.cliente}. ¡Genia!
+                  Vendiste {fmt(Math.round(ventaConfirmada.reto.vendido - ventaConfirmada.reto.meta)).replace(",00", "")} más que el ticket promedio de {ventaConfirmada.reto.cliente}. ¡Excelente!
                 </div>
                 {ventaConfirmada.retoMes && (
                   <div style={{ marginTop: 10 }}>
@@ -4193,7 +4217,7 @@ function POS({ localId, usuario, paletaActual }) {
                 )}
                 {ventaConfirmada.retoMes && ventaConfirmada.retoMes.premio_nuevo && (
                   <div className="pop-in" style={{ marginTop: 10, padding: "10px 12px", borderRadius: 8, background: temaPal.greenDim, border: "1px solid " + temaPal.green, color: temaPal.text, fontSize: 13, fontWeight: 800, animationDelay: "500ms" }}>
-                    🎁 ¡Completaste los {ventaConfirmada.retoMes.meta_mensual} desafíos del mes! Ganaste un producto de hasta {fmt(ventaConfirmada.retoMes.premio_monto).replace(",00", "")}. Pedíselo a tu encargada.
+                    🎁 ¡Completaste los {ventaConfirmada.retoMes.meta_mensual} desafíos del mes! Ganaste un producto de hasta {fmt(ventaConfirmada.retoMes.premio_monto).replace(",00", "")}. Pedíselo a quien esté a cargo del local.
                   </div>
                 )}
               </div>
@@ -4208,7 +4232,7 @@ function POS({ localId, usuario, paletaActual }) {
             {modoTicket === "imprimir" && <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 14 }}>🖨 Ticket enviado a la impresora</div>}
             {(modoTicket === "enviar" || modoTicket === "preguntar") && (
               <div style={{ margin: "14px 0", textAlign: "left" }}>
-                <div className="fl">Teléfono de la clienta (WhatsApp)</div>
+                <div className="fl">Teléfono del cliente (WhatsApp)</div>
                 <div style={{ display: "flex", gap: 6 }}>
                   <input className="inp" type="tel" placeholder="Ej: 2964 123456" value={telefonoTicket} onChange={e => setTelefonoTicket(e.target.value)} onKeyDown={e => { if (e.key === "Enter") enviarTicketWhatsApp(ventaConfirmada); }} style={{ flex: 1 }} />
                   <button className="btn btn-sm" style={{ background: temaPal.wa, color: "#fff" }} onClick={() => enviarTicketWhatsApp(ventaConfirmada)}>💬 Enviar</button>
@@ -4262,7 +4286,7 @@ function POS({ localId, usuario, paletaActual }) {
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 12 }}>⌨ Atajos de teclado</div>
             {[
               ["F2", "Ir al buscador / escáner"],
-              ["F4", "Ir al DNI de la clienta"],
+              ["F4", "Ir al DNI del cliente"],
               ["F8", "Poner la venta en espera"],
               ["F9", "Cobrar"],
               ["Enter", "En el buscador: agrega el producto si hay uno solo"],
@@ -4292,12 +4316,12 @@ function POS({ localId, usuario, paletaActual }) {
                 <div className="fg"><div className="fl">Telefono (opcional)</div><input className="inp" placeholder="Ej: 2964123456" value={nuevaGC.beneficiario_telefono} onChange={e => setNuevaGC(p => ({ ...p, beneficiario_telefono: e.target.value }))} /></div>
                 <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12, cursor: "pointer", margin: "8px 0 4px", padding: 8, background: nuevaGC.es_devolucion ? "#c9a84c15" : "transparent", borderRadius: 6 }}>
                   <input type="checkbox" checked={nuevaGC.es_devolucion} onChange={e => setNuevaGC(p => ({ ...p, es_devolucion: e.target.checked }))} style={{ marginTop: 2 }} />
-                  <span>Es un <b>credito por devolucion</b> (la clienta ya habia pagado esta plata en otra venta, no hay que cobrarla de nuevo ni sumarla como ingreso de hoy)</span>
+                  <span>Es un <b>credito por devolucion</b> (el cliente ya habia pagado esta plata en otra venta, no hay que cobrarla de nuevo ni sumarla como ingreso de hoy)</span>
                 </label>
                 {nuevaGC.es_devolucion && (
                   <div className="fg"><div className="fl">N° de comprobante de la compra original *</div>
                     <input className="inp" placeholder="Ej: F-0344" value={nuevaGC.venta_origen_numero} onChange={e => setNuevaGC(p => ({ ...p, venta_origen_numero: e.target.value }))} />
-                    <div style={{ fontSize: 10, color: "#65676B", marginTop: 4 }}>Lo encontras en el ticket que le dimos a la clienta cuando compro.</div>
+                    <div style={{ fontSize: 10, color: "#65676B", marginTop: 4 }}>Lo encontras en el ticket que le dimos al cliente cuando compro.</div>
                   </div>
                 )}
                 <div style={{ fontSize: 10, color: temaPal.textMuted, marginBottom: 14 }}>Se cobra el monto ahora como ingreso de caja. La gift card queda lista para usarse en cualquier venta futura.</div>
@@ -4633,7 +4657,7 @@ function Compras({ localId, paletaActual }) {
         <div className="fade">
           <div className="card" style={{ marginBottom: 16 }}>
             <div className="ct">Cuanto se vendio, de la mercaderia de cada proveedor</div>
-            <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 10 }}>No es lo que le compraste al proveedor -- es lo que vendiste vos de sus productos a tus clientas.</div>
+            <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 10 }}>No es lo que le compraste al proveedor -- es lo que vendiste vos de sus productos a tus clientes.</div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
               <div className="fg" style={{ marginBottom: 0 }}>
                 <div className="fl">Desde</div>
@@ -5425,7 +5449,7 @@ function Inventario({ localId, usuario, paletaActual }) {
               </div>
               <div style={{ fontSize: 11, color: temaPal.textMuted }}>Productos activos con stock en {vistaNombre}, según el costo y precio cargados.</div>
             </div>
-            <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+            <div className="kpi-grid kpi-3">
               <div className="kpi" style={{ borderTop: "3px solid #2471a3" }}><div className="kpi-label">Mercadería a costo</div><div className="kpi-val" style={{ color: "#2471a3" }}><CountUp value={totalCosto} formato={v => fmt(Math.round(v)).replace(",00", "")} /></div><div className="kpi-sub">{filas.length} productos con stock</div></div>
               <div className="kpi" style={{ borderTop: "3px solid " + temaPal.accent }}><div className="kpi-label">Si se vendiera todo</div><div className="kpi-val" style={{ color: temaPal.accent }}><CountUp value={totalVenta} formato={v => fmt(Math.round(v)).replace(",00", "")} /></div><div className="kpi-sub">a precio de lista</div></div>
               <div className="kpi" style={{ borderTop: "3px solid " + temaPal.green }}><div className="kpi-label">Ganancia potencial</div><div className="kpi-val" style={{ color: temaPal.green }}><CountUp value={gananciaPotencial} formato={v => fmt(Math.round(v)).replace(",00", "")} /></div><div className="kpi-sub">{margenPct.toFixed(1)}% de margen</div></div>
@@ -5922,7 +5946,7 @@ function Clientes({ usuario, paletaActual }) {
     if (!confirm("Resetear la contrasena del portal de " + (cli.nombre || cli.name) + "? Va a poder volver a registrarse con su DNI.")) return;
     try {
       await API.post("/clientes/" + cli.id + "/resetear-portal");
-      setMensaje("Contrasena del portal reseteada. La clienta ya puede registrarse de nuevo con su DNI.");
+      setMensaje("Contrasena del portal reseteada. El cliente ya puede registrarse de nuevo con su DNI.");
       setTimeout(() => setMensaje(""), 4000);
     } catch (e) {
       setMensaje("Error al resetear la contrasena del portal");
@@ -5971,7 +5995,7 @@ function Clientes({ usuario, paletaActual }) {
     if (!editandoCliente.telefono.trim()) { setMensaje("El celular es obligatorio"); return; }
     try {
       await API.put("/clientes/" + editandoCliente.id, editandoCliente);
-      setMensaje("Datos de la clienta actualizados!");
+      setMensaje("Datos del cliente actualizados!");
       setEditandoCliente(null);
       getClientes().then(res => setClientes(res.data));
       setTimeout(() => setMensaje(""), 3000);
@@ -6001,7 +6025,7 @@ function Clientes({ usuario, paletaActual }) {
       {editandoCliente && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }} onClick={() => setEditandoCliente(null)}>
         <div className="card fade" style={{ marginBottom: 18, maxWidth: 560, width: "100%" }} onClick={e => e.stopPropagation()}>
-          <div className="ct">Editar clienta</div>
+          <div className="ct">Editar cliente</div>
           <div className="g2">
             <div>
               <div className="fg"><div className="fl">Nombre *</div><input className="inp" value={editandoCliente.nombre} onChange={e => setEditandoCliente(p => ({ ...p, nombre: e.target.value }))} /></div>
@@ -6151,7 +6175,7 @@ function Clientes({ usuario, paletaActual }) {
             </div>
             <button className="btn btn-p" style={{ width: "100%", marginBottom: 14 }} onClick={() => guardarMigracion(false)}>Cargar puntos</button>
 
-            <div style={{ fontSize: 11, fontWeight: 600, color: p.textMuted, marginBottom: 6 }}>CARGAS ANTERIORES DE ESTA CLIENTA</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: p.textMuted, marginBottom: 6 }}>CARGAS ANTERIORES DE ESTE CLIENTE</div>
             {migHist.length === 0 ? <div style={{ fontSize: 12, color: p.textMuted }}>Sin cargas previas.</div> : (
               <table style={{ width: "100%", fontSize: 11 }}>
                 <thead><tr style={{ color: p.textMuted, textAlign: "left" }}><th style={{ padding: "4px 0" }}>Fecha compra</th><th style={{ textAlign: "right" }}>Monto</th><th style={{ textAlign: "right" }}>Puntos</th><th style={{ textAlign: "right" }}>Cargado</th></tr></thead>
@@ -7302,7 +7326,7 @@ function Cupones({ localId, usuario, paletaActual }) {
       nivel: inf.nivel || "inicial", cuponModo: "existente", cupon_id: inf.cupon_id || "",
       nuevoCodigo: "", nuevoTipo: "%", nuevoValor: ""
     });
-    setCliSelInf(inf.cliente_id ? { id: inf.cliente_id, nombre: inf.cliente_nombre || "Clienta vinculada" } : null);
+    setCliSelInf(inf.cliente_id ? { id: inf.cliente_id, nombre: inf.cliente_nombre || "Cliente vinculado" } : null);
     setBuscarCliInf("");
     setShowNuevoInf(true);
   };
@@ -7602,7 +7626,7 @@ function Cupones({ localId, usuario, paletaActual }) {
             </div>
             )}
             <div className="fg">
-              <div className="fl">Vincular con una clienta (opcional, para que tenga acceso al portal)</div>
+              <div className="fl">Vincular con un cliente (opcional, para que tenga acceso al portal)</div>
               {cliSelInf ? (
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: temaPal.bg, borderRadius: 6 }}>
                   <span style={{ fontSize: 12 }}>{cliSelInf.nombre} {cliSelInf.cuit_dni ? "(" + cliSelInf.cuit_dni + ")" : ""}</span>
@@ -7960,7 +7984,7 @@ function Fidelizacion({ usuario, paletaActual }) {
                   </div>
                   <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer" }}>
                     <input type="checkbox" checked={nuevoPremio.solo_mes_cumpleanos} onChange={e => setNuevoPremio(p => ({ ...p, solo_mes_cumpleanos: e.target.checked }))} />
-                    Solo disponible en el mes de cumpleanos de la clienta
+                    Solo disponible en el mes de cumpleanos del cliente
                   </label>
                 </div>
               </div>
@@ -8000,7 +8024,7 @@ function Fidelizacion({ usuario, paletaActual }) {
       {tab === "canjear-local" && (
         <div className="fade">
           <div className="card" style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Buscar clienta por DNI</div>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Buscar cliente por DNI</div>
             <div style={{ display: "flex", gap: 8 }}>
               <input className="inp" placeholder="Ej: 32456789" value={dniBuscar} onChange={e => setDniBuscar(e.target.value)} onKeyDown={e => e.key === "Enter" && buscarPorDni()} style={{ maxWidth: 260 }} />
               <button className="btn btn-p btn-sm" disabled={buscandoDni} onClick={buscarPorDni}>{buscandoDni ? "Buscando..." : "Buscar"}</button>
@@ -8069,7 +8093,7 @@ function Fidelizacion({ usuario, paletaActual }) {
               <div style={{ fontSize: 12, color: temaPal.textMuted, textAlign: "center", padding: 20 }}>Todavia no hay canjes registrados</div>
             ) : (
               <table>
-                <thead><tr><th>Codigo</th><th>Premio</th><th>Clienta</th><th>Puntos</th><th>Estado</th><th>Fecha</th></tr></thead>
+                <thead><tr><th>Codigo</th><th>Premio</th><th>Cliente</th><th>Puntos</th><th>Estado</th><th>Fecha</th></tr></thead>
                 <tbody>
                   {canjes.map((c, i) => (
                     <tr key={i}>
@@ -8091,7 +8115,9 @@ function Fidelizacion({ usuario, paletaActual }) {
   );
 }
 
-function Pedidos({ localId, paletaActual }) {
+// Pedidos de clientes: productos que esperan, aviso por WhatsApp cuando llega stock
+// e historial de avisos (con si el cliente despues compro).
+function Pedidos({ localId, usuario, paletaActual }) {
   const pal = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState("espera");
   const [pedidos, setPedidos] = useState([]);
@@ -8107,59 +8133,131 @@ function Pedidos({ localId, paletaActual }) {
   const [sinRegistrar, setSinRegistrar] = useState(false);
   const [nombreManual, setNombreManual] = useState("");
   const [telefonoManual, setTelefonoManual] = useState("");
-
+  const [mostrarForm, setMostrarForm] = useState(false);
+  const [filtroLocal, setFiltroLocal] = useState(String(localId || 1)); // "1" | "2" | "todos"
+  const [vistaEspera, setVistaEspera] = useState("cliente"); // cliente | producto
   const [pedidosListos, setPedidosListos] = useState([]);
   const [nombreNegocio, setNombreNegocio] = useState("");
-  useEffect(() => { API.get("/configuracion").then(res => setNombreNegocio(res.data?.nombre_negocio || "")).catch(() => {}); }, []);
-  const cargarPedidosListos = () => {
-    API.get("/pedidos/con-stock").then(res => setPedidosListos(res.data)).catch(() => {});
+  const [borrando, setBorrando] = useState(null);
+  const [guardandoPed, setGuardandoPed] = useState(false);
+  // Avisados
+  const hoyTxt = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+  const txtFecha = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const rangoDe = (id) => {
+    const h = new Date();
+    if (id === "hoy") return [hoyTxt(), hoyTxt()];
+    if (id === "7d") { const d = new Date(); d.setDate(d.getDate() - 6); return [txtFecha(d), hoyTxt()]; }
+    if (id === "mes") return [txtFecha(new Date(h.getFullYear(), h.getMonth(), 1)), hoyTxt()];
+    if (id === "mesant") return [txtFecha(new Date(h.getFullYear(), h.getMonth() - 1, 1)), txtFecha(new Date(h.getFullYear(), h.getMonth(), 0))];
+    return null;
   };
-  const avisarPedido = async (pd) => {
-    const texto = "Hola " + (pd.cliente_nombre || "") + "! Te avisamos que ya tenemos stock de " + pd.producto_nombre + ". Te esperamos!" + (nombreNegocio ? " - " + nombreNegocio : "");
-    let tel = (pd.telefono || "").replace(/[^0-9]/g, "");
-    if (!tel) { alert("Esta clienta no tiene telefono cargado"); return; }
-    let numero = tel;
-    if (!numero.startsWith("54")) numero = "549" + numero;
-    else if (numero.startsWith("54") && !numero.startsWith("549")) numero = "549" + numero.slice(2);
-    window.open("https://wa.me/" + numero + "?text=" + encodeURIComponent(texto), "_blank");
-    try { await API.post("/pedidos/" + pd.id + "/avisar"); setPedidosListos(prev => prev.filter(x => x.id !== pd.id)); } catch (e) {}
+  const [periodo, setPeriodo] = useState("7d");
+  const [desde, setDesde] = useState(() => rangoDe("7d")[0]);
+  const [hasta, setHasta] = useState(() => rangoDe("7d")[1]);
+  const [avisados, setAvisados] = useState([]);
+  const [cargandoAvisados, setCargandoAvisados] = useState(false);
+  const [buscarAvisado, setBuscarAvisado] = useState("");
+  const [stats, setStats] = useState(null);
+  const [cargandoStats, setCargandoStats] = useState(false);
+  const cargarStats = () => {
+    setCargandoStats(true);
+    const qs = new URLSearchParams();
+    if (desde) qs.set("desde", desde);
+    if (hasta) qs.set("hasta", hasta);
+    if (filtroLocal !== "todos") qs.set("local_id", filtroLocal);
+    API.get("/pedidos/estadisticas?" + qs.toString()).then(r => setStats(r.data)).catch(() => setStats(null)).finally(() => setCargandoStats(false));
   };
-  useEffect(() => { cargarPedidosListos(); }, []);
 
-  const cargar = () => {
-    API.get("/pedidos?estado=esperando").then(res => setPedidos(res.data)).catch(() => {});
+  useEffect(() => { API.get("/configuracion").then(res => setNombreNegocio(res.data?.nombre_negocio || "")).catch(() => {}); }, []);
+  useEffect(() => { setFiltroLocal(String(localId || 1)); }, [localId]);
+  useEffect(() => {
+    if (!mensaje || mensaje.startsWith("Error")) return;
+    const t = setTimeout(() => setMensaje(""), 4000);
+    return () => clearTimeout(t);
+  }, [mensaje]);
+
+  const cargarPedidosListos = () => API.get("/pedidos/con-stock").then(res => setPedidosListos(res.data || [])).catch(() => {});
+  const cargar = () => API.get("/pedidos?estado=esperando").then(res => setPedidos(res.data || [])).catch(() => {});
+  const cargarAvisados = () => {
+    setCargandoAvisados(true);
+    const qs = new URLSearchParams();
+    if (desde) qs.set("desde", desde);
+    if (hasta) qs.set("hasta", hasta);
+    if (filtroLocal !== "todos") qs.set("local_id", filtroLocal);
+    API.get("/pedidos/avisados?" + qs.toString()).then(res => setAvisados(res.data || [])).catch(() => setAvisados([])).finally(() => setCargandoAvisados(false));
   };
   useEffect(() => {
-    cargar();
-    getClientes().then(res => setClientes(res.data)).catch(() => {});
-    const localParam = Number(localId) === 2 ? "ush" : "rg";
-    API.get("/productos?local=" + localParam).then(res => setProductos(res.data)).catch(() => {});
+    cargar(); cargarPedidosListos();
+    getClientes().then(res => setClientes(res.data || [])).catch(() => {});
+    API.get("/productos?local=" + (Number(localId) === 2 ? "ush" : "rg")).then(res => setProductos(res.data || [])).catch(() => {});
   }, [localId]);
+  useEffect(() => { if (tab === "avisados") cargarAvisados(); if (tab === "stats") cargarStats(); }, [tab, desde, hasta, filtroLocal]);
 
-  const pedidosFiltrados = filtroLista.trim().length > 0
-    ? pedidos.filter(p => {
-        const t = filtroLista.toLowerCase();
-        return (p.cliente_nombre || "").toLowerCase().includes(t)
-          || (p.telefono || "").includes(filtroLista)
-          || (p.cuit_dni || "").includes(filtroLista)
-          || (p.producto_nombre || "").toLowerCase().includes(t);
-      })
-    : pedidos;
+  const elegirPeriodo = (id) => {
+    setPeriodo(id);
+    const r = rangoDe(id);
+    if (r) { setDesde(r[0]); setHasta(r[1]); }
+  };
+
+  const delLocal = (p) => filtroLocal === "todos" || String(p.local_id || 1) === filtroLocal;
+  const diasDesde = (f) => f ? Math.max(0, Math.floor((Date.now() - new Date(f)) / 86400000)) : 0;
+  const fechaCorta = (f) => f ? new Date(f).toLocaleDateString("es-AR") : "—";
+  const telWa = (t) => {
+    let n = String(t || "").replace(/[^0-9]/g, "");
+    if (!n) return "";
+    if (n.startsWith("0")) n = n.slice(1);
+    if (!n.startsWith("54")) n = "549" + n;
+    else if (!n.startsWith("549")) n = "549" + n.slice(2);
+    return n;
+  };
+  const primerNombre = (n) => String(n || "").split(/[ ,]+/).filter(Boolean)[0] || "";
+  const textoAviso = (pd) => "¡Hola " + primerNombre(pd.cliente_nombre) + "! 💛 Te avisamos que ya llegó *" + pd.producto_nombre + "* que estabas esperando. Te lo guardamos, ¡te esperamos!" + (nombreNegocio ? "\n— " + nombreNegocio : "");
+
+  const avisarPedido = async (pd, sinEnviar) => {
+    const texto = textoAviso(pd);
+    if (!sinEnviar) {
+      const numero = telWa(pd.telefono);
+      if (!numero) return setMensaje("Error: este cliente no tiene teléfono cargado");
+      window.open("https://wa.me/" + numero + "?text=" + encodeURIComponent(texto), "_blank");
+    }
+    try {
+      await API.post("/pedidos/" + pd.id + "/avisar", { mensaje: sinEnviar ? null : texto, usuario_nombre: usuario?.nombre || null });
+      setPedidosListos(prev => prev.filter(x => x.id !== pd.id));
+      setPedidos(prev => prev.filter(x => x.id !== pd.id));
+      setMensaje("✓ " + (pd.cliente_nombre || "") + " quedó como avisado. Lo ves en la pestaña Avisados.");
+    } catch (e) { setMensaje("Error: no se pudo marcar como avisado"); }
+  };
+  const reenviar = (pd) => {
+    const numero = telWa(pd.telefono);
+    if (!numero) return setMensaje("Error: este cliente no tiene teléfono cargado");
+    const texto = "¡Hola " + primerNombre(pd.cliente_nombre) + "! Te recordamos que tenemos guardado *" + pd.producto_nombre + "* para vos. ¡Te esperamos!" + (nombreNegocio ? "\n— " + nombreNegocio : "");
+    window.open("https://wa.me/" + numero + "?text=" + encodeURIComponent(texto), "_blank");
+  };
+  const concretar = async (pd) => {
+    try { await API.post("/pedidos/" + pd.id + "/concretar"); setMensaje("✓ Marcado: " + (pd.cliente_nombre || "") + " compró " + pd.producto_nombre); cargarAvisados(); }
+    catch (e) { setMensaje("Error: " + (e.response?.data?.error || "no se pudo marcar")); }
+  };
+  const reactivar = async (pd) => {
+    try { await API.post("/pedidos/" + pd.id + "/reactivar"); setMensaje("✓ Volvió a la lista de espera"); cargarAvisados(); cargar(); cargarPedidosListos(); }
+    catch (e) { setMensaje("Error: " + (e.response?.data?.error || "no se pudo")); }
+  };
 
   const cliFiltrados = buscarCli.trim().length > 0
     ? clientes.filter(c => (c.nombre || "").toLowerCase().includes(buscarCli.toLowerCase()) || (c.cuit_dni || "").includes(buscarCli) || (c.telefono || "").includes(buscarCli)).slice(0, 6)
     : [];
   const prodFiltrados = buscarProd.trim().length > 0
-    ? productos.filter(p => (p.nombre || "").toLowerCase().includes(buscarProd.toLowerCase())).slice(0, 6)
+    ? productos.filter(p => ((p.nombre || "") + " " + (p.marca || "") + " " + (p.codigo_barras || "")).toLowerCase().includes(buscarProd.toLowerCase())).slice(0, 6)
     : [];
 
   const guardar = async () => {
     if (sinRegistrar) {
-      if (!nombreManual.trim() || !telefonoManual.trim()) return setMensaje("El nombre y el celular son obligatorios");
+      if (!nombreManual.trim() || !telefonoManual.trim()) return setMensaje("Error: el nombre y el celular son obligatorios");
     } else if (!cliSel) {
-      return setMensaje("Elegi la clienta, o marca 'Clienta sin registrar' si no esta en el sistema");
+      return setMensaje("Error: elegí el cliente, o marcá 'Cliente sin registrar'");
     }
-    if (!prodSel && !itemNuevo.trim()) return setMensaje("Elegi un producto o escribi una sugerencia");
+    if (!prodSel && !itemNuevo.trim()) return setMensaje("Error: elegí un producto o escribí una sugerencia");
+    if (guardandoPed) return; // evita que un doble clic anote dos veces
+    setGuardandoPed(true);
     try {
       await API.post("/pedidos", {
         cliente_id: sinRegistrar ? null : cliSel.id,
@@ -8169,140 +8267,408 @@ function Pedidos({ localId, paletaActual }) {
         producto_texto: !prodSel && itemNuevo.trim() ? itemNuevo.trim() : null,
         local_id: localId || 1
       });
-      setMensaje(prodSel ? "Pedido anotado! Cuando llegue stock va a aparecer en Postventa." : "Sugerencia de producto anotada!");
+      setMensaje(prodSel ? "✓ Pedido anotado. Cuando llegue stock aparece en \"Ya hay stock\"." : "✓ Sugerencia de producto anotada");
       setCliSel(null); setProdSel(null); setBuscarCli(""); setBuscarProd(""); setItemNuevo("");
-      setSinRegistrar(false); setNombreManual(""); setTelefonoManual("");
-      cargar();
-      setTimeout(() => setMensaje(""), 4000);
-    } catch (e) { setMensaje("Error al anotar el pedido"); }
+      setSinRegistrar(false); setNombreManual(""); setTelefonoManual(""); setMostrarForm(false);
+      cargar(); cargarPedidosListos();
+    } catch (e) { setMensaje("Error: " + (e.response?.data?.error || "no se pudo anotar el pedido")); }
+    setGuardandoPed(false);
+  };
+  const borrar = async (p) => {
+    try { await API.delete("/pedidos/" + p.id); setBorrando(null); cargar(); cargarPedidosListos(); setMensaje("✓ Pedido borrado"); }
+    catch (e) { setMensaje("Error: no se pudo borrar"); }
   };
 
-  const borrar = async (id) => {
-    if (!confirm("Borrar este pedido?")) return;
-    try { await API.delete("/pedidos/" + id); cargar(); } catch (e) {}
-  };
+  const esperaLocal = pedidos.filter(delLocal);
+  const listosLocal = pedidosListos.filter(delLocal);
+  const q = filtroLista.trim().toLowerCase();
+  const esperaFiltrados = q ? esperaLocal.filter(p => [p.cliente_nombre, p.telefono, p.cuit_dni, p.producto_nombre].some(x => String(x || "").toLowerCase().includes(q))) : esperaLocal;
+  const porProducto = Object.values(esperaFiltrados.reduce((acc, p) => {
+    const k = p.producto_id ? "p" + p.producto_id : "s" + (p.producto_nombre || "").toLowerCase();
+    if (!acc[k]) acc[k] = { key: k, nombre: p.producto_nombre, sugerencia: p.es_sugerencia, stock: p.stock_total, pedidos: [] };
+    acc[k].pedidos.push(p);
+    return acc;
+  }, {})).sort((a, b) => b.pedidos.length - a.pedidos.length);
+  const qa = buscarAvisado.trim().toLowerCase();
+  const avisadosFiltrados = qa ? avisados.filter(p => [p.cliente_nombre, p.telefono, p.cuit_dni, p.producto_nombre].some(x => String(x || "").toLowerCase().includes(qa))) : avisados;
+  const compraron = avisadosFiltrados.filter(p => p.estado === "concretado" || p.compra_detectada_en).length;
+
+  const LocalTag = ({ p }) => filtroLocal === "todos" ? <span className="tag tag-neutral" style={{ marginLeft: 6 }}>{nombreLocal(p.local_id || 1)}</span> : null;
 
   return (
-    <div className="fade">
-      <div className="ph">
-        <div><div className="pt">Pedidos de clientas</div><div className="ps">productos que las clientas estan esperando</div></div>
-      </div>
-
-      <div className="tabs">
-        <div className={"tab " + (tab === "espera" ? "on" : "")} onClick={() => setTab("espera")}>LISTA DE ESPERA</div>
-        <div className={"tab " + (tab === "listos" ? "on" : "")} onClick={() => { setTab("listos"); cargarPedidosListos(); }}>
-          YA HAY STOCK{pedidosListos.length > 0 ? " (" + pedidosListos.length + ")" : ""}
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div className="dash-head">
+        <div>
+          <div className="pt">Pedidos de clientes</div>
+          <div className="ps">lo que esperan, avisos por WhatsApp e historial</div>
+        </div>
+        <div className="dash-actions">
+          <div className="seg" role="group" aria-label="Local">
+            {[["1", nombreLocal(1)], ["2", nombreLocal(2)], ["todos", "Todos"]].map(([id, l]) => (
+              <button key={id} className={filtroLocal === id ? "on" : ""} onClick={() => setFiltroLocal(id)}>{l}</button>
+            ))}
+          </div>
+          <button className="btn btn-p btn-sm" onClick={() => { setMostrarForm(true); setTab("espera"); }}>+ Anotar pedido</button>
         </div>
       </div>
 
-      {mensaje && <div className="card" style={{ marginBottom: 12, padding: 12, background: mensaje.startsWith("Error") ? pal.redDim : pal.greenDim, color: mensaje.startsWith("Error") ? pal.red : pal.green, fontSize: 13 }}>{mensaje}</div>}
+      <div className="tabs" role="tablist">
+        <button role="tab" aria-selected={tab === "espera"} className={"tab " + (tab === "espera" ? "on" : "")} onClick={() => setTab("espera")}>📋 EN ESPERA ({esperaLocal.length})</button>
+        <button role="tab" aria-selected={tab === "listos"} className={"tab " + (tab === "listos" ? "on" : "")} onClick={() => { setTab("listos"); cargarPedidosListos(); }}>✅ YA HAY STOCK{listosLocal.length > 0 ? " (" + listosLocal.length + ")" : ""}</button>
+        <button role="tab" aria-selected={tab === "avisados"} className={"tab " + (tab === "avisados" ? "on" : "")} onClick={() => setTab("avisados")}>💬 AVISADOS</button>
+        <button role="tab" aria-selected={tab === "stats"} className={"tab " + (tab === "stats" ? "on" : "")} onClick={() => { if (periodo === "7d") elegirPeriodo("mes"); setTab("stats"); }}>📊 ESTADÍSTICAS</button>
+      </div>
 
+      {mensaje && <div className="pop-in" role={mensaje.startsWith("Error") ? "alert" : "status"} style={{ marginBottom: 12, padding: "10px 14px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: mensaje.startsWith("Error") ? pal.redDim : pal.greenDim, color: mensaje.startsWith("Error") ? pal.red : pal.green, border: "1px solid " + (mensaje.startsWith("Error") ? pal.red : pal.green) }}>{mensaje.replace(/^Error: /, "⚠ ")}</div>}
+
+      {/* ---------------- YA HAY STOCK ---------------- */}
       {tab === "listos" && (
-        <div className="card fade">
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Pedidos con stock disponible</div>
-          <div style={{ fontSize: 11, color: pal.textMuted, marginBottom: 12 }}>Productos que las clientas esperaban y ya tienen stock. Envia el aviso por WhatsApp.</div>
-          {pedidosListos.length === 0 ? <div style={{ fontSize: 12, color: pal.textMuted, padding: "10px 0" }}>No hay pedidos con stock disponible ahora.</div> : pedidosListos.map(pd => (
-            <div key={pd.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid " + pal.border }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>{pd.cliente_nombre} <span className="badge" style={{ background: pd.local_id === 2 ? "#2471a322" : "#c9a84c22", color: pd.local_id === 2 ? "#2471a3" : "#8a6d1f", fontSize: 9, marginLeft: 4 }}>{pd.local_nombre}</span></div>
-                <div style={{ fontSize: 11, color: pal.textMuted }}>{pd.producto_nombre} · stock {pd.stock_total}</div>
-                <div style={{ fontSize: 11, color: pal.textMuted }}>📱 {pd.telefono || "sin telefono"}</div>
-              </div>
-              <button className="btn btn-sm" style={{ background: "#25D366", color: pal.card, fontSize: 12 }} onClick={() => avisarPedido(pd)}>Enviar WhatsApp</button>
+        listosLocal.length === 0 ? (
+          <div className="card empty" style={{ padding: 40 }}>
+            <div style={{ fontSize: 30, marginBottom: 6 }} aria-hidden="true">📭</div>
+            Ningún producto esperado tiene stock todavía. Cuando llegue, aparece acá para avisarle al cliente.
+          </div>
+        ) : (
+          <>
+            <div style={{ fontSize: 12, color: pal.textMuted, marginBottom: 10 }}>Estos productos que los clientes esperaban ya tienen stock. Al tocar <b>WhatsApp</b> se abre el mensaje listo y el pedido pasa a <b>Avisados</b>.</div>
+            <div className="oi-grid">
+              {listosLocal.map(pd => (
+                <div key={pd.id} className="card anim-in" style={{ borderLeft: "3px solid " + pal.wa, padding: 14 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 800 }}>{pd.cliente_nombre}<LocalTag p={pd} /></div>
+                      <div style={{ fontSize: 12, marginTop: 2 }}>📦 {pd.producto_nombre}</div>
+                      <div style={{ fontSize: 11, color: pal.textMuted, marginTop: 2 }}>📱 {pd.telefono || "sin teléfono"} · esperó {diasDesde(pd.creado_en)} días</div>
+                    </div>
+                    <span className="tag tag-ok" style={{ alignSelf: "flex-start" }}>{pd.stock_total} en stock</span>
+                  </div>
+                  <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 8, background: pal.bg, fontSize: 11, color: pal.textSoft, whiteSpace: "pre-wrap", lineHeight: 1.45 }}>{textoAviso(pd).replace(/\*/g, "")}</div>
+                  <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                    <button className="btn btn-sm" style={{ flex: 2, background: pal.wa, color: "#fff", fontWeight: 800 }} disabled={!pd.telefono} onClick={() => avisarPedido(pd, false)}>💬 Enviar WhatsApp</button>
+                    <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => avisarPedido(pd, true)} title="Si ya le avisaste por otro medio">Ya le avisé</button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </>
+        )
       )}
 
-      {tab === "espera" && (
-      <>
-      <div className="card" style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Anotar nuevo pedido</div>
-        <div className="g2">
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div className="fl" style={{ marginBottom: 0 }}>Clienta</div>
-              <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: pal.textMuted, cursor: "pointer" }}>
-                <input type="checkbox" checked={sinRegistrar} onChange={e => { setSinRegistrar(e.target.checked); setCliSel(null); setBuscarCli(""); }} />
-
-                Clienta sin registrar
-              </label>
+      {/* ---------------- AVISADOS ---------------- */}
+      {(tab === "avisados" || tab === "stats") && (
+        <>
+          <div className="card" style={{ padding: 12, marginBottom: 12 }}>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              {[["hoy", "Hoy"], ["7d", "Últimos 7 días"], ["mes", "Este mes"], ["mesant", "Mes anterior"], ["rango", "Rango"]].map(([id, l]) => (
+                <button key={id} className={"chip-btn" + (periodo === id ? " on" : "")} onClick={() => elegirPeriodo(id)}>{l}</button>
+              ))}
+              {periodo === "rango" && (
+                <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                  <input className="inp" type="date" value={desde} onChange={e => setDesde(e.target.value)} style={{ width: 150, padding: "6px 8px" }} aria-label="Desde" />
+                  <span style={{ fontSize: 12, color: pal.textMuted }}>a</span>
+                  <input className="inp" type="date" value={hasta} onChange={e => setHasta(e.target.value)} style={{ width: 150, padding: "6px 8px" }} aria-label="Hasta" />
+                </span>
+              )}
+              <span style={{ flex: 1 }} />
+              {tab === "avisados" && <input className="inp" placeholder="Buscar cliente, producto o celular..." value={buscarAvisado} onChange={e => setBuscarAvisado(e.target.value)} style={{ maxWidth: 280 }} />}
             </div>
-            {sinRegistrar ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
-                <input className="inp" placeholder="Nombre de la clienta (obligatorio)" value={nombreManual} onChange={e => setNombreManual(e.target.value)} />
-                <input className="inp" placeholder="Celular (obligatorio)" value={telefonoManual} onChange={e => setTelefonoManual(e.target.value)} />
-              </div>
-            ) : cliSel ? (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: pal.bg, borderRadius: 6 }}>
-                <span style={{ fontSize: 12 }}>{cliSel.nombre} ({cliSel.cuit_dni})</span>
-                <span onClick={() => setCliSel(null)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>cambiar</span>
-              </div>
+          </div>
+          {tab === "avisados" && (<>
+          <div className="kpi-grid kpi-3">
+            <div className="kpi" style={{ borderTop: "3px solid " + pal.wa }}><div className="kpi-label">Avisos enviados</div><div className="kpi-val" style={{ color: pal.wa }}>{avisadosFiltrados.length}</div><div className="kpi-sub">{fechaCorta(desde + "T12:00")} al {fechaCorta(hasta + "T12:00")}</div></div>
+            <div className="kpi" style={{ borderTop: "3px solid " + pal.green }}><div className="kpi-label">Compraron</div><div className="kpi-val" style={{ color: pal.green }}>{compraron}</div><div className="kpi-sub">{avisadosFiltrados.length ? Math.round(compraron / avisadosFiltrados.length * 100) : 0}% de conversión</div></div>
+            <div className="kpi" style={{ borderTop: "3px solid " + pal.warn }}><div className="kpi-label">Sin respuesta</div><div className="kpi-val" style={{ color: pal.warn }}>{avisadosFiltrados.length - compraron}</div><div className="kpi-sub">se les puede reenviar</div></div>
+          </div>
+          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+            {cargandoAvisados ? (
+              <div style={{ padding: 14 }}>{[0, 1, 2, 3].map(k => <div key={k} className="skel" style={{ height: 40, marginBottom: 8 }} />)}</div>
+            ) : avisadosFiltrados.length === 0 ? (
+              <div className="empty">No hay avisos en este período.</div>
             ) : (
-              <div>
-                <input className="inp" placeholder="Buscar clienta por nombre o DNI" value={buscarCli} onChange={e => setBuscarCli(e.target.value)} />
-                {cliFiltrados.length > 0 && (
-                  <div style={{ border: "1px solid " + pal.border, borderRadius: 6, marginTop: 4 }}>
-                    {cliFiltrados.map(cl => (
-                      <div key={cl.id} onClick={() => { setCliSel(cl); setBuscarCli(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid " + pal.border, fontSize: 12 }}>{cl.nombre} <span style={{ color: pal.textMuted }}>({cl.cuit_dni})</span></div>
-                    ))}
-                  </div>
-                )}
+              <div style={{ overflowX: "auto" }}>
+                <table>
+                  <thead><tr><th>Avisado</th><th>Cliente</th><th>Producto</th><th>Estado</th><th></th></tr></thead>
+                  <tbody>
+                    {avisadosFiltrados.map(p => {
+                      const compro = p.estado === "concretado" || !!p.compra_detectada_en;
+                      return (
+                        <tr key={p.id}>
+                          <td style={{ whiteSpace: "nowrap", fontSize: 11 }}>
+                            {p.avisado_en ? new Date(p.avisado_en).toLocaleDateString("es-AR") : "—"}
+                            <div style={{ color: pal.textMuted }}>{p.avisado_en ? new Date(p.avisado_en).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : ""}{p.avisado_por ? " · " + p.avisado_por : ""}</div>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 700, fontSize: 12 }}>{p.cliente_nombre}<LocalTag p={p} /></div>
+                            <div style={{ fontSize: 11, color: pal.textMuted }}>{p.telefono || "sin teléfono"}</div>
+                          </td>
+                          <td style={{ fontSize: 12 }}>
+                            {p.producto_nombre}
+                            {p.mensaje_enviado && <div style={{ fontSize: 10, color: pal.textMuted, maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={p.mensaje_enviado}>💬 {p.mensaje_enviado.replace(/\*/g, "")}</div>}
+                          </td>
+                          <td>{compro ? <span className="tag tag-ok" title={p.compra_detectada_en ? "Detectado automáticamente en las ventas" : "Marcado a mano"}>✓ Compró {fechaCorta(p.compra_detectada_en || p.concretado_en)}{p.compra_detectada_en ? " · auto" : ""}</span> : <span className="tag tag-warn">Avisado hace {diasDesde(p.avisado_en)} d</span>}</td>
+                          <td style={{ whiteSpace: "nowrap", textAlign: "right" }}>
+                            {!compro && <button className="mini-chip" onClick={() => concretar(p)} title="Marcalo si vino y lo compró pero la venta no quedó a su nombre (o no está registrado)">✓ Compró</button>}
+                            {!compro && p.telefono && <button className="mini-chip" style={{ marginLeft: 4 }} onClick={() => reenviar(p)} title="Mandarle un recordatorio">💬 Recordar</button>}
+                            <button className="mini-chip" style={{ marginLeft: 4 }} onClick={() => reactivar(p)} title="Volver a ponerla en la lista de espera">↩ A espera</button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
-          <div>
-            <div className="fl">Producto que espera</div>
-            {prodSel ? (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: pal.bg, borderRadius: 6 }}>
-                <span style={{ fontSize: 12 }}>{prodSel.nombre}</span>
-                <span onClick={() => setProdSel(null)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>cambiar</span>
-              </div>
-            ) : (
-              <div>
-                <input className="inp" placeholder="Buscar producto" value={buscarProd} onChange={e => setBuscarProd(e.target.value)} />
-                {prodFiltrados.length > 0 && (
-                  <div style={{ border: "1px solid " + pal.border, borderRadius: 6, marginTop: 4 }}>
-                    {prodFiltrados.map(pr => (
-                      <div key={pr.id} onClick={() => { setProdSel(pr); setBuscarProd(""); setItemNuevo(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid " + pal.border, fontSize: 12 }}>{pr.nombre} <span style={{ color: (pr.stock_rg || 0) + (pr.stock_ush || 0) > 0 ? "#2d7a4f" : "#c0392b" }}>· stock {(pr.stock_rg || 0) + (pr.stock_ush || 0)}</span></div>
-                    ))}
+          {avisados.length >= 500 && <div style={{ fontSize: 11, color: pal.textMuted, marginTop: 6 }}>Se muestran los 500 más recientes del período: acotá las fechas para ver el resto.</div>}
+          </>)}
+
+          {tab === "stats" && (
+            cargandoStats || !stats ? (
+              <div className="kpi-grid">{[0, 1, 2, 3].map(k => <div key={k} className="skel" style={{ height: 96 }} />)}</div>
+            ) : (() => {
+              const MESES_C = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+              const serie = (stats.serie_mensual || []).map(x => ({ ...x, mesNombre: MESES_C[parseInt(x.mes.slice(5, 7)) - 1] }));
+              const ranking = (titulo, sub, lista, conMonto, color) => (
+                <div className="chart-card">
+                  <div className="chart-head"><div className="chart-title">{titulo}</div><div className="chart-meta">{sub}</div></div>
+                  {(!lista || lista.length === 0) ? <div className="empty">Sin datos en el período</div> : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                      {lista.map((x, k) => {
+                        const max = lista[0].cantidad || 1;
+                        return (
+                          <div key={k} style={{ display: "grid", gridTemplateColumns: "18px minmax(0,1fr) 100px auto", gap: 8, alignItems: "center", fontSize: 12 }}>
+                            <span style={{ color: pal.textMuted, fontWeight: 700 }}>{k + 1}</span>
+                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={x.producto}>{x.producto}</span>
+                            <div className="pb" style={{ height: 7 }}><div className="pf" style={{ width: (x.cantidad / max * 100) + "%", background: color }} /></div>
+                            <span style={{ fontWeight: 700, fontVariantNumeric: "tabular-nums", textAlign: "right", minWidth: 40 }}>{x.cantidad}{conMonto ? " · " + fmt(Math.round(x.monto)).replace(",00", "") : ""}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+              return (
+                <>
+                  <div className="kpi-grid">
+                    <div className="kpi anim-in" style={{ borderTop: "3px solid " + pal.green }}>
+                      <div className="kpi-label">💰 Ventas recuperadas</div>
+                      <div className="kpi-val" style={{ color: pal.green }}><CountUp value={stats.monto_recuperado} formato={v => fmt(Math.round(v)).replace(",00", "")} /></div>
+                      <div className="kpi-sub">{stats.compraron} cliente{stats.compraron !== 1 ? "s" : ""} compraron después del aviso</div>
+                    </div>
+                    <div className="kpi anim-in" style={{ borderTop: "3px solid " + pal.accent, animationDelay: "60ms" }}>
+                      <div className="kpi-label">🎯 Conversión</div>
+                      <div className="kpi-val" style={{ color: pal.accent }}>{Math.round(stats.conversion * 100)}%</div>
+                      <div className="kpi-sub">{stats.compraron} de {stats.avisados} avisados</div>
+                    </div>
+                    <div className="kpi anim-in" style={{ borderTop: "3px solid #2471a3", animationDelay: "120ms" }}>
+                      <div className="kpi-label">⏳ Espera promedio</div>
+                      <div className="kpi-val" style={{ color: "#2471a3" }}>{stats.dias_espera_promedio !== null ? Math.round(stats.dias_espera_promedio) + " días" : "—"}</div>
+                      <div className="kpi-sub">desde que lo pidió hasta el aviso</div>
+                    </div>
+                    <div className="kpi anim-in" style={{ borderTop: "3px solid " + pal.purple, animationDelay: "180ms" }}>
+                      <div className="kpi-label">⚡ Del aviso a la compra</div>
+                      <div className="kpi-val" style={{ color: pal.purple }}>{stats.dias_compra_promedio !== null ? (stats.dias_compra_promedio < 1 ? "el mismo día" : Math.round(stats.dias_compra_promedio) + " días") : "—"}</div>
+                      <div className="kpi-sub">en promedio</div>
+                    </div>
                   </div>
-                )}
-                <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px dashed " + pal.border }}>
-                  <div style={{ fontSize: 11, color: pal.textMuted, marginBottom: 4 }}>¿No lo encontras? Anotalo como sugerencia de producto a traer:</div>
-                  <input className="inp" placeholder="Ej: Serum vitamina C marca X" value={itemNuevo} onChange={e => setItemNuevo(e.target.value)} />
+                  <div className="kpi-grid" style={{ marginBottom: 14 }}>
+                    <div className="kpi kpi-sm" style={{ borderTop: "3px solid " + pal.border }}><div className="kpi-label">Pedidos anotados</div><div className="kpi-val">{stats.anotados}</div><div className="kpi-sub">en el período</div></div>
+                    <div className="kpi kpi-sm" style={{ borderTop: "3px solid " + pal.warn }}><div className="kpi-label">Siguen esperando</div><div className="kpi-val" style={{ color: pal.warn }}>{stats.siguen_esperando}</div><div className="kpi-sub">de los anotados</div></div>
+                    <div className="kpi kpi-sm" style={{ borderTop: "3px solid " + pal.wa }}><div className="kpi-label">Avisos enviados</div><div className="kpi-val" style={{ color: pal.wa }}>{stats.avisados}</div><div className="kpi-sub">en el período</div></div>
+                    <div className="kpi kpi-sm" style={{ borderTop: "3px solid " + pal.purple }}><div className="kpi-label">Sugerencias</div><div className="kpi-val" style={{ color: pal.purple }}>{stats.sugerencias}</div><div className="kpi-sub">productos que no vendemos</div></div>
+                  </div>
+                  <div className="chart-card" style={{ marginBottom: 12 }}>
+                    <div className="chart-head"><div className="chart-title">Avisos y compras por mes</div><div className="chart-meta">últimos 6 meses</div></div>
+                    {serie.length === 0 ? <div className="empty">Sin avisos todavía</div> : (
+                      <ResponsiveContainer width="100%" height={220}>
+                        <BarChart data={serie} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barGap={4}>
+                          <CartesianGrid vertical={false} stroke={pal.border} strokeOpacity={0.5} />
+                          <XAxis dataKey="mesNombre" tick={{ fontSize: 11, fill: pal.textMuted }} axisLine={false} tickLine={false} />
+                          <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: pal.textMuted }} width={30} axisLine={false} tickLine={false} />
+                          <Tooltip contentStyle={{ background: pal.card, border: "1px solid " + pal.border, borderRadius: 8, fontSize: 12, color: pal.text }} cursor={{ fill: pal.trHover }} />
+                          <Legend wrapperStyle={{ fontSize: 11 }} />
+                          <Bar dataKey="avisados" name="Avisados" fill={pal.wa} radius={[4, 4, 0, 0]} maxBarSize={34} />
+                          <Bar dataKey="compraron" name="Compraron" fill={pal.accent} radius={[4, 4, 0, 0]} maxBarSize={34} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                  <div className="dash-grid2" style={{ marginTop: 0 }}>
+                    {ranking("💰 Productos que más ventas recuperaron", "compras · $", stats.top_recuperados, true, pal.green)}
+                    {ranking("📦 Productos más pedidos", "conviene tenerlos siempre", stats.top_pedidos, false, "#2471a3")}
+                    {ranking("💡 Sugerencias de productos nuevos", "lo que piden y no vendemos", stats.top_sugerencias, false, pal.purple)}
+                    <div className="chart-card" style={{ fontSize: 12, color: pal.textSoft, lineHeight: 1.55 }}>
+                      <div className="chart-title" style={{ marginBottom: 8 }}>¿Cómo se cuenta una compra?</div>
+                      Si el cliente está <b>registrado</b>, el sistema lo detecta solo: busca en las ventas si compró ese producto desde el aviso hasta 30 días después.
+                      <br /><br />
+                      Si el cliente <b>no está registrado</b> (o la venta no quedó a su nombre), se cuenta cuando alguien toca <b>“✓ Compró”</b> en la pestaña Avisados.
+                      <div style={{ marginTop: 8, color: pal.textMuted }}>En este período: {stats.compraron_auto} detectadas solas · {stats.compraron - stats.compraron_auto} marcadas a mano.</div>
+                    </div>
+                  </div>
+                </>
+              );
+            })()
+          )}
+        </>
+      )}
+
+      {/* ---------------- EN ESPERA ---------------- */}
+      {tab === "espera" && (
+        <>
+          {mostrarForm && (
+            <div className="card pop-in" style={{ marginBottom: 14, border: "1px solid " + pal.accent }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div style={{ fontSize: 14, fontWeight: 800 }}>Anotar pedido</div>
+                <button className="icon-btn" onClick={() => setMostrarForm(false)} aria-label="Cerrar">✕</button>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <div className="fl" style={{ marginBottom: 0 }}>👤 Cliente</div>
+                    <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: pal.textMuted, cursor: "pointer" }}>
+                      <input type="checkbox" checked={sinRegistrar} onChange={e => { setSinRegistrar(e.target.checked); setCliSel(null); setBuscarCli(""); }} /> Sin registrar
+                    </label>
+                  </div>
+                  {sinRegistrar ? (
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <input className="inp" placeholder="Nombre *" value={nombreManual} onChange={e => setNombreManual(e.target.value)} />
+                      <input className="inp" type="tel" placeholder="Celular *" value={telefonoManual} onChange={e => setTelefonoManual(e.target.value)} />
+                    </div>
+                  ) : cliSel ? (
+                    <div className="cli-card" style={{ padding: "6px 8px", background: pal.bg, borderRadius: 8 }}>
+                      <div className="cli-avatar" style={{ width: 30, height: 30, fontSize: 11 }}>{inicialesProd(cliSel.nombre)}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 12, fontWeight: 700 }}>{cliSel.nombre}</div><div style={{ fontSize: 10, color: pal.textMuted }}>{cliSel.telefono || "sin teléfono"}{cliSel.cuit_dni ? " · DNI " + cliSel.cuit_dni : ""}</div></div>
+                      <button className="mini-chip" onClick={() => setCliSel(null)}>cambiar</button>
+                    </div>
+                  ) : (
+                    <div style={{ position: "relative" }}>
+                      <input className="inp" autoFocus placeholder="Buscar por nombre, DNI o celular" value={buscarCli} onChange={e => setBuscarCli(e.target.value)} />
+                      {cliFiltrados.length > 0 && (
+                        <div style={{ position: "absolute", left: 0, right: 0, top: "calc(100% + 4px)", zIndex: 20, background: pal.card, border: "1px solid " + pal.border, borderRadius: 8, boxShadow: "0 8px 24px " + pal.shadowCol }}>
+                          {cliFiltrados.map(cl => (
+                            <div key={cl.id} onClick={() => { setCliSel(cl); setBuscarCli(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid " + pal.border, fontSize: 12 }}>{cl.nombre} <span style={{ color: pal.textMuted }}>{cl.cuit_dni ? "· " + cl.cuit_dni : ""}</span></div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <div className="fl">📦 Producto que espera</div>
+                  {prodSel ? (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: pal.bg, borderRadius: 8 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700 }}>{prodSel.nombre}</span>
+                      <button className="mini-chip" onClick={() => setProdSel(null)}>cambiar</button>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ position: "relative" }}>
+                        <input className="inp" placeholder="Buscar producto" value={buscarProd} onChange={e => setBuscarProd(e.target.value)} />
+                        {prodFiltrados.length > 0 && (
+                          <div style={{ position: "absolute", left: 0, right: 0, top: "calc(100% + 4px)", zIndex: 20, background: pal.card, border: "1px solid " + pal.border, borderRadius: 8, boxShadow: "0 8px 24px " + pal.shadowCol }}>
+                            {prodFiltrados.map(pr => {
+                              const st = Number(localId) === 2 ? (pr.stock_ush || 0) : (pr.stock_rg || 0);
+                              return (
+                                <div key={pr.id} onClick={() => { setProdSel(pr); setBuscarProd(""); setItemNuevo(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid " + pal.border, fontSize: 12, display: "flex", justifyContent: "space-between", gap: 8 }}>
+                                  <span>{pr.nombre}</span><span className={"tag " + (st > 0 ? "tag-ok" : "tag-bad")}>{st > 0 ? st + " en stock" : "sin stock"}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                      <input className="inp" style={{ marginTop: 6 }} placeholder="¿No existe? Escribí una sugerencia (ej: Serum vitamina C marca X)" value={itemNuevo} onChange={e => setItemNuevo(e.target.value)} />
+                    </>
+                  )}
+                  {prodSel && (Number(localId) === 2 ? (prodSel.stock_ush || 0) : (prodSel.stock_rg || 0)) > 0 && (
+                    <div style={{ fontSize: 11, color: pal.green, marginTop: 6, fontWeight: 700 }}>✓ Este producto ya tiene stock en {nombreLocal(localId)}: podés vendérselo ahora.</div>
+                  )}
                 </div>
               </div>
-            )}
+              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                <button className="btn btn-g" onClick={() => setMostrarForm(false)}>Cancelar</button>
+                <button className="btn btn-p" disabled={guardandoPed} onClick={guardar}>{guardandoPed ? "Anotando..." : "Anotar pedido"}</button>
+              </div>
+            </div>
+          )}
+
+          <div className="card" style={{ padding: 12, marginBottom: 12, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <input className="inp" style={{ flex: "1 1 260px" }} placeholder="Buscar por cliente, celular, DNI o producto" value={filtroLista} onChange={e => setFiltroLista(e.target.value)} />
+            <div className="seg" role="group" aria-label="Agrupar">
+              <button className={vistaEspera === "cliente" ? "on" : ""} onClick={() => setVistaEspera("cliente")}>👤 Por cliente</button>
+              <button className={vistaEspera === "producto" ? "on" : ""} onClick={() => setVistaEspera("producto")}>📦 Por producto</button>
+            </div>
+          </div>
+
+          {esperaLocal.length === 0 ? (
+            <div className="card empty" style={{ padding: 40 }}>No hay pedidos en espera{filtroLocal !== "todos" ? " en " + nombreLocal(filtroLocal) : ""}.</div>
+          ) : esperaFiltrados.length === 0 ? (
+            <div className="card empty">Nada coincide con la búsqueda.</div>
+          ) : vistaEspera === "producto" ? (
+            <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+              {porProducto.map(g => (
+                <details key={g.key} className="ped-grupo">
+                  <summary>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <b>{g.nombre}</b>
+                      {g.sugerencia && <span className="tag tag-warn" style={{ marginLeft: 6 }}>sugerencia</span>}
+                    </span>
+                    {!g.sugerencia && <span className={"tag " + (g.stock > 0 ? "tag-ok" : "tag-bad")}>{g.stock > 0 ? g.stock + " en stock" : "sin stock"}</span>}
+                    <span className="ped-cuenta">{g.pedidos.length} cliente{g.pedidos.length !== 1 ? "s" : ""}</span>
+                  </summary>
+                  <div style={{ padding: "4px 14px 10px" }}>
+                    {g.pedidos.map(p => (
+                      <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "5px 0", fontSize: 12, borderTop: "1px solid " + pal.border }}>
+                        <span>{p.cliente_nombre}<LocalTag p={p} /> <span style={{ color: pal.textMuted }}>· {p.telefono || "sin teléfono"} · hace {diasDesde(p.creado_en)} d</span></span>
+                        <button className="icon-btn peligro" onClick={() => setBorrando(p)} aria-label="Borrar pedido">✕</button>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              ))}
+            </div>
+          ) : (
+            <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+              <div style={{ overflowX: "auto" }}>
+                <table>
+                  <thead><tr><th>Cliente</th><th>Producto</th><th style={{ textAlign: "center" }}>Stock</th><th style={{ textAlign: "center" }}>Espera</th><th></th></tr></thead>
+                  <tbody>
+                    {esperaFiltrados.map(p => {
+                      const d = diasDesde(p.creado_en);
+                      return (
+                        <tr key={p.id}>
+                          <td>
+                            <div style={{ fontWeight: 700, fontSize: 12 }}>{p.cliente_nombre}{p.clienta_sin_registrar && <span className="tag tag-neutral" style={{ marginLeft: 6 }}>sin registrar</span>}<LocalTag p={p} /></div>
+                            <div style={{ fontSize: 11, color: pal.textMuted }}>{p.telefono || "sin teléfono"}{p.cuit_dni ? " · DNI " + p.cuit_dni : ""}</div>
+                          </td>
+                          <td style={{ fontSize: 12 }}>{p.producto_nombre}{p.es_sugerencia && <span className="tag tag-warn" style={{ marginLeft: 6 }}>sugerencia</span>}</td>
+                          <td style={{ textAlign: "center" }}>{p.es_sugerencia ? <span style={{ color: pal.textMuted }}>—</span> : p.stock_total > 0 ? <span className="tag tag-ok">¡Disponible!</span> : <span className="tag tag-bad">0</span>}</td>
+                          <td style={{ textAlign: "center", fontSize: 12, fontWeight: 700, color: d > 30 ? pal.red : d > 14 ? pal.warn : pal.textMuted }}>{d} d</td>
+                          <td style={{ textAlign: "right" }}><button className="icon-btn peligro" onClick={() => setBorrando(p)} aria-label={"Borrar el pedido de " + p.cliente_nombre}>✕</button></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          <div style={{ fontSize: 11, color: pal.textMuted, marginTop: 8 }}>Cuando un producto esperado tiene stock, el aviso aparece en la pestaña <b>Ya hay stock</b>.</div>
+        </>
+      )}
+
+      {borrando && (
+        <div className="pos-overlay" onClick={() => setBorrando(null)}>
+          <div className="card pop-in" role="dialog" aria-label="Borrar pedido" style={{ width: 380, maxWidth: "95vw", background: pal.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 6 }}>¿Borrar este pedido?</div>
+            <div style={{ fontSize: 13, marginBottom: 14 }}>{borrando.cliente_nombre} esperaba <b>{borrando.producto_nombre}</b>. Se borra de la lista y no se le va a avisar.</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setBorrando(null)}>Cancelar</button>
+              <button className="btn btn-sm" style={{ flex: 1, background: pal.red, color: "#fff" }} onClick={() => borrar(borrando)}>Sí, borrar</button>
+            </div>
           </div>
         </div>
-        <button className="btn btn-p" style={{ marginTop: 12 }} onClick={guardar}>Anotar pedido</button>
-      </div>
-
-      <div className="card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, gap: 10 }}>
-          <div style={{ fontSize: 13, fontWeight: 600 }}>Pedidos en espera ({pedidos.length})</div>
-          <input className="inp" style={{ maxWidth: 260 }} placeholder="Buscar por clienta, celular, DNI o producto" value={filtroLista} onChange={e => setFiltroLista(e.target.value)} />
-        </div>
-        {pedidos.length === 0 ? <div style={{ fontSize: 12, color: pal.textMuted, padding: "10px 0" }}>No hay pedidos en espera.</div> : pedidosFiltrados.length === 0 ? <div style={{ fontSize: 12, color: pal.textMuted, padding: "10px 0" }}>No se encontraron pedidos con esa busqueda.</div> : (
-          <table style={{ width: "100%", fontSize: 12 }}>
-            <thead><tr style={{ color: pal.textMuted, textAlign: "left" }}><th style={{ padding: "6px 0" }}>Clienta</th><th>Contacto</th><th>Producto</th><th style={{ textAlign: "center" }}>Stock</th><th></th></tr></thead>
-            <tbody>
-              {pedidosFiltrados.map(p => (
-                <tr key={p.id} style={{ borderTop: "1px solid " + pal.border }}>
-                  <td style={{ padding: "8px 0" }}>{p.cliente_nombre} {p.clienta_sin_registrar && <span className="badge" style={{ background: "#65676B22", color: pal.textMuted, fontSize: 8 }}>sin registrar</span>} <span className="badge" style={{ background: p.local_id === 2 ? "#2471a322" : "#c9a84c22", color: p.local_id === 2 ? "#2471a3" : "#8a6d1f", fontSize: 8 }}>{p.local_nombre}</span></td>
-                  <td style={{ fontSize: 11, color: pal.textMuted }}>{p.telefono || "-"}{p.cuit_dni ? " · DNI " + p.cuit_dni : ""}</td>
-                  <td>{p.producto_nombre} {p.es_sugerencia && <span className="badge" style={{ background: "#c9a84c22", color: "#c9a84c", fontSize: 8 }}>sugerencia</span>}</td>
-                  <td style={{ textAlign: "center", color: p.es_sugerencia ? pal.textMuted : (p.stock_total > 0 ? "#2d7a4f" : "#c0392b"), fontWeight: 600 }}>{p.es_sugerencia ? "—" : (p.stock_total > 0 ? "Disponible!" : "0")}</td>
-                  <td style={{ textAlign: "right" }}><span onClick={() => borrar(p.id)} style={{ cursor: "pointer", color: pal.textMuted, fontSize: 15 }}>×</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        <div style={{ fontSize: 10, color: pal.textMuted, marginTop: 10 }}>Cuando un producto tiene stock, el aviso para la clienta aparece en la pestaña "Ya hay stock", arriba.</div>
-      </div>
-      </>
       )}
     </div>
   );
@@ -8882,7 +9248,7 @@ function GiftCards({ localId, usuario, paletaActual }) {
           <div style={{ textAlign: "center", color: p.textMuted, padding: 30, fontSize: 12 }}>No hay gift cards en esta categoria</div>
         ) : (
           <table>
-            <thead><tr><th>Codigo</th><th>Beneficiario</th><th>Monto inicial</th><th>Saldo</th><th>Cliente vinculada</th><th>Emitida</th><th></th></tr></thead>
+            <thead><tr><th>Codigo</th><th>Beneficiario</th><th>Monto inicial</th><th>Saldo</th><th>Cliente vinculado</th><th>Emitida</th><th></th></tr></thead>
             <tbody>
               {listaSegunTab.map(g => (
                 <tr key={g.id}>
@@ -8907,7 +9273,7 @@ function GiftCards({ localId, usuario, paletaActual }) {
             <div className="fg"><div className="fl">Monto ($)</div><input className="inp" type="number" placeholder="10000" value={nueva.monto} onChange={e => setNueva(p => ({ ...p, monto: e.target.value }))} /></div>
             <div className="fg"><div className="fl">Nombre de quien la recibe</div><input className="inp" placeholder="Ej: Maria Lopez" value={nueva.beneficiario_nombre} onChange={e => setNueva(p => ({ ...p, beneficiario_nombre: e.target.value }))} /></div>
             <div className="fg"><div className="fl">Telefono (opcional)</div><input className="inp" placeholder="Ej: 2964123456" value={nueva.beneficiario_telefono} onChange={e => setNueva(p => ({ ...p, beneficiario_telefono: e.target.value }))} /></div>
-            <div className="fg"><div className="fl">Vincular a clienta existente (opcional)</div>
+            <div className="fg"><div className="fl">Vincular a cliente existente (opcional)</div>
               <select className="sel" value={nueva.cliente_id} onChange={e => setNueva(p => ({ ...p, cliente_id: e.target.value }))}>
                 <option value="">Sin vincular</option>
                 {clientes.map(c => (<option key={c.id} value={c.id}>{c.nombre}</option>))}
@@ -9093,7 +9459,7 @@ function ConfiguracionNegocio({ paletaActual }) {
                 <option value="enviar">Enviar el ticket online por WhatsApp</option>
                 <option value="preguntar">Preguntar cada vez (imprimir o enviar)</option>
               </select>
-              <div style={{ fontSize: 10, color: "#65676B", marginTop: 4 }}>Con "Enviar" no se imprime nada: al cobrar aparece el teléfono de la clienta para mandarle el ticket por WhatsApp.</div>
+              <div style={{ fontSize: 10, color: "#65676B", marginTop: 4 }}>Con "Enviar" no se imprime nada: al cobrar aparece el teléfono del cliente para mandarle el ticket por WhatsApp.</div>
             </div>
             <button className="btn btn-p" onClick={guardarGeneral}>Guardar</button>
           </div>
@@ -9471,7 +9837,7 @@ function DesafiosMes({ localId, usuario, mes, anio, paletaActual }) {
       </div>
       {datos.vendedoras.length === 0 ? (
         <div style={{ fontSize: 12, color: p.textMuted, textAlign: "center", padding: 16 }}>
-          Todavía nadie aceptó un desafío este mes. Se aceptan desde la ficha de la clienta en el Punto de Venta.
+          Todavía nadie aceptó un desafío este mes. Se aceptan desde la ficha del cliente en el Punto de Venta.
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -9766,7 +10132,7 @@ function ConfigComisiones({ paletaActual }) {
           <input type="checkbox" checked={retos.activo} onChange={e => setRetos(r => ({ ...r, activo: e.target.checked }))} />
           Activar desafíos para las vendedoras
         </label>
-        <div style={{ fontSize: 11, color: p.textMuted, marginBottom: 10 }}>En la ficha de la clienta, la vendedora acepta el reto de superar su ticket promedio. Al juntar la cantidad de retos superados en el mes, gana un producto de regalo (se entrega desde la pestaña Desafíos).</div>
+        <div style={{ fontSize: 11, color: p.textMuted, marginBottom: 10 }}>En la ficha del cliente, la vendedora acepta el reto de superar su ticket promedio. Al juntar la cantidad de retos superados en el mes, gana un producto de regalo (se entrega desde la pestaña Desafíos).</div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 160 }}>
             <div className="fl">Retos superados por mes</div>
@@ -10299,7 +10665,7 @@ function CambioDevolucion({ localId, usuario, paletaActual }) {
       <div class="c">Compra original: ${c.venta_origen_numero || "-"}</div><hr>
       <div class="b">Devuelve</div><table>${filas(resultado.devueltos, "-")}</table>
       ${(resultado.nuevos || []).length ? `<div class="b" style="margin-top:4px">Se lleva</div><table>${filas(resultado.nuevos, "+")}</table>` : ""}<hr>
-      <table><tr><td class="b">${parseFloat(c.diferencia) > 0 ? "Diferencia cobrada" : parseFloat(c.diferencia) < 0 ? "A favor de la clienta" : "Sin diferencia"}</td><td class="b" style="text-align:right">${fmt(Math.abs(parseFloat(c.diferencia)))}</td></tr></table>
+      <table><tr><td class="b">${parseFloat(c.diferencia) > 0 ? "Diferencia cobrada" : parseFloat(c.diferencia) < 0 ? "A favor del cliente" : "Sin diferencia"}</td><td class="b" style="text-align:right">${fmt(Math.abs(parseFloat(c.diferencia)))}</td></tr></table>
       ${resultado.gift_card ? `<hr><div class="c">Crédito a favor (Gift Card)</div><div class="c b" style="font-size:18px">${resultado.gift_card.codigo}</div><div class="c">Saldo: ${fmt(parseFloat(resultado.gift_card.saldo))}</div>` : ""}
       <hr><div class="c">Motivo: ${c.motivo || "-"}</div><div class="c">Atendió: ${c.usuario_nombre || "-"}</div><br><br></body></html>`;
     const w = window.open("", "_blank", "width=380,height=600");
@@ -10582,7 +10948,7 @@ function CambioDevolucion({ localId, usuario, paletaActual }) {
                   </div>
                   {resolucion === "credito" && (
                     <div className="fg"><div className="fl">A nombre de</div>
-                      <input className="inp" value={beneficiario} onChange={e => setBeneficiario(e.target.value)} placeholder="Nombre de la clienta" />
+                      <input className="inp" value={beneficiario} onChange={e => setBeneficiario(e.target.value)} placeholder="Nombre del cliente" />
                     </div>
                   )}
                 </>
@@ -12487,7 +12853,9 @@ function ControlInventario({ localId, usuario, paletaActual }) {
 
 function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
-  const localActual = localId === 2 ? "ush" : "rg";
+  const localActual = Number(localId) === 2 ? "ush" : "rg";
+  const esEncargada = usuario?.rol === "jefe" || usuario?.rol === "admin";
+  const puedeCrear = esEncargada || (permisosActivos || []).includes("ordenes.crear");
   const localNombre = nombreLocal(localId);
   const [ordenes, setOrdenes] = useState([]);
   const [productos, setProductos] = useState([]);
@@ -12525,7 +12893,13 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
     setLoading(false);
   };
 
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => { cargar(); setOrdenDetalle(null); setTab(t => (t === "recibir" ? "lista" : t)); }, [localId]);
+  // Los mensajes de exito se borran solos; los de error quedan hasta la proxima accion
+  useEffect(() => {
+    if (!mensaje || mensaje.startsWith("Error")) return;
+    const t = setTimeout(() => setMensaje(""), 4000);
+    return () => clearTimeout(t);
+  }, [mensaje]);
 
   const cargarRecibido = async () => {
     try {
@@ -12541,15 +12915,14 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
     const cantRg = parseInt(itemTemp.cantidad_rg) || 0;
     const cantUsh = parseInt(itemTemp.cantidad_ush) || 0;
     if (cantRg + cantUsh === 0) return setMensaje("Ingresa cantidad para algun local");
-    setNueva(p => ({
-      ...p,
-      items: [...p.items, {
-        producto_id: prod.id, producto_nombre: prod.nombre,
-        cantidad_rg: cantRg, cantidad_ush: cantUsh,
-        cantidad_total: cantRg + cantUsh,
-        costo_unitario: parseFloat(itemTemp.costo_unitario) || parseFloat(prod.costo) || 0
-      }]
-    }));
+    const costo = parseFloat(itemTemp.costo_unitario) || parseFloat(prod.costo) || 0;
+    setNueva(p => {
+      const ya = p.items.find(it => it.producto_id === prod.id);
+      if (ya) {
+        return { ...p, items: p.items.map(it => it.producto_id === prod.id ? { ...it, cantidad_rg: it.cantidad_rg + cantRg, cantidad_ush: it.cantidad_ush + cantUsh, cantidad_total: it.cantidad_total + cantRg + cantUsh, costo_unitario: costo } : it) };
+      }
+      return { ...p, items: [...p.items, { producto_id: prod.id, producto_nombre: prod.nombre, cantidad_rg: cantRg, cantidad_ush: cantUsh, cantidad_total: cantRg + cantUsh, costo_unitario: costo }] };
+    });
     setItemTemp({ producto_id: "", cantidad_rg: "", cantidad_ush: "", costo_unitario: "" });
     setMensaje("");
   };
@@ -12728,31 +13101,19 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
     } catch (e) {}
   };
 
-  const editarItemOrden = async (it) => {
-    const cantStr = prompt("Cantidad total del producto \"" + it.producto_nombre + "\":", it.cantidad_total);
-    if (cantStr === null) return;
-    const cant = parseInt(cantStr);
-    if (isNaN(cant) || cant < 0) { setMensaje("Cantidad invalida"); return; }
-    // Distribucion: si la orden manejaba rg/ush, preguntamos; si no, todo va al total
-    let rg = it.cantidad_rg || 0, ush = it.cantidad_ush || 0;
-    if ((it.cantidad_rg || 0) > 0 || (it.cantidad_ush || 0) > 0) {
-      const rgStr = prompt("Cantidad para RIO GRANDE:", it.cantidad_rg || 0);
-      if (rgStr === null) return;
-      const ushStr = prompt("Cantidad para USHUAIA:", it.cantidad_ush || 0);
-      if (ushStr === null) return;
-      rg = parseInt(rgStr) || 0; ush = parseInt(ushStr) || 0;
-    } else {
-      rg = cant; ush = 0;
-    }
-    const costoStr = prompt("Costo unitario ($):", it.costo_unitario || 0);
-    if (costoStr === null) return;
+  // Editar un producto de la orden (cantidades por local y costo) con un formulario
+  const [editItem, setEditItem] = useState(null); // { it, rg, ush, costo }
+  const editarItemOrden = (it) => setEditItem({ it, rg: String(it.cantidad_rg || 0), ush: String(it.cantidad_ush || 0), costo: String(it.costo_unitario || 0) });
+  const guardarEdicionItem = async () => {
+    const rg = parseInt(editItem.rg) || 0, ush = parseInt(editItem.ush) || 0;
+    if (rg < 0 || ush < 0) return setMensaje("Error: las cantidades no pueden ser negativas");
     try {
-      await API.put("/ordenes-ingreso/" + ordenDetalle.id + "/items/" + it.id + "/editar", {
-        cantidad_total: cant, cantidad_rg: rg, cantidad_ush: ush, costo_unitario: parseFloat(costoStr) || 0
+      await API.put("/ordenes-ingreso/" + ordenDetalle.id + "/items/" + editItem.it.id + "/editar", {
+        cantidad_total: rg + ush, cantidad_rg: rg, cantidad_ush: ush, costo_unitario: parseFloat(editItem.costo) || 0
       });
-      setMensaje("Item actualizado!");
+      setMensaje("✓ " + editItem.it.producto_nombre + " actualizado");
+      setEditItem(null);
       recargarItems();
-      setTimeout(() => setMensaje(""), 2500);
     } catch (e) { setMensaje("Error: " + (e?.response?.data?.error || e.message)); }
   };
 
@@ -12760,9 +13121,8 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
     if (!confirm("Eliminar el producto \"" + it.producto_nombre + "\" de esta orden?")) return;
     try {
       await API.delete("/ordenes-ingreso/" + ordenDetalle.id + "/items/" + it.id);
-      setMensaje("Item eliminado!");
+      setMensaje("✓ Producto eliminado de la orden");
       recargarItems();
-      setTimeout(() => setMensaje(""), 2500);
     } catch (e) { setMensaje("Error: " + (e?.response?.data?.error || e.message)); }
   };
 
@@ -12773,7 +13133,9 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
       setItemsDetalle(res.data || []);
       const c = {};
       (res.data || []).forEach(it => {
-        c[it.id] = localActual === "rg" ? (it.recibido_rg || it.cantidad_rg) : (it.recibido_ush || it.cantidad_ush);
+        c[it.id] = localActual === "rg"
+          ? (it.revisado_rg ? (it.recibido_rg ?? 0) : (it.cantidad_rg || 0))
+          : (it.revisado_ush ? (it.recibido_ush ?? 0) : (it.cantidad_ush || 0));
       });
       setConteo(c);
     } catch (e) {}
@@ -12790,13 +13152,35 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
       await API.put("/ordenes-ingreso/" + ordenDetalle.id + "/items/" + item.id + "/recibir", {
         local: localActual, cantidad: cant, nota: notaItem[item.id] || null, usuario_nombre: usuario?.nombre || null
       });
-      setMensaje("Item confirmado: " + item.producto_nombre);
+      setMensaje("✓ " + item.producto_nombre + ": " + cant + " u.");
       const res = await API.get("/ordenes-ingreso/" + ordenDetalle.id + "/items");
       setItemsDetalle(res.data || []);
-      setTimeout(() => setMensaje(""), 2500);
+      cargar();
     } catch (e) { setMensaje("Error al confirmar: " + (e.response?.data?.error || e.message)); }
     setConfirmandoId(null);
   };
+
+  // Confirmar de una todos los pendientes cuyo conteo coincide con lo esperado
+  const [confirmandoTodos, setConfirmandoTodos] = useState(false);
+  const confirmarCoincidentes = async () => {
+    const pendientes = itemsDetalle.filter(it => (esperadoLocal(it) > 0 || it.es_extra) && !revisadoLocal(it) && parseInt(conteo[it.id]) === esperadoLocal(it));
+    if (!pendientes.length) return setMensaje("No hay productos pendientes cuyo conteo coincida con lo esperado");
+    setConfirmandoTodos(true);
+    let ok = 0;
+    for (const it of pendientes) {
+      try {
+        await API.put("/ordenes-ingreso/" + ordenDetalle.id + "/items/" + it.id + "/recibir", { local: localActual, cantidad: esperadoLocal(it), nota: null, usuario_nombre: usuario?.nombre || null });
+        ok++;
+      } catch (e) {}
+    }
+    const res = await API.get("/ordenes-ingreso/" + ordenDetalle.id + "/items");
+    setItemsDetalle(res.data || []);
+    cargar();
+    setConfirmandoTodos(false);
+    setMensaje("✓ " + ok + " producto" + (ok !== 1 ? "s" : "") + " confirmado" + (ok !== 1 ? "s" : "") + (ok < pendientes.length ? " (" + (pendientes.length - ok) + " con error)" : ""));
+  };
+  const [buscarExtra, setBuscarExtra] = useState("");
+  const [buscarRecibido, setBuscarRecibido] = useState("");
 
   const agregarExtra = async () => {
     if (!extra.producto_id || !extra.cantidad) return setMensaje("Completa producto y cantidad del extra");
@@ -12809,6 +13193,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
       });
       setMensaje("Item extra agregado!");
       setExtra({ producto_id: "", cantidad: "", costo_unitario: "" });
+      setBuscarExtra("");
       const res = await API.get("/ordenes-ingreso/" + ordenDetalle.id + "/items");
       setItemsDetalle(res.data || []);
     } catch (e) { setMensaje("Error al agregar extra: " + (e.response?.data?.error || e.message)); }
@@ -12818,91 +13203,149 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
   const recibidoLocal = (it) => localActual === "rg" ? it.recibido_rg : it.recibido_ush;
   const revisadoLocal = (it) => localActual === "rg" ? it.revisado_rg : it.revisado_ush;
 
+  // ---- datos para la lista ----
+  const pendientesMiLocal = ordenes.filter(o => o.estado !== "recibida" && o.estado !== "pagada" && (localActual === "rg" ? o.rg_tiene_items : o.ush_tiene_items));
+  const porRecibir = pendientesMiLocal.filter(o => !(localActual === "rg" ? o.rg_completo : o.ush_completo));
+  const recibidasMiLocal = pendientesMiLocal.filter(o => (localActual === "rg" ? o.rg_completo : o.ush_completo));
+  const totalPorRecibir = porRecibir.reduce((s2, o) => s2 + parseFloat(o.total || 0), 0);
+  const diasDesde = (f) => f ? Math.floor((Date.now() - new Date(f)) / 86400000) : null;
+  const fechaCortaOI = (f) => f ? new Date(f).toLocaleDateString("es-AR") : "—";
+  const tarjetaOrden = (o, recibida) => {
+    const d = diasDesde(o.fecha_factura || o.creado_en);
+    if (recibida) {
+      // Ya recibida en este local: tarjeta chica y apagada
+      return (
+        <div key={o.id} className="oi-card recibida anim-in">
+          <span className="oi-check" aria-hidden="true">✓</span>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 700 }}>{o.proveedor_nombre || "Sin proveedor"}</div>
+            <div style={{ fontSize: 11, color: temaPal.textMuted }}>Factura {o.numero_factura || "—"} · {fechaCortaOI(o.fecha_factura || o.creado_en)} · {fmt(parseFloat(o.total || 0)).replace(",00", "")}</div>
+          </div>
+          <button className="mini-chip" onClick={() => verDetalle(o)}>Ver detalle</button>
+          {esEncargada && <button className="icon-btn peligro" onClick={() => eliminarOrden(o.id)} aria-label="Eliminar orden" title="Eliminar orden">✕</button>}
+        </div>
+      );
+    }
+    return (
+      <div key={o.id} className="oi-card pendiente anim-in">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 800 }}>{o.proveedor_nombre || "Sin proveedor"}</div>
+            <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 2 }}>Factura <b style={{ color: temaPal.text }}>{o.numero_factura || "—"}</b> · {fechaCortaOI(o.fecha_factura || o.creado_en)}</div>
+            {o.notas && <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 2 }}>📝 {o.notas}</div>}
+          </div>
+          <div style={{ textAlign: "right", flexShrink: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 900, fontVariantNumeric: "tabular-nums" }}>{fmt(parseFloat(o.total || 0)).replace(",00", "")}</div>
+            {d !== null && <div style={{ fontSize: 11, fontWeight: 700, color: d > 7 ? temaPal.red : temaPal.warn }}>{d === 0 ? "cargada hoy" : "hace " + d + " día" + (d > 1 ? "s" : "")}</div>}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 12, alignItems: "center" }}>
+          <button className="oi-btn-recibir" onClick={() => verDetalle(o)}>📦 Recibir mercadería</button>
+          {esEncargada && <button className="icon-btn peligro" onClick={() => eliminarOrden(o.id)} aria-label="Eliminar orden" title="Eliminar orden">🗑</button>}
+        </div>
+      </div>
+    );
+  };
+  const recibidoFilas = recibidoHist.flatMap((r, i) => {
+    const filas = [];
+    if (r.revisado_rg) filas.push({ key: i + "-rg", r, local: 1, cant: r.recibido_rg, fecha: r.fecha_recepcion_rg, por: r.recibido_por_rg });
+    if (r.revisado_ush) filas.push({ key: i + "-ush", r, local: 2, cant: r.recibido_ush, fecha: r.fecha_recepcion_ush, por: r.recibido_por_ush });
+    return filas;
+  }).filter(f => {
+    const q = buscarRecibido.trim().toLowerCase();
+    if (!q) return true;
+    return [f.r.producto_nombre, f.r.numero_factura, f.r.proveedor_nombre, f.por].some(x => String(x || "").toLowerCase().includes(q));
+  }).sort((a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0));
+
   return (
-    <div className="fade">
-      <div className="ph">
-        <div><div className="pt">Ingreso de Mercaderia</div><div className="ps">recepcion en {localNombre}</div></div>
-        <div style={{ display: "flex", gap: 8 }}>
-          {tab !== "lista" && tab !== "recibido" && <button className="btn btn-sm" onClick={() => { setTab("lista"); setOrdenDetalle(null); setFacturaItems(null); setFacturaArchivo(null); }}>Volver</button>}
-          {(usuario?.rol === "jefe" || (permisosActivos || []).includes("ordenes.crear")) && (tab === "lista" || tab === "recibido") && <button className="btn btn-sm" onClick={() => setTab("factura")}>📄 Cargar factura</button>}
-          {(usuario?.rol === "jefe" || (permisosActivos || []).includes("ordenes.crear")) && (tab === "lista" || tab === "recibido") && <button className="btn btn-p btn-sm" onClick={() => setTab("nueva")}>+ Nueva orden</button>}
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div className="dash-head">
+        <div>
+          <div className="pt">Ingreso de mercadería</div>
+          <div className="ps">órdenes de compra y recepción · {localNombre}</div>
+        </div>
+        <div className="dash-actions">
+          {tab !== "lista" && tab !== "recibido" && <button className="btn btn-g btn-sm" onClick={() => { setTab("lista"); setOrdenDetalle(null); setFacturaItems(null); setFacturaArchivo(null); }}>← Volver</button>}
+          {puedeCrear && (tab === "lista" || tab === "recibido") && <button className="btn btn-g btn-sm" onClick={() => setTab("factura")}>📄 Cargar factura</button>}
+          {puedeCrear && (tab === "lista" || tab === "recibido") && <button className="btn btn-p btn-sm" onClick={() => setTab("nueva")}>+ Nueva orden</button>}
         </div>
       </div>
 
       {mensaje && (
-        <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>
+        <div className="pop-in" role={mensaje.startsWith("Error") ? "alert" : "status"} style={{ background: mensaje.includes("Error") ? temaPal.redDim : temaPal.greenDim, border: "1px solid " + (mensaje.includes("Error") ? temaPal.red : temaPal.green), borderRadius: 8, padding: "10px 16px", marginBottom: 14, fontSize: 13, fontWeight: 600, color: mensaje.includes("Error") ? temaPal.red : temaPal.green }}>{mensaje}</div>
       )}
 
       {(tab === "lista" || tab === "recibido") && (
-        <div className="tabs">
-          <div className={"tab " + (tab === "lista" ? "on" : "")} onClick={() => setTab("lista")}>POR RECIBIR</div>
-          <div className={"tab " + (tab === "recibido" ? "on" : "")} onClick={() => { setTab("recibido"); cargarRecibido(); }}>STOCK RECIBIDO</div>
+        <div className="tabs" role="tablist">
+          <button role="tab" aria-selected={tab === "lista"} className={"tab " + (tab === "lista" ? "on" : "")} onClick={() => setTab("lista")}>📦 POR RECIBIR{porRecibir.length ? " (" + porRecibir.length + ")" : ""}</button>
+          <button role="tab" aria-selected={tab === "recibido"} className={"tab " + (tab === "recibido" ? "on" : "")} onClick={() => { setTab("recibido"); cargarRecibido(); }}>✅ STOCK RECIBIDO</button>
         </div>
       )}
 
       {tab === "lista" && (
-        <div className="card">
-          {loading ? (<div style={{ textAlign: "center", color: temaPal.textMuted, fontSize: 12 }}>Cargando...</div>) : ordenes.filter(o => o.estado !== "recibida" && o.estado !== "pagada" && (localActual === "rg" ? o.rg_tiene_items : o.ush_tiene_items)).length === 0 ? (
-            <div style={{ fontSize: 12, color: temaPal.textMuted, textAlign: "center", padding: 30 }}>No hay ordenes pendientes de recibir</div>
-          ) : (
-            <table>
-              <thead><tr><th>Factura</th><th>Proveedor</th><th>Fecha</th><th>Estado</th><th>Total</th><th></th></tr></thead>
-              <tbody>
-                {ordenes.filter(o => o.estado !== "recibida" && o.estado !== "pagada" && (localActual === "rg" ? o.rg_tiene_items : o.ush_tiene_items)).map((o, i) => {
-                  const completoMiLocal = localActual === "rg" ? o.rg_completo : o.ush_completo;
-                  return (
-                  <tr key={i}>
-                    <td style={{ fontSize: 12, fontWeight: 600 }}>{o.numero_factura || "-"}</td>
-                    <td style={{ fontSize: 12 }}>{o.proveedor_nombre || "-"}</td>
-                    <td style={{ fontSize: 11, color: temaPal.textMuted }}>{o.fecha_factura ? new Date(o.fecha_factura).toLocaleDateString("es-AR") : "-"}</td>
-                    <td>
-                      {completoMiLocal
-                        ? <span className="badge" style={{ background: "#2d7a4f15", color: "#2d7a4f" }}>recibido en {localNombre}</span>
-                        : <span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c" }}>{o.estado}</span>}
-                    </td>
-                    <td style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>{fmt(parseFloat(o.total || 0))}</td>
-                    <td style={{ whiteSpace: "nowrap" }}>
-                      {completoMiLocal
-                        ? <button className="btn btn-sm" style={{ background: temaPal.bg, color: "#2d7a4f", border: "1px solid #2d7a4f" }} onClick={() => verDetalle(o)}>Recibido</button>
-                        : <button className="btn btn-sm" style={{ background: "#2d7a4f", color: "white" }} onClick={() => verDetalle(o)}>Recibir</button>}
-                      {usuario?.rol === "jefe" && <span onClick={() => eliminarOrden(o.id)} style={{ cursor: "pointer", color: "#c0392b", fontSize: 11, marginLeft: 8 }}>eliminar</span>}
-                    </td>
-                  </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
+        loading ? (
+          <div>{[0, 1, 2].map(k => <div key={k} className="skel" style={{ height: 90, marginBottom: 10 }} />)}</div>
+        ) : (
+          <>
+            <div className="kpi-grid kpi-3" style={{ marginBottom: 14 }}>
+              <div className="kpi" style={{ borderTop: "3px solid " + temaPal.accent }}><div className="kpi-label">Órdenes por recibir</div><div className="kpi-val" style={{ color: temaPal.accent }}>{porRecibir.length}</div><div className="kpi-sub">en {localNombre}</div></div>
+              <div className="kpi" style={{ borderTop: "3px solid #2471a3" }}><div className="kpi-label">Mercadería en camino</div><div className="kpi-val" style={{ color: "#2471a3", fontSize: 20 }}>{fmt(totalPorRecibir).replace(",00", "")}</div><div className="kpi-sub">a costo de factura</div></div>
+              <div className="kpi" style={{ borderTop: "3px solid " + temaPal.green }}><div className="kpi-label">Ya recibidas acá</div><div className="kpi-val" style={{ color: temaPal.green }}>{recibidasMiLocal.length}</div><div className="kpi-sub">esperando al otro local o pago</div></div>
+            </div>
+            {pendientesMiLocal.length === 0 ? (
+              <div className="card empty" style={{ padding: 40 }}>
+                <div style={{ fontSize: 32, marginBottom: 6 }} aria-hidden="true">📭</div>
+                No hay mercadería pendiente de recibir en {localNombre}.
+                {puedeCrear && <div style={{ marginTop: 12 }}><button className="btn btn-p btn-sm" onClick={() => setTab("factura")}>📄 Cargar una factura</button></div>}
+              </div>
+            ) : (
+              <>
+                <div className="oi-seccion">📦 Por recibir <span className="tag tag-warn">{porRecibir.length}</span></div>
+                {porRecibir.length === 0 ? (
+                  <div className="card empty" style={{ marginBottom: 16, color: temaPal.green }}>✓ Todo lo que llegó a {localNombre} ya está recibido.</div>
+                ) : (
+                  <div className="oi-grid" style={{ marginBottom: 18 }}>{porRecibir.map(o => tarjetaOrden(o, false))}</div>
+                )}
+                {recibidasMiLocal.length > 0 && (
+                  <>
+                    <div className="oi-seccion" style={{ color: temaPal.textMuted }}>✓ Ya recibidas en {localNombre} <span style={{ fontWeight: 500, fontSize: 11 }}>(esperan al otro local o el pago)</span></div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>{recibidasMiLocal.map(o => tarjetaOrden(o, true))}</div>
+                  </>
+                )}
+              </>
+            )}
+          </>
+        )
       )}
 
       {tab === "recibido" && (
-        <div className="card">
-          {recibidoHist.length === 0 ? (
-            <div style={{ fontSize: 12, color: temaPal.textMuted, textAlign: "center", padding: 30 }}>Todavia no hay stock recibido registrado</div>
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div style={{ padding: 12, borderBottom: "1px solid " + temaPal.border }}>
+            <input className="inp" placeholder="Buscar por producto, factura, proveedor o quién recibió..." value={buscarRecibido} onChange={e => setBuscarRecibido(e.target.value)} />
+          </div>
+          {recibidoFilas.length === 0 ? (
+            <div className="empty">{recibidoHist.length === 0 ? "Todavía no hay stock recibido registrado." : "Nada coincide con la búsqueda."}</div>
           ) : (
-            <table>
-              <thead><tr><th>Producto</th><th>Factura</th><th>Proveedor</th><th>Local</th><th>Cantidad</th><th>Fecha</th><th>Recibido por</th></tr></thead>
-              <tbody>
-                {recibidoHist.map((r, i) => {
-                  const filas = [];
-                  if (r.revisado_rg) filas.push({ local: "RG", cant: r.recibido_rg, fecha: r.fecha_recepcion_rg, por: r.recibido_por_rg });
-                  if (r.revisado_ush) filas.push({ local: "USH", cant: r.recibido_ush, fecha: r.fecha_recepcion_ush, por: r.recibido_por_ush });
-                  return filas.map((f, j) => (
-                    <tr key={i + "-" + j}>
-                      <td style={{ fontSize: 12 }}>{r.producto_nombre}{r.es_extra ? <span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c", marginLeft: 6 }}>extra</span> : ""}</td>
-                      <td style={{ fontSize: 11, color: temaPal.textMuted }}>{r.numero_factura || "-"}</td>
-                      <td style={{ fontSize: 11 }}>{r.proveedor_nombre || "-"}</td>
-                      <td style={{ fontSize: 11 }}>{f.local}</td>
-                      <td style={{ fontSize: 12, color: "#2d7a4f", fontWeight: 600 }}>{f.cant}u</td>
-                      <td style={{ fontSize: 11, color: temaPal.textMuted }}>{f.fecha ? new Date(f.fecha).toLocaleDateString("es-AR") + " " + new Date(f.fecha).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "-"}</td>
-                      <td style={{ fontSize: 11 }}>{f.por || "-"}</td>
+            <div style={{ overflowX: "auto" }}>
+              <table>
+                <thead><tr><th>Fecha</th><th>Producto</th><th>Factura</th><th>Proveedor</th><th>Local</th><th style={{ textAlign: "center" }}>Cantidad</th><th>Recibió</th></tr></thead>
+                <tbody>
+                  {recibidoFilas.slice(0, 300).map(f => (
+                    <tr key={f.key}>
+                      <td style={{ fontSize: 11, color: temaPal.textMuted, whiteSpace: "nowrap" }}>{f.fecha ? new Date(f.fecha).toLocaleDateString("es-AR") + " " + new Date(f.fecha).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "—"}</td>
+                      <td style={{ fontWeight: 600 }}>{f.r.producto_nombre}{f.r.es_extra ? <span className="tag tag-warn" style={{ marginLeft: 6 }}>extra</span> : ""}</td>
+                      <td style={{ fontSize: 11, color: temaPal.textMuted }}>{f.r.numero_factura || "—"}</td>
+                      <td style={{ fontSize: 11 }}>{f.r.proveedor_nombre || "—"}</td>
+                      <td style={{ fontSize: 11 }}>{nombreLocal(f.local)}</td>
+                      <td style={{ textAlign: "center" }}><span className="tag tag-ok">{f.cant} u.</span></td>
+                      <td style={{ fontSize: 11 }}>{f.por || "—"}</td>
                     </tr>
-                  ));
-                })}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
+          {recibidoFilas.length > 300 && <div style={{ fontSize: 11, color: temaPal.textMuted, padding: 10, textAlign: "center" }}>Se muestran los 300 más recientes. Usá el buscador para encontrar otros.</div>}
         </div>
       )}
 
@@ -12968,7 +13411,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
                           </div>
                         )}
                       </td>
-                      <td><span onClick={() => quitarItemFactura(idx)} style={{ cursor: "pointer", color: "#c0392b", fontSize: 13 }}>✕</span></td>
+                      <td><button className="icon-btn peligro" onClick={() => quitarItemFactura(idx)} aria-label="Quitar fila">✕</button></td>
                     </tr>
                     );
                   })}
@@ -13051,7 +13494,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
                       <td style={{ fontSize: 11 }}>{it.cantidad_ush}</td>
                       <td style={{ fontSize: 11 }}>${it.costo_unitario}</td>
                       <td style={{ fontSize: 11, fontWeight: 600 }}>{fmt((it.costo_unitario * it.cantidad_total))}</td>
-                      <td><span style={{ cursor: "pointer", color: "#c0392b", fontSize: 14 }} onClick={() => quitarItemNueva(i)}>x</span></td>
+                      <td><button className="icon-btn peligro" onClick={() => quitarItemNueva(i)} aria-label={"Quitar " + it.producto_nombre}>✕</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -13086,84 +13529,137 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
         </div>
       )}
 
-      {tab === "recibir" && ordenDetalle && (
-        <div>
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 4 }}>RECIBIENDO EN {localNombre.toUpperCase()}</div>
-            <div style={{ fontSize: 13, color: temaPal.text }}>Factura {ordenDetalle.numero_factura || "-"} - {ordenDetalle.proveedor_nombre || ""}</div>
-            <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>Conta la mercaderia fisica y confirma cada item. Si la cantidad no coincide, dejala como llego y agrega una nota.</div>
-            {(() => {
-              const delLocal = itemsDetalle.filter(it => esperadoLocal(it) > 0 || it.es_extra);
-              const recibidos = delLocal.filter(it => revisadoLocal(it)).length;
-              const completo = delLocal.length > 0 && recibidos === delLocal.length;
-              return (
-                <div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 6, background: completo ? "#2d7a4f12" : "#c9a84c12", border: "1px solid " + (completo ? "#2d7a4f" : "#c9a84c"), fontSize: 12, color: completo ? "#2d7a4f" : "#c9a84c", fontWeight: 600 }}>
-                  {completo ? "Recepcion completa: " : "Progreso: "}{recibidos} de {delLocal.length} items recibidos
+      {tab === "recibir" && ordenDetalle && (() => {
+        // Los pendientes arriba, los ya recibidos abajo
+        const delLocal = itemsDetalle.filter(it => esperadoLocal(it) > 0 || it.es_extra).sort((a2, b2) => (revisadoLocal(a2) ? 1 : 0) - (revisadoLocal(b2) ? 1 : 0));
+        const recibidos = delLocal.filter(it => revisadoLocal(it)).length;
+        const completo = delLocal.length > 0 && recibidos === delLocal.length;
+        const coinciden = delLocal.filter(it => !revisadoLocal(it) && parseInt(conteo[it.id]) === esperadoLocal(it)).length;
+        const tieneRg = itemsDetalle.some(it => (it.cantidad_rg || 0) > 0);
+        const tieneUsh = itemsDetalle.some(it => (it.cantidad_ush || 0) > 0);
+        const extrasFiltrados = buscarExtra.trim().length > 1 ? productos.filter(pr => ((pr.nombre || "") + " " + (pr.codigo_barras || "")).toLowerCase().includes(buscarExtra.toLowerCase())).slice(0, 8) : [];
+        const prodExtra = productos.find(pr => String(pr.id) === String(extra.producto_id));
+        return (
+          <div>
+            <div className="card" style={{ marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".1em", color: temaPal.textMuted }}>RECIBIENDO EN {localNombre.toUpperCase()}</div>
+                  <div style={{ fontSize: 17, fontWeight: 800, marginTop: 2 }}>{ordenDetalle.proveedor_nombre || "Sin proveedor"}</div>
+                  <div style={{ fontSize: 12, color: temaPal.textMuted }}>Factura {ordenDetalle.numero_factura || "—"} · {fmt(parseFloat(ordenDetalle.total || 0)).replace(",00", "")}</div>
                 </div>
-              );
-            })()}
-            {usuario?.rol === "jefe" && (() => {
-              const tieneRg = itemsDetalle.some(it => (it.cantidad_rg || 0) > 0);
-              const tieneUsh = itemsDetalle.some(it => (it.cantidad_ush || 0) > 0);
-              return (
-                <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                  {tieneRg && <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => quitarLocalOrden("rg")}>Quitar Rio Grande de esta orden</button>}
-                  {tieneUsh && <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => quitarLocalOrden("ush")}>Quitar Ushuaia de esta orden</button>}
-                  <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => eliminarOrden(ordenDetalle.id)}>Eliminar orden completa</button>
+                <div style={{ minWidth: 220, flex: "0 1 300px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700, marginBottom: 5 }}>
+                    <span style={{ color: completo ? temaPal.green : temaPal.text }}>{completo ? "✓ Recepción completa" : "Progreso"}</span>
+                    <span style={{ fontVariantNumeric: "tabular-nums" }}>{recibidos} de {delLocal.length}</span>
+                  </div>
+                  <div className="reto-bar" style={{ height: 9 }}><div className="reto-fill" style={{ width: (delLocal.length ? recibidos / delLocal.length * 100 : 0) + "%", background: completo ? temaPal.green : temaPal.accent }} /></div>
                 </div>
-              );
-            })()}
-          </div>
-          <div className="card" style={{ marginBottom: 16 }}>
-            <table>
-              <thead><tr><th>Producto</th><th>Esperado</th><th>Contado</th><th>Nota (si hay diferencia)</th><th>Estado</th><th></th></tr></thead>
-              <tbody>
-                {itemsDetalle.filter(it => esperadoLocal(it) > 0 || it.es_extra).map((it, i) => {
-                  const esp = esperadoLocal(it);
-                  const cont = conteo[it.id];
-                  const dif = cont !== undefined && cont !== "" ? parseInt(cont) - esp : 0;
-                  return (
-                    <tr key={i} style={{ background: revisadoLocal(it) ? "#2d7a4f08" : "transparent" }}>
-                      <td style={{ fontSize: 12 }}>{it.producto_nombre}{it.es_extra ? <span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c", marginLeft: 6 }}>extra</span> : ""}
-                        <span style={{ marginLeft: 8, whiteSpace: "nowrap" }}>
-                          <span onClick={() => editarItemOrden(it)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 10, marginRight: 6 }}>editar</span>
-                          <span onClick={() => eliminarItemOrden(it)} style={{ cursor: "pointer", color: "#c0392b", fontSize: 10 }}>eliminar</span>
-                        </span></td>
-                      <td style={{ fontSize: 12, color: temaPal.textMuted }}>{esp}</td>
-                      <td><input className="inp" type="number" style={{ width: 70, padding: "4px 8px" }} value={conteo[it.id] ?? ""} onChange={e => setConteo(c => ({ ...c, [it.id]: e.target.value }))} /></td>
-                      <td>
-                        {dif !== 0 && !it.es_extra ? (
-                          <input className="inp" placeholder={dif > 0 ? "llegaron " + dif + " de mas" : "faltan " + Math.abs(dif)} style={{ padding: "4px 8px", fontSize: 11 }} value={notaItem[it.id] || ""} onChange={e => setNotaItem(n => ({ ...n, [it.id]: e.target.value }))} />
-                        ) : (<span style={{ fontSize: 11, color: temaPal.textMuted }}>{revisadoLocal(it) ? "ok" : "-"}</span>)}
-                      </td>
-                      <td>{revisadoLocal(it) ? <span style={{ fontSize: 11, color: "#2d7a4f", fontWeight: 600 }}>Recibido ({recibidoLocal(it)})</span> : <span style={{ fontSize: 11, color: "#c9a84c" }}>Pendiente</span>}</td>
-                      <td><button className="btn btn-sm" disabled={confirmandoId === it.id} onClick={() => confirmarItem(it)}>{confirmandoId === it.id ? "Confirmando..." : revisadoLocal(it) ? "Recontar" : "Confirmar"}</button></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div className="card">
-            <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 10 }}>AGREGAR ITEM EXTRA (regalo del proveedor, no estaba en la orden)</div>
-            <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-              <div className="fg" style={{ flex: 2, marginBottom: 0 }}><div className="fl">Producto</div>
-                <select className="sel" value={extra.producto_id} onChange={e => setExtra(p => ({ ...p, producto_id: e.target.value }))}>
-                  <option value="">Seleccionar...</option>
-                  {productos.map(pr => (<option key={pr.id} value={pr.id}>{pr.nombre}</option>))}
-                </select>
               </div>
-              <div className="fg" style={{ flex: 1, marginBottom: 0 }}><div className="fl">Cantidad</div><input className="inp" type="number" value={extra.cantidad} onChange={e => setExtra(p => ({ ...p, cantidad: e.target.value }))} /></div>
-              <button className="btn btn-sm" onClick={agregarExtra}>+ Agregar</button>
+              <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 10 }}>Contá la mercadería y confirmá cada producto (Enter confirma y pasa al siguiente). Si no coincide, cargá lo que llegó y dejá una nota.</div>
+              <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+                {coinciden > 0 && <button className="btn btn-p btn-sm" disabled={confirmandoTodos} onClick={confirmarCoincidentes}>{confirmandoTodos ? "Confirmando..." : "✓ Confirmar los " + coinciden + " que coinciden"}</button>}
+                {esEncargada && tieneRg && <button className="chip-btn" style={{ color: temaPal.red }} onClick={() => quitarLocalOrden("rg")}>Quitar {nombreLocal(1)}</button>}
+                {esEncargada && tieneUsh && <button className="chip-btn" style={{ color: temaPal.red }} onClick={() => quitarLocalOrden("ush")}>Quitar {nombreLocal(2)}</button>}
+                {esEncargada && <button className="chip-btn" style={{ color: temaPal.red }} onClick={() => eliminarOrden(ordenDetalle.id)}>Eliminar orden</button>}
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 12 }}>
+              {delLocal.length === 0 && <div className="empty">Esta orden no tiene productos para {localNombre}.</div>}
+              {delLocal.map((it, i) => {
+                const esp = esperadoLocal(it);
+                const cont = conteo[it.id];
+                const contNum = cont === undefined || cont === "" ? null : parseInt(cont);
+                const dif = contNum === null ? 0 : contNum - esp;
+                const listo = revisadoLocal(it);
+                return (
+                  <div key={it.id} className="oi-item" style={{ background: listo ? temaPal.greenDim : "transparent" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>
+                        {it.producto_nombre}
+                        {it.es_extra && <span className="tag tag-warn" style={{ marginLeft: 6 }}>extra</span>}
+                      </div>
+                      <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 2 }}>
+                        Esperado: <b style={{ color: temaPal.text }}>{esp}</b>
+                        {listo && <> · <span style={{ color: temaPal.green, fontWeight: 700 }}>✓ recibidos {recibidoLocal(it)}</span></>}
+                        {!listo && dif !== 0 && contNum !== null && <> · <span style={{ color: dif > 0 ? "#2471a3" : temaPal.red, fontWeight: 700 }}>{dif > 0 ? "+" + dif + " de más" : Math.abs(dif) + " faltan"}</span></>}
+                      </div>
+                      {!it.es_extra && dif !== 0 && contNum !== null && (
+                        <input className="mini-inp" style={{ width: "100%", maxWidth: 320, marginTop: 6 }} placeholder={dif > 0 ? "Nota: llegaron " + dif + " de más" : "Nota: faltan " + Math.abs(dif)} value={notaItem[it.id] || ""} onChange={e => setNotaItem(n => ({ ...n, [it.id]: e.target.value }))} aria-label="Nota de la diferencia" />
+                      )}
+                    </div>
+                    <div className="qty-pill" role="group" aria-label={"Cantidad contada de " + it.producto_nombre}>
+                      <button onClick={() => setConteo(cc => ({ ...cc, [it.id]: String(Math.max((parseInt(cc[it.id]) || 0) - 1, 0)) }))} aria-label="Uno menos">−</button>
+                      <input id={"oi-cont-" + i} className="oi-cont" type="number" min="0" value={cont ?? ""} onChange={e => setConteo(cc => ({ ...cc, [it.id]: e.target.value }))}
+                        onKeyDown={e => { if (e.key === "Enter") { confirmarItem(it); setTimeout(() => document.getElementById("oi-cont-" + (i + 1))?.focus(), 50); } }} aria-label="Contado" />
+                      <button onClick={() => setConteo(cc => ({ ...cc, [it.id]: String((parseInt(cc[it.id]) || 0) + 1) }))} aria-label="Uno más">+</button>
+                    </div>
+                    <div style={{ display: "flex", gap: 4, alignItems: "center", justifyContent: "flex-end" }}>
+                      <button className={"btn btn-sm " + (listo ? "btn-g" : "btn-p")} disabled={confirmandoId === it.id} onClick={() => confirmarItem(it)} style={{ minWidth: 92 }}>
+                        {confirmandoId === it.id ? "..." : listo ? "Recontar" : "Confirmar"}
+                      </button>
+                      <button className="icon-btn" onClick={() => editarItemOrden(it)} aria-label={"Editar " + it.producto_nombre} title="Editar cantidades o costo">✏️</button>
+                      <button className="icon-btn peligro" onClick={() => eliminarItemOrden(it)} aria-label={"Eliminar " + it.producto_nombre + " de la orden"} title="Sacar de la orden">✕</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="card">
+              <div className="pc-tit"><span>🎁 ITEM EXTRA (regalo del proveedor, no estaba en la orden)</span></div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <div style={{ position: "relative", flex: "2 1 240px" }}>
+                  {prodExtra ? (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: temaPal.bg, borderRadius: 6 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700 }}>{prodExtra.nombre}</span>
+                      <button className="mini-chip" onClick={() => setExtra(p => ({ ...p, producto_id: "" }))}>cambiar</button>
+                    </div>
+                  ) : (
+                    <>
+                      <input className="inp" placeholder="Buscar el producto que vino de regalo..." value={buscarExtra} onChange={e => setBuscarExtra(e.target.value)} />
+                      {extrasFiltrados.length > 0 && (
+                        <div style={{ position: "absolute", left: 0, right: 0, top: "calc(100% + 4px)", zIndex: 20, background: temaPal.card, border: "1px solid " + temaPal.border, borderRadius: 8, boxShadow: "0 8px 24px " + temaPal.shadowCol }}>
+                          {extrasFiltrados.map(pr => (
+                            <div key={pr.id} onClick={() => { setExtra(p => ({ ...p, producto_id: pr.id })); setBuscarExtra(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid " + temaPal.border, fontSize: 12 }}>{pr.nombre}</div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+                <input className="inp" type="number" min="1" placeholder="Cantidad" value={extra.cantidad} onChange={e => setExtra(p => ({ ...p, cantidad: e.target.value }))} style={{ width: 110 }} aria-label="Cantidad extra" />
+                <button className="btn btn-g btn-sm" onClick={agregarExtra}>+ Agregar</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {editItem && (
+        <div className="pos-overlay" onClick={() => setEditItem(null)}>
+          <div className="card pop-in" role="dialog" aria-label={"Editar " + editItem.it.producto_nombre} style={{ width: 400, maxWidth: "95vw", background: temaPal.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 2 }}>Editar producto de la orden</div>
+            <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 14 }}>{editItem.it.producto_nombre}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div className="fg"><div className="fl">Cantidad {nombreLocal(1)}</div><input className="inp" type="number" min="0" value={editItem.rg} onChange={e => setEditItem(x => ({ ...x, rg: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Cantidad {nombreLocal(2)}</div><input className="inp" type="number" min="0" value={editItem.ush} onChange={e => setEditItem(x => ({ ...x, ush: e.target.value }))} /></div>
+            </div>
+            <div className="fg"><div className="fl">Costo unitario ($)</div><input className="inp" type="number" min="0" value={editItem.costo} onChange={e => setEditItem(x => ({ ...x, costo: e.target.value }))} /></div>
+            <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 12 }}>Total: <b style={{ color: temaPal.text }}>{(parseInt(editItem.rg) || 0) + (parseInt(editItem.ush) || 0)} u.</b> · {fmt(((parseInt(editItem.rg) || 0) + (parseInt(editItem.ush) || 0)) * (parseFloat(editItem.costo) || 0))}</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEditItem(null)}>Cancelar</button>
+              <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarEdicionItem}>Guardar</button>
             </div>
           </div>
         </div>
       )}
 
       {modalCrearProd && nuevoProdRapido && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60 }} onClick={() => { setModalCrearProd(null); setNuevoProdRapido(null); }}>
+        <div className="pos-overlay" style={{ zIndex: 110 }} onClick={() => { setModalCrearProd(null); setNuevoProdRapido(null); }}>
           <div className="card fade" style={{ maxWidth: 440, width: "90vw", background: temaPal.card, maxHeight: "85vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-            <div className="ct">Crear producto nuevo</div>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 6 }}>Crear producto nuevo</div>
             <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 12 }}>
               No se toca lo que ya cargaste de la orden -- al guardar, este producto queda vinculado solo a este item.
             </div>
@@ -13620,7 +14116,7 @@ function Insumos({ localId, usuario, paletaActual }) {
             <div>
               <div className="fg"><div className="fl">Costo de reposicion ($)</div><input className="inp" type="number" placeholder="0" value={nuevo.costo} onChange={e => setNuevo(p => ({ ...p, costo: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Precio a cobrarle al cliente ($, opcional)</div><input className="inp" type="number" placeholder="0" value={nuevo.precio_sugerido_cliente} onChange={e => setNuevo(p => ({ ...p, precio_sugerido_cliente: e.target.value }))} />
-                <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 3 }}>Si le ponés algo, en el POS va a aparecer precargado este monto cuando se use este insumo (se puede cambiar en el momento). Si lo dejás en 0, sigue siendo gratis para la clienta.</div>
+                <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 3 }}>Si le ponés algo, en el POS va a aparecer precargado este monto cuando se use este insumo (se puede cambiar en el momento). Si lo dejás en 0, sigue siendo gratis paral cliente.</div>
               </div>
               {!editando && (
                 <div style={{ display: "flex", gap: 8 }}>
@@ -14647,7 +15143,7 @@ export default function AppWrapper() {
     if (id === "auditoria") return <Auditoria paletaActual={paletaActual} />;
     if (id === "inventory") return <Inventario localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "clients") return <Clientes usuario={usuario} paletaActual={paletaActual} />;
-    if (id === "pedidos") return <Pedidos localId={local.id} paletaActual={paletaActual} />;
+    if (id === "pedidos") return <Pedidos localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "finance") return <Finanzas localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "reports") return <Informes localId={local.id} paletaActual={paletaActual} />;
     if (id === "calculadoras") return <Calculadoras usuario={usuario} paletaActual={paletaActual} />;

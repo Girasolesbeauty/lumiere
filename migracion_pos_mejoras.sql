@@ -95,3 +95,8 @@ CREATE TABLE IF NOT EXISTS producto_imagenes (
   imagen TEXT NOT NULL,
   actualizado_en TIMESTAMP DEFAULT NOW()
 );
+
+-- 7) Pedidos de clientas: historial de avisos (texto enviado, quien aviso) y si compro.
+ALTER TABLE pedidos_clientas ADD COLUMN IF NOT EXISTS mensaje_enviado TEXT;
+ALTER TABLE pedidos_clientas ADD COLUMN IF NOT EXISTS avisado_por TEXT;
+ALTER TABLE pedidos_clientas ADD COLUMN IF NOT EXISTS concretado_en TIMESTAMP;
