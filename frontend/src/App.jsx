@@ -216,8 +216,8 @@ button.tab { font-family: inherit; }
 .bp-sticky { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 15; padding-top: 4px; }
 @media (max-width: 860px) { .bp-sticky { top: calc(52px + env(safe-area-inset-top, 0px)); } }
 /* --- POS: modos Catalogo, Tactil y Celular --- */
-.pos-cat { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 12px; height: calc(100vh - 170px); }
-.pos-cat.pos-tactil { grid-template-columns: 170px minmax(0, 1fr) 400px; }
+.pos-cat { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 12px; height: calc(100vh - 170px); }
+.pos-cat.pos-tactil { grid-template-columns: 170px minmax(0, 1fr) 420px; }
 .pos-cat-izq { display: flex; flex-direction: column; gap: 10px; min-height: 0; min-width: 0; }
 .pos-cat-cats { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; flex-shrink: 0; }
 .pos-cat-cats.vertical { flex-direction: column; overflow-y: auto; overflow-x: hidden; padding: 0; }
@@ -244,7 +244,23 @@ button.tab { font-family: inherit; }
 .pos-tactil .inp { font-size: 16px; padding: 13px 14px; }
 .pos-tactil .btn { min-height: 44px; }
 .pos-cat-der { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
-.pos-cat-carrito { flex: 0 1 42%; min-height: 150px; display: flex; flex-direction: column; }
+.pos-cat-carrito { flex: 1 1 auto; min-height: 180px; display: flex; flex-direction: column; }
+.pos-cat-resumen { flex-shrink: 0; }
+.pos-cat-carrito .cart-subtotal, .pos-movil-carrito .cart-subtotal { display: none; }
+.pos-tactil .cart-item { padding: 12px; }
+.pos-tactil .qty-pill button { width: 40px; height: 40px; font-size: 19px; }
+.pos-tactil .cart-nombre { font-size: 14px; }
+.pos-tactil .cart-total { font-size: 16px; }
+.pos-tactil .icon-btn { width: 36px; height: 34px; font-size: 15px; }
+@keyframes drawerEntra { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+.pos-drawer { position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,.45); display: flex; justify-content: flex-end; }
+.pos-drawer-panel { width: min(500px, 100%); height: 100%; overflow-y: auto; background: ${p.bg}; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px)); box-shadow: -10px 0 30px ${p.shadowCol}; animation: drawerEntra .22s cubic-bezier(.2,.7,.2,1); text-align: left; }
+.pos-drawer-panel.pos-tactil { width: min(560px, 100%); }
+.pos-drawer-panel .pos-col-2 { overflow: visible !important; }
+.pos-drawer-panel .pos-col-2 > div { overflow: visible !important; flex: none !important; }
+.pos-drawer-panel.pos-tactil .pago-tipo { padding: 12px 4px; font-size: 13px; }
+.pos-drawer-panel.pos-tactil .mini-chip { font-size: 13px; padding: 7px 12px !important; }
+.pos-drawer-panel.pos-tactil .inp { font-size: 16px; }
 .pos-cat-der .pos-col-2 { flex: 1; min-height: 0; }
 .pos-movil { max-width: 560px; margin: 0 auto; padding-bottom: 96px; }
 .pos-movil-barra { display: flex; gap: 8px; margin-bottom: 10px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 12; background: ${p.bg}; padding: 4px 0; }
@@ -257,10 +273,48 @@ button.tab { font-family: inherit; }
 @media (min-width: 861px) { .main .pos-movil-pie { left: 220px; } .main.comprimido .pos-movil-pie { left: 64px; } }
 @media (max-width: 1100px) { .pos-cat { grid-template-columns: 1fr; height: auto; } .pos-cat.pos-tactil { grid-template-columns: 1fr; } .pos-cat-cats.vertical { flex-direction: row; overflow-x: auto; } .pos-cat-scroll { max-height: 60vh; } }
 @media (max-width: 700px) { .pos-modo-txt { display: none; } }
+/* --- Items del carrito del POS --- */
+.cart-item { text-align: left; display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 8px 10px; border-bottom: 1px solid ${p.border}; background: ${p.card}; transition: background .15s; }
+.cart-item:hover, .cart-item.abierto { background: ${p.trHover}; }
+.qty-pill { display: inline-flex; align-items: center; border: 1px solid ${p.border}; border-radius: 999px; background: ${p.bg}; overflow: hidden; }
+.qty-pill button { font-family: inherit; width: 30px; height: 30px; border: none; background: transparent; color: ${p.text}; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .12s; }
+.qty-pill button:hover { background: ${p.trHover}; }
+.qty-pill button:active { background: ${p.accentDim}; }
+.qty-pill .qv { width: auto; min-width: 30px; padding: 0 4px; font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.cart-nombre { font-size: 13px; font-weight: 700; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cart-sub { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 11px; color: ${p.textMuted}; margin-top: 2px; }
+.desc-chip { font-family: inherit; font-size: 10px; font-weight: 800; color: ${p.green}; background: ${p.greenDim}; border: 1px solid ${p.green}55; border-radius: 999px; padding: 1px 7px; cursor: pointer; }
+.cart-der { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.cart-total { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cart-tach { font-size: 10px; color: ${p.textMuted}; text-decoration: line-through; font-variant-numeric: tabular-nums; }
+.cart-acc { display: flex; flex-direction: column; gap: 0; opacity: .55; transition: opacity .15s; }
+.cart-item:hover .cart-acc, .cart-item.abierto .cart-acc, .cart-acc:focus-within { opacity: 1; }
+.icon-btn { font-family: inherit; width: 26px; height: 24px; border-radius: 8px; border: none; background: transparent; color: ${p.textMuted}; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; transition: background .12s, color .12s; }
+.icon-btn:hover, .icon-btn.on { background: ${p.accentDim}; color: ${p.accent}; }
+.icon-btn.peligro:hover { background: ${p.redDim}; color: ${p.red}; }
+.cart-editor { grid-column: 1 / -1; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; padding: 3px 6px; margin-top: -4px; border-radius: 8px; background: ${p.bg}; border: 1px solid ${p.border}; }
+.cart-editor-sep { width: 1px; height: 16px; background: ${p.border}; margin: 0 4px; }
+.mini-chip { font-family: inherit; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; border: 1px solid ${p.border}; background: ${p.card}; color: ${p.text}; cursor: pointer; font-variant-numeric: tabular-nums; }
+.mini-chip:hover { border-color: ${p.accent}; }
+.mini-chip.on { background: ${p.greenDim}; border-color: ${p.green}; color: ${p.green}; }
+.mini-inp { font-family: inherit; font-size: 11px; padding: 3px 6px; height: 24px; border-radius: 6px; border: 1px solid ${p.border}; background: ${p.inpBg}; color: ${p.text}; outline: none; }
+.mini-inp:focus { border-color: ${p.accent}; }
+@media (hover: none) { .cart-acc { opacity: 1; } }
+/* --- Panel de cobro del POS --- */
+.pc-sec { background: ${p.card}; border: 1px solid ${p.border}; border-radius: 10px; padding: 10px 12px; text-align: left; }
+.pc-tit { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 10px; font-weight: 800; letter-spacing: .08em; color: ${p.textMuted}; margin-bottom: 8px; }
+.cli-card { display: flex; align-items: center; gap: 10px; }
+.cli-avatar { width: 38px; height: 38px; border-radius: 50%; background: ${p.accentDim}; color: ${p.accent}; font-weight: 900; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${p.accent}55; }
+.pago-tipos { display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: 6px; }
+.pago-tipo { font-family: inherit; border: 1px solid ${p.border}; background: ${p.bg}; color: ${p.text}; border-radius: 8px; padding: 8px 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; font-weight: 700; transition: border-color .15s, background .15s, transform .1s; }
+.pago-tipo .ic { font-size: 18px; line-height: 1; }
+.pago-tipo:hover { border-color: ${p.accent}; }
+.pago-tipo:active { transform: scale(.97); }
+.pago-tipo.on { border-color: ${p.accent}; background: ${p.accentDim}; color: ${p.accent}; box-shadow: inset 0 0 0 1px ${p.accent}; }
 .skel { background: ${p.border}; border-radius: 8px; animation: pulse 1.4s ease-in-out infinite; }
 .chip { border-radius: 6px; padding: 6px 10px; font-size: 11px; border: 1px solid ${p.border}; background: ${p.bg}; color: ${p.text}; }
 .seg button:focus-visible, button.tab:focus-visible, .btn:focus-visible { outline: 2px solid ${p.accent}; outline-offset: 2px; }
-@media (prefers-reduced-motion: reduce) { .skel, .pulse, .fade, .anim-in, .flash-add, .pop-in, .trofeo { animation: none !important; } .confetti { display: none; } .kpi:hover { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .skel, .pulse, .fade, .anim-in, .flash-add, .pop-in, .trofeo, .pos-drawer-panel { animation: none !important; } .confetti { display: none; } .kpi:hover { transform: none; } }
 @media (max-width: 1100px) {
   .kpi-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .kpi-grid-sm { grid-template-columns: repeat(3, minmax(0,1fr)); }
@@ -2123,6 +2177,8 @@ function POS({ localId, usuario, paletaActual }) {
   const accionProductoRef = useRef(() => {});
   const ultimoEscaneoRef = useRef({ codigo: "", t: 0 });
   const [tecladoItem, setTecladoItem] = useState(null); // { item, valor } para el teclado numerico
+  const [editandoItemCarrito, setEditandoItemCarrito] = useState(null); // clave del item con el panel de descuento abierto
+  const [tipoPagoAbierto, setTipoPagoAbierto] = useState(""); // grupo de medios de pago abierto (credito, debito...)
   // Fotos de productos: se cargan solo en los modos que las muestran
   useEffect(() => {
     if (modoVista !== "catalogo" && modoVista !== "tactil") return;
@@ -2300,7 +2356,7 @@ function POS({ localId, usuario, paletaActual }) {
     setClienteSeleccionado(null); setShowNuevoCliente(false); setDescuentoManual(""); setTipoDescuento("%");
     setInsumosSel({}); setMostrarInsumos(false); setMontoRecibidoEfectivo(""); setReferenciaVenta("");
     setJustificacionesStock({}); setItemsSinStock(null); quitarGiftCard();
-    setFichaCliente(null); fichaClienteIdRef.current = null; setReto(null); setRetoDescartadoId(null);
+    setFichaCliente(null); fichaClienteIdRef.current = null; setReto(null); setRetoDescartadoId(null); setTipoPagoAbierto("");
   };
 
   const horaCorta = () => new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
@@ -3043,9 +3099,15 @@ function POS({ localId, usuario, paletaActual }) {
     if (e.key === "F2") { e.preventDefault(); busquedaRef.current?.focus(); busquedaRef.current?.select(); return; }
     if (e.key === "F4") { e.preventDefault(); dniRef.current?.focus(); dniRef.current?.select(); return; }
     if (e.key === "F8") { e.preventDefault(); if (cart.length > 0) setNombreEspera(""); return; }
-    if (e.key === "F9") { e.preventDefault(); if (!loading && !itemsSinStock && !mostrarFicha && nombreEspera === null) emitirFactura(); return; }
+    if (e.key === "F9") {
+      e.preventDefault();
+      if (modoVista !== "clasico" && !cobroMovilAbierto) { if (cart.length > 0) setCobroMovilAbierto(true); return; }
+      if (!loading && !itemsSinStock && !mostrarFicha && nombreEspera === null) emitirFactura();
+      return;
+    }
     if (e.key === "Escape") {
       if (mostrarAtajos) return setMostrarAtajos(false);
+      if (cobroMovilAbierto && !mostrarFicha && !tecladoItem) return setCobroMovilAbierto(false);
       if (mostrarFicha) return setMostrarFicha(false);
       if (nombreEspera !== null) return setNombreEspera(null);
       if (busqueda) { setBusqueda(""); busquedaRef.current?.focus(); }
@@ -3244,7 +3306,7 @@ function POS({ localId, usuario, paletaActual }) {
             </div>
           )}
           {busqueda.trim().length > 0 && (
-          <div style={{ overflowY: "auto", flex: 1, background: temaPal.card, border: "1px solid " + temaPal.border, borderRadius: 8 }}>
+          <div style={{ overflowY: "auto", flex: "0 1 auto", maxHeight: "45%", minHeight: 120, background: temaPal.card, border: "1px solid " + temaPal.border, borderRadius: 8 }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead style={{ position: "sticky", top: 0, background: temaPal.bg, zIndex: 1 }}>
                 <tr>
@@ -3294,7 +3356,7 @@ function POS({ localId, usuario, paletaActual }) {
     </>
   );
   const carritoJSX = (
-          <div style={{ background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 8, flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
+          <div style={{ background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 8, flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 240 }}>
           <div style={{ padding: "10px 14px", borderBottom: "1px solid " + temaPal.border, fontSize: 10, color: temaPal.textMuted, fontWeight: 700, letterSpacing: ".1em", background: preventa ? "#2471a320" : temaPal.bg }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, minHeight: 22 }}>
               <span>{preventa ? "PREVENTA" : "CARRITO DE COMPRAS"} ({cart.reduce((s2, i) => s2 + i.qty, 0)} u.)</span>
@@ -3315,7 +3377,7 @@ function POS({ localId, usuario, paletaActual }) {
               </div>
             )}
           </div>
-          <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
+          <div style={{ flex: 1, overflowY: "auto", background: temaPal.card, minHeight: 110 }}>
             {cart.length === 0
               ? <div style={{ textAlign: "center", color: temaPal.textMuted, fontSize: 12, marginTop: 40, lineHeight: 1.7 }}>
                   Escaneá un producto o buscalo arriba<br />
@@ -3323,37 +3385,55 @@ function POS({ localId, usuario, paletaActual }) {
                 </div>
               : cart.map(i => {
                 const precioUnit = i.precio || i.price || 0;
-                const precioConDesc = precioUnit * (1 - (i.descuento_pct || 0) / 100);
+                const desc = i.descuento_pct || 0;
+                const precioConDesc = precioUnit * (1 - desc / 100);
                 const k = claveItem(i);
                 const esUltimo = ultimoAgregado && ultimoAgregado.key === k;
+                const abierto = editandoItemCarrito === k;
+                const setItem = (cambios) => setCart(prev => prev.map(x => claveItem(x) === k ? { ...x, ...cambios } : x));
                 return (
-                <div key={k + (esUltimo ? "-" + ultimoAgregado.t : "")} className={esUltimo ? "flash-add" : "anim-in"} style={{ background: temaPal.card, borderRadius: 6, padding: "8px 10px", marginBottom: 6, border: "1px solid " + temaPal.border }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12, fontWeight: 500 }}>{i.nombre || i.name}</div>
-                      <div style={{ fontSize: 10, color: temaPal.textMuted }}>{i.marca || i.brand}</div>
-                    </div>
-                    <button onClick={() => remove(i)} title="Sacar del carrito" aria-label={"Sacar " + (i.nombre || i.name) + " del carrito"} style={{ cursor: "pointer", color: "#c0392b", fontSize: 15, lineHeight: 1, paddingLeft: 6, display: "flex", alignItems: "center", background: "transparent", border: "none" }}>🗑️</button>
+                <div key={k + (esUltimo ? "-" + ultimoAgregado.t : "")} className={"cart-item " + (esUltimo ? "flash-add" : "anim-in") + (abierto ? " abierto" : "")}>
+                  <div className="qty-pill" role="group" aria-label={"Cantidad de " + (i.nombre || i.name)}>
+                    <button onClick={() => (i.qty <= 1 ? remove(i) : cambiarCantidad(i, -1))} aria-label={i.qty <= 1 ? "Sacar del carrito" : "Restar uno"} title={i.qty <= 1 ? "Sacar del carrito" : "Restar uno"}>{i.qty <= 1 ? "🗑" : "−"}</button>
+                    <button className="qv" onClick={() => setTecladoItem({ item: i, valor: String(i.qty) })} title="Tocá para escribir la cantidad">{i.qty}</button>
+                    <button onClick={() => cambiarCantidad(i, 1)} aria-label="Sumar uno" title="Sumar uno">+</button>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <button onClick={() => cambiarCantidad(i, -1)} aria-label="Restar uno" style={{ width: 26, height: 26, borderRadius: 4, border: "1px solid " + temaPal.border, background: temaPal.bg, cursor: "pointer", fontSize: 15, fontWeight: 700, lineHeight: 1, color: temaPal.textMuted }}>−</button>
-                      <button onClick={() => setTecladoItem({ item: i, valor: String(i.qty) })} title="Tocá para escribir la cantidad" style={{ fontSize: 13, fontWeight: 700, minWidth: 30, textAlign: "center", fontVariantNumeric: "tabular-nums", background: "transparent", border: "1px dashed " + temaPal.border, borderRadius: 4, color: temaPal.text, cursor: "pointer", padding: "2px 4px", fontFamily: "inherit" }}>{i.qty}</button>
-                      <button onClick={() => cambiarCantidad(i, 1)} aria-label="Sumar uno" style={{ width: 26, height: 26, borderRadius: 4, border: "1px solid " + temaPal.border, background: temaPal.bg, cursor: "pointer", fontSize: 15, fontWeight: 700, lineHeight: 1, color: temaPal.textMuted }}>+</button>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                      <span style={{ fontSize: 9, color: temaPal.textMuted }}>$</span>
-                      <input type="number" min="0" value={i.precio || i.price || ""} onChange={e => { const v = parseFloat(e.target.value) || 0; setCart(prev => prev.map(x => claveItem(x) === k ? { ...x, precio: v, price: v } : x)); }} style={{ width: 78, fontSize: 11, padding: "4px 6px", border: "1px solid " + temaPal.border, borderRadius: 4, textAlign: "right", background: temaPal.inpBg, color: temaPal.text }} title="Precio unitario (editable)" />
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-                      <input type="number" min="0" max="100" placeholder="0" value={i.descuento_pct || ""} onChange={e => { const v = e.target.value === "" ? 0 : Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)); setCart(prev => prev.map(x => claveItem(x) === k ? { ...x, descuento_pct: v } : x)); }} style={{ width: 40, fontSize: 11, padding: "4px 5px", border: "1px solid " + temaPal.border, borderRadius: 4, textAlign: "center", background: temaPal.inpBg, color: temaPal.text }} title="% descuento a este producto" />
-                      <span style={{ fontSize: 10, color: temaPal.textMuted }}>% off</span>
-                    </div>
-                    <div style={{ marginLeft: "auto", textAlign: "right", minWidth: 72 }}>
-                      {(i.descuento_pct > 0) && <div style={{ fontSize: 9, color: temaPal.textMuted, textDecoration: "line-through" }}>{fmt(precioUnit * i.qty)}</div>}
-                      <div style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{fmt(precioConDesc * i.qty)}</div>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="cart-nombre">{i.nombre || i.name}</div>
+                    <div className="cart-sub">
+                      {(i.marca || i.brand) && <span>{i.marca || i.brand}</span>}
+                      <span style={{ fontVariantNumeric: "tabular-nums" }}>{fmt(precioUnit).replace(",00", "")} c/u</span>
+                      {desc > 0 && (
+                        <button className="desc-chip" onClick={() => setItem({ descuento_pct: 0 })} title="Quitar el descuento">🏷 -{desc}% ✕</button>
+                      )}
                     </div>
                   </div>
+                  <div className="cart-der">
+                    <div className="cart-total">{fmt(precioConDesc * i.qty)}</div>
+                    {desc > 0 && <div className="cart-tach">{fmt(precioUnit * i.qty)}</div>}
+                  </div>
+                  <div className="cart-acc">
+                      <button className={"icon-btn" + (abierto || desc > 0 ? " on" : "")} onClick={() => setEditandoItemCarrito(abierto ? null : k)} aria-expanded={abierto} aria-label={"Descuento o precio de " + (i.nombre || i.name)} title="Descuento / cambiar precio">🏷</button>
+                      <button className="icon-btn peligro" onClick={() => remove(i)} aria-label={"Sacar " + (i.nombre || i.name) + " del carrito"} title="Sacar del carrito">✕</button>
+                  </div>
+                  {abierto && (
+                    <div className="cart-editor pop-in" role="group" aria-label={"Descuento de " + (i.nombre || i.name)}>
+                      <span aria-hidden="true" style={{ fontSize: 12 }}>🏷</span>
+                      {[5, 10, 15, 20].map(d => (
+                        <button key={d} className={"mini-chip" + (desc === d ? " on" : "")} onClick={() => { setItem({ descuento_pct: desc === d ? 0 : d }); setEditandoItemCarrito(null); }}>{d}%</button>
+                      ))}
+                      <input type="number" min="0" max="100" placeholder="%" value={[0, 5, 10, 15, 20].includes(desc) ? "" : desc}
+                        onChange={e => setItem({ descuento_pct: e.target.value === "" ? 0 : Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)) })}
+                        onKeyDown={e => e.key === "Enter" && setEditandoItemCarrito(null)}
+                        className="mini-inp" style={{ width: 46 }} aria-label="Otro porcentaje de descuento" title="Otro %" />
+                      <span className="cart-editor-sep" />
+                      <span style={{ fontSize: 11, color: temaPal.textMuted }}>$</span>
+                      <input type="number" min="0" value={precioUnit || ""} onChange={e => { const v = parseFloat(e.target.value) || 0; setItem({ precio: v, price: v }); }}
+                        onKeyDown={e => e.key === "Enter" && setEditandoItemCarrito(null)}
+                        className="mini-inp" style={{ width: 80, textAlign: "right" }} aria-label="Precio unitario" title="Precio unitario" />
+                      <button className="icon-btn" style={{ marginLeft: "auto", color: temaPal.green }} onClick={() => setEditandoItemCarrito(null)} aria-label="Listo" title="Listo">✓</button>
+                    </div>
+                  )}
                 </div>
                 );
               })
@@ -3361,17 +3441,17 @@ function POS({ localId, usuario, paletaActual }) {
           </div>
           {sugerenciasProductos.length > 0 && (
             <div className="anim-in" style={{ padding: "8px 12px", borderTop: "1px solid " + temaPal.border, background: temaPal.card }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: temaPal.accent, letterSpacing: ".06em", marginBottom: 6 }}>✨ SUELEN LLEVAR TAMBIÉN</div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: temaPal.accent, letterSpacing: ".06em", marginBottom: 4 }}>✨ SUELEN LLEVAR TAMBIÉN</div>
+              <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
                 {sugerenciasProductos.map(pr => (
-                  <button key={pr.id} className="chip-btn" onClick={() => accionProducto(pr)} title={"Agregar " + (pr.nombre || "")} style={{ maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <button key={pr.id} className="chip-btn" onClick={() => accionProducto(pr)} title={"Agregar " + (pr.nombre || "")} style={{ flexShrink: 0, maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis" }}>
                     + {pr.nombre || pr.name} · <span style={{ color: temaPal.accent }}>{fmt(pr.precio || pr.price || 0)}</span>
                   </button>
                 ))}
               </div>
             </div>
           )}
-          <div style={{ padding: "10px 14px", borderTop: "1px solid " + temaPal.border, background: temaPal.bg }}>
+          <div className="cart-subtotal" style={{ padding: "10px 14px", borderTop: "1px solid " + temaPal.border, background: temaPal.bg }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
               <span style={{ fontSize: 11, color: temaPal.textMuted, fontWeight: 600 }}>SUBTOTAL</span>
               <span style={{ fontSize: 20, fontWeight: 700, color: temaPal.text, fontVariantNumeric: "tabular-nums" }}><CountUp value={subtotalBase} formato={fmt} duracion={400} /></span>
@@ -3381,265 +3461,321 @@ function POS({ localId, usuario, paletaActual }) {
   );
   const panelCobroJSX = (
         <div className="pos-col-2" style={{ display: "flex", flexDirection: "column", gap: 8, overflow: "hidden" }}>
-          <div style={{ background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 8, padding: "10px 12px", overflowY: "auto", flex: 1 }}>
+          <div style={{ overflowY: "auto", flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: 8, textAlign: "left" }}>
             {preventa ? (
-              <>
-                <div className="fg"><input className="inp" placeholder={tipoReserva === "sena" ? "Nombre cliente (seña)" : "Nombre cliente (preventa)"} value={nombrePreventa} onChange={e => setNombrePreventa(e.target.value)} style={{ fontSize: 11, padding: "8px 10px" }} /></div>
+              <div className="pc-sec">
+                <div className="pc-tit"><span>{tipoReserva === "sena" ? "💰 SEÑA" : "📦 PREVENTA"}</span></div>
+                <input className="inp" placeholder={tipoReserva === "sena" ? "Nombre de la clienta (seña)" : "Nombre de la clienta (preventa)"} value={nombrePreventa} onChange={e => setNombrePreventa(e.target.value)} style={{ marginBottom: tipoReserva === "sena" ? 8 : 0 }} />
                 {tipoReserva === "sena" && (
                   <>
-                    <div className="fg" style={{ display: "flex", gap: 6 }}>
-                      <input className="inp" type="number" placeholder="Monto de la seña ($)" value={montoSena} onChange={e => setMontoSena(e.target.value)} style={{ fontSize: 11, padding: "8px 10px", flex: 1 }} />
-                      <select className="sel" value={senaMedioPagoId} onChange={e => setSenaMedioPagoId(e.target.value)} style={{ fontSize: 11, padding: "8px 10px", flex: 1 }}>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <input className="inp" type="number" placeholder="Monto de la seña ($)" value={montoSena} onChange={e => setMontoSena(e.target.value)} style={{ flex: 1 }} />
+                      <select className="sel" value={senaMedioPagoId} onChange={e => setSenaMedioPagoId(e.target.value)} style={{ flex: 1 }}>
                         <option value="">Medio de pago...</option>
                         {mediosPago.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
                       </select>
                     </div>
                     {montoSena !== "" && (
-                      <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: -6, marginBottom: 6 }}>
-                        Queda pendiente de cobrar: {fmt(Math.max(total - (parseFloat(montoSena) || 0), 0))} (se cobra cuando venga a buscarlo)
+                      <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 6 }}>
+                        Queda pendiente: <b>{fmt(Math.max(total - (parseFloat(montoSena) || 0), 0))}</b> (se cobra cuando venga a buscarlo)
                       </div>
                     )}
                   </>
                 )}
-              </>
+              </div>
             ) : (
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, background: temaPal.card, border: "2px solid " + temaPal.border, borderRadius: 8, padding: "2px 10px" }}>
-                  <span style={{ fontSize: 15 }}>🪪</span>
-                  <input ref={dniRef} placeholder="DNI del cliente" value={dniInput} onChange={e => buscarClientePorDni(e.target.value)} style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 15, fontWeight: 600, color: temaPal.text, padding: "10px 0" }} />
-                  <span className="kbd">F4</span>
-                </div>
-                {clienteSeleccionado && clienteSeleccionado.id && (
-                  <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f33", borderRadius: 6, padding: "6px 10px", marginBottom: 6, fontSize: 10 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                      <div>
-                        <div style={{ fontWeight: 600, color: "#2d7a4f" }}>{clienteSeleccionado.nombre}</div>
-                        <div style={{ color: temaPal.textMuted }}>{clienteSeleccionado.puntos || 0} pts{fichaCliente ? " · " + fichaCliente.compras + " compras" : ""}</div>
+              <>
+                {/* ---------- Cliente ---------- */}
+                <div className="pc-sec">
+                  <div className="pc-tit"><span>👤 CLIENTE</span><span className="kbd">F4</span></div>
+                  {clienteSeleccionado && clienteSeleccionado.id ? (
+                    <div className="cli-card pop-in">
+                      <div className="cli-avatar">{inicialesProd(clienteSeleccionado.nombre)}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{clienteSeleccionado.nombre}</div>
+                        <div style={{ fontSize: 11, color: temaPal.textMuted }}>⭐ {clienteSeleccionado.puntos || 0} pts{fichaCliente ? " · " + fichaCliente.compras + " compras" : ""}{clienteSeleccionado.nivel ? " · " + clienteSeleccionado.nivel : ""}</div>
                       </div>
-                      {fichaCliente && (
-                        <button className="chip-btn" style={{ fontSize: 10, padding: "3px 8px" }} onClick={() => setMostrarFicha(true)}>ℹ Ver ficha{ideasVenta(fichaCliente).length > 0 ? " (" + ideasVenta(fichaCliente).length + ")" : ""}</button>
+                      {fichaCliente && <button className="mini-chip" onClick={() => setMostrarFicha(true)} title="Ver la ficha con ideas para vender">ℹ Ficha{ideasVenta(fichaCliente).length > 0 ? " (" + ideasVenta(fichaCliente).length + ")" : ""}</button>}
+                      <button className="icon-btn" onClick={() => { setClienteSeleccionado(null); setDniInput(""); setFichaCliente(null); fichaClienteIdRef.current = null; setShowNuevoCliente(false); setTimeout(() => dniRef.current?.focus(), 30); }} aria-label="Cambiar clienta" title="Cambiar clienta">✕</button>
+                    </div>
+                  ) : clienteSeleccionado && !clienteSeleccionado.id ? (
+                    <div className="cli-card">
+                      <div className="cli-avatar" style={{ background: temaPal.bg, color: temaPal.textMuted }}>CF</div>
+                      <div style={{ flex: 1, fontSize: 13, fontWeight: 700 }}>Consumidor final</div>
+                      <button className="mini-chip" onClick={() => { setClienteSeleccionado(null); setDniInput(""); setTimeout(() => dniRef.current?.focus(), 30); }}>Cambiar</button>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <div style={{ position: "relative", flex: 1 }}>
+                          <input ref={dniRef} className="inp" inputMode="numeric" placeholder="DNI de la clienta" value={dniInput} onChange={e => buscarClientePorDni(e.target.value)} style={{ fontSize: 15, fontWeight: 700, padding: "10px 12px", letterSpacing: ".03em" }} aria-label="DNI de la clienta" />
+                          {buscandoCliente && <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: temaPal.textMuted }}>buscando…</span>}
+                        </div>
+                        <button className="btn btn-g btn-sm" style={{ whiteSpace: "nowrap" }} onClick={() => { setShowNuevoCliente(false); setClienteSeleccionado({ id: null, nombre: "Consumidor Final", puntos: 0 }); }}>Consumidor final</button>
+                      </div>
+                      {showNuevoCliente && (
+                        <div className="pop-in" style={{ marginTop: 8, padding: 10, borderRadius: 8, background: temaPal.blueDim, border: "1px solid " + temaPal.border }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>No está registrada. ¿La damos de alta?</div>
+                          <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                            <input className="inp" placeholder="Nombre" value={nuevoClienteDni.nombre} onChange={e => setNuevoClienteDni(p => ({ ...p, nombre: e.target.value }))} style={{ flex: 1, padding: "7px 10px", fontSize: 12 }} />
+                            <input className="inp" type="tel" placeholder="Teléfono" value={nuevoClienteDni.telefono} onChange={e => setNuevoClienteDni(p => ({ ...p, telefono: e.target.value }))} style={{ flex: 1, padding: "7px 10px", fontSize: 12 }} />
+                          </div>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button className="btn btn-p btn-sm" style={{ flex: 1 }} onClick={crearClienteRapido}>Guardar clienta</button>
+                            <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => { setShowNuevoCliente(false); setClienteSeleccionado({ id: null, nombre: "Consumidor Final", puntos: 0 }); }}>Seguir sin registrar</button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* ---------- Descuentos, cupones y gift cards ---------- */}
+                <div className="pc-sec">
+                  <div className="pc-tit"><span>🎟 DESCUENTOS</span></div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <div style={{ display: "flex", flex: 1.4, minWidth: 0 }}>
+                      <input className="inp" placeholder="Cupón o gift card" value={codigoPromo} onChange={e => setCodigoPromo(e.target.value)} onKeyDown={e => e.key === "Enter" && aplicarCodigoPromo()} style={{ borderRadius: "6px 0 0 6px", padding: "8px 10px", fontSize: 12, minWidth: 0, textTransform: "uppercase" }} aria-label="Cupón o gift card" />
+                      <button className="btn btn-sm" disabled={!codigoPromo.trim()} style={{ borderRadius: "0 6px 6px 0", background: temaPal.accent, color: "#1B2431", fontWeight: 800, opacity: codigoPromo.trim() ? 1 : .5 }} onClick={aplicarCodigoPromo}>Aplicar</button>
+                    </div>
+                    <div style={{ display: "flex", flex: 1, minWidth: 0 }}>
+                      <div className="seg" role="group" aria-label="Tipo de descuento general" style={{ padding: 2, borderRadius: "6px 0 0 6px" }}>
+                        {["%", "$"].map(t => <button key={t} className={tipoDescuento === t ? "on" : ""} style={{ padding: "4px 8px", minHeight: 0 }} onClick={() => setTipoDescuento(t)}>{t}</button>)}
+                      </div>
+                      <input className="inp" type="number" min="0" placeholder="Desc. general" value={descuentoManual} onChange={e => setDescuentoManual(e.target.value)} style={{ borderRadius: "0 6px 6px 0", padding: "8px 10px", fontSize: 12, minWidth: 0 }} aria-label="Descuento general" />
+                    </div>
+                  </div>
+                  {(cuponAplicado || giftCardAplicada || parseFloat(descuentoManual) > 0) && (
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                      {cuponAplicado && (
+                        <span className="desc-chip" style={{ fontSize: 11, padding: "3px 10px" }}>
+                          🎟 {cupon ? cupon.toUpperCase() : "Cupón"} · {cuponCumpleMinimo ? (cuponAplicado.tipo === "%" ? valorCuponAplicado + "%" : fmt(valorCuponAplicado).replace(",00", "")) : "sin aplicar"}
+                          <button onClick={() => { setCuponAplicado(null); setCupon(""); }} aria-label="Quitar cupón" style={{ marginLeft: 6, background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontWeight: 900 }}>✕</button>
+                        </span>
+                      )}
+                      {giftCardAplicada && (
+                        <span className="desc-chip" style={{ fontSize: 11, padding: "3px 10px" }}>
+                          🎁 {giftCardAplicada.codigo} · usa {fmt(montoAplicadoGC).replace(",00", "")} de {fmt(parseFloat(giftCardAplicada.saldo)).replace(",00", "")}
+                          <button onClick={quitarGiftCard} aria-label="Quitar gift card" style={{ marginLeft: 6, background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontWeight: 900 }}>✕</button>
+                        </span>
+                      )}
+                      {parseFloat(descuentoManual) > 0 && (
+                        <span className="desc-chip" style={{ fontSize: 11, padding: "3px 10px" }}>
+                          ✂ General {tipoDescuento === "%" ? descuentoManual + "%" : fmt(parseFloat(descuentoManual)).replace(",00", "")}
+                          <button onClick={() => setDescuentoManual("")} aria-label="Quitar descuento general" style={{ marginLeft: 6, background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontWeight: 900 }}>✕</button>
+                        </span>
                       )}
                     </div>
-                  </div>
-                )}
-                {showNuevoCliente && !clienteSeleccionado && (
-                  <div style={{ background: "#2471a312", border: "1px solid #2471a333", borderRadius: 6, padding: 8, marginBottom: 6 }}>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: "#2471a3", marginBottom: 6 }}>Cliente nuevo</div>
-                    <input className="inp" placeholder="Nombre" value={nuevoClienteDni.nombre} onChange={e => setNuevoClienteDni(p => ({ ...p, nombre: e.target.value }))} style={{ marginBottom: 4, fontSize: 11, padding: "6px 10px" }} />
-                    <input className="inp" placeholder="Telefono" value={nuevoClienteDni.telefono} onChange={e => setNuevoClienteDni(p => ({ ...p, telefono: e.target.value }))} style={{ marginBottom: 4, fontSize: 11, padding: "6px 10px" }} />
-                    <div style={{ display: "flex", gap: 4 }}>
-                      <button className="btn btn-p btn-sm" style={{ flex: 1, fontSize: 9 }} onClick={crearClienteRapido}>Guardar</button>
-                      <button className="btn btn-g btn-sm" style={{ flex: 1, fontSize: 9 }} onClick={() => { setShowNuevoCliente(false); setClienteSeleccionado({ id: null, nombre: "Consumidor Final", puntos: 0 }); }}>CF</button>
+                  )}
+                  {cuponAplicado && !cuponCumpleMinimo && (
+                    <div style={{ fontSize: 11, color: temaPal.warn, marginTop: 6 }}>El cupón pide una compra mínima de {fmt(cuponAplicado.descuento_monto_minimo)} (faltan {fmt(Math.max(cuponAplicado.descuento_monto_minimo - subtotalBase, 0))})</div>
+                  )}
+                  {cuponAplicado && cuponCumpleMinimo && cuponAplicado.condicion_medio_pago && cuponAplicado.valor_condicional !== null && cuponAplicado.valor_condicional !== undefined && (
+                    <div style={{ fontSize: 11, color: cuponCumpleCondicion ? temaPal.green : temaPal.warn, marginTop: 6 }}>
+                      {cuponCumpleCondicion
+                        ? "✓ Aplica " + cuponAplicado.valor_condicional + (cuponAplicado.tipo === "%" ? "%" : "$") + " por pagar con " + cuponAplicado.condicion_medio_pago
+                        : "Da " + cuponAplicado.valor_condicional + (cuponAplicado.tipo === "%" ? "% " : "$ ") + "si paga con " + cuponAplicado.condicion_medio_pago + " (elegilo abajo)"}
                     </div>
-                  </div>
-                )}
-                {!clienteSeleccionado && !showNuevoCliente && (
-                  <button className="btn btn-g btn-sm" style={{ width: "100%", marginBottom: 10, fontSize: 10 }} onClick={() => setClienteSeleccionado({ id: null, nombre: "Consumidor Final", puntos: 0 })}>Consumidor Final</button>
-                )}
-
-                <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
-                  <div style={{ flex: 1, display: "flex", gap: 4 }}>
-                    <input className="inp" placeholder="Cupon o Gift Card" value={codigoPromo} onChange={e => setCodigoPromo(e.target.value)} onKeyDown={e => e.key === "Enter" && aplicarCodigoPromo()} style={{ flex: 1, fontSize: 11, padding: "8px 10px", minWidth: 0 }} />
-                    <button className="btn btn-sm" style={{ background: "#c9a84c", color: "#1B2431", fontWeight: 700, padding: "8px 10px" }} onClick={aplicarCodigoPromo}>OK</button>
-                  </div>
-                  <div style={{ flex: 1, display: "flex", gap: 4 }}>
-                    <input className="inp" type="number" placeholder="Desc. manual" value={descuentoManual} onChange={e => setDescuentoManual(e.target.value)} style={{ flex: 1, fontSize: 11, padding: "8px 10px", minWidth: 0 }} />
-                    <select className="sel" style={{ width: 50, padding: "8px 4px", fontSize: 10 }} value={tipoDescuento} onChange={e => setTipoDescuento(e.target.value)}>
-                      <option value="$">$</option>
-                      <option value="%">%</option>
-                    </select>
-                  </div>
+                  )}
+                  {cuponAplicado && cuponAplicado.regalo_producto_nombre && subtotalBase >= (cuponAplicado.regalo_monto_minimo || 0) && (
+                    <div style={{ fontSize: 11, color: temaPal.purple, marginTop: 6 }}>🎁 Este cupón habilita un regalo: agregá "{cuponAplicado.regalo_producto_nombre}" con precio $0</div>
+                  )}
+                  {errorGC && <div style={{ fontSize: 11, color: temaPal.red, marginTop: 6 }}>⚠ {errorGC}</div>}
                 </div>
-                {cuponAplicado && !cuponCumpleMinimo && (
-                  <div style={{ fontSize: 9, color: "#a06b00", marginBottom: 4 }}>
-                    Este cupon requiere una compra minima de {fmt(cuponAplicado.descuento_monto_minimo)} (todavia faltan {fmt(Math.max(cuponAplicado.descuento_monto_minimo - subtotalBase, 0))})
-                  </div>
-                )}
-                {cuponAplicado && cuponCumpleMinimo && cuponAplicado.condicion_medio_pago && cuponAplicado.valor_condicional !== null && cuponAplicado.valor_condicional !== undefined && (
-                  <div style={{ fontSize: 9, color: cuponCumpleCondicion ? "#2d7a4f" : "#a06b00", marginBottom: 4 }}>
-                    {cuponCumpleCondicion
-                      ? "Descuento aplicado: " + cuponAplicado.valor_condicional + (cuponAplicado.tipo === "%" ? "% (paga con " : "$ (paga con ") + cuponAplicado.condicion_medio_pago + ")"
-                      : "Este cupon da " + cuponAplicado.valor_condicional + (cuponAplicado.tipo === "%" ? "% " : "$ ") + "solo si paga con " + cuponAplicado.condicion_medio_pago + " (elegi ese medio de pago abajo)"}
-                  </div>
-                )}
-                {cuponAplicado && cuponCumpleMinimo && (!cuponAplicado.condicion_medio_pago || cuponAplicado.valor_condicional === null || cuponAplicado.valor_condicional === undefined) && (
-                  <div style={{ fontSize: 9, color: "#2d7a4f", marginBottom: 4 }}>Descuento aplicado</div>
-                )}
-                {cuponAplicado && cuponAplicado.regalo_producto_nombre && subtotalBase >= (cuponAplicado.regalo_monto_minimo || 0) && (
-                  <div style={{ fontSize: 9, color: "#7d3c98", background: "#7d3c9812", border: "1px solid #7d3c9840", borderRadius: 4, padding: "4px 6px", marginBottom: 4 }}>
-                    🎁 Este cupón habilita un regalo: agregá "{cuponAplicado.regalo_producto_nombre}" al ticket con precio $0
-                  </div>
-                )}
-                {giftCardAplicada && (
-                  <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f44", borderRadius: 6, padding: "6px 8px", marginBottom: 4, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: "#2d7a4f", fontFamily: "monospace" }}>{giftCardAplicada.codigo}</div>
-                      <div style={{ fontSize: 9, color: temaPal.textMuted }}>Saldo: {fmt(parseFloat(giftCardAplicada.saldo))} · Se aplica: {fmt(montoAplicadoGC)}</div>
-                    </div>
-                    <span onClick={quitarGiftCard} style={{ cursor: "pointer", color: "#c0392b", fontSize: 10 }}>✕</span>
-                  </div>
-                )}
-                {errorGC && <div style={{ fontSize: 9, color: "#c0392b", marginBottom: 10 }}>{errorGC}</div>}
-              </div>
+              </>
             )}
 
-            <div style={{ marginBottom: 6, position: "relative" }}>
-              <button className="btn btn-sm" style={{ width: "100%", display: "flex", justifyContent: "center", alignItems: "center", gap: 8, background: "#c9a84c18", border: "1px solid #c9a84c", color: "#c9a84c" }} onClick={() => setMostrarTipoFac(v => !v)}>
-                <span>{tipoFac === "Remito" ? "Remito" : "Factura " + tipoFac}</span>
-                <span>{mostrarTipoFac ? "▲" : "▼"}</span>
-              </button>
-              {mostrarTipoFac && (
-                <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-                  {["A", "B", "Remito"].map(t => (
-                    <button key={t} onClick={() => { setTipoFac(t); setMostrarTipoFac(false); }} className="btn btn-sm"
-                      style={{ flex: 1, fontSize: 9, padding: "6px 4px", textAlign: "center", background: tipoFac === t ? "#c9a84c" : temaPal.bg, border: "1px solid " + (tipoFac === t ? "#c9a84c" : temaPal.border), color: tipoFac === t ? "#1B2431" : temaPal.textMuted, fontWeight: tipoFac === t ? 700 : 500 }}>
-                      {t === "Remito" ? "Remito" : "Factura " + t}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* ---------- Medio de pago ---------- */}
+            {restaPagar > 0 && !preventa && (() => {
+              const TIPOS_PAGO = [
+                { id: "efectivo", ic: "💵", l: "Efectivo" },
+                { id: "debito", ic: "💳", l: "Débito" },
+                { id: "transferencia", ic: "🏦", l: "Transfer." },
+                { id: "credito", ic: "💳", l: "Crédito" },
+                { id: "plataforma", ic: "📱", l: "Otros" },
+              ].filter(t => mediosPago.some(m => m.tipo === t.id));
+              const tipoActivo = tipoPagoAbierto || medioPagoSel?.tipo || "";
+              const deTipo = mediosPago.filter(m => m.tipo === tipoActivo);
+              const elegirTipo = (t) => {
+                const lista = mediosPago.filter(m => m.tipo === t);
+                setTipoPagoAbierto(t);
+                setPagoMixto(false); setPagosMixtos([]);
+                setMontoRecibidoEfectivo("");
+                if (lista.length === 1) setMedioPagoSel(lista[0]);
+                else if (!lista.some(m => m.id === medioPagoSel?.id)) setMedioPagoSel(null);
+              };
+              return (
+                <div className="pc-sec">
+                  <div className="pc-tit">
+                    <span>💳 {pagoMixto ? "PAGO DIVIDIDO" : giftCardAplicada ? "PAGA LA DIFERENCIA CON" : "MEDIO DE PAGO"}</span>
+                    <button className="mini-chip" onClick={() => { setPagoMixto(!pagoMixto); setPagosMixtos(!pagoMixto ? [{ medio_pago_id: null, medio_pago_nombre: "", importe: "" }] : []); }}>{pagoMixto ? "Pago simple" : "Dividir pago"}</button>
+                  </div>
+                  {!pagoMixto && (
+                    <>
+                      <div className="pago-tipos">
+                        {TIPOS_PAGO.map(t => (
+                          <button key={t.id} className={"pago-tipo" + (tipoActivo === t.id ? " on" : "")} aria-pressed={tipoActivo === t.id} onClick={() => elegirTipo(t.id)}>
+                            <span className="ic" aria-hidden="true">{t.ic}</span>{t.l}
+                          </button>
+                        ))}
+                      </div>
+                      {deTipo.length > 1 && tipoActivo === "credito" && (() => {
+                        // Credito: cuotas agrupadas (sin interes / con interes) y el resto aparte
+                        const nCuotas = (m) => parseInt(((m.nombre || "").match(/(\d+)\s*cuota/i) || [])[1]) || 0;
+                        const esCuotaSimple = (m) => nCuotas(m) > 0 && /^(credito|crédito)/i.test(m.nombre || "");
+                        const sinInt = deTipo.filter(m => esCuotaSimple(m) && !m.con_interes).sort((x, y) => nCuotas(x) - nCuotas(y));
+                        const conInt = deTipo.filter(m => esCuotaSimple(m) && m.con_interes).sort((x, y) => nCuotas(x) - nCuotas(y));
+                        const otros = deTipo.filter(m => !esCuotaSimple(m));
+                        const fila = (titulo, lista, conPct) => lista.length > 0 && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", marginTop: 6 }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: temaPal.textMuted, minWidth: 74 }}>{titulo}</span>
+                            {lista.map(m => (
+                              <button key={m.id} className={"mini-chip" + (medioPagoSel?.id === m.id ? " on" : "")} title={m.nombre} onClick={() => { setMedioPagoSel(m); setMontoRecibidoEfectivo(""); }} style={{ minWidth: conPct ? 0 : 30, padding: "3px 9px" }}>
+                                {conPct ? nCuotas(m) + " · +" + Math.round((parseFloat(m.coeficiente) - 1) * 100) + "%" : (nCuotas(m) || m.nombre)}
+                              </button>
+                            ))}
+                          </div>
+                        );
+                        return (
+                          <div className="pop-in" style={{ marginTop: 2 }}>
+                            {fila("Sin interés", sinInt, false)}
+                            {fila("Con interés", conInt, true)}
+                            {otros.length > 0 && (
+                              <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", marginTop: 6 }}>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: temaPal.textMuted, minWidth: 74 }}>Otras</span>
+                                {otros.map(m => (
+                                  <button key={m.id} className={"mini-chip" + (medioPagoSel?.id === m.id ? " on" : "")} onClick={() => { setMedioPagoSel(m); setMontoRecibidoEfectivo(""); }} style={{ padding: "3px 9px" }}>{m.nombre}</button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      {deTipo.length > 1 && tipoActivo !== "credito" && (
+                        <div className="pop-in" style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 8 }}>
+                          {deTipo.map(m => (
+                            <button key={m.id} className={"mini-chip" + (medioPagoSel?.id === m.id ? " on" : "")} onClick={() => { setMedioPagoSel(m); setMontoRecibidoEfectivo(""); }} style={{ padding: "4px 10px" }}>
+                              {m.nombre.replace(/^(Credito|Crédito)\s*/i, "")}{m.con_interes ? " · +" + Math.round((parseFloat(m.coeficiente) - 1) * 100) + "%" : ""}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {medioPagoSel && (
+                        <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 6 }}>Elegido: <b style={{ color: temaPal.text }}>{medioPagoSel.nombre}</b>{medioPagoSel.con_interes ? <span style={{ color: temaPal.red }}> · con interés</span> : ""}</div>
+                      )}
+                    </>
+                  )}
 
-            <div style={{ marginBottom: 8 }}>
-              <button className="btn btn-sm" style={{ width: "100%", display: "flex", justifyContent: "center", alignItems: "center", gap: 8, background: temaPal.bg, border: "1px solid " + temaPal.border, color: temaPal.textMuted }} onClick={() => setMostrarExtras(v => !v)}>
-                <span>+ Extras</span>
-                <span>{mostrarExtras ? "▲" : "▼"}</span>
-              </button>
-              {mostrarExtras && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
-                  <button className="btn btn-sm" style={{ width: "100%", background: "#c9a84c18", color: "#c9a84c", border: "1px solid #c9a84c66" }} onClick={() => { setShowEmitirGC(true); setGcEmitidaOk(null); setErrorEmitirGC(""); }}>🎁 Emitir Gift Card</button>
-                  {!preventa && (
-                    <button className="btn btn-sm" style={{ width: "100%", background: "#2471a318", color: "#2471a3", border: "1px solid #2471a366" }} onClick={agregarAjusteDiferencia}>🌐 Facturar diferencia de pedido online</button>
+                  {!pagoMixto && medioPagoSel && medioPagoSel.tipo === "efectivo" && (
+                    <div className="pop-in" style={{ marginTop: 8, padding: 10, background: temaPal.bg, borderRadius: 8 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700 }}>¿Con cuánto paga?</span>
+                        <input type="number" className="inp" style={{ width: 120, padding: "6px 8px", fontSize: 13, textAlign: "right" }} placeholder={String(Math.ceil(restaPagar))}
+                          value={montoRecibidoEfectivo} onChange={e => setMontoRecibidoEfectivo(e.target.value)} aria-label="Monto recibido" />
+                      </div>
+                      <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                        {billetesSugeridos(restaPagar).map((b, idx) => (
+                          <button key={b} className={"mini-chip" + (String(b) === String(montoRecibidoEfectivo) ? " on" : "")} onClick={() => setMontoRecibidoEfectivo(String(b))}>
+                            {idx === 0 ? "Justo" : fmt(b).replace(",00", "")}
+                          </button>
+                        ))}
+                      </div>
+                      {montoRecibidoEfectivo !== "" && (
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 8 }}>
+                          <span style={{ fontSize: 12, fontWeight: 700 }}>{parseFloat(montoRecibidoEfectivo) < restaPagar ? "Falta" : "Vuelto"}</span>
+                          <span style={{ fontSize: 22, fontWeight: 900, fontVariantNumeric: "tabular-nums", color: parseFloat(montoRecibidoEfectivo) < restaPagar ? temaPal.red : temaPal.green }}>
+                            {fmt(Math.abs(parseFloat(montoRecibidoEfectivo) - restaPagar))}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   )}
-                  {!preventa && insumosPosActivo && insumosPos.length > 0 && !mostrarInsumos && (
-                    <button className="btn btn-sm" style={{ width: "100%", background: "#7d3c9818", color: "#a06bc0", border: "1px solid #7d3c9866" }} onClick={() => setMostrarInsumos(true)}>📦 Agregar insumo (bolsa, caja, ramo...)</button>
+
+                  {pagoMixto && (
+                    <div>
+                      {pagosMixtos.map((pg, idx) => (
+                        <div key={idx} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
+                          <select className="sel" style={{ flex: 1, padding: "7px 8px", fontSize: 12 }} value={pg.medio_pago_id || ""} onChange={e => {
+                            const m = mediosPago.find(x => x.id === parseInt(e.target.value));
+                            setPagosMixtos(prev => prev.map((x, i) => i === idx ? { ...x, medio_pago_id: m?.id || null, medio_pago_nombre: m?.nombre || "" } : x));
+                          }}>
+                            <option value="">Medio...</option>
+                            {mediosPago.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
+                          </select>
+                          <input className="inp" type="number" placeholder="$" value={pg.importe} onChange={e => setPagosMixtos(prev => prev.map((x, i) => i === idx ? { ...x, importe: e.target.value } : x))} style={{ width: 100, padding: "7px 8px", fontSize: 12, textAlign: "right" }} />
+                          {pagosMixtos.length > 1 && <button className="icon-btn peligro" onClick={() => setPagosMixtos(prev => prev.filter((_, i) => i !== idx))} aria-label="Quitar medio">✕</button>}
+                        </div>
+                      ))}
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button className="mini-chip" style={{ flex: 1, padding: "5px 8px" }} onClick={() => setPagosMixtos(prev => [...prev, { medio_pago_id: null, medio_pago_nombre: "", importe: "" }])}>+ Agregar medio</button>
+                        <button className="mini-chip" style={{ flex: 1, padding: "5px 8px" }} onClick={() => { const n = pagosMixtos.length || 1; const parte = Math.round((restaPagar / n) * 100) / 100; setPagosMixtos(prev => prev.map(x => ({ ...x, importe: String(parte) }))); }}>Dividir igual</button>
+                      </div>
+                      {(() => {
+                        const suma = pagosMixtos.reduce((s2, x) => s2 + (parseFloat(x.importe) || 0), 0);
+                        const dif = restaPagar - suma;
+                        return <div style={{ fontSize: 11, textAlign: "right", marginTop: 6, fontWeight: 700, color: Math.abs(dif) < 1 ? temaPal.green : temaPal.red }}>{fmt(suma)} de {fmt(restaPagar)} {Math.abs(dif) >= 1 ? "· falta " + fmt(dif) : "✓"}</div>;
+                      })()}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
-            {!preventa && insumosPosActivo && insumosPos.length > 0 && mostrarInsumos && (
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ background: temaPal.bg, borderRadius: 8, padding: 10 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: temaPal.textMuted }}>Insumos usados (se descuentan del stock, no se facturan)</span>
-                    <span onClick={() => { setMostrarInsumos(false); setInsumosSel({}); setCart(prev => prev.filter(x => !String(x.id).startsWith("insumo-"))); }} style={{ cursor: "pointer", fontSize: 11, color: temaPal.textMuted }}>ocultar</span>
+              );
+            })()}
+
+            {/* ---------- Comprobante y extras ---------- */}
+            <div className="pc-sec">
+              <div className="pc-tit"><span>🧾 COMPROBANTE</span></div>
+              <div className="seg" role="group" aria-label="Tipo de comprobante" style={{ width: "100%" }}>
+                {["B", "A", "Remito"].map(t => (
+                  <button key={t} style={{ flex: 1 }} className={tipoFac === t ? "on" : ""} aria-pressed={tipoFac === t} onClick={() => setTipoFac(t)}>{t === "Remito" ? "Remito" : "Factura " + t}</button>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 8 }}>
+                <button className="mini-chip" onClick={() => { setShowEmitirGC(true); setGcEmitidaOk(null); setErrorEmitirGC(""); }}>🎁 Emitir gift card</button>
+                {!preventa && <button className="mini-chip" onClick={agregarAjusteDiferencia}>🌐 Diferencia online</button>}
+                {!preventa && insumosPosActivo && insumosPos.length > 0 && <button className={"mini-chip" + (mostrarInsumos ? " on" : "")} onClick={() => setMostrarInsumos(v => !v)}>📦 Insumos</button>}
+              </div>
+              {!preventa && insumosPosActivo && insumosPos.length > 0 && mostrarInsumos && (
+                <div className="pop-in" style={{ marginTop: 8, background: temaPal.bg, borderRadius: 8, padding: "6px 10px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, color: temaPal.textMuted, marginBottom: 4 }}>
+                    <span>Insumos usados (se descuentan del stock)</span>
+                    <button className="icon-btn" onClick={() => { setMostrarInsumos(false); setInsumosSel({}); setCart(prev => prev.filter(x => !String(x.id).startsWith("insumo-"))); }} aria-label="Quitar insumos">✕</button>
                   </div>
                   {insumosPos.map(ins => {
                     const marcado = insumosSel[ins.id] && insumosSel[ins.id] !== "ninguna";
                     const idCartInsumo = "insumo-" + ins.id;
                     const enCarrito = cart.find(x => x.id === idCartInsumo);
                     return (
-                        <div key={ins.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0" }}>
-                          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer", flex: 1 }}>
-                            <input type="checkbox" checked={!!marcado} onChange={e => {
-                              setInsumosSel(p => ({ ...p, [ins.id]: e.target.checked ? String(ins.id) : "ninguna" }));
-                              if (!e.target.checked) {
-                                setCart(prev => prev.filter(x => x.id !== idCartInsumo));
-                              } else {
-                                const precio = ins.precio_sugerido_cliente || 0;
-                                setCart(prev => [...prev.filter(x => x.id !== idCartInsumo), { id: idCartInsumo, nombre: ins.nombre, precio, price: precio, qty: 1, es_ajuste: true }]);
-                              }
-                            }} />
-                            <span>{ins.nombre}</span>
-                          </label>
-                          {marcado && (
-                            <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                              <span style={{ fontSize: 9, color: temaPal.textMuted }}>$ al cliente</span>
-                              <input type="number" min="0" placeholder="0" defaultValue={enCarrito ? (enCarrito.precio || enCarrito.price) : (ins.precio_sugerido_cliente || "")}
-                                onBlur={e => {
-                                  const monto = parseFloat(e.target.value) || 0;
-                                  setCart(prev => {
-                                    const sinEste = prev.filter(x => x.id !== idCartInsumo);
-                                    return [...sinEste, { id: idCartInsumo, nombre: ins.nombre, precio: monto, price: monto, qty: 1, es_ajuste: true }];
-                                  });
-                                }}
-                                style={{ width: 60, fontSize: 10, padding: "4px 6px", border: "1px solid " + temaPal.border, borderRadius: 4, textAlign: "right" }} />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-              </div>
-            )}
-            {restaPagar > 0 && (
-              <div style={{ marginBottom: 6 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                  <span style={{ fontSize: 10, color: temaPal.textMuted }}>{pagoMixto ? "Pago dividido" : "Medio de pago"}</span>
-                  <button onClick={() => { setPagoMixto(!pagoMixto); if (!pagoMixto) { setPagosMixtos([{ medio_pago_id: null, medio_pago_nombre: "", importe: "" }]); } else { setPagosMixtos([]); } }} style={{ fontSize: 10, padding: "2px 8px", border: "1px solid #c9a84c", borderRadius: 4, background: pagoMixto ? "#c9a84c" : temaPal.card, color: pagoMixto ? temaPal.card : "#c9a84c", cursor: "pointer" }}>{pagoMixto ? "Pago simple" : "Dividir pago"}</button>
+                      <div key={ins.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer", flex: 1 }}>
+                          <input type="checkbox" checked={!!marcado} onChange={e => {
+                            setInsumosSel(pp => ({ ...pp, [ins.id]: e.target.checked ? String(ins.id) : "ninguna" }));
+                            if (!e.target.checked) {
+                              setCart(prev => prev.filter(x => x.id !== idCartInsumo));
+                            } else {
+                              const precio = ins.precio_sugerido_cliente || 0;
+                              setCart(prev => [...prev.filter(x => x.id !== idCartInsumo), { id: idCartInsumo, nombre: ins.nombre, precio, price: precio, qty: 1, es_ajuste: true }]);
+                            }
+                          }} />
+                          <span>{ins.nombre}</span>
+                        </label>
+                        {marcado && (
+                          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <span style={{ fontSize: 10, color: temaPal.textMuted }}>$ cliente</span>
+                            <input type="number" min="0" placeholder="0" className="mini-inp" style={{ width: 70, textAlign: "right" }} defaultValue={enCarrito ? (enCarrito.precio || enCarrito.price) : (ins.precio_sugerido_cliente || "")}
+                              onBlur={e => {
+                                const monto = parseFloat(e.target.value) || 0;
+                                setCart(prev => [...prev.filter(x => x.id !== idCartInsumo), { id: idCartInsumo, nombre: ins.nombre, precio: monto, price: monto, qty: 1, es_ajuste: true }]);
+                              }} />
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-
-                {!pagoMixto && (
-                  <select className="sel" style={{ fontSize: 11, padding: "8px 10px", width: "100%" }} value={medioPagoSel?.id || ""} onChange={e => {
-                    const m = mediosPago.find(x => x.id === parseInt(e.target.value));
-                    setMedioPagoSel(m || null);
-                    setMontoRecibidoEfectivo("");
-                  }}>
-                    <option value="">{giftCardAplicada ? "Pago diferencia..." : "Medio de pago..."}</option>
-                    {mediosPago.map(m => (
-                      <option key={m.id} value={m.id}>{m.nombre}</option>
-                    ))}
-                  </select>
-                )}
-
-                {!pagoMixto && medioPagoSel && medioPagoSel.tipo === "efectivo" && (
-                  <div style={{ marginTop: 8, padding: 10, background: temaPal.bg, borderRadius: 6 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                      <span style={{ fontSize: 11, color: temaPal.textMuted }}>Con cuanto paga?</span>
-                      <input type="number" className="inp" style={{ width: 110, padding: "5px 8px", fontSize: 12 }} placeholder={String(restaPagar)}
-                        value={montoRecibidoEfectivo} onChange={e => setMontoRecibidoEfectivo(e.target.value)} />
-                    </div>
-                    <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 6 }}>
-                      {billetesSugeridos(restaPagar).map((b, idx) => (
-                        <button key={b} className={"chip-btn" + (String(b) === String(montoRecibidoEfectivo) ? " on" : "")} onClick={() => setMontoRecibidoEfectivo(String(b))}>
-                          {idx === 0 ? "Justo" : fmt(b).replace(",00", "")}
-                        </button>
-                      ))}
-                    </div>
-                    {montoRecibidoEfectivo !== "" && (
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: 12, fontWeight: 600 }}>Vuelto</span>
-                        <span style={{ fontSize: 18, fontWeight: 700, color: (parseFloat(montoRecibidoEfectivo) - restaPagar) < 0 ? "#c0392b" : "#2d7a4f" }}>
-                          {fmt(Math.max(parseFloat(montoRecibidoEfectivo) - restaPagar, 0))}
-                        </span>
-                      </div>
-                    )}
-                    {montoRecibidoEfectivo !== "" && parseFloat(montoRecibidoEfectivo) < restaPagar && (
-                      <div style={{ fontSize: 10, color: "#c0392b", marginTop: 4 }}>Falta {fmt(restaPagar - parseFloat(montoRecibidoEfectivo))}</div>
-                    )}
-                  </div>
-                )}
-
-                {pagoMixto && (
-                  <div>
-                    {pagosMixtos.map((pg, idx) => (
-                      <div key={idx} style={{ display: "flex", gap: 4, marginBottom: 4, alignItems: "center" }}>
-                        <select className="sel" style={{ fontSize: 10, padding: "6px", flex: 1 }} value={pg.medio_pago_id || ""} onChange={e => {
-                          const m = mediosPago.find(x => x.id === parseInt(e.target.value));
-                          setPagosMixtos(prev => prev.map((x, i) => i === idx ? { ...x, medio_pago_id: m?.id || null, medio_pago_nombre: m?.nombre || "" } : x));
-                        }}>
-                          <option value="">Medio...</option>
-                          {mediosPago.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
-                        </select>
-                        <input type="number" placeholder="$" value={pg.importe} onChange={e => setPagosMixtos(prev => prev.map((x, i) => i === idx ? { ...x, importe: e.target.value } : x))} style={{ width: 80, fontSize: 11, padding: "6px", border: "1px solid " + temaPal.border, borderRadius: 4, textAlign: "right" }} />
-                        {pagosMixtos.length > 1 && <span onClick={() => setPagosMixtos(prev => prev.filter((_, i) => i !== idx))} style={{ cursor: "pointer", color: temaPal.textMuted, fontSize: 16 }}>×</span>}
-                      </div>
-                    ))}
-                    <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
-                      <button onClick={() => setPagosMixtos(prev => [...prev, { medio_pago_id: null, medio_pago_nombre: "", importe: "" }])} style={{ fontSize: 10, padding: "4px 8px", border: "1px dashed #c9a84c", borderRadius: 4, background: temaPal.card, color: "#c9a84c", cursor: "pointer", flex: 1 }}>+ Agregar medio</button>
-                      <button onClick={() => { const n = pagosMixtos.length || 1; const parte = Math.round((restaPagar / n) * 100) / 100; setPagosMixtos(prev => prev.map(x => ({ ...x, importe: String(parte) }))); }} style={{ fontSize: 10, padding: "4px 8px", border: "1px solid " + temaPal.border, borderRadius: 4, background: temaPal.bg, cursor: "pointer", flex: 1 }}>Dividir igual</button>
-                    </div>
-                    {(() => {
-                      const suma = pagosMixtos.reduce((s, p) => s + (parseFloat(p.importe) || 0), 0);
-                      const dif = restaPagar - suma;
-                      return <div style={{ fontSize: 10, textAlign: "right", color: Math.abs(dif) < 1 ? "#2d7a4f" : "#c0392b" }}>Suma: {fmt(suma)} / Total: {fmt(restaPagar)} {Math.abs(dif) >= 1 ? "(falta " + fmt(dif) + ")" : "✓"}</div>;
-                    })()}
-                  </div>
-                )}
-              </div>
-            )}
+              )}
+            </div>
           </div>
-          <div style={{ background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 8, padding: "10px 12px" }}>
+          <div className="pc-sec" style={{ marginBottom: 0 }}>
             {!reto && !preventa && retosConfig.activo && fichaCliente && clienteSeleccionado?.id && clienteSeleccionado.id === fichaCliente.cliente?.id
               && fichaCliente.compras >= 2 && fichaCliente.ticket_promedio > 0 && cart.length > 0
               && subtotalConDesc < fichaCliente.ticket_promedio && retoDescartadoId !== fichaCliente.cliente.id && (() => {
@@ -3878,8 +4014,44 @@ function POS({ localId, usuario, paletaActual }) {
           </div>
           <div className="pos-cat-der">
             <div className="pos-cat-carrito">{carritoJSX}</div>
-            {panelCobroJSX}
+            <div className="pc-sec pos-cat-resumen">
+              {clienteSeleccionado && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, marginBottom: 8, color: temaPal.textMuted }}>
+                  <span className="cli-avatar" style={{ width: 26, height: 26, fontSize: 10 }}>{clienteSeleccionado.id ? inicialesProd(clienteSeleccionado.nombre) : "CF"}</span>
+                  <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: temaPal.text, fontWeight: 700 }}>{clienteSeleccionado.id ? clienteSeleccionado.nombre : "Consumidor final"}</span>
+                  {medioPagoSel && <span className="tag tag-neutral">{medioPagoSel.nombre}</span>}
+                </div>
+              )}
+              {reto && !preventa && (
+                <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6, color: subtotalConDesc > reto.meta ? temaPal.green : temaPal.accent }}>
+                  🎯 {subtotalConDesc > reto.meta ? "¡Reto superado!" : "Reto: faltan " + fmt(Math.round(reto.meta - subtotalConDesc + 1)).replace(",00", "")}
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: temaPal.textMuted }}>{restaPagar > 0 && giftCardAplicada ? "FALTA PAGAR" : "TOTAL"}{descuento > 0 ? " · con descuento" : ""}</div>
+                  <div style={{ fontSize: modoVista === "tactil" ? 30 : 26, fontWeight: 900, fontVariantNumeric: "tabular-nums", lineHeight: 1.1 }}><CountUp value={restaPagar > 0 ? restaPagar : total} formato={fmt} duracion={400} /></div>
+                </div>
+                <button className="btn btn-p" style={{ padding: modoVista === "tactil" ? "16px 22px" : "13px 18px", fontSize: modoVista === "tactil" ? 16 : 14, borderRadius: 10 }} disabled={cart.length === 0} onClick={() => setCobroMovilAbierto(true)}>
+                  Cobrar → <span className="kbd" style={{ marginLeft: 6, background: "rgba(255,255,255,0.15)", color: "#fff", borderColor: "rgba(255,255,255,0.3)" }}>F9</span>
+                </button>
+              </div>
+            </div>
           </div>
+          {cobroMovilAbierto && (
+            <div className="pos-drawer" onClick={() => setCobroMovilAbierto(false)}>
+              <div className={"pos-drawer-panel" + (modoVista === "tactil" ? " pos-tactil" : "")} role="dialog" aria-label="Cobro" onClick={e => e.stopPropagation()}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 17, fontWeight: 800 }}>Cobro</div>
+                    <div style={{ fontSize: 11, color: temaPal.textMuted }}>{cart.reduce((s2, i) => s2 + i.qty, 0)} productos · {fmt(subtotalBase).replace(",00", "")}</div>
+                  </div>
+                  <button className="btn btn-g btn-sm" onClick={() => setCobroMovilAbierto(false)}>← Volver al catálogo</button>
+                </div>
+                {panelCobroJSX}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
