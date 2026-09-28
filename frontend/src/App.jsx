@@ -16151,6 +16151,14 @@ function AsistenteAyuda({ usuario, seccion, paletaActual }) {
   const [modo, setModo] = useState("buscar"); // buscar | ia
   const [iaDisponible, setIaDisponible] = useState(false);
   const [articulos, setArticulos] = useState(null);
+  const [errorManual, setErrorManual] = useState(false);
+  // Si falla (por ejemplo mientras el servidor se actualiza), se avisa y se puede reintentar
+  const cargarManual = () => {
+    setErrorManual(false);
+    API.get("/asistente/manual")
+      .then(r => { const arts = armarArticulosAyuda(r.data?.texto || ""); if (arts.length) setArticulos(arts); else setErrorManual(true); })
+      .catch(() => setErrorManual(true));
+  };
   const [consulta, setConsulta] = useState("");
   const [abiertoArt, setAbiertoArt] = useState(null);
   // IA (solo si el servidor tiene clave)
@@ -16165,7 +16173,7 @@ function AsistenteAyuda({ usuario, seccion, paletaActual }) {
   useEffect(() => { API.get("/asistente/estado").then(r => setIaDisponible(!!r.data?.disponible)).catch(() => setIaDisponible(false)); }, []);
   useEffect(() => {
     if (!abierto || articulos) return;
-    API.get("/asistente/manual").then(r => setArticulos(armarArticulosAyuda(r.data?.texto || ""))).catch(() => setArticulos([]));
+    cargarManual();
   }, [abierto]);
   useEffect(() => { try { sessionStorage.setItem("lumiere_ayuda", JSON.stringify(mensajes.slice(-30))); } catch (e) {} }, [mensajes]);
   useEffect(() => {
@@ -16245,7 +16253,9 @@ function AsistenteAyuda({ usuario, seccion, paletaActual }) {
                 <input ref={buscarRef} className="inp" type="search" placeholder="Ej: cerrar la caja, gasto compartido, anular venta..." value={consulta} onChange={e => setConsulta(e.target.value)} aria-label="Buscar en la ayuda" />
               </div>
               <div className="ayuda-cuerpo" style={{ gap: 6 }} aria-live="polite">
-                {!articulos ? <div className="skel" style={{ height: 120 }} /> : consulta.trim() ? (
+                {errorManual && !articulos ? (
+                  <div style={{ fontSize: 13, color: p.textMuted, padding: 8 }}>No se pudo cargar la ayuda (puede que el sistema se esté actualizando). <button className="chip-btn" onClick={cargarManual}>Reintentar</button></div>
+                ) : !articulos ? <div className="skel" style={{ height: 120 }} /> : consulta.trim() ? (
                   resultados.length === 0
                     ? <div style={{ fontSize: 13, color: p.textMuted, padding: 8 }}>No encontré nada con "{consulta}". Probá con otras palabras (por ejemplo "caja", "egreso", "proveedor") o consultá al dueño del sistema.</div>
                     : <>{resultados.map(articuloJSX)}</>

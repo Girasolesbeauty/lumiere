@@ -6,6 +6,16 @@ const pool = require('../config/database');
 let columnasListas = false;
 const asegurarColumnas = async () => {
   if (columnasListas) return;
+  // En algunas bases la tabla nunca se habia creado (la seccion Reclamos fallaba)
+  await pool.query(`CREATE TABLE IF NOT EXISTS reclamos_proveedores (
+    id SERIAL PRIMARY KEY,
+    producto_id INTEGER, producto_nombre TEXT,
+    proveedor_id INTEGER, proveedor_nombre TEXT,
+    cantidad INTEGER NOT NULL DEFAULT 1, motivo TEXT NOT NULL,
+    local_id INTEGER DEFAULT 1, usuario_id INTEGER, usuario_nombre TEXT,
+    estado VARCHAR(20) DEFAULT 'pendiente', resolucion TEXT, resuelto_en TIMESTAMP,
+    creado_en TIMESTAMP DEFAULT NOW()
+  )`);
   await pool.query(`ALTER TABLE reclamos_proveedores
     ADD COLUMN IF NOT EXISTS orden_id INTEGER, ADD COLUMN IF NOT EXISTS orden_item_id INTEGER,
     ADD COLUMN IF NOT EXISTS local_recepcion VARCHAR(5), ADD COLUMN IF NOT EXISTS tipo VARCHAR(20) DEFAULT 'falla',
@@ -56,6 +66,7 @@ const crearReclamo = async (req, res) => {
 // Actualizar estado / resolucion de un reclamo
 const actualizarReclamo = async (req, res) => {
   try {
+    await asegurarColumnas();
     const { id } = req.params;
     const { estado, resolucion } = req.body;
     const marcarResuelto = estado === 'resuelto' || estado === 'rechazado';
@@ -75,6 +86,7 @@ const actualizarReclamo = async (req, res) => {
 // Borrar un reclamo (por si se cargo mal)
 const borrarReclamo = async (req, res) => {
   try {
+    await asegurarColumnas();
     await pool.query('DELETE FROM reclamos_proveedores WHERE id = $1', [req.params.id]);
     res.json({ ok: true });
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }

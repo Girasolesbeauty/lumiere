@@ -130,3 +130,15 @@ ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS mensaje_precio TEXT;
 ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS iibb_pct NUMERIC(5,2) DEFAULT 4;
 ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS reparto_local1_pct NUMERIC(5,2) DEFAULT 50;
 ALTER TABLE movimientos_caja ADD COLUMN IF NOT EXISTS pct_local1 NUMERIC(5,2);
+
+-- 11) Reclamos a proveedores (en algunas bases la tabla no existia) y su vinculo con Ingresos.
+--     (la ruta tambien la crea sola si falta)
+CREATE TABLE IF NOT EXISTS reclamos_proveedores (
+  id SERIAL PRIMARY KEY,
+  producto_id INTEGER, producto_nombre TEXT,
+  proveedor_id INTEGER, proveedor_nombre TEXT,
+  cantidad INTEGER NOT NULL DEFAULT 1, motivo TEXT NOT NULL,
+  local_id INTEGER DEFAULT 1, usuario_id INTEGER, usuario_nombre TEXT,
+  estado VARCHAR(20) DEFAULT 'pendiente', resolucion TEXT, resuelto_en TIMESTAMP,
+  creado_en TIMESTAMP DEFAULT NOW()
+);
