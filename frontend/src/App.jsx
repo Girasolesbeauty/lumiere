@@ -276,6 +276,8 @@ button.tab { font-family: inherit; }
 @media (max-width: 1100px) { .pos-cat { grid-template-columns: 1fr; height: auto; } .pos-cat.pos-tactil { grid-template-columns: 1fr; } .pos-cat-cats.vertical { flex-direction: row; overflow-x: auto; } .pos-cat-scroll { max-height: 60vh; } }
 @media (max-width: 700px) { .pos-modo-txt { display: none; } }
 /* --- Items del carrito del POS --- */
+.cart-cliente { padding: 8px 12px; border-top: 1px solid ${p.border}; background: ${p.card}; display: flex; flex-direction: column; gap: 8px; text-align: left; }
+.cart-cliente:empty { display: none; }
 .cart-item { text-align: left; display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 8px 10px; border-bottom: 1px solid ${p.border}; background: ${p.card}; transition: background .15s; }
 .cart-item:hover, .cart-item.abierto { background: ${p.trHover}; }
 .qty-pill { display: inline-flex; align-items: center; border: 1px solid ${p.border}; border-radius: 999px; background: ${p.bg}; overflow: hidden; }
@@ -2371,6 +2373,8 @@ function POS({ localId, usuario, paletaActual }) {
   const [nombreEspera, setNombreEspera] = useState(null); // null = cerrado; texto = pidiendo el nombre
   // Desafio para la vendedora: superar el ticket promedio del cliente. { meta, cliente, clienteId }
   const [reto, setReto] = useState(null);
+  const cartRef = useRef([]);
+  cartRef.current = cart;
   const [retoDescartadoId, setRetoDescartadoId] = useState(null); // cliente a la que se le dijo "Ahora no" en esta venta
 
   // ---- Modo de vista del POS (cada dispositivo recuerda el suyo) ----
@@ -2939,7 +2943,7 @@ function POS({ localId, usuario, paletaActual }) {
       if (ultimoDniBuscadoRef.current !== dni) return;
       const dniLimpio = (dni || "").replace(/[^0-9]/g, "");
       const encontrado = res.data.find(c => (c.cuit_dni || "").replace(/[^0-9]/g, "") === dniLimpio);
-      if (encontrado) { setClienteSeleccionado(encontrado); setShowNuevoCliente(false); cargarFicha(encontrado.id, true); }
+      if (encontrado) { setClienteSeleccionado(encontrado); setShowNuevoCliente(false); cargarFicha(encontrado.id, cartRef.current.length === 0); }
       else { setClienteSeleccionado(null); if (dni.length >= 8) setShowNuevoCliente(true); }
     } catch (e) {}
     setBuscandoCliente(false);
@@ -3598,6 +3602,86 @@ function POS({ localId, usuario, paletaActual }) {
           )}
     </>
   );
+  // Desafio: se ofrece cuando ya hay productos y el cliente esta identificado (se muestra en el carrito)
+  const retoJSX = (
+    <>
+            {!reto && !preventa && retosConfig.activo && fichaCliente && clienteSeleccionado?.id && clienteSeleccionado.id === fichaCliente.cliente?.id
+              && fichaCliente.compras >= 2 && fichaCliente.ticket_promedio > 0 && cart.length > 0
+              && subtotalConDesc < fichaCliente.ticket_promedio && retoDescartadoId !== fichaCliente.cliente.id && (() => {
+              // El desafio se ofrece cuando ya hay productos en el carrito pero todavia no
+              // llegan al ticket promedio del cliente (si ya lo supera, no tiene gracia).
+              const meta = Math.round(fichaCliente.ticket_promedio);
+              const falta = Math.max(meta - subtotalConDesc + 1, 0);
+              const nombreCorto = (fichaCliente.cliente.nombre || "El cliente").split(/[ ,]+/).filter(Boolean)[0];
+              return (
+                <div className="reto-card pop-in" role="status">
+                  <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                    <span style={{ fontSize: 24, lineHeight: 1 }} aria-hidden="true">🎯</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: temaPal.accent, letterSpacing: ".1em" }}>DESAFÍO</div>
+                      <div style={{ fontSize: 12, marginTop: 2 }}>{nombreCorto} suele gastar <b>{fmt(meta).replace(",00", "")}</b> y hoy lleva <b>{fmt(Math.round(subtotalConDesc)).replace(",00", "")}</b>.</div>
+                      <div style={{ fontSize: 13, fontWeight: 800, marginTop: 2 }}>¡Te faltan {fmt(Math.round(falta)).replace(",00", "")} para superarlo!</div>
+                      <div className="reto-bar" style={{ marginTop: 6 }}><div className="reto-fill" style={{ width: Math.min(subtotalConDesc / meta, 1) * 100 + "%", background: temaPal.accent }} /></div>
+                      {retosMes && <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 4 }}>Llevás {retosMes.logrados || 0} de {retosConfig.meta_mensual} desafíos este mes</div>}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                    <button className="btn btn-sm" style={{ flex: 2, background: temaPal.accent, color: "#1B2431", fontWeight: 800 }}
+                      onClick={() => { setReto({ meta, cliente: fichaCliente.cliente.nombre, clienteId: fichaCliente.cliente.id }); sonar("ok"); }}>
+                      Acepto el reto
+                    </button>
+                    <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => setRetoDescartadoId(fichaCliente.cliente.id)}>Ahora no</button>
+                  </div>
+                </div>
+              );
+            })()}
+            {reto && !preventa && (() => {
+              const progreso = Math.min(subtotalConDesc / reto.meta, 1);
+              const superado = subtotalConDesc > reto.meta;
+              return (
+                <div className="anim-in">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, marginBottom: 5, gap: 8 }}>
+                    <span style={{ fontWeight: 700 }}>🎯 Reto: superar {fmt(reto.meta).replace(",00", "")}</span>
+                    <span style={{ fontWeight: 700, color: superado ? temaPal.green : temaPal.textMuted, fontVariantNumeric: "tabular-nums" }}>
+                      {superado ? "🔥 ¡Superado! +" + fmt(Math.round(subtotalConDesc - reto.meta)).replace(",00", "") : "Faltan " + fmt(Math.round(reto.meta - subtotalConDesc + 1)).replace(",00", "")}
+                    </span>
+                  </div>
+                  <div className="reto-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progreso * 100)} aria-label="Progreso del reto">
+                    <div className="reto-fill" style={{ width: (progreso * 100) + "%", background: superado ? temaPal.green : temaPal.accent }} />
+                  </div>
+                  <div style={{ textAlign: "right", marginTop: 3 }}>
+                    <span onClick={() => setReto(null)} style={{ fontSize: 10, color: temaPal.textMuted, cursor: "pointer", textDecoration: "underline" }}>abandonar reto</span>
+                  </div>
+                </div>
+              );
+            })()}
+    </>
+  );
+  // Cliente al pie del carrito: se puede cargar el DNI despues de llenarlo, y ahi mismo aparece el desafio
+  const clienteCarritoJSX = cart.length > 0 && !preventa ? (
+    <div className="cart-cliente">
+      {clienteSeleccionado?.id ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+          <span className="cli-avatar" style={{ width: 28, height: 28, fontSize: 11 }}>{inicialesProd(clienteSeleccionado.nombre)}</span>
+          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <b>{clienteSeleccionado.nombre}</b>
+            {fichaCliente && fichaCliente.compras > 0 && <span style={{ color: temaPal.textMuted }}> · {fichaCliente.compras} compras · suele gastar {fmt(Math.round(fichaCliente.ticket_promedio || 0)).replace(",00", "")}</span>}
+          </span>
+          {fichaCliente && <button className="mini-chip" onClick={() => setMostrarFicha(true)}>ℹ Ficha</button>}
+        </div>
+      ) : clienteSeleccionado ? null : (
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 11, color: temaPal.textMuted, whiteSpace: "nowrap" }}>👤 ¿Es cliente?</span>
+          <div style={{ position: "relative", flex: 1 }}>
+            <input className="mini-inp" inputMode="numeric" placeholder="DNI para ver su desafío" value={dniInput} onChange={e => buscarClientePorDni(e.target.value)} style={{ width: "100%", height: 30, fontSize: 13, fontWeight: 700 }} aria-label="DNI del cliente" />
+            {buscandoCliente && <span style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", fontSize: 10, color: temaPal.textMuted }}>buscando…</span>}
+          </div>
+        </div>
+      )}
+      {showNuevoCliente && !clienteSeleccionado && <div style={{ fontSize: 11, color: temaPal.warn, marginTop: 4 }}>No está registrado: podés darlo de alta en el panel de cobro.</div>}
+      {retoJSX}
+    </div>
+  ) : null;
   const carritoJSX = (
           <div style={{ background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 8, flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 240 }}>
           <div style={{ padding: "10px 14px", borderBottom: "1px solid " + temaPal.border, fontSize: 10, color: temaPal.textMuted, fontWeight: 700, letterSpacing: ".1em", background: preventa ? "#2471a320" : temaPal.bg }}>
@@ -3682,6 +3766,7 @@ function POS({ localId, usuario, paletaActual }) {
               })
             }
           </div>
+          {clienteCarritoJSX}
           {sugerenciasProductos.length > 0 && (
             <div className="anim-in" style={{ padding: "8px 12px", borderTop: "1px solid " + temaPal.border, background: temaPal.card }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: temaPal.accent, letterSpacing: ".06em", marginBottom: 4 }}>✨ SUELEN LLEVAR TAMBIÉN</div>
@@ -4019,56 +4104,6 @@ function POS({ localId, usuario, paletaActual }) {
             </div>
           </div>
           <div className="pc-sec" style={{ marginBottom: 0 }}>
-            {!reto && !preventa && retosConfig.activo && fichaCliente && clienteSeleccionado?.id && clienteSeleccionado.id === fichaCliente.cliente?.id
-              && fichaCliente.compras >= 2 && fichaCliente.ticket_promedio > 0 && cart.length > 0
-              && subtotalConDesc < fichaCliente.ticket_promedio && retoDescartadoId !== fichaCliente.cliente.id && (() => {
-              // El desafio se ofrece cuando ya hay productos en el carrito pero todavia no
-              // llegan al ticket promedio del cliente (si ya lo supera, no tiene gracia).
-              const meta = Math.round(fichaCliente.ticket_promedio);
-              const falta = Math.max(meta - subtotalConDesc + 1, 0);
-              const nombreCorto = (fichaCliente.cliente.nombre || "El cliente").split(/[ ,]+/).filter(Boolean)[0];
-              return (
-                <div className="reto-card pop-in" role="status" style={{ marginBottom: 10 }}>
-                  <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                    <span style={{ fontSize: 24, lineHeight: 1 }} aria-hidden="true">🎯</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: temaPal.accent, letterSpacing: ".1em" }}>DESAFÍO</div>
-                      <div style={{ fontSize: 12, marginTop: 2 }}>{nombreCorto} suele gastar <b>{fmt(meta).replace(",00", "")}</b> y hoy lleva <b>{fmt(Math.round(subtotalConDesc)).replace(",00", "")}</b>.</div>
-                      <div style={{ fontSize: 13, fontWeight: 800, marginTop: 2 }}>¡Te faltan {fmt(Math.round(falta)).replace(",00", "")} para superarlo!</div>
-                      <div className="reto-bar" style={{ marginTop: 6 }}><div className="reto-fill" style={{ width: Math.min(subtotalConDesc / meta, 1) * 100 + "%", background: temaPal.accent }} /></div>
-                      {retosMes && <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 4 }}>Llevás {retosMes.logrados || 0} de {retosConfig.meta_mensual} desafíos este mes</div>}
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                    <button className="btn btn-sm" style={{ flex: 2, background: temaPal.accent, color: "#1B2431", fontWeight: 800 }}
-                      onClick={() => { setReto({ meta, cliente: fichaCliente.cliente.nombre, clienteId: fichaCliente.cliente.id }); sonar("ok"); }}>
-                      Acepto el reto
-                    </button>
-                    <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => setRetoDescartadoId(fichaCliente.cliente.id)}>Ahora no</button>
-                  </div>
-                </div>
-              );
-            })()}
-            {reto && !preventa && (() => {
-              const progreso = Math.min(subtotalConDesc / reto.meta, 1);
-              const superado = subtotalConDesc > reto.meta;
-              return (
-                <div className="anim-in" style={{ marginBottom: 10 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, marginBottom: 5, gap: 8 }}>
-                    <span style={{ fontWeight: 700 }}>🎯 Reto: superar {fmt(reto.meta).replace(",00", "")}</span>
-                    <span style={{ fontWeight: 700, color: superado ? temaPal.green : temaPal.textMuted, fontVariantNumeric: "tabular-nums" }}>
-                      {superado ? "🔥 ¡Superado! +" + fmt(Math.round(subtotalConDesc - reto.meta)).replace(",00", "") : "Faltan " + fmt(Math.round(reto.meta - subtotalConDesc + 1)).replace(",00", "")}
-                    </span>
-                  </div>
-                  <div className="reto-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progreso * 100)} aria-label="Progreso del reto">
-                    <div className="reto-fill" style={{ width: (progreso * 100) + "%", background: superado ? temaPal.green : temaPal.accent }} />
-                  </div>
-                  <div style={{ textAlign: "right", marginTop: 3 }}>
-                    <span onClick={() => setReto(null)} style={{ fontSize: 10, color: temaPal.textMuted, cursor: "pointer", textDecoration: "underline" }}>abandonar reto</span>
-                  </div>
-                </div>
-              );
-            })()}
             {promoCalc.avisos.length > 0 && (
               <div style={{ background: "#2d7a4f", border: "2px solid #1e5637", borderRadius: 8, padding: "12px 14px", marginBottom: 8, fontSize: 13, color: temaPal.card, fontWeight: 700, boxShadow: "0 2px 8px rgba(45,122,79,0.4)" }}>
                 {promoCalc.avisos.map((a, k) => {
