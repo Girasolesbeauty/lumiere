@@ -276,8 +276,20 @@ button.tab { font-family: inherit; }
 @media (max-width: 1100px) { .pos-cat { grid-template-columns: 1fr; height: auto; } .pos-cat.pos-tactil { grid-template-columns: 1fr; } .pos-cat-cats.vertical { flex-direction: row; overflow-x: auto; } .pos-cat-scroll { max-height: 60vh; } }
 @media (max-width: 700px) { .pos-modo-txt { display: none; } }
 /* --- Items del carrito del POS --- */
-.cart-cliente { padding: 8px 12px; border-top: 1px solid ${p.border}; background: ${p.card}; display: flex; flex-direction: column; gap: 8px; text-align: left; }
-.cart-cliente:empty { display: none; }
+.reto-res { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; border: 1px solid ${p.border}; background: ${p.card}; text-align: left; }
+.reto-res.ok { border-color: ${p.green}88; background: ${p.greenDim}; color: ${p.green}; }
+.reto-res.no { color: ${p.textMuted}; }
+.cart-insumos { padding: 8px 12px; border-top: 1px solid ${p.border}; background: ${p.card}; text-align: left; }
+.cart-insumos-btn { width: 100%; background: ${p.purpleDim}; color: ${p.purple}; border: 1px solid ${p.purple}66; box-shadow: none; }
+.com-uso-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.com-uso { align-items: flex-start; padding: 12px; border-radius: 10px; border: 1px solid ${p.border}; background: ${p.bg}; }
+.com-uso .sw { margin-top: 2px; }
+@media (max-width: 640px) { .com-uso-grid { grid-template-columns: 1fr; } }
+.pos-paso1 { display: flex; flex-direction: column; justify-content: flex-start; }
+.pos-paso1-pasos { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+.pos-paso1-pasos span { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; border: 1px solid ${p.border}; color: ${p.textMuted}; }
+.pos-paso1-pasos span.actual { border-color: ${p.accent}; color: ${p.accent}; background: ${p.accentDim}; }
+.pos-paso1-pasos span.hecho { border-color: ${p.green}; color: ${p.green}; background: ${p.greenDim}; }
 .cart-item { text-align: left; display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 8px 10px; border-bottom: 1px solid ${p.border}; background: ${p.card}; transition: background .15s; }
 .cart-item:hover, .cart-item.abierto { background: ${p.trHover}; }
 .qty-pill { display: inline-flex; align-items: center; border: 1px solid ${p.border}; border-radius: 999px; background: ${p.bg}; overflow: hidden; }
@@ -310,7 +322,7 @@ button.tab { font-family: inherit; }
 .cli-card { display: flex; align-items: center; gap: 10px; }
 .cli-avatar { width: 38px; height: 38px; border-radius: 50%; background: ${p.accentDim}; color: ${p.accent}; font-weight: 900; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${p.accent}55; }
 .pago-tipos { display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: 6px; }
-.pago-tipo { font-family: inherit; border: 1px solid ${p.border}; background: ${p.bg}; color: ${p.text}; border-radius: 8px; padding: 8px 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; font-weight: 700; transition: border-color .15s, background .15s, transform .1s; }
+.pago-tipo { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: inherit; border: 1px solid ${p.border}; background: ${p.bg}; color: ${p.text}; border-radius: 8px; padding: 8px 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; font-weight: 700; transition: border-color .15s, background .15s, transform .1s; }
 .pago-tipo .ic { font-size: 18px; line-height: 1; }
 .pago-tipo:hover { border-color: ${p.accent}; }
 .pago-tipo:active { transform: scale(.97); }
@@ -2373,6 +2385,9 @@ function POS({ localId, usuario, paletaActual }) {
   const [nombreEspera, setNombreEspera] = useState(null); // null = cerrado; texto = pidiendo el nombre
   // Desafio para la vendedora: superar el ticket promedio del cliente. { meta, cliente, clienteId }
   const [reto, setReto] = useState(null);
+  // El desafio se mide UNA vez por venta: al identificar al cliente en el paso de cobro, con lo
+  // que ya hay en el carrito. Asi no sirve cargar el carrito de a partes para "ver" el desafio.
+  const retoEvaluadoRef = useRef(false);
   const cartRef = useRef([]);
   cartRef.current = cart;
   const [retoDescartadoId, setRetoDescartadoId] = useState(null); // cliente a la que se le dijo "Ahora no" en esta venta
@@ -2388,6 +2403,14 @@ function POS({ localId, usuario, paletaActual }) {
   const [catalogoLimite, setCatalogoLimite] = useState(120);
   const [imagenesProd, setImagenesProd] = useState({});
   const [cobroMovilAbierto, setCobroMovilAbierto] = useState(false);
+  // Modo clasico: el panel de cobro (con el DNI) se muestra recien al tocar "Continuar"
+  const [pasoCobroClasico, setPasoCobroClasico] = useState(false);
+  const continuarCobroClasico = () => {
+    if (cart.length === 0) return;
+    setPasoCobroClasico(true);
+    setTimeout(() => { if (!clienteSeleccionado) { dniRef.current?.focus(); dniRef.current?.select(); } }, 60);
+  };
+  useEffect(() => { if (cart.length === 0) setPasoCobroClasico(false); }, [cart.length]);
   const [escaneandoPos, setEscaneandoPos] = useState(false);
   const scannerPosRef = useRef(null);
   const listaCompletaRef = useRef([]);
@@ -2569,6 +2592,7 @@ function POS({ localId, usuario, paletaActual }) {
   const cambiarCantidad = (item, delta) => setCart(prev => prev.map(x => claveItem(x) === claveItem(item) ? { ...x, qty: Math.max(1, x.qty + delta) } : x));
 
   const limpiarVentaActual = () => {
+    retoEvaluadoRef.current = false;
     setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
     setClienteSeleccionado(null); setShowNuevoCliente(false); setDescuentoManual(""); setTipoDescuento("%");
     setInsumosSel({}); setMostrarInsumos(false); setMontoRecibidoEfectivo(""); setReferenciaVenta("");
@@ -2622,7 +2646,7 @@ function POS({ localId, usuario, paletaActual }) {
     if (modoTicket === "imprimir") imprimirRecibo(datosRecibo);
     setTelefonoTicket(extra.telefono || "");
     // Se compara lo vendido (con descuentos, sin intereses de cuotas) contra la meta.
-    const retoResultado = reto ? { meta: reto.meta, vendido: subtotalConDesc, logrado: subtotalConDesc > reto.meta, cliente: reto.cliente } : null;
+    const retoResultado = reto ? { meta: reto.meta, vendido: vendidoReto, logrado: vendidoReto > reto.meta, cliente: reto.cliente } : null;
     setVentaConfirmada({ ...datosRecibo, medio: extra.medio || "", fecha: new Date(), reto: retoResultado });
     if (retoResultado && retoResultado.logrado) setTimeout(sonarFestejo, 250);
     registrarReto(extra.ventaId);
@@ -2634,9 +2658,10 @@ function POS({ localId, usuario, paletaActual }) {
     const datos = {
       usuario_id: usuario?.id || null, usuario_nombre: usuario?.nombre || null,
       cliente_id: reto.clienteId || null, cliente_nombre: reto.cliente || null,
-      venta_id: ventaId || null, meta: reto.meta, vendido: subtotalConDesc, local_id: localId || 1,
+      venta_id: ventaId || null, meta: reto.meta, vendido: vendidoReto, local_id: localId || 1,
     };
     setReto(null);
+    retoEvaluadoRef.current = false;
     if (!datos.usuario_id) return;
     API.post("/retos", datos).then(r => {
       setRetosMes(prev => ({ ...(prev || {}), logrados: r.data.logrados, intentados: r.data.intentados, premio: r.data.premio_nuevo || prev?.premio || null }));
@@ -2898,6 +2923,19 @@ function POS({ localId, usuario, paletaActual }) {
   const descuentoPromos = promoCalc.totalDesc;
   const descuento = descuentoCupon + descuentoManualCalc + descuentoPromos;
   const subtotalConDesc = subtotalBase - descuento;
+  const enPasoCobro = modoVista === "clasico" ? pasoCobroClasico : cobroMovilAbierto;
+  useEffect(() => {
+    if (!retosConfig.activo || preventa || retoEvaluadoRef.current || reto) return;
+    if (!enPasoCobro || cart.length === 0) return;
+    if (!fichaCliente || !clienteSeleccionado?.id || clienteSeleccionado.id !== fichaCliente.cliente?.id) return;
+    if (!(fichaCliente.compras >= 2 && fichaCliente.ticket_promedio > 0)) return;
+    retoEvaluadoRef.current = true;
+    const meta = Math.round(fichaCliente.ticket_promedio);
+    setReto({ meta, cliente: fichaCliente.cliente.nombre, clienteId: fichaCliente.cliente.id, vendido: subtotalConDesc });
+    if (subtotalConDesc > meta) sonar("ok");
+  }, [fichaCliente, enPasoCobro, clienteSeleccionado?.id, retosConfig.activo, preventa]);
+  // Lo que cuenta para el desafio: lo que habia al medirlo, o menos si despues se sacaron productos
+  const vendidoReto = reto ? Math.min(reto.vendido ?? subtotalConDesc, subtotalConDesc) : 0;
   const total = Math.round(subtotalConDesc * coef);
   const intereses = total - subtotalConDesc;
   const montoAplicadoGC = giftCardAplicada ? Math.min(parseFloat(giftCardAplicada.saldo), total) : 0;
@@ -3344,11 +3382,16 @@ function POS({ localId, usuario, paletaActual }) {
       return;
     }
     if (e.key === "F2") { e.preventDefault(); busquedaRef.current?.focus(); busquedaRef.current?.select(); return; }
-    if (e.key === "F4") { e.preventDefault(); dniRef.current?.focus(); dniRef.current?.select(); return; }
+    if (e.key === "F4") {
+      e.preventDefault();
+      if (modoVista === "clasico" && !pasoCobroClasico) { continuarCobroClasico(); return; }
+      dniRef.current?.focus(); dniRef.current?.select(); return;
+    }
     if (e.key === "F8") { e.preventDefault(); if (cart.length > 0) setNombreEspera(""); return; }
     if (e.key === "F9") {
       e.preventDefault();
       if (modoVista !== "clasico" && !cobroMovilAbierto) { if (cart.length > 0) setCobroMovilAbierto(true); return; }
+      if (modoVista === "clasico" && !pasoCobroClasico) { continuarCobroClasico(); return; }
       if (!loading && !itemsSinStock && !mostrarFicha && nombreEspera === null) emitirFactura();
       return;
     }
@@ -3602,86 +3645,26 @@ function POS({ localId, usuario, paletaActual }) {
           )}
     </>
   );
-  // Desafio: se ofrece cuando ya hay productos y el cliente esta identificado (se muestra en el carrito)
-  const retoJSX = (
-    <>
-            {!reto && !preventa && retosConfig.activo && fichaCliente && clienteSeleccionado?.id && clienteSeleccionado.id === fichaCliente.cliente?.id
-              && fichaCliente.compras >= 2 && fichaCliente.ticket_promedio > 0 && cart.length > 0
-              && subtotalConDesc < fichaCliente.ticket_promedio && retoDescartadoId !== fichaCliente.cliente.id && (() => {
-              // El desafio se ofrece cuando ya hay productos en el carrito pero todavia no
-              // llegan al ticket promedio del cliente (si ya lo supera, no tiene gracia).
-              const meta = Math.round(fichaCliente.ticket_promedio);
-              const falta = Math.max(meta - subtotalConDesc + 1, 0);
-              const nombreCorto = (fichaCliente.cliente.nombre || "El cliente").split(/[ ,]+/).filter(Boolean)[0];
-              return (
-                <div className="reto-card pop-in" role="status">
-                  <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                    <span style={{ fontSize: 24, lineHeight: 1 }} aria-hidden="true">🎯</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: temaPal.accent, letterSpacing: ".1em" }}>DESAFÍO</div>
-                      <div style={{ fontSize: 12, marginTop: 2 }}>{nombreCorto} suele gastar <b>{fmt(meta).replace(",00", "")}</b> y hoy lleva <b>{fmt(Math.round(subtotalConDesc)).replace(",00", "")}</b>.</div>
-                      <div style={{ fontSize: 13, fontWeight: 800, marginTop: 2 }}>¡Te faltan {fmt(Math.round(falta)).replace(",00", "")} para superarlo!</div>
-                      <div className="reto-bar" style={{ marginTop: 6 }}><div className="reto-fill" style={{ width: Math.min(subtotalConDesc / meta, 1) * 100 + "%", background: temaPal.accent }} /></div>
-                      {retosMes && <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 4 }}>Llevás {retosMes.logrados || 0} de {retosConfig.meta_mensual} desafíos este mes</div>}
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                    <button className="btn btn-sm" style={{ flex: 2, background: temaPal.accent, color: "#1B2431", fontWeight: 800 }}
-                      onClick={() => { setReto({ meta, cliente: fichaCliente.cliente.nombre, clienteId: fichaCliente.cliente.id }); sonar("ok"); }}>
-                      Acepto el reto
-                    </button>
-                    <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => setRetoDescartadoId(fichaCliente.cliente.id)}>Ahora no</button>
-                  </div>
-                </div>
-              );
-            })()}
-            {reto && !preventa && (() => {
-              const progreso = Math.min(subtotalConDesc / reto.meta, 1);
-              const superado = subtotalConDesc > reto.meta;
-              return (
-                <div className="anim-in">
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, marginBottom: 5, gap: 8 }}>
-                    <span style={{ fontWeight: 700 }}>🎯 Reto: superar {fmt(reto.meta).replace(",00", "")}</span>
-                    <span style={{ fontWeight: 700, color: superado ? temaPal.green : temaPal.textMuted, fontVariantNumeric: "tabular-nums" }}>
-                      {superado ? "🔥 ¡Superado! +" + fmt(Math.round(subtotalConDesc - reto.meta)).replace(",00", "") : "Faltan " + fmt(Math.round(reto.meta - subtotalConDesc + 1)).replace(",00", "")}
-                    </span>
-                  </div>
-                  <div className="reto-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progreso * 100)} aria-label="Progreso del reto">
-                    <div className="reto-fill" style={{ width: (progreso * 100) + "%", background: superado ? temaPal.green : temaPal.accent }} />
-                  </div>
-                  <div style={{ textAlign: "right", marginTop: 3 }}>
-                    <span onClick={() => setReto(null)} style={{ fontSize: 10, color: temaPal.textMuted, cursor: "pointer", textDecoration: "underline" }}>abandonar reto</span>
-                  </div>
-                </div>
-              );
-            })()}
-    </>
-  );
-  // Cliente al pie del carrito: se puede cargar el DNI despues de llenarlo, y ahi mismo aparece el desafio
-  const clienteCarritoJSX = cart.length > 0 && !preventa ? (
-    <div className="cart-cliente">
-      {clienteSeleccionado?.id ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
-          <span className="cli-avatar" style={{ width: 28, height: 28, fontSize: 11 }}>{inicialesProd(clienteSeleccionado.nombre)}</span>
-          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            <b>{clienteSeleccionado.nombre}</b>
-            {fichaCliente && fichaCliente.compras > 0 && <span style={{ color: temaPal.textMuted }}> · {fichaCliente.compras} compras · suele gastar {fmt(Math.round(fichaCliente.ticket_promedio || 0)).replace(",00", "")}</span>}
-          </span>
-          {fichaCliente && <button className="mini-chip" onClick={() => setMostrarFicha(true)}>ℹ Ficha</button>}
-        </div>
-      ) : clienteSeleccionado ? null : (
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 11, color: temaPal.textMuted, whiteSpace: "nowrap" }}>👤 ¿Es cliente?</span>
-          <div style={{ position: "relative", flex: 1 }}>
-            <input className="mini-inp" inputMode="numeric" placeholder="DNI para ver su desafío" value={dniInput} onChange={e => buscarClientePorDni(e.target.value)} style={{ width: "100%", height: 30, fontSize: 13, fontWeight: 700 }} aria-label="DNI del cliente" />
-            {buscandoCliente && <span style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", fontSize: 10, color: temaPal.textMuted }}>buscando…</span>}
+  // Resultado del desafio (queda fijo al identificar al cliente en el cobro)
+  const retoJSX = reto && !preventa ? (() => {
+    const logrado = vendidoReto > reto.meta;
+    const bajo = subtotalConDesc < (reto.vendido ?? subtotalConDesc);
+    const nombreCorto = (reto.cliente || "El cliente").split(/[ ,]+/).filter(Boolean)[0];
+    return (
+      <div className={"reto-res pop-in " + (logrado ? "ok" : "no")} role="status">
+        <span className={logrado ? "trofeo" : ""} style={{ fontSize: 26, lineHeight: 1 }} aria-hidden="true">{logrado ? "🏆" : "🎯"}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".1em" }}>{logrado ? "¡DESAFÍO SUPERADO!" : "DESAFÍO NO ALCANZADO"}</div>
+          <div style={{ fontSize: 12, marginTop: 2, color: temaPal.text }}>{nombreCorto} suele gastar <b>{fmt(reto.meta).replace(",00", "")}</b> y este carrito tiene <b>{fmt(Math.round(vendidoReto)).replace(",00", "")}</b>.</div>
+          <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 3 }}>
+            {logrado ? "Suma para tu premio del mes." : "Se mide con lo cargado al identificar al cliente."}
+            {retosMes && <> · Llevás {retosMes.logrados || 0} de {retosConfig.meta_mensual} este mes</>}
           </div>
+          {bajo && <div style={{ fontSize: 10, color: temaPal.warn, marginTop: 3 }}>Se sacaron productos después: cuenta el carrito final.</div>}
         </div>
-      )}
-      {showNuevoCliente && !clienteSeleccionado && <div style={{ fontSize: 11, color: temaPal.warn, marginTop: 4 }}>No está registrado: podés darlo de alta en el panel de cobro.</div>}
-      {retoJSX}
-    </div>
-  ) : null;
+      </div>
+    );
+  })() : null;
   const carritoJSX = (
           <div style={{ background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 8, flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 240 }}>
           <div style={{ padding: "10px 14px", borderBottom: "1px solid " + temaPal.border, fontSize: 10, color: temaPal.textMuted, fontWeight: 700, letterSpacing: ".1em", background: preventa ? "#2471a320" : temaPal.bg }}>
@@ -3766,7 +3749,52 @@ function POS({ localId, usuario, paletaActual }) {
               })
             }
           </div>
-          {clienteCarritoJSX}
+          {!preventa && insumosPosActivo && insumosPos.length > 0 && cart.length > 0 && (
+            <div className="cart-insumos">
+              {!mostrarInsumos && (
+                <button className="btn btn-sm cart-insumos-btn" onClick={() => setMostrarInsumos(true)}>📦 Agregar insumo (bolsa, caja, ramo...)</button>
+              )}
+              {mostrarInsumos && (
+                <div className="pop-in" style={{ background: temaPal.bg, borderRadius: 8, padding: "6px 10px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, color: temaPal.textMuted, marginBottom: 4 }}>
+                    <span>Insumos usados (se descuentan del stock)</span>
+                    <button className="icon-btn" onClick={() => { setMostrarInsumos(false); setInsumosSel({}); setCart(prev => prev.filter(x => !String(x.id).startsWith("insumo-"))); }} aria-label="Quitar insumos">✕</button>
+                  </div>
+                  {insumosPos.map(ins => {
+                    const marcado = insumosSel[ins.id] && insumosSel[ins.id] !== "ninguna";
+                    const idCartInsumo = "insumo-" + ins.id;
+                    const enCarrito = cart.find(x => x.id === idCartInsumo);
+                    return (
+                      <div key={ins.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer", flex: 1 }}>
+                          <input type="checkbox" checked={!!marcado} onChange={e => {
+                            setInsumosSel(pp => ({ ...pp, [ins.id]: e.target.checked ? String(ins.id) : "ninguna" }));
+                            if (!e.target.checked) {
+                              setCart(prev => prev.filter(x => x.id !== idCartInsumo));
+                            } else {
+                              const precio = ins.precio_sugerido_cliente || 0;
+                              setCart(prev => [...prev.filter(x => x.id !== idCartInsumo), { id: idCartInsumo, nombre: ins.nombre, precio, price: precio, qty: 1, es_ajuste: true }]);
+                            }
+                          }} />
+                          <span>{ins.nombre}</span>
+                        </label>
+                        {marcado && (
+                          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <span style={{ fontSize: 10, color: temaPal.textMuted }}>$ cliente</span>
+                            <input type="number" min="0" placeholder="0" className="mini-inp" style={{ width: 70, textAlign: "right" }} defaultValue={enCarrito ? (enCarrito.precio || enCarrito.price) : (ins.precio_sugerido_cliente || "")}
+                              onBlur={e => {
+                                const monto = parseFloat(e.target.value) || 0;
+                                setCart(prev => [...prev.filter(x => x.id !== idCartInsumo), { id: idCartInsumo, nombre: ins.nombre, precio: monto, price: monto, qty: 1, es_ajuste: true }]);
+                              }} />
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
           {sugerenciasProductos.length > 0 && (
             <div className="anim-in" style={{ padding: "8px 12px", borderTop: "1px solid " + temaPal.border, background: temaPal.card }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: temaPal.accent, letterSpacing: ".06em", marginBottom: 4 }}>✨ SUELEN LLEVAR TAMBIÉN</div>
@@ -3858,6 +3886,9 @@ function POS({ localId, usuario, paletaActual }) {
                   )}
                 </div>
 
+                {/* ---------- Desafio: aparece recien cuando se identifica al cliente ---------- */}
+                {retoJSX}
+
                 {/* ---------- Descuentos, cupones y gift cards ---------- */}
                 <div className="pc-sec">
                   <div className="pc-tit"><span>🎟 DESCUENTOS</span></div>
@@ -3940,7 +3971,7 @@ function POS({ localId, usuario, paletaActual }) {
                   </div>
                   {!pagoMixto && (
                     <>
-                      <div className="pago-tipos">
+                      <div className="pago-tipos" style={{ gridTemplateColumns: "repeat(" + Math.min(TIPOS_PAGO.length, 5) + ", minmax(0, 1fr))" }}>
                         {TIPOS_PAGO.map(t => (
                           <button key={t.id} className={"pago-tipo" + (tipoActivo === t.id ? " on" : "")} aria-pressed={tipoActivo === t.id} onClick={() => elegirTipo(t.id)}>
                             <span className="ic" aria-hidden="true">{t.ic}</span>{t.l}
@@ -4060,47 +4091,7 @@ function POS({ localId, usuario, paletaActual }) {
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 8 }}>
                 <button className="mini-chip" onClick={() => { setShowEmitirGC(true); setGcEmitidaOk(null); setErrorEmitirGC(""); }}>🎁 Emitir gift card</button>
                 {!preventa && <button className="mini-chip" onClick={agregarAjusteDiferencia}>🌐 Diferencia online</button>}
-                {!preventa && insumosPosActivo && insumosPos.length > 0 && <button className={"mini-chip" + (mostrarInsumos ? " on" : "")} onClick={() => setMostrarInsumos(v => !v)}>📦 Insumos</button>}
               </div>
-              {!preventa && insumosPosActivo && insumosPos.length > 0 && mostrarInsumos && (
-                <div className="pop-in" style={{ marginTop: 8, background: temaPal.bg, borderRadius: 8, padding: "6px 10px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, color: temaPal.textMuted, marginBottom: 4 }}>
-                    <span>Insumos usados (se descuentan del stock)</span>
-                    <button className="icon-btn" onClick={() => { setMostrarInsumos(false); setInsumosSel({}); setCart(prev => prev.filter(x => !String(x.id).startsWith("insumo-"))); }} aria-label="Quitar insumos">✕</button>
-                  </div>
-                  {insumosPos.map(ins => {
-                    const marcado = insumosSel[ins.id] && insumosSel[ins.id] !== "ninguna";
-                    const idCartInsumo = "insumo-" + ins.id;
-                    const enCarrito = cart.find(x => x.id === idCartInsumo);
-                    return (
-                      <div key={ins.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
-                        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer", flex: 1 }}>
-                          <input type="checkbox" checked={!!marcado} onChange={e => {
-                            setInsumosSel(pp => ({ ...pp, [ins.id]: e.target.checked ? String(ins.id) : "ninguna" }));
-                            if (!e.target.checked) {
-                              setCart(prev => prev.filter(x => x.id !== idCartInsumo));
-                            } else {
-                              const precio = ins.precio_sugerido_cliente || 0;
-                              setCart(prev => [...prev.filter(x => x.id !== idCartInsumo), { id: idCartInsumo, nombre: ins.nombre, precio, price: precio, qty: 1, es_ajuste: true }]);
-                            }
-                          }} />
-                          <span>{ins.nombre}</span>
-                        </label>
-                        {marcado && (
-                          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                            <span style={{ fontSize: 10, color: temaPal.textMuted }}>$ cliente</span>
-                            <input type="number" min="0" placeholder="0" className="mini-inp" style={{ width: 70, textAlign: "right" }} defaultValue={enCarrito ? (enCarrito.precio || enCarrito.price) : (ins.precio_sugerido_cliente || "")}
-                              onBlur={e => {
-                                const monto = parseFloat(e.target.value) || 0;
-                                setCart(prev => [...prev.filter(x => x.id !== idCartInsumo), { id: idCartInsumo, nombre: ins.nombre, precio: monto, price: monto, qty: 1, es_ajuste: true }]);
-                              }} />
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
           </div>
           <div className="pc-sec" style={{ marginBottom: 0 }}>
@@ -4277,7 +4268,31 @@ function POS({ localId, usuario, paletaActual }) {
             {buscadorJSX}
             {carritoJSX}
           </div>
-          {panelCobroJSX}
+          {pasoCobroClasico ? panelCobroJSX : (
+            <div className="pos-col-2 pos-paso1">
+              <div className="pc-sec" style={{ textAlign: "center", padding: "22px 18px" }}>
+                <div style={{ fontSize: 30, lineHeight: 1 }} aria-hidden="true">🛒</div>
+                <div style={{ fontSize: 15, fontWeight: 800, marginTop: 8 }}>{cart.length === 0 ? "Armá el carrito" : "¿Terminó de elegir?"}</div>
+                <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 4, lineHeight: 1.6 }}>
+                  {cart.length === 0 ? "Escaneá o buscá los productos. Cuando esté todo, tocá Continuar para cargar el cliente y cobrar." : "Tocá Continuar para cargar el DNI del cliente, ver su desafío y cobrar."}
+                </div>
+                <div className="pos-paso1-pasos">
+                  <span className={cart.length > 0 ? "hecho" : "actual"}>1 · Productos</span>
+                  <span>2 · Cliente</span>
+                  <span>3 · Cobro</span>
+                </div>
+                {cart.length > 0 && (
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "14px 4px 10px" }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: temaPal.textMuted }}>{cart.reduce((s2, i) => s2 + i.qty, 0)} productos</span>
+                    <span style={{ fontSize: 26, fontWeight: 900, fontVariantNumeric: "tabular-nums" }}>{fmt(subtotalBase)}</span>
+                  </div>
+                )}
+                <button className="btn btn-p" style={{ width: "100%", padding: 14, fontSize: 15, borderRadius: 10, opacity: cart.length ? 1 : .5 }} disabled={cart.length === 0} onClick={continuarCobroClasico}>
+                  Continuar → <span className="kbd" style={{ marginLeft: 6, background: "rgba(255,255,255,0.15)", color: "#fff", borderColor: "rgba(255,255,255,0.3)" }}>F9</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -4301,8 +4316,8 @@ function POS({ localId, usuario, paletaActual }) {
                 </div>
               )}
               {reto && !preventa && (
-                <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6, color: subtotalConDesc > reto.meta ? temaPal.green : temaPal.accent }}>
-                  🎯 {subtotalConDesc > reto.meta ? "¡Reto superado!" : "Reto: faltan " + fmt(Math.round(reto.meta - subtotalConDesc + 1)).replace(",00", "")}
+                <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6, color: vendidoReto > reto.meta ? temaPal.green : temaPal.textMuted }}>
+                  {vendidoReto > reto.meta ? "🏆 ¡Desafío superado!" : "🎯 Desafío no alcanzado"}
                 </div>
               )}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
@@ -10417,7 +10432,7 @@ function ChipTipoComision({ regla }) {
 
 // Pestaña "Configuracion de comisiones": tipo y periodo de la comision de cada local,
 // con simulador, y la configuracion de los desafios de venta.
-function ConfigComisiones({ paletaActual }) {
+function ConfigComisiones({ paletaActual, onCambioActivos }) {
   const p = paletaActual || PALETA_CLARA;
   const [reglas, setReglas] = useState([]);
   const [localSel, setLocalSel] = useState(null);
@@ -10428,6 +10443,20 @@ function ConfigComisiones({ paletaActual }) {
   const [sim, setSim] = useState(null);
   const [retos, setRetos] = useState({ activo: true, meta: 10, monto: 50000 });
   const [msgRetos, setMsgRetos] = useState("");
+  const [comisionesActivas, setComisionesActivas] = useState(true);
+  const [msgUso, setMsgUso] = useState("");
+  // Cada negocio decide si usa comisiones y/o desafios (se guarda al tocar el interruptor)
+  const cambiarUso = async (campo, valor) => {
+    setMsgUso("");
+    try {
+      await API.put("/configuracion", { [campo]: valor });
+      if (campo === "comisiones_activo") setComisionesActivas(valor);
+      if (campo === "retos_activo") setRetos(r => ({ ...r, activo: valor }));
+      if (onCambioActivos) onCambioActivos(campo === "comisiones_activo" ? { comisiones: valor } : { desafios: valor });
+      setMsgUso("✓ " + (campo === "comisiones_activo" ? (valor ? "Comisiones activadas" : "Comisiones desactivadas") : (valor ? "Desafíos activados" : "Desafíos desactivados")));
+      setTimeout(() => setMsgUso(""), 3000);
+    } catch (e) { setMsgUso("Error: no se pudo guardar"); }
+  };
 
   const cargar = (mantenerLocal) => {
     API.get("/comisiones/config/reglas").then(r => {
@@ -10436,11 +10465,14 @@ function ConfigComisiones({ paletaActual }) {
       const elegido = lista.find(x => x.local_id === (mantenerLocal || localSel)) || lista[0];
       if (elegido) { setLocalSel(elegido.local_id); setForm(JSON.parse(JSON.stringify(elegido))); }
     }).catch(() => setMsg("Error: no se pudieron cargar las reglas"));
-    API.get("/configuracion").then(r => setRetos({
-      activo: r.data?.retos_activo !== false,
-      meta: r.data?.retos_meta_mensual ?? 10,
-      monto: r.data?.retos_premio_monto ?? 50000,
-    })).catch(() => {});
+    API.get("/configuracion").then(r => {
+      setRetos({
+        activo: r.data?.retos_activo !== false,
+        meta: r.data?.retos_meta_mensual ?? 10,
+        monto: r.data?.retos_premio_monto ?? 50000,
+      });
+      setComisionesActivas(r.data?.comisiones_activo !== false);
+    }).catch(() => {});
   };
   useEffect(() => { cargar(); }, []);
 
@@ -10489,9 +10521,28 @@ function ConfigComisiones({ paletaActual }) {
     <input className="inp" type="number" min="0" placeholder={ph || "$"} value={valor ?? ""} onChange={e => onChange(e.target.value)} />
   );
 
+  const interruptor = (activo, onClick, titulo, texto) => (
+    <div className="sw-wrap com-uso" onClick={onClick} role="switch" aria-checked={activo} tabIndex={0} onKeyDown={e => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onClick())}>
+      <div className={"sw " + (activo ? "on" : "off")}><div className="sw-dot" /></div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 800 }}>{titulo} <span className={"tag " + (activo ? "tag-ok" : "tag-neutral")} style={{ marginLeft: 4 }}>{activo ? "activado" : "desactivado"}</span></div>
+        <div style={{ fontSize: 11, color: p.textMuted, marginTop: 2 }}>{texto}</div>
+      </div>
+    </div>
+  );
+
   return (
     <div style={{ textAlign: "left" }}>
-      {reglas.length > 1 && (
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div className="ct">Qué usa este negocio</div>
+        <div className="com-uso-grid">
+          {interruptor(comisionesActivas, () => cambiarUso("comisiones_activo", !comisionesActivas), "💰 Comisiones para vendedores", "Pagar un extra según lo que se vende. Si lo desactivás, no se muestran ni se calculan en pantalla.")}
+          {interruptor(retos.activo, () => cambiarUso("retos_activo", !retos.activo), "🎯 Desafíos de venta", "Premio por superar el ticket promedio de cada cliente. Si lo desactivás, no aparecen en el Punto de Venta.")}
+        </div>
+        {msgUso && <div style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: msgUso.startsWith("Error") ? p.red : p.green }}>{msgUso}</div>}
+      </div>
+
+      {comisionesActivas && reglas.length > 1 && (
         <div className="seg" role="group" aria-label="Local" style={{ marginBottom: 14 }}>
           {reglas.map(r => (
             <button key={r.local_id} className={localSel === r.local_id ? "on" : ""} onClick={() => elegirLocal(r.local_id)}>{r.local_nombre}</button>
@@ -10499,7 +10550,7 @@ function ConfigComisiones({ paletaActual }) {
         </div>
       )}
 
-      <div className="card" style={{ marginBottom: 14 }}>
+      {comisionesActivas && <div className="card" style={{ marginBottom: 14 }}>
         <div className="ct">Tipo de comisión · {form.local_nombre}</div>
         <div style={{ fontSize: 11, color: p.textMuted, marginBottom: 12 }}>La comisión es del equipo del local: se calcula con todo lo vendido en forma presencial (sin las ventas con cupón de influencers).</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 10, marginBottom: 16 }}>
@@ -10589,15 +10640,14 @@ function ConfigComisiones({ paletaActual }) {
 
         {msg && <div style={{ marginTop: 12, fontSize: 12, fontWeight: 600, color: msg.startsWith("Error") ? p.red : p.green }}>{msg}</div>}
         <button className="btn btn-p" style={{ marginTop: 14 }} disabled={guardando} onClick={guardar}>{guardando ? "Guardando..." : "Guardar comisión de " + (form.local_nombre || "este local")}</button>
-      </div>
+      </div>}
 
-      <div className="card">
+      {retos.activo && <div className="card">
         <div className="ct">🎯 Desafíos de venta (para todos los locales)</div>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 8 }}>
-          <input type="checkbox" checked={retos.activo} onChange={e => setRetos(r => ({ ...r, activo: e.target.checked }))} />
-          Activar desafíos para las vendedoras
-        </label>
-        <div style={{ fontSize: 11, color: p.textMuted, marginBottom: 10 }}>En la ficha del cliente, la vendedora acepta el reto de superar su ticket promedio. Al juntar la cantidad de retos superados en el mes, gana un producto de regalo (se entrega desde la pestaña Desafíos).</div>
+        <div style={{ fontSize: 11, color: p.textMuted, marginBottom: 10, lineHeight: 1.6 }}>
+          Se arma el carrito, se toca <b>Continuar</b> y se carga el DNI: si el carrito supera el ticket promedio del cliente (con al menos 2 compras anteriores), el desafío queda superado.
+          El resultado se fija en ese momento: agregar productos después no lo cambia. Al juntar la cantidad de desafíos del mes, la vendedora gana un producto de regalo (se entrega desde la pestaña Desafíos).
+        </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 160 }}>
             <div className="fl">Retos superados por mes</div>
@@ -10610,7 +10660,7 @@ function ConfigComisiones({ paletaActual }) {
         </div>
         {msgRetos && <div style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: msgRetos.startsWith("Error") ? p.red : p.green }}>{msgRetos}</div>}
         <button className="btn btn-p" style={{ marginTop: 12 }} onClick={guardarRetos}>Guardar desafíos</button>
-      </div>
+      </div>}
     </div>
   );
 }
@@ -10618,6 +10668,10 @@ function ConfigComisiones({ paletaActual }) {
 function Comisiones({ localId, usuario, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
   const [tabCom, setTabCom] = useState("comisiones");
+  const [usoNegocio, setUsoNegocio] = useState({ comisiones: true, desafios: true, cargado: false });
+  useEffect(() => {
+    API.get("/configuracion").then(r => setUsoNegocio({ comisiones: r.data?.comisiones_activo !== false, desafios: r.data?.retos_activo !== false, cargado: true })).catch(() => setUsoNegocio(u => ({ ...u, cargado: true })));
+  }, []);
   const [datos, setDatos] = useState(null);
   const [hist, setHist] = useState(null);
   const [sel, setSel] = useState([]);
@@ -10735,25 +10789,34 @@ function Comisiones({ localId, usuario, paletaActual }) {
 
   const localNombre = nombreLocal(localId);
   const puedeConfigurar = ["admin", "jefe"].includes(usuario?.rol);
+  const pestanasCom = [
+    usoNegocio.comisiones && "comisiones",
+    usoNegocio.desafios && "desafios",
+    puedeConfigurar && "config",
+  ].filter(Boolean);
+  const tabComVisible = pestanasCom.includes(tabCom) ? tabCom : pestanasCom[0];
   const periodoActual = PERIODOS_COMISION_UI.find(x => x.id === datos?.periodo) || PERIODOS_COMISION_UI[0];
 
   return (
     <div className="fade">
       <div className="ph">
-        <div><div className="pt">Comisiones {localNombre}</div><div className="ps">{datos && datos.tipo ? describirReglaComision(datos) + " · se paga cuando vos marcás" : "comision por facturacion - se paga cuando vos marcas"}</div></div>
+        <div><div className="pt">Comisiones {localNombre}</div><div className="ps">{!usoNegocio.comisiones ? (usoNegocio.desafios ? "desafíos de venta" : "configuración") : datos && datos.tipo ? describirReglaComision(datos) + " · se paga cuando vos marcás" : "comision por facturacion - se paga cuando vos marcas"}</div></div>
       </div>
 
       <div className="tabs" role="tablist">
-        <button role="tab" aria-selected={tabCom === "comisiones"} className={"tab " + (tabCom === "comisiones" ? "on" : "")} onClick={() => setTabCom("comisiones")}>COMISIONES</button>
-        <button role="tab" aria-selected={tabCom === "desafios"} className={"tab " + (tabCom === "desafios" ? "on" : "")} onClick={() => setTabCom("desafios")}>🎯 DESAFÍOS</button>
+        {usoNegocio.comisiones && <button role="tab" aria-selected={tabComVisible === "comisiones"} className={"tab " + (tabComVisible === "comisiones" ? "on" : "")} onClick={() => setTabCom("comisiones")}>COMISIONES</button>}
+        {usoNegocio.desafios && <button role="tab" aria-selected={tabComVisible === "desafios"} className={"tab " + (tabComVisible === "desafios" ? "on" : "")} onClick={() => setTabCom("desafios")}>🎯 DESAFÍOS</button>}
         {puedeConfigurar && (
-          <button role="tab" aria-selected={tabCom === "config"} className={"tab " + (tabCom === "config" ? "on" : "")} onClick={() => setTabCom("config")}>⚙ CONFIGURACIÓN DE COMISIONES</button>
+          <button role="tab" aria-selected={tabComVisible === "config"} className={"tab " + (tabComVisible === "config" ? "on" : "")} onClick={() => setTabCom("config")}>⚙ CONFIGURACIÓN</button>
         )}
       </div>
+      {usoNegocio.cargado && pestanasCom.length === 0 && (
+        <div className="empty chart-card">En este negocio no se usan comisiones ni desafíos.</div>
+      )}
 
       {mensaje && <div className="card" style={{ marginBottom: 12, padding: 12, background: mensaje.startsWith("Error") ? p.redDim : p.greenDim, color: mensaje.startsWith("Error") ? "#c0392b" : "#1e7e4f", fontSize: 13 }}>{mensaje}</div>}
 
-      {tabCom === "desafios" && (
+      {tabComVisible === "desafios" && (
         <div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
             <select className="sel" style={{ width: 130, padding: "6px 8px", fontSize: 12 }} value={filtroMes} onChange={e => elegirMes(parseInt(e.target.value), filtroAnio)}>
@@ -10769,9 +10832,9 @@ function Comisiones({ localId, usuario, paletaActual }) {
         </div>
       )}
 
-      {tabCom === "config" && puedeConfigurar && <ConfigComisiones paletaActual={paletaActual} />}
+      {tabComVisible === "config" && puedeConfigurar && <ConfigComisiones paletaActual={paletaActual} onCambioActivos={(c) => setUsoNegocio(u => ({ ...u, ...c }))} />}
 
-      {tabCom === "comisiones" && (loading ? <div style={{ color: p.textMuted, padding: 20 }}>Cargando...</div> : (
+      {tabComVisible === "comisiones" && (loading ? <div style={{ color: p.textMuted, padding: 20 }}>Cargando...</div> : (
         <div>
           {/* Comision del periodo actual (dia, semana o mes segun la configuracion) */}
           {datos && (() => {

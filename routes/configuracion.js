@@ -8,6 +8,7 @@ let columnaMensajeLista = false;
 const asegurarColumnaMensaje = async () => {
   if (columnaMensajeLista) return;
   await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS mensaje_precio TEXT');
+  await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS comisiones_activo BOOLEAN DEFAULT TRUE');
   columnaMensajeLista = true;
 };
 
@@ -48,6 +49,11 @@ router.put('/', async (req, res) => {
       if (isNaN(pct) || pct < 0 || pct > 100) return res.status(400).json({ error: 'El reparto tiene que estar entre 0 y 100' });
       await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS reparto_local1_pct NUMERIC(5,2) DEFAULT 50');
       await pool.query('UPDATE configuracion_negocio SET reparto_local1_pct = $1 WHERE id = 1', [pct]);
+    }
+    // Si el negocio usa comisiones para vendedores (cada dueno decide)
+    if (typeof req.body.comisiones_activo === 'boolean') {
+      await asegurarColumnaMensaje();
+      await pool.query('UPDATE configuracion_negocio SET comisiones_activo = $1 WHERE id = 1', [req.body.comisiones_activo]);
     }
     // % de Ingresos Brutos estimado en Finanzas (0 = no se calcula)
     if (Object.prototype.hasOwnProperty.call(req.body, 'iibb_pct')) {
