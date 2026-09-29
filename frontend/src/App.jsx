@@ -80,7 +80,7 @@ const PALETA_GIRASOLES = {
   logoText: "#3B2A10", logoSub: "#6B4F1D",
   scrollThumb: "#EFC66A", inpBg: "#FFFBEE", placeholder: "#9A8663",
   tdText: "#2A1F14", trHover: "#FFF6DC", shadowCol: "rgba(160,110,20,0.18)", shadowSoft: "rgba(160,110,20,0.11)",
-  btnTop: "#C92C77", btnBot: "#AD1F64", btnEdge: "#7E1649", btnHoverTop: "#D43A83", btnHoverBot: "#B8286D", btnShadow: "rgba(173,31,100,0.3)", tabOn: "#237A50", navLine: "rgba(120,80,0,0.2)",
+  btnTop: "#347F55", btnBot: "#276645", btnEdge: "#1A4A31", btnHoverTop: "#3D8C60", btnHoverBot: "#2E7250", btnShadow: "rgba(26,74,49,0.3)", tabOn: "#237A50", navLine: "rgba(120,80,0,0.2)",
   // La imagen del collage de fondo, con un velo crema para que lo que va directo sobre el fondo se lea
   bgImage: "linear-gradient(rgba(255,246,226,0.62), rgba(255,246,226,0.62)), url('/fondos/girasoles.webp')",
   bgSize: "cover, cover",
@@ -105,6 +105,7 @@ const getBaseCss = (p) => `
 :root { --acento: ${p.accent}; --acento-dim: ${p.accentDim}; --acento-borde: ${p.accent}66; --acento-texto: ${p.accentText}; --wa-texto: ${p.wa}; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { margin: 0; padding: 0; width: 100%; overflow-x: hidden; }
+html:root { background: ${p.bg}; color-scheme: ${p.bg === "#090c10" ? "dark" : "light"}; }
 body { font-family: 'Inter', sans-serif; background: ${p.bg}; color: ${p.text}; min-height: 100vh; margin: 0; width: 100vw; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
 ${p.bgImage ? `body { background-image: ${p.bgImage}; background-size: ${p.bgSize}; background-position: center; background-attachment: fixed; }` : ""}
 ${p.textHalo ? `.main { text-shadow: ${p.textHalo}; } .main .btn, .main .tab.on, .main .pos-overlay { text-shadow: none; }` : ""}
