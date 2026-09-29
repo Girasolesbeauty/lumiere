@@ -286,6 +286,7 @@ button.tab { font-family: inherit; }
 .com-uso { align-items: flex-start; padding: 12px; border-radius: 10px; border: 1px solid ${p.border}; background: ${p.bg}; }
 .com-uso .sw { margin-top: 2px; }
 @media (max-width: 640px) { .com-uso-grid { grid-template-columns: 1fr; } }
+.dni-nuevo { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: ${p.warnDim}; border: 1px solid ${p.warn}55; display: flex; flex-direction: column; gap: 8px; }
 .pos-paso1 { display: flex; flex-direction: column; justify-content: flex-start; }
 .paso1-card { padding: 14px 16px 16px; }
 .pos-stepper { list-style: none; margin: 0; padding: 0; display: flex; align-items: center; gap: 0; }
@@ -2375,7 +2376,6 @@ function POS({ localId, usuario, paletaActual }) {
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [buscandoCliente, setBuscandoCliente] = useState(false);
   const [showNuevoCliente, setShowNuevoCliente] = useState(false);
-  const [nuevoClienteDni, setNuevoClienteDni] = useState({ nombre: "", telefono: "" });
   const [cupon, setCupon] = useState("");
   const [cuponAplicado, setCuponAplicado] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -3041,15 +3041,35 @@ function POS({ localId, usuario, paletaActual }) {
     setBuscandoCliente(false);
   };
 
-  const crearClienteRapido = async () => {
-    try {
-      const res = await API.post("/clientes", { ...nuevoClienteDni, cuit_dni: dniInput, local_id: localId || 1 });
-      setClienteSeleccionado(res.data);
-      setShowNuevoCliente(false);
-      setMensaje("Cliente creado!");
-      setTimeout(() => setMensaje(""), 2000);
-    } catch (e) { setMensaje("Error al crear cliente"); }
+  // Alta de cliente en ventana emergente (desde el Punto de Venta)
+  const [altaCliente, setAltaCliente] = useState(null); // null = cerrada | { dni, nombre, telefono, email, fecha_nacimiento }
+  const [guardandoAlta, setGuardandoAlta] = useState(false);
+  const [errorAlta, setErrorAlta] = useState("");
+  const abrirAltaCliente = () => {
+    setErrorAlta("");
+    setAltaCliente({ dni: dniInput || "", nombre: "", telefono: "", email: "", fecha_nacimiento: "" });
   };
+  const guardarAltaCliente = async () => {
+    const a = altaCliente;
+    if (!a.nombre.trim()) return setErrorAlta("Falta el nombre");
+    if (!a.telefono.trim()) return setErrorAlta("Falta el celular");
+    setGuardandoAlta(true); setErrorAlta("");
+    try {
+      const res = await API.post("/clientes", {
+        nombre: a.nombre.trim(), telefono: a.telefono.trim(), cuit_dni: a.dni.trim() || null,
+        email: a.email.trim() || null, fecha_nacimiento: a.fecha_nacimiento || null, local_id: localId || 1,
+      });
+      setClienteSeleccionado(res.data);
+      setDniInput(res.data.cuit_dni || a.dni || "");
+      setShowNuevoCliente(false);
+      cargarFicha(res.data.id, false);
+      setAltaCliente(null);
+      setMensaje("✓ Cliente registrado: " + res.data.nombre);
+      setTimeout(() => setMensaje(""), 2500);
+    } catch (e) { setErrorAlta(e.response?.data?.error || "No se pudo registrar el cliente"); }
+    setGuardandoAlta(false);
+  };
+
 
   const aplicarCupon = async (codigoParam) => {
     const codigo = codigoParam !== undefined ? codigoParam : cupon;
@@ -3446,7 +3466,7 @@ function POS({ localId, usuario, paletaActual }) {
       e.preventDefault();
       if (modoVista !== "clasico" && !cobroMovilAbierto) { if (cart.length > 0) setCobroMovilAbierto(true); return; }
       if (modoVista === "clasico" && !pasoCobroClasico) { continuarCobroClasico(); return; }
-      if (!loading && !itemsSinStock && !mostrarFicha && nombreEspera === null) emitirFactura();
+      if (!loading && !itemsSinStock && !mostrarFicha && nombreEspera === null && !altaCliente) emitirFactura();
       return;
     }
     if (e.key === "Escape") {
@@ -3932,16 +3952,13 @@ function POS({ localId, usuario, paletaActual }) {
                         </div>
                         <button className="btn btn-g btn-sm" style={{ whiteSpace: "nowrap" }} onClick={() => { setShowNuevoCliente(false); setClienteSeleccionado({ id: null, nombre: "Consumidor Final", puntos: 0 }); }}>Consumidor final</button>
                       </div>
+                      <button className="mini-chip" style={{ marginTop: 6 }} onClick={abrirAltaCliente}>👤＋ Nuevo cliente</button>
                       {showNuevoCliente && (
-                        <div className="pop-in" style={{ marginTop: 8, padding: 10, borderRadius: 8, background: temaPal.blueDim, border: "1px solid " + temaPal.border }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>No está registrado. ¿Lo damos de alta?</div>
-                          <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                            <input className="inp" placeholder="Nombre" value={nuevoClienteDni.nombre} onChange={e => setNuevoClienteDni(p => ({ ...p, nombre: e.target.value }))} style={{ flex: 1, padding: "7px 10px", fontSize: 12 }} />
-                            <input className="inp" type="tel" placeholder="Teléfono" value={nuevoClienteDni.telefono} onChange={e => setNuevoClienteDni(p => ({ ...p, telefono: e.target.value }))} style={{ flex: 1, padding: "7px 10px", fontSize: 12 }} />
-                          </div>
+                        <div className="pop-in dni-nuevo">
+                          <span style={{ fontSize: 12, fontWeight: 700 }}>Ese DNI no está registrado.</span>
                           <div style={{ display: "flex", gap: 6 }}>
-                            <button className="btn btn-p btn-sm" style={{ flex: 1 }} onClick={crearClienteRapido}>Guardar cliente</button>
-                            <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => { setShowNuevoCliente(false); setClienteSeleccionado({ id: null, nombre: "Consumidor Final", puntos: 0 }); }}>Seguir sin registrar</button>
+                            <button className="btn btn-p btn-sm" onClick={abrirAltaCliente}>Registrarlo</button>
+                            <button className="btn btn-g btn-sm" onClick={() => { setShowNuevoCliente(false); setClienteSeleccionado({ id: null, nombre: "Consumidor Final", puntos: 0 }); }}>Seguir sin registrar</button>
                           </div>
                         </div>
                       )}
@@ -4534,6 +4551,44 @@ function POS({ localId, usuario, paletaActual }) {
           </div>
         );
       })()}
+
+      {altaCliente && (
+        <div className="pos-overlay" onClick={() => !guardandoAlta && setAltaCliente(null)}>
+          <div className="card pop-in" role="dialog" aria-label="Registrar cliente" style={{ width: 440, maxWidth: "95vw", background: temaPal.card, textAlign: "left" }}
+            onClick={e => e.stopPropagation()}
+            onKeyDown={e => { if (e.key === "Escape") setAltaCliente(null); if (e.key === "Enter" && e.target.tagName === "INPUT") { e.preventDefault(); guardarAltaCliente(); } }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 800 }}>👤 Registrar cliente</div>
+                <div style={{ fontSize: 11, color: temaPal.textMuted }}>Queda cargado en esta venta y empieza a sumar puntos</div>
+              </div>
+              <button className="icon-btn" onClick={() => setAltaCliente(null)} aria-label="Cerrar">✕</button>
+            </div>
+            <div className="fg"><div className="fl">DNI / CUIT</div>
+              <input className="inp" inputMode="numeric" value={altaCliente.dni} onChange={e => setAltaCliente(x => ({ ...x, dni: e.target.value }))} placeholder="Ej: 30111222" autoFocus={!altaCliente.dni} />
+            </div>
+            <div className="fg"><div className="fl">Nombre y apellido *</div>
+              <input className="inp" value={altaCliente.nombre} onChange={e => setAltaCliente(x => ({ ...x, nombre: e.target.value }))} placeholder="Nombre completo" autoFocus={!!altaCliente.dni} autoComplete="off" />
+            </div>
+            <div className="fg"><div className="fl">Celular *</div>
+              <input className="inp" type="tel" inputMode="tel" value={altaCliente.telefono} onChange={e => setAltaCliente(x => ({ ...x, telefono: e.target.value }))} placeholder="Ej: 2964 123456" />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div className="fg"><div className="fl">Email (opcional)</div>
+                <input className="inp" type="email" value={altaCliente.email} onChange={e => setAltaCliente(x => ({ ...x, email: e.target.value }))} placeholder="nombre@mail.com" />
+              </div>
+              <div className="fg"><div className="fl">Cumpleaños (opcional)</div>
+                <input className="inp" type="date" value={altaCliente.fecha_nacimiento} onChange={e => setAltaCliente(x => ({ ...x, fecha_nacimiento: e.target.value }))} />
+              </div>
+            </div>
+            {errorAlta && <div className="cc-aviso bad" role="alert" style={{ marginBottom: 10 }}>{errorAlta}</div>}
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setAltaCliente(null)} disabled={guardandoAlta}>Cancelar</button>
+              <button className="btn btn-p" style={{ flex: 2 }} onClick={guardarAltaCliente} disabled={guardandoAlta}>{guardandoAlta ? "Guardando..." : "Registrar y usar en esta venta"}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {ventaConfirmada && (
         <div className="pos-overlay" onClick={cerrarConfirmacion}>
