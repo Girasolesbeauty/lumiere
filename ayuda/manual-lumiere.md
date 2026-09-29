@@ -276,6 +276,9 @@ Al recibir una orden, en **🎁 Ítem extra** buscá el producto que vino de reg
 ### Cómo calcular el precio de venta
 **Calculadoras** → pestaña **Calcular** → elegí la calculadora → poné el costo (o el precio de venta del proveedor) → **Calcular precio**. En **Administrar** se crean las fórmulas (margen, impuestos y costos extra como bolsa o envío).
 
+### Cómo se recalcula el stock mínimo
+El **stock mínimo** de cada producto es el que usan las alertas de **stock bajo**. Lumiere lo **recalcula solo cada noche** con las ventas de los últimos 60 días de cada producto: venta diaria × (días que demora el proveedor + 7 días de colchón). Los productos con menos de 14 días de ventas no se tocan, porque hay poca información. Para recalcularlo en el momento, en **Inventario** tocá **↻ Recalcular stock mínimo**. Si preferís cargarlo a mano, en Inventario apagá **🌙 Recalcular solo cada noche**: así el sistema no lo cambia.
+
 ### Cómo pedir mercadería (Qué pedir)
 Compras y proveedores → **Qué pedir** → elegí el proveedor, para qué local y para cuántos días querés que alcance. El sistema calcula con las ventas reales de cada producto:
 - **Stock mínimo** = venta diaria × días de colchón (7 por defecto).
@@ -343,6 +346,9 @@ Después elegí a qué aplica (todos, categorías o productos), si es solo con u
 
 ### Cómo configurar las comisiones
 **Comisiones** → **Configuración** (jefe/admin) → activá **Comisiones para vendedores** → elegí el local, el tipo (metas de monto, % de ventas, % por tramos o % sobre el excedente) y el período (diaria, semanal o mensual) → probá con el simulador → **Guardar comisión**.
+
+### Cuánta comisión conviene pagar
+Si no sabés qué porcentaje poner, en **Comisiones → Configuración** tocá **💡 Calcular comisión saludable**. Lumiere mira las ventas y el margen reales del local en los últimos 90 días y propone dos opciones: un **% de las ventas** (que se lleva una parte chica de la ganancia de la mercadería, y te dice cuánto costaría por mes) y un **% sobre lo que supere la meta** (la meta es lo que el local ya vende en promedio: solo se paga si venden más de lo normal). Tocá **Usar esta**, revisala en el simulador y tocá **Guardar**. Hacen falta al menos 3 semanas de ventas y los costos de los productos cargados.
 
 ### Cómo pagar comisiones
 **Comisiones** → pestaña **Comisiones** → tildá los días a pagar (o pagá un monto suelto) → **Pagar** → forma de pago (efectivo, transferencia o canje por productos con descuento de empleada) → confirmar. Queda registrado como egreso.

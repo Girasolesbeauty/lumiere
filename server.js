@@ -80,6 +80,7 @@ app.get('/', (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor Lumiere corriendo en puerto ${PORT}`);
+  require('./jobs/stockMinimoAuto').iniciar();
 });
 
 module.exports = app;

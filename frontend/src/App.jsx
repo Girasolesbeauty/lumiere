@@ -429,6 +429,13 @@ button.tab { font-family: inherit; }
 .fin-mes { display: inline-flex; align-items: center; gap: 4px; background: ${p.card}; border: 1px solid ${p.border}; border-radius: 8px; padding: 3px; }
 .fin-mes .sel { padding: 5px 8px; font-size: 12px; border: none; background: transparent; }
 .fin-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.com-sug { border: 1px dashed ${p.accent}; background: ${p.accentDim}; border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; }
+.com-sug-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.com-sug-op { background: ${p.card}; border: 1px solid ${p.border}; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+.com-sug-op.rec { border: 2px solid ${p.green}; }
+.com-sug-op .btn { align-self: flex-start; margin-top: auto; }
+.com-sug-tit { font-size: 14px; font-weight: 800; }
+.com-sug-txt { font-size: 12px; line-height: 1.5; color: ${p.textSoft}; }
 .med-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .med { border: 1px dashed ${p.border}; border-radius: 12px; padding: 14px 10px 12px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 4px; background: ${p.bg}; animation: fadeUp .35s ease both; }
 .med .med-icono { font-size: 30px; line-height: 1; filter: grayscale(1); opacity: .45; }
@@ -5591,6 +5598,18 @@ function Inventario({ localId, usuario, paletaActual }) {
   const [filtroEstadoProd, setFiltroEstadoProd] = useState("activos");
   const [filtroMarcasValor, setFiltroMarcasValor] = useState([]);
   const [recalculando, setRecalculando] = useState(false);
+  // Recalculo automatico del stock minimo cada noche (Configuracion del negocio; encendido por defecto)
+  const [minimoAuto, setMinimoAuto] = useState(null);
+  useEffect(() => { API.get("/configuracion").then(r => setMinimoAuto(r.data?.stock_minimo_auto !== false)).catch(() => {}); }, []);
+  const alternarMinimoAuto = async () => {
+    const nuevo = !minimoAuto;
+    setMinimoAuto(nuevo);
+    try {
+      await API.put("/configuracion", { stock_minimo_auto: nuevo });
+      setMensaje(nuevo ? "✓ El stock mínimo se va a recalcular solo cada noche con las ventas" : "El stock mínimo ya no se recalcula solo: queda el que cargues a mano");
+      setTimeout(() => setMensaje(""), 4000);
+    } catch (e) { setMinimoAuto(!nuevo); setMensaje("No se pudo guardar: " + (e.response?.data?.error || e.message)); }
+  };
 
   const recalcularStockMinimo = async () => {
     setRecalculando(true);
@@ -6114,6 +6133,12 @@ function Inventario({ localId, usuario, paletaActual }) {
               ))}
               <span style={{ flex: 1 }} />
               {hayFiltros && <button className="chip-btn" onClick={limpiarFiltros}>✕ Limpiar filtros</button>}
+              {minimoAuto !== null && (
+                <button className={"chip-btn" + (minimoAuto ? " on" : "")} aria-pressed={minimoAuto} onClick={alternarMinimoAuto}
+                  title="Cada noche se recalcula el stock mínimo de cada producto con sus ventas de los últimos 60 días. Apagalo si preferís cargarlo a mano.">
+                  🌙 Recalcular solo cada noche: {minimoAuto ? "Sí" : "No"}
+                </button>
+              )}
               <button className="chip-btn" disabled={recalculando} onClick={recalcularStockMinimo} title="Calcula el stock mínimo de cada producto según cuánto se vende">{recalculando ? "Recalculando..." : "↻ Recalcular stock mínimo"}</button>
             </div>
           </div>
@@ -10781,6 +10806,20 @@ function ConfigComisiones({ paletaActual, onCambioActivos }) {
   };
   const set = (campo, valor) => setForm(f => ({ ...f, [campo]: valor }));
 
+  // "¿Cuánto conviene pagar?": sugerencia con las ventas y el margen reales del local
+  const [sugerencia, setSugerencia] = useState(null); // null | "cargando" | datos
+  const pedirSugerencia = () => {
+    setSugerencia("cargando");
+    API.get("/comisiones/config/sugerencia/" + localSel + "?periodo=" + (form?.periodo || "mensual"))
+      .then(r => setSugerencia(r.data))
+      .catch(e => setSugerencia({ suficiente: false, motivo: e.response?.data?.error || "No se pudo calcular la sugerencia" }));
+  };
+  useEffect(() => { setSugerencia(null); }, [localSel, form?.periodo]);
+  const usarSugerencia = (sg) => {
+    setForm(f => ({ ...f, tipo: sg.tipo, porcentaje: sg.porcentaje, minimo: sg.minimo }));
+    setMsg("Sugerencia cargada: revisala en el simulador y tocá Guardar para aplicarla.");
+  };
+
   // Simulador (usa el mismo calculo del servidor)
   const periodo = PERIODOS_COMISION_UI.find(x => x.id === form?.periodo) || PERIODOS_COMISION_UI[0];
   const hitos = hitosReglaComision(form);
@@ -10876,6 +10915,46 @@ function ConfigComisiones({ paletaActual, onCambioActivos }) {
             </div>
           );
         })()}
+
+        <div className="com-sug">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 800 }}>💡 ¿No sabés cuánto pagar?</div>
+              <div style={{ fontSize: 11, color: p.textMuted }}>Lumiere calcula una comisión saludable con las ventas y el margen reales de {form.local_nombre || "este local"}.</div>
+            </div>
+            {sugerencia !== "cargando" && <button className="btn btn-p btn-sm" onClick={pedirSugerencia}>{sugerencia ? "↻ Recalcular" : "Calcular comisión saludable"}</button>}
+          </div>
+          {sugerencia === "cargando" && <div className="skel" style={{ height: 90, marginTop: 10 }} />}
+          {sugerencia && sugerencia !== "cargando" && !sugerencia.suficiente && (
+            <div className="cc-aviso" style={{ marginTop: 10 }}>{sugerencia.motivo}</div>
+          )}
+          {sugerencia && sugerencia !== "cargando" && sugerencia.suficiente && (() => {
+            const [pv, ex] = sugerencia.sugerencias;
+            const unidad = (PERIODOS_COMISION_UI.find(x => x.id === sugerencia.periodo) || PERIODOS_COMISION_UI[0]).unidad;
+            const redondo = v => fmt(v).replace(",00", "");
+            return (
+              <div className="anim-in">
+                <div style={{ fontSize: 12, color: p.textSoft, margin: "10px 0" }}>
+                  En los últimos {sugerencia.dias} días el local vendió en promedio <b>{redondo(sugerencia.ventas_mes)} por mes</b>, con un margen bruto de <b>{sugerencia.margen_pct}%</b>{sugerencia.cobertura_costos_pct < 90 ? " (calculado con el " + sugerencia.cobertura_costos_pct + "% de las ventas que tienen costo cargado)" : ""}.
+                </div>
+                <div className="com-sug-grid">
+                  <div className="com-sug-op">
+                    <div className="com-sug-tit">📊 {pv.porcentaje}% de las ventas</div>
+                    <div className="com-sug-txt">Te cuesta unos <b>{redondo(pv.costo_mes)} por mes</b>: el {pv.pct_de_la_ganancia}% de lo que ganás con la mercadería. Simple y fácil de entender para el equipo.</div>
+                    <button className="btn btn-g btn-sm" onClick={() => usarSugerencia(pv)}>Usar esta</button>
+                  </div>
+                  <div className="com-sug-op rec">
+                    <span className="tag tag-ok" style={{ alignSelf: "flex-start" }}>Recomendada</span>
+                    <div className="com-sug-tit">🚀 {ex.porcentaje}% de lo que pase {redondo(ex.minimo)} por {unidad}</div>
+                    <div className="com-sug-txt">La meta es lo que el local ya vende: <b>solo pagás si venden más de lo normal</b>. Si venden un {ex.ejemplo_extra_pct}% más, cobran {redondo(ex.ejemplo_comision_mes)} y a vos te quedan {redondo(ex.ejemplo_ganancia_extra_mes)} de ganancia extra por mes.</div>
+                    <button className="btn btn-p btn-sm" onClick={() => usarSugerencia(ex)}>Usar esta</button>
+                  </div>
+                </div>
+                <div style={{ fontSize: 10, color: p.textMuted, marginTop: 8 }}>Es una guía: la comisión se lleva una parte chica de la ganancia bruta, para que motive sin comerse el negocio. Después la podés ajustar.</div>
+              </div>
+            );
+          })()}
+        </div>
 
         <div className="fl">¿Cada cuánto se mide?</div>
         <div className="seg" role="group" aria-label="Periodo" style={{ marginBottom: 6 }}>

@@ -242,6 +242,82 @@ router.put('/config/reglas/:local_id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Sugerencia de comision saludable para un local, con sus ventas y su margen reales de los
+// ultimos 90 dias (para que no se ponga un numero al azar). Criterio:
+//  - % de las ventas: que la comision se lleve alrededor del 6% de la ganancia bruta
+//    (margen 50% -> 3% de las ventas). Entre 0,5% y 4%.
+//  - % sobre lo que supere la meta: la meta es lo que el local ya vende en promedio, y se paga
+//    alrededor del 20% del margen de esas ventas extra (margen 50% -> 10%). Entre 1% y 10%.
+//    Solo cuesta si venden mas de lo habitual, y ese extra deja ganancia.
+router.get('/config/sugerencia/:local_id', async (req, res) => {
+  try {
+    const localId = parseInt(req.params.local_id);
+    const periodo = PERIODOS_COMISION.includes(req.query.periodo) ? req.query.periodo : 'mensual';
+    const AR = (col) => `(((${col}) AT TIME ZONE current_setting('TimeZone')) AT TIME ZONE 'America/Argentina/Buenos_Aires')`;
+    const FILTRO = `v.local_id = $1 AND v.canal = 'presencial' AND COALESCE(v.anulada, FALSE) = FALSE
+      AND (COALESCE(v.es_preventa, FALSE) = FALSE OR v.estado_pago = 'confirmada')
+      AND (v.cupon_id IS NULL OR v.cupon_id NOT IN (SELECT cupon_id FROM influencers WHERE cupon_id IS NOT NULL))
+      AND ${AR('v.creado_en')}::date >= (${AR('NOW()')})::date - 90 AND ${AR('v.creado_en')}::date < (${AR('NOW()')})::date`;
+    const [ventas, margen] = await Promise.all([
+      pool.query(`SELECT COALESCE(SUM(v.total), 0) AS total, MIN(${AR('v.creado_en')})::date AS desde,
+                         (${AR('NOW()')})::date - MIN(${AR('v.creado_en')})::date AS dias
+                  FROM ventas v WHERE ${FILTRO}`, [localId]),
+      pool.query(`SELECT COALESCE(SUM(vi.cantidad * vi.precio_unitario), 0) AS ingresos,
+                         COALESCE(SUM(vi.cantidad * COALESCE(p.costo, 0)), 0) AS costos,
+                         COALESCE(SUM(CASE WHEN COALESCE(p.costo, 0) > 0 THEN vi.cantidad * vi.precio_unitario ELSE 0 END), 0) AS ingresos_con_costo
+                  FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id JOIN productos p ON p.id = vi.producto_id
+                  WHERE ${FILTRO}`, [localId]),
+    ]);
+    const total = num(ventas.rows[0].total);
+    const dias = Math.min(90, parseInt(ventas.rows[0].dias) || 0);
+    if (total <= 0 || dias < 21) {
+      return res.json({ suficiente: false, motivo: 'Todavía hay pocas ventas en este local (hacen falta al menos 3 semanas) para calcular una comisión confiable.' });
+    }
+    // Margen bruto: solo con los productos que tienen costo cargado (si no, el margen daria 100%)
+    const ingCosto = num(margen.rows[0].ingresos_con_costo);
+    if (ingCosto <= 0) {
+      return res.json({ suficiente: false, motivo: 'Faltan los costos de los productos: sin el costo no se puede saber cuánto se gana en cada venta. Cargalos en Inventario.' });
+    }
+    const costos = num(margen.rows[0].costos);
+    const margenPct = Math.max(0, Math.min(95, (ingCosto - costos) / ingCosto * 100));
+    const cobertura = Math.round(ingCosto / Math.max(1, num(margen.rows[0].ingresos)) * 100);
+
+    const medio = (x) => Math.round(x * 2) / 2;
+    const entre = (x, a, b) => Math.max(a, Math.min(b, x));
+    const ventasMes = total / dias * 30;
+    const escala = periodo === 'mensual' ? 1 : periodo === 'semanal' ? 7 / 30 : 1 / 30;
+    const redondear = (x) => (x >= 100000 ? Math.round(x / 10000) * 10000 : Math.round(x / 1000) * 1000);
+
+    const pctVentas = entre(medio(margenPct * 0.06), 0.5, 4);
+    const pctExcedente = entre(medio(margenPct * 0.2), 1, 10);
+    const metaPeriodo = redondear(ventasMes * escala);
+    res.json({
+      suficiente: true,
+      dias, periodo,
+      ventas_mes: Math.round(ventasMes),
+      margen_pct: Math.round(margenPct * 10) / 10,
+      cobertura_costos_pct: cobertura,
+      sugerencias: [
+        {
+          tipo: 'porcentaje', porcentaje: pctVentas, minimo: 0,
+          costo_mes: Math.round(ventasMes * pctVentas / 100),
+          pct_de_la_ganancia: Math.round(pctVentas / margenPct * 1000) / 10,
+        },
+        {
+          tipo: 'excedente', porcentaje: pctExcedente, minimo: metaPeriodo,
+          // Ejemplo: si venden 20% mas que el promedio
+          ejemplo_extra_pct: 20,
+          ejemplo_comision_mes: Math.round(ventasMes * 0.2 * pctExcedente / 100),
+          ejemplo_ganancia_extra_mes: Math.round(ventasMes * 0.2 * (margenPct - pctExcedente) / 100),
+        },
+      ],
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'No se pudo calcular la sugerencia: ' + e.message });
+  }
+});
+
 // Simulador: cuanto se cobraria con una regla (sin guardarla) si el local vende X en el periodo
 router.post('/config/simular', (req, res) => {
   const regla = normalizarRegla(req.body.regla || {});

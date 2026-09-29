@@ -9,6 +9,8 @@ const asegurarColumnaMensaje = async () => {
   if (columnaMensajeLista) return;
   await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS mensaje_precio TEXT');
   await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS comisiones_activo BOOLEAN DEFAULT TRUE');
+  await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS stock_minimo_auto BOOLEAN DEFAULT TRUE');
+  await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS stock_minimo_auto_ultimo DATE');
   columnaMensajeLista = true;
 };
 
@@ -54,6 +56,11 @@ router.put('/', async (req, res) => {
     if (typeof req.body.comisiones_activo === 'boolean') {
       await asegurarColumnaMensaje();
       await pool.query('UPDATE configuracion_negocio SET comisiones_activo = $1 WHERE id = 1', [req.body.comisiones_activo]);
+    }
+    // Recalculo automatico del stock minimo cada noche (cada dueno decide)
+    if (typeof req.body.stock_minimo_auto === 'boolean') {
+      await asegurarColumnaMensaje();
+      await pool.query('UPDATE configuracion_negocio SET stock_minimo_auto = $1 WHERE id = 1', [req.body.stock_minimo_auto]);
     }
     // % de Ingresos Brutos estimado en Finanzas (0 = no se calcula)
     if (Object.prototype.hasOwnProperty.call(req.body, 'iibb_pct')) {

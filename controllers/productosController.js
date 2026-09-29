@@ -303,44 +303,50 @@ const getHistorialAjustes = async (req, res) => {
 // misma formula que "Que pedir": punto de pedido = venta diaria x (demora del proveedor + dias
 // de seguridad). Usa hasta 60 dias de ventas; con menos de 14 dias de historia no toca el
 // producto (muy poca info para que el numero sea confiable).
+// La usan el boton "Recalcular stock minimo" y el recalculo automatico de cada noche.
+async function recalcularMinimos(diasSeguridad = 7) {
+  const DIAS_HISTORIAL = 60;
+  const DIAS_SEGURIDAD = Math.min(90, Math.max(0, parseInt(diasSeguridad) || 0));
+  const DIAS_MINIMOS_CONFIABLES = 14;
+  const result = await pool.query(`
+    SELECT vi.producto_id, SUM(vi.cantidad) AS total_vendido, MIN(v.creado_en) AS primera_venta,
+           MAX(COALESCE(p.lead_time_dias, 7)) AS lead_time
+    FROM venta_items vi
+    JOIN ventas v ON v.id = vi.venta_id
+    JOIN productos p ON p.id = vi.producto_id
+    WHERE v.creado_en >= NOW() - INTERVAL '${DIAS_HISTORIAL} days'
+      AND COALESCE(v.anulada, FALSE) = FALSE AND COALESCE(v.canal, '') <> 'prueba'
+      AND (COALESCE(v.es_preventa, FALSE) = FALSE OR v.estado_pago = 'confirmada')
+    GROUP BY vi.producto_id
+  `);
+
+  let actualizados = 0;
+  let omitidosPocaHistoria = 0;
+  const detalle = [];
+  for (const row of result.rows) {
+    const totalVendido = parseFloat(row.total_vendido) || 0;
+    if (totalVendido <= 0) continue;
+    const diasDesdePrimeraVenta = Math.max(1, Math.ceil((Date.now() - new Date(row.primera_venta).getTime()) / (1000 * 60 * 60 * 24)));
+    const diasReales = Math.min(DIAS_HISTORIAL, diasDesdePrimeraVenta);
+    if (diasReales < DIAS_MINIMOS_CONFIABLES) { omitidosPocaHistoria++; continue; }
+    const ritmo = totalVendido / diasReales;
+    const nuevoMinimo = Math.max(1, Math.ceil(ritmo * (parseInt(row.lead_time) || 7)) + Math.ceil(ritmo * DIAS_SEGURIDAD));
+    const upd = await pool.query(
+      'UPDATE productos SET stock_minimo = $1 WHERE id = $2 AND activo = TRUE RETURNING nombre, stock_minimo',
+      [nuevoMinimo, row.producto_id]
+    );
+    if (upd.rows.length > 0) {
+      actualizados++;
+      detalle.push({ producto: upd.rows[0].nombre, stock_minimo_nuevo: upd.rows[0].stock_minimo, dias_usados: diasReales });
+    }
+  }
+  return { productos_actualizados: actualizados, omitidos_por_poca_historia: omitidosPocaHistoria, detalle };
+}
+
 const recalcularStockMinimo = async (req, res) => {
   try {
-    const DIAS_HISTORIAL = 60;
-    const DIAS_SEGURIDAD = Math.min(90, Math.max(0, parseInt(req.body && req.body.dias_seguridad) || 7));
-    const DIAS_MINIMOS_CONFIABLES = 14;
-    const result = await pool.query(`
-      SELECT vi.producto_id, SUM(vi.cantidad) AS total_vendido, MIN(v.creado_en) AS primera_venta,
-             MAX(COALESCE(p.lead_time_dias, 7)) AS lead_time
-      FROM venta_items vi
-      JOIN ventas v ON v.id = vi.venta_id
-      JOIN productos p ON p.id = vi.producto_id
-      WHERE v.creado_en >= NOW() - INTERVAL '${DIAS_HISTORIAL} days'
-        AND COALESCE(v.anulada, FALSE) = FALSE AND COALESCE(v.canal, '') <> 'prueba'
-        AND (COALESCE(v.es_preventa, FALSE) = FALSE OR v.estado_pago = 'confirmada')
-      GROUP BY vi.producto_id
-    `);
-
-    let actualizados = 0;
-    let omitidosPocaHistoria = 0;
-    const detalle = [];
-    for (const row of result.rows) {
-      const totalVendido = parseFloat(row.total_vendido) || 0;
-      if (totalVendido <= 0) continue;
-      const diasDesdePrimeraVenta = Math.max(1, Math.ceil((Date.now() - new Date(row.primera_venta).getTime()) / (1000 * 60 * 60 * 24)));
-      const diasReales = Math.min(DIAS_HISTORIAL, diasDesdePrimeraVenta);
-      if (diasReales < DIAS_MINIMOS_CONFIABLES) { omitidosPocaHistoria++; continue; }
-      const ritmo = totalVendido / diasReales;
-      const nuevoMinimo = Math.max(1, Math.ceil(ritmo * (parseInt(row.lead_time) || 7)) + Math.ceil(ritmo * DIAS_SEGURIDAD));
-      const upd = await pool.query(
-        'UPDATE productos SET stock_minimo = $1 WHERE id = $2 AND activo = TRUE RETURNING nombre, stock_minimo',
-        [nuevoMinimo, row.producto_id]
-      );
-      if (upd.rows.length > 0) {
-        actualizados++;
-        detalle.push({ producto: upd.rows[0].nombre, stock_minimo_nuevo: upd.rows[0].stock_minimo, dias_usados: diasReales });
-      }
-    }
-    res.json({ mensaje: 'Stock minimo recalculado', productos_actualizados: actualizados, omitidos_por_poca_historia: omitidosPocaHistoria, detalle });
+    const r = await recalcularMinimos(req.body && req.body.dias_seguridad !== undefined ? req.body.dias_seguridad : 7);
+    res.json({ mensaje: 'Stock minimo recalculado', ...r });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al recalcular stock minimo: ' + error.message });
@@ -511,4 +517,4 @@ const guardarMinimos = async (req, res) => {
   }
 };
 
-module.exports = { guardarLeadTimeProveedor, guardarMinimos, getAll, getById, create, update, remove, getAlertas, getTransito, ajustarStock, getHistorialAjustes, recalcularStockMinimo, getSugerenciaCompra, cambiarEstado, getImagenes, getImagen, guardarImagen, borrarImagen };
+module.exports = { recalcularMinimos, guardarLeadTimeProveedor, guardarMinimos, getAll, getById, create, update, remove, getAlertas, getTransito, ajustarStock, getHistorialAjustes, recalcularStockMinimo, getSugerenciaCompra, cambiarEstado, getImagenes, getImagen, guardarImagen, borrarImagen };
