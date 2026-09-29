@@ -287,10 +287,30 @@ button.tab { font-family: inherit; }
 .com-uso .sw { margin-top: 2px; }
 @media (max-width: 640px) { .com-uso-grid { grid-template-columns: 1fr; } }
 .pos-paso1 { display: flex; flex-direction: column; justify-content: flex-start; }
-.pos-paso1-pasos { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
-.pos-paso1-pasos span { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; border: 1px solid ${p.border}; color: ${p.textMuted}; }
-.pos-paso1-pasos span.actual { border-color: ${p.accent}; color: ${p.accent}; background: ${p.accentDim}; }
-.pos-paso1-pasos span.hecho { border-color: ${p.green}; color: ${p.green}; background: ${p.greenDim}; }
+.paso1-card { padding: 14px 16px 16px; }
+.pos-stepper { list-style: none; margin: 0; padding: 0; display: flex; align-items: center; gap: 0; }
+.pos-stepper li { flex: 1 1 auto; display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; color: ${p.textMuted}; }
+.pos-stepper li:last-child { flex: 0 0 auto; }
+.pos-stepper li:not(:last-child)::after { content: ""; flex: 1; height: 2px; border-radius: 2px; background: ${p.border}; margin: 0 4px; min-width: 6px; }
+.pos-stepper li.hecho:not(:last-child)::after { background: ${p.green}; }
+.pos-stepper .num { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; border: 2px solid ${p.border}; background: ${p.card}; color: ${p.textMuted}; }
+.pos-stepper .txt { white-space: nowrap; }
+.pos-stepper li.actual { color: ${p.text}; }
+.pos-stepper li.actual .num { border-color: ${p.accent}; background: ${p.accent}; color: #1B2431; box-shadow: 0 0 0 3px ${p.accentDim}; }
+.pos-stepper li.hecho .num { border-color: ${p.green}; background: ${p.green}; color: #fff; }
+.pos-stepper li.hecho { color: ${p.green}; }
+.paso1-vacio { text-align: center; padding: 26px 8px 10px; }
+.paso1-icono { width: 56px; height: 56px; margin: 0 auto 10px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; background: ${p.bg}; border: 1px dashed ${p.border}; }
+.paso1-resumen { margin-top: 16px; padding: 10px 12px; border-radius: 10px; background: ${p.bg}; }
+.paso1-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: baseline; font-size: 12px; padding: 3px 0; }
+.paso1-cant { color: ${p.textMuted}; font-weight: 700; font-variant-numeric: tabular-nums; }
+.paso1-nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.paso1-precio { font-weight: 700; font-variant-numeric: tabular-nums; }
+.paso1-linea { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; margin-top: 10px; font-variant-numeric: tabular-nums; }
+.paso1-total { display: flex; justify-content: space-between; align-items: baseline; margin: 12px 2px 12px; }
+.paso1-total span:first-child { font-size: 12px; font-weight: 700; color: ${p.textMuted}; }
+.paso1-total span:last-child { font-size: 28px; font-weight: 900; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.paso1-btn { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; font-size: 15px; border-radius: 10px; }
 .cart-item { text-align: left; display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 8px 10px; border-bottom: 1px solid ${p.border}; background: ${p.card}; transition: background .15s; }
 .cart-item:hover, .cart-item.abierto { background: ${p.trHover}; }
 .qty-pill { display: inline-flex; align-items: center; border: 1px solid ${p.border}; border-radius: 999px; background: ${p.bg}; overflow: hidden; }
@@ -3857,6 +3877,9 @@ function POS({ localId, usuario, paletaActual }) {
   );
   const panelCobroJSX = (
         <div className="pos-col-2" style={{ display: "flex", flexDirection: "column", gap: 8, overflow: "hidden" }}>
+          {modoVista === "clasico" && pasoCobroClasico && (
+            <div className="pc-sec" style={{ padding: "8px 12px" }}><PasosCobro paso={clienteSeleccionado ? 3 : 2} /></div>
+          )}
           <div style={{ overflowY: "auto", flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: 8, textAlign: "left" }}>
             {preventa ? (
               <div className="pc-sec">
@@ -4274,6 +4297,7 @@ function POS({ localId, usuario, paletaActual }) {
             ))}
           </div>
           {modoVista !== "celular" && <button className="btn btn-g btn-sm" onClick={() => setMostrarAtajos(true)} title="Ver atajos de teclado (?)">⌨ Atajos</button>}
+          <button className="btn btn-g btn-sm" onClick={() => window.dispatchEvent(new Event("lumiere-abrir-ayuda"))} title="Ayuda de Lumiere">❓ Ayuda</button>
           <StatusDot color="#2d7a4f" label="ARCA" />
         </div>
       </div>
@@ -4310,26 +4334,45 @@ function POS({ localId, usuario, paletaActual }) {
           </div>
           {pasoCobroClasico ? panelCobroJSX : (
             <div className="pos-col-2 pos-paso1">
-              <div className="pc-sec" style={{ textAlign: "center", padding: "22px 18px" }}>
-                <div style={{ fontSize: 30, lineHeight: 1 }} aria-hidden="true">🛒</div>
-                <div style={{ fontSize: 15, fontWeight: 800, marginTop: 8 }}>{cart.length === 0 ? "Armá el carrito" : "¿Terminó de elegir?"}</div>
-                <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 4, lineHeight: 1.6 }}>
-                  {cart.length === 0 ? "Escaneá o buscá los productos. Cuando esté todo, tocá Continuar para cargar el cliente y cobrar." : "Tocá Continuar para cargar el DNI del cliente, ver su desafío y cobrar."}
-                </div>
-                <div className="pos-paso1-pasos">
-                  <span className={cart.length > 0 ? "hecho" : "actual"}>1 · Productos</span>
-                  <span>2 · Cliente</span>
-                  <span>3 · Cobro</span>
-                </div>
-                {cart.length > 0 && (
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "14px 4px 10px" }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: temaPal.textMuted }}>{cart.reduce((s2, i) => s2 + i.qty, 0)} productos</span>
-                    <span style={{ fontSize: 26, fontWeight: 900, fontVariantNumeric: "tabular-nums" }}>{fmt(subtotalBase)}</span>
+              <div className="pc-sec paso1-card">
+                <PasosCobro paso={1} />
+                {cart.length === 0 ? (
+                  <div className="paso1-vacio">
+                    <div className="paso1-icono" aria-hidden="true">🛒</div>
+                    <div style={{ fontSize: 15, fontWeight: 800 }}>El carrito está vacío</div>
+                    <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 4, lineHeight: 1.5 }}>Escaneá el código de barras o buscá el producto arriba.</div>
+                    <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap", marginTop: 12 }}>
+                      <button className="chip-btn" onClick={() => { busquedaRef.current?.focus(); }}><span className="kbd">F2</span> Buscar producto</button>
+                      <button className="chip-btn" onClick={() => setEscaneandoPos(true)}>📷 Escanear con la cámara</button>
+                    </div>
                   </div>
+                ) : (
+                  <>
+                    <div className="paso1-resumen">
+                      <div className="pc-tit" style={{ marginBottom: 6 }}><span>RESUMEN</span><span style={{ letterSpacing: 0, fontWeight: 700 }}>{cart.length} producto{cart.length !== 1 ? "s" : ""} · {cart.reduce((s2, i) => s2 + i.qty, 0)} u.</span></div>
+                      {cart.slice(-3).reverse().map(i => (
+                        <div key={claveItem(i)} className="paso1-item">
+                          <span className="paso1-cant">{i.qty}×</span>
+                          <span className="paso1-nom">{i.nombre || i.name}</span>
+                          <span className="paso1-precio">{fmt((i.precio || i.price || 0) * i.qty * (1 - (i.descuento_pct || 0) / 100)).replace(",00", "")}</span>
+                        </div>
+                      ))}
+                      {cart.length > 3 && <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 2 }}>+ {cart.length - 3} producto{cart.length - 3 !== 1 ? "s" : ""} más en el carrito</div>}
+                    </div>
+                    {descuento > 0 && (
+                      <div className="paso1-linea" style={{ color: temaPal.green }}><span>Descuentos y promos</span><span>−{fmt(descuento).replace(",00", "")}</span></div>
+                    )}
+                    <div className="paso1-total">
+                      <span>Subtotal</span>
+                      <span><CountUp value={subtotalConDesc} formato={fmt} duracion={350} /></span>
+                    </div>
+                    <button className="btn btn-p paso1-btn" onClick={continuarCobroClasico}>
+                      <span>Continuar</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>→ <span className="kbd" style={{ background: "rgba(255,255,255,0.15)", color: "#fff", borderColor: "rgba(255,255,255,0.3)" }}>F9</span></span>
+                    </button>
+                    <div style={{ fontSize: 11, color: temaPal.textMuted, textAlign: "center", marginTop: 8 }}>Siguiente: DNI del cliente y cobro</div>
+                  </>
                 )}
-                <button className="btn btn-p" style={{ width: "100%", padding: 14, fontSize: 15, borderRadius: 10, opacity: cart.length ? 1 : .5 }} disabled={cart.length === 0} onClick={continuarCobroClasico}>
-                  Continuar → <span className="kbd" style={{ marginLeft: 6, background: "rgba(255,255,255,0.15)", color: "#fff", borderColor: "rgba(255,255,255,0.3)" }}>F9</span>
-                </button>
               </div>
             </div>
           )}
@@ -4714,6 +4757,25 @@ function POS({ localId, usuario, paletaActual }) {
         </div>
       )}
     </div>
+  );
+}
+
+// Indicador de pasos del cobro en el Punto de Venta Clasico
+function PasosCobro({ paso }) {
+  const pasos = ["Productos", "Cliente", "Cobro"];
+  return (
+    <ol className="pos-stepper" aria-label="Pasos de la venta">
+      {pasos.map((l, i) => {
+        const n = i + 1;
+        const estado = n < paso ? "hecho" : n === paso ? "actual" : "";
+        return (
+          <li key={l} className={estado} aria-current={n === paso ? "step" : undefined}>
+            <span className="num" aria-hidden="true">{n < paso ? "✓" : n}</span>
+            <span className="txt">{l}</span>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
@@ -16196,6 +16258,11 @@ function AsistenteAyuda({ usuario, seccion, paletaActual }) {
 
   useEffect(() => { API.get("/asistente/estado").then(r => setIaDisponible(!!r.data?.disponible)).catch(() => setIaDisponible(false)); }, []);
   useEffect(() => {
+    const abrir = () => setAbierto(true);
+    window.addEventListener("lumiere-abrir-ayuda", abrir);
+    return () => window.removeEventListener("lumiere-abrir-ayuda", abrir);
+  }, []);
+  useEffect(() => {
     if (!abierto || articulos) return;
     cargarManual();
   }, [abierto]);
@@ -16247,8 +16314,8 @@ function AsistenteAyuda({ usuario, seccion, paletaActual }) {
 
   return (
     <>
-      {!abierto && (
-        <button className={"ayuda-fab" + (seccion === "pos" ? " arriba" : "")} onClick={() => setAbierto(true)} aria-label="Abrir la ayuda">
+      {!abierto && seccion !== "pos" && (
+        <button className="ayuda-fab" onClick={() => setAbierto(true)} aria-label="Abrir la ayuda">
           <span aria-hidden="true">❓</span> Ayuda
         </button>
       )}
