@@ -464,8 +464,27 @@ const getRotacion = async (req, res) => {
       porEstado[e] = { productos: l.length, valor_costo: suma(l, x => x.valor_costo) };
     });
 
+    // Alquiler real por mes (promedio de los ultimos 90 dias), para el costo de espacio de la
+    // mercaderia quieta. Lo compartido entre locales (sin local) cuenta la mitad para cada uno.
+    let alquilerMes = 0;
+    try {
+      const al = await pool.query(`
+        SELECT COALESCE(SUM(CASE WHEN m.local_id IS NULL AND $1::int IS NOT NULL THEN m.importe / 2 ELSE m.importe END), 0) AS total
+        FROM movimientos_caja m LEFT JOIN categorias_costo cc ON cc.id = m.categoria_id
+        WHERE m.tipo = 'E' AND COALESCE(m.anulado, FALSE) = FALSE
+          AND (cc.nombre ILIKE '%alquil%' OR m.concepto ILIKE '%alquil%')
+          AND m.creado_en >= NOW() - INTERVAL '90 days'
+          AND ($1::int IS NULL OR m.local_id = $1::int OR m.local_id IS NULL)`, [localNum]);
+      alquilerMes = (parseFloat(al.rows[0].total) || 0) / 3;
+    } catch (e) { console.error('alquiler para rotacion:', e.message); }
+    const unidadesStock = productos.reduce((s, x) => s + Math.max(0, x.stock), 0);
+    const unidadesQuietas = productos.filter(x => x.estado === 'parado' || x.estado === 'lento').reduce((s, x) => s + Math.max(0, x.stock), 0);
+
     res.json({
       dias, local_id: localNum,
+      alquiler_mes: alquilerMes,
+      unidades_stock: unidadesStock,
+      unidades_quietas: unidadesQuietas,
       valor_total: valorTotal,
       vendido_total: totalVendido,
       por_estado: porEstado,
