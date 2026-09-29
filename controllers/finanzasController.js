@@ -729,7 +729,7 @@ const getAnalisisFinanciero = async (req, res) => {
 
     let calificacion, color;
     if (puntajeFinal >= 85) { calificacion = 'Excelente'; color = '#2d7a4f'; }
-    else if (puntajeFinal >= 70) { calificacion = 'Buena'; color = '#5a9c3f'; }
+    else if (puntajeFinal >= 70) { calificacion = 'Buena'; color = '#3F7A2A'; }
     else if (puntajeFinal >= 50) { calificacion = 'Regular'; color = '#c9a84c'; }
     else if (puntajeFinal >= 30) { calificacion = 'Preocupante'; color = '#e07b39'; }
     else { calificacion = 'Critica'; color = '#c0392b'; }

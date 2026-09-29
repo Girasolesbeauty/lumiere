@@ -11,25 +11,25 @@ const fmt = (n) => "$" + (parseFloat(n) || 0).toLocaleString("es-AR", { minimumF
 const fmtNum = (n) => (parseFloat(n) || 0).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const PALETA_CLARA = {
-  bg: "#EEF0F3", sidebar: "#1B2431", surface: "#ffffff", card: "#ffffff", border: "#D7DBE1",
-  accent: "#c9a84c", accentDim: "#c9a84c15", accentHover: "#e8c86a",
-  text: "#131722", textSoft: "#2A2E39", textMuted: "#5C5F66",
-  green: "#089981", greenDim: "#08998112",
-  red: "#f23645", redDim: "#f2364512",
-  warn: "#d97706", warnDim: "#d9770614",
+  bg: "#DDE8F4", sidebar: "#1B2431", surface: "#ffffff", card: "#ffffff", border: "#BCCBDD",
+  accent: "#c9a84c", accentDim: "#c9a84c1f", accentHover: "#e8c86a", accentText: "#7A5C0E",
+  text: "#131722", textSoft: "#2A2E39", textMuted: "#4F5763",
+  green: "#067A67", greenDim: "#067A6714",
+  red: "#D11F30", redDim: "#f2364514",
+  warn: "#9A4507", warnDim: "#d977061c",
   blue: "#1B2431", blueDim: "#1B243112",
   purple: "#7d3c98", purpleDim: "#7d3c9812",
-  wa: "#25d366", waDim: "#25d36618",
+  wa: "#0F7A3D", waDim: "#25d3661c",
   navText: "rgba(255,255,255,0.95)", navTextDim: "rgba(255,255,255,0.75)",
   navHover: "rgba(255,255,255,0.15)", navActive: "rgba(255,255,255,0.2)", navActiveBorder: "rgba(255,255,255,0.15)",
   logoText: "#ffffff", logoSub: "rgba(255,255,255,0.65)",
-  scrollThumb: "#e0e0e0", inpBg: "#EEF0F3", placeholder: "#9CA1A6",
-  tdText: "#131722", trHover: "#f0f1f3", shadowCol: "rgba(20,25,35,0.10)", shadowSoft: "rgba(20,25,35,0.06)",
+  scrollThumb: "#AFC1D6", inpBg: "#F2F6FB", placeholder: "#7D8794",
+  tdText: "#131722", trHover: "#EAF1F9", shadowCol: "rgba(22,45,80,0.16)", shadowSoft: "rgba(22,45,80,0.10)",
 };
 
 const PALETA_OSCURA = {
   bg: "#090c10", sidebar: "#0d1117", surface: "#1a1f28", card: "#1a1f28", border: "#2d333d",
-  accent: "#c9a84c", accentDim: "#3a3220", accentHover: "#e8c86a",
+  accent: "#c9a84c", accentDim: "#3a3220", accentHover: "#e8c86a", accentText: "#c9a84c",
   text: "#e6e8ec", textSoft: "#b2b5be", textMuted: "#858a94",
   green: "#0ab894", greenDim: "#0899811a",
   red: "#f23645", redDim: "#f236451a",
@@ -57,6 +57,7 @@ const nombreLocal = (id) => NOMBRES_LOCALES[Number(id)] || NOMBRES_LOCALES[1];
 
 const getBaseCss = (p) => `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+:root { --acento-texto: ${p.accentText}; --wa-texto: ${p.wa}; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { margin: 0; padding: 0; width: 100%; overflow-x: hidden; }
 body { font-family: 'Inter', sans-serif; background: ${p.bg}; color: ${p.text}; min-height: 100vh; margin: 0; width: 100vw; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
@@ -108,7 +109,7 @@ body { font-family: 'Inter', sans-serif; background: ${p.bg}; color: ${p.text}; 
 .br { background: ${p.redDim}; color: ${p.red}; }
 .bb { background: ${p.blueDim}; color: ${p.blue}; }
 .bp { background: ${p.purpleDim}; color: ${p.purple}; }
-.ba { background: ${p.accentDim}; color: ${p.accentHover}; }
+.ba { background: ${p.accentDim}; color: ${p.accentText}; }
 .bw { background: ${p.waDim}; color: ${p.wa}; }
 .bx { background: ${p.bg}; color: ${p.textMuted}; border: 1px solid ${p.border}; }
 .btn { padding: 10px 20px; border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; border: none; transition: all .12s; box-shadow: none; position: relative; top: 0; }
@@ -129,8 +130,8 @@ body { font-family: 'Inter', sans-serif; background: ${p.bg}; color: ${p.text}; 
 .fl { font-size: 11px; color: ${p.textMuted}; font-weight: 600; margin-bottom: 6px; }
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; border-bottom: none; }
 .tab { padding: 6px 16px; font-size: 12px; font-weight: 600; color: ${p.textMuted}; cursor: pointer; border: 1px solid ${p.border}; border-radius: 8px; background: ${p.card}; margin-bottom: 0; transition: all .15s; }
-.tab.on { color: #fff; border-color: #3d8b5f; background: #3d8b5f; font-weight: 700; }
-.tab:hover { color: ${p.text}; border-color: #3d8b5f; }
+.tab.on { color: #fff; border-color: #2d7a4f; background: #2d7a4f; font-weight: 700; }
+.tab:hover { color: ${p.text}; border-color: #2d7a4f; }
 .tab.on:hover { color: #fff; }
 .divider { height: 1px; background: ${p.border}; margin: 14px 0; }
 .pb { height: 5px; background: ${p.bg}; border-radius: 3px; overflow: hidden; }
@@ -158,7 +159,7 @@ tr:hover td { background: ${p.trHover}; }
 .seg { display: inline-flex; background: ${p.card}; border: 1px solid ${p.border}; border-radius: 8px; padding: 3px; gap: 2px; }
 .seg button { font-family: inherit; font-size: 12px; font-weight: 600; color: ${p.textMuted}; background: transparent; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; transition: background .15s, color .15s; min-height: 30px; }
 .seg button:hover { color: ${p.text}; }
-.seg button.on { background: ${p.accentDim}; color: ${p.accent}; box-shadow: inset 0 0 0 1px ${p.accent}; }
+.seg button.on { background: ${p.accentDim}; color: ${p.accentText}; box-shadow: inset 0 0 0 1px ${p.accent}; }
 button.tab { font-family: inherit; }
 .dash-alert { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: ${p.warnDim}; border: 1px solid ${p.warn}44; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 12px; color: ${p.text}; }
 .dash-alert b { color: ${p.warn}; }
@@ -202,7 +203,7 @@ button.tab { font-family: inherit; }
 .kbd { display: inline-block; font-size: 10px; font-weight: 700; line-height: 1.4; padding: 0 5px; border: 1px solid ${p.border}; border-bottom-width: 2px; border-radius: 4px; background: ${p.card}; color: ${p.textMuted}; font-family: ui-monospace, Consolas, monospace; vertical-align: middle; }
 .chip-btn { font-family: inherit; font-size: 11px; font-weight: 600; border: 1px solid ${p.border}; background: ${p.card}; color: ${p.text}; border-radius: 999px; padding: 5px 10px; cursor: pointer; transition: border-color .15s, background .15s; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .chip-btn:hover { border-color: ${p.accent}; }
-.chip-btn.on { background: ${p.accentDim}; border-color: ${p.accent}; color: ${p.accent}; }
+.chip-btn.on { background: ${p.accentDim}; border-color: ${p.accent}; color: ${p.accentText}; }
 .pos-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; overflow-y: auto; }
 .reto-card { border: 1px dashed ${p.accent}; background: ${p.accentDim}; border-radius: 8px; padding: 10px 12px; }
 .reto-bar { height: 7px; background: ${p.border}; border-radius: 4px; overflow: hidden; }
@@ -214,7 +215,7 @@ button.tab { font-family: inherit; }
 .tip-wrap { position: relative; }
 .tip { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 40; background: ${p.card}; color: ${p.text}; border: 1px solid ${p.border}; box-shadow: 0 8px 24px ${p.shadowCol}; border-radius: 8px; padding: 10px 12px; font-size: 11px; line-height: 1.5; text-align: left; opacity: 0; visibility: hidden; transform: translateY(-4px); transition: opacity .15s ease, transform .15s ease, visibility .15s; pointer-events: none; min-width: 240px; }
 .tip-wrap:hover .tip, .tip-wrap:focus-within .tip, .tip-wrap.abierto .tip { opacity: 1; visibility: visible; transform: none; }
-.tipo-chip { display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 999px; border: 1px solid ${p.accent}; background: ${p.accentDim}; color: ${p.accent}; cursor: pointer; }
+.tipo-chip { display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 999px; border: 1px solid ${p.accent}; background: ${p.accentDim}; color: ${p.accentText}; cursor: pointer; }
 .bp-sticky { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 15; padding-top: 4px; }
 @media (max-width: 860px) { .bp-sticky { top: calc(52px + env(safe-area-inset-top, 0px)); } }
 /* --- POS: modos Catalogo, Tactil y Celular --- */
@@ -239,7 +240,7 @@ button.tab { font-family: inherit; }
 .pos-tile-var { position: absolute; top: 6px; left: 6px; font-size: 14px; }
 .pos-tile-info { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 3px; flex: 1; }
 .pos-tile-nombre { font-size: 12px; font-weight: 700; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.pos-tile-precio { font-size: 14px; font-weight: 900; color: ${p.accent}; font-variant-numeric: tabular-nums; margin-top: auto; }
+.pos-tile-precio { font-size: 14px; font-weight: 900; color: ${p.accentText}; font-variant-numeric: tabular-nums; margin-top: auto; }
 .pos-tactil .pos-tile-nombre { font-size: 14px; }
 .pos-tactil .pos-tile-precio { font-size: 17px; }
 .pos-tactil .chip-btn { font-size: 14px; padding: 12px 14px; }
@@ -279,7 +280,7 @@ button.tab { font-family: inherit; }
 .reto-res { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; border: 1px solid ${p.border}; background: ${p.card}; text-align: left; }
 .reto-res.ok { border-color: ${p.green}88; background: ${p.greenDim}; color: ${p.green}; }
 .reto-res.no { color: ${p.textMuted}; }
-.reto-res.activo { border: 1px dashed ${p.accent}; background: ${p.accentDim}; color: ${p.accent}; }
+.reto-res.activo { border: 1px dashed ${p.accent}; background: ${p.accentDim}; color: ${p.accentText}; }
 .cart-insumos { padding: 8px 12px; border-top: 1px solid ${p.border}; background: ${p.card}; text-align: left; }
 .cart-insumos-btn { width: 100%; background: ${p.purpleDim}; color: ${p.purple}; border: 1px solid ${p.purple}66; box-shadow: none; }
 .com-uso-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -328,7 +329,7 @@ button.tab { font-family: inherit; }
 .cart-acc { display: flex; flex-direction: column; gap: 0; opacity: .55; transition: opacity .15s; }
 .cart-item:hover .cart-acc, .cart-item.abierto .cart-acc, .cart-acc:focus-within { opacity: 1; }
 .icon-btn { font-family: inherit; width: 26px; height: 24px; border-radius: 8px; border: none; background: transparent; color: ${p.textMuted}; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; transition: background .12s, color .12s; }
-.icon-btn:hover, .icon-btn.on { background: ${p.accentDim}; color: ${p.accent}; }
+.icon-btn:hover, .icon-btn.on { background: ${p.accentDim}; color: ${p.accentText}; }
 .icon-btn.peligro:hover { background: ${p.redDim}; color: ${p.red}; }
 .cart-editor { grid-column: 1 / -1; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; padding: 3px 6px; margin-top: -4px; border-radius: 8px; background: ${p.bg}; border: 1px solid ${p.border}; }
 .cart-editor-sep { width: 1px; height: 16px; background: ${p.border}; margin: 0 4px; }
@@ -342,13 +343,13 @@ button.tab { font-family: inherit; }
 .pc-sec { background: ${p.card}; border: 1px solid ${p.border}; border-radius: 10px; padding: 10px 12px; text-align: left; }
 .pc-tit { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 10px; font-weight: 800; letter-spacing: .08em; color: ${p.textMuted}; margin-bottom: 8px; }
 .cli-card { display: flex; align-items: center; gap: 10px; }
-.cli-avatar { width: 38px; height: 38px; border-radius: 50%; background: ${p.accentDim}; color: ${p.accent}; font-weight: 900; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${p.accent}55; }
+.cli-avatar { width: 38px; height: 38px; border-radius: 50%; background: ${p.accentDim}; color: ${p.accentText}; font-weight: 900; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${p.accent}55; }
 .pago-tipos { display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: 6px; }
 .pago-tipo { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: inherit; border: 1px solid ${p.border}; background: ${p.bg}; color: ${p.text}; border-radius: 8px; padding: 8px 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; font-weight: 700; transition: border-color .15s, background .15s, transform .1s; }
 .pago-tipo .ic { font-size: 18px; line-height: 1; }
 .pago-tipo:hover { border-color: ${p.accent}; }
 .pago-tipo:active { transform: scale(.97); }
-.pago-tipo.on { border-color: ${p.accent}; background: ${p.accentDim}; color: ${p.accent}; box-shadow: inset 0 0 0 1px ${p.accent}; }
+.pago-tipo.on { border-color: ${p.accent}; background: ${p.accentDim}; color: ${p.accentText}; box-shadow: inset 0 0 0 1px ${p.accent}; }
 /* --- Ingreso de mercaderia --- */
 /* --- Finanzas --- */
 .fin-mes { display: inline-flex; align-items: center; gap: 4px; background: ${p.card}; border: 1px solid ${p.border}; border-radius: 8px; padding: 3px; }
@@ -387,7 +388,7 @@ button.tab { font-family: inherit; }
 .qp-urgente td:first-child { box-shadow: inset 3px 0 0 ${p.red}; }
 .qp-inp, .qp-cants input { width: 58px; height: 32px; border-radius: 8px; border: 1px solid ${p.border}; background: ${p.inpBg}; color: ${p.text}; font-family: inherit; font-size: 14px; font-weight: 800; text-align: center; outline: none; font-variant-numeric: tabular-nums; }
 .qp-inp:focus, .qp-cants input:focus { border-color: ${p.accent}; box-shadow: 0 0 0 2px ${p.accentDim}; }
-.qp-inp.con, .qp-cants input.con { border-color: ${p.accent}; background: ${p.accentDim}; color: ${p.accent}; }
+.qp-inp.con, .qp-cants input.con { border-color: ${p.accent}; background: ${p.accentDim}; color: ${p.accentText}; }
 .qp-cants { display: inline-flex; gap: 6px; }
 .qp-cants label { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 9px; color: ${p.textMuted}; font-weight: 700; max-width: 70px; }
 .qp-cants label span { max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -500,7 +501,7 @@ button.tab { font-family: inherit; }
 .ped-grupo summary::-webkit-details-marker { display: none; }
 .ped-grupo summary:hover { background: ${p.trHover}; }
 .ped-grupo[open] summary { background: ${p.bg}; }
-.ped-cuenta { min-width: 88px; text-align: right; font-weight: 800; color: ${p.accent}; font-size: 12px; }
+.ped-cuenta { min-width: 88px; text-align: right; font-weight: 800; color: ${p.accentText}; font-size: 12px; }
 .skel { background: ${p.border}; border-radius: 8px; animation: pulse 1.4s ease-in-out infinite; }
 .chip { border-radius: 6px; padding: 6px 10px; font-size: 11px; border: 1px solid ${p.border}; background: ${p.bg}; color: ${p.text}; }
 .seg button:focus-visible, button.tab:focus-visible, .btn:focus-visible { outline: 2px solid ${p.accent}; outline-offset: 2px; }
@@ -621,7 +622,7 @@ function StatusDot({ color, label }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
       <div className="pulse" style={{ width: 6, height: 6, borderRadius: "50%", background: color }} />
-      <span style={{ fontSize: 9, color: color, letterSpacing: ".12em" }}>{label}</span>
+      <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: ".12em" }}>{label}</span>
     </div>
   );
 }
@@ -1470,7 +1471,7 @@ function VentasOnline({ localId, usuario, permisosActivos, paletaActual }) {
   const fechaCorta = (f) => f ? String(f).slice(8, 10) + "/" + String(f).slice(5, 7) + "/" + String(f).slice(0, 4) : "-";
   const paso = (n, titulo, listo) => (
     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-      <span style={{ width: 22, height: 22, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, background: listo ? p.green : p.accentDim, color: listo ? "#fff" : p.accent, border: "1px solid " + (listo ? p.green : p.accent) }}>{listo ? "✓" : n}</span>
+      <span style={{ width: 22, height: 22, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, background: listo ? p.green : p.accentDim, color: listo ? "#fff" : p.accentText, border: "1px solid " + (listo ? p.green : p.accent) }}>{listo ? "✓" : n}</span>
       <span style={{ fontSize: 13, fontWeight: 800 }}>{titulo}</span>
     </div>
   );
@@ -1482,7 +1483,7 @@ function VentasOnline({ localId, usuario, permisosActivos, paletaActual }) {
           <div className="pt">Ventas Online</div>
           <div className="ps">ventas de otros canales, ya facturadas por su plataforma</div>
         </div>
-        <span className="tag" style={{ fontSize: 12, padding: "6px 12px", background: p.accentDim, color: p.accent, border: "1px solid " + p.accent }}>📍 Cargando en {nombreLocal(localId)}</span>
+        <span className="tag" style={{ fontSize: 12, padding: "6px 12px", background: p.accentDim, color: p.accentText, border: "1px solid " + p.accent }}>📍 Cargando en {nombreLocal(localId)}</span>
       </div>
 
       <div className="anim-in" style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "12px 14px", borderRadius: 8, background: p.blueDim, border: "1px solid " + p.border, marginBottom: 14, fontSize: 12, lineHeight: 1.5 }}>
@@ -1541,7 +1542,7 @@ function VentasOnline({ localId, usuario, permisosActivos, paletaActual }) {
                       onMouseEnter={e => e.currentTarget.style.background = p.trHover} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                       <span style={{ minWidth: 0 }}><b>{pr.nombre}</b> <span style={{ color: p.textMuted }}>{pr.marca || ""}</span></span>
                       <span style={{ display: "flex", gap: 8, alignItems: "center", whiteSpace: "nowrap" }}>
-                        <span style={{ fontWeight: 700, color: p.accent }}>{fmt(pr.precio || pr.price || 0)}</span>
+                        <span style={{ fontWeight: 700, color: p.accentText }}>{fmt(pr.precio || pr.price || 0)}</span>
                         <span className={"tag " + (st > 0 ? "tag-ok" : "tag-bad")}>{st} u.</span>
                       </span>
                     </div>
@@ -2206,7 +2207,7 @@ function BuscarPrecio({ localId, paletaActual, usuario }) {
                     <span style={{ display: "block", fontSize: 11, color: p.textMuted }}>{r.marca}{r.categoria ? " · " + r.categoria : ""}</span>
                   </span>
                   <span style={{ textAlign: "right", flexShrink: 0 }}>
-                    <span style={{ display: "block", fontSize: 17, fontWeight: 800, color: p.accent, fontVariantNumeric: "tabular-nums" }}>{precioTxt(parseFloat(r.precio || 0))}</span>
+                    <span style={{ display: "block", fontSize: 17, fontWeight: 800, color: p.accentText, fontVariantNumeric: "tabular-nums" }}>{precioTxt(parseFloat(r.precio || 0))}</span>
                     <span className={"tag " + (st > 0 ? "tag-ok" : "tag-bad")}>{st > 0 ? st + " u." : "sin stock"}</span>
                   </span>
                 </button>
@@ -2224,7 +2225,7 @@ function BuscarPrecio({ localId, paletaActual, usuario }) {
           <div style={{ padding: "22px 18px 18px", textAlign: "center", background: "linear-gradient(180deg, " + p.accentDim + ", transparent)" }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: p.textMuted }}>{prod.marca}</div>
             <div style={{ fontSize: 20, fontWeight: 800, margin: "6px 0 14px", lineHeight: 1.25 }}>{prod.nombre}</div>
-            <div style={{ fontSize: 46, fontWeight: 900, color: p.accent, lineHeight: 1, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
+            <div style={{ fontSize: 46, fontWeight: 900, color: p.accentText, lineHeight: 1, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
               <CountUp value={parseFloat(prod.precio || 0)} formato={precioTxt} duracion={500} />
             </div>
             {prod.categoria && <div style={{ fontSize: 11, color: p.textMuted, marginTop: 8 }}>{prod.categoria}{prod.codigo_barras ? " · " + prod.codigo_barras : ""}</div>}
@@ -2340,7 +2341,7 @@ function BuscarPrecio({ localId, paletaActual, usuario }) {
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {recientes.map(r => {
                   const pr = productos.find(x => x.id === r.id);
-                  return pr ? <button key={r.id} className="chip-btn" style={{ padding: "7px 12px" }} onClick={() => elegir(pr)}>{pr.nombre} · <span style={{ color: p.accent }}>{precioTxt(parseFloat(pr.precio || 0))}</span></button> : null;
+                  return pr ? <button key={r.id} className="chip-btn" style={{ padding: "7px 12px" }} onClick={() => elegir(pr)}>{pr.nombre} · <span style={{ color: p.accentText }}>{precioTxt(parseFloat(pr.precio || 0))}</span></button> : null;
                 })}
               </div>
             </div>
@@ -3698,7 +3699,7 @@ function POS({ localId, usuario, paletaActual }) {
                         <div style={{ fontSize: 11, fontWeight: 600, color: temaPal.text }}>{p.nombre || p.name}</div>
                         <div style={{ fontSize: 9, color: temaPal.textMuted }}>{p.marca || p.brand || ""}</div>
                       </td>
-                      <td style={{ padding: "4px 8px", textAlign: "right", fontSize: 12, fontWeight: 700, color: "#c9a84c" }}>{fmt((p.precio || p.price || 0))}</td>
+                      <td style={{ padding: "4px 8px", textAlign: "right", fontSize: 12, fontWeight: 700, color: "var(--acento-texto)" }}>{fmt((p.precio || p.price || 0))}</td>
                       <td style={{ padding: "4px 8px", textAlign: "center" }}>
                         <span className={"badge " + (sinStock ? "br" : "bg")} style={{ fontSize: 9 }}>{disp}u</span>
                       </td>
@@ -3877,11 +3878,11 @@ function POS({ localId, usuario, paletaActual }) {
           )}
           {sugerenciasProductos.length > 0 && (
             <div className="anim-in" style={{ padding: "8px 12px", borderTop: "1px solid " + temaPal.border, background: temaPal.card }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: temaPal.accent, letterSpacing: ".06em", marginBottom: 4 }}>✨ SUELEN LLEVAR TAMBIÉN</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: temaPal.accentText, letterSpacing: ".06em", marginBottom: 4 }}>✨ SUELEN LLEVAR TAMBIÉN</div>
               <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
                 {sugerenciasProductos.map(pr => (
                   <button key={pr.id} className="chip-btn" onClick={() => accionProducto(pr)} title={"Agregar " + (pr.nombre || "")} style={{ flexShrink: 0, maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis" }}>
-                    + {pr.nombre || pr.name} · <span style={{ color: temaPal.accent }}>{fmt(pr.precio || pr.price || 0)}</span>
+                    + {pr.nombre || pr.name} · <span style={{ color: temaPal.accentText }}>{fmt(pr.precio || pr.price || 0)}</span>
                   </button>
                 ))}
               </div>
@@ -4176,7 +4177,7 @@ function POS({ localId, usuario, paletaActual }) {
           </div>
           <div className="pc-sec" style={{ marginBottom: 0 }}>
             {promoCalc.avisos.length > 0 && (
-              <div style={{ background: "#2d7a4f", border: "2px solid #1e5637", borderRadius: 8, padding: "12px 14px", marginBottom: 8, fontSize: 13, color: temaPal.card, fontWeight: 700, boxShadow: "0 2px 8px rgba(45,122,79,0.4)" }}>
+              <div style={{ background: "#2d7a4f", border: "2px solid #1e5637", borderRadius: 8, padding: "12px 14px", marginBottom: 8, fontSize: 13, color: "#fff", fontWeight: 700, boxShadow: "0 2px 8px rgba(45,122,79,0.4)" }}>
                 {promoCalc.avisos.map((a, k) => {
                   const prod = productos.find(p => p.id === parseInt(a.productoId));
                   return <div key={k} style={{ marginBottom: 4 }}>🎁 Ofrecele: {a.valor}% OFF en {prod ? (prod.nombre || prod.name) : "producto"} ({a.promo})</div>;
@@ -4276,7 +4277,7 @@ function POS({ localId, usuario, paletaActual }) {
         return (
           <button key={x.id} onClick={() => { accionProducto(x); setBusqueda(""); }} style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "12px 14px", background: "transparent", border: "none", borderBottom: "1px solid " + temaPal.border, color: temaPal.text, fontFamily: "inherit", textAlign: "left", cursor: "pointer", minHeight: 54 }}>
             <span style={{ minWidth: 0 }}><b style={{ fontSize: 14 }}>{x.nombre || x.name}</b><div style={{ fontSize: 11, color: temaPal.textMuted }}>{x.marca || ""}</div></span>
-            <span style={{ textAlign: "right", whiteSpace: "nowrap" }}><b style={{ color: temaPal.accent }}>{fmt(x.precio || x.price || 0).replace(",00", "")}</b><div><span className={"tag " + (disp > 0 ? "tag-ok" : "tag-bad")}>{disp} u.</span></div></span>
+            <span style={{ textAlign: "right", whiteSpace: "nowrap" }}><b style={{ color: temaPal.accentText }}>{fmt(x.precio || x.price || 0).replace(",00", "")}</b><div><span className={"tag " + (disp > 0 ? "tag-ok" : "tag-bad")}>{disp} u.</span></div></span>
           </button>
         );
       })}
@@ -4302,7 +4303,7 @@ function POS({ localId, usuario, paletaActual }) {
           </div>
           <div className="sw-wrap" onClick={() => { setPreventa(!preventa || tipoReserva !== "sena"); setTipoReserva("sena"); setMensaje(""); }}>
             <div className={"sw " + (preventa && tipoReserva === "sena" ? "on" : "off")}><div className="sw-dot" /></div>
-            <span style={{ fontSize: 11, color: preventa && tipoReserva === "sena" ? "#c9a84c" : temaPal.textMuted }}>Señar</span>
+            <span style={{ fontSize: 11, color: preventa && tipoReserva === "sena" ? "var(--acento-texto)" : temaPal.textMuted }}>Señar</span>
           </div>
           <button className="btn btn-g btn-sm" title={sonidoOn ? "Silenciar el sonido al escanear" : "Activar sonido al escanear"} aria-pressed={sonidoOn}
             onClick={() => { const v = !sonidoOn; setSonidoOn(v); try { localStorage.setItem("lumiere_pos_sonido", v ? "on" : "off"); } catch (e) {} }}>
@@ -4416,7 +4417,7 @@ function POS({ localId, usuario, paletaActual }) {
                 </div>
               )}
               {reto && !preventa && (
-                <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6, color: vendidoReto > reto.meta ? temaPal.green : temaPal.accent }}>
+                <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6, color: vendidoReto > reto.meta ? temaPal.green : temaPal.accentText }}>
                   {vendidoReto > reto.meta ? "🏆 ¡Desafío superado!" : "🎯 Desafío: faltan " + fmt(Math.round(reto.meta - vendidoReto + 1)).replace(",00", "")}
                 </div>
               )}
@@ -4515,7 +4516,7 @@ function POS({ localId, usuario, paletaActual }) {
               </div>
               {ideas.length > 0 && (
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: temaPal.accent, letterSpacing: ".08em", marginBottom: 6 }}>IDEAS PARA VENDER</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: temaPal.accentText, letterSpacing: ".08em", marginBottom: 6 }}>IDEAS PARA VENDER</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {ideas.map((idea, k) => {
                       const pr = idea.productoId ? prodPorId[idea.productoId] : null;
@@ -4611,7 +4612,7 @@ function POS({ localId, usuario, paletaActual }) {
             {ventaConfirmada.reto && (ventaConfirmada.reto.logrado ? (
               <div className="pop-in" style={{ margin: "12px 0", padding: "12px 14px", borderRadius: 10, background: temaPal.accentDim, border: "1px solid " + temaPal.accent, animationDelay: "200ms" }}>
                 <div className="trofeo" style={{ fontSize: 40, animationDelay: "250ms" }} aria-hidden="true">🏆</div>
-                <div style={{ fontSize: 17, fontWeight: 900, color: temaPal.accent, marginTop: 2 }}>¡Desafío superado!</div>
+                <div style={{ fontSize: 17, fontWeight: 900, color: temaPal.accentText, marginTop: 2 }}>¡Desafío superado!</div>
                 <div style={{ fontSize: 12, color: temaPal.text, marginTop: 4 }}>
                   Vendiste {fmt(Math.round(ventaConfirmada.reto.vendido - ventaConfirmada.reto.meta)).replace(",00", "")} más que el ticket promedio de {ventaConfirmada.reto.cliente}. ¡Excelente!
                 </div>
@@ -5103,7 +5104,7 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
           ) : !sug ? null : (
             <>
               <div className="kpi-grid" style={{ opacity: cargandoSug ? 0.6 : 1 }}>
-                <KpiCard p={p} titulo="Productos a pedir" valor={enPedido.length} color={p.accent} indice={0} sub={"de " + productos.length + " del proveedor"} />
+                <KpiCard p={p} titulo="Productos a pedir" valor={enPedido.length} color={p.accentText} indice={0} sub={"de " + productos.length + " del proveedor"} />
                 <KpiCard p={p} titulo="Unidades" valor={unidades} color="#2471a3" indice={1} sub={"para " + diasCobertura + " días"} />
                 <KpiCard p={p} titulo="Costo estimado" valor={costoTotal} formato={fmt} color={p.red} indice={2} sub="al costo cargado" />
                 <KpiCard p={p} titulo="Urgentes" valor={urgentes} color={urgentes > 0 ? p.red : p.green} indice={3} sub={urgentes > 0 ? "ya pasaron el punto de pedido" : "ninguno por debajo"} />
@@ -5155,7 +5156,7 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
                                   {pr.tiene_variantes && <span className="tag tag-neutral" title="El stock incluye todas sus variantes">{pr.cantidad_variantes} variantes</span>}
                                   {pr.dias_venta < sug.dias_analisis && <span className="tag tag-neutral" title={"Producto nuevo: se midió sobre " + pr.dias_venta + " días"}>nuevo</span>}
                                 </div>
-                                {hint && <div style={{ fontSize: 10, color: p.accent, marginTop: 3 }}>💡 {nombreLocal(hint.de)} tiene {hint.n} de sobra: podés traspasarlas a {nombreLocal(hint.a)}</div>}
+                                {hint && <div style={{ fontSize: 10, color: p.accentText, marginTop: 3 }}>💡 {nombreLocal(hint.de)} tiene {hint.n} de sobra: podés traspasarlas a {nombreLocal(hint.a)}</div>}
                               </td>
                               <td style={{ textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
                                 <b>{d.stock}</b>
@@ -5386,7 +5387,7 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
                   <div key={r.proveedor_id}>
                     <div onClick={() => abrirDetalleCompras(r.proveedor_id)} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid " + temaPal.border, cursor: "pointer" }}>
                       <span style={{ fontSize: 13 }}>{expandido ? "▾" : "▸"} {r.proveedor_nombre} <span style={{ color: temaPal.textMuted, fontSize: 11 }}>({r.cantidad_ordenes} factura{r.cantidad_ordenes != 1 ? "s" : ""})</span></span>
-                      <span style={{ fontWeight: 700, color: "#c9a84c" }}>{fmt(parseFloat(r.total_comprado))}</span>
+                      <span style={{ fontWeight: 700, color: "var(--acento-texto)" }}>{fmt(parseFloat(r.total_comprado))}</span>
                     </div>
                     {expandido && (
                       <div style={{ padding: "6px 0 10px 16px" }}>
@@ -5915,7 +5916,7 @@ function Inventario({ localId, usuario, paletaActual }) {
                   <div className="fg">
                     <div className="fl" style={{ display: "flex", justifyContent: "space-between" }}>
                       <span>Precio *</span>
-                      <span onClick={() => { setShowCalc(true); setCalcValores({ costo: nuevo.costo || "" }); setCalcResultado(null); cargarCalculadoras(); }} style={{ color: temaPal.accent, cursor: "pointer", fontWeight: 700 }} title="Calcular el precio con una de tus calculadoras">🧮</span>
+                      <span onClick={() => { setShowCalc(true); setCalcValores({ costo: nuevo.costo || "" }); setCalcResultado(null); cargarCalculadoras(); }} style={{ color: temaPal.accentText, cursor: "pointer", fontWeight: 700 }} title="Calcular el precio con una de tus calculadoras">🧮</span>
                     </div>
                     <input className="inp" type="number" placeholder="2500" value={nuevo.precio} onChange={e => setNuevo(p => ({ ...p, precio: e.target.value }))} />
                   </div>
@@ -5980,7 +5981,7 @@ function Inventario({ localId, usuario, paletaActual }) {
         <>
           <div className="kpi-grid-sm" style={{ marginBottom: 12 }}>
             {[
-              { l: "Productos", v: kpiInv.productos, sub: "activos", c: temaPal.accent, f: "" },
+              { l: "Productos", v: kpiInv.productos, sub: "activos", c: temaPal.accentText, f: "" },
               { l: "Unidades", v: kpiInv.unidades, sub: "en " + vistaNombre, c: "#2471a3", f: "" },
               { l: "Valor a costo", v: fmt(Math.round(kpiInv.valorCosto)).replace(",00", ""), sub: "mercadería", c: temaPal.green, f: null },
               { l: "Stock bajo", v: kpiInv.bajo, sub: "tocá para ver", c: temaPal.warn, f: "bajo" },
@@ -6066,7 +6067,7 @@ function Inventario({ localId, usuario, paletaActual }) {
                           </td>
                           <td style={{ fontSize: 11, color: temaPal.textMuted }}>{p.categoria || "—"}</td>
                           <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                            <div style={{ fontWeight: 700, color: temaPal.accent, fontVariantNumeric: "tabular-nums" }}>{fmt(parseFloat(p.precio || 0))}</div>
+                            <div style={{ fontWeight: 700, color: temaPal.accentText, fontVariantNumeric: "tabular-nums" }}>{fmt(parseFloat(p.precio || 0))}</div>
                             <div style={{ fontSize: 10, color: temaPal.textMuted, fontVariantNumeric: "tabular-nums" }}>{parseFloat(p.costo || 0) > 0 ? "costo " + fmt(parseFloat(p.costo)) : "sin costo"}</div>
                           </td>
                           <td style={{ textAlign: "center" }}>{mg === null ? <span style={{ color: temaPal.textMuted }}>—</span> : <span className={"tag " + (mg >= 40 ? "tag-ok" : mg >= 20 ? "tag-warn" : "tag-bad")}>{mg}%</span>}</td>
@@ -6141,7 +6142,7 @@ function Inventario({ localId, usuario, paletaActual }) {
             </div>
             <div className="kpi-grid kpi-3">
               <div className="kpi" style={{ borderTop: "3px solid #2471a3" }}><div className="kpi-label">Mercadería a costo</div><div className="kpi-val" style={{ color: "#2471a3" }}><CountUp value={totalCosto} formato={v => fmt(Math.round(v)).replace(",00", "")} /></div><div className="kpi-sub">{filas.length} productos con stock</div></div>
-              <div className="kpi" style={{ borderTop: "3px solid " + temaPal.accent }}><div className="kpi-label">Si se vendiera todo</div><div className="kpi-val" style={{ color: temaPal.accent }}><CountUp value={totalVenta} formato={v => fmt(Math.round(v)).replace(",00", "")} /></div><div className="kpi-sub">a precio de lista</div></div>
+              <div className="kpi" style={{ borderTop: "3px solid " + temaPal.accent }}><div className="kpi-label">Si se vendiera todo</div><div className="kpi-val" style={{ color: temaPal.accentText }}><CountUp value={totalVenta} formato={v => fmt(Math.round(v)).replace(",00", "")} /></div><div className="kpi-sub">a precio de lista</div></div>
               <div className="kpi" style={{ borderTop: "3px solid " + temaPal.green }}><div className="kpi-label">Ganancia potencial</div><div className="kpi-val" style={{ color: temaPal.green }}><CountUp value={gananciaPotencial} formato={v => fmt(Math.round(v)).replace(",00", "")} /></div><div className="kpi-sub">{margenPct.toFixed(1)}% de margen</div></div>
             </div>
             {sinCosto > 0 && <div style={{ fontSize: 12, color: temaPal.warn, margin: "0 0 12px" }}>⚠ {sinCosto} producto{sinCosto > 1 ? "s" : ""} con stock no tiene{sinCosto > 1 ? "n" : ""} costo cargado: el valor a costo está subestimado.</div>}
@@ -6170,7 +6171,7 @@ function Inventario({ localId, usuario, paletaActual }) {
                         <td style={{ textAlign: "right", fontSize: 11 }}>{parseFloat(f.costo) > 0 ? fmt(parseFloat(f.costo)) : <span style={{ color: temaPal.warn }}>sin costo</span>}</td>
                         <td style={{ textAlign: "right", fontSize: 11 }}>{fmt(parseFloat(f.precio) || 0)}</td>
                         <td style={{ textAlign: "right", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{fmt(f.valorCosto)}</td>
-                        <td style={{ textAlign: "right", color: temaPal.accent, fontVariantNumeric: "tabular-nums" }}>{fmt(f.valorVenta)}</td>
+                        <td style={{ textAlign: "right", color: temaPal.accentText, fontVariantNumeric: "tabular-nums" }}>{fmt(f.valorVenta)}</td>
                       </tr>
                     ))}
                     {filas.length === 0 && <tr><td colSpan={7} style={{ color: temaPal.textMuted, textAlign: "center" }}>Sin productos con stock para este filtro</td></tr>}
@@ -6347,7 +6348,7 @@ function Inventario({ localId, usuario, paletaActual }) {
                   {prodTraspaso ? (
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: temaPal.bg, borderRadius: 6 }}>
                       <span style={{ fontSize: 12 }}>{prodTraspaso.nombre} <span style={{ color: temaPal.textMuted }}>(stock actual: {Number(localId) === 2 ? prodTraspaso.stock_ush : prodTraspaso.stock_rg})</span></span>
-                      <span onClick={() => setProdTraspaso(null)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 11 }}>cambiar</span>
+                      <span onClick={() => setProdTraspaso(null)} style={{ cursor: "pointer", color: "var(--acento-texto)", fontSize: 11 }}>cambiar</span>
                     </div>
                   ) : (
                     <div>
@@ -6404,7 +6405,7 @@ function Inventario({ localId, usuario, paletaActual }) {
             <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
               {calculadoras.map(c => (
                 <button key={c.id} onClick={() => { setCalcSel(c); setCalcValores({ costo: nuevo.costo || "" }); setCalcResultado(null); }}
-                  style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid", borderColor: calcSel?.id === c.id ? "#c9a84c" : temaPal.border, background: calcSel?.id === c.id ? "#c9a84c12" : "transparent", color: calcSel?.id === c.id ? "#c9a84c" : temaPal.textMuted, fontSize: 11, fontWeight: calcSel?.id === c.id ? 600 : 400, cursor: "pointer" }}>
+                  style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid", borderColor: calcSel?.id === c.id ? "#c9a84c" : temaPal.border, background: calcSel?.id === c.id ? "#c9a84c12" : "transparent", color: calcSel?.id === c.id ? "var(--acento-texto)" : temaPal.textMuted, fontSize: 11, fontWeight: calcSel?.id === c.id ? 600 : 400, cursor: "pointer" }}>
                   {c.nombre}
                 </button>
               ))}
@@ -6755,7 +6756,7 @@ function Clientes({ usuario, paletaActual }) {
         </div>
       )}
       <div className="g3">
-        {[{ t: "Platinum", n: platinum, c: "#7d3c98" }, { t: "Gold", n: gold, c: "#c9a84c" }, { t: "Silver", n: silver, c: "#2471a3" }].map(t => (
+        {[{ t: "Platinum", n: platinum, c: "#7d3c98" }, { t: "Gold", n: gold, c: "var(--acento-texto)" }, { t: "Silver", n: silver, c: "#2471a3" }].map(t => (
           <div key={t.t} className="card" style={{ borderTop: "2px solid " + t.c }}>
             <div className="ct">{t.t}</div>
             <div className="metric" style={{ color: t.c, fontSize: 26 }}>{t.n}</div>
@@ -6788,7 +6789,7 @@ function Clientes({ usuario, paletaActual }) {
                     <td>{fmt((c.total_compras || c.total || 0))}</td>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                        <span style={{ fontFamily: "'Inter',sans-serif", fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>{fmtNum(puntos)}</span>
+                        <span style={{ fontFamily: "'Inter',sans-serif", fontSize: 18, fontWeight: 700, color: "var(--acento-texto)" }}>{fmtNum(puntos)}</span>
                         <div style={{ width: 40 }}><div className="pb"><div className="pf" style={{ width: pct + "%", background: "#c9a84c" }} /></div></div>
                       </div>
                     </td>
@@ -6796,7 +6797,7 @@ function Clientes({ usuario, paletaActual }) {
                     <td>
                       <button className="btn btn-sm" style={{ fontSize: 10, marginRight: 4 }} onClick={() => abrirEditarCliente(c)}>Editar</button>
                       <button className="btn btn-sm" style={{ fontSize: 10, marginRight: 4 }} onClick={() => resetearPortalCliente(c)}>Resetear clave</button>
-                      <button className="btn btn-sm" style={{ fontSize: 10, background: "#c9a84c", color: p.card }} onClick={() => abrirMigrar(c)}>Migrar puntos</button>
+                      <button className="btn btn-sm" style={{ fontSize: 10, background: "#c9a84c", color: "#1B2431" }} onClick={() => abrirMigrar(c)}>Migrar puntos</button>
                       {usuario?.rol === "jefe" && <button className="btn btn-sm" style={{ fontSize: 10, marginLeft: 4, color: "#c0392b" }} onClick={() => eliminarCliente(c)}>Eliminar</button>}
                     </td>
                   </tr>
@@ -6810,9 +6811,9 @@ function Clientes({ usuario, paletaActual }) {
       {tab === "niveles" && (
         <div className="g2 fade">
           {[
-            { tier: "Bronze", min: 0, max: 1999, c: "#c9a84c", perks: ["1 pt cada $100", "Cupon bienvenida"] },
+            { tier: "Bronze", min: 0, max: 1999, c: "var(--acento-texto)", perks: ["1 pt cada $100", "Cupon bienvenida"] },
             { tier: "Silver", min: 2000, max: 4999, c: "#2471a3", perks: ["1.2 pts cada $100", "Acceso preventas", "Envio gratis +$5k"] },
-            { tier: "Gold", min: 5000, max: 9999, c: "#c9a84c", perks: ["1.5 pts cada $100", "5% descuento exclusivo", "Regalo de cumpleanos"] },
+            { tier: "Gold", min: 5000, max: 9999, c: "var(--acento-texto)", perks: ["1.5 pts cada $100", "5% descuento exclusivo", "Regalo de cumpleanos"] },
             { tier: "Platinum", min: 10000, max: 19999, c: "#7d3c98", perks: ["2 pts cada $100", "10% descuento", "Envio gratis siempre", "Lanzamientos anticipados"] },
             { tier: "Black", min: 20000, max: null, c: p.text, perks: ["2.5 pts cada $100", "15% descuento", "Envio gratis siempre", "Atencion VIP", "Regalos exclusivos"] },
           ].map(n => (
@@ -6847,7 +6848,7 @@ function Clientes({ usuario, paletaActual }) {
                 {migMsg.startsWith("DUP:") ? migMsg.slice(4) : migMsg}
                 {migMsg.startsWith("DUP:") && (
                   <div style={{ marginTop: 8 }}>
-                    <button className="btn btn-sm" style={{ background: "#c0392b", color: p.card, marginRight: 6 }} onClick={() => guardarMigracion(true)}>Cargar igual</button>
+                    <button className="btn btn-sm" style={{ background: "#c0392b", color: "#fff", marginRight: 6 }} onClick={() => guardarMigracion(true)}>Cargar igual</button>
                     <button className="btn btn-sm" onClick={() => setMigMsg("")}>Cancelar</button>
                   </div>
                 )}
@@ -6891,6 +6892,9 @@ function Clientes({ usuario, paletaActual }) {
 const MESES_NOMBRE = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 // Fecha local (no UTC): toISOString daba el dia siguiente despues de las 21 hs
 const isoLocal = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+// En el tema claro algunos colores de grupo no se leen sobre el fondo: se usa una version mas oscura para el texto
+const COLOR_TEXTO_CLARO = { "#e67e22": "#A0500C", "#b7950b": "#7A6206", "#2471a3": "#1D5F8A" };
+const colorTexto = (p, c) => (p.bg === PALETA_CLARA.bg ? COLOR_TEXTO_CLARO[c] || c : c);
 const GRUPOS_EGRESO = [
   { k: "variables", l: "Costos variables", c: "#e67e22", ayuda: "mercadería, envíos, gastos del día a día" },
   { k: "fijos", l: "Costos fijos", c: "#2471a3", ayuda: "alquiler, servicios, seguros" },
@@ -7203,7 +7207,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
               sub={ing > 0 ? Math.round(pctDe(egr, ing)) + "% de lo que entró" : "sin ingresos"} />
             <KpiCard p={p} titulo="Resultado neto" valor={neto} formato={fmt} color={neto >= 0 ? p.green : p.red} indice={2}
               sub={neto >= 0 ? "ganancia del mes" : "pérdida del mes"} />
-            <KpiCard p={p} titulo="Margen neto" valor={margenNeto.toFixed(1) + "%"} color={p.accent} indice={3}
+            <KpiCard p={p} titulo="Margen neto" valor={margenNeto.toFixed(1) + "%"} color={p.accentText} indice={3}
               tag={analisis ? <span className="tag" style={{ background: analisis.color + "22", color: analisis.color }}>{analisis.calificacion}</span> : null}
               sub="lo que queda de cada $100" />
           </>
@@ -7541,10 +7545,10 @@ function Finanzas({ localId, usuario, paletaActual }) {
                 return (
                   <div key={sec.k} className="fin-sec">
                     <div className="fin-sec-head" style={{ borderLeftColor: sec.c }}>
-                      <span style={{ color: sec.c }}>{sec.l}</span>
+                      <span style={{ color: colorTexto(p, sec.c) }}>{sec.l}</span>
                       <span style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
                         {sec.k !== "ingresos" && ing > 0 && <span style={{ fontSize: 11, color: p.textMuted, fontWeight: 600 }}>{pctDe(d.total, ing).toFixed(1)}%</span>}
-                        <b style={{ color: sec.c }}>{sec.signo}{fmt(d.total)}</b>
+                        <b style={{ color: colorTexto(p, sec.c) }}>{sec.signo}{fmt(d.total)}</b>
                       </span>
                     </div>
                     {Object.entries(d.detalle || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
@@ -7626,7 +7630,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
               <button className="chip-btn" onClick={() => presetComparar("semana")}>Últimos 7 días vs 7 anteriores</button>
             </div>
             <div className="fin-grid2">
-              {[["A comparar", comp1Desde, setComp1Desde, comp1Hasta, setComp1Hasta, p.accent], ["Contra", comp2Desde, setComp2Desde, comp2Hasta, setComp2Hasta, p.textMuted]].map(([l, d, sd, h, sh, c]) => (
+              {[["A comparar", comp1Desde, setComp1Desde, comp1Hasta, setComp1Hasta, p.accentText], ["Contra", comp2Desde, setComp2Desde, comp2Hasta, setComp2Hasta, p.textMuted]].map(([l, d, sd, h, sh, c]) => (
                 <div key={l}>
                   <div className="fl" style={{ color: c }}>{l}</div>
                   <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -7686,7 +7690,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
                         <div key={m.id} className="cc-linea" style={{ alignItems: "flex-start" }}>
                           <span style={{ minWidth: 0 }}>
                             <span style={{ display: "block", fontWeight: 600, color: p.text }}>{m.concepto}</span>
-                            <span style={{ fontSize: 11, color: p.textMuted }}>{m.categoria_nombre || "Sin categoría"} · {fmtDiaCorto(m.fecha)}{m.local_id === null && <> · <b style={{ color: p.accent }}>{Math.round(m.pct_local1 ?? repartoDefault)}/{100 - Math.round(m.pct_local1 ?? repartoDefault)}</b></>}</span>
+                            <span style={{ fontSize: 11, color: p.textMuted }}>{m.categoria_nombre || "Sin categoría"} · {fmtDiaCorto(m.fecha)}{m.local_id === null && <> · <b style={{ color: p.accentText }}>{Math.round(m.pct_local1 ?? repartoDefault)}/{100 - Math.round(m.pct_local1 ?? repartoDefault)}</b></>}</span>
                           </span>
                           <b style={{ whiteSpace: "nowrap" }}>{fmt(parseFloat(m.importe))}</b>
                         </div>
@@ -7715,7 +7719,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
                   <div className="empty">{e.costos_fijos <= 0 ? "Cargá los costos fijos del mes (alquiler, sueldos, servicios) para calcularlo." : "Falta el costo de los productos para calcular el margen."}</div>
                 ) : (
                   <>
-                    <div style={{ fontSize: 40, fontWeight: 800, color: p.accent, fontVariantNumeric: "tabular-nums", lineHeight: 1.1 }}><CountUp value={pe} formato={fmt} /></div>
+                    <div style={{ fontSize: 40, fontWeight: 800, color: p.accentText, fontVariantNumeric: "tabular-nums", lineHeight: 1.1 }}><CountUp value={pe} formato={fmt} /></div>
                     <div style={{ fontSize: 12, color: p.textMuted, marginTop: 4 }}>ventas mínimas del mes para cubrir todos los costos fijos</div>
                     <div className="fin-meta">
                       <div className="fin-meta-fill" style={{ width: avance + "%", background: e.superado ? p.green : p.accent }} />
@@ -7723,7 +7727,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginTop: 6 }}>
                       <span>Vendido: <b style={{ color: e.superado ? p.green : p.text }}>{fmt(e.ventas_actuales)}</b></span>
-                      <b style={{ color: e.superado ? p.green : p.accent }}>{Math.round(avance)}%</b>
+                      <b style={{ color: e.superado ? p.green : p.accentText }}>{Math.round(avance)}%</b>
                     </div>
                     <div className={"cc-dif " + (e.superado ? "ok" : "sobra")} style={{ marginTop: 14 }}>
                       <div style={{ fontSize: 13, fontWeight: 700 }}>
@@ -7996,7 +8000,7 @@ function Cupones({ localId, usuario, paletaActual }) {
       {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
       <div className="g4" style={{ marginBottom: 16 }}>
         <MCard label="Activos" value={String(cuponsAMostrar.filter(c => c.activo || c.active).length)} color="#2d7a4f" />
-        <MCard label="Usos totales" value={String(cuponsAMostrar.reduce((s, c) => s + (c.usos || c.uses || 0), 0))} color="#c9a84c" />
+        <MCard label="Usos totales" value={String(cuponsAMostrar.reduce((s, c) => s + (c.usos || c.uses || 0), 0))} color="var(--acento-texto)" />
         <MCard label="Influencers" value={String(influencers.filter(i => i.activo).length)} color="#2471a3" />
         <MCard label="Total cupones" value={String(cuponsAMostrar.length)} />
       </div>
@@ -8012,7 +8016,7 @@ function Cupones({ localId, usuario, paletaActual }) {
             <tbody>
               {cuponsAMostrar.map(c => (
                 <tr key={c.id}>
-                  <td style={{ color: "#c9a84c", letterSpacing: ".06em", fontWeight: 600 }}>{c.codigo || c.code}</td>
+                  <td style={{ color: "var(--acento-texto)", letterSpacing: ".06em", fontWeight: 600 }}>{c.codigo || c.code}</td>
                   <td>{c.descripcion || c.desc}</td>
                   <td>{(c.tipo || c.type) === "%" ? (c.valor || c.value) + "%" : fmt((c.valor || c.value || 0))}</td>
                   <td><span className="badge bb">{c.canal || c.channel}</span></td>
@@ -8040,11 +8044,11 @@ function Cupones({ localId, usuario, paletaActual }) {
           <div className="card">
             <div className="ct">Vista previa</div>
             <div style={{ background: temaPal.bg, borderRadius: 7, padding: 20, border: "2px dashed #272220", textAlign: "center", marginBottom: 14 }}>
-              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 28, fontWeight: 700, color: "#c9a84c", letterSpacing: ".1em" }}>{nc.code || "CODIGO"}</div>
+              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 28, fontWeight: 700, color: "var(--acento-texto)", letterSpacing: ".1em" }}>{nc.code || "CODIGO"}</div>
               <div style={{ fontSize: 13, color: temaPal.textMuted, marginTop: 6 }}>{nc.value ? (nc.type === "%" ? nc.value + "% de descuento" : fmt(parseInt(nc.value || "0")) + " de descuento") : "Descuento"}</div>
             </div>
             {["Codigos cortos y memorables convierten mas", "Inclui el canal: INSTA20, TIKTOK15", "Limite de usos genera urgencia", "Codigos de influencer = seguimiento exacto"].map((t, i) => (
-              <div key={i} style={{ display: "flex", gap: 7, marginBottom: 7, fontSize: 11, color: temaPal.text }}><span style={{ color: "#c9a84c" }}>-</span>{t}</div>
+              <div key={i} style={{ display: "flex", gap: 7, marginBottom: 7, fontSize: 11, color: temaPal.text }}><span style={{ color: "var(--acento-texto)" }}>-</span>{t}</div>
             ))}
           </div>
         </div>
@@ -8060,7 +8064,7 @@ function Cupones({ localId, usuario, paletaActual }) {
                   <tr key={inf.id}>
                     <td style={{ color: temaPal.text, fontWeight: 600 }}>{inf.nombre}{inf.instagram ? <div style={{ fontSize: 10, color: temaPal.textMuted }}>@{inf.instagram}</div> : null}</td>
                     <td><span className="badge bb">{niv.emoji} {niv.label} ({inf.comision_pct}%)</span></td>
-                    <td style={{ color: "#c9a84c" }}>{inf.cupon_codigo || "-"}</td>
+                    <td style={{ color: "var(--acento-texto)" }}>{inf.cupon_codigo || "-"}</td>
                     <td>{fmt(parseFloat(inf.total_vendido || 0))}</td>
                     <td style={{ color: "#2d7a4f", fontWeight: 600 }}>{fmt(parseFloat(inf.comision_generada || 0))}</td>
                     <td>{fmt(parseFloat(inf.total_pagado || 0))}</td>
@@ -8069,7 +8073,7 @@ function Cupones({ localId, usuario, paletaActual }) {
                     <td style={{ whiteSpace: "nowrap" }}>
                       <span onClick={() => abrirEditarInf(inf)} style={{ cursor: "pointer", color: temaPal.textMuted, fontSize: 11, marginRight: 8 }}>editar</span>
                       {inf.cupon_id && <span onClick={() => abrirEditarCupon(inf)} style={{ cursor: "pointer", color: "#2471a3", fontSize: 11, marginRight: 8 }}>editar cupón</span>}
-                      <span onClick={() => setPagandoInf(inf)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 11, marginRight: 8 }}>Registrar pago</span>
+                      <span onClick={() => setPagandoInf(inf)} style={{ cursor: "pointer", color: "var(--acento-texto)", fontSize: 11, marginRight: 8 }}>Registrar pago</span>
                       <span onClick={() => abrirRegalo(inf)} style={{ cursor: "pointer", color: "#7d3c98", fontSize: 11 }}>+ Regalo</span>
                     </td>
                   </tr>
@@ -8118,7 +8122,7 @@ function Cupones({ localId, usuario, paletaActual }) {
                     <td>
                       <span className="badge" style={{
                         background: r.estado === "entregado" ? "#2d7a4f15" : r.estado === "cancelado" ? "#c0392b15" : "#c9a84c15",
-                        color: r.estado === "entregado" ? "#2d7a4f" : r.estado === "cancelado" ? "#c0392b" : "#c9a84c"
+                        color: r.estado === "entregado" ? "#2d7a4f" : r.estado === "cancelado" ? "#c0392b" : "var(--acento-texto)"
                       }}>{r.estado}</span>
                     </td>
                     <td>{r.estado === "pendiente" && <span onClick={() => cancelarRegalo(r)} style={{ cursor: "pointer", color: "#c0392b", fontSize: 11 }}>cancelar</span>}</td>
@@ -8147,8 +8151,8 @@ function Cupones({ localId, usuario, paletaActual }) {
             <div className="fg">
               <div className="fl">Cupon</div>
               <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
-                <button type="button" onClick={() => setNuevoInf(p => ({ ...p, cuponModo: "nuevo" }))} style={{ flex: 1, fontSize: 11, padding: "6px", border: "1px solid " + (nuevoInf.cuponModo === "nuevo" ? "#c9a84c" : temaPal.border), borderRadius: 4, background: nuevoInf.cuponModo === "nuevo" ? "#c9a84c15" : temaPal.card, color: nuevoInf.cuponModo === "nuevo" ? "#c9a84c" : temaPal.textMuted, cursor: "pointer" }}>Crear cupon nuevo</button>
-                <button type="button" onClick={() => setNuevoInf(p => ({ ...p, cuponModo: "existente" }))} style={{ flex: 1, fontSize: 11, padding: "6px", border: "1px solid " + (nuevoInf.cuponModo === "existente" ? "#c9a84c" : temaPal.border), borderRadius: 4, background: nuevoInf.cuponModo === "existente" ? "#c9a84c15" : temaPal.card, color: nuevoInf.cuponModo === "existente" ? "#c9a84c" : temaPal.textMuted, cursor: "pointer" }}>Usar cupon existente</button>
+                <button type="button" onClick={() => setNuevoInf(p => ({ ...p, cuponModo: "nuevo" }))} style={{ flex: 1, fontSize: 11, padding: "6px", border: "1px solid " + (nuevoInf.cuponModo === "nuevo" ? "#c9a84c" : temaPal.border), borderRadius: 4, background: nuevoInf.cuponModo === "nuevo" ? "#c9a84c15" : temaPal.card, color: nuevoInf.cuponModo === "nuevo" ? "var(--acento-texto)" : temaPal.textMuted, cursor: "pointer" }}>Crear cupon nuevo</button>
+                <button type="button" onClick={() => setNuevoInf(p => ({ ...p, cuponModo: "existente" }))} style={{ flex: 1, fontSize: 11, padding: "6px", border: "1px solid " + (nuevoInf.cuponModo === "existente" ? "#c9a84c" : temaPal.border), borderRadius: 4, background: nuevoInf.cuponModo === "existente" ? "#c9a84c15" : temaPal.card, color: nuevoInf.cuponModo === "existente" ? "var(--acento-texto)" : temaPal.textMuted, cursor: "pointer" }}>Usar cupon existente</button>
               </div>
               {nuevoInf.cuponModo === "nuevo" ? (
                 <div style={{ display: "flex", gap: 6 }}>
@@ -8171,7 +8175,7 @@ function Cupones({ localId, usuario, paletaActual }) {
               {cliSelInf ? (
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: temaPal.bg, borderRadius: 6 }}>
                   <span style={{ fontSize: 12 }}>{cliSelInf.nombre} {cliSelInf.cuit_dni ? "(" + cliSelInf.cuit_dni + ")" : ""}</span>
-                  <span onClick={() => { setCliSelInf(null); setBuscarCliInf(""); }} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>quitar</span>
+                  <span onClick={() => { setCliSelInf(null); setBuscarCliInf(""); }} style={{ cursor: "pointer", color: "var(--acento-texto)", fontSize: 12 }}>quitar</span>
                 </div>
               ) : (
                 <div>
@@ -8223,7 +8227,7 @@ function Cupones({ localId, usuario, paletaActual }) {
               {nuevoRegalo.producto_id ? (
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: temaPal.bg, borderRadius: 6 }}>
                   <span style={{ fontSize: 12 }}>{nuevoRegalo.producto_nombre}</span>
-                  <span onClick={() => setNuevoRegalo(p => ({ ...p, producto_id: "", producto_nombre: "" }))} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>quitar</span>
+                  <span onClick={() => setNuevoRegalo(p => ({ ...p, producto_id: "", producto_nombre: "" }))} style={{ cursor: "pointer", color: "var(--acento-texto)", fontSize: 12 }}>quitar</span>
                 </div>
               ) : (
                 <div>
@@ -8282,7 +8286,7 @@ function Cupones({ localId, usuario, paletaActual }) {
                 {cuponForm.regalo_producto_id ? (
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: temaPal.bg, borderRadius: 6 }}>
                     <span style={{ fontSize: 12 }}>{cuponForm.regalo_producto_nombre}</span>
-                    <span onClick={() => setCuponForm(p => ({ ...p, regalo_producto_id: "", regalo_producto_nombre: "" }))} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>quitar</span>
+                    <span onClick={() => setCuponForm(p => ({ ...p, regalo_producto_id: "", regalo_producto_nombre: "" }))} style={{ cursor: "pointer", color: "var(--acento-texto)", fontSize: 12 }}>quitar</span>
                   </div>
                 ) : (
                   <div>
@@ -8441,7 +8445,7 @@ function Fidelizacion({ usuario, paletaActual }) {
     <div className="fade">
       <div className="ph"><div><div className="pt">Fidelizacion</div><div className="ps">puntos - niveles - canjes</div></div></div>
       <div className="g4" style={{ marginBottom: 16 }}>
-        <MCard label="Puntos emitidos" value={fmtNum(totalPuntos)} color="#c9a84c" />
+        <MCard label="Puntos emitidos" value={fmtNum(totalPuntos)} color="var(--acento-texto)" />
         <MCard label="Clientes con puntos" value={String(clientesAMostrar.filter(c => (c.puntos || 0) > 0).length)} color="#2d7a4f" />
         <MCard label="Premios activos" value={String(premios.filter(p => p.activo).length)} color="#2471a3" />
         <MCard label="Nivel Platinum" value={String(clientesAMostrar.filter(c => (c.nivel || c.tier) === "Platinum").length)} color="#7d3c98" />
@@ -8466,7 +8470,7 @@ function Fidelizacion({ usuario, paletaActual }) {
                   <tr key={c.id || i}>
                     <td><div style={{ color: temaPal.text }}>{c.nombre || c.name}</div><div style={{ fontSize: 9, color: temaPal.textMuted }}>{c.email}</div></td>
                     <td><TierBadge tier={nivel} /></td>
-                    <td style={{ fontFamily: "'Inter',sans-serif", fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>{fmtNum(puntos)}</td>
+                    <td style={{ fontFamily: "'Inter',sans-serif", fontSize: 18, fontWeight: 700, color: "var(--acento-texto)" }}>{fmtNum(puntos)}</td>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <div style={{ flex: 1 }}><div className="pb"><div className="pf" style={{ width: pct + "%", background: "#c9a84c" }} /></div></div>
@@ -8494,7 +8498,7 @@ function Fidelizacion({ usuario, paletaActual }) {
                 <div className="fg"><div className="fl">Puntos requeridos</div><input className="inp" type="number" placeholder="500" value={nuevoPremio.puntos_requeridos} onChange={e => setNuevoPremio(p => ({ ...p, puntos_requeridos: e.target.value }))} /></div>
               </div>
               <div style={{ background: temaPal.bg, borderRadius: 8, padding: 12, marginBottom: 10 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6, color: "#c9a84c" }}>💡 Calculadora de puntos sugeridos</div>
+                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6, color: "var(--acento-texto)" }}>💡 Calculadora de puntos sugeridos</div>
                 <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 8 }}>Regla: el cliente tiene que gastar 5 veces el valor del regalo. Puntos = precio de venta ÷ 20.</div>
                 <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
                   <div style={{ flex: 1 }}>
@@ -8505,7 +8509,7 @@ function Fidelizacion({ usuario, paletaActual }) {
                     <div style={{ fontSize: 10, color: temaPal.textMuted }}>Puntos</div>
                     <div style={{ fontSize: 20, fontWeight: 700, color: "#2d7a4f" }}>{precioCalc && parseFloat(precioCalc) > 0 ? Math.round(parseFloat(precioCalc) / 20) : "—"}</div>
                   </div>
-                  <button className="btn btn-sm" style={{ background: "#c9a84c", color: temaPal.card, whiteSpace: "nowrap" }} disabled={!precioCalc || parseFloat(precioCalc) <= 0} onClick={() => setNuevoPremio(p => ({ ...p, puntos_requeridos: String(Math.round(parseFloat(precioCalc) / 20)) }))}>Usar estos puntos</button>
+                  <button className="btn btn-sm" style={{ background: "#c9a84c", color: "#1B2431", whiteSpace: "nowrap" }} disabled={!precioCalc || parseFloat(precioCalc) <= 0} onClick={() => setNuevoPremio(p => ({ ...p, puntos_requeridos: String(Math.round(parseFloat(precioCalc) / 20)) }))}>Usar estos puntos</button>
                 </div>
               </div>
               <div className="fg"><div className="fl">Descripcion</div><input className="inp" placeholder="Breve descripcion del premio" value={nuevoPremio.descripcion} onChange={e => setNuevoPremio(p => ({ ...p, descripcion: e.target.value }))} /></div>
@@ -8548,11 +8552,11 @@ function Fidelizacion({ usuario, paletaActual }) {
                     </div>
                     {p.descripcion && <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 3 }}>{p.descripcion}</div>}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
-                      <span style={{ fontSize: 16, fontWeight: 700, color: "#c9a84c" }}>{p.puntos_requeridos} pts</span>
+                      <span style={{ fontSize: 16, fontWeight: 700, color: "var(--acento-texto)" }}>{p.puntos_requeridos} pts</span>
                       <span className={"badge " + (disp !== null && disp < 5 ? "br" : "bg")}>{disp === null ? "ilimitado" : disp + "u"}</span>
                     </div>
                     <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-                      <button className="btn btn-sm" style={{ flex: 1, background: "#c9a84c", color: temaPal.card }} onClick={() => editarPremio(p)}>Editar</button>
+                      <button className="btn btn-sm" style={{ flex: 1, background: "#c9a84c", color: "#1B2431" }} onClick={() => editarPremio(p)}>Editar</button>
                       {p.activo && <button className="btn btn-sm" style={{ flex: 1 }} onClick={() => desactivarPremio(p)}>Desactivar</button>}
                     </div>
                   </div>
@@ -8582,7 +8586,7 @@ function Fidelizacion({ usuario, paletaActual }) {
                   <span className="badge" style={{ marginTop: 6, display: "inline-block" }}>Nivel {clienteDni.cliente.nivel}</span>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: "#c9a84c" }}>{fmtNum(clienteDni.cliente.puntos)}</div>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: "var(--acento-texto)" }}>{fmtNum(clienteDni.cliente.puntos)}</div>
                   <div style={{ fontSize: 10, color: temaPal.textMuted, letterSpacing: ".1em" }}>PUNTOS DISPONIBLES</div>
                 </div>
               </div>
@@ -8596,7 +8600,7 @@ function Fidelizacion({ usuario, paletaActual }) {
                     <div key={p.id} className="card" style={{ opacity: p.puede_canjear ? 1 : 0.55 }}>
                       <div style={{ fontWeight: 600, fontSize: 13 }}>{p.nombre}</div>
                       {p.descripcion && <div style={{ fontSize: 11, color: temaPal.textMuted, margin: "4px 0" }}>{p.descripcion}</div>}
-                      <div style={{ fontSize: 18, fontWeight: 700, color: "#c9a84c", marginTop: 6 }}>{fmtNum(p.puntos_requeridos)} pts</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: "var(--acento-texto)", marginTop: 6 }}>{fmtNum(p.puntos_requeridos)} pts</div>
                       {p.solo_mes_cumpleanos && <span className="badge" style={{ fontSize: 9, marginTop: 4 }}>Solo mes de cumpleaños</span>}
                       <button
                         className="btn btn-p btn-sm"
@@ -9024,7 +9028,7 @@ function Pedidos({ localId, usuario, paletaActual }) {
                     </div>
                     <div className="kpi anim-in" style={{ borderTop: "3px solid " + pal.accent, animationDelay: "60ms" }}>
                       <div className="kpi-label">🎯 Conversión</div>
-                      <div className="kpi-val" style={{ color: pal.accent }}>{Math.round(stats.conversion * 100)}%</div>
+                      <div className="kpi-val" style={{ color: pal.accentText }}>{Math.round(stats.conversion * 100)}%</div>
                       <div className="kpi-sub">{stats.compraron} de {stats.avisados} avisados</div>
                     </div>
                     <div className="kpi anim-in" style={{ borderTop: "3px solid #2471a3", animationDelay: "120ms" }}>
@@ -9418,9 +9422,9 @@ function PostventaWA({ paletaActual }) {
       </div>
       {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
       <div className="g4" style={{ marginBottom: 16 }}>
-        <MCard label="Reglas activas" value={String(rulesAMostrar.filter(r => r.activo || r.active).length)} color="#25d366" />
+        <MCard label="Reglas activas" value={String(rulesAMostrar.filter(r => r.activo || r.active).length)} color="var(--wa-texto)" />
         <MCard label="Mensajes enviados" value={String(mensajesReales.filter(m => m.estado === "enviado_wa").length)} color="#2d7a4f" />
-        <MCard label="Pendientes de enviar" value={String(mensajesReales.filter(m => m.estado === "programado").length)} color="#c9a84c" />
+        <MCard label="Pendientes de enviar" value={String(mensajesReales.filter(m => m.estado === "programado").length)} color="var(--acento-texto)" />
         <MCard label="Total reglas" value={String(rulesAMostrar.length)} color="#2471a3" />
       </div>
       <div className="tabs">
@@ -9500,7 +9504,7 @@ function PostventaWA({ paletaActual }) {
                     <td>{m.estado === "enviado_wa" ? <span className="badge bg">Enviado</span> : <span className="badge bx">Pendiente</span>}</td>
                     <td style={{ textAlign: "right" }}>
                       {m.estado !== "enviado_wa" && (
-                        <button className="btn btn-sm" style={{ background: "#25d366", color: temaPal.card, fontSize: 11, fontWeight: 700 }} onClick={() => enviarMensajeReal(m)}>Enviar WhatsApp</button>
+                        <button className="btn btn-sm" style={{ background: "#25d366", color: "#1B2431", fontSize: 11, fontWeight: 700 }} onClick={() => enviarMensajeReal(m)}>Enviar WhatsApp</button>
                       )}
                     </td>
                   </tr>
@@ -9538,7 +9542,7 @@ function PostventaWA({ paletaActual }) {
           <div className="card">
             <div className="ct">Buenas practicas</div>
             {["Mensajes cortos y personales convierten mas", "Inclui siempre el nombre del producto", "Una pregunta abierta invita a responder", "El emoji justo da calidez sin exceso", "Envia en horario diurno (10 a 20hs)"].map((t, i) => (
-              <div key={i} style={{ display: "flex", gap: 7, marginBottom: 9, fontSize: 11, color: temaPal.text }}><span style={{ color: "#25d366" }}>v</span>{t}</div>
+              <div key={i} style={{ display: "flex", gap: 7, marginBottom: 9, fontSize: 11, color: temaPal.text }}><span style={{ color: "var(--wa-texto)" }}>v</span>{t}</div>
             ))}
           </div>
         </div>
@@ -9572,7 +9576,7 @@ function PostventaWA({ paletaActual }) {
                         {cli.ya_enviado ? (
                           <span style={{ fontSize: 10, color: "#2d7a4f", fontWeight: 600 }}>Enviado ✓</span>
                         ) : (
-                          <button className="btn btn-sm" style={{ background: "#25d366", color: temaPal.card, fontSize: 11, fontWeight: 700 }} onClick={() => enviarWA(cli)}>Enviar WhatsApp</button>
+                          <button className="btn btn-sm" style={{ background: "#25d366", color: "#1B2431", fontSize: 11, fontWeight: 700 }} onClick={() => enviarWA(cli)}>Enviar WhatsApp</button>
                         )}
                       </td>
                     </tr>
@@ -9697,7 +9701,7 @@ function Calculadoras({ usuario, paletaActual }) {
           <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
             {calculadoras.map(c => (
               <button key={c.id} onClick={() => setSeleccionada(c)}
-                style={{ padding: "8px 16px", borderRadius: 7, border: "1px solid", borderColor: seleccionada?.id === c.id ? "#c9a84c55" : p.border, background: seleccionada?.id === c.id ? "#c9a84c12" : "transparent", color: seleccionada?.id === c.id ? "#c9a84c" : p.textMuted, fontSize: 12, fontWeight: seleccionada?.id === c.id ? 600 : 400, cursor: "pointer" }}>
+                style={{ padding: "8px 16px", borderRadius: 7, border: "1px solid", borderColor: seleccionada?.id === c.id ? "#c9a84c55" : p.border, background: seleccionada?.id === c.id ? "#c9a84c12" : "transparent", color: seleccionada?.id === c.id ? "var(--acento-texto)" : p.textMuted, fontSize: 12, fontWeight: seleccionada?.id === c.id ? 600 : 400, cursor: "pointer" }}>
                 {c.nombre}
               </button>
             ))}
@@ -9727,7 +9731,7 @@ function Calculadoras({ usuario, paletaActual }) {
                 {resultado !== null ? (
                   <div style={{ textAlign: "center" }}>
                     <div style={{ fontSize: 11, color: p.textMuted, letterSpacing: ".1em", marginBottom: 8 }}>PRECIO SUGERIDO</div>
-                    <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 48, fontWeight: 700, color: "#c9a84c" }}>{fmt(resultado)}</div>
+                    <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 48, fontWeight: 700, color: "var(--acento-texto)" }}>{fmt(resultado)}</div>
                     <div style={{ fontSize: 11, color: p.textMuted, marginTop: 8 }}>con {seleccionada.nombre}</div>
                   </div>
                 ) : (
@@ -9747,8 +9751,8 @@ function Calculadoras({ usuario, paletaActual }) {
               <div className="fg"><div className="fl">Nombre</div><input className="inp" placeholder="Ej: Capilar, Maquillaje..." value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Descripcion (opcional)</div><input className="inp" placeholder="Para que tipo de productos aplica" value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} /></div>
               <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                <button className="btn btn-sm" style={{ flex: 1, background: form.tipo === "desde_costo" ? "#c9a84c15" : "transparent", border: "1px solid " + (form.tipo === "desde_costo" ? "#c9a84c" : p.border), color: form.tipo === "desde_costo" ? "#c9a84c" : p.textMuted }} onClick={() => setForm(f => ({ ...f, tipo: "desde_costo" }))}>Desde costo</button>
-                <button className="btn btn-sm" style={{ flex: 1, background: form.tipo === "desde_precio_venta" ? "#c9a84c15" : "transparent", border: "1px solid " + (form.tipo === "desde_precio_venta" ? "#c9a84c" : p.border), color: form.tipo === "desde_precio_venta" ? "#c9a84c" : p.textMuted }} onClick={() => setForm(f => ({ ...f, tipo: "desde_precio_venta" }))}>Desde precio venta proveedor</button>
+                <button className="btn btn-sm" style={{ flex: 1, background: form.tipo === "desde_costo" ? "#c9a84c15" : "transparent", border: "1px solid " + (form.tipo === "desde_costo" ? "#c9a84c" : p.border), color: form.tipo === "desde_costo" ? "var(--acento-texto)" : p.textMuted }} onClick={() => setForm(f => ({ ...f, tipo: "desde_costo" }))}>Desde costo</button>
+                <button className="btn btn-sm" style={{ flex: 1, background: form.tipo === "desde_precio_venta" ? "#c9a84c15" : "transparent", border: "1px solid " + (form.tipo === "desde_precio_venta" ? "#c9a84c" : p.border), color: form.tipo === "desde_precio_venta" ? "var(--acento-texto)" : p.textMuted }} onClick={() => setForm(f => ({ ...f, tipo: "desde_precio_venta" }))}>Desde precio venta proveedor</button>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <div className="fg" style={{ flex: 1 }}><div className="fl">Multiplicador de margen</div><input className="inp" type="number" step="0.1" placeholder="2" value={form.margen} onChange={e => setForm(f => ({ ...f, margen: e.target.value }))} /></div>
@@ -9868,7 +9872,7 @@ function GiftCards({ localId, usuario, paletaActual }) {
         <button className="btn btn-p btn-sm" onClick={() => setShowForm(true)}>+ Emitir Gift Card</button>
       </div>
       <div className="g3" style={{ marginBottom: 16 }}>
-        <MCard label="Total emitido (historico)" value={fmt(totalEmitido)} color="#c9a84c" />
+        <MCard label="Total emitido (historico)" value={fmt(totalEmitido)} color="var(--acento-texto)" />
         <MCard label="Saldo vivo (sin canjear)" value={fmt(totalSaldoVivo)} color="#2d7a4f" />
         <MCard label="Gift cards emitidas" value={String(giftcards.length)} color="#2C3E5C" />
       </div>
@@ -10334,24 +10338,24 @@ function PortalCliente({ paletaActual }) {
   return (
     <div style={{ minHeight: "100vh", background: p.bg, fontFamily: "'Inter',sans-serif" }}>
       <div style={{ padding: "16px 32px", borderBottom: "1px solid " + p.border, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, fontWeight: 300, letterSpacing: ".18em", color: "#c9a84c" }}>LUMIERE</div>
+        <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, fontWeight: 300, letterSpacing: ".18em", color: "var(--acento-texto)" }}>LUMIERE</div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 11, color: p.textMuted }}>{client.email}</span>
-          <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#c9a84c", display: "flex", alignItems: "center", justifyContent: "center", color: p.card, fontSize: 13, fontWeight: 600 }}>{client.name[0]}</div>
+          <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#c9a84c", display: "flex", alignItems: "center", justifyContent: "center", color: "#1B2431", fontSize: 13, fontWeight: 600 }}>{client.name[0]}</div>
         </div>
       </div>
       <div style={{ padding: "28px 32px", maxWidth: 860, margin: "0 auto" }}>
         <div style={{ background: p.card, border: "1px solid " + p.border, borderRadius: 14, padding: 26, marginBottom: 22 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
-              <div style={{ fontSize: 9, color: "#c9a84c88", letterSpacing: ".25em", textTransform: "uppercase", marginBottom: 5 }}>Bienvenida de nuevo</div>
+              <div style={{ fontSize: 9, color: "var(--acento-texto)", letterSpacing: ".25em", textTransform: "uppercase", marginBottom: 5 }}>Bienvenida de nuevo</div>
               <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 24, fontWeight: 700, color: p.text, marginBottom: 14 }}>{client.name}</div>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 20, background: "#c9a84c15", border: "1px solid " + p.border, fontSize: 9, color: "#c9a84c", letterSpacing: ".12em" }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 20, background: "#c9a84c15", border: "1px solid " + p.border, fontSize: 9, color: "var(--acento-texto)", letterSpacing: ".12em" }}>
                 NIVEL {client.tier.toUpperCase()}
               </div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 52, fontWeight: 700, color: "#c9a84c", lineHeight: 1 }}>{fmtNum(client.points)}</div>
+              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 52, fontWeight: 700, color: "var(--acento-texto)", lineHeight: 1 }}>{fmtNum(client.points)}</div>
               <div style={{ fontSize: 9, color: p.textMuted, letterSpacing: ".2em", marginTop: 3 }}>PUNTOS DISPONIBLES</div>
               <div style={{ fontSize: 10, color: p.textMuted, marginTop: 6 }}>Proximo nivel: {fmtNum((2000 - client.points))} pts</div>
             </div>
@@ -10359,7 +10363,7 @@ function PortalCliente({ paletaActual }) {
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
           {[["canjear", "Canjear puntos"], ["cupones", "Mis cupones"], ["historial", "Mis compras"]].map(([id, l]) => (
-            <button key={id} onClick={() => setTab(id)} style={{ padding: "8px 16px", borderRadius: 7, border: "1px solid", borderColor: tab === id ? "#c9a84c55" : p.border, background: tab === id ? "#c9a84c12" : "transparent", color: tab === id ? "#c9a84c" : p.textMuted, fontFamily: "'Inter',sans-serif", fontSize: 11, cursor: "pointer" }}>{l}</button>
+            <button key={id} onClick={() => setTab(id)} style={{ padding: "8px 16px", borderRadius: 7, border: "1px solid", borderColor: tab === id ? "#c9a84c55" : p.border, background: tab === id ? "#c9a84c12" : "transparent", color: tab === id ? "var(--acento-texto)" : p.textMuted, fontFamily: "'Inter',sans-serif", fontSize: 11, cursor: "pointer" }}>{l}</button>
           ))}
         </div>
         {tab === "canjear" && (
@@ -10370,13 +10374,13 @@ function PortalCliente({ paletaActual }) {
                 const can = client.points >= r.pts;
                 return (
                   <div key={r.id} style={{ background: can ? p.card : p.card, border: "1px solid " + (can ? "#c9a84c33" : p.card), borderRadius: 10, padding: 16, opacity: can ? 1 : 0.5 }}>
-                    {can && <div style={{ background: "#2d7a4f", color: p.card, fontSize: 8, padding: "2px 6px", borderRadius: 3, marginBottom: 8, width: "fit-content" }}>PODES CANJEAR</div>}
+                    {can && <div style={{ background: "#2d7a4f", color: "#fff", fontSize: 8, padding: "2px 6px", borderRadius: 3, marginBottom: 8, width: "fit-content" }}>PODES CANJEAR</div>}
                     <div style={{ fontSize: 24, marginBottom: 8 }}>{r.emoji}</div>
                     <div style={{ fontSize: 11, color: p.text }}>{r.name}</div>
                     <div style={{ fontSize: 9, color: p.textMuted, letterSpacing: ".1em", marginTop: 2 }}>{r.brand}</div>
-                    <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#c9a84c", marginTop: 10 }}>{fmtNum(r.pts)}</div>
+                    <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "var(--acento-texto)", marginTop: 10 }}>{fmtNum(r.pts)}</div>
                     <div style={{ fontSize: 9, color: p.textMuted }}>PUNTOS</div>
-                    {can && <button style={{ marginTop: 10, width: "100%", padding: "7px", borderRadius: 5, background: "#c9a84c15", border: "1px solid " + p.border, color: "#c9a84c", fontFamily: "'Inter',sans-serif", fontSize: 10, cursor: "pointer" }}>Canjear</button>}
+                    {can && <button style={{ marginTop: 10, width: "100%", padding: "7px", borderRadius: 5, background: "#c9a84c15", border: "1px solid " + p.border, color: "var(--acento-texto)", fontFamily: "'Inter',sans-serif", fontSize: 10, cursor: "pointer" }}>Canjear</button>}
                   </div>
                 );
               })}
@@ -10389,11 +10393,11 @@ function PortalCliente({ paletaActual }) {
             {[{ code: "BDAY10", desc: "$10.000 de descuento por cumpleanos", exp: "Valido hasta: 30/06/2026" }, { code: "INSTA20", desc: "20% off en toda la tienda", exp: "Valido hasta: 31/05/2026" }].map((cp, i) => (
               <div key={i} style={{ background: p.card, border: "1px dashed " + p.border, borderRadius: 10, padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <div>
-                  <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#c9a84c", letterSpacing: ".1em" }}>{cp.code}</div>
+                  <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "var(--acento-texto)", letterSpacing: ".1em" }}>{cp.code}</div>
                   <div style={{ fontSize: 11, color: p.textMuted, marginTop: 3 }}>{cp.desc}</div>
                   <div style={{ fontSize: 10, color: p.border, marginTop: 4 }}>{cp.exp}</div>
                 </div>
-                <button style={{ background: "#c9a84c15", border: "1px solid " + p.border, color: "#c9a84c", padding: "7px 14px", borderRadius: 5, fontFamily: "'Inter',sans-serif", fontSize: 10, cursor: "pointer" }}>Copiar</button>
+                <button style={{ background: "#c9a84c15", border: "1px solid " + p.border, color: "var(--acento-texto)", padding: "7px 14px", borderRadius: 5, fontFamily: "'Inter',sans-serif", fontSize: 10, cursor: "pointer" }}>Copiar</button>
               </div>
             ))}
           </div>
@@ -10412,7 +10416,7 @@ function PortalCliente({ paletaActual }) {
                   <div style={{ fontSize: 12, color: p.text }}>{h.items}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "#c9a84c" }}>{fmt(h.total)}</div>
+                  <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "var(--acento-texto)" }}>{fmt(h.total)}</div>
                   <div style={{ fontSize: 9, color: p.textMuted, marginTop: 2 }}>+{h.pts} puntos</div>
                 </div>
               </div>
@@ -10527,7 +10531,7 @@ function DesafiosMes({ localId, usuario, mes, anio, paletaActual }) {
                     <div style={{ fontSize: 10, color: p.textMuted }}>{pr.marca || ""} · stock {stockDe(pr)}</div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#c9a84c", fontVariantNumeric: "tabular-nums" }}>{fmt(pr.precio)}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "var(--acento-texto)", fontVariantNumeric: "tabular-nums" }}>{fmt(pr.precio)}</span>
                     <button className="btn btn-p btn-sm" disabled={guardando} onClick={() => entregar(pr)}>Entregar</button>
                   </div>
                 </div>
@@ -10719,7 +10723,7 @@ function ConfigComisiones({ paletaActual, onCambioActivos }) {
                   style={{ width: "100%", textAlign: "left", fontFamily: "inherit", cursor: "pointer", padding: "14px 12px", borderRadius: 8, background: on ? p.accentDim : p.card, border: "2px solid " + (on ? p.accent : p.border), color: p.text, transition: "border-color .15s, background .15s", display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ fontSize: 22 }} aria-hidden="true">{t.icono}</span>
                   <span style={{ flex: 1, fontSize: 13, fontWeight: 800 }}>{t.titulo}</span>
-                  <span aria-hidden="true" style={{ fontSize: 13, color: on ? p.accent : p.textMuted }}>{on ? "●" : "ⓘ"}</span>
+                  <span aria-hidden="true" style={{ fontSize: 13, color: on ? p.accentText : p.textMuted }}>{on ? "●" : "ⓘ"}</span>
                 </button>
                 <span className="tip" role="tooltip" id={"tip-" + t.id}>
                   <b>{t.titulo}</b><br />{t.como}
@@ -11120,7 +11124,7 @@ function Comisiones({ localId, usuario, paletaActual }) {
             ) : (
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: p.bg, borderRadius: 6, marginBottom: 12 }}>
                 <span style={{ fontSize: 12, color: p.textMuted }}>Total seleccionado</span>
-                <span style={{ fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>{fmt(totalSeleccionado)}</span>
+                <span style={{ fontSize: 18, fontWeight: 700, color: "var(--acento-texto)" }}>{fmt(totalSeleccionado)}</span>
               </div>
             )}
             <div className="fg"><div className="fl">¿Como se pago?</div>
@@ -11137,7 +11141,7 @@ function Comisiones({ localId, usuario, paletaActual }) {
                   {prodCanje ? (
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: p.bg, borderRadius: 6 }}>
                       <span style={{ fontSize: 12 }}>{prodCanje.nombre} <span style={{ color: p.textMuted }}>({fmt(precioConDescuento)} c/u)</span></span>
-                      <span onClick={() => setProdCanje(null)} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 11 }}>cambiar</span>
+                      <span onClick={() => setProdCanje(null)} style={{ cursor: "pointer", color: "var(--acento-texto)", fontSize: 11 }}>cambiar</span>
                     </div>
                   ) : (
                     <div>
@@ -11197,7 +11201,7 @@ function PasoCard({ p, n, titulo, listo, activo, children }) {
   return (
     <div className="card anim-in" style={{ marginBottom: 12, opacity: activo === false ? 0.5 : 1, pointerEvents: activo === false ? "none" : "auto" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-        <span style={{ width: 24, height: 24, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, background: listo ? p.green : p.accentDim, color: listo ? "#fff" : p.accent, border: "1px solid " + (listo ? p.green : p.accent) }}>{listo ? "✓" : n}</span>
+        <span style={{ width: 24, height: 24, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, background: listo ? p.green : p.accentDim, color: listo ? "#fff" : p.accentText, border: "1px solid " + (listo ? p.green : p.accent) }}>{listo ? "✓" : n}</span>
         <span style={{ fontSize: 14, fontWeight: 800 }}>{titulo}</span>
       </div>
       {children}
@@ -11425,7 +11429,7 @@ function CambioDevolucion({ localId, usuario, paletaActual }) {
             {dif < 0 && resultado.gift_card && (
               <div style={{ padding: 14, borderRadius: 10, background: p.accentDim, border: "1px solid " + p.accent }}>
                 <div style={{ fontSize: 12, color: p.textMuted }}>Crédito a favor en Gift Card</div>
-                <div style={{ fontFamily: "monospace", fontSize: 26, fontWeight: 800, color: p.accent, margin: "4px 0" }}>{resultado.gift_card.codigo}</div>
+                <div style={{ fontFamily: "monospace", fontSize: 26, fontWeight: 800, color: p.accentText, margin: "4px 0" }}>{resultado.gift_card.codigo}</div>
                 <div style={{ fontSize: 13, fontWeight: 700 }}>{fmt(Math.abs(dif))}</div>
               </div>
             )}
@@ -11587,7 +11591,7 @@ function CambioDevolucion({ localId, usuario, paletaActual }) {
                           return (
                             <div key={pr.id} onClick={() => st > 0 && agregarNuevo(pr)} style={{ padding: "9px 12px", cursor: st > 0 ? "pointer" : "not-allowed", opacity: st > 0 ? 1 : 0.5, borderBottom: "1px solid " + p.border, fontSize: 12, display: "flex", justifyContent: "space-between", gap: 8 }}>
                               <span><b>{pr.nombre}</b> <span style={{ color: p.textMuted }}>{pr.marca || ""}</span></span>
-                              <span style={{ whiteSpace: "nowrap" }}><b style={{ color: p.accent }}>{fmt(parseFloat(pr.precio || 0))}</b> <span className={"tag " + (st > 0 ? "tag-ok" : "tag-bad")}>{st} u.</span></span>
+                              <span style={{ whiteSpace: "nowrap" }}><b style={{ color: p.accentText }}>{fmt(parseFloat(pr.precio || 0))}</b> <span className={"tag " + (st > 0 ? "tag-ok" : "tag-bad")}>{st} u.</span></span>
                             </div>
                           );
                         })}
@@ -11989,7 +11993,7 @@ function ReclamosProveedores({ localId, usuario, paletaActual }) {
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-                      <button className="mini-chip" style={{ borderColor: p.accent, color: p.accent }} onClick={() => reclamarPendiente(d)}>Reclamar</button>
+                      <button className="mini-chip" style={{ borderColor: p.accent, color: p.accentText }} onClick={() => reclamarPendiente(d)}>Reclamar</button>
                       <button className="mini-chip" onClick={() => descartarPendiente(d)} title="No hace falta reclamarlo">No reclamar</button>
                     </div>
                   </div>
@@ -12223,7 +12227,7 @@ function Proveedores({ paletaActual, onPedir }) {
                       <div style={{ fontSize: 15, fontWeight: 800 }}>{pr.nombre}</div>
                       <div style={{ fontSize: 11, color: p.textMuted }}>{pr.cuit || "sin CUIT"} · paga a {pr.dias_pago || 30} días · {pr.forma_pago || "—"}</div>
                     </div>
-                    <span className="tag" style={{ background: cat.c + "20", color: cat.c }}>{cat.l}</span>
+                    <span className="tag" style={{ background: cat.c + "20", color: cat.c === "#c9a84c" ? "var(--acento-texto)" : cat.c }}>{cat.l}</span>
                   </div>
                   {d.cantidad > 0 ? (
                     <div className={"cc-dif " + (d.dias !== null && d.dias < 0 ? "falta" : d.dias !== null && d.dias <= 7 ? "sobra" : "")} style={{ marginTop: 0, padding: "8px 12px" }}>
@@ -12798,7 +12802,7 @@ function Comprobantes({ localId, paletaActual }) {
 
   const r = datos.resumen;
   const lista = datos.comprobantes;
-  const colorTipo = { A: "#2471a3", B: p.accent, C: "#8e44ad" };
+  const colorTipo = { A: "#2471a3", B: p.accentText, C: "#8e44ad" };
 
   return (
     <div className="fade">
@@ -12838,7 +12842,7 @@ function Comprobantes({ localId, paletaActual }) {
           <>
             <KpiCard p={p} titulo="Facturado en ARCA" valor={r.total_emitido} formato={fmt} color={p.green} indice={0}
               sub={r.por_tipo.length > 0 ? r.por_tipo.map(t => t.tipo + ": " + t.cantidad).join(" · ") : "sin facturas"} />
-            <KpiCard p={p} titulo="Comprobantes emitidos" valor={r.emitidos} color={p.accent} indice={1} sub={fmtDia(desde) + " al " + fmtDia(hasta)} />
+            <KpiCard p={p} titulo="Comprobantes emitidos" valor={r.emitidos} color={p.accentText} indice={1} sub={fmtDia(desde) + " al " + fmtDia(hasta)} />
             <KpiCard p={p} titulo="Sin facturar" valor={r.pendientes} color={r.pendientes > 0 ? p.warn : p.green} indice={2}
               tag={r.pendientes > 0 ? <button className="mini-chip" onClick={() => setEstado("pendientes")}>Ver</button> : null}
               sub={r.pendientes > 0 ? fmt(r.total_pendiente) + " esperando CAE" : "todo facturado ✓"} />
@@ -13025,7 +13029,7 @@ function Productividad({ localId, paletaActual }) {
                 <tbody>
                   {ranking.map((r, i) => (
                     <tr key={i}>
-                      <td style={{ fontWeight: 700, color: (i === 0 ? "#c9a84c" : p.textMuted) }}>{i + 1}</td>
+                      <td style={{ fontWeight: 700, color: (i === 0 ? "var(--acento-texto)" : p.textMuted) }}>{i + 1}</td>
                       <td style={{ fontSize: 12, fontWeight: 600 }}>{r.nombre}</td>
                       <td style={{ fontSize: 12 }}>{r.cantidad}</td>
                       <td style={{ color: "#2d7a4f", fontWeight: 600 }}>{fmt(r.total)}</td>
@@ -13280,7 +13284,7 @@ function CierreCaja({ localId, usuario, paletaActual }) {
                         <span className="dot" style={{ background: p.accent }} />
                         <span className="cc-medio-nom">🎁 Gift cards vendidas</span>
                         <span className="cc-medio-cant">{r.cantidad_gift_cards}</span>
-                        <span className="cc-medio-tot" style={{ color: p.accent }}>{fmt(r.total_gift_cards)}</span>
+                        <span className="cc-medio-tot" style={{ color: p.accentText }}>{fmt(r.total_gift_cards)}</span>
                       </div>
                       <div className="cc-bar"><div style={{ width: (r.total_gift_cards / maxMedio * 100) + "%", background: p.accent }} /></div>
                     </div>
@@ -13732,7 +13736,7 @@ function ControlInventario({ localId, usuario, paletaActual }) {
             <MCard label="Items contados" value={String(resultadoFinal.correctos + resultadoFinal.faltantes + resultadoFinal.sobrantes)} color="#2C3E5C" />
             <MCard label="Correctos" value={String(resultadoFinal.correctos)} color="#2d7a4f" />
             <MCard label="Faltantes" value={String(resultadoFinal.faltantes)} color="#c0392b" />
-            <MCard label="Sobrantes" value={String(resultadoFinal.sobrantes)} color="#c9a84c" />
+            <MCard label="Sobrantes" value={String(resultadoFinal.sobrantes)} color="var(--acento-texto)" />
           </div>
           <div className="card" style={{ marginBottom: 16 }}>
             <div className="ct">Analisis de mermas (desde el ultimo control)</div>
@@ -13749,7 +13753,7 @@ function ControlInventario({ localId, usuario, paletaActual }) {
                 {resultadoFinal.valor_sobrante_estimado > 0 && (
                   <>
                     <div style={{ fontSize: 11, color: "#65676B", marginTop: 10 }}>Valor estimado de lo sobrante</div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: "#c9a84c" }}>{fmt(resultadoFinal.valor_sobrante_estimado)}</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: "var(--acento-texto)" }}>{fmt(resultadoFinal.valor_sobrante_estimado)}</div>
                   </>
                 )}
               </div>
@@ -13776,7 +13780,7 @@ function ControlInventario({ localId, usuario, paletaActual }) {
           <MCard label="Progreso" value={progreso + "%"} sub={totalContados + " / " + items.length} color="#2C3E5C" />
           <MCard label="Correctos" value={String(totalCorrectos)} color="#2d7a4f" />
           <MCard label="Faltantes" value={String(totalFaltantes)} color="#c0392b" />
-          <MCard label="Sobrantes" value={String(totalSobrantes)} color="#c9a84c" />
+          <MCard label="Sobrantes" value={String(totalSobrantes)} color="var(--acento-texto)" />
         </div>
         {modoScan ? (
           <div className="card" style={{ maxWidth: 480 }}>
@@ -13845,7 +13849,7 @@ function ControlInventario({ localId, usuario, paletaActual }) {
                       onBlur={e => contarItem(it, e.target.value)}
                       onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }} />
                   </td>
-                  <td style={{ fontWeight: 700, color: !it.diferencia ? p.textMuted : it.diferencia < 0 ? "#c0392b" : "#c9a84c" }}>{it.diferencia !== null && it.diferencia !== undefined ? (it.diferencia > 0 ? "+" : "") + it.diferencia : "-"}</td>
+                  <td style={{ fontWeight: 700, color: !it.diferencia ? p.textMuted : it.diferencia < 0 ? "#c0392b" : "var(--acento-texto)" }}>{it.diferencia !== null && it.diferencia !== undefined ? (it.diferencia > 0 ? "+" : "") + it.diferencia : "-"}</td>
                   <td><span className={"badge " + (it.estado === "correcto" ? "bg" : it.estado === "faltante" ? "br" : it.estado === "sobrante" ? "ba" : "bx")}>{it.estado}</span></td>
                 </tr>
               ))}
@@ -13890,7 +13894,7 @@ function ControlInventario({ localId, usuario, paletaActual }) {
       {enCurso && (
         <div className="card pulse" style={{ background: "#c9a84c15", border: "2px solid #c9a84c", marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#c9a84c" }}>⚠️ Tenes un control de inventario sin terminar (#{enCurso.id})</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--acento-texto)" }}>⚠️ Tenes un control de inventario sin terminar (#{enCurso.id})</div>
             <div style={{ fontSize: 11, color: p.textMuted, marginTop: 2 }}>
               {enCurso.tipo === "total" ? "Conteo total" : enCurso.tipo === "categoria" ? "Categoria: " + enCurso.filtro_valor : enCurso.tipo === "marca" ? "Marca: " + enCurso.filtro_valor : "Proveedor"} · iniciado el {new Date(enCurso.creado_en).toLocaleDateString("es-AR")}
             </div>
@@ -14428,7 +14432,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
         ) : (
           <>
             <div className="kpi-grid kpi-3" style={{ marginBottom: 14 }}>
-              <div className="kpi" style={{ borderTop: "3px solid " + temaPal.accent }}><div className="kpi-label">Órdenes por recibir</div><div className="kpi-val" style={{ color: temaPal.accent }}>{porRecibir.length}</div><div className="kpi-sub">en {localNombre}</div></div>
+              <div className="kpi" style={{ borderTop: "3px solid " + temaPal.accent }}><div className="kpi-label">Órdenes por recibir</div><div className="kpi-val" style={{ color: temaPal.accentText }}>{porRecibir.length}</div><div className="kpi-sub">en {localNombre}</div></div>
               <div className="kpi" style={{ borderTop: "3px solid #2471a3" }}><div className="kpi-label">Mercadería en camino</div><div className="kpi-val" style={{ color: "#2471a3", fontSize: 20 }}>{fmt(totalPorRecibir).replace(",00", "")}</div><div className="kpi-sub">a costo de factura</div></div>
               <div className="kpi" style={{ borderTop: "3px solid " + temaPal.green }}><div className="kpi-label">Ya recibidas acá</div><div className="kpi-val" style={{ color: temaPal.green }}>{recibidasMiLocal.length}</div><div className="kpi-sub">esperando al otro local o pago</div></div>
             </div>
@@ -14530,7 +14534,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
                         {it.producto_id ? (
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
                             <span style={{ fontSize: 12, color: it.es_alias_conocido ? "#2d7a4f" : temaPal.text }}>{it.producto_nombre}</span>
-                            <span onClick={() => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, producto_id: "", producto_nombre: "" } : x))} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 11, whiteSpace: "nowrap" }}>cambiar</span>
+                            <span onClick={() => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, producto_id: "", producto_nombre: "" } : x))} style={{ cursor: "pointer", color: "var(--acento-texto)", fontSize: 11, whiteSpace: "nowrap" }}>cambiar</span>
                           </div>
                         ) : (
                           <div>
@@ -14585,7 +14589,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
                 {itemTemp.producto_id ? (
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: temaPal.bg, borderRadius: 6 }}>
                     <span style={{ fontSize: 12 }}>{(productos.find(p => String(p.id) === String(itemTemp.producto_id)) || {}).nombre || "Producto"}</span>
-                    <span onClick={() => { setItemTemp(p => ({ ...p, producto_id: "" })); setBusquedaProd(""); }} style={{ cursor: "pointer", color: "#c9a84c", fontSize: 12 }}>cambiar</span>
+                    <span onClick={() => { setItemTemp(p => ({ ...p, producto_id: "" })); setBusquedaProd(""); }} style={{ cursor: "pointer", color: "var(--acento-texto)", fontSize: 12 }}>cambiar</span>
                   </div>
                 ) : (
                   <div>
@@ -14872,11 +14876,11 @@ function Inconsistencias({ paletaActual }) {
                   <tr key={i + "-" + j}>
                     <td style={{ fontSize: 11 }}>{d.numero_factura || "-"}</td>
                     <td style={{ fontSize: 11 }}>{d.proveedor_nombre || "-"}</td>
-                    <td style={{ fontSize: 12 }}>{d.producto_nombre}{f.extra ? <span className="badge" style={{ background: "#c9a84c15", color: "#c9a84c", marginLeft: 6 }}>extra/regalo</span> : ""}</td>
+                    <td style={{ fontSize: 12 }}>{d.producto_nombre}{f.extra ? <span className="badge" style={{ background: "#c9a84c15", color: "var(--acento-texto)", marginLeft: 6 }}>extra/regalo</span> : ""}</td>
                     <td style={{ fontSize: 11 }}>{f.local}</td>
                     <td style={{ fontSize: 12, color: p.textMuted }}>{f.esp}</td>
                     <td style={{ fontSize: 12 }}>{f.rec}</td>
-                    <td>{f.extra ? <span style={{ color: "#c9a84c", fontSize: 12 }}>+{f.rec} regalo</span> : (typeof f.esp === "number" ? (() => { const v = dif(f.rec, f.esp); return <span style={{ color: v < 0 ? "#c0392b" : "#2d7a4f", fontWeight: 600, fontSize: 12 }}>{v > 0 ? "+" : ""}{v}</span>; })() : "-")}</td>
+                    <td>{f.extra ? <span style={{ color: "var(--acento-texto)", fontSize: 12 }}>+{f.rec} regalo</span> : (typeof f.esp === "number" ? (() => { const v = dif(f.rec, f.esp); return <span style={{ color: v < 0 ? "#c0392b" : "#2d7a4f", fontWeight: 600, fontSize: 12 }}>{v > 0 ? "+" : ""}{v}</span>; })() : "-")}</td>
                     <td style={{ fontSize: 11, color: p.textMuted }}>{d.nota_inconsistencia || "-"}</td>
                   </tr>
                 ));
@@ -15035,7 +15039,7 @@ function Kits({ paletaActual }) {
                         {kit.descripcion && <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 2 }}>{kit.descripcion}</div>}
                       </div>
                       <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: 18, fontWeight: 700, color: "#c9a84c" }}>{fmt(parseFloat(kit.precio || 0))}</div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: "var(--acento-texto)" }}>{fmt(parseFloat(kit.precio || 0))}</div>
                         {ahorro > 0 && <div style={{ fontSize: 10, color: "#2d7a4f" }}>Ahorro: {fmt(Math.round(ahorro))}</div>}
                       </div>
                     </div>
@@ -15107,7 +15111,7 @@ function Kits({ paletaActual }) {
                 <div style={{ marginTop: 12, padding: "10px 0", borderTop: "2px solid " + temaPal.border }}>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <span style={{ fontSize: 12, color: temaPal.text }}>Suma de productos</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "#c9a84c" }}>{fmt(Math.round(precioSugerido))}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "var(--acento-texto)" }}>{fmt(Math.round(precioSugerido))}</span>
                   </div>
                 </div>
               </div>
@@ -15341,8 +15345,8 @@ function Insumos({ localId, usuario, paletaActual }) {
               <div style={{ background: "#c0392b12", border: "1px solid " + temaPal.border, borderRadius: 6, padding: "8px 12px", marginBottom: 10, fontSize: 11, color: "#c0392b" }}>{errorAjuste}</div>
             )}
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "exacto" ? "#c9a84c15" : "transparent", border: "1px solid " + (modoAjuste === "exacto" ? "#c9a84c" : temaPal.border), color: modoAjuste === "exacto" ? "#c9a84c" : temaPal.textMuted }} onClick={() => { setModoAjuste("exacto"); setValorAjuste(String(stockLocal(ajustando))); }}>Poner cantidad exacta</button>
-              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "diferencia" ? "#c9a84c15" : "transparent", border: "1px solid " + (modoAjuste === "diferencia" ? "#c9a84c" : temaPal.border), color: modoAjuste === "diferencia" ? "#c9a84c" : temaPal.textMuted }} onClick={() => { setModoAjuste("diferencia"); setValorAjuste(""); }}>Sumar / restar</button>
+              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "exacto" ? "#c9a84c15" : "transparent", border: "1px solid " + (modoAjuste === "exacto" ? "#c9a84c" : temaPal.border), color: modoAjuste === "exacto" ? "var(--acento-texto)" : temaPal.textMuted }} onClick={() => { setModoAjuste("exacto"); setValorAjuste(String(stockLocal(ajustando))); }}>Poner cantidad exacta</button>
+              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "diferencia" ? "#c9a84c15" : "transparent", border: "1px solid " + (modoAjuste === "diferencia" ? "#c9a84c" : temaPal.border), color: modoAjuste === "diferencia" ? "var(--acento-texto)" : temaPal.textMuted }} onClick={() => { setModoAjuste("diferencia"); setValorAjuste(""); }}>Sumar / restar</button>
             </div>
             <div className="fg">
               <div className="fl">{modoAjuste === "exacto" ? "Stock real (numero final)" : "Diferencia (ej: 10 o -3)"}</div>
@@ -15774,11 +15778,11 @@ const NAV_SECTIONS = [
   { section: "VENTAS", color: "#e67e22", items: [{ id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "pos", icon: "🛒", label: "Punto de Venta" }, { id: "ventas-online", icon: "🌐", label: "Ventas Online" }, { id: "buscar-precio", icon: "🔎", label: "Buscar Precio" }, { id: "cambio-devolucion", icon: "🔄", label: "Cambio / Devolucion" }] },
   { section: "STOCK", color: "#7d3c98", items: [{ id: "inventory", icon: "📦", label: "Inventario" }, { id: "ordenes", icon: "🚚", label: "Ingresos" }, { id: "inconsistencias", icon: "⚠️", label: "Inconsistencias" }, { id: "kits", icon: "🎁", label: "Kits" }, { id: "insumos", icon: "🛍️", label: "Insumos" }, { id: "control-inv", icon: "🔍", label: "Control de Inventario" }] },
   { section: "CAJA", color: "#2d7a4f", items: [{ id: "caja", icon: "💵", label: "Caja" }, { id: "caja-respaldo", icon: "🏦", label: "Caja de Respaldo" }, { id: "cierre", icon: "🔒", label: "Cierre de Caja" }, { id: "giftcards", icon: "🎀", label: "Gift Cards" }] },
-  { section: "CLIENTES", color: "#c9a84c", items: [{ id: "clients", icon: "👥", label: "Clientes" }, { id: "pedidos", icon: "📦", label: "Pedidos" }, { id: "fidelizacion", icon: "⭐", label: "Fidelizacion" }] },
+  { section: "CLIENTES", color: "var(--acento-texto)", items: [{ id: "clients", icon: "👥", label: "Clientes" }, { id: "pedidos", icon: "📦", label: "Pedidos" }, { id: "fidelizacion", icon: "⭐", label: "Fidelizacion" }] },
   { section: "EQUIPO", color: "#2471a3", items: [{ id: "tareas", icon: "📝", label: "Tareas" }] },
   { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "💰", label: "Finanzas" }, { id: "comprobantes", icon: "🧾", label: "Comprobantes" }, { id: "comisiones", icon: "💎", label: "Comisiones" }, { id: "compras", icon: "🛒", label: "Compras y proveedores" }, { id: "calculadoras", icon: "🧮", label: "Calculadoras" }, { id: "productividad", icon: "🏆", label: "Productividad" }] },
   { section: "MARKETING", color: "#e74c3c", items: [{ id: "cupones", icon: "🏷️", label: "Cupones" }, { id: "promociones", icon: "🎉", label: "Promociones" }] },
-  { section: "POSTVENTA", color: "#25d366", items: [{ id: "postventa", icon: "💬", label: "Postventa WA" }] },
+  { section: "POSTVENTA", color: "var(--wa-texto)", items: [{ id: "postventa", icon: "💬", label: "Postventa WA" }] },
   { section: "CLIENTE", color: PALETA_CLARA.textMuted, items: [{ id: "portal", icon: "👤", label: "Portal Cliente" }] },
   { section: "NEGOCIO", color: "#8e44ad", items: [{ id: "config-negocio", icon: "⚙️", label: "Configuracion del Negocio" }] },
 ];
@@ -15812,7 +15816,7 @@ function LoginScreen({ onLogin }) {
     <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #2C3E5C 0%, #1C2A40 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', sans-serif" }}>
       <div style={{ width: 360, background: "#ffffff", border: "1px solid #272220", borderRadius: 12, padding: 36 }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 300, letterSpacing: ".18em", color: "#c9a84c" }}>LUMIERE</div>
+          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 300, letterSpacing: ".18em", color: "var(--acento-texto)" }}>LUMIERE</div>
           <div style={{ fontSize: 9, color: "#65676B", letterSpacing: ".3em", marginTop: 4 }}>SISTEMA DE GESTION</div>
         </div>
         {error && <div style={{ background: "#c0392b12", border: "1px solid #d97070", borderRadius: 5, padding: "8px 12px", marginBottom: 16, fontSize: 11, color: "#c0392b" }}>{error}</div>}
@@ -15844,7 +15848,7 @@ function LocalSelector({ usuario, onSelect }) {
     <div style={{ minHeight: "100vh", background: "#F0F2F5", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Mono', monospace" }}>
       <div style={{ width: 420, background: "#ffffff", border: "1px solid #272220", borderRadius: 12, padding: 36 }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 300, letterSpacing: ".18em", color: "#c9a84c" }}>LUMIERE</div>
+          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 300, letterSpacing: ".18em", color: "var(--acento-texto)" }}>LUMIERE</div>
           <div style={{ fontSize: 11, color: "#65676B", marginTop: 8 }}>Bienvenida, {usuario?.nombre || "usuario"}</div>
           <div style={{ fontSize: 9, color: "#65676B", letterSpacing: ".2em", marginTop: 4 }}>SELECCIONA TU LOCAL</div>
         </div>
@@ -15858,7 +15862,7 @@ function LocalSelector({ usuario, onSelect }) {
                 <div style={{ fontSize: 14, color: "#111111" }}>{l.nombre}</div>
                 {l.direccion && <div style={{ fontSize: 10, color: "#65676B", marginTop: 3 }}>{l.direccion}</div>}
               </div>
-              <span style={{ color: "#c9a84c", fontSize: 16 }}></span>
+              <span style={{ color: "var(--acento-texto)", fontSize: 16 }}></span>
             </div>
           ))}
         </div>
@@ -16672,7 +16676,7 @@ export default function AppWrapper() {
               </span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-              <StatusDot color="#2d7a4f" label="ARCA" />
+              <span style={{ color: "#9FB0C4" }}><StatusDot color="#3fbf7f" label="ARCA" /></span>
             </div>
             <div
               onClick={alternarTema}
