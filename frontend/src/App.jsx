@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, Fragment } from "react";
+﻿import { useState, useEffect, useRef, Fragment, Component } from "react";
 import { getProductos, createVenta, getClientes, getFlujo, getPuntoEquilibrio, agregarEgreso, getResumenFinanzas, getVentas, getAlertasStock, getCupones, createCupon, updateCupon, getRanking, getReglas, createRegla as createReglaWA, updateRegla as updateReglaWA, login, register } from "./api";
 import API from "./api";
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, ReferenceLine } from "recharts";
@@ -47,24 +47,43 @@ const PALETA_OSCURA = {
 };
 
 // Tema rosa pastel ("girlie"): fondo rosa suave, menu ciruela, tarjetas blancas, acento rosa chicle
-// Tema rosa "rosé": base nude, brillos rosados suaves, menu vino y detalles en oro rosa
-const PALETA_ROSA = {
-  bg: "#F7EFEC", sidebar: "linear-gradient(180deg, #4B2233 0%, #2F1520 100%)", surface: "#ffffff", card: "#ffffff", border: "#E8D6D0",
-  accent: "#C98A78", accentDim: "#C98A7822", accentHover: "#DDA392", accentText: "#8F4636",
-  text: "#2A1A20", textSoft: "#4A3239", textMuted: "#6E565D",
-  green: "#067A67", greenDim: "#067A6714",
-  red: "#C81E3A", redDim: "#f2364514",
+// Si una seccion falla al dibujarse, muestra un aviso en esa seccion en vez de dejar todo el sistema en blanco
+class ErrorSeccion extends Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  componentDidCatch(error, info) { console.error("Error en la sección:", error, info?.componentStack); }
+  render() {
+    if (!this.state.error) return this.props.children;
+    const p = this.props.p || PALETA_CLARA;
+    return (
+      <div className="card" role="alert" style={{ textAlign: "center", padding: 28, maxWidth: 520, margin: "40px auto" }}>
+        <div style={{ fontSize: 30, marginBottom: 8 }} aria-hidden="true">⚠️</div>
+        <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 6 }}>Esta sección tuvo un problema</div>
+        <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 16, lineHeight: 1.5 }}>El resto del sistema sigue funcionando. Probá de nuevo o elegí otra sección del menú.</div>
+        <button className="btn btn-p" onClick={() => this.setState({ error: null })}>Reintentar</button>
+      </div>
+    );
+  }
+}
+
+// Tema "Salvia": estilo botanico -- crema tipo papel, menu verde salvia oscuro, botones oliva y detalles dorados
+const PALETA_SALVIA = {
+  bg: "#F5F1E8", sidebar: "linear-gradient(180deg, #3F5245 0%, #2C3B31 100%)", surface: "#ffffff", card: "#ffffff", border: "#DDD6C6",
+  accent: "#C4A35A", accentDim: "#C4A35A22", accentHover: "#D6B872", accentText: "#7A5E1C",
+  text: "#1F2620", textSoft: "#3A443C", textMuted: "#5E665F",
+  green: "#2F7A4A", greenDim: "#2F7A4A14",
+  red: "#B8322A", redDim: "#B8322A14",
   warn: "#9A4507", warnDim: "#d977061c",
-  blue: "#6E2F48", blueDim: "#6E2F4814",
+  blue: "#3F5245", blueDim: "#3F524514",
   purple: "#7d3c98", purpleDim: "#7d3c9812",
   wa: "#0F7A3D", waDim: "#25d3661c",
-  navText: "rgba(255,240,244,0.92)", navTextDim: "rgba(255,228,236,0.68)",
-  navHover: "rgba(255,255,255,0.08)", navActive: "rgba(224,164,142,0.18)", navActiveBorder: "rgba(224,164,142,0.45)",
-  logoText: "#F6D9CF", logoSub: "rgba(246,217,207,0.7)",
-  scrollThumb: "#DCC3BB", inpBg: "#FBF6F4", placeholder: "#9C868C",
-  tdText: "#2A1A20", trHover: "#FAF1EE", shadowCol: "rgba(75,34,51,0.16)", shadowSoft: "rgba(75,34,51,0.09)",
-  btnTop: "#7A3653", btnBot: "#57293C", btnEdge: "#2F1520", btnHoverTop: "#86405F", btnHoverBot: "#633046", btnShadow: "rgba(75,34,51,0.35)", tabOn: "#6E2F48", navLine: "rgba(255,255,255,0.12)",
-  bgImage: "radial-gradient(ellipse at 100% 0%, #F0C4CF88 0, transparent 45%), radial-gradient(ellipse at 0% 100%, #EECDBF88 0, transparent 45%), linear-gradient(160deg, #FBF5F2 0%, #F5E8E4 100%)",
+  navText: "rgba(245,241,232,0.92)", navTextDim: "rgba(236,230,214,0.68)",
+  navHover: "rgba(255,255,255,0.08)", navActive: "rgba(196,163,90,0.18)", navActiveBorder: "rgba(196,163,90,0.45)",
+  logoText: "#EBDDB8", logoSub: "rgba(235,221,184,0.82)",
+  scrollThumb: "#CFC6B1", inpBg: "#FAF8F3", placeholder: "#8E9187",
+  tdText: "#1F2620", trHover: "#F7F4EC", shadowCol: "rgba(44,59,49,0.15)", shadowSoft: "rgba(44,59,49,0.08)",
+  btnTop: "#5E7A55", btnBot: "#4A6343", btnEdge: "#2F4230", btnHoverTop: "#688660", btnHoverBot: "#536E4B", btnShadow: "rgba(47,66,48,0.32)", tabOn: "#4A6343", navLine: "rgba(255,255,255,0.12)",
+  bgImage: "radial-gradient(ellipse at 100% 0%, #CFDCC888 0, transparent 45%), radial-gradient(ellipse at 0% 100%, #E9DFC888 0, transparent 45%), linear-gradient(160deg, #F8F5EE 0%, #F0EBDF 100%)",
   bgSize: "cover, cover, cover",
 };
 // Tema "Girasoles": collage de verano -- amarillo girasol, rosa chicle, celeste y verde menta sobre crema
@@ -90,7 +109,7 @@ const PALETA_GIRASOLES = {
   // Halo claro detras de los textos que van sobre la imagen (en las tarjetas blancas no se nota)
   textHalo: "0 0 2px #FFF6E2, 0 0 6px #FFF6E2, 0 0 10px #FFF6E2",
 };
-const PALETAS = { claro: PALETA_CLARA, oscuro: PALETA_OSCURA, rosa: PALETA_ROSA, girasoles: PALETA_GIRASOLES };
+const PALETAS = { claro: PALETA_CLARA, oscuro: PALETA_OSCURA, salvia: PALETA_SALVIA, girasoles: PALETA_GIRASOLES };
 
 // Mantiene "C" con el nombre viejo (paleta clara) para no romper nada que ya la use directo.
 const C = PALETA_CLARA;
@@ -602,9 +621,9 @@ button.tab { font-family: inherit; }
 // El tema "de fabrica" (antes de que alguien lo cambie a mano) se puede configurar por
 // copia con la variable de entorno VITE_TEMA_DEFAULT -- si no esta configurada, sigue
 // siendo "claro" como siempre.
-const TEMA_POR_DEFECTO = ["oscuro", "rosa", "girasoles"].includes(import.meta.env.VITE_TEMA_DEFAULT) ? import.meta.env.VITE_TEMA_DEFAULT : "claro";
+const TEMA_POR_DEFECTO = ["oscuro", "salvia", "girasoles"].includes(import.meta.env.VITE_TEMA_DEFAULT) ? import.meta.env.VITE_TEMA_DEFAULT : "claro";
 const obtenerTemaGuardado = () => {
-  try { const t = localStorage.getItem("lumiere_tema"); return ["claro", "oscuro", "rosa", "girasoles"].includes(t) ? t : TEMA_POR_DEFECTO; } catch (e) { return TEMA_POR_DEFECTO; }
+  try { const t0 = localStorage.getItem("lumiere_tema"); const t = t0 === "rosa" ? "salvia" : t0; return ["claro", "oscuro", "salvia", "girasoles"].includes(t) ? t : TEMA_POR_DEFECTO; } catch (e) { return TEMA_POR_DEFECTO; }
 };
 const guardarTema = (tema) => { try { localStorage.setItem("lumiere_tema", tema); } catch (e) {} };
 
@@ -10516,6 +10535,7 @@ function DesafiosMes({ localId, usuario, mes, anio, paletaActual }) {
 
   if (!datos) return null;
   const meta = datos.meta_mensual || 10;
+  const vendedoras = Array.isArray(datos.vendedoras) ? datos.vendedoras : [];
   const stockDe = (pr) => (pr.disponible !== undefined ? pr.disponible : (Number(localId) === 2 ? pr.stock_ush : pr.stock_rg) || 0);
   const opciones = entregando ? productos
     .filter(pr => parseFloat(pr.precio || 0) > 0 && parseFloat(pr.precio || 0) <= parseFloat(entregando.monto_premio) && stockDe(pr) > 0 && pr.activo !== false)
@@ -10531,13 +10551,13 @@ function DesafiosMes({ localId, usuario, mes, anio, paletaActual }) {
           {datos.activo ? meta + " retos superados = producto de hasta " + fmt(datos.premio_monto).replace(",00", "") : "Desactivados en Configuración del Negocio"}
         </div>
       </div>
-      {datos.vendedoras.length === 0 ? (
+      {vendedoras.length === 0 ? (
         <div style={{ fontSize: 12, color: p.textMuted, textAlign: "center", padding: 16 }}>
           Todavía nadie aceptó un desafío este mes. Se aceptan desde la ficha del cliente en el Punto de Venta.
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {datos.vendedoras.map(v => {
+          {vendedoras.map(v => {
             const pct = Math.min(v.logrados / meta, 1);
             const premio = v.premio;
             return (
@@ -16733,7 +16753,7 @@ export default function AppWrapper() {
               <span style={{ color: paletaActual.navTextDim }}><StatusDot color="#3fbf7f" label="ARCA" /></span>
             </div>
             <div className="tema-sel" role="radiogroup" aria-label="Colores del sistema">
-              {[["claro", "☀️", "Claro"], ["oscuro", "🌙", "Oscuro"], ["rosa", "🌸", "Rosa"], ["girasoles", "🌻", "Girasoles"]].map(([id, ic, l]) => (
+              {[["claro", "☀️", "Claro"], ["oscuro", "🌙", "Oscuro"], ["salvia", "🌿", "Salvia"], ["girasoles", "🌻", "Girasoles"]].map(([id, ic, l]) => (
                 <button key={id} type="button" role="radio" aria-checked={tema === id} className={tema === id ? "on" : ""} onClick={() => elegirTema(id)} title={"Fondo " + l.toLowerCase()}>
                   <span aria-hidden="true">{ic}</span> {l}
                 </button>
@@ -16744,7 +16764,7 @@ export default function AppWrapper() {
           </div>
         </aside>
         <main className={"main " + (sidebarComprimido ? "comprimido" : "")}>
-          {getPageWithLocal(page)}
+          <ErrorSeccion key={page} p={paletaActual}>{getPageWithLocal(page)}</ErrorSeccion>
         </main>
         <AsistenteAyuda usuario={usuario} seccion={page} paletaActual={paletaActual} />
       </div>
