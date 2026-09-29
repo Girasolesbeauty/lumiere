@@ -1023,6 +1023,57 @@ const getBaseDecisiones = async (req, res) => {
       parado.top = pr.rows.slice(0, 5).map(r => ({ nombre: r.nombre, stock: num(r.stock), valor_costo: num(r.stock) * num(r.costo) }));
     } catch (e) { console.error('stock parado:', e.message); }
 
+    // ---- Datos para "Bajar costos" ----
+    // Cada costo fijo por categoria (promedio por mes)
+    const porCategoria = {};
+    usados.forEach(({ e }) => {
+      [['fijos', 'Costos fijos'], ['admin', 'Administrativos y marketing'], ['sueldos', 'Sueldos'], ['impuestos', 'Impuestos']].forEach(([g, grupo]) => {
+        Object.entries(e[g].detalle || {}).forEach(([nombre, monto]) => {
+          const k = g + '|' + nombre;
+          if (!porCategoria[k]) porCategoria[k] = { grupo, nombre, monto: 0 };
+          porCategoria[k].monto += num(monto) / n;
+        });
+      });
+    });
+    const costosCategorias = Object.values(porCategoria).filter(c => c.monto > 0).sort((a, b) => b.monto - a.monto);
+    // Comisiones de cada medio de pago (promedio por mes)
+    const medios = {};
+    await Promise.all(usados.map(async ({ k }) => {
+      const { mes, anio } = deClave(k);
+      const cm = await calcularComisionesMedios(mes, anio, localNum);
+      cm.detalle.forEach(d => {
+        if (!medios[d.medio]) medios[d.medio] = { medio: d.medio, monto: 0, comision: 0, comision_pct: d.comision_pct, efectivo: d.efectivo };
+        medios[d.medio].monto += d.monto / n;
+        medios[d.medio].comision += d.comision / n;
+      });
+    }));
+    const comisionesMedios = Object.values(medios).filter(m => m.comision > 0).sort((a, b) => b.comision - a.comision);
+    // Proveedores a los que mas se les compra (ultimos 90 dias)
+    let proveedoresCompras = [];
+    try {
+      const pc = await pool.query(`
+        SELECT pr.nombre, SUM(o.total) AS total, COUNT(*) AS ordenes
+        FROM ordenes_ingreso o JOIN proveedores pr ON pr.id = o.proveedor_id
+        WHERE COALESCE(o.fecha_factura, o.creado_en::date) >= CURRENT_DATE - 90
+        GROUP BY pr.nombre ORDER BY SUM(o.total) DESC LIMIT 5`);
+      proveedoresCompras = pc.rows.map(r => ({ nombre: r.nombre, total_90: num(r.total), por_mes: num(r.total) / 3, ordenes: parseInt(r.ordenes) || 0 }));
+    } catch (e) { console.error('compras por proveedor:', e.message); }
+    // Productos que venden bien pero dejan poco margen (ultimos 90 dias)
+    let bajoMargen = [];
+    try {
+      const bm = await pool.query(`
+        SELECT p.nombre, pr.nombre AS proveedor, SUM(vi.cantidad * vi.precio_unitario) AS ventas, SUM(vi.cantidad * p.costo) AS costos
+        FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id JOIN productos p ON p.id = vi.producto_id
+        LEFT JOIN proveedores pr ON pr.id = p.proveedor_id
+        WHERE ${VENTA_VALIDA('v')} AND COALESCE(p.costo, 0) > 0 AND v.creado_en >= NOW() - INTERVAL '90 days'
+          ${localNum !== null ? 'AND v.local_id = $1' : ''}
+        GROUP BY p.nombre, pr.nombre
+        HAVING SUM(vi.cantidad * vi.precio_unitario) > 0
+           AND (SUM(vi.cantidad * vi.precio_unitario) - SUM(vi.cantidad * p.costo)) / SUM(vi.cantidad * vi.precio_unitario) < 0.35
+        ORDER BY SUM(vi.cantidad * vi.precio_unitario) DESC LIMIT 5`, pLocal);
+      bajoMargen = bm.rows.map(r => ({ nombre: r.nombre, proveedor: r.proveedor, ventas_mes: num(r.ventas) / 3, margen_pct: (num(r.ventas) - num(r.costos)) / num(r.ventas) * 100, costo_mes: num(r.costos) / 3 }));
+    } catch (e) { console.error('bajo margen:', e.message); }
+
     const ingCosto = num(mg.rows[0].ingresos_con_costo);
     const margenBruto = ingCosto > 0 ? (ingCosto - num(mg.rows[0].costos)) / ingCosto : null;
     const cobertura = num(mg.rows[0].ingresos) > 0 ? ingCosto / num(mg.rows[0].ingresos) : 0;
@@ -1052,6 +1103,10 @@ const getBaseDecisiones = async (req, res) => {
       mejor_mes: mejor,
       cantidad_ventas_mes: prom(e => e.cantidad_ventas),
       stock_parado: parado,
+      costos_categorias: costosCategorias,
+      comisiones_medios: comisionesMedios,
+      proveedores_compras: proveedoresCompras,
+      bajo_margen: bajoMargen,
     });
   } catch (error) {
     console.error(error);

@@ -447,6 +447,14 @@ button.tab { font-family: inherit; }
 .rot-mantener label { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: ${p.textMuted}; margin-left: 6px; white-space: nowrap; }
 .rot-mantener input { width: 52px; padding: 2px 6px; border-radius: 6px; border: 1px solid ${p.border}; background: ${p.inpBg}; color: ${p.text}; font-family: inherit; font-size: 12px; }
 .rot-accion { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; border-left: 4px solid ${p.warn}; }
+.dec-ideas { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.dec-idea { display: grid; grid-template-columns: 34px 1fr; gap: 10px; background: ${p.bg}; border-radius: 10px; padding: 12px; }
+.dec-idea-ic { font-size: 22px; line-height: 1; }
+.dec-idea-t { font-size: 14px; font-weight: 800; }
+.dec-idea-x { font-size: 12.5px; line-height: 1.5; color: ${p.textSoft}; margin-top: 3px; }
+.dec-idea-pie { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+.dec-idea-ah { font-size: 13px; font-weight: 800; color: ${p.green}; }
+.dec-idea-ah.sin { color: ${p.textMuted}; font-weight: 600; }
 .dec-base { margin-bottom: 14px; }
 .dec-base-tit { font-size: 13px; font-weight: 800; margin-bottom: 10px; }
 .dec-base-tit span { font-weight: 500; font-size: 11px; color: ${p.textMuted}; margin-left: 6px; }
@@ -4997,6 +5005,7 @@ const SITUACIONES_DECISION = [
   { id: "precios", icono: "🏷️", titulo: "Subir o bajar precios" },
   { id: "promo", icono: "🎉", titulo: "Promoción o descuento" },
   { id: "objetivo", icono: "🎯", titulo: "Llegar a una ganancia" },
+  { id: "bajar", icono: "✂️", titulo: "Bajar costos" },
 ];
 const TIPOS_PROMO = [
   { id: "pct", l: "% de descuento" }, { id: "2x1", l: "2x1" }, { id: "3x2", l: "3x2" }, { id: "segunda", l: "2ª unidad con descuento" },
@@ -5100,6 +5109,52 @@ function simularDecision(tipo, b, x) {
     if (mas <= 0.25) return { nivel: "verde", titulo: "Conviene", texto: "Con vender " + pct(mas * 100) + " más de unidades durante la promo ya ganás lo mismo; todo lo que vendas por encima es ganancia extra.", cifras };
     if (mas <= 0.6) return { nivel: "amarillo", titulo: "Conviene si mueve bastante", texto: "Tenés que vender " + pct(mas * 100) + " más de unidades para ganar lo mismo que sin promo. Es posible con buena difusión (redes, WhatsApp, vidriera)." + nota, cifras };
     return { nivel: "rojo", titulo: "No conviene para ganar más", texto: "Tendrías que vender " + pct(mas * 100) + " más de unidades solo para ganar lo mismo. Probá un descuento menor o aplicarlo a menos productos." + nota, cifras };
+  }
+
+  // Bajar costos: ideas concretas con los numeros del negocio y cuanto ahorraria cada una
+  if (tipo === "bajar") {
+    const rec = Math.min(50, n(x.recorte) || 10) / 100;   // cuanto se podria bajar un costo fijo
+    const dto = Math.min(30, n(x.dtoProveedor) || 5) / 100; // descuento a pedir a proveedores
+    const ideas = [];
+    (b.costos_categorias || []).slice(0, 5).forEach(c => {
+      const pv = V > 0 ? c.monto / V * 100 : 0;
+      if (/alquil/i.test(c.nombre)) {
+        ideas.push({ icono: "🏠", titulo: "Renegociar el alquiler", texto: "El alquiler es " + $(c.monto) + " por mes (" + pct(pv) + " de lo que vendés" + (pv > 10 ? ", más de lo sano para un comercio" : "") + "). Pedí una rebaja o un ajuste más espaciado al renovar, o evaluá un local más chico si sobra espacio.", ahorro: c.monto * rec });
+      } else if (c.grupo === "Sueldos") {
+        if (pv > 30) ideas.push({ icono: "👥", titulo: "Ordenar los horarios del equipo", texto: "Los sueldos son " + pct(pv) + " de lo que vendés (lo sano es hasta 30%). Revisá que los turnos coincidan con los horarios de más venta, y pagá una parte como comisión: así el costo acompaña a las ventas.", ahorro: c.monto * rec / 2 });
+      } else if (c.grupo === "Impuestos") {
+        ideas.push({ icono: "🧾", titulo: "Revisar la carga de impuestos con tu contador", texto: c.nombre + " es " + $(c.monto) + " por mes (" + pct(pv) + " de las ventas). Consultá si tu categoría o régimen es el más conveniente para lo que facturás.", ahorro: null });
+      } else {
+        ideas.push({ icono: c.grupo === "Administrativos y marketing" ? "📣" : "💡", titulo: "Bajar " + c.nombre.toLowerCase(), texto: c.nombre + " es " + $(c.monto) + " por mes (" + pct(pv) + " de las ventas). " + (c.grupo === "Administrativos y marketing" ? "Medí qué publicidad trae ventas de verdad y cortá la que no." : "Pedí presupuesto a otras empresas: con otra propuesta en la mano es más fácil negociar."), ahorro: c.monto * rec });
+      }
+    });
+    (b.comisiones_medios || []).filter(m => !m.efectivo && m.comision > 0).slice(0, 2).forEach(m => {
+      ideas.push({ icono: "💳", titulo: "Bajar las comisiones de " + m.medio, texto: "Te cobran ≈ " + $(m.comision) + " por mes (" + pct(m.comision_pct) + " de " + $(m.monto) + "). Negociá la tasa con el procesador o ofrecé un pequeño descuento pagando con transferencia: si un 30% de esas ventas se pasa, ahorrás lo de abajo.", ahorro: m.comision * 0.3 });
+    });
+    (b.proveedores_compras || []).slice(0, 3).forEach(pv => {
+      const msg = "Hola " + pv.nombre + ", ¿cómo están? En los últimos 3 meses les compramos por " + $(pv.total_90) + " y queremos seguir creciendo con ustedes. ¿Podemos ver un " + pct(dto * 100) + " de descuento por volumen o por pago de contado? ¡Gracias!";
+      ideas.push({ icono: "🤝", titulo: "Pedirle un " + pct(dto * 100) + " de descuento a " + pv.nombre, texto: "Le comprás ≈ " + $(pv.por_mes) + " por mes. Con ese volumen tenés argumentos para negociar un descuento, más plazo de pago o un precio mejor pagando de contado.", ahorro: pv.por_mes * dto, mensaje: msg });
+    });
+    (b.bajo_margen || []).slice(0, 3).forEach(pr => {
+      ideas.push({ icono: "🏷️", titulo: pr.nombre + ": deja poco margen", texto: "Se vende bien (" + $(pr.ventas_mes) + " por mes) pero deja solo " + pct(pr.margen_pct) + ". Pedile mejor precio" + (pr.proveedor ? " a " + pr.proveedor : " al proveedor") + " o revisá el precio de venta. Con un 10% menos de costo ganás lo de abajo.", ahorro: pr.costo_mes * 0.1 });
+    });
+    if (b.stock_parado && b.stock_parado.valor_costo > 0) {
+      const tasa = obtenerTasaMantener() / 100;
+      ideas.push({ icono: "📦", titulo: "Liquidar la mercadería parada", texto: "Tenés " + $(b.stock_parado.valor_costo) + " en productos sin ventas en 90 días. Tenerlos guardados te cuesta ≈ " + $(b.stock_parado.valor_costo * tasa / 12) + " por mes, y esa plata podría estar en productos que se venden.", ahorro: b.stock_parado.valor_costo * tasa / 12 });
+    }
+    ideas.sort((i1, i2) => (i2.ahorro || 0) - (i1.ahorro || 0));
+    const total = ideas.reduce((t, i) => t + (i.ahorro || 0), 0);
+    const pf = V > 0 ? F / V * 100 : 0;
+    const cifras = [
+      ["Costos fijos hoy", $(F) + " por mes", pct(pf) + " de lo que vendés"],
+      ["Ahorro posible", "≈ " + $(total) + " por mes", "si aplicás todas las ideas"],
+      ["Ganancia estimada", $(G) + " → " + $(G + total), "por mes"],
+    ];
+    if (!ideas.length) return { nivel: "verde", titulo: "Sin ideas por ahora", texto: "No hay suficientes gastos o compras cargados para sugerir ahorros. Cargá los gastos en Finanzas y las compras en Ingresos.", cifras, ideas };
+    const base = pf <= 25 ? { nivel: "verde", titulo: "Tus costos están sanos", texto: "Tus costos fijos son el " + pct(pf) + " de lo que vendés. Igual hay margen para ahorrar: estas son las ideas con más impacto." }
+      : pf <= 35 ? { nivel: "amarillo", titulo: "Hay costos para ajustar", texto: "Tus costos fijos son el " + pct(pf) + " de lo que vendés. Ajustando lo de abajo podés ganar ≈ " + $(total) + " más por mes." }
+      : { nivel: "rojo", titulo: "Tus costos fijos son altos", texto: "Se llevan el " + pct(pf) + " de lo que vendés. Empezá por las primeras ideas: son las que más plata te ahorran." };
+    return { ...base, cifras, ideas };
   }
 
   // Llegar a una ganancia
@@ -5283,8 +5338,9 @@ function TomaDecisiones({ paletaActual }) {
   const [tabLocal, setTabLocal] = useState(prefill?.local || "consolidado");
   const [base, setBase] = useState(null);
   const [sit, setSit] = useState(prefill?.sit || "empleado");
-  const [x, setX] = useState({ sueldo: "", cargas: "28", aguinaldo: true, ventasExtra: "", ventasExtraCosto: "", monto: "", cambio: "10", objetivo: prefill?.objetivo || "vender", tipoPromo: "pct", descuento: "20", alcance: "100", dias: "7", margen: "", publicidad: "", valorCosto: prefill?.valorCosto || "", valorVenta: prefill?.valorVenta || "", ganancia: "" });
+  const [x, setX] = useState({ sueldo: "", cargas: "28", aguinaldo: true, ventasExtra: "", ventasExtraCosto: "", monto: "", cambio: "10", objetivo: prefill?.objetivo || "vender", tipoPromo: "pct", descuento: "20", alcance: "100", dias: "7", margen: "", publicidad: "", recorte: "10", dtoProveedor: "5", valorCosto: prefill?.valorCosto || "", valorVenta: prefill?.valorVenta || "", ganancia: "" });
   const set = (k, v) => setX(o => ({ ...o, [k]: v }));
+  const [copiado, setCopiado] = useState(null);
   useEffect(() => {
     setBase(null);
     API.get("/finanzas/decisiones/base?local_id=" + tabLocal).then(r => {
@@ -5398,6 +5454,11 @@ function TomaDecisiones({ paletaActual }) {
                   {campo("valorVenta", "¿Cuánto vale a precio de venta?", "Lo que cobrarías sin descuento")}
                 </>}
               </>}
+              {sit === "bajar" && <>
+                <div className="dec-ayuda" style={{ fontSize: 13, marginTop: 0, marginBottom: 12, color: p.textSoft }}>Lumiere revisa tus gastos, las comisiones de tarjeta, lo que le comprás a cada proveedor y el margen de cada producto, y te propone dónde ahorrar.</div>
+                {campo("recorte", "¿Cuánto creés que podés bajar un gasto negociando? (%)", "Se usa para estimar el ahorro en alquiler, servicios y otros gastos", { placeholder: "10" })}
+                {campo("dtoProveedor", "¿Qué descuento le pedirías a tus proveedores? (%)", "Por volumen o por pagar de contado", { placeholder: "5" })}
+              </>}
               {sit === "objetivo" && <>
                 {campo("ganancia", "¿Cuánto querés ganar por mes?", "Después de pagar todos los costos del negocio", { placeholder: "Ej: 1000000", autoFocus: true })}
               </>}
@@ -5415,6 +5476,23 @@ function TomaDecisiones({ paletaActual }) {
                     <div className="dec-cifras">
                       {res.cifras.map(([l, v, d], i) => (
                         <div key={i}><span>{l}</span><b>{v}</b>{d && <small>{d}</small>}</div>
+                      ))}
+                    </div>
+                  )}
+                  {res.ideas && res.ideas.length > 0 && (
+                    <div className="dec-ideas">
+                      {res.ideas.map((idea, i) => (
+                        <div key={i} className="dec-idea">
+                          <div className="dec-idea-ic" aria-hidden="true">{idea.icono}</div>
+                          <div style={{ minWidth: 0 }}>
+                            <div className="dec-idea-t">{idea.titulo}</div>
+                            <div className="dec-idea-x">{idea.texto}</div>
+                            <div className="dec-idea-pie">
+                              {idea.ahorro ? <span className="dec-idea-ah">💰 ≈ {$(idea.ahorro)} por mes</span> : <span className="dec-idea-ah sin">Consultalo con tu contador</span>}
+                              {idea.mensaje && <button className="chip-btn" onClick={() => { try { navigator.clipboard.writeText(idea.mensaje); setCopiado(i); setTimeout(() => setCopiado(null), 2500); } catch (e) {} }}>{copiado === i ? "✓ Copiado" : "📋 Copiar mensaje para el proveedor"}</button>}
+                            </div>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   )}

@@ -236,6 +236,7 @@ En **Finanzas → 🧭 Toma de decisiones** simulás una situación con los núm
 - **🏷️ Subir o bajar precios**: cuántas unidades podés perder (si subís) o tenés que ganar (si bajás) para seguir ganando lo mismo.
 - **🎉 Promoción o descuento**: % de descuento, 2x1, 3x2 o 2ª unidad con descuento. Primero elegís el objetivo: **vender más** (cuánto más hay que vender durante la promo para ganar lo mismo) o **liquidar lo que no rota** (si recuperás lo que pagaste y cuánto podés ganar reinvirtiendo esa plata; trae cargada la mercadería sin ventas en 90 días).
 - **🎯 Llegar a una ganancia**: cuánto tenés que vender por mes y por día.
+- **✂️ Bajar costos**: Lumiere revisa tus gastos por categoría, las comisiones de tarjeta, lo que le comprás a cada proveedor, los productos que dejan poco margen y la mercadería parada, y te da ideas concretas con cuánto ahorrarías por mes cada una (por ejemplo, renegociar el alquiler o pedirle un descuento a un proveedor, con el mensaje listo para copiar).
 Es una estimación (ganancia = ventas × margen − costos fijos) para comparar opciones; no reemplaza el consejo de tu contador.
 
 ### Cómo comparar dos meses
