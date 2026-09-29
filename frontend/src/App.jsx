@@ -279,6 +279,7 @@ button.tab { font-family: inherit; }
 .reto-res { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; border: 1px solid ${p.border}; background: ${p.card}; text-align: left; }
 .reto-res.ok { border-color: ${p.green}88; background: ${p.greenDim}; color: ${p.green}; }
 .reto-res.no { color: ${p.textMuted}; }
+.reto-res.activo { border: 1px dashed ${p.accent}; background: ${p.accentDim}; color: ${p.accent}; }
 .cart-insumos { padding: 8px 12px; border-top: 1px solid ${p.border}; background: ${p.card}; text-align: left; }
 .cart-insumos-btn { width: 100%; background: ${p.purpleDim}; color: ${p.purple}; border: 1px solid ${p.purple}66; box-shadow: none; }
 .com-uso-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -379,7 +380,8 @@ button.tab { font-family: inherit; }
 .ayuda-fab { position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 60; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 13px; font-weight: 800; padding: 11px 16px; border-radius: 999px; border: none; cursor: pointer; background: ${p.accent}; color: #1B2431; box-shadow: 0 6px 20px ${p.shadowCol}; transition: transform .15s ease, box-shadow .15s ease; }
 .ayuda-fab:hover { transform: translateY(-2px); box-shadow: 0 10px 26px ${p.shadowCol}; }
 .ayuda-fab:focus-visible { outline: 2px solid ${p.text}; outline-offset: 3px; }
-.ayuda-fab.arriba { bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+.ayuda-fab.arriba { top: calc(12px + env(safe-area-inset-top, 0px)); bottom: auto; padding: 7px 12px; font-size: 12px; box-shadow: 0 3px 10px ${p.shadowCol}; }
+@media (max-width: 860px) { .ayuda-fab.arriba { top: auto; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); } }
 .ayuda-panel { position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 95; width: min(400px, calc(100vw - 24px)); height: min(620px, calc(100dvh - 90px)); display: flex; flex-direction: column; background: ${p.card}; border: 1px solid ${p.border}; border-radius: 16px; box-shadow: 0 18px 50px ${p.shadowCol}; overflow: hidden; text-align: left; }
 .ayuda-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 14px 14px 12px 16px; background: ${p.sidebar}; color: ${p.logoText}; }
 .ayuda-cuerpo { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: ${p.bg}; }
@@ -2961,11 +2963,13 @@ function POS({ localId, usuario, paletaActual }) {
     if (!(fichaCliente.compras >= 2 && fichaCliente.ticket_promedio > 0)) return;
     retoEvaluadoRef.current = true;
     const meta = Math.round(fichaCliente.ticket_promedio);
-    setReto({ meta, cliente: fichaCliente.cliente.nombre, clienteId: fichaCliente.cliente.id, vendido: subtotalConDesc });
-    if (subtotalConDesc > meta) sonar("ok");
+    // Si ya lo supera al identificarlo, no hay desafio (no se regala): el reto es venderle MAS
+    if (subtotalConDesc >= meta) return;
+    setReto({ meta, cliente: fichaCliente.cliente.nombre, clienteId: fichaCliente.cliente.id, inicial: subtotalConDesc });
+    sonar("ok");
   }, [fichaCliente, enPasoCobro, clienteSeleccionado?.id, retosConfig.activo, preventa]);
-  // Lo que cuenta para el desafio: lo que habia al medirlo, o menos si despues se sacaron productos
-  const vendidoReto = reto ? Math.min(reto.vendido ?? subtotalConDesc, subtotalConDesc) : 0;
+  // Lo que cuenta para el desafio: el carrito final
+  const vendidoReto = reto ? subtotalConDesc : 0;
   const total = Math.round(subtotalConDesc * coef);
   const intereses = total - subtotalConDesc;
   const montoAplicadoGC = giftCardAplicada ? Math.min(parseFloat(giftCardAplicada.saldo), total) : 0;
@@ -3675,22 +3679,28 @@ function POS({ localId, usuario, paletaActual }) {
           )}
     </>
   );
-  // Resultado del desafio (queda fijo al identificar al cliente en el cobro)
+  // Desafio: aparece al identificar al cliente con el carrito armado; se supera sumando productos
   const retoJSX = reto && !preventa ? (() => {
-    const logrado = vendidoReto > reto.meta;
-    const bajo = subtotalConDesc < (reto.vendido ?? subtotalConDesc);
+    const superado = vendidoReto > reto.meta;
+    const falta = Math.max(reto.meta - vendidoReto + 1, 0);
+    const progreso = Math.min(vendidoReto / reto.meta, 1);
     const nombreCorto = (reto.cliente || "El cliente").split(/[ ,]+/).filter(Boolean)[0];
     return (
-      <div className={"reto-res pop-in " + (logrado ? "ok" : "no")} role="status">
-        <span className={logrado ? "trofeo" : ""} style={{ fontSize: 26, lineHeight: 1 }} aria-hidden="true">{logrado ? "🏆" : "🎯"}</span>
+      <div className={"reto-res pop-in " + (superado ? "ok" : "activo")} role="status">
+        <span className={superado ? "trofeo" : ""} style={{ fontSize: 26, lineHeight: 1 }} aria-hidden="true">{superado ? "🏆" : "🎯"}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".1em" }}>{logrado ? "¡DESAFÍO SUPERADO!" : "DESAFÍO NO ALCANZADO"}</div>
-          <div style={{ fontSize: 12, marginTop: 2, color: temaPal.text }}>{nombreCorto} suele gastar <b>{fmt(reto.meta).replace(",00", "")}</b> y este carrito tiene <b>{fmt(Math.round(vendidoReto)).replace(",00", "")}</b>.</div>
-          <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 3 }}>
-            {logrado ? "Suma para tu premio del mes." : "Se mide con lo cargado al identificar al cliente."}
+          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".1em" }}>{superado ? "¡DESAFÍO SUPERADO!" : "DESAFÍO"}</div>
+          <div style={{ fontSize: 12, marginTop: 2, color: temaPal.text }}>{nombreCorto} suele gastar <b>{fmt(reto.meta).replace(",00", "")}</b> y hoy lleva <b>{fmt(Math.round(vendidoReto)).replace(",00", "")}</b>.</div>
+          {superado
+            ? <div style={{ fontSize: 13, fontWeight: 800, marginTop: 2 }}>🔥 Lo superaste por {fmt(Math.round(vendidoReto - reto.meta)).replace(",00", "")}</div>
+            : <div style={{ fontSize: 13, fontWeight: 800, marginTop: 2, color: temaPal.text }}>¡Te faltan {fmt(Math.round(falta)).replace(",00", "")} para superarlo!</div>}
+          <div className="reto-bar" style={{ marginTop: 6 }} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progreso * 100)} aria-label="Progreso del desafío">
+            <div className="reto-fill" style={{ width: (progreso * 100) + "%", background: superado ? temaPal.green : temaPal.accent }} />
+          </div>
+          <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 4 }}>
+            {superado ? "Suma para tu premio del mes." : "Ofrecele algo más y sumalo al carrito."}
             {retosMes && <> · Llevás {retosMes.logrados || 0} de {retosConfig.meta_mensual} este mes</>}
           </div>
-          {bajo && <div style={{ fontSize: 10, color: temaPal.warn, marginTop: 3 }}>Se sacaron productos después: cuenta el carrito final.</div>}
         </div>
       </div>
     );
@@ -4346,8 +4356,8 @@ function POS({ localId, usuario, paletaActual }) {
                 </div>
               )}
               {reto && !preventa && (
-                <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6, color: vendidoReto > reto.meta ? temaPal.green : temaPal.textMuted }}>
-                  {vendidoReto > reto.meta ? "🏆 ¡Desafío superado!" : "🎯 Desafío no alcanzado"}
+                <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6, color: vendidoReto > reto.meta ? temaPal.green : temaPal.accent }}>
+                  {vendidoReto > reto.meta ? "🏆 ¡Desafío superado!" : "🎯 Desafío: faltan " + fmt(Math.round(reto.meta - vendidoReto + 1)).replace(",00", "")}
                 </div>
               )}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
@@ -10675,8 +10685,8 @@ function ConfigComisiones({ paletaActual, onCambioActivos }) {
       {retos.activo && <div className="card">
         <div className="ct">🎯 Desafíos de venta (para todos los locales)</div>
         <div style={{ fontSize: 11, color: p.textMuted, marginBottom: 10, lineHeight: 1.6 }}>
-          Se arma el carrito, se toca <b>Continuar</b> y se carga el DNI: si el carrito supera el ticket promedio del cliente (con al menos 2 compras anteriores), el desafío queda superado.
-          El resultado se fija en ese momento: agregar productos después no lo cambia. Al juntar la cantidad de desafíos del mes, la vendedora gana un producto de regalo (se entrega desde la pestaña Desafíos).
+          Se arma el carrito, se toca <b>Continuar</b> y se carga el DNI. Si el carrito está por debajo del ticket promedio del cliente (con al menos 2 compras anteriores), aparece el desafío con lo que falta: la vendedora lo supera ofreciéndole algo más.
+          El objetivo se fija una sola vez por venta (cambiar de cliente lo anula). Al juntar la cantidad de desafíos del mes, la vendedora gana un producto de regalo (se entrega desde la pestaña Desafíos).
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 160 }}>
@@ -16066,17 +16076,30 @@ const renderRespuesta = (texto) => {
 // ===== Centro de ayuda (gratis, sin IA): buscador sobre el manual de Lumiere =====
 // Si el servidor tiene configurada una clave de IA, ademas aparece la pestaña "Preguntar a la IA".
 const TEMAS_POR_SECCION = {
-  dashboard: ["Dashboard"], pos: ["Cómo vender (Punto de Venta)", "Desafíos de venta", "Atajos del Punto de Venta"],
-  "ventas-online": ["Ventas Online"], "buscar-precio": ["Buscar Precio"], "cambio-devolucion": ["Cómo hacer un cambio o devolución"],
-  inventory: ["Inventario", "Cómo pedir mercadería (Qué pedir)"], ordenes: ["Cómo recibir mercadería", "Ingresos", "Cómo reclamar a un proveedor"],
-  inconsistencias: ["Inconsistencias", "Cómo reclamar a un proveedor"], kits: ["Kits"], insumos: ["Insumos"], "control-inv": ["Control de Inventario"],
-  caja: ["Caja", "Cómo cerrar la caja"], "caja-respaldo": ["Caja de Respaldo"], cierre: ["Cómo cerrar la caja", "Cómo anular una venta", "Cierre de Caja"],
-  giftcards: ["Gift Cards"], clients: ["Clientes"], pedidos: ["Cómo avisarle a un cliente que llegó lo que esperaba", "Pedidos"], fidelizacion: ["Fidelización"],
-  tareas: ["Tareas"], finance: ["Cómo cargar un gasto (egreso)", "Finanzas", "Documentación para el contador"],
-  comprobantes: ["Comprobantes", "Documentación para el contador", "Cómo anular una venta"], comisiones: ["Comisiones", "Desafíos de venta"],
-  compras: ["Cómo pedir mercadería (Qué pedir)", "¿Llego a pagarle al proveedor?", "Cómo pagar a un proveedor", "Cómo reclamar a un proveedor"],
-  calculadoras: ["Calculadoras"], productividad: ["Productividad"], cupones: ["Cupones"], promociones: ["Promociones"], postventa: ["Postventa WA"],
-  "config-negocio": ["Configuración del Negocio"], usuarios: ["Usuarios", "Roles y permisos"],
+  dashboard: ["Dashboard", "Cómo ver si el negocio gana plata"],
+  pos: ["Cómo vender (Punto de Venta)", "Desafíos de venta", "Cómo dividir un pago entre varios medios", "Cómo poner una venta en espera y retomarla", "Cómo aplicar un descuento", "Cómo hacer una preventa o tomar una seña", "Cómo usar el modo prueba", "Atajos del Punto de Venta"],
+  "ventas-online": ["Cómo registrar una venta online", "Ventas Online"], "buscar-precio": ["Cómo buscar un precio y mandárselo a un cliente"],
+  "cambio-devolucion": ["Cómo hacer un cambio o devolución"],
+  inventory: ["Cómo crear un producto", "Cómo cargar un producto con talles o colores (variantes)", "Cómo ajustar el stock de un producto", "Cómo pasar mercadería de un local al otro (traspaso)", "Cómo ver cuánto vale la mercadería"],
+  ordenes: ["Cómo recibir mercadería", "Cómo cargar una factura de proveedor", "Cómo cargar una orden de ingreso a mano", "Cómo registrar un regalo del proveedor"],
+  inconsistencias: ["Inconsistencias", "Cómo reclamar a un proveedor"], kits: ["Cómo crear un kit o combo", "Cómo vender un kit"],
+  insumos: ["Cómo cargar insumos y descontarlos al vender"], "control-inv": ["Cómo hacer un control de inventario (conteo)"],
+  caja: ["Cómo registrar un movimiento de caja", "Cómo cerrar la caja"], "caja-respaldo": ["Cómo guardar o sacar plata de la caja de respaldo"],
+  cierre: ["Cómo cerrar la caja", "Qué hacer si la caja no cuadra", "Cómo anular una venta"],
+  giftcards: ["Cómo emitir una gift card", "Cómo ver el saldo de una gift card", "Cómo cobrar con una gift card"],
+  clients: ["Cómo dar de alta un cliente", "Cómo cargar puntos de compras anteriores"],
+  pedidos: ["Cómo anotar un pedido de un cliente", "Cómo avisarle a un cliente que llegó lo que esperaba"],
+  fidelizacion: ["Cómo crear un premio para canjear con puntos", "Cómo validar un canje de puntos"], tareas: ["Cómo crear y asignar una tarea"],
+  finance: ["Cómo cargar un gasto (egreso)", "Cómo corregir o categorizar un egreso", "Cómo cambiar el reparto de gastos compartidos", "Cómo ver si el negocio gana plata", "Cómo comparar dos meses"],
+  comprobantes: ["Cómo reintentar una factura que falló", "Cómo reimprimir un ticket o factura", "Documentación para el contador"],
+  comisiones: ["Cómo configurar las comisiones", "Cómo pagar comisiones", "Cómo entregar el premio de un desafío", "Cómo activar o desactivar comisiones y desafíos", "Desafíos de venta"],
+  compras: ["Cómo pedir mercadería (Qué pedir)", "Cómo cargar o editar un proveedor", "¿Llego a pagarle al proveedor?", "Cómo pagar a un proveedor", "Cómo reclamar a un proveedor"],
+  calculadoras: ["Cómo calcular el precio de venta"], productividad: ["Productividad"],
+  cupones: ["Cómo crear un cupón de descuento", "Cómo trabajar con influencers"], promociones: ["Cómo crear una promoción automática"],
+  postventa: ["Cómo mandar mensajes de postventa por WhatsApp"],
+  "config-negocio": ["Cómo cambiar el nombre o los datos del negocio", "Cómo configurar la factura electrónica (ARCA)", "Cómo agregar un medio de pago", "Cómo cambiar el nombre de un local", "Cómo cargar categorías de gastos y cuentas bancarias"],
+  usuarios: ["Cómo crear un usuario y darle permisos", "Roles y permisos"], "config-ticket": ["Cómo personalizar el ticket", "El ticket no se imprime"],
+  "config-insumos": ["Cómo cargar insumos y descontarlos al vender"], auditoria: ["Cómo ver quién anuló o modificó algo"],
 };
 const TEMAS_POPULARES = ["Cómo vender (Punto de Venta)", "Cómo cerrar la caja", "Cómo cargar un gasto (egreso)", "Cómo pedir mercadería (Qué pedir)"];
 // Palabras que la gente usa distinto a como se llaman en el sistema
@@ -16088,7 +16111,8 @@ const SINONIMOS_AYUDA = {
   sueldo: ["egreso", "comisiones"], contador: ["excel", "comprobantes"], anular: ["anulacion", "anulada"], borrar: ["anular", "eliminar"],
   descuento: ["cupon", "promociones"], oferta: ["promociones"], reto: ["desafio"], retos: ["desafio"], arqueo: ["cierre", "caja"], cerrar: ["cierre"],
   reclamo: ["reclamar", "reclamos"], falla: ["reclamo"], faltante: ["reclamo", "ingresos"], whatsapp: ["avisar", "enviar"], ticket: ["comprobante", "imprimir"],
-  permiso: ["permisos", "usuarios"], clave: ["usuarios"], local: ["locales"], sucursal: ["local", "locales"], tarjeta: ["medio", "pago"],
+  permiso: ["permisos", "usuarios"], imprime: ["ticket", "imprimir"], impresora: ["ticket", "imprimir"], imprimir: ["ticket"],
+  camara: ["escanear", "escanea"], escanear: ["camara"], escaner: ["escanear", "camara"], puntos: ["fidelizacion", "canje"], talle: ["variantes"], talles: ["variantes"], color: ["variantes"], clave: ["usuarios"], local: ["locales"], sucursal: ["local", "locales"], tarjeta: ["medio", "pago"],
 };
 const PALABRAS_VACIAS = new Set("como hago hacer que el la los las de del un una unos unas para en y o se mi me te lo al por con es son cual cuales donde cuando puedo quiero necesito tengo hay a sobre esto esta este".split(" "));
 const normalizarTexto = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9ñ ]/g, " ");
@@ -16107,7 +16131,7 @@ const armarArticulosAyuda = (md) => {
     }
     if (linea.startsWith("### ")) {
       cerrar(); h3 = linea.slice(4).trim();
-      if (/tareas más comunes/.test(h2)) actual = { titulo: h3, grupo: "Cómo hacer", cuerpo: [] };
+      if (!/Menú/.test(h2)) actual = { titulo: h3, grupo: /tareas más comunes/.test(h2) ? "Cómo hacer" : h2, cuerpo: [] };
       return;
     }
     if (/Menú/.test(h2)) {
@@ -16132,7 +16156,7 @@ const buscarAyuda = (arts, consulta) => {
     conSinonimos.forEach(grupo => {
       let mejor = 0;
       grupo.forEach((w, i) => {
-        const raiz = w.length > 5 ? w.slice(0, w.length - 2) : w; // "reclamar" encuentra "reclamo"
+        const raiz = w.length > 6 ? w.slice(0, w.length - 2) : w; // "reclamar" encuentra "reclamo"
         const peso = i === 0 ? 1 : 0.7;
         if (a._t.includes(raiz)) mejor = Math.max(mejor, 5 * peso);
         else if (a._c.includes(raiz)) mejor = Math.max(mejor, 1.5 * peso);
@@ -16140,7 +16164,7 @@ const buscarAyuda = (arts, consulta) => {
       if (mejor > 0) cubiertas++;
       puntos += mejor;
     });
-    if (a.grupo === "Cómo hacer") puntos *= 1.15;
+    if (a.grupo === "Cómo hacer" || a.grupo === "Problemas frecuentes") puntos *= 1.15;
     return { a, puntos: puntos * (cubiertas / conSinonimos.length) };
   }).filter(x => x.puntos > 0).sort((x, y) => y.puntos - x.puntos).slice(0, 6).map(x => x.a);
 };

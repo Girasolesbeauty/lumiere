@@ -48,7 +48,8 @@ router.get('/cliente/:id/resumen', async (req, res) => {
         `SELECT COUNT(*)::int AS compras, COALESCE(SUM(total), 0) AS total_gastado,
                 MAX(creado_en) AS ultima_compra
            FROM ventas
-          WHERE cliente_id = $1 AND COALESCE(anulada, false) = false AND COALESCE(es_preventa, false) = false`,
+          WHERE cliente_id = $1 AND COALESCE(anulada, false) = false AND COALESCE(es_preventa, false) = false
+            AND COALESCE(canal, '') <> 'prueba' AND total > 0`,
         [id]
       ),
       // Productos que mas compro, con cuantos dias pasaron desde la ultima vez
@@ -60,7 +61,7 @@ router.get('/cliente/:id/resumen', async (req, res) => {
            FROM venta_items vi
            JOIN ventas v ON v.id = vi.venta_id
            JOIN productos p ON p.id = vi.producto_id
-          WHERE v.cliente_id = $1 AND COALESCE(v.anulada, false) = false
+          WHERE v.cliente_id = $1 AND COALESCE(v.anulada, false) = false AND COALESCE(v.canal, '') <> 'prueba'
           GROUP BY vi.producto_id, p.nombre
           ORDER BY veces DESC, cantidad DESC
           LIMIT 5`,

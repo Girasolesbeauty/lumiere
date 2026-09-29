@@ -179,7 +179,7 @@ Si ARCA dio error, la venta igual queda registrada. En el Punto de Venta tocá *
 **Buscar Precio** → escribí o escaneá con 📷 → se ve el precio, el stock de cada local y las promos → **Copiar** o **Compartir** el mensaje para WhatsApp o Instagram. Con **✏️ Editar mensaje** lo cambiás para ese envío o como plantilla.
 
 ### Desafíos de venta
-Si están activados (Comisiones → Configuración), al identificar a un cliente que tiene al menos 2 compras anteriores se compara el carrito con su ticket promedio: si lo supera, el desafío queda **superado**. Se mide una sola vez por venta, en el momento de cargar el DNI: agregar productos después no cuenta; sacar productos sí descuenta. Al juntar la cantidad de desafíos del mes configurada, la vendedora gana un producto de regalo (se entrega desde Comisiones → Desafíos).
+Si están activados (Comisiones → Configuración), después de armar el carrito y tocar **Continuar**, al cargar el DNI de un cliente con al menos 2 compras anteriores se compara el carrito con su ticket promedio. Si está por debajo, aparece el **🎯 Desafío** con cuánto falta para superarlo y una barra de progreso: la vendedora le ofrece algo más y lo suma al carrito. Si al cobrar el carrito supera el promedio, el desafío queda **superado**. Si al cargar el DNI el carrito ya lo superaba, en esa venta no hay desafío. El objetivo se fija una sola vez por venta (cambiar de cliente lo anula). Al juntar la cantidad de desafíos del mes configurada, la vendedora gana un producto de regalo (se entrega desde Comisiones → Desafíos).
 
 ### Cómo hacer un cambio o devolución
 1. **Cambio / Devolución** → buscá la compra por N° de ticket, factura, DNI o nombre. Si no tiene ticket, elegí "No tiene el ticket" (se toma el precio actual).
