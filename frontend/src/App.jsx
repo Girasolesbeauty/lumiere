@@ -442,6 +442,10 @@ button.tab { font-family: inherit; }
 .rot-barra span.v { background: ${p.green}55; } .rot-barra span.s { background: ${p.accent}66; }
 .rot-barra em { position: relative; font-style: normal; font-size: 11px; font-weight: 700; padding-left: 8px; line-height: 18px; color: ${p.text}; }
 .rot-insight { margin-top: 12px; font-size: 13px; line-height: 1.5; padding: 10px 12px; border-radius: 8px; background: ${p.accentDim}; }
+.rot-mantener { font-size: 13px; line-height: 1.5; margin-top: 6px; color: ${p.text}; }
+.rot-mantener b { color: ${p.red}; }
+.rot-mantener label { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: ${p.textMuted}; margin-left: 6px; white-space: nowrap; }
+.rot-mantener input { width: 52px; padding: 2px 6px; border-radius: 6px; border: 1px solid ${p.border}; background: ${p.inpBg}; color: ${p.text}; font-family: inherit; font-size: 12px; }
 .rot-accion { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; border-left: 4px solid ${p.warn}; }
 .dec-base { margin-bottom: 14px; }
 .dec-base-tit { font-size: 13px; font-weight: 800; margin-bottom: 10px; }
@@ -4982,6 +4986,11 @@ function PasosCobro({ paso }) {
 // Simula situaciones (contratar, sumar un costo, cambiar precios, promociones, ganancia objetivo)
 // con los numeros reales del negocio (promedio de los ultimos 3 meses cerrados) y da un veredicto.
 // Son cuentas, no IA: no tienen costo por consulta.
+// Costo de mantener inventario: lo que cuesta tener mercaderia guardada (plata inmovilizada,
+// espacio, seguro, roturas, vencimientos). En logistica se estima entre 20% y 30% anual del valor.
+const obtenerTasaMantener = () => { try { const v = parseFloat(localStorage.getItem("lumiere_costo_mantener")); return v > 0 && v <= 100 ? v : 25; } catch (e) { return 25; } };
+const guardarTasaMantener = (v) => { try { localStorage.setItem("lumiere_costo_mantener", String(v)); } catch (e) {} };
+
 const SITUACIONES_DECISION = [
   { id: "empleado", icono: "👤", titulo: "Contratar un empleado" },
   { id: "costo", icono: "🏠", titulo: "Sumar un costo fijo" },
@@ -5062,15 +5071,19 @@ function simularDecision(tipo, b, x) {
       const dif = recupera - costo;
       const dMax = Math.max(0, 1 - costo / (venta * (1 - com)));
       const ganaReinv = recupera * mc / Math.max(0.05, 1 - mb);
+      const tasa = obtenerTasaMantener() / 100;
+      const ahorroMes = costo * tasa / 12;
+      const ahorro6 = ahorroMes * 6;
       const cifras = [
         ["Recuperás", $(recupera), "si se vende todo con " + nombreDesc],
         ["Lo que te costó", $(costo), dif >= 0 ? "ganás " + $(dif) : "perdés " + $(-dif)],
         ["Descuento máximo sin perder", pct(dMax * 100), "para recuperar lo que pagaste"],
         ["Si reinvertís esa plata", "≈ " + $(ganaReinv) + " de ganancia", "en productos que rotan, por cada vez que los vendés"],
+        ["Te ahorrás de guardarla", "≈ " + $(ahorroMes) + " por mes", "costo de mantenerla en el estante (" + pct(tasa * 100) + " anual)"],
       ];
       if (dif >= 0) return { nivel: "verde", titulo: "Conviene", texto: "Recuperás todo lo que pagaste y encima ganás " + $(dif) + ". Además liberás " + $(recupera) + " para comprar productos que se venden.", cifras };
-      if (ganaReinv >= -dif) return { nivel: "amarillo", titulo: "Conviene igual", texto: "Perdés " + $(-dif) + " frente a lo que pagaste, pero liberás " + $(recupera) + ". Si con esa plata comprás mercadería que rota, podés ganar unos " + $(ganaReinv) + " en cada vuelta: compensa la pérdida.", cifras };
-      return { nivel: "rojo", titulo: "Perdés demasiado", texto: "Perdés " + $(-dif) + " y lo que podrías ganar reinvirtiendo no alcanza a compensarlo. Probá con un descuento de hasta " + pct(dMax * 100) + ".", cifras };
+      if (ganaReinv + ahorro6 >= -dif) return { nivel: "amarillo", titulo: "Conviene igual", texto: "Perdés " + $(-dif) + " frente a lo que pagaste, pero liberás " + $(recupera) + ". Si con esa plata comprás mercadería que rota, podés ganar unos " + $(ganaReinv) + " en cada vuelta, y además te ahorrás unos " + $(ahorro6) + " de tenerla guardada 6 meses más: compensa la pérdida.", cifras };
+      return { nivel: "rojo", titulo: "Perdés demasiado", texto: "Perdés " + $(-dif) + " y lo que podrías ganar reinvirtiendo (más lo que te ahorrás de guardarla) no alcanza a compensarlo. Probá con un descuento de hasta " + pct(dMax * 100) + ".", cifras };
     }
     const alcance = Math.min(100, n(x.alcance) || 100) / 100, dias = n(x.dias) || 7, mP = (n(x.margen) || mb * 100) / 100, pub = n(x.publicidad);
     const mcP = mP - com, mbP2 = 1 - (1 - mP) / (1 - d), mcP2 = mbP2 - com;
@@ -5125,6 +5138,7 @@ function Rotacion({ localId, paletaActual }) {
   const [datos, setDatos] = useState(null);
   const [filtro, setFiltro] = useState("todos");
   const [buscar, setBuscar] = useState("");
+  const [tasaMantener, setTasaMantener] = useState(obtenerTasaMantener());
   useEffect(() => {
     setDatos(null);
     API.get("/productos/rotacion?local_id=" + tabLocal + "&dias=" + dias).then(r => setDatos(r.data)).catch(e => setDatos({ error: e.response?.data?.error || "No se pudo calcular la rotación" }));
@@ -5144,6 +5158,7 @@ function Rotacion({ localId, paletaActual }) {
   const pe = datos.por_estado;
   const lentosYParados = datos.productos.filter(x => x.estado === "parado" || x.estado === "lento");
   const plataQuieta = pe.parado.valor_costo + pe.lento.valor_costo;
+  const costoMantenerMes = plataQuieta * tasaMantener / 100 / 12;
   const q = buscar.trim().toLowerCase();
   const lista = datos.productos
     .filter(x => filtro === "todos" || (filtro === "reponer" ? x.reponer : filtro === "A" || filtro === "B" || filtro === "C" ? x.abc === filtro : x.estado === filtro))
@@ -5204,6 +5219,11 @@ function Rotacion({ localId, paletaActual }) {
         <div className="chart-card anim-in rot-accion" style={{ marginBottom: 12 }}>
           <div>
             <div className="chart-title">💸 Tenés {$(plataQuieta)} quietos en mercadería lenta o parada</div>
+            <div className="rot-mantener">
+              🏷️ Tenerla guardada te cuesta <b>≈ {$(costoMantenerMes)} por mes</b> ({$(costoMantenerMes * 12)} por año): plata inmovilizada, espacio, seguro, roturas y vencimientos.
+              <label> Costo de mantener: <input type="number" min="1" max="100" value={tasaMantener} onWheel={e => e.currentTarget.blur()}
+                onChange={e => { const v = Math.max(1, Math.min(100, parseFloat(e.target.value) || 0)); setTasaMantener(v); guardarTasaMantener(v); }} aria-label="Costo de mantener inventario, % anual" />% anual</label>
+            </div>
             <div style={{ fontSize: 12, color: p.textMuted, marginTop: 4 }}>Si la liquidás, liberás esa plata para comprar lo que más se vende{datos.reponer > 0 ? " (hay " + datos.reponer + " producto" + (datos.reponer !== 1 ? "s" : "") + " para reponer)" : ""}. Cada producto muestra hasta qué descuento podés hacer sin perder plata.</div>
           </div>
           <button className="btn btn-p btn-sm" onClick={() => simularLiquidacion(lentosYParados)}>🧭 Simular liquidación</button>
