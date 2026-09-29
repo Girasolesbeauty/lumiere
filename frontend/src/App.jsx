@@ -25,6 +25,7 @@ const PALETA_CLARA = {
   logoText: "#ffffff", logoSub: "rgba(255,255,255,0.65)",
   scrollThumb: "#AFC1D6", inpBg: "#F2F6FB", placeholder: "#7D8794",
   tdText: "#131722", trHover: "#EAF1F9", shadowCol: "rgba(22,45,80,0.16)", shadowSoft: "rgba(22,45,80,0.10)",
+  btnTop: "#36486A", btnBot: "#2C3E5C", btnEdge: "#1C2A40", btnHoverTop: "#3D5078", btnHoverBot: "#324567", btnShadow: "rgba(44,62,92,0.3)", tabOn: "#2d7a4f", navLine: "rgba(255,255,255,0.15)",
 };
 
 const PALETA_OSCURA = {
@@ -42,7 +43,49 @@ const PALETA_OSCURA = {
   logoText: "#ffffff", logoSub: "rgba(255,255,255,0.5)",
   scrollThumb: "#333a46", inpBg: "#12161d", placeholder: "#5d606b",
   tdText: "#e6e8ec", trHover: "#232a35", shadowCol: "rgba(0,0,0,0.5)", shadowSoft: "rgba(0,0,0,0.35)",
+  btnTop: "#36486A", btnBot: "#2C3E5C", btnEdge: "#1C2A40", btnHoverTop: "#3D5078", btnHoverBot: "#324567", btnShadow: "rgba(44,62,92,0.3)", tabOn: "#2d7a4f", navLine: "rgba(255,255,255,0.15)",
 };
+
+// Tema rosa pastel ("girlie"): fondo rosa suave, menu ciruela, tarjetas blancas, acento rosa chicle
+const PALETA_ROSA = {
+  bg: "#FBE4EE", sidebar: "#F7D3E3", surface: "#ffffff", card: "#ffffff", border: "#EBC2D6",
+  accent: "#E77FAE", accentDim: "#E77FAE24", accentHover: "#F29CC3", accentText: "#A61E5E",
+  text: "#2B1623", textSoft: "#4A2E3F", textMuted: "#6E5064",
+  green: "#067A67", greenDim: "#067A6714",
+  red: "#C81E3A", redDim: "#f2364514",
+  warn: "#9A4507", warnDim: "#d977061c",
+  blue: "#8A3A6A", blueDim: "#8A3A6A14",
+  purple: "#7d3c98", purpleDim: "#7d3c9812",
+  wa: "#0F7A3D", waDim: "#25d3661c",
+  navText: "#4A1E3A", navTextDim: "#744462",
+  navHover: "rgba(138,58,106,0.10)", navActive: "rgba(138,58,106,0.16)", navActiveBorder: "rgba(138,58,106,0.28)",
+  logoText: "#5E2248", logoSub: "#7C4A69",
+  scrollThumb: "#E3AFC8", inpBg: "#FDF3F8", placeholder: "#9A7D8E",
+  tdText: "#2B1623", trHover: "#FDEEF5", shadowCol: "rgba(138,58,106,0.16)", shadowSoft: "rgba(138,58,106,0.10)",
+  btnTop: "#B0508A", btnBot: "#963F74", btnEdge: "#6E2D55", btnHoverTop: "#BC5B96", btnHoverBot: "#A1487F", btnShadow: "rgba(138,58,106,0.3)", tabOn: "#963F74", navLine: "rgba(138,58,106,0.2)",
+};
+// Tema "Girasoles": collage de verano -- amarillo girasol, rosa chicle, celeste y verde menta sobre crema
+const PALETA_GIRASOLES = {
+  bg: "#FFF3D6", sidebar: "#FFD24A", surface: "#ffffff", card: "#ffffff", border: "#F1D68C",
+  accent: "#F06BA8", accentDim: "#F06BA824", accentHover: "#F78DBE", accentText: "#B0125E",
+  text: "#2A1F14", textSoft: "#4A3A26", textMuted: "#6B5840",
+  green: "#1F7A4D", greenDim: "#2E9E6414",
+  red: "#C81E3A", redDim: "#f2364514",
+  warn: "#9A4507", warnDim: "#d977061c",
+  blue: "#2F6DB5", blueDim: "#2F6DB514",
+  purple: "#7B55C7", purpleDim: "#7B55C714",
+  wa: "#0F7A3D", waDim: "#25d3661c",
+  navText: "#3B2A10", navTextDim: "#6B4F1D",
+  navHover: "rgba(120,80,0,0.10)", navActive: "rgba(255,255,255,0.6)", navActiveBorder: "rgba(120,80,0,0.28)",
+  logoText: "#3B2A10", logoSub: "#6B4F1D",
+  scrollThumb: "#EFC66A", inpBg: "#FFFBEE", placeholder: "#9A8663",
+  tdText: "#2A1F14", trHover: "#FFF6DC", shadowCol: "rgba(160,110,20,0.18)", shadowSoft: "rgba(160,110,20,0.11)",
+  btnTop: "#C92C77", btnBot: "#AD1F64", btnEdge: "#7E1649", btnHoverTop: "#D43A83", btnHoverBot: "#B8286D", btnShadow: "rgba(173,31,100,0.3)", tabOn: "#237A50", navLine: "rgba(120,80,0,0.2)",
+  // Manchas de color del collage (rosa, celeste, girasol, menta) y un damero menta muy suave
+  bgImage: "radial-gradient(circle at 6% 10%, #F9A8CC77 0, transparent 26%), radial-gradient(circle at 94% 6%, #8EC5F277 0, transparent 28%), radial-gradient(circle at 88% 92%, #FFC93C66 0, transparent 30%), radial-gradient(circle at 10% 94%, #9ED9B877 0, transparent 26%), radial-gradient(circle at 55% 50%, #FFB57A33 0, transparent 40%), repeating-conic-gradient(#9ED9B81f 0 25%, transparent 0 50%)",
+  bgSize: "100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 56px 56px",
+};
+const PALETAS = { claro: PALETA_CLARA, oscuro: PALETA_OSCURA, rosa: PALETA_ROSA, girasoles: PALETA_GIRASOLES };
 
 // Mantiene "C" con el nombre viejo (paleta clara) para no romper nada que ya la use directo.
 const C = PALETA_CLARA;
@@ -57,10 +100,11 @@ const nombreLocal = (id) => NOMBRES_LOCALES[Number(id)] || NOMBRES_LOCALES[1];
 
 const getBaseCss = (p) => `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-:root { --acento-texto: ${p.accentText}; --wa-texto: ${p.wa}; }
+:root { --acento: ${p.accent}; --acento-dim: ${p.accentDim}; --acento-borde: ${p.accent}66; --acento-texto: ${p.accentText}; --wa-texto: ${p.wa}; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { margin: 0; padding: 0; width: 100%; overflow-x: hidden; }
 body { font-family: 'Inter', sans-serif; background: ${p.bg}; color: ${p.text}; min-height: 100vh; margin: 0; width: 100vw; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+${p.bgImage ? `body { background-image: ${p.bgImage}; background-size: ${p.bgSize}; background-attachment: fixed; }` : ""}
 ::-webkit-scrollbar { width: 3px; }
 ::-webkit-scrollbar-thumb { background: ${p.scrollThumb}; border-radius: 2px; }
 @keyframes fadeUp { from { opacity: 0; } to { opacity: 1; } }
@@ -75,14 +119,14 @@ body { font-family: 'Inter', sans-serif; background: ${p.bg}; color: ${p.text}; 
 .sidebar.comprimido .logo-name { font-size: 20px; }
 .sidebar.comprimido .nav-item { justify-content: center; padding: 9px 0; }
 .sidebar-toggle-row { display: flex; justify-content: flex-end; padding: 10px 14px 0; }
-.sidebar-toggle { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,0.12); color: #fff; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; transition: transform .18s ease, background .15s; }
-.sidebar-toggle:hover { background: rgba(255,255,255,0.22); }
+.sidebar-toggle { width: 22px; height: 22px; border-radius: 50%; background: ${p.navHover}; color: ${p.logoText}; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; transition: transform .18s ease, background .15s; }
+.sidebar-toggle:hover { background: ${p.navActive}; }
 .sidebar.comprimido .sidebar-toggle-row { justify-content: center; padding: 10px 0 0; }
 .sidebar.comprimido .sidebar-toggle { transform: rotate(180deg); }
 @media (max-width: 860px) {
   .sidebar-toggle { display: none; }
 }
-.logo { padding: 22px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.15); }
+.logo { padding: 22px 20px 16px; border-bottom: 1px solid ${p.navLine}; }
 .logo-name { font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 800; letter-spacing: .05em; color: ${p.logoText}; text-transform: uppercase; }
 .logo-sub { font-size: 9px; color: ${p.logoSub}; letter-spacing: .3em; margin-top: 3px; text-transform: uppercase; }
 .nav { padding: 12px 10px; flex: 1; }
@@ -91,8 +135,8 @@ body { font-family: 'Inter', sans-serif; background: ${p.bg}; color: ${p.text}; 
 .nav-item:hover { color: ${p.logoText}; background: ${p.navHover}; }
 .nav-item.active { color: ${p.logoText}; font-weight: 700; background: ${p.navActive}; border-color: ${p.navActiveBorder}; }
 .nav-icon { font-size: 13px; width: 18px; text-align: center; flex-shrink: 0; }
-.sb-footer { padding: 12px 18px; border-top: 1px solid rgba(255,255,255,0.15); }
-.main { margin-left: 220px; flex: 1; padding: 20px 24px; min-height: 100vh; background: ${p.bg}; width: calc(100vw - 220px); transition: margin-left .18s ease, width .18s ease; }
+.sb-footer { padding: 12px 18px; border-top: 1px solid ${p.navLine}; }
+.main { margin-left: 220px; flex: 1; padding: 20px 24px; min-height: 100vh; background: ${p.bgImage ? "transparent" : p.bg}; width: calc(100vw - 220px); transition: margin-left .18s ease, width .18s ease; }
 .main.comprimido { margin-left: 64px; width: calc(100vw - 64px); }
 .ph { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 26px; }
 .pt { font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; color: ${p.text}; }
@@ -114,9 +158,9 @@ body { font-family: 'Inter', sans-serif; background: ${p.bg}; color: ${p.text}; 
 .bx { background: ${p.bg}; color: ${p.textMuted}; border: 1px solid ${p.border}; }
 .btn { padding: 10px 20px; border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; border: none; transition: all .12s; box-shadow: none; position: relative; top: 0; }
 .btn:active { filter: brightness(0.92); }
-.btn-p { background: linear-gradient(180deg, #36486A 0%, #2C3E5C 100%); color: #ffffff; font-weight: 700; box-shadow: 0 3px 0 #1C2A40, 0 4px 8px rgba(44,62,92,0.3); }
-.btn-p:active { box-shadow: 0 0px 0 #1C2A40, 0 1px 2px rgba(44,62,92,0.2); }
-.btn-p:hover { background: linear-gradient(180deg, #3D5078 0%, #324567 100%); }
+.btn-p { background: linear-gradient(180deg, ${p.btnTop} 0%, ${p.btnBot} 100%); color: #ffffff; font-weight: 700; box-shadow: 0 3px 0 ${p.btnEdge}, 0 4px 8px ${p.btnShadow}; }
+.btn-p:active { box-shadow: 0 0px 0 ${p.btnEdge}, 0 1px 2px ${p.btnShadow}; }
+.btn-p:hover { background: linear-gradient(180deg, ${p.btnHoverTop} 0%, ${p.btnHoverBot} 100%); }
 .btn-g { background: ${p.card}; color: ${p.text}; border: 1px solid ${p.border}; box-shadow: 0 3px 0 ${p.shadowCol}, 0 4px 6px ${p.shadowSoft}; }
 .btn-g:active { box-shadow: 0 0px 0 ${p.shadowCol}, 0 1px 2px ${p.shadowSoft}; }
 .btn-g:hover { background: ${p.navHover === "rgba(255,255,255,0.12)" ? p.bg : p.bg}; }
@@ -130,12 +174,16 @@ body { font-family: 'Inter', sans-serif; background: ${p.bg}; color: ${p.text}; 
 .fl { font-size: 11px; color: ${p.textMuted}; font-weight: 600; margin-bottom: 6px; }
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; border-bottom: none; }
 .tab { padding: 6px 16px; font-size: 12px; font-weight: 600; color: ${p.textMuted}; cursor: pointer; border: 1px solid ${p.border}; border-radius: 8px; background: ${p.card}; margin-bottom: 0; transition: all .15s; }
-.tab.on { color: #fff; border-color: #2d7a4f; background: #2d7a4f; font-weight: 700; }
-.tab:hover { color: ${p.text}; border-color: #2d7a4f; }
+.tab.on { color: #fff; border-color: ${p.tabOn}; background: ${p.tabOn}; font-weight: 700; }
+.tab:hover { color: ${p.text}; border-color: ${p.tabOn}; }
 .tab.on:hover { color: #fff; }
 .divider { height: 1px; background: ${p.border}; margin: 14px 0; }
 .pb { height: 5px; background: ${p.bg}; border-radius: 3px; overflow: hidden; }
 .pf { height: 100%; border-radius: 3px; transition: width .5s; }
+.tema-sel { margin-top: 12px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; padding: 3px; border-radius: 8px; border: 1px solid ${p.navLine}; }
+.tema-sel button { font-family: inherit; font-size: 10px; font-weight: 600; padding: 6px 2px; border-radius: 6px; border: none; background: transparent; color: ${p.navTextDim}; cursor: pointer; white-space: nowrap; }
+.tema-sel button:hover { background: ${p.navHover}; color: ${p.logoText}; }
+.tema-sel button.on { background: ${p.navActive}; color: ${p.logoText}; font-weight: 800; }
 .sw-wrap { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .sw { width: 34px; height: 18px; border-radius: 9px; position: relative; transition: background .2s; flex-shrink: 0; }
 .sw.on { background: #6bbf8e; }
@@ -547,9 +595,9 @@ button.tab { font-family: inherit; }
 // El tema "de fabrica" (antes de que alguien lo cambie a mano) se puede configurar por
 // copia con la variable de entorno VITE_TEMA_DEFAULT -- si no esta configurada, sigue
 // siendo "claro" como siempre.
-const TEMA_POR_DEFECTO = (import.meta.env.VITE_TEMA_DEFAULT === "oscuro") ? "oscuro" : "claro";
+const TEMA_POR_DEFECTO = ["oscuro", "rosa", "girasoles"].includes(import.meta.env.VITE_TEMA_DEFAULT) ? import.meta.env.VITE_TEMA_DEFAULT : "claro";
 const obtenerTemaGuardado = () => {
-  try { return localStorage.getItem("lumiere_tema") || TEMA_POR_DEFECTO; } catch (e) { return TEMA_POR_DEFECTO; }
+  try { const t = localStorage.getItem("lumiere_tema"); return ["claro", "oscuro", "rosa", "girasoles"].includes(t) ? t : TEMA_POR_DEFECTO; } catch (e) { return TEMA_POR_DEFECTO; }
 };
 const guardarTema = (tema) => { try { localStorage.setItem("lumiere_tema", tema); } catch (e) {} };
 
@@ -4320,7 +4368,7 @@ function POS({ localId, usuario, paletaActual }) {
         </div>
       </div>
       {preventa && tipoReserva === "sena" && (
-        <div style={{ background: "#c9a84c12", border: "1px solid #c9a84c", borderRadius: 6, padding: "10px 16px", marginBottom: 12, fontSize: 12, color: "#8a6d1f" }}>
+        <div style={{ background: "var(--acento-dim)", border: "1px solid var(--acento)", borderRadius: 6, padding: "10px 16px", marginBottom: 12, fontSize: 12, color: "#8a6d1f" }}>
           💰 Modo Seña: para productos que <b>ya tenemos</b> pero el cliente no se los lleva ahora. Se reserva el stock (nadie mas se lo puede llevar) y cobrás la seña — el resto se cobra cuando venga a buscarlo.
         </div>
       )}
@@ -4723,7 +4771,7 @@ function POS({ localId, usuario, paletaActual }) {
                 <div className="fg"><div className="fl">Monto ($)</div><input className="inp" type="number" placeholder="10000" value={nuevaGC.monto} onChange={e => setNuevaGC(p => ({ ...p, monto: e.target.value }))} /></div>
                 <div className="fg"><div className="fl">Nombre de quien la recibe</div><input className="inp" placeholder="Ej: Maria Lopez" value={nuevaGC.beneficiario_nombre} onChange={e => setNuevaGC(p => ({ ...p, beneficiario_nombre: e.target.value }))} /></div>
                 <div className="fg"><div className="fl">Telefono (opcional)</div><input className="inp" placeholder="Ej: 2964123456" value={nuevaGC.beneficiario_telefono} onChange={e => setNuevaGC(p => ({ ...p, beneficiario_telefono: e.target.value }))} /></div>
-                <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12, cursor: "pointer", margin: "8px 0 4px", padding: 8, background: nuevaGC.es_devolucion ? "#c9a84c15" : "transparent", borderRadius: 6 }}>
+                <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12, cursor: "pointer", margin: "8px 0 4px", padding: 8, background: nuevaGC.es_devolucion ? "var(--acento-dim)" : "transparent", borderRadius: 6 }}>
                   <input type="checkbox" checked={nuevaGC.es_devolucion} onChange={e => setNuevaGC(p => ({ ...p, es_devolucion: e.target.checked }))} style={{ marginTop: 2 }} />
                   <span>Es un <b>credito por devolucion</b> (el cliente ya habia pagado esta plata en otra venta, no hay que cobrarla de nuevo ni sumarla como ingreso de hoy)</span>
                 </label>
@@ -6405,7 +6453,7 @@ function Inventario({ localId, usuario, paletaActual }) {
             <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
               {calculadoras.map(c => (
                 <button key={c.id} onClick={() => { setCalcSel(c); setCalcValores({ costo: nuevo.costo || "" }); setCalcResultado(null); }}
-                  style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid", borderColor: calcSel?.id === c.id ? "#c9a84c" : temaPal.border, background: calcSel?.id === c.id ? "#c9a84c12" : "transparent", color: calcSel?.id === c.id ? "var(--acento-texto)" : temaPal.textMuted, fontSize: 11, fontWeight: calcSel?.id === c.id ? 600 : 400, cursor: "pointer" }}>
+                  style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid", borderColor: calcSel?.id === c.id ? "var(--acento)" : temaPal.border, background: calcSel?.id === c.id ? "var(--acento-dim)" : "transparent", color: calcSel?.id === c.id ? "var(--acento-texto)" : temaPal.textMuted, fontSize: 11, fontWeight: calcSel?.id === c.id ? 600 : 400, cursor: "pointer" }}>
                   {c.nombre}
                 </button>
               ))}
@@ -6790,14 +6838,14 @@ function Clientes({ usuario, paletaActual }) {
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                         <span style={{ fontFamily: "'Inter',sans-serif", fontSize: 18, fontWeight: 700, color: "var(--acento-texto)" }}>{fmtNum(puntos)}</span>
-                        <div style={{ width: 40 }}><div className="pb"><div className="pf" style={{ width: pct + "%", background: "#c9a84c" }} /></div></div>
+                        <div style={{ width: 40 }}><div className="pb"><div className="pf" style={{ width: pct + "%", background: "var(--acento)" }} /></div></div>
                       </div>
                     </td>
                     <td><TierBadge tier={nivel} /></td>
                     <td>
                       <button className="btn btn-sm" style={{ fontSize: 10, marginRight: 4 }} onClick={() => abrirEditarCliente(c)}>Editar</button>
                       <button className="btn btn-sm" style={{ fontSize: 10, marginRight: 4 }} onClick={() => resetearPortalCliente(c)}>Resetear clave</button>
-                      <button className="btn btn-sm" style={{ fontSize: 10, background: "#c9a84c", color: "#1B2431" }} onClick={() => abrirMigrar(c)}>Migrar puntos</button>
+                      <button className="btn btn-sm" style={{ fontSize: 10, background: "var(--acento)", color: "#1B2431" }} onClick={() => abrirMigrar(c)}>Migrar puntos</button>
                       {usuario?.rol === "jefe" && <button className="btn btn-sm" style={{ fontSize: 10, marginLeft: 4, color: "#c0392b" }} onClick={() => eliminarCliente(c)}>Eliminar</button>}
                     </td>
                   </tr>
@@ -6894,7 +6942,7 @@ const MESES_NOMBRE = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","
 const isoLocal = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 // En el tema claro algunos colores de grupo no se leen sobre el fondo: se usa una version mas oscura para el texto
 const COLOR_TEXTO_CLARO = { "#e67e22": "#A0500C", "#b7950b": "#7A6206", "#2471a3": "#1D5F8A" };
-const colorTexto = (p, c) => (p.bg === PALETA_CLARA.bg ? COLOR_TEXTO_CLARO[c] || c : c);
+const colorTexto = (p, c) => (p.bg !== PALETA_OSCURA.bg ? COLOR_TEXTO_CLARO[c] || c : c);
 const GRUPOS_EGRESO = [
   { k: "variables", l: "Costos variables", c: "#e67e22", ayuda: "mercadería, envíos, gastos del día a día" },
   { k: "fijos", l: "Costos fijos", c: "#2471a3", ayuda: "alquiler, servicios, seguros" },
@@ -8121,7 +8169,7 @@ function Cupones({ localId, usuario, paletaActual }) {
                     <td style={{ fontSize: 11, fontWeight: 600, color: "#7d3c98" }}>{r.codigo}</td>
                     <td>
                       <span className="badge" style={{
-                        background: r.estado === "entregado" ? "#2d7a4f15" : r.estado === "cancelado" ? "#c0392b15" : "#c9a84c15",
+                        background: r.estado === "entregado" ? "#2d7a4f15" : r.estado === "cancelado" ? "#c0392b15" : "var(--acento-dim)",
                         color: r.estado === "entregado" ? "#2d7a4f" : r.estado === "cancelado" ? "#c0392b" : "var(--acento-texto)"
                       }}>{r.estado}</span>
                     </td>
@@ -8151,8 +8199,8 @@ function Cupones({ localId, usuario, paletaActual }) {
             <div className="fg">
               <div className="fl">Cupon</div>
               <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
-                <button type="button" onClick={() => setNuevoInf(p => ({ ...p, cuponModo: "nuevo" }))} style={{ flex: 1, fontSize: 11, padding: "6px", border: "1px solid " + (nuevoInf.cuponModo === "nuevo" ? "#c9a84c" : temaPal.border), borderRadius: 4, background: nuevoInf.cuponModo === "nuevo" ? "#c9a84c15" : temaPal.card, color: nuevoInf.cuponModo === "nuevo" ? "var(--acento-texto)" : temaPal.textMuted, cursor: "pointer" }}>Crear cupon nuevo</button>
-                <button type="button" onClick={() => setNuevoInf(p => ({ ...p, cuponModo: "existente" }))} style={{ flex: 1, fontSize: 11, padding: "6px", border: "1px solid " + (nuevoInf.cuponModo === "existente" ? "#c9a84c" : temaPal.border), borderRadius: 4, background: nuevoInf.cuponModo === "existente" ? "#c9a84c15" : temaPal.card, color: nuevoInf.cuponModo === "existente" ? "var(--acento-texto)" : temaPal.textMuted, cursor: "pointer" }}>Usar cupon existente</button>
+                <button type="button" onClick={() => setNuevoInf(p => ({ ...p, cuponModo: "nuevo" }))} style={{ flex: 1, fontSize: 11, padding: "6px", border: "1px solid " + (nuevoInf.cuponModo === "nuevo" ? "var(--acento)" : temaPal.border), borderRadius: 4, background: nuevoInf.cuponModo === "nuevo" ? "var(--acento-dim)" : temaPal.card, color: nuevoInf.cuponModo === "nuevo" ? "var(--acento-texto)" : temaPal.textMuted, cursor: "pointer" }}>Crear cupon nuevo</button>
+                <button type="button" onClick={() => setNuevoInf(p => ({ ...p, cuponModo: "existente" }))} style={{ flex: 1, fontSize: 11, padding: "6px", border: "1px solid " + (nuevoInf.cuponModo === "existente" ? "var(--acento)" : temaPal.border), borderRadius: 4, background: nuevoInf.cuponModo === "existente" ? "var(--acento-dim)" : temaPal.card, color: nuevoInf.cuponModo === "existente" ? "var(--acento-texto)" : temaPal.textMuted, cursor: "pointer" }}>Usar cupon existente</button>
               </div>
               {nuevoInf.cuponModo === "nuevo" ? (
                 <div style={{ display: "flex", gap: 6 }}>
@@ -8473,7 +8521,7 @@ function Fidelizacion({ usuario, paletaActual }) {
                     <td style={{ fontFamily: "'Inter',sans-serif", fontSize: 18, fontWeight: 700, color: "var(--acento-texto)" }}>{fmtNum(puntos)}</td>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div style={{ flex: 1 }}><div className="pb"><div className="pf" style={{ width: pct + "%", background: "#c9a84c" }} /></div></div>
+                        <div style={{ flex: 1 }}><div className="pb"><div className="pf" style={{ width: pct + "%", background: "var(--acento)" }} /></div></div>
                         <span style={{ fontSize: 9, color: temaPal.textMuted, width: 50 }}>{nivel ===fmtNum("Platinum" ? "MAX" : (next - puntos)) + "p"}</span>
                       </div>
                     </td>
@@ -8509,7 +8557,7 @@ function Fidelizacion({ usuario, paletaActual }) {
                     <div style={{ fontSize: 10, color: temaPal.textMuted }}>Puntos</div>
                     <div style={{ fontSize: 20, fontWeight: 700, color: "#2d7a4f" }}>{precioCalc && parseFloat(precioCalc) > 0 ? Math.round(parseFloat(precioCalc) / 20) : "—"}</div>
                   </div>
-                  <button className="btn btn-sm" style={{ background: "#c9a84c", color: "#1B2431", whiteSpace: "nowrap" }} disabled={!precioCalc || parseFloat(precioCalc) <= 0} onClick={() => setNuevoPremio(p => ({ ...p, puntos_requeridos: String(Math.round(parseFloat(precioCalc) / 20)) }))}>Usar estos puntos</button>
+                  <button className="btn btn-sm" style={{ background: "var(--acento)", color: "#1B2431", whiteSpace: "nowrap" }} disabled={!precioCalc || parseFloat(precioCalc) <= 0} onClick={() => setNuevoPremio(p => ({ ...p, puntos_requeridos: String(Math.round(parseFloat(precioCalc) / 20)) }))}>Usar estos puntos</button>
                 </div>
               </div>
               <div className="fg"><div className="fl">Descripcion</div><input className="inp" placeholder="Breve descripcion del premio" value={nuevoPremio.descripcion} onChange={e => setNuevoPremio(p => ({ ...p, descripcion: e.target.value }))} /></div>
@@ -8556,7 +8604,7 @@ function Fidelizacion({ usuario, paletaActual }) {
                       <span className={"badge " + (disp !== null && disp < 5 ? "br" : "bg")}>{disp === null ? "ilimitado" : disp + "u"}</span>
                     </div>
                     <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-                      <button className="btn btn-sm" style={{ flex: 1, background: "#c9a84c", color: "#1B2431" }} onClick={() => editarPremio(p)}>Editar</button>
+                      <button className="btn btn-sm" style={{ flex: 1, background: "var(--acento)", color: "#1B2431" }} onClick={() => editarPremio(p)}>Editar</button>
                       {p.activo && <button className="btn btn-sm" style={{ flex: 1 }} onClick={() => desactivarPremio(p)}>Desactivar</button>}
                     </div>
                   </div>
@@ -9458,7 +9506,7 @@ function PostventaWA({ paletaActual }) {
                   {sel === (r.id || ri) && (
                     <div style={{ background: "#0d1117", borderRadius: 9, overflow: "hidden", border: "1px solid #ffffff08", maxWidth: 320, marginBottom: 12 }}>
                       <div style={{ background: "#1f2937", padding: "10px 14px", display: "flex", alignItems: "center", gap: 9 }}>
-                        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#c9a84c", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: temaPal.bg, fontWeight: 600 }}>L</div>
+                        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "var(--acento)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: temaPal.bg, fontWeight: 600 }}>L</div>
                         <div><div style={{ fontSize: 12, color: "#e5e7eb" }}>Lumiere Cosmeticos</div><div style={{ fontSize: 9, color: "#6b7280" }}>en linea</div></div>
                       </div>
                       <div style={{ padding: 14, background: "#111827" }}>
@@ -9701,7 +9749,7 @@ function Calculadoras({ usuario, paletaActual }) {
           <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
             {calculadoras.map(c => (
               <button key={c.id} onClick={() => setSeleccionada(c)}
-                style={{ padding: "8px 16px", borderRadius: 7, border: "1px solid", borderColor: seleccionada?.id === c.id ? "#c9a84c55" : p.border, background: seleccionada?.id === c.id ? "#c9a84c12" : "transparent", color: seleccionada?.id === c.id ? "var(--acento-texto)" : p.textMuted, fontSize: 12, fontWeight: seleccionada?.id === c.id ? 600 : 400, cursor: "pointer" }}>
+                style={{ padding: "8px 16px", borderRadius: 7, border: "1px solid", borderColor: seleccionada?.id === c.id ? "var(--acento-borde)" : p.border, background: seleccionada?.id === c.id ? "var(--acento-dim)" : "transparent", color: seleccionada?.id === c.id ? "var(--acento-texto)" : p.textMuted, fontSize: 12, fontWeight: seleccionada?.id === c.id ? 600 : 400, cursor: "pointer" }}>
                 {c.nombre}
               </button>
             ))}
@@ -9751,8 +9799,8 @@ function Calculadoras({ usuario, paletaActual }) {
               <div className="fg"><div className="fl">Nombre</div><input className="inp" placeholder="Ej: Capilar, Maquillaje..." value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Descripcion (opcional)</div><input className="inp" placeholder="Para que tipo de productos aplica" value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} /></div>
               <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                <button className="btn btn-sm" style={{ flex: 1, background: form.tipo === "desde_costo" ? "#c9a84c15" : "transparent", border: "1px solid " + (form.tipo === "desde_costo" ? "#c9a84c" : p.border), color: form.tipo === "desde_costo" ? "var(--acento-texto)" : p.textMuted }} onClick={() => setForm(f => ({ ...f, tipo: "desde_costo" }))}>Desde costo</button>
-                <button className="btn btn-sm" style={{ flex: 1, background: form.tipo === "desde_precio_venta" ? "#c9a84c15" : "transparent", border: "1px solid " + (form.tipo === "desde_precio_venta" ? "#c9a84c" : p.border), color: form.tipo === "desde_precio_venta" ? "var(--acento-texto)" : p.textMuted }} onClick={() => setForm(f => ({ ...f, tipo: "desde_precio_venta" }))}>Desde precio venta proveedor</button>
+                <button className="btn btn-sm" style={{ flex: 1, background: form.tipo === "desde_costo" ? "var(--acento-dim)" : "transparent", border: "1px solid " + (form.tipo === "desde_costo" ? "var(--acento)" : p.border), color: form.tipo === "desde_costo" ? "var(--acento-texto)" : p.textMuted }} onClick={() => setForm(f => ({ ...f, tipo: "desde_costo" }))}>Desde costo</button>
+                <button className="btn btn-sm" style={{ flex: 1, background: form.tipo === "desde_precio_venta" ? "var(--acento-dim)" : "transparent", border: "1px solid " + (form.tipo === "desde_precio_venta" ? "var(--acento)" : p.border), color: form.tipo === "desde_precio_venta" ? "var(--acento-texto)" : p.textMuted }} onClick={() => setForm(f => ({ ...f, tipo: "desde_precio_venta" }))}>Desde precio venta proveedor</button>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <div className="fg" style={{ flex: 1 }}><div className="fl">Multiplicador de margen</div><input className="inp" type="number" step="0.1" placeholder="2" value={form.margen} onChange={e => setForm(f => ({ ...f, margen: e.target.value }))} /></div>
@@ -10341,7 +10389,7 @@ function PortalCliente({ paletaActual }) {
         <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, fontWeight: 300, letterSpacing: ".18em", color: "var(--acento-texto)" }}>LUMIERE</div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 11, color: p.textMuted }}>{client.email}</span>
-          <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#c9a84c", display: "flex", alignItems: "center", justifyContent: "center", color: "#1B2431", fontSize: 13, fontWeight: 600 }}>{client.name[0]}</div>
+          <div style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--acento)", display: "flex", alignItems: "center", justifyContent: "center", color: "#1B2431", fontSize: 13, fontWeight: 600 }}>{client.name[0]}</div>
         </div>
       </div>
       <div style={{ padding: "28px 32px", maxWidth: 860, margin: "0 auto" }}>
@@ -10350,7 +10398,7 @@ function PortalCliente({ paletaActual }) {
             <div>
               <div style={{ fontSize: 9, color: "var(--acento-texto)", letterSpacing: ".25em", textTransform: "uppercase", marginBottom: 5 }}>Bienvenida de nuevo</div>
               <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 24, fontWeight: 700, color: p.text, marginBottom: 14 }}>{client.name}</div>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 20, background: "#c9a84c15", border: "1px solid " + p.border, fontSize: 9, color: "var(--acento-texto)", letterSpacing: ".12em" }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 20, background: "var(--acento-dim)", border: "1px solid " + p.border, fontSize: 9, color: "var(--acento-texto)", letterSpacing: ".12em" }}>
                 NIVEL {client.tier.toUpperCase()}
               </div>
             </div>
@@ -10363,7 +10411,7 @@ function PortalCliente({ paletaActual }) {
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
           {[["canjear", "Canjear puntos"], ["cupones", "Mis cupones"], ["historial", "Mis compras"]].map(([id, l]) => (
-            <button key={id} onClick={() => setTab(id)} style={{ padding: "8px 16px", borderRadius: 7, border: "1px solid", borderColor: tab === id ? "#c9a84c55" : p.border, background: tab === id ? "#c9a84c12" : "transparent", color: tab === id ? "var(--acento-texto)" : p.textMuted, fontFamily: "'Inter',sans-serif", fontSize: 11, cursor: "pointer" }}>{l}</button>
+            <button key={id} onClick={() => setTab(id)} style={{ padding: "8px 16px", borderRadius: 7, border: "1px solid", borderColor: tab === id ? "var(--acento-borde)" : p.border, background: tab === id ? "var(--acento-dim)" : "transparent", color: tab === id ? "var(--acento-texto)" : p.textMuted, fontFamily: "'Inter',sans-serif", fontSize: 11, cursor: "pointer" }}>{l}</button>
           ))}
         </div>
         {tab === "canjear" && (
@@ -10373,14 +10421,14 @@ function PortalCliente({ paletaActual }) {
               {REWARDS_DISPLAY.map(r => {
                 const can = client.points >= r.pts;
                 return (
-                  <div key={r.id} style={{ background: can ? p.card : p.card, border: "1px solid " + (can ? "#c9a84c33" : p.card), borderRadius: 10, padding: 16, opacity: can ? 1 : 0.5 }}>
+                  <div key={r.id} style={{ background: can ? p.card : p.card, border: "1px solid " + (can ? "var(--acento-borde)" : p.card), borderRadius: 10, padding: 16, opacity: can ? 1 : 0.5 }}>
                     {can && <div style={{ background: "#2d7a4f", color: "#fff", fontSize: 8, padding: "2px 6px", borderRadius: 3, marginBottom: 8, width: "fit-content" }}>PODES CANJEAR</div>}
                     <div style={{ fontSize: 24, marginBottom: 8 }}>{r.emoji}</div>
                     <div style={{ fontSize: 11, color: p.text }}>{r.name}</div>
                     <div style={{ fontSize: 9, color: p.textMuted, letterSpacing: ".1em", marginTop: 2 }}>{r.brand}</div>
                     <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "var(--acento-texto)", marginTop: 10 }}>{fmtNum(r.pts)}</div>
                     <div style={{ fontSize: 9, color: p.textMuted }}>PUNTOS</div>
-                    {can && <button style={{ marginTop: 10, width: "100%", padding: "7px", borderRadius: 5, background: "#c9a84c15", border: "1px solid " + p.border, color: "var(--acento-texto)", fontFamily: "'Inter',sans-serif", fontSize: 10, cursor: "pointer" }}>Canjear</button>}
+                    {can && <button style={{ marginTop: 10, width: "100%", padding: "7px", borderRadius: 5, background: "var(--acento-dim)", border: "1px solid " + p.border, color: "var(--acento-texto)", fontFamily: "'Inter',sans-serif", fontSize: 10, cursor: "pointer" }}>Canjear</button>}
                   </div>
                 );
               })}
@@ -10397,7 +10445,7 @@ function PortalCliente({ paletaActual }) {
                   <div style={{ fontSize: 11, color: p.textMuted, marginTop: 3 }}>{cp.desc}</div>
                   <div style={{ fontSize: 10, color: p.border, marginTop: 4 }}>{cp.exp}</div>
                 </div>
-                <button style={{ background: "#c9a84c15", border: "1px solid " + p.border, color: "var(--acento-texto)", padding: "7px 14px", borderRadius: 5, fontFamily: "'Inter',sans-serif", fontSize: 10, cursor: "pointer" }}>Copiar</button>
+                <button style={{ background: "var(--acento-dim)", border: "1px solid " + p.border, color: "var(--acento-texto)", padding: "7px 14px", borderRadius: 5, fontFamily: "'Inter',sans-serif", fontSize: 10, cursor: "pointer" }}>Copiar</button>
               </div>
             ))}
           </div>
@@ -10493,7 +10541,7 @@ function DesafiosMes({ localId, usuario, mes, anio, paletaActual }) {
                 </div>
                 <div>
                   <div className="pb" style={{ height: 8 }}>
-                    <div className="pf" style={{ width: (pct * 100) + "%", background: pct >= 1 ? p.green : "#c9a84c" }} />
+                    <div className="pf" style={{ width: (pct * 100) + "%", background: pct >= 1 ? p.green : "var(--acento)" }} />
                   </div>
                   <div style={{ fontSize: 10, color: p.textMuted, marginTop: 3, fontVariantNumeric: "tabular-nums" }}>{v.logrados} / {meta}</div>
                 </div>
@@ -11131,7 +11179,7 @@ function Comisiones({ localId, usuario, paletaActual }) {
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn btn-sm" style={{ flex: 1, background: formaPago === "efectivo" ? "#2d7a4f15" : "transparent", border: "1px solid " + (formaPago === "efectivo" ? "#2d7a4f" : p.border) }} onClick={() => setFormaPago("efectivo")}>Efectivo</button>
                 <button className="btn btn-sm" style={{ flex: 1, background: formaPago === "transferencia" ? "#2471a315" : "transparent", border: "1px solid " + (formaPago === "transferencia" ? "#2471a3" : p.border) }} onClick={() => setFormaPago("transferencia")}>Transferencia</button>
-                <button className="btn btn-sm" style={{ flex: 1, background: formaPago === "canje" ? "#c9a84c15" : "transparent", border: "1px solid " + (formaPago === "canje" ? "#c9a84c" : p.border) }} onClick={() => setFormaPago("canje")}>Canje</button>
+                <button className="btn btn-sm" style={{ flex: 1, background: formaPago === "canje" ? "var(--acento-dim)" : "transparent", border: "1px solid " + (formaPago === "canje" ? "var(--acento)" : p.border) }} onClick={() => setFormaPago("canje")}>Canje</button>
               </div>
             </div>
 
@@ -13044,7 +13092,7 @@ function Productividad({ localId, paletaActual }) {
           </div>
           <div className="g3">
             {ranking.slice(0, 3).map((r, i) => (
-              <div key={i} className="card" style={{ borderTop: "3px solid " + (i === 0 ? "#c9a84c" : i === 1 ? p.textMuted : "#cd7f32") }}>
+              <div key={i} className="card" style={{ borderTop: "3px solid " + (i === 0 ? "var(--acento)" : i === 1 ? p.textMuted : "#cd7f32") }}>
                 <div style={{ fontSize: 10, color: p.textMuted, letterSpacing: ".1em" }}>{i === 0 ? "TOP VENDEDORA" : "#" + (i + 1)}</div>
                 <div style={{ fontSize: 18, fontWeight: 700 }}>{r.nombre}</div>
                 <div style={{ fontSize: 13, color: "#2d7a4f", fontWeight: 600 }}>{fmt(r.total)}</div>
@@ -13834,7 +13882,7 @@ function ControlInventario({ localId, usuario, paletaActual }) {
             <thead><tr><th>Codigo</th><th>Producto</th><th>Ingreso / Venta (periodo)</th><th>Stock sistema</th><th>Stock contado</th><th>Diferencia</th><th>Estado</th></tr></thead>
             <tbody>
               {itemsFiltrados.map(it => (
-                <tr key={it.id} style={{ background: it.estado === "faltante" ? "#c0392b08" : it.estado === "sobrante" ? "#c9a84c08" : it.estado === "correcto" ? "#2d7a4f08" : "transparent" }}>
+                <tr key={it.id} style={{ background: it.estado === "faltante" ? "#c0392b08" : it.estado === "sobrante" ? "var(--acento-dim)" : it.estado === "correcto" ? "#2d7a4f08" : "transparent" }}>
                   <td style={{ fontSize: 11, color: p.textMuted, fontFamily: "monospace" }}>{it.producto_codigo || "-"}</td>
                   <td>
                     <div style={{ fontSize: 12 }}>{it.producto_nombre}</div>
@@ -13892,7 +13940,7 @@ function ControlInventario({ localId, usuario, paletaActual }) {
       </div>
       {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 14, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
       {enCurso && (
-        <div className="card pulse" style={{ background: "#c9a84c15", border: "2px solid #c9a84c", marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className="card pulse" style={{ background: "var(--acento-dim)", border: "2px solid var(--acento)", marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: 14, fontWeight: 700, color: "var(--acento-texto)" }}>⚠️ Tenes un control de inventario sin terminar (#{enCurso.id})</div>
             <div style={{ fontSize: 11, color: p.textMuted, marginTop: 2 }}>
@@ -14876,7 +14924,7 @@ function Inconsistencias({ paletaActual }) {
                   <tr key={i + "-" + j}>
                     <td style={{ fontSize: 11 }}>{d.numero_factura || "-"}</td>
                     <td style={{ fontSize: 11 }}>{d.proveedor_nombre || "-"}</td>
-                    <td style={{ fontSize: 12 }}>{d.producto_nombre}{f.extra ? <span className="badge" style={{ background: "#c9a84c15", color: "var(--acento-texto)", marginLeft: 6 }}>extra/regalo</span> : ""}</td>
+                    <td style={{ fontSize: 12 }}>{d.producto_nombre}{f.extra ? <span className="badge" style={{ background: "var(--acento-dim)", color: "var(--acento-texto)", marginLeft: 6 }}>extra/regalo</span> : ""}</td>
                     <td style={{ fontSize: 11 }}>{f.local}</td>
                     <td style={{ fontSize: 12, color: p.textMuted }}>{f.esp}</td>
                     <td style={{ fontSize: 12 }}>{f.rec}</td>
@@ -15345,8 +15393,8 @@ function Insumos({ localId, usuario, paletaActual }) {
               <div style={{ background: "#c0392b12", border: "1px solid " + temaPal.border, borderRadius: 6, padding: "8px 12px", marginBottom: 10, fontSize: 11, color: "#c0392b" }}>{errorAjuste}</div>
             )}
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "exacto" ? "#c9a84c15" : "transparent", border: "1px solid " + (modoAjuste === "exacto" ? "#c9a84c" : temaPal.border), color: modoAjuste === "exacto" ? "var(--acento-texto)" : temaPal.textMuted }} onClick={() => { setModoAjuste("exacto"); setValorAjuste(String(stockLocal(ajustando))); }}>Poner cantidad exacta</button>
-              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "diferencia" ? "#c9a84c15" : "transparent", border: "1px solid " + (modoAjuste === "diferencia" ? "#c9a84c" : temaPal.border), color: modoAjuste === "diferencia" ? "var(--acento-texto)" : temaPal.textMuted }} onClick={() => { setModoAjuste("diferencia"); setValorAjuste(""); }}>Sumar / restar</button>
+              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "exacto" ? "var(--acento-dim)" : "transparent", border: "1px solid " + (modoAjuste === "exacto" ? "var(--acento)" : temaPal.border), color: modoAjuste === "exacto" ? "var(--acento-texto)" : temaPal.textMuted }} onClick={() => { setModoAjuste("exacto"); setValorAjuste(String(stockLocal(ajustando))); }}>Poner cantidad exacta</button>
+              <button className="btn btn-sm" style={{ flex: 1, background: modoAjuste === "diferencia" ? "var(--acento-dim)" : "transparent", border: "1px solid " + (modoAjuste === "diferencia" ? "var(--acento)" : temaPal.border), color: modoAjuste === "diferencia" ? "var(--acento-texto)" : temaPal.textMuted }} onClick={() => { setModoAjuste("diferencia"); setValorAjuste(""); }}>Sumar / restar</button>
             </div>
             <div className="fg">
               <div className="fl">{modoAjuste === "exacto" ? "Stock real (numero final)" : "Diferencia (ej: 10 o -3)"}</div>
@@ -15856,7 +15904,7 @@ function LocalSelector({ usuario, onSelect }) {
           {locales.map(l => (
             <div key={l.id} onClick={() => onSelect(l)}
               style={{ background: "#f8f8f8", border: "1px solid #272220", borderRadius: 8, padding: "18px 20px", cursor: "pointer", transition: "all .18s", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "#c9a84c"; e.currentTarget.style.background = "#c9a84c08"; }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--acento)"; e.currentTarget.style.background = "var(--acento-dim)"; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = "#e8e8e8"; e.currentTarget.style.background = "#f8f8f8"; }}>
               <div>
                 <div style={{ fontSize: 14, color: "#111111" }}>{l.nombre}</div>
@@ -16029,7 +16077,7 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
                   <div className="ct" style={{ margin: 0 }}>{modulo}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span style={{ fontSize: 10, color: temaPal.textMuted }}>{activos}/{claves.length}</span>
-                    <div onClick={() => toggleGrupo(perms)} style={{ width: 36, height: 20, borderRadius: 10, background: todosActivos ? "#c9a84c" : temaPal.border, cursor: "pointer", position: "relative", transition: "background .2s" }}>
+                    <div onClick={() => toggleGrupo(perms)} style={{ width: 36, height: 20, borderRadius: 10, background: todosActivos ? "var(--acento)" : temaPal.border, cursor: "pointer", position: "relative", transition: "background .2s" }}>
                       <div style={{ position: "absolute", top: 2, left: todosActivos ? 18 : 2, width: 16, height: 16, borderRadius: "50%", background: "white", transition: "left .2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
                     </div>
                   </div>
@@ -16133,7 +16181,7 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
                 <tr key={u.id}>
                   <td style={{ color: temaPal.text, fontWeight: 500 }}>{u.nombre}</td>
                   <td>{u.email}</td>
-                  <td><span className="badge" style={{ background: (rolColor[u.rol] || temaPal.textMuted) + "15", color: rolColor[u.rol] || temaPal.textMuted }}>{rolNombre[u.rol] || u.rol}</span></td>
+                  <td><span className="badge" style={{ background: (rolColor[u.rol] || temaPal.textMuted) + "15", color: u.rol === "jefe" ? "var(--acento-texto)" : rolColor[u.rol] || temaPal.textMuted }}>{rolNombre[u.rol] || u.rol}</span></td>
                   <td>{u.local_nombre || "-"}</td>
                   <td>
                     <div style={{ display: "flex", gap: 4 }}>
@@ -16466,9 +16514,8 @@ export default function AppWrapper() {
     try { localStorage.setItem("lumiere_sidebar_comprimido", nuevo ? "1" : "0"); } catch (e) {}
     return nuevo;
   });
-  const paletaActual = tema === "oscuro" ? PALETA_OSCURA : PALETA_CLARA;
-  const alternarTema = () => {
-    const nuevo = tema === "oscuro" ? "claro" : "oscuro";
+  const paletaActual = PALETAS[tema] || PALETA_CLARA;
+  const elegirTema = (nuevo) => {
     setTema(nuevo);
     guardarTema(nuevo);
   };
@@ -16651,17 +16698,17 @@ export default function AppWrapper() {
           <nav className="nav">
             {NAV_CON_PERMISOS.map(sec => (
               <div key={sec.section}>
-                <div className="nav-section" style={{ color: "rgba(255,255,255,0.6)" }}>{sec.section}</div>
+                <div className="nav-section" style={{ color: paletaActual.navTextDim }}>{sec.section}</div>
                 {sec.items.map(it => {
                   const isActive = page === it.id;
                   const col = sec.color || "#c9a84c";
                   return (
                     <div key={it.id}
                       className={"nav-item " + (isActive ? "active" : "")}
-                      style={isActive ? { background: col + "25", borderColor: col + "60", color: "#ffffff" } : {}}
+                      style={isActive ? { background: col + "25", borderColor: col + "60", color: paletaActual.logoText } : {}}
                       onClick={() => { setPage(it.id); setMenuAbierto(false); }}>
                       <span style={{ fontSize: 15, flexShrink: 0 }}>{it.icon}</span>
-                      <span style={{ color: isActive ? "#ffffff" : "rgba(255,255,255,0.85)", transition: "color .18s" }}>{it.label}</span>
+                      <span style={{ color: isActive ? paletaActual.logoText : paletaActual.navText, transition: "color .18s" }}>{it.label}</span>
                     </div>
                   );
                 })}
@@ -16671,19 +16718,19 @@ export default function AppWrapper() {
           <div className="sb-footer">
             <div style={{ fontSize: 12, color: paletaActual.logoText, fontWeight: 600, marginBottom: 4 }}>{usuario?.nombre || "Usuario"}</div>
             <div style={{ marginBottom: 10 }}>
-              <span className="badge" style={{ background: (rolBadgeColor[usuario.rol] || "#999") + "15", color: rolBadgeColor[usuario.rol] || "#999" }}>
+              <span className="badge" style={{ background: (rolBadgeColor[usuario.rol] || "#999") + "15", color: paletaActual.logoText, border: "1px solid " + (rolBadgeColor[usuario.rol] || "#999") }}>
                 {usuario.rol}
               </span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-              <span style={{ color: "#9FB0C4" }}><StatusDot color="#3fbf7f" label="ARCA" /></span>
+              <span style={{ color: paletaActual.navTextDim }}><StatusDot color="#3fbf7f" label="ARCA" /></span>
             </div>
-            <div
-              onClick={alternarTema}
-              style={{ marginTop: 12, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", padding: "6px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.15)" }}
-            >
-              <span style={{ fontSize: 11, color: paletaActual.navTextDim }}>{tema === "oscuro" ? "🌙 Fondo oscuro" : "☀️ Fondo claro"}</span>
-              <div className={"sw " + (tema === "oscuro" ? "on" : "off")}><div className="sw-dot" /></div>
+            <div className="tema-sel" role="radiogroup" aria-label="Colores del sistema">
+              {[["claro", "☀️", "Claro"], ["oscuro", "🌙", "Oscuro"], ["rosa", "🌸", "Rosa"], ["girasoles", "🌻", "Girasoles"]].map(([id, ic, l]) => (
+                <button key={id} type="button" role="radio" aria-checked={tema === id} className={tema === id ? "on" : ""} onClick={() => elegirTema(id)} title={"Fondo " + l.toLowerCase()}>
+                  <span aria-hidden="true">{ic}</span> {l}
+                </button>
+              ))}
             </div>
             <div style={{ marginTop: 12, fontSize: 11, color: paletaActual.navTextDim, cursor: "pointer" }} onClick={() => setLocal(null)}>Cambiar local</div>
             <div style={{ marginTop: 6, fontSize: 11, color: paletaActual.navTextDim, cursor: "pointer" }} onClick={handleLogout}>Cerrar sesion</div>
