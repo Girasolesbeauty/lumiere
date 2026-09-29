@@ -725,30 +725,22 @@ const obtenerTemaGuardado = () => {
 };
 const guardarTema = (tema) => { try { localStorage.setItem("lumiere_tema", tema); } catch (e) {} };
 
-const PRODUCTS = [
-  { id: 1, name: "Serum Vitamina C", brand: "L'OREAL", price: 8500, stock: 12, min: 5, cost: 4200, lead: 7 },
-  { id: 2, name: "Crema Hidratante FPS50", brand: "NEUTROGENA", price: 6200, stock: 3, min: 8, cost: 3100, lead: 10 },
-  { id: 3, name: "Contorno de Ojos", brand: "MAYBELLINE", price: 4800, stock: 18, min: 6, cost: 2400, lead: 5 },
-  { id: 4, name: "Base Liquida HD", brand: "REVLON", price: 7300, stock: 7, min: 5, cost: 3650, lead: 7 },
-  { id: 5, name: "Aceite Rosa Mosqueta", brand: "WELEDA", price: 9100, stock: 2, min: 4, cost: 4550, lead: 14 },
-  { id: 6, name: "Mascara de Pestanas", brand: "RIMMEL", price: 3200, stock: 24, min: 10, cost: 1600, lead: 5 },
-];
 
 const CLIENTS = [
   { id: 1, name: "Garcia, Maria", email: "maria@gmail.com", cuit: "20-34521678-9", points: 1240, tier: "Gold", purchases: 14, total: 186500 },
-  { id: 2, name: "Cosmetica SA", email: "compras@cosmetica.com", cuit: "30-71234567-8", points: 3800, tier: "Platinum", purchases: 6, total: 312000 },
+  { id: 2, name: "Comercial SA", email: "compras@comercial.com", cuit: "30-71234567-8", points: 3800, tier: "Platinum", purchases: 6, total: 312000 },
   { id: 3, name: "Lopez, Ana", email: "ana@gmail.com", cuit: "27-28901234-5", points: 760, tier: "Silver", purchases: 9, total: 98400 },
   { id: 4, name: "Rodriguez, Paula", email: "paula@gmail.com", cuit: "23-45678901-4", points: 210, tier: "Bronze", purchases: 3, total: 31200 },
   { id: 5, name: "Fernandez, Lucia", email: "lucia@gmail.com", cuit: "20-41234567-8", points: 580, tier: "Silver", purchases: 7, total: 84600 },
 ];
 
 const REWARDS = [
-  { id: 1, name: "Serum Vitamina C Mini", brand: "L'OREAL", pts: 400, emoji: "ok_hand", stock: 8 },
-  { id: 2, name: "Muestra Crema Hidratante", brand: "NEUTROGENA", pts: 200, emoji: "droplet", stock: 15 },
-  { id: 3, name: "Labial Mate", brand: "MAYBELLINE", pts: 600, emoji: "lipstick", stock: 5 },
-  { id: 4, name: "10% descuento proxima compra", brand: "LUMIERE", pts: 300, emoji: "gift", stock: 99 },
-  { id: 5, name: "Kit Hidratacion Completo", brand: "WELEDA", pts: 1200, emoji: "herb", stock: 3 },
-  { id: 6, name: "Perfume Travel Size", brand: "REVLON", pts: 900, emoji: "cherry_blossom", stock: 4 },
+  { id: 1, name: "Voucher de $5.000", brand: "TU LOCAL", pts: 400, emoji: "ok_hand", stock: 8 },
+  { id: 2, name: "Bolsa reutilizable", brand: "TU LOCAL", pts: 200, emoji: "droplet", stock: 15 },
+  { id: 3, name: "Regalo sorpresa", brand: "TU LOCAL", pts: 600, emoji: "lipstick", stock: 5 },
+  { id: 4, name: "10% descuento proxima compra", brand: "TU LOCAL", pts: 300, emoji: "gift", stock: 99 },
+  { id: 5, name: "Voucher de $15.000", brand: "TU LOCAL", pts: 1200, emoji: "herb", stock: 3 },
+  { id: 6, name: "Envío gratis", brand: "TU LOCAL", pts: 900, emoji: "cherry_blossom", stock: 4 },
 ];
 
 const REWARDS_DISPLAY = REWARDS.map(r => ({
@@ -756,29 +748,8 @@ const REWARDS_DISPLAY = REWARDS.map(r => ({
   emoji: r.emoji === "ok_hand" ? "👌" : r.emoji === "droplet" ? "💧" : r.emoji === "lipstick" ? "💄" : r.emoji === "gift" ? "🎁" : r.emoji === "herb" ? "🌿" : "🌸",
 }));
 
-const CUPONS_DATA = [
-  { id: 1, code: "INSTA20", desc: "20% off - Instagram", type: "%", value: 20, uses: 48, max: 100, active: true, expires: "31/05/2026", channel: "Instagram" },
-  { id: 2, code: "TIKTOK15", desc: "15% off - TikTok", type: "%", value: 15, uses: 127, max: 200, active: true, expires: "30/06/2026", channel: "TikTok" },
-  { id: 3, code: "BDAY10", desc: "$10.000 off - cumpleanos", type: "$", value: 10000, uses: 12, max: null, active: true, expires: null, channel: "Auto" },
-  { id: 4, code: "INFLUENCER_SOF", desc: "Sofia Moreno", type: "%", value: 12, uses: 34, max: null, active: true, expires: null, channel: "Influencer" },
-];
 
-const WA_RULES = [
-  { id: 1, name: "Como te esta yendo?", trigger: "7 dias post compra", segment: "Todos", active: true, sent: 142, opened: 98, msg: "Hola {nombre}! Hace una semana compraste {producto}. Ya pudiste ver los resultados? Cualquier duda escribinos!" },
-  { id: 2, name: "Reposicion inteligente", trigger: "30 dias post compra", segment: "Cremas / Serums", active: true, sent: 89, opened: 71, msg: "Hola {nombre}! Tu {producto} ya debe estar por terminarse. Queres que te reservemos uno? Respondenos SI y te lo separamos." },
-  { id: 3, name: "Upsell complementario", trigger: "14 dias post compra", segment: "Bases", active: true, sent: 56, opened: 38, msg: "Hola {nombre}! Como te quedo la {producto}? Te recomendamos nuestro fijador para que dure todo el dia." },
-  { id: 4, name: "Reactivacion inactivos", trigger: "60 dias sin compras", segment: "Todos", active: false, sent: 34, opened: 18, msg: "Hola {nombre}! Hace un tiempo que no te vemos. Tus {puntos} puntos te estan esperando!" },
-  { id: 5, name: "Saludo cumpleanos", trigger: "Dia del cumpleanos", segment: "Con fecha nac.", active: true, sent: 23, opened: 22, msg: "Feliz cumpleanos {nombre}! Te regalamos BDAY10 con $10.000 de descuento en tu proxima compra. Que lo disfrutes!" },
-];
 
-const PROVIDERS_ABC = [
-  { name: "L'OREAL Argentina", ventas: 1240000, pct: 38, clase: "A" },
-  { name: "Neutrogena", ventas: 890000, pct: 27, clase: "A" },
-  { name: "Maybelline", ventas: 510000, pct: 16, clase: "B" },
-  { name: "Revlon", ventas: 280000, pct: 9, clase: "B" },
-  { name: "Weleda", ventas: 190000, pct: 6, clase: "C" },
-  { name: "Rimmel", ventas: 130000, pct: 4, clase: "C" },
-];
 
 function Sw({ on, toggle }) {
   return (
@@ -2750,7 +2721,7 @@ function POS({ localId, usuario, paletaActual }) {
 
   useEffect(() => {
     const localParam = localId === 2 ? "ush" : "rg";
-    API.get("/productos?local=" + localParam).then(res => setProductos(res.data)).catch(() => setProductos(PRODUCTS));
+    API.get("/productos?local=" + localParam).then(res => setProductos(res.data || [])).catch(() => setProductos([]));
     API.get("/kits").then(res => setKitsPos(res.data || [])).catch(() => {});
     API.get("/medios-pago").then(res => setMediosPago(res.data)).catch(() => setMediosPago([]));
     API.get("/insumos/para-pos?local_id=" + (localId || 1)).then(res => { setInsumosPos(res.data?.insumos || []); setInsumosPosActivo(res.data?.activo === true); }).catch(() => { setInsumosPos([]); setInsumosPosActivo(false); });
@@ -2773,7 +2744,7 @@ function POS({ localId, usuario, paletaActual }) {
     if (e.key !== "Enter") return;
     const cod = busqueda.trim();
     if (!cod) return;
-    const lista = productos.length > 0 ? productos : PRODUCTS;
+    const lista = productos;
     // Buscar por codigo de barras exacto (lo que manda el escaner)
     const exacto = lista.find(p => (p.codigo_barras || p.codigo || "").toString() === cod);
     if (exacto) {
@@ -3566,7 +3537,7 @@ function POS({ localId, usuario, paletaActual }) {
     stock: 9999
   }));
 
-  const listaCompleta = [...kitsComoProducto, ...(productos.length > 0 ? productos : PRODUCTS)];
+  const listaCompleta = [...kitsComoProducto, ...productos];
   listaCompletaRef.current = listaCompleta;
   accionProductoRef.current = accionProducto;
   const productosAMostrar = listaCompleta.filter(p =>
@@ -6410,7 +6381,8 @@ function Inventario({ localId, usuario, paletaActual }) {
     reader.readAsDataURL(file);
   };
 
-  const categorias = ["Capilar", "Facial", "Maquillaje", "Accesorio", "Corporal", "Spa", "Perfume"];
+  // Las categorias salen de los productos de cada negocio (cualquier rubro)
+  const categorias = [];
 
   const cargar = async () => {
     setLoading(true);
@@ -6699,8 +6671,8 @@ function Inventario({ localId, usuario, paletaActual }) {
                     style={codigoDuplicado ? { borderColor: temaPal.warn } : null} />
                   {codigoDuplicado && <div style={{ fontSize: 11, color: temaPal.warn, marginTop: 4 }}>⚠ Ese código ya lo tiene "{codigoDuplicado.nombre}"</div>}
                 </div>
-                <div className="fg"><div className="fl">Nombre *</div><input id="nuevoProdNombre" className="inp" placeholder="Ej: Serum Vitamina C" value={nuevo.nombre} onChange={e => setNuevo(p => ({ ...p, nombre: e.target.value }))} /></div>
-                <div className="fg"><div className="fl">Marca</div><input className="inp" list="inv-marcas" placeholder="Ej: L'Oreal" value={nuevo.marca} onChange={e => setNuevo(p => ({ ...p, marca: e.target.value }))} /></div>
+                <div className="fg"><div className="fl">Nombre *</div><input id="nuevoProdNombre" className="inp" placeholder="Ej: Zapatillas urbanas" value={nuevo.nombre} onChange={e => setNuevo(p => ({ ...p, nombre: e.target.value }))} /></div>
+                <div className="fg"><div className="fl">Marca</div><input className="inp" list="inv-marcas" placeholder="Ej: Nike" value={nuevo.marca} onChange={e => setNuevo(p => ({ ...p, marca: e.target.value }))} /></div>
                 <datalist id="inv-marcas">{marcasTodas.map(m => <option key={m} value={m} />)}</datalist>
                 <div className="fg"><div className="fl">Categoría</div>
                   <input className="inp" list="inv-categorias" placeholder="Elegí o escribí una nueva" value={nuevo.categoria} onChange={e => setNuevo(p => ({ ...p, categoria: e.target.value }))} />
@@ -7414,7 +7386,7 @@ function Clientes({ usuario, paletaActual }) {
   const tierNext = { Bronze: 2000, Silver: 5000, Gold: 10000, Platinum: 20000, Black: 99999 };
 
   useEffect(() => {
-    getClientes().then(res => { setClientes(res.data); setLoading(false); }).catch(() => { setClientes(CLIENTS.map(c => ({ ...c, nombre: c.name, puntos: c.points, nivel: c.tier, total_compras: c.total, cuit_dni: c.cuit }))); setLoading(false); });
+    getClientes().then(res => { setClientes(res.data || []); setLoading(false); }).catch(() => { setClientes([]); setLoading(false); });
   }, []);
 
   const abrirMigrar = async (cli) => {
@@ -7504,7 +7476,7 @@ function Clientes({ usuario, paletaActual }) {
     }
   };
 
-  const clientesAMostrar = clientes.length > 0 ? clientes : CLIENTS.map(c => ({ ...c, nombre: c.name, puntos: c.points, nivel: c.tier, total_compras: c.total, cuit_dni: c.cuit }));
+  const clientesAMostrar = clientes;
   const platinum = clientesAMostrar.filter(c => (c.nivel || c.tier) === "Platinum").length;
   const gold = clientesAMostrar.filter(c => (c.nivel || c.tier) === "Gold").length;
   const silver = clientesAMostrar.filter(c => (c.nivel || c.tier) === "Silver").length;
@@ -8660,7 +8632,7 @@ function Cupones({ localId, usuario, paletaActual }) {
   };
 
   useEffect(() => {
-    getCupones().then(res => setCupons(res.data)).catch(() => setCupons(CUPONS_DATA));
+    getCupones().then(res => setCupons(res.data || [])).catch(() => setCupons([]));
     cargarInfluencers();
     cargarRegalos();
     API.get("/clientes").then(res => setClientesInf(res.data || [])).catch(() => {});
@@ -8849,7 +8821,7 @@ function Cupones({ localId, usuario, paletaActual }) {
     } catch (e) { setMensaje("Error: " + (e?.response?.data?.error || "no se pudo actualizar el cupon")); }
   };
 
-  const cuponsAMostrar = cupons.length > 0 ? cupons : CUPONS_DATA.map(c => ({ ...c, activo: c.active, descripcion: c.desc, tipo: c.type, valor: c.value, canal: c.channel, max_usos: c.max, fecha_vencimiento: c.expires }));
+  const cuponsAMostrar = cupons;
 
   return (
     <div className="fade">
@@ -8871,6 +8843,9 @@ function Cupones({ localId, usuario, paletaActual }) {
           <table>
             <thead><tr><th>Codigo</th><th>Descripcion</th><th>Descuento</th><th>Canal</th><th>Usos</th><th>Vence</th><th>Activo</th></tr></thead>
             <tbody>
+              {cuponsAMostrar.length === 0 && (
+                <tr><td colSpan={7} style={{ textAlign: "center", color: p.textMuted, padding: 20 }}>Todavía no hay cupones. Creá el primero en Nuevo cupón.</td></tr>
+              )}
               {cuponsAMostrar.map(c => (
                 <tr key={c.id}>
                   <td style={{ color: "var(--acento-texto)", letterSpacing: ".06em", fontWeight: 600 }}>{c.codigo || c.code}</td>
@@ -9193,7 +9168,7 @@ function Fidelizacion({ usuario, paletaActual }) {
   const tierNext = { Bronze: 2000, Silver: 5000, Gold: 10000, Platinum: 20000, Black: 99999 };
 
   useEffect(() => {
-    getRanking().then(res => { setClientes(res.data); setLoading(false); }).catch(() => { setClientes(CLIENTS.map(c => ({ ...c, nombre: c.name, puntos: c.points, nivel: c.tier }))); setLoading(false); });
+    getRanking().then(res => { setClientes(res.data || []); setLoading(false); }).catch(() => { setClientes([]); setLoading(false); });
     cargarPremios();
   }, []);
 
@@ -9205,7 +9180,7 @@ function Fidelizacion({ usuario, paletaActual }) {
     API.get("/fidelizacion/canjes").then(res => setCanjes(res.data || [])).catch(() => {});
   };
 
-  const clientesAMostrar = clientes.length > 0 ? clientes : CLIENTS.map(c => ({ ...c, nombre: c.name, puntos: c.points, nivel: c.tier }));
+  const clientesAMostrar = clientes;
   const totalPuntos = clientesAMostrar.reduce((s, c) => s + (c.puntos || 0), 0);
 
   const editarPremio = (p) => {
@@ -9318,6 +9293,9 @@ function Fidelizacion({ usuario, paletaActual }) {
           <table>
             <thead><tr><th>Cliente</th><th>Nivel</th><th>Puntos</th><th>Progreso al proximo nivel</th></tr></thead>
             <tbody>
+              {clientesAMostrar.length === 0 && (
+                <tr><td colSpan={4} style={{ textAlign: "center", color: temaPal.textMuted, padding: 20 }}>Todavía no hay clientes. Se cargan solos al vender con DNI en el Punto de Venta.</td></tr>
+              )}
               {clientesAMostrar.map((c, i) => {
                 const nivel = c.nivel || c.tier || "Bronze";
                 const puntos = c.puntos || c.points || 0;
@@ -10005,7 +9983,7 @@ function Pedidos({ localId, usuario, paletaActual }) {
                           </div>
                         )}
                       </div>
-                      <input className="inp" style={{ marginTop: 6 }} placeholder="¿No existe? Escribí una sugerencia (ej: Serum vitamina C marca X)" value={itemNuevo} onChange={e => setItemNuevo(e.target.value)} />
+                      <input className="inp" style={{ marginTop: 6 }} placeholder="¿No existe? Escribí una sugerencia (ej: zapatillas urbanas talle 40)" value={itemNuevo} onChange={e => setItemNuevo(e.target.value)} />
                     </>
                   )}
                   {prodSel && (Number(localId) === 2 ? (prodSel.stock_ush || 0) : (prodSel.stock_rg || 0)) > 0 && (
@@ -10222,7 +10200,7 @@ function PostventaWA({ paletaActual }) {
   };
 
   useEffect(() => {
-    getReglas().then(res => setRules(res.data)).catch(() => setRules(WA_RULES.map(r => ({ ...r, activo: r.active, disparador: r.trigger, dias: 7, segmento: r.segment, mensaje: r.msg }))));
+    getReglas().then(res => setRules(res.data || [])).catch(() => setRules([]));
   }, []);
 
   const toggle = async (r) => {
@@ -10269,7 +10247,7 @@ function PostventaWA({ paletaActual }) {
     } catch (e) {}
   };
 
-  const rulesAMostrar = rules.length > 0 ? rules : WA_RULES.map(r => ({ ...r, activo: r.active, mensaje: r.msg }));
+  const rulesAMostrar = rules;
 
   return (
     <div className="fade">
@@ -10298,6 +10276,9 @@ function PostventaWA({ paletaActual }) {
             </div>
             <button className="btn btn-p btn-sm" disabled={ejecutando} onClick={ejecutarReglasAhora}>{ejecutando ? "Generando..." : "Generar mensajes de hoy"}</button>
           </div>
+          {rulesAMostrar.length === 0 && (
+            <div className="empty" style={{ padding: 24 }}>Todavía no hay reglas de postventa. Creá la primera en <b>Nueva regla</b> (por ejemplo, un mensaje a los 7 días de la compra).</div>
+          )}
           {rulesAMostrar.map((r, ri) => (
             <div key={r.id || ri} className="card" style={{ marginBottom: 12, borderLeft: "3px solid " + ((r.activo || r.active) ? "#25d366" : temaPal.border) }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -10316,12 +10297,12 @@ function PostventaWA({ paletaActual }) {
                     <div style={{ background: "#0d1117", borderRadius: 9, overflow: "hidden", border: "1px solid #ffffff08", maxWidth: 320, marginBottom: 12 }}>
                       <div style={{ background: "#1f2937", padding: "10px 14px", display: "flex", alignItems: "center", gap: 9 }}>
                         <div style={{ width: 30, height: 30, borderRadius: "50%", background: "var(--acento)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: temaPal.bg, fontWeight: 600 }}>L</div>
-                        <div><div style={{ fontSize: 12, color: "#e5e7eb" }}>Lumiere Cosmeticos</div><div style={{ fontSize: 9, color: "#6b7280" }}>en linea</div></div>
+                        <div><div style={{ fontSize: 12, color: "#e5e7eb" }}>Tu local</div><div style={{ fontSize: 9, color: "#6b7280" }}>en linea</div></div>
                       </div>
                       <div style={{ padding: 14, background: "#111827" }}>
                         <div style={{ background: "#1f2d1f", borderRadius: "0 9px 9px 9px", padding: "9px 13px", maxWidth: "85%" }}>
                           <div style={{ fontSize: 12, color: "#d1fae5", lineHeight: 1.55 }}>
-                            {(r.mensaje || r.msg || "").replace("{nombre}", "Maria").replace("{producto}", "Serum Vitamina C").replace("{puntos}", "1.240")}
+                            {(r.mensaje || r.msg || "").replace("{nombre}", "Maria").replace("{producto}", "Zapatillas urbanas").replace("{puntos}", "1.240")}
                           </div>
                           <div style={{ fontSize: 9, color: "#6b7280", textAlign: "right", marginTop: 4 }}>ahora</div>
                         </div>
@@ -10605,7 +10586,7 @@ function Calculadoras({ usuario, paletaActual }) {
           {showForm && (
             <div className="card" style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 11, color: p.textMuted, letterSpacing: ".1em", marginBottom: 14 }}>{editando ? "EDITAR CALCULADORA" : "NUEVA CALCULADORA"}</div>
-              <div className="fg"><div className="fl">Nombre</div><input className="inp" placeholder="Ej: Capilar, Maquillaje..." value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">Nombre</div><input className="inp" placeholder="Ej: Calzado, Indumentaria..." value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Descripcion (opcional)</div><input className="inp" placeholder="Para que tipo de productos aplica" value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} /></div>
               <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                 <button className="btn btn-sm" style={{ flex: 1, background: form.tipo === "desde_costo" ? "var(--acento-dim)" : "transparent", border: "1px solid " + (form.tipo === "desde_costo" ? "var(--acento)" : p.border), color: form.tipo === "desde_costo" ? "var(--acento-texto)" : p.textMuted }} onClick={() => setForm(f => ({ ...f, tipo: "desde_costo" }))}>Desde costo</button>
@@ -11263,9 +11244,9 @@ function PortalCliente({ paletaActual }) {
           <div>
             <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: p.text, marginBottom: 14 }}>Historial de compras</div>
             {[
-              { date: "24/05/2026", items: "Serum Vitamina C x 1", total: 8500, pts: 85, canal: "Local" },
+              { date: "24/05/2026", items: "Zapatillas urbanas x 1", total: 8500, pts: 85, canal: "Local" },
               { date: "10/05/2026", items: "Base Liquida HD, Mascara x 2", total: 13700, pts: 137, canal: "Online" },
-              { date: "28/04/2026", items: "Crema Hidratante FPS50 x 2", total: 12400, pts: 124, canal: "Local" },
+              { date: "28/04/2026", items: "Remera básica x 2", total: 12400, pts: 124, canal: "Local" },
             ].map((h, i) => (
               <div key={i} style={{ background: p.card, border: "1px solid " + p.border, borderRadius: 10, padding: "14px 18px", marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
@@ -15980,10 +15961,10 @@ function Kits({ paletaActual }) {
           <div className="card">
             <div className="ct">{editando ? "Editar kit" : "Nuevo kit"}</div>
             <div className="fg"><div className="fl">Nombre del kit</div>
-              <input className="inp" placeholder="Ej: Kit Cuidado Facial Completo" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
+              <input className="inp" placeholder="Ej: Combo mate completo" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
             </div>
             <div className="fg"><div className="fl">Descripcion (opcional)</div>
-              <input className="inp" placeholder="Ej: Ideal para piel seca..." value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
+              <input className="inp" placeholder="Ej: Ideal para regalar..." value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
             </div>
             <div className="fg">
               <div className="fl">Precio del kit (suma de los productos)</div>
