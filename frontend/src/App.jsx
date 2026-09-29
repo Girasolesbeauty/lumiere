@@ -47,22 +47,25 @@ const PALETA_OSCURA = {
 };
 
 // Tema rosa pastel ("girlie"): fondo rosa suave, menu ciruela, tarjetas blancas, acento rosa chicle
+// Tema rosa "rosé": base nude, brillos rosados suaves, menu vino y detalles en oro rosa
 const PALETA_ROSA = {
-  bg: "#FBE4EE", sidebar: "#F7D3E3", surface: "#ffffff", card: "#ffffff", border: "#EBC2D6",
-  accent: "#E77FAE", accentDim: "#E77FAE24", accentHover: "#F29CC3", accentText: "#A61E5E",
-  text: "#2B1623", textSoft: "#4A2E3F", textMuted: "#6E5064",
+  bg: "#F7EFEC", sidebar: "linear-gradient(180deg, #4B2233 0%, #2F1520 100%)", surface: "#ffffff", card: "#ffffff", border: "#E8D6D0",
+  accent: "#C98A78", accentDim: "#C98A7822", accentHover: "#DDA392", accentText: "#8F4636",
+  text: "#2A1A20", textSoft: "#4A3239", textMuted: "#6E565D",
   green: "#067A67", greenDim: "#067A6714",
   red: "#C81E3A", redDim: "#f2364514",
   warn: "#9A4507", warnDim: "#d977061c",
-  blue: "#8A3A6A", blueDim: "#8A3A6A14",
+  blue: "#6E2F48", blueDim: "#6E2F4814",
   purple: "#7d3c98", purpleDim: "#7d3c9812",
   wa: "#0F7A3D", waDim: "#25d3661c",
-  navText: "#4A1E3A", navTextDim: "#744462",
-  navHover: "rgba(138,58,106,0.10)", navActive: "rgba(138,58,106,0.16)", navActiveBorder: "rgba(138,58,106,0.28)",
-  logoText: "#5E2248", logoSub: "#7C4A69",
-  scrollThumb: "#E3AFC8", inpBg: "#FDF3F8", placeholder: "#9A7D8E",
-  tdText: "#2B1623", trHover: "#FDEEF5", shadowCol: "rgba(138,58,106,0.16)", shadowSoft: "rgba(138,58,106,0.10)",
-  btnTop: "#B0508A", btnBot: "#963F74", btnEdge: "#6E2D55", btnHoverTop: "#BC5B96", btnHoverBot: "#A1487F", btnShadow: "rgba(138,58,106,0.3)", tabOn: "#963F74", navLine: "rgba(138,58,106,0.2)",
+  navText: "rgba(255,240,244,0.92)", navTextDim: "rgba(255,228,236,0.68)",
+  navHover: "rgba(255,255,255,0.08)", navActive: "rgba(224,164,142,0.18)", navActiveBorder: "rgba(224,164,142,0.45)",
+  logoText: "#F6D9CF", logoSub: "rgba(246,217,207,0.7)",
+  scrollThumb: "#DCC3BB", inpBg: "#FBF6F4", placeholder: "#9C868C",
+  tdText: "#2A1A20", trHover: "#FAF1EE", shadowCol: "rgba(75,34,51,0.16)", shadowSoft: "rgba(75,34,51,0.09)",
+  btnTop: "#7A3653", btnBot: "#57293C", btnEdge: "#2F1520", btnHoverTop: "#86405F", btnHoverBot: "#633046", btnShadow: "rgba(75,34,51,0.35)", tabOn: "#6E2F48", navLine: "rgba(255,255,255,0.12)",
+  bgImage: "radial-gradient(ellipse at 100% 0%, #F0C4CF88 0, transparent 45%), radial-gradient(ellipse at 0% 100%, #EECDBF88 0, transparent 45%), linear-gradient(160deg, #FBF5F2 0%, #F5E8E4 100%)",
+  bgSize: "cover, cover, cover",
 };
 // Tema "Girasoles": collage de verano -- amarillo girasol, rosa chicle, celeste y verde menta sobre crema
 const PALETA_GIRASOLES = {
