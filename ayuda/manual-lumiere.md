@@ -80,7 +80,7 @@ Abajo a la izquierda del menú están **Cambiar local**, **Cerrar sesión** y el
   - *Resumen*: en qué se fue la plata, margen de lo vendido (CMV), comisiones de medios de pago e IIBB estimado (el % se puede cambiar), y el formulario **Registrar egreso**.
   - *Movimientos*: ver, buscar, editar o borrar egresos cargados. Los que genera el sistema (ventas, gift cards, cambios, pagos de comisiones) dicen "automático" y no se editan desde acá.
   - *Estado de resultados*: ingresos menos cada tipo de costo, con % sobre ingresos.
-  - *Análisis*: calificación de la salud financiera del mes.
+  - *Análisis*: calificación de la salud financiera del mes, y debajo las **Medallas del negocio**.
   - *Comparar*: dos períodos (atajos: este mes vs mes pasado, vs mismo mes del año pasado, últimos 7 días).
   - *Costos por local* y *Punto de equilibrio* (cuánto hay que vender para cubrir los costos fijos, cuánto falta y cuánto vender por día).
 - **Comprobantes**: facturas emitidas en ARCA, ventas que quedaron sin facturar (con **↻ Facturar** para reintentar) y anuladas.
@@ -225,6 +225,9 @@ Al cargar un egreso **Compartido**, mové la barra o tocá 50/50, 60/40, 70/30 u
 
 ### Cómo ver si el negocio gana plata
 **Finanzas**: arriba están Ingresos, Egresos, Resultado neto y Margen neto del mes. En **Estado de resultados** ves cada tipo de costo, en **Análisis** una calificación, y en **Punto de equilibrio** cuánto hay que vender para no perder plata y cuánto vender por día.
+
+### Medallas del negocio
+En **Finanzas → Análisis**, debajo de la salud del mes, está la vitrina de **🏅 Medallas**: 10 logros que se ganan solos con los números reales del negocio (hasta 2 años hacia atrás). Son: **En equilibrio** (un mes vendiendo por encima del punto de equilibrio), **Antes del 20** (pasar el punto de equilibrio antes del día 20), **Buena salud** (un mes con 70 puntos o más), **Excelencia** (85 o más), **Racha de 3** (3 meses seguidos con salud Buena), **Mejora continua** (que el puntaje suba 3 meses seguidos), **Margen sano** (margen neto del 15% o más), **Costos a raya** (costos fijos del 15% o menos de las ventas), **Mes récord** (vender más que en cualquier mes anterior) y **Año sin pérdidas** (12 meses seguidos con ganancia). Las ganadas se ven en color con el mes en que se ganaron y cuántas veces; las que faltan, en gris con cómo ganarlas y cuánto falta. Las de salud solo cuentan meses ya cerrados y con gastos cargados: si no se cargan los gastos, no se ganan.
 
 ### Cómo comparar dos meses
 Finanzas → **Comparar** → tocá un atajo (este mes vs mes pasado, vs mismo mes del año pasado, últimos 7 días) o elegí las fechas. Compara facturación, cantidad de ventas y ticket promedio.

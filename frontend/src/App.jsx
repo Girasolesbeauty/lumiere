@@ -429,6 +429,20 @@ button.tab { font-family: inherit; }
 .fin-mes { display: inline-flex; align-items: center; gap: 4px; background: ${p.card}; border: 1px solid ${p.border}; border-radius: 8px; padding: 3px; }
 .fin-mes .sel { padding: 5px 8px; font-size: 12px; border: none; background: transparent; }
 .fin-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.med-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.med { border: 1px dashed ${p.border}; border-radius: 12px; padding: 14px 10px 12px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 4px; background: ${p.bg}; animation: fadeUp .35s ease both; }
+.med .med-icono { font-size: 30px; line-height: 1; filter: grayscale(1); opacity: .45; }
+.med .med-nombre { font-size: 13px; font-weight: 800; color: ${p.textMuted}; }
+.med .med-sub { font-size: 11px; line-height: 1.35; color: ${p.textMuted}; }
+.med.on { border: 1px solid ${p.accent}; background: linear-gradient(180deg, ${p.accentDim}, ${p.card}); box-shadow: 0 4px 14px ${p.shadowSoft}; }
+.med.on .med-icono { filter: none; opacity: 1; animation: medBrillo 3.2s ease-in-out infinite; }
+.med.on .med-nombre { color: ${p.text}; }
+.med.on .med-sub { color: ${p.accentText}; font-weight: 700; }
+.med-prog { width: 100%; margin-top: 6px; height: 6px; border-radius: 3px; background: ${p.border}; overflow: hidden; }
+.med-prog > div { height: 100%; border-radius: 3px; background: ${p.accent}; }
+.med-prog-txt { font-size: 11px; font-weight: 800; color: ${p.text}; }
+@keyframes medBrillo { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12) rotate(-4deg); } }
+@media (prefers-reduced-motion: reduce) { .med, .med.on .med-icono { animation: none; } }
 .fin-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .fin-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
 .fin-form { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); }
@@ -6991,6 +7005,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
   const [cmv, setCmv] = useState(null);
   const [equilibrio, setEquilibrio] = useState(null);
   const [analisis, setAnalisis] = useState(null);
+  const [medallas, setMedallas] = useState(null); // null = cargando | { medallas, ganadas, total } | { error }
   const [factExterna, setFactExterna] = useState(null);
   const [categoriasCosto, setCategoriasCosto] = useState([]);
   const [cuentasPago, setCuentasPago] = useState([]);
@@ -7089,6 +7104,12 @@ function Finanzas({ localId, usuario, paletaActual }) {
     });
   };
   useEffect(() => { cargarDatos(); }, [tabLocal, mesFiltro, anioFiltro]);
+  // Medallas: se calculan con toda la historia (no dependen del mes elegido)
+  useEffect(() => {
+    if (tab !== "analisis") return;
+    setMedallas(null);
+    API.get(`/finanzas/medallas?local_id=${tabLocal}`).then(r => setMedallas(r.data)).catch(() => setMedallas({ error: true }));
+  }, [tab, tabLocal]);
   useEffect(() => {
     API.get("/configuracion").then(r => setMostrarFacAnterior(r.data?.mostrar_facturacion_anterior === true)).catch(() => {});
     API.get("/categorias-costo").then(r => setCategoriasCosto(r.data || [])).catch(() => {});
@@ -7689,6 +7710,46 @@ function Finanzas({ localId, usuario, paletaActual }) {
             </div>
             <div style={{ fontSize: 11, color: p.textMuted, padding: "10px 4px 0" }}>
               La calificación combina tu evolución contra el mes anterior con parámetros generales de comercios minoristas: es una guía, no una norma exacta para tu rubro. Los % son sobre los ingresos del mes.
+            </div>
+
+            <div className="chart-card anim-in" style={{ marginTop: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+                <div className="chart-title">🏅 Medallas del negocio</div>
+                {medallas?.medallas && <div style={{ fontSize: 12, color: p.textMuted }}><b style={{ color: p.text }}>{medallas.ganadas}</b> de {medallas.total} ganadas</div>}
+              </div>
+              {!medallas ? <div className="skel" style={{ height: 150 }} /> : medallas.error ? (
+                <div className="empty">No se pudieron cargar las medallas. Probá recargar.</div>
+              ) : (
+                <>
+                  <div className="med-grid">
+                    {medallas.medallas.map((m, i) => (
+                      <div key={m.id} className={"med" + (m.ganada ? " on" : "")} style={{ animationDelay: (i * 40) + "ms" }}
+                        title={m.como} aria-label={m.nombre + (m.ganada ? ", ganada" : ", sin ganar") + ". " + m.como}>
+                        <div className="med-icono" aria-hidden="true">{m.icono}</div>
+                        <div className="med-nombre">{m.nombre}</div>
+                        {m.ganada ? (
+                          <div className="med-sub">
+                            {MESES_NOMBRE[m.primera.mes - 1].slice(0, 3)} {m.primera.anio}{m.veces > 1 ? " · ×" + m.veces : ""}
+                          </div>
+                        ) : (
+                          <div className="med-sub">{m.como}</div>
+                        )}
+                        {!m.ganada && m.progreso && m.progreso.actual > 0 && (
+                          <>
+                            <div className="med-prog" role="progressbar" aria-valuemin={0} aria-valuemax={m.progreso.meta} aria-valuenow={m.progreso.actual} aria-label={"Progreso de " + m.nombre}>
+                              <div style={{ width: (m.progreso.actual / m.progreso.meta * 100) + "%" }} />
+                            </div>
+                            <div className="med-prog-txt">Llevás {m.progreso.actual} de {m.progreso.meta}</div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 11, color: p.textMuted, marginTop: 10 }}>
+                    Se ganan con los números reales del negocio (hasta 2 años hacia atrás). Las de salud cuentan meses ya cerrados y con gastos cargados.
+                  </div>
+                </>
+              )}
             </div>
           </>
         )

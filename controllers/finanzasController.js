@@ -680,6 +680,51 @@ function puntajeMenorEsMejor(pct, bueno, regular, alto) {
   return 15;
 }
 
+// Puntaje de salud (0-100) de un mes a partir de su estado de resultados y el del mes anterior.
+// Lo usan el Analisis y las Medallas, para que las dos cuentas sean siempre la misma.
+function calcularPuntajeSalud(actual, anterior) {
+  const ingresos = actual.ingresos.total;
+  const margenNetoPct = ingresos > 0 ? (actual.resultado_neto / ingresos) * 100 : 0;
+  const variablesPct = ingresos > 0 ? (actual.variables.total / ingresos) * 100 : 0;
+  const fijosPct = ingresos > 0 ? (actual.fijos.total / ingresos) * 100 : 0;
+  const adminPct = ingresos > 0 ? (actual.admin.total / ingresos) * 100 : 0;
+  const sueldosPct = ingresos > 0 ? (actual.sueldos.total / ingresos) * 100 : 0;
+
+  // Comparacion contra el mes anterior (contra vos mismo)
+  const ingresosAnterior = anterior.ingresos.total;
+  const margenNetoPctAnterior = ingresosAnterior > 0 ? (anterior.resultado_neto / ingresosAnterior) * 100 : 0;
+  const variacionIngresos = ingresosAnterior > 0 ? ((ingresos - ingresosAnterior) / ingresosAnterior) * 100 : null;
+
+  // Puntaje de margen neto (mayor es mejor)
+  let puntajeMargen;
+  if (margenNetoPct >= 15) puntajeMargen = 100;
+  else if (margenNetoPct >= 8) puntajeMargen = 75;
+  else if (margenNetoPct >= 0) puntajeMargen = 50;
+  else puntajeMargen = 15;
+
+  // Puntajes de estructura de costos (contra parametros generales de retail)
+  const puntajeVariables = puntajeMenorEsMejor(variablesPct, 60, 70, 80);
+  const puntajeFijos = puntajeMenorEsMejor(fijosPct, 15, 25, 35);
+  const puntajeAdmin = puntajeMenorEsMejor(adminPct, 10, 15, 22);
+  const puntajeSueldos = puntajeMenorEsMejor(sueldosPct, 30, 40, 50);
+
+  let puntajeBase = (puntajeMargen + puntajeVariables + puntajeFijos + puntajeAdmin + puntajeSueldos) / 5;
+
+  // Ajuste por tendencia contra vos mismo: si el margen neto mejoro respecto al mes
+  // anterior, suma; si empeoro, resta (acotado para no sacar el puntaje de 0-100).
+  let ajusteTendencia = 0;
+  if (ingresosAnterior > 0) {
+    const deltaMargen = margenNetoPct - margenNetoPctAnterior;
+    ajusteTendencia = Math.max(-10, Math.min(10, deltaMargen));
+  }
+  const puntajeFinal = Math.round(Math.max(0, Math.min(100, puntajeBase + ajusteTendencia)));
+  return {
+    puntajeFinal, ingresos, ingresosAnterior, margenNetoPct, margenNetoPctAnterior, variacionIngresos,
+    variablesPct, fijosPct, adminPct, sueldosPct,
+    puntajeMargen, puntajeVariables, puntajeFijos, puntajeAdmin, puntajeSueldos,
+  };
+}
+
 const getAnalisisFinanciero = async (req, res) => {
   try {
     const { mes, anio, local_id } = req.query;
@@ -690,42 +735,11 @@ const getAnalisisFinanciero = async (req, res) => {
 
     const actual = await calcularFlujoEstructurado(mesActual, anioActual, local_id);
     const anterior = await calcularFlujoEstructurado(mesAnteriorNum, anioMesAnterior, local_id);
-
-    const ingresos = actual.ingresos.total;
-    const margenNetoPct = ingresos > 0 ? (actual.resultado_neto / ingresos) * 100 : 0;
-    const variablesPct = ingresos > 0 ? (actual.variables.total / ingresos) * 100 : 0;
-    const fijosPct = ingresos > 0 ? (actual.fijos.total / ingresos) * 100 : 0;
-    const adminPct = ingresos > 0 ? (actual.admin.total / ingresos) * 100 : 0;
-    const sueldosPct = ingresos > 0 ? (actual.sueldos.total / ingresos) * 100 : 0;
-
-    // Comparacion contra el mes anterior (contra vos mismo)
-    const ingresosAnterior = anterior.ingresos.total;
-    const margenNetoPctAnterior = ingresosAnterior > 0 ? (anterior.resultado_neto / ingresosAnterior) * 100 : 0;
-    const variacionIngresos = ingresosAnterior > 0 ? ((ingresos - ingresosAnterior) / ingresosAnterior) * 100 : null;
-
-    // Puntaje de margen neto (mayor es mejor)
-    let puntajeMargen;
-    if (margenNetoPct >= 15) puntajeMargen = 100;
-    else if (margenNetoPct >= 8) puntajeMargen = 75;
-    else if (margenNetoPct >= 0) puntajeMargen = 50;
-    else puntajeMargen = 15;
-
-    // Puntajes de estructura de costos (contra parametros generales de retail)
-    const puntajeVariables = puntajeMenorEsMejor(variablesPct, 60, 70, 80);
-    const puntajeFijos = puntajeMenorEsMejor(fijosPct, 15, 25, 35);
-    const puntajeAdmin = puntajeMenorEsMejor(adminPct, 10, 15, 22);
-    const puntajeSueldos = puntajeMenorEsMejor(sueldosPct, 30, 40, 50);
-
-    let puntajeBase = (puntajeMargen + puntajeVariables + puntajeFijos + puntajeAdmin + puntajeSueldos) / 5;
-
-    // Ajuste por tendencia contra vos mismo: si el margen neto mejoro respecto al mes
-    // anterior, suma; si empeoro, resta (acotado para no sacar el puntaje de 0-100).
-    let ajusteTendencia = 0;
-    if (ingresosAnterior > 0) {
-      const deltaMargen = margenNetoPct - margenNetoPctAnterior;
-      ajusteTendencia = Math.max(-10, Math.min(10, deltaMargen));
-    }
-    const puntajeFinal = Math.round(Math.max(0, Math.min(100, puntajeBase + ajusteTendencia)));
+    const {
+      puntajeFinal, ingresos, ingresosAnterior, margenNetoPct, margenNetoPctAnterior, variacionIngresos,
+      variablesPct, fijosPct, adminPct, sueldosPct,
+      puntajeMargen, puntajeVariables, puntajeFijos, puntajeAdmin, puntajeSueldos,
+    } = calcularPuntajeSalud(actual, anterior);
 
     let calificacion, color;
     if (puntajeFinal >= 85) { calificacion = 'Excelente'; color = '#2d7a4f'; }
@@ -785,6 +799,159 @@ const getAnalisisFinanciero = async (req, res) => {
   }
 };
 
+// ---------------- Medallas de salud del negocio ----------------
+// Se calculan con los meses reales (hasta 24 hacia atras). Las de salud usan solo meses ya
+// cerrados, y solo cuentan los meses con ingresos Y gastos cargados: si no se cargan gastos,
+// el margen daria 100% y se ganarian sin esfuerzo.
+const MEDALLAS = [
+  { id: 'equilibrio', icono: '⚖️', nombre: 'En equilibrio', como: 'Un mes con ventas por encima del punto de equilibrio' },
+  { id: 'antes20', icono: '⏱️', nombre: 'Antes del 20', como: 'Pasar el punto de equilibrio antes del día 20 del mes' },
+  { id: 'buena', icono: '💚', nombre: 'Buena salud', como: 'Cerrar un mes con salud Buena (70 puntos o más)' },
+  { id: 'excelente', icono: '🌟', nombre: 'Excelencia', como: 'Cerrar un mes con salud Excelente (85 puntos o más)' },
+  { id: 'racha3', icono: '🔥', nombre: 'Racha de 3', como: '3 meses seguidos con salud Buena o mejor' },
+  { id: 'mejora', icono: '📈', nombre: 'Mejora continua', como: 'Que el puntaje de salud suba 3 meses seguidos' },
+  { id: 'margen', icono: '💰', nombre: 'Margen sano', como: 'Cerrar un mes con margen neto del 15% o más' },
+  { id: 'fijos', icono: '🏠', nombre: 'Costos a raya', como: 'Cerrar un mes con costos fijos del 15% o menos de las ventas' },
+  { id: 'record', icono: '🏆', nombre: 'Mes récord', como: 'Vender más que en cualquier mes anterior (con al menos 3 meses de historia)' },
+  { id: 'anio', icono: '💎', nombre: 'Año sin pérdidas', como: '12 meses seguidos con resultado positivo' },
+];
+
+const getMedallas = async (req, res) => {
+  try {
+    const localNum = normalizarLocalId(req.query.local_id);
+    const filtroLocal = (i) => (localNum !== null ? `AND v.local_id = $${i}` : '');
+    const pLocal = localNum !== null ? [localNum] : [];
+
+    const ahoraAR = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }));
+    const mesHoy = ahoraAR.getMonth() + 1, anioHoy = ahoraAR.getFullYear();
+    const clave = (m, a) => a * 12 + (m - 1);
+    const deClave = (k) => ({ mes: (k % 12) + 1, anio: Math.floor(k / 12) });
+
+    const primera = await pool.query(`SELECT MIN(${AR('v.creado_en')}) AS f FROM ventas v WHERE ${VENTA_VALIDA('v')} ${filtroLocal(1)}`, pLocal);
+    const vacias = MEDALLAS.map(m => ({ ...m, ganada: false, primera: null, veces: 0, progreso: null }));
+    if (!primera.rows[0].f) return res.json({ medallas: vacias, ganadas: 0, total: MEDALLAS.length, meses_analizados: 0 });
+
+    const f0 = new Date(primera.rows[0].f);
+    const kHoy = clave(mesHoy, anioHoy);
+    const kDesde = Math.max(clave(f0.getMonth() + 1, f0.getFullYear()), kHoy - 23);
+
+    // Estado de resultados de cada mes (y el anterior al primero, para el puntaje de salud)
+    const claves = [];
+    for (let k = kDesde - 1; k <= kHoy; k++) claves.push(k);
+    const estados = {};
+    for (let i = 0; i < claves.length; i += 6) {
+      const lote = claves.slice(i, i + 6);
+      const res6 = await Promise.all(lote.map(k => { const { mes, anio } = deClave(k); return calcularFlujoEstructurado(mes, anio, req.query.local_id); }));
+      lote.forEach((k, j) => { estados[k] = res6[j]; });
+    }
+
+    // Margen bruto por mes (para el punto de equilibrio) y ventas por dia (para "Antes del 20")
+    const desdeFecha = `${deClave(kDesde).anio}-${String(deClave(kDesde).mes).padStart(2, '0')}-01`;
+    const [margenes, diarias] = await Promise.all([
+      pool.query(`
+        SELECT EXTRACT(YEAR FROM ${AR('v.creado_en')})::int AS anio, EXTRACT(MONTH FROM ${AR('v.creado_en')})::int AS mes,
+               COALESCE(SUM(vi.cantidad * vi.precio_unitario), 0) AS ingresos,
+               COALESCE(SUM(vi.cantidad * COALESCE(p.costo, 0)), 0) AS costos
+        FROM venta_items vi JOIN ventas v ON vi.venta_id = v.id JOIN productos p ON vi.producto_id = p.id
+        WHERE ${VENTA_VALIDA('v')} AND (${AR('v.creado_en')})::date >= $1::date ${filtroLocal(2)}
+        GROUP BY 1, 2`, [desdeFecha, ...pLocal]),
+      pool.query(`
+        SELECT (${AR('v.creado_en')})::date AS dia, SUM(v.total) AS total
+        FROM ventas v
+        WHERE ${VENTA_VALIDA('v')} AND (${AR('v.creado_en')})::date >= $1::date ${filtroLocal(2)}
+        GROUP BY 1 ORDER BY 1`, [desdeFecha, ...pLocal]),
+    ]);
+    const margenDe = {};
+    margenes.rows.forEach(r => { margenDe[clave(r.mes, r.anio)] = r; });
+    const ventasPorDia = {};
+    diarias.rows.forEach(r => {
+      const d = new Date(r.dia);
+      const k = clave(d.getUTCMonth() + 1, d.getUTCFullYear());
+      (ventasPorDia[k] = ventasPorDia[k] || []).push({ dia: d.getUTCDate(), total: num(r.total) });
+    });
+
+    // Datos de cada mes
+    const meses = [];
+    for (let k = kDesde; k <= kHoy; k++) {
+      const est = estados[k];
+      const ingresos = est.ingresos.total;
+      const valido = ingresos > 0 && est.total_egresos > 0;
+      const cerrado = k < kHoy;
+      const salud = calcularPuntajeSalud(est, estados[k - 1]);
+
+      const mg = margenDe[k];
+      const ingItems = mg ? num(mg.ingresos) : 0;
+      const margenBruto = ingItems > 0 ? (ingItems - num(mg.costos)) / ingItems : 0;
+      const pctComisiones = est.total_ventas > 0 ? est.comisiones_medios_pago.total / est.total_ventas : 0;
+      const margenContribucion = Math.max(0, margenBruto - pctComisiones);
+      const costosFijos = est.fijos.total + est.admin.total + est.sueldos.total + est.impuestos.total;
+      const pe = costosFijos > 0 && margenContribucion > 0 ? costosFijos / margenContribucion : 0;
+
+      let diaEquilibrio = null;
+      if (pe > 0) {
+        let acumulado = 0;
+        for (const d of (ventasPorDia[k] || [])) { acumulado += d.total; if (acumulado >= pe) { diaEquilibrio = d.dia; break; } }
+      }
+      meses.push({ k, ...deClave(k), ingresos, valido, cerrado, puntaje: salud.puntajeFinal, margenNetoPct: salud.margenNetoPct, fijosPct: salud.fijosPct, fijos: est.fijos.total, resultado: est.resultado_neto, pe, diaEquilibrio });
+    }
+
+    // Reglas: por cada mes, si se cumple la medalla ese mes
+    const saludOk = (m) => m.cerrado && m.valido;
+    const cumple = {
+      equilibrio: (m) => m.valido && m.pe > 0 && m.ingresos >= m.pe,
+      antes20: (m) => m.valido && m.diaEquilibrio !== null && m.diaEquilibrio <= 20,
+      buena: (m) => saludOk(m) && m.puntaje >= 70,
+      excelente: (m) => saludOk(m) && m.puntaje >= 85,
+      margen: (m) => saludOk(m) && m.margenNetoPct >= 15,
+      fijos: (m) => saludOk(m) && m.fijos > 0 && m.fijosPct <= 15,
+    };
+    // Rachas: cuenta meses seguidos que cumplen la condicion (un mes que no cumple la corta)
+    const racha = (cond, largo) => {
+      let actual = 0, veces = 0, primera = null;
+      meses.forEach(m => {
+        if (!m.cerrado) return;
+        actual = cond(m) ? actual + 1 : 0;
+        if (actual > 0 && actual % largo === 0) { veces++; if (!primera) primera = { mes: m.mes, anio: m.anio }; }
+      });
+      return { veces, primera, progreso: { actual: actual % largo, meta: largo } };
+    };
+
+    const resultado = MEDALLAS.map(med => {
+      let veces = 0, primera = null, progreso = null;
+      if (cumple[med.id]) {
+        meses.forEach(m => { if (cumple[med.id](m)) { veces++; if (!primera) primera = { mes: m.mes, anio: m.anio }; } });
+      } else if (med.id === 'racha3') {
+        ({ veces, primera, progreso } = racha(m => saludOk(m) && m.puntaje >= 70, 3));
+      } else if (med.id === 'anio') {
+        ({ veces, primera, progreso } = racha(m => saludOk(m) && m.resultado > 0, 12));
+      } else if (med.id === 'mejora') {
+        // 3 subidas seguidas del puntaje entre meses cerrados validos
+        let subidas = 0;
+        meses.forEach((m, i) => {
+          const prev = meses[i - 1];
+          if (!saludOk(m)) { subidas = 0; return; }
+          subidas = prev && saludOk(prev) && m.puntaje > prev.puntaje ? subidas + 1 : 0;
+          if (subidas > 0 && subidas % 3 === 0) { veces++; if (!primera) primera = { mes: m.mes, anio: m.anio }; }
+        });
+        progreso = { actual: subidas % 3, meta: 3 };
+      } else if (med.id === 'record') {
+        let maximo = 0, conVentas = 0;
+        meses.forEach(m => {
+          if (conVentas >= 3 && m.ingresos > maximo) { veces++; if (!primera) primera = { mes: m.mes, anio: m.anio }; }
+          if (m.ingresos > 0) conVentas++;
+          maximo = Math.max(maximo, m.ingresos);
+        });
+      }
+      return { ...med, ganada: veces > 0, primera, veces, progreso };
+    });
+
+    res.json({ medallas: resultado, ganadas: resultado.filter(m => m.ganada).length, total: MEDALLAS.length, meses_analizados: meses.length });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al calcular las medallas: ' + error.message });
+  }
+};
+
 // Compara dos rangos de fechas cualquiera (dias argentinos, sin anuladas ni pruebas).
 const getComparativaMeses = async (req, res) => {
   try {
@@ -824,4 +991,4 @@ const getComparativaMeses = async (req, res) => {
   }
 };
 
-module.exports = { getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };
+module.exports = { getMedallas, getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };
