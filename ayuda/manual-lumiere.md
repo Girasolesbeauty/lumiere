@@ -80,7 +80,7 @@ Abajo a la izquierda del menú están **Cambiar local**, **Cerrar sesión** y el
   - *Resumen*: en qué se fue la plata, margen de lo vendido (CMV), comisiones de medios de pago e IIBB estimado (el % se puede cambiar), y el formulario **Registrar egreso**.
   - *Movimientos*: ver, buscar, editar o borrar egresos cargados. Los que genera el sistema (ventas, gift cards, cambios, pagos de comisiones) dicen "automático" y no se editan desde acá.
   - *Estado de resultados*: ingresos menos cada tipo de costo, con % sobre ingresos.
-  - *Análisis*: calificación de la salud financiera del mes, y debajo las **Medallas del negocio**.
+  - *Análisis*: calificación de la salud financiera del mes, y debajo las **Medallas del negocio**. Debajo del puntaje aparece un mensaje: si el mes fue bueno, te felicita y te dice qué salió mejor; si hay que mejorar, te da ánimo y hasta 3 soluciones concretas con un botón que te lleva a resolverlas. Los niveles son Excelente, Buena, En camino, Necesita ajustes y Momento de actuar.
   - *Comparar*: dos períodos (atajos: este mes vs mes pasado, vs mismo mes del año pasado, últimos 7 días).
   - *Costos por local* y *Punto de equilibrio* (cuánto hay que vender para cubrir los costos fijos, cuánto falta y cuánto vender por día).
 - **Comprobantes**: facturas emitidas en ARCA, ventas que quedaron sin facturar (con **↻ Facturar** para reintentar) y anuladas.

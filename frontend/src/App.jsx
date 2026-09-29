@@ -442,6 +442,17 @@ button.tab { font-family: inherit; }
 .rot-barra span.v { background: ${p.green}55; } .rot-barra span.s { background: ${p.accent}66; }
 .rot-barra em { position: relative; font-style: normal; font-size: 11px; font-weight: 700; padding-left: 8px; line-height: 18px; color: ${p.text}; }
 .rot-insight { margin-top: 12px; font-size: 13px; line-height: 1.5; padding: 10px 12px; border-radius: 8px; background: ${p.accentDim}; }
+.coach { text-align: left; display: grid; grid-template-columns: 44px 1fr; gap: 12px; border-radius: 12px; padding: 16px 18px; margin-bottom: 12px; border: 1px solid ${p.border}; border-left: 5px solid var(--cc); background: ${p.card}; box-shadow: 0 2px 10px ${p.shadowSoft}; }
+.coach.ok { --cc: ${p.green}; background: linear-gradient(90deg, ${p.greenDim}, ${p.card} 60%); }
+.coach.med { --cc: ${p.warn}; background: linear-gradient(90deg, ${p.warnDim}, ${p.card} 60%); }
+.coach.bad { --cc: #2471a3; background: linear-gradient(90deg, #2471a314, ${p.card} 60%); }
+.coach-ic { font-size: 32px; line-height: 1; }
+.coach-tit { font-size: 15px; font-weight: 800; line-height: 1.4; }
+.coach-txt { font-size: 13px; line-height: 1.55; color: ${p.textSoft}; margin-top: 4px; }
+.coach-sol { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.coach-item { display: grid; grid-template-columns: 24px 1fr; gap: 8px; font-size: 13px; line-height: 1.5; color: ${p.textSoft}; }
+.coach-item b { color: ${p.text}; }
+.coach-num { width: 22px; height: 22px; border-radius: 50%; background: var(--cc); color: #fff; font-size: 12px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
 .rot-mantener { font-size: 13px; line-height: 1.5; margin-top: 6px; color: ${p.text}; }
 .rot-mantener b { color: ${p.red}; }
 .rot-mantener label { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: ${p.textMuted}; margin-left: 6px; white-space: nowrap; }
@@ -455,6 +466,7 @@ button.tab { font-family: inherit; }
 .dec-idea-pie { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
 .dec-idea-ah { font-size: 13px; font-weight: 800; color: ${p.green}; }
 .dec-idea-ah.sin { color: ${p.textMuted}; font-weight: 600; }
+.dec-idea-ah small { font-weight: 600; color: ${p.textMuted}; }
 .dec-base { margin-bottom: 14px; }
 .dec-base-tit { font-size: 13px; font-weight: 800; margin-bottom: 10px; }
 .dec-base-tit span { font-weight: 500; font-size: 11px; color: ${p.textMuted}; margin-left: 6px; }
@@ -5116,20 +5128,30 @@ function simularDecision(tipo, b, x) {
     const rec = Math.min(50, n(x.recorte) || 10) / 100;   // cuanto se podria bajar un costo fijo
     const dto = Math.min(30, n(x.dtoProveedor) || 5) / 100; // descuento a pedir a proveedores
     const ideas = [];
-    (b.costos_categorias || []).slice(0, 5).forEach(c => {
+    (b.costos_categorias || []).slice(0, 6).forEach(c => {
       const pv = V > 0 ? c.monto / V * 100 : 0;
       if (/alquil/i.test(c.nombre)) {
-        ideas.push({ icono: "🏠", titulo: "Renegociar el alquiler", texto: "El alquiler es " + $(c.monto) + " por mes (" + pct(pv) + " de lo que vendés" + (pv > 10 ? ", más de lo sano para un comercio" : "") + "). Pedí una rebaja o un ajuste más espaciado al renovar, o evaluá un local más chico si sobra espacio.", ahorro: c.monto * rec });
+        // El alquiler va por contrato: no se promete un ahorro, se sugiere para la renovacion
+        if (pv > 10) ideas.push({ icono: "🏠", titulo: "Tener en cuenta el alquiler al renovar", texto: "El alquiler es " + $(c.monto) + " por mes (" + pct(pv) + " de lo que vendés, más de lo sano para un comercio). Como va por contrato, no se baja de un día para el otro: planteá el ajuste o los metros en la próxima renovación. Mientras tanto, aprovechá mejor el espacio (vidriera, exhibición) para vender más por metro.", ahorro: null, sinAhorro: "Se trabaja al renovar el contrato" });
+      } else if (/luz|gas|agua|electric|energ/i.test(c.nombre)) {
+        // Servicios de consumo: solo bajan usando menos
+        ideas.push({ icono: "💡", titulo: "Consumir menos " + c.nombre.toLowerCase(), texto: c.nombre + " es " + $(c.monto) + " por mes. Estos servicios solo bajan consumiendo menos: luces LED, apagar carteles y aire o calefacción fuera del horario, y revisar que nada quede prendido a la noche.", ahorro: c.monto * 0.1, notaAhorro: "usando un 10% menos" });
+      } else if (/internet|tel[eé]fon|celular|cable|wifi/i.test(c.nombre)) {
+        ideas.push({ icono: "📶", titulo: "Revisar el plan de " + c.nombre.toLowerCase(), texto: c.nombre + " es " + $(c.monto) + " por mes. Estos planes sí se negocian: pedí una bonificación o compará con otra empresa; con otra oferta en la mano es más fácil que te mejoren el precio.", ahorro: c.monto * rec });
       } else if (c.grupo === "Sueldos") {
-        if (pv > 30) ideas.push({ icono: "👥", titulo: "Ordenar los horarios del equipo", texto: "Los sueldos son " + pct(pv) + " de lo que vendés (lo sano es hasta 30%). Revisá que los turnos coincidan con los horarios de más venta, y pagá una parte como comisión: así el costo acompaña a las ventas.", ahorro: c.monto * rec / 2 });
+        if (pv > 30) ideas.push({ icono: "👥", titulo: "Ordenar los horarios del equipo", texto: "Los sueldos son " + pct(pv) + " de lo que vendés (lo sano es hasta 30%). Revisá que los turnos coincidan con los horarios de más venta, y pagá una parte como comisión: así el costo acompaña a las ventas.", ahorro: null, sinAhorro: "Depende de cómo reorganices los turnos" });
       } else if (c.grupo === "Impuestos") {
-        ideas.push({ icono: "🧾", titulo: "Revisar la carga de impuestos con tu contador", texto: c.nombre + " es " + $(c.monto) + " por mes (" + pct(pv) + " de las ventas). Consultá si tu categoría o régimen es el más conveniente para lo que facturás.", ahorro: null });
+        ideas.push({ icono: "🧾", titulo: "Revisar la carga de impuestos con tu contador", texto: c.nombre + " es " + $(c.monto) + " por mes (" + pct(pv) + " de las ventas). Consultá si tu categoría o régimen es el más conveniente para lo que facturás.", ahorro: null, sinAhorro: "Consultalo con tu contador" });
+      } else if (c.grupo === "Administrativos y marketing") {
+        ideas.push({ icono: "📣", titulo: "Revisar " + c.nombre.toLowerCase(), texto: c.nombre + " es " + $(c.monto) + " por mes (" + pct(pv) + " de las ventas). Medí qué te trae ventas de verdad y dejá de pagar lo que no.", ahorro: c.monto * rec });
       } else {
-        ideas.push({ icono: c.grupo === "Administrativos y marketing" ? "📣" : "💡", titulo: "Bajar " + c.nombre.toLowerCase(), texto: c.nombre + " es " + $(c.monto) + " por mes (" + pct(pv) + " de las ventas). " + (c.grupo === "Administrativos y marketing" ? "Medí qué publicidad trae ventas de verdad y cortá la que no." : "Pedí presupuesto a otras empresas: con otra propuesta en la mano es más fácil negociar."), ahorro: c.monto * rec });
+        ideas.push({ icono: "🔎", titulo: "Revisar " + c.nombre.toLowerCase(), texto: c.nombre + " es " + $(c.monto) + " por mes (" + pct(pv) + " de las ventas). Si es un servicio o un seguro, pedí presupuesto a otras empresas: con otra propuesta en la mano es más fácil negociar.", ahorro: c.monto * rec });
       }
     });
-    (b.comisiones_medios || []).filter(m => !m.efectivo && m.comision > 0).slice(0, 2).forEach(m => {
-      ideas.push({ icono: "💳", titulo: "Bajar las comisiones de " + m.medio, texto: "Te cobran ≈ " + $(m.comision) + " por mes (" + pct(m.comision_pct) + " de " + $(m.monto) + "). Negociá la tasa con el procesador o ofrecé un pequeño descuento pagando con transferencia: si un 30% de esas ventas se pasa, ahorrás lo de abajo.", ahorro: m.comision * 0.3 });
+    (b.comisiones_medios || []).filter(m => !m.efectivo && m.comision > 0).slice(0, 3).forEach(m => {
+      // Las tasas de tarjeta SI se negocian con el banco o la procesadora
+      const baja = Math.min(0.5, m.comision_pct / 3) / 100;
+      ideas.push({ icono: "💳", titulo: "Negociar la comisión de " + m.medio, texto: "Te cobran ≈ " + $(m.comision) + " por mes (" + pct(m.comision_pct) + " sobre " + $(m.monto) + "). Con tu volumen de ventas podés pedir una tasa más baja a tu banco o a la procesadora (por ejemplo Naranja X, Payway o Mercado Pago), y también ofrecer un pequeño descuento pagando con transferencia.", ahorro: m.monto * baja, notaAhorro: "bajando la tasa " + (Math.round(baja * 1000) / 10).toLocaleString("es-AR") + " puntos" });
     });
     (b.proveedores_compras || []).slice(0, 3).forEach(pv => {
       const msg = "Hola " + pv.nombre + ", ¿cómo están? En los últimos 3 meses les compramos por " + $(pv.total_90) + " y queremos seguir creciendo con ustedes. ¿Podemos ver un " + pct(dto * 100) + " de descuento por volumen o por pago de contado? ¡Gracias!";
@@ -5186,6 +5208,83 @@ const ESTADOS_ROTACION = {
   nuevo: { l: "Nuevo", i: "🆕", cls: "tag-neutral" },
 };
 
+// Nombres amables de la salud financiera: el puntaje es el mismo, pero "Critica" o "Preocupante"
+// suenan a reto y hay gente que no quiere verlo. Se muestra como un llamado a actuar.
+const NOMBRE_SALUD = { Excelente: "Excelente", Buena: "Buena", Regular: "En camino", Preocupante: "Necesita ajustes", Critica: "Momento de actuar", "Crítica": "Momento de actuar" };
+const nombreSalud = (c) => NOMBRE_SALUD[c] || c;
+
+// Ir a otra seccion (opcionalmente con una situacion de Toma de decisiones ya elegida)
+const irASeccion = (page, prefill) => {
+  if (prefill) { try { sessionStorage.setItem("lumiere_decision_prefill", JSON.stringify(prefill)); } catch (e) {} }
+  window.dispatchEvent(new CustomEvent("lumiere-ir", { detail: page }));
+};
+
+// Mensaje de la salud financiera: felicita cuando va bien, y cuando va mal da animo y
+// soluciones concretas con un boton que lleva a resolverlo.
+function CoachSalud({ analisis, p }) {
+  const cal = analisis.calificacion;
+  const m = (texto) => analisis.metricas.find(x => x.nombre.startsWith(texto));
+  const margen = m("Margen neto"), variables = m("Costos variables"), fijos = m("Costos fijos"), admin = m("Gastos administrativos"), sueldos = m("Sueldos");
+  const semilla = (analisis.mes || 1) + (analisis.anio || 0);
+  const elegir = (lista) => lista[semilla % lista.length];
+
+  if (cal === "Excelente" || cal === "Buena") {
+    const mejor = [...analisis.metricas].sort((a, b) => b.puntaje - a.puntaje)[0];
+    const frase = cal === "Excelente"
+      ? elegir(["¡Felicitaciones! Tu negocio tuvo un mes excelente.", "¡Qué mes! Tu negocio está funcionando como una máquina bien aceitada.", "¡Excelente trabajo! Este es el resultado de hacer las cosas con orden."])
+      : elegir(["¡Muy bien! Tu negocio está sano.", "¡Buen mes! Los números acompañan.", "¡Vas muy bien! Tu negocio está en equilibrio."]);
+    return (
+      <div className="coach ok anim-in">
+        <div className="coach-ic" aria-hidden="true">{cal === "Excelente" ? "🏆" : "🎉"}</div>
+        <div>
+          <div className="coach-tit">{frase}</div>
+          <div className="coach-txt">
+            {mejor && <>Lo que mejor te salió: <b>{mejor.nombre.split(" (")[0].toLowerCase()}</b> ({mejor.valor}%). </>}
+            {cal === "Excelente" ? "Mantené este ritmo y mirá tus medallas más abajo: seguro sumaste alguna." : "Con un par de ajustes podés llegar a Excelente: mirá abajo qué métrica tiene más para mejorar."}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Regular, Preocupante o Critica: animo + soluciones
+  const animo = cal === "Regular"
+    ? elegir(["Vas por buen camino: con un par de ajustes pasás a Buena.", "Estás cerca: pequeños cambios hacen una gran diferencia.", "No está mal, y se puede mejorar: acá tenés por dónde empezar."])
+    : elegir([
+        "Un mes difícil no define a tu negocio. Ahora sabés dónde está el problema, y ese es el primer paso para resolverlo.",
+        "Todos los negocios pasan por meses así. La diferencia la hace quien mide y corrige a tiempo, y eso es lo que estás haciendo.",
+        "Tranquilidad: los números se pueden mejorar. Empezá por una sola cosa de esta lista y medí el mes que viene.",
+      ]);
+  const soluciones = [];
+  const mal = (x) => x && x.estado !== "bien";
+  if (mal(fijos)) soluciones.push({ t: "Tus costos fijos pesan mucho (" + fijos.valor + "% de lo que vendés).", a: "Revisá alquiler, servicios y otros gastos: Lumiere te da ideas con cuánto ahorrarías.", b: "✂️ Ver ideas para bajar costos", ir: () => irASeccion("decisiones", { sit: "bajar" }) });
+  if (mal(margen)) soluciones.push({ t: "El margen neto está bajo (" + margen.valor + "%).", a: "Probá cuánto cambiaría tu ganancia con una suba de precios, sin perder clientes.", b: "🏷️ Simular una suba de precios", ir: () => irASeccion("decisiones", { sit: "precios" }) });
+  if (mal(variables)) soluciones.push({ t: "La mercadería se lleva mucho de lo que vendés (" + variables.valor + "%).", a: "Negociá mejores precios con tus proveedores y liberá la plata que está parada en stock.", b: "♻️ Ver mercadería parada", ir: () => irASeccion("rotacion") });
+  if (mal(sueldos)) soluciones.push({ t: "Los sueldos son una parte grande (" + sueldos.valor + "%).", a: "Ajustá los turnos a los horarios de más venta, o pagá una parte como comisión para que el costo acompañe a las ventas.", b: "💎 Ver comisiones", ir: () => irASeccion("comisiones") });
+  if (mal(admin)) soluciones.push({ t: "Los gastos administrativos y de marketing están altos (" + admin.valor + "%).", a: "Medí qué publicidad te trae ventas de verdad y dejá de pagar la que no.", b: null });
+  if (!soluciones.length) soluciones.push({ t: "Vender un poco más es lo que más te acerca.", a: "Mirá cuánto te falta para llegar al punto de equilibrio y qué ganancia querés lograr.", b: "🎯 Calcular cuánto vender", ir: () => irASeccion("decisiones", { sit: "objetivo" }) });
+
+  return (
+    <div className={"coach anim-in " + (cal === "Regular" ? "med" : "bad")}>
+      <div className="coach-ic" aria-hidden="true">{cal === "Regular" ? "💪" : "🤝"}</div>
+      <div style={{ minWidth: 0 }}>
+        <div className="coach-tit">{animo}</div>
+        <div className="coach-sol">
+          {soluciones.slice(0, 3).map((x, i) => (
+            <div key={i} className="coach-item">
+              <span className="coach-num">{i + 1}</span>
+              <div style={{ minWidth: 0 }}>
+                <div><b>{x.t}</b> {x.a}</div>
+                {x.b && <button className="chip-btn" style={{ marginTop: 6 }} onClick={x.ir}>{x.b}</button>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Rotacion({ localId, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
   const [tabLocal, setTabLocal] = useState(Number(localId) === 2 ? "ush" : "rg");
@@ -5203,8 +5302,7 @@ function Rotacion({ localId, paletaActual }) {
   const simularLiquidacion = (lista) => {
     const costo = lista.reduce((s2, x) => s2 + x.valor_costo, 0);
     const venta = lista.reduce((s2, x) => s2 + Math.max(0, x.stock) * x.precio, 0);
-    try { sessionStorage.setItem("lumiere_decision_prefill", JSON.stringify({ sit: "promo", objetivo: "liquidar", valorCosto: String(Math.round(costo)), valorVenta: String(Math.round(venta)), local: tabLocal })); } catch (e) {}
-    window.dispatchEvent(new CustomEvent("lumiere-ir", { detail: "decisiones" }));
+    irASeccion("decisiones", { sit: "promo", objetivo: "liquidar", valorCosto: String(Math.round(costo)), valorVenta: String(Math.round(venta)), local: tabLocal });
   };
 
   if (!datos) return <div className="fade"><div className="skel" style={{ height: 320 }} /></div>;
@@ -5456,7 +5554,7 @@ function TomaDecisiones({ paletaActual }) {
               </>}
               {sit === "bajar" && <>
                 <div className="dec-ayuda" style={{ fontSize: 13, marginTop: 0, marginBottom: 12, color: p.textSoft }}>Lumiere revisa tus gastos, las comisiones de tarjeta, lo que le comprás a cada proveedor y el margen de cada producto, y te propone dónde ahorrar.</div>
-                {campo("recorte", "¿Cuánto creés que podés bajar un gasto negociando? (%)", "Se usa para estimar el ahorro en alquiler, servicios y otros gastos", { placeholder: "10" })}
+                {campo("recorte", "¿Cuánto creés que podés bajar un gasto negociando? (%)", "Para servicios que se negocian (internet, seguros, sistemas) y publicidad. El alquiler va por contrato y la luz o el gas solo bajan consumiendo menos: esos se calculan aparte.", { placeholder: "10" })}
                 {campo("dtoProveedor", "¿Qué descuento le pedirías a tus proveedores? (%)", "Por volumen o por pagar de contado", { placeholder: "5" })}
               </>}
               {sit === "objetivo" && <>
@@ -5488,7 +5586,7 @@ function TomaDecisiones({ paletaActual }) {
                             <div className="dec-idea-t">{idea.titulo}</div>
                             <div className="dec-idea-x">{idea.texto}</div>
                             <div className="dec-idea-pie">
-                              {idea.ahorro ? <span className="dec-idea-ah">💰 ≈ {$(idea.ahorro)} por mes</span> : <span className="dec-idea-ah sin">Consultalo con tu contador</span>}
+                              {idea.ahorro ? <span className="dec-idea-ah">💰 ≈ {$(idea.ahorro)} por mes{idea.notaAhorro ? <small> · {idea.notaAhorro}</small> : null}</span> : <span className="dec-idea-ah sin">{idea.sinAhorro || "Sin ahorro estimado"}</span>}
                               {idea.mensaje && <button className="chip-btn" onClick={() => { try { navigator.clipboard.writeText(idea.mensaje); setCopiado(i); setTimeout(() => setCopiado(null), 2500); } catch (e) {} }}>{copiado === i ? "✓ Copiado" : "📋 Copiar mensaje para el proveedor"}</button>}
                             </div>
                           </div>
@@ -7907,7 +8005,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
             <KpiCard p={p} titulo="Resultado neto" valor={neto} formato={fmt} color={neto >= 0 ? p.green : p.red} indice={2}
               sub={neto >= 0 ? "ganancia del mes" : "pérdida del mes"} />
             <KpiCard p={p} titulo="Margen neto" valor={margenNeto.toFixed(1) + "%"} color={p.accentText} indice={3}
-              tag={analisis ? <span className="tag" style={{ background: analisis.color + "22", color: analisis.color }}>{analisis.calificacion}</span> : null}
+              tag={analisis ? <span className="tag" style={{ background: analisis.color + "22", color: analisis.color }}>{nombreSalud(analisis.calificacion)}</span> : null}
               sub="lo que queda de cada $100" />
           </>
         )}
@@ -8290,7 +8388,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
               </div>
               <div style={{ flex: 1, minWidth: 220 }}>
                 <div style={{ fontSize: 11, color: p.textMuted, letterSpacing: ".1em", fontWeight: 700 }}>SALUD FINANCIERA DEL MES</div>
-                <div style={{ fontSize: 26, fontWeight: 800, color: analisis.color, margin: "2px 0 6px" }}>{analisis.calificacion}</div>
+                <div style={{ fontSize: 26, fontWeight: 800, color: analisis.color, margin: "2px 0 6px" }}>{nombreSalud(analisis.calificacion)}</div>
                 <div style={{ fontSize: 13 }}>Margen neto de <b style={{ color: analisis.color }}>{analisis.margen_neto_pct}%</b> sobre {fmt(analisis.ingresos_mes)} de ingresos.</div>
                 {cmpAnt && cmpAnt.tendencia !== "sin_datos" && (
                   <div style={{ fontSize: 12, color: cmpAnt.tendencia === "mejora" ? p.green : p.red, marginTop: 4 }}>
@@ -8300,6 +8398,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
                 )}
               </div>
             </div>
+            <CoachSalud analisis={analisis} p={p} />
             <div className="fin-grid2">
               {analisis.metricas.map((m, i) => (
                 <div key={i} className="chart-card anim-in" style={{ animationDelay: (i * 50) + "ms", borderLeft: "3px solid " + colorEstado(m.estado) }}>
