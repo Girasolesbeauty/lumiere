@@ -229,6 +229,15 @@ Al cargar un egreso **Compartido**, mové la barra o tocá 50/50, 60/40, 70/30 u
 ### Medallas del negocio
 En **Finanzas → Análisis**, debajo de la salud del mes, está la vitrina de **🏅 Medallas**: 10 logros que se ganan solos con los números reales del negocio (hasta 2 años hacia atrás). Son: **En equilibrio** (un mes vendiendo por encima del punto de equilibrio), **Antes del 20** (pasar el punto de equilibrio antes del día 20), **Buena salud** (un mes con 70 puntos o más), **Excelencia** (85 o más), **Racha de 3** (3 meses seguidos con salud Buena), **Mejora continua** (que el puntaje suba 3 meses seguidos), **Margen sano** (margen neto del 15% o más), **Costos a raya** (costos fijos del 15% o menos de las ventas), **Mes récord** (vender más que en cualquier mes anterior) y **Año sin pérdidas** (12 meses seguidos con ganancia). Las ganadas se ven en color con el mes en que se ganaron y cuántas veces; las que faltan, en gris con cómo ganarlas y cuánto falta. Las de salud solo cuentan meses ya cerrados y con gastos cargados: si no se cargan los gastos, no se ganan.
 
+### Toma de decisiones (simular antes de decidir)
+En **Finanzas → 🧭 Toma de decisiones** simulás una situación con los números reales del negocio (el promedio de los últimos 3 meses cerrados) y Lumiere te da un veredicto con semáforo: 🟢 recomendable, 🟡 posible si vendés más, 🔴 no recomendable por ahora. Las situaciones son:
+- **👤 Contratar un empleado**: sueldo bruto, cargas sociales (viene con 28%, consultalo con tu contador), aguinaldo y cuánto más creés que se va a vender. Te dice el costo real por mes y cuánto hay que vender de más para pagarlo.
+- **🏠 Sumar un costo fijo**: alquiler, publicidad, un servicio.
+- **🏷️ Subir o bajar precios**: cuántas unidades podés perder (si subís) o tenés que ganar (si bajás) para seguir ganando lo mismo.
+- **🎉 Promoción o descuento**: % de descuento, 2x1, 3x2 o 2ª unidad con descuento. Primero elegís el objetivo: **vender más** (cuánto más hay que vender durante la promo para ganar lo mismo) o **liquidar lo que no rota** (si recuperás lo que pagaste y cuánto podés ganar reinvirtiendo esa plata; trae cargada la mercadería sin ventas en 90 días).
+- **🎯 Llegar a una ganancia**: cuánto tenés que vender por mes y por día.
+Es una estimación (ganancia = ventas × margen − costos fijos) para comparar opciones; no reemplaza el consejo de tu contador.
+
 ### Cómo comparar dos meses
 Finanzas → **Comparar** → tocá un atajo (este mes vs mes pasado, vs mismo mes del año pasado, últimos 7 días) o elegí las fechas. Compara facturación, cantidad de ventas y ticket promedio.
 
@@ -275,6 +284,13 @@ Al recibir una orden, en **🎁 Ítem extra** buscá el producto que vino de reg
 
 ### Cómo calcular el precio de venta
 **Calculadoras** → pestaña **Calcular** → elegí la calculadora → poné el costo (o el precio de venta del proveedor) → **Calcular precio**. En **Administrar** se crean las fórmulas (margen, impuestos y costos extra como bolsa o envío).
+
+### Rotación del inventario (qué se vende y qué está parado)
+En **♻️ Rotación** (menú STOCK) ves, por local y para los últimos 30, 60, 90 o 180 días:
+- **Plata en mercadería** (stock a costo), **🧊 plata parada** (productos sin ventas en el período), **🐢 rotación lenta** (más de 90 días de stock) y **⚠️ para reponer** (productos que se venden y se están por agotar).
+- **Clasificación ABC**: **A** son los productos que hacen el 80% de las ventas, **B** el 15% siguiente y **C** el resto. Compara qué % de las ventas hace cada grupo contra qué % de tu plata en stock tiene: si los C tienen mucha plata y venden poco, conviene liquidarlos y usar esa plata en productos A.
+- La lista de productos con sus **días de stock** (cuánto te dura lo que tenés al ritmo actual), su estado (🔥 rota rápido, ✅ normal, 🐢 lento, 🧊 parado) y **qué hacer**: reponer, o liquidar mostrando hasta qué descuento podés hacer sin perder plata.
+- **🧭 Simular liquidación** te lleva a Toma de decisiones con la mercadería lenta y parada ya cargada, para ver si el descuento conviene.
 
 ### Cómo se recalcula el stock mínimo
 El **stock mínimo** de cada producto es el que usan las alertas de **stock bajo**. Lumiere lo **recalcula solo cada noche** con las ventas de los últimos 60 días de cada producto: venta diaria × (días que demora el proveedor + 7 días de colchón). Los productos con menos de 14 días de ventas no se tocan, porque hay poca información. Para recalcularlo en el momento, en **Inventario** tocá **↻ Recalcular stock mínimo**. Si preferís cargarlo a mano, en Inventario apagá **🌙 Recalcular solo cada noche**: así el sistema no lo cambia.

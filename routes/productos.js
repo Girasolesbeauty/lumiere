@@ -3,6 +3,7 @@ const router = express.Router();
 const controller = require('../controllers/productosController');
 router.get('/', controller.getAll);
 router.get('/sugerencia-compra', controller.getSugerenciaCompra);
+router.get('/rotacion', controller.getRotacion);
 router.put('/lead-time-proveedor', controller.guardarLeadTimeProveedor);
 router.post('/guardar-minimos', controller.guardarMinimos);
 router.get('/alertas/stock', controller.getAlertas);

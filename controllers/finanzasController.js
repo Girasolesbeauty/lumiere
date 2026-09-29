@@ -952,6 +952,113 @@ const getMedallas = async (req, res) => {
   }
 };
 
+// ---------------- Toma de decisiones ----------------
+// Base para las simulaciones: promedio de los ultimos 3 meses cerrados con ventas. Las cuentas de
+// cada situacion se hacen en pantalla (son instantaneas mientras se escribe) con estos numeros:
+//   ganancia estimada = ventas x margen de contribucion - costos fijos
+//   margen de contribucion = margen bruto de la mercaderia - comisiones de los medios de pago
+const getBaseDecisiones = async (req, res) => {
+  try {
+    const localNum = normalizarLocalId(req.query.local_id);
+    const ahoraAR = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }));
+    const clave = (m, a) => a * 12 + (m - 1);
+    const deClave = (k) => ({ mes: (k % 12) + 1, anio: Math.floor(k / 12) });
+    const kHoy = clave(ahoraAR.getMonth() + 1, ahoraAR.getFullYear());
+
+    // Ultimos 3 meses cerrados
+    const claves = [kHoy - 1, kHoy - 2, kHoy - 3];
+    const estados = await Promise.all(claves.map(k => { const { mes, anio } = deClave(k); return calcularFlujoEstructurado(mes, anio, req.query.local_id); }));
+    const usados = estados.map((e, i) => ({ e, k: claves[i] })).filter(x => x.e.ingresos.total > 0);
+    if (!usados.length) {
+      return res.json({ suficiente: false, motivo: 'Todavía no hay un mes completo con ventas para usar de base. Las simulaciones van a estar disponibles cuando cierre el primer mes.' });
+    }
+    const n = usados.length;
+    const prom = (f) => usados.reduce((s, x) => s + f(x.e), 0) / n;
+    const ventasMes = prom(e => e.ingresos.total);
+    const totalVentasPos = usados.reduce((s, x) => s + x.e.total_ventas, 0);
+    const comisionesPct = totalVentasPos > 0 ? usados.reduce((s, x) => s + x.e.comisiones_medios_pago.total, 0) / totalVentasPos : 0;
+    const costos = {
+      fijos: prom(e => e.fijos.total),
+      administrativos: prom(e => e.admin.total),
+      sueldos: prom(e => e.sueldos.total),
+      impuestos: prom(e => e.impuestos.total),
+    };
+    const costosFijos = costos.fijos + costos.administrativos + costos.sueldos + costos.impuestos;
+
+    // Margen bruto de la mercaderia en esos meses (solo productos con costo cargado)
+    const kMin = Math.min(...usados.map(x => x.k)), kMax = Math.max(...usados.map(x => x.k));
+    const desde = `${deClave(kMin).anio}-${String(deClave(kMin).mes).padStart(2, '0')}-01`;
+    const hastaD = deClave(kMax + 1);
+    const hasta = `${hastaD.anio}-${String(hastaD.mes).padStart(2, '0')}-01`;
+    const pLocal = localNum !== null ? [localNum] : [];
+    const [mg, historia] = await Promise.all([
+      pool.query(`
+        SELECT COALESCE(SUM(vi.cantidad * vi.precio_unitario), 0) AS ingresos,
+               COALESCE(SUM(CASE WHEN COALESCE(p.costo, 0) > 0 THEN vi.cantidad * vi.precio_unitario ELSE 0 END), 0) AS ingresos_con_costo,
+               COALESCE(SUM(CASE WHEN COALESCE(p.costo, 0) > 0 THEN vi.cantidad * p.costo ELSE 0 END), 0) AS costos
+        FROM venta_items vi JOIN ventas v ON vi.venta_id = v.id JOIN productos p ON vi.producto_id = p.id
+        WHERE ${VENTA_VALIDA('v')} AND (${AR('v.creado_en')})::date >= $1::date AND (${AR('v.creado_en')})::date < $2::date
+          ${localNum !== null ? 'AND v.local_id = $3' : ''}`, [desde, hasta, ...pLocal]),
+      // Ventas de cada mes del ultimo año (para "tu mejor mes")
+      pool.query(`
+        SELECT EXTRACT(YEAR FROM ${AR('v.creado_en')})::int AS anio, EXTRACT(MONTH FROM ${AR('v.creado_en')})::int AS mes, SUM(v.total) AS total
+        FROM ventas v
+        WHERE ${VENTA_VALIDA('v')} AND v.creado_en >= NOW() - INTERVAL '13 months' ${localNum !== null ? 'AND v.local_id = $1' : ''}
+        GROUP BY 1, 2`, pLocal),
+    ]);
+    // Mercaderia parada: productos activos con stock y costo, sin ninguna venta en 90 dias
+    const colStock = localNum === 1 ? 'COALESCE(p.stock_rg, p.stock, 0)' : localNum === 2 ? 'COALESCE(p.stock_ush, 0)' : 'COALESCE(p.stock, 0)';
+    let parado = { productos: 0, valor_costo: 0, valor_venta: 0, top: [] };
+    try {
+      const pr = await pool.query(`
+        SELECT p.nombre, ${colStock} AS stock, p.costo, p.precio
+        FROM productos p
+        WHERE p.activo = TRUE AND ${colStock} > 0 AND COALESCE(p.costo, 0) > 0
+          AND NOT EXISTS (
+            SELECT 1 FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id
+            WHERE vi.producto_id = p.id AND ${VENTA_VALIDA('v')} AND v.creado_en >= NOW() - INTERVAL '90 days'
+              ${localNum !== null ? 'AND v.local_id = $1' : ''})
+        ORDER BY ${colStock} * p.costo DESC`, pLocal);
+      pr.rows.forEach(r => { parado.productos++; parado.valor_costo += num(r.stock) * num(r.costo); parado.valor_venta += num(r.stock) * num(r.precio); });
+      parado.top = pr.rows.slice(0, 5).map(r => ({ nombre: r.nombre, stock: num(r.stock), valor_costo: num(r.stock) * num(r.costo) }));
+    } catch (e) { console.error('stock parado:', e.message); }
+
+    const ingCosto = num(mg.rows[0].ingresos_con_costo);
+    const margenBruto = ingCosto > 0 ? (ingCosto - num(mg.rows[0].costos)) / ingCosto : null;
+    const cobertura = num(mg.rows[0].ingresos) > 0 ? ingCosto / num(mg.rows[0].ingresos) : 0;
+    let mejor = null;
+    historia.rows.forEach(r => {
+      if (clave(r.mes, r.anio) >= kHoy) return; // solo meses cerrados
+      if (!mejor || num(r.total) > mejor.ventas) mejor = { mes: r.mes, anio: r.anio, ventas: num(r.total) };
+    });
+
+    if (margenBruto === null) {
+      return res.json({ suficiente: false, motivo: 'Faltan los costos de los productos: sin el costo no se puede saber cuánto se gana en cada venta. Cargalos en Inventario.' });
+    }
+    const margenContribucion = Math.max(0, margenBruto - comisionesPct);
+    res.json({
+      suficiente: true,
+      meses: usados.map(x => deClave(x.k)).sort((a, b) => clave(a.mes, a.anio) - clave(b.mes, b.anio)),
+      ventas_mes: ventasMes,
+      margen_bruto_pct: margenBruto * 100,
+      comisiones_pct: comisionesPct * 100,
+      margen_contribucion_pct: margenContribucion * 100,
+      cobertura_costos_pct: Math.round(cobertura * 100),
+      costos_fijos: costosFijos,
+      costos_detalle: costos,
+      sin_gastos: costosFijos <= 0,
+      ganancia_mes: ventasMes * margenContribucion - costosFijos,
+      punto_equilibrio: margenContribucion > 0 ? costosFijos / margenContribucion : null,
+      mejor_mes: mejor,
+      cantidad_ventas_mes: prom(e => e.cantidad_ventas),
+      stock_parado: parado,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al preparar la toma de decisiones: ' + error.message });
+  }
+};
+
 // Compara dos rangos de fechas cualquiera (dias argentinos, sin anuladas ni pruebas).
 const getComparativaMeses = async (req, res) => {
   try {
@@ -991,4 +1098,4 @@ const getComparativaMeses = async (req, res) => {
   }
 };
 
-module.exports = { getMedallas, getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };
+module.exports = { getBaseDecisiones, getMedallas, getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };

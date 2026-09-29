@@ -429,6 +429,54 @@ button.tab { font-family: inherit; }
 .fin-mes { display: inline-flex; align-items: center; gap: 4px; background: ${p.card}; border: 1px solid ${p.border}; border-radius: 8px; padding: 3px; }
 .fin-mes .sel { padding: 5px 8px; font-size: 12px; border: none; background: transparent; }
 .fin-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.rot-abc { display: flex; flex-direction: column; gap: 8px; }
+.rot-abc-fila { display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: center; width: 100%; font-family: inherit; text-align: left; background: ${p.bg}; border: 1px solid transparent; border-radius: 10px; padding: 8px 12px; cursor: pointer; color: ${p.text}; }
+.rot-abc-fila:hover, .rot-abc-fila.on { border-color: ${p.accent}; }
+.rot-abc-fila b { font-size: 12px; color: ${p.textMuted}; }
+.rot-letra { width: 34px; height: 34px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 16px; color: #fff; }
+.rot-letra.A { background: ${p.green}; } .rot-letra.B { background: #2471a3; } .rot-letra.C { background: #7f8c8d; }
+.rot-letra.chica { width: 24px; height: 24px; font-size: 12px; border-radius: 6px; }
+.rot-barras { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.rot-barra { position: relative; height: 18px; border-radius: 5px; background: ${p.border}55; overflow: hidden; }
+.rot-barra span { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; transition: width .5s ease; }
+.rot-barra span.v { background: ${p.green}55; } .rot-barra span.s { background: ${p.accent}66; }
+.rot-barra em { position: relative; font-style: normal; font-size: 11px; font-weight: 700; padding-left: 8px; line-height: 18px; color: ${p.text}; }
+.rot-insight { margin-top: 12px; font-size: 13px; line-height: 1.5; padding: 10px 12px; border-radius: 8px; background: ${p.accentDim}; }
+.rot-accion { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; border-left: 4px solid ${p.warn}; }
+.dec-base { margin-bottom: 14px; }
+.dec-base-tit { font-size: 13px; font-weight: 800; margin-bottom: 10px; }
+.dec-base-tit span { font-weight: 500; font-size: 11px; color: ${p.textMuted}; margin-left: 6px; }
+.dec-base-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.dec-base-grid div { background: ${p.bg}; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.dec-base-grid span { font-size: 11px; color: ${p.textMuted}; }
+.dec-base-grid b { font-size: 17px; font-variant-numeric: tabular-nums; }
+.dec-sits { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-bottom: 14px; }
+.dec-sit { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; font-family: inherit; font-size: 12px; font-weight: 700; padding: 14px 8px; border-radius: 12px; border: 1px solid ${p.border}; background: ${p.card}; color: ${p.text}; cursor: pointer; transition: transform .15s, border-color .15s, box-shadow .15s; }
+.dec-sit span { font-size: 24px; line-height: 1; }
+.dec-sit:hover { transform: translateY(-2px); border-color: ${p.accent}; }
+.dec-sit.on { border: 2px solid ${p.accent}; background: ${p.accentDim}; box-shadow: 0 4px 14px ${p.shadowSoft}; }
+.dec-cuerpo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 14px; align-items: start; }
+@media (max-width: 900px) { .dec-cuerpo { grid-template-columns: 1fr; } }
+.dec-ayuda { font-size: 11px; line-height: 1.45; color: ${p.textMuted}; margin-top: 4px; }
+.dec-check { display: flex; gap: 8px; align-items: center; font-size: 12px; margin: -4px 0 14px; cursor: pointer; }
+.dec-rapidos { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.dec-parado { font-size: 12px; line-height: 1.5; background: ${p.warnDim}; border: 1px solid ${p.warn}55; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
+.dec-parado ul { margin: 6px 0 0; padding-left: 18px; color: ${p.textSoft}; }
+.dec-vacio { text-align: center; color: ${p.textMuted}; font-size: 13px; padding: 40px 20px; }
+.dec-res { border-top: 4px solid var(--c); position: relative; }
+.dec-res.verde { --c: ${p.green}; } .dec-res.amarillo { --c: ${p.warn}; } .dec-res.rojo { --c: ${p.red}; }
+.dec-semaforo { position: absolute; top: 14px; right: 14px; display: flex; flex-direction: column; gap: 4px; background: ${p.bg}; padding: 5px; border-radius: 10px; }
+.dec-semaforo i { width: 12px; height: 12px; border-radius: 50%; background: ${p.border}; }
+.dec-res.rojo .dec-semaforo .r { background: ${p.red}; box-shadow: 0 0 8px ${p.red}; }
+.dec-res.amarillo .dec-semaforo .a { background: ${p.warn}; box-shadow: 0 0 8px ${p.warn}; }
+.dec-res.verde .dec-semaforo .v { background: ${p.green}; box-shadow: 0 0 8px ${p.green}; }
+.dec-veredicto { font-size: 22px; font-weight: 900; color: var(--c); padding-right: 40px; }
+.dec-texto { font-size: 14px; line-height: 1.55; margin: 8px 0 14px; padding-right: 30px; }
+.dec-cifras { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+.dec-cifras div { background: ${p.bg}; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.dec-cifras span { font-size: 11px; color: ${p.textMuted}; }
+.dec-cifras b { font-size: 15px; font-variant-numeric: tabular-nums; }
+.dec-cifras small { font-size: 11px; color: ${p.textSoft}; line-height: 1.35; }
 .com-sug { border: 1px dashed ${p.accent}; background: ${p.accentDim}; border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; }
 .com-sug-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
 .com-sug-op { background: ${p.card}; border: 1px solid ${p.border}; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
@@ -4927,6 +4975,439 @@ function PasosCobro({ paso }) {
         );
       })}
     </ol>
+  );
+}
+
+// ============ Toma de decisiones ============
+// Simula situaciones (contratar, sumar un costo, cambiar precios, promociones, ganancia objetivo)
+// con los numeros reales del negocio (promedio de los ultimos 3 meses cerrados) y da un veredicto.
+// Son cuentas, no IA: no tienen costo por consulta.
+const SITUACIONES_DECISION = [
+  { id: "empleado", icono: "👤", titulo: "Contratar un empleado" },
+  { id: "costo", icono: "🏠", titulo: "Sumar un costo fijo" },
+  { id: "precios", icono: "🏷️", titulo: "Subir o bajar precios" },
+  { id: "promo", icono: "🎉", titulo: "Promoción o descuento" },
+  { id: "objetivo", icono: "🎯", titulo: "Llegar a una ganancia" },
+];
+const TIPOS_PROMO = [
+  { id: "pct", l: "% de descuento" }, { id: "2x1", l: "2x1" }, { id: "3x2", l: "3x2" }, { id: "segunda", l: "2ª unidad con descuento" },
+];
+
+// Cuentas de cada situacion. Devuelve { nivel: verde|amarillo|rojo, titulo, texto, cifras: [[etiqueta, valor, detalle]] }
+function simularDecision(tipo, b, x) {
+  const $ = (v) => (v < 0 ? "-" : "") + fmt(Math.abs(Math.round(v))).replace(",00", "");
+  const pct = (v) => (Math.round(v * 10) / 10).toLocaleString("es-AR") + "%";
+  const V = b.ventas_mes, mc = b.margen_contribucion_pct / 100, mb = b.margen_bruto_pct / 100, com = b.comisiones_pct / 100;
+  const F = b.costos_fijos, G = b.ganancia_mes;
+  const mejor = b.mejor_mes ? b.mejor_mes.ventas : V;
+  const n = (v) => Math.max(0, parseFloat(String(v).replace(",", ".")) || 0);
+  if (!(mc > 0)) return { nivel: "rojo", titulo: "Hoy no queda margen", texto: "Con los precios y costos actuales, lo que se vende no deja ganancia para cubrir costos. Revisá precios o costos de la mercadería antes de sumar gastos.", cifras: [] };
+
+  // Contratar un empleado o sumar un costo fijo: la misma cuenta
+  if (tipo === "empleado" || tipo === "costo") {
+    const costo = tipo === "empleado"
+      ? n(x.sueldo) * (1 + n(x.cargas) / 100) * (x.aguinaldo ? 13 / 12 : 1)
+      : n(x.monto);
+    if (!costo) return null;
+    const extra = n(tipo === "empleado" ? x.ventasExtra : x.ventasExtraCosto);
+    const necesario = costo / mc;
+    const G2 = G - costo + extra * mc;
+    const PE2 = (F + costo) / mc;
+    const cifras = [
+      [tipo === "empleado" ? "Costo real por mes" : "Costo por mes", $(costo), tipo === "empleado" ? "sueldo + cargas" + (x.aguinaldo ? " + aguinaldo" : "") : ""],
+      ["Hay que vender de más", $(necesario) + " por mes", $(necesario / 30) + " por día · " + pct(necesario / V * 100) + " más que hoy"],
+      ["Ganancia estimada", $(G) + " → " + $(G2), extra ? "contando " + $(extra) + " de ventas extra" : "si las ventas siguen igual"],
+      ["Punto de equilibrio", $(b.punto_equilibrio || 0) + " → " + $(PE2), "lo mínimo a vender por mes"],
+    ];
+    if (G2 >= 0.05 * (V + extra)) return { nivel: "verde", titulo: "Recomendable", texto: (extra ? "Con las ventas que esperás sumar, " : "Con lo que vendés hoy ") + "lo podés pagar y seguís ganando " + $(G2) + " por mes.", cifras };
+    const objetivo = V + necesario;
+    if (objetivo <= Math.max(mejor, V * 1.15)) return { nivel: "amarillo", titulo: "Posible, si vendés más", texto: "Para pagarlo sin perder ganancia tenés que vender " + $(necesario) + " más por mes (" + $(necesario / 30) + " por día)." + (b.mejor_mes && objetivo <= mejor ? " Ya lo lograste: tu mejor mes vendiste " + $(mejor) + "." : ""), cifras };
+    return { nivel: "rojo", titulo: "No recomendable por ahora", texto: "Tendrías que vender " + pct(necesario / V * 100) + " más que hoy (" + $(objetivo) + " por mes), más de lo que vendiste en tu mejor mes. " + (tipo === "empleado" ? "Probá con medio tiempo o con un sueldo menor, o esperá a que suban las ventas." : "Probá con un monto menor o esperá a que suban las ventas."), cifras };
+  }
+
+  // Subir o bajar precios
+  if (tipo === "precios") {
+    const p = (parseFloat(String(x.cambio).replace(",", ".")) || 0) / 100;
+    if (!p || p <= -0.9) return null;
+    const f = 1 + p, mb2 = 1 - (1 - mb) / f, mc2 = mb2 - com;
+    if (mc2 <= 0) return { nivel: "rojo", titulo: "Perdés plata en cada venta", texto: "Con esa baja, el precio queda por debajo de lo que te cuesta la mercadería más la comisión de la tarjeta.", cifras: [] };
+    const ratio = mc / (f * mc2);
+    const Gmismas = V * f * mc2 - F;
+    const cifras = [
+      ["Margen de la mercadería", pct(mb * 100) + " → " + pct(mb2 * 100), ""],
+      ["Ganancia si vendés las mismas unidades", $(G) + " → " + $(Gmismas), "por mes"],
+    ];
+    if (p > 0) {
+      const tolera = 1 - ratio;
+      cifras.push(["Podés vender menos", "hasta " + pct(tolera * 100) + " menos", "de unidades y ganar lo mismo que hoy"]);
+      if (tolera >= 0.15) return { nivel: "verde", titulo: "Conviene", texto: "Aunque algunos clientes compren menos, podrías vender hasta " + pct(tolera * 100) + " menos de unidades y seguir ganando lo mismo. Si siguen comprando igual, ganás " + $(Gmismas - G) + " más por mes.", cifras };
+      return { nivel: "amarillo", titulo: "Conviene si no perdés clientes", texto: "Ganás " + $(Gmismas - G) + " más por mes si se vende lo mismo, pero con perder " + pct(tolera * 100) + " de las unidades ya no conviene. Fijate cómo están los precios de la competencia.", cifras };
+    }
+    const mas = ratio - 1;
+    cifras.push(["Hay que vender más", pct(mas * 100) + " más", "de unidades para ganar lo mismo que hoy"]);
+    if (mas <= 0.1) return { nivel: "verde", titulo: "Puede convenir", texto: "Bajando los precios tenés que vender " + pct(mas * 100) + " más de unidades para ganar lo mismo: es alcanzable si el precio más bajo atrae clientes.", cifras };
+    if (mas <= 0.3) return { nivel: "amarillo", titulo: "Solo si trae muchos clientes", texto: "Para ganar lo mismo tenés que vender " + pct(mas * 100) + " más de unidades. Conviene si sabés que el precio es lo que hoy frena las ventas.", cifras };
+    return { nivel: "rojo", titulo: "No conviene", texto: "Tendrías que vender " + pct(mas * 100) + " más de unidades para ganar lo mismo que hoy. Es muy difícil de lograr solo bajando precios.", cifras };
+  }
+
+  // Promocion o descuento
+  if (tipo === "promo") {
+    const d = x.tipoPromo === "2x1" ? 0.5 : x.tipoPromo === "3x2" ? 1 / 3 : x.tipoPromo === "segunda" ? n(x.descuento) / 200 : n(x.descuento) / 100;
+    if (!d || d >= 1) return null;
+    const nombreDesc = x.tipoPromo === "pct" ? pct(d * 100) + " de descuento" : x.tipoPromo === "segunda" ? "2ª unidad al " + pct(n(x.descuento)) + " (equivale a " + pct(d * 100) + " sobre las dos)" : x.tipoPromo + " (equivale a " + pct(d * 100) + " de descuento)";
+    if (x.objetivo === "liquidar") {
+      const costo = n(x.valorCosto), venta = n(x.valorVenta);
+      if (!costo || !venta) return null;
+      const recupera = venta * (1 - d) * (1 - com);
+      const dif = recupera - costo;
+      const dMax = Math.max(0, 1 - costo / (venta * (1 - com)));
+      const ganaReinv = recupera * mc / Math.max(0.05, 1 - mb);
+      const cifras = [
+        ["Recuperás", $(recupera), "si se vende todo con " + nombreDesc],
+        ["Lo que te costó", $(costo), dif >= 0 ? "ganás " + $(dif) : "perdés " + $(-dif)],
+        ["Descuento máximo sin perder", pct(dMax * 100), "para recuperar lo que pagaste"],
+        ["Si reinvertís esa plata", "≈ " + $(ganaReinv) + " de ganancia", "en productos que rotan, por cada vez que los vendés"],
+      ];
+      if (dif >= 0) return { nivel: "verde", titulo: "Conviene", texto: "Recuperás todo lo que pagaste y encima ganás " + $(dif) + ". Además liberás " + $(recupera) + " para comprar productos que se venden.", cifras };
+      if (ganaReinv >= -dif) return { nivel: "amarillo", titulo: "Conviene igual", texto: "Perdés " + $(-dif) + " frente a lo que pagaste, pero liberás " + $(recupera) + ". Si con esa plata comprás mercadería que rota, podés ganar unos " + $(ganaReinv) + " en cada vuelta: compensa la pérdida.", cifras };
+      return { nivel: "rojo", titulo: "Perdés demasiado", texto: "Perdés " + $(-dif) + " y lo que podrías ganar reinvirtiendo no alcanza a compensarlo. Probá con un descuento de hasta " + pct(dMax * 100) + ".", cifras };
+    }
+    const alcance = Math.min(100, n(x.alcance) || 100) / 100, dias = n(x.dias) || 7, mP = (n(x.margen) || mb * 100) / 100, pub = n(x.publicidad);
+    const mcP = mP - com, mbP2 = 1 - (1 - mP) / (1 - d), mcP2 = mbP2 - com;
+    if (mcP2 <= 0) return { nivel: "rojo", titulo: "Perdés plata en cada venta", texto: "Con " + nombreDesc + " el precio queda por debajo de lo que te cuesta la mercadería más la comisión de la tarjeta. Solo tiene sentido para liquidar: elegí ese objetivo arriba.", cifras: [["Margen de esos productos", pct(mP * 100) + " → " + pct(mbP2 * 100), ""]] };
+    const Vp = V * alcance * dias / 30;
+    const ratioQ = (Vp * mcP + pub) / (Vp * (1 - d) * mcP2);
+    const mas = ratioQ - 1;
+    const cifras = [
+      ["Margen de esos productos", pct(mP * 100) + " → " + pct(mbP2 * 100), "con " + nombreDesc],
+      ["Hay que vender más", pct(mas * 100) + " más de unidades", "durante los " + dias + " días, para ganar lo mismo" + (pub ? " (incluye " + $(pub) + " de publicidad)" : "")],
+      ["Ventas necesarias en la promo", $(Vp * (1 - d) * ratioQ), "en vez de " + $(Vp) + " en " + dias + " días normales"],
+    ];
+    const nota = " Si además atrae clientes nuevos que después vuelven, puede convenir aunque no deje más ganancia en esos días.";
+    if (mas <= 0.25) return { nivel: "verde", titulo: "Conviene", texto: "Con vender " + pct(mas * 100) + " más de unidades durante la promo ya ganás lo mismo; todo lo que vendas por encima es ganancia extra.", cifras };
+    if (mas <= 0.6) return { nivel: "amarillo", titulo: "Conviene si mueve bastante", texto: "Tenés que vender " + pct(mas * 100) + " más de unidades para ganar lo mismo que sin promo. Es posible con buena difusión (redes, WhatsApp, vidriera)." + nota, cifras };
+    return { nivel: "rojo", titulo: "No conviene para ganar más", texto: "Tendrías que vender " + pct(mas * 100) + " más de unidades solo para ganar lo mismo. Probá un descuento menor o aplicarlo a menos productos." + nota, cifras };
+  }
+
+  // Llegar a una ganancia
+  if (tipo === "objetivo") {
+    const Gt = n(x.ganancia);
+    if (!Gt) return null;
+    const necesarias = (F + Gt) / mc;
+    const dif = necesarias - V;
+    const cifras = [
+      ["Tenés que vender", $(necesarias) + " por mes", $(necesarias / 30) + " por día"],
+      ["Hoy vendés", $(V) + " por mes", dif > 0 ? "te faltan " + $(dif) + " (" + pct(dif / V * 100) + ")" : "ya lo superás"],
+      ["Tu mejor mes", b.mejor_mes ? $(mejor) : "—", b.mejor_mes ? MESES_NOMBRE[b.mejor_mes.mes - 1] + " " + b.mejor_mes.anio : ""],
+    ];
+    if (dif <= 0) return { nivel: "verde", titulo: "Ya lo estás logrando", texto: "Con lo que vendés hoy ya ganás " + $(G) + " por mes, más que tu objetivo.", cifras };
+    if (necesarias <= Math.max(mejor, V * 1.2)) return { nivel: "amarillo", titulo: "Alcanzable", texto: "Te faltan " + $(dif) + " por mes: " + $(dif / 30) + " más por día." + (b.mejor_mes && necesarias <= mejor ? " Ya lo lograste en tu mejor mes." : ""), cifras };
+    return { nivel: "rojo", titulo: "Lejos por ahora", texto: "Tendrías que vender " + pct(dif / V * 100) + " más que hoy, por encima de tu mejor mes. Para acercarte, mirá también cómo bajar costos o mejorar el margen (simulá una suba de precios).", cifras };
+  }
+  return null;
+}
+
+// ============ Rotacion del inventario ============
+// Que productos rotan, cuales estan lentos o parados, clasificacion ABC y cuanta plata hay en cada grupo.
+const ESTADOS_ROTACION = {
+  rapido: { l: "Rota rápido", i: "🔥", cls: "tag-ok" },
+  normal: { l: "Normal", i: "✅", cls: "tag-neutral" },
+  lento: { l: "Lento", i: "🐢", cls: "tag-warn" },
+  parado: { l: "Parado", i: "🧊", cls: "tag-bad" },
+  agotado: { l: "Agotado", i: "⛔", cls: "tag-bad" },
+  nuevo: { l: "Nuevo", i: "🆕", cls: "tag-neutral" },
+};
+
+function Rotacion({ localId, paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
+  const [tabLocal, setTabLocal] = useState(Number(localId) === 2 ? "ush" : "rg");
+  const [dias, setDias] = useState(90);
+  const [datos, setDatos] = useState(null);
+  const [filtro, setFiltro] = useState("todos");
+  const [buscar, setBuscar] = useState("");
+  useEffect(() => {
+    setDatos(null);
+    API.get("/productos/rotacion?local_id=" + tabLocal + "&dias=" + dias).then(r => setDatos(r.data)).catch(e => setDatos({ error: e.response?.data?.error || "No se pudo calcular la rotación" }));
+  }, [tabLocal, dias]);
+
+  const $ = (v) => fmt(Math.round(v)).replace(",00", "");
+  const simularLiquidacion = (lista) => {
+    const costo = lista.reduce((s2, x) => s2 + x.valor_costo, 0);
+    const venta = lista.reduce((s2, x) => s2 + Math.max(0, x.stock) * x.precio, 0);
+    try { sessionStorage.setItem("lumiere_decision_prefill", JSON.stringify({ sit: "promo", objetivo: "liquidar", valorCosto: String(Math.round(costo)), valorVenta: String(Math.round(venta)), local: tabLocal })); } catch (e) {}
+    window.dispatchEvent(new CustomEvent("lumiere-ir", { detail: "decisiones" }));
+  };
+
+  if (!datos) return <div className="fade"><div className="skel" style={{ height: 320 }} /></div>;
+  if (datos.error) return <div className="empty">{datos.error}</div>;
+
+  const pe = datos.por_estado;
+  const lentosYParados = datos.productos.filter(x => x.estado === "parado" || x.estado === "lento");
+  const plataQuieta = pe.parado.valor_costo + pe.lento.valor_costo;
+  const q = buscar.trim().toLowerCase();
+  const lista = datos.productos
+    .filter(x => filtro === "todos" || (filtro === "reponer" ? x.reponer : filtro === "A" || filtro === "B" || filtro === "C" ? x.abc === filtro : x.estado === filtro))
+    .filter(x => !q || [x.nombre, x.marca, x.proveedor, x.categoria].some(v => String(v || "").toLowerCase().includes(q)))
+    .slice(0, 300);
+  const [cA, cB, cC] = datos.clases;
+
+  return (
+    <div className="fade">
+      <div className="dash-head">
+        <div>
+          <div className="pt">Rotación</div>
+          <div className="ps">qué se vende, qué está quieto y dónde está tu plata · últimos {dias} días</div>
+        </div>
+        <div className="dash-actions">
+          <div className="seg" role="group" aria-label="Local">
+            {[["rg", nombreLocal(1)], ["ush", nombreLocal(2)], ["consolidado", "Todos"]].map(([k, l]) => (
+              <button key={k} className={tabLocal === k ? "on" : ""} aria-pressed={tabLocal === k} onClick={() => setTabLocal(k)}>{l}</button>
+            ))}
+          </div>
+          <div className="seg" role="group" aria-label="Período">
+            {[30, 60, 90, 180].map(d => <button key={d} className={dias === d ? "on" : ""} aria-pressed={dias === d} onClick={() => setDias(d)}>{d} días</button>)}
+          </div>
+        </div>
+      </div>
+
+      <div className="kpi-grid">
+        <KpiCard p={p} titulo="Plata en mercadería" valor={datos.valor_total} formato={v => $(v)} indice={0} sub="stock valuado a costo" />
+        <KpiCard p={p} titulo="🧊 Plata parada" valor={pe.parado.valor_costo} formato={v => $(v)} color={pe.parado.valor_costo > 0 ? p.red : p.green} indice={1} sub={pe.parado.productos + (pe.parado.productos === 1 ? " producto" : " productos") + " sin ventas en " + dias + " días"} />
+        <KpiCard p={p} titulo="🐢 En rotación lenta" valor={pe.lento.valor_costo} formato={v => $(v)} color={pe.lento.valor_costo > 0 ? p.warn : p.green} indice={2} sub={pe.lento.productos + (pe.lento.productos === 1 ? " producto" : " productos") + " con más de 90 días de stock"} />
+        <KpiCard p={p} titulo="⚠️ Para reponer" valor={datos.reponer} color={datos.reponer > 0 ? p.red : p.green} indice={3} sub="se venden y se están por agotar" />
+      </div>
+
+      {datos.valor_total > 0 && (
+        <div className="chart-card anim-in" style={{ marginBottom: 12 }}>
+          <div className="chart-head"><div className="chart-title">Clasificación ABC</div><div className="chart-meta">según lo vendido en {dias} días</div></div>
+          <div className="rot-abc">
+            {datos.clases.map(c => (
+              <button key={c.clase} className={"rot-abc-fila" + (filtro === c.clase ? " on" : "")} onClick={() => setFiltro(filtro === c.clase ? "todos" : c.clase)} aria-pressed={filtro === c.clase}>
+                <span className={"rot-letra " + c.clase}>{c.clase}</span>
+                <div className="rot-barras">
+                  <div className="rot-barra"><span style={{ width: c.ventas_pct + "%" }} className="v" /><em>{Math.round(c.ventas_pct)}% de las ventas</em></div>
+                  <div className="rot-barra"><span style={{ width: c.valor_pct + "%" }} className="s" /><em>{Math.round(c.valor_pct)}% de la plata en stock</em></div>
+                </div>
+                <b>{c.productos} prod.</b>
+              </button>
+            ))}
+          </div>
+          <div className="rot-insight">
+            {cC.valor_pct > cC.ventas_pct + 10
+              ? <>💡 Los productos <b>C</b> tienen el <b>{Math.round(cC.valor_pct)}% de tu plata en stock</b> ({$(cC.valor_costo)}) pero venden solo el {Math.round(cC.ventas_pct)}%. Liquidar parte y usar esa plata en productos <b>A</b> hace rendir más tu capital.</>
+              : <>💡 Los productos <b>A</b> son los que sostienen tu negocio: venden el {Math.round(cA.ventas_pct)}% con el {Math.round(cA.valor_pct)}% de la plata en stock. Que nunca te falten.</>}
+          </div>
+        </div>
+      )}
+
+      {plataQuieta > 0 && (
+        <div className="chart-card anim-in rot-accion" style={{ marginBottom: 12 }}>
+          <div>
+            <div className="chart-title">💸 Tenés {$(plataQuieta)} quietos en mercadería lenta o parada</div>
+            <div style={{ fontSize: 12, color: p.textMuted, marginTop: 4 }}>Si la liquidás, liberás esa plata para comprar lo que más se vende{datos.reponer > 0 ? " (hay " + datos.reponer + " producto" + (datos.reponer !== 1 ? "s" : "") + " para reponer)" : ""}. Cada producto muestra hasta qué descuento podés hacer sin perder plata.</div>
+          </div>
+          <button className="btn btn-p btn-sm" onClick={() => simularLiquidacion(lentosYParados)}>🧭 Simular liquidación</button>
+        </div>
+      )}
+
+      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        <div style={{ padding: "12px 14px", display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", borderBottom: "1px solid " + p.border }}>
+          {[["todos", "Todos"], ["rapido", "🔥 Rotan rápido"], ["normal", "✅ Normal"], ["lento", "🐢 Lentos"], ["parado", "🧊 Parados"], ["reponer", "⚠️ Reponer"]].map(([k, l]) => (
+            <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} aria-pressed={filtro === k} onClick={() => setFiltro(k)}>
+              {l}{k !== "todos" && k !== "reponer" && pe[k] ? " · " + pe[k].productos : k === "reponer" ? " · " + datos.reponer : ""}
+            </button>
+          ))}
+          <input className="inp" placeholder="Buscar producto, marca o proveedor..." value={buscar} onChange={e => setBuscar(e.target.value)} style={{ maxWidth: 260, marginLeft: "auto" }} />
+        </div>
+        {lista.length === 0 ? <div className="empty" style={{ padding: 30 }}>No hay productos en este grupo.</div> : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ minWidth: 880 }}>
+              <thead><tr><th>Producto</th><th>ABC</th><th style={{ textAlign: "right" }}>Vendidas</th><th style={{ textAlign: "right" }}>Stock</th><th style={{ textAlign: "right" }}>Días de stock</th><th style={{ textAlign: "right" }}>Plata a costo</th><th>Estado</th><th>Qué hacer</th></tr></thead>
+              <tbody>
+                {lista.map(x => {
+                  const e = ESTADOS_ROTACION[x.estado];
+                  return (
+                    <tr key={x.id}>
+                      <td style={{ minWidth: 200 }}><div style={{ fontWeight: 700 }}>{x.nombre}</div><div style={{ fontSize: 11, color: p.textMuted }}>{[x.marca, x.proveedor].filter(Boolean).join(" · ")}</div></td>
+                      <td><span className={"rot-letra chica " + x.abc}>{x.abc}</span></td>
+                      <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{x.unidades}</td>
+                      <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{x.stock}</td>
+                      <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{x.dias_stock === null ? "—" : x.dias_stock}</td>
+                      <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700 }}>{$(x.valor_costo)}</td>
+                      <td style={{ whiteSpace: "nowrap" }}><span className={"tag " + e.cls}>{e.i} {e.l}</span></td>
+                      <td style={{ fontSize: 12, whiteSpace: "nowrap" }}>
+                        {x.reponer ? <b style={{ color: p.red }}>Reponer{x.stock <= 0 ? " ya" : ""}</b>
+                          : (x.estado === "parado" || x.estado === "lento") ? (x.descuento_max > 0 ? <span title="Descuento máximo que todavía recupera lo que pagaste">Liquidar hasta <b>{x.descuento_max}%</b> off</span> : "Liquidar")
+                          : x.estado === "nuevo" ? <span style={{ color: p.textMuted }}>Recién cargado</span>
+                          : <span style={{ color: p.textMuted }}>—</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      <div style={{ fontSize: 11, color: p.textMuted, padding: "10px 4px 0" }}>
+        Días de stock = cuánto te dura lo que tenés al ritmo de venta del período. 🔥 hasta 30 días · ✅ hasta 90 · 🐢 más de 90 · 🧊 sin ventas en el período. ABC: A = los productos que hacen el 80% de las ventas, B = el 15% siguiente, C = el resto.
+      </div>
+    </div>
+  );
+}
+
+function TomaDecisiones({ paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
+  // Si viene desde Rotacion ("Simular liquidación"), arranca con la promo de liquidar ya cargada
+  const prefill = (() => { try { const v = JSON.parse(sessionStorage.getItem("lumiere_decision_prefill") || "null"); sessionStorage.removeItem("lumiere_decision_prefill"); return v; } catch (e) { return null; } })();
+  const [tabLocal, setTabLocal] = useState(prefill?.local || "consolidado");
+  const [base, setBase] = useState(null);
+  const [sit, setSit] = useState(prefill?.sit || "empleado");
+  const [x, setX] = useState({ sueldo: "", cargas: "28", aguinaldo: true, ventasExtra: "", ventasExtraCosto: "", monto: "", cambio: "10", objetivo: prefill?.objetivo || "vender", tipoPromo: "pct", descuento: "20", alcance: "100", dias: "7", margen: "", publicidad: "", valorCosto: prefill?.valorCosto || "", valorVenta: prefill?.valorVenta || "", ganancia: "" });
+  const set = (k, v) => setX(o => ({ ...o, [k]: v }));
+  useEffect(() => {
+    setBase(null);
+    API.get("/finanzas/decisiones/base?local_id=" + tabLocal).then(r => {
+      setBase(r.data);
+      if (r.data?.suficiente) setX(o => ({
+        ...o,
+        margen: o.margen || String(Math.round(r.data.margen_bruto_pct)),
+        valorCosto: o.valorCosto || (r.data.stock_parado?.valor_costo ? String(Math.round(r.data.stock_parado.valor_costo)) : ""),
+        valorVenta: o.valorVenta || (r.data.stock_parado?.valor_venta ? String(Math.round(r.data.stock_parado.valor_venta)) : ""),
+      }));
+    }).catch(e => setBase({ suficiente: false, motivo: e.response?.data?.error || "No se pudieron cargar los números del negocio." }));
+  }, [tabLocal]);
+
+  const $ = (v) => (v < 0 ? "-" : "") + fmt(Math.abs(Math.round(v))).replace(",00", "");
+  const res = base?.suficiente ? simularDecision(sit, base, x) : null;
+  const campo = (k, etiqueta, ayuda, props = {}) => (
+    <div className="fg">
+      <div className="fl">{etiqueta}</div>
+      <input className="inp" type="number" min="0" inputMode="decimal" value={x[k]} onChange={e => set(k, e.target.value)} onWheel={e => e.currentTarget.blur()} {...props} />
+      {ayuda && <div className="dec-ayuda">{ayuda}</div>}
+    </div>
+  );
+
+  return (
+    <div className="fade">
+      <div className="dash-head">
+        <div>
+          <div className="pt">Toma de decisiones</div>
+          <div className="ps">simulá antes de decidir, con los números reales de tu negocio</div>
+        </div>
+        <div className="dash-actions">
+          <div className="seg" role="group" aria-label="Local">
+            {[["consolidado", "Todos"], ["rg", nombreLocal(1)], ["ush", nombreLocal(2)]].map(([k, l]) => (
+              <button key={k} className={tabLocal === k ? "on" : ""} aria-pressed={tabLocal === k} onClick={() => setTabLocal(k)}>{l}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {!base ? <div className="skel" style={{ height: 260 }} /> : !base.suficiente ? (
+        <div className="empty">{base.motivo}</div>
+      ) : (
+        <>
+          <div className="chart-card anim-in dec-base">
+            <div className="dec-base-tit">Tu negocio hoy <span>promedio de {base.meses.map(m => MESES_NOMBRE[m.mes - 1].slice(0, 3).toLowerCase()).join(", ")}</span></div>
+            <div className="dec-base-grid">
+              <div><span>Ventas por mes</span><b>{$(base.ventas_mes)}</b></div>
+              <div><span>Margen de la mercadería</span><b>{Math.round(base.margen_bruto_pct)}%</b></div>
+              <div><span>Costos fijos por mes</span><b>{$(base.costos_fijos)}</b></div>
+              <div><span>Ganancia estimada</span><b style={{ color: base.ganancia_mes >= 0 ? p.green : p.red }}>{$(base.ganancia_mes)}</b></div>
+              <div><span>Punto de equilibrio</span><b>{base.punto_equilibrio ? $(base.punto_equilibrio) : "—"}</b></div>
+            </div>
+            {base.sin_gastos && <div className="cc-aviso" style={{ marginTop: 10 }}>No hay gastos cargados en esos meses: cargalos en Finanzas para que las simulaciones sean reales.</div>}
+            {base.cobertura_costos_pct < 80 && <div className="dec-ayuda" style={{ marginTop: 8 }}>El margen se calcula con el {base.cobertura_costos_pct}% de las ventas, que son los productos con costo cargado.</div>}
+          </div>
+
+          <div className="dec-sits" role="tablist" aria-label="Situación a simular">
+            {SITUACIONES_DECISION.map(s2 => (
+              <button key={s2.id} role="tab" aria-selected={sit === s2.id} className={"dec-sit" + (sit === s2.id ? " on" : "")} onClick={() => setSit(s2.id)}>
+                <span aria-hidden="true">{s2.icono}</span>{s2.titulo}
+              </button>
+            ))}
+          </div>
+
+          <div className="dec-cuerpo">
+            <div className="chart-card dec-form">
+              {sit === "empleado" && <>
+                {campo("sueldo", "Sueldo bruto por mes", "Lo que figura en el recibo, antes de descuentos", { placeholder: "Ej: 700000", autoFocus: true })}
+                {campo("cargas", "Cargas sociales y ART (%)", "Lo que paga el empleador además del sueldo. Suele estar entre 25% y 30%: consultalo con tu contador.")}
+                <label className="dec-check"><input type="checkbox" checked={x.aguinaldo} onChange={e => set("aguinaldo", e.target.checked)} /> Sumar aguinaldo (un sueldo más por año, repartido por mes)</label>
+                {campo("ventasExtra", "¿Cuánto más creés que se va a vender por mes? (opcional)", "Por ejemplo, si va a atender en un horario que hoy está cerrado", { placeholder: "0" })}
+              </>}
+              {sit === "costo" && <>
+                {campo("monto", "¿Cuánto es por mes?", "Alquiler más grande, publicidad, un servicio, un sistema…", { placeholder: "Ej: 150000", autoFocus: true })}
+                {campo("ventasExtraCosto", "¿Te va a traer ventas extra por mes? (opcional)", "Por ejemplo, la publicidad o un local con más gente pasando", { placeholder: "0" })}
+              </>}
+              {sit === "precios" && <>
+                <div className="fg">
+                  <div className="fl">¿Cuánto cambiarías los precios?</div>
+                  <div className="dec-rapidos">{["-10", "-5", "5", "10", "15", "20"].map(v => <button key={v} className={"chip-btn" + (x.cambio === v ? " on" : "")} onClick={() => set("cambio", v)}>{v > 0 ? "+" + v : v}%</button>)}</div>
+                  <input className="inp" type="number" value={x.cambio} onChange={e => set("cambio", e.target.value)} onWheel={e => e.currentTarget.blur()} aria-label="Cambio de precios en %" />
+                  <div className="dec-ayuda">Positivo para subir, negativo para bajar. Se aplica a todos los productos.</div>
+                </div>
+              </>}
+              {sit === "promo" && <>
+                <div className="fg">
+                  <div className="fl">¿Para qué es la promoción?</div>
+                  <div className="seg" role="group" aria-label="Objetivo de la promoción" style={{ width: "100%" }}>
+                    <button className={x.objetivo === "vender" ? "on" : ""} onClick={() => set("objetivo", "vender")} style={{ flex: 1 }}>🚀 Vender más</button>
+                    <button className={x.objetivo === "liquidar" ? "on" : ""} onClick={() => set("objetivo", "liquidar")} style={{ flex: 1 }}>📦 Liquidar lo que no rota</button>
+                  </div>
+                </div>
+                <div className="fg">
+                  <div className="fl">Tipo de promoción</div>
+                  <div className="dec-rapidos">{TIPOS_PROMO.map(t => <button key={t.id} className={"chip-btn" + (x.tipoPromo === t.id ? " on" : "")} onClick={() => set("tipoPromo", t.id)}>{t.l}</button>)}</div>
+                </div>
+                {(x.tipoPromo === "pct" || x.tipoPromo === "segunda") && campo("descuento", x.tipoPromo === "pct" ? "Descuento (%)" : "Descuento de la 2ª unidad (%)", x.tipoPromo === "segunda" ? "Ej: 50 = la segunda a mitad de precio" : "")}
+                {x.objetivo === "vender" ? <>
+                  {campo("alcance", "¿Qué parte de tus ventas entra en la promo? (%)", "100 = todo el local · si es solo una marca o categoría, poné más o menos cuánto pesa en tus ventas")}
+                  {campo("dias", "¿Cuántos días dura?")}
+                  {campo("margen", "Margen de esos productos (%)", "Viene con el promedio del negocio: cambialo si la promo es sobre productos con otro margen")}
+                  {campo("publicidad", "Gasto en publicidad de la promo (opcional)", "", { placeholder: "0" })}
+                </> : <>
+                  {base.stock_parado?.productos > 0 && (
+                    <div className="dec-parado">
+                      <b>📦 Tenés {$(base.stock_parado.valor_costo)} en mercadería sin ventas en 90 días</b> ({base.stock_parado.productos} producto{base.stock_parado.productos !== 1 ? "s" : ""}). Ya lo cargamos abajo.
+                      <ul>{base.stock_parado.top.map((t, i) => <li key={i}>{t.nombre} · {t.stock} u. · {$(t.valor_costo)}</li>)}</ul>
+                    </div>
+                  )}
+                  {campo("valorCosto", "¿Cuánto te costó esa mercadería?", "Valor a costo de lo que querés liquidar")}
+                  {campo("valorVenta", "¿Cuánto vale a precio de venta?", "Lo que cobrarías sin descuento")}
+                </>}
+              </>}
+              {sit === "objetivo" && <>
+                {campo("ganancia", "¿Cuánto querés ganar por mes?", "Después de pagar todos los costos del negocio", { placeholder: "Ej: 1000000", autoFocus: true })}
+              </>}
+            </div>
+
+            <div className="dec-res-col">
+              {!res ? (
+                <div className="chart-card dec-vacio">Completá los datos y el resultado aparece acá al instante.</div>
+              ) : (
+                <div key={sit + res.nivel} className={"chart-card dec-res pop-in " + res.nivel} role="status">
+                  <div className="dec-semaforo" aria-hidden="true"><i className="r" /><i className="a" /><i className="v" /></div>
+                  <div className="dec-veredicto">{res.nivel === "verde" ? "🟢" : res.nivel === "amarillo" ? "🟡" : "🔴"} {res.titulo}</div>
+                  <p className="dec-texto">{res.texto}</p>
+                  {res.cifras.length > 0 && (
+                    <div className="dec-cifras">
+                      {res.cifras.map(([l, v, d], i) => (
+                        <div key={i}><span>{l}</span><b>{v}</b>{d && <small>{d}</small>}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="dec-ayuda" style={{ padding: "8px 4px" }}>
+                Es una estimación con el promedio de tus últimos meses: ganancia = ventas × margen − costos fijos. Sirve para comparar opciones antes de decidir; no reemplaza el consejo de tu contador.
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -15991,11 +16472,11 @@ function Promociones({ paletaActual }) {
 
 const NAV_SECTIONS = [
   { section: "VENTAS", color: "#e67e22", items: [{ id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "pos", icon: "🛒", label: "Punto de Venta" }, { id: "ventas-online", icon: "🌐", label: "Ventas Online" }, { id: "buscar-precio", icon: "🔎", label: "Buscar Precio" }, { id: "cambio-devolucion", icon: "🔄", label: "Cambio / Devolucion" }] },
-  { section: "STOCK", color: "#7d3c98", items: [{ id: "inventory", icon: "📦", label: "Inventario" }, { id: "ordenes", icon: "🚚", label: "Ingresos" }, { id: "inconsistencias", icon: "⚠️", label: "Inconsistencias" }, { id: "kits", icon: "🎁", label: "Kits" }, { id: "insumos", icon: "🛍️", label: "Insumos" }, { id: "control-inv", icon: "🔍", label: "Control de Inventario" }] },
+  { section: "STOCK", color: "#7d3c98", items: [{ id: "inventory", icon: "📦", label: "Inventario" }, { id: "rotacion", icon: "♻️", label: "Rotación" }, { id: "ordenes", icon: "🚚", label: "Ingresos" }, { id: "inconsistencias", icon: "⚠️", label: "Inconsistencias" }, { id: "kits", icon: "🎁", label: "Kits" }, { id: "insumos", icon: "🛍️", label: "Insumos" }, { id: "control-inv", icon: "🔍", label: "Control de Inventario" }] },
   { section: "CAJA", color: "#2d7a4f", items: [{ id: "caja", icon: "💵", label: "Caja" }, { id: "caja-respaldo", icon: "🏦", label: "Caja de Respaldo" }, { id: "cierre", icon: "🔒", label: "Cierre de Caja" }, { id: "giftcards", icon: "🎀", label: "Gift Cards" }] },
   { section: "CLIENTES", color: "var(--acento-texto)", items: [{ id: "clients", icon: "👥", label: "Clientes" }, { id: "pedidos", icon: "📦", label: "Pedidos" }, { id: "fidelizacion", icon: "⭐", label: "Fidelizacion" }] },
   { section: "EQUIPO", color: "#2471a3", items: [{ id: "tareas", icon: "📝", label: "Tareas" }] },
-  { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "💰", label: "Finanzas" }, { id: "comprobantes", icon: "🧾", label: "Comprobantes" }, { id: "comisiones", icon: "💎", label: "Comisiones" }, { id: "compras", icon: "🛒", label: "Compras y proveedores" }, { id: "calculadoras", icon: "🧮", label: "Calculadoras" }, { id: "productividad", icon: "🏆", label: "Productividad" }] },
+  { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "💰", label: "Finanzas" }, { id: "decisiones", icon: "🧭", label: "Toma de decisiones" }, { id: "comprobantes", icon: "🧾", label: "Comprobantes" }, { id: "comisiones", icon: "💎", label: "Comisiones" }, { id: "compras", icon: "🛒", label: "Compras y proveedores" }, { id: "calculadoras", icon: "🧮", label: "Calculadoras" }, { id: "productividad", icon: "🏆", label: "Productividad" }] },
   { section: "MARKETING", color: "#e74c3c", items: [{ id: "cupones", icon: "🏷️", label: "Cupones" }, { id: "promociones", icon: "🎉", label: "Promociones" }] },
   { section: "POSTVENTA", color: "var(--wa-texto)", items: [{ id: "postventa", icon: "💬", label: "Postventa WA" }] },
   { section: "CLIENTE", color: PALETA_CLARA.textMuted, items: [{ id: "portal", icon: "👤", label: "Portal Cliente" }] },
@@ -16671,6 +17152,12 @@ export default function AppWrapper() {
   const [local, setLocal] = useState(null);
   const [nombresLocalesVersion, setNombresLocalesVersion] = useState(0);
   const [page, setPage] = useState("dashboard");
+  // Una seccion puede llevar a otra (ej: Rotacion -> "Simular liquidación" en Toma de decisiones)
+  useEffect(() => {
+    const ir = (e) => { if (typeof e.detail === "string") { setPage(e.detail); window.scrollTo(0, 0); } };
+    window.addEventListener("lumiere-ir", ir);
+    return () => window.removeEventListener("lumiere-ir", ir);
+  }, []);
   const [tema, setTema] = useState(obtenerTemaGuardado());
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [sidebarComprimido, setSidebarComprimido] = useState(() => {
@@ -16753,9 +17240,9 @@ export default function AppWrapper() {
     if (usuario.rol === "jefe" || usuario.rol_id === 1) return true;
  const mapaModulos = {
       "pos": "pos.ver", "dashboard": "dashboard.ver",
-      "inventory": "inventario.ver", "ordenes": "ordenes.ver", "inconsistencias": "ordenes.ver", "kits": "kits.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
+      "inventory": "inventario.ver", "rotacion": "inventario.ver", "ordenes": "ordenes.ver", "inconsistencias": "ordenes.ver", "kits": "kits.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
       "clients": "clientes.ver", "fidelizacion": "fidelizacion.ver",
-      "finance": "finanzas.flujo", "comprobantes": "comprobantes.ver",
+      "finance": "finanzas.flujo", "decisiones": "finanzas.flujo", "comprobantes": "comprobantes.ver",
       "comisiones": "comisiones.propias", "proveedores": "proveedores.ver",
       "calculadoras": "calculadoras.ver", "productividad": "productividad.ver",
       "cupones": "cupones.ver", "promociones": "cupones.ver", "postventa": "postventa.ver", "portal": "clientes.ver",
@@ -16799,6 +17286,8 @@ export default function AppWrapper() {
     if (id === "clients") return <Clientes usuario={usuario} paletaActual={paletaActual} />;
     if (id === "pedidos") return <Pedidos localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "finance") return <Finanzas localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "decisiones") return <TomaDecisiones paletaActual={paletaActual} />;
+    if (id === "rotacion") return <Rotacion localId={local.id} paletaActual={paletaActual} />;
     if (id === "calculadoras") return <Calculadoras usuario={usuario} paletaActual={paletaActual} />;
     if (id === "comprobantes") return <Comprobantes localId={local.id} paletaActual={paletaActual} />;
     if (id === "productividad") return <Productividad localId={local.id} paletaActual={paletaActual} />;

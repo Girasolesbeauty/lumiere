@@ -19,5 +19,6 @@ router.get('/analisis', controller.getAnalisisFinanciero);
 router.get('/comparar-meses', controller.getComparativaMeses);
 router.get('/reparto-sugerido', controller.getRepartoSugerido);
 router.get('/medallas', controller.getMedallas);
+router.get('/decisiones/base', controller.getBaseDecisiones);
 
 module.exports = router;

@@ -378,6 +378,107 @@ const calcularReposicion = ({ vendido, diasVenta, stock, transito, reservado, le
   };
 };
 
+// Rotacion del inventario: que rota rapido, que esta lento o parado, clasificacion ABC por ventas
+// y cuanta plata hay en cada grupo. Periodo configurable (30/60/90/180 dias) y por local.
+//   dias de stock = stock / venta diaria del periodo
+//   rapido <= 30 dias · normal <= 90 · lento > 90 · parado = sin ventas en el periodo
+//   ABC: A = productos que suman el 80% de lo vendido, B = el siguiente 15%, C = el resto
+let columnaCreadoProducto = null;
+const getRotacion = async (req, res) => {
+  try {
+    const dias = [30, 60, 90, 180].includes(parseInt(req.query.dias)) ? parseInt(req.query.dias) : 90;
+    const lid = String(req.query.local_id || '');
+    const localNum = ['1', 'rg'].includes(lid) ? 1 : ['2', 'ush'].includes(lid) ? 2 : null;
+    const colStock = localNum === 1 ? 'COALESCE(p.stock_rg, p.stock, 0)' : localNum === 2 ? 'COALESCE(p.stock_ush, 0)' : 'COALESCE(p.stock, 0)';
+    const VALIDA = `COALESCE(v.anulada, FALSE) = FALSE AND COALESCE(v.canal, '') <> 'prueba'
+      AND (COALESCE(v.es_preventa, FALSE) = FALSE OR v.estado_pago = 'confirmada')`;
+    const filtroLocal = localNum !== null ? `AND v.local_id = ${localNum}` : '';
+    if (columnaCreadoProducto === null) {
+      const c = await pool.query(`SELECT 1 FROM information_schema.columns WHERE table_name = 'productos' AND column_name = 'creado_en'`);
+      columnaCreadoProducto = c.rows.length > 0;
+    }
+    const r = await pool.query(`
+      SELECT p.id, p.nombre, p.marca, p.categoria, COALESCE(p.costo, 0) AS costo, COALESCE(p.precio, 0) AS precio,
+             COALESCE(p.lead_time_dias, 7) AS lead_time, pr.nombre AS proveedor, ${colStock} AS stock,
+             COALESCE(s.unidades, 0) AS unidades, COALESCE(s.monto, 0) AS monto, u.ultima AS ultima_venta,
+             ${columnaCreadoProducto ? `p.creado_en >= NOW() - INTERVAL '${dias} days'` : 'FALSE'} AS nuevo
+      FROM productos p
+      LEFT JOIN proveedores pr ON pr.id = p.proveedor_id
+      LEFT JOIN (
+        SELECT vi.producto_id, SUM(vi.cantidad) AS unidades, SUM(vi.cantidad * vi.precio_unitario) AS monto
+        FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id
+        WHERE ${VALIDA} AND v.creado_en >= NOW() - INTERVAL '${dias} days' ${filtroLocal}
+        GROUP BY vi.producto_id
+      ) s ON s.producto_id = p.id
+      LEFT JOIN (
+        SELECT vi.producto_id, MAX(v.creado_en) AS ultima
+        FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id
+        WHERE ${VALIDA} ${filtroLocal}
+        GROUP BY vi.producto_id
+      ) u ON u.producto_id = p.id
+      WHERE p.activo = TRUE AND (${colStock} > 0 OR COALESCE(s.unidades, 0) > 0)`);
+
+    const productos = r.rows.map(row => {
+      const stock = parseFloat(row.stock) || 0, unidades = parseFloat(row.unidades) || 0;
+      const costo = parseFloat(row.costo) || 0, precio = parseFloat(row.precio) || 0;
+      const ritmo = unidades / dias;
+      const diasStock = ritmo > 0 ? stock / ritmo : null;
+      let estado;
+      if (stock <= 0) estado = 'agotado';
+      else if (unidades <= 0) estado = row.nuevo ? 'nuevo' : 'parado';
+      else if (diasStock <= 30) estado = 'rapido';
+      else if (diasStock <= 90) estado = 'normal';
+      else estado = 'lento';
+      const leadTime = parseInt(row.lead_time) || 7;
+      return {
+        id: row.id, nombre: row.nombre, marca: row.marca, categoria: row.categoria, proveedor: row.proveedor,
+        stock, unidades, monto: parseFloat(row.monto) || 0, costo, precio,
+        valor_costo: Math.max(0, stock) * costo,
+        dias_stock: diasStock !== null ? Math.round(diasStock) : null,
+        ultima_venta: row.ultima_venta,
+        estado,
+        // Descuento maximo que todavia recupera el costo (para liquidar sin perder)
+        descuento_max: precio > 0 && costo > 0 && precio > costo ? Math.floor((1 - costo / precio) * 100) : 0,
+        reponer: stock <= 0 ? unidades > 0 : (diasStock !== null && diasStock <= leadTime + 7),
+      };
+    });
+
+    // ABC por lo vendido en el periodo
+    const conVentas = productos.filter(x => x.monto > 0).sort((a, b) => b.monto - a.monto);
+    const totalVendido = conVentas.reduce((s, x) => s + x.monto, 0);
+    let acumulado = 0;
+    conVentas.forEach(x => { const antes = acumulado; acumulado += x.monto; x.abc = antes / totalVendido < 0.8 ? 'A' : antes / totalVendido < 0.95 ? 'B' : 'C'; });
+    productos.forEach(x => { if (!x.abc) x.abc = 'C'; });
+    // Solo los reponer de clase A o B (los que de verdad venden)
+    productos.forEach(x => { x.reponer = x.reponer && x.abc !== 'C'; });
+
+    const suma = (lista, f) => lista.reduce((s, x) => s + f(x), 0);
+    const valorTotal = suma(productos, x => x.valor_costo);
+    const clases = ['A', 'B', 'C'].map(c => {
+      const l = productos.filter(x => x.abc === c);
+      return { clase: c, productos: l.length, ventas: suma(l, x => x.monto), ventas_pct: totalVendido > 0 ? suma(l, x => x.monto) / totalVendido * 100 : 0, valor_costo: suma(l, x => x.valor_costo), valor_pct: valorTotal > 0 ? suma(l, x => x.valor_costo) / valorTotal * 100 : 0 };
+    });
+    const porEstado = {};
+    ['rapido', 'normal', 'lento', 'parado', 'agotado', 'nuevo'].forEach(e => {
+      const l = productos.filter(x => x.estado === e);
+      porEstado[e] = { productos: l.length, valor_costo: suma(l, x => x.valor_costo) };
+    });
+
+    res.json({
+      dias, local_id: localNum,
+      valor_total: valorTotal,
+      vendido_total: totalVendido,
+      por_estado: porEstado,
+      clases,
+      reponer: productos.filter(x => x.reponer).length,
+      productos: productos.sort((a, b) => b.valor_costo - a.valor_costo),
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al calcular la rotación: ' + error.message });
+  }
+};
+
 // Sugerencia de compra para un proveedor: cada producto con su ritmo real de venta por local,
 // el punto de pedido, cuanto pedir para cubrir N dias y el costo estimado del pedido.
 const getSugerenciaCompra = async (req, res) => {
@@ -517,4 +618,4 @@ const guardarMinimos = async (req, res) => {
   }
 };
 
-module.exports = { recalcularMinimos, guardarLeadTimeProveedor, guardarMinimos, getAll, getById, create, update, remove, getAlertas, getTransito, ajustarStock, getHistorialAjustes, recalcularStockMinimo, getSugerenciaCompra, cambiarEstado, getImagenes, getImagen, guardarImagen, borrarImagen };
+module.exports = { getRotacion, recalcularMinimos, guardarLeadTimeProveedor, guardarMinimos, getAll, getById, create, update, remove, getAlertas, getTransito, ajustarStock, getHistorialAjustes, recalcularStockMinimo, getSugerenciaCompra, cambiarEstado, getImagenes, getImagen, guardarImagen, borrarImagen };
