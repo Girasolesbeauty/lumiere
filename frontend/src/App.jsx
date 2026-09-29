@@ -88,7 +88,7 @@ const PALETA_SALVIA = {
 };
 // Tema "Girasoles": collage de verano -- amarillo girasol, rosa chicle, celeste y verde menta sobre crema
 const PALETA_GIRASOLES = {
-  bg: "#FFF3D6", sidebar: "#FFD24A", surface: "#ffffff", card: "#ffffff", border: "#F1D68C",
+  bg: "#FFF3D6", sidebar: "#FDE9A9", surface: "#ffffff", card: "#ffffff", border: "#F1D68C",
   accent: "#F06BA8", accentDim: "#F06BA824", accentHover: "#F78DBE", accentText: "#B0125E",
   text: "#2A1F14", textSoft: "#4A3A26", textMuted: "#6B5840",
   green: "#1F7A4D", greenDim: "#2E9E6414",
