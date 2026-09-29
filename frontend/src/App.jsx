@@ -81,9 +81,11 @@ const PALETA_GIRASOLES = {
   scrollThumb: "#EFC66A", inpBg: "#FFFBEE", placeholder: "#9A8663",
   tdText: "#2A1F14", trHover: "#FFF6DC", shadowCol: "rgba(160,110,20,0.18)", shadowSoft: "rgba(160,110,20,0.11)",
   btnTop: "#C92C77", btnBot: "#AD1F64", btnEdge: "#7E1649", btnHoverTop: "#D43A83", btnHoverBot: "#B8286D", btnShadow: "rgba(173,31,100,0.3)", tabOn: "#237A50", navLine: "rgba(120,80,0,0.2)",
-  // Manchas de color del collage (rosa, celeste, girasol, menta) y un damero menta muy suave
-  bgImage: "radial-gradient(circle at 6% 10%, #F9A8CC77 0, transparent 26%), radial-gradient(circle at 94% 6%, #8EC5F277 0, transparent 28%), radial-gradient(circle at 88% 92%, #FFC93C66 0, transparent 30%), radial-gradient(circle at 10% 94%, #9ED9B877 0, transparent 26%), radial-gradient(circle at 55% 50%, #FFB57A33 0, transparent 40%), repeating-conic-gradient(#9ED9B81f 0 25%, transparent 0 50%)",
-  bgSize: "100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 56px 56px",
+  // La imagen del collage de fondo, con un velo crema para que lo que va directo sobre el fondo se lea
+  bgImage: "linear-gradient(rgba(255,246,226,0.62), rgba(255,246,226,0.62)), url('/fondos/girasoles.webp')",
+  bgSize: "cover, cover",
+  // Halo claro detras de los textos que van sobre la imagen (en las tarjetas blancas no se nota)
+  textHalo: "0 0 2px #FFF6E2, 0 0 6px #FFF6E2, 0 0 10px #FFF6E2",
 };
 const PALETAS = { claro: PALETA_CLARA, oscuro: PALETA_OSCURA, rosa: PALETA_ROSA, girasoles: PALETA_GIRASOLES };
 
@@ -104,7 +106,8 @@ const getBaseCss = (p) => `
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { margin: 0; padding: 0; width: 100%; overflow-x: hidden; }
 body { font-family: 'Inter', sans-serif; background: ${p.bg}; color: ${p.text}; min-height: 100vh; margin: 0; width: 100vw; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
-${p.bgImage ? `body { background-image: ${p.bgImage}; background-size: ${p.bgSize}; background-attachment: fixed; }` : ""}
+${p.bgImage ? `body { background-image: ${p.bgImage}; background-size: ${p.bgSize}; background-position: center; background-attachment: fixed; }` : ""}
+${p.textHalo ? `.main { text-shadow: ${p.textHalo}; } .main .btn, .main .tab.on, .main .pos-overlay { text-shadow: none; }` : ""}
 ::-webkit-scrollbar { width: 3px; }
 ::-webkit-scrollbar-thumb { background: ${p.scrollThumb}; border-radius: 2px; }
 @keyframes fadeUp { from { opacity: 0; } to { opacity: 1; } }
