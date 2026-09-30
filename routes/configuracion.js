@@ -81,6 +81,13 @@ router.put('/', async (req, res) => {
       limpio.fondo_v = (prev.rows[0] && prev.rows[0].portal_diseno && prev.rows[0].portal_diseno.fondo_v) || null;
       await pool.query('UPDATE configuracion_negocio SET portal_diseno = $1 WHERE id = 1', [JSON.stringify(limpio)]);
     }
+    // Rotacion: cuantos dias se deja "en evaluacion" a un producto nuevo antes de marcarlo lento o parado
+    if (Object.prototype.hasOwnProperty.call(req.body, 'rotacion_dias_evaluacion')) {
+      const d = parseInt(req.body.rotacion_dias_evaluacion);
+      if (isNaN(d) || d < 0 || d > 365) return res.status(400).json({ error: 'Los días tienen que estar entre 0 y 365' });
+      await pool.query(`ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS rotacion_dias_evaluacion INTEGER DEFAULT ${45}`);
+      await pool.query('UPDATE configuracion_negocio SET rotacion_dias_evaluacion = $1 WHERE id = 1', [d]);
+    }
     // Recalculo automatico del stock minimo cada noche (cada dueno decide)
     if (typeof req.body.stock_minimo_auto === 'boolean') {
       await asegurarColumnaMensaje();

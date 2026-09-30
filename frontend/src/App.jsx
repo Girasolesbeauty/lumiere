@@ -561,6 +561,8 @@ button.tab { font-family: inherit; }
 .ci-det-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
 @media (max-width: 860px) { .ci-det-grid { grid-template-columns: 1fr; } }
 .ci-consejos { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.5; }
+.rot-eval { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; padding: 10px 12px; border-radius: 10px; border: 1px dashed ${p.border}; font-size: 12px; color: ${p.textSoft}; line-height: 1.5; }
+.rot-eval .sel { width: auto; padding: 4px 8px; font-size: 12px; }
 .prem-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
 .prem-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
 .prem-card { background: ${p.card}; border: 1px solid ${p.border}; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; animation: popIn .3s ease-out both; transition: box-shadow .15s, transform .15s; }
@@ -5335,7 +5337,7 @@ const ESTADOS_ROTACION = {
   lento: { l: "Lento", i: "🐢", cls: "tag-warn" },
   parado: { l: "Parado", i: "🧊", cls: "tag-bad" },
   agotado: { l: "Agotado", i: "⛔", cls: "tag-bad" },
-  nuevo: { l: "Nuevo", i: "🆕", cls: "tag-neutral" },
+  nuevo: { l: "En evaluación", i: "🌱", cls: "tag-neutral" },
 };
 
 // Nombres amables de la salud financiera: el puntaje es el mismo, pero "Critica" o "Preocupante"
@@ -5423,11 +5425,18 @@ function Rotacion({ localId, paletaActual }) {
   const [filtro, setFiltro] = useState("todos");
   const [buscar, setBuscar] = useState("");
   const [tasas, setTasas] = useState(obtenerTasasMantener());
+  const [recargar, setRecargar] = useState(0);
+  const [guardandoEval, setGuardandoEval] = useState(false);
+  const cambiarEvaluacion = async (d) => {
+    setGuardandoEval(true);
+    try { await API.put("/configuracion", { rotacion_dias_evaluacion: d }); setRecargar(x => x + 1); } catch (e) {}
+    setGuardandoEval(false);
+  };
   const cambiarTasa = (k, v) => { const n2 = Math.max(0, Math.min(100, parseFloat(v) || 0)); setTasas(t => ({ ...t, [k]: n2 })); guardarPct(k === "capital" ? "lumiere_costo_capital" : "lumiere_costo_riesgo", n2); };
   useEffect(() => {
     setDatos(null);
     API.get("/productos/rotacion?local_id=" + tabLocal + "&dias=" + dias).then(r => setDatos(r.data)).catch(e => setDatos({ error: e.response?.data?.error || "No se pudo calcular la rotación" }));
-  }, [tabLocal, dias]);
+  }, [tabLocal, dias, recargar]);
 
   const $ = (v) => fmt(Math.round(v)).replace(",00", "");
   const simularLiquidacion = (lista) => {
@@ -5523,7 +5532,7 @@ function Rotacion({ localId, paletaActual }) {
 
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         <div style={{ padding: "12px 14px", display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", borderBottom: "1px solid " + p.border }}>
-          {[["todos", "Todos"], ["rapido", "🔥 Rotan rápido"], ["normal", "✅ Normal"], ["lento", "🐢 Lentos"], ["parado", "🧊 Parados"], ["reponer", "⚠️ Reponer"]].map(([k, l]) => (
+          {[["todos", "Todos"], ["rapido", "🔥 Rotan rápido"], ["normal", "✅ Normal"], ["lento", "🐢 Lentos"], ["parado", "🧊 Parados"], ["nuevo", "🌱 Nuevos"], ["reponer", "⚠️ Reponer"]].filter(([k]) => k !== "nuevo" || (pe.nuevo && pe.nuevo.productos > 0)).map(([k, l]) => (
             <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} aria-pressed={filtro === k} onClick={() => setFiltro(k)}>
               {l}{k !== "todos" && k !== "reponer" && pe[k] ? " · " + pe[k].productos : k === "reponer" ? " · " + datos.reponer : ""}
             </button>
@@ -5549,7 +5558,7 @@ function Rotacion({ localId, paletaActual }) {
                       <td style={{ fontSize: 12, whiteSpace: "nowrap" }}>
                         {x.reponer ? <b style={{ color: p.red }}>Reponer{x.stock <= 0 ? " ya" : ""}</b>
                           : (x.estado === "parado" || x.estado === "lento") ? (x.descuento_max > 0 ? <span title="Descuento máximo que todavía recupera lo que pagaste">Liquidar hasta <b>{x.descuento_max}%</b> off</span> : "Liquidar")
-                          : x.estado === "nuevo" ? <span style={{ color: p.textMuted }}>Recién cargado</span>
+                          : x.estado === "nuevo" ? <span style={{ color: p.textMuted }} title={"Llegó hace " + (x.edad_dias ?? 0) + " días"}>Se evalúa en {x.evalua_en} {x.evalua_en === 1 ? "día" : "días"}</span>
                           : <span style={{ color: p.textMuted }}>—</span>}
                       </td>
                     </tr>
@@ -5561,7 +5570,14 @@ function Rotacion({ localId, paletaActual }) {
         )}
       </div>
       <div style={{ fontSize: 11, color: p.textMuted, padding: "10px 4px 0" }}>
-        Días de stock = cuánto te dura lo que tenés al ritmo de venta del período. 🔥 hasta 30 días · ✅ hasta 90 · 🐢 más de 90 · 🧊 sin ventas en el período. ABC: A = los productos que hacen el 80% de las ventas, B = el 15% siguiente, C = el resto.
+        Días de stock = cuánto te dura lo que tenés al ritmo de venta del período. 🔥 hasta 30 días · ✅ hasta 90 · 🐢 más de 90 · 🧊 sin ventas en el período · 🌱 recién llegado, todavía en evaluación. ABC: A = los productos que hacen el 80% de las ventas, B = el 15% siguiente, C = el resto.
+      </div>
+      <div className="rot-eval">
+        <span>🌱 A un producto nuevo le damos</span>
+        <select className="sel" value={datos.dias_evaluacion ?? 45} disabled={guardandoEval} onChange={e => cambiarEvaluacion(parseInt(e.target.value))} aria-label="Días de evaluación de productos nuevos">
+          {[0, 15, 30, 45, 60, 90].map(d => <option key={d} value={d}>{d === 0 ? "ningún día" : d + " días"}</option>)}
+        </select>
+        <span>antes de marcarlo lento o parado. Mientras tanto aparece como “En evaluación”, salvo que ya se venda rápido. Los días cuentan desde que se cargó o desde su primer ingreso de mercadería.</span>
       </div>
     </div>
   );

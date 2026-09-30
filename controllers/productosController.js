@@ -383,7 +383,11 @@ const calcularReposicion = ({ vendido, diasVenta, stock, transito, reservado, le
 //   dias de stock = stock / venta diaria del periodo
 //   rapido <= 30 dias · normal <= 90 · lento > 90 · parado = sin ventas en el periodo
 //   ABC: A = productos que suman el 80% de lo vendido, B = el siguiente 15%, C = el resto
+// Productos nuevos: hasta que no pasan N dias desde que llegaron (se cargaron o entro su primer
+// ingreso) quedan "en evaluacion" y no se marcan lentos ni parados. N lo elige cada negocio
+// (por defecto 45). Su ritmo de venta se mide sobre los dias que llevan, no sobre todo el periodo.
 let columnaCreadoProducto = null;
+const DIAS_EVALUACION_DEFECTO = 45;
 const getRotacion = async (req, res) => {
   try {
     const dias = [30, 60, 90, 180].includes(parseInt(req.query.dias)) ? parseInt(req.query.dias) : 90;
@@ -397,11 +401,18 @@ const getRotacion = async (req, res) => {
       const c = await pool.query(`SELECT 1 FROM information_schema.columns WHERE table_name = 'productos' AND column_name = 'creado_en'`);
       columnaCreadoProducto = c.rows.length > 0;
     }
+    let diasEvaluacion = DIAS_EVALUACION_DEFECTO;
+    try {
+      const cfg = await pool.query('SELECT * FROM configuracion_negocio WHERE id = 1');
+      const v = cfg.rows[0] && parseInt(cfg.rows[0].rotacion_dias_evaluacion);
+      if (v >= 0) diasEvaluacion = v;
+    } catch (e) { /* sin configuracion: valor por defecto */ }
+    const hayIngresos = !!(await pool.query(`SELECT to_regclass('ordenes_ingreso_items') AS t`)).rows[0].t;
     const r = await pool.query(`
       SELECT p.id, p.nombre, p.marca, p.categoria, COALESCE(p.costo, 0) AS costo, COALESCE(p.precio, 0) AS precio,
              COALESCE(p.lead_time_dias, 7) AS lead_time, pr.nombre AS proveedor, ${colStock} AS stock,
              COALESCE(s.unidades, 0) AS unidades, COALESCE(s.monto, 0) AS monto, u.ultima AS ultima_venta,
-             ${columnaCreadoProducto ? `p.creado_en >= NOW() - INTERVAL '${dias} days'` : 'FALSE'} AS nuevo
+             GREATEST(${columnaCreadoProducto ? 'p.creado_en' : 'NULL::timestamp'}, ${hayIngresos ? 'pi.primero' : 'NULL::timestamp'}) AS llego_en
       FROM productos p
       LEFT JOIN proveedores pr ON pr.id = p.proveedor_id
       LEFT JOIN (
@@ -416,17 +427,28 @@ const getRotacion = async (req, res) => {
         WHERE ${VALIDA} ${filtroLocal}
         GROUP BY vi.producto_id
       ) u ON u.producto_id = p.id
+      ${hayIngresos ? `LEFT JOIN (
+        SELECT oii.producto_id, MIN(oi.creado_en) AS primero
+        FROM ordenes_ingreso_items oii JOIN ordenes_ingreso oi ON oi.id = oii.orden_id
+        GROUP BY oii.producto_id
+      ) pi ON pi.producto_id = p.id` : ''}
       WHERE p.activo = TRUE AND (${colStock} > 0 OR COALESCE(s.unidades, 0) > 0)`);
 
     const productos = r.rows.map(row => {
       const stock = parseFloat(row.stock) || 0, unidades = parseFloat(row.unidades) || 0;
       const costo = parseFloat(row.costo) || 0, precio = parseFloat(row.precio) || 0;
-      const ritmo = unidades / dias;
+      // Dias que lleva el producto en el local (null = no se sabe: se toma como viejo)
+      const edad = row.llego_en ? Math.max(0, Math.floor((Date.now() - new Date(row.llego_en).getTime()) / 86400000)) : null;
+      const enEvaluacion = edad !== null && edad < diasEvaluacion;
+      // El ritmo de un producto nuevo se mide sobre los dias que lleva, no sobre todo el periodo
+      const diasVenta = edad !== null && edad < dias ? Math.max(7, edad) : dias;
+      const ritmo = unidades / diasVenta;
       const diasStock = ritmo > 0 ? stock / ritmo : null;
       let estado;
       if (stock <= 0) estado = 'agotado';
-      else if (unidades <= 0) estado = row.nuevo ? 'nuevo' : 'parado';
-      else if (diasStock <= 30) estado = 'rapido';
+      else if (diasStock !== null && diasStock <= 30) estado = 'rapido';
+      else if (enEvaluacion) estado = 'nuevo';
+      else if (unidades <= 0) estado = 'parado';
       else if (diasStock <= 90) estado = 'normal';
       else estado = 'lento';
       const leadTime = parseInt(row.lead_time) || 7;
@@ -437,6 +459,8 @@ const getRotacion = async (req, res) => {
         dias_stock: diasStock !== null ? Math.round(diasStock) : null,
         ultima_venta: row.ultima_venta,
         estado,
+        edad_dias: edad,
+        evalua_en: enEvaluacion ? diasEvaluacion - edad : 0,
         // Descuento maximo que todavia recupera el costo (para liquidar sin perder)
         descuento_max: precio > 0 && costo > 0 && precio > costo ? Math.floor((1 - costo / precio) * 100) : 0,
         reponer: stock <= 0 ? unidades > 0 : (diasStock !== null && diasStock <= leadTime + 7),
@@ -481,7 +505,7 @@ const getRotacion = async (req, res) => {
     const unidadesQuietas = productos.filter(x => x.estado === 'parado' || x.estado === 'lento').reduce((s, x) => s + Math.max(0, x.stock), 0);
 
     res.json({
-      dias, local_id: localNum,
+      dias, local_id: localNum, dias_evaluacion: diasEvaluacion,
       alquiler_mes: alquilerMes,
       unidades_stock: unidadesStock,
       unidades_quietas: unidadesQuietas,
