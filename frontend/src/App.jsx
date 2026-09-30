@@ -11393,7 +11393,7 @@ function PortalCliente({ usuario, paletaActual }) {
   const esMesCumple = cli && cli.fecha_nacimiento && new Date(cli.fecha_nacimiento).getUTCMonth() === new Date().getMonth();
   const premiosVisibles = vistaLista ? vista.premios
     .map(pr => ({ ...pr, quedan: pr.stock_total === null ? null : Math.max(0, pr.stock_total - (pr.stock_usado || 0)) }))
-    .filter(pr => (pr.quedan === null || pr.quedan > 0) && (!pr.solo_mes_cumpleanos || esMesCumple)) : [];
+    .map(pr => ({ ...pr, bloqueado: pr.quedan === 0 || (!!pr.solo_mes_cumpleanos && !esMesCumple) })) : [];
   const sigNivel = cli && rank(cli.nivel) < NIVELES_ORDEN.length - 1 ? NIVELES_ORDEN[rank(cli.nivel) + 1] : null;
 
   return (
@@ -11494,14 +11494,14 @@ function PortalCliente({ usuario, paletaActual }) {
                   const alcanza = (cli.puntos || 0) >= pr.puntos_requeridos;
                   const nivelOk = rank(cli.nivel) >= rank(pr.nivel_minimo || "Bronze");
                   return (
-                    <div key={pr.id} className={"portal-premio" + (alcanza && nivelOk ? " ok" : "")}>
+                    <div key={pr.id} className={"portal-premio" + (alcanza && nivelOk && !pr.bloqueado ? " ok" : "")}>
                       <div style={{ minWidth: 0 }}>
                         <b>{pr.nombre}</b>
                         <small>{[pr.solo_mes_cumpleanos ? "🎂 Solo en tu mes de cumpleaños" : "", pr.nivel_minimo && pr.nivel_minimo !== "Bronze" ? "Nivel " + pr.nivel_minimo + " o más" : "", pr.quedan !== null ? "Quedan " + pr.quedan : ""].filter(Boolean).join(" · ")}</small>
                       </div>
                       <div style={{ textAlign: "right", flexShrink: 0 }}>
                         <div className="portal-premio-pts">{fmtNum(pr.puntos_requeridos).replace(",00", "")} pts</div>
-                        <small>{!nivelOk ? "Nivel insuficiente" : alcanza ? "¡Puede canjear!" : "Le faltan " + fmtNum(pr.puntos_requeridos - (cli.puntos || 0)).replace(",00", "")}</small>
+                        <small>{pr.quedan === 0 ? "Agotado" : pr.bloqueado ? "En su mes de cumple" : !nivelOk ? "Nivel insuficiente" : alcanza ? "¡Puede canjear!" : "Le faltan " + fmtNum(pr.puntos_requeridos - (cli.puntos || 0)).replace(",00", "")}</small>
                       </div>
                     </div>
                   );
@@ -11526,7 +11526,7 @@ function PortalCliente({ usuario, paletaActual }) {
             <div className="portal-notas">
               <div className="cli-sub">Datos de esta vista</div>
               <div className="cli-prod"><span>¿Usa el portal?</span><small>{cli.portal_activo ? "Sí, ya se registró" : "Todavía no se registró"}</small></div>
-              <div className="cli-prod"><span>Premios que puede canjear hoy</span><small>{premiosVisibles.filter(pr => (cli.puntos || 0) >= pr.puntos_requeridos && rank(cli.nivel) >= rank(pr.nivel_minimo || "Bronze")).length}</small></div>
+              <div className="cli-prod"><span>Premios que puede canjear hoy</span><small>{premiosVisibles.filter(pr => !pr.bloqueado && (cli.puntos || 0) >= pr.puntos_requeridos && rank(cli.nivel) >= rank(pr.nivel_minimo || "Bronze")).length}</small></div>
               <div className="cli-prod"><span>Compras</span><small>{vista.compras.length}</small></div>
               {!cli.portal_activo && linkPortal && <button className="btn btn-p btn-sm" style={{ marginTop: 10 }} onClick={() => copiar(mensajeWa, "msg")}>{copiado === "msg" ? "✓ Copiado" : "📋 Copiar invitación para enviarle"}</button>}
             </div>

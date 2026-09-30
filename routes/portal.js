@@ -152,10 +152,11 @@ router.get('/premios', verificarTokenCliente, async (req, res) => {
     const mesActual = new Date().getMonth() + 1;
     const esMesCumple = fechaNac && (new Date(fechaNac).getMonth() + 1) === mesActual;
 
+    // Se muestran TODOS los premios activos (motiva ver lo que se puede ganar). Los que hoy no se
+    // pueden canjear vienen marcados: agotado o de cumpleanos fuera de su mes. El canje igual lo controla.
     const premios = result.rows
       .map(p => ({ ...p, disponible: p.stock_total === null ? null : Math.max(p.stock_total - (p.stock_usado || 0), 0) }))
-      .filter(p => p.disponible === null || p.disponible > 0)
-      .filter(p => !p.solo_mes_cumpleanos || esMesCumple);
+      .map(p => ({ ...p, agotado: p.disponible === 0, fuera_de_mes: !!p.solo_mes_cumpleanos && !esMesCumple }));
 
     res.json(premios);
   } catch (error) {
