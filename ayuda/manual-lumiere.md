@@ -6,9 +6,21 @@ Lumiere es un sistema de gestión para comercios minoristas con uno o dos locale
 - **Jefe**: ve y configura todo.
 - **Admin / Administrativo**: casi todo; algunas configuraciones son solo del jefe.
 - **Vendedora/vendedor**: ve lo que el jefe le habilite en **Configuración → Usuarios** (permisos por sección). Si alguien no ve una sección del menú, es porque no tiene ese permiso: tiene que pedírselo al jefe.
-Abajo a la izquierda del menú están **Cambiar local**, **Cerrar sesión** y el interruptor de **fondo claro / oscuro**. El botón **‹** achica el menú.
+Abajo a la izquierda del menú están **Cambiar local**, **Cerrar sesión** y el interruptor de **fondo claro / oscuro**. El botón **‹** achica el menú (quedan solo los íconos).
 
 ## Menú (secciones)
+El menú de la izquierda tiene 7 grupos que se abren y cierran tocando su nombre (el grupo de la sección en la que estás queda abierto y el sistema recuerda cómo lo dejaste):
+- **VENTAS**: Dashboard, Punto de Venta, Ventas Online, Buscar Precio, Cambio / Devolución.
+- **STOCK**: Inventario, Compras y proveedores, Ingresos, Control de Inventario, Rotación, Inconsistencias, Kits, Insumos.
+- **CAJA**: Caja, Cierre de Caja, Caja de Respaldo, Gift Cards, Comprobantes.
+- **CLIENTES**: Clientes, Pedidos, Fidelización, Portal Cliente, Postventa WA, Cupones, Promociones.
+- **EQUIPO**: Tareas, Comisiones, Productividad.
+- **FINANZAS**: Finanzas, Toma de decisiones, Calculadoras.
+- **NEGOCIO**: Configuración del Negocio, y solo para el jefe: Usuarios, Ticket, Insumos en POS y Auditoría.
+
+**Buscador**: arriba del menú está **Buscar sección…** (o **Ctrl+K** desde cualquier pantalla). Escribí una palabra, por ejemplo "cierre", "devolución" o "qué pedir", y con **Enter** vas directo. No importan las tildes.
+
+**Globitos rojos**: al lado de cada sección aparece cuántas cosas hay para atender: **Portal Cliente** (premios canjeados para entregar), **Pedidos** (mercadería que llegó y hay que avisar), **Compras y proveedores** (productos en o por debajo del stock mínimo), **Tareas** (tus tareas sin terminar). **Control de Inventario** muestra un puntito naranja cuando ya pasó el tiempo elegido sin controlar. Si el grupo está cerrado, el número aparece al lado del nombre del grupo. Se actualizan solos cada 2 minutos.
 
 ### VENTAS
 - **Dashboard**: resumen del mes por local o consolidado.
@@ -434,7 +446,7 @@ Si el producto no tiene stock y tampoco hay nada en camino, no se puede vender: 
 El navegador tiene que tener permiso para usar la cámara (tocá el candado de la barra de direcciones → Cámara → Permitir). Acercá el código de barras con buena luz. Siempre se puede escribir el código a mano.
 
 ### No veo una sección del menú
-Tu usuario no tiene ese permiso. Pedíselo al jefe: Configuración → Usuarios → Permisos.
+Probá primero con el buscador de arriba del menú (Ctrl+K): puede estar en un grupo cerrado. Si no aparece, tu usuario no tiene ese permiso: pedíselo al jefe en Negocio → Usuarios → Permisos.
 
 ### Un producto figura sin stock pero hay
 Revisá en qué local está el stock (el Punto de Venta muestra el del local elegido) y si hay un traspaso sin confirmar. Si es un error de carga, corregilo con **± Ajustar** en Inventario.

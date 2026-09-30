@@ -141,7 +141,7 @@ ${p.textHalo ? `.main { text-shadow: ${p.textHalo}; } .main .btn, .main .tab.on,
 .sidebar { width: 220px; background: ${p.sidebar}; border-right: 1px solid ${p.border}; box-shadow: none; display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 20; overflow-y: auto; transition: width .18s ease; }
 .sidebar.comprimido { width: 64px; }
 .sidebar.comprimido .logo-sub, .sidebar.comprimido .nav-section, .sidebar.comprimido .nav-item span:last-child, .sidebar.comprimido .sb-footer { display: none; }
-.sidebar.comprimido .logo { padding: 18px 0; text-align: center; }
+.sidebar.comprimido .logo { display: none; }
 .sidebar.comprimido .logo-name { font-size: 20px; }
 .sidebar.comprimido .nav-item { justify-content: center; padding: 9px 0; }
 .sidebar-toggle-row { display: flex; justify-content: flex-end; padding: 10px 14px 0; }
@@ -157,7 +157,32 @@ ${p.textHalo ? `.main { text-shadow: ${p.textHalo}; } .main .btn, .main .tab.on,
 .logo-sub { font-size: 9px; color: ${p.logoSub}; letter-spacing: .3em; margin-top: 3px; text-transform: uppercase; }
 .nav { padding: 12px 10px; flex: 1; }
 .nav-section { font-size: 8px; letter-spacing: .25em; color: ${p.navTextDim}; padding: 10px 10px 4px; text-transform: uppercase; }
-.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 500; color: ${p.navText}; transition: all .18s; margin-bottom: 3px; border: 1px solid transparent; }
+.nav-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; font-family: inherit; background: transparent; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 500; color: ${p.navText}; transition: all .18s; margin-bottom: 2px; border: 1px solid transparent; }
+.nav-item:focus-visible { outline: 2px solid var(--acento); outline-offset: 1px; }
+.nav-item.marcado { background: ${p.navHover}; border-color: ${p.navActiveBorder}; }
+.nav-ico { position: relative; font-size: 15px; flex-shrink: 0; width: 20px; text-align: center; }
+.nav-txt { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color .18s; }
+.nav-globo { flex-shrink: 0; min-width: 20px; height: 18px; padding: 0 6px; border-radius: 9px; background: #e5484d; color: #fff; font-size: 10.5px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; animation: popIn .3s ease-out both; }
+.nav-globo.punto { min-width: 9px; width: 9px; height: 9px; padding: 0; background: #f5a524; }
+.nav-globo.chico { min-width: 16px; height: 16px; font-size: 9.5px; padding: 0 4px; }
+.nav-globo.chico:empty { min-width: 8px; width: 8px; height: 8px; padding: 0; }
+.nav-punto { position: absolute; top: -2px; right: -3px; width: 8px; height: 8px; border-radius: 50%; background: #e5484d; box-shadow: 0 0 0 2px ${p.sidebar && p.sidebar.startsWith("#") ? p.sidebar : "#1B2431"}; }
+.nav-grupo { margin-bottom: 4px; }
+.nav-section { display: flex; align-items: center; gap: 8px; width: 100%; background: transparent; border: none; font-family: inherit; cursor: pointer; text-align: left; border-radius: 6px; }
+.nav-section:hover { background: ${p.navHover}; }
+.nav-section:focus-visible { outline: 2px solid var(--acento); }
+.nav-sec-color { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; opacity: .85; }
+.nav-sec-txt { flex: 1; }
+.nav-flecha { font-size: 14px; line-height: 1; transition: transform .2s; opacity: .7; }
+.nav-flecha.abierta { transform: rotate(90deg); }
+.nav-items { animation: fadeUp .2s ease-out both; }
+.nav-buscar { position: relative; margin: 0 2px 10px; }
+.nav-buscar input { width: 100%; box-sizing: border-box; font-family: inherit; font-size: 12px; padding: 8px 52px 8px 10px; border-radius: 8px; border: 1px solid ${p.navActiveBorder}; background: ${p.navHover}; color: ${p.logoText}; outline: none; }
+.nav-buscar input::placeholder { color: ${p.navTextDim}; }
+.nav-buscar input:focus { border-color: var(--acento); box-shadow: 0 0 0 2px var(--acento-dim); }
+.nav-buscar kbd { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-family: inherit; font-size: 9.5px; font-weight: 700; color: ${p.navTextDim}; border: 1px solid ${p.navActiveBorder}; border-radius: 4px; padding: 1px 5px; pointer-events: none; }
+.nav-buscar-x { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: transparent; border: none; color: ${p.navTextDim}; cursor: pointer; font-size: 12px; padding: 4px 6px; }
+.nav-vacio { font-size: 11px; color: ${p.navTextDim}; padding: 6px 10px; line-height: 1.5; }
 .nav-item:hover { color: ${p.logoText}; background: ${p.navHover}; }
 .nav-item.active { color: ${p.logoText}; font-weight: 700; background: ${p.navActive}; border-color: ${p.navActiveBorder}; }
 .nav-icon { font-size: 13px; width: 18px; text-align: center; flex-shrink: 0; }
@@ -854,6 +879,7 @@ button.tab { font-family: inherit; }
   .dash-cols { grid-template-columns: 1fr; }
 }
 @media (max-width: 860px) {
+  .nav-buscar kbd { display: none; }
   .mobile-topbar { display: flex; }
   .sidebar { transform: translateX(-100%); transition: transform .22s ease; top: 0; }
   .sidebar.abierto { transform: translateX(0); }
@@ -17444,18 +17470,142 @@ function Promociones({ paletaActual }) {
 }
 
 
+// Menu: 7 grupos. "k" = otras palabras con las que se encuentra en el buscador.
+// soloJefe = solo lo ve el dueno (como antes, cuando iban aparte en CONFIGURACION).
 const NAV_SECTIONS = [
-  { section: "VENTAS", color: "#e67e22", items: [{ id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "pos", icon: "🛒", label: "Punto de Venta" }, { id: "ventas-online", icon: "🌐", label: "Ventas Online" }, { id: "buscar-precio", icon: "🔎", label: "Buscar Precio" }, { id: "cambio-devolucion", icon: "🔄", label: "Cambio / Devolucion" }] },
-  { section: "STOCK", color: "#7d3c98", items: [{ id: "inventory", icon: "📦", label: "Inventario" }, { id: "rotacion", icon: "♻️", label: "Rotación" }, { id: "ordenes", icon: "🚚", label: "Ingresos" }, { id: "inconsistencias", icon: "⚠️", label: "Inconsistencias" }, { id: "kits", icon: "🎁", label: "Kits" }, { id: "insumos", icon: "🛍️", label: "Insumos" }, { id: "control-inv", icon: "🔍", label: "Control de Inventario" }] },
-  { section: "CAJA", color: "#2d7a4f", items: [{ id: "caja", icon: "💵", label: "Caja" }, { id: "caja-respaldo", icon: "🏦", label: "Caja de Respaldo" }, { id: "cierre", icon: "🔒", label: "Cierre de Caja" }, { id: "giftcards", icon: "🎀", label: "Gift Cards" }] },
-  { section: "CLIENTES", color: "var(--acento-texto)", items: [{ id: "clients", icon: "👥", label: "Clientes" }, { id: "pedidos", icon: "📦", label: "Pedidos" }, { id: "fidelizacion", icon: "⭐", label: "Fidelizacion" }] },
-  { section: "EQUIPO", color: "#2471a3", items: [{ id: "tareas", icon: "📝", label: "Tareas" }] },
-  { section: "FINANZAS", color: "#2471a3", items: [{ id: "finance", icon: "💰", label: "Finanzas" }, { id: "decisiones", icon: "🧭", label: "Toma de decisiones" }, { id: "comprobantes", icon: "🧾", label: "Comprobantes" }, { id: "comisiones", icon: "💎", label: "Comisiones" }, { id: "compras", icon: "🛒", label: "Compras y proveedores" }, { id: "calculadoras", icon: "🧮", label: "Calculadoras" }, { id: "productividad", icon: "🏆", label: "Productividad" }] },
-  { section: "MARKETING", color: "#e74c3c", items: [{ id: "cupones", icon: "🏷️", label: "Cupones" }, { id: "promociones", icon: "🎉", label: "Promociones" }] },
-  { section: "POSTVENTA", color: "var(--wa-texto)", items: [{ id: "postventa", icon: "💬", label: "Postventa WA" }] },
-  { section: "CLIENTE", color: PALETA_CLARA.textMuted, items: [{ id: "portal", icon: "👤", label: "Portal Cliente" }] },
-  { section: "NEGOCIO", color: "#8e44ad", items: [{ id: "config-negocio", icon: "⚙️", label: "Configuracion del Negocio" }] },
+  { section: "VENTAS", color: "#e67e22", items: [
+    { id: "dashboard", icon: "📊", label: "Dashboard", k: "inicio resumen tablero" },
+    { id: "pos", icon: "🛒", label: "Punto de Venta", k: "vender venta cobrar caja pos" },
+    { id: "ventas-online", icon: "🌐", label: "Ventas Online", k: "web tienda internet pedidos online" },
+    { id: "buscar-precio", icon: "🔎", label: "Buscar Precio", k: "precio consultar" },
+    { id: "cambio-devolucion", icon: "🔄", label: "Cambio / Devolución", k: "cambio devolucion" }] },
+  { section: "STOCK", color: "#7d3c98", items: [
+    { id: "inventory", icon: "📦", label: "Inventario", k: "productos stock articulos" },
+    { id: "compras", icon: "📋", label: "Compras y proveedores", k: "que pedir pedido proveedor comprar reponer" },
+    { id: "ordenes", icon: "🚚", label: "Ingresos", k: "mercaderia recibir factura proveedor ordenes" },
+    { id: "control-inv", icon: "🔢", label: "Control de Inventario", k: "conteo contar stock" },
+    { id: "rotacion", icon: "♻️", label: "Rotación", k: "abc lentos parados liquidar" },
+    { id: "inconsistencias", icon: "⚠️", label: "Inconsistencias", k: "errores diferencias" },
+    { id: "kits", icon: "🎁", label: "Kits", k: "combos" },
+    { id: "insumos", icon: "🛍️", label: "Insumos", k: "bolsas cajas packaging" }] },
+  { section: "CAJA", color: "#2d7a4f", items: [
+    { id: "caja", icon: "💵", label: "Caja", k: "movimientos efectivo" },
+    { id: "cierre", icon: "🔒", label: "Cierre de Caja", k: "cerrar arqueo" },
+    { id: "caja-respaldo", icon: "🏦", label: "Caja de Respaldo", k: "reserva ahorro" },
+    { id: "giftcards", icon: "🎀", label: "Gift Cards", k: "tarjeta regalo" },
+    { id: "comprobantes", icon: "🧾", label: "Comprobantes", k: "facturas tickets arca afip" }] },
+  { section: "CLIENTES", color: "var(--acento-texto)", items: [
+    { id: "clients", icon: "👥", label: "Clientes", k: "clientas niveles" },
+    { id: "pedidos", icon: "📬", label: "Pedidos", k: "encargos espera avisar" },
+    { id: "fidelizacion", icon: "⭐", label: "Fidelización", k: "puntos canjes" },
+    { id: "portal", icon: "📱", label: "Portal Cliente", k: "premios diseño portal" },
+    { id: "postventa", icon: "💬", label: "Postventa WA", k: "whatsapp mensajes" },
+    { id: "cupones", icon: "🏷️", label: "Cupones", k: "descuento codigo" },
+    { id: "promociones", icon: "🎉", label: "Promociones", k: "ofertas 2x1" }] },
+  { section: "EQUIPO", color: "#2471a3", items: [
+    { id: "tareas", icon: "📝", label: "Tareas", k: "pendientes" },
+    { id: "comisiones", icon: "💎", label: "Comisiones", k: "vendedoras desafios premios" },
+    { id: "productividad", icon: "🏆", label: "Productividad", k: "ranking vendedoras" }] },
+  { section: "FINANZAS", color: "#1f6f8b", items: [
+    { id: "finance", icon: "💰", label: "Finanzas", k: "gastos egresos salud equilibrio medallas" },
+    { id: "decisiones", icon: "🧭", label: "Toma de decisiones", k: "simular precio descuento contratar" },
+    { id: "calculadoras", icon: "🧮", label: "Calculadoras", k: "margen precio cuotas" }] },
+  { section: "NEGOCIO", color: "#8e44ad", items: [
+    { id: "config-negocio", icon: "⚙️", label: "Configuración del Negocio", k: "ajustes datos logo arca" },
+    { id: "usuarios", icon: "👤", label: "Usuarios", k: "permisos empleados", soloJefe: true },
+    { id: "config-ticket", icon: "🖨️", label: "Ticket", k: "impresion", soloJefe: true },
+    { id: "config-insumos", icon: "🧷", label: "Insumos en POS", k: "bolsas", soloJefe: true },
+    { id: "auditoria", icon: "🕵️", label: "Auditoría", k: "historial cambios", soloJefe: true }] },
 ];
+// Buscar sin importar tildes ni mayusculas
+const sinTildes = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+// Menu lateral: grupos que se abren y cierran, buscador (Ctrl+K) y globitos con lo que hay que atender
+function MenuLateral({ secciones, page, setPage, comprimido, p, avisos, onElegir }) {
+  const seccionDe = (id) => (secciones.find(s => s.items.some(i => i.id === id)) || {}).section;
+  const [abiertas, setAbiertas] = useState(() => {
+    try { const g = JSON.parse(localStorage.getItem("lumiere_menu_abiertas") || "null"); if (Array.isArray(g)) return g; } catch (e) {}
+    return [seccionDe(page)].filter(Boolean);
+  });
+  const [buscar, setBuscar] = useState("");
+  const [marcado, setMarcado] = useState(0);
+  const buscador = useRef(null);
+  const guardar = (lista) => { setAbiertas(lista); try { localStorage.setItem("lumiere_menu_abiertas", JSON.stringify(lista)); } catch (e) {} };
+  // Al entrar a una seccion (desde el menu, el buscador o un boton de otra pantalla) se abre su grupo
+  useEffect(() => { const s = seccionDe(page); if (s && !abiertas.includes(s)) guardar([...abiertas, s]); }, [page]);
+  // Ctrl+K (o Cmd+K) desde cualquier pantalla abre el buscador
+  useEffect(() => {
+    const tecla = (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        window.dispatchEvent(new Event("lumiere-menu-buscar"));
+        setTimeout(() => buscador.current && buscador.current.focus(), 60);
+      }
+    };
+    window.addEventListener("keydown", tecla);
+    return () => window.removeEventListener("keydown", tecla);
+  }, []);
+
+  const q = sinTildes(buscar.trim());
+  const resultados = q ? secciones.flatMap(s => s.items.filter(i => sinTildes(i.label + " " + (i.k || "") + " " + s.section).includes(q)).map(i => ({ ...i, sec: s }))) : [];
+  const elegir = (id) => { setPage(id); setBuscar(""); setMarcado(0); onElegir && onElegir(); };
+  const teclaBuscar = (e) => {
+    if (e.key === "Escape") { setBuscar(""); e.currentTarget.blur(); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); setMarcado(m => Math.min(m + 1, resultados.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setMarcado(m => Math.max(m - 1, 0)); }
+    else if (e.key === "Enter" && resultados[marcado]) elegir(resultados[marcado].id);
+  };
+
+  const item = (it, col, marcadoItem) => {
+    const activo = page === it.id;
+    const n = avisos && avisos[it.id];
+    return (
+      <button key={it.id} type="button" className={"nav-item" + (activo ? " active" : "") + (marcadoItem ? " marcado" : "")}
+        aria-current={activo ? "page" : undefined} title={comprimido ? it.label : undefined}
+        style={activo ? { background: col + "25", borderColor: col + "60", color: p.logoText } : {}}
+        onClick={() => elegir(it.id)}>
+        <span className="nav-ico" aria-hidden="true">{it.icon}{n > 0 && comprimido && <i className="nav-punto" />}</span>
+        <span className="nav-txt" style={{ color: activo ? p.logoText : p.navText }}>{it.label}</span>
+        {n > 0 && !comprimido && <span className={"nav-globo" + (it.id === "control-inv" ? " punto" : "")} aria-label={it.id === "control-inv" ? "toca controlar" : n + " para atender"}>{it.id === "control-inv" ? "" : n > 99 ? "99+" : n}</span>}
+      </button>
+    );
+  };
+
+  return (
+    <nav className="nav" aria-label="Menú principal">
+      {!comprimido && (
+        <div className="nav-buscar">
+          <input ref={buscador} value={buscar} onChange={e => { setBuscar(e.target.value); setMarcado(0); }} onKeyDown={teclaBuscar}
+            placeholder="Buscar sección…" aria-label="Buscar sección del menú" />
+          {!buscar && <kbd aria-hidden="true">Ctrl K</kbd>}
+          {buscar && <button type="button" className="nav-buscar-x" aria-label="Borrar búsqueda" onClick={() => setBuscar("")}>✕</button>}
+        </div>
+      )}
+      {q ? (
+        resultados.length === 0
+          ? <div className="nav-vacio">No hay ninguna sección con “{buscar}”.</div>
+          : resultados.map((it, k) => item(it, it.sec.color || "#c9a84c", k === marcado))
+      ) : secciones.map(sec => {
+        const abierta = comprimido || abiertas.includes(sec.section);
+        const pendientes = sec.items.reduce((t, i) => t + (avisos && avisos[i.id] && i.id !== "control-inv" ? avisos[i.id] : 0), 0);
+        const tienePunto = sec.items.some(i => avisos && avisos[i.id] > 0);
+        return (
+          <div key={sec.section} className="nav-grupo">
+            <button type="button" className="nav-section" aria-expanded={abierta}
+              onClick={() => guardar(abierta ? abiertas.filter(x => x !== sec.section) : [...abiertas, sec.section])}
+              style={{ color: p.navTextDim }}>
+              <span className="nav-sec-color" style={{ background: sec.color || p.accent }} aria-hidden="true" />
+              <span className="nav-sec-txt">{sec.section}</span>
+              {!abierta && tienePunto && <span className="nav-globo chico">{pendientes > 0 ? pendientes : ""}</span>}
+              <span className={"nav-flecha" + (abierta ? " abierta" : "")} aria-hidden="true">›</span>
+            </button>
+            {abierta && <div className="nav-items">{sec.items.map(it => item(it, sec.color || "#c9a84c", false))}</div>}
+          </div>
+        );
+      })}
+    </nav>
+  );
+}
 
 
 
@@ -18189,6 +18339,20 @@ export default function AppWrapper() {
   };
 
   const [permisosActivos, setPermisosActivos] = useState([]);
+  const [avisosMenu, setAvisosMenu] = useState({});
+  useEffect(() => {
+    if (!usuario || !local) return;
+    const traer = () => API.get("/avisos-menu?local_id=" + local.id + "&usuario_id=" + (usuario.id || "")).then(r => setAvisosMenu(r.data || {})).catch(() => {});
+    traer();
+    const t = setInterval(traer, 120000);
+    return () => clearInterval(t);
+  }, [usuario, local, page]);
+  // Ctrl+K con el menu comprimido o en el celular: lo abre para poder buscar
+  useEffect(() => {
+    const abrir = () => { setMenuAbierto(true); if (sidebarComprimido && window.innerWidth > 860) toggleSidebar(); };
+    window.addEventListener("lumiere-menu-buscar", abrir);
+    return () => window.removeEventListener("lumiere-menu-buscar", abrir);
+  });
 
   const cargarMisPermisos = async (uid, esJefe) => {
     try {
@@ -18223,6 +18387,7 @@ export default function AppWrapper() {
       "caja": "caja.ver", "caja-respaldo": "caja_respaldo.ver", "cierre": "cierre_caja.ver", "giftcards": "giftcards.ver",
       "usuarios": "usuarios.ver", "config-negocio": "config_negocio.editar",
     };
+    if (["usuarios", "config-ticket", "config-insumos", "auditoria"].includes(modulo)) return false; // solo el dueno
     const permiso = mapaModulos[modulo];
     if (!permiso) return true;
     return permisosActivos.includes(permiso);
@@ -18289,19 +18454,15 @@ export default function AppWrapper() {
     return <Dashboard localId={local.id} paletaActual={paletaActual} />;
   };
 
+  const esJefeMenu = usuario.rol === "jefe" || usuario.rol_id === 1;
   const NAV_CON_PERMISOS = NAV_SECTIONS.map(sec => ({
     ...sec,
-    items: sec.items.filter(it => puedeVer(it.id))
+    items: sec.items.filter(it => (!it.soloJefe || esJefeMenu) && puedeVer(it.id))
   })).filter(sec => sec.items.length > 0);
 
-  if (usuario.rol === "jefe") {
-    const yaExiste = NAV_CON_PERMISOS.some(s => s.items.some(i => i.id === "usuarios"));
-    if (!yaExiste) {
-      NAV_CON_PERMISOS.push({ section: "CONFIGURACION", items: [{ id: "usuarios", icon: "-", label: "Usuarios" }, { id: "config-insumos", icon: "🛍️", label: "Insumos en POS" }, { id: "config-ticket", icon: "🧾", label: "Ticket" }, { id: "auditoria", icon: "🔍", label: "Auditoria" }] });
-    }
-  }
-
   const rolBadgeColor = { jefe: "#c9a84c", administrativo: "#2471a3", vendedora: "#2d7a4f" };
+  // En el celular el menu se abre siempre completo (achicado no tiene sentido ahi)
+  const menuChico = sidebarComprimido && !(typeof window !== "undefined" && window.innerWidth <= 860);
 
   return (
     <>
@@ -18313,38 +18474,15 @@ export default function AppWrapper() {
       </div>
       <div className={"mobile-overlay " + (menuAbierto ? "abierto" : "")} onClick={() => setMenuAbierto(false)} />
       <div className="layout" style={{ width: "100vw", margin: 0 }}>
-        <aside className={"sidebar " + (menuAbierto ? "abierto " : "") + (sidebarComprimido ? "comprimido" : "")}>
+        <aside className={"sidebar " + (menuAbierto ? "abierto " : "") + (menuChico ? "comprimido" : "")}>
           <div className="sidebar-toggle-row">
-            <div className="sidebar-toggle" onClick={toggleSidebar} title={sidebarComprimido ? "Expandir menu" : "Comprimir menu"}>‹</div>
+            <div className="sidebar-toggle" onClick={toggleSidebar} title={menuChico ? "Expandir menú" : "Achicar menú"}>‹</div>
           </div>
           <div className="logo">
-            {sidebarComprimido ? (
-              <img src="data:image/png;base64,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" alt="Lumiere" style={{ width: 34, height: 34, borderRadius: 8, display: "block", margin: "0 auto" }} />
-            ) : (
-              <div className="logo-name">Lumiere</div>
-            )}
-            {!sidebarComprimido && <div className="logo-sub">{local.nombre}</div>}
+            {!menuChico && <div className="logo-name">Lumiere</div>}
+            {!menuChico && <div className="logo-sub">{local.nombre}</div>}
           </div>
-          <nav className="nav">
-            {NAV_CON_PERMISOS.map(sec => (
-              <div key={sec.section}>
-                <div className="nav-section" style={{ color: paletaActual.navTextDim }}>{sec.section}</div>
-                {sec.items.map(it => {
-                  const isActive = page === it.id;
-                  const col = sec.color || "#c9a84c";
-                  return (
-                    <div key={it.id}
-                      className={"nav-item " + (isActive ? "active" : "")}
-                      style={isActive ? { background: col + "25", borderColor: col + "60", color: paletaActual.logoText } : {}}
-                      onClick={() => { setPage(it.id); setMenuAbierto(false); }}>
-                      <span style={{ fontSize: 15, flexShrink: 0 }}>{it.icon}</span>
-                      <span style={{ color: isActive ? paletaActual.logoText : paletaActual.navText, transition: "color .18s" }}>{it.label}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </nav>
+          <MenuLateral secciones={NAV_CON_PERMISOS} page={page} setPage={setPage} comprimido={menuChico} p={paletaActual} avisos={avisosMenu} onElegir={() => setMenuAbierto(false)} />
           <div className="sb-footer">
             <div style={{ fontSize: 12, color: paletaActual.logoText, fontWeight: 600, marginBottom: 4 }}>{usuario?.nombre || "Usuario"}</div>
             <div style={{ marginBottom: 10 }}>
@@ -18366,7 +18504,7 @@ export default function AppWrapper() {
             <div style={{ marginTop: 6, fontSize: 11, color: paletaActual.navTextDim, cursor: "pointer" }} onClick={handleLogout}>Cerrar sesion</div>
           </div>
         </aside>
-        <main className={"main " + (sidebarComprimido ? "comprimido" : "")}>
+        <main className={"main " + (menuChico ? "comprimido" : "")}>
           <ErrorSeccion key={page} p={paletaActual}>{getPageWithLocal(page)}</ErrorSeccion>
         </main>
         <AsistenteAyuda usuario={usuario} seccion={page} paletaActual={paletaActual} />

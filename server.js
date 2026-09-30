@@ -67,6 +67,7 @@ app.use('/api/traspasos', require('./routes/traspasos'));
 app.use('/api/productos', require('./routes/producto-variantes'));
 app.use('/api/pos', require('./routes/pos'));
 app.use('/api/retos', require('./routes/retos'));
+app.use('/api/avisos-menu', require('./routes/avisos-menu'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {
