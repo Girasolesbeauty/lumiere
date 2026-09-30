@@ -18,6 +18,8 @@ El menú de la izquierda tiene 7 grupos que se abren y cierran tocando su nombre
 - **FINANZAS**: Finanzas, Toma de decisiones, Calculadoras.
 - **NEGOCIO**: Configuración del Negocio, y solo para el jefe: Usuarios, Ticket, Insumos en POS y Auditoría.
 
+**En el celular**: abajo hay una barra fija con **Inicio, Vender, Stock y Clientes**, y **☰ Más** abre el menú completo. Las tablas se ven como tarjetas (sin correr de costado) y el Dashboard muestra los números; los gráficos se abren con **📊 Ver gráficos**. En el Punto de Venta la barra no aparece, para dejar lugar al cobro.
+
 **Buscador**: arriba del menú está **Buscar sección…** (o **Ctrl+K** desde cualquier pantalla). Escribí una palabra, por ejemplo "cierre", "devolución" o "qué pedir", y con **Enter** vas directo. No importan las tildes.
 
 **Globitos rojos**: al lado de cada sección aparece cuántas cosas hay para atender: **Portal Cliente** (premios canjeados para entregar), **Pedidos** (mercadería que llegó y hay que avisar), **Compras y proveedores** (productos en o por debajo del stock mínimo), **Tareas** (tus tareas sin terminar). **Control de Inventario** muestra un puntito naranja cuando ya pasó el tiempo elegido sin controlar. Si el grupo está cerrado, el número aparece al lado del nombre del grupo. Se actualizan solos cada 2 minutos.

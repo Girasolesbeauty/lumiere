@@ -910,9 +910,39 @@ button.tab { font-family: inherit; }
   .pos-grid > div { max-height: 46vh; }
   .pos-grid > div:last-child { max-height: none; }
 }
+/* ---- Celular: barra de abajo, tablas como tarjetas y encabezados mas cortos ---- */
+.barra-celu { display: none; }
+.dash-ver-graficos { width: 100%; margin-top: 4px; }
+@media (max-width: 860px) {
+  .barra-celu { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; background: ${p.card}; border-top: 1px solid ${p.border}; box-shadow: 0 -4px 16px ${p.shadowCol}; padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .barra-celu button { flex: 1; min-height: 58px; border: none; background: transparent; font-family: inherit; font-size: 11px; font-weight: 700; color: ${p.textMuted}; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; position: relative; }
+  .barra-celu button.on { color: var(--acento-texto); }
+  .barra-celu button.on::before { content: ""; position: absolute; top: 0; left: 28%; right: 28%; height: 3px; border-radius: 0 0 3px 3px; background: var(--acento); }
+  .bc-ico { font-size: 20px; line-height: 1; position: relative; }
+  .bc-ico i { position: absolute; top: -6px; left: 14px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: #e5484d; color: #fff; font-size: 10px; font-style: normal; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+  .main:not(.en-pos) { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important; }
+  .main:not(.en-pos) ~ .ayuda-fab, body:has(.barra-celu) .ayuda-fab { bottom: calc(70px + env(safe-area-inset-bottom, 0px)); padding: 9px 13px; font-size: 12px; }
+  .dash-head { flex-direction: column; align-items: stretch !important; gap: 10px; }
+  .dash-head .pt { font-size: 22px !important; }
+  .dash-head .ps, .ph .ps { font-size: 11.5px; }
+  .dash-actions { flex-wrap: wrap; gap: 6px; }
+  .dash-actions .seg { overflow-x: auto; max-width: 100%; }
+}
+@media (max-width: 640px) {
+  main table:not(.sin-tarjetas) { display: block; min-width: 0 !important; width: 100% !important; white-space: normal; overflow: visible; border: none; }
+  main table:not(.sin-tarjetas) thead { display: none; }
+  main table:not(.sin-tarjetas) tbody { display: flex; flex-direction: column; gap: 10px; }
+  main table:not(.sin-tarjetas) tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 10px; padding: 12px 14px; border: 1px solid ${p.border}; border-radius: 12px; background: ${p.card}; }
+  main table:not(.sin-tarjetas) td { display: block; padding: 0 !important; border: none !important; min-width: 0 !important; width: auto !important; max-width: none !important; white-space: normal !important; text-align: left !important; font-size: 13px; }
+  main table:not(.sin-tarjetas) td:first-child, main table:not(.sin-tarjetas) td[colspan] { grid-column: 1 / -1; }
+  main table:not(.sin-tarjetas) td:first-child { font-size: 14px; }
+  main table:not(.sin-tarjetas) td[data-l]:not([data-l=""]):not(:first-child)::before { content: attr(data-l); display: block; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: ${p.textMuted}; margin-bottom: 2px; }
+  main table:not(.sin-tarjetas) td:last-child:not(:first-child) { grid-column: 1 / -1; }
+  main div:has(> table) { overflow: visible !important; }
+}
 @media (max-width: 520px) {
   .g4, .g3 { grid-template-columns: 1fr !important; }
-  table { display: block; overflow-x: auto; white-space: nowrap; }
+  table.sin-tarjetas { display: block; overflow-x: auto; white-space: nowrap; }
   .pt { font-size: 20px !important; }
   .metric { font-size: 24px !important; }
   .ph { flex-direction: column; align-items: flex-start !important; gap: 10px; }
@@ -1017,6 +1047,9 @@ function KpiCard({ p, titulo, valor, formato, sub, tag, chico, color, indice = 0
 
 function Dashboard({ localId, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
+  // En el celular se muestran los numeros y los graficos quedan plegados (la pantalla es mas corta)
+  const esCelu = typeof window !== "undefined" && window.innerWidth <= 640;
+  const [verGraficos, setVerGraficos] = useState(false);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tabLocal, setTabLocal] = useState("rg");
@@ -1288,6 +1321,9 @@ function Dashboard({ localId, paletaActual }) {
               sub="Agotados" />
           </div>
 
+          {esCelu && !verGraficos ? (
+            <button className="btn btn-g dash-ver-graficos" onClick={() => setVerGraficos(true)}>📊 Ver gráficos (facturación, productos y medios de pago)</button>
+          ) : (<>
           {/* Grafico principal */}
           <div className="chart-card anim-in" style={{ animationDelay: "300ms" }}>
             <div className="chart-head" style={{ alignItems: "flex-start" }}>
@@ -1465,6 +1501,7 @@ function Dashboard({ localId, paletaActual }) {
               })()}
             </div>
           </div>
+          </>)}
         </>
       )}
 
@@ -17532,6 +17569,64 @@ const NAV_SECTIONS = [
     { id: "config-insumos", icon: "🧷", label: "Insumos en POS", k: "bolsas", soloJefe: true },
     { id: "auditoria", icon: "🕵️", label: "Auditoría", k: "historial cambios", soloJefe: true }] },
 ];
+// Barra de abajo en el celular: lo que mas se usa a un toque, y "Mas" abre el menu completo.
+// Muestra solo lo que el usuario tiene permitido (si no, usa la siguiente opcion).
+const BARRA_CELU = [
+  { ids: ["dashboard"], icon: "🏠", label: "Inicio" },
+  { ids: ["pos", "buscar-precio"], icon: "🛒", label: "Vender" },
+  { ids: ["inventory", "compras", "control-inv"], icon: "📦", label: "Stock" },
+  { ids: ["clients", "pedidos", "tareas", "caja"], icon: "👥", label: "Clientes" },
+];
+function BarraCelular({ secciones, page, setPage, avisos, onMas }) {
+  const permitidas = new Set(secciones.flatMap(s => s.items.map(i => i.id)));
+  const usadas = new Set();
+  const botones = BARRA_CELU.map(b => {
+    const id = b.ids.find(x => permitidas.has(x) && !usadas.has(x));
+    if (!id) return null;
+    usadas.add(id);
+    const item = secciones.flatMap(s => s.items).find(i => i.id === id);
+    const label = id === b.ids[0] ? b.label : item.label.split(" ")[0];
+    const icon = id === b.ids[0] ? b.icon : item.icon;
+    const n = id === "clients" ? (avisos.pedidos || 0) + (avisos.portal || 0) : id === "inventory" ? (avisos.compras || 0) : (avisos[id] || 0);
+    return { id, label, icon, n };
+  }).filter(Boolean);
+  // Lo que ya se cuenta en otro boton de la barra no se repite en "Mas"
+  const yaContados = new Set(usadas);
+  if (usadas.has("clients")) { yaContados.add("pedidos"); yaContados.add("portal"); }
+  if (usadas.has("inventory")) yaContados.add("compras");
+  const totalMas = Object.entries(avisos || {}).filter(([k]) => !yaContados.has(k) && k !== "control-inv").reduce((t, [, v]) => t + (v || 0), 0);
+  return (
+    <nav className="barra-celu" aria-label="Accesos rápidos">
+      {botones.map(b => (
+        <button key={b.id} className={page === b.id ? "on" : ""} aria-current={page === b.id ? "page" : undefined} onClick={() => { setPage(b.id); window.scrollTo(0, 0); }}>
+          <span className="bc-ico" aria-hidden="true">{b.icon}{b.n > 0 && <i>{b.n > 99 ? "99+" : b.n}</i>}</span>{b.label}
+        </button>
+      ))}
+      <button onClick={onMas} aria-label="Abrir el menú completo">
+        <span className="bc-ico" aria-hidden="true">☰{totalMas > 0 && <i>{totalMas > 99 ? "99+" : totalMas}</i>}</span>Más
+      </button>
+    </nav>
+  );
+}
+
+// Tablas en el celular: se muestran como tarjetas. Para eso cada celda necesita el nombre de su
+// columna (data-l), que se toma solo del encabezado de la tabla.
+function etiquetarTablas(raiz) {
+  if (!raiz) return;
+  raiz.querySelectorAll("table").forEach(t => {
+    const ths = [...t.querySelectorAll("thead th")].map(th => th.textContent.trim());
+    if (!ths.length) return;
+    t.querySelectorAll("tbody tr").forEach(tr => {
+      let col = 0;
+      [...tr.children].forEach(td => {
+        const l = ths[col] || "";
+        if (td.getAttribute("data-l") !== l) td.setAttribute("data-l", l);
+        col += td.colSpan || 1;
+      });
+    });
+  });
+}
+
 // Buscar sin importar tildes ni mayusculas
 const sinTildes = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
@@ -18436,6 +18531,18 @@ export default function AppWrapper() {
 
   const [permisosActivos, setPermisosActivos] = useState([]);
   const [avisosMenu, setAvisosMenu] = useState({});
+  const mainRef = useRef(null);
+  // Tablas como tarjetas en el celular: etiqueta cada celda con el nombre de su columna
+  useEffect(() => {
+    const raiz = mainRef.current;
+    if (!raiz || typeof MutationObserver === "undefined") return;
+    let t = null;
+    const correr = () => { clearTimeout(t); t = setTimeout(() => etiquetarTablas(raiz), 120); };
+    correr();
+    const obs = new MutationObserver(correr);
+    obs.observe(raiz, { childList: true, subtree: true });
+    return () => { obs.disconnect(); clearTimeout(t); };
+  });
   useEffect(() => {
     if (!usuario || !local) return;
     const traer = () => API.get("/avisos-menu?local_id=" + local.id + "&usuario_id=" + (usuario.id || "")).then(r => setAvisosMenu(r.data || {})).catch(() => {});
@@ -18610,9 +18717,10 @@ export default function AppWrapper() {
             <div style={{ marginTop: 6, fontSize: 11, color: paletaActual.navTextDim, cursor: "pointer" }} onClick={handleLogout}>Cerrar sesion</div>
           </div>
         </aside>
-        <main className={"main " + (menuChico ? "comprimido" : "")}>
+        <main ref={mainRef} className={"main " + (menuChico ? "comprimido" : "") + (page === "pos" ? " en-pos" : "")}>
           <ErrorSeccion key={page} p={paletaActual}>{getPageWithLocal(page)}</ErrorSeccion>
         </main>
+        {page !== "pos" && <BarraCelular secciones={NAV_CON_PERMISOS} page={page} setPage={setPage} avisos={avisosMenu} onMas={() => setMenuAbierto(true)} />}
         <AsistenteAyuda usuario={usuario} seccion={page} paletaActual={paletaActual} />
       </div>
     </>
