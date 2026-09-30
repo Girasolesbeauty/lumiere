@@ -70,7 +70,7 @@ Abajo a la izquierda del menú están **Cambiar local**, **Cerrar sesión** y el
   - Cuando llega stock aparecen para avisar por WhatsApp. Los avisados quedan en historial y se ve si después compró.
   - Pestañas: en espera (por cliente o por producto), **Avisados** y **Estadísticas** (ventas recuperadas, conversión, espera promedio, sugerencias de productos que no vendemos).
 - **Fidelización**: puntos y niveles (Bronze, Silver, Gold, Platinum, Black).
-  - Premios para canjear con puntos (**+ Nuevo premio**, con calculadora de puntos sugeridos, stock y nivel mínimo).
+  - Los premios para canjear con puntos ahora están en **Portal Cliente → Premios**.
   - Buscar cliente por DNI para ver qué puede canjear, **Validar código de canje** e historial de canjes.
 
 ### EQUIPO
@@ -113,6 +113,8 @@ Abajo a la izquierda del menú están **Cambiar local**, **Cerrar sesión** y el
   - Cuántos clientes lo usan (de los que tienen DNI cargado), cuántos se registraron este mes y cuántos no pueden entrar porque no tienen DNI.
   - **Invitá a tus clientes**: cargá el link del portal y copiá el mensaje listo para mandar por WhatsApp.
   - **Premios para entregar**: los canjes hechos en el portal. Cuando el cliente viene con su código, tocá **Entregado**.
+  - **Premios**: crear, editar y pausar los premios que se canjean con puntos.
+  - **Diseño**: estilo, fondo (incluso una foto propia), mensaje de bienvenida y qué secciones se muestran, con vista previa en un celular.
   - **Ver el portal como un cliente**: buscá un cliente y mirá exactamente lo que ve él (puntos, cuánto le falta para el próximo nivel, premios que puede canjear, sus compras y canjes).
 
 ### NEGOCIO y CONFIGURACIÓN
@@ -344,7 +346,10 @@ Compras y proveedores → Proveedores → **Cuentas a pagar** → **Pagar** (fec
 Pedidos → **Listos para avisar** → botón de WhatsApp (se abre el mensaje listo) → queda en "Avisados". Si después compra, se marca solo (o con "Compró").
 
 ### Cómo crear un premio para canjear con puntos
-**Fidelización** → **+ Nuevo premio** → nombre, puntos requeridos (la calculadora sugiere los puntos según el precio del regalo), descripción, stock y nivel mínimo → guardar.
+**Portal Cliente** → pestaña **Premios** → **+ Nuevo premio** → nombre, precio del regalo (te sugiere los puntos para que el cliente gaste 5 veces ese valor), puntos, cuántos hay, quiénes lo pueden canjear (todos o desde un nivel), foto y si es solo del mes de cumpleaños → **Crear premio**. Con **Pausar** deja de verse en el portal sin borrarlo.
+
+### Cómo cambiar el diseño del portal de clientes
+**Portal Cliente** → pestaña **Diseño**: elegí el estilo (Girasoles, Claro, Oscuro o Salvia), el fondo (el del estilo, color liso o **una imagen propia**: tocá **Subir imagen**), escribí un mensaje de bienvenida y elegí si se muestra el saludo de cumpleaños y la escalera de niveles. A la derecha ves cómo queda en un celular (Inicio y Pantalla de ingreso). Tocá **Guardar diseño** y tus clientes lo ven así al instante.
 
 ### Cómo validar un canje de puntos
 **Fidelización** → **Validar código de canje** → escribí el código que muestra el cliente (PREMIO-XXXX) → **Validar**. Para ver qué puede canjear un cliente, buscalo por DNI.

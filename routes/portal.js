@@ -26,12 +26,24 @@ const sumarIntento = (k) => {
   else r.n++;
 };
 
-// Nombre y logo del negocio para mostrar en el portal (publico, sin datos sensibles)
+// Nombre, logo y diseno del negocio para mostrar en el portal (publico, sin datos sensibles)
 router.get('/negocio', async (req, res) => {
   try {
-    const r = await pool.query('SELECT nombre_negocio, logo_url FROM configuracion_negocio WHERE id = 1');
-    res.json(r.rows[0] || { nombre_negocio: null, logo_url: null });
-  } catch (e) { res.json({ nombre_negocio: null, logo_url: null }); }
+    const r = await pool.query('SELECT * FROM configuracion_negocio WHERE id = 1');
+    const c = r.rows[0] || {};
+    res.json({ nombre_negocio: c.nombre_negocio || null, logo_url: c.logo_url || null, diseno: c.portal_diseno || null });
+  } catch (e) { res.json({ nombre_negocio: null, logo_url: null, diseno: null }); }
+});
+
+// Imagen de fondo propia del negocio (si cargo una en Portal Cliente -> Diseno)
+router.get('/fondo', async (req, res) => {
+  try {
+    const r = await pool.query('SELECT mime, datos FROM portal_fondo WHERE id = 1');
+    if (!r.rows.length) return res.status(404).end();
+    res.set('Content-Type', r.rows[0].mime);
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.send(r.rows[0].datos);
+  } catch (e) { res.status(404).end(); }
 });
 
 // Middleware: valida el token del portal de clientas (separado del de empleadas)

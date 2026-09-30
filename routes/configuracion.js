@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
 
+const TEMAS_PORTAL = ['girasoles', 'claro', 'oscuro', 'salvia'];
+
 // Plantilla del mensaje de "Buscar precio" (texto que se manda al cliente). La columna se crea
 // sola la primera vez, para no depender de correr una migracion en cada base.
 let columnaMensajeLista = false;
@@ -64,6 +66,21 @@ router.put('/', async (req, res) => {
       await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS portal_url TEXT');
       await pool.query('UPDATE configuracion_negocio SET portal_url = $1 WHERE id = 1', [url || null]);
     }
+    // Diseno del portal de clientes (estilo, fondo, mensaje de bienvenida, que se muestra)
+    if (req.body.portal_diseno && typeof req.body.portal_diseno === 'object') {
+      const d = req.body.portal_diseno;
+      const limpio = {
+        tema: TEMAS_PORTAL.includes(d.tema) ? d.tema : 'girasoles',
+        fondo: ['estilo', 'color', 'propio'].includes(d.fondo) ? d.fondo : 'estilo',
+        bienvenida: String(d.bienvenida || '').slice(0, 160).trim(),
+        mostrar_cumple: d.mostrar_cumple !== false,
+        mostrar_niveles: d.mostrar_niveles !== false,
+      };
+      await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS portal_diseno JSONB');
+      const prev = await pool.query('SELECT portal_diseno FROM configuracion_negocio WHERE id = 1');
+      limpio.fondo_v = (prev.rows[0] && prev.rows[0].portal_diseno && prev.rows[0].portal_diseno.fondo_v) || null;
+      await pool.query('UPDATE configuracion_negocio SET portal_diseno = $1 WHERE id = 1', [JSON.stringify(limpio)]);
+    }
     // Recalculo automatico del stock minimo cada noche (cada dueno decide)
     if (typeof req.body.stock_minimo_auto === 'boolean') {
       await asegurarColumnaMensaje();
@@ -87,6 +104,34 @@ router.put('/', async (req, res) => {
       [nombre_negocio, logo_url || null, modoValido, tocaLogo, retosActivo, retosMeta, retosMonto]
     );
     res.json(r.rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Imagen de fondo propia del portal de clientes. Llega ya achicada desde el navegador
+// (webp/jpeg, pocos cientos de KB) y se guarda en la base: asi no depende de otro servicio.
+const TIPOS_FONDO = ['image/webp', 'image/jpeg', 'image/png'];
+router.put('/portal-fondo', express.raw({ type: TIPOS_FONDO, limit: '2mb' }), async (req, res) => {
+  try {
+    const tipo = String(req.headers['content-type'] || '').split(';')[0].trim();
+    if (!TIPOS_FONDO.includes(tipo) || !Buffer.isBuffer(req.body) || req.body.length < 100) {
+      return res.status(400).json({ error: 'La imagen tiene que ser JPG, PNG o WEBP' });
+    }
+    await pool.query('CREATE TABLE IF NOT EXISTS portal_fondo (id INT PRIMARY KEY, mime TEXT NOT NULL, datos BYTEA NOT NULL, actualizado TIMESTAMPTZ DEFAULT NOW())');
+    await pool.query(`INSERT INTO portal_fondo (id, mime, datos, actualizado) VALUES (1, $1, $2, NOW())
+      ON CONFLICT (id) DO UPDATE SET mime = EXCLUDED.mime, datos = EXCLUDED.datos, actualizado = NOW()`, [tipo, req.body]);
+    // La version cambia con cada imagen nueva, para que los celulares no se queden con la vieja
+    const v = Date.now();
+    await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS portal_diseno JSONB');
+    await pool.query(`UPDATE configuracion_negocio SET portal_diseno = COALESCE(portal_diseno, '{}'::jsonb) || jsonb_build_object('fondo_v', $1::bigint, 'fondo', 'propio') WHERE id = 1`, [v]);
+    res.json({ ok: true, fondo_v: v });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.delete('/portal-fondo', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM portal_fondo WHERE id = 1').catch(() => {});
+    await pool.query(`UPDATE configuracion_negocio SET portal_diseno = COALESCE(portal_diseno, '{}'::jsonb) || '{"fondo_v": null, "fondo": "estilo"}'::jsonb WHERE id = 1`).catch(() => {});
+    res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

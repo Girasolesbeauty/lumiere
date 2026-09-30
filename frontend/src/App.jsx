@@ -503,6 +503,49 @@ button.tab { font-family: inherit; }
 .niv-top { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
 .niv-cant { font-size: 11px; color: ${p.textMuted}; }
 .niv-desde { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: ${p.textSoft}; margin-top: 10px; }
+.prem-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.prem-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.prem-card { background: ${p.card}; border: 1px solid ${p.border}; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; animation: popIn .3s ease-out both; transition: box-shadow .15s, transform .15s; }
+.prem-card:hover { box-shadow: 0 8px 22px ${p.shadowCol}; transform: translateY(-1px); }
+.prem-card.pausado { opacity: .6; }
+.prem-img { height: 110px; display: flex; align-items: center; justify-content: center; font-size: 40px; background: linear-gradient(135deg, var(--acento-dim), ${p.bg}); }
+.prem-img img { width: 100%; height: 100%; object-fit: cover; }
+.prem-cuerpo { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.prem-cuerpo b { font-size: 14px; }
+.prem-cuerpo small { font-size: 12px; color: ${p.textMuted}; line-height: 1.4; }
+.prem-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+.prem-pie { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: auto; padding-top: 8px; flex-wrap: wrap; }
+.prem-pts { font-size: 18px; font-weight: 800; color: var(--acento-texto); white-space: nowrap; }
+.prem-calc { background: ${p.bg}; border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+.prem-form-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 560px) { .prem-form-2 { grid-template-columns: 1fr; } }
+.prem-check { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.dis-grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; align-items: start; }
+@media (max-width: 980px) { .dis-grid { grid-template-columns: 1fr; } }
+.dis-controles { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.dis-temas { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin-top: 10px; }
+.dis-tema { display: flex; flex-direction: column; gap: 6px; align-items: stretch; padding: 8px; border-radius: 12px; border: 2px solid ${p.border}; background: ${p.card}; color: ${p.text}; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; transition: border-color .15s, transform .1s; }
+.dis-tema:hover { transform: translateY(-1px); }
+.dis-tema.on { border-color: var(--acento); box-shadow: 0 0 0 3px var(--acento-dim); }
+.dis-muestra { position: relative; height: 54px; border-radius: 8px; display: flex; align-items: flex-end; gap: 4px; padding: 6px; border: 1px solid ${p.border}; overflow: hidden; }
+.dis-muestra i { width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(0,0,0,.1); }
+.dis-muestra em { position: absolute; right: 4px; top: 2px; font-style: normal; font-size: 22px; }
+.dis-opciones { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.dis-opcion { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid ${p.border}; cursor: pointer; }
+.dis-opcion.on { border-color: var(--acento); background: var(--acento-dim); }
+.dis-opcion.apagada { opacity: .6; cursor: default; }
+.dis-opcion span, .dis-switch span { display: flex; flex-direction: column; gap: 1px; }
+.dis-opcion b, .dis-switch b { font-size: 13px; }
+.dis-opcion small, .dis-switch small { font-size: 12px; color: ${p.textMuted}; }
+.dis-switch { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid ${p.border}; cursor: pointer; }
+.dis-switch input { margin-top: 3px; }
+.dis-guardar { display: flex; gap: 8px; position: sticky; bottom: 8px; z-index: 2; background: ${p.card}; padding: 10px; border-radius: 12px; border: 1px solid ${p.border}; box-shadow: 0 6px 20px ${p.shadowCol}; }
+.dis-previa { position: sticky; top: 12px; }
+.dis-previa-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: ${p.card}; border: 1px solid ${p.border}; border-radius: 10px; padding: 4px; margin-bottom: 10px; }
+.dis-previa-tabs button { border: none; background: transparent; padding: 8px; border-radius: 7px; font-family: inherit; font-size: 12px; font-weight: 700; color: ${p.textMuted}; cursor: pointer; }
+.dis-previa-tabs button.on { background: var(--acento-dim); color: var(--acento-texto); }
+.dis-tel { width: 100%; max-width: 380px; margin: 0 auto; aspect-ratio: 9 / 17.5; border: 10px solid #1b1f27; border-radius: 34px; overflow: hidden; background: #fff; box-shadow: 0 18px 44px ${p.shadowCol}; }
+.dis-tel iframe { width: 100%; height: 100%; border: 0; display: block; }
 .portal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 860px) { .portal-grid { grid-template-columns: 1fr; } }
 .portal-msg { font-size: 12.5px; line-height: 1.55; padding: 10px 12px; border-radius: 10px; background: ${p.bg}; border: 1px dashed ${p.border}; }
@@ -9454,7 +9497,7 @@ function Fidelizacion({ usuario, paletaActual }) {
       </div>
       {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
       <div className="tabs">
-        {["clientes", "premios", "canjear-local", "validar"].map(t => <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "validar") cargarCanjes(); }}>{t === "clientes" ? "CLIENTES" : t === "premios" ? "PREMIOS" : t === "canjear-local" ? "CANJEAR EN LOCAL" : "VALIDAR CANJE"}</div>)}
+        {["clientes", "canjear-local", "validar"].map(t => <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "validar") cargarCanjes(); }}>{t === "clientes" ? "CLIENTES" : t === "premios" ? "PREMIOS" : t === "canjear-local" ? "CANJEAR EN LOCAL" : "VALIDAR CANJE"}</div>)}
       </div>
       {tab === "clientes" && (
         <div className="card fade">
@@ -9489,87 +9532,7 @@ function Fidelizacion({ usuario, paletaActual }) {
         )}
         </div>
       )}
-      {tab === "premios" && (
-        <div className="fade">
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-            <button className="btn btn-p btn-sm" onClick={() => { setShowForm(!showForm); setEditandoPremio(null); setNuevoPremio({ nombre: "", descripcion: "", puntos_requeridos: "", imagen_url: "", stock_total: "", solo_mes_cumpleanos: false, nivel_minimo: "Bronze" }); }}>+ Nuevo premio</button>
-          </div>
-          {showForm && (
-            <div className="card" style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 14 }}>NUEVO PREMIO</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div className="fg"><div className="fl">Nombre del premio</div><input className="inp" placeholder="Ej: Envio gratis" value={nuevoPremio.nombre} onChange={e => setNuevoPremio(p => ({ ...p, nombre: e.target.value }))} /></div>
-                <div className="fg"><div className="fl">Puntos requeridos</div><input className="inp" type="number" placeholder="500" value={nuevoPremio.puntos_requeridos} onChange={e => setNuevoPremio(p => ({ ...p, puntos_requeridos: e.target.value }))} /></div>
-              </div>
-              <div style={{ background: temaPal.bg, borderRadius: 8, padding: 12, marginBottom: 10 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6, color: "var(--acento-texto)" }}>💡 Calculadora de puntos sugeridos</div>
-                <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 8 }}>Regla: el cliente tiene que gastar 5 veces el valor del regalo. Puntos = precio de venta ÷ 20.</div>
-                <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-                  <div style={{ flex: 1 }}>
-                    <div className="fl">Precio de venta del regalo</div>
-                    <input className="inp" type="number" placeholder="8000" value={precioCalc} onChange={e => setPrecioCalc(e.target.value)} />
-                  </div>
-                  <div style={{ textAlign: "center", minWidth: 90 }}>
-                    <div style={{ fontSize: 10, color: temaPal.textMuted }}>Puntos</div>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: "#2d7a4f" }}>{precioCalc && parseFloat(precioCalc) > 0 ? Math.round(parseFloat(precioCalc) / 20) : "—"}</div>
-                  </div>
-                  <button className="btn btn-sm" style={{ background: "var(--acento)", color: "#1B2431", whiteSpace: "nowrap" }} disabled={!precioCalc || parseFloat(precioCalc) <= 0} onClick={() => setNuevoPremio(p => ({ ...p, puntos_requeridos: String(Math.round(parseFloat(precioCalc) / 20)) }))}>Usar estos puntos</button>
-                </div>
-              </div>
-              <div className="fg"><div className="fl">Descripcion</div><input className="inp" placeholder="Breve descripcion del premio" value={nuevoPremio.descripcion} onChange={e => setNuevoPremio(p => ({ ...p, descripcion: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">URL de imagen (opcional)</div><input className="inp" placeholder="https://..." value={nuevoPremio.imagen_url} onChange={e => setNuevoPremio(p => ({ ...p, imagen_url: e.target.value }))} /></div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div className="fg"><div className="fl">Stock disponible (vacio = ilimitado)</div><input className="inp" type="number" placeholder="Ej: 10" value={nuevoPremio.stock_total} onChange={e => setNuevoPremio(p => ({ ...p, stock_total: e.target.value }))} /></div>
-                <div className="fg" style={{ display: "flex", alignItems: "center", paddingTop: 18 }}>
-                  <div className="fg" style={{ marginBottom: 10 }}>
-                    <div className="fl">Nivel minimo para canjear</div>
-                    <select className="inp" value={nuevoPremio.nivel_minimo} onChange={e => setNuevoPremio(p => ({ ...p, nivel_minimo: e.target.value }))}>
-                      <option value="Bronze">Bronze (todos)</option>
-                      <option value="Silver">Silver o superior</option>
-                      <option value="Gold">Gold o superior</option>
-                      <option value="Platinum">Platinum o superior</option>
-                      <option value="Black">Black (solo Black)</option>
-                    </select>
-                  </div>
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer" }}>
-                    <input type="checkbox" checked={nuevoPremio.solo_mes_cumpleanos} onChange={e => setNuevoPremio(p => ({ ...p, solo_mes_cumpleanos: e.target.checked }))} />
-                    Solo disponible en el mes de cumpleanos del cliente
-                  </label>
-                </div>
-              </div>
-              <button className="btn btn-p" style={{ width: "100%", marginTop: 8 }} onClick={guardarPremio}>{editandoPremio ? "Guardar cambios" : "Crear premio"}</button>
-            </div>
-          )}
-          {premios.length === 0 ? (
-            <div className="card"><div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>No hay premios creados todavia</div></div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
-              {premios.map(p => {
-                const disp = p.stock_total === null ? null : Math.max(p.stock_total - (p.stock_usado || 0), 0);
-                return (
-                  <div key={p.id} className="card" style={{ opacity: p.activo ? 1 : 0.5 }}>
-                    {p.imagen_url && <img src={p.imagen_url} alt={p.nombre} style={{ width: "100%", height: 110, objectFit: "cover", borderRadius: 8, marginBottom: 10 }} />}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{p.nombre}</div>
-                      {p.solo_mes_cumpleanos && <span className="badge" style={{ background: "#7d3c9815", color: "#7d3c98", fontSize: 8 }}>cumple</span>}
-                      {p.nivel_minimo && p.nivel_minimo !== "Bronze" && <span className="badge" style={{ background: "#1a1a1a15", color: temaPal.text, fontSize: 8, marginLeft: 4 }}>{p.nivel_minimo}+</span>}
-                    </div>
-                    {p.descripcion && <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 3 }}>{p.descripcion}</div>}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
-                      <span style={{ fontSize: 16, fontWeight: 700, color: "var(--acento-texto)" }}>{p.puntos_requeridos} pts</span>
-                      <span className={"badge " + (disp !== null && disp < 5 ? "br" : "bg")}>{disp === null ? "ilimitado" : disp + "u"}</span>
-                    </div>
-                    <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-                      <button className="btn btn-sm" style={{ flex: 1, background: "var(--acento)", color: "#1B2431" }} onClick={() => editarPremio(p)}>Editar</button>
-                      {p.activo && <button className="btn btn-sm" style={{ flex: 1 }} onClick={() => desactivarPremio(p)}>Desactivar</button>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+      <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "-6px 0 12px" }}>Los premios que se canjean con puntos se crean y editan en <b>Portal Cliente → Premios</b>.</div>
       {tab === "canjear-local" && (
         <div className="fade">
           <div className="card" style={{ marginBottom: 14 }}>
@@ -11338,6 +11301,321 @@ function ConfiguracionNegocio({ paletaActual }) {
 }
 
 
+// ============ Portal Cliente -> Premios ============
+// Los premios que tus clientes canjean con puntos (antes estaban en Fidelizacion).
+const PREMIO_VACIO = { nombre: "", descripcion: "", puntos_requeridos: "", imagen_url: "", stock_total: "", solo_mes_cumpleanos: false, nivel_minimo: "Bronze" };
+function PremiosPortal({ p, avisar }) {
+  const [premios, setPremios] = useState(null);
+  const [form, setForm] = useState(null); // null = cerrado; objeto = creando/editando
+  const [editando, setEditando] = useState(null);
+  const [precioCalc, setPrecioCalc] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [verInactivos, setVerInactivos] = useState(false);
+
+  const cargar = () => API.get("/fidelizacion/premios?todos=true").then(r => setPremios(r.data || [])).catch(() => setPremios([]));
+  useEffect(() => { cargar(); }, []);
+
+  const abrirNuevo = () => { setEditando(null); setForm({ ...PREMIO_VACIO }); setPrecioCalc(""); };
+  const abrirEditar = (pr) => {
+    setEditando(pr);
+    setForm({ nombre: pr.nombre || "", descripcion: pr.descripcion || "", puntos_requeridos: String(pr.puntos_requeridos || ""), imagen_url: pr.imagen_url || "",
+      stock_total: pr.stock_total != null ? String(pr.stock_total) : "", solo_mes_cumpleanos: pr.solo_mes_cumpleanos === true, nivel_minimo: pr.nivel_minimo || "Bronze", activo: pr.activo });
+    setPrecioCalc("");
+  };
+  const guardar = async () => {
+    if (!form.nombre.trim() || !(parseInt(form.puntos_requeridos) > 0)) return avisar("Error: completá el nombre y los puntos");
+    setGuardando(true);
+    try {
+      const datos = { ...form, puntos_requeridos: parseInt(form.puntos_requeridos), stock_total: form.stock_total ? parseInt(form.stock_total) : null };
+      if (editando) await API.put("/fidelizacion/premios/" + editando.id, { ...datos, activo: editando.activo });
+      else await API.post("/fidelizacion/premios", datos);
+      avisar(editando ? "✓ Premio actualizado" : "✓ Premio creado: ya lo ven tus clientes en el portal");
+      setForm(null); setEditando(null); cargar();
+    } catch (e) { avisar("Error: " + (e.response?.data?.error || "no se pudo guardar el premio")); }
+    setGuardando(false);
+  };
+  const cambiarActivo = async (pr) => {
+    try {
+      if (pr.activo) await API.delete("/fidelizacion/premios/" + pr.id);
+      else await API.put("/fidelizacion/premios/" + pr.id, { ...pr, activo: true });
+      avisar(pr.activo ? "Premio pausado: ya no se ve en el portal" : "✓ Premio activado de nuevo");
+      cargar();
+    } catch (e) { avisar("Error: " + (e.response?.data?.error || e.message)); }
+  };
+
+  const lista = (premios || []).filter(pr => verInactivos || pr.activo);
+  const inactivos = (premios || []).filter(pr => !pr.activo).length;
+  const sugeridos = precioCalc && parseFloat(precioCalc) > 0 ? Math.round(parseFloat(precioCalc) / 20) : null;
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value }));
+
+  return (
+    <div className="fade">
+      <div className="prem-head">
+        <div style={{ fontSize: 13, color: p.textMuted, maxWidth: 560, lineHeight: 1.5 }}>Los premios que tus clientes canjean con sus puntos. Se ven todos en el portal (aunque todavía no les alcance), así se motivan a seguir sumando.</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {inactivos > 0 && <button className="btn btn-g btn-sm" onClick={() => setVerInactivos(v => !v)}>{verInactivos ? "Ocultar pausados" : "Ver pausados (" + inactivos + ")"}</button>}
+          <button className="btn btn-p btn-sm" onClick={abrirNuevo}>+ Nuevo premio</button>
+        </div>
+      </div>
+
+      {premios === null ? <div className="prem-grid">{[0, 1, 2].map(i => <div key={i} className="skel" style={{ height: 200 }} />)}</div>
+        : lista.length === 0 ? (
+          <div className="chart-card cli-vacio" style={{ textAlign: "center", padding: 30 }}>
+            <div style={{ fontSize: 34, marginBottom: 6 }}>🎁</div>
+            Todavía no hay premios. Creá el primero: un descuento, un regalo o algo exclusivo para tus mejores clientes.
+            <div><button className="btn btn-p btn-sm" style={{ marginTop: 12 }} onClick={abrirNuevo}>+ Crear premio</button></div>
+          </div>
+        ) : (
+          <div className="prem-grid">
+            {lista.map((pr, i) => {
+              const disp = pr.stock_total === null ? null : Math.max(pr.stock_total - (pr.stock_usado || 0), 0);
+              return (
+                <div key={pr.id} className={"prem-card" + (pr.activo ? "" : " pausado")} style={{ animationDelay: i * 40 + "ms" }}>
+                  <div className="prem-img">{pr.imagen_url ? <img src={pr.imagen_url} alt="" loading="lazy" /> : "🎁"}</div>
+                  <div className="prem-cuerpo">
+                    <b>{pr.nombre}</b>
+                    {pr.descripcion && <small>{pr.descripcion}</small>}
+                    <div className="prem-tags">
+                      {!pr.activo && <span className="tag tag-neutral">Pausado</span>}
+                      {pr.solo_mes_cumpleanos && <span className="tag tag-warn">🎂 Cumpleaños</span>}
+                      {pr.nivel_minimo && pr.nivel_minimo !== "Bronze" && <span className="tag tag-neutral">{pr.nivel_minimo} o más</span>}
+                      <span className={"tag " + (disp === 0 ? "tag-bad" : disp !== null && disp < 5 ? "tag-warn" : "tag-ok")}>{disp === null ? "Sin límite" : disp === 0 ? "Agotado" : "Quedan " + disp}</span>
+                    </div>
+                    <div className="prem-pie">
+                      <span className="prem-pts">{fmtNum(pr.puntos_requeridos).replace(",00", "")} pts</span>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <button className="btn btn-g btn-sm" onClick={() => abrirEditar(pr)}>Editar</button>
+                        <button className="btn btn-g btn-sm" onClick={() => cambiarActivo(pr)}>{pr.activo ? "Pausar" : "Activar"}</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+      {form && (
+        <div className="pos-overlay" onClick={e => e.target === e.currentTarget && !guardando && setForm(null)}>
+          <div className="card pop-in" style={{ background: p.card, width: 560, maxWidth: "96vw", maxHeight: "92vh", overflowY: "auto", textAlign: "left" }} role="dialog" aria-modal="true" aria-label={editando ? "Editar premio" : "Nuevo premio"}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div className="chart-title" style={{ margin: 0 }}>{editando ? "Editar premio" : "Nuevo premio"}</div>
+              <button className="icon-btn" aria-label="Cerrar" onClick={() => setForm(null)}>✕</button>
+            </div>
+            <div className="fg"><div className="fl">Nombre del premio</div><input className="inp" placeholder="Ej: 10% de descuento, envío gratis, regalo sorpresa" value={form.nombre} onChange={set("nombre")} autoFocus /></div>
+            <div className="fg"><div className="fl">Descripción (opcional)</div><input className="inp" placeholder="Ej: En tu próxima compra" value={form.descripcion} onChange={set("descripcion")} /></div>
+            <div className="prem-calc">
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--acento-texto)", marginBottom: 4 }}>💡 ¿Cuántos puntos pido?</div>
+              <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 8, lineHeight: 1.45 }}>Escribí cuánto cuesta el regalo en el local. Te sugerimos los puntos para que el cliente tenga que gastar 5 veces ese valor (así el premio se paga solo).</div>
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+                <div style={{ flex: 1, minWidth: 140 }}><div className="fl">Precio del regalo</div><input className="inp" type="number" min="0" placeholder="8000" value={precioCalc} onChange={e => setPrecioCalc(e.target.value)} /></div>
+                <div style={{ textAlign: "center", minWidth: 80 }}><div style={{ fontSize: 11, color: p.textMuted }}>Sugerido</div><div style={{ fontSize: 20, fontWeight: 800, color: p.green }}>{sugeridos ?? "—"}</div></div>
+                <button className="btn btn-g btn-sm" disabled={!sugeridos} onClick={() => setForm(f => ({ ...f, puntos_requeridos: String(sugeridos) }))}>Usar</button>
+              </div>
+            </div>
+            <div className="prem-form-2">
+              <div className="fg"><div className="fl">Puntos para canjearlo</div><input className="inp" type="number" min="1" placeholder="500" value={form.puntos_requeridos} onChange={set("puntos_requeridos")} /></div>
+              <div className="fg"><div className="fl">Cuántos hay (vacío = sin límite)</div><input className="inp" type="number" min="0" placeholder="Ej: 10" value={form.stock_total} onChange={set("stock_total")} /></div>
+            </div>
+            <div className="prem-form-2">
+              <div className="fg">
+                <div className="fl">¿Quiénes lo pueden canjear?</div>
+                <select className="inp" value={form.nivel_minimo} onChange={set("nivel_minimo")}>
+                  <option value="Bronze">Todos los clientes</option>
+                  <option value="Silver">Silver o más</option>
+                  <option value="Gold">Gold o más</option>
+                  <option value="Platinum">Platinum o más</option>
+                  <option value="Black">Solo Black</option>
+                </select>
+              </div>
+              <div className="fg"><div className="fl">Foto (link, opcional)</div><input className="inp" placeholder="https://..." value={form.imagen_url} onChange={set("imagen_url")} /></div>
+            </div>
+            <label className="prem-check"><input type="checkbox" checked={form.solo_mes_cumpleanos} onChange={set("solo_mes_cumpleanos")} /> Solo se puede canjear en el mes de cumpleaños del cliente</label>
+            <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setForm(null)}>Cancelar</button>
+              <button className="btn btn-p" style={{ flex: 2 }} disabled={guardando} onClick={guardar}>{guardando ? "Guardando..." : editando ? "Guardar cambios" : "Crear premio"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ Portal Cliente -> Diseno ============
+// Cada negocio arma su portal: estilo, fondo (del estilo, color liso o una imagen propia),
+// mensaje de bienvenida y que secciones se muestran. Se ve en vivo en un celular de muestra.
+const PORTAL_URL_BASE = "https://lumiere-portal-clientes.vercel.app";
+const TEMAS_PORTAL = [
+  { id: "girasoles", nombre: "Girasoles", colores: ["#FFF3D6", "#F06BA8", "#347F55", "#FFC93C"], imagen: true },
+  { id: "claro", nombre: "Claro", colores: ["#DDE8F4", "#c9a84c", "#36486A", "#ffffff"] },
+  { id: "oscuro", nombre: "Oscuro", colores: ["#090c10", "#c9a84c", "#1a1f28", "#e6e8ec"] },
+  { id: "salvia", nombre: "Salvia", colores: ["#F5F1E8", "#C4A35A", "#4A6343", "#ffffff"] },
+];
+const DISENO_INICIAL = { tema: "girasoles", fondo: "estilo", bienvenida: "", mostrar_cumple: true, mostrar_niveles: true, fondo_v: null };
+
+// Achica la imagen en el navegador (max 1600px, webp) para que el portal cargue rapido en el celular
+const achicarImagen = (archivo) => new Promise((ok, mal) => {
+  const img = new Image();
+  const url = URL.createObjectURL(archivo);
+  img.onload = () => {
+    const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    c.toBlob(b => b ? ok({ blob: b, dataUrl: c.toDataURL(b.type, 0.8) }) : mal(new Error("No se pudo leer la imagen")), "image/webp", 0.8);
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); mal(new Error("Ese archivo no es una imagen")); };
+  img.src = url;
+});
+
+function DisenoPortal({ p, avisar, portalUrl }) {
+  const [d, setD] = useState(null);
+  const [guardado, setGuardado] = useState(null);
+  const [negocio, setNegocio] = useState({});
+  const [pantalla, setPantalla] = useState("inicio");
+  const [fondoPrevia, setFondoPrevia] = useState(null); // imagen propia (data URL) para la vista previa
+  const [subiendo, setSubiendo] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [listo, setListo] = useState(false);
+  const frame = useRef(null);
+  const archivoRef = useRef(null);
+  const base = (portalUrl || PORTAL_URL_BASE).replace(/\/+$/, "");
+  const srcPrevia = base + "/?vista=previa";
+
+  useEffect(() => {
+    API.get("/configuracion").then(r => {
+      const dd = { ...DISENO_INICIAL, ...(r.data.portal_diseno || {}) };
+      setD(dd); setGuardado(dd);
+      setNegocio({ nombre_negocio: r.data.nombre_negocio, logo_url: r.data.logo_url });
+      if (dd.fondo_v) setFondoPrevia(API.defaults.baseURL + "/portal/fondo?v=" + dd.fondo_v);
+    }).catch(() => { setD({ ...DISENO_INICIAL }); setGuardado({ ...DISENO_INICIAL }); });
+    const oir = (e) => { if (e.data && e.data.tipo === "lumiere-portal-listo") setListo(true); };
+    window.addEventListener("message", oir);
+    return () => window.removeEventListener("message", oir);
+  }, []);
+
+  // Manda al celular de muestra todo lo que se va cambiando (sin guardar)
+  useEffect(() => {
+    if (!d || !frame.current || !frame.current.contentWindow) return;
+    frame.current.contentWindow.postMessage({ tipo: "lumiere-portal-diseno", diseno: d, fondo_url: fondoPrevia, pantalla, negocio }, "*");
+  }, [d, fondoPrevia, pantalla, negocio, listo]);
+
+  if (!d) return <div className="skel" style={{ height: 420 }} />;
+  const cambio = (k, v) => setD(x => ({ ...x, [k]: v }));
+  const hayCambios = JSON.stringify({ ...d, fondo_v: null }) !== JSON.stringify({ ...guardado, fondo_v: null });
+
+  const guardar = async () => {
+    setGuardando(true);
+    try { await API.put("/configuracion", { portal_diseno: d }); setGuardado(d); avisar("✓ Diseño guardado: tus clientes ya lo ven así"); }
+    catch (e) { avisar("Error: " + (e.response?.data?.error || e.message)); }
+    setGuardando(false);
+  };
+  const elegirImagen = async (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    setSubiendo(true);
+    try {
+      const { blob, dataUrl } = await achicarImagen(f);
+      if (blob.size > 1.8 * 1024 * 1024) throw new Error("La imagen es muy pesada, probá con otra");
+      const r = await API.put("/configuracion/portal-fondo", blob, { headers: { "Content-Type": blob.type } });
+      setFondoPrevia(dataUrl);
+      setD(x => ({ ...x, fondo: "propio", fondo_v: r.data.fondo_v }));
+      setGuardado(g => ({ ...g, fondo: "propio", fondo_v: r.data.fondo_v }));
+      avisar("✓ Imagen de fondo guardada");
+    } catch (err) { avisar("Error: " + (err.response?.data?.error || err.message)); }
+    setSubiendo(false);
+  };
+  const quitarImagen = async () => {
+    if (!confirm("¿Quitar la imagen de fondo propia?")) return;
+    try {
+      await API.delete("/configuracion/portal-fondo");
+      setFondoPrevia(null);
+      setD(x => ({ ...x, fondo: "estilo", fondo_v: null }));
+      setGuardado(g => ({ ...g, fondo: "estilo", fondo_v: null }));
+      avisar("Imagen quitada");
+    } catch (err) { avisar("Error: " + (err.response?.data?.error || err.message)); }
+  };
+  const temaSel = TEMAS_PORTAL.find(t => t.id === d.tema) || TEMAS_PORTAL[0];
+
+  return (
+    <div className="dis-grid fade">
+      <div className="dis-controles">
+        <div className="chart-card">
+          <div className="chart-title">🎨 Estilo</div>
+          <div className="dis-temas" role="radiogroup" aria-label="Estilo del portal">
+            {TEMAS_PORTAL.map(t => (
+              <button key={t.id} role="radio" aria-checked={d.tema === t.id} className={"dis-tema" + (d.tema === t.id ? " on" : "")} onClick={() => cambio("tema", t.id)}>
+                <span className="dis-muestra" style={{ background: t.colores[0] }}>
+                  {t.colores.slice(1).map(c => <i key={c} style={{ background: c }} />)}
+                  {t.imagen && <em aria-hidden="true">🌻</em>}
+                </span>
+                <span>{t.nombre}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="chart-card">
+          <div className="chart-title">🖼️ Fondo</div>
+          <div className="dis-opciones">
+            <label className={"dis-opcion" + (d.fondo === "estilo" ? " on" : "")}>
+              <input type="radio" name="fondo" checked={d.fondo === "estilo"} onChange={() => cambio("fondo", "estilo")} />
+              <span><b>Del estilo</b><small>{temaSel.imagen ? "El collage de girasoles" : "El color del estilo " + temaSel.nombre}</small></span>
+            </label>
+            <label className={"dis-opcion" + (d.fondo === "color" ? " on" : "")}>
+              <input type="radio" name="fondo" checked={d.fondo === "color"} onChange={() => cambio("fondo", "color")} />
+              <span><b>Color liso</b><small>Sin imagen, más simple</small></span>
+            </label>
+            <label className={"dis-opcion" + (d.fondo === "propio" ? " on" : "") + (!fondoPrevia ? " apagada" : "")}>
+              <input type="radio" name="fondo" checked={d.fondo === "propio"} disabled={!fondoPrevia} onChange={() => cambio("fondo", "propio")} />
+              <span><b>Mi imagen</b><small>{fondoPrevia ? "La foto que subiste" : "Subí una foto de tu local, tus productos o tu marca"}</small></span>
+            </label>
+          </div>
+          <input ref={archivoRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={elegirImagen} />
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+            <button className="btn btn-g btn-sm" disabled={subiendo} onClick={() => archivoRef.current && archivoRef.current.click()}>{subiendo ? "Subiendo..." : fondoPrevia ? "📷 Cambiar imagen" : "📷 Subir imagen"}</button>
+            {fondoPrevia && <button className="btn btn-g btn-sm" onClick={quitarImagen}>Quitar imagen</button>}
+          </div>
+          <div className="dec-ayuda" style={{ marginTop: 8 }}>Tip: una foto horizontal y no muy cargada. Encima le ponemos un velo suave para que los textos se lean bien.</div>
+        </div>
+
+        <div className="chart-card">
+          <div className="chart-title">💬 Mensaje de bienvenida</div>
+          <input className="inp" maxLength={160} placeholder="Ej: ¡Gracias por elegirnos! 🌻 Sumá puntos en cada compra." value={d.bienvenida} onChange={e => cambio("bienvenida", e.target.value)} style={{ marginTop: 8 }} />
+          <div className="dec-ayuda" style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}><span>Se ve al entrar y arriba de los puntos. Vacío = sin mensaje.</span><span>{d.bienvenida.length}/160</span></div>
+        </div>
+
+        <div className="chart-card">
+          <div className="chart-title">👁️ Qué se muestra</div>
+          <label className="dis-switch"><input type="checkbox" checked={d.mostrar_cumple} onChange={e => cambio("mostrar_cumple", e.target.checked)} /><span><b>Saludo de cumpleaños</b><small>En el mes de su cumple, un saludo que los invita a mirar sus premios</small></span></label>
+          <label className="dis-switch"><input type="checkbox" checked={d.mostrar_niveles} onChange={e => cambio("mostrar_niveles", e.target.checked)} /><span><b>Escalera de niveles</b><small>Bronze a Black, con desde cuánto se llega a cada uno</small></span></label>
+          <div className="dec-ayuda" style={{ marginTop: 8 }}>El nombre y el logo salen de Configuración del Negocio.</div>
+        </div>
+
+        <div className="dis-guardar">
+          <button className="btn btn-g" disabled={!hayCambios || guardando} onClick={() => setD(guardado)}>Deshacer</button>
+          <button className="btn btn-p" style={{ flex: 1 }} disabled={!hayCambios || guardando} onClick={guardar}>{guardando ? "Guardando..." : hayCambios ? "Guardar diseño" : "✓ Guardado"}</button>
+        </div>
+      </div>
+
+      <div className="dis-previa">
+        <div className="dis-previa-tabs" role="tablist">
+          {[["inicio", "Inicio"], ["ingreso", "Pantalla de ingreso"]].map(([k, l]) => (
+            <button key={k} role="tab" aria-selected={pantalla === k} className={pantalla === k ? "on" : ""} onClick={() => setPantalla(k)}>{l}</button>
+          ))}
+        </div>
+        <div className="dis-tel">
+          <iframe ref={frame} title="Vista previa del portal" src={srcPrevia} onLoad={() => setListo(v => !v)} />
+        </div>
+        <div className="dec-ayuda" style={{ textAlign: "center", marginTop: 8 }}>Vista previa con datos de muestra. {hayCambios ? "Tus clientes lo ven así cuando guardes." : ""}</div>
+      </div>
+    </div>
+  );
+}
+
 // ============ Portal Cliente (panel del negocio) ============
 // Cuantos clientes usan el portal, los premios canjeados que hay que entregar, el link para
 // compartir y una vista previa con los datos reales de cualquier cliente.
@@ -11352,6 +11630,7 @@ function PortalCliente({ usuario, paletaActual }) {
   const [vista, setVista] = useState(null); // { cliente, compras, premios, canjes, umbrales } | "cargando"
   const [vistaTab, setVistaTab] = useState("premios");
   const [copiado, setCopiado] = useState("");
+  const [pestana, setPestana] = useState("resumen");
 
   const avisar = (m) => { setMsg(m); setTimeout(() => setMsg(""), 3500); };
   const cargar = () => {
@@ -11406,6 +11685,16 @@ function PortalCliente({ usuario, paletaActual }) {
       </div>
       {msg && <div className={"pop-in cc-aviso " + (msg.startsWith("Error") ? "bad" : "ok")} role="status">{msg}</div>}
 
+      <div className="tabs" role="tablist" style={{ marginBottom: 14 }}>
+        {[["resumen", "Resumen"], ["premios", "🎁 Premios"], ["diseno", "🎨 Diseño"], ["vista", "👀 Ver como cliente"]].map(([k, l]) => (
+          <div key={k} role="tab" tabIndex={0} aria-selected={pestana === k} className={"tab " + (pestana === k ? "on" : "")} onClick={() => setPestana(k)} onKeyDown={e => (e.key === "Enter" || e.key === " ") && setPestana(k)}>{l}</div>
+        ))}
+      </div>
+
+      {pestana === "premios" && <PremiosPortal p={p} avisar={avisar} />}
+      {pestana === "diseno" && <DisenoPortal p={p} avisar={avisar} portalUrl={linkPortal} />}
+
+      {pestana === "resumen" && (<>
       {!resumen ? <div className="skel" style={{ height: 120 }} /> : resumen.error ? <div className="empty">No se pudieron cargar los datos del portal.</div> : (
         <div className="kpi-grid">
           <KpiCard p={p} titulo="Usan el portal" valor={resumen.registrados} color={p.green} indice={0} sub={"de " + resumen.con_dni + " clientes con DNI (" + pctAdopcion + "%)"} />
@@ -11457,8 +11746,11 @@ function PortalCliente({ usuario, paletaActual }) {
           )}
         </div>
       </div>
+      </>)}
 
-      <div className="chart-card" style={{ marginTop: 12 }}>
+      {pestana === "vista" && (
+
+      <div className="chart-card">
         <div className="chart-title">👀 Ver el portal como un cliente</div>
         <div style={{ fontSize: 12, color: p.textMuted, margin: "4px 0 10px" }}>Elegí un cliente y mirá exactamente lo que ve cuando entra: sus puntos, su nivel, los premios que puede canjear y sus compras.</div>
         <div style={{ position: "relative", maxWidth: 420 }}>
@@ -11490,7 +11782,7 @@ function PortalCliente({ usuario, paletaActual }) {
                 {[["premios", "Premios"], ["compras", "Mis compras"], ["canjes", "Mis canjes"]].map(([k, l]) => <button key={k} className={vistaTab === k ? "on" : ""} onClick={() => setVistaTab(k)}>{l}</button>)}
               </div>
               <div className="portal-cont">
-                {vistaTab === "premios" && (premiosVisibles.length === 0 ? <div className="cli-vacio">No hay premios cargados. Se crean en Fidelización.</div> : premiosVisibles.map(pr => {
+                {vistaTab === "premios" && (premiosVisibles.length === 0 ? <div className="cli-vacio">No hay premios cargados. Se crean en la pestaña Premios.</div> : premiosVisibles.map(pr => {
                   const alcanza = (cli.puntos || 0) >= pr.puntos_requeridos;
                   const nivelOk = rank(cli.nivel) >= rank(pr.nivel_minimo || "Bronze");
                   return (
@@ -11533,6 +11825,7 @@ function PortalCliente({ usuario, paletaActual }) {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }
@@ -17374,7 +17667,7 @@ const TEMAS_POR_SECCION = {
   giftcards: ["Cómo emitir una gift card", "Cómo ver el saldo de una gift card", "Cómo cobrar con una gift card"],
   clients: ["Cómo dar de alta un cliente", "Cómo cargar puntos de compras anteriores"],
   pedidos: ["Cómo anotar un pedido de un cliente", "Cómo avisarle a un cliente que llegó lo que esperaba"],
-  fidelizacion: ["Cómo crear un premio para canjear con puntos", "Cómo validar un canje de puntos"], tareas: ["Cómo crear y asignar una tarea"],
+  fidelizacion: ["Cómo validar un canje de puntos"], portal: ["Cómo crear un premio para canjear con puntos", "Cómo cambiar el diseño del portal de clientes"], tareas: ["Cómo crear y asignar una tarea"],
   finance: ["Cómo cargar un gasto (egreso)", "Cómo corregir o categorizar un egreso", "Cómo cambiar el reparto de gastos compartidos", "Cómo ver si el negocio gana plata", "Cómo comparar dos meses"],
   comprobantes: ["Cómo reintentar una factura que falló", "Cómo reimprimir un ticket o factura", "Documentación para el contador"],
   comisiones: ["Cómo configurar las comisiones", "Cómo pagar comisiones", "Cómo entregar el premio de un desafío", "Cómo activar o desactivar comisiones y desafíos", "Desafíos de venta"],
