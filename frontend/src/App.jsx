@@ -486,6 +486,7 @@ button.tab { font-family: inherit; }
 .dec-sit.on { border: 2px solid ${p.accent}; background: ${p.accentDim}; box-shadow: 0 4px 14px ${p.shadowSoft}; }
 .dec-cuerpo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 14px; align-items: start; }
 @media (max-width: 900px) { .dec-cuerpo { grid-template-columns: 1fr; } }
+.dec-monto { font-size: 13px; font-weight: 800; color: ${p.accentText}; margin-top: 4px; font-variant-numeric: tabular-nums; }
 .dec-ayuda { font-size: 11px; line-height: 1.45; color: ${p.textMuted}; margin-top: 4px; }
 .dec-check { display: flex; gap: 8px; align-items: center; font-size: 12px; margin: -4px 0 14px; cursor: pointer; }
 .dec-rapidos { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
@@ -5001,6 +5002,8 @@ const SITUACIONES_DECISION = [
   { id: "objetivo", icono: "🎯", titulo: "Llegar a una ganancia" },
   { id: "bajar", icono: "✂️", titulo: "Bajar costos" },
 ];
+// Campos de plata: debajo se muestra el monto con puntos, para ver al toque si sobra o falta un cero
+const CAMPOS_PLATA = ["sueldo", "ventasExtra", "monto", "ventasExtraCosto", "publicidad", "valorCosto", "valorVenta", "ganancia"];
 const TIPOS_PROMO = [
   { id: "pct", l: "% de descuento" }, { id: "2x1", l: "2x1" }, { id: "3x2", l: "3x2" }, { id: "segunda", l: "2ª unidad con descuento" },
 ];
@@ -5172,6 +5175,9 @@ function simularDecision(tipo, b, x) {
       ["Hoy vendés", $(V) + " por mes", dif > 0 ? "te faltan " + $(dif) + " (" + pct(dif / V * 100) + ")" : "ya lo superás"],
       ["Tu mejor mes", b.mejor_mes ? $(mejor) : "—", b.mejor_mes ? MESES_NOMBRE[b.mejor_mes.mes - 1] + " " + b.mejor_mes.anio : ""],
     ];
+    if (Gt > V) {
+      return { nivel: "rojo", titulo: "Revisá el número", texto: "Ojo: querés ganar " + $(Gt) + " por mes, más de lo que vendés hoy en todo un mes (" + $(V) + "). ¿No te sobra un cero? Para ganar eso tendrías que vender " + $(necesarias) + " por mes, " + pct(dif / V * 100) + " más que hoy.", cifras };
+    }
     if (dif <= 0) return { nivel: "verde", titulo: "Ya lo estás logrando", texto: "Con lo que vendés hoy ya ganás " + $(G) + " por mes, más que tu objetivo.", cifras };
     if (necesarias <= Math.max(mejor, V * 1.2)) return { nivel: "amarillo", titulo: "Alcanzable", texto: "Te faltan " + $(dif) + " por mes: " + $(dif / 30) + " más por día." + (b.mejor_mes && necesarias <= mejor ? " Ya lo lograste en tu mejor mes." : ""), cifras };
     return { nivel: "rojo", titulo: "Lejos por ahora", texto: "Tendrías que vender " + pct(dif / V * 100) + " más que hoy, por encima de tu mejor mes. Para acercarte, mirá también cómo bajar costos o mejorar el margen (simulá una suba de precios).", cifras };
@@ -5448,6 +5454,7 @@ function TomaDecisiones({ paletaActual }) {
     <div className="fg">
       <div className="fl">{etiqueta}</div>
       <input className="inp" type="number" min="0" inputMode="decimal" value={x[k]} onChange={e => set(k, e.target.value)} onWheel={e => e.currentTarget.blur()} {...props} />
+      {CAMPOS_PLATA.includes(k) && parseFloat(x[k]) >= 1000 && <div className="dec-monto">= {$(parseFloat(x[k]))}</div>}
       {ayuda && <div className="dec-ayuda">{ayuda}</div>}
     </div>
   );
