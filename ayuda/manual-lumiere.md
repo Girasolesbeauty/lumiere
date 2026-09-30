@@ -405,7 +405,13 @@ Si no sabés qué porcentaje poner, en **Comisiones → Configuración** tocá *
 **Comisiones** → **Configuración** → en "Qué usa este negocio" tocá el interruptor de **Comisiones para vendedores** o de **Desafíos de venta**. Se guarda al tocarlo.
 
 ### Cómo crear un usuario y darle permisos
-**Configuración → Usuarios** → **+ Nuevo usuario** → nombre, email, contraseña inicial, rol (Jefe, Administrativo, Vendedora) y local → **Crear**. Después **Permisos** → tildá las secciones que puede ver o usar (o **Dar todo** / **Quitar todo**) → **Guardar permisos**.
+**Negocio → Usuarios** → **+ Nuevo usuario** → nombre, email, contraseña inicial (mínimo 6 caracteres), rol (Jefe, Administrativo, Vendedora) y local → **Crear**. Después **Permisos**: están ordenados como el menú (Ventas, Stock, Caja, Clientes, Equipo, Finanzas, Negocio) y cada sección tiene su interruptor; si está apagado, esa persona no ve la sección. **Plantilla vendedora** prende lo típico de quien atiende el local; también hay **Dar todo** y **Quitar todo** (en general o por grupo) → **Guardar permisos**. Los cambios se aplican la próxima vez que esa persona entra o recarga la página. El jefe ve todo siempre.
+
+### Cómo desactivar o eliminar un usuario
+En **Negocio → Usuarios**:
+- **Desactivar**: esa persona no puede entrar (si estaba adentro, el sistema la saca). No se borra nada y se puede **Activar** de nuevo. Ideal para vacaciones o licencias.
+- **Eliminar**: el usuario desaparece de la lista, no puede entrar más y se le quitan los permisos; su email queda libre para usarlo en otro usuario. Antes de eliminar aparece un aviso con lo que hizo. **Lo que hizo no se borra** (ventas, movimientos de caja, ajustes de stock, controles de inventario): queda en el historial con su nombre, para que los números del negocio no cambien. Sus tareas sin terminar quedan sin asignar.
+- No se puede desactivar ni eliminar al único jefe, ni a uno mismo.
 
 ### Cómo cambiar el nombre o los datos del negocio
 **Configuración del Negocio** → **Datos generales** → nombre del negocio y logo → **Guardar**. Ahí también se elige si el ticket se imprime, se envía por WhatsApp o se pregunta cada vez.

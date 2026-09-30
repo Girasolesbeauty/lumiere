@@ -588,6 +588,21 @@ button.tab { font-family: inherit; }
 .ci-consejos { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.5; }
 .rot-eval { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; padding: 10px 12px; border-radius: 10px; border: 1px dashed ${p.border}; font-size: 12px; color: ${p.textSoft}; line-height: 1.5; }
 .rot-eval .sel { width: auto; padding: 4px 8px; font-size: 12px; }
+.perm-ayuda { text-align: left; font-size: 12px; color: ${p.textMuted}; margin-bottom: 14px; line-height: 1.5; }
+.perm-grupo { margin-bottom: 16px; }
+.perm-grupo-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.perm-grupo-head span { font-size: 11px; font-weight: 800; letter-spacing: .12em; color: ${p.textMuted}; }
+.perm-grupo-head small { font-size: 11px; color: ${p.textMuted}; margin-right: auto; }
+.perm-secciones { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.perm-seccion { text-align: left; background: ${p.card}; border: 1px solid ${p.border}; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.perm-seccion b { font-size: 13px; margin-bottom: 4px; }
+.perm-fila { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 5px 0; font-size: 12px; color: ${p.textMuted}; cursor: pointer; }
+.perm-fila.on { color: ${p.text}; }
+.perm-switch { appearance: none; -webkit-appearance: none; width: 34px; height: 20px; border-radius: 10px; background: ${p.border}; position: relative; cursor: pointer; flex-shrink: 0; transition: background .2s; margin: 0; }
+.perm-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: left .2s; }
+.perm-switch:checked { background: ${p.green}; }
+.perm-switch:checked::after { left: 16px; }
+.perm-switch:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
 .prem-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
 .prem-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
 .prem-card { background: ${p.card}; border: 1px solid ${p.border}; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; animation: popIn .3s ease-out both; transition: box-shadow .15s, transform .15s; }
@@ -17627,7 +17642,7 @@ function LoginScreen({ onLogin }) {
       localStorage.setItem("lumiere_user", JSON.stringify(res.data.usuario));
       onLogin(res.data.usuario);
     } catch (e) {
-      setError("Email o contraseña incorrectos");
+      setError(e.response?.status === 403 ? (e.response.data?.error || "Este usuario está desactivado") : "Email o contraseña incorrectos");
     }
     setLoading(false);
   };
@@ -17720,30 +17735,54 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
   const rolColor = { jefe: "#c9a84c", administrativo: "#2471a3", vendedora: "#2d7a4f" };
   const rolNombre = { jefe: "Jefe", administrativo: "Administrativo", vendedora: "Vendedora" };
 
-  const TODOS_PERMISOS = {
-    "Configuracion del Negocio": [["config_negocio.editar","Editar configuracion del negocio"]],
-    "Dashboard": [["dashboard.ver","Ver Dashboard"]],
-    "POS": [["pos.ver","Ver Punto de Venta"],["pos.venta","Registrar ventas"],["pos.preventa","Hacer preventas"],["pos.descuento","Aplicar descuentos"]],
-    "Finanzas": [["finanzas.flujo","Ver flujo de efectivo"],["finanzas.egreso","Registrar egresos"],["finanzas.equilibrio","Ver punto de equilibrio"],["finanzas.costos","Ver costos"]],
-    "Ventas Online": [["ventas_online.editar","Editar/eliminar ventas online"]],
-    "Comprobantes": [["comprobantes.ver","Ver comprobantes"]],
-    "Calculadoras": [["calculadoras.ver","Ver calculadoras de precio"]],
-    "Productividad": [["productividad.ver","Ver productividad"]],
-    "Inventario": [["inventario.ver","Ver stock"],["inventario.crear","Crear productos"],["inventario.alertas","Ver alertas"]],
-    "Insumos": [["insumos.ver","Ver insumos"]],
-    "Control de Inventario": [["control_inv.ver","Ver control de inventario"]],
-    "Clientes": [["clientes.ver","Ver clientes"],["clientes.crear","Crear clientes"],["clientes.editar","Editar clientes"]],
-    "Caja": [["caja.ver","Ver caja"],["caja.movimiento","Registrar movimientos"]],
-    "Giftcards": [["giftcards.ver","Ver gift cards"]],
-    "Caja de Respaldo": [["caja_respaldo.ver","Ver caja de respaldo"]],
-    "Cierre de Caja": [["cierre_caja.ver","Ver cierre de caja"]],
-    "Comisiones": [["comisiones.propias","Ver propias"],["comisiones.todas","Ver todas"]],
-    "Proveedores": [["proveedores.ver","Ver proveedores"],["proveedores.crear","Crear/editar"]],
-    "Kits": [["kits.ver","Ver kits"],["kits.crear","Crear/editar"],["kits.vender","Vender kits"]],
-    "Ordenes de Ingreso": [["ordenes.ver","Ver ordenes"],["ordenes.crear","Crear ordenes"],["ordenes.recibir","Recibir mercaderia"]],
-    "Usuarios": [["usuarios.ver","Ver usuarios"],["usuarios.crear","Crear usuarios"],["usuarios.permisos","Modificar permisos"]],
-    "Marketing": [["cupones.ver","Ver cupones"],["cupones.gestionar","Gestionar cupones"],["fidelizacion.ver","Ver fidelizacion"],["fidelizacion.gestionar","Gestionar fidelizacion"],["postventa.ver","Ver postventa WA"],["postventa.gestionar","Gestionar postventa WA"]]
-  };
+  // Permisos ordenados como el menu. Cada seccion tiene su "Ver" y, si corresponde, lo que se
+  // puede hacer adentro. Solo figuran los que de verdad cambian algo en el sistema.
+  const GRUPOS_PERMISOS = [
+    { grupo: "VENTAS", secciones: [
+      ["Dashboard", [["dashboard.ver", "Ver el Dashboard"]]],
+      ["Punto de Venta", [["pos.ver", "Usar el Punto de Venta"]]],
+      ["Ventas Online", [["ventas_online.ver", "Ver ventas online"], ["ventas_online.editar", "Editar y eliminar ventas online"]]],
+      ["Buscar Precio", [["buscar_precio.ver", "Buscar precios"]]],
+      ["Cambio / Devolución", [["cambios.ver", "Hacer cambios y devoluciones"]]] ] },
+    { grupo: "STOCK", secciones: [
+      ["Inventario", [["inventario.ver", "Ver y editar el inventario"]]],
+      ["Compras y proveedores", [["compras.ver", "Ver qué pedir, pedidos y reclamos"], ["proveedores.ver", "Ver proveedores (datos y pagos)"]]],
+      ["Ingresos", [["ordenes.ver", "Ver ingresos de mercadería"], ["ordenes.crear", "Cargar ingresos nuevos"]]],
+      ["Control de Inventario", [["control_inv.ver", "Hacer controles de inventario"]]],
+      ["Rotación", [["rotacion.ver", "Ver la rotación (incluye costos)"]]],
+      ["Inconsistencias", [["inconsistencias.ver", "Ver inconsistencias de stock"]]],
+      ["Kits", [["kits.ver", "Ver y armar kits"]]],
+      ["Insumos", [["insumos.ver", "Ver insumos"]]] ] },
+    { grupo: "CAJA", secciones: [
+      ["Caja", [["caja.ver", "Ver la caja"]]],
+      ["Cierre de Caja", [["cierre_caja.ver", "Hacer el cierre de caja"]]],
+      ["Caja de Respaldo", [["caja_respaldo.ver", "Ver la caja de respaldo"]]],
+      ["Gift Cards", [["giftcards.ver", "Emitir y ver gift cards"]]],
+      ["Comprobantes", [["comprobantes.ver", "Ver facturas y tickets"]]] ] },
+    { grupo: "CLIENTES", secciones: [
+      ["Clientes", [["clientes.ver", "Ver y cargar clientes"]]],
+      ["Pedidos", [["pedidos.ver", "Anotar pedidos y avisar"]]],
+      ["Fidelización", [["fidelizacion.ver", "Puntos y canjes en el local"]]],
+      ["Portal Cliente", [["portal.ver", "Premios y diseño del portal"]]],
+      ["Postventa WA", [["postventa.ver", "Mensajes de postventa"]]],
+      ["Cupones", [["cupones.ver", "Ver y crear cupones"]]],
+      ["Promociones", [["promociones.ver", "Ver y crear promociones"]]] ] },
+    { grupo: "EQUIPO", secciones: [
+      ["Tareas", [["tareas.ver", "Ver sus tareas"]]],
+      ["Comisiones", [["comisiones.propias", "Ver comisiones"]]],
+      ["Productividad", [["productividad.ver", "Ver la productividad"]]] ] },
+    { grupo: "FINANZAS", secciones: [
+      ["Finanzas", [["finanzas.flujo", "Ver finanzas (ingresos, gastos, resultado)"]]],
+      ["Toma de decisiones", [["decisiones.ver", "Usar Toma de decisiones"]]],
+      ["Calculadoras", [["calculadoras.ver", "Usar calculadoras de precio"]]] ] },
+    { grupo: "NEGOCIO", secciones: [
+      ["Configuración del Negocio", [["config_negocio.editar", "Cambiar la configuración del negocio"]]] ] },
+  ];
+  const TODAS_LAS_CLAVES = GRUPOS_PERMISOS.flatMap(g => g.secciones.flatMap(([, perms]) => perms.map(x => x[0])));
+  // Lo tipico para quien atiende el local
+  const PLANTILLA_VENDEDORA = ["dashboard.ver", "pos.ver", "ventas_online.ver", "buscar_precio.ver", "cambios.ver", "inventario.ver", "control_inv.ver", "kits.ver",
+    "caja.ver", "cierre_caja.ver", "giftcards.ver", "clientes.ver", "pedidos.ver", "fidelizacion.ver", "tareas.ver", "comisiones.propias"];
+  const [eliminando, setEliminando] = useState(null); // { u, actividad }
 
   const cargar = async () => {
     setLoading(true);
@@ -17785,8 +17824,9 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
   };
 
   const cambiarPassword = async (id) => {
-    const nueva = prompt("Nueva contrasena:");
+    const nueva = prompt("Nueva contraseña (mínimo 6 caracteres):");
     if (!nueva) return;
+    if (nueva.length < 6) return setMensaje("Error: la contraseña tiene que tener al menos 6 caracteres");
     try {
       await API.put("/auth/usuarios/" + id + "/password", { password: nueva });
       setMensaje("Contrasena actualizada!");
@@ -17813,6 +17853,27 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
     else setPermisosUsuario(prev => [...new Set([...prev, ...claves])]);
   };
 
+  const cambiarEstado = async (u, activo) => {
+    if (!activo && !confirm("¿Desactivar a " + u.nombre + "? No va a poder entrar al sistema hasta que lo vuelvas a activar. No se borra nada.")) return;
+    try {
+      await API.put("/auth/usuarios/" + u.id + "/estado", { activo });
+      setMensaje(activo ? "✓ " + u.nombre + " puede volver a entrar" : u.nombre + " quedó desactivado");
+      cargar(); setTimeout(() => setMensaje(""), 3500);
+    } catch (e) { setMensaje("Error: " + (e.response?.data?.error || e.message)); }
+  };
+  const pedirEliminar = async (u) => {
+    setEliminando({ u, actividad: null });
+    try { const r = await API.get("/auth/usuarios/" + u.id + "/actividad"); setEliminando(x => x && x.u.id === u.id ? { ...x, actividad: r.data } : x); }
+    catch (e) { setEliminando(x => x && x.u.id === u.id ? { ...x, actividad: {} } : x); }
+  };
+  const confirmarEliminar = async () => {
+    const u = eliminando.u;
+    try {
+      await API.delete("/auth/usuarios/" + u.id);
+      setEliminando(null); setMensaje(u.nombre + " fue eliminado"); cargar(); setTimeout(() => setMensaje(""), 3500);
+    } catch (e) { setEliminando(null); setMensaje("Error: " + (e.response?.data?.error || e.message)); }
+  };
+
   const guardarPermisos = async () => {
     try {
       await API.put("/permisos/" + editandoPermisos.id, { permisos: permisosUsuario });
@@ -17828,44 +17889,47 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
         <div className="ph">
           <div>
             <div className="pt">Permisos de {editandoPermisos.nombre}</div>
-            <div className="ps">{rolNombre[editandoPermisos.rol] || editandoPermisos.rol} — {permisosUsuario.length} permisos activos</div>
+            <div className="ps">{rolNombre[editandoPermisos.rol] || editandoPermisos.rol} — {permisosUsuario.filter(x => TODAS_LAS_CLAVES.includes(x)).length} de {TODAS_LAS_CLAVES.length} permisos activos</div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button className="btn btn-g btn-sm" onClick={() => setPermisosUsuario([])}>Quitar todo</button>
-            <button className="btn btn-g btn-sm" onClick={() => setPermisosUsuario(Object.values(TODOS_PERMISOS).flat().map(p => p[0]))}>Dar todo</button>
+            <button className="btn btn-g btn-sm" title="Punto de venta, caja, clientes, pedidos, tareas y sus comisiones" onClick={() => setPermisosUsuario(PLANTILLA_VENDEDORA)}>Plantilla vendedora</button>
+            <button className="btn btn-g btn-sm" onClick={() => setPermisosUsuario(TODAS_LAS_CLAVES)}>Dar todo</button>
             <button className="btn btn-g btn-sm" onClick={() => setEditandoPermisos(null)}>Cancelar</button>
             <button className="btn btn-p btn-sm" onClick={guardarPermisos}>Guardar permisos</button>
           </div>
         </div>
-        {mensaje && <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f", borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: "#2d7a4f" }}>{mensaje}</div>}
-        <div className="g2">
-          {Object.entries(TODOS_PERMISOS).map(([modulo, perms]) => {
-            const claves = perms.map(p => p[0]);
-            const activos = claves.filter(c => permisosUsuario.includes(c)).length;
-            const todosActivos = activos === claves.length;
-            return (
-              <div key={modulo} className="card">
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                  <div className="ct" style={{ margin: 0 }}>{modulo}</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 10, color: temaPal.textMuted }}>{activos}/{claves.length}</span>
-                    <div onClick={() => toggleGrupo(perms)} style={{ width: 36, height: 20, borderRadius: 10, background: todosActivos ? "var(--acento)" : temaPal.border, cursor: "pointer", position: "relative", transition: "background .2s" }}>
-                      <div style={{ position: "absolute", top: 2, left: todosActivos ? 18 : 2, width: 16, height: 16, borderRadius: "50%", background: "white", transition: "left .2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
-                    </div>
-                  </div>
-                </div>
-                {perms.map(([clave, label]) => (
-                  <div key={clave} onClick={() => togglePermiso(clave)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #f5f5f5", cursor: "pointer" }}>
-                    <span style={{ fontSize: 12, color: permisosUsuario.includes(clave) ? temaPal.text : temaPal.textMuted }}>{label}</span>
-                    <div style={{ width: 28, height: 16, borderRadius: 8, background: permisosUsuario.includes(clave) ? "#2d7a4f" : temaPal.border, position: "relative", transition: "background .2s" }}>
-                      <div style={{ position: "absolute", top: 2, left: permisosUsuario.includes(clave) ? 14 : 2, width: 12, height: 12, borderRadius: "50%", background: "white", transition: "left .2s" }} />
-                    </div>
+        {mensaje && <div className={"cc-aviso " + (mensaje.startsWith("Error") ? "bad" : "ok")}>{mensaje}</div>}
+        <div className="perm-ayuda">Cada sección del menú tiene su permiso: si está apagado, esa persona no la ve. Los permisos se aplican la próxima vez que entra o recarga la página.</div>
+        {GRUPOS_PERMISOS.map(g => {
+          const claves = g.secciones.flatMap(([, perms]) => perms.map(x => x[0]));
+          const activos = claves.filter(c => permisosUsuario.includes(c)).length;
+          return (
+            <div key={g.grupo} className="perm-grupo">
+              <div className="perm-grupo-head">
+                <span>{g.grupo}</span>
+                <small>{activos}/{claves.length}</small>
+                <button className="chip-btn" onClick={() => toggleGrupo(claves.map(c => [c]))}>{activos === claves.length ? "Quitar todo" : "Dar todo"}</button>
+              </div>
+              <div className="perm-secciones">
+                {g.secciones.map(([nombre, perms]) => (
+                  <div key={nombre} className="perm-seccion">
+                    <b>{nombre}</b>
+                    {perms.map(([clave, label]) => {
+                      const on = permisosUsuario.includes(clave);
+                      return (
+                        <label key={clave} className={"perm-fila" + (on ? " on" : "")}>
+                          <span>{label}</span>
+                          <input type="checkbox" className="perm-switch" checked={on} onChange={() => togglePermiso(clave)} />
+                        </label>
+                      );
+                    })}
                   </div>
                 ))}
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -17947,19 +18011,24 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
       <div className="card">
         {loading ? <div style={{ color: temaPal.textMuted, padding: 20 }}>Cargando...</div> : (
           <table>
-            <thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Local</th><th>Acciones</th></tr></thead>
+            <thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Local</th><th>Estado</th><th>Acciones</th></tr></thead>
             <tbody>
               {usuarios.map(u => (
-                <tr key={u.id}>
-                  <td style={{ color: temaPal.text, fontWeight: 500 }}>{u.nombre}</td>
+                <tr key={u.id} style={u.activo === false ? { opacity: .6 } : undefined}>
+                  <td style={{ color: temaPal.text, fontWeight: 500 }}>{u.nombre}{u.id === usuarioActual?.id ? <span style={{ color: temaPal.textMuted, fontWeight: 400 }}> (vos)</span> : null}</td>
                   <td>{u.email}</td>
                   <td><span className="badge" style={{ background: (rolColor[u.rol] || temaPal.textMuted) + "15", color: u.rol === "jefe" ? "var(--acento-texto)" : rolColor[u.rol] || temaPal.textMuted }}>{rolNombre[u.rol] || u.rol}</span></td>
                   <td>{u.local_nombre || "-"}</td>
+                  <td>{u.activo === false ? <span className="tag tag-neutral">Desactivado</span> : <span className="tag tag-ok">Activo</span>}</td>
                   <td>
-                    <div style={{ display: "flex", gap: 4 }}>
-                      <button className="btn btn-p btn-sm" onClick={() => abrirPermisos(u)}>Permisos</button>
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                      {u.rol !== "jefe" && <button className="btn btn-p btn-sm" onClick={() => abrirPermisos(u)}>Permisos</button>}
                       <button className="btn btn-g btn-sm" onClick={() => abrirEditarUsuario(u)}>Editar</button>
-                      <button className="btn btn-g btn-sm" onClick={() => cambiarPassword(u.id)}>Contrasena</button>
+                      <button className="btn btn-g btn-sm" onClick={() => cambiarPassword(u.id)}>Contraseña</button>
+                      {u.id !== usuarioActual?.id && (u.activo === false
+                        ? <button className="btn btn-g btn-sm" onClick={() => cambiarEstado(u, true)}>Activar</button>
+                        : <button className="btn btn-g btn-sm" onClick={() => cambiarEstado(u, false)}>Desactivar</button>)}
+                      {u.id !== usuarioActual?.id && <button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={() => pedirEliminar(u)}>Eliminar</button>}
                     </div>
                   </td>
                 </tr>
@@ -17968,6 +18037,33 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
           </table>
         )}
       </div>
+      {eliminando && (
+        <div className="pos-overlay" onClick={e => e.target === e.currentTarget && setEliminando(null)}>
+          <div className="card pop-in" style={{ width: 460, maxWidth: "95vw", background: temaPal.card, textAlign: "left" }} role="alertdialog" aria-modal="true" aria-label={"Eliminar a " + eliminando.u.nombre}>
+            <div className="chart-title">¿Eliminar a {eliminando.u.nombre}?</div>
+            <div className="cc-aviso" style={{ marginTop: 10, background: temaPal.warnDim, color: temaPal.text, border: "1px solid " + temaPal.warn + "66", lineHeight: 1.55 }}>
+              ⚠️ <b>Se elimina el usuario:</b> ya no va a poder entrar, desaparece de esta lista y se le quitan todos los permisos. No se puede deshacer.
+            </div>
+            <div style={{ fontSize: 13, lineHeight: 1.55, margin: "10px 0" }}>
+              <b>Lo que hizo no se borra</b>: queda en el historial con su nombre, para que tus números no cambien.
+              {eliminando.actividad === null ? <div className="skel" style={{ height: 50, marginTop: 8 }} /> : (
+                <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                  <li>{eliminando.actividad.ventas || 0} ventas</li>
+                  <li>{eliminando.actividad.caja || 0} movimientos de caja</li>
+                  <li>{eliminando.actividad.ajustes || 0} ajustes de stock y {eliminando.actividad.controles || 0} controles de inventario</li>
+                  {eliminando.actividad.tareas_pendientes > 0 && <li>{eliminando.actividad.tareas_pendientes === 1 ? "1 tarea sin terminar: queda" : eliminando.actividad.tareas_pendientes + " tareas sin terminar: quedan"} sin asignar para que otra persona las tome</li>}
+                </ul>
+              )}
+            </div>
+            <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 12 }}>Si solo querés que no entre por un tiempo (vacaciones, licencia), usá <b>Desactivar</b>: se puede volver a activar.</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEliminando(null)}>Cancelar</button>
+              {eliminando.u.activo !== false && <button className="btn btn-g" style={{ flex: 1 }} onClick={() => { const u = eliminando.u; setEliminando(null); cambiarEstado(u, false); }}>Solo desactivar</button>}
+              <button className="btn" style={{ flex: 1, background: temaPal.red, color: "#fff" }} onClick={confirmarEliminar}>Sí, eliminar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -18356,7 +18452,15 @@ export default function AppWrapper() {
 
   const cargarMisPermisos = async (uid, esJefe) => {
     try {
-      const res = await API.get("/permisos/" + uid);
+      let res;
+      try { res = await API.get("/permisos/" + uid); }
+      catch (err) {
+        if (err.response?.status === 403 && err.response.data?.inactivo) {
+          alert("Tu usuario fue desactivado. Pedile al jefe que lo vuelva a activar.");
+          handleLogout();
+        }
+        return;
+      }
       const permisos = res.data || [];
       setPermisosActivos(permisos);
       // Si no puede ver el dashboard (y no es jefe, que ve todo), arrancar en la primera
@@ -18364,7 +18468,7 @@ export default function AppWrapper() {
       if (!esJefe && !permisos.includes("dashboard.ver")) {
         const ordenPrioridad = ["pos", "ventas-online", "clients", "inventory", "caja"];
         const mapaModulos2 = {
-          "pos": "pos.ver", "ventas-online": "ventas_online.editar", "inventory": "inventario.ver",
+          "pos": "pos.ver", "ventas-online": "ventas_online.ver", "inventory": "inventario.ver",
           "clients": "clientes.ver", "caja": "caja.ver"
         };
         const disponible = ordenPrioridad.find(id => !mapaModulos2[id] || permisos.includes(mapaModulos2[id]));
@@ -18378,12 +18482,14 @@ export default function AppWrapper() {
     if (usuario.rol === "jefe" || usuario.rol_id === 1) return true;
  const mapaModulos = {
       "pos": "pos.ver", "dashboard": "dashboard.ver",
-      "inventory": "inventario.ver", "rotacion": "inventario.ver", "ordenes": "ordenes.ver", "inconsistencias": "ordenes.ver", "kits": "kits.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
-      "clients": "clientes.ver", "fidelizacion": "fidelizacion.ver",
-      "finance": "finanzas.flujo", "decisiones": "finanzas.flujo", "comprobantes": "comprobantes.ver",
+      "ventas-online": "ventas_online.ver", "buscar-precio": "buscar_precio.ver", "cambio-devolucion": "cambios.ver",
+      "inventory": "inventario.ver", "rotacion": "rotacion.ver", "ordenes": "ordenes.ver", "inconsistencias": "inconsistencias.ver", "kits": "kits.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
+      "compras": "compras.ver", "reclamos-proveedores": "compras.ver",
+      "clients": "clientes.ver", "pedidos": "pedidos.ver", "fidelizacion": "fidelizacion.ver", "tareas": "tareas.ver",
+      "finance": "finanzas.flujo", "decisiones": "decisiones.ver", "comprobantes": "comprobantes.ver",
       "comisiones": "comisiones.propias", "proveedores": "proveedores.ver",
       "calculadoras": "calculadoras.ver", "productividad": "productividad.ver",
-      "cupones": "cupones.ver", "promociones": "cupones.ver", "postventa": "postventa.ver", "portal": "clientes.ver",
+      "cupones": "cupones.ver", "promociones": "promociones.ver", "postventa": "postventa.ver", "portal": "portal.ver",
       "caja": "caja.ver", "caja-respaldo": "caja_respaldo.ver", "cierre": "cierre_caja.ver", "giftcards": "giftcards.ver",
       "usuarios": "usuarios.ver", "config-negocio": "config_negocio.editar",
     };
