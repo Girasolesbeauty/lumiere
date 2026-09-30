@@ -472,6 +472,65 @@ button.tab { font-family: inherit; }
 .dec-idea-ah { font-size: 13px; font-weight: 800; color: ${p.green}; }
 .dec-idea-ah.sin { color: ${p.textMuted}; font-weight: 600; }
 .dec-idea-ah small { font-weight: 600; color: ${p.textMuted}; }
+.cli-av { width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; color: #fff; background: var(--nc); box-shadow: 0 0 0 2px ${p.card}, 0 0 0 3px var(--nc); }
+.cli-av.grande { width: 58px; height: 58px; font-size: 20px; }
+.cli-filtros { padding: 14px; border-bottom: 1px solid ${p.border}; display: flex; flex-direction: column; gap: 10px; }
+.cli-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.cli-busca { display: grid; grid-template-columns: 1fr 180px; gap: 8px; }
+@media (max-width: 600px) { .cli-busca { grid-template-columns: 1fr; } }
+.cli-tip { margin: 10px 14px 0; font-size: 12.5px; line-height: 1.5; padding: 10px 12px; border-radius: 8px; background: ${p.accentDim}; }
+.cli-tabla td { vertical-align: middle; }
+.cli-fila { cursor: pointer; transition: background .12s; }
+.cli-fila:hover, .cli-fila:focus-visible { background: ${p.trHover}; outline: none; }
+.cli-ficha { width: 820px; max-width: 96vw; max-height: 92vh; overflow-y: auto; text-align: left; }
+.cli-ficha-head { display: flex; gap: 14px; align-items: flex-start; }
+.cli-prox { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: ${p.bg}; }
+.cli-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-top: 12px; }
+.cli-stats div { background: ${p.bg}; border-radius: 8px; padding: 9px 11px; display: flex; flex-direction: column; gap: 2px; }
+.cli-stats span { font-size: 11px; color: ${p.textMuted}; }
+.cli-stats b { font-size: 15px; font-variant-numeric: tabular-nums; }
+.cli-ficha-cols { display: grid; grid-template-columns: 1fr 1.2fr; gap: 16px; margin-top: 14px; }
+@media (max-width: 700px) { .cli-ficha-cols { grid-template-columns: 1fr; } }
+.cli-sub { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: ${p.textMuted}; margin-bottom: 6px; }
+.cli-prod { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 6px 0; border-bottom: 1px solid ${p.border}; }
+.cli-prod small { color: ${p.textMuted}; white-space: nowrap; }
+.cli-vacio { font-size: 12px; color: ${p.textMuted}; padding: 6px 0; }
+.cli-hist { display: flex; flex-direction: column; }
+.cli-hist-fila { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid ${p.border}; }
+.cli-acciones { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 16px; padding-top: 12px; border-top: 1px solid ${p.border}; }
+.niv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.niv-card { border: 1px solid ${p.border}; border-top: 3px solid var(--nc); border-radius: 10px; padding: 12px; background: ${p.card}; }
+.niv-top { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.niv-cant { font-size: 11px; color: ${p.textMuted}; }
+.niv-desde { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: ${p.textSoft}; margin-top: 10px; }
+.portal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 860px) { .portal-grid { grid-template-columns: 1fr; } }
+.portal-msg { font-size: 12.5px; line-height: 1.55; padding: 10px 12px; border-radius: 10px; background: ${p.bg}; border: 1px dashed ${p.border}; }
+.portal-sug { position: absolute; left: 0; right: 0; top: 100%; z-index: 5; background: ${p.card}; border: 1px solid ${p.border}; border-radius: 10px; box-shadow: 0 8px 24px ${p.shadowCol}; overflow: hidden; }
+.portal-sug button { display: flex; justify-content: space-between; gap: 8px; width: 100%; padding: 9px 12px; border: none; background: transparent; color: ${p.text}; font-family: inherit; font-size: 13px; cursor: pointer; text-align: left; }
+.portal-sug button:hover { background: ${p.trHover}; }
+.portal-sug small { color: ${p.textMuted}; }
+.portal-prev { display: grid; grid-template-columns: 360px 1fr; gap: 20px; margin-top: 14px; align-items: start; }
+@media (max-width: 760px) { .portal-prev { grid-template-columns: 1fr; } }
+.portal-tel { border: 8px solid #1b1f27; border-radius: 30px; overflow: hidden; background: ${p.card}; box-shadow: 0 16px 40px ${p.shadowCol}; }
+.portal-tel-top { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; font-size: 12px; font-weight: 800; color: var(--acento-texto); border-bottom: 1px solid ${p.border}; }
+.portal-tel-top small { font-weight: 600; color: ${p.textMuted}; }
+.portal-hola { padding: 16px; background: linear-gradient(135deg, ${p.btnTop}, ${p.btnBot}); color: #fff; display: flex; flex-direction: column; gap: 4px; }
+.portal-hola small { opacity: .85; }
+.portal-hola .badge { align-self: flex-start; background: rgba(255,255,255,.92); color: #1b1f27; }
+.portal-hola b { font-size: 18px; }
+.portal-pts { font-size: 13px; margin: 4px 0 6px; }
+.portal-pts span { font-size: 30px; font-weight: 900; }
+.portal-tabs { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid ${p.border}; }
+.portal-tabs button { padding: 10px 4px; border: none; background: transparent; font-family: inherit; font-size: 12px; font-weight: 700; color: ${p.textMuted}; cursor: pointer; border-bottom: 2px solid transparent; }
+.portal-tabs button.on { color: var(--acento-texto); border-bottom-color: var(--acento); }
+.portal-cont { padding: 10px 14px 14px; max-height: 340px; overflow-y: auto; }
+.portal-premio { display: flex; justify-content: space-between; gap: 10px; padding: 10px; margin-bottom: 8px; border-radius: 10px; border: 1px solid ${p.border}; opacity: .7; }
+.portal-premio.ok { opacity: 1; border-color: var(--acento); background: var(--acento-dim); }
+.portal-premio b { display: block; font-size: 13px; }
+.portal-premio small { display: block; font-size: 11px; color: ${p.textMuted}; margin-top: 2px; }
+.portal-premio-pts { font-weight: 900; color: var(--acento-texto); font-size: 14px; }
+.portal-notas { display: flex; flex-direction: column; }
 .dec-base { margin-bottom: 14px; }
 .dec-base-tit { font-size: 13px; font-weight: 800; margin-bottom: 10px; }
 .dec-base-tit span { font-weight: 500; font-size: 11px; color: ${p.textMuted}; margin-left: 6px; }
@@ -727,27 +786,9 @@ const obtenerTemaGuardado = () => {
 const guardarTema = (tema) => { try { localStorage.setItem("lumiere_tema", tema); } catch (e) {} };
 
 
-const CLIENTS = [
-  { id: 1, name: "Garcia, Maria", email: "maria@gmail.com", cuit: "20-34521678-9", points: 1240, tier: "Gold", purchases: 14, total: 186500 },
-  { id: 2, name: "Comercial SA", email: "compras@comercial.com", cuit: "30-71234567-8", points: 3800, tier: "Platinum", purchases: 6, total: 312000 },
-  { id: 3, name: "Lopez, Ana", email: "ana@gmail.com", cuit: "27-28901234-5", points: 760, tier: "Silver", purchases: 9, total: 98400 },
-  { id: 4, name: "Rodriguez, Paula", email: "paula@gmail.com", cuit: "23-45678901-4", points: 210, tier: "Bronze", purchases: 3, total: 31200 },
-  { id: 5, name: "Fernandez, Lucia", email: "lucia@gmail.com", cuit: "20-41234567-8", points: 580, tier: "Silver", purchases: 7, total: 84600 },
-];
 
-const REWARDS = [
-  { id: 1, name: "Voucher de $5.000", brand: "TU LOCAL", pts: 400, emoji: "ok_hand", stock: 8 },
-  { id: 2, name: "Bolsa reutilizable", brand: "TU LOCAL", pts: 200, emoji: "droplet", stock: 15 },
-  { id: 3, name: "Regalo sorpresa", brand: "TU LOCAL", pts: 600, emoji: "lipstick", stock: 5 },
-  { id: 4, name: "10% descuento proxima compra", brand: "TU LOCAL", pts: 300, emoji: "gift", stock: 99 },
-  { id: 5, name: "Voucher de $15.000", brand: "TU LOCAL", pts: 1200, emoji: "herb", stock: 3 },
-  { id: 6, name: "Envío gratis", brand: "TU LOCAL", pts: 900, emoji: "cherry_blossom", stock: 4 },
-];
 
-const REWARDS_DISPLAY = REWARDS.map(r => ({
-  ...r,
-  emoji: r.emoji === "ok_hand" ? "👌" : r.emoji === "droplet" ? "💧" : r.emoji === "lipstick" ? "💄" : r.emoji === "gift" ? "🎁" : r.emoji === "herb" ? "🌿" : "🌸",
-}));
+
 
 
 
@@ -7375,6 +7416,29 @@ function Inventario({ localId, usuario, paletaActual }) {
   );
 }
 
+// ============ Clientes ============
+const NIVELES_ORDEN = ["Bronze", "Silver", "Gold", "Platinum", "Black"];
+const COLOR_NIVEL = { Bronze: "#b0742f", Silver: "#7f8c8d", Gold: "#c9a84c", Platinum: "#7d3c98", Black: "#2b2b2b" };
+const diasDesdeFecha = (f) => (f ? Math.floor((Date.now() - new Date(f).getTime()) / 86400000) : null);
+const textoHace = (d) => (d === null ? "nunca" : d === 0 ? "hoy" : d === 1 ? "ayer" : d < 30 ? "hace " + d + " días" : d < 365 ? "hace " + Math.round(d / 30) + (Math.round(d / 30) === 1 ? " mes" : " meses") : "hace más de un año");
+const cumpleEsteMes = (f) => { if (!f) return false; const d = new Date(f); return d.getUTCMonth() === new Date().getMonth(); };
+const linkWhatsapp = (tel, texto) => {
+  let n = String(tel || "").replace(/[^0-9]/g, "");
+  if (!n) return null;
+  if (n.startsWith("0")) n = n.slice(1);
+  if (!n.startsWith("54")) n = "549" + n;
+  return "https://wa.me/" + n + (texto ? "?text=" + encodeURIComponent(texto) : "");
+};
+const inicialesDe = (nombre) => String(nombre || "?").replace(/,/g, " ").split(/\s+/).filter(Boolean).slice(0, 2).map(x => x[0].toUpperCase()).join("");
+const SEGMENTOS_CLIENTES = [
+  { id: "todos", l: "Todos" },
+  { id: "frecuentes", l: "⭐ Frecuentes", f: c => c.compras >= 3 && diasDesdeFecha(c.ultima_compra) <= 90 },
+  { id: "nuevos", l: "🆕 Nuevos", f: c => diasDesdeFecha(c.creado_en) !== null && diasDesdeFecha(c.creado_en) <= 30 },
+  { id: "recuperar", l: "😴 Para recuperar", f: c => c.compras > 0 && diasDesdeFecha(c.ultima_compra) > 90 },
+  { id: "cumple", l: "🎂 Cumplen este mes", f: c => cumpleEsteMes(c.fecha_nacimiento) },
+  { id: "sincompras", l: "Sin compras", f: c => !c.compras },
+];
+
 function Clientes({ usuario, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState("lista");
@@ -7390,286 +7454,384 @@ function Clientes({ usuario, paletaActual }) {
   const [migHist, setMigHist] = useState([]);
   const [migMsg, setMigMsg] = useState("");
   const [busqueda, setBusqueda] = useState("");
-  const tierNext = { Bronze: 2000, Silver: 5000, Gold: 10000, Platinum: 20000, Black: 99999 };
+  const [segmento, setSegmento] = useState("todos");
+  const [orden, setOrden] = useState("ultima");
+  const [ficha, setFicha] = useState(null); // { cliente, resumen, historial }
+  const [niveles, setNiveles] = useState(null);
+  const [umbralesForm, setUmbralesForm] = useState(null);
+  const [guardandoNiveles, setGuardandoNiveles] = useState(false);
 
-  useEffect(() => {
-    getClientes().then(res => { setClientes(res.data || []); setLoading(false); }).catch(() => { setClientes([]); setLoading(false); });
-  }, []);
+  const avisar = (m) => { setMensaje(m); setTimeout(() => setMensaje(""), 3500); };
+  const cargarClientes = () => getClientes().then(res => { setClientes(res.data || []); setLoading(false); }).catch(() => { setClientes([]); setLoading(false); });
+  const cargarNiveles = () => API.get("/clientes/config/niveles").then(r => { setNiveles(r.data); setUmbralesForm(r.data.umbrales); }).catch(() => {});
+  useEffect(() => { cargarClientes(); cargarNiveles(); }, []);
+
+  const abrirFicha = async (c) => {
+    setFicha({ cliente: c, resumen: null, historial: null });
+    const [r1, r2] = await Promise.allSettled([API.get("/pos/cliente/" + c.id + "/resumen"), API.get("/clientes/" + c.id + "/historial")]);
+    setFicha(f => f && f.cliente.id === c.id ? { ...f, resumen: r1.status === "fulfilled" ? r1.value.data : null, historial: r2.status === "fulfilled" ? r2.value.data : [] } : f);
+  };
 
   const abrirMigrar = async (cli) => {
     setMigrarCli(cli); setMigMonto(""); setMigFecha(new Date().toISOString().slice(0, 10)); setMigMsg("");
     try { const r = await API.get("/clientes/" + cli.id + "/migrar-puntos"); setMigHist(r.data || []); } catch (e) { setMigHist([]); }
   };
   const guardarMigracion = async (confirmar) => {
-    if (!migMonto || parseFloat(migMonto) <= 0) { setMigMsg("Ingresa un monto valido"); return; }
+    if (!migMonto || parseFloat(migMonto) <= 0) { setMigMsg("Ingresá un monto válido"); return; }
     try {
-      await API.post("/clientes/" + migrarCli.id + "/migrar-puntos", {
-        monto: parseFloat(migMonto), fecha_compra: migFecha, confirmar_duplicado: confirmar === true
-      });
-      const puntos = Math.floor(parseFloat(migMonto) / 100);
-      setMigMsg("Listo! Se sumaron " + puntos + " puntos.");
+      await API.post("/clientes/" + migrarCli.id + "/migrar-puntos", { monto: parseFloat(migMonto), fecha_compra: migFecha, confirmar_duplicado: confirmar === true });
+      setMigMsg("¡Listo! Se sumaron " + Math.floor(parseFloat(migMonto) / 100) + " puntos.");
       setMigMonto("");
       const r = await API.get("/clientes/" + migrarCli.id + "/migrar-puntos"); setMigHist(r.data || []);
-      // refrescar lista de clientes
-      getClientes().then(res => setClientes(res.data || [])).catch(() => {});
+      cargarClientes();
     } catch (e) {
-      if (e?.response?.status === 409 && e.response.data?.posible_duplicado) {
-        setMigMsg("DUP:" + e.response.data.error);
-      } else {
-        setMigMsg("Error: " + (e?.response?.data?.error || "no se pudo cargar"));
-      }
+      if (e?.response?.status === 409 && e.response.data?.posible_duplicado) setMigMsg("DUP:" + e.response.data.error);
+      else setMigMsg("Error: " + (e?.response?.data?.error || "no se pudo cargar"));
     }
   };
-
   const resetearPortalCliente = async (cli) => {
-    if (!confirm("Resetear la contrasena del portal de " + (cli.nombre || cli.name) + "? Va a poder volver a registrarse con su DNI.")) return;
-    try {
-      await API.post("/clientes/" + cli.id + "/resetear-portal");
-      setMensaje("Contrasena del portal reseteada. El cliente ya puede registrarse de nuevo con su DNI.");
-      setTimeout(() => setMensaje(""), 4000);
-    } catch (e) {
-      setMensaje("Error al resetear la contrasena del portal");
-    }
+    if (!confirm("¿Resetear la contraseña del portal de " + cli.nombre + "? Va a poder volver a registrarse con su DNI.")) return;
+    try { await API.post("/clientes/" + cli.id + "/resetear-portal"); avisar("Contraseña del portal reseteada: ya puede registrarse de nuevo con su DNI."); cargarClientes(); }
+    catch (e) { avisar("Error al resetear la contraseña del portal"); }
   };
-
   const guardarCliente = async () => {
-    if (!nuevoCliente.nombre || !nuevoCliente.nombre.trim()) { setMensaje("El nombre es obligatorio"); return; }
-    if (!nuevoCliente.telefono || !nuevoCliente.telefono.trim()) { setMensaje("El celular es obligatorio"); return; }
+    if (!nuevoCliente.nombre.trim()) return avisar("Error: el nombre es obligatorio");
+    if (!nuevoCliente.telefono.trim()) return avisar("Error: el celular es obligatorio");
     try {
-      const { createCliente } = await import("./api");
-      await createCliente(nuevoCliente);
-      setMensaje("Cliente guardado correctamente!");
+      await API.post("/clientes", nuevoCliente);
+      avisar("¡Cliente guardado!");
       setShowForm(false);
       setNuevoCliente({ nombre: "", email: "", cuit_dni: "", telefono: "", fecha_nacimiento: "" });
-      getClientes().then(res => setClientes(res.data));
-      setTimeout(() => setMensaje(""), 3000);
-    } catch (e) {
-      setMensaje("Error al guardar cliente");
-    }
+      cargarClientes();
+    } catch (e) { avisar("Error: " + (e.response?.data?.error || "no se pudo guardar el cliente")); }
   };
-
   const abrirEditarCliente = (c) => {
-    setEditandoCliente({
-      id: c.id, nombre: c.nombre || "", email: c.email || "",
-      cuit_dni: c.cuit_dni || "", telefono: c.telefono || "",
-      fecha_nacimiento: c.fecha_nacimiento ? String(c.fecha_nacimiento).slice(0, 10) : ""
-    });
+    setEditandoCliente({ id: c.id, nombre: c.nombre || "", email: c.email || "", cuit_dni: c.cuit_dni || "", telefono: c.telefono || "", fecha_nacimiento: c.fecha_nacimiento ? String(c.fecha_nacimiento).slice(0, 10) : "" });
     setShowForm(false);
   };
-
   const eliminarCliente = async (c) => {
-    if (!confirm("Eliminar a \"" + c.nombre + "\" de forma permanente? Esta accion no se puede deshacer.")) return;
-    try {
-      await API.delete("/clientes/" + c.id);
-      setMensaje("Cliente eliminado");
-      getClientes().then(res => setClientes(res.data));
-      setTimeout(() => setMensaje(""), 3000);
-    } catch (e) {
-      setMensaje("Error al eliminar: " + (e.response?.data?.error || "revisa que no tenga ventas asociadas"));
-    }
+    if (!confirm("¿Eliminar a \"" + c.nombre + "\" de forma permanente? No se puede deshacer.")) return;
+    try { await API.delete("/clientes/" + c.id); avisar("Cliente eliminado"); setFicha(null); cargarClientes(); }
+    catch (e) { avisar("Error al eliminar: " + (e.response?.data?.error || "revisá que no tenga ventas asociadas")); }
   };
-
   const guardarEdicionCliente = async () => {
-    if (!editandoCliente.nombre.trim()) { setMensaje("El nombre es obligatorio"); return; }
-    if (!editandoCliente.telefono.trim()) { setMensaje("El celular es obligatorio"); return; }
+    if (!editandoCliente.nombre.trim()) return avisar("Error: el nombre es obligatorio");
+    if (!editandoCliente.telefono.trim()) return avisar("Error: el celular es obligatorio");
     try {
       await API.put("/clientes/" + editandoCliente.id, editandoCliente);
-      setMensaje("Datos del cliente actualizados!");
+      avisar("¡Datos del cliente actualizados!");
       setEditandoCliente(null);
-      getClientes().then(res => setClientes(res.data));
-      setTimeout(() => setMensaje(""), 3000);
-    } catch (e) {
-      setMensaje("Error al actualizar: " + (e.response?.data?.error || e.message));
-    }
+      cargarClientes();
+      if (ficha && ficha.cliente.id === editandoCliente.id) setFicha(f => ({ ...f, cliente: { ...f.cliente, ...editandoCliente } }));
+    } catch (e) { avisar("Error al actualizar: " + (e.response?.data?.error || e.message)); }
+  };
+  const guardarUmbrales = async () => {
+    setGuardandoNiveles(true);
+    try {
+      const r = await API.put("/clientes/config/niveles", umbralesForm);
+      avisar("✓ Niveles guardados: se actualizaron " + r.data.clientes_actualizados + " clientes");
+      cargarNiveles(); cargarClientes();
+    } catch (e) { avisar("Error: " + (e.response?.data?.error || e.message)); }
+    setGuardandoNiveles(false);
   };
 
-  const clientesAMostrar = clientes;
-  const platinum = clientesAMostrar.filter(c => (c.nivel || c.tier) === "Platinum").length;
-  const gold = clientesAMostrar.filter(c => (c.nivel || c.tier) === "Gold").length;
-  const silver = clientesAMostrar.filter(c => (c.nivel || c.tier) === "Silver").length;
-  const clientesFiltrados = clientesAMostrar.filter(c => {
-    const q = busqueda.trim().toLowerCase();
-    if (!q) return true;
-    const campos = [c.nombre || c.name, c.email, c.cuit_dni || c.cuit, c.telefono || c.phone].map(x => (x || "").toString().toLowerCase());
-    return campos.some(x => x.includes(q));
-  });
+  // Numeros y filtros
+  const $ = (v) => fmt(Math.round(v || 0)).replace(",00", "");
+  const esteMes = (f) => { if (!f) return false; const d = new Date(f), h = new Date(); return d.getMonth() === h.getMonth() && d.getFullYear() === h.getFullYear(); };
+  const total = clientes.length;
+  const nuevosMes = clientes.filter(c => esteMes(c.creado_en)).length;
+  const activos = clientes.filter(c => c.compras > 0 && diasDesdeFecha(c.ultima_compra) <= 90).length;
+  const recuperar = clientes.filter(SEGMENTOS_CLIENTES.find(s => s.id === "recuperar").f).length;
+  const cumplen = clientes.filter(c => cumpleEsteMes(c.fecha_nacimiento)).length;
+  const seg = SEGMENTOS_CLIENTES.find(s => s.id === segmento);
+  const q = busqueda.trim().toLowerCase();
+  const lista = clientes
+    .filter(c => !seg.f || seg.f(c))
+    .filter(c => !q || [c.nombre, c.email, c.cuit_dni, c.telefono].some(x => String(x || "").toLowerCase().includes(q)))
+    .sort((a, b) => orden === "gastado" ? (b.gastado || 0) - (a.gastado || 0)
+      : orden === "puntos" ? (b.puntos || 0) - (a.puntos || 0)
+      : orden === "nombre" ? String(a.nombre || "").localeCompare(String(b.nombre || ""))
+      : (b.ultima_compra ? new Date(b.ultima_compra).getTime() : 0) - (a.ultima_compra ? new Date(a.ultima_compra).getTime() : 0));
+  const umb = (niveles && niveles.umbrales) || { Silver: 50000, Gold: 100000, Platinum: 200000, Black: 500000 };
+  const proximoNivel = (c) => {
+    const i = NIVELES_ORDEN.indexOf(c.nivel || "Bronze");
+    if (i >= NIVELES_ORDEN.length - 1) return null;
+    const sig = NIVELES_ORDEN[i + 1];
+    return { nivel: sig, falta: Math.max(0, umb[sig] - (c.gastado || 0)), pct: Math.min(100, (c.gastado || 0) / umb[sig] * 100) };
+  };
+
+  const Avatar = ({ c, grande }) => (
+    <span className={"cli-av" + (grande ? " grande" : "")} style={{ "--nc": COLOR_NIVEL[c.nivel || "Bronze"] }} aria-hidden="true">{inicialesDe(c.nombre)}</span>
+  );
+
+  const formCliente = (valores, setValores, onGuardar, onCancelar, titulo) => (
+    <div className="pos-overlay" onClick={onCancelar}>
+      <div className="card pop-in" role="dialog" aria-label={titulo} style={{ width: 560, maxWidth: "95vw", textAlign: "left" }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div style={{ fontSize: 16, fontWeight: 800 }}>{titulo}</div>
+          <button className="icon-btn" onClick={onCancelar} aria-label="Cerrar">✕</button>
+        </div>
+        <div className="g2">
+          <div>
+            <div className="fg"><div className="fl">Nombre y apellido *</div><input className="inp" placeholder="Nombre completo" value={valores.nombre} onChange={e => setValores(v => ({ ...v, nombre: e.target.value }))} autoFocus /></div>
+            <div className="fg"><div className="fl">Celular *</div><input className="inp" type="tel" inputMode="tel" placeholder="Ej: 2964 123456" value={valores.telefono} onChange={e => setValores(v => ({ ...v, telefono: e.target.value }))} /></div>
+            <div className="fg"><div className="fl">DNI / CUIT</div><input className="inp" inputMode="numeric" placeholder="Para sumar puntos y entrar al portal" value={valores.cuit_dni} onChange={e => setValores(v => ({ ...v, cuit_dni: e.target.value }))} /></div>
+          </div>
+          <div>
+            <div className="fg"><div className="fl">Email (opcional)</div><input className="inp" type="email" placeholder="nombre@mail.com" value={valores.email} onChange={e => setValores(v => ({ ...v, email: e.target.value }))} /></div>
+            <div className="fg"><div className="fl">Cumpleaños (opcional)</div><input className="inp" type="date" value={valores.fecha_nacimiento} onChange={e => setValores(v => ({ ...v, fecha_nacimiento: e.target.value }))} /></div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+          <button className="btn btn-g" style={{ flex: 1 }} onClick={onCancelar}>Cancelar</button>
+          <button className="btn btn-p" style={{ flex: 2 }} onClick={onGuardar}>Guardar</button>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="fade">
-      <div className="ph">
-        <div><div className="pt">Clientes</div><div className="ps">gestion - fidelizacion - historial</div></div>
-        <button className="btn btn-p btn-sm" onClick={() => setShowForm(!showForm)}>+ Nuevo cliente</button>
-      </div>
-      {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
-      {editandoCliente && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }} onClick={() => setEditandoCliente(null)}>
-        <div className="card fade" style={{ marginBottom: 18, maxWidth: 560, width: "100%" }} onClick={e => e.stopPropagation()}>
-          <div className="ct">Editar cliente</div>
-          <div className="g2">
-            <div>
-              <div className="fg"><div className="fl">Nombre *</div><input className="inp" value={editandoCliente.nombre} onChange={e => setEditandoCliente(p => ({ ...p, nombre: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">Email (opcional)</div><input className="inp" value={editandoCliente.email} onChange={e => setEditandoCliente(p => ({ ...p, email: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">CUIT / DNI (opcional)</div><input className="inp" value={editandoCliente.cuit_dni} onChange={e => setEditandoCliente(p => ({ ...p, cuit_dni: e.target.value }))} /></div>
-            </div>
-            <div>
-              <div className="fg"><div className="fl">Celular *</div><input className="inp" value={editandoCliente.telefono} onChange={e => setEditandoCliente(p => ({ ...p, telefono: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">Fecha de nacimiento (opcional)</div><input className="inp" type="date" value={editandoCliente.fecha_nacimiento} onChange={e => setEditandoCliente(p => ({ ...p, fecha_nacimiento: e.target.value }))} /></div>
-              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarEdicionCliente}>Guardar cambios</button>
-                <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEditandoCliente(null)}>Cancelar</button>
-              </div>
-            </div>
-          </div>
+      <div className="dash-head">
+        <div>
+          <div className="pt">Clientes</div>
+          <div className="ps">quiénes te compran, cada cuánto y a quién conviene volver a escribirle</div>
         </div>
+        <div className="dash-actions">
+          <button className="btn btn-p btn-sm" onClick={() => { setShowForm(true); setEditandoCliente(null); }}>+ Nuevo cliente</button>
         </div>
-      )}
-      {showForm && (
-        <div className="card fade" style={{ marginBottom: 18 }}>
-          <div className="ct">Nuevo cliente</div>
-          <div className="g2">
-            <div>
-              <div className="fg"><div className="fl">Nombre *</div><input className="inp" placeholder="Nombre completo" value={nuevoCliente.nombre} onChange={e => setNuevoCliente(p => ({ ...p, nombre: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">Email (opcional)</div><input className="inp" placeholder="email@gmail.com" value={nuevoCliente.email} onChange={e => setNuevoCliente(p => ({ ...p, email: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">CUIT / DNI (opcional)</div><input className="inp" placeholder="20-12345678-9" value={nuevoCliente.cuit_dni} onChange={e => setNuevoCliente(p => ({ ...p, cuit_dni: e.target.value }))} /></div>
-            </div>
-            <div>
-              <div className="fg"><div className="fl">Celular *</div><input className="inp" placeholder="+54 9 351 000 0000" value={nuevoCliente.telefono} onChange={e => setNuevoCliente(p => ({ ...p, telefono: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">Fecha de nacimiento (opcional)</div><input className="inp" type="date" value={nuevoCliente.fecha_nacimiento} onChange={e => setNuevoCliente(p => ({ ...p, fecha_nacimiento: e.target.value }))} /></div>
-              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarCliente}>Guardar</button>
-                <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowForm(false)}>Cancelar</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      <div className="g3">
-        {[{ t: "Platinum", n: platinum, c: "#7d3c98" }, { t: "Gold", n: gold, c: "var(--acento-texto)" }, { t: "Silver", n: silver, c: "#2471a3" }].map(t => (
-          <div key={t.t} className="card" style={{ borderTop: "2px solid " + t.c }}>
-            <div className="ct">{t.t}</div>
-            <div className="metric" style={{ color: t.c, fontSize: 26 }}>{t.n}</div>
-          </div>
-        ))}
       </div>
-      <div className="tabs">
-        {["lista", "niveles"].map(t => <div key={t} className={"tab " + (tab === t ? "on" : "")} onClick={() => setTab(t)}>{t.toUpperCase()}</div>)}
+      {mensaje && <div className={"pop-in cc-aviso " + (mensaje.startsWith("Error") ? "bad" : "ok")} role="status">{mensaje}</div>}
+
+      <div className="kpi-grid">
+        <KpiCard p={p} titulo="Clientes" valor={total} indice={0} sub={nuevosMes + " nuevos este mes"} />
+        <KpiCard p={p} titulo="Activos" valor={activos} color={p.green} indice={1} sub="compraron en los últimos 90 días" />
+        <KpiCard p={p} titulo="😴 Para recuperar" valor={recuperar} color={recuperar > 0 ? p.warn : p.green} indice={2} sub="compraron pero hace más de 90 días que no vuelven" />
+        <KpiCard p={p} titulo="🎂 Cumplen este mes" valor={cumplen} color="#a970ff" indice={3} sub="un saludo los trae de vuelta" />
       </div>
+
+      <div className="tabs" role="tablist">
+        <div role="tab" aria-selected={tab === "lista"} className={"tab " + (tab === "lista" ? "on" : "")} onClick={() => setTab("lista")}>Clientes</div>
+        <div role="tab" aria-selected={tab === "niveles"} className={"tab " + (tab === "niveles" ? "on" : "")} onClick={() => setTab("niveles")}>Niveles</div>
+      </div>
+
       {tab === "lista" && (
-        <div className="card fade" style={{ marginBottom: 12 }}>
-          <input className="inp" placeholder="Buscar por nombre, celular, email o CUIT/DNI..." value={busqueda} onChange={e => setBusqueda(e.target.value)} style={{ marginBottom: 14 }} />
-          {loading ? <div style={{ textAlign: "center", color: p.textMuted, padding: 20 }}>Cargando clientes...</div> : (
-          <table>
-            <thead><tr><th>Cliente</th><th>Celular</th><th>CUIT/DNI</th><th>Total compras</th><th>Puntos</th><th>Nivel</th><th>Portal</th></tr></thead>
-            <tbody>
-              {clientesFiltrados.length === 0 && (
-                <tr><td colSpan={7} style={{ textAlign: "center", color: p.textMuted, padding: 20 }}>No se encontraron clientes</td></tr>
-              )}
-              {clientesFiltrados.map((c, i) => {
-                const nivel = c.nivel || c.tier;
-                const puntos = c.puntos || c.points || 0;
-                const next = tierNext[nivel] || 500;
-                const pct = Math.min(Math.round((puntos / next) * 100), 100);
-                return (
-                  <tr key={c.id || i}>
-                    <td><div style={{ color: p.text }}>{c.nombre || c.name}</div><div style={{ fontSize: 9, color: p.textMuted }}>{c.email}</div></td>
-                    <td style={{ fontSize: 11 }}>{c.telefono || c.phone || "-"}</td>
-                    <td style={{ fontSize: 10 }}>{c.cuit_dni || c.cuit}</td>
-                    <td>{fmt((c.total_compras || c.total || 0))}</td>
-                    <td>
-                      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                        <span style={{ fontFamily: "'Inter',sans-serif", fontSize: 18, fontWeight: 700, color: "var(--acento-texto)" }}>{fmtNum(puntos)}</span>
-                        <div style={{ width: 40 }}><div className="pb"><div className="pf" style={{ width: pct + "%", background: "var(--acento)" }} /></div></div>
-                      </div>
-                    </td>
-                    <td><TierBadge tier={nivel} /></td>
-                    <td>
-                      <button className="btn btn-sm" style={{ fontSize: 10, marginRight: 4 }} onClick={() => abrirEditarCliente(c)}>Editar</button>
-                      <button className="btn btn-sm" style={{ fontSize: 10, marginRight: 4 }} onClick={() => resetearPortalCliente(c)}>Resetear clave</button>
-                      <button className="btn btn-sm" style={{ fontSize: 10, background: "var(--acento)", color: "#1B2431" }} onClick={() => abrirMigrar(c)}>Migrar puntos</button>
-                      {usuario?.rol === "jefe" && <button className="btn btn-sm" style={{ fontSize: 10, marginLeft: 4, color: "#c0392b" }} onClick={() => eliminarCliente(c)}>Eliminar</button>}
-                    </td>
-                  </tr>
-                );
+        <div className="card fade" style={{ padding: 0, overflow: "hidden" }}>
+          <div className="cli-filtros">
+            <div className="cli-chips">
+              {SEGMENTOS_CLIENTES.map(s => {
+                const n = s.f ? clientes.filter(s.f).length : total;
+                return <button key={s.id} className={"chip-btn" + (segmento === s.id ? " on" : "")} aria-pressed={segmento === s.id} onClick={() => setSegmento(s.id)}>{s.l} · {n}</button>;
               })}
-            </tbody>
-          </table>
-        )}
+            </div>
+            <div className="cli-busca">
+              <input className="inp" placeholder="Buscar por nombre, celular, email o DNI..." value={busqueda} onChange={e => setBusqueda(e.target.value)} />
+              <select className="sel" value={orden} onChange={e => setOrden(e.target.value)} aria-label="Ordenar">
+                <option value="ultima">Última compra</option>
+                <option value="gastado">Más gastaron</option>
+                <option value="puntos">Más puntos</option>
+                <option value="nombre">Nombre</option>
+              </select>
+            </div>
+          </div>
+          {segmento === "recuperar" && lista.length > 0 && (
+            <div className="cli-tip">💡 Estos clientes ya te compraron y hace más de 3 meses que no vuelven. Un mensaje por WhatsApp (una novedad, un descuento) suele traerlos de vuelta: tocá 💬 en cada uno.</div>
+          )}
+          {segmento === "cumple" && lista.length > 0 && (
+            <div className="cli-tip">🎂 Mandales un saludo y un regalito o descuento por su cumpleaños: es de lo que más fideliza.</div>
+          )}
+          {loading ? <div className="skel" style={{ height: 240, margin: 14 }} /> : lista.length === 0 ? (
+            <div className="empty" style={{ padding: 30 }}>{total === 0 ? "Todavía no hay clientes. Se cargan solos al vender con DNI en el Punto de Venta, o con + Nuevo cliente." : "No hay clientes en este grupo."}</div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table className="cli-tabla" style={{ minWidth: 820 }}>
+                <thead><tr><th>Cliente</th><th>Última compra</th><th style={{ textAlign: "right" }}>Compras</th><th style={{ textAlign: "right" }}>Gastó</th><th>Puntos · nivel</th><th></th></tr></thead>
+                <tbody>
+                  {lista.slice(0, 400).map(c => {
+                    const d = diasDesdeFecha(c.ultima_compra);
+                    const wa = linkWhatsapp(c.telefono, "¡Hola " + String(c.nombre || "").split(/[ ,]+/)[0] + "! ");
+                    return (
+                      <tr key={c.id} className="cli-fila" onClick={() => abrirFicha(c)} tabIndex={0} onKeyDown={e => e.key === "Enter" && abrirFicha(c)}>
+                        <td>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <Avatar c={c} />
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontWeight: 700, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                                {c.nombre}
+                                {cumpleEsteMes(c.fecha_nacimiento) && <span title="Cumple este mes">🎂</span>}
+                                {c.portal_activo && <span className="tag tag-neutral" style={{ fontSize: 10 }}>portal</span>}
+                              </div>
+                              <div style={{ fontSize: 11, color: p.textMuted }}>{[c.telefono, c.cuit_dni].filter(Boolean).join(" · ") || "sin datos de contacto"}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 600, color: d === null ? p.textMuted : d > 90 ? p.warn : p.text }}>{textoHace(d)}</div>
+                          {c.ultima_compra && <div style={{ fontSize: 11, color: p.textMuted }}>{new Date(c.ultima_compra).toLocaleDateString("es-AR")}</div>}
+                        </td>
+                        <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{c.compras || 0}</td>
+                        <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700 }}>{$(c.gastado)}</td>
+                        <td><div style={{ display: "flex", alignItems: "center", gap: 8 }}><b style={{ color: "var(--acento-texto)", fontVariantNumeric: "tabular-nums" }}>{fmtNum(c.puntos || 0).replace(",00", "")}</b><TierBadge tier={c.nivel || "Bronze"} /></div></td>
+                        <td style={{ whiteSpace: "nowrap", textAlign: "right" }} onClick={e => e.stopPropagation()}>
+                          {wa && <a className="icon-btn" href={wa} target="_blank" rel="noopener noreferrer" title={"WhatsApp a " + c.nombre} aria-label={"WhatsApp a " + c.nombre}>💬</a>}
+                          <button className="chip-btn" style={{ marginLeft: 6 }} onClick={() => abrirFicha(c)}>Ver ficha</button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
+
       {tab === "niveles" && (
-        <div className="g2 fade">
-          {[
-            { tier: "Bronze", min: 0, max: 1999, c: "var(--acento-texto)", perks: ["1 pt cada $100", "Cupon bienvenida"] },
-            { tier: "Silver", min: 2000, max: 4999, c: "#2471a3", perks: ["1.2 pts cada $100", "Acceso preventas", "Envio gratis +$5k"] },
-            { tier: "Gold", min: 5000, max: 9999, c: "var(--acento-texto)", perks: ["1.5 pts cada $100", "5% descuento exclusivo", "Regalo de cumpleanos"] },
-            { tier: "Platinum", min: 10000, max: 19999, c: "#7d3c98", perks: ["2 pts cada $100", "10% descuento", "Envio gratis siempre", "Lanzamientos anticipados"] },
-            { tier: "Black", min: 20000, max: null, c: p.text, perks: ["2.5 pts cada $100", "15% descuento", "Envio gratis siempre", "Atencion VIP", "Regalos exclusivos"] },
-          ].map(n => (
-            <div key={n.tier} className="card" style={{ borderLeft: "3px solid " + n.c }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-                <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: n.c }}>{n.tier}</div>
-                <div style={{ fontSize: 10, color: p.textMuted }}>{fmtNum(n.min)}{n.max ? " - " +fmtNum(n.max) + " pts" : "+ pts"}</div>
-              </div>
-              {n.perks.map((p, i) => (
-                <div key={i} style={{ display: "flex", gap: 7, marginBottom: 6, fontSize: 11, color: p.text }}>
-                  <span style={{ color: n.c }}>v</span>{p}
+        <div className="fade">
+          <div className="chart-card" style={{ marginBottom: 12 }}>
+            <div className="chart-title" style={{ marginBottom: 6 }}>¿Cómo sube de nivel un cliente?</div>
+            <div style={{ fontSize: 13, color: p.textSoft, lineHeight: 1.55, marginBottom: 14 }}>
+              El nivel sale de <b>todo lo que el cliente compró</b> (ventas + compras anteriores migradas). Si canjea puntos por un premio, <b>no baja de nivel</b>. Cambiá los montos cuando quieras: se actualizan todos los clientes al guardar.
+            </div>
+            <div className="niv-grid">
+              {NIVELES_ORDEN.map((n, i) => (
+                <div key={n} className="niv-card" style={{ "--nc": COLOR_NIVEL[n] }}>
+                  <div className="niv-top"><TierBadge tier={n} /><span className="niv-cant">{((niveles && niveles.cantidades && niveles.cantidades[n]) || 0) === 1 ? "1 cliente" : ((niveles && niveles.cantidades && niveles.cantidades[n]) || 0) + " clientes"}</span></div>
+                  {n === "Bronze" ? <div className="niv-desde">Desde la primera compra</div> : (
+                    <label className="niv-desde">Compró desde
+                      <input className="inp" type="number" min="1" value={umbralesForm ? umbralesForm[n] : ""} onWheel={e => e.currentTarget.blur()} onChange={e => setUmbralesForm(u => ({ ...u, [n]: e.target.value }))} aria-label={"Monto para " + n} />
+                      {umbralesForm && parseFloat(umbralesForm[n]) >= 1000 && <span className="dec-monto">= {$(parseFloat(umbralesForm[n]))}</span>}
+                    </label>
+                  )}
                 </div>
               ))}
             </div>
-          ))}
+            <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+              <button className="btn btn-p" disabled={guardandoNiveles || !umbralesForm} onClick={guardarUmbrales}>{guardandoNiveles ? "Guardando..." : "Guardar niveles"}</button>
+              {niveles && <button className="btn btn-g" onClick={() => setUmbralesForm(niveles.por_defecto)}>Volver a los montos sugeridos</button>}
+            </div>
+          </div>
+          <div style={{ fontSize: 11, color: p.textMuted, padding: "0 4px" }}>Los premios que se canjean con puntos (y el nivel mínimo de cada uno) se configuran en <b>Fidelización</b>.</div>
         </div>
       )}
-    
-      {migrarCli && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={() => setMigrarCli(null)}>
-          <div className="card" style={{ width: 460, maxWidth: "92vw", maxHeight: "88vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-              <div className="ct" style={{ margin: 0 }}>Migrar puntos de compra anterior</div>
-              <span onClick={() => setMigrarCli(null)} style={{ cursor: "pointer", fontSize: 20, color: p.textMuted }}>×</span>
-            </div>
-            <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 12 }}>{migrarCli.nombre || migrarCli.name} · suma 1 punto cada $100 (no factura)</div>
 
+      {/* ---------- Ficha del cliente ---------- */}
+      {ficha && (() => {
+        const c = clientes.find(x => x.id === ficha.cliente.id) || ficha.cliente;
+        const r = ficha.resumen;
+        const prox = proximoNivel(c);
+        const wa = linkWhatsapp(c.telefono, "¡Hola " + String(c.nombre || "").split(/[ ,]+/)[0] + "! ");
+        return (
+          <div className="pos-overlay" onClick={() => setFicha(null)}>
+            <div className="card pop-in cli-ficha" role="dialog" aria-label={"Ficha de " + c.nombre} onClick={e => e.stopPropagation()}>
+              <div className="cli-ficha-head">
+                <Avatar c={c} grande />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 20, fontWeight: 800 }}>{c.nombre}</div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
+                    <TierBadge tier={c.nivel || "Bronze"} />
+                    <span className={"tag " + (c.portal_activo ? "tag-ok" : "tag-neutral")}>{c.portal_activo ? "✓ Usa el portal" : "No entró al portal"}</span>
+                    {cumpleEsteMes(c.fecha_nacimiento) && <span className="tag tag-warn">🎂 Cumple este mes</span>}
+                  </div>
+                  <div style={{ fontSize: 12, color: p.textMuted, marginTop: 4 }}>{[c.telefono, c.email, c.cuit_dni && "DNI " + c.cuit_dni].filter(Boolean).join(" · ")}</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 30, fontWeight: 900, color: "var(--acento-texto)", lineHeight: 1 }}>{fmtNum(c.puntos || 0).replace(",00", "")}</div>
+                  <div style={{ fontSize: 11, color: p.textMuted }}>puntos</div>
+                </div>
+                <button className="icon-btn" onClick={() => setFicha(null)} aria-label="Cerrar">✕</button>
+              </div>
+              {prox && (
+                <div className="cli-prox">
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}><span>Para llegar a <b>{prox.nivel}</b></span><span>le faltan <b>{$(prox.falta)}</b> en compras</span></div>
+                  <div className="pb" style={{ height: 8, marginTop: 6 }}><div className="pf" style={{ width: prox.pct + "%", background: COLOR_NIVEL[prox.nivel] }} /></div>
+                </div>
+              )}
+              <div className="cli-stats">
+                <div><span>Compras</span><b>{c.compras || 0}</b></div>
+                <div><span>Gastó en total</span><b>{$(c.gastado)}</b></div>
+                <div><span>Ticket promedio</span><b>{c.compras ? $(c.gastado / c.compras) : "—"}</b></div>
+                <div><span>Última compra</span><b>{textoHace(diasDesdeFecha(c.ultima_compra))}</b></div>
+                <div><span>Cliente desde</span><b>{c.creado_en ? new Date(c.creado_en).toLocaleDateString("es-AR", { month: "short", year: "numeric" }) : "—"}</b></div>
+                <div><span>Cumpleaños</span><b>{c.fecha_nacimiento ? new Date(c.fecha_nacimiento).toLocaleDateString("es-AR", { day: "numeric", month: "long", timeZone: "UTC" }) : "—"}</b></div>
+              </div>
+              <div className="cli-ficha-cols">
+                <div>
+                  <div className="cli-sub">Lo que más compra</div>
+                  {!r ? <div className="skel" style={{ height: 70 }} /> : r.productos_frecuentes && r.productos_frecuentes.length ? r.productos_frecuentes.map(f => (
+                    <div key={f.producto_id} className="cli-prod"><span>{f.nombre}</span><small>{f.veces} {f.veces === 1 ? "vez" : "veces"} · última {textoHace(f.dias_desde)}</small></div>
+                  )) : <div className="cli-vacio">Todavía no hay compras.</div>}
+                  {r && r.gift_cards && r.gift_cards.length > 0 && (
+                    <>
+                      <div className="cli-sub" style={{ marginTop: 12 }}>Gift cards con saldo</div>
+                      {r.gift_cards.map(g => <div key={g.codigo} className="cli-prod"><span>{g.codigo}</span><small>{$(g.saldo)}</small></div>)}
+                    </>
+                  )}
+                </div>
+                <div>
+                  <div className="cli-sub">Últimas compras</div>
+                  {ficha.historial === null ? <div className="skel" style={{ height: 90 }} /> : ficha.historial.length === 0 ? <div className="cli-vacio">Sin compras registradas.</div> : (
+                    <div className="cli-hist">
+                      {ficha.historial.filter(v => !v.anulada).slice(0, 8).map(v => (
+                        <div key={v.id} className="cli-hist-fila">
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700 }}>{new Date(v.creado_en).toLocaleDateString("es-AR")}</div>
+                            <div style={{ fontSize: 11, color: p.textMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{(v.items || []).map(i => i.cantidad + "× " + i.producto).join(", ")}</div>
+                          </div>
+                          <b style={{ fontVariantNumeric: "tabular-nums" }}>{$(v.total)}</b>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="cli-acciones">
+                {wa && <a className="btn btn-p btn-sm" href={wa} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>💬 WhatsApp</a>}
+                <button className="btn btn-g btn-sm" onClick={() => abrirEditarCliente(c)}>✏️ Editar datos</button>
+                <button className="btn btn-g btn-sm" onClick={() => abrirMigrar(c)}>➕ Cargar compra anterior</button>
+                {c.portal_activo && <button className="btn btn-g btn-sm" onClick={() => resetearPortalCliente(c)}>🔑 Resetear clave del portal</button>}
+                {usuario?.rol === "jefe" && <button className="btn btn-g btn-sm" style={{ color: p.red, marginLeft: "auto" }} onClick={() => eliminarCliente(c)}>Eliminar</button>}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {showForm && formCliente(nuevoCliente, setNuevoCliente, guardarCliente, () => setShowForm(false), "Nuevo cliente")}
+      {editandoCliente && formCliente(editandoCliente, setEditandoCliente, guardarEdicionCliente, () => setEditandoCliente(null), "Editar cliente")}
+
+      {migrarCli && (
+        <div className="pos-overlay" onClick={() => setMigrarCli(null)}>
+          <div className="card pop-in" role="dialog" aria-label="Cargar compra anterior" style={{ width: 460, maxWidth: "95vw", maxHeight: "88vh", overflowY: "auto", textAlign: "left" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <div style={{ fontSize: 16, fontWeight: 800 }}>Cargar compra anterior</div>
+              <button className="icon-btn" onClick={() => setMigrarCli(null)} aria-label="Cerrar">✕</button>
+            </div>
+            <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 12 }}>{migrarCli.nombre} · suma 1 punto cada $100 y cuenta para el nivel (no factura)</div>
             {migMsg && (
-              <div style={{ marginBottom: 10, padding: 10, borderRadius: 6, fontSize: 12,
-                background: migMsg.startsWith("Error") ? p.redDim : migMsg.startsWith("DUP:") ? "#fff8e1" : p.greenDim,
-                color: migMsg.startsWith("Error") ? "#c0392b" : migMsg.startsWith("DUP:") ? "#8a6d00" : "#1e7e4f" }}>
+              <div className={"cc-aviso " + (migMsg.startsWith("Error") ? "bad" : migMsg.startsWith("DUP:") ? "" : "ok")} style={{ marginBottom: 10 }}>
                 {migMsg.startsWith("DUP:") ? migMsg.slice(4) : migMsg}
                 {migMsg.startsWith("DUP:") && (
-                  <div style={{ marginTop: 8 }}>
-                    <button className="btn btn-sm" style={{ background: "#c0392b", color: "#fff", marginRight: 6 }} onClick={() => guardarMigracion(true)}>Cargar igual</button>
-                    <button className="btn btn-sm" onClick={() => setMigMsg("")}>Cancelar</button>
+                  <div style={{ marginTop: 8, display: "flex", gap: 6 }}>
+                    <button className="btn btn-sm btn-p" onClick={() => guardarMigracion(true)}>Cargar igual</button>
+                    <button className="btn btn-sm btn-g" onClick={() => setMigMsg("")}>Cancelar</button>
                   </div>
                 )}
               </div>
             )}
-
-            <div className="fg" style={{ marginBottom: 8 }}>
-              <div className="fl">Monto de la compra</div>
-              <input className="inp" type="number" placeholder="0" value={migMonto} onChange={e => setMigMonto(e.target.value)} />
-              {migMonto && parseFloat(migMonto) > 0 && <div style={{ fontSize: 11, color: "#2d7a4f", marginTop: 4 }}>= {Math.floor(parseFloat(migMonto) / 100)} puntos</div>}
+            <div className="fg"><div className="fl">Monto de la compra</div>
+              <input className="inp" type="number" placeholder="0" value={migMonto} onWheel={e => e.currentTarget.blur()} onChange={e => setMigMonto(e.target.value)} />
+              {migMonto && parseFloat(migMonto) > 0 && <div style={{ fontSize: 12, color: p.green, marginTop: 4, fontWeight: 700 }}>= {$(parseFloat(migMonto))} → {Math.floor(parseFloat(migMonto) / 100)} puntos</div>}
             </div>
-            <div className="fg" style={{ marginBottom: 12 }}>
-              <div className="fl">Fecha del comprobante</div>
-              <input className="inp" type="date" value={migFecha} onChange={e => setMigFecha(e.target.value)} />
-            </div>
-            <button className="btn btn-p" style={{ width: "100%", marginBottom: 14 }} onClick={() => guardarMigracion(false)}>Cargar puntos</button>
-
-            <div style={{ fontSize: 11, fontWeight: 600, color: p.textMuted, marginBottom: 6 }}>CARGAS ANTERIORES DE ESTE CLIENTE</div>
-            {migHist.length === 0 ? <div style={{ fontSize: 12, color: p.textMuted }}>Sin cargas previas.</div> : (
-              <table style={{ width: "100%", fontSize: 11 }}>
-                <thead><tr style={{ color: p.textMuted, textAlign: "left" }}><th style={{ padding: "4px 0" }}>Fecha compra</th><th style={{ textAlign: "right" }}>Monto</th><th style={{ textAlign: "right" }}>Puntos</th><th style={{ textAlign: "right" }}>Cargado</th></tr></thead>
-                <tbody>
-                  {migHist.map(h => (
-                    <tr key={h.id} style={{ borderTop: "1px solid " + p.border }}>
-                      <td style={{ padding: "5px 0" }}>{h.fecha_compra ? new Date(h.fecha_compra).toLocaleDateString("es-AR") : "-"}</td>
-                      <td style={{ textAlign: "right" }}>{fmt(parseFloat(h.monto))}</td>
-                      <td style={{ textAlign: "right", color: "#2d7a4f" }}>{h.puntos}</td>
-                      <td style={{ textAlign: "right", color: p.textMuted }}>{h.creado_en ? new Date(h.creado_en).toLocaleDateString("es-AR") : "-"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            <div className="fg"><div className="fl">Fecha del comprobante</div><input className="inp" type="date" value={migFecha} onChange={e => setMigFecha(e.target.value)} /></div>
+            <button className="btn btn-p" style={{ width: "100%", marginBottom: 14 }} onClick={() => guardarMigracion(false)}>Cargar</button>
+            <div className="cli-sub">Cargas anteriores</div>
+            {migHist.length === 0 ? <div className="cli-vacio">Sin cargas previas.</div> : migHist.map(h => (
+              <div key={h.id} className="cli-hist-fila">
+                <span style={{ fontSize: 12 }}>{h.fecha_compra ? new Date(h.fecha_compra).toLocaleDateString("es-AR") : "—"}</span>
+                <span style={{ fontSize: 12 }}>{$(parseFloat(h.monto))} · <b style={{ color: p.green }}>+{h.puntos} pts</b></span>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -11176,96 +11338,198 @@ function ConfiguracionNegocio({ paletaActual }) {
 }
 
 
-function PortalCliente({ paletaActual }) {
+// ============ Portal Cliente (panel del negocio) ============
+// Cuantos clientes usan el portal, los premios canjeados que hay que entregar, el link para
+// compartir y una vista previa con los datos reales de cualquier cliente.
+function PortalCliente({ usuario, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
-  const client = CLIENTS[0];
-  const [tab, setTab] = useState("canjear");
+  const [resumen, setResumen] = useState(null);
+  const [canjes, setCanjes] = useState([]);
+  const [clientes, setClientes] = useState([]);
+  const [url, setUrl] = useState("");
+  const [msg, setMsg] = useState("");
+  const [buscar, setBuscar] = useState("");
+  const [vista, setVista] = useState(null); // { cliente, compras, premios, canjes, umbrales } | "cargando"
+  const [vistaTab, setVistaTab] = useState("premios");
+  const [copiado, setCopiado] = useState("");
+
+  const avisar = (m) => { setMsg(m); setTimeout(() => setMsg(""), 3500); };
+  const cargar = () => {
+    API.get("/clientes/portal/resumen").then(r => { setResumen(r.data); setUrl(r.data.portal_url || ""); }).catch(() => setResumen({ error: true }));
+    API.get("/fidelizacion/canjes?estado=pendiente").then(r => setCanjes(r.data || [])).catch(() => setCanjes([]));
+    getClientes().then(r => setClientes(r.data || [])).catch(() => setClientes([]));
+  };
+  useEffect(() => { cargar(); }, []);
+
+  const guardarUrl = async () => {
+    try { await API.put("/configuracion", { portal_url: url.trim() }); avisar("✓ Link del portal guardado"); cargar(); }
+    catch (e) { avisar("Error: " + (e.response?.data?.error || e.message)); }
+  };
+  const copiar = (texto, cual) => {
+    try { navigator.clipboard.writeText(texto); setCopiado(cual); setTimeout(() => setCopiado(""), 2500); } catch (e) {}
+  };
+  const entregar = async (cj) => {
+    if (!confirm("¿Confirmás que entregaste \"" + cj.premio_nombre + "\" a " + cj.cliente_nombre + "?")) return;
+    try { await API.post("/fidelizacion/validar-canje", { codigo: cj.codigo, usuario_nombre: usuario?.nombre || null }); avisar("✓ Premio entregado"); cargar(); }
+    catch (e) { avisar("Error: " + (e.response?.data?.error || e.message)); }
+  };
+  const verComo = async (c) => {
+    setBuscar(""); setVista("cargando"); setVistaTab("premios");
+    try { const r = await API.get("/clientes/" + c.id + "/portal-vista"); setVista({ ...r.data, gastado: c.gastado || 0 }); }
+    catch (e) { setVista(null); avisar("Error: no se pudo armar la vista previa"); }
+  };
+
+  const $ = (v) => fmt(Math.round(v || 0)).replace(",00", "");
+  const linkPortal = (resumen && resumen.portal_url) || "";
+  const mensajeWa = "¡Hola! 😊 Ya podés ver tus puntos, tu nivel y canjear premios en nuestro portal de clientes: " + (linkPortal || "[link del portal]") + " . Entrás con tu DNI y creás tu contraseña la primera vez.";
+  const pctAdopcion = resumen && resumen.con_dni > 0 ? Math.round(resumen.registrados / resumen.con_dni * 100) : 0;
+  const q = buscar.trim().toLowerCase();
+  const sugeridos = q.length >= 2 ? clientes.filter(c => [c.nombre, c.cuit_dni, c.telefono].some(x => String(x || "").toLowerCase().includes(q))).slice(0, 6) : [];
+
+  // Vista previa: calculos iguales a los del portal
+  const vistaLista = vista && vista !== "cargando";
+  const cli = vistaLista ? vista.cliente : null;
+  const rank = (n) => NIVELES_ORDEN.indexOf(n || "Bronze");
+  const esMesCumple = cli && cli.fecha_nacimiento && new Date(cli.fecha_nacimiento).getUTCMonth() === new Date().getMonth();
+  const premiosVisibles = vistaLista ? vista.premios
+    .map(pr => ({ ...pr, quedan: pr.stock_total === null ? null : Math.max(0, pr.stock_total - (pr.stock_usado || 0)) }))
+    .filter(pr => (pr.quedan === null || pr.quedan > 0) && (!pr.solo_mes_cumpleanos || esMesCumple)) : [];
+  const sigNivel = cli && rank(cli.nivel) < NIVELES_ORDEN.length - 1 ? NIVELES_ORDEN[rank(cli.nivel) + 1] : null;
+
   return (
-    <div style={{ minHeight: "100vh", background: p.bg, fontFamily: "'Inter',sans-serif" }}>
-      <div style={{ padding: "16px 32px", borderBottom: "1px solid " + p.border, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, fontWeight: 300, letterSpacing: ".18em", color: "var(--acento-texto)" }}>LUMIERE</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 11, color: p.textMuted }}>{client.email}</span>
-          <div style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--acento)", display: "flex", alignItems: "center", justifyContent: "center", color: "#1B2431", fontSize: 13, fontWeight: 600 }}>{client.name[0]}</div>
+    <div className="fade">
+      <div className="dash-head">
+        <div>
+          <div className="pt">Portal Cliente</div>
+          <div className="ps">donde tus clientes ven sus puntos, su nivel y canjean premios</div>
         </div>
       </div>
-      <div style={{ padding: "28px 32px", maxWidth: 860, margin: "0 auto" }}>
-        <div style={{ background: p.card, border: "1px solid " + p.border, borderRadius: 14, padding: 26, marginBottom: 22 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div>
-              <div style={{ fontSize: 9, color: "var(--acento-texto)", letterSpacing: ".25em", textTransform: "uppercase", marginBottom: 5 }}>Bienvenida de nuevo</div>
-              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 24, fontWeight: 700, color: p.text, marginBottom: 14 }}>{client.name}</div>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 20, background: "var(--acento-dim)", border: "1px solid " + p.border, fontSize: 9, color: "var(--acento-texto)", letterSpacing: ".12em" }}>
-                NIVEL {client.tier.toUpperCase()}
-              </div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 52, fontWeight: 700, color: "var(--acento-texto)", lineHeight: 1 }}>{fmtNum(client.points)}</div>
-              <div style={{ fontSize: 9, color: p.textMuted, letterSpacing: ".2em", marginTop: 3 }}>PUNTOS DISPONIBLES</div>
-              <div style={{ fontSize: 10, color: p.textMuted, marginTop: 6 }}>Proximo nivel: {fmtNum((2000 - client.points))} pts</div>
+      {msg && <div className={"pop-in cc-aviso " + (msg.startsWith("Error") ? "bad" : "ok")} role="status">{msg}</div>}
+
+      {!resumen ? <div className="skel" style={{ height: 120 }} /> : resumen.error ? <div className="empty">No se pudieron cargar los datos del portal.</div> : (
+        <div className="kpi-grid">
+          <KpiCard p={p} titulo="Usan el portal" valor={resumen.registrados} color={p.green} indice={0} sub={"de " + resumen.con_dni + " clientes con DNI (" + pctAdopcion + "%)"} />
+          <KpiCard p={p} titulo="Se registraron este mes" valor={resumen.registrados_mes} indice={1} sub="clientes nuevos en el portal" />
+          <KpiCard p={p} titulo="🎁 Premios para entregar" valor={canjes.length} color={canjes.length ? p.warn : p.green} indice={2} sub="canjeados en el portal, falta darlos" />
+          <KpiCard p={p} titulo="Sin DNI cargado" valor={Math.max(0, resumen.clientes - resumen.con_dni)} color={resumen.clientes - resumen.con_dni > 0 ? p.warn : p.green} indice={3} sub="no pueden entrar al portal" />
+        </div>
+      )}
+
+      <div className="portal-grid">
+        <div className="chart-card">
+          <div className="chart-title">📣 Invitá a tus clientes</div>
+          <div style={{ fontSize: 12, color: p.textMuted, margin: "4px 0 12px" }}>Cuanto más lo usan, más vuelven: ven sus puntos y lo que les falta para el próximo premio.</div>
+          <div className="fg">
+            <div className="fl">Link del portal</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input className="inp" placeholder="https://..." value={url} onChange={e => setUrl(e.target.value)} />
+              <button className="btn btn-g btn-sm" onClick={guardarUrl} disabled={url.trim() === (linkPortal || "")}>Guardar</button>
             </div>
           </div>
+          <div className="portal-msg">{mensajeWa}</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+            <button className="btn btn-p btn-sm" disabled={!linkPortal} onClick={() => copiar(mensajeWa, "msg")}>{copiado === "msg" ? "✓ Copiado" : "📋 Copiar mensaje para WhatsApp"}</button>
+            <button className="btn btn-g btn-sm" disabled={!linkPortal} onClick={() => copiar(linkPortal, "link")}>{copiado === "link" ? "✓ Copiado" : "🔗 Copiar link"}</button>
+            {linkPortal && <a className="btn btn-g btn-sm" href={linkPortal} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>Abrir portal ↗</a>}
+          </div>
+          {!linkPortal && <div className="dec-ayuda" style={{ marginTop: 8 }}>Cargá el link del portal y guardalo para poder compartirlo.</div>}
         </div>
-        <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
-          {[["canjear", "Canjear puntos"], ["cupones", "Mis cupones"], ["historial", "Mis compras"]].map(([id, l]) => (
-            <button key={id} onClick={() => setTab(id)} style={{ padding: "8px 16px", borderRadius: 7, border: "1px solid", borderColor: tab === id ? "var(--acento-borde)" : p.border, background: tab === id ? "var(--acento-dim)" : "transparent", color: tab === id ? "var(--acento-texto)" : p.textMuted, fontFamily: "'Inter',sans-serif", fontSize: 11, cursor: "pointer" }}>{l}</button>
+
+        <div className="chart-card">
+          <div className="chart-title">🎁 Premios para entregar</div>
+          <div style={{ fontSize: 12, color: p.textMuted, margin: "4px 0 12px" }}>Cuando el cliente viene al local con su código, confirmá la entrega acá.</div>
+          {canjes.length === 0 ? <div className="cli-vacio">No hay premios pendientes de entrega.</div> : canjes.slice(0, 8).map(cj => (
+            <div key={cj.id} className="cli-hist-fila">
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{cj.premio_nombre}</div>
+                <div style={{ fontSize: 11, color: p.textMuted }}>{cj.cliente_nombre} · código <b>{cj.codigo}</b> · {textoHace(diasDesdeFecha(cj.creado_en))}</div>
+              </div>
+              <button className="btn btn-p btn-sm" onClick={() => entregar(cj)}>Entregado</button>
+            </div>
           ))}
+          {resumen && resumen.ultimos && resumen.ultimos.length > 0 && (
+            <>
+              <div className="cli-sub" style={{ marginTop: 14 }}>Últimos que se registraron</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {resumen.ultimos.map(u => <span key={u.id} className="tag tag-neutral">{u.nombre}{u.portal_registrado_en ? " · " + textoHace(diasDesdeFecha(u.portal_registrado_en)) : ""}</span>)}
+              </div>
+            </>
+          )}
         </div>
-        {tab === "canjear" && (
-          <div>
-            <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: p.text, marginBottom: 14 }}>Canjea tus puntos</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
-              {REWARDS_DISPLAY.map(r => {
-                const can = client.points >= r.pts;
-                return (
-                  <div key={r.id} style={{ background: can ? p.card : p.card, border: "1px solid " + (can ? "var(--acento-borde)" : p.card), borderRadius: 10, padding: 16, opacity: can ? 1 : 0.5 }}>
-                    {can && <div style={{ background: "#2d7a4f", color: "#fff", fontSize: 8, padding: "2px 6px", borderRadius: 3, marginBottom: 8, width: "fit-content" }}>PODES CANJEAR</div>}
-                    <div style={{ fontSize: 24, marginBottom: 8 }}>{r.emoji}</div>
-                    <div style={{ fontSize: 11, color: p.text }}>{r.name}</div>
-                    <div style={{ fontSize: 9, color: p.textMuted, letterSpacing: ".1em", marginTop: 2 }}>{r.brand}</div>
-                    <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "var(--acento-texto)", marginTop: 10 }}>{fmtNum(r.pts)}</div>
-                    <div style={{ fontSize: 9, color: p.textMuted }}>PUNTOS</div>
-                    {can && <button style={{ marginTop: 10, width: "100%", padding: "7px", borderRadius: 5, background: "var(--acento-dim)", border: "1px solid " + p.border, color: "var(--acento-texto)", fontFamily: "'Inter',sans-serif", fontSize: 10, cursor: "pointer" }}>Canjear</button>}
-                  </div>
-                );
-              })}
+      </div>
+
+      <div className="chart-card" style={{ marginTop: 12 }}>
+        <div className="chart-title">👀 Ver el portal como un cliente</div>
+        <div style={{ fontSize: 12, color: p.textMuted, margin: "4px 0 10px" }}>Elegí un cliente y mirá exactamente lo que ve cuando entra: sus puntos, su nivel, los premios que puede canjear y sus compras.</div>
+        <div style={{ position: "relative", maxWidth: 420 }}>
+          <input className="inp" placeholder="Buscar cliente por nombre, DNI o celular..." value={buscar} onChange={e => setBuscar(e.target.value)} />
+          {sugeridos.length > 0 && (
+            <div className="portal-sug">
+              {sugeridos.map(c => <button key={c.id} onClick={() => verComo(c)}><b>{c.nombre}</b><small>{c.cuit_dni || "sin DNI"} · {c.nivel || "Bronze"}</small></button>)}
             </div>
-          </div>
-        )}
-        {tab === "cupones" && (
-          <div>
-            <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: p.text, marginBottom: 14 }}>Tus cupones activos</div>
-            {[{ code: "BDAY10", desc: "$10.000 de descuento por cumpleanos", exp: "Valido hasta: 30/06/2026" }, { code: "INSTA20", desc: "20% off en toda la tienda", exp: "Valido hasta: 31/05/2026" }].map((cp, i) => (
-              <div key={i} style={{ background: p.card, border: "1px dashed " + p.border, borderRadius: 10, padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <div>
-                  <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "var(--acento-texto)", letterSpacing: ".1em" }}>{cp.code}</div>
-                  <div style={{ fontSize: 11, color: p.textMuted, marginTop: 3 }}>{cp.desc}</div>
-                  <div style={{ fontSize: 10, color: p.border, marginTop: 4 }}>{cp.exp}</div>
-                </div>
-                <button style={{ background: "var(--acento-dim)", border: "1px solid " + p.border, color: "var(--acento-texto)", padding: "7px 14px", borderRadius: 5, fontFamily: "'Inter',sans-serif", fontSize: 10, cursor: "pointer" }}>Copiar</button>
+          )}
+        </div>
+        {vista === "cargando" && <div className="skel" style={{ height: 260, marginTop: 12 }} />}
+        {vistaLista && (
+          <div className="portal-prev">
+            <div className="portal-tel">
+              <div className="portal-tel-top"><span>✦ Lumiere</span><small>Así lo ve {String(cli.nombre || "").split(/[ ,]+/)[0]}</small></div>
+              <div className="portal-hola">
+                <small>¡Hola!</small>
+                <b>{cli.nombre}</b>
+                <div className="portal-pts"><span>{fmtNum(cli.puntos || 0).replace(",00", "")}</span> puntos</div>
+                <TierBadge tier={cli.nivel || "Bronze"} />
+                {sigNivel && vista.umbrales && (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ fontSize: 11, opacity: .85 }}>Te faltan {$(Math.max(0, vista.umbrales[sigNivel] - vista.gastado))} en compras para ser {sigNivel}</div>
+                    <div className="pb" style={{ height: 6, marginTop: 4 }}><div className="pf" style={{ width: Math.min(100, vista.gastado / vista.umbrales[sigNivel] * 100) + "%", background: "var(--acento)" }} /></div>
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-        )}
-        {tab === "historial" && (
-          <div>
-            <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: p.text, marginBottom: 14 }}>Historial de compras</div>
-            {[
-              { date: "24/05/2026", items: "Zapatillas urbanas x 1", total: 8500, pts: 85, canal: "Local" },
-              { date: "10/05/2026", items: "Base Liquida HD, Mascara x 2", total: 13700, pts: 137, canal: "Online" },
-              { date: "28/04/2026", items: "Remera básica x 2", total: 12400, pts: 124, canal: "Local" },
-            ].map((h, i) => (
-              <div key={i} style={{ background: p.card, border: "1px solid " + p.border, borderRadius: 10, padding: "14px 18px", marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontSize: 10, color: p.textMuted, marginBottom: 4 }}>{h.date} - {h.canal}</div>
-                  <div style={{ fontSize: 12, color: p.text }}>{h.items}</div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 20, fontWeight: 700, color: "var(--acento-texto)" }}>{fmt(h.total)}</div>
-                  <div style={{ fontSize: 9, color: p.textMuted, marginTop: 2 }}>+{h.pts} puntos</div>
-                </div>
+              <div className="portal-tabs">
+                {[["premios", "Premios"], ["compras", "Mis compras"], ["canjes", "Mis canjes"]].map(([k, l]) => <button key={k} className={vistaTab === k ? "on" : ""} onClick={() => setVistaTab(k)}>{l}</button>)}
               </div>
-            ))}
+              <div className="portal-cont">
+                {vistaTab === "premios" && (premiosVisibles.length === 0 ? <div className="cli-vacio">No hay premios cargados. Se crean en Fidelización.</div> : premiosVisibles.map(pr => {
+                  const alcanza = (cli.puntos || 0) >= pr.puntos_requeridos;
+                  const nivelOk = rank(cli.nivel) >= rank(pr.nivel_minimo || "Bronze");
+                  return (
+                    <div key={pr.id} className={"portal-premio" + (alcanza && nivelOk ? " ok" : "")}>
+                      <div style={{ minWidth: 0 }}>
+                        <b>{pr.nombre}</b>
+                        <small>{[pr.solo_mes_cumpleanos ? "🎂 Solo en tu mes de cumpleaños" : "", pr.nivel_minimo && pr.nivel_minimo !== "Bronze" ? "Nivel " + pr.nivel_minimo + " o más" : "", pr.quedan !== null ? "Quedan " + pr.quedan : ""].filter(Boolean).join(" · ")}</small>
+                      </div>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div className="portal-premio-pts">{fmtNum(pr.puntos_requeridos).replace(",00", "")} pts</div>
+                        <small>{!nivelOk ? "Nivel insuficiente" : alcanza ? "¡Puede canjear!" : "Le faltan " + fmtNum(pr.puntos_requeridos - (cli.puntos || 0)).replace(",00", "")}</small>
+                      </div>
+                    </div>
+                  );
+                }))}
+                {vistaTab === "compras" && (vista.compras.length === 0 ? <div className="cli-vacio">Todavía no tiene compras.</div> : vista.compras.map(v => (
+                  <div key={v.id} className="cli-hist-fila">
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700 }}>{new Date(v.creado_en).toLocaleDateString("es-AR")}</div>
+                      <div style={{ fontSize: 11, color: p.textMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{(v.items || []).map(i => i.cantidad + "× " + i.nombre).join(", ")}</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}><b>{$(v.total)}</b><div style={{ fontSize: 11, color: p.green }}>+{Math.floor(v.total / 100)} pts</div></div>
+                  </div>
+                )))}
+                {vistaTab === "canjes" && (vista.canjes.length === 0 ? <div className="cli-vacio">Todavía no canjeó premios.</div> : vista.canjes.map(cj => (
+                  <div key={cj.codigo} className="cli-hist-fila">
+                    <div><div style={{ fontSize: 12, fontWeight: 700 }}>{cj.premio_nombre}</div><div style={{ fontSize: 11, color: p.textMuted }}>Código {cj.codigo}</div></div>
+                    <span className={"tag " + (cj.estado === "usado" ? "tag-ok" : "tag-warn")}>{cj.estado === "usado" ? "Entregado" : "Para retirar"}</span>
+                  </div>
+                )))}
+              </div>
+            </div>
+            <div className="portal-notas">
+              <div className="cli-sub">Datos de esta vista</div>
+              <div className="cli-prod"><span>¿Usa el portal?</span><small>{cli.portal_activo ? "Sí, ya se registró" : "Todavía no se registró"}</small></div>
+              <div className="cli-prod"><span>Premios que puede canjear hoy</span><small>{premiosVisibles.filter(pr => (cli.puntos || 0) >= pr.puntos_requeridos && rank(cli.nivel) >= rank(pr.nivel_minimo || "Bronze")).length}</small></div>
+              <div className="cli-prod"><span>Compras</span><small>{vista.compras.length}</small></div>
+              {!cli.portal_activo && linkPortal && <button className="btn btn-p btn-sm" style={{ marginTop: 10 }} onClick={() => copiar(mensajeWa, "msg")}>{copiado === "msg" ? "✓ Copiado" : "📋 Copiar invitación para enviarle"}</button>}
+            </div>
           </div>
         )}
       </div>
@@ -17500,7 +17764,7 @@ export default function AppWrapper() {
     if (id === "fidelizacion") return <Fidelizacion usuario={usuario} paletaActual={paletaActual} />;
     if (id === "tareas") return <Tareas usuario={usuario} localId={local.id} paletaActual={paletaActual} />;
     if (id === "postventa") return <PostventaWA paletaActual={paletaActual} />;
-    if (id === "portal") return <PortalCliente paletaActual={paletaActual} />;
+    if (id === "portal") return <PortalCliente usuario={usuario} paletaActual={paletaActual} />;
     if (id === "config-negocio") return <ConfiguracionNegocio paletaActual={paletaActual} />;
     if (id === "usuarios") return <Usuarios usuario={usuario} paletaActual={paletaActual} />;
     if (id === "comisiones") return <Comisiones localId={local.id} usuario={usuario} paletaActual={paletaActual} />;

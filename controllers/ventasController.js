@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { recalcularNivel } = require('../lib/niveles');
 
 // Si una venta del POS se cobro (total o parcialmente) en efectivo, suma ese ingreso
 // automaticamente a la Caja (movimientos_caja_efectivo), para no tener que cargarlo a mano.
@@ -368,13 +369,8 @@ const create = async (req, res) => {
         'UPDATE clientes SET puntos = puntos + $1, total_compras = total_compras + $2 WHERE id = $3',
         [puntos, total, cliente_id]
       );
-      const clienteResult = await client.query('SELECT puntos FROM clientes WHERE id = $1', [cliente_id]);
-      const totalPuntos = clienteResult.rows[0].puntos;
-      let nivel = 'Bronze';
-      if (totalPuntos >= 2000) nivel = 'Platinum';
-      else if (totalPuntos >= 1000) nivel = 'Gold';
-      else if (totalPuntos >= 500) nivel = 'Silver';
-      await client.query('UPDATE clientes SET nivel = $1 WHERE id = $2', [nivel, cliente_id]);
+      // Nivel por lo que compro en total (lib/niveles.js)
+      await recalcularNivel(client, cliente_id);
     }
 
     await client.query('COMMIT');
@@ -688,15 +684,7 @@ const crearOnline = async (req, res) => {
           'UPDATE clientes SET puntos = COALESCE(puntos, 0) + $1 WHERE id = $2 RETURNING puntos',
           [pts, cliente_id]
         );
-        if (upd.rows.length > 0) {
-          const p = upd.rows[0].puntos;
-          let nivel = 'Bronze';
-          if (p >= 20000) nivel = 'Black';
-          else if (p >= 10000) nivel = 'Platinum';
-          else if (p >= 5000) nivel = 'Gold';
-          else if (p >= 2000) nivel = 'Silver';
-          await client.query('UPDATE clientes SET nivel = $1 WHERE id = $2', [nivel, cliente_id]);
-        }
+        if (upd.rows.length > 0) await recalcularNivel(client, cliente_id);
       }
     }
 

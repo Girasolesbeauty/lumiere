@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
+const { recalcularNivel } = require('../lib/niveles');
 
 const validar = (req) => {
   const { motivo, usuario_rol } = req.body;
@@ -95,6 +96,8 @@ router.post('/venta/:id', async (req, res) => {
       `UPDATE ventas SET anulada = TRUE, anulada_en = NOW(), anulada_por = $1, motivo_anulacion = $2 WHERE id = $3`,
       [usuario_nombre || null, motivo.trim(), venta.id]
     );
+    // Sin esta venta, lo que compro en total baja: se recalcula el nivel
+    if (venta.cliente_id) await recalcularNivel(client, venta.cliente_id);
 
     await registrarAnulacion(client, 'venta', venta.id, venta.numero_factura, motivo, usuario_id, usuario_nombre, { total: venta.total });
     await client.query('COMMIT');

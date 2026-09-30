@@ -3,6 +3,10 @@ const router = express.Router();
 const controller = require('../controllers/clientesController');
 
 router.get('/', controller.getAll);
+router.get('/config/niveles', controller.getNiveles);
+router.put('/config/niveles', controller.guardarNiveles);
+router.get('/portal/resumen', controller.getPortalResumen);
+router.get('/:id/portal-vista', controller.getPortalVista);
 router.get('/:id', controller.getById);
 router.post('/', controller.create);
 router.put('/:id', controller.update);

@@ -59,9 +59,12 @@ Abajo a la izquierda del menú están **Cambiar local**, **Cerrar sesión** y el
 - **Gift Cards**: **+ Emitir Gift Card** (monto, a quién, cliente vinculado, forma de pago). Se ve el saldo de cada una, su historial, y se pueden anular.
 
 ### CLIENTES
-- **Clientes**: alta y edición (nombre, celular, email, CUIT/DNI, cumpleaños), total de compras, puntos, nivel y acceso al portal.
-  - **Migrar puntos**: cargar puntos de compras hechas antes de usar Lumiere.
-  - **Resetear clave** del portal.
+- **Clientes**: alta y edición (nombre, celular, email, CUIT/DNI, cumpleaños), compras, cuánto gastó, última compra, puntos, nivel y si usa el portal.
+  - Arriba: total de clientes, activos (compraron en los últimos 90 días), **para recuperar** (compraron pero hace más de 90 días que no vuelven) y **cumplen este mes**.
+  - Filtros rápidos: Todos, Frecuentes, Nuevos, Para recuperar, Cumplen este mes y Sin compras. Se puede buscar por nombre, celular, email o DNI y ordenar por última compra, lo que gastó, puntos o nombre.
+  - Botón 💬 para escribirle por WhatsApp directo.
+  - **Ver ficha** (o tocar la fila): cuánto le falta para el próximo nivel, compras, gasto total, ticket promedio, lo que más compra, gift cards con saldo y últimas compras. Desde ahí: WhatsApp, editar, **cargar compra anterior** (migrar puntos de compras hechas antes de usar Lumiere), **resetear clave** del portal y eliminar (jefe).
+  - Pestaña **Niveles**: el nivel se calcula por lo que el cliente compró en total (ventas válidas + compras anteriores cargadas). Cada negocio elige desde qué monto es Silver, Gold, Platinum y Black (sugerido: $50.000, $100.000, $200.000 y $500.000). Al guardar se recalcula el nivel de todos. Si se anula una venta, el nivel se recalcula solo.
 - **Pedidos**: productos que un cliente está esperando.
   - **+ Anotar pedido**.
   - Cuando llega stock aparecen para avisar por WhatsApp. Los avisados quedan en historial y se ve si después compró.
@@ -106,7 +109,11 @@ Abajo a la izquierda del menú están **Cambiar local**, **Cerrar sesión** y el
   - **Generar mensajes según las reglas activas** arma la lista para enviar uno por uno.
 
 ### CLIENTE
-- **Portal Cliente**: vista del portal donde el cliente ve sus puntos, canjea premios, copia sus cupones y ve su historial de compras.
+- **Portal Cliente**: el panel del portal donde tus clientes ven sus puntos, su nivel y canjean premios.
+  - Cuántos clientes lo usan (de los que tienen DNI cargado), cuántos se registraron este mes y cuántos no pueden entrar porque no tienen DNI.
+  - **Invitá a tus clientes**: cargá el link del portal y copiá el mensaje listo para mandar por WhatsApp.
+  - **Premios para entregar**: los canjes hechos en el portal. Cuando el cliente viene con su código, tocá **Entregado**.
+  - **Ver el portal como un cliente**: buscá un cliente y mirá exactamente lo que ve él (puntos, cuánto le falta para el próximo nivel, premios que puede canjear, sus compras y canjes).
 
 ### NEGOCIO y CONFIGURACIÓN
 - **Configuración del Negocio** (jefe):

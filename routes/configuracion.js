@@ -57,6 +57,13 @@ router.put('/', async (req, res) => {
       await asegurarColumnaMensaje();
       await pool.query('UPDATE configuracion_negocio SET comisiones_activo = $1 WHERE id = 1', [req.body.comisiones_activo]);
     }
+    // Link del portal de clientes (para compartirlo por WhatsApp desde el sistema)
+    if (Object.prototype.hasOwnProperty.call(req.body, 'portal_url')) {
+      const url = String(req.body.portal_url || '').trim().slice(0, 300);
+      if (url && !/^https?:\/\//i.test(url)) return res.status(400).json({ error: 'El link del portal tiene que empezar con https://' });
+      await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS portal_url TEXT');
+      await pool.query('UPDATE configuracion_negocio SET portal_url = $1 WHERE id = 1', [url || null]);
+    }
     // Recalculo automatico del stock minimo cada noche (cada dueno decide)
     if (typeof req.body.stock_minimo_auto === 'boolean') {
       await asegurarColumnaMensaje();
