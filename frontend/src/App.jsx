@@ -503,6 +503,64 @@ button.tab { font-family: inherit; }
 .niv-top { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
 .niv-cant { font-size: 11px; color: ${p.textMuted}; }
 .niv-desde { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: ${p.textSoft}; margin-top: 10px; }
+.ci-tabla { display: flex; flex-direction: column; }
+.ci-fila { display: grid; grid-template-columns: minmax(0, 2.4fr) 1.2fr .7fr 1.5fr 1fr; gap: 10px; align-items: center; padding: 10px 14px; border-top: 1px solid ${p.border}; font-size: 13px; transition: background .2s; }
+.ci-fila.ci-hist { grid-template-columns: minmax(0, 2.2fr) .8fr .9fr 1.3fr .8fr .9fr; }
+.ci-fila.ci-fila-det { grid-template-columns: minmax(0, 2.4fr) .8fr .8fr .9fr 1fr; }
+.ci-cab { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: ${p.textMuted}; padding-top: 12px; padding-bottom: 8px; }
+.ci-cab.ci-fila-det, .ci-tabla > .ci-cab:first-child { border-top: none; }
+.ci-prod { display: flex; flex-direction: column; min-width: 0; }
+.ci-prod b { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ci-prod small { font-size: 11px; color: ${p.textMuted}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ci-mov { font-size: 12px; font-variant-numeric: tabular-nums; }
+.ci-sis { font-weight: 800; font-size: 15px; font-variant-numeric: tabular-nums; }
+.ci-contar { display: flex; gap: 6px; align-items: center; }
+.ci-input { width: 76px; padding: 8px 10px; font-size: 15px; font-weight: 700; text-align: center; }
+.ci-igual { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ci-faltante { background: ${p.redDim}; }
+.ci-sobrante { background: ${p.warnDim}; }
+.ci-correcto { background: ${p.greenDim}; }
+.ci-resaltado { box-shadow: inset 4px 0 0 var(--acento); background: var(--acento-dim) !important; }
+.ci-click { cursor: pointer; }
+.ci-click:hover, .ci-click:focus-visible { background: ${p.trHover}; outline: none; }
+@media (max-width: 760px) {
+  .ci-cab { display: none; }
+  .ci-fila, .ci-fila.ci-hist, .ci-fila.ci-fila-det { grid-template-columns: 1fr 1fr; row-gap: 6px; }
+  .ci-fila .ci-prod { grid-column: 1 / -1; }
+  .ci-fila > span[data-l]::before { content: attr(data-l); display: block; font-size: 10px; font-weight: 700; color: ${p.textMuted}; text-transform: uppercase; letter-spacing: .06em; }
+  .ci-input { width: 90px; font-size: 18px; }
+  .ci-contar { flex-wrap: wrap; }
+  .ci-contar::before { width: 100%; }
+}
+.ci-progreso { margin-bottom: 12px; }
+.ci-prog-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; font-size: 13px; }
+.ci-prog-top b { font-size: 18px; }
+.ci-prog-pct { font-size: 22px; font-weight: 900; color: var(--acento-texto); font-variant-numeric: tabular-nums; }
+.ci-seg { display: inline-flex; background: ${p.bg}; border: 1px solid ${p.border}; border-radius: 10px; padding: 3px; gap: 2px; }
+.ci-seg button { border: none; background: transparent; font-family: inherit; font-size: 12px; font-weight: 700; color: ${p.textMuted}; padding: 6px 12px; border-radius: 7px; cursor: pointer; min-height: 32px; }
+.ci-seg button.on { background: ${p.card}; color: ${p.text}; box-shadow: 0 1px 3px ${p.shadowCol}; }
+.ci-seg-bloque { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+.ci-scan-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+@media (max-width: 760px) { .ci-scan-grid { grid-template-columns: 1fr; } }
+.ci-camara { width: 100%; border-radius: 12px; overflow: hidden; background: #000; min-height: 200px; }
+.ci-escaneado { text-align: center; display: flex; flex-direction: column; gap: 6px; }
+.ci-escaneado small { font-size: 12px; color: ${p.textMuted}; }
+.ci-escaneado b { font-size: 18px; }
+.ci-esc-sis { font-size: 13px; color: ${p.textMuted}; margin-bottom: 6px; }
+.ci-esc-sis strong { font-size: 20px; color: ${p.text}; }
+.ci-esc-input { font-size: 30px; text-align: center; font-weight: 800; padding: 12px; margin-bottom: 8px; }
+.ci-encurso { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-top: 12px; border: 2px solid var(--acento-borde); background: linear-gradient(135deg, var(--acento-dim), ${p.card}); }
+.ci-tipos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0; }
+@media (max-width: 520px) { .ci-tipos { grid-template-columns: 1fr; } }
+.ci-tipo { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; text-align: left; padding: 12px; border-radius: 12px; border: 2px solid ${p.border}; background: ${p.card}; color: ${p.text}; font-family: inherit; cursor: pointer; transition: border-color .15s, transform .1s; }
+.ci-tipo:hover { transform: translateY(-1px); }
+.ci-tipo.on { border-color: var(--acento); background: var(--acento-dim); }
+.ci-tipo-ico { font-size: 22px; }
+.ci-tipo b { font-size: 14px; }
+.ci-tipo small { font-size: 12px; color: ${p.textMuted}; line-height: 1.4; }
+.ci-det-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+@media (max-width: 860px) { .ci-det-grid { grid-template-columns: 1fr; } }
+.ci-consejos { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.5; }
 .prem-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
 .prem-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
 .prem-card { background: ${p.card}; border: 1px solid ${p.border}; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; animation: popIn .3s ease-out both; transition: box-shadow .15s, transform .15s; }
@@ -14998,101 +15056,54 @@ function CierreCaja({ localId, usuario, paletaActual }) {
   );
 }
 
+// ============ Control de Inventario ============
+// Contar lo que hay en el local (con el celular, un lector o a mano) y compararlo con el sistema.
+const TIPOS_CONTROL = [
+  { id: "categoria", icono: "🏷️", titulo: "Una categoría", desc: "Recomendado: conteos cortos y seguidos, sin cerrar el local." },
+  { id: "marca", icono: "✨", titulo: "Una marca", desc: "Ideal antes de hacerle un pedido a esa marca." },
+  { id: "proveedor", icono: "🚚", titulo: "Un proveedor", desc: "Todo lo que te trae un mismo proveedor." },
+  { id: "total", icono: "📦", titulo: "Todo el local", desc: "Conteo completo. Conviene hacerlo con tiempo o entre varias personas." },
+];
+const etiquetaControl = (c) => !c ? "" : c.tipo === "total" ? "Todo el local" : c.tipo === "categoria" ? "Categoría: " + c.filtro_valor : c.tipo === "marca" ? "Marca: " + c.filtro_valor : "Proveedor: " + (c.proveedor_nombre || c.filtro_valor);
+const exactitudDe = (correctos, contados) => contados > 0 ? Math.round(correctos / contados * 100) : null;
+const ESTADO_CONTEO = { pendiente: { t: "Sin contar", c: "tag-neutral" }, correcto: { t: "✓ Correcto", c: "tag-ok" }, faltante: { t: "Falta", c: "tag-bad" }, sobrante: { t: "Sobra", c: "tag-warn" } };
+
 function ControlInventario({ localId, usuario, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
-  const [vista, setVista] = useState("lista");
-  const [controles, setControles] = useState([]);
+  const $ = (v) => fmt(Math.round(v || 0)).replace(",00", "");
+  const [vista, setVista] = useState("lista"); // lista | conteo | detalle
+  const [controles, setControles] = useState(null);
   const [config, setConfig] = useState(null);
-  const [showNuevo, setShowNuevo] = useState(false);
-  const [showConfig, setShowConfig] = useState(false);
-  const [tipoNuevo, setTipoNuevo] = useState("total");
-  const [categoriaNuevo, setCategoriaNuevo] = useState("");
-  const [categorias, setCategorias] = useState([]);
-  const [marcaNuevo, setMarcaNuevo] = useState("");
-  const [marcas, setMarcas] = useState([]);
-  const [proveedorNuevo, setProveedorNuevo] = useState("");
+  const [productos, setProductos] = useState([]);
   const [proveedores, setProveedores] = useState([]);
-  const [controlActivo, setControlActivo] = useState(null);
+  const [msg, setMsg] = useState("");
+  const [nuevo, setNuevo] = useState(null); // { tipo, valor }
+  const [creando, setCreando] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
+  const [control, setControl] = useState(null);
   const [items, setItems] = useState([]);
-  const [filtroItems, setFiltroItems] = useState("todos");
+  const [filtro, setFiltro] = useState("pendiente");
   const [busqueda, setBusqueda] = useState("");
-  const [mensaje, setMensaje] = useState("");
+  const [resaltado, setResaltado] = useState(null);
+  const [modoScan, setModoScan] = useState(false);
+  const [sumaEscaneo, setSumaEscaneo] = useState(true);
+  const [escaneando, setEscaneando] = useState(false);
+  const [errorCamara, setErrorCamara] = useState("");
+  const [itemEscaneado, setItemEscaneado] = useState(null);
+  const [valorContado, setValorContado] = useState("");
+  const [ultimos, setUltimos] = useState([]); // ultimos escaneos (modo suma)
+  const [codigoManual, setCodigoManual] = useState("");
   const [showFinalizar, setShowFinalizar] = useState(false);
   const [ajustarStock, setAjustarStock] = useState(true);
   const [notasFin, setNotasFin] = useState("");
-  const [resultadoFinal, setResultadoFinal] = useState(null);
-  const [modoScan, setModoScan] = useState(false);
-  const [productosTodos, setProductosTodos] = useState([]);
-  const [escaneandoInv, setEscaneandoInv] = useState(false);
-  const [errorCamaraInv, setErrorCamaraInv] = useState("");
-  const [itemEscaneado, setItemEscaneado] = useState(null);
-  const [valorContado, setValorContado] = useState("");
-  const scannerInvRef = useRef(null);
+  const [finalizando, setFinalizando] = useState(false);
+  const [recienFinalizado, setRecienFinalizado] = useState(false);
+  const scannerRef = useRef(null);
+  const ultimoCodigo = useRef({ c: "", t: 0 });
+  const itemsRef = useRef([]);
+  itemsRef.current = items;
 
-  useEffect(() => {
-    if (modoScan && productosTodos.length === 0) {
-      API.get("/productos").then(res => setProductosTodos(res.data || [])).catch(() => {});
-    }
-  }, [modoScan]);
-
-  const cerrarCamaraInv = async () => {
-    if (scannerInvRef.current) {
-      try { await scannerInvRef.current.stop(); scannerInvRef.current.clear(); } catch (e) {}
-      scannerInvRef.current = null;
-    }
-    setEscaneandoInv(false);
-  };
-
-  const buscarItemPorCodigo = (codigo) => {
-    const prod = productosTodos.find(pr => (pr.codigo_barras || "").trim() === codigo.trim());
-    if (!prod) return null;
-    return items.find(it => it.producto_id === prod.id || it.producto_nombre === prod.nombre) || null;
-  };
-
-  const abrirCamaraInv = () => { setErrorCamaraInv(""); setEscaneandoInv(true); };
-
-  useEffect(() => {
-    if (!escaneandoInv) return;
-    let cancelado = false;
-    (async () => {
-      try {
-        const mod = await import("https://cdn.jsdelivr.net/npm/html5-qrcode/+esm");
-        if (cancelado) return;
-        const { Html5Qrcode } = mod;
-        const scanner = new Html5Qrcode("lector-camara-inv");
-        scannerInvRef.current = scanner;
-        await scanner.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 260, height: 140 } },
-          (textoDecodificado) => {
-            const item = buscarItemPorCodigo(textoDecodificado);
-            cerrarCamaraInv();
-            if (item) {
-              setItemEscaneado(item);
-              setValorContado(item.stock_contado !== null && item.stock_contado !== undefined ? String(item.stock_contado) : "");
-            } else {
-              setMensaje("Ese codigo no corresponde a ningun producto de este control");
-              setTimeout(() => setMensaje(""), 3000);
-            }
-          },
-          () => {}
-        );
-      } catch (e) {
-        setErrorCamaraInv("No se pudo abrir la camara. Revisa los permisos del navegador.");
-        setEscaneandoInv(false);
-      }
-    })();
-    return () => { cancelado = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [escaneandoInv]);
-
-  const confirmarConteoEscaneado = async () => {
-    if (valorContado === "" || isNaN(parseInt(valorContado))) return;
-    await contarItem(itemEscaneado, valorContado);
-    setItemEscaneado(null);
-    setValorContado("");
-    abrirCamaraInv();
-  };
+  const avisar = (m) => { setMsg(m); if (!m.startsWith("Error")) setTimeout(() => setMsg(x => x === m ? "" : x), 3500); };
 
   const cargar = async () => {
     try {
@@ -15100,234 +15111,393 @@ function ControlInventario({ localId, usuario, paletaActual }) {
         API.get("/controles-inventario?local_id=" + (localId || 1)),
         API.get("/controles-inventario/config?local_id=" + (localId || 1)),
         API.get("/productos"),
-        API.get("/proveedores").catch(() => ({ data: [] }))
+        API.get("/proveedores").catch(() => ({ data: [] })),
       ]);
-      setControles(c.data || []);
-      setConfig(cfg.data);
-      const cats = [...new Set((prods.data || []).map(p => p.categoria).filter(Boolean))];
-      setCategorias(cats);
-      const marcasUnicas = [...new Set((prods.data || []).map(p => p.marca).filter(Boolean))].sort();
-      setMarcas(marcasUnicas);
-      setProveedores(provs.data || []);
-    } catch (e) {}
+      setControles(c.data || []); setConfig(cfg.data); setProductos(prods.data || []); setProveedores(provs.data || []);
+    } catch (e) { setControles([]); avisar("Error: no se pudieron cargar los controles"); }
   };
-
   useEffect(() => { cargar(); }, [localId]);
 
-  const abrirControl = async (ctrl) => {
+  const abrir = async (id, destino) => {
     try {
-      const res = await API.get("/controles-inventario/" + ctrl.id);
-      setControlActivo(res.data);
-      setItems(res.data.items || []);
-      setVista("conteo");
-    } catch (e) {}
+      const r = await API.get("/controles-inventario/" + id);
+      setControl(r.data); setItems(r.data.items || []);
+      setFiltro("pendiente"); setBusqueda(""); setModoScan(false); setUltimos([]);
+      setVista(destino || (r.data.estado === "en_curso" ? "conteo" : "detalle"));
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (e) { avisar("Error: no se pudo abrir el control"); }
   };
 
-  const crearNuevo = async () => {
-    if (tipoNuevo === "categoria" && !categoriaNuevo) return setMensaje("Elegi una categoria");
-    if (tipoNuevo === "marca" && !marcaNuevo) return setMensaje("Elegi una marca");
-    if (tipoNuevo === "proveedor" && !proveedorNuevo) return setMensaje("Elegi un proveedor");
+  // ----- Nuevo control -----
+  const activos = productos.filter(pr => pr.activo !== false);
+  const categorias = [...new Set(activos.map(pr => pr.categoria).filter(Boolean))].sort();
+  const marcas = [...new Set(activos.map(pr => pr.marca).filter(Boolean))].sort();
+  const cuantosEntran = nuevo ? activos.filter(pr => nuevo.tipo === "total" || (nuevo.tipo === "categoria" && pr.categoria === nuevo.valor) || (nuevo.tipo === "marca" && pr.marca === nuevo.valor) || (nuevo.tipo === "proveedor" && String(pr.proveedor_id) === String(nuevo.valor))).length : 0;
+  const crear = async () => {
+    if (nuevo.tipo !== "total" && !nuevo.valor) return avisar("Error: elegí qué vas a contar");
+    setCreando(true);
     try {
-      const res = await API.post("/controles-inventario", {
-        tipo: tipoNuevo,
-        categoria: tipoNuevo === "categoria" ? categoriaNuevo : null,
-        marca: tipoNuevo === "marca" ? marcaNuevo : null,
-        proveedor_id: tipoNuevo === "proveedor" ? proveedorNuevo : null,
-        local_id: localId || 1, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre
+      const r = await API.post("/controles-inventario", {
+        tipo: nuevo.tipo, categoria: nuevo.tipo === "categoria" ? nuevo.valor : null, marca: nuevo.tipo === "marca" ? nuevo.valor : null,
+        proveedor_id: nuevo.tipo === "proveedor" ? nuevo.valor : null, local_id: localId || 1, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre,
       });
-      setShowNuevo(false); setCategoriaNuevo(""); setMarcaNuevo(""); setProveedorNuevo(""); setTipoNuevo("total");
-      abrirControl(res.data);
-    } catch (e) { setMensaje(e.response?.data?.error || "Error al crear control"); }
+      setNuevo(null); cargar(); abrir(r.data.id, "conteo");
+    } catch (e) {
+      const d = e.response?.data;
+      if (d && d.control_id) { setNuevo(null); avisar("Ya había un control sin terminar: te lo abrimos para que sigas."); abrir(d.control_id, "conteo"); }
+      else avisar("Error: " + (d?.error || "no se pudo crear el control"));
+    }
+    setCreando(false);
   };
 
-  const contarItem = async (item, valor) => {
-    if (valor === "" || isNaN(parseInt(valor))) return;
+  // ----- Conteo -----
+  const guardarConteo = async (item, cuerpo) => {
     try {
-      const res = await API.put("/controles-inventario/" + controlActivo.id + "/contar/" + item.id, { stock_contado: parseInt(valor) });
-      setItems(prev => prev.map(i => i.id === item.id ? { ...i, ...res.data } : i));
-    } catch (e) {}
+      const r = await API.put("/controles-inventario/" + control.id + "/contar/" + item.id, cuerpo);
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, ...r.data } : i));
+      return r.data;
+    } catch (e) { avisar("Error: " + (e.response?.data?.error || "no se guardó el conteo")); return null; }
+  };
+  const contar = (item, valor) => {
+    if (valor === "" || valor === null) return;
+    const n = parseInt(valor);
+    if (isNaN(n) || n < 0) return avisar("Error: la cantidad tiene que ser 0 o más");
+    if (item.stock_contado === n) return;
+    return guardarConteo(item, { stock_contado: n });
+  };
+  // Enter en una fila: guarda y pasa al siguiente producto (para contar rapido con el teclado)
+  const siguiente = (e, idx) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    e.target.blur();
+    const inputs = document.querySelectorAll(".ci-input");
+    if (inputs[idx + 1]) { inputs[idx + 1].focus(); inputs[idx + 1].select(); }
+  };
+  const buscarPorCodigo = (codigo) => {
+    const cod = String(codigo || "").trim();
+    if (!cod) return null;
+    const lista = itemsRef.current;
+    let it = lista.find(i => (i.producto_codigo || "").trim() === cod);
+    if (!it) {
+      const prod = productos.find(pr => (pr.codigo_barras || "").trim() === cod);
+      if (prod) it = lista.find(i => i.producto_id === prod.id);
+    }
+    return it || null;
+  };
+  // Buscador: si se pasa el lector (codigo exacto + Enter) salta a ese producto
+  const enterBuscador = (e) => {
+    if (e.key !== "Enter") return;
+    const it = buscarPorCodigo(busqueda);
+    if (!it) return;
+    setFiltro("todos"); setBusqueda("");
+    setResaltado(it.id);
+    setTimeout(() => {
+      const el = document.getElementById("ci-in-" + it.id);
+      if (el) { el.scrollIntoView({ block: "center", behavior: "smooth" }); el.focus(); el.select(); }
+    }, 60);
+    setTimeout(() => setResaltado(null), 2500);
   };
 
-  const finalizarControl = async () => {
+  // Lo que pasa al leer un codigo (camara o lector/teclado en modo escaneo)
+  const alLeerCodigo = async (codigo) => {
+    const ahora = Date.now();
+    if (codigo === ultimoCodigo.current.c && ahora - ultimoCodigo.current.t < 1500) return; // la camara lee el mismo codigo varias veces seguidas
+    ultimoCodigo.current = { c: codigo, t: ahora };
+    const it = buscarPorCodigo(codigo);
+    if (!it) { avisar("Error: ese código no es de ningún producto de este control"); return; }
+    if (sumaEscaneo) {
+      const r = await guardarConteo(it, { sumar: 1 });
+      if (r) { setUltimos(u => [{ id: it.id + "-" + ahora, nombre: it.producto_nombre, total: r.stock_contado }, ...u].slice(0, 6)); if (navigator.vibrate) navigator.vibrate(60); }
+    } else {
+      await cerrarCamara();
+      setItemEscaneado(it);
+      setValorContado(it.stock_contado !== null && it.stock_contado !== undefined ? String(it.stock_contado) : "");
+    }
+  };
+  const alLeerRef = useRef(alLeerCodigo);
+  alLeerRef.current = alLeerCodigo;
+
+  const cerrarCamara = async () => {
+    if (scannerRef.current) {
+      try { await scannerRef.current.stop(); scannerRef.current.clear(); } catch (e) {}
+      scannerRef.current = null;
+    }
+    setEscaneando(false);
+  };
+  useEffect(() => {
+    if (!escaneando) return;
+    let cancelado = false;
+    (async () => {
+      try {
+        const mod = await import("https://cdn.jsdelivr.net/npm/html5-qrcode/+esm");
+        if (cancelado) return;
+        const scanner = new mod.Html5Qrcode("lector-camara-inv");
+        scannerRef.current = scanner;
+        await scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 260, height: 140 } }, (txt) => alLeerRef.current(txt), () => {});
+      } catch (e) {
+        setErrorCamara("No se pudo abrir la cámara. Revisá los permisos del navegador.");
+        setEscaneando(false);
+      }
+    })();
+    return () => { cancelado = true; };
+  }, [escaneando]);
+  useEffect(() => () => { if (scannerRef.current) { try { scannerRef.current.stop(); } catch (e) {} } }, []);
+  useEffect(() => { if (!modoScan) { cerrarCamara(); setItemEscaneado(null); } }, [modoScan]);
+
+  const confirmarEscaneado = async () => {
+    if (valorContado === "" || isNaN(parseInt(valorContado))) return;
+    await contar(itemEscaneado, valorContado);
+    setItemEscaneado(null); setValorContado("");
+    setErrorCamara(""); setEscaneando(true);
+  };
+  const leerManual = (e) => {
+    e.preventDefault();
+    const c = codigoManual.trim();
+    if (!c) return;
+    ultimoCodigo.current = { c: "", t: 0 };
+    alLeerCodigo(c);
+    setCodigoManual("");
+  };
+
+  const finalizar = async () => {
+    setFinalizando(true);
     try {
-      const res = await API.post("/controles-inventario/" + controlActivo.id + "/finalizar", {
-        ajustar_stock: ajustarStock, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre, notas: notasFin
-      });
-      setResultadoFinal(res.data);
-      setShowFinalizar(false);
+      await API.post("/controles-inventario/" + control.id + "/finalizar", { ajustar_stock: ajustarStock, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre, notas: notasFin });
+      setShowFinalizar(false); setNotasFin(""); await cerrarCamara();
+      setRecienFinalizado(true);
+      await abrir(control.id, "detalle");
       cargar();
-    } catch (e) { setMensaje("Error al finalizar"); }
+    } catch (e) { avisar("Error: " + (e.response?.data?.error || "no se pudo finalizar")); }
+    setFinalizando(false);
   };
-
+  const cancelar = async (c) => {
+    if (!confirm("¿Cancelar este control? Se pierde lo que se contó hasta ahora.")) return;
+    try { await API.delete("/controles-inventario/" + c.id); avisar("Control cancelado"); cargar(); }
+    catch (e) { avisar("Error: " + (e.response?.data?.error || e.message)); }
+  };
   const guardarConfig = async () => {
     try {
       await API.put("/controles-inventario/config", { local_id: localId || 1, dias_aviso: config.dias_aviso, avisos_activos: config.avisos_activos });
-      setShowConfig(false);
-      setMensaje("Configuracion guardada");
-      setTimeout(() => setMensaje(""), 2500);
-    } catch (e) { setMensaje("Error al guardar"); }
+      setShowConfig(false); avisar("✓ Avisos guardados");
+    } catch (e) { avisar("Error al guardar"); }
+  };
+  const descargarCsv = () => {
+    const filas = [["Producto", "Marca", "Categoría", "Código", "Sistema", "Contado", "Diferencia", "Costo unitario", "Valor diferencia"]];
+    items.filter(i => i.estado !== "pendiente").forEach(i => filas.push([i.producto_nombre, i.producto_marca || "", i.producto_categoria || "", i.producto_codigo || "", i.stock_sistema, i.stock_contado, i.diferencia, Math.round(i.costo_unitario || 0), Math.round((i.diferencia || 0) * (i.costo_unitario || 0))]));
+    const csv = filas.map(f => f.map(x => '"' + String(x ?? "").replace(/"/g, '""') + '"').join(";")).join("\n");
+    const url = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a"); a.href = url; a.download = "control-inventario-" + control.id + ".csv"; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
-  const cancelarControl = async (ctrl) => {
-    if (!confirm("Cancelar este control en curso?")) return;
-    await API.delete("/controles-inventario/" + ctrl.id);
-    cargar();
-  };
+  // ----- Numeros del control abierto -----
+  const cuenta = { pendiente: 0, correcto: 0, faltante: 0, sobrante: 0 };
+  let valorFalta = 0, valorSobra = 0, uFalta = 0, uSobra = 0, entro = 0, vendido = 0;
+  items.forEach(i => {
+    cuenta[i.estado] = (cuenta[i.estado] || 0) + 1;
+    entro += i.ingresado_periodo || 0; vendido += i.vendido_periodo || 0;
+    const costo = parseFloat(i.costo_unitario || 0);
+    if (i.diferencia < 0) { valorFalta += -i.diferencia * costo; uFalta += -i.diferencia; }
+    if (i.diferencia > 0) { valorSobra += i.diferencia * costo; uSobra += i.diferencia; }
+  });
+  const contados = items.length - cuenta.pendiente;
+  const progreso = items.length ? Math.round(contados / items.length * 100) : 0;
+  const exactitud = exactitudDe(cuenta.correcto, contados);
+  const q = busqueda.trim().toLowerCase();
+  const visibles = items
+    .filter(i => filtro === "todos" || i.estado === filtro)
+    .filter(i => !q || [i.producto_nombre, i.producto_marca, i.producto_categoria, i.producto_codigo].some(x => String(x || "").toLowerCase().includes(q)));
 
-  const itemsFiltrados = items
-    .filter(i => filtroItems === "todos" || (filtroItems === "pendientes" && i.estado === "pendiente") || (filtroItems === "faltantes" && i.estado === "faltante") || (filtroItems === "sobrantes" && i.estado === "sobrante") || (filtroItems === "correctos" && i.estado === "correcto"))
-    .filter(i => !busqueda || (i.producto_nombre || "").toLowerCase().includes(busqueda.toLowerCase()) || (i.producto_marca || "").toLowerCase().includes(busqueda.toLowerCase()));
-
-  const totalContados = items.filter(i => i.estado !== "pendiente").length;
-  const totalCorrectos = items.filter(i => i.estado === "correcto").length;
-  const totalFaltantes = items.filter(i => i.estado === "faltante").length;
-  const totalSobrantes = items.filter(i => i.estado === "sobrante").length;
-  const progreso = items.length > 0 ? Math.round((totalContados / items.length) * 100) : 0;
-
-  if (vista === "conteo" && controlActivo) {
-    if (resultadoFinal) {
-      return (
-        <div className="fade">
-          <div className="ph"><div><div className="pt">Control finalizado</div><div className="ps">{controlActivo.tipo === "total" ? "Conteo total" : controlActivo.tipo === "categoria" ? "Categoria: " + controlActivo.filtro_valor : controlActivo.tipo === "marca" ? "Marca: " + controlActivo.filtro_valor : "Proveedor"}</div></div></div>
-          <div className="g4" style={{ marginBottom: 16 }}>
-            <MCard label="Items contados" value={String(resultadoFinal.correctos + resultadoFinal.faltantes + resultadoFinal.sobrantes)} color="#2C3E5C" />
-            <MCard label="Correctos" value={String(resultadoFinal.correctos)} color="#2d7a4f" />
-            <MCard label="Faltantes" value={String(resultadoFinal.faltantes)} color="#c0392b" />
-            <MCard label="Sobrantes" value={String(resultadoFinal.sobrantes)} color="var(--acento-texto)" />
-          </div>
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div className="ct">Analisis de mermas (desde el ultimo control)</div>
-            <div className="g2" style={{ marginBottom: 0 }}>
-              <div>
-                <div style={{ fontSize: 11, color: "#65676B" }}>Entraron en el periodo</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: "#2d7a4f" }}>+{resultadoFinal.total_ingresado} unidades</div>
-                <div style={{ fontSize: 11, color: "#65676B", marginTop: 10 }}>Se vendieron en el periodo</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: "#c0392b" }}>-{resultadoFinal.total_vendido} unidades</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11, color: "#65676B" }}>Valor estimado de lo faltante (posible perdida)</div>
-                <div style={{ fontSize: 26, fontWeight: 700, color: "#c0392b" }}>{fmt(resultadoFinal.valor_perdida_estimado || 0)}</div>
-                {resultadoFinal.valor_sobrante_estimado > 0 && (
-                  <>
-                    <div style={{ fontSize: 11, color: "#65676B", marginTop: 10 }}>Valor estimado de lo sobrante</div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: "var(--acento-texto)" }}>{fmt(resultadoFinal.valor_sobrante_estimado)}</div>
-                  </>
-                )}
-              </div>
-            </div>
-            <div style={{ fontSize: 10, color: "#65676B", marginTop: 12 }}>Este valor es una estimacion en base al costo cargado de cada producto y la diferencia entre lo contado y lo que el sistema esperaba, considerando lo que entro y se vendio en el periodo. No reemplaza una revision manual de casos puntuales.</div>
-          </div>
-          {resultadoFinal.ajustado && <div style={{ background: "#2d7a4f12", border: "1px solid #2d7a4f", borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: "#2d7a4f" }}>El stock se ajusto automaticamente con el motivo "Control de inventario #{controlActivo.id}"</div>}
-          <button className="btn btn-p" onClick={() => { setVista("lista"); setControlActivo(null); setItems([]); setResultadoFinal(null); }}>Volver al listado</button>
-        </div>
-      );
-    }
+  // =============== Detalle / resultado ===============
+  if (vista === "detalle" && control) {
+    const diferencias = items.filter(i => i.estado === "faltante" || i.estado === "sobrante").sort((a, b) => Math.abs(b.diferencia * (b.costo_unitario || 0)) - Math.abs(a.diferencia * (a.costo_unitario || 0)));
+    const topFalta = items.filter(i => i.diferencia < 0).sort((a, b) => a.diferencia * (a.costo_unitario || 0) - b.diferencia * (b.costo_unitario || 0)).slice(0, 5);
     return (
       <div className="fade">
-        <div className="ph">
-          <div><div className="pt">Conteo de inventario #{controlActivo.id}</div><div className="ps">{controlActivo.tipo === "total" ? "Conteo total" : "Categoria: " + controlActivo.categoria}</div></div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className={"btn btn-sm " + (modoScan ? "btn-g" : "btn-p")} onClick={() => setModoScan(false)}>📋 Lista</button>
-            <button className={"btn btn-sm " + (modoScan ? "btn-p" : "btn-g")} onClick={() => setModoScan(true)}>📷 Escanear</button>
-            <button className="btn btn-g btn-sm" onClick={() => { setVista("lista"); setControlActivo(null); }}>Guardar y salir</button>
-            <button className="btn btn-p btn-sm" onClick={() => setShowFinalizar(true)} disabled={totalContados === 0}>Finalizar conteo</button>
+        <div className="dash-head">
+          <div>
+            <div className="pt">{recienFinalizado ? "¡Control terminado!" : "Control #" + control.id}</div>
+            <div className="ps">{etiquetaControl(control)} · {control.finalizado_en ? new Date(control.finalizado_en).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" }) : ""}{control.usuario_nombre ? " · " + control.usuario_nombre : ""}</div>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {diferencias.length > 0 && <button className="btn btn-g btn-sm" onClick={descargarCsv}>⬇ Descargar diferencias</button>}
+            <button className="btn btn-p btn-sm" onClick={() => { setVista("lista"); setControl(null); setItems([]); setRecienFinalizado(false); }}>Volver</button>
           </div>
         </div>
-        <div className="g4" style={{ marginBottom: 16 }}>
-          <MCard label="Progreso" value={progreso + "%"} sub={totalContados + " / " + items.length} color="#2C3E5C" />
-          <MCard label="Correctos" value={String(totalCorrectos)} color="#2d7a4f" />
-          <MCard label="Faltantes" value={String(totalFaltantes)} color="#c0392b" />
-          <MCard label="Sobrantes" value={String(totalSobrantes)} color="var(--acento-texto)" />
+        {msg && <div className={"pop-in cc-aviso " + (msg.startsWith("Error") ? "bad" : "ok")} role="status">{msg}</div>}
+        {recienFinalizado && control.ajustar_stock && <div className="cc-aviso ok pop-in">✓ El stock del sistema se corrigió con lo que contaste (queda registrado como "Control de inventario #{control.id}").</div>}
+        <div className="kpi-grid">
+          <KpiCard p={p} titulo="🎯 Exactitud" valor={exactitud === null ? "—" : exactitud + "%"} color={exactitud === null ? p.textMuted : exactitud >= 95 ? p.green : exactitud >= 80 ? p.warn : p.red} indice={0} sub={cuenta.correcto + " de " + contados + " productos estaban bien"} />
+          <KpiCard p={p} titulo="Faltó" valor={$(valorFalta)} color={valorFalta > 0 ? p.red : p.green} indice={1} sub={(uFalta === 1 ? "1 unidad" : uFalta + " unidades") + " en " + (cuenta.faltante === 1 ? "1 producto" : cuenta.faltante + " productos") + " (a costo)"} />
+          <KpiCard p={p} titulo="Sobró" valor={$(valorSobra)} color={valorSobra > 0 ? p.warn : p.green} indice={2} sub={(uSobra === 1 ? "1 unidad" : uSobra + " unidades") + " en " + (cuenta.sobrante === 1 ? "1 producto" : cuenta.sobrante + " productos")} />
+          <KpiCard p={p} titulo="Movimiento desde el control anterior" valor={"+" + entro + " / −" + vendido} indice={3} sub="unidades que entraron / se vendieron" />
         </div>
+        <div className="ci-det-grid">
+          <div className="chart-card">
+            <div className="chart-title">🔎 Lo que más plata representa</div>
+            <div style={{ fontSize: 12, color: p.textMuted, margin: "4px 0 10px" }}>Los faltantes más caros. Si se repiten de un control a otro, conviene revisar dónde se guardan o quién los maneja.</div>
+            {topFalta.length === 0 ? <div className="cli-vacio">🎉 No faltó nada.</div> : topFalta.map(i => (
+              <div key={i.id} className="cli-hist-fila"><div style={{ minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 700 }}>{i.producto_nombre}</div><div style={{ fontSize: 11, color: p.textMuted }}>faltan {-i.diferencia} u · sistema {i.stock_sistema}, contado {i.stock_contado}</div></div><b style={{ color: p.red, whiteSpace: "nowrap" }}>{$(-i.diferencia * (i.costo_unitario || 0))}</b></div>
+            ))}
+          </div>
+          <div className="chart-card">
+            <div className="chart-title">💡 Qué hacer ahora</div>
+            <ul className="ci-consejos">
+              {exactitud !== null && exactitud >= 95 && <li>Muy bien: el stock del sistema es confiable. Seguí con conteos cortos cada tanto para mantenerlo.</li>}
+              {exactitud !== null && exactitud < 95 && <li>Hay diferencias en {100 - exactitud}% de lo contado. Revisá si se están cargando todos los ingresos de mercadería y los cambios o devoluciones.</li>}
+              {cuenta.sobrante > 0 && <li>Lo que sobra suele ser mercadería que entró y no se cargó en Ingresos, o ventas cobradas con otro producto.</li>}
+              {cuenta.faltante > 0 && <li>Lo que falta puede ser rotura, regalos, pruebas o robo. Anotá las roturas en el momento para que no aparezcan como faltante.</li>}
+              {cuenta.pendiente > 0 && <li>Quedaron {cuenta.pendiente} productos sin contar: esos no se tocaron.</li>}
+              {!control.ajustar_stock && <li>El stock del sistema no se modificó en este control.</li>}
+            </ul>
+            {control.notas && <div className="cli-tip" style={{ margin: "10px 0 0" }}>📝 {control.notas}</div>}
+          </div>
+        </div>
+        <div className="chart-card" style={{ marginTop: 12 }}>
+          <div className="chart-title">Diferencias ({diferencias.length})</div>
+          {diferencias.length === 0 ? <div className="cli-vacio">Todo lo contado coincidía con el sistema.</div> : (
+            <div className="ci-tabla">
+              <div className="ci-fila ci-cab"><span>Producto</span><span>Sistema</span><span>Contado</span><span>Diferencia</span><span>Valor</span></div>
+              {diferencias.map(i => (
+                <div key={i.id} className="ci-fila ci-fila-det">
+                  <span className="ci-prod"><b>{i.producto_nombre}</b><small>{[i.producto_marca, i.producto_categoria].filter(Boolean).join(" · ")}</small></span>
+                  <span data-l="Sistema">{i.stock_sistema}</span><span data-l="Contado">{i.stock_contado}</span>
+                  <span data-l="Diferencia"><span className={"tag " + (i.diferencia < 0 ? "tag-bad" : "tag-warn")}>{i.diferencia > 0 ? "+" : ""}{i.diferencia}</span></span>
+                  <span data-l="Valor" style={{ fontWeight: 700, color: i.diferencia < 0 ? p.red : p.warn }}>{$(Math.abs(i.diferencia) * (i.costo_unitario || 0))}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // =============== Conteo ===============
+  if (vista === "conteo" && control) {
+    return (
+      <div className="fade">
+        <div className="dash-head">
+          <div>
+            <div className="pt">Contando: {etiquetaControl(control)}</div>
+            <div className="ps">Control #{control.id} · se guarda solo mientras contás · empezado {textoHace(diasDesdeFecha(control.creado_en))}</div>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div className="ci-seg" role="tablist" aria-label="Forma de contar">
+              <button role="tab" aria-selected={!modoScan} className={!modoScan ? "on" : ""} onClick={() => setModoScan(false)}>📋 Lista</button>
+              <button role="tab" aria-selected={modoScan} className={modoScan ? "on" : ""} onClick={() => setModoScan(true)}>📷 Escanear</button>
+            </div>
+            <button className="btn btn-g btn-sm" onClick={async () => { await cerrarCamara(); setVista("lista"); setControl(null); cargar(); }}>Seguir después</button>
+            <button className="btn btn-p btn-sm" onClick={() => setShowFinalizar(true)} disabled={contados === 0}>Terminar control</button>
+          </div>
+        </div>
+        {msg && <div className={"pop-in cc-aviso " + (msg.startsWith("Error") ? "bad" : "ok")} role="status">{msg}</div>}
+
+        <div className="chart-card ci-progreso">
+          <div className="ci-prog-top">
+            <div><b>{contados}</b> de {items.length} productos contados</div>
+            <div className="ci-prog-pct">{progreso}%</div>
+          </div>
+          <div className="pb" style={{ height: 10 }}><div className="pf" style={{ width: progreso + "%", background: "var(--acento)", transition: "width .4s" }} /></div>
+          <div className="cli-chips" style={{ marginTop: 12 }}>
+            {[["pendiente", "Sin contar"], ["faltante", "Faltan"], ["sobrante", "Sobran"], ["correcto", "Correctos"], ["todos", "Todos"]].map(([k, l]) => (
+              <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => { setFiltro(k); setModoScan(false); }}>{l} · {k === "todos" ? items.length : cuenta[k]}</button>
+            ))}
+          </div>
+        </div>
+
         {modoScan ? (
-          <div className="card" style={{ maxWidth: 480 }}>
-            {mensaje && <div style={{ color: "#c0392b", fontSize: 12, marginBottom: 12 }}>{mensaje}</div>}
-            {itemEscaneado ? (
-              <div style={{ textAlign: "center", padding: 10 }}>
-                <div style={{ fontSize: 12, color: p.textMuted }}>{itemEscaneado.producto_marca} · {itemEscaneado.producto_categoria}</div>
-                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>{itemEscaneado.producto_nombre}</div>
-                <div style={{ fontSize: 11, color: p.textMuted, marginBottom: 10 }}>
-                  Desde el ultimo control: <span style={{ color: "#2d7a4f", fontWeight: 600 }}>+{itemEscaneado.ingresado_periodo || 0} entraron</span> · <span style={{ color: "#c0392b", fontWeight: 600 }}>-{itemEscaneado.vendido_periodo || 0} se vendieron</span>
+          <div className="ci-scan-grid">
+            <div className="chart-card">
+              <div className="ci-seg ci-seg-bloque" role="radiogroup" aria-label="Cómo cuenta el escaneo">
+                <button role="radio" aria-checked={sumaEscaneo} className={sumaEscaneo ? "on" : ""} onClick={() => { setSumaEscaneo(true); setItemEscaneado(null); }}>Cada escaneo suma 1</button>
+                <button role="radio" aria-checked={!sumaEscaneo} className={!sumaEscaneo ? "on" : ""} onClick={() => setSumaEscaneo(false)}>Escaneo y escribo la cantidad</button>
+              </div>
+              <div className="dec-ayuda" style={{ margin: "8px 0 12px" }}>{sumaEscaneo ? "Pasá cada unidad por la cámara o el lector: se van sumando solas." : "Escaneás un producto, contás cuántos hay y escribís el número."}</div>
+              {itemEscaneado ? (
+                <div className="ci-escaneado pop-in">
+                  <small>{[itemEscaneado.producto_marca, itemEscaneado.producto_categoria].filter(Boolean).join(" · ")}</small>
+                  <b>{itemEscaneado.producto_nombre}</b>
+                  <div className="ci-esc-sis">El sistema dice <strong>{itemEscaneado.stock_sistema}</strong></div>
+                  <label className="fl" htmlFor="ci-esc-val">¿Cuántos contaste?</label>
+                  <input id="ci-esc-val" type="number" inputMode="numeric" min="0" className="inp ci-esc-input" autoFocus value={valorContado} onChange={e => setValorContado(e.target.value)} onKeyDown={e => e.key === "Enter" && confirmarEscaneado()} />
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button className="btn btn-g" style={{ flex: 1 }} onClick={() => { setItemEscaneado(null); setEscaneando(true); }}>Cancelar</button>
+                    <button className="btn btn-p" style={{ flex: 2 }} onClick={confirmarEscaneado}>Guardar y seguir</button>
+                  </div>
                 </div>
-                <div style={{ fontSize: 12, color: p.textMuted }}>El sistema dice que deberia haber</div>
-                <div style={{ fontSize: 46, fontWeight: 700, color: "#2C3E5C", lineHeight: 1, margin: "4px 0 16px" }}>{itemEscaneado.stock_sistema}</div>
-                <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 6 }}>Contaste en el estante:</div>
-                <input type="number" className="inp" autoFocus value={valorContado} onChange={e => setValorContado(e.target.value)}
-                  style={{ fontSize: 28, textAlign: "center", fontWeight: 700, padding: "12px", marginBottom: 14 }} />
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button className="btn btn-g" style={{ flex: 1 }} onClick={() => { setItemEscaneado(null); abrirCamaraInv(); }}>Cancelar</button>
-                  <button className="btn btn-p" style={{ flex: 1 }} onClick={confirmarConteoEscaneado}>Confirmar y seguir</button>
+              ) : escaneando ? (
+                <div>
+                  <div id="lector-camara-inv" className="ci-camara" />
+                  <button className="btn btn-g btn-sm" style={{ width: "100%", marginTop: 10 }} onClick={cerrarCamara}>Cerrar cámara</button>
                 </div>
-              </div>
-            ) : escaneandoInv ? (
-              <div>
-                <div id="lector-camara-inv" style={{ width: "100%", borderRadius: 8, overflow: "hidden" }} />
-                <button className="btn btn-g btn-sm" style={{ width: "100%", marginTop: 10 }} onClick={cerrarCamaraInv}>Cancelar</button>
-              </div>
-            ) : (
-              <div style={{ textAlign: "center", padding: 20 }}>
-                <div style={{ fontSize: 13, color: p.textMuted, marginBottom: 14 }}>Apunta la camara al codigo de barras de cada producto en el estante.</div>
-                <button className="btn btn-p" style={{ width: "100%", fontSize: 15, padding: "14px" }} onClick={abrirCamaraInv}>📷 Empezar a escanear</button>
-              </div>
-            )}
-            {errorCamaraInv && <div style={{ color: "#c0392b", fontSize: 12, marginTop: 10 }}>{errorCamaraInv}</div>}
+              ) : (
+                <button className="btn btn-p" style={{ width: "100%", fontSize: 15, padding: 14 }} onClick={() => { setErrorCamara(""); setEscaneando(true); }}>📷 Abrir la cámara</button>
+              )}
+              {errorCamara && <div className="cc-aviso bad" style={{ marginTop: 10 }}>{errorCamara}</div>}
+              {!itemEscaneado && (
+                <form onSubmit={leerManual} style={{ display: "flex", gap: 6, marginTop: 12 }}>
+                  <input className="inp" placeholder="…o pasá el lector / escribí el código" value={codigoManual} onChange={e => setCodigoManual(e.target.value)} aria-label="Código de barras" />
+                  <button className="btn btn-g btn-sm" type="submit">OK</button>
+                </form>
+              )}
+            </div>
+            <div className="chart-card">
+              <div className="chart-title">Últimos escaneos</div>
+              {ultimos.length === 0 ? <div className="cli-vacio">{sumaEscaneo ? "Acá vas a ver cada producto que escaneás y cuántos llevás." : "En este modo cada producto se guarda al escribir la cantidad."}</div> : ultimos.map((u, k) => (
+                <div key={u.id} className={"cli-hist-fila" + (k === 0 ? " pop-in" : "")}><span style={{ fontSize: 13 }}>{u.nombre}</span><span className="tag tag-ok">+1 · van {u.total}</span></div>
+              ))}
+            </div>
           </div>
         ) : (
-        <>
-        <div className="card" style={{ marginBottom: 14 }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input className="inp" placeholder="Buscar producto..." value={busqueda} onChange={e => setBusqueda(e.target.value)} style={{ flex: 1 }} />
-            <select className="sel" value={filtroItems} onChange={e => setFiltroItems(e.target.value)} style={{ width: 160 }}>
-              <option value="todos">Todos</option>
-              <option value="pendientes">Pendientes</option>
-              <option value="correctos">Correctos</option>
-              <option value="faltantes">Faltantes</option>
-              <option value="sobrantes">Sobrantes</option>
-            </select>
+          <div className="chart-card" style={{ padding: 0 }}>
+            <div className="cli-filtros">
+              <input className="inp" placeholder="🔍 Buscar por nombre, marca o código (o pasá el lector y Enter)" value={busqueda} onChange={e => setBusqueda(e.target.value)} onKeyDown={enterBuscador} aria-label="Buscar producto" />
+            </div>
+            {visibles.length === 0 ? (
+              <div className="cli-vacio" style={{ padding: 24, textAlign: "center" }}>{filtro === "pendiente" && !q ? "🎉 Ya contaste todo. Tocá «Terminar control»." : "No hay productos con ese filtro."}</div>
+            ) : (
+              <div className="ci-tabla">
+                <div className="ci-fila ci-cab"><span>Producto</span><span>Desde el control anterior</span><span>Sistema</span><span>Contado</span><span>Estado</span></div>
+                {visibles.map((it, idx) => (
+                  <div key={it.id} className={"ci-fila ci-" + it.estado + (resaltado === it.id ? " ci-resaltado" : "")}>
+                    <span className="ci-prod"><b>{it.producto_nombre}</b><small>{[it.producto_marca, it.producto_categoria, it.producto_codigo].filter(Boolean).join(" · ")}</small></span>
+                    <span data-l="Movimiento" className="ci-mov"><span style={{ color: p.green }}>+{it.ingresado_periodo || 0}</span> · <span style={{ color: p.red }}>−{it.vendido_periodo || 0}</span></span>
+                    <span data-l="Sistema" className="ci-sis">{it.stock_sistema}</span>
+                    <span data-l="Contado" className="ci-contar">
+                      <input id={"ci-in-" + it.id} key={it.id + "-" + (it.stock_contado ?? "")} type="number" inputMode="numeric" min="0" className="inp ci-input" defaultValue={it.stock_contado ?? ""} placeholder="—"
+                        onBlur={e => contar(it, e.target.value)} onKeyDown={e => siguiente(e, idx)} aria-label={"Cantidad contada de " + it.producto_nombre} />
+                      {it.estado === "pendiente"
+                        ? <button className="btn btn-g btn-sm ci-igual" title="Hay lo mismo que dice el sistema" onClick={() => contar(it, it.stock_sistema)}>= {it.stock_sistema}</button>
+                        : <button className="icon-btn" title="Deshacer este conteo" aria-label={"Deshacer conteo de " + it.producto_nombre} onClick={() => guardarConteo(it, { borrar: true })}>↺</button>}
+                    </span>
+                    <span data-l="Estado"><span className={"tag " + ESTADO_CONTEO[it.estado].c}>{ESTADO_CONTEO[it.estado].t}{it.estado === "faltante" || it.estado === "sobrante" ? " " + Math.abs(it.diferencia) : ""}</span></span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-        <div className="card">
-          <table>
-            <thead><tr><th>Codigo</th><th>Producto</th><th>Ingreso / Venta (periodo)</th><th>Stock sistema</th><th>Stock contado</th><th>Diferencia</th><th>Estado</th></tr></thead>
-            <tbody>
-              {itemsFiltrados.map(it => (
-                <tr key={it.id} style={{ background: it.estado === "faltante" ? "#c0392b08" : it.estado === "sobrante" ? "var(--acento-dim)" : it.estado === "correcto" ? "#2d7a4f08" : "transparent" }}>
-                  <td style={{ fontSize: 11, color: p.textMuted, fontFamily: "monospace" }}>{it.producto_codigo || "-"}</td>
-                  <td>
-                    <div style={{ fontSize: 12 }}>{it.producto_nombre}</div>
-                    <div style={{ fontSize: 10, color: p.textMuted }}>{it.producto_marca} - {it.producto_categoria}</div>
-                  </td>
-                  <td style={{ fontSize: 11, color: p.textMuted }}>
-                    <span style={{ color: "#2d7a4f" }}>+{it.ingresado_periodo || 0}</span> · <span style={{ color: "#c0392b" }}>-{it.vendido_periodo || 0}</span>
-                  </td>
-                  <td style={{ fontWeight: 600 }}>{it.stock_sistema}</td>
-                  <td>
-                    <input type="number" className="inp" defaultValue={it.stock_contado ?? ""} style={{ width: 80, padding: "6px 10px", fontSize: 12 }}
-                      onBlur={e => contarItem(it, e.target.value)}
-                      onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }} />
-                  </td>
-                  <td style={{ fontWeight: 700, color: !it.diferencia ? p.textMuted : it.diferencia < 0 ? "#c0392b" : "var(--acento-texto)" }}>{it.diferencia !== null && it.diferencia !== undefined ? (it.diferencia > 0 ? "+" : "") + it.diferencia : "-"}</td>
-                  <td><span className={"badge " + (it.estado === "correcto" ? "bg" : it.estado === "faltante" ? "br" : it.estado === "sobrante" ? "ba" : "bx")}>{it.estado}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        </>
         )}
+
         {showFinalizar && (
-          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
-            <div className="card" style={{ width: 420, background: p.card }}>
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Finalizar conteo</div>
-              <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 14 }}>{totalContados} items contados - {totalCorrectos} correctos, {totalFaltantes} faltantes, {totalSobrantes} sobrantes</div>
-              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, marginBottom: 12, cursor: "pointer" }}>
-                <input type="checkbox" checked={ajustarStock} onChange={e => setAjustarStock(e.target.checked)} />
-                Ajustar stock automaticamente segun el conteo
+          <div className="pos-overlay" onClick={e => e.target === e.currentTarget && !finalizando && setShowFinalizar(false)}>
+            <div className="card pop-in" style={{ width: 460, maxWidth: "95vw", background: p.card, textAlign: "left" }} role="dialog" aria-modal="true" aria-label="Terminar control">
+              <div className="chart-title">Terminar control</div>
+              <div className="cli-stats" style={{ marginTop: 10 }}>
+                <div><span>Contados</span><b>{contados} de {items.length}</b></div>
+                <div><span>Correctos</span><b style={{ color: p.green }}>{cuenta.correcto}</b></div>
+                <div><span>Faltó</span><b style={{ color: p.red }}>{$(valorFalta)}</b></div>
+                <div><span>Sobró</span><b style={{ color: p.warn }}>{$(valorSobra)}</b></div>
+              </div>
+              {cuenta.pendiente > 0 && <div className="cc-aviso" style={{ marginTop: 12, background: p.warnDim, color: p.warn, border: "1px solid " + p.warn + "55" }}>Quedan <b>{cuenta.pendiente}</b> productos sin contar. Esos no se van a tocar.</div>}
+              <label className="prem-check" style={{ margin: "14px 0 4px", alignItems: "flex-start" }}>
+                <input type="checkbox" checked={ajustarStock} onChange={e => setAjustarStock(e.target.checked)} style={{ marginTop: 3 }} />
+                <span><b>Corregir el stock del sistema con lo que conté</b><br /><small style={{ color: p.textMuted }}>Se corrige solo la diferencia, así las ventas que se hicieron mientras contabas no se pierden.</small></span>
               </label>
-              <div className="fg"><div className="fl">Notas (opcional)</div><input className="inp" value={notasFin} onChange={e => setNotasFin(e.target.value)} /></div>
+              <div className="fg" style={{ marginTop: 10 }}><div className="fl">Notas (opcional)</div><input className="inp" placeholder="Ej: se rompieron 2 frascos en el depósito" value={notasFin} onChange={e => setNotasFin(e.target.value)} /></div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowFinalizar(false)}>Cancelar</button>
-                <button className="btn btn-p" style={{ flex: 1 }} onClick={finalizarControl}>Finalizar</button>
+                <button className="btn btn-g" style={{ flex: 1 }} disabled={finalizando} onClick={() => setShowFinalizar(false)}>Seguir contando</button>
+                <button className="btn btn-p" style={{ flex: 1 }} disabled={finalizando} onClick={finalizar}>{finalizando ? "Terminando..." : "Terminar"}</button>
               </div>
             </div>
           </div>
@@ -15336,111 +15506,138 @@ function ControlInventario({ localId, usuario, paletaActual }) {
     );
   }
 
-  const enCurso = controles.find(c => c.estado === "en_curso");
+  // =============== Listado ===============
+  const enCurso = (controles || []).find(c => c.estado === "en_curso");
+  const finalizados = (controles || []).filter(c => c.estado === "finalizado");
+  const ultimo = finalizados[0];
+  const diasUltimo = config && config.ultimo_control ? diasDesdeFecha(config.ultimo_control) : ultimo ? diasDesdeFecha(ultimo.finalizado_en) : null;
+  const vencido = config && config.avisos_activos && (diasUltimo === null || diasUltimo > (config.dias_aviso || 30));
+  const exUltimo = ultimo ? exactitudDe(ultimo.items_correctos, (ultimo.items_correctos || 0) + (ultimo.items_faltantes || 0) + (ultimo.items_sobrantes || 0)) : null;
+  const esteAnio = finalizados.filter(c => new Date(c.finalizado_en).getFullYear() === new Date().getFullYear());
+  const perdidaAnio = esteAnio.reduce((s, c) => s + parseFloat(c.valor_faltante || 0), 0);
 
   return (
     <div className="fade">
-      <div className="ph">
-        <div><div className="pt">Control de Inventario</div><div className="ps">conteo fisico vs stock del sistema</div></div>
+      <div className="dash-head">
+        <div>
+          <div className="pt">Control de Inventario</div>
+          <div className="ps">contá lo que hay en el local y compará con lo que dice el sistema</div>
+        </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn btn-g btn-sm" onClick={() => setShowConfig(true)}>⚙ Config</button>
-          <button className="btn btn-p btn-sm" onClick={() => setShowNuevo(true)}>+ Nuevo control</button>
+          <button className="btn btn-g btn-sm" onClick={() => setShowConfig(true)} disabled={!config}>🔔 Avisos</button>
+          <button className="btn btn-p btn-sm" onClick={() => enCurso ? abrir(enCurso.id, "conteo") : setNuevo({ tipo: "categoria", valor: "" })}>{enCurso ? "Continuar control" : "+ Nuevo control"}</button>
         </div>
       </div>
-      {mensaje && <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 14, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>{mensaje}</div>}
-      {enCurso && (
-        <div className="card pulse" style={{ background: "var(--acento-dim)", border: "2px solid var(--acento)", marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--acento-texto)" }}>⚠️ Tenes un control de inventario sin terminar (#{enCurso.id})</div>
-            <div style={{ fontSize: 11, color: p.textMuted, marginTop: 2 }}>
-              {enCurso.tipo === "total" ? "Conteo total" : enCurso.tipo === "categoria" ? "Categoria: " + enCurso.filtro_valor : enCurso.tipo === "marca" ? "Marca: " + enCurso.filtro_valor : "Proveedor"} · iniciado el {new Date(enCurso.creado_en).toLocaleDateString("es-AR")}
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => cancelarControl(enCurso)}>Cancelar</button>
-            <button className="btn btn-p btn-sm" onClick={() => abrirControl(enCurso)}>Continuar ahora</button>
-          </div>
+      {msg && <div className={"pop-in cc-aviso " + (msg.startsWith("Error") ? "bad" : "ok")} role="status">{msg}</div>}
+
+      {controles === null ? <div className="skel" style={{ height: 120 }} /> : (
+        <div className="kpi-grid">
+          <KpiCard p={p} titulo="Último control" valor={diasUltimo === null ? "Nunca" : textoHace(diasUltimo)} color={vencido ? p.warn : p.green} indice={0} sub={config && config.avisos_activos ? "te avisamos cada " + (config.dias_aviso || 30) + " días" : "avisos apagados"} />
+          <KpiCard p={p} titulo="🎯 Exactitud del último" valor={exUltimo === null ? "—" : exUltimo + "%"} color={exUltimo === null ? p.textMuted : exUltimo >= 95 ? p.green : exUltimo >= 80 ? p.warn : p.red} indice={1} sub="productos que coincidían con el sistema" />
+          <KpiCard p={p} titulo="Faltó en el último" valor={ultimo ? $(ultimo.valor_faltante) : "—"} color={ultimo && parseFloat(ultimo.valor_faltante) > 0 ? p.red : p.green} indice={2} sub={ultimo ? (ultimo.unidades_faltantes || 0) + " unidades, a costo" : "todavía no hay controles"} />
+          <KpiCard p={p} titulo={"Controles en " + new Date().getFullYear()} valor={esteAnio.length} indice={3} sub={perdidaAnio > 0 ? "faltantes del año: " + $(perdidaAnio) : "sin faltantes registrados"} />
         </div>
       )}
-      <div className="card">
-        <div style={{ fontSize: 11, color: p.textMuted, letterSpacing: ".1em", marginBottom: 10 }}>HISTORIAL DE CONTROLES</div>
-        {controles.filter(c => c.estado === "finalizado").length === 0 ? (
-          <div style={{ textAlign: "center", color: p.textMuted, padding: 20, fontSize: 12 }}>Aun no se realizo ningun control finalizado</div>
+
+      {enCurso ? (
+        <div className="chart-card ci-encurso">
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "var(--acento-texto)" }}>⏸ Tenés un control sin terminar</div>
+            <div style={{ fontSize: 12, color: p.textMuted, margin: "2px 0 8px" }}>{etiquetaControl(enCurso)} · empezado {textoHace(diasDesdeFecha(enCurso.creado_en))}{enCurso.usuario_nombre ? " por " + enCurso.usuario_nombre : ""}</div>
+            <div className="pb" style={{ height: 8 }}><div className="pf" style={{ width: (enCurso.total_items ? Math.round(enCurso.items_contados / enCurso.total_items * 100) : 0) + "%", background: "var(--acento)" }} /></div>
+            <div style={{ fontSize: 11, color: p.textMuted, marginTop: 4 }}>{enCurso.items_contados || 0} de {enCurso.total_items || 0} productos contados</div>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button className="btn btn-g btn-sm" onClick={() => cancelar(enCurso)}>Cancelar</button>
+            <button className="btn btn-p btn-sm" onClick={() => abrir(enCurso.id, "conteo")}>Continuar ahora</button>
+          </div>
+        </div>
+      ) : vencido && controles && (
+        <div className="chart-card ci-encurso">
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 800 }}>🔔 {diasUltimo === null ? "Todavía no hiciste ningún control" : "Hace " + diasUltimo + " días que no controlás el stock"}</div>
+            <div style={{ fontSize: 12, color: p.textMuted, marginTop: 2 }}>No hace falta contar todo: empezá por una categoría, lleva unos minutos con el celular.</div>
+          </div>
+          <button className="btn btn-p btn-sm" onClick={() => setNuevo({ tipo: "categoria", valor: "" })}>Empezar uno corto</button>
+        </div>
+      )}
+
+      <div className="chart-card" style={{ marginTop: 12, padding: 0 }}>
+        <div className="chart-title" style={{ padding: "14px 14px 0" }}>Historial</div>
+        {controles === null ? <div className="skel" style={{ height: 120, margin: 14 }} /> : finalizados.length === 0 ? (
+          <div className="cli-vacio" style={{ padding: "18px 14px", textAlign: "center" }}>Todavía no terminaste ningún control. El primero te va a mostrar qué tan confiable es el stock del sistema.</div>
         ) : (
-          <table>
-            <thead><tr><th>Fecha</th><th>Tipo</th><th>Items</th><th>Correctos</th><th>Faltantes</th><th>Sobrantes</th><th>Stock ajustado</th></tr></thead>
-            <tbody>
-              {controles.filter(c => c.estado === "finalizado").map(c => (
-                <tr key={c.id}>
-                  <td style={{ fontSize: 11 }}>{new Date(c.finalizado_en).toLocaleDateString("es-AR")}</td>
-                  <td style={{ fontSize: 12 }}>{c.tipo === "total" ? "Total" : c.categoria}</td>
-                  <td>{c.total_items}</td>
-                  <td><span className="badge bg">{c.items_correctos}</span></td>
-                  <td><span className="badge br">{c.items_faltantes}</span></td>
-                  <td><span className="badge ba">{c.items_sobrantes}</span></td>
-                  <td>{c.ajustar_stock ? <span className="badge bg">si</span> : <span className="badge bx">no</span>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="ci-tabla">
+            <div className="ci-fila ci-cab ci-hist"><span>Qué se contó</span><span>Productos</span><span>Exactitud</span><span>Faltó</span><span>Sobró</span><span>Stock</span></div>
+            {finalizados.map(c => {
+              const cont = (c.items_correctos || 0) + (c.items_faltantes || 0) + (c.items_sobrantes || 0);
+              const ex = exactitudDe(c.items_correctos || 0, cont);
+              return (
+                <div key={c.id} className="ci-fila ci-hist ci-click" role="button" tabIndex={0} onClick={() => abrir(c.id, "detalle")} onKeyDown={e => e.key === "Enter" && abrir(c.id, "detalle")}>
+                  <span className="ci-prod"><b>{etiquetaControl(c)}</b><small>{new Date(c.finalizado_en).toLocaleDateString("es-AR")}{c.usuario_nombre ? " · " + c.usuario_nombre : ""}</small></span>
+                  <span data-l="Productos">{cont}{c.total_items && c.total_items > cont ? " de " + c.total_items : ""}</span>
+                  <span data-l="Exactitud"><span className={"tag " + (ex === null ? "tag-neutral" : ex >= 95 ? "tag-ok" : ex >= 80 ? "tag-warn" : "tag-bad")}>{ex === null ? "—" : ex + "%"}</span></span>
+                  <span data-l="Faltó" style={{ color: parseFloat(c.valor_faltante) > 0 ? p.red : p.textMuted, fontWeight: 700 }}>{c.items_faltantes ? $(c.valor_faltante) + " · " + c.items_faltantes + " prod." : "—"}</span>
+                  <span data-l="Sobró" style={{ color: p.textMuted }}>{c.items_sobrantes ? c.items_sobrantes + " prod." : "—"}</span>
+                  <span data-l="Stock">{c.ajustar_stock ? <span className="tag tag-ok">Corregido</span> : <span className="tag tag-neutral">Sin tocar</span>}</span>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
-      {showNuevo && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
-          <div className="card" style={{ width: 400, background: p.card }}>
-            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Nuevo control de inventario</div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-              <button className="btn btn-sm" style={{ flex: 1, minWidth: 90, background: tipoNuevo === "total" ? "#2C3E5C15" : "transparent", border: "1px solid " + (tipoNuevo === "total" ? "#2C3E5C" : p.border), color: tipoNuevo === "total" ? "#2C3E5C" : p.textMuted }} onClick={() => setTipoNuevo("total")}>Conteo total</button>
-              <button className="btn btn-sm" style={{ flex: 1, minWidth: 90, background: tipoNuevo === "categoria" ? "#2C3E5C15" : "transparent", border: "1px solid " + (tipoNuevo === "categoria" ? "#2C3E5C" : p.border), color: tipoNuevo === "categoria" ? "#2C3E5C" : p.textMuted }} onClick={() => setTipoNuevo("categoria")}>Categoria</button>
-              <button className="btn btn-sm" style={{ flex: 1, minWidth: 90, background: tipoNuevo === "marca" ? "#2C3E5C15" : "transparent", border: "1px solid " + (tipoNuevo === "marca" ? "#2C3E5C" : p.border), color: tipoNuevo === "marca" ? "#2C3E5C" : p.textMuted }} onClick={() => setTipoNuevo("marca")}>Marca</button>
-              <button className="btn btn-sm" style={{ flex: 1, minWidth: 90, background: tipoNuevo === "proveedor" ? "#2C3E5C15" : "transparent", border: "1px solid " + (tipoNuevo === "proveedor" ? "#2C3E5C" : p.border), color: tipoNuevo === "proveedor" ? "#2C3E5C" : p.textMuted }} onClick={() => setTipoNuevo("proveedor")}>Proveedor</button>
+
+      {nuevo && (
+        <div className="pos-overlay" onClick={e => e.target === e.currentTarget && !creando && setNuevo(null)}>
+          <div className="card pop-in" style={{ width: 560, maxWidth: "96vw", maxHeight: "92vh", overflowY: "auto", background: p.card, textAlign: "left" }} role="dialog" aria-modal="true" aria-label="Nuevo control">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div className="chart-title" style={{ margin: 0 }}>¿Qué vas a contar?</div>
+              <button className="icon-btn" aria-label="Cerrar" onClick={() => setNuevo(null)}>✕</button>
             </div>
-            {tipoNuevo === "categoria" && (
-              <div className="fg"><div className="fl">Categoria</div>
-                <select className="sel" value={categoriaNuevo} onChange={e => setCategoriaNuevo(e.target.value)}>
-                  <option value="">Elegi una categoria</option>
-                  {categorias.map(c => <option key={c} value={c}>{c}</option>)}
+            <div className="ci-tipos" role="radiogroup">
+              {TIPOS_CONTROL.map(t => (
+                <button key={t.id} role="radio" aria-checked={nuevo.tipo === t.id} className={"ci-tipo" + (nuevo.tipo === t.id ? " on" : "")} onClick={() => setNuevo({ tipo: t.id, valor: "" })}>
+                  <span className="ci-tipo-ico" aria-hidden="true">{t.icono}</span><b>{t.titulo}</b><small>{t.desc}</small>
+                </button>
+              ))}
+            </div>
+            {nuevo.tipo !== "total" && (
+              <div className="fg">
+                <div className="fl">{nuevo.tipo === "categoria" ? "Categoría" : nuevo.tipo === "marca" ? "Marca" : "Proveedor"}</div>
+                <select className="sel" value={nuevo.valor} onChange={e => setNuevo(n => ({ ...n, valor: e.target.value }))}>
+                  <option value="">Elegí…</option>
+                  {nuevo.tipo === "categoria" && categorias.map(c => <option key={c} value={c}>{c} ({activos.filter(pr => pr.categoria === c).length})</option>)}
+                  {nuevo.tipo === "marca" && marcas.map(m => <option key={m} value={m}>{m} ({activos.filter(pr => pr.marca === m).length})</option>)}
+                  {nuevo.tipo === "proveedor" && proveedores.map(pr => <option key={pr.id} value={pr.id}>{pr.nombre} ({activos.filter(x => String(x.proveedor_id) === String(pr.id)).length})</option>)}
                 </select>
-                {categorias.length === 0 && <div style={{ fontSize: 10, color: p.textMuted, marginTop: 4 }}>Ningun producto tiene categoria cargada todavia.</div>}
+                {((nuevo.tipo === "categoria" && !categorias.length) || (nuevo.tipo === "marca" && !marcas.length) || (nuevo.tipo === "proveedor" && !proveedores.length)) && <div className="dec-ayuda">Todavía no hay {nuevo.tipo === "categoria" ? "categorías" : nuevo.tipo === "marca" ? "marcas" : "proveedores"} cargadas en los productos.</div>}
               </div>
             )}
-            {tipoNuevo === "marca" && (
-              <div className="fg"><div className="fl">Marca</div>
-                <select className="sel" value={marcaNuevo} onChange={e => setMarcaNuevo(e.target.value)}>
-                  <option value="">Elegi una marca</option>
-                  {marcas.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-                {marcas.length === 0 && <div style={{ fontSize: 10, color: p.textMuted, marginTop: 4 }}>Ningun producto tiene marca cargada todavia.</div>}
+            {(nuevo.tipo === "total" || nuevo.valor) && (
+              <div className="cli-tip" style={{ margin: "4px 0 12px" }}>
+                Vas a contar <b>{cuantosEntran} productos</b>{cuantosEntran > 0 ? (Math.round(cuantosEntran * 12 / 60) <= 1 ? ". Es un minuto con el celular." : ". Calculá unos " + Math.round(cuantosEntran * 12 / 60) + " minutos con el celular.") : "."}
               </div>
             )}
-            {tipoNuevo === "proveedor" && (
-              <div className="fg"><div className="fl">Proveedor</div>
-                <select className="sel" value={proveedorNuevo} onChange={e => setProveedorNuevo(e.target.value)}>
-                  <option value="">Elegi un proveedor</option>
-                  {proveedores.map(pr => <option key={pr.id} value={pr.id}>{pr.nombre}</option>)}
-                </select>
-                {proveedores.length === 0 && <div style={{ fontSize: 10, color: p.textMuted, marginTop: 4 }}>No hay proveedores cargados todavia.</div>}
-              </div>
-            )}
-            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowNuevo(false)}>Cancelar</button>
-              <button className="btn btn-p" style={{ flex: 1 }} onClick={crearNuevo}>Crear y comenzar</button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setNuevo(null)}>Cancelar</button>
+              <button className="btn btn-p" style={{ flex: 2 }} disabled={creando || (nuevo.tipo !== "total" && !nuevo.valor) || cuantosEntran === 0} onClick={crear}>{creando ? "Preparando..." : "Empezar a contar"}</button>
             </div>
           </div>
         </div>
       )}
+
       {showConfig && config && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
-          <div className="card" style={{ width: 400, background: p.card }}>
-            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Configuracion de avisos</div>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, marginBottom: 14, cursor: "pointer" }}>
+        <div className="pos-overlay" onClick={e => e.target === e.currentTarget && setShowConfig(false)}>
+          <div className="card pop-in" style={{ width: 420, maxWidth: "95vw", background: p.card, textAlign: "left" }} role="dialog" aria-modal="true" aria-label="Avisos de control">
+            <div className="chart-title">🔔 Recordatorio para controlar</div>
+            <label className="prem-check" style={{ margin: "12px 0" }}>
               <input type="checkbox" checked={config.avisos_activos} onChange={e => setConfig({ ...config, avisos_activos: e.target.checked })} />
-              Mostrar aviso cuando pase mucho tiempo sin control
+              Avisarme cuando pase mucho tiempo sin controlar
             </label>
-            <div className="fg"><div className="fl">Cada cuantos dias avisar (default: 30)</div>
-              <input className="inp" type="number" value={config.dias_aviso} onChange={e => setConfig({ ...config, dias_aviso: parseInt(e.target.value) || 30 })} />
+            <div className="fg"><div className="fl">Cada cuántos días</div>
+              <input className="inp" type="number" min="1" max="365" value={config.dias_aviso} disabled={!config.avisos_activos} onChange={e => setConfig({ ...config, dias_aviso: parseInt(e.target.value) || 30 })} />
+              <div className="dec-ayuda">Sugerido: cada 30 días un control por categoría.</div>
             </div>
-            <div style={{ fontSize: 10, color: p.textMuted, marginBottom: 12 }}>{config.ultimo_control ? "Ultimo control: " + new Date(config.ultimo_control).toLocaleDateString("es-AR") : "Nunca se realizo un control"}</div>
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowConfig(false)}>Cancelar</button>
               <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarConfig}>Guardar</button>

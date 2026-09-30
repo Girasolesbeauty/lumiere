@@ -42,10 +42,12 @@ Abajo a la izquierda del menú están **Cambiar local**, **Cerrar sesión** y el
 - **Kits**: combos de productos. El precio es la suma de los productos y al venderlo descuenta el stock de cada componente. Botón **Vender kit**.
 - **Insumos**: stock de uso interno (bolsas, cajas, papel, limpieza), con costo de reposición, precio opcional para cobrarle al cliente y stock mínimo.
 - **Control de Inventario**: conteo físico contra el stock del sistema.
-  - Conteo total o por categoría, marca o proveedor.
-  - Se cuenta desde la lista o escaneando con la cámara.
-  - Muestra faltantes y sobrantes con su valor (posible pérdida) y ajusta el stock al finalizar.
-  - En **⚙ Config** se elige cada cuántos días avisar que toca hacer control.
+  - Arriba: hace cuánto fue el último control, su exactitud (% de productos que coincidían), cuánto faltó (a costo) y los controles del año.
+  - Conteo de todo el local o por categoría, marca o proveedor (te dice cuántos productos entran y cuánto tiempo lleva). Solo puede haber un control abierto por local.
+  - Formas de contar: en la lista (Enter pasa al siguiente producto; el botón **= N** marca que hay lo mismo que dice el sistema; ↺ deshace), pasando el lector en el buscador, o con **📷 Escanear**: "cada escaneo suma 1" (pasás cada unidad) o "escaneo y escribo la cantidad".
+  - Al **Terminar control** se corrige solo la diferencia, así las ventas hechas mientras se contaba no se pierden. Los productos sin contar no se tocan.
+  - El resultado muestra exactitud, faltantes y sobrantes con su valor, los faltantes más caros, consejos, y se pueden **descargar las diferencias** (CSV para Excel). Tocando un control del historial se ve su detalle.
+  - En **🔔 Avisos** se elige cada cuántos días recordar que toca controlar.
 
 ### CAJA
 - **Caja**: saldo actual de efectivo y movimientos.
@@ -282,7 +284,7 @@ Ingresos → la orden "por recibir" → **📦 Recibir mercadería** → contá 
 Al recibir una orden, en **🎁 Ítem extra** buscá el producto que vino de regalo, la cantidad y el local → **+ Agregar**. Suma al stock y queda registrado como extra.
 
 ### Cómo hacer un control de inventario (conteo)
-**Control de Inventario** → **+ Nuevo control** → conteo total o por categoría, marca o proveedor → **Crear y comenzar**. Contá desde la lista o con **📷 Escanear** (apuntá al código de cada producto y escribí cuántos hay). Se puede **Guardar y salir** y seguir después. Al **Finalizar conteo** se ven faltantes y sobrantes con su valor y se ajusta el stock.
+**Control de Inventario** → **+ Nuevo control** → elegí qué contar (recomendado: una categoría) → **Empezar a contar**. Contá en la lista (escribí la cantidad y Enter, o **= N** si hay lo mismo que dice el sistema), pasá el lector en el buscador, o usá **📷 Escanear** con el celular (cada escaneo suma 1). Se guarda solo: con **Seguir después** lo retomás cuando quieras. Al **Terminar control** se corrige el stock por la diferencia y ves cuánto faltó y sobró.
 
 ### Cómo crear un kit o combo
 **Kits** → **+ Nuevo kit** → nombre y descripción → agregá los productos con su cantidad → guardar. El precio es la suma de los productos; el descuento se aplica al venderlo.
