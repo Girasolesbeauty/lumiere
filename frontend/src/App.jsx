@@ -18338,41 +18338,128 @@ function LoginScreen({ onLogin }) {
 }
 
 // LOCAL SELECTOR
-function LocalSelector({ usuario, onSelect }) {
-  const [locales, setLocales] = useState([]);
+const CSS_SELECTOR_LOCAL = `
+.ls-fondo { min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; box-sizing: border-box;
+  background: radial-gradient(900px 500px at 12% 0%, rgba(245,180,0,.16), transparent 60%), radial-gradient(700px 500px at 100% 100%, rgba(80,120,200,.18), transparent 60%), linear-gradient(160deg, #1B2431 0%, #0b0e14 100%);
+  font-family: 'Inter', system-ui, sans-serif; color: #fff; position: relative; overflow: hidden; }
+.ls-barras { position: absolute; inset: auto 0 0 0; height: 38vh; display: flex; align-items: flex-end; justify-content: center; gap: 2.2vw; opacity: .07; pointer-events: none; }
+.ls-barras span { width: 5vw; max-width: 60px; background: linear-gradient(#ffd45a, #d99a00); border-radius: 10px 10px 0 0; transform-origin: bottom; animation: lsCrece 1.1s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes lsCrece { from { transform: scaleY(0); } }
+.ls-caja { position: relative; width: 100%; max-width: 460px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 22px; padding: 30px 26px 22px; box-sizing: border-box;
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 30px 80px rgba(0,0,0,.45); animation: lsEntra .5s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes lsEntra { from { opacity: 0; transform: translateY(18px) scale(.98); } }
+.ls-logo { display: flex; justify-content: center; margin-bottom: 22px; }
+.ls-hola { font-size: 24px; font-weight: 800; text-align: center; letter-spacing: -.01em; margin: 0; }
+.ls-sub { font-size: 14px; color: rgba(255,255,255,.65); text-align: center; margin: 6px 0 22px; }
+.ls-buscar { width: 100%; box-sizing: border-box; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.14); color: #fff; border-radius: 12px; padding: 12px 14px; font-size: 16px; margin-bottom: 12px; outline: none; }
+.ls-buscar:focus { border-color: #f5b400; box-shadow: 0 0 0 3px rgba(245,180,0,.25); }
+.ls-buscar::placeholder { color: rgba(255,255,255,.45); }
+.ls-lista { display: flex; flex-direction: column; gap: 10px; max-height: 52vh; overflow-y: auto; padding: 2px; }
+.ls-local { all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 14px; cursor: pointer;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); transition: transform .18s, background .18s, border-color .18s; animation: lsEntra .45s cubic-bezier(.2,.8,.2,1) both; min-height: 64px; }
+.ls-local:hover { background: rgba(245,180,0,.12); border-color: rgba(245,180,0,.6); transform: translateX(4px); }
+.ls-local:focus-visible { outline: 3px solid #f5b400; outline-offset: 2px; }
+.ls-local:active { transform: scale(.98); }
+.ls-local.actual { border-color: rgba(245,180,0,.55); background: rgba(245,180,0,.1); }
+.ls-ini { width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 19px; font-weight: 900; color: #0b0e14; background: linear-gradient(135deg, #ffd45a, #f5b400 55%, #d99a00); box-shadow: 0 6px 16px rgba(245,180,0,.25); }
+.ls-txt { flex: 1; min-width: 0; text-align: left; }
+.ls-nom { display: block; font-size: 16px; font-weight: 700; color: #fff; overflow-wrap: anywhere; }
+.ls-dir { display: block; font-size: 12.5px; color: rgba(255,255,255,.55); margin-top: 3px; overflow-wrap: anywhere; }
+.ls-pill { font-size: 11px; font-weight: 800; padding: 4px 9px; border-radius: 999px; white-space: nowrap; }
+.ls-pill.oro { background: #f5b400; color: #0b0e14; }
+.ls-pill.gris { background: rgba(255,255,255,.12); color: rgba(255,255,255,.8); }
+.ls-flecha { font-size: 22px; color: rgba(255,255,255,.4); transition: transform .18s, color .18s; }
+.ls-local:hover .ls-flecha { color: #f5b400; transform: translateX(3px); }
+.ls-esq { height: 64px; border-radius: 14px; background: linear-gradient(90deg, rgba(255,255,255,.05), rgba(255,255,255,.11), rgba(255,255,255,.05)); background-size: 200% 100%; animation: lsBrillo 1.2s linear infinite; }
+@keyframes lsBrillo { to { background-position: -200% 0; } }
+.ls-aviso { text-align: center; font-size: 14px; color: rgba(255,255,255,.75); padding: 14px; border-radius: 12px; background: rgba(255,255,255,.05); }
+.ls-pie { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+.ls-btn { all: unset; cursor: pointer; font-size: 14px; font-weight: 700; padding: 11px 16px; border-radius: 11px; }
+.ls-btn:focus-visible { outline: 3px solid #f5b400; outline-offset: 2px; }
+.ls-volver { background: #f5b400; color: #0b0e14; }
+.ls-volver:hover { background: #ffd45a; }
+.ls-salir { color: rgba(255,255,255,.6); }
+.ls-salir:hover { color: #fff; background: rgba(255,255,255,.08); }
+@media (max-width: 420px) { .ls-hola { font-size: 21px; } .ls-caja { padding: 26px 18px 18px; } .ls-local { gap: 12px; padding: 12px 14px; } }
+@media (prefers-reduced-motion: reduce) { .ls-caja, .ls-local, .ls-barras span, .ls-esq { animation: none; } .ls-local:hover { transform: none; } }
+`;
 
+// Elegir en que local se trabaja (al entrar, o desde "Cambiar local" en el menu)
+function LocalSelector({ usuario, onSelect, actual, onCancel }) {
+  const [locales, setLocales] = useState(null);
+  const [error, setError] = useState(false);
+  const [q, setQ] = useState("");
+  let ultimo = null;
+  try { ultimo = JSON.parse(localStorage.getItem("lumiere_local") || "null")?.id ?? null; } catch (e) {}
+
+  const cargar = () => {
+    setError(false); setLocales(null);
+    API.get("/locales").then(res => {
+      const lista = res.data || [];
+      setLocales(lista);
+      // Con un solo local no hay nada que elegir: entra directo (salvo que se haya venido a cambiar)
+      if (lista.length === 1 && !actual) onSelect(lista[0]);
+    }).catch(() => setError(true));
+  };
+  useEffect(() => { cargar(); }, []);
   useEffect(() => {
-    API.get("/locales").then(res => setLocales(res.data)).catch(() => setLocales([{ id: 1, nombre: "Local 1 - Centro" }, { id: 2, nombre: "Local 2 - Norte" }]));
-  }, []);
+    if (!onCancel) return;
+    const k = (e) => { if (e.key === "Escape") onCancel(); };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [onCancel]);
+
+  const nombre = (usuario?.nombre || "").split(" ")[0];
+  const hora = new Date().getHours();
+  const saludo = hora < 12 ? "Buen día" : hora < 20 ? "Buenas tardes" : "Buenas noches";
+  const filtro = q.trim().toLowerCase();
+  const visibles = (locales || []).filter(l => !filtro || [l.nombre, l.direccion].some(x => String(x || "").toLowerCase().includes(filtro)));
+  const salir = () => { localStorage.removeItem("lumiere_token"); localStorage.removeItem("lumiere_user"); localStorage.removeItem("lumiere_local"); window.location.reload(); };
+  const inicial = (n) => String(n || "").replace(/^local\s*/i, "").trim().charAt(0).toUpperCase() || "L";
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F0F2F5", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Mono', monospace" }}>
-      <div style={{ width: 420, background: "#ffffff", border: "1px solid #272220", borderRadius: 12, padding: 36 }}>
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 300, letterSpacing: ".18em", color: "var(--acento-texto)" }}>LUMIERE</div>
-          <div style={{ fontSize: 11, color: "#65676B", marginTop: 8 }}>Bienvenida, {usuario?.nombre || "usuario"}</div>
-          <div style={{ fontSize: 9, color: "#65676B", letterSpacing: ".2em", marginTop: 4 }}>SELECCIONA TU LOCAL</div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {locales.map(l => (
-            <div key={l.id} onClick={() => onSelect(l)}
-              style={{ background: "#f8f8f8", border: "1px solid #272220", borderRadius: 8, padding: "18px 20px", cursor: "pointer", transition: "all .18s", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--acento)"; e.currentTarget.style.background = "var(--acento-dim)"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "#e8e8e8"; e.currentTarget.style.background = "#f8f8f8"; }}>
-              <div>
-                <div style={{ fontSize: 14, color: "#111111" }}>{l.nombre}</div>
-                {l.direccion && <div style={{ fontSize: 10, color: "#65676B", marginTop: 3 }}>{l.direccion}</div>}
+    <div className="ls-fondo">
+      <style>{CSS_SELECTOR_LOCAL}</style>
+      <div className="ls-barras" aria-hidden="true">{[30, 48, 40, 62, 55, 78, 70, 100].map((h, k) => <span key={k} style={{ height: h + "%", animationDelay: k * 70 + "ms" }} />)}</div>
+      <main className="ls-caja" aria-labelledby="ls-titulo">
+        <div className="ls-logo"><LogoLumiere alto={38} color="#ffffff" /></div>
+        <h1 id="ls-titulo" className="ls-hola">{saludo}{nombre ? ", " + nombre : ""} 👋</h1>
+        <div className="ls-sub">{actual ? "¿A qué local querés pasar?" : "¿En qué local vas a trabajar hoy?"}</div>
+        {locales && locales.length > 5 && (
+          <input className="ls-buscar" type="search" placeholder="Buscar local…" value={q} onChange={e => setQ(e.target.value)} aria-label="Buscar local" />
+        )}
+        <div className="ls-lista" role="list">
+          {error ? (
+            <div className="ls-aviso" role="alert">No se pudieron cargar los locales. Revisá la conexión.<br /><button className="ls-btn ls-volver" style={{ marginTop: 12 }} onClick={cargar}>Reintentar</button></div>
+          ) : !locales ? (
+            [0, 1].map(k => <div key={k} className="ls-esq" aria-hidden="true" />)
+          ) : visibles.length === 0 ? (
+            <div className="ls-aviso">{filtro ? "Ningún local coincide con la búsqueda." : "Todavía no hay locales cargados."}</div>
+          ) : visibles.map((l, k) => {
+            const esActual = actual && Number(actual.id) === Number(l.id);
+            const esUltimo = !actual && Number(ultimo) === Number(l.id);
+            return (
+              <div role="listitem" key={l.id}>
+                <button className={"ls-local" + (esActual ? " actual" : "")} style={{ animationDelay: 120 + k * 60 + "ms" }}
+                  onClick={() => (esActual ? onCancel() : onSelect(l))} aria-label={l.nombre + (esActual ? " (local actual)" : "")}>
+                  <span className="ls-ini" aria-hidden="true">{inicial(l.nombre)}</span>
+                  <span className="ls-txt">
+                    <span className="ls-nom">{l.nombre}</span>
+                    {l.direccion && <span className="ls-dir">📍 {l.direccion}</span>}
+                  </span>
+                  {esActual ? <span className="ls-pill oro">Estás acá</span> : esUltimo ? <span className="ls-pill gris">El último</span> : null}
+                  <span className="ls-flecha" aria-hidden="true">›</span>
+                </button>
               </div>
-              <span style={{ color: "var(--acento-texto)", fontSize: 16 }}></span>
-            </div>
-          ))}
+            );
+          })}
         </div>
-        <div style={{ marginTop: 20, textAlign: "center" }}>
-          <div style={{ fontSize: 10, color: "#65676B", cursor: "pointer" }} onClick={() => { localStorage.removeItem("lumiere_token"); localStorage.removeItem("lumiere_user"); window.location.reload(); }}>
-            Cerrar sesion
-          </div>
+        {locales && locales.length === 1 && actual && <div className="ls-aviso" style={{ marginTop: 12 }}>Por ahora tenés un solo local.</div>}
+        <div className="ls-pie">
+          {onCancel ? <button className="ls-btn ls-volver" onClick={onCancel}>← Volver a {actual?.nombre || "mi local"}</button> : <span />}
+          <button className="ls-btn ls-salir" onClick={salir}>Cerrar sesión</button>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
@@ -19039,6 +19126,9 @@ function AsistenteAyuda({ usuario, seccion, paletaActual }) {
 export default function AppWrapper() {
   const [usuario, setUsuario] = useState(null);
   const [local, setLocal] = useState(null);
+  const [cambiandoLocal, setCambiandoLocal] = useState(false);
+  // Al elegir un local se recuerda, asi al volver a abrir Lumiere sigue en el mismo
+  const elegirLocalApp = (l) => { setLocal(l); setCambiandoLocal(false); try { localStorage.setItem("lumiere_local", JSON.stringify(l)); } catch (e) {} };
   const [nombresLocalesVersion, setNombresLocalesVersion] = useState(0);
   const [page, setPage] = useState("dashboard");
   // Una seccion puede llevar a otra (ej: Rotacion -> "Simular liquidación" en Toma de decisiones)
@@ -19070,7 +19160,10 @@ export default function AppWrapper() {
       try {
         const u = JSON.parse(user);
         setUsuario(u);
-        if (u.local) setLocal(u.local);
+        let guardado = null;
+        try { guardado = JSON.parse(localStorage.getItem("lumiere_local") || "null"); } catch (e) {}
+        if (guardado && guardado.id) setLocal(guardado);
+        else if (u.local) setLocal(u.local);
         cargarMisPermisos(u.id, u.rol === "jefe" || u.rol_id === 1);
       } catch (e) {}
     }
@@ -19098,6 +19191,7 @@ export default function AppWrapper() {
   const handleLogout = () => {
     localStorage.removeItem("lumiere_token");
     localStorage.removeItem("lumiere_user");
+    localStorage.removeItem("lumiere_local");
     setUsuario(null);
     setLocal(null);
     setPage("dashboard");
@@ -19206,10 +19300,10 @@ export default function AppWrapper() {
     </>
   );
 
-  if (!local) return (
+  if (!local || cambiandoLocal) return (
     <>
       <style>{getBaseCss(paletaActual)}</style>
-      <LocalSelector usuario={usuario} onSelect={l => setLocal(l)} />
+      <LocalSelector usuario={usuario} onSelect={elegirLocalApp} actual={cambiandoLocal ? local : null} onCancel={cambiandoLocal ? () => setCambiandoLocal(false) : null} />
     </>
   );
 
@@ -19301,7 +19395,7 @@ export default function AppWrapper() {
                 </button>
               ))}
             </div>
-            <div style={{ marginTop: 12, fontSize: 11, color: paletaActual.navTextDim, cursor: "pointer" }} onClick={() => setLocal(null)}>Cambiar local</div>
+            <div style={{ marginTop: 12, fontSize: 11, color: paletaActual.navTextDim, cursor: "pointer" }} onClick={() => setCambiandoLocal(true)}>Cambiar local</div>
             <div style={{ marginTop: 6, fontSize: 11, color: paletaActual.navTextDim, cursor: "pointer" }} onClick={handleLogout}>Cerrar sesion</div>
           </div>
         </aside>
