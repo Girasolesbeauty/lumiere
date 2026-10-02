@@ -18650,7 +18650,7 @@ export default function AppWrapper() {
   });
   useEffect(() => {
     if (!usuario || !local) return;
-    const traer = () => API.get("/avisos-menu?local_id=" + local.id + "&usuario_id=" + (usuario.id || "")).then(r => setAvisosMenu(r.data || {})).catch(() => {});
+    const traer = () => API.get("/avisos-menu?local_id=" + local.id + "&usuario_id=" + (usuario.id || "")).then(r => { const d = r.data || {}; setAvisosMenu({ ...d, inventory: puedeHacer("inventario.ajustar") ? (d.ajustes_pendientes || 0) : 0 }); }).catch(() => {});
     traer();
     const t = setInterval(traer, 120000);
     return () => clearInterval(t);
