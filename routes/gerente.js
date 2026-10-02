@@ -8,12 +8,13 @@ const pool = require('../config/database');
 const fin = require('../controllers/finanzasController');
 const prod = require('../controllers/productosController');
 const { VENTA_VALIDA } = require('../lib/niveles');
+const { cargarMoneda, plata } = require('../lib/moneda');
 
 const router = express.Router();
 
 // ---------- utilidades ----------
 const n = (x) => parseFloat(x) || 0;
-const $ = (v) => '$ ' + Math.round(n(v)).toLocaleString('es-AR');
+const $ = (v) => plata(v);
 const pct = (v) => (Math.round(n(v) * 10) / 10).toLocaleString('es-AR') + '%';
 const localNumDe = (q) => (q === '2' || q === 'ush' ? 2 : q === '1' || q === 'rg' ? 1 : null);
 const localTxt = (num) => (num === 1 ? 'rg' : num === 2 ? 'ush' : 'consolidado');
@@ -28,6 +29,7 @@ const q1 = async (sql, params = []) => { try { return (await pool.query(sql, par
 // ---------- resumen de todo el negocio (cache corto por local) ----------
 const cache = new Map();
 async function resumenNegocio(localQ) {
+  await cargarMoneda();
   const localNum = localNumDe(String(localQ || ''));
   const clave = String(localNum);
   const c = cache.get(clave);

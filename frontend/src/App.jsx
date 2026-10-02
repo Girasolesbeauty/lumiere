@@ -6,9 +6,47 @@ import { BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, X
 const LOGO_TICKET = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAXwAAABPAQAAAADABUPQAAADzElEQVR4nO2WsW7jRhCGvx0REgMYMYGkcADD4iO4TGGc+Qh5BAF5gXuA4DwGUqSL3yB+FPouRbq4Sk0dXLikAwGhFJKTYklqSelyKVJ6CmkxO//MP7s7M3RG81XJf5YXgR9fMnhJWLsYoBGAdQTwICNrcwpWwcKsPLUCrs2scmZmcGPWwrWZXpsVwI2VnJZCBbvexWO/aOAedoHGb28Q7sC001RAZUANJTzDJgTkNEi3OpQNFNCGKgUVFCg6zQ4oUXiGFnKwMGcglwagDFS9CKj3OhKB07pbnxb00YpFGWHMipBtyzuyaMPbmf4CQHKBapfR2UlMy9VFz3ZZQONu5a2Akq281gWhZ5fU5E7LvaoWvkdKB5chyZwCSA/IA/A1why+6DcVIPXrDBysqhEgRgpgHuo061lUc0imMYR4qlLwZ1XGENdTQH7gI6nY38xIWkCmSjtiOKaUTrz4qvgTKBKIgscUWTaNoADUkFp2zPlvIAQ7IZ1fx8Zr54CtIgpb57zrFqWWqIUzGoV0zMDB3ZjSposMHK8RqhFgnQBE3c/jobmymyTtoAKDmS/XiaywCUA8SiFnesXAGegYcOLfA/DtuJq9LJRctGM3SAJ077GYNAEyEHIWg/bSo3NwxfiNLM2AKwoZOkbnslj7Szk7ZAQz9Wl2EZY5/vgLzyktoR4nmSFDucDoUTuOSVpKuJtWPv0eVx3cRoJQMRx5Mt2lu/hAJK33bvb16LOqJ5WXA0ILHTGi1r/wir8xiBu4D0v+O8pEElPue40BZmXNcwZEKBrQtAqQmHvTjqigLRBD8bgDuGtCRu2OeyTieRe2Gn9geVU5hGpDCg9OWTuntakiwjbuj8d1VdPCNgHHNgkruOKWVBwM3RGlFoi6VzadD3FHGwY32WPlc097WHjhcyATVuB6N95O4AxiuBy3XQeokIStob/CCBKIGXdexSGcwEmvSbqb1RmsYD4ZHSvmYKbc2IEUMzOz3JmZwk0B3FjNsnSfa74TeTno3p+TV8Ar4BXwfwBicJMJ4Rvr8ycAW+3+G906nj4CT2njlG/ABQ1tTymHfV/6UoAiBQwd9cthIl3AsvtgWvxM/Mc5LHI+XDVvcs5zrg8jAPsmayNVaDQBnPeLmG5W1rdjiwHwMWNNm/RMM4LvjBbeH48wTFFJgKUnWPCU7U0GwEXOEt6N+BUApKC8+UQOPSXScC/8UPm3p+EAokm3HgO2f8EPOrbIIApU+1OCNaDRT8PeAwDvM8iPnVIGECHBGEzxU3MWRjyYPb8PqxczM/tgtlya63TlPz7qiaBHsxEpAAAAAElFTkSuQmCC";
 
 // Formato de moneda argentino: $10.000,00 (punto de miles, coma decimal, 2 decimales)
-const fmt = (n) => "$" + (parseFloat(n) || 0).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Monedas de Latinoamerica (y dolar/euro). "billetes" son los que se sugieren para el vuelto.
+const MONEDAS = {
+  ARS: { nombre: "Peso argentino", pais: "Argentina", simbolo: "$", decimales: 2, locale: "es-AR", billetes: [1000, 2000, 10000, 20000] },
+  UYU: { nombre: "Peso uruguayo", pais: "Uruguay", simbolo: "$U", decimales: 2, locale: "es-UY", billetes: [100, 200, 500, 1000, 2000] },
+  CLP: { nombre: "Peso chileno", pais: "Chile", simbolo: "$", decimales: 0, locale: "es-CL", billetes: [1000, 2000, 5000, 10000, 20000] },
+  PYG: { nombre: "Guaraní", pais: "Paraguay", simbolo: "₲", decimales: 0, locale: "es-PY", billetes: [10000, 20000, 50000, 100000] },
+  BOB: { nombre: "Boliviano", pais: "Bolivia", simbolo: "Bs", decimales: 2, locale: "es-BO", billetes: [10, 20, 50, 100, 200] },
+  PEN: { nombre: "Sol", pais: "Perú", simbolo: "S/", decimales: 2, locale: "es-PE", billetes: [10, 20, 50, 100, 200] },
+  COP: { nombre: "Peso colombiano", pais: "Colombia", simbolo: "$", decimales: 0, locale: "es-CO", billetes: [5000, 10000, 20000, 50000, 100000] },
+  VES: { nombre: "Bolívar", pais: "Venezuela", simbolo: "Bs.", decimales: 2, locale: "es-VE", billetes: [10, 20, 50, 100, 200] },
+  BRL: { nombre: "Real", pais: "Brasil", simbolo: "R$", decimales: 2, locale: "pt-BR", billetes: [10, 20, 50, 100, 200] },
+  MXN: { nombre: "Peso mexicano", pais: "México", simbolo: "$", decimales: 2, locale: "es-MX", billetes: [50, 100, 200, 500, 1000] },
+  GTQ: { nombre: "Quetzal", pais: "Guatemala", simbolo: "Q", decimales: 2, locale: "es-GT", billetes: [10, 20, 50, 100, 200] },
+  HNL: { nombre: "Lempira", pais: "Honduras", simbolo: "L", decimales: 2, locale: "es-HN", billetes: [20, 50, 100, 200, 500] },
+  NIO: { nombre: "Córdoba", pais: "Nicaragua", simbolo: "C$", decimales: 2, locale: "es-NI", billetes: [20, 50, 100, 200, 500] },
+  CRC: { nombre: "Colón", pais: "Costa Rica", simbolo: "₡", decimales: 0, locale: "es-CR", billetes: [1000, 2000, 5000, 10000, 20000] },
+  PAB: { nombre: "Balboa", pais: "Panamá", simbolo: "B/.", decimales: 2, locale: "es-PA", billetes: [5, 10, 20, 50, 100] },
+  DOP: { nombre: "Peso dominicano", pais: "República Dominicana", simbolo: "RD$", decimales: 2, locale: "es-DO", billetes: [100, 200, 500, 1000, 2000] },
+  CUP: { nombre: "Peso cubano", pais: "Cuba", simbolo: "$", decimales: 2, locale: "es-CU", billetes: [100, 200, 500, 1000] },
+  USD: { nombre: "Dólar", pais: "Estados Unidos / Ecuador / El Salvador", simbolo: "US$", decimales: 2, locale: "es-US", billetes: [5, 10, 20, 50, 100] },
+  EUR: { nombre: "Euro", pais: "Europa", simbolo: "€", decimales: 2, locale: "es-ES", billetes: [5, 10, 20, 50, 100] },
+};
+// Configuracion de moneda de este negocio (la carga App al entrar; por defecto, peso argentino)
+let MONEDA = { codigo: "ARS", ...MONEDAS.ARS };
+let MONEDA_2 = null; // { codigo, simbolo, decimales, locale, cotizacion, mostrar_pos, cobrar_efectivo }
+// Lo que se borra cuando un monto es redondo (",00" en Argentina, ".00" en Perú o México, nada sin decimales)
+let SIN_CEROS = ",00";
+const aplicarMoneda = (cfg) => {
+  const c = cfg && MONEDAS[cfg.codigo] ? cfg.codigo : "ARS";
+  MONEDA = { codigo: c, ...MONEDAS[c] };
+  const dec = (1.5).toLocaleString(MONEDA.locale).replace(/[0-9]/g, "") || ",";
+  SIN_CEROS = MONEDA.decimales > 0 ? dec + "0".repeat(MONEDA.decimales) : "\u0000";
+  const s2 = cfg && cfg.segunda && MONEDAS[cfg.segunda.codigo] ? cfg.segunda : null;
+  MONEDA_2 = s2 ? { ...MONEDAS[s2.codigo], ...s2 } : null;
+};
+const fmtCon = (m, n) => m.simbolo + (m.simbolo.length > 1 ? " " : "") + (parseFloat(n) || 0).toLocaleString(m.locale, { minimumFractionDigits: m.decimales, maximumFractionDigits: m.decimales });
+const fmt = (n) => fmtCon(MONEDA, n);
+// Equivalente en la segunda moneda (si esta configurada)
+const fmt2 = (n) => MONEDA_2 ? fmtCon(MONEDA_2, (parseFloat(n) || 0) / MONEDA_2.cotizacion) : "";
 // Formato de numero sin signo $ (para cantidades)
-const fmtNum = (n) => (parseFloat(n) || 0).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtNum = (n) => (parseFloat(n) || 0).toLocaleString(MONEDA.locale, { minimumFractionDigits: MONEDA.decimales, maximumFractionDigits: MONEDA.decimales });
 
 const PALETA_CLARA = {
   bg: "#DDE8F4", sidebar: "#1B2431", surface: "#ffffff", card: "#ffffff", border: "#BCCBDD",
@@ -686,6 +724,19 @@ button.tab { font-family: inherit; }
 .ger-puntos i { width: 7px; height: 7px; border-radius: 50%; background: ${p.textMuted}; animation: pulse 1s ease-in-out infinite; }
 .ger-puntos i:nth-child(2) { animation-delay: .15s; } .ger-puntos i:nth-child(3) { animation-delay: .3s; }
 .ger-form { display: flex; gap: 8px; margin-top: 6px; }
+.mon-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 860px) { .mon-grid { grid-template-columns: 1fr; } }
+.mon-grid .card { text-align: left; }
+.mon-ejemplo { display: flex; flex-direction: column; gap: 2px; padding: 14px 16px; border-radius: 12px; background: var(--acento-dim); border: 1px solid var(--acento-borde); margin-top: 6px; }
+.mon-ejemplo span { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: ${p.textMuted}; }
+.mon-ejemplo b { font-size: 26px; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--acento-texto); }
+.mon-ejemplo small { font-size: 12px; color: ${p.textMuted}; }
+.mon2-equiv { margin-top: 8px; font-size: 13px; color: ${p.textMuted}; }
+.mon2-equiv b { color: ${p.text}; font-size: 15px; }
+.mon2-equiv span { font-size: 11px; }
+.mon2-paga { display: grid; grid-template-columns: 1fr 120px; gap: 4px 8px; align-items: center; padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px dashed ${p.border}; font-size: 12px; font-weight: 700; }
+.mon2-paga input { padding: 6px 8px; font-size: 13px; text-align: right; }
+.mon2-paga small { grid-column: 1 / -1; font-size: 10.5px; font-weight: 500; color: ${p.textMuted}; }
 .prem-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
 .prem-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
 .prem-card { background: ${p.card}; border: 1px solid ${p.border}; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; animation: popIn .3s ease-out both; transition: box-shadow .15s, transform .15s; }
@@ -2019,7 +2070,7 @@ function VentasOnline({ localId, usuario, permisosActivos, paletaActual }) {
                     <button onClick={() => cambiarQty(i.id, -1)} aria-label="Restar" style={{ width: 26, height: 26, borderRadius: 4, border: "1px solid " + p.border, background: p.bg, color: p.text, cursor: "pointer", fontWeight: 700 }}>−</button>
                     <span style={{ minWidth: 22, textAlign: "center", fontSize: 13, fontWeight: 600 }}>{i.qty}</span>
                     <button onClick={() => cambiarQty(i.id, 1)} aria-label="Sumar" style={{ width: 26, height: 26, borderRadius: 4, border: "1px solid " + p.border, background: p.bg, color: p.text, cursor: "pointer", fontWeight: 700 }}>+</button>
-                    <span style={{ fontSize: 10, color: p.textMuted, marginLeft: 6 }}>$</span>
+                    <span style={{ fontSize: 10, color: p.textMuted, marginLeft: 6 }}>{MONEDA.simbolo}</span>
                     <input type="number" value={i.precio || i.price || ""} onChange={e => cambiarPrecio(i.id, parseFloat(e.target.value) || 0)} title="Precio al que se vendió en la plataforma" style={{ width: 90, fontSize: 12, padding: "4px 6px", border: "1px solid " + p.border, borderRadius: 4, textAlign: "right", background: p.inpBg, color: p.text }} />
                     <span style={{ marginLeft: "auto", fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmt((i.precio || i.price || 0) * i.qty)}</span>
                   </div>
@@ -2170,13 +2221,13 @@ function VentasOnline({ localId, usuario, permisosActivos, paletaActual }) {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8, marginBottom: 12 }}>
           <button onClick={() => setFiltroCanal("")} className="kpi" style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", color: p.text, borderTop: "3px solid " + p.accent, outline: !filtroCanal ? "2px solid " + p.accent : "none" }}>
             <div className="kpi-label">Todas</div>
-            <div className="kpi-val" style={{ fontSize: 18 }}>{fmt(totalMes).replace(",00", "")}</div>
+            <div className="kpi-val" style={{ fontSize: 18 }}>{fmt(totalMes).replace(SIN_CEROS, "")}</div>
             <div className="kpi-sub">{ventasOnlineList.length} ventas</div>
           </button>
           {canales.map(c => (
             <button key={c.canal} onClick={() => setFiltroCanal(filtroCanal === c.canal ? "" : c.canal)} className="kpi" style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", color: p.text, outline: filtroCanal === c.canal ? "2px solid " + p.accent : "none" }}>
               <div className="kpi-label">{iconoPlataforma(c.canal)} {c.canal}</div>
-              <div className="kpi-val" style={{ fontSize: 18 }}>{fmt(c.total).replace(",00", "")}</div>
+              <div className="kpi-val" style={{ fontSize: 18 }}>{fmt(c.total).replace(SIN_CEROS, "")}</div>
               <div className="kpi-sub">{c.cant} venta{c.cant !== 1 ? "s" : ""} · {totalMes ? Math.round(c.total / totalMes * 100) : 0}%</div>
             </button>
           ))}
@@ -2275,7 +2326,7 @@ function VentasOnline({ localId, usuario, permisosActivos, paletaActual }) {
                     <button onClick={() => setVoItems(prev => prev.map(x => x.producto_id === i.producto_id ? { ...x, cantidad: Math.max(1, x.cantidad - 1) } : x))} style={{ width: 24, height: 24, borderRadius: 4, border: "1px solid " + p.border, background: p.card, color: p.text, cursor: "pointer", fontWeight: 700 }}>−</button>
                     <span style={{ minWidth: 20, textAlign: "center", fontSize: 12 }}>{i.cantidad}</span>
                     <button onClick={() => setVoItems(prev => prev.map(x => x.producto_id === i.producto_id ? { ...x, cantidad: x.cantidad + 1 } : x))} style={{ width: 24, height: 24, borderRadius: 4, border: "1px solid " + p.border, background: p.card, color: p.text, cursor: "pointer", fontWeight: 700 }}>+</button>
-                    <span style={{ fontSize: 10, color: p.textMuted, marginLeft: 4 }}>$</span>
+                    <span style={{ fontSize: 10, color: p.textMuted, marginLeft: 4 }}>{MONEDA.simbolo}</span>
                     <input type="number" value={i.precio_unitario} onChange={e => setVoItems(prev => prev.map(x => x.producto_id === i.producto_id ? { ...x, precio_unitario: parseFloat(e.target.value) || 0 } : x))} style={{ width: 80, fontSize: 11, padding: "4px 6px", border: "1px solid " + p.border, borderRadius: 4, textAlign: "right", background: p.inpBg, color: p.text }} />
                     <span style={{ marginLeft: "auto", fontSize: 12, fontWeight: 700 }}>{fmt(i.precio_unitario * i.cantidad)}</span>
                   </div>
@@ -2524,7 +2575,7 @@ function BuscarPrecio({ localId, paletaActual, usuario }) {
   useEffect(() => { if (avisoCodigo) { const t = setTimeout(() => setAvisoCodigo(""), 4000); return () => clearTimeout(t); } }, [avisoCodigo]);
 
   // ---- mensaje para compartir ----
-  const precioTxt = (n) => fmt(Math.round(n)).replace(",00", "");
+  const precioTxt = (n) => fmt(Math.round(n)).replace(SIN_CEROS, "");
   const armarMensaje = (prod, fmtSalida, plantilla) => {
     const wa = fmtSalida === "whatsapp";
     const precio = parseFloat(prod.precio || 0);
@@ -3587,7 +3638,7 @@ function POS({ localId, usuario, paletaActual }) {
         <table>${lineas}</table>
         <hr>
         <table><tr><td class="tot">TOTAL</td><td class="tot" style="text-align:right">$${datos.total.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>${
-          datos.monto_recibido != null ? `<tr><td>Recibido</td><td style="text-align:right">$${datos.monto_recibido.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td></tr><tr><td>Vuelto</td><td style="text-align:right">$${(datos.vuelto || 0).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</td></tr>` : ''
+          datos.monto_recibido != null ? `<tr><td>Recibido</td><td style="text-align:right">${fmt(datos.monto_recibido)}</td></tr><tr><td>Vuelto</td><td style="text-align:right">${fmt(datos.vuelto || 0)}</td></tr>` : ''
         }</table>
         <hr>
         <div class="c">${cfg.mensaje_pie || "Gracias por tu compra!"}</div>
@@ -3873,7 +3924,7 @@ function POS({ localId, usuario, paletaActual }) {
   const billetesSugeridos = (monto) => {
     const base = Math.ceil(monto);
     const opciones = new Set([base]);
-    [1000, 2000, 5000, 10000, 20000].forEach(b => opciones.add(Math.ceil(base / b) * b));
+    (MONEDA.billetes || [1000, 2000, 5000, 10000, 20000]).forEach(b => opciones.add(Math.ceil(base / b) * b));
     return [...opciones].filter(v => v >= base).sort((a, b) => a - b).slice(0, 5);
   };
 
@@ -4180,10 +4231,10 @@ function POS({ localId, usuario, paletaActual }) {
         <span className={superado ? "trofeo" : ""} style={{ fontSize: 26, lineHeight: 1 }} aria-hidden="true">{superado ? "🏆" : "🎯"}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".1em" }}>{superado ? "¡DESAFÍO SUPERADO!" : "DESAFÍO"}</div>
-          <div style={{ fontSize: 12, marginTop: 2, color: temaPal.text }}>{nombreCorto} suele gastar <b>{fmt(reto.meta).replace(",00", "")}</b> y hoy lleva <b>{fmt(Math.round(vendidoReto)).replace(",00", "")}</b>.</div>
+          <div style={{ fontSize: 12, marginTop: 2, color: temaPal.text }}>{nombreCorto} suele gastar <b>{fmt(reto.meta).replace(SIN_CEROS, "")}</b> y hoy lleva <b>{fmt(Math.round(vendidoReto)).replace(SIN_CEROS, "")}</b>.</div>
           {superado
-            ? <div style={{ fontSize: 13, fontWeight: 800, marginTop: 2 }}>🔥 Lo superaste por {fmt(Math.round(vendidoReto - reto.meta)).replace(",00", "")}</div>
-            : <div style={{ fontSize: 13, fontWeight: 800, marginTop: 2, color: temaPal.text }}>¡Te faltan {fmt(Math.round(falta)).replace(",00", "")} para superarlo!</div>}
+            ? <div style={{ fontSize: 13, fontWeight: 800, marginTop: 2 }}>🔥 Lo superaste por {fmt(Math.round(vendidoReto - reto.meta)).replace(SIN_CEROS, "")}</div>
+            : <div style={{ fontSize: 13, fontWeight: 800, marginTop: 2, color: temaPal.text }}>¡Te faltan {fmt(Math.round(falta)).replace(SIN_CEROS, "")} para superarlo!</div>}
           <div className="reto-bar" style={{ marginTop: 6 }} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progreso * 100)} aria-label="Progreso del desafío">
             <div className="reto-fill" style={{ width: (progreso * 100) + "%", background: superado ? temaPal.green : temaPal.accent }} />
           </div>
@@ -4242,7 +4293,7 @@ function POS({ localId, usuario, paletaActual }) {
                     <div className="cart-nombre">{i.nombre || i.name}</div>
                     <div className="cart-sub">
                       {(i.marca || i.brand) && <span>{i.marca || i.brand}</span>}
-                      <span style={{ fontVariantNumeric: "tabular-nums" }}>{fmt(precioUnit).replace(",00", "")} c/u</span>
+                      <span style={{ fontVariantNumeric: "tabular-nums" }}>{fmt(precioUnit).replace(SIN_CEROS, "")} c/u</span>
                       {desc > 0 && (
                         <button className="desc-chip" onClick={() => setItem({ descuento_pct: 0 })} title="Quitar el descuento">🏷 -{desc}% ✕</button>
                       )}
@@ -4267,7 +4318,7 @@ function POS({ localId, usuario, paletaActual }) {
                         onKeyDown={e => e.key === "Enter" && setEditandoItemCarrito(null)}
                         className="mini-inp" style={{ width: 46 }} aria-label="Otro porcentaje de descuento" title="Otro %" />
                       <span className="cart-editor-sep" />
-                      <span style={{ fontSize: 11, color: temaPal.textMuted }}>$</span>
+                      <span style={{ fontSize: 11, color: temaPal.textMuted }}>{MONEDA.simbolo}</span>
                       <input type="number" min="0" value={precioUnit || ""} onChange={e => { const v = parseFloat(e.target.value) || 0; setItem({ precio: v, price: v }); }}
                         onKeyDown={e => e.key === "Enter" && setEditandoItemCarrito(null)}
                         className="mini-inp" style={{ width: 80, textAlign: "right" }} aria-label="Precio unitario" title="Precio unitario" />
@@ -4429,7 +4480,7 @@ function POS({ localId, usuario, paletaActual }) {
                     </div>
                     {puedeHacer("pos.descuento") && <div style={{ display: "flex", flex: 1, minWidth: 0 }}>
                       <div className="seg" role="group" aria-label="Tipo de descuento general" style={{ padding: 2, borderRadius: "6px 0 0 6px" }}>
-                        {["%", "$"].map(t => <button key={t} className={tipoDescuento === t ? "on" : ""} style={{ padding: "4px 8px", minHeight: 0 }} onClick={() => setTipoDescuento(t)}>{t}</button>)}
+                        {["%", "$"].map(t => <button key={t} className={tipoDescuento === t ? "on" : ""} style={{ padding: "4px 8px", minHeight: 0 }} onClick={() => setTipoDescuento(t)}>{t === "$" ? MONEDA.simbolo : t}</button>)}
                       </div>
                       <input className="inp" type="number" min="0" placeholder="Desc. general" value={descuentoManual} onChange={e => setDescuentoManual(e.target.value)} style={{ borderRadius: "0 6px 6px 0", padding: "8px 10px", fontSize: 12, minWidth: 0 }} aria-label="Descuento general" />
                     </div>}
@@ -4438,19 +4489,19 @@ function POS({ localId, usuario, paletaActual }) {
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
                       {cuponAplicado && (
                         <span className="desc-chip" style={{ fontSize: 11, padding: "3px 10px" }}>
-                          🎟 {cupon ? cupon.toUpperCase() : "Cupón"} · {cuponCumpleMinimo ? (cuponAplicado.tipo === "%" ? valorCuponAplicado + "%" : fmt(valorCuponAplicado).replace(",00", "")) : "sin aplicar"}
+                          🎟 {cupon ? cupon.toUpperCase() : "Cupón"} · {cuponCumpleMinimo ? (cuponAplicado.tipo === "%" ? valorCuponAplicado + "%" : fmt(valorCuponAplicado).replace(SIN_CEROS, "")) : "sin aplicar"}
                           <button onClick={() => { setCuponAplicado(null); setCupon(""); }} aria-label="Quitar cupón" style={{ marginLeft: 6, background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontWeight: 900 }}>✕</button>
                         </span>
                       )}
                       {giftCardAplicada && (
                         <span className="desc-chip" style={{ fontSize: 11, padding: "3px 10px" }}>
-                          🎁 {giftCardAplicada.codigo} · usa {fmt(montoAplicadoGC).replace(",00", "")} de {fmt(parseFloat(giftCardAplicada.saldo)).replace(",00", "")}
+                          🎁 {giftCardAplicada.codigo} · usa {fmt(montoAplicadoGC).replace(SIN_CEROS, "")} de {fmt(parseFloat(giftCardAplicada.saldo)).replace(SIN_CEROS, "")}
                           <button onClick={quitarGiftCard} aria-label="Quitar gift card" style={{ marginLeft: 6, background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontWeight: 900 }}>✕</button>
                         </span>
                       )}
                       {parseFloat(descuentoManual) > 0 && (
                         <span className="desc-chip" style={{ fontSize: 11, padding: "3px 10px" }}>
-                          ✂ General {tipoDescuento === "%" ? descuentoManual + "%" : fmt(parseFloat(descuentoManual)).replace(",00", "")}
+                          ✂ General {tipoDescuento === "%" ? descuentoManual + "%" : fmt(parseFloat(descuentoManual)).replace(SIN_CEROS, "")}
                           <button onClick={() => setDescuentoManual("")} aria-label="Quitar descuento general" style={{ marginLeft: 6, background: "transparent", border: "none", color: "inherit", cursor: "pointer", fontWeight: 900 }}>✕</button>
                         </span>
                       )}
@@ -4555,8 +4606,19 @@ function POS({ localId, usuario, paletaActual }) {
                     </>
                   )}
 
+                  {MONEDA_2 && MONEDA_2.mostrar_pos && restaPagar > 0 && (
+                    <div className="mon2-equiv">≈ <b>{fmt2(restaPagar)}</b> <span>(cotización {fmt(MONEDA_2.cotizacion)} por {MONEDA_2.simbolo} 1)</span></div>
+                  )}
                   {!pagoMixto && medioPagoSel && medioPagoSel.tipo === "efectivo" && (
                     <div className="pop-in" style={{ marginTop: 8, padding: 10, background: temaPal.bg, borderRadius: 8 }}>
+                      {MONEDA_2 && MONEDA_2.cobrar_efectivo && (
+                        <div className="mon2-paga">
+                          <span>¿Paga en {MONEDA_2.nombre.toLowerCase()}s?</span>
+                          <input type="number" className="inp" min="0" placeholder={(Math.ceil(restaPagar / MONEDA_2.cotizacion)).toString()} aria-label={"Monto recibido en " + MONEDA_2.codigo}
+                            onChange={e => { const v = parseFloat(e.target.value); setMontoRecibidoEfectivo(isNaN(v) ? "" : String(Math.round(v * MONEDA_2.cotizacion * 100) / 100)); }} />
+                          <small>{MONEDA_2.simbolo} → se convierte a {MONEDA.simbolo} y el vuelto se da en {MONEDA.simbolo}</small>
+                        </div>
+                      )}
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 6 }}>
                         <span style={{ fontSize: 12, fontWeight: 700 }}>¿Con cuánto paga?</span>
                         <input type="number" className="inp" style={{ width: 120, padding: "6px 8px", fontSize: 13, textAlign: "right" }} placeholder={String(Math.ceil(restaPagar))}
@@ -4565,7 +4627,7 @@ function POS({ localId, usuario, paletaActual }) {
                       <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                         {billetesSugeridos(restaPagar).map((b, idx) => (
                           <button key={b} className={"mini-chip" + (String(b) === String(montoRecibidoEfectivo) ? " on" : "")} onClick={() => setMontoRecibidoEfectivo(String(b))}>
-                            {idx === 0 ? "Justo" : fmt(b).replace(",00", "")}
+                            {idx === 0 ? "Justo" : fmt(b).replace(SIN_CEROS, "")}
                           </button>
                         ))}
                       </div>
@@ -4689,7 +4751,7 @@ function POS({ localId, usuario, paletaActual }) {
             </div>
             <div className="pos-tile-info">
               <div className="pos-tile-nombre">{x.nombre || x.name}</div>
-              <div className="pos-tile-precio">{fmt(x.precio || x.price || 0).replace(",00", "")}</div>
+              <div className="pos-tile-precio">{fmt(x.precio || x.price || 0).replace(SIN_CEROS, "")}</div>
             </div>
           </button>
         );
@@ -4726,7 +4788,7 @@ function POS({ localId, usuario, paletaActual }) {
         return (
           <button key={x.id} onClick={() => { accionProducto(x); setBusqueda(""); }} style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "12px 14px", background: "transparent", border: "none", borderBottom: "1px solid " + temaPal.border, color: temaPal.text, fontFamily: "inherit", textAlign: "left", cursor: "pointer", minHeight: 54 }}>
             <span style={{ minWidth: 0 }}><b style={{ fontSize: 14 }}>{x.nombre || x.name}</b><div style={{ fontSize: 11, color: temaPal.textMuted }}>{x.marca || ""}</div></span>
-            <span style={{ textAlign: "right", whiteSpace: "nowrap" }}><b style={{ color: temaPal.accentText }}>{fmt(x.precio || x.price || 0).replace(",00", "")}</b><div><span className={"tag " + (disp > 0 ? "tag-ok" : "tag-bad")}>{disp} u.</span></div></span>
+            <span style={{ textAlign: "right", whiteSpace: "nowrap" }}><b style={{ color: temaPal.accentText }}>{fmt(x.precio || x.price || 0).replace(SIN_CEROS, "")}</b><div><span className={"tag " + (disp > 0 ? "tag-ok" : "tag-bad")}>{disp} u.</span></div></span>
           </button>
         );
       })}
@@ -4821,13 +4883,13 @@ function POS({ localId, usuario, paletaActual }) {
                         <div key={claveItem(i)} className="paso1-item">
                           <span className="paso1-cant">{i.qty}×</span>
                           <span className="paso1-nom">{i.nombre || i.name}</span>
-                          <span className="paso1-precio">{fmt((i.precio || i.price || 0) * i.qty * (1 - (i.descuento_pct || 0) / 100)).replace(",00", "")}</span>
+                          <span className="paso1-precio">{fmt((i.precio || i.price || 0) * i.qty * (1 - (i.descuento_pct || 0) / 100)).replace(SIN_CEROS, "")}</span>
                         </div>
                       ))}
                       {cart.length > 3 && <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 2 }}>+ {cart.length - 3} producto{cart.length - 3 !== 1 ? "s" : ""} más en el carrito</div>}
                     </div>
                     {descuento > 0 && (
-                      <div className="paso1-linea" style={{ color: temaPal.green }}><span>Descuentos y promos</span><span>−{fmt(descuento).replace(",00", "")}</span></div>
+                      <div className="paso1-linea" style={{ color: temaPal.green }}><span>Descuentos y promos</span><span>−{fmt(descuento).replace(SIN_CEROS, "")}</span></div>
                     )}
                     <div className="paso1-total">
                       <span>Subtotal</span>
@@ -4867,7 +4929,7 @@ function POS({ localId, usuario, paletaActual }) {
               )}
               {reto && !preventa && (
                 <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6, color: vendidoReto > reto.meta ? temaPal.green : temaPal.accentText }}>
-                  {vendidoReto > reto.meta ? "🏆 ¡Desafío superado!" : "🎯 Desafío: faltan " + fmt(Math.round(reto.meta - vendidoReto + 1)).replace(",00", "")}
+                  {vendidoReto > reto.meta ? "🏆 ¡Desafío superado!" : "🎯 Desafío: faltan " + fmt(Math.round(reto.meta - vendidoReto + 1)).replace(SIN_CEROS, "")}
                 </div>
               )}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
@@ -4887,7 +4949,7 @@ function POS({ localId, usuario, paletaActual }) {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                   <div>
                     <div style={{ fontSize: 17, fontWeight: 800 }}>Cobro</div>
-                    <div style={{ fontSize: 11, color: temaPal.textMuted }}>{cart.reduce((s2, i) => s2 + i.qty, 0)} productos · {fmt(subtotalBase).replace(",00", "")}</div>
+                    <div style={{ fontSize: 11, color: temaPal.textMuted }}>{cart.reduce((s2, i) => s2 + i.qty, 0)} productos · {fmt(subtotalBase).replace(SIN_CEROS, "")}</div>
                   </div>
                   <button className="btn btn-g btn-sm" onClick={() => setCobroMovilAbierto(false)}>← Volver al catálogo</button>
                 </div>
@@ -4954,7 +5016,7 @@ function POS({ localId, usuario, paletaActual }) {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 14 }}>
                 {[
                   { l: "Compras", v: f.compras },
-                  { l: "Ticket promedio", v: f.compras ? fmt(Math.round(f.ticket_promedio)).replace(",00", "") : "—" },
+                  { l: "Ticket promedio", v: f.compras ? fmt(Math.round(f.ticket_promedio)).replace(SIN_CEROS, "") : "—" },
                   { l: "Última compra", v: f.ultima_compra ? (() => { const d = Math.floor((Date.now() - new Date(f.ultima_compra)) / 86400000); return d === 0 ? "Hoy" : "Hace " + d + " d"; })() : "—" },
                 ].map(x => (
                   <div key={x.l} style={{ background: temaPal.bg, borderRadius: 6, padding: "8px 10px" }}>
@@ -5063,7 +5125,7 @@ function POS({ localId, usuario, paletaActual }) {
                 <div className="trofeo" style={{ fontSize: 40, animationDelay: "250ms" }} aria-hidden="true">🏆</div>
                 <div style={{ fontSize: 17, fontWeight: 900, color: temaPal.accentText, marginTop: 2 }}>¡Desafío superado!</div>
                 <div style={{ fontSize: 12, color: temaPal.text, marginTop: 4 }}>
-                  Vendiste {fmt(Math.round(ventaConfirmada.reto.vendido - ventaConfirmada.reto.meta)).replace(",00", "")} más que el ticket promedio de {ventaConfirmada.reto.cliente}. ¡Excelente!
+                  Vendiste {fmt(Math.round(ventaConfirmada.reto.vendido - ventaConfirmada.reto.meta)).replace(SIN_CEROS, "")} más que el ticket promedio de {ventaConfirmada.reto.cliente}. ¡Excelente!
                 </div>
                 {ventaConfirmada.retoMes && (
                   <div style={{ marginTop: 10 }}>
@@ -5075,13 +5137,13 @@ function POS({ localId, usuario, paletaActual }) {
                 )}
                 {ventaConfirmada.retoMes && ventaConfirmada.retoMes.premio_nuevo && (
                   <div className="pop-in" style={{ marginTop: 10, padding: "10px 12px", borderRadius: 8, background: temaPal.greenDim, border: "1px solid " + temaPal.green, color: temaPal.text, fontSize: 13, fontWeight: 800, animationDelay: "500ms" }}>
-                    🎁 ¡Completaste los {ventaConfirmada.retoMes.meta_mensual} desafíos del mes! Ganaste un producto de hasta {fmt(ventaConfirmada.retoMes.premio_monto).replace(",00", "")}. Pedíselo a quien esté a cargo del local.
+                    🎁 ¡Completaste los {ventaConfirmada.retoMes.meta_mensual} desafíos del mes! Ganaste un producto de hasta {fmt(ventaConfirmada.retoMes.premio_monto).replace(SIN_CEROS, "")}. Pedíselo a quien esté a cargo del local.
                   </div>
                 )}
               </div>
             ) : (
               <div style={{ margin: "12px 0", padding: "10px 12px", borderRadius: 8, background: temaPal.bg, fontSize: 12, color: temaPal.textMuted }}>
-                🎯 Esta vez no: faltaron {fmt(Math.round(ventaConfirmada.reto.meta - ventaConfirmada.reto.vendido + 1)).replace(",00", "")} para superar el reto. ¡La próxima sale!
+                🎯 Esta vez no: faltaron {fmt(Math.round(ventaConfirmada.reto.meta - ventaConfirmada.reto.vendido + 1)).replace(SIN_CEROS, "")} para superar el reto. ¡La próxima sale!
               </div>
             ))}
             {ventaConfirmada.vuelto != null && (
@@ -5315,7 +5377,7 @@ const TIPOS_PROMO = [
 
 // Cuentas de cada situacion. Devuelve { nivel: verde|amarillo|rojo, titulo, texto, cifras: [[etiqueta, valor, detalle]] }
 function simularDecision(tipo, b, x) {
-  const $ = (v) => (v < 0 ? "-" : "") + fmt(Math.abs(Math.round(v))).replace(",00", "");
+  const $ = (v) => (v < 0 ? "-" : "") + fmt(Math.abs(Math.round(v))).replace(SIN_CEROS, "");
   const pct = (v) => (Math.round(v * 10) / 10).toLocaleString("es-AR") + "%";
   const V = b.ventas_mes, mc = b.margen_contribucion_pct / 100, mb = b.margen_bruto_pct / 100, com = b.comisiones_pct / 100;
   const F = b.costos_fijos, G = b.ganancia_mes;
@@ -5599,7 +5661,7 @@ function Rotacion({ localId, paletaActual }) {
     API.get("/productos/rotacion?local_id=" + tabLocal + "&dias=" + dias).then(r => setDatos(r.data)).catch(e => setDatos({ error: e.response?.data?.error || "No se pudo calcular la rotación" }));
   }, [tabLocal, dias, recargar]);
 
-  const $ = (v) => fmt(Math.round(v)).replace(",00", "");
+  const $ = (v) => fmt(Math.round(v)).replace(SIN_CEROS, "");
   const simularLiquidacion = (lista) => {
     const costo = lista.reduce((s2, x) => s2 + x.valor_costo, 0);
     const venta = lista.reduce((s2, x) => s2 + Math.max(0, x.stock) * x.precio, 0);
@@ -6060,7 +6122,7 @@ function TomaDecisiones({ paletaActual }) {
     }).catch(e => setBase({ suficiente: false, motivo: e.response?.data?.error || "No se pudieron cargar los números del negocio." }));
   }, [tabLocal]);
 
-  const $ = (v) => (v < 0 ? "-" : "") + fmt(Math.abs(Math.round(v))).replace(",00", "");
+  const $ = (v) => (v < 0 ? "-" : "") + fmt(Math.abs(Math.round(v))).replace(SIN_CEROS, "");
   const res = base?.suficiente ? simularDecision(sit, base, x) : null;
   const campo = (k, etiqueta, ayuda, props = {}) => (
     <div className="fg">
@@ -7409,7 +7471,7 @@ function Inventario({ localId, usuario, paletaActual }) {
             {[
               { l: "Productos", v: kpiInv.productos, sub: "activos", c: temaPal.accentText, f: "" },
               { l: "Unidades", v: kpiInv.unidades, sub: "en " + vistaNombre, c: "#2471a3", f: "" },
-              { l: "Valor a costo", v: fmt(Math.round(kpiInv.valorCosto)).replace(",00", ""), sub: "mercadería", c: temaPal.green, f: null },
+              { l: "Valor a costo", v: fmt(Math.round(kpiInv.valorCosto)).replace(SIN_CEROS, ""), sub: "mercadería", c: temaPal.green, f: null },
               { l: "Stock bajo", v: kpiInv.bajo, sub: "tocá para ver", c: temaPal.warn, f: "bajo" },
               { l: "Sin stock", v: kpiInv.sin, sub: "tocá para ver", c: temaPal.red, f: "sin" },
             ].map((k, i) => (
@@ -7616,9 +7678,9 @@ function Inventario({ localId, usuario, paletaActual }) {
               <div style={{ fontSize: 11, color: temaPal.textMuted }}>Productos activos con stock en {vistaNombre}, según el costo y precio cargados.</div>
             </div>
             <div className="kpi-grid kpi-3">
-              <div className="kpi" style={{ borderTop: "3px solid #2471a3" }}><div className="kpi-label">Mercadería a costo</div><div className="kpi-val" style={{ color: "#2471a3" }}><CountUp value={totalCosto} formato={v => fmt(Math.round(v)).replace(",00", "")} /></div><div className="kpi-sub">{filas.length} productos con stock</div></div>
-              <div className="kpi" style={{ borderTop: "3px solid " + temaPal.accent }}><div className="kpi-label">Si se vendiera todo</div><div className="kpi-val" style={{ color: temaPal.accentText }}><CountUp value={totalVenta} formato={v => fmt(Math.round(v)).replace(",00", "")} /></div><div className="kpi-sub">a precio de lista</div></div>
-              <div className="kpi" style={{ borderTop: "3px solid " + temaPal.green }}><div className="kpi-label">Ganancia potencial</div><div className="kpi-val" style={{ color: temaPal.green }}><CountUp value={gananciaPotencial} formato={v => fmt(Math.round(v)).replace(",00", "")} /></div><div className="kpi-sub">{margenPct.toFixed(1)}% de margen</div></div>
+              <div className="kpi" style={{ borderTop: "3px solid #2471a3" }}><div className="kpi-label">Mercadería a costo</div><div className="kpi-val" style={{ color: "#2471a3" }}><CountUp value={totalCosto} formato={v => fmt(Math.round(v)).replace(SIN_CEROS, "")} /></div><div className="kpi-sub">{filas.length} productos con stock</div></div>
+              <div className="kpi" style={{ borderTop: "3px solid " + temaPal.accent }}><div className="kpi-label">Si se vendiera todo</div><div className="kpi-val" style={{ color: temaPal.accentText }}><CountUp value={totalVenta} formato={v => fmt(Math.round(v)).replace(SIN_CEROS, "")} /></div><div className="kpi-sub">a precio de lista</div></div>
+              <div className="kpi" style={{ borderTop: "3px solid " + temaPal.green }}><div className="kpi-label">Ganancia potencial</div><div className="kpi-val" style={{ color: temaPal.green }}><CountUp value={gananciaPotencial} formato={v => fmt(Math.round(v)).replace(SIN_CEROS, "")} /></div><div className="kpi-sub">{margenPct.toFixed(1)}% de margen</div></div>
             </div>
             {sinCosto > 0 && <div style={{ fontSize: 12, color: temaPal.warn, margin: "0 0 12px" }}>⚠ {sinCosto} producto{sinCosto > 1 ? "s" : ""} con stock no tiene{sinCosto > 1 ? "n" : ""} costo cargado: el valor a costo está subestimado.</div>}
             {cats.length > 1 && (
@@ -7628,7 +7690,7 @@ function Inventario({ localId, usuario, paletaActual }) {
                   <div key={c} style={{ display: "grid", gridTemplateColumns: "120px 1fr auto", gap: 10, alignItems: "center", marginBottom: 6, fontSize: 12 }}>
                     <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c}</span>
                     <div className="pb" style={{ height: 8 }}><div className="pf" style={{ width: (totalCosto ? v / totalCosto * 100 : 0) + "%", background: "#2471a3" }} /></div>
-                    <span style={{ fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>{fmt(Math.round(v)).replace(",00", "")} <span style={{ color: temaPal.textMuted, fontWeight: 400 }}>{totalCosto ? Math.round(v / totalCosto * 100) : 0}%</span></span>
+                    <span style={{ fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>{fmt(Math.round(v)).replace(SIN_CEROS, "")} <span style={{ color: temaPal.textMuted, fontWeight: 400 }}>{totalCosto ? Math.round(v / totalCosto * 100) : 0}%</span></span>
                   </div>
                 ))}
               </div>
@@ -8182,7 +8244,7 @@ function Clientes({ usuario, paletaActual }) {
   };
 
   // Numeros y filtros
-  const $ = (v) => fmt(Math.round(v || 0)).replace(",00", "");
+  const $ = (v) => fmt(Math.round(v || 0)).replace(SIN_CEROS, "");
   const esteMes = (f) => { if (!f) return false; const d = new Date(f), h = new Date(); return d.getMonth() === h.getMonth() && d.getFullYear() === h.getFullYear(); };
   const total = clientes.length;
   const nuevosMes = clientes.filter(c => esteMes(c.creado_en)).length;
@@ -8317,7 +8379,7 @@ function Clientes({ usuario, paletaActual }) {
                         </td>
                         <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{c.compras || 0}</td>
                         <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700 }}>{$(c.gastado)}</td>
-                        <td><div style={{ display: "flex", alignItems: "center", gap: 8 }}><b style={{ color: "var(--acento-texto)", fontVariantNumeric: "tabular-nums" }}>{fmtNum(c.puntos || 0).replace(",00", "")}</b><TierBadge tier={c.nivel || "Bronze"} /></div></td>
+                        <td><div style={{ display: "flex", alignItems: "center", gap: 8 }}><b style={{ color: "var(--acento-texto)", fontVariantNumeric: "tabular-nums" }}>{fmtNum(c.puntos || 0).replace(SIN_CEROS, "")}</b><TierBadge tier={c.nivel || "Bronze"} /></div></td>
                         <td style={{ whiteSpace: "nowrap", textAlign: "right" }} onClick={e => e.stopPropagation()}>
                           {wa && <a className="icon-btn" href={wa} target="_blank" rel="noopener noreferrer" title={"WhatsApp a " + c.nombre} aria-label={"WhatsApp a " + c.nombre}>💬</a>}
                           <button className="chip-btn" style={{ marginLeft: 6 }} onClick={() => abrirFicha(c)}>Ver ficha</button>
@@ -8382,7 +8444,7 @@ function Clientes({ usuario, paletaActual }) {
                   <div style={{ fontSize: 12, color: p.textMuted, marginTop: 4 }}>{[c.telefono, c.email, c.cuit_dni && "DNI " + c.cuit_dni].filter(Boolean).join(" · ")}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 30, fontWeight: 900, color: "var(--acento-texto)", lineHeight: 1 }}>{fmtNum(c.puntos || 0).replace(",00", "")}</div>
+                  <div style={{ fontSize: 30, fontWeight: 900, color: "var(--acento-texto)", lineHeight: 1 }}>{fmtNum(c.puntos || 0).replace(SIN_CEROS, "")}</div>
                   <div style={{ fontSize: 11, color: p.textMuted }}>puntos</div>
                 </div>
                 <button className="icon-btn" onClick={() => setFicha(null)} aria-label="Cerrar">✕</button>
@@ -9719,7 +9781,7 @@ function Cupones({ localId, usuario, paletaActual }) {
                 <div style={{ display: "flex", gap: 6 }}>
                   <input className="inp" placeholder="CODIGO" style={{ flex: 2 }} value={nuevoInf.nuevoCodigo} onChange={e => setNuevoInf(p => ({ ...p, nuevoCodigo: e.target.value.toUpperCase() }))} />
                   <select className="sel" style={{ flex: 1 }} value={nuevoInf.nuevoTipo} onChange={e => setNuevoInf(p => ({ ...p, nuevoTipo: e.target.value }))}>
-                    <option value="%">%</option><option value="$">$</option>
+                    <option value="%">%</option><option value="$">{MONEDA.simbolo}</option>
                   </select>
                   <input className="inp" type="number" placeholder="5" style={{ flex: 1 }} value={nuevoInf.nuevoValor} onChange={e => setNuevoInf(p => ({ ...p, nuevoValor: e.target.value }))} />
                 </div>
@@ -10494,7 +10556,7 @@ function Pedidos({ localId, usuario, paletaActual }) {
                             <span style={{ color: pal.textMuted, fontWeight: 700 }}>{k + 1}</span>
                             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={x.producto}>{x.producto}</span>
                             <div className="pb" style={{ height: 7 }}><div className="pf" style={{ width: (x.cantidad / max * 100) + "%", background: color }} /></div>
-                            <span style={{ fontWeight: 700, fontVariantNumeric: "tabular-nums", textAlign: "right", minWidth: 40 }}>{x.cantidad}{conMonto ? " · " + fmt(Math.round(x.monto)).replace(",00", "") : ""}</span>
+                            <span style={{ fontWeight: 700, fontVariantNumeric: "tabular-nums", textAlign: "right", minWidth: 40 }}>{x.cantidad}{conMonto ? " · " + fmt(Math.round(x.monto)).replace(SIN_CEROS, "") : ""}</span>
                           </div>
                         );
                       })}
@@ -10507,7 +10569,7 @@ function Pedidos({ localId, usuario, paletaActual }) {
                   <div className="kpi-grid">
                     <div className="kpi anim-in" style={{ borderTop: "3px solid " + pal.green }}>
                       <div className="kpi-label">💰 Ventas recuperadas</div>
-                      <div className="kpi-val" style={{ color: pal.green }}><CountUp value={stats.monto_recuperado} formato={v => fmt(Math.round(v)).replace(",00", "")} /></div>
+                      <div className="kpi-val" style={{ color: pal.green }}><CountUp value={stats.monto_recuperado} formato={v => fmt(Math.round(v)).replace(SIN_CEROS, "")} /></div>
                       <div className="kpi-sub">{stats.compraron} cliente{stats.compraron !== 1 ? "s" : ""} compraron después del aviso</div>
                     </div>
                     <div className="kpi anim-in" style={{ borderTop: "3px solid " + pal.accent, animationDelay: "60ms" }}>
@@ -11461,6 +11523,78 @@ function GiftCards({ localId, usuario, paletaActual }) {
 }
 
 
+// Configuracion -> Moneda: principal y segunda opcional con cotizacion
+function ConfigMoneda({ p }) {
+  const [m, setM] = useState(null);
+  const [msg, setMsg] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  useEffect(() => {
+    API.get("/configuracion").then(r => {
+      const c = r.data?.moneda || {};
+      setM({ codigo: c.codigo || "ARS", usaSegunda: !!c.segunda, segunda: c.segunda?.codigo || "USD", cotizacion: c.segunda?.cotizacion ? String(c.segunda.cotizacion) : "", mostrar_pos: c.segunda ? c.segunda.mostrar_pos !== false : true, cobrar_efectivo: c.segunda?.cobrar_efectivo === true, actualizada: c.segunda?.actualizada || null });
+    }).catch(() => setM({ codigo: "ARS", usaSegunda: false, segunda: "USD", cotizacion: "", mostrar_pos: true, cobrar_efectivo: false }));
+  }, []);
+  if (!m) return <div className="skel" style={{ height: 240 }} />;
+  const set = (k, v) => setM(x => ({ ...x, [k]: v }));
+  const principal = MONEDAS[m.codigo];
+  const ejemplo = fmtCon({ ...principal }, 1234567.5);
+  const guardar = async () => {
+    if (m.usaSegunda && !(parseFloat(m.cotizacion) > 0)) return setMsg("Error: cargá la cotización de " + MONEDAS[m.segunda].nombre.toLowerCase());
+    if (m.usaSegunda && m.segunda === m.codigo) return setMsg("Error: la segunda moneda tiene que ser distinta de la principal");
+    setGuardando(true);
+    try {
+      await API.put("/configuracion", { moneda: { codigo: m.codigo, segunda: m.usaSegunda ? { codigo: m.segunda, cotizacion: parseFloat(m.cotizacion), mostrar_pos: m.mostrar_pos, cobrar_efectivo: m.cobrar_efectivo } : null } });
+      window.dispatchEvent(new Event("lumiere-moneda"));
+      setMsg("✓ Moneda guardada: todo el sistema ya muestra los montos así");
+      setTimeout(() => setMsg(""), 4000);
+    } catch (e) { setMsg("Error: " + (e.response?.data?.error || e.message)); }
+    setGuardando(false);
+  };
+  const lista = Object.entries(MONEDAS);
+  return (
+    <div className="fade mon-grid">
+      {msg && <div className={"cc-aviso " + (msg.startsWith("Error") ? "bad" : "ok")} style={{ gridColumn: "1 / -1" }}>{msg}</div>}
+      <div className="card">
+        <div className="ct">💵 Moneda principal</div>
+        <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 12, lineHeight: 1.5 }}>Es la moneda en la que trabaja el negocio: precios, caja, finanzas y reportes se muestran en ella.</div>
+        <div className="fg"><div className="fl">Moneda</div>
+          <select className="sel" value={m.codigo} onChange={e => set("codigo", e.target.value)}>
+            {lista.map(([c, x]) => <option key={c} value={c}>{x.nombre} ({x.simbolo}) · {x.pais}</option>)}
+          </select>
+        </div>
+        <div className="mon-ejemplo"><span>Así se van a ver los montos</span><b>{ejemplo}</b><small>{principal.decimales === 0 ? "Sin centavos" : "Con " + principal.decimales + " decimales"}</small></div>
+        <div style={{ fontSize: 11, color: p.textMuted, marginTop: 10, lineHeight: 1.5 }}>Cambiar la moneda no convierte los precios cargados: solo cambia cómo se muestran. Si cambiás de moneda, actualizá los precios.</div>
+      </div>
+      <div className="card">
+        <div className="ct">💱 Segunda moneda (opcional)</div>
+        <label className="prem-check" style={{ margin: "4px 0 12px" }}>
+          <input type="checkbox" checked={m.usaSegunda} onChange={e => set("usaSegunda", e.target.checked)} />
+          <span>Trabajo también con otra moneda (por ejemplo, dólares)</span>
+        </label>
+        {m.usaSegunda && (
+          <>
+            <div className="fg"><div className="fl">Moneda</div>
+              <select className="sel" value={m.segunda} onChange={e => set("segunda", e.target.value)}>
+                {lista.filter(([c]) => c !== m.codigo).map(([c, x]) => <option key={c} value={c}>{x.nombre} ({x.simbolo})</option>)}
+              </select>
+            </div>
+            <div className="fg"><div className="fl">Cotización: cuántos {principal.simbolo} vale 1 {MONEDAS[m.segunda].simbolo}</div>
+              <input className="inp" type="number" min="0" step="any" placeholder="Ej: 1200" value={m.cotizacion} onChange={e => set("cotizacion", e.target.value)} />
+              {parseFloat(m.cotizacion) > 0 && <div className="dec-monto">{MONEDAS[m.segunda].simbolo} 1 = {fmtCon(principal, m.cotizacion)} · {fmtCon(principal, 10000)} = {fmtCon(MONEDAS[m.segunda], 10000 / parseFloat(m.cotizacion))}</div>}
+              {m.actualizada && <div className="dec-ayuda">Última actualización: {new Date(m.actualizada).toLocaleString("es-AR")}. Actualizala cuando cambie.</div>}
+            </div>
+            <label className="prem-check"><input type="checkbox" checked={m.mostrar_pos} onChange={e => set("mostrar_pos", e.target.checked)} /> Mostrar el total también en {MONEDAS[m.segunda].simbolo} en el Punto de Venta</label>
+            <label className="prem-check" style={{ marginTop: 8 }}><input type="checkbox" checked={m.cobrar_efectivo} onChange={e => set("cobrar_efectivo", e.target.checked)} /> Aceptar pagos en efectivo en {MONEDAS[m.segunda].simbolo} (el vuelto se calcula en {principal.simbolo})</label>
+          </>
+        )}
+      </div>
+      <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" }}>
+        <button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando..." : "Guardar moneda"}</button>
+      </div>
+    </div>
+  );
+}
+
 function ConfiguracionNegocio({ paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState("general");
@@ -11561,7 +11695,7 @@ function ConfiguracionNegocio({ paletaActual }) {
     } catch (e) { err(e); }
   };
 
-  const TABS = [["general", "GENERAL"], ["fiscal", "DATOS FISCALES (ARCA)"], ["locales", "LOCALES"], ["medios", "MEDIOS DE PAGO"], ["categorias", "CATEGORIAS DE COSTO"], ["cuentas", "CUENTAS / BANCOS"]];
+  const TABS = [["general", "GENERAL"], ["moneda", "MONEDA"], ["fiscal", "DATOS FISCALES (ARCA)"], ["locales", "LOCALES"], ["medios", "MEDIOS DE PAGO"], ["categorias", "CATEGORIAS DE COSTO"], ["cuentas", "CUENTAS / BANCOS"]];
 
   return (
     <div className="fade">
@@ -11573,6 +11707,7 @@ function ConfiguracionNegocio({ paletaActual }) {
         {TABS.map(([id, label]) => <div key={id} className={"tab " + (tab === id ? "on" : "")} onClick={() => setTab(id)}>{label}</div>)}
       </div>
 
+      {tab === "moneda" && <ConfigMoneda p={p} />}
       {tab === "general" && (
         loadingGeneral ? <div style={{ color: p.textMuted, padding: 20 }}>Cargando...</div> : (
           <div className="card fade" style={{ maxWidth: 480 }}>
@@ -11899,7 +12034,7 @@ function PremiosPortal({ p, avisar }) {
                       <span className={"tag " + (disp === 0 ? "tag-bad" : disp !== null && disp < 5 ? "tag-warn" : "tag-ok")}>{disp === null ? "Sin límite" : disp === 0 ? "Agotado" : "Quedan " + disp}</span>
                     </div>
                     <div className="prem-pie">
-                      <span className="prem-pts">{fmtNum(pr.puntos_requeridos).replace(",00", "")} pts</span>
+                      <span className="prem-pts">{fmtNum(pr.puntos_requeridos).replace(SIN_CEROS, "")} pts</span>
                       <div style={{ display: "flex", gap: 4 }}>
                         <button className="btn btn-g btn-sm" onClick={() => abrirEditar(pr)}>Editar</button>
                         <button className="btn btn-g btn-sm" onClick={() => cambiarActivo(pr)}>{pr.activo ? "Pausar" : "Activar"}</button>
@@ -12175,7 +12310,7 @@ function PortalCliente({ usuario, paletaActual }) {
     catch (e) { setVista(null); avisar("Error: no se pudo armar la vista previa"); }
   };
 
-  const $ = (v) => fmt(Math.round(v || 0)).replace(",00", "");
+  const $ = (v) => fmt(Math.round(v || 0)).replace(SIN_CEROS, "");
   const linkPortal = (resumen && resumen.portal_url) || "";
   const mensajeWa = "¡Hola! 😊 Ya podés ver tus puntos, tu nivel y canjear premios en nuestro portal de clientes: " + (linkPortal || "[link del portal]") + " . Entrás con tu DNI y creás tu contraseña la primera vez.";
   const pctAdopcion = resumen && resumen.con_dni > 0 ? Math.round(resumen.registrados / resumen.con_dni * 100) : 0;
@@ -12286,7 +12421,7 @@ function PortalCliente({ usuario, paletaActual }) {
               <div className="portal-hola">
                 <small>¡Hola!</small>
                 <b>{cli.nombre}</b>
-                <div className="portal-pts"><span>{fmtNum(cli.puntos || 0).replace(",00", "")}</span> puntos</div>
+                <div className="portal-pts"><span>{fmtNum(cli.puntos || 0).replace(SIN_CEROS, "")}</span> puntos</div>
                 <TierBadge tier={cli.nivel || "Bronze"} />
                 {sigNivel && vista.umbrales && (
                   <div style={{ marginTop: 10 }}>
@@ -12309,8 +12444,8 @@ function PortalCliente({ usuario, paletaActual }) {
                         <small>{[pr.solo_mes_cumpleanos ? "🎂 Solo en tu mes de cumpleaños" : "", pr.nivel_minimo && pr.nivel_minimo !== "Bronze" ? "Nivel " + pr.nivel_minimo + " o más" : "", pr.quedan !== null ? "Quedan " + pr.quedan : ""].filter(Boolean).join(" · ")}</small>
                       </div>
                       <div style={{ textAlign: "right", flexShrink: 0 }}>
-                        <div className="portal-premio-pts">{fmtNum(pr.puntos_requeridos).replace(",00", "")} pts</div>
-                        <small>{pr.quedan === 0 ? "Agotado" : pr.bloqueado ? "En su mes de cumple" : !nivelOk ? "Nivel insuficiente" : alcanza ? "¡Puede canjear!" : "Le faltan " + fmtNum(pr.puntos_requeridos - (cli.puntos || 0)).replace(",00", "")}</small>
+                        <div className="portal-premio-pts">{fmtNum(pr.puntos_requeridos).replace(SIN_CEROS, "")} pts</div>
+                        <small>{pr.quedan === 0 ? "Agotado" : pr.bloqueado ? "En su mes de cumple" : !nivelOk ? "Nivel insuficiente" : alcanza ? "¡Puede canjear!" : "Le faltan " + fmtNum(pr.puntos_requeridos - (cli.puntos || 0)).replace(SIN_CEROS, "")}</small>
                       </div>
                     </div>
                   );
@@ -12393,7 +12528,7 @@ function DesafiosMes({ localId, usuario, mes, anio, paletaActual }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
         <div className="ct" style={{ margin: 0 }}>🎯 Desafíos de venta del mes</div>
         <div style={{ fontSize: 11, color: p.textMuted }}>
-          {datos.activo ? meta + " retos superados = producto de hasta " + fmt(datos.premio_monto).replace(",00", "") : "Desactivados en Configuración del Negocio"}
+          {datos.activo ? meta + " retos superados = producto de hasta " + fmt(datos.premio_monto).replace(SIN_CEROS, "") : "Desactivados en Configuración del Negocio"}
         </div>
       </div>
       {vendedoras.length === 0 ? (
@@ -12409,7 +12544,7 @@ function DesafiosMes({ localId, usuario, mes, anio, paletaActual }) {
               <div key={v.usuario_id} style={{ display: "grid", gridTemplateColumns: "minmax(110px, 1fr) 2fr auto", gap: 12, alignItems: "center" }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 700 }}>{v.usuario_nombre || "Sin nombre"}</div>
-                  <div style={{ fontSize: 10, color: p.textMuted }}>{v.logrados} de {v.intentados} aceptados · +{fmt(Math.round(v.extra_vendido)).replace(",00", "")} extra</div>
+                  <div style={{ fontSize: 10, color: p.textMuted }}>{v.logrados} de {v.intentados} aceptados · +{fmt(Math.round(v.extra_vendido)).replace(SIN_CEROS, "")} extra</div>
                 </div>
                 <div>
                   <div className="pb" style={{ height: 8 }}>
@@ -12437,7 +12572,7 @@ function DesafiosMes({ localId, usuario, mes, anio, paletaActual }) {
           <div className="card pop-in" style={{ width: 460, maxWidth: "95vw", maxHeight: "85vh", display: "flex", flexDirection: "column", background: p.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 15, fontWeight: 800 }}>🏆 Premio para {entregando.usuario_nombre}</div>
             <div style={{ fontSize: 11, color: p.textMuted, margin: "4px 0 12px" }}>
-              Elegí un producto de hasta {fmt(entregando.monto_premio).replace(",00", "")}. Se descuenta del stock de este local y queda registrado como canje.
+              Elegí un producto de hasta {fmt(entregando.monto_premio).replace(SIN_CEROS, "")}. Se descuenta del stock de este local y queda registrado como canje.
             </div>
             {error && <div style={{ background: p.redDim, color: p.red, borderRadius: 6, padding: "8px 10px", fontSize: 12, marginBottom: 8 }}>{error}</div>}
             <input className="inp" autoFocus placeholder="Buscar producto..." value={buscar} onChange={e => setBuscar(e.target.value)} style={{ marginBottom: 8 }} />
@@ -12491,7 +12626,7 @@ const hitosReglaComision = (r) => {
   if (r.tipo === "porcentaje_tramos") return (r.tramos || []).filter(t => n(t.desde) > 0).map((t, k) => ({ label: "Tramo " + (k + 2), monto: n(t.desde), extra: n(t.pct) + "% de todo" }));
   if (r.tipo === "excedente") return [{ label: "Meta", monto: n(r.minimo), extra: "+" + n(r.porcentaje) + "% de lo que pase" }];
   return [[r.umbral_1, r.comision_1], [r.umbral_2, r.comision_2], [r.umbral_3, r.comision_3]]
-    .filter(([u]) => n(u) > 0).map(([u, c], k) => ({ label: "Meta " + (k + 1), monto: n(u), extra: "+" + fmt(n(c)).replace(",00", "") }));
+    .filter(([u]) => n(u) > 0).map(([u, c], k) => ({ label: "Meta " + (k + 1), monto: n(u), extra: "+" + fmt(n(c)).replace(SIN_CEROS, "") }));
 };
 
 // Chip con el nombre del tipo de comision: al pasar el mouse (o tocarlo) explica como funciona.
@@ -12690,7 +12825,7 @@ function ConfigComisiones({ paletaActual, onCambioActivos }) {
           {sugerencia && sugerencia !== "cargando" && sugerencia.suficiente && (() => {
             const [pv, ex] = sugerencia.sugerencias;
             const unidad = (PERIODOS_COMISION_UI.find(x => x.id === sugerencia.periodo) || PERIODOS_COMISION_UI[0]).unidad;
-            const redondo = v => fmt(v).replace(",00", "");
+            const redondo = v => fmt(v).replace(SIN_CEROS, "");
             return (
               <div className="anim-in">
                 <div style={{ fontSize: 12, color: p.textSoft, margin: "10px 0" }}>
@@ -15312,7 +15447,7 @@ function CierreCaja({ localId, usuario, paletaActual }) {
                       ))}
                       <label className="cc-bill">
                         <span className="cc-bill-den">Monedas</span>
-                        <span style={{ color: p.textMuted, fontSize: 11 }}>$</span>
+                        <span style={{ color: p.textMuted, fontSize: 11 }}>{MONEDA.simbolo}</span>
                         <input type="number" min="0" inputMode="decimal" placeholder="0" value={monedas} onChange={e => setMonedas(e.target.value)} aria-label="Monedas y otros" style={{ width: 70 }} />
                       </label>
                     </div>
@@ -15529,7 +15664,7 @@ const ESTADO_CONTEO = { pendiente: { t: "Sin contar", c: "tag-neutral" }, correc
 
 function ControlInventario({ localId, usuario, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
-  const $ = (v) => fmt(Math.round(v || 0)).replace(",00", "");
+  const $ = (v) => fmt(Math.round(v || 0)).replace(SIN_CEROS, "");
   const [vista, setVista] = useState("lista"); // lista | conteo | detalle
   const [controles, setControles] = useState(null);
   const [config, setConfig] = useState(null);
@@ -16476,7 +16611,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
           <span className="oi-check" aria-hidden="true">✓</span>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 700 }}>{o.proveedor_nombre || "Sin proveedor"}</div>
-            <div style={{ fontSize: 11, color: temaPal.textMuted }}>Factura {o.numero_factura || "—"} · {fechaCortaOI(o.fecha_factura || o.creado_en)} · {fmt(parseFloat(o.total || 0)).replace(",00", "")}</div>
+            <div style={{ fontSize: 11, color: temaPal.textMuted }}>Factura {o.numero_factura || "—"} · {fechaCortaOI(o.fecha_factura || o.creado_en)} · {fmt(parseFloat(o.total || 0)).replace(SIN_CEROS, "")}</div>
           </div>
           <button className="mini-chip" onClick={() => verDetalle(o)}>Ver detalle</button>
           {esEncargada && <button className="icon-btn peligro" onClick={() => eliminarOrden(o.id)} aria-label="Eliminar orden" title="Eliminar orden">✕</button>}
@@ -16492,7 +16627,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
             {o.notas && <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 2 }}>📝 {o.notas}</div>}
           </div>
           <div style={{ textAlign: "right", flexShrink: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 900, fontVariantNumeric: "tabular-nums" }}>{fmt(parseFloat(o.total || 0)).replace(",00", "")}</div>
+            <div style={{ fontSize: 16, fontWeight: 900, fontVariantNumeric: "tabular-nums" }}>{fmt(parseFloat(o.total || 0)).replace(SIN_CEROS, "")}</div>
             {d !== null && <div style={{ fontSize: 11, fontWeight: 700, color: d > 7 ? temaPal.red : temaPal.warn }}>{d === 0 ? "cargada hoy" : "hace " + d + " día" + (d > 1 ? "s" : "")}</div>}
           </div>
         </div>
@@ -16546,7 +16681,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
           <>
             <div className="kpi-grid kpi-3" style={{ marginBottom: 14 }}>
               <div className="kpi" style={{ borderTop: "3px solid " + temaPal.accent }}><div className="kpi-label">Órdenes por recibir</div><div className="kpi-val" style={{ color: temaPal.accentText }}>{porRecibir.length}</div><div className="kpi-sub">en {localNombre}</div></div>
-              <div className="kpi" style={{ borderTop: "3px solid #2471a3" }}><div className="kpi-label">Mercadería en camino</div><div className="kpi-val" style={{ color: "#2471a3", fontSize: 20 }}>{fmt(totalPorRecibir).replace(",00", "")}</div><div className="kpi-sub">a costo de factura</div></div>
+              <div className="kpi" style={{ borderTop: "3px solid #2471a3" }}><div className="kpi-label">Mercadería en camino</div><div className="kpi-val" style={{ color: "#2471a3", fontSize: 20 }}>{fmt(totalPorRecibir).replace(SIN_CEROS, "")}</div><div className="kpi-sub">a costo de factura</div></div>
               <div className="kpi" style={{ borderTop: "3px solid " + temaPal.green }}><div className="kpi-label">Ya recibidas acá</div><div className="kpi-val" style={{ color: temaPal.green }}>{recibidasMiLocal.length}</div><div className="kpi-sub">esperando al otro local o pago</div></div>
             </div>
             {pendientesMiLocal.length === 0 ? (
@@ -16803,7 +16938,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
                 <div>
                   <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".1em", color: temaPal.textMuted }}>RECIBIENDO EN {localNombre.toUpperCase()}</div>
                   <div style={{ fontSize: 17, fontWeight: 800, marginTop: 2 }}>{ordenDetalle.proveedor_nombre || "Sin proveedor"}</div>
-                  <div style={{ fontSize: 12, color: temaPal.textMuted }}>Factura {ordenDetalle.numero_factura || "—"} · {fmt(parseFloat(ordenDetalle.total || 0)).replace(",00", "")}</div>
+                  <div style={{ fontSize: 12, color: temaPal.textMuted }}>Factura {ordenDetalle.numero_factura || "—"} · {fmt(parseFloat(ordenDetalle.total || 0)).replace(SIN_CEROS, "")}</div>
                 </div>
                 <div style={{ minWidth: 220, flex: "0 1 300px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700, marginBottom: 5 }}>
@@ -18903,6 +19038,14 @@ export default function AppWrapper() {
   PERMISOS_ACTUALES = permisosActivos;
   ES_JEFE_ACTUAL = !!usuario && (usuario.rol === "jefe" || usuario.rol_id === 1);
   const [avisosMenu, setAvisosMenu] = useState({});
+  const [, setVersionMoneda] = useState(0);
+  // Moneda del negocio: se carga al entrar y cuando se cambia en Configuración
+  useEffect(() => {
+    const cargarMoneda = () => API.get("/configuracion").then(r => { aplicarMoneda(r.data?.moneda); setVersionMoneda(v => v + 1); }).catch(() => {});
+    cargarMoneda();
+    window.addEventListener("lumiere-moneda", cargarMoneda);
+    return () => window.removeEventListener("lumiere-moneda", cargarMoneda);
+  }, []);
   const mainRef = useRef(null);
   // Tablas como tarjetas en el celular: etiqueta cada celda con el nombre de su columna
   useEffect(() => {

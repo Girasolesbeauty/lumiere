@@ -88,6 +88,21 @@ router.put('/', async (req, res) => {
       await pool.query(`ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS rotacion_dias_evaluacion INTEGER DEFAULT ${45}`);
       await pool.query('UPDATE configuracion_negocio SET rotacion_dias_evaluacion = $1 WHERE id = 1', [d]);
     }
+    // Moneda: la principal (como se muestran todos los montos) y una segunda opcional (por ej. dolares)
+    // con su cotizacion, para ver el equivalente en el Punto de Venta y cobrar en efectivo en esa moneda.
+    if (req.body.moneda && typeof req.body.moneda === 'object') {
+      const m = req.body.moneda;
+      const COD = /^[A-Z]{3}$/;
+      if (!COD.test(String(m.codigo || ''))) return res.status(400).json({ error: 'Elegí la moneda principal' });
+      const limpia = { codigo: m.codigo, segunda: null };
+      if (m.segunda && COD.test(String(m.segunda.codigo || '')) && m.segunda.codigo !== m.codigo) {
+        const cot = parseFloat(m.segunda.cotizacion);
+        if (!(cot > 0)) return res.status(400).json({ error: 'La cotización de la segunda moneda tiene que ser mayor a 0' });
+        limpia.segunda = { codigo: m.segunda.codigo, cotizacion: cot, mostrar_pos: m.segunda.mostrar_pos !== false, cobrar_efectivo: m.segunda.cobrar_efectivo === true, actualizada: new Date().toISOString() };
+      }
+      await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS moneda JSONB');
+      await pool.query('UPDATE configuracion_negocio SET moneda = $1 WHERE id = 1', [JSON.stringify(limpia)]);
+    }
     // Recalculo automatico del stock minimo cada noche (cada dueno decide)
     if (typeof req.body.stock_minimo_auto === 'boolean') {
       await asegurarColumnaMensaje();

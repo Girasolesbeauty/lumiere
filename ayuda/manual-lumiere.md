@@ -426,6 +426,11 @@ En **Negocio → Usuarios**:
 - **Eliminar**: el usuario desaparece de la lista, no puede entrar más y se le quitan los permisos; su email queda libre para usarlo en otro usuario. Antes de eliminar aparece un aviso con lo que hizo. **Lo que hizo no se borra** (ventas, movimientos de caja, ajustes de stock, controles de inventario): queda en el historial con su nombre, para que los números del negocio no cambien. Sus tareas sin terminar quedan sin asignar.
 - No se puede desactivar ni eliminar al único jefe, ni a uno mismo.
 
+### Cómo elegir la moneda (y trabajar con dos monedas)
+**Negocio → Configuración del Negocio → MONEDA**:
+- **Moneda principal**: elegís la de tu país (peso argentino, uruguayo, chileno, colombiano, mexicano, dominicano, cubano, sol, boliviano, guaraní, real, quetzal, lempira, córdoba, colón, balboa, bolívar, dólar o euro). Se ve un ejemplo de cómo van a quedar los montos (por ejemplo **S/ 1,234,567.50** en Perú o **$ 1.234.568** sin centavos en Chile). Al guardar, todo el sistema muestra los montos así. Ojo: no convierte los precios cargados, solo cambia cómo se muestran.
+- **Segunda moneda (opcional)**: por ejemplo dólares. Cargás la **cotización** (cuánto vale 1 de la segunda moneda en la principal) y elegís si querés **mostrar el total también en esa moneda** en el Punto de Venta y si **aceptás pagos en efectivo en esa moneda**. Cuando el cliente paga en esa moneda, escribís cuánto te dio en **"¿Paga en dólares?"**: el sistema lo convierte y calcula el vuelto en la moneda principal. La venta y la caja quedan registradas en la moneda principal. Actualizá la cotización cuando cambie.
+
 ### Cómo cambiar el nombre o los datos del negocio
 **Configuración del Negocio** → **Datos generales** → nombre del negocio y logo → **Guardar**. Ahí también se elige si el ticket se imprime, se envía por WhatsApp o se pregunta cada vez.
 
