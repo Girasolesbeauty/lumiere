@@ -4,9 +4,9 @@ const pool = require('../config/database');
 const { recalcularNivel } = require('../lib/niveles');
 
 const validar = (req) => {
-  const { motivo, usuario_rol } = req.body;
+  const { motivo, usuario_rol, puede_anular } = req.body;
   if (!motivo || !motivo.trim()) return 'El motivo es obligatorio';
-  if (usuario_rol && usuario_rol !== 'jefe' && usuario_rol !== 'administrativo') return 'No tenes permiso para anular';
+  if (usuario_rol && usuario_rol !== 'jefe' && puede_anular !== true) return 'No tenés permiso para anular';
   return null;
 };
 

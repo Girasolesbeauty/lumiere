@@ -30,6 +30,23 @@ async function asegurarPermisosV2() {
       await client.query('COMMIT');
     } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
   }
+  // v3: permisos de acciones. Se dan a quien ya podia hacerlo antes, para no cortarle nada a nadie.
+  const ya3 = await pool.query(`SELECT 1 FROM permisos_meta WHERE clave = 'permisos_v3'`);
+  if (!ya3.rows.length) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      for (const perm of ['inventario.editar', 'inventario.ajustar']) {
+        await client.query(`INSERT INTO permisos_usuario (usuario_id, permiso) SELECT usuario_id, $1 FROM permisos_usuario WHERE permiso = 'inventario.ver' ON CONFLICT DO NOTHING`, [perm]);
+      }
+      await client.query(`INSERT INTO permisos_usuario (usuario_id, permiso) SELECT usuario_id, 'inventario.crear' FROM permisos_usuario WHERE permiso = 'inventario.ver' ON CONFLICT DO NOTHING`);
+      await client.query(`INSERT INTO permisos_usuario (usuario_id, permiso) SELECT usuario_id, 'pos.descuento' FROM permisos_usuario WHERE permiso = 'pos.ver' ON CONFLICT DO NOTHING`);
+      // Antes anulaban el jefe y los administrativos
+      await client.query(`INSERT INTO permisos_usuario (usuario_id, permiso) SELECT id, 'ventas.anular' FROM usuarios WHERE rol = 'administrativo' ON CONFLICT DO NOTHING`);
+      await client.query(`INSERT INTO permisos_meta (clave) VALUES ('permisos_v3') ON CONFLICT DO NOTHING`);
+      await client.query('COMMIT');
+    } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+  }
   migrado = true;
 }
 

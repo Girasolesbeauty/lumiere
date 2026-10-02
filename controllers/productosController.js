@@ -226,8 +226,106 @@ const getTransito = async (req, res) => {
   }
 };
 
+// Puede ajustar stock: el jefe o quien tenga el permiso "inventario.ajustar"
+async function puedeAjustar(db, usuarioId) {
+  if (!usuarioId) return false;
+  const u = await db.query(`SELECT rol, rol_id FROM usuarios WHERE id = $1`, [usuarioId]);
+  if (u.rows.length && (u.rows[0].rol === 'jefe' || Number(u.rows[0].rol_id) === 1)) return true;
+  const p = await db.query(`SELECT 1 FROM permisos_usuario WHERE usuario_id = $1 AND permiso = 'inventario.ajustar'`, [usuarioId]);
+  return p.rows.length > 0;
+}
+
+// Pedidos de ajuste de quien no tiene permiso: quedan pendientes hasta que alguien los apruebe
+let tablaSolicitudes = false;
+async function asegurarSolicitudes(db) {
+  if (tablaSolicitudes) return;
+  await db.query(`CREATE TABLE IF NOT EXISTS ajustes_pendientes (
+    id SERIAL PRIMARY KEY, producto_id INT NOT NULL, local_id INT DEFAULT 1, modo TEXT NOT NULL, valor INT NOT NULL,
+    motivo TEXT NOT NULL, stock_al_pedir INT, usuario_id INT, usuario_nombre TEXT, estado TEXT DEFAULT 'pendiente',
+    resuelto_por TEXT, resuelto_en TIMESTAMP, nota TEXT, creado_en TIMESTAMP DEFAULT NOW())`);
+  tablaSolicitudes = true;
+}
+
+const solicitarAjuste = async (req, res) => {
+  try {
+    await asegurarSolicitudes(pool);
+    const { id } = req.params;
+    const { modo, valor, motivo, usuario_id, usuario_nombre, local_id } = req.body;
+    if (!motivo || !String(motivo).trim()) return res.status(400).json({ error: 'El motivo del ajuste es obligatorio' });
+    const v = parseInt(valor);
+    if (isNaN(v)) return res.status(400).json({ error: 'Ingresá un número válido' });
+    const colStock = (local_id === 2 || local_id === '2') ? 'stock_ush' : 'stock_rg';
+    const p = await pool.query(`SELECT ${colStock} AS s FROM productos WHERE id = $1`, [id]);
+    if (!p.rows.length) return res.status(404).json({ error: 'Producto no encontrado' });
+    const r = await pool.query(
+      `INSERT INTO ajustes_pendientes (producto_id, local_id, modo, valor, motivo, stock_al_pedir, usuario_id, usuario_nombre)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [id, (local_id === 2 || local_id === '2') ? 2 : 1, modo === 'diferencia' ? 'diferencia' : 'exacto', v, String(motivo).trim(), p.rows[0].s || 0, usuario_id || null, usuario_nombre || null]);
+    res.status(201).json(r.rows[0]);
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+};
+
+const getAjustesPendientes = async (req, res) => {
+  try {
+    await asegurarSolicitudes(pool);
+    const r = await pool.query(
+      `SELECT a.*, p.nombre AS producto_nombre, p.marca AS producto_marca,
+              CASE WHEN a.local_id = 2 THEN p.stock_ush ELSE p.stock_rg END AS stock_actual
+       FROM ajustes_pendientes a JOIN productos p ON p.id = a.producto_id
+       WHERE a.estado = 'pendiente' ${req.query.local_id ? 'AND a.local_id = $1' : ''}
+       ORDER BY a.creado_en ASC`, req.query.local_id ? [String(req.query.local_id) === '2' ? 2 : 1] : []);
+    res.json(r.rows);
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+};
+
+const resolverAjuste = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await asegurarSolicitudes(client);
+    const { id } = req.params;
+    const { aprobar, usuario_id, usuario_nombre, nota } = req.body;
+    if (!(await puedeAjustar(client, usuario_id))) return res.status(403).json({ error: 'No tenés permiso para aprobar ajustes de stock' });
+    await client.query('BEGIN');
+    const a = await client.query(`SELECT * FROM ajustes_pendientes WHERE id = $1 FOR UPDATE`, [id]);
+    if (!a.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Pedido no encontrado' }); }
+    const s = a.rows[0];
+    if (s.estado !== 'pendiente') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Este pedido ya se resolvió' }); }
+    let resultado = null;
+    if (aprobar === true) {
+      resultado = await aplicarAjuste(client, { id: s.producto_id, modo: s.modo, valor: s.valor, local_id: s.local_id,
+        motivo: s.motivo + ' (pedido por ' + (s.usuario_nombre || 'usuario') + ', aprobado por ' + (usuario_nombre || 'jefe') + ')',
+        usuario_id: s.usuario_id, usuario_nombre: s.usuario_nombre });
+      if (resultado.error) { await client.query('ROLLBACK'); return res.status(400).json({ error: resultado.error }); }
+    }
+    await client.query(`UPDATE ajustes_pendientes SET estado = $1, resuelto_por = $2, resuelto_en = NOW(), nota = $3 WHERE id = $4`,
+      [aprobar === true ? 'aprobado' : 'rechazado', usuario_nombre || null, nota || null, id]);
+    await client.query('COMMIT');
+    res.json({ ok: true, estado: aprobar === true ? 'aprobado' : 'rechazado', ...(resultado || {}) });
+  } catch (e) { await client.query('ROLLBACK').catch(() => {}); console.error(e); res.status(500).json({ error: e.message }); }
+  finally { client.release(); }
+};
+
+// Aplica un ajuste dentro de una transaccion abierta. Devuelve { stock_anterior, stock_nuevo } o { error }
+async function aplicarAjuste(client, { id, modo, valor, motivo, usuario_id, usuario_nombre, local_id }) {
+  const colStock = (local_id === 2 || local_id === '2') ? 'stock_ush' : 'stock_rg';
+  const prodRes = await client.query(`SELECT ${colStock} AS stock_local FROM productos WHERE id = $1 FOR UPDATE`, [id]);
+  if (prodRes.rows.length === 0) return { error: 'Producto no encontrado' };
+  const stockAnterior = prodRes.rows[0].stock_local || 0;
+  const stockNuevo = modo === 'diferencia' ? stockAnterior + parseInt(valor) : parseInt(valor);
+  if (isNaN(stockNuevo) || stockNuevo < 0) return { error: 'El stock resultante no puede ser negativo' };
+  await client.query(
+    `UPDATE productos SET ${colStock} = $1, stock = COALESCE(${colStock === 'stock_rg' ? 'stock_ush' : 'stock_rg'}, 0) + $1 WHERE id = $2`,
+    [stockNuevo, id]);
+  await client.query(
+    `INSERT INTO ajustes_stock (producto_id, stock_anterior, stock_nuevo, diferencia, motivo, usuario_id, usuario_nombre, local_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [id, stockAnterior, stockNuevo, stockNuevo - stockAnterior, String(motivo).trim(), usuario_id || null, usuario_nombre || null, local_id || 1]);
+  return { stock_anterior: stockAnterior, stock_nuevo: stockNuevo };
+}
+
 // Ajuste manual de stock (queda registrado quien, cuando y por que).
 // Acepta modo "exacto" (nuevo valor final) o "diferencia" (+/-).
+// Solo el jefe o quien tenga el permiso "inventario.ajustar"; el resto lo pide con solicitarAjuste.
 const ajustarStock = async (req, res) => {
   const client = await pool.connect();
   try {
@@ -238,6 +336,10 @@ const ajustarStock = async (req, res) => {
     if (!motivo || !motivo.trim()) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'El motivo del ajuste es obligatorio' });
+    }
+    if (usuario_id && !(await puedeAjustar(client, usuario_id))) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'No tenés permiso para ajustar stock: pedí autorización', sin_permiso: true });
     }
 
     const colStock = (local_id === 2 || local_id === '2') ? 'stock_ush' : 'stock_rg';
@@ -661,4 +763,4 @@ const guardarMinimos = async (req, res) => {
   }
 };
 
-module.exports = { getRotacion, recalcularMinimos, guardarLeadTimeProveedor, guardarMinimos, getAll, getById, create, update, remove, getAlertas, getTransito, ajustarStock, getHistorialAjustes, recalcularStockMinimo, getSugerenciaCompra, cambiarEstado, getImagenes, getImagen, guardarImagen, borrarImagen };
+module.exports = { getRotacion, recalcularMinimos, guardarLeadTimeProveedor, guardarMinimos, getAll, getById, create, update, remove, getAlertas, getTransito, ajustarStock, getHistorialAjustes, recalcularStockMinimo, getSugerenciaCompra, cambiarEstado, getImagenes, getImagen, guardarImagen, borrarImagen , solicitarAjuste, getAjustesPendientes, resolverAjuste };

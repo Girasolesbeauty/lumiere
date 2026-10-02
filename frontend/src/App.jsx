@@ -120,6 +120,10 @@ const C = PALETA_CLARA;
 // Como es un objeto mutable a nivel de modulo (no un estado de React), cualquier
 // componente puede leerlo en el momento sin necesidad de que se lo pasen como prop.
 let NOMBRES_LOCALES = { 1: "Local 1", 2: "Local 2" };
+// Permisos de la persona que esta usando el sistema (los carga App al entrar). El jefe puede todo.
+let PERMISOS_ACTUALES = [];
+let ES_JEFE_ACTUAL = false;
+const puedeHacer = (clave) => ES_JEFE_ACTUAL || PERMISOS_ACTUALES.includes(clave);
 const nombreLocal = (id) => NOMBRES_LOCALES[Number(id)] || NOMBRES_LOCALES[1];
 
 const getBaseCss = (p) => `
@@ -622,6 +626,11 @@ button.tab { font-family: inherit; }
   .inv-detalle td { padding: 4px 10px 12px !important; }
   .inv-det-grid { grid-template-columns: 1fr 1fr; }
 }
+.aj-pend { margin-bottom: 12px; border: 2px solid var(--acento-borde); background: linear-gradient(135deg, var(--acento-dim), ${p.card}); }
+.aj-pend-fila { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid ${p.border}; flex-wrap: wrap; }
+.aj-pend-fila:first-of-type { border-top: none; }
+.aj-pend-fila b { font-size: 13px; }
+.aj-pend-fila small { display: block; font-size: 12px; color: ${p.textMuted}; margin-top: 2px; line-height: 1.45; }
 .prem-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
 .prem-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
 .prem-card { background: ${p.card}; border: 1px solid ${p.border}; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; animation: popIn .3s ease-out both; transition: box-shadow .15s, transform .15s; }
@@ -4189,7 +4198,7 @@ function POS({ localId, usuario, paletaActual }) {
                     {desc > 0 && <div className="cart-tach">{fmt(precioUnit * i.qty)}</div>}
                   </div>
                   <div className="cart-acc">
-                      <button className={"icon-btn" + (abierto || desc > 0 ? " on" : "")} onClick={() => setEditandoItemCarrito(abierto ? null : k)} aria-expanded={abierto} aria-label={"Descuento o precio de " + (i.nombre || i.name)} title="Descuento / cambiar precio">🏷</button>
+                      {puedeHacer("pos.descuento") && <button className={"icon-btn" + (abierto || desc > 0 ? " on" : "")} onClick={() => setEditandoItemCarrito(abierto ? null : k)} aria-expanded={abierto} aria-label={"Descuento o precio de " + (i.nombre || i.name)} title="Descuento / cambiar precio">🏷</button>}
                       <button className="icon-btn peligro" onClick={() => remove(i)} aria-label={"Sacar " + (i.nombre || i.name) + " del carrito"} title="Sacar del carrito">✕</button>
                   </div>
                   {abierto && (
@@ -4363,12 +4372,12 @@ function POS({ localId, usuario, paletaActual }) {
                       <input className="inp" placeholder="Cupón o gift card" value={codigoPromo} onChange={e => setCodigoPromo(e.target.value)} onKeyDown={e => e.key === "Enter" && aplicarCodigoPromo()} style={{ borderRadius: "6px 0 0 6px", padding: "8px 10px", fontSize: 12, minWidth: 0, textTransform: "uppercase" }} aria-label="Cupón o gift card" />
                       <button className="btn btn-sm" disabled={!codigoPromo.trim()} style={{ borderRadius: "0 6px 6px 0", background: temaPal.accent, color: "#1B2431", fontWeight: 800, opacity: codigoPromo.trim() ? 1 : .5 }} onClick={aplicarCodigoPromo}>Aplicar</button>
                     </div>
-                    <div style={{ display: "flex", flex: 1, minWidth: 0 }}>
+                    {puedeHacer("pos.descuento") && <div style={{ display: "flex", flex: 1, minWidth: 0 }}>
                       <div className="seg" role="group" aria-label="Tipo de descuento general" style={{ padding: 2, borderRadius: "6px 0 0 6px" }}>
                         {["%", "$"].map(t => <button key={t} className={tipoDescuento === t ? "on" : ""} style={{ padding: "4px 8px", minHeight: 0 }} onClick={() => setTipoDescuento(t)}>{t}</button>)}
                       </div>
                       <input className="inp" type="number" min="0" placeholder="Desc. general" value={descuentoManual} onChange={e => setDescuentoManual(e.target.value)} style={{ borderRadius: "0 6px 6px 0", padding: "8px 10px", fontSize: 12, minWidth: 0 }} aria-label="Descuento general" />
-                    </div>
+                    </div>}
                   </div>
                   {(cuponAplicado || giftCardAplicada || parseFloat(descuentoManual) > 0) && (
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
@@ -6689,9 +6698,38 @@ function Inventario({ localId, usuario, paletaActual }) {
     setErrorAjuste("");
   };
 
+  // Pedidos de ajuste esperando aprobacion (los ve quien puede ajustar)
+  const [ajustesPend, setAjustesPend] = useState([]);
+  const cargarPendientes = () => {
+    if (!puedeHacer("inventario.ajustar")) return;
+    API.get("/productos/stock/ajustes-pendientes?local_id=" + (localId || 1)).then(r => setAjustesPend(r.data || [])).catch(() => setAjustesPend([]));
+  };
+  useEffect(() => { cargarPendientes(); }, [localId]);
+  const resolverPedido = async (a, aprobar) => {
+    if (!aprobar && !confirm("¿Rechazar el pedido de " + (a.usuario_nombre || "ajuste") + "? El stock no se toca.")) return;
+    try {
+      const r = await API.post("/productos/ajustes-pendientes/" + a.id + "/resolver", { aprobar, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre });
+      setMensaje(aprobar ? "✓ Ajuste aprobado: " + a.producto_nombre + " " + r.data.stock_anterior + " → " + r.data.stock_nuevo : "Pedido rechazado");
+      cargarPendientes(); cargar(); setTimeout(() => setMensaje(""), 4000);
+    } catch (e) { setMensaje("Error: " + (e.response?.data?.error || e.message)); }
+  };
+
   const confirmarAjuste = async () => {
     if (!motivoAjuste.trim()) return setErrorAjuste("El motivo es obligatorio");
     if (valorAjuste === "" || isNaN(parseInt(valorAjuste))) return setErrorAjuste("Ingresa un numero valido");
+    // Sin permiso: el ajuste queda pedido hasta que alguien con permiso lo apruebe
+    if (!puedeHacer("inventario.ajustar")) {
+      try {
+        await API.post("/productos/" + ajustando.id + "/solicitar-ajuste", {
+          modo: modoAjuste, valor: valorAjuste, motivo: motivoAjuste,
+          usuario_id: usuario?.id || null, usuario_nombre: usuario?.nombre || null, local_id: localId || 1
+        });
+        setMensaje("✓ Pedido enviado: el ajuste de " + ajustando.nombre + " queda esperando aprobación");
+        setAjustando(null);
+        setTimeout(() => setMensaje(""), 5000);
+      } catch (e) { setErrorAjuste(e.response?.data?.error || "No se pudo enviar el pedido"); }
+      return;
+    }
     try {
       const res = await API.put("/productos/" + ajustando.id + "/ajustar-stock", {
         modo: modoAjuste, valor: valorAjuste, motivo: motivoAjuste,
@@ -6900,7 +6938,7 @@ function Inventario({ localId, usuario, paletaActual }) {
         </div>
         <div className="dash-actions">
           <button className="btn btn-g btn-sm" onClick={exportarCSV} title="Descargar la lista filtrada para abrir en Excel">📥 Exportar</button>
-          <button className="btn btn-p btn-sm" onClick={() => { setEditandoProd(null); setFotoProd({ imagen: null, cambiada: false }); setNuevo({ nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "", stock: "", stock_minimo: "", proveedor_id: "", descripcion: "", tiene_variantes: false, tipo_variante: "" }); setShowForm(true); }}>+ Nuevo producto</button>
+          {puedeHacer("inventario.crear") && <button className="btn btn-p btn-sm" onClick={() => { setEditandoProd(null); setFotoProd({ imagen: null, cambiada: false }); setNuevo({ nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "", stock: "", stock_minimo: "", proveedor_id: "", descripcion: "", tiene_variantes: false, tipo_variante: "" }); setShowForm(true); }}>+ Nuevo producto</button>}
         </div>
       </div>
       {mensaje && (
@@ -7076,6 +7114,28 @@ function Inventario({ localId, usuario, paletaActual }) {
             </div>
           </div>
 
+          {ajustesPend.length > 0 && (
+            <div className="card aj-pend">
+              <div className="chart-title">🔐 {ajustesPend.length === 1 ? "1 ajuste de stock espera tu aprobación" : ajustesPend.length + " ajustes de stock esperan tu aprobación"}</div>
+              {ajustesPend.map(a => {
+                const nuevoAj = a.modo === "diferencia" ? (a.stock_actual || 0) + a.valor : a.valor;
+                const difAj = nuevoAj - (a.stock_actual || 0);
+                return (
+                  <div key={a.id} className="aj-pend-fila">
+                    <div style={{ minWidth: 0 }}>
+                      <b>{a.producto_nombre}</b>
+                      <small>{a.usuario_nombre || "Alguien"} pide {a.stock_actual} → <b>{nuevoAj}</b> <span className={"tag " + (difAj >= 0 ? "tag-ok" : "tag-bad")}>{difAj > 0 ? "+" : ""}{difAj}</span> · “{a.motivo}” · {textoHace(diasDesdeFecha(a.creado_en))}</small>
+                      {a.stock_al_pedir !== a.stock_actual && <small style={{ color: temaPal.warn }}>Ojo: el stock cambió desde el pedido (era {a.stock_al_pedir}).</small>}
+                    </div>
+                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                      <button className="btn btn-g btn-sm" onClick={() => resolverPedido(a, false)}>Rechazar</button>
+                      <button className="btn btn-p btn-sm" disabled={nuevoAj < 0} onClick={() => resolverPedido(a, true)}>Aprobar</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           <div className="card" style={{ padding: 0, overflow: "hidden" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderBottom: "1px solid " + temaPal.border, fontSize: 12, color: temaPal.textMuted }}>
               <span><b style={{ color: temaPal.text }}>{ordenados.length}</b> producto{ordenados.length !== 1 ? "s" : ""}{hayFiltros ? " con estos filtros" : ""} · stock de {vistaNombre}</span>
@@ -7138,12 +7198,12 @@ function Inventario({ localId, usuario, paletaActual }) {
                                   {datos.map(([l, v]) => <div key={l}><span>{l}</span><b>{v}</b></div>)}
                                 </div>
                                 <div className="inv-det-acciones">
-                                  {vistaLocal === "mi" && <button className="btn btn-g btn-sm" onClick={() => abrirAjuste(p)}>± Ajustar stock</button>}
-                                  <button className="btn btn-g btn-sm" onClick={() => abrirEditarProd(p)}>✏️ Editar</button>
+                                  {vistaLocal === "mi" && <button className="btn btn-g btn-sm" onClick={() => abrirAjuste(p)}>{puedeHacer("inventario.ajustar") ? "± Ajustar stock" : "± Pedir ajuste"}</button>}
+                                  {puedeHacer("inventario.editar") && <button className="btn btn-g btn-sm" onClick={() => abrirEditarProd(p)}>✏️ Editar</button>}
                                   {p.activo === false ? (
-                                    <button className="btn btn-g btn-sm" style={{ color: temaPal.green }} onClick={() => cambiarActivo(p, true)}>Reactivar</button>
+                                    puedeHacer("inventario.editar") && <button className="btn btn-g btn-sm" style={{ color: temaPal.green }} onClick={() => cambiarActivo(p, true)}>Reactivar</button>
                                   ) : (
-                                    (usuario?.rol === "jefe" || usuario?.rol === "admin") && <button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={() => setEliminandoProd(p)}>🗑️ Eliminar</button>
+                                    puedeHacer("inventario.eliminar") && <button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={() => setEliminandoProd(p)}>🗑️ Eliminar</button>
                                   )}
                                 </div>
                               </td>
@@ -7554,7 +7614,7 @@ function Inventario({ localId, usuario, paletaActual }) {
             <div className="card pop-in" role="dialog" aria-label={"Ajustar stock de " + ajustando.nombre} style={{ width: 440, maxWidth: "95vw", background: temaPal.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
                 <div>
-                  <div style={{ fontSize: 16, fontWeight: 800 }}>Ajustar stock</div>
+                  <div style={{ fontSize: 16, fontWeight: 800 }}>{puedeHacer("inventario.ajustar") ? "Ajustar stock" : "Pedir ajuste de stock"}</div>
                   <div style={{ fontSize: 12, color: temaPal.textMuted }}>{ajustando.nombre} · {nombreLocal(localId)}</div>
                 </div>
                 <button onClick={() => setAjustando(null)} aria-label="Cerrar" style={{ background: "transparent", border: "none", fontSize: 18, cursor: "pointer", color: temaPal.textMuted }}>✕</button>
@@ -7586,10 +7646,10 @@ function Inventario({ localId, usuario, paletaActual }) {
                 ))}
               </div>
               <input className="inp" placeholder="O escribí otro motivo..." value={motivoAjuste} onChange={e => setMotivoAjuste(e.target.value)} style={{ marginBottom: 8 }} />
-              <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 14 }}>Queda registrado con tu nombre y la fecha en "Historial de ajustes".</div>
+              <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 14 }}>{puedeHacer("inventario.ajustar") ? "Queda registrado con tu nombre y la fecha en \"Historial de ajustes\"." : "🔐 No tenés permiso para ajustar stock: el pedido le llega al jefe y el stock cambia cuando lo aprueba."}</div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setAjustando(null)}>Cancelar</button>
-                <button className="btn btn-p" style={{ flex: 2 }} disabled={!valido || dif === 0 || nuevoStock < 0} onClick={confirmarAjuste}>{dif === 0 ? "Sin cambios" : "Confirmar ajuste (" + (dif > 0 ? "+" : "") + dif + ")"}</button>
+                <button className="btn btn-p" style={{ flex: 2 }} disabled={!valido || dif === 0 || nuevoStock < 0} onClick={confirmarAjuste}>{dif === 0 ? "Sin cambios" : (puedeHacer("inventario.ajustar") ? "Confirmar ajuste (" : "Pedir ajuste (") + (dif > 0 ? "+" : "") + dif + ")"}</button>
               </div>
             </div>
           </div>
@@ -11015,7 +11075,7 @@ function GiftCards({ localId, usuario, paletaActual }) {
     const motivo = prompt("Motivo de la anulacion (obligatorio):");
     if (!motivo || !motivo.trim()) return;
     try {
-      await API.post("/anulaciones/giftcard/" + gc.id, { motivo, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre, usuario_rol: usuario?.rol });
+      await API.post("/anulaciones/giftcard/" + gc.id, { motivo, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre, usuario_rol: usuario?.rol, puede_anular: puedeHacer("ventas.anular") });
       setMensaje("Gift card anulada");
       cargar();
       setTimeout(() => setMensaje(""), 3000);
@@ -11064,7 +11124,7 @@ function GiftCards({ localId, usuario, paletaActual }) {
                   <td><span className={"badge " + (parseFloat(g.saldo) === 0 ? "br" : parseFloat(g.saldo) < parseFloat(g.monto_inicial) ? "ba" : "bg")}>{fmt(parseFloat(g.saldo))}</span></td>
                   <td style={{ fontSize: 11, color: p.textMuted }}>{g.cliente_nombre || "-"}</td>
                   <td style={{ fontSize: 10, color: p.textMuted }}>{new Date(g.creado_en).toLocaleDateString("es-AR")}</td>
-                  <td><div style={{ display: "flex", gap: 4 }}><button className="btn btn-sm" onClick={() => verMovimientos(g)}>Ver historial</button>{(usuario?.rol === "jefe" || usuario?.rol === "administrativo") && !g.anulada && <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => anularGiftCard(g)}>Anular</button>}</div></td>
+                  <td><div style={{ display: "flex", gap: 4 }}><button className="btn btn-sm" onClick={() => verMovimientos(g)}>Ver historial</button>{puedeHacer("ventas.anular") && !g.anulada && <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => anularGiftCard(g)}>Anular</button>}</div></td>
                 </tr>
               ))}
             </tbody>
@@ -14097,7 +14157,7 @@ function Caja({ localId, usuario, paletaActual }) {
     const motivo = prompt("Motivo de la anulacion (obligatorio):");
     if (!motivo || !motivo.trim()) return;
     try {
-      await API.post("/anulaciones/movimiento/" + m.id, { motivo, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre, usuario_rol: usuario?.rol });
+      await API.post("/anulaciones/movimiento/" + m.id, { motivo, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre, usuario_rol: usuario?.rol, puede_anular: puedeHacer("ventas.anular") });
       setMensaje("Movimiento anulado");
       cargar();
       setTimeout(() => setMensaje(""), 3000);
@@ -14207,7 +14267,7 @@ function Caja({ localId, usuario, paletaActual }) {
                     <td style={{ color: m.tipo === "ingreso" ? "#2d7a4f" : "#c0392b", fontWeight: 600 }}>
                       {m.tipo === "ingreso" ? "+" : "-"}{fmt(parseFloat(m.importe))}
                     </td>
-                    <td>{!m.anulado && (usuario?.rol === "jefe" || usuario?.rol === "administrativo") && <button className="btn btn-sm" style={{ color: "#c0392b", fontSize: 9 }} onClick={() => anularMovimiento(m)}>Anular</button>}</td>
+                    <td>{!m.anulado && puedeHacer("ventas.anular") && <button className="btn btn-sm" style={{ color: "#c0392b", fontSize: 9 }} onClick={() => anularMovimiento(m)}>Anular</button>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -14840,7 +14900,7 @@ function CierreCaja({ localId, usuario, paletaActual }) {
     const motivo = prompt("Motivo de la anulación de " + (v.numero_factura || "la venta") + " (obligatorio):");
     if (!motivo || !motivo.trim()) return;
     try {
-      await API.post("/anulaciones/venta/" + v.id, { motivo, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre, usuario_rol: usuario?.rol });
+      await API.post("/anulaciones/venta/" + v.id, { motivo, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre, usuario_rol: usuario?.rol, puede_anular: puedeHacer("ventas.anular") });
       cargar();
       setAviso("✓ Venta anulada"); setTimeout(() => setAviso(""), 3000);
     } catch (e) { alert(e.response?.data?.error || "Error al anular"); }
@@ -15082,7 +15142,7 @@ function CierreCaja({ localId, usuario, paletaActual }) {
                       <td style={{ fontSize: 11, color: p.textMuted }}>{v.vendedora_nombre || "-"}</td>
                       <td style={{ fontSize: 11, color: p.textMuted }}>{v.medio_pago || "-"}</td>
                       <td style={{ textAlign: "right", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmt(parseFloat(v.total))}</td>
-                      <td style={{ textAlign: "right" }}>{!v.anulada && <button className="icon-btn peligro" style={{ width: "auto", padding: "0 8px", fontSize: 11 }} onClick={() => anularVenta(v)}>Anular</button>}</td>
+                      <td style={{ textAlign: "right" }}>{!v.anulada && puedeHacer("ventas.anular") && <button className="icon-btn peligro" style={{ width: "auto", padding: "0 8px", fontSize: 11 }} onClick={() => anularVenta(v)}>Anular</button>}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -17878,12 +17938,13 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
   const GRUPOS_PERMISOS = [
     { grupo: "VENTAS", secciones: [
       ["Dashboard", [["dashboard.ver", "Ver el Dashboard"]]],
-      ["Punto de Venta", [["pos.ver", "Usar el Punto de Venta"]]],
+      ["Punto de Venta", [["pos.ver", "Usar el Punto de Venta"], ["pos.descuento", "Hacer descuentos a mano"]]],
       ["Ventas Online", [["ventas_online.ver", "Ver ventas online"], ["ventas_online.editar", "Editar y eliminar ventas online"]]],
       ["Buscar Precio", [["buscar_precio.ver", "Buscar precios"]]],
       ["Cambio / Devolución", [["cambios.ver", "Hacer cambios y devoluciones"]]] ] },
     { grupo: "STOCK", secciones: [
-      ["Inventario", [["inventario.ver", "Ver y editar el inventario"]]],
+      ["Inventario", [["inventario.ver", "Ver el inventario"], ["inventario.crear", "Crear productos"], ["inventario.editar", "Editar productos (precio, costo, datos)"],
+        ["inventario.ajustar", "Ajustar stock sin pedir autorización"], ["inventario.eliminar", "Eliminar productos"]]],
       ["Compras y proveedores", [["compras.ver", "Ver qué pedir, pedidos y reclamos"], ["proveedores.ver", "Ver proveedores (datos y pagos)"]]],
       ["Ingresos", [["ordenes.ver", "Ver ingresos de mercadería"], ["ordenes.crear", "Cargar ingresos nuevos"]]],
       ["Control de Inventario", [["control_inv.ver", "Hacer controles de inventario"]]],
@@ -17896,7 +17957,8 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
       ["Cierre de Caja", [["cierre_caja.ver", "Hacer el cierre de caja"]]],
       ["Caja de Respaldo", [["caja_respaldo.ver", "Ver la caja de respaldo"]]],
       ["Gift Cards", [["giftcards.ver", "Emitir y ver gift cards"]]],
-      ["Comprobantes", [["comprobantes.ver", "Ver facturas y tickets"]]] ] },
+      ["Comprobantes", [["comprobantes.ver", "Ver facturas y tickets"]]],
+      ["Anulaciones", [["ventas.anular", "Anular ventas, movimientos de caja y gift cards"]]] ] },
     { grupo: "CLIENTES", secciones: [
       ["Clientes", [["clientes.ver", "Ver y cargar clientes"]]],
       ["Pedidos", [["pedidos.ver", "Anotar pedidos y avisar"]]],
@@ -17918,7 +17980,7 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
   ];
   const TODAS_LAS_CLAVES = GRUPOS_PERMISOS.flatMap(g => g.secciones.flatMap(([, perms]) => perms.map(x => x[0])));
   // Lo tipico para quien atiende el local
-  const PLANTILLA_VENDEDORA = ["dashboard.ver", "pos.ver", "ventas_online.ver", "buscar_precio.ver", "cambios.ver", "inventario.ver", "control_inv.ver", "kits.ver",
+  const PLANTILLA_VENDEDORA = ["dashboard.ver", "pos.ver", "pos.descuento", "ventas_online.ver", "buscar_precio.ver", "cambios.ver", "inventario.ver", "control_inv.ver", "kits.ver",
     "caja.ver", "cierre_caja.ver", "giftcards.ver", "clientes.ver", "pedidos.ver", "fidelizacion.ver", "tareas.ver", "comisiones.propias"];
   const [eliminando, setEliminando] = useState(null); // { u, actividad }
 
@@ -18038,7 +18100,7 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
           </div>
         </div>
         {mensaje && <div className={"cc-aviso " + (mensaje.startsWith("Error") ? "bad" : "ok")}>{mensaje}</div>}
-        <div className="perm-ayuda">Cada sección del menú tiene su permiso: si está apagado, esa persona no la ve. Los permisos se aplican la próxima vez que entra o recarga la página.</div>
+        <div className="perm-ayuda">Cada sección del menú tiene su permiso: si está apagado, esa persona no la ve. Dentro de algunas secciones también se elige qué puede hacer (por ejemplo, eliminar productos o ajustar stock). Si no puede ajustar stock, igual puede <b>pedir el ajuste</b> y queda esperando tu aprobación. Los permisos se aplican la próxima vez que entra o recarga la página.</div>
         {GRUPOS_PERMISOS.map(g => {
           const claves = g.secciones.flatMap(([, perms]) => perms.map(x => x[0]));
           const activos = claves.filter(c => permisosUsuario.includes(c)).length;
@@ -18612,6 +18674,8 @@ export default function AppWrapper() {
         return;
       }
       const permisos = res.data || [];
+      PERMISOS_ACTUALES = permisos;
+      ES_JEFE_ACTUAL = !!esJefe;
       setPermisosActivos(permisos);
       // Si no puede ver el dashboard (y no es jefe, que ve todo), arrancar en la primera
       // seccion a la que si tenga acceso, en vez de mostrarle "sin permiso" al abrir el software.

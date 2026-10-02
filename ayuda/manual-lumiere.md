@@ -274,7 +274,9 @@ Finanzas → **Comparar** → tocá un atajo (este mes vs mes pasado, vs mismo m
 Al crear o editar el producto, tildá **Tiene variantes (talles, colores...)**, escribí el tipo de variante (Talle, Color) y agregá cada variante con **+ Agregar** (valor, código y stock de cada local). Al vender, el Punto de Venta pide elegir la variante.
 
 ### Cómo ajustar el stock de un producto
-**Inventario** → buscá el producto → **± Ajustar** → **Contar** (poner la cantidad real) o **Sumar / restar** → motivo (obligatorio) → confirmar. Queda en **Historial de ajustes** con tu nombre y la fecha.
+**Inventario** → tocá el producto para abrir su detalle → **± Ajustar stock** → **Contar** (poner la cantidad real) o **Sumar / restar** → motivo (obligatorio) → confirmar. Queda en **Historial de ajustes** con tu nombre y la fecha.
+
+Si no tenés el permiso **"Ajustar stock sin pedir autorización"**, el botón dice **± Pedir ajuste**: completás lo mismo y el pedido le llega al jefe (o a quien tenga ese permiso). Arriba de la lista de Inventario le aparece **"🔐 Ajustes de stock esperan tu aprobación"** con quién lo pidió, el cambio y el motivo: **Aprobar** cambia el stock y queda en el historial como "pedido por … aprobado por …"; **Rechazar** no toca nada.
 
 ### Cómo desactivar o eliminar un producto
 **Inventario** → editar el producto → destildá **Producto activo** (deja de aparecer en el Punto de Venta sin borrar su historial). Para reactivarlo, filtrá **Inactivos** → **Reactivar**. Eliminar lo borra para siempre (pide confirmación): conviene desactivar.
@@ -407,7 +409,7 @@ Si no sabés qué porcentaje poner, en **Comisiones → Configuración** tocá *
 **Comisiones** → **Configuración** → en "Qué usa este negocio" tocá el interruptor de **Comisiones para vendedores** o de **Desafíos de venta**. Se guarda al tocarlo.
 
 ### Cómo crear un usuario y darle permisos
-**Negocio → Usuarios** → **+ Nuevo usuario** → nombre, email, contraseña inicial (mínimo 6 caracteres), rol (Jefe, Administrativo, Vendedora) y local → **Crear**. Después **Permisos**: están ordenados como el menú (Ventas, Stock, Caja, Clientes, Equipo, Finanzas, Negocio) y cada sección tiene su interruptor; si está apagado, esa persona no ve la sección. **Plantilla vendedora** prende lo típico de quien atiende el local; también hay **Dar todo** y **Quitar todo** (en general o por grupo) → **Guardar permisos**. Los cambios se aplican la próxima vez que esa persona entra o recarga la página. El jefe ve todo siempre.
+**Negocio → Usuarios** → **+ Nuevo usuario** → nombre, email, contraseña inicial (mínimo 6 caracteres), rol (Jefe, Administrativo, Vendedora) y local → **Crear**. Después **Permisos**: están ordenados como el menú (Ventas, Stock, Caja, Clientes, Equipo, Finanzas, Negocio) y cada sección tiene su interruptor; si está apagado, esa persona no ve la sección. Además, dentro de algunas secciones se eligen las **acciones**: en Inventario, crear, editar y eliminar productos y ajustar stock sin autorización; en el Punto de Venta, hacer descuentos a mano; y en Caja, anular ventas, movimientos de caja y gift cards. **Plantilla vendedora** prende lo típico de quien atiende el local; también hay **Dar todo** y **Quitar todo** (en general o por grupo) → **Guardar permisos**. Los cambios se aplican la próxima vez que esa persona entra o recarga la página. El jefe ve todo siempre.
 
 ### Cómo desactivar o eliminar un usuario
 En **Negocio → Usuarios**:
