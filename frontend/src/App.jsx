@@ -15686,12 +15686,11 @@ function ControlInventario({ localId, usuario, paletaActual }) {
   const [busqueda, setBusqueda] = useState("");
   const [resaltado, setResaltado] = useState(null);
   const [modoScan, setModoScan] = useState(false);
-  const [sumaEscaneo, setSumaEscaneo] = useState(true);
   const [escaneando, setEscaneando] = useState(false);
   const [errorCamara, setErrorCamara] = useState("");
   const [itemEscaneado, setItemEscaneado] = useState(null);
   const [valorContado, setValorContado] = useState("");
-  const [ultimos, setUltimos] = useState([]); // ultimos escaneos (modo suma)
+  const [ultimos, setUltimos] = useState([]); // ultimos productos contados escaneando
   const [codigoManual, setCodigoManual] = useState("");
   const [showFinalizar, setShowFinalizar] = useState(false);
   const [ajustarStock, setAjustarStock] = useState(true);
@@ -15804,15 +15803,12 @@ function ControlInventario({ localId, usuario, paletaActual }) {
     if (codigo === ultimoCodigo.current.c && ahora - ultimoCodigo.current.t < 1500) return; // la camara lee el mismo codigo varias veces seguidas
     ultimoCodigo.current = { c: codigo, t: ahora };
     const it = buscarPorCodigo(codigo);
-    if (!it) { avisar("Error: ese código no es de ningún producto de este control"); return; }
-    if (sumaEscaneo) {
-      const r = await guardarConteo(it, { sumar: 1 });
-      if (r) { setUltimos(u => [{ id: it.id + "-" + ahora, nombre: it.producto_nombre, total: r.stock_contado }, ...u].slice(0, 6)); if (navigator.vibrate) navigator.vibrate(60); }
-    } else {
-      await cerrarCamara();
-      setItemEscaneado(it);
-      setValorContado(it.stock_contado !== null && it.stock_contado !== undefined ? String(it.stock_contado) : "");
-    }
+    if (!it) { avisar("Error: el código " + codigo + " no es de ningún producto de este control"); return; }
+    // El escaneo solo encuentra el producto: la cantidad se escribe a mano
+    try { navigator.vibrate && navigator.vibrate(60); } catch (e) {}
+    await cerrarCamara();
+    setItemEscaneado(it);
+    setValorContado(it.stock_contado !== null && it.stock_contado !== undefined ? String(it.stock_contado) : "");
   };
   const alLeerRef = useRef(alLeerCodigo);
   alLeerRef.current = alLeerCodigo;
@@ -15831,10 +15827,12 @@ function ControlInventario({ localId, usuario, paletaActual }) {
       try {
         const mod = await import("https://cdn.jsdelivr.net/npm/html5-qrcode/+esm");
         if (cancelado) return;
-        const scanner = new mod.Html5Qrcode("lector-camara-inv");
+        const scanner = new mod.Html5Qrcode("lector-camara-inv", { experimentalFeatures: { useBarCodeDetectorIfSupported: true }, verbose: false });
         scannerRef.current = scanner;
-        await scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 260, height: 140 } }, (txt) => alLeerRef.current(txt), () => {});
+        // El recuadro se adapta al ancho de la pantalla (si es mas grande que la imagen de la camara, en el celular no lee)
+        await scanner.start({ facingMode: "environment" }, { fps: 12, qrbox: (w, h) => ({ width: Math.floor(Math.min(w * 0.85, 320)), height: Math.floor(Math.min(h * 0.45, 150)) }) }, (txt) => alLeerRef.current(String(txt).trim()), () => {});
       } catch (e) {
+        scannerRef.current = null;
         setErrorCamara("No se pudo abrir la cámara. Revisá los permisos del navegador.");
         setEscaneando(false);
       }
@@ -15846,7 +15844,9 @@ function ControlInventario({ localId, usuario, paletaActual }) {
 
   const confirmarEscaneado = async () => {
     if (valorContado === "" || isNaN(parseInt(valorContado))) return;
-    await contar(itemEscaneado, valorContado);
+    const it = itemEscaneado, n = parseInt(valorContado);
+    await contar(it, valorContado);
+    setUltimos(u => [{ id: it.id + "-" + Date.now(), nombre: it.producto_nombre, total: n, sistema: it.stock_sistema }, ...u.filter(x => !x.id.startsWith(it.id + "-"))].slice(0, 8));
     setItemEscaneado(null); setValorContado("");
     setErrorCamara(""); setEscaneando(true);
   };
@@ -16009,11 +16009,7 @@ function ControlInventario({ localId, usuario, paletaActual }) {
         {modoScan ? (
           <div className="ci-scan-grid">
             <div className="chart-card">
-              <div className="ci-seg ci-seg-bloque" role="radiogroup" aria-label="Cómo cuenta el escaneo">
-                <button role="radio" aria-checked={sumaEscaneo} className={sumaEscaneo ? "on" : ""} onClick={() => { setSumaEscaneo(true); setItemEscaneado(null); }}>Cada escaneo suma 1</button>
-                <button role="radio" aria-checked={!sumaEscaneo} className={!sumaEscaneo ? "on" : ""} onClick={() => setSumaEscaneo(false)}>Escaneo y escribo la cantidad</button>
-              </div>
-              <div className="dec-ayuda" style={{ margin: "8px 0 12px" }}>{sumaEscaneo ? "Pasá cada unidad por la cámara o el lector: se van sumando solas." : "Escaneás un producto, contás cuántos hay y escribís el número."}</div>
+              <div className="dec-ayuda" style={{ margin: "0 0 12px" }}>Escaneá el código del producto, contá cuántos hay y escribí el número. Al guardar, la cámara se abre sola para el siguiente.</div>
               {itemEscaneado ? (
                 <div className="ci-escaneado pop-in">
                   <small>{[itemEscaneado.producto_marca, itemEscaneado.producto_categoria].filter(Boolean).join(" · ")}</small>
@@ -16022,7 +16018,7 @@ function ControlInventario({ localId, usuario, paletaActual }) {
                   <label className="fl" htmlFor="ci-esc-val">¿Cuántos contaste?</label>
                   <input id="ci-esc-val" type="number" inputMode="numeric" min="0" className="inp ci-esc-input" autoFocus value={valorContado} onChange={e => setValorContado(e.target.value)} onKeyDown={e => e.key === "Enter" && confirmarEscaneado()} />
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button className="btn btn-g" style={{ flex: 1 }} onClick={() => { setItemEscaneado(null); setEscaneando(true); }}>Cancelar</button>
+                    <button className="btn btn-g" style={{ flex: 1 }} onClick={() => { setItemEscaneado(null); setErrorCamara(""); setEscaneando(true); }}>Cancelar</button>
                     <button className="btn btn-p" style={{ flex: 2 }} onClick={confirmarEscaneado}>Guardar y seguir</button>
                   </div>
                 </div>
@@ -16043,10 +16039,11 @@ function ControlInventario({ localId, usuario, paletaActual }) {
               )}
             </div>
             <div className="chart-card">
-              <div className="chart-title">Últimos escaneos</div>
-              {ultimos.length === 0 ? <div className="cli-vacio">{sumaEscaneo ? "Acá vas a ver cada producto que escaneás y cuántos llevás." : "En este modo cada producto se guarda al escribir la cantidad."}</div> : ultimos.map((u, k) => (
-                <div key={u.id} className={"cli-hist-fila" + (k === 0 ? " pop-in" : "")}><span style={{ fontSize: 13 }}>{u.nombre}</span><span className="tag tag-ok">+1 · van {u.total}</span></div>
-              ))}
+              <div className="chart-title">Últimos contados</div>
+              {ultimos.length === 0 ? <div className="cli-vacio">Acá vas a ver cada producto que contás escaneando.</div> : ultimos.map((u, k) => {
+                const dif = u.total - (u.sistema || 0);
+                return <div key={u.id} className={"cli-hist-fila" + (k === 0 ? " pop-in" : "")}><span style={{ fontSize: 13 }}>{u.nombre}</span><span className={"tag " + (dif === 0 ? "tag-ok" : dif < 0 ? "tag-bad" : "tag-warn")}>{u.total} u{dif !== 0 ? " · " + (dif > 0 ? "+" : "") + dif : " ✓"}</span></div>;
+              })}
             </div>
           </div>
         ) : (
