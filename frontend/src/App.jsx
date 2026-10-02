@@ -1033,9 +1033,13 @@ button.tab { font-family: inherit; }
   .nav-buscar kbd { display: none; }
   .mobile-topbar { display: flex; }
   .sidebar { transform: translateX(-100%); transition: transform .22s ease; top: 0; }
+  /* En el celular el menu abierto va por encima de la barra de abajo y del boton de Ayuda, y mide solo
+     lo visible de la pantalla (100vh incluye lo que tapa la barra del navegador) */
+  .sidebar { z-index: 80; height: 100vh; height: 100dvh; padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .sidebar .sb-footer { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
   .sidebar.abierto { transform: translateX(0); }
   .main { margin-left: 0 !important; width: 100vw !important; padding: 14px !important; }
-  .mobile-overlay.abierto { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 19; }
+  .mobile-overlay.abierto { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 75; }
   .g4 { grid-template-columns: repeat(2,1fr) !important; }
   .g3 { grid-template-columns: repeat(2,1fr) !important; }
   .g2 { grid-template-columns: 1fr !important; }
