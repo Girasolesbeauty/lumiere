@@ -8,14 +8,23 @@ Lumiere es un sistema de gestión para comercios minoristas con uno o dos locale
 - **Vendedora/vendedor**: ve lo que el jefe le habilite en **Configuración → Usuarios** (permisos por sección). Si alguien no ve una sección del menú, es porque no tiene ese permiso: tiene que pedírselo al jefe.
 Abajo a la izquierda del menú están **Cambiar local**, **Cerrar sesión** y el interruptor de **fondo claro / oscuro**. El botón **‹** achica el menú (quedan solo los íconos).
 
+## ✨ Lumiere, tu gerente
+Es el primer grupo del menú. Mira todos los números del negocio (ventas, plata, stock, clientes y equipo) y te dice qué conviene hacer. Arriba se elige el local (o Todos). Tiene 5 pestañas:
+- **📊 Cómo está tu negocio**: el puntaje de salud del mes (0 a 100), el mensaje con lo que salió bien o qué corregir, y cada costo comparado con lo sano para un comercio.
+- **🔁 Mejora continua**: acciones concretas sacadas de tus números, en tres columnas: **⚡ corto plazo** (esta semana: reponer lo que se agota, avisar pedidos, entregar premios, escribir a clientes que no vuelven, cargar costos), **📈 mediano plazo** (este mes: liquidar mercadería parada, pedir descuento a proveedores, negociar la tasa de la tarjeta, revisar precios con poco margen) y **🎯 largo plazo** (3 a 6 meses: llegar a 15% de margen, bajar el peso de los costos fijos, achicar el surtido que no rota, mejorar la exactitud del stock, fidelizar clientes). Cada una dice cuánta plata o qué ganás, y tiene **Resolver →** (te lleva a la sección), **✓ Hecho** y **Descartar**. Lo hecho vuelve a aparecer a los 30 días si el problema sigue.
+- **💬 Preguntale a tu gerente**: preguntas rápidas que se responden al instante con tus números (¿Cómo viene este mes? ¿Por qué cambiaron mis ventas? ¿Cuánto estoy ganando? ¿Cuánto tengo que vender para cubrir los costos? ¿Qué conviene empujar? ¿Qué liquidar? ¿A qué clientes escribirles? ¿Cómo viene el equipo? ¿Qué día y hora se vende más? ¿En qué se me va la plata?). Abajo hay un chat para preguntarle lo que quieras: responde con los números del negocio, pero puede equivocarse, así que las decisiones grandes conviene simularlas en Toma de decisiones. El chat necesita estar activado en el servidor.
+- **🧭 Toma de decisiones**: las simulaciones (contratar, subir precios, promociones, bajar costos, llegar a una ganancia).
+- **🏅 Tus logros**: las medallas del negocio.
+Es parte del plan Estratégico. Permisos: "Ver salud del negocio, mejora continua, preguntas y logros" y "Usar Toma de decisiones".
+
 ## Menú (secciones)
-El menú de la izquierda tiene 7 grupos que se abren y cierran tocando su nombre (el grupo de la sección en la que estás queda abierto y el sistema recuerda cómo lo dejaste):
+El menú de la izquierda tiene 8 grupos (arriba de todo, **✨ Tu gerente**) que se abren y cierran tocando su nombre (el grupo de la sección en la que estás queda abierto y el sistema recuerda cómo lo dejaste):
 - **VENTAS**: Dashboard, Punto de Venta, Ventas Online, Buscar Precio, Cambio / Devolución.
 - **STOCK**: Inventario, Compras y proveedores, Ingresos, Control de Inventario, Rotación, Inconsistencias, Kits, Insumos.
 - **CAJA**: Caja, Cierre de Caja, Caja de Respaldo, Gift Cards, Comprobantes.
 - **CLIENTES**: Clientes, Pedidos, Fidelización, Portal Cliente, Postventa WA, Cupones, Promociones.
 - **EQUIPO**: Tareas, Comisiones, Productividad.
-- **FINANZAS**: Finanzas, Toma de decisiones, Calculadoras.
+- **FINANZAS**: Finanzas, Calculadoras.
 - **NEGOCIO**: Configuración del Negocio, y solo para el jefe: Usuarios, Ticket, Insumos en POS y Auditoría.
 
 **En el celular**: abajo hay una barra fija con **Inicio, Vender, Stock y Clientes**, y **☰ Más** abre el menú completo. Las tablas se ven como tarjetas (sin correr de costado) y el Dashboard muestra los números; los gráficos se abren con **📊 Ver gráficos**. En el Punto de Venta la barra no aparece, para dejar lugar al cobro.
@@ -99,7 +108,7 @@ El menú de la izquierda tiene 7 grupos que se abren y cierran tocando su nombre
   - *Resumen*: en qué se fue la plata, margen de lo vendido (CMV), comisiones de medios de pago e IIBB estimado (el % se puede cambiar), y el formulario **Registrar egreso**.
   - *Movimientos*: ver, buscar, editar o borrar egresos cargados. Los que genera el sistema (ventas, gift cards, cambios, pagos de comisiones) dicen "automático" y no se editan desde acá.
   - *Estado de resultados*: ingresos menos cada tipo de costo, con % sobre ingresos.
-  - *Análisis*: calificación de la salud financiera del mes, y debajo las **Medallas del negocio**. Debajo del puntaje aparece un mensaje: si el mes fue bueno, te felicita y te dice qué salió mejor; si hay que mejorar, te da ánimo y hasta 3 soluciones concretas con un botón que te lleva a resolverlas. Los niveles son Excelente, Buena, En camino, Necesita ajustes y Momento de actuar.
+  - El análisis de la salud del mes y las medallas se mudaron a **✨ Lumiere, tu gerente**. Allí, debajo del puntaje aparece un mensaje: si el mes fue bueno, te felicita y te dice qué salió mejor; si hay que mejorar, te da ánimo y hasta 3 soluciones concretas con un botón que te lleva a resolverlas. Los niveles son Excelente, Buena, En camino, Necesita ajustes y Momento de actuar.
   - *Comparar*: dos períodos (atajos: este mes vs mes pasado, vs mismo mes del año pasado, últimos 7 días).
   - *Costos por local* y *Punto de equilibrio* (cuánto hay que vender para cubrir los costos fijos, cuánto falta y cuánto vender por día).
 - **Comprobantes**: facturas emitidas en ARCA, ventas que quedaron sin facturar (con **↻ Facturar** para reintentar) y anuladas.
@@ -249,13 +258,13 @@ Finanzas → **Movimientos** → buscá el egreso (o tocá **Solo sin categoría
 Al cargar un egreso **Compartido**, mové la barra o tocá 50/50, 60/40, 70/30 u 80/20. Para dejarlo como reparto por defecto del negocio, tocá **Usar X/Y como reparto por defecto** (jefe/admin). La próxima vez que cargues un gasto de la misma categoría, te propone el último reparto usado.
 
 ### Cómo ver si el negocio gana plata
-**Finanzas**: arriba están Ingresos, Egresos, Resultado neto y Margen neto del mes. En **Estado de resultados** ves cada tipo de costo, en **Análisis** una calificación, y en **Punto de equilibrio** cuánto hay que vender para no perder plata y cuánto vender por día.
+**Finanzas**: arriba están Ingresos, Egresos, Resultado neto y Margen neto del mes. En **Estado de resultados** ves cada tipo de costo y en **Punto de equilibrio** cuánto hay que vender para no perder plata y cuánto vender por día.
 
 ### Medallas del negocio
-En **Finanzas → Análisis**, debajo de la salud del mes, está la vitrina de **🏅 Medallas**: 10 logros que se ganan solos con los números reales del negocio (hasta 2 años hacia atrás). Son: **En equilibrio** (un mes vendiendo por encima del punto de equilibrio), **Antes del 20** (pasar el punto de equilibrio antes del día 20), **Buena salud** (un mes con 70 puntos o más), **Excelencia** (85 o más), **Racha de 3** (3 meses seguidos con salud Buena), **Mejora continua** (que el puntaje suba 3 meses seguidos), **Margen sano** (margen neto del 15% o más), **Costos a raya** (costos fijos del 15% o menos de las ventas), **Mes récord** (vender más que en cualquier mes anterior) y **Año sin pérdidas** (12 meses seguidos con ganancia). Las ganadas se ven en color con el mes en que se ganaron y cuántas veces; las que faltan, en gris con cómo ganarlas y cuánto falta. Las de salud solo cuentan meses ya cerrados y con gastos cargados: si no se cargan los gastos, no se ganan.
+En **✨ Lumiere, tu gerente → 🏅 Tus logros** está la vitrina de **Medallas**: 10 logros que se ganan solos con los números reales del negocio (hasta 2 años hacia atrás). Son: **En equilibrio** (un mes vendiendo por encima del punto de equilibrio), **Antes del 20** (pasar el punto de equilibrio antes del día 20), **Buena salud** (un mes con 70 puntos o más), **Excelencia** (85 o más), **Racha de 3** (3 meses seguidos con salud Buena), **Mejora continua** (que el puntaje suba 3 meses seguidos), **Margen sano** (margen neto del 15% o más), **Costos a raya** (costos fijos del 15% o menos de las ventas), **Mes récord** (vender más que en cualquier mes anterior) y **Año sin pérdidas** (12 meses seguidos con ganancia). Las ganadas se ven en color con el mes en que se ganaron y cuántas veces; las que faltan, en gris con cómo ganarlas y cuánto falta. Las de salud solo cuentan meses ya cerrados y con gastos cargados: si no se cargan los gastos, no se ganan.
 
 ### Toma de decisiones (simular antes de decidir)
-En **Finanzas → 🧭 Toma de decisiones** simulás una situación con los números reales del negocio (el promedio de los últimos 3 meses cerrados) y Lumiere te da un veredicto con semáforo: 🟢 recomendable, 🟡 posible si vendés más, 🔴 no recomendable por ahora. Las situaciones son:
+En **✨ Lumiere, tu gerente → 🧭 Toma de decisiones** simulás una situación con los números reales del negocio (el promedio de los últimos 3 meses cerrados) y Lumiere te da un veredicto con semáforo: 🟢 recomendable, 🟡 posible si vendés más, 🔴 no recomendable por ahora. Las situaciones son:
 - **👤 Contratar un empleado**: sueldo bruto, cargas sociales (viene con 28%, consultalo con tu contador), aguinaldo y cuánto más creés que se va a vender. Te dice el costo real por mes y cuánto hay que vender de más para pagarlo.
 - **🏠 Sumar un costo fijo**: alquiler, publicidad, un servicio.
 - **🏷️ Subir o bajar precios**: cuántas unidades podés perder (si subís) o tenés que ganar (si bajás) para seguir ganando lo mismo.

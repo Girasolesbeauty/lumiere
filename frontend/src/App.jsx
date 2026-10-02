@@ -631,6 +631,61 @@ button.tab { font-family: inherit; }
 .aj-pend-fila:first-of-type { border-top: none; }
 .aj-pend-fila b { font-size: 13px; }
 .aj-pend-fila small { display: block; font-size: 12px; color: ${p.textMuted}; margin-top: 2px; line-height: 1.45; }
+.ger-tabs { overflow-x: auto; flex-wrap: nowrap; }
+.ger-tabs .tab { white-space: nowrap; }
+.ger-progreso, .ger-col, .ger-accion, .ger-preg-grid .chart-card { text-align: left; }
+.ger-progreso { display: grid; grid-template-columns: 1fr auto; gap: 10px 20px; align-items: center; margin-bottom: 12px; }
+.ger-prog-num { text-align: right; }
+.ger-prog-num b { display: block; font-size: 30px; font-weight: 900; color: ${p.green}; line-height: 1; }
+.ger-prog-num span { font-size: 12px; color: ${p.textMuted}; }
+.ger-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
+@media (max-width: 1000px) { .ger-cols { grid-template-columns: 1fr; } }
+.ger-col { background: ${p.bg}; border: 1px solid ${p.border}; border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.ger-col-head { display: flex; align-items: center; gap: 10px; padding: 4px 4px 6px; }
+.ger-col-head > span { font-size: 22px; }
+.ger-col-head b { display: block; font-size: 14px; }
+.ger-col-head small { font-size: 11px; color: ${p.textMuted}; }
+.ger-col-head em { margin-left: auto; font-style: normal; font-weight: 800; font-size: 12px; min-width: 24px; height: 24px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: ${p.card}; border: 1px solid ${p.border}; }
+.ger-corto .ger-col-head em { background: ${p.redDim}; color: ${p.red}; border-color: transparent; }
+.ger-mediano .ger-col-head em { background: ${p.warnDim}; color: ${p.warn}; border-color: transparent; }
+.ger-largo .ger-col-head em { background: ${p.greenDim}; color: ${p.green}; border-color: transparent; }
+.ger-accion { background: ${p.card}; border: 1px solid ${p.border}; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; animation: fadeUp .25s ease-out both; }
+.ger-corto .ger-accion { border-left: 3px solid ${p.red}; }
+.ger-mediano .ger-accion { border-left: 3px solid ${p.warn}; }
+.ger-largo .ger-accion { border-left: 3px solid ${p.green}; }
+.ger-accion.resuelta { opacity: .6; }
+.ger-area { align-self: flex-start; font-size: 10px !important; }
+.ger-accion b { font-size: 13.5px; line-height: 1.35; }
+.ger-accion p { margin: 0; font-size: 12px; color: ${p.textMuted}; line-height: 1.5; }
+.ger-impacto { font-size: 12px; font-weight: 700; color: var(--acento-texto); }
+.ger-acc-botones { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; align-items: center; }
+.ger-preg-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 12px; align-items: start; }
+.ger-preg-grid .ger-chat { grid-column: 1 / -1; }
+@media (max-width: 900px) { .ger-preg-grid { grid-template-columns: 1fr; } }
+.ger-preg-lista { display: flex; flex-direction: column; gap: 6px; }
+.ger-preg { display: flex; align-items: center; gap: 10px; text-align: left; font-family: inherit; font-size: 13px; font-weight: 600; color: ${p.text}; background: ${p.bg}; border: 1px solid ${p.border}; border-radius: 10px; padding: 10px 12px; cursor: pointer; transition: border-color .15s, transform .1s; }
+.ger-preg:hover { border-color: var(--acento-borde); transform: translateX(2px); }
+.ger-preg.on { border-color: var(--acento); background: var(--acento-dim); color: var(--acento-texto); }
+.ger-preg span { font-size: 18px; }
+.ger-respuesta { min-height: 280px; }
+.ger-vacio { height: 100%; min-height: 240px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; color: ${p.textMuted}; }
+.ger-vacio b { color: ${p.text}; font-size: 15px; }
+.ger-preg-titulo { font-size: 17px; font-weight: 800; margin-bottom: 10px; color: var(--acento-texto); }
+.ger-texto { font-size: 14px; line-height: 1.6; }
+.ger-texto p { margin: 0 0 10px; }
+.ger-texto ul { margin: 0 0 10px; padding-left: 20px; }
+.ger-texto li { margin-bottom: 4px; }
+.ger-mensajes { display: flex; flex-direction: column; gap: 10px; max-height: 420px; overflow-y: auto; padding: 4px 2px 10px; }
+.ger-msj { max-width: 85%; padding: 10px 14px; border-radius: 14px; font-size: 13.5px; line-height: 1.5; }
+.ger-msj.yo { align-self: flex-end; background: var(--acento-dim); border: 1px solid var(--acento-borde); border-bottom-right-radius: 4px; }
+.ger-msj.el { align-self: flex-start; background: ${p.bg}; border: 1px solid ${p.border}; border-bottom-left-radius: 4px; }
+.ger-msj.error { color: ${p.red}; }
+.ger-msj .ger-texto { font-size: 13.5px; }
+.ger-msj .ger-texto p:last-child, .ger-msj .ger-texto ul:last-child { margin-bottom: 0; }
+.ger-puntos { display: inline-flex; gap: 4px; }
+.ger-puntos i { width: 7px; height: 7px; border-radius: 50%; background: ${p.textMuted}; animation: pulse 1s ease-in-out infinite; }
+.ger-puntos i:nth-child(2) { animation-delay: .15s; } .ger-puntos i:nth-child(3) { animation-delay: .3s; }
+.ger-form { display: flex; gap: 8px; margin-top: 6px; }
 .prem-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
 .prem-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
 .prem-card { background: ${p.card}; border: 1px solid ${p.border}; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; animation: popIn .3s ease-out both; transition: box-shadow .15s, transform .15s; }
@@ -5689,6 +5744,299 @@ function Rotacion({ localId, paletaActual }) {
   );
 }
 
+
+// ============ ✨ Tu gerente ============
+// Salud del mes (antes en Finanzas → Análisis)
+function SaludMes({ local, p }) {
+  const [analisis, setAnalisis] = useState(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    setLoading(true); setAnalisis(null);
+    const h = new Date();
+    API.get(`/finanzas/analisis?mes=${h.getMonth() + 1}&anio=${h.getFullYear()}&local_id=${local}`).then(r => setAnalisis(r.data)).catch(() => setAnalisis(null)).finally(() => setLoading(false));
+  }, [local]);
+  const cmpAnt = analisis?.comparacion_mes_anterior;
+  const colorEstado = (e) => (e === "bien" ? p.green : e === "regular" ? p.warn : p.red);
+  if (!analisis) return loading ? <div className="skel" style={{ height: 300 }} /> : <div className="empty">No se pudo calcular el análisis. Probá recargar.</div>;
+  return (
+    <>
+            <div className="chart-card anim-in" style={{ display: "flex", alignItems: "center", gap: 24, marginBottom: 12, flexWrap: "wrap" }}>
+              <div className="fin-score" style={{ "--c": analisis.color, "--v": analisis.puntaje }}>
+                <div><CountUp value={analisis.puntaje} formato={v => String(Math.round(v))} /><span>/100</span></div>
+              </div>
+              <div style={{ flex: 1, minWidth: 220 }}>
+                <div style={{ fontSize: 11, color: p.textMuted, letterSpacing: ".1em", fontWeight: 700 }}>SALUD FINANCIERA DEL MES</div>
+                <div style={{ fontSize: 26, fontWeight: 800, color: analisis.color, margin: "2px 0 6px" }}>{nombreSalud(analisis.calificacion)}</div>
+                <div style={{ fontSize: 13 }}>Margen neto de <b style={{ color: analisis.color }}>{analisis.margen_neto_pct}%</b> sobre {fmt(analisis.ingresos_mes)} de ingresos.</div>
+                {cmpAnt && cmpAnt.tendencia !== "sin_datos" && (
+                  <div style={{ fontSize: 12, color: cmpAnt.tendencia === "mejora" ? p.green : p.red, marginTop: 4 }}>
+                    {cmpAnt.tendencia === "mejora" ? "▲ Mejor" : "▼ Peor"} que {MESES_NOMBRE[cmpAnt.mes - 1].toLowerCase()}
+                    {cmpAnt.variacion_ingresos_pct !== null && <> · ingresos {cmpAnt.variacion_ingresos_pct >= 0 ? "+" : ""}{cmpAnt.variacion_ingresos_pct}% · margen {(analisis.margen_neto_pct - cmpAnt.margen_neto_pct) >= 0 ? "+" : ""}{(analisis.margen_neto_pct - cmpAnt.margen_neto_pct).toFixed(1)} pts</>}
+                  </div>
+                )}
+              </div>
+            </div>
+            <CoachSalud analisis={analisis} p={p} />
+            <div className="fin-grid2">
+              {analisis.metricas.map((m, i) => (
+                <div key={i} className="chart-card anim-in" style={{ animationDelay: (i * 50) + "ms", borderLeft: "3px solid " + colorEstado(m.estado) }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>{m.nombre}</span>
+                    <span style={{ fontSize: 18, fontWeight: 800, color: colorEstado(m.estado), fontVariantNumeric: "tabular-nums" }}>{m.valor}%</span>
+                  </div>
+                  <div className="cc-bar" style={{ margin: "8px 0" }}><div style={{ width: m.puntaje + "%", background: colorEstado(m.estado) }} /></div>
+                  <div style={{ fontSize: 12, color: p.textMuted }}>{m.comentario}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: p.textMuted, padding: "10px 4px 0" }}>
+              La calificación combina tu evolución contra el mes anterior con parámetros generales de comercios minoristas: es una guía, no una norma exacta para tu rubro. Los % son sobre los ingresos del mes.
+            </div>
+
+    </>
+  );
+}
+
+// Medallas del negocio (antes en Finanzas → Análisis)
+function MedallasNegocio({ local, p }) {
+  const [medallas, setMedallas] = useState(null);
+  useEffect(() => {
+    setMedallas(null);
+    API.get(`/finanzas/medallas?local_id=${local}`).then(r => setMedallas(r.data)).catch(() => setMedallas({ error: true }));
+  }, [local]);
+  return (
+            <div className="chart-card anim-in">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+                <div className="chart-title">🏅 Medallas del negocio</div>
+                {medallas?.medallas && <div style={{ fontSize: 12, color: p.textMuted }}><b style={{ color: p.text }}>{medallas.ganadas}</b> de {medallas.total} ganadas</div>}
+              </div>
+              {!medallas ? <div className="skel" style={{ height: 150 }} /> : medallas.error ? (
+                <div className="empty">No se pudieron cargar las medallas. Probá recargar.</div>
+              ) : (
+                <>
+                  <div className="med-grid">
+                    {medallas.medallas.map((m, i) => (
+                      <div key={m.id} className={"med" + (m.ganada ? " on" : "")} style={{ animationDelay: (i * 40) + "ms" }}
+                        title={m.como} aria-label={m.nombre + (m.ganada ? ", ganada" : ", sin ganar") + ". " + m.como}>
+                        <div className="med-icono" aria-hidden="true">{m.icono}</div>
+                        <div className="med-nombre">{m.nombre}</div>
+                        {m.ganada ? (
+                          <div className="med-sub">
+                            {MESES_NOMBRE[m.primera.mes - 1].slice(0, 3)} {m.primera.anio}{m.veces > 1 ? " · ×" + m.veces : ""}
+                          </div>
+                        ) : (
+                          <div className="med-sub">{m.como}</div>
+                        )}
+                        {!m.ganada && m.progreso && m.progreso.actual > 0 && (
+                          <>
+                            <div className="med-prog" role="progressbar" aria-valuemin={0} aria-valuemax={m.progreso.meta} aria-valuenow={m.progreso.actual} aria-label={"Progreso de " + m.nombre}>
+                              <div style={{ width: (m.progreso.actual / m.progreso.meta * 100) + "%" }} />
+                            </div>
+                            <div className="med-prog-txt">Llevás {m.progreso.actual} de {m.progreso.meta}</div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 11, color: p.textMuted, marginTop: 10 }}>
+                    Se ganan con los números reales del negocio (hasta 2 años hacia atrás). Las de salud cuentan meses ya cerrados y con gastos cargados.
+                  </div>
+                </>
+              )}
+            </div>
+  );
+}
+
+// Texto con **negrita**, listas con "-" y saltos de linea (respuestas del gerente)
+function TextoGerente({ texto }) {
+  const linea = (l, k) => {
+    const partes = l.split(/(\*\*[^*]+\*\*)/g).map((x, i) => x.startsWith("**") && x.endsWith("**") ? <b key={i}>{x.slice(2, -2)}</b> : x);
+    if (/^\s*[-•]\s+/.test(l)) return <li key={k}>{partes.map(x => typeof x === "string" ? x.replace(/^\s*[-•]\s+/, "") : x)}</li>;
+    return l.trim() ? <p key={k}>{partes}</p> : null;
+  };
+  const bloques = [];
+  let lista = null;
+  String(texto || "").split("\n").forEach((l, k) => {
+    if (/^\s*[-•]\s+/.test(l)) { if (!lista) { lista = []; bloques.push(lista); } lista.push(linea(l, k)); }
+    else { lista = null; bloques.push(linea(l, k)); }
+  });
+  return <div className="ger-texto">{bloques.map((b, i) => Array.isArray(b) ? <ul key={"u" + i}>{b}</ul> : b)}</div>;
+}
+
+const PLAZOS = [
+  { id: "corto", titulo: "Corto plazo", sub: "esta semana", icono: "⚡" },
+  { id: "mediano", titulo: "Mediano plazo", sub: "este mes", icono: "📈" },
+  { id: "largo", titulo: "Largo plazo", sub: "3 a 6 meses", icono: "🎯" },
+];
+
+function MejoraContinua({ local, p, usuario, irA }) {
+  const [datos, setDatos] = useState(null);
+  const [verHechas, setVerHechas] = useState(false);
+  const cargar = () => API.get("/gerente/mejoras?local_id=" + local).then(r => setDatos(r.data)).catch(e => setDatos({ error: e.response?.data?.error || "No se pudo cargar" }));
+  useEffect(() => { setDatos(null); cargar(); }, [local]);
+  const marcar = async (x, estado) => {
+    setDatos(d => ({ ...d, acciones: d.acciones.map(a => a.clave === x.clave ? { ...a, estado } : a) }));
+    try { await API.put("/gerente/mejoras/" + x.clave, { estado, usuario_nombre: usuario?.nombre }); } catch (e) { cargar(); }
+  };
+  if (!datos) return <div className="ger-cols">{[0, 1, 2].map(i => <div key={i} className="skel" style={{ height: 320 }} />)}</div>;
+  if (datos.error) return <div className="empty">{datos.error}</div>;
+  const todas = datos.acciones;
+  const hechas = todas.filter(a => a.estado === "hecho").length;
+  const activas = todas.filter(a => a.estado !== "descartado");
+  return (
+    <div className="fade">
+      <div className="chart-card ger-progreso">
+        <div>
+          <div className="chart-title">🔁 Mejora continua</div>
+          <div style={{ fontSize: 13, color: p.textMuted, marginTop: 4, lineHeight: 1.5 }}>Lo que tu gerente ve en tus números y conviene hacer, de lo más urgente a lo más estratégico. Marcá lo que vas resolviendo: si el problema sigue, la acción vuelve a aparecer en 30 días.</div>
+        </div>
+        <div className="ger-prog-num"><b>{hechas}</b><span>de {activas.length} hechas</span></div>
+        <div className="pb" style={{ height: 8, gridColumn: "1 / -1" }}><div className="pf" style={{ width: (activas.length ? hechas / activas.length * 100 : 0) + "%", background: p.green, transition: "width .5s" }} /></div>
+      </div>
+      {todas.length === 0 ? (
+        <div className="chart-card" style={{ textAlign: "center", padding: 30 }}><div style={{ fontSize: 40 }}>🌟</div><b>No encontré nada urgente para mejorar.</b><div style={{ color: p.textMuted, fontSize: 13, marginTop: 6 }}>Tu negocio viene muy bien. Seguí así.</div></div>
+      ) : (
+        <div className="ger-cols">
+          {PLAZOS.map(pl => {
+            const lista = todas.filter(a => a.plazo === pl.id && (verHechas || a.estado === "pendiente"));
+            return (
+              <div key={pl.id} className={"ger-col ger-" + pl.id}>
+                <div className="ger-col-head"><span>{pl.icono}</span><div><b>{pl.titulo}</b><small>{pl.sub}</small></div><em>{todas.filter(a => a.plazo === pl.id && a.estado === "pendiente").length}</em></div>
+                {lista.length === 0 ? <div className="cli-vacio" style={{ padding: "10px 4px" }}>✓ Nada pendiente acá.</div> : lista.map(a => (
+                  <div key={a.clave} className={"ger-accion" + (a.estado !== "pendiente" ? " resuelta" : "")}>
+                    <span className="tag tag-neutral ger-area">{a.area}</span>
+                    <b>{a.titulo}</b>
+                    <p>{a.detalle}</p>
+                    {a.impacto && <div className="ger-impacto">💰 {a.impacto}</div>}
+                    <div className="ger-acc-botones">
+                      {a.estado === "pendiente" ? (
+                        <>
+                          {a.ir && <button className="btn btn-p btn-sm" onClick={() => irA(a.ir)}>Resolver →</button>}
+                          <button className="btn btn-g btn-sm" onClick={() => marcar(a, "hecho")}>✓ Hecho</button>
+                          <button className="btn btn-g btn-sm" onClick={() => marcar(a, "descartado")} title="No aplica a mi negocio">Descartar</button>
+                        </>
+                      ) : <><span className={"tag " + (a.estado === "hecho" ? "tag-ok" : "tag-neutral")}>{a.estado === "hecho" ? "✓ Hecho" : "Descartado"}</span><button className="btn btn-g btn-sm" onClick={() => marcar(a, "pendiente")}>Deshacer</button></>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {todas.some(a => a.estado !== "pendiente") && <button className="chip-btn" style={{ marginTop: 10 }} onClick={() => setVerHechas(v => !v)}>{verHechas ? "Ocultar hechas y descartadas" : "Ver hechas y descartadas"}</button>}
+    </div>
+  );
+}
+
+function PreguntasGerente({ local, p, usuario, irA }) {
+  const [preguntas, setPreguntas] = useState([]);
+  const [activa, setActiva] = useState(null);
+  const [respuesta, setRespuesta] = useState(null);
+  const [chatDisp, setChatDisp] = useState(null);
+  const [mensajes, setMensajes] = useState([]);
+  const [texto, setTexto] = useState("");
+  const [pensando, setPensando] = useState(false);
+  const fin = useRef(null);
+  useEffect(() => {
+    API.get("/gerente/preguntas").then(r => setPreguntas(r.data || [])).catch(() => {});
+    API.get("/gerente/chat/estado").then(r => setChatDisp(!!r.data?.disponible)).catch(() => setChatDisp(false));
+  }, []);
+  useEffect(() => { setActiva(null); setRespuesta(null); }, [local]);
+  useEffect(() => { if (fin.current) fin.current.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, [mensajes, pensando]);
+  const preguntar = async (q) => {
+    setActiva(q.id); setRespuesta(null);
+    try { const r = await API.get("/gerente/preguntas/" + q.id + "?local_id=" + local); setRespuesta({ ...r.data, pregunta: q.texto }); }
+    catch (e) { setRespuesta({ texto: e.response?.data?.error || "No pude responder ahora.", pregunta: q.texto }); }
+  };
+  const enviar = async (e) => {
+    e.preventDefault();
+    const t = texto.trim();
+    if (!t || pensando) return;
+    const nuevos = [...mensajes, { rol: "usuario", texto: t }];
+    setMensajes(nuevos); setTexto(""); setPensando(true);
+    try {
+      const r = await API.post("/gerente/chat", { mensajes: nuevos, local_id: local });
+      setMensajes(m => [...m, { rol: "asistente", texto: r.data.texto }]);
+    } catch (err) { setMensajes(m => [...m, { rol: "asistente", texto: "⚠️ " + (err.response?.data?.error || "No pude responder ahora."), error: true }]); }
+    setPensando(false);
+  };
+  return (
+    <div className="fade ger-preg-grid">
+      <div className="chart-card">
+        <div className="chart-title">💬 Preguntas rápidas</div>
+        <div style={{ fontSize: 12, color: p.textMuted, margin: "4px 0 12px" }}>Tu gerente las responde al instante con los números reales de tu negocio.</div>
+        <div className="ger-preg-lista">
+          {preguntas.map(q => <button key={q.id} className={"ger-preg" + (activa === q.id ? " on" : "")} onClick={() => preguntar(q)}><span aria-hidden="true">{q.icono}</span>{q.texto}</button>)}
+        </div>
+      </div>
+      <div className="chart-card ger-respuesta" aria-live="polite">
+        {!activa ? (
+          <div className="ger-vacio"><div style={{ fontSize: 44 }}>✨</div><b>Elegí una pregunta</b><span>o escribile a tu gerente abajo.</span></div>
+        ) : !respuesta ? <div className="skel" style={{ height: 180 }} /> : (
+          <div className="pop-in">
+            <div className="ger-preg-titulo">{respuesta.pregunta}</div>
+            <TextoGerente texto={respuesta.texto} />
+            {respuesta.ir && <button className="btn btn-g btn-sm" style={{ marginTop: 12 }} onClick={() => irA(respuesta.ir)}>Ver el detalle →</button>}
+          </div>
+        )}
+      </div>
+      <div className="chart-card ger-chat">
+        <div className="chart-title">🗨️ Preguntale lo que quieras</div>
+        <div style={{ fontSize: 12, color: p.textMuted, margin: "4px 0 10px" }}>
+          {chatDisp === false ? "El chat libre todavía no está activado en este servidor. Mientras tanto, usá las preguntas rápidas." : "Por ejemplo: \"¿Me conviene abrir los domingos?\" o \"¿Qué hago con la plata que me sobra este mes?\". Responde con tus números; puede equivocarse, así que revisá las decisiones grandes en Toma de decisiones."}
+        </div>
+        {mensajes.length > 0 && (
+          <div className="ger-mensajes">
+            {mensajes.map((m, i) => <div key={i} className={"ger-msj " + (m.rol === "usuario" ? "yo" : "el") + (m.error ? " error" : "")}>{m.rol === "usuario" ? m.texto : <TextoGerente texto={m.texto} />}</div>)}
+            {pensando && <div className="ger-msj el"><span className="ger-puntos"><i /><i /><i /></span></div>}
+            <div ref={fin} />
+          </div>
+        )}
+        <form onSubmit={enviar} className="ger-form">
+          <input className="inp" value={texto} onChange={e => setTexto(e.target.value)} placeholder="Escribí tu pregunta…" disabled={chatDisp === false} maxLength={600} aria-label="Pregunta para tu gerente" />
+          <button className="btn btn-p" type="submit" disabled={!texto.trim() || pensando || chatDisp === false}>Preguntar</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function TuGerente({ localId, usuario, paletaActual, tabInicial }) {
+  const p = paletaActual || PALETA_CLARA;
+  const [tab, setTab] = useState(tabInicial || "salud");
+  const [local, setLocal] = useState(Number(localId) === 2 ? "ush" : "rg");
+  useEffect(() => { if (tabInicial) setTab(tabInicial); }, [tabInicial]);
+  const irA = (id) => { if (id === "decisiones") setTab("decisiones"); else irASeccion(id); };
+  const tabs = [["salud", "📊 Cómo está tu negocio"], ["mejora", "🔁 Mejora continua"], ["preguntas", "💬 Preguntale a tu gerente"],
+    ...(puedeHacer("decisiones.ver") ? [["decisiones", "🧭 Toma de decisiones"]] : []), ["logros", "🏅 Tus logros"]];
+  return (
+    <div className="fade">
+      <div className="dash-head ger-head">
+        <div>
+          <div className="pt">✨ Lumiere, tu gerente</div>
+          <div className="ps">mira todos tus números y te dice qué conviene hacer</div>
+        </div>
+        {tab !== "decisiones" && (
+          <div className="seg" role="group" aria-label="Local">
+            {[["rg", nombreLocal(1)], ["ush", nombreLocal(2)], ["consolidado", "Todos"]].map(([k, l]) => (
+              <button key={k} className={local === k ? "on" : ""} aria-pressed={local === k} onClick={() => setLocal(k)}>{l}</button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="tabs ger-tabs" role="tablist">
+        {tabs.map(([k, l]) => <div key={k} role="tab" tabIndex={0} aria-selected={tab === k} className={"tab " + (tab === k ? "on" : "")} onClick={() => setTab(k)} onKeyDown={e => (e.key === "Enter" || e.key === " ") && setTab(k)}>{l}</div>)}
+      </div>
+      {tab === "salud" && <SaludMes local={local} p={p} />}
+      {tab === "mejora" && <MejoraContinua local={local} p={p} usuario={usuario} irA={irA} />}
+      {tab === "preguntas" && <PreguntasGerente local={local} p={p} usuario={usuario} irA={irA} />}
+      {tab === "decisiones" && <TomaDecisiones paletaActual={p} />}
+      {tab === "logros" && <MedallasNegocio local={local} p={p} />}
+    </div>
+  );
+}
+
 function TomaDecisiones({ paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
   // Si viene desde Rotacion ("Simular liquidación"), arranca con la promo de liquidar ya cargada
@@ -8264,12 +8612,6 @@ function Finanzas({ localId, usuario, paletaActual }) {
     });
   };
   useEffect(() => { cargarDatos(); }, [tabLocal, mesFiltro, anioFiltro]);
-  // Medallas: se calculan con toda la historia (no dependen del mes elegido)
-  useEffect(() => {
-    if (tab !== "analisis") return;
-    setMedallas(null);
-    API.get(`/finanzas/medallas?local_id=${tabLocal}`).then(r => setMedallas(r.data)).catch(() => setMedallas({ error: true }));
-  }, [tab, tabLocal]);
   useEffect(() => {
     API.get("/configuracion").then(r => setMostrarFacAnterior(r.data?.mostrar_facturacion_anterior === true)).catch(() => {});
     API.get("/categorias-costo").then(r => setCategoriasCosto(r.data || [])).catch(() => {});
@@ -8421,7 +8763,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
 
   const tabs = [
     ["resumen", "Resumen"], ["movimientos", "Movimientos"], ["resultados", "Estado de resultados"],
-    ["analisis", "Análisis"], ["comparar", "Comparar"], ["porlocal", "Costos por local"], ["equilibrio", "Punto de equilibrio"],
+    ["comparar", "Comparar"], ["porlocal", "Costos por local"], ["equilibrio", "Punto de equilibrio"],
   ];
 
   return (
@@ -8833,86 +9175,6 @@ function Finanzas({ localId, usuario, paletaActual }) {
               ) : <div className="empty">Sin ingresos este mes.</div>}
             </div>
           </div>
-        )
-      )}
-
-      {/* ============ ANALISIS ============ */}
-      {tab === "analisis" && (
-        !analisis ? (loading ? <div className="skel" style={{ height: 300 }} /> : <div className="empty">No se pudo calcular el análisis. Probá recargar.</div>) : (
-          <>
-            <div className="chart-card anim-in" style={{ display: "flex", alignItems: "center", gap: 24, marginBottom: 12, flexWrap: "wrap" }}>
-              <div className="fin-score" style={{ "--c": analisis.color, "--v": analisis.puntaje }}>
-                <div><CountUp value={analisis.puntaje} formato={v => String(Math.round(v))} /><span>/100</span></div>
-              </div>
-              <div style={{ flex: 1, minWidth: 220 }}>
-                <div style={{ fontSize: 11, color: p.textMuted, letterSpacing: ".1em", fontWeight: 700 }}>SALUD FINANCIERA DEL MES</div>
-                <div style={{ fontSize: 26, fontWeight: 800, color: analisis.color, margin: "2px 0 6px" }}>{nombreSalud(analisis.calificacion)}</div>
-                <div style={{ fontSize: 13 }}>Margen neto de <b style={{ color: analisis.color }}>{analisis.margen_neto_pct}%</b> sobre {fmt(analisis.ingresos_mes)} de ingresos.</div>
-                {cmpAnt && cmpAnt.tendencia !== "sin_datos" && (
-                  <div style={{ fontSize: 12, color: cmpAnt.tendencia === "mejora" ? p.green : p.red, marginTop: 4 }}>
-                    {cmpAnt.tendencia === "mejora" ? "▲ Mejor" : "▼ Peor"} que {MESES_NOMBRE[cmpAnt.mes - 1].toLowerCase()}
-                    {cmpAnt.variacion_ingresos_pct !== null && <> · ingresos {cmpAnt.variacion_ingresos_pct >= 0 ? "+" : ""}{cmpAnt.variacion_ingresos_pct}% · margen {(analisis.margen_neto_pct - cmpAnt.margen_neto_pct) >= 0 ? "+" : ""}{(analisis.margen_neto_pct - cmpAnt.margen_neto_pct).toFixed(1)} pts</>}
-                  </div>
-                )}
-              </div>
-            </div>
-            <CoachSalud analisis={analisis} p={p} />
-            <div className="fin-grid2">
-              {analisis.metricas.map((m, i) => (
-                <div key={i} className="chart-card anim-in" style={{ animationDelay: (i * 50) + "ms", borderLeft: "3px solid " + colorEstado(m.estado) }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700 }}>{m.nombre}</span>
-                    <span style={{ fontSize: 18, fontWeight: 800, color: colorEstado(m.estado), fontVariantNumeric: "tabular-nums" }}>{m.valor}%</span>
-                  </div>
-                  <div className="cc-bar" style={{ margin: "8px 0" }}><div style={{ width: m.puntaje + "%", background: colorEstado(m.estado) }} /></div>
-                  <div style={{ fontSize: 12, color: p.textMuted }}>{m.comentario}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ fontSize: 11, color: p.textMuted, padding: "10px 4px 0" }}>
-              La calificación combina tu evolución contra el mes anterior con parámetros generales de comercios minoristas: es una guía, no una norma exacta para tu rubro. Los % son sobre los ingresos del mes.
-            </div>
-
-            <div className="chart-card anim-in" style={{ marginTop: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
-                <div className="chart-title">🏅 Medallas del negocio</div>
-                {medallas?.medallas && <div style={{ fontSize: 12, color: p.textMuted }}><b style={{ color: p.text }}>{medallas.ganadas}</b> de {medallas.total} ganadas</div>}
-              </div>
-              {!medallas ? <div className="skel" style={{ height: 150 }} /> : medallas.error ? (
-                <div className="empty">No se pudieron cargar las medallas. Probá recargar.</div>
-              ) : (
-                <>
-                  <div className="med-grid">
-                    {medallas.medallas.map((m, i) => (
-                      <div key={m.id} className={"med" + (m.ganada ? " on" : "")} style={{ animationDelay: (i * 40) + "ms" }}
-                        title={m.como} aria-label={m.nombre + (m.ganada ? ", ganada" : ", sin ganar") + ". " + m.como}>
-                        <div className="med-icono" aria-hidden="true">{m.icono}</div>
-                        <div className="med-nombre">{m.nombre}</div>
-                        {m.ganada ? (
-                          <div className="med-sub">
-                            {MESES_NOMBRE[m.primera.mes - 1].slice(0, 3)} {m.primera.anio}{m.veces > 1 ? " · ×" + m.veces : ""}
-                          </div>
-                        ) : (
-                          <div className="med-sub">{m.como}</div>
-                        )}
-                        {!m.ganada && m.progreso && m.progreso.actual > 0 && (
-                          <>
-                            <div className="med-prog" role="progressbar" aria-valuemin={0} aria-valuemax={m.progreso.meta} aria-valuenow={m.progreso.actual} aria-label={"Progreso de " + m.nombre}>
-                              <div style={{ width: (m.progreso.actual / m.progreso.meta * 100) + "%" }} />
-                            </div>
-                            <div className="med-prog-txt">Llevás {m.progreso.actual} de {m.progreso.meta}</div>
-                          </>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ fontSize: 11, color: p.textMuted, marginTop: 10 }}>
-                    Se ganan con los números reales del negocio (hasta 2 años hacia atrás). Las de salud cuentan meses ya cerrados y con gastos cargados.
-                  </div>
-                </>
-              )}
-            </div>
-          </>
         )
       )}
 
@@ -17628,6 +17890,8 @@ function Promociones({ paletaActual }) {
 // Menu: 7 grupos. "k" = otras palabras con las que se encuentra en el buscador.
 // soloJefe = solo lo ve el dueno (como antes, cuando iban aparte en CONFIGURACION).
 const NAV_SECTIONS = [
+  { section: "TU GERENTE", color: "#c9a84c", items: [
+    { id: "gerente", icon: "✨", label: "Lumiere, tu gerente", k: "gerente salud analisis mejora continua preguntas logros medallas decisiones" }] },
   { section: "VENTAS", color: "#e67e22", items: [
     { id: "dashboard", icon: "📊", label: "Dashboard", k: "inicio resumen tablero" },
     { id: "pos", icon: "🛒", label: "Punto de Venta", k: "vender venta cobrar caja pos" },
@@ -17663,7 +17927,6 @@ const NAV_SECTIONS = [
     { id: "productividad", icon: "🏆", label: "Productividad", k: "ranking vendedoras" }] },
   { section: "FINANZAS", color: "#1f6f8b", items: [
     { id: "finance", icon: "💰", label: "Finanzas", k: "gastos egresos salud equilibrio medallas" },
-    { id: "decisiones", icon: "🧭", label: "Toma de decisiones", k: "simular precio descuento contratar" },
     { id: "calculadoras", icon: "🧮", label: "Calculadoras", k: "margen precio cuotas" }] },
   { section: "NEGOCIO", color: "#8e44ad", items: [
     { id: "config-negocio", icon: "⚙️", label: "Configuración del Negocio", k: "ajustes datos logo arca" },
@@ -17971,9 +18234,10 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
       ["Tareas", [["tareas.ver", "Ver sus tareas"]]],
       ["Comisiones", [["comisiones.propias", "Ver comisiones"]]],
       ["Productividad", [["productividad.ver", "Ver la productividad"]]] ] },
+    { grupo: "TU GERENTE", secciones: [
+      ["Lumiere, tu gerente", [["gerente.ver", "Ver salud del negocio, mejora continua, preguntas y logros"], ["decisiones.ver", "Usar Toma de decisiones"]]] ] },
     { grupo: "FINANZAS", secciones: [
       ["Finanzas", [["finanzas.flujo", "Ver finanzas (ingresos, gastos, resultado)"]]],
-      ["Toma de decisiones", [["decisiones.ver", "Usar Toma de decisiones"]]],
       ["Calculadoras", [["calculadoras.ver", "Usar calculadoras de precio"]]] ] },
     { grupo: "NEGOCIO", secciones: [
       ["Configuración del Negocio", [["config_negocio.editar", "Cambiar la configuración del negocio"]]] ] },
@@ -18635,6 +18899,9 @@ export default function AppWrapper() {
   };
 
   const [permisosActivos, setPermisosActivos] = useState([]);
+  // Permisos de quien usa el sistema, siempre al dia en cada render (los usan los botones de cada pantalla)
+  PERMISOS_ACTUALES = permisosActivos;
+  ES_JEFE_ACTUAL = !!usuario && (usuario.rol === "jefe" || usuario.rol_id === 1);
   const [avisosMenu, setAvisosMenu] = useState({});
   const mainRef = useRef(null);
   // Tablas como tarjetas en el celular: etiqueta cada celda con el nombre de su columna
@@ -18700,7 +18967,7 @@ export default function AppWrapper() {
       "inventory": "inventario.ver", "rotacion": "rotacion.ver", "ordenes": "ordenes.ver", "inconsistencias": "inconsistencias.ver", "kits": "kits.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
       "compras": "compras.ver", "reclamos-proveedores": "compras.ver",
       "clients": "clientes.ver", "pedidos": "pedidos.ver", "fidelizacion": "fidelizacion.ver", "tareas": "tareas.ver",
-      "finance": "finanzas.flujo", "decisiones": "decisiones.ver", "comprobantes": "comprobantes.ver",
+      "finance": "finanzas.flujo", "decisiones": "decisiones.ver", "gerente": "gerente.ver", "comprobantes": "comprobantes.ver",
       "comisiones": "comisiones.propias", "proveedores": "proveedores.ver",
       "calculadoras": "calculadoras.ver", "productividad": "productividad.ver",
       "cupones": "cupones.ver", "promociones": "promociones.ver", "postventa": "postventa.ver", "portal": "portal.ver",
@@ -18745,7 +19012,8 @@ export default function AppWrapper() {
     if (id === "clients") return <Clientes usuario={usuario} paletaActual={paletaActual} />;
     if (id === "pedidos") return <Pedidos localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "finance") return <Finanzas localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
-    if (id === "decisiones") return <TomaDecisiones paletaActual={paletaActual} />;
+    if (id === "decisiones") return <TuGerente localId={local.id} usuario={usuario} paletaActual={paletaActual} tabInicial="decisiones" />;
+    if (id === "gerente") return <TuGerente localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "rotacion") return <Rotacion localId={local.id} paletaActual={paletaActual} />;
     if (id === "calculadoras") return <Calculadoras usuario={usuario} paletaActual={paletaActual} />;
     if (id === "comprobantes") return <Comprobantes localId={local.id} paletaActual={paletaActual} />;

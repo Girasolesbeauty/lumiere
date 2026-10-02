@@ -47,7 +47,7 @@ const permitido = (ip) => {
 };
 
 const NOMBRES_SECCION = {
-  dashboard: 'Dashboard', pos: 'Punto de Venta', 'ventas-online': 'Ventas Online', 'buscar-precio': 'Buscar Precio',
+  gerente: 'Lumiere, tu gerente', decisiones: 'Toma de decisiones', dashboard: 'Dashboard', pos: 'Punto de Venta', 'ventas-online': 'Ventas Online', 'buscar-precio': 'Buscar Precio',
   'cambio-devolucion': 'Cambio / Devolución', inventory: 'Inventario', ordenes: 'Ingresos', inconsistencias: 'Inconsistencias',
   kits: 'Kits', insumos: 'Insumos', 'control-inv': 'Control de Inventario', caja: 'Caja', 'caja-respaldo': 'Caja de Respaldo',
   cierre: 'Cierre de Caja', giftcards: 'Gift Cards', clients: 'Clientes', pedidos: 'Pedidos', fidelizacion: 'Fidelización',

@@ -47,6 +47,12 @@ async function asegurarPermisosV2() {
       await client.query('COMMIT');
     } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
   }
+  // v4: "Lumiere, tu gerente" (junta el analisis de Finanzas y Toma de decisiones)
+  const ya4 = await pool.query(`SELECT 1 FROM permisos_meta WHERE clave = 'permisos_v4'`);
+  if (!ya4.rows.length) {
+    await pool.query(`INSERT INTO permisos_usuario (usuario_id, permiso) SELECT DISTINCT usuario_id, 'gerente.ver' FROM permisos_usuario WHERE permiso IN ('finanzas.flujo', 'decisiones.ver') ON CONFLICT DO NOTHING`);
+    await pool.query(`INSERT INTO permisos_meta (clave) VALUES ('permisos_v4') ON CONFLICT DO NOTHING`);
+  }
   migrado = true;
 }
 
