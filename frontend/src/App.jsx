@@ -603,6 +603,25 @@ button.tab { font-family: inherit; }
 .perm-switch:checked { background: ${p.green}; }
 .perm-switch:checked::after { left: 16px; }
 .perm-switch:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.inv-tabla td { vertical-align: middle; }
+.inv-fila { cursor: pointer; transition: background .15s; }
+.inv-fila:hover { background: ${p.trHover}; }
+.inv-fila.abierta { background: var(--acento-dim); }
+.inv-fila.abierta td { border-bottom-color: transparent; }
+.inv-flecha { width: 28px; height: 28px; border-radius: 8px; border: 1px solid ${p.border}; background: ${p.card}; color: ${p.textMuted}; font-size: 13px; cursor: pointer; transition: transform .2s, color .15s; display: inline-flex; align-items: center; justify-content: center; }
+.inv-flecha[aria-expanded="true"] { transform: rotate(90deg); color: var(--acento-texto); border-color: var(--acento-borde); }
+.inv-detalle td { background: var(--acento-dim); padding: 4px 14px 14px 52px !important; }
+.inv-det-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px 16px; animation: fadeUp .2s ease-out both; }
+.inv-det-grid div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.inv-det-grid span { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: ${p.textMuted}; }
+.inv-det-grid b { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.inv-det-acciones { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+@media (max-width: 640px) {
+  .inv-tabla th:nth-child(3), .inv-tabla td:nth-child(3) { white-space: nowrap; }
+  .inv-tabla td, .inv-tabla th { padding: 8px 6px !important; }
+  .inv-detalle td { padding: 4px 10px 12px !important; }
+  .inv-det-grid { grid-template-columns: 1fr 1fr; }
+}
 .prem-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
 .prem-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
 .prem-card { background: ${p.card}; border: 1px solid ${p.border}; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; animation: popIn .3s ease-out both; transition: box-shadow .15s, transform .15s; }
@@ -6573,6 +6592,9 @@ function Inventario({ localId, usuario, paletaActual }) {
   const [filtroProvInv, setFiltroProvInv] = useState("");
   const [ordenInv, setOrdenInv] = useState({ campo: "nombre", dir: "asc" });
   const [limiteInv, setLimiteInv] = useState(100);
+  // Productos con el detalle abierto (la fila muestra solo nombre, precio y stock)
+  const [abiertosInv, setAbiertosInv] = useState(() => new Set());
+  const alternarDetalle = (id) => setAbiertosInv(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   useEffect(() => { setLimiteInv(100); }, [busqueda, filtroCat, filtroStock, filtroMarcaInv, filtroProvInv, filtroEstadoProd, vistaLocal, ordenInv]);
   const [nuevo, setNuevo] = useState({
     nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "",
@@ -7057,6 +7079,7 @@ function Inventario({ localId, usuario, paletaActual }) {
           <div className="card" style={{ padding: 0, overflow: "hidden" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderBottom: "1px solid " + temaPal.border, fontSize: 12, color: temaPal.textMuted }}>
               <span><b style={{ color: temaPal.text }}>{ordenados.length}</b> producto{ordenados.length !== 1 ? "s" : ""}{hayFiltros ? " con estos filtros" : ""} · stock de {vistaNombre}</span>
+              {abiertosInv.size > 0 && <button className="chip-btn" onClick={() => setAbiertosInv(new Set())}>Cerrar todos</button>}
             </div>
             {loading ? (
               <div style={{ padding: 14 }}>{[0, 1, 2, 3, 4, 5].map(i => <div key={i} className="skel" style={{ height: 38, marginBottom: 8 }} />)}</div>
@@ -7064,49 +7087,69 @@ function Inventario({ localId, usuario, paletaActual }) {
               <div className="empty">{productos.length === 0 ? "Todavía no hay productos cargados." : "Ningún producto coincide con los filtros."}</div>
             ) : (
               <div style={{ overflowX: "auto" }}>
-                <table>
+                <table className="sin-tarjetas inv-tabla">
                   <thead style={{ position: "sticky", top: 0, background: temaPal.card, zIndex: 1 }}>
                     <tr>
+                      <th style={{ width: 34 }} aria-label="Detalle"></th>
                       <th style={{ cursor: "pointer" }} onClick={() => ordenarPor("nombre")} aria-sort={ordenInv.campo === "nombre" ? (ordenInv.dir === "asc" ? "ascending" : "descending") : "none"}>Producto{flechaOrden("nombre")}</th>
-                      <th style={{ cursor: "pointer" }} onClick={() => ordenarPor("categoria")}>Categoría{flechaOrden("categoria")}</th>
                       <th style={{ cursor: "pointer", textAlign: "right" }} onClick={() => ordenarPor("precio")}>Precio{flechaOrden("precio")}</th>
-                      <th style={{ cursor: "pointer", textAlign: "center" }} onClick={() => ordenarPor("margen")}>Margen{flechaOrden("margen")}</th>
                       <th style={{ cursor: "pointer", textAlign: "center" }} onClick={() => ordenarPor("stock")}>Stock{flechaOrden("stock")}</th>
-                      {vistaLocal === "mi" && <th style={{ textAlign: "center" }}>{esUshInv ? nombreLocal(1) : nombreLocal(2)}</th>}
-                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
                     {visibles.map(p => {
                       const mg = margenDe(p);
+                      const abierto = abiertosInv.has(p.id);
+                      const transitoVista = vistaLocal === "consolidado" ? ((p.stock_transito_rg || 0) + (p.stock_transito_ush || 0))
+                        : (vistaLocal === "otro") === esUshInv ? (p.stock_transito_rg || 0) : (p.stock_transito_ush || 0);
+                      const datos = [
+                        ["Categoría", p.categoria || "—"],
+                        ["Marca", p.marca || "—"],
+                        ["Código", p.codigo_barras || "—"],
+                        ["Proveedor", p.proveedor_nombre || "—"],
+                        ["Costo", parseFloat(p.costo || 0) > 0 ? fmt(parseFloat(p.costo)) : "Sin cargar"],
+                        ["Margen", mg === null ? "—" : <span className={"tag " + (mg >= 40 ? "tag-ok" : mg >= 20 ? "tag-warn" : "tag-bad")}>{mg}%</span>],
+                        ["Stock mínimo", p.stock_minimo ?? "—"],
+                        ...(vistaLocal === "mi" ? [["En " + (esUshInv ? nombreLocal(1) : nombreLocal(2)), stockOtroDe(p)]] : []),
+                        ...(reservadoVistaDe(p) > 0 ? [["Reservado", reservadoVistaDe(p)]] : []),
+                        ...(transitoVista > 0 ? [["En camino", transitoVista]] : []),
+                      ];
                       return (
-                        <tr key={p.id} style={{ opacity: p.activo === false ? 0.6 : 1 }}>
-                          <td style={{ minWidth: 220 }}>
-                            <div style={{ fontWeight: 700, fontSize: 12 }}>
-                              {p.nombre}
-                              {p.activo === false && <span className="tag tag-bad" style={{ marginLeft: 6 }}>Inactivo</span>}
-                              {p.tiene_variantes && <span className="tag tag-neutral" style={{ marginLeft: 6 }}>🎨 {p.tipo_variante || "variantes"}</span>}
-                            </div>
-                            <div style={{ fontSize: 10, color: temaPal.textMuted }}>{[p.marca, p.codigo_barras, p.proveedor_nombre].filter(Boolean).join(" · ") || "—"}</div>
-                          </td>
-                          <td style={{ fontSize: 11, color: temaPal.textMuted }}>{p.categoria || "—"}</td>
-                          <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                            <div style={{ fontWeight: 700, color: temaPal.accentText, fontVariantNumeric: "tabular-nums" }}>{fmt(parseFloat(p.precio || 0))}</div>
-                            <div style={{ fontSize: 10, color: temaPal.textMuted, fontVariantNumeric: "tabular-nums" }}>{parseFloat(p.costo || 0) > 0 ? "costo " + fmt(parseFloat(p.costo)) : "sin costo"}</div>
-                          </td>
-                          <td style={{ textAlign: "center" }}>{mg === null ? <span style={{ color: temaPal.textMuted }}>—</span> : <span className={"tag " + (mg >= 40 ? "tag-ok" : mg >= 20 ? "tag-warn" : "tag-bad")}>{mg}%</span>}</td>
-                          <td style={{ textAlign: "center" }}><EstadoStock p={p} /></td>
-                          {vistaLocal === "mi" && <td style={{ textAlign: "center", fontSize: 12, color: stockOtroDe(p) > 0 ? temaPal.text : temaPal.textMuted, fontVariantNumeric: "tabular-nums" }}>{stockOtroDe(p)}</td>}
-                          <td style={{ whiteSpace: "nowrap", textAlign: "right" }}>
-                            {vistaLocal === "mi" && <button className="chip-btn" style={{ fontSize: 11 }} onClick={() => abrirAjuste(p)} title="Ajustar stock">± Ajustar</button>}
-                            <button className="chip-btn" style={{ fontSize: 11, marginLeft: 4 }} onClick={() => abrirEditarProd(p)} aria-label={"Editar " + p.nombre} title="Editar">✏️</button>
-                            {p.activo === false ? (
-                              <button className="chip-btn" style={{ fontSize: 11, marginLeft: 4, color: temaPal.green }} onClick={() => cambiarActivo(p, true)}>Reactivar</button>
-                            ) : (
-                              (usuario?.rol === "jefe" || usuario?.rol === "admin") && <button className="chip-btn" style={{ fontSize: 11, marginLeft: 4, color: temaPal.red }} onClick={() => setEliminandoProd(p)} aria-label={"Eliminar " + p.nombre} title="Eliminar">🗑️</button>
-                            )}
-                          </td>
-                        </tr>
+                        <Fragment key={p.id}>
+                          <tr className={"inv-fila" + (abierto ? " abierta" : "")} style={{ opacity: p.activo === false ? 0.6 : 1 }} onClick={() => alternarDetalle(p.id)}>
+                            <td>
+                              <button className="inv-flecha" aria-expanded={abierto} aria-label={(abierto ? "Ocultar" : "Ver") + " detalle de " + p.nombre} onClick={e => { e.stopPropagation(); alternarDetalle(p.id); }}>▸</button>
+                            </td>
+                            <td style={{ minWidth: 0 }}>
+                              <div style={{ fontWeight: 700, fontSize: 13 }}>
+                                {p.nombre}
+                                {p.activo === false && <span className="tag tag-bad" style={{ marginLeft: 6 }}>Inactivo</span>}
+                                {p.tiene_variantes && <span className="tag tag-neutral" style={{ marginLeft: 6 }}>🎨 {p.tipo_variante || "variantes"}</span>}
+                              </div>
+                              {p.marca && <div style={{ fontSize: 11, color: temaPal.textMuted }}>{p.marca}</div>}
+                            </td>
+                            <td style={{ textAlign: "right", whiteSpace: "nowrap", fontWeight: 700, color: temaPal.accentText, fontVariantNumeric: "tabular-nums" }}>{fmt(parseFloat(p.precio || 0))}</td>
+                            <td style={{ textAlign: "center" }}><EstadoStock p={p} /></td>
+                          </tr>
+                          {abierto && (
+                            <tr className="inv-detalle">
+                              <td colSpan={4}>
+                                <div className="inv-det-grid">
+                                  {datos.map(([l, v]) => <div key={l}><span>{l}</span><b>{v}</b></div>)}
+                                </div>
+                                <div className="inv-det-acciones">
+                                  {vistaLocal === "mi" && <button className="btn btn-g btn-sm" onClick={() => abrirAjuste(p)}>± Ajustar stock</button>}
+                                  <button className="btn btn-g btn-sm" onClick={() => abrirEditarProd(p)}>✏️ Editar</button>
+                                  {p.activo === false ? (
+                                    <button className="btn btn-g btn-sm" style={{ color: temaPal.green }} onClick={() => cambiarActivo(p, true)}>Reactivar</button>
+                                  ) : (
+                                    (usuario?.rol === "jefe" || usuario?.rol === "admin") && <button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={() => setEliminandoProd(p)}>🗑️ Eliminar</button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
                       );
                     })}
                   </tbody>
