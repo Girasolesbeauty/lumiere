@@ -615,6 +615,9 @@ button.tab { font-family: inherit; }
 .ci-escaneado { text-align: center; display: flex; flex-direction: column; gap: 6px; }
 .ci-escaneado small { font-size: 12px; color: ${p.textMuted}; }
 .ci-escaneado b { font-size: 18px; }
+.ci-esc-num { display: flex; gap: 8px; align-items: stretch; margin-bottom: 8px; }
+.ci-esc-num .btn { min-width: 56px; font-size: 16px; font-weight: 800; }
+.ci-esc-num .ci-esc-input { flex: 1; min-width: 0; margin-bottom: 0; }
 .ci-esc-sis { font-size: 13px; color: ${p.textMuted}; margin-bottom: 6px; }
 .ci-esc-sis strong { font-size: 20px; color: ${p.text}; }
 .ci-esc-input { font-size: 30px; text-align: center; font-weight: 800; padding: 12px; margin-bottom: 8px; }
@@ -15690,6 +15693,8 @@ function ControlInventario({ localId, usuario, paletaActual }) {
   const [errorCamara, setErrorCamara] = useState("");
   const [itemEscaneado, setItemEscaneado] = useState(null);
   const [valorContado, setValorContado] = useState("");
+  const [contandoUnidades, setContandoUnidades] = useState(false); // con el producto ya elegido, cada escaneo suma 1
+  const [pulso, setPulso] = useState(0);
   const [ultimos, setUltimos] = useState([]); // ultimos productos contados escaneando
   const [codigoManual, setCodigoManual] = useState("");
   const [showFinalizar, setShowFinalizar] = useState(false);
@@ -15699,6 +15704,7 @@ function ControlInventario({ localId, usuario, paletaActual }) {
   const [recienFinalizado, setRecienFinalizado] = useState(false);
   const scannerRef = useRef(null);
   const ultimoCodigo = useRef({ c: "", t: 0 });
+  const ultimaUnidad = useRef({ c: "", t: 0 });
   const itemsRef = useRef([]);
   itemsRef.current = items;
 
@@ -15800,6 +15806,19 @@ function ControlInventario({ localId, usuario, paletaActual }) {
   // Lo que pasa al leer un codigo (camara o lector/teclado en modo escaneo)
   const alLeerCodigo = async (codigo) => {
     const ahora = Date.now();
+    // Contando unidades del producto elegido: mientras la misma unidad sigue frente a la camara se lee
+    // muchas veces seguidas; solo suma cuando el codigo dejo de verse un momento (entro otra unidad)
+    if (itemEscaneado && contandoUnidades) {
+      const u = ultimaUnidad.current;
+      ultimaUnidad.current = { c: codigo, t: ahora };
+      if (codigo === u.c && ahora - u.t < 900) return;
+      const it = buscarPorCodigo(codigo);
+      if (!it || it.id !== itemEscaneado.id) { avisar("Error: ese código es de otro producto. Guardá este primero y después escaneá el otro."); return; }
+      setValorContado(v => String((parseInt(v) || 0) + 1));
+      setPulso(ahora);
+      try { navigator.vibrate && navigator.vibrate(40); } catch (e) {}
+      return;
+    }
     if (codigo === ultimoCodigo.current.c && ahora - ultimoCodigo.current.t < 1500) return; // la camara lee el mismo codigo varias veces seguidas
     ultimoCodigo.current = { c: codigo, t: ahora };
     const it = buscarPorCodigo(codigo);
@@ -15840,21 +15859,35 @@ function ControlInventario({ localId, usuario, paletaActual }) {
     return () => { cancelado = true; };
   }, [escaneando]);
   useEffect(() => () => { if (scannerRef.current) { try { scannerRef.current.stop(); } catch (e) {} } }, []);
-  useEffect(() => { if (!modoScan) { cerrarCamara(); setItemEscaneado(null); } }, [modoScan]);
+  useEffect(() => { if (!modoScan) { cerrarCamara(); setItemEscaneado(null); setContandoUnidades(false); } }, [modoScan]);
 
+  // Vuelve a abrir la camara para buscar el proximo producto (si estaba abierta contando, se cierra antes)
+  const volverABuscar = async () => {
+    await cerrarCamara();
+    // que no vuelva a elegir enseguida el mismo producto que sigue frente a la camara
+    if (ultimoCodigo.current.c) ultimoCodigo.current = { c: ultimoCodigo.current.c, t: Date.now() + 1500 };
+    setContandoUnidades(false); setItemEscaneado(null); setValorContado("");
+    setErrorCamara("");
+    setTimeout(() => setEscaneando(true), 60);
+  };
+  const empezarUnidades = () => {
+    ultimaUnidad.current = { c: "", t: 0 };
+    if (valorContado === "") setValorContado("0");
+    setContandoUnidades(true); setErrorCamara(""); setEscaneando(true);
+  };
+  const sumarUnidad = (d) => setValorContado(v => String(Math.max(0, (parseInt(v) || 0) + d)));
   const confirmarEscaneado = async () => {
     if (valorContado === "" || isNaN(parseInt(valorContado))) return;
     const it = itemEscaneado, n = parseInt(valorContado);
     await contar(it, valorContado);
     setUltimos(u => [{ id: it.id + "-" + Date.now(), nombre: it.producto_nombre, total: n, sistema: it.stock_sistema }, ...u.filter(x => !x.id.startsWith(it.id + "-"))].slice(0, 8));
-    setItemEscaneado(null); setValorContado("");
-    setErrorCamara(""); setEscaneando(true);
+    volverABuscar();
   };
   const leerManual = (e) => {
     e.preventDefault();
     const c = codigoManual.trim();
     if (!c) return;
-    ultimoCodigo.current = { c: "", t: 0 };
+    ultimoCodigo.current = { c: "", t: 0 }; ultimaUnidad.current = { c: "", t: 0 };
     alLeerCodigo(c);
     setCodigoManual("");
   };
@@ -16009,16 +16042,28 @@ function ControlInventario({ localId, usuario, paletaActual }) {
         {modoScan ? (
           <div className="ci-scan-grid">
             <div className="chart-card">
-              <div className="dec-ayuda" style={{ margin: "0 0 12px" }}>Escaneá el código del producto, contá cuántos hay y escribí el número. Al guardar, la cámara se abre sola para el siguiente.</div>
+              <div className="dec-ayuda" style={{ margin: "0 0 12px" }}>{itemEscaneado ? (contandoUnidades ? "Pasá las unidades de a una por la cámara, incluida la primera. Sacá cada una del recuadro antes de pasar la siguiente." : "Escribí cuántos hay, o tocá «Escanear cantidad» para pasarlas de a una.") : "1) Escaneá un producto para elegirlo. 2) Escribí cuántos hay o escanealos de a uno."}</div>
               {itemEscaneado ? (
                 <div className="ci-escaneado pop-in">
                   <small>{[itemEscaneado.producto_marca, itemEscaneado.producto_categoria].filter(Boolean).join(" · ")}</small>
                   <b>{itemEscaneado.producto_nombre}</b>
                   <div className="ci-esc-sis">El sistema dice <strong>{itemEscaneado.stock_sistema}</strong></div>
                   <label className="fl" htmlFor="ci-esc-val">¿Cuántos contaste?</label>
-                  <input id="ci-esc-val" type="number" inputMode="numeric" min="0" className="inp ci-esc-input" autoFocus value={valorContado} onChange={e => setValorContado(e.target.value)} onKeyDown={e => e.key === "Enter" && confirmarEscaneado()} />
+                  <div className="ci-esc-num">
+                    <button className="btn btn-g" type="button" onClick={() => sumarUnidad(-1)} aria-label="Restar una unidad">−1</button>
+                    <input id="ci-esc-val" key={pulso} type="number" inputMode="numeric" min="0" className={"inp ci-esc-input" + (pulso ? " pop-in" : "")} autoFocus={!contandoUnidades} value={valorContado} onChange={e => setValorContado(e.target.value)} onKeyDown={e => e.key === "Enter" && confirmarEscaneado()} />
+                    <button className="btn btn-g" type="button" onClick={() => sumarUnidad(1)} aria-label="Sumar una unidad">+1</button>
+                  </div>
+                  {contandoUnidades ? (
+                    <div>
+                      {escaneando && <div id="lector-camara-inv" className="ci-camara" />}
+                      <button className="btn btn-g btn-sm" style={{ width: "100%", marginTop: 8 }} onClick={async () => { await cerrarCamara(); setContandoUnidades(false); }}>Dejar de escanear</button>
+                    </div>
+                  ) : (
+                    <button className="btn btn-g" style={{ width: "100%", padding: 12 }} onClick={empezarUnidades}>📷 Escanear cantidad (de a una)</button>
+                  )}
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button className="btn btn-g" style={{ flex: 1 }} onClick={() => { setItemEscaneado(null); setErrorCamara(""); setEscaneando(true); }}>Cancelar</button>
+                    <button className="btn btn-g" style={{ flex: 1 }} onClick={volverABuscar}>Cancelar</button>
                     <button className="btn btn-p" style={{ flex: 2 }} onClick={confirmarEscaneado}>Guardar y seguir</button>
                   </div>
                 </div>
@@ -16031,7 +16076,7 @@ function ControlInventario({ localId, usuario, paletaActual }) {
                 <button className="btn btn-p" style={{ width: "100%", fontSize: 15, padding: 14 }} onClick={() => { setErrorCamara(""); setEscaneando(true); }}>📷 Abrir la cámara</button>
               )}
               {errorCamara && <div className="cc-aviso bad" style={{ marginTop: 10 }}>{errorCamara}</div>}
-              {!itemEscaneado && (
+              {(!itemEscaneado || contandoUnidades) && (
                 <form onSubmit={leerManual} style={{ display: "flex", gap: 6, marginTop: 12 }}>
                   <input className="inp" placeholder="…o pasá el lector / escribí el código" value={codigoManual} onChange={e => setCodigoManual(e.target.value)} aria-label="Código de barras" />
                   <button className="btn btn-g btn-sm" type="submit">OK</button>
