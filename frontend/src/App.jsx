@@ -15798,6 +15798,8 @@ function ControlInventario({ localId, usuario, paletaActual }) {
   const [explic, setExplic] = useState({}); // explicacion de cada diferencia: { [itemId]: { motivo, explicacion } }
   const [motivoTodos, setMotivoTodos] = useState("");
   const [editarExp, setEditarExp] = useState(null); // { item, motivo, explicacion } (en un control ya terminado)
+  const [justificar, setJustificar] = useState(false); // ventana para justificar todo lo pendiente de un control terminado
+  const [guardandoJust, setGuardandoJust] = useState(false);
   const [informe, setInforme] = useState(null);
   const [infLocal, setInfLocal] = useState(Number(localId) === 2 ? 2 : 1);
   const [infDias, setInfDias] = useState(90);
@@ -16014,6 +16016,55 @@ function ControlInventario({ localId, usuario, paletaActual }) {
       setEditarExp(null); avisar("✓ Explicación guardada");
     } catch (e) { avisar("Error: " + (e.response?.data?.error || "no se pudo guardar la explicación")); }
   };
+  // Lista para explicar diferencias: se usa al terminar el control y tambien despues ("Justificar faltantes")
+  const bloqueExplicar = (dif, titulo, sub) => {
+    const falt = dif.filter(i => i.diferencia < 0);
+    return (
+      <div className="ci-explicar">
+        <div style={{ fontSize: 14, fontWeight: 800 }}>{titulo}</div>
+        <div style={{ fontSize: 12, color: p.textMuted, margin: "2px 0 10px" }}>{sub}</div>
+        {falt.length > 1 && (
+          <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
+            <select className="sel" style={{ flex: 1, minWidth: 160 }} value={motivoTodos} onChange={e => setMotivoTodos(e.target.value)} aria-label="Motivo para todos los faltantes sin explicar">
+              <option value="">Mismo motivo para los que faltan explicar…</option>{MOTIVOS_FALTANTE.filter(m => m !== "Otro").map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <button className="btn btn-g btn-sm" disabled={!motivoTodos} onClick={() => setExplic(x => { const n = { ...x }; falt.forEach(i => { if (!n[i.id]?.motivo) n[i.id] = { ...(n[i.id] || {}), motivo: motivoTodos }; }); return n; })}>Aplicar</button>
+          </div>
+        )}
+        {dif.map(i => {
+          const e = explic[i.id] || {}; const falta = i.diferencia < 0;
+          return (
+            <div key={i.id} className={"ci-explicar-fila" + (falta && !explicacionCompleta(e) ? " pend" : "")}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                <b style={{ fontSize: 13, minWidth: 0, overflowWrap: "anywhere" }}>{i.producto_nombre}</b>
+                <span className={"tag " + (falta ? "tag-bad" : "tag-warn")} style={{ whiteSpace: "nowrap" }}>{falta ? "faltan " + (-i.diferencia) : "sobran " + i.diferencia}{falta ? " · " + $(-i.diferencia * (i.costo_unitario || 0)) : ""}</span>
+              </div>
+              <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                <select className="sel" style={{ flex: "1 1 150px" }} value={e.motivo || ""} onChange={ev => ponerExplic(i.id, "motivo", ev.target.value)} aria-label={"Motivo de " + i.producto_nombre}>
+                  <option value="">{falta ? "¿Por qué falta?" : "¿Por qué sobra? (opcional)"}</option>{(falta ? MOTIVOS_FALTANTE : MOTIVOS_SOBRANTE).map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <input className="inp" style={{ flex: "2 1 180px" }} placeholder={e.motivo === "Otro" ? "Contá qué pasó (obligatorio)" : "Detalle (opcional)"} value={e.explicacion || ""} onChange={ev => ponerExplic(i.id, "explicacion", ev.target.value)} aria-label={"Detalle de " + i.producto_nombre} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+  // Justificar despues de terminado: guarda todos los que se completaron
+  const guardarJustificacion = async () => {
+    const lista = items.filter(i => (i.estado === "faltante" || i.estado === "sobrante") && !i.motivo && explicacionCompleta(explic[i.id]))
+      .map(i => ({ item_id: i.id, motivo: explic[i.id].motivo, explicacion: (explic[i.id].explicacion || "").trim() }));
+    if (!lista.length) return avisar("Error: elegí el motivo de al menos un producto (con «Otro», contá qué pasó)");
+    setGuardandoJust(true);
+    try {
+      const r = await API.put("/controles-inventario/" + control.id + "/explicar", { explicaciones: lista, usuario_nombre: usuario?.nombre });
+      setItems(r.data.items || []); setJustificar(false); setExplic({}); setMotivoTodos("");
+      avisar("✓ " + (lista.length === 1 ? "1 diferencia justificada" : lista.length + " diferencias justificadas"));
+      cargar();
+    } catch (e) { avisar("Error: " + (e.response?.data?.error || "no se pudo guardar")); }
+    setGuardandoJust(false);
+  };
   // Informe de faltantes de UN control (para imprimir, firmar o guardar en PDF)
   const informeDeControl = () => {
     const falt = items.filter(i => i.estado === "faltante").sort((a, b) => Math.abs(b.diferencia) * (b.costo_unitario || 0) - Math.abs(a.diferencia) * (a.costo_unitario || 0));
@@ -16094,6 +16145,10 @@ function ControlInventario({ localId, usuario, paletaActual }) {
   if (vista === "detalle" && control) {
     const diferencias = items.filter(i => i.estado === "faltante" || i.estado === "sobrante").sort((a, b) => Math.abs(b.diferencia * (b.costo_unitario || 0)) - Math.abs(a.diferencia * (a.costo_unitario || 0)));
     const topFalta = items.filter(i => i.diferencia < 0).sort((a, b) => a.diferencia * (a.costo_unitario || 0) - b.diferencia * (b.costo_unitario || 0)).slice(0, 5);
+    // Lo que todavia nadie justifico: primero los faltantes mas caros
+    const pendJust = diferencias.filter(i => !i.motivo).sort((a, b) => (a.diferencia < 0 ? 0 : 1) - (b.diferencia < 0 ? 0 : 1));
+    const faltSinExp = pendJust.filter(i => i.diferencia < 0).length;
+    const listosJust = pendJust.filter(i => explicacionCompleta(explic[i.id])).length;
     return (
       <div className="fade">
         <div className="dash-head">
@@ -16102,6 +16157,7 @@ function ControlInventario({ localId, usuario, paletaActual }) {
             <div className="ps">{etiquetaControl(control)} · {control.finalizado_en ? new Date(control.finalizado_en).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" }) : ""}{control.usuario_nombre ? " · " + control.usuario_nombre : ""}</div>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {pendJust.length > 0 && <button className="btn btn-p btn-sm" onClick={() => { setExplic({}); setMotivoTodos(""); setJustificar(true); }}>✍️ Justificar {faltSinExp > 0 ? "faltantes (" + faltSinExp + ")" : "sobrantes"}</button>}
             {diferencias.length > 0 && <button className="btn btn-g btn-sm" onClick={informeDeControl}>📄 Informe de faltantes</button>}
             {diferencias.length > 0 && <button className="btn btn-g btn-sm" onClick={descargarCsv}>⬇ Descargar diferencias</button>}
             <button className="btn btn-p btn-sm" onClick={() => { setVista("lista"); setControl(null); setItems([]); setRecienFinalizado(false); }}>Volver</button>
@@ -16138,7 +16194,12 @@ function ControlInventario({ localId, usuario, paletaActual }) {
         </div>
         <div className="chart-card" style={{ marginTop: 12 }}>
           <div className="chart-title">Diferencias ({diferencias.length})</div>
-          {diferencias.some(i => i.diferencia < 0 && !i.motivo) && <div className="cc-aviso bad" style={{ margin: "8px 0 0" }}>Hay {diferencias.filter(i => i.diferencia < 0 && !i.motivo).length} faltantes sin explicar. Pedile a quien contó que toque «Explicar» en cada uno.</div>}
+          {faltSinExp > 0 && (
+            <div className="cc-aviso bad" style={{ margin: "8px 0 0", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <span style={{ flex: 1, minWidth: 180 }}>{faltSinExp === 1 ? "Hay 1 faltante sin justificar." : "Hay " + faltSinExp + " faltantes sin justificar."} Quien contó tiene que explicar por qué.</span>
+              <button className="btn btn-p btn-sm" onClick={() => { setExplic({}); setMotivoTodos(""); setJustificar(true); }}>✍️ Justificar faltantes</button>
+            </div>
+          )}
           {diferencias.length === 0 ? <div className="cli-vacio">Todo lo contado coincidía con el sistema.</div> : (
             <div className="ci-tabla">
               <div className="ci-fila ci-cab"><span>Producto y explicación</span><span>Sistema</span><span>Contado</span><span>Diferencia</span><span>Valor</span></div>
@@ -16158,6 +16219,18 @@ function ControlInventario({ localId, usuario, paletaActual }) {
             </div>
           )}
         </div>
+        {justificar && pendJust.length > 0 && (
+          <Ventana className="pos-overlay" onClick={e => e.target === e.currentTarget && !guardandoJust && setJustificar(false)}>
+            <div className="card pop-in" style={{ width: 620, maxWidth: "96vw", maxHeight: "92vh", overflowY: "auto", background: p.card, textAlign: "left" }} role="dialog" aria-modal="true" aria-label="Justificar diferencias">
+              <div className="chart-title">Justificar diferencias · Control #{control.id}</div>
+              {bloqueExplicar(pendJust, "¿Por qué hay diferencias?", <>Elegí el motivo de cada una. Queda registrado a nombre de <b>{usuario?.nombre || "quien lo carga"}</b>. Podés guardar algunas ahora y completar el resto después.</>)}
+              <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                <button className="btn btn-g" style={{ flex: 1 }} disabled={guardandoJust} onClick={() => setJustificar(false)}>Cancelar</button>
+                <button className="btn btn-p" style={{ flex: 1 }} disabled={guardandoJust || listosJust === 0} onClick={guardarJustificacion}>{guardandoJust ? "Guardando..." : listosJust === 0 ? "Elegí los motivos" : "Guardar " + listosJust + (listosJust === 1 ? " justificación" : " justificaciones")}</button>
+              </div>
+            </div>
+          </Ventana>
+        )}
         {editarExp && (
           <Ventana className="pos-overlay" onClick={e => e.target === e.currentTarget && setEditarExp(null)}>
             <div className="card pop-in" style={{ width: 460, maxWidth: "95vw", background: p.card, textAlign: "left" }} role="dialog" aria-modal="true" aria-label="Explicar diferencia">
@@ -16379,37 +16452,7 @@ function ControlInventario({ localId, usuario, paletaActual }) {
                 <div><span>Sobró</span><b style={{ color: p.warn }}>{$(valorSobra)}</b></div>
               </div>
               {cuenta.pendiente > 0 && <div className="cc-aviso" style={{ marginTop: 12, background: p.warnDim, color: p.warn, border: "1px solid " + p.warn + "55" }}>Quedan <b>{cuenta.pendiente}</b> productos sin contar. Esos no se van a tocar.</div>}
-              {difFin.length > 0 && (
-                <div className="ci-explicar">
-                  <div style={{ fontSize: 14, fontWeight: 800 }}>¿Por qué hay diferencias?</div>
-                  <div style={{ fontSize: 12, color: p.textMuted, margin: "2px 0 10px" }}>Antes de terminar, explicá cada faltante. Queda registrado a nombre de <b>{usuario?.nombre || "quien cuenta"}</b>.</div>
-                  {faltFin.length > 1 && (
-                    <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
-                      <select className="sel" style={{ flex: 1, minWidth: 160 }} value={motivoTodos} onChange={e => setMotivoTodos(e.target.value)} aria-label="Motivo para todos los faltantes sin explicar">
-                        <option value="">Mismo motivo para los que faltan explicar…</option>{MOTIVOS_FALTANTE.filter(m => m !== "Otro").map(m => <option key={m} value={m}>{m}</option>)}
-                      </select>
-                      <button className="btn btn-g btn-sm" disabled={!motivoTodos} onClick={() => setExplic(x => { const n = { ...x }; faltFin.forEach(i => { if (!n[i.id]?.motivo) n[i.id] = { ...(n[i.id] || {}), motivo: motivoTodos }; }); return n; })}>Aplicar</button>
-                    </div>
-                  )}
-                  {difFin.map(i => {
-                    const e = explic[i.id] || {}; const falta = i.diferencia < 0;
-                    return (
-                      <div key={i.id} className={"ci-explicar-fila" + (falta && !explicacionCompleta(e) ? " pend" : "")}>
-                        <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                          <b style={{ fontSize: 13, minWidth: 0, overflowWrap: "anywhere" }}>{i.producto_nombre}</b>
-                          <span className={"tag " + (falta ? "tag-bad" : "tag-warn")} style={{ whiteSpace: "nowrap" }}>{falta ? "faltan " + (-i.diferencia) : "sobran " + i.diferencia}{falta ? " · " + $(-i.diferencia * (i.costo_unitario || 0)) : ""}</span>
-                        </div>
-                        <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
-                          <select className="sel" style={{ flex: "1 1 150px" }} value={e.motivo || ""} onChange={ev => ponerExplic(i.id, "motivo", ev.target.value)} aria-label={"Motivo de " + i.producto_nombre}>
-                            <option value="">{falta ? "¿Por qué falta?" : "¿Por qué sobra? (opcional)"}</option>{(falta ? MOTIVOS_FALTANTE : MOTIVOS_SOBRANTE).map(m => <option key={m} value={m}>{m}</option>)}
-                          </select>
-                          <input className="inp" style={{ flex: "2 1 180px" }} placeholder={e.motivo === "Otro" ? "Contá qué pasó (obligatorio)" : "Detalle (opcional)"} value={e.explicacion || ""} onChange={ev => ponerExplic(i.id, "explicacion", ev.target.value)} aria-label={"Detalle de " + i.producto_nombre} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              {difFin.length > 0 && bloqueExplicar(difFin, "¿Por qué hay diferencias?", <>Antes de terminar, explicá cada faltante. Queda registrado a nombre de <b>{usuario?.nombre || "quien cuenta"}</b>.</>)}
               <label className="prem-check" style={{ margin: "14px 0 4px", alignItems: "flex-start" }}>
                 <input type="checkbox" checked={ajustarStock} onChange={e => setAjustarStock(e.target.checked)} style={{ marginTop: 3 }} />
                 <span><b>Corregir el stock del sistema con lo que conté</b><br /><small style={{ color: p.textMuted }}>Se corrige solo la diferencia, así las ventas que se hicieron mientras contabas no se pierden.</small></span>
@@ -16495,7 +16538,9 @@ function ControlInventario({ localId, usuario, paletaActual }) {
               const ex = exactitudDe(c.items_correctos || 0, cont);
               return (
                 <div key={c.id} className="ci-fila ci-hist ci-click" role="button" tabIndex={0} onClick={() => abrir(c.id, "detalle")} onKeyDown={e => e.key === "Enter" && abrir(c.id, "detalle")}>
-                  <span className="ci-prod"><b>{etiquetaControl(c)}</b><small>{new Date(c.finalizado_en).toLocaleDateString("es-AR")}{c.usuario_nombre ? " · " + c.usuario_nombre : ""}</small></span>
+                  <span className="ci-prod"><b>{etiquetaControl(c)}</b><small>{new Date(c.finalizado_en).toLocaleDateString("es-AR")}{c.usuario_nombre ? " · " + c.usuario_nombre : ""}</small>
+                    {c.sin_explicar > 0 && <span className="tag tag-bad" style={{ marginTop: 4, alignSelf: "flex-start" }}>✍️ {c.sin_explicar === 1 ? "1 faltante sin justificar" : c.sin_explicar + " faltantes sin justificar"}</span>}
+                  </span>
                   <span data-l="Productos">{cont}{c.total_items && c.total_items > cont ? " de " + c.total_items : ""}</span>
                   <span data-l="Exactitud"><span className={"tag " + (ex === null ? "tag-neutral" : ex >= 95 ? "tag-ok" : ex >= 80 ? "tag-warn" : "tag-bad")}>{ex === null ? "—" : ex + "%"}</span></span>
                   <span data-l="Faltó" style={{ color: parseFloat(c.valor_faltante) > 0 ? p.red : p.textMuted, fontWeight: 700 }}>{c.items_faltantes ? $(c.valor_faltante) + " · " + c.items_faltantes + " prod." : "—"}</span>

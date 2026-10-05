@@ -9,6 +9,7 @@ router.get('/', controller.getControles);
 router.post('/', controller.crearControl);
 router.get('/:id', controller.getControl);
 router.put('/:id/contar/:itemId', controller.contarItem);
+router.put('/:id/explicar', controller.explicarVarios);
 router.put('/:id/explicar/:itemId', controller.explicarItem);
 router.post('/:id/finalizar', controller.finalizarControl);
 router.delete('/:id', controller.cancelarControl);

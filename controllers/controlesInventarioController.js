@@ -23,7 +23,8 @@ const limpiarTexto = (v, max) => String(v === null || v === undefined ? '' : v).
 // Nombre que se muestra del filtro (el proveedor se guarda por id)
 const SELECT_CONTROL = `SELECT c.*, pr.nombre AS proveedor_nombre,
     (SELECT COUNT(*) FROM controles_inventario_items i WHERE i.control_id = c.id)::int AS total_items,
-    (SELECT COUNT(*) FROM controles_inventario_items i WHERE i.control_id = c.id AND i.estado <> 'pendiente')::int AS items_contados
+    (SELECT COUNT(*) FROM controles_inventario_items i WHERE i.control_id = c.id AND i.estado <> 'pendiente')::int AS items_contados,
+    (SELECT COUNT(*) FROM controles_inventario_items i WHERE i.control_id = c.id AND i.estado = 'faltante' AND COALESCE(TRIM(i.motivo), '') = '')::int AS sin_explicar
   FROM controles_inventario c
   LEFT JOIN proveedores pr ON c.tipo = 'proveedor' AND pr.id::text = c.filtro_valor`;
 
@@ -336,6 +337,32 @@ const explicarItem = async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 };
 
+// Justificar varias diferencias juntas (en un control ya terminado, o mientras se cuenta)
+const explicarVarios = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await asegurarColumnas(client);
+    const { id } = req.params;
+    const lista = (Array.isArray(req.body.explicaciones) ? req.body.explicaciones : []).filter(e => e && e.item_id && limpiarTexto(e.motivo, 60));
+    if (!lista.length) return res.status(400).json({ error: 'Elegí el motivo de al menos un producto' });
+    await client.query('BEGIN');
+    let guardados = 0;
+    for (const ex of lista) {
+      const r = await client.query(
+        `UPDATE controles_inventario_items SET motivo = $1, explicacion = $2, explicado_por = $3, explicado_en = NOW()
+         WHERE id = $4 AND control_id = $5 AND estado IN ('faltante', 'sobrante')`,
+        [limpiarTexto(ex.motivo, 60), limpiarTexto(ex.explicacion, 500) || null, limpiarTexto(req.body.usuario_nombre, 120) || null, ex.item_id, id]);
+      guardados += r.rowCount;
+    }
+    await client.query('COMMIT');
+    const items = await pool.query('SELECT * FROM controles_inventario_items WHERE control_id = $1 ORDER BY producto_nombre ASC', [id]);
+    res.json({ guardados, items: items.rows });
+  } catch (e) {
+    try { await client.query('ROLLBACK'); } catch (x) {}
+    console.error(e); res.status(500).json({ error: e.message });
+  } finally { client.release(); }
+};
+
 // Informe de faltantes de un local: cada control terminado en el periodo, por que faltaron
 // las cosas (motivos) y que productos faltan una y otra vez.
 const informeFaltantes = async (req, res) => {
@@ -391,4 +418,4 @@ const cancelarControl = async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 };
 
-module.exports = { getControles, getConfig, guardarConfig, crearControl, getControl, contarItem, finalizarControl, cancelarControl, explicarItem, informeFaltantes };
+module.exports = { getControles, getConfig, guardarConfig, crearControl, getControl, contarItem, finalizarControl, cancelarControl, explicarItem, explicarVarios, informeFaltantes };
