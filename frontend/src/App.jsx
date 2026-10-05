@@ -12106,7 +12106,7 @@ function PremiosPortal({ p, avisar }) {
 // ============ Portal Cliente -> Diseno ============
 // Cada negocio arma su portal: estilo, fondo (del estilo, color liso o una imagen propia),
 // mensaje de bienvenida y que secciones se muestran. Se ve en vivo en un celular de muestra.
-const PORTAL_URL_BASE = "https://lumiere-portal-clientes.vercel.app";
+const PORTAL_URL_BASE = "https://clientes.sistemalumiere.com";
 const TEMAS_PORTAL = [
   { id: "girasoles", nombre: "Girasoles", colores: ["#FFF3D6", "#F06BA8", "#347F55", "#FFC93C"], imagen: true },
   { id: "claro", nombre: "Claro", colores: ["#DDE8F4", "#c9a84c", "#36486A", "#ffffff"] },
