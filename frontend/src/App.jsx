@@ -18293,49 +18293,90 @@ function MenuLateral({ secciones, page, setPage, comprimido, p, avisos, onElegir
 
 
 // LOGIN SCREEN
+const CSS_LOGIN = `
+.lg-form { display: flex; flex-direction: column; gap: 14px; text-align: left; }
+.lg-campo label { display: block; font-size: 13px; font-weight: 600; color: rgba(255,255,255,.75); margin-bottom: 6px; }
+.lg-input { width: 100%; box-sizing: border-box; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.16); color: #fff; border-radius: 12px; padding: 13px 14px; font-size: 16px; font-family: inherit; outline: none; transition: border-color .15s, box-shadow .15s; }
+.lg-input::placeholder { color: rgba(255,255,255,.4); }
+.lg-input:focus { border-color: #f5b400; box-shadow: 0 0 0 3px rgba(245,180,0,.25); }
+.lg-input:-webkit-autofill { -webkit-text-fill-color: #fff; box-shadow: 0 0 0 1000px #1e2735 inset; caret-color: #fff; }
+.lg-pass { position: relative; }
+.lg-pass .lg-input { padding-right: 86px; }
+.lg-ver { all: unset; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 13px; font-weight: 700; color: rgba(255,255,255,.7); padding: 9px 10px; border-radius: 9px; }
+.lg-ver:hover { color: #fff; background: rgba(255,255,255,.08); }
+.lg-ver:focus-visible { outline: 3px solid #f5b400; outline-offset: 1px; }
+.lg-entrar { all: unset; box-sizing: border-box; width: 100%; text-align: center; cursor: pointer; margin-top: 6px; padding: 14px; border-radius: 12px; font-size: 16px; font-weight: 800; color: #0b0e14; background: linear-gradient(135deg, #ffd45a, #f5b400 55%, #d99a00); box-shadow: 0 10px 24px rgba(245,180,0,.25); transition: transform .15s, filter .15s; }
+.lg-entrar:hover { filter: brightness(1.07); }
+.lg-entrar:active { transform: scale(.98); }
+.lg-entrar:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.lg-entrar[disabled] { opacity: .6; cursor: default; }
+.lg-error { background: rgba(239,68,68,.14); border: 1px solid rgba(239,68,68,.55); color: #ffb4b4; border-radius: 12px; padding: 11px 14px; font-size: 14px; font-weight: 600; }
+.lg-pie { margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.1); text-align: center; font-size: 14px; color: rgba(255,255,255,.65); line-height: 1.6; }
+.lg-pie a { color: #f5b400; font-weight: 700; text-decoration: none; }
+.lg-pie a:hover { text-decoration: underline; }
+.lg-ayuda { margin-top: 8px; font-size: 12.5px; color: rgba(255,255,255,.45); }
+.lg-ayuda a { color: rgba(255,255,255,.7); font-weight: 600; }
+`;
+
+// Inicio de sesion: lo primero que ve quien entra a Lumiere
 function LoginScreen({ onLogin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [verPass, setVerPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(() => {
     try { if (sessionStorage.getItem("lumiere_sesion_vencida")) { sessionStorage.removeItem("lumiere_sesion_vencida"); return "Tu sesión venció. Volvé a iniciar sesión."; } } catch (e) {}
     return "";
   });
 
-  const handleLogin = async () => {
-    if (!email || !password) return setError("Completá todos los campos");
+  const handleLogin = async (e) => {
+    if (e) e.preventDefault();
+    if (loading) return;
+    if (!email.trim() || !password) return setError("Escribí tu mail y tu contraseña");
     setLoading(true);
     try {
-      const res = await login({ email, password });
+      const res = await login({ email: email.trim(), password });
       localStorage.setItem("lumiere_token", res.data.token);
       localStorage.setItem("lumiere_user", JSON.stringify(res.data.usuario));
       onLogin(res.data.usuario);
     } catch (e) {
-      setError(e.response?.status === 403 ? (e.response.data?.error || "Este usuario está desactivado") : "Email o contraseña incorrectos");
+      setError(e.response?.status === 403 ? (e.response.data?.error || "Este usuario está desactivado")
+        : e.response ? "El mail o la contraseña no son correctos"
+        : "No pudimos conectarnos. Revisá tu internet y probá de nuevo.");
     }
     setLoading(false);
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #2C3E5C 0%, #1C2A40 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', sans-serif" }}>
-      <div style={{ width: 360, background: "#ffffff", border: "1px solid #272220", borderRadius: 12, padding: 36 }}>
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 300, letterSpacing: ".18em", color: "var(--acento-texto)" }}>LUMIERE</div>
-          <div style={{ fontSize: 9, color: "#65676B", letterSpacing: ".3em", marginTop: 4 }}>SISTEMA DE GESTION</div>
+    <div className="ls-fondo">
+      <style>{CSS_SELECTOR_LOCAL + CSS_LOGIN}</style>
+      <div className="ls-barras" aria-hidden="true">{[30, 48, 40, 62, 55, 78, 70, 100].map((h, k) => <span key={k} style={{ height: h + "%", animationDelay: k * 70 + "ms" }} />)}</div>
+      <main className="ls-caja" aria-labelledby="lg-titulo" style={{ maxWidth: 420 }}>
+        <div className="ls-logo"><LogoLumiere alto={44} color="#ffffff" /></div>
+        <h1 id="lg-titulo" className="ls-hola">Ingresá a tu negocio</h1>
+        <div className="ls-sub">Tu gerente te está esperando.</div>
+        <form className="lg-form" onSubmit={handleLogin} noValidate>
+          {error && <div className="lg-error" role="alert">{error}</div>}
+          <div className="lg-campo">
+            <label htmlFor="lg-mail">Mail</label>
+            <input id="lg-mail" className="lg-input" type="email" inputMode="email" autoComplete="username" autoCapitalize="none" spellCheck={false} placeholder="tu@mail.com"
+              value={email} onChange={e => { setEmail(e.target.value); setError(""); }} autoFocus />
+          </div>
+          <div className="lg-campo">
+            <label htmlFor="lg-pass">Contraseña</label>
+            <div className="lg-pass">
+              <input id="lg-pass" className="lg-input" type={verPass ? "text" : "password"} autoComplete="current-password" placeholder="Tu contraseña"
+                value={password} onChange={e => { setPassword(e.target.value); setError(""); }} />
+              <button type="button" className="lg-ver" onClick={() => setVerPass(v => !v)} aria-pressed={verPass}>{verPass ? "Ocultar" : "Mostrar"}</button>
+            </div>
+          </div>
+          <button type="submit" className="lg-entrar" disabled={loading}>{loading ? "Ingresando…" : "Ingresar"}</button>
+        </form>
+        <div className="lg-pie">
+          ¿Todavía no usás Lumiere? <a href="https://www.sistemalumiere.com/#contacto" target="_blank" rel="noopener">Probalo 7 días gratis</a>
+          <div className="lg-ayuda">¿No podés entrar? Escribinos a <a href="mailto:hola@sistemalumiere.com">hola@sistemalumiere.com</a></div>
         </div>
-        {error && <div style={{ background: "#c0392b12", border: "1px solid #d97070", borderRadius: 5, padding: "8px 12px", marginBottom: 16, fontSize: 11, color: "#c0392b" }}>{error}</div>}
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 9, color: "#65676B", letterSpacing: ".15em", marginBottom: 5 }}>EMAIL</div>
-          <input className="inp" type="email" placeholder="tu@email.com" value={email} onChange={e => { setEmail(e.target.value); setError(""); }} />
-        </div>
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 9, color: "#65676B", letterSpacing: ".15em", marginBottom: 5 }}>CONTRASEÑA</div>
-          <input className="inp" type="password" placeholder="••••••••" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleLogin()} />
-        </div>
-        <button className="btn btn-p" style={{ width: "100%", padding: 13 }} onClick={handleLogin} disabled={loading}>
-          {loading ? "Ingresando..." : "Ingresar"}
-        </button>
-      </div>
+      </main>
     </div>
   );
 }
