@@ -215,8 +215,14 @@ const create = async (req, res) => {
       ? parseFloat(total_con_interes)
       : subtotal - descuento_total;
 
-    const count = await client.query('SELECT COUNT(*) FROM ventas');
-    const numero = 'F-' + String(parseInt(count.rows[0].count) + 1).padStart(4, '0');
+    // Numero de venta: el mas alto que existe + 1. (Antes se contaban las ventas y, si se habia
+    // eliminado alguna, el numero se repetia y la base rechazaba la venta.) El candado evita que
+    // dos ventas hechas en el mismo instante tomen el mismo numero.
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext(current_schema() || ':numero_venta'))`);
+    const ultimo = await client.query(
+      `SELECT COALESCE(MAX(NULLIF(regexp_replace(numero_factura, '[^0-9]', '', 'g'), '')::bigint), 0) AS n
+         FROM ventas WHERE numero_factura LIKE 'F-%'`);
+    const numero = 'F-' + String(parseInt(ultimo.rows[0].n) + 1).padStart(4, '0');
 
     // Se calcula reci\u00e9n ac\u00e1 porque depende de 'total', que se define m\u00e1s arriba.
     const estadoFacturacionInicial = (es_preventa === true || totalGCInicial >= total) ? 'no_aplica' : 'pendiente';
