@@ -11604,6 +11604,55 @@ function ConfigMoneda({ p }) {
   );
 }
 
+// Copia de seguridad: el dueño baja a su compu un archivo con todos los datos del negocio
+function ConfigRespaldo({ p }) {
+  const [info, setInfo] = useState(null);
+  const [bajando, setBajando] = useState(false);
+  const [progreso, setProgreso] = useState(0);
+  const [msg, setMsg] = useState("");
+  const [ultima, setUltima] = useState(() => { try { return localStorage.getItem("lumiere_ultima_copia") || ""; } catch (e) { return ""; } });
+  useEffect(() => { API.get("/respaldo/info").then(r => setInfo(r.data)).catch(() => setInfo({})); }, []);
+  const mb = (b) => (b / 1024 / 1024).toFixed(b > 10 * 1024 * 1024 ? 0 : 1).replace(".", ",") + " MB";
+  const descargar = async () => {
+    setBajando(true); setMsg(""); setProgreso(0);
+    try {
+      const r = await API.get("/respaldo/descargar", { responseType: "blob", timeout: 0, onDownloadProgress: (e) => setProgreso(e.loaded || 0) });
+      const nombre = "lumiere-copia-" + new Date().toLocaleDateString("sv-SE") + ".json.gz"; // fecha de este dispositivo (año-mes-día)
+      const url = URL.createObjectURL(r.data);
+      const a = document.createElement("a"); a.href = url; a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      const hoy = new Date().toISOString();
+      try { localStorage.setItem("lumiere_ultima_copia", hoy); } catch (e) {}
+      setUltima(hoy);
+      setMsg("✓ Copia descargada: " + nombre + " (" + mb(r.data.size) + "). Guardala en un lugar seguro.");
+    } catch (e) {
+      setMsg("Error: " + (e.response?.status === 403 ? "solo el dueño puede descargar la copia" : "no se pudo descargar la copia. Probá de nuevo."));
+    }
+    setBajando(false);
+  };
+  if (!ES_JEFE_ACTUAL) return <div className="card fade" style={{ maxWidth: 560 }}><div className="ct">Copia de seguridad</div><div style={{ fontSize: 13, color: p.textMuted }}>Solo el dueño del negocio puede descargar la copia de seguridad.</div></div>;
+  return (
+    <div className="card fade" style={{ maxWidth: 560 }}>
+      <div className="ct">Copia de seguridad</div>
+      <div style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 12 }}>Descargá a tu compu un archivo con <b>todos los datos de tu negocio</b>: productos, ventas, clientes, caja, compras y configuración. Tus datos son tuyos.</div>
+      <ul style={{ fontSize: 13, color: p.textMuted, lineHeight: 1.7, margin: "0 0 14px", paddingLeft: 18 }}>
+        <li>Conviene hacerla cada tanto (por ejemplo una vez por semana) y antes de cambios grandes.</li>
+        <li>Guardá el archivo en un lugar seguro (un pendrive o tu nube): tiene información de tu negocio y de tus clientes.</li>
+        <li>No hace falta abrirlo: si algún día se necesita recuperar algo, nos mandás ese archivo.</li>
+      </ul>
+      <div style={{ fontSize: 13, color: p.textMuted, marginBottom: 14 }}>
+        {info && info.bytes ? <>Tamaño aproximado de tus datos: <b style={{ color: p.text }}>{mb(info.bytes)}</b> (el archivo baja comprimido, pesa mucho menos). </> : null}
+        {ultima ? <>Última copia desde este dispositivo: <b style={{ color: p.text }}>{new Date(ultima).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}</b>.</> : <>Todavía no descargaste ninguna copia desde este dispositivo.</>}
+      </div>
+      <button className="btn btn-p" style={{ padding: "12px 20px", fontSize: 14 }} onClick={descargar} disabled={bajando}>
+        {bajando ? "Preparando la copia… " + (progreso ? mb(progreso) : "") : "⬇ Descargar copia de seguridad"}
+      </button>
+      {bajando && <div style={{ fontSize: 12, color: p.textMuted, marginTop: 8 }}>Puede tardar un rato si tenés muchos datos. No cierres esta pantalla.</div>}
+      {msg && <div role="status" style={{ marginTop: 12, fontSize: 13, fontWeight: 600, color: msg.startsWith("Error") ? p.red : p.green }}>{msg}</div>}
+    </div>
+  );
+}
+
 function ConfiguracionNegocio({ paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState("general");
@@ -11704,7 +11753,7 @@ function ConfiguracionNegocio({ paletaActual }) {
     } catch (e) { err(e); }
   };
 
-  const TABS = [["general", "GENERAL"], ["moneda", "MONEDA"], ["fiscal", "DATOS FISCALES (ARCA)"], ["locales", "LOCALES"], ["medios", "MEDIOS DE PAGO"], ["categorias", "CATEGORIAS DE COSTO"], ["cuentas", "CUENTAS / BANCOS"]];
+  const TABS = [["general", "GENERAL"], ["moneda", "MONEDA"], ["fiscal", "DATOS FISCALES (ARCA)"], ["locales", "LOCALES"], ["medios", "MEDIOS DE PAGO"], ["categorias", "CATEGORIAS DE COSTO"], ["cuentas", "CUENTAS / BANCOS"], ["respaldo", "COPIA DE SEGURIDAD"]];
 
   return (
     <div className="fade">
@@ -11717,6 +11766,7 @@ function ConfiguracionNegocio({ paletaActual }) {
       </div>
 
       {tab === "moneda" && <ConfigMoneda p={p} />}
+      {tab === "respaldo" && <ConfigRespaldo p={p} />}
       {tab === "general" && (
         loadingGeneral ? <div style={{ color: p.textMuted, padding: 20 }}>Cargando...</div> : (
           <div className="card fade" style={{ maxWidth: 480 }}>

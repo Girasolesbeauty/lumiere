@@ -426,6 +426,9 @@ En **Negocio → Usuarios**:
 - **Eliminar**: el usuario desaparece de la lista, no puede entrar más y se le quitan los permisos; su email queda libre para usarlo en otro usuario. Antes de eliminar aparece un aviso con lo que hizo. **Lo que hizo no se borra** (ventas, movimientos de caja, ajustes de stock, controles de inventario): queda en el historial con su nombre, para que los números del negocio no cambien. Sus tareas sin terminar quedan sin asignar.
 - No se puede desactivar ni eliminar al único jefe, ni a uno mismo.
 
+### Cómo descargar una copia de seguridad de mis datos
+**Negocio → Configuración del Negocio → COPIA DE SEGURIDAD → ⬇ Descargar copia de seguridad**. Solo el dueño (rol jefe) puede hacerlo. Baja a tu compu un archivo (lumiere-copia-FECHA.json.gz) con **todos los datos del negocio**: productos, ventas, clientes, caja, compras y configuración. Conviene hacerla una vez por semana y antes de cambios grandes, y guardarla en un lugar seguro (pendrive o nube) porque tiene datos de tu negocio y de tus clientes. No hace falta abrir el archivo: si algún día hay que recuperar algo, se lo mandás a soporte (hola@sistemalumiere.com). Si tenés muchos datos puede tardar un rato: no cierres la pantalla mientras baja.
+
 ### Cómo elegir la moneda (y trabajar con dos monedas)
 **Negocio → Configuración del Negocio → MONEDA**:
 - **Moneda principal**: elegís la de tu país (peso argentino, uruguayo, chileno, colombiano, mexicano, dominicano, cubano, sol, boliviano, guaraní, real, quetzal, lempira, córdoba, colón, balboa, bolívar, dólar o euro). Se ve un ejemplo de cómo van a quedar los montos (por ejemplo **S/ 1,234,567.50** en Perú o **$ 1.234.568** sin centavos en Chile). Al guardar, todo el sistema muestra los montos así. Ojo: no convierte los precios cargados, solo cambia cómo se muestran.
