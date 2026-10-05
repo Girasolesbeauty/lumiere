@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
   const contar = async (sql, params = []) => {
     try { const r = await pool.query(sql, params); return parseInt(r.rows[0].n) || 0; } catch (e) { return 0; }
   };
-  const [portal, pedidos, compras, tareas, control, ajustes] = await Promise.all([
+  const [portal, pedidos, compras, tareas, control, ajustes, traspasos] = await Promise.all([
     // Premios canjeados en el portal que falta entregar
     contar(`SELECT COUNT(*) AS n FROM canjes_premios WHERE estado = 'pendiente'`),
     // Pedidos de clientes cuya mercaderia ya llego a este local y todavia no se avisaron
@@ -29,8 +29,10 @@ router.get('/', async (req, res) => {
             FROM (SELECT $1::int AS local_id) l LEFT JOIN config_control_inventario c ON c.local_id = l.local_id`, [localNum]),
     // Pedidos de ajuste de stock esperando aprobacion en este local
     contar(`SELECT COUNT(*) AS n FROM ajustes_pendientes WHERE estado = 'pendiente' AND local_id = $1`, [localNum]),
+    // Traspasos que le mandaron a este local y nadie confirmo que llegaron
+    contar(`SELECT COUNT(*) AS n FROM traspasos_stock WHERE estado = 'en_transito' AND local_destino = $1`, [localNum]),
   ]);
-  res.json({ portal, pedidos, compras, tareas, 'control-inv': control, ajustes_pendientes: ajustes });
+  res.json({ portal, pedidos, compras, tareas, 'control-inv': control, ajustes_pendientes: ajustes, traspasos_por_recibir: traspasos });
 });
 
 module.exports = router;

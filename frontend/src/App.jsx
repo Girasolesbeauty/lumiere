@@ -6928,8 +6928,11 @@ function Inventario({ localId, usuario, paletaActual }) {
     API.get("/traspasos?local_id=" + (localId || 1))
       .then(res => setTraspasos(res.data || []))
       .catch(() => setTraspasos([]))
-      .finally(() => setCargandoTraspasos(false));
+      .finally(() => { setCargandoTraspasos(false); window.dispatchEvent(new Event("lumiere-avisos")); });
   };
+  // Se traen al entrar a Inventario para avisar si hay mercaderia esperando que la reciban
+  useEffect(() => { cargarTraspasos(); }, [localId]);
+  const traspasosPorRecibir = traspasos.filter(tr => tr.estado === "en_transito" && Number(tr.local_destino) === Number(localId || 1));
 
   const localDestinoTraspaso = Number(localId) === 2 ? 1 : 2;
 
@@ -7373,7 +7376,7 @@ function Inventario({ localId, usuario, paletaActual }) {
     ["alertas", "⚠ ALERTAS" + (alertas.length > 0 ? " (" + alertas.length + ")" : "")],
     ["valorizacion", "💰 VALORIZACIÓN"],
     ["transito", "🚚 EN TRÁNSITO"],
-    ["traspasos", "🔁 TRASPASOS"],
+    ["traspasos", "🔁 TRASPASOS" + (traspasosPorRecibir.length ? " (" + traspasosPorRecibir.length + " por recibir)" : "")],
     ["ajustes", "📝 HISTORIAL DE AJUSTES"],
   ];
 
@@ -7489,6 +7492,12 @@ function Inventario({ localId, usuario, paletaActual }) {
         </div>
       )}
 
+      {traspasosPorRecibir.length > 0 && (
+        <div role="status" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 12, padding: "10px 14px", borderRadius: 8, background: temaPal.warnDim, border: "1px solid " + temaPal.warn, color: temaPal.text, fontSize: 13 }}>
+          <span>🚚 <b>{traspasosPorRecibir.length === 1 ? "Hay 1 traspaso" : "Hay " + traspasosPorRecibir.length + " traspasos"} para recibir en {nombreLocal(localId)}</b> ({traspasosPorRecibir.reduce((s, tr) => s + (parseInt(tr.cantidad) || 0), 0)} u.). Hasta que no confirmes que llegaron, no suman al stock.</span>
+          {tab !== "traspasos" && <button className="btn btn-p btn-sm" onClick={() => setTab("traspasos")}>Ver y recibir</button>}
+        </div>
+      )}
       <div className="tabs" role="tablist">
         {tabsInv.map(([t, l]) => (
           <button key={t} role="tab" aria-selected={tab === t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "transito") cargarTransito(); if (t === "ajustes") cargarAjustesHistorial(); if (t === "traspasos") cargarTraspasos(); }}>{l}</button>
@@ -7883,7 +7892,7 @@ function Inventario({ localId, usuario, paletaActual }) {
             <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30, fontSize: 12 }}>No hay traspasos registrados todavia.</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {traspasos.map(tr => {
+              {[...traspasosPorRecibir, ...traspasos.filter(tr => !traspasosPorRecibir.includes(tr))].map(tr => {
                 const esDestino = Number(tr.local_destino) === Number(localId);
                 const esOrigen = Number(tr.local_origen) === Number(localId);
                 const pendiente = tr.estado === "en_transito";
@@ -18686,13 +18695,15 @@ function BarraCelular({ secciones, page, setPage, avisos, onMas }) {
     const item = secciones.flatMap(s => s.items).find(i => i.id === id);
     const label = id === b.ids[0] ? b.label : item.label.split(" ")[0];
     const icon = id === b.ids[0] ? b.icon : item.icon;
-    const n = id === "clients" ? (avisos.pedidos || 0) + (avisos.portal || 0) : id === "inventory" ? (avisos.compras || 0) : (avisos[id] || 0);
+    const n = id === "clients" ? (avisos.pedidos || 0) + (avisos.portal || 0) : id === "inventory" ? (avisos.compras || 0) + (avisos.inventory || 0) : (avisos[id] || 0);
     return { id, label, icon, n };
   }).filter(Boolean);
   // Lo que ya se cuenta en otro boton de la barra no se repite en "Mas"
   const yaContados = new Set(usadas);
   if (usadas.has("clients")) { yaContados.add("pedidos"); yaContados.add("portal"); }
   if (usadas.has("inventory")) yaContados.add("compras");
+  // Estos dos ya van sumados dentro del globito de Inventario
+  yaContados.add("ajustes_pendientes"); yaContados.add("traspasos_por_recibir");
   const totalMas = Object.entries(avisos || {}).filter(([k]) => !yaContados.has(k) && k !== "control-inv").reduce((t, [, v]) => t + (v || 0), 0);
   return (
     <nav className="barra-celu" aria-label="Accesos rápidos">
@@ -20276,10 +20287,11 @@ export default function AppWrapper() {
   });
   useEffect(() => {
     if (!usuario || !local) return;
-    const traer = () => API.get("/avisos-menu?local_id=" + local.id + "&usuario_id=" + (usuario.id || "")).then(r => { const d = r.data || {}; setAvisosMenu({ ...d, inventory: puedeHacer("inventario.ajustar") ? (d.ajustes_pendientes || 0) : 0 }); }).catch(() => {});
+    const traer = () => API.get("/avisos-menu?local_id=" + local.id + "&usuario_id=" + (usuario.id || "")).then(r => { const d = r.data || {}; setAvisosMenu({ ...d, inventory: (puedeHacer("inventario.ajustar") ? (d.ajustes_pendientes || 0) : 0) + (d.traspasos_por_recibir || 0) }); }).catch(() => {});
     traer();
     const t = setInterval(traer, 120000);
-    return () => clearInterval(t);
+    window.addEventListener("lumiere-avisos", traer);
+    return () => { clearInterval(t); window.removeEventListener("lumiere-avisos", traer); };
   }, [usuario, local, page]);
   // Ctrl+K con el menu comprimido o en el celular: lo abre para poder buscar
   useEffect(() => {
