@@ -5920,6 +5920,11 @@ function MedallasNegocio({ local, p }) {
 }
 
 // Texto con **negrita**, listas con "-" y saltos de linea (respuestas del gerente)
+// Aviso de transparencia: lo que sigue lo escribio una inteligencia artificial
+function AvisoIA({ p }) {
+  return <div className="aviso-ia" style={{ marginTop: 8, paddingTop: 6, borderTop: "1px dashed " + (p?.border || "rgba(128,128,128,.4)"), fontSize: 11, lineHeight: 1.4, opacity: 0.8 }}>✨ Respuesta generada con inteligencia artificial. Puede tener errores y es solo una sugerencia: revisala antes de decidir.</div>;
+}
+
 function TextoGerente({ texto }) {
   const linea = (l, k) => {
     const partes = l.split(/(\*\*[^*]+\*\*)/g).map((x, i) => x.startsWith("**") && x.endsWith("**") ? <b key={i}>{x.slice(2, -2)}</b> : x);
@@ -6060,7 +6065,7 @@ function PreguntasGerente({ local, p, usuario, irA }) {
         </div>
         {mensajes.length > 0 && (
           <div className="ger-mensajes">
-            {mensajes.map((m, i) => <div key={i} className={"ger-msj " + (m.rol === "usuario" ? "yo" : "el") + (m.error ? " error" : "")}>{m.rol === "usuario" ? m.texto : <TextoGerente texto={m.texto} />}</div>)}
+            {mensajes.map((m, i) => <div key={i} className={"ger-msj " + (m.rol === "usuario" ? "yo" : "el") + (m.error ? " error" : "")}>{m.rol === "usuario" ? m.texto : <><TextoGerente texto={m.texto} />{!m.error && <AvisoIA p={p} />}</>}</div>)}
             {pensando && <div className="ger-msj el"><span className="ger-puntos"><i /><i /><i /></span></div>}
             <div ref={fin} />
           </div>
@@ -18773,7 +18778,7 @@ function Bienvenida({ usuario, onListo }) {
 // Todos los negocios que usan Lumiere: crear uno nuevo, activarlo cuando paga, darle mas
 // dias de prueba, suspenderlo o ponerle una contraseña nueva al dueño.
 const PAISES_MONEDA = [["Argentina", "ARS"], ["Bolivia", "BOB"], ["Chile", "CLP"], ["Colombia", "COP"], ["Costa Rica", "CRC"], ["Cuba", "CUP"], ["Ecuador", "USD"], ["El Salvador", "USD"],
-  ["España", "EUR"], ["Estados Unidos", "USD"], ["Guatemala", "GTQ"], ["Honduras", "HNL"], ["México", "MXN"], ["Nicaragua", "NIO"], ["Panamá", "PAB"], ["Paraguay", "PYG"], ["Perú", "PEN"],
+  ["Estados Unidos", "USD"], ["Guatemala", "GTQ"], ["Honduras", "HNL"], ["México", "MXN"], ["Nicaragua", "NIO"], ["Panamá", "PAB"], ["Paraguay", "PYG"], ["Perú", "PEN"],
   ["Puerto Rico", "USD"], ["República Dominicana", "DOP"], ["Uruguay", "UYU"], ["Venezuela", "VES"]];
 const ESTADOS_NEGOCIO = { activo: ["Activo", "tag-ok"], prueba: ["En prueba", "tag-warn"], vencido: ["Prueba vencida", "tag-bad"], suspendido: ["Suspendido", "tag-bad"] };
 const CSS_PLATAFORMA = `
@@ -19654,7 +19659,7 @@ function AsistenteAyuda({ usuario, seccion, paletaActual }) {
                   </div>
                 )}
                 {mensajes.map((m, i) => (
-                  <div key={i} className={"ayuda-msg " + (m.rol === "usuario" ? "yo" : "ia")}>{m.rol === "usuario" ? m.texto : renderRespuesta(m.texto)}</div>
+                  <div key={i} className={"ayuda-msg " + (m.rol === "usuario" ? "yo" : "ia")}>{m.rol === "usuario" ? m.texto : <>{renderRespuesta(m.texto)}<AvisoIA /></>}</div>
                 ))}
                 {cargando && <div className="ayuda-msg ia ayuda-pensando" aria-label="El asistente está escribiendo"><span /><span /><span /></div>}
                 {error && <div className="ayuda-error" role="alert">{error}</div>}
