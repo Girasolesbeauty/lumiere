@@ -10,8 +10,15 @@ const asegurarColumnas = async (db) => {
   await db.query('ALTER TABLE controles_inventario ADD COLUMN IF NOT EXISTS unidades_faltantes INTEGER DEFAULT 0');
   await db.query('ALTER TABLE controles_inventario ADD COLUMN IF NOT EXISTS unidades_sobrantes INTEGER DEFAULT 0');
   await db.query('ALTER TABLE controles_inventario_items ADD COLUMN IF NOT EXISTS contado_en TIMESTAMP');
+  // Explicacion de cada diferencia: por que falto o sobro, quien lo explico y cuando
+  await db.query('ALTER TABLE controles_inventario_items ADD COLUMN IF NOT EXISTS motivo TEXT');
+  await db.query('ALTER TABLE controles_inventario_items ADD COLUMN IF NOT EXISTS explicacion TEXT');
+  await db.query('ALTER TABLE controles_inventario_items ADD COLUMN IF NOT EXISTS explicado_por TEXT');
+  await db.query('ALTER TABLE controles_inventario_items ADD COLUMN IF NOT EXISTS explicado_en TIMESTAMP');
   columnasListas.set(true);
 };
+
+const limpiarTexto = (v, max) => String(v === null || v === undefined ? '' : v).trim().slice(0, max);
 
 // Nombre que se muestra del filtro (el proveedor se guarda por id)
 const SELECT_CONTROL = `SELECT c.*, pr.nombre AS proveedor_nombre,
@@ -227,6 +234,25 @@ const finalizarControl = async (req, res) => {
     if (control.estado !== 'en_curso') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Este control ya se finalizó' }); }
     const colStock = control.local_id === 2 ? 'stock_ush' : 'stock_rg';
 
+    // Explicaciones de las diferencias: las carga quien conto, antes de terminar.
+    // Cada faltante tiene que tener su motivo (los sobrantes, si se quiere).
+    const explicaciones = Array.isArray(req.body.explicaciones) ? req.body.explicaciones : [];
+    for (const ex of explicaciones) {
+      const motivo = limpiarTexto(ex && ex.motivo, 60);
+      if (!ex || !ex.item_id || !motivo) continue;
+      await client.query(
+        `UPDATE controles_inventario_items SET motivo = $1, explicacion = $2, explicado_por = $3, explicado_en = NOW()
+         WHERE id = $4 AND control_id = $5`,
+        [motivo, limpiarTexto(ex.explicacion, 500) || null, limpiarTexto(usuario_nombre, 120) || null, ex.item_id, id]);
+    }
+    const sinExplicar = await client.query(
+      `SELECT COUNT(*)::int AS n FROM controles_inventario_items WHERE control_id = $1 AND estado = 'faltante' AND COALESCE(TRIM(motivo), '') = ''`, [id]);
+    if (sinExplicar.rows[0].n > 0) {
+      await client.query('ROLLBACK');
+      const n = sinExplicar.rows[0].n;
+      return res.status(400).json({ error: (n === 1 ? 'Falta explicar 1 faltante' : 'Falta explicar ' + n + ' faltantes') + ' antes de terminar el control', sin_explicar: n });
+    }
+
     const items = await client.query('SELECT * FROM controles_inventario_items WHERE control_id = $1', [id]);
     let correctos = 0, faltantes = 0, sobrantes = 0;
     let totalIngresado = 0, totalVendido = 0, valorPerdidaEstimado = 0, valorSobranteEstimado = 0, unidadesFaltantes = 0, unidadesSobrantes = 0;
@@ -294,6 +320,67 @@ const finalizarControl = async (req, res) => {
   } finally { client.release(); }
 };
 
+// Explicar (o corregir la explicacion de) una diferencia, tambien despues de terminado el control
+const explicarItem = async (req, res) => {
+  try {
+    await asegurarColumnas(pool);
+    const { id, itemId } = req.params;
+    const motivo = limpiarTexto(req.body.motivo, 60);
+    if (!motivo) return res.status(400).json({ error: 'Elegí el motivo' });
+    const r = await pool.query(
+      `UPDATE controles_inventario_items SET motivo = $1, explicacion = $2, explicado_por = $3, explicado_en = NOW()
+       WHERE id = $4 AND control_id = $5 AND estado IN ('faltante', 'sobrante') RETURNING *`,
+      [motivo, limpiarTexto(req.body.explicacion, 500) || null, limpiarTexto(req.body.usuario_nombre, 120) || null, itemId, id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Ese producto no tiene diferencia en este control' });
+    res.json(r.rows[0]);
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+};
+
+// Informe de faltantes de un local: cada control terminado en el periodo, por que faltaron
+// las cosas (motivos) y que productos faltan una y otra vez.
+const informeFaltantes = async (req, res) => {
+  try {
+    await asegurarColumnas(pool);
+    const local = parseInt(req.query.local_id) || 1;
+    const hasta = /^\d{4}-\d{2}-\d{2}$/.test(req.query.hasta || '') ? req.query.hasta : new Date().toISOString().slice(0, 10);
+    const desde = /^\d{4}-\d{2}-\d{2}$/.test(req.query.desde || '') ? req.query.desde : new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+    const cs = await pool.query(SELECT_CONTROL + ` WHERE c.local_id = $1 AND c.estado = 'finalizado'
+        AND c.finalizado_en >= $2::date AND c.finalizado_en < ($3::date + 1) ORDER BY c.finalizado_en DESC`, [local, desde, hasta]);
+    const ids = cs.rows.map(c => c.id);
+    const its = ids.length ? (await pool.query(
+      `SELECT control_id, id, producto_id, producto_nombre, producto_marca, producto_categoria, producto_codigo, stock_sistema, stock_contado,
+              diferencia, costo_unitario, estado, motivo, explicacion, explicado_por, explicado_en
+         FROM controles_inventario_items WHERE control_id = ANY($1::int[]) AND estado = 'faltante'
+        ORDER BY (ABS(diferencia) * COALESCE(costo_unitario, 0)) DESC, producto_nombre`, [ids])).rows : [];
+
+    const porControl = {};
+    const productos = {};
+    const motivos = {};
+    let unidades = 0, valor = 0, sinExplicar = 0;
+    for (const it of its) {
+      const u = Math.abs(it.diferencia || 0), v = u * parseFloat(it.costo_unitario || 0);
+      (porControl[it.control_id] = porControl[it.control_id] || []).push({ ...it, unidades: u, valor: v });
+      unidades += u; valor += v;
+      const m = (it.motivo || '').trim() || 'Sin explicar';
+      if (m === 'Sin explicar') sinExplicar++;
+      motivos[m] = motivos[m] || { motivo: m, productos: 0, unidades: 0, valor: 0 };
+      motivos[m].productos++; motivos[m].unidades += u; motivos[m].valor += v;
+      const k = it.producto_id || it.producto_nombre;
+      productos[k] = productos[k] || { producto_id: it.producto_id, nombre: it.producto_nombre, marca: it.producto_marca, veces: 0, unidades: 0, valor: 0, motivos: {} };
+      productos[k].veces++; productos[k].unidades += u; productos[k].valor += v; productos[k].motivos[m] = (productos[k].motivos[m] || 0) + 1;
+    }
+    const repetidos = Object.values(productos).filter(x => x.veces > 1).sort((a, b) => b.veces - a.veces || b.valor - a.valor).slice(0, 30)
+      .map(x => ({ ...x, motivos: Object.entries(x.motivos).sort((a, b) => b[1] - a[1]).map(([m, n]) => m + (n > 1 ? ' ×' + n : '')).join(', ') }));
+    res.json({
+      local_id: local, desde, hasta,
+      resumen: { controles: cs.rows.length, productos_con_faltante: its.length, unidades, valor, sin_explicar: sinExplicar },
+      motivos: Object.values(motivos).sort((a, b) => b.valor - a.valor || b.unidades - a.unidades),
+      repetidos,
+      controles: cs.rows.map(c => ({ ...c, faltantes: porControl[c.id] || [] })),
+    });
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+};
+
 // Cancelar (borrar) un control en curso
 const cancelarControl = async (req, res) => {
   try {
@@ -304,4 +391,4 @@ const cancelarControl = async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 };
 
-module.exports = { getControles, getConfig, guardarConfig, crearControl, getControl, contarItem, finalizarControl, cancelarControl };
+module.exports = { getControles, getConfig, guardarConfig, crearControl, getControl, contarItem, finalizarControl, cancelarControl, explicarItem, informeFaltantes };

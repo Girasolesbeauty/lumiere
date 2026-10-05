@@ -577,6 +577,19 @@ button.tab { font-family: inherit; }
 .ci-fila { display: grid; grid-template-columns: minmax(0, 2.4fr) 1.2fr .7fr 1.5fr 1fr; gap: 10px; align-items: center; padding: 10px 14px; border-top: 1px solid ${p.border}; font-size: 13px; transition: background .2s; }
 .ci-fila.ci-hist { grid-template-columns: minmax(0, 2.2fr) .8fr .9fr 1.3fr .8fr .9fr; }
 .ci-fila.ci-fila-det { grid-template-columns: minmax(0, 2.4fr) .8fr .8fr .9fr 1fr; }
+.ci-exp { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 5px; font-size: 12px; color: ${p.textSoft || p.text}; }
+.ci-exp em { font-style: normal; color: ${p.textMuted}; }
+.ci-exp-btn { font: inherit; font-size: 11.5px; font-weight: 700; background: none; border: 1px solid ${p.border}; color: ${p.text}; border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+.ci-exp-btn:hover { border-color: var(--acento); }
+.ci-explicar { margin-top: 14px; padding: 12px; border-radius: 12px; background: ${p.bg}; border: 1px solid ${p.border}; }
+.ci-explicar-fila { padding: 10px; border-radius: 10px; background: ${p.card}; border: 1px solid ${p.border}; margin-top: 8px; }
+.ci-explicar-fila.pend { border-color: ${p.red}; box-shadow: 0 0 0 1px ${p.red}33; }
+.ci-inf-control { border-top: 1px solid ${p.border}; padding: 10px 0; }
+.ci-inf-control summary { display: flex; justify-content: space-between; gap: 10px; cursor: pointer; font-size: 13px; list-style: none; }
+.ci-inf-control summary::-webkit-details-marker { display: none; }
+.ci-inf-control summary::before { content: "▸"; margin-right: 6px; color: ${p.textMuted}; }
+.ci-inf-control[open] summary::before { content: "▾"; }
+.ci-inf-control summary > span:first-child { flex: 1; min-width: 0; }
 .ci-cab { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: ${p.textMuted}; padding-top: 12px; padding-bottom: 8px; }
 .ci-cab.ci-fila-det, .ci-tabla > .ci-cab:first-child { border-top: none; }
 .ci-prod { display: flex; flex-direction: column; min-width: 0; }
@@ -15725,6 +15738,30 @@ const TIPOS_CONTROL = [
 ];
 const etiquetaControl = (c) => !c ? "" : c.tipo === "total" ? "Todo el local" : c.tipo === "categoria" ? "Categoría: " + c.filtro_valor : c.tipo === "marca" ? "Marca: " + c.filtro_valor : "Proveedor: " + (c.proveedor_nombre || c.filtro_valor);
 const exactitudDe = (correctos, contados) => contados > 0 ? Math.round(correctos / contados * 100) : null;
+// Por que puede faltar o sobrar mercaderia (lo elige quien conto, al terminar el control)
+const MOTIVOS_FALTANTE = ["Rotura", "Vencido o dañado", "Robo o hurto", "Regalo, muestra o prueba", "Uso interno del local", "Venta sin registrar", "Ingreso mal cargado", "Se contó mal", "Error de etiqueta o código", "No sé qué pasó", "Otro"];
+const MOTIVOS_SOBRANTE = ["Ingreso sin cargar", "Venta cobrada con otro producto", "Devolución sin registrar", "Se contó mal", "Error de etiqueta o código", "No sé qué pasó", "Otro"];
+const explicacionCompleta = (e) => !!(e && e.motivo && (e.motivo !== "Otro" || (e.explicacion || "").trim().length >= 3));
+const escHtml = (v) => String(v === null || v === undefined ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+// Abre una hoja lista para imprimir o guardar como PDF
+function imprimirInforme(titulo, cuerpo) {
+  const w = window.open("", "_blank", "width=900,height=700");
+  if (!w) { alert("El navegador bloqueó la ventana del informe. Permití las ventanas emergentes para este sitio y probá de nuevo."); return; }
+  w.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${escHtml(titulo)}</title><style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif; color: #111; margin: 28px; font-size: 13px; line-height: 1.45; }
+    h1 { font-size: 21px; margin: 0 0 2px; } h2 { font-size: 15px; margin: 22px 0 8px; border-bottom: 2px solid #111; padding-bottom: 4px; }
+    h3 { font-size: 13.5px; margin: 16px 0 6px; } .sub { color: #555; margin-bottom: 14px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 6px; } th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #ddd; vertical-align: top; }
+    th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #555; border-bottom: 1.5px solid #999; } td.n, th.n { text-align: right; white-space: nowrap; }
+    .kpis { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0 4px; } .kpi { border: 1px solid #ccc; border-radius: 8px; padding: 8px 12px; min-width: 120px; }
+    .kpi b { display: block; font-size: 18px; } .kpi span { font-size: 11px; color: #555; }
+    .rojo { color: #b3261e; font-weight: 700; } .gris { color: #777; } .firma { margin-top: 44px; display: flex; gap: 40px; } .firma div { flex: 1; border-top: 1px solid #111; padding-top: 6px; font-size: 12px; }
+    .pie { margin-top: 26px; font-size: 11px; color: #777; } tr { page-break-inside: avoid; } @media print { body { margin: 12mm; } .no-print { display: none; } }
+  </style></head><body><button class="no-print" onclick="window.print()" style="float:right;padding:8px 14px;font-size:13px;cursor:pointer">Imprimir / Guardar PDF</button>${cuerpo}
+  <div class="pie">Informe generado con Lumiere el ${escHtml(new Date().toLocaleString("es-AR"))}.</div></body></html>`);
+  w.document.close();
+  w.focus();
+}
 const ESTADO_CONTEO = { pendiente: { t: "Sin contar", c: "tag-neutral" }, correcto: { t: "✓ Correcto", c: "tag-ok" }, faltante: { t: "Falta", c: "tag-bad" }, sobrante: { t: "Sobra", c: "tag-warn" } };
 
 function ControlInventario({ localId, usuario, paletaActual }) {
@@ -15758,6 +15795,12 @@ function ControlInventario({ localId, usuario, paletaActual }) {
   const [notasFin, setNotasFin] = useState("");
   const [finalizando, setFinalizando] = useState(false);
   const [recienFinalizado, setRecienFinalizado] = useState(false);
+  const [explic, setExplic] = useState({}); // explicacion de cada diferencia: { [itemId]: { motivo, explicacion } }
+  const [motivoTodos, setMotivoTodos] = useState("");
+  const [editarExp, setEditarExp] = useState(null); // { item, motivo, explicacion } (en un control ya terminado)
+  const [informe, setInforme] = useState(null);
+  const [infLocal, setInfLocal] = useState(Number(localId) === 2 ? 2 : 1);
+  const [infDias, setInfDias] = useState(90);
   const scannerRef = useRef(null);
   const ultimoCodigo = useRef({ c: "", t: 0 });
   const ultimaUnidad = useRef({ c: "", t: 0 });
@@ -15951,14 +15994,64 @@ function ControlInventario({ localId, usuario, paletaActual }) {
   const finalizar = async () => {
     setFinalizando(true);
     try {
-      await API.post("/controles-inventario/" + control.id + "/finalizar", { ajustar_stock: ajustarStock, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre, notas: notasFin });
-      setShowFinalizar(false); setNotasFin(""); await cerrarCamara();
+      const explicaciones = items.filter(i => (i.estado === "faltante" || i.estado === "sobrante") && explic[i.id]?.motivo)
+        .map(i => ({ item_id: i.id, motivo: explic[i.id].motivo, explicacion: (explic[i.id].explicacion || "").trim() }));
+      await API.post("/controles-inventario/" + control.id + "/finalizar", { ajustar_stock: ajustarStock, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre, notas: notasFin, explicaciones });
+      setShowFinalizar(false); setNotasFin(""); setExplic({}); setMotivoTodos(""); await cerrarCamara();
       setRecienFinalizado(true);
       await abrir(control.id, "detalle");
       cargar();
     } catch (e) { avisar("Error: " + (e.response?.data?.error || "no se pudo finalizar")); }
     setFinalizando(false);
   };
+  // Explicaciones (al terminar el control)
+  const ponerExplic = (id, k, v) => setExplic(x => ({ ...x, [id]: { ...(x[id] || {}), [k]: v } }));
+  const guardarExplicacion = async () => {
+    if (!explicacionCompleta(editarExp)) return avisar("Error: elegí el motivo" + (editarExp?.motivo === "Otro" ? " y contá qué pasó" : ""));
+    try {
+      const r = await API.put("/controles-inventario/" + control.id + "/explicar/" + editarExp.item.id, { motivo: editarExp.motivo, explicacion: (editarExp.explicacion || "").trim(), usuario_nombre: usuario?.nombre });
+      setItems(prev => prev.map(i => (i.id === editarExp.item.id ? { ...i, ...r.data } : i)));
+      setEditarExp(null); avisar("✓ Explicación guardada");
+    } catch (e) { avisar("Error: " + (e.response?.data?.error || "no se pudo guardar la explicación")); }
+  };
+  // Informe de faltantes de UN control (para imprimir, firmar o guardar en PDF)
+  const informeDeControl = () => {
+    const falt = items.filter(i => i.estado === "faltante").sort((a, b) => Math.abs(b.diferencia) * (b.costo_unitario || 0) - Math.abs(a.diferencia) * (a.costo_unitario || 0));
+    const sobr = items.filter(i => i.estado === "sobrante");
+    const fila = (i) => `<tr><td><b>${escHtml(i.producto_nombre)}</b><br><span class="gris">${escHtml([i.producto_marca, i.producto_codigo].filter(Boolean).join(" · "))}</span></td><td class="n">${i.stock_sistema}</td><td class="n">${i.stock_contado}</td><td class="n rojo">${i.diferencia > 0 ? "+" : ""}${i.diferencia}</td><td class="n">${escHtml($(Math.abs(i.diferencia) * (i.costo_unitario || 0)))}</td><td>${i.motivo ? "<b>" + escHtml(i.motivo) + "</b>" + (i.explicacion ? "<br>" + escHtml(i.explicacion) : "") + (i.explicado_por ? '<br><span class="gris">' + escHtml(i.explicado_por) + "</span>" : "") : '<span class="rojo">Sin explicar</span>'}</td></tr>`;
+    const tabla = (lista) => `<table><thead><tr><th>Producto</th><th class="n">Sistema</th><th class="n">Contado</th><th class="n">Dif.</th><th class="n">Valor (costo)</th><th>Explicación</th></tr></thead><tbody>${lista.map(fila).join("")}</tbody></table>`;
+    imprimirInforme("Informe de faltantes - Control " + control.id, `
+      <h1>Informe de faltantes</h1>
+      <div class="sub">${escHtml(nombreLocal(control.local_id))} · Control #${control.id} · ${escHtml(etiquetaControl(control))} · ${control.finalizado_en ? escHtml(new Date(control.finalizado_en).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })) : ""}${control.usuario_nombre ? " · contó: " + escHtml(control.usuario_nombre) : ""}</div>
+      <div class="kpis"><div class="kpi"><b>${exactitud === null ? "—" : exactitud + "%"}</b><span>exactitud</span></div><div class="kpi"><b>${contados}</b><span>productos contados</span></div><div class="kpi"><b class="rojo">${escHtml($(valorFalta))}</b><span>faltó (${uFalta} u. en ${cuenta.faltante === 1 ? "1 producto" : cuenta.faltante + " productos"})</span></div><div class="kpi"><b>${escHtml($(valorSobra))}</b><span>sobró (${uSobra} u. en ${cuenta.sobrante === 1 ? "1 producto" : cuenta.sobrante + " productos"})</span></div></div>
+      <h2>Faltantes (${falt.length})</h2>${falt.length ? tabla(falt) : "<p>No faltó nada.</p>"}
+      ${sobr.length ? "<h2>Sobrantes (" + sobr.length + ")</h2>" + tabla(sobr) : ""}
+      ${control.notas ? "<h2>Notas</h2><p>" + escHtml(control.notas) + "</p>" : ""}
+      <div class="firma"><div>Firma de quien contó</div><div>Firma de quien revisó</div></div>`);
+  };
+  // Informe de faltantes del local en un periodo (todos los controles)
+  const cargarInforme = async (loc, dias) => {
+    setInforme({ cargando: true });
+    try {
+      const desde = new Date(Date.now() - dias * 86400000).toLocaleDateString("sv-SE");
+      const r = await API.get("/controles-inventario/informe/faltantes?local_id=" + loc + "&desde=" + desde + "&hasta=" + new Date().toLocaleDateString("sv-SE"));
+      setInforme(r.data);
+    } catch (e) { setInforme({ error: e.response?.data?.error || "No se pudo armar el informe" }); }
+  };
+  const abrirInforme = () => { setVista("informe"); cargarInforme(infLocal, infDias); };
+  const imprimirInformeLocal = () => {
+    const d = informe, f = (x) => escHtml(new Date(x).toLocaleDateString("es-AR"));
+    imprimirInforme("Informe de faltantes - " + nombreLocal(d.local_id), `
+      <h1>Informe de faltantes por control</h1>
+      <div class="sub">${escHtml(nombreLocal(d.local_id))} · del ${f(d.desde + "T12:00:00")} al ${f(d.hasta + "T12:00:00")}</div>
+      <div class="kpis"><div class="kpi"><b>${d.resumen.controles}</b><span>controles</span></div><div class="kpi"><b class="rojo">${escHtml($(d.resumen.valor))}</b><span>faltó en total (a costo)</span></div><div class="kpi"><b>${d.resumen.unidades}</b><span>unidades</span></div><div class="kpi"><b>${d.resumen.sin_explicar}</b><span>faltantes sin explicar</span></div></div>
+      <h2>Por qué faltó</h2>${d.motivos.length ? `<table><thead><tr><th>Motivo</th><th class="n">Productos</th><th class="n">Unidades</th><th class="n">Valor (costo)</th></tr></thead><tbody>${d.motivos.map(m => `<tr><td>${escHtml(m.motivo)}</td><td class="n">${m.productos}</td><td class="n">${m.unidades}</td><td class="n">${escHtml($(m.valor))}</td></tr>`).join("")}</tbody></table>` : "<p>No hubo faltantes en el período.</p>"}
+      ${d.repetidos.length ? `<h2>Productos que faltan una y otra vez</h2><table><thead><tr><th>Producto</th><th class="n">Controles</th><th class="n">Unidades</th><th class="n">Valor</th><th>Motivos</th></tr></thead><tbody>${d.repetidos.map(x => `<tr><td><b>${escHtml(x.nombre)}</b>${x.marca ? ' <span class="gris">' + escHtml(x.marca) + "</span>" : ""}</td><td class="n">${x.veces}</td><td class="n">${x.unidades}</td><td class="n">${escHtml($(x.valor))}</td><td>${escHtml(x.motivos)}</td></tr>`).join("")}</tbody></table>` : ""}
+      <h2>Detalle de cada control</h2>
+      ${d.controles.map(c => `<h3>Control #${c.id} · ${f(c.finalizado_en)} · ${escHtml(etiquetaControl(c))}${c.usuario_nombre ? " · contó: " + escHtml(c.usuario_nombre) : ""} · faltó ${escHtml($(c.valor_faltante))}</h3>
+        ${c.faltantes.length ? `<table><thead><tr><th>Producto</th><th class="n">Sistema</th><th class="n">Contado</th><th class="n">Faltan</th><th class="n">Valor</th><th>Explicación</th></tr></thead><tbody>${c.faltantes.map(i => `<tr><td>${escHtml(i.producto_nombre)}</td><td class="n">${i.stock_sistema}</td><td class="n">${i.stock_contado}</td><td class="n rojo">${i.unidades}</td><td class="n">${escHtml($(i.valor))}</td><td>${i.motivo ? "<b>" + escHtml(i.motivo) + "</b>" + (i.explicacion ? " — " + escHtml(i.explicacion) : "") + (i.explicado_por ? ' <span class="gris">(' + escHtml(i.explicado_por) + ")</span>" : "") : '<span class="rojo">Sin explicar</span>'}</td></tr>`).join("")}</tbody></table>` : '<p class="gris">Sin faltantes.</p>'}`).join("")}`);
+  };
+
   const cancelar = async (c) => {
     if (!confirm("¿Cancelar este control? Se pierde lo que se contó hasta ahora.")) return;
     try { await API.delete("/controles-inventario/" + c.id); avisar("Control cancelado"); cargar(); }
@@ -16009,6 +16102,7 @@ function ControlInventario({ localId, usuario, paletaActual }) {
             <div className="ps">{etiquetaControl(control)} · {control.finalizado_en ? new Date(control.finalizado_en).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" }) : ""}{control.usuario_nombre ? " · " + control.usuario_nombre : ""}</div>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {diferencias.length > 0 && <button className="btn btn-g btn-sm" onClick={informeDeControl}>📄 Informe de faltantes</button>}
             {diferencias.length > 0 && <button className="btn btn-g btn-sm" onClick={descargarCsv}>⬇ Descargar diferencias</button>}
             <button className="btn btn-p btn-sm" onClick={() => { setVista("lista"); setControl(null); setItems([]); setRecienFinalizado(false); }}>Volver</button>
           </div>
@@ -16044,12 +16138,18 @@ function ControlInventario({ localId, usuario, paletaActual }) {
         </div>
         <div className="chart-card" style={{ marginTop: 12 }}>
           <div className="chart-title">Diferencias ({diferencias.length})</div>
+          {diferencias.some(i => i.diferencia < 0 && !i.motivo) && <div className="cc-aviso bad" style={{ margin: "8px 0 0" }}>Hay {diferencias.filter(i => i.diferencia < 0 && !i.motivo).length} faltantes sin explicar. Pedile a quien contó que toque «Explicar» en cada uno.</div>}
           {diferencias.length === 0 ? <div className="cli-vacio">Todo lo contado coincidía con el sistema.</div> : (
             <div className="ci-tabla">
-              <div className="ci-fila ci-cab"><span>Producto</span><span>Sistema</span><span>Contado</span><span>Diferencia</span><span>Valor</span></div>
+              <div className="ci-fila ci-cab"><span>Producto y explicación</span><span>Sistema</span><span>Contado</span><span>Diferencia</span><span>Valor</span></div>
               {diferencias.map(i => (
                 <div key={i.id} className="ci-fila ci-fila-det">
-                  <span className="ci-prod"><b>{i.producto_nombre}</b><small>{[i.producto_marca, i.producto_categoria].filter(Boolean).join(" · ")}</small></span>
+                  <span className="ci-prod"><b>{i.producto_nombre}</b><small>{[i.producto_marca, i.producto_categoria].filter(Boolean).join(" · ")}</small>
+                    <span className="ci-exp">
+                      {i.motivo ? <span>📝 <b>{i.motivo}</b>{i.explicacion ? " — " + i.explicacion : ""}{i.explicado_por ? <em> · {i.explicado_por}</em> : null}</span> : <span className={"tag " + (i.diferencia < 0 ? "tag-bad" : "tag-neutral")}>Sin explicar</span>}
+                      <button className="ci-exp-btn" onClick={() => setEditarExp({ item: i, motivo: i.motivo || "", explicacion: i.explicacion || "" })}>{i.motivo ? "Cambiar" : "Explicar"}</button>
+                    </span>
+                  </span>
                   <span data-l="Sistema">{i.stock_sistema}</span><span data-l="Contado">{i.stock_contado}</span>
                   <span data-l="Diferencia"><span className={"tag " + (i.diferencia < 0 ? "tag-bad" : "tag-warn")}>{i.diferencia > 0 ? "+" : ""}{i.diferencia}</span></span>
                   <span data-l="Valor" style={{ fontWeight: 700, color: i.diferencia < 0 ? p.red : p.warn }}>{$(Math.abs(i.diferencia) * (i.costo_unitario || 0))}</span>
@@ -16058,12 +16158,103 @@ function ControlInventario({ localId, usuario, paletaActual }) {
             </div>
           )}
         </div>
+        {editarExp && (
+          <Ventana className="pos-overlay" onClick={e => e.target === e.currentTarget && setEditarExp(null)}>
+            <div className="card pop-in" style={{ width: 460, maxWidth: "95vw", background: p.card, textAlign: "left" }} role="dialog" aria-modal="true" aria-label="Explicar diferencia">
+              <div className="chart-title">{editarExp.item.diferencia < 0 ? "¿Por qué faltan " + (-editarExp.item.diferencia) + "?" : "¿Por qué sobran " + editarExp.item.diferencia + "?"}</div>
+              <div style={{ fontSize: 13, color: p.textMuted, margin: "4px 0 12px" }}>{editarExp.item.producto_nombre} · el sistema decía {editarExp.item.stock_sistema} y se contaron {editarExp.item.stock_contado}. Queda registrado a nombre de {usuario?.nombre || "quien lo carga"}.</div>
+              <div className="fg"><label className="fl" htmlFor="ci-exp-mot">Motivo</label>
+                <select id="ci-exp-mot" className="sel" value={editarExp.motivo} onChange={e => setEditarExp(x => ({ ...x, motivo: e.target.value }))}>
+                  <option value="">Elegí…</option>{(editarExp.item.diferencia < 0 ? MOTIVOS_FALTANTE : MOTIVOS_SOBRANTE).map(m => <option key={m} value={m}>{m}</option>)}
+                </select></div>
+              <div className="fg"><label className="fl" htmlFor="ci-exp-txt">Qué pasó {editarExp.motivo === "Otro" ? "(obligatorio)" : "(opcional)"}</label><input id="ci-exp-txt" className="inp" value={editarExp.explicacion} onChange={e => setEditarExp(x => ({ ...x, explicacion: e.target.value }))} placeholder="Ej: se rompió una caja al descargar" /></div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEditarExp(null)}>Cancelar</button>
+                <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarExplicacion}>Guardar</button>
+              </div>
+            </div>
+          </Ventana>
+        )}
+      </div>
+    );
+  }
+
+  // =============== Informe de faltantes del local ===============
+  if (vista === "informe") {
+    const d = informe && !informe.cargando && !informe.error ? informe : null;
+    const maxMotivo = d ? Math.max(1, ...d.motivos.map(m => m.valor || m.unidades)) : 1;
+    return (
+      <div className="fade">
+        <div className="dash-head">
+          <div>
+            <div className="pt">📄 Informe de faltantes</div>
+            <div className="ps">qué faltó en cada control, por qué, y qué productos faltan una y otra vez</div>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {d && d.resumen.controles > 0 && <button className="btn btn-g btn-sm" onClick={imprimirInformeLocal}>🖨 Imprimir / PDF</button>}
+            <button className="btn btn-p btn-sm" onClick={() => { setVista("lista"); setInforme(null); }}>Volver</button>
+          </div>
+        </div>
+        <div className="chart-card" style={{ marginBottom: 12, display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
+          <div className="ci-seg" role="tablist" aria-label="Local">
+            {[1, 2].map(l => <button key={l} role="tab" aria-selected={infLocal === l} className={infLocal === l ? "on" : ""} onClick={() => { setInfLocal(l); cargarInforme(l, infDias); }}>{nombreLocal(l)}</button>)}
+          </div>
+          <div className="cli-chips">
+            {[[30, "Último mes"], [90, "3 meses"], [180, "6 meses"], [365, "1 año"]].map(([n, l]) => <button key={n} className={"chip-btn" + (infDias === n ? " on" : "")} onClick={() => { setInfDias(n); cargarInforme(infLocal, n); }}>{l}</button>)}
+          </div>
+        </div>
+        {!informe || informe.cargando ? <div className="skel" style={{ height: 220 }} /> : informe.error ? <div className="cc-aviso bad">{informe.error}</div> : d.resumen.controles === 0 ? (
+          <div className="chart-card"><div className="cli-vacio">No hay controles terminados en {nombreLocal(infLocal)} en este período.</div></div>
+        ) : (
+          <>
+            <div className="kpi-grid">
+              <KpiCard p={p} titulo="Controles" valor={String(d.resumen.controles)} indice={0} sub="terminados en el período" />
+              <KpiCard p={p} titulo="Faltó en total" valor={$(d.resumen.valor)} color={d.resumen.valor > 0 ? p.red : p.green} indice={1} sub={d.resumen.unidades + " unidades, a costo"} />
+              <KpiCard p={p} titulo="Productos con faltante" valor={String(d.resumen.productos_con_faltante)} indice={2} sub={d.repetidos.length ? d.repetidos.length + " se repiten" : "ninguno se repite"} />
+              <KpiCard p={p} titulo="Sin explicar" valor={String(d.resumen.sin_explicar)} color={d.resumen.sin_explicar > 0 ? p.red : p.green} indice={3} sub={d.resumen.sin_explicar > 0 ? "faltantes que nadie explicó" : "todo tiene explicación"} />
+            </div>
+            <div className="ci-det-grid">
+              <div className="chart-card">
+                <div className="chart-title">🧐 Por qué faltó</div>
+                {d.motivos.length === 0 ? <div className="cli-vacio">🎉 No faltó nada.</div> : d.motivos.map(m => (
+                  <div key={m.motivo} style={{ margin: "10px 0" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 13 }}><span style={{ fontWeight: 700, color: m.motivo === "Sin explicar" ? p.red : p.text }}>{m.motivo}</span><span style={{ whiteSpace: "nowrap" }}><b>{$(m.valor)}</b> · {m.unidades} u.</span></div>
+                    <div className="pb" style={{ height: 8, marginTop: 4 }}><div className="pf" style={{ width: Math.max(3, Math.round((m.valor || m.unidades) / maxMotivo * 100)) + "%", background: m.motivo === "Sin explicar" ? p.red : "var(--acento)" }} /></div>
+                  </div>
+                ))}
+              </div>
+              <div className="chart-card">
+                <div className="chart-title">🔁 Faltan una y otra vez</div>
+                <div style={{ fontSize: 12, color: p.textMuted, margin: "4px 0 8px" }}>Productos que faltaron en más de un control. Son los primeros para revisar dónde se guardan y quién los maneja.</div>
+                {d.repetidos.length === 0 ? <div className="cli-vacio">Ningún producto faltó en más de un control.</div> : d.repetidos.slice(0, 8).map(x => (
+                  <div key={x.producto_id || x.nombre} className="cli-hist-fila"><div style={{ minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 700 }}>{x.nombre}</div><div style={{ fontSize: 11, color: p.textMuted }}>{x.veces} controles · {x.unidades} u. · {x.motivos}</div></div><b style={{ color: p.red, whiteSpace: "nowrap" }}>{$(x.valor)}</b></div>
+                ))}
+              </div>
+            </div>
+            <div className="chart-card" style={{ marginTop: 12 }}>
+              <div className="chart-title">Cada control</div>
+              {d.controles.map(c => (
+                <details key={c.id} className="ci-inf-control">
+                  <summary><span><b>Control #{c.id}</b> · {new Date(c.finalizado_en).toLocaleDateString("es-AR")} · {etiquetaControl(c)}{c.usuario_nombre ? " · " + c.usuario_nombre : ""}</span><span style={{ color: c.faltantes.length ? p.red : p.textMuted, fontWeight: 700, whiteSpace: "nowrap" }}>{c.faltantes.length ? $(c.valor_faltante) + " · " + c.faltantes.length + " prod." : "sin faltantes"}</span></summary>
+                  {c.faltantes.length === 0 ? <div className="cli-vacio">No faltó nada en este control.</div> : c.faltantes.map(i => (
+                    <div key={i.id} className="cli-hist-fila"><div style={{ minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 700 }}>{i.producto_nombre}</div><div style={{ fontSize: 11.5, color: p.textMuted }}>faltan {i.unidades} (sistema {i.stock_sistema}, contado {i.stock_contado}) · {i.motivo ? <b style={{ color: p.text }}>{i.motivo}{i.explicacion ? " — " + i.explicacion : ""}</b> : <b style={{ color: p.red }}>Sin explicar</b>}{i.explicado_por ? " · " + i.explicado_por : ""}</div></div><b style={{ color: p.red, whiteSpace: "nowrap" }}>{$(i.valor)}</b></div>
+                  ))}
+                  <button className="btn btn-g btn-sm" style={{ marginTop: 8 }} onClick={() => abrir(c.id, "detalle")}>Abrir este control</button>
+                </details>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     );
   }
 
   // =============== Conteo ===============
   if (vista === "conteo" && control) {
+    // Diferencias a explicar al terminar: primero los faltantes mas caros
+    const difFin = items.filter(i => i.estado === "faltante" || i.estado === "sobrante").sort((a, b) => (a.diferencia < 0 ? 0 : 1) - (b.diferencia < 0 ? 0 : 1) || Math.abs(b.diferencia) * (b.costo_unitario || 0) - Math.abs(a.diferencia) * (a.costo_unitario || 0));
+    const faltFin = difFin.filter(i => i.diferencia < 0);
+    const sinExplicarFin = faltFin.filter(i => !explicacionCompleta(explic[i.id])).length;
     return (
       <div className="fade">
         <div className="dash-head">
@@ -16178,8 +16369,8 @@ function ControlInventario({ localId, usuario, paletaActual }) {
         )}
 
         {showFinalizar && (
-          <div className="pos-overlay" onClick={e => e.target === e.currentTarget && !finalizando && setShowFinalizar(false)}>
-            <div className="card pop-in" style={{ width: 460, maxWidth: "95vw", background: p.card, textAlign: "left" }} role="dialog" aria-modal="true" aria-label="Terminar control">
+          <Ventana className="pos-overlay" onClick={e => e.target === e.currentTarget && !finalizando && setShowFinalizar(false)}>
+            <div className="card pop-in" style={{ width: 620, maxWidth: "96vw", maxHeight: "92vh", overflowY: "auto", background: p.card, textAlign: "left" }} role="dialog" aria-modal="true" aria-label="Terminar control">
               <div className="chart-title">Terminar control</div>
               <div className="cli-stats" style={{ marginTop: 10 }}>
                 <div><span>Contados</span><b>{contados} de {items.length}</b></div>
@@ -16188,6 +16379,37 @@ function ControlInventario({ localId, usuario, paletaActual }) {
                 <div><span>Sobró</span><b style={{ color: p.warn }}>{$(valorSobra)}</b></div>
               </div>
               {cuenta.pendiente > 0 && <div className="cc-aviso" style={{ marginTop: 12, background: p.warnDim, color: p.warn, border: "1px solid " + p.warn + "55" }}>Quedan <b>{cuenta.pendiente}</b> productos sin contar. Esos no se van a tocar.</div>}
+              {difFin.length > 0 && (
+                <div className="ci-explicar">
+                  <div style={{ fontSize: 14, fontWeight: 800 }}>¿Por qué hay diferencias?</div>
+                  <div style={{ fontSize: 12, color: p.textMuted, margin: "2px 0 10px" }}>Antes de terminar, explicá cada faltante. Queda registrado a nombre de <b>{usuario?.nombre || "quien cuenta"}</b>.</div>
+                  {faltFin.length > 1 && (
+                    <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
+                      <select className="sel" style={{ flex: 1, minWidth: 160 }} value={motivoTodos} onChange={e => setMotivoTodos(e.target.value)} aria-label="Motivo para todos los faltantes sin explicar">
+                        <option value="">Mismo motivo para los que faltan explicar…</option>{MOTIVOS_FALTANTE.filter(m => m !== "Otro").map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                      <button className="btn btn-g btn-sm" disabled={!motivoTodos} onClick={() => setExplic(x => { const n = { ...x }; faltFin.forEach(i => { if (!n[i.id]?.motivo) n[i.id] = { ...(n[i.id] || {}), motivo: motivoTodos }; }); return n; })}>Aplicar</button>
+                    </div>
+                  )}
+                  {difFin.map(i => {
+                    const e = explic[i.id] || {}; const falta = i.diferencia < 0;
+                    return (
+                      <div key={i.id} className={"ci-explicar-fila" + (falta && !explicacionCompleta(e) ? " pend" : "")}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                          <b style={{ fontSize: 13, minWidth: 0, overflowWrap: "anywhere" }}>{i.producto_nombre}</b>
+                          <span className={"tag " + (falta ? "tag-bad" : "tag-warn")} style={{ whiteSpace: "nowrap" }}>{falta ? "faltan " + (-i.diferencia) : "sobran " + i.diferencia}{falta ? " · " + $(-i.diferencia * (i.costo_unitario || 0)) : ""}</span>
+                        </div>
+                        <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                          <select className="sel" style={{ flex: "1 1 150px" }} value={e.motivo || ""} onChange={ev => ponerExplic(i.id, "motivo", ev.target.value)} aria-label={"Motivo de " + i.producto_nombre}>
+                            <option value="">{falta ? "¿Por qué falta?" : "¿Por qué sobra? (opcional)"}</option>{(falta ? MOTIVOS_FALTANTE : MOTIVOS_SOBRANTE).map(m => <option key={m} value={m}>{m}</option>)}
+                          </select>
+                          <input className="inp" style={{ flex: "2 1 180px" }} placeholder={e.motivo === "Otro" ? "Contá qué pasó (obligatorio)" : "Detalle (opcional)"} value={e.explicacion || ""} onChange={ev => ponerExplic(i.id, "explicacion", ev.target.value)} aria-label={"Detalle de " + i.producto_nombre} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               <label className="prem-check" style={{ margin: "14px 0 4px", alignItems: "flex-start" }}>
                 <input type="checkbox" checked={ajustarStock} onChange={e => setAjustarStock(e.target.checked)} style={{ marginTop: 3 }} />
                 <span><b>Corregir el stock del sistema con lo que conté</b><br /><small style={{ color: p.textMuted }}>Se corrige solo la diferencia, así las ventas que se hicieron mientras contabas no se pierden.</small></span>
@@ -16195,10 +16417,10 @@ function ControlInventario({ localId, usuario, paletaActual }) {
               <div className="fg" style={{ marginTop: 10 }}><div className="fl">Notas (opcional)</div><input className="inp" placeholder="Ej: se rompieron 2 frascos en el depósito" value={notasFin} onChange={e => setNotasFin(e.target.value)} /></div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn btn-g" style={{ flex: 1 }} disabled={finalizando} onClick={() => setShowFinalizar(false)}>Seguir contando</button>
-                <button className="btn btn-p" style={{ flex: 1 }} disabled={finalizando} onClick={finalizar}>{finalizando ? "Terminando..." : "Terminar"}</button>
+                <button className="btn btn-p" style={{ flex: 1 }} disabled={finalizando || sinExplicarFin > 0} onClick={finalizar}>{finalizando ? "Terminando..." : sinExplicarFin > 0 ? (sinExplicarFin === 1 ? "Falta explicar 1" : "Faltan explicar " + sinExplicarFin) : "Terminar"}</button>
               </div>
             </div>
-          </div>
+          </Ventana>
         )}
       </div>
     );
@@ -16222,6 +16444,7 @@ function ControlInventario({ localId, usuario, paletaActual }) {
           <div className="ps">contá lo que hay en el local y compará con lo que dice el sistema</div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn btn-g btn-sm" onClick={abrirInforme}>📄 Informe de faltantes</button>
           <button className="btn btn-g btn-sm" onClick={() => setShowConfig(true)} disabled={!config}>🔔 Avisos</button>
           <button className="btn btn-p btn-sm" onClick={() => enCurso ? abrir(enCurso.id, "conteo") : setNuevo({ tipo: "categoria", valor: "" })}>{enCurso ? "Continuar control" : "+ Nuevo control"}</button>
         </div>
