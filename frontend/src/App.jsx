@@ -577,6 +577,7 @@ button.tab { font-family: inherit; }
 .ci-fila { display: grid; grid-template-columns: minmax(0, 2.4fr) 1.2fr .7fr 1.5fr 1fr; gap: 10px; align-items: center; padding: 10px 14px; border-top: 1px solid ${p.border}; font-size: 13px; transition: background .2s; }
 .ci-fila.ci-hist { grid-template-columns: minmax(0, 2.2fr) .8fr .9fr 1.3fr .8fr .9fr; }
 .ci-fila.ci-fila-det { grid-template-columns: minmax(0, 2.4fr) .8fr .8fr .9fr 1fr; }
+.ci-fila.ci-falta { grid-template-columns: minmax(0, 2.4fr) .6fr .9fr 1fr 1.4fr; }
 .ci-exp { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 5px; font-size: 12px; color: ${p.textSoft || p.text}; }
 .ci-exp em { font-style: normal; color: ${p.textMuted}; }
 .ci-exp-btn { font: inherit; font-size: 11.5px; font-weight: 700; background: none; border: 1px solid ${p.border}; color: ${p.text}; border-radius: 999px; padding: 3px 10px; cursor: pointer; }
@@ -15803,6 +15804,10 @@ function ControlInventario({ localId, usuario, paletaActual }) {
   const [informe, setInforme] = useState(null);
   const [infLocal, setInfLocal] = useState(Number(localId) === 2 ? 2 : 1);
   const [infDias, setInfDias] = useState(90);
+  const [diag, setDiag] = useState(null); // diagnostico de diferencias entre locales
+  const [hist, setHist] = useState(null); // historia de un producto
+  const [histBusca, setHistBusca] = useState("");
+  const [histVuelve, setHistVuelve] = useState("lista");
   const scannerRef = useRef(null);
   const ultimoCodigo = useRef({ c: "", t: 0 });
   const ultimaUnidad = useRef({ c: "", t: 0 });
@@ -16085,17 +16090,32 @@ function ControlInventario({ localId, usuario, paletaActual }) {
     setInforme({ cargando: true });
     try {
       const desde = new Date(Date.now() - dias * 86400000).toLocaleDateString("sv-SE");
-      const r = await API.get("/controles-inventario/informe/faltantes?local_id=" + loc + "&desde=" + desde + "&hasta=" + new Date().toLocaleDateString("sv-SE"));
+      const r = await API.get("/controles-inventario/informe/faltantes?local_id=" + (loc === 0 ? "todos" : loc) + "&desde=" + desde + "&hasta=" + new Date().toLocaleDateString("sv-SE"));
       setInforme(r.data);
     } catch (e) { setInforme({ error: e.response?.data?.error || "No se pudo armar el informe" }); }
   };
   const abrirInforme = () => { setVista("informe"); cargarInforme(infLocal, infDias); };
+  const abrirDiagnostico = async () => {
+    setVista("diagnostico"); setDiag({ cargando: true });
+    try { setDiag((await API.get("/controles-inventario/informe/diagnostico?dias=180")).data); }
+    catch (e) { setDiag({ error: e.response?.data?.error || "No se pudo armar el diagnóstico" }); }
+  };
+  // Historia de un producto: todo lo que le movio el stock y cuanto deberia haber
+  const abrirHistoria = async (productoId, vuelve) => {
+    if (vuelve) setHistVuelve(vuelve);
+    setVista("historia"); setHist({ cargando: true }); setHistBusca("");
+    window.scrollTo({ top: 0 });
+    try { setHist((await API.get("/controles-inventario/informe/producto/" + productoId)).data); }
+    catch (e) { setHist({ error: e.response?.data?.error || "No se pudo cargar la historia del producto" }); }
+  };
   const imprimirInformeLocal = () => {
     const d = informe, f = (x) => escHtml(new Date(x).toLocaleDateString("es-AR"));
-    imprimirInforme("Informe de faltantes - " + nombreLocal(d.local_id), `
+    const nomLoc = d.local_id === 0 ? "Los dos locales" : nombreLocal(d.local_id);
+    imprimirInforme("Informe de faltantes - " + nomLoc, `
       <h1>Informe de faltantes por control</h1>
-      <div class="sub">${escHtml(nombreLocal(d.local_id))} · del ${f(d.desde + "T12:00:00")} al ${f(d.hasta + "T12:00:00")}</div>
-      <div class="kpis"><div class="kpi"><b>${d.resumen.controles}</b><span>controles</span></div><div class="kpi"><b class="rojo">${escHtml($(d.resumen.valor))}</b><span>faltó en total (a costo)</span></div><div class="kpi"><b>${d.resumen.unidades}</b><span>unidades</span></div><div class="kpi"><b>${d.resumen.sin_explicar}</b><span>faltantes sin explicar</span></div></div>
+      <div class="sub">${escHtml(nomLoc)} · del ${f(d.desde + "T12:00:00")} al ${f(d.hasta + "T12:00:00")}</div>
+      <div class="kpis"><div class="kpi"><b>${d.resumen.controles}</b><span>controles</span></div><div class="kpi"><b class="rojo">${escHtml($(d.total_falta.valor))}</b><span>todo lo que falta (a costo)</span></div><div class="kpi"><b>${d.total_falta.unidades}</b><span>unidades en ${d.total_falta.productos} productos</span></div><div class="kpi"><b>${d.resumen.sin_explicar}</b><span>faltantes sin explicar</span></div></div>
+      <h2>Todo lo que falta, a costo</h2>${d.todo_lo_que_falta.length ? `<table><thead><tr><th>Producto</th>${d.local_id === 0 ? "<th>Local</th>" : ""}<th class="n">Faltan</th><th class="n">Costo c/u</th><th class="n">Valor</th><th>Motivo</th></tr></thead><tbody>${d.todo_lo_que_falta.map(x => `<tr><td><b>${escHtml(x.nombre)}</b>${x.marca ? ' <span class="gris">' + escHtml(x.marca) + "</span>" : ""}</td>${d.local_id === 0 ? "<td>" + escHtml(nombreLocal(x.local_id)) + "</td>" : ""}<td class="n">${x.unidades}</td><td class="n">${escHtml($(x.costo_unitario))}</td><td class="n rojo">${escHtml($(x.valor))}</td><td>${escHtml(x.motivos)}</td></tr>`).join("")}<tr><td><b>TOTAL</b></td>${d.local_id === 0 ? "<td></td>" : ""}<td class="n"><b>${d.total_falta.unidades}</b></td><td></td><td class="n rojo">${escHtml($(d.total_falta.valor))}</td><td></td></tr></tbody></table>` : "<p>No falta nada.</p>"}
       <h2>Por qué faltó</h2>${d.motivos.length ? `<table><thead><tr><th>Motivo</th><th class="n">Productos</th><th class="n">Unidades</th><th class="n">Valor (costo)</th></tr></thead><tbody>${d.motivos.map(m => `<tr><td>${escHtml(m.motivo)}</td><td class="n">${m.productos}</td><td class="n">${m.unidades}</td><td class="n">${escHtml($(m.valor))}</td></tr>`).join("")}</tbody></table>` : "<p>No hubo faltantes en el período.</p>"}
       ${d.repetidos.length ? `<h2>Productos que faltan una y otra vez</h2><table><thead><tr><th>Producto</th><th class="n">Controles</th><th class="n">Unidades</th><th class="n">Valor</th><th>Motivos</th></tr></thead><tbody>${d.repetidos.map(x => `<tr><td><b>${escHtml(x.nombre)}</b>${x.marca ? ' <span class="gris">' + escHtml(x.marca) + "</span>" : ""}</td><td class="n">${x.veces}</td><td class="n">${x.unidades}</td><td class="n">${escHtml($(x.valor))}</td><td>${escHtml(x.motivos)}</td></tr>`).join("")}</tbody></table>` : ""}
       <h2>Detalle de cada control</h2>
@@ -16209,6 +16229,7 @@ function ControlInventario({ localId, usuario, paletaActual }) {
                     <span className="ci-exp">
                       {i.motivo ? <span>📝 <b>{i.motivo}</b>{i.explicacion ? " — " + i.explicacion : ""}{i.explicado_por ? <em> · {i.explicado_por}</em> : null}</span> : <span className={"tag " + (i.diferencia < 0 ? "tag-bad" : "tag-neutral")}>Sin explicar</span>}
                       <button className="ci-exp-btn" onClick={() => setEditarExp({ item: i, motivo: i.motivo || "", explicacion: i.explicacion || "" })}>{i.motivo ? "Cambiar" : "Explicar"}</button>
+                      {i.producto_id ? <button className="ci-exp-btn" onClick={() => abrirHistoria(i.producto_id, "detalle")}>Ver historia</button> : null}
                     </span>
                   </span>
                   <span data-l="Sistema">{i.stock_sistema}</span><span data-l="Contado">{i.stock_contado}</span>
@@ -16252,6 +16273,161 @@ function ControlInventario({ localId, usuario, paletaActual }) {
     );
   }
 
+  // =============== Historia de un producto ===============
+  if (vista === "historia") {
+    const h = hist && !hist.cargando && !hist.error ? hist : null;
+    const qh = histBusca.trim().toLowerCase();
+    const sugeridos = qh.length >= 2 ? productos.filter(x => [x.nombre, x.marca, x.codigo_barras].some(v => String(v || "").toLowerCase().includes(qh))).slice(0, 8) : [];
+    const ICONO = { ingreso: "📦", venta: "🛒", venta_anulada: "↩️", devolucion: "🔄", cambio: "🔄", traspaso: "🚚", ajuste: "✏️", reversion: "↩️", control: "🔢", conteo: "🔢", regalo: "🎁", reserva: "⏳" };
+    return (
+      <div className="fade">
+        <div className="dash-head">
+          <div>
+            <div className="pt">🧾 Historia de un producto</div>
+            <div className="ps">todo lo que le movió el stock, en orden, y cuánto debería haber</div>
+          </div>
+          <button className="btn btn-p btn-sm" onClick={() => setVista(histVuelve)}>Volver</button>
+        </div>
+        <div className="chart-card" style={{ marginBottom: 12, position: "relative" }}>
+          <input className="inp" placeholder="🔍 Buscá otro producto por nombre, marca o código" value={histBusca} onChange={e => setHistBusca(e.target.value)} aria-label="Buscar producto" />
+          {sugeridos.length > 0 && <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>{sugeridos.map(x => <button key={x.id} className="btn btn-g btn-sm" style={{ textAlign: "left", justifyContent: "flex-start" }} onClick={() => abrirHistoria(x.id)}>{x.nombre}{x.marca ? " · " + x.marca : ""}</button>)}</div>}
+        </div>
+        {!hist ? <div className="chart-card"><div className="cli-vacio">Buscá un producto para ver su historia.</div></div> : hist.cargando ? <div className="skel" style={{ height: 240 }} /> : hist.error ? <div className="cc-aviso bad">{hist.error}</div> : (
+          <>
+            <div className="chart-card" style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 18, fontWeight: 800 }}>{h.producto.nombre}</div>
+              <div style={{ fontSize: 12, color: p.textMuted }}>{[h.producto.marca, h.producto.categoria, h.producto.codigo_barras].filter(Boolean).join(" · ")}</div>
+              {h.producto.tiene_variantes && <div className="cc-aviso" style={{ marginTop: 8, background: p.warnDim, color: p.warn, border: "1px solid " + p.warn + "55" }}>Este producto tiene variantes (talle, color…): el stock se lleva por variante y esta cuenta puede no coincidir.</div>}
+            </div>
+            <div className="ci-det-grid">
+              {h.locales.map(l => {
+                const ok = l.diferencia === 0, sinPartida = l.esperado === null;
+                return (
+                  <div key={l.local_id} className="chart-card">
+                    <div className="chart-title">{nombreLocal(l.local_id)}</div>
+                    <div className="plt-datos" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, margin: "8px 0" }}>
+                      <div style={{ background: p.bg, borderRadius: 8, padding: "8px 10px", fontSize: 11 }}><b style={{ display: "block", fontSize: 18 }}>{l.actual}</b>dice el sistema</div>
+                      <div style={{ background: p.bg, borderRadius: 8, padding: "8px 10px", fontSize: 11 }}><b style={{ display: "block", fontSize: 18 }}>{sinPartida ? "—" : l.esperado}</b>debería haber</div>
+                      <div style={{ background: sinPartida ? p.bg : ok ? p.greenDim : p.redDim, borderRadius: 8, padding: "8px 10px", fontSize: 11 }}><b style={{ display: "block", fontSize: 18, color: sinPartida ? p.text : ok ? p.green : p.red }}>{sinPartida ? "—" : ok ? "✓" : (l.diferencia > 0 ? "+" : "") + l.diferencia}</b>{sinPartida ? "sin punto de partida" : ok ? "la cuenta da" : "no coincide"}</div>
+                    </div>
+                    <div style={{ fontSize: 12.5, lineHeight: 1.6, color: p.textMuted }}>
+                      {sinPartida
+                        ? <>Nunca se hizo un control ni un ajuste de este producto acá, así que no hay un punto de partida seguro. Sumando todo lo registrado, para que hoy haya {l.actual} tendría que haber arrancado con <b style={{ color: l.inicial_implicito < 0 ? p.red : p.text }}>{l.inicial_implicito}</b>{l.inicial_implicito < 0 ? " (negativo: se vendió más de lo que entró registrado)" : " (el stock inicial que se cargó al crear el producto)"}.</>
+                        : <>Punto de partida: <b style={{ color: p.text }}>{new Date(l.partida.fecha).toLocaleDateString("es-AR")}</b>, quedaron <b style={{ color: p.text }}>{l.partida.stock}</b> ({l.partida.detalle}). Desde ahí se suma y resta todo lo que pasó. {ok ? "El sistema hizo bien las cuentas: si en el local hay otra cantidad, la diferencia es física (se llevó, se rompió, o hay un movimiento que nadie cargó)." : "El número del sistema no sale de sus propios registros: hay un cambio de stock que no quedó anotado."}</>}
+                    </div>
+                    <div className="cli-chips" style={{ margin: "10px 0" }}>
+                      <span className="tag tag-ok">llegaron {l.totales.ingresos}</span>
+                      <span className="tag tag-bad">se vendieron {l.totales.ventas}</span>
+                      {l.totales.devoluciones > 0 && <span className="tag tag-neutral">devueltos {l.totales.devoluciones}</span>}
+                      {l.totales.cambios > 0 && <span className="tag tag-neutral">cambios −{l.totales.cambios}</span>}
+                      {l.totales.traspasos !== 0 && <span className="tag tag-neutral">traspasos {l.totales.traspasos > 0 ? "+" : ""}{l.totales.traspasos}</span>}
+                      {l.totales.ajustes !== 0 && <span className="tag tag-warn">ajustes a mano {l.totales.ajustes > 0 ? "+" : ""}{l.totales.ajustes}</span>}
+                      {l.totales.controles !== 0 && <span className="tag tag-warn">correcciones de control {l.totales.controles > 0 ? "+" : ""}{l.totales.controles}</span>}
+                      {l.totales.regalos > 0 && <span className="tag tag-neutral">regalos −{l.totales.regalos}</span>}
+                      {l.en_transito > 0 && <span className="tag tag-neutral">en camino {l.en_transito}</span>}
+                    </div>
+                    {l.en_camino.length > 0 && <div className="cc-aviso" style={{ background: p.warnDim, color: p.warn, border: "1px solid " + p.warn + "55" }}>Hay {l.en_camino.reduce((a, x) => a + x.cantidad, 0)} unidades de facturas de proveedor que este local todavía no controló: {l.en_camino.map(x => x.cantidad + " (" + x.detalle + ")").join("; ")}. Hasta que no se reciban en Ingresos, no suman al stock.</div>}
+                    {l.movimientos.length === 0 ? <div className="cli-vacio">Sin movimientos registrados en este local.</div> : (
+                      <div style={{ maxHeight: 420, overflowY: "auto", marginTop: 6 }}>
+                        {l.movimientos.map((m, k) => (
+                          <div key={k} className="cli-hist-fila" style={m.partida ? { background: p.accentDim, borderRadius: 8, padding: "6px 8px" } : null}>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: 12.5, fontWeight: 600 }}>{ICONO[m.tipo] || "•"} {m.detalle}{m.partida ? " ← punto de partida" : ""}</div>
+                              <div style={{ fontSize: 11, color: p.textMuted }}>{new Date(m.fecha).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}{m.usuario ? " · " + m.usuario : ""}</div>
+                            </div>
+                            <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                              <b style={{ color: m.cantidad > 0 ? p.green : m.cantidad < 0 ? p.red : p.textMuted }}>{m.cantidad > 0 ? "+" : ""}{m.cantidad || "·"}</b>
+                              <div style={{ fontSize: 11, color: p.textMuted }}>{m.saldo === null || m.saldo === undefined ? "" : "quedan " + m.saldo}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // =============== Diagnostico de diferencias de stock ===============
+  if (vista === "diagnostico") {
+    const d = diag && !diag.cargando && !diag.error ? diag : null;
+    const qh = histBusca.trim().toLowerCase();
+    const sugeridos = qh.length >= 2 ? productos.filter(x => [x.nombre, x.marca, x.codigo_barras].some(v => String(v || "").toLowerCase().includes(qh))).slice(0, 8) : [];
+    const cruz = d ? d.ventas_por_usuario.filter(u => u.ventas_en_otro > 0) : [];
+    const Bloque = ({ icono, titulo, estado, children, queEs }) => (
+      <div className="chart-card" style={{ marginTop: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+          <div className="chart-title" style={{ margin: 0 }}>{icono} {titulo}</div>
+          <span className={"tag " + (estado === "ok" ? "tag-ok" : estado === "mal" ? "tag-bad" : "tag-warn")} style={{ whiteSpace: "nowrap" }}>{estado === "ok" ? "Sin problemas" : estado === "mal" ? "Revisar" : "Para mirar"}</span>
+        </div>
+        <div style={{ fontSize: 12.5, color: p.textMuted, margin: "6px 0 10px", lineHeight: 1.55 }}>{queEs}</div>
+        {children}
+      </div>
+    );
+    return (
+      <div className="fade">
+        <div className="dash-head">
+          <div>
+            <div className="pt">🔎 Diagnóstico de stock</div>
+            <div className="ps">por qué el stock del sistema puede no coincidir con lo que hay · últimos 6 meses</div>
+          </div>
+          <button className="btn btn-p btn-sm" onClick={() => { setVista("lista"); setDiag(null); }}>Volver</button>
+        </div>
+        <div className="chart-card">
+          <div className="chart-title">🧾 Seguir un producto</div>
+          <div style={{ fontSize: 12.5, color: p.textMuted, margin: "4px 0 8px" }}>Elegí un producto para ver todo lo que llegó, lo que se vendió y cuánto debería haber en cada local.</div>
+          <input className="inp" placeholder="🔍 Nombre, marca o código del producto" value={histBusca} onChange={e => setHistBusca(e.target.value)} aria-label="Buscar producto" />
+          {sugeridos.length > 0 && <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>{sugeridos.map(x => <button key={x.id} className="btn btn-g btn-sm" style={{ textAlign: "left", justifyContent: "flex-start" }} onClick={() => abrirHistoria(x.id, "diagnostico")}>{x.nombre}{x.marca ? " · " + x.marca : ""}</button>)}</div>}
+          {qh.length >= 2 && sugeridos.length === 0 && <div className="cli-vacio">Ningún producto coincide.</div>}
+        </div>
+        {!diag || diag.cargando ? <div className="skel" style={{ height: 260, marginTop: 12 }} /> : diag.error ? <div className="cc-aviso bad" style={{ marginTop: 12 }}>{diag.error}</div> : (
+          <>
+            {Bloque({ icono: "👥", titulo: "Ventas cargadas en el otro local", estado: cruz.length ? "mal" : "ok",
+              queEs: <>Ventas hechas por alguien en un local distinto al que tiene asignado su usuario. Si esa persona trabaja siempre en un local, esas ventas descontaron stock del <b>otro</b>: acá falta de más y allá sobra. (Hasta el 2 de octubre de 2026, al recargar la página el sistema volvía solo al local asignado al usuario.) El dueño puede vender en los dos: en ese caso no es un error.</>,
+              children: cruz.length === 0 ? <div className="cli-vacio">Nadie vendió en un local distinto al suyo.</div> : cruz.map(u => (
+                <div key={u.usuario_id} className="cli-hist-fila"><div style={{ minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 700 }}>{u.nombre} <span style={{ fontWeight: 400, color: p.textMuted }}>({u.rol} · asignado a {nombreLocal(u.local_usuario)})</span></div>
+                  <div style={{ fontSize: 11.5, color: p.textMuted }}>en {nombreLocal(u.local_usuario)}: {u.ventas[u.local_usuario] || 0} ventas · en {nombreLocal(u.otro_local)}: <b style={{ color: p.red }}>{u.ventas_en_otro} ventas, {u.unidades_en_otro} unidades</b>{u.ultima_en_otro ? " · última: " + new Date(u.ultima_en_otro).toLocaleDateString("es-AR") : ""}</div></div></div>
+              )) })}
+            {Bloque({ icono: "🔁", titulo: "Falta en un local y sobra en el otro", estado: d.espejo.length ? "mal" : "ok",
+              queEs: "Productos que en los controles faltaron en un local y sobraron en el otro. Es la señal más clara de ventas o ingresos cargados en el local equivocado: la mercadería está, pero anotada del otro lado.",
+              children: d.espejo.length === 0 ? <div className="cli-vacio">Ningún producto falta en un local y sobra en el otro.</div> : d.espejo.slice(0, 25).map(x => (
+                <div key={x.producto_id} className="cli-hist-fila"><div style={{ minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 700 }}>{x.nombre}</div><div style={{ fontSize: 11.5, color: p.textMuted }}>{nombreLocal(1)}: <b style={{ color: x.dif_local1 < 0 ? p.red : p.warn }}>{x.dif_local1 > 0 ? "+" : ""}{x.dif_local1}</b> · {nombreLocal(2)}: <b style={{ color: x.dif_local2 < 0 ? p.red : p.warn }}>{x.dif_local2 > 0 ? "+" : ""}{x.dif_local2}</b></div></div><button className="ci-exp-btn" onClick={() => abrirHistoria(x.producto_id, "diagnostico")}>Ver historia</button></div>
+              )) })}
+            {Bloque({ icono: "🚚", titulo: "Traspasos enviados que nadie recibió", estado: d.traspasos_pendientes.length ? "mal" : "ok",
+              queEs: "Mercadería que un local mandó al otro y el que la recibe todavía no tocó «Recibir». Ya salió del stock del que envía, pero no entró al del que recibe: ahí el sistema muestra menos de lo que hay (sobrante).",
+              children: d.traspasos_pendientes.length === 0 ? <div className="cli-vacio">No hay traspasos pendientes de recibir.</div> : d.traspasos_pendientes.slice(0, 30).map(t => (
+                <div key={t.id} className="cli-hist-fila"><div style={{ minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 700 }}>{t.cantidad} × {t.producto_nombre}</div><div style={{ fontSize: 11.5, color: p.textMuted }}>{nombreLocal(t.local_origen)} → {nombreLocal(t.local_destino)} · hace {t.dias} días{t.usuario_nombre ? " · lo envió " + t.usuario_nombre : ""}</div></div></div>
+              )) })}
+            {Bloque({ icono: "📦", titulo: "Facturas de proveedor sin controlar", estado: d.ingresos_sin_controlar.length ? "duda" : "ok",
+              queEs: "Mercadería cargada en Ingresos que un local todavía no controló. Mientras no se reciba, no suma al stock de ese local: si ya está en la estantería y se vende, el sistema la ve como «sin stock» y después sobra.",
+              children: d.ingresos_sin_controlar.length === 0 ? <div className="cli-vacio">Todo lo cargado en Ingresos fue controlado.</div> : d.ingresos_sin_controlar.slice(0, 30).map((o, k) => (
+                <div key={k} className="cli-hist-fila"><div style={{ minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 700 }}>{o.proveedor_nombre || "Proveedor"}{o.numero_factura ? " · " + o.numero_factura : ""}</div><div style={{ fontSize: 11.5, color: p.textMuted }}>{nombreLocal(o.local_id)} · {o.unidades} unidades de {o.productos} productos · cargada hace {o.dias} días</div></div></div>
+              )) })}
+            {Bloque({ icono: "⚠️", titulo: "Ventas de productos que el sistema daba sin stock", estado: d.ventas_sin_stock.length ? "duda" : "ok",
+              queEs: "Cada vez que se vendió algo que según el sistema no había. El producto estaba físicamente: es mercadería que entró y no se cargó, o que estaba anotada en el otro local.",
+              children: d.ventas_sin_stock.length === 0 ? <div className="cli-vacio">No se vendió nada «sin stock».</div> : <>
+                <div className="cli-chips" style={{ marginBottom: 8 }}>{d.ventas_sin_stock.map(x => <span key={x.local_id} className="tag tag-warn">{nombreLocal(x.local_id)}: {x.veces} veces · {x.unidades} u.</span>)}</div>
+                {d.ventas_sin_stock_productos.slice(0, 12).map((x, k) => <div key={k} className="cli-hist-fila"><span style={{ fontSize: 13 }}>{x.producto_nombre} <span style={{ color: p.textMuted, fontSize: 11.5 }}>· {nombreLocal(x.local_id)}</span></span><b>{x.unidades} u.</b></div>)}
+              </> })}
+            {Bloque({ icono: "➖", titulo: "Productos con stock negativo", estado: d.negativos.length ? "mal" : "ok",
+              queEs: "El sistema dice que hay menos de cero: se vendió más de lo que figuraba. Hay un ingreso sin cargar o stock anotado en el otro local.",
+              children: d.negativos.length === 0 ? <div className="cli-vacio">Ningún producto está en negativo.</div> : d.negativos.slice(0, 30).map(x => (
+                <div key={x.id} className="cli-hist-fila"><div style={{ minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 700 }}>{x.nombre}</div><div style={{ fontSize: 11.5, color: p.textMuted }}>{nombreLocal(1)}: <b style={{ color: x.stock_rg < 0 ? p.red : p.text }}>{x.stock_rg}</b> · {nombreLocal(2)}: <b style={{ color: x.stock_ush < 0 ? p.red : p.text }}>{x.stock_ush}</b></div></div><button className="ci-exp-btn" onClick={() => abrirHistoria(x.id, "diagnostico")}>Ver historia</button></div>
+              )) })}
+            {Bloque({ icono: "✏️", titulo: "Ajustes de stock hechos a mano", estado: d.ajustes_a_mano.length ? "duda" : "ok",
+              queEs: "Cambios de stock cargados a mano (sin contar los de los controles de inventario). Muchos ajustes indican que el stock se viene corrigiendo «a ojo».",
+              children: d.ajustes_a_mano.length === 0 ? <div className="cli-vacio">No hubo ajustes a mano.</div> : <div className="cli-chips">{d.ajustes_a_mano.map(x => <span key={x.local_id} className="tag tag-neutral">{nombreLocal(x.local_id)}: {x.ajustes} ajustes · +{x.sumado} / −{x.restado} u.</span>)}</div> })}
+          </>
+        )}
+      </div>
+    );
+  }
+
   // =============== Informe de faltantes del local ===============
   if (vista === "informe") {
     const d = informe && !informe.cargando && !informe.error ? informe : null;
@@ -16270,19 +16446,19 @@ function ControlInventario({ localId, usuario, paletaActual }) {
         </div>
         <div className="chart-card" style={{ marginBottom: 12, display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
           <div className="ci-seg" role="tablist" aria-label="Local">
-            {[1, 2].map(l => <button key={l} role="tab" aria-selected={infLocal === l} className={infLocal === l ? "on" : ""} onClick={() => { setInfLocal(l); cargarInforme(l, infDias); }}>{nombreLocal(l)}</button>)}
+            {[1, 2, 0].map(l => <button key={l} role="tab" aria-selected={infLocal === l} className={infLocal === l ? "on" : ""} onClick={() => { setInfLocal(l); cargarInforme(l, infDias); }}>{l === 0 ? "Los dos locales" : nombreLocal(l)}</button>)}
           </div>
           <div className="cli-chips">
             {[[30, "Último mes"], [90, "3 meses"], [180, "6 meses"], [365, "1 año"]].map(([n, l]) => <button key={n} className={"chip-btn" + (infDias === n ? " on" : "")} onClick={() => { setInfDias(n); cargarInforme(infLocal, n); }}>{l}</button>)}
           </div>
         </div>
         {!informe || informe.cargando ? <div className="skel" style={{ height: 220 }} /> : informe.error ? <div className="cc-aviso bad">{informe.error}</div> : d.resumen.controles === 0 ? (
-          <div className="chart-card"><div className="cli-vacio">No hay controles terminados en {nombreLocal(infLocal)} en este período.</div></div>
+          <div className="chart-card"><div className="cli-vacio">No hay controles terminados en {infLocal === 0 ? "ningún local" : nombreLocal(infLocal)} en este período.</div></div>
         ) : (
           <>
             <div className="kpi-grid">
               <KpiCard p={p} titulo="Controles" valor={String(d.resumen.controles)} indice={0} sub="terminados en el período" />
-              <KpiCard p={p} titulo="Faltó en total" valor={$(d.resumen.valor)} color={d.resumen.valor > 0 ? p.red : p.green} indice={1} sub={d.resumen.unidades + " unidades, a costo"} />
+              <KpiCard p={p} titulo="💰 Todo lo que falta (a costo)" valor={$(d.total_falta.valor)} color={d.total_falta.valor > 0 ? p.red : p.green} indice={1} sub={d.total_falta.unidades + " unidades en " + d.total_falta.productos + " productos"} />
               <KpiCard p={p} titulo="Productos con faltante" valor={String(d.resumen.productos_con_faltante)} indice={2} sub={d.repetidos.length ? d.repetidos.length + " se repiten" : "ninguno se repite"} />
               <KpiCard p={p} titulo="Sin explicar" valor={String(d.resumen.sin_explicar)} color={d.resumen.sin_explicar > 0 ? p.red : p.green} indice={3} sub={d.resumen.sin_explicar > 0 ? "faltantes que nadie explicó" : "todo tiene explicación"} />
             </div>
@@ -16303,6 +16479,25 @@ function ControlInventario({ localId, usuario, paletaActual }) {
                   <div key={x.producto_id || x.nombre} className="cli-hist-fila"><div style={{ minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 700 }}>{x.nombre}</div><div style={{ fontSize: 11, color: p.textMuted }}>{x.veces} controles · {x.unidades} u. · {x.motivos}</div></div><b style={{ color: p.red, whiteSpace: "nowrap" }}>{$(x.valor)}</b></div>
                 ))}
               </div>
+            </div>
+            <div className="chart-card" style={{ marginTop: 12 }}>
+              <div className="chart-title">💰 Todo lo que falta, a costo</div>
+              <div style={{ fontSize: 12, color: p.textMuted, margin: "4px 0 8px" }}>Producto por producto, valuado al costo. Si un control no corrigió el stock y el siguiente encontró el mismo faltante, se cuenta una sola vez.{d.falta_por_local.length > 1 ? " " + d.falta_por_local.map(l => nombreLocal(l.local_id) + ": " + $(l.valor)).join(" · ") + "." : ""}</div>
+              {d.todo_lo_que_falta.length === 0 ? <div className="cli-vacio">🎉 No falta nada.</div> : (
+                <div className="ci-tabla">
+                  <div className="ci-fila ci-cab ci-falta"><span>Producto</span><span>Faltan</span><span>Costo c/u</span><span>Valor</span><span>Motivo</span></div>
+                  {d.todo_lo_que_falta.map(x => (
+                    <div key={x.local_id + "-" + (x.producto_id || x.nombre)} className="ci-fila ci-falta">
+                      <span className="ci-prod"><b>{x.nombre}</b><small>{[x.marca, infLocal === 0 ? nombreLocal(x.local_id) : null].filter(Boolean).join(" · ")}</small>{x.producto_id ? <button className="ci-exp-btn" style={{ marginTop: 4, alignSelf: "flex-start" }} onClick={() => abrirHistoria(x.producto_id, "informe")}>Ver historia</button> : null}</span>
+                      <span data-l="Faltan" style={{ fontWeight: 700 }}>{x.unidades}</span>
+                      <span data-l="Costo c/u">{$(x.costo_unitario)}</span>
+                      <span data-l="Valor" style={{ fontWeight: 800, color: p.red }}>{$(x.valor)}</span>
+                      <span data-l="Motivo" style={{ fontSize: 12, color: x.motivos === "Sin explicar" ? p.red : p.textMuted }}>{x.motivos}</span>
+                    </div>
+                  ))}
+                  <div className="ci-fila ci-falta" style={{ fontWeight: 800, background: p.bg }}><span>TOTAL</span><span>{d.total_falta.unidades}</span><span /><span style={{ color: p.red }}>{$(d.total_falta.valor)}</span><span /></div>
+                </div>
+              )}
             </div>
             <div className="chart-card" style={{ marginTop: 12 }}>
               <div className="chart-title">Cada control</div>
@@ -16487,6 +16682,7 @@ function ControlInventario({ localId, usuario, paletaActual }) {
           <div className="ps">contá lo que hay en el local y compará con lo que dice el sistema</div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn btn-g btn-sm" onClick={abrirDiagnostico}>🔎 Diagnóstico de stock</button>
           <button className="btn btn-g btn-sm" onClick={abrirInforme}>📄 Informe de faltantes</button>
           <button className="btn btn-g btn-sm" onClick={() => setShowConfig(true)} disabled={!config}>🔔 Avisos</button>
           <button className="btn btn-p btn-sm" onClick={() => enCurso ? abrir(enCurso.id, "conteo") : setNuevo({ tipo: "categoria", valor: "" })}>{enCurso ? "Continuar control" : "+ Nuevo control"}</button>

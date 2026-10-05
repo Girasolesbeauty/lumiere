@@ -5,6 +5,8 @@ const controller = require('../controllers/controlesInventarioController');
 router.get('/config', controller.getConfig);
 router.put('/config', controller.guardarConfig);
 router.get('/informe/faltantes', controller.informeFaltantes);
+router.get('/informe/diagnostico', controller.diagnosticoStock);
+router.get('/informe/producto/:id', controller.historiaProducto);
 router.get('/', controller.getControles);
 router.post('/', controller.crearControl);
 router.get('/:id', controller.getControl);

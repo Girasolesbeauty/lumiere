@@ -368,10 +368,12 @@ const explicarVarios = async (req, res) => {
 const informeFaltantes = async (req, res) => {
   try {
     await asegurarColumnas(pool);
-    const local = parseInt(req.query.local_id) || 1;
+    // local_id = 1, 2, o "todos" (los dos locales juntos)
+    const todos = String(req.query.local_id || '').toLowerCase() === 'todos' || req.query.local_id === '0';
+    const local = todos ? 0 : (parseInt(req.query.local_id) || 1);
     const hasta = /^\d{4}-\d{2}-\d{2}$/.test(req.query.hasta || '') ? req.query.hasta : new Date().toISOString().slice(0, 10);
     const desde = /^\d{4}-\d{2}-\d{2}$/.test(req.query.desde || '') ? req.query.desde : new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
-    const cs = await pool.query(SELECT_CONTROL + ` WHERE c.local_id = $1 AND c.estado = 'finalizado'
+    const cs = await pool.query(SELECT_CONTROL + ` WHERE ($1::int = 0 OR c.local_id = $1) AND c.estado = 'finalizado'
         AND c.finalizado_en >= $2::date AND c.finalizado_en < ($3::date + 1) ORDER BY c.finalizado_en DESC`, [local, desde, hasta]);
     const ids = cs.rows.map(c => c.id);
     const its = ids.length ? (await pool.query(
@@ -396,14 +398,236 @@ const informeFaltantes = async (req, res) => {
       productos[k] = productos[k] || { producto_id: it.producto_id, nombre: it.producto_nombre, marca: it.producto_marca, veces: 0, unidades: 0, valor: 0, motivos: {} };
       productos[k].veces++; productos[k].unidades += u; productos[k].valor += v; productos[k].motivos[m] = (productos[k].motivos[m] || 0) + 1;
     }
+    // TODO LO QUE FALTA, producto por producto y a costo, sin contar dos veces lo mismo:
+    // si un control NO corrigio el stock, el mismo faltante vuelve a aparecer en el control
+    // siguiente; en ese caso vale solo el ultimo conteo. Si lo corrigio, cada faltante es una
+    // perdida nueva y se suma.
+    const controlDe = {}; cs.rows.forEach(c => { controlDe[c.id] = c; });
+    const cronologico = its.slice().sort((a, b) => new Date(controlDe[a.control_id].finalizado_en) - new Date(controlDe[b.control_id].finalizado_en));
+    const acum = {};
+    for (const it of cronologico) {
+      const c = controlDe[it.control_id];
+      const k = c.local_id + ':' + (it.producto_id || it.producto_nombre);
+      const a = acum[k] = acum[k] || { producto_id: it.producto_id, nombre: it.producto_nombre, marca: it.producto_marca, categoria: it.producto_categoria, codigo: it.producto_codigo,
+        local_id: c.local_id, firmes: 0, firmesValor: 0, pend: 0, pendValor: 0, motivos: new Set(), ultimo_control: null };
+      const u = Math.abs(it.diferencia || 0), v = u * parseFloat(it.costo_unitario || 0);
+      if (c.ajustar_stock) { a.firmes += u; a.firmesValor += v; a.pend = 0; a.pendValor = 0; }
+      else { a.pend = u; a.pendValor = v; }
+      a.costo_unitario = parseFloat(it.costo_unitario || 0);
+      a.ultimo_control = c.finalizado_en;
+      if ((it.motivo || '').trim()) a.motivos.add(it.motivo.trim());
+    }
+    const todoLoQueFalta = Object.values(acum).map(a => ({
+      producto_id: a.producto_id, nombre: a.nombre, marca: a.marca, categoria: a.categoria, codigo: a.codigo, local_id: a.local_id,
+      unidades: a.firmes + a.pend, valor: a.firmesValor + a.pendValor, costo_unitario: a.costo_unitario, ultimo_control: a.ultimo_control,
+      motivos: [...a.motivos].join(', ') || 'Sin explicar',
+    })).filter(x => x.unidades > 0).sort((x, y) => y.valor - x.valor || y.unidades - x.unidades);
+    const porLocal = {};
+    todoLoQueFalta.forEach(x => { const l = porLocal[x.local_id] = porLocal[x.local_id] || { local_id: x.local_id, productos: 0, unidades: 0, valor: 0 }; l.productos++; l.unidades += x.unidades; l.valor += x.valor; });
+    const totalFalta = { productos: todoLoQueFalta.length, unidades: todoLoQueFalta.reduce((s, x) => s + x.unidades, 0), valor: todoLoQueFalta.reduce((s, x) => s + x.valor, 0) };
+
     const repetidos = Object.values(productos).filter(x => x.veces > 1).sort((a, b) => b.veces - a.veces || b.valor - a.valor).slice(0, 30)
       .map(x => ({ ...x, motivos: Object.entries(x.motivos).sort((a, b) => b[1] - a[1]).map(([m, n]) => m + (n > 1 ? ' ×' + n : '')).join(', ') }));
     res.json({
       local_id: local, desde, hasta,
       resumen: { controles: cs.rows.length, productos_con_faltante: its.length, unidades, valor, sin_explicar: sinExplicar },
+      total_falta: totalFalta,
+      falta_por_local: Object.values(porLocal).sort((a, b) => a.local_id - b.local_id),
+      todo_lo_que_falta: todoLoQueFalta,
       motivos: Object.values(motivos).sort((a, b) => b.valor - a.valor || b.unidades - a.unidades),
       repetidos,
       controles: cs.rows.map(c => ({ ...c, faltantes: porControl[c.id] || [] })),
+    });
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+};
+
+// Diagnostico de diferencias de stock entre locales: junta en un solo lugar las pistas de
+// POR QUE el stock del sistema no coincide con lo que hay. Cada consulta va por separado:
+// si una tabla no existe en esta base, esa parte sale vacia y el resto sigue.
+const diagnosticoStock = async (req, res) => {
+  const dias = Math.min(730, Math.max(7, parseInt(req.query.dias) || 180));
+  const q = async (sql, params = []) => { try { return (await pool.query(sql, params)).rows; } catch (e) { return null; } };
+  try {
+    try { await asegurarColumnas(pool); } catch (e) {}
+    const [porUsuario, traspasos, ingresos, transito, negativos, sinStock, sinStockProd, espejo, ajustes] = await Promise.all([
+      // 1) En que local vendio cada usuario (y cual tiene asignado)
+      q(`SELECT u.id AS usuario_id, u.nombre, u.rol, u.local_id AS local_usuario, v.local_id AS local_venta,
+                COUNT(DISTINCT v.id)::int AS ventas, COALESCE(SUM(vi.cantidad), 0)::int AS unidades, MAX(v.creado_en) AS ultima
+           FROM ventas v
+           JOIN usuarios u ON u.id = v.usuario_id
+           LEFT JOIN venta_items vi ON vi.venta_id = v.id AND vi.producto_id IS NOT NULL
+          WHERE v.creado_en >= NOW() - ($1 || ' days')::interval AND COALESCE(v.anulada, FALSE) = FALSE AND COALESCE(v.canal, 'presencial') = 'presencial'
+          GROUP BY u.id, u.nombre, u.rol, u.local_id, v.local_id ORDER BY u.nombre, v.local_id`, [String(dias)]),
+      // 2) Traspasos enviados que nadie recibio
+      q(`SELECT id, producto_nombre, cantidad, local_origen, local_destino, usuario_nombre, creado_en,
+                EXTRACT(DAY FROM NOW() - creado_en)::int AS dias
+           FROM traspasos_stock WHERE COALESCE(estado, '') <> 'recibido' ORDER BY creado_en ASC LIMIT 200`),
+      // 3) Mercaderia de facturas de proveedor que un local todavia no controlo
+      q(`SELECT o.id AS orden_id, o.proveedor_nombre, o.numero_factura, o.creado_en, x.local_id,
+                COUNT(*)::int AS productos, SUM(x.cantidad)::int AS unidades, EXTRACT(DAY FROM NOW() - o.creado_en)::int AS dias
+           FROM ordenes_ingreso o
+           JOIN (SELECT orden_id, 1 AS local_id, cantidad_rg AS cantidad FROM ordenes_ingreso_items WHERE COALESCE(cantidad_rg, 0) > 0 AND COALESCE(revisado_rg, FALSE) = FALSE
+                 UNION ALL
+                 SELECT orden_id, 2, cantidad_ush FROM ordenes_ingreso_items WHERE COALESCE(cantidad_ush, 0) > 0 AND COALESCE(revisado_ush, FALSE) = FALSE) x ON x.orden_id = o.id
+          GROUP BY o.id, o.proveedor_nombre, o.numero_factura, o.creado_en, x.local_id ORDER BY o.creado_en ASC LIMIT 200`),
+      // 4) Stock "en camino" que figura en cada local
+      q(`SELECT 1 AS local_id, COUNT(*)::int AS productos, COALESCE(SUM(stock_transito_rg), 0)::int AS unidades FROM productos WHERE COALESCE(stock_transito_rg, 0) > 0 AND activo = TRUE
+         UNION ALL
+         SELECT 2, COUNT(*)::int, COALESCE(SUM(stock_transito_ush), 0)::int FROM productos WHERE COALESCE(stock_transito_ush, 0) > 0 AND activo = TRUE`),
+      // 5) Productos con stock negativo (se vendio mas de lo que el sistema creia que habia)
+      q(`SELECT id, nombre, marca, COALESCE(stock_rg, 0) AS stock_rg, COALESCE(stock_ush, 0) AS stock_ush FROM productos
+          WHERE activo = TRUE AND (COALESCE(stock_rg, 0) < 0 OR COALESCE(stock_ush, 0) < 0) ORDER BY LEAST(COALESCE(stock_rg, 0), COALESCE(stock_ush, 0)) ASC LIMIT 100`),
+      // 6) Ventas hechas "sin stock" segun el sistema (el producto estaba, el sistema decia que no)
+      q(`SELECT COALESCE(local_id, 1) AS local_id, COUNT(*)::int AS veces, COALESCE(SUM(cantidad_vendida), 0)::int AS unidades
+           FROM inconsistencias_stock WHERE creado_en >= NOW() - ($1 || ' days')::interval GROUP BY COALESCE(local_id, 1) ORDER BY 1`, [String(dias)]),
+      q(`SELECT COALESCE(local_id, 1) AS local_id, producto_nombre, COUNT(*)::int AS veces, COALESCE(SUM(cantidad_vendida), 0)::int AS unidades
+           FROM inconsistencias_stock WHERE creado_en >= NOW() - ($1 || ' days')::interval
+          GROUP BY COALESCE(local_id, 1), producto_nombre ORDER BY unidades DESC LIMIT 30`, [String(dias)]),
+      // 7) "Espejo": lo que falta en un local y sobra en el otro (segun los controles del periodo)
+      q(`WITH d AS (
+           SELECT i.producto_id, MAX(i.producto_nombre) AS nombre, c.local_id, SUM(i.diferencia)::int AS dif
+             FROM controles_inventario_items i JOIN controles_inventario c ON c.id = i.control_id
+            WHERE c.estado = 'finalizado' AND c.finalizado_en >= NOW() - ($1 || ' days')::interval AND i.estado IN ('faltante', 'sobrante')
+            GROUP BY i.producto_id, c.local_id)
+         SELECT a.producto_id, a.nombre, a.dif AS dif_local1, b.dif AS dif_local2
+           FROM d a JOIN d b ON b.producto_id = a.producto_id AND a.local_id = 1 AND b.local_id = 2
+          WHERE a.dif * b.dif < 0 ORDER BY LEAST(ABS(a.dif), ABS(b.dif)) DESC LIMIT 100`, [String(dias)]),
+      // 8) Ajustes de stock hechos a mano por local
+      q(`SELECT COALESCE(local_id, 1) AS local_id, COUNT(*)::int AS ajustes, COALESCE(SUM(CASE WHEN diferencia > 0 THEN diferencia ELSE 0 END), 0)::int AS sumado,
+                COALESCE(SUM(CASE WHEN diferencia < 0 THEN -diferencia ELSE 0 END), 0)::int AS restado
+           FROM ajustes_stock WHERE creado_en >= NOW() - ($1 || ' days')::interval AND COALESCE(motivo, '') NOT LIKE 'Control de inventario%'
+          GROUP BY COALESCE(local_id, 1) ORDER BY 1`, [String(dias)]),
+    ]);
+
+    // Usuarios que vendieron en un local distinto al que tienen asignado
+    const usuarios = {};
+    for (const r of porUsuario || []) {
+      const u = usuarios[r.usuario_id] = usuarios[r.usuario_id] || { usuario_id: r.usuario_id, nombre: r.nombre, rol: r.rol, local_usuario: r.local_usuario, ventas: {}, unidades: {}, ultima: {} };
+      u.ventas[r.local_venta] = r.ventas; u.unidades[r.local_venta] = r.unidades; u.ultima[r.local_venta] = r.ultima;
+    }
+    const cruzados = Object.values(usuarios).map(u => {
+      const propio = Number(u.local_usuario) || null;
+      const otro = propio === 2 ? 1 : 2;
+      return { ...u, ventas_en_otro: propio ? (u.ventas[otro] || 0) : 0, unidades_en_otro: propio ? (u.unidades[otro] || 0) : 0, otro_local: otro, ultima_en_otro: propio ? (u.ultima[otro] || null) : null };
+    }).sort((a, b) => b.unidades_en_otro - a.unidades_en_otro);
+
+    res.json({
+      dias,
+      ventas_por_usuario: cruzados,
+      ventas_en_otro_local: { usuarios: cruzados.filter(u => u.ventas_en_otro > 0).length, ventas: cruzados.reduce((s, u) => s + u.ventas_en_otro, 0), unidades: cruzados.reduce((s, u) => s + u.unidades_en_otro, 0) },
+      traspasos_pendientes: traspasos || [],
+      ingresos_sin_controlar: ingresos || [],
+      en_transito: transito || [],
+      negativos: negativos || [],
+      ventas_sin_stock: sinStock || [],
+      ventas_sin_stock_productos: sinStockProd || [],
+      espejo: espejo || [],
+      ajustes_a_mano: ajustes || [],
+      no_disponible: { traspasos: traspasos === null, ingresos: ingresos === null, ventas_sin_stock: sinStock === null, usuarios: porUsuario === null },
+    });
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+};
+
+// Historia de un producto: TODO lo que le movio el stock en cada local (lo que llego, lo que
+// se vendio, cambios, traspasos, ajustes, controles) en orden, con el saldo que deberia haber
+// despues de cada movimiento. Sirve para ver si "la cuenta da" o donde se rompe.
+const historiaProducto = async (req, res) => {
+  const q = async (sql, params = []) => { try { return (await pool.query(sql, params)).rows; } catch (e) { return []; } };
+  try {
+    const id = parseInt(req.params.id);
+    const pr = await pool.query('SELECT * FROM productos WHERE id = $1', [id]);
+    if (!pr.rows.length) return res.status(404).json({ error: 'Producto no encontrado' });
+    const p = pr.rows[0];
+    const [ingresos, ventas, cambios, ajustes, regalos, controles] = await Promise.all([
+      q(`SELECT i.id, o.id AS orden_id, o.proveedor_nombre, o.numero_factura, o.creado_en, i.cantidad_rg, i.cantidad_ush, i.recibido_rg, i.recibido_ush,
+                COALESCE(i.revisado_rg, FALSE) AS revisado_rg, COALESCE(i.revisado_ush, FALSE) AS revisado_ush,
+                i.fecha_recepcion_rg, i.fecha_recepcion_ush, i.recibido_por_rg, i.recibido_por_ush
+           FROM ordenes_ingreso_items i JOIN ordenes_ingreso o ON o.id = i.orden_id WHERE i.producto_id = $1`, [id]),
+      q(`SELECT v.id, v.numero_factura, v.creado_en, v.local_id, v.preventa_local, v.es_preventa, v.estado_pago, v.canal, COALESCE(v.anulada, FALSE) AS anulada,
+                vi.cantidad, u.nombre AS usuario
+           FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id LEFT JOIN usuarios u ON u.id = v.usuario_id WHERE vi.producto_id = $1`, [id]),
+      q(`SELECT id, creado_en, local_id, usuario_nombre, venta_origen_numero, producto_devuelto_id, cantidad_devuelta, producto_nuevo_id, cantidad_nueva
+           FROM cambios_productos WHERE producto_devuelto_id = $1 OR producto_nuevo_id = $1`, [id]),
+      q(`SELECT id, creado_en, COALESCE(local_id, 1) AS local_id, stock_anterior, stock_nuevo, diferencia, motivo, usuario_nombre FROM ajustes_stock WHERE producto_id = $1`, [id]),
+      q(`SELECT id, entregado_en, local_entrega_id, entregado_por, campana FROM influencer_regalos WHERE producto_id = $1 AND estado = 'entregado' AND entregado_en IS NOT NULL`, [id]),
+      q(`SELECT c.id, c.local_id, c.finalizado_en, c.ajustar_stock, c.usuario_nombre, i.stock_sistema, i.stock_contado, i.diferencia, i.motivo
+           FROM controles_inventario_items i JOIN controles_inventario c ON c.id = i.control_id
+          WHERE i.producto_id = $1 AND c.estado = 'finalizado' AND i.estado <> 'pendiente'`, [id]),
+    ]);
+
+    const armar = (L) => {
+      const esUsh = L === 2;
+      const mov = [];
+      const enCamino = [];
+      for (const i of ingresos) {
+        const cant = esUsh ? i.cantidad_ush : i.cantidad_rg, rec = esUsh ? i.recibido_ush : i.recibido_rg, rev = esUsh ? i.revisado_ush : i.revisado_rg;
+        const fecha = esUsh ? i.fecha_recepcion_ush : i.fecha_recepcion_rg, por = esUsh ? i.recibido_por_ush : i.recibido_por_rg;
+        const ref = (i.proveedor_nombre || 'Proveedor') + (i.numero_factura ? ' · factura ' + i.numero_factura : '');
+        if (rev && (rec || 0) > 0) mov.push({ fecha: fecha || i.creado_en, tipo: 'ingreso', cantidad: rec, detalle: 'Ingreso recibido: ' + ref + (rec !== cant ? ' (se esperaban ' + (cant || 0) + ')' : ''), usuario: por || null });
+        else if (!rev && (cant || 0) > 0) enCamino.push({ fecha: i.creado_en, cantidad: cant, detalle: ref, orden_id: i.orden_id });
+      }
+      for (const v of ventas) {
+        const loc = v.es_preventa ? (v.preventa_local || v.local_id) : v.local_id;
+        if (Number(loc || 1) !== L) continue;
+        if (v.es_preventa && v.estado_pago === 'reservado') { mov.push({ fecha: v.creado_en, tipo: 'reserva', cantidad: 0, detalle: 'Preventa ' + v.numero_factura + ' (reservado, todavía no se entregó: ' + v.cantidad + ' u.)', usuario: v.usuario }); continue; }
+        mov.push({ fecha: v.creado_en, tipo: v.anulada ? 'venta_anulada' : 'venta', cantidad: v.anulada ? 0 : -v.cantidad,
+          detalle: (v.canal === 'online' ? 'Venta online ' : 'Venta ') + v.numero_factura + (v.anulada ? ' (ANULADA: ' + v.cantidad + ' u. volvieron al stock)' : ''), usuario: v.usuario });
+      }
+      for (const c of cambios) {
+        if (Number(c.local_id || 1) !== L) continue;
+        if (Number(c.producto_devuelto_id) === id && c.cantidad_devuelta) mov.push({ fecha: c.creado_en, tipo: 'devolucion', cantidad: c.cantidad_devuelta, detalle: 'Devolución (cambio #' + c.id + (c.venta_origen_numero ? ', venta ' + c.venta_origen_numero : '') + ')', usuario: c.usuario_nombre, dudoso: true });
+        if (Number(c.producto_nuevo_id) === id && c.cantidad_nueva) mov.push({ fecha: c.creado_en, tipo: 'cambio', cantidad: -c.cantidad_nueva, detalle: 'Se lo llevaron en un cambio (#' + c.id + ')', usuario: c.usuario_nombre });
+      }
+      for (const a of ajustes) {
+        if (Number(a.local_id) !== L) continue;
+        const m = a.motivo || '';
+        const tipo = /^Control de inventario/i.test(m) ? 'control' : /traspaso/i.test(m) ? 'traspaso' : /^REVERSION/i.test(m) ? 'reversion' : 'ajuste';
+        mov.push({ fecha: a.creado_en, tipo, cantidad: a.diferencia, detalle: (tipo === 'ajuste' ? 'Ajuste a mano: ' : '') + (m || 'sin motivo'), usuario: a.usuario_nombre,
+          // Solo los controles y los ajustes a mano dejan anotado con certeza cuanto quedo en ESTE local
+          queda: (tipo === 'control' || tipo === 'ajuste') ? a.stock_nuevo : null, ancla: tipo === 'control' || tipo === 'ajuste' });
+      }
+      for (const r of regalos) {
+        if (Number(r.local_entrega_id || 1) !== L) continue;
+        mov.push({ fecha: r.entregado_en, tipo: 'regalo', cantidad: -1, detalle: 'Regalo a influencer' + (r.campana ? ' (' + r.campana + ')' : ''), usuario: r.entregado_por });
+      }
+      for (const c of controles) {
+        if (Number(c.local_id) !== L) continue;
+        mov.push({ fecha: c.finalizado_en, tipo: 'conteo', cantidad: 0, detalle: 'Control #' + c.id + ': el sistema decía ' + c.stock_sistema + ', se contaron ' + c.stock_contado + (c.diferencia ? ' (' + (c.diferencia > 0 ? '+' : '') + c.diferencia + ')' : '') + (c.ajustar_stock ? '' : ' · NO se corrigió el stock') + (c.motivo ? ' · ' + c.motivo : ''), usuario: c.usuario_nombre });
+      }
+      mov.sort((a, b) => new Date(a.fecha) - new Date(b.fecha) || (a.ancla ? 1 : 0) - (b.ancla ? 1 : 0));
+
+      // Punto de partida: el ultimo movimiento que dejo anotado "quedaron N" (un ajuste, un
+      // control, un traspaso). Desde ahi se suma y resta todo lo que vino despues.
+      let iAncla = -1;
+      for (let k = mov.length - 1; k >= 0; k--) if (mov[k].ancla && mov[k].queda !== null && mov[k].queda !== undefined) { iAncla = k; break; }
+      const actual = Number(esUsh ? p.stock_ush : p.stock_rg) || 0;
+      const sumaTodo = mov.reduce((s, m) => s + (m.cantidad || 0), 0);
+      let saldo = iAncla >= 0 ? null : 0;
+      const inicialImplicito = iAncla >= 0 ? null : actual - sumaTodo;
+      const out = mov.map((m, k) => {
+        if (iAncla >= 0) {
+          if (k < iAncla) return { ...m, saldo: null };
+          if (k === iAncla) { saldo = Number(m.queda); return { ...m, saldo, partida: true }; }
+          saldo += (m.cantidad || 0); return { ...m, saldo };
+        }
+        saldo += (m.cantidad || 0);
+        return { ...m, saldo: inicialImplicito + saldo };
+      });
+      const esperado = iAncla >= 0 ? saldo : null;
+      const tot = (tipos) => mov.filter(m => tipos.includes(m.tipo)).reduce((s, m) => s + (m.cantidad || 0), 0);
+      return {
+        local_id: L, actual, en_camino: enCamino, en_transito: Number(esUsh ? p.stock_transito_ush : p.stock_transito_rg) || 0,
+        totales: { ingresos: tot(['ingreso']), ventas: -tot(['venta']), devoluciones: tot(['devolucion']), cambios: -tot(['cambio']), traspasos: tot(['traspaso']),
+          ajustes: tot(['ajuste', 'reversion']), controles: tot(['control']), regalos: -tot(['regalo']), ventas_anuladas: mov.filter(m => m.tipo === 'venta_anulada').length },
+        partida: iAncla >= 0 ? { fecha: mov[iAncla].fecha, stock: Number(mov[iAncla].queda), detalle: mov[iAncla].detalle } : null,
+        esperado, diferencia: esperado === null ? null : actual - esperado,
+        inicial_implicito: inicialImplicito,
+        movimientos: out.reverse(),
+      };
+    };
+    res.json({
+      producto: { id: p.id, nombre: p.nombre, marca: p.marca, categoria: p.categoria, codigo_barras: p.codigo_barras, costo: p.costo, tiene_variantes: p.tiene_variantes === true, creado_en: p.creado_en || null },
+      locales: [armar(1), armar(2)],
     });
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 };
@@ -418,4 +642,4 @@ const cancelarControl = async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 };
 
-module.exports = { getControles, getConfig, guardarConfig, crearControl, getControl, contarItem, finalizarControl, cancelarControl, explicarItem, explicarVarios, informeFaltantes };
+module.exports = { getControles, getConfig, guardarConfig, crearControl, getControl, contarItem, finalizarControl, cancelarControl, explicarItem, explicarVarios, informeFaltantes, diagnosticoStock, historiaProducto };
