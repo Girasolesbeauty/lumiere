@@ -11,7 +11,9 @@ const PORT = process.env.PORT || 3001;
 // EXTRA_CORS_ORIGINS (separadas por coma) -- asi cada copia del sistema (real, demo,
 // o un cliente nuevo) puede agregar su propia URL sin tocar el codigo. La lista de
 // abajo sigue funcionando igual que siempre como base fija.
-const origenesBase = ['https://lumiere-beta-nine.vercel.app', 'http://localhost:5173', 'https://lumiere-portal-clientes.vercel.app', 'https://girasolesbeauty.vercel.app'];
+const origenesBase = ['https://lumiere-beta-nine.vercel.app', 'http://localhost:5173', 'https://lumiere-portal-clientes.vercel.app', 'https://girasolesbeauty.vercel.app',
+  // Dominio propio: el software en app., el portal de clientes en clientes. y la web en el dominio principal
+  'https://app.sistemalumiere.com', 'https://clientes.sistemalumiere.com', 'https://sistemalumiere.com', 'https://www.sistemalumiere.com'];
 const origenesExtra = (process.env.EXTRA_CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
 app.use(cors({
   origin: [...origenesBase, ...origenesExtra],
