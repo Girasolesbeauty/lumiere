@@ -2,13 +2,13 @@
 // Es la unica fuente: de aca los toma el sistema (pantalla de aceptacion) y con
 // `node legal/generar-web.js` se generan las paginas de la web.
 // Si se cambia el texto, cambiar VERSION: a cada dueño se le vuelve a pedir que acepte.
-const VERSION = '2026-10-04';
-const VIGENCIA = '4 de octubre de 2026';
+const VERSION = '2026-10-05';
+const VIGENCIA = '5 de octubre de 2026';
 
-// Datos del prestador. Completar TITULAR y CUIT cuando esten (y subir la VERSION).
-const TITULAR = 'Lumiere';
-const CUIT = '';
-const DOMICILIO = 'Estocolmo 212, Villa Carlos Paz, Provincia de Córdoba, República Argentina';
+// Datos del prestador. Si cambian (por ejemplo al pasar a una sociedad), subir la VERSION.
+const TITULAR = 'Sabrina Soledad Morales';
+const CUIT = '27-32768966-0';
+const DOMICILIO = 'Independencia 710, ciudad de Córdoba, Provincia de Córdoba, República Argentina';
 const MAIL = 'hola@sistemalumiere.com';
 const WEB = 'www.sistemalumiere.com';
 
@@ -98,7 +98,7 @@ const terminos = {
       'Lumiere se comunica con el Cliente al mail de registro, por WhatsApp al número informado o mediante avisos dentro del Servicio. El Cliente puede escribir a ' + MAIL + '. Las comunicaciones por esos medios se consideran válidas.',
     ] },
     { t: '18. Ley aplicable y jurisdicción', p: [
-      'Estos Términos se rigen por las leyes de la República Argentina. Cualquier controversia se someterá a los tribunales ordinarios competentes de la ciudad de Villa Carlos Paz, Provincia de Córdoba, República Argentina, con renuncia a cualquier otro fuero o jurisdicción, salvo que una norma de orden público disponga otra cosa.',
+      'Estos Términos se rigen por las leyes de la República Argentina. Cualquier controversia se someterá a los tribunales ordinarios competentes de la ciudad de Córdoba, Provincia de Córdoba, República Argentina, con renuncia a cualquier otro fuero o jurisdicción, salvo que una norma de orden público disponga otra cosa.',
     ] },
     { t: '19. Disposiciones generales', p: [
       'Si alguna cláusula resultara inválida, las demás siguen vigentes. Que Lumiere no ejerza un derecho en un momento no significa que renuncie a él. El Cliente no puede ceder este contrato sin autorización escrita; Lumiere puede cederlo en caso de reorganización o transferencia del Servicio, avisando al Cliente. Estos Términos y la Política de Privacidad son el acuerdo completo entre las partes sobre el Servicio.',
