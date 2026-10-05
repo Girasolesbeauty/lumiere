@@ -19894,7 +19894,16 @@ export default function AppWrapper() {
   if (faltaTerminos === false && miNegocio?.bienvenida_pendiente && (usuario.rol === "jefe" || usuario.rol_id === 1)) return (
     <>
       <style>{getBaseCss(paletaActual)}</style>
-      <Bienvenida usuario={usuario} onListo={() => window.location.reload()} />
+      <Bienvenida usuario={usuario} onListo={() => {
+        // Los locales pudieron cambiar de nombre o sumarse uno: se vuelve a elegir con los datos nuevos
+        try {
+          const u = JSON.parse(localStorage.getItem("lumiere_user") || "{}");
+          delete u.local;
+          localStorage.setItem("lumiere_user", JSON.stringify(u));
+          localStorage.removeItem("lumiere_local");
+        } catch (e) {}
+        window.location.reload();
+      }} />
     </>
   );
 
