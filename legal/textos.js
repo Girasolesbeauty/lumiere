@@ -2,7 +2,7 @@
 // Es la unica fuente: de aca los toma el sistema (pantalla de aceptacion) y con
 // `node legal/generar-web.js` se generan las paginas de la web.
 // Si se cambia el texto, cambiar VERSION: a cada dueño se le vuelve a pedir que acepte.
-const VERSION = '2026-10-05';
+const VERSION = '2026-10-05.2';
 const VIGENCIA = '5 de octubre de 2026';
 
 // Datos del prestador. Si cambian (por ejemplo al pasar a una sociedad), subir la VERSION.
@@ -40,7 +40,8 @@ const terminos = {
       'El Servicio se paga por adelantado, por mes. El Cliente puede optar por pagar el año completo por adelantado, en cuyo caso se bonifican 2 (dos) meses: paga 10 y usa 12.',
       'Los precios, planes y medios de pago vigentes son los que se informan en ' + WEB + ' o los que se acuerden por escrito (incluido WhatsApp o mail) con el Cliente. Los precios no incluyen los impuestos que correspondan según el país del Cliente, que están a su cargo.',
       'Lumiere puede modificar los precios avisando al Cliente con al menos 30 días de anticipación al mail de registro o dentro del Servicio. El nuevo precio rige desde el siguiente período de facturación; los períodos ya pagados (incluido un año pago por adelantado) no se modifican.',
-      'Falta de pago: si un período no se paga a su vencimiento, Lumiere puede, previo aviso, pasar la cuenta a modo de solo lectura a los 5 días corridos, suspender el acceso a los 30 días corridos y eliminar los datos a los 90 días corridos de vencido el pago. Antes de eliminar datos se avisará al mail de registro.',
+      'Falta de pago: si un período no se paga dentro de los 10 (diez) días corridos desde su vencimiento, el Servicio se pausa: el Cliente y sus usuarios no pueden ingresar ni usar el Servicio hasta que se regularice el pago. La pausa no borra nada: los datos se conservan y el Servicio se reactiva al acreditarse el pago. El tiempo que la cuenta esté pausada por falta de pago no se descuenta ni se compensa.',
+      'Si la cuenta permanece pausada por falta de pago más de 90 días corridos, Lumiere puede darla de baja y eliminar los datos, avisando antes al mail de registro. Durante la pausa, el Cliente puede pedir su copia de seguridad escribiendo a ' + MAIL + ' desde su mail de registro.',
     ] },
     { t: '5. Sin reembolsos', p: [
       'Los pagos realizados no se reembolsan, total ni parcialmente, ni siquiera si el Cliente deja de usar el Servicio o lo da de baja antes de terminar el período pago (mensual o anual). El Cliente conserva el acceso hasta el final del período que pagó.',
