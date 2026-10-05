@@ -3,17 +3,19 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
+const { porNegocio, enNegocio, negocioActual } = require('../lib/contexto');
+const negocios = require('../lib/negocios');
 
 // Usuarios que se pueden desactivar (no entran, se pueden reactivar) o eliminar (desaparecen de
 // la lista y liberan su email). Eliminar NO borra lo que hicieron: ventas, caja, ajustes de stock,
 // etc. quedan con su nombre, para que los numeros y el historial del negocio no cambien.
-let columnasListas = false;
+const columnasListas = porNegocio(false);
 async function asegurarColumnas() {
-  if (columnasListas) return;
+  if (columnasListas.get()) return;
   await pool.query('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS activo BOOLEAN DEFAULT TRUE');
   await pool.query('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS eliminado BOOLEAN DEFAULT FALSE');
   await pool.query('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS eliminado_en TIMESTAMP');
-  columnasListas = true;
+  columnasListas.set(true);
 }
 const esJefeRow = (u) => u.rol === 'jefe' || Number(u.rol_id) === 1;
 // No dejar al negocio sin ningun jefe activo
@@ -22,13 +24,27 @@ async function quedaOtroJefe(id) {
   return r.rows[0].n > 0;
 }
 
-// Login
+// Login: con el mail se sabe de que negocio es, y se busca el usuario en el cajon de ese negocio.
+// Un mail que no esta en el registro central se busca en el negocio original.
 router.post('/login', async (req, res) => {
+  let neg;
+  try {
+    neg = (await negocios.negocioDeMail(req.body && req.body.email)) || (await negocios.negocioPorId(1));
+  } catch (e) {
+    // Con el registro central caido, el negocio original igual puede entrar
+    console.error('[login] registro central:', e.message);
+    neg = negocios.ORIGINAL;
+  }
+  if (!neg) return res.status(401).json({ error: 'Credenciales incorrectas' });
+  enNegocio({ id: neg.id, schema: neg.schema }, () => iniciarSesion(req, res, neg));
+});
+
+async function iniciarSesion(req, res, neg) {
   try {
     const { email, password } = req.body;
     try { await asegurarColumnas(); } catch (e) {}
     const result = await pool.query(
-      'SELECT * FROM usuarios WHERE email = $1', [email]
+      'SELECT * FROM usuarios WHERE LOWER(email) = LOWER($1)', [String(email || '').trim()]
     );
 
     if (result.rows.length === 0 || result.rows[0].eliminado === true) {
@@ -43,6 +59,9 @@ router.post('/login', async (req, res) => {
     }
     if (usuario.activo === false) {
       return res.status(403).json({ error: 'Este usuario está desactivado. Pedile al jefe que lo vuelva a activar.' });
+    }
+    if (neg.estado === 'suspendido') {
+      return res.status(403).json({ error: 'La cuenta de este negocio está suspendida. Escribinos a hola@sistemalumiere.com' });
     }
 
     // Obtener permisos del rol
@@ -69,7 +88,7 @@ router.post('/login', async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: usuario.id, email: usuario.email, rol: usuario.rol, local_id: usuario.local_id },
+      { id: usuario.id, email: usuario.email, rol: usuario.rol, local_id: usuario.local_id, neg: neg.id },
       process.env.JWT_SECRET,
       { expiresIn: '30d' }
     );
@@ -84,13 +103,14 @@ router.post('/login', async (req, res) => {
         local_id: usuario.local_id,
         permisos,
         local
-      }
+      },
+      negocio: negocios.resumen(neg)
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al iniciar sesion' });
   }
-});
+}
 
 // Registrar usuario
 router.post('/register', async (req, res) => {
@@ -100,12 +120,16 @@ router.post('/register', async (req, res) => {
     if (String(password).length < 6) return res.status(400).json({ error: 'La contraseña tiene que tener al menos 6 caracteres' });
     const existe = await pool.query('SELECT 1 FROM usuarios WHERE LOWER(email) = LOWER($1)', [email]);
     if (existe.rows.length) return res.status(400).json({ error: 'Ya hay un usuario con ese email' });
+    // Un mail entra a un solo negocio de Lumiere
+    const negId = (negocioActual() || {}).id || 1;
+    if (!(await negocios.mailLibre(email, negId))) return res.status(400).json({ error: 'Ese mail ya se usa en otra cuenta de Lumiere. Probá con otro.' });
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
       `INSERT INTO usuarios (nombre, email, password, rol, rol_id, local_id)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, nombre, email, rol`,
-      [nombre, email, hashedPassword, rol || 'vendedora', rol_id || 3, local_id || 1]
+      [nombre, String(email).trim(), hashedPassword, rol || 'vendedora', rol_id || 3, local_id || 1]
     );
+    await negocios.registrarMail(email, negId);
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error(error);
@@ -157,11 +181,16 @@ router.put('/usuarios/:id', async (req, res) => {
     }
     const repetido = await pool.query('SELECT 1 FROM usuarios WHERE LOWER(email) = LOWER($1) AND id <> $2', [email, id]);
     if (repetido.rows.length) return res.status(400).json({ error: 'Ya hay otro usuario con ese email' });
+    const negId = (negocioActual() || {}).id || 1;
+    const mailAntes = actual.rows[0].email;
+    const cambiaMail = String(mailAntes || '').trim().toLowerCase() !== String(email || '').trim().toLowerCase();
+    if (cambiaMail && !(await negocios.mailLibre(email, negId))) return res.status(400).json({ error: 'Ese mail ya se usa en otra cuenta de Lumiere. Probá con otro.' });
     const result = await pool.query(
       `UPDATE usuarios SET nombre=$1, email=$2, rol=$3, rol_id=$4, local_id=$5
        WHERE id=$6 RETURNING id, nombre, email, rol, local_id`,
       [nombre, email, rol, rol_id, local_id, id]
     );
+    if (cambiaMail) { await negocios.liberarMail(mailAntes, negId); await negocios.registrarMail(email, negId); }
     res.json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: 'Error al actualizar usuario' });
@@ -207,6 +236,7 @@ router.delete('/usuarios/:id', async (req, res) => {
     if (esJefeRow(u.rows[0]) && !(await quedaOtroJefe(id))) return res.status(400).json({ error: 'No se puede eliminar al único jefe' });
     await pool.query(`UPDATE usuarios SET eliminado = TRUE, activo = FALSE, eliminado_en = NOW(),
                         email = 'eliminado-' || id || '-' || email WHERE id = $1`, [id]);
+    await negocios.liberarMail(u.rows[0].email, (negocioActual() || {}).id || 1).catch(() => {});
     await pool.query('DELETE FROM permisos_usuario WHERE usuario_id = $1', [id]).catch(() => {});
     // Sus tareas sin terminar quedan sin asignar para que alguien las tome
     await pool.query(`UPDATE tareas SET asignado_a = NULL, asignado_nombre = NULL WHERE asignado_a = $1 AND estado <> 'finalizada'`, [id]).catch(() => {});

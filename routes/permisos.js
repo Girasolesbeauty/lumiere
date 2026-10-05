@@ -1,15 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
+const { porNegocio } = require('../lib/contexto');
 
 // Permisos v2: cada seccion del menu tiene su propio permiso de "ver". Antes algunas las veia
 // cualquiera (Ventas Online, Buscar Precio, Cambios, Compras, Pedidos, Tareas) y otras colgaban
 // del permiso de otra seccion (Rotacion de Inventario, Toma de decisiones de Finanzas, etc.).
 // La primera vez se le dan a cada usuario los permisos nuevos de lo que YA veia, asi nadie
 // pierde acceso de un dia para el otro; despues el jefe los ajusta como quiera.
-let migrado = false;
+const migrado = porNegocio(false);
 async function asegurarPermisosV2() {
-  if (migrado) return;
+  if (migrado.get()) return;
   await pool.query('CREATE TABLE IF NOT EXISTS permisos_meta (clave TEXT PRIMARY KEY, hecho_en TIMESTAMP DEFAULT NOW())');
   const ya = await pool.query(`SELECT 1 FROM permisos_meta WHERE clave = 'permisos_v2'`);
   if (!ya.rows.length) {
@@ -53,7 +54,7 @@ async function asegurarPermisosV2() {
     await pool.query(`INSERT INTO permisos_usuario (usuario_id, permiso) SELECT DISTINCT usuario_id, 'gerente.ver' FROM permisos_usuario WHERE permiso IN ('finanzas.flujo', 'decisiones.ver') ON CONFLICT DO NOTHING`);
     await pool.query(`INSERT INTO permisos_meta (clave) VALUES ('permisos_v4') ON CONFLICT DO NOTHING`);
   }
-  migrado = true;
+  migrado.set(true);
 }
 
 // Obtener permisos de un usuario

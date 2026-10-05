@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { porNegocio } = require('../lib/contexto');
 
 // Convierte "rg"/"ush" (o numeros) al id numerico del local. null si es consolidado/vacio.
 function normalizarLocalId(v) {
@@ -26,23 +27,23 @@ const mesAnio = (q) => ({
   anio: parseInt(q.anio) || new Date().getFullYear(),
 });
 
-let hayVentaPagos = null;
+const hayVentaPagos = porNegocio(null);
 const tieneVentaPagos = async () => {
-  if (hayVentaPagos === null) {
+  if (hayVentaPagos.get() === null) {
     const r = await pool.query(`SELECT to_regclass('venta_pagos') AS t`);
-    hayVentaPagos = !!r.rows[0].t;
+    hayVentaPagos.set(!!r.rows[0].t);
   }
-  return hayVentaPagos;
+  return hayVentaPagos.get();
 };
 
 // % de Ingresos Brutos que se estima sobre lo cobrado sin efectivo. Configurable por negocio
 // (antes estaba fijo en 4%). La columna se crea sola si falta.
-let columnaIibbLista = false;
+const columnaIibbLista = porNegocio(false);
 const obtenerIibbPct = async () => {
   try {
-    if (!columnaIibbLista) {
+    if (!columnaIibbLista.get()) {
       await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS iibb_pct NUMERIC(5,2) DEFAULT 4');
-      columnaIibbLista = true;
+      columnaIibbLista.set(true);
     }
     const r = await pool.query('SELECT iibb_pct FROM configuracion_negocio WHERE id = 1');
     const v = r.rows[0] ? r.rows[0].iibb_pct : null;
@@ -53,12 +54,12 @@ const obtenerIibbPct = async () => {
 // Gastos compartidos entre los dos locales: cada uno guarda que % le toca al local 1
 // (el resto es del local 2). Los viejos, sin % guardado, usan el reparto por defecto del
 // negocio (configurable; 50 si nunca se cambio). Las columnas se crean solas si faltan.
-let columnasRepartoListas = false;
+const columnasRepartoListas = porNegocio(false);
 const asegurarReparto = async () => {
-  if (columnasRepartoListas) return;
+  if (columnasRepartoListas.get()) return;
   await pool.query('ALTER TABLE movimientos_caja ADD COLUMN IF NOT EXISTS pct_local1 NUMERIC(5,2)');
   await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS reparto_local1_pct NUMERIC(5,2) DEFAULT 50');
-  columnasRepartoListas = true;
+  columnasRepartoListas.set(true);
 };
 const obtenerRepartoDefault = async () => {
   try {

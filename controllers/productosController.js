@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { porNegocio } = require('../lib/contexto');
 
 // Agrega campos calculados de disponibilidad real (stock - reservado de preventas) sin tocar el resto.
 const conDisponible = (rows, local) => rows.map(p => {
@@ -236,14 +237,14 @@ async function puedeAjustar(db, usuarioId) {
 }
 
 // Pedidos de ajuste de quien no tiene permiso: quedan pendientes hasta que alguien los apruebe
-let tablaSolicitudes = false;
+const tablaSolicitudes = porNegocio(false);
 async function asegurarSolicitudes(db) {
-  if (tablaSolicitudes) return;
+  if (tablaSolicitudes.get()) return;
   await db.query(`CREATE TABLE IF NOT EXISTS ajustes_pendientes (
     id SERIAL PRIMARY KEY, producto_id INT NOT NULL, local_id INT DEFAULT 1, modo TEXT NOT NULL, valor INT NOT NULL,
     motivo TEXT NOT NULL, stock_al_pedir INT, usuario_id INT, usuario_nombre TEXT, estado TEXT DEFAULT 'pendiente',
     resuelto_por TEXT, resuelto_en TIMESTAMP, nota TEXT, creado_en TIMESTAMP DEFAULT NOW())`);
-  tablaSolicitudes = true;
+  tablaSolicitudes.set(true);
 }
 
 const solicitarAjuste = async (req, res) => {
@@ -488,7 +489,7 @@ const calcularReposicion = ({ vendido, diasVenta, stock, transito, reservado, le
 // Productos nuevos: hasta que no pasan N dias desde que llegaron (se cargaron o entro su primer
 // ingreso) quedan "en evaluacion" y no se marcan lentos ni parados. N lo elige cada negocio
 // (por defecto 45). Su ritmo de venta se mide sobre los dias que llevan, no sobre todo el periodo.
-let columnaCreadoProducto = null;
+const columnaCreadoProducto = porNegocio(null);
 const DIAS_EVALUACION_DEFECTO = 45;
 const getRotacion = async (req, res) => {
   try {
@@ -499,9 +500,9 @@ const getRotacion = async (req, res) => {
     const VALIDA = `COALESCE(v.anulada, FALSE) = FALSE AND COALESCE(v.canal, '') <> 'prueba'
       AND (COALESCE(v.es_preventa, FALSE) = FALSE OR v.estado_pago = 'confirmada')`;
     const filtroLocal = localNum !== null ? `AND v.local_id = ${localNum}` : '';
-    if (columnaCreadoProducto === null) {
-      const c = await pool.query(`SELECT 1 FROM information_schema.columns WHERE table_name = 'productos' AND column_name = 'creado_en'`);
-      columnaCreadoProducto = c.rows.length > 0;
+    if (columnaCreadoProducto.get() === null) {
+      const c = await pool.query(`SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'productos' AND column_name = 'creado_en'`);
+      columnaCreadoProducto.set(c.rows.length > 0);
     }
     let diasEvaluacion = DIAS_EVALUACION_DEFECTO;
     try {
@@ -514,7 +515,7 @@ const getRotacion = async (req, res) => {
       SELECT p.id, p.nombre, p.marca, p.categoria, COALESCE(p.costo, 0) AS costo, COALESCE(p.precio, 0) AS precio,
              COALESCE(p.lead_time_dias, 7) AS lead_time, pr.nombre AS proveedor, ${colStock} AS stock,
              COALESCE(s.unidades, 0) AS unidades, COALESCE(s.monto, 0) AS monto, u.ultima AS ultima_venta,
-             GREATEST(${columnaCreadoProducto ? 'p.creado_en' : 'NULL::timestamp'}, ${hayIngresos ? 'pi.primero' : 'NULL::timestamp'}) AS llego_en
+             GREATEST(${columnaCreadoProducto.get() ? 'p.creado_en' : 'NULL::timestamp'}, ${hayIngresos ? 'pi.primero' : 'NULL::timestamp'}) AS llego_en
       FROM productos p
       LEFT JOIN proveedores pr ON pr.id = p.proveedor_id
       LEFT JOIN (

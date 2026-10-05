@@ -5,6 +5,7 @@
 const express = require('express');
 const Anthropic = require('@anthropic-ai/sdk').default;
 const pool = require('../config/database');
+const { porNegocio, schemaActual } = require('../lib/contexto');
 const fin = require('../controllers/finanzasController');
 const prod = require('../controllers/productosController');
 const { VENTA_VALIDA } = require('../lib/niveles');
@@ -31,7 +32,7 @@ const cache = new Map();
 async function resumenNegocio(localQ) {
   await cargarMoneda();
   const localNum = localNumDe(String(localQ || ''));
-  const clave = String(localNum);
+  const clave = schemaActual() + ':' + String(localNum); // por negocio y por local
   const c = cache.get(clave);
   if (c && Date.now() - c.t < 2 * 60 * 1000) return c.data;
 
@@ -185,11 +186,11 @@ function armarMejoras(r) {
   return a;
 }
 
-let tablaLista = false;
+const tablaLista = porNegocio(false);
 async function asegurarTabla() {
-  if (tablaLista) return;
+  if (tablaLista.get()) return;
   await pool.query(`CREATE TABLE IF NOT EXISTS gerente_acciones (clave TEXT PRIMARY KEY, estado TEXT NOT NULL, actualizado TIMESTAMP DEFAULT NOW(), usuario_nombre TEXT)`);
-  tablaLista = true;
+  tablaLista.set(true);
 }
 
 router.get('/mejoras', async (req, res) => {

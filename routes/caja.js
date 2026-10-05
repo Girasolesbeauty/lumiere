@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
+const { porNegocio } = require('../lib/contexto');
 // Obtener movimientos de caja por local
 router.get('/', async (req, res) => {
   try {
@@ -67,9 +68,9 @@ router.post('/', async (req, res) => {
 const DIA_AR = (col) => `((${col} AT TIME ZONE current_setting('TimeZone')) AT TIME ZONE 'America/Argentina/Buenos_Aires')::date`;
 const HORA_AR = (col) => `to_char((${col} AT TIME ZONE current_setting('TimeZone')) AT TIME ZONE 'America/Argentina/Buenos_Aires', 'HH24:MI')`;
 
-let tablaCierresLista = false;
+const tablaCierresLista = porNegocio(false);
 const asegurarTablaCierres = async () => {
-  if (tablaCierresLista) return;
+  if (tablaCierresLista.get()) return;
   await pool.query(`
     CREATE TABLE IF NOT EXISTS cierres_caja (
       id SERIAL PRIMARY KEY,
@@ -89,16 +90,16 @@ const asegurarTablaCierres = async () => {
       actualizado_en TIMESTAMP DEFAULT now(),
       UNIQUE (local_id, fecha)
     )`);
-  tablaCierresLista = true;
+  tablaCierresLista.set(true);
 };
 
-let hayVentaPagos = null;
+const hayVentaPagos = porNegocio(null);
 const tieneVentaPagos = async () => {
-  if (hayVentaPagos === null) {
+  if (hayVentaPagos.get() === null) {
     const r = await pool.query(`SELECT to_regclass('venta_pagos') AS t`);
-    hayVentaPagos = !!r.rows[0].t;
+    hayVentaPagos.set(!!r.rows[0].t);
   }
-  return hayVentaPagos;
+  return hayVentaPagos.get();
 };
 
 const esFechaValida = (f) => /^\d{4}-\d{2}-\d{2}$/.test(String(f || ''));

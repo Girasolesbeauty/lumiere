@@ -1,19 +1,20 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
+const { porNegocio } = require('../lib/contexto');
 
 const TEMAS_PORTAL = ['girasoles', 'claro', 'oscuro', 'salvia'];
 
 // Plantilla del mensaje de "Buscar precio" (texto que se manda al cliente). La columna se crea
 // sola la primera vez, para no depender de correr una migracion en cada base.
-let columnaMensajeLista = false;
+const columnaMensajeLista = porNegocio(false);
 const asegurarColumnaMensaje = async () => {
-  if (columnaMensajeLista) return;
+  if (columnaMensajeLista.get()) return;
   await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS mensaje_precio TEXT');
   await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS comisiones_activo BOOLEAN DEFAULT TRUE');
   await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS stock_minimo_auto BOOLEAN DEFAULT TRUE');
   await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS stock_minimo_auto_ultimo DATE');
-  columnaMensajeLista = true;
+  columnaMensajeLista.set(true);
 };
 
 // Leer la configuracion general (nombre del negocio, logo)

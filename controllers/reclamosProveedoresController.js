@@ -1,11 +1,12 @@
 const pool = require('../config/database');
+const { porNegocio } = require('../lib/contexto');
 
 // Un reclamo puede venir de una diferencia al recibir mercaderia en Ingresos (queda
 // vinculado a esa factura y a ese item) o cargarse a mano. Las columnas nuevas se crean
 // solas si faltan.
-let columnasListas = false;
+const columnasListas = porNegocio(false);
 const asegurarColumnas = async () => {
-  if (columnasListas) return;
+  if (columnasListas.get()) return;
   // En algunas bases la tabla nunca se habia creado (la seccion Reclamos fallaba)
   await pool.query(`CREATE TABLE IF NOT EXISTS reclamos_proveedores (
     id SERIAL PRIMARY KEY,
@@ -22,7 +23,7 @@ const asegurarColumnas = async () => {
     ADD COLUMN IF NOT EXISTS numero_factura TEXT`);
   await pool.query(`ALTER TABLE ordenes_ingreso_items
     ADD COLUMN IF NOT EXISTS reclamo_descartado_rg BOOLEAN DEFAULT FALSE, ADD COLUMN IF NOT EXISTS reclamo_descartado_ush BOOLEAN DEFAULT FALSE`);
-  columnasListas = true;
+  columnasListas.set(true);
 };
 
 // Listar reclamos, con filtros opcionales

@@ -3,12 +3,15 @@
 // servidor se reinicia no se pierde el recalculo del dia; la fecha del ultimo recalculo queda
 // guardada para no repetirlo.
 const pool = require('../config/database');
+const negocios = require('../lib/negocios');
+const { enNegocio } = require('../lib/contexto');
 const { recalcularMinimos } = require('../controllers/productosController');
 
 const HORA_DESDE = 3;
 const CADA_MS = 60 * 60 * 1000;
 
-async function revisar() {
+// Revisa un negocio (corre dentro de su cajon)
+async function revisarNegocio() {
   try {
     const ahoraAR = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }));
     if (ahoraAR.getHours() < HORA_DESDE) return;
@@ -28,6 +31,17 @@ async function revisar() {
     console.log(`[stock minimo automatico] ${hoy}: ${r.productos_actualizados} productos actualizados, ${r.omitidos_por_poca_historia} con poca historia`);
   } catch (e) {
     console.error('[stock minimo automatico] no se pudo recalcular:', e.message);
+  }
+}
+
+// Una vuelta por cada negocio
+async function revisar() {
+  let lista = [];
+  try { lista = await negocios.listarNegocios(); }
+  catch (e) { console.error('[stock minimo automatico] no se pudo leer la lista de negocios, se revisa solo el original:', e.message); lista = [negocios.ORIGINAL]; }
+  for (const n of lista) {
+    if (n.estado === 'suspendido') continue;
+    await enNegocio({ id: n.id, schema: n.schema }, revisarNegocio);
   }
 }
 

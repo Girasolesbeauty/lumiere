@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
+const { porNegocio } = require('../lib/contexto');
 
 // Comprobantes: facturas emitidas en ARCA, ventas que quedaron sin facturar y anuladas.
 // Las fechas son dias argentinos (las ventas se guardan sin zona horaria).
@@ -9,13 +10,13 @@ const AR = (col) => `(((${col}) AT TIME ZONE current_setting('TimeZone')) AT TIM
 const PENDIENTE = `(v.canal = 'presencial' AND COALESCE(v.es_preventa, FALSE) = FALSE AND COALESCE(v.cae, '') = ''
   AND COALESCE(v.monto_gift_card, 0) < v.total AND COALESCE(v.estado_facturacion, '') <> 'no_aplica')`;
 
-let hayVentaPagos = null;
+const hayVentaPagos = porNegocio(null);
 const tieneVentaPagos = async () => {
-  if (hayVentaPagos === null) {
+  if (hayVentaPagos.get() === null) {
     const r = await pool.query(`SELECT to_regclass('venta_pagos') AS t`);
-    hayVentaPagos = !!r.rows[0].t;
+    hayVentaPagos.set(!!r.rows[0].t);
   }
-  return hayVentaPagos;
+  return hayVentaPagos.get();
 };
 const esFecha = (f) => /^\d{4}-\d{2}-\d{2}$/.test(String(f || ''));
 

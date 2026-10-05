@@ -82,13 +82,20 @@ app.get('/', (req, res) => {
     mensaje: 'Lumiere API funcionando',
     version: '2.0.0',
     estado: 'OK',
-    features: ['multi-local', 'usuarios', 'roles']
+    features: ['multi-local', 'usuarios', 'roles', 'multi-negocio'],
+    registro_negocios: app.locals.registroNegocios || 'iniciando'
   });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor Lumiere corriendo en puerto ${PORT}`);
   require('./jobs/stockMinimoAuto').iniciar();
+  // Registro central de negocios, y cada cajon al dia con lo ultimo del sistema
+  const negocios = require('./lib/negocios');
+  const alDia = () => negocios.ponerAlDia().then((h) => { if (h.length) console.log('[negocios] cajones puestos al dia:', JSON.stringify(h)); }).catch((e) => console.error('[negocios]', e.message));
+  negocios.asegurarCentral().then(() => { app.locals.registroNegocios = 'ok'; return alDia(); })
+    .catch((e) => { app.locals.registroNegocios = 'error'; console.error('[negocios] registro central:', e.message); });
+  setInterval(alDia, 30 * 60 * 1000);
 });
 
 module.exports = app;

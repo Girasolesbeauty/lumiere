@@ -1,15 +1,16 @@
 const pool = require('../config/database');
+const { porNegocio } = require('../lib/contexto');
 
 // Columnas que se agregaron despues (se crean solas la primera vez)
-let columnasListas = false;
+const columnasListas = porNegocio(false);
 const asegurarColumnas = async (db) => {
-  if (columnasListas) return;
+  if (columnasListas.get()) return;
   await db.query('ALTER TABLE controles_inventario ADD COLUMN IF NOT EXISTS valor_faltante NUMERIC DEFAULT 0');
   await db.query('ALTER TABLE controles_inventario ADD COLUMN IF NOT EXISTS valor_sobrante NUMERIC DEFAULT 0');
   await db.query('ALTER TABLE controles_inventario ADD COLUMN IF NOT EXISTS unidades_faltantes INTEGER DEFAULT 0');
   await db.query('ALTER TABLE controles_inventario ADD COLUMN IF NOT EXISTS unidades_sobrantes INTEGER DEFAULT 0');
   await db.query('ALTER TABLE controles_inventario_items ADD COLUMN IF NOT EXISTS contado_en TIMESTAMP');
-  columnasListas = true;
+  columnasListas.set(true);
 };
 
 // Nombre que se muestra del filtro (el proveedor se guarda por id)
