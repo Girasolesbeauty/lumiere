@@ -79,8 +79,11 @@ router.post('/:id/vender', async (req, res) => {
   try {
     await client.query('BEGIN');
     const { cantidad = 1 } = req.body;
+    // Se descuenta del stock del LOCAL donde se vende (antes bajaba solo el stock total y
+    // el del local quedaba igual: el sistema mostraba mas de lo que habia).
+    const col = Number(req.body.local_id) === 2 ? 'stock_ush' : 'stock_rg';
     const items = await client.query(
-      'SELECT ki.*, p.stock, p.nombre FROM kit_items ki JOIN productos p ON p.id = ki.producto_id WHERE ki.kit_id=$1',
+      `SELECT ki.*, COALESCE(p.${col}, 0) AS stock, p.nombre FROM kit_items ki JOIN productos p ON p.id = ki.producto_id WHERE ki.kit_id=$1`,
       [req.params.id]
     );
     for (const item of items.rows) {
@@ -89,7 +92,9 @@ router.post('/:id/vender', async (req, res) => {
         await client.query('ROLLBACK');
         return res.status(400).json({ error: 'Stock insuficiente de ' + item.nombre + ' (necesitas ' + needed + ', hay ' + item.stock + ')' });
       }
-      await client.query('UPDATE productos SET stock = stock - $1 WHERE id=$2', [needed, item.producto_id]);
+      await client.query(
+        `UPDATE productos SET ${col} = COALESCE(${col}, 0) - $1, stock = COALESCE(stock_rg, 0) + COALESCE(stock_ush, 0) - $1 WHERE id=$2`,
+        [needed, item.producto_id]);
     }
     await client.query('COMMIT');
     res.json({ ok: true, mensaje: 'Stock actualizado correctamente' });

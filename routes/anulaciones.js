@@ -196,11 +196,15 @@ router.post('/ajuste-stock/:id', async (req, res) => {
     if (ajRes.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Ajuste no encontrado' }); }
     const aj = ajRes.rows[0];
 
-    const stockActual = (await client.query('SELECT stock FROM productos WHERE id = $1', [aj.producto_id])).rows[0]?.stock || 0;
+    // El ajuste se hizo sobre el stock de UN local: la reversion va sobre ese mismo local.
+    // (Antes tocaba solo el stock total y el del local quedaba con el ajuste puesto.)
+    const col = Number(aj.local_id) === 2 ? 'stock_ush' : 'stock_rg';
+    const otra = col === 'stock_ush' ? 'stock_rg' : 'stock_ush';
+    const stockActual = (await client.query(`SELECT COALESCE(${col}, 0) AS s FROM productos WHERE id = $1`, [aj.producto_id])).rows[0]?.s || 0;
     const nuevoStock = stockActual - aj.diferencia;
     if (nuevoStock < 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'No se puede revertir, dejaria stock negativo' }); }
 
-    await client.query('UPDATE productos SET stock = $1 WHERE id = $2', [nuevoStock, aj.producto_id]);
+    await client.query(`UPDATE productos SET ${col} = $1, stock = COALESCE(${otra}, 0) + $1 WHERE id = $2`, [nuevoStock, aj.producto_id]);
     await client.query(
       `INSERT INTO ajustes_stock (producto_id, stock_anterior, stock_nuevo, diferencia, motivo, usuario_id, usuario_nombre, local_id)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,

@@ -17539,7 +17539,7 @@ function Inconsistencias({ paletaActual }) {
   );
 }
 
-function Kits({ paletaActual }) {
+function Kits({ paletaActual, localId }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [kits, setKits] = useState([]);
   const [productos, setProductos] = useState([]);
@@ -17608,7 +17608,7 @@ function Kits({ paletaActual }) {
 
   const vender = async (kit) => {
     try {
-      await API.post("/kits/" + kit.id + "/vender", { cantidad: 1 });
+      await API.post("/kits/" + kit.id + "/vender", { cantidad: 1, local_id: localId || 1 });
       setMensaje("Kit vendido! Stock actualizado.");
       cargar();
       setTimeout(() => setMensaje(""), 3000);
@@ -20220,7 +20220,7 @@ export default function AppWrapper() {
     if (id === "cierre") return <CierreCaja localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "giftcards") return <GiftCards localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "ordenes") return <OrdenesIngreso localId={local.id} usuario={usuario} permisosActivos={permisosActivos} paletaActual={paletaActual} />;
-    if (id === "kits") return <Kits paletaActual={paletaActual} />;
+    if (id === "kits") return <Kits paletaActual={paletaActual} localId={local.id} />;
     if (id === "insumos") return <Insumos localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "control-inv") return <ControlInventario localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "config-insumos") return <ConfigInsumos localId={local.id} paletaActual={paletaActual} />;
