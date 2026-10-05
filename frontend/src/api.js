@@ -8,6 +8,24 @@ const API = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'https://lumiere-production-79d0.up.railway.app/api',
 });
 
+// Cada pedido lleva la llave de la sesion; sin ella el servidor no devuelve datos.
+API.interceptors.request.use((cfg) => {
+  const token = localStorage.getItem('lumiere_token');
+  if (token) cfg.headers = { ...(cfg.headers || {}), Authorization: 'Bearer ' + token };
+  return cfg;
+});
+// Si la sesion vencio, se vuelve al inicio de sesion con un aviso (una sola vez, sin quedar en bucle)
+API.interceptors.response.use((r) => r, (err) => {
+  const esLogin = (err.config?.url || '').includes('/auth/login');
+  if (err.response?.status === 401 && err.response?.data?.sesion && !esLogin && localStorage.getItem('lumiere_token')) {
+    localStorage.removeItem('lumiere_token');
+    localStorage.removeItem('lumiere_user');
+    sessionStorage.setItem('lumiere_sesion_vencida', '1');
+    window.location.reload();
+  }
+  return Promise.reject(err);
+});
+
 // PRODUCTOS
 export const getProductos = () => API.get('/productos');
 export const getProducto = (id) => API.get(`/productos/${id}`);

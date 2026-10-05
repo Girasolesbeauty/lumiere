@@ -22,6 +22,9 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Todo /api pide haber iniciado sesion (salvo el login y el portal de clientes)
+app.use('/api', require('./middleware/auth'));
+
 // Rutas
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/productos', require('./routes/productos'));

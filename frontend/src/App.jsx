@@ -18297,7 +18297,10 @@ function LoginScreen({ onLogin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(() => {
+    try { if (sessionStorage.getItem("lumiere_sesion_vencida")) { sessionStorage.removeItem("lumiere_sesion_vencida"); return "Tu sesión venció. Volvé a iniciar sesión."; } } catch (e) {}
+    return "";
+  });
 
   const handleLogin = async () => {
     if (!email || !password) return setError("Completá todos los campos");
