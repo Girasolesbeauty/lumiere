@@ -18393,6 +18393,7 @@ function LoginScreen({ onLogin }) {
       const res = await login({ email: email.trim(), password });
       localStorage.setItem("lumiere_token", res.data.token);
       localStorage.setItem("lumiere_user", JSON.stringify(res.data.usuario));
+      try { localStorage.setItem("lumiere_neg", String(res.data.negocio?.id || 1)); } catch (e) {}
       onLogin(res.data.usuario);
     } catch (e) {
       setError(e.response?.status === 403 ? (e.response.data?.error || "Este usuario está desactivado")
@@ -18563,6 +18564,211 @@ function LocalSelector({ usuario, onSelect, actual, onCancel }) {
   );
 }
 
+// ============ Primer ingreso de un negocio: aceptar los Terminos y completar la bienvenida ============
+const CSS_PRIMER_INGRESO = `
+.pi-caja { max-width: 640px !important; }
+.pi-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.pi-tab { all: unset; cursor: pointer; font-size: 13px; font-weight: 700; padding: 8px 12px; border-radius: 9px; color: rgba(255,255,255,.7); border: 1px solid rgba(255,255,255,.14); }
+.pi-tab.on { background: #f5b400; color: #0b0e14; border-color: #f5b400; }
+.pi-tab:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.pi-texto { text-align: left; max-height: 42vh; overflow-y: auto; background: rgba(0,0,0,.25); border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 16px 18px; font-size: 14px; line-height: 1.65; color: rgba(255,255,255,.86); }
+.pi-texto h2 { font-size: 17px; margin: 0 0 8px; color: #fff; }
+.pi-texto h3 { font-size: 14.5px; margin: 16px 0 6px; color: #ffd45a; }
+.pi-texto p { margin: 0 0 9px; }
+.pi-texto small { display: block; color: rgba(255,255,255,.55); margin-bottom: 10px; }
+.pi-acepto { display: flex; gap: 10px; align-items: flex-start; text-align: left; margin: 14px 0 4px; font-size: 14px; line-height: 1.5; color: #fff; cursor: pointer; }
+.pi-acepto input { width: 22px; height: 22px; flex-shrink: 0; accent-color: #f5b400; margin-top: 1px; cursor: pointer; }
+.pi-pasos { display: flex; gap: 6px; justify-content: center; margin: 2px 0 18px; }
+.pi-pasos span { width: 34px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.18); transition: background .2s; }
+.pi-pasos span.on { background: #f5b400; }
+.pi-logo-fila { display: flex; align-items: center; gap: 14px; }
+.pi-logo-prev { width: 72px; height: 72px; flex-shrink: 0; border-radius: 14px; border: 1px dashed rgba(255,255,255,.3); display: flex; align-items: center; justify-content: center; font-size: 26px; background: rgba(255,255,255,.06); overflow: hidden; }
+.pi-logo-prev img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.pi-sec { all: unset; cursor: pointer; font-size: 14px; font-weight: 700; padding: 11px 16px; border-radius: 11px; color: rgba(255,255,255,.85); border: 1px solid rgba(255,255,255,.2); }
+.pi-sec:hover { background: rgba(255,255,255,.08); }
+.pi-sec:focus-visible { outline: 3px solid #f5b400; outline-offset: 2px; }
+.pi-botones { display: flex; gap: 10px; margin-top: 16px; }
+.pi-botones .lg-entrar { margin-top: 0; flex: 2; }
+.pi-botones .pi-sec { flex: 1; text-align: center; }
+.pi-lista { text-align: left; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.pi-lista li { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: 11px 14px; font-size: 14px; line-height: 1.5; }
+.pi-lista b { color: #ffd45a; }
+select.lg-input option { color: #111; }
+`;
+
+function TextoLegal({ doc, vigencia }) {
+  if (!doc) return null;
+  return (
+    <>
+      <h2>{doc.titulo}</h2>
+      {vigencia && <small>Vigente desde el {vigencia}</small>}
+      {(doc.intro || []).map((t, k) => <p key={"i" + k}>{t}</p>)}
+      {(doc.secciones || []).map((s, k) => <Fragment key={k}><h3>{s.t}</h3>{s.p.map((t, j) => <p key={j}>{t}</p>)}</Fragment>)}
+    </>
+  );
+}
+
+const cerrarSesionAhora = () => { localStorage.removeItem("lumiere_token"); localStorage.removeItem("lumiere_user"); localStorage.removeItem("lumiere_local"); window.location.reload(); };
+
+// El dueño de cada negocio lee y acepta los Terminos y la Politica de Privacidad antes de usar el sistema
+function PuertaTerminos({ negocio, onAceptado }) {
+  const [legal, setLegal] = useState(null);
+  const [tab, setTab] = useState("terminos");
+  const [acepto, setAcepto] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
+  const cargar = () => { setError(""); API.get("/legal").then(r => setLegal(r.data)).catch(() => setError("No pudimos cargar los términos. Revisá tu conexión.")); };
+  useEffect(() => { cargar(); }, []);
+  const aceptar = async () => {
+    if (!acepto || guardando) return;
+    setGuardando(true); setError("");
+    try { await API.post("/auth/terminos/aceptar", { version: legal.version, acepto: true }); onAceptado(); }
+    catch (e) { setError(e.response?.data?.error || "No se pudo guardar. Probá de nuevo."); setGuardando(false); }
+  };
+  return (
+    <div className="ls-fondo">
+      <style>{CSS_SELECTOR_LOCAL + CSS_LOGIN + CSS_PRIMER_INGRESO}</style>
+      <main className="ls-caja pi-caja" aria-labelledby="pi-titulo">
+        <div className="ls-logo"><LogoLumiere alto={36} color="#ffffff" /></div>
+        <h1 id="pi-titulo" className="ls-hola">Antes de empezar</h1>
+        <div className="ls-sub">Leé y aceptá los Términos y Condiciones y la Política de Privacidad{negocio?.nombre ? " para usar Lumiere en " + negocio.nombre : ""}.</div>
+        {!legal ? (error ? <div className="lg-error" role="alert">{error} <button className="pi-sec" style={{ marginLeft: 8, padding: "4px 10px" }} onClick={cargar}>Reintentar</button></div> : <div className="ls-esq" style={{ height: 180 }} />) : (
+          <>
+            <div className="pi-tabs" role="tablist">
+              <button role="tab" aria-selected={tab === "terminos"} className={"pi-tab" + (tab === "terminos" ? " on" : "")} onClick={() => setTab("terminos")}>Términos y Condiciones</button>
+              <button role="tab" aria-selected={tab === "privacidad"} className={"pi-tab" + (tab === "privacidad" ? " on" : "")} onClick={() => setTab("privacidad")}>Política de Privacidad</button>
+            </div>
+            <div className="pi-texto" tabIndex={0} key={tab}><TextoLegal doc={legal[tab]} vigencia={legal.vigencia} /></div>
+            <label className="pi-acepto">
+              <input type="checkbox" checked={acepto} onChange={e => setAcepto(e.target.checked)} />
+              <span>Leí y acepto los <b>Términos y Condiciones</b> y la <b>Política de Privacidad</b> de Lumiere{negocio?.nombre ? ", en nombre de " + negocio.nombre : ""}.</span>
+            </label>
+            {error && <div className="lg-error" role="alert" style={{ marginTop: 8 }}>{error}</div>}
+            <div className="pi-botones">
+              <button className="pi-sec" onClick={cerrarSesionAhora}>Cerrar sesión</button>
+              <button className="lg-entrar" disabled={!acepto || guardando} onClick={aceptar}>{guardando ? "Guardando…" : "Aceptar y continuar"}</button>
+            </div>
+            <div className="lg-ayuda" style={{ textAlign: "center", marginTop: 12 }}>También podés leerlos en <a href="https://www.sistemalumiere.com/terminos.html" target="_blank" rel="noopener">sistemalumiere.com/terminos</a></div>
+          </>
+        )}
+      </main>
+    </div>
+  );
+}
+
+// Achica una imagen a un logo liviano (maximo 256 px) para guardarlo junto con los datos del negocio
+function achicarLogo(archivo) {
+  return new Promise((ok, mal) => {
+    if (!archivo || !/^image\//.test(archivo.type)) return mal(new Error("Elegí una imagen (PNG o JPG)"));
+    const url = URL.createObjectURL(archivo);
+    const img = new Image();
+    img.onload = () => {
+      const esc = Math.min(1, 256 / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(img.width * esc)); c.height = Math.max(1, Math.round(img.height * esc));
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      let d = c.toDataURL("image/webp", 0.9);
+      if (!d.startsWith("data:image/webp")) d = c.toDataURL("image/png");
+      ok(d);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); mal(new Error("No pudimos leer esa imagen. Probá con otra.")); };
+    img.src = url;
+  });
+}
+
+// Bienvenida: en 3 pasos el dueño deja listo lo basico de su negocio
+function Bienvenida({ usuario, onListo }) {
+  const [paso, setPaso] = useState(0);
+  const [d, setD] = useState(null);
+  const [otro, setOtro] = useState(false);
+  const [error, setError] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  useEffect(() => {
+    API.get("/auth/bienvenida").then(r => {
+      const l = r.data.locales || [];
+      setD({ nombre_negocio: r.data.nombre_negocio || "", logo_url: r.data.logo_url || "", moneda: r.data.moneda || "ARS",
+        l1: { nombre: l[0]?.nombre || "Local principal", direccion: l[0]?.direccion || "" }, l2: { nombre: l[1]?.nombre || "", direccion: l[1]?.direccion || "" } });
+      setOtro(!!l[1]);
+    }).catch(() => setD({ nombre_negocio: "", logo_url: "", moneda: "ARS", l1: { nombre: "Local principal", direccion: "" }, l2: { nombre: "", direccion: "" } }));
+  }, []);
+  const set = (k, v) => { setD(x => ({ ...x, [k]: v })); setError(""); };
+  const setL = (cual, k, v) => { setD(x => ({ ...x, [cual]: { ...x[cual], [k]: v } })); setError(""); };
+  const elegirLogo = async (e) => {
+    const f = e.target.files && e.target.files[0]; e.target.value = "";
+    if (!f) return;
+    try { set("logo_url", await achicarLogo(f)); } catch (err) { setError(err.message); }
+  };
+  const siguiente = () => {
+    if (paso === 0 && d.nombre_negocio.trim().length < 2) return setError("Escribí el nombre de tu negocio");
+    if (paso === 1 && d.l1.nombre.trim().length < 2) return setError("Escribí el nombre de tu local");
+    if (paso === 1 && otro && d.l2.nombre.trim().length < 2) return setError("Escribí el nombre del segundo local (o destildá «Tengo otro local»)");
+    setError(""); setPaso(p => p + 1);
+  };
+  const guardar = async (omitir) => {
+    if (guardando) return;
+    setGuardando(true); setError("");
+    try {
+      await API.post("/auth/bienvenida", omitir ? { omitir: true } : { nombre_negocio: d.nombre_negocio, logo_url: d.logo_url, moneda: d.moneda, locales: [d.l1].concat(otro ? [d.l2] : []) });
+      onListo();
+    } catch (e) { setError(e.response?.data?.error || "No se pudo guardar. Probá de nuevo."); setGuardando(false); }
+  };
+  const nombre = (usuario?.nombre || "").split(" ")[0];
+  return (
+    <div className="ls-fondo">
+      <style>{CSS_SELECTOR_LOCAL + CSS_LOGIN + CSS_PRIMER_INGRESO}</style>
+      <div className="ls-barras" aria-hidden="true">{[30, 48, 40, 62, 55, 78, 70, 100].map((h, k) => <span key={k} style={{ height: h + "%", animationDelay: k * 70 + "ms" }} />)}</div>
+      <main className="ls-caja" aria-labelledby="bv-titulo" style={{ maxWidth: 500 }}>
+        <div className="ls-logo"><LogoLumiere alto={36} color="#ffffff" /></div>
+        <h1 id="bv-titulo" className="ls-hola">{paso === 0 ? "¡Te damos la bienvenida" + (nombre ? ", " + nombre : "") + "! 👋" : paso === 1 ? "Tus locales" : "¡Todo listo! 🎉"}</h1>
+        <div className="ls-sub">{paso === 0 ? "En un minuto dejamos tu negocio listo." : paso === 1 ? "¿Dónde vendés? Después podés cambiarlo cuando quieras." : "Tu gerente ya tiene lo básico para empezar."}</div>
+        <div className="pi-pasos" aria-label={"Paso " + (paso + 1) + " de 3"}>{[0, 1, 2].map(k => <span key={k} className={k <= paso ? "on" : ""} />)}</div>
+        {!d ? <div className="ls-esq" style={{ height: 160 }} /> : (
+          <div className="lg-form">
+            {paso === 0 && <>
+              <div className="lg-campo"><label htmlFor="bv-nom">Nombre de tu negocio</label><input id="bv-nom" className="lg-input" value={d.nombre_negocio} onChange={e => set("nombre_negocio", e.target.value)} placeholder="Ej: Ferretería Ana" autoFocus /></div>
+              <div className="lg-campo">
+                <label htmlFor="bv-logo">Logo (opcional)</label>
+                <div className="pi-logo-fila">
+                  <div className="pi-logo-prev">{d.logo_url ? <img src={d.logo_url} alt="Logo elegido" /> : <span aria-hidden="true">🖼️</span>}</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-start" }}>
+                    <label className="pi-sec" style={{ padding: "9px 14px" }}>{d.logo_url ? "Cambiar imagen" : "Elegir imagen"}<input id="bv-logo" type="file" accept="image/*" onChange={elegirLogo} style={{ display: "none" }} /></label>
+                    {d.logo_url && <button type="button" className="lg-ver" style={{ position: "static", transform: "none", padding: "2px 4px" }} onClick={() => set("logo_url", "")}>Quitar</button>}
+                  </div>
+                </div>
+                <div className="lg-ayuda" style={{ textAlign: "left" }}>Sale en tus tickets y en el portal de tus clientes.</div>
+              </div>
+              <div className="lg-campo"><label htmlFor="bv-mon">Moneda con la que vendés</label>
+                <select id="bv-mon" className="lg-input" value={d.moneda} onChange={e => set("moneda", e.target.value)}>{Object.keys(MONEDAS).map(c => <option key={c} value={c}>{MONEDAS[c].nombre} ({c})</option>)}</select></div>
+            </>}
+            {paso === 1 && <>
+              <div className="lg-campo"><label htmlFor="bv-l1">Nombre de tu local</label><input id="bv-l1" className="lg-input" value={d.l1.nombre} onChange={e => setL("l1", "nombre", e.target.value)} placeholder="Ej: Local Centro" autoFocus /></div>
+              <div className="lg-campo"><label htmlFor="bv-d1">Dirección (opcional)</label><input id="bv-d1" className="lg-input" value={d.l1.direccion} onChange={e => setL("l1", "direccion", e.target.value)} placeholder="Ej: Av. San Martín 123" /></div>
+              <label className="pi-acepto" style={{ margin: "2px 0" }}><input type="checkbox" checked={otro} onChange={e => { setOtro(e.target.checked); setError(""); }} /><span>Tengo otro local</span></label>
+              {otro && <>
+                <div className="lg-campo"><label htmlFor="bv-l2">Nombre del segundo local</label><input id="bv-l2" className="lg-input" value={d.l2.nombre} onChange={e => setL("l2", "nombre", e.target.value)} placeholder="Ej: Sucursal Norte" /></div>
+                <div className="lg-campo"><label htmlFor="bv-d2">Dirección (opcional)</label><input id="bv-d2" className="lg-input" value={d.l2.direccion} onChange={e => setL("l2", "direccion", e.target.value)} /></div>
+              </>}
+            </>}
+            {paso === 2 && (
+              <ul className="pi-lista">
+                <li>🏪 <b>{d.nombre_negocio}</b> · {MONEDAS[d.moneda]?.nombre || d.moneda}{d.logo_url ? " · con logo" : ""}</li>
+                <li>📍 {d.l1.nombre}{otro && d.l2.nombre ? " y " + d.l2.nombre : ""}</li>
+                <li>Lo que sigue, cuando quieras: <b>cargar tus productos</b> en Inventario, <b>sumar a tu equipo</b> en Usuarios y hacer tu <b>primera venta</b> en el Punto de Venta.</li>
+              </ul>
+            )}
+            {error && <div className="lg-error" role="alert">{error}</div>}
+            <div className="pi-botones">
+              {paso > 0 ? <button type="button" className="pi-sec" onClick={() => { setError(""); setPaso(p => p - 1); }} disabled={guardando}>← Atrás</button> : <button type="button" className="pi-sec" onClick={() => guardar(true)} disabled={guardando}>Después</button>}
+              {paso < 2 ? <button type="button" className="lg-entrar" onClick={siguiente}>Siguiente</button> : <button type="button" className="lg-entrar" onClick={() => guardar(false)} disabled={guardando}>{guardando ? "Guardando…" : "Empezar a usar Lumiere"}</button>}
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
 // ============ Panel de Lumiere (solo para quien administra la plataforma) ============
 // Todos los negocios que usan Lumiere: crear uno nuevo, activarlo cuando paga, darle mas
 // dias de prueba, suspenderlo o ponerle una contraseña nueva al dueño.
@@ -18692,6 +18898,7 @@ function PanelPlataforma({ paletaActual }) {
                   Creado el {fecha(n.creado_en)}{n.activado_en && !n.original ? " · activado el " + fecha(n.activado_en) : ""}<br />
                   Última venta: {n.ultima_venta ? fecha(n.ultima_venta) : "todavía ninguna"}
                   {n.estado === "prueba" || n.estado === "vencido" ? <><br />Prueba hasta el {fecha(n.prueba_hasta)}</> : null}
+                  {!n.original && <><br />Términos: {n.terminos ? "aceptados el " + fecha(n.terminos.aceptado_en) + " (versión " + n.terminos.version + ")" : "todavía no los aceptó"}</>}
                 </div>
                 {n.notas && <div className="cli-tip" style={{ margin: 0 }}>📝 {n.notas}</div>}
                 {!n.original && (
@@ -19556,10 +19763,13 @@ export default function AppWrapper() {
   const [adminPlataforma, setAdminPlataforma] = useState(false);
   const [miNegocio, setMiNegocio] = useState(null);
   const [avisoVencida, setAvisoVencida] = useState("");
+  // Primer ingreso de un negocio: null = todavia no se sabe, true = falta aceptar los terminos
+  const [faltaTerminos, setFaltaTerminos] = useState(null);
   useEffect(() => {
-    if (!usuario) { setAdminPlataforma(false); setMiNegocio(null); return; }
+    if (!usuario) { setAdminPlataforma(false); setMiNegocio(null); setFaltaTerminos(null); return; }
     API.get("/plataforma/acceso").then(r => setAdminPlataforma(r.data?.admin === true)).catch(() => setAdminPlataforma(false));
-    API.get("/auth/mi-negocio").then(r => setMiNegocio(r.data || null)).catch(() => {});
+    API.get("/auth/mi-negocio").then(r => setMiNegocio(r.data || {})).catch(() => setMiNegocio({}));
+    API.get("/auth/terminos").then(r => setFaltaTerminos(r.data?.requerido === true && r.data?.aceptado !== true)).catch(() => setFaltaTerminos(false));
   }, [usuario?.id]);
   useEffect(() => {
     const f = (e) => { setAvisoVencida(e.detail || "Tu prueba gratis terminó."); API.get("/auth/mi-negocio").then(r => setMiNegocio(r.data || null)).catch(() => {}); };
@@ -19662,6 +19872,29 @@ export default function AppWrapper() {
     <>
       <style>{getBaseCss(paletaActual)}</style>
       <LoginScreen onLogin={handleLogin} />
+    </>
+  );
+
+  // Primer ingreso del dueño de un negocio: aceptar los terminos y completar la bienvenida.
+  // En los negocios clientes se espera un instante a saber si falta algo, para no mostrar el sistema antes.
+  let esNegocioCliente = false;
+  try { esNegocioCliente = (localStorage.getItem("lumiere_neg") || "1") !== "1"; } catch (e) {}
+  if (esNegocioCliente && (faltaTerminos === null || miNegocio === null)) return (
+    <>
+      <style>{getBaseCss(paletaActual)}</style>
+      <div className="ls-fondo"><style>{CSS_SELECTOR_LOCAL}</style><div className="ls-logo"><LogoLumiere alto={44} color="#ffffff" /></div></div>
+    </>
+  );
+  if (faltaTerminos === true) return (
+    <>
+      <style>{getBaseCss(paletaActual)}</style>
+      <PuertaTerminos negocio={miNegocio} onAceptado={() => setFaltaTerminos(false)} />
+    </>
+  );
+  if (faltaTerminos === false && miNegocio?.bienvenida_pendiente && (usuario.rol === "jefe" || usuario.rol_id === 1)) return (
+    <>
+      <style>{getBaseCss(paletaActual)}</style>
+      <Bienvenida usuario={usuario} onListo={() => window.location.reload()} />
     </>
   );
 

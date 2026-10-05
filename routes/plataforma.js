@@ -41,6 +41,7 @@ async function actividad(n) {
 router.get('/negocios', soloAdmin, async (req, res) => {
   try {
     const lista = await negocios.listarNegocios();
+    const acept = await negocios.ultimaAceptacionPorNegocio().catch(() => ({}));
     const out = [];
     for (const n of lista) {
       const r = negocios.resumen(n);
@@ -48,6 +49,7 @@ router.get('/negocios', soloAdmin, async (req, res) => {
         id: n.id, nombre: n.nombre, estado: r.estado, plan: n.plan, prueba_hasta: n.prueba_hasta, dias_prueba: r.dias_prueba,
         pais: n.pais, moneda: n.moneda, email_contacto: n.email_contacto, telefono: n.telefono, notas: n.notas,
         creado_en: n.creado_en, activado_en: n.activado_en, usuarios: n.usuarios, original: Number(n.id) === 1,
+        terminos: acept[n.id] ? { version: acept[n.id].version, aceptado_en: acept[n.id].aceptado_en, email: acept[n.id].email } : null,
         ...(await actividad(n)),
       });
     }

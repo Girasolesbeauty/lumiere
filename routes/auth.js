@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
 const { porNegocio, enNegocio, negocioActual } = require('../lib/contexto');
 const negocios = require('../lib/negocios');
+const legal = require('../legal/textos');
 
 // Usuarios que se pueden desactivar (no entran, se pueden reactivar) o eliminar (desaparecen de
 // la lista y liberan su email). Eliminar NO borra lo que hicieron: ventas, caja, ajustes de stock,
@@ -115,6 +116,93 @@ async function iniciarSesion(req, res, neg) {
 // En que estado esta mi negocio (para el aviso de dias de prueba)
 router.get('/mi-negocio', (req, res) => {
   res.json(negocios.resumen(req.negocio) || negocios.resumen(negocios.ORIGINAL));
+});
+
+// Terminos y Condiciones: los acepta el dueño (rol jefe) de cada negocio cliente, una vez por version.
+// El negocio original (el de quien presta el servicio) no los necesita.
+const debeAceptar = (req) => !!req.negocio && Number(req.negocio.id) !== 1 && req.usuario && req.usuario.rol === 'jefe';
+router.get('/terminos', async (req, res) => {
+  try {
+    const requerido = debeAceptar(req);
+    const cuando = requerido ? await negocios.aceptoTerminos(req.negocio.id, req.usuario.id, legal.VERSION) : null;
+    res.json({ version: legal.VERSION, requerido, aceptado: !requerido || !!cuando, aceptado_en: cuando });
+  } catch (e) {
+    console.error('[terminos]', e.message);
+    res.status(500).json({ error: 'No se pudo consultar los términos' });
+  }
+});
+router.post('/terminos/aceptar', async (req, res) => {
+  try {
+    if (!req.body || req.body.version !== legal.VERSION) return res.status(400).json({ error: 'Los términos se actualizaron. Recargá la página para leer la última versión.' });
+    if (req.body.acepto !== true) return res.status(400).json({ error: 'Tenés que marcar que leíste y aceptás los términos' });
+    let nombre = null;
+    try { nombre = (await pool.query('SELECT nombre FROM usuarios WHERE id = $1', [req.usuario.id])).rows[0]?.nombre || null; } catch (e) {}
+    const ip = String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim();
+    const cuando = await negocios.registrarAceptacion({
+      negocio_id: req.negocio.id, usuario_id: req.usuario.id, email: req.usuario.email, nombre, negocio_nombre: req.negocio.nombre,
+      version: legal.VERSION, ip, navegador: req.headers['user-agent'],
+    });
+    res.json({ ok: true, version: legal.VERSION, aceptado_en: cuando });
+  } catch (e) {
+    console.error('[terminos] aceptar:', e.message);
+    res.status(500).json({ error: 'No se pudo guardar la aceptación. Probá de nuevo.' });
+  }
+});
+
+// Bienvenida: la primera vez, el dueño completa los datos basicos de su negocio
+// (nombre, logo, moneda y locales). Se puede omitir y completar despues en Configuracion.
+const LOGO_OK = /^(data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+|https:\/\/\S+)$/;
+router.get('/bienvenida', async (req, res) => {
+  try {
+    const c = (await pool.query('SELECT * FROM configuracion_negocio WHERE id = 1')).rows[0] || {};
+    const locales = (await pool.query('SELECT id, nombre, direccion FROM locales ORDER BY id LIMIT 2')).rows;
+    res.json({ nombre_negocio: c.nombre_negocio || '', logo_url: c.logo_url || '', moneda: (c.moneda && c.moneda.codigo) || 'ARS', locales });
+  } catch (e) {
+    res.status(500).json({ error: 'No se pudieron cargar los datos del negocio' });
+  }
+});
+router.post('/bienvenida', async (req, res) => {
+  if (!req.usuario || req.usuario.rol !== 'jefe') return res.status(403).json({ error: 'Solo el dueño puede configurar el negocio' });
+  const b = req.body || {};
+  const negId = (negocioActual() || {}).id || 1;
+  if (b.omitir === true) {
+    try { await negocios.marcarBienvenida(negId); return res.json({ ok: true, omitida: true }); }
+    catch (e) { return res.status(500).json({ error: 'No se pudo guardar' }); }
+  }
+  const nombre = String(b.nombre_negocio || '').trim();
+  if (nombre.length < 2) return res.status(400).json({ error: 'Escribí el nombre de tu negocio' });
+  const logo = String(b.logo_url || '').trim();
+  if (logo && (!LOGO_OK.test(logo) || logo.length > 400000)) return res.status(400).json({ error: 'El logo no se pudo usar. Probá con otra imagen (PNG o JPG).' });
+  const moneda = String(b.moneda || '').trim().toUpperCase();
+  if (moneda && !/^[A-Z]{3}$/.test(moneda)) return res.status(400).json({ error: 'Elegí la moneda' });
+  const locales = (Array.isArray(b.locales) ? b.locales : []).slice(0, 2).map(l => ({ nombre: String((l && l.nombre) || '').trim(), direccion: String((l && l.direccion) || '').trim() }));
+  if (!locales[0] || locales[0].nombre.length < 2) return res.status(400).json({ error: 'Escribí el nombre de tu local' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('INSERT INTO configuracion_negocio (id, nombre_negocio) VALUES (1, $1) ON CONFLICT (id) DO NOTHING', [nombre]);
+    await client.query('UPDATE configuracion_negocio SET nombre_negocio = $1, logo_url = $2 WHERE id = 1', [nombre, logo || null]);
+    if (moneda) {
+      await client.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS moneda JSONB');
+      await client.query(`UPDATE configuracion_negocio SET moneda = COALESCE(moneda, '{}'::jsonb) || $1::jsonb WHERE id = 1`, [JSON.stringify({ codigo: moneda })]);
+    }
+    for (let i = 0; i < locales.length; i++) {
+      const l = locales[i];
+      if (!l.nombre) continue;
+      await client.query(`INSERT INTO locales (id, nombre, direccion, activo) VALUES ($1, $2, $3, TRUE)
+                          ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre, direccion = EXCLUDED.direccion, activo = TRUE`, [i + 1, l.nombre, l.direccion || null]);
+    }
+    await client.query(`SELECT setval(pg_get_serial_sequence('locales', 'id'), GREATEST((SELECT MAX(id) FROM locales), 1))`);
+    await client.query('COMMIT');
+  } catch (e) {
+    try { await client.query('ROLLBACK'); } catch (x) {}
+    console.error('[bienvenida]', e.message);
+    return res.status(500).json({ error: 'No se pudieron guardar los datos. Probá de nuevo.' });
+  } finally {
+    client.release();
+  }
+  try { await negocios.marcarBienvenida(negId, nombre); } catch (e) { console.error('[bienvenida] central:', e.message); }
+  res.json({ ok: true });
 });
 
 // Registrar usuario

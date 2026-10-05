@@ -20,7 +20,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '1mb' })); // 1mb: el logo del negocio viaja como imagen chica en el pedido
 
 // Todo /api pide haber iniciado sesion (salvo el login y el portal de clientes)
 app.use('/api', require('./middleware/auth'));
@@ -76,6 +76,7 @@ app.use('/api/avisos-menu', require('./routes/avisos-menu'));
 app.use('/api/gerente', require('./routes/gerente'));
 app.use('/api/respaldo', require('./routes/respaldo'));
 app.use('/api/plataforma', require('./routes/plataforma'));
+app.use('/api/legal', require('./routes/legal'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {
