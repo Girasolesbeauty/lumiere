@@ -83,9 +83,13 @@ router.post('/:id/vender', async (req, res) => {
     // el del local quedaba igual: el sistema mostraba mas de lo que habia).
     const col = Number(req.body.local_id) === 2 ? 'stock_ush' : 'stock_rg';
     const items = await client.query(
-      `SELECT ki.*, COALESCE(p.${col}, 0) AS stock, p.nombre FROM kit_items ki JOIN productos p ON p.id = ki.producto_id WHERE ki.kit_id=$1`,
+      `SELECT ki.*, COALESCE(p.${col}, 0) AS stock, p.nombre, k.nombre AS kit_nombre
+         FROM kit_items ki JOIN productos p ON p.id = ki.producto_id JOIN kits k ON k.id = ki.kit_id
+        WHERE ki.kit_id=$1 FOR UPDATE OF p`,
       [req.params.id]
     );
+    const localNum = col === 'stock_ush' ? 2 : 1;
+    const quien = req.usuario?.id ? (await client.query('SELECT nombre FROM usuarios WHERE id = $1', [req.usuario.id])).rows[0]?.nombre || null : null;
     for (const item of items.rows) {
       const needed = item.cantidad * cantidad;
       if (item.stock < needed) {
@@ -95,6 +99,13 @@ router.post('/:id/vender', async (req, res) => {
       await client.query(
         `UPDATE productos SET ${col} = COALESCE(${col}, 0) - $1, stock = COALESCE(stock_rg, 0) + COALESCE(stock_ush, 0) - $1 WHERE id=$2`,
         [needed, item.producto_id]);
+      // Queda anotado que salio por un kit (antes no dejaba ningun rastro y despues el
+      // stock "faltaba" sin que nadie supiera por que).
+      await client.query(
+        `INSERT INTO ajustes_stock (producto_id, stock_anterior, stock_nuevo, diferencia, motivo, usuario_id, usuario_nombre, local_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [item.producto_id, item.stock, item.stock - needed, -needed, 'Kit: salio en el kit "' + item.kit_nombre + '" (desde la pantalla Kits, sin venta)',
+          req.usuario?.id || null, quien, localNum]);
     }
     await client.query('COMMIT');
     res.json({ ok: true, mensaje: 'Stock actualizado correctamente' });

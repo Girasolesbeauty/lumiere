@@ -3920,6 +3920,15 @@ function POS({ localId, usuario, paletaActual }) {
 
   const listaCompleta = [...kitsComoProducto, ...productos];
   listaCompletaRef.current = listaCompleta;
+  // Si vienen de la pantalla Kits con "Vender en el Punto de Venta", el kit entra solo al carrito
+  useEffect(() => {
+    if (!kitsPos.length) return;
+    let pedido = null;
+    try { pedido = sessionStorage.getItem("lumiere_pos_kit"); sessionStorage.removeItem("lumiere_pos_kit"); } catch (e) {}
+    if (!pedido) return;
+    const k = kitsComoProducto.find(x => String(x.kit_id) === String(pedido));
+    if (k) add(k);
+  }, [kitsPos]);
   accionProductoRef.current = accionProducto;
   const productosAMostrar = listaCompleta.filter(p =>
     !busqueda || (p.nombre || p.name || "").toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -16278,7 +16287,7 @@ function ControlInventario({ localId, usuario, paletaActual }) {
     const h = hist && !hist.cargando && !hist.error ? hist : null;
     const qh = histBusca.trim().toLowerCase();
     const sugeridos = qh.length >= 2 ? productos.filter(x => [x.nombre, x.marca, x.codigo_barras].some(v => String(v || "").toLowerCase().includes(qh))).slice(0, 8) : [];
-    const ICONO = { ingreso: "📦", venta: "🛒", venta_anulada: "↩️", devolucion: "🔄", cambio: "🔄", traspaso: "🚚", ajuste: "✏️", reversion: "↩️", control: "🔢", conteo: "🔢", regalo: "🎁", reserva: "⏳" };
+    const ICONO = { ingreso: "📦", venta: "🛒", venta_anulada: "↩️", devolucion: "🔄", devolucion_fallada: "🚫", kit: "🎁", cambio: "🔄", traspaso: "🚚", ajuste: "✏️", reversion: "↩️", control: "🔢", conteo: "🔢", regalo: "🎁", reserva: "⏳" };
     return (
       <div className="fade">
         <div className="dash-head">
@@ -16324,6 +16333,7 @@ function ControlInventario({ localId, usuario, paletaActual }) {
                       {l.totales.ajustes !== 0 && <span className="tag tag-warn">ajustes a mano {l.totales.ajustes > 0 ? "+" : ""}{l.totales.ajustes}</span>}
                       {l.totales.controles !== 0 && <span className="tag tag-warn">correcciones de control {l.totales.controles > 0 ? "+" : ""}{l.totales.controles}</span>}
                       {l.totales.regalos > 0 && <span className="tag tag-neutral">regalos −{l.totales.regalos}</span>}
+                      {l.totales.kits > 0 && <span className="tag tag-neutral">kits −{l.totales.kits}</span>}
                       {l.en_transito > 0 && <span className="tag tag-neutral">en camino {l.en_transito}</span>}
                     </div>
                     {l.en_camino.length > 0 && <div className="cc-aviso" style={{ background: p.warnDim, color: p.warn, border: "1px solid " + p.warn + "55" }}>Hay {l.en_camino.reduce((a, x) => a + x.cantidad, 0)} unidades de facturas de proveedor que este local todavía no controló: {l.en_camino.map(x => x.cantidad + " (" + x.detalle + ")").join("; ")}. Hasta que no se reciban en Ingresos, no suman al stock.</div>}
@@ -17802,13 +17812,11 @@ function Kits({ paletaActual, localId }) {
     } catch (e) { setMensaje("Error al eliminar"); }
   };
 
-  const vender = async (kit) => {
-    try {
-      await API.post("/kits/" + kit.id + "/vender", { cantidad: 1, local_id: localId || 1 });
-      setMensaje("Kit vendido! Stock actualizado.");
-      cargar();
-      setTimeout(() => setMensaje(""), 3000);
-    } catch (e) { setMensaje(e.response?.data?.error || "Error al vender kit"); }
+  // El kit se vende como cualquier venta: va al Punto de Venta ya cargado, ahi se cobra y
+  // queda la venta registrada (antes este boton solo bajaba el stock, sin venta ni cobro).
+  const vender = (kit) => {
+    try { sessionStorage.setItem("lumiere_pos_kit", String(kit.id)); } catch (e) {}
+    irASeccion("pos");
   };
 
   const editar = (kit) => {
@@ -17868,7 +17876,7 @@ function Kits({ paletaActual, localId }) {
                       ))}
                     </div>
                     <div style={{ display: "flex", gap: 6 }}>
-                      <button className="btn btn-p btn-sm" style={{ flex: 2 }} onClick={() => vender(kit)}>Vender kit</button>
+                      <button className="btn btn-p btn-sm" style={{ flex: 2 }} onClick={() => vender(kit)}>Vender en el Punto de Venta</button>
                       <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => editar(kit)}>Editar</button>
                       <button className="btn btn-sm" style={{ flex: 1, border: "1px solid #c0392b22", color: "#c0392b" }} onClick={() => eliminar(kit.id)}>Quitar</button>
                     </div>

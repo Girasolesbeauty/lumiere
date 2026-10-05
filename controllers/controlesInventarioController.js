@@ -546,8 +546,13 @@ const historiaProducto = async (req, res) => {
       q(`SELECT v.id, v.numero_factura, v.creado_en, v.local_id, v.preventa_local, v.es_preventa, v.estado_pago, v.canal, COALESCE(v.anulada, FALSE) AS anulada,
                 vi.cantidad, u.nombre AS usuario
            FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id LEFT JOIN usuarios u ON u.id = v.usuario_id WHERE vi.producto_id = $1`, [id]),
-      q(`SELECT id, creado_en, local_id, usuario_nombre, venta_origen_numero, producto_devuelto_id, cantidad_devuelta, producto_nuevo_id, cantidad_nueva
-           FROM cambios_productos WHERE producto_devuelto_id = $1 OR producto_nuevo_id = $1`, [id]),
+      // Un cambio puede tener varios productos: el detalle completo esta en "detalle"
+      // (las columnas sueltas solo guardan el primero).
+      q(`SELECT id, creado_en, local_id, usuario_nombre, venta_origen_numero, producto_devuelto_id, cantidad_devuelta, producto_nuevo_id, cantidad_nueva, detalle, motivo
+           FROM cambios_productos
+          WHERE producto_devuelto_id = $1 OR producto_nuevo_id = $1
+             OR COALESCE(detalle->'devueltos', '[]'::jsonb) @> jsonb_build_array(jsonb_build_object('producto_id', $1::int))
+             OR COALESCE(detalle->'nuevos', '[]'::jsonb) @> jsonb_build_array(jsonb_build_object('producto_id', $1::int))`, [id]),
       q(`SELECT id, creado_en, COALESCE(local_id, 1) AS local_id, stock_anterior, stock_nuevo, diferencia, motivo, usuario_nombre FROM ajustes_stock WHERE producto_id = $1`, [id]),
       q(`SELECT id, entregado_en, local_entrega_id, entregado_por, campana FROM influencer_regalos WHERE producto_id = $1 AND estado = 'entregado' AND entregado_en IS NOT NULL`, [id]),
       q(`SELECT c.id, c.local_id, c.finalizado_en, c.ajustar_stock, c.usuario_nombre, i.stock_sistema, i.stock_contado, i.diferencia, i.motivo
@@ -575,13 +580,24 @@ const historiaProducto = async (req, res) => {
       }
       for (const c of cambios) {
         if (Number(c.local_id || 1) !== L) continue;
-        if (Number(c.producto_devuelto_id) === id && c.cantidad_devuelta) mov.push({ fecha: c.creado_en, tipo: 'devolucion', cantidad: c.cantidad_devuelta, detalle: 'Devolución (cambio #' + c.id + (c.venta_origen_numero ? ', venta ' + c.venta_origen_numero : '') + ')', usuario: c.usuario_nombre, dudoso: true });
-        if (Number(c.producto_nuevo_id) === id && c.cantidad_nueva) mov.push({ fecha: c.creado_en, tipo: 'cambio', cantidad: -c.cantidad_nueva, detalle: 'Se lo llevaron en un cambio (#' + c.id + ')', usuario: c.usuario_nombre });
+        const det = c.detalle && typeof c.detalle === 'object' ? c.detalle : null;
+        const dev = det && Array.isArray(det.devueltos) ? det.devueltos : (c.producto_devuelto_id ? [{ producto_id: c.producto_devuelto_id, cantidad: c.cantidad_devuelta, reingresa_stock: true }] : []);
+        const nue = det && Array.isArray(det.nuevos) ? det.nuevos : (c.producto_nuevo_id ? [{ producto_id: c.producto_nuevo_id, cantidad: c.cantidad_nueva }] : []);
+        const deVenta = c.venta_origen_numero ? ', compra ' + c.venta_origen_numero : '';
+        for (const d of dev) {
+          if (Number(d.producto_id) !== id || !(Number(d.cantidad) > 0)) continue;
+          if (d.reingresa_stock === false) mov.push({ fecha: c.creado_en, tipo: 'devolucion_fallada', cantidad: 0, detalle: 'Devolvieron ' + d.cantidad + ' u. que NO volvieron al stock' + (c.motivo ? ' (' + c.motivo + ')' : '') + ' · cambio #' + c.id + deVenta, usuario: c.usuario_nombre });
+          else mov.push({ fecha: c.creado_en, tipo: 'devolucion', cantidad: Number(d.cantidad), detalle: 'Devolución: volvió al stock (cambio #' + c.id + deVenta + ')', usuario: c.usuario_nombre });
+        }
+        for (const n of nue) {
+          if (Number(n.producto_id) !== id || !(Number(n.cantidad) > 0)) continue;
+          mov.push({ fecha: c.creado_en, tipo: 'cambio', cantidad: -Number(n.cantidad), detalle: 'Se lo llevaron en un cambio (#' + c.id + deVenta + ')', usuario: c.usuario_nombre });
+        }
       }
       for (const a of ajustes) {
         if (Number(a.local_id) !== L) continue;
         const m = a.motivo || '';
-        const tipo = /^Control de inventario/i.test(m) ? 'control' : /traspaso/i.test(m) ? 'traspaso' : /^REVERSION/i.test(m) ? 'reversion' : 'ajuste';
+        const tipo = /^Control de inventario/i.test(m) ? 'control' : /^Kit:/i.test(m) ? 'kit' : /traspaso/i.test(m) ? 'traspaso' : /^REVERSION/i.test(m) ? 'reversion' : 'ajuste';
         mov.push({ fecha: a.creado_en, tipo, cantidad: a.diferencia, detalle: (tipo === 'ajuste' ? 'Ajuste a mano: ' : '') + (m || 'sin motivo'), usuario: a.usuario_nombre,
           // Solo los controles y los ajustes a mano dejan anotado con certeza cuanto quedo en ESTE local
           queda: (tipo === 'control' || tipo === 'ajuste') ? a.stock_nuevo : null, ancla: tipo === 'control' || tipo === 'ajuste' });
@@ -618,7 +634,7 @@ const historiaProducto = async (req, res) => {
       return {
         local_id: L, actual, en_camino: enCamino, en_transito: Number(esUsh ? p.stock_transito_ush : p.stock_transito_rg) || 0,
         totales: { ingresos: tot(['ingreso']), ventas: -tot(['venta']), devoluciones: tot(['devolucion']), cambios: -tot(['cambio']), traspasos: tot(['traspaso']),
-          ajustes: tot(['ajuste', 'reversion']), controles: tot(['control']), regalos: -tot(['regalo']), ventas_anuladas: mov.filter(m => m.tipo === 'venta_anulada').length },
+          ajustes: tot(['ajuste', 'reversion']), controles: tot(['control']), regalos: -tot(['regalo']), kits: -tot(['kit']), ventas_anuladas: mov.filter(m => m.tipo === 'venta_anulada').length },
         partida: iAncla >= 0 ? { fecha: mov[iAncla].fecha, stock: Number(mov[iAncla].queda), detalle: mov[iAncla].detalle } : null,
         esperado, diferencia: esperado === null ? null : actual - esperado,
         inicial_implicito: inicialImplicito,
