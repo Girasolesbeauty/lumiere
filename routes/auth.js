@@ -112,6 +112,11 @@ async function iniciarSesion(req, res, neg) {
   }
 }
 
+// En que estado esta mi negocio (para el aviso de dias de prueba)
+router.get('/mi-negocio', (req, res) => {
+  res.json(negocios.resumen(req.negocio) || negocios.resumen(negocios.ORIGINAL));
+});
+
 // Registrar usuario
 router.post('/register', async (req, res) => {
   try {

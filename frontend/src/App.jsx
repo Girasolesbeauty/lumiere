@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useRef, Fragment, Component } from "react";
+import { createPortal } from "react-dom";
 import { getProductos, createVenta, getClientes, getFlujo, getPuntoEquilibrio, agregarEgreso, getResumenFinanzas, getVentas, getAlertasStock, getCupones, createCupon, updateCupon, getRanking, getReglas, createRegla as createReglaWA, updateRegla as updateReglaWA, login, register } from "./api";
 import API from "./api";
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, ReferenceLine } from "recharts";
@@ -18375,7 +18376,11 @@ function LoginScreen({ onLogin }) {
   const [verPass, setVerPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(() => {
-    try { if (sessionStorage.getItem("lumiere_sesion_vencida")) { sessionStorage.removeItem("lumiere_sesion_vencida"); return "Tu sesión venció. Volvé a iniciar sesión."; } } catch (e) {}
+    try {
+      const aviso = sessionStorage.getItem("lumiere_aviso_login");
+      if (aviso) { sessionStorage.removeItem("lumiere_aviso_login"); return aviso; }
+      if (sessionStorage.getItem("lumiere_sesion_vencida")) { sessionStorage.removeItem("lumiere_sesion_vencida"); return "Tu sesión venció. Volvé a iniciar sesión."; }
+    } catch (e) {}
     return "";
   });
 
@@ -18554,6 +18559,253 @@ function LocalSelector({ usuario, onSelect, actual, onCancel }) {
           <button className="ls-btn ls-salir" onClick={salir}>Cerrar sesión</button>
         </div>
       </main>
+    </div>
+  );
+}
+
+// ============ Panel de Lumiere (solo para quien administra la plataforma) ============
+// Todos los negocios que usan Lumiere: crear uno nuevo, activarlo cuando paga, darle mas
+// dias de prueba, suspenderlo o ponerle una contraseña nueva al dueño.
+const PAISES_MONEDA = [["Argentina", "ARS"], ["Bolivia", "BOB"], ["Chile", "CLP"], ["Colombia", "COP"], ["Costa Rica", "CRC"], ["Cuba", "CUP"], ["Ecuador", "USD"], ["El Salvador", "USD"],
+  ["España", "EUR"], ["Estados Unidos", "USD"], ["Guatemala", "GTQ"], ["Honduras", "HNL"], ["México", "MXN"], ["Nicaragua", "NIO"], ["Panamá", "PAB"], ["Paraguay", "PYG"], ["Perú", "PEN"],
+  ["Puerto Rico", "USD"], ["República Dominicana", "DOP"], ["Uruguay", "UYU"], ["Venezuela", "VES"]];
+const ESTADOS_NEGOCIO = { activo: ["Activo", "tag-ok"], prueba: ["En prueba", "tag-warn"], vencido: ["Prueba vencida", "tag-bad"], suspendido: ["Suspendido", "tag-bad"] };
+const CSS_PLATAFORMA = `
+.plt-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; }
+.plt-neg { display: flex; flex-direction: column; gap: 10px; }
+.plt-neg-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.plt-neg-nombre { font-size: 16px; font-weight: 800; overflow-wrap: anywhere; }
+.plt-neg-sub { font-size: 12px; opacity: .7; margin-top: 2px; overflow-wrap: anywhere; }
+.plt-datos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.plt-dato { border-radius: 8px; padding: 8px 10px; font-size: 11px; }
+.plt-dato b { display: block; font-size: 16px; font-variant-numeric: tabular-nums; }
+.plt-acciones { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
+.plt-fondo { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 200; display: flex; align-items: flex-start; justify-content: center; padding: 24px 12px; overflow-y: auto; }
+.plt-modal { width: 100%; max-width: 520px; border-radius: 14px; padding: 22px; }
+.plt-fila2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.plt-acceso { border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; font-family: inherit; margin: 10px 0; }
+@media (max-width: 560px) { .plt-fila2 { grid-template-columns: 1fr; } .plt-datos { grid-template-columns: repeat(3, 1fr); } }
+`;
+const claveAlAzar = () => { const a = "abcdefghjkmnpqrstuvwxyz23456789"; let s = ""; const r = new Uint32Array(10); crypto.getRandomValues(r); r.forEach(n => { s += a[n % a.length]; }); return s; };
+
+// Dibuja una ventana encima de toda la pantalla (fuera del contenido, para que el menu no la tape)
+function Ventana(props) { return createPortal(<div {...props} />, document.body); }
+
+function PanelPlataforma({ paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
+  const [negocios, setNegocios] = useState(null);
+  const [filtro, setFiltro] = useState("todos");
+  const [busca, setBusca] = useState("");
+  const [msg, setMsg] = useState("");
+  const [nuevo, setNuevo] = useState(null);
+  const [creando, setCreando] = useState(false);
+  const [creado, setCreado] = useState(null); // datos de acceso para pasarle al cliente
+  const [clave, setClave] = useState(null); // { negocio, password }
+  const [notas, setNotas] = useState(null); // { negocio, texto }
+  const avisar = (m) => { setMsg(m); if (!m.startsWith("Error")) setTimeout(() => setMsg(x => (x === m ? "" : x)), 4000); };
+  const cargar = () => API.get("/plataforma/negocios").then(r => setNegocios(r.data || [])).catch(e => { setNegocios([]); avisar("Error: " + (e.response?.data?.error || "no se pudo cargar la lista")); });
+  useEffect(() => { cargar(); }, []);
+
+  const vacio = () => ({ nombre: "", nombre_dueno: "", email: "", password: claveAlAzar(), pais: "Argentina", moneda: "ARS", telefono: "", modo: "prueba", dias_prueba: 7, notas: "" });
+  const setN = (k, v) => setNuevo(x => ({ ...x, [k]: v }));
+  const mensajeAcceso = (d) => "¡Hola" + (d.nombre_dueno ? " " + d.nombre_dueno.split(" ")[0] : "") + "! Ya está listo tu Lumiere para " + d.nombre + " ✨\n\nEntrá acá: https://app.sistemalumiere.com\nMail: " + d.email + "\nContraseña: " + d.password + "\n\n" +
+    (d.modo === "prueba" ? "Tenés " + d.dias_prueba + " días de prueba gratis con todo incluido. " : "") + "Cualquier duda escribime.";
+  const crear = async (e) => {
+    e.preventDefault();
+    if (creando) return;
+    setCreando(true);
+    try {
+      await API.post("/plataforma/negocios", { nombre: nuevo.nombre, nombre_dueno: nuevo.nombre_dueno, email: nuevo.email, password: nuevo.password, pais: nuevo.pais, moneda: nuevo.moneda,
+        telefono: nuevo.telefono, estado: nuevo.modo === "activo" ? "activo" : "prueba", dias_prueba: nuevo.dias_prueba, notas: nuevo.notas });
+      setCreado({ ...nuevo }); setNuevo(null); cargar();
+    } catch (err) { avisar("Error: " + (err.response?.data?.error || "no se pudo crear el negocio")); }
+    setCreando(false);
+  };
+  const cambiar = async (n, cambios, okMsg) => {
+    try { await API.put("/plataforma/negocios/" + n.id, cambios); avisar("✓ " + okMsg); cargar(); }
+    catch (err) { avisar("Error: " + (err.response?.data?.error || "no se pudo guardar")); }
+  };
+  const guardarClave = async () => {
+    try { await API.put("/plataforma/negocios/" + clave.negocio.id + "/password", { password: clave.password }); avisar("✓ Contraseña nueva guardada para " + clave.negocio.nombre); setClave(c => ({ ...c, lista: true })); }
+    catch (err) { avisar("Error: " + (err.response?.data?.error || "no se pudo cambiar la contraseña")); }
+  };
+  const copiar = (txt) => { try { navigator.clipboard.writeText(txt); avisar("✓ Copiado"); } catch (e) { avisar("Error: no se pudo copiar, seleccioná el texto a mano"); } };
+  const fecha = (f) => (f ? new Date(f).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" }) : "—");
+  const tel = (t) => String(t || "").replace(/\D/g, "");
+
+  const lista = negocios || [];
+  const cuenta = { todos: lista.length, activo: 0, prueba: 0, vencido: 0, suspendido: 0 };
+  lista.forEach(n => { cuenta[n.estado] = (cuenta[n.estado] || 0) + 1; });
+  const q = busca.trim().toLowerCase();
+  const visibles = lista.filter(n => filtro === "todos" || n.estado === filtro).filter(n => !q || [n.nombre, n.email_contacto, n.pais, n.notas].some(x => String(x || "").toLowerCase().includes(q)));
+  const caja = { background: p.card, color: p.text, border: "1px solid " + p.border };
+
+  return (
+    <div className="fade">
+      <style>{CSS_PLATAFORMA}</style>
+      <div className="dash-head">
+        <div>
+          <div className="pt">🛠️ Panel de Lumiere</div>
+          <div className="ps">todos los negocios que usan Lumiere · esta sección la ves solo vos</div>
+        </div>
+        <button className="btn btn-p" onClick={() => { setNuevo(vacio()); setCreado(null); }}>+ Nuevo negocio</button>
+      </div>
+      {msg && <div className={"pop-in cc-aviso " + (msg.startsWith("Error") ? "bad" : "ok")} role="status">{msg}</div>}
+
+      <div className="kpi-grid">
+        <KpiCard p={p} titulo="Negocios" valor={String(cuenta.todos)} indice={0} sub="en total" />
+        <KpiCard p={p} titulo="Activos (pagan)" valor={String(cuenta.activo)} color={p.green} indice={1} sub="con la cuenta activada" />
+        <KpiCard p={p} titulo="En prueba" valor={String(cuenta.prueba)} color={p.warn} indice={2} sub="dentro de los días gratis" />
+        <KpiCard p={p} titulo="Prueba vencida" valor={String(cuenta.vencido)} color={cuenta.vencido ? p.red : p.textMuted} indice={3} sub="para contactar y activar" />
+      </div>
+
+      <div className="chart-card" style={{ marginBottom: 12 }}>
+        <div className="cli-chips" style={{ marginBottom: 10 }}>
+          {[["todos", "Todos"], ["prueba", "En prueba"], ["vencido", "Prueba vencida"], ["activo", "Activos"], ["suspendido", "Suspendidos"]].map(([k, l]) => (
+            <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(k)}>{l} · {cuenta[k] || 0}</button>
+          ))}
+        </div>
+        <input className="inp" placeholder="🔍 Buscar por nombre, mail, país o notas" value={busca} onChange={e => setBusca(e.target.value)} aria-label="Buscar negocio" />
+      </div>
+
+      {negocios === null ? <div className="skel" style={{ height: 200 }} /> : visibles.length === 0 ? (
+        <div className="chart-card"><div className="cli-vacio">{lista.length <= 1 && filtro === "todos" && !q ? "Todavía no hay otros negocios. Tocá «+ Nuevo negocio» para crear el primero." : "No hay negocios con ese filtro."}</div></div>
+      ) : (
+        <div className="plt-lista">
+          {visibles.map(n => {
+            const [etq, clase] = ESTADOS_NEGOCIO[n.estado] || [n.estado, "tag-warn"];
+            return (
+              <div key={n.id} className="chart-card plt-neg">
+                <div className="plt-neg-top">
+                  <div style={{ minWidth: 0 }}>
+                    <div className="plt-neg-nombre">{n.nombre}{n.original ? " ⭐" : ""}</div>
+                    <div className="plt-neg-sub">{n.original ? "tu negocio (el original)" : [n.email_contacto, n.pais, n.moneda].filter(Boolean).join(" · ")}</div>
+                  </div>
+                  <span className={"tag " + clase} style={{ whiteSpace: "nowrap" }}>{etq}{n.estado === "prueba" ? " · " + (n.dias_prueba === 1 ? "queda 1 día" : "quedan " + n.dias_prueba + " días") : ""}</span>
+                </div>
+                <div className="plt-datos">
+                  <div className="plt-dato" style={{ background: p.bg }}><b>{n.productos ?? 0}</b>productos</div>
+                  <div className="plt-dato" style={{ background: p.bg }}><b>{n.ventas ?? 0}</b>ventas</div>
+                  <div className="plt-dato" style={{ background: p.bg }}><b>{n.usuarios ?? 0}</b>usuarios</div>
+                </div>
+                <div style={{ fontSize: 12, color: p.textMuted, lineHeight: 1.6 }}>
+                  Creado el {fecha(n.creado_en)}{n.activado_en && !n.original ? " · activado el " + fecha(n.activado_en) : ""}<br />
+                  Última venta: {n.ultima_venta ? fecha(n.ultima_venta) : "todavía ninguna"}
+                  {n.estado === "prueba" || n.estado === "vencido" ? <><br />Prueba hasta el {fecha(n.prueba_hasta)}</> : null}
+                </div>
+                {n.notas && <div className="cli-tip" style={{ margin: 0 }}>📝 {n.notas}</div>}
+                {!n.original && (
+                  <div className="plt-acciones">
+                    {n.estado !== "activo" && n.estado !== "suspendido" && <button className="btn btn-p btn-sm" onClick={() => { if (confirm("¿Activar " + n.nombre + "? Deja de estar en prueba y puede usar todo sin límite de días.")) cambiar(n, { estado: "activo" }, n.nombre + " quedó activo"); }}>✓ Activar</button>}
+                    {n.estado !== "activo" && n.estado !== "suspendido" && <button className="btn btn-g btn-sm" onClick={() => cambiar(n, { sumar_dias: 7 }, "7 días más de prueba para " + n.nombre)}>+7 días</button>}
+                    {n.estado !== "activo" && n.estado !== "suspendido" && <button className="btn btn-g btn-sm" onClick={() => cambiar(n, { sumar_dias: 30 }, "30 días más de prueba para " + n.nombre)}>+30 días</button>}
+                    {n.estado === "suspendido"
+                      ? <button className="btn btn-p btn-sm" onClick={() => cambiar(n, { estado: "activo" }, n.nombre + " volvió a estar activo")}>Reactivar</button>
+                      : <button className="btn btn-g btn-sm" onClick={() => { if (confirm("¿Suspender " + n.nombre + "? Nadie de ese negocio va a poder entrar hasta que lo reactives. No se borra ningún dato.")) cambiar(n, { estado: "suspendido" }, n.nombre + " quedó suspendido"); }}>Suspender</button>}
+                    <button className="btn btn-g btn-sm" onClick={() => setClave({ negocio: n, password: claveAlAzar() })}>🔑 Contraseña</button>
+                    <button className="btn btn-g btn-sm" onClick={() => setNotas({ negocio: n, texto: n.notas || "" })}>📝 Notas</button>
+                    {tel(n.telefono) && <a className="btn btn-g btn-sm" href={"https://wa.me/" + tel(n.telefono)} target="_blank" rel="noopener" style={{ textDecoration: "none" }}>💬 WhatsApp</a>}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {nuevo && (
+        <Ventana className="plt-fondo" role="dialog" aria-modal="true" aria-label="Nuevo negocio" onMouseDown={e => { if (e.target === e.currentTarget && !creando) setNuevo(null); }}>
+          <form className="plt-modal pop-in" style={caja} onSubmit={crear}>
+            <div className="ct" style={{ marginBottom: 4 }}>Nuevo negocio</div>
+            <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 14 }}>Se crea su Lumiere vacío y listo para usar, con su local, medios de pago y el usuario del dueño.</div>
+            <div className="fg"><label className="fl" htmlFor="plt-nom">Nombre del negocio</label><input id="plt-nom" className="inp" required value={nuevo.nombre} onChange={e => setN("nombre", e.target.value)} placeholder="Ej: Ferretería Ana" autoFocus /></div>
+            <div className="plt-fila2">
+              <div className="fg"><label className="fl" htmlFor="plt-due">Nombre del dueño</label><input id="plt-due" className="inp" value={nuevo.nombre_dueno} onChange={e => setN("nombre_dueno", e.target.value)} placeholder="Ej: Ana Pérez" /></div>
+              <div className="fg"><label className="fl" htmlFor="plt-tel">WhatsApp (con código de país)</label><input id="plt-tel" className="inp" inputMode="tel" value={nuevo.telefono} onChange={e => setN("telefono", e.target.value)} placeholder="Ej: 5491112345678" /></div>
+            </div>
+            <div className="plt-fila2">
+              <div className="fg"><label className="fl" htmlFor="plt-mail">Mail del dueño (con ese entra)</label><input id="plt-mail" className="inp" type="email" required autoCapitalize="none" value={nuevo.email} onChange={e => setN("email", e.target.value)} placeholder="ana@mail.com" /></div>
+              <div className="fg"><label className="fl" htmlFor="plt-pass">Contraseña inicial</label>
+                <div style={{ display: "flex", gap: 6 }}><input id="plt-pass" className="inp" required minLength={6} value={nuevo.password} onChange={e => setN("password", e.target.value)} /><button type="button" className="btn btn-g btn-sm" onClick={() => setN("password", claveAlAzar())} title="Generar otra">↻</button></div></div>
+            </div>
+            <div className="plt-fila2">
+              <div className="fg"><label className="fl" htmlFor="plt-pais">País</label>
+                <select id="plt-pais" className="inp" value={nuevo.pais} onChange={e => { const m = PAISES_MONEDA.find(x => x[0] === e.target.value); setNuevo(x => ({ ...x, pais: e.target.value, moneda: m ? m[1] : x.moneda })); }}>
+                  {PAISES_MONEDA.map(([pa]) => <option key={pa} value={pa}>{pa}</option>)}</select></div>
+              <div className="fg"><label className="fl" htmlFor="plt-mon">Moneda</label>
+                <select id="plt-mon" className="inp" value={nuevo.moneda} onChange={e => setN("moneda", e.target.value)}>{Object.keys(MONEDAS).map(c => <option key={c} value={c}>{c} · {MONEDAS[c].nombre || c}</option>)}</select></div>
+            </div>
+            <div className="plt-fila2">
+              <div className="fg"><label className="fl" htmlFor="plt-modo">¿Cómo arranca?</label>
+                <select id="plt-modo" className="inp" value={nuevo.modo} onChange={e => setN("modo", e.target.value)}><option value="prueba">Prueba gratis</option><option value="activo">Ya pagó: activo</option></select></div>
+              {nuevo.modo === "prueba" && <div className="fg"><label className="fl" htmlFor="plt-dias">Días de prueba</label><input id="plt-dias" className="inp" type="number" min="1" max="365" value={nuevo.dias_prueba} onChange={e => setN("dias_prueba", e.target.value)} /></div>}
+            </div>
+            <div className="fg"><label className="fl" htmlFor="plt-not">Notas para vos (el cliente no las ve)</label><input id="plt-not" className="inp" value={nuevo.notas} onChange={e => setN("notas", e.target.value)} placeholder="Ej: vino por Instagram, plan Profesional" /></div>
+            <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+              <button type="button" className="btn btn-g" style={{ flex: 1 }} onClick={() => setNuevo(null)} disabled={creando}>Cancelar</button>
+              <button type="submit" className="btn btn-p" style={{ flex: 2 }} disabled={creando}>{creando ? "Creando el negocio…" : "Crear negocio"}</button>
+            </div>
+          </form>
+        </Ventana>
+      )}
+
+      {creado && (
+        <Ventana className="plt-fondo" role="dialog" aria-modal="true" aria-label="Negocio creado">
+          <div className="plt-modal pop-in" style={caja}>
+            <div className="ct" style={{ marginBottom: 4 }}>✓ {creado.nombre} ya tiene su Lumiere</div>
+            <div style={{ fontSize: 13, color: p.textMuted }}>Pasale estos datos al cliente. <b style={{ color: p.text }}>Guardalos ahora</b>: la contraseña no se vuelve a mostrar (si la pierde, le ponés una nueva con 🔑).</div>
+            <pre className="plt-acceso" style={{ background: p.bg, border: "1px solid " + p.border }}>{mensajeAcceso(creado)}</pre>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button className="btn btn-p" onClick={() => copiar(mensajeAcceso(creado))}>Copiar mensaje</button>
+              {tel(creado.telefono) && <a className="btn btn-g" style={{ textDecoration: "none" }} href={"https://wa.me/" + tel(creado.telefono) + "?text=" + encodeURIComponent(mensajeAcceso(creado))} target="_blank" rel="noopener">Enviar por WhatsApp</a>}
+              <button className="btn btn-g" style={{ marginLeft: "auto" }} onClick={() => setCreado(null)}>Listo</button>
+            </div>
+          </div>
+        </Ventana>
+      )}
+
+      {clave && (
+        <Ventana className="plt-fondo" role="dialog" aria-modal="true" aria-label="Contraseña nueva" onMouseDown={e => { if (e.target === e.currentTarget) setClave(null); }}>
+          <div className="plt-modal pop-in" style={caja}>
+            <div className="ct" style={{ marginBottom: 4 }}>🔑 Contraseña nueva para el dueño de {clave.negocio.nombre}</div>
+            <div style={{ fontSize: 13, color: p.textMuted, marginBottom: 10 }}>Para cuando se la olvidó. Se cambia la del mail {clave.negocio.email_contacto}.</div>
+            <div style={{ display: "flex", gap: 6 }}><input className="inp" value={clave.password} onChange={e => setClave(c => ({ ...c, password: e.target.value, lista: false }))} aria-label="Contraseña nueva" /><button type="button" className="btn btn-g btn-sm" onClick={() => setClave(c => ({ ...c, password: claveAlAzar(), lista: false }))} title="Generar otra">↻</button></div>
+            {clave.lista && <div className="cc-aviso ok" style={{ marginTop: 10 }}>✓ Guardada. Pasásela al cliente: {clave.password}</div>}
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setClave(null)}>{clave.lista ? "Cerrar" : "Cancelar"}</button>
+              {clave.lista ? <button className="btn btn-p" style={{ flex: 2 }} onClick={() => copiar(clave.password)}>Copiar contraseña</button> : <button className="btn btn-p" style={{ flex: 2 }} onClick={guardarClave}>Guardar contraseña nueva</button>}
+            </div>
+          </div>
+        </Ventana>
+      )}
+
+      {notas && (
+        <Ventana className="plt-fondo" role="dialog" aria-modal="true" aria-label="Notas" onMouseDown={e => { if (e.target === e.currentTarget) setNotas(null); }}>
+          <div className="plt-modal pop-in" style={caja}>
+            <div className="ct" style={{ marginBottom: 8 }}>📝 Notas de {notas.negocio.nombre}</div>
+            <textarea className="inp" rows={4} value={notas.texto} onChange={e => setNotas(x => ({ ...x, texto: e.target.value }))} placeholder="Solo las ves vos: qué plan tiene, cómo paga, qué pidió…" autoFocus />
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setNotas(null)}>Cancelar</button>
+              <button className="btn btn-p" style={{ flex: 2 }} onClick={async () => { await cambiar(notas.negocio, { notas: notas.texto }, "Notas guardadas"); setNotas(null); }}>Guardar</button>
+            </div>
+          </div>
+        </Ventana>
+      )}
+    </div>
+  );
+}
+
+// Aviso de la prueba gratis: cuantos dias quedan, o que ya termino (solo lectura)
+function AvisoPrueba({ negocio, p }) {
+  if (!negocio || (negocio.estado !== "prueba" && negocio.estado !== "vencido")) return null;
+  const vencido = negocio.estado === "vencido";
+  const wa = "https://wa.me/5492964488770?text=" + encodeURIComponent("Hola, quiero activar mi cuenta de Lumiere (" + negocio.nombre + ")");
+  const d = negocio.dias_prueba;
+  return (
+    <div role="status" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "9px 14px", borderRadius: 10, marginBottom: 12, fontSize: 13, fontWeight: 600,
+      background: vencido ? p.redDim : p.accentDim, border: "1px solid " + (vencido ? p.red : "var(--acento)"), color: p.text }}>
+      <span>{vencido ? "⏰ Tu prueba gratis terminó: podés ver todo, pero no cargar ni vender hasta activar la cuenta." : "🎁 Estás en la prueba gratis: " + (d <= 0 ? "termina hoy" : d === 1 ? "te queda 1 día" : "te quedan " + d + " días") + ", con todo incluido."}</span>
+      <a href={wa} target="_blank" rel="noopener" className="btn btn-p btn-sm" style={{ textDecoration: "none", marginLeft: "auto" }}>Activar mi cuenta</a>
     </div>
   );
 }
@@ -19264,6 +19516,10 @@ export default function AppWrapper() {
     // Trae los nombres reales de los locales configurados en esta cuenta (ej: "Local
     // Centro"/"Local Norte" en vez de "Rio Grande"/"Ushuaia"), y fuerza un re-render
     // para que se vean actualizados en toda la app desde el primer momento.
+  }, []);
+  // Los nombres de los locales se piden con la sesion iniciada (el servidor no responde sin ella)
+  useEffect(() => {
+    if (!usuario) return;
     API.get("/locales").then(res => {
       const lista = res.data || [];
       const l1 = lista.find(l => Number(l.id) === 1);
@@ -19272,7 +19528,7 @@ export default function AppWrapper() {
       if (l2?.nombre) NOMBRES_LOCALES[2] = l2.nombre;
       setNombresLocalesVersion(v => v + 1);
     }).catch(() => {});
-  }, []);
+  }, [usuario?.id]);
 
   const handleLogin = (u) => {
     setUsuario(u);
@@ -19296,6 +19552,21 @@ export default function AppWrapper() {
   PERMISOS_ACTUALES = permisosActivos;
   ES_JEFE_ACTUAL = !!usuario && (usuario.rol === "jefe" || usuario.rol_id === 1);
   const [avisosMenu, setAvisosMenu] = useState({});
+  // Multi-negocio: si quien entro administra Lumiere (ve el Panel) y el estado de su negocio (prueba gratis)
+  const [adminPlataforma, setAdminPlataforma] = useState(false);
+  const [miNegocio, setMiNegocio] = useState(null);
+  const [avisoVencida, setAvisoVencida] = useState("");
+  useEffect(() => {
+    if (!usuario) { setAdminPlataforma(false); setMiNegocio(null); return; }
+    API.get("/plataforma/acceso").then(r => setAdminPlataforma(r.data?.admin === true)).catch(() => setAdminPlataforma(false));
+    API.get("/auth/mi-negocio").then(r => setMiNegocio(r.data || null)).catch(() => {});
+  }, [usuario?.id]);
+  useEffect(() => {
+    const f = (e) => { setAvisoVencida(e.detail || "Tu prueba gratis terminó."); API.get("/auth/mi-negocio").then(r => setMiNegocio(r.data || null)).catch(() => {}); };
+    window.addEventListener("lumiere-prueba-vencida", f);
+    return () => window.removeEventListener("lumiere-prueba-vencida", f);
+  }, []);
+  useEffect(() => { if (!avisoVencida) return; const t = setTimeout(() => setAvisoVencida(""), 7000); return () => clearTimeout(t); }, [avisoVencida]);
   const [, setVersionMoneda] = useState(0);
   // Moneda del negocio: se carga al entrar y cuando se cambia en Configuración
   useEffect(() => {
@@ -19409,6 +19680,7 @@ export default function AppWrapper() {
     if (id === "cambio-devolucion") return <CambioDevolucion localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "ventas-online") return <VentasOnline localId={local.id} usuario={usuario} permisosActivos={permisosActivos} paletaActual={paletaActual} />;
     if (id === "auditoria") return <Auditoria paletaActual={paletaActual} />;
+    if (id === "plataforma") return adminPlataforma ? <PanelPlataforma paletaActual={paletaActual} /> : <SinPermiso />;
     if (id === "inventory") return <Inventario localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "clients") return <Clientes usuario={usuario} paletaActual={paletaActual} />;
     if (id === "pedidos") return <Pedidos localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
@@ -19447,7 +19719,9 @@ export default function AppWrapper() {
   const NAV_CON_PERMISOS = NAV_SECTIONS.map(sec => ({
     ...sec,
     items: sec.items.filter(it => (!it.soloJefe || esJefeMenu) && puedeVer(it.id))
-  })).filter(sec => sec.items.length > 0);
+  })).filter(sec => sec.items.length > 0)
+    // Solo para quien administra Lumiere
+    .concat(adminPlataforma ? [{ section: "LUMIERE", color: "#f5b400", items: [{ id: "plataforma", icon: "🛠️", label: "Panel de Lumiere", k: "negocios clientes desarrollador plataforma activar prueba" }] }] : []);
 
   const rolBadgeColor = { jefe: "#c9a84c", administrativo: "#2471a3", vendedora: "#2d7a4f" };
   // En el celular el menu se abre siempre completo (achicado no tiene sentido ahi)
@@ -19494,7 +19768,9 @@ export default function AppWrapper() {
           </div>
         </aside>
         <main ref={mainRef} className={"main " + (menuChico ? "comprimido" : "") + (page === "pos" ? " en-pos" : "")}>
+          {page !== "pos" && <AvisoPrueba negocio={miNegocio} p={paletaActual} />}
           <ErrorSeccion key={page} p={paletaActual}>{getPageWithLocal(page)}</ErrorSeccion>
+          {avisoVencida && <div role="alert" className="pop-in" style={{ position: "fixed", left: "50%", bottom: 90, transform: "translateX(-50%)", zIndex: 300, maxWidth: "min(92vw, 520px)", background: paletaActual.red, color: "#fff", padding: "12px 16px", borderRadius: 12, fontSize: 14, fontWeight: 700, boxShadow: "0 12px 30px rgba(0,0,0,.35)" }}>{avisoVencida}</div>}
         </main>
         {page !== "pos" && <BarraCelular secciones={NAV_CON_PERMISOS} page={page} setPage={setPage} avisos={avisosMenu} onMas={() => setMenuAbierto(true)} />}
         <AsistenteAyuda usuario={usuario} seccion={page} paletaActual={paletaActual} />

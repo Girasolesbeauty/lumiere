@@ -23,6 +23,17 @@ API.interceptors.response.use((r) => r, (err) => {
     sessionStorage.setItem('lumiere_sesion_vencida', '1');
     window.location.reload();
   }
+  // Prueba gratis terminada: se avisa en pantalla (el servidor no dejo guardar)
+  if (err.response?.status === 402 && err.response?.data?.prueba_vencida) {
+    window.dispatchEvent(new CustomEvent('lumiere-prueba-vencida', { detail: err.response.data.error }));
+  }
+  // Negocio suspendido: se cierra la sesion con el aviso
+  if (err.response?.status === 403 && err.response?.data?.suspendido && localStorage.getItem('lumiere_token')) {
+    localStorage.removeItem('lumiere_token');
+    localStorage.removeItem('lumiere_user');
+    sessionStorage.setItem('lumiere_aviso_login', err.response.data.error);
+    window.location.reload();
+  }
   return Promise.reject(err);
 });
 

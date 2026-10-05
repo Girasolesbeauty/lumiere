@@ -75,6 +75,7 @@ app.use('/api/retos', require('./routes/retos'));
 app.use('/api/avisos-menu', require('./routes/avisos-menu'));
 app.use('/api/gerente', require('./routes/gerente'));
 app.use('/api/respaldo', require('./routes/respaldo'));
+app.use('/api/plataforma', require('./routes/plataforma'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {
