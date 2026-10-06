@@ -159,6 +159,10 @@ const C = PALETA_CLARA;
 // Como es un objeto mutable a nivel de modulo (no un estado de React), cualquier
 // componente puede leerlo en el momento sin necesidad de que se lo pasen como prop.
 let NOMBRES_LOCALES = { 1: "Local 1", 2: "Local 2" };
+// Si el negocio tiene un solo local, no se muestra nada del segundo (selectores "Local 2",
+// "Consolidado", "Todos", columnas de stock del otro local). Se recuerda en el navegador para
+// que no aparezca y desaparezca al abrir; AppWrapper lo confirma con la lista real de locales.
+let UN_SOLO_LOCAL = (() => { try { return localStorage.getItem("lumiere_un_local") === "1"; } catch (e) { return false; } })();
 // Permisos de la persona que esta usando el sistema (los carga App al entrar). El jefe puede todo.
 let PERMISOS_ACTUALES = [];
 let ES_JEFE_ACTUAL = false;
@@ -1367,16 +1371,16 @@ function Dashboard({ localId, paletaActual }) {
       <div className="dash-head">
         <div>
           <div className="pt">Dashboard</div>
-          <div className="ps">{NOMBRES_MES[mes - 1] + " " + anio + " · " + (tabLocal === "rg" ? nombreLocal(1) : tabLocal === "ush" ? nombreLocal(2) : "Todos los locales")}</div>
+          <div className="ps">{NOMBRES_MES[mes - 1] + " " + anio + " · " + (UN_SOLO_LOCAL ? nombreLocal(1) : tabLocal === "rg" ? nombreLocal(1) : tabLocal === "ush" ? nombreLocal(2) : "Todos los locales")}</div>
         </div>
         <div className="dash-actions">
-          <div className="seg" role="group" aria-label="Local">
+          {!UN_SOLO_LOCAL && <div className="seg" role="group" aria-label="Local">
             {["rg", "ush", "consolidado"].map(l => (
               <button key={l} className={tabLocal === l ? "on" : ""} aria-pressed={tabLocal === l} onClick={() => setTabLocal(l)}>
                 {l === "rg" ? nombreLocal(1) : l === "ush" ? nombreLocal(2) : "Consolidado"}
               </button>
             ))}
-          </div>
+          </div>}
           <button className="btn btn-g btn-sm" onClick={cargar} disabled={loading} style={{ opacity: loading ? 0.6 : 1 }}>
             {loading ? "Actualizando..." : "↻ Actualizar"}
           </button>
@@ -2359,12 +2363,12 @@ function VentasOnline({ localId, usuario, permisosActivos, paletaActual }) {
               )}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
                 <div><div className="fl">Fecha</div><input className="inp" type="date" value={voFecha} onChange={e => setVoFecha(e.target.value)} /></div>
-                <div><div className="fl">Local</div>
+                {!UN_SOLO_LOCAL && <div><div className="fl">Local</div>
                   <select className="sel" value={voLocal} onChange={e => setVoLocal(e.target.value)}>
                     <option value="1">{nombreLocal(1)}</option>
                     <option value="2">{nombreLocal(2)}</option>
                   </select>
-                </div>
+                </div>}
               </div>
               {voItems.length > 0 && (
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, fontWeight: 800, marginBottom: 12, borderTop: "1px solid " + p.border, paddingTop: 8 }}>
@@ -2741,10 +2745,10 @@ function BuscarPrecio({ localId, paletaActual, usuario }) {
             {prod.categoria && <div style={{ fontSize: 11, color: p.textMuted, marginTop: 8 }}>{prod.categoria}{prod.codigo_barras ? " · " + prod.codigo_barras : ""}</div>}
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", borderTop: "1px solid " + p.border, borderBottom: "1px solid " + p.border }}>
-            {[Number(localId) === 2 ? 2 : 1, otroLocal].map((loc, k) => (
+          <div style={{ display: "grid", gridTemplateColumns: UN_SOLO_LOCAL ? "1fr" : "1fr 1fr", borderTop: "1px solid " + p.border, borderBottom: "1px solid " + p.border }}>
+            {(UN_SOLO_LOCAL ? [1] : [Number(localId) === 2 ? 2 : 1, otroLocal]).map((loc, k) => (
               <div key={loc} style={{ padding: "12px 14px", textAlign: "center", borderLeft: k ? "1px solid " + p.border : "none" }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: p.textMuted, letterSpacing: ".08em", marginBottom: 6 }}>{nombreLocal(loc).toUpperCase()}{k === 0 ? " (acá)" : ""}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: p.textMuted, letterSpacing: ".08em", marginBottom: 6 }}>{nombreLocal(loc).toUpperCase()}{k === 0 && !UN_SOLO_LOCAL ? " (acá)" : ""}</div>
                 <Stock n={stockLocal(prod, loc)} grande={k === 0} />
               </div>
             ))}
@@ -5704,11 +5708,11 @@ function Rotacion({ localId, paletaActual }) {
           <div className="ps">qué se vende, qué está quieto y dónde está tu plata · últimos {dias} días</div>
         </div>
         <div className="dash-actions">
-          <div className="seg" role="group" aria-label="Local">
+          {!UN_SOLO_LOCAL && <div className="seg" role="group" aria-label="Local">
             {[["rg", nombreLocal(1)], ["ush", nombreLocal(2)], ["consolidado", "Todos"]].map(([k, l]) => (
               <button key={k} className={tabLocal === k ? "on" : ""} aria-pressed={tabLocal === k} onClick={() => setTabLocal(k)}>{l}</button>
             ))}
-          </div>
+          </div>}
           <div className="seg" role="group" aria-label="Período">
             {[30, 60, 90, 180].map(d => <button key={d} className={dias === d ? "on" : ""} aria-pressed={dias === d} onClick={() => setDias(d)}>{d} días</button>)}
           </div>
@@ -6089,7 +6093,7 @@ function TuGerente({ localId, usuario, paletaActual, tabInicial }) {
           <div className="pt">✨ Lumiere, tu gerente</div>
           <div className="ps">mira todos tus números y te dice qué conviene hacer</div>
         </div>
-        {tab !== "decisiones" && (
+        {tab !== "decisiones" && !UN_SOLO_LOCAL && (
           <div className="seg" role="group" aria-label="Local">
             {[["rg", nombreLocal(1)], ["ush", nombreLocal(2)], ["consolidado", "Todos"]].map(([k, l]) => (
               <button key={k} className={local === k ? "on" : ""} aria-pressed={local === k} onClick={() => setLocal(k)}>{l}</button>
@@ -6151,11 +6155,11 @@ function TomaDecisiones({ paletaActual }) {
           <div className="ps">simulá antes de decidir, con los números reales de tu negocio</div>
         </div>
         <div className="dash-actions">
-          <div className="seg" role="group" aria-label="Local">
+          {!UN_SOLO_LOCAL && <div className="seg" role="group" aria-label="Local">
             {[["consolidado", "Todos"], ["rg", nombreLocal(1)], ["ush", nombreLocal(2)]].map(([k, l]) => (
               <button key={k} className={tabLocal === k ? "on" : ""} aria-pressed={tabLocal === k} onClick={() => setTabLocal(k)}>{l}</button>
             ))}
-          </div>
+          </div>}
         </div>
       </div>
 
@@ -6497,14 +6501,14 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
                   {proveedores.map(pr => <option key={pr.id} value={pr.id}>{pr.nombre}</option>)}
                 </select>
               </div>
-              <div>
+              {!UN_SOLO_LOCAL && <div>
                 <div className="fl">Para</div>
                 <div className="seg" role="group" aria-label="Local">
                   {[["todos", "Los dos locales"], ["1", nombreLocal(1)], ["2", nombreLocal(2)]].map(([k, l]) => (
                     <button key={k} className={vistaLocal === k ? "on" : ""} onClick={() => setVistaLocal(k)}>{l}</button>
                   ))}
                 </div>
-              </div>
+              </div>}
               <div>
                 <div className="fl">Que alcance para</div>
                 <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
@@ -7347,7 +7351,7 @@ function Inventario({ localId, usuario, paletaActual }) {
     ["transito", "🚚 EN TRÁNSITO"],
     ["traspasos", "🔁 TRASPASOS"],
     ["ajustes", "📝 HISTORIAL DE AJUSTES"],
-  ];
+  ].filter(([k]) => !(UN_SOLO_LOCAL && k === "traspasos"));
 
   return (
     <div className="fade" style={{ textAlign: "left" }}>
@@ -7467,7 +7471,7 @@ function Inventario({ localId, usuario, paletaActual }) {
         ))}
       </div>
 
-      {(tab === "stock" || tab === "valorizacion") && (
+      {(tab === "stock" || tab === "valorizacion") && !UN_SOLO_LOCAL && (
         <div className="seg" role="group" aria-label="Local" style={{ marginBottom: 12 }}>
           {[["mi", nombreLocal(localId) + " (mi local)"], ["otro", esUshInv ? nombreLocal(1) : nombreLocal(2)], ["consolidado", "Consolidado"]].map(([id, l]) => (
             <button key={id} className={vistaLocal === id ? "on" : ""} onClick={() => setVistaLocal(id)}>{l}</button>
@@ -7590,7 +7594,7 @@ function Inventario({ localId, usuario, paletaActual }) {
                         ["Costo", parseFloat(p.costo || 0) > 0 ? fmt(parseFloat(p.costo)) : "Sin cargar"],
                         ["Margen", mg === null ? "—" : <span className={"tag " + (mg >= 40 ? "tag-ok" : mg >= 20 ? "tag-warn" : "tag-bad")}>{mg}%</span>],
                         ["Stock mínimo", p.stock_minimo ?? "—"],
-                        ...(vistaLocal === "mi" ? [["En " + (esUshInv ? nombreLocal(1) : nombreLocal(2)), stockOtroDe(p)]] : []),
+                        ...(vistaLocal === "mi" && !UN_SOLO_LOCAL ? [["En " + (esUshInv ? nombreLocal(1) : nombreLocal(2)), stockOtroDe(p)]] : []),
                         ...(reservadoVistaDe(p) > 0 ? [["Reservado", reservadoVistaDe(p)]] : []),
                         ...(transitoVista > 0 ? [["En camino", transitoVista]] : []),
                       ];
@@ -7738,7 +7742,7 @@ function Inventario({ localId, usuario, paletaActual }) {
           ) : (
             <div style={{ overflowX: "auto" }}>
               <table>
-                <thead><tr><th>Producto</th><th>Código</th><th style={{ textAlign: "center" }}>En camino a {nombreLocal(1)}</th><th style={{ textAlign: "center" }}>Reservado {nombreLocal(1)}</th><th style={{ textAlign: "center" }}>En camino a {nombreLocal(2)}</th><th style={{ textAlign: "center" }}>Reservado {nombreLocal(2)}</th></tr></thead>
+                <thead><tr><th>Producto</th><th>Código</th><th style={{ textAlign: "center" }}>En camino a {nombreLocal(1)}</th><th style={{ textAlign: "center" }}>Reservado {nombreLocal(1)}</th>{!UN_SOLO_LOCAL && <><th style={{ textAlign: "center" }}>En camino a {nombreLocal(2)}</th><th style={{ textAlign: "center" }}>Reservado {nombreLocal(2)}</th></>}</tr></thead>
                 <tbody>
                   {transito.map(p => (
                     <tr key={p.id}>
@@ -7746,8 +7750,8 @@ function Inventario({ localId, usuario, paletaActual }) {
                       <td style={{ fontSize: 11, color: temaPal.textMuted }}>{p.codigo_barras || "—"}</td>
                       <td style={{ textAlign: "center" }}>{p.transito_rg > 0 ? <span className="tag tag-neutral">🚚 {p.transito_rg}</span> : "—"}</td>
                       <td style={{ textAlign: "center" }}>{p.reservado_rg > 0 ? <span className="tag tag-warn">{p.reservado_rg}</span> : "—"}</td>
-                      <td style={{ textAlign: "center" }}>{p.transito_ush > 0 ? <span className="tag tag-neutral">🚚 {p.transito_ush}</span> : "—"}</td>
-                      <td style={{ textAlign: "center" }}>{p.reservado_ush > 0 ? <span className="tag tag-warn">{p.reservado_ush}</span> : "—"}</td>
+                      {!UN_SOLO_LOCAL && <td style={{ textAlign: "center" }}>{p.transito_ush > 0 ? <span className="tag tag-neutral">🚚 {p.transito_ush}</span> : "—"}</td>}
+                      {!UN_SOLO_LOCAL && <td style={{ textAlign: "center" }}>{p.reservado_ush > 0 ? <span className="tag tag-warn">{p.reservado_ush}</span> : "—"}</td>}
                     </tr>
                   ))}
                 </tbody>
@@ -7767,7 +7771,7 @@ function Inventario({ localId, usuario, paletaActual }) {
         return (
           <div>
             <div className="card" style={{ marginBottom: 12, padding: 12, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-              <span style={{ fontSize: 12 }}><b>{lista.length}</b> producto{lista.length !== 1 ? "s" : ""} en o bajo el mínimo en {nombreLocal(localId)} · <b style={{ color: temaPal.red }}>{sinSt}</b> sin stock · <b style={{ color: "#2471a3" }}>{conOtro}</b> con stock en {esUshInv ? nombreLocal(1) : nombreLocal(2)}</span>
+              <span style={{ fontSize: 12 }}><b>{lista.length}</b> producto{lista.length !== 1 ? "s" : ""} en o bajo el mínimo en {nombreLocal(localId)} · <b style={{ color: temaPal.red }}>{sinSt}</b> sin stock{!UN_SOLO_LOCAL && <> · <b style={{ color: "#2471a3" }}>{conOtro}</b> con stock en {esUshInv ? nombreLocal(1) : nombreLocal(2)}</>}</span>
               <span style={{ flex: 1 }} />
               <select className="sel" style={{ width: 200 }} value={filtroMarcaAlertas} onChange={e => setFiltroMarcaAlertas(e.target.value)} aria-label="Marca">
                 <option value="">Todas las marcas</option>
@@ -7781,7 +7785,7 @@ function Inventario({ localId, usuario, paletaActual }) {
               <div className="card" style={{ padding: 0, overflow: "hidden" }}>
                 <div style={{ overflowX: "auto" }}>
                   <table>
-                    <thead><tr><th>Producto</th><th>Proveedor</th><th style={{ textAlign: "center" }}>Stock acá</th><th style={{ textAlign: "center" }}>Mínimo</th><th style={{ textAlign: "center" }}>{esUshInv ? nombreLocal(1) : nombreLocal(2)}</th><th></th></tr></thead>
+                    <thead><tr><th>Producto</th><th>Proveedor</th><th style={{ textAlign: "center" }}>Stock acá</th><th style={{ textAlign: "center" }}>Mínimo</th>{!UN_SOLO_LOCAL && <th style={{ textAlign: "center" }}>{esUshInv ? nombreLocal(1) : nombreLocal(2)}</th>}<th></th></tr></thead>
                     <tbody>
                       {lista.map(p => {
                         const st = stockMiDe(p), otro = stockOtroDe(p);
@@ -7791,7 +7795,7 @@ function Inventario({ localId, usuario, paletaActual }) {
                             <td style={{ fontSize: 11, color: temaPal.textMuted }}>{p.proveedor_nombre || "—"}</td>
                             <td style={{ textAlign: "center" }}><span className={"tag " + (st <= 0 ? "tag-bad" : "tag-warn")}>{st}</span></td>
                             <td style={{ textAlign: "center", color: temaPal.textMuted }}>{p.stock_minimo || 5}</td>
-                            <td style={{ textAlign: "center" }}>{otro > 0 ? <span className="tag tag-ok" title="Se puede pedir un traspaso">{otro} disponibles</span> : <span style={{ color: temaPal.textMuted }}>0</span>}</td>
+                            {!UN_SOLO_LOCAL && <td style={{ textAlign: "center" }}>{otro > 0 ? <span className="tag tag-ok" title="Se puede pedir un traspaso">{otro} disponibles</span> : <span style={{ color: temaPal.textMuted }}>0</span>}</td>}
                             <td style={{ textAlign: "right" }}><button className="chip-btn" style={{ fontSize: 11 }} onClick={() => abrirAjuste(p)}>± Ajustar</button></td>
                           </tr>
                         );
@@ -8106,10 +8110,10 @@ function Inventario({ localId, usuario, paletaActual }) {
                       <div style={{ fontSize: 9, color: temaPal.textMuted }}>{nombreLocal(1)}</div>
                       <input className="inp" type="number" style={{ width: 55, fontSize: 12, padding: "4px 6px" }} defaultValue={v.stock_rg} onBlur={e => editarStockVariante(v, "stock_rg", e.target.value)} />
                     </div>
-                    <div style={{ textAlign: "center" }}>
+                    {!UN_SOLO_LOCAL && <div style={{ textAlign: "center" }}>
                       <div style={{ fontSize: 9, color: temaPal.textMuted }}>{nombreLocal(2)}</div>
                       <input className="inp" type="number" style={{ width: 55, fontSize: 12, padding: "4px 6px" }} defaultValue={v.stock_ush} onBlur={e => editarStockVariante(v, "stock_ush", e.target.value)} />
-                    </div>
+                    </div>}
                     <span onClick={() => borrarVariante(v)} style={{ cursor: "pointer", color: "#c0392b", fontSize: 16 }}>×</span>
                   </div>
                 ))}
@@ -8121,8 +8125,8 @@ function Inventario({ localId, usuario, paletaActual }) {
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 <input className="inp" placeholder={"Valor (ej: " + (gestionandoVariantesDe.tipo_variante || "Talle") + ")"} style={{ flex: "1 1 100px" }} value={nuevaVariante.valor} onChange={e => setNuevaVariante(p => ({ ...p, valor: e.target.value }))} />
                 <input className="inp" placeholder="Codigo (opcional)" style={{ flex: "1 1 100px" }} value={nuevaVariante.codigo_barras} onChange={e => setNuevaVariante(p => ({ ...p, codigo_barras: e.target.value }))} />
-                <input className="inp" type="number" placeholder="Stock RG" style={{ width: 80 }} value={nuevaVariante.stock_rg} onChange={e => setNuevaVariante(p => ({ ...p, stock_rg: e.target.value }))} />
-                <input className="inp" type="number" placeholder="Stock USH" style={{ width: 80 }} value={nuevaVariante.stock_ush} onChange={e => setNuevaVariante(p => ({ ...p, stock_ush: e.target.value }))} />
+                <input className="inp" type="number" placeholder={UN_SOLO_LOCAL ? "Stock" : "Stock " + nombreLocal(1)} style={{ width: 80 }} value={nuevaVariante.stock_rg} onChange={e => setNuevaVariante(p => ({ ...p, stock_rg: e.target.value }))} />
+                {!UN_SOLO_LOCAL && <input className="inp" type="number" placeholder={"Stock " + nombreLocal(2)} style={{ width: 80 }} value={nuevaVariante.stock_ush} onChange={e => setNuevaVariante(p => ({ ...p, stock_ush: e.target.value }))} />}
                 <button className="btn btn-p btn-sm" onClick={agregarVariante}>+ Agregar</button>
               </div>
             </div>
@@ -8595,7 +8599,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
   const esJefe = ["jefe", "admin", "administrativo"].includes(usuario?.rol);
 
   // --- Registrar egreso ---
-  const egresoVacio = (fecha) => ({ concepto: "", importe: "", categoria_id: "", forma_pago: "", cuenta_pago_id: "", local_id: "", fecha: fecha || isoLocal(new Date()) });
+  const egresoVacio = (fecha) => ({ concepto: "", importe: "", categoria_id: "", forma_pago: "", cuenta_pago_id: "", local_id: UN_SOLO_LOCAL ? "1" : "", fecha: fecha || isoLocal(new Date()) });
   const [nuevoEgreso, setNuevoEgreso] = useState(egresoVacio());
   const [guardandoEgreso, setGuardandoEgreso] = useState(false);
   const [ultimoEgreso, setUltimoEgreso] = useState(null);
@@ -8748,7 +8752,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
   useEffect(() => { if (tab === "porlocal") cargarCostosPorLocal(); }, [tab, mesFiltro, anioFiltro]);
 
   const guardarEgreso = async () => {
-    const e = nuevoEgreso;
+    const e = UN_SOLO_LOCAL && !nuevoEgreso.local_id ? { ...nuevoEgreso, local_id: "1" } : nuevoEgreso;
     if (!e.concepto.trim()) return avisar("Error: escribí el concepto (o elegí una categoría)");
     if (!(parseFloat(e.importe) > 0)) return avisar("Error: poné un importe mayor a 0");
     if (!e.local_id) return avisar("Error: elegí a qué local corresponde");
@@ -8812,7 +8816,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
   const fmtDiaCorto = (f) => { if (!f) return ""; const [y, m, d] = String(f).slice(0, 10).split("-"); return d + "/" + m + "/" + y; };
   const pctDe = (v, total) => (total > 0 ? (v / total) * 100 : 0);
   const nombreLocalMov = (lid, pct) => {
-    if (lid !== null && lid !== undefined) return nombreLocal(lid);
+    if (UN_SOLO_LOCAL || (lid !== null && lid !== undefined)) return nombreLocal(lid || 1);
     const v = Math.round(parseFloat(pct ?? repartoDefault));
     return "Compartido " + v + "/" + (100 - v);
   };
@@ -8836,7 +8840,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
   const tabs = [
     ["resumen", "Resumen"], ["movimientos", "Movimientos"], ["resultados", "Estado de resultados"],
     ["comparar", "Comparar"], ["porlocal", "Costos por local"], ["equilibrio", "Punto de equilibrio"],
-  ];
+  ].filter(([k]) => !(UN_SOLO_LOCAL && k === "porlocal"));
 
   return (
     <div className="fade">
@@ -8846,11 +8850,11 @@ function Finanzas({ localId, usuario, paletaActual }) {
           <div className="ps">ingresos, egresos y resultado · {MESES_NOMBRE[mesFiltro - 1].toLowerCase()} {anioFiltro}{tabLocal !== "consolidado" ? " · " + nombreLocal(tabLocal === "rg" ? 1 : 2) : ""}</div>
         </div>
         <div className="dash-actions">
-          <div className="seg" role="group" aria-label="Local">
+          {!UN_SOLO_LOCAL && <div className="seg" role="group" aria-label="Local">
             {[["consolidado", "Todos"], ["rg", nombreLocal(1)], ["ush", nombreLocal(2)]].map(([k, l]) => (
               <button key={k} className={tabLocal === k ? "on" : ""} onClick={() => setTabLocal(k)}>{l}</button>
             ))}
-          </div>
+          </div>}
           <div className="fin-mes">
             <button className="icon-btn" onClick={() => moverMes(-1)} aria-label="Mes anterior">‹</button>
             <select className="sel" value={mesFiltro} onChange={e => setMesFiltro(parseInt(e.target.value))} aria-label="Mes">
@@ -9018,7 +9022,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
                 <div className="fg"><div className="fl">Fecha del gasto</div><input className="inp" type="date" value={nuevoEgreso.fecha} max={isoLocal(new Date())} onChange={e => setNuevoEgreso(x => ({ ...x, fecha: e.target.value }))} /></div>
               </div>
               {nuevoEgreso.fecha !== isoLocal(new Date()) && <div style={{ fontSize: 11, color: p.warn, marginTop: -6, marginBottom: 10 }}>Se carga con fecha {fmtDiaCorto(nuevoEgreso.fecha)} (la fecha queda para el próximo egreso).</div>}
-              <div className="fg">
+              {!UN_SOLO_LOCAL && <div className="fg">
                 <div className="fl">Local *</div>
                 <div className="seg" role="group" aria-label="Local del egreso" style={{ display: "flex" }}>
                   {[["1", nombreLocal(1)], ["2", nombreLocal(2)], ["compartido", "Compartido"]].map(([k, l]) => (
@@ -9031,7 +9035,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
                     {esJefe && repartoPct !== repartoDefault && <button type="button" className="mini-chip" onClick={() => guardarRepartoDefault(repartoPct)}>Usar {repartoPct}/{100 - repartoPct} como reparto por defecto</button>}
                   </div>
                 ))}
-              </div>
+              </div>}
               <div className="fg">
                 <div className="fl">Cómo se pagó</div>
                 <div className="seg" role="group" aria-label="Forma de pago" style={{ display: "flex" }}>
@@ -9060,9 +9064,9 @@ function Finanzas({ localId, usuario, paletaActual }) {
                   <div key={r.id || r.local_id} className="cc-linea"><span>{nombreLocal(r.local_id)}</span><b>{fmt(parseFloat(r.monto))}</b></div>
                 ))}
                 <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-                  <select className="sel" value={factExtLocal} onChange={e => setFactExtLocal(e.target.value)} aria-label="Local">
+                  {!UN_SOLO_LOCAL && <select className="sel" value={factExtLocal} onChange={e => setFactExtLocal(e.target.value)} aria-label="Local">
                     <option value="1">{nombreLocal(1)}</option><option value="2">{nombreLocal(2)}</option>
-                  </select>
+                  </select>}
                   <input className="inp" type="number" min="0" placeholder="Monto" value={factExtMonto} onChange={e => setFactExtMonto(e.target.value)} />
                   <button className="btn btn-p btn-sm" onClick={guardarFactExterna}>Guardar</button>
                 </div>
@@ -9155,7 +9159,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
                 ))}
               </select>
             </div>
-            <div className="fg">
+            {!UN_SOLO_LOCAL && <div className="fg">
               <div className="fl">Local</div>
               <div className="seg" role="group" aria-label="Local" style={{ display: "flex" }}>
                 {[[1, nombreLocal(1)], [2, nombreLocal(2)], [null, "Compartido"]].map(([k, l]) => (
@@ -9163,7 +9167,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
                 ))}
               </div>
               {(editandoMov.local_id ?? null) === null && controlReparto(editandoMov.pct_local1 ?? repartoDefault, v => setEditandoMov(x => ({ ...x, pct_local1: v })), editandoMov.importe)}
-            </div>
+            </div>}
             <div className="fg">
               <div className="fl">Cómo se pagó</div>
               <div className="seg" role="group" aria-label="Forma de pago" style={{ display: "flex" }}>
@@ -10429,11 +10433,11 @@ function Pedidos({ localId, usuario, paletaActual }) {
           <div className="ps">lo que esperan, avisos por WhatsApp e historial</div>
         </div>
         <div className="dash-actions">
-          <div className="seg" role="group" aria-label="Local">
+          {!UN_SOLO_LOCAL && <div className="seg" role="group" aria-label="Local">
             {[["1", nombreLocal(1)], ["2", nombreLocal(2)], ["todos", "Todos"]].map(([id, l]) => (
               <button key={id} className={filtroLocal === id ? "on" : ""} onClick={() => setFiltroLocal(id)}>{l}</button>
             ))}
-          </div>
+          </div>}
           <button className="btn btn-p btn-sm" onClick={() => { setMostrarForm(true); setTab("espera"); }}>+ Anotar pedido</button>
         </div>
       </div>
@@ -10839,12 +10843,14 @@ function Pedidos({ localId, usuario, paletaActual }) {
                 </div>
               )}
 
+              {!UN_SOLO_LOCAL && <>
               <div className="fl">📍 Local</div>
               <div className="seg" role="group" aria-label="Local del pedido" style={{ marginBottom: 14 }}>
                 {[["1", nombreLocal(1)], ["2", nombreLocal(2)]].map(([id, l]) => (
                   <button key={id} className={e.local === id ? "on" : ""} onClick={() => set({ local: id })}>{l}</button>
                 ))}
               </div>
+              </>}
 
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEditando(null)}>Cancelar</button>
@@ -14978,11 +14984,11 @@ function Comprobantes({ localId, paletaActual }) {
       <div className="dash-head">
         <div><div className="pt">Comprobantes</div><div className="ps">facturas emitidas en ARCA, pendientes y anuladas</div></div>
         <div className="dash-actions">
-          <div className="seg" role="group" aria-label="Local">
+          {!UN_SOLO_LOCAL && <div className="seg" role="group" aria-label="Local">
             {[["todos", "Todos"], ["1", nombreLocal(1)], ["2", nombreLocal(2)]].map(([k, l]) => (
               <button key={k} className={tabLocal === k ? "on" : ""} onClick={() => setTabLocal(k)}>{l}</button>
             ))}
-          </div>
+          </div>}
           <button className="btn btn-p btn-sm" onClick={descargarExcel}>📥 Excel para el contador</button>
         </div>
       </div>
@@ -16509,7 +16515,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
     if (!facturaItems || facturaItems.length === 0) return;
     if (facturaItems.some(it => !it.producto_id)) return setMensaje("Vincula un producto para cada fila (o eliminala con la 'x')");
     if (facturaItems.some(it => (parseInt(it.cantidad_rg) || 0) + (parseInt(it.cantidad_ush) || 0) <= 0)) {
-      return setMensaje("Cada fila necesita cantidad para " + nombreLocal(1) + ", " + nombreLocal(2) + ", o ambos.");
+      return setMensaje(UN_SOLO_LOCAL ? "Cada fila necesita una cantidad." : "Cada fila necesita cantidad para " + nombreLocal(1) + ", " + nombreLocal(2) + ", o ambos.");
     }
     try {
       const costoDe = (productoId) => {
@@ -16560,7 +16566,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
   };
 
   const eliminarOrden = async (ordenId) => {
-    if (!confirm("Eliminar esta orden completa? Se revierte el stock que haya sumado (" + nombreLocal(1) + " y " + nombreLocal(2) + ") y no se puede deshacer.")) return;
+    if (!confirm("Eliminar esta orden completa? Se revierte el stock que haya sumado (" + (UN_SOLO_LOCAL ? nombreLocal(1) : nombreLocal(1) + " y " + nombreLocal(2)) + ") y no se puede deshacer.")) return;
     try {
       await API.delete("/ordenes-ingreso/" + ordenId, { data: { usuario_rol: usuario?.rol } });
       setMensaje("Orden eliminada");
@@ -16799,7 +16805,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
                 )}
                 {recibidasMiLocal.length > 0 && (
                   <>
-                    <div className="oi-seccion" style={{ color: temaPal.textMuted }}>✓ Ya recibidas en {localNombre} <span style={{ fontWeight: 500, fontSize: 11 }}>(esperan al otro local o el pago)</span></div>
+                    <div className="oi-seccion" style={{ color: temaPal.textMuted }}>✓ Ya recibidas en {localNombre} <span style={{ fontWeight: 500, fontSize: 11 }}>{UN_SOLO_LOCAL ? "(esperan el pago)" : "(esperan al otro local o el pago)"}</span></div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>{recibidasMiLocal.map(o => tarjetaOrden(o, true))}</div>
                   </>
                 )}
@@ -16863,9 +16869,9 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
           ) : (
             <div className="card">
               <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 4 }}>REVISA LOS PRODUCTOS DETECTADOS</div>
-              <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 14 }}>Corregi el producto vinculado donde haga falta, y reparti la cantidad entre {nombreLocal(1)} y {nombreLocal(2)} (por defecto va todo a {nombreLocal(1)}). El costo se toma del que ya tiene cargado cada producto, no de la factura.</div>
+              <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 14 }}>Corregi el producto vinculado donde haga falta, {UN_SOLO_LOCAL ? "y revisá la cantidad. " : <>y reparti la cantidad entre {nombreLocal(1)} y {nombreLocal(2)} (por defecto va todo a {nombreLocal(1)}). </>}El costo se toma del que ya tiene cargado cada producto, no de la factura.</div>
               <table>
-                <thead><tr><th>Nombre en la factura</th><th>Codigo</th><th>Cant. RG</th><th>Cant. USH</th><th>Costo (del producto)</th><th>Producto vinculado</th><th></th></tr></thead>
+                <thead><tr><th>Nombre en la factura</th><th>Codigo</th><th>{UN_SOLO_LOCAL ? "Cantidad" : "Cant. " + nombreLocal(1)}</th>{!UN_SOLO_LOCAL && <th>Cant. {nombreLocal(2)}</th>}<th>Costo (del producto)</th><th>Producto vinculado</th><th></th></tr></thead>
                 <tbody>
                   {facturaItems.map((it, idx) => {
                     const prodVinculado = productos.find(p => String(p.id) === String(it.producto_id));
@@ -16875,7 +16881,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
                       <td style={{ fontSize: 11, color: temaPal.textMuted }}>{it.nombre_crudo}</td>
                       <td style={{ fontSize: 10, color: temaPal.textMuted }}>{it.codigo_interno || "-"}</td>
                       <td><input className="inp" type="number" style={{ width: 60, padding: "4px 6px" }} value={it.cantidad_rg} onChange={e => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, cantidad_rg: parseInt(e.target.value) || 0 } : x))} /></td>
-                      <td><input className="inp" type="number" style={{ width: 60, padding: "4px 6px" }} value={it.cantidad_ush} onChange={e => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, cantidad_ush: parseInt(e.target.value) || 0 } : x))} /></td>
+                      {!UN_SOLO_LOCAL && <td><input className="inp" type="number" style={{ width: 60, padding: "4px 6px" }} value={it.cantidad_ush} onChange={e => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, cantidad_ush: parseInt(e.target.value) || 0 } : x))} /></td>}
                       <td style={{ fontSize: 11, color: it.producto_id ? temaPal.text : temaPal.textMuted }}>{it.producto_id ? fmt(costoProducto) : "-"}</td>
                       <td>
                         {it.producto_id ? (
@@ -16966,8 +16972,8 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
               </div>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <div className="fg" style={{ flex: 1 }}><div className="fl">Cant. {nombreLocal(1)}</div><input className="inp" type="number" placeholder="10" value={itemTemp.cantidad_rg} onChange={e => setItemTemp(p => ({ ...p, cantidad_rg: e.target.value }))} /></div>
-              <div className="fg" style={{ flex: 1 }}><div className="fl">Cant. {nombreLocal(2)}</div><input className="inp" type="number" placeholder="0" value={itemTemp.cantidad_ush} onChange={e => setItemTemp(p => ({ ...p, cantidad_ush: e.target.value }))} /></div>
+              <div className="fg" style={{ flex: 1 }}><div className="fl">{UN_SOLO_LOCAL ? "Cantidad" : "Cant. " + nombreLocal(1)}</div><input className="inp" type="number" placeholder="10" value={itemTemp.cantidad_rg} onChange={e => setItemTemp(p => ({ ...p, cantidad_rg: e.target.value }))} /></div>
+              {!UN_SOLO_LOCAL && <div className="fg" style={{ flex: 1 }}><div className="fl">Cant. {nombreLocal(2)}</div><input className="inp" type="number" placeholder="0" value={itemTemp.cantidad_ush} onChange={e => setItemTemp(p => ({ ...p, cantidad_ush: e.target.value }))} /></div>}
               <div className="fg" style={{ flex: 1 }}><div className="fl">Costo unit. ($)</div><input className="inp" type="number" placeholder="1500" value={itemTemp.costo_unitario} onChange={e => setItemTemp(p => ({ ...p, costo_unitario: e.target.value }))} /></div>
             </div>
             <button className="btn btn-sm" style={{ width: "100%" }} onClick={agregarItem}>+ Agregar producto</button>
@@ -16976,13 +16982,13 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
             <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 14 }}>PRODUCTOS EN ESTA ORDEN ({nueva.items.length})</div>
             {nueva.items.length === 0 ? (<div style={{ fontSize: 12, color: temaPal.textMuted, textAlign: "center", padding: 20 }}>Sin productos agregados</div>) : (
               <table>
-                <thead><tr><th>Producto</th><th>{nombreLocal(1)}</th><th>{nombreLocal(2)}</th><th>Costo unit.</th><th>Subtotal</th><th></th></tr></thead>
+                <thead><tr><th>Producto</th><th>{UN_SOLO_LOCAL ? "Cantidad" : nombreLocal(1)}</th>{!UN_SOLO_LOCAL && <th>{nombreLocal(2)}</th>}<th>Costo unit.</th><th>Subtotal</th><th></th></tr></thead>
                 <tbody>
                   {nueva.items.map((it, i) => (
                     <tr key={i}>
                       <td style={{ fontSize: 11 }}>{it.producto_nombre}</td>
                       <td style={{ fontSize: 11 }}>{it.cantidad_rg}</td>
-                      <td style={{ fontSize: 11 }}>{it.cantidad_ush}</td>
+                      {!UN_SOLO_LOCAL && <td style={{ fontSize: 11 }}>{it.cantidad_ush}</td>}
                       <td style={{ fontSize: 11 }}>${it.costo_unitario}</td>
                       <td style={{ fontSize: 11, fontWeight: 600 }}>{fmt((it.costo_unitario * it.cantidad_total))}</td>
                       <td><button className="icon-btn peligro" onClick={() => quitarItemNueva(i)} aria-label={"Quitar " + it.producto_nombre}>✕</button></td>
@@ -17050,8 +17056,8 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
               <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 10 }}>Contá la mercadería y confirmá cada producto (Enter confirma y pasa al siguiente). Si no coincide, cargá lo que llegó y dejá una nota.</div>
               <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
                 {coinciden > 0 && <button className="btn btn-p btn-sm" disabled={confirmandoTodos} onClick={confirmarCoincidentes}>{confirmandoTodos ? "Confirmando..." : "✓ Confirmar los " + coinciden + " que coinciden"}</button>}
-                {esEncargada && tieneRg && <button className="chip-btn" style={{ color: temaPal.red }} onClick={() => quitarLocalOrden("rg")}>Quitar {nombreLocal(1)}</button>}
-                {esEncargada && tieneUsh && <button className="chip-btn" style={{ color: temaPal.red }} onClick={() => quitarLocalOrden("ush")}>Quitar {nombreLocal(2)}</button>}
+                {esEncargada && tieneRg && !UN_SOLO_LOCAL && <button className="chip-btn" style={{ color: temaPal.red }} onClick={() => quitarLocalOrden("rg")}>Quitar {nombreLocal(1)}</button>}
+                {esEncargada && tieneUsh && !UN_SOLO_LOCAL && <button className="chip-btn" style={{ color: temaPal.red }} onClick={() => quitarLocalOrden("ush")}>Quitar {nombreLocal(2)}</button>}
                 {esEncargada && <button className="chip-btn" style={{ color: temaPal.red }} onClick={() => eliminarOrden(ordenDetalle.id)}>Eliminar orden</button>}
               </div>
             </div>
@@ -17134,8 +17140,8 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 2 }}>Editar producto de la orden</div>
             <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 14 }}>{editItem.it.producto_nombre}</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              <div className="fg"><div className="fl">Cantidad {nombreLocal(1)}</div><input className="inp" type="number" min="0" value={editItem.rg} onChange={e => setEditItem(x => ({ ...x, rg: e.target.value }))} /></div>
-              <div className="fg"><div className="fl">Cantidad {nombreLocal(2)}</div><input className="inp" type="number" min="0" value={editItem.ush} onChange={e => setEditItem(x => ({ ...x, ush: e.target.value }))} /></div>
+              <div className="fg"><div className="fl">{UN_SOLO_LOCAL ? "Cantidad" : "Cantidad " + nombreLocal(1)}</div><input className="inp" type="number" min="0" value={editItem.rg} onChange={e => setEditItem(x => ({ ...x, rg: e.target.value }))} /></div>
+              {!UN_SOLO_LOCAL && <div className="fg"><div className="fl">Cantidad {nombreLocal(2)}</div><input className="inp" type="number" min="0" value={editItem.ush} onChange={e => setEditItem(x => ({ ...x, ush: e.target.value }))} /></div>}
             </div>
             <div className="fg"><div className="fl">Costo unitario ($)</div><input className="inp" type="number" min="0" value={editItem.costo} onChange={e => setEditItem(x => ({ ...x, costo: e.target.value }))} /></div>
             <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 12 }}>Total: <b style={{ color: temaPal.text }}>{(parseInt(editItem.rg) || 0) + (parseInt(editItem.ush) || 0)} u.</b> · {fmt(((parseInt(editItem.rg) || 0) + (parseInt(editItem.ush) || 0)) * (parseFloat(editItem.costo) || 0))}</div>
@@ -17611,8 +17617,8 @@ function Insumos({ localId, usuario, paletaActual }) {
               </div>
               {!editando && (
                 <div style={{ display: "flex", gap: 8 }}>
-                  <div className="fg" style={{ flex: 1 }}><div className="fl">Stock {nombreLocal(1)}</div><input className="inp" type="number" placeholder="0" value={nuevo.stock_rg} onChange={e => setNuevo(p => ({ ...p, stock_rg: e.target.value }))} /></div>
-                  <div className="fg" style={{ flex: 1 }}><div className="fl">Stock {nombreLocal(2)}</div><input className="inp" type="number" placeholder="0" value={nuevo.stock_ush} onChange={e => setNuevo(p => ({ ...p, stock_ush: e.target.value }))} /></div>
+                  <div className="fg" style={{ flex: 1 }}><div className="fl">{UN_SOLO_LOCAL ? "Stock" : "Stock " + nombreLocal(1)}</div><input className="inp" type="number" placeholder="0" value={nuevo.stock_rg} onChange={e => setNuevo(p => ({ ...p, stock_rg: e.target.value }))} /></div>
+                  {!UN_SOLO_LOCAL && <div className="fg" style={{ flex: 1 }}><div className="fl">Stock {nombreLocal(2)}</div><input className="inp" type="number" placeholder="0" value={nuevo.stock_ush} onChange={e => setNuevo(p => ({ ...p, stock_ush: e.target.value }))} /></div>}
                 </div>
               )}
               {editando && <div style={{ fontSize: 10, color: temaPal.textMuted, marginBottom: 12 }}>El stock se modifica con el boton "Ajustar" de cada insumo, no desde aca.</div>}
@@ -18513,7 +18519,7 @@ function LocalSelector({ usuario, onSelect, actual, onCancel }) {
   const saludo = hora < 12 ? "Buen día" : hora < 20 ? "Buenas tardes" : "Buenas noches";
   const filtro = q.trim().toLowerCase();
   const visibles = (locales || []).filter(l => !filtro || [l.nombre, l.direccion].some(x => String(x || "").toLowerCase().includes(filtro)));
-  const salir = () => { localStorage.removeItem("lumiere_token"); localStorage.removeItem("lumiere_user"); localStorage.removeItem("lumiere_local"); window.location.reload(); };
+  const salir = () => { localStorage.removeItem("lumiere_token"); localStorage.removeItem("lumiere_user"); localStorage.removeItem("lumiere_local"); localStorage.removeItem("lumiere_un_local"); window.location.reload(); };
   const inicial = (n) => String(n || "").replace(/^local\s*/i, "").trim().charAt(0).toUpperCase() || "L";
 
   return (
@@ -19062,12 +19068,12 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
                   <option value="vendedora">Vendedora</option>
                 </select>
               </div>
-              <div className="fg"><div className="fl">Local</div>
+              {!UN_SOLO_LOCAL && <div className="fg"><div className="fl">Local</div>
                 <select className="sel" value={editandoUsuario.local_id} onChange={e => setEditandoUsuario(p => ({ ...p, local_id: parseInt(e.target.value) }))}>
                   <option value={1}>{nombreLocal(1)}</option>
                   <option value={2}>{nombreLocal(2)}</option>
                 </select>
-              </div>
+              </div>}
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarEdicionUsuario}>Guardar cambios</button>
                 <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEditandoUsuario(null)}>Cancelar</button>
@@ -19096,12 +19102,12 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
                   <option value="vendedora">Vendedora</option>
                 </select>
               </div>
-              <div className="fg"><div className="fl">Local</div>
+              {!UN_SOLO_LOCAL && <div className="fg"><div className="fl">Local</div>
                 <select className="sel" value={nuevoUsuario.local_id} onChange={e => setNuevoUsuario(p => ({ ...p, local_id: parseInt(e.target.value) }))}>
                   <option value={1}>{nombreLocal(1)}</option>
                   <option value={2}>{nombreLocal(2)}</option>
                 </select>
-              </div>
+              </div>}
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <button className="btn btn-p" style={{ flex: 1 }} onClick={crearUsuario}>Crear</button>
                 <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setShowForm(false)}>Cancelar</button>
@@ -19526,6 +19532,8 @@ export default function AppWrapper() {
       const l2 = lista.find(l => Number(l.id) === 2);
       if (l1?.nombre) NOMBRES_LOCALES[1] = l1.nombre;
       if (l2?.nombre) NOMBRES_LOCALES[2] = l2.nombre;
+      UN_SOLO_LOCAL = lista.length > 0 && !l2;
+      try { localStorage.setItem("lumiere_un_local", UN_SOLO_LOCAL ? "1" : "0"); } catch (e) {}
       setNombresLocalesVersion(v => v + 1);
     }).catch(() => {});
   }, [usuario?.id]);
@@ -19542,6 +19550,7 @@ export default function AppWrapper() {
     localStorage.removeItem("lumiere_token");
     localStorage.removeItem("lumiere_user");
     localStorage.removeItem("lumiere_local");
+    localStorage.removeItem("lumiere_un_local");
     setUsuario(null);
     setLocal(null);
     setPage("dashboard");
@@ -19763,7 +19772,7 @@ export default function AppWrapper() {
                 </button>
               ))}
             </div>
-            <div style={{ marginTop: 12, fontSize: 11, color: paletaActual.navTextDim, cursor: "pointer" }} onClick={() => setCambiandoLocal(true)}>Cambiar local</div>
+            {!UN_SOLO_LOCAL && <div style={{ marginTop: 12, fontSize: 11, color: paletaActual.navTextDim, cursor: "pointer" }} onClick={() => setCambiandoLocal(true)}>Cambiar local</div>}
             <div style={{ marginTop: 6, fontSize: 11, color: paletaActual.navTextDim, cursor: "pointer" }} onClick={handleLogout}>Cerrar sesion</div>
           </div>
         </aside>
