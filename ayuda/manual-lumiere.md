@@ -5,7 +5,7 @@ Lumiere es un sistema de gestión para comercios minoristas con uno o dos locale
 ## Roles y permisos
 - **Jefe**: ve y configura todo.
 - **Admin / Administrativo**: casi todo; algunas configuraciones son solo del jefe.
-- **Vendedora/vendedor**: ve lo que el jefe le habilite en **Configuración → Usuarios** (permisos por sección). Si alguien no ve una sección del menú, es porque no tiene ese permiso: tiene que pedírselo al jefe.
+- **Vendedor/a**: ve lo que el jefe le habilite en **Configuración → Usuarios** (permisos por sección). Si alguien no ve una sección del menú, es porque no tiene ese permiso: tiene que pedírselo al jefe.
 Abajo a la izquierda del menú están **Cambiar local**, **Cerrar sesión** y el interruptor de **fondo claro / oscuro**. El botón **‹** achica el menú (quedan solo los íconos).
 
 ## ✨ Lumiere, tu gerente
@@ -36,7 +36,7 @@ El menú de la izquierda tiene 8 grupos (arriba de todo, **✨ Tu gerente**) que
 ### VENTAS
 - **Dashboard**: resumen del mes por local o consolidado.
   - Ventas del mes, resultado neto, margen bruto, ticket promedio, clientes nuevos, stock bajo y sin stock.
-  - Facturación diaria, medios de pago, ventas por vendedora y alertas.
+  - Facturación diaria, medios de pago, ventas por persona y alertas.
   - Arriba se elige el local (o Consolidado) y se actualiza con **Actualizar**.
 - **Punto de Venta**: donde se vende y se factura. Ver "Cómo vender (Punto de Venta)".
   - Pestañas: **Nueva venta**, **Preventas**, **Facturas pendientes** y **Cambios / devoluciones**.
@@ -61,7 +61,7 @@ El menú de la izquierda tiene 8 grupos (arriba de todo, **✨ Tu gerente**) que
   - **+ Nueva orden** para cargar a mano.
   - Las órdenes quedan "por recibir" (mercadería en camino) hasta que se tocan **📦 Recibir mercadería** y se cuenta lo que llegó en cada local.
   - La pestaña **Stock recibido** muestra el historial.
-- **Inconsistencias**: diferencias al recibir mercadería (para reclamar al proveedor) y ventas hechas sin stock suficiente, con el motivo que puso la vendedora.
+- **Inconsistencias**: diferencias al recibir mercadería (para reclamar al proveedor) y ventas hechas sin stock suficiente, con el motivo que puso quien vendió.
 - **Kits**: combos de productos. El precio es la suma de los productos y al venderlo descuenta el stock de cada componente. Botón **Vender kit**.
 - **Insumos**: stock de uso interno (bolsas, cajas, papel, limpieza), con costo de reposición, precio opcional para cobrarle al cliente y stock mínimo.
 - **Control de Inventario**: conteo físico contra el stock del sistema.
@@ -101,7 +101,7 @@ El menú de la izquierda tiene 8 grupos (arriba de todo, **✨ Tu gerente**) que
 ### EQUIPO
 - **Tareas**: **+ Nueva tarea** con título, descripción, urgencia (baja, media, alta, urgente) y a quién se asigna.
   - La persona toca **Empezar** y **Finalizar**, o **Marcar error** si falta algo.
-  - Muestra la rapidez de resolución por vendedora.
+  - Muestra la rapidez de resolución por persona.
 
 ### FINANZAS
 - **Finanzas**: arriba siempre Ingresos, Egresos, Resultado neto y Margen neto del mes (se elige local y mes con las flechas). Pestañas:
@@ -119,7 +119,7 @@ El menú de la izquierda tiene 8 grupos (arriba de todo, **✨ Tu gerente**) que
   - En Configuración se activa o desactiva cada cosa y se elige el tipo de comisión (por metas de monto, % de ventas, % por tramos o % sobre el excedente; diaria, semanal o mensual), con simulador.
 - **Compras y proveedores**: pestañas *Qué pedir*, *Proveedores* (con cuentas a pagar y cuentas de pago), *Ventas por proveedor*, *Compras por período* y *Reclamos*.
 - **Calculadoras**: fórmulas de precio por tipo de producto (desde el costo o desde el precio de venta del proveedor, con margen, impuestos y costos extra). Pestañas **Calcular** y **Administrar**.
-- **Productividad**: ranking de vendedoras con ventas, total, ticket promedio, tiempo promedio por venta y ventas por hora.
+- **Productividad**: ranking del equipo con ventas, total, ticket promedio, tiempo promedio por venta y ventas por hora.
 
 ### MARKETING
 - **Cupones**: códigos de descuento (% o monto fijo, canal, usos máximos, vencimiento).
@@ -213,7 +213,7 @@ Si ARCA dio error, la venta igual queda registrada. En el Punto de Venta tocá *
 **Buscar Precio** → escribí o escaneá con 📷 → se ve el precio, el stock de cada local y las promos → **Copiar** o **Compartir** el mensaje para WhatsApp o Instagram. Con **✏️ Editar mensaje** lo cambiás para ese envío o como plantilla.
 
 ### Desafíos de venta
-Si están activados (Comisiones → Configuración), después de armar el carrito y tocar **Continuar**, al cargar el DNI de un cliente con al menos 2 compras anteriores se compara el carrito con su ticket promedio. Si está por debajo, aparece el **🎯 Desafío** con cuánto falta para superarlo y una barra de progreso: la vendedora le ofrece algo más y lo suma al carrito. Si al cobrar el carrito supera el promedio, el desafío queda **superado**. Si al cargar el DNI el carrito ya lo superaba, en esa venta no hay desafío. El objetivo se fija una sola vez por venta (cambiar de cliente lo anula). Al juntar la cantidad de desafíos del mes configurada, la vendedora gana un producto de regalo (se entrega desde Comisiones → Desafíos).
+Si están activados (Comisiones → Configuración), después de armar el carrito y tocar **Continuar**, al cargar el DNI de un cliente con al menos 2 compras anteriores se compara el carrito con su ticket promedio. Si está por debajo, aparece el **🎯 Desafío** con cuánto falta para superarlo y una barra de progreso: el/la vendedor/a le ofrece algo más y lo suma al carrito. Si al cobrar el carrito supera el promedio, el desafío queda **superado**. Si al cargar el DNI el carrito ya lo superaba, en esa venta no hay desafío. El objetivo se fija una sola vez por venta (cambiar de cliente lo anula). Al juntar la cantidad de desafíos del mes configurada, el/la vendedor/a gana un producto de regalo (se entrega desde Comisiones → Desafíos).
 
 ### Cómo hacer un cambio o devolución
 1. **Cambio / Devolución** → buscá la compra por N° de ticket, factura, DNI o nombre. Si no tiene ticket, elegí "No tiene el ticket" (se toma el precio actual).
@@ -412,13 +412,13 @@ Si no sabés qué porcentaje poner, en **Comisiones → Configuración** tocá *
 **Comisiones** → pestaña **Comisiones** → tildá los días a pagar (o pagá un monto suelto) → **Pagar** → forma de pago (efectivo, transferencia o canje por productos con descuento de empleada) → confirmar. Queda registrado como egreso.
 
 ### Cómo entregar el premio de un desafío
-**Comisiones** → **Desafíos** → elegí el mes → en la vendedora que llegó a la meta, entregá el premio eligiendo el producto (hasta el monto configurado). Se descuenta del stock.
+**Comisiones** → **Desafíos** → elegí el mes → en el/la vendedor/a que llegó a la meta, entregá el premio eligiendo el producto (hasta el monto configurado). Se descuenta del stock.
 
 ### Cómo activar o desactivar comisiones y desafíos
 **Comisiones** → **Configuración** → en "Qué usa este negocio" tocá el interruptor de **Comisiones para vendedores** o de **Desafíos de venta**. Se guarda al tocarlo.
 
 ### Cómo crear un usuario y darle permisos
-**Negocio → Usuarios** → **+ Nuevo usuario** → nombre, email, contraseña inicial (mínimo 6 caracteres), rol (Jefe, Administrativo, Vendedora) y local → **Crear**. Después **Permisos**: están ordenados como el menú (Ventas, Stock, Caja, Clientes, Equipo, Finanzas, Negocio) y cada sección tiene su interruptor; si está apagado, esa persona no ve la sección. Además, dentro de algunas secciones se eligen las **acciones**: en Inventario, crear, editar y eliminar productos y ajustar stock sin autorización; en el Punto de Venta, hacer descuentos a mano; y en Caja, anular ventas, movimientos de caja y gift cards. **Plantilla vendedora** prende lo típico de quien atiende el local; también hay **Dar todo** y **Quitar todo** (en general o por grupo) → **Guardar permisos**. Los cambios se aplican la próxima vez que esa persona entra o recarga la página. El jefe ve todo siempre.
+**Negocio → Usuarios** → **+ Nuevo usuario** → nombre, email, contraseña inicial (mínimo 6 caracteres), rol (Jefe, Administrativo, Vendedor/a) y local → **Crear**. Después **Permisos**: están ordenados como el menú (Ventas, Stock, Caja, Clientes, Equipo, Finanzas, Negocio) y cada sección tiene su interruptor; si está apagado, esa persona no ve la sección. Además, dentro de algunas secciones se eligen las **acciones**: en Inventario, crear, editar y eliminar productos y ajustar stock sin autorización; en el Punto de Venta, hacer descuentos a mano; y en Caja, anular ventas, movimientos de caja y gift cards. **Plantilla vendedor/a** prende lo típico de quien atiende el local; también hay **Dar todo** y **Quitar todo** (en general o por grupo) → **Guardar permisos**. Los cambios se aplican la próxima vez que esa persona entra o recarga la página. El jefe ve todo siempre.
 
 ### Cómo desactivar o eliminar un usuario
 En **Negocio → Usuarios**:

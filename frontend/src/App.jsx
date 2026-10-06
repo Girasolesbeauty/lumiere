@@ -1545,8 +1545,8 @@ function Dashboard({ localId, paletaActual }) {
             </div>
 
             <div className="chart-card anim-in" style={{ animationDelay: "440ms" }}>
-              <div className="chart-head"><div className="chart-title">Ventas por vendedora</div><div className="chart-meta">$ facturado</div></div>
-              {data.ventasPorVendedora.length === 0 ? <Vacio texto="Ninguna vendedora registró ventas este mes" /> : (
+              <div className="chart-head"><div className="chart-title">Ventas por persona</div><div className="chart-meta">$ facturado</div></div>
+              {data.ventasPorVendedora.length === 0 ? <Vacio texto="Nadie registró ventas este mes" /> : (
                 <ResponsiveContainer width="100%" height={Math.max(170, data.ventasPorVendedora.length * 36)}>
                   <BarChart data={data.ventasPorVendedora} layout="vertical" margin={{ left: 0, right: 44 }}>
                     <XAxis type="number" hide />
@@ -9917,7 +9917,7 @@ function Cupones({ localId, usuario, paletaActual }) {
               </div>
             </div>
             <div style={{ borderTop: "1px solid " + temaPal.border, marginTop: 6, paddingTop: 10 }}>
-              <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 8 }}>Regalo por monto mínimo (opcional). Ej: 1 mascarilla de regalo en compras desde $20.000. En el POS avisa a la vendedora para que agregue el producto al ticket con precio $0.</div>
+              <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 8 }}>Regalo por monto mínimo (opcional). Ej: 1 producto de regalo en compras desde $20.000. En el POS avisa a quien está vendiendo para que agregue el producto al ticket con precio $0.</div>
               <div className="fg">
                 <div className="fl">Producto de regalo</div>
                 {cuponForm.regalo_producto_id ? (
@@ -12981,8 +12981,8 @@ function ConfigComisiones({ paletaActual, onCambioActivos }) {
       {retos.activo && <div className="card">
         <div className="ct">🎯 Desafíos de venta (para todos los locales)</div>
         <div style={{ fontSize: 11, color: p.textMuted, marginBottom: 10, lineHeight: 1.6 }}>
-          Se arma el carrito, se toca <b>Continuar</b> y se carga el DNI. Si el carrito está por debajo del ticket promedio del cliente (con al menos 2 compras anteriores), aparece el desafío con lo que falta: la vendedora lo supera ofreciéndole algo más.
-          El objetivo se fija una sola vez por venta (cambiar de cliente lo anula). Al juntar la cantidad de desafíos del mes, la vendedora gana un producto de regalo (se entrega desde la pestaña Desafíos).
+          Se arma el carrito, se toca <b>Continuar</b> y se carga el DNI. Si el carrito está por debajo del ticket promedio del cliente (con al menos 2 compras anteriores), aparece el desafío con lo que falta: el/la vendedor/a lo supera ofreciéndole algo más.
+          El objetivo se fija una sola vez por venta (cambiar de cliente lo anula). Al juntar la cantidad de desafíos del mes, el/la vendedor/a gana un producto de regalo (se entrega desde la pestaña Desafíos).
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 160 }}>
@@ -13896,7 +13896,7 @@ function Tareas({ usuario, localId, paletaActual }) {
         </div>
         {esJefe && (
           <select className="sel" style={{ width: 200 }} value={verDe} onChange={e => setVerDe(e.target.value)}>
-            <option value="todas">Ver: todas las vendedoras</option>
+            <option value="todas">Ver: todo el equipo</option>
             {usuarios.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
           </select>
         )}
@@ -13904,9 +13904,9 @@ function Tareas({ usuario, localId, paletaActual }) {
 
       {tab === "realizadas" && analisis.length > 0 && (
         <div className="card" style={{ marginBottom: 16 }}>
-          <div className="ct">Rapidez de resolucion por vendedora</div>
+          <div className="ct">Rapidez de resolución por persona</div>
           <table>
-            <thead><tr><th>Vendedora</th><th>Finalizadas</th><th>Promedio</th><th>Mas rapida</th><th>Mas lenta</th></tr></thead>
+            <thead><tr><th>Vendedor/a</th><th>Finalizadas</th><th>Promedio</th><th>Mas rapida</th><th>Mas lenta</th></tr></thead>
             <tbody>
               {analisis.map((a, i) => (
                 <tr key={i}>
@@ -15180,7 +15180,7 @@ function Productividad({ localId, paletaActual }) {
   return (
     <div className="fade">
       <div className="ph">
-        <div><div className="pt">Productividad</div><div className="ps">metricas por vendedora</div></div>
+        <div><div className="pt">Productividad</div><div className="ps">métricas por persona</div></div>
         <div style={{ display: "flex", gap: 8 }}>
           <select className="sel" style={{ width: 120, padding: "6px 10px", fontSize: 12 }} value={mes} onChange={e => setMes(parseInt(e.target.value))}>
             {meses.map((m, i) => (<option key={i} value={i + 1}>{m}</option>))}
@@ -15195,12 +15195,12 @@ function Productividad({ localId, paletaActual }) {
       ) : (
         <div>
           <div className="card" style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, color: p.textMuted, letterSpacing: ".1em", marginBottom: 10 }}>RANKING DE VENDEDORAS</div>
+            <div style={{ fontSize: 11, color: p.textMuted, letterSpacing: ".1em", marginBottom: 10 }}>RANKING DEL EQUIPO</div>
             {ranking.length === 0 ? (
               <div style={{ fontSize: 12, color: p.textMuted }}>Sin ventas en este periodo</div>
             ) : (
               <table>
-                <thead><tr><th>#</th><th>Vendedora</th><th>Ventas</th><th>Total</th><th>Ticket prom.</th><th>Tiempo prom.</th><th>Ventas/hora</th></tr></thead>
+                <thead><tr><th>#</th><th>Vendedor/a</th><th>Ventas</th><th>Total</th><th>Ticket prom.</th><th>Tiempo prom.</th><th>Ventas/hora</th></tr></thead>
                 <tbody>
                   {ranking.map((r, i) => (
                     <tr key={i}>
@@ -15220,7 +15220,7 @@ function Productividad({ localId, paletaActual }) {
           <div className="g3">
             {ranking.slice(0, 3).map((r, i) => (
               <div key={i} className="card" style={{ borderTop: "3px solid " + (i === 0 ? "var(--acento)" : i === 1 ? p.textMuted : "#cd7f32") }}>
-                <div style={{ fontSize: 10, color: p.textMuted, letterSpacing: ".1em" }}>{i === 0 ? "TOP VENDEDORA" : "#" + (i + 1)}</div>
+                <div style={{ fontSize: 10, color: p.textMuted, letterSpacing: ".1em" }}>{i === 0 ? "TOP VENDEDOR/A" : "#" + (i + 1)}</div>
                 <div style={{ fontSize: 18, fontWeight: 700 }}>{r.nombre}</div>
                 <div style={{ fontSize: 13, color: "#2d7a4f", fontWeight: 600 }}>{fmt(r.total)}</div>
                 <div style={{ fontSize: 11, color: p.textMuted }}>{r.cantidad} ventas - {totalGeneral > 0 ? Math.round(r.total / totalGeneral * 100) : 0}% del total</div>
@@ -17244,14 +17244,14 @@ function Inconsistencias({ paletaActual }) {
       </div>
 
       <div className="ph" style={{ marginTop: 24 }}>
-        <div><div className="pt">Ventas sin stock suficiente</div><div className="ps">se vendio en 0 (o quedaria negativo) y la vendedora justifico el motivo</div></div>
+        <div><div className="pt">Ventas sin stock suficiente</div><div className="ps">se vendio en 0 (o quedaria negativo) y quien vendió justificó el motivo</div></div>
       </div>
       <div className="card">
         {loadingStock ? (<div style={{ textAlign: "center", color: p.textMuted, fontSize: 12 }}>Cargando...</div>) : datosStock.length === 0 ? (
           <div style={{ fontSize: 12, color: p.textMuted, textAlign: "center", padding: 30 }}>No hay ventas sin stock registradas.</div>
         ) : (
           <table>
-            <thead><tr><th>Fecha</th><th>Venta</th><th>Producto</th><th>Stock disponible</th><th>Vendido</th><th>Motivo</th><th>Vendedora</th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Venta</th><th>Producto</th><th>Stock disponible</th><th>Vendido</th><th>Motivo</th><th>Vendedor/a</th></tr></thead>
             <tbody>
               {datosStock.map(d => (
                 <tr key={d.id}>
@@ -17767,7 +17767,7 @@ function ConfigInsumos({ localId, paletaActual }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: 14, fontWeight: 600 }}>Descontar insumos en cada venta</div>
-            <div style={{ fontSize: 11, color: p.textMuted, marginTop: 2 }}>Si esta activo, en el POS aparece un selector por cada insumo elegido abajo, y la vendedora debe indicar cual entrego antes de cobrar.</div>
+            <div style={{ fontSize: 11, color: p.textMuted, marginTop: 2 }}>Si esta activo, en el POS aparece un selector por cada insumo elegido abajo, y quien vende debe indicar cuál entregó antes de cobrar.</div>
           </div>
           <div className="sw-wrap" onClick={() => setActivo(!activo)}>
             <div className={"sw " + (activo ? "on" : "off")}><div className="sw-dot" /></div>
@@ -18163,8 +18163,8 @@ const NAV_SECTIONS = [
     { id: "promociones", icon: "🎉", label: "Promociones", k: "ofertas 2x1" }] },
   { section: "EQUIPO", color: "#2471a3", items: [
     { id: "tareas", icon: "📝", label: "Tareas", k: "pendientes" },
-    { id: "comisiones", icon: "💎", label: "Comisiones", k: "vendedoras desafios premios" },
-    { id: "productividad", icon: "🏆", label: "Productividad", k: "ranking vendedoras" }] },
+    { id: "comisiones", icon: "💎", label: "Comisiones", k: "vendedoras vendedores equipo desafios premios" },
+    { id: "productividad", icon: "🏆", label: "Productividad", k: "ranking vendedoras vendedores equipo" }] },
   { section: "FINANZAS", color: "#1f6f8b", items: [
     { id: "finance", icon: "💰", label: "Finanzas", k: "gastos egresos salud equilibrio medallas" },
     { id: "calculadoras", icon: "🧮", label: "Calculadoras", k: "margen precio cuotas" }] },
@@ -18838,7 +18838,7 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
   const [nuevoUsuario, setNuevoUsuario] = useState({ nombre: "", email: "", password: "", rol: "vendedora", rol_id: 3, local_id: 1 });
   const [editandoUsuario, setEditandoUsuario] = useState(null);
   const rolColor = { jefe: "#c9a84c", administrativo: "#2471a3", vendedora: "#2d7a4f" };
-  const rolNombre = { jefe: "Jefe", administrativo: "Administrativo", vendedora: "Vendedora" };
+  const rolNombre = { jefe: "Jefe", administrativo: "Administrativo", vendedora: "Vendedor/a" };
 
   // Permisos ordenados como el menu. Cada seccion tiene su "Ver" y, si corresponde, lo que se
   // puede hacer adentro. Solo figuran los que de verdad cambian algo en el sistema.
@@ -19001,7 +19001,7 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button className="btn btn-g btn-sm" onClick={() => setPermisosUsuario([])}>Quitar todo</button>
-            <button className="btn btn-g btn-sm" title="Punto de venta, caja, clientes, pedidos, tareas y sus comisiones" onClick={() => setPermisosUsuario(PLANTILLA_VENDEDORA)}>Plantilla vendedora</button>
+            <button className="btn btn-g btn-sm" title="Punto de venta, caja, clientes, pedidos, tareas y sus comisiones" onClick={() => setPermisosUsuario(PLANTILLA_VENDEDORA)}>Plantilla vendedor/a</button>
             <button className="btn btn-g btn-sm" onClick={() => setPermisosUsuario(TODAS_LAS_CLAVES)}>Dar todo</button>
             <button className="btn btn-g btn-sm" onClick={() => setEditandoPermisos(null)}>Cancelar</button>
             <button className="btn btn-p btn-sm" onClick={guardarPermisos}>Guardar permisos</button>
@@ -19065,7 +19065,7 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
                 }}>
                   <option value="jefe">Jefe</option>
                   <option value="administrativo">Administrativo</option>
-                  <option value="vendedora">Vendedora</option>
+                  <option value="vendedora">Vendedor/a</option>
                 </select>
               </div>
               {!UN_SOLO_LOCAL && <div className="fg"><div className="fl">Local</div>
@@ -19099,7 +19099,7 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
                 }}>
                   <option value="jefe">Jefe</option>
                   <option value="administrativo">Administrativo</option>
-                  <option value="vendedora">Vendedora</option>
+                  <option value="vendedora">Vendedor/a</option>
                 </select>
               </div>
               {!UN_SOLO_LOCAL && <div className="fg"><div className="fl">Local</div>
