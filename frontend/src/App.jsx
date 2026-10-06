@@ -9802,7 +9802,7 @@ function Cupones({ localId, usuario, paletaActual }) {
       getCupones().then(res => setCupons(res.data));
       setTab("lista");
       setTimeout(() => setMensaje(""), 3000);
-    } catch (e) { setMensaje("Error al crear cupon"); }
+    } catch (e) { setMensaje("Error: " + (e.response?.data?.error || "no se pudo crear el cupón")); }
   };
 
   const toggleCupon = async (c) => {
@@ -9882,7 +9882,7 @@ function Cupones({ localId, usuario, paletaActual }) {
             <thead><tr><th>Codigo</th><th>Descripcion</th><th>Descuento</th><th>Canal</th><th>Usos</th><th>Vence</th><th>Activo</th></tr></thead>
             <tbody>
               {cuponsAMostrar.length === 0 && (
-                <tr><td colSpan={7} style={{ textAlign: "center", color: p.textMuted, padding: 20 }}>Todavía no hay cupones. Creá el primero en Nuevo cupón.</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: "center", color: temaPal.textMuted, padding: 20 }}>Todavía no hay cupones. Creá el primero en la pestaña Crear.</td></tr>
               )}
               {cuponsAMostrar.map(c => (
                 <tr key={c.id}>
