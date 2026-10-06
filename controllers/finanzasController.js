@@ -352,7 +352,7 @@ const agregarEgreso = async (req, res) => {
       await pool.query(
         `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, categoria_id, forma_pago, cuenta_pago_id, local_id, usuario_id, creado_en)
          VALUES ($1, 'E', $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [concepto, importe, referencia || 'Manual', categoria_id, forma_pago, cuenta_pago_id || null, local_id || 1, usuario_id || null, fechaCarga]
+        [concepto, importe, referencia || 'Manual', categoria_id || null, forma_pago || null, cuenta_pago_id || null, local_id || 1, usuario_id || null, fechaCarga]
       );
     }
 

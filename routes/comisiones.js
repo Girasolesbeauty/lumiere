@@ -400,7 +400,7 @@ router.put('/:local_id/pagar', async (req, res) => {
 
     const totalPagado = sel.rows.reduce((s, row) => s + parseFloat(row.comision_ganada || 0), 0);
     const etiquetaForma = forma_pago === 'transferencia' ? 'transferencia' : forma_pago === 'canje' ? 'canje por ' + (producto_canje_nombre || 'producto') : 'efectivo';
-    const concepto = 'Pago comisiones vendedora (' + etiquetaForma + ')';
+    const concepto = 'Pago comisiones vendedor/a (' + etiquetaForma + ')';
 
     const resultado = await procesarPagoComision(client, {
       local_id, monto: totalPagado, forma_pago, producto_canje_id, producto_canje_nombre, cantidad_canje, concepto
@@ -441,7 +441,7 @@ router.post('/:local_id/pago-manual', async (req, res) => {
     }
 
     const etiquetaForma = forma_pago === 'transferencia' ? 'transferencia' : forma_pago === 'canje' ? 'canje por ' + (producto_canje_nombre || 'producto') : 'efectivo';
-    const concepto = 'Pago total comisiones vendedora (' + etiquetaForma + ')';
+    const concepto = 'Pago total comisiones vendedor/a (' + etiquetaForma + ')';
 
     const resultado = await procesarPagoComision(client, {
       local_id, monto: montoNum, forma_pago, producto_canje_id, producto_canje_nombre, cantidad_canje, concepto
