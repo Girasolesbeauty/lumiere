@@ -5606,9 +5606,16 @@ const NOMBRE_SALUD = { Excelente: "Excelente", Buena: "Buena", Regular: "En cami
 const nombreSalud = (c) => NOMBRE_SALUD[c] || c;
 
 // Ir a otra seccion (opcionalmente con una situacion de Toma de decisiones ya elegida)
+// "postventa:recuperar" abre Postventa directo en la pestaña Recuperar clientes
 const irASeccion = (page, prefill) => {
   if (prefill) { try { sessionStorage.setItem("lumiere_decision_prefill", JSON.stringify(prefill)); } catch (e) {} }
-  window.dispatchEvent(new CustomEvent("lumiere-ir", { detail: page }));
+  const [seccion, pestana] = String(page).split(":");
+  if (pestana) { try { sessionStorage.setItem("lumiere_tab_" + seccion, pestana); } catch (e) {} }
+  window.dispatchEvent(new CustomEvent("lumiere-ir", { detail: seccion }));
+};
+// Pestaña con la que tiene que abrir una sección (se usa una sola vez)
+const tabInicialDe = (seccion) => {
+  try { const t = sessionStorage.getItem("lumiere_tab_" + seccion); if (t) sessionStorage.removeItem("lumiere_tab_" + seccion); return t; } catch (e) { return null; }
 };
 
 // Mensaje de la salud financiera: felicita cuando va bien, y cuando va mal da animo y
@@ -11103,10 +11110,155 @@ function Pedidos({ localId, usuario, paletaActual }) {
   );
 }
 
+// Recuperar clientes (pestaña de Postventa): lista de los que compraron una sola vez o hace mucho
+// no vuelven, con un mensaje de WhatsApp listo para cada uno. Muestra a quién ya se le escribió y
+// cuántos volvieron a comprar después del mensaje.
+const PLANTILLAS_RECUPERAR = [
+  { id: "extranamos", titulo: "Te extrañamos", texto: "¡Hola {nombre}! ¿Cómo estás? Hace un tiempo que no te vemos por {negocio}. Entraron novedades que te pueden gustar. ¡Te esperamos!" },
+  { id: "como_te_fue", titulo: "¿Cómo te fue?", texto: "¡Hola {nombre}! ¿Cómo te fue con {producto}? Si querés reponerlo o ver algo nuevo, avisame y te lo separo." },
+  { id: "descuento", titulo: "Con descuento", texto: "¡Hola {nombre}! Te extrañamos en {negocio}. Para tu próxima compra tenés un 10% de descuento con el código VUELVE10. ¡Te esperamos!" },
+];
+const numeroWhatsApp = (tel) => {
+  let n = (tel || "").replace(/[^0-9]/g, "");
+  if (!n) return "";
+  // Argentina: agregar 54 y 9 si no estan (para celulares)
+  if (!n.startsWith("54")) n = "549" + n;
+  else if (!n.startsWith("549")) n = "549" + n.slice(2);
+  return n;
+};
+function RecuperarClientes({ temaPal, grupoInicial }) {
+  const [grupo, setGrupo] = useState(grupoInicial === "inactivos" ? "inactivos" : "una_compra");
+  const [dias, setDias] = useState(grupoInicial === "inactivos" ? 90 : 30);
+  const [datos, setDatos] = useState(null);
+  const [cargando, setCargando] = useState(false);
+  const [plantilla, setPlantilla] = useState(PLANTILLAS_RECUPERAR[0].texto);
+  const [negocio, setNegocio] = useState("");
+  const [ocultarContactados, setOcultarContactados] = useState(true);
+  const [busca, setBusca] = useState("");
+  const [limite, setLimite] = useState(50);
+
+  useEffect(() => { API.get("/configuracion").then(r => setNegocio(r.data?.nombre_negocio || "")).catch(() => {}); }, []);
+  const cargar = (g = grupo, d = dias) => {
+    setCargando(true);
+    API.get("/postventa/recuperar?grupo=" + g + "&dias=" + d)
+      .then(r => setDatos(r.data)).catch(() => setDatos({ error: true, clientes: [] }))
+      .finally(() => setCargando(false));
+  };
+  useEffect(() => { cargar(); }, []);
+  const cambiarGrupo = (g) => { const d = g === "inactivos" ? 90 : 30; setGrupo(g); setDias(d); setLimite(50); cargar(g, d); };
+  const cambiarDias = (d) => { setDias(d); setLimite(50); cargar(grupo, d); };
+
+  const diasDesde = (f) => f ? Math.floor((Date.now() - new Date(f).getTime()) / 86400000) : null;
+  const armar = (c) => plantilla
+    .replace(/\{nombre\}/g, (c.nombre || "").split(/[ ,]/)[0].trim() || "")
+    .replace(/\{producto\}/g, c.producto || "tu compra")
+    .replace(/\{negocio\}/g, negocio || "el local");
+  const enviar = async (c) => {
+    const numero = numeroWhatsApp(c.telefono);
+    if (!numero) return;
+    const texto = armar(c);
+    window.open("https://wa.me/" + numero + "?text=" + encodeURIComponent(texto), "_blank");
+    try {
+      await API.post("/postventa/marcar-enviado", { cliente_id: c.id, mensaje: texto });
+      setDatos(prev => prev ? { ...prev, clientes: prev.clientes.map(x => x.id === c.id ? { ...x, contactado: new Date().toISOString(), recien: true } : x) } : prev);
+    } catch (e) {}
+  };
+
+  const todos = datos?.clientes || [];
+  const q = busca.trim().toLowerCase();
+  const lista = todos.filter(c => {
+    if (q && !((c.nombre || "").toLowerCase().includes(q) || (c.telefono || "").includes(q))) return false;
+    if (ocultarContactados && !c.recien && c.contactado && diasDesde(c.contactado) < 30) return false;
+    return true;
+  });
+  const conTel = lista.filter(c => numeroWhatsApp(c.telefono)).length;
+  const tot = datos?.totales || {}, ef = datos?.efecto || {};
+  const pctUna = tot.con_compras ? Math.round(tot.una_compra / tot.con_compras * 100) : null;
+  const opcionesDias = grupo === "inactivos" ? [[60, "+60 días"], [90, "+90 días"], [180, "+6 meses"], [365, "+1 año"]] : [[7, "+7 días"], [30, "+30 días"], [60, "+60 días"], [90, "+90 días"]];
+
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div className="g4" style={{ marginBottom: 12, textAlign: "center" }}>
+        <MCard label="Compraron una sola vez" value={pctUna === null ? "—" : pctUna + "%"} sub={(tot.una_compra || 0) + " de " + (tot.con_compras || 0) + " clientes"} color="var(--acento-texto)" />
+        <MCard label="En esta lista" value={String(lista.length)} sub={conTel + " con teléfono"} color="#2471a3" />
+        <MCard label="Les escribiste (60 días)" value={String(ef.contactados || 0)} color="var(--wa-texto)" />
+        <MCard label="Volvieron a comprar" value={String(ef.volvieron || 0)} sub={ef.contactados ? Math.round((ef.volvieron || 0) / ef.contactados * 100) + "% de los que recibieron mensaje" : "después del mensaje"} color="#2d7a4f" />
+      </div>
+
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
+          <div className="seg" role="group" aria-label="Qué clientes">
+            {[["una_compra", "Compraron una sola vez"], ["inactivos", "Hace mucho no vuelven"]].map(([k, l]) => (
+              <button key={k} className={grupo === k ? "on" : ""} aria-pressed={grupo === k} onClick={() => cambiarGrupo(k)}>{l}</button>
+            ))}
+          </div>
+          <div className="seg" role="group" aria-label="Desde cuándo">
+            {opcionesDias.map(([d, l]) => <button key={d} className={dias === d ? "on" : ""} aria-pressed={dias === d} onClick={() => cambiarDias(d)}>{l}</button>)}
+          </div>
+        </div>
+        <div style={{ fontSize: 11, color: temaPal.textMuted }}>
+          {grupo === "una_compra" ? "Clientes que compraron una vez y no volvieron, contando desde su compra (así no le escribís a quien compró ayer)." : "Clientes que ya compraron y hace más de ese tiempo que no vuelven."}
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div className="ct">Mensaje (podés editarlo)</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+          {PLANTILLAS_RECUPERAR.map(pl => <button key={pl.id} className={"chip-btn" + (plantilla === pl.texto ? " on" : "")} onClick={() => setPlantilla(pl.texto)}>{pl.titulo}</button>)}
+        </div>
+        <textarea className="inp" rows={3} style={{ resize: "vertical" }} value={plantilla} onChange={e => setPlantilla(e.target.value)} aria-label="Mensaje" />
+        <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 6 }}>
+          {"{nombre}"}, {"{producto}"} (lo último que compró) y {"{negocio}"} se reemplazan solos.
+          {plantilla.includes("VUELVE10") && <> Antes de mandarlo, creá el cupón <b>VUELVE10</b> en <b>Clientes → Cupones</b>.</>}
+        </div>
+      </div>
+
+      <div className="card">
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
+          <input className="inp" style={{ flex: "1 1 200px" }} placeholder="🔍 Buscar por nombre o teléfono" value={busca} onChange={e => setBusca(e.target.value)} aria-label="Buscar cliente" />
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer" }}>
+            <input type="checkbox" checked={ocultarContactados} onChange={e => setOcultarContactados(e.target.checked)} /> Ocultar a los que les escribí en los últimos 30 días
+          </label>
+          <button className="btn btn-g btn-sm" onClick={() => cargar()}>Actualizar</button>
+        </div>
+        {cargando ? <div className="skel" style={{ height: 180 }} />
+          : datos?.error ? <div className="empty">No se pudo cargar la lista. Probá de nuevo.</div>
+          : lista.length === 0 ? <div className="empty" style={{ padding: 24 }}>{todos.length ? "Ya les escribiste a todos los de esta lista en los últimos 30 días. 👏" : "No hay clientes en este grupo. Probá con otro período."}</div>
+          : (
+            <div>
+              {lista.slice(0, limite).map(c => {
+                const tel = numeroWhatsApp(c.telefono);
+                const hace = diasDesde(c.contactado);
+                return (
+                  <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: "1px solid " + temaPal.border, opacity: c.recien ? 0.55 : 1 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>{c.nombre || "Sin nombre"}</div>
+                      <div style={{ fontSize: 11, color: temaPal.textMuted }}>
+                        {c.compras === 1 ? "1 compra" : c.compras + " compras"} · la última hace {c.dias} días · {fmt(parseFloat(c.gastado || 0))}
+                        {c.producto ? " · " + c.producto : ""}
+                      </div>
+                      {c.contactado && <div style={{ fontSize: 10.5, color: "#2d7a4f", fontWeight: 600, marginTop: 2 }}>{c.recien ? "✓ Mensaje enviado recién" : "Le escribiste hace " + hace + " día" + (hace === 1 ? "" : "s")}</div>}
+                    </div>
+                    {tel ? (
+                      <button className="btn btn-sm" style={{ background: "#25d366", color: "#1B2431", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }} onClick={() => enviar(c)}>💬 {c.contactado ? "Escribir de nuevo" : "Enviar WhatsApp"}</button>
+                    ) : <span className="tag tag-neutral" title="Cargale el teléfono en Clientes">Sin teléfono</span>}
+                  </div>
+                );
+              })}
+              {lista.length > limite && <button className="chip-btn" style={{ marginTop: 10 }} onClick={() => setLimite(l => l + 50)}>Ver 50 más (quedan {lista.length - limite})</button>}
+            </div>
+          )}
+      </div>
+    </div>
+  );
+}
+
 function PostventaWA({ paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [rules, setRules] = useState([]);
-  const [tab, setTab] = useState("reglas");
+  // Se puede abrir directo en una pestaña (ej: desde Mejora continua → "Recuperar clientes")
+  const [tabInicial] = useState(() => tabInicialDe("postventa"));
+  const [tab, setTab] = useState(() => (tabInicial || "").startsWith("recuperar") ? "recuperar" : (tabInicial || "reglas"));
   useEffect(() => { cargarMensajesReales(); }, []);
   const [sel, setSel] = useState(null);
   const [nuevaRegla, setNuevaRegla] = useState({ nombre: "", disparador: "post_compra", dias: 7, segmento: "Todos", mensaje: "" });
@@ -11216,7 +11368,7 @@ function PostventaWA({ paletaActual }) {
         <MCard label="Total reglas" value={String(rulesAMostrar.length)} color="#2471a3" />
       </div>
       <div className="tabs">
-        {[["reglas", "REGLAS"], ["enviar", "ENVIAR HOY"], ["enviados", "MENSAJES ENVIADOS"], ["nueva", "NUEVA REGLA"]].map(([id, l]) => (
+        {[["reglas", "REGLAS"], ["enviar", "ENVIAR HOY"], ["recuperar", "RECUPERAR CLIENTES"], ["enviados", "MENSAJES ENVIADOS"], ["nueva", "NUEVA REGLA"]].map(([id, l]) => (
           <div key={id} className={"tab " + (tab === id ? "on" : "")} onClick={() => { setTab(id); setSel(null); if (id === "enviar") cargarPendientesWA(); if (id === "enviados") cargarMensajesReales(); }}>{l}</div>
         ))}
       </div>
@@ -11338,6 +11490,7 @@ function PostventaWA({ paletaActual }) {
           </div>
         </div>
       )}
+      {tab === "recuperar" && <RecuperarClientes temaPal={temaPal} grupoInicial={tabInicial === "recuperar_inactivos" ? "inactivos" : "una_compra"} />}
       {tab === "enviar" && (
         <div className="fade">
           <div className="card" style={{ marginBottom: 12 }}>
