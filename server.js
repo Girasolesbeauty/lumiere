@@ -77,6 +77,7 @@ app.use('/api/gerente', require('./routes/gerente'));
 app.use('/api/respaldo', require('./routes/respaldo'));
 app.use('/api/plataforma', require('./routes/plataforma'));
 app.use('/api/legal', require('./routes/legal'));
+app.use('/api/precios-masivos', require('./routes/precios-masivos'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {
