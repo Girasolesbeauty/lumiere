@@ -84,6 +84,7 @@ const create = async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error(error);
+    if (error.code === '23505') return res.status(400).json({ error: 'Ya hay un cupón con ese código. Elegí otro.' });
     res.status(500).json({ error: 'Error al crear cupon: ' + error.message });
   }
 };
@@ -115,6 +116,7 @@ const update = async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error(error);
+    if (error.code === '23505') return res.status(400).json({ error: 'Ya hay un cupón con ese código. Elegí otro.' });
     res.status(500).json({ error: 'Error al actualizar cupon: ' + error.message });
   }
 };

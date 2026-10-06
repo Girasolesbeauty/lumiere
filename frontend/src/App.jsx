@@ -9802,7 +9802,7 @@ function Cupones({ localId, usuario, paletaActual }) {
       getCupones().then(res => setCupons(res.data));
       setTab("lista");
       setTimeout(() => setMensaje(""), 3000);
-    } catch (e) { setMensaje("Error al crear cupon"); }
+    } catch (e) { setMensaje("Error: " + (e.response?.data?.error || "no se pudo crear el cupón")); }
   };
 
   const toggleCupon = async (c) => {
@@ -9882,7 +9882,7 @@ function Cupones({ localId, usuario, paletaActual }) {
             <thead><tr><th>Codigo</th><th>Descripcion</th><th>Descuento</th><th>Canal</th><th>Usos</th><th>Vence</th><th>Activo</th></tr></thead>
             <tbody>
               {cuponsAMostrar.length === 0 && (
-                <tr><td colSpan={7} style={{ textAlign: "center", color: p.textMuted, padding: 20 }}>Todavía no hay cupones. Creá el primero en Nuevo cupón.</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: "center", color: temaPal.textMuted, padding: 20 }}>Todavía no hay cupones. Creá el primero en la pestaña Crear.</td></tr>
               )}
               {cuponsAMostrar.map(c => (
                 <tr key={c.id}>
@@ -11126,7 +11126,92 @@ const numeroWhatsApp = (tel) => {
   else if (!n.startsWith("549")) n = "549" + n.slice(2);
   return n;
 };
+// Resultados de los mensajes de Recuperar clientes: quiénes volvieron a comprar dentro de los 30
+// días siguientes al WhatsApp, cuánto compraron, cuánto tardaron y qué mensaje funciona mejor.
+const NOMBRE_PLANTILLA = { extranamos: "Te extrañamos", como_te_fue: "¿Cómo te fue?", descuento: "Con descuento", propio: "Mensaje propio", regla: "Reglas automáticas", otro: "Otros mensajes" };
+const NOMBRE_GRUPO = { una_compra: "Compraron una sola vez", inactivos: "Hace mucho no vuelven", otro: "Otros (Enviar hoy, reglas o anteriores)" };
+function ResultadosRecuperar({ temaPal }) {
+  const [dias, setDias] = useState(60);
+  const [datos, setDatos] = useState(null);
+  const [cargando, setCargando] = useState(false);
+  const cargar = (d) => {
+    setCargando(true);
+    API.get("/postventa/resultados?dias=" + d).then(r => setDatos(r.data)).catch(() => setDatos({ error: true })).finally(() => setCargando(false));
+  };
+  useEffect(() => { cargar(dias); }, []);
+  const pct = (a, b) => b ? Math.round(a / b * 100) + "%" : "—";
+  const t = datos?.total || {};
+  const fecha = (f) => new Date(f).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" });
+  const mejor = (datos?.por_plantilla || []).filter(x => x.enviados >= 5 && !["otro", "regla"].includes(x.clave)).sort((a, b) => b.volvieron / b.enviados - a.volvieron / a.enviados)[0];
+
+  const tablaGrupos = (lista, nombres, titulo) => (
+    <div className="card" style={{ marginBottom: 12 }}>
+      <div className="ct">{titulo}</div>
+      <div style={{ overflowX: "auto" }}>
+        <table>
+          <thead><tr><th></th><th style={{ textAlign: "right" }}>Enviados</th><th style={{ textAlign: "right" }}>Volvieron</th><th style={{ textAlign: "right" }}>%</th><th style={{ textAlign: "right" }}>Ventas</th><th style={{ textAlign: "right" }}>Tardaron</th></tr></thead>
+          <tbody>
+            {lista.map(x => (
+              <tr key={x.clave}>
+                <td style={{ fontWeight: 600, fontSize: 12 }}>{nombres[x.clave] || x.clave}</td>
+                <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{x.enviados}</td>
+                <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{x.volvieron}</td>
+                <td style={{ textAlign: "right", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{pct(x.volvieron, x.enviados)}</td>
+                <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{fmt(x.ventas)}</td>
+                <td style={{ textAlign: "right", fontSize: 11, color: temaPal.textMuted, whiteSpace: "nowrap" }}>{x.dias_promedio === null ? "—" : x.dias_promedio + " días"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+        <div className="seg" role="group" aria-label="Período">
+          {[[30, "Últimos 30 días"], [60, "60 días"], [90, "90 días"], [180, "6 meses"]].map(([d, l]) => <button key={d} className={dias === d ? "on" : ""} aria-pressed={dias === d} onClick={() => { setDias(d); cargar(d); }}>{l}</button>)}
+        </div>
+        <span style={{ fontSize: 11, color: temaPal.textMuted }}>Cuenta como "volvió" si compró dentro de los {datos?.dias_efecto || 30} días siguientes al mensaje.</span>
+      </div>
+      {cargando || !datos ? <div className="skel" style={{ height: 220 }} />
+        : datos.error ? <div className="empty">No se pudieron cargar los resultados. Probá de nuevo.</div>
+        : !t.enviados ? <div className="card empty" style={{ padding: 28 }}>Todavía no le mandaste mensajes a nadie en este período. Cuando empieces desde la <b>Lista</b>, acá vas a ver quiénes vuelven y qué mensaje funciona mejor.</div>
+        : (
+          <>
+            <div className="g4" style={{ marginBottom: 12, textAlign: "center" }}>
+              <MCard label="Les escribiste" value={String(t.enviados)} sub={t.en_espera ? t.en_espera + " todavía dentro de los 30 días" : "clientes"} color="var(--wa-texto)" />
+              <MCard label="Volvieron a comprar" value={pct(t.volvieron, t.enviados)} sub={t.volvieron + " cliente" + (t.volvieron === 1 ? "" : "s")} color="#2d7a4f" />
+              <MCard label="Ventas que trajeron" value={fmt(t.ventas)} sub={t.volvieron ? "≈ " + fmt(t.ventas / t.volvieron) + " por cliente" : "todavía ninguna"} color="var(--acento-texto)" />
+              <MCard label="Tardaron en volver" value={t.dias_promedio === null ? "—" : t.dias_promedio + " días"} sub="en promedio" color="#2471a3" />
+            </div>
+            {mejor && <div className="card" style={{ marginBottom: 12, borderLeft: "3px solid #2d7a4f", fontSize: 13 }}>💡 El mensaje que mejor te funciona es <b>"{NOMBRE_PLANTILLA[mejor.clave] || mejor.clave}"</b>: volvió el {pct(mejor.volvieron, mejor.enviados)} de los clientes que lo recibieron.</div>}
+            {tablaGrupos(datos.por_plantilla, NOMBRE_PLANTILLA, "¿Qué mensaje funciona mejor?")}
+            {tablaGrupos(datos.por_grupo, NOMBRE_GRUPO, "¿A quiénes conviene escribirles?")}
+            <div className="card">
+              <div className="ct">Clientes que volvieron</div>
+              {datos.volvieron.length === 0 ? <div className="empty" style={{ padding: 18 }}>Todavía no volvió ninguno.{t.en_espera ? " Hay " + t.en_espera + " que recibieron el mensaje hace menos de 30 días: puede que vuelvan." : ""}</div> : datos.volvieron.map(c => (
+                <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid " + temaPal.border }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13 }}>{c.nombre || "Sin nombre"}</div>
+                    <div style={{ fontSize: 11, color: temaPal.textMuted }}>Mensaje el {fecha(c.enviado)} ({NOMBRE_PLANTILLA[c.plantilla] || c.plantilla}) · volvió el {fecha(c.volvio_en)}, {c.dias_hasta === 0 ? "el mismo día" : "a los " + c.dias_hasta + " día" + (c.dias_hasta === 1 ? "" : "s")}</div>
+                  </div>
+                  <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, fontVariantNumeric: "tabular-nums" }}>{fmt(c.monto)}</div>
+                    <div style={{ fontSize: 10.5, color: temaPal.textMuted }}>{c.compras} compra{c.compras === 1 ? "" : "s"}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+    </div>
+  );
+}
+
 function RecuperarClientes({ temaPal, grupoInicial }) {
+  const [vista, setVista] = useState("lista");
   const [grupo, setGrupo] = useState(grupoInicial === "inactivos" ? "inactivos" : "una_compra");
   const [dias, setDias] = useState(grupoInicial === "inactivos" ? 90 : 30);
   const [datos, setDatos] = useState(null);
@@ -11159,7 +11244,8 @@ function RecuperarClientes({ temaPal, grupoInicial }) {
     const texto = armar(c);
     window.open("https://wa.me/" + numero + "?text=" + encodeURIComponent(texto), "_blank");
     try {
-      await API.post("/postventa/marcar-enviado", { cliente_id: c.id, mensaje: texto });
+      const modelo = (PLANTILLAS_RECUPERAR.find(pl => pl.texto === plantilla) || {}).id || "propio";
+      await API.post("/postventa/marcar-enviado", { cliente_id: c.id, mensaje: texto, plantilla: modelo, grupo });
       setDatos(prev => prev ? { ...prev, clientes: prev.clientes.map(x => x.id === c.id ? { ...x, contactado: new Date().toISOString(), recien: true } : x) } : prev);
     } catch (e) {}
   };
@@ -11176,13 +11262,23 @@ function RecuperarClientes({ temaPal, grupoInicial }) {
   const pctUna = tot.con_compras ? Math.round(tot.una_compra / tot.con_compras * 100) : null;
   const opcionesDias = grupo === "inactivos" ? [[60, "+60 días"], [90, "+90 días"], [180, "+6 meses"], [365, "+1 año"]] : [[7, "+7 días"], [30, "+30 días"], [60, "+60 días"], [90, "+90 días"]];
 
+  const selectorVista = (
+    <div className="seg" role="group" aria-label="Vista" style={{ marginBottom: 12 }}>
+      {[["lista", "📋 Lista para escribir"], ["resultados", "📊 Resultados"]].map(([k, l]) => <button key={k} className={vista === k ? "on" : ""} aria-pressed={vista === k} onClick={() => setVista(k)}>{l}</button>)}
+    </div>
+  );
+  if (vista === "resultados") return <div style={{ textAlign: "left" }}>{selectorVista}<ResultadosRecuperar temaPal={temaPal} /></div>;
+
   return (
     <div className="fade" style={{ textAlign: "left" }}>
+      {selectorVista}
       <div className="g4" style={{ marginBottom: 12, textAlign: "center" }}>
         <MCard label="Compraron una sola vez" value={pctUna === null ? "—" : pctUna + "%"} sub={(tot.una_compra || 0) + " de " + (tot.con_compras || 0) + " clientes"} color="var(--acento-texto)" />
         <MCard label="En esta lista" value={String(lista.length)} sub={conTel + " con teléfono"} color="#2471a3" />
         <MCard label="Les escribiste (60 días)" value={String(ef.contactados || 0)} color="var(--wa-texto)" />
-        <MCard label="Volvieron a comprar" value={String(ef.volvieron || 0)} sub={ef.contactados ? Math.round((ef.volvieron || 0) / ef.contactados * 100) + "% de los que recibieron mensaje" : "después del mensaje"} color="#2d7a4f" />
+        <div role="button" tabIndex={0} title="Ver el análisis completo" style={{ cursor: "pointer" }} onClick={() => setVista("resultados")} onKeyDown={e => { if (e.key === "Enter") setVista("resultados"); }}>
+          <MCard label="Volvieron a comprar" value={String(ef.volvieron || 0)} sub={(ef.contactados ? Math.round((ef.volvieron || 0) / ef.contactados * 100) + "% de los que recibieron mensaje" : "después del mensaje") + " · ver análisis →"} color="#2d7a4f" />
+        </div>
       </div>
 
       <div className="card" style={{ marginBottom: 12 }}>

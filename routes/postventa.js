@@ -9,6 +9,7 @@ router.get('/mensajes', controller.getMensajes);
 router.post('/ejecutar', controller.ejecutarReglas);
 router.get('/pendientes-whatsapp', controller.getPendientesWhatsApp);
 router.get('/recuperar', controller.getRecuperar);
+router.get('/resultados', controller.getResultados);
 router.post('/marcar-enviado', controller.marcarEnviadoWhatsApp);
 router.put('/mensajes/:id/marcar-enviado', controller.marcarMensajeEnviado);
 
