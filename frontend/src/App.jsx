@@ -6900,8 +6900,181 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
   );
 }
 
+// Actualizar precios en masa (desde Inventario): subir o bajar un %, o calcular desde el costo
+// con un recargo, a todos los productos o a una categoria, marca o proveedor. Primero muestra
+// como quedan, despues aplica, y cada cambio se puede deshacer.
+function ActualizarPrecios({ productos, proveedores, temaPal, onCerrar, onCambio }) {
+  const [alcance, setAlcance] = useState("todos");
+  const [filtro, setFiltro] = useState("");
+  const [modo, setModo] = useState("subir");
+  const [valor, setValor] = useState("");
+  const [redondeo, setRedondeo] = useState(0);
+  const [vista, setVista] = useState(null);
+  const [trabajando, setTrabajando] = useState(false);
+  const [aviso, setAviso] = useState(null); // { ok, texto }
+  const [historial, setHistorial] = useState([]);
+  const [verTodos, setVerTodos] = useState(false);
+
+  const categorias = [...new Set(productos.map(p => p.categoria).filter(Boolean))].sort();
+  const marcas = [...new Set(productos.map(p => p.marca).filter(Boolean))].sort();
+  const cargarHistorial = () => API.get("/precios-masivos/historial").then(r => setHistorial(r.data || [])).catch(() => {});
+  useEffect(() => { cargarHistorial(); }, []);
+  // Cualquier cambio en los datos invalida la vista previa
+  useEffect(() => { setVista(null); }, [alcance, filtro, modo, valor, redondeo]);
+
+  const pedido = () => ({ alcance, filtro, modo, valor, redondeo });
+  const verComoQueda = async () => {
+    setTrabajando(true); setAviso(null);
+    try { const r = await API.post("/precios-masivos/vista", pedido()); setVista(r.data); setVerTodos(false); }
+    catch (e) { setAviso({ ok: false, texto: e.response?.data?.error || "No se pudo calcular" }); }
+    setTrabajando(false);
+  };
+  const aplicar = async () => {
+    if (!vista?.cambian?.length) return;
+    if (!confirm("¿Cambiar el precio de " + vista.cambian.length + " producto" + (vista.cambian.length !== 1 ? "s" : "") + "? Después lo podés deshacer desde esta misma ventana.")) return;
+    setTrabajando(true); setAviso(null);
+    try {
+      const r = await API.post("/precios-masivos/aplicar", pedido());
+      setAviso({ ok: true, texto: "✓ Listo: se actualizaron " + r.data.cantidad + " precios." });
+      setVista(null); setValor("");
+      cargarHistorial(); onCambio && onCambio();
+    } catch (e) { setAviso({ ok: false, texto: e.response?.data?.error || "No se pudieron actualizar los precios" }); }
+    setTrabajando(false);
+  };
+  const deshacer = async (h) => {
+    if (!confirm("¿Deshacer \"" + h.descripcion + "\"? Los productos vuelven al precio que tenían antes.")) return;
+    setTrabajando(true); setAviso(null);
+    try {
+      const r = await API.post("/precios-masivos/" + h.id + "/deshacer");
+      setAviso({ ok: true, texto: "✓ Deshecho: " + r.data.vueltos + " productos volvieron a su precio anterior." + (r.data.salteados ? " " + r.data.salteados + " no se tocaron porque su precio se cambió después." : "") });
+      cargarHistorial(); onCambio && onCambio();
+    } catch (e) { setAviso({ ok: false, texto: e.response?.data?.error || "No se pudo deshacer" }); }
+    setTrabajando(false);
+  };
+
+  const pct = (a, d) => a > 0 ? Math.round((d - a) / a * 1000) / 10 : null;
+  const margenDe = (precio, costo) => costo > 0 && precio > 0 ? Math.round((precio - costo) / precio * 100) : null;
+  const filas = vista ? (verTodos ? vista.cambian : vista.cambian.slice(0, 30)) : [];
+
+  return (
+    <div className="pos-overlay" onClick={onCerrar}>
+      <div className="card pop-in" role="dialog" aria-label="Actualizar precios" style={{ maxWidth: 760, width: "100%", maxHeight: "92vh", overflowY: "auto", background: temaPal.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+          <div style={{ fontSize: 16, fontWeight: 800 }}>📈 Actualizar precios</div>
+          <button onClick={onCerrar} aria-label="Cerrar" style={{ background: "transparent", border: "none", fontSize: 18, cursor: "pointer", color: temaPal.textMuted }}>✕</button>
+        </div>
+        <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 14 }}>Cambiá muchos precios de una vez. Primero ves cómo quedan y después confirmás.</div>
+
+        <div className="fg">
+          <div className="fl">¿A qué productos?</div>
+          <div className="seg" role="group" aria-label="A qué productos" style={{ display: "flex", flexWrap: "wrap" }}>
+            {[["todos", "Todos"], ["categoria", "Una categoría"], ["marca", "Una marca"], ["proveedor", "Un proveedor"]].map(([k, l]) => (
+              <button key={k} style={{ flex: 1 }} className={alcance === k ? "on" : ""} aria-pressed={alcance === k} onClick={() => { setAlcance(k); setFiltro(""); }}>{l}</button>
+            ))}
+          </div>
+          {alcance !== "todos" && (
+            <select className="sel" style={{ marginTop: 8 }} value={filtro} onChange={e => setFiltro(e.target.value)} aria-label="Elegir">
+              <option value="">{alcance === "categoria" ? "Elegí la categoría..." : alcance === "marca" ? "Elegí la marca..." : "Elegí el proveedor..."}</option>
+              {alcance === "categoria" && categorias.map(c => <option key={c} value={c}>{c}</option>)}
+              {alcance === "marca" && marcas.map(m => <option key={m} value={m}>{m}</option>)}
+              {alcance === "proveedor" && proveedores.map(pr => <option key={pr.id} value={pr.id}>{pr.nombre}</option>)}
+            </select>
+          )}
+        </div>
+
+        <div className="fg">
+          <div className="fl">¿Cómo?</div>
+          <div className="seg" role="group" aria-label="Cómo cambiar" style={{ display: "flex", flexWrap: "wrap" }}>
+            {[["subir", "Subir %"], ["bajar", "Bajar %"], ["margen", "Desde el costo"]].map(([k, l]) => (
+              <button key={k} style={{ flex: 1 }} className={modo === k ? "on" : ""} aria-pressed={modo === k} onClick={() => setModo(k)}>{l}</button>
+            ))}
+          </div>
+          <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 6 }}>
+            {modo === "subir" ? "Ej: 10% → un producto de $1.000 pasa a $1.100." : modo === "bajar" ? "Ej: 10% → un producto de $1.000 pasa a $900." : "El precio se calcula desde el costo cargado. Ej: recargo 80% → costo $1.000 pasa a precio $1.800. Los productos sin costo no se tocan."}
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div className="fg">
+            <div className="fl">{modo === "margen" ? "Recargo sobre el costo (%)" : "Porcentaje (%)"}</div>
+            <input className="inp" type="number" min="0" step="0.5" inputMode="decimal" placeholder={modo === "margen" ? "80" : "10"} value={valor} onChange={e => setValor(e.target.value)} />
+          </div>
+          <div className="fg">
+            <div className="fl">Redondear</div>
+            <select className="sel" value={redondeo} onChange={e => setRedondeo(Number(e.target.value))}>
+              <option value={0}>Sin redondear</option>
+              <option value={1}>A pesos enteros</option>
+              <option value={10}>A $10</option>
+              <option value={50}>A $50</option>
+              <option value={100}>A $100</option>
+              <option value={500}>A $500</option>
+              <option value={1000}>A $1.000</option>
+            </select>
+          </div>
+        </div>
+
+        {aviso && <div className="pop-in" role={aviso.ok ? "status" : "alert"} style={{ background: aviso.ok ? temaPal.greenDim : temaPal.redDim, border: "1px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, margin: "4px 0 12px" }}>{aviso.texto}</div>}
+
+        {!vista ? (
+          <button className="btn btn-p" style={{ width: "100%" }} disabled={trabajando || !(parseFloat(valor) > 0) || (alcance !== "todos" && !filtro)} onClick={verComoQueda}>{trabajando ? "Calculando..." : "Ver cómo quedan"}</button>
+        ) : (
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>{vista.descripcion}</div>
+            <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 10 }}>
+              Cambian <b style={{ color: temaPal.text }}>{vista.cambian.length}</b> de {vista.total} productos activos
+              {vista.sinCalcular.length > 0 && <> · <b>{vista.sinCalcular.length}</b> quedan igual ({modo === "margen" ? "no tienen costo cargado" : "no tienen precio"})</>}
+            </div>
+            {vista.cambian.length > 0 && (
+              <div style={{ overflowX: "auto", border: "1px solid " + temaPal.border, borderRadius: 8, marginBottom: 10 }}>
+                <table>
+                  <thead><tr><th>Producto</th><th style={{ textAlign: "right" }}>Antes</th><th style={{ textAlign: "right" }}>Después</th><th style={{ textAlign: "right" }}>Cambio</th><th style={{ textAlign: "right" }} title="Cuánto de cada venta es ganancia: (precio − costo) ÷ precio">Margen</th></tr></thead>
+                  <tbody>
+                    {filas.map(it => {
+                      const c = pct(it.antes, it.despues), m = margenDe(it.despues, it.costo);
+                      return (
+                        <tr key={it.id}>
+                          <td style={{ fontSize: 12 }}>{it.nombre}{it.marca && <div style={{ fontSize: 10, color: temaPal.textMuted }}>{it.marca}</div>}</td>
+                          <td style={{ textAlign: "right", fontSize: 12, color: temaPal.textMuted, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{it.antes > 0 ? fmt(it.antes) : "—"}</td>
+                          <td style={{ textAlign: "right", fontSize: 12, fontWeight: 700, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{fmt(it.despues)}</td>
+                          <td style={{ textAlign: "right", fontSize: 11, whiteSpace: "nowrap", color: c === null ? temaPal.textMuted : c >= 0 ? temaPal.green : temaPal.red }}>{c === null ? "nuevo" : (c > 0 ? "+" : "") + c + "%"}</td>
+                          <td style={{ textAlign: "right", fontSize: 11, whiteSpace: "nowrap" }}>{m === null ? <span style={{ color: temaPal.textMuted }}>—</span> : <span className={"tag " + (m >= 40 ? "tag-ok" : m >= 20 ? "tag-warn" : "tag-bad")}>{m}%</span>}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {vista.cambian.length > 30 && !verTodos && <button className="chip-btn" style={{ margin: 8 }} onClick={() => setVerTodos(true)}>Ver los {vista.cambian.length}</button>}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} disabled={trabajando} onClick={() => setVista(null)}>Volver</button>
+              <button className="btn btn-p" style={{ flex: 2 }} disabled={trabajando || !vista.cambian.length} onClick={aplicar}>{trabajando ? "Aplicando..." : vista.cambian.length ? "Aplicar a " + vista.cambian.length + " producto" + (vista.cambian.length !== 1 ? "s" : "") : "Ningún precio cambia"}</button>
+            </div>
+          </div>
+        )}
+
+        {historial.length > 0 && (
+          <div style={{ marginTop: 18, borderTop: "1px solid " + temaPal.border, paddingTop: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".08em", color: temaPal.textMuted, marginBottom: 8 }}>ÚLTIMOS CAMBIOS</div>
+            {historial.map(h => (
+              <div key={h.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid " + temaPal.border, fontSize: 12 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, textDecoration: h.deshecho_en ? "line-through" : "none", color: h.deshecho_en ? temaPal.textMuted : temaPal.text }}>{h.descripcion}</div>
+                  <div style={{ fontSize: 10, color: temaPal.textMuted }}>{new Date(h.creado_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {h.cantidad} productos{h.usuario_nombre ? " · " + h.usuario_nombre : ""}{h.deshecho_en ? " · deshecho" : ""}</div>
+                </div>
+                {!h.deshecho_en && <button className="chip-btn" disabled={trabajando} onClick={() => deshacer(h)}>↩ Deshacer</button>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Inventario({ localId, usuario, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
+  const [showPrecios, setShowPrecios] = useState(false);
   const [tab, setTab] = useState("stock");
   const [ajustesHistorial, setAjustesHistorial] = useState([]);
   const [buscarAjuste, setBuscarAjuste] = useState("");
@@ -7285,6 +7458,14 @@ function Inventario({ localId, usuario, paletaActual }) {
   const stockOtroDe = (p) => (esUshInv ? (p.stock_rg || 0) : (p.stock_ush || 0));
   const stockMiDe = (p) => (esUshInv ? (p.stock_ush || 0) : (p.stock_rg || 0));
   const margenDe = (p) => { const pr = parseFloat(p.precio || 0), co = parseFloat(p.costo || 0); return pr > 0 && co > 0 ? Math.round((pr - co) / pr * 100) : null; };
+  // Datos que le faltan a un producto (para el filtro "Datos incompletos")
+  const faltantesDe = (p) => [
+    !(parseFloat(p.precio || 0) > 0) && "precio",
+    !(parseFloat(p.costo || 0) > 0) && "costo",
+    !(p.codigo_barras || "").trim() && "código",
+    !(p.categoria || "").trim() && "categoría",
+    !p.proveedor_id && !(p.proveedor_nombre || "").trim() && "proveedor",
+  ].filter(Boolean);
   const estadoStockDe = (p) => {
     const st = stockVistaDe(p);
     if (st <= 0) return "sin";
@@ -7310,6 +7491,8 @@ function Inventario({ localId, usuario, paletaActual }) {
     if (filtroStock === "reservas" && !(reservadoVistaDe(p) > 0)) return false;
     if (filtroStock === "sin_costo" && parseFloat(p.costo || 0) > 0) return false;
     if (filtroStock === "sin_codigo" && (p.codigo_barras || "").trim()) return false;
+    if (filtroStock === "negativo" && !(stockVistaDe(p) < 0)) return false;
+    if (filtroStock === "incompletos" && !faltantesDe(p).length) return false;
     return true;
   });
   const ordenados = [...filtradosStock].sort((a, b) => {
@@ -7326,6 +7509,8 @@ function Inventario({ localId, usuario, paletaActual }) {
   const ordenarPor = (campo) => setOrdenInv(o => ({ campo, dir: o.campo === campo && o.dir === "asc" ? "desc" : "asc" }));
   const flechaOrden = (campo) => (ordenInv.campo === campo ? (ordenInv.dir === "asc" ? " ▲" : " ▼") : "");
   const hayFiltros = busqueda || filtroCat || filtroStock || filtroMarcaInv || filtroProvInv;
+  const cantNegativos = productos.filter(p => stockVistaDe(p) < 0).length;
+  const cantIncompletos = productos.filter(p => faltantesDe(p).length > 0).length;
   const limpiarFiltros = () => { setBusqueda(""); setFiltroCat(""); setFiltroStock(""); setFiltroMarcaInv(""); setFiltroProvInv(""); };
 
   // Resumen (sobre los productos cargados, segun el local que se esta mirando)
@@ -7393,6 +7578,7 @@ function Inventario({ localId, usuario, paletaActual }) {
         </div>
         <div className="dash-actions">
           <button className="btn btn-g btn-sm" onClick={exportarCSV} title="Descargar la lista filtrada para abrir en Excel">📥 Exportar</button>
+          {puedeHacer("inventario.editar") && <button className="btn btn-g btn-sm" onClick={() => setShowPrecios(true)} title="Subir o bajar muchos precios de una vez">📈 Actualizar precios</button>}
           {puedeHacer("inventario.crear") && <button className="btn btn-p btn-sm" onClick={() => { setEditandoProd(null); setFotoProd({ imagen: null, cambiada: false }); setNuevo({ nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "", stock: "", stock_minimo: "", proveedor_id: "", descripcion: "", tiene_variantes: false, tipo_variante: "" }); setShowForm(true); }}>+ Nuevo producto</button>}
         </div>
       </div>
@@ -7401,6 +7587,8 @@ function Inventario({ localId, usuario, paletaActual }) {
           {mensaje}
         </div>
       )}
+
+      {showPrecios && <ActualizarPrecios productos={productos} proveedores={proveedores} temaPal={temaPal} onCerrar={() => setShowPrecios(false)} onCambio={cargar} />}
 
       {showForm && (
         <div className="pos-overlay" onClick={() => { setShowForm(false); setEditandoProd(null); }}>
@@ -7560,7 +7748,7 @@ function Inventario({ localId, usuario, paletaActual }) {
               </select>
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10, alignItems: "center" }}>
-              {[["", "Todo"], ["bajo", "⚠ Stock bajo"], ["sin", "⛔ Sin stock"], ["reservas", "🔒 Con reservas"], ["sin_costo", "Sin costo cargado"], ["sin_codigo", "Sin código"]].map(([id, l]) => (
+              {[["", "Todo"], ["bajo", "⚠ Stock bajo"], ["sin", "⛔ Sin stock"], ["negativo", "➖ Stock negativo" + (cantNegativos ? " (" + cantNegativos + ")" : "")], ["reservas", "🔒 Con reservas"], ["incompletos", "📝 Datos incompletos" + (cantIncompletos ? " (" + cantIncompletos + ")" : "")], ["sin_costo", "Sin costo cargado"], ["sin_codigo", "Sin código"]].map(([id, l]) => (
                 <button key={id || "todo"} className={"chip-btn" + (filtroStock === id ? " on" : "")} aria-pressed={filtroStock === id} onClick={() => setFiltroStock(id)}>{l}</button>
               ))}
               <span style={{ flex: 1 }} />
@@ -7648,6 +7836,7 @@ function Inventario({ localId, usuario, paletaActual }) {
                                 {p.tiene_variantes && <span className="tag tag-neutral" style={{ marginLeft: 6 }}>🎨 {p.tipo_variante || "variantes"}</span>}
                               </div>
                               {p.marca && <div style={{ fontSize: 11, color: temaPal.textMuted }}>{p.marca}</div>}
+                              {filtroStock === "incompletos" && <div style={{ fontSize: 11, color: temaPal.warn || temaPal.red, fontWeight: 600, marginTop: 2 }}>Falta: {faltantesDe(p).join(", ")}</div>}
                             </td>
                             <td style={{ textAlign: "right", whiteSpace: "nowrap", fontWeight: 700, color: temaPal.accentText, fontVariantNumeric: "tabular-nums" }}>{fmt(parseFloat(p.precio || 0))}</td>
                             <td style={{ textAlign: "center" }}><EstadoStock p={p} /></td>
@@ -16412,18 +16601,18 @@ function ControlInventario({ localId, usuario, paletaActual }) {
         </div>
         {!diag || diag.cargando ? <div className="skel" style={{ height: 260, marginTop: 12 }} /> : diag.error ? <div className="cc-aviso bad" style={{ marginTop: 12 }}>{diag.error}</div> : (
           <>
-            {Bloque({ icono: "👥", titulo: "Ventas cargadas en el otro local", estado: cruz.length ? "mal" : "ok",
+            {!UN_SOLO_LOCAL && Bloque({ icono: "👥", titulo: "Ventas cargadas en el otro local", estado: cruz.length ? "mal" : "ok",
               queEs: <>Ventas hechas por alguien en un local distinto al que tiene asignado su usuario. Si esa persona trabaja siempre en un local, esas ventas descontaron stock del <b>otro</b>: acá falta de más y allá sobra. (Hasta el 2 de octubre de 2026, al recargar la página el sistema volvía solo al local asignado al usuario.) El dueño puede vender en los dos: en ese caso no es un error.</>,
               children: cruz.length === 0 ? <div className="cli-vacio">Nadie vendió en un local distinto al suyo.</div> : cruz.map(u => (
                 <div key={u.usuario_id} className="cli-hist-fila"><div style={{ minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 700 }}>{u.nombre} <span style={{ fontWeight: 400, color: p.textMuted }}>({u.rol} · asignado a {nombreLocal(u.local_usuario)})</span></div>
                   <div style={{ fontSize: 11.5, color: p.textMuted }}>en {nombreLocal(u.local_usuario)}: {u.ventas[u.local_usuario] || 0} ventas · en {nombreLocal(u.otro_local)}: <b style={{ color: p.red }}>{u.ventas_en_otro} ventas, {u.unidades_en_otro} unidades</b>{u.ultima_en_otro ? " · última: " + new Date(u.ultima_en_otro).toLocaleDateString("es-AR") : ""}</div></div></div>
               )) })}
-            {Bloque({ icono: "🔁", titulo: "Falta en un local y sobra en el otro", estado: d.espejo.length ? "mal" : "ok",
+            {!UN_SOLO_LOCAL && Bloque({ icono: "🔁", titulo: "Falta en un local y sobra en el otro", estado: d.espejo.length ? "mal" : "ok",
               queEs: "Productos que en los controles faltaron en un local y sobraron en el otro. Es la señal más clara de ventas o ingresos cargados en el local equivocado: la mercadería está, pero anotada del otro lado.",
               children: d.espejo.length === 0 ? <div className="cli-vacio">Ningún producto falta en un local y sobra en el otro.</div> : d.espejo.slice(0, 25).map(x => (
                 <div key={x.producto_id} className="cli-hist-fila"><div style={{ minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 700 }}>{x.nombre}</div><div style={{ fontSize: 11.5, color: p.textMuted }}>{nombreLocal(1)}: <b style={{ color: x.dif_local1 < 0 ? p.red : p.warn }}>{x.dif_local1 > 0 ? "+" : ""}{x.dif_local1}</b> · {nombreLocal(2)}: <b style={{ color: x.dif_local2 < 0 ? p.red : p.warn }}>{x.dif_local2 > 0 ? "+" : ""}{x.dif_local2}</b></div></div><button className="ci-exp-btn" onClick={() => abrirHistoria(x.producto_id, "diagnostico")}>Ver historia</button></div>
               )) })}
-            {Bloque({ icono: "🚚", titulo: "Traspasos enviados que nadie recibió", estado: d.traspasos_pendientes.length ? "mal" : "ok",
+            {!UN_SOLO_LOCAL && Bloque({ icono: "🚚", titulo: "Traspasos enviados que nadie recibió", estado: d.traspasos_pendientes.length ? "mal" : "ok",
               queEs: "Mercadería que un local mandó al otro y el que la recibe todavía no tocó «Recibir». Ya salió del stock del que envía, pero no entró al del que recibe: ahí el sistema muestra menos de lo que hay (sobrante).",
               children: d.traspasos_pendientes.length === 0 ? <div className="cli-vacio">No hay traspasos pendientes de recibir.</div> : d.traspasos_pendientes.slice(0, 30).map(t => (
                 <div key={t.id} className="cli-hist-fila"><div style={{ minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 700 }}>{t.cantidad} × {t.producto_nombre}</div><div style={{ fontSize: 11.5, color: p.textMuted }}>{nombreLocal(t.local_origen)} → {nombreLocal(t.local_destino)} · hace {t.dias} días{t.usuario_nombre ? " · lo envió " + t.usuario_nombre : ""}</div></div></div>
@@ -16434,13 +16623,13 @@ function ControlInventario({ localId, usuario, paletaActual }) {
                 <div key={k} className="cli-hist-fila"><div style={{ minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 700 }}>{o.proveedor_nombre || "Proveedor"}{o.numero_factura ? " · " + o.numero_factura : ""}</div><div style={{ fontSize: 11.5, color: p.textMuted }}>{nombreLocal(o.local_id)} · {o.unidades} unidades de {o.productos} productos · cargada hace {o.dias} días</div></div></div>
               )) })}
             {Bloque({ icono: "⚠️", titulo: "Ventas de productos que el sistema daba sin stock", estado: d.ventas_sin_stock.length ? "duda" : "ok",
-              queEs: "Cada vez que se vendió algo que según el sistema no había. El producto estaba físicamente: es mercadería que entró y no se cargó, o que estaba anotada en el otro local.",
+              queEs: "Cada vez que se vendió algo que según el sistema no había. El producto estaba físicamente: es mercadería que entró y no se cargó" + (UN_SOLO_LOCAL ? "." : ", o que estaba anotada en el otro local."),
               children: d.ventas_sin_stock.length === 0 ? <div className="cli-vacio">No se vendió nada «sin stock».</div> : <>
                 <div className="cli-chips" style={{ marginBottom: 8 }}>{d.ventas_sin_stock.map(x => <span key={x.local_id} className="tag tag-warn">{nombreLocal(x.local_id)}: {x.veces} veces · {x.unidades} u.</span>)}</div>
                 {d.ventas_sin_stock_productos.slice(0, 12).map((x, k) => <div key={k} className="cli-hist-fila"><span style={{ fontSize: 13 }}>{x.producto_nombre} <span style={{ color: p.textMuted, fontSize: 11.5 }}>· {nombreLocal(x.local_id)}</span></span><b>{x.unidades} u.</b></div>)}
               </> })}
             {Bloque({ icono: "➖", titulo: "Productos con stock negativo", estado: d.negativos.length ? "mal" : "ok",
-              queEs: "El sistema dice que hay menos de cero: se vendió más de lo que figuraba. Hay un ingreso sin cargar o stock anotado en el otro local.",
+              queEs: "El sistema dice que hay menos de cero: se vendió más de lo que figuraba. Hay un ingreso sin cargar" + (UN_SOLO_LOCAL ? "." : " o stock anotado en el otro local."),
               children: d.negativos.length === 0 ? <div className="cli-vacio">Ningún producto está en negativo.</div> : d.negativos.slice(0, 30).map(x => (
                 <div key={x.id} className="cli-hist-fila"><div style={{ minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 700 }}>{x.nombre}</div><div style={{ fontSize: 11.5, color: p.textMuted }}>{nombreLocal(1)}: <b style={{ color: x.stock_rg < 0 ? p.red : p.text }}>{x.stock_rg}</b> · {nombreLocal(2)}: <b style={{ color: x.stock_ush < 0 ? p.red : p.text }}>{x.stock_ush}</b></div></div><button className="ci-exp-btn" onClick={() => abrirHistoria(x.id, "diagnostico")}>Ver historia</button></div>
               )) })}
@@ -16470,9 +16659,9 @@ function ControlInventario({ localId, usuario, paletaActual }) {
           </div>
         </div>
         <div className="chart-card" style={{ marginBottom: 12, display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
-          <div className="ci-seg" role="tablist" aria-label="Local">
+          {!UN_SOLO_LOCAL && <div className="ci-seg" role="tablist" aria-label="Local">
             {[1, 2, 0].map(l => <button key={l} role="tab" aria-selected={infLocal === l} className={infLocal === l ? "on" : ""} onClick={() => { setInfLocal(l); cargarInforme(l, infDias); }}>{l === 0 ? "Los dos locales" : nombreLocal(l)}</button>)}
-          </div>
+          </div>}
           <div className="cli-chips">
             {[[30, "Último mes"], [90, "3 meses"], [180, "6 meses"], [365, "1 año"]].map(([n, l]) => <button key={n} className={"chip-btn" + (infDias === n ? " on" : "")} onClick={() => { setInfDias(n); cargarInforme(infLocal, n); }}>{l}</button>)}
           </div>
