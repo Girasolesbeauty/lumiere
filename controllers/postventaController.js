@@ -1,5 +1,18 @@
 const pool = require('../config/database');
 const { VENTA_VALIDA } = require('../lib/niveles');
+const { porNegocio } = require('../lib/contexto');
+
+// Cada WhatsApp guarda con que modelo de mensaje se mando y a que lista pertenecia el cliente,
+// para poder ver despues que mensaje trae mas clientes de vuelta
+const columnasListas = porNegocio(false);
+async function asegurarColumnas() {
+  if (columnasListas.get()) return;
+  await pool.query('ALTER TABLE mensajes_enviados ADD COLUMN IF NOT EXISTS plantilla TEXT');
+  await pool.query('ALTER TABLE mensajes_enviados ADD COLUMN IF NOT EXISTS grupo TEXT');
+  columnasListas.set(true);
+}
+// Una compra cuenta como "volvio por el mensaje" si la hizo dentro de estos dias despues del mensaje
+const DIAS_EFECTO = 30;
 
 // Obtener reglas
 const getReglas = async (req, res) => {
@@ -193,11 +206,12 @@ const getPendientesWhatsApp = async (req, res) => {
 // Marcar que ya se envio el WhatsApp a un cliente
 const marcarEnviadoWhatsApp = async (req, res) => {
   try {
-    const { cliente_id, mensaje } = req.body;
+    const { cliente_id, mensaje, plantilla, grupo } = req.body;
+    await asegurarColumnas();
     await pool.query(
-      `INSERT INTO mensajes_enviados (regla_id, cliente_id, mensaje, estado)
-       VALUES (NULL, $1, $2, 'enviado_wa')`,
-      [cliente_id, mensaje || 'Postventa WhatsApp']
+      `INSERT INTO mensajes_enviados (regla_id, cliente_id, mensaje, estado, plantilla, grupo)
+       VALUES (NULL, $1, $2, 'enviado_wa', $3, $4)`,
+      [cliente_id, mensaje || 'Postventa WhatsApp', plantilla ? String(plantilla).slice(0, 40) : null, grupo ? String(grupo).slice(0, 40) : null]
     );
     res.json({ ok: true });
   } catch (error) {
@@ -263,7 +277,8 @@ const getRecuperar = async (req, res) => {
       WITH m AS (SELECT cliente_id, MIN(creado_en) AS desde FROM mensajes_enviados
                  WHERE estado = 'enviado_wa' AND cliente_id IS NOT NULL AND creado_en >= NOW() - INTERVAL '60 days' GROUP BY cliente_id)
       SELECT COUNT(*)::int AS contactados,
-             COUNT(*) FILTER (WHERE EXISTS (SELECT 1 FROM ventas v WHERE v.cliente_id = m.cliente_id AND ${VV} AND v.creado_en > m.desde))::int AS volvieron
+             COUNT(*) FILTER (WHERE EXISTS (SELECT 1 FROM ventas v WHERE v.cliente_id = m.cliente_id AND ${VV} AND v.creado_en > m.desde
+               AND v.creado_en <= m.desde + INTERVAL '${DIAS_EFECTO} days'))::int AS volvieron
       FROM m`);
 
     res.json({ grupo, dias, clientes: r.rows, totales: t.rows[0], efecto: e.rows[0] });
@@ -273,4 +288,69 @@ const getRecuperar = async (req, res) => {
   }
 };
 
-module.exports = { getReglas, createRegla, updateRegla, getMensajes, ejecutarReglas, getPendientesWhatsApp, marcarEnviadoWhatsApp, marcarMensajeEnviado, getRecuperar };
+// Resultados de los mensajes: de los clientes a los que se les escribio en el periodo, quienes
+// volvieron a comprar dentro de los 30 dias siguientes, cuanto compraron, cuanto tardaron, y
+// que modelo de mensaje y que lista funcionan mejor. Se toma el primer mensaje de cada cliente
+// en el periodo.
+const getResultados = async (req, res) => {
+  try {
+    await asegurarColumnas();
+    const dias = Math.min(Math.max(parseInt(req.query.dias) || 60, 7), 730);
+    const VV = VENTA_VALIDA;
+    const r = await pool.query(`
+      WITH m AS (
+        SELECT DISTINCT ON (cliente_id) cliente_id, creado_en AS enviado, plantilla, grupo, regla_id
+        FROM mensajes_enviados
+        WHERE estado = 'enviado_wa' AND cliente_id IS NOT NULL AND creado_en >= NOW() - ($1 || ' days')::interval
+        ORDER BY cliente_id, creado_en)
+      SELECT m.cliente_id, m.enviado, m.plantilla, m.grupo, m.regla_id, c.nombre, c.telefono,
+             d.volvio_en, COALESCE(d.monto, 0) AS monto, COALESCE(d.compras, 0)::int AS compras,
+             (m.enviado + INTERVAL '${DIAS_EFECTO} days' > NOW()) AS en_espera
+      FROM m
+      LEFT JOIN clientes c ON c.id = m.cliente_id
+      LEFT JOIN LATERAL (
+        SELECT MIN(v.creado_en) AS volvio_en, SUM(v.total) AS monto, COUNT(*) AS compras
+        FROM ventas v
+        WHERE v.cliente_id = m.cliente_id AND ${VV}
+          AND v.creado_en > m.enviado AND v.creado_en <= m.enviado + INTERVAL '${DIAS_EFECTO} days') d ON TRUE
+      ORDER BY d.volvio_en DESC NULLS LAST, m.enviado DESC`, [String(dias)]);
+
+    const filas = r.rows.map(x => ({
+      ...x,
+      monto: parseFloat(x.monto) || 0,
+      volvio: !!x.volvio_en,
+      dias_hasta: x.volvio_en ? Math.max(0, Math.round((new Date(x.volvio_en) - new Date(x.enviado)) / 86400000)) : null,
+      // Mensajes de antes de guardar el modelo, o los de "Enviar hoy" / reglas
+      plantilla: x.plantilla || (x.regla_id ? 'regla' : 'otro'),
+      grupo: x.grupo || 'otro',
+    }));
+    const resumir = (lista) => {
+      const volvieron = lista.filter(x => x.volvio);
+      const tardanzas = volvieron.map(x => x.dias_hasta);
+      return {
+        enviados: lista.length,
+        volvieron: volvieron.length,
+        en_espera: lista.filter(x => !x.volvio && x.en_espera).length,
+        ventas: Math.round(volvieron.reduce((a, x) => a + x.monto, 0) * 100) / 100,
+        dias_promedio: tardanzas.length ? Math.round(tardanzas.reduce((a, b) => a + b, 0) / tardanzas.length * 10) / 10 : null,
+      };
+    };
+    const agrupar = (campo) => {
+      const g = {};
+      filas.forEach(x => { (g[x[campo]] = g[x[campo]] || []).push(x); });
+      return Object.entries(g).map(([clave, lista]) => ({ clave, ...resumir(lista) })).sort((a, b) => b.enviados - a.enviados);
+    };
+    res.json({
+      dias, dias_efecto: DIAS_EFECTO,
+      total: resumir(filas),
+      por_plantilla: agrupar('plantilla'),
+      por_grupo: agrupar('grupo'),
+      volvieron: filas.filter(x => x.volvio).slice(0, 200).map(x => ({ id: x.cliente_id, nombre: x.nombre, enviado: x.enviado, volvio_en: x.volvio_en, dias_hasta: x.dias_hasta, monto: x.monto, compras: x.compras, plantilla: x.plantilla })),
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'No se pudieron calcular los resultados' });
+  }
+};
+
+module.exports = { getReglas, createRegla, updateRegla, getMensajes, ejecutarReglas, getPendientesWhatsApp, marcarEnviadoWhatsApp, marcarMensajeEnviado, getRecuperar, getResultados };
