@@ -7458,6 +7458,14 @@ function Inventario({ localId, usuario, paletaActual }) {
   const stockOtroDe = (p) => (esUshInv ? (p.stock_rg || 0) : (p.stock_ush || 0));
   const stockMiDe = (p) => (esUshInv ? (p.stock_ush || 0) : (p.stock_rg || 0));
   const margenDe = (p) => { const pr = parseFloat(p.precio || 0), co = parseFloat(p.costo || 0); return pr > 0 && co > 0 ? Math.round((pr - co) / pr * 100) : null; };
+  // Datos que le faltan a un producto (para el filtro "Datos incompletos")
+  const faltantesDe = (p) => [
+    !(parseFloat(p.precio || 0) > 0) && "precio",
+    !(parseFloat(p.costo || 0) > 0) && "costo",
+    !(p.codigo_barras || "").trim() && "código",
+    !(p.categoria || "").trim() && "categoría",
+    !p.proveedor_id && !(p.proveedor_nombre || "").trim() && "proveedor",
+  ].filter(Boolean);
   const estadoStockDe = (p) => {
     const st = stockVistaDe(p);
     if (st <= 0) return "sin";
@@ -7483,6 +7491,8 @@ function Inventario({ localId, usuario, paletaActual }) {
     if (filtroStock === "reservas" && !(reservadoVistaDe(p) > 0)) return false;
     if (filtroStock === "sin_costo" && parseFloat(p.costo || 0) > 0) return false;
     if (filtroStock === "sin_codigo" && (p.codigo_barras || "").trim()) return false;
+    if (filtroStock === "negativo" && !(stockVistaDe(p) < 0)) return false;
+    if (filtroStock === "incompletos" && !faltantesDe(p).length) return false;
     return true;
   });
   const ordenados = [...filtradosStock].sort((a, b) => {
@@ -7499,6 +7509,8 @@ function Inventario({ localId, usuario, paletaActual }) {
   const ordenarPor = (campo) => setOrdenInv(o => ({ campo, dir: o.campo === campo && o.dir === "asc" ? "desc" : "asc" }));
   const flechaOrden = (campo) => (ordenInv.campo === campo ? (ordenInv.dir === "asc" ? " ▲" : " ▼") : "");
   const hayFiltros = busqueda || filtroCat || filtroStock || filtroMarcaInv || filtroProvInv;
+  const cantNegativos = productos.filter(p => stockVistaDe(p) < 0).length;
+  const cantIncompletos = productos.filter(p => faltantesDe(p).length > 0).length;
   const limpiarFiltros = () => { setBusqueda(""); setFiltroCat(""); setFiltroStock(""); setFiltroMarcaInv(""); setFiltroProvInv(""); };
 
   // Resumen (sobre los productos cargados, segun el local que se esta mirando)
@@ -7736,7 +7748,7 @@ function Inventario({ localId, usuario, paletaActual }) {
               </select>
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10, alignItems: "center" }}>
-              {[["", "Todo"], ["bajo", "⚠ Stock bajo"], ["sin", "⛔ Sin stock"], ["reservas", "🔒 Con reservas"], ["sin_costo", "Sin costo cargado"], ["sin_codigo", "Sin código"]].map(([id, l]) => (
+              {[["", "Todo"], ["bajo", "⚠ Stock bajo"], ["sin", "⛔ Sin stock"], ["negativo", "➖ Stock negativo" + (cantNegativos ? " (" + cantNegativos + ")" : "")], ["reservas", "🔒 Con reservas"], ["incompletos", "📝 Datos incompletos" + (cantIncompletos ? " (" + cantIncompletos + ")" : "")], ["sin_costo", "Sin costo cargado"], ["sin_codigo", "Sin código"]].map(([id, l]) => (
                 <button key={id || "todo"} className={"chip-btn" + (filtroStock === id ? " on" : "")} aria-pressed={filtroStock === id} onClick={() => setFiltroStock(id)}>{l}</button>
               ))}
               <span style={{ flex: 1 }} />
@@ -7824,6 +7836,7 @@ function Inventario({ localId, usuario, paletaActual }) {
                                 {p.tiene_variantes && <span className="tag tag-neutral" style={{ marginLeft: 6 }}>🎨 {p.tipo_variante || "variantes"}</span>}
                               </div>
                               {p.marca && <div style={{ fontSize: 11, color: temaPal.textMuted }}>{p.marca}</div>}
+                              {filtroStock === "incompletos" && <div style={{ fontSize: 11, color: temaPal.warn || temaPal.red, fontWeight: 600, marginTop: 2 }}>Falta: {faltantesDe(p).join(", ")}</div>}
                             </td>
                             <td style={{ textAlign: "right", whiteSpace: "nowrap", fontWeight: 700, color: temaPal.accentText, fontVariantNumeric: "tabular-nums" }}>{fmt(parseFloat(p.precio || 0))}</td>
                             <td style={{ textAlign: "center" }}><EstadoStock p={p} /></td>
