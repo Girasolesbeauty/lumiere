@@ -18206,21 +18206,36 @@ function Inconsistencias({ paletaActual }) {
 // clásica con código de barras, precio grande de góndola, oferta (antes/ahora), promo (2x1...),
 // colgante de prenda con talle y elegante. Lo que se ve en la vista previa es lo mismo que se imprime.
 const ESTILOS_ETIQUETA = [
-  { id: "clasica", nombre: "Clásica", desc: "Nombre, precio y código de barras", tam: "mediana", icono: "🏷️" },
-  { id: "precio", nombre: "Precio grande", desc: "Para góndola o vidriera", tam: "mediana", icono: "💲" },
-  { id: "oferta", nombre: "Oferta", desc: "Antes tachado y precio nuevo", tam: "grande", icono: "🔥" },
-  { id: "promo", nombre: "Promo", desc: "2x1, 3x2, 2da unidad...", tam: "mediana", icono: "🎉" },
+  { id: "clasica", nombre: "Clásica", desc: "Nombre, precio y código de barras", tam: "ancha", icono: "🏷️" },
+  { id: "precio", nombre: "Precio grande", desc: "Para góndola o vidriera", tam: "gondola", icono: "💲" },
+  { id: "oferta", nombre: "Oferta", desc: "Antes tachado y precio nuevo", tam: "gondola_alta", icono: "🔥" },
+  { id: "promo", nombre: "Promo", desc: "2x1, 3x2, 2da unidad...", tam: "gondola", icono: "🎉" },
   { id: "prenda", nombre: "Colgante", desc: "Para prendas, con talle", tam: "colgante", icono: "👕" },
-  { id: "elegante", nombre: "Elegante", desc: "Sobria, para boutique", tam: "mediana", icono: "✨" },
+  { id: "elegante", nombre: "Elegante", desc: "Sobria, para boutique", tam: "ancha", icono: "✨" },
 ];
+// Las de precio suelen ser anchas y bajas; las medidas de hoja A4 están pensadas para aprovechar la hoja
 const TAMANOS_ETIQUETA = [
-  { id: "chica", nombre: "Chica · 38×21 mm", w: 38, h: 21 },
-  { id: "mediana", nombre: "Mediana · 63×38 mm", w: 63, h: 38 },
-  { id: "grande", nombre: "Grande · 99×67 mm", w: 99, h: 67 },
-  { id: "colgante", nombre: "Colgante · 45×75 mm", w: 45, h: 75 },
+  { id: "ancha", nombre: "Ancha · 64×30 mm (27 por hoja)", w: 64, h: 30 },
+  { id: "gondola", nombre: "Góndola · 97×30 mm (18 por hoja)", w: 97, h: 30 },
+  { id: "gondola_alta", nombre: "Góndola alta · 97×42 mm (12 por hoja)", w: 97, h: 42 },
+  { id: "chica_ancha", nombre: "Chica · 48×25 mm (40 por hoja)", w: 48, h: 25 },
+  { id: "chica", nombre: "Mini · 38×21 mm (60 por hoja)", w: 38, h: 21 },
+  { id: "mediana", nombre: "Mediana · 63×38 mm (21 por hoja)", w: 63, h: 38 },
+  { id: "grande", nombre: "Grande · 99×67 mm (8 por hoja)", w: 99, h: 67 },
+  { id: "colgante", nombre: "Colgante · 45×75 mm (12 por hoja)", w: 45, h: 75 },
   { id: "rollo50", nombre: "Impresora de rollo · 50×30 mm", w: 50, h: 30, rollo: true },
+  { id: "rollo60", nombre: "Impresora de rollo · 60×40 mm", w: 60, h: 40, rollo: true },
   { id: "rollo40", nombre: "Impresora de rollo · 40×25 mm", w: 40, h: 25, rollo: true },
+  { id: "personalizada", nombre: "Personalizada (elegís la medida)", custom: true },
 ];
+// Medida final de la etiqueta (la personalizada sale de lo que cargó el usuario)
+const tamanoEtiqueta = (tamId, op) => {
+  const t = TAMANOS_ETIQUETA.find(x => x.id === tamId) || TAMANOS_ETIQUETA[0];
+  if (!t.custom) return t;
+  const w = Math.min(200, Math.max(20, parseFloat(op.anchoMm) || 70));
+  const h = Math.min(150, Math.max(12, parseFloat(op.altoMm) || 30));
+  return { ...t, w, h, rollo: !!op.rolloCustom };
+};
 const PROMOS_ETIQUETA = [
   { id: "2x1", grande: "2x1", sub: "Llevá 2, pagá 1" },
   { id: "3x2", grande: "3x2", sub: "Llevá 3, pagá 2" },
@@ -18261,11 +18276,12 @@ const precioOfertaDe = (it, op) => {
   return Math.max(0, Math.round(n * 100) / 100);
 };
 
-function htmlUnaEtiqueta(it, estilo, op) {
+function htmlUnaEtiqueta(it, estilo, op, ancha) {
   const nombre = escHtml(it.nombre), marca = escHtml(it.marca || ""), variante = escHtml(it.variante || "");
   const negocio = op.mostrarNegocio ? escHtml(op.negocio || "") : "";
   const precio = escHtml(precioEtiqueta(parseFloat(it.precio) || 0));
   const barras = op.mostrarCodigo && it.codigo ? '<div class="bar">' + svgCodigoBarras(it.codigo) + '</div><div class="cod">' + escHtml(it.codigo) + "</div>" : "";
+  if (estilo === "precio" && ancha) return `<div class="izq"><div class="nom n3">${nombre}</div>${variante || marca ? `<div class="sub">${variante || marca}</div>` : ""}${negocio ? `<div class="neg">${negocio}</div>` : ""}</div><div class="pre xxl">${precio}</div>`;
   if (estilo === "precio") return `<div class="nom n3">${nombre}</div>${variante ? `<div class="sub">${variante}</div>` : ""}<div class="pre xl">${precio}</div>${negocio ? `<div class="neg">${negocio}</div>` : ""}`;
   if (estilo === "oferta") {
     const ahora = precioOfertaDe(it, op), antes = parseFloat(it.precio) || 0;
@@ -18286,12 +18302,14 @@ function htmlUnaEtiqueta(it, estilo, op) {
   if (estilo === "elegante") return `${negocio ? `<div class="neg top">${negocio}</div>` : ""}<div class="nom serif">${nombre}</div>
     ${variante || marca ? `<div class="sub">${variante || marca}</div>` : ""}<div class="linea"></div><div class="pre serif">${precio}</div>`;
   // clásica
+  if (ancha) return `<div class="izq"><div class="nom">${nombre}</div>${variante || marca ? `<div class="sub">${[marca, variante].filter(Boolean).join(" · ")}</div>` : ""}<div class="pre">${precio}</div></div>${barras ? `<div class="der">${barras}</div>` : ""}`;
   return `<div class="nom">${nombre}</div>${variante || marca ? `<div class="sub">${[marca, variante].filter(Boolean).join(" · ")}</div>` : ""}<div class="pre">${precio}</div>${barras}`;
 }
 
 // Documento completo listo para imprimir. limite: cuántas etiquetas dibujar (para la vista previa)
 function htmlEtiquetas(items, estilo, tamId, op, limite) {
-  const t = TAMANOS_ETIQUETA.find(x => x.id === tamId) || TAMANOS_ETIQUETA[1];
+  const t = tamanoEtiqueta(tamId, op);
+  const ancha = t.w / t.h >= 1.8 && (estilo === "clasica" || estilo === "precio");
   const lista = [];
   for (let i = 0; i < (t.rollo ? 0 : Math.max(0, (parseInt(op.saltear) || 0))); i++) lista.push(null);
   items.forEach(it => { for (let k = 0; k < Math.max(0, parseInt(it.cantidad) || 0); k++) lista.push(it); });
@@ -18345,10 +18363,17 @@ function htmlEtiquetas(items, estilo, tamId, op, limite) {
     .elegante .nom { font-weight: 400; letter-spacing: 0.02em; }
     .elegante .pre { font-weight: 400; }
     .elegante .linea { width: 30%; border-top: 0.25mm solid #111; margin: 1mm 0; }
+    /* Etiquetas anchas y bajas: texto a la izquierda, precio o código a la derecha */
+    .et.lado { flex-direction: row; justify-content: space-between; gap: ${(u * 0.08).toFixed(2)}mm; text-align: left; }
+    .lado .izq { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
+    .lado .der { flex: 0 0 42%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .lado .der .bar { width: 100%; height: 62%; margin: 0; }
+    .lado .pre { margin-bottom: 0; }
+    .lado .pre.xxl { font-size: ${(t.h * 0.5).toFixed(2)}mm; flex: 0 0 auto; }
     /* Etiquetas muy chicas: solo lo esencial */
     ${u < 24 ? ".sub, .neg, .hasta, .psub, .cod { display: none; } .bar { height: " + (t.h * 0.3).toFixed(2) + "mm; }" : ""}
   `;
-  const cuerpo = dibujar.map(it => it ? `<div class="et ${estilo}">${htmlUnaEtiqueta(it, estilo, op)}</div>` : '<div class="et vacia"></div>').join("");
+  const cuerpo = dibujar.map(it => it ? `<div class="et ${estilo}${ancha ? " lado" : ""}">${htmlUnaEtiqueta(it, estilo, op, ancha)}</div>` : '<div class="et vacia"></div>').join("");
   return `<!doctype html><html><head><meta charset="utf-8"><title>Etiquetas</title><style>${css}</style></head><body><div class="hoja">${cuerpo}</div></body></html>`;
 }
 
@@ -18357,7 +18382,7 @@ function Etiquetas({ paletaActual, localId }) {
   const guardado = (() => { try { return JSON.parse(localStorage.getItem("lumiere_etiquetas") || "{}"); } catch (e) { return {}; } })();
   const [estilo, setEstilo] = useState(guardado.estilo || "clasica");
   const [tam, setTam] = useState(guardado.tam || "mediana");
-  const [op, setOp] = useState({ mostrarCodigo: true, mostrarNegocio: true, corte: true, saltear: 0, descuento: 20, redondeo: 10, textoOferta: "OFERTA", hasta: "", promo: "2x1", negocio: "", ...(guardado.op || {}) });
+  const [op, setOp] = useState({ mostrarCodigo: true, mostrarNegocio: true, corte: true, saltear: 0, descuento: 20, redondeo: 10, textoOferta: "OFERTA", hasta: "", promo: "2x1", negocio: "", anchoMm: 70, altoMm: 30, rolloCustom: false, ...(guardado.op || {}) });
   const [items, setItems] = useState([]);
   const [productos, setProductos] = useState([]);
   const [busca, setBusca] = useState("");
@@ -18418,7 +18443,7 @@ function Etiquetas({ paletaActual, localId }) {
   const q = busca.trim().toLowerCase();
   const sugeridos = q.length < 2 ? [] : productos.filter(p => [p.nombre, p.marca, p.codigo_barras].join(" ").toLowerCase().includes(q)).slice(0, 8);
   const grupos = { categoria: [...new Set(productos.map(p => p.categoria).filter(Boolean))].sort(), marca: [...new Set(productos.map(p => p.marca).filter(Boolean))].sort(), proveedor: [...new Set(productos.map(p => p.proveedor_nombre).filter(Boolean))].sort() };
-  const t = TAMANOS_ETIQUETA.find(x => x.id === tam) || TAMANOS_ETIQUETA[1];
+  const t = tamanoEtiqueta(tam, op);
   const cols = t.rollo ? 1 : Math.max(1, Math.floor((210 - 10 + 2) / (t.w + 2)));
   const filas = t.rollo ? 1 : Math.max(1, Math.floor((297 - 10 + 2) / (t.h + 2)));
   const totalEt = items.reduce((a, x) => a + Math.max(0, parseInt(x.cantidad) || 0), 0);
@@ -18466,6 +18491,13 @@ function Etiquetas({ paletaActual, localId }) {
           <div className="fg" style={{ marginBottom: 0 }}>
             <div className="fl">Tamaño</div>
             <select className="sel" value={tam} onChange={e => setTam(e.target.value)}>{TAMANOS_ETIQUETA.map(x => <option key={x.id} value={x.id}>{x.nombre}</option>)}</select>
+            {t.custom && (
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 6, fontSize: 12 }}>
+                <label style={{ display: "flex", gap: 4, alignItems: "center" }}>Ancho <input className="mini-inp" type="number" min="20" max="200" value={op.anchoMm} onChange={e => setOp(o => ({ ...o, anchoMm: e.target.value }))} style={{ width: 56 }} /> mm</label>
+                <label style={{ display: "flex", gap: 4, alignItems: "center" }}>Alto <input className="mini-inp" type="number" min="12" max="150" value={op.altoMm} onChange={e => setOp(o => ({ ...o, altoMm: e.target.value }))} style={{ width: 56 }} /> mm</label>
+                <label style={{ display: "flex", gap: 4, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={!!op.rolloCustom} onChange={e => setOp(o => ({ ...o, rolloCustom: e.target.checked }))} /> Es de rollo</label>
+              </div>
+            )}
             <div style={{ fontSize: 10.5, color: temaPal.textMuted, marginTop: 4 }}>{t.rollo ? "Una etiqueta por hoja, para impresoras de etiquetas." : cols * filas + " por hoja A4 (" + cols + " × " + filas + ")"}</div>
           </div>
           {estilo === "oferta" && <>
