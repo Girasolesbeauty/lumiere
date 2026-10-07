@@ -156,6 +156,18 @@ router.get('/historial', async (req, res) => {
   }
 });
 
+// Productos de un cambio en masa (para imprimir sus etiquetas nuevas)
+router.get('/:id/productos', async (req, res) => {
+  try {
+    await asegurarTabla();
+    const r = await pool.query('SELECT detalle, deshecho_en FROM precios_cambios WHERE id = $1', [req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'No se encontró ese cambio' });
+    res.json({ deshecho: !!r.rows[0].deshecho_en, ids: (r.rows[0].detalle || []).map(it => it.id) });
+  } catch (e) {
+    res.status(500).json({ error: 'No se pudo leer el cambio' });
+  }
+});
+
 // Deshacer: vuelve cada producto a su precio anterior, salvo los que se cambiaron a mano
 // despues (esos se dejan como estan, para no pisar un cambio mas nuevo)
 router.post('/:id/deshacer', async (req, res) => {

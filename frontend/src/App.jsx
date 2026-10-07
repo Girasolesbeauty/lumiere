@@ -2,6 +2,7 @@
 import { createPortal } from "react-dom";
 import { getProductos, createVenta, getClientes, getFlujo, getPuntoEquilibrio, agregarEgreso, getResumenFinanzas, getVentas, getAlertasStock, getCupones, createCupon, updateCupon, getRanking, getReglas, createRegla as createReglaWA, updateRegla as updateReglaWA, login, register } from "./api";
 import API from "./api";
+import JsBarcode from "jsbarcode";
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, ReferenceLine } from "recharts";
 
 const LOGO_TICKET = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAXwAAABPAQAAAADABUPQAAADzElEQVR4nO2WsW7jRhCGvx0REgMYMYGkcADD4iO4TGGc+Qh5BAF5gXuA4DwGUqSL3yB+FPouRbq4Sk0dXLikAwGhFJKTYklqSelyKVJ6CmkxO//MP7s7M3RG81XJf5YXgR9fMnhJWLsYoBGAdQTwICNrcwpWwcKsPLUCrs2scmZmcGPWwrWZXpsVwI2VnJZCBbvexWO/aOAedoHGb28Q7sC001RAZUANJTzDJgTkNEi3OpQNFNCGKgUVFCg6zQ4oUXiGFnKwMGcglwagDFS9CKj3OhKB07pbnxb00YpFGWHMipBtyzuyaMPbmf4CQHKBapfR2UlMy9VFz3ZZQONu5a2Akq281gWhZ5fU5E7LvaoWvkdKB5chyZwCSA/IA/A1why+6DcVIPXrDBysqhEgRgpgHuo061lUc0imMYR4qlLwZ1XGENdTQH7gI6nY38xIWkCmSjtiOKaUTrz4qvgTKBKIgscUWTaNoADUkFp2zPlvIAQ7IZ1fx8Zr54CtIgpb57zrFqWWqIUzGoV0zMDB3ZjSposMHK8RqhFgnQBE3c/jobmymyTtoAKDmS/XiaywCUA8SiFnesXAGegYcOLfA/DtuJq9LJRctGM3SAJ077GYNAEyEHIWg/bSo3NwxfiNLM2AKwoZOkbnslj7Szk7ZAQz9Wl2EZY5/vgLzyktoR4nmSFDucDoUTuOSVpKuJtWPv0eVx3cRoJQMRx5Mt2lu/hAJK33bvb16LOqJ5WXA0ILHTGi1r/wir8xiBu4D0v+O8pEElPue40BZmXNcwZEKBrQtAqQmHvTjqigLRBD8bgDuGtCRu2OeyTieRe2Gn9geVU5hGpDCg9OWTuntakiwjbuj8d1VdPCNgHHNgkruOKWVBwM3RGlFoi6VzadD3FHGwY32WPlc097WHjhcyATVuB6N95O4AxiuBy3XQeokIStob/CCBKIGXdexSGcwEmvSbqb1RmsYD4ZHSvmYKbc2IEUMzOz3JmZwk0B3FjNsnSfa74TeTno3p+TV8Ar4BXwfwBicJMJ4Rvr8ycAW+3+G906nj4CT2njlG/ABQ1tTymHfV/6UoAiBQwd9cthIl3AsvtgWvxM/Mc5LHI+XDVvcs5zrg8jAPsmayNVaDQBnPeLmG5W1rdjiwHwMWNNm/RMM4LvjBbeH48wTFFJgKUnWPCU7U0GwEXOEt6N+BUApKC8+UQOPSXScC/8UPm3p+EAokm3HgO2f8EPOrbIIApU+1OCNaDRT8PeAwDvM8iPnVIGECHBGEzxU3MWRjyYPb8PqxczM/tgtlya63TlPz7qiaBHsxEpAAAAAElFTkSuQmCC";
@@ -6942,7 +6943,7 @@ function ActualizarPrecios({ productos, proveedores, temaPal, onCerrar, onCambio
     setTrabajando(true); setAviso(null);
     try {
       const r = await API.post("/precios-masivos/aplicar", pedido());
-      setAviso({ ok: true, texto: "✓ Listo: se actualizaron " + r.data.cantidad + " precios." });
+      setAviso({ ok: true, texto: "✓ Listo: se actualizaron " + r.data.cantidad + " precios.", cambioId: r.data.id });
       setVista(null); setValor("");
       cargarHistorial(); onCambio && onCambio();
     } catch (e) { setAviso({ ok: false, texto: e.response?.data?.error || "No se pudieron actualizar los precios" }); }
@@ -7020,7 +7021,8 @@ function ActualizarPrecios({ productos, proveedores, temaPal, onCerrar, onCambio
           </div>
         </div>
 
-        {aviso && <div className="pop-in" role={aviso.ok ? "status" : "alert"} style={{ background: aviso.ok ? temaPal.greenDim : temaPal.redDim, border: "1px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, margin: "4px 0 12px" }}>{aviso.texto}</div>}
+        {aviso && <div className="pop-in" role={aviso.ok ? "status" : "alert"} style={{ background: aviso.ok ? temaPal.greenDim : temaPal.redDim, border: "1px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, margin: "4px 0 12px" }}>{aviso.texto}
+          {aviso.cambioId && <button className="chip-btn" style={{ marginLeft: 8 }} onClick={() => { try { sessionStorage.setItem("lumiere_etiquetas_cambio", String(aviso.cambioId)); } catch (e) {} onCerrar(); irASeccion("etiquetas"); }}>🏷️ Imprimir sus etiquetas nuevas</button>}</div>}
 
         {!vista ? (
           <button className="btn btn-p" style={{ width: "100%" }} disabled={trabajando || !(parseFloat(valor) > 0) || (alcance !== "todos" && !filtro)} onClick={verComoQueda}>{trabajando ? "Calculando..." : "Ver cómo quedan"}</button>
@@ -7586,6 +7588,7 @@ function Inventario({ localId, usuario, paletaActual }) {
         <div className="dash-actions">
           <button className="btn btn-g btn-sm" onClick={exportarCSV} title="Descargar la lista filtrada para abrir en Excel">📥 Exportar</button>
           {puedeHacer("inventario.editar") && <button className="btn btn-g btn-sm" onClick={() => setShowPrecios(true)} title="Subir o bajar muchos precios de una vez">📈 Actualizar precios</button>}
+          <button className="btn btn-g btn-sm" onClick={() => irASeccion("etiquetas")} title="Imprimir etiquetas de precio">🏷️ Etiquetas</button>
           {puedeHacer("inventario.crear") && <button className="btn btn-p btn-sm" onClick={() => { setEditandoProd(null); setFotoProd({ imagen: null, cambiada: false }); setNuevo({ nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "", stock: "", stock_minimo: "", proveedor_id: "", descripcion: "", tiene_variantes: false, tipo_variante: "" }); setShowForm(true); }}>+ Nuevo producto</button>}
         </div>
       </div>
@@ -18198,6 +18201,388 @@ function Inconsistencias({ paletaActual }) {
   );
 }
 
+// ===================== ETIQUETAS DE PRECIO =====================
+// Arma etiquetas para imprimir (hoja A4 para recortar o impresora de rollo) en varios estilos:
+// clásica con código de barras, precio grande de góndola, oferta (antes/ahora), promo (2x1...),
+// colgante de prenda con talle y elegante. Lo que se ve en la vista previa es lo mismo que se imprime.
+const ESTILOS_ETIQUETA = [
+  { id: "clasica", nombre: "Clásica", desc: "Nombre, precio y código de barras", tam: "mediana", icono: "🏷️" },
+  { id: "precio", nombre: "Precio grande", desc: "Para góndola o vidriera", tam: "mediana", icono: "💲" },
+  { id: "oferta", nombre: "Oferta", desc: "Antes tachado y precio nuevo", tam: "grande", icono: "🔥" },
+  { id: "promo", nombre: "Promo", desc: "2x1, 3x2, 2da unidad...", tam: "mediana", icono: "🎉" },
+  { id: "prenda", nombre: "Colgante", desc: "Para prendas, con talle", tam: "colgante", icono: "👕" },
+  { id: "elegante", nombre: "Elegante", desc: "Sobria, para boutique", tam: "mediana", icono: "✨" },
+];
+const TAMANOS_ETIQUETA = [
+  { id: "chica", nombre: "Chica · 38×21 mm", w: 38, h: 21 },
+  { id: "mediana", nombre: "Mediana · 63×38 mm", w: 63, h: 38 },
+  { id: "grande", nombre: "Grande · 99×67 mm", w: 99, h: 67 },
+  { id: "colgante", nombre: "Colgante · 45×75 mm", w: 45, h: 75 },
+  { id: "rollo50", nombre: "Impresora de rollo · 50×30 mm", w: 50, h: 30, rollo: true },
+  { id: "rollo40", nombre: "Impresora de rollo · 40×25 mm", w: 40, h: 25, rollo: true },
+];
+const PROMOS_ETIQUETA = [
+  { id: "2x1", grande: "2x1", sub: "Llevá 2, pagá 1" },
+  { id: "3x2", grande: "3x2", sub: "Llevá 3, pagá 2" },
+  { id: "2da50", grande: "2ª al 50%", sub: "En la segunda unidad" },
+  { id: "2da70", grande: "2ª al 70%", sub: "En la segunda unidad" },
+];
+
+const precioEtiqueta = (n) => fmt(n).replace(/[,.]00$/, "");
+const eanValido = (c) => {
+  if (!/^\d{13}$/.test(c)) return false;
+  const d = c.split("").map(Number);
+  const suma = d.slice(0, 12).reduce((a, x, i) => a + x * (i % 2 ? 3 : 1), 0);
+  return (10 - (suma % 10)) % 10 === d[12];
+};
+// Código de barras como SVG (EAN-13 si el código es un EAN válido, si no Code 128)
+const svgCodigoBarras = (codigo) => {
+  const c = String(codigo || "").trim();
+  if (!c) return "";
+  try {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    JsBarcode(svg, c, { format: eanValido(c) ? "EAN13" : "CODE128", displayValue: false, margin: 0, height: 60, width: 2, flat: true });
+    const w = parseFloat(svg.getAttribute("width")) || 200, h = parseFloat(svg.getAttribute("height")) || 60;
+    svg.setAttribute("viewBox", "0 0 " + w + " " + h);
+    svg.setAttribute("width", "100%"); svg.setAttribute("height", "100%");
+    svg.setAttribute("preserveAspectRatio", "none");
+    svg.removeAttribute("style");
+    return svg.outerHTML;
+  } catch (e) { return ""; }
+};
+
+// Precio de oferta de un ítem: el que se cargó a mano, o el precio con el % de descuento
+const precioOfertaDe = (it, op) => {
+  if (parseFloat(it.precio_oferta) > 0) return parseFloat(it.precio_oferta);
+  const pct = parseFloat(op.descuento) || 0;
+  let n = (parseFloat(it.precio) || 0) * (1 - pct / 100);
+  const paso = Number(op.redondeo) || 0;
+  if (paso) n = Math.round(n / paso) * paso;
+  return Math.max(0, Math.round(n * 100) / 100);
+};
+
+function htmlUnaEtiqueta(it, estilo, op) {
+  const nombre = escHtml(it.nombre), marca = escHtml(it.marca || ""), variante = escHtml(it.variante || "");
+  const negocio = op.mostrarNegocio ? escHtml(op.negocio || "") : "";
+  const precio = escHtml(precioEtiqueta(parseFloat(it.precio) || 0));
+  const barras = op.mostrarCodigo && it.codigo ? '<div class="bar">' + svgCodigoBarras(it.codigo) + '</div><div class="cod">' + escHtml(it.codigo) + "</div>" : "";
+  if (estilo === "precio") return `<div class="nom n3">${nombre}</div>${variante ? `<div class="sub">${variante}</div>` : ""}<div class="pre xl">${precio}</div>${negocio ? `<div class="neg">${negocio}</div>` : ""}`;
+  if (estilo === "oferta") {
+    const ahora = precioOfertaDe(it, op), antes = parseFloat(it.precio) || 0;
+    const pct = antes > 0 && ahora < antes ? Math.round((1 - ahora / antes) * 100) : 0;
+    return `<div class="banda">${escHtml(op.textoOferta || "OFERTA")}${pct ? `<span class="pct">-${pct}%</span>` : ""}</div>
+      <div class="cuerpo"><div class="nom">${nombre}${variante ? " · " + variante : ""}</div>
+      ${antes > ahora ? `<div class="antes">Antes <s>${escHtml(precioEtiqueta(antes))}</s></div>` : ""}
+      <div class="pre xl rojo">${escHtml(precioEtiqueta(ahora))}</div>
+      ${op.hasta ? `<div class="hasta">Válido hasta el ${escHtml(op.hasta.split("-").reverse().slice(0, 2).join("/"))}</div>` : ""}</div>`;
+  }
+  if (estilo === "promo") {
+    const pr = PROMOS_ETIQUETA.find(x => x.id === op.promo) || { grande: op.promoTexto || "PROMO", sub: op.promoSub || "" };
+    return `<div class="sello">${escHtml(pr.grande)}</div><div class="cuerpo"><div class="psub">${escHtml(pr.sub)}</div>
+      <div class="nom">${nombre}${variante ? " · " + variante : ""}</div><div class="pre">${precio} <small>c/u</small></div></div>`;
+  }
+  if (estilo === "prenda") return `<div class="agujero"></div>${negocio ? `<div class="neg top">${negocio}</div>` : ""}<div class="nom n3">${nombre}</div>
+    ${variante ? `<div class="talle">${variante}</div>` : marca ? `<div class="sub">${marca}</div>` : ""}<div class="pre">${precio}</div>${barras}`;
+  if (estilo === "elegante") return `${negocio ? `<div class="neg top">${negocio}</div>` : ""}<div class="nom serif">${nombre}</div>
+    ${variante || marca ? `<div class="sub">${variante || marca}</div>` : ""}<div class="linea"></div><div class="pre serif">${precio}</div>`;
+  // clásica
+  return `<div class="nom">${nombre}</div>${variante || marca ? `<div class="sub">${[marca, variante].filter(Boolean).join(" · ")}</div>` : ""}<div class="pre">${precio}</div>${barras}`;
+}
+
+// Documento completo listo para imprimir. limite: cuántas etiquetas dibujar (para la vista previa)
+function htmlEtiquetas(items, estilo, tamId, op, limite) {
+  const t = TAMANOS_ETIQUETA.find(x => x.id === tamId) || TAMANOS_ETIQUETA[1];
+  const lista = [];
+  for (let i = 0; i < (t.rollo ? 0 : Math.max(0, (parseInt(op.saltear) || 0))); i++) lista.push(null);
+  items.forEach(it => { for (let k = 0; k < Math.max(0, parseInt(it.cantidad) || 0); k++) lista.push(it); });
+  const dibujar = limite ? lista.slice(0, limite) : lista;
+  const M = 5, G = 2; // margen de la hoja y separación, en mm (como las hojas de etiquetas comunes)
+  const cols = t.rollo ? 1 : Math.max(1, Math.floor((210 - 2 * M + G) / (t.w + G)));
+  const u = Math.min(t.w, t.h); // unidad para escalar letras según el tamaño
+  const css = `
+    @page { size: ${t.rollo ? t.w + "mm " + t.h + "mm" : "A4"}; margin: ${t.rollo ? 0 : M + "mm"}; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: #fff; color: #111; font-family: Inter, Arial, Helvetica, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .hoja { display: grid; grid-template-columns: repeat(${cols}, ${t.w}mm); gap: ${t.rollo ? 0 : G + "mm"}; ${t.rollo ? "" : "justify-content: center;"} }
+    .et { width: ${t.w}mm; height: ${t.h}mm; overflow: hidden; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+      padding: ${(u * 0.07).toFixed(2)}mm; break-inside: avoid; page-break-inside: avoid; ${t.rollo ? "page-break-after: always;" : ""}
+      ${op.corte && !t.rollo ? "outline: 0.2mm dashed #bbb;" : ""} }
+    .vacia { visibility: hidden; }
+    .nom { font-weight: 700; font-size: ${(u * 0.115).toFixed(2)}mm; line-height: 1.15; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; width: 100%; }
+    .nom.n3 { -webkit-line-clamp: 3; }
+    .sub { font-size: ${(u * 0.085).toFixed(2)}mm; color: #555; margin-top: 0.4mm; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+    .pre { font-weight: 800; font-size: ${(u * 0.22).toFixed(2)}mm; line-height: 1.05; margin: ${(u * 0.03).toFixed(2)}mm 0; letter-spacing: -0.02em; white-space: nowrap; }
+    .pre.xl { font-size: ${(u * 0.32).toFixed(2)}mm; }
+    .pre small { font-size: 0.4em; font-weight: 600; color: #555; }
+    .bar { width: 88%; height: ${(t.h * (t.id === "colgante" ? 0.16 : 0.22)).toFixed(2)}mm; margin-top: 0.5mm; }
+    .cod { font-size: ${(u * 0.07).toFixed(2)}mm; letter-spacing: 0.08em; color: #333; }
+    .neg { font-size: ${(u * 0.075).toFixed(2)}mm; letter-spacing: 0.12em; text-transform: uppercase; color: #666; margin-top: 0.6mm; }
+    .neg.top { margin: 0 0 0.8mm; }
+    /* Oferta */
+    .et.oferta { justify-content: flex-start; padding: 0; border: 0.5mm solid #d32f2f; }
+    .oferta .banda { width: 100%; background: #d32f2f; color: #fff; font-weight: 900; letter-spacing: 0.08em; font-size: ${(u * 0.13).toFixed(2)}mm; padding: ${(u * 0.035).toFixed(2)}mm 0; position: relative; }
+    .oferta .pct { background: #fff; color: #d32f2f; border-radius: 99px; padding: 0 1.4mm; margin-left: 1.5mm; font-size: 0.9em; }
+    .oferta .cuerpo { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; padding: ${(u * 0.05).toFixed(2)}mm; }
+    .antes { font-size: ${(u * 0.1).toFixed(2)}mm; color: #555; } .antes s { text-decoration-thickness: 0.35mm; }
+    .rojo { color: #d32f2f; }
+    .oferta .nom { font-size: ${(u * 0.095).toFixed(2)}mm; }
+    .oferta .pre.xl { font-size: ${(u * 0.25).toFixed(2)}mm; }
+    .hasta { font-size: ${(u * 0.075).toFixed(2)}mm; color: #555; margin-top: 0.5mm; }
+    /* Promo */
+    .et.promo { flex-direction: row; padding: 0; border: 0.5mm solid #111; }
+    .promo .sello { background: #111; color: #ffd400; font-weight: 900; height: 100%; width: 42%; display: flex; align-items: center; justify-content: center; font-size: ${(u * 0.24).toFixed(2)}mm; line-height: 1; padding: 1mm; }
+    .promo .cuerpo { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: ${(u * 0.05).toFixed(2)}mm; min-width: 0; }
+    .promo .psub { font-size: ${(u * 0.085).toFixed(2)}mm; font-weight: 700; text-transform: uppercase; color: #444; margin-bottom: 0.6mm; }
+    .promo .pre { font-size: ${(u * 0.15).toFixed(2)}mm; }
+    /* Colgante de prenda */
+    .et.prenda { justify-content: flex-start; padding-top: ${(t.h * 0.13).toFixed(2)}mm; border: 0.3mm solid #999; border-radius: 2mm; }
+    .prenda .agujero { position: absolute; top: ${(t.h * 0.04).toFixed(2)}mm; left: 50%; width: 3.5mm; height: 3.5mm; margin-left: -1.75mm; border-radius: 50%; border: 0.3mm solid #999; }
+    .prenda .talle { font-size: ${(u * 0.26).toFixed(2)}mm; font-weight: 900; border: 0.4mm solid #111; border-radius: 1.5mm; padding: 0 2.5mm; margin: 1.2mm 0; }
+    .prenda .pre { margin-top: auto; }
+    /* Elegante */
+    .et.elegante { border: 0.3mm solid #111; outline: 0.3mm solid #111; outline-offset: -1.6mm; }
+    .serif { font-family: Georgia, "Times New Roman", serif; }
+    .elegante .nom { font-weight: 400; letter-spacing: 0.02em; }
+    .elegante .pre { font-weight: 400; }
+    .elegante .linea { width: 30%; border-top: 0.25mm solid #111; margin: 1mm 0; }
+    /* Etiquetas muy chicas: solo lo esencial */
+    ${u < 24 ? ".sub, .neg, .hasta, .psub, .cod { display: none; } .bar { height: " + (t.h * 0.3).toFixed(2) + "mm; }" : ""}
+  `;
+  const cuerpo = dibujar.map(it => it ? `<div class="et ${estilo}">${htmlUnaEtiqueta(it, estilo, op)}</div>` : '<div class="et vacia"></div>').join("");
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Etiquetas</title><style>${css}</style></head><body><div class="hoja">${cuerpo}</div></body></html>`;
+}
+
+function Etiquetas({ paletaActual, localId }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const guardado = (() => { try { return JSON.parse(localStorage.getItem("lumiere_etiquetas") || "{}"); } catch (e) { return {}; } })();
+  const [estilo, setEstilo] = useState(guardado.estilo || "clasica");
+  const [tam, setTam] = useState(guardado.tam || "mediana");
+  const [op, setOp] = useState({ mostrarCodigo: true, mostrarNegocio: true, corte: true, saltear: 0, descuento: 20, redondeo: 10, textoOferta: "OFERTA", hasta: "", promo: "2x1", negocio: "", ...(guardado.op || {}) });
+  const [items, setItems] = useState([]);
+  const [productos, setProductos] = useState([]);
+  const [busca, setBusca] = useState("");
+  const [aviso, setAviso] = useState("");
+  const [ultimoCambio, setUltimoCambio] = useState(null);
+  const [agregarPor, setAgregarPor] = useState({ tipo: "categoria", valor: "" });
+  const esUsh = Number(localId) === 2;
+  const avisar = (t) => { setAviso(t); setTimeout(() => setAviso(""), 3500); };
+
+  useEffect(() => { try { localStorage.setItem("lumiere_etiquetas", JSON.stringify({ estilo, tam, op: { ...op, saltear: 0, negocio: "" } })); } catch (e) {} }, [estilo, tam, op]);
+  useEffect(() => {
+    API.get("/productos?estado=activos").then(r => setProductos((r.data || []).filter(p => p.activo !== false))).catch(() => {});
+    API.get("/configuracion").then(r => setOp(o => ({ ...o, negocio: r.data?.nombre_negocio || "" }))).catch(() => {});
+    API.get("/precios-masivos/historial").then(r => setUltimoCambio((r.data || []).find(h => !h.deshecho_en) || null)).catch(() => {});
+  }, []);
+  // Si se llegó desde "Actualizar precios", cargar los productos de ese cambio (una sola vez, cuando ya están los productos)
+  const cambioPendiente = useRef((() => { try { const id = sessionStorage.getItem("lumiere_etiquetas_cambio"); sessionStorage.removeItem("lumiere_etiquetas_cambio"); return id; } catch (e) { return null; } })());
+  useEffect(() => {
+    if (cambioPendiente.current && productos.length) { const id = cambioPendiente.current; cambioPendiente.current = null; agregarDeCambio(id); }
+  }, [productos.length]);
+
+  const stockDe = (x) => esUsh ? (x.stock_ush || 0) : (x.stock_rg || 0);
+  // Un producto con variantes (talles, colores) suma una etiqueta por variante
+  const itemsDe = async (p) => {
+    const base = { producto_id: p.id, nombre: p.nombre, marca: p.marca, precio: parseFloat(p.precio) || 0, cantidad: 1, precio_oferta: "" };
+    if (p.tiene_variantes) {
+      try {
+        const r = await API.get("/productos/" + p.id + "/variantes");
+        const vs = r.data || [];
+        if (vs.length) return vs.map(v => ({ ...base, key: "v" + v.id, variante: v.valor, codigo: v.codigo_barras || p.codigo_barras || "", stock: stockDe(v) }));
+      } catch (e) {}
+    }
+    return [{ ...base, key: "p" + p.id, variante: "", codigo: p.codigo_barras || "", stock: stockDe(p) }];
+  };
+  const agregar = async (lista) => {
+    const nuevos = [];
+    for (const p of lista) nuevos.push(...(await itemsDe(p)));
+    setItems(prev => { const ya = new Set(prev.map(x => x.key)); return [...prev, ...nuevos.filter(x => !ya.has(x.key))]; });
+    return nuevos.length;
+  };
+  const agregarDeCambio = async (id) => {
+    try {
+      const r = await API.get("/precios-masivos/" + id + "/productos");
+      const ids = new Set(r.data.ids || []);
+      const n = await agregar(productos.filter(p => ids.has(p.id)));
+      avisar("Se agregaron " + n + " etiquetas de los productos que cambiaron de precio.");
+    } catch (e) { avisar("No se pudieron traer los productos de ese cambio."); }
+  };
+  const agregarGrupo = async () => {
+    if (!agregarPor.valor) return;
+    const campo = agregarPor.tipo === "categoria" ? "categoria" : agregarPor.tipo === "marca" ? "marca" : "proveedor_nombre";
+    const n = await agregar(productos.filter(p => p[campo] === agregarPor.valor));
+    avisar(n ? "Se agregaron " + n + " etiquetas." : "No hay productos activos con ese filtro.");
+  };
+  const cambiarItem = (key, cambio) => setItems(prev => prev.map(x => x.key === key ? { ...x, ...cambio } : x));
+  const elegirEstilo = (id) => { setEstilo(id); const e = ESTILOS_ETIQUETA.find(x => x.id === id); if (e) setTam(e.tam); };
+
+  const q = busca.trim().toLowerCase();
+  const sugeridos = q.length < 2 ? [] : productos.filter(p => [p.nombre, p.marca, p.codigo_barras].join(" ").toLowerCase().includes(q)).slice(0, 8);
+  const grupos = { categoria: [...new Set(productos.map(p => p.categoria).filter(Boolean))].sort(), marca: [...new Set(productos.map(p => p.marca).filter(Boolean))].sort(), proveedor: [...new Set(productos.map(p => p.proveedor_nombre).filter(Boolean))].sort() };
+  const t = TAMANOS_ETIQUETA.find(x => x.id === tam) || TAMANOS_ETIQUETA[1];
+  const cols = t.rollo ? 1 : Math.max(1, Math.floor((210 - 10 + 2) / (t.w + 2)));
+  const filas = t.rollo ? 1 : Math.max(1, Math.floor((297 - 10 + 2) / (t.h + 2)));
+  const totalEt = items.reduce((a, x) => a + Math.max(0, parseInt(x.cantidad) || 0), 0);
+  const hojas = t.rollo ? 0 : Math.ceil((totalEt + (parseInt(op.saltear) || 0)) / (cols * filas));
+  const sinCodigo = items.filter(x => !x.codigo).length;
+
+  // Vista previa: la primera hoja (o las primeras etiquetas del rollo), con ejemplos si no hay nada cargado
+  const ejemplo = [{ key: "e1", nombre: "Producto de ejemplo", marca: "Marca", variante: estilo === "prenda" ? "M" : "", codigo: "7790001000014", precio: 12500, cantidad: 3, precio_oferta: "" }];
+  const htmlPrevia = htmlEtiquetas(items.length ? items : ejemplo, estilo, tam, op, t.rollo ? 3 : cols * filas);
+  const escala = t.rollo ? Math.min(1.6, 300 / (t.w * 3.78)) : 0.62;
+
+  const imprimir = () => {
+    if (!totalEt) return avisar("Agregá productos y la cantidad de etiquetas.");
+    const marco = document.createElement("iframe");
+    marco.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+    document.body.appendChild(marco);
+    const d = marco.contentWindow.document;
+    d.open(); d.write(htmlEtiquetas(items, estilo, tam, op)); d.close();
+    setTimeout(() => { marco.contentWindow.focus(); marco.contentWindow.print(); setTimeout(() => marco.remove(), 2000); }, 400);
+  };
+
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div className="dash-head">
+        <div><div className="pt">Etiquetas de precio</div><div className="ps">elegí el estilo, sumá productos e imprimí</div></div>
+        <div className="dash-actions">
+          <button className="btn btn-p btn-sm" disabled={!totalEt} onClick={imprimir}>🖨️ Imprimir {totalEt ? totalEt + " etiqueta" + (totalEt === 1 ? "" : "s") : ""}</button>
+        </div>
+      </div>
+      {aviso && <div className="pop-in" role="status" style={{ background: temaPal.greenDim, border: "1px solid " + temaPal.green, borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, marginBottom: 12 }}>{aviso}</div>}
+
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div className="ct">1. Estilo</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 8 }}>
+          {ESTILOS_ETIQUETA.map(e => (
+            <button key={e.id} className={"chip-btn" + (estilo === e.id ? " on" : "")} aria-pressed={estilo === e.id} onClick={() => elegirEstilo(e.id)}
+              style={{ borderRadius: 10, padding: "10px 12px", textAlign: "left", whiteSpace: "normal", display: "flex", flexDirection: "column", gap: 2, alignItems: "flex-start" }}>
+              <span style={{ fontSize: 13, fontWeight: 800 }}>{e.icono} {e.nombre}</span>
+              <span style={{ fontSize: 10.5, fontWeight: 500, color: temaPal.textMuted }}>{e.desc}</span>
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginTop: 14 }}>
+          <div className="fg" style={{ marginBottom: 0 }}>
+            <div className="fl">Tamaño</div>
+            <select className="sel" value={tam} onChange={e => setTam(e.target.value)}>{TAMANOS_ETIQUETA.map(x => <option key={x.id} value={x.id}>{x.nombre}</option>)}</select>
+            <div style={{ fontSize: 10.5, color: temaPal.textMuted, marginTop: 4 }}>{t.rollo ? "Una etiqueta por hoja, para impresoras de etiquetas." : cols * filas + " por hoja A4 (" + cols + " × " + filas + ")"}</div>
+          </div>
+          {estilo === "oferta" && <>
+            <div className="fg" style={{ marginBottom: 0 }}>
+              <div className="fl">Descuento (%)</div>
+              <input className="inp" type="number" min="0" max="95" value={op.descuento} onChange={e => setOp(o => ({ ...o, descuento: e.target.value }))} />
+              <div style={{ fontSize: 10.5, color: temaPal.textMuted, marginTop: 4 }}>O poné un precio de oferta distinto en cada producto.</div>
+            </div>
+            <div className="fg" style={{ marginBottom: 0 }}>
+              <div className="fl">Redondear precio de oferta</div>
+              <select className="sel" value={op.redondeo} onChange={e => setOp(o => ({ ...o, redondeo: Number(e.target.value) }))}>
+                <option value={0}>Sin redondear</option><option value={10}>A $10</option><option value={50}>A $50</option><option value={100}>A $100</option><option value={500}>A $500</option>
+              </select>
+            </div>
+            <div className="fg" style={{ marginBottom: 0 }}>
+              <div className="fl">Texto de arriba</div>
+              <input className="inp" maxLength={20} value={op.textoOferta} onChange={e => setOp(o => ({ ...o, textoOferta: e.target.value.toUpperCase() }))} placeholder="OFERTA" />
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 6 }}>{["OFERTA", "LIQUIDACIÓN", "SALE", "HOT SALE", "CYBER"].map(x => <button key={x} type="button" className={"mini-chip" + (op.textoOferta === x ? " on" : "")} onClick={() => setOp(o => ({ ...o, textoOferta: x }))}>{x}</button>)}</div>
+            </div>
+            <div className="fg" style={{ marginBottom: 0 }}>
+              <div className="fl">Válido hasta (opcional)</div>
+              <input className="inp" type="date" value={op.hasta} onChange={e => setOp(o => ({ ...o, hasta: e.target.value }))} />
+            </div>
+          </>}
+          {estilo === "promo" && (
+            <div className="fg" style={{ marginBottom: 0 }}>
+              <div className="fl">Promoción</div>
+              <div className="seg" role="group" aria-label="Promoción" style={{ display: "flex", flexWrap: "wrap" }}>
+                {PROMOS_ETIQUETA.map(x => <button key={x.id} style={{ flex: 1 }} className={op.promo === x.id ? "on" : ""} onClick={() => setOp(o => ({ ...o, promo: x.id }))}>{x.grande}</button>)}
+              </div>
+            </div>
+          )}
+          <div className="fg" style={{ marginBottom: 0 }}>
+            <div className="fl">Opciones</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
+              {(estilo === "clasica" || estilo === "prenda") && <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={op.mostrarCodigo} onChange={e => setOp(o => ({ ...o, mostrarCodigo: e.target.checked }))} /> Código de barras</label>}
+              {(estilo === "precio" || estilo === "prenda" || estilo === "elegante") && <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={op.mostrarNegocio} onChange={e => setOp(o => ({ ...o, mostrarNegocio: e.target.checked }))} /> Nombre del negocio</label>}
+              {!t.rollo && <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={op.corte} onChange={e => setOp(o => ({ ...o, corte: e.target.checked }))} /> Línea para recortar</label>}
+              {!t.rollo && <label style={{ display: "flex", gap: 6, alignItems: "center" }}>Saltear las primeras <input className="mini-inp" type="number" min="0" max={cols * filas - 1} value={op.saltear} onChange={e => setOp(o => ({ ...o, saltear: Math.max(0, parseInt(e.target.value) || 0) }))} style={{ width: 50 }} /> (hoja ya usada)</label>}
+            </div>
+          </div>
+        </div>
+        {estilo === "oferta" && <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 10 }}>⚠️ La etiqueta no cambia el precio en el sistema. Para cobrar el precio de oferta, cargá la promoción en <b>Promociones</b> o bajá el precio con <b>Inventario → Actualizar precios</b>.</div>}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 12, alignItems: "start" }}>
+        <div className="card">
+          <div className="ct">2. Productos</div>
+          <div style={{ position: "relative" }}>
+            <input className="inp" placeholder="🔍 Buscar por nombre, marca o código" value={busca} onChange={e => setBusca(e.target.value)} aria-label="Buscar producto" />
+            {sugeridos.length > 0 && (
+              <div style={{ position: "absolute", left: 0, right: 0, top: "100%", zIndex: 5, background: temaPal.card, border: "1px solid " + temaPal.border, borderRadius: 8, marginTop: 4, boxShadow: "0 8px 24px rgba(0,0,0,.15)", maxHeight: 280, overflowY: "auto" }}>
+                {sugeridos.map(p => (
+                  <button key={p.id} type="button" onClick={async () => { await agregar([p]); setBusca(""); }} style={{ display: "flex", justifyContent: "space-between", gap: 8, width: "100%", padding: "8px 10px", background: "transparent", border: "none", borderBottom: "1px solid " + temaPal.border, cursor: "pointer", textAlign: "left", color: temaPal.text, fontFamily: "inherit" }}>
+                    <span style={{ fontSize: 12.5 }}><b>{p.nombre}</b>{p.marca && <span style={{ color: temaPal.textMuted }}> · {p.marca}</span>}{p.tiene_variantes && <span style={{ color: temaPal.textMuted }}> · con variantes</span>}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>{fmt(parseFloat(p.precio || 0))}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: 10 }}>
+            <span style={{ fontSize: 12, color: temaPal.textMuted }}>Agregar todos los de</span>
+            <select className="sel" style={{ width: 120 }} value={agregarPor.tipo} onChange={e => setAgregarPor({ tipo: e.target.value, valor: "" })} aria-label="Agregar por">
+              <option value="categoria">categoría</option><option value="marca">marca</option><option value="proveedor">proveedor</option>
+            </select>
+            <select className="sel" style={{ flex: "1 1 140px" }} value={agregarPor.valor} onChange={e => setAgregarPor(a => ({ ...a, valor: e.target.value }))} aria-label="Cuál">
+              <option value="">Elegí...</option>{grupos[agregarPor.tipo].map(x => <option key={x} value={x}>{x}</option>)}
+            </select>
+            <button className="btn btn-g btn-sm" disabled={!agregarPor.valor} onClick={agregarGrupo}>Agregar</button>
+          </div>
+          {ultimoCambio && <button className="chip-btn" style={{ marginTop: 8 }} onClick={() => agregarDeCambio(ultimoCambio.id)} title={ultimoCambio.descripcion}>📈 Agregar los {ultimoCambio.cantidad} del último cambio de precios</button>}
+
+          {items.length === 0 ? <div className="empty" style={{ padding: 22 }}>Buscá un producto o agregá una categoría entera.</div> : (
+            <>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "12px 0 6px" }}>
+                <button className="chip-btn" onClick={() => setItems(prev => prev.map(x => ({ ...x, cantidad: Math.max(0, x.stock) })))} title="Una etiqueta por cada unidad en stock">Cantidad = stock</button>
+                <button className="chip-btn" onClick={() => setItems(prev => prev.map(x => ({ ...x, cantidad: 1 })))}>Todas en 1</button>
+                <span style={{ flex: 1 }} />
+                <button className="chip-btn" style={{ color: temaPal.red }} onClick={() => setItems([])}>Vaciar</button>
+              </div>
+              <div style={{ maxHeight: 420, overflowY: "auto" }}>
+                {items.map(it => (
+                  <div key={it.key} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: "1px solid " + temaPal.border }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.nombre}{it.variante && <span className="tag tag-neutral" style={{ marginLeft: 6 }}>{it.variante}</span>}</div>
+                      <div style={{ fontSize: 10.5, color: temaPal.textMuted }}>{fmt(it.precio)} · {it.codigo || <span style={{ color: temaPal.warn }}>sin código</span>} · stock {it.stock}</div>
+                    </div>
+                    {estilo === "oferta" && <input className="mini-inp" type="number" min="0" style={{ width: 86 }} placeholder={String(precioOfertaDe({ ...it, precio_oferta: "" }, op))} value={it.precio_oferta} onChange={e => cambiarItem(it.key, { precio_oferta: e.target.value })} aria-label={"Precio de oferta de " + it.nombre} title="Precio de oferta (vacío = con el % de descuento)" />}
+                    <input className="mini-inp" type="number" min="0" style={{ width: 52 }} value={it.cantidad} onChange={e => cambiarItem(it.key, { cantidad: Math.max(0, parseInt(e.target.value) || 0) })} aria-label={"Cantidad de etiquetas de " + it.nombre} />
+                    <button className="icon-btn" aria-label={"Quitar " + it.nombre} onClick={() => setItems(prev => prev.filter(x => x.key !== it.key))}>✕</button>
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 8 }}>
+                <b style={{ color: temaPal.text }}>{totalEt}</b> etiqueta{totalEt === 1 ? "" : "s"}{!t.rollo && hojas ? " · " + hojas + " hoja" + (hojas === 1 ? "" : "s") + " A4" : ""}
+                {sinCodigo > 0 && (estilo === "clasica" || estilo === "prenda") && op.mostrarCodigo && <> · {sinCodigo} sin código de barras (sale sin código)</>}
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="card">
+          <div className="ct">Vista previa {items.length ? "" : "(ejemplo)"}</div>
+          <div style={{ background: "#e9e9e9", borderRadius: 8, padding: 10, overflow: "auto", maxHeight: 640 }}>
+            <div style={{ width: (t.rollo ? t.w * 3.78 + 4 : 210 * 3.78) * escala, height: (t.rollo ? (t.h * 3.78 + 4) * 3 : 297 * 3.78) * escala, margin: "0 auto", background: "#fff", boxShadow: "0 2px 10px rgba(0,0,0,.15)", overflow: "hidden" }}>
+              <iframe title="Vista previa de etiquetas" srcDoc={htmlPrevia.replace("<body>", '<body style="padding:' + (t.rollo ? "2px" : "5mm") + '">')}
+                style={{ width: t.rollo ? t.w * 3.78 + 4 : 210 * 3.78, height: t.rollo ? (t.h * 3.78 + 4) * 3 : 297 * 3.78, border: 0, transform: "scale(" + escala + ")", transformOrigin: "0 0", pointerEvents: "none" }} />
+            </div>
+          </div>
+          <div style={{ fontSize: 10.5, color: temaPal.textMuted, marginTop: 6 }}>Al imprimir, elegí <b>tamaño real / 100%</b> (sin "ajustar a la página") para que las medidas salgan exactas.</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Kits({ paletaActual, localId }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [kits, setKits] = useState([]);
@@ -19070,6 +19455,7 @@ const NAV_SECTIONS = [
     { id: "rotacion", icon: "♻️", label: "Rotación", k: "abc lentos parados liquidar" },
     { id: "inconsistencias", icon: "⚠️", label: "Inconsistencias", k: "errores diferencias" },
     { id: "kits", icon: "🎁", label: "Kits", k: "combos" },
+    { id: "etiquetas", icon: "🏷️", label: "Etiquetas de precio", k: "imprimir etiquetas precio codigo barras oferta descuento promo gondola" },
     { id: "insumos", icon: "🛍️", label: "Insumos", k: "bolsas cajas packaging" }] },
   { section: "CAJA", color: "#2d7a4f", items: [
     { id: "caja", icon: "💵", label: "Caja", k: "movimientos efectivo" },
@@ -20782,7 +21168,7 @@ export default function AppWrapper() {
  const mapaModulos = {
       "pos": "pos.ver", "dashboard": "dashboard.ver",
       "ventas-online": "ventas_online.ver", "buscar-precio": "buscar_precio.ver", "cambio-devolucion": "cambios.ver",
-      "inventory": "inventario.ver", "rotacion": "rotacion.ver", "ordenes": "ordenes.ver", "inconsistencias": "inconsistencias.ver", "kits": "kits.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
+      "inventory": "inventario.ver", "rotacion": "rotacion.ver", "ordenes": "ordenes.ver", "inconsistencias": "inconsistencias.ver", "kits": "kits.ver", "etiquetas": "inventario.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
       "compras": "compras.ver", "reclamos-proveedores": "compras.ver",
       "clients": "clientes.ver", "pedidos": "pedidos.ver", "fidelizacion": "fidelizacion.ver", "tareas": "tareas.ver",
       "finance": "finanzas.flujo", "decisiones": "decisiones.ver", "gerente": "gerente.ver", "comprobantes": "comprobantes.ver",
@@ -20884,6 +21270,7 @@ export default function AppWrapper() {
     if (id === "giftcards") return <GiftCards localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "ordenes") return <OrdenesIngreso localId={local.id} usuario={usuario} permisosActivos={permisosActivos} paletaActual={paletaActual} />;
     if (id === "kits") return <Kits paletaActual={paletaActual} localId={local.id} />;
+    if (id === "etiquetas") return <Etiquetas paletaActual={paletaActual} localId={local.id} />;
     if (id === "insumos") return <Insumos localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "control-inv") return <ControlInventario localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "config-insumos") return <ConfigInsumos localId={local.id} paletaActual={paletaActual} />;
