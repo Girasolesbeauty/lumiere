@@ -2904,6 +2904,8 @@ function POS({ localId, usuario, paletaActual }) {
   const [productos, setProductos] = useState([]);
   const [kitsPos, setKitsPos] = useState([]);
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
+  // Cuenta corriente: lo que debe el cliente elegido (se muestra al elegir ese medio de pago)
+  const [ccCliente, setCcCliente] = useState(null);
   const [buscandoCliente, setBuscandoCliente] = useState(false);
   const [showNuevoCliente, setShowNuevoCliente] = useState(false);
   const [cupon, setCupon] = useState("");
@@ -2921,6 +2923,13 @@ function POS({ localId, usuario, paletaActual }) {
   const [referenciaVenta, setReferenciaVenta] = useState("");
   const [tipoDescuento, setTipoDescuento] = useState("%");
   const [medioPagoSel, setMedioPagoSel] = useState(null);
+  useEffect(() => {
+    setCcCliente(null);
+    if (medioPagoSel?.tipo !== "cuenta_corriente" || !clienteSeleccionado?.id) return;
+    API.get("/cuenta-corriente/cliente/" + clienteSeleccionado.id)
+      .then(r => setCcCliente({ saldo: r.data.saldo || 0, limite: r.data.limite }))
+      .catch(() => setCcCliente({ saldo: 0, limite: null }));
+  }, [medioPagoSel?.id, clienteSeleccionado?.id]);
   const [montoRecibidoEfectivo, setMontoRecibidoEfectivo] = useState("");
   const [pagoMixto, setPagoMixto] = useState(false);
   const [pagosMixtos, setPagosMixtos] = useState([]); // [{medio_pago_id, medio_pago_nombre, importe}]
@@ -3720,6 +3729,8 @@ function POS({ localId, usuario, paletaActual }) {
     if (ventaPendienteArca) return reintentarFacturacion(ventaPendienteArca);
     if (cart.length === 0) return setMensaje("Agrega productos al ticket");
     if (restaPagar > 0 && !pagoMixto && !medioPagoSel) return setMensaje("Selecciona un medio de pago para la diferencia");
+    const usaCC = !preventa && restaPagar > 0 && (pagoMixto ? pagosMixtos.some(p => mediosPago.find(m => m.id === p.medio_pago_id)?.tipo === "cuenta_corriente") : medioPagoSel?.tipo === "cuenta_corriente");
+    if (usaCC && !clienteSeleccionado) return setMensaje("⚠️ Para vender en cuenta corriente, elegí el cliente (cargá su DNI)");
     if (restaPagar > 0 && !pagoMixto && medioPagoSel?.tipo === "efectivo" && montoRecibidoEfectivo !== "" && parseFloat(montoRecibidoEfectivo) < restaPagar) {
       return setMensaje("El efectivo recibido no alcanza para cubrir el total");
     }
@@ -3863,6 +3874,8 @@ function POS({ localId, usuario, paletaActual }) {
       } else if (error?.response?.status === 409 && error?.response?.data?.error === 'stock_insuficiente') {
         const prods = error.response.data.productos || [];
         setItemsSinStock(prods.map(p => ({ id: p.producto_id, nombre: p.nombre, stockActual: p.stock_disponible, cantidad: p.cantidad_pedida })));
+      } else if (error?.response?.data?.cuenta_corriente) {
+        setMensaje("⚠️ " + error.response.data.error);
       } else {
         setMensaje("Error al emitir factura: " + (error?.response?.data?.error || error?.message || "desconocido"));
       }
@@ -4072,7 +4085,7 @@ function POS({ localId, usuario, paletaActual }) {
           {tabCambios}
         </div>
         {mensaje && (
-          <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>
+          <div style={{ background: (mensaje.includes("Error") || mensaje.includes("⚠️")) ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + ((mensaje.includes("Error") || mensaje.includes("⚠️")) ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: (mensaje.includes("Error") || mensaje.includes("⚠️")) ? "#c0392b" : "#2d7a4f" }}>
             {mensaje}
           </div>
         )}
@@ -4571,6 +4584,7 @@ function POS({ localId, usuario, paletaActual }) {
                 { id: "transferencia", ic: "🏦", l: "Transfer." },
                 { id: "credito", ic: "💳", l: "Crédito" },
                 { id: "plataforma", ic: "📱", l: "Otros" },
+                { id: "cuenta_corriente", ic: "📒", l: "Cuenta cte." },
               ].filter(t => mediosPago.some(m => m.tipo === t.id));
               const tipoActivo = tipoPagoAbierto || medioPagoSel?.tipo || "";
               const deTipo = mediosPago.filter(m => m.tipo === tipoActivo);
@@ -4636,6 +4650,14 @@ function POS({ localId, usuario, paletaActual }) {
                               {m.nombre.replace(/^(Credito|Crédito)\s*/i, "")}{m.con_interes ? " · +" + Math.round((parseFloat(m.coeficiente) - 1) * 100) + "%" : ""}
                             </button>
                           ))}
+                        </div>
+                      )}
+                      {medioPagoSel?.tipo === "cuenta_corriente" && (
+                        <div className="pop-in" style={{ fontSize: 11.5, marginTop: 6, padding: "8px 10px", borderRadius: 8, background: temaPal.bg, color: temaPal.text }}>
+                          {!clienteSeleccionado ? <span style={{ color: temaPal.warn }}>📒 Elegí el cliente: la venta queda anotada en su cuenta.</span>
+                            : !ccCliente ? "Buscando su cuenta..."
+                            : <>📒 <b>{clienteSeleccionado.nombre}</b> {ccCliente.saldo > 0 ? <>debe <b>{fmt(ccCliente.saldo)}</b></> : "no debe nada"}{" · con esta venta: "}<b>{fmt(Math.max(0, ccCliente.saldo) + restaPagar)}</b>
+                              {ccCliente.limite !== null && <span style={{ color: Math.max(0, ccCliente.saldo) + restaPagar > ccCliente.limite ? temaPal.red : temaPal.textMuted }}> (límite {fmt(ccCliente.limite)})</span>}</>}
                         </div>
                       )}
                       {medioPagoSel && (
@@ -18615,6 +18637,260 @@ function Etiquetas({ paletaActual, localId }) {
   );
 }
 
+// ===================== CUENTA CORRIENTE (FIADO) =====================
+// Quién debe, cuánto y desde cuándo; cobrar (en efectivo entra a la caja), ver la cuenta, límite de
+// crédito, cargar deudas anteriores y recordar por WhatsApp. Las ventas se anotan solas desde el
+// Punto de Venta con el medio de pago "Cuenta corriente".
+function CuentaCorriente({ paletaActual, localId, usuario }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const esJefe = ["jefe", "admin", "administrativo"].includes(usuario?.rol);
+  const [estado, setEstado] = useState(null);
+  const [datos, setDatos] = useState(null);
+  const [busca, setBusca] = useState("");
+  const [filtro, setFiltro] = useState("deben");
+  const [abierto, setAbierto] = useState(null); // cuenta de un cliente
+  const [medios, setMedios] = useState([]);
+  const [negocio, setNegocio] = useState("");
+  const [aviso, setAviso] = useState(null);
+  const [cargarDeuda, setCargarDeuda] = useState(null); // { busca, cliente, importe, nota }
+  const [clientesTodos, setClientesTodos] = useState([]);
+  const avisar = (ok, texto) => { setAviso({ ok, texto }); setTimeout(() => setAviso(null), 5000); };
+
+  const cargar = () => {
+    API.get("/cuenta-corriente/estado").then(r => setEstado(r.data)).catch(() => setEstado({ error: true }));
+    API.get("/cuenta-corriente").then(r => setDatos(r.data)).catch(() => setDatos({ error: true }));
+  };
+  useEffect(() => {
+    cargar();
+    API.get("/medios-pago").then(r => setMedios((r.data || []).filter(m => m.tipo !== "cuenta_corriente"))).catch(() => {});
+    API.get("/configuracion").then(r => setNegocio(r.data?.nombre_negocio || "")).catch(() => {});
+  }, []);
+  const activar = async () => {
+    try { await API.post("/cuenta-corriente/activar"); avisar(true, "✓ Cuenta corriente activada. En el Punto de Venta ya aparece \"Cuenta cte.\" como medio de pago."); cargar(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo activar"); }
+  };
+  const abrirCuenta = (id) => API.get("/cuenta-corriente/cliente/" + id).then(r => setAbierto(r.data)).catch(() => avisar(false, "No se pudo abrir la cuenta"));
+  const recordar = (c) => {
+    const n = numeroWhatsApp(c.telefono);
+    if (!n) return;
+    const texto = "¡Hola " + (c.nombre || "").split(/[ ,]/)[0] + "! Te escribo de " + (negocio || "el local") + " para recordarte que tenés un saldo de " + fmt(c.saldo) + " en tu cuenta. Podés pasar a abonarlo cuando quieras o pagarlo por transferencia. ¡Gracias!";
+    window.open("https://wa.me/" + n + "?text=" + encodeURIComponent(texto), "_blank");
+  };
+
+  const diasColor = (d) => d === null ? temaPal.textMuted : d > 30 ? temaPal.red : d > 15 ? temaPal.warn : temaPal.textMuted;
+  const q = busca.trim().toLowerCase();
+  const lista = (datos?.clientes || []).filter(c => c.saldo > 0.009 || filtro === "todos")
+    .filter(c => filtro !== "mas30" || (c.dias || 0) > 30)
+    .filter(c => !q || (c.nombre || "").toLowerCase().includes(q) || (c.telefono || "").includes(q));
+  const r = datos?.resumen || {};
+
+  if (!estado || !datos) return <div className="fade"><div className="skel" style={{ height: 260 }} /></div>;
+
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div className="dash-head">
+        <div><div className="pt">Cuenta corriente</div><div className="ps">clientes que compran fiado: cuánto deben y desde cuándo</div></div>
+        {estado.activa && esJefe && <div className="dash-actions"><button className="btn btn-g btn-sm" onClick={() => { setCargarDeuda({ busca: "", cliente: null, importe: "", nota: "Deuda anterior (cuaderno)" }); if (!clientesTodos.length) API.get("/clientes").then(x => setClientesTodos(x.data || [])).catch(() => {}); }}>＋ Cargar deuda anterior</button></div>}
+      </div>
+      {aviso && <div className="pop-in" role={aviso.ok ? "status" : "alert"} style={{ background: aviso.ok ? temaPal.greenDim : temaPal.redDim, border: "1px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, marginBottom: 12 }}>{aviso.texto}</div>}
+
+      {!estado.activa && (
+        <div className="card" style={{ marginBottom: 12, borderLeft: "3px solid " + temaPal.accent }}>
+          <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 6 }}>📒 Vendé fiado y llevá la cuenta de cada cliente</div>
+          <div style={{ fontSize: 12.5, color: temaPal.textMuted, lineHeight: 1.6, marginBottom: 12 }}>
+            Al activarla aparece <b>"Cuenta cte."</b> como medio de pago en el Punto de Venta. La venta se registra como siempre (stock, puntos, factura) pero no entra plata a la caja: queda anotada como deuda del cliente.
+            Cuando paga, lo cobrás desde acá; si es en efectivo, entra a la caja del día. Podés ponerle un límite a cada cliente y cargar lo que ya te deben.
+          </div>
+          {esJefe ? <button className="btn btn-p" onClick={activar}>Activar cuenta corriente</button> : <div style={{ fontSize: 12, color: temaPal.textMuted }}>Pedile al jefe que la active.</div>}
+        </div>
+      )}
+
+      {(estado.activa || (datos.clientes || []).length > 0) && <>
+        <div className="g4" style={{ marginBottom: 12, textAlign: "center" }}>
+          <MCard label="Total a cobrar" value={fmt(r.total || 0)} sub={r.clientes === 1 ? "1 cliente debe" : (r.clientes || 0) + " clientes deben"} color="var(--acento-texto)" />
+          <MCard label="Hace más de 30 días" value={fmt(r.monto_mas_30 || 0)} sub={(r.mas_30 || 0) + " cliente" + (r.mas_30 === 1 ? "" : "s")} color={r.mas_30 ? temaPal.red : "#2d7a4f"} />
+          <MCard label="Cobrado este mes" value={fmt(r.cobrado_mes || 0)} color="#2d7a4f" />
+          <MCard label="Clientes con cuenta" value={String((datos.clientes || []).length)} sub="con saldo o límite" color="#2471a3" />
+        </div>
+        <div className="card">
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
+            <input className="inp" style={{ flex: "1 1 220px" }} placeholder="🔍 Buscar cliente" value={busca} onChange={e => setBusca(e.target.value)} aria-label="Buscar cliente" />
+            <div className="seg" role="group" aria-label="Filtro">
+              {[["deben", "Deben"], ["mas30", "+30 días"], ["todos", "Todos"]].map(([k, l]) => <button key={k} className={filtro === k ? "on" : ""} aria-pressed={filtro === k} onClick={() => setFiltro(k)}>{l}</button>)}
+            </div>
+          </div>
+          {lista.length === 0 ? <div className="empty" style={{ padding: 24 }}>{(datos.clientes || []).length ? "Nadie en este filtro." : "Todavía nadie compró fiado. Elegí \"Cuenta cte.\" como medio de pago en el Punto de Venta."}</div>
+            : lista.map(c => (
+              <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: "1px solid " + temaPal.border, flexWrap: "wrap" }}>
+                <div style={{ flex: "1 1 200px", minWidth: 0, cursor: "pointer" }} onClick={() => abrirCuenta(c.id)}>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>{c.nombre}</div>
+                  <div style={{ fontSize: 11, color: diasColor(c.dias) }}>
+                    {c.saldo > 0.009 ? (c.dias === 0 ? "Debe desde hoy" : "Debe desde hace " + c.dias + " día" + (c.dias === 1 ? "" : "s")) : c.saldo < -0.009 ? "Saldo a favor" : "Al día"}
+                    {c.limite !== null && <span style={{ color: temaPal.textMuted }}> · límite {fmt(c.limite)}</span>}
+                  </div>
+                </div>
+                <div style={{ fontWeight: 800, fontSize: 15, fontVariantNumeric: "tabular-nums", minWidth: 90, textAlign: "right", color: c.saldo > 0.009 ? temaPal.text : "#2d7a4f" }}>{fmt(c.saldo)}</div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {c.saldo > 0.009 && <button className="btn btn-p btn-sm" onClick={() => abrirCuenta(c.id)}>💵 Cobrar</button>}
+                  {c.saldo > 0.009 && numeroWhatsApp(c.telefono) && <button className="btn btn-sm" style={{ background: "#25d366", color: "#1B2431", fontWeight: 700 }} title="Recordarle por WhatsApp" onClick={() => recordar(c)}>💬</button>}
+                </div>
+              </div>
+            ))}
+        </div>
+      </>}
+
+      {abierto && <CuentaDeCliente cuenta={abierto} medios={medios} esJefe={esJefe} localId={localId} temaPal={temaPal}
+        onCerrar={() => setAbierto(null)} onCambio={(msg) => { if (msg) avisar(true, msg); cargar(); abrirCuenta(abierto.id); }} />}
+
+      {cargarDeuda && (
+        <div className="pos-overlay" onClick={() => setCargarDeuda(null)}>
+          <div className="card pop-in" role="dialog" aria-label="Cargar deuda anterior" style={{ width: 440, maxWidth: "95vw", background: temaPal.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 4 }}>Cargar deuda anterior</div>
+            <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 12 }}>Para pasar lo que ya te deben (por ejemplo, lo anotado en el cuaderno).</div>
+            {!cargarDeuda.cliente ? (
+              <div className="fg">
+                <div className="fl">Cliente</div>
+                <input className="inp" autoFocus placeholder="Nombre, DNI o teléfono" value={cargarDeuda.busca} onChange={e => setCargarDeuda(d => ({ ...d, busca: e.target.value }))} />
+                {cargarDeuda.busca.trim().length >= 2 && (
+                  <div style={{ border: "1px solid " + temaPal.border, borderRadius: 8, marginTop: 4, maxHeight: 200, overflowY: "auto" }}>
+                    {clientesTodos.filter(c => [c.nombre, c.cuit_dni, c.telefono].join(" ").toLowerCase().includes(cargarDeuda.busca.trim().toLowerCase())).slice(0, 8).map(c => (
+                      <button key={c.id} type="button" onClick={() => setCargarDeuda(d => ({ ...d, cliente: c }))} style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 10px", background: "transparent", border: "none", borderBottom: "1px solid " + temaPal.border, cursor: "pointer", color: temaPal.text, fontFamily: "inherit", fontSize: 12.5 }}>
+                        <b>{c.nombre}</b> <span style={{ color: temaPal.textMuted }}>{c.cuit_dni || ""} {c.telefono || ""}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize: 13, marginBottom: 10 }}>Cliente: <b>{cargarDeuda.cliente.nombre}</b> <button className="chip-btn" onClick={() => setCargarDeuda(d => ({ ...d, cliente: null }))}>cambiar</button></div>
+                <div className="fg"><div className="fl">Cuánto debe</div><input className="inp" type="number" min="0" autoFocus value={cargarDeuda.importe} onChange={e => setCargarDeuda(d => ({ ...d, importe: e.target.value }))} /></div>
+                <div className="fg"><div className="fl">Nota</div><input className="inp" value={cargarDeuda.nota} onChange={e => setCargarDeuda(d => ({ ...d, nota: e.target.value }))} /></div>
+                <button className="btn btn-p" style={{ width: "100%" }} disabled={!(parseFloat(cargarDeuda.importe) > 0) || !cargarDeuda.nota.trim()} onClick={async () => {
+                  try {
+                    await API.post("/cuenta-corriente/cliente/" + cargarDeuda.cliente.id + "/ajuste", { importe: parseFloat(cargarDeuda.importe), nota: cargarDeuda.nota, local_id: localId });
+                    avisar(true, "✓ Se cargó la deuda de " + cargarDeuda.cliente.nombre); setCargarDeuda(null); cargar();
+                  } catch (e) { avisar(false, e.response?.data?.error || "No se pudo cargar"); }
+                }}>Guardar</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Ventana con la cuenta de un cliente: cobrar, límite, ajustes y movimientos
+function CuentaDeCliente({ cuenta, medios, esJefe, localId, temaPal, onCerrar, onCambio }) {
+  const [importe, setImporte] = useState(cuenta.saldo > 0 ? String(cuenta.saldo) : "");
+  const [medioId, setMedioId] = useState(() => (medios.find(m => m.tipo === "efectivo") || medios[0] || {}).id || "");
+  const [nota, setNota] = useState("");
+  const [limite, setLimite] = useState(cuenta.limite === null ? "" : String(cuenta.limite));
+  const [ajuste, setAjuste] = useState(null); // { importe, nota }
+  const [error, setError] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const medio = medios.find(m => String(m.id) === String(medioId));
+  const cobrar = async () => {
+    setGuardando(true); setError("");
+    try {
+      const r = await API.post("/cuenta-corriente/cliente/" + cuenta.id + "/pago", { importe: parseFloat(importe), medio_pago_id: medioId || null, medio_pago_nombre: medio?.nombre, nota, local_id: localId });
+      setNota("");
+      onCambio("✓ Cobro registrado: " + fmt(parseFloat(importe)) + (r.data.a_caja ? " (entró a la caja)" : "") + ". Le queda " + fmt(r.data.saldo) + ".");
+    } catch (e) { setError(e.response?.data?.error || "No se pudo registrar el cobro"); }
+    setGuardando(false);
+  };
+  const guardarLimite = async () => {
+    try { await API.put("/cuenta-corriente/cliente/" + cuenta.id + "/limite", { limite }); onCambio(limite === "" ? "✓ Sin límite de crédito" : "✓ Límite guardado: " + fmt(parseFloat(limite))); }
+    catch (e) { setError(e.response?.data?.error || "No se pudo guardar el límite"); }
+  };
+  const guardarAjuste = async () => {
+    try { await API.post("/cuenta-corriente/cliente/" + cuenta.id + "/ajuste", { importe: parseFloat(ajuste.importe), nota: ajuste.nota, local_id: localId }); setAjuste(null); onCambio("✓ Ajuste guardado"); }
+    catch (e) { setError(e.response?.data?.error || "No se pudo guardar el ajuste"); }
+  };
+  const fecha = (f) => new Date(f).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+  const detalle = (m) => m.tipo === "cargo" ? "Compra " + (m.numero_factura || "") : m.tipo === "pago" ? "Pago" + (m.medio_pago ? " · " + m.medio_pago : "") : "Ajuste";
+
+  return (
+    <div className="pos-overlay" onClick={onCerrar}>
+      <div className="card pop-in" role="dialog" aria-label={"Cuenta de " + cuenta.nombre} style={{ width: 620, maxWidth: "96vw", maxHeight: "92vh", overflowY: "auto", background: temaPal.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 800 }}>{cuenta.nombre}</div>
+            <div style={{ fontSize: 12, color: temaPal.textMuted }}>{cuenta.telefono || "sin teléfono"}{cuenta.deuda_desde ? " · debe desde el " + fecha(cuenta.deuda_desde) : ""}</div>
+          </div>
+          <button onClick={onCerrar} aria-label="Cerrar" style={{ background: "transparent", border: "none", fontSize: 18, cursor: "pointer", color: temaPal.textMuted }}>✕</button>
+        </div>
+        <div style={{ fontSize: 26, fontWeight: 900, margin: "10px 0 14px", color: cuenta.saldo > 0.009 ? temaPal.text : "#2d7a4f", fontVariantNumeric: "tabular-nums" }}>
+          {cuenta.saldo > 0.009 ? "Debe " + fmt(cuenta.saldo) : cuenta.saldo < -0.009 ? "A favor " + fmt(-cuenta.saldo) : "Está al día"}
+        </div>
+        {error && <div role="alert" style={{ background: temaPal.redDim, border: "1px solid " + temaPal.red, borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, marginBottom: 10 }}>{error}</div>}
+
+        {cuenta.saldo > 0.009 && (
+          <div style={{ background: temaPal.bg, borderRadius: 10, padding: 12, marginBottom: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 8 }}>💵 Registrar un pago</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div className="fg" style={{ marginBottom: 0 }}><div className="fl">Importe</div><input className="inp" type="number" min="0" value={importe} onChange={e => setImporte(e.target.value)} /></div>
+              <div className="fg" style={{ marginBottom: 0 }}><div className="fl">Cómo pagó</div>
+                <select className="sel" value={medioId} onChange={e => setMedioId(e.target.value)}>{medios.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}</select></div>
+            </div>
+            <input className="inp" style={{ marginTop: 8 }} placeholder="Nota (opcional)" value={nota} onChange={e => setNota(e.target.value)} />
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8, alignItems: "center" }}>
+              <button className="chip-btn" onClick={() => setImporte(String(cuenta.saldo))}>Todo ({fmt(cuenta.saldo)})</button>
+              <button className="chip-btn" onClick={() => setImporte(String(Math.round(cuenta.saldo / 2)))}>La mitad</button>
+              <span style={{ flex: 1 }} />
+              <button className="btn btn-p btn-sm" disabled={guardando || !(parseFloat(importe) > 0)} onClick={cobrar}>{guardando ? "Guardando..." : "Registrar pago"}</button>
+            </div>
+            {medio && (medio.tipo === "efectivo" || /efectivo/i.test(medio.nombre)) && <div style={{ fontSize: 10.5, color: temaPal.textMuted, marginTop: 6 }}>En efectivo: entra a la caja de hoy y se cuenta en el cierre.</div>}
+          </div>
+        )}
+
+        {esJefe && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 12 }}>
+            <div className="fg" style={{ marginBottom: 0, flex: "1 1 180px" }}>
+              <div className="fl">Límite de crédito</div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input className="inp" type="number" min="0" placeholder="Sin límite" value={limite} onChange={e => setLimite(e.target.value)} />
+                <button className="btn btn-g btn-sm" onClick={guardarLimite}>Guardar</button>
+              </div>
+            </div>
+            {!ajuste && <button className="chip-btn" onClick={() => setAjuste({ importe: "", nota: "" })}>Ajustar saldo</button>}
+          </div>
+        )}
+        {ajuste && (
+          <div style={{ background: temaPal.bg, borderRadius: 10, padding: 12, marginBottom: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 4 }}>Ajustar saldo</div>
+            <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 8 }}>Positivo suma deuda (ej: deuda anterior); negativo la baja (ej: corregir un error). Para un pago usá "Registrar un pago".</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 8 }}>
+              <input className="inp" type="number" placeholder="Ej: 5000 o -500" value={ajuste.importe} onChange={e => setAjuste(a => ({ ...a, importe: e.target.value }))} />
+              <input className="inp" placeholder="Motivo" value={ajuste.nota} onChange={e => setAjuste(a => ({ ...a, nota: e.target.value }))} />
+            </div>
+            <div style={{ display: "flex", gap: 6, marginTop: 8, justifyContent: "flex-end" }}>
+              <button className="btn btn-g btn-sm" onClick={() => setAjuste(null)}>Cancelar</button>
+              <button className="btn btn-p btn-sm" disabled={!parseFloat(ajuste.importe) || !ajuste.nota.trim()} onClick={guardarAjuste}>Guardar ajuste</button>
+            </div>
+          </div>
+        )}
+
+        <div className="ct">Movimientos</div>
+        {cuenta.movimientos.length === 0 ? <div className="empty" style={{ padding: 16 }}>Sin movimientos.</div> : cuenta.movimientos.map(m => {
+          const suma = m.tipo !== "pago" && parseFloat(m.importe) > 0;
+          return (
+            <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: "1px solid " + temaPal.border, opacity: m.anulado ? 0.5 : 1 }}>
+              <div style={{ fontSize: 11, color: temaPal.textMuted, width: 62, fontVariantNumeric: "tabular-nums" }}>{fecha(m.creado_en)}</div>
+              <div style={{ flex: 1, minWidth: 0, fontSize: 12.5 }}>
+                <span style={{ textDecoration: m.anulado ? "line-through" : "none" }}>{detalle(m)}</span>
+                {(m.nota || m.usuario_nombre) && <div style={{ fontSize: 10.5, color: temaPal.textMuted }}>{[m.nota, m.usuario_nombre].filter(Boolean).join(" · ")}</div>}
+              </div>
+              <div style={{ fontWeight: 700, fontSize: 13, fontVariantNumeric: "tabular-nums", color: m.anulado ? temaPal.textMuted : suma ? temaPal.red : "#2d7a4f", whiteSpace: "nowrap" }}>{suma ? "+" : "−"}{fmt(Math.abs(parseFloat(m.importe)))}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function Kits({ paletaActual, localId }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [kits, setKits] = useState([]);
@@ -19497,6 +19773,7 @@ const NAV_SECTIONS = [
     { id: "comprobantes", icon: "🧾", label: "Comprobantes", k: "facturas tickets arca afip" }] },
   { section: "CLIENTES", color: "var(--acento-texto)", items: [
     { id: "clients", icon: "👥", label: "Clientes", k: "clientas niveles" },
+    { id: "cuenta-corriente", icon: "📒", label: "Cuenta corriente", k: "fiado deuda deben cobrar saldo credito libreta" },
     { id: "pedidos", icon: "📬", label: "Pedidos", k: "encargos espera avisar" },
     { id: "fidelizacion", icon: "⭐", label: "Fidelización", k: "puntos canjes" },
     { id: "portal", icon: "📱", label: "Portal Cliente", k: "premios diseño portal" },
@@ -21186,7 +21463,7 @@ export default function AppWrapper() {
         const ordenPrioridad = ["pos", "ventas-online", "clients", "inventory", "caja"];
         const mapaModulos2 = {
           "pos": "pos.ver", "ventas-online": "ventas_online.ver", "inventory": "inventario.ver",
-          "clients": "clientes.ver", "caja": "caja.ver"
+          "clients": "clientes.ver", "cuenta-corriente": "clientes.ver", "caja": "caja.ver"
         };
         const disponible = ordenPrioridad.find(id => !mapaModulos2[id] || permisos.includes(mapaModulos2[id]));
         setPage(disponible || "pos");
@@ -21202,7 +21479,7 @@ export default function AppWrapper() {
       "ventas-online": "ventas_online.ver", "buscar-precio": "buscar_precio.ver", "cambio-devolucion": "cambios.ver",
       "inventory": "inventario.ver", "rotacion": "rotacion.ver", "ordenes": "ordenes.ver", "inconsistencias": "inconsistencias.ver", "kits": "kits.ver", "etiquetas": "inventario.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
       "compras": "compras.ver", "reclamos-proveedores": "compras.ver",
-      "clients": "clientes.ver", "pedidos": "pedidos.ver", "fidelizacion": "fidelizacion.ver", "tareas": "tareas.ver",
+      "clients": "clientes.ver", "cuenta-corriente": "clientes.ver", "pedidos": "pedidos.ver", "fidelizacion": "fidelizacion.ver", "tareas": "tareas.ver",
       "finance": "finanzas.flujo", "decisiones": "decisiones.ver", "gerente": "gerente.ver", "comprobantes": "comprobantes.ver",
       "comisiones": "comisiones.propias", "proveedores": "proveedores.ver",
       "calculadoras": "calculadoras.ver", "productividad": "productividad.ver",
@@ -21279,6 +21556,7 @@ export default function AppWrapper() {
     if (id === "plataforma") return adminPlataforma ? <PanelPlataforma paletaActual={paletaActual} /> : <SinPermiso />;
     if (id === "inventory") return <Inventario localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "clients") return <Clientes usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "cuenta-corriente") return <CuentaCorriente paletaActual={paletaActual} localId={local.id} usuario={usuario} />;
     if (id === "pedidos") return <Pedidos localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "finance") return <Finanzas localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "decisiones") return <TuGerente localId={local.id} usuario={usuario} paletaActual={paletaActual} tabInicial="decisiones" />;
