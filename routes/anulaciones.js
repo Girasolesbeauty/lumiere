@@ -66,6 +66,12 @@ router.post('/venta/:id', async (req, res) => {
       ['Venta ' + venta.numero_factura]
     );
 
+    // Si se habia vendido en cuenta corriente, esa deuda se cancela
+    const hayCC = await client.query(`SELECT to_regclass('cc_movimientos') AS t`);
+    if (hayCC.rows[0].t) {
+      await client.query(`UPDATE cc_movimientos SET anulado = TRUE, nota = COALESCE(nota || ' · ', '') || 'Venta anulada' WHERE venta_id = $1 AND anulado = FALSE`, [venta.id]);
+    }
+
     if (venta.cliente_id && parseFloat(venta.total) > 0) {
       const puntosDevolver = Math.floor(parseFloat(venta.total) / 100);
       await client.query(
