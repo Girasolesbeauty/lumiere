@@ -3002,7 +3002,8 @@ function POS({ localId, usuario, paletaActual }) {
   // ---- Modo de vista del POS (cada dispositivo recuerda el suyo) ----
   const [modoVista, setModoVistaState] = useState(() => {
     try { const g = localStorage.getItem("lumiere_pos_modo"); if (g) return g; } catch (e) {}
-    return (typeof window !== "undefined" && window.innerWidth < 700) ? "celular" : "clasico";
+    // Bares y restaurantes arrancan en Catalogo (botones grandes con foto)
+    return (typeof window !== "undefined" && window.innerWidth < 700) ? "celular" : GASTRO_ACTIVO ? "catalogo" : "clasico";
   });
   const setModoVista = (m) => { setModoVistaState(m); try { localStorage.setItem("lumiere_pos_modo", m); } catch (e) {} };
   const [catalogoCat, setCatalogoCat] = useState("");
@@ -12627,6 +12628,7 @@ function CuentaMesa({ inicial, localId, usuario, paletaActual, mesas, onVolver }
   const esJefeG = ["jefe", "admin", "administrativo"].includes(usuario?.rol);
   const [c, setC] = useState(inicial);
   const [productos, setProductos] = useState([]);
+  const [fotos, setFotos] = useState({});
   const [cat, setCat] = useState("");
   const [busca, setBusca] = useState("");
   const [cfg, setCfg] = useState({});
@@ -12643,6 +12645,7 @@ function CuentaMesa({ inicial, localId, usuario, paletaActual, mesas, onVolver }
     API.get("/productos?local=" + (Number(localId) === 2 ? "ush" : "rg") + "&estado=activos").then(r => setProductos((r.data || []).filter(p => p.activo !== false))).catch(() => {});
     API.get("/gastro/estado").then(r => setCfg(r.data || {})).catch(() => {});
     API.get("/configuracion").then(r => setNegocio(r.data?.nombre_negocio || "")).catch(() => {});
+    API.get("/productos/imagenes/todas").then(r => { const m = {}; (r.data || []).forEach(x => { m[x.producto_id] = x.imagen; }); setFotos(m); }).catch(() => {});
     const t = setInterval(() => { if (!document.hidden) recargar(); }, 8000);
     return () => clearInterval(t);
   }, []);
@@ -12682,6 +12685,7 @@ function CuentaMesa({ inicial, localId, usuario, paletaActual, mesas, onVolver }
   const cats = [...new Set(productos.map(p => p.categoria).filter(Boolean))].sort();
   const q = busca.trim().toLowerCase();
   const visibles = productos.filter(p => (!cat || p.categoria === cat) && (!q || [p.nombre, p.marca, p.codigo_barras].some(v => (v || "").toLowerCase().includes(q)))).slice(0, 60);
+  const conFotos = Object.keys(fotos).length > 0; // si hay fotos, los que no tienen muestran sus iniciales
   const totalSel = sinCobrar.filter(i => sel[i.id]).reduce((t, i) => t + i.cantidad * i.precio, 0);
   const mesasLibres = mesas.filter(m => !m.cuenta && m.id !== c.mesa_id);
   const ESTADO_ITEM = { pendiente: ["Sin mandar", "tag-bad"], en_cocina: ["🔥 En cocina", "tag-neutral"], listo: ["✅ Listo", "tag-warn"], anulado: ["Anulado", "tag-neutral"] };
@@ -12716,9 +12720,11 @@ function CuentaMesa({ inicial, localId, usuario, paletaActual, mesas, onVolver }
           )}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 8, marginTop: 10, maxHeight: 520, overflowY: "auto" }}>
             {visibles.map(p => (
-              <button key={p.id} className="chip-btn" disabled={ocupado} onClick={() => agregar(p)} style={{ borderRadius: 10, padding: "10px 10px", textAlign: "left", whiteSpace: "normal", display: "flex", flexDirection: "column", gap: 3, minHeight: 64 }}>
-                <span style={{ fontWeight: 700, fontSize: 12.5 }}>{p.nombre}</span>
-                <span style={{ fontWeight: 800, color: temaPal.accentText }}>{fmt(parseFloat(p.precio) || 0)}</span>
+              <button key={p.id} className="chip-btn" disabled={ocupado} onClick={() => agregar(p)} style={{ borderRadius: 10, padding: conFotos ? "0 0 8px" : "10px 10px", textAlign: "left", whiteSpace: "normal", display: "flex", flexDirection: "column", gap: 3, minHeight: 64, overflow: "hidden" }}>
+                {fotos[p.id] ? <img src={fotos[p.id]} alt="" loading="lazy" style={{ width: "100%", height: 86, objectFit: "cover", marginBottom: 4 }} />
+                  : conFotos ? <div aria-hidden="true" style={{ width: "100%", height: 86, marginBottom: 4, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 800, color: temaPal.textMuted, background: temaPal.bg }}>{(p.nombre || "").split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase()}</div> : null}
+                <span style={{ fontWeight: 700, fontSize: 12.5, padding: conFotos ? "0 8px" : 0 }}>{p.nombre}</span>
+                <span style={{ fontWeight: 800, color: temaPal.accentText, padding: conFotos ? "0 8px" : 0 }}>{fmt(parseFloat(p.precio) || 0)}</span>
               </button>
             ))}
             {visibles.length === 0 && <div className="empty">No hay productos con ese nombre.</div>}
