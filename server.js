@@ -83,6 +83,7 @@ app.use('/api/listas-precios', require('./routes/listas-precios'));
 app.use('/api/presupuestos', require('./routes/presupuestos'));
 app.use('/api/vencimientos', require('./routes/vencimientos'));
 app.use('/api/mercadopago', require('./routes/mercadopago'));
+app.use('/api/gastro', require('./routes/gastro'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {

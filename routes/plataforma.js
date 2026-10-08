@@ -5,6 +5,7 @@ const pool = require('../config/database');
 const negocios = require('../lib/negocios');
 const { enNegocio } = require('../lib/contexto');
 const { nombreSchemaValido } = require('../lib/estructura');
+const modulos = require('../lib/modulos');
 
 // Panel de la plataforma: lo usa solo quien administra Lumiere (no los clientes). Desde aca
 // se ven todos los negocios, se crean nuevos, se activan cuando pagan, se les da mas dias de
@@ -51,6 +52,7 @@ router.get('/negocios', soloAdmin, async (req, res) => {
         creado_en: n.creado_en, activado_en: n.activado_en, usuarios: n.usuarios, original: Number(n.id) === 1,
         terminos: acept[n.id] ? { version: acept[n.id].version, aceptado_en: acept[n.id].aceptado_en, email: acept[n.id].email } : null,
         ...(await actividad(n)),
+        modulos: nombreSchemaValido(n.schema) ? await enNegocio({ id: n.id, schema: n.schema }, () => modulos.leer()).catch(() => null) : null,
       });
     }
     res.json(out);
@@ -103,6 +105,21 @@ router.put('/negocios/:id', soloAdmin, async (req, res) => {
   } catch (e) {
     console.error('[plataforma] cambio:', e.message);
     res.status(500).json({ error: 'No se pudo guardar el cambio' });
+  }
+});
+
+// Actividad y modulos de un negocio (ej: prenderle Mesas y Cocina a un bar)
+router.get('/actividades', soloAdmin, (req, res) => res.json(Object.entries(modulos.ACTIVIDADES).map(([id, a]) => ({ id, nombre: a.nombre }))));
+router.put('/negocios/:id/modulos', soloAdmin, async (req, res) => {
+  try {
+    const n = await negocios.negocioPorId(Number(req.params.id));
+    if (!n || !nombreSchemaValido(n.schema)) return res.status(404).json({ error: 'Negocio no encontrado' });
+    const b = req.body || {};
+    const m = await enNegocio({ id: n.id, schema: n.schema }, () => modulos.guardar({ actividad: b.actividad, gastronomia: b.gastronomia }));
+    res.json(m);
+  } catch (e) {
+    console.error('[plataforma] modulos:', e.message);
+    res.status(500).json({ error: 'No se pudieron guardar los módulos' });
   }
 });
 

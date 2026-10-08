@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
 const { porNegocio, enNegocio, negocioActual } = require('../lib/contexto');
 const negocios = require('../lib/negocios');
+const modulos = require('../lib/modulos');
 const legal = require('../legal/textos');
 
 // Usuarios que se pueden desactivar (no entran, se pueden reactivar) o eliminar (desaparecen de
@@ -156,7 +157,8 @@ router.get('/bienvenida', async (req, res) => {
   try {
     const c = (await pool.query('SELECT * FROM configuracion_negocio WHERE id = 1')).rows[0] || {};
     const locales = (await pool.query('SELECT id, nombre, direccion FROM locales ORDER BY id LIMIT 2')).rows;
-    res.json({ nombre_negocio: c.nombre_negocio || '', logo_url: c.logo_url || '', moneda: (c.moneda && c.moneda.codigo) || 'ARS', locales });
+    const m = await modulos.leer().catch(() => ({}));
+    res.json({ nombre_negocio: c.nombre_negocio || '', logo_url: c.logo_url || '', moneda: (c.moneda && c.moneda.codigo) || 'ARS', locales, actividad: m.actividad || null });
   } catch (e) {
     res.status(500).json({ error: 'No se pudieron cargar los datos del negocio' });
   }
@@ -200,6 +202,10 @@ router.post('/bienvenida', async (req, res) => {
     return res.status(500).json({ error: 'No se pudieron guardar los datos. Probá de nuevo.' });
   } finally {
     client.release();
+  }
+  // Actividad del negocio: prende los modulos que corresponden (ej: gastronomia -> Mesas y Cocina)
+  if (b.actividad && modulos.ACTIVIDADES[b.actividad]) {
+    try { await modulos.guardar({ actividad: b.actividad }); } catch (e) { console.error('[bienvenida] modulos:', e.message); }
   }
   try { await negocios.marcarBienvenida(negId, nombre); } catch (e) { console.error('[bienvenida] central:', e.message); }
   res.json({ ok: true });
