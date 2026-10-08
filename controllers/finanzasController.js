@@ -384,6 +384,38 @@ const getMiUltimoEgreso = async (req, res) => {
   }
 };
 
+// Costos fijos para el punto de equilibrio. En un mes cerrado se usan los que se cargaron.
+// En el mes en curso, a principio de mes todavia no se cargaron (alquiler, sueldos...), y el
+// punto de equilibrio daba casi cero ("ya llegaste"). Por eso, en el mes en curso cada rubro
+// usa el promedio de los ultimos 3 meses con gastos, o lo cargado si ya es mas.
+const RUBROS_FIJOS = [['fijos', 'Costos fijos'], ['admin', 'Gastos administrativos'], ['sueldos', 'Sueldos'], ['impuestos', 'Impuestos']];
+async function costosFijosParaEquilibrio(est, mes, anio, local_id, esMesActual, anteriores) {
+  const detalle = {};
+  const registrado = {};
+  RUBROS_FIJOS.forEach(([k, nombre]) => { registrado[nombre] = (est[k] && est[k].total) || 0; });
+  if (!esMesActual) {
+    const total = Object.values(registrado).reduce((a, b) => a + b, 0);
+    return { total, detalle: registrado, estimado: false };
+  }
+  // Los 3 meses anteriores (se pueden pasar ya calculados)
+  let prev = anteriores;
+  if (!prev) {
+    prev = await Promise.all([1, 2, 3].map(i => {
+      const d = new Date(anio, mes - 1 - i, 1);
+      return calcularFlujoEstructurado(d.getMonth() + 1, d.getFullYear(), local_id);
+    }));
+  }
+  const conGastos = prev.filter(e => e && RUBROS_FIJOS.some(([k]) => ((e[k] && e[k].total) || 0) > 0));
+  let estimado = false;
+  RUBROS_FIJOS.forEach(([k, nombre]) => {
+    const prom = conGastos.length ? conGastos.reduce((a, e) => a + ((e[k] && e[k].total) || 0), 0) / conGastos.length : 0;
+    if (prom > registrado[nombre]) estimado = true;
+    detalle[nombre] = Math.max(registrado[nombre], prom);
+  });
+  const total = Object.values(detalle).reduce((a, b) => a + b, 0);
+  return { total, detalle, registrado: Object.values(registrado).reduce((a, b) => a + b, 0), estimado, meses_promedio: conGastos.length };
+}
+
 // Punto de equilibrio del mes elegido (antes siempre miraba el mes actual y todos los locales).
 // Costos que no dependen de cuanto se vende (fijos, administrativos, sueldos, impuestos)
 // divididos por el margen de contribucion (margen bruto de lo vendido menos lo que se
@@ -418,21 +450,24 @@ const getPuntoEquilibrio = async (req, res) => {
     const pctComisiones = est.total_ventas > 0 ? est.comisiones_medios_pago.total / est.total_ventas : 0;
     const margenContribucion = Math.max(0, margenBruto - pctComisiones);
 
-    const costosFijos = est.fijos.total + est.admin.total + est.sueldos.total + est.impuestos.total;
-    const puntoEquilibrio = margenContribucion > 0 ? costosFijos / margenContribucion : 0;
-    const ventas = est.ingresos.total;
-
     // Proyeccion a fin de mes (solo para el mes en curso), al ritmo de venta actual
     const ahoraAR = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }));
     const diasMes = new Date(anio, mes, 0).getDate();
     const esMesActual = ahoraAR.getFullYear() === anio && ahoraAR.getMonth() + 1 === mes;
+
+    const cf = await costosFijosParaEquilibrio(est, mes, anio, req.query.local_id, esMesActual);
+    const costosFijos = cf.total;
+    const puntoEquilibrio = margenContribucion > 0 ? costosFijos / margenContribucion : 0;
+    const ventas = est.ingresos.total;
     const diasTranscurridos = esMesActual ? ahoraAR.getDate() : diasMes;
     const proyeccion = esMesActual && diasTranscurridos > 0 ? ventas / diasTranscurridos * diasMes : ventas;
 
     res.json({
       mes, anio,
       costos_fijos: costosFijos,
-      costos_fijos_detalle: { 'Costos fijos': est.fijos.total, 'Gastos administrativos': est.admin.total, 'Sueldos': est.sueldos.total, 'Impuestos': est.impuestos.total },
+      costos_fijos_detalle: cf.detalle,
+      costos_estimados: cf.estimado,
+      costos_registrados: cf.registrado !== undefined ? cf.registrado : costosFijos,
       margen_bruto_pct: +(margenBruto * 100).toFixed(1),
       comisiones_pct: +(pctComisiones * 100).toFixed(1),
       margen_promedio: +(margenContribucion * 100).toFixed(1),
@@ -885,7 +920,8 @@ const getMedallas = async (req, res) => {
       const margenBruto = ingItems > 0 ? (ingItems - num(mg.costos)) / ingItems : 0;
       const pctComisiones = est.total_ventas > 0 ? est.comisiones_medios_pago.total / est.total_ventas : 0;
       const margenContribucion = Math.max(0, margenBruto - pctComisiones);
-      const costosFijos = est.fijos.total + est.admin.total + est.sueldos.total + est.impuestos.total;
+      const costosFijos = (await costosFijosParaEquilibrio(est, deClave(k).mes, deClave(k).anio, req.query.local_id, !cerrado,
+        [estados[k - 1], estados[k - 2], estados[k - 3]].every(Boolean) ? [estados[k - 1], estados[k - 2], estados[k - 3]] : undefined)).total;
       const pe = costosFijos > 0 && margenContribucion > 0 ? costosFijos / margenContribucion : 0;
 
       let diaEquilibrio = null;
