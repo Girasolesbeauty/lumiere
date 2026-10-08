@@ -81,6 +81,7 @@ app.use('/api/precios-masivos', require('./routes/precios-masivos'));
 app.use('/api/cuenta-corriente', require('./routes/cuenta-corriente'));
 app.use('/api/listas-precios', require('./routes/listas-precios'));
 app.use('/api/presupuestos', require('./routes/presupuestos'));
+app.use('/api/vencimientos', require('./routes/vencimientos'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {
