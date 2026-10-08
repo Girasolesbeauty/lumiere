@@ -2901,6 +2901,8 @@ function POS({ localId, usuario, paletaActual }) {
   const [gcAplicada, setGcAplicada] = useState(null);
   const [gcMsg, setGcMsg] = useState("");
   const [dniInput, setDniInput] = useState("");
+  const [cobroMP, setCobroMP] = useState(null); // { monto } mientras se muestra el QR de Mercado Pago
+  const mpPagoRef = useRef(null); // { payment_id, monto } pago aprobado que todavia no se registro como venta
   const [tipoFac, setTipoFac] = useState("B");
   const [productos, setProductos] = useState([]);
   const [kitsPos, setKitsPos] = useState([]);
@@ -3836,6 +3838,13 @@ function POS({ localId, usuario, paletaActual }) {
       if (pagoPreventa > total + 0.5) return setMensaje("⚠️ Lo que paga ahora no puede ser mayor al total (" + fmt(total) + ")");
       if (pagoPreventa > 0 && !senaMedioPagoId) return setMensaje("⚠️ Elegí con qué medio de pago pagó");
     }
+    // Mercado Pago (QR): primero se cobra con el QR y recien cuando se aprueba se registra la venta
+    if (!preventa && !pagoMixto && restaPagar > 0 && medioPagoSel?.mp_qr) {
+      const yaPago = mpPagoRef.current;
+      if (!yaPago) { setCobroMP({ monto: Math.round(restaPagar * 100) / 100 }); return; }
+      if (Math.abs(yaPago.monto - restaPagar) >= 0.01) return setMensaje("⚠️ El cliente ya pagó " + fmt(yaPago.monto) + " por Mercado Pago (pago N° " + yaPago.payment_id + ") y el total ahora es " + fmt(restaPagar) + ". Dejá el ticket como estaba para registrar la venta.");
+    }
+    const mpPago = medioPagoSel?.mp_qr && !pagoMixto ? mpPagoRef.current : null;
     const conPagoAhora = preventa && (tipoReserva === "sena" || pagoPreventa > 0);
     setLoading(true);
     try {
@@ -3855,10 +3864,11 @@ function POS({ localId, usuario, paletaActual }) {
         sena_referencia: conPagoAhora ? (tipoReserva === "sena" ? "Seña " : "Pago preventa ") + nombrePreventa : null,
         monto_gift_card: montoAplicadoGC,
         insumos_usados: (!preventa && insumosPosActivo) ? Object.values(insumosSel).filter(v => v && v !== "ninguna").map(v => parseInt(v)) : [],
-        referencia: referenciaVenta || null,
+        referencia: (mpPago ? "Mercado Pago " + mpPago.payment_id : referenciaVenta) || null,
         usuario_id: usuario?.id || null, usuario_nombre: usuario?.nombre || null,
         justificaciones_stock: justificacionesStock
       });
+      if (mpPago) mpPagoRef.current = null;
       // Si la venta salio de un presupuesto, queda marcado como vendido (aunque despues falle ARCA)
       const presuId = (cart.find(i => i.presupuesto_id) || {}).presupuesto_id;
       if (presuId) API.put("/presupuestos/" + presuId + "/vendido", { venta_id: ventaRes.data.id }).catch(() => {});
@@ -3921,6 +3931,7 @@ function POS({ localId, usuario, paletaActual }) {
       } else {
         setMensaje("Error al emitir factura: " + (error?.response?.data?.error || error?.message || "desconocido"));
       }
+      if (mpPago) setMensaje(m => m + " · El cliente YA PAGÓ por Mercado Pago (pago N° " + mpPago.payment_id + "): corregí y tocá Cobrar de nuevo, no se le vuelve a cobrar.");
       console.error("DETALLE FACTURA:", error);
     }
     setLoading(false);
@@ -4706,7 +4717,7 @@ function POS({ localId, usuario, paletaActual }) {
                 { id: "debito", ic: "💳", l: "Débito" },
                 { id: "transferencia", ic: "🏦", l: "Transfer." },
                 { id: "credito", ic: "💳", l: "Crédito" },
-                { id: "plataforma", ic: "📱", l: "Otros" },
+                { id: "plataforma", ic: "📱", l: mediosPago.filter(m => m.tipo === "plataforma").every(m => m.mp_qr) ? "QR MP" : "Otros" },
                 { id: "cuenta_corriente", ic: "📒", l: "Cuenta cte." },
               ].filter(t => mediosPago.some(m => m.tipo === t.id));
               const tipoActivo = tipoPagoAbierto || medioPagoSel?.tipo || "";
@@ -4782,6 +4793,9 @@ function POS({ localId, usuario, paletaActual }) {
                             : <>📒 <b>{clienteSeleccionado.nombre}</b> {ccCliente.saldo > 0 ? <>debe <b>{fmt(ccCliente.saldo)}</b></> : "no debe nada"}{" · con esta venta: "}<b>{fmt(Math.max(0, ccCliente.saldo) + restaPagar)}</b>
                               {ccCliente.limite !== null && <span style={{ color: Math.max(0, ccCliente.saldo) + restaPagar > ccCliente.limite ? temaPal.red : temaPal.textMuted }}> (límite {fmt(ccCliente.limite)})</span>}</>}
                         </div>
+                      )}
+                      {medioPagoSel?.mp_qr && (
+                        <div className="pop-in" style={{ fontSize: 11.5, marginTop: 6, padding: "8px 10px", borderRadius: 8, background: temaPal.bg, color: temaPal.text }}>📲 Al tocar <b>Cobrar</b> aparece un QR con el importe: el cliente lo escanea con el celular y paga. La venta se registra sola cuando Mercado Pago la aprueba.</div>
                       )}
                       {medioPagoSel && (
                         <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 6 }}>Elegido: <b style={{ color: temaPal.text }}>{medioPagoSel.nombre}</b>{medioPagoSel.con_interes ? <span style={{ color: temaPal.red }}> · con interés</span> : ""}</div>
@@ -5448,6 +5462,11 @@ function POS({ localId, usuario, paletaActual }) {
         </div>
       )}
 
+      {cobroMP && (
+        <CobroMercadoPago monto={cobroMP.monto} telefono={clienteSeleccionado?.telefono} localId={localId} paletaActual={temaPal}
+          onPagado={(pago) => { mpPagoRef.current = { payment_id: pago.payment_id, monto: cobroMP.monto }; setCobroMP(null); setTimeout(() => emitirFactura(), 0); }}
+          onCancelar={() => setCobroMP(null)} />
+      )}
       {itemsSinStock && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
           <div className="card" style={{ width: 440, background: temaPal.card }}>
@@ -12381,6 +12400,154 @@ function ConfigRespaldo({ p }) {
   );
 }
 
+// ===================== MERCADO PAGO =====================
+// Ventana del Punto de Venta con el QR de Mercado Pago: crea el cobro, muestra el QR y pregunta
+// cada 3 segundos si ya se pago. Cuando se aprueba llama a onPagado (y ahi se registra la venta).
+function CobroMercadoPago({ monto, telefono, localId, paletaActual, onPagado, onCancelar }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const [cobro, setCobro] = useState(null);
+  const [estado, setEstado] = useState("creando"); // creando | esperando | aprobado | error
+  const [error, setError] = useState("");
+  const [intento, setIntento] = useState(null);
+  const [copiado, setCopiado] = useState(false);
+  const vivo = useRef(true);
+  const iniciado = useRef(false);
+  const crear = () => {
+    setEstado("creando"); setError("");
+    API.post("/mercadopago/cobros", { monto, local_id: localId || 1 })
+      .then(r => { if (vivo.current) { setCobro(r.data); setEstado("esperando"); } })
+      .catch(e => { if (vivo.current) { setError(e.response?.data?.error || "No se pudo crear el cobro"); setEstado("error"); } });
+  };
+  useEffect(() => {
+    vivo.current = true;
+    if (!iniciado.current) { iniciado.current = true; crear(); } // una sola vez (no crear dos cobros)
+    return () => { vivo.current = false; };
+  }, []);
+  useEffect(() => {
+    if (estado !== "esperando" || !cobro) return;
+    const t = setInterval(() => {
+      API.get("/mercadopago/cobros/" + cobro.id).then(r => {
+        if (!vivo.current) return;
+        if (r.data.estado === "aprobado") {
+          setEstado("aprobado");
+          setTimeout(() => { if (vivo.current) onPagado(r.data); }, 900);
+        } else setIntento(r.data.intento || null);
+      }).catch(() => {});
+    }, 3000);
+    return () => clearInterval(t);
+  }, [estado, cobro]);
+  const cancelar = () => {
+    if (cobro && estado === "esperando") API.post("/mercadopago/cobros/" + cobro.id + "/cancelar").catch(() => {});
+    onCancelar();
+  };
+  const mandarWhatsApp = () => {
+    const texto = "Te paso el link para pagar " + fmt(monto) + " con Mercado Pago: " + cobro.link;
+    window.open(linkWhatsapp(telefono, texto) || ("https://wa.me/?text=" + encodeURIComponent(texto)), "_blank");
+  };
+  const copiar = () => { try { navigator.clipboard.writeText(cobro.link); setCopiado(true); setTimeout(() => setCopiado(false), 2000); } catch (e) {} };
+  const rechazado = intento && ["rejected", "cancelled"].includes(intento.status);
+  return (
+    <div className="pos-overlay" onClick={e => e.stopPropagation()}>
+      <div className="card pop-in" role="dialog" aria-label="Cobro con Mercado Pago" style={{ width: 400, maxWidth: "95vw", maxHeight: "92vh", overflowY: "auto", background: temaPal.card, textAlign: "center" }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: temaPal.textMuted, letterSpacing: ".04em" }}>COBRO CON MERCADO PAGO</div>
+        <div style={{ fontSize: 34, fontWeight: 900, fontVariantNumeric: "tabular-nums", margin: "4px 0 10px" }}>{fmt(monto)}</div>
+        {estado === "creando" && <div className="skel" style={{ width: 260, height: 260, margin: "0 auto" }} />}
+        {estado === "error" && (
+          <div style={{ background: temaPal.redDim, color: temaPal.red, borderRadius: 8, padding: 12, fontSize: 13, fontWeight: 600 }}>{error}</div>
+        )}
+        {estado === "esperando" && cobro && (
+          <>
+            <img src={cobro.qr} alt="QR para pagar con Mercado Pago" style={{ width: 260, height: 260, borderRadius: 8, background: "#fff", padding: 6 }} />
+            <div style={{ fontSize: 13, marginTop: 8 }}>El cliente escanea el QR con la cámara del celular (o con la app de Mercado Pago) y paga.</div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 10, fontSize: 13, fontWeight: 700, color: rechazado ? temaPal.red : temaPal.accentText }}>
+              {rechazado ? "✕ El pago fue rechazado: que pruebe con otra tarjeta o medio" : <><span className="mp-punto" style={{ width: 9, height: 9, borderRadius: "50%", background: temaPal.accent, display: "inline-block", animation: "pulse 1.2s infinite" }} /> Esperando el pago…</>}
+            </div>
+            <div style={{ display: "flex", gap: 6, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
+              <button className="btn btn-g btn-sm" onClick={mandarWhatsApp}>💬 Mandar link por WhatsApp</button>
+              <button className="btn btn-g btn-sm" onClick={copiar}>{copiado ? "✓ Copiado" : "🔗 Copiar link"}</button>
+            </div>
+          </>
+        )}
+        {estado === "aprobado" && (
+          <div className="pop-in" style={{ padding: "30px 0" }}>
+            <div style={{ fontSize: 56 }}>✅</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: temaPal.green }}>¡Pago aprobado!</div>
+            <div style={{ fontSize: 12, color: temaPal.textMuted }}>Registrando la venta…</div>
+          </div>
+        )}
+        {estado !== "aprobado" && (
+          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+            {estado === "error" && <button className="btn btn-p" style={{ flex: 1 }} onClick={crear}>Reintentar</button>}
+            <button className="btn btn-g" style={{ flex: 1 }} onClick={cancelar}>{estado === "esperando" ? "Cancelar (cobrar de otra forma)" : "Cerrar"}</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Conexion con Mercado Pago (Configuracion del negocio > Medios de pago)
+function ConexionMercadoPago({ paletaActual, alCambiar }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const [estado, setEstado] = useState(null);
+  const [token, setToken] = useState("");
+  const [abierto, setAbierto] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const [guardando, setGuardando] = useState(false);
+  const cargar = () => API.get("/mercadopago/estado").then(r => setEstado(r.data)).catch(() => setEstado({ conectado: false }));
+  useEffect(() => { cargar(); }, []);
+  const conectar = async () => {
+    setGuardando(true); setMsg(null);
+    try {
+      const r = await API.post("/mercadopago/conectar", { access_token: token });
+      setMsg({ ok: true, t: "✓ Conectado con la cuenta " + r.data.cuenta + ". Ya aparece \"QR MP\" en el Punto de Venta." });
+      setToken(""); setAbierto(false); cargar(); alCambiar && alCambiar();
+    } catch (e) { setMsg({ ok: false, t: e.response?.data?.error || "No se pudo conectar" }); }
+    setGuardando(false);
+  };
+  const desconectar = async () => {
+    if (!confirm("¿Desconectar Mercado Pago? Deja de aparecer el cobro con QR en el Punto de Venta.")) return;
+    try { await API.post("/mercadopago/desconectar"); cargar(); alCambiar && alCambiar(); } catch (e) { setMsg({ ok: false, t: e.response?.data?.error || "No se pudo desconectar" }); }
+  };
+  if (!estado) return null;
+  return (
+    <div className="card" style={{ marginBottom: 14, borderLeft: "4px solid #00b1ea", textAlign: "left" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ fontSize: 26 }}>📲</div>
+        <div style={{ flex: "1 1 220px" }}>
+          <div style={{ fontWeight: 800 }}>Cobro con QR de Mercado Pago</div>
+          <div style={{ fontSize: 12, color: temaPal.textMuted }}>
+            {estado.conectado ? <>Conectado con <b style={{ color: temaPal.text }}>{estado.cuenta}</b>. En el Punto de Venta elegí <b>QR MP</b>: aparece un QR con el importe y la venta se registra sola cuando se aprueba el pago.</>
+              : "El cliente escanea un QR con el importe exacto y paga desde el celular. La venta se registra sola cuando Mercado Pago aprueba el pago."}
+          </div>
+        </div>
+        {estado.conectado
+          ? <div style={{ display: "flex", gap: 6 }}><button className="btn btn-g btn-sm" onClick={() => setAbierto(a => !a)}>Cambiar cuenta</button><button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={desconectar}>Desconectar</button></div>
+          : <button className="btn btn-p btn-sm" onClick={() => setAbierto(a => !a)}>Conectar</button>}
+      </div>
+      {estado.conectado && estado.comision === 0 && <div style={{ fontSize: 11.5, color: temaPal.warn, marginTop: 8 }}>💡 Cargale la comisión que te cobra Mercado Pago al medio "Mercado Pago (QR)" (botón Editar, abajo) para que Finanzas calcule bien lo que te queda.</div>}
+      {msg && <div className="pop-in" style={{ marginTop: 10, background: msg.ok ? temaPal.greenDim : temaPal.redDim, border: "1px solid " + (msg.ok ? temaPal.green : temaPal.red), borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600 }}>{msg.t}</div>}
+      {abierto && (
+        <div className="pop-in" style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid " + temaPal.border }}>
+          <div style={{ fontSize: 12.5, lineHeight: 1.7 }}>
+            <b>Cómo conseguir tu Access Token</b> (una sola vez):
+            <ol style={{ margin: "4px 0 10px 18px", padding: 0 }}>
+              <li>Entrá a <a href="https://www.mercadopago.com.ar/developers/panel/app" target="_blank" rel="noreferrer">mercadopago.com.ar/developers</a> con tu cuenta de Mercado Pago.</li>
+              <li>Tocá <b>Crear aplicación</b> (nombre: Lumiere; tipo: pagos online / Checkout Pro).</li>
+              <li>Entrá a la aplicación → <b>Credenciales de producción</b> y copiá el <b>Access Token</b> (empieza con <code>APP_USR-</code>).</li>
+            </ol>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input className="inp" style={{ flex: "1 1 260px" }} type="password" autoComplete="off" placeholder="APP_USR-…" value={token} onChange={e => setToken(e.target.value)} />
+            <button className="btn btn-p" disabled={guardando || !token.trim()} onClick={conectar}>{guardando ? "Verificando…" : "Conectar"}</button>
+          </div>
+          <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 6 }}>🔒 El token queda guardado en el sistema y no se muestra nunca más. La plata va directo a tu cuenta de Mercado Pago.</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ConfiguracionNegocio({ paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState("general");
@@ -12597,6 +12764,7 @@ function ConfiguracionNegocio({ paletaActual }) {
 
       {tab === "medios" && (
         <div className="fade">
+          <ConexionMercadoPago paletaActual={paletaActual} alCambiar={cargarMedios} />
           <table>
             <thead><tr><th>Nombre</th><th>Tipo</th><th>Cuotas</th><th>Comision %</th><th>Online</th><th>Activo</th><th></th></tr></thead>
             <tbody>
