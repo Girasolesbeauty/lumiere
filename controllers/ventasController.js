@@ -385,11 +385,11 @@ const create = async (req, res) => {
       await client.query(
         `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id)
          VALUES ($1, 'I', $2, $3, $4)`,
-        ['Seña preventa ' + numero, montoSenaInicial, sena_referencia || numero, local_id || 1]
+        [(montoSenaInicial >= total - 0.5 ? 'Pago preventa ' : 'Seña preventa ') + numero, montoSenaInicial, sena_referencia || numero, local_id || 1]
       );
       await acreditarEfectivoEnCaja(client, {
         pagos: null, medio_pago_id: sena_medio_pago_id, medio_pago_nombre: sena_medio_pago_nombre, monto: montoSenaInicial,
-        local_id: local_id || 1, usuario_id, concepto: 'Seña preventa ' + numero
+        local_id: local_id || 1, usuario_id, concepto: (montoSenaInicial >= total - 0.5 ? 'Pago preventa ' : 'Seña preventa ') + numero
       });
     }
 

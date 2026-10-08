@@ -3729,13 +3729,14 @@ function POS({ localId, usuario, paletaActual }) {
     // Si hay una venta ya registrada esperando facturacion, reintenta SOLO eso (no duplica la venta)
     if (ventaPendienteArca) return reintentarFacturacion(ventaPendienteArca);
     if (cart.length === 0) return setMensaje("Agrega productos al ticket");
-    if (restaPagar > 0 && !pagoMixto && !medioPagoSel) return setMensaje("Selecciona un medio de pago para la diferencia");
+    // En preventa / seña el pago se elige en su propio panel (el selector común está oculto)
+    if (!preventa && restaPagar > 0 && !pagoMixto && !medioPagoSel) return setMensaje("Selecciona un medio de pago para la diferencia");
     const usaCC = !preventa && restaPagar > 0 && (pagoMixto ? pagosMixtos.some(p => mediosPago.find(m => m.id === p.medio_pago_id)?.tipo === "cuenta_corriente") : medioPagoSel?.tipo === "cuenta_corriente");
     if (usaCC && !clienteSeleccionado) return setMensaje("⚠️ Para vender en cuenta corriente, elegí el cliente (cargá su DNI)");
-    if (restaPagar > 0 && !pagoMixto && medioPagoSel?.tipo === "efectivo" && montoRecibidoEfectivo !== "" && parseFloat(montoRecibidoEfectivo) < restaPagar) {
+    if (!preventa && restaPagar > 0 && !pagoMixto && medioPagoSel?.tipo === "efectivo" && montoRecibidoEfectivo !== "" && parseFloat(montoRecibidoEfectivo) < restaPagar) {
       return setMensaje("El efectivo recibido no alcanza para cubrir el total");
     }
-    if (restaPagar > 0 && pagoMixto) {
+    if (!preventa && restaPagar > 0 && pagoMixto) {
       const sumaPagos = pagosMixtos.reduce((s, p) => s + (parseFloat(p.importe) || 0), 0);
       if (pagosMixtos.some(p => !p.medio_pago_id)) return setMensaje("Elegi el medio de pago en cada linea del pago dividido");
       if (Math.abs(sumaPagos - restaPagar) >= 1) return setMensaje("La suma de los pagos (" + fmt(sumaPagos) + ") debe ser igual al total (" + fmt(restaPagar) + ")");
@@ -3799,6 +3800,15 @@ function POS({ localId, usuario, paletaActual }) {
       if (montoSenaNum > total) return setMensaje("La seña no puede ser mayor al total (" + fmt(total) + ")");
       if (!senaMedioPagoId) return setMensaje("Elegi con que medio de pago se cobro la seña");
     }
+    // Preventa: lo que paga al registrarla (puede ser todo, una parte o nada)
+    const pagoPreventa = (preventa && tipoReserva === "preventa") ? (parseFloat(montoSena) || 0) : 0;
+    if (preventa && tipoReserva === "preventa") {
+      if (!nombrePreventa.trim()) return setMensaje("⚠️ Escribí el nombre del cliente");
+      if (pagoPreventa < 0) return setMensaje("⚠️ El monto no puede ser negativo");
+      if (pagoPreventa > total + 0.5) return setMensaje("⚠️ Lo que paga ahora no puede ser mayor al total (" + fmt(total) + ")");
+      if (pagoPreventa > 0 && !senaMedioPagoId) return setMensaje("⚠️ Elegí con qué medio de pago pagó");
+    }
+    const conPagoAhora = preventa && (tipoReserva === "sena" || pagoPreventa > 0);
     setLoading(true);
     try {
       const items = expandirItemsCart();
@@ -3811,10 +3821,10 @@ function POS({ localId, usuario, paletaActual }) {
         pagos: pagoMixto && pagosMixtos.length > 0 ? pagosMixtos : undefined,
         total_con_interes: total, es_preventa: preventa,
         nombre_preventa: preventa ? nombrePreventa : null,
-        monto_sena: (preventa && tipoReserva === "sena") ? montoSena : null,
-        sena_medio_pago_id: (preventa && tipoReserva === "sena") ? (senaMedioPagoId || null) : null,
-        sena_medio_pago_nombre: (preventa && tipoReserva === "sena") ? (mediosPago.find(m => m.id === parseInt(senaMedioPagoId))?.nombre || null) : null,
-        sena_referencia: (preventa && tipoReserva === "sena") ? "Seña " + nombrePreventa : null,
+        monto_sena: conPagoAhora ? (tipoReserva === "sena" ? montoSena : Math.min(pagoPreventa, total)) : null,
+        sena_medio_pago_id: conPagoAhora ? (senaMedioPagoId || null) : null,
+        sena_medio_pago_nombre: conPagoAhora ? (mediosPago.find(m => m.id === parseInt(senaMedioPagoId))?.nombre || null) : null,
+        sena_referencia: conPagoAhora ? (tipoReserva === "sena" ? "Seña " : "Pago preventa ") + nombrePreventa : null,
         monto_gift_card: montoAplicadoGC,
         insumos_usados: (!preventa && insumosPosActivo) ? Object.values(insumosSel).filter(v => v && v !== "ninguna").map(v => parseInt(v)) : [],
         referencia: referenciaVenta || null,
@@ -3891,15 +3901,31 @@ function POS({ localId, usuario, paletaActual }) {
     setErrorConfirmacion("");
   };
 
+  // Lo que falta cobrar de una preventa (total menos lo que pagó al registrarla)
+  const saldoPreventa = (p) => Math.max(0, parseFloat(p.total || 0) - (parseFloat(p.monto_sena) || 0) - (parseFloat(p.monto_gift_card) || 0));
   const confirmarEntregaPreventa = async () => {
     if (!confirmandoPreventa) return;
+    if (saldoPreventa(confirmandoPreventa) <= 0.5) {
+      // Ya estaba pagada: se entrega sin cobrar nada más
+      try {
+        await API.put("/ventas/" + confirmandoPreventa.id + "/confirmar-entrega", {
+          medio_pago_id: confirmandoPreventa.sena_medio_pago_id || null, medio_pago_nombre: confirmandoPreventa.sena_medio_pago_nombre || null,
+          total_con_interes: parseFloat(confirmandoPreventa.total || 0), usuario_id: usuario?.id || null
+        });
+        setMensaje("Entrega confirmada (ya estaba pagada). Stock descontado y reserva liberada.");
+        setConfirmandoPreventa(null); cargarPreventas(); setTimeout(() => setMensaje(""), 5000);
+      } catch (e) { setErrorConfirmacion(e.response?.data?.error || "Error al confirmar la entrega"); }
+      return;
+    }
     if (!medioPagoConfirmacion) return setErrorConfirmacion("Selecciona el medio de pago");
     setErrorConfirmacion("");
     try {
       const m = mediosPago.find(x => x.id === parseInt(medioPagoConfirmacion));
       const totalOriginal = parseFloat(confirmandoPreventa.total || 0);
       const coefM = m ? parseFloat(m.coeficiente) : 1;
-      const totalConInteres = Math.round(totalOriginal * coefM);
+      // El recargo del medio de pago va solo sobre lo que falta pagar, no sobre lo que ya se pagó
+      const saldo = saldoPreventa(confirmandoPreventa);
+      const totalConInteres = Math.round(totalOriginal - saldo + saldo * coefM);
       await API.put("/ventas/" + confirmandoPreventa.id + "/confirmar-entrega", {
         medio_pago_id: m?.id || null,
         medio_pago_nombre: m?.nombre || null,
@@ -4099,6 +4125,7 @@ function POS({ localId, usuario, paletaActual }) {
                 <div style={{ fontSize: 14, fontWeight: 600 }}>{p.nombre_preventa || "Consumidor Final"}</div>
                 {p.cliente_nombre && <div style={{ fontSize: 11, color: "#2d7a4f" }}>{p.cliente_nombre} {p.cliente_dni ? "- DNI: " + p.cliente_dni : ""}</div>}
                 <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 2 }}>{new Date(p.creado_en).toLocaleDateString("es-AR")} - {fmt(parseFloat(p.total))}</div>
+                {parseFloat(p.monto_sena) > 0 && <div style={{ fontSize: 11, marginTop: 2, fontWeight: 600, color: saldoPreventa(p) <= 0.5 ? "#2d7a4f" : temaPal.warn }}>{saldoPreventa(p) <= 0.5 ? "✓ Pagada" + (p.sena_medio_pago_nombre ? " (" + p.sena_medio_pago_nombre + ")" : "") : "Pagó " + fmt(parseFloat(p.monto_sena)) + " · falta " + fmt(saldoPreventa(p))}</div>}
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn btn-p btn-sm" onClick={() => abrirConfirmacionEntrega(p)}>Confirmar entrega</button>
@@ -4125,7 +4152,14 @@ function POS({ localId, usuario, paletaActual }) {
               {errorConfirmacion && (
                 <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "8px 12px", marginBottom: 10, fontSize: 11, color: "#c0392b" }}>{errorConfirmacion}</div>
               )}
-              <div className="fl">Medio de pago</div>
+              {parseFloat(confirmandoPreventa.monto_sena) > 0 && (
+                <div style={{ fontSize: 12, background: temaPal.bg, borderRadius: 8, padding: "8px 10px", marginBottom: 12 }}>
+                  Ya pagó <b>{fmt(parseFloat(confirmandoPreventa.monto_sena))}</b>{confirmandoPreventa.sena_medio_pago_nombre ? " (" + confirmandoPreventa.sena_medio_pago_nombre + ")" : ""}
+                  {saldoPreventa(confirmandoPreventa) > 0.5 ? <> · falta cobrar <b>{fmt(saldoPreventa(confirmandoPreventa))}</b></> : <> · <b style={{ color: "#2d7a4f" }}>está pagada, no hay que cobrar nada</b></>}
+                </div>
+              )}
+              {saldoPreventa(confirmandoPreventa) > 0.5 && <>
+              <div className="fl">Medio de pago {parseFloat(confirmandoPreventa.monto_sena) > 0 ? "(de lo que falta)" : ""}</div>
               <select className="sel" style={{ marginBottom: 14 }} value={medioPagoConfirmacion} onChange={e => setMedioPagoConfirmacion(e.target.value)}>
                 <option value="">Seleccionar...</option>
                 {["efectivo", "transferencia", "debito", "credito", "plataforma"].map(tipo => (
@@ -4136,9 +4170,10 @@ function POS({ localId, usuario, paletaActual }) {
                   </optgroup>
                 ))}
               </select>
+              </>}
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setConfirmandoPreventa(null)}>Cancelar</button>
-                <button className="btn btn-p" style={{ flex: 1 }} onClick={confirmarEntregaPreventa}>Confirmar y cobrar</button>
+                <button className="btn btn-p" style={{ flex: 1 }} onClick={confirmarEntregaPreventa}>{saldoPreventa(confirmandoPreventa) > 0.5 ? "Confirmar y cobrar" : "Confirmar entrega"}</button>
               </div>
             </div>
           </div>
@@ -4458,6 +4493,27 @@ function POS({ localId, usuario, paletaActual }) {
               <div className="pc-sec">
                 <div className="pc-tit"><span>{tipoReserva === "sena" ? "💰 SEÑA" : "📦 PREVENTA"}</span></div>
                 <input className="inp" placeholder={tipoReserva === "sena" ? "Nombre del cliente (seña)" : "Nombre del cliente (preventa)"} value={nombrePreventa} onChange={e => setNombrePreventa(e.target.value)} style={{ marginBottom: tipoReserva === "sena" ? 8 : 0 }} />
+                {tipoReserva === "preventa" && (
+                  <>
+                    <div className="fl" style={{ marginTop: 4 }}>¿Cuánto paga ahora?</div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <input className="inp" type="number" min="0" placeholder="0 = paga al retirar" value={montoSena} onChange={e => setMontoSena(e.target.value)} style={{ flex: 1 }} aria-label="Cuánto paga ahora" />
+                      <select className="sel" value={senaMedioPagoId} onChange={e => setSenaMedioPagoId(e.target.value)} style={{ flex: 1 }} aria-label="Medio de pago">
+                        <option value="">Medio de pago...</option>
+                        {mediosPago.filter(m => m.tipo !== "cuenta_corriente").map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
+                      </select>
+                    </div>
+                    <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                      <button type="button" className={"mini-chip" + (parseFloat(montoSena) === total ? " on" : "")} onClick={() => setMontoSena(String(total))}>Paga todo ({fmt(total)})</button>
+                      <button type="button" className={"mini-chip" + (!(parseFloat(montoSena) > 0) ? " on" : "")} onClick={() => setMontoSena("")}>Paga al retirar</button>
+                    </div>
+                    <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 6 }}>
+                      {parseFloat(montoSena) > 0
+                        ? (parseFloat(montoSena) >= total ? "Queda pagada: al retirar solo se entrega." : <>Paga {fmt(parseFloat(montoSena))} ahora · queda <b>{fmt(Math.max(total - parseFloat(montoSena), 0))}</b> para cuando la retire.</>)
+                        : "No paga nada ahora: se cobra todo cuando la retire."}
+                    </div>
+                  </>
+                )}
                 {tipoReserva === "sena" && (
                   <>
                     <div style={{ display: "flex", gap: 6 }}>
