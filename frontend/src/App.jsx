@@ -19627,6 +19627,239 @@ function ListasPrecios({ paletaActual }) {
   );
 }
 
+// ===================== VENCIMIENTOS =====================
+// Lotes con fecha de vencimiento. Cuanto queda de cada lote se estima con el stock actual
+// (se supone que se vende primero lo que vence antes). Ver routes/vencimientos.js.
+const hoyISO = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+const fechaVence = (iso) => { const [a, m, d] = String(iso).split("-"); return d + "/" + m + "/" + a; };
+const textoDias = (d) => d < -1 ? "venció hace " + (-d) + " días" : d === -1 ? "venció ayer" : d === 0 ? "vence hoy" : d === 1 ? "vence mañana" : "vence en " + d + " días";
+
+function Vencimientos({ localId, usuario, paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const [lotes, setLotes] = useState(null);
+  const [productos, setProductos] = useState([]);
+  const [filtro, setFiltro] = useState("atencion");
+  const [form, setForm] = useState(null); // { producto, cantidad, vence, nota }
+  const [busca, setBusca] = useState("");
+  const [ingresos, setIngresos] = useState(null); // lista de ordenes para elegir
+  const [desdeOrden, setDesdeOrden] = useState(null); // { orden, filas: [{ producto_id, nombre, cantidad, vence }] }
+  const [editando, setEditando] = useState(null); // { id, cantidad, vence }
+  const [aviso, setAviso] = useState(null);
+  const avisar = (ok, texto) => { setAviso({ ok, texto }); setTimeout(() => setAviso(null), 5000); };
+  const local = localId || 1;
+
+  const cargar = () => API.get("/vencimientos?local_id=" + local).then(r => setLotes(r.data || [])).catch(() => setLotes([]));
+  useEffect(() => {
+    cargar();
+    API.get("/productos?estado=activos").then(r => setProductos((r.data || []).filter(p => p.activo !== false))).catch(() => {});
+  }, [localId]);
+
+  const guardarLote = async (otro) => {
+    try {
+      await API.post("/vencimientos", { local_id: local, items: [{ producto_id: form.producto?.id, cantidad: form.cantidad, vence: form.vence, nota: form.nota }] });
+      avisar(true, "✓ Lote de " + form.producto.nombre + " cargado");
+      cargar();
+      if (otro) { setForm({ producto: null, cantidad: "", vence: form.vence, nota: "" }); setBusca(""); } else setForm(null);
+    } catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+  };
+  const abrirIngresos = () => {
+    setIngresos([]); setForm(null);
+    API.get("/ordenes-ingreso").then(r => setIngresos((r.data || []).slice(0, 25))).catch(() => setIngresos([]));
+  };
+  const elegirOrden = async (o) => {
+    try {
+      const r = await API.get("/ordenes-ingreso/" + o.id + "/items");
+      const filas = (r.data || []).filter(it => it.producto_id).map(it => {
+        const cant = String(local) === "2" ? (it.recibido_ush || it.cantidad_ush || 0) : (it.recibido_rg || it.cantidad_rg || 0);
+        return { producto_id: it.producto_id, nombre: it.producto_nombre || (productos.find(p => p.id === it.producto_id) || {}).nombre || "Producto", cantidad: cant, vence: "" };
+      }).filter(f => f.cantidad > 0);
+      setDesdeOrden({ orden: o, filas }); setIngresos(null);
+    } catch (e) { avisar(false, "No se pudo abrir el ingreso"); }
+  };
+  const guardarDesdeOrden = async () => {
+    const items = desdeOrden.filas.filter(f => f.vence && parseInt(f.cantidad) > 0);
+    if (!items.length) return avisar(false, "Poné la fecha de vencimiento de al menos un producto");
+    try {
+      await API.post("/vencimientos", { local_id: local, orden_id: desdeOrden.orden.id, items });
+      avisar(true, "✓ " + items.length + (items.length === 1 ? " lote cargado" : " lotes cargados"));
+      setDesdeOrden(null); cargar();
+    } catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+  };
+  const guardarEdicion = async () => {
+    try { await API.put("/vencimientos/" + editando.id, editando); setEditando(null); cargar(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+  };
+  const quitar = async (l) => {
+    if (!confirm("¿Sacar este lote de la lista? El stock no cambia.")) return;
+    try { await API.delete("/vencimientos/" + l.id); cargar(); } catch (e) { avisar(false, "No se pudo quitar"); }
+  };
+  // Dar de baja lo vencido: ajuste de stock normal (o pedido de ajuste si no tiene permiso)
+  const darDeBaja = async (l) => {
+    if (!confirm("¿Dar de baja " + l.en_stock + " u. de " + l.nombre + "? Se descuentan del stock de " + nombreLocal(local) + " y queda en el historial de ajustes.")) return;
+    const datos = { modo: "diferencia", valor: -l.en_stock, motivo: "Vencido (lote que venció el " + fechaVence(l.vence) + ")", usuario_id: usuario?.id || null, usuario_nombre: usuario?.nombre || null, local_id: local };
+    try {
+      if (puedeHacer("inventario.ajustar")) {
+        await API.put("/productos/" + l.producto_id + "/ajustar-stock", datos);
+        avisar(true, "✓ Se dieron de baja " + l.en_stock + " u. de " + l.nombre);
+      } else {
+        await API.post("/productos/" + l.producto_id + "/solicitar-ajuste", datos);
+        avisar(true, "✓ Pedido enviado: la baja de " + l.nombre + " queda esperando aprobación");
+      }
+      await API.put("/vencimientos/" + l.id + "/baja", { cantidad: l.en_stock });
+      cargar();
+    } catch (e) { avisar(false, e.response?.data?.error || "No se pudo dar de baja"); }
+  };
+
+  if (!lotes) return <div className="fade"><div className="skel" style={{ height: 280 }} /></div>;
+
+  const conStock = lotes.filter(l => l.en_stock > 0);
+  const grupo = (cond) => { const a = conStock.filter(cond); return { n: a.length, u: a.reduce((t, l) => t + l.en_stock, 0), v: a.reduce((t, l) => t + l.en_stock * l.costo, 0) }; };
+  const vencidos = grupo(l => l.dias < 0), semana = grupo(l => l.dias >= 0 && l.dias <= 7), mes = grupo(l => l.dias > 7 && l.dias <= 30);
+  const FILTROS = [["atencion", "Para atender (30 días)"], ["vencidos", "Vencidos"], ["semana", "Esta semana"], ["adelante", "Más adelante"], ["sin", "Ya no quedan"], ["todos", "Todos"]];
+  const pasa = (l) => filtro === "todos" ? true
+    : filtro === "sin" ? l.en_stock === 0
+    : l.en_stock > 0 && (filtro === "atencion" ? l.dias <= 30 : filtro === "vencidos" ? l.dias < 0 : filtro === "semana" ? l.dias >= 0 && l.dias <= 7 : l.dias > 30);
+  const visibles = lotes.filter(pasa);
+  const q = busca.trim().toLowerCase();
+  const encontrados = form && !form.producto && q ? productos.filter(p => [p.nombre, p.marca, p.codigo_barras].some(v => (v || "").toLowerCase().includes(q))).slice(0, 8) : [];
+  const colorDias = (d) => d < 0 ? temaPal.red : d <= 7 ? temaPal.warn : d <= 30 ? temaPal.accentText : temaPal.green;
+
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div className="dash-head">
+        <div><div className="pt">Vencimientos</div><div className="ps">qué vence, cuándo y cuánto queda · {nombreLocal(local)}</div></div>
+        <div className="dash-actions">
+          <button className="btn btn-g" onClick={abrirIngresos}>📦 Desde un ingreso</button>
+          <button className="btn btn-p" onClick={() => { setForm({ producto: null, cantidad: "", vence: "", nota: "" }); setBusca(""); setIngresos(null); setDesdeOrden(null); }}>+ Cargar lote</button>
+        </div>
+      </div>
+      {aviso && <div className="pop-in" role={aviso.ok ? "status" : "alert"} style={{ background: aviso.ok ? temaPal.greenDim : temaPal.redDim, border: "1px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, marginBottom: 12 }}>{aviso.texto}</div>}
+
+      {form && (
+        <div className="card pop-in" style={{ marginBottom: 12, borderTop: "3px solid " + temaPal.accent }}>
+          <div className="ct">Cargar un lote</div>
+          {form.producto ? (
+            <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}><b>{form.producto.nombre}</b><span style={{ fontSize: 12, color: temaPal.textMuted }}>{form.producto.marca || ""}</span><button className="btn btn-g btn-sm" onClick={() => setForm(f => ({ ...f, producto: null }))}>Cambiar</button></div>
+          ) : (
+            <div style={{ position: "relative", marginBottom: 10 }}>
+              <input className="inp" autoFocus placeholder="🔍 Buscar o escanear el producto…" value={busca} onChange={e => setBusca(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && encontrados.length) setForm(f => ({ ...f, producto: encontrados[0] })); }} />
+              {encontrados.length > 0 && (
+                <div className="card" style={{ position: "absolute", zIndex: 5, left: 0, right: 0, top: "100%", padding: 4 }}>
+                  {encontrados.map(p => <button key={p.id} className="chip-btn" style={{ display: "block", width: "100%", textAlign: "left", border: "none", borderRadius: 6, padding: "8px 10px", whiteSpace: "normal" }} onClick={() => setForm(f => ({ ...f, producto: p }))}>{p.nombre} <span style={{ fontSize: 11, color: temaPal.textMuted }}>{p.marca || ""}</span></button>)}
+                </div>
+              )}
+            </div>
+          )}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }}>
+            <div><div className="fl">Unidades</div><input className="inp" type="number" min="1" value={form.cantidad} onChange={e => setForm(f => ({ ...f, cantidad: e.target.value }))} /></div>
+            <div><div className="fl">Vence el</div><input className="inp" type="date" value={form.vence} onChange={e => setForm(f => ({ ...f, vence: e.target.value }))} /></div>
+            <div><div className="fl">Nota (opcional)</div><input className="inp" placeholder="Ej: lote 2241" value={form.nota} onChange={e => setForm(f => ({ ...f, nota: e.target.value }))} /></div>
+          </div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12, flexWrap: "wrap" }}>
+            <button className="btn btn-g" onClick={() => setForm(null)}>Cancelar</button>
+            <button className="btn btn-g" onClick={() => guardarLote(true)}>Guardar y cargar otro</button>
+            <button className="btn btn-p" onClick={() => guardarLote(false)}>Guardar</button>
+          </div>
+        </div>
+      )}
+
+      {ingresos && (
+        <div className="card pop-in" style={{ marginBottom: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div className="ct">¿De qué ingreso?</div><button className="btn btn-g btn-sm" onClick={() => setIngresos(null)}>Cerrar</button></div>
+          {ingresos.length === 0 ? <div className="empty">No hay ingresos cargados.</div> : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {ingresos.map(o => (
+                <button key={o.id} className="chip-btn" style={{ borderRadius: 8, padding: "10px 12px", textAlign: "left", display: "flex", justifyContent: "space-between", whiteSpace: "normal" }} onClick={() => elegirOrden(o)}>
+                  <span><b>{o.proveedor_nombre || "Sin proveedor"}</b>{o.numero_factura ? " · Fact. " + o.numero_factura : ""}</span>
+                  <span style={{ color: temaPal.textMuted }}>{new Date(o.fecha_factura || o.creado_en).toLocaleDateString("es-AR")}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {desdeOrden && (
+        <div className="card pop-in" style={{ marginBottom: 12, borderTop: "3px solid " + temaPal.accent }}>
+          <div className="ct">Vencimientos del ingreso de {desdeOrden.orden.proveedor_nombre || "proveedor"}</div>
+          <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 8 }}>Poné la fecha solo a los productos que vencen. Los que dejes vacíos no se cargan.</div>
+          {desdeOrden.filas.length === 0 ? <div className="empty">Este ingreso no tiene productos recibidos en {nombreLocal(local)}.</div> : (
+            <table>
+              <thead><tr><th>Producto</th><th style={{ width: 110 }}>Unidades</th><th style={{ width: 170 }}>Vence el</th></tr></thead>
+              <tbody>{desdeOrden.filas.map((f, i) => (
+                <tr key={i}>
+                  <td>{f.nombre}</td>
+                  <td data-l="Unidades"><input className="inp" type="number" min="0" value={f.cantidad} onChange={e => setDesdeOrden(d => ({ ...d, filas: d.filas.map((x, j) => j === i ? { ...x, cantidad: e.target.value } : x) }))} /></td>
+                  <td data-l="Vence el"><input className="inp" type="date" value={f.vence} onChange={e => setDesdeOrden(d => ({ ...d, filas: d.filas.map((x, j) => j === i ? { ...x, vence: e.target.value } : x) }))} /></td>
+                </tr>
+              ))}</tbody>
+            </table>
+          )}
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}>
+            <button className="btn btn-g" onClick={() => setDesdeOrden(null)}>Cancelar</button>
+            {desdeOrden.filas.length > 0 && <button className="btn btn-p" onClick={guardarDesdeOrden}>Guardar vencimientos</button>}
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10, marginBottom: 12 }}>
+        <div className="card" style={{ borderTop: "3px solid " + temaPal.red }}><div className="ct">Vencidos en el local</div><div style={{ fontSize: 24, fontWeight: 800, color: vencidos.u ? temaPal.red : temaPal.text }}>{vencidos.u} u.</div><div style={{ fontSize: 12, color: temaPal.textMuted }}>{vencidos.u ? (vencidos.v > 0 ? fmt(vencidos.v) + " al costo · " : "") + "sacalos de la venta" : "nada vencido"}</div></div>
+        <div className="card" style={{ borderTop: "3px solid " + temaPal.warn }}><div className="ct">Vencen esta semana</div><div style={{ fontSize: 24, fontWeight: 800, color: semana.u ? temaPal.warn : temaPal.text }}>{semana.u} u.</div><div style={{ fontSize: 12, color: temaPal.textMuted }}>{semana.u ? (semana.v > 0 ? fmt(semana.v) + " al costo · " : "") + "ponelos adelante u ofertalos" : "nada en los próximos 7 días"}</div></div>
+        <div className="card" style={{ borderTop: "3px solid " + temaPal.accent }}><div className="ct">Vencen este mes</div><div style={{ fontSize: 24, fontWeight: 800 }}>{mes.u} u.</div><div style={{ fontSize: 12, color: temaPal.textMuted }}>{mes.u ? (mes.v > 0 ? fmt(mes.v) + " al costo · " : "") + "en 8 a 30 días" : "nada entre 8 y 30 días"}</div></div>
+      </div>
+
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+        {FILTROS.map(([k, t]) => <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(k)}>{t}</button>)}
+      </div>
+
+      {lotes.length === 0 ? (
+        <div className="card">
+          <div className="ct">Cómo funciona</div>
+          <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+            Cuando entra mercadería que vence (alimentos, cosmética, remedios…), cargá el lote: qué producto, cuántas unidades y la fecha.
+            Podés hacerlo uno por uno con <b>+ Cargar lote</b> o todo junto con <b>📦 Desde un ingreso</b>.<br />
+            Lumiere calcula cuánto queda de cada lote con el stock actual (se supone que primero se vende lo que vence antes) y te avisa lo que está por vencer, para que lo pongas adelante, lo ofertes o lo des de baja.
+          </div>
+        </div>
+      ) : visibles.length === 0 ? (
+        <div className="card"><div className="empty">{filtro === "atencion" ? "🟢 Nada vence en los próximos 30 días." : "No hay lotes en este filtro."}</div></div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {visibles.map(l => (
+            <div key={l.id} className="card" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", borderLeft: "4px solid " + (l.en_stock > 0 ? colorDias(l.dias) : temaPal.border), opacity: l.en_stock > 0 ? 1 : 0.7 }}>
+              <div style={{ flex: "1 1 240px", minWidth: 0 }}>
+                <div style={{ fontWeight: 800 }}>{l.nombre} <span style={{ fontWeight: 400, fontSize: 12, color: temaPal.textMuted }}>{l.marca || ""}</span></div>
+                {editando && editando.id === l.id ? (
+                  <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                    <input className="mini-inp" type="number" min="1" style={{ width: 80 }} value={editando.cantidad} onChange={e => setEditando(x => ({ ...x, cantidad: e.target.value }))} aria-label="Unidades" />
+                    <input className="mini-inp" type="date" value={editando.vence} onChange={e => setEditando(x => ({ ...x, vence: e.target.value }))} aria-label="Vence el" />
+                    <button className="btn btn-p btn-sm" onClick={guardarEdicion}>Guardar</button>
+                    <button className="btn btn-g btn-sm" onClick={() => setEditando(null)}>Cancelar</button>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 2 }}>
+                    Lote de {l.cantidad} u.{l.nota ? " · " + l.nota : ""} · {l.en_stock > 0 ? (l.en_stock === l.cantidad ? "quedan todas" : "quedan ≈ " + l.en_stock + " u.") : "ya se vendió (o no queda stock)"}
+                  </div>
+                )}
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontWeight: 800, color: l.en_stock > 0 ? colorDias(l.dias) : temaPal.textMuted }}>{fechaVence(l.vence)}</div>
+                <div style={{ fontSize: 11, color: temaPal.textMuted }}>{textoDias(l.dias)}</div>
+              </div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {l.en_stock > 0 && l.dias < 0 && <button className="btn btn-p btn-sm" onClick={() => darDeBaja(l)}>🗑 Dar de baja {l.en_stock} u.</button>}
+                {l.en_stock > 0 && l.dias >= 0 && l.dias <= 30 && <button className="btn btn-g btn-sm" title="Hacé una etiqueta de oferta para venderlo antes de que venza" onClick={() => irASeccion("etiquetas")}>🏷️ Etiqueta de oferta</button>}
+                {!editando && <button className="btn btn-g btn-sm" onClick={() => setEditando({ id: l.id, cantidad: l.cantidad, vence: l.vence })}>✏️</button>}
+                <button className="btn btn-g btn-sm" title="Sacar de la lista sin tocar el stock" onClick={() => quitar(l)}>{l.en_stock > 0 ? "Ya no hay" : "Quitar"}</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ===================== SALUD DEL STOCK =====================
 // Resumen de todo lo que hay que revisar del stock, cada cosa con un botón que lleva a resolverla.
 function SaludStock({ paletaActual, localId }) {
@@ -19640,7 +19873,8 @@ function SaludStock({ paletaActual, localId }) {
       API.get("/productos/rotacion?dias=90&local_id=" + (localId || 1)).then(r => r.data).catch(() => null),
       UN_SOLO_LOCAL ? Promise.resolve([]) : API.get("/traspasos?local_id=" + (localId || 1)).then(r => r.data || []).catch(() => []),
       API.get("/productos/stock/ajustes-pendientes?local_id=" + (localId || 1)).then(r => r.data || []).catch(() => []),
-    ]).then(([prods, rot, tras, ajustes]) => {
+      API.get("/vencimientos/resumen?local_id=" + (localId || 1)).then(r => r.data).catch(() => null),
+    ]).then(([prods, rot, tras, ajustes, venc]) => {
       const activos = prods.filter(p => p.activo !== false);
       const st = (p) => esUsh ? (p.stock_ush || 0) : (p.stock_rg || 0);
       const incompleto = (p) => !(parseFloat(p.precio) > 0) || !(parseFloat(p.costo) > 0) || !(p.codigo_barras || "").trim() || !(p.categoria || "").trim() || (!p.proveedor_id && !(p.proveedor_nombre || "").trim());
@@ -19656,6 +19890,8 @@ function SaludStock({ paletaActual, localId }) {
         quietos, valorQuieto,
         porRecibir: tras.filter(t => t.estado !== "recibido" && Number(t.local_destino) === Number(localId || 1)).length,
         ajustes: ajustes.length,
+        vencidos: venc && venc.hay_lotes ? venc.vencidos.unidades : null,
+        porVencer: venc && venc.hay_lotes ? venc.semana.unidades : null,
       });
     });
   }, [localId]);
@@ -19665,6 +19901,8 @@ function SaludStock({ paletaActual, localId }) {
     { n: d.negativos, grave: true, icono: "➖", titulo: "Productos con stock negativo", que: "Se vendió algo que el sistema no tenía: falta cargar un ingreso o hay un error de stock. Contalos y corregí el stock.", ir: "inventory:negativo", boton: "Ver cuáles" },
     { n: d.porRecibir, grave: true, icono: "🚚", titulo: "Traspasos para recibir", que: "Mercadería que mandaron desde el otro local y todavía no se marcó como recibida: no suma al stock hasta que la reciban.", ir: "traspasos", boton: "Recibir", oculto: UN_SOLO_LOCAL },
     { n: d.ajustes, grave: true, icono: "🔐", titulo: "Ajustes de stock esperando aprobación", que: "Alguien del equipo pidió corregir el stock y falta que lo apruebes.", ir: "inventory", boton: "Revisar" },
+    { n: d.vencidos, grave: true, icono: "📅", titulo: "Unidades vencidas en el local", que: "Según los lotes cargados, hay mercadería vencida que todavía figura en stock. Sacala de la venta y dala de baja.", ir: "vencimientos", boton: "Ver y dar de baja" },
+    { n: d.porVencer, grave: false, icono: "⏳", titulo: "Unidades que vencen esta semana", que: "Ponelas adelante o hacé una oferta para venderlas antes de que venzan.", ir: "vencimientos", boton: "Ver cuáles" },
     { n: d.bajoMinimo, grave: false, icono: "⚠️", titulo: "Productos con stock bajo", que: "Están en o debajo del mínimo: conviene reponerlos antes de que se agoten.", ir: "stock-alertas", boton: "Ver y reponer" },
     { n: d.sinStock, grave: false, icono: "⛔", titulo: "Productos sin stock", que: "Están en cero. Si se siguen vendiendo, pedilos; si no, podés desactivarlos.", ir: "inventory:sin", boton: "Ver cuáles" },
     { n: d.sinCosto, grave: false, icono: "💲", titulo: "Productos sin costo cargado", que: "Sin el costo, el sistema no puede calcular cuánto ganás ni valorizar la mercadería.", ir: "inventory:sin_costo", boton: "Cargar costos" },
@@ -20581,6 +20819,7 @@ const NAV_SECTIONS = [
     { id: "insumos", icon: "🛍️", label: "Insumos", k: "bolsas cajas packaging" }] },
   { section: "STOCK", color: "#a0522d", items: [
     { id: "stock-alertas", icon: "⚠️", label: "Reposición", k: "inventario alertas minimo reponer reposicion stock bajo agotado transito en camino" },
+    { id: "vencimientos", icon: "📅", label: "Vencimientos", k: "vence vencido lote fecha caducidad alimentos" },
     { id: "compras", icon: "📋", label: "Compras y proveedores", k: "que pedir pedido proveedor comprar reponer" },
     { id: "ordenes", icon: "🚚", label: "Ingresos", k: "mercaderia recibir factura proveedor ordenes" },
     { id: "traspasos", icon: "🔁", label: "Traspasos", k: "inventario mandar local otro local recibir traspaso", multiLocal: true },
@@ -22303,7 +22542,7 @@ export default function AppWrapper() {
  const mapaModulos = {
       "pos": "pos.ver", "presupuestos": "pos.ver", "dashboard": "dashboard.ver",
       "ventas-online": "ventas_online.ver", "buscar-precio": "buscar_precio.ver", "cambio-devolucion": "cambios.ver",
-      "inventory": "inventario.ver", "rotacion": "rotacion.ver", "ordenes": "ordenes.ver", "inconsistencias": "inconsistencias.ver", "kits": "kits.ver", "etiquetas": "inventario.ver", "listas-precios": "inventario.ver", "stock-alertas": "inventario.ver", "traspasos": "inventario.ver", "valorizacion": "inventario.ver", "historial-ajustes": "inventario.ver", "salud-stock": "inventario.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
+      "inventory": "inventario.ver", "rotacion": "rotacion.ver", "ordenes": "ordenes.ver", "inconsistencias": "inconsistencias.ver", "kits": "kits.ver", "etiquetas": "inventario.ver", "listas-precios": "inventario.ver", "stock-alertas": "inventario.ver", "traspasos": "inventario.ver", "valorizacion": "inventario.ver", "historial-ajustes": "inventario.ver", "salud-stock": "inventario.ver", "vencimientos": "inventario.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
       "compras": "compras.ver", "reclamos-proveedores": "compras.ver",
       "clients": "clientes.ver", "cuenta-corriente": "clientes.ver", "pedidos": "pedidos.ver", "fidelizacion": "fidelizacion.ver", "tareas": "tareas.ver",
       "finance": "finanzas.flujo", "decisiones": "decisiones.ver", "gerente": "gerente.ver", "comprobantes": "comprobantes.ver",
@@ -22386,6 +22625,7 @@ export default function AppWrapper() {
     if (id === "valorizacion") return <Inventario key="valorizacion" modo="valorizacion" localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "historial-ajustes") return <Inventario key="ajustes" modo="ajustes" localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "salud-stock") return <SaludStock paletaActual={paletaActual} localId={local.id} />;
+    if (id === "vencimientos") return <Vencimientos paletaActual={paletaActual} localId={local.id} usuario={usuario} />;
     if (id === "clients") return <Clientes usuario={usuario} paletaActual={paletaActual} />;
     if (id === "cuenta-corriente") return <CuentaCorriente paletaActual={paletaActual} localId={local.id} usuario={usuario} />;
     if (id === "pedidos") return <Pedidos localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
