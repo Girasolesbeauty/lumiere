@@ -78,6 +78,7 @@ app.use('/api/respaldo', require('./routes/respaldo'));
 app.use('/api/plataforma', require('./routes/plataforma'));
 app.use('/api/legal', require('./routes/legal'));
 app.use('/api/precios-masivos', require('./routes/precios-masivos'));
+app.use('/api/cuenta-corriente', require('./routes/cuenta-corriente'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {

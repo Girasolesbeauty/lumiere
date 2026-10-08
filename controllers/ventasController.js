@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const cc = require('../lib/cuentaCorriente');
 const { recalcularNivel } = require('../lib/niveles');
 
 // Si una venta del POS se cobro (total o parcialmente) en efectivo, suma ese ingreso
@@ -105,6 +106,7 @@ const getById = async (req, res) => {
 };
 
 const create = async (req, res) => {
+  try { await cc.asegurar(); } catch (e) { console.error('[cuenta corriente] tabla:', e.message); }
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -270,6 +272,28 @@ const create = async (req, res) => {
       }
     }
 
+    // Cuenta corriente (fiado): lo que se paga con ese medio queda como deuda del cliente.
+    // Hace falta el cliente, y si tiene un limite de credito no se puede pasar.
+    const montoCC = es_preventa === true ? 0 : await cc.montoEnCuentaCorriente(client, { pagos, medio_pago_id, total, monto_gift_card });
+    if (montoCC > 0) {
+      if (!cliente_id) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Para vender en cuenta corriente elegí el cliente.', cuenta_corriente: true });
+      }
+      const lim = await client.query('SELECT nombre, cc_limite FROM clientes WHERE id = $1', [cliente_id]);
+      const limite = lim.rows[0] && lim.rows[0].cc_limite !== null ? parseFloat(lim.rows[0].cc_limite) : null;
+      const saldo = await cc.saldoDe(client, cliente_id);
+      if (limite !== null && saldo + montoCC > limite + 0.005) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: `${lim.rows[0].nombre || 'El cliente'} ya debe $${saldo.toLocaleString('es-AR')} y su límite es $${limite.toLocaleString('es-AR')}: con esta venta lo pasaría. Cobrale una parte o subile el límite en Cuenta corriente.`, cuenta_corriente: true });
+      }
+      await client.query(
+        `INSERT INTO cc_movimientos (cliente_id, tipo, importe, venta_id, numero_factura, local_id, usuario_id, usuario_nombre)
+         VALUES ($1, 'cargo', $2, $3, $4, $5, $6, $7)`,
+        [cliente_id, montoCC, ventaId, numero, local_id || 1, usuario_id || null, usuario_nombre || null]
+      );
+    }
+
     for (const item of items) {
       // Item de ajuste/diferencia (sin producto): se registra pero NO descuenta stock
       if (!item.producto_id) {
@@ -361,11 +385,11 @@ const create = async (req, res) => {
       await client.query(
         `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id)
          VALUES ($1, 'I', $2, $3, $4)`,
-        ['Seña preventa ' + numero, montoSenaInicial, sena_referencia || numero, local_id || 1]
+        [(montoSenaInicial >= total - 0.5 ? 'Pago preventa ' : 'Seña preventa ') + numero, montoSenaInicial, sena_referencia || numero, local_id || 1]
       );
       await acreditarEfectivoEnCaja(client, {
         pagos: null, medio_pago_id: sena_medio_pago_id, medio_pago_nombre: sena_medio_pago_nombre, monto: montoSenaInicial,
-        local_id: local_id || 1, usuario_id, concepto: 'Seña preventa ' + numero
+        local_id: local_id || 1, usuario_id, concepto: (montoSenaInicial >= total - 0.5 ? 'Pago preventa ' : 'Seña preventa ') + numero
       });
     }
 

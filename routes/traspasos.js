@@ -171,4 +171,98 @@ router.put('/:id/recibir', async (req, res) => {
   }
 });
 
+// ---------- Eliminar traspasos SIN tocar el stock ----------
+// Para cuando se cargaron traspasos y el stock ya se corrigió por otro lado (ej: con ajustes de
+// inventario): borra los traspasos de un rango de días y sus líneas en el historial de ajustes,
+// y saca de "En camino" lo que nunca se recibió. El stock vendible de cada local NO cambia.
+// Solo el jefe. Queda registrado en Auditoría.
+const DIA_AR = (col) => `((${col} AT TIME ZONE current_setting('TimeZone')) AT TIME ZONE 'America/Argentina/Buenos_Aires')::date`;
+const esFecha = (f) => /^\d{4}-\d{2}-\d{2}$/.test(String(f || ''));
+const esJefe = (req) => req.usuario && (req.usuario.rol === 'jefe' || req.usuario.rol === 'admin');
+
+async function traspasosDelRango(db, desde, hasta) {
+  const r = await db.query(
+    `SELECT t.*, to_char(${DIA_AR('t.creado_en')}, 'DD/MM/YYYY') AS dia
+     FROM traspasos_stock t WHERE ${DIA_AR('t.creado_en')} BETWEEN $1::date AND $2::date ORDER BY t.creado_en`, [desde, hasta]);
+  return r.rows;
+}
+
+router.post('/eliminar/vista', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el jefe puede eliminar traspasos' });
+    const { desde, hasta } = req.body || {};
+    if (!esFecha(desde) || !esFecha(hasta) || desde > hasta) return res.status(400).json({ error: 'Elegí bien las fechas (desde ≤ hasta)' });
+    const lista = await traspasosDelRango(pool, desde, hasta);
+    res.json({
+      traspasos: lista,
+      en_camino: lista.filter(t => t.estado !== 'recibido').reduce((a, t) => a + (parseInt(t.cantidad) || 0), 0),
+    });
+  } catch (e) {
+    console.error('[traspasos] vista eliminar:', e.message);
+    res.status(500).json({ error: 'No se pudo armar la lista' });
+  }
+});
+
+router.post('/eliminar', async (req, res) => {
+  if (!esJefe(req)) return res.status(403).json({ error: 'Solo el jefe puede eliminar traspasos' });
+  const { desde, hasta, motivo } = req.body || {};
+  if (!esFecha(desde) || !esFecha(hasta) || desde > hasta) return res.status(400).json({ error: 'Elegí bien las fechas (desde ≤ hasta)' });
+  if (!String(motivo || '').trim()) return res.status(400).json({ error: 'Escribí el motivo' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const lista = await traspasosDelRango(client, desde, hasta);
+    // Solo se borra lo que la pantalla mostró (si entretanto se cargó otro traspaso en esas fechas, se frena)
+    const esperados = Array.isArray(req.body.ids) ? req.body.ids.map(Number).sort((a, b) => a - b).join(',') : null;
+    if (esperados !== null && esperados !== lista.map(t => t.id).sort((a, b) => a - b).join(',')) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'La lista cambió desde que la viste. Volvé a ver la vista previa.' });
+    }
+    if (!lista.length) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'No hay traspasos en esas fechas' }); }
+    const hayAjustes = (await client.query(`SELECT to_regclass('ajustes_stock') AS t`)).rows[0].t;
+    let enCamino = 0, lineasHistorial = 0;
+    for (const t of lista) {
+      // Lo que nunca se recibió sigue sumado en "En camino" del destino: se saca (no es stock vendible)
+      if (t.estado !== 'recibido') {
+        const col = Number(t.local_destino) === 2 ? 'stock_transito_ush' : 'stock_transito_rg';
+        await client.query(`UPDATE productos SET ${col} = GREATEST(COALESCE(${col}, 0) - $1, 0) WHERE id = $2`, [t.cantidad, t.producto_id]);
+        enCamino += parseInt(t.cantidad) || 0;
+      }
+      // Sus líneas en el historial de ajustes (se guardaron en la misma operación, con la misma hora)
+      if (hayAjustes) {
+        const a = await client.query(
+          `DELETE FROM ajustes_stock WHERE producto_id = $1 AND local_id = $2 AND motivo LIKE 'Traspaso a %' AND creado_en = $3`,
+          [t.producto_id, t.local_origen, t.creado_en]);
+        lineasHistorial += a.rowCount;
+        if (t.recibido_en) {
+          const b = await client.query(
+            `DELETE FROM ajustes_stock WHERE producto_id = $1 AND local_id = $2 AND motivo LIKE 'Recepcion de traspaso desde %' AND creado_en = $3`,
+            [t.producto_id, t.local_destino, t.recibido_en]);
+          lineasHistorial += b.rowCount;
+        }
+      }
+    }
+    await client.query('DELETE FROM traspasos_stock WHERE id = ANY($1)', [lista.map(t => t.id)]);
+    let quien = null;
+    try { quien = (await client.query('SELECT nombre FROM usuarios WHERE id = $1', [req.usuario.id])).rows[0]?.nombre || null; } catch (e) {}
+    if ((await client.query(`SELECT to_regclass('anulaciones') AS t`)).rows[0].t) {
+      await client.query(
+        `INSERT INTO anulaciones (tipo, referencia_id, referencia_codigo, motivo, usuario_id, usuario_nombre, detalle_json)
+         VALUES ('traspasos_eliminados', $6, $1, $2, $3, $4, $5)`,
+        [desde + ' a ' + hasta, String(motivo).trim(), req.usuario.id || null, quien,
+         JSON.stringify({ desde, hasta, cantidad: lista.length, en_camino_quitado: enCamino, lineas_historial: lineasHistorial,
+           traspasos: lista.map(t => ({ id: t.id, dia: t.dia, producto: t.producto_nombre, cantidad: t.cantidad, origen: t.local_origen, destino: t.local_destino, estado: t.estado })) }),
+         lista[0].id]);
+    }
+    await client.query('COMMIT');
+    res.json({ ok: true, eliminados: lista.length, en_camino_quitado: enCamino, lineas_historial: lineasHistorial });
+  } catch (e) {
+    try { await client.query('ROLLBACK'); } catch (x) {}
+    console.error('[traspasos] eliminar:', e.message);
+    res.status(500).json({ error: 'No se pudieron eliminar. No se borró nada.' });
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = router;
