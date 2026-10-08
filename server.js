@@ -80,6 +80,7 @@ app.use('/api/legal', require('./routes/legal'));
 app.use('/api/precios-masivos', require('./routes/precios-masivos'));
 app.use('/api/cuenta-corriente', require('./routes/cuenta-corriente'));
 app.use('/api/listas-precios', require('./routes/listas-precios'));
+app.use('/api/presupuestos', require('./routes/presupuestos'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {

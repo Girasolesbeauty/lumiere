@@ -3197,7 +3197,7 @@ function POS({ localId, usuario, paletaActual }) {
     setCart(prev => {
       let cambio = false;
       const out = prev.map(i => {
-        if (i.es_kit || i.es_ajuste || !(parseInt(i.id) > 0) || String(i.id).startsWith("insumo")) return i;
+        if (i.es_kit || i.es_ajuste || i.presupuesto_id || !(parseInt(i.id) > 0) || String(i.id).startsWith("insumo")) return i;
         const base = i.precio_base !== undefined ? i.precio_base : (i.precio ?? i.price);
         const objetivo = precioDeLista(listaSel, parseInt(i.id), base);
         if (i.precio_base === base && i.precio === objetivo) return i;
@@ -3859,6 +3859,9 @@ function POS({ localId, usuario, paletaActual }) {
         usuario_id: usuario?.id || null, usuario_nombre: usuario?.nombre || null,
         justificaciones_stock: justificacionesStock
       });
+      // Si la venta salio de un presupuesto, queda marcado como vendido (aunque despues falle ARCA)
+      const presuId = (cart.find(i => i.presupuesto_id) || {}).presupuesto_id;
+      if (presuId) API.put("/presupuestos/" + presuId + "/vendido", { venta_id: ventaRes.data.id }).catch(() => {});
       if (giftCardAplicada && montoAplicadoGC > 0) {
         try {
           await API.post("/gift-cards/" + giftCardAplicada.id + "/canjear", {
@@ -4002,6 +4005,33 @@ function POS({ localId, usuario, paletaActual }) {
     const k = kitsComoProducto.find(x => String(x.kit_id) === String(pedido));
     if (k) add(k);
   }, [kitsPos]);
+  // Si vienen de Presupuestos con "Pasar a venta", entran los mismos productos, precios y cliente
+  useEffect(() => {
+    if (!productos.length) return;
+    let pid = null;
+    try { pid = sessionStorage.getItem("lumiere_pos_presupuesto"); sessionStorage.removeItem("lumiere_pos_presupuesto"); } catch (e) {}
+    if (!pid) return;
+    API.get("/presupuestos/" + pid).then(r => {
+      const pr = r.data;
+      const desc = parseFloat(pr.descuento_pct) || 0;
+      const items = pr.items.map((it, i) => {
+        const prod = it.producto_id && productos.find(p => String(p.id) === String(it.producto_id));
+        const base = { presupuesto_id: pr.id, qty: parseFloat(it.cantidad) || 1, precio: parseFloat(it.precio) || 0, descuento_pct: desc };
+        return prod
+          ? { ...prod, ...base, precio_base: parseFloat(it.precio) || 0 }
+          : { id: "ajuste-presu-" + pr.id + "-" + i, es_ajuste: true, nombre: it.nombre, disponible: 9999, ...base };
+      });
+      setCart(items);
+      if (pr.cliente_id) {
+        API.get("/clientes").then(rc => {
+          const c = (rc.data || []).find(x => x.id === pr.cliente_id);
+          if (c) { setClienteSeleccionado(c); setDniInput(c.cuit_dni || ""); cargarFicha(c.id, false); }
+        }).catch(() => {});
+      }
+      setMensaje("🧾 Presupuesto N° " + pr.numero + " cargado" + (pr.cliente_nombre ? " (" + pr.cliente_nombre + ")" : "") + ". Revisá y cobrá.");
+      setTimeout(() => setMensaje(""), 5000);
+    }).catch(() => { setMensaje("No se pudo cargar el presupuesto"); setTimeout(() => setMensaje(""), 4000); });
+  }, [productos.length > 0]);
   accionProductoRef.current = accionProducto;
   const productosAMostrar = listaCompleta.filter(p =>
     !busqueda || (p.nombre || p.name || "").toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -19118,6 +19148,294 @@ function htmlListaPrecios(lista, productos, negocio, conCodigo) {
   <table>${filas}</table></body></html>`;
 }
 
+// ===================== PRESUPUESTOS =====================
+// Cotizar antes de vender: se arma, se manda por WhatsApp o PDF y, si el cliente acepta,
+// se pasa al Punto de Venta con los mismos productos y precios. No mueve stock ni caja.
+const ESTADOS_PRESU = {
+  pendiente: { txt: "Esperando respuesta", tag: "tag-warn" },
+  aceptado: { txt: "Aceptado", tag: "tag-ok" },
+  vendido: { txt: "Vendido", tag: "tag-ok" },
+  rechazado: { txt: "Rechazado", tag: "tag-bad" },
+  vencido: { txt: "Vencido", tag: "tag-bad" },
+};
+const estadoPresu = (p) => (p.vencido ? "vencido" : p.estado);
+const fechaCorta = (f) => new Date(f).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+const textoPresupuestoWhatsApp = (pr, negocio) => {
+  const lineas = pr.items.map(it => "• " + (it.cantidad !== 1 ? it.cantidad + " x " : "") + it.nombre + ": " + fmt(it.cantidad * it.precio));
+  return [
+    "*" + (negocio || "Presupuesto") + "*",
+    "Presupuesto N° " + pr.numero + (pr.cliente_nombre ? " para " + pr.cliente_nombre : ""),
+    "",
+    ...lineas,
+    "",
+    ...(pr.descuento_pct > 0 ? ["Subtotal: " + fmt(pr.subtotal), "Descuento " + pr.descuento_pct + "%: -" + fmt(pr.subtotal - pr.total)] : []),
+    "*TOTAL: " + fmt(pr.total) + "*",
+    "Válido hasta el " + fechaCorta(pr.vence_en) + ".",
+    ...(pr.nota ? ["", pr.nota] : []),
+  ].join("\n");
+};
+const imprimirPresupuesto = (pr, cfg) => {
+  const filas = pr.items.map(it => `<tr><td>${escHtml(it.nombre)}</td><td class="n">${escHtml(String(it.cantidad).replace(".", ","))}</td><td class="n">${escHtml(fmt(it.precio))}</td><td class="n">${escHtml(fmt(it.cantidad * it.precio))}</td></tr>`).join("");
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Presupuesto ${pr.numero}</title><style>
+    @page{size:A4;margin:16mm}body{font-family:Arial,Helvetica,sans-serif;color:#222;font-size:13px}
+    .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #222;padding-bottom:12px;margin-bottom:16px}
+    .neg{font-size:22px;font-weight:800}.logo{max-height:60px;max-width:180px;margin-bottom:6px}
+    .doc{text-align:right}.doc b{font-size:18px;display:block}
+    table{width:100%;border-collapse:collapse;margin-top:12px}th{text-align:left;border-bottom:1px solid #222;padding:6px 4px;font-size:11px;text-transform:uppercase}
+    td{padding:7px 4px;border-bottom:1px solid #ddd}.n{text-align:right;white-space:nowrap}
+    .tot{margin-left:auto;width:280px;margin-top:12px}.tot div{display:flex;justify-content:space-between;padding:3px 0}
+    .tot .g{font-size:18px;font-weight:800;border-top:2px solid #222;padding-top:6px;margin-top:4px}
+    .nota{margin-top:20px;padding:10px;background:#f5f5f5;border-radius:6px;white-space:pre-wrap}.pie{margin-top:24px;font-size:11px;color:#666}
+  </style></head><body>
+    <div class="top"><div>${cfg.logo_url ? `<img class="logo" src="${escHtml(cfg.logo_url)}">` : ""}<div class="neg">${escHtml(cfg.nombre_negocio || "")}</div>${cfg.cuit ? `<div>CUIT ${escHtml(cfg.cuit)}</div>` : ""}</div>
+      <div class="doc"><b>PRESUPUESTO</b>N° ${pr.numero}<br>Fecha: ${fechaCorta(pr.creado_en)}<br>Válido hasta: ${fechaCorta(pr.vence_en)}</div></div>
+    <div><b>Para:</b> ${escHtml(pr.cliente_nombre || "")}${pr.cliente_telefono ? " · Tel. " + escHtml(pr.cliente_telefono) : ""}</div>
+    <table><thead><tr><th>Detalle</th><th class="n">Cant.</th><th class="n">Precio</th><th class="n">Importe</th></tr></thead><tbody>${filas}</tbody></table>
+    <div class="tot">${pr.descuento_pct > 0 ? `<div><span>Subtotal</span><span>${escHtml(fmt(pr.subtotal))}</span></div><div><span>Descuento ${escHtml(pr.descuento_pct)}%</span><span>-${escHtml(fmt(pr.subtotal - pr.total))}</span></div>` : ""}
+      <div class="g"><span>TOTAL</span><span>${escHtml(fmt(pr.total))}</span></div></div>
+    ${pr.nota ? `<div class="nota">${escHtml(pr.nota)}</div>` : ""}
+    <div class="pie">Este presupuesto no es una factura. Los precios valen hasta la fecha indicada y están sujetos a disponibilidad de stock.</div>
+  </body></html>`;
+  const marco = document.createElement("iframe");
+  marco.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+  document.body.appendChild(marco);
+  const d = marco.contentWindow.document;
+  d.open(); d.write(html); d.close();
+  setTimeout(() => { try { marco.contentWindow.focus(); marco.contentWindow.print(); } catch (e) {} setTimeout(() => marco.remove(), 1500); }, 500);
+};
+
+function Presupuestos({ paletaActual, localId }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const [lista, setLista] = useState(null);
+  const [productos, setProductos] = useState([]);
+  const [clientes, setClientes] = useState([]);
+  const [listas, setListas] = useState([]);
+  const [cfg, setCfg] = useState({});
+  const [filtro, setFiltro] = useState("abiertos");
+  const [form, setForm] = useState(null);
+  const [buscaProd, setBuscaProd] = useState("");
+  const [buscaCli, setBuscaCli] = useState("");
+  const [aviso, setAviso] = useState(null);
+  const [guardando, setGuardando] = useState(false);
+  const avisar = (ok, texto) => { setAviso({ ok, texto }); setTimeout(() => setAviso(null), 4500); };
+
+  const cargar = () => API.get("/presupuestos?local_id=" + (localId || 1)).then(r => setLista(r.data || [])).catch(() => setLista([]));
+  useEffect(() => {
+    cargar();
+    API.get("/productos?estado=activos").then(r => setProductos((r.data || []).filter(p => p.activo !== false))).catch(() => {});
+    API.get("/clientes").then(r => setClientes(r.data || [])).catch(() => {});
+    API.get("/listas-precios").then(r => setListas(r.data || [])).catch(() => {});
+    API.get("/configuracion").then(r => setCfg(r.data || {})).catch(() => {});
+  }, [localId]);
+
+  const nuevo = () => { setForm({ cliente_id: null, cliente_nombre: "", cliente_telefono: "", items: [], descuento_pct: "", validez_dias: 7, nota: "" }); setBuscaProd(""); setBuscaCli(""); };
+  const editar = (p) => { setForm({ ...p, descuento_pct: p.descuento_pct || "", items: p.items.map(i => ({ ...i })) }); setBuscaProd(""); setBuscaCli(""); };
+  const listaDelCliente = (cid) => (cid ? listas.find(l => (l.clientes || []).some(c => c.id === cid)) || null : null);
+  const precioPara = (p, cid) => { const base = parseFloat(p.precio) || 0; const l = listaDelCliente(cid); return l ? precioDeLista(l, p.id, base) : base; };
+  const elegirCliente = (c) => {
+    setForm(f => ({ ...f, cliente_id: c.id, cliente_nombre: c.nombre, cliente_telefono: c.telefono || "",
+      // Si el cliente tiene lista de precios, los productos pasan a ese precio
+      items: f.items.map(it => { const p = it.producto_id && productos.find(x => x.id === it.producto_id); return p ? { ...it, precio: precioPara(p, c.id) } : it; }) }));
+    setBuscaCli("");
+  };
+  const agregarProducto = (p) => {
+    setForm(f => {
+      const ya = f.items.find(i => i.producto_id === p.id);
+      if (ya) return { ...f, items: f.items.map(i => i === ya ? { ...i, cantidad: (parseFloat(i.cantidad) || 0) + 1 } : i) };
+      return { ...f, items: [...f.items, { producto_id: p.id, nombre: p.nombre + (p.marca ? " - " + p.marca : ""), cantidad: 1, precio: precioPara(p, f.cliente_id) }] };
+    });
+    setBuscaProd("");
+  };
+  const cambiarItem = (i, campo, valor) => setForm(f => ({ ...f, items: f.items.map((it, j) => j === i ? { ...it, [campo]: valor } : it) }));
+  const quitarItem = (i) => setForm(f => ({ ...f, items: f.items.filter((_, j) => j !== i) }));
+
+  const subtotal = form ? form.items.reduce((t, it) => t + (parseFloat(it.cantidad) || 0) * (parseFloat(it.precio) || 0), 0) : 0;
+  const total = subtotal * (1 - (Math.min(100, parseFloat(form?.descuento_pct) || 0)) / 100);
+
+  const enviarWhatsApp = (pr) => {
+    const texto = textoPresupuestoWhatsApp(pr, cfg.nombre_negocio);
+    window.open(linkWhatsapp(pr.cliente_telefono, texto) || ("https://wa.me/?text=" + encodeURIComponent(texto)), "_blank");
+  };
+  const guardar = async (yEnviar) => {
+    if (guardando) return;
+    setGuardando(true);
+    try {
+      const body = { ...form, local_id: localId || 1 };
+      const r = form.id ? await API.put("/presupuestos/" + form.id, body) : await API.post("/presupuestos", body);
+      avisar(true, "✓ Presupuesto N° " + r.data.numero + " guardado");
+      setForm(null); cargar();
+      if (yEnviar) enviarWhatsApp(r.data);
+    } catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+    setGuardando(false);
+  };
+  const cambiarEstado = async (pr, estado) => {
+    try { await API.put("/presupuestos/" + pr.id + "/estado", { estado }); cargar(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo cambiar"); }
+  };
+  const borrar = async (pr) => {
+    if (!confirm("¿Borrar el presupuesto N° " + pr.numero + "?")) return;
+    try { await API.delete("/presupuestos/" + pr.id); cargar(); avisar(true, "✓ Presupuesto borrado"); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo borrar"); }
+  };
+  const pasarAVenta = (pr) => {
+    try { sessionStorage.setItem("lumiere_pos_presupuesto", String(pr.id)); } catch (e) {}
+    irASeccion("pos");
+  };
+
+  if (!lista) return <div className="fade"><div className="skel" style={{ height: 280 }} /></div>;
+
+  // ---------- Formulario ----------
+  if (form) {
+    const q = buscaProd.trim().toLowerCase();
+    const encontrados = q ? productos.filter(p => [p.nombre, p.marca, p.codigo_barras].some(v => (v || "").toLowerCase().includes(q))).slice(0, 8) : [];
+    const qc = buscaCli.trim().toLowerCase();
+    const clientesEnc = qc ? clientes.filter(c => [c.nombre, c.cuit_dni, c.telefono].some(v => String(v || "").toLowerCase().includes(qc))).slice(0, 6) : [];
+    const listaCli = listaDelCliente(form.cliente_id);
+    return (
+      <div className="fade" style={{ textAlign: "left" }}>
+        <div className="dash-head">
+          <div><div className="pt">{form.id ? "Presupuesto N° " + form.numero : "Nuevo presupuesto"}</div><div className="ps">no descuenta stock ni entra a la caja hasta que se vende</div></div>
+          <div className="dash-actions"><button className="btn btn-g" onClick={() => setForm(null)}>Cancelar</button></div>
+        </div>
+        {aviso && <div className="pop-in" role={aviso.ok ? "status" : "alert"} style={{ background: aviso.ok ? temaPal.greenDim : temaPal.redDim, border: "1px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, marginBottom: 12 }}>{aviso.texto}</div>}
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div className="ct">Para quién</div>
+          {form.cliente_id ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <b>{form.cliente_nombre}</b>{form.cliente_telefono && <span style={{ color: temaPal.textMuted, fontSize: 12 }}>📱 {form.cliente_telefono}</span>}
+              {listaCli && <span className="tag tag-ok">Lista {listaCli.nombre}</span>}
+              <button className="btn btn-g btn-sm" onClick={() => setForm(f => ({ ...f, cliente_id: null }))}>Cambiar</button>
+            </div>
+          ) : (
+            <>
+              <div style={{ position: "relative" }}>
+                <input className="inp" placeholder="Buscar cliente por nombre, DNI o teléfono…" value={buscaCli} onChange={e => setBuscaCli(e.target.value)} />
+                {clientesEnc.length > 0 && (
+                  <div className="card" style={{ position: "absolute", zIndex: 5, left: 0, right: 0, top: "100%", padding: 4 }}>
+                    {clientesEnc.map(c => <button key={c.id} className="chip-btn" style={{ display: "block", width: "100%", textAlign: "left", border: "none", borderRadius: 6, padding: "8px 10px", whiteSpace: "normal" }} onClick={() => elegirCliente(c)}><b>{c.nombre}</b> <span style={{ fontSize: 11, color: temaPal.textMuted }}>{c.cuit_dni || ""} {c.telefono || ""}</span></button>)}
+                  </div>
+                )}
+              </div>
+              <div style={{ fontSize: 11, color: temaPal.textMuted, margin: "8px 0 4px" }}>o si no es cliente todavía:</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <input className="inp" style={{ flex: "2 1 200px" }} placeholder="Nombre" value={form.cliente_nombre || ""} onChange={e => setForm(f => ({ ...f, cliente_nombre: e.target.value }))} />
+                <input className="inp" style={{ flex: "1 1 150px" }} placeholder="WhatsApp (ej: 2964 123456)" value={form.cliente_telefono || ""} onChange={e => setForm(f => ({ ...f, cliente_telefono: e.target.value }))} />
+              </div>
+            </>
+          )}
+        </div>
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div className="ct">Productos</div>
+          <div style={{ position: "relative", display: "flex", gap: 8 }}>
+            <input className="inp" style={{ flex: 1 }} placeholder="🔍 Buscar o escanear producto…" value={buscaProd} onChange={e => setBuscaProd(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && encontrados.length) agregarProducto(encontrados[0]); }} />
+            <button className="btn btn-g" title="Algo que no está en el sistema: un servicio, un envío, un trabajo a medida" onClick={() => setForm(f => ({ ...f, items: [...f.items, { producto_id: null, nombre: "", cantidad: 1, precio: "" }] }))}>+ Otro ítem</button>
+            {encontrados.length > 0 && (
+              <div className="card" style={{ position: "absolute", zIndex: 5, left: 0, right: 0, top: "100%", padding: 4 }}>
+                {encontrados.map(p => <button key={p.id} className="chip-btn" style={{ display: "flex", width: "100%", justifyContent: "space-between", border: "none", borderRadius: 6, padding: "8px 10px", whiteSpace: "normal" }} onClick={() => agregarProducto(p)}><span>{p.nombre} <span style={{ fontSize: 11, color: temaPal.textMuted }}>{p.marca || ""}</span></span><b>{fmt(precioPara(p, form.cliente_id))}</b></button>)}
+              </div>
+            )}
+          </div>
+          {form.items.length === 0 ? <div className="empty" style={{ marginTop: 10 }}>Buscá productos para agregarlos.</div> : (
+            <table style={{ marginTop: 10 }}>
+              <thead><tr><th>Detalle</th><th style={{ width: 90 }}>Cant.</th><th style={{ width: 130 }}>Precio</th><th style={{ textAlign: "right" }}>Importe</th><th /></tr></thead>
+              <tbody>{form.items.map((it, i) => (
+                <tr key={i}>
+                  <td>{it.producto_id ? it.nombre : <input className="inp" placeholder="Ej: Envío a domicilio" value={it.nombre} onChange={e => cambiarItem(i, "nombre", e.target.value)} />}</td>
+                  <td data-l="Cantidad"><input className="inp" type="number" min="0" step="any" value={it.cantidad} onChange={e => cambiarItem(i, "cantidad", e.target.value)} /></td>
+                  <td data-l="Precio"><input className="inp" type="number" min="0" step="any" value={it.precio} onChange={e => cambiarItem(i, "precio", e.target.value)} /></td>
+                  <td data-l="Importe" style={{ textAlign: "right", fontWeight: 700 }}>{fmt((parseFloat(it.cantidad) || 0) * (parseFloat(it.precio) || 0))}</td>
+                  <td><button className="btn btn-g btn-sm" aria-label="Quitar" onClick={() => quitarItem(i)}>✕</button></td>
+                </tr>
+              ))}</tbody>
+            </table>
+          )}
+        </div>
+        <div className="card" style={{ marginBottom: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
+          <div>
+            <label className="fl">Descuento (%)</label>
+            <input className="inp" type="number" min="0" max="100" placeholder="0" value={form.descuento_pct} onChange={e => setForm(f => ({ ...f, descuento_pct: e.target.value }))} />
+            <label className="fl" style={{ marginTop: 10 }}>Vale por</label>
+            <select className="sel" value={form.validez_dias} onChange={e => setForm(f => ({ ...f, validez_dias: e.target.value }))}>
+              {[3, 7, 15, 30].map(d => <option key={d} value={d}>{d} días</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="fl">Nota (opcional)</label>
+            <textarea className="inp" rows={4} placeholder="Ej: Precio de contado. Envío sin cargo." value={form.nota || ""} onChange={e => setForm(f => ({ ...f, nota: e.target.value }))} />
+          </div>
+          <div style={{ alignSelf: "end" }}>
+            {(parseFloat(form.descuento_pct) || 0) > 0 && <div className="cc-linea"><span>Subtotal</span><b>{fmt(subtotal)}</b></div>}
+            <div className="cc-linea cc-esperado"><span>Total</span><b style={{ fontSize: 20 }}>{fmt(total)}</b></div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
+          <button className="btn btn-g" disabled={guardando} onClick={() => guardar(false)}>Guardar</button>
+          <button className="btn btn-p" disabled={guardando} onClick={() => guardar(true)}>💬 Guardar y mandar por WhatsApp</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------- Listado ----------
+  const conEstado = lista.map(p => ({ ...p, est: estadoPresu(p) }));
+  const FILTROS = [["abiertos", "Esperando / aceptados"], ["vendido", "Vendidos"], ["vencido", "Vencidos"], ["rechazado", "Rechazados"], ["todos", "Todos"]];
+  const visibles = conEstado.filter(p => filtro === "todos" || (filtro === "abiertos" ? ["pendiente", "aceptado"].includes(p.est) : p.est === filtro));
+  const abiertos = conEstado.filter(p => ["pendiente", "aceptado"].includes(p.est));
+  const hace90 = Date.now() - 90 * 86400000;
+  const recientes = conEstado.filter(p => new Date(p.creado_en).getTime() >= hace90 && p.est !== "pendiente" && p.est !== "aceptado");
+  const cerrados = recientes.filter(p => p.est === "vendido");
+  const porVencer = abiertos.filter(p => new Date(p.vence_en).getTime() - Date.now() < 2 * 86400000);
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div className="dash-head">
+        <div><div className="pt">Presupuestos</div><div className="ps">cotizá, mandalo por WhatsApp y pasalo a venta cuando acepten</div></div>
+        <div className="dash-actions"><button className="btn btn-p" onClick={nuevo}>+ Nuevo presupuesto</button></div>
+      </div>
+      {aviso && <div className="pop-in" role={aviso.ok ? "status" : "alert"} style={{ background: aviso.ok ? temaPal.greenDim : temaPal.redDim, border: "1px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, marginBottom: 12 }}>{aviso.texto}</div>}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10, marginBottom: 12 }}>
+        <div className="card"><div className="ct">Esperando respuesta</div><div style={{ fontSize: 24, fontWeight: 800 }}>{abiertos.length}</div><div style={{ fontSize: 12, color: temaPal.textMuted }}>{fmt(abiertos.reduce((t, p) => t + p.total, 0))} en juego</div></div>
+        <div className="card"><div className="ct">Vencen en 2 días</div><div style={{ fontSize: 24, fontWeight: 800, color: porVencer.length ? temaPal.warn : temaPal.text }}>{porVencer.length}</div><div style={{ fontSize: 12, color: temaPal.textMuted }}>buen momento para escribirles</div></div>
+        <div className="card"><div className="ct">Se vendieron (90 días)</div><div style={{ fontSize: 24, fontWeight: 800, color: temaPal.green }}>{recientes.length ? Math.round(cerrados.length / recientes.length * 100) + "%" : "—"}</div><div style={{ fontSize: 12, color: temaPal.textMuted }}>{cerrados.length} de {recientes.length} que ya tuvieron respuesta · {fmt(cerrados.reduce((t, p) => t + p.total, 0))}</div></div>
+      </div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+        {FILTROS.map(([k, t]) => <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(k)}>{t}</button>)}
+      </div>
+      {visibles.length === 0 ? (
+        <div className="card"><div className="empty">{lista.length === 0 ? "Todavía no hiciste presupuestos. Tocá \"+ Nuevo presupuesto\" para armar el primero." : "No hay presupuestos en este filtro."}</div></div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {visibles.map(p => {
+            const e = ESTADOS_PRESU[p.est] || ESTADOS_PRESU.pendiente;
+            const abierto = ["pendiente", "aceptado"].includes(p.estado);
+            return (
+              <div key={p.id} className="card" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                <div style={{ flex: "1 1 240px", minWidth: 0 }}>
+                  <div style={{ fontWeight: 800 }}>N° {p.numero} · {p.cliente_nombre || "Sin nombre"} <span className={"tag " + e.tag} style={{ marginLeft: 6 }}>{e.txt}</span></div>
+                  <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 2 }}>
+                    {fechaCorta(p.creado_en)} · {p.items.length} {p.items.length === 1 ? "ítem" : "ítems"}{abierto ? " · vale hasta el " + fechaCorta(p.vence_en) : ""}{p.usuario_nombre ? " · " + p.usuario_nombre : ""}
+                  </div>
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{fmt(p.total)}</div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <button className="btn btn-g btn-sm" onClick={() => enviarWhatsApp(p)}>💬 WhatsApp</button>
+                  <button className="btn btn-g btn-sm" onClick={() => imprimirPresupuesto(p, cfg)}>📄 PDF</button>
+                  {p.estado !== "vendido" && <button className="btn btn-p btn-sm" onClick={() => pasarAVenta(p)}>🛒 Pasar a venta</button>}
+                  {p.estado !== "vendido" && <button className="btn btn-g btn-sm" onClick={() => editar(p)}>✏️ Editar</button>}
+                  {p.estado === "pendiente" && <button className="btn btn-g btn-sm" onClick={() => cambiarEstado(p, "aceptado")}>✓ Aceptó</button>}
+                  {abierto && <button className="btn btn-g btn-sm" onClick={() => cambiarEstado(p, "rechazado")}>✕ No aceptó</button>}
+                  {p.estado === "rechazado" && <button className="btn btn-g btn-sm" onClick={() => cambiarEstado(p, "pendiente")}>↺ Reabrir</button>}
+                  {p.estado !== "vendido" && <button className="btn btn-g btn-sm" aria-label="Borrar" onClick={() => borrar(p)}>🗑</button>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ListasPrecios({ paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [listas, setListas] = useState(null);
@@ -20251,6 +20569,7 @@ const NAV_SECTIONS = [
   { section: "VENTAS", color: "#e67e22", items: [
     { id: "dashboard", icon: "📊", label: "Dashboard", k: "inicio resumen tablero" },
     { id: "pos", icon: "🛒", label: "Punto de Venta", k: "vender venta cobrar caja pos" },
+    { id: "presupuestos", icon: "🧾", label: "Presupuestos", k: "presupuesto cotizacion cotizar whatsapp pdf" },
     { id: "ventas-online", icon: "🌐", label: "Ventas Online", k: "web tienda internet pedidos online" },
     { id: "buscar-precio", icon: "🔎", label: "Buscar Precio", k: "precio consultar" },
     { id: "cambio-devolucion", icon: "🔄", label: "Cambio / Devolución", k: "cambio devolucion" }] },
@@ -21969,7 +22288,7 @@ export default function AppWrapper() {
       if (!esJefe && !permisos.includes("dashboard.ver")) {
         const ordenPrioridad = ["pos", "ventas-online", "clients", "inventory", "caja"];
         const mapaModulos2 = {
-          "pos": "pos.ver", "ventas-online": "ventas_online.ver", "inventory": "inventario.ver",
+          "pos": "pos.ver", "presupuestos": "pos.ver", "ventas-online": "ventas_online.ver", "inventory": "inventario.ver",
           "clients": "clientes.ver", "cuenta-corriente": "clientes.ver", "caja": "caja.ver"
         };
         const disponible = ordenPrioridad.find(id => !mapaModulos2[id] || permisos.includes(mapaModulos2[id]));
@@ -21982,7 +22301,7 @@ export default function AppWrapper() {
     if (!usuario) return false;
     if (usuario.rol === "jefe" || usuario.rol_id === 1) return true;
  const mapaModulos = {
-      "pos": "pos.ver", "dashboard": "dashboard.ver",
+      "pos": "pos.ver", "presupuestos": "pos.ver", "dashboard": "dashboard.ver",
       "ventas-online": "ventas_online.ver", "buscar-precio": "buscar_precio.ver", "cambio-devolucion": "cambios.ver",
       "inventory": "inventario.ver", "rotacion": "rotacion.ver", "ordenes": "ordenes.ver", "inconsistencias": "inconsistencias.ver", "kits": "kits.ver", "etiquetas": "inventario.ver", "listas-precios": "inventario.ver", "stock-alertas": "inventario.ver", "traspasos": "inventario.ver", "valorizacion": "inventario.ver", "historial-ajustes": "inventario.ver", "salud-stock": "inventario.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
       "compras": "compras.ver", "reclamos-proveedores": "compras.ver",
@@ -22094,6 +22413,7 @@ export default function AppWrapper() {
     if (id === "kits") return <Kits paletaActual={paletaActual} localId={local.id} />;
     if (id === "etiquetas") return <Etiquetas paletaActual={paletaActual} localId={local.id} />;
     if (id === "listas-precios") return <ListasPrecios paletaActual={paletaActual} />;
+    if (id === "presupuestos") return <Presupuestos paletaActual={paletaActual} localId={local.id} />;
     if (id === "insumos") return <Insumos localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "control-inv") return <ControlInventario localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "config-insumos") return <ConfigInsumos localId={local.id} paletaActual={paletaActual} />;
