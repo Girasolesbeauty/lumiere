@@ -2907,6 +2907,17 @@ function POS({ localId, usuario, paletaActual }) {
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   // Cuenta corriente: lo que debe el cliente elegido (se muestra al elegir ese medio de pago)
   const [ccCliente, setCcCliente] = useState(null);
+  // Listas de precios (ej: Mayorista): se elige a mano o se aplica sola si el cliente tiene una
+  const [listasPrecios, setListasPrecios] = useState([]);
+  const [listaSelId, setListaSelId] = useState(null);
+  const listaAutoRef = useRef(false);
+  const listaSel = listasPrecios.find(l => l.id === listaSelId) || null;
+  useEffect(() => { API.get("/listas-precios").then(r => setListasPrecios(r.data || [])).catch(() => {}); }, []);
+  useEffect(() => {
+    const l = clienteSeleccionado?.id ? listasPrecios.find(x => x.clientes.some(c => c.id === clienteSeleccionado.id)) : null;
+    if (l) { setListaSelId(l.id); listaAutoRef.current = true; }
+    else if (listaAutoRef.current) { setListaSelId(null); listaAutoRef.current = false; }
+  }, [clienteSeleccionado?.id, listasPrecios]);
   const [buscandoCliente, setBuscandoCliente] = useState(false);
   const [showNuevoCliente, setShowNuevoCliente] = useState(false);
   const [cupon, setCupon] = useState("");
@@ -3181,6 +3192,23 @@ function POS({ localId, usuario, paletaActual }) {
   };
   // Se identifica por producto + variante (antes sacar un talle sacaba todos los talles).
   const remove = (item) => setCart(prev => prev.filter(i => claveItem(i) !== claveItem(item)));
+  // Cada producto del carrito guarda su precio normal (precio_base) y se cobra al precio de la lista elegida
+  useEffect(() => {
+    setCart(prev => {
+      let cambio = false;
+      const out = prev.map(i => {
+        if (i.es_kit || i.es_ajuste || !(parseInt(i.id) > 0) || String(i.id).startsWith("insumo")) return i;
+        const base = i.precio_base !== undefined ? i.precio_base : (i.precio ?? i.price);
+        const objetivo = precioDeLista(listaSel, parseInt(i.id), base);
+        if (i.precio_base === base && i.precio === objetivo) return i;
+        cambio = true;
+        return { ...i, precio_base: base, precio: objetivo };
+      });
+      return cambio ? out : prev;
+    });
+  }, [cart, listaSelId, listasPrecios]);
+  // Al terminar o vaciar la venta, vuelve al precio normal
+  useEffect(() => { if (cart.length === 0 && !clienteSeleccionado && !listaAutoRef.current) setListaSelId(null); }, [cart.length === 0]);
   const cambiarCantidad = (item, delta) => setCart(prev => prev.map(x => claveItem(x) === claveItem(item) ? { ...x, qty: Math.max(1, x.qty + delta) } : x));
 
   const limpiarVentaActual = () => {
@@ -4338,6 +4366,13 @@ function POS({ localId, usuario, paletaActual }) {
           <div style={{ padding: "10px 14px", borderBottom: "1px solid " + temaPal.border, fontSize: 10, color: temaPal.textMuted, fontWeight: 700, letterSpacing: ".1em", background: preventa ? "#2471a320" : temaPal.bg }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, minHeight: 22 }}>
               <span>{preventa ? "PREVENTA" : "CARRITO DE COMPRAS"} ({cart.reduce((s2, i) => s2 + i.qty, 0)} u.)</span>
+              {listasPrecios.length > 0 && (
+                <select className="sel" aria-label="Lista de precios" value={listaSelId || ""} onChange={e => { setListaSelId(e.target.value ? parseInt(e.target.value) : null); listaAutoRef.current = false; }}
+                  style={{ width: "auto", minWidth: 120, padding: "3px 8px", fontSize: 11, letterSpacing: 0, fontWeight: 700, height: "auto", background: listaSel ? temaPal.accentDim : undefined, color: listaSel ? temaPal.accentText : undefined }}>
+                  <option value="">💲 Precio normal</option>
+                  {listasPrecios.map(l => <option key={l.id} value={l.id}>💲 {l.nombre}</option>)}
+                </select>
+              )}
               {cart.length > 0 && nombreEspera === null && (
                 <button className="chip-btn" style={{ letterSpacing: 0, fontSize: 10, padding: "3px 8px" }} onClick={() => setNombreEspera("")} title="Guardar esta venta para retomarla después">
                   ⏸ Poner en espera <span className="kbd">F8</span>
@@ -4381,6 +4416,7 @@ function POS({ localId, usuario, paletaActual }) {
                     <div className="cart-sub">
                       {(i.marca || i.brand) && <span>{i.marca || i.brand}</span>}
                       <span style={{ fontVariantNumeric: "tabular-nums" }}>{fmt(precioUnit).replace(SIN_CEROS, "")} c/u</span>
+                      {listaSel && i.precio_base !== undefined && i.precio !== i.precio_base && <span style={{ textDecoration: "line-through", opacity: 0.6, fontVariantNumeric: "tabular-nums" }} title={"Precio normal · con lista " + listaSel.nombre}>{fmt(i.precio_base).replace(SIN_CEROS, "")}</span>}
                       {desc > 0 && (
                         <button className="desc-chip" onClick={() => setItem({ descuento_pct: 0 })} title="Quitar el descuento">🏷 -{desc}% ✕</button>
                       )}
@@ -19022,6 +19058,233 @@ function CuentaDeCliente({ cuenta, medios, esJefe, localId, temaPal, onCerrar, o
   );
 }
 
+// ===================== LISTAS DE PRECIOS =====================
+// Precio de un producto en una lista: el precio especial si tiene, si no el precio normal con el
+// ajuste de la lista (ej: -20%) y su redondeo. Sin lista = precio normal.
+const precioDeLista = (lista, productoId, base) => {
+  const b = parseFloat(base) || 0;
+  if (!lista) return b;
+  const esp = lista.precios ? lista.precios[productoId] : undefined;
+  if (esp !== undefined && esp !== null) return parseFloat(esp);
+  let n = Math.round(b * (1 + (parseFloat(lista.ajuste_pct) || 0) / 100) * 100) / 100;
+  const r = Number(lista.redondeo) || 0;
+  if (r) n = Math.round(n / r) * r;
+  return n > 0 ? n : b;
+};
+const describirAjuste = (l) => {
+  const a = parseFloat(l.ajuste_pct) || 0;
+  return (a === 0 ? "Mismo precio que el normal" : (a < 0 ? a + "% del precio normal" : "+" + a + "% del precio normal")) + (l.redondeo ? " · redondeado a $" + l.redondeo : "");
+};
+
+// Lista de precios para imprimir o guardar en PDF (para mandar a clientes mayoristas)
+function htmlListaPrecios(lista, productos, negocio, conCodigo) {
+  const porCat = {};
+  productos.forEach(p => { const c = p.categoria || "Otros"; (porCat[c] = porCat[c] || []).push(p); });
+  const hoy = new Date().toLocaleDateString("es-AR");
+  const filas = Object.keys(porCat).sort().map(cat => `<tr class="cat"><td colspan="${conCodigo ? 3 : 2}">${escHtml(cat)}</td></tr>` +
+    porCat[cat].sort((a, b) => (a.nombre || "").localeCompare(b.nombre || "")).map(p => `<tr><td>${escHtml(p.nombre)}${p.marca ? ` <span class="m">${escHtml(p.marca)}</span>` : ""}</td>${conCodigo ? `<td class="c">${escHtml(p.codigo_barras || "")}</td>` : ""}<td class="p">${escHtml(fmt(precioDeLista(lista, p.id, p.precio)).replace(/[,.]00$/, ""))}</td></tr>`).join("")).join("");
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Lista de precios ${escHtml(lista.nombre)}</title><style>
+    @page { size: A4; margin: 14mm; } * { box-sizing: border-box; } body { font-family: Inter, Arial, sans-serif; color: #111; margin: 0; font-size: 11pt; }
+    h1 { font-size: 18pt; margin: 0; } .sub { color: #555; font-size: 10pt; margin: 2px 0 14px; }
+    table { width: 100%; border-collapse: collapse; } td { padding: 4px 6px; border-bottom: 0.3mm solid #ddd; }
+    tr.cat td { background: #f1f1f1; font-weight: 800; text-transform: uppercase; font-size: 9pt; letter-spacing: .06em; padding-top: 8px; border-bottom: 0.4mm solid #999; }
+    td.p { text-align: right; font-weight: 700; white-space: nowrap; } td.c { color: #666; font-size: 9pt; } .m { color: #777; font-size: 9pt; }
+    tr { break-inside: avoid; }
+  </style></head><body><h1>${escHtml(negocio || "Lista de precios")}</h1><div class="sub">Lista ${escHtml(lista.nombre)} · ${hoy} · ${productos.length} productos · precios sujetos a cambio</div>
+  <table>${filas}</table></body></html>`;
+}
+
+function ListasPrecios({ paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const [listas, setListas] = useState(null);
+  const [selId, setSelId] = useState(null);
+  const [productos, setProductos] = useState([]);
+  const [clientes, setClientes] = useState([]);
+  const [negocio, setNegocio] = useState("");
+  const [aviso, setAviso] = useState(null);
+  const [form, setForm] = useState(null); // { id?, nombre, ajuste_pct, redondeo }
+  const [busca, setBusca] = useState("");
+  const [cat, setCat] = useState("");
+  const [soloEspeciales, setSoloEspeciales] = useState(false);
+  const [limite, setLimite] = useState(60);
+  const [buscaCli, setBuscaCli] = useState("");
+  const [editPrecio, setEditPrecio] = useState({});
+  const avisar = (ok, texto) => { setAviso({ ok, texto }); setTimeout(() => setAviso(null), 4500); };
+
+  const cargar = () => API.get("/listas-precios").then(r => setListas(r.data || [])).catch(() => setListas([]));
+  useEffect(() => {
+    cargar();
+    API.get("/productos?estado=activos").then(r => setProductos((r.data || []).filter(p => p.activo !== false))).catch(() => {});
+    API.get("/clientes").then(r => setClientes(r.data || [])).catch(() => {});
+    API.get("/configuracion").then(r => setNegocio(r.data?.nombre_negocio || "")).catch(() => {});
+  }, []);
+  const sel = (listas || []).find(l => l.id === selId) || null;
+
+  const guardarLista = async () => {
+    try {
+      const body = { nombre: form.nombre, ajuste_pct: form.ajuste_pct === "" ? 0 : form.ajuste_pct, redondeo: form.redondeo };
+      const r = form.id ? await API.put("/listas-precios/" + form.id, body) : await API.post("/listas-precios", body);
+      avisar(true, "✓ Lista \"" + r.data.nombre + "\" guardada"); setForm(null); setSelId(r.data.id); cargar();
+    } catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+  };
+  const borrarLista = async () => {
+    if (!confirm("¿Borrar la lista \"" + sel.nombre + "\"? Sus clientes vuelven al precio normal.")) return;
+    try { await API.delete("/listas-precios/" + sel.id); setSelId(null); avisar(true, "✓ Lista borrada"); cargar(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo borrar"); }
+  };
+  const guardarPrecio = async (p, valor) => {
+    try {
+      await API.put("/listas-precios/" + sel.id + "/precios", { precios: [{ producto_id: p.id, precio: valor }] });
+      setEditPrecio(e => { const n = { ...e }; delete n[p.id]; return n; });
+      cargar();
+    } catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar el precio"); }
+  };
+  const asignarCliente = async (c, listaId) => {
+    try { await API.put("/listas-precios/cliente/" + c.id, { lista_precio_id: listaId }); setBuscaCli(""); cargar(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo asignar"); }
+  };
+  const compartir = () => {
+    const prods = productos.filter(p => (!cat || p.categoria === cat));
+    const marco = document.createElement("iframe");
+    marco.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+    document.body.appendChild(marco);
+    const d = marco.contentWindow.document;
+    d.open(); d.write(htmlListaPrecios(sel, prods, negocio, false)); d.close();
+    setTimeout(() => { marco.contentWindow.focus(); marco.contentWindow.print(); setTimeout(() => marco.remove(), 2000); }, 400);
+  };
+
+  if (listas === null) return <div className="fade"><div className="skel" style={{ height: 240 }} /></div>;
+  const categorias = [...new Set(productos.map(p => p.categoria).filter(Boolean))].sort();
+  const q = busca.trim().toLowerCase();
+  const filtrados = productos.filter(p => (!cat || p.categoria === cat) && (!q || [p.nombre, p.marca, p.codigo_barras].join(" ").toLowerCase().includes(q))
+    && (!soloEspeciales || (sel && sel.precios[p.id] !== undefined)));
+  const cliSugeridos = buscaCli.trim().length >= 2 ? clientes.filter(c => [c.nombre, c.cuit_dni, c.telefono].join(" ").toLowerCase().includes(buscaCli.trim().toLowerCase())).slice(0, 6) : [];
+
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div className="dash-head">
+        <div><div className="pt">Listas de precios</div><div className="ps">mayorista, revendedores u otros precios para ciertos clientes</div></div>
+        <div className="dash-actions"><button className="btn btn-p btn-sm" onClick={() => setForm({ nombre: "", ajuste_pct: "-20", redondeo: 10 })}>＋ Nueva lista</button></div>
+      </div>
+      {aviso && <div className="pop-in" role={aviso.ok ? "status" : "alert"} style={{ background: aviso.ok ? temaPal.greenDim : temaPal.redDim, border: "1px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, marginBottom: 12 }}>{aviso.texto}</div>}
+
+      {listas.length === 0 && !form && (
+        <div className="card" style={{ borderLeft: "3px solid " + temaPal.accent }}>
+          <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 6 }}>💲 Vendé con otros precios a ciertos clientes</div>
+          <div style={{ fontSize: 12.5, color: temaPal.textMuted, lineHeight: 1.6, marginBottom: 12 }}>
+            Creá una lista (por ejemplo <b>Mayorista: -20%</b>) y, si querés, poné precios especiales a algunos productos. Asignale la lista a tus clientes mayoristas:
+            cuando los cargues en el Punto de Venta, el carrito se cobra con esos precios. También podés elegir la lista a mano en el Punto de Venta y compartir la lista impresa o en PDF.
+          </div>
+          <button className="btn btn-p" onClick={() => setForm({ nombre: "Mayorista", ajuste_pct: "-20", redondeo: 10 })}>Crear lista Mayorista</button>
+        </div>
+      )}
+
+      {listas.length > 0 && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+          {listas.map(l => (
+            <button key={l.id} className={"chip-btn" + (selId === l.id ? " on" : "")} onClick={() => { setSelId(l.id); setForm(null); }} style={{ borderRadius: 10, padding: "10px 14px", textAlign: "left", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2, whiteSpace: "normal" }}>
+              <span style={{ fontSize: 13, fontWeight: 800 }}>{l.nombre}</span>
+              <span style={{ fontSize: 10.5, fontWeight: 500, color: temaPal.textMuted }}>{describirAjuste(l)} · {Object.keys(l.precios).length} especiales · {l.clientes.length} cliente{l.clientes.length === 1 ? "" : "s"}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {form && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div className="ct">{form.id ? "Editar lista" : "Nueva lista"}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+            <div className="fg" style={{ marginBottom: 0 }}><div className="fl">Nombre</div><input className="inp" autoFocus value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Mayorista" /></div>
+            <div className="fg" style={{ marginBottom: 0 }}><div className="fl">Ajuste sobre el precio normal (%)</div><input className="inp" type="number" value={form.ajuste_pct} onChange={e => setForm(f => ({ ...f, ajuste_pct: e.target.value }))} placeholder="-20" />
+              <div style={{ fontSize: 10.5, color: temaPal.textMuted, marginTop: 4 }}>Negativo = más barato (ej: -20). Ej: $10.000 → {fmt(precioDeLista({ ajuste_pct: form.ajuste_pct || 0, redondeo: form.redondeo, precios: {} }, 0, 10000))}</div></div>
+            <div className="fg" style={{ marginBottom: 0 }}><div className="fl">Redondear</div>
+              <select className="sel" value={form.redondeo} onChange={e => setForm(f => ({ ...f, redondeo: Number(e.target.value) }))}>
+                <option value={0}>Sin redondear</option><option value={1}>A pesos enteros</option><option value={10}>A $10</option><option value={50}>A $50</option><option value={100}>A $100</option><option value={500}>A $500</option><option value={1000}>A $1.000</option>
+              </select></div>
+          </div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}>
+            <button className="btn btn-g btn-sm" onClick={() => setForm(null)}>Cancelar</button>
+            <button className="btn btn-p btn-sm" disabled={!form.nombre.trim()} onClick={guardarLista}>Guardar lista</button>
+          </div>
+        </div>
+      )}
+
+      {sel && !form && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 12, alignItems: "start" }}>
+          <div className="card" style={{ gridColumn: "1 / -1" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
+              <div><div style={{ fontSize: 16, fontWeight: 800 }}>{sel.nombre}</div><div style={{ fontSize: 12, color: temaPal.textMuted }}>{describirAjuste(sel)}</div></div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <button className="btn btn-g btn-sm" onClick={compartir} title="Imprimir o guardar como PDF para mandar a tus clientes">📤 Imprimir / PDF{cat ? " (" + cat + ")" : ""}</button>
+                <button className="btn btn-g btn-sm" onClick={() => setForm({ id: sel.id, nombre: sel.nombre, ajuste_pct: String(sel.ajuste_pct), redondeo: sel.redondeo })}>✏️ Editar</button>
+                <button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={borrarLista}>Borrar</button>
+              </div>
+            </div>
+          </div>
+
+          <div className="card" style={{ gridColumn: "1 / -1" }}>
+            <div className="ct">Precios</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
+              <input className="inp" style={{ flex: "1 1 220px" }} placeholder="🔍 Buscar producto" value={busca} onChange={e => { setBusca(e.target.value); setLimite(60); }} aria-label="Buscar producto" />
+              <select className="sel" style={{ width: 170 }} value={cat} onChange={e => { setCat(e.target.value); setLimite(60); }} aria-label="Categoría"><option value="">Todas las categorías</option>{categorias.map(c => <option key={c} value={c}>{c}</option>)}</select>
+              <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12, cursor: "pointer" }}><input type="checkbox" checked={soloEspeciales} onChange={e => setSoloEspeciales(e.target.checked)} /> Solo con precio especial</label>
+            </div>
+            <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 8 }}>El precio de la lista sale del ajuste general. Si a un producto le ponés un <b>precio especial</b>, se usa ese. Dejalo vacío para volver al ajuste general.</div>
+            <div style={{ overflowX: "auto" }}>
+              <table>
+                <thead><tr><th>Producto</th><th style={{ textAlign: "right" }}>Precio normal</th><th style={{ textAlign: "right" }}>En {sel.nombre}</th><th style={{ textAlign: "right" }}>Precio especial</th></tr></thead>
+                <tbody>
+                  {filtrados.slice(0, limite).map(p => {
+                    const esp = sel.precios[p.id];
+                    const val = editPrecio[p.id] !== undefined ? editPrecio[p.id] : (esp !== undefined ? String(esp) : "");
+                    return (
+                      <tr key={p.id}>
+                        <td style={{ fontSize: 12.5 }}>{p.nombre}{p.marca && <div style={{ fontSize: 10.5, color: temaPal.textMuted }}>{p.marca}</div>}</td>
+                        <td style={{ textAlign: "right", fontSize: 12, color: temaPal.textMuted, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{fmt(parseFloat(p.precio || 0))}</td>
+                        <td style={{ textAlign: "right", fontWeight: 700, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{fmt(precioDeLista(sel, p.id, p.precio))}{esp !== undefined && <span className="tag tag-neutral" style={{ marginLeft: 6 }}>especial</span>}</td>
+                        <td style={{ textAlign: "right" }}>
+                          <input className="mini-inp" type="number" min="0" style={{ width: 96 }} placeholder="—" value={val} aria-label={"Precio especial de " + p.nombre}
+                            onChange={e => setEditPrecio(x => ({ ...x, [p.id]: e.target.value }))}
+                            onBlur={() => { if (editPrecio[p.id] !== undefined && editPrecio[p.id] !== (esp !== undefined ? String(esp) : "")) guardarPrecio(p, editPrecio[p.id]); }}
+                            onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {filtrados.length > limite && <button className="chip-btn" style={{ marginTop: 10 }} onClick={() => setLimite(l => l + 60)}>Ver más (quedan {filtrados.length - limite})</button>}
+            {filtrados.length === 0 && <div className="empty" style={{ padding: 18 }}>Ningún producto con ese filtro.</div>}
+          </div>
+
+          <div className="card" style={{ gridColumn: "1 / -1" }}>
+            <div className="ct">Clientes con esta lista</div>
+            <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 8 }}>Cuando cargás a uno de estos clientes en el Punto de Venta, el carrito pasa solo a los precios de {sel.nombre}.</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+              {sel.clientes.length === 0 && <span style={{ fontSize: 12, color: temaPal.textMuted }}>Todavía no hay clientes en esta lista.</span>}
+              {sel.clientes.map(c => <span key={c.id} className="tag tag-neutral" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12 }}>{c.nombre}<button aria-label={"Sacar a " + c.nombre} onClick={() => asignarCliente(c, null)} style={{ border: "none", background: "transparent", cursor: "pointer", color: temaPal.textMuted }}>✕</button></span>)}
+            </div>
+            <div style={{ position: "relative", maxWidth: 420 }}>
+              <input className="inp" placeholder="＋ Agregar cliente (nombre, DNI o teléfono)" value={buscaCli} onChange={e => setBuscaCli(e.target.value)} aria-label="Agregar cliente a la lista" />
+              {cliSugeridos.length > 0 && (
+                <div style={{ position: "absolute", left: 0, right: 0, top: "100%", zIndex: 5, background: temaPal.card, border: "1px solid " + temaPal.border, borderRadius: 8, marginTop: 4, boxShadow: "0 8px 24px rgba(0,0,0,.15)" }}>
+                  {cliSugeridos.map(c => (
+                    <button key={c.id} type="button" onClick={() => asignarCliente(c, sel.id)} style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 10px", background: "transparent", border: "none", borderBottom: "1px solid " + temaPal.border, cursor: "pointer", color: temaPal.text, fontFamily: "inherit", fontSize: 12.5 }}>
+                      <b>{c.nombre}</b> <span style={{ color: temaPal.textMuted }}>{c.cuit_dni || ""}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {!sel && !form && listas.length > 0 && <div className="empty" style={{ padding: 24 }}>Elegí una lista para ver y editar sus precios.</div>}
+    </div>
+  );
+}
+
 function Kits({ paletaActual, localId }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [kits, setKits] = useState([]);
@@ -19894,6 +20157,7 @@ const NAV_SECTIONS = [
     { id: "rotacion", icon: "♻️", label: "Rotación", k: "abc lentos parados liquidar" },
     { id: "inconsistencias", icon: "⚠️", label: "Inconsistencias", k: "errores diferencias" },
     { id: "kits", icon: "🎁", label: "Kits", k: "combos" },
+    { id: "listas-precios", icon: "💲", label: "Listas de precios", k: "mayorista revendedor precio especial lista cliente" },
     { id: "etiquetas", icon: "🏷️", label: "Etiquetas de precio", k: "imprimir etiquetas precio codigo barras oferta descuento promo gondola" },
     { id: "insumos", icon: "🛍️", label: "Insumos", k: "bolsas cajas packaging" }] },
   { section: "CAJA", color: "#2d7a4f", items: [
@@ -21608,7 +21872,7 @@ export default function AppWrapper() {
  const mapaModulos = {
       "pos": "pos.ver", "dashboard": "dashboard.ver",
       "ventas-online": "ventas_online.ver", "buscar-precio": "buscar_precio.ver", "cambio-devolucion": "cambios.ver",
-      "inventory": "inventario.ver", "rotacion": "rotacion.ver", "ordenes": "ordenes.ver", "inconsistencias": "inconsistencias.ver", "kits": "kits.ver", "etiquetas": "inventario.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
+      "inventory": "inventario.ver", "rotacion": "rotacion.ver", "ordenes": "ordenes.ver", "inconsistencias": "inconsistencias.ver", "kits": "kits.ver", "etiquetas": "inventario.ver", "listas-precios": "inventario.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
       "compras": "compras.ver", "reclamos-proveedores": "compras.ver",
       "clients": "clientes.ver", "cuenta-corriente": "clientes.ver", "pedidos": "pedidos.ver", "fidelizacion": "fidelizacion.ver", "tareas": "tareas.ver",
       "finance": "finanzas.flujo", "decisiones": "decisiones.ver", "gerente": "gerente.ver", "comprobantes": "comprobantes.ver",
@@ -21712,6 +21976,7 @@ export default function AppWrapper() {
     if (id === "ordenes") return <OrdenesIngreso localId={local.id} usuario={usuario} permisosActivos={permisosActivos} paletaActual={paletaActual} />;
     if (id === "kits") return <Kits paletaActual={paletaActual} localId={local.id} />;
     if (id === "etiquetas") return <Etiquetas paletaActual={paletaActual} localId={local.id} />;
+    if (id === "listas-precios") return <ListasPrecios paletaActual={paletaActual} />;
     if (id === "insumos") return <Insumos localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "control-inv") return <ControlInventario localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "config-insumos") return <ConfigInsumos localId={local.id} paletaActual={paletaActual} />;
