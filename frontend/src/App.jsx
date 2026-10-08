@@ -2420,7 +2420,8 @@ function Auditoria({ paletaActual }) {
     movimiento_caja: "Anulacion de movimiento",
     ajuste_stock: "Reversion de ajuste de stock",
     orden_ingreso: "Anulacion de orden de ingreso",
-    venta_online_editada: "Edicion de venta online"
+    venta_online_editada: "Edicion de venta online",
+    traspasos_eliminados: "Traspasos eliminados (sin tocar stock)"
   };
   const localLabel = (l) => nombreLocal(l);
   const tipos = [...new Set(registros.map(r => r.tipo))];
@@ -7103,9 +7104,79 @@ function ActualizarPrecios({ productos, proveedores, temaPal, onCerrar, onCambio
   );
 }
 
+// Eliminar traspasos de un rango de días SIN tocar el stock (cuando el stock ya se corrigió con
+// ajustes de inventario). Primero muestra la lista exacta; después pide confirmar. Solo el jefe.
+function EliminarTraspasos({ temaPal, onCerrar, onListo }) {
+  const hoy = isoLocal(new Date());
+  const [desde, setDesde] = useState(hoy);
+  const [hasta, setHasta] = useState(hoy);
+  const [vista, setVista] = useState(null);
+  const [motivo, setMotivo] = useState("Se cargaron por error: el stock ya se corrigió con ajustes de inventario");
+  const [error, setError] = useState("");
+  const [trabajando, setTrabajando] = useState(false);
+  useEffect(() => { setVista(null); }, [desde, hasta]);
+  const ver = async () => {
+    setTrabajando(true); setError("");
+    try { const r = await API.post("/traspasos/eliminar/vista", { desde, hasta }); setVista(r.data); }
+    catch (e) { setError(e.response?.data?.error || "No se pudo armar la lista"); }
+    setTrabajando(false);
+  };
+  const eliminar = async () => {
+    if (!confirm("¿Eliminar " + vista.traspasos.length + " traspaso" + (vista.traspasos.length === 1 ? "" : "s") + "? El stock de los locales no cambia. No se puede deshacer.")) return;
+    setTrabajando(true); setError("");
+    try {
+      const r = await API.post("/traspasos/eliminar", { desde, hasta, motivo, ids: vista.traspasos.map(t => t.id) });
+      onListo("✓ Se eliminaron " + r.data.eliminados + " traspasos" + (r.data.en_camino_quitado ? " y se sacaron " + r.data.en_camino_quitado + " unidades de \"En camino\"" : "") + ". El stock no cambió.");
+    } catch (e) { setError(e.response?.data?.error || "No se pudieron eliminar"); }
+    setTrabajando(false);
+  };
+  const fechaCorta = (f) => f.split("-").reverse().join("/");
+  return (
+    <div className="pos-overlay" onClick={onCerrar}>
+      <div className="card pop-in" role="dialog" aria-label="Eliminar traspasos" style={{ width: 640, maxWidth: "96vw", maxHeight: "92vh", overflowY: "auto", background: temaPal.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: 16, fontWeight: 800 }}>Eliminar traspasos sin tocar el stock</div>
+          <button onClick={onCerrar} aria-label="Cerrar" style={{ background: "transparent", border: "none", fontSize: 18, cursor: "pointer", color: temaPal.textMuted }}>✕</button>
+        </div>
+        <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "6px 0 14px", lineHeight: 1.55 }}>
+          Para cuando el stock ya se corrigió de otra forma (por ejemplo, con ajustes de inventario) y los traspasos sobran. Se borran los traspasos de esos días y sus líneas en el historial de ajustes, y se saca de <b>"En camino"</b> lo que nunca se recibió. <b>El stock de cada local no cambia.</b>
+        </div>
+        <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div className="fg" style={{ marginBottom: 0 }}><div className="fl">Desde</div><input className="inp" type="date" value={desde} onChange={e => setDesde(e.target.value)} /></div>
+          <div className="fg" style={{ marginBottom: 0 }}><div className="fl">Hasta</div><input className="inp" type="date" value={hasta} onChange={e => setHasta(e.target.value)} /></div>
+          <button className="btn btn-g btn-sm" disabled={trabajando || !desde || !hasta} onClick={ver}>Ver qué se borraría</button>
+        </div>
+        {error && <div role="alert" style={{ background: temaPal.redDim, border: "1px solid " + temaPal.red, borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, marginTop: 12 }}>{error}</div>}
+        {vista && (vista.traspasos.length === 0 ? <div className="empty" style={{ padding: 18, marginTop: 12 }}>No hay traspasos entre el {fechaCorta(desde)} y el {fechaCorta(hasta)}.</div> : (
+          <div style={{ marginTop: 14 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>{vista.traspasos.length} traspaso{vista.traspasos.length === 1 ? "" : "s"} entre el {fechaCorta(desde)} y el {fechaCorta(hasta)}{vista.en_camino ? " · " + vista.en_camino + " unidades sin recibir" : ""}</div>
+            <div style={{ overflowX: "auto", border: "1px solid " + temaPal.border, borderRadius: 8, maxHeight: 300, overflowY: "auto" }}>
+              <table>
+                <thead><tr><th>Día</th><th>Producto</th><th style={{ textAlign: "right" }}>Cant.</th><th>De → A</th><th>Estado</th></tr></thead>
+                <tbody>{vista.traspasos.map(t => (
+                  <tr key={t.id}>
+                    <td style={{ fontSize: 11, whiteSpace: "nowrap" }}>{t.dia}</td>
+                    <td style={{ fontSize: 12 }}>{t.producto_nombre}</td>
+                    <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{t.cantidad}</td>
+                    <td style={{ fontSize: 11, whiteSpace: "nowrap" }}>{nombreLocal(t.local_origen)} → {nombreLocal(t.local_destino)}</td>
+                    <td><span className={"tag " + (t.estado === "recibido" ? "tag-ok" : "tag-warn")}>{t.estado === "recibido" ? "Recibido" : "En camino"}</span></td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+            <div className="fg" style={{ marginTop: 12 }}><div className="fl">Motivo (queda en Auditoría)</div><input className="inp" value={motivo} onChange={e => setMotivo(e.target.value)} /></div>
+            <button className="btn btn-p" style={{ width: "100%", background: temaPal.red, borderColor: temaPal.red }} disabled={trabajando || !motivo.trim()} onClick={eliminar}>{trabajando ? "Eliminando..." : "Eliminar " + vista.traspasos.length + " traspaso" + (vista.traspasos.length === 1 ? "" : "s") + " (el stock no cambia)"}</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Inventario({ localId, usuario, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [showPrecios, setShowPrecios] = useState(false);
+  const [showEliminarTr, setShowEliminarTr] = useState(false);
   const [tab, setTab] = useState("stock");
   const [ajustesHistorial, setAjustesHistorial] = useState([]);
   const [buscarAjuste, setBuscarAjuste] = useState("");
@@ -8108,8 +8179,12 @@ function Inventario({ localId, usuario, paletaActual }) {
               Manda stock desde <b>{nombreLocal(localId)}</b> hacia <b>{nombreLocal(localDestinoTraspaso)}</b>.
               Al crear el traspaso, el stock se descuenta al instante del local de origen y queda "en tránsito" hasta que el destino confirme que lo recibió.
             </div>
-            <button className="btn btn-p btn-sm" onClick={() => setShowNuevoTraspaso(true)}>+ Nuevo traspaso</button>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <button className="btn btn-p btn-sm" onClick={() => setShowNuevoTraspaso(true)}>+ Nuevo traspaso</button>
+              {["jefe", "admin"].includes(usuario?.rol) && <button className="btn btn-g btn-sm" onClick={() => setShowEliminarTr(true)} title="Borrar traspasos cargados de más, sin cambiar el stock">🗑 Eliminar traspasos</button>}
+            </div>
           </div>
+          {showEliminarTr && <EliminarTraspasos temaPal={temaPal} onCerrar={() => setShowEliminarTr(false)} onListo={(msg) => { setShowEliminarTr(false); setMensaje(msg); setTimeout(() => setMensaje(""), 8000); cargarTraspasos(); cargar(); }} />}
 
           {cargandoTraspasos ? (
             <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 30 }}>Cargando...</div>
