@@ -7275,7 +7275,7 @@ const TABS_INVENTARIO = {
 };
 const TITULOS_INVENTARIO = {
   productos: ["Productos", "catálogo, precios y stock"],
-  stock: ["Stock bajo y en camino", "lo que hay que reponer y lo que está por llegar"],
+  stock: ["Reposición", "lo que hay que reponer y lo que está por llegar"],
   traspasos: ["Traspasos", "mercadería que va de un local a otro"],
   valorizacion: ["Valorización", "cuánta plata hay en mercadería"],
   ajustes: ["Historial de ajustes", "cada cambio de stock hecho a mano o por traspasos"],
@@ -20261,7 +20261,7 @@ const NAV_SECTIONS = [
     { id: "kits", icon: "🎁", label: "Kits", k: "combos" },
     { id: "insumos", icon: "🛍️", label: "Insumos", k: "bolsas cajas packaging" }] },
   { section: "STOCK", color: "#a0522d", items: [
-    { id: "stock-alertas", icon: "⚠️", label: "Stock bajo y en camino", k: "inventario alertas minimo reponer agotado transito en camino" },
+    { id: "stock-alertas", icon: "⚠️", label: "Reposición", k: "inventario alertas minimo reponer reposicion stock bajo agotado transito en camino" },
     { id: "compras", icon: "📋", label: "Compras y proveedores", k: "que pedir pedido proveedor comprar reponer" },
     { id: "ordenes", icon: "🚚", label: "Ingresos", k: "mercaderia recibir factura proveedor ordenes" },
     { id: "traspasos", icon: "🔁", label: "Traspasos", k: "inventario mandar local otro local recibir traspaso", multiLocal: true },
