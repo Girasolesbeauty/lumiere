@@ -164,6 +164,8 @@ let NOMBRES_LOCALES = { 1: "Local 1", 2: "Local 2" };
 // "Consolidado", "Todos", columnas de stock del otro local). Se recuerda en el navegador para
 // que no aparezca y desaparezca al abrir; AppWrapper lo confirma con la lista real de locales.
 let UN_SOLO_LOCAL = (() => { try { return localStorage.getItem("lumiere_un_local") === "1"; } catch (e) { return false; } })();
+// Modo gastronomia (Mesas y Cocina en el menu): se lee del servidor al entrar
+let GASTRO_ACTIVO = (() => { try { return localStorage.getItem("lumiere_gastro") === "1"; } catch (e) { return false; } })();
 // Permisos de la persona que esta usando el sistema (los carga App al entrar). El jefe puede todo.
 let PERMISOS_ACTUALES = [];
 let ES_JEFE_ACTUAL = false;
@@ -3000,7 +3002,8 @@ function POS({ localId, usuario, paletaActual }) {
   // ---- Modo de vista del POS (cada dispositivo recuerda el suyo) ----
   const [modoVista, setModoVistaState] = useState(() => {
     try { const g = localStorage.getItem("lumiere_pos_modo"); if (g) return g; } catch (e) {}
-    return (typeof window !== "undefined" && window.innerWidth < 700) ? "celular" : "clasico";
+    // Bares y restaurantes arrancan en Catalogo (botones grandes con foto)
+    return (typeof window !== "undefined" && window.innerWidth < 700) ? "celular" : GASTRO_ACTIVO ? "catalogo" : "clasico";
   });
   const setModoVista = (m) => { setModoVistaState(m); try { localStorage.setItem("lumiere_pos_modo", m); } catch (e) {} };
   const [catalogoCat, setCatalogoCat] = useState("");
@@ -3199,7 +3202,7 @@ function POS({ localId, usuario, paletaActual }) {
     setCart(prev => {
       let cambio = false;
       const out = prev.map(i => {
-        if (i.es_kit || i.es_ajuste || i.presupuesto_id || !(parseInt(i.id) > 0) || String(i.id).startsWith("insumo")) return i;
+        if (i.es_kit || i.es_ajuste || i.presupuesto_id || i.gastro_ids || !(parseInt(i.id) > 0) || String(i.id).startsWith("insumo")) return i;
         const base = i.precio_base !== undefined ? i.precio_base : (i.precio ?? i.price);
         const objetivo = precioDeLista(listaSel, parseInt(i.id), base);
         if (i.precio_base === base && i.precio === objetivo) return i;
@@ -3869,6 +3872,9 @@ function POS({ localId, usuario, paletaActual }) {
         justificaciones_stock: justificacionesStock
       });
       if (mpPago) mpPagoRef.current = null;
+      // Si la venta salio de una mesa, esos items quedan cobrados (y si no queda nada, se libera la mesa)
+      const gastroIds = cart.flatMap(i => i.gastro_ids || []);
+      if (gastroIds.length) API.put("/gastro/items-pagados", { item_ids: gastroIds, venta_id: ventaRes.data.id }).catch(() => {});
       // Si la venta salio de un presupuesto, queda marcado como vendido (aunque despues falle ARCA)
       const presuId = (cart.find(i => i.presupuesto_id) || {}).presupuesto_id;
       if (presuId) API.put("/presupuestos/" + presuId + "/vendido", { venta_id: ventaRes.data.id }).catch(() => {});
@@ -4016,6 +4022,42 @@ function POS({ localId, usuario, paletaActual }) {
     const k = kitsComoProducto.find(x => String(x.kit_id) === String(pedido));
     if (k) add(k);
   }, [kitsPos]);
+  // Si vienen de Mesas con "Cobrar", entran los items elegidos de la cuenta (y el pago dividido en partes)
+  useEffect(() => {
+    if (!productos.length) return;
+    let pedido = null;
+    try { pedido = JSON.parse(sessionStorage.getItem("lumiere_pos_gastro") || "null"); sessionStorage.removeItem("lumiere_pos_gastro"); } catch (e) {}
+    if (!pedido || !pedido.cuenta_id) return;
+    API.get("/gastro/cuentas/" + pedido.cuenta_id).then(r => {
+      const cu = r.data;
+      const ids = new Set((pedido.item_ids || []).map(Number));
+      const items = cu.items.filter(i => ids.has(i.id) && !i.venta_id && i.estado !== "anulado");
+      if (!items.length) { setMensaje("Esa cuenta ya está cobrada"); return; }
+      // Mismo producto y precio van en una sola linea del carrito
+      const lineas = {};
+      items.forEach((it, k) => {
+        const clave = it.producto_id ? it.producto_id + "|" + it.precio : "libre-" + k;
+        if (!lineas[clave]) {
+          const prod = it.producto_id && productos.find(p => String(p.id) === String(it.producto_id));
+          lineas[clave] = prod
+            ? { ...prod, precio: it.precio, precio_base: it.precio, qty: 0, gastro_ids: [] }
+            : { id: "ajuste-gastro-" + it.id, es_ajuste: true, nombre: it.nombre, precio: it.precio, disponible: 9999, qty: 0, gastro_ids: [] };
+        }
+        lineas[clave].qty += it.cantidad;
+        lineas[clave].gastro_ids.push(it.id);
+      });
+      setCart(Object.values(lineas));
+      const total = items.reduce((t, i) => t + i.cantidad * i.precio, 0);
+      const n = Math.max(1, parseInt(pedido.partes) || 1);
+      if (n > 1) {
+        const parte = Math.floor(total / n * 100) / 100;
+        setPagoMixto(true);
+        setPagosMixtos(Array.from({ length: n }, (_, k) => ({ medio_pago_id: null, medio_pago_nombre: "", importe: (k === n - 1 ? Math.round((total - parte * (n - 1)) * 100) / 100 : parte).toFixed(2) })));
+      }
+      setMensaje("🍽️ " + (cu.mesa_nombre || "Pedido para llevar") + ": " + fmt(total) + (n > 1 ? " en " + n + " partes — elegí cómo paga cada uno" : "") + ". Revisá y cobrá.");
+      setTimeout(() => setMensaje(""), 7000);
+    }).catch(() => setMensaje("No se pudo cargar la cuenta de la mesa"));
+  }, [productos.length > 0]);
   // Si vienen de Presupuestos con "Pasar a venta", entran los mismos productos, precios y cliente
   useEffect(() => {
     if (!productos.length) return;
@@ -12400,6 +12442,505 @@ function ConfigRespaldo({ p }) {
   );
 }
 
+// ===================== GASTRONOMIA =====================
+// Mesas, cuentas abiertas, comandas a cocina y cobro (todo / partes iguales / por consumo).
+// Se activa en Configuracion del negocio > General. Ver routes/gastro.js.
+const minutosDesde = (f) => Math.max(0, Math.floor((Date.now() - new Date(f).getTime()) / 60000));
+const textoMinutos = (m) => m < 1 ? "recién" : m < 60 ? m + " min" : Math.floor(m / 60) + " h " + (m % 60 ? (m % 60) + " min" : "");
+const horaDe = (f) => new Date(f).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+
+const imprimirTicket80 = (html) => {
+  const marco = document.createElement("iframe");
+  marco.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+  document.body.appendChild(marco);
+  const d = marco.contentWindow.document;
+  d.open();
+  d.write(`<!doctype html><html><head><meta charset="utf-8"><style>@page{size:80mm auto;margin:3mm}body{font-family:Arial,sans-serif;font-size:13px;width:72mm;margin:0;color:#000}
+    h1{font-size:18px;margin:0 0 4px}.c{text-align:center}.it{display:flex;justify-content:space-between;gap:6px;margin:5px 0}.q{font-weight:800;font-size:16px;min-width:26px}
+    .nota{font-size:13px;font-weight:700;margin:-2px 0 6px 30px}.sep{border-top:1px dashed #000;margin:8px 0}.tot{display:flex;justify-content:space-between;font-size:16px;font-weight:800}</style></head><body>${html}</body></html>`);
+  d.close();
+  setTimeout(() => { try { marco.contentWindow.focus(); marco.contentWindow.print(); } catch (e) {} setTimeout(() => marco.remove(), 1500); }, 400);
+};
+const imprimirComanda = (cuenta, comanda, items) => imprimirTicket80(
+  `<div class="c"><h1>COMANDA #${comanda.numero}</h1><b style="font-size:16px">${escHtml(cuenta.mesa_nombre || "Para llevar")}</b><br>${horaDe(comanda.creado_en)}${comanda.mozo ? " · " + escHtml(comanda.mozo) : ""}</div><div class="sep"></div>` +
+  items.map(i => `<div class="it"><span class="q">${i.cantidad}</span><span style="flex:1;font-size:15px">${escHtml(i.nombre)}</span></div>${i.nota ? `<div class="nota">» ${escHtml(i.nota)}</div>` : ""}`).join(""));
+const imprimirPrecuenta = (cuenta, negocio) => {
+  const vivos = cuenta.items.filter(i => i.estado !== "anulado");
+  imprimirTicket80(
+    `<div class="c"><h1>${escHtml(negocio || "")}</h1>${escHtml(cuenta.mesa_nombre || "Para llevar")}${cuenta.personas ? " · " + cuenta.personas + " personas" : ""}<br>${new Date().toLocaleString("es-AR")}</div><div class="sep"></div>` +
+    vivos.map(i => `<div class="it"><span>${i.cantidad} x ${escHtml(i.nombre)}</span><span>${escHtml(fmt(i.cantidad * i.precio))}</span></div>`).join("") +
+    `<div class="sep"></div><div class="tot"><span>TOTAL</span><span>${escHtml(fmt(cuenta.total))}</span></div>` +
+    (cuenta.pagado > 0 ? `<div class="it"><span>Ya pagado</span><span>${escHtml(fmt(cuenta.pagado))}</span></div><div class="tot"><span>FALTA</span><span>${escHtml(fmt(cuenta.falta))}</span></div>` : "") +
+    (cuenta.personas > 1 ? `<div class="it"><span>Por persona (${cuenta.personas})</span><span>${escHtml(fmt(cuenta.falta / cuenta.personas))}</span></div>` : "") +
+    `<div class="sep"></div><div class="c" style="font-size:11px">No válido como factura</div>`);
+};
+
+function Mesas({ localId, usuario, paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const local = localId || 1;
+  const esJefeG = ["jefe", "admin", "administrativo"].includes(usuario?.rol);
+  const [datos, setDatos] = useState(null);
+  const [cuenta, setCuenta] = useState(null);
+  const [armando, setArmando] = useState(false);
+  const [nuevas, setNuevas] = useState({ cantidad: 10, zona: "" });
+  const [editMesa, setEditMesa] = useState(null);
+  const [aviso, setAviso] = useState(null);
+  const avisar = (ok, texto) => { setAviso({ ok, texto }); setTimeout(() => setAviso(null), 4000); };
+  const [, setTic] = useState(0);
+
+  const cargar = () => API.get("/gastro/mesas?local_id=" + local).then(r => setDatos(r.data)).catch(() => setDatos({ mesas: [], sin_mesa: [] }));
+  useEffect(() => {
+    cargar();
+    const t = setInterval(() => { if (!document.hidden) { cargar(); setTic(x => x + 1); } }, 10000);
+    return () => clearInterval(t);
+  }, [localId]);
+  // Si vienen del Punto de Venta despues de cobrar, se vuelve a abrir la mesa
+  useEffect(() => {
+    let id = null;
+    try { id = sessionStorage.getItem("lumiere_gastro_volver"); sessionStorage.removeItem("lumiere_gastro_volver"); } catch (e) {}
+    if (id) API.get("/gastro/cuentas/" + id).then(r => { if (r.data.estado === "abierta") setCuenta(r.data); }).catch(() => {});
+  }, []);
+
+  const abrirMesa = async (m) => {
+    if (armando) return setEditMesa({ ...m });
+    try { const r = await API.post("/gastro/cuentas", { mesa_id: m.id, local_id: local }); setCuenta(r.data); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo abrir la mesa"); }
+  };
+  const paraLlevar = async () => {
+    const nombre = prompt("¿A nombre de quién? (opcional)") ;
+    if (nombre === null) return;
+    try { const r = await API.post("/gastro/cuentas", { local_id: local, nota: nombre }); setCuenta(r.data); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo abrir el pedido"); }
+  };
+  const crearMesas = async () => {
+    try { await API.post("/gastro/mesas", { ...nuevas, local_id: local }); avisar(true, "✓ Mesas creadas"); cargar(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudieron crear"); }
+  };
+  const guardarMesa = async () => {
+    try { await API.put("/gastro/mesas/" + editMesa.id, editMesa); setEditMesa(null); cargar(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+  };
+  const borrarMesa = async () => {
+    if (!confirm("¿Borrar " + editMesa.nombre + "?")) return;
+    try { await API.delete("/gastro/mesas/" + editMesa.id); setEditMesa(null); cargar(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo borrar"); }
+  };
+
+  if (cuenta) return <CuentaMesa inicial={cuenta} localId={local} usuario={usuario} paletaActual={temaPal} mesas={datos?.mesas || []} onVolver={() => { setCuenta(null); cargar(); }} />;
+  if (!datos) return <div className="fade"><div className="skel" style={{ height: 300 }} /></div>;
+
+  const zonas = [...new Set(datos.mesas.map(m => m.zona || ""))];
+  const ocupadas = datos.mesas.filter(m => m.cuenta).length;
+  const enJuego = datos.mesas.reduce((t, m) => t + (m.cuenta ? m.cuenta.total - m.cuenta.pagado : 0), 0) + datos.sin_mesa.reduce((t, c) => t + c.total - c.pagado, 0);
+  const tarjeta = (m) => {
+    const c = m.cuenta;
+    const col = !c ? temaPal.green : c.pidio_cuenta ? temaPal.purple || "#7d3c98" : c.listos > 0 ? temaPal.warn : temaPal.accent;
+    return (
+      <button key={m.id} onClick={() => abrirMesa(m)} className="card" style={{ textAlign: "left", cursor: "pointer", borderTop: "4px solid " + col, minHeight: 112, display: "flex", flexDirection: "column", gap: 4, background: c ? temaPal.card : temaPal.bg, outline: armando ? "2px dashed " + temaPal.border : "none" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <span style={{ fontSize: 16, fontWeight: 900 }}>{m.nombre}</span>
+          {m.capacidad ? <span style={{ fontSize: 11, color: temaPal.textMuted }}>👤 {m.capacidad}</span> : null}
+        </div>
+        {armando ? <span style={{ fontSize: 12, color: temaPal.textMuted }}>✏️ Tocá para editar</span>
+          : !c ? <span style={{ fontSize: 12, color: temaPal.green, fontWeight: 700 }}>Libre</span> : (
+            <>
+              <span style={{ fontSize: 18, fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{fmt(c.total - c.pagado)}</span>
+              <span style={{ fontSize: 11, color: temaPal.textMuted }}>⏱ {textoMinutos(minutosDesde(c.abierta_en))}{c.personas ? " · " + c.personas + " pers." : ""}{c.mozo ? " · " + c.mozo : ""}</span>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                {c.pidio_cuenta && <span className="tag tag-neutral">🧾 Pidió la cuenta</span>}
+                {c.listos > 0 && <span className="tag tag-warn">✅ Listo para llevar</span>}
+                {c.en_cocina > 0 && <span className="tag tag-neutral">🔥 En cocina</span>}
+                {c.sin_mandar > 0 && <span className="tag tag-bad">{c.sin_mandar} sin mandar</span>}
+              </div>
+            </>
+          )}
+      </button>
+    );
+  };
+
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div className="dash-head">
+        <div><div className="pt">Mesas</div><div className="ps">{datos.mesas.length ? ocupadas + " de " + datos.mesas.length + " ocupadas · " + fmt(enJuego) + " sin cobrar" : "armá tus mesas para empezar"} · {nombreLocal(local)}</div></div>
+        <div className="dash-actions">
+          {esJefeG && datos.mesas.length > 0 && <button className={"btn " + (armando ? "btn-p" : "btn-g")} onClick={() => { setArmando(a => !a); setEditMesa(null); }}>{armando ? "✓ Listo" : "⚙️ Armar mesas"}</button>}
+          <button className="btn btn-p" onClick={paraLlevar}>🥡 Para llevar</button>
+        </div>
+      </div>
+      {aviso && <div className="pop-in" role={aviso.ok ? "status" : "alert"} style={{ background: aviso.ok ? temaPal.greenDim : temaPal.redDim, border: "1px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, marginBottom: 12 }}>{aviso.texto}</div>}
+
+      {(datos.mesas.length === 0 || armando) && esJefeG && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div className="ct">{datos.mesas.length === 0 ? "Armá tus mesas" : "Agregar mesas"}</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+            <div><div className="fl">Cuántas</div><input className="inp" type="number" min="1" max="60" style={{ width: 100 }} value={nuevas.cantidad} onChange={e => setNuevas(n => ({ ...n, cantidad: e.target.value }))} /></div>
+            <div style={{ flex: "1 1 180px" }}><div className="fl">Zona (opcional)</div><input className="inp" placeholder="Ej: Salón, Vereda, Barra" value={nuevas.zona} onChange={e => setNuevas(n => ({ ...n, zona: e.target.value }))} /></div>
+            <button className="btn btn-p" onClick={crearMesas}>Crear mesas</button>
+          </div>
+          <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 8 }}>Se numeran solas (Mesa 1, Mesa 2…). Después podés cambiarles el nombre tocando "⚙️ Armar mesas".</div>
+        </div>
+      )}
+      {datos.mesas.length === 0 && !esJefeG && <div className="card"><div className="empty">Todavía no hay mesas armadas. Pedile al encargado que las cree.</div></div>}
+
+      {editMesa && (
+        <div className="card pop-in" style={{ marginBottom: 12, borderTop: "3px solid " + temaPal.accent }}>
+          <div className="ct">Editar mesa</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+            <div style={{ flex: "1 1 160px" }}><div className="fl">Nombre</div><input className="inp" value={editMesa.nombre} onChange={e => setEditMesa(m => ({ ...m, nombre: e.target.value }))} /></div>
+            <div style={{ flex: "1 1 140px" }}><div className="fl">Zona</div><input className="inp" value={editMesa.zona || ""} onChange={e => setEditMesa(m => ({ ...m, zona: e.target.value }))} /></div>
+            <div><div className="fl">Lugares</div><input className="inp" type="number" min="1" style={{ width: 90 }} value={editMesa.capacidad || ""} onChange={e => setEditMesa(m => ({ ...m, capacidad: e.target.value }))} /></div>
+            <button className="btn btn-p" onClick={guardarMesa}>Guardar</button>
+            <button className="btn btn-g" style={{ color: temaPal.red }} onClick={borrarMesa}>Borrar</button>
+            <button className="btn btn-g" onClick={() => setEditMesa(null)}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {datos.sin_mesa.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div className="ct">Para llevar / mostrador</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 10 }}>
+            {datos.sin_mesa.map(c => (
+              <button key={c.id} className="card" style={{ textAlign: "left", cursor: "pointer", borderTop: "4px solid " + (c.listos > 0 ? temaPal.warn : temaPal.accent) }} onClick={() => API.get("/gastro/cuentas/" + c.id).then(r => setCuenta(r.data))}>
+                <div style={{ fontWeight: 900 }}>🥡 Pedido #{c.id}</div>
+                <div style={{ fontSize: 18, fontWeight: 800 }}>{fmt(c.total - c.pagado)}</div>
+                <div style={{ fontSize: 11, color: temaPal.textMuted }}>⏱ {textoMinutos(minutosDesde(c.abierta_en))}{c.listos > 0 ? " · ✅ listo" : c.en_cocina > 0 ? " · 🔥 en cocina" : ""}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {zonas.map(z => (
+        <div key={z} style={{ marginBottom: 14 }}>
+          {zonas.length > 1 && <div className="ct">{z || "Sin zona"}</div>}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10 }}>
+            {datos.mesas.filter(m => (m.zona || "") === z).map(tarjeta)}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CuentaMesa({ inicial, localId, usuario, paletaActual, mesas, onVolver }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const esJefeG = ["jefe", "admin", "administrativo"].includes(usuario?.rol);
+  const [c, setC] = useState(inicial);
+  const [productos, setProductos] = useState([]);
+  const [fotos, setFotos] = useState({});
+  const [cat, setCat] = useState("");
+  const [busca, setBusca] = useState("");
+  const [cfg, setCfg] = useState({});
+  const [negocio, setNegocio] = useState("");
+  const [modoCobro, setModoCobro] = useState(null); // null | "partes" | "consumo"
+  const [partes, setPartes] = useState(inicial.personas || 2);
+  const [sel, setSel] = useState({});
+  const [notaDe, setNotaDe] = useState(null); // { id, nota }
+  const [aviso, setAviso] = useState(null);
+  const [ocupado, setOcupado] = useState(false);
+  const avisar = (ok, texto) => { setAviso({ ok, texto }); setTimeout(() => setAviso(null), 4000); };
+
+  useEffect(() => {
+    API.get("/productos?local=" + (Number(localId) === 2 ? "ush" : "rg") + "&estado=activos").then(r => setProductos((r.data || []).filter(p => p.activo !== false))).catch(() => {});
+    API.get("/gastro/estado").then(r => setCfg(r.data || {})).catch(() => {});
+    API.get("/configuracion").then(r => setNegocio(r.data?.nombre_negocio || "")).catch(() => {});
+    API.get("/productos/imagenes/todas").then(r => { const m = {}; (r.data || []).forEach(x => { m[x.producto_id] = x.imagen; }); setFotos(m); }).catch(() => {});
+    const t = setInterval(() => { if (!document.hidden) recargar(); }, 8000);
+    return () => clearInterval(t);
+  }, []);
+  const recargar = () => API.get("/gastro/cuentas/" + inicial.id).then(r => setC(r.data)).catch(() => {});
+  const accion = async (fn) => { if (ocupado) return; setOcupado(true); try { await fn(); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); } setOcupado(false); };
+
+  const agregar = (p) => accion(async () => {
+    const r = await API.post("/gastro/cuentas/" + c.id + "/items", { items: [{ producto_id: p.id, nombre: p.nombre, precio: p.precio, cantidad: 1 }] });
+    setC(r.data); setBusca("");
+  });
+  const cambiarItem = (it, body) => accion(async () => { const r = await API.put("/gastro/items/" + it.id, body); setC(r.data); });
+  const mandarCocina = () => accion(async () => {
+    const pend = c.items.filter(i => i.estado === "pendiente");
+    const r = await API.post("/gastro/cuentas/" + c.id + "/comanda");
+    setC(r.data.cuenta);
+    avisar(true, "🔥 Comanda #" + r.data.comanda.numero + " enviada a cocina");
+    if (cfg.imprimir_comanda) imprimirComanda(r.data.cuenta, r.data.comanda, pend);
+  });
+  const actualizar = (body) => accion(async () => { const r = await API.put("/gastro/cuentas/" + c.id, body); setC(r.data); });
+  const cerrarSinCobrar = () => {
+    if (!confirm(c.falta > 0 ? "Quedan " + fmt(c.falta) + " sin cobrar. ¿Cerrar la cuenta igual? (queda registrado quién la cerró)" : "¿Cerrar esta cuenta?")) return;
+    accion(async () => { await API.post("/gastro/cuentas/" + c.id + "/cerrar"); onVolver(); });
+  };
+  // Cobrar: pasa los items al Punto de Venta (ahi se registra la venta, el stock y la caja)
+  const irACobrar = (ids, nPartes) => {
+    if (!ids.length) return avisar(false, "Elegí qué se cobra");
+    if (c.items.some(i => i.estado === "pendiente")) { if (!confirm("Hay cosas cargadas que todavía no mandaste a cocina. ¿Cobrar igual?")) return; }
+    try {
+      sessionStorage.setItem("lumiere_pos_gastro", JSON.stringify({ cuenta_id: c.id, item_ids: ids, partes: nPartes || 1 }));
+      sessionStorage.setItem("lumiere_gastro_volver", String(c.id));
+    } catch (e) {}
+    irASeccion("pos");
+  };
+
+  const sinCobrar = c.items.filter(i => i.estado !== "anulado" && !i.venta_id);
+  const pendientes = c.items.filter(i => i.estado === "pendiente");
+  const cats = [...new Set(productos.map(p => p.categoria).filter(Boolean))].sort();
+  const q = busca.trim().toLowerCase();
+  const visibles = productos.filter(p => (!cat || p.categoria === cat) && (!q || [p.nombre, p.marca, p.codigo_barras].some(v => (v || "").toLowerCase().includes(q)))).slice(0, 60);
+  const conFotos = Object.keys(fotos).length > 0; // si hay fotos, los que no tienen muestran sus iniciales
+  const totalSel = sinCobrar.filter(i => sel[i.id]).reduce((t, i) => t + i.cantidad * i.precio, 0);
+  const mesasLibres = mesas.filter(m => !m.cuenta && m.id !== c.mesa_id);
+  const ESTADO_ITEM = { pendiente: ["Sin mandar", "tag-bad"], en_cocina: ["🔥 En cocina", "tag-neutral"], listo: ["✅ Listo", "tag-warn"], anulado: ["Anulado", "tag-neutral"] };
+
+  if (c.estado !== "abierta") return (
+    <div className="fade"><div className="card" style={{ textAlign: "center", padding: 30 }}>
+      <div style={{ fontSize: 40 }}>✅</div><div style={{ fontSize: 18, fontWeight: 800 }}>{c.mesa_nombre || "Pedido"}: cuenta cerrada</div>
+      <button className="btn btn-p" style={{ marginTop: 14 }} onClick={onVolver}>← Volver a las mesas</button>
+    </div></div>
+  );
+
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div className="dash-head">
+        <div>
+          <div className="pt">{c.mesa_nombre || "🥡 Para llevar #" + c.id}{c.nota && !c.mesa_id ? " · " + c.nota : ""}</div>
+          <div className="ps">abierta {horaDe(c.abierta_en)} ({textoMinutos(minutosDesde(c.abierta_en))}){c.mozo ? " · atiende " + c.mozo : ""}</div>
+        </div>
+        <div className="dash-actions"><button className="btn btn-g" onClick={onVolver}>← Mesas</button></div>
+      </div>
+      {aviso && <div className="pop-in" role={aviso.ok ? "status" : "alert"} style={{ background: aviso.ok ? temaPal.greenDim : temaPal.redDim, border: "1px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, marginBottom: 12 }}>{aviso.texto}</div>}
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 12, alignItems: "start" }}>
+        {/* Carta */}
+        <div className="card">
+          <input className="inp" placeholder="🔍 Buscar en la carta…" value={busca} onChange={e => setBusca(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && visibles.length) agregar(visibles[0]); }} />
+          {cats.length > 1 && (
+            <div style={{ display: "flex", gap: 5, flexWrap: "wrap", margin: "10px 0" }}>
+              <button className={"chip-btn" + (!cat ? " on" : "")} onClick={() => setCat("")}>Todo</button>
+              {cats.map(k => <button key={k} className={"chip-btn" + (cat === k ? " on" : "")} onClick={() => setCat(k)}>{k}</button>)}
+            </div>
+          )}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 8, marginTop: 10, maxHeight: 520, overflowY: "auto" }}>
+            {visibles.map(p => (
+              <button key={p.id} className="chip-btn" disabled={ocupado} onClick={() => agregar(p)} style={{ borderRadius: 10, padding: conFotos ? "0 0 8px" : "10px 10px", textAlign: "left", whiteSpace: "normal", display: "flex", flexDirection: "column", gap: 3, minHeight: 64, overflow: "hidden" }}>
+                {fotos[p.id] ? <img src={fotos[p.id]} alt="" loading="lazy" style={{ width: "100%", height: 86, objectFit: "cover", marginBottom: 4 }} />
+                  : conFotos ? <div aria-hidden="true" style={{ width: "100%", height: 86, marginBottom: 4, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 800, color: temaPal.textMuted, background: temaPal.bg }}>{(p.nombre || "").split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase()}</div> : null}
+                <span style={{ fontWeight: 700, fontSize: 12.5, padding: conFotos ? "0 8px" : 0 }}>{p.nombre}</span>
+                <span style={{ fontWeight: 800, color: temaPal.accentText, padding: conFotos ? "0 8px" : 0 }}>{fmt(parseFloat(p.precio) || 0)}</span>
+              </button>
+            ))}
+            {visibles.length === 0 && <div className="empty">No hay productos con ese nombre.</div>}
+          </div>
+        </div>
+
+        {/* Cuenta */}
+        <div className="card">
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
+            <span style={{ fontSize: 12, color: temaPal.textMuted }}>Personas</span>
+            <button className="btn btn-g btn-sm" onClick={() => actualizar({ personas: Math.max(1, (c.personas || 1) - 1) })}>−</button>
+            <b>{c.personas || "—"}</b>
+            <button className="btn btn-g btn-sm" onClick={() => actualizar({ personas: (c.personas || 0) + 1 })}>+</button>
+            <span style={{ flex: 1 }} />
+            <button className={"btn btn-sm " + (c.pidio_cuenta ? "btn-p" : "btn-g")} onClick={() => actualizar({ pidio_cuenta: !c.pidio_cuenta })}>🧾 {c.pidio_cuenta ? "Pidió la cuenta" : "Pidió la cuenta?"}</button>
+            <button className="btn btn-g btn-sm" onClick={() => imprimirPrecuenta(c, negocio)}>🖨 Precuenta</button>
+          </div>
+
+          {c.items.length === 0 ? <div className="empty">Tocá productos de la carta para agregarlos.</div> : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {c.items.map(it => {
+                const [et, tg] = it.venta_id ? ["✓ Cobrado", "tag-ok"] : ESTADO_ITEM[it.estado] || ["", ""];
+                const tachado = it.estado === "anulado";
+                return (
+                  <div key={it.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: "1px solid " + temaPal.border, opacity: it.venta_id || tachado ? 0.55 : 1 }}>
+                    {modoCobro === "consumo" && !it.venta_id && !tachado && <input type="checkbox" checked={!!sel[it.id]} onChange={e => setSel(s => ({ ...s, [it.id]: e.target.checked }))} aria-label={"Cobrar " + it.nombre} />}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, textDecoration: tachado ? "line-through" : "none" }}>{it.cantidad} × {it.nombre}</div>
+                      {notaDe && notaDe.id === it.id ? (
+                        <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+                          <input className="mini-inp" autoFocus style={{ flex: 1 }} placeholder="Ej: sin cebolla, bien cocido" value={notaDe.nota} onChange={e => setNotaDe(n => ({ ...n, nota: e.target.value }))} onKeyDown={e => { if (e.key === "Enter") { cambiarItem(it, { nota: notaDe.nota }); setNotaDe(null); } }} />
+                          <button className="btn btn-p btn-sm" onClick={() => { cambiarItem(it, { nota: notaDe.nota }); setNotaDe(null); }}>OK</button>
+                        </div>
+                      ) : it.nota ? <div style={{ fontSize: 11.5, color: temaPal.warn, fontWeight: 600 }}>» {it.nota}</div> : null}
+                      <span className={"tag " + tg} style={{ fontSize: 10, marginTop: 2, display: "inline-block" }}>{et}</span>
+                    </div>
+                    <b style={{ fontVariantNumeric: "tabular-nums" }}>{fmt(it.cantidad * it.precio)}</b>
+                    {it.estado === "pendiente" && !it.venta_id && (
+                      <div style={{ display: "flex", gap: 3 }}>
+                        <button className="btn btn-g btn-sm" aria-label="Uno menos" onClick={() => it.cantidad > 1 ? cambiarItem(it, { cantidad: it.cantidad - 1 }) : cambiarItem(it, { anular: true })}>−</button>
+                        <button className="btn btn-g btn-sm" aria-label="Uno más" onClick={() => cambiarItem(it, { cantidad: it.cantidad + 1 })}>+</button>
+                        <button className="btn btn-g btn-sm" title="Agregar una aclaración para la cocina" onClick={() => setNotaDe({ id: it.id, nota: it.nota || "" })}>✎</button>
+                      </div>
+                    )}
+                    {it.estado !== "pendiente" && !it.venta_id && !tachado && esJefeG && (
+                      <button className="btn btn-g btn-sm" title="Anular (ya se mandó a cocina)" onClick={() => { if (confirm("¿Anular " + it.nombre + "? Ya se mandó a cocina.")) cambiarItem(it, { anular: true }); }}>✕</button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div style={{ marginTop: 10 }}>
+            {c.pagado > 0 && <div className="cc-linea"><span>Ya cobrado</span><b>{fmt(c.pagado)}</b></div>}
+            <div className="cc-linea cc-esperado"><span>{c.pagado > 0 ? "Falta cobrar" : "Total"}</span><b style={{ fontSize: 22 }}>{fmt(c.falta)}</b></div>
+          </div>
+
+          {pendientes.length > 0 && <button className="btn btn-p" disabled={ocupado} style={{ width: "100%", padding: 12, marginTop: 10, fontSize: 14 }} onClick={mandarCocina}>🔥 Enviar a cocina ({pendientes.reduce((t, i) => t + i.cantidad, 0)})</button>}
+
+          {sinCobrar.length > 0 && (
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid " + temaPal.border }}>
+              {!modoCobro && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+                  <button className="btn btn-p" onClick={() => irACobrar(sinCobrar.map(i => i.id), 1)}>💵 Cobrar todo</button>
+                  <button className="btn btn-g" onClick={() => { setModoCobro("partes"); setPartes(c.personas || 2); }}>➗ Partes iguales</button>
+                  <button className="btn btn-g" onClick={() => { setModoCobro("consumo"); setSel({}); }}>☑️ Por consumo</button>
+                </div>
+              )}
+              {modoCobro === "partes" && (
+                <div className="pop-in">
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <span>Dividir en</span>
+                    <button className="btn btn-g btn-sm" onClick={() => setPartes(n => Math.max(2, n - 1))}>−</button>
+                    <b style={{ fontSize: 18 }}>{partes}</b>
+                    <button className="btn btn-g btn-sm" onClick={() => setPartes(n => Math.min(30, n + 1))}>+</button>
+                    <span>→ <b>{fmt(c.falta / partes)}</b> cada uno</span>
+                  </div>
+                  <div style={{ fontSize: 11.5, color: temaPal.textMuted, margin: "6px 0 8px" }}>Se registra una sola venta con {partes} pagos (cada uno puede pagar con un medio distinto).</div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button className="btn btn-g" onClick={() => setModoCobro(null)}>Cancelar</button>
+                    <button className="btn btn-p" style={{ flex: 1 }} onClick={() => irACobrar(sinCobrar.map(i => i.id), partes)}>Cobrar en {partes} partes</button>
+                  </div>
+                </div>
+              )}
+              {modoCobro === "consumo" && (
+                <div className="pop-in">
+                  <div style={{ fontSize: 12, marginBottom: 8 }}>Marcá arriba lo que paga esta persona. Lo demás queda en la cuenta.</div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button className="btn btn-g" onClick={() => setModoCobro(null)}>Cancelar</button>
+                    <button className="btn btn-p" style={{ flex: 1 }} disabled={totalSel <= 0} onClick={() => irACobrar(sinCobrar.filter(i => sel[i.id]).map(i => i.id), 1)}>Cobrar lo marcado ({fmt(totalSel)})</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
+            {c.mesa_id && mesasLibres.length > 0 && (
+              <select className="sel" style={{ flex: "1 1 160px", padding: "6px 8px", fontSize: 12 }} value="" onChange={e => { if (e.target.value) actualizar({ mesa_id: e.target.value }); }}>
+                <option value="">↔ Pasar a otra mesa…</option>
+                {mesasLibres.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
+              </select>
+            )}
+            <button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={cerrarSinCobrar}>Cerrar sin cobrar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Cocina({ localId, paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const [comandas, setComandas] = useState(null);
+  const vistas = useRef(null);
+  const [, setTic] = useState(0);
+  const pitar = () => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.18].forEach(t => { const o = ctx.createOscillator(); const g = ctx.createGain(); o.frequency.value = 880; o.connect(g); g.connect(ctx.destination); g.gain.setValueAtTime(0.2, ctx.currentTime + t); o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.12); });
+    } catch (e) {}
+  };
+  const cargar = () => API.get("/gastro/cocina?local_id=" + (localId || 1)).then(r => {
+    const lista = r.data || [];
+    const ids = new Set(lista.filter(k => k.estado === "en_cocina").map(k => k.id));
+    if (vistas.current && [...ids].some(id => !vistas.current.has(id))) pitar();
+    vistas.current = ids;
+    setComandas(lista);
+  }).catch(() => setComandas(c => c || []));
+  useEffect(() => {
+    cargar();
+    const t = setInterval(() => { cargar(); setTic(x => x + 1); }, 5000);
+    return () => clearInterval(t);
+  }, [localId]);
+  const marcar = (k, estado) => API.put("/gastro/comandas/" + k.id, { estado }).then(cargar).catch(() => {});
+
+  if (!comandas) return <div className="fade"><div className="skel" style={{ height: 300 }} /></div>;
+  const enCocina = comandas.filter(k => k.estado === "en_cocina");
+  const listas = comandas.filter(k => k.estado !== "en_cocina");
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div className="dash-head">
+        <div><div className="pt">Cocina</div><div className="ps">{enCocina.length ? enCocina.length + (enCocina.length === 1 ? " comanda" : " comandas") + " para preparar" : "nada pendiente"} · se actualiza sola</div></div>
+      </div>
+      {enCocina.length === 0 && <div className="card"><div className="empty">🟢 No hay comandas pendientes. Cuando un mozo mande un pedido, aparece acá (con un pitido).</div></div>}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 10 }}>
+        {enCocina.map(k => {
+          const min = minutosDesde(k.creado_en);
+          const col = min >= 20 ? temaPal.red : min >= 10 ? temaPal.warn : temaPal.green;
+          return (
+            <div key={k.id} className="card pop-in" style={{ borderTop: "5px solid " + col, display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                <span style={{ fontSize: 18, fontWeight: 900 }}>{k.mesa_nombre || "🥡 Para llevar"}</span>
+                <span style={{ fontWeight: 800, color: col }}>⏱ {textoMinutos(min)}</span>
+              </div>
+              <div style={{ fontSize: 11, color: temaPal.textMuted }}>Comanda #{k.numero} · {horaDe(k.creado_en)}{k.mozo ? " · " + k.mozo : ""}</div>
+              <div style={{ borderTop: "1px dashed " + temaPal.border, paddingTop: 6 }}>
+                {k.items.filter(i => i.estado !== "anulado").map(i => (
+                  <div key={i.id} style={{ marginBottom: 6 }}>
+                    <div style={{ fontSize: 15 }}><b style={{ fontSize: 17 }}>{i.cantidad}</b> × {i.nombre}</div>
+                    {i.nota && <div style={{ fontSize: 13, fontWeight: 700, color: temaPal.red }}>» {i.nota}</div>}
+                  </div>
+                ))}
+                {k.items.some(i => i.estado === "anulado") && <div style={{ fontSize: 11, color: temaPal.textMuted, textDecoration: "line-through" }}>{k.items.filter(i => i.estado === "anulado").map(i => i.cantidad + " × " + i.nombre).join(", ")}</div>}
+              </div>
+              <button className="btn btn-p" style={{ padding: 12, fontSize: 14 }} onClick={() => marcar(k, "lista")}>✅ Listo</button>
+            </div>
+          );
+        })}
+      </div>
+      {listas.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <div className="ct">Listas (últimos 30 min)</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {listas.map(k => <button key={k.id} className="chip-btn" title="Volver a cocina" onClick={() => marcar(k, "en_cocina")}>✅ #{k.numero} · {k.mesa_nombre || "Para llevar"} · {horaDe(k.lista_en)} ↺</button>)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Activar el modo gastronomia (Configuracion del negocio > General)
+function ConfigGastro({ paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const [g, setG] = useState(null);
+  useEffect(() => { API.get("/gastro/estado").then(r => setG(r.data)).catch(() => setG({ activo: false })); }, []);
+  const guardar = async (nuevo) => {
+    try {
+      await API.put("/gastro/estado", nuevo); setG(nuevo);
+      GASTRO_ACTIVO = !!nuevo.activo;
+      try { localStorage.setItem("lumiere_gastro", GASTRO_ACTIVO ? "1" : "0"); } catch (e) {}
+      window.dispatchEvent(new CustomEvent("lumiere-gastro"));
+    } catch (e) { alert(e.response?.data?.error || "No se pudo guardar"); }
+  };
+  if (!g) return null;
+  return (
+    <div className="card" style={{ marginBottom: 14, borderLeft: "4px solid " + temaPal.accent, textAlign: "left" }}>
+      <label style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer" }}>
+        <input type="checkbox" checked={!!g.activo} onChange={e => guardar({ ...g, activo: e.target.checked })} style={{ marginTop: 3 }} />
+        <span>
+          <b>🍽️ Modo gastronomía</b> (bar, café, restaurante)
+          <div style={{ fontSize: 12, color: temaPal.textMuted }}>Suma <b>Mesas</b> (cuentas abiertas por mesa, para llevar, cuenta dividida) y <b>Cocina</b> (las comandas llegan a una pantalla con pitido) en el menú VENTAS.</div>
+        </span>
+      </label>
+      {g.activo && (
+        <label style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 10, marginLeft: 26, fontSize: 12.5, cursor: "pointer" }}>
+          <input type="checkbox" checked={!!g.imprimir_comanda} onChange={e => guardar({ ...g, imprimir_comanda: e.target.checked })} />
+          Imprimir la comanda en la impresora de tickets al enviarla a cocina
+        </label>
+      )}
+    </div>
+  );
+}
+
 // ===================== MERCADO PAGO =====================
 // Motivos de rechazo de Mercado Pago, en criollo
 const MOTIVOS_RECHAZO_MP = {
@@ -12706,6 +13247,7 @@ function ConfiguracionNegocio({ paletaActual }) {
 
       {tab === "moneda" && <ConfigMoneda p={p} />}
       {tab === "respaldo" && <ConfigRespaldo p={p} />}
+      {tab === "general" && <ConfigGastro paletaActual={paletaActual} />}
       {tab === "general" && (
         loadingGeneral ? <div style={{ color: p.textMuted, padding: 20 }}>Cargando...</div> : (
           <div className="card fade" style={{ maxWidth: 480 }}>
@@ -21019,6 +21561,8 @@ const NAV_SECTIONS = [
   { section: "VENTAS", color: "#e67e22", items: [
     { id: "dashboard", icon: "📊", label: "Dashboard", k: "inicio resumen tablero" },
     { id: "pos", icon: "🛒", label: "Punto de Venta", k: "vender venta cobrar caja pos" },
+    { id: "mesas", icon: "🍽️", label: "Mesas", k: "mesa mozo comanda cuenta gastronomia restaurante bar cafe para llevar", soloGastro: true },
+    { id: "cocina", icon: "👨‍🍳", label: "Cocina", k: "comandas cocina pedidos gastronomia", soloGastro: true },
     { id: "presupuestos", icon: "🧾", label: "Presupuestos", k: "presupuesto cotizacion cotizar whatsapp pdf" },
     { id: "ventas-online", icon: "🌐", label: "Ventas Online", k: "web tienda internet pedidos online" },
     { id: "buscar-precio", icon: "🔎", label: "Buscar Precio", k: "precio consultar" },
@@ -21418,7 +21962,7 @@ function LocalSelector({ usuario, onSelect, actual, onCancel }) {
   const saludo = hora < 12 ? "Buen día" : hora < 20 ? "Buenas tardes" : "Buenas noches";
   const filtro = q.trim().toLowerCase();
   const visibles = (locales || []).filter(l => !filtro || [l.nombre, l.direccion].some(x => String(x || "").toLowerCase().includes(filtro)));
-  const salir = () => { localStorage.removeItem("lumiere_token"); localStorage.removeItem("lumiere_user"); localStorage.removeItem("lumiere_local"); localStorage.removeItem("lumiere_un_local"); window.location.reload(); };
+  const salir = () => { localStorage.removeItem("lumiere_token"); localStorage.removeItem("lumiere_user"); localStorage.removeItem("lumiere_local"); localStorage.removeItem("lumiere_un_local"); localStorage.removeItem("lumiere_gastro"); window.location.reload(); };
   const inicial = (n) => String(n || "").replace(/^local\s*/i, "").trim().charAt(0).toUpperCase() || "L";
 
   return (
@@ -21581,6 +22125,15 @@ function achicarLogo(archivo) {
   });
 }
 
+// Actividades del negocio: prenden los modulos que corresponden (ver lib/modulos.js)
+const ACTIVIDADES_NEGOCIO = [
+  ["comercio", "🛍️", "Comercio / tienda"],
+  ["gastronomia", "🍽️", "Bar, café o restaurante"],
+  ["servicios", "✂️", "Servicios (estética, peluquería…)"],
+  ["otro", "✨", "Otro"],
+];
+const nombreActividad = (id) => { const a = ACTIVIDADES_NEGOCIO.find(x => x[0] === id); return a ? a[1] + " " + a[2] : "Sin elegir"; };
+
 // Bienvenida: en 3 pasos el dueño deja listo lo basico de su negocio
 function Bienvenida({ usuario, onListo }) {
   const [paso, setPaso] = useState(0);
@@ -21591,10 +22144,10 @@ function Bienvenida({ usuario, onListo }) {
   useEffect(() => {
     API.get("/auth/bienvenida").then(r => {
       const l = r.data.locales || [];
-      setD({ nombre_negocio: r.data.nombre_negocio || "", logo_url: r.data.logo_url || "", moneda: r.data.moneda || "ARS",
+      setD({ nombre_negocio: r.data.nombre_negocio || "", logo_url: r.data.logo_url || "", moneda: r.data.moneda || "ARS", actividad: r.data.actividad || "",
         l1: { nombre: l[0]?.nombre || "Local principal", direccion: l[0]?.direccion || "" }, l2: { nombre: l[1]?.nombre || "", direccion: l[1]?.direccion || "" } });
       setOtro(!!l[1]);
-    }).catch(() => setD({ nombre_negocio: "", logo_url: "", moneda: "ARS", l1: { nombre: "Local principal", direccion: "" }, l2: { nombre: "", direccion: "" } }));
+    }).catch(() => setD({ nombre_negocio: "", logo_url: "", moneda: "ARS", actividad: "", l1: { nombre: "Local principal", direccion: "" }, l2: { nombre: "", direccion: "" } }));
   }, []);
   const set = (k, v) => { setD(x => ({ ...x, [k]: v })); setError(""); };
   const setL = (cual, k, v) => { setD(x => ({ ...x, [cual]: { ...x[cual], [k]: v } })); setError(""); };
@@ -21605,6 +22158,7 @@ function Bienvenida({ usuario, onListo }) {
   };
   const siguiente = () => {
     if (paso === 0 && d.nombre_negocio.trim().length < 2) return setError("Escribí el nombre de tu negocio");
+    if (paso === 0 && !d.actividad) return setError("Elegí a qué se dedica tu negocio");
     if (paso === 1 && d.l1.nombre.trim().length < 2) return setError("Escribí el nombre de tu local");
     if (paso === 1 && otro && d.l2.nombre.trim().length < 2) return setError("Escribí el nombre del segundo local (o destildá «Tengo otro local»)");
     setError(""); setPaso(p => p + 1);
@@ -21613,7 +22167,12 @@ function Bienvenida({ usuario, onListo }) {
     if (guardando) return;
     setGuardando(true); setError("");
     try {
-      await API.post("/auth/bienvenida", omitir ? { omitir: true } : { nombre_negocio: d.nombre_negocio, logo_url: d.logo_url, moneda: d.moneda, locales: [d.l1].concat(otro ? [d.l2] : []) });
+      await API.post("/auth/bienvenida", omitir ? { omitir: true } : { nombre_negocio: d.nombre_negocio, logo_url: d.logo_url, moneda: d.moneda, actividad: d.actividad || undefined, locales: [d.l1].concat(otro ? [d.l2] : []) });
+      if (!omitir) {
+        GASTRO_ACTIVO = d.actividad === "gastronomia";
+        try { localStorage.setItem("lumiere_gastro", GASTRO_ACTIVO ? "1" : "0"); } catch (e) {}
+        window.dispatchEvent(new CustomEvent("lumiere-gastro"));
+      }
       onListo();
     } catch (e) { setError(e.response?.data?.error || "No se pudo guardar. Probá de nuevo."); setGuardando(false); }
   };
@@ -21642,6 +22201,19 @@ function Bienvenida({ usuario, onListo }) {
                 </div>
                 <div className="lg-ayuda" style={{ textAlign: "left" }}>Sale en tus tickets y en el portal de tus clientes.</div>
               </div>
+              <div className="lg-campo">
+                <label>¿A qué se dedica tu negocio?</label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }} role="radiogroup" aria-label="Actividad del negocio">
+                  {ACTIVIDADES_NEGOCIO.map(([id, ic, txt]) => (
+                    <button key={id} type="button" role="radio" aria-checked={d.actividad === id} onClick={() => set("actividad", id)}
+                      style={{ padding: "10px 8px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 700, textAlign: "left", fontFamily: "inherit",
+                        border: "2px solid " + (d.actividad === id ? "#f5c518" : "rgba(255,255,255,.18)"), background: d.actividad === id ? "rgba(245,197,24,.15)" : "rgba(255,255,255,.06)", color: "#fff" }}>
+                      <span style={{ fontSize: 18, marginRight: 6 }}>{ic}</span>{txt}
+                    </button>
+                  ))}
+                </div>
+                {d.actividad === "gastronomia" && <div className="lg-ayuda" style={{ textAlign: "left" }}>Te activamos <b>Mesas</b> y <b>Cocina</b>: cuentas por mesa, comandas y cuenta dividida.</div>}
+              </div>
               <div className="lg-campo"><label htmlFor="bv-mon">Moneda con la que vendés</label>
                 <select id="bv-mon" className="lg-input" value={d.moneda} onChange={e => set("moneda", e.target.value)}>{Object.keys(MONEDAS).map(c => <option key={c} value={c}>{MONEDAS[c].nombre} ({c})</option>)}</select></div>
             </>}
@@ -21656,7 +22228,7 @@ function Bienvenida({ usuario, onListo }) {
             </>}
             {paso === 2 && (
               <ul className="pi-lista">
-                <li>🏪 <b>{d.nombre_negocio}</b> · {MONEDAS[d.moneda]?.nombre || d.moneda}{d.logo_url ? " · con logo" : ""}</li>
+                <li>🏪 <b>{d.nombre_negocio}</b> · {nombreActividad(d.actividad)} · {MONEDAS[d.moneda]?.nombre || d.moneda}{d.logo_url ? " · con logo" : ""}</li>
                 <li>📍 {d.l1.nombre}{otro && d.l2.nombre ? " y " + d.l2.nombre : ""}</li>
                 <li>Lo que sigue, cuando quieras: <b>cargar tus productos</b> en Inventario, <b>sumar a tu equipo</b> en Usuarios y hacer tu <b>primera venta</b> en el Punto de Venta.</li>
               </ul>
@@ -21712,6 +22284,7 @@ function PanelPlataforma({ paletaActual }) {
   const [creado, setCreado] = useState(null); // datos de acceso para pasarle al cliente
   const [clave, setClave] = useState(null); // { negocio, password }
   const [notas, setNotas] = useState(null); // { negocio, texto }
+  const [mods, setMods] = useState(null); // { negocio, actividad, gastronomia }
   const avisar = (m) => { setMsg(m); if (!m.startsWith("Error")) setTimeout(() => setMsg(x => (x === m ? "" : x)), 4000); };
   const cargar = () => API.get("/plataforma/negocios").then(r => setNegocios(r.data || [])).catch(e => { setNegocios([]); avisar("Error: " + (e.response?.data?.error || "no se pudo cargar la lista")); });
   useEffect(() => { cargar(); }, []);
@@ -21804,6 +22377,11 @@ function PanelPlataforma({ paletaActual }) {
                   {n.estado === "prueba" || n.estado === "vencido" ? <><br />Prueba hasta el {fecha(n.prueba_hasta)}</> : null}
                   {!n.original && <><br />Términos: {n.terminos ? "aceptados el " + fecha(n.terminos.aceptado_en) + " (versión " + n.terminos.version + ")" : "todavía no los aceptó"}</>}
                 </div>
+                <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", fontSize: 12 }}>
+                  <span className="tag tag-neutral">{nombreActividad(n.modulos?.actividad)}</span>
+                  {n.modulos?.gastronomia && <span className="tag tag-ok">🍽️ Mesas y Cocina</span>}
+                  <button className="btn btn-g btn-sm" onClick={() => setMods({ negocio: n, actividad: n.modulos?.actividad || "", gastronomia: !!n.modulos?.gastronomia })}>🧩 Módulos</button>
+                </div>
                 {n.notas && <div className="cli-tip" style={{ margin: 0 }}>📝 {n.notas}</div>}
                 {!n.original && (
                   <div className="plt-acciones">
@@ -21890,6 +22468,35 @@ function PanelPlataforma({ paletaActual }) {
         </Ventana>
       )}
 
+      {mods && (
+        <Ventana className="plt-fondo" role="dialog" aria-modal="true" aria-label="Módulos" onMouseDown={e => { if (e.target === e.currentTarget) setMods(null); }}>
+          <div className="plt-modal pop-in" style={caja}>
+            <div className="ct" style={{ marginBottom: 8 }}>🧩 Actividad y módulos de {mods.negocio.nombre}</div>
+            <div className="fl">Actividad</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 12 }}>
+              {ACTIVIDADES_NEGOCIO.map(([id, ic, txt]) => (
+                <button key={id} className={"chip-btn" + (mods.actividad === id ? " on" : "")} style={{ borderRadius: 8, padding: "9px 10px", textAlign: "left", whiteSpace: "normal" }}
+                  onClick={() => setMods(m => ({ ...m, actividad: id, gastronomia: id === "gastronomia" ? true : id === "otro" ? m.gastronomia : false }))}>{ic} {txt}</button>
+              ))}
+            </div>
+            <div className="fl">Módulos</div>
+            <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, cursor: "pointer" }}>
+              <input type="checkbox" checked={mods.gastronomia} onChange={e => setMods(m => ({ ...m, gastronomia: e.target.checked }))} style={{ marginTop: 3 }} />
+              <span><b>🍽️ Gastronomía</b>: Mesas y Cocina en el menú (cuentas por mesa, comandas, cuenta dividida)</span>
+            </label>
+            <div style={{ fontSize: 11, color: p.textMuted, marginTop: 8 }}>Los cambios se ven la próxima vez que entren (o al recargar la página).</div>
+            <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setMods(null)}>Cancelar</button>
+              <button className="btn btn-p" style={{ flex: 2 }} onClick={async () => {
+                try {
+                  await API.put("/plataforma/negocios/" + mods.negocio.id + "/modulos", { actividad: mods.actividad || undefined, gastronomia: mods.gastronomia });
+                  avisar("Módulos de " + mods.negocio.nombre + " guardados"); setMods(null); cargar();
+                } catch (e) { avisar("Error: " + (e.response?.data?.error || "no se pudo guardar")); }
+              }}>Guardar</button>
+            </div>
+          </div>
+        </Ventana>
+      )}
       {notas && (
         <Ventana className="plt-fondo" role="dialog" aria-modal="true" aria-label="Notas" onMouseDown={e => { if (e.target === e.currentTarget) setNotas(null); }}>
           <div className="plt-modal pop-in" style={caja}>
@@ -22641,7 +23248,17 @@ export default function AppWrapper() {
       try { localStorage.setItem("lumiere_un_local", UN_SOLO_LOCAL ? "1" : "0"); } catch (e) {}
       setNombresLocalesVersion(v => v + 1);
     }).catch(() => {});
+    API.get("/gastro/estado").then(r => {
+      GASTRO_ACTIVO = !!(r.data && r.data.activo);
+      try { localStorage.setItem("lumiere_gastro", GASTRO_ACTIVO ? "1" : "0"); } catch (e) {}
+      setNombresLocalesVersion(v => v + 1);
+    }).catch(() => {});
   }, [usuario?.id]);
+  useEffect(() => {
+    const f = () => setNombresLocalesVersion(v => v + 1);
+    window.addEventListener("lumiere-gastro", f);
+    return () => window.removeEventListener("lumiere-gastro", f);
+  }, []);
 
   const handleLogin = (u) => {
     setUsuario(u);
@@ -22739,7 +23356,7 @@ export default function AppWrapper() {
       if (!esJefe && !permisos.includes("dashboard.ver")) {
         const ordenPrioridad = ["pos", "ventas-online", "clients", "inventory", "caja"];
         const mapaModulos2 = {
-          "pos": "pos.ver", "presupuestos": "pos.ver", "ventas-online": "ventas_online.ver", "inventory": "inventario.ver",
+          "pos": "pos.ver", "presupuestos": "pos.ver", "mesas": "pos.ver", "cocina": "pos.ver", "ventas-online": "ventas_online.ver", "inventory": "inventario.ver",
           "clients": "clientes.ver", "cuenta-corriente": "clientes.ver", "caja": "caja.ver"
         };
         const disponible = ordenPrioridad.find(id => !mapaModulos2[id] || permisos.includes(mapaModulos2[id]));
@@ -22752,7 +23369,7 @@ export default function AppWrapper() {
     if (!usuario) return false;
     if (usuario.rol === "jefe" || usuario.rol_id === 1) return true;
  const mapaModulos = {
-      "pos": "pos.ver", "presupuestos": "pos.ver", "dashboard": "dashboard.ver",
+      "pos": "pos.ver", "presupuestos": "pos.ver", "mesas": "pos.ver", "cocina": "pos.ver", "dashboard": "dashboard.ver",
       "ventas-online": "ventas_online.ver", "buscar-precio": "buscar_precio.ver", "cambio-devolucion": "cambios.ver",
       "inventory": "inventario.ver", "rotacion": "rotacion.ver", "ordenes": "ordenes.ver", "inconsistencias": "inconsistencias.ver", "kits": "kits.ver", "etiquetas": "inventario.ver", "listas-precios": "inventario.ver", "stock-alertas": "inventario.ver", "traspasos": "inventario.ver", "valorizacion": "inventario.ver", "historial-ajustes": "inventario.ver", "salud-stock": "inventario.ver", "vencimientos": "inventario.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
       "compras": "compras.ver", "reclamos-proveedores": "compras.ver",
@@ -22865,6 +23482,8 @@ export default function AppWrapper() {
     if (id === "kits") return <Kits paletaActual={paletaActual} localId={local.id} />;
     if (id === "etiquetas") return <Etiquetas paletaActual={paletaActual} localId={local.id} />;
     if (id === "listas-precios") return <ListasPrecios paletaActual={paletaActual} />;
+    if (id === "mesas") return <Mesas localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "cocina") return <Cocina localId={local.id} paletaActual={paletaActual} />;
     if (id === "presupuestos") return <Presupuestos paletaActual={paletaActual} localId={local.id} />;
     if (id === "insumos") return <Insumos localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "control-inv") return <ControlInventario localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
@@ -22878,7 +23497,7 @@ export default function AppWrapper() {
   const esJefeMenu = usuario.rol === "jefe" || usuario.rol_id === 1;
   const NAV_CON_PERMISOS = NAV_SECTIONS.map(sec => ({
     ...sec,
-    items: sec.items.filter(it => (!it.soloJefe || esJefeMenu) && puedeVer(it.id) && !(it.multiLocal && UN_SOLO_LOCAL))
+    items: sec.items.filter(it => (!it.soloJefe || esJefeMenu) && puedeVer(it.id) && !(it.multiLocal && UN_SOLO_LOCAL) && !(it.soloGastro && !GASTRO_ACTIVO))
   })).filter(sec => sec.items.length > 0)
     // Solo para quien administra Lumiere
     .concat(adminPlataforma ? [{ section: "LUMIERE", color: "#f5b400", items: [{ id: "plataforma", icon: "🛠️", label: "Panel de Lumiere", k: "negocios clientes desarrollador plataforma activar prueba" }] }] : []);
