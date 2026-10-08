@@ -12580,8 +12580,6 @@ function ConexionMercadoPago({ paletaActual, alCambiar }) {
               <li>Copiá el <b>Access Token</b> de esa página (empieza con <code>APP_USR-</code>).</li>
             </ol>
             <div style={{ fontSize: 12, color: temaPal.red, fontWeight: 600, marginBottom: 10 }}>⚠️ No uses las "Credenciales de prueba": con esas los pagos reales se rechazan.</div>
-            <ol style={{ display: "none" }}>
-            </ol>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <input className="inp" style={{ flex: "1 1 260px" }} type="password" autoComplete="off" placeholder="APP_USR-…" value={token} onChange={e => setToken(e.target.value)} />
