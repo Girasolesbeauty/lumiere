@@ -38,6 +38,7 @@ async function asegurar() {
     creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
     pagado_en TIMESTAMP)`);
   await pool.query('ALTER TABLE medios_pago ADD COLUMN IF NOT EXISTS mp_qr BOOLEAN NOT NULL DEFAULT FALSE');
+  await pool.query('ALTER TABLE mp_cobros ADD COLUMN IF NOT EXISTS ultimo_intento TEXT');
   listo.set(true);
 }
 
@@ -135,7 +136,9 @@ router.post('/cobros', async (req, res) => {
     const referencia = 'lumiere-' + crypto.randomUUID();
     const vence = new Date(Date.now() + 60 * 60 * 1000);
     const pref = await mp(tok, 'POST', '/checkout/preferences', {
-      items: [{ title: descripcion, quantity: 1, unit_price: monto, currency_id: 'ARS' }],
+      // Datos que Mercado Pago recomienda mandar: sin ellos su control antifraude rechaza mas pagos
+      items: [{ id: 'venta-local', title: descripcion, description: descripcion, category_id: 'others', quantity: 1, unit_price: monto, currency_id: 'ARS' }],
+      statement_descriptor: String(cfg.nombre_negocio || 'LUMIERE').replace(/[^A-Za-z0-9 ]/g, '').slice(0, 13) || 'LUMIERE',
       external_reference: referencia,
       expires: true,
       expiration_date_to: vence.toISOString().replace('Z', '-00:00'),
@@ -170,12 +173,25 @@ router.get('/cobros/:id', async (req, res) => {
       return res.json({ estado: 'aprobado', payment_id: String(aprobado.id), medio });
     }
     const ultimo = pagos[0];
-    res.json({ estado: 'pendiente', intento: ultimo ? { status: ultimo.status, detalle: ultimo.status_detail } : null });
+    if (ultimo) {
+      const txt = [ultimo.status, ultimo.status_detail, ultimo.payment_method_id].filter(Boolean).join(' / ');
+      await pool.query('UPDATE mp_cobros SET ultimo_intento = $1 WHERE id = $2', [txt, c.id]).catch(() => {});
+    }
+    res.json({ estado: 'pendiente', intento: ultimo ? { status: ultimo.status, detalle: ultimo.status_detail, medio: ultimo.payment_method_id, id: ultimo.id } : null });
   } catch (e) {
     // Si Mercado Pago no responde, se sigue esperando (el POS vuelve a preguntar)
     console.error('[mercadopago] estado cobro:', e.message);
     res.json({ estado: 'pendiente', error: 'Sin respuesta de Mercado Pago, reintentando…' });
   }
+});
+
+// Ultimos cobros (para ver que paso con cada uno)
+router.get('/cobros', async (req, res) => {
+  try {
+    await asegurar();
+    const r = await pool.query('SELECT id, monto, estado, payment_id, medio, ultimo_intento, creado_en, pagado_en FROM mp_cobros ORDER BY id DESC LIMIT 30');
+    res.json(r.rows);
+  } catch (e) { res.status(500).json({ error: 'No se pudieron cargar los cobros' }); }
 });
 
 router.post('/cobros/:id/cancelar', async (req, res) => {

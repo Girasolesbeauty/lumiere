@@ -12401,6 +12401,29 @@ function ConfigRespaldo({ p }) {
 }
 
 // ===================== MERCADO PAGO =====================
+// Motivos de rechazo de Mercado Pago, en criollo
+const MOTIVOS_RECHAZO_MP = {
+  cc_rejected_insufficient_amount: "no tiene fondos suficientes en ese medio",
+  cc_rejected_high_risk: "Mercado Pago lo frenó por seguridad (prevención de fraude). Que pruebe con una tarjeta o con otra cuenta",
+  rejected_high_risk: "Mercado Pago lo frenó por seguridad (prevención de fraude). Que pruebe con una tarjeta o con otra cuenta",
+  cc_rejected_blacklist: "Mercado Pago no acepta pagos de ese medio o cuenta",
+  cc_rejected_other_reason: "el banco o Mercado Pago no lo autorizó. Que pruebe con otro medio",
+  rejected_other_reason: "el banco o Mercado Pago no lo autorizó. Que pruebe con otro medio",
+  rejected_by_bank: "el banco lo rechazó",
+  rejected_by_regulations: "lo rechazó Mercado Pago por sus reglas (por ejemplo, pagarse a sí mismo)",
+  cc_rejected_call_for_authorize: "tiene que llamar al banco para autorizar el pago",
+  cc_rejected_card_disabled: "la tarjeta está deshabilitada: tiene que activarla con el banco",
+  cc_rejected_max_attempts: "hizo demasiados intentos: que pruebe con otra tarjeta",
+  cc_rejected_duplicated_payment: "ya hizo un pago igual hace un momento",
+  cc_rejected_bad_filled_card_number: "cargó mal el número de tarjeta",
+  cc_rejected_bad_filled_date: "cargó mal la fecha de vencimiento",
+  cc_rejected_bad_filled_security_code: "cargó mal el código de seguridad",
+  cc_rejected_bad_filled_other: "cargó mal algún dato de la tarjeta",
+  cc_rejected_card_type_not_allowed: "ese tipo de tarjeta no se acepta",
+};
+const motivoRechazoMP = (d) => MOTIVOS_RECHAZO_MP[d] || (d ? "Mercado Pago lo rechazó (" + d + ")" : "Mercado Pago lo rechazó");
+
+
 // Ventana del Punto de Venta con el QR de Mercado Pago: crea el cobro, muestra el QR y pregunta
 // cada 3 segundos si ya se pago. Cuando se aprueba llama a onPagado (y ahi se registra la venta).
 function CobroMercadoPago({ monto, telefono, localId, paletaActual, onPagado, onCancelar }) {
@@ -12460,7 +12483,7 @@ function CobroMercadoPago({ monto, telefono, localId, paletaActual, onPagado, on
             <img src={cobro.qr} alt="QR para pagar con Mercado Pago" style={{ width: 260, height: 260, borderRadius: 8, background: "#fff", padding: 6 }} />
             <div style={{ fontSize: 13, marginTop: 8 }}>El cliente escanea el QR con la cámara del celular (o con la app de Mercado Pago) y paga.</div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 10, fontSize: 13, fontWeight: 700, color: rechazado ? temaPal.red : temaPal.accentText }}>
-              {rechazado ? "✕ El pago fue rechazado: que pruebe con otra tarjeta o medio" : <><span className="mp-punto" style={{ width: 9, height: 9, borderRadius: "50%", background: temaPal.accent, display: "inline-block", animation: "pulse 1.2s infinite" }} /> Esperando el pago…</>}
+              {rechazado ? "✕ Pago rechazado: " + motivoRechazoMP(intento.detalle) + ". Puede volver a intentar con el mismo QR." : <><span className="mp-punto" style={{ width: 9, height: 9, borderRadius: "50%", background: temaPal.accent, display: "inline-block", animation: "pulse 1.2s infinite" }} /> Esperando el pago…</>}
             </div>
             <div style={{ display: "flex", gap: 6, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
               <button className="btn btn-g btn-sm" onClick={mandarWhatsApp}>💬 Mandar link por WhatsApp</button>
@@ -12494,6 +12517,8 @@ function ConexionMercadoPago({ paletaActual, alCambiar }) {
   const [abierto, setAbierto] = useState(false);
   const [msg, setMsg] = useState(null);
   const [guardando, setGuardando] = useState(false);
+  const [cobros, setCobros] = useState(null);
+  const verCobros = () => { if (cobros) return setCobros(null); API.get("/mercadopago/cobros").then(r => setCobros(r.data || [])).catch(() => setCobros([])); };
   const cargar = () => API.get("/mercadopago/estado").then(r => setEstado(r.data)).catch(() => setEstado({ conectado: false }));
   useEffect(() => { cargar(); }, []);
   const conectar = async () => {
@@ -12522,10 +12547,27 @@ function ConexionMercadoPago({ paletaActual, alCambiar }) {
           </div>
         </div>
         {estado.conectado
-          ? <div style={{ display: "flex", gap: 6 }}><button className="btn btn-g btn-sm" onClick={() => setAbierto(a => !a)}>Cambiar cuenta</button><button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={desconectar}>Desconectar</button></div>
+          ? <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}><button className="btn btn-g btn-sm" onClick={verCobros}>{cobros ? "Ocultar cobros" : "Ver últimos cobros"}</button><button className="btn btn-g btn-sm" onClick={() => setAbierto(a => !a)}>Cambiar cuenta</button><button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={desconectar}>Desconectar</button></div>
           : <button className="btn btn-p btn-sm" onClick={() => setAbierto(a => !a)}>Conectar</button>}
       </div>
       {estado.conectado && estado.comision === 0 && <div style={{ fontSize: 11.5, color: temaPal.warn, marginTop: 8 }}>💡 Cargale la comisión que te cobra Mercado Pago al medio "Mercado Pago (QR)" (botón Editar, abajo) para que Finanzas calcule bien lo que te queda.</div>}
+      {cobros && (
+        <div className="pop-in" style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid " + temaPal.border }}>
+          {cobros.length === 0 ? <div className="empty">Todavía no hubo cobros con QR.</div> : (
+            <table>
+              <thead><tr><th>Fecha</th><th>Importe</th><th>Qué pasó</th></tr></thead>
+              <tbody>{cobros.map(c => {
+                const [st, det] = String(c.ultimo_intento || "").split(" / ");
+                const txt = c.estado === "aprobado" ? "✅ Pagado" + (c.payment_id ? " (pago N° " + c.payment_id + ")" : "")
+                  : st === "rejected" ? "✕ Rechazado: " + motivoRechazoMP(det)
+                  : c.estado === "cancelado" ? "Cancelado en el local" + (st ? " · último intento: " + c.ultimo_intento : "")
+                  : "Sin pagar" + (st ? " · último intento: " + c.ultimo_intento : "");
+                return <tr key={c.id}><td>{new Date(c.creado_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</td><td data-l="Importe">{fmt(parseFloat(c.monto))}</td><td data-l="Qué pasó" style={{ color: c.estado === "aprobado" ? temaPal.green : st === "rejected" ? temaPal.red : temaPal.textMuted }}>{txt}</td></tr>;
+              })}</tbody>
+            </table>
+          )}
+        </div>
+      )}
       {msg && <div className="pop-in" style={{ marginTop: 10, background: msg.ok ? temaPal.greenDim : temaPal.redDim, border: "1px solid " + (msg.ok ? temaPal.green : temaPal.red), borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600 }}>{msg.t}</div>}
       {abierto && (
         <div className="pop-in" style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid " + temaPal.border }}>
@@ -12534,7 +12576,11 @@ function ConexionMercadoPago({ paletaActual, alCambiar }) {
             <ol style={{ margin: "4px 0 10px 18px", padding: 0 }}>
               <li>Entrá a <a href="https://www.mercadopago.com.ar/developers/panel/app" target="_blank" rel="noreferrer">mercadopago.com.ar/developers</a> con tu cuenta de Mercado Pago.</li>
               <li>Tocá <b>Crear aplicación</b> (nombre: Lumiere; tipo: pagos online / Checkout Pro).</li>
-              <li>Entrá a la aplicación → <b>Credenciales de producción</b> y copiá el <b>Access Token</b> (empieza con <code>APP_USR-</code>).</li>
+              <li>Entrá a la aplicación y, en el menú de la izquierda, abajo de todo en <b>PRODUCCIÓN</b>, tocá <b>Credenciales de producción</b> (si te lo pide, completá el formulario para activarlas).</li>
+              <li>Copiá el <b>Access Token</b> de esa página (empieza con <code>APP_USR-</code>).</li>
+            </ol>
+            <div style={{ fontSize: 12, color: temaPal.red, fontWeight: 600, marginBottom: 10 }}>⚠️ No uses las "Credenciales de prueba": con esas los pagos reales se rechazan.</div>
+            <ol style={{ display: "none" }}>
             </ol>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
