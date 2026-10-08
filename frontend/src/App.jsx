@@ -7265,11 +7265,28 @@ function EliminarTraspasos({ temaPal, onCerrar, onListo }) {
   );
 }
 
-function Inventario({ localId, usuario, paletaActual }) {
+// Qué pestañas muestra cada sección del menú que usa esta pantalla
+const TABS_INVENTARIO = {
+  productos: ["stock"],
+  stock: ["alertas", "transito"],
+  traspasos: ["traspasos"],
+  valorizacion: ["valorizacion"],
+  ajustes: ["ajustes"],
+};
+const TITULOS_INVENTARIO = {
+  productos: ["Productos", "catálogo, precios y stock"],
+  stock: ["Stock bajo y en camino", "lo que hay que reponer y lo que está por llegar"],
+  traspasos: ["Traspasos", "mercadería que va de un local a otro"],
+  valorizacion: ["Valorización", "cuánta plata hay en mercadería"],
+  ajustes: ["Historial de ajustes", "cada cambio de stock hecho a mano o por traspasos"],
+};
+function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
   const temaPal = paletaActual || PALETA_CLARA;
+  const tabsModo = TABS_INVENTARIO[modo] || TABS_INVENTARIO.productos;
   const [showPrecios, setShowPrecios] = useState(false);
   const [showEliminarTr, setShowEliminarTr] = useState(false);
-  const [tab, setTab] = useState("stock");
+  const [tab, setTab] = useState(tabsModo[0]);
+  const [filtroInicial] = useState(() => modo === "productos" ? tabInicialDe("inventory") : null);
   const [ajustesHistorial, setAjustesHistorial] = useState([]);
   const [buscarAjuste, setBuscarAjuste] = useState("");
   const [cargandoAjustes, setCargandoAjustes] = useState(false);
@@ -7354,7 +7371,7 @@ function Inventario({ localId, usuario, paletaActual }) {
   const [eliminandoProd, setEliminandoProd] = useState(null);
   const [busqueda, setBusqueda] = useState("");
   const [filtroCat, setFiltroCat] = useState("");
-  const [filtroStock, setFiltroStock] = useState("");
+  const [filtroStock, setFiltroStock] = useState(["bajo", "sin", "negativo", "reservas", "incompletos", "sin_costo", "sin_codigo"].includes(filtroInicial) ? filtroInicial : "");
   const [filtroEstadoProd, setFiltroEstadoProd] = useState("activos");
   const [filtroMarcasValor, setFiltroMarcasValor] = useState([]);
   const [recalculando, setRecalculando] = useState(false);
@@ -7503,6 +7520,12 @@ function Inventario({ localId, usuario, paletaActual }) {
       setTransito(res.data || []);
     } catch (e) {}
   };
+  // Cada sección abre en su pestaña: cargar lo que esa pestaña necesita
+  useEffect(() => {
+    if (tab === "transito") cargarTransito();
+    if (tab === "ajustes") cargarAjustesHistorial();
+    if (tab === "traspasos") cargarTraspasos();
+  }, []);
 
   const cargarCalculadoras = async () => {
     try {
@@ -7761,21 +7784,21 @@ function Inventario({ localId, usuario, paletaActual }) {
     ["transito", "🚚 EN TRÁNSITO"],
     ["traspasos", "🔁 TRASPASOS" + (traspasosPorRecibir.length ? " (" + traspasosPorRecibir.length + " por recibir)" : "")],
     ["ajustes", "📝 HISTORIAL DE AJUSTES"],
-  ].filter(([k]) => !(UN_SOLO_LOCAL && k === "traspasos"));
+  ].filter(([k]) => !(UN_SOLO_LOCAL && k === "traspasos") && tabsModo.includes(k));
 
   return (
     <div className="fade" style={{ textAlign: "left" }}>
       <div className="dash-head">
         <div>
-          <div className="pt">Inventario</div>
-          <div className="ps">stock, alertas, valorización y movimientos · {nombreLocal(localId)}</div>
+          <div className="pt">{(TITULOS_INVENTARIO[modo] || TITULOS_INVENTARIO.productos)[0]}</div>
+          <div className="ps">{(TITULOS_INVENTARIO[modo] || TITULOS_INVENTARIO.productos)[1]} · {nombreLocal(localId)}</div>
         </div>
-        <div className="dash-actions">
+        {modo === "productos" && <div className="dash-actions">
           <button className="btn btn-g btn-sm" onClick={exportarCSV} title="Descargar la lista filtrada para abrir en Excel">📥 Exportar</button>
           {puedeHacer("inventario.editar") && <button className="btn btn-g btn-sm" onClick={() => setShowPrecios(true)} title="Subir o bajar muchos precios de una vez">📈 Actualizar precios</button>}
           <button className="btn btn-g btn-sm" onClick={() => irASeccion("etiquetas")} title="Imprimir etiquetas de precio">🏷️ Etiquetas</button>
           {puedeHacer("inventario.crear") && <button className="btn btn-p btn-sm" onClick={() => { setEditandoProd(null); setFotoProd({ imagen: null, cambiada: false }); setNuevo({ nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "", stock: "", stock_minimo: "", proveedor_id: "", descripcion: "", tiene_variantes: false, tipo_variante: "" }); setShowForm(true); }}>+ Nuevo producto</button>}
-        </div>
+        </div>}
       </div>
       {mensaje && (
         <div className="pop-in" role={mensaje.includes("Error") ? "alert" : "status"} style={{ background: mensaje.includes("Error") ? temaPal.redDim : temaPal.greenDim, border: "1px solid " + (mensaje.includes("Error") ? temaPal.red : temaPal.green), borderRadius: 8, padding: "10px 16px", marginBottom: 14, fontSize: 13, fontWeight: 600, color: mensaje.includes("Error") ? temaPal.red : temaPal.green }}>
@@ -7879,17 +7902,17 @@ function Inventario({ localId, usuario, paletaActual }) {
         </div>
       )}
 
-      {traspasosPorRecibir.length > 0 && (
+      {traspasosPorRecibir.length > 0 && (modo === "productos" || modo === "traspasos") && (
         <div role="status" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 12, padding: "10px 14px", borderRadius: 8, background: temaPal.warnDim, border: "1px solid " + temaPal.warn, color: temaPal.text, fontSize: 13 }}>
           <span>🚚 <b>{traspasosPorRecibir.length === 1 ? "Hay 1 traspaso" : "Hay " + traspasosPorRecibir.length + " traspasos"} para recibir en {nombreLocal(localId)}</b> ({traspasosPorRecibir.reduce((s, tr) => s + (parseInt(tr.cantidad) || 0), 0)} u.). Hasta que no confirmes que llegaron, no suman al stock.</span>
-          {tab !== "traspasos" && <button className="btn btn-p btn-sm" onClick={() => setTab("traspasos")}>Ver y recibir</button>}
+          {modo !== "traspasos" && <button className="btn btn-p btn-sm" onClick={() => irASeccion("traspasos")}>Ver y recibir</button>}
         </div>
       )}
-      <div className="tabs" role="tablist">
+      {tabsInv.length > 1 && <div className="tabs" role="tablist">
         {tabsInv.map(([t, l]) => (
           <button key={t} role="tab" aria-selected={tab === t} className={"tab " + (tab === t ? "on" : "")} onClick={() => { setTab(t); if (t === "transito") cargarTransito(); if (t === "ajustes") cargarAjustesHistorial(); if (t === "traspasos") cargarTraspasos(); }}>{l}</button>
         ))}
-      </div>
+      </div>}
 
       {(tab === "stock" || tab === "valorizacion") && !UN_SOLO_LOCAL && (
         <div className="seg" role="group" aria-label="Local" style={{ marginBottom: 12 }}>
@@ -9808,13 +9831,14 @@ function Finanzas({ localId, usuario, paletaActual }) {
               <div className="chart-card anim-in" style={{ animationDelay: "80ms" }}>
                 <div className="chart-head"><div className="chart-title">Cómo se calcula</div></div>
                 {Object.entries(e.costos_fijos_detalle || {}).filter(([, v]) => v > 0).map(([k, v]) => <div key={k} className="cc-linea"><span>{k}</span><b>{fmt(v)}</b></div>)}
-                <div className="cc-linea cc-esperado" style={{ fontSize: 13 }}><span>Costos fijos del mes</span><b style={{ color: p.text, fontSize: 15 }}>{fmt(e.costos_fijos)}</b></div>
+                <div className="cc-linea cc-esperado" style={{ fontSize: 13 }}><span>{e.costos_estimados ? "Costos fijos del mes (promedio)" : "Costos fijos del mes"}</span><b style={{ color: p.text, fontSize: 15 }}>{fmt(e.costos_fijos)}</b></div>
                 <div className="divider" />
                 <div className="cc-linea"><span>Margen bruto de lo vendido</span><b>{e.margen_bruto_pct}%</b></div>
                 <div className="cc-linea"><span>− Comisiones de medios de pago</span><b>{e.comisiones_pct}%</b></div>
                 <div className="cc-linea cc-esperado" style={{ fontSize: 13 }}><span>Margen de contribución</span><b style={{ fontSize: 15 }}>{e.margen_promedio}%</b></div>
                 <div style={{ fontSize: 11, color: p.textMuted, marginTop: 8 }}>
                   Punto de equilibrio = costos fijos ÷ margen de contribución.{e.margen_base === "60dias" ? " Como no hubo ventas ese mes, el margen sale de los últimos 60 días." : ""}
+                  {e.costos_estimados && <div style={{ marginTop: 6 }}>Como el mes recién empieza y todavía faltan cargar gastos (llevás {fmt(e.costos_registrados || 0)}), se usa lo que gastás en promedio por mes (últimos 3 meses). Si este mes cargás más, se toma lo cargado.</div>}
                 </div>
               </div>
             </div>
@@ -19285,6 +19309,87 @@ function ListasPrecios({ paletaActual }) {
   );
 }
 
+// ===================== SALUD DEL STOCK =====================
+// Resumen de todo lo que hay que revisar del stock, cada cosa con un botón que lleva a resolverla.
+function SaludStock({ paletaActual, localId }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const [d, setD] = useState(null);
+  const esUsh = Number(localId) === 2;
+  useEffect(() => {
+    const local = esUsh ? "ush" : "rg";
+    Promise.all([
+      API.get("/productos?local=" + local + "&estado=activos").then(r => r.data || []).catch(() => []),
+      API.get("/productos/rotacion?dias=90&local_id=" + (localId || 1)).then(r => r.data).catch(() => null),
+      UN_SOLO_LOCAL ? Promise.resolve([]) : API.get("/traspasos?local_id=" + (localId || 1)).then(r => r.data || []).catch(() => []),
+      API.get("/productos/stock/ajustes-pendientes?local_id=" + (localId || 1)).then(r => r.data || []).catch(() => []),
+    ]).then(([prods, rot, tras, ajustes]) => {
+      const activos = prods.filter(p => p.activo !== false);
+      const st = (p) => esUsh ? (p.stock_ush || 0) : (p.stock_rg || 0);
+      const incompleto = (p) => !(parseFloat(p.precio) > 0) || !(parseFloat(p.costo) > 0) || !(p.codigo_barras || "").trim() || !(p.categoria || "").trim() || (!p.proveedor_id && !(p.proveedor_nombre || "").trim());
+      const quietos = rot && rot.por_estado ? (rot.por_estado.parado?.productos || 0) + (rot.por_estado.lento?.productos || 0) : null;
+      const valorQuieto = rot && rot.por_estado ? (rot.por_estado.parado?.valor_costo || 0) + (rot.por_estado.lento?.valor_costo || 0) : 0;
+      setD({
+        total: activos.length,
+        negativos: activos.filter(p => st(p) < 0).length,
+        sinStock: activos.filter(p => st(p) === 0).length,
+        bajoMinimo: activos.filter(p => st(p) > 0 && st(p) <= (p.stock_minimo || 5)).length,
+        incompletos: activos.filter(incompleto).length,
+        sinCosto: activos.filter(p => !(parseFloat(p.costo) > 0)).length,
+        quietos, valorQuieto,
+        porRecibir: tras.filter(t => t.estado !== "recibido" && Number(t.local_destino) === Number(localId || 1)).length,
+        ajustes: ajustes.length,
+      });
+    });
+  }, [localId]);
+
+  if (!d) return <div className="fade"><div className="skel" style={{ height: 280 }} /></div>;
+  const items = [
+    { n: d.negativos, grave: true, icono: "➖", titulo: "Productos con stock negativo", que: "Se vendió algo que el sistema no tenía: falta cargar un ingreso o hay un error de stock. Contalos y corregí el stock.", ir: "inventory:negativo", boton: "Ver cuáles" },
+    { n: d.porRecibir, grave: true, icono: "🚚", titulo: "Traspasos para recibir", que: "Mercadería que mandaron desde el otro local y todavía no se marcó como recibida: no suma al stock hasta que la reciban.", ir: "traspasos", boton: "Recibir", oculto: UN_SOLO_LOCAL },
+    { n: d.ajustes, grave: true, icono: "🔐", titulo: "Ajustes de stock esperando aprobación", que: "Alguien del equipo pidió corregir el stock y falta que lo apruebes.", ir: "inventory", boton: "Revisar" },
+    { n: d.bajoMinimo, grave: false, icono: "⚠️", titulo: "Productos con stock bajo", que: "Están en o debajo del mínimo: conviene reponerlos antes de que se agoten.", ir: "stock-alertas", boton: "Ver y reponer" },
+    { n: d.sinStock, grave: false, icono: "⛔", titulo: "Productos sin stock", que: "Están en cero. Si se siguen vendiendo, pedilos; si no, podés desactivarlos.", ir: "inventory:sin", boton: "Ver cuáles" },
+    { n: d.sinCosto, grave: false, icono: "💲", titulo: "Productos sin costo cargado", que: "Sin el costo, el sistema no puede calcular cuánto ganás ni valorizar la mercadería.", ir: "inventory:sin_costo", boton: "Cargar costos" },
+    { n: d.incompletos, grave: false, icono: "📝", titulo: "Productos con datos incompletos", que: "Les falta precio, costo, código, categoría o proveedor. Completarlos mejora los informes y las búsquedas.", ir: "inventory:incompletos", boton: "Completar" },
+    { n: d.quietos, grave: false, icono: "♻️", titulo: "Productos que se venden poco o nada", que: d.valorQuieto > 0 ? "Hay " + fmt(d.valorQuieto) + " en mercadería lenta o parada (últimos 90 días). Una promo o liquidación libera esa plata." : "Mercadería lenta o parada en los últimos 90 días.", ir: "rotacion", boton: "Ver rotación" },
+  ].filter(x => !x.oculto && x.n !== null);
+  const aRevisar = items.filter(x => x.n > 0);
+  const ok = items.filter(x => x.n === 0);
+
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div className="dash-head">
+        <div><div className="pt">Salud del stock</div><div className="ps">todo lo que conviene revisar, en un solo lugar · {nombreLocal(localId)}</div></div>
+      </div>
+      <div className="card" style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 14, borderLeft: "4px solid " + (aRevisar.some(x => x.grave) ? temaPal.red : aRevisar.length ? temaPal.warn : temaPal.green) }}>
+        <div style={{ fontSize: 34 }}>{aRevisar.some(x => x.grave) ? "🔴" : aRevisar.length ? "🟡" : "🟢"}</div>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 800 }}>{aRevisar.length === 0 ? "Todo en orden" : aRevisar.length === 1 ? "Hay 1 cosa para revisar" : "Hay " + aRevisar.length + " cosas para revisar"}</div>
+          <div style={{ fontSize: 12, color: temaPal.textMuted }}>{d.total} productos activos{aRevisar.some(x => x.grave) ? " · empezá por las marcadas en rojo" : ""}</div>
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 10 }}>
+        {aRevisar.map(x => (
+          <div key={x.titulo} className="card" style={{ borderTop: "3px solid " + (x.grave ? temaPal.red : temaPal.warn), display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              <span style={{ fontSize: 26, fontWeight: 900, color: x.grave ? temaPal.red : temaPal.warn, fontVariantNumeric: "tabular-nums" }}>{x.n}</span>
+              <span style={{ fontSize: 13, fontWeight: 800 }}>{x.icono} {x.titulo}</span>
+            </div>
+            <div style={{ fontSize: 12, color: temaPal.textMuted, lineHeight: 1.5, flex: 1 }}>{x.que}</div>
+            <div><button className="btn btn-p btn-sm" onClick={() => irASeccion(x.ir)}>{x.boton} →</button></div>
+          </div>
+        ))}
+      </div>
+      {ok.length > 0 && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <div className="ct">Está bien</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{ok.map(x => <span key={x.titulo} className="tag tag-ok">✓ {x.titulo.replace(/^Productos (con|sin|que)/, m => m)}: ninguno</span>)}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Kits({ paletaActual, localId }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [kits, setKits] = useState([]);
@@ -20149,17 +20254,24 @@ const NAV_SECTIONS = [
     { id: "ventas-online", icon: "🌐", label: "Ventas Online", k: "web tienda internet pedidos online" },
     { id: "buscar-precio", icon: "🔎", label: "Buscar Precio", k: "precio consultar" },
     { id: "cambio-devolucion", icon: "🔄", label: "Cambio / Devolución", k: "cambio devolucion" }] },
-  { section: "STOCK", color: "#7d3c98", items: [
-    { id: "inventory", icon: "📦", label: "Inventario", k: "productos stock articulos" },
-    { id: "compras", icon: "📋", label: "Compras y proveedores", k: "que pedir pedido proveedor comprar reponer" },
-    { id: "ordenes", icon: "🚚", label: "Ingresos", k: "mercaderia recibir factura proveedor ordenes" },
-    { id: "control-inv", icon: "🔢", label: "Control de Inventario", k: "conteo contar stock" },
-    { id: "rotacion", icon: "♻️", label: "Rotación", k: "abc lentos parados liquidar" },
-    { id: "inconsistencias", icon: "⚠️", label: "Inconsistencias", k: "errores diferencias" },
-    { id: "kits", icon: "🎁", label: "Kits", k: "combos" },
+  { section: "PRODUCTOS", color: "#7d3c98", items: [
+    { id: "inventory", icon: "📦", label: "Productos", k: "inventario productos stock articulos catalogo nuevo producto editar precio" },
     { id: "listas-precios", icon: "💲", label: "Listas de precios", k: "mayorista revendedor precio especial lista cliente" },
     { id: "etiquetas", icon: "🏷️", label: "Etiquetas de precio", k: "imprimir etiquetas precio codigo barras oferta descuento promo gondola" },
+    { id: "kits", icon: "🎁", label: "Kits", k: "combos" },
     { id: "insumos", icon: "🛍️", label: "Insumos", k: "bolsas cajas packaging" }] },
+  { section: "STOCK", color: "#a0522d", items: [
+    { id: "stock-alertas", icon: "⚠️", label: "Stock bajo y en camino", k: "inventario alertas minimo reponer agotado transito en camino" },
+    { id: "compras", icon: "📋", label: "Compras y proveedores", k: "que pedir pedido proveedor comprar reponer" },
+    { id: "ordenes", icon: "🚚", label: "Ingresos", k: "mercaderia recibir factura proveedor ordenes" },
+    { id: "traspasos", icon: "🔁", label: "Traspasos", k: "inventario mandar local otro local recibir traspaso", multiLocal: true },
+    { id: "control-inv", icon: "🔢", label: "Control de Inventario", k: "conteo contar stock" }] },
+  { section: "ANÁLISIS DE INVENTARIO", color: "#5d6d7e", items: [
+    { id: "salud-stock", icon: "🩺", label: "Salud del stock", k: "inventario revisar problemas negativo resumen diagnostico" },
+    { id: "valorizacion", icon: "💰", label: "Valorización", k: "inventario plata mercaderia valor costo capital" },
+    { id: "rotacion", icon: "♻️", label: "Rotación", k: "abc lentos parados liquidar" },
+    { id: "inconsistencias", icon: "🔍", label: "Inconsistencias", k: "errores diferencias" },
+    { id: "historial-ajustes", icon: "📝", label: "Historial de ajustes", k: "inventario ajustes cambios stock movimientos" }] },
   { section: "CAJA", color: "#2d7a4f", items: [
     { id: "caja", icon: "💵", label: "Caja", k: "movimientos efectivo" },
     { id: "cierre", icon: "🔒", label: "Cierre de Caja", k: "cerrar arqueo" },
@@ -20236,7 +20348,7 @@ function BarraCelular({ secciones, page, setPage, avisos, onMas }) {
   const yaContados = new Set(usadas);
   if (usadas.has("clients")) { yaContados.add("pedidos"); yaContados.add("portal"); }
   if (usadas.has("inventory")) yaContados.add("compras");
-  // Estos dos ya van sumados dentro del globito de Inventario
+  // Estos ya van en los globitos de Inventario (ajustes) y Traspasos
   yaContados.add("ajustes_pendientes"); yaContados.add("traspasos_por_recibir");
   const totalMas = Object.entries(avisos || {}).filter(([k]) => !yaContados.has(k) && k !== "control-inv").reduce((t, [, v]) => t + (v || 0), 0);
   return (
@@ -21824,7 +21936,7 @@ export default function AppWrapper() {
   });
   useEffect(() => {
     if (!usuario || !local) return;
-    const traer = () => API.get("/avisos-menu?local_id=" + local.id + "&usuario_id=" + (usuario.id || "")).then(r => { const d = r.data || {}; setAvisosMenu({ ...d, inventory: (puedeHacer("inventario.ajustar") ? (d.ajustes_pendientes || 0) : 0) + (d.traspasos_por_recibir || 0) }); }).catch(() => {});
+    const traer = () => API.get("/avisos-menu?local_id=" + local.id + "&usuario_id=" + (usuario.id || "")).then(r => { const d = r.data || {}; setAvisosMenu({ ...d, inventory: puedeHacer("inventario.ajustar") ? (d.ajustes_pendientes || 0) : 0, traspasos: d.traspasos_por_recibir || 0 }); }).catch(() => {});
     traer();
     const t = setInterval(traer, 120000);
     window.addEventListener("lumiere-avisos", traer);
@@ -21872,7 +21984,7 @@ export default function AppWrapper() {
  const mapaModulos = {
       "pos": "pos.ver", "dashboard": "dashboard.ver",
       "ventas-online": "ventas_online.ver", "buscar-precio": "buscar_precio.ver", "cambio-devolucion": "cambios.ver",
-      "inventory": "inventario.ver", "rotacion": "rotacion.ver", "ordenes": "ordenes.ver", "inconsistencias": "inconsistencias.ver", "kits": "kits.ver", "etiquetas": "inventario.ver", "listas-precios": "inventario.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
+      "inventory": "inventario.ver", "rotacion": "rotacion.ver", "ordenes": "ordenes.ver", "inconsistencias": "inconsistencias.ver", "kits": "kits.ver", "etiquetas": "inventario.ver", "listas-precios": "inventario.ver", "stock-alertas": "inventario.ver", "traspasos": "inventario.ver", "valorizacion": "inventario.ver", "historial-ajustes": "inventario.ver", "salud-stock": "inventario.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
       "compras": "compras.ver", "reclamos-proveedores": "compras.ver",
       "clients": "clientes.ver", "cuenta-corriente": "clientes.ver", "pedidos": "pedidos.ver", "fidelizacion": "fidelizacion.ver", "tareas": "tareas.ver",
       "finance": "finanzas.flujo", "decisiones": "decisiones.ver", "gerente": "gerente.ver", "comprobantes": "comprobantes.ver",
@@ -21949,7 +22061,12 @@ export default function AppWrapper() {
     if (id === "ventas-online") return <VentasOnline localId={local.id} usuario={usuario} permisosActivos={permisosActivos} paletaActual={paletaActual} />;
     if (id === "auditoria") return <Auditoria paletaActual={paletaActual} />;
     if (id === "plataforma") return adminPlataforma ? <PanelPlataforma paletaActual={paletaActual} /> : <SinPermiso />;
-    if (id === "inventory") return <Inventario localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "inventory") return <Inventario key="productos" modo="productos" localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "stock-alertas") return <Inventario key="stock" modo="stock" localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "traspasos") return <Inventario key="traspasos" modo="traspasos" localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "valorizacion") return <Inventario key="valorizacion" modo="valorizacion" localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "historial-ajustes") return <Inventario key="ajustes" modo="ajustes" localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "salud-stock") return <SaludStock paletaActual={paletaActual} localId={local.id} />;
     if (id === "clients") return <Clientes usuario={usuario} paletaActual={paletaActual} />;
     if (id === "cuenta-corriente") return <CuentaCorriente paletaActual={paletaActual} localId={local.id} usuario={usuario} />;
     if (id === "pedidos") return <Pedidos localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
@@ -21989,7 +22106,7 @@ export default function AppWrapper() {
   const esJefeMenu = usuario.rol === "jefe" || usuario.rol_id === 1;
   const NAV_CON_PERMISOS = NAV_SECTIONS.map(sec => ({
     ...sec,
-    items: sec.items.filter(it => (!it.soloJefe || esJefeMenu) && puedeVer(it.id))
+    items: sec.items.filter(it => (!it.soloJefe || esJefeMenu) && puedeVer(it.id) && !(it.multiLocal && UN_SOLO_LOCAL))
   })).filter(sec => sec.items.length > 0)
     // Solo para quien administra Lumiere
     .concat(adminPlataforma ? [{ section: "LUMIERE", color: "#f5b400", items: [{ id: "plataforma", icon: "🛠️", label: "Panel de Lumiere", k: "negocios clientes desarrollador plataforma activar prueba" }] }] : []);
