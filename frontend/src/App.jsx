@@ -166,6 +166,15 @@ let NOMBRES_LOCALES = { 1: "Local 1", 2: "Local 2" };
 let UN_SOLO_LOCAL = (() => { try { return localStorage.getItem("lumiere_un_local") === "1"; } catch (e) { return false; } })();
 // Modo gastronomia (Mesas y Cocina en el menu): se lee del servidor al entrar
 let GASTRO_ACTIVO = (() => { try { return localStorage.getItem("lumiere_gastro") === "1"; } catch (e) { return false; } })();
+// Modulo Consultorio (Agenda, Pacientes, Recordatorios): suma su seccion y oculta lo que es de tienda
+let CONSULTORIO_ACTIVO = (() => { try { return localStorage.getItem("lumiere_consultorio") === "1"; } catch (e) { return false; } })();
+const OCULTAS_EN_CONSULTORIO = new Set(["etiquetas", "kits", "listas-precios", "traspasos", "control-inv", "ventas-online", "cambio-devolucion", "buscar-precio", "fidelizacion", "cupones", "giftcards", "portal"]);
+const aplicarModulos = (m) => {
+  GASTRO_ACTIVO = !!(m && m.gastronomia);
+  CONSULTORIO_ACTIVO = !!(m && m.consultorio);
+  try { localStorage.setItem("lumiere_gastro", GASTRO_ACTIVO ? "1" : "0"); localStorage.setItem("lumiere_consultorio", CONSULTORIO_ACTIVO ? "1" : "0"); } catch (e) {}
+  window.dispatchEvent(new CustomEvent("lumiere-gastro"));
+};
 // Permisos de la persona que esta usando el sistema (los carga App al entrar). El jefe puede todo.
 let PERMISOS_ACTUALES = [];
 let ES_JEFE_ACTUAL = false;
@@ -3202,7 +3211,7 @@ function POS({ localId, usuario, paletaActual }) {
     setCart(prev => {
       let cambio = false;
       const out = prev.map(i => {
-        if (i.es_kit || i.es_ajuste || i.presupuesto_id || i.gastro_ids || !(parseInt(i.id) > 0) || String(i.id).startsWith("insumo")) return i;
+        if (i.es_kit || i.es_ajuste || i.presupuesto_id || i.gastro_ids || i.turno_id || !(parseInt(i.id) > 0) || String(i.id).startsWith("insumo")) return i;
         const base = i.precio_base !== undefined ? i.precio_base : (i.precio ?? i.price);
         const objetivo = precioDeLista(listaSel, parseInt(i.id), base);
         if (i.precio_base === base && i.precio === objetivo) return i;
@@ -3872,6 +3881,8 @@ function POS({ localId, usuario, paletaActual }) {
         justificaciones_stock: justificacionesStock
       });
       if (mpPago) mpPagoRef.current = null;
+      // Si la venta salio de un turno de la agenda, el turno queda cobrado (y atendido)
+      cart.filter(i => i.turno_id).forEach(i => API.put("/consultorio/turnos/" + i.turno_id + "/cobrado", { venta_id: ventaRes.data.id }).catch(() => {}));
       // Si la venta salio de una mesa, esos items quedan cobrados (y si no queda nada, se libera la mesa)
       const gastroIds = cart.flatMap(i => i.gastro_ids || []);
       if (gastroIds.length) API.put("/gastro/items-pagados", { item_ids: gastroIds, venta_id: ventaRes.data.id }).catch(() => {});
@@ -4022,6 +4033,19 @@ function POS({ localId, usuario, paletaActual }) {
     const k = kitsComoProducto.find(x => String(x.kit_id) === String(pedido));
     if (k) add(k);
   }, [kitsPos]);
+  // Si vienen de la Agenda con "Cobrar", entra el tratamiento del turno y se elige al paciente
+  useEffect(() => {
+    let tid = null;
+    try { tid = sessionStorage.getItem("lumiere_pos_turno"); sessionStorage.removeItem("lumiere_pos_turno"); } catch (e) {}
+    if (!tid) return;
+    API.get("/consultorio/turnos/" + tid).then(r => {
+      const t = r.data;
+      setCart([{ id: "ajuste-turno-" + t.id, es_ajuste: true, turno_id: t.id, nombre: (t.servicio_nombre || "Consulta") + (t.profesional_nombre ? " · " + t.profesional_nombre : ""), precio: parseFloat(t.precio) || 0, qty: 1, disponible: 9999 }]);
+      if (t.paciente_id) API.get("/clientes").then(rc => { const c = (rc.data || []).find(x => x.id === t.paciente_id); if (c) { setClienteSeleccionado(c); setDniInput(c.cuit_dni || ""); cargarFicha(c.id, false); } }).catch(() => {});
+      setMensaje("🩺 Turno de " + t.paciente_nombre + ": " + (t.servicio_nombre || "Consulta") + ". Podés sumar productos y cobrar.");
+      setTimeout(() => setMensaje(""), 6000);
+    }).catch(() => setMensaje("No se pudo cargar el turno"));
+  }, []);
   // Si vienen de Mesas con "Cobrar", entran los items elegidos de la cuenta (y el pago dividido en partes)
   useEffect(() => {
     if (!productos.length) return;
@@ -12442,6 +12466,719 @@ function ConfigRespaldo({ p }) {
   );
 }
 
+// ===================== CONSULTORIO =====================
+// Agenda de turnos, pacientes (historia clinica y fotos antes/despues), recordatorios,
+// "volver a sacar turno", indicadores y configuracion. Ver routes/consultorio.js.
+const ESTADOS_TURNO = {
+  reservado: { t: "Reservado", c: "#7f8c8d" },
+  confirmado: { t: "Confirmó", c: "#2471a3" },
+  presente: { t: "Llegó", c: "#8e44ad" },
+  atendido: { t: "Atendido", c: "#2d7a4f" },
+  ausente: { t: "No vino", c: "#c0392b" },
+  cancelado: { t: "Cancelado", c: "#95a5a6" },
+};
+const COLORES_PROF = ["#2471a3", "#8e44ad", "#d35400", "#16a085", "#c0392b", "#2c3e50", "#b7950b", "#7d3c98"];
+const aMin = (hhmm) => { const [h, m] = String(hhmm || "0:0").split(":").map(Number); return h * 60 + (m || 0); };
+const deMin = (m) => String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+const diaISO = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const sumarDias = (iso, n) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return diaISO(d); };
+const NOMBRE_DIA = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+const diaLargo = (iso) => { const d = new Date(iso + "T12:00:00"); return NOMBRE_DIA[d.getDay()] + " " + d.getDate() + "/" + (d.getMonth() + 1); };
+const llenarMensaje = (plantilla, v) => String(plantilla || "").replace(/\{(\w+)\}/g, (m, k) => (v[k] !== undefined && v[k] !== null ? v[k] : m));
+const textoRecordatorio = (cfg, t) => llenarMensaje(cfg.msj_recordatorio, {
+  nombre: String(t.paciente_nombre || "").split(" ")[0], tratamiento: t.servicio_nombre || "tu turno", dia: diaLargo(t.inicio.slice(0, 10)),
+  hora: t.inicio.slice(11, 16), negocio: cfg.negocio || "", profesional: t.profesional_nombre || "",
+});
+// Achica una foto en el navegador: imagen (lado mayor hasta 1600px) y miniatura (320px)
+const achicarFoto = (archivo, lado, calidad) => new Promise((ok, mal) => {
+  if (!archivo || !/^image\//.test(archivo.type)) return mal(new Error("Elegí una foto (JPG o PNG)"));
+  const url = URL.createObjectURL(archivo);
+  const img = new Image();
+  img.onload = () => {
+    const esc = Math.min(1, lado / Math.max(img.width, img.height));
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(img.width * esc)); c.height = Math.max(1, Math.round(img.height * esc));
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    ok(c.toDataURL("image/jpeg", calidad));
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); mal(new Error("No se pudo leer esa foto")); };
+  img.src = url;
+});
+const avisoCaja = (temaPal, aviso) => aviso && <div className="pop-in" role={aviso.ok ? "status" : "alert"} style={{ background: aviso.ok ? temaPal.greenDim : temaPal.redDim, border: "1px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, marginBottom: 12 }}>{aviso.texto}</div>;
+const usarAviso = () => {
+  const [aviso, setAviso] = useState(null);
+  return [aviso, (ok, texto) => { setAviso({ ok, texto }); setTimeout(() => setAviso(null), 4500); }];
+};
+
+// Turnos que se superponen (sobreturnos) van uno al lado del otro: cada grupo de turnos
+// encimados se reparte en "carriles" del ancho de la columna.
+const carriles = (lista) => {
+  const ord = [...lista].sort((a, b) => a.inicio.localeCompare(b.inicio) || b.fin.localeCompare(a.fin));
+  const out = [];
+  let grupo = [], finGrupo = "";
+  const cerrar = () => { const n = Math.max(1, ...grupo.map(x => x.carril + 1)); grupo.forEach(x => out.push({ ...x, carriles: n })); grupo = []; };
+  ord.forEach(t => {
+    if (grupo.length && t.inicio >= finGrupo) cerrar();
+    const ocupados = grupo.filter(x => x.t.fin > t.inicio).map(x => x.carril);
+    let c = 0; while (ocupados.includes(c)) c++;
+    grupo.push({ t, carril: c });
+    finGrupo = grupo.length === 1 || t.fin > finGrupo ? t.fin : finGrupo; // donde termina el grupo de encimados
+  });
+  if (grupo.length) cerrar();
+  return out;
+};
+
+// ---------- Agenda ----------
+function AgendaConsultorio({ localId, paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const local = localId || 1;
+  const [cfg, setCfg] = useState(null);
+  const [dia, setDia] = useState(() => diaISO(new Date()));
+  const [turnos, setTurnos] = useState([]);
+  const [clientes, setClientes] = useState([]);
+  const [form, setForm] = useState(null);
+  const [ver, setVer] = useState(null);
+  const [buscaPac, setBuscaPac] = useState("");
+  const [aviso, avisar] = usarAviso();
+  const ROW = 34;
+
+  const cargarCfg = () => API.get("/consultorio/config").then(r => setCfg(r.data)).catch(() => setCfg({ profesionales: [], servicios: [], hora_desde: "09:00", hora_hasta: "20:00", intervalo: 30 }));
+  const cargar = () => API.get("/consultorio/turnos?desde=" + dia + "&hasta=" + dia + "&local_id=" + local).then(r => setTurnos(r.data || [])).catch(() => {});
+  useEffect(() => { cargarCfg(); API.get("/clientes").then(r => setClientes(r.data || [])).catch(() => {}); }, []);
+  useEffect(() => { cargar(); const t = setInterval(() => { if (!document.hidden) cargar(); }, 30000); return () => clearInterval(t); }, [dia, localId]);
+  // Si vienen de Pacientes con "+ Turno", se abre el formulario con ese paciente
+  useEffect(() => {
+    if (!cfg) return;
+    let pid = null;
+    try { pid = sessionStorage.getItem("lumiere_turno_paciente"); sessionStorage.removeItem("lumiere_turno_paciente"); } catch (e) {}
+    if (pid) nuevo(null, cfg.hora_desde, { paciente_id: parseInt(pid) });
+  }, [cfg]);
+
+  const nuevo = (profId, hora, extra = {}) => {
+    const s0 = (cfg.servicios || [])[0];
+    setForm({ paciente_id: null, paciente_nombre: "", telefono: "", dni: "", nuevoPac: false, profesional_id: profId || (cfg.profesionales[0]?.id || ""),
+      servicio_id: s0 ? s0.id : "", duracion_min: s0 ? s0.duracion_min : cfg.intervalo, precio: s0 ? s0.precio : "", fecha: dia, hora, nota: "", ...extra });
+    setBuscaPac(""); setVer(null);
+  };
+  const editar = (t) => {
+    setForm({ id: t.id, paciente_id: t.paciente_id, paciente_nombre: t.paciente_nombre, telefono: t.telefono || "", nuevoPac: false, profesional_id: t.profesional_id || "",
+      servicio_id: t.servicio_id || "", duracion_min: Math.round((new Date(t.fin) - new Date(t.inicio)) / 60000), precio: t.precio ?? "", fecha: t.inicio.slice(0, 10), hora: t.inicio.slice(11, 16), nota: t.nota || "" });
+    setVer(null);
+  };
+  const guardar = async (forzar) => {
+    try {
+      let pacId = form.paciente_id;
+      if (!pacId && form.nuevoPac) {
+        if (!form.paciente_nombre.trim()) return avisar(false, "Escribí el nombre del paciente");
+        const c = await API.post("/clientes", { nombre: form.paciente_nombre.trim(), telefono: form.telefono, cuit_dni: form.dni || null, local_id: local });
+        pacId = c.data.id; setClientes(cs => [...cs, c.data]);
+      }
+      const body = { paciente_id: pacId, paciente_nombre: form.paciente_nombre, telefono: form.telefono, profesional_id: form.profesional_id || null, servicio_id: form.servicio_id || null,
+        duracion_min: form.duracion_min, precio: form.precio, inicio: form.fecha + "T" + form.hora, nota: form.nota, local_id: local, forzar: !!forzar };
+      if (form.id) await API.put("/consultorio/turnos/" + form.id, body); else await API.post("/consultorio/turnos", body);
+      avisar(true, "✓ Turno guardado"); setForm(null);
+      if (form.fecha !== dia) setDia(form.fecha); else cargar();
+    } catch (e) {
+      if (e.response?.status === 409 && confirm(e.response.data.error + ". ¿Guardarlo igual (sobreturno)?")) return guardar(true);
+      if (e.response?.status !== 409) avisar(false, e.response?.data?.error || "No se pudo guardar");
+    }
+  };
+  const estado = async (t, est) => {
+    if (est === "cancelado" && !confirm("¿Cancelar el turno de " + t.paciente_nombre + "?")) return;
+    try { const r = await API.put("/consultorio/turnos/" + t.id, { estado: est }); setVer(r.data); cargar(); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo cambiar"); }
+  };
+  const recordar = (t) => {
+    window.open(linkWhatsapp(t.telefono, textoRecordatorio(cfg, t)) || ("https://wa.me/?text=" + encodeURIComponent(textoRecordatorio(cfg, t))), "_blank");
+    API.put("/consultorio/turnos/" + t.id + "/recordatorio").then(cargar).catch(() => {});
+  };
+  const cobrar = (t) => { try { sessionStorage.setItem("lumiere_pos_turno", String(t.id)); } catch (e) {} irASeccion("pos"); };
+  const historia = (pid) => { try { sessionStorage.setItem("lumiere_paciente", String(pid)); } catch (e) {} irASeccion("pacientes"); };
+
+  if (!cfg) return <div className="fade"><div className="skel" style={{ height: 400 }} /></div>;
+  const profes = cfg.profesionales.length ? cfg.profesionales : [{ id: "", nombre: "Agenda" }];
+  const desde = aMin(cfg.hora_desde), hasta = aMin(cfg.hora_hasta), paso = cfg.intervalo || 30;
+  const filas = []; for (let m = desde; m < hasta; m += paso) filas.push(m);
+  const vivos = turnos.filter(t => t.estado !== "cancelado");
+  const colorProf = (p, i) => p.color || COLORES_PROF[i % COLORES_PROF.length];
+  const qp = buscaPac.trim().toLowerCase();
+  const pacEnc = form && !form.paciente_id && !form.nuevoPac && qp ? clientes.filter(c => [c.nombre, c.cuit_dni, c.telefono].some(v => String(v || "").toLowerCase().includes(qp))).slice(0, 6) : [];
+  const pacSel = form && form.paciente_id ? clientes.find(c => c.id === form.paciente_id) : null;
+  const ahoraMin = dia === diaISO(new Date()) ? new Date().getHours() * 60 + new Date().getMinutes() : null;
+
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div className="dash-head">
+        <div><div className="pt">Agenda</div><div className="ps">{diaLargo(dia)} · {vivos.length} {vivos.length === 1 ? "turno" : "turnos"} · {vivos.filter(t => t.estado === "confirmado").length} confirmados</div></div>
+        <div className="dash-actions" style={{ flexWrap: "wrap" }}>
+          <button className="btn btn-g" aria-label="Día anterior" onClick={() => setDia(d => sumarDias(d, -1))}>◀</button>
+          <button className="btn btn-g" onClick={() => setDia(diaISO(new Date()))}>Hoy</button>
+          <input className="inp" type="date" value={dia} onChange={e => e.target.value && setDia(e.target.value)} style={{ width: 150 }} aria-label="Elegir día" />
+          <button className="btn btn-g" aria-label="Día siguiente" onClick={() => setDia(d => sumarDias(d, 1))}>▶</button>
+          <button className="btn btn-p" onClick={() => nuevo(null, deMin(Math.max(desde, Math.ceil(((ahoraMin ?? desde)) / paso) * paso)))}>+ Turno</button>
+        </div>
+      </div>
+      {avisoCaja(temaPal, aviso)}
+      {!cfg.servicios.length && <div className="cli-tip" style={{ marginBottom: 10 }}>💡 Cargá tus tratamientos (con duración y precio) y tus profesionales en <b>Tratamientos y equipo</b>: así los turnos se completan solos. <button className="btn btn-g btn-sm" onClick={() => irASeccion("config-consultorio")}>Ir</button></div>}
+
+      {form && (
+        <div className="card pop-in" style={{ marginBottom: 12, borderTop: "3px solid " + temaPal.accent }}>
+          <div className="ct">{form.id ? "Cambiar turno" : "Nuevo turno"}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10 }}>
+            <div style={{ gridColumn: "1 / -1", position: "relative" }}>
+              <div className="fl">Paciente</div>
+              {form.paciente_id ? (
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}><b>{pacSel?.nombre || form.paciente_nombre}</b><span style={{ fontSize: 12, color: temaPal.textMuted }}>{pacSel?.telefono || form.telefono}</span>{!form.id && <button className="btn btn-g btn-sm" onClick={() => setForm(f => ({ ...f, paciente_id: null }))}>Cambiar</button>}</div>
+              ) : form.nuevoPac ? (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <input className="inp" style={{ flex: "2 1 180px" }} placeholder="Nombre y apellido" value={form.paciente_nombre} onChange={e => setForm(f => ({ ...f, paciente_nombre: e.target.value }))} />
+                  <input className="inp" style={{ flex: "1 1 140px" }} placeholder="WhatsApp" value={form.telefono} onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))} />
+                  <input className="inp" style={{ flex: "1 1 120px" }} placeholder="DNI (opcional)" value={form.dni} onChange={e => setForm(f => ({ ...f, dni: e.target.value }))} />
+                  <button className="btn btn-g btn-sm" onClick={() => setForm(f => ({ ...f, nuevoPac: false }))}>Buscar existente</button>
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input className="inp" style={{ flex: 1 }} autoFocus placeholder="Buscar por nombre, DNI o teléfono…" value={buscaPac} onChange={e => setBuscaPac(e.target.value)} />
+                    <button className="btn btn-g" onClick={() => setForm(f => ({ ...f, nuevoPac: true, paciente_nombre: buscaPac }))}>+ Paciente nuevo</button>
+                  </div>
+                  {pacEnc.length > 0 && (
+                    <div className="card" style={{ position: "absolute", zIndex: 5, left: 0, right: 0, padding: 4 }}>
+                      {pacEnc.map(c => <button key={c.id} className="chip-btn" style={{ display: "block", width: "100%", textAlign: "left", border: "none", borderRadius: 6, padding: "8px 10px", whiteSpace: "normal" }} onClick={() => setForm(f => ({ ...f, paciente_id: c.id, paciente_nombre: c.nombre, telefono: c.telefono || "" }))}><b>{c.nombre}</b> <span style={{ fontSize: 11, color: temaPal.textMuted }}>{c.cuit_dni || ""} {c.telefono || ""}</span></button>)}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            <div><div className="fl">Tratamiento</div>
+              <select className="sel" value={form.servicio_id} onChange={e => { const s = cfg.servicios.find(x => String(x.id) === e.target.value); setForm(f => ({ ...f, servicio_id: e.target.value, ...(s ? { duracion_min: s.duracion_min, precio: s.precio } : {}) })); }}>
+                <option value="">Otro / consulta</option>
+                {cfg.servicios.map(s => <option key={s.id} value={s.id}>{s.nombre} · {s.duracion_min} min</option>)}
+              </select></div>
+            {cfg.profesionales.length > 0 && <div><div className="fl">Profesional</div>
+              <select className="sel" value={form.profesional_id} onChange={e => setForm(f => ({ ...f, profesional_id: e.target.value }))}>
+                {cfg.profesionales.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+              </select></div>}
+            <div><div className="fl">Día</div><input className="inp" type="date" value={form.fecha} onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))} /></div>
+            <div><div className="fl">Hora</div><input className="inp" type="time" step={300} value={form.hora} onChange={e => setForm(f => ({ ...f, hora: e.target.value }))} /></div>
+            <div><div className="fl">Duración (min)</div><input className="inp" type="number" min="5" step="5" value={form.duracion_min} onChange={e => setForm(f => ({ ...f, duracion_min: e.target.value }))} /></div>
+            <div><div className="fl">Precio</div><input className="inp" type="number" min="0" value={form.precio} onChange={e => setForm(f => ({ ...f, precio: e.target.value }))} /></div>
+            <div style={{ gridColumn: "1 / -1" }}><div className="fl">Nota (opcional)</div><input className="inp" placeholder="Ej: primera vez, viene por recomendación" value={form.nota} onChange={e => setForm(f => ({ ...f, nota: e.target.value }))} /></div>
+          </div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}>
+            <button className="btn btn-g" onClick={() => setForm(null)}>Cancelar</button>
+            <button className="btn btn-p" onClick={() => guardar(false)}>Guardar turno</button>
+          </div>
+        </div>
+      )}
+
+      {ver && (
+        <div className="card pop-in" style={{ marginBottom: 12, borderLeft: "5px solid " + (ESTADOS_TURNO[ver.estado]?.c || temaPal.accent) }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: 17, fontWeight: 900 }}>{ver.paciente_nombre}</div>
+              <div style={{ fontSize: 12.5, color: temaPal.textMuted }}>{diaLargo(ver.inicio.slice(0, 10))} · {ver.inicio.slice(11, 16)}–{ver.fin.slice(11, 16)} · {ver.servicio_nombre || "Consulta"}{ver.profesional_nombre ? " · " + ver.profesional_nombre : ""}{ver.precio ? " · " + fmt(ver.precio) : ""}</div>
+              {ver.nota && <div style={{ fontSize: 12.5, marginTop: 4 }}>📝 {ver.nota}</div>}
+              <div style={{ fontSize: 11.5, marginTop: 4, color: temaPal.textMuted }}>{ver.recordatorio_en ? "💬 Recordatorio enviado" + (ver.recordatorio_auto ? " automáticamente" : "") : ver.recordatorio_error ? "⚠️ El recordatorio automático falló: " + ver.recordatorio_error : ""}{ver.venta_id ? " · 💵 Cobrado" : ""}</div>
+            </div>
+            <button className="btn btn-g btn-sm" onClick={() => setVer(null)} aria-label="Cerrar">✕</button>
+          </div>
+          <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 10 }}>
+            {["confirmado", "presente", "atendido", "ausente"].map(e => (
+              <button key={e} className={"chip-btn" + (ver.estado === e ? " on" : "")} onClick={() => estado(ver, e)}>{ESTADOS_TURNO[e].t}</button>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+            <button className="btn btn-g btn-sm" onClick={() => recordar(ver)}>💬 Recordatorio</button>
+            {!ver.venta_id && <button className="btn btn-p btn-sm" onClick={() => cobrar(ver)}>💵 Cobrar</button>}
+            {ver.paciente_id && <button className="btn btn-g btn-sm" onClick={() => historia(ver.paciente_id)}>🩺 Historia</button>}
+            <button className="btn btn-g btn-sm" onClick={() => editar(ver)}>✏️ Cambiar día u hora</button>
+            {ver.estado !== "cancelado" && <button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={() => estado(ver, "cancelado")}>Cancelar turno</button>}
+          </div>
+        </div>
+      )}
+
+      <div className="card" style={{ padding: 0, overflowX: "auto" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "56px repeat(" + profes.length + ", minmax(170px, 1fr))", minWidth: 56 + profes.length * 170 }}>
+          <div style={{ borderBottom: "1px solid " + temaPal.border }} />
+          {profes.map((p, i) => <div key={p.id || "x"} style={{ padding: "10px 8px", fontWeight: 800, fontSize: 13, borderBottom: "1px solid " + temaPal.border, borderLeft: "1px solid " + temaPal.border }}><span style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%", background: colorProf(p, i), marginRight: 6 }} />{p.nombre}{p.especialidad ? <span style={{ fontWeight: 400, color: temaPal.textMuted }}> · {p.especialidad}</span> : null}</div>)}
+          <div style={{ position: "relative" }}>
+            {filas.map(m => <div key={m} style={{ height: ROW, fontSize: 10.5, color: temaPal.textMuted, textAlign: "right", paddingRight: 6, borderBottom: "1px dashed " + temaPal.border }}>{m % 60 === 0 || paso >= 60 ? deMin(m) : ""}</div>)}
+          </div>
+          {profes.map((p, i) => (
+            <div key={p.id || "x"} style={{ position: "relative", borderLeft: "1px solid " + temaPal.border }}>
+              {filas.map(m => <div key={m} onClick={() => nuevo(p.id, deMin(m))} title={"Nuevo turno " + deMin(m)} style={{ height: ROW, borderBottom: "1px dashed " + temaPal.border, cursor: "pointer" }} />)}
+              {ahoraMin !== null && ahoraMin >= desde && ahoraMin < hasta && <div style={{ position: "absolute", left: 0, right: 0, top: (ahoraMin - desde) / paso * ROW, borderTop: "2px solid " + temaPal.red, pointerEvents: "none" }} />}
+              {carriles(vivos.filter(t => (cfg.profesionales.length ? String(t.profesional_id) === String(p.id) || (!t.profesional_id && i === 0) : true))).map(({ t, carril, carriles: nC }) => {
+                const ini = aMin(t.inicio.slice(11, 16)), fin = aMin(t.fin.slice(11, 16));
+                const top = Math.max(0, (ini - desde) / paso * ROW), alto = Math.max(ROW * 0.8, (fin - ini) / paso * ROW - 2);
+                const est = ESTADOS_TURNO[t.estado] || ESTADOS_TURNO.reservado;
+                return (
+                  <button key={t.id} onClick={() => { setVer(t); setForm(null); }} style={{ position: "absolute", left: "calc(" + (carril * 100 / nC) + "% + 3px)", width: "calc(" + (100 / nC) + "% - 6px)", top, height: alto, borderRadius: 7, border: "none", borderLeft: "4px solid " + est.c, background: temaPal.card, boxShadow: "0 1px 4px rgba(0,0,0,.18)", textAlign: "left", padding: "3px 6px", cursor: "pointer", overflow: "hidden", fontFamily: "inherit", color: temaPal.text, opacity: t.estado === "ausente" ? 0.6 : 1 }}>
+                    <div style={{ fontSize: 11.5, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.inicio.slice(11, 16)} {t.paciente_nombre}</div>
+                    {alto > ROW && <div style={{ fontSize: 10.5, color: temaPal.textMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.servicio_nombre || "Consulta"} · {est.t}{t.recordatorio_en ? " · 💬" : ""}{t.venta_id ? " · 💵" : ""}</div>}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+      {turnos.filter(t => t.estado === "cancelado").length > 0 && <div style={{ fontSize: 11.5, color: temaPal.textMuted, marginTop: 8 }}>Cancelados: {turnos.filter(t => t.estado === "cancelado").map(t => t.inicio.slice(11, 16) + " " + t.paciente_nombre).join(" · ")}</div>}
+    </div>
+  );
+}
+
+// ---------- Pacientes (historia clinica) ----------
+function PacientesConsultorio({ usuario, paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const esJefeC = ["jefe", "admin", "administrativo"].includes(usuario?.rol);
+  const [clientes, setClientes] = useState([]);
+  const [busca, setBusca] = useState("");
+  const [selId, setSelId] = useState(() => { try { const x = sessionStorage.getItem("lumiere_paciente"); sessionStorage.removeItem("lumiere_paciente"); return x ? parseInt(x) : null; } catch (e) { return null; } });
+  const [h, setH] = useState(null);
+  const [tab, setTab] = useState("ficha");
+  const [ficha, setFicha] = useState({});
+  const [evol, setEvol] = useState("");
+  const [nuevaFoto, setNuevaFoto] = useState({ tipo: "antes", zona: "", fecha: diaISO(new Date()), nota: "" });
+  const [subiendo, setSubiendo] = useState(false);
+  const [grande, setGrande] = useState(null); // { fotos: [{...,imagen}] } (1 o 2 para comparar)
+  const [comparar, setComparar] = useState([]);
+  const [aviso, avisar] = usarAviso();
+
+  useEffect(() => { API.get("/clientes").then(r => setClientes(r.data || [])).catch(() => {}); }, []);
+  const cargar = (id) => API.get("/consultorio/pacientes/" + id).then(r => { setH(r.data); setFicha(r.data.ficha || {}); }).catch(() => setH(null));
+  useEffect(() => { if (selId) { setH(null); setComparar([]); cargar(selId); } }, [selId]);
+
+  const guardarFicha = async () => {
+    try { await API.put("/consultorio/pacientes/" + selId + "/ficha", ficha); avisar(true, "✓ Ficha guardada"); cargar(selId); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+  };
+  const agregarEvol = async () => {
+    try { await API.post("/consultorio/pacientes/" + selId + "/evoluciones", { texto: evol }); setEvol(""); cargar(selId); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+  };
+  const subirFotos = async (archivos) => {
+    setSubiendo(true);
+    try {
+      for (const f of Array.from(archivos || [])) {
+        const imagen = await achicarFoto(f, 1600, 0.82);
+        const miniatura = await achicarFoto(f, 320, 0.7);
+        await API.post("/consultorio/pacientes/" + selId + "/fotos", { ...nuevaFoto, imagen, miniatura });
+      }
+      avisar(true, "✓ Foto guardada"); cargar(selId);
+    } catch (e) { avisar(false, e.response?.data?.error || e.message || "No se pudo subir"); }
+    setSubiendo(false);
+  };
+  const abrir = async (fotos) => {
+    // Al comparar: "antes" a la izquierda y "después" a la derecha (y si no, la más vieja primero)
+    const orden = { antes: 0, otra: 1, despues: 2 };
+    const ord = [...fotos].sort((a, b) => (orden[a.tipo] - orden[b.tipo]) || a.fecha.localeCompare(b.fecha));
+    try { const full = await Promise.all(ord.map(f => API.get("/consultorio/fotos/" + f.id).then(r => ({ ...f, imagen: r.data.imagen })))); setGrande({ fotos: full }); }
+    catch (e) { avisar(false, "No se pudo abrir la foto"); }
+  };
+  const borrarFoto = async (f) => {
+    if (!confirm("¿Borrar esta foto?")) return;
+    try { await API.delete("/consultorio/fotos/" + f.id); setGrande(null); cargar(selId); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo borrar"); }
+  };
+  const sacarTurno = () => { try { sessionStorage.setItem("lumiere_turno_paciente", String(selId)); } catch (e) {} irASeccion("agenda"); };
+
+  const q = busca.trim().toLowerCase();
+  const lista = (q ? clientes.filter(c => [c.nombre, c.cuit_dni, c.telefono].some(v => String(v || "").toLowerCase().includes(q))) : clientes).slice(0, 80);
+  const edad = h?.paciente?.fecha_nacimiento ? Math.floor((Date.now() - new Date(h.paciente.fecha_nacimiento).getTime()) / (365.25 * 86400000)) : null;
+  const zonas = h ? [...new Set(h.fotos.map(f => f.zona || "General"))] : [];
+  const ETQ_FOTO = { antes: "Antes", despues: "Después", otra: "Foto" };
+  const campo = (k, label, ph, multi) => (
+    <div style={{ gridColumn: multi ? "1 / -1" : undefined }}><div className="fl">{label}</div>
+      {multi ? <textarea className="inp" rows={2} placeholder={ph} value={ficha[k] || ""} onChange={e => setFicha(f => ({ ...f, [k]: e.target.value }))} />
+        : <input className="inp" placeholder={ph} value={ficha[k] || ""} onChange={e => setFicha(f => ({ ...f, [k]: e.target.value }))} />}
+    </div>
+  );
+
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div className="dash-head"><div><div className="pt">Pacientes</div><div className="ps">historia, evolución y fotos antes / después</div></div></div>
+      {avisoCaja(temaPal, aviso)}
+      <style>{"@media (max-width: 760px) { .cons-pac-grid { grid-template-columns: 1fr !important; } }"}</style>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(220px, 300px) 1fr", gap: 12, alignItems: "start" }} className="cons-pac-grid">
+        <div className="card" style={{ maxHeight: "75vh", overflowY: "auto" }}>
+          <input className="inp" placeholder="🔍 Buscar paciente…" value={busca} onChange={e => setBusca(e.target.value)} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 8 }}>
+            {lista.map(c => (
+              <button key={c.id} className={"chip-btn" + (selId === c.id ? " on" : "")} style={{ textAlign: "left", borderRadius: 8, padding: "8px 10px", whiteSpace: "normal", border: selId === c.id ? undefined : "none" }} onClick={() => setSelId(c.id)}>
+                <b>{c.nombre}</b><div style={{ fontSize: 11, color: temaPal.textMuted }}>{[c.cuit_dni, c.telefono].filter(Boolean).join(" · ")}</div>
+              </button>
+            ))}
+            {lista.length === 0 && <div className="empty">No hay pacientes con ese nombre. Se cargan al dar un turno.</div>}
+          </div>
+        </div>
+        <div>
+          {!selId ? <div className="card"><div className="empty">Elegí un paciente para ver su historia.</div></div> : !h ? <div className="skel" style={{ height: 300 }} /> : (
+            <>
+              <div className="card" style={{ marginBottom: 10, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 18, fontWeight: 900 }}>{h.paciente.nombre}</div>
+                  <div style={{ fontSize: 12, color: temaPal.textMuted }}>{[edad !== null ? edad + " años" : null, h.paciente.cuit_dni ? "DNI " + h.paciente.cuit_dni : null, h.paciente.telefono, ficha.obra_social].filter(Boolean).join(" · ")}</div>
+                  {ficha.alergias && <div style={{ fontSize: 12.5, fontWeight: 700, color: temaPal.red, marginTop: 4 }}>⚠️ Alergias: {ficha.alergias}</div>}
+                </div>
+                {h.paciente.telefono && <a className="btn btn-g btn-sm" style={{ textDecoration: "none" }} href={linkWhatsapp(h.paciente.telefono, "")} target="_blank" rel="noopener">💬 WhatsApp</a>}
+                <button className="btn btn-p btn-sm" onClick={sacarTurno}>+ Turno</button>
+              </div>
+              <div className="tabs" style={{ marginBottom: 10 }}>
+                {[["ficha", "Ficha"], ["evolucion", "Evolución (" + h.evoluciones.length + ")"], ["fotos", "Fotos (" + h.fotos.length + ")"], ["turnos", "Turnos (" + h.turnos.length + ")"]].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
+              </div>
+              {tab === "ficha" && (
+                <div className="card">
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10 }}>
+                    {campo("obra_social", "Obra social / prepaga", "Ej: OSDE 210")}
+                    {campo("nro_afiliado", "N° de afiliado", "")}
+                    {campo("alergias", "Alergias", "Ej: penicilina, látex", true)}
+                    {campo("antecedentes", "Antecedentes", "Enfermedades, cirugías, embarazos…", true)}
+                    {campo("medicacion", "Medicación actual", "", true)}
+                    {campo("notas", "Otras notas", "", true)}
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}><button className="btn btn-p" onClick={guardarFicha}>Guardar ficha</button></div>
+                </div>
+              )}
+              {tab === "evolucion" && (
+                <div className="card">
+                  <textarea className="inp" rows={3} placeholder="Qué se hizo hoy, productos usados, cómo respondió, indicaciones…" value={evol} onChange={e => setEvol(e.target.value)} />
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}><button className="btn btn-p" disabled={!evol.trim()} onClick={agregarEvol}>Agregar a la historia</button></div>
+                  <div style={{ marginTop: 10 }}>
+                    {h.evoluciones.map(e => (
+                      <div key={e.id} style={{ borderTop: "1px solid " + temaPal.border, padding: "10px 0" }}>
+                        <div style={{ fontSize: 11.5, color: temaPal.textMuted, marginBottom: 3 }}>{new Date(e.creado_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}{e.profesional ? " · " + e.profesional : ""}</div>
+                        <div style={{ whiteSpace: "pre-wrap", fontSize: 13 }}>{e.texto}</div>
+                      </div>
+                    ))}
+                    {h.evoluciones.length === 0 && <div className="empty">Todavía no hay registros.</div>}
+                  </div>
+                </div>
+              )}
+              {tab === "fotos" && (
+                <div className="card">
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+                    <div><div className="fl">Es…</div>
+                      <div style={{ display: "flex", gap: 4 }}>{["antes", "despues", "otra"].map(t => <button key={t} className={"chip-btn" + (nuevaFoto.tipo === t ? " on" : "")} onClick={() => setNuevaFoto(n => ({ ...n, tipo: t }))}>{ETQ_FOTO[t]}</button>)}</div></div>
+                    <div style={{ flex: "1 1 160px" }}><div className="fl">Zona o tratamiento</div><input className="inp" placeholder="Ej: rostro, abdomen, sonrisa" value={nuevaFoto.zona} onChange={e => setNuevaFoto(n => ({ ...n, zona: e.target.value }))} /></div>
+                    <div><div className="fl">Fecha</div><input className="inp" type="date" value={nuevaFoto.fecha} onChange={e => setNuevaFoto(n => ({ ...n, fecha: e.target.value }))} /></div>
+                    <label className="btn btn-p" style={{ cursor: "pointer" }}>{subiendo ? "Subiendo…" : "📷 Subir foto"}<input type="file" accept="image/*" multiple style={{ display: "none" }} disabled={subiendo} onChange={e => { subirFotos(e.target.files); e.target.value = ""; }} /></label>
+                  </div>
+                  {comparar.length > 0 && (
+                    <div className="pop-in" style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 12.5 }}>{comparar.length === 1 ? "Elegí otra foto para comparar" : "2 fotos elegidas"}</span>
+                      {comparar.length === 2 && <button className="btn btn-p btn-sm" onClick={() => abrir(comparar)}>↔ Comparar</button>}
+                      <button className="btn btn-g btn-sm" onClick={() => setComparar([])}>Limpiar</button>
+                    </div>
+                  )}
+                  {h.fotos.length === 0 ? <div className="empty" style={{ marginTop: 12 }}>Subí la foto de "antes" el primer día y la de "después" al terminar: después las podés comparar lado a lado.</div> : zonas.map(z => (
+                    <div key={z} style={{ marginTop: 14 }}>
+                      <div className="ct">{z}</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 8 }}>
+                        {h.fotos.filter(f => (f.zona || "General") === z).map(f => {
+                          const elegida = comparar.some(c => c.id === f.id);
+                          return (
+                            <div key={f.id} style={{ position: "relative", borderRadius: 8, overflow: "hidden", border: "2px solid " + (elegida ? temaPal.accent : temaPal.border) }}>
+                              <img src={f.miniatura} alt={ETQ_FOTO[f.tipo] + " " + (f.zona || "")} style={{ width: "100%", height: 130, objectFit: "cover", display: "block", cursor: "zoom-in" }} onClick={() => abrir([f])} />
+                              <div style={{ fontSize: 11, padding: "4px 6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <span><b>{ETQ_FOTO[f.tipo]}</b> · {f.fecha.split("-").reverse().join("/")}</span>
+                                <input type="checkbox" checked={elegida} aria-label="Elegir para comparar" onChange={() => setComparar(cs => elegida ? cs.filter(c => c.id !== f.id) : [...cs, f].slice(-2))} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {tab === "turnos" && (
+                <div className="card">
+                  {h.turnos.length === 0 ? <div className="empty">Sin turnos todavía.</div> : (
+                    <table>
+                      <thead><tr><th>Fecha</th><th>Tratamiento</th><th>Profesional</th><th>Estado</th><th style={{ textAlign: "right" }}>Precio</th></tr></thead>
+                      <tbody>{h.turnos.map(t => (
+                        <tr key={t.id}><td>{t.inicio.slice(0, 10).split("-").reverse().join("/")} {t.inicio.slice(11, 16)}</td><td data-l="Tratamiento">{t.servicio_nombre || "Consulta"}</td><td data-l="Profesional">{t.profesional_nombre || "—"}</td>
+                          <td data-l="Estado"><span style={{ color: ESTADOS_TURNO[t.estado]?.c, fontWeight: 700 }}>{ESTADOS_TURNO[t.estado]?.t}</span>{t.venta_id ? " · 💵" : ""}</td><td data-l="Precio" style={{ textAlign: "right" }}>{t.precio ? fmt(t.precio) : "—"}</td></tr>
+                      ))}</tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+      {grande && (
+        <Ventana className="pos-overlay" style={{ zIndex: 300 }} onClick={() => setGrande(null)} role="dialog" aria-label="Foto">
+          <div className="card pop-in" style={{ width: grande.fotos.length > 1 ? "min(1200px, 96vw)" : "min(800px, 96vw)", maxHeight: "94vh", overflow: "auto", background: temaPal.card }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(" + grande.fotos.length + ", minmax(0, 1fr))", gap: 10 }}>
+              {grande.fotos.map(f => (
+                <div key={f.id} style={{ textAlign: "center" }}>
+                  <div style={{ fontWeight: 800, marginBottom: 6 }}>{ETQ_FOTO[f.tipo]} · {f.fecha.split("-").reverse().join("/")}{f.zona ? " · " + f.zona : ""}</div>
+                  <img src={f.imagen} alt={ETQ_FOTO[f.tipo]} style={{ maxWidth: "100%", maxHeight: "74vh", borderRadius: 8 }} />
+                  {esJefeC && grande.fotos.length === 1 && <div><button className="btn btn-g btn-sm" style={{ color: temaPal.red, marginTop: 8 }} onClick={() => borrarFoto(f)}>Borrar foto</button></div>}
+                </div>
+              ))}
+            </div>
+            <div style={{ textAlign: "right", marginTop: 10 }}><button className="btn btn-g" onClick={() => setGrande(null)}>Cerrar</button></div>
+          </div>
+        </Ventana>
+      )}
+    </div>
+  );
+}
+
+// ---------- Recordatorios y "volver a sacar turno" ----------
+function RecordatoriosConsultorio({ localId, paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const [tab, setTab] = useState(() => tabInicialDe("recordatorios") || "manana");
+  const [cfg, setCfg] = useState(null);
+  const [fecha, setFecha] = useState(() => sumarDias(diaISO(new Date()), 1));
+  const [turnos, setTurnos] = useState(null);
+  const [volver, setVolver] = useState(null);
+  const [aviso, avisar] = usarAviso();
+  const cargar = () => {
+    API.get("/consultorio/recordatorios?fecha=" + fecha + "&local_id=" + (localId || 1)).then(r => setTurnos(r.data.turnos || [])).catch(() => setTurnos([]));
+    API.get("/consultorio/volver").then(r => setVolver(r.data || [])).catch(() => setVolver([]));
+  };
+  useEffect(() => { API.get("/consultorio/config").then(r => setCfg(r.data)).catch(() => {}); }, []);
+  useEffect(() => { cargar(); }, [fecha, localId]);
+  const enviar = (t) => {
+    const txt = textoRecordatorio(cfg, t);
+    window.open(linkWhatsapp(t.telefono, txt) || ("https://wa.me/?text=" + encodeURIComponent(txt)), "_blank");
+    API.put("/consultorio/turnos/" + t.id + "/recordatorio").then(cargar).catch(() => {});
+  };
+  const confirmo = (t) => API.put("/consultorio/turnos/" + t.id, { estado: "confirmado" }).then(cargar).catch(() => avisar(false, "No se pudo marcar"));
+  const textoVolver = (x) => llenarMensaje(cfg.msj_volver, { nombre: String(x.nombre || "").split(" ")[0], tratamiento: x.servicio, negocio: cfg.negocio || "", tiempo: x.dias >= 60 ? Math.round(x.dias / 30) + " meses" : x.dias + " días" });
+  const enviarVolver = (x) => {
+    const txt = textoVolver(x);
+    window.open(linkWhatsapp(x.telefono, txt) || ("https://wa.me/?text=" + encodeURIComponent(txt)), "_blank");
+    API.post("/consultorio/volver/contactado", { paciente_id: x.paciente_id, servicio_id: x.servicio_id }).then(cargar).catch(() => {});
+  };
+  if (!cfg || !turnos || !volver) return <div className="fade"><div className="skel" style={{ height: 300 }} /></div>;
+  const auto = cfg.modo_mensajes === "automatico";
+  const pendientes = turnos.filter(t => !t.recordatorio_en);
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div className="dash-head"><div><div className="pt">Recordatorios</div><div className="ps">{auto ? "se mandan solos por WhatsApp a las " + cfg.hora_recordatorio + " del día anterior" : "con un toque: el mensaje sale listo desde tu WhatsApp"}</div></div>
+        <div className="dash-actions"><button className="btn btn-g btn-sm" onClick={() => irASeccion("config-consultorio:mensajes")}>⚙️ Mensajes</button></div></div>
+      {avisoCaja(temaPal, aviso)}
+      <div className="tabs" style={{ marginBottom: 10 }}>
+        <button className={"tab" + (tab === "manana" ? " on" : "")} onClick={() => setTab("manana")}>Turnos de {fecha === sumarDias(diaISO(new Date()), 1) ? "mañana" : diaLargo(fecha)} ({pendientes.length})</button>
+        <button className={"tab" + (tab === "volver" ? " on" : "")} onClick={() => setTab("volver")}>Volver a sacar turno ({volver.filter(x => !x.contactado_en).length})</button>
+      </div>
+      {tab === "manana" && (
+        <div className="card">
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
+            <span className="fl" style={{ margin: 0 }}>Día</span><input className="inp" type="date" style={{ width: 160 }} value={fecha} onChange={e => e.target.value && setFecha(e.target.value)} />
+            {auto && <span className="tag tag-ok">🤖 Automático activado</span>}
+          </div>
+          {turnos.length === 0 ? <div className="empty">No hay turnos para ese día.</div> : turnos.map(t => (
+            <div key={t.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "9px 0", borderTop: "1px solid " + temaPal.border, flexWrap: "wrap" }}>
+              <b style={{ width: 48, fontVariantNumeric: "tabular-nums" }}>{t.inicio.slice(11, 16)}</b>
+              <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                <div style={{ fontWeight: 700 }}>{t.paciente_nombre} {t.estado === "confirmado" && <span className="tag tag-ok">Confirmó</span>}</div>
+                <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{t.servicio_nombre || "Consulta"}{t.profesional_nombre ? " · " + t.profesional_nombre : ""}{t.telefono ? " · " + t.telefono : " · sin teléfono"}</div>
+                {t.recordatorio_en ? <div style={{ fontSize: 11.5, color: temaPal.green, fontWeight: 600 }}>✓ Recordatorio enviado{t.recordatorio_auto ? " (automático)" : ""}</div>
+                  : t.recordatorio_error ? <div style={{ fontSize: 11.5, color: temaPal.red }}>⚠️ No salió automático: {t.recordatorio_error}</div> : null}
+              </div>
+              <button className={"btn btn-sm " + (t.recordatorio_en ? "btn-g" : "btn-p")} disabled={!t.telefono} onClick={() => enviar(t)}>💬 {t.recordatorio_en ? "Reenviar" : "Enviar"}</button>
+              {t.estado !== "confirmado" && <button className="btn btn-g btn-sm" onClick={() => confirmo(t)}>✓ Confirmó</button>}
+            </div>
+          ))}
+        </div>
+      )}
+      {tab === "volver" && (
+        <div className="card">
+          <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginBottom: 8 }}>Pacientes a los que ya les toca repetir un tratamiento (según "volver cada X días" de cada tratamiento) y no tienen turno sacado.{cfg.volver_auto ? " Se mandan solos una vez." : ""}</div>
+          {volver.length === 0 ? <div className="empty">Nadie por ahora. Para que aparezcan, poné "volver cada X días" en tus tratamientos.</div> : volver.map(x => (
+            <div key={x.paciente_id + "-" + x.servicio_id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "9px 0", borderTop: "1px solid " + temaPal.border, flexWrap: "wrap", opacity: x.contactado_en ? 0.6 : 1 }}>
+              <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+                <div style={{ fontWeight: 700 }}>{x.nombre}</div>
+                <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{x.servicio} hace {x.dias} días (conviene cada {x.volver_dias}){x.atrasado > 0 ? " · " + x.atrasado + " días atrasado" : " · le toca en " + (-x.atrasado) + " días"}</div>
+                {x.contactado_en && <div style={{ fontSize: 11.5, color: temaPal.green }}>✓ Contactado el {new Date(x.contactado_en).toLocaleDateString("es-AR")}</div>}
+              </div>
+              <button className={"btn btn-sm " + (x.contactado_en ? "btn-g" : "btn-p")} disabled={!x.telefono} onClick={() => enviarVolver(x)}>💬 {x.contactado_en ? "Escribir de nuevo" : "Invitar a sacar turno"}</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------- Indicadores ----------
+function IndicadoresConsultorio({ localId, paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const [d, setD] = useState(null);
+  useEffect(() => { API.get("/consultorio/indicadores?local_id=" + (localId || 1)).then(r => setD(r.data)).catch(() => setD({})); }, [localId]);
+  if (!d) return <div className="fade"><div className="skel" style={{ height: 300 }} /></div>;
+  const kpi = (t, v, sub, col) => <div className="card"><div className="ct">{t}</div><div style={{ fontSize: 26, fontWeight: 900, color: col || temaPal.text }}>{v}</div><div style={{ fontSize: 12, color: temaPal.textMuted }}>{sub}</div></div>;
+  const tabla = (t, filas) => (
+    <div className="card"><div className="ct">{t}</div>
+      {filas && filas.length ? <table><thead><tr><th>Nombre</th><th style={{ textAlign: "right" }}>Atendidos</th><th style={{ textAlign: "right" }}>Facturado</th></tr></thead>
+        <tbody>{filas.map(f => <tr key={f.nombre}><td>{f.nombre}</td><td data-l="Atendidos" style={{ textAlign: "right" }}>{f.atendidos}</td><td data-l="Facturado" style={{ textAlign: "right" }}>{fmt(f.facturado)}</td></tr>)}</tbody></table>
+        : <div className="empty">Sin turnos atendidos en los últimos 30 días.</div>}
+    </div>
+  );
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div className="dash-head"><div><div className="pt">Indicadores del consultorio</div><div className="ps">últimos 30 días</div></div></div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 10, marginBottom: 12 }}>
+        {kpi("Atendidos", d.atendidos, d.pacientes + " pacientes distintos")}
+        {kpi("Facturado en turnos", fmt(d.facturado || 0), "según el precio de cada turno atendido", temaPal.green)}
+        {kpi("No vinieron", (d.ausentismo_pct || 0) + "%", d.ausentes + " ausentes · " + d.cancelados + " cancelados", (d.ausentismo_pct || 0) > 15 ? temaPal.red : temaPal.text)}
+        {kpi("Próximos 7 días", d.proximos_7, "turnos reservados")}
+      </div>
+      {(d.ausentismo_pct || 0) > 15 && <div className="cli-tip" style={{ marginBottom: 12 }}>💡 Más de 1 de cada 7 pacientes no viene. Mandar el recordatorio el día anterior (y pedir que confirmen) suele bajar mucho las ausencias.</div>}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
+        {tabla("Por profesional", d.por_profesional)}
+        {tabla("Por tratamiento", d.por_tratamiento)}
+      </div>
+    </div>
+  );
+}
+
+// ---------- Configuracion (tratamientos, equipo, horario y mensajes) ----------
+function ConfigConsultorio({ usuario, paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const [cfg, setCfg] = useState(null);
+  const [tab, setTab] = useState(() => tabInicialDe("config-consultorio") || "tratamientos");
+  const [serv, setServ] = useState(null);
+  const [prof, setProf] = useState(null);
+  const [wa, setWa] = useState(null);
+  const [prueba, setPrueba] = useState("");
+  const [aviso, avisar] = usarAviso();
+  const cargar = () => API.get("/consultorio/config").then(r => {
+    setCfg(r.data);
+    setWa(w => w || { modo_mensajes: r.data.modo_mensajes, wa_token: "", wa_phone_id: r.data.wa_phone_id, wa_plantilla_recordatorio: r.data.wa_plantilla_recordatorio,
+      wa_plantilla_volver: r.data.wa_plantilla_volver, wa_idioma: r.data.wa_idioma, hora_recordatorio: r.data.hora_recordatorio, volver_auto: r.data.volver_auto });
+  }).catch(() => {});
+  useEffect(() => { cargar(); }, []);
+  const accion = async (fn, ok) => { try { await fn(); if (ok) avisar(true, ok); cargar(); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); } };
+  if (!cfg || !wa) return <div className="fade"><div className="skel" style={{ height: 300 }} /></div>;
+  const guardarGeneral = () => accion(() => API.put("/consultorio/config", cfg), "✓ Guardado");
+  const PLANTILLA_REC = "Hola {{1}}! Te recordamos tu turno de {{2}} el {{3}} a las {{4}} en {{5}}. ¿Nos confirmás si venís? Si no podés, avisanos así se lo damos a otra persona. ¡Gracias!";
+  const PLANTILLA_VOL = "Hola {{1}}! Ya pasaron {{3}} de tu último {{2}} en {{4}}. Para mantener los resultados te recomendamos repetirlo. ¿Querés que te reservemos un turno?";
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div className="dash-head"><div><div className="pt">Tratamientos y equipo</div><div className="ps">lo que ofrecés, quién atiende, el horario y los mensajes</div></div></div>
+      {avisoCaja(temaPal, aviso)}
+      <div className="tabs" style={{ marginBottom: 10 }}>
+        {[["tratamientos", "Tratamientos"], ["equipo", "Profesionales"], ["horario", "Horario"], ["mensajes", "Mensajes"]].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
+      </div>
+      {tab === "tratamientos" && (
+        <div className="card">
+          {serv ? (
+            <div className="pop-in" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 12, alignItems: "end" }}>
+              <div style={{ gridColumn: "span 2" }}><div className="fl">Nombre</div><input className="inp" autoFocus placeholder="Ej: Limpieza facial profunda" value={serv.nombre} onChange={e => setServ(s => ({ ...s, nombre: e.target.value }))} /></div>
+              <div><div className="fl">Dura (min)</div><input className="inp" type="number" min="5" step="5" value={serv.duracion_min} onChange={e => setServ(s => ({ ...s, duracion_min: e.target.value }))} /></div>
+              <div><div className="fl">Precio</div><input className="inp" type="number" min="0" value={serv.precio} onChange={e => setServ(s => ({ ...s, precio: e.target.value }))} /></div>
+              <div><div className="fl">Volver cada (días)</div><input className="inp" type="number" min="0" placeholder="Ej: 30" value={serv.volver_dias || ""} onChange={e => setServ(s => ({ ...s, volver_dias: e.target.value }))} /></div>
+              <div style={{ display: "flex", gap: 6 }}><button className="btn btn-g" onClick={() => setServ(null)}>Cancelar</button><button className="btn btn-p" onClick={() => accion(() => API.post("/consultorio/servicios", serv), "✓ Tratamiento guardado").then(() => setServ(null))}>Guardar</button></div>
+            </div>
+          ) : <button className="btn btn-p" style={{ marginBottom: 12 }} onClick={() => setServ({ nombre: "", duracion_min: 30, precio: "", volver_dias: "" })}>+ Tratamiento</button>}
+          {cfg.servicios.length === 0 ? <div className="empty">Cargá lo que ofrecés: así al dar un turno se completan solos la duración y el precio. "Volver cada X días" sirve para avisarte a quién invitar a repetir.</div> : (
+            <table><thead><tr><th>Tratamiento</th><th>Duración</th><th style={{ textAlign: "right" }}>Precio</th><th>Volver cada</th><th /></tr></thead>
+              <tbody>{cfg.servicios.map(s => <tr key={s.id}><td style={{ fontWeight: 700 }}>{s.nombre}</td><td data-l="Duración">{s.duracion_min} min</td><td data-l="Precio" style={{ textAlign: "right" }}>{fmt(s.precio)}</td><td data-l="Volver cada">{s.volver_dias ? s.volver_dias + " días" : "—"}</td>
+                <td><button className="btn btn-g btn-sm" onClick={() => setServ({ ...s })}>Editar</button> <button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={() => { if (confirm("¿Borrar " + s.nombre + "?")) accion(() => API.delete("/consultorio/servicios/" + s.id)); }}>Borrar</button></td></tr>)}</tbody></table>
+          )}
+        </div>
+      )}
+      {tab === "equipo" && (
+        <div className="card">
+          {prof ? (
+            <div className="pop-in" style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 12 }}>
+              <div style={{ flex: "2 1 180px" }}><div className="fl">Nombre</div><input className="inp" autoFocus placeholder="Ej: Dra. Laura Gómez" value={prof.nombre} onChange={e => setProf(p => ({ ...p, nombre: e.target.value }))} /></div>
+              <div style={{ flex: "1 1 150px" }}><div className="fl">Especialidad</div><input className="inp" placeholder="Ej: Cosmiatra" value={prof.especialidad || ""} onChange={e => setProf(p => ({ ...p, especialidad: e.target.value }))} /></div>
+              <div><div className="fl">Color</div><div style={{ display: "flex", gap: 4 }}>{COLORES_PROF.map(c => <button key={c} aria-label={"Color " + c} onClick={() => setProf(p => ({ ...p, color: c }))} style={{ width: 24, height: 24, borderRadius: "50%", background: c, border: prof.color === c ? "3px solid " + temaPal.text : "1px solid " + temaPal.border, cursor: "pointer" }} />)}</div></div>
+              <button className="btn btn-g" onClick={() => setProf(null)}>Cancelar</button>
+              <button className="btn btn-p" onClick={() => accion(() => API.post("/consultorio/profesionales", prof), "✓ Profesional guardado").then(() => setProf(null))}>Guardar</button>
+            </div>
+          ) : <button className="btn btn-p" style={{ marginBottom: 12 }} onClick={() => setProf({ nombre: "", especialidad: "", color: COLORES_PROF[cfg.profesionales.length % COLORES_PROF.length] })}>+ Profesional</button>}
+          {cfg.profesionales.length === 0 ? <div className="empty">Si atienden varias personas, cargalas: la agenda muestra una columna por profesional.</div> : cfg.profesionales.map((p, i) => (
+            <div key={p.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 0", borderTop: "1px solid " + temaPal.border }}>
+              <span style={{ width: 14, height: 14, borderRadius: "50%", background: p.color || COLORES_PROF[i % COLORES_PROF.length] }} />
+              <div style={{ flex: 1 }}><b>{p.nombre}</b>{p.especialidad ? <span style={{ color: temaPal.textMuted }}> · {p.especialidad}</span> : null}</div>
+              <button className="btn btn-g btn-sm" onClick={() => setProf({ ...p })}>Editar</button>
+              <button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={() => { if (confirm("¿Sacar a " + p.nombre + " de la agenda?")) accion(() => API.delete("/consultorio/profesionales/" + p.id)); }}>Sacar</button>
+            </div>
+          ))}
+        </div>
+      )}
+      {tab === "horario" && (
+        <div className="card" style={{ maxWidth: 520 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            <div><div className="fl">Abre</div><input className="inp" type="time" value={cfg.hora_desde} onChange={e => setCfg(c => ({ ...c, hora_desde: e.target.value }))} /></div>
+            <div><div className="fl">Cierra</div><input className="inp" type="time" value={cfg.hora_hasta} onChange={e => setCfg(c => ({ ...c, hora_hasta: e.target.value }))} /></div>
+            <div><div className="fl">Turnos cada</div><select className="sel" value={cfg.intervalo} onChange={e => setCfg(c => ({ ...c, intervalo: parseInt(e.target.value) }))}>{[10, 15, 20, 30, 45, 60].map(m => <option key={m} value={m}>{m} min</option>)}</select></div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}><button className="btn btn-p" onClick={guardarGeneral}>Guardar</button></div>
+        </div>
+      )}
+      {tab === "mensajes" && (
+        <>
+          <div className="card" style={{ marginBottom: 12 }}>
+            <div className="ct">¿Cómo se mandan los recordatorios?</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 8 }}>
+              {[["toque", "👆 Con un toque", "Lumiere arma la lista de los turnos de mañana con el mensaje listo; tocás Enviar y sale desde el WhatsApp del consultorio. Gratis."],
+                ["automatico", "🤖 Automático", "Salen solos el día anterior por WhatsApp Business oficial. Requiere cuenta de Meta Business verificada y plantillas aprobadas; Meta cobra cada mensaje (≈ US$0,03 un recordatorio)."]].map(([k, t, d]) => (
+                <button key={k} className={"chip-btn" + (wa.modo_mensajes === k ? " on" : "")} style={{ borderRadius: 10, padding: 12, textAlign: "left", whiteSpace: "normal" }} onClick={() => setWa(w => ({ ...w, modo_mensajes: k }))}>
+                  <div style={{ fontWeight: 800, fontSize: 14 }}>{t}</div><div style={{ fontSize: 12, fontWeight: 400, marginTop: 4 }}>{d}</div>
+                </button>
+              ))}
+            </div>
+            {wa.modo_mensajes === "automatico" && (
+              <div className="pop-in" style={{ marginTop: 14 }}>
+                <div style={{ fontSize: 12.5, lineHeight: 1.7, marginBottom: 10 }}>
+                  <b>Qué necesitás de Meta</b> (una sola vez, en business.facebook.com → WhatsApp Manager):
+                  <ol style={{ margin: "4px 0 0 18px", padding: 0 }}>
+                    <li>Un número de WhatsApp Business conectado a la API (no puede ser el mismo que usás en la app del celular).</li>
+                    <li>El <b>ID del número de teléfono</b> y un <b>token de acceso permanente</b> (de un usuario del sistema).</li>
+                    <li>Crear la plantilla de <b>recordatorio</b> (categoría "Utilidad", idioma Español (ARG)) con este texto:</li>
+                  </ol>
+                  <div style={{ background: temaPal.bg, borderRadius: 8, padding: "10px 12px", margin: "6px 0 10px", fontSize: 12.5, whiteSpace: "pre-wrap", overflowWrap: "anywhere", userSelect: "all" }}>{PLANTILLA_REC}</div>
+                  <div>Y si querés invitar solos a repetir, otra plantilla (categoría "Marketing"):</div>
+                  <div style={{ background: temaPal.bg, borderRadius: 8, padding: "10px 12px", margin: "6px 0 10px", fontSize: 12.5, whiteSpace: "pre-wrap", overflowWrap: "anywhere", userSelect: "all" }}>{PLANTILLA_VOL}</div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
+                  <div><div className="fl">Token de acceso {cfg.wa_conectado ? "(ya cargado; dejalo vacío para no cambiarlo)" : ""}</div><input className="inp" type="password" autoComplete="off" placeholder={cfg.wa_conectado ? "••••••••" : "EAAG…"} value={wa.wa_token} onChange={e => setWa(w => ({ ...w, wa_token: e.target.value }))} /></div>
+                  <div><div className="fl">ID del número de teléfono</div><input className="inp" placeholder="Ej: 109876543210987" value={wa.wa_phone_id} onChange={e => setWa(w => ({ ...w, wa_phone_id: e.target.value }))} /></div>
+                  <div><div className="fl">Nombre de la plantilla de recordatorio</div><input className="inp" placeholder="Ej: recordatorio_turno" value={wa.wa_plantilla_recordatorio} onChange={e => setWa(w => ({ ...w, wa_plantilla_recordatorio: e.target.value }))} /></div>
+                  <div><div className="fl">Idioma de las plantillas</div><input className="inp" value={wa.wa_idioma} onChange={e => setWa(w => ({ ...w, wa_idioma: e.target.value }))} /></div>
+                  <div><div className="fl">Mandarlos el día anterior desde las</div><input className="inp" type="time" value={wa.hora_recordatorio} onChange={e => setWa(w => ({ ...w, hora_recordatorio: e.target.value }))} /></div>
+                  <div><div className="fl">Plantilla "volver a sacar turno" (opcional)</div><input className="inp" placeholder="Ej: volver_turno" value={wa.wa_plantilla_volver} onChange={e => setWa(w => ({ ...w, wa_plantilla_volver: e.target.value }))} /></div>
+                </div>
+                <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, marginTop: 10 }}><input type="checkbox" checked={!!wa.volver_auto} onChange={e => setWa(w => ({ ...w, volver_auto: e.target.checked }))} /> Mandar solo también el "volver a sacar turno" (una vez a cada paciente cuando le toca)</label>
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}>
+              <button className="btn btn-p" onClick={() => accion(() => API.put("/consultorio/whatsapp", wa), "✓ Guardado: " + (wa.modo_mensajes === "automatico" ? "los recordatorios se mandan solos" : "recordatorios con un toque")).then(() => setWa(w => ({ ...w, wa_token: "" })))}>Guardar</button>
+            </div>
+            {cfg.modo_mensajes === "automatico" && cfg.wa_conectado && (
+              <div style={{ display: "flex", gap: 8, marginTop: 12, paddingTop: 12, borderTop: "1px solid " + temaPal.border, flexWrap: "wrap", alignItems: "center" }}>
+                <span style={{ fontSize: 12.5 }}>Probar: mandá un recordatorio de prueba a</span>
+                <input className="inp" style={{ width: 180 }} placeholder="Tu WhatsApp" value={prueba} onChange={e => setPrueba(e.target.value)} />
+                <button className="btn btn-g" disabled={!prueba.trim()} onClick={() => accion(() => API.post("/consultorio/whatsapp/probar", { telefono: prueba }), "✓ WhatsApp aceptó el mensaje: fijate en ese celular")}>Mandar prueba</button>
+              </div>
+            )}
+          </div>
+          <div className="card">
+            <div className="ct">Textos de los mensajes "con un toque"</div>
+            <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 8 }}>Podés usar {"{nombre} {tratamiento} {dia} {hora} {profesional} {negocio}"} y, en el de volver, {"{tiempo}"}.</div>
+            <div className="fl">Recordatorio de turno</div>
+            <textarea className="inp" rows={3} value={cfg.msj_recordatorio} onChange={e => setCfg(c => ({ ...c, msj_recordatorio: e.target.value }))} />
+            <div className="fl" style={{ marginTop: 10 }}>Volver a sacar turno</div>
+            <textarea className="inp" rows={3} value={cfg.msj_volver} onChange={e => setCfg(c => ({ ...c, msj_volver: e.target.value }))} />
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}><button className="btn btn-p" onClick={guardarGeneral}>Guardar textos</button></div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ===================== GASTRONOMIA =====================
 // Mesas, cuentas abiertas, comandas a cocina y cobro (todo / partes iguales / por consumo).
 // Se activa en Configuracion del negocio > General. Ver routes/gastro.js.
@@ -12908,35 +13645,39 @@ function Cocina({ localId, paletaActual }) {
   );
 }
 
-// Activar el modo gastronomia (Configuracion del negocio > General)
+// Modulos opcionales del negocio (Configuracion del negocio > General)
 function ConfigGastro({ paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [g, setG] = useState(null);
-  useEffect(() => { API.get("/gastro/estado").then(r => setG(r.data)).catch(() => setG({ activo: false })); }, []);
-  const guardar = async (nuevo) => {
-    try {
-      await API.put("/gastro/estado", nuevo); setG(nuevo);
-      GASTRO_ACTIVO = !!nuevo.activo;
-      try { localStorage.setItem("lumiere_gastro", GASTRO_ACTIVO ? "1" : "0"); } catch (e) {}
-      window.dispatchEvent(new CustomEvent("lumiere-gastro"));
-    } catch (e) { alert(e.response?.data?.error || "No se pudo guardar"); }
+  useEffect(() => { API.get("/modulos").then(r => setG(r.data)).catch(() => setG({})); }, []);
+  const guardar = async (cambio) => {
+    try { const r = await API.put("/modulos", cambio); setG(r.data); aplicarModulos(r.data); }
+    catch (e) { alert(e.response?.data?.error || "No se pudo guardar"); }
   };
   if (!g) return null;
   return (
     <div className="card" style={{ marginBottom: 14, borderLeft: "4px solid " + temaPal.accent, textAlign: "left" }}>
+      <div className="ct">Módulos según tu actividad</div>
       <label style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer" }}>
-        <input type="checkbox" checked={!!g.activo} onChange={e => guardar({ ...g, activo: e.target.checked })} style={{ marginTop: 3 }} />
+        <input type="checkbox" checked={!!g.gastronomia} onChange={e => guardar({ gastronomia: e.target.checked })} style={{ marginTop: 3 }} />
         <span>
-          <b>🍽️ Modo gastronomía</b> (bar, café, restaurante)
+          <b>🍽️ Gastronomía</b> (bar, café, restaurante)
           <div style={{ fontSize: 12, color: temaPal.textMuted }}>Suma <b>Mesas</b> (cuentas abiertas por mesa, para llevar, cuenta dividida) y <b>Cocina</b> (las comandas llegan a una pantalla con pitido) en el menú VENTAS.</div>
         </span>
       </label>
-      {g.activo && (
-        <label style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 10, marginLeft: 26, fontSize: 12.5, cursor: "pointer" }}>
-          <input type="checkbox" checked={!!g.imprimir_comanda} onChange={e => guardar({ ...g, imprimir_comanda: e.target.checked })} />
+      {g.gastronomia && (
+        <label style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 8, marginLeft: 26, fontSize: 12.5, cursor: "pointer" }}>
+          <input type="checkbox" checked={!!g.imprimir_comanda} onChange={e => guardar({ imprimir_comanda: e.target.checked })} />
           Imprimir la comanda en la impresora de tickets al enviarla a cocina
         </label>
       )}
+      <label style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer", marginTop: 12 }}>
+        <input type="checkbox" checked={!!g.consultorio} onChange={e => guardar({ consultorio: e.target.checked })} style={{ marginTop: 3 }} />
+        <span>
+          <b>🩺 Consultorio</b> (estética, odontología, kinesiología…)
+          <div style={{ fontSize: 12, color: temaPal.textMuted }}>Suma <b>Agenda</b> de turnos, <b>Pacientes</b> (historia y fotos antes/después), <b>Recordatorios</b> por WhatsApp e <b>Indicadores</b>; y oculta del menú lo que es de tienda (etiquetas, kits, ventas online, cupones…).</div>
+        </span>
+      </label>
     </div>
   );
 }
@@ -21558,6 +22299,12 @@ function Promociones({ paletaActual }) {
 const NAV_SECTIONS = [
   { section: "TU GERENTE", color: "#c9a84c", items: [
     { id: "gerente", icon: "✨", label: "Lumiere, tu gerente", k: "gerente salud analisis mejora continua preguntas logros medallas decisiones" }] },
+  { section: "CONSULTORIO", color: "#16a085", items: [
+    { id: "agenda", icon: "📅", label: "Agenda", k: "turnos turno citas agenda pacientes consultorio", soloConsultorio: true },
+    { id: "pacientes", icon: "🩺", label: "Pacientes", k: "historia clinica ficha fotos antes despues evolucion paciente", soloConsultorio: true },
+    { id: "recordatorios", icon: "💬", label: "Recordatorios", k: "recordatorio whatsapp confirmar turno volver sacar turno", soloConsultorio: true },
+    { id: "indicadores-cons", icon: "📈", label: "Indicadores", k: "ausentismo ocupacion profesional tratamiento", soloConsultorio: true, soloJefe: true },
+    { id: "config-consultorio", icon: "⚙️", label: "Tratamientos y equipo", k: "tratamientos servicios profesionales horario mensajes whatsapp automatico", soloConsultorio: true, soloJefe: true }] },
   { section: "VENTAS", color: "#e67e22", items: [
     { id: "dashboard", icon: "📊", label: "Dashboard", k: "inicio resumen tablero" },
     { id: "pos", icon: "🛒", label: "Punto de Venta", k: "vender venta cobrar caja pos" },
@@ -21962,7 +22709,7 @@ function LocalSelector({ usuario, onSelect, actual, onCancel }) {
   const saludo = hora < 12 ? "Buen día" : hora < 20 ? "Buenas tardes" : "Buenas noches";
   const filtro = q.trim().toLowerCase();
   const visibles = (locales || []).filter(l => !filtro || [l.nombre, l.direccion].some(x => String(x || "").toLowerCase().includes(filtro)));
-  const salir = () => { localStorage.removeItem("lumiere_token"); localStorage.removeItem("lumiere_user"); localStorage.removeItem("lumiere_local"); localStorage.removeItem("lumiere_un_local"); localStorage.removeItem("lumiere_gastro"); window.location.reload(); };
+  const salir = () => { localStorage.removeItem("lumiere_token"); localStorage.removeItem("lumiere_user"); localStorage.removeItem("lumiere_local"); localStorage.removeItem("lumiere_un_local"); localStorage.removeItem("lumiere_gastro"); localStorage.removeItem("lumiere_consultorio"); window.location.reload(); };
   const inicial = (n) => String(n || "").replace(/^local\s*/i, "").trim().charAt(0).toUpperCase() || "L";
 
   return (
@@ -22129,7 +22876,8 @@ function achicarLogo(archivo) {
 const ACTIVIDADES_NEGOCIO = [
   ["comercio", "🛍️", "Comercio / tienda"],
   ["gastronomia", "🍽️", "Bar, café o restaurante"],
-  ["servicios", "✂️", "Servicios (estética, peluquería…)"],
+  ["consultorio", "🩺", "Consultorio (estética, odontología…)"],
+  ["servicios", "✂️", "Servicios (peluquería, talleres…)"],
   ["otro", "✨", "Otro"],
 ];
 const nombreActividad = (id) => { const a = ACTIVIDADES_NEGOCIO.find(x => x[0] === id); return a ? a[1] + " " + a[2] : "Sin elegir"; };
@@ -22168,11 +22916,7 @@ function Bienvenida({ usuario, onListo }) {
     setGuardando(true); setError("");
     try {
       await API.post("/auth/bienvenida", omitir ? { omitir: true } : { nombre_negocio: d.nombre_negocio, logo_url: d.logo_url, moneda: d.moneda, actividad: d.actividad || undefined, locales: [d.l1].concat(otro ? [d.l2] : []) });
-      if (!omitir) {
-        GASTRO_ACTIVO = d.actividad === "gastronomia";
-        try { localStorage.setItem("lumiere_gastro", GASTRO_ACTIVO ? "1" : "0"); } catch (e) {}
-        window.dispatchEvent(new CustomEvent("lumiere-gastro"));
-      }
+      if (!omitir) API.get("/modulos").then(r => aplicarModulos(r.data)).catch(() => {});
       onListo();
     } catch (e) { setError(e.response?.data?.error || "No se pudo guardar. Probá de nuevo."); setGuardando(false); }
   };
@@ -22213,6 +22957,7 @@ function Bienvenida({ usuario, onListo }) {
                   ))}
                 </div>
                 {d.actividad === "gastronomia" && <div className="lg-ayuda" style={{ textAlign: "left" }}>Te activamos <b>Mesas</b> y <b>Cocina</b>: cuentas por mesa, comandas y cuenta dividida.</div>}
+                {d.actividad === "consultorio" && <div className="lg-ayuda" style={{ textAlign: "left" }}>Te activamos <b>Agenda</b>, <b>Pacientes</b> (historia y fotos antes/después) y <b>Recordatorios</b> de turnos.</div>}
               </div>
               <div className="lg-campo"><label htmlFor="bv-mon">Moneda con la que vendés</label>
                 <select id="bv-mon" className="lg-input" value={d.moneda} onChange={e => set("moneda", e.target.value)}>{Object.keys(MONEDAS).map(c => <option key={c} value={c}>{MONEDAS[c].nombre} ({c})</option>)}</select></div>
@@ -22380,7 +23125,8 @@ function PanelPlataforma({ paletaActual }) {
                 <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", fontSize: 12 }}>
                   <span className="tag tag-neutral">{nombreActividad(n.modulos?.actividad)}</span>
                   {n.modulos?.gastronomia && <span className="tag tag-ok">🍽️ Mesas y Cocina</span>}
-                  <button className="btn btn-g btn-sm" onClick={() => setMods({ negocio: n, actividad: n.modulos?.actividad || "", gastronomia: !!n.modulos?.gastronomia })}>🧩 Módulos</button>
+                  {n.modulos?.consultorio && <span className="tag tag-ok">🩺 Consultorio</span>}
+                  <button className="btn btn-g btn-sm" onClick={() => setMods({ negocio: n, actividad: n.modulos?.actividad || "", gastronomia: !!n.modulos?.gastronomia, consultorio: !!n.modulos?.consultorio })}>🧩 Módulos</button>
                 </div>
                 {n.notas && <div className="cli-tip" style={{ margin: 0 }}>📝 {n.notas}</div>}
                 {!n.original && (
@@ -22476,7 +23222,7 @@ function PanelPlataforma({ paletaActual }) {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 12 }}>
               {ACTIVIDADES_NEGOCIO.map(([id, ic, txt]) => (
                 <button key={id} className={"chip-btn" + (mods.actividad === id ? " on" : "")} style={{ borderRadius: 8, padding: "9px 10px", textAlign: "left", whiteSpace: "normal" }}
-                  onClick={() => setMods(m => ({ ...m, actividad: id, gastronomia: id === "gastronomia" ? true : id === "otro" ? m.gastronomia : false }))}>{ic} {txt}</button>
+                  onClick={() => setMods(m => ({ ...m, actividad: id, gastronomia: id === "gastronomia" ? true : id === "otro" ? m.gastronomia : false, consultorio: id === "consultorio" ? true : id === "otro" || id === "servicios" ? m.consultorio : false }))}>{ic} {txt}</button>
               ))}
             </div>
             <div className="fl">Módulos</div>
@@ -22484,12 +23230,16 @@ function PanelPlataforma({ paletaActual }) {
               <input type="checkbox" checked={mods.gastronomia} onChange={e => setMods(m => ({ ...m, gastronomia: e.target.checked }))} style={{ marginTop: 3 }} />
               <span><b>🍽️ Gastronomía</b>: Mesas y Cocina en el menú (cuentas por mesa, comandas, cuenta dividida)</span>
             </label>
+            <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, cursor: "pointer", marginTop: 8 }}>
+              <input type="checkbox" checked={mods.consultorio} onChange={e => setMods(m => ({ ...m, consultorio: e.target.checked }))} style={{ marginTop: 3 }} />
+              <span><b>🩺 Consultorio</b>: Agenda de turnos, Pacientes (historia y fotos antes/después), Recordatorios; oculta herramientas de tienda</span>
+            </label>
             <div style={{ fontSize: 11, color: p.textMuted, marginTop: 8 }}>Los cambios se ven la próxima vez que entren (o al recargar la página).</div>
             <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
               <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setMods(null)}>Cancelar</button>
               <button className="btn btn-p" style={{ flex: 2 }} onClick={async () => {
                 try {
-                  await API.put("/plataforma/negocios/" + mods.negocio.id + "/modulos", { actividad: mods.actividad || undefined, gastronomia: mods.gastronomia });
+                  await API.put("/plataforma/negocios/" + mods.negocio.id + "/modulos", { actividad: mods.actividad || undefined, gastronomia: mods.gastronomia, consultorio: mods.consultorio });
                   avisar("Módulos de " + mods.negocio.nombre + " guardados"); setMods(null); cargar();
                 } catch (e) { avisar("Error: " + (e.response?.data?.error || "no se pudo guardar")); }
               }}>Guardar</button>
@@ -23248,11 +23998,7 @@ export default function AppWrapper() {
       try { localStorage.setItem("lumiere_un_local", UN_SOLO_LOCAL ? "1" : "0"); } catch (e) {}
       setNombresLocalesVersion(v => v + 1);
     }).catch(() => {});
-    API.get("/gastro/estado").then(r => {
-      GASTRO_ACTIVO = !!(r.data && r.data.activo);
-      try { localStorage.setItem("lumiere_gastro", GASTRO_ACTIVO ? "1" : "0"); } catch (e) {}
-      setNombresLocalesVersion(v => v + 1);
-    }).catch(() => {});
+    API.get("/modulos").then(r => aplicarModulos(r.data)).catch(() => {});
   }, [usuario?.id]);
   useEffect(() => {
     const f = () => setNombresLocalesVersion(v => v + 1);
@@ -23356,7 +24102,7 @@ export default function AppWrapper() {
       if (!esJefe && !permisos.includes("dashboard.ver")) {
         const ordenPrioridad = ["pos", "ventas-online", "clients", "inventory", "caja"];
         const mapaModulos2 = {
-          "pos": "pos.ver", "presupuestos": "pos.ver", "mesas": "pos.ver", "cocina": "pos.ver", "ventas-online": "ventas_online.ver", "inventory": "inventario.ver",
+          "pos": "pos.ver", "presupuestos": "pos.ver", "mesas": "pos.ver", "cocina": "pos.ver", "agenda": "pos.ver", "pacientes": "pos.ver", "recordatorios": "pos.ver", "ventas-online": "ventas_online.ver", "inventory": "inventario.ver",
           "clients": "clientes.ver", "cuenta-corriente": "clientes.ver", "caja": "caja.ver"
         };
         const disponible = ordenPrioridad.find(id => !mapaModulos2[id] || permisos.includes(mapaModulos2[id]));
@@ -23369,7 +24115,7 @@ export default function AppWrapper() {
     if (!usuario) return false;
     if (usuario.rol === "jefe" || usuario.rol_id === 1) return true;
  const mapaModulos = {
-      "pos": "pos.ver", "presupuestos": "pos.ver", "mesas": "pos.ver", "cocina": "pos.ver", "dashboard": "dashboard.ver",
+      "pos": "pos.ver", "presupuestos": "pos.ver", "mesas": "pos.ver", "cocina": "pos.ver", "agenda": "pos.ver", "pacientes": "pos.ver", "recordatorios": "pos.ver", "dashboard": "dashboard.ver",
       "ventas-online": "ventas_online.ver", "buscar-precio": "buscar_precio.ver", "cambio-devolucion": "cambios.ver",
       "inventory": "inventario.ver", "rotacion": "rotacion.ver", "ordenes": "ordenes.ver", "inconsistencias": "inconsistencias.ver", "kits": "kits.ver", "etiquetas": "inventario.ver", "listas-precios": "inventario.ver", "stock-alertas": "inventario.ver", "traspasos": "inventario.ver", "valorizacion": "inventario.ver", "historial-ajustes": "inventario.ver", "salud-stock": "inventario.ver", "vencimientos": "inventario.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
       "compras": "compras.ver", "reclamos-proveedores": "compras.ver",
@@ -23483,6 +24229,11 @@ export default function AppWrapper() {
     if (id === "etiquetas") return <Etiquetas paletaActual={paletaActual} localId={local.id} />;
     if (id === "listas-precios") return <ListasPrecios paletaActual={paletaActual} />;
     if (id === "mesas") return <Mesas localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "agenda") return <AgendaConsultorio localId={local.id} paletaActual={paletaActual} />;
+    if (id === "pacientes") return <PacientesConsultorio usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "recordatorios") return <RecordatoriosConsultorio localId={local.id} paletaActual={paletaActual} />;
+    if (id === "indicadores-cons") return <IndicadoresConsultorio localId={local.id} paletaActual={paletaActual} />;
+    if (id === "config-consultorio") return <ConfigConsultorio usuario={usuario} paletaActual={paletaActual} />;
     if (id === "cocina") return <Cocina localId={local.id} paletaActual={paletaActual} />;
     if (id === "presupuestos") return <Presupuestos paletaActual={paletaActual} localId={local.id} />;
     if (id === "insumos") return <Insumos localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
@@ -23497,7 +24248,7 @@ export default function AppWrapper() {
   const esJefeMenu = usuario.rol === "jefe" || usuario.rol_id === 1;
   const NAV_CON_PERMISOS = NAV_SECTIONS.map(sec => ({
     ...sec,
-    items: sec.items.filter(it => (!it.soloJefe || esJefeMenu) && puedeVer(it.id) && !(it.multiLocal && UN_SOLO_LOCAL) && !(it.soloGastro && !GASTRO_ACTIVO))
+    items: sec.items.filter(it => (!it.soloJefe || esJefeMenu) && puedeVer(it.id) && !(it.multiLocal && UN_SOLO_LOCAL) && !(it.soloGastro && !GASTRO_ACTIVO) && !(it.soloConsultorio && !CONSULTORIO_ACTIVO) && !(CONSULTORIO_ACTIVO && OCULTAS_EN_CONSULTORIO.has(it.id)))
   })).filter(sec => sec.items.length > 0)
     // Solo para quien administra Lumiere
     .concat(adminPlataforma ? [{ section: "LUMIERE", color: "#f5b400", items: [{ id: "plataforma", icon: "🛠️", label: "Panel de Lumiere", k: "negocios clientes desarrollador plataforma activar prueba" }] }] : []);

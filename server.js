@@ -84,6 +84,8 @@ app.use('/api/presupuestos', require('./routes/presupuestos'));
 app.use('/api/vencimientos', require('./routes/vencimientos'));
 app.use('/api/mercadopago', require('./routes/mercadopago'));
 app.use('/api/gastro', require('./routes/gastro'));
+app.use('/api/consultorio', require('./routes/consultorio'));
+app.use('/api/modulos', require('./routes/modulos'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {
@@ -99,6 +101,7 @@ app.get('/', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor Lumiere corriendo en puerto ${PORT}`);
   require('./jobs/stockMinimoAuto').iniciar();
+  require('./jobs/consultorioMensajes').iniciar();
   // Registro central de negocios, y cada cajon al dia con lo ultimo del sistema
   const negocios = require('./lib/negocios');
   const alDia = () => negocios.ponerAlDia().then((h) => { if (h.length) console.log('[negocios] cajones puestos al dia:', JSON.stringify(h)); }).catch((e) => console.error('[negocios]', e.message));
