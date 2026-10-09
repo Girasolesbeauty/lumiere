@@ -22598,20 +22598,126 @@ function LogoIcono({ tam = 36 }) {
 // Barra de abajo en el celular: lo que mas se usa a un toque, y "Mas" abre el menu completo.
 // Muestra solo lo que el usuario tiene permitido (si no, usa la siguiente opcion).
 const BARRA_CELU = [
-  { ids: ["dashboard"], icon: "🏠", label: "Inicio" },
+  { ids: ["panel"], icon: "🏠", label: "Inicio" },
   { ids: ["pos", "buscar-precio"], icon: "🛒", label: "Vender" },
   { ids: ["inventory", "compras", "control-inv"], icon: "📦", label: "Stock" },
   { ids: ["clients", "pedidos", "tareas", "caja"], icon: "👥", label: "Clientes" },
 ];
+// ===================== INICIO DEL CELULAR =====================
+// Pantalla de inicio en el celular: pocos botones grandes con lo del dia a dia (segun el tipo de
+// negocio y los permisos) y un boton para el menu completo. Pensada para leer facil.
+// Tamaño de letra: agranda todo Lumiere en ese dispositivo (se guarda en el celular).
+const TAMANOS_LETRA = [["normal", 1, "Normal"], ["grande", 1.15, "Grande"], ["muy", 1.3, "Muy grande"]];
+// En el celular se le pide al navegador una pagina mas angosta, que estira a todo el ancho:
+// todo se ve mas grande sin que nada se corte. En la computadora no cambia nada.
+const aplicarLetra = (id) => {
+  const t = TAMANOS_LETRA.find(x => x[0] === id) || TAMANOS_LETRA[0];
+  try {
+    localStorage.setItem("lumiere_letra", t[0]);
+    const ancho = Math.min(window.screen.width || 9999, window.screen.height || 9999);
+    let meta = document.querySelector('meta[name="viewport"]');
+    if (!meta) { meta = document.createElement("meta"); meta.name = "viewport"; document.head.appendChild(meta); }
+    meta.setAttribute("content", t[1] === 1 || ancho >= 760 ? "width=device-width, initial-scale=1.0" : "width=" + Math.round(ancho / t[1]));
+  } catch (e) {}
+};
+try { aplicarLetra(localStorage.getItem("lumiere_letra") || "normal"); } catch (e) {}
+
+const BOTONES_PANEL = {
+  consultorio: [
+    ["agenda", "📅", "Agenda", "#16a085"], ["pacientes", "🩺", "Pacientes", "#2471a3"], ["recordatorios", "💬", "Recordatorios", "#8e44ad"],
+    ["pos", "💵", "Cobrar", "#2d7a4f"], ["inventory", "📦", "Stock", "#a0522d"], ["caja", "🧾", "Caja", "#b7950b"], ["gerente", "✨", "Mi gerente", "#c9a84c"],
+  ],
+  gastronomia: [
+    ["mesas", "🍽️", "Mesas", "#d35400"], ["cocina", "👨‍🍳", "Cocina", "#c0392b"], ["pos", "🛒", "Vender", "#2d7a4f"],
+    ["inventory", "📦", "Stock", "#a0522d"], ["caja", "🧾", "Caja", "#b7950b"], ["gerente", "✨", "Mi gerente", "#c9a84c"],
+  ],
+  comercio: [
+    ["pos", "🛒", "Vender", "#2d7a4f"], ["buscar-precio", "🔎", "Buscar precio", "#2471a3"], ["inventory", "📦", "Stock", "#a0522d"],
+    ["clients", "👥", "Clientes", "#8e44ad"], ["pedidos", "📝", "Pedidos", "#d35400"], ["caja", "🧾", "Caja", "#b7950b"], ["gerente", "✨", "Mi gerente", "#c9a84c"],
+  ],
+};
+
+function PanelCelular({ secciones, usuario, localId, avisos, setPage, onMenu, paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const [letra, setLetra] = useState(() => { try { return localStorage.getItem("lumiere_letra") || "normal"; } catch (e) { return "normal"; } });
+  const [hoy, setHoy] = useState(null);
+  const tipo = CONSULTORIO_ACTIVO ? "consultorio" : GASTRO_ACTIVO ? "gastronomia" : "comercio";
+  const permitidas = new Set(secciones.flatMap(s => s.items.map(i => i.id)));
+  useEffect(() => {
+    if (tipo !== "consultorio") return;
+    const d = new Date(); const iso = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    const man = new Date(d); man.setDate(d.getDate() + 1);
+    const isoM = man.getFullYear() + "-" + String(man.getMonth() + 1).padStart(2, "0") + "-" + String(man.getDate()).padStart(2, "0");
+    Promise.all([
+      API.get("/consultorio/turnos?desde=" + iso + "&hasta=" + iso + "&local_id=" + (localId || 1)).then(r => r.data || []).catch(() => []),
+      API.get("/consultorio/recordatorios?fecha=" + isoM + "&local_id=" + (localId || 1)).then(r => (r.data.turnos || []).filter(t => !t.recordatorio_en).length).catch(() => 0),
+    ]).then(([turnos, porAvisar]) => {
+      const vivos = turnos.filter(t => !["cancelado", "ausente"].includes(t.estado));
+      const ahora = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+      const prox = vivos.filter(t => t.estado !== "atendido" && t.inicio.slice(11, 16) >= ahora).sort((a, b) => a.inicio.localeCompare(b.inicio))[0];
+      setHoy({ turnos: vivos.length, prox, porAvisar });
+    });
+  }, [localId]);
+  const cambiarLetra = () => {
+    const i = TAMANOS_LETRA.findIndex(x => x[0] === letra);
+    const sig = TAMANOS_LETRA[(i + 1) % TAMANOS_LETRA.length][0];
+    setLetra(sig); aplicarLetra(sig);
+  };
+  const numero = (id) => id === "recordatorios" ? (hoy?.porAvisar || 0) : id === "agenda" ? 0 : id === "inventory" ? (avisos?.compras || 0) + (avisos?.inventory || 0) : (avisos?.[id] || 0);
+  const botones = (BOTONES_PANEL[tipo] || BOTONES_PANEL.comercio).filter(([id]) => permitidas.has(id));
+  const nombre = (usuario?.nombre || "").split(" ")[0];
+  const hora = new Date().getHours();
+  const saludo = hora < 12 ? "Buen día" : hora < 20 ? "Buenas tardes" : "Buenas noches";
+  const fecha = new Date().toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
+  return (
+    <div className="fade" style={{ textAlign: "left", paddingBottom: 20 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 26, fontWeight: 900, lineHeight: 1.2 }}>{saludo}{nombre ? ", " + nombre : ""} 👋</div>
+          <div style={{ fontSize: 16, color: temaPal.textMuted, marginTop: 4, textTransform: "capitalize" }}>{fecha}{!UN_SOLO_LOCAL ? " · " + nombreLocal(localId) : ""}</div>
+        </div>
+        <button onClick={cambiarLetra} aria-label={"Tamaño de letra: " + (TAMANOS_LETRA.find(x => x[0] === letra) || [])[2]} title="Tamaño de letra"
+          style={{ flexShrink: 0, border: "2px solid " + temaPal.border, background: temaPal.card, color: temaPal.text, borderRadius: 14, padding: "8px 12px", fontFamily: "inherit", fontWeight: 900, fontSize: 18, cursor: "pointer", lineHeight: 1 }}>
+          Aa<div style={{ fontSize: 10, fontWeight: 700, marginTop: 3 }}>{(TAMANOS_LETRA.find(x => x[0] === letra) || [])[2]}</div>
+        </button>
+      </div>
+      {tipo === "consultorio" && hoy && (
+        <button onClick={() => setPage("agenda")} style={{ width: "100%", textAlign: "left", border: "none", borderRadius: 18, padding: "16px 18px", marginBottom: 14, background: temaPal.card, boxShadow: "0 2px 10px " + temaPal.shadowSoft, fontFamily: "inherit", color: temaPal.text, cursor: "pointer" }}>
+          <div style={{ fontSize: 20, fontWeight: 900 }}>{hoy.turnos === 0 ? "Hoy no hay turnos" : hoy.turnos === 1 ? "Hoy hay 1 turno" : "Hoy hay " + hoy.turnos + " turnos"}</div>
+          {hoy.prox && <div style={{ fontSize: 17, marginTop: 4 }}>Próximo: <b>{hoy.prox.inicio.slice(11, 16)}</b> · {hoy.prox.paciente_nombre}</div>}
+        </button>
+      )}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        {botones.map(([id, ic, txt, col]) => {
+          const n = numero(id);
+          return (
+            <button key={id} onClick={() => { setPage(id); window.scrollTo(0, 0); }}
+              style={{ position: "relative", minHeight: 128, border: "none", borderRadius: 20, background: temaPal.card, boxShadow: "0 2px 10px " + temaPal.shadowSoft, borderBottom: "6px solid " + col,
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "inherit", color: temaPal.text, cursor: "pointer", padding: 10 }}>
+              <span style={{ fontSize: 46, lineHeight: 1 }} aria-hidden="true">{ic}</span>
+              <span style={{ fontSize: 20, fontWeight: 900, textAlign: "center", lineHeight: 1.15 }}>{txt}</span>
+              {n > 0 && <span style={{ position: "absolute", top: 10, right: 12, minWidth: 30, height: 30, borderRadius: 15, background: temaPal.red, color: "#fff", fontSize: 16, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 8px" }}>{n > 99 ? "99+" : n}</span>}
+            </button>
+          );
+        })}
+        <button onClick={onMenu} style={{ minHeight: 128, border: "2px dashed " + temaPal.border, borderRadius: 20, background: "transparent", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "inherit", color: temaPal.textMuted, cursor: "pointer", gridColumn: botones.length % 2 === 0 ? "1 / -1" : undefined }}>
+          <span style={{ fontSize: 40, lineHeight: 1 }} aria-hidden="true">☰</span>
+          <span style={{ fontSize: 18, fontWeight: 800 }}>Todo el menú</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // En un consultorio la barra lleva a lo del dia a dia: agenda, pacientes, avisos y cobrar
 const BARRA_CELU_CONS = [
+  { ids: ["panel"], icon: "🏠", label: "Inicio" },
   { ids: ["agenda"], icon: "📅", label: "Agenda" },
   { ids: ["pacientes"], icon: "🩺", label: "Pacientes" },
-  { ids: ["recordatorios"], icon: "💬", label: "Avisos" },
-  { ids: ["pos"], icon: "🛒", label: "Cobrar" },
+  { ids: ["pos"], icon: "💵", label: "Cobrar" },
 ];
 function BarraCelular({ secciones, page, setPage, avisos, onMas }) {
-  const permitidas = new Set(secciones.flatMap(s => s.items.map(i => i.id)));
+  const permitidas = new Set(secciones.flatMap(s => s.items.map(i => i.id)).concat(["panel"]));
   const usadas = new Set();
   const botones = (CONSULTORIO_ACTIVO ? BARRA_CELU_CONS : BARRA_CELU).map(b => {
     const id = b.ids.find(x => permitidas.has(x) && !usadas.has(x));
@@ -24162,7 +24268,8 @@ export default function AppWrapper() {
   // Al elegir un local se recuerda, asi al volver a abrir Lumiere sigue en el mismo
   const elegirLocalApp = (l) => { setLocal(l); setCambiandoLocal(false); try { localStorage.setItem("lumiere_local", JSON.stringify(l)); } catch (e) {} };
   const [nombresLocalesVersion, setNombresLocalesVersion] = useState(0);
-  const [page, setPage] = useState("dashboard");
+  // En el celular se arranca en el Inicio de botones grandes; en la computadora, en el Dashboard
+  const [page, setPage] = useState(() => (typeof window !== "undefined" && window.innerWidth < 760 ? "panel" : "dashboard"));
   // Una seccion puede llevar a otra (ej: Rotacion -> "Simular liquidación" en Toma de decisiones)
   useEffect(() => {
     const ir = (e) => { if (typeof e.detail === "string") { setPage(e.detail); window.scrollTo(0, 0); } };
@@ -24404,6 +24511,7 @@ export default function AppWrapper() {
   );
 
   const getPageWithLocal = (id) => {
+    if (id === "panel") return <PanelCelular secciones={NAV_CON_PERMISOS} usuario={usuario} localId={local.id} avisos={avisosMenu} setPage={setPage} onMenu={() => setMenuAbierto(true)} paletaActual={paletaActual} />;
     if (!puedeVer(id)) return <SinPermiso />;
     if (id === "dashboard") return <Dashboard localId={local.id} paletaActual={paletaActual} />;
     if (id === "pos") return <POS localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
