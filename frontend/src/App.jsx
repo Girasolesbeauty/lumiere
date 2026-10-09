@@ -12489,22 +12489,99 @@ const textoRecordatorio = (cfg, t) => llenarMensaje(cfg.msj_recordatorio, {
   nombre: String(t.paciente_nombre || "").split(" ")[0], tratamiento: t.servicio_nombre || "tu turno", dia: diaLargo(t.inicio.slice(0, 10)),
   hora: t.inicio.slice(11, 16), negocio: cfg.negocio || "", profesional: t.profesional_nombre || "",
 });
-// Achica una foto en el navegador: imagen (lado mayor hasta 1600px) y miniatura (320px)
+// Achica una foto en el navegador: imagen (lado mayor hasta 1600px) y miniatura (320px).
+// Recibe un archivo o una foto ya sacada con la camara (data URL).
 const achicarFoto = (archivo, lado, calidad) => new Promise((ok, mal) => {
-  if (!archivo || !/^image\//.test(archivo.type)) return mal(new Error("Elegí una foto (JPG o PNG)"));
-  const url = URL.createObjectURL(archivo);
+  const esTexto = typeof archivo === "string";
+  if (!archivo || (!esTexto && !/^image\//.test(archivo.type))) return mal(new Error("Elegí una foto (JPG o PNG)"));
+  const url = esTexto ? archivo : URL.createObjectURL(archivo);
   const img = new Image();
   img.onload = () => {
     const esc = Math.min(1, lado / Math.max(img.width, img.height));
     const c = document.createElement("canvas");
     c.width = Math.max(1, Math.round(img.width * esc)); c.height = Math.max(1, Math.round(img.height * esc));
     c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-    URL.revokeObjectURL(url);
+    if (!esTexto) URL.revokeObjectURL(url);
     ok(c.toDataURL("image/jpeg", calidad));
   };
-  img.onerror = () => { URL.revokeObjectURL(url); mal(new Error("No se pudo leer esa foto")); };
+  img.onerror = () => { if (!esTexto) URL.revokeObjectURL(url); mal(new Error("No se pudo leer esa foto")); };
   img.src = url;
 });
+// Ancho de la pantalla (para armar la vista de celular)
+const useAncho = () => {
+  const [w, setW] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1200));
+  useEffect(() => { const f = () => setW(window.innerWidth); window.addEventListener("resize", f); return () => window.removeEventListener("resize", f); }, []);
+  return w;
+};
+// En el celular, el contenido se abre como una hoja que sube desde abajo
+const HojaCelular = ({ abierta, onCerrar, children }) => !abierta ? null : (
+  <Ventana className="pos-overlay" style={{ alignItems: "flex-end", padding: 0, zIndex: 300 }} onClick={onCerrar}>
+    <div className="pop-in" style={{ width: "100%", maxHeight: "92vh", overflowY: "auto", borderRadius: "16px 16px 0 0" }} onClick={e => e.stopPropagation()}>{children}</div>
+  </Ventana>
+);
+
+// Camara para las fotos del paciente. Si hay una foto de guia (el "antes"), se ve encima,
+// transparente, para encuadrar igual el "despues". Si el navegador no deja usar la camara,
+// se abre la camara del celular por el selector de archivos.
+function CamaraFoto({ guia, titulo, onFoto, onCerrar, onSinCamara }) {
+  const video = useRef(null);
+  const flujo = useRef(null);
+  const [frente, setFrente] = useState(false);
+  const [foto, setFoto] = useState(null);
+  const [verGuia, setVerGuia] = useState(true);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let vivo = true;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { onSinCamara(); return; }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: frente ? "user" : { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false })
+      .then(st => { if (!vivo) { st.getTracks().forEach(t => t.stop()); return; } flujo.current = st; if (video.current) { video.current.srcObject = st; video.current.play().catch(() => {}); } })
+      .catch(() => { if (vivo) setError("No se pudo abrir la cámara. Revisá que Lumiere tenga permiso para usarla, o elegí la foto de la galería."); });
+    return () => { vivo = false; if (flujo.current) { flujo.current.getTracks().forEach(t => t.stop()); flujo.current = null; } };
+  }, [frente]);
+  const sacar = () => {
+    const v = video.current; if (!v || !v.videoWidth) return;
+    const esc = Math.min(1, 1600 / Math.max(v.videoWidth, v.videoHeight));
+    const c = document.createElement("canvas");
+    c.width = Math.round(v.videoWidth * esc); c.height = Math.round(v.videoHeight * esc);
+    const ctx = c.getContext("2d");
+    if (frente) { ctx.translate(c.width, 0); ctx.scale(-1, 1); }
+    ctx.drawImage(v, 0, 0, c.width, c.height);
+    setFoto(c.toDataURL("image/jpeg", 0.85));
+  };
+  const b = { width: 56, height: 56, borderRadius: "50%", border: "none", background: "rgba(255,255,255,.18)", color: "#fff", fontSize: 22, cursor: "pointer" };
+  return (
+    <Ventana style={{ position: "fixed", inset: 0, background: "#000", zIndex: 400, display: "flex", flexDirection: "column" }} role="dialog" aria-label="Cámara">
+      <div style={{ color: "#fff", padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 700 }}>
+        <span>{titulo}</span><button onClick={onCerrar} style={{ ...b, width: 40, height: 40, fontSize: 18 }} aria-label="Cerrar cámara">✕</button>
+      </div>
+      <div style={{ flex: 1, position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {error ? <div style={{ color: "#fff", padding: 24, textAlign: "center" }}>{error}<div style={{ marginTop: 14 }}><button className="btn btn-p" onClick={onSinCamara}>🖼 Elegir de la galería</button></div></div> : foto ? (
+          <img src={foto} alt="Foto sacada" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+        ) : (
+          <>
+            <video ref={video} playsInline muted style={{ width: "100%", height: "100%", objectFit: "contain", transform: frente ? "scaleX(-1)" : "none" }} />
+            {guia && verGuia && <img src={guia} alt="" aria-hidden="true" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", opacity: 0.35, pointerEvents: "none" }} />}
+          </>
+        )}
+      </div>
+      <div style={{ padding: "16px 20px 28px", display: "flex", justifyContent: "space-around", alignItems: "center" }}>
+        {foto ? (
+          <>
+            <button className="btn btn-g" onClick={() => setFoto(null)}>↺ Repetir</button>
+            <button className="btn btn-p" style={{ padding: "12px 22px", fontSize: 15 }} onClick={() => onFoto(foto)}>✓ Usar foto</button>
+          </>
+        ) : !error && (
+          <>
+            {guia ? <button style={{ ...b, fontSize: 13, fontWeight: 700 }} onClick={() => setVerGuia(g => !g)} aria-label="Mostrar u ocultar la foto de antes">{verGuia ? "Guía ✓" : "Guía"}</button> : <span style={{ width: 56 }} />}
+            <button onClick={sacar} aria-label="Sacar foto" style={{ width: 74, height: 74, borderRadius: "50%", border: "5px solid #fff", background: "rgba(255,255,255,.35)", cursor: "pointer" }} />
+            <button style={b} onClick={() => setFrente(f => !f)} aria-label="Cambiar de cámara">🔄</button>
+          </>
+        )}
+      </div>
+    </Ventana>
+  );
+}
+
 const avisoCaja = (temaPal, aviso) => aviso && <div className="pop-in" role={aviso.ok ? "status" : "alert"} style={{ background: aviso.ok ? temaPal.greenDim : temaPal.redDim, border: "1px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, marginBottom: 12 }}>{aviso.texto}</div>;
 const usarAviso = () => {
   const [aviso, setAviso] = useState(null);
@@ -12540,7 +12617,9 @@ function AgendaConsultorio({ localId, paletaActual }) {
   const [form, setForm] = useState(null);
   const [ver, setVer] = useState(null);
   const [buscaPac, setBuscaPac] = useState("");
+  const [profFiltro, setProfFiltro] = useState("");
   const [aviso, avisar] = usarAviso();
+  const esCel = useAncho() < 760;
   const ROW = 34;
 
   const cargarCfg = () => API.get("/consultorio/config").then(r => setCfg(r.data)).catch(() => setCfg({ profesionales: [], servicios: [], hora_desde: "09:00", hora_hasta: "20:00", intervalo: 30 }));
@@ -12605,9 +12684,26 @@ function AgendaConsultorio({ localId, paletaActual }) {
   const pacEnc = form && !form.paciente_id && !form.nuevoPac && qp ? clientes.filter(c => [c.nombre, c.cuit_dni, c.telefono].some(v => String(v || "").toLowerCase().includes(qp))).slice(0, 6) : [];
   const pacSel = form && form.paciente_id ? clientes.find(c => c.id === form.paciente_id) : null;
   const ahoraMin = dia === diaISO(new Date()) ? new Date().getHours() * 60 + new Date().getMinutes() : null;
+  // Vista de celular: lista del dia (con los huecos libres si se mira un solo profesional)
+  const profLista = cfg.profesionales.length === 1 ? String(cfg.profesionales[0].id) : profFiltro;
+  const listaCel = (() => {
+    const deProf = vivos.filter(t => !profLista || String(t.profesional_id) === profLista || (!t.profesional_id && cfg.profesionales.length <= 1));
+    const ord = [...deProf].sort((a, b) => a.inicio.localeCompare(b.inicio));
+    if (cfg.profesionales.length > 1 && !profLista) return ord.map(t => ({ t }));
+    const out = [];
+    let cursor = ahoraMin !== null ? Math.max(desde, Math.ceil(ahoraMin / paso) * paso) : desde;
+    ord.forEach(t => {
+      const ini = aMin(t.inicio.slice(11, 16)), fin = aMin(t.fin.slice(11, 16));
+      if (ini - cursor >= paso) out.push({ libre: [cursor, ini] });
+      out.push({ t });
+      cursor = Math.max(cursor, fin);
+    });
+    if (hasta - cursor >= paso) out.push({ libre: [cursor, hasta] });
+    return out;
+  })();
 
   return (
-    <div className="fade" style={{ textAlign: "left" }}>
+    <div className="fade" style={{ textAlign: "left", paddingBottom: esCel ? 80 : 0 }}>
       <div className="dash-head">
         <div><div className="pt">Agenda</div><div className="ps">{diaLargo(dia)} · {vivos.length} {vivos.length === 1 ? "turno" : "turnos"} · {vivos.filter(t => t.estado === "confirmado").length} confirmados</div></div>
         <div className="dash-actions" style={{ flexWrap: "wrap" }}>
@@ -12615,14 +12711,14 @@ function AgendaConsultorio({ localId, paletaActual }) {
           <button className="btn btn-g" onClick={() => setDia(diaISO(new Date()))}>Hoy</button>
           <input className="inp" type="date" value={dia} onChange={e => e.target.value && setDia(e.target.value)} style={{ width: 150 }} aria-label="Elegir día" />
           <button className="btn btn-g" aria-label="Día siguiente" onClick={() => setDia(d => sumarDias(d, 1))}>▶</button>
-          <button className="btn btn-p" onClick={() => nuevo(null, deMin(Math.max(desde, Math.ceil(((ahoraMin ?? desde)) / paso) * paso)))}>+ Turno</button>
+          {!esCel && <button className="btn btn-p" onClick={() => nuevo(null, deMin(Math.max(desde, Math.ceil(((ahoraMin ?? desde)) / paso) * paso)))}>+ Turno</button>}
         </div>
       </div>
       {avisoCaja(temaPal, aviso)}
       {!cfg.servicios.length && <div className="cli-tip" style={{ marginBottom: 10 }}>💡 Cargá tus tratamientos (con duración y precio) y tus profesionales en <b>Tratamientos y equipo</b>: así los turnos se completan solos. <button className="btn btn-g btn-sm" onClick={() => irASeccion("config-consultorio")}>Ir</button></div>}
 
-      {form && (
-        <div className="card pop-in" style={{ marginBottom: 12, borderTop: "3px solid " + temaPal.accent }}>
+      {form && (() => { const contenido = (
+        <div className="card pop-in" style={{ marginBottom: esCel ? 0 : 12, borderTop: "3px solid " + temaPal.accent }}>
           <div className="ct">{form.id ? "Cambiar turno" : "Nuevo turno"}</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10 }}>
             <div style={{ gridColumn: "1 / -1", position: "relative" }}>
@@ -12666,16 +12762,16 @@ function AgendaConsultorio({ localId, paletaActual }) {
             <div style={{ gridColumn: "1 / -1" }}><div className="fl">Nota (opcional)</div><input className="inp" placeholder="Ej: primera vez, viene por recomendación" value={form.nota} onChange={e => setForm(f => ({ ...f, nota: e.target.value }))} /></div>
           </div>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}>
-            <button className="btn btn-g" onClick={() => setForm(null)}>Cancelar</button>
-            <button className="btn btn-p" onClick={() => guardar(false)}>Guardar turno</button>
+            <button className="btn btn-g" style={{ flex: esCel ? 1 : undefined }} onClick={() => setForm(null)}>Cancelar</button>
+            <button className="btn btn-p" style={{ flex: esCel ? 2 : undefined }} onClick={() => guardar(false)}>Guardar turno</button>
           </div>
-        </div>
-      )}
+        </div>);
+        return esCel ? <HojaCelular abierta onCerrar={() => setForm(null)}>{contenido}</HojaCelular> : contenido; })()}
 
-      {ver && (
-        <div className="card pop-in" style={{ marginBottom: 12, borderLeft: "5px solid " + (ESTADOS_TURNO[ver.estado]?.c || temaPal.accent) }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-            <div>
+      {ver && (() => { const contenido = (
+        <div className="card pop-in" style={{ marginBottom: esCel ? 0 : 12, borderLeft: "5px solid " + (ESTADOS_TURNO[ver.estado]?.c || temaPal.accent) }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 17, fontWeight: 900 }}>{ver.paciente_nombre}</div>
               <div style={{ fontSize: 12.5, color: temaPal.textMuted }}>{diaLargo(ver.inicio.slice(0, 10))} · {ver.inicio.slice(11, 16)}–{ver.fin.slice(11, 16)} · {ver.servicio_nombre || "Consulta"}{ver.profesional_nombre ? " · " + ver.profesional_nombre : ""}{ver.precio ? " · " + fmt(ver.precio) : ""}</div>
               {ver.nota && <div style={{ fontSize: 12.5, marginTop: 4 }}>📝 {ver.nota}</div>}
@@ -12695,9 +12791,41 @@ function AgendaConsultorio({ localId, paletaActual }) {
             <button className="btn btn-g btn-sm" onClick={() => editar(ver)}>✏️ Cambiar día u hora</button>
             {ver.estado !== "cancelado" && <button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={() => estado(ver, "cancelado")}>Cancelar turno</button>}
           </div>
-        </div>
-      )}
+        </div>);
+        return esCel ? <HojaCelular abierta onCerrar={() => setVer(null)}>{contenido}</HojaCelular> : contenido; })()}
 
+      {esCel ? (
+        <>
+          {cfg.profesionales.length > 1 && (
+            <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 6, marginBottom: 6 }}>
+              <button className={"chip-btn" + (!profFiltro ? " on" : "")} onClick={() => setProfFiltro("")}>Todos</button>
+              {cfg.profesionales.map((p, i) => <button key={p.id} className={"chip-btn" + (profFiltro === String(p.id) ? " on" : "")} onClick={() => setProfFiltro(String(p.id))}><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: colorProf(p, i), marginRight: 5 }} />{p.nombre}</button>)}
+            </div>
+          )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {listaCel.length === 0 && <div className="card"><div className="empty">No hay turnos este día.</div></div>}
+            {listaCel.map((x, k) => x.libre ? (
+              <button key={"l" + k} onClick={() => nuevo(profLista || (cfg.profesionales[0]?.id || ""), deMin(x.libre[0]))} style={{ border: "1.5px dashed " + temaPal.border, borderRadius: 12, background: "transparent", padding: "12px 14px", textAlign: "left", fontFamily: "inherit", color: temaPal.textMuted, fontSize: 13, cursor: "pointer", display: "flex", justifyContent: "space-between" }}>
+                <span>Libre {deMin(x.libre[0])} – {deMin(x.libre[1])}</span><b style={{ color: temaPal.accentText }}>+ Dar turno</b>
+              </button>
+            ) : (() => {
+              const t = x.t; const est = ESTADOS_TURNO[t.estado] || ESTADOS_TURNO.reservado;
+              return (
+                <button key={t.id} onClick={() => { setVer(t); setForm(null); }} className="card" style={{ textAlign: "left", cursor: "pointer", borderLeft: "5px solid " + est.c, display: "flex", gap: 12, alignItems: "center", padding: "12px 14px", fontFamily: "inherit", opacity: t.estado === "ausente" ? 0.6 : 1 }}>
+                  <div style={{ textAlign: "center", minWidth: 48 }}><div style={{ fontSize: 17, fontWeight: 900 }}>{t.inicio.slice(11, 16)}</div><div style={{ fontSize: 10.5, color: temaPal.textMuted }}>{t.fin.slice(11, 16)}</div></div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 800, fontSize: 15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.paciente_nombre}</div>
+                    <div style={{ fontSize: 12, color: temaPal.textMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.servicio_nombre || "Consulta"}{t.profesional_nombre && !profLista ? " · " + t.profesional_nombre : ""}</div>
+                    <div style={{ fontSize: 11.5, fontWeight: 700, color: est.c }}>{est.t}{t.recordatorio_en ? " · 💬" : ""}{t.venta_id ? " · 💵 cobrado" : ""}</div>
+                  </div>
+                </button>
+              );
+            })())}
+          </div>
+          <button onClick={() => nuevo(profLista || null, deMin(Math.max(desde, Math.ceil(((ahoraMin ?? desde)) / paso) * paso)))} aria-label="Nuevo turno"
+            style={{ position: "fixed", right: 18, bottom: 150, width: 58, height: 58, borderRadius: "50%", border: "none", background: temaPal.accent, color: "#fff", fontSize: 30, boxShadow: "0 4px 14px rgba(0,0,0,.3)", zIndex: 50, cursor: "pointer" }}>+</button>
+        </>
+      ) : (
       <div className="card" style={{ padding: 0, overflowX: "auto" }}>
         <div style={{ display: "grid", gridTemplateColumns: "56px repeat(" + profes.length + ", minmax(170px, 1fr))", minWidth: 56 + profes.length * 170 }}>
           <div style={{ borderBottom: "1px solid " + temaPal.border }} />
@@ -12724,6 +12852,7 @@ function AgendaConsultorio({ localId, paletaActual }) {
           ))}
         </div>
       </div>
+      )}
       {turnos.filter(t => t.estado === "cancelado").length > 0 && <div style={{ fontSize: 11.5, color: temaPal.textMuted, marginTop: 8 }}>Cancelados: {turnos.filter(t => t.estado === "cancelado").map(t => t.inicio.slice(11, 16) + " " + t.paciente_nombre).join(" · ")}</div>}
     </div>
   );
@@ -12744,7 +12873,12 @@ function PacientesConsultorio({ usuario, paletaActual }) {
   const [subiendo, setSubiendo] = useState(false);
   const [grande, setGrande] = useState(null); // { fotos: [{...,imagen}] } (1 o 2 para comparar)
   const [comparar, setComparar] = useState([]);
+  const [camara, setCamara] = useState(null); // { guia } mientras esta abierta la camara
+  const [modoComp, setModoComp] = useState(null); // "lado" | "deslizar"
+  const [corte, setCorte] = useState(50);
+  const galeria = useRef(null);
   const [aviso, avisar] = usarAviso();
+  const esCel = useAncho() < 760;
 
   useEffect(() => { API.get("/clientes").then(r => setClientes(r.data || [])).catch(() => {}); }, []);
   const cargar = (id) => API.get("/consultorio/pacientes/" + id).then(r => { setH(r.data); setFicha(r.data.ficha || {}); }).catch(() => setH(null));
@@ -12761,7 +12895,7 @@ function PacientesConsultorio({ usuario, paletaActual }) {
   const subirFotos = async (archivos) => {
     setSubiendo(true);
     try {
-      for (const f of Array.from(archivos || [])) {
+      for (const f of (typeof archivos === "string" ? [archivos] : Array.from(archivos || []))) {
         const imagen = await achicarFoto(f, 1600, 0.82);
         const miniatura = await achicarFoto(f, 320, 0.7);
         await API.post("/consultorio/pacientes/" + selId + "/fotos", { ...nuevaFoto, imagen, miniatura });
@@ -12770,11 +12904,21 @@ function PacientesConsultorio({ usuario, paletaActual }) {
     } catch (e) { avisar(false, e.response?.data?.error || e.message || "No se pudo subir"); }
     setSubiendo(false);
   };
+  // Camara: si se saca un "despues", se usa de guia el ultimo "antes" de la misma zona
+  const abrirCamara = async () => {
+    let guia = null;
+    if (nuevaFoto.tipo !== "antes" && h) {
+      const z = (nuevaFoto.zona || "General").trim().toLowerCase();
+      const ref = h.fotos.filter(f => (f.zona || "General").toLowerCase() === z).sort((a, b) => (a.tipo === "antes" ? -1 : 1) - (b.tipo === "antes" ? -1 : 1) || b.fecha.localeCompare(a.fecha))[0];
+      if (ref) { try { guia = (await API.get("/consultorio/fotos/" + ref.id)).data.imagen; } catch (e) {} }
+    }
+    setCamara({ guia });
+  };
   const abrir = async (fotos) => {
     // Al comparar: "antes" a la izquierda y "después" a la derecha (y si no, la más vieja primero)
     const orden = { antes: 0, otra: 1, despues: 2 };
     const ord = [...fotos].sort((a, b) => (orden[a.tipo] - orden[b.tipo]) || a.fecha.localeCompare(b.fecha));
-    try { const full = await Promise.all(ord.map(f => API.get("/consultorio/fotos/" + f.id).then(r => ({ ...f, imagen: r.data.imagen })))); setGrande({ fotos: full }); }
+    try { const full = await Promise.all(ord.map(f => API.get("/consultorio/fotos/" + f.id).then(r => ({ ...f, imagen: r.data.imagen })))); setModoComp(esCel ? "deslizar" : "lado"); setCorte(50); setGrande({ fotos: full }); }
     catch (e) { avisar(false, "No se pudo abrir la foto"); }
   };
   const borrarFoto = async (f) => {
@@ -12801,7 +12945,7 @@ function PacientesConsultorio({ usuario, paletaActual }) {
       {avisoCaja(temaPal, aviso)}
       <style>{"@media (max-width: 760px) { .cons-pac-grid { grid-template-columns: 1fr !important; } }"}</style>
       <div style={{ display: "grid", gridTemplateColumns: "minmax(220px, 300px) 1fr", gap: 12, alignItems: "start" }} className="cons-pac-grid">
-        <div className="card" style={{ maxHeight: "75vh", overflowY: "auto" }}>
+        <div className="card" style={{ maxHeight: esCel ? "none" : "75vh", overflowY: "auto", display: esCel && selId ? "none" : undefined }}>
           <input className="inp" placeholder="🔍 Buscar paciente…" value={busca} onChange={e => setBusca(e.target.value)} />
           <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 8 }}>
             {lista.map(c => (
@@ -12813,8 +12957,9 @@ function PacientesConsultorio({ usuario, paletaActual }) {
           </div>
         </div>
         <div>
-          {!selId ? <div className="card"><div className="empty">Elegí un paciente para ver su historia.</div></div> : !h ? <div className="skel" style={{ height: 300 }} /> : (
+          {!selId ? (esCel ? null : <div className="card"><div className="empty">Elegí un paciente para ver su historia.</div></div>) : !h ? <div className="skel" style={{ height: 300 }} /> : (
             <>
+              {esCel && <button className="btn btn-g btn-sm" style={{ marginBottom: 8 }} onClick={() => { setSelId(null); setH(null); }}>← Pacientes</button>}
               <div className="card" style={{ marginBottom: 10, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 18, fontWeight: 900 }}>{h.paciente.nombre}</div>
@@ -12824,7 +12969,7 @@ function PacientesConsultorio({ usuario, paletaActual }) {
                 {h.paciente.telefono && <a className="btn btn-g btn-sm" style={{ textDecoration: "none" }} href={linkWhatsapp(h.paciente.telefono, "")} target="_blank" rel="noopener">💬 WhatsApp</a>}
                 <button className="btn btn-p btn-sm" onClick={sacarTurno}>+ Turno</button>
               </div>
-              <div className="tabs" style={{ marginBottom: 10 }}>
+              <div className="tabs" style={{ marginBottom: 10, overflowX: "auto", flexWrap: "nowrap" }}>
                 {[["ficha", "Ficha"], ["evolucion", "Evolución (" + h.evoluciones.length + ")"], ["fotos", "Fotos (" + h.fotos.length + ")"], ["turnos", "Turnos (" + h.turnos.length + ")"]].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
               </div>
               {tab === "ficha" && (
@@ -12862,7 +13007,8 @@ function PacientesConsultorio({ usuario, paletaActual }) {
                       <div style={{ display: "flex", gap: 4 }}>{["antes", "despues", "otra"].map(t => <button key={t} className={"chip-btn" + (nuevaFoto.tipo === t ? " on" : "")} onClick={() => setNuevaFoto(n => ({ ...n, tipo: t }))}>{ETQ_FOTO[t]}</button>)}</div></div>
                     <div style={{ flex: "1 1 160px" }}><div className="fl">Zona o tratamiento</div><input className="inp" placeholder="Ej: rostro, abdomen, sonrisa" value={nuevaFoto.zona} onChange={e => setNuevaFoto(n => ({ ...n, zona: e.target.value }))} /></div>
                     <div><div className="fl">Fecha</div><input className="inp" type="date" value={nuevaFoto.fecha} onChange={e => setNuevaFoto(n => ({ ...n, fecha: e.target.value }))} /></div>
-                    <label className="btn btn-p" style={{ cursor: "pointer" }}>{subiendo ? "Subiendo…" : "📷 Subir foto"}<input type="file" accept="image/*" multiple style={{ display: "none" }} disabled={subiendo} onChange={e => { subirFotos(e.target.files); e.target.value = ""; }} /></label>
+                    <button className="btn btn-p" disabled={subiendo} onClick={abrirCamara}>{subiendo ? "Subiendo…" : "📷 Sacar foto"}</button>
+                    <label className="btn btn-g" style={{ cursor: "pointer" }}>🖼 Galería<input ref={galeria} type="file" accept="image/*" multiple style={{ display: "none" }} disabled={subiendo} onChange={e => { subirFotos(e.target.files); e.target.value = ""; }} /></label>
                   </div>
                   {comparar.length > 0 && (
                     <div className="pop-in" style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -12874,7 +13020,7 @@ function PacientesConsultorio({ usuario, paletaActual }) {
                   {h.fotos.length === 0 ? <div className="empty" style={{ marginTop: 12 }}>Subí la foto de "antes" el primer día y la de "después" al terminar: después las podés comparar lado a lado.</div> : zonas.map(z => (
                     <div key={z} style={{ marginTop: 14 }}>
                       <div className="ct">{z}</div>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 8 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(" + (esCel ? 140 : 130) + "px, 1fr))", gap: 8 }}>
                         {h.fotos.filter(f => (f.zona || "General") === z).map(f => {
                           const elegida = comparar.some(c => c.id === f.id);
                           return (
@@ -12909,10 +13055,37 @@ function PacientesConsultorio({ usuario, paletaActual }) {
           )}
         </div>
       </div>
+      {camara && (
+        <CamaraFoto guia={camara.guia} titulo={"Foto de " + (nuevaFoto.tipo === "antes" ? "ANTES" : nuevaFoto.tipo === "despues" ? "DESPUÉS" : "seguimiento") + (nuevaFoto.zona ? " · " + nuevaFoto.zona : "")}
+          onFoto={(d) => { setCamara(null); subirFotos(d); }} onCerrar={() => setCamara(null)}
+          onSinCamara={() => { setCamara(null); if (galeria.current) { galeria.current.setAttribute("capture", "environment"); galeria.current.click(); setTimeout(() => galeria.current && galeria.current.removeAttribute("capture"), 1000); } }} />
+      )}
       {grande && (
         <Ventana className="pos-overlay" style={{ zIndex: 300 }} onClick={() => setGrande(null)} role="dialog" aria-label="Foto">
-          <div className="card pop-in" style={{ width: grande.fotos.length > 1 ? "min(1200px, 96vw)" : "min(800px, 96vw)", maxHeight: "94vh", overflow: "auto", background: temaPal.card }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(" + grande.fotos.length + ", minmax(0, 1fr))", gap: 10 }}>
+          <div className="card pop-in" style={{ width: grande.fotos.length > 1 ? "min(1200px, 96vw)" : "min(800px, 96vw)", maxHeight: "94vh", overflow: "auto", background: temaPal.card, padding: esCel ? 10 : undefined }} onClick={e => e.stopPropagation()}>
+            {grande.fotos.length === 2 && (
+              <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 10 }}>
+                <button className={"chip-btn" + (modoComp === "deslizar" ? " on" : "")} onClick={() => setModoComp("deslizar")}>↔ Deslizar</button>
+                <button className={"chip-btn" + (modoComp === "lado" ? " on" : "")} onClick={() => setModoComp("lado")}>Lado a lado</button>
+              </div>
+            )}
+            {grande.fotos.length === 2 && modoComp === "deslizar" ? (
+              <div>
+                <div style={{ position: "relative", width: "100%", height: esCel ? "62vh" : "70vh", background: "#000", borderRadius: 8, overflow: "hidden", touchAction: "none" }}
+                  onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); const r = e.currentTarget.getBoundingClientRect(); setCorte(Math.min(100, Math.max(0, (e.clientX - r.left) / r.width * 100))); }}
+                  onPointerMove={e => { if (e.buttons !== 1 && e.pointerType === "mouse") return; const r = e.currentTarget.getBoundingClientRect(); setCorte(Math.min(100, Math.max(0, (e.clientX - r.left) / r.width * 100))); }}>
+                  <img src={grande.fotos[1].imagen} alt="Después" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }} />
+                  <img src={grande.fotos[0].imagen} alt="Antes" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", clipPath: "inset(0 " + (100 - corte) + "% 0 0)", pointerEvents: "none" }} />
+                  <div style={{ position: "absolute", top: 0, bottom: 0, left: corte + "%", width: 3, background: "#fff", boxShadow: "0 0 6px rgba(0,0,0,.6)", pointerEvents: "none" }}>
+                    <div style={{ position: "absolute", top: "50%", left: -17, width: 36, height: 36, marginTop: -18, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, color: "#333" }}>↔</div>
+                  </div>
+                  <span style={{ position: "absolute", top: 8, left: 8, background: "rgba(0,0,0,.6)", color: "#fff", fontSize: 12, fontWeight: 800, padding: "3px 8px", borderRadius: 6 }}>{ETQ_FOTO[grande.fotos[0].tipo]} · {grande.fotos[0].fecha.split("-").reverse().join("/")}</span>
+                  <span style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,.6)", color: "#fff", fontSize: 12, fontWeight: 800, padding: "3px 8px", borderRadius: 6 }}>{ETQ_FOTO[grande.fotos[1].tipo]} · {grande.fotos[1].fecha.split("-").reverse().join("/")}</span>
+                </div>
+                <div style={{ fontSize: 12, color: temaPal.textMuted, textAlign: "center", marginTop: 6 }}>Deslizá el dedo sobre la foto para ver el antes y el después</div>
+              </div>
+            ) : (
+            <div style={{ display: "grid", gridTemplateColumns: esCel && grande.fotos.length > 1 ? "1fr" : "repeat(" + grande.fotos.length + ", minmax(0, 1fr))", gap: 10 }}>
               {grande.fotos.map(f => (
                 <div key={f.id} style={{ textAlign: "center" }}>
                   <div style={{ fontWeight: 800, marginBottom: 6 }}>{ETQ_FOTO[f.tipo]} · {f.fecha.split("-").reverse().join("/")}{f.zona ? " · " + f.zona : ""}</div>
@@ -12921,6 +13094,7 @@ function PacientesConsultorio({ usuario, paletaActual }) {
                 </div>
               ))}
             </div>
+            )}
             <div style={{ textAlign: "right", marginTop: 10 }}><button className="btn btn-g" onClick={() => setGrande(null)}>Cerrar</button></div>
           </div>
         </Ventana>
@@ -22392,10 +22566,17 @@ const BARRA_CELU = [
   { ids: ["inventory", "compras", "control-inv"], icon: "📦", label: "Stock" },
   { ids: ["clients", "pedidos", "tareas", "caja"], icon: "👥", label: "Clientes" },
 ];
+// En un consultorio la barra lleva a lo del dia a dia: agenda, pacientes, avisos y cobrar
+const BARRA_CELU_CONS = [
+  { ids: ["agenda"], icon: "📅", label: "Agenda" },
+  { ids: ["pacientes"], icon: "🩺", label: "Pacientes" },
+  { ids: ["recordatorios"], icon: "💬", label: "Avisos" },
+  { ids: ["pos"], icon: "🛒", label: "Cobrar" },
+];
 function BarraCelular({ secciones, page, setPage, avisos, onMas }) {
   const permitidas = new Set(secciones.flatMap(s => s.items.map(i => i.id)));
   const usadas = new Set();
-  const botones = BARRA_CELU.map(b => {
+  const botones = (CONSULTORIO_ACTIVO ? BARRA_CELU_CONS : BARRA_CELU).map(b => {
     const id = b.ids.find(x => permitidas.has(x) && !usadas.has(x));
     if (!id) return null;
     usadas.add(id);
