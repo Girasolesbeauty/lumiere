@@ -6214,27 +6214,57 @@ const PLAZOS = [
 function MejoraContinua({ local, p, usuario, irA }) {
   const [datos, setDatos] = useState(null);
   const [verHechas, setVerHechas] = useState(false);
+  const [posponiendo, setPosponiendo] = useState(null); // clave de la que esta eligiendo "Ahora no"
+  const [verResueltas, setVerResueltas] = useState(false);
   const cargar = () => API.get("/gerente/mejoras?local_id=" + local).then(r => setDatos(r.data)).catch(e => setDatos({ error: e.response?.data?.error || "No se pudo cargar" }));
   useEffect(() => { setDatos(null); cargar(); }, [local]);
-  const marcar = async (x, estado) => {
-    setDatos(d => ({ ...d, acciones: d.acciones.map(a => a.clave === x.clave ? { ...a, estado } : a) }));
-    try { await API.put("/gerente/mejoras/" + x.clave, { estado, usuario_nombre: usuario?.nombre }); } catch (e) { cargar(); }
+  const marcar = async (x, estado, dias) => {
+    setPosponiendo(null);
+    const hasta = estado === "pospuesto" ? new Date(Date.now() + (dias || 7) * 86400000).toISOString() : null;
+    setDatos(d => ({ ...d, acciones: d.acciones.map(a => a.clave === x.clave ? { ...a, estado, hasta } : a) }));
+    try { await API.put("/gerente/mejoras/" + x.clave, { estado, dias, usuario_nombre: usuario?.nombre }); } catch (e) { cargar(); }
   };
   if (!datos) return <div className="ger-cols">{[0, 1, 2].map(i => <div key={i} className="skel" style={{ height: 320 }} />)}</div>;
   if (datos.error) return <div className="empty">{datos.error}</div>;
   const todas = datos.acciones;
   const hechas = todas.filter(a => a.estado === "hecho").length;
-  const activas = todas.filter(a => a.estado !== "descartado");
+  const activas = todas.filter(a => a.estado !== "descartado" && a.estado !== "pospuesto");
+  const resueltas = datos.resueltas || [];
+  const resueltas30 = resueltas.filter(r => Date.now() - new Date(r.resuelto_en).getTime() < 30 * 86400000).length;
+  const fechaCortaR = (f) => new Date(f).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" });
   return (
     <div className="fade">
       <div className="chart-card ger-progreso">
         <div>
           <div className="chart-title">🔁 Mejora continua</div>
-          <div style={{ fontSize: 13, color: p.textMuted, marginTop: 4, lineHeight: 1.5 }}>Lo que tu gerente ve en tus números y conviene hacer, de lo más urgente a lo más estratégico. Marcá lo que vas resolviendo: si el problema sigue, la acción vuelve a aparecer en 30 días.</div>
+          <div style={{ fontSize: 13, color: p.textMuted, marginTop: 4, lineHeight: 1.5 }}>Lo que tu gerente ve en tus números y conviene hacer, de lo más urgente a lo más estratégico. Marcá lo que vas resolviendo: si el problema sigue, vuelve a aparecer en 30 días. Si no es el momento, tocá "Ahora no" y vuelve cuando elijas. Lo que se arregla en tus números queda en "Lo que ya resolviste".</div>
         </div>
         <div className="ger-prog-num"><b>{hechas}</b><span>de {activas.length} hechas</span></div>
         <div className="pb" style={{ height: 8, gridColumn: "1 / -1" }}><div className="pf" style={{ width: (activas.length ? hechas / activas.length * 100 : 0) + "%", background: p.green, transition: "width .5s" }} /></div>
+        {resueltas.length > 0 && (
+          <button className="chip-btn" style={{ gridColumn: "1 / -1", justifySelf: "start", borderRadius: 10, padding: "8px 12px", whiteSpace: "normal", textAlign: "left" }} onClick={() => setVerResueltas(v => !v)}>
+            🏆 {resueltas30 > 0 ? <>Resolviste <b>{resueltas30}</b> {resueltas30 === 1 ? "cosa" : "cosas"} en los últimos 30 días</> : <>Ya resolviste <b>{resueltas.length}</b> {resueltas.length === 1 ? "cosa" : "cosas"}</>} · {verResueltas ? "ocultar" : "ver cuáles"}
+          </button>
+        )}
       </div>
+      {verResueltas && resueltas.length > 0 && (
+        <div className="chart-card pop-in" style={{ marginBottom: 12 }}>
+          <div className="chart-title">🏆 Lo que ya resolviste</div>
+          <div style={{ fontSize: 12, color: p.textMuted, margin: "4px 0 10px" }}>Cosas que tu gerente te había marcado y que ya no aparecen en tus números (últimos 6 meses).</div>
+          {resueltas.map((r, k) => {
+            const dias = Math.max(0, Math.round((new Date(r.resuelto_en) - new Date(r.aparecio_en)) / 86400000));
+            return (
+              <div key={r.clave + k} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "8px 0", borderTop: "1px solid " + p.border }}>
+                <span style={{ fontSize: 18 }}>✅</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>{r.titulo}</div>
+                  <div style={{ fontSize: 11.5, color: p.textMuted }}>{r.area} · resuelto el {fechaCortaR(r.resuelto_en)}{dias > 0 ? " · en " + dias + (dias === 1 ? " día" : " días") : ""} · {r.como === "hecho" ? "lo marcaste como hecho" : "se arregló en los números"}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
       {todas.length === 0 ? (
         <div className="chart-card" style={{ textAlign: "center", padding: 30 }}><div style={{ fontSize: 40 }}>🌟</div><b>No encontré nada urgente para mejorar.</b><div style={{ color: p.textMuted, fontSize: 13, marginTop: 6 }}>Tu negocio viene muy bien. Seguí así.</div></div>
       ) : (
@@ -6255,9 +6285,16 @@ function MejoraContinua({ local, p, usuario, irA }) {
                         <>
                           {a.ir && <button className="btn btn-p btn-sm" onClick={() => irA(a.ir)}>Resolver →</button>}
                           <button className="btn btn-g btn-sm" onClick={() => marcar(a, "hecho")}>✓ Hecho</button>
+                          {posponiendo === a.clave ? (
+                            <span className="pop-in" style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+                              <button className="btn btn-g btn-sm" onClick={() => marcar(a, "pospuesto", 7)}>1 semana</button>
+                              <button className="btn btn-g btn-sm" onClick={() => marcar(a, "pospuesto", 30)}>1 mes</button>
+                              <button className="btn btn-g btn-sm" aria-label="Cancelar" onClick={() => setPosponiendo(null)}>✕</button>
+                            </span>
+                          ) : <button className="btn btn-g btn-sm" onClick={() => setPosponiendo(a.clave)} title="Esconderla un tiempo">⏰ Ahora no</button>}
                           <button className="btn btn-g btn-sm" onClick={() => marcar(a, "descartado")} title="No aplica a mi negocio">Descartar</button>
                         </>
-                      ) : <><span className={"tag " + (a.estado === "hecho" ? "tag-ok" : "tag-neutral")}>{a.estado === "hecho" ? "✓ Hecho" : "Descartado"}</span><button className="btn btn-g btn-sm" onClick={() => marcar(a, "pendiente")}>Deshacer</button></>}
+                      ) : <><span className={"tag " + (a.estado === "hecho" ? "tag-ok" : "tag-neutral")}>{a.estado === "hecho" ? "✓ Hecho" : a.estado === "pospuesto" ? "⏰ Vuelve el " + (a.hasta ? fechaCortaR(a.hasta) : "—") : "Descartado"}</span><button className="btn btn-g btn-sm" onClick={() => marcar(a, "pendiente")}>Deshacer</button></>}
                     </div>
                   </div>
                 ))}
@@ -6266,7 +6303,7 @@ function MejoraContinua({ local, p, usuario, irA }) {
           })}
         </div>
       )}
-      {todas.some(a => a.estado !== "pendiente") && <button className="chip-btn" style={{ marginTop: 10 }} onClick={() => setVerHechas(v => !v)}>{verHechas ? "Ocultar hechas y descartadas" : "Ver hechas y descartadas"}</button>}
+      {todas.some(a => a.estado !== "pendiente") && <button className="chip-btn" style={{ marginTop: 10 }} onClick={() => setVerHechas(v => !v)}>{verHechas ? "Ocultar hechas, pospuestas y descartadas" : "Ver hechas, pospuestas y descartadas (" + todas.filter(a => a.estado !== "pendiente").length + ")"}</button>}
     </div>
   );
 }
