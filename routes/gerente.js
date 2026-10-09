@@ -190,6 +190,20 @@ const tablaLista = porNegocio(false);
 async function asegurarTabla() {
   if (tablaLista.get()) return;
   await pool.query(`CREATE TABLE IF NOT EXISTS gerente_acciones (clave TEXT PRIMARY KEY, estado TEXT NOT NULL, actualizado TIMESTAMP DEFAULT NOW(), usuario_nombre TEXT)`);
+  // "Ahora no": hasta cuando queda pospuesta
+  await pool.query('ALTER TABLE gerente_acciones ADD COLUMN IF NOT EXISTS hasta TIMESTAMP');
+  // Historial: cuando aparecio cada mejora y cuando dejo de aparecer (se resolvio)
+  await pool.query(`CREATE TABLE IF NOT EXISTS gerente_historial (
+    id SERIAL PRIMARY KEY,
+    clave TEXT NOT NULL,
+    local TEXT NOT NULL DEFAULT '',
+    titulo TEXT,
+    area TEXT,
+    aparecio_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    visto_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    resuelto_en TIMESTAMP,
+    como TEXT)`);
+  await pool.query('CREATE INDEX IF NOT EXISTS gerente_historial_abierto ON gerente_historial (clave, local) WHERE resuelto_en IS NULL');
   tablaLista.set(true);
 }
 
@@ -204,22 +218,45 @@ router.get('/mejoras', async (req, res) => {
     } catch (e) {}
     const conEstado = acciones.map(x => {
       const e = estados[x.clave];
-      // Lo marcado como hecho vuelve a aparecer a los 30 dias si el problema sigue
-      const vigente = e && Date.now() - new Date(e.actualizado).getTime() < 30 * 86400000;
-      return { ...x, estado: vigente ? e.estado : 'pendiente', marcado_en: vigente ? e.actualizado : null };
+      // Lo marcado como hecho o descartado vuelve a aparecer a los 30 dias si el problema sigue;
+      // lo pospuesto ("Ahora no"), cuando vence la fecha elegida
+      const vigente = e && (e.estado === 'pospuesto' ? e.hasta && new Date(e.hasta).getTime() > Date.now() : Date.now() - new Date(e.actualizado).getTime() < 30 * 86400000);
+      return { ...x, estado: vigente ? e.estado : 'pendiente', marcado_en: vigente ? e.actualizado : null, hasta: vigente && e.estado === 'pospuesto' ? e.hasta : null };
     });
-    res.json({ acciones: conEstado, generado: new Date().toISOString() });
+    // Historial: lo que aparece se anota; lo que estaba y ya no aparece, se resolvio
+    let resueltas = [];
+    try {
+      const ln = localNumDe(String(req.query.local_id || ''));
+      const loc = ln === null ? 'todos' : String(ln); // 'rg' y '1' son el mismo local
+      const claves = acciones.map(x => x.clave);
+      const abiertas = (await pool.query('SELECT * FROM gerente_historial WHERE resuelto_en IS NULL AND local = $1', [loc])).rows;
+      for (const h of abiertas) {
+        if (!claves.includes(h.clave)) {
+          await pool.query(`UPDATE gerente_historial SET resuelto_en = NOW(), como = $1 WHERE id = $2`, [estados[h.clave] && estados[h.clave].estado === 'hecho' ? 'hecho' : 'solo', h.id]);
+        }
+      }
+      for (const x of acciones) {
+        const ya = abiertas.find(h => h.clave === x.clave);
+        if (ya) await pool.query('UPDATE gerente_historial SET visto_en = NOW(), titulo = $1 WHERE id = $2', [x.titulo, ya.id]);
+        else await pool.query('INSERT INTO gerente_historial (clave, local, titulo, area) VALUES ($1,$2,$3,$4)', [x.clave, loc, x.titulo, x.area]);
+      }
+      resueltas = (await pool.query(`SELECT clave, titulo, area, aparecio_en, resuelto_en, como FROM gerente_historial
+        WHERE resuelto_en IS NOT NULL AND local = $1 AND resuelto_en > NOW() - INTERVAL '180 days' ORDER BY resuelto_en DESC LIMIT 50`, [loc])).rows;
+    } catch (e) { console.error('[gerente] historial:', e.message); }
+    res.json({ acciones: conEstado, resueltas, generado: new Date().toISOString() });
   } catch (e) { console.error(e); res.status(500).json({ error: 'No se pudo armar la mejora continua: ' + e.message }); }
 });
 
 router.put('/mejoras/:clave', async (req, res) => {
   try {
     await asegurarTabla();
-    const estado = ['hecho', 'descartado', 'pendiente'].includes(req.body.estado) ? req.body.estado : 'pendiente';
+    const estado = ['hecho', 'descartado', 'pospuesto', 'pendiente'].includes(req.body.estado) ? req.body.estado : 'pendiente';
+    const dias = Math.min(180, Math.max(1, parseInt(req.body.dias) || 7));
+    const hasta = estado === 'pospuesto' ? new Date(Date.now() + dias * 86400000) : null;
     if (estado === 'pendiente') await pool.query('DELETE FROM gerente_acciones WHERE clave = $1', [req.params.clave]);
-    else await pool.query(`INSERT INTO gerente_acciones (clave, estado, usuario_nombre) VALUES ($1, $2, $3)
-      ON CONFLICT (clave) DO UPDATE SET estado = EXCLUDED.estado, actualizado = NOW(), usuario_nombre = EXCLUDED.usuario_nombre`, [req.params.clave, estado, req.body.usuario_nombre || null]);
-    res.json({ ok: true, estado });
+    else await pool.query(`INSERT INTO gerente_acciones (clave, estado, usuario_nombre, hasta) VALUES ($1, $2, $3, $4)
+      ON CONFLICT (clave) DO UPDATE SET estado = EXCLUDED.estado, actualizado = NOW(), usuario_nombre = EXCLUDED.usuario_nombre, hasta = EXCLUDED.hasta`, [req.params.clave, estado, req.body.usuario_nombre || null, hasta]);
+    res.json({ ok: true, estado, hasta });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
