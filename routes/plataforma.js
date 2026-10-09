@@ -115,7 +115,7 @@ router.put('/negocios/:id/modulos', soloAdmin, async (req, res) => {
     const n = await negocios.negocioPorId(Number(req.params.id));
     if (!n || !nombreSchemaValido(n.schema)) return res.status(404).json({ error: 'Negocio no encontrado' });
     const b = req.body || {};
-    const m = await enNegocio({ id: n.id, schema: n.schema }, () => modulos.guardar({ actividad: b.actividad, gastronomia: b.gastronomia }));
+    const m = await enNegocio({ id: n.id, schema: n.schema }, () => modulos.guardar({ actividad: b.actividad, gastronomia: b.gastronomia, consultorio: b.consultorio }));
     res.json(m);
   } catch (e) {
     console.error('[plataforma] modulos:', e.message);
