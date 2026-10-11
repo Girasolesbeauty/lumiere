@@ -15,8 +15,15 @@ const origenesBase = ['https://lumiere-beta-nine.vercel.app', 'http://localhost:
   // Dominio propio: el software en app., el portal de clientes en clientes. y la web en el dominio principal
   'https://app.sistemalumiere.com', 'https://clientes.sistemalumiere.com', 'https://sistemalumiere.com', 'https://www.sistemalumiere.com'];
 const origenesExtra = (process.env.EXTRA_CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+// Ademas se permiten los dominios propios de las tiendas web (ej: https://girasolesbeauty.com.ar)
+const tiendaDominios = require('./lib/tienda');
 app.use(cors({
-  origin: [...origenesBase, ...origenesExtra],
+  origin: (origen, listo) => {
+    if (!origen || origenesBase.includes(origen) || origenesExtra.includes(origen)) return listo(null, true);
+    let host = '';
+    try { const u = new URL(origen); if (u.protocol !== 'https:') return listo(null, false); host = u.hostname.replace(/^www\./, ''); } catch (e) { return listo(null, false); }
+    tiendaDominios.dominios().then(m => listo(null, m.has(host))).catch(() => listo(null, false));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
@@ -88,6 +95,14 @@ app.use('/api/consultorio', require('./routes/consultorio'));
 app.use('/api/modulos', require('./routes/modulos'));
 app.use('/api/tienda', require('./routes/tienda'));
 app.use('/api/tienda-publica', require('./routes/tiendaPublica'));
+// Que tienda corresponde a un dominio propio (la pagina lo pregunta al abrir)
+app.get('/api/tienda-dominio', async (req, res) => {
+  try {
+    const host = tiendaDominios.limpiarDominio(req.query.host);
+    const slug = host ? (await tiendaDominios.dominios()).get(host) : null;
+    res.set('Cache-Control', 'public, max-age=300').json({ slug: slug || null });
+  } catch (e) { res.json({ slug: null }); }
+});
 app.use('/api/fotos-web', require('./routes/fotosWeb'));
 
 // Ruta de prueba

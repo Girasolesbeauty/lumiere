@@ -21,7 +21,8 @@ router.get('/config', async (req, res) => {
     try { await ayudaMP.asegurar(); mp = !!(await ayudaMP.token()); } catch (e) {}
     const neg = (await pool.query('SELECT nombre_negocio FROM configuracion_negocio LIMIT 1').catch(() => ({ rows: [] }))).rows[0] || {};
     const sugerido = String(neg.nombre_negocio || 'mi-tienda').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'mi-tienda';
-    res.json({ ...c, mp_conectado: mp, slug_sugerido: sugerido });
+    const dominio = await tienda.dominioDe(req.negocio ? req.negocio.id : 1).catch(() => null);
+    res.json({ ...c, mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la configuración' }); }
 });
 
@@ -51,6 +52,13 @@ router.put('/config', async (req, res) => {
        !!b.pago_mp, !!b.pago_transferencia, String(b.transferencia_datos || '').trim().slice(0, 300) || null, !!b.pago_retiro,
        Math.min(168, Math.max(1, parseInt(b.horas_reserva) || 24)),
        String(b.anuncios || '').split('\n').map(x => x.trim().slice(0, 90)).filter(Boolean).slice(0, 5).join('\n') || null]);
+    // Dominio propio (opcional): se guarda en el registro central, junto a la direccion de la tienda
+    if (b.dominio !== undefined) {
+      const d = String(b.dominio || '').trim() ? tienda.limpiarDominio(b.dominio) : null;
+      if (String(b.dominio || '').trim() && !d) return res.status(400).json({ error: 'El dominio no es válido. Escribilo así: girasolesbeauty.com.ar' });
+      if (d && /(^|\.)(sistemalumiere\.com|vercel\.app|railway\.app)$/.test(d)) return res.status(400).json({ error: 'Ese dominio no se puede usar' });
+      if (!(await tienda.guardarDominio(req.negocio ? req.negocio.id : 1, d))) return res.status(400).json({ error: 'Ese dominio ya lo usa otra tienda' });
+    }
     // Redes: se guarda el usuario o el link tal como lo escribio (la tienda arma el link)
     if (b.redes && typeof b.redes === 'object') {
       const redes = {};
