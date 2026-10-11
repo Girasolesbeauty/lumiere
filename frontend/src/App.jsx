@@ -22743,6 +22743,7 @@ const CSS_TIENDA = `
 .tw-saludo-ir{font-size:24px;color:#999}
 .tw-saludo.cumple{background:linear-gradient(90deg,#fff0f6,#fff8e1 55%,#eef7ff);animation:twPop .6s cubic-bezier(.3,1.6,.5,1)}
 .tw-saludo.cumple .tw-saludo-av{background:linear-gradient(135deg,#ff7ab6,#ffd23f);font-size:22px;animation:twLatidoC 1.6s ease-in-out infinite}
+.tw-saludo-cumple{font-size:12.5px;color:#8a4a6a;font-style:italic}
 .tw-saludo-emo{display:inline-block;animation:twEtqPre 1.4s ease-in-out infinite}
 .tw-saludo.invitada .tw-saludo-av{background:#fff8e1;color:#e2a400;border:1.5px solid #f1dc9a}
 .tw-saludo.invitada .tw-saludo-txt>b{font-size:15px}
@@ -24220,7 +24221,8 @@ function TiendaPublica({ slug }) {
           <button className={"tw-saludo" + (cumple ? " cumple" : "")} onClick={abrirCuenta} aria-label="Ver mi cuenta">
             <span className="tw-saludo-av" aria-hidden="true">{cumple ? "🎂" : (nombre[0] || "✿").toUpperCase()}</span>
             <span className="tw-saludo-txt">
-              <b>{cumple ? <>¡Feliz cumpleaños, {nombre}! <span className="tw-saludo-emo">🎁🎂🎉</span></> : <>¡Hola, {nombre}!</>}</b>
+              <b>{cumple ? <>¡Feliz cumpleaños, {nombre}!</> : <>¡Hola, {nombre}!</>}</b>
+              {cumple && <span className="tw-saludo-cumple">Porque todo el mes es tu cumpleaños <span className="tw-saludo-emo">💁🏻‍♀️😌</span></span>}
               <small>{miCuenta.nivel ? <>Sos <b className="tw-saludo-nivel">{miCuenta.nivel}</b> con </> : "Tenés "}<b><TwRueda key={miCuenta.puntos} valor={miCuenta.puntos || 0} desde={0} dur={900} formato={n => n.toLocaleString("es-AR")} /></b> puntos</small>
             </span>
             <span className="tw-saludo-ir" aria-hidden="true">›</span>
