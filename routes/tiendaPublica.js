@@ -6,6 +6,10 @@ const negocios = require('../lib/negocios');
 const { enNegocio } = require('../lib/contexto');
 const tienda = require('../lib/tienda');
 const { ayudaMP } = require('./mercadopago');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { cuentas } = require('./portal');
+const { VENTA_VALIDA } = require('../lib/niveles');
 
 // Tienda web publica (sin iniciar sesion): /api/tienda-publica/:slug/...
 // El slug dice de que negocio es; todo lo que sigue corre dentro del cajon de ese negocio.
@@ -30,7 +34,7 @@ router.use('/:slug', async (req, res, next) => {
       try {
         const cfg = await tienda.leerConfig();
         if (!cfg.activo) return res.status(404).json({ error: 'Esta tienda no está disponible por ahora' });
-        req.tienda = cfg;
+        req.tienda = cfg; req.negTienda = neg;
         await tienda.vencerPendientes().catch(() => {});
         next();
       } catch (e) { console.error('[tienda publica]', e.message); res.status(500).json({ error: 'La tienda no está disponible en este momento' }); }
@@ -220,7 +224,7 @@ router.post('/:slug/pedidos', async (req, res) => {
     const subtotal = Math.round(lineas.reduce((t, l) => t + l.precio * l.cantidad, 0) * 100) / 100;
     if (entrega === 'envio' && c.envio_gratis_desde && subtotal >= c.envio_gratis_desde) costoEnvio = 0;
     const total = Math.round((subtotal + costoEnvio) * 100) / 100;
-    const clienteId = await clienteDe(client, nombre, telefono, email);
+    const clienteId = clienteDeToken(req) || await clienteDe(client, nombre, telefono, email);
     const codigo = crypto.randomBytes(4).toString('hex').toUpperCase();
     const estado = pago === 'retiro' ? 'confirmado' : 'pendiente_pago';
     const horas = pago === 'mp' ? 2 : Math.min(168, Math.max(1, parseInt(c.horas_reserva) || 24));
@@ -285,6 +289,125 @@ router.get('/:slug/pedidos/:codigo', async (req, res) => {
       vence_en: p.vence_en, transferencia: p.pago === 'transferencia' && !p.pagado ? (req.tienda.transferencia_datos || '') : null, creado_en: p.creado_en,
     });
   } catch (e) { res.status(500).json({ error: 'No se pudo consultar el pedido' }); }
+});
+
+// ===================== Mi cuenta (clientas) =====================
+// Misma cuenta que el portal de clientas: DNI + contraseña sobre la ficha de Lumiere, asi ven
+// sus puntos y premios. La llave (token) dice de que negocio es.
+const firmar = (req, id) => jwt.sign({ id, tipo: 'cliente', neg: req.negTienda.id }, process.env.JWT_SECRET, { expiresIn: '60d' });
+function clienteDeToken(req) {
+  const t = String(req.headers.authorization || '').replace(/^Bearer /, '');
+  if (!t) return null;
+  try { const d = jwt.verify(t, process.env.JWT_SECRET); return d.tipo === 'cliente' && d.neg === req.negTienda.id ? d.id : null; } catch (e) { return null; }
+}
+const conCuenta = (req, res, next) => { const id = clienteDeToken(req); if (!id) return res.status(401).json({ error: 'Volvé a ingresar a tu cuenta', sesion: true }); req.clienteId = id; next(); };
+const digitos = (x) => cuentas.soloNumeros(x).slice(-8);
+// Mismo telefono aunque se escriba con 0, 15 o sin codigo de area: se comparan los ultimos 6 numeros
+const mismoTelefono = (a, b) => cuentas.soloNumeros(a).length >= 8 && cuentas.soloNumeros(b).length >= 8 && cuentas.soloNumeros(a).slice(-6) === cuentas.soloNumeros(b).slice(-6);
+
+router.post('/:slug/cuenta/ingresar', async (req, res) => {
+  try {
+    const { dni, password } = req.body || {};
+    const k = 'tienda:' + req.negTienda.id + ':' + (cuentas.soloNumeros(dni) || 'vacio');
+    if (cuentas.bloqueado(k)) return res.status(429).json({ error: 'Demasiados intentos. Esperá 15 minutos y volvé a probar.' });
+    const c = (await cuentas.buscarPorDni(dni)).rows[0];
+    if (!c || !c.password_hash) { cuentas.sumarIntento(k); return res.status(401).json({ error: c ? 'Todavía no creaste tu cuenta con ese DNI. Tocá "Crear mi cuenta".' : 'El DNI o la contraseña no son correctos' }); }
+    if (!(await bcrypt.compare(String(password || ''), c.password_hash))) { cuentas.sumarIntento(k); return res.status(401).json({ error: 'El DNI o la contraseña no son correctos' }); }
+    cuentas.intentos.delete(k);
+    res.json({ token: firmar(req, c.id), cliente: { nombre: c.nombre, telefono: c.telefono, email: c.email || c.portal_email } });
+  } catch (e) { console.error('[tienda] ingresar:', e.message); res.status(500).json({ error: 'No pudimos ingresar. Probá de nuevo.' }); }
+});
+
+// Crear la cuenta. Si el DNI ya esta en Lumiere (compro en el local), para proteger sus puntos
+// tiene que coincidir el WhatsApp o el mail que figuran en su ficha. Si es nueva, se crea la ficha.
+router.post('/:slug/cuenta/crear', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const dni = cuentas.soloNumeros(b.dni), password = String(b.password || ''), nombre = String(b.nombre || '').trim().slice(0, 120);
+    const telefono = String(b.telefono || '').trim().slice(0, 40), email = String(b.email || '').trim().toLowerCase().slice(0, 120) || null;
+    if (dni.length < 7 || dni.length > 11) return res.status(400).json({ error: 'Escribí tu DNI (solo números)' });
+    if (password.length < 6) return res.status(400).json({ error: 'La contraseña tiene que tener al menos 6 caracteres' });
+    if (digitos(telefono).length < 8) return res.status(400).json({ error: 'Escribí tu WhatsApp con código de área' });
+    const k = 'tienda-crear:' + req.negTienda.id + ':' + dni;
+    if (cuentas.bloqueado(k)) return res.status(429).json({ error: 'Demasiados intentos. Esperá 15 minutos y volvé a probar.' });
+    let c = (await cuentas.buscarPorDni(dni)).rows[0];
+    if (c) {
+      if (c.password_hash) return res.status(400).json({ error: 'Ese DNI ya tiene una cuenta (puede ser del portal de clientas). Ingresá con tu contraseña.' });
+      const telOk = mismoTelefono(c.telefono, telefono);
+      const mailOk = !!email && [c.email, c.portal_email].some(m => m && String(m).trim().toLowerCase() === email);
+      if (!telOk && !mailOk) {
+        cuentas.sumarIntento(k);
+        return res.status(400).json({ error: (c.telefono || c.email) ? 'Ese DNI ya está en nuestra base con otro WhatsApp o mail. Escribí el que nos diste en el local (o pedí que lo actualicen).' : 'Ese DNI ya está en nuestra base pero sin WhatsApp ni mail. Para proteger tus puntos, pedí en el local que los carguen en tu ficha y volvé a intentar.', verificar: true });
+      }
+      await pool.query(`UPDATE clientes SET password_hash = $1, portal_registrado_en = NOW(), portal_email = COALESCE(portal_email, $2::text),
+        email = COALESCE(NULLIF(email, ''), $2::text), telefono = COALESCE(NULLIF(telefono, ''), $3::text) WHERE id = $4`, [await bcrypt.hash(password, 10), email, telefono, c.id]);
+    } else {
+      if (nombre.length < 2) return res.status(400).json({ error: 'Escribí tu nombre' });
+      // Puede que ya este en Lumiere sin DNI (por ejemplo, por un pedido web): se completa esa ficha
+      const porTel = (await pool.query(`SELECT * FROM clientes WHERE RIGHT(REGEXP_REPLACE(COALESCE(telefono, ''), '[^0-9]', '', 'g'), 6) = $1
+        AND LENGTH(REGEXP_REPLACE(COALESCE(telefono, ''), '[^0-9]', '', 'g')) >= 8 AND COALESCE(cuit_dni, '') = '' AND password_hash IS NULL ORDER BY id LIMIT 1`, [cuentas.soloNumeros(telefono).slice(-6)])).rows[0];
+      const hash = await bcrypt.hash(password, 10);
+      if (porTel) {
+        await pool.query(`UPDATE clientes SET cuit_dni = $1, password_hash = $2, portal_registrado_en = NOW(), portal_email = $3::text, email = COALESCE(NULLIF(email, ''), $3::text) WHERE id = $4`, [dni, hash, email, porTel.id]);
+        c = porTel;
+      } else {
+        c = (await pool.query(`INSERT INTO clientes (nombre, telefono, email, cuit_dni, password_hash, portal_email, portal_registrado_en, local_id) VALUES ($1, $2, $3::text, $4, $5, $3::text, NOW(), 1) RETURNING *`,
+          [nombre, telefono, email, dni, hash])).rows[0];
+      }
+    }
+    cuentas.intentos.delete(k);
+    const f = (await pool.query('SELECT nombre, telefono, email FROM clientes WHERE id = $1', [c.id])).rows[0];
+    res.status(201).json({ token: firmar(req, c.id), cliente: f });
+  } catch (e) { console.error('[tienda] crear cuenta:', e.message); res.status(500).json({ error: 'No pudimos crear la cuenta. Probá de nuevo.' }); }
+});
+
+router.get('/:slug/cuenta', conCuenta, async (req, res) => {
+  try {
+    const d = await cuentas.datosDeCliente(req.clienteId);
+    if (!d) return res.status(401).json({ error: 'Volvé a ingresar a tu cuenta', sesion: true });
+    const [premios, canjes, pedidos] = await Promise.all([
+      cuentas.premiosDeCliente(req.clienteId).catch(() => []),
+      cuentas.canjesDeCliente(req.clienteId).catch(() => []),
+      pool.query(`SELECT codigo, estado, total, creado_en, entrega FROM tienda_pedidos WHERE cliente_id = $1 ORDER BY creado_en DESC LIMIT 20`, [req.clienteId]).then(r => r.rows).catch(() => []),
+    ]);
+    res.json({ ...d, compras: (d.compras || []).slice(0, 15), premios, canjes: canjes.slice(0, 20), pedidos });
+  } catch (e) { console.error('[tienda] cuenta:', e.message); res.status(500).json({ error: 'No pudimos cargar tu cuenta' }); }
+});
+
+router.post('/:slug/cuenta/canjear', conCuenta, async (req, res) => {
+  try { res.json(await cuentas.canjearPremio(req.clienteId, parseInt(req.body && req.body.premio_id))); }
+  catch (e) {
+    if (e instanceof cuentas.ErrorCanje) return res.status(e.codigo).json({ error: e.message });
+    console.error('[tienda] canjear:', e.message); res.status(500).json({ error: 'No se pudo canjear' });
+  }
+});
+
+// ===================== Recomendaciones (lo que compran juntas) =====================
+// Para uno o varios productos: lo que las clientas llevaron en la misma compra, o la misma
+// clienta en los 3 meses siguientes. Se cuenta cada clienta una vez. Queda en memoria 6 horas.
+const cacheRec = new Map();
+router.get('/:slug/recomendados', async (req, res) => {
+  try {
+    const ids = [...new Set(String(req.query.ids || '').split(',').map(x => parseInt(x)).filter(x => x > 0))].slice(0, 20);
+    if (!ids.length) return res.json([]);
+    const clave = req.negTienda.id + ':' + ids.slice().sort((a, b) => a - b).join(',');
+    const c = cacheRec.get(clave);
+    if (c && Date.now() - c.t < 6 * 3600 * 1000) return res.json(c.d);
+    const r = await pool.query(`
+      WITH base AS (
+        SELECT DISTINCT v.id, v.cliente_id, v.creado_en FROM ventas v JOIN venta_items vi ON vi.venta_id = v.id
+        WHERE vi.producto_id = ANY($1::int[]) AND v.creado_en > NOW() - INTERVAL '18 months' AND ${VENTA_VALIDA})
+      SELECT vi.producto_id AS id, COUNT(DISTINCT COALESCE('c' || v.cliente_id::text, 'v' || v.id::text))::int AS n
+      FROM ventas v JOIN venta_items vi ON vi.venta_id = v.id
+      JOIN base b ON v.id = b.id OR (b.cliente_id IS NOT NULL AND v.cliente_id = b.cliente_id AND v.creado_en BETWEEN b.creado_en AND b.creado_en + INTERVAL '90 days')
+      JOIN tienda_productos tp ON tp.producto_id = vi.producto_id AND tp.publicado
+      WHERE NOT (vi.producto_id = ANY($1::int[])) AND ${VENTA_VALIDA}
+      GROUP BY vi.producto_id HAVING COUNT(DISTINCT COALESCE('c' || v.cliente_id::text, 'v' || v.id::text)) >= 2
+      ORDER BY n DESC LIMIT 24`, [ids]);
+    if (cacheRec.size > 2000) cacheRec.clear();
+    cacheRec.set(clave, { t: Date.now(), d: r.rows });
+    res.json(r.rows);
+  } catch (e) { console.error('[tienda] recomendados:', e.message); res.json([]); }
 });
 
 module.exports = router;

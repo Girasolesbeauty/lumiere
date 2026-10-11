@@ -22712,6 +22712,7 @@ const CSS_TIENDA = `
 .tw-btn.full{width:100%}
 .tw-btn2{display:inline-flex;align-items:center;justify-content:center;background:#fff;color:var(--n);border:1.5px solid var(--n);border-radius:999px;padding:12px 24px;font-size:13.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;text-decoration:none;transition:background .2s}
 .tw-btn2:hover{background:var(--g)}
+.tw-btn2:disabled{opacity:.35;cursor:default;background:#fff}
 .tw-benef{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:18px 0 6px}
 .tw-benef div{display:flex;gap:12px;align-items:center;padding:14px 16px;border:1px solid var(--b);border-radius:6px;font-size:13.5px;line-height:1.35}
 .tw-benef span{font-size:24px}
@@ -22807,6 +22808,19 @@ const CSS_TIENDA = `
 @keyframes twToast{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
 .tw-toast img,.tw-toast .tw-mini{width:52px;height:52px;border-radius:6px;object-fit:cover;background:var(--g)}
 .tw-barra{display:none}
+.tw-punto{position:absolute;top:8px;right:8px;width:9px;height:9px;border-radius:50%;background:#2d7a4f;border:2px solid #fff}
+.tw-tabs-cuenta{display:flex;border-bottom:1px solid var(--b);margin-bottom:14px}
+.tw-tabs-cuenta button{flex:1;background:none;border:none;padding:12px;font-size:14px;font-weight:700;cursor:pointer;border-bottom:2px solid transparent}
+.tw-tabs-cuenta button.on{border-bottom-color:var(--n)}
+.tw-puntos-card{background:linear-gradient(135deg,#111,#333);color:#fff;border-radius:10px;padding:18px 20px;margin-bottom:14px;animation:twSube .5s ease both}
+.tw-premio{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--b)}
+.tw-rutina{margin-top:18px}
+.tw-rutina-fila{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px}
+.tw-rutina-fila::-webkit-scrollbar{display:none}
+.tw-rutina-item{flex:0 0 120px;display:flex;flex-direction:column}
+.tw-rutina-img{width:120px;height:120px;border-radius:6px;overflow:hidden;background:var(--g);border:none;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.tw-rutina-img img{width:100%;height:100%;object-fit:cover}
+.tw-rutina-n{font-size:12.5px;line-height:1.3;margin-top:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .tw-ciudad{display:flex;align-items:center;gap:4px;height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--b);background:#fff;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .2s}
 .tw-ciudad:hover{background:var(--g)}
 .tw-elegir{max-width:460px;padding:30px 26px;text-align:center}
@@ -22872,6 +22886,7 @@ const TW_LUPA = <><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></>
 const TW_X = <path d="M6 6l12 12M18 6 6 18" />;
 const TW_IZQ = <path d="m15 6-6 6 6 6" />;
 const TW_DER = <path d="m9 6 6 6-6 6" />;
+const TW_PERSONA = <><circle cx="12" cy="8" r="4" /><path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6" /></>;
 const TW_WA = <path d="M20 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20l1.2-4.2A8.5 8.5 0 1 1 20 11.5Z" />;
 
 // El video de un producto se puede reproducir solo (al pasar el mouse) si es un archivo, no si es de YouTube/Vimeo
@@ -22922,8 +22937,11 @@ function TwFila({ titulo, items, onVerTodo, render }) {
 
 function TiendaPublica({ slug }) {
   const base = (API.defaults.baseURL || "") + "/tienda-publica/" + encodeURIComponent(slug);
+  const tokenCuenta = () => { try { return localStorage.getItem("tienda_cuenta_" + slug) || ""; } catch (e) { return ""; } };
   const pedir = async (ruta, opciones) => {
-    const r = await fetch(base + ruta, { headers: { "Content-Type": "application/json" }, ...opciones });
+    const tk = tokenCuenta();
+    const r = await fetch(base + ruta, { headers: { "Content-Type": "application/json", ...(tk ? { Authorization: "Bearer " + tk } : {}) }, ...opciones });
+    if (r.status === 401 && tk && ruta.startsWith("/cuenta")) { try { localStorage.removeItem("tienda_cuenta_" + slug); } catch (e) {} setLogueada(false); }
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || "Algo salió mal. Probá de nuevo.");
     return d;
@@ -22939,6 +22957,14 @@ function TiendaPublica({ slug }) {
   const [eligeCiudad, setEligeCiudad] = useState(false);
   const [orden, setOrden] = useState("");
   const [subcat, setSubcat] = useState(""); // categoria elegida dentro de un sector
+  // Mi cuenta (misma del portal de clientas: DNI + contraseña, con sus puntos)
+  const [logueada, setLogueada] = useState(() => { try { return !!localStorage.getItem("tienda_cuenta_" + slug); } catch (e) { return false; } });
+  const [miCuenta, setMiCuenta] = useState(null);
+  const [formCuenta, setFormCuenta] = useState({ modo: "ingresar" });
+  const [avisoCuenta, setAvisoCuenta] = useState(null);
+  const [canjeHecho, setCanjeHecho] = useState(null);
+  // Recomendaciones segun lo que compran juntas las clientas
+  const [recs, setRecs] = useState({});
   const [carrito, setCarrito] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_carrito_" + slug) || "[]"); } catch (e) { return []; } });
   const [ver, setVer] = useState(null); // producto abierto
   const [varSel, setVarSel] = useState(null);
@@ -22967,6 +22993,11 @@ function TiendaPublica({ slug }) {
   }, []);
   useEffect(() => { try { localStorage.setItem("tienda_carrito_" + slug, JSON.stringify(carrito)); } catch (e) {} }, [carrito]);
   useEffect(() => { try { if (local) localStorage.setItem("tienda_local_" + slug, String(local)); } catch (e) {} }, [local]);
+  const cargarRecs = (ids) => { const k = ids.slice().sort((x, y) => x - y).join(","); if (!k || recs[k]) return; pedir("/recomendados?ids=" + k).then(r => setRecs(m => ({ ...m, [k]: r }))).catch(() => setRecs(m => ({ ...m, [k]: [] }))); };
+  useEffect(() => { if (ver) cargarRecs([ver.id]); }, [ver && ver.id]);
+  useEffect(() => { if (paso === "carrito" && carrito.length) cargarRecs([...new Set(carrito.map(i => i.producto_id))]); }, [paso, carrito.length]);
+  const cargarCuenta = () => pedir("/cuenta").then(d => { setMiCuenta(d); setDatos(x => ({ ...x, nombre: x.nombre || d.nombre, telefono: x.telefono || d.telefono || "", email: x.email || d.email || "" })); }).catch(() => {});
+  useEffect(() => { if (logueada) cargarCuenta(); }, [logueada]);
   // Banner y tira de anuncios pasan solos
   useEffect(() => { const t = setInterval(() => setSlide(s => s + 1), 5500); return () => clearInterval(t); }, [slide]);
   useEffect(() => { const t = setInterval(() => setAnuncio(a => a + 1), 4000); return () => clearInterval(t); }, []);
@@ -23062,6 +23093,7 @@ function TiendaPublica({ slug }) {
           <div className="tw-iconos">
             {!codigoUrl && ciudades.length > 1 && ciudad && <button className="tw-ciudad" onClick={() => setEligeCiudad(true)} aria-label={"Tu ciudad: " + ciudad.nombre + ". Cambiar"}>📍 <span>{ciudad.nombre}</span> ▾</button>}
             {tienda.whatsapp && <a className="tw-ico" href={wa("Hola! Tengo una consulta")} target="_blank" rel="noopener" aria-label="WhatsApp"><TwIcono d={TW_WA} /></a>}
+            {!codigoUrl && <button className="tw-ico" onClick={() => { setAvisoCuenta(null); setCanjeHecho(null); setPaso("cuenta"); if (logueada) cargarCuenta(); }} aria-label={logueada ? "Mi cuenta" : "Ingresar o crear cuenta"} title={logueada ? "Mi cuenta" : "Ingresar"}><TwIcono d={TW_PERSONA} />{logueada && <span className="tw-punto" />}</button>}
             {!codigoUrl && <button className="tw-ico" onClick={() => setPaso("carrito")} aria-label={"Carrito, " + totalItems + " productos"}>
               <TwIcono d={TW_BOLSA} />{totalItems > 0 && <span key={salto} className={"tw-badge" + (salto ? " salta" : "")}>{totalItems}</span>}
             </button>}
@@ -23156,10 +23188,86 @@ function TiendaPublica({ slug }) {
   const galeria = ver ? [...(ver.foto ? [foto(ver)] : []), ...(ver.fotos || []).map(id => base + "/foto-extra/" + id)] : [];
   const piezas = [...galeria.map((_, i) => i), ...(vidVer ? ["video"] : [])];
   const moverMedia = (d) => { const i = piezas.indexOf(media); if (i >= 0 && piezas.length > 1) setMedia(piezas[(i + d + piezas.length) % piezas.length]); };
-  const relacionados = ver ? conStock.filter(p => p.id !== ver.id && p.categoria && p.categoria === ver.categoria).slice(0, 8) : [];
+  const deRecs = (ids, excluir) => ((recs[ids.slice().sort((x, y) => x - y).join(",")] || []).map(r => conStock.find(p => p.id === r.id)).filter(p => p && !excluir.includes(p.id)));
+  const recVer = ver ? deRecs([ver.id], [ver.id]) : [];
+  const relacionados = ver ? [...recVer, ...conStock.filter(p => p.id !== ver.id && p.categoria && p.categoria === ver.categoria && !recVer.includes(p))].slice(0, 8) : [];
+  const idsCarrito = [...new Set(carrito.map(i => i.producto_id))];
+  const rutina = idsCarrito.length ? deRecs(idsCarrito, idsCarrito).slice(0, 6) : [];
   const varElegida = ver && ver.variantes ? varSel : null;
   const maxVer = ver ? dispo(ver, varElegida) : 0;
   const puedeAgregar = ver && (!ver.variantes || varSel) && maxVer > 0;
+
+  const enviarCuenta = async (e) => {
+    e && e.preventDefault();
+    setAvisoCuenta(null);
+    const f = formCuenta;
+    try {
+      const r = await pedir("/cuenta/" + (f.modo === "crear" ? "crear" : "ingresar"), { method: "POST", body: JSON.stringify(f) });
+      try { localStorage.setItem("tienda_cuenta_" + slug, r.token); } catch (x) {}
+      setFormCuenta({ modo: "ingresar" }); setLogueada(true);
+      setDatos(x => ({ ...x, nombre: x.nombre || r.cliente.nombre, telefono: x.telefono || r.cliente.telefono || "", email: x.email || r.cliente.email || "" }));
+    } catch (x) { setAvisoCuenta(x.message); }
+  };
+  const salirCuenta = () => { try { localStorage.removeItem("tienda_cuenta_" + slug); } catch (x) {} setLogueada(false); setMiCuenta(null); };
+  const canjear = async (pr) => {
+    if (!confirm("¿Canjear " + pr.nombre + " por " + pr.puntos_requeridos + " puntos?")) return;
+    try { const r = await pedir("/cuenta/canjear", { method: "POST", body: JSON.stringify({ premio_id: pr.id }) }); setCanjeHecho({ nombre: pr.nombre, codigo: r.codigo }); cargarCuenta(); }
+    catch (x) { setAvisoCuenta(x.message); }
+  };
+  const fc = formCuenta, setF = (k, v) => setFormCuenta(x => ({ ...x, [k]: v }));
+  const panelCuenta = !logueada ? (
+    <div className="tw-cajon-cuerpo">
+      <div className="tw-tabs-cuenta">
+        <button className={fc.modo !== "crear" ? "on" : ""} onClick={() => { setFormCuenta(x => ({ ...x, modo: "ingresar" })); setAvisoCuenta(null); }}>Ingresar</button>
+        <button className={fc.modo === "crear" ? "on" : ""} onClick={() => { setFormCuenta(x => ({ ...x, modo: "crear" })); setAvisoCuenta(null); }}>Crear mi cuenta</button>
+      </div>
+      <p style={{ fontSize: 13.5, color: "#555", lineHeight: 1.5 }}>{fc.modo === "crear" ? "Con tu cuenta ves tus puntos, canjeás premios y comprás más rápido. Si ya compraste en el local, usá el mismo DNI y WhatsApp que diste ahí." : "Entrá con tu DNI. Es la misma cuenta del portal de clientas."}</p>
+      <form onSubmit={enviarCuenta} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <input className="tw-inp" placeholder="DNI (solo números)" inputMode="numeric" autoComplete="username" value={fc.dni || ""} onChange={e => setF("dni", e.target.value)} />
+        {fc.modo === "crear" && <>
+          <input className="tw-inp" placeholder="Nombre y apellido" autoComplete="name" value={fc.nombre || ""} onChange={e => setF("nombre", e.target.value)} />
+          <input className="tw-inp" placeholder="WhatsApp (ej: 2964 123456)" inputMode="tel" autoComplete="tel" value={fc.telefono || ""} onChange={e => setF("telefono", e.target.value)} />
+          <input className="tw-inp" placeholder="Email (opcional)" inputMode="email" autoComplete="email" value={fc.email || ""} onChange={e => setF("email", e.target.value)} />
+        </>}
+        <input className="tw-inp" type="password" placeholder={fc.modo === "crear" ? "Elegí una contraseña (6 o más)" : "Contraseña"} autoComplete={fc.modo === "crear" ? "new-password" : "current-password"} value={fc.password || ""} onChange={e => setF("password", e.target.value)} />
+        {avisoCuenta && <div role="alert" style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, fontSize: 13.5, fontWeight: 600 }}>{avisoCuenta}</div>}
+        <button className="tw-btn full" type="submit">{fc.modo === "crear" ? "Crear mi cuenta" : "Ingresar"}</button>
+      </form>
+      {fc.modo !== "crear" && tienda.whatsapp && <p style={{ fontSize: 12.5, color: "#666", marginTop: 14 }}>¿Te olvidaste la contraseña? <a href={wa("Hola! Me olvidé la contraseña de mi cuenta de la tienda. Mi DNI es " + (fc.dni || ""))} target="_blank" rel="noopener">Escribinos por WhatsApp</a>.</p>}
+    </div>
+  ) : !miCuenta ? <div className="tw-cajon-cuerpo"><div className="tw-skel" style={{ height: 140 }} /></div> : (
+    <div className="tw-cajon-cuerpo">
+      <div className="tw-puntos-card">
+        <div style={{ fontSize: 13, opacity: .85 }}>Hola, {String(miCuenta.nombre || "").split(" ")[0]} 👋</div>
+        <div style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.1, margin: "6px 0 2px" }}>{miCuenta.puntos || 0}<span style={{ fontSize: 15, fontWeight: 700 }}> puntos</span></div>
+        <div style={{ fontSize: 13, opacity: .85 }}>{miCuenta.nivel ? "Nivel " + miCuenta.nivel + " · " : ""}Sumás 1 punto cada {fmtTienda(miCuenta.pesos_por_punto || 100)} de compra</div>
+      </div>
+      {canjeHecho && <div className="tw-progreso" style={{ background: "#e8f5ee" }}>🎁 <b>¡Canjeaste {canjeHecho.nombre}!</b><br />Mostrá este código en el local: <b style={{ fontSize: 18, letterSpacing: ".08em" }}>{canjeHecho.codigo}</b></div>}
+      {avisoCuenta && <div role="alert" style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, fontSize: 13.5, fontWeight: 600, marginBottom: 10 }}>{avisoCuenta}</div>}
+      {(miCuenta.premios || []).length > 0 && <>
+        <div className="tw-lbl">Premios para canjear</div>
+        {miCuenta.premios.map(pr => { const falta = Math.max(0, pr.puntos_requeridos - (miCuenta.puntos || 0)); const no = pr.agotado || pr.fuera_de_mes || falta > 0; return (
+          <div key={pr.id} className="tw-premio">
+            <div style={{ flex: 1, minWidth: 0 }}><b style={{ fontSize: 14 }}>{pr.nombre}</b><div style={{ fontSize: 12.5, color: "#666" }}>{pr.puntos_requeridos} puntos{pr.agotado ? " · agotado" : pr.fuera_de_mes ? " · solo en el mes de tu cumple" : falta > 0 ? " · te faltan " + falta : ""}</div></div>
+            <button className="tw-btn2" style={{ padding: "7px 12px", fontSize: 11.5 }} disabled={no} onClick={() => canjear(pr)}>Canjear</button>
+          </div>
+        ); })}
+      </>}
+      {(miCuenta.canjes || []).length > 0 && <>
+        <div className="tw-lbl">Mis canjes</div>
+        {miCuenta.canjes.map(c => <div key={c.id} className="tw-linea" style={{ fontSize: 13.5 }}><span>{c.premio_nombre} · <b>{c.codigo}</b></span><span style={{ color: c.estado === "pendiente" ? "#b7950b" : "#2d7a4f" }}>{c.estado === "pendiente" ? "Para retirar" : "Entregado"}</span></div>)}
+      </>}
+      {(miCuenta.pedidos || []).length > 0 && <>
+        <div className="tw-lbl">Mis pedidos de la tienda</div>
+        {miCuenta.pedidos.map(pd => <a key={pd.codigo} className="tw-linea" style={{ fontSize: 13.5, textDecoration: "none" }} href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}><span>N° {pd.codigo} · {new Date(pd.creado_en).toLocaleDateString("es-AR")}</span><span>{(ESTADOS_PEDIDO_WEB[pd.estado] || ["", ""])[0].split(":")[0]} · {fmtTienda(pd.total)} ›</span></a>)}
+      </>}
+      {(miCuenta.compras || []).length > 0 && <>
+        <div className="tw-lbl">Mis compras</div>
+        {miCuenta.compras.map(c => <div key={c.id} style={{ fontSize: 13, padding: "6px 0", borderBottom: "1px solid #eee" }}><div className="tw-linea" style={{ padding: 0 }}><span>{new Date(c.creado_en).toLocaleDateString("es-AR")}</span><b>{fmtTienda(c.total)}</b></div><div style={{ color: "#666" }}>{(c.items || []).map(i => i.cantidad + " × " + i.nombre).join(", ")}</div></div>)}
+      </>}
+      <button className="tw-btn2" style={{ marginTop: 18 }} onClick={salirCuenta}>Cerrar sesión</button>
+    </div>
+  );
 
   return (
     <div className="tw" style={{ "--c": color }}><style>{CSS_TIENDA}</style>
@@ -23319,7 +23427,7 @@ function TiendaPublica({ slug }) {
                   </div>
                 </div>
               </div>
-              {relacionados.length > 0 && <div style={{ padding: "0 32px 32px" }}><TwFila titulo="También te puede gustar" items={relacionados} render={tarjeta} /></div>}
+              {relacionados.length > 0 && <div style={{ padding: "0 32px 32px" }}><TwFila titulo={recVer.length >= 2 ? "Las que compraron esto también llevaron" : "También te puede gustar"} items={relacionados} render={tarjeta} /></div>}
             </div>
           </div>
         </>
@@ -23328,12 +23436,12 @@ function TiendaPublica({ slug }) {
       {paso && (
         <>
           <div className="tw-velo" onClick={() => setPaso(null)} />
-          <aside className="tw-cajon" role="dialog" aria-modal="true" aria-label={paso === "carrito" ? "Tu carrito" : "Tus datos"}>
+          <aside className="tw-cajon" role="dialog" aria-modal="true" aria-label={paso === "cuenta" ? "Mi cuenta" : paso === "carrito" ? "Tu carrito" : "Tus datos"}>
             <div className="tw-cajon-cab">
-              <h2>{paso === "carrito" ? "Tu carrito" + (totalItems ? " (" + totalItems + ")" : "") : "Finalizar compra"}</h2>
+              <h2>{paso === "cuenta" ? (logueada ? "Mi cuenta" : "Ingresá a tu cuenta") : paso === "carrito" ? "Tu carrito" + (totalItems ? " (" + totalItems + ")" : "") : "Finalizar compra"}</h2>
               <button className="tw-ico" onClick={() => setPaso(null)} aria-label="Cerrar"><TwIcono d={TW_X} size={20} /></button>
             </div>
-            {paso === "carrito" ? (
+            {paso === "cuenta" ? panelCuenta : paso === "carrito" ? (
               <>
                 <div className="tw-cajon-cuerpo">
                   {gratisDesde > 0 && carrito.length > 0 && (
@@ -23352,6 +23460,22 @@ function TiendaPublica({ slug }) {
                       <div style={{ fontWeight: 800, fontSize: 15 }}>{fmtTienda(i.precio * i.cantidad)}</div>
                     </div>
                   ))}
+                  {rutina.length > 0 && (
+                    <div className="tw-rutina">
+                      <div className="tw-lbl">Completá tu rutina</div>
+                      <div style={{ fontSize: 12.5, color: "#666", margin: "-4px 0 10px" }}>Lo que suelen llevar las clientas que compran lo mismo que vos</div>
+                      <div className="tw-rutina-fila">
+                        {rutina.map(p => (
+                          <div key={p.id} className="tw-rutina-item">
+                            <button className="tw-rutina-img" onClick={() => abrir(p)} aria-label={"Ver " + p.nombre}>{p.foto ? <img src={foto(p)} alt="" /> : <span className="tw-ph" style={{ fontSize: 26 }}>✿</span>}</button>
+                            <div className="tw-rutina-n">{p.nombre}</div>
+                            <div style={{ fontWeight: 800, fontSize: 13 }}>{fmtTienda(p.precio)}</div>
+                            <button className="tw-btn2" style={{ padding: "6px 10px", fontSize: 11, marginTop: 6 }} onClick={() => p.variantes ? abrir(p) : agregar(p, null)}>{p.variantes ? "Elegir" : "+ Agregar"}</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 {carrito.length > 0 && <div className="tw-cajon-pie">
                   <div className="tw-linea" style={{ fontWeight: 800, fontSize: 18, marginBottom: 12 }}><span>Subtotal</span><span>{fmtTienda(subtotal)}</span></div>
@@ -23362,6 +23486,8 @@ function TiendaPublica({ slug }) {
             ) : (
               <>
                 <div className="tw-cajon-cuerpo">
+                  {logueada && miCuenta ? <div className="tw-progreso" style={{ marginBottom: 12 }}>👋 Comprás como <b>{miCuenta.nombre}</b>. Esta compra suma puntos a tu cuenta.</div>
+                    : <div style={{ fontSize: 13, color: "#666", marginBottom: 10 }}>¿Tenés cuenta? <button style={{ background: "none", border: "none", padding: 0, textDecoration: "underline", cursor: "pointer", fontSize: 13 }} onClick={() => setPaso("cuenta")}>Ingresá</button> para sumar puntos.</div>}
                   <div className="tw-lbl" style={{ marginTop: 0 }}>Tus datos</div>
                   <input className="tw-inp" placeholder="Nombre y apellido" autoComplete="name" value={datos.nombre || ""} onChange={e => setDatos(d => ({ ...d, nombre: e.target.value }))} style={{ marginBottom: 8 }} />
                   <input className="tw-inp" placeholder="WhatsApp (ej: 2964 123456)" inputMode="tel" autoComplete="tel" value={datos.telefono || ""} onChange={e => setDatos(d => ({ ...d, telefono: e.target.value }))} style={{ marginBottom: 8 }} />
