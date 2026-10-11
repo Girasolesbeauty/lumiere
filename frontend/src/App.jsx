@@ -7587,6 +7587,7 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
   // Foto del producto (modo Catalogo del POS): { imagen: dataURL|null, cambiada: bool }
   const [fotoProd, setFotoProd] = useState({ imagen: null, cambiada: false });
   const [procesandoFoto, setProcesandoFoto] = useState(false);
+  const [buscandoFoto, setBuscandoFoto] = useState(false);
   // Achica la foto en el navegador (lado mayor 360 px, JPEG) antes de guardarla
   const prepararFoto = (file) => {
     if (!file) return;
@@ -8005,7 +8006,12 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
                   <div style={{ fontSize: 11, color: temaPal.textMuted }}>
                     <div style={{ fontWeight: 700, color: temaPal.text, marginBottom: 2 }}>Foto del producto (opcional)</div>
                     Se ve en el modo Catálogo del Punto de Venta. Se achica sola.
-                    {fotoProd.imagen && <div><button type="button" className="chip-btn" style={{ marginTop: 6, fontSize: 10, padding: "3px 8px" }} onClick={() => setFotoProd({ imagen: null, cambiada: true })}>Quitar foto</button></div>}
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                      <button type="button" className="chip-btn" style={{ fontSize: 10.5, padding: "3px 8px" }} disabled={!String(nuevo.nombre || "").trim()} title={String(nuevo.nombre || "").trim() ? "" : "Escribí primero el nombre del producto"} onClick={() => setBuscandoFoto(true)}>🔍 Buscar en internet</button>
+                      {fotoProd.imagen && <button type="button" className="chip-btn" style={{ fontSize: 10, padding: "3px 8px" }} onClick={() => setFotoProd({ imagen: null, cambiada: true })}>Quitar foto</button>}
+                    </div>
+                    {buscandoFoto && <BuscadorFotos temaPal={temaPal} consulta={[nuevo.marca, nuevo.nombre].filter(Boolean).join(" ")} titulo={nuevo.nombre}
+                      onCerrar={() => setBuscandoFoto(false)} onElegir={async (d) => { setFotoProd({ imagen: d, cambiada: true }); setBuscandoFoto(false); }} />}
                   </div>
                 </div>
                 <div className="fg"><div className="fl">Código de barras (se puede escanear)</div>
@@ -23297,6 +23303,110 @@ function TiendaPublica({ slug }) {
   );
 }
 
+// ===================== FOTOS DESDE INTERNET =====================
+// Busca fotos del producto (buscador de imagenes de Brave, ver routes/fotosWeb.js), muestra
+// opciones y la elegida se trae por el servidor y se achica aca antes de guardarla.
+async function fotoWebADataUrl(url, lado = 500) {
+  const r = await API.get("/fotos-web/traer", { params: { url }, responseType: "blob", timeout: 30000 });
+  const obj = URL.createObjectURL(r.data);
+  try {
+    const img = await new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => mal(new Error("No se pudo leer esa foto")); i.src = obj; });
+    const esc = Math.min(1, lado / Math.max(img.width, img.height));
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(img.width * esc)); c.height = Math.max(1, Math.round(img.height * esc));
+    const ctx = c.getContext("2d"); ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(img, 0, 0, c.width, c.height);
+    let d = c.toDataURL("image/jpeg", 0.85);
+    if (d.length > 380000) d = c.toDataURL("image/jpeg", 0.65);
+    return d;
+  } finally { URL.revokeObjectURL(obj); }
+}
+
+function BuscadorFotos({ consulta, titulo, onElegir, onCerrar, temaPal, extra }) {
+  const tp = temaPal || PALETA_CLARA;
+  const [q, setQ] = useState(consulta || "");
+  const [res, setRes] = useState(null);
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState("");
+  const [sinClave, setSinClave] = useState(false);
+  const [clave, setClave] = useState("");
+  const [eligiendo, setEligiendo] = useState(null);
+  const buscar = async (texto) => {
+    const t = String(texto || "").trim();
+    if (t.length < 2) return;
+    setCargando(true); setError(""); setRes(null);
+    try { const r = await API.get("/fotos-web/buscar", { params: { q: t } }); setRes(r.data || []); setSinClave(false); }
+    catch (e) { if (e.response?.data?.sin_clave) setSinClave(true); else setError(e.response?.data?.error || "No se pudo buscar"); }
+    setCargando(false);
+  };
+  useEffect(() => { setQ(consulta || ""); buscar(consulta); }, [consulta]);
+  const guardarClave = async () => {
+    setError(""); setCargando(true);
+    try { await API.put("/fotos-web/config", { clave }); setSinClave(false); setClave(""); await buscar(q); }
+    catch (e) { setError(e.response?.data?.error || "No se pudo guardar la clave"); setCargando(false); }
+  };
+  const elegir = async (f, i) => {
+    setEligiendo(i); setError("");
+    try {
+      let d;
+      try { d = await fotoWebADataUrl(f.url); } catch (e) { d = await fotoWebADataUrl(f.miniatura); }
+      await onElegir(d);
+    } catch (e) { setError(e.response?.data?.error || e.message || "No se pudo usar esa foto. Probá con otra."); }
+    setEligiendo(null);
+  };
+  return (
+    <Ventana>
+      <div className="pos-overlay" onClick={() => eligiendo === null && onCerrar()} style={{ zIndex: 1200 }}>
+        <div className="card pop-in" role="dialog" aria-modal="true" aria-label="Buscar foto en internet" style={{ width: 760, maxWidth: "96vw", maxHeight: "92vh", overflowY: "auto", background: tp.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+            <div><div className="ct" style={{ marginBottom: 2 }}>🔍 Buscar foto en internet</div>{titulo && <div style={{ fontSize: 12.5, color: tp.textMuted }}>{titulo}</div>}</div>
+            <button className="btn btn-g btn-sm" onClick={onCerrar} disabled={eligiendo !== null} aria-label="Cerrar">✕</button>
+          </div>
+          {sinClave ? (
+            <div style={{ marginTop: 12, fontSize: 13.5, lineHeight: 1.6 }}>
+              <b>Para buscar fotos hace falta una clave de Brave (se carga una sola vez).</b>
+              <ol style={{ paddingLeft: 20, margin: "8px 0" }}>
+                <li>Entrá a <a href="https://api-dashboard.search.brave.com/" target="_blank" rel="noopener">api-dashboard.search.brave.com</a> y creá una cuenta (pide tarjeta; regalan USD 5 por mes, unas 1.000 búsquedas).</li>
+                <li>Suscribite al plan <b>Search</b>.</li>
+                <li>En <b>API Keys</b> tocá <b>Add API Key</b> y copiá la clave.</li>
+                <li>Pegala acá abajo y tocá Guardar.</li>
+              </ol>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input className="inp" style={{ flex: 1 }} placeholder="Pegá la clave acá" value={clave} onChange={e => setClave(e.target.value)} autoComplete="off" />
+                <button className="btn btn-p" disabled={!clave.trim() || cargando} onClick={guardarClave}>{cargando ? "Probando…" : "Guardar"}</button>
+              </div>
+              <div style={{ fontSize: 11.5, color: tp.textMuted, marginTop: 4 }}>La clave queda guardada en Lumiere y no se muestra en ningún lado.</div>
+            </div>
+          ) : (
+            <>
+              <form onSubmit={e => { e.preventDefault(); buscar(q); }} style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                <input className="inp" style={{ flex: 1 }} value={q} onChange={e => setQ(e.target.value)} placeholder="Marca y nombre del producto" aria-label="Qué buscar" />
+                <button className="btn btn-p" type="submit" disabled={cargando}>Buscar</button>
+              </form>
+              <div style={{ fontSize: 11.5, color: tp.textMuted, margin: "6px 0 10px" }}>Tocá la foto que quieras usar. Preferí las de la marca, con fondo liso y sin logos de otras tiendas.</div>
+              {cargando ? <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 10 }}>{Array.from({ length: 8 }).map((_, i) => <div key={i} className="skel" style={{ aspectRatio: "1", borderRadius: 10 }} />)}</div>
+                : res && res.length === 0 ? <div className="empty">No encontramos fotos. Probá escribiendo la marca y el nombre de otra forma.</div>
+                : res && (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 10 }}>
+                    {res.map((f, i) => (
+                      <button key={i} type="button" disabled={eligiendo !== null} onClick={() => elegir(f, i)} title={f.titulo}
+                        style={{ border: "2px solid " + (eligiendo === i ? tp.accent || "#c9a84c" : tp.border), borderRadius: 10, padding: 0, background: "#fff", cursor: eligiendo !== null ? "wait" : "pointer", overflow: "hidden", position: "relative", opacity: eligiendo !== null && eligiendo !== i ? 0.5 : 1, textAlign: "left" }}>
+                        <img src={f.miniatura} alt={f.titulo} loading="lazy" referrerPolicy="no-referrer" style={{ width: "100%", aspectRatio: "1", objectFit: "contain", display: "block", background: "#fff" }} onError={e => { e.currentTarget.closest("button").style.display = "none"; }} />
+                        <div style={{ fontSize: 10.5, color: "#666", padding: "4px 6px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", borderTop: "1px solid #eee" }}>{f.sitio}{f.ancho ? " · " + f.ancho + "×" + f.alto : ""}</div>
+                        {eligiendo === i && <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,.75)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 13, color: "#333" }}>Guardando…</div>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+            </>
+          )}
+          {error && <div role="alert" style={{ marginTop: 10, background: tp.redDim, border: "1px solid " + tp.red, borderRadius: 8, padding: "8px 12px", fontSize: 12.5, fontWeight: 600 }}>{error}</div>}
+          {extra && <div style={{ marginTop: 12 }}>{extra}</div>}
+        </div>
+      </div>
+    </Ventana>
+  );
+}
+
 // ===================== TIENDA WEB (en Lumiere) =====================
 // Pedidos de la tienda web, productos publicados y configuracion. Ver routes/tienda.js.
 const ESTADOS_TIENDA = {
@@ -23316,6 +23426,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const [soloPub, setSoloPub] = useState(false);
   const [desc, setDesc] = useState(null); // { id, texto }
   const [video, setVideo] = useState(null); // { id, nombre, link, subido, subiendo }
+  const [buscaFoto, setBuscaFoto] = useState(null); // { cola: [productos], i }
   const [qr, setQr] = useState(null);
   const [aviso, setAviso] = useState(null);
   const avisar = (ok, texto) => { setAviso({ ok, texto }); setTimeout(() => setAviso(null), 4500); };
@@ -23370,6 +23481,11 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const guardarDesc = async () => {
     try { await API.put("/tienda/productos/" + desc.id, { descripcion: desc.texto }); setDesc(null); cargarProductos(); } catch (e) { avisar(false, "No se pudo guardar"); }
   };
+  const guardarFotoWeb = async (p, d) => {
+    await API.put("/productos/" + p.id + "/imagen", { imagen: d });
+    setProductos(ps => ps.map(x => x.id === p.id ? { ...x, foto: true } : x));
+  };
+  const siguienteFoto = () => setBuscaFoto(b => b && b.i + 1 < b.cola.length ? { ...b, i: b.i + 1 } : (cargarProductos(), null));
   const publicarVarios = async (lista, publicado) => {
     if (!lista.length) return;
     if (!confirm((publicado ? "¿Publicar " : "¿Sacar de la tienda ") + (lista.length === 1 ? "1 producto" : lista.length + " productos") + "?")) return;
@@ -23465,6 +23581,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
               <button className="btn btn-p btn-sm" disabled={prodFiltro.every(p => p.publicado)} onClick={() => publicarVarios(prodFiltro.filter(p => !p.publicado), true)}>☑ Publicar {q ? "todos los de la búsqueda" : "todos"} ({prodFiltro.filter(p => !p.publicado).length})</button>
               <button className="btn btn-g btn-sm" disabled={!prodFiltro.some(p => p.publicado)} onClick={() => publicarVarios(prodFiltro.filter(p => p.publicado), false)}>☐ Sacar {q ? "los de la búsqueda" : "todos"} ({prodFiltro.filter(p => p.publicado).length})</button>
+              {prodFiltro.some(p => !p.foto) && <button className="btn btn-g btn-sm" onClick={() => setBuscaFoto({ cola: prodFiltro.filter(p => !p.foto), i: 0 })}>🔍 Buscar fotos para los que no tienen ({prodFiltro.filter(p => !p.foto).length})</button>}
               {prodFiltro.length > prodVis.length && <span style={{ fontSize: 11.5, color: temaPal.textMuted }}>Se muestran {prodVis.length} de {prodFiltro.length}; los botones toman todos.</span>}
             </div>
           )}
@@ -23481,8 +23598,16 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                 <button className="btn btn-g btn-sm" onClick={() => setVideo({ id: p.id, nombre: p.nombre, link: p.video_url || "", subido: !!p.video_subido })}>🎬 Video</button>
                 <button className="btn btn-g btn-sm" onClick={() => setDesc({ id: p.id, nombre: p.nombre, texto: p.descripcion || "" })}>✏️ Descripción</button>
               </>}
+              {esJefeT && <button className="btn btn-g btn-sm" onClick={() => setBuscaFoto({ cola: [p], i: 0 })} title="Buscar una foto en internet">🔍 {p.foto ? "Cambiar foto" : "Buscar foto"}</button>}
             </div>
           ))}
+          {buscaFoto && (() => { const p = buscaFoto.cola[buscaFoto.i]; const varios = buscaFoto.cola.length > 1; return (
+            <BuscadorFotos temaPal={temaPal} consulta={[p.marca, p.nombre].filter(Boolean).join(" ")}
+              titulo={(varios ? "Producto " + (buscaFoto.i + 1) + " de " + buscaFoto.cola.length + ": " : "") + p.nombre}
+              onCerrar={() => { setBuscaFoto(null); cargarProductos(); }}
+              onElegir={async (d) => { await guardarFotoWeb(p, d); avisar(true, "✓ Foto guardada para " + p.nombre); siguienteFoto(); }}
+              extra={varios ? <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}><span style={{ fontSize: 12, color: temaPal.textMuted }}>Si ninguna te sirve, pasá al siguiente.</span><button className="btn btn-g btn-sm" onClick={siguienteFoto}>Saltear este →</button></div> : null} />
+          ); })()}
           {video && (
             <div className="pos-overlay" onClick={() => !video.subiendo && setVideo(null)}>
               <div className="card pop-in" style={{ width: 520, maxWidth: "95vw", background: temaPal.card }} onClick={e => e.stopPropagation()}>
