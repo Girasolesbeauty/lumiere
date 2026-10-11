@@ -80,7 +80,8 @@ router.get('/productos', async (req, res) => {
       SELECT p.id, p.nombre, p.marca, p.categoria, p.precio, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush,
              COALESCE(tp.publicado, FALSE) AS publicado, tp.descripcion, COALESCE(tp.destacado, FALSE) AS destacado, tp.video_url,
              EXISTS (SELECT 1 FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto,
-             EXISTS (SELECT 1 FROM tienda_videos v WHERE v.producto_id = p.id) AS video_subido
+             EXISTS (SELECT 1 FROM tienda_videos v WHERE v.producto_id = p.id) AS video_subido,
+             (SELECT COUNT(*)::int FROM tienda_fotos f WHERE f.producto_id = p.id) AS fotos_extra
       FROM productos p LEFT JOIN tienda_productos tp ON tp.producto_id = p.id
       WHERE p.activo = TRUE ORDER BY COALESCE(tp.publicado, FALSE) DESC, p.nombre`);
     res.json(r.rows.map(p => ({ ...p, precio: num(p.precio) })));
@@ -102,6 +103,88 @@ router.put('/productos/:id', async (req, res) => {
        b.destacado === undefined ? null : !!b.destacado, link ? link.slice(0, 500) : null, link !== undefined]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+});
+
+// ---- Fotos de un producto: portada (producto_imagenes) + extras (tienda_fotos) ----
+const IMG_OK = (x) => /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(x) && x.length <= 400 * 1024;
+
+router.get('/productos/:id/fotos', async (req, res) => {
+  try {
+    const portada = (await pool.query('SELECT imagen FROM producto_imagenes WHERE producto_id = $1', [req.params.id]).catch(() => ({ rows: [] }))).rows[0];
+    const extras = (await pool.query('SELECT id, imagen FROM tienda_fotos WHERE producto_id = $1 ORDER BY orden, id', [req.params.id])).rows;
+    res.json({ portada: portada ? portada.imagen : null, extras });
+  } catch (e) { res.status(500).json({ error: 'No se pudieron cargar las fotos' }); }
+});
+
+// Agrega una foto. Si el producto no tiene portada, esta pasa a ser la portada.
+router.post('/productos/:id/fotos', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    const imagen = String((req.body && req.body.imagen) || '');
+    if (!IMG_OK(imagen)) return res.status(400).json({ error: 'La foto no es válida o es muy pesada' });
+    const tiene = (await pool.query('SELECT 1 FROM producto_imagenes WHERE producto_id = $1', [req.params.id])).rows.length;
+    if (!tiene) {
+      await pool.query(`INSERT INTO producto_imagenes (producto_id, imagen, actualizado_en) VALUES ($1, $2, NOW())`, [req.params.id, imagen]);
+      return res.json({ ok: true, portada: true });
+    }
+    const n = (await pool.query('SELECT COUNT(*)::int AS n, COALESCE(MAX(orden), 0) AS m FROM tienda_fotos WHERE producto_id = $1', [req.params.id])).rows[0];
+    if (n.n >= tienda.FOTOS_EXTRA_MAX) return res.status(400).json({ error: 'Ya tiene ' + (tienda.FOTOS_EXTRA_MAX + 1) + ' fotos (la portada y ' + tienda.FOTOS_EXTRA_MAX + ' más). Borrá alguna para sumar otra.' });
+    const r = await pool.query('INSERT INTO tienda_fotos (producto_id, imagen, orden) VALUES ($1, $2, $3) RETURNING id', [req.params.id, imagen, n.m + 1]);
+    res.json({ ok: true, id: r.rows[0].id });
+  } catch (e) { console.error('[tienda] foto:', e.message); res.status(500).json({ error: 'No se pudo guardar la foto' }); }
+});
+
+router.delete('/fotos/:fotoId', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    await pool.query('DELETE FROM tienda_fotos WHERE id = $1', [req.params.fotoId]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'No se pudo borrar la foto' }); }
+});
+
+// Borra la portada: la primera foto extra (si hay) pasa a ser la portada
+router.delete('/productos/:id/portada', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    if (!esJefe(req)) { client.release(); return res.status(403).json({ error: 'Solo el dueño o encargado' }); }
+    await client.query('BEGIN');
+    await client.query('DELETE FROM producto_imagenes WHERE producto_id = $1', [req.params.id]);
+    const sig = (await client.query('SELECT id, imagen FROM tienda_fotos WHERE producto_id = $1 ORDER BY orden, id LIMIT 1', [req.params.id])).rows[0];
+    if (sig) {
+      await client.query('INSERT INTO producto_imagenes (producto_id, imagen, actualizado_en) VALUES ($1, $2, NOW())', [req.params.id, sig.imagen]);
+      await client.query('DELETE FROM tienda_fotos WHERE id = $1', [sig.id]);
+    }
+    await client.query('COMMIT');
+    res.json({ ok: true });
+  } catch (e) { await client.query('ROLLBACK').catch(() => {}); res.status(500).json({ error: 'No se pudo borrar la foto' }); } finally { client.release(); }
+});
+
+// Una foto extra pasa a ser la portada (y la portada anterior queda como extra, en su lugar)
+router.post('/fotos/:fotoId/portada', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    if (!esJefe(req)) { client.release(); return res.status(403).json({ error: 'Solo el dueño o encargado' }); }
+    await client.query('BEGIN');
+    const f = (await client.query('SELECT * FROM tienda_fotos WHERE id = $1 FOR UPDATE', [req.params.fotoId])).rows[0];
+    if (!f) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'No encontramos esa foto' }); }
+    const vieja = (await client.query('SELECT imagen FROM producto_imagenes WHERE producto_id = $1', [f.producto_id])).rows[0];
+    await client.query(`INSERT INTO producto_imagenes (producto_id, imagen, actualizado_en) VALUES ($1, $2, NOW())
+      ON CONFLICT (producto_id) DO UPDATE SET imagen = EXCLUDED.imagen, actualizado_en = NOW()`, [f.producto_id, f.imagen]);
+    if (vieja) await client.query('UPDATE tienda_fotos SET imagen = $1 WHERE id = $2', [vieja.imagen, f.id]);
+    else await client.query('DELETE FROM tienda_fotos WHERE id = $1', [f.id]);
+    await client.query('COMMIT');
+    res.json({ ok: true });
+  } catch (e) { await client.query('ROLLBACK').catch(() => {}); res.status(500).json({ error: 'No se pudo cambiar la portada' }); } finally { client.release(); }
+});
+
+// Orden de las fotos extra
+router.put('/productos/:id/fotos/orden', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    const ids = (Array.isArray(req.body && req.body.ids) ? req.body.ids : []).map(x => parseInt(x)).filter(x => x > 0);
+    for (let i = 0; i < ids.length; i++) await pool.query('UPDATE tienda_fotos SET orden = $1 WHERE id = $2 AND producto_id = $3', [i + 1, ids[i], req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'No se pudo ordenar' }); }
 });
 
 // Video subido desde la compu o el celular (se guarda en la base, hasta VIDEO_MAX_MB)

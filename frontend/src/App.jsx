@@ -22777,7 +22777,10 @@ const CSS_TIENDA = `
 .tw-media{position:relative;aspect-ratio:1;background:var(--g);border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center}
 .tw-media img{width:100%;height:100%;object-fit:contain;animation:twAparece .4s ease both}
 .tw-media video,.tw-media iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;object-fit:contain;animation:twAparece .4s ease both}
-.tw-miniaturas{display:flex;gap:10px;margin-top:12px}
+.tw-miniaturas{display:flex;gap:10px;margin-top:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.tw-miniaturas button{flex-shrink:0}
+.tw-contador{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px}
+.tw-card-img .tw-alt{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:var(--g);animation:twAparece .45s ease both}
 .tw-miniaturas button{width:68px;height:68px;border-radius:6px;border:1.5px solid var(--b);background:var(--g);cursor:pointer;overflow:hidden;padding:0;display:flex;align-items:center;justify-content:center;font-size:22px;transition:border-color .2s}
 .tw-miniaturas button.on{border-color:var(--n)}
 .tw-miniaturas img{width:100%;height:100%;object-fit:cover}
@@ -22863,8 +22866,9 @@ function TwTarjeta({ p, base, sin, onAbrir, onAgregar }) {
     <div className="tw-card" role="button" tabIndex={0} onClick={() => onAbrir(p)} onKeyDown={e => { if (e.key === "Enter") onAbrir(p); }}
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
       <div className="tw-card-img">
-        {p.foto ? <img src={base + "/foto/" + p.id} alt={p.nombre} loading="lazy" /> : <span className="tw-ph">✿</span>}
+        {p.foto ? <img src={base + "/foto/" + p.id + (p.foto_v ? "?v=" + p.foto_v : "")} alt={p.nombre} loading="lazy" /> : <span className="tw-ph">✿</span>}
         {hover && vid && <video src={vid} muted autoPlay loop playsInline preload="none" />}
+        {hover && !vid && p.fotos && p.fotos.length > 0 && <img className="tw-alt" src={base + "/foto-extra/" + p.fotos[0]} alt="" />}
         <div className="tw-etqs">
           {p.nuevo && <span className="tw-etq">Nuevo</span>}
           {p.video && <span className="tw-etq neg">▶ Video</span>}
@@ -22917,7 +22921,8 @@ function TiendaPublica({ slug }) {
   const [ver, setVer] = useState(null); // producto abierto
   const [varSel, setVarSel] = useState(null);
   const [cant, setCant] = useState(1);
-  const [media, setMedia] = useState("foto"); // foto | video
+  const [media, setMedia] = useState(0); // numero de foto, o "video"
+  const toqueMedia = useRef(null);
   const [paso, setPaso] = useState(null); // null | "carrito" | "datos"
   const [datos, setDatos] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_datos") || "{}"); } catch (e) { return {}; } });
   const [enviando, setEnviando] = useState(false);
@@ -22966,14 +22971,14 @@ function TiendaPublica({ slug }) {
   if (!tienda) return <div className="tw" style={{ padding: 20 }}><style>{CSS_TIENDA}</style><div className="tw-skel" style={{ height: 60, marginBottom: 20 }} /><div className="tw-skel" style={{ height: 380 }} /></div>;
   const color = tienda.color || "#c9a84c";
   const lista0 = productos || [];
-  const foto = (p) => p.foto ? base + "/foto/" + p.id : null;
+  const foto = (p) => p.foto ? base + "/foto/" + p.id + (p.foto_v ? "?v=" + p.foto_v : "") : null;
   // Lo que se puede vender: el maximo entre los locales posibles para esta compra
   const locales = [...tienda.retiro.map(l => l.id), ...(tienda.envio ? [1, 2] : [])];
   const dispo = (p, v) => { const s = v ? v.stock : p.stock; return Math.max(0, ...(locales.length ? locales : [1]).map(l => s[l] || 0)); };
   const agotado = (p) => p.variantes ? p.variantes.every(v => dispo(p, v) <= 0) : dispo(p) <= 0;
   const totalItems = carrito.reduce((t, i) => t + i.cantidad, 0);
   const subtotal = carrito.reduce((t, i) => t + i.precio * i.cantidad, 0);
-  const abrir = (p) => { setVer(p); setVarSel(null); setCant(1); setMedia(p.foto || !p.video ? "foto" : "video"); };
+  const abrir = (p) => { setVer(p); setVarSel(null); setCant(1); setMedia(p.foto || (p.fotos && p.fotos.length) || !p.video ? 0 : "video"); };
   const agregar = (p, v, n = 1) => {
     const max = dispo(p, v);
     setCarrito(c => {
@@ -23097,6 +23102,9 @@ function TiendaPublica({ slug }) {
   const listoParaPedir = datos.nombre && datos.telefono && datos.entrega && datos.pago && (datos.entrega === "retiro" ? datos.local_id : (datos.zona && datos.direccion));
   const vidVer = ver && ver.video ? (ver.video.tipo === "youtube" ? { iframe: "https://www.youtube-nocookie.com/embed/" + ver.video.id + "?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1" }
     : ver.video.tipo === "vimeo" ? { iframe: "https://player.vimeo.com/video/" + ver.video.id + "?autoplay=1&muted=1" } : { src: videoArchivo(base, ver) }) : null;
+  const galeria = ver ? [...(ver.foto ? [foto(ver)] : []), ...(ver.fotos || []).map(id => base + "/foto-extra/" + id)] : [];
+  const piezas = [...galeria.map((_, i) => i), ...(vidVer ? ["video"] : [])];
+  const moverMedia = (d) => { const i = piezas.indexOf(media); if (i >= 0 && piezas.length > 1) setMedia(piezas[(i + d + piezas.length) % piezas.length]); };
   const relacionados = ver ? conStock.filter(p => p.id !== ver.id && p.categoria && p.categoria === ver.categoria).slice(0, 8) : [];
   const varElegida = ver && ver.variantes ? varSel : null;
   const maxVer = ver ? dispo(ver, varElegida) : 0;
@@ -23183,15 +23191,20 @@ function TiendaPublica({ slug }) {
               <button className="tw-cerrar" onClick={() => setVer(null)} aria-label="Cerrar"><TwIcono d={TW_X} size={20} /></button>
               <div className="tw-ficha-grid">
                 <div>
-                  <div className="tw-media">
+                  <div className="tw-media" onTouchStart={e => { toqueMedia.current = e.touches[0].clientX; }} onTouchEnd={e => { const d = e.changedTouches[0].clientX - (toqueMedia.current || 0); if (Math.abs(d) > 40 && media !== "video") moverMedia(d < 0 ? 1 : -1); }}>
                     {media === "video" && vidVer ? (vidVer.iframe ? <iframe key="v" src={vidVer.iframe} title={"Video de " + ver.nombre} allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen />
                       : <video key="v" src={vidVer.src} controls autoPlay muted loop playsInline />)
-                      : foto(ver) ? <img key="f" src={foto(ver)} alt={ver.nombre} /> : <span className="tw-ph" style={{ fontSize: 80 }}>✿</span>}
+                      : galeria[media] ? <img key={"f" + media} src={galeria[media]} alt={ver.nombre + (media ? " (foto " + (media + 1) + ")" : "")} /> : <span className="tw-ph" style={{ fontSize: 80 }}>✿</span>}
+                    {galeria.length > 1 && media !== "video" && <>
+                      <button className="tw-flecha" style={{ left: 10, opacity: 1 }} onClick={() => moverMedia(-1)} aria-label="Foto anterior"><TwIcono d={TW_IZQ} /></button>
+                      <button className="tw-flecha" style={{ right: 10, opacity: 1 }} onClick={() => moverMedia(1)} aria-label="Foto siguiente"><TwIcono d={TW_DER} /></button>
+                      <div className="tw-contador">{media + 1} / {galeria.length}</div>
+                    </>}
                   </div>
-                  {vidVer && (
+                  {piezas.length > 1 && (
                     <div className="tw-miniaturas">
-                      <button className={media === "foto" ? "on" : ""} onClick={() => setMedia("foto")} aria-label="Ver foto">{foto(ver) ? <img src={foto(ver)} alt="" /> : "✿"}</button>
-                      <button className={media === "video" ? "on" : ""} onClick={() => setMedia("video")} aria-label="Ver video" style={{ background: "#111", color: "#fff" }}>▶</button>
+                      {galeria.map((g, i) => <button key={i} className={media === i ? "on" : ""} onClick={() => setMedia(i)} aria-label={"Ver foto " + (i + 1)}><img src={g} alt="" /></button>)}
+                      {vidVer && <button className={media === "video" ? "on" : ""} onClick={() => setMedia("video")} aria-label="Ver video" style={{ background: "#111", color: "#fff" }}>▶</button>}
                     </div>
                   )}
                 </div>
@@ -23308,7 +23321,11 @@ function TiendaPublica({ slug }) {
 // opciones y la elegida se trae por el servidor y se achica aca antes de guardarla.
 async function fotoWebADataUrl(url, lado = 500) {
   const r = await API.get("/fotos-web/traer", { params: { url }, responseType: "blob", timeout: 30000 });
-  const obj = URL.createObjectURL(r.data);
+  return achicarFotoWeb(r.data, lado);
+}
+// Achica una foto (archivo o blob) a JPEG con fondo blanco, lado mayor `lado` px
+async function achicarFotoWeb(blob, lado = 500) {
+  const obj = URL.createObjectURL(blob);
   try {
     const img = await new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => mal(new Error("No se pudo leer esa foto")); i.src = obj; });
     const esc = Math.min(1, lado / Math.max(img.width, img.height));
@@ -23330,6 +23347,7 @@ function BuscadorFotos({ consulta, titulo, onElegir, onCerrar, temaPal, extra })
   const [sinClave, setSinClave] = useState(false);
   const [clave, setClave] = useState("");
   const [eligiendo, setEligiendo] = useState(null);
+  const [elegidas, setElegidas] = useState([]);
   const buscar = async (texto) => {
     const t = String(texto || "").trim();
     if (t.length < 2) return;
@@ -23350,6 +23368,7 @@ function BuscadorFotos({ consulta, titulo, onElegir, onCerrar, temaPal, extra })
       let d;
       try { d = await fotoWebADataUrl(f.url); } catch (e) { d = await fotoWebADataUrl(f.miniatura); }
       await onElegir(d);
+      setElegidas(x => [...x, f.url]);
     } catch (e) { setError(e.response?.data?.error || e.message || "No se pudo usar esa foto. Probá con otra."); }
     setEligiendo(null);
   };
@@ -23393,6 +23412,7 @@ function BuscadorFotos({ consulta, titulo, onElegir, onCerrar, temaPal, extra })
                         <img src={f.miniatura} alt={f.titulo} loading="lazy" referrerPolicy="no-referrer" style={{ width: "100%", aspectRatio: "1", objectFit: "contain", display: "block", background: "#fff" }} onError={e => { e.currentTarget.closest("button").style.display = "none"; }} />
                         <div style={{ fontSize: 10.5, color: "#666", padding: "4px 6px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", borderTop: "1px solid #eee" }}>{f.sitio}{f.ancho ? " · " + f.ancho + "×" + f.alto : ""}</div>
                         {eligiendo === i && <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,.75)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 13, color: "#333" }}>Guardando…</div>}
+                        {eligiendo !== i && elegidas.includes(f.url) && <div style={{ position: "absolute", top: 6, right: 6, background: "#2d7a4f", color: "#fff", borderRadius: 999, fontSize: 11, fontWeight: 800, padding: "3px 8px" }}>✓ Agregada</div>}
                       </button>
                     ))}
                   </div>
@@ -23401,6 +23421,74 @@ function BuscadorFotos({ consulta, titulo, onElegir, onCerrar, temaPal, extra })
           )}
           {error && <div role="alert" style={{ marginTop: 10, background: tp.redDim, border: "1px solid " + tp.red, borderRadius: 8, padding: "8px 12px", fontSize: 12.5, fontWeight: 600 }}>{error}</div>}
           {extra && <div style={{ marginTop: 12 }}>{extra}</div>}
+        </div>
+      </div>
+    </Ventana>
+  );
+}
+
+// Fotos de un producto para la tienda: portada (la misma del Punto de Venta) y hasta 8 mas
+function GaleriaFotos({ producto, onCerrar, temaPal, avisar }) {
+  const tp = temaPal || PALETA_CLARA;
+  const [fotos, setFotos] = useState(null);
+  const [ocupado, setOcupado] = useState(false);
+  const [buscando, setBuscando] = useState(false);
+  const cargar = () => API.get("/tienda/productos/" + producto.id + "/fotos").then(r => setFotos(r.data)).catch(() => setFotos({ portada: null, extras: [] }));
+  useEffect(() => { cargar(); }, [producto.id]);
+  const hacer = async (fn, ok) => { setOcupado(true); try { await fn(); if (ok) avisar(true, ok); await cargar(); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); } setOcupado(false); };
+  const agregar = async (d) => { await API.post("/tienda/productos/" + producto.id + "/fotos", { imagen: d }); await cargar(); };
+  const subir = async (archivos) => {
+    setOcupado(true);
+    let n = 0;
+    for (const f of archivos) {
+      try { await agregar(await achicarFotoWeb(f)); n++; } catch (e) { avisar(false, e.response?.data?.error || "No se pudo subir " + f.name); break; }
+    }
+    if (n) avisar(true, "✓ " + (n === 1 ? "Foto agregada" : n + " fotos agregadas"));
+    setOcupado(false);
+  };
+  const mover = (i, d) => { const ids = fotos.extras.map(f => f.id); const j = i + d; if (j < 0 || j >= ids.length) return; [ids[i], ids[j]] = [ids[j], ids[i]]; setFotos(f => ({ ...f, extras: ids.map(id => f.extras.find(x => x.id === id)) })); API.put("/tienda/productos/" + producto.id + "/fotos/orden", { ids }).catch(() => cargar()); };
+  const total = fotos ? (fotos.portada ? 1 : 0) + fotos.extras.length : 0;
+  const lleno = total >= 9;
+  const tile = { position: "relative", borderRadius: 10, overflow: "hidden", border: "1px solid " + tp.border, background: "#fff", aspectRatio: "1" };
+  const chip = { fontSize: 10.5, padding: "3px 7px" };
+  return (
+    <Ventana>
+      <div className="pos-overlay" onClick={() => !ocupado && onCerrar()} style={{ zIndex: 1100 }}>
+        <div className="card pop-in" role="dialog" aria-modal="true" aria-label={"Fotos de " + producto.nombre} style={{ width: 720, maxWidth: "96vw", maxHeight: "92vh", overflowY: "auto", background: tp.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+            <div><div className="ct" style={{ marginBottom: 2 }}>🖼 Fotos de {producto.nombre}</div><div style={{ fontSize: 12, color: tp.textMuted }}>La <b>portada</b> se ve en la tienda, en el Punto de Venta y en el banner. Las demás aparecen en la ficha del producto. Hasta 9 en total.</div></div>
+            <button className="btn btn-g btn-sm" onClick={onCerrar} disabled={ocupado} aria-label="Cerrar">✕</button>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "12px 0" }}>
+            <label className="btn btn-p btn-sm" style={{ cursor: lleno || ocupado ? "default" : "pointer", opacity: lleno || ocupado ? 0.5 : 1 }}>📤 Subir fotos
+              <input type="file" accept="image/*" multiple style={{ display: "none" }} disabled={lleno || ocupado} onChange={e => { const fs = Array.from(e.target.files || []).slice(0, 9 - total); e.target.value = ""; if (fs.length) subir(fs); }} />
+            </label>
+            <button className="btn btn-g btn-sm" disabled={lleno || ocupado} onClick={() => setBuscando(true)}>🔍 Buscar en internet</button>
+            {ocupado && <span style={{ fontSize: 12, color: tp.textMuted, alignSelf: "center" }}>Guardando…</span>}
+          </div>
+          {!fotos ? <div className="skel" style={{ height: 160 }} /> : total === 0 ? <div className="empty">Todavía no tiene fotos. Subí desde la compu o el celular, o buscalas en internet.</div> : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
+              {fotos.portada && (
+                <div>
+                  <div style={{ ...tile, border: "2px solid " + (tp.accent || "#c9a84c") }}><img src={fotos.portada} alt="Portada" style={{ width: "100%", height: "100%", objectFit: "contain" }} /><span style={{ position: "absolute", top: 6, left: 6, background: "#111", color: "#fff", fontSize: 10, fontWeight: 800, letterSpacing: ".08em", padding: "3px 7px", borderRadius: 4 }}>PORTADA</span></div>
+                  <div style={{ display: "flex", gap: 4, marginTop: 4, justifyContent: "center" }}><button className="chip-btn" style={{ ...chip, color: tp.red }} disabled={ocupado} onClick={() => confirm("¿Borrar la portada?" + (fotos.extras.length ? " La siguiente foto pasa a ser la portada." : "")) && hacer(() => API.delete("/tienda/productos/" + producto.id + "/portada"), "Foto borrada")}>🗑 Borrar</button></div>
+                </div>
+              )}
+              {fotos.extras.map((f, i) => (
+                <div key={f.id}>
+                  <div style={tile}><img src={f.imagen} alt={"Foto " + (i + 2)} style={{ width: "100%", height: "100%", objectFit: "contain" }} /></div>
+                  <div style={{ display: "flex", gap: 4, marginTop: 4, justifyContent: "center", flexWrap: "wrap" }}>
+                    <button className="chip-btn" style={chip} disabled={ocupado} onClick={() => hacer(() => API.post("/tienda/fotos/" + f.id + "/portada"), "✓ Nueva portada")} title="Usar como portada">★ Portada</button>
+                    <button className="chip-btn" style={chip} disabled={ocupado || i === 0} onClick={() => mover(i, -1)} aria-label="Mover antes">←</button>
+                    <button className="chip-btn" style={chip} disabled={ocupado || i === fotos.extras.length - 1} onClick={() => mover(i, 1)} aria-label="Mover después">→</button>
+                    <button className="chip-btn" style={{ ...chip, color: tp.red }} disabled={ocupado} onClick={() => confirm("¿Borrar esta foto?") && hacer(() => API.delete("/tienda/fotos/" + f.id), "Foto borrada")} aria-label="Borrar">🗑</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {buscando && <BuscadorFotos temaPal={tp} consulta={[producto.marca, producto.nombre].filter(Boolean).join(" ")} titulo={"Tocá todas las que quieras sumar a " + producto.nombre}
+            onCerrar={() => setBuscando(false)} onElegir={agregar} />}
         </div>
       </div>
     </Ventana>
@@ -23427,6 +23515,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const [desc, setDesc] = useState(null); // { id, texto }
   const [video, setVideo] = useState(null); // { id, nombre, link, subido, subiendo }
   const [buscaFoto, setBuscaFoto] = useState(null); // { cola: [productos], i }
+  const [galeria, setGaleria] = useState(null); // producto con la ventana de fotos abierta
   const [qr, setQr] = useState(null);
   const [aviso, setAviso] = useState(null);
   const avisar = (ok, texto) => { setAviso({ ok, texto }); setTimeout(() => setAviso(null), 4500); };
@@ -23598,9 +23687,10 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                 <button className="btn btn-g btn-sm" onClick={() => setVideo({ id: p.id, nombre: p.nombre, link: p.video_url || "", subido: !!p.video_subido })}>🎬 Video</button>
                 <button className="btn btn-g btn-sm" onClick={() => setDesc({ id: p.id, nombre: p.nombre, texto: p.descripcion || "" })}>✏️ Descripción</button>
               </>}
-              {esJefeT && <button className="btn btn-g btn-sm" onClick={() => setBuscaFoto({ cola: [p], i: 0 })} title="Buscar una foto en internet">🔍 {p.foto ? "Cambiar foto" : "Buscar foto"}</button>}
+              {esJefeT && <button className="btn btn-g btn-sm" onClick={() => setGaleria(p)} title="Portada y más fotos">🖼 Fotos ({(p.foto ? 1 : 0) + (p.fotos_extra || 0)})</button>}
             </div>
           ))}
+          {galeria && <GaleriaFotos producto={galeria} temaPal={temaPal} avisar={avisar} onCerrar={() => { setGaleria(null); cargarProductos(); }} />}
           {buscaFoto && (() => { const p = buscaFoto.cola[buscaFoto.i]; const varios = buscaFoto.cola.length > 1; return (
             <BuscadorFotos temaPal={temaPal} consulta={[p.marca, p.nombre].filter(Boolean).join(" ")}
               titulo={(varios ? "Producto " + (buscaFoto.i + 1) + " de " + buscaFoto.cola.length + ": " : "") + p.nombre}
