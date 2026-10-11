@@ -22806,6 +22806,16 @@ const CSS_TIENDA = `
 .tw-subcats::-webkit-scrollbar{display:none}
 .tw-subcats button{flex-shrink:0;border:1.5px solid var(--b);background:#fff;border-radius:999px;padding:8px 16px;font-size:13.5px;cursor:pointer;transition:all .2s}
 .tw-subcats button.on{background:var(--n);border-color:var(--n);color:#fff !important}
+.tw-filtros{display:flex;gap:8px;flex-wrap:wrap;margin:-6px 0 22px;align-items:center}
+.tw-filtro{position:relative;display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 14px;border:1.5px solid var(--b);border-radius:999px;background:#fff;color:#111;font-size:13.5px;cursor:pointer;transition:all .2s}
+.tw-filtro:hover{border-color:var(--n)}
+.tw-filtro.on{background:var(--n);border-color:var(--n);color:#fff}
+.tw-filtro select{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;font-size:16px}
+.tw-filtro i{font-style:normal;font-size:11px}
+.tw-filtro-x{border:0;background:none;color:#111;text-decoration:underline;font-size:13.5px;cursor:pointer;padding:0 6px}
+.tw-atajos{display:flex;gap:10px;flex-wrap:wrap}
+.tw-atajos button{border:1.5px solid var(--b);background:#fff;color:#111;border-radius:999px;padding:11px 20px;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit}
+.tw-atajos button:hover{background:var(--n);border-color:var(--n);color:#fff}
 .tw-lista-cab{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:26px 0 20px}
 .tw-lista-cab h1{font-size:30px;margin:0;font-weight:800}
 .tw-lista-cab select{height:40px;border:1px solid var(--b);border-radius:999px;padding:0 14px;font-family:inherit;font-size:14px;background:#fff}
@@ -23065,6 +23075,78 @@ function TwFila({ titulo, items, onVerTodo, render }) {
   );
 }
 
+// ---- Filtros de la tienda: tipo de producto, tipo de piel y necesidad ----
+// Se detectan solos con el nombre, la categoria y la descripcion de cada producto.
+// "en" = donde se busca: "n" solo nombre y categoria (para el tipo de producto), "t" tambien la descripcion.
+const twNorm = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+const TW_FILTROS = [
+  { k: "tipo", titulo: "Tipo de producto", en: "n", op: [
+    ["limpiador", "Limpiadores", /limpia(dor|dora|dores|doras|nte)?\b|limpieza|cleanser|cleansing|jabon|espuma limpi|gel de limpieza|face ?wash/],
+    ["desmaquillante", "Desmaquillantes", /desmaquill|micelar|micellar|aceite limpiador|balsamo limpiador|make ?up remover/],
+    ["tonico", "Tónicos y esencias", /tonico|toner|tonificante|esencia facial|essence|bruma facial|facial mist/],
+    ["serum", "Sérums y ampollas", /\bserum|ampolla|concentrado|booster/],
+    ["hidratante", "Hidratantes", /hidratante|crema (facial|hidrat|de dia|de noche|nutritiva|reparadora)|moistur|gel crema|emulsion|crema gel/],
+    ["solar", "Protectores solares", /protector solar|proteccion solar|pantalla solar|sunscreen|\bsolar\b|\bfps\b|\bspf\b/],
+    ["ojos", "Contorno de ojos", /contorno de ojos|eye cream|contorno ojos|parches? de ojos|eye patch/],
+    ["exfoliante", "Exfoliantes y peelings", /exfolia|peeling|scrub|\bpeel\b/],
+    ["mascarilla", "Mascarillas", /mascarilla|sheet mask|\bmask\b|mascara facial|parches?\b/],
+    ["labios", "Labios", /labial|labios|\blip\b|lip balm|balsamo labial/],
+    ["corporal", "Cuerpo", /corporal|body|cuerpo|manos|\bpies\b/],
+  ] },
+  { k: "piel", titulo: "Tipo de piel", en: "t", op: [
+    ["grasa", "Grasa", /piel(es)? (muy )?grasa|piel(es)? (con tendencia )?(oleosa|acneica)|oily skin|pieles mixtas a grasas|mixta a grasa|normal(es)? a grasa|tendencia grasa/],
+    ["seca", "Seca", /piel(es)? (muy )?seca|piel(es)? (deshidratada|desvitalizada)|dry skin|normales? a secas?/],
+    ["mixta", "Mixta", /piel(es)? mixta|combination skin|pieles mixtas/],
+    ["sensible", "Sensible", /piel(es)? (muy )?(sensible|reactiva|delicada|intolerante)|sensitive skin|sensibilizada/],
+    ["normal", "Normal", /piel(es)? normal|normal skin|pieles normales/],
+  ] },
+  { k: "necesidad", titulo: "Necesidad", en: "t", op: [
+    ["acne", "Acné e imperfecciones", /acne|acneica|granitos?|imperfecciones|espinillas|puntos negros|comedon|brotes|blemish|anti-?imperfec/],
+    ["manchas", "Manchas y tono", /mancha|hiperpigment|despigment|tono (desparejo|irregular|uniforme)|unifica el tono|dark spot|melasma|aclara/],
+    ["antiedad", "Arrugas y antiedad", /arruga|anti-?edad|anti-?age|anti-?aging|lineas de expresion|lineas finas|firmeza|flacidez|retinol|colageno|rejuvenec/],
+    ["rojeces", "Rojeces y sensibilidad", /rosacea|rojez|enrojecim|irritaci|calma|calmante|cica\b|centella|alivia/],
+    ["hidratacion", "Hidratación", /hidrata|hialuronic|deshidrat|humect|nutre|nutritiv/],
+    ["poros", "Poros y brillo", /poros?\b|(exceso de|controla el|anti-?|sin) ?brillos?|oleosidad|sebo\b|sebacea|matific/],
+    ["ojeras", "Ojeras y bolsas", /ojeras|bolsas|hinchazon/],
+  ] },
+];
+// "Todo tipo de piel" vale para cualquier tipo de piel
+const TW_TODO_TIPO = /todo tipo de piel|todos los tipos de piel|todas las pieles|all skin types/;
+function twEtiquetas(p) {
+  const nom = twNorm([p.nombre, p.categoria].join(" "));
+  const todo = nom + " " + twNorm(p.descripcion);
+  const e = {};
+  TW_FILTROS.forEach(f => { e[f.k] = f.op.filter(o => o[2].test(f.en === "n" ? nom : todo)).map(o => o[0]); });
+  // El desmaquillante no es tambien "limpiador" salvo que lo diga el nombre (ej: "gel limpiador y desmaquillante")
+  if (e.tipo.includes("desmaquillante") && !/limpiador|limpiadora|cleanser|limpieza/.test(nom)) e.tipo = e.tipo.filter(x => x !== "limpiador");
+  e.todoTipo = TW_TODO_TIPO.test(todo);
+  return e;
+}
+// Busqueda: sin tildes, cada palabra tiene que aparecer (o ser un tipo/necesidad del producto).
+// "limpiador" encuentra limpiadores, limpiadoras, gel de limpieza, cleanser, etc.
+const twRaiz = (w) => { let r = w.replace(/(es|s)$/, ""); if (r.length > 5) r = r.replace(/(dor|dora|nte|cion)$/, ""); else if (r.length > 4) r = r.replace(/[ao]$/, ""); return r; };
+const TW_PALABRAS_VACIAS = new Set(["de", "la", "el", "los", "las", "para", "con", "y", "en", "un", "una", "del", "al", "por", "piel", "pieles", "tipo"]);
+function twCoincide(p, q) {
+  const pal = twNorm(q).split(/[^a-z0-9ñ]+/).filter(w => w && !TW_PALABRAS_VACIAS.has(w));
+  if (!pal.length) return 0;
+  const e = p._et || twEtiquetas(p);
+  const nombre = twNorm([p.nombre, p.marca, p.categoria].join(" "));
+  const etiq = twNorm(TW_FILTROS.map(f => f.op.filter(o => e[f.k].includes(o[0])).map(o => o[1] + " " + o[0]).join(" ")).join(" "));
+  const desc = twNorm(p.descripcion);
+  let puntos = 0, debil = false;
+  for (const w of pal) {
+    const r = twRaiz(w);
+    // la palabra como tipo de producto o necesidad (ej: "cleanser" -> limpiadores)
+    const porRegla = TW_FILTROS.some(f => f.op.some(o => e[f.k].includes(o[0]) && o[2].test(w)));
+    if (nombre.includes(r) || nombre.includes(w)) puntos += 3;
+    else if (porRegla || etiq.includes(r)) puntos += 2;
+    else if (desc.includes(r) || desc.includes(w)) { puntos += 1; debil = true; }
+    else return 0;
+  }
+  // "debil" = alguna palabra aparece solo en la descripcion (ej: un serum que dice "aplicar sobre piel limpia")
+  return debil ? 0.5 : puntos;
+}
+
 function TiendaPublica({ slug }) {
   const base = (API.defaults.baseURL || "") + "/tienda-publica/" + encodeURIComponent(slug);
   const tokenCuenta = () => { try { return localStorage.getItem("tienda_cuenta_" + slug) || ""; } catch (e) { return ""; } };
@@ -23087,6 +23169,7 @@ function TiendaPublica({ slug }) {
   const [eligeCiudad, setEligeCiudad] = useState(false);
   const [orden, setOrden] = useState("");
   const [subcat, setSubcat] = useState(""); // categoria elegida dentro de un sector
+  const [filtros, setFiltros] = useState({}); // tipo de producto, tipo de piel, necesidad
   // Mi cuenta (misma del portal de clientas: DNI + contraseña, con sus puntos)
   const [logueada, setLogueada] = useState(() => { try { return !!localStorage.getItem("tienda_cuenta_" + slug); } catch (e) { return false; } });
   const [miCuenta, setMiCuenta] = useState(null);
@@ -23210,8 +23293,8 @@ function TiendaPublica({ slug }) {
     setEnviando(false);
   };
   const wa = (txt) => tienda.whatsapp ? "https://wa.me/" + (() => { let n = String(tienda.whatsapp).replace(/[^0-9]/g, ""); if (n.startsWith("0")) n = n.slice(1); if (!n.startsWith("54")) n = "549" + n; return n; })() + "?text=" + encodeURIComponent(txt) : null;
-  const irInicio = () => { setCat(""); setBusca(""); window.scrollTo({ top: 0, behavior: "smooth" }); };
-  const irCat = (c) => { setCat(c); setSubcat(""); setBusca(""); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const irInicio = () => { setCat(""); setBusca(""); setFiltros({}); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const irCat = (c, f) => { setCat(c); setSubcat(""); setBusca(""); setFiltros(f || {}); window.scrollTo({ top: 0, behavior: "smooth" }); };
 
   // Frases de la tira negra: las que cargo el negocio o, si no hay, se arman con lo que ofrece
   const anuncios = tienda.anuncios && tienda.anuncios.length ? tienda.anuncios : [
@@ -23231,7 +23314,7 @@ function TiendaPublica({ slug }) {
           </button>
           {!codigoUrl && (
             <label className="tw-busca"><TwIcono d={TW_LUPA} size={18} />
-              <input placeholder="Buscar productos, marcas…" value={busca} onChange={e => { setBusca(e.target.value); if (e.target.value) { setCat(""); setSubcat(""); window.scrollTo({ top: 0 }); } }} aria-label="Buscar" />
+              <input placeholder="Buscar: limpiador, piel grasa, manchas…" value={busca} onChange={e => { setBusca(e.target.value); if (e.target.value) { setCat(""); setSubcat(""); window.scrollTo({ top: 0 }); } }} aria-label="Buscar" />
             </label>
           )}
           <div className="tw-iconos">
@@ -23304,6 +23387,7 @@ function TiendaPublica({ slug }) {
 
   // Lo agotado en la ciudad elegida no se muestra; vuelve solo cuando entra stock (con sus sectores y filas)
   const visibles = lista0.filter(p => !agotado(p));
+  visibles.forEach(p => { if (!p._et) p._et = twEtiquetas(p); });
   const reingreso = tienda.reingreso;
   const reingresados = reingreso ? visibles.map(p => ({ p, t: p.reingreso ? Math.max(0, ...(lid ? [p.reingreso[lid] || 0] : Object.values(p.reingreso))) : 0 }))
     .filter(x => x.t && Date.now() / 1000 - x.t < reingreso.dias * 86400).sort((a, b) => b.t - a.t).map(x => x.p) : [];
@@ -23319,7 +23403,20 @@ function TiendaPublica({ slug }) {
   const enSector = (sc, p) => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria);
   const delSector = sector ? visibles.filter(p => enSector(sector, p)) : [];
   const catsSector = sector ? [...new Set(delSector.map(p => p.categoria).filter(Boolean))].sort() : [];
-  const lista = ordenar((cat === "reingreso" ? reingresados : visibles).filter(p => (!cat || cat === "*" || cat === "reingreso" || (sector ? enSector(sector, p) && (!subcat || p.categoria === subcat) : cat.startsWith("m:") ? (p.marca || "") === cat.slice(2) : p.categoria === cat)) && (!q || [p.nombre, p.marca, p.categoria].some(v => (v || "").toLowerCase().includes(q)))));
+  // Busqueda inteligente: primero lo que coincide en el nombre, despues por tipo, despues por descripcion
+  const puntaje = new Map();
+  const base1 = (cat === "reingreso" ? reingresados : visibles).filter(p => (!cat || cat === "*" || cat === "reingreso" || (sector ? enSector(sector, p) && (!subcat || p.categoria === subcat) : cat.startsWith("m:") ? (p.marca || "") === cat.slice(2) : p.categoria === cat)) && (!q || (puntaje.set(p.id, twCoincide(p, q)), puntaje.get(p.id) > 0)));
+  // Si hay productos que coinciden por nombre o tipo, no se mezclan los que solo lo mencionan en la descripcion
+  const base0 = q && base1.some(p => puntaje.get(p.id) >= 1) ? base1.filter(p => puntaje.get(p.id) >= 1) : base1;
+  // Filtros: cada uno cuenta sobre lo que dejan los otros (asi los numeros siempre dan algo)
+  const pasaFiltro = (p, k, v) => !v || (p._et[k] || []).includes(v) || (k === "piel" && p._et.todoTipo);
+  const pasaOtros = (p, menos) => TW_FILTROS.every(f => f.k === menos || pasaFiltro(p, f.k, filtros[f.k]));
+  const opcionesFiltro = TW_FILTROS.map(f => ({ ...f, op: f.op.map(o => ({ v: o[0], t: o[1], n: base0.filter(p => pasaOtros(p, f.k) && (p._et[f.k] || []).includes(o[0])).length })).filter(o => o.n > 0 || filtros[f.k] === o.v) })).filter(f => f.op.length > 0);
+  const hayFiltros = TW_FILTROS.some(f => filtros[f.k]);
+  const filtrada = base0.filter(p => pasaOtros(p, null));
+  const lista = q && !orden ? [...filtrada].sort((a, b) => (puntaje.get(b.id) || 0) - (puntaje.get(a.id) || 0)) : ordenar(filtrada);
+  // Para la portada: "Comprá según tu piel" y "según tu necesidad"
+  const atajos = ["piel", "necesidad"].map(k => { const f = TW_FILTROS.find(x => x.k === k); return { ...f, op: f.op.filter(o => visibles.some(p => p._et[k].includes(o[0]))) }; }).filter(f => f.op.length >= 2);
   const conStock = visibles;
   const destacados = (() => {
     const ordenB = tienda.banner || [];
@@ -23493,7 +23590,7 @@ function TiendaPublica({ slug }) {
         ) : enLista ? (
           <>
             <div className="tw-lista-cab">
-              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" ? "Todos los productos" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4 }}>{lista.length} {lista.length === 1 ? "producto" : "productos"}</div></div>
+              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4 }}>{lista.length} {lista.length === 1 ? "producto" : "productos"}</div></div>
               <select value={orden} onChange={e => setOrden(e.target.value)} aria-label="Ordenar">{TW_ORDEN.map(([k, t]) => <option key={k} value={k}>Ordenar: {t}</option>)}</select>
             </div>
             {sector && !q && catsSector.length > 1 && (
@@ -23502,7 +23599,22 @@ function TiendaPublica({ slug }) {
                 {catsSector.map(c => <button key={c} className={subcat === c ? "on" : ""} onClick={() => setSubcat(c)}>{c}</button>)}
               </div>
             )}
-            {lista.length === 0 ? <p style={{ textAlign: "center", color: "#888", margin: "50px 0" }}>No encontramos productos con esa búsqueda.</p>
+            {opcionesFiltro.length > 0 && (
+              <div className="tw-filtros" role="group" aria-label="Filtrar productos">
+                {opcionesFiltro.map(f => (
+                  <label key={f.k} className={"tw-filtro" + (filtros[f.k] ? " on" : "")}>
+                    <select value={filtros[f.k] || ""} onChange={e => setFiltros(x => ({ ...x, [f.k]: e.target.value }))} aria-label={f.titulo}>
+                      <option value="">{f.titulo}</option>
+                      {f.op.map(o => <option key={o.v} value={o.v}>{o.t} ({o.n})</option>)}
+                    </select>
+                    <span>{filtros[f.k] ? (f.op.find(o => o.v === filtros[f.k]) || {}).t || f.titulo : f.titulo}</span>
+                    <i aria-hidden="true">▾</i>
+                  </label>
+                ))}
+                {hayFiltros && <button className="tw-filtro-x" onClick={() => setFiltros({})}>Limpiar filtros ✕</button>}
+              </div>
+            )}
+            {lista.length === 0 ? <div style={{ textAlign: "center", color: "#888", margin: "50px 0" }}><p>{hayFiltros ? "No hay productos con esos filtros." : "No encontramos productos con esa búsqueda."}</p>{hayFiltros && <button className="tw-btn2" style={{ display: "inline-flex", width: "auto", padding: "0 22px" }} onClick={() => setFiltros({})}>Ver todos</button>}</div>
               : <div className="tw-grid">{lista.map(p => <div key={p.id} className="tw-rv">{tarjeta(p)}</div>)}</div>}
           </>
         ) : visibles.length === 0 ? (
@@ -23556,6 +23668,12 @@ function TiendaPublica({ slug }) {
               {retiroAca.length > 0 && <div><span>📍</span><span style={{ fontSize: 13.5 }}><b>Retiro sin costo</b><br />En {retiroAca.map(l => l.nombre).join(" o ")}</span></div>}
               <div><span>🔒</span><span style={{ fontSize: 13.5 }}><b>Compra segura</b><br />{tienda.pagos.mp ? "Con Mercado Pago" : "Te confirmamos por WhatsApp"}</span></div>
             </div>
+            {atajos.map(f => (
+              <section key={f.k} className="tw-sec tw-rv">
+                <div className="tw-sec-t"><h3>{f.k === "piel" ? "Comprá según tu tipo de piel" : "¿Qué necesita tu piel?"}</h3></div>
+                <div className="tw-atajos">{f.op.map(o => <button key={o[0]} onClick={() => irCat("*", { [f.k]: o[0] })}>{o[1]}</button>)}</div>
+              </section>
+            ))}
             {filasPortada.map(f => <TwFila key={f.id} titulo={f.titulo} items={f.items} render={tarjeta} />)}
             {reels.length > 0 && (
               <section className="tw-sec tw-rv">
