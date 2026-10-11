@@ -22,7 +22,7 @@ router.get('/config', async (req, res) => {
     const neg = (await pool.query('SELECT nombre_negocio FROM configuracion_negocio LIMIT 1').catch(() => ({ rows: [] }))).rows[0] || {};
     const sugerido = String(neg.nombre_negocio || 'mi-tienda').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'mi-tienda';
     const dominio = await tienda.dominioDe(req.negocio ? req.negocio.id : 1).catch(() => null);
-    res.json({ ...c, ruleta: tienda.ruletaDe(c), mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
+    res.json({ ...c, ruleta: tienda.ruletaDe(c), preventa: tienda.preventaDe(c), mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la configuración' }); }
 });
 
@@ -59,6 +59,8 @@ router.put('/config', async (req, res) => {
       if (d && /(^|\.)(sistemalumiere\.com|vercel\.app|railway\.app)$/.test(d)) return res.status(400).json({ error: 'Ese dominio no se puede usar' });
       if (!(await tienda.guardarDominio(req.negocio ? req.negocio.id : 1, d))) return res.status(400).json({ error: 'Ese dominio ya lo usa otra tienda' });
     }
+    // Preventa (productos que vienen en camino)
+    if (b.preventa && typeof b.preventa === 'object') await pool.query('UPDATE tienda_config SET preventa = $1 WHERE id = 1', [JSON.stringify(tienda.preventaDe({ preventa: b.preventa }))]);
     // Ruleta de premios (compras grandes)
     if (b.ruleta && typeof b.ruleta === 'object') {
       const r = tienda.limpiarRuleta(b.ruleta);
@@ -478,6 +480,7 @@ router.post('/pedidos/:id/a-caja', async (req, res) => {
     if (!p) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'No se encontró el pedido' }); }
     if (['entregado', 'cancelado'].includes(p.estado)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Ese pedido ya está cerrado' }); }
     if (p.estado === 'pendiente_pago' && p.pago !== 'retiro') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Todavía no figura pagado. Si ya te pagó, marcá "Pago recibido" primero.' }); }
+    if ((await client.query('SELECT 1 FROM tienda_pedido_items WHERE pedido_id = $1 AND preventa LIMIT 1', [p.id])).rows.length) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Tiene productos en preventa que todavía no llegaron. Cuando lleguen, tocá "Llegó la preventa".' }); }
     if (p.stock_apartado) await tienda.moverStock(client, p, +1);
     await client.query(`UPDATE tienda_pedidos SET estado = 'en_caja', stock_apartado = FALSE, actualizado_en = NOW() WHERE id = $1`, [p.id]);
     await client.query('COMMIT');
@@ -519,6 +522,37 @@ router.post('/pedidos/:id/reapartar', async (req, res) => {
   } catch (e) {
     try { await client.query('ROLLBACK'); } catch (x) {}
     res.status(500).json({ error: 'No se pudo volver a apartar' });
+  } finally { client.release(); }
+});
+
+// Llego la mercaderia de la preventa: pasa de lo reservado en camino al stock del local (apartado para
+// este pedido), y si es "paga al retirar" empieza a correr el plazo para retirarlo
+router.post('/pedidos/:id/llego-preventa', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const p = (await client.query('SELECT * FROM tienda_pedidos WHERE id = $1 FOR UPDATE', [req.params.id])).rows[0];
+    if (!p || ['entregado', 'cancelado', 'en_caja'].includes(p.estado)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Ese pedido ya está cerrado' }); }
+    const u = Number(p.local_id) === 2;
+    const items = (await client.query(`SELECT i.id, i.producto_id, i.nombre, i.cantidad, COALESCE(pr.${u ? 'stock_ush' : 'stock_rg'}, 0) AS stock
+      FROM tienda_pedido_items i JOIN productos pr ON pr.id = i.producto_id WHERE i.pedido_id = $1 AND i.preventa FOR UPDATE OF pr`, [p.id])).rows;
+    if (!items.length) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Este pedido no tiene preventa pendiente' }); }
+    const falta = items.find(it => (parseInt(it.stock) || 0) < it.cantidad);
+    if (falta) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Todavía no hay stock de ' + falta.nombre + ' en ' + (u ? 'Ushuaia' : 'Río Grande') + '. Recibí la orden de ingreso primero.' }); }
+    await tienda.reservarPreventa(client, p, -1);
+    await client.query('UPDATE tienda_pedido_items SET preventa = FALSE WHERE pedido_id = $1 AND preventa', [p.id]);
+    // aparta solo lo que era preventa (lo demas ya estaba apartado)
+    const col = u ? 'stock_ush' : 'stock_rg';
+    await client.query(`SELECT set_config('lumiere.sin_reingreso', '1', true)`);
+    for (const it of items) await client.query(`UPDATE productos SET ${col} = COALESCE(${col}, 0) - $1, stock = COALESCE(stock_rg, 0) + COALESCE(stock_ush, 0) - $1 WHERE id = $2`, [it.cantidad, it.producto_id]);
+    const horas = Math.min(168, Math.max(1, parseInt((await tienda.leerConfig(client)).horas_reserva) || 24));
+    await client.query(`UPDATE tienda_pedidos SET stock_apartado = TRUE, vence_en = CASE WHEN pago = 'retiro' AND estado IN ('confirmado', 'preparado') THEN NOW() + make_interval(hours => $2) ELSE vence_en END, actualizado_en = NOW() WHERE id = $1`, [p.id, horas]);
+    await client.query('COMMIT');
+    res.json(await pedidoCompleto(p.id));
+  } catch (e) {
+    try { await client.query('ROLLBACK'); } catch (x) {}
+    console.error('[tienda] llego preventa:', e.message);
+    res.status(500).json({ error: 'No se pudo' });
   } finally { client.release(); }
 });
 

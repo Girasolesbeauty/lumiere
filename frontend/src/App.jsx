@@ -22923,6 +22923,15 @@ const CSS_TIENDA = `
 .tw-compartir{display:flex;gap:8px;flex-wrap:wrap;margin:-2px 0 14px}
 .tw-compartir button,.tw-compartir a{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 14px;border:1.5px solid var(--b);border-radius:999px;background:#fff;color:#111 !important;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;font-family:inherit;transition:border-color .2s}
 .tw-compartir button:hover,.tw-compartir a:hover{border-color:var(--n)}
+.tw-etq.pre{background:#ffd23f;color:#3d2c05 !important;font-weight:800}
+.tw-card-pre{font-size:12px;color:#8a5a00;font-weight:700;margin-top:2px}
+.tw-nav-pre{color:#ffd23f !important}
+.tw-preventa-cinta{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:repeating-linear-gradient(135deg,#ffd23f 0 14px,#ffc300 14px 28px);color:#2b1d00;border-radius:10px;padding:12px 16px;margin:26px 0 -8px;font-size:14px}
+.tw-preventa-cinta b{background:#111;color:#ffd23f;padding:4px 10px;border-radius:6px;letter-spacing:.06em}
+.tw-preventa-aviso{display:flex;flex-direction:column;gap:4px;background:#fff6d1;border:2px solid #ffc300;border-left-width:8px;border-radius:10px;padding:12px 14px;margin:0 0 14px;font-size:14px;color:#3d2c05;line-height:1.45}
+.tw-preventa-aviso>b{font-size:15px;letter-spacing:.02em}
+.tw-preventa-aviso.chico{font-size:13px;padding:9px 12px;margin-bottom:10px}
+.tw-item-pre{display:inline-block;margin-top:4px;background:#ffd23f;color:#3d2c05;font-size:11.5px;font-weight:800;border-radius:5px;padding:2px 8px;letter-spacing:.03em}
 .tw-lista-cab{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:26px 0 20px}
 .tw-lista-cab h1{font-size:30px;margin:0;font-weight:800}
 .tw-lista-cab select{height:40px;border:1px solid var(--b);border-radius:999px;padding:0 14px;font-family:inherit;font-size:14px;background:#fff}
@@ -23485,7 +23494,7 @@ function TwRuletaAviso({ monto, minimo }) {
   return <div className={"tw-ruleta-aviso" + (llega ? " llega" : "")} key={llega ? "si" : "no"}>🎡 {llega ? <b>¡Con esta compra girás la ruleta de premios!</b> : <>Te faltan <b>{fmtTienda(minimo - monto)}</b> para girar la ruleta de premios</>}</div>;
 }
 
-function TwTarjeta({ p, base, sin, onAbrir, onAgregar }) {
+function TwTarjeta({ p, base, sin, preventa, onAbrir, onAgregar }) {
   const [hover, setHover] = useState(false);
   const [hecho, setHecho] = useState(false);
   const imgRef = useRef(null);
@@ -23506,18 +23515,20 @@ function TwTarjeta({ p, base, sin, onAbrir, onAgregar }) {
         {hover && vid && <video src={vid} muted autoPlay loop playsInline preload="none" />}
         {hover && !vid && p.fotos && p.fotos.length > 0 && <img className="tw-alt" src={base + "/foto-extra/" + p.fotos[0]} alt="" />}
         <div className="tw-etqs">
-          {p.nuevo && <span className="tw-etq">Nuevo</span>}
+          {preventa && <span className="tw-etq pre">⏳ Preventa</span>}
+          {p.nuevo && !preventa && <span className="tw-etq">Nuevo</span>}
           {p.video && <span className="tw-etq neg">▶ Video</span>}
         </div>
         {sin ? <div className="tw-agotado">AGOTADO</div> : (
           <button className={"tw-rapido" + (hecho ? " hecho" : "")} aria-label={"Agregar " + p.nombre} onClick={e => { e.stopPropagation(); if (p.variantes) return onAbrir(p); onAgregar(p, e.currentTarget); setHecho(true); setTimeout(() => setHecho(false), 1300); }}>
-            {hecho ? <><svg className="tw-tilde" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: "-2px" }}><path d="M4 12.5l5 5L20 6.5" /></svg><span> Agregado</span></> : <>+<span>{p.variantes ? " Elegir opción" : " Agregar"}</span></>}
+            {hecho ? <><svg className="tw-tilde" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: "-2px" }}><path d="M4 12.5l5 5L20 6.5" /></svg><span> Agregado</span></> : <>+<span>{p.variantes ? " Elegir opción" : preventa ? " Reservar" : " Agregar"}</span></>}
           </button>
         )}
       </div>
       {p.marca && <div className="tw-card-m">{p.marca}</div>}
       <div className="tw-card-n">{p.nombre}</div>
       <div className="tw-card-p">{fmtTienda(p.precio)}</div>
+      {preventa && <div className="tw-card-pre">Llega pronto · todavía no está en el local</div>}
     </div>
   );
 }
@@ -23913,21 +23924,25 @@ function TiendaPublica({ slug }) {
   const zonasAca = tienda.envio ? tienda.envio.zonas.filter(z => !lid || z.local === lid) : [];
   const envioAca = zonasAca.length ? { ...tienda.envio, zonas: zonasAca } : null;
   const dispo = (p, v) => { const s = v ? v.stock : p.stock; return lid ? Math.max(0, s[lid] || 0) : Math.max(0, ...ciudades.map(c => s[c.id] || 0), 0); };
-  const maxDeItem = (i) => { const p = lista0.find(x => x.id === i.producto_id); if (!p) return 0; const v = i.variante_id ? (p.variantes || []).find(x => x.id === i.variante_id) : null; return i.variante_id && !v ? 0 : dispo(p, v); };
-  const agotado = (p) => p.variantes ? p.variantes.every(v => dispo(p, v) <= 0) : dispo(p) <= 0;
+  // Preventa: lo que viene en camino (orden de ingreso) y se puede reservar aunque todavia no llego
+  const prevDispo = (p) => p.preventa && !p.variantes ? (lid ? Math.max(0, p.preventa[lid] || 0) : Math.max(0, ...ciudades.map(c => p.preventa[c.id] || 0), 0)) : 0;
+  const esPreventa = (p) => !p.variantes && dispo(p) <= 0 && prevDispo(p) > 0;
+  const maxDeItem = (i) => { const p = lista0.find(x => x.id === i.producto_id); if (!p) return 0; if (i.preventa) return esPreventa(p) ? prevDispo(p) : 0; const v = i.variante_id ? (p.variantes || []).find(x => x.id === i.variante_id) : null; return i.variante_id && !v ? 0 : dispo(p, v); };
+  const agotado = (p) => (p.variantes ? p.variantes.every(v => dispo(p, v) <= 0) : dispo(p) <= 0) && prevDispo(p) <= 0;
   const totalItems = carrito.reduce((t, i) => t + i.cantidad, 0);
   const subtotal = carrito.reduce((t, i) => t + i.precio * i.cantidad, 0);
   const abrir = abrirFicha;
   // Sumar al carrito: pop, toquecito y la foto vuela a la bolsa (el numero cambia cuando llega)
   const agregar = (p, v, n = 1, el) => {
-    const max = dispo(p, v);
+    const pre = !v && esPreventa(p);
+    const max = pre ? prevDispo(p) : dispo(p, v);
     twSonar.pop(); twVibrar(12);
     const desde = el && !el.closest(".tw-cajon") ? (el.closest(".tw-card") || el).querySelector(".tw-card-img") || el.closest(".tw-reel-prod")?.querySelector(".tw-reel-prod-img") || el : null;
     twVolarABolsa(desde, p.foto ? foto(p) : null, () => {
       setCarrito(c => {
-        const ya = c.find(i => i.producto_id === p.id && (i.variante_id || null) === (v ? v.id : null));
+        const ya = c.find(i => i.producto_id === p.id && (i.variante_id || null) === (v ? v.id : null) && !!i.preventa === pre);
         if (ya) return c.map(i => i === ya ? { ...i, cantidad: Math.min(max, i.cantidad + n) } : i);
-        return [...c, { producto_id: p.id, variante_id: v ? v.id : null, nombre: p.nombre, variante: v ? v.valor : null, precio: p.precio, cantidad: Math.min(max, n), foto: !!p.foto }];
+        return [...c, { producto_id: p.id, variante_id: v ? v.id : null, nombre: p.nombre, variante: v ? v.valor : null, precio: p.precio, cantidad: Math.min(max, n), foto: !!p.foto, preventa: pre }];
       });
       setSalto(s => s + 1);
     });
@@ -24072,7 +24087,8 @@ function TiendaPublica({ slug }) {
                 </div>
               )}
               <div style={{ fontSize: 15, marginBottom: 12 }}>{pedido.entrega === "retiro" ? <>📍 Retirás en <b>{pedido.local?.nombre}</b>{pedido.local?.direccion ? " (" + pedido.local.direccion + ")" : ""}{pedido.pago === "retiro" && !pedido.pagado ? " · pagás al retirar" : ""}</> : <>🛵 Envío a <b>{pedido.direccion}</b> ({pedido.zona})</>}</div>
-              {pedido.items.map((i, k) => <div key={k} className="tw-linea"><span>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""}</span><span>{fmtTienda(i.precio * i.cantidad)}</span></div>)}
+              {pedido.items.some(i => i.preventa) && !["cancelado", "entregado"].includes(pedido.estado) && <div className="tw-preventa-aviso"><b>⏳ Esperando que llegue tu preventa</b><span>Algunos productos todavía no llegaron al local. Te avisamos por WhatsApp apenas estén para que retires todo junto.</span></div>}
+              {pedido.items.map((i, k) => <div key={k} className="tw-linea"><span>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""}{i.preventa ? <span className="tw-item-pre" style={{ display: "inline-block", marginLeft: 6 }}>⏳ preventa</span> : null}</span><span>{fmtTienda(i.precio * i.cantidad)}</span></div>)}
               {pedido.descuento > 0 && <div className="tw-linea" style={{ color: "#2d7a4f" }}><span>Descuento{pedido.cupon ? " (" + pedido.cupon + ")" : ""}</span><span>−{fmtTienda(pedido.descuento)}</span></div>}
               {pedido.costo_envio > 0 && <div className="tw-linea"><span>Envío</span><span>{fmtTienda(pedido.costo_envio)}</span></div>}
               <div className="tw-linea" style={{ fontWeight: 800, fontSize: 18, borderTop: "1px solid #e6e6e6", marginTop: 8, paddingTop: 10 }}><span>Total</span><span>{fmtTienda(pedido.total)}</span></div>
@@ -24095,6 +24111,7 @@ function TiendaPublica({ slug }) {
   const reingresados = reingreso ? visibles.map(p => ({ p, t: p.reingreso ? Math.max(0, ...(lid ? [p.reingreso[lid] || 0] : Object.values(p.reingreso))) : 0 }))
     .filter(x => x.t && Date.now() / 1000 - x.t < reingreso.dias * 86400).sort((a, b) => b.t - a.t).map(x => x.p) : [];
   const cats = [...new Set(visibles.map(p => p.categoria).filter(Boolean))].sort();
+  const preventas = tienda.preventa ? visibles.filter(esPreventa) : [];
   const q = busca.trim().toLowerCase();
   const enLista = !!q || !!cat;
   const ordenar = (arr) => orden === "menor" ? [...arr].sort((a, b) => a.precio - b.precio) : orden === "mayor" ? [...arr].sort((a, b) => b.precio - a.precio) : orden === "az" ? [...arr].sort((a, b) => a.nombre.localeCompare(b.nombre)) : arr;
@@ -24102,13 +24119,13 @@ function TiendaPublica({ slug }) {
   const sectores = (tienda.sectores || []).filter(sc => visibles.some(p => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria)));
   const sector = cat.startsWith("s:") ? sectores.find(sc => "s:" + sc.id === cat) : null;
   // Si la seccion elegida quedo vacia (otra ciudad, se agoto todo), se vuelve al inicio
-  if ((cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat && cat !== "*" && !cat.startsWith("s:") && !cat.startsWith("m:") && cat !== "reingreso" && cat !== "videos" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2)))) { setTimeout(() => setCat(""), 0); }
+  if ((cat === "preventa" && !preventas.length) || (cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat && cat !== "*" && !cat.startsWith("s:") && !cat.startsWith("m:") && cat !== "reingreso" && cat !== "videos" && cat !== "preventa" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2)))) { setTimeout(() => setCat(""), 0); }
   const enSector = (sc, p) => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria);
   const delSector = sector ? visibles.filter(p => enSector(sector, p)) : [];
   const catsSector = sector ? [...new Set(delSector.map(p => p.categoria).filter(Boolean))].sort() : [];
   // Busqueda inteligente: primero lo que coincide en el nombre, despues por tipo, despues por descripcion
   const puntaje = new Map();
-  const base1 = (cat === "reingreso" ? reingresados : visibles).filter(p => (!cat || cat === "*" || cat === "reingreso" || (sector ? enSector(sector, p) && (!subcat || p.categoria === subcat) : cat.startsWith("m:") ? (p.marca || "") === cat.slice(2) : p.categoria === cat)) && (!q || (puntaje.set(p.id, twCoincide(p, q)), puntaje.get(p.id) > 0)));
+  const base1 = (cat === "reingreso" ? reingresados : cat === "preventa" ? preventas : visibles).filter(p => (!cat || cat === "*" || cat === "reingreso" || cat === "preventa" || (sector ? enSector(sector, p) && (!subcat || p.categoria === subcat) : cat.startsWith("m:") ? (p.marca || "") === cat.slice(2) : p.categoria === cat)) && (!q || (puntaje.set(p.id, twCoincide(p, q)), puntaje.get(p.id) > 0)));
   // Si hay productos que coinciden por nombre o tipo, no se mezclan los que solo lo mencionan en la descripcion
   const base0 = q && base1.some(p => puntaje.get(p.id) >= 1) ? base1.filter(p => puntaje.get(p.id) >= 1) : base1;
   // Filtros: cada uno cuenta sobre lo que dejan los otros (asi los numeros siempre dan algo)
@@ -24142,7 +24159,7 @@ function TiendaPublica({ slug }) {
   const filasPortada = (tienda.filas || []).map(f => ({ ...f, items: f.productos.map(id => lista0.find(p => p.id === id)).filter(p => p && !agotado(p)) })).filter(f => f.items.length);
   const nSlides = destacados.length;
   const iSlide = nSlides ? slide % nSlides : 0;
-  const tarjeta = (p) => <TwTarjeta key={p.id} p={p} base={base} sin={agotado(p)} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
+  const tarjeta = (p) => <TwTarjeta key={p.id} p={p} base={base} sin={agotado(p)} preventa={esPreventa(p)} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
   const opcionesPago = [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar"], ["retiro", "💵 Pago al retirar", "Pagás en el local"]]
     .filter(([k]) => tienda.pagos[k] && !(k === "retiro" && datos.entrega === "envio"));
   const listoParaPedir = lid && datos.nombre && datos.telefono && datos.entrega && datos.pago && (datos.entrega === "retiro" ? retiroAca.length > 0 : (zona && datos.direccion));
@@ -24159,7 +24176,8 @@ function TiendaPublica({ slug }) {
   const idsCarrito = [...new Set(carrito.map(i => i.producto_id))];
   const rutina = idsCarrito.length ? deRecs(idsCarrito, idsCarrito).slice(0, 6) : [];
   const varElegida = ver && ver.variantes ? varSel : null;
-  const maxVer = ver ? dispo(ver, varElegida) : 0;
+  const preVer = ver ? esPreventa(ver) : false;
+  const maxVer = ver ? (preVer ? prevDispo(ver) : dispo(ver, varElegida)) : 0;
   const puedeAgregar = ver && (!ver.variantes || varSel) && maxVer > 0;
 
   const enviarCuenta = async (e) => {
@@ -24271,11 +24289,12 @@ function TiendaPublica({ slug }) {
   return (
     <div className="tw" style={{ "--c": color }}><style>{CSS_TIENDA}</style>
       {cabecera}
-      {(cats.length > 0 || sectores.length > 0 || reingresados.length > 0 || reels.length > 0) && (
+      {(cats.length > 0 || sectores.length > 0 || reingresados.length > 0 || reels.length > 0 || preventas.length > 0) && (
         <div className="tw-navbar">
           <nav className="tw-nav" aria-label="Categorías">
             <button className={!enLista ? "on" : ""} onClick={irInicio}>Inicio</button>
             <button className={cat === "*" && !q ? "on" : ""} onClick={() => irCat("*")}>Todo</button>
+            {preventas.length > 0 && <button className={"tw-nav-pre" + (cat === "preventa" && !q ? " on" : "")} onClick={() => irCat("preventa")}>⏳ {tienda.preventa.titulo}</button>}
             {reingresados.length > 0 && <button className={cat === "reingreso" && !q ? "on" : ""} onClick={() => irCat("reingreso")}>{reingreso.nombre}</button>}
             {reels.length > 0 && <button className={cat === "videos" && !q ? "on" : ""} onClick={() => irCat("videos")}>{tienda.reels_titulo || "Videos"}</button>}
             {cats.map(c => <button key={c} className={cat === c && !q ? "on" : ""} onClick={() => irCat(c)}>{c}</button>)}
@@ -24293,7 +24312,7 @@ function TiendaPublica({ slug }) {
         ) : enLista ? (
           <>
             <div className="tw-lista-cab">
-              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4 }}>{lista.length} {lista.length === 1 ? "producto" : "productos"}</div></div>
+              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : cat === "preventa" ? "⏳ " + tienda.preventa.titulo : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4 }}>{lista.length} {lista.length === 1 ? "producto" : "productos"}</div></div>
               <select value={orden} onChange={e => setOrden(e.target.value)} aria-label="Ordenar">{TW_ORDEN.map(([k, t]) => <option key={k} value={k}>Ordenar: {t}</option>)}</select>
             </div>
             {sector && !q && catsSector.length > 1 && (
@@ -24302,6 +24321,7 @@ function TiendaPublica({ slug }) {
                 {catsSector.map(c => <button key={c} className={subcat === c ? "on" : ""} onClick={() => setSubcat(c)}>{c}</button>)}
               </div>
             )}
+            {cat === "preventa" && !q && <div className="tw-preventa-cinta"><b>⏳ PREVENTA</b> <span>Estos productos todavía no llegaron al local. Los reservás ahora y te avisamos por WhatsApp cuando estén para retirar.</span></div>}
             {opcionesFiltro.length > 0 && (
               <div className="tw-filtros" role="group" aria-label="Filtrar productos">
                 {opcionesFiltro.map(f => (
@@ -24384,6 +24404,12 @@ function TiendaPublica({ slug }) {
                 <div className="tw-reels-fila">{reels.slice(0, 10).map(reel)}</div>
               </section>
             )}
+            {preventas.length > 0 && (
+              <>
+                <div className="tw-preventa-cinta tw-rv"><b>⏳ PREVENTA</b> <span>Todavía no llegaron al local: reservalos ahora y te avisamos por WhatsApp cuando estén para retirar.</span></div>
+                <TwFila titulo={tienda.preventa.titulo} items={preventas.slice(0, 12)} onVerTodo={() => irCat("preventa")} render={tarjeta} />
+              </>
+            )}
             {reingresados.length > 0 && <TwFila titulo={reingreso.nombre} items={reingresados.slice(0, 12)} onVerTodo={() => irCat("reingreso")} render={tarjeta} />}
             <TwFila titulo="Novedades" items={conStock.filter(p => p.nuevo).slice(0, 12)} onVerTodo={() => irCat("*")} render={tarjeta} />
             <TwFila titulo="Miralos en video" items={conStock.filter(p => p.video).slice(0, 12)} render={tarjeta} />
@@ -24455,6 +24481,12 @@ function TiendaPublica({ slug }) {
                   {ver.marca && <div className="tw-card-m" style={{ marginTop: 0, fontSize: 13 }}>{ver.marca}</div>}
                   <h1>{ver.nombre}</h1>
                   <div className="tw-precio">{fmtTienda(ver.precio)}</div>
+                  {preVer && (
+                    <div className="tw-preventa-aviso" role="note">
+                      <b>⏳ PREVENTA · Todavía no llegó</b>
+                      <span>Este producto viene en camino y <b>todavía no está en el local</b>. Lo reservás ahora y te avisamos por WhatsApp apenas llegue para que lo retires.</span>
+                    </div>
+                  )}
                   <div className="tw-compartir">
                     <button onClick={() => compartir(ver)} aria-label="Compartir este producto"><TwIcono d={TW_COMPARTIR} size={16} /> {copiado === ver.id ? "¡Link copiado!" : "Compartir"}</button>
                     <a href={"https://wa.me/?text=" + encodeURIComponent(ver.nombre + " en " + tienda.titulo + " " + linkProducto(ver))} target="_blank" rel="noopener" aria-label="Mandar por WhatsApp"><TwIcono d={TW_WA} size={16} /> WhatsApp</a>
@@ -24464,14 +24496,15 @@ function TiendaPublica({ slug }) {
                   <div className="tw-ficha-btn" style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 20 }}>
                     {puedeAgregar && <div className="tw-cant" style={{ marginTop: 0 }}><button onClick={() => { if (cant > 1) twSonar.tic(false); setCant(c => Math.max(1, c - 1)); }} aria-label="Uno menos">−</button><b><TwNum v={cant} /></b><button onClick={() => { if (cant < maxVer) twSonar.tic(true); setCant(c => Math.min(maxVer, c + 1)); }} aria-label="Uno más">+</button></div>}
                     <button className={"tw-btn full" + (agregando === "listo" ? " hecho" : "")} disabled={!puedeAgregar && !agregando} onClick={() => agregarDesdeFicha(ver, varElegida, cant)}>
-                      {agregando === "carga" ? <span className="tw-girando" aria-label="Agregando" /> : agregando === "listo" ? <><svg className="tw-tilde" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12.5l5 5L20 6.5" /></svg> ¡Agregado!</> : ver.variantes && !varSel ? "Elegí una opción" : maxVer <= 0 ? "Agotado" : "Agregar al carrito"}
+                      {agregando === "carga" ? <span className="tw-girando" aria-label="Agregando" /> : agregando === "listo" ? <><svg className="tw-tilde" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12.5l5 5L20 6.5" /></svg> ¡Agregado!</> : ver.variantes && !varSel ? "Elegí una opción" : maxVer <= 0 ? "Agotado" : preVer ? "Reservar en preventa" : "Agregar al carrito"}
                     </button>
                   </div>
                   {(!ver.variantes || varSel) && (
                     <div className="tw-disp">
                       {ciudad && maxVer <= 0 && <div>✕ Agotado en <b>{ciudad.nombre}</b></div>}
-                      {maxVer > 0 && retiroAca.map(l => <div key={l.id}>✓ Disponible para retirar en <b>{l.nombre}</b>{maxVer <= 3 ? " (¡quedan " + maxVer + "!)" : ""}</div>)}
-                      {maxVer > 0 && envioAca && <div>✓ Envío a domicilio{ciudad ? " en " + ciudad.nombre : ""}{gratisDesde ? " (gratis desde " + fmtTienda(gratisDesde) + ")" : ""}</div>}
+                      {maxVer > 0 && preVer && <div>⏳ Llega pronto{ciudad ? " a " + ciudad.nombre : ""}: <b>reservalo ahora</b>{maxVer <= 3 ? " (¡quedan " + maxVer + " por reservar!)" : ""}</div>}
+                      {maxVer > 0 && !preVer && retiroAca.map(l => <div key={l.id}>✓ Disponible para retirar en <b>{l.nombre}</b>{maxVer <= 3 ? " (¡quedan " + maxVer + "!)" : ""}</div>)}
+                      {maxVer > 0 && !preVer && envioAca && <div>✓ Envío a domicilio{ciudad ? " en " + ciudad.nombre : ""}{gratisDesde ? " (gratis desde " + fmtTienda(gratisDesde) + ")" : ""}</div>}
                     </div>
                   )}
                   <div className="tw-acord">
@@ -24509,6 +24542,7 @@ function TiendaPublica({ slug }) {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 14.5, fontWeight: 700 }}>{i.nombre}</div>
                         {i.variante && <div style={{ fontSize: 13, color: "#666" }}>{i.variante}</div>}
+                        {i.preventa && <div className="tw-item-pre">⏳ PREVENTA · todavía no llegó</div>}
                         <div className="tw-cant"><button onClick={() => cambiarCant(i, -1)} aria-label="Uno menos">−</button><b><TwNum v={i.cantidad} /></b><button onClick={() => cambiarCant(i, +1)} disabled={i.cantidad >= maxDeItem(i)} aria-label="Uno más">+</button></div>
                         {i.cantidad > maxDeItem(i) && <div style={{ color: "#c0392b", fontSize: 12.5, fontWeight: 700, marginTop: 4 }}>{maxDeItem(i) <= 0 ? "No hay" + (ciudad ? " en " + ciudad.nombre : "") : "Solo quedan " + maxDeItem(i) + (ciudad ? " en " + ciudad.nombre : "")}</div>}
                       </div>
@@ -24533,6 +24567,7 @@ function TiendaPublica({ slug }) {
                   )}
                 </div>
                 {carrito.length > 0 && <div className="tw-cajon-pie">
+                  {carrito.some(i => i.preventa) && <div className="tw-preventa-aviso chico"><b>⏳ Tenés productos en PREVENTA</b><span>Todavía no llegaron al local. Te avisamos por WhatsApp cuando lleguen y retirás todo junto.</span></div>}
                   <TwPuntos monto={subtotal} tengo={logueada && miCuenta ? (miCuenta.puntos || 0) : null} />
                   {tienda.ruleta && tienda.ruleta.aviso && <TwRuletaAviso monto={subtotal} minimo={tienda.ruleta.minimo} />}
                   <div className="tw-linea" style={{ fontWeight: 800, fontSize: 18, marginBottom: 12 }}><span>Subtotal</span><span>{fmtTienda(subtotal)}</span></div>
@@ -24584,6 +24619,7 @@ function TiendaPublica({ slug }) {
                   {aviso && <div role="alert" style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, marginTop: 10, fontSize: 14, fontWeight: 600 }}>{aviso}</div>}
                 </div>
                 <div className="tw-cajon-pie">
+                  {carrito.some(i => i.preventa) && <div className="tw-preventa-aviso chico"><b>⏳ Tu pedido tiene productos en PREVENTA</b><span>Todavía no llegaron: te avisamos por WhatsApp cuando estén y ahí retirás todo junto.</span></div>}
                   <div className="tw-linea"><span>Productos</span><span>{fmtTienda(subtotal)}</span></div>
                   {descuentoCupon > 0 && <div key={"d" + cuponOk.codigo} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>✨ Descuento ({cuponOk.codigo})</span><span>−<TwRueda valor={descuentoCupon} formato={fmtTienda} dur={1000} /></span></div>}
                   {datos.entrega === "envio" && <div className="tw-linea"><span>Envío</span><span>{zona ? (costoEnvio ? fmtTienda(costoEnvio) : "Gratis") : "—"}</span></div>}
@@ -25236,6 +25272,14 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
     try { await API.post("/tienda/pedidos/" + p.id + "/a-caja"); try { sessionStorage.setItem("lumiere_pos_tienda", String(p.id)); } catch (e) {} irASeccion("pos"); }
     catch (e) { avisar(false, e.response?.data?.error || "No se pudo pasar a la caja"); }
   };
+  const llegoPreventa = async (p) => {
+    try {
+      await API.post("/tienda/pedidos/" + p.id + "/llego-preventa"); cargarPedidos();
+      const txt = "Hola " + String(p.nombre).split(" ")[0] + "! 🎉 Ya llegó tu pedido de preventa N° " + p.codigo + " de " + (cfg?.titulo || "nuestra tienda") + "." + (p.entrega === "retiro" ? " Ya lo podés retirar en " + nombreLocal(p.local_id) + "." : " Te lo enviamos en estos días.") + " ¡Gracias por esperar!";
+      avisar(true, "✓ Listo: quedó apartado. Avisale por WhatsApp.");
+      if (p.telefono && confirm("¿Le avisás por WhatsApp que ya llegó?")) window.open(linkWhatsapp(p.telefono, txt) || ("https://wa.me/?text=" + encodeURIComponent(txt)), "_blank");
+    } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); }
+  };
   const extender = async (p) => { try { const r = await API.post("/tienda/pedidos/" + p.id + "/extender"); avisar(true, "✓ Le diste " + r.data.horas + " horas más"); cargarPedidos(); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); } };
   const reapartar = async (p) => { try { await API.post("/tienda/pedidos/" + p.id + "/reapartar"); cargarPedidos(); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); } };
   const avisarListo = (p) => {
@@ -25352,15 +25396,16 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                       <div style={{ textAlign: "right" }}><span className="tag" style={{ background: e.c + "22", color: e.c, fontWeight: 800 }}>{e.t}</span><div style={{ fontSize: 18, fontWeight: 900, marginTop: 4 }}>{fmt(p.total)}</div></div>
                     </div>
                     <div style={{ fontSize: 13, margin: "8px 0", lineHeight: 1.6 }}>
-                      {p.items.map(i => <div key={i.id}>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""} <span style={{ color: temaPal.textMuted }}>· {fmt(i.precio * i.cantidad)}</span></div>)}
+                      {p.items.map(i => <div key={i.id}>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""} <span style={{ color: temaPal.textMuted }}>· {fmt(i.precio * i.cantidad)}</span>{i.preventa && <span className="tag" style={{ marginLeft: 6, background: "#ffd23f33", color: temaPal.warn, fontWeight: 800 }}>⏳ preventa · esperando ingreso</span>}</div>)}
                       {p.costo_envio > 0 && <div style={{ color: temaPal.textMuted }}>Envío · {fmt(p.costo_envio)}</div>}
                     </div>
                     {!cerrado && (
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                         {p.estado === "pendiente_pago" && p.pago === "transferencia" && <button className="btn btn-p btn-sm" onClick={() => estado(p, "pagado")}>✓ Pago recibido</button>}
-                        {p.estado === "confirmado" && <button className="btn btn-p btn-sm" onClick={() => estado(p, "preparado")}>📦 Ya está listo</button>}
-                        {["confirmado", "preparado"].includes(p.estado) && <button className="btn btn-g btn-sm" onClick={() => avisarListo(p)}>💬 Avisar que está listo</button>}
-                        {(["confirmado", "preparado"].includes(p.estado) || (p.estado === "pendiente_pago" && p.pago === "retiro")) && <button className="btn btn-p btn-sm" onClick={() => aCaja(p)}>💵 {p.pagado ? "Entregar y registrar venta" : "Cobrar en caja"}</button>}
+                        {p.estado === "confirmado" && !p.items.some(i => i.preventa) && <button className="btn btn-p btn-sm" onClick={() => estado(p, "preparado")}>📦 Ya está listo</button>}
+                        {["confirmado", "preparado"].includes(p.estado) && !p.items.some(i => i.preventa) && <button className="btn btn-g btn-sm" onClick={() => avisarListo(p)}>💬 Avisar que está listo</button>}
+                        {p.items.some(i => i.preventa) && <button className="btn btn-p btn-sm" onClick={() => llegoPreventa(p)} title="Cuando recibiste la orden de ingreso: pasa al stock del local y le avisás">📦 Llegó la preventa</button>}
+                        {!p.items.some(i => i.preventa) && (["confirmado", "preparado"].includes(p.estado) || (p.estado === "pendiente_pago" && p.pago === "retiro")) && <button className="btn btn-p btn-sm" onClick={() => aCaja(p)}>💵 {p.pagado ? "Entregar y registrar venta" : "Cobrar en caja"}</button>}
                         {p.estado === "en_caja" && <><button className="btn btn-p btn-sm" onClick={() => { try { sessionStorage.setItem("lumiere_pos_tienda", String(p.id)); } catch (e) {} irASeccion("pos"); }}>Ir a la caja</button><button className="btn btn-g btn-sm" onClick={() => reapartar(p)} title="Si no se llegó a cobrar">Volver a apartar el stock</button></>}
                         {p.telefono && <a className="btn btn-g btn-sm" style={{ textDecoration: "none" }} href={linkWhatsapp(p.telefono, "Hola " + String(p.nombre).split(" ")[0] + "! Te escribo por tu pedido N° " + p.codigo)} target="_blank" rel="noopener">WhatsApp</a>}
                         {p.estado !== "en_caja" && <button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={() => estado(p, "cancelado")}>Cancelar</button>}
@@ -25590,6 +25635,17 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", marginTop: 8 }}><input type="checkbox" checked={!!cfg.pago_retiro} onChange={e => set("pago_retiro", e.target.checked)} /> <b>Paga al retirar</b> <span style={{ fontSize: 12, color: temaPal.textMuted }}>(solo con retiro)</span></label>
             {(cfg.pago_transferencia || cfg.pago_retiro) && <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", fontSize: 12.5, marginTop: 10, background: temaPal.bg || "transparent", border: "1px solid " + temaPal.border, borderRadius: 8, padding: "8px 10px" }}>⏰ Guardar los productos <input className="inp" type="number" min="1" max="168" style={{ width: 70 }} value={cfg.horas_reserva || 24} onChange={e => set("horas_reserva", e.target.value)} /> horas. <span style={{ color: temaPal.textMuted }}>Si en ese tiempo no paga (transferencia) o no lo retira (paga al retirar), el pedido se cancela solo y el stock vuelve. Desde el pedido le podés dar más tiempo.</span></div>}
           </div>
+          {cfg.preventa && (
+            <div className="card" style={{ gridColumn: "1 / -1" }}>
+              <div className="ct">⏳ Preventa (productos que vienen en camino)</div>
+              <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", fontWeight: 800 }}><input type="checkbox" checked={!!cfg.preventa.activo} onChange={e => set("preventa", { ...cfg.preventa, activo: e.target.checked })} style={{ width: 18, height: 18 }} /> Vender en preventa lo que cargo en las órdenes de ingreso</label>
+              <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "4px 0 10px", lineHeight: 1.5 }}>Cuando cargás una orden de ingreso, lo que viene en camino aparece en la tienda en un sector propio, con un aviso bien claro de que <b>todavía no llegó</b>. La clienta lo reserva (usa lo mismo que la preventa de la caja, así no se vende dos veces). Cuando recibís la orden, en el pedido tocás <b>"📦 Llegó la preventa"</b> y le avisás por WhatsApp. Los pedidos con preventa no vencen hasta que llega.</div>
+              <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+                <div><div className="fl">Nombre del sector</div><input className="inp" style={{ width: 260 }} maxLength={40} value={cfg.preventa.titulo || ""} onChange={e => set("preventa", { ...cfg.preventa, titulo: e.target.value })} placeholder="Próximos a ingresar" /></div>
+                <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", fontSize: 13, marginTop: 14 }}><input type="checkbox" checked={cfg.preventa.incluir_no_publicados !== false} onChange={e => set("preventa", { ...cfg.preventa, incluir_no_publicados: e.target.checked })} /> Mostrar también los que todavía no publiqué en la tienda</label>
+              </div>
+            </div>
+          )}
           {cfg.ruleta && (() => { const r = cfg.ruleta; const setR = (x) => set("ruleta", { ...r, ...x }); const setP = (i, x) => setR({ premios: r.premios.map((y, j) => j === i ? { ...y, ...x } : y) }); const suma = r.premios.reduce((t, x) => t + (Number(x.chance) || 0), 0); return (
             <div className="card" style={{ gridColumn: "1 / -1" }}>
               <div className="ct">🎡 Ruleta de premios</div>
@@ -27366,7 +27422,7 @@ function AvisoVentaWeb({ usuario, local, paletaActual }) {
               <b>{x.nombre}</b><b>{fmt(x.total)}</b>
             </div>
             <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 6 }}>N° {x.codigo} · {x.entrega === "retiro" ? "📍 Retira en " + nombreLocal(x.local_id) : "🛵 Envío" + (x.zona ? " a " + x.zona : "") + " (" + nombreLocal(x.local_id) + ")"} · {pagoTxt(x)}</div>
-            {x.items.map((i, k) => <div key={k} style={{ fontSize: 14, fontWeight: 700 }}>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""}</div>)}
+            {x.items.map((i, k) => <div key={k} style={{ fontSize: 14, fontWeight: 700 }}>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""}{i.preventa ? <span style={{ fontWeight: 600, color: p.warn, fontSize: 12.5 }}> · ⏳ preventa (todavía no llegó)</span> : null}</div>)}
           </div>
         ))}
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap", marginTop: 6 }}>

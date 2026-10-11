@@ -85,6 +85,7 @@ router.get('/:slug', async (req, res) => {
       reingreso: c.reingreso_activo ? { nombre: c.reingreso_nombre || 'Nuevamente en stock', dias: c.reingreso_dias || 14 } : null,
       dominio: await tienda.dominioDe(req.negTienda.id).catch(() => null),
       ruleta: (() => { const r = tienda.ruletaDe(c); return r.activo ? { minimo: r.minimo, aviso: r.aviso_carrito } : null; })(),
+      preventa: (() => { const pv = tienda.preventaDe(c); return pv.activo ? { titulo: pv.titulo } : null; })(),
     });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la tienda' }); }
 });
@@ -122,8 +123,11 @@ router.get('/:slug/vista-previa', async (req, res) => {
 // Productos publicados con precio y lo disponible en cada local (y sus variantes)
 router.get('/:slug/productos', async (req, res) => {
   try {
+    const pv = tienda.preventaDe(req.tienda);
     const r = await pool.query(`
       SELECT p.id, p.nombre, p.marca, p.categoria, p.precio, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush,
+             COALESCE(p.stock_transito_rg, 0) AS transito_rg, COALESCE(p.stock_transito_ush, 0) AS transito_ush, COALESCE(p.reservado_rg, 0) AS reservado_rg, COALESCE(p.reservado_ush, 0) AS reservado_ush,
+             COALESCE(tp.publicado, FALSE) AS publicado,
              COALESCE(p.tiene_variantes, FALSE) AS tiene_variantes, tp.descripcion, tp.orden, COALESCE(tp.destacado, FALSE) AS destacado, tp.video_url, (p.creado_en > NOW() - INTERVAL '30 days') AS nuevo, tp.etiquetas,
              EXISTS (SELECT 1 FROM tienda_videos tv WHERE tv.producto_id = p.id) AS video_subido,
              ARRAY(SELECT f.id FROM tienda_fotos f WHERE f.producto_id = p.id ORDER BY f.orden, f.id) AS fotos_extra,
@@ -131,10 +135,11 @@ router.get('/:slug/productos', async (req, res) => {
                 WHERE producto_id = p.id AND fecha > NOW() - make_interval(days => $1::int) GROUP BY local_id) r) AS reingreso,
              (SELECT EXTRACT(EPOCH FROM i.actualizado_en)::bigint FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto_v,
              EXISTS (SELECT 1 FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto
-      FROM tienda_productos tp JOIN productos p ON p.id = tp.producto_id
-      WHERE tp.publicado AND p.activo = TRUE AND COALESCE(p.precio, 0) > 0
-      ORDER BY tp.orden, p.nombre`, [req.tienda.reingreso_activo ? (req.tienda.reingreso_dias || 14) : 0]).catch(async () => (await pool.query(`
-      SELECT p.id, p.nombre, p.marca, p.categoria, p.precio, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush,
+      FROM productos p LEFT JOIN tienda_productos tp ON tp.producto_id = p.id
+      WHERE p.activo = TRUE AND COALESCE(p.precio, 0) > 0
+        AND (COALESCE(tp.publicado, FALSE) OR ($2::boolean AND NOT COALESCE(p.tiene_variantes, FALSE) AND COALESCE(p.stock_transito_rg, 0) + COALESCE(p.stock_transito_ush, 0) > 0))
+      ORDER BY COALESCE(tp.orden, 999999), p.nombre`, [req.tienda.reingreso_activo ? (req.tienda.reingreso_dias || 14) : 0, pv.activo && pv.incluir_no_publicados]).catch(async () => (await pool.query(`
+      SELECT p.id, p.nombre, p.marca, p.categoria, p.precio, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush, TRUE AS publicado,
              COALESCE(p.tiene_variantes, FALSE) AS tiene_variantes, tp.descripcion, tp.orden, COALESCE(tp.destacado, FALSE) AS destacado, tp.video_url, (p.creado_en > NOW() - INTERVAL '30 days') AS nuevo, EXISTS (SELECT 1 FROM tienda_videos tv WHERE tv.producto_id = p.id) AS video_subido, ARRAY[]::int[] AS fotos_extra, NULL::bigint AS foto_v, FALSE AS foto
       FROM tienda_productos tp JOIN productos p ON p.id = tp.producto_id
       WHERE tp.publicado AND p.activo = TRUE AND COALESCE(p.precio, 0) > 0 ORDER BY tp.orden, p.nombre`)));
@@ -147,7 +152,10 @@ router.get('/:slug/productos', async (req, res) => {
         destacado: !!p.destacado, nuevo: !!p.nuevo, etiquetas: p.etiquetas || null, fotos: p.fotos_extra || [], reingreso: p.reingreso || null, foto_v: p.foto_v ? Number(p.foto_v) : null,
         video: p.video_subido ? { tipo: 'subido' } : tienda.videoDeLink(p.video_url),
         variantes: p.tiene_variantes && v.length ? v : null,
-        stock: { 1: Math.max(0, parseInt(p.stock_rg) || 0), 2: Math.max(0, parseInt(p.stock_ush) || 0) },
+        // Para vender ya: stock menos lo reservado por preventas (solo si esta publicado)
+        stock: p.publicado ? { 1: tienda.disponibles(p, 1).ya, 2: tienda.disponibles(p, 2).ya } : { 1: 0, 2: 0 },
+        // En preventa: lo que viene en camino sin reservar (sin variantes)
+        preventa: pv.activo && !p.tiene_variantes ? { 1: tienda.disponibles(p, 1).preventa, 2: tienda.disponibles(p, 2).preventa } : null,
       };
     }));
   } catch (e) {
@@ -159,7 +167,7 @@ router.get('/:slug/productos', async (req, res) => {
 // Foto del producto (solo de productos publicados)
 router.get('/:slug/foto/:id', async (req, res) => {
   try {
-    const r = (await pool.query(`SELECT i.imagen FROM producto_imagenes i JOIN tienda_productos tp ON tp.producto_id = i.producto_id AND tp.publicado WHERE i.producto_id = $1`, [req.params.id])).rows[0];
+    const r = (await pool.query(`SELECT i.imagen FROM producto_imagenes i JOIN productos p ON p.id = i.producto_id AND p.activo WHERE i.producto_id = $1`, [req.params.id])).rows[0];
     if (!r) return res.status(404).end();
     const m = /^data:(image\/[a-z]+);base64,(.+)$/.exec(r.imagen || '');
     if (!m) return res.status(404).end();
@@ -259,7 +267,7 @@ router.post('/:slug/pedidos', async (req, res) => {
   }
   const pago = ['mp', 'transferencia', 'retiro'].includes(b.pago) ? b.pago : null;
   if (!pago || (pago === 'mp' && !(c.pago_mp && await mpDisponible())) || (pago === 'transferencia' && !c.pago_transferencia) || (pago === 'retiro' && !c.pago_retiro)) return res.status(400).json({ error: 'Elegí cómo vas a pagar' });
-  const items = (Array.isArray(b.items) ? b.items : []).slice(0, 50).map(it => ({ producto_id: parseInt(it.producto_id), variante_id: parseInt(it.variante_id) || null, cantidad: Math.min(99, Math.max(1, parseInt(it.cantidad) || 1)) })).filter(it => it.producto_id);
+  const items = (Array.isArray(b.items) ? b.items : []).slice(0, 50).map(it => ({ producto_id: parseInt(it.producto_id), variante_id: parseInt(it.variante_id) || null, cantidad: Math.min(99, Math.max(1, parseInt(it.cantidad) || 1)), preventa: !!it.preventa && !parseInt(it.variante_id) })).filter(it => it.producto_id);
   if (!items.length) return res.status(400).json({ error: 'El carrito está vacío' });
 
   const col = colLocal(localId);
@@ -269,18 +277,24 @@ router.post('/:slug/pedidos', async (req, res) => {
     await client.query('BEGIN');
     const lineas = [];
     for (const it of items) {
-      const p = (await client.query(`SELECT p.id, p.nombre, p.precio, COALESCE(p.${col}, 0) AS stock FROM productos p JOIN tienda_productos tp ON tp.producto_id = p.id AND tp.publicado
-        WHERE p.id = $1 AND p.activo = TRUE FOR UPDATE OF p`, [it.producto_id])).rows[0];
-      if (!p) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Un producto del carrito ya no está disponible. Actualizá la página.' }); }
-      let stock = parseInt(p.stock) || 0, valor = null;
+      const p = (await client.query(`SELECT p.id, p.nombre, p.precio, COALESCE(tp.publicado, FALSE) AS publicado,
+          COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush, COALESCE(p.stock_transito_rg, 0) AS transito_rg, COALESCE(p.stock_transito_ush, 0) AS transito_ush,
+          COALESCE(p.reservado_rg, 0) AS reservado_rg, COALESCE(p.reservado_ush, 0) AS reservado_ush
+        FROM productos p LEFT JOIN tienda_productos tp ON tp.producto_id = p.id WHERE p.id = $1 AND p.activo = TRUE AND COALESCE(p.precio, 0) > 0 FOR UPDATE OF p`, [it.producto_id])).rows[0];
+      const pvCfg = tienda.preventaDe(c);
+      if (!p || (!p.publicado && !(it.preventa && pvCfg.activo && pvCfg.incluir_no_publicados))) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Un producto del carrito ya no está disponible. Actualizá la página.' }); }
+      if (it.preventa && !pvCfg.activo) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'La preventa ya no está disponible. Actualizá la página.' }); }
+      const disp = tienda.disponibles(p, localId);
+      let stock = it.preventa ? disp.preventa : disp.ya, valor = null;
       if (it.variante_id) {
         const v = (await client.query(`SELECT valor, COALESCE(${col}, 0) AS stock FROM producto_variantes WHERE id = $1 AND producto_id = $2 AND activo FOR UPDATE`, [it.variante_id, p.id])).rows[0];
         if (!v) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Una opción de ' + p.nombre + ' ya no está disponible' }); }
         stock = parseInt(v.stock) || 0; valor = v.valor;
       }
-      const ya = lineas.filter(l => l.producto_id === p.id && l.variante_id === it.variante_id).reduce((t, l) => t + l.cantidad, 0);
+      const ya = lineas.filter(l => l.producto_id === p.id && l.variante_id === it.variante_id && l.preventa === it.preventa).reduce((t, l) => t + l.cantidad, 0);
+      if (it.preventa && stock - ya < it.cantidad) { await client.query('ROLLBACK'); return res.status(409).json({ error: (stock - ya > 0 ? 'Solo quedan ' + (stock - ya) + ' de ' + p.nombre + ' para reservar en preventa' : 'Ya se reservó todo lo que viene de ' + p.nombre) + '. Actualizá la página.' }); }
       if (stock - ya < it.cantidad) { await client.query('ROLLBACK'); return res.status(409).json({ error: 'No hay stock suficiente de ' + p.nombre + (valor ? ' (' + valor + ')' : '') + (stock - ya > 0 ? ': quedan ' + (stock - ya) : '') + ' en ' + (entrega === 'retiro' ? 'ese local' : 'este momento') }); }
-      lineas.push({ producto_id: p.id, variante_id: it.variante_id, nombre: p.nombre, variante_valor: valor, cantidad: it.cantidad, precio: num(p.precio) });
+      lineas.push({ producto_id: p.id, variante_id: it.variante_id, nombre: p.nombre, variante_valor: valor, cantidad: it.cantidad, precio: num(p.precio), preventa: it.preventa });
     }
     const subtotal = Math.round(lineas.reduce((t, l) => t + l.precio * l.cantidad, 0) * 100) / 100;
     if (entrega === 'envio' && c.envio_gratis_desde && subtotal >= c.envio_gratis_desde) costoEnvio = 0;
@@ -296,15 +310,18 @@ router.post('/:slug/pedidos', async (req, res) => {
     const codigo = crypto.randomBytes(4).toString('hex').toUpperCase();
     const estado = pago === 'retiro' ? 'confirmado' : 'pendiente_pago';
     const horas = pago === 'mp' ? 2 : Math.min(168, Math.max(1, parseInt(c.horas_reserva) || 24));
+    // Con preventa, "paga al retirar" no vence hasta que llega (se renueva al marcar "Llegó la preventa")
+    const conPreventa = lineas.some(l => l.preventa);
     pedido = (await client.query(`INSERT INTO tienda_pedidos (codigo, cliente_id, nombre, telefono, email, entrega, local_id, direccion, zona, costo_envio, pago, subtotal, total, nota, estado, vence_en, cupon, cupon_tipo, cupon_valor, descuento)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, CASE WHEN $15 = 'pendiente_pago' OR $11 = 'retiro' THEN NOW() + ($16 || ' hours')::interval ELSE NULL END, $17, $18, $19, $20) RETURNING *`,
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, CASE WHEN $15 = 'pendiente_pago' OR ($11 = 'retiro' AND NOT $21::boolean) THEN NOW() + ($16 || ' hours')::interval ELSE NULL END, $17, $18, $19, $20) RETURNING *`,
       [codigo, clienteId, nombre, telefono, email, entrega, localId, direccion, zona, costoEnvio, pago, subtotal, total, String(b.nota || '').trim().slice(0, 500) || null, estado, String(horas),
-       cupon ? cupon.codigo : null, cupon ? cupon.tipo : null, cupon ? cupon.valor : null, descuento])).rows[0];
+       cupon ? cupon.codigo : null, cupon ? cupon.tipo : null, cupon ? cupon.valor : null, descuento, conPreventa])).rows[0];
     for (const l of lineas) {
-      await client.query('INSERT INTO tienda_pedido_items (pedido_id, producto_id, variante_id, nombre, variante_valor, cantidad, precio) VALUES ($1,$2,$3,$4,$5,$6,$7)',
-        [pedido.id, l.producto_id, l.variante_id, l.nombre, l.variante_valor, l.cantidad, l.precio]);
+      await client.query('INSERT INTO tienda_pedido_items (pedido_id, producto_id, variante_id, nombre, variante_valor, cantidad, precio, preventa) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+        [pedido.id, l.producto_id, l.variante_id, l.nombre, l.variante_valor, l.cantidad, l.precio, !!l.preventa]);
     }
     await tienda.moverStock(client, pedido, -1);
+    await tienda.reservarPreventa(client, pedido, +1);
     await client.query('COMMIT');
   } catch (e) {
     try { await client.query('ROLLBACK'); } catch (x) {}
@@ -350,7 +367,7 @@ router.get('/:slug/pedidos/:codigo', async (req, res) => {
         if (ok) p = (await pool.query(`UPDATE tienda_pedidos SET pagado = TRUE, pago_ref = $1, estado = 'confirmado', vence_en = NULL, actualizado_en = NOW() WHERE id = $2 RETURNING *`, [String(ok.id), p.id])).rows[0];
       } catch (e) { /* sin respuesta de Mercado Pago: se vuelve a preguntar despues */ }
     }
-    const items = (await pool.query('SELECT nombre, variante_valor, cantidad, precio FROM tienda_pedido_items WHERE pedido_id = $1 ORDER BY id', [p.id])).rows.map(i => ({ ...i, precio: num(i.precio) }));
+    const items = (await pool.query('SELECT nombre, variante_valor, cantidad, precio, preventa FROM tienda_pedido_items WHERE pedido_id = $1 ORDER BY id', [p.id])).rows.map(i => ({ ...i, precio: num(i.precio) }));
     const loc = p.entrega === 'retiro' ? (await pool.query('SELECT nombre, direccion FROM locales WHERE id = $1', [p.local_id]).catch(() => ({ rows: [] }))).rows[0] : null;
     res.json({
       ruleta: await estadoRuleta(req.tienda, p),
