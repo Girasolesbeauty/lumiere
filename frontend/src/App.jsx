@@ -24390,11 +24390,11 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
 
   const [locs, setLocs] = useState([]);
   useEffect(() => { API.get("/locales").then(r => setLocs((r.data || []).map(l => ({ ...l, direccion0: l.direccion || "" })))).catch(() => {}); }, []);
-  const cargarCfg = () => API.get("/tienda/config").then(r => setCfg({ ...r.data, slug: r.data.slug || r.data.slug_sugerido, retiro_locales: r.data.retiro_locales || [1, 2] })).catch(() => setCfg({}));
+  const cargarCfg = () => API.get("/tienda/config").then(r => setCfg({ ...r.data, slug: r.data.slug || r.data.slug_sugerido, retiro_locales: r.data.retiro_locales || [1, 2], dominioGuardado: !!r.data.dominio })).catch(() => setCfg({}));
   const cargarPedidos = () => API.get("/tienda/pedidos").then(r => setPedidos(r.data || [])).catch(() => setPedidos([]));
   const cargarProductos = () => API.get("/tienda/productos").then(r => setProductos(r.data || [])).catch(() => setProductos([]));
   useEffect(() => { cargarCfg(); cargarPedidos(); cargarProductos(); const t = setInterval(() => { if (!document.hidden) cargarPedidos(); }, 30000); return () => clearInterval(t); }, []);
-  const url = cfg && cfg.slug ? window.location.origin + window.location.pathname + "?tienda=" + cfg.slug : "";
+  const url = cfg && cfg.dominio && cfg.dominioGuardado ? "https://" + cfg.dominio : cfg && cfg.slug ? window.location.origin + window.location.pathname + "?tienda=" + cfg.slug : "";
   useEffect(() => { if (cfg && cfg.activo && cfg.slug) API.get("/tienda/qr?url=" + encodeURIComponent(url)).then(r => setQr(r.data.qr)).catch(() => {}); }, [cfg?.activo, cfg?.slug]);
 
   const estado = async (p, est, extra) => {
@@ -24654,6 +24654,19 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                 </div>
               </div>
             )}
+            <div className="fl" style={{ marginTop: 12 }}>Dominio propio (opcional)</div>
+            <input className="inp" placeholder="Ej: girasolesbeauty.com.ar" value={cfg.dominio || ""} onChange={e => set("dominio", e.target.value.trim().toLowerCase())} aria-label="Dominio propio" />
+            {cfg.dominio ? (
+              <div className="cli-tip" style={{ marginTop: 6, fontSize: 12, lineHeight: 1.6 }}>
+                Para que <b>{cfg.dominio}</b> muestre tu tienda:
+                <ol style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+                  <li>Guardá esta configuración.</li>
+                  <li>En <b>Vercel</b> (proyecto de Lumiere) → <b>Settings → Domains</b> → agregá <b>{cfg.dominio}</b> y <b>www.{cfg.dominio}</b>.</li>
+                  <li>Donde compraste el dominio (ej: NIC Argentina → tu proveedor de DNS), cargá los datos que te muestra Vercel. Normalmente: registro <b>A</b> para <b>@</b> → <b>76.76.21.21</b> y registro <b>CNAME</b> para <b>www</b> → <b>cname.vercel-dns.com</b>.</li>
+                  <li>Esperá unos minutos (a veces hasta unas horas) y entrá a {cfg.dominio}.</li>
+                </ol>
+              </div>
+            ) : <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>Si tenés un dominio (ej: tumarca.com.ar), escribilo acá para que tu tienda se vea en esa dirección.</div>}
             <div className="fl" style={{ marginTop: 12 }}>Logo de la tienda</div>
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
               <div style={{ background: "#fff", border: "1px solid " + temaPal.border, borderRadius: 8, padding: "8px 12px", minWidth: 120, minHeight: 48, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -26394,9 +26407,21 @@ function AsistenteAyuda({ usuario, seccion, paletaActual }) {
 }
 
 // La tienda web (?tienda=nombre) se muestra sin iniciar sesion; todo lo demas es Lumiere
+// Direcciones propias de Lumiere: ahi se abre el sistema. Cualquier otra (un dominio propio de
+// una tienda, ej: girasolesbeauty.com.ar) muestra directamente esa tienda.
+const HOSTS_LUMIERE = /^(localhost|127\.0\.0\.1|(app|clientes|www)\.sistemalumiere\.com|sistemalumiere\.com|.*\.vercel\.app|.*\.railway\.app)$/i;
 export default function Raiz() {
   const slugTienda = (() => { try { return new URLSearchParams(window.location.search).get("tienda"); } catch (e) { return null; } })();
+  const host = typeof window !== "undefined" ? window.location.hostname : "";
+  const propio = !slugTienda && host && !HOSTS_LUMIERE.test(host);
+  const [slugDominio, setSlugDominio] = useState(propio ? undefined : null);
+  useEffect(() => {
+    if (!propio) return;
+    fetch((API.defaults.baseURL || "") + "/tienda-dominio?host=" + encodeURIComponent(host)).then(r => r.json()).then(d => setSlugDominio(d.slug || null)).catch(() => setSlugDominio(null));
+  }, []);
   if (slugTienda) return <TiendaPublica slug={slugTienda} />;
+  if (slugDominio === undefined) return <div style={{ minHeight: "100vh", background: "#fff" }} />;
+  if (slugDominio) return <TiendaPublica slug={slugDominio} />;
   return <AppWrapper />;
 }
 
