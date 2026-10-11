@@ -22733,6 +22733,20 @@ const CSS_TIENDA = `
 .tw-puntos-compra.brilla{animation:twPop .5s cubic-bezier(.3,1.6,.5,1)}
 .tw-puntos-compra.brilla .tw-estrella{animation:twEstrella .8s cubic-bezier(.3,1.5,.5,1)}
 @keyframes twEstrella{0%{transform:scale(.4) rotate(-90deg)}60%{transform:scale(1.5) rotate(20deg);text-shadow:0 0 12px #ffd54a}100%{transform:none}}
+.tw-saludo{display:flex;align-items:center;gap:14px;width:100%;background:#fff;border:none;border-bottom:1px solid var(--b);padding:12px 30px;cursor:pointer;text-align:left;font-family:inherit;color:#111}
+.tw-saludo:hover{background:#fafafa}
+.tw-saludo-av{flex:0 0 42px;height:42px;border-radius:50%;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:800}
+.tw-saludo-txt{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.tw-saludo-txt>b{font-size:17px;font-weight:800;line-height:1.2}
+.tw-saludo-txt small{font-size:13.5px;color:#444}
+.tw-saludo-nivel{text-transform:uppercase;letter-spacing:.08em;font-family:Georgia,serif;font-weight:400}
+.tw-saludo-ir{font-size:24px;color:#999}
+.tw-saludo.cumple{background:linear-gradient(90deg,#fff0f6,#fff8e1 55%,#eef7ff);animation:twPop .6s cubic-bezier(.3,1.6,.5,1)}
+.tw-saludo.cumple .tw-saludo-av{background:linear-gradient(135deg,#ff7ab6,#ffd23f);font-size:22px;animation:twLatidoC 1.6s ease-in-out infinite}
+.tw-saludo-emo{display:inline-block;animation:twEtqPre 1.4s ease-in-out infinite}
+.tw-saludo.invitada .tw-saludo-av{background:#fff8e1;color:#e2a400;border:1.5px solid #f1dc9a}
+.tw-saludo.invitada .tw-saludo-txt>b{font-size:15px}
+@media(max-width:760px){.tw-saludo{padding:10px 16px;gap:12px}.tw-saludo-txt>b{font-size:16px}.tw-saludo.invitada{padding:8px 16px}}
 .tw-suma-cuenta{background:linear-gradient(135deg,#fff8e1,#fde9c4);border:2px solid #f4b400;border-radius:14px;padding:12px 14px;margin:12px 0;color:#4a3608;animation:twPop .55s cubic-bezier(.3,1.6,.5,1)}
 .tw-suma-cuenta-t{font-size:15px;font-weight:700;line-height:1.35}
 .tw-suma-cuenta-t b{color:#2b1d00;font-size:16px}
@@ -24197,6 +24211,29 @@ function TiendaPublica({ slug }) {
           </div>
         </div>
       </header>
+      {/* Saludo con los puntos (como Sephora). En el mes de su cumple: ¡Feliz cumpleaños! */}
+      {!codigoUrl && logueada && miCuenta && (() => {
+        const nombre = String(miCuenta.nombre || "").trim().split(/\s+/)[0] || "";
+        const cumple = !!miCuenta.cumple_este_mes;
+        const abrirCuenta = () => { setAvisoCuenta(null); setCanjeHecho(null); setPaso("cuenta"); cargarCuenta(); };
+        return (
+          <button className={"tw-saludo" + (cumple ? " cumple" : "")} onClick={abrirCuenta} aria-label="Ver mi cuenta">
+            <span className="tw-saludo-av" aria-hidden="true">{cumple ? "🎂" : (nombre[0] || "✿").toUpperCase()}</span>
+            <span className="tw-saludo-txt">
+              <b>{cumple ? <>¡Feliz cumpleaños, {nombre}! <span className="tw-saludo-emo">🎁🎂🎉</span></> : <>¡Hola, {nombre}!</>}</b>
+              <small>{miCuenta.nivel ? <>Sos <b className="tw-saludo-nivel">{miCuenta.nivel}</b> con </> : "Tenés "}<b><TwRueda key={miCuenta.puntos} valor={miCuenta.puntos || 0} desde={0} dur={900} formato={n => n.toLocaleString("es-AR")} /></b> puntos</small>
+            </span>
+            <span className="tw-saludo-ir" aria-hidden="true">›</span>
+          </button>
+        );
+      })()}
+      {!codigoUrl && !logueada && (
+        <button className="tw-saludo invitada" onClick={() => { setAvisoCuenta(null); setCanjeHecho(null); setFormCuenta({ modo: "ingresar" }); setPaso("cuenta"); }}>
+          <span className="tw-saludo-av" aria-hidden="true">✦</span>
+          <span className="tw-saludo-txt"><b>Ingresá a tu cuenta</b><small>Sumá puntos con cada compra y canjealos por premios</small></span>
+          <span className="tw-saludo-ir" aria-hidden="true">›</span>
+        </button>
+      )}
     </>
   );
   const pie = (
