@@ -67,12 +67,14 @@ router.get('/:slug/productos', async (req, res) => {
       SELECT p.id, p.nombre, p.marca, p.categoria, p.precio, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush,
              COALESCE(p.tiene_variantes, FALSE) AS tiene_variantes, tp.descripcion, tp.orden, COALESCE(tp.destacado, FALSE) AS destacado, tp.video_url, (p.creado_en > NOW() - INTERVAL '30 days') AS nuevo,
              EXISTS (SELECT 1 FROM tienda_videos tv WHERE tv.producto_id = p.id) AS video_subido,
+             ARRAY(SELECT f.id FROM tienda_fotos f WHERE f.producto_id = p.id ORDER BY f.orden, f.id) AS fotos_extra,
+             (SELECT EXTRACT(EPOCH FROM i.actualizado_en)::bigint FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto_v,
              EXISTS (SELECT 1 FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto
       FROM tienda_productos tp JOIN productos p ON p.id = tp.producto_id
       WHERE tp.publicado AND p.activo = TRUE AND COALESCE(p.precio, 0) > 0
       ORDER BY tp.orden, p.nombre`).catch(async () => (await pool.query(`
       SELECT p.id, p.nombre, p.marca, p.categoria, p.precio, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush,
-             COALESCE(p.tiene_variantes, FALSE) AS tiene_variantes, tp.descripcion, tp.orden, COALESCE(tp.destacado, FALSE) AS destacado, tp.video_url, (p.creado_en > NOW() - INTERVAL '30 days') AS nuevo, EXISTS (SELECT 1 FROM tienda_videos tv WHERE tv.producto_id = p.id) AS video_subido, FALSE AS foto
+             COALESCE(p.tiene_variantes, FALSE) AS tiene_variantes, tp.descripcion, tp.orden, COALESCE(tp.destacado, FALSE) AS destacado, tp.video_url, (p.creado_en > NOW() - INTERVAL '30 days') AS nuevo, EXISTS (SELECT 1 FROM tienda_videos tv WHERE tv.producto_id = p.id) AS video_subido, ARRAY[]::int[] AS fotos_extra, NULL::bigint AS foto_v, FALSE AS foto
       FROM tienda_productos tp JOIN productos p ON p.id = tp.producto_id
       WHERE tp.publicado AND p.activo = TRUE AND COALESCE(p.precio, 0) > 0 ORDER BY tp.orden, p.nombre`)));
     const conVar = r.rows.filter(p => p.tiene_variantes).map(p => p.id);
@@ -81,7 +83,7 @@ router.get('/:slug/productos', async (req, res) => {
       const v = vars.filter(x => x.producto_id === p.id).map(x => ({ id: x.id, valor: x.valor, stock: { 1: Math.max(0, x.stock_rg), 2: Math.max(0, x.stock_ush) } }));
       return {
         id: p.id, nombre: p.nombre, marca: p.marca, categoria: p.categoria, precio: num(p.precio), descripcion: p.descripcion || '', foto: !!p.foto,
-        destacado: !!p.destacado, nuevo: !!p.nuevo,
+        destacado: !!p.destacado, nuevo: !!p.nuevo, fotos: p.fotos_extra || [], foto_v: p.foto_v ? Number(p.foto_v) : null,
         video: p.video_subido ? { tipo: 'subido' } : tienda.videoDeLink(p.video_url),
         variantes: p.tiene_variantes && v.length ? v : null,
         stock: { 1: Math.max(0, parseInt(p.stock_rg) || 0), 2: Math.max(0, parseInt(p.stock_ush) || 0) },
@@ -99,6 +101,16 @@ router.get('/:slug/foto/:id', async (req, res) => {
     const r = (await pool.query(`SELECT i.imagen FROM producto_imagenes i JOIN tienda_productos tp ON tp.producto_id = i.producto_id AND tp.publicado WHERE i.producto_id = $1`, [req.params.id])).rows[0];
     if (!r) return res.status(404).end();
     const m = /^data:(image\/[a-z]+);base64,(.+)$/.exec(r.imagen || '');
+    if (!m) return res.status(404).end();
+    res.set('Content-Type', m[1]).set('Cache-Control', 'public, max-age=600').send(Buffer.from(m[2], 'base64'));
+  } catch (e) { res.status(404).end(); }
+});
+
+// Foto extra de un producto publicado
+router.get('/:slug/foto-extra/:id', async (req, res) => {
+  try {
+    const r = (await pool.query(`SELECT f.imagen FROM tienda_fotos f JOIN tienda_productos tp ON tp.producto_id = f.producto_id AND tp.publicado WHERE f.id = $1`, [req.params.id])).rows[0];
+    const m = r && /^data:(image\/[a-z]+);base64,(.+)$/.exec(r.imagen || '');
     if (!m) return res.status(404).end();
     res.set('Content-Type', m[1]).set('Cache-Control', 'public, max-age=600').send(Buffer.from(m[2], 'base64'));
   } catch (e) { res.status(404).end(); }
