@@ -55,6 +55,7 @@ router.get('/:slug', async (req, res) => {
       retiro: c.retiro_activo ? locales : [],
       envio: c.envio_activo ? { zonas: c.envio_zonas, gratis_desde: c.envio_gratis_desde } : null,
       pagos: { mp, transferencia: !!c.pago_transferencia, retiro: !!c.pago_retiro }, horas_reserva: c.horas_reserva,
+      anuncios: String(c.anuncios || '').split('\n').filter(Boolean),
     });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la tienda' }); }
 });
@@ -64,13 +65,14 @@ router.get('/:slug/productos', async (req, res) => {
   try {
     const r = await pool.query(`
       SELECT p.id, p.nombre, p.marca, p.categoria, p.precio, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush,
-             COALESCE(p.tiene_variantes, FALSE) AS tiene_variantes, tp.descripcion, tp.orden,
+             COALESCE(p.tiene_variantes, FALSE) AS tiene_variantes, tp.descripcion, tp.orden, COALESCE(tp.destacado, FALSE) AS destacado, tp.video_url, (p.creado_en > NOW() - INTERVAL '30 days') AS nuevo,
+             EXISTS (SELECT 1 FROM tienda_videos tv WHERE tv.producto_id = p.id) AS video_subido,
              EXISTS (SELECT 1 FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto
       FROM tienda_productos tp JOIN productos p ON p.id = tp.producto_id
       WHERE tp.publicado AND p.activo = TRUE AND COALESCE(p.precio, 0) > 0
       ORDER BY tp.orden, p.nombre`).catch(async () => (await pool.query(`
       SELECT p.id, p.nombre, p.marca, p.categoria, p.precio, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush,
-             COALESCE(p.tiene_variantes, FALSE) AS tiene_variantes, tp.descripcion, tp.orden, FALSE AS foto
+             COALESCE(p.tiene_variantes, FALSE) AS tiene_variantes, tp.descripcion, tp.orden, COALESCE(tp.destacado, FALSE) AS destacado, tp.video_url, (p.creado_en > NOW() - INTERVAL '30 days') AS nuevo, EXISTS (SELECT 1 FROM tienda_videos tv WHERE tv.producto_id = p.id) AS video_subido, FALSE AS foto
       FROM tienda_productos tp JOIN productos p ON p.id = tp.producto_id
       WHERE tp.publicado AND p.activo = TRUE AND COALESCE(p.precio, 0) > 0 ORDER BY tp.orden, p.nombre`)));
     const conVar = r.rows.filter(p => p.tiene_variantes).map(p => p.id);
@@ -79,6 +81,8 @@ router.get('/:slug/productos', async (req, res) => {
       const v = vars.filter(x => x.producto_id === p.id).map(x => ({ id: x.id, valor: x.valor, stock: { 1: Math.max(0, x.stock_rg), 2: Math.max(0, x.stock_ush) } }));
       return {
         id: p.id, nombre: p.nombre, marca: p.marca, categoria: p.categoria, precio: num(p.precio), descripcion: p.descripcion || '', foto: !!p.foto,
+        destacado: !!p.destacado, nuevo: !!p.nuevo,
+        video: p.video_subido ? { tipo: 'subido' } : tienda.videoDeLink(p.video_url),
         variantes: p.tiene_variantes && v.length ? v : null,
         stock: { 1: Math.max(0, parseInt(p.stock_rg) || 0), 2: Math.max(0, parseInt(p.stock_ush) || 0) },
       };
@@ -97,6 +101,32 @@ router.get('/:slug/foto/:id', async (req, res) => {
     const m = /^data:(image\/[a-z]+);base64,(.+)$/.exec(r.imagen || '');
     if (!m) return res.status(404).end();
     res.set('Content-Type', m[1]).set('Cache-Control', 'public, max-age=600').send(Buffer.from(m[2], 'base64'));
+  } catch (e) { res.status(404).end(); }
+});
+
+// Video subido de un producto publicado. Responde por partes (Range) para que el navegador
+// pueda empezar a reproducirlo sin bajarlo entero y adelantarlo.
+router.get('/:slug/video/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const r = (await pool.query(`SELECT v.tipo, octet_length(v.datos) AS largo, v.actualizado_en FROM tienda_videos v
+      JOIN tienda_productos tp ON tp.producto_id = v.producto_id AND tp.publicado WHERE v.producto_id = $1`, [id])).rows[0];
+    if (!r) return res.status(404).end();
+    const largo = parseInt(r.largo);
+    let desde = 0, hasta = largo - 1, parcial = false;
+    const m = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || ''));
+    if (m && (m[1] || m[2])) {
+      if (m[1]) { desde = parseInt(m[1]); if (m[2]) hasta = Math.min(parseInt(m[2]), largo - 1); }
+      else { desde = Math.max(0, largo - parseInt(m[2])); }
+      hasta = Math.min(hasta, desde + 2 * 1024 * 1024 - 1); // de a 2 MB
+      if (desde >= largo || desde > hasta) return res.status(416).set('Content-Range', 'bytes */' + largo).end();
+      parcial = true;
+    }
+    const d = (await pool.query('SELECT substring(datos FROM $2 FOR $3) AS trozo FROM tienda_videos WHERE producto_id = $1', [id, desde + 1, hasta - desde + 1])).rows[0];
+    res.status(parcial ? 206 : 200).set({
+      'Content-Type': r.tipo, 'Accept-Ranges': 'bytes', 'Content-Length': String(d.trozo.length), 'Cache-Control': 'public, max-age=600',
+      ...(parcial ? { 'Content-Range': 'bytes ' + desde + '-' + (desde + d.trozo.length - 1) + '/' + largo } : {}),
+    }).send(d.trozo);
   } catch (e) { res.status(404).end(); }
 });
 
