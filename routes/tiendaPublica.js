@@ -461,14 +461,47 @@ router.post('/:slug/cuenta/ingresar', async (req, res) => {
 
 // Crear la cuenta. Si el DNI ya esta en Lumiere (compro en el local), para proteger sus puntos
 // tiene que coincidir el WhatsApp o el mail que figuran en su ficha. Si es nueva, se crea la ficha.
+// Mientras escribe el DNI para crear la cuenta: si ya es clienta de Lumiere, si ya tiene cuenta, o si es nueva.
+// Se muestra solo el primer nombre y el final del WhatsApp (para que sepa cual usar). Con limite por IP.
+const consultasDni = new Map();
+router.post('/:slug/cuenta/dni', async (req, res) => {
+  try {
+    const ip = req.ip || 'x', ahora = Date.now();
+    const l = (consultasDni.get(ip) || []).filter(t => ahora - t < 10 * 60 * 1000); l.push(ahora); consultasDni.set(ip, l);
+    if (l.length > 30) return res.status(429).json({ error: 'Demasiadas consultas. Esperá unos minutos.' });
+    const dni = cuentas.soloNumeros((req.body || {}).dni);
+    if (dni.length < 7 || dni.length > 11) return res.json({ estado: 'incompleto' });
+    const c = (await cuentas.buscarPorDni(dni)).rows[0];
+    if (!c) return res.json({ estado: 'nueva' });
+    if (c.password_hash) return res.json({ estado: 'con_cuenta', nombre: String(c.nombre || '').trim().split(/\s+/)[0] || null });
+    const tel = digitos(c.telefono);
+    res.json({ estado: 'clienta', nombre: String(c.nombre || '').trim().split(/\s+/)[0] || null, tel_final: tel.length >= 8 ? tel.slice(-2) : null,
+      falta: { email: !(c.email || c.portal_email), cumple: !c.fecha_nacimiento, telefono: tel.length < 8 } });
+  } catch (e) { res.status(500).json({ error: 'No se pudo consultar' }); }
+});
+
+// Fecha de nacimiento valida (AAAA-MM-DD, entre 10 y 110 años)
+function fechaNacimiento(x) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(x || ''));
+  if (!m) return null;
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  if (d.getUTCMonth() !== +m[2] - 1) return null;
+  const edad = (Date.now() - d.getTime()) / (365.25 * 864e5);
+  return edad >= 10 && edad <= 110 ? m[0] : null;
+}
+
 router.post('/:slug/cuenta/crear', async (req, res) => {
   try {
     const b = req.body || {};
-    const dni = cuentas.soloNumeros(b.dni), password = String(b.password || ''), nombre = String(b.nombre || '').trim().slice(0, 120);
+    const dni = cuentas.soloNumeros(b.dni), password = String(b.password || ''), nombre = String(b.nombre || '').trim().replace(/\s+/g, ' ').slice(0, 120);
     const telefono = String(b.telefono || '').trim().slice(0, 40), email = String(b.email || '').trim().toLowerCase().slice(0, 120) || null;
+    const nacimiento = fechaNacimiento(b.fecha_nacimiento);
+    const localCliente = Number(b.local_id) === 2 ? 2 : 1;
     if (dni.length < 7 || dni.length > 11) return res.status(400).json({ error: 'Escribí tu DNI (solo números)' });
     if (password.length < 6) return res.status(400).json({ error: 'La contraseña tiene que tener al menos 6 caracteres' });
     if (digitos(telefono).length < 8) return res.status(400).json({ error: 'Escribí tu WhatsApp con código de área' });
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return res.status(400).json({ error: 'Escribí tu email' });
+    if (!nacimiento) return res.status(400).json({ error: 'Elegí tu fecha de nacimiento (así te saludamos en tu cumple 🎂)' });
     const k = 'tienda-crear:' + req.negTienda.id + ':' + dni;
     if (cuentas.bloqueado(k)) return res.status(429).json({ error: 'Demasiados intentos. Esperá 15 minutos y volvé a probar.' });
     let c = (await cuentas.buscarPorDni(dni)).rows[0];
@@ -480,20 +513,23 @@ router.post('/:slug/cuenta/crear', async (req, res) => {
         cuentas.sumarIntento(k);
         return res.status(400).json({ error: (c.telefono || c.email) ? 'Ese DNI ya está en nuestra base con otro WhatsApp o mail. Escribí el que nos diste en el local (o pedí que lo actualicen).' : 'Ese DNI ya está en nuestra base pero sin WhatsApp ni mail. Para proteger tus puntos, pedí en el local que los carguen en tu ficha y volvé a intentar.', verificar: true });
       }
+      // Ya era clienta: se completan los datos que le falten (no se pisa lo que cargaron en el local)
       await pool.query(`UPDATE clientes SET password_hash = $1, portal_registrado_en = NOW(), portal_email = COALESCE(portal_email, $2::text),
-        email = COALESCE(NULLIF(email, ''), $2::text), telefono = COALESCE(NULLIF(telefono, ''), $3::text) WHERE id = $4`, [await bcrypt.hash(password, 10), email, telefono, c.id]);
+        email = COALESCE(NULLIF(email, ''), $2::text), telefono = COALESCE(NULLIF(telefono, ''), $3::text), fecha_nacimiento = COALESCE(fecha_nacimiento, $5::date) WHERE id = $4`,
+        [await bcrypt.hash(password, 10), email, telefono, c.id, nacimiento]);
     } else {
-      if (nombre.length < 2) return res.status(400).json({ error: 'Escribí tu nombre' });
+      if (nombre.length < 3 || !/\S+\s+\S+/.test(nombre)) return res.status(400).json({ error: 'Escribí tu nombre y apellido' });
       // Puede que ya este en Lumiere sin DNI (por ejemplo, por un pedido web): se completa esa ficha
       const porTel = (await pool.query(`SELECT * FROM clientes WHERE RIGHT(REGEXP_REPLACE(COALESCE(telefono, ''), '[^0-9]', '', 'g'), 6) = $1
         AND LENGTH(REGEXP_REPLACE(COALESCE(telefono, ''), '[^0-9]', '', 'g')) >= 8 AND COALESCE(cuit_dni, '') = '' AND password_hash IS NULL ORDER BY id LIMIT 1`, [cuentas.soloNumeros(telefono).slice(-6)])).rows[0];
       const hash = await bcrypt.hash(password, 10);
       if (porTel) {
-        await pool.query(`UPDATE clientes SET cuit_dni = $1, password_hash = $2, portal_registrado_en = NOW(), portal_email = $3::text, email = COALESCE(NULLIF(email, ''), $3::text) WHERE id = $4`, [dni, hash, email, porTel.id]);
+        await pool.query(`UPDATE clientes SET cuit_dni = $1, password_hash = $2, portal_registrado_en = NOW(), portal_email = $3::text, email = COALESCE(NULLIF(email, ''), $3::text),
+          fecha_nacimiento = COALESCE(fecha_nacimiento, $5::date), nombre = CASE WHEN LENGTH(COALESCE(nombre, '')) < 3 THEN $6 ELSE nombre END WHERE id = $4`, [dni, hash, email, porTel.id, nacimiento, nombre]);
         c = porTel;
       } else {
-        c = (await pool.query(`INSERT INTO clientes (nombre, telefono, email, cuit_dni, password_hash, portal_email, portal_registrado_en, local_id) VALUES ($1, $2, $3::text, $4, $5, $3::text, NOW(), 1) RETURNING *`,
-          [nombre, telefono, email, dni, hash])).rows[0];
+        c = (await pool.query(`INSERT INTO clientes (nombre, telefono, email, cuit_dni, password_hash, portal_email, portal_registrado_en, local_id, fecha_nacimiento) VALUES ($1, $2, $3::text, $4, $5, $3::text, NOW(), $6, $7::date) RETURNING *`,
+          [nombre, telefono, email, dni, hash, localCliente, nacimiento])).rows[0];
       }
     }
     cuentas.intentos.delete(k);
