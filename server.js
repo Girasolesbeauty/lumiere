@@ -88,6 +88,7 @@ app.use('/api/consultorio', require('./routes/consultorio'));
 app.use('/api/modulos', require('./routes/modulos'));
 app.use('/api/tienda', require('./routes/tienda'));
 app.use('/api/tienda-publica', require('./routes/tiendaPublica'));
+app.use('/api/fotos-web', require('./routes/fotosWeb'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {
