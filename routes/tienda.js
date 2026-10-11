@@ -219,7 +219,7 @@ router.get('/productos', async (req, res) => {
   try {
     const r = await pool.query(`
       SELECT p.id, p.nombre, p.marca, p.categoria, p.precio, p.codigo_barras, p.proveedor_id, pr.nombre AS proveedor, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush,
-             COALESCE(tp.publicado, FALSE) AS publicado, tp.descripcion, COALESCE(tp.destacado, FALSE) AS destacado, tp.video_url,
+             COALESCE(tp.publicado, FALSE) AS publicado, tp.descripcion, COALESCE(tp.destacado, FALSE) AS destacado, tp.video_url, tp.etiquetas,
              EXISTS (SELECT 1 FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto,
              EXISTS (SELECT 1 FROM tienda_videos v WHERE v.producto_id = p.id) AS video_subido,
              (SELECT COUNT(*)::int FROM tienda_fotos f WHERE f.producto_id = p.id) AS fotos_extra
@@ -242,6 +242,7 @@ router.put('/productos/:id', async (req, res) => {
         video_url = CASE WHEN $7 THEN $6 ELSE tienda_productos.video_url END`,
       [req.params.id, b.publicado === undefined ? null : !!b.publicado, String(b.descripcion || '').trim().slice(0, 1500) || null, b.descripcion !== undefined,
        b.destacado === undefined ? null : !!b.destacado, link ? link.slice(0, 500) : null, link !== undefined]);
+    if (b.etiquetas !== undefined) await pool.query('UPDATE tienda_productos SET etiquetas = $2 WHERE producto_id = $1', [req.params.id, tienda.limpiarEtiquetas(b.etiquetas)]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
 });
@@ -363,6 +364,21 @@ router.post('/productos/masivo', async (req, res) => {
       ON CONFLICT (producto_id) DO UPDATE SET publicado = $1 RETURNING producto_id`, [publicado, ids]);
     res.json({ ok: true, cambiados: r.rows.length });
   } catch (e) { res.status(500).json({ error: 'No se pudo' }); }
+});
+
+// Segmentar muchos productos de una vez: [{ id, etiquetas }] (etiquetas null = volver a automatico)
+router.post('/productos/etiquetas', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    const lista = Array.isArray(req.body && req.body.cambios) ? req.body.cambios.slice(0, 20000) : [];
+    const ids = [], ets = [];
+    for (const c of lista) { const id = parseInt(c && c.id); if (id > 0) { ids.push(id); ets.push(JSON.stringify(tienda.limpiarEtiquetas(c.etiquetas))); } }
+    if (!ids.length) return res.status(400).json({ error: 'No hay productos para cambiar' });
+    const r = await pool.query(`INSERT INTO tienda_productos (producto_id, etiquetas)
+      SELECT x.id, NULLIF(x.e, 'null')::jsonb FROM unnest($1::int[], $2::text[]) AS x(id, e) JOIN productos p ON p.id = x.id
+      ON CONFLICT (producto_id) DO UPDATE SET etiquetas = EXCLUDED.etiquetas RETURNING producto_id`, [ids, ets]);
+    res.json({ ok: true, cambiados: r.rows.length });
+  } catch (e) { console.error('[tienda] etiquetas:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
 });
 
 // Guardar muchas descripciones de una vez (por ejemplo, las traidas de la tienda anterior)

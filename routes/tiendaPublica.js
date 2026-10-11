@@ -92,7 +92,7 @@ router.get('/:slug/productos', async (req, res) => {
   try {
     const r = await pool.query(`
       SELECT p.id, p.nombre, p.marca, p.categoria, p.precio, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush,
-             COALESCE(p.tiene_variantes, FALSE) AS tiene_variantes, tp.descripcion, tp.orden, COALESCE(tp.destacado, FALSE) AS destacado, tp.video_url, (p.creado_en > NOW() - INTERVAL '30 days') AS nuevo,
+             COALESCE(p.tiene_variantes, FALSE) AS tiene_variantes, tp.descripcion, tp.orden, COALESCE(tp.destacado, FALSE) AS destacado, tp.video_url, (p.creado_en > NOW() - INTERVAL '30 days') AS nuevo, tp.etiquetas,
              EXISTS (SELECT 1 FROM tienda_videos tv WHERE tv.producto_id = p.id) AS video_subido,
              ARRAY(SELECT f.id FROM tienda_fotos f WHERE f.producto_id = p.id ORDER BY f.orden, f.id) AS fotos_extra,
              (SELECT json_object_agg(r.local_id, EXTRACT(EPOCH FROM r.f)::bigint) FROM (SELECT local_id, MAX(fecha) AS f FROM tienda_reingresos
@@ -112,7 +112,7 @@ router.get('/:slug/productos', async (req, res) => {
       const v = vars.filter(x => x.producto_id === p.id).map(x => ({ id: x.id, valor: x.valor, stock: { 1: Math.max(0, x.stock_rg), 2: Math.max(0, x.stock_ush) } }));
       return {
         id: p.id, nombre: p.nombre, marca: p.marca, categoria: p.categoria, precio: num(p.precio), descripcion: p.descripcion || '', foto: !!p.foto,
-        destacado: !!p.destacado, nuevo: !!p.nuevo, fotos: p.fotos_extra || [], reingreso: p.reingreso || null, foto_v: p.foto_v ? Number(p.foto_v) : null,
+        destacado: !!p.destacado, nuevo: !!p.nuevo, etiquetas: p.etiquetas || null, fotos: p.fotos_extra || [], reingreso: p.reingreso || null, foto_v: p.foto_v ? Number(p.foto_v) : null,
         video: p.video_subido ? { tipo: 'subido' } : tienda.videoDeLink(p.video_url),
         variantes: p.tiene_variantes && v.length ? v : null,
         stock: { 1: Math.max(0, parseInt(p.stock_rg) || 0), 2: Math.max(0, parseInt(p.stock_ush) || 0) },
