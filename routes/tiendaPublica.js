@@ -42,6 +42,19 @@ router.use('/:slug', async (req, res, next) => {
   } catch (e) { res.status(500).json({ error: 'La tienda no está disponible en este momento' }); }
 });
 
+// "@girasoles", "girasoles" o el link completo -> link a la red (solo https a esa red)
+const BASE_RED = { instagram: ['instagram.com', 'https://www.instagram.com/'], tiktok: ['tiktok.com', 'https://www.tiktok.com/@'], facebook: ['facebook.com', 'https://www.facebook.com/'] };
+function linksRedes(redes) {
+  const r = {};
+  for (const [k, [dominio, base]] of Object.entries(BASE_RED)) {
+    const v = String((redes || {})[k] || '').trim();
+    if (!v) continue;
+    if (/^https?:\/\//i.test(v)) { try { const u = new URL(v); if (u.hostname === dominio || u.hostname.endsWith('.' + dominio) || (k === 'facebook' && u.hostname.endsWith('fb.com'))) r[k] = 'https://' + u.hostname + u.pathname + u.search; } catch (e) {} }
+    else { const usuario = v.replace(/^@/, '').replace(/[^A-Za-z0-9._-]/g, ''); if (usuario) r[k] = base + usuario; }
+  }
+  return r;
+}
+
 async function mpDisponible() {
   try { await ayudaMP.asegurar(); return !!(await ayudaMP.token()); } catch (e) { return false; }
 }
@@ -65,7 +78,8 @@ router.get('/:slug', async (req, res) => {
       envio: c.envio_activo ? { zonas: c.envio_zonas, gratis_desde: c.envio_gratis_desde } : null,
       pagos: { mp, transferencia: !!c.pago_transferencia, retiro: !!c.pago_retiro }, horas_reserva: c.horas_reserva,
       anuncios: String(c.anuncios || '').split('\n').filter(Boolean),
-      banner: c.banner || [], filas: c.filas || [], sectores: c.sectores || [],
+      redes: linksRedes(c.redes),
+      banner: c.banner || [], banners_img: c.banners_img || [], filas: c.filas || [], sectores: c.sectores || [],
       reingreso: c.reingreso_activo ? { nombre: c.reingreso_nombre || 'Nuevamente en stock', dias: c.reingreso_dias || 14 } : null,
     });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la tienda' }); }
@@ -116,6 +130,18 @@ router.get('/:slug/foto/:id', async (req, res) => {
     const m = /^data:(image\/[a-z]+);base64,(.+)$/.exec(r.imagen || '');
     if (!m) return res.status(404).end();
     res.set('Content-Type', m[1]).set('Cache-Control', 'public, max-age=600').send(Buffer.from(m[2], 'base64'));
+  } catch (e) { res.status(404).end(); }
+});
+
+// Imagen de un banner (solo las que usa algun banner guardado). Nunca cambia: se guarda en el navegador
+router.get('/:slug/banner/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const usadas = (req.tienda.banners_img || []).flatMap(x => [x.imagen, x.imagen_movil]);
+    if (!usadas.includes(id)) return res.status(404).end();
+    const r = (await pool.query('SELECT tipo, datos FROM tienda_banner_imagenes WHERE id = $1', [id])).rows[0];
+    if (!r) return res.status(404).end();
+    res.set('Content-Type', r.tipo).set('Cache-Control', 'public, max-age=31536000, immutable').send(r.datos);
   } catch (e) { res.status(404).end(); }
 });
 

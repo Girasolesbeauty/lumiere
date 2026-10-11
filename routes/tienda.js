@@ -51,6 +51,12 @@ router.put('/config', async (req, res) => {
        !!b.pago_mp, !!b.pago_transferencia, String(b.transferencia_datos || '').trim().slice(0, 300) || null, !!b.pago_retiro,
        Math.min(168, Math.max(1, parseInt(b.horas_reserva) || 24)),
        String(b.anuncios || '').split('\n').map(x => x.trim().slice(0, 90)).filter(Boolean).slice(0, 5).join('\n') || null]);
+    // Redes: se guarda el usuario o el link tal como lo escribio (la tienda arma el link)
+    if (b.redes && typeof b.redes === 'object') {
+      const redes = {};
+      for (const k of ['instagram', 'tiktok', 'facebook']) { const v = String(b.redes[k] || '').trim().slice(0, 200); if (v) redes[k] = v; }
+      await pool.query('UPDATE tienda_config SET redes = $1 WHERE id = 1', [JSON.stringify(redes)]);
+    }
     // Logo propio de la tienda (imagen chica, ya achicada en el navegador). Vacio = usar el del negocio
     if (Object.prototype.hasOwnProperty.call(b, 'logo')) {
       const logo = String(b.logo || '');
@@ -76,7 +82,7 @@ router.get('/portada', async (req, res) => {
     const dest = (await pool.query('SELECT producto_id FROM tienda_productos WHERE destacado ORDER BY producto_id')).rows.map(r => r.producto_id);
     // El banner respeta el orden guardado y suma los destacados marcados con la estrella en Productos
     const banner = [...(c.banner || []).filter(id => dest.includes(id)), ...dest.filter(id => !(c.banner || []).includes(id))];
-    res.json({ banner, filas: c.filas || [], sectores: c.sectores || [], reingreso: { activo: !!c.reingreso_activo, dias: c.reingreso_dias || 14, nombre: c.reingreso_nombre || '' } });
+    res.json({ banner, banners_img: c.banners_img || [], filas: c.filas || [], sectores: c.sectores || [], reingreso: { activo: !!c.reingreso_activo, dias: c.reingreso_dias || 14, nombre: c.reingreso_nombre || '' } });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la portada' }); }
 });
 
@@ -92,18 +98,47 @@ router.put('/portada', async (req, res) => {
       categorias: [...new Set((Array.isArray(s.categorias) ? s.categorias : []).map(x => texto(x, 80)).filter(Boolean))].slice(0, 40),
       productos: ids(s.productos, 300),
     })).filter(s => s.nombre);
+    const DESTINOS = ['producto', 'sector', 'categoria', 'marca', 'reingreso', 'ninguno'];
+    const bannersImg = (Array.isArray(b.banners_img) ? b.banners_img : []).slice(0, 10).map(x => ({
+      id: idSeccion(x.id), imagen: parseInt(x.imagen) || null, imagen_movil: parseInt(x.imagen_movil) || null,
+      titulo: texto(x.titulo, 80), texto: texto(x.texto, 160), boton: texto(x.boton, 30),
+      destino: DESTINOS.includes(x.destino) ? x.destino : 'ninguno', valor: texto(x.valor, 120),
+    })).filter(x => x.imagen);
     if (filas.some(f => !f.productos.length)) return res.status(400).json({ error: 'Cada fila de la portada necesita al menos un producto' });
     if (sectores.some(s => !s.categorias.length && !s.productos.length)) return res.status(400).json({ error: 'Cada sector necesita al menos una categoría o un producto' });
     await client.query('BEGIN');
     const re = b.reingreso || {};
-    await client.query('UPDATE tienda_config SET banner = $1, filas = $2, sectores = $3, reingreso_activo = $4, reingreso_dias = $5, reingreso_nombre = $6 WHERE id = 1',
-      [JSON.stringify(banner), JSON.stringify(filas), JSON.stringify(sectores), !!re.activo, Math.min(90, Math.max(1, parseInt(re.dias) || 14)), texto(re.nombre, 40) || null]);
+    await client.query('UPDATE tienda_config SET banner = $1, filas = $2, sectores = $3, reingreso_activo = $4, reingreso_dias = $5, reingreso_nombre = $6, banners_img = $7 WHERE id = 1',
+      [JSON.stringify(banner), JSON.stringify(filas), JSON.stringify(sectores), !!re.activo, Math.min(90, Math.max(1, parseInt(re.dias) || 14)), texto(re.nombre, 40) || null, JSON.stringify(bannersImg)]);
+    // Las imagenes que ya no usa ningun banner se borran (las subidas en las ultimas 6 horas se dejan: pueden estar sin guardar todavia)
+    const usadas = bannersImg.flatMap(x => [x.imagen, x.imagen_movil]).filter(Boolean);
+    await client.query(`DELETE FROM tienda_banner_imagenes WHERE NOT (id = ANY($1::int[])) AND creado_en < NOW() - INTERVAL '6 hours'`, [usadas]);
     // Los del banner quedan destacados (la estrella en Productos) y los demas no
     await client.query('UPDATE tienda_productos SET destacado = FALSE WHERE destacado AND NOT (producto_id = ANY($1::int[]))', [banner]);
     for (const id of banner) await client.query(`INSERT INTO tienda_productos (producto_id, destacado) VALUES ($1, TRUE) ON CONFLICT (producto_id) DO UPDATE SET destacado = TRUE`, [id]);
     await client.query('COMMIT');
     res.json({ ok: true });
   } catch (e) { await client.query('ROLLBACK').catch(() => {}); console.error('[tienda] portada:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); } finally { client.release(); }
+});
+
+// Imagen de un banner (llega ya achicada del navegador, en buena calidad; hasta 6 MB)
+router.post('/banner-imagen', express.raw({ type: () => true, limit: '6mb' }), async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    const tipo = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+    if (!/^image\/(jpeg|png|webp)$/.test(tipo)) return res.status(400).json({ error: 'La imagen tiene que ser JPG, PNG o WebP' });
+    if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'No llegó la imagen' });
+    const r = await pool.query('INSERT INTO tienda_banner_imagenes (tipo, datos) VALUES ($1, $2) RETURNING id', [tipo, req.body]);
+    res.json({ ok: true, id: r.rows[0].id });
+  } catch (e) { console.error('[tienda] banner imagen:', e.message); res.status(500).json({ error: 'No se pudo subir la imagen' }); }
+});
+
+router.get('/banner-imagen/:id', async (req, res) => {
+  try {
+    const r = (await pool.query('SELECT tipo, datos FROM tienda_banner_imagenes WHERE id = $1', [req.params.id])).rows[0];
+    if (!r) return res.status(404).end();
+    res.set('Content-Type', r.tipo).set('Cache-Control', 'private, max-age=86400').send(r.datos);
+  } catch (e) { res.status(404).end(); }
 });
 
 // QR de la direccion de la tienda (para el mostrador o Instagram)

@@ -22675,6 +22675,10 @@ const CSS_TIENDA = `
 .tw-badge{position:absolute;top:3px;right:1px;min-width:19px;height:19px;border-radius:999px;background:var(--c);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 5px}
 .tw-badge.salta{animation:twSalta .5s cubic-bezier(.3,1.6,.5,1)}
 @keyframes twSalta{0%{transform:scale(.4)}60%{transform:scale(1.35)}100%{transform:scale(1)}}
+.tw-navbar{background:#000}
+.tw-navbar .tw-nav button{color:#fff !important;opacity:.85;transition:opacity .2s}
+.tw-navbar .tw-nav button:hover,.tw-navbar .tw-nav button.on{opacity:1}
+.tw-navbar .tw-nav button::after{background:#fff}
 .tw-nav{max-width:1280px;margin:0 auto;display:flex;gap:26px;padding:0 20px;overflow-x:auto;scrollbar-width:none}
 .tw-nav::-webkit-scrollbar{display:none}
 .tw-nav button{background:none;border:none;padding:11px 0 12px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;cursor:pointer;position:relative}
@@ -22713,6 +22717,18 @@ const CSS_TIENDA = `
 .tw-btn2{display:inline-flex;align-items:center;justify-content:center;background:#fff;color:var(--n);border:1.5px solid var(--n);border-radius:999px;padding:12px 24px;font-size:13.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;text-decoration:none;transition:background .2s}
 .tw-btn2:hover{background:var(--g)}
 .tw-btn2:disabled{opacity:.35;cursor:default;background:#fff}
+.tw-tiles-sec{position:relative;margin:20px 0 8px}
+.tw-tiles{display:grid;grid-auto-flow:column;grid-auto-columns:calc((100% - 2*16px)/3);gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none}
+.tw-tiles::-webkit-scrollbar{display:none}
+.tw-tile{scroll-snap-align:start;display:flex;flex-direction:column;text-decoration:none;color:inherit;cursor:pointer;animation:twSube .7s cubic-bezier(.2,.7,.2,1) both;background:var(--g);border-radius:6px;overflow:hidden}
+.tw-tile-img{aspect-ratio:1/1;overflow:hidden;background:#eee}
+.tw-tile-img img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .8s cubic-bezier(.2,.7,.2,1)}
+.tw-tile:hover .tw-tile-img img{transform:scale(1.05)}
+.tw-tile-txt{padding:14px 16px 16px;display:flex;flex-direction:column;gap:4px}
+.tw-tile-txt b{font-size:17px;font-weight:800;line-height:1.25}
+.tw-tile-txt span{font-size:14px;color:#444;line-height:1.4}
+.tw-tile-txt u{font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;text-underline-offset:3px;margin-top:4px}
+.tw-tiles-sec:hover .tw-flecha{opacity:1}
 .tw-benef{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:18px 0 6px}
 .tw-benef div{display:flex;gap:12px;align-items:center;padding:14px 16px;border:1px solid var(--b);border-radius:6px;font-size:13.5px;line-height:1.35}
 .tw-benef span{font-size:24px}
@@ -22836,6 +22852,9 @@ const CSS_TIENDA = `
 .tw-pie-in{max-width:1280px;margin:0 auto;padding:44px 20px 30px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:30px;font-size:14px;line-height:1.8}
 .tw-pie h4{font-size:12px;letter-spacing:.14em;text-transform:uppercase;margin:0 0 10px;color:#aaa}
 .tw-pie a{color:#fff;text-decoration:none}
+.tw-redes{display:flex;gap:10px;margin-bottom:10px}
+.tw-redes a{width:42px;height:42px;border-radius:50%;border:1px solid #444;display:flex;align-items:center;justify-content:center;transition:background .2s,transform .2s}
+.tw-redes a:hover{background:#fff;color:#000 !important;transform:translateY(-2px)}
 .tw-pie-fin{border-top:1px solid #222;text-align:center;font-size:12px;color:#777;padding:16px}
 .tw-cartel{max-width:560px;margin:30px auto;border:1px solid var(--b);border-radius:8px;padding:24px}
 @media(max-width:1000px){.tw-fila-in{grid-auto-columns:calc((100% - 2*14px)/3);gap:14px}}
@@ -22844,7 +22863,10 @@ const CSS_TIENDA = `
   .tw-marca b{font-size:18px}
   .tw-ciudad{height:32px;padding:0 10px;font-size:12px}
   .tw-elegir{border-radius:14px 14px 0 0;padding:24px 18px calc(24px + env(safe-area-inset-bottom))}
-  .tw-marca img{height:32px;max-width:170px}
+  .tw-marca img{height:28px;max-width:140px}
+  .tw-ico-wa{display:none !important}
+  .tw-ico{width:38px;height:38px}
+  .tw-iconos{gap:2px}
   .tw-busca{order:3;flex-basis:100%;max-width:none}
   .tw-nav{padding:0 14px;gap:20px}
   .tw-main{padding:0 14px 90px}
@@ -22862,6 +22884,8 @@ const CSS_TIENDA = `
   .tw-puntos{left:20px;bottom:20px}
   .tw-flecha{display:none}
   .tw-fila-in{grid-auto-columns:44%;gap:12px}
+  .tw-tiles{grid-auto-columns:84%;gap:12px}
+  .tw-tile-txt b{font-size:16px}
   .tw-grid{grid-template-columns:repeat(2,1fr);gap:22px 12px}
   .tw-rapido{opacity:1;transform:none;left:auto;right:8px;bottom:8px;width:38px;height:38px;padding:0;font-size:20px;border-radius:50%}
   .tw-rapido span{display:none}
@@ -22887,6 +22911,9 @@ const TW_X = <path d="M6 6l12 12M18 6 6 18" />;
 const TW_IZQ = <path d="m15 6-6 6 6 6" />;
 const TW_DER = <path d="m9 6 6 6-6 6" />;
 const TW_PERSONA = <><circle cx="12" cy="8" r="4" /><path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6" /></>;
+const TW_IG = <><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="1" fill="currentColor" /></>;
+const TW_TT = <path d="M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5M14 3c.5 2.8 2.3 4.6 5 5" />;
+const TW_FB = <path d="M14 21v-7h2.5l.5-3H14V9c0-.9.4-1.5 1.6-1.5H17V5c-.4-.1-1.4-.2-2.5-.2-2.4 0-3.9 1.4-3.9 4V11H8v3h2.6v7" />;
 const TW_WA = <path d="M20 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20l1.2-4.2A8.5 8.5 0 1 1 20 11.5Z" />;
 
 // El video de un producto se puede reproducir solo (al pasar el mouse) si es un archivo, no si es de YouTube/Vimeo
@@ -22982,6 +23009,7 @@ function TiendaPublica({ slug }) {
   const [sombra, setSombra] = useState(false);
   const [pedido, setPedido] = useState(null);
   const toque = useRef(null);
+  const tilesRef = useRef(null);
   const codigoUrl = params.get("pedido");
 
   useEffect(() => {
@@ -23092,7 +23120,7 @@ function TiendaPublica({ slug }) {
           )}
           <div className="tw-iconos">
             {!codigoUrl && ciudades.length > 1 && ciudad && <button className="tw-ciudad" onClick={() => setEligeCiudad(true)} aria-label={"Tu ciudad: " + ciudad.nombre + ". Cambiar"}>📍 <span>{ciudad.nombre}</span> ▾</button>}
-            {tienda.whatsapp && <a className="tw-ico" href={wa("Hola! Tengo una consulta")} target="_blank" rel="noopener" aria-label="WhatsApp"><TwIcono d={TW_WA} /></a>}
+            {tienda.whatsapp && <a className="tw-ico tw-ico-wa" href={wa("Hola! Tengo una consulta")} target="_blank" rel="noopener" aria-label="WhatsApp"><TwIcono d={TW_WA} /></a>}
             {!codigoUrl && <button className="tw-ico" onClick={() => { setAvisoCuenta(null); setCanjeHecho(null); setPaso("cuenta"); if (logueada) cargarCuenta(); }} aria-label={logueada ? "Mi cuenta" : "Ingresar o crear cuenta"} title={logueada ? "Mi cuenta" : "Ingresar"}><TwIcono d={TW_PERSONA} />{logueada && <span className="tw-punto" />}</button>}
             {!codigoUrl && <button className="tw-ico" onClick={() => setPaso("carrito")} aria-label={"Carrito, " + totalItems + " productos"}>
               <TwIcono d={TW_BOLSA} />{totalItems > 0 && <span key={salto} className={"tw-badge" + (salto ? " salta" : "")}>{totalItems}</span>}
@@ -23108,7 +23136,15 @@ function TiendaPublica({ slug }) {
         <div>{tienda.logo ? <img src={tienda.logo} alt={tienda.titulo} style={{ height: 34, maxWidth: 200, objectFit: "contain", filter: "brightness(0) invert(1)", marginBottom: 12, display: "block" }} /> : <h4>{tienda.titulo}</h4>}{tienda.mensaje || "Gracias por elegirnos."}</div>
         {tienda.retiro.length > 0 && <div><h4>Nuestros locales</h4>{tienda.retiro.map(l => <div key={l.id}>📍 {l.nombre}{l.direccion ? " · " + l.direccion : ""}</div>)}</div>}
         <div><h4>Formas de pago</h4>{tienda.pagos.mp && <div>Mercado Pago</div>}{tienda.pagos.transferencia && <div>Transferencia</div>}{tienda.pagos.retiro && <div>En el local, al retirar</div>}</div>
-        {tienda.whatsapp && <div><h4>¿Dudas?</h4><a href={wa("Hola! Tengo una consulta")} target="_blank" rel="noopener">💬 Escribinos por WhatsApp</a></div>}
+        {(tienda.whatsapp || Object.keys(tienda.redes || {}).length > 0) && <div><h4>Seguinos</h4>
+          <div className="tw-redes">
+            {tienda.redes && tienda.redes.instagram && <a href={tienda.redes.instagram} target="_blank" rel="noopener" aria-label="Instagram"><TwIcono d={TW_IG} /></a>}
+            {tienda.redes && tienda.redes.tiktok && <a href={tienda.redes.tiktok} target="_blank" rel="noopener" aria-label="TikTok"><TwIcono d={TW_TT} /></a>}
+            {tienda.redes && tienda.redes.facebook && <a href={tienda.redes.facebook} target="_blank" rel="noopener" aria-label="Facebook"><TwIcono d={TW_FB} /></a>}
+            {tienda.whatsapp && <a href={wa("Hola! Tengo una consulta")} target="_blank" rel="noopener" aria-label="WhatsApp"><TwIcono d={TW_WA} /></a>}
+          </div>
+          {tienda.whatsapp && <a href={wa("Hola! Tengo una consulta")} target="_blank" rel="noopener" style={{ fontSize: 13.5 }}>¿Dudas? Escribinos por WhatsApp</a>}
+        </div>}
       </div>
       <div className="tw-pie-fin">© {new Date().getFullYear()} {tienda.titulo} · Tienda hecha con Lumiere</div>
     </footer>
@@ -23162,11 +23198,11 @@ function TiendaPublica({ slug }) {
   const sectores = (tienda.sectores || []).filter(sc => visibles.some(p => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria)));
   const sector = cat.startsWith("s:") ? sectores.find(sc => "s:" + sc.id === cat) : null;
   // Si la seccion elegida quedo vacia (otra ciudad, se agoto todo), se vuelve al inicio
-  if ((cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat && cat !== "*" && !cat.startsWith("s:") && cat !== "reingreso" && !cats.includes(cat))) { setTimeout(() => setCat(""), 0); }
+  if ((cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat && cat !== "*" && !cat.startsWith("s:") && !cat.startsWith("m:") && cat !== "reingreso" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2)))) { setTimeout(() => setCat(""), 0); }
   const enSector = (sc, p) => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria);
   const delSector = sector ? visibles.filter(p => enSector(sector, p)) : [];
   const catsSector = sector ? [...new Set(delSector.map(p => p.categoria).filter(Boolean))].sort() : [];
-  const lista = ordenar((cat === "reingreso" ? reingresados : visibles).filter(p => (!cat || cat === "*" || cat === "reingreso" || (sector ? enSector(sector, p) && (!subcat || p.categoria === subcat) : p.categoria === cat)) && (!q || [p.nombre, p.marca, p.categoria].some(v => (v || "").toLowerCase().includes(q)))));
+  const lista = ordenar((cat === "reingreso" ? reingresados : visibles).filter(p => (!cat || cat === "*" || cat === "reingreso" || (sector ? enSector(sector, p) && (!subcat || p.categoria === subcat) : cat.startsWith("m:") ? (p.marca || "") === cat.slice(2) : p.categoria === cat)) && (!q || [p.nombre, p.marca, p.categoria].some(v => (v || "").toLowerCase().includes(q)))));
   const conStock = visibles;
   const destacados = (() => {
     const ordenB = tienda.banner || [];
@@ -23174,6 +23210,16 @@ function TiendaPublica({ slug }) {
     const d = conStock.filter(p => p.destacado).sort((a, b) => pos(a) - pos(b));
     return (d.length ? d : conStock.filter(p => p.foto)).slice(0, 8);
   })();
+  // Banners con imagen (3 por fila, como Sephora): cada uno lleva a un producto, sector, categoria o marca
+  const bannersImg = (tienda.banners_img || []).filter(bn => bn.imagen && (bn.destino !== "producto" || visibles.some(p => p.id === Number(bn.valor))));
+  const irDestino = (bn) => {
+    if (bn.destino === "producto") { const p = visibles.find(x => x.id === Number(bn.valor)); if (p) abrir(p); }
+    else if (bn.destino === "sector") irCat("s:" + bn.valor);
+    else if (bn.destino === "categoria") irCat(bn.valor);
+    else if (bn.destino === "marca") irCat("m:" + bn.valor);
+    else if (bn.destino === "reingreso") irCat("reingreso");
+  };
+  const moverTiles = (d) => { const el = tilesRef.current; if (el) el.scrollBy({ left: d * el.clientWidth, behavior: "smooth" }); };
   const filasPortada = (tienda.filas || []).map(f => ({ ...f, items: f.productos.map(id => lista0.find(p => p.id === id)).filter(p => p && !agotado(p)) })).filter(f => f.items.length);
   const nSlides = destacados.length;
   const iSlide = nSlides ? slide % nSlides : 0;
@@ -23273,13 +23319,12 @@ function TiendaPublica({ slug }) {
     <div className="tw" style={{ "--c": color }}><style>{CSS_TIENDA}</style>
       {cabecera}
       {(cats.length > 0 || sectores.length > 0 || reingresados.length > 0) && (
-        <div style={{ borderBottom: "1px solid #e6e6e6" }}>
-          <nav className="tw-nav" aria-label={sectores.length ? "Sectores" : "Categorías"}>
+        <div className="tw-navbar">
+          <nav className="tw-nav" aria-label="Categorías">
             <button className={!enLista ? "on" : ""} onClick={irInicio}>Inicio</button>
             <button className={cat === "*" && !q ? "on" : ""} onClick={() => irCat("*")}>Todo</button>
             {reingresados.length > 0 && <button className={cat === "reingreso" && !q ? "on" : ""} onClick={() => irCat("reingreso")}>{reingreso.nombre}</button>}
-            {sectores.length ? sectores.map(sc => <button key={sc.id} className={cat === "s:" + sc.id && !q ? "on" : ""} onClick={() => irCat("s:" + sc.id)}>{sc.nombre}</button>)
-              : cats.map(c => <button key={c} className={cat === c && !q ? "on" : ""} onClick={() => irCat(c)}>{c}</button>)}
+            {cats.map(c => <button key={c} className={cat === c && !q ? "on" : ""} onClick={() => irCat(c)}>{c}</button>)}
           </nav>
         </div>
       )}
@@ -23289,7 +23334,7 @@ function TiendaPublica({ slug }) {
         ) : enLista ? (
           <>
             <div className="tw-lista-cab">
-              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" ? "Todos los productos" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4 }}>{lista.length} {lista.length === 1 ? "producto" : "productos"}</div></div>
+              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" ? "Todos los productos" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4 }}>{lista.length} {lista.length === 1 ? "producto" : "productos"}</div></div>
               <select value={orden} onChange={e => setOrden(e.target.value)} aria-label="Ordenar">{TW_ORDEN.map(([k, t]) => <option key={k} value={k}>Ordenar: {t}</option>)}</select>
             </div>
             {sector && !q && catsSector.length > 1 && (
@@ -23305,7 +23350,26 @@ function TiendaPublica({ slug }) {
           <div className="tw-cartel" style={{ textAlign: "center" }}><div style={{ fontSize: 40 }}>✿</div><h2>{tienda.titulo}</h2><p>Pronto vas a encontrar nuestros productos acá.</p></div>
         ) : (
           <>
-            {nSlides > 0 ? (
+            {bannersImg.length > 0 ? (
+              <section className="tw-tiles-sec" aria-label="Novedades de la tienda">
+                {bannersImg.length > 3 && <button className="tw-flecha" style={{ left: -14 }} onClick={() => moverTiles(-1)} aria-label="Anteriores"><TwIcono d={TW_IZQ} /></button>}
+                <div className="tw-tiles" ref={tilesRef}>
+                  {bannersImg.map((bn, i) => (
+                    <a key={bn.id} className="tw-tile" style={{ animationDelay: (i * 0.08) + "s" }} href={bn.destino === "ninguno" ? undefined : "#"} onClick={e => { e.preventDefault(); irDestino(bn); }} role={bn.destino === "ninguno" ? undefined : "link"} aria-label={bn.titulo || "Banner"}>
+                      <div className="tw-tile-img"><img src={base + "/banner/" + bn.imagen} alt={bn.titulo || ""} loading={i < 3 ? "eager" : "lazy"} /></div>
+                      {(bn.titulo || bn.texto || bn.boton) && (
+                        <div className="tw-tile-txt">
+                          {bn.titulo && <b>{bn.titulo}</b>}
+                          {bn.texto && <span>{bn.texto}</span>}
+                          {bn.destino !== "ninguno" && <u>{bn.boton || "Ver más"} ›</u>}
+                        </div>
+                      )}
+                    </a>
+                  ))}
+                </div>
+                {bannersImg.length > 3 && <button className="tw-flecha" style={{ right: -14 }} onClick={() => moverTiles(1)} aria-label="Siguientes"><TwIcono d={TW_DER} /></button>}
+              </section>
+            ) : nSlides > 0 ? (
               <div className="tw-hero" onTouchStart={e => { toque.current = e.touches[0].clientX; }} onTouchEnd={e => { const d = e.changedTouches[0].clientX - (toque.current || 0); if (Math.abs(d) > 40) setSlide(s => Math.max(0, s + (d < 0 ? 1 : -1 + nSlides))); }}>
                 {destacados.map((p, i) => (
                   <div key={p.id} className={"tw-slide" + (i === iSlide ? " on" : "")} aria-hidden={i !== iSlide}>
@@ -23327,6 +23391,7 @@ function TiendaPublica({ slug }) {
             ) : (
               <div className="tw-hero" style={{ height: 220, display: "flex", alignItems: "center", padding: "0 40px" }}><div><div className="tw-ceja" style={{ color }}>Bienvenida</div><h2 style={{ fontSize: 40, margin: "8px 0" }}>{tienda.titulo}</h2><p style={{ margin: 0 }}>{tienda.mensaje}</p></div></div>
             )}
+            {bannersImg.length > 0 && <TwFila titulo="Destacados" items={destacados} render={tarjeta} />}
             <div className="tw-benef tw-rv">
               {envioAca && <div><span>🛵</span><span style={{ fontSize: 13.5 }}><b>Envío a domicilio{ciudad ? " en " + ciudad.nombre : ""}</b><br />{gratisDesde ? "Gratis desde " + fmtTienda(gratisDesde) : "Según tu zona"}</span></div>}
               {retiroAca.length > 0 && <div><span>📍</span><span style={{ fontSize: 13.5 }}><b>Retiro sin costo</b><br />En {retiroAca.map(l => l.nombre).join(" o ")}</span></div>}
@@ -23857,7 +23922,31 @@ function ImportarDescripciones({ productos, onCerrar, onListo, temaPal, avisar }
   );
 }
 
-// ---- Portada y sectores de la tienda (banner, filas propias y sectores del menu) ----
+// ---- Portada y sectores de la tienda (banners, filas propias y sectores) ----
+// Imagen de banner guardada en Lumiere (se pide con la sesion, por eso se arma un link local)
+function ImagenBanner({ id, style }) {
+  const [src, setSrc] = useState(null);
+  useEffect(() => {
+    let url = null, vivo = true;
+    if (id) API.get("/tienda/banner-imagen/" + id, { responseType: "blob" }).then(r => { if (vivo) { url = URL.createObjectURL(r.data); setSrc(url); } }).catch(() => {});
+    return () => { vivo = false; if (url) URL.revokeObjectURL(url); };
+  }, [id]);
+  return src ? <img src={src} alt="" style={style} /> : <div className="skel" style={style} />;
+}
+// Achica una imagen de banner manteniendo buena calidad (lado mayor hasta 1600 px)
+async function prepararImagenBanner(archivo) {
+  if (!archivo || !/^image\//.test(archivo.type)) throw new Error("Elegí una imagen (JPG o PNG)");
+  const obj = URL.createObjectURL(archivo);
+  try {
+    const img = await new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => mal(new Error("No se pudo leer la imagen")); i.src = obj; });
+    const esc = Math.min(1, 1600 / Math.max(img.width, img.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.width * esc); c.height = Math.round(img.height * esc);
+    const ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(img, 0, 0, c.width, c.height);
+    const blob = await new Promise(ok => c.toBlob(ok, "image/jpeg", 0.88));
+    return { blob, ancho: img.width, alto: img.height };
+  } finally { URL.revokeObjectURL(obj); }
+}
 function ElegirProductos({ productos, ya, onAgregar, temaPal, placeholder }) {
   const tp = temaPal || PALETA_CLARA;
   const [q, setQ] = useState("");
@@ -23900,13 +23989,26 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
   const [d, setD] = useState(null);
   const [cambios, setCambios] = useState(false);
   const [guardando, setGuardando] = useState(false);
-  useEffect(() => { API.get("/tienda/portada").then(r => setD(r.data)).catch(() => setD({ banner: [], filas: [], sectores: [] })); }, []);
+  const [subiendo, setSubiendo] = useState(false);
+  useEffect(() => { API.get("/tienda/portada").then(r => setD({ banners_img: [], ...r.data })).catch(() => setD({ banner: [], banners_img: [], filas: [], sectores: [] })); }, []);
   if (!d) return <div className="skel" style={{ height: 240 }} />;
   const cambiar = (f) => { setD(f); setCambios(true); };
   const nuevoId = () => Math.random().toString(36).slice(2, 10);
   const moverEn = (k, i, dd) => { const l = [...d[k]]; const j = i + dd; if (j < 0 || j >= l.length) return; [l[i], l[j]] = [l[j], l[i]]; cambiar({ ...d, [k]: l }); };
   const editar = (k, i, cambio) => cambiar({ ...d, [k]: d[k].map((x, j) => j === i ? { ...x, ...cambio } : x) });
   const cats = [...new Set(productos.filter(p => p.publicado).map(p => p.categoria).filter(Boolean))].sort();
+  const marcas = [...new Set(productos.filter(p => p.publicado).map(p => p.marca).filter(Boolean))].sort();
+  const subirBanner = async (archivo, i) => {
+    setSubiendo(true);
+    try {
+      const { blob, ancho, alto } = await prepararImagenBanner(archivo);
+      const r = await API.post("/tienda/banner-imagen", blob, { headers: { "Content-Type": "image/jpeg" }, timeout: 120000 });
+      if (i < 0) cambiar({ ...d, banners_img: [...(d.banners_img || []), { id: nuevoId(), imagen: r.data.id, titulo: "", texto: "", boton: "", destino: "ninguno", valor: "" }] });
+      else editar("banners_img", i, { imagen: r.data.id });
+      if (Math.min(ancho, alto) < 800) avisar(false, "La imagen es chica (" + ancho + "×" + alto + "): puede verse borrosa. Ideal 1200 × 1200 o más.");
+    } catch (e) { avisar(false, e.response?.data?.error || e.message || "No se pudo subir la imagen"); }
+    setSubiendo(false);
+  };
   const guardar = async () => {
     setGuardando(true);
     try { await API.put("/tienda/portada", d); setCambios(false); avisar(true, "✓ Portada y sectores guardados"); alGuardar && alGuardar(); }
@@ -23924,9 +24026,43 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
   );
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 12, alignItems: "start", paddingBottom: 60 }}>
+      <div className="card" style={{ gridColumn: "1 / -1" }}>
+        <div className="ct">🖼 Banners con imagen (arriba de todo, 3 por fila)</div>
+        <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>Se ven 3 juntos al abrir la tienda (en el celular, de a uno y se deslizan). Usá imágenes <b>cuadradas</b> de buena calidad (ideal 1200 × 1200). Cada uno puede llevar a un producto, sector, categoría o marca. Si cargás banners con imagen, los destacados pasan a una fila más abajo.</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 10 }}>
+          {(d.banners_img || []).map((bn, i) => (
+            <div key={bn.id} style={{ ...tarjeta, marginBottom: 0 }}>
+              {cab(<span style={{ flex: 1, fontWeight: 800, fontSize: 13 }}>Banner {i + 1}</span>, "banners_img", i, d.banners_img.length)}
+              <div style={{ position: "relative" }}>
+                <ImagenBanner id={bn.imagen} style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 8, display: "block" }} />
+                <label className="btn btn-g btn-sm" style={{ position: "absolute", right: 8, bottom: 8, cursor: "pointer" }}>Cambiar imagen
+                  <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) subirBanner(f, i); }} />
+                </label>
+              </div>
+              <input className="inp" style={{ marginTop: 8 }} placeholder="Título (opcional). Ej: Nuevos ingresos" value={bn.titulo || ""} onChange={e => editar("banners_img", i, { titulo: e.target.value })} aria-label="Título del banner" />
+              <input className="inp" style={{ marginTop: 6 }} placeholder="Texto (opcional). Ej: Lo último en skincare" value={bn.texto || ""} onChange={e => editar("banners_img", i, { texto: e.target.value })} aria-label="Texto del banner" />
+              <div className="fl" style={{ marginTop: 8 }}>¿A dónde lleva?</div>
+              <select className="sel" style={{ width: "100%" }} aria-label="A dónde lleva el banner" value={bn.destino || "ninguno"} onChange={e => editar("banners_img", i, { destino: e.target.value, valor: "" })}>
+                <option value="ninguno">A ningún lado</option><option value="producto">A un producto</option><option value="sector">A un sector</option><option value="categoria">A una categoría</option><option value="marca">A una marca</option>{d.reingreso && d.reingreso.activo && <option value="reingreso">A "Nuevamente en stock"</option>}
+              </select>
+              {bn.destino === "producto" && (bn.valor ? <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 6, fontSize: 13 }}><b style={{ flex: 1 }}>{(productos.find(p => p.id === Number(bn.valor)) || {}).nombre || "Producto"}</b><button className="chip-btn" onClick={() => editar("banners_img", i, { valor: "" })}>Cambiar</button></div>
+                : <div style={{ marginTop: 6 }}><ElegirProductos productos={productos} ya={[]} temaPal={tp} placeholder="Escribí el nombre del producto…" onAgregar={id => editar("banners_img", i, { valor: String(id) })} /></div>)}
+              {bn.destino === "sector" && <select className="sel" style={{ width: "100%", marginTop: 6 }} aria-label="Sector" value={bn.valor || ""} onChange={e => editar("banners_img", i, { valor: e.target.value })}><option value="">Elegí el sector…</option>{d.sectores.filter(sc => sc.nombre).map(sc => <option key={sc.id} value={sc.id}>{sc.nombre}</option>)}</select>}
+              {bn.destino === "categoria" && <select className="sel" style={{ width: "100%", marginTop: 6 }} aria-label="Categoría" value={bn.valor || ""} onChange={e => editar("banners_img", i, { valor: e.target.value })}><option value="">Elegí la categoría…</option>{cats.map(c => <option key={c} value={c}>{c}</option>)}</select>}
+              {bn.destino === "marca" && <select className="sel" style={{ width: "100%", marginTop: 6 }} aria-label="Marca" value={bn.valor || ""} onChange={e => editar("banners_img", i, { valor: e.target.value })}><option value="">Elegí la marca…</option>{marcas.map(c => <option key={c} value={c}>{c}</option>)}</select>}
+              {bn.destino !== "ninguno" && <input className="inp" style={{ marginTop: 6 }} placeholder='Texto del link (opcional). Ej: "Comprar"' value={bn.boton || ""} onChange={e => editar("banners_img", i, { boton: e.target.value })} />}
+            </div>
+          ))}
+        </div>
+        {(d.banners_img || []).length < 10 && (
+          <label className="btn btn-g btn-sm" style={{ marginTop: 10, display: "inline-flex", cursor: subiendo ? "wait" : "pointer", opacity: subiendo ? 0.6 : 1 }}>{subiendo ? "Subiendo imagen…" : "+ Nuevo banner (elegir imagen)"}
+            <input type="file" accept="image/*" style={{ display: "none" }} disabled={subiendo} onChange={e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) subirBanner(f, -1); }} />
+          </label>
+        )}
+      </div>
       <div className="card">
-        <div className="ct">⭐ Banner grande de arriba</div>
-        <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>Los productos que pasan en el banner, en este orden (hasta 12). Conviene que tengan buena foto.</div>
+        <div className="ct">⭐ Productos destacados</div>
+        <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>Si no hay banners con imagen, pasan en el banner grande de arriba; si hay, se muestran en una fila "Destacados". En este orden (hasta 12).</div>
         <ListaElegidos lista={d.banner} productos={productos} temaPal={tp} onCambiar={l => cambiar({ ...d, banner: l })} />
         {d.banner.length < 12 && <ElegirProductos productos={productos} ya={d.banner} temaPal={tp} onAgregar={id => cambiar({ ...d, banner: [...d.banner, id] })} />}
       </div>
@@ -23960,8 +24096,8 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
         )}
       </div>
       <div className="card" style={{ gridColumn: "1 / -1" }}>
-        <div className="ct">🗂 Sectores del menú</div>
-        <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>Son las opciones del menú de arriba de la tienda (ej: SKINCARE, MAQUILLAJE, FRAGANCIAS, REGALOS). Cada sector junta categorías enteras y, si querés, productos sueltos. Si no armás ninguno, el menú muestra tus categorías.</div>
+        <div className="ct">🗂 Sectores</div>
+        <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>Cada sector aparece como una fila en la portada (con su "Ver todo") y se puede usar como destino de un banner. Junta categorías enteras y, si querés, productos sueltos (ej: SKINCARE, REGALOS, OFERTAS). El menú de arriba de la tienda muestra tus categorías.</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 10 }}>
           {d.sectores.map((sc, i) => (
             <div key={sc.id} style={{ ...tarjeta, marginBottom: 0 }}>
@@ -24302,6 +24438,13 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               <div style={{ flex: 1 }}><div className="fl">WhatsApp de consultas</div><input className="inp" placeholder="2964 123456" value={cfg.whatsapp || ""} onChange={e => set("whatsapp", e.target.value)} /></div>
               <div><div className="fl">Color</div><input type="color" value={cfg.color || "#c9a84c"} onChange={e => set("color", e.target.value)} style={{ width: 54, height: 40, border: "none", background: "none" }} /></div>
             </div>
+            <div className="fl" style={{ marginTop: 10 }}>Redes sociales (tu usuario o el link)</div>
+            {[["instagram", "Instagram", "@girasoles"], ["tiktok", "TikTok", "@girasoles"], ["facebook", "Facebook", "facebook.com/girasoles"]].map(([k, t, ej]) => (
+              <div key={k} style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
+                <span style={{ width: 80, fontSize: 12.5, fontWeight: 700 }}>{t}</span>
+                <input className="inp" style={{ flex: 1 }} placeholder={"Ej: " + ej} value={(cfg.redes || {})[k] || ""} onChange={e => set("redes", { ...(cfg.redes || {}), [k]: e.target.value })} aria-label={t} />
+              </div>
+            ))}
             <div className="fl" style={{ marginTop: 10 }}>Frases de la tira negra de arriba (una por renglón, hasta 5)</div>
             <textarea className="inp" rows={3} placeholder={"Ej: 3 cuotas sin interés con Mercado Pago\nEnvíos en el día en Río Grande"} value={cfg.anuncios || ""} onChange={e => set("anuncios", e.target.value)} />
             <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>Si lo dejás vacío, se arman solas con tus envíos, retiros y formas de pago.</div>
