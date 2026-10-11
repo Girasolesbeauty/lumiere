@@ -31,7 +31,7 @@ router.put('/config', async (req, res) => {
     const b = req.body || {};
     const slug = String(b.slug || '').trim().toLowerCase();
     if (b.activo && !SLUG_OK.test(slug)) return res.status(400).json({ error: 'La dirección tiene que tener entre 3 y 40 letras o números (sin espacios; podés usar guiones). Ej: girasoles' });
-    const zonas = (Array.isArray(b.envio_zonas) ? b.envio_zonas : []).map(z => ({ nombre: String(z.nombre || '').trim().slice(0, 60), costo: Math.max(0, num(z.costo)) })).filter(z => z.nombre).slice(0, 30);
+    const zonas = (Array.isArray(b.envio_zonas) ? b.envio_zonas : []).map(z => ({ nombre: String(z.nombre || '').trim().slice(0, 60), costo: Math.max(0, num(z.costo)), local: Number(z.local || b.envio_local) === 2 ? 2 : 1 })).filter(z => z.nombre).slice(0, 30);
     if (b.envio_activo && !zonas.length) return res.status(400).json({ error: 'Para ofrecer envío, cargá al menos una zona con su costo' });
     if (b.activo && !b.retiro_activo && !b.envio_activo) return res.status(400).json({ error: 'Elegí al menos una forma de entrega (retiro o envío)' });
     if (b.activo && !b.pago_mp && !b.pago_transferencia && !b.pago_retiro) return res.status(400).json({ error: 'Elegí al menos una forma de pago' });
@@ -77,12 +77,12 @@ router.get('/qr', async (req, res) => {
 router.get('/productos', async (req, res) => {
   try {
     const r = await pool.query(`
-      SELECT p.id, p.nombre, p.marca, p.categoria, p.precio, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush,
+      SELECT p.id, p.nombre, p.marca, p.categoria, p.precio, p.codigo_barras, p.proveedor_id, pr.nombre AS proveedor, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush,
              COALESCE(tp.publicado, FALSE) AS publicado, tp.descripcion, COALESCE(tp.destacado, FALSE) AS destacado, tp.video_url,
              EXISTS (SELECT 1 FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto,
              EXISTS (SELECT 1 FROM tienda_videos v WHERE v.producto_id = p.id) AS video_subido,
              (SELECT COUNT(*)::int FROM tienda_fotos f WHERE f.producto_id = p.id) AS fotos_extra
-      FROM productos p LEFT JOIN tienda_productos tp ON tp.producto_id = p.id
+      FROM productos p LEFT JOIN tienda_productos tp ON tp.producto_id = p.id LEFT JOIN proveedores pr ON pr.id = p.proveedor_id
       WHERE p.activo = TRUE ORDER BY COALESCE(tp.publicado, FALSE) DESC, p.nombre`);
     res.json(r.rows.map(p => ({ ...p, precio: num(p.precio) })));
   } catch (e) { res.status(500).json({ error: 'No se pudieron cargar los productos' }); }
@@ -222,6 +222,24 @@ router.post('/productos/masivo', async (req, res) => {
       ON CONFLICT (producto_id) DO UPDATE SET publicado = $1 RETURNING producto_id`, [publicado, ids]);
     res.json({ ok: true, cambiados: r.rows.length });
   } catch (e) { res.status(500).json({ error: 'No se pudo' }); }
+});
+
+// Guardar muchas descripciones de una vez (por ejemplo, las traidas de la tienda anterior)
+router.post('/productos/descripciones', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    const items = (Array.isArray(req.body && req.body.items) ? req.body.items : []).slice(0, 5000)
+      .map(x => ({ id: parseInt(x.producto_id), d: String(x.descripcion || '').trim().slice(0, 1500) })).filter(x => x.id > 0 && x.d);
+    const reemplazar = !!(req.body && req.body.reemplazar);
+    let n = 0;
+    for (const it of items) {
+      const r = await pool.query(`INSERT INTO tienda_productos (producto_id, descripcion) VALUES ($1, $2)
+        ON CONFLICT (producto_id) DO UPDATE SET descripcion = $2
+        WHERE $3 OR tienda_productos.descripcion IS NULL OR tienda_productos.descripcion = '' RETURNING producto_id`, [it.id, it.d, reemplazar]);
+      n += r.rows.length;
+    }
+    res.json({ ok: true, guardadas: n });
+  } catch (e) { console.error('[tienda] descripciones:', e.message); res.status(500).json({ error: 'No se pudieron guardar' }); }
 });
 
 // Publicar de una vez los que tienen foto, precio y stock
