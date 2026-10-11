@@ -22,7 +22,7 @@ router.get('/config', async (req, res) => {
     const neg = (await pool.query('SELECT nombre_negocio FROM configuracion_negocio LIMIT 1').catch(() => ({ rows: [] }))).rows[0] || {};
     const sugerido = String(neg.nombre_negocio || 'mi-tienda').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'mi-tienda';
     const dominio = await tienda.dominioDe(req.negocio ? req.negocio.id : 1).catch(() => null);
-    res.json({ ...c, mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
+    res.json({ ...c, ruleta: tienda.ruletaDe(c), mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la configuración' }); }
 });
 
@@ -58,6 +58,13 @@ router.put('/config', async (req, res) => {
       if (String(b.dominio || '').trim() && !d) return res.status(400).json({ error: 'El dominio no es válido. Escribilo así: girasolesbeauty.com.ar' });
       if (d && /(^|\.)(sistemalumiere\.com|vercel\.app|railway\.app)$/.test(d)) return res.status(400).json({ error: 'Ese dominio no se puede usar' });
       if (!(await tienda.guardarDominio(req.negocio ? req.negocio.id : 1, d))) return res.status(400).json({ error: 'Ese dominio ya lo usa otra tienda' });
+    }
+    // Ruleta de premios (compras grandes)
+    if (b.ruleta && typeof b.ruleta === 'object') {
+      const r = tienda.limpiarRuleta(b.ruleta);
+      if (r.activo && r.premios.length < 2) return res.status(400).json({ error: 'La ruleta necesita al menos 2 opciones' });
+      if (r.activo && !r.premios.some(p => p.chance > 0)) return res.status(400).json({ error: 'Poné chances a las opciones de la ruleta' });
+      await pool.query('UPDATE tienda_config SET ruleta = $1 WHERE id = 1', [JSON.stringify(r)]);
     }
     // Redes: se guarda el usuario o el link tal como lo escribio (la tienda arma el link)
     if (b.redes && typeof b.redes === 'object') {
@@ -417,12 +424,15 @@ async function pedidoCompleto(id) {
   if (!p) return null;
   const items = (await pool.query(`SELECT i.*, COALESCE(v.stock_rg, p.stock_rg, 0) AS stock_rg, COALESCE(v.stock_ush, p.stock_ush, 0) AS stock_ush
     FROM tienda_pedido_items i LEFT JOIN productos p ON p.id = i.producto_id LEFT JOIN producto_variantes v ON v.id = i.variante_id WHERE i.pedido_id = $1 ORDER BY i.id`, [id])).rows;
-  return { ...p, subtotal: num(p.subtotal), total: num(p.total), costo_envio: num(p.costo_envio), items: items.map(i => ({ ...i, precio: num(i.precio) })) };
+  const ruleta = (await pool.query('SELECT texto, tipo, valor, cupon FROM tienda_ruleta WHERE pedido_id = $1', [id]).catch(() => ({ rows: [] }))).rows[0] || null;
+  return { ...p, subtotal: num(p.subtotal), total: num(p.total), costo_envio: num(p.costo_envio), items: items.map(i => ({ ...i, precio: num(i.precio) })), ruleta };
 }
 
 router.get('/pedidos', async (req, res) => {
   try {
-    const r = await pool.query(`SELECT * FROM tienda_pedidos ORDER BY CASE WHEN estado IN ('confirmado','pendiente_pago','preparado','en_caja') THEN 0 ELSE 1 END, creado_en DESC LIMIT 200`);
+    const r = await pool.query(`SELECT p.*, CASE WHEN r.pedido_id IS NULL THEN NULL ELSE json_build_object('texto', r.texto, 'tipo', r.tipo, 'valor', r.valor, 'cupon', r.cupon) END AS ruleta
+      FROM tienda_pedidos p LEFT JOIN tienda_ruleta r ON r.pedido_id = p.id
+      ORDER BY CASE WHEN p.estado IN ('confirmado','pendiente_pago','preparado','en_caja') THEN 0 ELSE 1 END, p.creado_en DESC LIMIT 200`);
     const ids = r.rows.map(p => p.id);
     const items = ids.length ? (await pool.query('SELECT * FROM tienda_pedido_items WHERE pedido_id = ANY($1) ORDER BY id', [ids])).rows : [];
     res.json(r.rows.map(p => ({ ...p, subtotal: num(p.subtotal), total: num(p.total), costo_envio: num(p.costo_envio), items: items.filter(i => i.pedido_id === p.id).map(i => ({ ...i, precio: num(i.precio) })) })));
@@ -515,6 +525,9 @@ router.put('/pedidos/:id/vendido', async (req, res) => {
   try {
     await pool.query(`UPDATE tienda_pedidos SET estado = 'entregado', venta_id = $1, pagado = TRUE, actualizado_en = NOW() WHERE id = $2 AND estado <> 'cancelado'`,
       [parseInt(req.body && req.body.venta_id) || null, req.params.id]);
+    // Cupon ganado en la ruleta con este pedido: ya se puede usar
+    await pool.query(`UPDATE cupones SET activo = TRUE WHERE codigo = (SELECT cupon FROM tienda_ruleta WHERE pedido_id = $1)
+      AND EXISTS (SELECT 1 FROM tienda_pedidos WHERE id = $1 AND estado = 'entregado')`, [req.params.id]).catch(() => {});
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'No se pudo marcar como entregado' }); }
 });

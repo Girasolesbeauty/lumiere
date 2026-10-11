@@ -4056,7 +4056,7 @@ function POS({ localId, usuario, paletaActual }) {
       if (pe.costo_envio > 0) lineas.push({ id: "ajuste-envio-" + pe.id, es_ajuste: true, tienda_pedido: pe.id, nombre: "Envío" + (pe.zona ? " (" + pe.zona + ")" : ""), precio: pe.costo_envio, qty: 1, disponible: 9999 });
       setCart(lineas);
       setReferenciaVenta("Tienda web " + pe.codigo);
-      setPedidoWeb({ id: pe.id, codigo: pe.codigo, nombre: pe.nombre, pagado: !!pe.pagado, pago: pe.pago, total: pe.total, cupon: pe.cupon });
+      setPedidoWeb({ id: pe.id, codigo: pe.codigo, nombre: pe.nombre, pagado: !!pe.pagado, pago: pe.pago, total: pe.total, cupon: pe.cupon, ruleta: pe.ruleta || null });
       // Codigo de descuento usado en la tienda (ej: premio 10% off): entra como descuento general de la venta
       if (parseFloat(pe.descuento) > 0) { setTipoDescuento(pe.cupon_tipo === "%" ? "%" : "$"); setDescuentoManual(String(pe.cupon_tipo === "%" ? parseFloat(pe.cupon_valor) : parseFloat(pe.descuento))); }
       if (pe.cliente_id) API.get("/clientes").then(rc => { const c = (rc.data || []).find(x => x.id === pe.cliente_id); if (c) { setClienteSeleccionado(c); setDniInput(c.cuit_dni || ""); cargarFicha(c.id, false); } }).catch(() => {});
@@ -5154,6 +5154,7 @@ function POS({ localId, usuario, paletaActual }) {
       )}
       {pedidoWeb && referenciaVenta === "Tienda web " + pedidoWeb.codigo && (
         <div role="status" style={{ background: temaPal.accent + "14", border: "1px solid " + temaPal.accent, borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 12.5, lineHeight: 1.5 }}>
+          {pedidoWeb.ruleta && pedidoWeb.ruleta.tipo !== "nada" && <div style={{ fontWeight: 800, fontSize: 13.5, marginBottom: 4 }}>🎡 {pedidoWeb.ruleta.tipo === "regalo" ? "Ganó un REGALO en la ruleta: dáselo con el pedido 🎁" : "Ganó " + pedidoWeb.ruleta.texto + " en la ruleta (cupón " + pedidoWeb.ruleta.cupon + "): se activa al registrar esta venta, para su próxima compra."}</div>}
           🛍️ <b>Cobrando el pedido web N° {pedidoWeb.codigo}</b> de {pedidoWeb.nombre}.{pedidoWeb.cupon ? " Usó el código " + pedidoWeb.cupon + " (ya está aplicado como descuento general)." : ""} Si se lleva otra cosa, <b>sacá o sumá productos</b> en el carrito como en cualquier venta: se registra lo que se lleva y el pedido queda entregado.
           {pedidoWeb.pagado && <div style={{ marginTop: 4 }}>Ya pagó <b>{fmt(pedidoWeb.total)}</b> con {pedidoWeb.pago === "mp" ? "Mercado Pago" : "transferencia"}. {Math.round(total - pedidoWeb.total) !== 0 ? (total > pedidoWeb.total ? " Falta cobrar " + fmt(total - pedidoWeb.total) + " (con otro medio de pago)." : " Hay que devolverle " + fmt(pedidoWeb.total - total) + ".") : ""}</div>}
         </div>
@@ -22742,6 +22743,25 @@ const CSS_TIENDA = `
 @keyframes twPetaloAbre{to{transform:scale(1)}}
 @keyframes twFlorGira{from{transform:rotate(-4deg)}to{transform:rotate(4deg)}}
 .tw-sonido{font-size:15px !important}
+.tw-ruleta-caja{margin:4px 0 18px;padding:18px 14px 16px;border-radius:14px;background:radial-gradient(circle at 50% 0%,#fff7dc,#fff 70%);border:1px solid #f1dc9a;text-align:center;display:flex;flex-direction:column;align-items:center}
+.tw-ruleta-tit{font-size:21px;font-weight:900;letter-spacing:-.01em}
+.tw-ruleta-sub{font-size:13.5px;color:#6b5a2e;margin:4px 0 12px}
+.tw-ruleta{position:relative;margin:14px auto 12px;filter:drop-shadow(0 10px 22px rgba(120,90,10,.25))}
+.tw-ruleta svg{display:block;will-change:transform}
+.tw-ruleta-flecha{position:absolute;left:50%;top:-8px;width:0;height:0;margin-left:-13px;border-left:13px solid transparent;border-right:13px solid transparent;border-top:26px solid #c0392b;z-index:2;transform-origin:50% 0;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))}
+.tw-ruleta-flecha.flick{animation:twFlick .14s ease-out}
+@keyframes twFlick{0%{transform:rotate(0)}40%{transform:rotate(-16deg)}100%{transform:rotate(0)}}
+.tw-girar{animation:twLatido 1.6s ease-in-out infinite}
+.tw-girar:disabled{animation:none;opacity:.6}
+@keyframes twLatido{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+.tw-ruleta-premio{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:4px;padding:12px 16px;border-radius:12px;animation:twPop .55s cubic-bezier(.3,1.6,.5,1);font-size:14px;color:#444;max-width:360px}
+.tw-ruleta-premio b{font-size:18px;color:#111}
+.tw-ruleta-premio.regalo,.tw-ruleta-premio.cupon{background:#fff3c4}
+.tw-cupon-cod{font-family:ui-monospace,monospace;font-size:20px;font-weight:800;letter-spacing:.08em;border:2px dashed #c99a2e;background:#fff;border-radius:10px;padding:8px 16px;cursor:pointer;color:#111}
+.tw-cupon-cod small{font-family:inherit;font-size:11px;letter-spacing:0;color:#8a6d1f;margin-left:6px;font-weight:600}
+.tw-ruleta-aviso{background:#141414;color:#fff;border-radius:10px;padding:10px 14px;font-size:13.5px;margin:10px 0}
+.tw-ruleta-aviso b{color:#ffd54a}
+.tw-ruleta-aviso.llega{background:linear-gradient(135deg,#141414,#3a2c08);animation:twPop .55s cubic-bezier(.3,1.6,.5,1)}
 @keyframes twSalta{0%{transform:scale(.4)}60%{transform:scale(1.35)}100%{transform:scale(1)}}
 .tw-navbar{background:#000}
 .tw-navbar .tw-nav button{color:#fff !important;opacity:.85;transition:opacity .2s}
@@ -23238,6 +23258,109 @@ function TwGirasol() {
       </svg>
     </div>
   );
+}
+
+// ---- Ruleta de premios (compras grandes) ----
+// Dibujo de la ruleta: porciones iguales; REGALO dorado, descuentos en negro, "seguí participando" claro.
+function twColorPorcion(x, i) { return x.tipo === "regalo" ? ["#f4b400", "#3d2c05"] : x.tipo === "cupon" ? ["#141414", "#ffffff"] : i % 2 ? ["#fff8e6", "#7a6330"] : ["#ffffff", "#7a6330"]; }
+function TwRuletaDibujo({ premios, giro = 0, tamano = 280, flick }) {
+  const n = premios.length, seg = 360 / n, R = 100;
+  const punto = (ang, r) => [Math.sin(ang * Math.PI / 180) * r, -Math.cos(ang * Math.PI / 180) * r];
+  return (
+    <div className="tw-ruleta" style={{ width: tamano, height: tamano }}>
+      <div className={"tw-ruleta-flecha" + (flick ? " flick" : "")} key={flick} aria-hidden="true" />
+      <svg viewBox="-112 -112 224 224" width={tamano} height={tamano} style={{ transform: "rotate(" + giro + "deg)" }}>
+        <circle r="110" fill="#e9d7a6" />
+        {premios.map((x, i) => {
+          const [a1, a2] = [i * seg, (i + 1) * seg];
+          const [x1, y1] = punto(a1, R), [x2, y2] = punto(a2, R);
+          const [fondo, letra] = twColorPorcion(x, i);
+          const largo = x.texto.length > 12;
+          return (
+            <g key={x.id}>
+              <path d={`M0 0 L${x1} ${y1} A${R} ${R} 0 ${seg > 180 ? 1 : 0} 1 ${x2} ${y2} Z`} fill={fondo} stroke="#e2c675" strokeWidth="1.2" />
+              <g transform={`rotate(${a1 + seg / 2})`}>
+                {x.tipo === "regalo" && <text y="-74" textAnchor="middle" fontSize="16">🎁</text>}
+                <text y={x.tipo === "regalo" ? -50 : -62} textAnchor="middle" fill={letra} fontSize={largo ? 7.6 : 11} fontWeight="800" style={{ letterSpacing: largo ? 0 : ".04em" }}>
+                  {largo ? x.texto.split(" ").reduce((ls, w) => { const l = ls[ls.length - 1]; if (l && (l + " " + w).length <= 11) ls[ls.length - 1] = l + " " + w; else ls.push(w); return ls; }, []).slice(0, 3).map((l, k) => <tspan key={k} x="0" dy={k ? 9 : 0}>{l}</tspan>) : x.texto}
+                </text>
+              </g>
+            </g>
+          );
+        })}
+        {Array.from({ length: n * 2 }).map((_, i) => { const [cx, cy] = punto(i * seg / 2, 105); return <circle key={i} cx={cx} cy={cy} r="2.4" fill={i % 2 ? "#fff6d8" : "#c99a2e"} />; })}
+        <circle r="17" fill="#141414" stroke="#e2c675" strokeWidth="3" />
+        <text y="4.5" textAnchor="middle" fontSize="13">🌻</text>
+      </svg>
+    </div>
+  );
+}
+// En la pagina del pedido: girar una vez. El premio lo decide el servidor; aca solo se anima.
+function TwRuleta({ ruleta, codigo, pedir }) {
+  const premios = ruleta.premios || [];
+  const n = premios.length || 1, seg = 360 / n;
+  const anguloDe = (id) => { const i = Math.max(0, premios.findIndex(x => x.id === id)); return -(i * seg + seg / 2); };
+  const [resultado, setResultado] = useState(ruleta.resultado || null);
+  const [giro, setGiro] = useState(ruleta.resultado ? anguloDe(ruleta.resultado.id) : 0);
+  const [girando, setGirando] = useState(false);
+  const [ver, setVer] = useState(!!ruleta.resultado);
+  const [flick, setFlick] = useState(0);
+  const [error, setError] = useState("");
+  const [copiado, setCopiado] = useState(false);
+  const ref = useRef(null);
+  const girar = async () => {
+    if (girando || resultado) return;
+    setError(""); setGirando(true); twCtx();
+    let r;
+    try { r = await pedir("/pedidos/" + codigo + "/ruleta", { method: "POST" }); }
+    catch (e) { setError(e.message); setGirando(false); return; }
+    const final = 360 * 6 + anguloDe(r.id) + (Math.random() - 0.5) * seg * 0.6;
+    const fin = () => { setGirando(false); setResultado(r); setTimeout(() => {
+      setVer(true);
+      if (r.tipo === "nada") { twSonar.tic(false); twVibrar(20); }
+      else { twSonar.campana(); twPetalos(ref.current, 40); twVibrar([15, 50, 15, 50, 30]); }
+    }, 350); };
+    if (twMenosMovimiento()) { setGiro(final); fin(); return; }
+    // primero se echa un poquito para atras (como tomando impulso) y despues gira y frena despacio
+    const D = 5600, atras = 260;
+    let t0 = null, ultima = 0;
+    const paso = (t) => {
+      if (t0 === null) t0 = t;
+      const ms = t - t0;
+      let a;
+      if (ms < atras) a = -10 * Math.sin((ms / atras) * Math.PI / 2);
+      else { const k = Math.min(1, (ms - atras) / D); a = -10 + (final + 10) * (1 - Math.pow(1 - k, 4)); }
+      setGiro(a);
+      const porcion = Math.floor(a / seg);
+      if (porcion !== ultima) { ultima = porcion; twSonar.tic(true); setFlick(f => f + 1); }
+      if (ms < atras + D) requestAnimationFrame(paso); else fin();
+    };
+    requestAnimationFrame(paso);
+  };
+  const copiar = () => { try { navigator.clipboard.writeText(resultado.cupon); setCopiado(true); setTimeout(() => setCopiado(false), 2000); } catch (e) {} };
+  return (
+    <div className="tw-ruleta-caja" ref={ref}>
+      <div className="tw-ruleta-tit">{resultado && ver ? (resultado.tipo === "nada" ? "¡Uy, casi! 🌻" : "¡Ganaste!") : "🎡 ¡Tu compra tiene premio!"}</div>
+      {!(resultado && ver) && <div className="tw-ruleta-sub">{ruleta.espera ? "Cuando se acredite tu pago vas a poder girar la ruleta." : "Superaste " + fmtTienda(ruleta.minimo) + ": girá la ruleta y ganá."}</div>}
+      <TwRuletaDibujo premios={premios} giro={giro} flick={flick} />
+      {!resultado && !ruleta.espera && <button className="tw-btn tw-girar" disabled={girando} onClick={girar}>{girando ? "Girando…" : "¡Girar la ruleta!"}</button>}
+      {error && <div style={{ color: "#c0392b", fontSize: 13.5, marginTop: 8 }}>{error}</div>}
+      {resultado && ver && (
+        <div className={"tw-ruleta-premio " + resultado.tipo}>
+          {resultado.tipo === "regalo" && <><b>🎁 Te ganaste un REGALO</b><span>Te lo damos junto con tu pedido.</span></>}
+          {resultado.tipo === "cupon" && <><b>🎉 {resultado.texto} en tu próxima compra</b>
+            <button className="tw-cupon-cod" onClick={copiar} aria-label="Copiar código">{resultado.cupon} <small>{copiado ? "¡copiado!" : "copiar"}</small></button>
+            <span>Se activa cuando retirás este pedido y vale 60 días, online o en el local.</span></>}
+          {resultado.tipo === "nada" && <><b>Seguí participando</b><span>En tu próxima compra de más de {fmtTienda(ruleta.minimo || 100000)} volvés a girar.</span></>}
+        </div>
+      )}
+    </div>
+  );
+}
+// En el carrito: cuanto falta para girar la ruleta
+function TwRuletaAviso({ monto, minimo }) {
+  const llega = monto >= minimo;
+  return <div className={"tw-ruleta-aviso" + (llega ? " llega" : "")} key={llega ? "si" : "no"}>🎡 {llega ? <b>¡Con esta compra girás la ruleta de premios!</b> : <>Te faltan <b>{fmtTienda(minimo - monto)}</b> para girar la ruleta de premios</>}</div>;
 }
 
 function TwTarjeta({ p, base, sin, onAbrir, onAgregar }) {
@@ -23808,7 +23931,8 @@ function TiendaPublica({ slug }) {
         <div className="tw-main">
           {!pedido ? <div className="tw-cartel"><div className="tw-skel" style={{ height: 160 }} /></div> : pedido.error ? <div className="tw-cartel">{pedido.error}</div> : (
             <div className="tw-cartel tw-rv in" style={{ animation: "twSube .6s ease both" }}>
-              {pedido.estado !== "cancelado" && <TwGirasol />}
+              {pedido.estado !== "cancelado" && !pedido.ruleta && <TwGirasol />}
+              {pedido.ruleta && <TwRuleta ruleta={pedido.ruleta} codigo={pedido.codigo} pedir={pedir} />}
               <div style={{ fontSize: 12, letterSpacing: ".12em", textTransform: "uppercase", color: "#777", fontWeight: 700 }}>Pedido N° {pedido.codigo}</div>
               <div style={{ fontSize: 26, fontWeight: 800, color: e[1], margin: "6px 0 14px" }}>{pedido.estado === "pendiente_pago" && pedido.pago === "retiro" ? "¡Recibimos tu pedido!" : e[0]}</div>
               {pedido.estado === "pendiente_pago" && pedido.link_pago && <a className="tw-btn full" style={{ marginBottom: 14 }} href={pedido.link_pago}>Pagar con Mercado Pago</a>}
@@ -24282,6 +24406,7 @@ function TiendaPublica({ slug }) {
                 </div>
                 {carrito.length > 0 && <div className="tw-cajon-pie">
                   <TwPuntos monto={subtotal} tengo={logueada && miCuenta ? (miCuenta.puntos || 0) : null} />
+                  {tienda.ruleta && <TwRuletaAviso monto={subtotal} minimo={tienda.ruleta.minimo} />}
                   <div className="tw-linea" style={{ fontWeight: 800, fontSize: 18, marginBottom: 12 }}><span>Subtotal</span><span>{fmtTienda(subtotal)}</span></div>
                   {problemas.length > 0 && <div style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, marginBottom: 10, fontSize: 13.5 }}>Algunos productos no están disponibles{ciudad ? " en " + ciudad.nombre : ""} en esa cantidad. <button className="tw-btn2" style={{ padding: "6px 12px", fontSize: 11.5, marginTop: 6 }} onClick={ajustarCarrito}>Ajustar a lo disponible</button></div>}
                   <button className="tw-btn full" disabled={problemas.length > 0} onClick={() => setPaso("datos")}>Finalizar compra</button>
@@ -24336,6 +24461,7 @@ function TiendaPublica({ slug }) {
                   {datos.entrega === "envio" && <div className="tw-linea"><span>Envío</span><span>{zona ? (costoEnvio ? fmtTienda(costoEnvio) : "Gratis") : "—"}</span></div>}
                   <div className="tw-linea" style={{ fontWeight: 800, fontSize: 19, marginBottom: 12 }}><span>Total</span><span><TwRueda key={"t" + (cuponOk ? cuponOk.codigo : "")} valor={subtotal - descuentoCupon + costoEnvio} desde={subtotal + costoEnvio} formato={fmtTienda} dur={1000} /></span></div>
                   <TwPuntos monto={subtotal - descuentoCupon} tengo={logueada && miCuenta ? (miCuenta.puntos || 0) : null} />
+                  {tienda.ruleta && <TwRuletaAviso monto={subtotal - descuentoCupon} minimo={tienda.ruleta.minimo} />}
                   <div style={{ display: "flex", gap: 8 }}>
                     <button className="tw-btn2" onClick={() => setPaso("carrito")}>Atrás</button>
                     <button className="tw-btn full" disabled={!listoParaPedir || enviando} onClick={confirmar}>{enviando ? "Enviando…" : datos.pago === "mp" ? "Ir a pagar" : "Hacer el pedido"}</button>
@@ -25087,6 +25213,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                           {p.entrega === "retiro" ? "📍 Retira en " + nombreLocal(p.local_id) : "🛵 Envío a " + p.direccion + " (" + p.zona + ")"} · {PAGO_TIENDA[p.pago]}{p.pagado ? " ✓ pagado" : ""}{p.telefono ? " · " + p.telefono : ""}
                         </div>
                         {p.nota && <div style={{ fontSize: 12.5, marginTop: 2 }}>📝 {p.nota}</div>}
+                        {p.ruleta && <div style={{ fontSize: 12.5, marginTop: 4, fontWeight: 700, color: p.ruleta.tipo === "nada" ? temaPal.textMuted : temaPal.warn }}>🎡 Ruleta: {p.ruleta.tipo === "regalo" ? "ganó un REGALO 🎁 — dáselo con el pedido" : p.ruleta.tipo === "cupon" ? "ganó " + p.ruleta.texto + " (cupón " + p.ruleta.cupon + ", se activa al entregar)" : "seguí participando"}</div>}
                         {p.estado === "pendiente_pago" && p.vence_en && <div style={{ fontSize: 11.5, color: temaPal.warn }}>Si no paga, se cancela solo el {new Date(p.vence_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} y el stock vuelve.</div>}
                         {p.estado === "cancelado" && p.motivo && <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{p.motivo}</div>}
                       </div>
@@ -25331,6 +25458,34 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             )}
             <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", marginTop: 8 }}><input type="checkbox" checked={!!cfg.pago_retiro} onChange={e => set("pago_retiro", e.target.checked)} /> <b>Paga al retirar</b> <span style={{ fontSize: 12, color: temaPal.textMuted }}>(solo con retiro)</span></label>
           </div>
+          {cfg.ruleta && (() => { const r = cfg.ruleta; const setR = (x) => set("ruleta", { ...r, ...x }); const setP = (i, x) => setR({ premios: r.premios.map((y, j) => j === i ? { ...y, ...x } : y) }); const suma = r.premios.reduce((t, x) => t + (Number(x.chance) || 0), 0); return (
+            <div className="card" style={{ gridColumn: "1 / -1" }}>
+              <div className="ct">🎡 Ruleta de premios</div>
+              <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-start" }}>
+                <div style={{ flex: "1 1 380px", minWidth: 0 }}>
+                  <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", fontWeight: 800 }}><input type="checkbox" checked={!!r.activo} onChange={e => setR({ activo: e.target.checked })} style={{ width: 18, height: 18 }} /> Activar la ruleta</label>
+                  <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "4px 0 10px" }}>Cuando una compra online llega al monto, al terminar la compra la clienta gira una vez. Los cupones que gana se activan cuando retira y paga ese pedido (si lo cancela, no valen) y duran 60 días, online o en el local. El REGALO se lo das con el pedido: te avisa en el pedido y en la caja.</div>
+                  <div className="fl">Compra mínima para girar</div>
+                  <input className="inp" type="number" min="1" style={{ maxWidth: 180 }} value={r.minimo} onChange={e => setR({ minimo: e.target.value })} />
+                  <div className="fl" style={{ marginTop: 12 }}>Opciones de la ruleta</div>
+                  {r.premios.map((x, i) => (
+                    <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6, flexWrap: "wrap" }}>
+                      <input className="inp" style={{ flex: "1 1 140px", minWidth: 0 }} maxLength={24} value={x.texto} onChange={e => setP(i, { texto: e.target.value })} aria-label="Texto de la porción" />
+                      <select className="sel" style={{ flex: "0 0 150px" }} value={x.tipo} onChange={e => setP(i, { tipo: e.target.value, texto: e.target.value === "nada" ? "Seguí participando" : e.target.value === "regalo" ? "REGALO" : (x.valor || 5) + "% OFF", valor: e.target.value === "cupon" ? (x.valor || 5) : 0 })} aria-label="Tipo de premio">
+                        <option value="regalo">🎁 Regalo</option><option value="cupon">🏷 Cupón de descuento</option><option value="nada">Seguí participando</option>
+                      </select>
+                      {x.tipo === "cupon" && <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12.5 }}><input className="inp" type="number" min="1" max="90" style={{ width: 64 }} value={x.valor} onChange={e => setP(i, { valor: e.target.value, texto: (e.target.value || "") + "% OFF" })} aria-label="Porcentaje" />% off</span>}
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12.5 }} title="Qué tan seguido sale">Chance <input className="inp" type="number" min="0" style={{ width: 64 }} value={x.chance} onChange={e => setP(i, { chance: e.target.value })} aria-label="Chance" /> <b style={{ minWidth: 38 }}>{suma ? Math.round((Number(x.chance) || 0) / suma * 100) : 0}%</b></span>
+                      <button className="btn btn-g btn-sm" disabled={r.premios.length <= 2} onClick={() => setR({ premios: r.premios.filter((_, j) => j !== i) })} aria-label="Quitar opción">✕</button>
+                    </div>
+                  ))}
+                  {r.premios.length < 12 && <button className="btn btn-g btn-sm" onClick={() => setR({ premios: [...r.premios, { id: "p" + Date.now().toString(36), texto: "Seguí participando", tipo: "nada", valor: 0, chance: 10 }] })}>+ Sumar opción</button>}
+                  <div style={{ fontSize: 11.5, color: temaPal.textMuted, marginTop: 6 }}>El % de la derecha es la probabilidad real de que salga cada opción. Tocá "Guardar configuración" para aplicar.</div>
+                </div>
+                <div style={{ flex: "0 0 auto", margin: "0 auto" }}><TwRuletaDibujo premios={r.premios.map((x, i) => ({ ...x, id: x.id || "p" + i, texto: String(x.texto || "") }))} tamano={240} /></div>
+              </div>
+            </div>
+          ); })()}
           <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" }}><button className="btn btn-p" disabled={!esJefeT} onClick={guardarCfg}>Guardar configuración</button></div>
         </div>
       )}

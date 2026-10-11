@@ -84,6 +84,7 @@ router.get('/:slug', async (req, res) => {
       banner: c.banner || [], banners_img: c.banners_img || [], filas: c.filas || [], sectores: c.sectores || [],
       reingreso: c.reingreso_activo ? { nombre: c.reingreso_nombre || 'Nuevamente en stock', dias: c.reingreso_dias || 14 } : null,
       dominio: await tienda.dominioDe(req.negTienda.id).catch(() => null),
+      ruleta: (() => { const r = tienda.ruletaDe(c); return r.activo ? { minimo: r.minimo } : null; })(),
     });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la tienda' }); }
 });
@@ -352,11 +353,57 @@ router.get('/:slug/pedidos/:codigo', async (req, res) => {
     const items = (await pool.query('SELECT nombre, variante_valor, cantidad, precio FROM tienda_pedido_items WHERE pedido_id = $1 ORDER BY id', [p.id])).rows.map(i => ({ ...i, precio: num(i.precio) }));
     const loc = p.entrega === 'retiro' ? (await pool.query('SELECT nombre, direccion FROM locales WHERE id = $1', [p.local_id]).catch(() => ({ rows: [] }))).rows[0] : null;
     res.json({
+      ruleta: await estadoRuleta(req.tienda, p),
       codigo: p.codigo, estado: p.estado, pagado: p.pagado, pago: p.pago, entrega: p.entrega, local: loc || null, direccion: p.direccion, zona: p.zona,
       subtotal: num(p.subtotal), costo_envio: num(p.costo_envio), descuento: num(p.descuento), cupon: p.cupon || null, total: num(p.total), items, link_pago: p.estado === 'pendiente_pago' ? p.mp_link : null,
       vence_en: p.vence_en, transferencia: p.pago === 'transferencia' && !p.pagado ? (req.tienda.transferencia_datos || '') : null, creado_en: p.creado_en,
     });
   } catch (e) { res.status(500).json({ error: 'No se pudo consultar el pedido' }); }
+});
+
+// ===================== Ruleta de premios =====================
+// Se gira una vez por pedido, si la compra (productos menos descuento) llega al minimo y el pedido
+// sigue en pie. Con Mercado Pago, recien cuando se acredita el pago.
+const premioPublico = (x) => ({ id: x.id, texto: x.texto, tipo: x.tipo });
+async function estadoRuleta(cfg, p) {
+  const hecho = (await pool.query('SELECT premio_id, texto, tipo, valor, cupon FROM tienda_ruleta WHERE pedido_id = $1', [p.id]).catch(() => ({ rows: [] }))).rows[0];
+  const r = tienda.ruletaDe(cfg);
+  if (hecho) return { premios: r.premios.map(premioPublico), resultado: { id: hecho.premio_id, texto: hecho.texto, tipo: hecho.tipo, valor: num(hecho.valor), cupon: hecho.cupon } };
+  if (!r.activo || p.estado === 'cancelado' || num(p.subtotal) - num(p.descuento) < r.minimo) return null;
+  if (p.pago === 'mp' && !p.pagado) return { premios: r.premios.map(premioPublico), espera: true, minimo: r.minimo };
+  return { premios: r.premios.map(premioPublico), disponible: true, minimo: r.minimo };
+}
+router.post('/:slug/pedidos/:codigo/ruleta', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const p = (await client.query('SELECT * FROM tienda_pedidos WHERE codigo = $1 FOR UPDATE', [String(req.params.codigo || '').toUpperCase()])).rows[0];
+    if (!p) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'No encontramos ese pedido' }); }
+    const ya = (await client.query('SELECT premio_id, texto, tipo, valor, cupon FROM tienda_ruleta WHERE pedido_id = $1', [p.id])).rows[0];
+    const r = tienda.ruletaDe(req.tienda);
+    if (ya) { await client.query('ROLLBACK'); return res.json({ id: ya.premio_id, texto: ya.texto, tipo: ya.tipo, valor: num(ya.valor), cupon: ya.cupon }); }
+    const est = await estadoRuleta(req.tienda, p);
+    if (!est || !est.disponible) { await client.query('ROLLBACK'); return res.status(400).json({ error: est && est.espera ? 'Vas a poder girar la ruleta cuando se acredite el pago' : 'Esta compra no tiene ruleta' }); }
+    const premio = tienda.elegirPremio(r.premios);
+    let cupon = null;
+    if (premio.tipo === 'cupon') {
+      for (let i = 0; i < 5 && !cupon; i++) {
+        const cod = 'RULETA-' + crypto.randomBytes(3).toString('hex').toUpperCase().slice(0, 5);
+        const ok = await client.query(`INSERT INTO cupones (codigo, descripcion, tipo, valor, canal, max_usos, fecha_vencimiento, activo)
+          SELECT $1::text, $2::text, '%', $3, 'Ruleta tienda', 1, CURRENT_DATE + 60, FALSE WHERE NOT EXISTS (SELECT 1 FROM cupones WHERE codigo = $1::text) RETURNING codigo`,
+          [cod, 'Ruleta de la tienda (pedido ' + p.codigo + '): ' + premio.texto, premio.valor]);
+        if (ok.rows.length) cupon = cod;
+      }
+      if (!cupon) throw new Error('no se pudo crear el cupon');
+    }
+    await client.query('INSERT INTO tienda_ruleta (pedido_id, premio_id, texto, tipo, valor, cupon) VALUES ($1, $2, $3, $4, $5, $6)', [p.id, premio.id, premio.texto, premio.tipo, premio.valor, cupon]);
+    await client.query('COMMIT');
+    res.json({ id: premio.id, texto: premio.texto, tipo: premio.tipo, valor: premio.valor, cupon });
+  } catch (e) {
+    try { await client.query('ROLLBACK'); } catch (x) {}
+    console.error('[tienda publica] ruleta:', e.message);
+    res.status(500).json({ error: 'No se pudo girar la ruleta. Probá de nuevo.' });
+  } finally { client.release(); }
 });
 
 // ===================== Mi cuenta (clientas) =====================
