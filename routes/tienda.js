@@ -77,12 +77,12 @@ router.get('/qr', async (req, res) => {
 router.get('/productos', async (req, res) => {
   try {
     const r = await pool.query(`
-      SELECT p.id, p.nombre, p.marca, p.categoria, p.precio, p.codigo_barras, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush,
+      SELECT p.id, p.nombre, p.marca, p.categoria, p.precio, p.codigo_barras, p.proveedor_id, pr.nombre AS proveedor, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush,
              COALESCE(tp.publicado, FALSE) AS publicado, tp.descripcion, COALESCE(tp.destacado, FALSE) AS destacado, tp.video_url,
              EXISTS (SELECT 1 FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto,
              EXISTS (SELECT 1 FROM tienda_videos v WHERE v.producto_id = p.id) AS video_subido,
              (SELECT COUNT(*)::int FROM tienda_fotos f WHERE f.producto_id = p.id) AS fotos_extra
-      FROM productos p LEFT JOIN tienda_productos tp ON tp.producto_id = p.id
+      FROM productos p LEFT JOIN tienda_productos tp ON tp.producto_id = p.id LEFT JOIN proveedores pr ON pr.id = p.proveedor_id
       WHERE p.activo = TRUE ORDER BY COALESCE(tp.publicado, FALSE) DESC, p.nombre`);
     res.json(r.rows.map(p => ({ ...p, precio: num(p.precio) })));
   } catch (e) { res.status(500).json({ error: 'No se pudieron cargar los productos' }); }

@@ -23719,7 +23719,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const [galeria, setGaleria] = useState(null); // producto con la ventana de fotos abierta
   const [importando, setImportando] = useState(false);
   const [limiteProd, setLimiteProd] = useState(150);
-  useEffect(() => { setLimiteProd(150); }, [busca, soloPub]);
+  const [filtros, setFiltros] = useState({ marca: "", proveedor: "", categoria: "", foto: "" });
+  useEffect(() => { setLimiteProd(150); }, [busca, soloPub, filtros]);
   const [qr, setQr] = useState(null);
   const [aviso, setAviso] = useState(null);
   const avisar = (ok, texto) => { setAviso({ ok, texto }); setTimeout(() => setAviso(null), 4500); };
@@ -23799,7 +23800,13 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const visibles = pedidos.filter(p => filtro === "todos" || (filtro === "activos" ? abiertos.includes(p) : p.estado === filtro));
   const nPub = productos.filter(p => p.publicado).length;
   const q = busca.trim().toLowerCase();
-  const prodFiltro = productos.filter(p => (!soloPub || p.publicado) && (!q || [p.nombre, p.marca, p.categoria].some(v => (v || "").toLowerCase().includes(q))));
+  const qN = normTxt(busca);
+  const prodFiltro = productos.filter(p => (!soloPub || p.publicado)
+    && (!filtros.marca || (p.marca || "") === filtros.marca) && (!filtros.proveedor || String(p.proveedor || "") === filtros.proveedor)
+    && (!filtros.categoria || (p.categoria || "") === filtros.categoria) && (!filtros.foto || (filtros.foto === "con" ? p.foto : !p.foto))
+    && (!qN || qN.split(" ").every(w => normTxt([p.nombre, p.marca, p.categoria, p.proveedor, p.codigo_barras].join(" ")).includes(w))));
+  const opciones = (k) => [...new Set(productos.map(p => p[k]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
+  const hayFiltros = filtros.marca || filtros.proveedor || filtros.categoria || filtros.foto || busca || soloPub;
   const prodVis = prodFiltro.slice(0, limiteProd);
   const set = (k, v) => setCfg(c => ({ ...c, [k]: v }));
 
@@ -23865,15 +23872,29 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
 
       {tab === "productos" && (
         <div className="card">
+          <div style={{ position: "relative", marginBottom: 8 }}>
+            <input className="inp" style={{ width: "100%", fontSize: 15, padding: "11px 38px 11px 14px" }} placeholder="🔍 Buscar por nombre, marca, categoría, proveedor o código…" value={busca} onChange={e => setBusca(e.target.value)} aria-label="Buscar producto" />
+            {busca && <button onClick={() => setBusca("")} aria-label="Borrar búsqueda" style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", border: "none", background: "transparent", fontSize: 16, cursor: "pointer", color: temaPal.textMuted }}>✕</button>}
+          </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
-            <input className="inp" style={{ flex: "1 1 220px" }} placeholder="🔍 Buscar producto…" value={busca} onChange={e => setBusca(e.target.value)} />
+            {[["marca", "Marca", "Todas las marcas"], ["proveedor", "Proveedor", "Todos los proveedores"], ["categoria", "Categoría", "Todas las categorías"]].map(([k, t, todas]) => (
+              <select key={k} className="sel" aria-label={"Filtrar por " + t.toLowerCase()} style={{ flex: "1 1 160px", maxWidth: 240, fontWeight: filtros[k] ? 700 : 400 }} value={filtros[k]} onChange={e => setFiltros(f => ({ ...f, [k]: e.target.value }))}>
+                <option value="">{todas}</option>
+                {opciones(k).map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            ))}
+            <select className="sel" aria-label="Filtrar por foto" style={{ flex: "0 1 150px", fontWeight: filtros.foto ? 700 : 400 }} value={filtros.foto} onChange={e => setFiltros(f => ({ ...f, foto: e.target.value }))}>
+              <option value="">Con y sin foto</option><option value="sin">Sin foto</option><option value="con">Con foto</option>
+            </select>
             <button className={"chip-btn" + (soloPub ? " on" : "")} onClick={() => setSoloPub(v => !v)}>Solo publicados</button>
+            {hayFiltros && <button className="chip-btn" onClick={() => { setFiltros({ marca: "", proveedor: "", categoria: "", foto: "" }); setBusca(""); setSoloPub(false); }}>✕ Limpiar filtros</button>}
+            <span style={{ fontSize: 12, color: temaPal.textMuted }}>{prodFiltro.length} {prodFiltro.length === 1 ? "producto" : "productos"}</span>
             {esJefeT && <button className="btn btn-g btn-sm" onClick={publicarConFoto} title="Publica de una vez los que tienen foto, precio y stock">📸 Publicar los que tienen foto</button>}
           </div>
           {esJefeT && prodFiltro.length > 0 && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
-              <button className="btn btn-p btn-sm" disabled={prodFiltro.every(p => p.publicado)} onClick={() => publicarVarios(prodFiltro.filter(p => !p.publicado), true)}>☑ Publicar {q ? "todos los de la búsqueda" : "todos"} ({prodFiltro.filter(p => !p.publicado).length})</button>
-              <button className="btn btn-g btn-sm" disabled={!prodFiltro.some(p => p.publicado)} onClick={() => publicarVarios(prodFiltro.filter(p => p.publicado), false)}>☐ Sacar {q ? "los de la búsqueda" : "todos"} ({prodFiltro.filter(p => p.publicado).length})</button>
+              <button className="btn btn-p btn-sm" disabled={prodFiltro.every(p => p.publicado)} onClick={() => publicarVarios(prodFiltro.filter(p => !p.publicado), true)}>☑ Publicar {hayFiltros ? "los que se ven" : "todos"} ({prodFiltro.filter(p => !p.publicado).length})</button>
+              <button className="btn btn-g btn-sm" disabled={!prodFiltro.some(p => p.publicado)} onClick={() => publicarVarios(prodFiltro.filter(p => p.publicado), false)}>☐ Sacar {hayFiltros ? "los que se ven" : "todos"} ({prodFiltro.filter(p => p.publicado).length})</button>
               <button className="btn btn-g btn-sm" onClick={() => setImportando(true)} title="Desde el archivo de productos de Tiendanube u otra tienda">📥 Traer descripciones de mi tienda anterior</button>
               {prodFiltro.some(p => !p.foto) && <button className="btn btn-g btn-sm" onClick={() => setBuscaFoto({ cola: prodFiltro.filter(p => !p.foto), i: 0 })}>🔍 Buscar fotos para los que no tienen ({prodFiltro.filter(p => !p.foto).length})</button>}
               {prodFiltro.length > prodVis.length && <span style={{ fontSize: 11.5, color: temaPal.textMuted }}>Se muestran {prodVis.length} de {prodFiltro.length} (abajo está "Ver más"); los botones toman todos.</span>}
