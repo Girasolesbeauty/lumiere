@@ -22930,6 +22930,16 @@ const CSS_TIENDA = `
 .tw-filtro select{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;font-size:16px}
 .tw-filtro i{font-style:normal;font-size:11px}
 .tw-filtro-x{border:0;background:none;color:#111;text-decoration:underline;font-size:13.5px;cursor:pointer;padding:0 6px}
+.tw-comprapor-tabs{display:flex;gap:6px;margin:-4px 0 14px;border-bottom:1px solid var(--b)}
+.tw-comprapor-tabs button{border:none;background:none;padding:10px 4px;margin-right:14px;font-size:14px;font-weight:700;color:#888;cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1px;font-family:inherit}
+.tw-comprapor-tabs button.on{color:#111;border-bottom-color:#111}
+.tw-comprapor-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.tw-comprapor-t{position:relative;display:flex;align-items:flex-start;justify-content:space-between;min-height:104px;padding:14px 12px 10px 16px;background:#fff;border:1px solid #ececec;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.07);cursor:pointer;text-align:left;font-family:inherit;color:#111;animation:twSube .45s cubic-bezier(.2,.7,.2,1) both;transition:box-shadow .2s,transform .2s}
+.tw-comprapor-t:hover{box-shadow:0 6px 18px rgba(0,0,0,.12);transform:translateY(-2px)}
+.tw-comprapor-t b{font-size:15.5px;line-height:1.2;max-width:62%}
+.tw-comprapor-t svg{position:absolute;right:10px;bottom:10px;transition:transform .3s cubic-bezier(.3,1.5,.5,1)}
+.tw-comprapor-t:hover svg,.tw-comprapor-t:active svg{transform:scale(1.12) rotate(-4deg)}
+@media(max-width:760px){.tw-comprapor-grid{grid-template-columns:repeat(2,1fr);gap:10px}.tw-comprapor-t{min-height:96px}.tw-comprapor-t b{font-size:15px}}
 .tw-atajos{display:flex;gap:10px;flex-wrap:wrap}
 .tw-atajos button{border:1.5px solid var(--b);background:#fff;color:#111;border-radius:999px;padding:11px 20px;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit}
 .tw-atajos button:hover{background:var(--n);border-color:var(--n);color:#fff}
@@ -23546,6 +23556,44 @@ function TwRuleta({ ruleta, codigo, pedir }) {
 function TwRuletaAviso({ monto, minimo }) {
   const llega = monto >= minimo;
   return <div className={"tw-ruleta-aviso" + (llega ? " llega" : "")} key={llega ? "si" : "no"}>🎡 {llega ? <b>¡Con esta compra girás la ruleta de premios!</b> : <>Te faltan <b>{fmtTienda(minimo - monto)}</b> para girar la ruleta de premios</>}</div>;
+}
+
+// "Comprá por": tarjetas con dibujitos de linea (como el menu de Sephora), por tipo de piel o necesidad
+const TW_ICONOS_PIEL = {
+  grasa: ["#3c8fd9", <><path d="M24 6C24 6 12 20 12 29a12 12 0 0 0 24 0C36 20 24 6 24 6Z" /><path d="M18 29a6 6 0 0 0 6 6" /></>],
+  seca: ["#e0a030", <><path d="M24 6C24 6 12 20 12 29a12 12 0 0 0 24 0C36 20 24 6 24 6Z" /><path d="M24 16l-3 7 5 3-3 8" /></>],
+  mixta: ["#7fb8a6", <><circle cx="24" cy="24" r="14" /><path d="M24 10v28" /><path d="M24 14a10 10 0 0 1 0 20" strokeDasharray="2 3" /></>],
+  sensible: ["#e06a8c", <><path d="M36 8C22 10 12 22 12 38" /><path d="M36 8c2 12-6 22-18 24" /><path d="M16 30l6-1M18 24l7-1M22 18l6-1" /></>],
+  normal: ["#6bbf8a", <><circle cx="24" cy="24" r="14" /><circle cx="19" cy="21" r="1.2" fill="currentColor" /><circle cx="29" cy="21" r="1.2" fill="currentColor" /><path d="M18 28a7 7 0 0 0 12 0" /></>],
+  acne: ["#e05a4f", <><circle cx="24" cy="24" r="14" /><circle cx="18" cy="26" r="1.6" /><circle cx="29" cy="20" r="1.6" /><circle cx="27" cy="30" r="1.1" /><circle cx="21" cy="18" r="1" /></>],
+  manchas: ["#b07a4a", <><circle cx="24" cy="24" r="14" /><circle cx="19" cy="20" r="3" /><circle cx="29" cy="27" r="2" /><circle cx="20" cy="30" r="1.3" /></>],
+  antiedad: ["#9b5de5", <><path d="M16 8h16M16 40h16" /><path d="M18 8c0 9 12 9 12 16S18 31 18 40M30 8c0 9-12 9-12 16s12 7 12 16" /></>],
+  rojeces: ["#e0607a", <><path d="M24 40c-9-6-14-11-14-18a7 7 0 0 1 14-3 7 7 0 0 1 14 3c0 7-5 12-14 18Z" /><path d="M18 22c1-2 3-3 5-2" /></>],
+  hidratacion: ["#2fa4c9", <><path d="M20 10s-8 10-8 16a8 8 0 0 0 16 0c0-6-8-16-8-16Z" /><path d="M33 22s-5 6-5 9a5 5 0 0 0 10 0c0-3-5-9-5-9Z" /></>],
+  poros: ["#5a7ec2", <><circle cx="21" cy="21" r="11" /><path d="M29 29l9 9" /><circle cx="18" cy="19" r="1" fill="currentColor" /><circle cx="24" cy="22" r="1" fill="currentColor" /><circle cx="19" cy="25" r="1" fill="currentColor" /></>],
+  ojeras: ["#7a6bc4", <><path d="M6 24s7-10 18-10 18 10 18 10-7 10-18 10S6 24 6 24Z" /><circle cx="24" cy="24" r="5" /><path d="M14 36c6 3 14 3 20 0" /></>],
+};
+function TwComprarPor({ grupos, onElegir }) {
+  const [k, setK] = useState(grupos[0].k);
+  const g = grupos.find(x => x.k === k) || grupos[0];
+  return (
+    <section className="tw-sec tw-rv tw-comprapor">
+      <div className="tw-sec-t"><h3>Comprá por</h3></div>
+      {grupos.length > 1 && (
+        <div className="tw-comprapor-tabs" role="tablist">
+          {grupos.map(x => <button key={x.k} role="tab" aria-selected={x.k === k} className={x.k === k ? "on" : ""} onClick={() => setK(x.k)}>{x.k === "piel" ? "Tipo de piel" : "Lo que necesita tu piel"}</button>)}
+        </div>
+      )}
+      <div className="tw-comprapor-grid" key={g.k}>
+        {g.op.map((o, i) => { const [color, dib] = TW_ICONOS_PIEL[o[0]] || ["#999", <circle cx="24" cy="24" r="12" />]; return (
+          <button key={o[0]} className="tw-comprapor-t" style={{ animationDelay: (i * 0.04) + "s" }} onClick={() => onElegir(g.k, o[0])}>
+            <b>{g.k === "piel" ? "Piel " + o[1].toLowerCase() : o[1]}</b>
+            <svg viewBox="0 0 48 48" width="56" height="56" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color }} aria-hidden="true">{dib}</svg>
+          </button>
+        ); })}
+      </div>
+    </section>
+  );
 }
 
 function TwTarjeta({ p, base, sin, preventa, onAbrir, onAgregar }) {
@@ -24480,12 +24528,7 @@ function TiendaPublica({ slug }) {
               {retiroAca.length > 0 && <div><span>📍</span><span style={{ fontSize: 13.5 }}><b>Retiro sin costo</b><br />En {retiroAca.map(l => l.nombre).join(" o ")}</span></div>}
               <div><span>🔒</span><span style={{ fontSize: 13.5 }}><b>Compra segura</b><br />{tienda.pagos.mp ? "Con Mercado Pago" : "Te confirmamos por WhatsApp"}</span></div>
             </div>
-            {atajos.map(f => (
-              <section key={f.k} className="tw-sec tw-rv">
-                <div className="tw-sec-t"><h3>{f.k === "piel" ? "Comprá según tu tipo de piel" : "¿Qué necesita tu piel?"}</h3></div>
-                <div className="tw-atajos">{f.op.map(o => <button key={o[0]} onClick={() => irCat("*", { [f.k]: o[0] })}>{o[1]}</button>)}</div>
-              </section>
-            ))}
+            {atajos.length > 0 && <TwComprarPor grupos={atajos} onElegir={(k, v) => irCat("*", { [k]: v })} />}
             {filasPortada.map(f => <TwFila key={f.id} titulo={f.titulo} items={f.items} render={tarjeta} />)}
             {reels.length > 0 && (
               <section className="tw-sec tw-rv">
