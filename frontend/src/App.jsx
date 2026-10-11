@@ -5154,7 +5154,7 @@ function POS({ localId, usuario, paletaActual }) {
       )}
       {pedidoWeb && referenciaVenta === "Tienda web " + pedidoWeb.codigo && (
         <div role="status" style={{ background: temaPal.accent + "14", border: "1px solid " + temaPal.accent, borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 12.5, lineHeight: 1.5 }}>
-          {pedidoWeb.ruleta && pedidoWeb.ruleta.tipo !== "nada" && <div style={{ fontWeight: 800, fontSize: 13.5, marginBottom: 4 }}>🎡 {pedidoWeb.ruleta.tipo === "regalo" ? "Ganó un REGALO en la ruleta: dáselo con el pedido 🎁" : "Ganó " + pedidoWeb.ruleta.texto + " en la ruleta (cupón " + pedidoWeb.ruleta.cupon + "): se activa al registrar esta venta, para su próxima compra."}</div>}
+          {pedidoWeb.ruleta && pedidoWeb.ruleta.tipo !== "nada" && <div style={{ fontWeight: 800, fontSize: 13.5, marginBottom: 4 }}>🎡 {pedidoWeb.ruleta.tipo === "regalo" ? "Ganó " + (/mega/i.test(pedidoWeb.ruleta.texto || "") ? "el 💎 MEGA REGALO" : "un REGALO 🎁") + " en la ruleta: dáselo con el pedido" : "Ganó " + pedidoWeb.ruleta.texto + " en la ruleta (cupón " + pedidoWeb.ruleta.cupon + "): se activa al registrar esta venta, para su próxima compra."}</div>}
           🛍️ <b>Cobrando el pedido web N° {pedidoWeb.codigo}</b> de {pedidoWeb.nombre}.{pedidoWeb.cupon ? " Usó el código " + pedidoWeb.cupon + " (ya está aplicado como descuento general)." : ""} Si se lleva otra cosa, <b>sacá o sumá productos</b> en el carrito como en cualquier venta: se registra lo que se lleva y el pedido queda entregado.
           {pedidoWeb.pagado && <div style={{ marginTop: 4 }}>Ya pagó <b>{fmt(pedidoWeb.total)}</b> con {pedidoWeb.pago === "mp" ? "Mercado Pago" : "transferencia"}. {Math.round(total - pedidoWeb.total) !== 0 ? (total > pedidoWeb.total ? " Falta cobrar " + fmt(total - pedidoWeb.total) + " (con otro medio de pago)." : " Hay que devolverle " + fmt(pedidoWeb.total - total) + ".") : ""}</div>}
         </div>
@@ -23262,7 +23262,7 @@ function TwGirasol() {
 
 // ---- Ruleta de premios (compras grandes) ----
 // Dibujo de la ruleta: porciones iguales; REGALO dorado, descuentos en negro, "seguí participando" claro.
-function twColorPorcion(x, i) { return x.tipo === "regalo" ? ["#f4b400", "#3d2c05"] : x.tipo === "cupon" ? ["#141414", "#ffffff"] : i % 2 ? ["#fff8e6", "#7a6330"] : ["#ffffff", "#7a6330"]; }
+function twColorPorcion(x, i) { if (x.tipo === "regalo" && /mega/i.test(x.texto || "")) return ["#6a1b9a", "#ffe082"]; return x.tipo === "regalo" ? ["#f4b400", "#3d2c05"] : x.tipo === "cupon" ? ["#141414", "#ffffff"] : i % 2 ? ["#fff8e6", "#7a6330"] : ["#ffffff", "#7a6330"]; }
 function TwRuletaDibujo({ premios, giro = 0, tamano = 280, flick }) {
   const n = premios.length, seg = 360 / n, R = 100;
   const punto = (ang, r) => [Math.sin(ang * Math.PI / 180) * r, -Math.cos(ang * Math.PI / 180) * r];
@@ -23275,14 +23275,14 @@ function TwRuletaDibujo({ premios, giro = 0, tamano = 280, flick }) {
           const [a1, a2] = [i * seg, (i + 1) * seg];
           const [x1, y1] = punto(a1, R), [x2, y2] = punto(a2, R);
           const [fondo, letra] = twColorPorcion(x, i);
-          const largo = x.texto.length > 12;
+          const largo = x.texto.length > (n >= 7 ? 7 : 12);
           return (
             <g key={x.id}>
               <path d={`M0 0 L${x1} ${y1} A${R} ${R} 0 ${seg > 180 ? 1 : 0} 1 ${x2} ${y2} Z`} fill={fondo} stroke="#e2c675" strokeWidth="1.2" />
               <g transform={`rotate(${a1 + seg / 2})`}>
-                {x.tipo === "regalo" && <text y="-74" textAnchor="middle" fontSize="16">🎁</text>}
-                <text y={x.tipo === "regalo" ? -50 : -62} textAnchor="middle" fill={letra} fontSize={largo ? 7.6 : 11} fontWeight="800" style={{ letterSpacing: largo ? 0 : ".04em" }}>
-                  {largo ? x.texto.split(" ").reduce((ls, w) => { const l = ls[ls.length - 1]; if (l && (l + " " + w).length <= 11) ls[ls.length - 1] = l + " " + w; else ls.push(w); return ls; }, []).slice(0, 3).map((l, k) => <tspan key={k} x="0" dy={k ? 9 : 0}>{l}</tspan>) : x.texto}
+                {x.tipo === "regalo" && <text y="-74" textAnchor="middle" fontSize="16">{/mega/i.test(x.texto || "") ? "💎" : "🎁"}</text>}
+                <text y={x.tipo === "regalo" ? -52 : -62} textAnchor="middle" fill={letra} fontSize={largo ? (x.tipo === "nada" ? 7.6 : 9) : 11} fontWeight="800" style={{ letterSpacing: largo ? 0 : ".04em" }}>
+                  {largo ? x.texto.split(" ").reduce((ls, w) => { const l = ls[ls.length - 1]; if (l && (l + " " + w).length <= (n >= 7 ? 7 : 11)) ls[ls.length - 1] = l + " " + w; else ls.push(w); return ls; }, []).slice(0, 3).map((l, k) => <tspan key={k} x="0" dy={k ? 9 : 0}>{l}</tspan>) : x.texto}
                 </text>
               </g>
             </g>
@@ -23347,10 +23347,10 @@ function TwRuleta({ ruleta, codigo, pedir }) {
       {error && <div style={{ color: "#c0392b", fontSize: 13.5, marginTop: 8 }}>{error}</div>}
       {resultado && ver && (
         <div className={"tw-ruleta-premio " + resultado.tipo}>
-          {resultado.tipo === "regalo" && <><b>🎁 Te ganaste un REGALO</b><span>Te lo damos junto con tu pedido.</span></>}
+          {resultado.tipo === "regalo" && (/mega/i.test(resultado.texto || "") ? <><b>💎 ¡¡Te ganaste el MEGA REGALO!!</b><span>Te lo damos junto con tu pedido. ¡Felicitaciones!</span></> : <><b>🎁 Te ganaste un {resultado.texto || "REGALO"}</b><span>Te lo damos junto con tu pedido.</span></>)}
           {resultado.tipo === "cupon" && <><b>🎉 {resultado.texto} en tu próxima compra</b>
             <button className="tw-cupon-cod" onClick={copiar} aria-label="Copiar código">{resultado.cupon} <small>{copiado ? "¡copiado!" : "copiar"}</small></button>
-            <span>Se activa cuando retirás este pedido y vale 60 días, online o en el local.</span></>}
+            <span>Se activa cuando retirás este pedido y desde ahí vale 30 días, online o en el local.</span></>}
           {resultado.tipo === "nada" && <><b>Seguí participando</b><span>En tu próxima compra de más de {fmtTienda(ruleta.minimo || 100000)} volvés a girar.</span></>}
         </div>
       )}
@@ -25213,7 +25213,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                           {p.entrega === "retiro" ? "📍 Retira en " + nombreLocal(p.local_id) : "🛵 Envío a " + p.direccion + " (" + p.zona + ")"} · {PAGO_TIENDA[p.pago]}{p.pagado ? " ✓ pagado" : ""}{p.telefono ? " · " + p.telefono : ""}
                         </div>
                         {p.nota && <div style={{ fontSize: 12.5, marginTop: 2 }}>📝 {p.nota}</div>}
-                        {p.ruleta && <div style={{ fontSize: 12.5, marginTop: 4, fontWeight: 700, color: p.ruleta.tipo === "nada" ? temaPal.textMuted : temaPal.warn }}>🎡 Ruleta: {p.ruleta.tipo === "regalo" ? "ganó un REGALO 🎁 — dáselo con el pedido" : p.ruleta.tipo === "cupon" ? "ganó " + p.ruleta.texto + " (cupón " + p.ruleta.cupon + ", se activa al entregar)" : "seguí participando"}</div>}
+                        {p.ruleta && <div style={{ fontSize: 12.5, marginTop: 4, fontWeight: 700, color: p.ruleta.tipo === "nada" ? temaPal.textMuted : temaPal.warn }}>🎡 Ruleta: {p.ruleta.tipo === "regalo" ? "ganó " + (/mega/i.test(p.ruleta.texto || "") ? "el 💎 MEGA REGALO" : "un REGALO 🎁") + " — dáselo con el pedido" : p.ruleta.tipo === "cupon" ? "ganó " + p.ruleta.texto + " (cupón " + p.ruleta.cupon + ", se activa al entregar)" : "seguí participando"}</div>}
                         {p.estado === "pendiente_pago" && p.vence_en && <div style={{ fontSize: 11.5, color: temaPal.warn }}>Si no paga, se cancela solo el {new Date(p.vence_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} y el stock vuelve.</div>}
                         {p.estado === "cancelado" && p.motivo && <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{p.motivo}</div>}
                       </div>
@@ -25464,7 +25464,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-start" }}>
                 <div style={{ flex: "1 1 380px", minWidth: 0 }}>
                   <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", fontWeight: 800 }}><input type="checkbox" checked={!!r.activo} onChange={e => setR({ activo: e.target.checked })} style={{ width: 18, height: 18 }} /> Activar la ruleta</label>
-                  <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "4px 0 10px" }}>Cuando una compra online llega al monto, al terminar la compra la clienta gira una vez. Los cupones que gana se activan cuando retira y paga ese pedido (si lo cancela, no valen) y duran 60 días, online o en el local. El REGALO se lo das con el pedido: te avisa en el pedido y en la caja.</div>
+                  <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "4px 0 10px" }}>Cuando una compra online llega al monto, al terminar la compra la clienta gira una vez. Los cupones que gana se activan cuando retira y paga ese pedido (si lo cancela, no valen) y desde ahí duran 30 días, online o en el local. El REGALO se lo das con el pedido: te avisa en el pedido y en la caja.</div>
                   <div className="fl">Compra mínima para girar</div>
                   <input className="inp" type="number" min="1" style={{ maxWidth: 180 }} value={r.minimo} onChange={e => setR({ minimo: e.target.value })} />
                   <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", fontSize: 13, marginTop: 8 }}><input type="checkbox" checked={!!r.aviso_carrito} onChange={e => setR({ aviso_carrito: e.target.checked })} /> Avisar en el carrito cuánto le falta para girar <span style={{ color: temaPal.textMuted }}>(si no, la ruleta es sorpresa al terminar la compra)</span></label>
@@ -25481,13 +25481,16 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                       <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", marginTop: 6, fontSize: 12.5 }}>
                         {x.tipo === "cupon" && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><input className="inp" type="number" min="1" max="90" style={{ width: 60 }} value={x.valor} onChange={e => setP(i, { valor: e.target.value, texto: (e.target.value || "") + "% OFF" })} aria-label="Porcentaje" />% off</span>}
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }} title="Qué tan seguido sale">Chance <input className="inp" type="number" min="0" style={{ width: 64 }} value={x.chance} onChange={e => setP(i, { chance: e.target.value })} aria-label="Chance" />
-                          <b>{(() => { const pr = suma ? (Number(x.chance) || 0) / suma : 0; return pr <= 0 ? "nunca sale" : "= " + (pr * 100 < 1 ? (pr * 100).toFixed(1) : Math.round(pr * 100)) + "% (1 de cada " + Math.max(1, Math.round(1 / pr)) + ")"; })()}</b></span>
+                          <b>{(() => { const pr = suma ? (Number(x.chance) || 0) / suma : 0; if (pr <= 0) return "nunca sale"; const cada = Number(x.cada) > 1 && x.tipo !== "nada" ? Number(x.cada) : 0; const cadaCuanto = Math.max(1, Math.round(1 / pr + (cada ? cada - 1 : 0))); return "≈ 1 de cada " + cadaCuanto + " giros" + (cada ? " (con el tope)" : "") + " · " + (100 / cadaCuanto < 1 ? (100 / cadaCuanto).toFixed(1) : Math.round(100 / cadaCuanto)) + "%"; })()}</b></span>
                         {x.tipo !== "nada" && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }} title="Para premios grandes: aunque tenga suerte, no sale más seguido que esto">Máx. 1 cada <input className="inp" type="number" min="0" placeholder="—" style={{ width: 70 }} value={x.cada || ""} onChange={e => setP(i, { cada: e.target.value })} aria-label="Máximo 1 cada tantos giros" /> giros</span>}
                       </div>
                     </div>
                   ))}
-                  {r.premios.length < 12 && <button className="btn btn-g btn-sm" onClick={() => setR({ premios: [...r.premios, { id: "p" + Date.now().toString(36), texto: "Seguí participando", tipo: "nada", valor: 0, chance: 10 }] })}>+ Sumar opción</button>}
-                  <div style={{ fontSize: 11.5, color: temaPal.textMuted, marginTop: 6, lineHeight: 1.5 }}>El % es la probabilidad real de que salga cada opción ("1 de 20" = sale más o menos una vez cada 20 giros). <b>Máx. 1 cada…</b> sirve para premios grandes: por ejemplo un MEGA REGALO con chance baja y "máx. 1 cada 100 giros" nunca sale dos veces seguidas aunque haya suerte. Vacío = sin tope. Tocá "Guardar configuración" para aplicar.</div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {r.premios.length < 12 && <button className="btn btn-g btn-sm" onClick={() => setR({ premios: [...r.premios, { id: "p" + Date.now().toString(36), texto: "Seguí participando", tipo: "nada", valor: 0, chance: 10 }] })}>+ Sumar opción</button>}
+                    {r.premios.length < 12 && !r.premios.some(x => /mega/i.test(x.texto || "")) && <button className="btn btn-g btn-sm" onClick={() => setR({ premios: [...r.premios, { id: "mega", texto: "MEGA REGALO", tipo: "regalo", valor: 0, chance: Math.max(1, Math.round(suma / 49)), cada: 50 }] })}>💎 + Sumar MEGA REGALO (1 de cada 100)</button>}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: temaPal.textMuted, marginTop: 6, lineHeight: 1.5 }}>El % es la probabilidad real de que salga cada opción ("1 de 20" = sale más o menos una vez cada 20 giros). <b>Máx. 1 cada…</b> sirve para premios grandes: por ejemplo el MEGA REGALO con chance 2 y "máx. 1 cada 50 giros" sale más o menos 1 de cada 100 y nunca dos veces seguidas aunque haya suerte. Vacío = sin tope. Tocá "Guardar configuración" para aplicar.</div>
                 </div>
                 <div style={{ flex: "0 0 auto", margin: "0 auto" }}><TwRuletaDibujo premios={r.premios.map((x, i) => ({ ...x, id: x.id || "p" + i, texto: String(x.texto || "") }))} tamano={240} /></div>
               </div>

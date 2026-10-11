@@ -525,8 +525,8 @@ router.put('/pedidos/:id/vendido', async (req, res) => {
   try {
     await pool.query(`UPDATE tienda_pedidos SET estado = 'entregado', venta_id = $1, pagado = TRUE, actualizado_en = NOW() WHERE id = $2 AND estado <> 'cancelado'`,
       [parseInt(req.body && req.body.venta_id) || null, req.params.id]);
-    // Cupon ganado en la ruleta con este pedido: ya se puede usar
-    await pool.query(`UPDATE cupones SET activo = TRUE WHERE codigo = (SELECT cupon FROM tienda_ruleta WHERE pedido_id = $1)
+    // Cupon ganado en la ruleta con este pedido: ya se puede usar, por 30 dias desde hoy
+    await pool.query(`UPDATE cupones SET activo = TRUE, fecha_vencimiento = CURRENT_DATE + 30 WHERE codigo = (SELECT cupon FROM tienda_ruleta WHERE pedido_id = $1)
       AND EXISTS (SELECT 1 FROM tienda_pedidos WHERE id = $1 AND estado = 'entregado')`, [req.params.id]).catch(() => {});
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'No se pudo marcar como entregado' }); }
