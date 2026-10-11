@@ -43,13 +43,14 @@ router.put('/config', async (req, res) => {
       if (!ok) return res.status(400).json({ error: 'Esa dirección ya la usa otra tienda. Probá con otra.' });
     }
     await pool.query(`UPDATE tienda_config SET activo=$1, slug=$2, titulo=$3, mensaje=$4, color=$5, whatsapp=$6, retiro_activo=$7, retiro_locales=$8,
-        envio_activo=$9, envio_zonas=$10, envio_gratis_desde=$11, envio_local=$12, pago_mp=$13, pago_transferencia=$14, transferencia_datos=$15, pago_retiro=$16, horas_reserva=$17 WHERE id=1`,
+        envio_activo=$9, envio_zonas=$10, envio_gratis_desde=$11, envio_local=$12, pago_mp=$13, pago_transferencia=$14, transferencia_datos=$15, pago_retiro=$16, horas_reserva=$17, anuncios=$18 WHERE id=1`,
       [!!b.activo, slug || null, String(b.titulo || '').trim().slice(0, 80) || null, String(b.mensaje || '').trim().slice(0, 300) || null,
        /^#[0-9a-fA-F]{6}$/.test(String(b.color || '')) ? b.color : null, String(b.whatsapp || '').trim().slice(0, 40) || null,
        !!b.retiro_activo, locales.length ? locales : null, !!b.envio_activo, JSON.stringify(zonas),
        num(b.envio_gratis_desde) > 0 ? num(b.envio_gratis_desde) : null, Number(b.envio_local) === 2 ? 2 : 1,
        !!b.pago_mp, !!b.pago_transferencia, String(b.transferencia_datos || '').trim().slice(0, 300) || null, !!b.pago_retiro,
-       Math.min(168, Math.max(1, parseInt(b.horas_reserva) || 24))]);
+       Math.min(168, Math.max(1, parseInt(b.horas_reserva) || 24)),
+       String(b.anuncios || '').split('\n').map(x => x.trim().slice(0, 90)).filter(Boolean).slice(0, 5).join('\n') || null]);
     res.json({ ok: true });
   } catch (e) {
     console.error('[tienda] config:', e.message);
@@ -71,8 +72,9 @@ router.get('/productos', async (req, res) => {
   try {
     const r = await pool.query(`
       SELECT p.id, p.nombre, p.marca, p.categoria, p.precio, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush,
-             COALESCE(tp.publicado, FALSE) AS publicado, tp.descripcion,
-             EXISTS (SELECT 1 FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto
+             COALESCE(tp.publicado, FALSE) AS publicado, tp.descripcion, COALESCE(tp.destacado, FALSE) AS destacado, tp.video_url,
+             EXISTS (SELECT 1 FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto,
+             EXISTS (SELECT 1 FROM tienda_videos v WHERE v.producto_id = p.id) AS video_subido
       FROM productos p LEFT JOIN tienda_productos tp ON tp.producto_id = p.id
       WHERE p.activo = TRUE ORDER BY COALESCE(tp.publicado, FALSE) DESC, p.nombre`);
     res.json(r.rows.map(p => ({ ...p, precio: num(p.precio) })));
@@ -83,11 +85,40 @@ router.put('/productos/:id', async (req, res) => {
   try {
     if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
     const b = req.body || {};
-    await pool.query(`INSERT INTO tienda_productos (producto_id, publicado, descripcion) VALUES ($1, COALESCE($2, FALSE), $3)
-      ON CONFLICT (producto_id) DO UPDATE SET publicado = COALESCE($2, tienda_productos.publicado), descripcion = CASE WHEN $4 THEN $3 ELSE tienda_productos.descripcion END`,
-      [req.params.id, b.publicado === undefined ? null : !!b.publicado, String(b.descripcion || '').trim().slice(0, 1500) || null, b.descripcion !== undefined]);
+    const link = b.video_url === undefined ? undefined : String(b.video_url || '').trim();
+    if (link && !tienda.videoDeLink(link)) return res.status(400).json({ error: 'Ese link no es de un video que podamos mostrar. Usá un link de YouTube, Vimeo o de un archivo .mp4.' });
+    await pool.query(`INSERT INTO tienda_productos (producto_id, publicado, descripcion, destacado, video_url) VALUES ($1, COALESCE($2, FALSE), $3, COALESCE($5, FALSE), $6)
+      ON CONFLICT (producto_id) DO UPDATE SET publicado = COALESCE($2, tienda_productos.publicado),
+        descripcion = CASE WHEN $4 THEN $3 ELSE tienda_productos.descripcion END,
+        destacado = COALESCE($5, tienda_productos.destacado),
+        video_url = CASE WHEN $7 THEN $6 ELSE tienda_productos.video_url END`,
+      [req.params.id, b.publicado === undefined ? null : !!b.publicado, String(b.descripcion || '').trim().slice(0, 1500) || null, b.descripcion !== undefined,
+       b.destacado === undefined ? null : !!b.destacado, link ? link.slice(0, 500) : null, link !== undefined]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+});
+
+// Video subido desde la compu o el celular (se guarda en la base, hasta VIDEO_MAX_MB)
+router.post('/productos/:id/video', express.raw({ type: () => true, limit: tienda.VIDEO_MAX_MB + 'mb' }), async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    const tipo = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+    if (!/^video\/(mp4|webm|quicktime)$/.test(tipo)) return res.status(400).json({ error: 'El video tiene que ser .mp4, .mov o .webm' });
+    if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'No llegó el video' });
+    await pool.query(`INSERT INTO tienda_videos (producto_id, tipo, datos) VALUES ($1, $2, $3)
+      ON CONFLICT (producto_id) DO UPDATE SET tipo = $2, datos = $3, actualizado_en = NOW()`, [req.params.id, tipo, req.body]);
+    await pool.query(`INSERT INTO tienda_productos (producto_id) VALUES ($1) ON CONFLICT (producto_id) DO NOTHING`, [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { console.error('[tienda] video:', e.message); res.status(500).json({ error: 'No se pudo subir el video' }); }
+});
+
+router.delete('/productos/:id/video', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    await pool.query('DELETE FROM tienda_videos WHERE producto_id = $1', [req.params.id]);
+    await pool.query('UPDATE tienda_productos SET video_url = NULL WHERE producto_id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'No se pudo sacar el video' }); }
 });
 
 // Publicar de una vez los que tienen foto, precio y stock

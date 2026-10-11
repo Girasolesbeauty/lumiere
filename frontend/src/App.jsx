@@ -22635,11 +22635,261 @@ const BARRA_CELU = [
 // ===================== TIENDA WEB (publica) =====================
 // La ve cualquiera en la direccion ...?tienda=<nombre>. No usa la sesion de Lumiere.
 // Precios y stock vienen de Lumiere; el servidor vuelve a validar todo al hacer el pedido.
+// Diseño de tienda de belleza: tira de anuncios, banner con los destacados, carruseles por
+// categoria, fichas con video y carrito que se desliza desde el costado.
 const fmtTienda = (n) => "$" + Math.round(parseFloat(n) || 0).toLocaleString("es-AR");
 const ESTADOS_PEDIDO_WEB = {
   pendiente_pago: ["Esperando el pago", "#b7950b"], confirmado: ["Recibido: lo estamos preparando", "#2471a3"], preparado: ["¡Listo!", "#2d7a4f"],
   en_caja: ["¡Listo!", "#2d7a4f"], entregado: ["Entregado. ¡Gracias por tu compra!", "#2d7a4f"], cancelado: ["Cancelado", "#c0392b"],
 };
+const TW_ORDEN = [["", "Destacados"], ["menor", "Menor precio"], ["mayor", "Mayor precio"], ["az", "A – Z"]];
+
+const CSS_TIENDA = `
+#root:has(>.tw){width:auto;max-width:none;border:0;text-align:left;display:block;margin:0}
+.tw{text-align:left;--n:#111;--g:#f6f6f6;--b:#e6e6e6;--m:#666;font-family:"Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;color:var(--n);background:#fff;min-height:100vh;-webkit-font-smoothing:antialiased}
+.tw *{box-sizing:border-box}
+.tw button{font-family:inherit;color:inherit}
+.tw a{color:inherit}
+.tw-anuncio{background:#000;color:#fff;font-size:12.5px;letter-spacing:.04em;text-align:center;height:34px;overflow:hidden;position:relative}
+.tw-anuncio div{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:0 12px;animation:twAnuncio .6s cubic-bezier(.2,.7,.2,1)}
+@keyframes twAnuncio{from{transform:translateY(100%);opacity:0}to{transform:none;opacity:1}}
+.tw-cab{position:sticky;top:0;z-index:15;background:rgba(255,255,255,.96);backdrop-filter:saturate(1.4) blur(8px);border-bottom:1px solid var(--b);transition:box-shadow .3s}
+.tw-cab.sombra{box-shadow:0 4px 18px rgba(0,0,0,.07)}
+.tw-cab1{max-width:1280px;margin:0 auto;display:flex;align-items:center;gap:18px;padding:14px 20px}
+.tw-marca{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0;cursor:pointer;background:none;border:none;padding:0}
+.tw-marca img{height:38px;max-width:130px;object-fit:contain}
+.tw-marca b{font-size:22px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+.tw-busca{flex:1;position:relative;max-width:560px}
+.tw-busca input{width:100%;height:42px;border-radius:999px;border:1px solid transparent;background:var(--g);padding:0 16px 0 42px;font-size:15px;font-family:inherit;transition:border-color .2s,background .2s}
+.tw-busca input:focus{outline:none;border-color:var(--n);background:#fff}
+.tw-busca svg{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--m)}
+.tw-iconos{display:flex;align-items:center;gap:6px;margin-left:auto}
+.tw-ico{position:relative;width:42px;height:42px;border-radius:50%;border:none;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;text-decoration:none}
+.tw-ico:hover{background:var(--g)}
+.tw-badge{position:absolute;top:3px;right:1px;min-width:19px;height:19px;border-radius:999px;background:var(--c);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 5px}
+.tw-badge.salta{animation:twSalta .5s cubic-bezier(.3,1.6,.5,1)}
+@keyframes twSalta{0%{transform:scale(.4)}60%{transform:scale(1.35)}100%{transform:scale(1)}}
+.tw-nav{max-width:1280px;margin:0 auto;display:flex;gap:26px;padding:0 20px;overflow-x:auto;scrollbar-width:none}
+.tw-nav::-webkit-scrollbar{display:none}
+.tw-nav button{background:none;border:none;padding:11px 0 12px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;cursor:pointer;position:relative}
+.tw-nav button::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--n);transform:scaleX(0);transform-origin:left;transition:transform .3s cubic-bezier(.2,.7,.2,1)}
+.tw-nav button:hover::after,.tw-nav button.on::after{transform:scaleX(1)}
+.tw-main{max-width:1280px;margin:0 auto;padding:0 20px 60px}
+.tw-hero{position:relative;margin:20px 0 8px;border-radius:6px;overflow:hidden;height:440px;background:var(--g)}
+.tw-slide{position:absolute;inset:0;display:grid;grid-template-columns:1.05fr 1fr;align-items:center;opacity:0;visibility:hidden;transition:opacity .8s ease,visibility .8s}
+.tw-slide.on{opacity:1;visibility:visible}
+.tw-slide-txt{padding:40px 56px;position:relative;z-index:1}
+.tw-slide .tw-ceja{font-size:12px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--c)}
+.tw-slide h2{font-size:clamp(28px,4.2vw,52px);line-height:1.04;margin:12px 0 10px;font-weight:800;letter-spacing:-.01em}
+.tw-slide p{font-size:16px;color:#444;margin:0 0 22px;max-width:420px;line-height:1.5}
+.tw-slide-img{height:100%;display:flex;align-items:center;justify-content:center;position:relative}
+.tw-slide-img img{max-height:360px;max-width:86%;object-fit:contain;filter:drop-shadow(0 24px 30px rgba(0,0,0,.16))}
+.tw-slide.on .tw-slide-txt>*{animation:twSube .8s cubic-bezier(.2,.7,.2,1) both}
+.tw-slide.on .tw-slide-txt>*:nth-child(2){animation-delay:.08s}
+.tw-slide.on .tw-slide-txt>*:nth-child(3){animation-delay:.16s}
+.tw-slide.on .tw-slide-txt>*:nth-child(4){animation-delay:.24s}
+.tw-slide.on .tw-slide-img img{animation:twFlota 1.1s cubic-bezier(.2,.7,.2,1) both}
+@keyframes twSube{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+@keyframes twFlota{from{opacity:0;transform:translateX(40px) scale(.94)}to{opacity:1;transform:none}}
+.tw-circulo{position:absolute;width:70%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--c) 30%,#fff),transparent 70%)}
+.tw-puntos{position:absolute;left:56px;bottom:26px;display:flex;gap:8px;z-index:2}
+.tw-puntos button{width:28px;height:4px;border-radius:2px;border:none;background:rgba(0,0,0,.18);cursor:pointer;padding:0;overflow:hidden;position:relative}
+.tw-puntos button.on::after{content:"";position:absolute;inset:0;background:var(--n);animation:twBarra 5.5s linear both;transform-origin:left}
+@keyframes twBarra{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.tw-flecha{position:absolute;top:50%;transform:translateY(-50%);width:42px;height:42px;border-radius:50%;border:none;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.12);cursor:pointer;z-index:3;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .25s,transform .25s}
+.tw-hero:hover .tw-flecha,.tw-fila:hover .tw-flecha{opacity:1}
+.tw-flecha:hover{transform:translateY(-50%) scale(1.08)}
+.tw-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--n);color:#fff !important;border:none;border-radius:999px;padding:14px 30px;font-size:14px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;text-decoration:none;transition:transform .15s,background .2s,opacity .2s}
+.tw-btn:hover{background:#333}
+.tw-btn:active{transform:scale(.97)}
+.tw-btn:disabled{opacity:.45;cursor:default;transform:none}
+.tw-btn.full{width:100%}
+.tw-btn2{display:inline-flex;align-items:center;justify-content:center;background:#fff;color:var(--n);border:1.5px solid var(--n);border-radius:999px;padding:12px 24px;font-size:13.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;text-decoration:none;transition:background .2s}
+.tw-btn2:hover{background:var(--g)}
+.tw-benef{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:18px 0 6px}
+.tw-benef div{display:flex;gap:12px;align-items:center;padding:14px 16px;border:1px solid var(--b);border-radius:6px;font-size:13.5px;line-height:1.35}
+.tw-benef span{font-size:24px}
+.tw-sec{margin-top:44px}
+.tw-sec-t{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:16px}
+.tw-sec-t h3{font-size:22px;font-weight:800;margin:0;letter-spacing:-.005em}
+.tw-sec-t button{background:none;border:none;font-size:13.5px;font-weight:700;text-decoration:underline;text-underline-offset:3px;cursor:pointer;white-space:nowrap}
+.tw-fila{position:relative}
+.tw-fila-in{display:grid;grid-auto-flow:column;grid-auto-columns:calc((100% - 4*18px)/5);gap:18px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;padding-bottom:6px}
+.tw-fila-in::-webkit-scrollbar{display:none}
+.tw-fila-in>*{scroll-snap-align:start}
+.tw-fila .tw-flecha{top:38%}
+.tw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:30px 18px}
+.tw-card{position:relative;text-align:left;cursor:pointer;background:none;border:none;padding:0;display:flex;flex-direction:column;min-width:0}
+.tw-card-img{position:relative;aspect-ratio:1;background:var(--g);border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.tw-card-img img{width:100%;height:100%;object-fit:cover;transition:transform .7s cubic-bezier(.2,.7,.2,1)}
+.tw-card:hover .tw-card-img img{transform:scale(1.07)}
+.tw-card-img video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;animation:twAparece .4s ease both}
+@keyframes twAparece{from{opacity:0}to{opacity:1}}
+.tw-ph{font-size:46px;color:#c8c8c8}
+.tw-etqs{position:absolute;top:10px;left:10px;display:flex;flex-direction:column;gap:5px;align-items:flex-start;z-index:1}
+.tw-etq{background:#fff;color:var(--n);font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:4px 8px;border-radius:3px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.tw-etq.neg{background:var(--n);color:#fff}
+.tw-rapido{position:absolute;left:10px;right:10px;bottom:10px;z-index:1;background:var(--n);color:#fff !important;border:none;border-radius:999px;padding:11px;font-size:12.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;opacity:0;transform:translateY(12px);transition:opacity .25s,transform .25s}
+.tw-card:hover .tw-rapido,.tw-card:focus-within .tw-rapido{opacity:1;transform:none}
+.tw-agotado{position:absolute;inset:0;background:rgba(255,255,255,.55);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;letter-spacing:.14em}
+.tw-card-m{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-top:12px}
+.tw-card-n{font-size:14px;line-height:1.35;color:#333;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tw-card-p{font-size:15px;font-weight:800;margin-top:6px}
+.tw-rv{opacity:0;transform:translateY(28px);transition:opacity .8s cubic-bezier(.2,.7,.2,1),transform .8s cubic-bezier(.2,.7,.2,1)}
+.tw-rv.in{opacity:1;transform:none}
+.tw-skel{background:linear-gradient(90deg,#f1f1f1 25%,#e7e7e7 37%,#f1f1f1 63%);background-size:400% 100%;animation:twBrillo 1.3s ease infinite;border-radius:6px}
+@keyframes twBrillo{from{background-position:100% 50%}to{background-position:0 50%}}
+.tw-lista-cab{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:26px 0 20px}
+.tw-lista-cab h1{font-size:30px;margin:0;font-weight:800}
+.tw-lista-cab select{height:40px;border:1px solid var(--b);border-radius:999px;padding:0 14px;font-family:inherit;font-size:14px;background:#fff}
+.tw-velo{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:40;animation:twAparece .3s ease both}
+.tw-cajon{position:fixed;top:0;right:0;bottom:0;width:440px;max-width:100%;background:#fff;z-index:41;display:flex;flex-direction:column;animation:twCajon .42s cubic-bezier(.2,.8,.2,1) both;box-shadow:-10px 0 40px rgba(0,0,0,.15)}
+@keyframes twCajon{from{transform:translateX(100%)}to{transform:none}}
+.tw-cajon-cab{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--b)}
+.tw-cajon-cab h2{font-size:18px;margin:0;font-weight:800}
+.tw-cajon-cuerpo{flex:1;overflow-y:auto;padding:16px 20px}
+.tw-cajon-pie{border-top:1px solid var(--b);padding:16px 20px calc(16px + env(safe-area-inset-bottom))}
+.tw-progreso{background:var(--g);border-radius:6px;padding:12px 14px;font-size:13.5px;margin-bottom:14px}
+.tw-progreso div{height:6px;border-radius:3px;background:#ddd;margin-top:8px;overflow:hidden}
+.tw-progreso i{display:block;height:100%;background:var(--c);border-radius:3px;transition:width .8s cubic-bezier(.2,.7,.2,1)}
+.tw-item{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--b);animation:twSube .4s ease both}
+.tw-item img,.tw-item .tw-mini{width:76px;height:76px;object-fit:cover;border-radius:6px;background:var(--g);flex-shrink:0}
+.tw-cant{display:inline-flex;align-items:center;border:1px solid var(--b);border-radius:999px;margin-top:8px}
+.tw-cant button{width:32px;height:32px;border:none;background:none;font-size:17px;cursor:pointer;border-radius:50%}
+.tw-cant b{min-width:22px;text-align:center;font-size:14px}
+.tw-linea{display:flex;justify-content:space-between;padding:4px 0;font-size:15px}
+.tw-inp{width:100%;padding:13px 14px;border-radius:6px;border:1px solid #ccc;font-size:16px;font-family:inherit;background:#fff;transition:border-color .2s}
+.tw-inp:focus{outline:none;border-color:var(--n)}
+.tw-lbl{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin:18px 0 8px}
+.tw-op{display:block;border:1.5px solid var(--b);border-radius:6px;padding:12px 14px;margin-bottom:8px;cursor:pointer;background:#fff;width:100%;text-align:left;font-size:15px;transition:border-color .2s,background .2s}
+.tw-op.on{border-color:var(--n);background:var(--g)}
+.tw-ficha{position:fixed;inset:0;z-index:41;display:flex;align-items:center;justify-content:center;padding:24px;pointer-events:none}
+.tw-ficha-in{pointer-events:auto;background:#fff;width:100%;max-width:1040px;max-height:calc(100vh - 48px);overflow-y:auto;border-radius:8px;position:relative;animation:twFicha .45s cubic-bezier(.2,.8,.2,1) both}
+@keyframes twFicha{from{opacity:0;transform:translateY(30px) scale(.98)}to{opacity:1;transform:none}}
+.tw-ficha-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:36px;padding:32px}
+.tw-cerrar{position:absolute;top:12px;right:12px;z-index:3;width:40px;height:40px;border-radius:50%;border:none;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.15);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.tw-media{position:relative;aspect-ratio:1;background:var(--g);border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.tw-media img{width:100%;height:100%;object-fit:contain;animation:twAparece .4s ease both}
+.tw-media video,.tw-media iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;object-fit:contain;animation:twAparece .4s ease both}
+.tw-miniaturas{display:flex;gap:10px;margin-top:12px}
+.tw-miniaturas button{width:68px;height:68px;border-radius:6px;border:1.5px solid var(--b);background:var(--g);cursor:pointer;overflow:hidden;padding:0;display:flex;align-items:center;justify-content:center;font-size:22px;transition:border-color .2s}
+.tw-miniaturas button.on{border-color:var(--n)}
+.tw-miniaturas img{width:100%;height:100%;object-fit:cover}
+.tw-ficha h1{font-size:26px;line-height:1.2;margin:6px 0 10px;font-weight:700}
+.tw-precio{font-size:24px;font-weight:800;margin-bottom:18px}
+.tw-vars{display:flex;gap:8px;flex-wrap:wrap}
+.tw-var{border:1.5px solid var(--b);background:#fff;border-radius:999px;padding:9px 16px;font-size:14px;cursor:pointer;transition:border-color .2s,background .2s}
+.tw-var.on{border-color:var(--n);background:var(--n);color:#fff !important}
+.tw-var:disabled{opacity:.35;text-decoration:line-through;cursor:default}
+.tw-disp{font-size:13.5px;margin-top:14px;line-height:1.7}
+.tw-acord{border-top:1px solid var(--b);margin-top:22px}
+.tw-acord details{border-bottom:1px solid var(--b)}
+.tw-acord summary{list-style:none;cursor:pointer;padding:16px 0;font-weight:800;font-size:14px;letter-spacing:.04em;text-transform:uppercase;display:flex;justify-content:space-between}
+.tw-acord summary::-webkit-details-marker{display:none}
+.tw-acord summary::after{content:"+";font-size:20px;font-weight:400;transition:transform .3s}
+.tw-acord details[open] summary::after{transform:rotate(45deg)}
+.tw-acord details>div{padding:0 0 16px;font-size:14.5px;line-height:1.6;color:#444;white-space:pre-wrap;animation:twSube .35s ease both}
+.tw-toast{position:fixed;top:92px;right:20px;z-index:50;background:#fff;border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,.18);padding:12px 14px;display:flex;gap:12px;align-items:center;width:320px;max-width:calc(100vw - 40px);animation:twToast .45s cubic-bezier(.2,.8,.2,1) both}
+@keyframes twToast{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
+.tw-toast img,.tw-toast .tw-mini{width:52px;height:52px;border-radius:6px;object-fit:cover;background:var(--g)}
+.tw-barra{display:none}
+.tw-pie{background:#000;color:#fff;margin-top:60px}
+.tw-pie-in{max-width:1280px;margin:0 auto;padding:44px 20px 30px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:30px;font-size:14px;line-height:1.8}
+.tw-pie h4{font-size:12px;letter-spacing:.14em;text-transform:uppercase;margin:0 0 10px;color:#aaa}
+.tw-pie a{color:#fff;text-decoration:none}
+.tw-pie-fin{border-top:1px solid #222;text-align:center;font-size:12px;color:#777;padding:16px}
+.tw-cartel{max-width:560px;margin:30px auto;border:1px solid var(--b);border-radius:8px;padding:24px}
+@media(max-width:1000px){.tw-fila-in{grid-auto-columns:calc((100% - 2*14px)/3);gap:14px}}
+@media(max-width:760px){
+  .tw-cab1{flex-wrap:wrap;gap:8px 10px;padding:10px 14px}
+  .tw-marca b{font-size:18px}
+  .tw-busca{order:3;flex-basis:100%;max-width:none}
+  .tw-nav{padding:0 14px;gap:20px}
+  .tw-main{padding:0 14px 90px}
+  .tw-hero{height:auto;min-height:0;margin-top:12px}
+  .tw-slide{position:relative;display:none;grid-template-columns:1fr;opacity:1;visibility:visible}
+  .tw-slide.on{display:grid}
+  .tw-slide-img{height:230px;order:-1}
+  .tw-slide-img img{max-height:200px}
+  .tw-benef{display:flex;overflow-x:auto;scrollbar-width:none;gap:8px}
+  .tw-benef::-webkit-scrollbar{display:none}
+  .tw-benef div{flex:0 0 auto;padding:10px 12px}
+  .tw-benef span{font-size:20px}
+  .tw-slide-txt{padding:18px 20px 52px}
+  .tw-slide p{font-size:14.5px;margin-bottom:16px}
+  .tw-puntos{left:20px;bottom:20px}
+  .tw-flecha{display:none}
+  .tw-fila-in{grid-auto-columns:44%;gap:12px}
+  .tw-grid{grid-template-columns:repeat(2,1fr);gap:22px 12px}
+  .tw-rapido{opacity:1;transform:none;left:auto;right:8px;bottom:8px;width:38px;height:38px;padding:0;font-size:20px;border-radius:50%}
+  .tw-rapido span{display:none}
+  .tw-sec{margin-top:34px}
+  .tw-sec-t h3{font-size:19px}
+  .tw-ficha{padding:0;align-items:flex-end}
+  .tw-ficha-in{max-height:94vh;border-radius:14px 14px 0 0;animation-name:twHoja}
+  .tw-ficha-grid{grid-template-columns:1fr;gap:16px;padding:16px}
+  .tw-ficha h1{font-size:21px}
+  .tw-ficha-btn{position:sticky;bottom:0;background:#fff;margin:16px -16px 0 !important;padding:12px 16px calc(12px + env(safe-area-inset-bottom));box-shadow:0 -4px 18px rgba(0,0,0,.08);z-index:2}
+  .tw-barra{display:block;position:fixed;left:0;right:0;bottom:0;padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:#fff;box-shadow:0 -4px 18px rgba(0,0,0,.1);z-index:12;animation:twSubeBarra .4s cubic-bezier(.2,.8,.2,1) both}
+  .tw-toast{top:auto;bottom:84px;right:14px;left:14px;width:auto}
+}
+@keyframes twHoja{from{transform:translateY(100%)}to{transform:none}}
+@keyframes twSubeBarra{from{transform:translateY(100%)}to{transform:none}}
+@media(prefers-reduced-motion:reduce){.tw *,.tw *::before,.tw *::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}.tw-rv{opacity:1;transform:none}}
+`;
+
+const TwIcono = ({ d, size = 22 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{d}</svg>;
+const TW_BOLSA = <><path d="M6 7h12l1 13H5L6 7Z" /><path d="M9 7a3 3 0 0 1 6 0" /></>;
+const TW_LUPA = <><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></>;
+const TW_X = <path d="M6 6l12 12M18 6 6 18" />;
+const TW_IZQ = <path d="m15 6-6 6 6 6" />;
+const TW_DER = <path d="m9 6 6 6-6 6" />;
+const TW_WA = <path d="M20 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20l1.2-4.2A8.5 8.5 0 1 1 20 11.5Z" />;
+
+// El video de un producto se puede reproducir solo (al pasar el mouse) si es un archivo, no si es de YouTube/Vimeo
+const videoArchivo = (base, p) => !p.video ? null : p.video.tipo === "subido" ? base + "/video/" + p.id : p.video.tipo === "archivo" ? p.video.url : null;
+
+function TwTarjeta({ p, base, sin, onAbrir, onAgregar }) {
+  const [hover, setHover] = useState(false);
+  const vid = videoArchivo(base, p);
+  return (
+    <div className="tw-card" role="button" tabIndex={0} onClick={() => onAbrir(p)} onKeyDown={e => { if (e.key === "Enter") onAbrir(p); }}
+      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+      <div className="tw-card-img">
+        {p.foto ? <img src={base + "/foto/" + p.id} alt={p.nombre} loading="lazy" /> : <span className="tw-ph">✿</span>}
+        {hover && vid && <video src={vid} muted autoPlay loop playsInline preload="none" />}
+        <div className="tw-etqs">
+          {p.nuevo && <span className="tw-etq">Nuevo</span>}
+          {p.video && <span className="tw-etq neg">▶ Video</span>}
+        </div>
+        {sin ? <div className="tw-agotado">AGOTADO</div> : (
+          <button className="tw-rapido" aria-label={"Agregar " + p.nombre} onClick={e => { e.stopPropagation(); p.variantes ? onAbrir(p) : onAgregar(p); }}>
+            +<span>{p.variantes ? " Elegir opción" : " Agregar"}</span>
+          </button>
+        )}
+      </div>
+      {p.marca && <div className="tw-card-m">{p.marca}</div>}
+      <div className="tw-card-n">{p.nombre}</div>
+      <div className="tw-card-p">{fmtTienda(p.precio)}</div>
+    </div>
+  );
+}
+
+function TwFila({ titulo, items, onVerTodo, render }) {
+  const ref = useRef(null);
+  const mover = (d) => { const el = ref.current; if (el) el.scrollBy({ left: d * el.clientWidth * 0.9, behavior: "smooth" }); };
+  if (!items.length) return null;
+  return (
+    <section className="tw-sec tw-rv">
+      <div className="tw-sec-t"><h3>{titulo}</h3>{onVerTodo && <button onClick={onVerTodo}>Ver todo</button>}</div>
+      <div className="tw-fila">
+        {items.length > 5 && <button className="tw-flecha" style={{ left: -14 }} onClick={() => mover(-1)} aria-label="Anteriores"><TwIcono d={TW_IZQ} /></button>}
+        <div className="tw-fila-in" ref={ref}>{items.map(render)}</div>
+        {items.length > 5 && <button className="tw-flecha" style={{ right: -14 }} onClick={() => mover(1)} aria-label="Siguientes"><TwIcono d={TW_DER} /></button>}
+      </div>
+    </section>
+  );
+}
 
 function TiendaPublica({ slug }) {
   const base = (API.defaults.baseURL || "") + "/tienda-publica/" + encodeURIComponent(slug);
@@ -22652,24 +22902,49 @@ function TiendaPublica({ slug }) {
   const params = new URLSearchParams(window.location.search);
   const [tienda, setTienda] = useState(null);
   const [error, setError] = useState("");
-  const [productos, setProductos] = useState([]);
+  const [productos, setProductos] = useState(null);
   const [busca, setBusca] = useState("");
-  const [cat, setCat] = useState("");
+  const [cat, setCat] = useState(""); // "" = inicio; "*" = todos; o una categoria
+  const [orden, setOrden] = useState("");
   const [carrito, setCarrito] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_carrito_" + slug) || "[]"); } catch (e) { return []; } });
   const [ver, setVer] = useState(null); // producto abierto
   const [varSel, setVarSel] = useState(null);
+  const [cant, setCant] = useState(1);
+  const [media, setMedia] = useState("foto"); // foto | video
   const [paso, setPaso] = useState(null); // null | "carrito" | "datos"
   const [datos, setDatos] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_datos") || "{}"); } catch (e) { return {}; } });
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState("");
+  const [toast, setToast] = useState(null);
+  const [salto, setSalto] = useState(0);
+  const [slide, setSlide] = useState(0);
+  const [anuncio, setAnuncio] = useState(0);
+  const [sombra, setSombra] = useState(false);
   const [pedido, setPedido] = useState(null);
+  const toque = useRef(null);
   const codigoUrl = params.get("pedido");
 
   useEffect(() => {
     pedir("").then(t => { setTienda(t); document.title = t.titulo; }).catch(e => setError(e.message));
-    pedir("/productos").then(setProductos).catch(() => {});
+    pedir("/productos").then(setProductos).catch(() => setProductos([]));
+    const s = () => setSombra(window.scrollY > 10);
+    window.addEventListener("scroll", s, { passive: true });
+    return () => window.removeEventListener("scroll", s);
   }, []);
   useEffect(() => { try { localStorage.setItem("tienda_carrito_" + slug, JSON.stringify(carrito)); } catch (e) {} }, [carrito]);
+  // Banner y tira de anuncios pasan solos
+  useEffect(() => { const t = setInterval(() => setSlide(s => s + 1), 5500); return () => clearInterval(t); }, [slide]);
+  useEffect(() => { const t = setInterval(() => setAnuncio(a => a + 1), 4000); return () => clearInterval(t); }, []);
+  // Las secciones aparecen suavemente al bajar
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") { document.querySelectorAll(".tw-rv").forEach(el => el.classList.add("in")); return; }
+    const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { rootMargin: "0px 0px -40px 0px" });
+    document.querySelectorAll(".tw-rv:not(.in)").forEach(el => io.observe(el));
+    return () => io.disconnect();
+  });
+  // Con la ficha o el carrito abiertos no se mueve la pagina de atras
+  useEffect(() => { document.body.style.overflow = ver || paso ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [ver, paso]);
+  useEffect(() => { const k = (e) => { if (e.key === "Escape") { setVer(null); setPaso(null); } }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, []);
   // Seguimiento del pedido (?pedido=CODIGO): se actualiza solo mientras espera el pago
   useEffect(() => {
     if (!codigoUrl) return;
@@ -22681,26 +22956,31 @@ function TiendaPublica({ slug }) {
   }, [codigoUrl]);
 
   if (error) return <div style={{ fontFamily: "system-ui, sans-serif", padding: 40, textAlign: "center", color: "#555" }}><div style={{ fontSize: 44 }}>🛍️</div><h2>{error}</h2><p style={{ fontSize: 14, maxWidth: 420, margin: "12px auto 0", lineHeight: 1.5 }}>¿Es tu tienda? Activala desde Lumiere, en Ventas → Tienda online → Configuración.</p></div>;
-  if (!tienda) return <div style={{ fontFamily: "system-ui, sans-serif", padding: 40, textAlign: "center", color: "#888" }}>Cargando…</div>;
+  if (!tienda) return <div className="tw" style={{ padding: 20 }}><style>{CSS_TIENDA}</style><div className="tw-skel" style={{ height: 60, marginBottom: 20 }} /><div className="tw-skel" style={{ height: 380 }} /></div>;
   const color = tienda.color || "#c9a84c";
+  const lista0 = productos || [];
   const foto = (p) => p.foto ? base + "/foto/" + p.id : null;
   // Lo que se puede vender: el maximo entre los locales posibles para esta compra
   const locales = [...tienda.retiro.map(l => l.id), ...(tienda.envio ? [1, 2] : [])];
   const dispo = (p, v) => { const s = v ? v.stock : p.stock; return Math.max(0, ...(locales.length ? locales : [1]).map(l => s[l] || 0)); };
+  const agotado = (p) => p.variantes ? p.variantes.every(v => dispo(p, v) <= 0) : dispo(p) <= 0;
   const totalItems = carrito.reduce((t, i) => t + i.cantidad, 0);
   const subtotal = carrito.reduce((t, i) => t + i.precio * i.cantidad, 0);
-  const agregar = (p, v) => {
+  const abrir = (p) => { setVer(p); setVarSel(null); setCant(1); setMedia(p.foto || !p.video ? "foto" : "video"); };
+  const agregar = (p, v, n = 1) => {
     const max = dispo(p, v);
     setCarrito(c => {
       const ya = c.find(i => i.producto_id === p.id && (i.variante_id || null) === (v ? v.id : null));
-      if (ya) return c.map(i => i === ya ? { ...i, cantidad: Math.min(max, i.cantidad + 1) } : i);
-      return [...c, { producto_id: p.id, variante_id: v ? v.id : null, nombre: p.nombre, variante: v ? v.valor : null, precio: p.precio, cantidad: 1, foto: !!p.foto }];
+      if (ya) return c.map(i => i === ya ? { ...i, cantidad: Math.min(max, i.cantidad + n) } : i);
+      return [...c, { producto_id: p.id, variante_id: v ? v.id : null, nombre: p.nombre, variante: v ? v.valor : null, precio: p.precio, cantidad: Math.min(max, n), foto: !!p.foto }];
     });
-    setVer(null); setAviso("✓ Agregado al carrito"); setTimeout(() => setAviso(""), 1800);
+    setVer(null); setSalto(s => s + 1);
+    setToast({ p, v }); clearTimeout(window.__twToast); window.__twToast = setTimeout(() => setToast(null), 2600);
   };
   const cambiarCant = (i, d) => setCarrito(c => c.map(x => x === i ? { ...x, cantidad: x.cantidad + d } : x).filter(x => x.cantidad > 0));
   const zona = tienda.envio ? tienda.envio.zonas.find(z => z.nombre === datos.zona) : null;
-  const envioGratis = tienda.envio && tienda.envio.gratis_desde && subtotal >= tienda.envio.gratis_desde;
+  const gratisDesde = tienda.envio && tienda.envio.gratis_desde;
+  const envioGratis = gratisDesde && subtotal >= gratisDesde;
   const costoEnvio = datos.entrega === "envio" && zona && !envioGratis ? zona.costo : 0;
   const confirmar = async () => {
     setAviso(""); setEnviando(true);
@@ -22714,182 +22994,303 @@ function TiendaPublica({ slug }) {
     setEnviando(false);
   };
   const wa = (txt) => tienda.whatsapp ? "https://wa.me/" + (() => { let n = String(tienda.whatsapp).replace(/[^0-9]/g, ""); if (n.startsWith("0")) n = n.slice(1); if (!n.startsWith("54")) n = "549" + n; return n; })() + "?text=" + encodeURIComponent(txt) : null;
+  const irInicio = () => { setCat(""); setBusca(""); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const irCat = (c) => { setCat(c); setBusca(""); window.scrollTo({ top: 0, behavior: "smooth" }); };
 
-  const css = `
-    .tw{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#222;background:#f6f5f2;min-height:100vh;padding-bottom:90px}
-    .tw *{box-sizing:border-box}
-    .tw-top{background:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:5;box-shadow:0 1px 6px rgba(0,0,0,.06)}
-    .tw-top img{height:42px;max-width:120px;object-fit:contain}
-    .tw-wrap{max-width:1100px;margin:0 auto;padding:14px 16px}
-    .tw-inp{width:100%;padding:12px 14px;border-radius:12px;border:1px solid #ddd;font-size:16px;font-family:inherit;background:#fff}
-    .tw-chips{display:flex;gap:8px;overflow-x:auto;padding:10px 0}
-    .tw-chip{border:1px solid #ddd;background:#fff;border-radius:999px;padding:8px 14px;font-size:14px;white-space:nowrap;cursor:pointer;font-family:inherit}
-    .tw-chip.on{background:var(--c);border-color:var(--c);color:#fff;font-weight:700}
-    .tw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
-    .tw-card{background:#fff;border-radius:14px;overflow:hidden;cursor:pointer;border:none;text-align:left;padding:0;font-family:inherit;box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;flex-direction:column}
-    .tw-card img,.tw-ph{width:100%;aspect-ratio:1/1;object-fit:cover;background:#eee;display:flex;align-items:center;justify-content:center;font-size:40px;color:#bbb}
-    .tw-card b{display:block;padding:8px 10px 0;font-size:14px;line-height:1.3}
-    .tw-card span{display:block;padding:4px 10px 10px;font-size:16px;font-weight:800;color:var(--c)}
-    .tw-btn{background:var(--c);color:#fff;border:none;border-radius:12px;padding:14px 18px;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;width:100%}
-    .tw-btn:disabled{opacity:.6}
-    .tw-btn2{background:#fff;color:#333;border:1px solid #ccc;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
-    .tw-fondo{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
-    .tw-hoja{background:#fff;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;border-radius:18px 18px 0 0;padding:18px}
-    @media(min-width:700px){.tw-fondo{align-items:center}.tw-hoja{border-radius:18px}}
-    .tw-barra{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:#fff;box-shadow:0 -2px 12px rgba(0,0,0,.1);z-index:10}
-    .tw-op{display:block;border:2px solid #ddd;border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer;background:#fff;width:100%;text-align:left;font-family:inherit;font-size:15px}
-    .tw-op.on{border-color:var(--c);background:color-mix(in srgb,var(--c) 10%,#fff)}
-    .tw-lbl{font-size:13px;font-weight:700;color:#666;margin:12px 0 6px}
-    .tw-linea{display:flex;justify-content:space-between;padding:4px 0;font-size:15px}
-  `;
+  // Frases de la tira negra: las que cargo el negocio o, si no hay, se arman con lo que ofrece
+  const anuncios = tienda.anuncios && tienda.anuncios.length ? tienda.anuncios : [
+    gratisDesde ? "Envío gratis en compras desde " + fmtTienda(gratisDesde) : tienda.envio ? "Te lo llevamos a tu casa" : null,
+    tienda.retiro.length ? "Retirá sin costo en " + tienda.retiro.map(l => l.nombre).join(" y ") : null,
+    tienda.pagos.mp ? "Pagá con Mercado Pago: tarjeta, débito o dinero en cuenta" : null,
+    tienda.pagos.transferencia ? "También podés pagar por transferencia" : null,
+  ].filter(Boolean);
+
+  const cabecera = (
+    <>
+      {anuncios.length > 0 && <div className="tw-anuncio" aria-live="polite"><div key={anuncio}>{anuncios[anuncio % anuncios.length]}</div></div>}
+      <header className={"tw-cab" + (sombra ? " sombra" : "")}>
+        <div className="tw-cab1">
+          <button className="tw-marca" onClick={() => { if (codigoUrl) window.location.href = "?tienda=" + encodeURIComponent(slug); else irInicio(); }} aria-label="Inicio">
+            {tienda.logo ? <img src={tienda.logo} alt={tienda.titulo} /> : <b>{tienda.titulo}</b>}
+          </button>
+          {!codigoUrl && (
+            <label className="tw-busca"><TwIcono d={TW_LUPA} size={18} />
+              <input placeholder="Buscar productos, marcas…" value={busca} onChange={e => { setBusca(e.target.value); if (!cat && e.target.value) window.scrollTo({ top: 0 }); }} aria-label="Buscar" />
+            </label>
+          )}
+          <div className="tw-iconos">
+            {tienda.whatsapp && <a className="tw-ico" href={wa("Hola! Tengo una consulta")} target="_blank" rel="noopener" aria-label="WhatsApp"><TwIcono d={TW_WA} /></a>}
+            {!codigoUrl && <button className="tw-ico" onClick={() => setPaso("carrito")} aria-label={"Carrito, " + totalItems + " productos"}>
+              <TwIcono d={TW_BOLSA} />{totalItems > 0 && <span key={salto} className={"tw-badge" + (salto ? " salta" : "")}>{totalItems}</span>}
+            </button>}
+          </div>
+        </div>
+      </header>
+    </>
+  );
+  const pie = (
+    <footer className="tw-pie">
+      <div className="tw-pie-in">
+        <div><h4>{tienda.titulo}</h4>{tienda.mensaje || "Gracias por elegirnos."}</div>
+        {tienda.retiro.length > 0 && <div><h4>Nuestros locales</h4>{tienda.retiro.map(l => <div key={l.id}>📍 {l.nombre}{l.direccion ? " · " + l.direccion : ""}</div>)}</div>}
+        <div><h4>Formas de pago</h4>{tienda.pagos.mp && <div>Mercado Pago</div>}{tienda.pagos.transferencia && <div>Transferencia</div>}{tienda.pagos.retiro && <div>En el local, al retirar</div>}</div>
+        {tienda.whatsapp && <div><h4>¿Dudas?</h4><a href={wa("Hola! Tengo una consulta")} target="_blank" rel="noopener">💬 Escribinos por WhatsApp</a></div>}
+      </div>
+      <div className="tw-pie-fin">© {new Date().getFullYear()} {tienda.titulo} · Tienda hecha con Lumiere</div>
+    </footer>
+  );
 
   // ---- Seguimiento de un pedido ----
   if (codigoUrl) {
     const e = pedido && !pedido.error ? (ESTADOS_PEDIDO_WEB[pedido.estado] || ESTADOS_PEDIDO_WEB.confirmado) : null;
     return (
-      <div className="tw" style={{ "--c": color }}><style>{css}</style>
-        <div className="tw-top">{tienda.logo && <img src={tienda.logo} alt="" />}<b style={{ fontSize: 18 }}>{tienda.titulo}</b></div>
-        <div className="tw-wrap" style={{ maxWidth: 560 }}>
-          {!pedido ? <p>Cargando tu pedido…</p> : pedido.error ? <p>{pedido.error}</p> : (
-            <div style={{ background: "#fff", borderRadius: 16, padding: 18 }}>
-              <div style={{ fontSize: 13, color: "#777" }}>Pedido N° {pedido.codigo}</div>
-              <div style={{ fontSize: 22, fontWeight: 900, color: e[1], margin: "4px 0 10px" }}>{pedido.estado === "pendiente_pago" && pedido.pago === "retiro" ? "Recibido" : e[0]}</div>
-              {pedido.estado === "pendiente_pago" && pedido.link_pago && <a className="tw-btn" style={{ display: "block", textAlign: "center", textDecoration: "none", marginBottom: 12 }} href={pedido.link_pago}>Pagar con Mercado Pago</a>}
+      <div className="tw" style={{ "--c": color }}><style>{CSS_TIENDA}</style>
+        {cabecera}
+        <div className="tw-main">
+          {!pedido ? <div className="tw-cartel"><div className="tw-skel" style={{ height: 160 }} /></div> : pedido.error ? <div className="tw-cartel">{pedido.error}</div> : (
+            <div className="tw-cartel tw-rv in" style={{ animation: "twSube .6s ease both" }}>
+              <div style={{ fontSize: 12, letterSpacing: ".12em", textTransform: "uppercase", color: "#777", fontWeight: 700 }}>Pedido N° {pedido.codigo}</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: e[1], margin: "6px 0 14px" }}>{pedido.estado === "pendiente_pago" && pedido.pago === "retiro" ? "¡Recibimos tu pedido!" : e[0]}</div>
+              {pedido.estado === "pendiente_pago" && pedido.link_pago && <a className="tw-btn full" style={{ marginBottom: 14 }} href={pedido.link_pago}>Pagar con Mercado Pago</a>}
               {pedido.transferencia && pedido.estado !== "cancelado" && (
-                <div style={{ background: "#f6f5f2", borderRadius: 12, padding: 12, marginBottom: 12, fontSize: 15 }}>
+                <div style={{ background: "#f6f6f6", borderRadius: 6, padding: 14, marginBottom: 14, fontSize: 15 }}>
                   <b>Transferí {fmtTienda(pedido.total)} a:</b>
                   <div style={{ whiteSpace: "pre-wrap", margin: "6px 0", fontFamily: "ui-monospace,monospace" }}>{pedido.transferencia}</div>
                   <div style={{ fontSize: 13, color: "#666" }}>Mandanos el comprobante por WhatsApp.{pedido.vence_en ? " Te guardamos los productos hasta el " + new Date(pedido.vence_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) + "." : ""}</div>
                 </div>
               )}
-              <div style={{ fontSize: 15, marginBottom: 10 }}>{pedido.entrega === "retiro" ? <>📍 Retirás en <b>{pedido.local?.nombre}</b>{pedido.local?.direccion ? " (" + pedido.local.direccion + ")" : ""}{pedido.pago === "retiro" && !pedido.pagado ? " · pagás al retirar" : ""}</> : <>🛵 Envío a <b>{pedido.direccion}</b> ({pedido.zona})</>}</div>
+              <div style={{ fontSize: 15, marginBottom: 12 }}>{pedido.entrega === "retiro" ? <>📍 Retirás en <b>{pedido.local?.nombre}</b>{pedido.local?.direccion ? " (" + pedido.local.direccion + ")" : ""}{pedido.pago === "retiro" && !pedido.pagado ? " · pagás al retirar" : ""}</> : <>🛵 Envío a <b>{pedido.direccion}</b> ({pedido.zona})</>}</div>
               {pedido.items.map((i, k) => <div key={k} className="tw-linea"><span>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""}</span><span>{fmtTienda(i.precio * i.cantidad)}</span></div>)}
               {pedido.costo_envio > 0 && <div className="tw-linea"><span>Envío</span><span>{fmtTienda(pedido.costo_envio)}</span></div>}
-              <div className="tw-linea" style={{ fontWeight: 900, fontSize: 18, borderTop: "1px solid #eee", marginTop: 6, paddingTop: 8 }}><span>Total</span><span>{fmtTienda(pedido.total)}</span></div>
-              {wa("Hola! Te escribo por mi pedido N° " + pedido.codigo) && <a className="tw-btn2" style={{ display: "block", textAlign: "center", textDecoration: "none", marginTop: 14 }} href={wa("Hola! Te escribo por mi pedido N° " + pedido.codigo)} target="_blank" rel="noopener">💬 Escribinos por WhatsApp</a>}
-              <a className="tw-btn2" style={{ display: "block", textAlign: "center", textDecoration: "none", marginTop: 8 }} href={"?tienda=" + encodeURIComponent(slug)}>Seguir comprando</a>
+              <div className="tw-linea" style={{ fontWeight: 800, fontSize: 18, borderTop: "1px solid #e6e6e6", marginTop: 8, paddingTop: 10 }}><span>Total</span><span>{fmtTienda(pedido.total)}</span></div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 18 }}>
+                {wa("Hola! Te escribo por mi pedido N° " + pedido.codigo) && <a className="tw-btn2" href={wa("Hola! Te escribo por mi pedido N° " + pedido.codigo)} target="_blank" rel="noopener">💬 Escribinos por WhatsApp</a>}
+                <a className="tw-btn2" href={"?tienda=" + encodeURIComponent(slug)}>Seguir comprando</a>
+              </div>
             </div>
           )}
         </div>
+        {pie}
       </div>
     );
   }
 
-  const cats = [...new Set(productos.map(p => p.categoria).filter(Boolean))].sort();
+  const cats = [...new Set(lista0.map(p => p.categoria).filter(Boolean))].sort();
   const q = busca.trim().toLowerCase();
-  const lista = productos.filter(p => (!cat || p.categoria === cat) && (!q || [p.nombre, p.marca, p.categoria].some(v => (v || "").toLowerCase().includes(q))));
+  const enLista = !!q || !!cat;
+  const ordenar = (arr) => orden === "menor" ? [...arr].sort((a, b) => a.precio - b.precio) : orden === "mayor" ? [...arr].sort((a, b) => b.precio - a.precio) : orden === "az" ? [...arr].sort((a, b) => a.nombre.localeCompare(b.nombre)) : arr;
+  const lista = ordenar(lista0.filter(p => (!cat || cat === "*" || p.categoria === cat) && (!q || [p.nombre, p.marca, p.categoria].some(v => (v || "").toLowerCase().includes(q)))));
+  const conStock = lista0.filter(p => !agotado(p));
+  const destacados = (() => { const d = conStock.filter(p => p.destacado); return (d.length ? d : conStock.filter(p => p.foto)).slice(0, 5); })();
+  const nSlides = destacados.length;
+  const iSlide = nSlides ? slide % nSlides : 0;
+  const tarjeta = (p) => <TwTarjeta key={p.id} p={p} base={base} sin={agotado(p)} onAbrir={abrir} onAgregar={(x) => agregar(x, null)} />;
   const opcionesPago = [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar"], ["retiro", "💵 Pago al retirar", "Pagás en el local"]]
     .filter(([k]) => tienda.pagos[k] && !(k === "retiro" && datos.entrega === "envio"));
   const listoParaPedir = datos.nombre && datos.telefono && datos.entrega && datos.pago && (datos.entrega === "retiro" ? datos.local_id : (datos.zona && datos.direccion));
+  const vidVer = ver && ver.video ? (ver.video.tipo === "youtube" ? { iframe: "https://www.youtube-nocookie.com/embed/" + ver.video.id + "?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1" }
+    : ver.video.tipo === "vimeo" ? { iframe: "https://player.vimeo.com/video/" + ver.video.id + "?autoplay=1&muted=1" } : { src: videoArchivo(base, ver) }) : null;
+  const relacionados = ver ? conStock.filter(p => p.id !== ver.id && p.categoria && p.categoria === ver.categoria).slice(0, 8) : [];
+  const varElegida = ver && ver.variantes ? varSel : null;
+  const maxVer = ver ? dispo(ver, varElegida) : 0;
+  const puedeAgregar = ver && (!ver.variantes || varSel) && maxVer > 0;
 
   return (
-    <div className="tw" style={{ "--c": color }}><style>{css}</style>
-      <div className="tw-top">
-        {tienda.logo && <img src={tienda.logo} alt="" />}
-        <div style={{ flex: 1, minWidth: 0 }}><b style={{ fontSize: 18 }}>{tienda.titulo}</b>{tienda.mensaje && <div style={{ fontSize: 13, color: "#666" }}>{tienda.mensaje}</div>}</div>
-        {tienda.whatsapp && <a href={wa("Hola! Tengo una consulta")} target="_blank" rel="noopener" style={{ fontSize: 24, textDecoration: "none" }} aria-label="WhatsApp">💬</a>}
-      </div>
-      <div className="tw-wrap">
-        <input className="tw-inp" placeholder="🔍 Buscar productos…" value={busca} onChange={e => setBusca(e.target.value)} />
-        {cats.length > 1 && <div className="tw-chips"><button className={"tw-chip" + (!cat ? " on" : "")} onClick={() => setCat("")}>Todo</button>{cats.map(c => <button key={c} className={"tw-chip" + (cat === c ? " on" : "")} onClick={() => setCat(c)}>{c}</button>)}</div>}
-        {lista.length === 0 ? <p style={{ textAlign: "center", color: "#888", marginTop: 30 }}>{productos.length ? "No encontramos productos con esa búsqueda." : "Pronto vas a encontrar nuestros productos acá."}</p> : (
-          <div className="tw-grid" style={{ marginTop: 10 }}>
-            {lista.map(p => {
-              const sin = p.variantes ? p.variantes.every(v => dispo(p, v) <= 0) : dispo(p) <= 0;
-              return (
-                <button key={p.id} className="tw-card" onClick={() => { setVer(p); setVarSel(null); }} style={{ opacity: sin ? 0.55 : 1 }}>
-                  {foto(p) ? <img src={foto(p)} alt={p.nombre} loading="lazy" /> : <div className="tw-ph">🛍️</div>}
-                  <b>{p.nombre}</b><span>{fmtTienda(p.precio)}{sin ? <small style={{ color: "#c0392b", fontSize: 12, marginLeft: 6 }}>Sin stock</small> : null}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {totalItems > 0 && !paso && <div className="tw-barra"><button className="tw-btn" onClick={() => setPaso("carrito")}>🛒 Ver carrito ({totalItems}) · {fmtTienda(subtotal)}</button></div>}
-      {aviso && !paso && !ver && <div style={{ position: "fixed", top: 80, left: "50%", transform: "translateX(-50%)", background: "#222", color: "#fff", padding: "10px 16px", borderRadius: 10, zIndex: 30, fontSize: 14 }}>{aviso}</div>}
-
-      {ver && (
-        <div className="tw-fondo" onClick={() => setVer(null)}>
-          <div className="tw-hoja" onClick={e => e.stopPropagation()}>
-            {foto(ver) && <img src={foto(ver)} alt={ver.nombre} style={{ width: "100%", maxHeight: 380, objectFit: "contain", borderRadius: 12, background: "#f3f3f3" }} />}
-            <h2 style={{ margin: "12px 0 4px", fontSize: 21 }}>{ver.nombre}</h2>
-            {ver.marca && <div style={{ color: "#777", fontSize: 14 }}>{ver.marca}</div>}
-            <div style={{ fontSize: 24, fontWeight: 900, color, margin: "8px 0" }}>{fmtTienda(ver.precio)}</div>
-            {ver.descripcion && <p style={{ whiteSpace: "pre-wrap", fontSize: 15, lineHeight: 1.5, color: "#444" }}>{ver.descripcion}</p>}
-            {ver.variantes && (<><div className="tw-lbl">Elegí una opción</div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{ver.variantes.map(v => <button key={v.id} disabled={dispo(ver, v) <= 0} className={"tw-chip" + (varSel?.id === v.id ? " on" : "")} style={{ opacity: dispo(ver, v) <= 0 ? 0.4 : 1 }} onClick={() => setVarSel(v)}>{v.valor}{dispo(ver, v) <= 0 ? " (agotado)" : ""}</button>)}</div></>)}
-            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-              <button className="tw-btn2" onClick={() => setVer(null)}>Volver</button>
-              <button className="tw-btn" disabled={ver.variantes ? !varSel || dispo(ver, varSel) <= 0 : dispo(ver) <= 0} onClick={() => agregar(ver, ver.variantes ? varSel : null)}>
-                {(ver.variantes ? varSel && dispo(ver, varSel) <= 0 : dispo(ver) <= 0) ? "Sin stock" : ver.variantes && !varSel ? "Elegí una opción" : "Agregar al carrito"}
-              </button>
+    <div className="tw" style={{ "--c": color }}><style>{CSS_TIENDA}</style>
+      {cabecera}
+      {cats.length > 0 && (
+        <div style={{ borderBottom: "1px solid #e6e6e6" }}>
+          <nav className="tw-nav" aria-label="Categorías">
+            <button className={!enLista ? "on" : ""} onClick={irInicio}>Inicio</button>
+            <button className={cat === "*" && !q ? "on" : ""} onClick={() => irCat("*")}>Todo</button>
+            {cats.map(c => <button key={c} className={cat === c && !q ? "on" : ""} onClick={() => irCat(c)}>{c}</button>)}
+          </nav>
+        </div>
+      )}
+      <main className="tw-main">
+        {productos === null ? (
+          <><div className="tw-skel" style={{ height: 400, marginTop: 20 }} /><div className="tw-grid" style={{ marginTop: 30 }}>{[1, 2, 3, 4, 5].map(i => <div key={i}><div className="tw-skel" style={{ aspectRatio: "1" }} /><div className="tw-skel" style={{ height: 14, marginTop: 12, width: "60%" }} /></div>)}</div></>
+        ) : enLista ? (
+          <>
+            <div className="tw-lista-cab">
+              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" ? "Todos los productos" : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4 }}>{lista.length} {lista.length === 1 ? "producto" : "productos"}</div></div>
+              <select value={orden} onChange={e => setOrden(e.target.value)} aria-label="Ordenar">{TW_ORDEN.map(([k, t]) => <option key={k} value={k}>Ordenar: {t}</option>)}</select>
             </div>
-          </div>
+            {lista.length === 0 ? <p style={{ textAlign: "center", color: "#888", margin: "50px 0" }}>No encontramos productos con esa búsqueda.</p>
+              : <div className="tw-grid">{lista.map(p => <div key={p.id} className="tw-rv">{tarjeta(p)}</div>)}</div>}
+          </>
+        ) : lista0.length === 0 ? (
+          <div className="tw-cartel" style={{ textAlign: "center" }}><div style={{ fontSize: 40 }}>✿</div><h2>{tienda.titulo}</h2><p>Pronto vas a encontrar nuestros productos acá.</p></div>
+        ) : (
+          <>
+            {nSlides > 0 ? (
+              <div className="tw-hero" onTouchStart={e => { toque.current = e.touches[0].clientX; }} onTouchEnd={e => { const d = e.changedTouches[0].clientX - (toque.current || 0); if (Math.abs(d) > 40) setSlide(s => Math.max(0, s + (d < 0 ? 1 : -1 + nSlides))); }}>
+                {destacados.map((p, i) => (
+                  <div key={p.id} className={"tw-slide" + (i === iSlide ? " on" : "")} aria-hidden={i !== iSlide}>
+                    <div className="tw-slide-txt">
+                      <div className="tw-ceja">{p.nuevo ? "Nuevo" : p.marca || "Destacado"}</div>
+                      <h2>{p.nombre}</h2>
+                      <p>{p.descripcion ? p.descripcion.split("\n")[0].slice(0, 120) : (p.marca ? p.marca + " · " : "") + fmtTienda(p.precio)}</p>
+                      <div><button className="tw-btn" tabIndex={i === iSlide ? 0 : -1} onClick={() => abrir(p)}>Comprar · {fmtTienda(p.precio)}</button></div>
+                    </div>
+                    <div className="tw-slide-img"><div className="tw-circulo" />{p.foto ? <img src={foto(p)} alt="" /> : <span className="tw-ph" style={{ fontSize: 90 }}>✿</span>}</div>
+                  </div>
+                ))}
+                {nSlides > 1 && <>
+                  <div className="tw-puntos">{destacados.map((p, i) => <button key={p.id + "-" + (i === iSlide ? slide : "x")} className={i === iSlide ? "on" : ""} onClick={() => setSlide(i)} aria-label={"Ver " + p.nombre} />)}</div>
+                  <button className="tw-flecha" style={{ left: 16 }} onClick={() => setSlide(s => s - 1 + nSlides)} aria-label="Anterior"><TwIcono d={TW_IZQ} /></button>
+                  <button className="tw-flecha" style={{ right: 16 }} onClick={() => setSlide(s => s + 1)} aria-label="Siguiente"><TwIcono d={TW_DER} /></button>
+                </>}
+              </div>
+            ) : (
+              <div className="tw-hero" style={{ height: 220, display: "flex", alignItems: "center", padding: "0 40px" }}><div><div className="tw-ceja" style={{ color }}>Bienvenida</div><h2 style={{ fontSize: 40, margin: "8px 0" }}>{tienda.titulo}</h2><p style={{ margin: 0 }}>{tienda.mensaje}</p></div></div>
+            )}
+            <div className="tw-benef tw-rv">
+              {tienda.envio && <div><span>🛵</span><span style={{ fontSize: 13.5 }}><b>Envío a domicilio</b><br />{gratisDesde ? "Gratis desde " + fmtTienda(gratisDesde) : "Según tu zona"}</span></div>}
+              {tienda.retiro.length > 0 && <div><span>📍</span><span style={{ fontSize: 13.5 }}><b>Retiro sin costo</b><br />En {tienda.retiro.map(l => l.nombre).join(" o ")}</span></div>}
+              <div><span>🔒</span><span style={{ fontSize: 13.5 }}><b>Compra segura</b><br />{tienda.pagos.mp ? "Con Mercado Pago" : "Te confirmamos por WhatsApp"}</span></div>
+            </div>
+            <TwFila titulo="Novedades" items={conStock.filter(p => p.nuevo).slice(0, 12)} onVerTodo={() => irCat("*")} render={tarjeta} />
+            <TwFila titulo="Miralos en video" items={conStock.filter(p => p.video).slice(0, 12)} render={tarjeta} />
+            {cats.slice(0, 10).map(c => <TwFila key={c} titulo={c} items={lista0.filter(p => p.categoria === c).slice(0, 12)} onVerTodo={() => irCat(c)} render={tarjeta} />)}
+            {!cats.length && <TwFila titulo="Nuestros productos" items={lista0} render={tarjeta} />}
+          </>
+        )}
+      </main>
+      {pie}
+
+      {totalItems > 0 && !paso && !ver && <div className="tw-barra"><button className="tw-btn full" onClick={() => setPaso("carrito")}>Ver carrito ({totalItems}) · {fmtTienda(subtotal)}</button></div>}
+      {toast && !paso && !ver && (
+        <div className="tw-toast" role="status">
+          {toast.p.foto ? <img src={foto(toast.p)} alt="" /> : <div className="tw-mini" />}
+          <div style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}><b>✓ Agregado al carrito</b><div style={{ color: "#666", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{toast.p.nombre}{toast.v ? " · " + toast.v.valor : ""}</div></div>
+          <button className="tw-btn2" style={{ padding: "8px 12px", fontSize: 11.5 }} onClick={() => { setToast(null); setPaso("carrito"); }}>Ver</button>
         </div>
       )}
 
+      {ver && (
+        <>
+          <div className="tw-velo" onClick={() => setVer(null)} />
+          <div className="tw-ficha" role="dialog" aria-modal="true" aria-label={ver.nombre}>
+            <div className="tw-ficha-in" key={ver.id}>
+              <button className="tw-cerrar" onClick={() => setVer(null)} aria-label="Cerrar"><TwIcono d={TW_X} size={20} /></button>
+              <div className="tw-ficha-grid">
+                <div>
+                  <div className="tw-media">
+                    {media === "video" && vidVer ? (vidVer.iframe ? <iframe key="v" src={vidVer.iframe} title={"Video de " + ver.nombre} allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen />
+                      : <video key="v" src={vidVer.src} controls autoPlay muted loop playsInline />)
+                      : foto(ver) ? <img key="f" src={foto(ver)} alt={ver.nombre} /> : <span className="tw-ph" style={{ fontSize: 80 }}>✿</span>}
+                  </div>
+                  {vidVer && (
+                    <div className="tw-miniaturas">
+                      <button className={media === "foto" ? "on" : ""} onClick={() => setMedia("foto")} aria-label="Ver foto">{foto(ver) ? <img src={foto(ver)} alt="" /> : "✿"}</button>
+                      <button className={media === "video" ? "on" : ""} onClick={() => setMedia("video")} aria-label="Ver video" style={{ background: "#111", color: "#fff" }}>▶</button>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  {ver.marca && <div className="tw-card-m" style={{ marginTop: 0, fontSize: 13 }}>{ver.marca}</div>}
+                  <h1>{ver.nombre}</h1>
+                  <div className="tw-precio">{fmtTienda(ver.precio)}</div>
+                  {ver.variantes && (<><div className="tw-lbl" style={{ marginTop: 0 }}>{varSel ? "Opción: " + varSel.valor : "Elegí una opción"}</div>
+                    <div className="tw-vars">{ver.variantes.map(v => <button key={v.id} disabled={dispo(ver, v) <= 0} className={"tw-var" + (varSel?.id === v.id ? " on" : "")} onClick={() => { setVarSel(v); setCant(1); }}>{v.valor}</button>)}</div></>)}
+                  <div className="tw-ficha-btn" style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 20 }}>
+                    {puedeAgregar && <div className="tw-cant" style={{ marginTop: 0 }}><button onClick={() => setCant(c => Math.max(1, c - 1))} aria-label="Uno menos">−</button><b>{cant}</b><button onClick={() => setCant(c => Math.min(maxVer, c + 1))} aria-label="Uno más">+</button></div>}
+                    <button className="tw-btn full" disabled={!puedeAgregar} onClick={() => agregar(ver, varElegida, cant)}>
+                      {ver.variantes && !varSel ? "Elegí una opción" : maxVer <= 0 ? "Agotado" : "Agregar al carrito"}
+                    </button>
+                  </div>
+                  {(!ver.variantes || varSel) && (
+                    <div className="tw-disp">
+                      {tienda.retiro.map(l => { const s = (varElegida ? varElegida.stock : ver.stock)[l.id] || 0; return <div key={l.id}>{s > 0 ? "✓" : "✕"} {s > 0 ? "Disponible para retirar en " : "Sin stock en "}<b>{l.nombre}</b></div>; })}
+                      {tienda.envio && maxVer > 0 && <div>✓ Envío a domicilio{gratisDesde ? " (gratis desde " + fmtTienda(gratisDesde) + ")" : ""}</div>}
+                    </div>
+                  )}
+                  <div className="tw-acord">
+                    {ver.descripcion && <details open><summary>Descripción</summary><div>{ver.descripcion}</div></details>}
+                    <details><summary>Envíos y retiro</summary><div>{[tienda.retiro.length ? "Retiro sin costo en " + tienda.retiro.map(l => l.nombre + (l.direccion ? " (" + l.direccion + ")" : "")).join(", ") + "." : null,
+                      tienda.envio ? "Envío a domicilio: " + tienda.envio.zonas.map(z => z.nombre + " " + fmtTienda(z.costo)).join(" · ") + (gratisDesde ? ". Gratis desde " + fmtTienda(gratisDesde) + "." : ".") : null].filter(Boolean).join("\n")}</div></details>
+                    <details><summary>Formas de pago</summary><div>{[tienda.pagos.mp && "Mercado Pago: tarjeta de crédito, débito o dinero en cuenta.", tienda.pagos.transferencia && "Transferencia bancaria.", tienda.pagos.retiro && "En el local, cuando retirás."].filter(Boolean).join("\n")}</div></details>
+                  </div>
+                </div>
+              </div>
+              {relacionados.length > 0 && <div style={{ padding: "0 32px 32px" }}><TwFila titulo="También te puede gustar" items={relacionados} render={tarjeta} /></div>}
+            </div>
+          </div>
+        </>
+      )}
+
       {paso && (
-        <div className="tw-fondo" onClick={() => setPaso(null)}>
-          <div className="tw-hoja" onClick={e => e.stopPropagation()}>
+        <>
+          <div className="tw-velo" onClick={() => setPaso(null)} />
+          <aside className="tw-cajon" role="dialog" aria-modal="true" aria-label={paso === "carrito" ? "Tu carrito" : "Tus datos"}>
+            <div className="tw-cajon-cab">
+              <h2>{paso === "carrito" ? "Tu carrito" + (totalItems ? " (" + totalItems + ")" : "") : "Finalizar compra"}</h2>
+              <button className="tw-ico" onClick={() => setPaso(null)} aria-label="Cerrar"><TwIcono d={TW_X} size={20} /></button>
+            </div>
             {paso === "carrito" ? (
               <>
-                <h2 style={{ marginTop: 0 }}>Tu carrito</h2>
-                {carrito.length === 0 ? <p>Está vacío.</p> : carrito.map((i, k) => (
-                  <div key={k} style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 0", borderBottom: "1px solid #eee" }}>
-                    {i.foto ? <img src={base + "/foto/" + i.producto_id} alt="" style={{ width: 54, height: 54, objectFit: "cover", borderRadius: 8 }} /> : <div style={{ width: 54, height: 54, borderRadius: 8, background: "#eee" }} />}
-                    <div style={{ flex: 1, minWidth: 0 }}><b style={{ fontSize: 14 }}>{i.nombre}</b>{i.variante && <div style={{ fontSize: 13, color: "#666" }}>{i.variante}</div>}<div style={{ fontWeight: 800, color }}>{fmtTienda(i.precio * i.cantidad)}</div></div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <button className="tw-btn2" style={{ padding: "6px 12px" }} onClick={() => cambiarCant(i, -1)} aria-label="Uno menos">−</button>
-                      <b>{i.cantidad}</b>
-                      <button className="tw-btn2" style={{ padding: "6px 12px" }} onClick={() => cambiarCant(i, +1)} aria-label="Uno más">+</button>
+                <div className="tw-cajon-cuerpo">
+                  {gratisDesde > 0 && carrito.length > 0 && (
+                    <div className="tw-progreso">{envioGratis ? <b>🎉 ¡Tenés envío gratis!</b> : <>Te faltan <b>{fmtTienda(gratisDesde - subtotal)}</b> para el envío gratis</>}
+                      <div><i style={{ width: Math.min(100, subtotal / gratisDesde * 100) + "%" }} /></div></div>
+                  )}
+                  {carrito.length === 0 ? <div style={{ textAlign: "center", padding: "50px 0", color: "#666" }}><div style={{ fontSize: 44 }}>🛍️</div><p>Tu carrito está vacío.</p><button className="tw-btn2" onClick={() => setPaso(null)}>Ver productos</button></div> : carrito.map(i => (
+                    <div key={i.producto_id + "-" + (i.variante_id || "")} className="tw-item">
+                      {i.foto ? <img src={base + "/foto/" + i.producto_id} alt="" /> : <div className="tw-mini" />}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14.5, fontWeight: 700 }}>{i.nombre}</div>
+                        {i.variante && <div style={{ fontSize: 13, color: "#666" }}>{i.variante}</div>}
+                        <div className="tw-cant"><button onClick={() => cambiarCant(i, -1)} aria-label="Uno menos">−</button><b>{i.cantidad}</b><button onClick={() => cambiarCant(i, +1)} aria-label="Uno más">+</button></div>
+                      </div>
+                      <div style={{ fontWeight: 800, fontSize: 15 }}>{fmtTienda(i.precio * i.cantidad)}</div>
                     </div>
-                  </div>
-                ))}
-                <div className="tw-linea" style={{ fontWeight: 900, fontSize: 18, marginTop: 10 }}><span>Subtotal</span><span>{fmtTienda(subtotal)}</span></div>
-                <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-                  <button className="tw-btn2" onClick={() => setPaso(null)}>Seguir comprando</button>
-                  <button className="tw-btn" disabled={!carrito.length} onClick={() => setPaso("datos")}>Continuar</button>
+                  ))}
                 </div>
+                {carrito.length > 0 && <div className="tw-cajon-pie">
+                  <div className="tw-linea" style={{ fontWeight: 800, fontSize: 18, marginBottom: 12 }}><span>Subtotal</span><span>{fmtTienda(subtotal)}</span></div>
+                  <button className="tw-btn full" onClick={() => setPaso("datos")}>Finalizar compra</button>
+                </div>}
               </>
             ) : (
               <>
-                <h2 style={{ marginTop: 0 }}>Tus datos</h2>
-                <input className="tw-inp" placeholder="Nombre y apellido" value={datos.nombre || ""} onChange={e => setDatos(d => ({ ...d, nombre: e.target.value }))} style={{ marginBottom: 8 }} />
-                <input className="tw-inp" placeholder="WhatsApp (ej: 2964 123456)" inputMode="tel" value={datos.telefono || ""} onChange={e => setDatos(d => ({ ...d, telefono: e.target.value }))} style={{ marginBottom: 8 }} />
-                <input className="tw-inp" placeholder="Email (opcional)" inputMode="email" value={datos.email || ""} onChange={e => setDatos(d => ({ ...d, email: e.target.value }))} />
-                <div className="tw-lbl">¿Cómo lo recibís?</div>
-                {tienda.retiro.map(l => <button key={l.id} className={"tw-op" + (datos.entrega === "retiro" && Number(datos.local_id) === l.id ? " on" : "")} onClick={() => setDatos(d => ({ ...d, entrega: "retiro", local_id: l.id }))}>📍 <b>Retiro en {l.nombre}</b>{l.direccion ? <div style={{ fontSize: 13, color: "#666" }}>{l.direccion}</div> : null}<div style={{ fontSize: 13, color: "#2d7a4f" }}>Sin costo</div></button>)}
-                {tienda.envio && (
-                  <button className={"tw-op" + (datos.entrega === "envio" ? " on" : "")} onClick={() => setDatos(d => ({ ...d, entrega: "envio", pago: d.pago === "retiro" ? null : d.pago }))}>🛵 <b>Envío a domicilio</b><div style={{ fontSize: 13, color: "#666" }}>{envioGratis ? "¡Gratis por tu compra!" : "El costo depende de la zona"}{tienda.envio.gratis_desde && !envioGratis ? " · gratis desde " + fmtTienda(tienda.envio.gratis_desde) : ""}</div></button>
-                )}
-                {datos.entrega === "envio" && tienda.envio && (
-                  <>
-                    <select className="tw-inp" value={datos.zona || ""} onChange={e => setDatos(d => ({ ...d, zona: e.target.value }))} style={{ marginBottom: 8 }}>
-                      <option value="">Elegí tu zona…</option>
-                      {tienda.envio.zonas.map(z => <option key={z.nombre} value={z.nombre}>{z.nombre} · {envioGratis ? "gratis" : fmtTienda(z.costo)}</option>)}
-                    </select>
-                    <input className="tw-inp" placeholder="Dirección (calle, número, depto, referencias)" value={datos.direccion || ""} onChange={e => setDatos(d => ({ ...d, direccion: e.target.value }))} />
-                  </>
-                )}
-                <div className="tw-lbl">¿Cómo pagás?</div>
-                {opcionesPago.map(([k, t, d]) => <button key={k} className={"tw-op" + (datos.pago === k ? " on" : "")} onClick={() => setDatos(x => ({ ...x, pago: k }))}><b>{t}</b><div style={{ fontSize: 13, color: "#666" }}>{d}</div></button>)}
-                <textarea className="tw-inp" rows={2} placeholder="¿Algo que quieras aclarar? (opcional)" value={datos.nota || ""} onChange={e => setDatos(d => ({ ...d, nota: e.target.value }))} style={{ marginTop: 8 }} />
-                <div style={{ marginTop: 12 }}>
+                <div className="tw-cajon-cuerpo">
+                  <div className="tw-lbl" style={{ marginTop: 0 }}>Tus datos</div>
+                  <input className="tw-inp" placeholder="Nombre y apellido" autoComplete="name" value={datos.nombre || ""} onChange={e => setDatos(d => ({ ...d, nombre: e.target.value }))} style={{ marginBottom: 8 }} />
+                  <input className="tw-inp" placeholder="WhatsApp (ej: 2964 123456)" inputMode="tel" autoComplete="tel" value={datos.telefono || ""} onChange={e => setDatos(d => ({ ...d, telefono: e.target.value }))} style={{ marginBottom: 8 }} />
+                  <input className="tw-inp" placeholder="Email (opcional)" inputMode="email" autoComplete="email" value={datos.email || ""} onChange={e => setDatos(d => ({ ...d, email: e.target.value }))} />
+                  <div className="tw-lbl">¿Cómo lo recibís?</div>
+                  {tienda.retiro.map(l => <button key={l.id} className={"tw-op" + (datos.entrega === "retiro" && Number(datos.local_id) === l.id ? " on" : "")} onClick={() => setDatos(d => ({ ...d, entrega: "retiro", local_id: l.id }))}>📍 <b>Retiro en {l.nombre}</b>{l.direccion ? <div style={{ fontSize: 13, color: "#666" }}>{l.direccion}</div> : null}<div style={{ fontSize: 13, color: "#2d7a4f" }}>Sin costo</div></button>)}
+                  {tienda.envio && (
+                    <button className={"tw-op" + (datos.entrega === "envio" ? " on" : "")} onClick={() => setDatos(d => ({ ...d, entrega: "envio", pago: d.pago === "retiro" ? null : d.pago }))}>🛵 <b>Envío a domicilio</b><div style={{ fontSize: 13, color: "#666" }}>{envioGratis ? "¡Gratis por tu compra!" : "El costo depende de la zona"}{gratisDesde && !envioGratis ? " · gratis desde " + fmtTienda(gratisDesde) : ""}</div></button>
+                  )}
+                  {datos.entrega === "envio" && tienda.envio && (
+                    <>
+                      <select className="tw-inp" value={datos.zona || ""} onChange={e => setDatos(d => ({ ...d, zona: e.target.value }))} style={{ marginBottom: 8 }}>
+                        <option value="">Elegí tu zona…</option>
+                        {tienda.envio.zonas.map(z => <option key={z.nombre} value={z.nombre}>{z.nombre} · {envioGratis ? "gratis" : fmtTienda(z.costo)}</option>)}
+                      </select>
+                      <input className="tw-inp" placeholder="Dirección (calle, número, depto, referencias)" autoComplete="street-address" value={datos.direccion || ""} onChange={e => setDatos(d => ({ ...d, direccion: e.target.value }))} />
+                    </>
+                  )}
+                  <div className="tw-lbl">¿Cómo pagás?</div>
+                  {opcionesPago.map(([k, t, d]) => <button key={k} className={"tw-op" + (datos.pago === k ? " on" : "")} onClick={() => setDatos(x => ({ ...x, pago: k }))}><b>{t}</b><div style={{ fontSize: 13, color: "#666" }}>{d}</div></button>)}
+                  <textarea className="tw-inp" rows={2} placeholder="¿Algo que quieras aclarar? (opcional)" value={datos.nota || ""} onChange={e => setDatos(d => ({ ...d, nota: e.target.value }))} style={{ marginTop: 8 }} />
+                  {aviso && <div role="alert" style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, marginTop: 10, fontSize: 14, fontWeight: 600 }}>{aviso}</div>}
+                </div>
+                <div className="tw-cajon-pie">
                   <div className="tw-linea"><span>Productos</span><span>{fmtTienda(subtotal)}</span></div>
                   {datos.entrega === "envio" && <div className="tw-linea"><span>Envío</span><span>{zona ? (costoEnvio ? fmtTienda(costoEnvio) : "Gratis") : "—"}</span></div>}
-                  <div className="tw-linea" style={{ fontWeight: 900, fontSize: 19 }}><span>Total</span><span>{fmtTienda(subtotal + costoEnvio)}</span></div>
-                </div>
-                {aviso && <div style={{ background: "#fdecea", color: "#c0392b", borderRadius: 10, padding: 10, marginTop: 10, fontSize: 14, fontWeight: 600 }}>{aviso}</div>}
-                <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-                  <button className="tw-btn2" onClick={() => setPaso("carrito")}>Atrás</button>
-                  <button className="tw-btn" disabled={!listoParaPedir || enviando} onClick={confirmar}>{enviando ? "Enviando…" : datos.pago === "mp" ? "Ir a pagar" : "Hacer el pedido"}</button>
+                  <div className="tw-linea" style={{ fontWeight: 800, fontSize: 19, marginBottom: 12 }}><span>Total</span><span>{fmtTienda(subtotal + costoEnvio)}</span></div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button className="tw-btn2" onClick={() => setPaso("carrito")}>Atrás</button>
+                    <button className="tw-btn full" disabled={!listoParaPedir || enviando} onClick={confirmar}>{enviando ? "Enviando…" : datos.pago === "mp" ? "Ir a pagar" : "Hacer el pedido"}</button>
+                  </div>
                 </div>
               </>
             )}
-          </div>
-        </div>
+          </aside>
+        </>
       )}
     </div>
   );
@@ -22913,6 +23314,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const [busca, setBusca] = useState("");
   const [soloPub, setSoloPub] = useState(false);
   const [desc, setDesc] = useState(null); // { id, texto }
+  const [video, setVideo] = useState(null); // { id, nombre, link, subido, subiendo }
   const [qr, setQr] = useState(null);
   const [aviso, setAviso] = useState(null);
   const avisar = (ok, texto) => { setAviso({ ok, texto }); setTimeout(() => setAviso(null), 4500); };
@@ -22942,6 +23344,27 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const publicar = async (p, publicado) => {
     setProductos(ps => ps.map(x => x.id === p.id ? { ...x, publicado } : x));
     try { await API.put("/tienda/productos/" + p.id, { publicado }); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); cargarProductos(); }
+  };
+  const destacar = async (p, destacado) => {
+    setProductos(ps => ps.map(x => x.id === p.id ? { ...x, destacado } : x));
+    try { await API.put("/tienda/productos/" + p.id, { destacado }); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); cargarProductos(); }
+  };
+  const guardarLinkVideo = async () => {
+    try { await API.put("/tienda/productos/" + video.id, { video_url: video.link || "" }); setVideo(null); avisar(true, "✓ Video guardado"); cargarProductos(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+  };
+  const subirVideo = async (archivo) => {
+    if (!archivo) return;
+    if (archivo.size > 25 * 1024 * 1024) { avisar(false, "El video pesa más de 25 MB. Probá con uno más corto (30 segundos alcanza)."); return; }
+    const tipo = archivo.type || (/\.mov$/i.test(archivo.name) ? "video/quicktime" : "video/mp4");
+    setVideo(v => ({ ...v, subiendo: true }));
+    try {
+      await API.post("/tienda/productos/" + video.id + "/video", archivo, { headers: { "Content-Type": tipo }, timeout: 180000 });
+      setVideo(null); avisar(true, "✓ Video subido"); cargarProductos();
+    } catch (e) { setVideo(v => v && ({ ...v, subiendo: false })); avisar(false, e.response?.data?.error || "No se pudo subir el video"); }
+  };
+  const sacarVideo = async () => {
+    try { await API.delete("/tienda/productos/" + video.id + "/video"); setVideo(null); avisar(true, "Video sacado"); cargarProductos(); } catch (e) { avisar(false, "No se pudo"); }
   };
   const guardarDesc = async () => {
     try { await API.put("/tienda/productos/" + desc.id, { descripcion: desc.texto }); setDesc(null); cargarProductos(); } catch (e) { avisar(false, "No se pudo guardar"); }
@@ -23030,17 +23453,42 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             <button className={"chip-btn" + (soloPub ? " on" : "")} onClick={() => setSoloPub(v => !v)}>Solo publicados</button>
             {esJefeT && <button className="btn btn-g btn-sm" onClick={publicarConFoto} title="Publica de una vez los que tienen foto, precio y stock">📸 Publicar los que tienen foto</button>}
           </div>
-          <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 8 }}>Tocá el interruptor para publicar o sacar un producto. El precio y el stock son los de Lumiere. La foto es la del producto (se carga en Productos → editar).</div>
+          <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 8 }}>Tocá el interruptor para publicar o sacar un producto. El precio y el stock son los de Lumiere. La foto es la del producto (se carga en Productos → editar). Marcá ⭐ los que quieras en el banner grande y sumá 🎬 videos para que se luzcan.</div>
           {prodVis.map(p => (
             <div key={p.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 0", borderTop: "1px solid " + temaPal.border, flexWrap: "wrap" }}>
               <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", flex: "1 1 240px", minWidth: 0 }}>
                 <input type="checkbox" checked={!!p.publicado} disabled={!esJefeT} onChange={e => publicar(p, e.target.checked)} style={{ width: 20, height: 20 }} aria-label={"Publicar " + p.nombre} />
                 <span style={{ minWidth: 0 }}><b>{p.nombre}</b> <span style={{ fontSize: 12, color: temaPal.textMuted }}>{p.marca || ""}</span>
-                  <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{fmt(p.precio)} · stock {nombreLocal(1)} {p.stock_rg}{!UN_SOLO_LOCAL ? " · " + nombreLocal(2) + " " + p.stock_ush : ""} · {p.foto ? "📷 con foto" : <span style={{ color: temaPal.warn }}>sin foto</span>}{p.descripcion ? " · con descripción" : ""}</div></span>
+                  <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{fmt(p.precio)} · stock {nombreLocal(1)} {p.stock_rg}{!UN_SOLO_LOCAL ? " · " + nombreLocal(2) + " " + p.stock_ush : ""} · {p.foto ? "📷 con foto" : <span style={{ color: temaPal.warn }}>sin foto</span>}{p.descripcion ? " · con descripción" : ""}{p.video_subido || p.video_url ? " · 🎬 con video" : ""}{p.destacado ? " · ⭐ destacado" : ""}</div></span>
               </label>
-              {p.publicado && esJefeT && <button className="btn btn-g btn-sm" onClick={() => setDesc({ id: p.id, nombre: p.nombre, texto: p.descripcion || "" })}>✏️ Descripción</button>}
+              {p.publicado && esJefeT && <>
+                <button className={"chip-btn" + (p.destacado ? " on" : "")} onClick={() => destacar(p, !p.destacado)} title="Los destacados van al banner grande de la tienda">⭐ Destacado</button>
+                <button className="btn btn-g btn-sm" onClick={() => setVideo({ id: p.id, nombre: p.nombre, link: p.video_url || "", subido: !!p.video_subido })}>🎬 Video</button>
+                <button className="btn btn-g btn-sm" onClick={() => setDesc({ id: p.id, nombre: p.nombre, texto: p.descripcion || "" })}>✏️ Descripción</button>
+              </>}
             </div>
           ))}
+          {video && (
+            <div className="pos-overlay" onClick={() => !video.subiendo && setVideo(null)}>
+              <div className="card pop-in" style={{ width: 520, maxWidth: "95vw", background: temaPal.card }} onClick={e => e.stopPropagation()}>
+                <div className="ct">Video de {video.nombre}</div>
+                <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginBottom: 10 }}>En la tienda se reproduce solo al pasar el mouse por el producto y se puede ver completo en la ficha. Conviene que sea corto (15 a 30 segundos).</div>
+                {video.subido && <div className="cli-tip" style={{ marginBottom: 10 }}>✓ Este producto ya tiene un video subido. Si subís otro, lo reemplaza.</div>}
+                <div className="fl">Subir desde la compu o el celular</div>
+                <label className="btn btn-p" style={{ display: "inline-flex", cursor: video.subiendo ? "wait" : "pointer", opacity: video.subiendo ? 0.6 : 1 }}>
+                  {video.subiendo ? "Subiendo… (puede tardar un poco)" : "📤 Elegir video"}
+                  <input type="file" accept="video/mp4,video/quicktime,video/webm" style={{ display: "none" }} disabled={video.subiendo} onChange={e => subirVideo(e.target.files && e.target.files[0])} />
+                </label>
+                <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>Hasta 25 MB (.mp4, .mov o .webm).</div>
+                <div className="fl" style={{ marginTop: 14 }}>O pegá un link de YouTube o Vimeo</div>
+                <input className="inp" placeholder="https://www.youtube.com/watch?v=…" value={video.link} onChange={e => setVideo(v => ({ ...v, link: e.target.value }))} />
+                <div style={{ display: "flex", gap: 8, justifyContent: "space-between", marginTop: 12, flexWrap: "wrap" }}>
+                  {(video.subido || video.link) ? <button className="btn btn-g" style={{ color: temaPal.red }} disabled={video.subiendo} onClick={sacarVideo}>Sacar el video</button> : <span />}
+                  <div style={{ display: "flex", gap: 8 }}><button className="btn btn-g" disabled={video.subiendo} onClick={() => setVideo(null)}>Cerrar</button><button className="btn btn-p" disabled={video.subiendo} onClick={guardarLinkVideo}>Guardar link</button></div>
+                </div>
+              </div>
+            </div>
+          )}
           {desc && (
             <div className="pos-overlay" onClick={() => setDesc(null)}>
               <div className="card pop-in" style={{ width: 520, maxWidth: "95vw", background: temaPal.card }} onClick={e => e.stopPropagation()}>
@@ -23082,6 +23530,9 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               <div style={{ flex: 1 }}><div className="fl">WhatsApp de consultas</div><input className="inp" placeholder="2964 123456" value={cfg.whatsapp || ""} onChange={e => set("whatsapp", e.target.value)} /></div>
               <div><div className="fl">Color</div><input type="color" value={cfg.color || "#c9a84c"} onChange={e => set("color", e.target.value)} style={{ width: 54, height: 40, border: "none", background: "none" }} /></div>
             </div>
+            <div className="fl" style={{ marginTop: 10 }}>Frases de la tira negra de arriba (una por renglón, hasta 5)</div>
+            <textarea className="inp" rows={3} placeholder={"Ej: 3 cuotas sin interés con Mercado Pago\nEnvíos en el día en Río Grande"} value={cfg.anuncios || ""} onChange={e => set("anuncios", e.target.value)} />
+            <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>Si lo dejás vacío, se arman solas con tus envíos, retiros y formas de pago.</div>
           </div>
           <div className="card">
             <div className="ct">Entrega</div>
