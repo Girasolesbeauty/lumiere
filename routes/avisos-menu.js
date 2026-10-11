@@ -37,4 +37,22 @@ router.get('/', async (req, res) => {
   res.json({ portal, pedidos, compras, tareas, 'control-inv': control, ajustes_pendientes: ajustes, traspasos_por_recibir: traspasos, 'tienda-online': tienda });
 });
 
+// Ventas nuevas de la tienda web (para la ventana con sonido de Lumiere). ?desde=ultimo id visto.
+// Sin desde (o -1) solo devuelve el ultimo id, para arrancar sin avisar lo viejo. Si la tienda nunca
+// se uso (no existe la tabla), no hay nada que avisar.
+router.get('/tienda-nuevos', async (req, res) => {
+  try {
+    const existe = (await pool.query(`SELECT to_regclass('tienda_pedidos') IS NOT NULL AS ok`)).rows[0].ok;
+    if (!existe) return res.json({ ultimo: 0, pedidos: [] });
+    const ultimo = parseInt((await pool.query('SELECT COALESCE(MAX(id), 0) AS m FROM tienda_pedidos')).rows[0].m) || 0;
+    const desde = parseInt(req.query.desde);
+    if (!(desde >= 0)) return res.json({ ultimo, pedidos: [] });
+    const r = await pool.query(`SELECT id, codigo, nombre, telefono, entrega, local_id, zona, pago, pagado, estado, total, creado_en
+      FROM tienda_pedidos WHERE id > $1 AND estado <> 'cancelado' ORDER BY id LIMIT 20`, [desde]);
+    const ids = r.rows.map(p => p.id);
+    const items = ids.length ? (await pool.query('SELECT pedido_id, nombre, variante_valor, cantidad FROM tienda_pedido_items WHERE pedido_id = ANY($1) ORDER BY id', [ids])).rows : [];
+    res.json({ ultimo, pedidos: r.rows.map(p => ({ ...p, total: Number(p.total) || 0, items: items.filter(i => i.pedido_id === p.id) })) });
+  } catch (e) { res.json({ ultimo: null, pedidos: [] }); }
+});
+
 module.exports = router;
