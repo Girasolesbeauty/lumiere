@@ -22930,6 +22930,19 @@ const CSS_TIENDA = `
 .tw-filtro select{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;font-size:16px}
 .tw-filtro i{font-style:normal;font-size:11px}
 .tw-filtro-x{border:0;background:none;color:#111;text-decoration:underline;font-size:13.5px;cursor:pointer;padding:0 6px}
+.tw-menu-skin{position:fixed;z-index:42;left:50%;top:0;transform:translateX(-50%);width:min(760px,100vw);max-height:100vh;background:#fff;display:flex;flex-direction:column;border-radius:0 0 14px 14px;box-shadow:0 20px 60px rgba(0,0,0,.25);animation:twMenuBaja .35s cubic-bezier(.2,.8,.2,1) both}
+@keyframes twMenuBaja{from{transform:translate(-50%,-30px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+.tw-menu-skin-cab{display:grid;grid-template-columns:40px 1fr 40px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--b)}
+.tw-menu-skin-cab h2{margin:0;text-align:center;font-size:19px;font-weight:800}
+.tw-menu-skin-cuerpo{overflow-y:auto;padding:0 0 18px}
+.tw-menu-fila{display:flex;width:100%;align-items:center;justify-content:space-between;background:none;border:none;border-bottom:1px solid var(--b);padding:16px 20px;font-size:16px;cursor:pointer;font-family:inherit;color:#111;text-align:left}
+.tw-menu-flecha{font-size:22px;line-height:1;transition:transform .25s;display:inline-block;transform:translateY(-4px)}
+.tw-menu-flecha.on{transform:rotate(180deg) translateY(-2px)}
+.tw-menu-lista{display:flex;flex-direction:column;padding:4px 0 8px}
+.tw-menu-lista button{display:flex;justify-content:space-between;align-items:center;background:none;border:none;padding:11px 20px 11px 30px;font-size:15px;cursor:pointer;font-family:inherit;color:#333;text-align:left}
+.tw-menu-lista button:hover{background:var(--g)}
+.tw-menu-tarjetas{padding:14px 16px 6px}
+@media(max-width:760px){.tw-menu-skin{border-radius:0;height:100vh;width:100vw}}
 .tw-comprapor-tabs{display:flex;gap:6px;margin:-4px 0 14px;border-bottom:1px solid var(--b)}
 .tw-comprapor-tabs button{border:none;background:none;padding:10px 4px;margin-right:14px;font-size:14px;font-weight:700;color:#888;cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1px;font-family:inherit}
 .tw-comprapor-tabs button.on{color:#111;border-bottom-color:#111}
@@ -23596,6 +23609,37 @@ function TwComprarPor({ grupos, onElegir }) {
   );
 }
 
+// Menu de skincare (como el de Sephora): al tocar la categoria se abre un panel con "Ver todo",
+// tipo de producto y las tarjetas por tipo de piel y por necesidad
+function TwMenuSkincare({ titulo, grupos, onTodo, onElegir, onCerrar }) {
+  const [abierto, setAbierto] = useState({ tipo: true, piel: true, necesidad: true });
+  useEffect(() => { const k = (e) => { if (e.key === "Escape") onCerrar(); }; window.addEventListener("keydown", k); const o = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { window.removeEventListener("keydown", k); document.body.style.overflow = o; }; }, []);
+  const nombres = { tipo: "Tipo de producto", piel: "Por tipo de piel", necesidad: "Por lo que necesita tu piel" };
+  return (
+    <>
+      <div className="tw-velo" onClick={onCerrar} />
+      <div className="tw-menu-skin" role="dialog" aria-modal="true" aria-label={titulo}>
+        <div className="tw-menu-skin-cab"><span /><h2>{titulo}</h2><button className="tw-ico" onClick={onCerrar} aria-label="Cerrar"><TwIcono d={TW_X} size={20} /></button></div>
+        <div className="tw-menu-skin-cuerpo">
+          <button className="tw-menu-fila" onClick={onTodo}><b>Ver todo {titulo}</b><TwIcono d={TW_DER} size={18} /></button>
+          {grupos.map(g => (
+            <div key={g.k} className="tw-menu-grupo">
+              <button className="tw-menu-fila" aria-expanded={!!abierto[g.k]} onClick={() => setAbierto(a => ({ ...a, [g.k]: !a[g.k] }))}><b>{nombres[g.k]}</b><span className={"tw-menu-flecha" + (abierto[g.k] ? " on" : "")}>⌄</span></button>
+              {abierto[g.k] && (g.k === "tipo"
+                ? <div className="tw-menu-lista">{g.op.map(o => <button key={o[0]} onClick={() => onElegir(g.k, o[0])}>{o[1]}<TwIcono d={TW_DER} size={16} /></button>)}</div>
+                : <div className="tw-comprapor-grid tw-menu-tarjetas">{g.op.map((o, i) => { const [color, dib] = TW_ICONOS_PIEL[o[0]] || ["#999", <circle cx="24" cy="24" r="12" />]; return (
+                    <button key={o[0]} className="tw-comprapor-t" style={{ animationDelay: (i * 0.04) + "s" }} onClick={() => onElegir(g.k, o[0])}>
+                      <b>{g.k === "piel" ? "Piel " + o[1].toLowerCase() : o[1]}</b>
+                      <svg viewBox="0 0 48 48" width="52" height="52" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color }} aria-hidden="true">{dib}</svg>
+                    </button>); })}</div>)}
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
 function TwTarjeta({ p, base, sin, preventa, onAbrir, onAgregar }) {
   const [hover, setHover] = useState(false);
   const [hecho, setHecho] = useState(false);
@@ -23895,6 +23939,7 @@ function TiendaPublica({ slug }) {
   const [subcat, setSubcat] = useState(""); // categoria elegida dentro de un sector
   const [filtros, setFiltros] = useState({}); // tipo de producto, tipo de piel, necesidad
   const [copiado, setCopiado] = useState(null); // producto cuyo link se acaba de copiar
+  const [menuSkin, setMenuSkin] = useState(null); // categoria de skincare con el panel abierto ("*" = todas)
   const [volverA, setVolverA] = useState(null); // al entrar a la cuenta desde el carrito, vuelve ahi
   const [saliendo, setSaliendo] = useState([]); // productos que se van del carrito (se encogen antes de irse)
   const [agregando, setAgregando] = useState(null); // boton de la ficha: null | "carga" | "listo"
@@ -24249,6 +24294,11 @@ function TiendaPublica({ slug }) {
   const hayFiltros = TW_FILTROS.some(f => filtros[f.k]);
   const filtrada = base0.filter(p => pasaOtros(p, null));
   const lista = q && !orden ? [...filtrada].sort((a, b) => (puntaje.get(b.id) || 0) - (puntaje.get(a.id) || 0)) : ordenar(filtrada);
+  // Menu de skincare: la categoria que se llama skincare / cuidado de la piel / facial (si no hay, un boton propio)
+  const esSkin = (c) => /skin|piel|facial|cuidado|dermo/i.test(c || "");
+  const catSkin = cats.find(esSkin) || null;
+  const gruposMenu = (c) => { const base = visibles.filter(p => c === "*" || p.categoria === c); return ["tipo", "piel", "necesidad"].map(k => { const f = TW_FILTROS.find(x => x.k === k); return { k, op: f.op.filter(o => base.some(p => p._et[k].includes(o[0]))) }; }).filter(g => g.op.length > 0); };
+  const hayMenuSkin = catSkin ? gruposMenu(catSkin).length > 0 : gruposMenu("*").some(g => g.k !== "tipo");
   // Para la portada: "Comprá según tu piel" y "según tu necesidad"
   const atajos = ["piel", "necesidad"].map(k => { const f = TW_FILTROS.find(x => x.k === k); return { ...f, op: f.op.filter(o => visibles.some(p => p._et[k].includes(o[0]))) }; }).filter(f => f.op.length >= 2);
   const conStock = visibles;
@@ -24431,7 +24481,8 @@ function TiendaPublica({ slug }) {
             {preventas.length > 0 && <button className={"tw-nav-pre" + (cat === "preventa" && !q ? " on" : "")} onClick={() => irCat("preventa")}>⏳ {tienda.preventa.titulo}</button>}
             {reingresados.length > 0 && <button className={cat === "reingreso" && !q ? "on" : ""} onClick={() => irCat("reingreso")}>{reingreso.nombre}</button>}
             {reels.length > 0 && <button className={cat === "videos" && !q ? "on" : ""} onClick={() => irCat("videos")}>{tienda.reels_titulo || "Videos"}</button>}
-            {cats.map(c => <button key={c} className={cat === c && !q ? "on" : ""} onClick={() => irCat(c)}>{c}</button>)}
+            {!catSkin && hayMenuSkin && <button className={menuSkin ? "on" : ""} onClick={() => setMenuSkin("*")}>Skincare ▾</button>}
+            {cats.map(c => <button key={c} className={(cat === c && !q) || menuSkin === c ? "on" : ""} onClick={() => c === catSkin && hayMenuSkin ? setMenuSkin(c) : irCat(c)}>{c}{c === catSkin && hayMenuSkin ? " ▾" : ""}</button>)}
           </nav>
         </div>
       )}
@@ -24528,7 +24579,6 @@ function TiendaPublica({ slug }) {
               {retiroAca.length > 0 && <div><span>📍</span><span style={{ fontSize: 13.5 }}><b>Retiro sin costo</b><br />En {retiroAca.map(l => l.nombre).join(" o ")}</span></div>}
               <div><span>🔒</span><span style={{ fontSize: 13.5 }}><b>Compra segura</b><br />{tienda.pagos.mp ? "Con Mercado Pago" : "Te confirmamos por WhatsApp"}</span></div>
             </div>
-            {atajos.length > 0 && <TwComprarPor grupos={atajos} onElegir={(k, v) => irCat("*", { [k]: v })} />}
             {filasPortada.map(f => <TwFila key={f.id} titulo={f.titulo} items={f.items} render={tarjeta} />)}
             {reels.length > 0 && (
               <section className="tw-sec tw-rv">
@@ -24578,6 +24628,8 @@ function TiendaPublica({ slug }) {
         </>
       )}
 
+      {menuSkin && <TwMenuSkincare titulo={menuSkin === "*" ? "Skincare" : menuSkin} grupos={gruposMenu(menuSkin)}
+        onCerrar={() => setMenuSkin(null)} onTodo={() => { const c = menuSkin; setMenuSkin(null); irCat(c); }} onElegir={(k, v) => { const c = menuSkin; setMenuSkin(null); irCat(c, { [k]: v }); }} />}
       {ver && (
         <>
           <div className="tw-velo" onClick={() => setVer(null)} />
