@@ -22931,7 +22931,25 @@ const CSS_TIENDA = `
 .tw-rv.in .tw-pre-sub mark{background-size:100% 100%}
 @keyframes twMarcador{from{background-size:0% 100%}to{background-size:100% 100%}}
 .tw-pre-txt{font-size:13.5px;color:#6b5000;margin-top:6px;max-width:560px}
-.tw-etq.pre{background:#ffd23f;color:#3d2c05 !important;font-weight:800}
+.tw-etq.pre{background:linear-gradient(90deg,#ffd23f,#fff1a8,#ffd23f);background-size:200% 100%;color:#3d2c05 !important;font-weight:900;animation:twEtqPre 1.6s ease-in-out infinite,twLiquido 2.2s linear infinite;box-shadow:0 2px 10px rgba(255,195,0,.55)}
+@keyframes twEtqPre{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+.tw-fila-in:has(.tw-card.pre){padding:8px 8px 4px;margin:-8px -8px 0}
+.tw-grid:has(.tw-card.pre){padding-top:4px}
+.tw-card.pre .tw-card-img{box-shadow:0 0 0 2px #ffd23f;animation:twPreAura 2.4s ease-in-out infinite}
+@keyframes twPreAura{0%,100%{box-shadow:0 0 0 2px #ffd23f,0 0 0 rgba(255,195,0,0)}50%{box-shadow:0 0 0 3px #ffc300,0 0 22px rgba(255,195,0,.7)}}
+.tw-pre-brillo{position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.75) 48%,rgba(255,236,150,.6) 52%,transparent 65%);background-size:250% 100%;background-position:150% 0;animation:twPreBrillo 3.2s ease-in-out infinite}
+@keyframes twPreBrillo{0%,55%{background-position:150% 0}100%{background-position:-60% 0}}
+.tw-pre-chispas{position:absolute;inset:0;z-index:1;pointer-events:none}
+.tw-pre-chispas i{position:absolute;font-style:normal;color:#ffc300;text-shadow:0 0 6px #fff,0 0 10px #ffd23f;opacity:0;animation:twChispa 2.4s ease-in-out infinite}
+.tw-pre-chispas i:nth-child(1){top:14%;right:14%;font-size:18px}
+.tw-pre-chispas i:nth-child(2){bottom:22%;left:12%;font-size:13px;animation-delay:.6s}
+.tw-pre-chispas i:nth-child(3){top:46%;right:8%;font-size:15px;animation-delay:1.2s}
+.tw-pre-chispas i:nth-child(4){bottom:12%;right:30%;font-size:11px;animation-delay:1.8s}
+@keyframes twChispa{0%,100%{opacity:0;transform:scale(.3) rotate(0)}40%{opacity:1;transform:scale(1.15) rotate(90deg)}60%{opacity:.9;transform:scale(1) rotate(120deg)}}
+.tw-card.pre:hover{transform:translateY(-4px);transition:transform .35s cubic-bezier(.3,1.5,.5,1)}
+.tw-card.pre .tw-card-p{display:inline-block}
+.tw-rv.in .tw-card.pre,.tw-sec.tw-rv.in .tw-fila-in>.tw-card.pre{animation:twPreEntra .9s cubic-bezier(.3,1.5,.5,1) both}
+@keyframes twPreEntra{0%{opacity:0;transform:scale(.85) rotate(-3deg);filter:brightness(1.6) blur(4px)}60%{opacity:1;transform:scale(1.04) rotate(1deg);filter:brightness(1.15)}100%{opacity:1;transform:none;filter:none}}
 .tw-card-pre{font-size:12px;color:#8a5a00;font-weight:700;margin-top:2px}
 .tw-nav-pre{color:#ffd23f !important}
 .tw-preventa-cinta{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:repeating-linear-gradient(135deg,#ffd23f 0 14px,#ffc300 14px 28px);color:#2b1d00;border-radius:10px;padding:12px 16px;margin:26px 0 -8px;font-size:14px}
@@ -23516,14 +23534,15 @@ function TwTarjeta({ p, base, sin, preventa, onAbrir, onAgregar }) {
   };
   const soltar = () => { const el = imgRef.current; if (el) { el.style.setProperty("--rx", "0deg"); el.style.setProperty("--ry", "0deg"); } };
   return (
-    <div className="tw-card" role="button" tabIndex={0} onClick={() => onAbrir(p)} onKeyDown={e => { if (e.key === "Enter") onAbrir(p); }}
+    <div className={"tw-card" + (preventa ? " pre" : "")} role="button" tabIndex={0} onClick={() => onAbrir(p)} onKeyDown={e => { if (e.key === "Enter") onAbrir(p); }}
       onMouseEnter={() => setHover(true)} onMouseLeave={() => { setHover(false); soltar(); }} onMouseMove={inclinar}>
       <div className={"tw-card-img" + (conMouse ? " inclina" : "")} ref={imgRef}>
         {p.foto ? <img src={base + "/foto/" + p.id + (p.foto_v ? "?v=" + p.foto_v : "")} alt={p.nombre} loading="lazy" /> : <span className="tw-ph">✿</span>}
         {hover && vid && <video src={vid} muted autoPlay loop playsInline preload="none" />}
         {hover && !vid && p.fotos && p.fotos.length > 0 && <img className="tw-alt" src={base + "/foto-extra/" + p.fotos[0]} alt="" />}
+        {preventa && <><span className="tw-pre-brillo" aria-hidden="true" /><span className="tw-pre-chispas" aria-hidden="true"><i>✦</i><i>✦</i><i>✧</i><i>✦</i></span></>}
         <div className="tw-etqs">
-          {preventa && <span className="tw-etq pre">⏳ Preventa</span>}
+          {preventa && <span className="tw-etq pre">✨ Preventa</span>}
           {p.nuevo && !preventa && <span className="tw-etq">Nuevo</span>}
           {p.video && <span className="tw-etq neg">▶ Video</span>}
         </div>
@@ -23536,7 +23555,7 @@ function TwTarjeta({ p, base, sin, preventa, onAbrir, onAgregar }) {
       {p.marca && <div className="tw-card-m">{p.marca}</div>}
       <div className="tw-card-n">{p.nombre}</div>
       <div className="tw-card-p">{fmtTienda(p.precio)}</div>
-      {preventa && <div className="tw-card-pre">Llega pronto · todavía no está en el local</div>}
+      {preventa && <div className="tw-card-pre">⏳ Llega pronto · ¡reservalo antes que se agote!</div>}
     </div>
   );
 }
