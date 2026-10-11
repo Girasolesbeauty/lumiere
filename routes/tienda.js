@@ -51,6 +51,12 @@ router.put('/config', async (req, res) => {
        !!b.pago_mp, !!b.pago_transferencia, String(b.transferencia_datos || '').trim().slice(0, 300) || null, !!b.pago_retiro,
        Math.min(168, Math.max(1, parseInt(b.horas_reserva) || 24)),
        String(b.anuncios || '').split('\n').map(x => x.trim().slice(0, 90)).filter(Boolean).slice(0, 5).join('\n') || null]);
+    // Logo propio de la tienda (imagen chica, ya achicada en el navegador). Vacio = usar el del negocio
+    if (Object.prototype.hasOwnProperty.call(b, 'logo')) {
+      const logo = String(b.logo || '');
+      if (logo && (!/^data:image\/(png|webp|jpeg);base64,[A-Za-z0-9+/=]+$/.test(logo) || logo.length > 600000)) return res.status(400).json({ error: 'El logo tiene que ser una imagen PNG o JPG' });
+      await pool.query('UPDATE tienda_config SET logo = $1 WHERE id = 1', [logo || null]);
+    }
     res.json({ ok: true });
   } catch (e) {
     console.error('[tienda] config:', e.message);
@@ -119,6 +125,20 @@ router.delete('/productos/:id/video', async (req, res) => {
     await pool.query('UPDATE tienda_productos SET video_url = NULL WHERE producto_id = $1', [req.params.id]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'No se pudo sacar el video' }); }
+});
+
+// Publicar o sacar varios de una vez (los que se ven en la lista, o todos)
+router.post('/productos/masivo', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    const b = req.body || {};
+    const publicado = !!b.publicado;
+    const ids = Array.isArray(b.ids) ? b.ids.map(x => parseInt(x)).filter(x => x > 0).slice(0, 20000) : null;
+    const r = await pool.query(`INSERT INTO tienda_productos (producto_id, publicado)
+      SELECT p.id, $1 FROM productos p WHERE p.activo = TRUE AND ($2::int[] IS NULL OR p.id = ANY($2))
+      ON CONFLICT (producto_id) DO UPDATE SET publicado = $1 RETURNING producto_id`, [publicado, ids]);
+    res.json({ ok: true, cambiados: r.rows.length });
+  } catch (e) { res.status(500).json({ error: 'No se pudo' }); }
 });
 
 // Publicar de una vez los que tienen foto, precio y stock

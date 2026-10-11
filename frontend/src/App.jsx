@@ -22657,7 +22657,7 @@ const CSS_TIENDA = `
 .tw-cab.sombra{box-shadow:0 4px 18px rgba(0,0,0,.07)}
 .tw-cab1{max-width:1280px;margin:0 auto;display:flex;align-items:center;gap:18px;padding:14px 20px}
 .tw-marca{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0;cursor:pointer;background:none;border:none;padding:0}
-.tw-marca img{height:38px;max-width:130px;object-fit:contain}
+.tw-marca img{height:40px;max-width:230px;object-fit:contain;display:block}
 .tw-marca b{font-size:22px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
 .tw-busca{flex:1;position:relative;max-width:560px}
 .tw-busca input{width:100%;height:42px;border-radius:999px;border:1px solid transparent;background:var(--g);padding:0 16px 0 42px;font-size:15px;font-family:inherit;transition:border-color .2s,background .2s}
@@ -22803,6 +22803,7 @@ const CSS_TIENDA = `
 @media(max-width:760px){
   .tw-cab1{flex-wrap:wrap;gap:8px 10px;padding:10px 14px}
   .tw-marca b{font-size:18px}
+  .tw-marca img{height:32px;max-width:170px}
   .tw-busca{order:3;flex-basis:100%;max-width:none}
   .tw-nav{padding:0 14px;gap:20px}
   .tw-main{padding:0 14px 90px}
@@ -23031,7 +23032,7 @@ function TiendaPublica({ slug }) {
   const pie = (
     <footer className="tw-pie">
       <div className="tw-pie-in">
-        <div><h4>{tienda.titulo}</h4>{tienda.mensaje || "Gracias por elegirnos."}</div>
+        <div>{tienda.logo ? <img src={tienda.logo} alt={tienda.titulo} style={{ height: 34, maxWidth: 200, objectFit: "contain", filter: "brightness(0) invert(1)", marginBottom: 12, display: "block" }} /> : <h4>{tienda.titulo}</h4>}{tienda.mensaje || "Gracias por elegirnos."}</div>
         {tienda.retiro.length > 0 && <div><h4>Nuestros locales</h4>{tienda.retiro.map(l => <div key={l.id}>📍 {l.nombre}{l.direccion ? " · " + l.direccion : ""}</div>)}</div>}
         <div><h4>Formas de pago</h4>{tienda.pagos.mp && <div>Mercado Pago</div>}{tienda.pagos.transferencia && <div>Transferencia</div>}{tienda.pagos.retiro && <div>En el local, al retirar</div>}</div>
         {tienda.whatsapp && <div><h4>¿Dudas?</h4><a href={wa("Hola! Tengo una consulta")} target="_blank" rel="noopener">💬 Escribinos por WhatsApp</a></div>}
@@ -23369,6 +23370,12 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const guardarDesc = async () => {
     try { await API.put("/tienda/productos/" + desc.id, { descripcion: desc.texto }); setDesc(null); cargarProductos(); } catch (e) { avisar(false, "No se pudo guardar"); }
   };
+  const publicarVarios = async (lista, publicado) => {
+    if (!lista.length) return;
+    if (!confirm((publicado ? "¿Publicar " : "¿Sacar de la tienda ") + (lista.length === 1 ? "1 producto" : lista.length + " productos") + "?")) return;
+    try { const r = await API.post("/tienda/productos/masivo", { ids: lista.map(p => p.id), publicado }); avisar(true, "✓ " + r.data.cambiados + (publicado ? " productos publicados" : " productos sacados de la tienda")); cargarProductos(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); }
+  };
   const publicarConFoto = async () => {
     try { const r = await API.post("/tienda/productos/publicar-con-foto"); avisar(true, "✓ Se publicaron " + r.data.publicados + " productos con foto y stock"); cargarProductos(); }
     catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); }
@@ -23383,7 +23390,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const visibles = pedidos.filter(p => filtro === "todos" || (filtro === "activos" ? abiertos.includes(p) : p.estado === filtro));
   const nPub = productos.filter(p => p.publicado).length;
   const q = busca.trim().toLowerCase();
-  const prodVis = productos.filter(p => (!soloPub || p.publicado) && (!q || [p.nombre, p.marca, p.categoria].some(v => (v || "").toLowerCase().includes(q)))).slice(0, 150);
+  const prodFiltro = productos.filter(p => (!soloPub || p.publicado) && (!q || [p.nombre, p.marca, p.categoria].some(v => (v || "").toLowerCase().includes(q))));
+  const prodVis = prodFiltro.slice(0, 150);
   const set = (k, v) => setCfg(c => ({ ...c, [k]: v }));
 
   return (
@@ -23453,6 +23461,13 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             <button className={"chip-btn" + (soloPub ? " on" : "")} onClick={() => setSoloPub(v => !v)}>Solo publicados</button>
             {esJefeT && <button className="btn btn-g btn-sm" onClick={publicarConFoto} title="Publica de una vez los que tienen foto, precio y stock">📸 Publicar los que tienen foto</button>}
           </div>
+          {esJefeT && prodFiltro.length > 0 && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
+              <button className="btn btn-p btn-sm" disabled={prodFiltro.every(p => p.publicado)} onClick={() => publicarVarios(prodFiltro.filter(p => !p.publicado), true)}>☑ Publicar {q ? "todos los de la búsqueda" : "todos"} ({prodFiltro.filter(p => !p.publicado).length})</button>
+              <button className="btn btn-g btn-sm" disabled={!prodFiltro.some(p => p.publicado)} onClick={() => publicarVarios(prodFiltro.filter(p => p.publicado), false)}>☐ Sacar {q ? "los de la búsqueda" : "todos"} ({prodFiltro.filter(p => p.publicado).length})</button>
+              {prodFiltro.length > prodVis.length && <span style={{ fontSize: 11.5, color: temaPal.textMuted }}>Se muestran {prodVis.length} de {prodFiltro.length}; los botones toman todos.</span>}
+            </div>
+          )}
           <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 8 }}>Tocá el interruptor para publicar o sacar un producto. El precio y el stock son los de Lumiere. La foto es la del producto (se carga en Productos → editar). Marcá ⭐ los que quieras en el banner grande y sumá 🎬 videos para que se luzcan.</div>
           {prodVis.map(p => (
             <div key={p.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 0", borderTop: "1px solid " + temaPal.border, flexWrap: "wrap" }}>
@@ -23522,6 +23537,17 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                 </div>
               </div>
             )}
+            <div className="fl" style={{ marginTop: 12 }}>Logo de la tienda</div>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <div style={{ background: "#fff", border: "1px solid " + temaPal.border, borderRadius: 8, padding: "8px 12px", minWidth: 120, minHeight: 48, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {cfg.logo ? <img src={cfg.logo} alt="Logo de la tienda" style={{ maxHeight: 40, maxWidth: 200 }} /> : <span style={{ fontSize: 11.5, color: "#888" }}>Sin logo: se ve el nombre</span>}
+              </div>
+              <label className="btn btn-g btn-sm" style={{ cursor: "pointer" }}>📤 {cfg.logo ? "Cambiar logo" : "Subir logo"}
+                <input type="file" accept="image/png,image/jpeg,image/webp" style={{ display: "none" }} onChange={async e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; try { set("logo", await achicarLogo(f, 800)); } catch (err) { avisar(false, err.message); } }} />
+              </label>
+              {cfg.logo && <button className="btn btn-g btn-sm" onClick={() => set("logo", "")}>Quitar</button>}
+            </div>
+            <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>Mejor si tiene fondo transparente (PNG). Tocá Guardar para que se vea en la tienda.</div>
             <div className="fl" style={{ marginTop: 12 }}>Nombre que se ve</div>
             <input className="inp" placeholder="Ej: Girasoles" value={cfg.titulo || ""} onChange={e => set("titulo", e.target.value)} />
             <div className="fl" style={{ marginTop: 10 }}>Mensaje corto (opcional)</div>
@@ -24150,13 +24176,13 @@ function PuertaTerminos({ negocio, onAceptado }) {
 }
 
 // Achica una imagen a un logo liviano (maximo 256 px) para guardarlo junto con los datos del negocio
-function achicarLogo(archivo) {
+function achicarLogo(archivo, lado = 256) {
   return new Promise((ok, mal) => {
     if (!archivo || !/^image\//.test(archivo.type)) return mal(new Error("Elegí una imagen (PNG o JPG)"));
     const url = URL.createObjectURL(archivo);
     const img = new Image();
     img.onload = () => {
-      const esc = Math.min(1, 256 / Math.max(img.width, img.height));
+      const esc = Math.min(1, lado / Math.max(img.width, img.height));
       const c = document.createElement("canvas");
       c.width = Math.max(1, Math.round(img.width * esc)); c.height = Math.max(1, Math.round(img.height * esc));
       c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);

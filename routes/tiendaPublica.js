@@ -51,7 +51,7 @@ router.get('/:slug', async (req, res) => {
       .filter(l => !c.retiro_locales || !c.retiro_locales.length || c.retiro_locales.includes(l.id));
     const mp = c.pago_mp && await mpDisponible();
     res.json({
-      titulo: c.titulo || neg.nombre_negocio || 'Tienda', mensaje: c.mensaje || '', logo: neg.logo_url || null, color: c.color || '#c9a84c', whatsapp: c.whatsapp || null,
+      titulo: c.titulo || neg.nombre_negocio || 'Tienda', mensaje: c.mensaje || '', logo: c.logo || neg.logo_url || null, color: c.color || '#c9a84c', whatsapp: c.whatsapp || null,
       retiro: c.retiro_activo ? locales : [],
       envio: c.envio_activo ? { zonas: c.envio_zonas, gratis_desde: c.envio_gratis_desde } : null,
       pagos: { mp, transferencia: !!c.pago_transferencia, retiro: !!c.pago_retiro }, horas_reserva: c.horas_reserva,
