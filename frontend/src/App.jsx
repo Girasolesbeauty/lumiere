@@ -24066,6 +24066,11 @@ function TiendaPublica({ slug }) {
                   <div style={{ fontSize: 13, color: "#666" }}>Mandanos el comprobante por WhatsApp.{pedido.vence_en ? " Te guardamos los productos hasta el " + new Date(pedido.vence_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) + "." : ""}</div>
                 </div>
               )}
+              {pedido.pago === "retiro" && pedido.vence_en && !["cancelado", "entregado"].includes(pedido.estado) && (
+                <div style={{ background: "#fff8e1", border: "1px solid #f1dc9a", borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 14 }}>
+                  ⏰ Te guardamos los productos hasta el <b>{new Date(pedido.vence_en).toLocaleString("es-AR", { weekday: "long", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false })}</b>. Si no llegás, escribinos y te esperamos un poco más.
+                </div>
+              )}
               <div style={{ fontSize: 15, marginBottom: 12 }}>{pedido.entrega === "retiro" ? <>📍 Retirás en <b>{pedido.local?.nombre}</b>{pedido.local?.direccion ? " (" + pedido.local.direccion + ")" : ""}{pedido.pago === "retiro" && !pedido.pagado ? " · pagás al retirar" : ""}</> : <>🛵 Envío a <b>{pedido.direccion}</b> ({pedido.zona})</>}</div>
               {pedido.items.map((i, k) => <div key={k} className="tw-linea"><span>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""}</span><span>{fmtTienda(i.precio * i.cantidad)}</span></div>)}
               {pedido.descuento > 0 && <div className="tw-linea" style={{ color: "#2d7a4f" }}><span>Descuento{pedido.cupon ? " (" + pedido.cupon + ")" : ""}</span><span>−{fmtTienda(pedido.descuento)}</span></div>}
@@ -25231,9 +25236,10 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
     try { await API.post("/tienda/pedidos/" + p.id + "/a-caja"); try { sessionStorage.setItem("lumiere_pos_tienda", String(p.id)); } catch (e) {} irASeccion("pos"); }
     catch (e) { avisar(false, e.response?.data?.error || "No se pudo pasar a la caja"); }
   };
+  const extender = async (p) => { try { const r = await API.post("/tienda/pedidos/" + p.id + "/extender"); avisar(true, "✓ Le diste " + r.data.horas + " horas más"); cargarPedidos(); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); } };
   const reapartar = async (p) => { try { await API.post("/tienda/pedidos/" + p.id + "/reapartar"); cargarPedidos(); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); } };
   const avisarListo = (p) => {
-    const txt = "Hola " + String(p.nombre).split(" ")[0] + "! Tu pedido N° " + p.codigo + " de " + (cfg?.titulo || "nuestra tienda") + " ya está listo" + (p.entrega === "retiro" ? " para retirar en " + nombreLocal(p.local_id) : " y sale para tu casa") + ". ¡Gracias!";
+    const txt = "Hola " + String(p.nombre).split(" ")[0] + "! Tu pedido N° " + p.codigo + " de " + (cfg?.titulo || "nuestra tienda") + " ya está listo" + (p.entrega === "retiro" ? " para retirar en " + nombreLocal(p.local_id) : " y sale para tu casa") + "." + (p.entrega === "retiro" && p.vence_en ? " Te lo guardamos hasta el " + new Date(p.vence_en).toLocaleString("es-AR", { weekday: "long", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }) + "." : "") + " ¡Gracias!";
     window.open(linkWhatsapp(p.telefono, txt) || ("https://wa.me/?text=" + encodeURIComponent(txt)), "_blank");
   };
   const publicar = async (p, publicado) => {
@@ -25337,7 +25343,10 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                         </div>
                         {p.nota && <div style={{ fontSize: 12.5, marginTop: 2 }}>📝 {p.nota}</div>}
                         {p.ruleta && <div style={{ fontSize: 12.5, marginTop: 4, fontWeight: 700, color: p.ruleta.tipo === "nada" ? temaPal.textMuted : temaPal.warn }}>🎡 Ruleta: {p.ruleta.tipo === "regalo" ? "ganó " + (/mega/i.test(p.ruleta.texto || "") ? "el 💎 MEGA REGALO" : "un REGALO 🎁") + " — dáselo con el pedido" : p.ruleta.tipo === "cupon" ? "ganó " + p.ruleta.texto + " (cupón " + p.ruleta.cupon + ", se activa al entregar)" : "seguí participando"}</div>}
-                        {p.estado === "pendiente_pago" && p.vence_en && <div style={{ fontSize: 11.5, color: temaPal.warn }}>Si no paga, se cancela solo el {new Date(p.vence_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} y el stock vuelve.</div>}
+                        {p.vence_en && (p.estado === "pendiente_pago" || (p.pago === "retiro" && ["confirmado", "preparado"].includes(p.estado))) && <div style={{ fontSize: 11.5, color: temaPal.warn, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                          <span>{p.estado === "pendiente_pago" && p.pago !== "retiro" ? "Si no paga" : "Si no lo retira"}, se cancela solo el {new Date(p.vence_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} y el stock vuelve.</span>
+                          <button className="chip-btn" style={{ fontSize: 11 }} onClick={() => extender(p)} title="Si te avisó que viene más tarde">⏰ Darle más tiempo</button>
+                        </div>}
                         {p.estado === "cancelado" && p.motivo && <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{p.motivo}</div>}
                       </div>
                       <div style={{ textAlign: "right" }}><span className="tag" style={{ background: e.c + "22", color: e.c, fontWeight: 800 }}>{e.t}</span><div style={{ fontSize: 18, fontWeight: 900, marginTop: 4 }}>{fmt(p.total)}</div></div>
@@ -25576,10 +25585,10 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             {cfg.pago_transferencia && (
               <div style={{ margin: "6px 0 0 26px" }}>
                 <textarea className="inp" rows={3} placeholder={"Alias: girasoles.mp\nCBU: 0000...\nTitular: ..."} value={cfg.transferencia_datos || ""} onChange={e => set("transferencia_datos", e.target.value)} />
-                <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12.5, marginTop: 6 }}>Guardar los productos <input className="inp" type="number" min="1" max="168" style={{ width: 70 }} value={cfg.horas_reserva || 24} onChange={e => set("horas_reserva", e.target.value)} /> horas esperando el pago</div>
               </div>
             )}
             <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", marginTop: 8 }}><input type="checkbox" checked={!!cfg.pago_retiro} onChange={e => set("pago_retiro", e.target.checked)} /> <b>Paga al retirar</b> <span style={{ fontSize: 12, color: temaPal.textMuted }}>(solo con retiro)</span></label>
+            {(cfg.pago_transferencia || cfg.pago_retiro) && <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", fontSize: 12.5, marginTop: 10, background: temaPal.bg || "transparent", border: "1px solid " + temaPal.border, borderRadius: 8, padding: "8px 10px" }}>⏰ Guardar los productos <input className="inp" type="number" min="1" max="168" style={{ width: 70 }} value={cfg.horas_reserva || 24} onChange={e => set("horas_reserva", e.target.value)} /> horas. <span style={{ color: temaPal.textMuted }}>Si en ese tiempo no paga (transferencia) o no lo retira (paga al retirar), el pedido se cancela solo y el stock vuelve. Desde el pedido le podés dar más tiempo.</span></div>}
           </div>
           {cfg.ruleta && (() => { const r = cfg.ruleta; const setR = (x) => set("ruleta", { ...r, ...x }); const setP = (i, x) => setR({ premios: r.premios.map((y, j) => j === i ? { ...y, ...x } : y) }); const suma = r.premios.reduce((t, x) => t + (Number(x.chance) || 0), 0); return (
             <div className="card" style={{ gridColumn: "1 / -1" }}>

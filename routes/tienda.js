@@ -511,13 +511,26 @@ router.post('/pedidos/:id/reapartar', async (req, res) => {
     const p = (await client.query('SELECT * FROM tienda_pedidos WHERE id = $1 FOR UPDATE', [req.params.id])).rows[0];
     if (!p || p.estado !== 'en_caja') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Ese pedido no está en la caja' }); }
     await tienda.moverStock(client, p, -1);
-    await client.query(`UPDATE tienda_pedidos SET estado = CASE WHEN pagado OR pago = 'retiro' THEN 'preparado' ELSE 'pendiente_pago' END, stock_apartado = TRUE, actualizado_en = NOW() WHERE id = $1`, [p.id]);
+    const horas = Math.min(168, Math.max(1, parseInt((await tienda.leerConfig(client)).horas_reserva) || 24));
+    await client.query(`UPDATE tienda_pedidos SET estado = CASE WHEN pagado OR pago = 'retiro' THEN 'preparado' ELSE 'pendiente_pago' END, stock_apartado = TRUE,
+      vence_en = CASE WHEN pago = 'retiro' OR NOT pagado THEN NOW() + make_interval(hours => $2) ELSE vence_en END, actualizado_en = NOW() WHERE id = $1`, [p.id, horas]);
     await client.query('COMMIT');
     res.json(await pedidoCompleto(p.id));
   } catch (e) {
     try { await client.query('ROLLBACK'); } catch (x) {}
     res.status(500).json({ error: 'No se pudo volver a apartar' });
   } finally { client.release(); }
+});
+
+// Darle mas tiempo a un pedido (ej: "voy mañana"): suma las horas de reserva desde ahora o desde su vencimiento
+router.post('/pedidos/:id/extender', async (req, res) => {
+  try {
+    const horas = Math.min(168, Math.max(1, parseInt((await tienda.leerConfig()).horas_reserva) || 24));
+    const r = await pool.query(`UPDATE tienda_pedidos SET vence_en = GREATEST(COALESCE(vence_en, NOW()), NOW()) + make_interval(hours => $2), actualizado_en = NOW()
+      WHERE id = $1 AND estado IN ('pendiente_pago', 'confirmado', 'preparado') AND vence_en IS NOT NULL RETURNING vence_en`, [req.params.id, horas]);
+    if (!r.rows.length) return res.status(400).json({ error: 'Ese pedido no tiene vencimiento' });
+    res.json({ ok: true, vence_en: r.rows[0].vence_en, horas });
+  } catch (e) { res.status(500).json({ error: 'No se pudo' }); }
 });
 
 // Lo llama el Punto de Venta al registrar la venta del pedido
