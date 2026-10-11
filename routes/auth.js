@@ -92,7 +92,7 @@ async function iniciarSesion(req, res, neg) {
     const token = jwt.sign(
       { id: usuario.id, email: usuario.email, rol: usuario.rol, local_id: usuario.local_id, neg: neg.id },
       process.env.JWT_SECRET,
-      { expiresIn: '30d' }
+      { expiresIn: '90d' }
     );
 
     res.json({
@@ -115,6 +115,18 @@ async function iniciarSesion(req, res, neg) {
 }
 
 // En que estado esta mi negocio (para el aviso de dias de prueba)
+// Renovar la sesion: mientras se use Lumiere, la llave se va renovando sola y no hay que volver
+// a ingresar (la pide el navegador cuando a la llave le quedan menos de 60 dias). Si el usuario
+// fue desactivado, no se renueva.
+router.post('/renovar', async (req, res) => {
+  try {
+    const u = (await pool.query('SELECT * FROM usuarios WHERE id = $1', [req.usuario.id])).rows[0];
+    if (!u || u.activo === false) return res.status(401).json({ error: 'Iniciá sesión para continuar', sesion: true });
+    const token = jwt.sign({ id: u.id, email: u.email, rol: u.rol, local_id: u.local_id, neg: req.negocio ? req.negocio.id : (req.usuario.neg || 1) }, process.env.JWT_SECRET, { expiresIn: '90d' });
+    res.json({ token });
+  } catch (e) { res.status(500).json({ error: 'No se pudo renovar' }); }
+});
+
 router.get('/mi-negocio', (req, res) => {
   res.json(negocios.resumen(req.negocio) || negocios.resumen(negocios.ORIGINAL));
 });

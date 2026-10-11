@@ -24044,7 +24044,8 @@ function TiendaPublica({ slug }) {
   const cargarRecs = (ids) => { const k = ids.slice().sort((x, y) => x - y).join(","); if (!k || recs[k]) return; pedir("/recomendados?ids=" + k).then(r => setRecs(m => ({ ...m, [k]: r }))).catch(() => setRecs(m => ({ ...m, [k]: [] }))); };
   useEffect(() => { if (ver) cargarRecs([ver.id]); }, [ver && ver.id]);
   useEffect(() => { if (paso === "carrito" && carrito.length) cargarRecs([...new Set(carrito.map(i => i.producto_id))]); }, [paso, carrito.length]);
-  const cargarCuenta = () => pedir("/cuenta").then(d => { setMiCuenta(d); setDatos(x => ({ ...x, nombre: x.nombre || d.nombre, telefono: x.telefono || d.telefono || "", email: x.email || d.email || "" })); }).catch(() => {});
+  const cargarCuenta = () => pedir("/cuenta").then(d => {
+    if (d.token_nuevo) { try { localStorage.setItem("tienda_cuenta_" + slug, d.token_nuevo); } catch (e) {} } setMiCuenta(d); setDatos(x => ({ ...x, nombre: x.nombre || d.nombre, telefono: x.telefono || d.telefono || "", email: x.email || d.email || "" })); }).catch(() => {});
   useEffect(() => { if (logueada) cargarCuenta(); }, [logueada]);
   useEffect(() => { if (paso === "datos" && cuponIn && !cuponOk) aplicarCupon(cuponIn); }, [paso]);
   // Banner y tira de anuncios pasan solos
@@ -27702,6 +27703,16 @@ function AppWrapper() {
     window.addEventListener("lumiere-gastro", f);
     return () => window.removeEventListener("lumiere-gastro", f);
   }, []);
+
+  // La sesion se renueva sola: al abrir Lumiere, si a la llave le quedan menos de 60 dias se pide una nueva
+  useEffect(() => {
+    if (!usuario) return;
+    try {
+      const t = localStorage.getItem("lumiere_token"); if (!t) return;
+      const datos = JSON.parse(atob(t.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+      if (datos.exp && datos.exp * 1000 - Date.now() < 60 * 864e5) API.post("/auth/renovar").then(r => { if (r.data && r.data.token) localStorage.setItem("lumiere_token", r.data.token); }).catch(() => {});
+    } catch (e) {}
+  }, [usuario && usuario.id]);
 
   const handleLogin = (u) => {
     setUsuario(u);

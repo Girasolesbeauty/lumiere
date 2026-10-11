@@ -435,7 +435,8 @@ router.post('/:slug/pedidos/:codigo/ruleta', async (req, res) => {
 // ===================== Mi cuenta (clientas) =====================
 // Misma cuenta que el portal de clientas: DNI + contraseña sobre la ficha de Lumiere, asi ven
 // sus puntos y premios. La llave (token) dice de que negocio es.
-const firmar = (req, id) => jwt.sign({ id, tipo: 'cliente', neg: req.negTienda.id }, process.env.JWT_SECRET, { expiresIn: '60d' });
+// La cuenta de la tienda queda abierta un año y se renueva sola cada vez que la clienta entra (ver GET /cuenta)
+const firmar = (req, id) => jwt.sign({ id, tipo: 'cliente', neg: req.negTienda.id }, process.env.JWT_SECRET, { expiresIn: '365d' });
 function clienteDeToken(req) {
   const t = String(req.headers.authorization || '').replace(/^Bearer /, '');
   if (!t) return null;
@@ -563,7 +564,10 @@ router.get('/:slug/cuenta', conCuenta, async (req, res) => {
       const usable = cu.activo && !(cu.max_usos && (cu.usos || 0) >= cu.max_usos) && !(cu.fecha_vencimiento && new Date(cu.fecha_vencimiento) < new Date(new Date().toDateString()));
       return { ...c, cupon: { tipo: cu.tipo === '%' ? '%' : '$', valor: parseFloat(cu.valor) || 0, vence: cu.fecha_vencimiento, usable } };
     });
-    res.json({ ...d, compras: (d.compras || []).slice(0, 15), premios: premios.map(p => ({ ...p, descuento_pct: cuentas.descuentoDePremio(p) })), canjes: canjesInfo, pedidos });
+    // Cada vez que entra se renueva la llave (si ya tiene mas de un dia): mientras use la tienda, no se sale
+    let tokenNuevo = null;
+    try { const t = jwt.decode(String(req.headers.authorization || '').replace(/^Bearer /, '')); if (t && t.iat && Date.now() / 1000 - t.iat > 86400) tokenNuevo = firmar(req, req.clienteId); } catch (e) {}
+    res.json({ ...d, compras: (d.compras || []).slice(0, 15), premios: premios.map(p => ({ ...p, descuento_pct: cuentas.descuentoDePremio(p) })), canjes: canjesInfo, pedidos, token_nuevo: tokenNuevo });
   } catch (e) { console.error('[tienda] cuenta:', e.message); res.status(500).json({ error: 'No pudimos cargar tu cuenta' }); }
 });
 
