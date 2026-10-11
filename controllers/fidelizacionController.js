@@ -14,8 +14,18 @@ const generarCodigo = () => {
 
 // Listar premios. Por defecto solo los activos con stock disponible.
 // Si se pasa cliente_id, ademas filtra los de "solo cumpleanos" segun el mes actual del cliente.
+// Premio de descuento: % off que se entrega como codigo (ver canjearPremio en routes/portal.js)
+const { porNegocio } = require('../lib/contexto');
+const colDescuento = porNegocio(false);
+async function asegurarDescuento() {
+  if (colDescuento.get()) return;
+  await pool.query('ALTER TABLE premios_fidelizacion ADD COLUMN IF NOT EXISTS descuento_pct NUMERIC(5,2)').catch(() => {});
+  colDescuento.set(true);
+}
+
 const getPremios = async (req, res) => {
   try {
+    await asegurarDescuento();
     const { cliente_id, todos } = req.query;
     let query = 'SELECT * FROM premios_fidelizacion WHERE 1=1';
     if (!todos) query += ' AND activo = TRUE';
@@ -48,14 +58,16 @@ const getPremios = async (req, res) => {
 // Crear premio nuevo
 const createPremio = async (req, res) => {
   try {
+    await asegurarDescuento();
     const { nombre, descripcion, puntos_requeridos, imagen_url, stock_total, solo_mes_cumpleanos, nivel_minimo } = req.body;
+    const pct = Math.min(100, Math.max(0, parseFloat(req.body.descuento_pct) || 0)) || null;
     if (!nombre || !puntos_requeridos) {
       return res.status(400).json({ error: 'Nombre y puntos requeridos son obligatorios' });
     }
     const result = await pool.query(
-      `INSERT INTO premios_fidelizacion (nombre, descripcion, puntos_requeridos, imagen_url, stock_total, solo_mes_cumpleanos, nivel_minimo)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [nombre, descripcion || null, puntos_requeridos, imagen_url || null, stock_total || null, solo_mes_cumpleanos === true, nivel_minimo || 'Bronze']
+      `INSERT INTO premios_fidelizacion (nombre, descripcion, puntos_requeridos, imagen_url, stock_total, solo_mes_cumpleanos, nivel_minimo, descuento_pct)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [nombre, descripcion || null, puntos_requeridos, imagen_url || null, stock_total || null, solo_mes_cumpleanos === true, nivel_minimo || 'Bronze', pct]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -68,7 +80,9 @@ const createPremio = async (req, res) => {
 const updatePremio = async (req, res) => {
   try {
     const { id } = req.params;
+    await asegurarDescuento();
     const { nombre, descripcion, puntos_requeridos, imagen_url, stock_total, solo_mes_cumpleanos, activo, nivel_minimo } = req.body;
+    if (req.body.descuento_pct !== undefined) await pool.query('UPDATE premios_fidelizacion SET descuento_pct = $1 WHERE id = $2', [Math.min(100, Math.max(0, parseFloat(req.body.descuento_pct) || 0)) || null, id]);
     const result = await pool.query(
       `UPDATE premios_fidelizacion SET
         nombre = COALESCE($1, nombre),
