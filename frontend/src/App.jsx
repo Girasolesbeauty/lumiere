@@ -22733,6 +22733,13 @@ const CSS_TIENDA = `
 .tw-puntos-compra.brilla{animation:twPop .5s cubic-bezier(.3,1.6,.5,1)}
 .tw-puntos-compra.brilla .tw-estrella{animation:twEstrella .8s cubic-bezier(.3,1.5,.5,1)}
 @keyframes twEstrella{0%{transform:scale(.4) rotate(-90deg)}60%{transform:scale(1.5) rotate(20deg);text-shadow:0 0 12px #ffd54a}100%{transform:none}}
+.tw-suma-cuenta{background:linear-gradient(135deg,#fff8e1,#fde9c4);border:2px solid #f4b400;border-radius:14px;padding:12px 14px;margin:12px 0;color:#4a3608;animation:twPop .55s cubic-bezier(.3,1.6,.5,1)}
+.tw-suma-cuenta-t{font-size:15px;font-weight:700;line-height:1.35}
+.tw-suma-cuenta-t b{color:#2b1d00;font-size:16px}
+.tw-suma-cuenta .tw-estrella{animation:twEstrella 1.6s cubic-bezier(.3,1.5,.5,1) infinite}
+.tw-suma-cuenta-s{font-size:12.5px;color:#7a5c12;margin:4px 0 10px}
+.tw-suma-cuenta-b{display:flex;gap:8px;flex-wrap:wrap}
+.tw-suma-cuenta-b .tw-btn,.tw-suma-cuenta-b .tw-btn2{padding:9px 18px;font-size:12px}
 .tw-desc-ok{animation:twDesc 1.2s ease-out}
 @keyframes twDesc{0%{background:rgba(45,122,79,0);transform:scale(.97)}25%{background:rgba(45,122,79,.12);transform:scale(1.02)}100%{background:rgba(45,122,79,0);transform:none}}
 .tw-girasol{display:flex;justify-content:center;margin:-6px 0 6px}
@@ -23289,6 +23296,21 @@ function TwPuntos({ monto, tengo }) {
     </div>
   );
 }
+// Para quien compra sin entrar a su cuenta: que entre y sume los puntos de la compra
+function TwSumaConCuenta({ monto, onIngresar, onCrear }) {
+  const pts = Math.floor(Math.max(0, monto) / 100);
+  if (pts <= 0) return null;
+  return (
+    <div className="tw-suma-cuenta" role="note">
+      <div className="tw-suma-cuenta-t"><span className="tw-estrella" aria-hidden="true">✦</span> Entrá con tu cuenta y sumá <b><TwRueda valor={pts} desde={0} dur={1100} /> puntos</b> con esta compra</div>
+      <div className="tw-suma-cuenta-s">Así se cargan a tu nombre y después los canjeás por premios y descuentos.</div>
+      <div className="tw-suma-cuenta-b">
+        <button className="tw-btn" onClick={onIngresar}>Ingresar</button>
+        <button className="tw-btn2" onClick={onCrear}>Crear mi cuenta</button>
+      </div>
+    </div>
+  );
+}
 // Barra de envio gratis que se llena como liquido; al completarse, lluvia de petalos
 function TwBarraEnvio({ subtotal, gratisDesde }) {
   const ref = useRef(null);
@@ -23819,6 +23841,7 @@ function TiendaPublica({ slug }) {
   const [subcat, setSubcat] = useState(""); // categoria elegida dentro de un sector
   const [filtros, setFiltros] = useState({}); // tipo de producto, tipo de piel, necesidad
   const [copiado, setCopiado] = useState(null); // producto cuyo link se acaba de copiar
+  const [volverA, setVolverA] = useState(null); // al entrar a la cuenta desde el carrito, vuelve ahi
   const [saliendo, setSaliendo] = useState([]); // productos que se van del carrito (se encogen antes de irse)
   const [agregando, setAgregando] = useState(null); // boton de la ficha: null | "carga" | "listo"
   const [sonido, setSonido] = useState(twSonidoOn);
@@ -23850,6 +23873,7 @@ function TiendaPublica({ slug }) {
   const [media, setMedia] = useState(0); // numero de foto, o "video"
   const toqueMedia = useRef(null);
   const [paso, setPaso] = useState(null); // null | "carrito" | "datos"
+  useEffect(() => { if (paso !== "cuenta") setVolverA(null); }, [paso]);
   const [datos, setDatos] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_datos") || "{}"); } catch (e) { return {}; } });
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState("");
@@ -24215,9 +24239,11 @@ function TiendaPublica({ slug }) {
       const r = await pedir("/cuenta/" + (f.modo === "crear" ? "crear" : "ingresar"), { method: "POST", body: JSON.stringify(f) });
       try { localStorage.setItem("tienda_cuenta_" + slug, r.token); } catch (x) {}
       setFormCuenta({ modo: "ingresar" }); setLogueada(true);
+      if (volverA) { setPaso(volverA); setVolverA(null); twSonar.brillo(); }
       setDatos(x => ({ ...x, nombre: x.nombre || r.cliente.nombre, telefono: x.telefono || r.cliente.telefono || "", email: x.email || r.cliente.email || "" }));
     } catch (x) { setAvisoCuenta(x.message); }
   };
+  const irACuenta = (desde, modo) => { setVolverA(desde); setAvisoCuenta(null); setCanjeHecho(null); setFormCuenta({ modo: modo || "ingresar" }); setPaso("cuenta"); };
   const salirCuenta = () => { try { localStorage.removeItem("tienda_cuenta_" + slug); } catch (x) {} setLogueada(false); setMiCuenta(null); };
   const canjear = async (pr) => {
     if (!confirm("¿Canjear " + pr.nombre + " por " + pr.puntos_requeridos + " puntos?")) return;
@@ -24592,7 +24618,8 @@ function TiendaPublica({ slug }) {
                 </div>
                 {carrito.length > 0 && <div className="tw-cajon-pie">
                   {carrito.some(i => i.preventa) && <div className="tw-preventa-aviso chico"><b>⏳ Tenés productos en PREVENTA</b><span>Todavía no llegaron al local. Te avisamos por WhatsApp cuando lleguen y retirás todo junto.</span></div>}
-                  <TwPuntos monto={subtotal} tengo={logueada && miCuenta ? (miCuenta.puntos || 0) : null} />
+                  {logueada ? <TwPuntos monto={subtotal} tengo={miCuenta ? (miCuenta.puntos || 0) : null} />
+                    : <TwSumaConCuenta monto={subtotal} onIngresar={() => irACuenta("carrito")} onCrear={() => irACuenta("carrito", "crear")} />}
                   {tienda.ruleta && tienda.ruleta.aviso && <TwRuletaAviso monto={subtotal} minimo={tienda.ruleta.minimo} />}
                   <div className="tw-linea" style={{ fontWeight: 800, fontSize: 18, marginBottom: 12 }}><span>Subtotal</span><span>{fmtTienda(subtotal)}</span></div>
                   {problemas.length > 0 && <div style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, marginBottom: 10, fontSize: 13.5 }}>Algunos productos no están disponibles{ciudad ? " en " + ciudad.nombre : ""} en esa cantidad. <button className="tw-btn2" style={{ padding: "6px 12px", fontSize: 11.5, marginTop: 6 }} onClick={ajustarCarrito}>Ajustar a lo disponible</button></div>}
@@ -24603,7 +24630,7 @@ function TiendaPublica({ slug }) {
               <>
                 <div className="tw-cajon-cuerpo">
                   {logueada && miCuenta ? <div className="tw-progreso" style={{ marginBottom: 12 }}>👋 Comprás como <b>{miCuenta.nombre}</b>. Esta compra suma puntos a tu cuenta.</div>
-                    : <div style={{ fontSize: 13, color: "#666", marginBottom: 10 }}>¿Tenés cuenta? <button style={{ background: "none", border: "none", padding: 0, textDecoration: "underline", cursor: "pointer", fontSize: 13 }} onClick={() => setPaso("cuenta")}>Ingresá</button> para sumar puntos.</div>}
+                    : <TwSumaConCuenta monto={subtotal - descuentoCupon} onIngresar={() => irACuenta("datos")} onCrear={() => irACuenta("datos", "crear")} />}
                   <div className="tw-lbl" style={{ marginTop: 0 }}>Tus datos</div>
                   <input className="tw-inp" placeholder="Nombre y apellido" autoComplete="name" value={datos.nombre || ""} onChange={e => setDatos(d => ({ ...d, nombre: e.target.value }))} style={{ marginBottom: 8 }} />
                   <input className="tw-inp" placeholder="WhatsApp (ej: 2964 123456)" inputMode="tel" autoComplete="tel" value={datos.telefono || ""} onChange={e => setDatos(d => ({ ...d, telefono: e.target.value }))} style={{ marginBottom: 8 }} />
@@ -24648,7 +24675,7 @@ function TiendaPublica({ slug }) {
                   {descuentoCupon > 0 && <div key={"d" + cuponOk.codigo} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>✨ Descuento ({cuponOk.codigo})</span><span>−<TwRueda valor={descuentoCupon} formato={fmtTienda} dur={1000} /></span></div>}
                   {datos.entrega === "envio" && <div className="tw-linea"><span>Envío</span><span>{zona ? (costoEnvio ? fmtTienda(costoEnvio) : "Gratis") : "—"}</span></div>}
                   <div className="tw-linea" style={{ fontWeight: 800, fontSize: 19, marginBottom: 12 }}><span>Total</span><span><TwRueda key={"t" + (cuponOk ? cuponOk.codigo : "")} valor={subtotal - descuentoCupon + costoEnvio} desde={subtotal + costoEnvio} formato={fmtTienda} dur={1000} /></span></div>
-                  <TwPuntos monto={subtotal - descuentoCupon} tengo={logueada && miCuenta ? (miCuenta.puntos || 0) : null} />
+                  {logueada && <TwPuntos monto={subtotal - descuentoCupon} tengo={miCuenta ? (miCuenta.puntos || 0) : null} />}
                   {tienda.ruleta && tienda.ruleta.aviso && <TwRuletaAviso monto={subtotal - descuentoCupon} minimo={tienda.ruleta.minimo} />}
                   <div style={{ display: "flex", gap: 8 }}>
                     <button className="tw-btn2" onClick={() => setPaso("carrito")}>Atrás</button>
