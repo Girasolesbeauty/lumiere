@@ -22740,6 +22740,12 @@ const CSS_TIENDA = `
 .tw-suma-cuenta-s{font-size:12.5px;color:#7a5c12;margin:4px 0 10px}
 .tw-suma-cuenta-b{display:flex;gap:8px;flex-wrap:wrap}
 .tw-suma-cuenta-b .tw-btn,.tw-suma-cuenta-b .tw-btn2{padding:9px 18px;font-size:12px}
+.tw-dni-aviso{border-radius:10px;padding:10px 12px;font-size:13.5px;line-height:1.45;animation:twPop .45s cubic-bezier(.3,1.6,.5,1)}
+.tw-dni-aviso.nueva{background:#eaf7ef;border:1px solid #9fd8b4;color:#1f5c38}
+.tw-dni-aviso.clienta{background:#fff8e1;border:1px solid #f1dc9a;color:#5a4410}
+.tw-dni-aviso.cuenta{background:#eef3ff;border:1px solid #b9c9f3;color:#233a75}
+.tw-dni-aviso button{background:none;border:none;padding:0;text-decoration:underline;font-weight:700;cursor:pointer;color:inherit;font-size:13.5px}
+.tw-lbl-campo{display:flex;flex-direction:column;gap:4px;font-size:12.5px;font-weight:700;color:#555}
 .tw-desc-ok{animation:twDesc 1.2s ease-out}
 @keyframes twDesc{0%{background:rgba(45,122,79,0);transform:scale(.97)}25%{background:rgba(45,122,79,.12);transform:scale(1.02)}100%{background:rgba(45,122,79,0);transform:none}}
 .tw-girasol{display:flex;justify-content:center;margin:-6px 0 6px}
@@ -23858,6 +23864,15 @@ function TiendaPublica({ slug }) {
   const [logueada, setLogueada] = useState(() => { try { return !!localStorage.getItem("tienda_cuenta_" + slug); } catch (e) { return false; } });
   const [miCuenta, setMiCuenta] = useState(null);
   const [formCuenta, setFormCuenta] = useState({ modo: "ingresar" });
+  // Al crear la cuenta: se fija si el DNI ya esta en Lumiere (clienta del local), si ya tiene cuenta o si es nueva
+  const [infoDni, setInfoDni] = useState(null);
+  useEffect(() => {
+    const d = String(formCuenta.dni || "").replace(/\D/g, "");
+    if (formCuenta.modo !== "crear" || d.length < 7) { setInfoDni(null); return; }
+    let vivo = true;
+    const t = setTimeout(() => { pedir("/cuenta/dni", { method: "POST", body: JSON.stringify({ dni: d }) }).then(r => vivo && setInfoDni({ ...r, dni: d })).catch(() => vivo && setInfoDni(null)); }, 450);
+    return () => { vivo = false; clearTimeout(t); };
+  }, [formCuenta.dni, formCuenta.modo]);
   const [avisoCuenta, setAvisoCuenta] = useState(null);
   const [canjeHecho, setCanjeHecho] = useState(null);
   // Codigo de descuento (cupon de Lumiere o premio canjeado)
@@ -24235,8 +24250,16 @@ function TiendaPublica({ slug }) {
     e && e.preventDefault();
     setAvisoCuenta(null);
     const f = formCuenta;
+    if (f.modo === "crear") {
+      const clienta = infoDni && infoDni.estado === "clienta";
+      const falta = [!String(f.dni || "").replace(/\D/g, "") && "DNI", !clienta && !String(f.nombre || "").trim().includes(" ") && "nombre y apellido", String(f.telefono || "").replace(/\D/g, "").length < 8 && "WhatsApp",
+        !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(f.email || "").trim()) && "email", !f.fecha_nacimiento && "fecha de nacimiento", String(f.password || "").length < 6 && "contraseña (6 o más)"].filter(Boolean);
+      if (falta.length) { setAvisoCuenta("Completá: " + falta.join(", ") + "."); return; }
+      if (f.password !== f.password2) { setAvisoCuenta("Las dos contraseñas no coinciden."); return; }
+      if (infoDni && infoDni.estado === "con_cuenta") { setAvisoCuenta("Ese DNI ya tiene cuenta: ingresá con tu contraseña."); return; }
+    }
     try {
-      const r = await pedir("/cuenta/" + (f.modo === "crear" ? "crear" : "ingresar"), { method: "POST", body: JSON.stringify(f) });
+      const r = await pedir("/cuenta/" + (f.modo === "crear" ? "crear" : "ingresar"), { method: "POST", body: JSON.stringify({ ...f, local_id: lid }) });
       try { localStorage.setItem("tienda_cuenta_" + slug, r.token); } catch (x) {}
       setFormCuenta({ modo: "ingresar" }); setLogueada(true);
       if (volverA) { setPaso(volverA); setVolverA(null); twSonar.brillo(); }
@@ -24257,15 +24280,25 @@ function TiendaPublica({ slug }) {
         <button className={fc.modo !== "crear" ? "on" : ""} onClick={() => { setFormCuenta(x => ({ ...x, modo: "ingresar" })); setAvisoCuenta(null); }}>Ingresar</button>
         <button className={fc.modo === "crear" ? "on" : ""} onClick={() => { setFormCuenta(x => ({ ...x, modo: "crear" })); setAvisoCuenta(null); }}>Crear mi cuenta</button>
       </div>
-      <p style={{ fontSize: 13.5, color: "#555", lineHeight: 1.5 }}>{fc.modo === "crear" ? "Con tu cuenta ves tus puntos, canjeás premios y comprás más rápido. Si ya compraste en el local, usá el mismo DNI y WhatsApp que diste ahí." : "Entrá con tu DNI. Es la misma cuenta del portal de clientas."}</p>
+      <p style={{ fontSize: 13.5, color: "#555", lineHeight: 1.5 }}>{fc.modo === "crear" ? "Con tu cuenta ves tus puntos, canjeás premios y comprás más rápido. Empezá por tu DNI: si ya compraste en el local, te reconocemos." : "Entrá con tu DNI. Es la misma cuenta del portal de clientas."}</p>
       <form onSubmit={enviarCuenta} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <input className="tw-inp" placeholder="DNI (solo números)" inputMode="numeric" autoComplete="username" value={fc.dni || ""} onChange={e => setF("dni", e.target.value)} />
-        {fc.modo === "crear" && <>
-          <input className="tw-inp" placeholder="Nombre y apellido" autoComplete="name" value={fc.nombre || ""} onChange={e => setF("nombre", e.target.value)} />
+        {fc.modo === "crear" && infoDni && infoDni.dni === String(fc.dni || "").replace(/\D/g, "") && (
+          infoDni.estado === "nueva" ? <div className="tw-dni-aviso nueva">✨ <b>¡Bienvenida!</b> Es tu primera vez: completá tus datos y empezás a sumar puntos.</div>
+          : infoDni.estado === "clienta" ? <div className="tw-dni-aviso clienta">🌻 <b>¡Hola{infoDni.nombre ? " " + infoDni.nombre : ""}! Ya sos clienta</b> y tus puntos te esperan. Confirmá tu WhatsApp{infoDni.tel_final ? <> (el que nos diste en el local, termina en <b>••{infoDni.tel_final}</b>)</> : ""} y completá tus datos.</div>
+          : infoDni.estado === "con_cuenta" ? <div className="tw-dni-aviso cuenta">🔑 <b>Ese DNI ya tiene cuenta.</b> <button type="button" onClick={() => { setFormCuenta(x => ({ ...x, modo: "ingresar" })); setAvisoCuenta(null); }}>Ingresar con mi contraseña</button></div> : null
+        )}
+        {fc.modo === "crear" && !(infoDni && infoDni.estado === "con_cuenta") && <>
+          {!(infoDni && infoDni.estado === "clienta") && <input className="tw-inp" placeholder="Nombre y apellido" autoComplete="name" value={fc.nombre || ""} onChange={e => setF("nombre", e.target.value)} />}
           <input className="tw-inp" placeholder="WhatsApp (ej: 2964 123456)" inputMode="tel" autoComplete="tel" value={fc.telefono || ""} onChange={e => setF("telefono", e.target.value)} />
-          <input className="tw-inp" placeholder="Email (opcional)" inputMode="email" autoComplete="email" value={fc.email || ""} onChange={e => setF("email", e.target.value)} />
+          <input className="tw-inp" placeholder="Email" inputMode="email" autoComplete="email" value={fc.email || ""} onChange={e => setF("email", e.target.value)} />
+          <label className="tw-lbl-campo">Tu cumpleaños 🎂<input className="tw-inp" type="date" max={new Date().toISOString().slice(0, 10)} autoComplete="bday" value={fc.fecha_nacimiento || ""} onChange={e => setF("fecha_nacimiento", e.target.value)} /></label>
         </>}
-        <input className="tw-inp" type="password" placeholder={fc.modo === "crear" ? "Elegí una contraseña (6 o más)" : "Contraseña"} autoComplete={fc.modo === "crear" ? "new-password" : "current-password"} value={fc.password || ""} onChange={e => setF("password", e.target.value)} />
+        {!(fc.modo === "crear" && infoDni && infoDni.estado === "con_cuenta") && <input className="tw-inp" type="password" placeholder={fc.modo === "crear" ? "Elegí una contraseña (6 o más)" : "Contraseña"} autoComplete={fc.modo === "crear" ? "new-password" : "current-password"} value={fc.password || ""} onChange={e => setF("password", e.target.value)} />}
+        {fc.modo === "crear" && !(infoDni && infoDni.estado === "con_cuenta") && <>
+          <input className="tw-inp" type="password" placeholder="Repetí la contraseña" autoComplete="new-password" value={fc.password2 || ""} onChange={e => setF("password2", e.target.value)} />
+          <div style={{ fontSize: 12, color: "#777" }}>Todos los datos son obligatorios. Los usamos para tu cuenta, tus puntos y para saludarte en tu cumple.</div>
+        </>}
         {avisoCuenta && <div role="alert" style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, fontSize: 13.5, fontWeight: 600 }}>{avisoCuenta}</div>}
         <button className="tw-btn full" type="submit">{fc.modo === "crear" ? "Crear mi cuenta" : "Ingresar"}</button>
       </form>
