@@ -22763,6 +22763,7 @@ const CSS_TIENDA = `
 .tw-cant{display:inline-flex;align-items:center;border:1px solid var(--b);border-radius:999px;margin-top:8px}
 .tw-cant button{width:32px;height:32px;border:none;background:none;font-size:17px;cursor:pointer;border-radius:50%}
 .tw-cant b{min-width:22px;text-align:center;font-size:14px}
+.tw-cant button:disabled{opacity:.3;cursor:default}
 .tw-linea{display:flex;justify-content:space-between;padding:4px 0;font-size:15px}
 .tw-inp{width:100%;padding:13px 14px;border-radius:6px;border:1px solid #ccc;font-size:16px;font-family:inherit;background:#fff;transition:border-color .2s}
 .tw-inp:focus{outline:none;border-color:var(--n)}
@@ -22802,6 +22803,17 @@ const CSS_TIENDA = `
 @keyframes twToast{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
 .tw-toast img,.tw-toast .tw-mini{width:52px;height:52px;border-radius:6px;object-fit:cover;background:var(--g)}
 .tw-barra{display:none}
+.tw-ciudad{display:flex;align-items:center;gap:4px;height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--b);background:#fff;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .2s}
+.tw-ciudad:hover{background:var(--g)}
+.tw-elegir{max-width:460px;padding:30px 26px;text-align:center}
+.tw-elegir h2{font-size:26px;margin:0 0 6px;font-weight:800}
+.tw-elegir p{color:#666;margin:0 0 20px;font-size:15px}
+.tw-ciudades{display:flex;flex-direction:column;gap:10px}
+.tw-ciudad-op{display:flex;flex-direction:column;align-items:flex-start;gap:4px;width:100%;text-align:left;border:1.5px solid var(--b);border-radius:8px;padding:16px 18px;background:#fff;cursor:pointer;transition:border-color .2s,transform .15s,background .2s}
+.tw-ciudad-op:hover{border-color:var(--n);transform:translateY(-1px)}
+.tw-ciudad-op.on{border-color:var(--n);background:var(--g)}
+.tw-ciudad-op b{font-size:18px}
+.tw-ciudad-op span{font-size:13px;color:#666}
 .tw-pie{background:#000;color:#fff;margin-top:60px}
 .tw-pie-in{max-width:1280px;margin:0 auto;padding:44px 20px 30px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:30px;font-size:14px;line-height:1.8}
 .tw-pie h4{font-size:12px;letter-spacing:.14em;text-transform:uppercase;margin:0 0 10px;color:#aaa}
@@ -22812,6 +22824,8 @@ const CSS_TIENDA = `
 @media(max-width:760px){
   .tw-cab1{flex-wrap:wrap;gap:8px 10px;padding:10px 14px}
   .tw-marca b{font-size:18px}
+  .tw-ciudad{height:32px;padding:0 10px;font-size:12px}
+  .tw-elegir{border-radius:14px 14px 0 0;padding:24px 18px calc(24px + env(safe-area-inset-bottom))}
   .tw-marca img{height:32px;max-width:170px}
   .tw-busca{order:3;flex-basis:100%;max-width:none}
   .tw-nav{padding:0 14px;gap:20px}
@@ -22916,6 +22930,9 @@ function TiendaPublica({ slug }) {
   const [productos, setProductos] = useState(null);
   const [busca, setBusca] = useState("");
   const [cat, setCat] = useState(""); // "" = inicio; "*" = todos; o una categoria
+  // Ciudad del cliente: compra solo con el stock del local de su ciudad
+  const [local, setLocal] = useState(() => { try { return parseInt(localStorage.getItem("tienda_local_" + slug)) || null; } catch (e) { return null; } });
+  const [eligeCiudad, setEligeCiudad] = useState(false);
   const [orden, setOrden] = useState("");
   const [carrito, setCarrito] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_carrito_" + slug) || "[]"); } catch (e) { return []; } });
   const [ver, setVer] = useState(null); // producto abierto
@@ -22944,6 +22961,7 @@ function TiendaPublica({ slug }) {
     return () => window.removeEventListener("scroll", s);
   }, []);
   useEffect(() => { try { localStorage.setItem("tienda_carrito_" + slug, JSON.stringify(carrito)); } catch (e) {} }, [carrito]);
+  useEffect(() => { try { if (local) localStorage.setItem("tienda_local_" + slug, String(local)); } catch (e) {} }, [local]);
   // Banner y tira de anuncios pasan solos
   useEffect(() => { const t = setInterval(() => setSlide(s => s + 1), 5500); return () => clearInterval(t); }, [slide]);
   useEffect(() => { const t = setInterval(() => setAnuncio(a => a + 1), 4000); return () => clearInterval(t); }, []);
@@ -22973,8 +22991,14 @@ function TiendaPublica({ slug }) {
   const lista0 = productos || [];
   const foto = (p) => p.foto ? base + "/foto/" + p.id + (p.foto_v ? "?v=" + p.foto_v : "") : null;
   // Lo que se puede vender: el maximo entre los locales posibles para esta compra
-  const locales = [...tienda.retiro.map(l => l.id), ...(tienda.envio ? [1, 2] : [])];
-  const dispo = (p, v) => { const s = v ? v.stock : p.stock; return Math.max(0, ...(locales.length ? locales : [1]).map(l => s[l] || 0)); };
+  const ciudades = tienda.ciudades || [];
+  const ciudad = ciudades.find(c => c.id === Number(local)) || (ciudades.length === 1 ? ciudades[0] : null);
+  const lid = ciudad ? ciudad.id : null;
+  const retiroAca = ciudad ? tienda.retiro.filter(l => l.id === lid) : tienda.retiro;
+  const zonasAca = tienda.envio ? tienda.envio.zonas.filter(z => !lid || z.local === lid) : [];
+  const envioAca = zonasAca.length ? { ...tienda.envio, zonas: zonasAca } : null;
+  const dispo = (p, v) => { const s = v ? v.stock : p.stock; return lid ? Math.max(0, s[lid] || 0) : Math.max(0, ...ciudades.map(c => s[c.id] || 0), 0); };
+  const maxDeItem = (i) => { const p = lista0.find(x => x.id === i.producto_id); if (!p) return 0; const v = i.variante_id ? (p.variantes || []).find(x => x.id === i.variante_id) : null; return i.variante_id && !v ? 0 : dispo(p, v); };
   const agotado = (p) => p.variantes ? p.variantes.every(v => dispo(p, v) <= 0) : dispo(p) <= 0;
   const totalItems = carrito.reduce((t, i) => t + i.cantidad, 0);
   const subtotal = carrito.reduce((t, i) => t + i.precio * i.cantidad, 0);
@@ -22990,7 +23014,7 @@ function TiendaPublica({ slug }) {
     setToast({ p, v }); clearTimeout(window.__twToast); window.__twToast = setTimeout(() => setToast(null), 2600);
   };
   const cambiarCant = (i, d) => setCarrito(c => c.map(x => x === i ? { ...x, cantidad: x.cantidad + d } : x).filter(x => x.cantidad > 0));
-  const zona = tienda.envio ? tienda.envio.zonas.find(z => z.nombre === datos.zona) : null;
+  const zona = envioAca ? envioAca.zonas.find(z => z.nombre === datos.zona) : null;
   const gratisDesde = tienda.envio && tienda.envio.gratis_desde;
   const envioGratis = gratisDesde && subtotal >= gratisDesde;
   const costoEnvio = datos.entrega === "envio" && zona && !envioGratis ? zona.costo : 0;
@@ -22998,7 +23022,7 @@ function TiendaPublica({ slug }) {
     setAviso(""); setEnviando(true);
     try { localStorage.setItem("tienda_datos", JSON.stringify({ nombre: datos.nombre, telefono: datos.telefono, email: datos.email, direccion: datos.direccion })); } catch (e) {}
     try {
-      const r = await pedir("/pedidos", { method: "POST", body: JSON.stringify({ ...datos, items: carrito, volver_a: window.location.href }) });
+      const r = await pedir("/pedidos", { method: "POST", body: JSON.stringify({ ...datos, local_id: lid, items: carrito, volver_a: window.location.href }) });
       setCarrito([]);
       if (r.link_pago) { window.location.href = r.link_pago; return; }
       window.location.href = window.location.pathname + "?tienda=" + encodeURIComponent(slug) + "&pedido=" + r.codigo;
@@ -23031,6 +23055,7 @@ function TiendaPublica({ slug }) {
             </label>
           )}
           <div className="tw-iconos">
+            {!codigoUrl && ciudades.length > 1 && ciudad && <button className="tw-ciudad" onClick={() => setEligeCiudad(true)} aria-label={"Tu ciudad: " + ciudad.nombre + ". Cambiar"}>📍 <span>{ciudad.nombre}</span> ▾</button>}
             {tienda.whatsapp && <a className="tw-ico" href={wa("Hola! Tengo una consulta")} target="_blank" rel="noopener" aria-label="WhatsApp"><TwIcono d={TW_WA} /></a>}
             {!codigoUrl && <button className="tw-ico" onClick={() => setPaso("carrito")} aria-label={"Carrito, " + totalItems + " productos"}>
               <TwIcono d={TW_BOLSA} />{totalItems > 0 && <span key={salto} className={"tw-badge" + (salto ? " salta" : "")}>{totalItems}</span>}
@@ -23099,7 +23124,9 @@ function TiendaPublica({ slug }) {
   const tarjeta = (p) => <TwTarjeta key={p.id} p={p} base={base} sin={agotado(p)} onAbrir={abrir} onAgregar={(x) => agregar(x, null)} />;
   const opcionesPago = [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar"], ["retiro", "💵 Pago al retirar", "Pagás en el local"]]
     .filter(([k]) => tienda.pagos[k] && !(k === "retiro" && datos.entrega === "envio"));
-  const listoParaPedir = datos.nombre && datos.telefono && datos.entrega && datos.pago && (datos.entrega === "retiro" ? datos.local_id : (datos.zona && datos.direccion));
+  const listoParaPedir = lid && datos.nombre && datos.telefono && datos.entrega && datos.pago && (datos.entrega === "retiro" ? retiroAca.length > 0 : (zona && datos.direccion));
+  const problemas = carrito.filter(i => i.cantidad > maxDeItem(i));
+  const ajustarCarrito = () => setCarrito(c => c.map(i => ({ ...i, cantidad: Math.min(i.cantidad, maxDeItem(i)) })).filter(i => i.cantidad > 0));
   const vidVer = ver && ver.video ? (ver.video.tipo === "youtube" ? { iframe: "https://www.youtube-nocookie.com/embed/" + ver.video.id + "?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1" }
     : ver.video.tipo === "vimeo" ? { iframe: "https://player.vimeo.com/video/" + ver.video.id + "?autoplay=1&muted=1" } : { src: videoArchivo(base, ver) }) : null;
   const galeria = ver ? [...(ver.foto ? [foto(ver)] : []), ...(ver.fotos || []).map(id => base + "/foto-extra/" + id)] : [];
@@ -23161,8 +23188,8 @@ function TiendaPublica({ slug }) {
               <div className="tw-hero" style={{ height: 220, display: "flex", alignItems: "center", padding: "0 40px" }}><div><div className="tw-ceja" style={{ color }}>Bienvenida</div><h2 style={{ fontSize: 40, margin: "8px 0" }}>{tienda.titulo}</h2><p style={{ margin: 0 }}>{tienda.mensaje}</p></div></div>
             )}
             <div className="tw-benef tw-rv">
-              {tienda.envio && <div><span>🛵</span><span style={{ fontSize: 13.5 }}><b>Envío a domicilio</b><br />{gratisDesde ? "Gratis desde " + fmtTienda(gratisDesde) : "Según tu zona"}</span></div>}
-              {tienda.retiro.length > 0 && <div><span>📍</span><span style={{ fontSize: 13.5 }}><b>Retiro sin costo</b><br />En {tienda.retiro.map(l => l.nombre).join(" o ")}</span></div>}
+              {envioAca && <div><span>🛵</span><span style={{ fontSize: 13.5 }}><b>Envío a domicilio{ciudad ? " en " + ciudad.nombre : ""}</b><br />{gratisDesde ? "Gratis desde " + fmtTienda(gratisDesde) : "Según tu zona"}</span></div>}
+              {retiroAca.length > 0 && <div><span>📍</span><span style={{ fontSize: 13.5 }}><b>Retiro sin costo</b><br />En {retiroAca.map(l => l.nombre).join(" o ")}</span></div>}
               <div><span>🔒</span><span style={{ fontSize: 13.5 }}><b>Compra segura</b><br />{tienda.pagos.mp ? "Con Mercado Pago" : "Te confirmamos por WhatsApp"}</span></div>
             </div>
             <TwFila titulo="Novedades" items={conStock.filter(p => p.nuevo).slice(0, 12)} onVerTodo={() => irCat("*")} render={tarjeta} />
@@ -23181,6 +23208,28 @@ function TiendaPublica({ slug }) {
           <div style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}><b>✓ Agregado al carrito</b><div style={{ color: "#666", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{toast.p.nombre}{toast.v ? " · " + toast.v.valor : ""}</div></div>
           <button className="tw-btn2" style={{ padding: "8px 12px", fontSize: 11.5 }} onClick={() => { setToast(null); setPaso("carrito"); }}>Ver</button>
         </div>
+      )}
+
+      {ciudades.length > 1 && (!ciudad || eligeCiudad) && (
+        <>
+          <div className="tw-velo" onClick={() => ciudad && setEligeCiudad(false)} />
+          <div className="tw-ficha" role="dialog" aria-modal="true" aria-label="Elegí tu ciudad">
+            <div className="tw-ficha-in tw-elegir">
+              {tienda.logo ? <img src={tienda.logo} alt={tienda.titulo} style={{ height: 40, maxWidth: 220, objectFit: "contain", margin: "0 auto 14px", display: "block" }} /> : <div className="tw-marca" style={{ justifyContent: "center", marginBottom: 10 }}><b>{tienda.titulo}</b></div>}
+              <h2>¿Dónde estás?</h2>
+              <p>Te mostramos los productos que hay en tu ciudad.</p>
+              <div className="tw-ciudades">
+                {ciudades.map(c => (
+                  <button key={c.id} className={"tw-ciudad-op" + (ciudad && ciudad.id === c.id ? " on" : "")} onClick={() => { setLocal(c.id); setEligeCiudad(false); if (ciudad && ciudad.id !== c.id) setDatos(d => ({ ...d, zona: null, entrega: null, local_id: null })); }}>
+                    <b>📍 {c.nombre}</b>
+                    <span>{[c.retiro && "Retiro en el local", c.envio && "Envío a domicilio"].filter(Boolean).join(" · ")}</span>
+                  </button>
+                ))}
+              </div>
+              {ciudad && <button className="tw-btn2" style={{ marginTop: 14 }} onClick={() => setEligeCiudad(false)}>Seguir en {ciudad.nombre}</button>}
+            </div>
+          </div>
+        </>
       )}
 
       {ver && (
@@ -23222,14 +23271,15 @@ function TiendaPublica({ slug }) {
                   </div>
                   {(!ver.variantes || varSel) && (
                     <div className="tw-disp">
-                      {tienda.retiro.map(l => { const s = (varElegida ? varElegida.stock : ver.stock)[l.id] || 0; return <div key={l.id}>{s > 0 ? "✓" : "✕"} {s > 0 ? "Disponible para retirar en " : "Sin stock en "}<b>{l.nombre}</b></div>; })}
-                      {tienda.envio && maxVer > 0 && <div>✓ Envío a domicilio{gratisDesde ? " (gratis desde " + fmtTienda(gratisDesde) + ")" : ""}</div>}
+                      {ciudad && maxVer <= 0 && <div>✕ Agotado en <b>{ciudad.nombre}</b></div>}
+                      {maxVer > 0 && retiroAca.map(l => <div key={l.id}>✓ Disponible para retirar en <b>{l.nombre}</b>{maxVer <= 3 ? " (¡quedan " + maxVer + "!)" : ""}</div>)}
+                      {maxVer > 0 && envioAca && <div>✓ Envío a domicilio{ciudad ? " en " + ciudad.nombre : ""}{gratisDesde ? " (gratis desde " + fmtTienda(gratisDesde) + ")" : ""}</div>}
                     </div>
                   )}
                   <div className="tw-acord">
                     {ver.descripcion && <details open><summary>Descripción</summary><div>{ver.descripcion}</div></details>}
-                    <details><summary>Envíos y retiro</summary><div>{[tienda.retiro.length ? "Retiro sin costo en " + tienda.retiro.map(l => l.nombre + (l.direccion ? " (" + l.direccion + ")" : "")).join(", ") + "." : null,
-                      tienda.envio ? "Envío a domicilio: " + tienda.envio.zonas.map(z => z.nombre + " " + fmtTienda(z.costo)).join(" · ") + (gratisDesde ? ". Gratis desde " + fmtTienda(gratisDesde) + "." : ".") : null].filter(Boolean).join("\n")}</div></details>
+                    <details><summary>Envíos y retiro</summary><div>{[retiroAca.length ? "Retiro sin costo en " + retiroAca.map(l => l.nombre + (l.direccion ? " (" + l.direccion + ")" : "")).join(", ") + "." : null,
+                      envioAca ? "Envío a domicilio: " + envioAca.zonas.map(z => z.nombre + " " + fmtTienda(z.costo)).join(" · ") + (gratisDesde ? ". Gratis desde " + fmtTienda(gratisDesde) + "." : ".") : null].filter(Boolean).join("\n")}</div></details>
                     <details><summary>Formas de pago</summary><div>{[tienda.pagos.mp && "Mercado Pago: tarjeta de crédito, débito o dinero en cuenta.", tienda.pagos.transferencia && "Transferencia bancaria.", tienda.pagos.retiro && "En el local, cuando retirás."].filter(Boolean).join("\n")}</div></details>
                   </div>
                 </div>
@@ -23261,7 +23311,8 @@ function TiendaPublica({ slug }) {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 14.5, fontWeight: 700 }}>{i.nombre}</div>
                         {i.variante && <div style={{ fontSize: 13, color: "#666" }}>{i.variante}</div>}
-                        <div className="tw-cant"><button onClick={() => cambiarCant(i, -1)} aria-label="Uno menos">−</button><b>{i.cantidad}</b><button onClick={() => cambiarCant(i, +1)} aria-label="Uno más">+</button></div>
+                        <div className="tw-cant"><button onClick={() => cambiarCant(i, -1)} aria-label="Uno menos">−</button><b>{i.cantidad}</b><button onClick={() => cambiarCant(i, +1)} disabled={i.cantidad >= maxDeItem(i)} aria-label="Uno más">+</button></div>
+                        {i.cantidad > maxDeItem(i) && <div style={{ color: "#c0392b", fontSize: 12.5, fontWeight: 700, marginTop: 4 }}>{maxDeItem(i) <= 0 ? "No hay" + (ciudad ? " en " + ciudad.nombre : "") : "Solo quedan " + maxDeItem(i) + (ciudad ? " en " + ciudad.nombre : "")}</div>}
                       </div>
                       <div style={{ fontWeight: 800, fontSize: 15 }}>{fmtTienda(i.precio * i.cantidad)}</div>
                     </div>
@@ -23269,7 +23320,8 @@ function TiendaPublica({ slug }) {
                 </div>
                 {carrito.length > 0 && <div className="tw-cajon-pie">
                   <div className="tw-linea" style={{ fontWeight: 800, fontSize: 18, marginBottom: 12 }}><span>Subtotal</span><span>{fmtTienda(subtotal)}</span></div>
-                  <button className="tw-btn full" onClick={() => setPaso("datos")}>Finalizar compra</button>
+                  {problemas.length > 0 && <div style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, marginBottom: 10, fontSize: 13.5 }}>Algunos productos no están disponibles{ciudad ? " en " + ciudad.nombre : ""} en esa cantidad. <button className="tw-btn2" style={{ padding: "6px 12px", fontSize: 11.5, marginTop: 6 }} onClick={ajustarCarrito}>Ajustar a lo disponible</button></div>}
+                  <button className="tw-btn full" disabled={problemas.length > 0} onClick={() => setPaso("datos")}>Finalizar compra</button>
                 </div>}
               </>
             ) : (
@@ -23280,15 +23332,16 @@ function TiendaPublica({ slug }) {
                   <input className="tw-inp" placeholder="WhatsApp (ej: 2964 123456)" inputMode="tel" autoComplete="tel" value={datos.telefono || ""} onChange={e => setDatos(d => ({ ...d, telefono: e.target.value }))} style={{ marginBottom: 8 }} />
                   <input className="tw-inp" placeholder="Email (opcional)" inputMode="email" autoComplete="email" value={datos.email || ""} onChange={e => setDatos(d => ({ ...d, email: e.target.value }))} />
                   <div className="tw-lbl">¿Cómo lo recibís?</div>
-                  {tienda.retiro.map(l => <button key={l.id} className={"tw-op" + (datos.entrega === "retiro" && Number(datos.local_id) === l.id ? " on" : "")} onClick={() => setDatos(d => ({ ...d, entrega: "retiro", local_id: l.id }))}>📍 <b>Retiro en {l.nombre}</b>{l.direccion ? <div style={{ fontSize: 13, color: "#666" }}>{l.direccion}</div> : null}<div style={{ fontSize: 13, color: "#2d7a4f" }}>Sin costo</div></button>)}
-                  {tienda.envio && (
+                  {ciudad && <div style={{ fontSize: 13, color: "#666", marginBottom: 8 }}>Comprás en <b>{ciudad.nombre}</b>. {ciudades.length > 1 && <button style={{ background: "none", border: "none", padding: 0, textDecoration: "underline", cursor: "pointer", fontSize: 13 }} onClick={() => setEligeCiudad(true)}>Cambiar</button>}</div>}
+                  {retiroAca.map(l => <button key={l.id} className={"tw-op" + (datos.entrega === "retiro" ? " on" : "")} onClick={() => setDatos(d => ({ ...d, entrega: "retiro", local_id: l.id }))}>📍 <b>Retiro en {l.nombre}</b>{l.direccion ? <div style={{ fontSize: 13, color: "#666" }}>{l.direccion}</div> : null}<div style={{ fontSize: 13, color: "#2d7a4f" }}>Sin costo</div></button>)}
+                  {envioAca && (
                     <button className={"tw-op" + (datos.entrega === "envio" ? " on" : "")} onClick={() => setDatos(d => ({ ...d, entrega: "envio", pago: d.pago === "retiro" ? null : d.pago }))}>🛵 <b>Envío a domicilio</b><div style={{ fontSize: 13, color: "#666" }}>{envioGratis ? "¡Gratis por tu compra!" : "El costo depende de la zona"}{gratisDesde && !envioGratis ? " · gratis desde " + fmtTienda(gratisDesde) : ""}</div></button>
                   )}
-                  {datos.entrega === "envio" && tienda.envio && (
+                  {datos.entrega === "envio" && envioAca && (
                     <>
                       <select className="tw-inp" value={datos.zona || ""} onChange={e => setDatos(d => ({ ...d, zona: e.target.value }))} style={{ marginBottom: 8 }}>
                         <option value="">Elegí tu zona…</option>
-                        {tienda.envio.zonas.map(z => <option key={z.nombre} value={z.nombre}>{z.nombre} · {envioGratis ? "gratis" : fmtTienda(z.costo)}</option>)}
+                        {envioAca.zonas.map(z => <option key={z.nombre} value={z.nombre}>{z.nombre} · {envioGratis ? "gratis" : fmtTienda(z.costo)}</option>)}
                       </select>
                       <input className="tw-inp" placeholder="Dirección (calle, número, depto, referencias)" autoComplete="street-address" value={datos.direccion || ""} onChange={e => setDatos(d => ({ ...d, direccion: e.target.value }))} />
                     </>
@@ -23495,6 +23548,154 @@ function GaleriaFotos({ producto, onCerrar, temaPal, avisar }) {
   );
 }
 
+// ---- Traer descripciones de la tienda anterior (archivo exportado de Tiendanube u otra) ----
+// El archivo es una planilla CSV; se lee aca mismo y se busca cada producto por codigo o nombre.
+function leerCSV(texto) {
+  const primera = texto.split(/\r?\n/, 1)[0] || "";
+  const sep = (primera.match(/;/g) || []).length >= (primera.match(/,/g) || []).length ? ";" : ",";
+  const filas = []; let fila = [], campo = "", comillas = false;
+  for (let i = 0; i < texto.length; i++) {
+    const c = texto[i];
+    if (comillas) {
+      if (c === '"') { if (texto[i + 1] === '"') { campo += '"'; i++; } else comillas = false; } else campo += c;
+    } else if (c === '"') comillas = true;
+    else if (c === sep) { fila.push(campo); campo = ""; }
+    else if (c === "\n" || c === "\r") { if (c === "\r" && texto[i + 1] === "\n") i++; fila.push(campo); filas.push(fila); fila = []; campo = ""; }
+    else campo += c;
+  }
+  if (campo || fila.length) { fila.push(campo); filas.push(fila); }
+  return filas.filter(f => f.some(x => x.trim()));
+}
+function htmlATexto(html) {
+  const h = String(html || "").replace(/<\s*br\s*\/?>/gi, "\n").replace(/<\s*li[^>]*>/gi, "\n• ").replace(/<\/\s*(p|div|h[1-6]|li|ul|ol|tr)\s*>/gi, "\n");
+  let t;
+  try { t = new DOMParser().parseFromString(h, "text/html").body.textContent || ""; } catch (e) { t = h.replace(/<[^>]+>/g, ""); }
+  return t.replace(/ /g, " ").replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").replace(/\n+• /g, "\n• ").replace(/\n{3,}/g, "\n\n").trim();
+}
+const normTxt = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+
+function ImportarDescripciones({ productos, onCerrar, onListo, temaPal, avisar }) {
+  const tp = temaPal || PALETA_CLARA;
+  const [filas, setFilas] = useState(null);
+  const [info, setInfo] = useState(null);
+  const [error, setError] = useState("");
+  const [reemplazar, setReemplazar] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const leer = async (archivo) => {
+    setError(""); setFilas(null);
+    try {
+      const buf = await archivo.arrayBuffer();
+      let texto; try { texto = new TextDecoder("utf-8", { fatal: true }).decode(buf); } catch (e) { texto = new TextDecoder("windows-1252").decode(buf); }
+      const tabla = leerCSV(texto.replace(/^﻿/, ""));
+      if (tabla.length < 2) throw new Error("El archivo está vacío o no es una planilla.");
+      const cab = tabla[0].map(normTxt);
+      const col = (...nombres) => cab.findIndex(c => nombres.includes(c));
+      const cNom = col("nombre", "name", "titulo", "producto"), cDesc = col("descripcion", "description", "descripcion larga");
+      const cCod = col("codigo de barras", "barcode", "ean", "gtin"), cSku = col("sku", "codigo", "codigo sku"), cUrl = col("identificador de url", "url", "handle"), cMarca = col("marca", "brand");
+      if (cDesc < 0) throw new Error("No encontramos la columna \"Descripción\" en el archivo. ¿Es el archivo exportado de productos?");
+      // Un producto con variantes ocupa varias filas: los datos vienen en la primera
+      const tn = []; const porUrl = {};
+      for (const f of tabla.slice(1)) {
+        const url = cUrl >= 0 ? f[cUrl] : null, nom = cNom >= 0 ? (f[cNom] || "").trim() : "";
+        let x = url && porUrl[url];
+        if (!x) { x = { nombre: nom, marca: cMarca >= 0 ? f[cMarca] : "", desc: "", codigos: new Set() }; tn.push(x); if (url) porUrl[url] = x; }
+        if (!x.nombre && nom) x.nombre = nom;
+        if (!x.desc && f[cDesc]) x.desc = htmlATexto(f[cDesc]);
+        [cCod, cSku].forEach(c => { if (c >= 0 && (f[c] || "").trim()) x.codigos.add(f[c].trim().replace(/^0+/, "")); });
+      }
+      const conDesc = tn.filter(x => x.desc && x.nombre);
+      // Emparejar: por codigo, despues por nombre igual, despues por nombre parecido
+      const porCodigo = {}; conDesc.forEach(x => x.codigos.forEach(c => { porCodigo[c] = x; }));
+      const porNombre = {}; conDesc.forEach(x => { porNombre[normTxt(x.nombre)] = x; porNombre[normTxt(x.marca + " " + x.nombre)] = x; });
+      const palabras = (t) => new Set(normTxt(t).split(" ").filter(w => w.length > 1));
+      const parecido = (a, b) => { let n = 0; a.forEach(w => { if (b.has(w)) n++; }); return n / Math.max(a.size, b.size, 1); };
+      const res = [];
+      for (const p of productos) {
+        const cod = String(p.codigo_barras || "").trim().replace(/^0+/, "");
+        let x = cod && porCodigo[cod], como = "código";
+        if (!x) { x = porNombre[normTxt(p.nombre)] || porNombre[normTxt((p.marca || "") + " " + p.nombre)]; como = "nombre"; }
+        let puntaje = 1;
+        if (!x) {
+          const a = palabras(p.nombre), a2 = palabras((p.marca || "") + " " + p.nombre);
+          let mejor = null, m = 0, seg = 0;
+          for (const t of conDesc) { const b = palabras(t.nombre), b2 = palabras(t.marca + " " + t.nombre); const v = Math.max(parecido(a, b), parecido(a2, b2), parecido(a2, b)); if (v > m) { seg = m; m = v; mejor = t; } else if (v > seg) seg = v; }
+          if (mejor && m >= 0.6 && m - seg >= 0.1) { x = mejor; como = "parecido"; puntaje = m; }
+        }
+        if (x) res.push({ p, tn: x, como, ok: (como !== "parecido" || puntaje >= 0.8) && (reemplazar || !p.descripcion), tiene: !!p.descripcion });
+      }
+      setInfo({ enArchivo: conDesc.length, sinPar: productos.length - res.length });
+      setFilas(res);
+    } catch (e) { setError(e.message || "No se pudo leer el archivo"); }
+  };
+  const guardar = async () => {
+    const items = filas.filter(f => f.ok).map(f => ({ producto_id: f.p.id, descripcion: f.tn.desc }));
+    if (!items.length) return;
+    setGuardando(true);
+    try { const r = await API.post("/tienda/productos/descripciones", { items, reemplazar }); avisar(true, "✓ Se guardaron " + r.data.guardadas + " descripciones"); onListo(); }
+    catch (e) { setError(e.response?.data?.error || "No se pudieron guardar"); }
+    setGuardando(false);
+  };
+  const marcadas = filas ? filas.filter(f => f.ok).length : 0;
+  return (
+    <Ventana>
+      <div className="pos-overlay" onClick={() => !guardando && onCerrar()} style={{ zIndex: 1100 }}>
+        <div className="card pop-in" role="dialog" aria-modal="true" aria-label="Traer descripciones" style={{ width: 820, maxWidth: "96vw", maxHeight: "92vh", overflowY: "auto", background: tp.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+            <div className="ct">📥 Traer las descripciones de tu tienda anterior</div>
+            <button className="btn btn-g btn-sm" onClick={onCerrar} disabled={guardando} aria-label="Cerrar">✕</button>
+          </div>
+          {!filas && (
+            <div style={{ fontSize: 13.5, lineHeight: 1.6 }}>
+              <b>1. Descargá tus productos de Tiendanube</b>
+              <ol style={{ paddingLeft: 20, margin: "4px 0 10px" }}>
+                <li>Entrá al administrador de Tiendanube → <b>Productos</b>.</li>
+                <li>Arriba a la derecha tocá <b>Exportar e importar</b> (o los tres puntitos ⋯ → Exportar).</li>
+                <li>Elegí <b>Exportar</b> y descargá el archivo (.csv).</li>
+              </ol>
+              <b>2. Subilo acá</b>
+              <div style={{ marginTop: 6 }}>
+                <label className="btn btn-p" style={{ cursor: "pointer", display: "inline-flex" }}>📄 Elegir el archivo
+                  <input type="file" accept=".csv,text/csv,text/plain" style={{ display: "none" }} onChange={e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) leer(f); }} />
+                </label>
+              </div>
+              <div style={{ fontSize: 11.5, color: tp.textMuted, marginTop: 6 }}>También sirve un archivo de otra tienda o una planilla tuya, si tiene una columna "Nombre" y otra "Descripción" (y si querés, "Código de barras").</div>
+            </div>
+          )}
+          {filas && (
+            <>
+              <div style={{ fontSize: 13, margin: "6px 0 10px" }}>
+                Encontramos <b>{filas.length}</b> de tus productos en el archivo ({info.enArchivo} productos con descripción en el archivo).{info.sinPar > 0 && <> <b>{info.sinPar}</b> productos de Lumiere no aparecen en el archivo y quedan como están.</>}
+                <div style={{ color: tp.textMuted, fontSize: 12 }}>Revisá y destildá los que no correspondan. Los marcados <b>"parecido"</b> se encontraron por un nombre similar: miralos bien.</div>
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 8 }}>
+                <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12.5 }}><input type="checkbox" checked={reemplazar} onChange={e => { const v = e.target.checked; setReemplazar(v); setFilas(fs => fs.map(f => f.tiene ? { ...f, ok: v && f.como !== "parecido" } : f)); }} /> Reemplazar también las descripciones que ya cargué en Lumiere</label>
+                <button className="chip-btn" onClick={() => setFilas(fs => fs.map(f => ({ ...f, ok: reemplazar || !f.tiene })))}>Marcar todos</button>
+                <button className="chip-btn" onClick={() => setFilas(fs => fs.map(f => ({ ...f, ok: false })))}>Desmarcar todos</button>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {filas.map((f, i) => (
+                  <label key={f.p.id} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: 8, border: "1px solid " + tp.border, borderRadius: 8, cursor: "pointer", opacity: f.ok ? 1 : 0.6, background: f.como === "parecido" ? tp.warnDim || "transparent" : "transparent" }}>
+                    <input type="checkbox" checked={f.ok} disabled={f.tiene && !reemplazar} onChange={e => { const v = e.target.checked; setFilas(fs => fs.map((x, j) => j === i ? { ...x, ok: v } : x)); }} style={{ marginTop: 3, width: 18, height: 18 }} />
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: 13 }}><b>{f.p.nombre}</b> <span style={{ color: tp.textMuted, fontSize: 11.5 }}>← {f.tn.nombre} · por {f.como}{f.tiene ? " · ya tiene descripción" : ""}</span></div>
+                      <div style={{ fontSize: 12, color: tp.textMuted, whiteSpace: "pre-wrap", maxHeight: 54, overflow: "hidden" }}>{f.tn.desc}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12, position: "sticky", bottom: 0, background: tp.card, paddingTop: 8 }}>
+                <button className="btn btn-g" onClick={() => setFilas(null)} disabled={guardando}>Elegir otro archivo</button>
+                <button className="btn btn-p" onClick={guardar} disabled={!marcadas || guardando}>{guardando ? "Guardando…" : "Guardar " + marcadas + " descripciones"}</button>
+              </div>
+            </>
+          )}
+          {error && <div role="alert" style={{ marginTop: 10, background: tp.redDim, border: "1px solid " + tp.red, borderRadius: 8, padding: "8px 12px", fontSize: 12.5, fontWeight: 600 }}>{error}</div>}
+        </div>
+      </div>
+    </Ventana>
+  );
+}
+
 // ===================== TIENDA WEB (en Lumiere) =====================
 // Pedidos de la tienda web, productos publicados y configuracion. Ver routes/tienda.js.
 const ESTADOS_TIENDA = {
@@ -23516,6 +23717,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const [video, setVideo] = useState(null); // { id, nombre, link, subido, subiendo }
   const [buscaFoto, setBuscaFoto] = useState(null); // { cola: [productos], i }
   const [galeria, setGaleria] = useState(null); // producto con la ventana de fotos abierta
+  const [importando, setImportando] = useState(false);
   const [qr, setQr] = useState(null);
   const [aviso, setAviso] = useState(null);
   const avisar = (ok, texto) => { setAviso({ ok, texto }); setTimeout(() => setAviso(null), 4500); };
@@ -23670,6 +23872,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
               <button className="btn btn-p btn-sm" disabled={prodFiltro.every(p => p.publicado)} onClick={() => publicarVarios(prodFiltro.filter(p => !p.publicado), true)}>☑ Publicar {q ? "todos los de la búsqueda" : "todos"} ({prodFiltro.filter(p => !p.publicado).length})</button>
               <button className="btn btn-g btn-sm" disabled={!prodFiltro.some(p => p.publicado)} onClick={() => publicarVarios(prodFiltro.filter(p => p.publicado), false)}>☐ Sacar {q ? "los de la búsqueda" : "todos"} ({prodFiltro.filter(p => p.publicado).length})</button>
+              <button className="btn btn-g btn-sm" onClick={() => setImportando(true)} title="Desde el archivo de productos de Tiendanube u otra tienda">📥 Traer descripciones de mi tienda anterior</button>
               {prodFiltro.some(p => !p.foto) && <button className="btn btn-g btn-sm" onClick={() => setBuscaFoto({ cola: prodFiltro.filter(p => !p.foto), i: 0 })}>🔍 Buscar fotos para los que no tienen ({prodFiltro.filter(p => !p.foto).length})</button>}
               {prodFiltro.length > prodVis.length && <span style={{ fontSize: 11.5, color: temaPal.textMuted }}>Se muestran {prodVis.length} de {prodFiltro.length}; los botones toman todos.</span>}
             </div>
@@ -23690,6 +23893,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               {esJefeT && <button className="btn btn-g btn-sm" onClick={() => setGaleria(p)} title="Portada y más fotos">🖼 Fotos ({(p.foto ? 1 : 0) + (p.fotos_extra || 0)})</button>}
             </div>
           ))}
+          {importando && <ImportarDescripciones productos={productos} temaPal={temaPal} avisar={avisar} onCerrar={() => setImportando(false)} onListo={() => { setImportando(false); cargarProductos(); }} />}
           {galeria && <GaleriaFotos producto={galeria} temaPal={temaPal} avisar={avisar} onCerrar={() => { setGaleria(null); cargarProductos(); }} />}
           {buscaFoto && (() => { const p = buscaFoto.cola[buscaFoto.i]; const varios = buscaFoto.cola.length > 1; return (
             <BuscadorFotos temaPal={temaPal} consulta={[p.marca, p.nombre].filter(Boolean).join(" ")}
@@ -23790,13 +23994,15 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                   <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
                     <input className="inp" style={{ flex: 2 }} placeholder="Zona (ej: Centro)" value={z.nombre} onChange={e => set("envio_zonas", cfg.envio_zonas.map((x, j) => j === i ? { ...x, nombre: e.target.value } : x))} />
                     <input className="inp" style={{ flex: 1 }} type="number" min="0" placeholder="Costo" value={z.costo} onChange={e => set("envio_zonas", cfg.envio_zonas.map((x, j) => j === i ? { ...x, costo: e.target.value } : x))} />
+                    {!UN_SOLO_LOCAL && <select className="sel" style={{ flex: 1.3 }} aria-label="Ciudad de la zona" value={z.local || cfg.envio_local || 1} onChange={e => set("envio_zonas", cfg.envio_zonas.map((x, j) => j === i ? { ...x, local: parseInt(e.target.value) } : x))}>{[1, 2].map(l => <option key={l} value={l}>{nombreLocal(l)}</option>)}</select>}
                     <button className="btn btn-g btn-sm" aria-label="Quitar zona" onClick={() => set("envio_zonas", cfg.envio_zonas.filter((_, j) => j !== i))}>✕</button>
                   </div>
                 ))}
-                <button className="btn btn-g btn-sm" onClick={() => set("envio_zonas", [...(cfg.envio_zonas || []), { nombre: "", costo: "" }])}>+ Zona</button>
+                <button className="btn btn-g btn-sm" onClick={() => set("envio_zonas", [...(cfg.envio_zonas || []), { nombre: "", costo: "", local: (cfg.envio_zonas || []).slice(-1)[0]?.local || 1 }])}>+ Zona</button>
+                {!UN_SOLO_LOCAL && <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>Cada zona sale del local de su ciudad, con el stock de ese local. El cliente elige su ciudad al entrar a la tienda y solo ve sus zonas.</div>}
                 <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
                   <div style={{ flex: 1 }}><div className="fl">Envío gratis desde (opcional)</div><input className="inp" type="number" min="0" value={cfg.envio_gratis_desde || ""} onChange={e => set("envio_gratis_desde", e.target.value)} /></div>
-                  {!UN_SOLO_LOCAL && <div style={{ flex: 1 }}><div className="fl">Sale del local</div><select className="sel" value={cfg.envio_local || 1} onChange={e => set("envio_local", parseInt(e.target.value))}>{[1, 2].map(l => <option key={l} value={l}>{nombreLocal(l)}</option>)}</select></div>}
+
                 </div>
               </div>
             )}

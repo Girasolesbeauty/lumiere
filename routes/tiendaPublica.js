@@ -47,12 +47,17 @@ router.get('/:slug', async (req, res) => {
   try {
     const c = req.tienda;
     const neg = (await pool.query('SELECT nombre_negocio, logo_url FROM configuracion_negocio LIMIT 1').catch(() => ({ rows: [] }))).rows[0] || {};
-    const locales = (await pool.query('SELECT id, nombre, direccion FROM locales WHERE COALESCE(activo, TRUE) ORDER BY id').catch(() => ({ rows: [] }))).rows
-      .filter(l => !c.retiro_locales || !c.retiro_locales.length || c.retiro_locales.includes(l.id));
+    const todos = (await pool.query('SELECT id, nombre, direccion FROM locales WHERE COALESCE(activo, TRUE) ORDER BY id').catch(() => ({ rows: [] }))).rows;
+    const locales = todos.filter(l => !c.retiro_locales || !c.retiro_locales.length || c.retiro_locales.includes(l.id));
+    // Ciudades donde se puede comprar: con retiro o con zonas de envio. El cliente elige la suya
+    // y compra solo con el stock de ese local.
+    const zonas = c.envio_activo ? c.envio_zonas : [];
+    const ciudades = todos.filter(l => (c.retiro_activo && locales.some(x => x.id === l.id)) || zonas.some(z => z.local === l.id))
+      .map(l => ({ id: l.id, nombre: l.nombre, direccion: l.direccion, retiro: !!c.retiro_activo && locales.some(x => x.id === l.id), envio: zonas.some(z => z.local === l.id) }));
     const mp = c.pago_mp && await mpDisponible();
     res.json({
       titulo: c.titulo || neg.nombre_negocio || 'Tienda', mensaje: c.mensaje || '', logo: c.logo || neg.logo_url || null, color: c.color || '#c9a84c', whatsapp: c.whatsapp || null,
-      retiro: c.retiro_activo ? locales : [],
+      retiro: c.retiro_activo ? locales : [], ciudades,
       envio: c.envio_activo ? { zonas: c.envio_zonas, gratis_desde: c.envio_gratis_desde } : null,
       pagos: { mp, transferencia: !!c.pago_transferencia, retiro: !!c.pago_retiro }, horas_reserva: c.horas_reserva,
       anuncios: String(c.anuncios || '').split('\n').filter(Boolean),
@@ -176,11 +181,12 @@ router.post('/:slug/pedidos', async (req, res) => {
     if (c.retiro_locales && c.retiro_locales.length && !c.retiro_locales.includes(localId)) return res.status(400).json({ error: 'Elegí dónde retirar' });
   } else {
     if (!c.envio_activo) return res.status(400).json({ error: 'El envío no está disponible' });
-    const z = (c.envio_zonas || []).find(x => x.nombre === b.zona);
-    if (!z) return res.status(400).json({ error: 'Elegí la zona de envío' });
+    const ciudad = Number(b.local_id) || null;
+    const z = (c.envio_zonas || []).find(x => x.nombre === b.zona && (!ciudad || x.local === ciudad));
+    if (!z) return res.status(400).json({ error: 'Elegí la zona de envío de tu ciudad' });
     direccion = String(b.direccion || '').trim().slice(0, 300);
     if (direccion.length < 5) return res.status(400).json({ error: 'Escribí la dirección de entrega' });
-    localId = Number(c.envio_local) === 2 ? 2 : 1; zona = z.nombre; costoEnvio = Math.max(0, num(z.costo));
+    localId = z.local; zona = z.nombre; costoEnvio = Math.max(0, num(z.costo));
   }
   const pago = ['mp', 'transferencia', 'retiro'].includes(b.pago) ? b.pago : null;
   if (!pago || (pago === 'mp' && !(c.pago_mp && await mpDisponible())) || (pago === 'transferencia' && !c.pago_transferencia) || (pago === 'retiro' && !c.pago_retiro)) return res.status(400).json({ error: 'Elegí cómo vas a pagar' });
