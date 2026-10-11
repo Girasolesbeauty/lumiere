@@ -127,6 +127,20 @@ router.delete('/productos/:id/video', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'No se pudo sacar el video' }); }
 });
 
+// Publicar o sacar varios de una vez (los que se ven en la lista, o todos)
+router.post('/productos/masivo', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    const b = req.body || {};
+    const publicado = !!b.publicado;
+    const ids = Array.isArray(b.ids) ? b.ids.map(x => parseInt(x)).filter(x => x > 0).slice(0, 20000) : null;
+    const r = await pool.query(`INSERT INTO tienda_productos (producto_id, publicado)
+      SELECT p.id, $1 FROM productos p WHERE p.activo = TRUE AND ($2::int[] IS NULL OR p.id = ANY($2))
+      ON CONFLICT (producto_id) DO UPDATE SET publicado = $1 RETURNING producto_id`, [publicado, ids]);
+    res.json({ ok: true, cambiados: r.rows.length });
+  } catch (e) { res.status(500).json({ error: 'No se pudo' }); }
+});
+
 // Publicar de una vez los que tienen foto, precio y stock
 router.post('/productos/publicar-con-foto', async (req, res) => {
   try {

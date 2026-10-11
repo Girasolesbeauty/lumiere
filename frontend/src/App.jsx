@@ -23370,6 +23370,12 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const guardarDesc = async () => {
     try { await API.put("/tienda/productos/" + desc.id, { descripcion: desc.texto }); setDesc(null); cargarProductos(); } catch (e) { avisar(false, "No se pudo guardar"); }
   };
+  const publicarVarios = async (lista, publicado) => {
+    if (!lista.length) return;
+    if (!confirm((publicado ? "¿Publicar " : "¿Sacar de la tienda ") + (lista.length === 1 ? "1 producto" : lista.length + " productos") + "?")) return;
+    try { const r = await API.post("/tienda/productos/masivo", { ids: lista.map(p => p.id), publicado }); avisar(true, "✓ " + r.data.cambiados + (publicado ? " productos publicados" : " productos sacados de la tienda")); cargarProductos(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); }
+  };
   const publicarConFoto = async () => {
     try { const r = await API.post("/tienda/productos/publicar-con-foto"); avisar(true, "✓ Se publicaron " + r.data.publicados + " productos con foto y stock"); cargarProductos(); }
     catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); }
@@ -23384,7 +23390,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const visibles = pedidos.filter(p => filtro === "todos" || (filtro === "activos" ? abiertos.includes(p) : p.estado === filtro));
   const nPub = productos.filter(p => p.publicado).length;
   const q = busca.trim().toLowerCase();
-  const prodVis = productos.filter(p => (!soloPub || p.publicado) && (!q || [p.nombre, p.marca, p.categoria].some(v => (v || "").toLowerCase().includes(q)))).slice(0, 150);
+  const prodFiltro = productos.filter(p => (!soloPub || p.publicado) && (!q || [p.nombre, p.marca, p.categoria].some(v => (v || "").toLowerCase().includes(q))));
+  const prodVis = prodFiltro.slice(0, 150);
   const set = (k, v) => setCfg(c => ({ ...c, [k]: v }));
 
   return (
@@ -23454,6 +23461,13 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             <button className={"chip-btn" + (soloPub ? " on" : "")} onClick={() => setSoloPub(v => !v)}>Solo publicados</button>
             {esJefeT && <button className="btn btn-g btn-sm" onClick={publicarConFoto} title="Publica de una vez los que tienen foto, precio y stock">📸 Publicar los que tienen foto</button>}
           </div>
+          {esJefeT && prodFiltro.length > 0 && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
+              <button className="btn btn-p btn-sm" disabled={prodFiltro.every(p => p.publicado)} onClick={() => publicarVarios(prodFiltro.filter(p => !p.publicado), true)}>☑ Publicar {q ? "todos los de la búsqueda" : "todos"} ({prodFiltro.filter(p => !p.publicado).length})</button>
+              <button className="btn btn-g btn-sm" disabled={!prodFiltro.some(p => p.publicado)} onClick={() => publicarVarios(prodFiltro.filter(p => p.publicado), false)}>☐ Sacar {q ? "los de la búsqueda" : "todos"} ({prodFiltro.filter(p => p.publicado).length})</button>
+              {prodFiltro.length > prodVis.length && <span style={{ fontSize: 11.5, color: temaPal.textMuted }}>Se muestran {prodVis.length} de {prodFiltro.length}; los botones toman todos.</span>}
+            </div>
+          )}
           <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 8 }}>Tocá el interruptor para publicar o sacar un producto. El precio y el stock son los de Lumiere. La foto es la del producto (se carga en Productos → editar). Marcá ⭐ los que quieras en el banner grande y sumá 🎬 videos para que se luzcan.</div>
           {prodVis.map(p => (
             <div key={p.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 0", borderTop: "1px solid " + temaPal.border, flexWrap: "wrap" }}>
