@@ -22743,22 +22743,53 @@ const CSS_TIENDA = `
 @keyframes twPetaloAbre{to{transform:scale(1)}}
 @keyframes twFlorGira{from{transform:rotate(-4deg)}to{transform:rotate(4deg)}}
 .tw-sonido{font-size:15px !important}
-.tw-ruleta-caja{margin:4px 0 18px;padding:18px 14px 16px;border-radius:14px;background:radial-gradient(circle at 50% 0%,#fff7dc,#fff 70%);border:1px solid #f1dc9a;text-align:center;display:flex;flex-direction:column;align-items:center}
-.tw-ruleta-tit{font-size:21px;font-weight:900;letter-spacing:-.01em}
-.tw-ruleta-sub{font-size:13.5px;color:#6b5a2e;margin:4px 0 12px}
-.tw-ruleta{position:relative;margin:14px auto 12px;filter:drop-shadow(0 10px 22px rgba(120,90,10,.25))}
-.tw-ruleta svg{display:block;will-change:transform}
-.tw-ruleta-flecha{position:absolute;left:50%;top:-8px;width:0;height:0;margin-left:-13px;border-left:13px solid transparent;border-right:13px solid transparent;border-top:26px solid #c0392b;z-index:2;transform-origin:50% 0;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))}
-.tw-ruleta-flecha.flick{animation:twFlick .14s ease-out}
-@keyframes twFlick{0%{transform:rotate(0)}40%{transform:rotate(-16deg)}100%{transform:rotate(0)}}
-.tw-girar{animation:twLatido 1.6s ease-in-out infinite}
-.tw-girar:disabled{animation:none;opacity:.6}
-@keyframes twLatido{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
-.tw-ruleta-premio{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:4px;padding:12px 16px;border-radius:12px;animation:twPop .55s cubic-bezier(.3,1.6,.5,1);font-size:14px;color:#444;max-width:360px}
-.tw-ruleta-premio b{font-size:18px;color:#111}
-.tw-ruleta-premio.regalo,.tw-ruleta-premio.cupon{background:#fff3c4}
-.tw-cupon-cod{font-family:ui-monospace,monospace;font-size:20px;font-weight:800;letter-spacing:.08em;border:2px dashed #c99a2e;background:#fff;border-radius:10px;padding:8px 16px;cursor:pointer;color:#111}
-.tw-cupon-cod small{font-family:inherit;font-size:11px;letter-spacing:0;color:#8a6d1f;margin-left:6px;font-weight:600}
+.tw-ruleta-caja{margin:4px 0 18px;padding:18px 14px 16px;border-radius:16px;background:linear-gradient(135deg,#fff0f6,#fff8e1 50%,#e7f8ff);border:1px solid #f5d0e4;text-align:center;display:flex;flex-direction:column;align-items:center}
+.tw-ruleta-tit{font-size:21px;font-weight:900;letter-spacing:-.01em;margin-bottom:10px}
+.tw-ruleta-sub{font-size:13.5px;color:#6b5a2e}
+.tw.tw-ruleta-modal{min-height:0;text-align:center;color:#fff}
+.tw-ruleta-modal{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:16px;background:radial-gradient(circle at 50% 40%,#5b1a8c 0%,#2b0a3d 55%,#12021c 100%);animation:twAparece .35s ease both;overflow-y:auto}
+.tw-ruleta-chispas{position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(circle,#fff 1px,transparent 1.6px),radial-gradient(circle,#ffd23f 1.2px,transparent 1.8px),radial-gradient(circle,#ff7ab6 1px,transparent 1.6px);background-size:90px 90px,140px 140px,110px 110px;background-position:0 0,40px 60px,70px 20px;animation:twChispas 9s linear infinite;opacity:.55}
+@keyframes twChispas{from{background-position:0 0,40px 60px,70px 20px}to{background-position:0 -900px,40px -1340px,70px -1080px}}
+.tw-ruleta-x{position:absolute;top:14px;right:14px;z-index:2;width:42px;height:42px;border-radius:50%;border:none;background:rgba(255,255,255,.15);color:#fff !important;font-size:18px;cursor:pointer}
+.tw-ruleta-ventana{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;color:#fff;max-width:520px;width:100%;animation:twVentanaRuleta .7s cubic-bezier(.3,1.5,.5,1) both}
+@keyframes twVentanaRuleta{from{opacity:0;transform:scale(.4) rotate(-25deg)}to{opacity:1;transform:none}}
+.tw-ruleta-titulo{font-size:clamp(30px,8vw,44px);font-weight:900;line-height:1.25;padding:0 6px 6px;letter-spacing:-.01em;background:linear-gradient(90deg,#ffd23f,#ff7ab6,#7ee8fa,#ffd23f);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:twArcoiris 3s linear infinite;filter:drop-shadow(0 3px 0 rgba(0,0,0,.25))}
+@keyframes twArcoiris{to{background-position:300% 0}}
+.tw-ruleta-bajada{font-size:15px;opacity:.9;margin-top:2px}
+.tw-ruleta-marco{margin:14px 0 6px;border-radius:50%;box-shadow:0 0 0 6px rgba(255,255,255,.08),0 0 60px rgba(255,210,63,.45),0 20px 60px rgba(0,0,0,.5)}
+.tw-ruleta-marco.gano{animation:twGano 1s ease-in-out 2}
+@keyframes twGano{0%,100%{box-shadow:0 0 0 6px rgba(255,255,255,.08),0 0 60px rgba(255,210,63,.45),0 20px 60px rgba(0,0,0,.5)}50%{box-shadow:0 0 0 10px rgba(255,255,255,.2),0 0 120px rgba(255,210,63,.95),0 20px 60px rgba(0,0,0,.5)}}
+.tw-ruleta-marco.tiembla{animation:twTiembla .5s ease-in-out}
+@keyframes twTiembla{0%,100%{transform:none}20%{transform:rotate(-3deg)}40%{transform:rotate(3deg)}60%{transform:rotate(-2deg)}80%{transform:rotate(1deg)}}
+.tw-ruleta{position:relative;margin:0 auto}
+.tw-ruleta svg{display:block}
+.tw-ruleta svg g{will-change:transform}
+.tw-ruleta-flecha{position:absolute;left:50%;top:-14px;width:34px;height:46px;margin-left:-17px;z-index:3;transform-origin:50% 22%;filter:drop-shadow(0 3px 3px rgba(0,0,0,.4))}
+.tw-ruleta-flecha span{position:absolute;inset:0;background:linear-gradient(180deg,#ff4d6d,#c9184a);clip-path:polygon(50% 100%,0 18%,10% 0,90% 0,100% 18%)}
+.tw-ruleta-flecha span::after{content:"";position:absolute;left:50%;top:9px;width:9px;height:9px;margin-left:-4.5px;border-radius:50%;background:#fff}
+.tw-ruleta-flecha.flick{animation:twFlick .16s ease-out}
+@keyframes twFlick{0%{transform:rotate(0)}40%{transform:rotate(-22deg)}100%{transform:rotate(0)}}
+.tw-luz{fill:#fff6c2;animation:twLuz 1.1s steps(1) infinite}
+.tw-luz.b{animation-delay:.55s}
+.tw-ruleta.girando .tw-luz{animation-duration:.24s}
+.tw-ruleta.girando .tw-luz.b{animation-delay:.12s}
+@keyframes twLuz{0%{fill:#fff6c2;filter:drop-shadow(0 0 3px #fff)}50%{fill:#ff9f1c;filter:none}}
+.tw-ruleta-centro.activo{cursor:pointer}
+.tw-ruleta-centro.activo circle:first-child{animation:twLatidoC 1.2s ease-in-out infinite;transform-origin:center;transform-box:fill-box}
+@keyframes twLatidoC{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+.tw-girar{animation:twLatido 1.4s ease-in-out infinite}
+.tw-girar.grande{margin-top:10px;font-size:20px;padding:16px 46px;background:linear-gradient(90deg,#ff4d8d,#ffb703,#06c39a,#3a86ff,#ff4d8d);background-size:300% 100%;box-shadow:0 8px 0 rgba(0,0,0,.25),0 0 30px rgba(255,183,3,.5);animation:twLatido 1.4s ease-in-out infinite,twArcoiris 4s linear infinite}
+.tw-girar:disabled{animation:none;opacity:.7}
+@keyframes twLatido{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+.tw-ruleta-premio{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:6px;padding:14px 18px;border-radius:16px;animation:twPremio .65s cubic-bezier(.3,1.7,.5,1) both;font-size:14.5px;color:#444;max-width:400px;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+@keyframes twPremio{from{opacity:0;transform:scale(.3) translateY(30px)}to{opacity:1;transform:none}}
+.tw-ruleta-premio b{font-size:19px;color:#111}
+.tw-ruleta-premio.mega{background:linear-gradient(135deg,#fff7cc,#f3e1ff);border:2px solid #c77dff}
+.tw-ruleta-caja .tw-ruleta-premio{box-shadow:none;background:transparent;padding:0}
+.tw-cupon-cod{font-family:ui-monospace,monospace;font-size:21px;font-weight:800;letter-spacing:.08em;border:2px dashed #ff4d8d;background:#fff0f6;border-radius:12px;padding:8px 16px;cursor:pointer;color:#111}
+.tw-cupon-cod small{font-family:inherit;font-size:11px;letter-spacing:0;color:#c9184a;margin-left:6px;font-weight:700}
+.tw-ruleta-listo{margin-top:12px;background:#fff !important;color:#2b0a3d !important;border-color:#fff !important}
+.tw-confeti{position:fixed;z-index:90;pointer-events:none;will-change:transform}
 .tw-ruleta-aviso{background:#141414;color:#fff;border-radius:10px;padding:10px 14px;font-size:13.5px;margin:10px 0}
 .tw-ruleta-aviso b{color:#ffd54a}
 .tw-ruleta-aviso.llega{background:linear-gradient(135deg,#141414,#3a2c08);animation:twPop .55s cubic-bezier(.3,1.6,.5,1)}
@@ -23261,41 +23292,83 @@ function TwGirasol() {
 }
 
 // ---- Ruleta de premios (compras grandes) ----
-// Dibujo de la ruleta: porciones iguales; REGALO dorado, descuentos en negro, "seguí participando" claro.
-function twColorPorcion(x, i) { if (x.tipo === "regalo" && /mega/i.test(x.texto || "")) return ["#6a1b9a", "#ffe082"]; return x.tipo === "regalo" ? ["#f4b400", "#3d2c05"] : x.tipo === "cupon" ? ["#141414", "#ffffff"] : i % 2 ? ["#fff8e6", "#7a6330"] : ["#ffffff", "#7a6330"]; }
-function TwRuletaDibujo({ premios, giro = 0, tamano = 280, flick }) {
+// Dibujo de la ruleta: porciones iguales con colores alegres. MEGA REGALO en violeta y dorado.
+const TW_COLORES_RULETA = ["#ff4d8d", "#ffb703", "#06c39a", "#3a86ff", "#ff7b00", "#9b5de5", "#00bbf9", "#f15bb5", "#8ac926", "#ef476f", "#fb8500", "#4361ee"];
+function twColorPorcion(x, i) {
+  if (x.tipo === "regalo" && /mega/i.test(x.texto || "")) return ["url(#twMega)", "#fff7cc"];
+  return [TW_COLORES_RULETA[i % TW_COLORES_RULETA.length], "#ffffff"];
+}
+function TwRuletaDibujo({ premios, giro = 0, tamano = 280, flick, girando, onCentro }) {
   const n = premios.length, seg = 360 / n, R = 100;
   const punto = (ang, r) => [Math.sin(ang * Math.PI / 180) * r, -Math.cos(ang * Math.PI / 180) * r];
+  const tam = typeof tamano === "number" ? tamano + "px" : tamano;
   return (
-    <div className="tw-ruleta" style={{ width: tamano, height: tamano }}>
-      <div className={"tw-ruleta-flecha" + (flick ? " flick" : "")} key={flick} aria-hidden="true" />
-      <svg viewBox="-112 -112 224 224" width={tamano} height={tamano} style={{ transform: "rotate(" + giro + "deg)" }}>
-        <circle r="110" fill="#e9d7a6" />
-        {premios.map((x, i) => {
-          const [a1, a2] = [i * seg, (i + 1) * seg];
-          const [x1, y1] = punto(a1, R), [x2, y2] = punto(a2, R);
-          const [fondo, letra] = twColorPorcion(x, i);
-          const largo = x.texto.length > (n >= 7 ? 7 : 12);
-          return (
-            <g key={x.id}>
-              <path d={`M0 0 L${x1} ${y1} A${R} ${R} 0 ${seg > 180 ? 1 : 0} 1 ${x2} ${y2} Z`} fill={fondo} stroke="#e2c675" strokeWidth="1.2" />
-              <g transform={`rotate(${a1 + seg / 2})`}>
-                {x.tipo === "regalo" && <text y="-74" textAnchor="middle" fontSize="16">{/mega/i.test(x.texto || "") ? "💎" : "🎁"}</text>}
-                <text y={x.tipo === "regalo" ? -52 : -62} textAnchor="middle" fill={letra} fontSize={largo ? (x.tipo === "nada" ? 7.6 : 9) : 11} fontWeight="800" style={{ letterSpacing: largo ? 0 : ".04em" }}>
-                  {largo ? x.texto.split(" ").reduce((ls, w) => { const l = ls[ls.length - 1]; if (l && (l + " " + w).length <= (n >= 7 ? 7 : 11)) ls[ls.length - 1] = l + " " + w; else ls.push(w); return ls; }, []).slice(0, 3).map((l, k) => <tspan key={k} x="0" dy={k ? 9 : 0}>{l}</tspan>) : x.texto}
-                </text>
+    <div className={"tw-ruleta" + (girando ? " girando" : "")} style={{ width: tam, height: tam }}>
+      <div className={"tw-ruleta-flecha" + (flick ? " flick" : "")} key={flick} aria-hidden="true"><span /></div>
+      <svg viewBox="-118 -118 236 236" width="100%" height="100%" aria-hidden="true">
+        <defs>
+          <linearGradient id="twMega" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#7b2ff7" /><stop offset=".55" stopColor="#5a189a" /><stop offset="1" stopColor="#c77dff" /></linearGradient>
+          <linearGradient id="twAro" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ffe066" /><stop offset=".5" stopColor="#f4a300" /><stop offset="1" stopColor="#ffd23f" /></linearGradient>
+          <radialGradient id="twBrilloR"><stop offset=".55" stopColor="#fff" stopOpacity="0" /><stop offset="1" stopColor="#fff" stopOpacity=".22" /></radialGradient>
+        </defs>
+        <circle r="116" fill="url(#twAro)" />
+        <circle r="104" fill="#2b0a3d" />
+        <g style={{ transform: "rotate(" + giro + "deg)" }}>
+          {premios.map((x, i) => {
+            const [a1, a2] = [i * seg, (i + 1) * seg];
+            const [x1, y1] = punto(a1, R), [x2, y2] = punto(a2, R);
+            const [fondo, letra] = twColorPorcion(x, i);
+            const mega = x.tipo === "regalo" && /mega/i.test(x.texto || "");
+            const largo = x.texto.length > (n >= 7 ? 7 : 12);
+            const lineas = largo ? x.texto.split(" ").reduce((ls, w) => { const l = ls[ls.length - 1]; if (l && (l + " " + w).length <= (n >= 7 ? 7 : 11)) ls[ls.length - 1] = l + " " + w; else ls.push(w); return ls; }, []).slice(0, 3) : [x.texto];
+            return (
+              <g key={x.id}>
+                <path d={`M0 0 L${x1} ${y1} A${R} ${R} 0 ${seg > 180 ? 1 : 0} 1 ${x2} ${y2} Z`} fill={fondo} stroke="#fff" strokeWidth="1.6" />
+                <g transform={`rotate(${a1 + seg / 2})`}>
+                  {x.tipo !== "nada" && <text y="-76" textAnchor="middle" fontSize="15">{mega ? "💎" : x.tipo === "regalo" ? "🎁" : "🏷️"}</text>}
+                  <text y={x.tipo === "nada" ? -66 : -54} textAnchor="middle" fill={letra} fontSize={largo ? (x.tipo === "nada" ? 7.8 : 9.5) : 12} fontWeight="900"
+                    stroke="rgba(0,0,0,.28)" strokeWidth=".7" paintOrder="stroke" style={{ letterSpacing: largo ? 0 : ".03em" }}>
+                    {lineas.map((l, k) => <tspan key={k} x="0" dy={k ? 9.5 : 0}>{l}</tspan>)}
+                  </text>
+                </g>
               </g>
-            </g>
-          );
-        })}
-        {Array.from({ length: n * 2 }).map((_, i) => { const [cx, cy] = punto(i * seg / 2, 105); return <circle key={i} cx={cx} cy={cy} r="2.4" fill={i % 2 ? "#fff6d8" : "#c99a2e"} />; })}
-        <circle r="17" fill="#141414" stroke="#e2c675" strokeWidth="3" />
-        <text y="4.5" textAnchor="middle" fontSize="13">🌻</text>
+            );
+          })}
+          <circle r="100" fill="url(#twBrilloR)" />
+        </g>
+        {Array.from({ length: 24 }).map((_, i) => { const [cx, cy] = punto(i * 15, 110); return <circle key={i} className={"tw-luz " + (i % 2 ? "b" : "a")} cx={cx} cy={cy} r="3.6" />; })}
+        <g className={onCentro ? "tw-ruleta-centro activo" : "tw-ruleta-centro"} onClick={onCentro} role={onCentro ? "button" : undefined}>
+          <circle r="24" fill="url(#twAro)" stroke="#fff" strokeWidth="3" />
+          <circle r="18" fill="#2b0a3d" />
+          <text y={onCentro ? 4 : 6} textAnchor="middle" fontSize={onCentro ? 10 : 16} fontWeight="900" fill="#ffe066">{onCentro ? "GIRÁ" : "🌻"}</text>
+        </g>
       </svg>
     </div>
   );
 }
-// En la pagina del pedido: girar una vez. El premio lo decide el servidor; aca solo se anima.
+// Confeti de colores desde arriba de la pantalla
+function twConfeti(cantidad = 90, mega) {
+  if (twMenosMovimiento() || !document.body.animate) return;
+  const colores = mega ? ["#ffd23f", "#c77dff", "#7b2ff7", "#fff1a8", "#ff4d8d"] : TW_COLORES_RULETA;
+  for (let i = 0; i < cantidad; i++) {
+    const c = document.createElement("span");
+    c.className = "tw-confeti";
+    const w = 6 + Math.random() * 7;
+    Object.assign(c.style, { left: Math.random() * 100 + "vw", top: "-20px", width: w + "px", height: w * (0.4 + Math.random() * 0.8) + "px", background: colores[i % colores.length], borderRadius: Math.random() < 0.3 ? "50%" : "2px" });
+    document.body.appendChild(c);
+    const dx = (Math.random() - 0.5) * 260, giro = (Math.random() - 0.5) * 1440;
+    c.animate([{ transform: "translate(0,0) rotate(0)", opacity: 1 }, { transform: `translate(${dx}px, ${window.innerHeight + 60}px) rotate(${giro}deg)`, opacity: 0.9 }],
+      { duration: 2200 + Math.random() * 2200, delay: Math.random() * 600, easing: "cubic-bezier(.25,.4,.45,1)" }).onfinish = () => c.remove();
+  }
+}
+// Sonidos propios de la ruleta
+const twSonarRuleta = {
+  apertura() { const c = twSonidoOn() && twCtx(); if (!c) return; [523, 659, 784, 1046].forEach((f, i) => twTono(c, { f1: f, dur: 0.28, vol: 0.09, tipo: "triangle", cuando: i * 0.09 })); twTono(c, { f1: 1568, dur: 0.7, vol: 0.05, cuando: 0.38 }); },
+  impulso() { const c = twSonidoOn() && twCtx(); if (!c) return; twTono(c, { f1: 180, f2: 900, dur: 0.45, vol: 0.07, tipo: "sawtooth" }); },
+  fanfarria(mega) { const c = twSonidoOn() && twCtx(); if (!c) return; const notas = mega ? [523, 659, 784, 1046, 784, 1046, 1318, 1568] : [523, 659, 784, 1046, 1318]; notas.forEach((f, i) => { twTono(c, { f1: f, dur: 0.32, vol: 0.1, tipo: "square", cuando: i * 0.11 }); twTono(c, { f1: f / 2, dur: 0.32, vol: 0.05, tipo: "triangle", cuando: i * 0.11 }); }); setTimeout(() => twSonar.campana(), notas.length * 110); },
+  casi() { const c = twSonidoOn() && twCtx(); if (!c) return; [[392, 370], [370, 349], [349, 311]].forEach(([a, b], i) => twTono(c, { f1: a, f2: b, dur: 0.36, vol: 0.08, tipo: "triangle", cuando: i * 0.32 })); },
+};
+// En la pagina del pedido: ventana grande con la ruleta. El premio lo decide el servidor; aca solo se anima.
 function TwRuleta({ ruleta, codigo, pedir }) {
   const premios = ruleta.premios || [];
   const n = premios.length || 1, seg = 360 / n;
@@ -23304,32 +23377,41 @@ function TwRuleta({ ruleta, codigo, pedir }) {
   const [giro, setGiro] = useState(ruleta.resultado ? anguloDe(ruleta.resultado.id) : 0);
   const [girando, setGirando] = useState(false);
   const [ver, setVer] = useState(!!ruleta.resultado);
+  const [abierta, setAbierta] = useState(false);
   const [flick, setFlick] = useState(0);
   const [error, setError] = useState("");
   const [copiado, setCopiado] = useState(false);
-  const ref = useRef(null);
+  const mega = resultado && resultado.tipo === "regalo" && /mega/i.test(resultado.texto || "");
+  // Se abre sola apenas termina la compra (si todavia no giro)
+  useEffect(() => {
+    if (ruleta.resultado || !ruleta.disponible) return;
+    const t = setTimeout(() => { setAbierta(true); twSonarRuleta.apertura(); }, 900);
+    return () => clearTimeout(t);
+  }, []);
+  useEffect(() => { if (!abierta) return; const o = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { document.body.style.overflow = o; }; }, [abierta]);
   const girar = async () => {
     if (girando || resultado) return;
-    setError(""); setGirando(true); twCtx();
+    setError(""); setGirando(true); twCtx(); twSonarRuleta.impulso(); twVibrar(15);
     let r;
     try { r = await pedir("/pedidos/" + codigo + "/ruleta", { method: "POST" }); }
     catch (e) { setError(e.message); setGirando(false); return; }
-    const final = 360 * 6 + anguloDe(r.id) + (Math.random() - 0.5) * seg * 0.6;
+    const final = 360 * 7 + anguloDe(r.id) + (Math.random() - 0.5) * seg * 0.6;
     const fin = () => { setGirando(false); setResultado(r); setTimeout(() => {
       setVer(true);
-      if (r.tipo === "nada") { twSonar.tic(false); twVibrar(20); }
-      else { twSonar.campana(); twPetalos(ref.current, 40); twVibrar([15, 50, 15, 50, 30]); }
-    }, 350); };
+      const esMega = r.tipo === "regalo" && /mega/i.test(r.texto || "");
+      if (r.tipo === "nada") { twSonarRuleta.casi(); twVibrar(30); }
+      else { twSonarRuleta.fanfarria(esMega); twConfeti(esMega ? 220 : 120, esMega); twVibrar(esMega ? [30, 60, 30, 60, 30, 60, 80] : [15, 50, 15, 50, 30]); }
+    }, 300); };
     if (twMenosMovimiento()) { setGiro(final); fin(); return; }
-    // primero se echa un poquito para atras (como tomando impulso) y despues gira y frena despacio
-    const D = 5600, atras = 260;
+    // toma impulso para atras, gira rapido y frena despacio
+    const D = 6200, atras = 320;
     let t0 = null, ultima = 0;
     const paso = (t) => {
       if (t0 === null) t0 = t;
       const ms = t - t0;
       let a;
-      if (ms < atras) a = -10 * Math.sin((ms / atras) * Math.PI / 2);
-      else { const k = Math.min(1, (ms - atras) / D); a = -10 + (final + 10) * (1 - Math.pow(1 - k, 4)); }
+      if (ms < atras) a = -14 * Math.sin((ms / atras) * Math.PI / 2);
+      else { const k = Math.min(1, (ms - atras) / D); a = -14 + (final + 14) * (1 - Math.pow(1 - k, 4)); }
       setGiro(a);
       const porcion = Math.floor(a / seg);
       if (porcion !== ultima) { ultima = porcion; twSonar.tic(true); setFlick(f => f + 1); }
@@ -23338,23 +23420,39 @@ function TwRuleta({ ruleta, codigo, pedir }) {
     requestAnimationFrame(paso);
   };
   const copiar = () => { try { navigator.clipboard.writeText(resultado.cupon); setCopiado(true); setTimeout(() => setCopiado(false), 2000); } catch (e) {} };
-  return (
-    <div className="tw-ruleta-caja" ref={ref}>
-      <div className="tw-ruleta-tit">{resultado && ver ? (resultado.tipo === "nada" ? "¡Uy, casi! 🌻" : "¡Ganaste!") : "🎡 ¡Tu compra tiene premio!"}</div>
-      {!(resultado && ver) && <div className="tw-ruleta-sub">{ruleta.espera ? "Cuando se acredite tu pago vas a poder girar la ruleta." : "Superaste " + fmtTienda(ruleta.minimo) + ": girá la ruleta y ganá."}</div>}
-      <TwRuletaDibujo premios={premios} giro={giro} flick={flick} />
-      {!resultado && !ruleta.espera && <button className="tw-btn tw-girar" disabled={girando} onClick={girar}>{girando ? "Girando…" : "¡Girar la ruleta!"}</button>}
-      {error && <div style={{ color: "#c0392b", fontSize: 13.5, marginTop: 8 }}>{error}</div>}
-      {resultado && ver && (
-        <div className={"tw-ruleta-premio " + resultado.tipo}>
-          {resultado.tipo === "regalo" && (/mega/i.test(resultado.texto || "") ? <><b>💎 ¡¡Te ganaste el MEGA REGALO!!</b><span>Te lo damos junto con tu pedido. ¡Felicitaciones!</span></> : <><b>🎁 Te ganaste un {resultado.texto || "REGALO"}</b><span>Te lo damos junto con tu pedido.</span></>)}
-          {resultado.tipo === "cupon" && <><b>🎉 {resultado.texto} en tu próxima compra</b>
-            <button className="tw-cupon-cod" onClick={copiar} aria-label="Copiar código">{resultado.cupon} <small>{copiado ? "¡copiado!" : "copiar"}</small></button>
-            <span>Se activa cuando retirás este pedido y desde ahí vale 30 días, online o en el local.</span></>}
-          {resultado.tipo === "nada" && <><b>Seguí participando</b><span>En tu próxima compra de más de {fmtTienda(ruleta.minimo || 100000)} volvés a girar.</span></>}
-        </div>
-      )}
+  const premio = resultado && ver && (
+    <div className={"tw-ruleta-premio " + resultado.tipo + (mega ? " mega" : "")}>
+      {resultado.tipo === "regalo" && (mega ? <><b>💎 ¡¡Te ganaste el MEGA REGALO!!</b><span>Te lo damos junto con tu pedido. ¡Felicitaciones!</span></> : <><b>🎁 Te ganaste un {resultado.texto || "REGALO"}</b><span>Te lo damos junto con tu pedido.</span></>)}
+      {resultado.tipo === "cupon" && <><b>🎉 ¡{resultado.texto} en tu próxima compra!</b>
+        <button className="tw-cupon-cod" onClick={copiar} aria-label="Copiar código">{resultado.cupon} <small>{copiado ? "¡copiado!" : "copiar"}</small></button>
+        <span>Se activa cuando retirás este pedido y desde ahí vale 30 días, online o en el local.</span></>}
+      {resultado.tipo === "nada" && <><b>¡Uy, casi! 🌻</b><span>Seguí participando: en tu próxima compra de más de {fmtTienda(ruleta.minimo || 100000)} volvés a girar.</span></>}
     </div>
+  );
+  return (
+    <>
+      {/* En la pagina: el resultado, o el boton para volver a abrir la ruleta */}
+      {resultado && ver ? <div className="tw-ruleta-caja">{premio}</div>
+        : ruleta.espera ? <div className="tw-ruleta-caja"><div className="tw-ruleta-tit">🎡 ¡Tu compra tiene premio!</div><div className="tw-ruleta-sub">Cuando se acredite tu pago vas a poder girar la ruleta.</div></div>
+        : <div className="tw-ruleta-caja"><div className="tw-ruleta-tit">🎡 ¡Tu compra tiene premio!</div><button className="tw-btn tw-girar" onClick={() => { setAbierta(true); twSonarRuleta.apertura(); }}>Abrir la ruleta</button></div>}
+      {abierta && createPortal(
+        <div className="tw tw-ruleta-modal" role="dialog" aria-modal="true" aria-label="Ruleta de premios">
+          <div className="tw-ruleta-chispas" aria-hidden="true" />
+          {!girando && <button className="tw-ruleta-x" onClick={() => setAbierta(false)} aria-label="Cerrar">✕</button>}
+          <div className="tw-ruleta-ventana">
+            <div className="tw-ruleta-titulo">{resultado && ver ? (resultado.tipo === "nada" ? "¡Casi casi!" : mega ? "¡¡MEGA PREMIO!!" : "¡GANASTE!") : "¡Girá y ganá!"}</div>
+            {!(resultado && ver) && <div className="tw-ruleta-bajada">Tu compra superó {fmtTienda(ruleta.minimo)} 🎉</div>}
+            <div className={"tw-ruleta-marco" + (resultado && ver && resultado.tipo === "nada" ? " tiembla" : "") + (resultado && ver && resultado.tipo !== "nada" ? " gano" : "")}>
+              <TwRuletaDibujo premios={premios} giro={giro} flick={flick} girando={girando} tamano="min(84vw, calc(100vh - 290px), 470px)" onCentro={!resultado && !girando ? girar : undefined} />
+            </div>
+            {!resultado && <button className="tw-btn tw-girar grande" disabled={girando} onClick={girar}>{girando ? "Girando…" : "🎡 ¡GIRAR!"}</button>}
+            {error && <div style={{ color: "#ffd6d6", fontSize: 14, marginTop: 8 }}>{error}</div>}
+            {premio}
+            {resultado && ver && <button className="tw-btn2 tw-ruleta-listo" onClick={() => setAbierta(false)}>¡Genial!</button>}
+          </div>
+        </div>, document.body
+      )}
+    </>
   );
 }
 // En el carrito: cuanto falta para girar la ruleta
