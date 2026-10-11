@@ -3211,7 +3211,7 @@ function POS({ localId, usuario, paletaActual }) {
     setCart(prev => {
       let cambio = false;
       const out = prev.map(i => {
-        if (i.es_kit || i.es_ajuste || i.presupuesto_id || i.gastro_ids || i.turno_id || !(parseInt(i.id) > 0) || String(i.id).startsWith("insumo")) return i;
+        if (i.es_kit || i.es_ajuste || i.presupuesto_id || i.gastro_ids || i.turno_id || i.tienda_pedido || !(parseInt(i.id) > 0) || String(i.id).startsWith("insumo")) return i;
         const base = i.precio_base !== undefined ? i.precio_base : (i.precio ?? i.price);
         const objetivo = precioDeLista(listaSel, parseInt(i.id), base);
         if (i.precio_base === base && i.precio === objetivo) return i;
@@ -3881,6 +3881,9 @@ function POS({ localId, usuario, paletaActual }) {
         justificaciones_stock: justificacionesStock
       });
       if (mpPago) mpPagoRef.current = null;
+      // Si la venta salio de un pedido de la tienda web, queda entregado
+      const tiendaId = (cart.find(i => i.tienda_pedido) || {}).tienda_pedido;
+      if (tiendaId) API.put("/tienda/pedidos/" + tiendaId + "/vendido", { venta_id: ventaRes.data.id }).catch(() => {});
       // Si la venta salio de un turno de la agenda, el turno queda cobrado (y atendido)
       cart.filter(i => i.turno_id).forEach(i => API.put("/consultorio/turnos/" + i.turno_id + "/cobrado", { venta_id: ventaRes.data.id }).catch(() => {}));
       // Si la venta salio de una mesa, esos items quedan cobrados (y si no queda nada, se libera la mesa)
@@ -4033,6 +4036,31 @@ function POS({ localId, usuario, paletaActual }) {
     const k = kitsComoProducto.find(x => String(x.kit_id) === String(pedido));
     if (k) add(k);
   }, [kitsPos]);
+  // Si vienen de la Tienda online, entra el pedido web (productos, envio, cliente y el medio con el que ya pago)
+  useEffect(() => {
+    if (!productos.length) return;
+    let pid = null;
+    try { pid = sessionStorage.getItem("lumiere_pos_tienda"); sessionStorage.removeItem("lumiere_pos_tienda"); } catch (e) {}
+    if (!pid) return;
+    Promise.all([API.get("/tienda/pedidos/" + pid), API.get("/medios-pago").catch(() => ({ data: [] }))]).then(([r, rm]) => {
+      const pe = r.data;
+      if (pe.estado !== "en_caja") { setMensaje("Ese pedido no está para cobrar (" + pe.estado + ")"); return; }
+      const lineas = pe.items.map(it => {
+        const prod = productos.find(p => String(p.id) === String(it.producto_id)) || { id: it.producto_id, nombre: it.nombre };
+        const base = { ...prod, precio: it.precio, precio_base: it.precio, qty: it.cantidad, tienda_pedido: pe.id };
+        return it.variante_id ? { ...base, variante_id: it.variante_id, variante_valor: it.variante_valor, nombre: (prod.nombre || it.nombre) + " - " + it.variante_valor, stock_rg: it.stock_rg, stock_ush: it.stock_ush } : base;
+      });
+      if (pe.costo_envio > 0) lineas.push({ id: "ajuste-envio-" + pe.id, es_ajuste: true, tienda_pedido: pe.id, nombre: "Envío" + (pe.zona ? " (" + pe.zona + ")" : ""), precio: pe.costo_envio, qty: 1, disponible: 9999 });
+      setCart(lineas);
+      setReferenciaVenta("Tienda web " + pe.codigo);
+      if (pe.cliente_id) API.get("/clientes").then(rc => { const c = (rc.data || []).find(x => x.id === pe.cliente_id); if (c) { setClienteSeleccionado(c); setDniInput(c.cuit_dni || ""); cargarFicha(c.id, false); } }).catch(() => {});
+      const medios = (rm.data || []).filter(m => m.activo !== false);
+      const medio = pe.pagado && pe.pago === "mp" ? medios.find(m => m.nombre === "Mercado Pago (tienda web)") : pe.pagado && pe.pago === "transferencia" ? medios.find(m => m.tipo === "transferencia") : null;
+      if (medio) { setMedioPagoSel(medio); setTipoPagoAbierto(medio.tipo); }
+      setMensaje("🛍️ Pedido web " + pe.codigo + " de " + pe.nombre + (pe.pagado ? " · ya pagó con " + (pe.pago === "mp" ? "Mercado Pago" : "transferencia") : "") + ". Revisá y registrá la venta.");
+      setTimeout(() => setMensaje(""), 8000);
+    }).catch(() => setMensaje("No se pudo cargar el pedido de la tienda"));
+  }, [productos.length > 0]);
   // Si vienen de la Agenda con "Cobrar", entra el tratamiento del turno y se elige al paciente
   useEffect(() => {
     let tid = null;
@@ -22522,6 +22550,7 @@ const NAV_SECTIONS = [
     { id: "mesas", icon: "🍽️", label: "Mesas", k: "mesa mozo comanda cuenta gastronomia restaurante bar cafe para llevar", soloGastro: true },
     { id: "cocina", icon: "👨‍🍳", label: "Cocina", k: "comandas cocina pedidos gastronomia", soloGastro: true },
     { id: "presupuestos", icon: "🧾", label: "Presupuestos", k: "presupuesto cotizacion cotizar whatsapp pdf" },
+    { id: "tienda-online", icon: "🛍️", label: "Tienda online", k: "tienda web online pedidos carrito ecommerce publicar catalogo" },
     { id: "ventas-online", icon: "🌐", label: "Ventas Online", k: "web tienda internet pedidos online" },
     { id: "buscar-precio", icon: "🔎", label: "Buscar Precio", k: "precio consultar" },
     { id: "cambio-devolucion", icon: "🔄", label: "Cambio / Devolución", k: "cambio devolucion" }] },
@@ -22603,6 +22632,500 @@ const BARRA_CELU = [
   { ids: ["inventory", "compras", "control-inv"], icon: "📦", label: "Stock" },
   { ids: ["clients", "pedidos", "tareas", "caja"], icon: "👥", label: "Clientes" },
 ];
+// ===================== TIENDA WEB (publica) =====================
+// La ve cualquiera en la direccion ...?tienda=<nombre>. No usa la sesion de Lumiere.
+// Precios y stock vienen de Lumiere; el servidor vuelve a validar todo al hacer el pedido.
+const fmtTienda = (n) => "$" + Math.round(parseFloat(n) || 0).toLocaleString("es-AR");
+const ESTADOS_PEDIDO_WEB = {
+  pendiente_pago: ["Esperando el pago", "#b7950b"], confirmado: ["Recibido: lo estamos preparando", "#2471a3"], preparado: ["¡Listo!", "#2d7a4f"],
+  en_caja: ["¡Listo!", "#2d7a4f"], entregado: ["Entregado. ¡Gracias por tu compra!", "#2d7a4f"], cancelado: ["Cancelado", "#c0392b"],
+};
+
+function TiendaPublica({ slug }) {
+  const base = (API.defaults.baseURL || "") + "/tienda-publica/" + encodeURIComponent(slug);
+  const pedir = async (ruta, opciones) => {
+    const r = await fetch(base + ruta, { headers: { "Content-Type": "application/json" }, ...opciones });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || "Algo salió mal. Probá de nuevo.");
+    return d;
+  };
+  const params = new URLSearchParams(window.location.search);
+  const [tienda, setTienda] = useState(null);
+  const [error, setError] = useState("");
+  const [productos, setProductos] = useState([]);
+  const [busca, setBusca] = useState("");
+  const [cat, setCat] = useState("");
+  const [carrito, setCarrito] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_carrito_" + slug) || "[]"); } catch (e) { return []; } });
+  const [ver, setVer] = useState(null); // producto abierto
+  const [varSel, setVarSel] = useState(null);
+  const [paso, setPaso] = useState(null); // null | "carrito" | "datos"
+  const [datos, setDatos] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_datos") || "{}"); } catch (e) { return {}; } });
+  const [enviando, setEnviando] = useState(false);
+  const [aviso, setAviso] = useState("");
+  const [pedido, setPedido] = useState(null);
+  const codigoUrl = params.get("pedido");
+
+  useEffect(() => {
+    pedir("").then(t => { setTienda(t); document.title = t.titulo; }).catch(e => setError(e.message));
+    pedir("/productos").then(setProductos).catch(() => {});
+  }, []);
+  useEffect(() => { try { localStorage.setItem("tienda_carrito_" + slug, JSON.stringify(carrito)); } catch (e) {} }, [carrito]);
+  // Seguimiento del pedido (?pedido=CODIGO): se actualiza solo mientras espera el pago
+  useEffect(() => {
+    if (!codigoUrl) return;
+    let vivo = true;
+    const traer = () => pedir("/pedidos/" + codigoUrl).then(p => { if (vivo) { setPedido(p); if (p.estado !== "pendiente_pago") clearInterval(t); } }).catch(e => vivo && setPedido({ error: e.message }));
+    traer();
+    const t = setInterval(traer, 5000);
+    return () => { vivo = false; clearInterval(t); };
+  }, [codigoUrl]);
+
+  if (error) return <div style={{ fontFamily: "system-ui, sans-serif", padding: 40, textAlign: "center", color: "#555" }}><div style={{ fontSize: 44 }}>🛍️</div><h2>{error}</h2></div>;
+  if (!tienda) return <div style={{ fontFamily: "system-ui, sans-serif", padding: 40, textAlign: "center", color: "#888" }}>Cargando…</div>;
+  const color = tienda.color || "#c9a84c";
+  const foto = (p) => p.foto ? base + "/foto/" + p.id : null;
+  // Lo que se puede vender: el maximo entre los locales posibles para esta compra
+  const locales = [...tienda.retiro.map(l => l.id), ...(tienda.envio ? [1, 2] : [])];
+  const dispo = (p, v) => { const s = v ? v.stock : p.stock; return Math.max(0, ...(locales.length ? locales : [1]).map(l => s[l] || 0)); };
+  const totalItems = carrito.reduce((t, i) => t + i.cantidad, 0);
+  const subtotal = carrito.reduce((t, i) => t + i.precio * i.cantidad, 0);
+  const agregar = (p, v) => {
+    const max = dispo(p, v);
+    setCarrito(c => {
+      const ya = c.find(i => i.producto_id === p.id && (i.variante_id || null) === (v ? v.id : null));
+      if (ya) return c.map(i => i === ya ? { ...i, cantidad: Math.min(max, i.cantidad + 1) } : i);
+      return [...c, { producto_id: p.id, variante_id: v ? v.id : null, nombre: p.nombre, variante: v ? v.valor : null, precio: p.precio, cantidad: 1, foto: !!p.foto }];
+    });
+    setVer(null); setAviso("✓ Agregado al carrito"); setTimeout(() => setAviso(""), 1800);
+  };
+  const cambiarCant = (i, d) => setCarrito(c => c.map(x => x === i ? { ...x, cantidad: x.cantidad + d } : x).filter(x => x.cantidad > 0));
+  const zona = tienda.envio ? tienda.envio.zonas.find(z => z.nombre === datos.zona) : null;
+  const envioGratis = tienda.envio && tienda.envio.gratis_desde && subtotal >= tienda.envio.gratis_desde;
+  const costoEnvio = datos.entrega === "envio" && zona && !envioGratis ? zona.costo : 0;
+  const confirmar = async () => {
+    setAviso(""); setEnviando(true);
+    try { localStorage.setItem("tienda_datos", JSON.stringify({ nombre: datos.nombre, telefono: datos.telefono, email: datos.email, direccion: datos.direccion })); } catch (e) {}
+    try {
+      const r = await pedir("/pedidos", { method: "POST", body: JSON.stringify({ ...datos, items: carrito, volver_a: window.location.href }) });
+      setCarrito([]);
+      if (r.link_pago) { window.location.href = r.link_pago; return; }
+      window.location.href = window.location.pathname + "?tienda=" + encodeURIComponent(slug) + "&pedido=" + r.codigo;
+    } catch (e) { setAviso(e.message); }
+    setEnviando(false);
+  };
+  const wa = (txt) => tienda.whatsapp ? "https://wa.me/" + (() => { let n = String(tienda.whatsapp).replace(/[^0-9]/g, ""); if (n.startsWith("0")) n = n.slice(1); if (!n.startsWith("54")) n = "549" + n; return n; })() + "?text=" + encodeURIComponent(txt) : null;
+
+  const css = `
+    .tw{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#222;background:#f6f5f2;min-height:100vh;padding-bottom:90px}
+    .tw *{box-sizing:border-box}
+    .tw-top{background:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:5;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+    .tw-top img{height:42px;max-width:120px;object-fit:contain}
+    .tw-wrap{max-width:1100px;margin:0 auto;padding:14px 16px}
+    .tw-inp{width:100%;padding:12px 14px;border-radius:12px;border:1px solid #ddd;font-size:16px;font-family:inherit;background:#fff}
+    .tw-chips{display:flex;gap:8px;overflow-x:auto;padding:10px 0}
+    .tw-chip{border:1px solid #ddd;background:#fff;border-radius:999px;padding:8px 14px;font-size:14px;white-space:nowrap;cursor:pointer;font-family:inherit}
+    .tw-chip.on{background:var(--c);border-color:var(--c);color:#fff;font-weight:700}
+    .tw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+    .tw-card{background:#fff;border-radius:14px;overflow:hidden;cursor:pointer;border:none;text-align:left;padding:0;font-family:inherit;box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;flex-direction:column}
+    .tw-card img,.tw-ph{width:100%;aspect-ratio:1/1;object-fit:cover;background:#eee;display:flex;align-items:center;justify-content:center;font-size:40px;color:#bbb}
+    .tw-card b{display:block;padding:8px 10px 0;font-size:14px;line-height:1.3}
+    .tw-card span{display:block;padding:4px 10px 10px;font-size:16px;font-weight:800;color:var(--c)}
+    .tw-btn{background:var(--c);color:#fff;border:none;border-radius:12px;padding:14px 18px;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;width:100%}
+    .tw-btn:disabled{opacity:.6}
+    .tw-btn2{background:#fff;color:#333;border:1px solid #ccc;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+    .tw-fondo{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+    .tw-hoja{background:#fff;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;border-radius:18px 18px 0 0;padding:18px}
+    @media(min-width:700px){.tw-fondo{align-items:center}.tw-hoja{border-radius:18px}}
+    .tw-barra{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:#fff;box-shadow:0 -2px 12px rgba(0,0,0,.1);z-index:10}
+    .tw-op{display:block;border:2px solid #ddd;border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer;background:#fff;width:100%;text-align:left;font-family:inherit;font-size:15px}
+    .tw-op.on{border-color:var(--c);background:color-mix(in srgb,var(--c) 10%,#fff)}
+    .tw-lbl{font-size:13px;font-weight:700;color:#666;margin:12px 0 6px}
+    .tw-linea{display:flex;justify-content:space-between;padding:4px 0;font-size:15px}
+  `;
+
+  // ---- Seguimiento de un pedido ----
+  if (codigoUrl) {
+    const e = pedido && !pedido.error ? (ESTADOS_PEDIDO_WEB[pedido.estado] || ESTADOS_PEDIDO_WEB.confirmado) : null;
+    return (
+      <div className="tw" style={{ "--c": color }}><style>{css}</style>
+        <div className="tw-top">{tienda.logo && <img src={tienda.logo} alt="" />}<b style={{ fontSize: 18 }}>{tienda.titulo}</b></div>
+        <div className="tw-wrap" style={{ maxWidth: 560 }}>
+          {!pedido ? <p>Cargando tu pedido…</p> : pedido.error ? <p>{pedido.error}</p> : (
+            <div style={{ background: "#fff", borderRadius: 16, padding: 18 }}>
+              <div style={{ fontSize: 13, color: "#777" }}>Pedido N° {pedido.codigo}</div>
+              <div style={{ fontSize: 22, fontWeight: 900, color: e[1], margin: "4px 0 10px" }}>{pedido.estado === "pendiente_pago" && pedido.pago === "retiro" ? "Recibido" : e[0]}</div>
+              {pedido.estado === "pendiente_pago" && pedido.link_pago && <a className="tw-btn" style={{ display: "block", textAlign: "center", textDecoration: "none", marginBottom: 12 }} href={pedido.link_pago}>Pagar con Mercado Pago</a>}
+              {pedido.transferencia && pedido.estado !== "cancelado" && (
+                <div style={{ background: "#f6f5f2", borderRadius: 12, padding: 12, marginBottom: 12, fontSize: 15 }}>
+                  <b>Transferí {fmtTienda(pedido.total)} a:</b>
+                  <div style={{ whiteSpace: "pre-wrap", margin: "6px 0", fontFamily: "ui-monospace,monospace" }}>{pedido.transferencia}</div>
+                  <div style={{ fontSize: 13, color: "#666" }}>Mandanos el comprobante por WhatsApp.{pedido.vence_en ? " Te guardamos los productos hasta el " + new Date(pedido.vence_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) + "." : ""}</div>
+                </div>
+              )}
+              <div style={{ fontSize: 15, marginBottom: 10 }}>{pedido.entrega === "retiro" ? <>📍 Retirás en <b>{pedido.local?.nombre}</b>{pedido.local?.direccion ? " (" + pedido.local.direccion + ")" : ""}{pedido.pago === "retiro" && !pedido.pagado ? " · pagás al retirar" : ""}</> : <>🛵 Envío a <b>{pedido.direccion}</b> ({pedido.zona})</>}</div>
+              {pedido.items.map((i, k) => <div key={k} className="tw-linea"><span>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""}</span><span>{fmtTienda(i.precio * i.cantidad)}</span></div>)}
+              {pedido.costo_envio > 0 && <div className="tw-linea"><span>Envío</span><span>{fmtTienda(pedido.costo_envio)}</span></div>}
+              <div className="tw-linea" style={{ fontWeight: 900, fontSize: 18, borderTop: "1px solid #eee", marginTop: 6, paddingTop: 8 }}><span>Total</span><span>{fmtTienda(pedido.total)}</span></div>
+              {wa("Hola! Te escribo por mi pedido N° " + pedido.codigo) && <a className="tw-btn2" style={{ display: "block", textAlign: "center", textDecoration: "none", marginTop: 14 }} href={wa("Hola! Te escribo por mi pedido N° " + pedido.codigo)} target="_blank" rel="noopener">💬 Escribinos por WhatsApp</a>}
+              <a className="tw-btn2" style={{ display: "block", textAlign: "center", textDecoration: "none", marginTop: 8 }} href={"?tienda=" + encodeURIComponent(slug)}>Seguir comprando</a>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const cats = [...new Set(productos.map(p => p.categoria).filter(Boolean))].sort();
+  const q = busca.trim().toLowerCase();
+  const lista = productos.filter(p => (!cat || p.categoria === cat) && (!q || [p.nombre, p.marca, p.categoria].some(v => (v || "").toLowerCase().includes(q))));
+  const opcionesPago = [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar"], ["retiro", "💵 Pago al retirar", "Pagás en el local"]]
+    .filter(([k]) => tienda.pagos[k] && !(k === "retiro" && datos.entrega === "envio"));
+  const listoParaPedir = datos.nombre && datos.telefono && datos.entrega && datos.pago && (datos.entrega === "retiro" ? datos.local_id : (datos.zona && datos.direccion));
+
+  return (
+    <div className="tw" style={{ "--c": color }}><style>{css}</style>
+      <div className="tw-top">
+        {tienda.logo && <img src={tienda.logo} alt="" />}
+        <div style={{ flex: 1, minWidth: 0 }}><b style={{ fontSize: 18 }}>{tienda.titulo}</b>{tienda.mensaje && <div style={{ fontSize: 13, color: "#666" }}>{tienda.mensaje}</div>}</div>
+        {tienda.whatsapp && <a href={wa("Hola! Tengo una consulta")} target="_blank" rel="noopener" style={{ fontSize: 24, textDecoration: "none" }} aria-label="WhatsApp">💬</a>}
+      </div>
+      <div className="tw-wrap">
+        <input className="tw-inp" placeholder="🔍 Buscar productos…" value={busca} onChange={e => setBusca(e.target.value)} />
+        {cats.length > 1 && <div className="tw-chips"><button className={"tw-chip" + (!cat ? " on" : "")} onClick={() => setCat("")}>Todo</button>{cats.map(c => <button key={c} className={"tw-chip" + (cat === c ? " on" : "")} onClick={() => setCat(c)}>{c}</button>)}</div>}
+        {lista.length === 0 ? <p style={{ textAlign: "center", color: "#888", marginTop: 30 }}>{productos.length ? "No encontramos productos con esa búsqueda." : "Pronto vas a encontrar nuestros productos acá."}</p> : (
+          <div className="tw-grid" style={{ marginTop: 10 }}>
+            {lista.map(p => {
+              const sin = p.variantes ? p.variantes.every(v => dispo(p, v) <= 0) : dispo(p) <= 0;
+              return (
+                <button key={p.id} className="tw-card" onClick={() => { setVer(p); setVarSel(null); }} style={{ opacity: sin ? 0.55 : 1 }}>
+                  {foto(p) ? <img src={foto(p)} alt={p.nombre} loading="lazy" /> : <div className="tw-ph">🛍️</div>}
+                  <b>{p.nombre}</b><span>{fmtTienda(p.precio)}{sin ? <small style={{ color: "#c0392b", fontSize: 12, marginLeft: 6 }}>Sin stock</small> : null}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {totalItems > 0 && !paso && <div className="tw-barra"><button className="tw-btn" onClick={() => setPaso("carrito")}>🛒 Ver carrito ({totalItems}) · {fmtTienda(subtotal)}</button></div>}
+      {aviso && !paso && !ver && <div style={{ position: "fixed", top: 80, left: "50%", transform: "translateX(-50%)", background: "#222", color: "#fff", padding: "10px 16px", borderRadius: 10, zIndex: 30, fontSize: 14 }}>{aviso}</div>}
+
+      {ver && (
+        <div className="tw-fondo" onClick={() => setVer(null)}>
+          <div className="tw-hoja" onClick={e => e.stopPropagation()}>
+            {foto(ver) && <img src={foto(ver)} alt={ver.nombre} style={{ width: "100%", maxHeight: 380, objectFit: "contain", borderRadius: 12, background: "#f3f3f3" }} />}
+            <h2 style={{ margin: "12px 0 4px", fontSize: 21 }}>{ver.nombre}</h2>
+            {ver.marca && <div style={{ color: "#777", fontSize: 14 }}>{ver.marca}</div>}
+            <div style={{ fontSize: 24, fontWeight: 900, color, margin: "8px 0" }}>{fmtTienda(ver.precio)}</div>
+            {ver.descripcion && <p style={{ whiteSpace: "pre-wrap", fontSize: 15, lineHeight: 1.5, color: "#444" }}>{ver.descripcion}</p>}
+            {ver.variantes && (<><div className="tw-lbl">Elegí una opción</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{ver.variantes.map(v => <button key={v.id} disabled={dispo(ver, v) <= 0} className={"tw-chip" + (varSel?.id === v.id ? " on" : "")} style={{ opacity: dispo(ver, v) <= 0 ? 0.4 : 1 }} onClick={() => setVarSel(v)}>{v.valor}{dispo(ver, v) <= 0 ? " (agotado)" : ""}</button>)}</div></>)}
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button className="tw-btn2" onClick={() => setVer(null)}>Volver</button>
+              <button className="tw-btn" disabled={ver.variantes ? !varSel || dispo(ver, varSel) <= 0 : dispo(ver) <= 0} onClick={() => agregar(ver, ver.variantes ? varSel : null)}>
+                {(ver.variantes ? varSel && dispo(ver, varSel) <= 0 : dispo(ver) <= 0) ? "Sin stock" : ver.variantes && !varSel ? "Elegí una opción" : "Agregar al carrito"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {paso && (
+        <div className="tw-fondo" onClick={() => setPaso(null)}>
+          <div className="tw-hoja" onClick={e => e.stopPropagation()}>
+            {paso === "carrito" ? (
+              <>
+                <h2 style={{ marginTop: 0 }}>Tu carrito</h2>
+                {carrito.length === 0 ? <p>Está vacío.</p> : carrito.map((i, k) => (
+                  <div key={k} style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 0", borderBottom: "1px solid #eee" }}>
+                    {i.foto ? <img src={base + "/foto/" + i.producto_id} alt="" style={{ width: 54, height: 54, objectFit: "cover", borderRadius: 8 }} /> : <div style={{ width: 54, height: 54, borderRadius: 8, background: "#eee" }} />}
+                    <div style={{ flex: 1, minWidth: 0 }}><b style={{ fontSize: 14 }}>{i.nombre}</b>{i.variante && <div style={{ fontSize: 13, color: "#666" }}>{i.variante}</div>}<div style={{ fontWeight: 800, color }}>{fmtTienda(i.precio * i.cantidad)}</div></div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <button className="tw-btn2" style={{ padding: "6px 12px" }} onClick={() => cambiarCant(i, -1)} aria-label="Uno menos">−</button>
+                      <b>{i.cantidad}</b>
+                      <button className="tw-btn2" style={{ padding: "6px 12px" }} onClick={() => cambiarCant(i, +1)} aria-label="Uno más">+</button>
+                    </div>
+                  </div>
+                ))}
+                <div className="tw-linea" style={{ fontWeight: 900, fontSize: 18, marginTop: 10 }}><span>Subtotal</span><span>{fmtTienda(subtotal)}</span></div>
+                <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                  <button className="tw-btn2" onClick={() => setPaso(null)}>Seguir comprando</button>
+                  <button className="tw-btn" disabled={!carrito.length} onClick={() => setPaso("datos")}>Continuar</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 style={{ marginTop: 0 }}>Tus datos</h2>
+                <input className="tw-inp" placeholder="Nombre y apellido" value={datos.nombre || ""} onChange={e => setDatos(d => ({ ...d, nombre: e.target.value }))} style={{ marginBottom: 8 }} />
+                <input className="tw-inp" placeholder="WhatsApp (ej: 2964 123456)" inputMode="tel" value={datos.telefono || ""} onChange={e => setDatos(d => ({ ...d, telefono: e.target.value }))} style={{ marginBottom: 8 }} />
+                <input className="tw-inp" placeholder="Email (opcional)" inputMode="email" value={datos.email || ""} onChange={e => setDatos(d => ({ ...d, email: e.target.value }))} />
+                <div className="tw-lbl">¿Cómo lo recibís?</div>
+                {tienda.retiro.map(l => <button key={l.id} className={"tw-op" + (datos.entrega === "retiro" && Number(datos.local_id) === l.id ? " on" : "")} onClick={() => setDatos(d => ({ ...d, entrega: "retiro", local_id: l.id }))}>📍 <b>Retiro en {l.nombre}</b>{l.direccion ? <div style={{ fontSize: 13, color: "#666" }}>{l.direccion}</div> : null}<div style={{ fontSize: 13, color: "#2d7a4f" }}>Sin costo</div></button>)}
+                {tienda.envio && (
+                  <button className={"tw-op" + (datos.entrega === "envio" ? " on" : "")} onClick={() => setDatos(d => ({ ...d, entrega: "envio", pago: d.pago === "retiro" ? null : d.pago }))}>🛵 <b>Envío a domicilio</b><div style={{ fontSize: 13, color: "#666" }}>{envioGratis ? "¡Gratis por tu compra!" : "El costo depende de la zona"}{tienda.envio.gratis_desde && !envioGratis ? " · gratis desde " + fmtTienda(tienda.envio.gratis_desde) : ""}</div></button>
+                )}
+                {datos.entrega === "envio" && tienda.envio && (
+                  <>
+                    <select className="tw-inp" value={datos.zona || ""} onChange={e => setDatos(d => ({ ...d, zona: e.target.value }))} style={{ marginBottom: 8 }}>
+                      <option value="">Elegí tu zona…</option>
+                      {tienda.envio.zonas.map(z => <option key={z.nombre} value={z.nombre}>{z.nombre} · {envioGratis ? "gratis" : fmtTienda(z.costo)}</option>)}
+                    </select>
+                    <input className="tw-inp" placeholder="Dirección (calle, número, depto, referencias)" value={datos.direccion || ""} onChange={e => setDatos(d => ({ ...d, direccion: e.target.value }))} />
+                  </>
+                )}
+                <div className="tw-lbl">¿Cómo pagás?</div>
+                {opcionesPago.map(([k, t, d]) => <button key={k} className={"tw-op" + (datos.pago === k ? " on" : "")} onClick={() => setDatos(x => ({ ...x, pago: k }))}><b>{t}</b><div style={{ fontSize: 13, color: "#666" }}>{d}</div></button>)}
+                <textarea className="tw-inp" rows={2} placeholder="¿Algo que quieras aclarar? (opcional)" value={datos.nota || ""} onChange={e => setDatos(d => ({ ...d, nota: e.target.value }))} style={{ marginTop: 8 }} />
+                <div style={{ marginTop: 12 }}>
+                  <div className="tw-linea"><span>Productos</span><span>{fmtTienda(subtotal)}</span></div>
+                  {datos.entrega === "envio" && <div className="tw-linea"><span>Envío</span><span>{zona ? (costoEnvio ? fmtTienda(costoEnvio) : "Gratis") : "—"}</span></div>}
+                  <div className="tw-linea" style={{ fontWeight: 900, fontSize: 19 }}><span>Total</span><span>{fmtTienda(subtotal + costoEnvio)}</span></div>
+                </div>
+                {aviso && <div style={{ background: "#fdecea", color: "#c0392b", borderRadius: 10, padding: 10, marginTop: 10, fontSize: 14, fontWeight: 600 }}>{aviso}</div>}
+                <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                  <button className="tw-btn2" onClick={() => setPaso("carrito")}>Atrás</button>
+                  <button className="tw-btn" disabled={!listoParaPedir || enviando} onClick={confirmar}>{enviando ? "Enviando…" : datos.pago === "mp" ? "Ir a pagar" : "Hacer el pedido"}</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===================== TIENDA WEB (en Lumiere) =====================
+// Pedidos de la tienda web, productos publicados y configuracion. Ver routes/tienda.js.
+const ESTADOS_TIENDA = {
+  pendiente_pago: { t: "Esperando pago", c: "#b7950b" }, confirmado: { t: "Nuevo · para preparar", c: "#2471a3" }, preparado: { t: "Listo para entregar", c: "#8e44ad" },
+  en_caja: { t: "En la caja", c: "#d35400" }, entregado: { t: "Entregado", c: "#2d7a4f" }, cancelado: { t: "Cancelado", c: "#95a5a6" },
+};
+const PAGO_TIENDA = { mp: "Mercado Pago", transferencia: "Transferencia", retiro: "Paga al retirar" };
+
+function TiendaOnline({ localId, usuario, paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const [tab, setTab] = useState(() => tabInicialDe("tienda-online") || "pedidos");
+  const [cfg, setCfg] = useState(null);
+  const [pedidos, setPedidos] = useState(null);
+  const [productos, setProductos] = useState(null);
+  const [filtro, setFiltro] = useState("activos");
+  const [busca, setBusca] = useState("");
+  const [soloPub, setSoloPub] = useState(false);
+  const [desc, setDesc] = useState(null); // { id, texto }
+  const [qr, setQr] = useState(null);
+  const [aviso, setAviso] = useState(null);
+  const avisar = (ok, texto) => { setAviso({ ok, texto }); setTimeout(() => setAviso(null), 4500); };
+  const esJefeT = ["jefe", "admin", "administrativo"].includes(usuario?.rol);
+
+  const cargarCfg = () => API.get("/tienda/config").then(r => setCfg({ ...r.data, slug: r.data.slug || r.data.slug_sugerido, retiro_locales: r.data.retiro_locales || [1, 2] })).catch(() => setCfg({}));
+  const cargarPedidos = () => API.get("/tienda/pedidos").then(r => setPedidos(r.data || [])).catch(() => setPedidos([]));
+  const cargarProductos = () => API.get("/tienda/productos").then(r => setProductos(r.data || [])).catch(() => setProductos([]));
+  useEffect(() => { cargarCfg(); cargarPedidos(); cargarProductos(); const t = setInterval(() => { if (!document.hidden) cargarPedidos(); }, 30000); return () => clearInterval(t); }, []);
+  const url = cfg && cfg.slug ? window.location.origin + window.location.pathname + "?tienda=" + cfg.slug : "";
+  useEffect(() => { if (cfg && cfg.activo && cfg.slug) API.get("/tienda/qr?url=" + encodeURIComponent(url)).then(r => setQr(r.data.qr)).catch(() => {}); }, [cfg?.activo, cfg?.slug]);
+
+  const estado = async (p, est, extra) => {
+    if (est === "cancelado" && !confirm("¿Cancelar el pedido " + p.codigo + " de " + p.nombre + "? El stock vuelve al local.")) return;
+    try { await API.put("/tienda/pedidos/" + p.id + "/estado", { estado: est, ...extra }); cargarPedidos(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo cambiar"); }
+  };
+  const aCaja = async (p) => {
+    try { await API.post("/tienda/pedidos/" + p.id + "/a-caja"); try { sessionStorage.setItem("lumiere_pos_tienda", String(p.id)); } catch (e) {} irASeccion("pos"); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo pasar a la caja"); }
+  };
+  const reapartar = async (p) => { try { await API.post("/tienda/pedidos/" + p.id + "/reapartar"); cargarPedidos(); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); } };
+  const avisarListo = (p) => {
+    const txt = "Hola " + String(p.nombre).split(" ")[0] + "! Tu pedido N° " + p.codigo + " de " + (cfg?.titulo || "nuestra tienda") + " ya está listo" + (p.entrega === "retiro" ? " para retirar en " + nombreLocal(p.local_id) : " y sale para tu casa") + ". ¡Gracias!";
+    window.open(linkWhatsapp(p.telefono, txt) || ("https://wa.me/?text=" + encodeURIComponent(txt)), "_blank");
+  };
+  const publicar = async (p, publicado) => {
+    setProductos(ps => ps.map(x => x.id === p.id ? { ...x, publicado } : x));
+    try { await API.put("/tienda/productos/" + p.id, { publicado }); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); cargarProductos(); }
+  };
+  const guardarDesc = async () => {
+    try { await API.put("/tienda/productos/" + desc.id, { descripcion: desc.texto }); setDesc(null); cargarProductos(); } catch (e) { avisar(false, "No se pudo guardar"); }
+  };
+  const publicarConFoto = async () => {
+    try { const r = await API.post("/tienda/productos/publicar-con-foto"); avisar(true, "✓ Se publicaron " + r.data.publicados + " productos con foto y stock"); cargarProductos(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); }
+  };
+  const guardarCfg = async () => {
+    try { await API.put("/tienda/config", cfg); avisar(true, cfg.activo ? "✓ Tienda guardada y publicada" : "✓ Guardado (la tienda está apagada)"); cargarCfg(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+  };
+
+  if (!cfg || !pedidos || !productos) return <div className="fade"><div className="skel" style={{ height: 300 }} /></div>;
+  const abiertos = pedidos.filter(p => ["pendiente_pago", "confirmado", "preparado", "en_caja"].includes(p.estado));
+  const visibles = pedidos.filter(p => filtro === "todos" || (filtro === "activos" ? abiertos.includes(p) : p.estado === filtro));
+  const nPub = productos.filter(p => p.publicado).length;
+  const q = busca.trim().toLowerCase();
+  const prodVis = productos.filter(p => (!soloPub || p.publicado) && (!q || [p.nombre, p.marca, p.categoria].some(v => (v || "").toLowerCase().includes(q)))).slice(0, 150);
+  const set = (k, v) => setCfg(c => ({ ...c, [k]: v }));
+
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div className="dash-head">
+        <div><div className="pt">Tienda online</div><div className="ps">{cfg.activo ? "publicada · " + nPub + " productos a la venta" : "todavía no está publicada"}</div></div>
+        {cfg.activo && url && <div className="dash-actions"><a className="btn btn-g" href={url} target="_blank" rel="noopener" style={{ textDecoration: "none" }}>👁 Ver mi tienda</a></div>}
+      </div>
+      {aviso && <div className="pop-in" role={aviso.ok ? "status" : "alert"} style={{ background: aviso.ok ? temaPal.greenDim : temaPal.redDim, border: "1px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, marginBottom: 12 }}>{aviso.texto}</div>}
+      {!cfg.activo && <div className="cli-tip" style={{ marginBottom: 12 }}>Para empezar: 1) elegí qué productos publicar en <b>Productos</b>, 2) completá <b>Configuración</b> (entrega y pagos) y tildá "Tienda publicada".</div>}
+      <div className="tabs" style={{ marginBottom: 12 }}>
+        {[["pedidos", "Pedidos" + (abiertos.length ? " (" + abiertos.length + ")" : "")], ["productos", "Productos (" + nPub + " publicados)"], ["config", "Configuración"]].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
+      </div>
+
+      {tab === "pedidos" && (
+        <>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+            {[["activos", "Para atender"], ["entregado", "Entregados"], ["cancelado", "Cancelados"], ["todos", "Todos"]].map(([k, t]) => <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(k)}>{t}</button>)}
+          </div>
+          {visibles.length === 0 ? <div className="card"><div className="empty">{filtro === "activos" ? "No hay pedidos para atender. Cuando alguien compre en la tienda, aparece acá." : "No hay pedidos en este filtro."}</div></div> : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {visibles.map(p => {
+                const e = ESTADOS_TIENDA[p.estado] || ESTADOS_TIENDA.confirmado;
+                const cerrado = ["entregado", "cancelado"].includes(p.estado);
+                return (
+                  <div key={p.id} className="card" style={{ borderLeft: "5px solid " + e.c }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                      <div>
+                        <div style={{ fontWeight: 900, fontSize: 15 }}>{p.nombre} <span style={{ fontWeight: 400, fontSize: 12, color: temaPal.textMuted }}>N° {p.codigo} · {new Date(p.creado_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span></div>
+                        <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginTop: 2 }}>
+                          {p.entrega === "retiro" ? "📍 Retira en " + nombreLocal(p.local_id) : "🛵 Envío a " + p.direccion + " (" + p.zona + ")"} · {PAGO_TIENDA[p.pago]}{p.pagado ? " ✓ pagado" : ""}{p.telefono ? " · " + p.telefono : ""}
+                        </div>
+                        {p.nota && <div style={{ fontSize: 12.5, marginTop: 2 }}>📝 {p.nota}</div>}
+                        {p.estado === "pendiente_pago" && p.vence_en && <div style={{ fontSize: 11.5, color: temaPal.warn }}>Si no paga, se cancela solo el {new Date(p.vence_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} y el stock vuelve.</div>}
+                        {p.estado === "cancelado" && p.motivo && <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{p.motivo}</div>}
+                      </div>
+                      <div style={{ textAlign: "right" }}><span className="tag" style={{ background: e.c + "22", color: e.c, fontWeight: 800 }}>{e.t}</span><div style={{ fontSize: 18, fontWeight: 900, marginTop: 4 }}>{fmt(p.total)}</div></div>
+                    </div>
+                    <div style={{ fontSize: 13, margin: "8px 0", lineHeight: 1.6 }}>
+                      {p.items.map(i => <div key={i.id}>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""} <span style={{ color: temaPal.textMuted }}>· {fmt(i.precio * i.cantidad)}</span></div>)}
+                      {p.costo_envio > 0 && <div style={{ color: temaPal.textMuted }}>Envío · {fmt(p.costo_envio)}</div>}
+                    </div>
+                    {!cerrado && (
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        {p.estado === "pendiente_pago" && p.pago === "transferencia" && <button className="btn btn-p btn-sm" onClick={() => estado(p, "pagado")}>✓ Pago recibido</button>}
+                        {p.estado === "confirmado" && <button className="btn btn-p btn-sm" onClick={() => estado(p, "preparado")}>📦 Ya está listo</button>}
+                        {["confirmado", "preparado"].includes(p.estado) && <button className="btn btn-g btn-sm" onClick={() => avisarListo(p)}>💬 Avisar que está listo</button>}
+                        {(["confirmado", "preparado"].includes(p.estado) || (p.estado === "pendiente_pago" && p.pago === "retiro")) && <button className="btn btn-p btn-sm" onClick={() => aCaja(p)}>💵 {p.pagado ? "Entregar y registrar venta" : "Cobrar en caja"}</button>}
+                        {p.estado === "en_caja" && <><button className="btn btn-p btn-sm" onClick={() => { try { sessionStorage.setItem("lumiere_pos_tienda", String(p.id)); } catch (e) {} irASeccion("pos"); }}>Ir a la caja</button><button className="btn btn-g btn-sm" onClick={() => reapartar(p)} title="Si no se llegó a cobrar">Volver a apartar el stock</button></>}
+                        {p.telefono && <a className="btn btn-g btn-sm" style={{ textDecoration: "none" }} href={linkWhatsapp(p.telefono, "Hola " + String(p.nombre).split(" ")[0] + "! Te escribo por tu pedido N° " + p.codigo)} target="_blank" rel="noopener">WhatsApp</a>}
+                        {p.estado !== "en_caja" && <button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={() => estado(p, "cancelado")}>Cancelar</button>}
+                      </div>
+                    )}
+                    {p.estado === "en_caja" && <div style={{ fontSize: 11.5, color: temaPal.warn, marginTop: 6 }}>El stock ya no está apartado: cobralo en la caja (o tocá "Volver a apartar el stock" si no se llevó).</div>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {tab === "productos" && (
+        <div className="card">
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
+            <input className="inp" style={{ flex: "1 1 220px" }} placeholder="🔍 Buscar producto…" value={busca} onChange={e => setBusca(e.target.value)} />
+            <button className={"chip-btn" + (soloPub ? " on" : "")} onClick={() => setSoloPub(v => !v)}>Solo publicados</button>
+            {esJefeT && <button className="btn btn-g btn-sm" onClick={publicarConFoto} title="Publica de una vez los que tienen foto, precio y stock">📸 Publicar los que tienen foto</button>}
+          </div>
+          <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 8 }}>Tocá el interruptor para publicar o sacar un producto. El precio y el stock son los de Lumiere. La foto es la del producto (se carga en Productos → editar).</div>
+          {prodVis.map(p => (
+            <div key={p.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 0", borderTop: "1px solid " + temaPal.border, flexWrap: "wrap" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", flex: "1 1 240px", minWidth: 0 }}>
+                <input type="checkbox" checked={!!p.publicado} disabled={!esJefeT} onChange={e => publicar(p, e.target.checked)} style={{ width: 20, height: 20 }} aria-label={"Publicar " + p.nombre} />
+                <span style={{ minWidth: 0 }}><b>{p.nombre}</b> <span style={{ fontSize: 12, color: temaPal.textMuted }}>{p.marca || ""}</span>
+                  <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{fmt(p.precio)} · stock {nombreLocal(1)} {p.stock_rg}{!UN_SOLO_LOCAL ? " · " + nombreLocal(2) + " " + p.stock_ush : ""} · {p.foto ? "📷 con foto" : <span style={{ color: temaPal.warn }}>sin foto</span>}{p.descripcion ? " · con descripción" : ""}</div></span>
+              </label>
+              {p.publicado && esJefeT && <button className="btn btn-g btn-sm" onClick={() => setDesc({ id: p.id, nombre: p.nombre, texto: p.descripcion || "" })}>✏️ Descripción</button>}
+            </div>
+          ))}
+          {desc && (
+            <div className="pos-overlay" onClick={() => setDesc(null)}>
+              <div className="card pop-in" style={{ width: 520, maxWidth: "95vw", background: temaPal.card }} onClick={e => e.stopPropagation()}>
+                <div className="ct">Descripción de {desc.nombre} en la tienda</div>
+                <textarea className="inp" rows={6} autoFocus placeholder="Para qué sirve, cómo se usa, tamaño, ingredientes…" value={desc.texto} onChange={e => setDesc(d => ({ ...d, texto: e.target.value }))} />
+                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}><button className="btn btn-g" onClick={() => setDesc(null)}>Cancelar</button><button className="btn btn-p" onClick={guardarDesc}>Guardar</button></div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "config" && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 12, alignItems: "start" }}>
+          <div className="card">
+            <label style={{ display: "flex", gap: 10, alignItems: "center", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>
+              <input type="checkbox" checked={!!cfg.activo} onChange={e => set("activo", e.target.checked)} style={{ width: 20, height: 20 }} /> Tienda publicada
+            </label>
+            <div className="fl" style={{ marginTop: 12 }}>Dirección de tu tienda</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12.5, flexWrap: "wrap" }}>
+              <span style={{ color: temaPal.textMuted }}>{window.location.host}/?tienda=</span>
+              <input className="inp" style={{ flex: "1 1 120px" }} value={cfg.slug || ""} onChange={e => set("slug", e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} />
+            </div>
+            {cfg.activo && url && (
+              <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
+                {qr && <img src={qr} alt="QR de la tienda" style={{ width: 110, height: 110, background: "#fff", borderRadius: 8, padding: 4 }} />}
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <button className="btn btn-g btn-sm" onClick={() => { try { navigator.clipboard.writeText(url); avisar(true, "✓ Link copiado"); } catch (e) {} }}>🔗 Copiar link</button>
+                  <a className="btn btn-g btn-sm" style={{ textDecoration: "none" }} href={"https://wa.me/?text=" + encodeURIComponent("¡Ya podés comprar online en " + (cfg.titulo || "nuestra tienda") + "! " + url)} target="_blank" rel="noopener">💬 Compartir por WhatsApp</a>
+                  <div style={{ fontSize: 11, color: temaPal.textMuted }}>Imprimí el QR para el mostrador o ponelo en Instagram.</div>
+                </div>
+              </div>
+            )}
+            <div className="fl" style={{ marginTop: 12 }}>Nombre que se ve</div>
+            <input className="inp" placeholder="Ej: Girasoles" value={cfg.titulo || ""} onChange={e => set("titulo", e.target.value)} />
+            <div className="fl" style={{ marginTop: 10 }}>Mensaje corto (opcional)</div>
+            <input className="inp" placeholder="Ej: Envíos en el día en Río Grande" value={cfg.mensaje || ""} onChange={e => set("mensaje", e.target.value)} />
+            <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+              <div style={{ flex: 1 }}><div className="fl">WhatsApp de consultas</div><input className="inp" placeholder="2964 123456" value={cfg.whatsapp || ""} onChange={e => set("whatsapp", e.target.value)} /></div>
+              <div><div className="fl">Color</div><input type="color" value={cfg.color || "#c9a84c"} onChange={e => set("color", e.target.value)} style={{ width: 54, height: 40, border: "none", background: "none" }} /></div>
+            </div>
+          </div>
+          <div className="card">
+            <div className="ct">Entrega</div>
+            <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={!!cfg.retiro_activo} onChange={e => set("retiro_activo", e.target.checked)} /> <b>Retiro en el local</b></label>
+            {cfg.retiro_activo && !UN_SOLO_LOCAL && (
+              <div style={{ display: "flex", gap: 12, margin: "6px 0 0 26px" }}>
+                {[1, 2].map(l => <label key={l} style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}><input type="checkbox" checked={(cfg.retiro_locales || []).includes(l)} onChange={e => set("retiro_locales", e.target.checked ? [...new Set([...(cfg.retiro_locales || []), l])] : (cfg.retiro_locales || []).filter(x => x !== l))} /> {nombreLocal(l)}</label>)}
+              </div>
+            )}
+            <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", marginTop: 12 }}><input type="checkbox" checked={!!cfg.envio_activo} onChange={e => set("envio_activo", e.target.checked)} /> <b>Envío propio</b></label>
+            {cfg.envio_activo && (
+              <div style={{ margin: "6px 0 0 26px" }}>
+                {(cfg.envio_zonas || []).map((z, i) => (
+                  <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                    <input className="inp" style={{ flex: 2 }} placeholder="Zona (ej: Centro)" value={z.nombre} onChange={e => set("envio_zonas", cfg.envio_zonas.map((x, j) => j === i ? { ...x, nombre: e.target.value } : x))} />
+                    <input className="inp" style={{ flex: 1 }} type="number" min="0" placeholder="Costo" value={z.costo} onChange={e => set("envio_zonas", cfg.envio_zonas.map((x, j) => j === i ? { ...x, costo: e.target.value } : x))} />
+                    <button className="btn btn-g btn-sm" aria-label="Quitar zona" onClick={() => set("envio_zonas", cfg.envio_zonas.filter((_, j) => j !== i))}>✕</button>
+                  </div>
+                ))}
+                <button className="btn btn-g btn-sm" onClick={() => set("envio_zonas", [...(cfg.envio_zonas || []), { nombre: "", costo: "" }])}>+ Zona</button>
+                <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                  <div style={{ flex: 1 }}><div className="fl">Envío gratis desde (opcional)</div><input className="inp" type="number" min="0" value={cfg.envio_gratis_desde || ""} onChange={e => set("envio_gratis_desde", e.target.value)} /></div>
+                  {!UN_SOLO_LOCAL && <div style={{ flex: 1 }}><div className="fl">Sale del local</div><select className="sel" value={cfg.envio_local || 1} onChange={e => set("envio_local", parseInt(e.target.value))}>{[1, 2].map(l => <option key={l} value={l}>{nombreLocal(l)}</option>)}</select></div>}
+                </div>
+              </div>
+            )}
+            <div className="ct" style={{ marginTop: 16 }}>Pagos</div>
+            <label style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer" }}><input type="checkbox" checked={!!cfg.pago_mp} onChange={e => set("pago_mp", e.target.checked)} style={{ marginTop: 3 }} /> <span><b>Mercado Pago</b>{!cfg.mp_conectado && <div style={{ fontSize: 11.5, color: temaPal.warn }}>Conectá tu cuenta en Configuración del Negocio → Medios de pago para que aparezca.</div>}</span></label>
+            <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", marginTop: 8 }}><input type="checkbox" checked={!!cfg.pago_transferencia} onChange={e => set("pago_transferencia", e.target.checked)} /> <b>Transferencia</b></label>
+            {cfg.pago_transferencia && (
+              <div style={{ margin: "6px 0 0 26px" }}>
+                <textarea className="inp" rows={3} placeholder={"Alias: girasoles.mp\nCBU: 0000...\nTitular: ..."} value={cfg.transferencia_datos || ""} onChange={e => set("transferencia_datos", e.target.value)} />
+                <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12.5, marginTop: 6 }}>Guardar los productos <input className="inp" type="number" min="1" max="168" style={{ width: 70 }} value={cfg.horas_reserva || 24} onChange={e => set("horas_reserva", e.target.value)} /> horas esperando el pago</div>
+              </div>
+            )}
+            <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", marginTop: 8 }}><input type="checkbox" checked={!!cfg.pago_retiro} onChange={e => set("pago_retiro", e.target.checked)} /> <b>Paga al retirar</b> <span style={{ fontSize: 12, color: temaPal.textMuted }}>(solo con retiro)</span></label>
+          </div>
+          <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" }}><button className="btn btn-p" disabled={!esJefeT} onClick={guardarCfg}>Guardar configuración</button></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ===================== INICIO DEL CELULAR =====================
 // Pantalla de inicio en el celular: pocos botones grandes con lo del dia a dia (segun el tipo de
 // negocio y los permisos) y un boton para el menu completo. Pensada para leer facil.
@@ -22633,7 +23156,7 @@ const BOTONES_PANEL = {
   ],
   comercio: [
     ["pos", "🛒", "Vender", "#2d7a4f"], ["buscar-precio", "🔎", "Buscar precio", "#2471a3"], ["inventory", "📦", "Stock", "#a0522d"],
-    ["clients", "👥", "Clientes", "#8e44ad"], ["pedidos", "📝", "Pedidos", "#d35400"], ["caja", "🧾", "Caja", "#b7950b"], ["gerente", "✨", "Mi gerente", "#c9a84c"],
+    ["clients", "👥", "Clientes", "#8e44ad"], ["pedidos", "📝", "Pedidos", "#d35400"], ["tienda-online", "🛍️", "Tienda web", "#16a085"], ["caja", "🧾", "Caja", "#b7950b"], ["gerente", "✨", "Mi gerente", "#c9a84c"],
   ],
 };
 
@@ -24261,7 +24784,14 @@ function AsistenteAyuda({ usuario, seccion, paletaActual }) {
   );
 }
 
-export default function AppWrapper() {
+// La tienda web (?tienda=nombre) se muestra sin iniciar sesion; todo lo demas es Lumiere
+export default function Raiz() {
+  const slugTienda = (() => { try { return new URLSearchParams(window.location.search).get("tienda"); } catch (e) { return null; } })();
+  if (slugTienda) return <TiendaPublica slug={slugTienda} />;
+  return <AppWrapper />;
+}
+
+function AppWrapper() {
   const [usuario, setUsuario] = useState(null);
   const [local, setLocal] = useState(null);
   const [cambiandoLocal, setCambiandoLocal] = useState(false);
@@ -24427,7 +24957,7 @@ export default function AppWrapper() {
       if (!esJefe && !permisos.includes("dashboard.ver")) {
         const ordenPrioridad = ["pos", "ventas-online", "clients", "inventory", "caja"];
         const mapaModulos2 = {
-          "pos": "pos.ver", "presupuestos": "pos.ver", "mesas": "pos.ver", "cocina": "pos.ver", "agenda": "pos.ver", "pacientes": "pos.ver", "recordatorios": "pos.ver", "ventas-online": "ventas_online.ver", "inventory": "inventario.ver",
+          "pos": "pos.ver", "tienda-online": "ventas_online.ver", "presupuestos": "pos.ver", "mesas": "pos.ver", "cocina": "pos.ver", "agenda": "pos.ver", "pacientes": "pos.ver", "recordatorios": "pos.ver", "ventas-online": "ventas_online.ver", "inventory": "inventario.ver",
           "clients": "clientes.ver", "cuenta-corriente": "clientes.ver", "caja": "caja.ver"
         };
         const disponible = ordenPrioridad.find(id => !mapaModulos2[id] || permisos.includes(mapaModulos2[id]));
@@ -24440,7 +24970,7 @@ export default function AppWrapper() {
     if (!usuario) return false;
     if (usuario.rol === "jefe" || usuario.rol_id === 1) return true;
  const mapaModulos = {
-      "pos": "pos.ver", "presupuestos": "pos.ver", "mesas": "pos.ver", "cocina": "pos.ver", "agenda": "pos.ver", "pacientes": "pos.ver", "recordatorios": "pos.ver", "dashboard": "dashboard.ver",
+      "pos": "pos.ver", "tienda-online": "ventas_online.ver", "presupuestos": "pos.ver", "mesas": "pos.ver", "cocina": "pos.ver", "agenda": "pos.ver", "pacientes": "pos.ver", "recordatorios": "pos.ver", "dashboard": "dashboard.ver",
       "ventas-online": "ventas_online.ver", "buscar-precio": "buscar_precio.ver", "cambio-devolucion": "cambios.ver",
       "inventory": "inventario.ver", "rotacion": "rotacion.ver", "ordenes": "ordenes.ver", "inconsistencias": "inconsistencias.ver", "kits": "kits.ver", "etiquetas": "inventario.ver", "listas-precios": "inventario.ver", "stock-alertas": "inventario.ver", "traspasos": "inventario.ver", "valorizacion": "inventario.ver", "historial-ajustes": "inventario.ver", "salud-stock": "inventario.ver", "vencimientos": "inventario.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
       "compras": "compras.ver", "reclamos-proveedores": "compras.ver",
@@ -24554,6 +25084,7 @@ export default function AppWrapper() {
     if (id === "kits") return <Kits paletaActual={paletaActual} localId={local.id} />;
     if (id === "etiquetas") return <Etiquetas paletaActual={paletaActual} localId={local.id} />;
     if (id === "listas-precios") return <ListasPrecios paletaActual={paletaActual} />;
+    if (id === "tienda-online") return <TiendaOnline localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "mesas") return <Mesas localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "agenda") return <AgendaConsultorio localId={local.id} paletaActual={paletaActual} />;
     if (id === "pacientes") return <PacientesConsultorio usuario={usuario} paletaActual={paletaActual} />;

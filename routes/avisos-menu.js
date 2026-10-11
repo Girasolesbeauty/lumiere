@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
   const contar = async (sql, params = []) => {
     try { const r = await pool.query(sql, params); return parseInt(r.rows[0].n) || 0; } catch (e) { return 0; }
   };
-  const [portal, pedidos, compras, tareas, control, ajustes, traspasos] = await Promise.all([
+  const [portal, pedidos, compras, tareas, control, ajustes, traspasos, tienda] = await Promise.all([
     // Premios canjeados en el portal que falta entregar
     contar(`SELECT COUNT(*) AS n FROM canjes_premios WHERE estado = 'pendiente'`),
     // Pedidos de clientes cuya mercaderia ya llego a este local y todavia no se avisaron
@@ -31,8 +31,10 @@ router.get('/', async (req, res) => {
     contar(`SELECT COUNT(*) AS n FROM ajustes_pendientes WHERE estado = 'pendiente' AND local_id = $1`, [localNum]),
     // Traspasos que le mandaron a este local y nadie confirmo que llegaron
     contar(`SELECT COUNT(*) AS n FROM traspasos_stock WHERE estado = 'en_transito' AND local_destino = $1`, [localNum]),
+    // Pedidos de la tienda web para atender (pagados o para pagar al retirar, todavia sin preparar)
+    contar(`SELECT COUNT(*) AS n FROM tienda_pedidos WHERE estado IN ('confirmado', 'pendiente_pago')`),
   ]);
-  res.json({ portal, pedidos, compras, tareas, 'control-inv': control, ajustes_pendientes: ajustes, traspasos_por_recibir: traspasos });
+  res.json({ portal, pedidos, compras, tareas, 'control-inv': control, ajustes_pendientes: ajustes, traspasos_por_recibir: traspasos, 'tienda-online': tienda });
 });
 
 module.exports = router;
