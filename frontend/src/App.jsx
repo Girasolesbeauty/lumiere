@@ -22982,6 +22982,7 @@ const CSS_TIENDA = `
 .tw-rv.in .tw-pre-sub mark{background-size:100% 100%}
 @keyframes twMarcador{from{background-size:0% 100%}to{background-size:100% 100%}}
 .tw-pre-txt{font-size:13.5px;color:#6b5000;margin-top:6px;max-width:560px}
+.tw-etq.top{background:#ff5a36;color:#fff !important;font-weight:800}
 .tw-etq.pre{background:linear-gradient(90deg,#ffd23f,#fff1a8,#ffd23f);background-size:200% 100%;color:#3d2c05 !important;font-weight:900;animation:twEtqPre 1.6s ease-in-out infinite,twLiquido 2.2s linear infinite;box-shadow:0 2px 10px rgba(255,195,0,.55)}
 @keyframes twEtqPre{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
 .tw-fila-in:has(.tw-card.pre){padding:8px 8px 4px;margin:-8px -8px 0}
@@ -23678,7 +23679,8 @@ function TwTarjeta({ p, base, sin, preventa, onAbrir, onAgregar }) {
         {preventa && <><span className="tw-pre-brillo" aria-hidden="true" /><span className="tw-pre-chispas" aria-hidden="true"><i>✦</i><i>✦</i><i>✧</i><i>✦</i></span></>}
         <div className="tw-etqs">
           {preventa && <span className="tw-etq pre">✨ Preventa</span>}
-          {p.nuevo && !preventa && <span className="tw-etq">Nuevo</span>}
+          {p.top && !preventa && <span className="tw-etq top">🔥 {p.top <= 3 ? "#" + p.top + " más vendido" : "Top ventas"}</span>}
+          {p.nuevo && !preventa && !p.top && <span className="tw-etq">Nuevo</span>}
           {p.video && <span className="tw-etq neg">▶ Video</span>}
         </div>
         {sin ? <div className="tw-agotado">AGOTADO</div> : (
@@ -23954,6 +23956,7 @@ function TiendaPublica({ slug }) {
   const [subcat, setSubcat] = useState(""); // categoria elegida dentro de un sector
   const [filtros, setFiltros] = useState({}); // tipo de producto, tipo de piel, necesidad
   const [copiado, setCopiado] = useState(null); // producto cuyo link se acaba de copiar
+  const [vistos, setVistos] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_vistos_" + slug) || "[]"); } catch (e) { return []; } }); // lo que miro hace poco
   const [menuSkin, setMenuSkin] = useState(null); // categoria de skincare con el panel abierto ("*" = todas)
   const [volverA, setVolverA] = useState(null); // al entrar a la cuenta desde el carrito, vuelve ahi
   const [saliendo, setSaliendo] = useState([]); // productos que se van del carrito (se encogen antes de irse)
@@ -24019,7 +24022,9 @@ function TiendaPublica({ slug }) {
   }, []);
   useEffect(() => { try { localStorage.setItem("tienda_carrito_" + slug, JSON.stringify(carrito)); } catch (e) {} }, [carrito]);
   // La direccion sigue al producto abierto: se puede copiar o compartir, y "atras" cierra la ficha
-  const abrirFicha = (p) => { setVer(p); setVarSel(null); setCant(1); setMedia(p.foto || (p.fotos && p.fotos.length) || !p.video ? 0 : "video"); };
+  const abrirFicha = (p) => {
+    setVistos(v => { const n = [p.id, ...v.filter(x => x !== p.id)].slice(0, 20); try { localStorage.setItem("tienda_vistos_" + slug, JSON.stringify(n)); } catch (e) {} return n; });
+    setVer(p); setVarSel(null); setCant(1); setMedia(p.foto || (p.fotos && p.fotos.length) || !p.video ? 0 : "video"); };
   const slugsRef = useRef(new Map());
   const abrioDesdeUrl = useRef(false);
   const modoRuta = !params.get("tienda"); // dominio propio: /nombre-del-producto; si no, ?tienda=...&producto=...
@@ -24311,6 +24316,9 @@ function TiendaPublica({ slug }) {
     .filter(x => x.t && Date.now() / 1000 - x.t < reingreso.dias * 86400).sort((a, b) => b.t - a.t).map(x => x.p) : [];
   const cats = [...new Set(visibles.map(p => p.categoria).filter(Boolean))].sort();
   const preventas = tienda.preventa ? visibles.filter(esPreventa) : [];
+  // Lo mas vendido del mes (calculado en el servidor) y lo que la clienta miro hace poco
+  const masVendidos = visibles.filter(p => p.top && !esPreventa(p)).sort((a, b) => a.top - b.top);
+  const vistosLista = vistos.map(id => visibles.find(p => p.id === id)).filter(Boolean).slice(0, 12);
   const q = busca.trim().toLowerCase();
   const enLista = !!q || !!cat;
   const ordenar = (arr) => orden === "menor" ? [...arr].sort((a, b) => a.precio - b.precio) : orden === "mayor" ? [...arr].sort((a, b) => b.precio - a.precio) : orden === "az" ? [...arr].sort((a, b) => a.nombre.localeCompare(b.nombre)) : arr;
@@ -24611,6 +24619,7 @@ function TiendaPublica({ slug }) {
               <div className="tw-hero" style={{ height: 220, display: "flex", alignItems: "center", padding: "0 40px" }}><div><div className="tw-ceja" style={{ color }}>Bienvenida</div><h2 style={{ fontSize: 40, margin: "8px 0" }}>{tienda.titulo}</h2><p style={{ margin: 0 }}>{tienda.mensaje}</p></div></div>
             )}
             {bannersImg.length > 0 && <TwFila titulo="Destacados" items={destacados} render={tarjeta} />}
+            {vistosLista.length >= 2 && <TwFila titulo="👀 Lo viste hace poco" items={vistosLista} render={tarjeta} />}
             {preventas.length > 0 && <TwFila clase="tw-pre-bloque" items={preventas.slice(0, 12)} onVerTodo={() => irCat("preventa")} render={tarjeta}
               titulo={<>⏳ {tienda.preventa.titulo}</>}
               sub={<><div className="tw-pre-sub">Comprá en <mark>PREVENTA</mark></div><div className="tw-pre-txt">Todavía no llegaron al local: reservalos ahora y te avisamos por WhatsApp cuando estén para retirar.</div></>} />}
@@ -24619,6 +24628,7 @@ function TiendaPublica({ slug }) {
               {retiroAca.length > 0 && <div><span>📍</span><span style={{ fontSize: 13.5 }}><b>Retiro sin costo</b><br />En {retiroAca.map(l => l.nombre).join(" o ")}</span></div>}
               <div><span>🔒</span><span style={{ fontSize: 13.5 }}><b>Compra segura</b><br />{tienda.pagos.mp ? "Con Mercado Pago" : "Te confirmamos por WhatsApp"}</span></div>
             </div>
+            {masVendidos.length >= 3 && <TwFila titulo="🔥 Lo más vendido del mes" items={masVendidos} render={tarjeta} />}
             {filasPortada.map(f => <TwFila key={f.id} titulo={f.titulo} items={f.items} render={tarjeta} />)}
             {reels.length > 0 && (
               <section className="tw-sec tw-rv">
