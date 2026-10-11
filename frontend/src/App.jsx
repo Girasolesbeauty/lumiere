@@ -24406,7 +24406,7 @@ function TiendaPublica({ slug }) {
                 </div>
                 {carrito.length > 0 && <div className="tw-cajon-pie">
                   <TwPuntos monto={subtotal} tengo={logueada && miCuenta ? (miCuenta.puntos || 0) : null} />
-                  {tienda.ruleta && <TwRuletaAviso monto={subtotal} minimo={tienda.ruleta.minimo} />}
+                  {tienda.ruleta && tienda.ruleta.aviso && <TwRuletaAviso monto={subtotal} minimo={tienda.ruleta.minimo} />}
                   <div className="tw-linea" style={{ fontWeight: 800, fontSize: 18, marginBottom: 12 }}><span>Subtotal</span><span>{fmtTienda(subtotal)}</span></div>
                   {problemas.length > 0 && <div style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, marginBottom: 10, fontSize: 13.5 }}>Algunos productos no están disponibles{ciudad ? " en " + ciudad.nombre : ""} en esa cantidad. <button className="tw-btn2" style={{ padding: "6px 12px", fontSize: 11.5, marginTop: 6 }} onClick={ajustarCarrito}>Ajustar a lo disponible</button></div>}
                   <button className="tw-btn full" disabled={problemas.length > 0} onClick={() => setPaso("datos")}>Finalizar compra</button>
@@ -24461,7 +24461,7 @@ function TiendaPublica({ slug }) {
                   {datos.entrega === "envio" && <div className="tw-linea"><span>Envío</span><span>{zona ? (costoEnvio ? fmtTienda(costoEnvio) : "Gratis") : "—"}</span></div>}
                   <div className="tw-linea" style={{ fontWeight: 800, fontSize: 19, marginBottom: 12 }}><span>Total</span><span><TwRueda key={"t" + (cuponOk ? cuponOk.codigo : "")} valor={subtotal - descuentoCupon + costoEnvio} desde={subtotal + costoEnvio} formato={fmtTienda} dur={1000} /></span></div>
                   <TwPuntos monto={subtotal - descuentoCupon} tengo={logueada && miCuenta ? (miCuenta.puntos || 0) : null} />
-                  {tienda.ruleta && <TwRuletaAviso monto={subtotal - descuentoCupon} minimo={tienda.ruleta.minimo} />}
+                  {tienda.ruleta && tienda.ruleta.aviso && <TwRuletaAviso monto={subtotal - descuentoCupon} minimo={tienda.ruleta.minimo} />}
                   <div style={{ display: "flex", gap: 8 }}>
                     <button className="tw-btn2" onClick={() => setPaso("carrito")}>Atrás</button>
                     <button className="tw-btn full" disabled={!listoParaPedir || enviando} onClick={confirmar}>{enviando ? "Enviando…" : datos.pago === "mp" ? "Ir a pagar" : "Hacer el pedido"}</button>
@@ -25467,20 +25467,27 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                   <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "4px 0 10px" }}>Cuando una compra online llega al monto, al terminar la compra la clienta gira una vez. Los cupones que gana se activan cuando retira y paga ese pedido (si lo cancela, no valen) y duran 60 días, online o en el local. El REGALO se lo das con el pedido: te avisa en el pedido y en la caja.</div>
                   <div className="fl">Compra mínima para girar</div>
                   <input className="inp" type="number" min="1" style={{ maxWidth: 180 }} value={r.minimo} onChange={e => setR({ minimo: e.target.value })} />
+                  <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", fontSize: 13, marginTop: 8 }}><input type="checkbox" checked={!!r.aviso_carrito} onChange={e => setR({ aviso_carrito: e.target.checked })} /> Avisar en el carrito cuánto le falta para girar <span style={{ color: temaPal.textMuted }}>(si no, la ruleta es sorpresa al terminar la compra)</span></label>
                   <div className="fl" style={{ marginTop: 12 }}>Opciones de la ruleta</div>
                   {r.premios.map((x, i) => (
-                    <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6, flexWrap: "wrap" }}>
-                      <input className="inp" style={{ flex: "1 1 140px", minWidth: 0 }} maxLength={24} value={x.texto} onChange={e => setP(i, { texto: e.target.value })} aria-label="Texto de la porción" />
-                      <select className="sel" style={{ flex: "0 0 150px" }} value={x.tipo} onChange={e => setP(i, { tipo: e.target.value, texto: e.target.value === "nada" ? "Seguí participando" : e.target.value === "regalo" ? "REGALO" : (x.valor || 5) + "% OFF", valor: e.target.value === "cupon" ? (x.valor || 5) : 0 })} aria-label="Tipo de premio">
-                        <option value="regalo">🎁 Regalo</option><option value="cupon">🏷 Cupón de descuento</option><option value="nada">Seguí participando</option>
-                      </select>
-                      {x.tipo === "cupon" && <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12.5 }}><input className="inp" type="number" min="1" max="90" style={{ width: 64 }} value={x.valor} onChange={e => setP(i, { valor: e.target.value, texto: (e.target.value || "") + "% OFF" })} aria-label="Porcentaje" />% off</span>}
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12.5 }} title="Qué tan seguido sale">Chance <input className="inp" type="number" min="0" style={{ width: 64 }} value={x.chance} onChange={e => setP(i, { chance: e.target.value })} aria-label="Chance" /> <b style={{ minWidth: 38 }}>{suma ? Math.round((Number(x.chance) || 0) / suma * 100) : 0}%</b></span>
-                      <button className="btn btn-g btn-sm" disabled={r.premios.length <= 2} onClick={() => setR({ premios: r.premios.filter((_, j) => j !== i) })} aria-label="Quitar opción">✕</button>
+                    <div key={i} style={{ border: "1px solid " + temaPal.border, borderLeft: "4px solid " + (x.tipo === "regalo" ? "#f4b400" : x.tipo === "cupon" ? "#141414" : temaPal.border), borderRadius: 8, padding: "8px 10px", marginBottom: 6 }}>
+                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        <input className="inp" style={{ flex: "1 1 auto", minWidth: 0 }} maxLength={24} value={x.texto} onChange={e => setP(i, { texto: e.target.value })} aria-label="Texto de la porción" />
+                        <select className="sel" style={{ flex: "0 0 170px" }} value={x.tipo} onChange={e => setP(i, { tipo: e.target.value, texto: e.target.value === "nada" ? "Seguí participando" : e.target.value === "regalo" ? "REGALO" : (x.valor || 5) + "% OFF", valor: e.target.value === "cupon" ? (x.valor || 5) : 0 })} aria-label="Tipo de premio">
+                          <option value="regalo">🎁 Regalo</option><option value="cupon">🏷 Cupón de descuento</option><option value="nada">Seguí participando</option>
+                        </select>
+                        <button className="btn btn-g btn-sm" disabled={r.premios.length <= 2} onClick={() => setR({ premios: r.premios.filter((_, j) => j !== i) })} aria-label="Quitar opción">✕</button>
+                      </div>
+                      <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", marginTop: 6, fontSize: 12.5 }}>
+                        {x.tipo === "cupon" && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><input className="inp" type="number" min="1" max="90" style={{ width: 60 }} value={x.valor} onChange={e => setP(i, { valor: e.target.value, texto: (e.target.value || "") + "% OFF" })} aria-label="Porcentaje" />% off</span>}
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }} title="Qué tan seguido sale">Chance <input className="inp" type="number" min="0" style={{ width: 64 }} value={x.chance} onChange={e => setP(i, { chance: e.target.value })} aria-label="Chance" />
+                          <b>{(() => { const pr = suma ? (Number(x.chance) || 0) / suma : 0; return pr <= 0 ? "nunca sale" : "= " + (pr * 100 < 1 ? (pr * 100).toFixed(1) : Math.round(pr * 100)) + "% (1 de cada " + Math.max(1, Math.round(1 / pr)) + ")"; })()}</b></span>
+                        {x.tipo !== "nada" && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }} title="Para premios grandes: aunque tenga suerte, no sale más seguido que esto">Máx. 1 cada <input className="inp" type="number" min="0" placeholder="—" style={{ width: 70 }} value={x.cada || ""} onChange={e => setP(i, { cada: e.target.value })} aria-label="Máximo 1 cada tantos giros" /> giros</span>}
+                      </div>
                     </div>
                   ))}
                   {r.premios.length < 12 && <button className="btn btn-g btn-sm" onClick={() => setR({ premios: [...r.premios, { id: "p" + Date.now().toString(36), texto: "Seguí participando", tipo: "nada", valor: 0, chance: 10 }] })}>+ Sumar opción</button>}
-                  <div style={{ fontSize: 11.5, color: temaPal.textMuted, marginTop: 6 }}>El % de la derecha es la probabilidad real de que salga cada opción. Tocá "Guardar configuración" para aplicar.</div>
+                  <div style={{ fontSize: 11.5, color: temaPal.textMuted, marginTop: 6, lineHeight: 1.5 }}>El % es la probabilidad real de que salga cada opción ("1 de 20" = sale más o menos una vez cada 20 giros). <b>Máx. 1 cada…</b> sirve para premios grandes: por ejemplo un MEGA REGALO con chance baja y "máx. 1 cada 100 giros" nunca sale dos veces seguidas aunque haya suerte. Vacío = sin tope. Tocá "Guardar configuración" para aplicar.</div>
                 </div>
                 <div style={{ flex: "0 0 auto", margin: "0 auto" }}><TwRuletaDibujo premios={r.premios.map((x, i) => ({ ...x, id: x.id || "p" + i, texto: String(x.texto || "") }))} tamano={240} /></div>
               </div>
