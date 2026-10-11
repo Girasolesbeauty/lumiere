@@ -22923,6 +22923,14 @@ const CSS_TIENDA = `
 .tw-compartir{display:flex;gap:8px;flex-wrap:wrap;margin:-2px 0 14px}
 .tw-compartir button,.tw-compartir a{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 14px;border:1.5px solid var(--b);border-radius:999px;background:#fff;color:#111 !important;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;font-family:inherit;transition:border-color .2s}
 .tw-compartir button:hover,.tw-compartir a:hover{border-color:var(--n)}
+.tw-pre-bloque{background:linear-gradient(180deg,#fff6d1,#fffdf3);border:2px solid #ffd23f;border-radius:16px;padding:20px 18px 8px}
+.tw-pre-bloque .tw-sec-t{align-items:flex-start}
+.tw-pre-bloque h3{text-transform:uppercase;letter-spacing:.04em}
+.tw-pre-sub{font-size:clamp(20px,4.6vw,28px);font-weight:900;margin-top:4px;color:#111}
+.tw-pre-sub mark{background:linear-gradient(transparent 12%,#ffd23f 12%,#ffd23f 88%,transparent 88%);color:#111;padding:0 6px;border-radius:4px;letter-spacing:.05em;animation:twMarcador 1.1s cubic-bezier(.3,.7,.2,1) both .3s;background-size:0% 100%;background-repeat:no-repeat}
+.tw-rv.in .tw-pre-sub mark{background-size:100% 100%}
+@keyframes twMarcador{from{background-size:0% 100%}to{background-size:100% 100%}}
+.tw-pre-txt{font-size:13.5px;color:#6b5000;margin-top:6px;max-width:560px}
 .tw-etq.pre{background:#ffd23f;color:#3d2c05 !important;font-weight:800}
 .tw-card-pre{font-size:12px;color:#8a5a00;font-weight:700;margin-top:2px}
 .tw-nav-pre{color:#ffd23f !important}
@@ -23570,13 +23578,13 @@ function TwReel({ r, base, prods, onAbrir, onAgregar }) {
   );
 }
 
-function TwFila({ titulo, items, onVerTodo, render }) {
+function TwFila({ titulo, sub, clase, items, onVerTodo, render }) {
   const ref = useRef(null);
   const mover = (d) => { const el = ref.current; if (el) el.scrollBy({ left: d * el.clientWidth * 0.9, behavior: "smooth" }); };
   if (!items.length) return null;
   return (
-    <section className="tw-sec tw-rv">
-      <div className="tw-sec-t"><h3>{titulo}</h3>{onVerTodo && <button onClick={onVerTodo}>Ver todo</button>}</div>
+    <section className={"tw-sec tw-rv" + (clase ? " " + clase : "")}>
+      <div className="tw-sec-t"><div><h3>{titulo}</h3>{sub}</div>{onVerTodo && <button onClick={onVerTodo}>Ver todo</button>}</div>
       <div className="tw-fila">
         {items.length > 5 && <button className="tw-flecha" style={{ left: -14 }} onClick={() => mover(-1)} aria-label="Anteriores"><TwIcono d={TW_IZQ} /></button>}
         <div className="tw-fila-in" ref={ref}>{items.map(render)}</div>
@@ -24386,6 +24394,9 @@ function TiendaPublica({ slug }) {
               <div className="tw-hero" style={{ height: 220, display: "flex", alignItems: "center", padding: "0 40px" }}><div><div className="tw-ceja" style={{ color }}>Bienvenida</div><h2 style={{ fontSize: 40, margin: "8px 0" }}>{tienda.titulo}</h2><p style={{ margin: 0 }}>{tienda.mensaje}</p></div></div>
             )}
             {bannersImg.length > 0 && <TwFila titulo="Destacados" items={destacados} render={tarjeta} />}
+            {preventas.length > 0 && <TwFila clase="tw-pre-bloque" items={preventas.slice(0, 12)} onVerTodo={() => irCat("preventa")} render={tarjeta}
+              titulo={<>⏳ {tienda.preventa.titulo}</>}
+              sub={<><div className="tw-pre-sub">Comprá en <mark>PREVENTA</mark></div><div className="tw-pre-txt">Todavía no llegaron al local: reservalos ahora y te avisamos por WhatsApp cuando estén para retirar.</div></>} />}
             <div className="tw-benef tw-rv">
               {envioAca && <div><span>🛵</span><span style={{ fontSize: 13.5 }}><b>Envío a domicilio{ciudad ? " en " + ciudad.nombre : ""}</b><br />{gratisDesde ? "Gratis desde " + fmtTienda(gratisDesde) : "Según tu zona"}</span></div>}
               {retiroAca.length > 0 && <div><span>📍</span><span style={{ fontSize: 13.5 }}><b>Retiro sin costo</b><br />En {retiroAca.map(l => l.nombre).join(" o ")}</span></div>}
@@ -24403,12 +24414,6 @@ function TiendaPublica({ slug }) {
                 <div className="tw-sec-t"><h3>{tienda.reels_titulo || "Videos"}</h3>{reels.length > 3 && <button onClick={() => irCat("videos")}>Ver todos</button>}</div>
                 <div className="tw-reels-fila">{reels.slice(0, 10).map(reel)}</div>
               </section>
-            )}
-            {preventas.length > 0 && (
-              <>
-                <div className="tw-preventa-cinta tw-rv"><b>⏳ PREVENTA</b> <span>Todavía no llegaron al local: reservalos ahora y te avisamos por WhatsApp cuando estén para retirar.</span></div>
-                <TwFila titulo={tienda.preventa.titulo} items={preventas.slice(0, 12)} onVerTodo={() => irCat("preventa")} render={tarjeta} />
-              </>
             )}
             {reingresados.length > 0 && <TwFila titulo={reingreso.nombre} items={reingresados.slice(0, 12)} onVerTodo={() => irCat("reingreso")} render={tarjeta} />}
             <TwFila titulo="Novedades" items={conStock.filter(p => p.nuevo).slice(0, 12)} onVerTodo={() => irCat("*")} render={tarjeta} />
