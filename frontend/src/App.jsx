@@ -23718,6 +23718,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const [buscaFoto, setBuscaFoto] = useState(null); // { cola: [productos], i }
   const [galeria, setGaleria] = useState(null); // producto con la ventana de fotos abierta
   const [importando, setImportando] = useState(false);
+  const [limiteProd, setLimiteProd] = useState(150);
+  useEffect(() => { setLimiteProd(150); }, [busca, soloPub]);
   const [qr, setQr] = useState(null);
   const [aviso, setAviso] = useState(null);
   const avisar = (ok, texto) => { setAviso({ ok, texto }); setTimeout(() => setAviso(null), 4500); };
@@ -23798,7 +23800,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const nPub = productos.filter(p => p.publicado).length;
   const q = busca.trim().toLowerCase();
   const prodFiltro = productos.filter(p => (!soloPub || p.publicado) && (!q || [p.nombre, p.marca, p.categoria].some(v => (v || "").toLowerCase().includes(q))));
-  const prodVis = prodFiltro.slice(0, 150);
+  const prodVis = prodFiltro.slice(0, limiteProd);
   const set = (k, v) => setCfg(c => ({ ...c, [k]: v }));
 
   return (
@@ -23874,7 +23876,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               <button className="btn btn-g btn-sm" disabled={!prodFiltro.some(p => p.publicado)} onClick={() => publicarVarios(prodFiltro.filter(p => p.publicado), false)}>☐ Sacar {q ? "los de la búsqueda" : "todos"} ({prodFiltro.filter(p => p.publicado).length})</button>
               <button className="btn btn-g btn-sm" onClick={() => setImportando(true)} title="Desde el archivo de productos de Tiendanube u otra tienda">📥 Traer descripciones de mi tienda anterior</button>
               {prodFiltro.some(p => !p.foto) && <button className="btn btn-g btn-sm" onClick={() => setBuscaFoto({ cola: prodFiltro.filter(p => !p.foto), i: 0 })}>🔍 Buscar fotos para los que no tienen ({prodFiltro.filter(p => !p.foto).length})</button>}
-              {prodFiltro.length > prodVis.length && <span style={{ fontSize: 11.5, color: temaPal.textMuted }}>Se muestran {prodVis.length} de {prodFiltro.length}; los botones toman todos.</span>}
+              {prodFiltro.length > prodVis.length && <span style={{ fontSize: 11.5, color: temaPal.textMuted }}>Se muestran {prodVis.length} de {prodFiltro.length} (abajo está "Ver más"); los botones toman todos.</span>}
             </div>
           )}
           <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 8 }}>Tocá el interruptor para publicar o sacar un producto. El precio y el stock son los de Lumiere. La foto es la del producto (se carga en Productos → editar). Marcá ⭐ los que quieras en el banner grande y sumá 🎬 videos para que se luzcan.</div>
@@ -23893,6 +23895,12 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               {esJefeT && <button className="btn btn-g btn-sm" onClick={() => setGaleria(p)} title="Portada y más fotos">🖼 Fotos ({(p.foto ? 1 : 0) + (p.fotos_extra || 0)})</button>}
             </div>
           ))}
+          {prodFiltro.length > prodVis.length && (
+            <div style={{ textAlign: "center", padding: "12px 0 4px" }}>
+              <button className="btn btn-g" onClick={() => setLimiteProd(n => n + 150)}>Ver más productos ({prodFiltro.length - prodVis.length} más)</button>
+              <div style={{ fontSize: 11.5, color: temaPal.textMuted, marginTop: 4 }}>O escribí en el buscador de arriba para ir directo a uno.</div>
+            </div>
+          )}
           {importando && <ImportarDescripciones productos={productos} temaPal={temaPal} avisar={avisar} onCerrar={() => setImportando(false)} onListo={() => { setImportando(false); cargarProductos(); }} />}
           {galeria && <GaleriaFotos producto={galeria} temaPal={temaPal} avisar={avisar} onCerrar={() => { setGaleria(null); cargarProductos(); }} />}
           {buscaFoto && (() => { const p = buscaFoto.cola[buscaFoto.i]; const varios = buscaFoto.cola.length > 1; return (
