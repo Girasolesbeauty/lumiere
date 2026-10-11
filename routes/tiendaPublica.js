@@ -61,6 +61,7 @@ router.get('/:slug', async (req, res) => {
       envio: c.envio_activo ? { zonas: c.envio_zonas, gratis_desde: c.envio_gratis_desde } : null,
       pagos: { mp, transferencia: !!c.pago_transferencia, retiro: !!c.pago_retiro }, horas_reserva: c.horas_reserva,
       anuncios: String(c.anuncios || '').split('\n').filter(Boolean),
+      banner: c.banner || [], filas: c.filas || [], sectores: c.sectores || [],
     });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la tienda' }); }
 });
