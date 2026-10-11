@@ -79,6 +79,8 @@ router.get('/:slug', async (req, res) => {
       pagos: { mp, transferencia: !!c.pago_transferencia, retiro: !!c.pago_retiro }, horas_reserva: c.horas_reserva,
       anuncios: String(c.anuncios || '').split('\n').filter(Boolean),
       redes: linksRedes(c.redes),
+      reels_titulo: c.reels_titulo || 'Videos',
+      reels: (await pool.query('SELECT id, titulo, tipo, codigo, productos FROM tienda_reels ORDER BY orden, id').catch(() => ({ rows: [] }))).rows,
       banner: c.banner || [], banners_img: c.banners_img || [], filas: c.filas || [], sectores: c.sectores || [],
       reingreso: c.reingreso_activo ? { nombre: c.reingreso_nombre || 'Nuevamente en stock', dias: c.reingreso_dias || 14 } : null,
     });
@@ -160,25 +162,15 @@ router.get('/:slug/foto-extra/:id', async (req, res) => {
 router.get('/:slug/video/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const r = (await pool.query(`SELECT v.tipo, octet_length(v.datos) AS largo, v.actualizado_en FROM tienda_videos v
-      JOIN tienda_productos tp ON tp.producto_id = v.producto_id AND tp.publicado WHERE v.producto_id = $1`, [id])).rows[0];
-    if (!r) return res.status(404).end();
-    const largo = parseInt(r.largo);
-    let desde = 0, hasta = largo - 1, parcial = false;
-    const m = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || ''));
-    if (m && (m[1] || m[2])) {
-      if (m[1]) { desde = parseInt(m[1]); if (m[2]) hasta = Math.min(parseInt(m[2]), largo - 1); }
-      else { desde = Math.max(0, largo - parseInt(m[2])); }
-      hasta = Math.min(hasta, desde + 2 * 1024 * 1024 - 1); // de a 2 MB
-      if (desde >= largo || desde > hasta) return res.status(416).set('Content-Range', 'bytes */' + largo).end();
-      parcial = true;
-    }
-    const d = (await pool.query('SELECT substring(datos FROM $2 FOR $3) AS trozo FROM tienda_videos WHERE producto_id = $1', [id, desde + 1, hasta - desde + 1])).rows[0];
-    res.status(parcial ? 206 : 200).set({
-      'Content-Type': r.tipo, 'Accept-Ranges': 'bytes', 'Content-Length': String(d.trozo.length), 'Cache-Control': 'public, max-age=600',
-      ...(parcial ? { 'Content-Range': 'bytes ' + desde + '-' + (desde + d.trozo.length - 1) + '/' + largo } : {}),
-    }).send(d.trozo);
+    const pub = (await pool.query('SELECT 1 FROM tienda_productos WHERE producto_id = $1 AND publicado', [id])).rows.length;
+    if (!pub) return res.status(404).end();
+    await tienda.servirVideo(req, res, 'tienda_videos', 'producto_id', id);
   } catch (e) { res.status(404).end(); }
+});
+
+// Video subido del sector de videos
+router.get('/:slug/reel/:id', async (req, res) => {
+  try { await tienda.servirVideo(req, res, 'tienda_reels', 'id', parseInt(req.params.id)); } catch (e) { res.status(404).end(); }
 });
 
 // Busca el cliente por telefono o mail; si no existe, lo crea (asi suma puntos y queda en Clientes)

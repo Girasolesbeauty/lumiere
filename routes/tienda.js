@@ -141,6 +141,62 @@ router.get('/banner-imagen/:id', async (req, res) => {
   } catch (e) { res.status(404).end(); }
 });
 
+// ---- Sector de videos (reels de Instagram por link, YouTube o videos subidos) ----
+router.get('/reels', async (req, res) => {
+  try {
+    const c = await tienda.leerConfig();
+    const r = await pool.query('SELECT id, titulo, tipo, codigo, productos FROM tienda_reels ORDER BY orden, id');
+    res.json({ titulo: c.reels_titulo || '', reels: r.rows });
+  } catch (e) { res.status(500).json({ error: 'No se pudieron cargar los videos' }); }
+});
+const sigOrden = async () => (await pool.query('SELECT COALESCE(MAX(orden), 0) + 1 AS n FROM tienda_reels')).rows[0].n;
+router.post('/reels/link', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    const url = String((req.body && req.body.url) || '').trim();
+    const ig = tienda.reelDeLink(url), yt = tienda.videoDeLink(url), tt = /tiktok\.com/i.test(url) ? await tienda.tiktokDeLink(url) : null;
+    if (!ig && !tt && !(yt && yt.tipo === 'youtube')) return res.status(400).json({ error: 'Pegá el link de un reel de Instagram, de un video de TikTok o de YouTube' });
+    const n = (await pool.query('SELECT COUNT(*)::int AS n FROM tienda_reels')).rows[0].n;
+    if (n >= 40) return res.status(400).json({ error: 'Ya hay 40 videos. Borrá alguno para sumar otro.' });
+    const r = await pool.query('INSERT INTO tienda_reels (tipo, codigo, orden) VALUES ($1, $2, $3) RETURNING id', [ig ? 'instagram' : tt ? 'tiktok' : 'youtube', ig || tt || yt.id, await sigOrden()]);
+    res.json({ ok: true, id: r.rows[0].id });
+  } catch (e) { res.status(500).json({ error: 'No se pudo agregar' }); }
+});
+router.post('/reels/subir', express.raw({ type: () => true, limit: tienda.VIDEO_MAX_MB + 'mb' }), async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    const tipo = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+    if (!/^video\/(mp4|webm|quicktime)$/.test(tipo)) return res.status(400).json({ error: 'El video tiene que ser .mp4, .mov o .webm' });
+    if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'No llegó el video' });
+    const r = await pool.query('INSERT INTO tienda_reels (tipo, mime, datos, orden) VALUES ($1, $2, $3, $4) RETURNING id', ['subido', tipo, req.body, await sigOrden()]);
+    res.json({ ok: true, id: r.rows[0].id });
+  } catch (e) { console.error('[tienda] reel:', e.message); res.status(500).json({ error: 'No se pudo subir el video' }); }
+});
+router.put('/reels/orden', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    const lista = ids(req.body && req.body.ids, 100);
+    for (let i = 0; i < lista.length; i++) await pool.query('UPDATE tienda_reels SET orden = $1 WHERE id = $2', [i + 1, lista[i]]);
+    if (req.body && req.body.titulo !== undefined) await pool.query('UPDATE tienda_config SET reels_titulo = $1 WHERE id = 1', [texto(req.body.titulo, 40) || null]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+});
+router.put('/reels/:id', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    const b = req.body || {};
+    await pool.query('UPDATE tienda_reels SET titulo = $1, productos = $2 WHERE id = $3', [texto(b.titulo, 80) || null, ids(b.productos, 12), req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+});
+router.delete('/reels/:id', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    await pool.query('DELETE FROM tienda_reels WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'No se pudo borrar' }); }
+});
+
 // QR de la direccion de la tienda (para el mostrador o Instagram)
 router.get('/qr', async (req, res) => {
   try {

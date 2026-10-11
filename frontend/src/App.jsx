@@ -2946,6 +2946,8 @@ function POS({ localId, usuario, paletaActual }) {
   const [mediosPago, setMediosPago] = useState([]);
   const [descuentoManual, setDescuentoManual] = useState("");
   const [referenciaVenta, setReferenciaVenta] = useState("");
+  // Pedido de la tienda web que se esta cobrando (se puede cambiar lo que se lleva: sacar o sumar productos)
+  const [pedidoWeb, setPedidoWeb] = useState(null);
   const [tipoDescuento, setTipoDescuento] = useState("%");
   const [medioPagoSel, setMedioPagoSel] = useState(null);
   useEffect(() => {
@@ -3229,7 +3231,7 @@ function POS({ localId, usuario, paletaActual }) {
     retoEvaluadoRef.current = false;
     setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
     setClienteSeleccionado(null); setShowNuevoCliente(false); setDescuentoManual(""); setTipoDescuento("%");
-    setInsumosSel({}); setMostrarInsumos(false); setMontoRecibidoEfectivo(""); setReferenciaVenta("");
+    setInsumosSel({}); setMostrarInsumos(false); setMontoRecibidoEfectivo(""); setReferenciaVenta(""); setPedidoWeb(null);
     setJustificacionesStock({}); setItemsSinStock(null); quitarGiftCard();
     setFichaCliente(null); fichaClienteIdRef.current = null; setReto(null); setRetoDescartadoId(null); setTipoPagoAbierto("");
   };
@@ -3882,8 +3884,9 @@ function POS({ localId, usuario, paletaActual }) {
       });
       if (mpPago) mpPagoRef.current = null;
       // Si la venta salio de un pedido de la tienda web, queda entregado
-      const tiendaId = (cart.find(i => i.tienda_pedido) || {}).tienda_pedido;
+      const tiendaId = (pedidoWeb && referenciaVenta === "Tienda web " + pedidoWeb.codigo ? pedidoWeb.id : null) || (cart.find(i => i.tienda_pedido) || {}).tienda_pedido;
       if (tiendaId) API.put("/tienda/pedidos/" + tiendaId + "/vendido", { venta_id: ventaRes.data.id }).catch(() => {});
+      setPedidoWeb(null);
       // Si la venta salio de un turno de la agenda, el turno queda cobrado (y atendido)
       cart.filter(i => i.turno_id).forEach(i => API.put("/consultorio/turnos/" + i.turno_id + "/cobrado", { venta_id: ventaRes.data.id }).catch(() => {}));
       // Si la venta salio de una mesa, esos items quedan cobrados (y si no queda nada, se libera la mesa)
@@ -4053,6 +4056,7 @@ function POS({ localId, usuario, paletaActual }) {
       if (pe.costo_envio > 0) lineas.push({ id: "ajuste-envio-" + pe.id, es_ajuste: true, tienda_pedido: pe.id, nombre: "Envío" + (pe.zona ? " (" + pe.zona + ")" : ""), precio: pe.costo_envio, qty: 1, disponible: 9999 });
       setCart(lineas);
       setReferenciaVenta("Tienda web " + pe.codigo);
+      setPedidoWeb({ id: pe.id, codigo: pe.codigo, nombre: pe.nombre, pagado: !!pe.pagado, pago: pe.pago, total: pe.total });
       if (pe.cliente_id) API.get("/clientes").then(rc => { const c = (rc.data || []).find(x => x.id === pe.cliente_id); if (c) { setClienteSeleccionado(c); setDniInput(c.cuit_dni || ""); cargarFicha(c.id, false); } }).catch(() => {});
       const medios = (rm.data || []).filter(m => m.activo !== false);
       const medio = pe.pagado && pe.pago === "mp" ? medios.find(m => m.nombre === "Mercado Pago (tienda web)") : pe.pagado && pe.pago === "transferencia" ? medios.find(m => m.tipo === "transferencia") : null;
@@ -5144,6 +5148,12 @@ function POS({ localId, usuario, paletaActual }) {
       {mensaje && (
         <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>
           {mensaje}
+        </div>
+      )}
+      {pedidoWeb && referenciaVenta === "Tienda web " + pedidoWeb.codigo && (
+        <div role="status" style={{ background: temaPal.accent + "14", border: "1px solid " + temaPal.accent, borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 12.5, lineHeight: 1.5 }}>
+          🛍️ <b>Cobrando el pedido web N° {pedidoWeb.codigo}</b> de {pedidoWeb.nombre}. Si se lleva otra cosa, <b>sacá o sumá productos</b> en el carrito como en cualquier venta: se registra lo que se lleva y el pedido queda entregado.
+          {pedidoWeb.pagado && <div style={{ marginTop: 4 }}>Ya pagó <b>{fmt(pedidoWeb.total)}</b> con {pedidoWeb.pago === "mp" ? "Mercado Pago" : "transferencia"}. {Math.round(total - pedidoWeb.total) !== 0 ? (total > pedidoWeb.total ? " Falta cobrar " + fmt(total - pedidoWeb.total) + " (con otro medio de pago)." : " Hay que devolverle " + fmt(pedidoWeb.total - total) + ".") : ""}</div>}
         </div>
       )}
       {modoVista === "clasico" && (
@@ -22654,6 +22664,11 @@ const CSS_TIENDA = `
 #root:has(>.tw){width:auto;max-width:none;border:0;text-align:left;display:block;margin:0}
 .tw{text-align:left;--n:#111;--g:#f6f6f6;--b:#e6e6e6;--m:#666;font-family:"Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;color:var(--n);background:#fff;min-height:100vh;-webkit-font-smoothing:antialiased}
 .tw *{box-sizing:border-box}
+.tw{color-scheme:light}
+.tw h1,.tw h2,.tw h3,.tw h4,.tw p,.tw label,.tw b{color:inherit}
+.tw input,.tw select,.tw textarea{color:#111;background-color:#fff;-webkit-text-fill-color:#111}
+.tw input::placeholder,.tw textarea::placeholder{color:#888;-webkit-text-fill-color:#888}
+.tw ::selection{background:#c9a84c55;color:#111}
 .tw button{font-family:inherit;color:inherit}
 .tw a{color:inherit}
 .tw-anuncio{background:#000;color:#fff;font-size:12.5px;letter-spacing:.04em;text-align:center;height:34px;overflow:hidden;position:relative}
@@ -22729,6 +22744,23 @@ const CSS_TIENDA = `
 .tw-tile-txt span{font-size:14px;color:#444;line-height:1.4}
 .tw-tile-txt u{font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;text-underline-offset:3px;margin-top:4px}
 .tw-tiles-sec:hover .tw-flecha{opacity:1}
+.tw-reels-fila{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding-bottom:6px}
+.tw-reels-fila::-webkit-scrollbar{display:none}
+.tw-reels-fila .tw-reel{flex:0 0 300px;scroll-snap-align:start}
+.tw-reels-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:22px 16px}
+.tw-reel{display:flex;flex-direction:column;min-width:0}
+.tw-reel-media{position:relative;aspect-ratio:9/16;background:#000;border-radius:8px;overflow:hidden}
+.tw-reel-media.ig{aspect-ratio:auto;height:600px;background:#fff;border:1px solid var(--b)}
+.tw-reel-media iframe,.tw-reel-media video{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:cover}
+.tw-reel-sonido{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff !important;border:none;border-radius:999px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
+.tw-reel-t{font-weight:800;font-size:15px;margin-top:10px}
+.tw-reel-prods{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.tw-reel-prod{display:flex;align-items:center;gap:8px;border:1px solid var(--b);border-radius:8px;padding:6px}
+.tw-reel-prod-img{width:44px;height:44px;border-radius:6px;overflow:hidden;background:var(--g);border:none;padding:0;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.tw-reel-prod-img img{width:100%;height:100%;object-fit:cover}
+.tw-reel-prod-n{flex:1;min-width:0;text-align:left;background:none;border:none;padding:0;cursor:pointer;font-size:13px;line-height:1.3;display:flex;flex-direction:column}
+.tw-reel-prod-n b{font-size:13px;margin-top:2px}
+.tw-reel-mas{width:34px;height:34px;border-radius:50%;border:none;background:var(--n);color:#fff !important;font-size:19px;cursor:pointer;flex-shrink:0}
 .tw-benef{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:18px 0 6px}
 .tw-benef div{display:flex;gap:12px;align-items:center;padding:14px 16px;border:1px solid var(--b);border-radius:6px;font-size:13.5px;line-height:1.35}
 .tw-benef span{font-size:24px}
@@ -22885,6 +22917,8 @@ const CSS_TIENDA = `
   .tw-flecha{display:none}
   .tw-fila-in{grid-auto-columns:44%;gap:12px}
   .tw-tiles{grid-auto-columns:84%;gap:12px}
+  .tw-reels-fila .tw-reel{flex-basis:78%}
+  .tw-reels-grid{grid-template-columns:1fr}
   .tw-tile-txt b{font-size:16px}
   .tw-grid{grid-template-columns:repeat(2,1fr);gap:22px 12px}
   .tw-rapido{opacity:1;transform:none;left:auto;right:8px;bottom:8px;width:38px;height:38px;padding:0;font-size:20px;border-radius:50%}
@@ -22942,6 +22976,43 @@ function TwTarjeta({ p, base, sin, onAbrir, onAgregar }) {
       {p.marca && <div className="tw-card-m">{p.marca}</div>}
       <div className="tw-card-n">{p.nombre}</div>
       <div className="tw-card-p">{fmtTienda(p.precio)}</div>
+    </div>
+  );
+}
+
+// Un video del sector de videos: reel de Instagram, TikTok, YouTube (con su reproductor) o video subido
+function TwReel({ r, base, prods, onAbrir, onAgregar }) {
+  const ref = useRef(null);
+  const [sonido, setSonido] = useState(false);
+  useEffect(() => {
+    const v = ref.current;
+    if (!v || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) v.play().catch(() => {}); else v.pause(); }, { threshold: 0.6 });
+    io.observe(v);
+    return () => io.disconnect();
+  }, []);
+  const marco = { instagram: "https://www.instagram.com/reel/" + r.codigo + "/embed", tiktok: "https://www.tiktok.com/player/v1/" + r.codigo + "?music_info=0&description=0&rel=0", youtube: "https://www.youtube-nocookie.com/embed/" + r.codigo + "?playsinline=1&rel=0&modestbranding=1" }[r.tipo];
+  return (
+    <div className="tw-reel">
+      <div className={"tw-reel-media" + (r.tipo === "instagram" ? " ig" : "")}>
+        {marco ? <iframe src={marco} title={r.titulo || "Video"} loading="lazy" scrolling="no" allow="autoplay; encrypted-media; picture-in-picture; clipboard-write; fullscreen" allowFullScreen />
+          : <>
+            <video ref={ref} src={base + "/reel/" + r.id} muted={!sonido} loop playsInline preload="metadata" controls={sonido} onClick={() => setSonido(true)} />
+            {!sonido && <button className="tw-reel-sonido" onClick={() => setSonido(true)} aria-label="Activar sonido">🔊 Tocá para escuchar</button>}
+          </>}
+      </div>
+      {r.titulo && <div className="tw-reel-t">{r.titulo}</div>}
+      {prods.length > 0 && (
+        <div className="tw-reel-prods">
+          {prods.map(p => (
+            <div key={p.id} className="tw-reel-prod">
+              <button className="tw-reel-prod-img" onClick={() => onAbrir(p)} aria-label={"Ver " + p.nombre}>{p.foto ? <img src={base + "/foto/" + p.id + (p.foto_v ? "?v=" + p.foto_v : "")} alt="" /> : "✿"}</button>
+              <button className="tw-reel-prod-n" onClick={() => onAbrir(p)}>{p.nombre}<b>{fmtTienda(p.precio)}</b></button>
+              <button className="tw-reel-mas" onClick={() => p.variantes ? onAbrir(p) : onAgregar(p)} aria-label={"Agregar " + p.nombre}>+</button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -23198,7 +23269,7 @@ function TiendaPublica({ slug }) {
   const sectores = (tienda.sectores || []).filter(sc => visibles.some(p => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria)));
   const sector = cat.startsWith("s:") ? sectores.find(sc => "s:" + sc.id === cat) : null;
   // Si la seccion elegida quedo vacia (otra ciudad, se agoto todo), se vuelve al inicio
-  if ((cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat && cat !== "*" && !cat.startsWith("s:") && !cat.startsWith("m:") && cat !== "reingreso" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2)))) { setTimeout(() => setCat(""), 0); }
+  if ((cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat && cat !== "*" && !cat.startsWith("s:") && !cat.startsWith("m:") && cat !== "reingreso" && cat !== "videos" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2)))) { setTimeout(() => setCat(""), 0); }
   const enSector = (sc, p) => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria);
   const delSector = sector ? visibles.filter(p => enSector(sector, p)) : [];
   const catsSector = sector ? [...new Set(delSector.map(p => p.categoria).filter(Boolean))].sort() : [];
@@ -23220,6 +23291,8 @@ function TiendaPublica({ slug }) {
     else if (bn.destino === "reingreso") irCat("reingreso");
   };
   const moverTiles = (d) => { const el = tilesRef.current; if (el) el.scrollBy({ left: d * el.clientWidth, behavior: "smooth" }); };
+  const reels = tienda.reels || [];
+  const reel = (r) => <TwReel key={r.id} r={r} base={base} prods={(r.productos || []).map(id => visibles.find(p => p.id === id)).filter(Boolean)} onAbrir={abrir} onAgregar={(x) => agregar(x, null)} />;
   const filasPortada = (tienda.filas || []).map(f => ({ ...f, items: f.productos.map(id => lista0.find(p => p.id === id)).filter(p => p && !agotado(p)) })).filter(f => f.items.length);
   const nSlides = destacados.length;
   const iSlide = nSlides ? slide % nSlides : 0;
@@ -23318,12 +23391,13 @@ function TiendaPublica({ slug }) {
   return (
     <div className="tw" style={{ "--c": color }}><style>{CSS_TIENDA}</style>
       {cabecera}
-      {(cats.length > 0 || sectores.length > 0 || reingresados.length > 0) && (
+      {(cats.length > 0 || sectores.length > 0 || reingresados.length > 0 || reels.length > 0) && (
         <div className="tw-navbar">
           <nav className="tw-nav" aria-label="Categorías">
             <button className={!enLista ? "on" : ""} onClick={irInicio}>Inicio</button>
             <button className={cat === "*" && !q ? "on" : ""} onClick={() => irCat("*")}>Todo</button>
             {reingresados.length > 0 && <button className={cat === "reingreso" && !q ? "on" : ""} onClick={() => irCat("reingreso")}>{reingreso.nombre}</button>}
+            {reels.length > 0 && <button className={cat === "videos" && !q ? "on" : ""} onClick={() => irCat("videos")}>{tienda.reels_titulo || "Videos"}</button>}
             {cats.map(c => <button key={c} className={cat === c && !q ? "on" : ""} onClick={() => irCat(c)}>{c}</button>)}
           </nav>
         </div>
@@ -23331,6 +23405,11 @@ function TiendaPublica({ slug }) {
       <main className="tw-main">
         {productos === null ? (
           <><div className="tw-skel" style={{ height: 400, marginTop: 20 }} /><div className="tw-grid" style={{ marginTop: 30 }}>{[1, 2, 3, 4, 5].map(i => <div key={i}><div className="tw-skel" style={{ aspectRatio: "1" }} /><div className="tw-skel" style={{ height: 14, marginTop: 12, width: "60%" }} /></div>)}</div></>
+        ) : cat === "videos" && !q ? (
+          <>
+            <div className="tw-lista-cab"><div><h1>{tienda.reels_titulo || "Videos"}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4 }}>{reels.length} {reels.length === 1 ? "video" : "videos"}</div></div></div>
+            <div className="tw-reels-grid">{reels.map(reel)}</div>
+          </>
         ) : enLista ? (
           <>
             <div className="tw-lista-cab">
@@ -23398,6 +23477,12 @@ function TiendaPublica({ slug }) {
               <div><span>🔒</span><span style={{ fontSize: 13.5 }}><b>Compra segura</b><br />{tienda.pagos.mp ? "Con Mercado Pago" : "Te confirmamos por WhatsApp"}</span></div>
             </div>
             {filasPortada.map(f => <TwFila key={f.id} titulo={f.titulo} items={f.items} render={tarjeta} />)}
+            {reels.length > 0 && (
+              <section className="tw-sec tw-rv">
+                <div className="tw-sec-t"><h3>{tienda.reels_titulo || "Videos"}</h3>{reels.length > 3 && <button onClick={() => irCat("videos")}>Ver todos</button>}</div>
+                <div className="tw-reels-fila">{reels.slice(0, 10).map(reel)}</div>
+              </section>
+            )}
             {reingresados.length > 0 && <TwFila titulo={reingreso.nombre} items={reingresados.slice(0, 12)} onVerTodo={() => irCat("reingreso")} render={tarjeta} />}
             <TwFila titulo="Novedades" items={conStock.filter(p => p.nuevo).slice(0, 12)} onVerTodo={() => irCat("*")} render={tarjeta} />
             <TwFila titulo="Miralos en video" items={conStock.filter(p => p.video).slice(0, 12)} render={tarjeta} />
@@ -23984,6 +24069,60 @@ function ListaElegidos({ lista, productos, onCambiar, temaPal }) {
   );
 }
 
+// Sector de videos: links de reels de Instagram, TikTok o YouTube, o videos subidos (se guarda al instante)
+function VideosTienda({ productos, temaPal, avisar }) {
+  const tp = temaPal || PALETA_CLARA;
+  const [d, setD] = useState(null);
+  const [link, setLink] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const cargar = () => API.get("/tienda/reels").then(r => setD(r.data)).catch(() => setD({ titulo: "", reels: [] }));
+  useEffect(() => { cargar(); }, []);
+  if (!d) return <div className="skel" style={{ height: 120 }} />;
+  const hacer = async (fn, ok) => { setOcupado(true); try { await fn(); if (ok) avisar(true, ok); await cargar(); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); } setOcupado(false); };
+  const agregarLink = () => hacer(async () => { await API.post("/tienda/reels/link", { url: link }); setLink(""); }, "✓ Video agregado");
+  const subir = (f) => {
+    if (f.size > 25 * 1024 * 1024) return avisar(false, "El video pesa más de 25 MB. Probá con uno más corto.");
+    hacer(() => API.post("/tienda/reels/subir", f, { headers: { "Content-Type": f.type || (/\.mov$/i.test(f.name) ? "video/quicktime" : "video/mp4") }, timeout: 180000 }), "✓ Video subido");
+  };
+  const guardarUno = (r, cambio) => { const n = { ...r, ...cambio }; setD(x => ({ ...x, reels: x.reels.map(y => y.id === r.id ? n : y) })); API.put("/tienda/reels/" + r.id, { titulo: n.titulo, productos: n.productos }).catch(() => avisar(false, "No se pudo guardar")); };
+  const mover = (i, dd) => { const l = [...d.reels]; const j = i + dd; if (j < 0 || j >= l.length) return; [l[i], l[j]] = [l[j], l[i]]; setD(x => ({ ...x, reels: l })); API.put("/tienda/reels/orden", { ids: l.map(r => r.id) }).catch(() => cargar()); };
+  const icono = { instagram: "📸 Instagram", tiktok: "🎵 TikTok", youtube: "▶️ YouTube", subido: "🎬 Video subido" };
+  const linkOriginal = (r) => r.tipo === "instagram" ? "https://www.instagram.com/reel/" + r.codigo + "/" : r.tipo === "youtube" ? "https://youtu.be/" + r.codigo : r.tipo === "tiktok" ? "https://www.tiktok.com/embed/v2/" + r.codigo : null;
+  return (
+    <div className="card" style={{ gridColumn: "1 / -1" }}>
+      <div className="ct">🎬 Sector de videos (reels)</div>
+      <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>Pegá el link de un <b>reel de Instagram</b>, un video de <b>TikTok</b> o de YouTube (o subí un video). Aparecen en una fila de la portada y en el menú. A cada uno le podés sumar los productos que se ven, para que los agreguen al carrito. Se guarda al instante.</div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <input className="inp" style={{ flex: "1 1 300px" }} placeholder="Pegá el link (instagram.com/reel/…, tiktok.com/…, youtube.com/…)" value={link} onChange={e => setLink(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && link.trim()) agregarLink(); }} aria-label="Link del video" />
+        <button className="btn btn-p btn-sm" disabled={!link.trim() || ocupado} onClick={agregarLink}>Agregar</button>
+        <label className="btn btn-g btn-sm" style={{ cursor: ocupado ? "wait" : "pointer", opacity: ocupado ? 0.6 : 1 }}>📤 Subir video
+          <input type="file" accept="video/mp4,video/quicktime,video/webm" style={{ display: "none" }} disabled={ocupado} onChange={e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) subir(f); }} />
+        </label>
+        <span style={{ fontSize: 12, color: tp.textMuted }}>Nombre del sector:</span>
+        <input className="inp" style={{ width: 170 }} placeholder="Videos" value={d.titulo || ""} onChange={e => setD(x => ({ ...x, titulo: e.target.value }))} onBlur={() => API.put("/tienda/reels/orden", { ids: d.reels.map(r => r.id), titulo: d.titulo }).catch(() => {})} aria-label="Nombre del sector de videos" />
+      </div>
+      {d.reels.length === 0 ? <div style={{ fontSize: 12.5, color: tp.textMuted, marginTop: 10 }}>Todavía no hay videos. Abrí tu reel en Instagram, tocá ⋯ → <b>Copiar enlace</b> y pegalo acá.</div> : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10, marginTop: 10 }}>
+          {d.reels.map((r, i) => (
+            <div key={r.id} style={{ border: "1px solid " + tp.border, borderRadius: 10, padding: 10 }}>
+              <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
+                <b style={{ flex: 1, fontSize: 12.5 }}>{icono[r.tipo] || r.tipo}{linkOriginal(r) && <> · <a href={linkOriginal(r)} target="_blank" rel="noopener" style={{ fontWeight: 400 }}>ver</a></>}</b>
+                <button className="chip-btn" style={{ padding: "2px 8px" }} disabled={i === 0} onClick={() => mover(i, -1)} aria-label="Subir">↑</button>
+                <button className="chip-btn" style={{ padding: "2px 8px" }} disabled={i === d.reels.length - 1} onClick={() => mover(i, 1)} aria-label="Bajar">↓</button>
+                <button className="chip-btn" style={{ padding: "2px 8px", color: tp.red }} onClick={() => confirm("¿Sacar este video de la tienda?") && hacer(() => API.delete("/tienda/reels/" + r.id), "Video sacado")} aria-label="Borrar">🗑</button>
+              </div>
+              <input className="inp" placeholder="Título (opcional). Ej: Mi rutina de noche" defaultValue={r.titulo || ""} onBlur={e => { if ((e.target.value || "") !== (r.titulo || "")) guardarUno(r, { titulo: e.target.value }); }} aria-label="Título del video" />
+              <div className="fl" style={{ marginTop: 6 }}>Productos que aparecen</div>
+              {(r.productos || []).length > 0 && <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 6 }}>{r.productos.map(pid => { const p = productos.find(x => x.id === pid); return <span key={pid} className="chip-btn on" style={{ fontSize: 11 }}>{p ? p.nombre : "Producto"} <button onClick={() => guardarUno(r, { productos: r.productos.filter(x => x !== pid) })} aria-label="Quitar" style={{ border: "none", background: "transparent", cursor: "pointer", color: "inherit", padding: 0, marginLeft: 3 }}>✕</button></span>; })}</div>}
+              {(r.productos || []).length < 12 && <ElegirProductos productos={productos} ya={r.productos || []} temaPal={tp} placeholder="➕ Sumar producto del video…" onAgregar={id => guardarUno(r, { productos: [...(r.productos || []), id] })} />}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
   const tp = temaPal || PALETA_CLARA;
   const [d, setD] = useState(null);
@@ -24060,6 +24199,7 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
           </label>
         )}
       </div>
+      <VideosTienda productos={productos} temaPal={tp} avisar={avisar} />
       <div className="card">
         <div className="ct">⭐ Productos destacados</div>
         <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>Si no hay banners con imagen, pasan en el banner grande de arriba; si hay, se muestran en una fila "Destacados". En este orden (hasta 12).</div>
