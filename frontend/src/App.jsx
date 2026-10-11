@@ -22790,6 +22790,9 @@ const CSS_TIENDA = `
 .tw-cupon-cod small{font-family:inherit;font-size:11px;letter-spacing:0;color:#c9184a;margin-left:6px;font-weight:700}
 .tw-ruleta-listo{margin-top:12px;background:#fff !important;color:#2b0a3d !important;border-color:#fff !important}
 .tw-confeti{position:fixed;z-index:90;pointer-events:none;will-change:transform}
+.tw-girasolito{line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))}
+.tw-ruleta-flor{margin:-4px 0 -6px;transform:scale(.8)}
+.tw-ruleta-premio.nada{background:linear-gradient(135deg,#fff8d6,#ffeaf4)}
 .tw-ruleta-aviso{background:#141414;color:#fff;border-radius:10px;padding:10px 14px;font-size:13.5px;margin:10px 0}
 .tw-ruleta-aviso b{color:#ffd54a}
 .tw-ruleta-aviso.llega{background:linear-gradient(135deg,#141414,#3a2c08);animation:twPop .55s cubic-bezier(.3,1.6,.5,1)}
@@ -23238,7 +23241,7 @@ function TwPuntos({ monto, tengo }) {
   const pts = Math.floor(Math.max(0, monto) / 100);
   const prev = useRef(pts);
   const [brilla, setBrilla] = useState(0);
-  const [desde, setDesde] = useState(pts);
+  const [desde, setDesde] = useState(0);
   useEffect(() => {
     if (pts > prev.current) { setDesde(prev.current); setBrilla(b => b + 1); twSonar.brillo(); }
     prev.current = pts;
@@ -23247,7 +23250,7 @@ function TwPuntos({ monto, tengo }) {
   return (
     <div className={"tw-puntos-compra" + (brilla ? " brilla" : "")} key={"b" + brilla}>
       <span className="tw-estrella" aria-hidden="true">✦</span>
-      <span>Con esta compra sumás <b><TwRueda key={brilla} valor={pts} desde={desde} dur={700} /> puntos</b>{tengo != null ? <span className="tw-puntos-total"> · quedás con {(tengo + pts).toLocaleString("es-AR")}</span> : null}</span>
+      <span>Con esta compra sumás <b><TwRueda key={brilla} valor={pts} desde={desde} dur={brilla ? 800 : 1100} /> puntos</b>{tengo != null ? <span className="tw-puntos-total"> · quedás con {(tengo + pts).toLocaleString("es-AR")}</span> : null}</span>
     </div>
   );
 }
@@ -23268,9 +23271,10 @@ function TwBarraEnvio({ subtotal, gratisDesde }) {
   );
 }
 // Girasol que florece al terminar la compra
-function TwGirasol() {
+function TwGirasol({ mudo }) {
   const ref = useRef(null);
   useEffect(() => {
+    if (mudo) return;
     const t1 = setTimeout(() => twSonar.campana(), 250);
     const t2 = setTimeout(() => twPetalos(ref.current, 34), 700);
     return () => { clearTimeout(t1); clearTimeout(t2); };
@@ -23361,12 +23365,32 @@ function twConfeti(cantidad = 90, mega) {
       { duration: 2200 + Math.random() * 2200, delay: Math.random() * 600, easing: "cubic-bezier(.25,.4,.45,1)" }).onfinish = () => c.remove();
   }
 }
+// Girasoles que suben flotando y girando por toda la pantalla ("Seguí participando": igual es una fiesta)
+function twGirasolesFelices(cantidad = 40) {
+  if (twMenosMovimiento() || !document.body.animate) return;
+  for (let i = 0; i < cantidad; i++) {
+    const g = document.createElement("span");
+    g.className = "tw-confeti tw-girasolito";
+    g.textContent = i % 6 === 0 ? "💛" : "🌻";
+    const tam = 18 + Math.random() * 26;
+    Object.assign(g.style, { left: Math.random() * 100 + "vw", top: "100vh", fontSize: tam + "px" });
+    document.body.appendChild(g);
+    const vaiven = (Math.random() - 0.5) * 140, giro = (Math.random() - 0.5) * 540;
+    g.animate([
+      { transform: "translate(0,0) scale(.4) rotate(0)", opacity: 0 },
+      { transform: `translate(${vaiven * 0.4}px, -${window.innerHeight * 0.35}px) scale(1) rotate(${giro * 0.4}deg)`, opacity: 1, offset: 0.3 },
+      { transform: `translate(${-vaiven * 0.3}px, -${window.innerHeight * 0.7}px) scale(1.05) rotate(${giro * 0.7}deg)`, opacity: 1, offset: 0.65 },
+      { transform: `translate(${vaiven}px, -${window.innerHeight + 80}px) scale(.9) rotate(${giro}deg)`, opacity: 0 },
+    ], { duration: 3200 + Math.random() * 2200, delay: Math.random() * 900, easing: "ease-out" }).onfinish = () => g.remove();
+  }
+}
 // Sonidos propios de la ruleta
 const twSonarRuleta = {
   apertura() { const c = twSonidoOn() && twCtx(); if (!c) return; [523, 659, 784, 1046].forEach((f, i) => twTono(c, { f1: f, dur: 0.28, vol: 0.09, tipo: "triangle", cuando: i * 0.09 })); twTono(c, { f1: 1568, dur: 0.7, vol: 0.05, cuando: 0.38 }); },
   impulso() { const c = twSonidoOn() && twCtx(); if (!c) return; twTono(c, { f1: 180, f2: 900, dur: 0.45, vol: 0.07, tipo: "sawtooth" }); },
   fanfarria(mega) { const c = twSonidoOn() && twCtx(); if (!c) return; const notas = mega ? [523, 659, 784, 1046, 784, 1046, 1318, 1568] : [523, 659, 784, 1046, 1318]; notas.forEach((f, i) => { twTono(c, { f1: f, dur: 0.32, vol: 0.1, tipo: "square", cuando: i * 0.11 }); twTono(c, { f1: f / 2, dur: 0.32, vol: 0.05, tipo: "triangle", cuando: i * 0.11 }); }); setTimeout(() => twSonar.campana(), notas.length * 110); },
-  casi() { const c = twSonidoOn() && twCtx(); if (!c) return; [[392, 370], [370, 349], [349, 311]].forEach(([a, b], i) => twTono(c, { f1: a, f2: b, dur: 0.36, vol: 0.08, tipo: "triangle", cuando: i * 0.32 })); },
+  // melodia alegre y suave para "Seguí participando"
+  casi() { const c = twSonidoOn() && twCtx(); if (!c) return; [[659, 0], [784, 0.14], [880, 0.28], [784, 0.42], [1046, 0.6]].forEach(([f, d]) => { twTono(c, { f1: f, dur: 0.4, vol: 0.08, tipo: "triangle", cuando: d }); twTono(c, { f1: f * 2, dur: 0.25, vol: 0.02, cuando: d }); }); },
 };
 // En la pagina del pedido: ventana grande con la ruleta. El premio lo decide el servidor; aca solo se anima.
 function TwRuleta({ ruleta, codigo, pedir }) {
@@ -23399,7 +23423,7 @@ function TwRuleta({ ruleta, codigo, pedir }) {
     const fin = () => { setGirando(false); setResultado(r); setTimeout(() => {
       setVer(true);
       const esMega = r.tipo === "regalo" && /mega/i.test(r.texto || "");
-      if (r.tipo === "nada") { twSonarRuleta.casi(); twVibrar(30); }
+      if (r.tipo === "nada") { twSonarRuleta.casi(); twGirasolesFelices(44); twVibrar([10, 40, 10]); }
       else { twSonarRuleta.fanfarria(esMega); twConfeti(esMega ? 220 : 120, esMega); twVibrar(esMega ? [30, 60, 30, 60, 30, 60, 80] : [15, 50, 15, 50, 30]); }
     }, 300); };
     if (twMenosMovimiento()) { setGiro(final); fin(); return; }
@@ -23426,7 +23450,7 @@ function TwRuleta({ ruleta, codigo, pedir }) {
       {resultado.tipo === "cupon" && <><b>🎉 ¡{resultado.texto} en tu próxima compra!</b>
         <button className="tw-cupon-cod" onClick={copiar} aria-label="Copiar código">{resultado.cupon} <small>{copiado ? "¡copiado!" : "copiar"}</small></button>
         <span>Se activa cuando retirás este pedido y desde ahí vale 30 días, online o en el local.</span></>}
-      {resultado.tipo === "nada" && <><b>¡Uy, casi! 🌻</b><span>Seguí participando: en tu próxima compra de más de {fmtTienda(ruleta.minimo || 100000)} volvés a girar.</span></>}
+      {resultado.tipo === "nada" && <><div className="tw-ruleta-flor"><TwGirasol mudo /></div><b>¡Gracias por tu compra! 🌻</b><span>Esta vez no tocó premio, pero en tu próxima compra de más de {fmtTienda(ruleta.minimo || 100000)} volvés a girar. ¡Mucha suerte!</span></>}
     </div>
   );
   return (
@@ -23440,9 +23464,9 @@ function TwRuleta({ ruleta, codigo, pedir }) {
           <div className="tw-ruleta-chispas" aria-hidden="true" />
           {!girando && <button className="tw-ruleta-x" onClick={() => setAbierta(false)} aria-label="Cerrar">✕</button>}
           <div className="tw-ruleta-ventana">
-            <div className="tw-ruleta-titulo">{resultado && ver ? (resultado.tipo === "nada" ? "¡Casi casi!" : mega ? "¡¡MEGA PREMIO!!" : "¡GANASTE!") : "¡Girá y ganá!"}</div>
+            <div className="tw-ruleta-titulo">{resultado && ver ? (resultado.tipo === "nada" ? "¡Seguí participando!" : mega ? "¡¡MEGA PREMIO!!" : "¡GANASTE!") : "¡Girá y ganá!"}</div>
             {!(resultado && ver) && <div className="tw-ruleta-bajada">Tu compra superó {fmtTienda(ruleta.minimo)} 🎉</div>}
-            <div className={"tw-ruleta-marco" + (resultado && ver && resultado.tipo === "nada" ? " tiembla" : "") + (resultado && ver && resultado.tipo !== "nada" ? " gano" : "")}>
+            <div className={"tw-ruleta-marco" + (resultado && ver ? " gano" : "")}>
               <TwRuletaDibujo premios={premios} giro={giro} flick={flick} girando={girando} tamano="min(84vw, calc(100vh - 290px), 470px)" onCentro={!resultado && !girando ? girar : undefined} />
             </div>
             {!resultado && <button className="tw-btn tw-girar grande" disabled={girando} onClick={girar}>{girando ? "Girando…" : "🎡 ¡GIRAR!"}</button>}
@@ -24031,6 +24055,7 @@ function TiendaPublica({ slug }) {
             <div className="tw-cartel tw-rv in" style={{ animation: "twSube .6s ease both" }}>
               {pedido.estado !== "cancelado" && !pedido.ruleta && <TwGirasol />}
               {pedido.ruleta && <TwRuleta ruleta={pedido.ruleta} codigo={pedido.codigo} pedir={pedir} />}
+              {pedido.estado !== "cancelado" && <TwPuntos monto={pedido.subtotal - (pedido.descuento || 0)} />}
               <div style={{ fontSize: 12, letterSpacing: ".12em", textTransform: "uppercase", color: "#777", fontWeight: 700 }}>Pedido N° {pedido.codigo}</div>
               <div style={{ fontSize: 26, fontWeight: 800, color: e[1], margin: "6px 0 14px" }}>{pedido.estado === "pendiente_pago" && pedido.pago === "retiro" ? "¡Recibimos tu pedido!" : e[0]}</div>
               {pedido.estado === "pendiente_pago" && pedido.link_pago && <a className="tw-btn full" style={{ marginBottom: 14 }} href={pedido.link_pago}>Pagar con Mercado Pago</a>}
