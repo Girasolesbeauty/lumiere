@@ -64,6 +64,46 @@ router.put('/config', async (req, res) => {
   }
 });
 
+// ---- Portada y sectores ----
+// banner: ids en orden (son los destacados). filas: [{id, titulo, productos}]. sectores: [{id, nombre, categorias, productos}]
+const ids = (x, max) => [...new Set((Array.isArray(x) ? x : []).map(v => parseInt(v)).filter(v => v > 0))].slice(0, max);
+const texto = (x, max) => String(x || '').trim().slice(0, max);
+const idSeccion = (x) => /^[a-z0-9]{1,12}$/.test(String(x || '')) ? String(x) : Math.random().toString(36).slice(2, 10);
+
+router.get('/portada', async (req, res) => {
+  try {
+    const c = await tienda.leerConfig();
+    const dest = (await pool.query('SELECT producto_id FROM tienda_productos WHERE destacado ORDER BY producto_id')).rows.map(r => r.producto_id);
+    // El banner respeta el orden guardado y suma los destacados marcados con la estrella en Productos
+    const banner = [...(c.banner || []).filter(id => dest.includes(id)), ...dest.filter(id => !(c.banner || []).includes(id))];
+    res.json({ banner, filas: c.filas || [], sectores: c.sectores || [] });
+  } catch (e) { res.status(500).json({ error: 'No se pudo cargar la portada' }); }
+});
+
+router.put('/portada', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    if (!esJefe(req)) { client.release(); return res.status(403).json({ error: 'Solo el dueño o encargado' }); }
+    const b = req.body || {};
+    const banner = ids(b.banner, 12);
+    const filas = (Array.isArray(b.filas) ? b.filas : []).slice(0, 12).map(f => ({ id: idSeccion(f.id), titulo: texto(f.titulo, 60), productos: ids(f.productos, 40) })).filter(f => f.titulo);
+    const sectores = (Array.isArray(b.sectores) ? b.sectores : []).slice(0, 12).map(s => ({
+      id: idSeccion(s.id), nombre: texto(s.nombre, 40),
+      categorias: [...new Set((Array.isArray(s.categorias) ? s.categorias : []).map(x => texto(x, 80)).filter(Boolean))].slice(0, 40),
+      productos: ids(s.productos, 300),
+    })).filter(s => s.nombre);
+    if (filas.some(f => !f.productos.length)) return res.status(400).json({ error: 'Cada fila de la portada necesita al menos un producto' });
+    if (sectores.some(s => !s.categorias.length && !s.productos.length)) return res.status(400).json({ error: 'Cada sector necesita al menos una categoría o un producto' });
+    await client.query('BEGIN');
+    await client.query('UPDATE tienda_config SET banner = $1, filas = $2, sectores = $3 WHERE id = 1', [JSON.stringify(banner), JSON.stringify(filas), JSON.stringify(sectores)]);
+    // Los del banner quedan destacados (la estrella en Productos) y los demas no
+    await client.query('UPDATE tienda_productos SET destacado = FALSE WHERE destacado AND NOT (producto_id = ANY($1::int[]))', [banner]);
+    for (const id of banner) await client.query(`INSERT INTO tienda_productos (producto_id, destacado) VALUES ($1, TRUE) ON CONFLICT (producto_id) DO UPDATE SET destacado = TRUE`, [id]);
+    await client.query('COMMIT');
+    res.json({ ok: true });
+  } catch (e) { await client.query('ROLLBACK').catch(() => {}); console.error('[tienda] portada:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); } finally { client.release(); }
+});
+
 // QR de la direccion de la tienda (para el mostrador o Instagram)
 router.get('/qr', async (req, res) => {
   try {

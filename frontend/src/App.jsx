@@ -22745,6 +22745,10 @@ const CSS_TIENDA = `
 .tw-rv.in{opacity:1;transform:none}
 .tw-skel{background:linear-gradient(90deg,#f1f1f1 25%,#e7e7e7 37%,#f1f1f1 63%);background-size:400% 100%;animation:twBrillo 1.3s ease infinite;border-radius:6px}
 @keyframes twBrillo{from{background-position:100% 50%}to{background-position:0 50%}}
+.tw-subcats{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:-6px 0 22px;padding-bottom:2px}
+.tw-subcats::-webkit-scrollbar{display:none}
+.tw-subcats button{flex-shrink:0;border:1.5px solid var(--b);background:#fff;border-radius:999px;padding:8px 16px;font-size:13.5px;cursor:pointer;transition:all .2s}
+.tw-subcats button.on{background:var(--n);border-color:var(--n);color:#fff !important}
 .tw-lista-cab{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:26px 0 20px}
 .tw-lista-cab h1{font-size:30px;margin:0;font-weight:800}
 .tw-lista-cab select{height:40px;border:1px solid var(--b);border-radius:999px;padding:0 14px;font-family:inherit;font-size:14px;background:#fff}
@@ -22934,6 +22938,7 @@ function TiendaPublica({ slug }) {
   const [local, setLocal] = useState(() => { try { return parseInt(localStorage.getItem("tienda_local_" + slug)) || null; } catch (e) { return null; } });
   const [eligeCiudad, setEligeCiudad] = useState(false);
   const [orden, setOrden] = useState("");
+  const [subcat, setSubcat] = useState(""); // categoria elegida dentro de un sector
   const [carrito, setCarrito] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_carrito_" + slug) || "[]"); } catch (e) { return []; } });
   const [ver, setVer] = useState(null); // producto abierto
   const [varSel, setVarSel] = useState(null);
@@ -23031,7 +23036,7 @@ function TiendaPublica({ slug }) {
   };
   const wa = (txt) => tienda.whatsapp ? "https://wa.me/" + (() => { let n = String(tienda.whatsapp).replace(/[^0-9]/g, ""); if (n.startsWith("0")) n = n.slice(1); if (!n.startsWith("54")) n = "549" + n; return n; })() + "?text=" + encodeURIComponent(txt) : null;
   const irInicio = () => { setCat(""); setBusca(""); window.scrollTo({ top: 0, behavior: "smooth" }); };
-  const irCat = (c) => { setCat(c); setBusca(""); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const irCat = (c) => { setCat(c); setSubcat(""); setBusca(""); window.scrollTo({ top: 0, behavior: "smooth" }); };
 
   // Frases de la tira negra: las que cargo el negocio o, si no hay, se arman con lo que ofrece
   const anuncios = tienda.anuncios && tienda.anuncios.length ? tienda.anuncios : [
@@ -23116,9 +23121,21 @@ function TiendaPublica({ slug }) {
   const q = busca.trim().toLowerCase();
   const enLista = !!q || !!cat;
   const ordenar = (arr) => orden === "menor" ? [...arr].sort((a, b) => a.precio - b.precio) : orden === "mayor" ? [...arr].sort((a, b) => b.precio - a.precio) : orden === "az" ? [...arr].sort((a, b) => a.nombre.localeCompare(b.nombre)) : arr;
-  const lista = ordenar(lista0.filter(p => (!cat || cat === "*" || p.categoria === cat) && (!q || [p.nombre, p.marca, p.categoria].some(v => (v || "").toLowerCase().includes(q)))));
+  // Sectores del menu (armados en Lumiere): agrupan categorias enteras y productos sueltos
+  const sectores = (tienda.sectores || []).filter(sc => lista0.some(p => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria)));
+  const sector = cat.startsWith("s:") ? sectores.find(sc => "s:" + sc.id === cat) : null;
+  const enSector = (sc, p) => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria);
+  const delSector = sector ? lista0.filter(p => enSector(sector, p)) : [];
+  const catsSector = sector ? [...new Set(delSector.map(p => p.categoria).filter(Boolean))].sort() : [];
+  const lista = ordenar(lista0.filter(p => (!cat || cat === "*" || (sector ? enSector(sector, p) && (!subcat || p.categoria === subcat) : p.categoria === cat)) && (!q || [p.nombre, p.marca, p.categoria].some(v => (v || "").toLowerCase().includes(q)))));
   const conStock = lista0.filter(p => !agotado(p));
-  const destacados = (() => { const d = conStock.filter(p => p.destacado); return (d.length ? d : conStock.filter(p => p.foto)).slice(0, 5); })();
+  const destacados = (() => {
+    const ordenB = tienda.banner || [];
+    const pos = (p) => { const i = ordenB.indexOf(p.id); return i < 0 ? 999 : i; };
+    const d = conStock.filter(p => p.destacado).sort((a, b) => pos(a) - pos(b));
+    return (d.length ? d : conStock.filter(p => p.foto)).slice(0, 8);
+  })();
+  const filasPortada = (tienda.filas || []).map(f => ({ ...f, items: f.productos.map(id => lista0.find(p => p.id === id)).filter(p => p && !agotado(p)) })).filter(f => f.items.length);
   const nSlides = destacados.length;
   const iSlide = nSlides ? slide % nSlides : 0;
   const tarjeta = (p) => <TwTarjeta key={p.id} p={p} base={base} sin={agotado(p)} onAbrir={abrir} onAgregar={(x) => agregar(x, null)} />;
@@ -23140,12 +23157,13 @@ function TiendaPublica({ slug }) {
   return (
     <div className="tw" style={{ "--c": color }}><style>{CSS_TIENDA}</style>
       {cabecera}
-      {cats.length > 0 && (
+      {(cats.length > 0 || sectores.length > 0) && (
         <div style={{ borderBottom: "1px solid #e6e6e6" }}>
-          <nav className="tw-nav" aria-label="Categorías">
+          <nav className="tw-nav" aria-label={sectores.length ? "Sectores" : "Categorías"}>
             <button className={!enLista ? "on" : ""} onClick={irInicio}>Inicio</button>
             <button className={cat === "*" && !q ? "on" : ""} onClick={() => irCat("*")}>Todo</button>
-            {cats.map(c => <button key={c} className={cat === c && !q ? "on" : ""} onClick={() => irCat(c)}>{c}</button>)}
+            {sectores.length ? sectores.map(sc => <button key={sc.id} className={cat === "s:" + sc.id && !q ? "on" : ""} onClick={() => irCat("s:" + sc.id)}>{sc.nombre}</button>)
+              : cats.map(c => <button key={c} className={cat === c && !q ? "on" : ""} onClick={() => irCat(c)}>{c}</button>)}
           </nav>
         </div>
       )}
@@ -23155,9 +23173,15 @@ function TiendaPublica({ slug }) {
         ) : enLista ? (
           <>
             <div className="tw-lista-cab">
-              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" ? "Todos los productos" : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4 }}>{lista.length} {lista.length === 1 ? "producto" : "productos"}</div></div>
+              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" ? "Todos los productos" : sector ? sector.nombre : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4 }}>{lista.length} {lista.length === 1 ? "producto" : "productos"}</div></div>
               <select value={orden} onChange={e => setOrden(e.target.value)} aria-label="Ordenar">{TW_ORDEN.map(([k, t]) => <option key={k} value={k}>Ordenar: {t}</option>)}</select>
             </div>
+            {sector && !q && catsSector.length > 1 && (
+              <div className="tw-subcats">
+                <button className={!subcat ? "on" : ""} onClick={() => setSubcat("")}>Todo {sector.nombre}</button>
+                {catsSector.map(c => <button key={c} className={subcat === c ? "on" : ""} onClick={() => setSubcat(c)}>{c}</button>)}
+              </div>
+            )}
             {lista.length === 0 ? <p style={{ textAlign: "center", color: "#888", margin: "50px 0" }}>No encontramos productos con esa búsqueda.</p>
               : <div className="tw-grid">{lista.map(p => <div key={p.id} className="tw-rv">{tarjeta(p)}</div>)}</div>}
           </>
@@ -23192,9 +23216,11 @@ function TiendaPublica({ slug }) {
               {retiroAca.length > 0 && <div><span>📍</span><span style={{ fontSize: 13.5 }}><b>Retiro sin costo</b><br />En {retiroAca.map(l => l.nombre).join(" o ")}</span></div>}
               <div><span>🔒</span><span style={{ fontSize: 13.5 }}><b>Compra segura</b><br />{tienda.pagos.mp ? "Con Mercado Pago" : "Te confirmamos por WhatsApp"}</span></div>
             </div>
+            {filasPortada.map(f => <TwFila key={f.id} titulo={f.titulo} items={f.items} render={tarjeta} />)}
             <TwFila titulo="Novedades" items={conStock.filter(p => p.nuevo).slice(0, 12)} onVerTodo={() => irCat("*")} render={tarjeta} />
             <TwFila titulo="Miralos en video" items={conStock.filter(p => p.video).slice(0, 12)} render={tarjeta} />
-            {cats.slice(0, 10).map(c => <TwFila key={c} titulo={c} items={lista0.filter(p => p.categoria === c).slice(0, 12)} onVerTodo={() => irCat(c)} render={tarjeta} />)}
+            {sectores.length ? sectores.map(sc => <TwFila key={sc.id} titulo={sc.nombre} items={lista0.filter(p => enSector(sc, p)).slice(0, 12)} onVerTodo={() => irCat("s:" + sc.id)} render={tarjeta} />)
+              : cats.slice(0, 10).map(c => <TwFila key={c} titulo={c} items={lista0.filter(p => p.categoria === c).slice(0, 12)} onVerTodo={() => irCat(c)} render={tarjeta} />)}
             {!cats.length && <TwFila titulo="Nuestros productos" items={lista0} render={tarjeta} />}
           </>
         )}
@@ -23696,6 +23722,119 @@ function ImportarDescripciones({ productos, onCerrar, onListo, temaPal, avisar }
   );
 }
 
+// ---- Portada y sectores de la tienda (banner, filas propias y sectores del menu) ----
+function ElegirProductos({ productos, ya, onAgregar, temaPal, placeholder }) {
+  const tp = temaPal || PALETA_CLARA;
+  const [q, setQ] = useState("");
+  const qN = normTxt(q);
+  const res = qN ? productos.filter(p => p.publicado && !ya.includes(p.id) && qN.split(" ").every(w => normTxt([p.nombre, p.marca, p.categoria].join(" ")).includes(w))).slice(0, 8) : [];
+  return (
+    <div style={{ position: "relative" }}>
+      <input className="inp" placeholder={placeholder || "➕ Agregar producto: escribí el nombre…"} value={q} onChange={e => setQ(e.target.value)} aria-label="Buscar producto para agregar" />
+      {res.length > 0 && (
+        <div style={{ position: "absolute", left: 0, right: 0, top: "100%", zIndex: 5, background: tp.card, border: "1px solid " + tp.border, borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.12)", marginTop: 2, maxHeight: 280, overflowY: "auto" }}>
+          {res.map(p => <button key={p.id} type="button" onClick={() => { onAgregar(p.id); setQ(""); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", border: "none", borderBottom: "1px solid " + tp.border, background: "transparent", cursor: "pointer", fontSize: 13, color: tp.text }}><b>{p.nombre}</b> <span style={{ color: tp.textMuted, fontSize: 11.5 }}>{[p.marca, p.categoria].filter(Boolean).join(" · ")}</span></button>)}
+        </div>
+      )}
+      {qN && !res.length && <div style={{ fontSize: 11.5, color: tp.textMuted, marginTop: 4 }}>No hay productos publicados con ese nombre (o ya están en la lista).</div>}
+    </div>
+  );
+}
+
+function ListaElegidos({ lista, productos, onCambiar, temaPal }) {
+  const tp = temaPal || PALETA_CLARA;
+  const mover = (i, d) => { const l = [...lista]; const j = i + d; if (j < 0 || j >= l.length) return; [l[i], l[j]] = [l[j], l[i]]; onCambiar(l); };
+  if (!lista.length) return <div style={{ fontSize: 12, color: tp.textMuted, padding: "6px 0" }}>Todavía no elegiste productos.</div>;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4, margin: "6px 0" }}>
+      {lista.map((id, i) => { const p = productos.find(x => x.id === id); return (
+        <div key={id} style={{ display: "flex", gap: 6, alignItems: "center", padding: "5px 8px", border: "1px solid " + tp.border, borderRadius: 8, fontSize: 13, opacity: p && p.publicado ? 1 : 0.55 }}>
+          <span style={{ color: tp.textMuted, width: 18, textAlign: "right" }}>{i + 1}</span>
+          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}><b>{p ? p.nombre : "Producto borrado"}</b>{p && !p.publicado ? <span style={{ color: tp.warn, fontSize: 11 }}> · no publicado</span> : null}{p && !p.foto ? <span style={{ color: tp.warn, fontSize: 11 }}> · sin foto</span> : null}</span>
+          <button className="chip-btn" style={{ padding: "2px 8px" }} disabled={i === 0} onClick={() => mover(i, -1)} aria-label="Subir">↑</button>
+          <button className="chip-btn" style={{ padding: "2px 8px" }} disabled={i === lista.length - 1} onClick={() => mover(i, 1)} aria-label="Bajar">↓</button>
+          <button className="chip-btn" style={{ padding: "2px 8px", color: tp.red }} onClick={() => onCambiar(lista.filter(x => x !== id))} aria-label="Quitar">✕</button>
+        </div>
+      ); })}
+    </div>
+  );
+}
+
+function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
+  const tp = temaPal || PALETA_CLARA;
+  const [d, setD] = useState(null);
+  const [cambios, setCambios] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  useEffect(() => { API.get("/tienda/portada").then(r => setD(r.data)).catch(() => setD({ banner: [], filas: [], sectores: [] })); }, []);
+  if (!d) return <div className="skel" style={{ height: 240 }} />;
+  const cambiar = (f) => { setD(f); setCambios(true); };
+  const nuevoId = () => Math.random().toString(36).slice(2, 10);
+  const moverEn = (k, i, dd) => { const l = [...d[k]]; const j = i + dd; if (j < 0 || j >= l.length) return; [l[i], l[j]] = [l[j], l[i]]; cambiar({ ...d, [k]: l }); };
+  const editar = (k, i, cambio) => cambiar({ ...d, [k]: d[k].map((x, j) => j === i ? { ...x, ...cambio } : x) });
+  const cats = [...new Set(productos.filter(p => p.publicado).map(p => p.categoria).filter(Boolean))].sort();
+  const guardar = async () => {
+    setGuardando(true);
+    try { await API.put("/tienda/portada", d); setCambios(false); avisar(true, "✓ Portada y sectores guardados"); alGuardar && alGuardar(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+    setGuardando(false);
+  };
+  const tarjeta = { border: "1px solid " + tp.border, borderRadius: 10, padding: 12, marginBottom: 10 };
+  const cab = (titulo, k, i, n) => (
+    <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
+      {titulo}
+      <button className="chip-btn" style={{ padding: "3px 9px" }} disabled={i === 0} onClick={() => moverEn(k, i, -1)} aria-label="Subir">↑</button>
+      <button className="chip-btn" style={{ padding: "3px 9px" }} disabled={i === n - 1} onClick={() => moverEn(k, i, 1)} aria-label="Bajar">↓</button>
+      <button className="chip-btn" style={{ padding: "3px 9px", color: tp.red }} onClick={() => confirm("¿Borrar?") && cambiar({ ...d, [k]: d[k].filter((_, j) => j !== i) })} aria-label="Borrar">🗑</button>
+    </div>
+  );
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 12, alignItems: "start", paddingBottom: 60 }}>
+      <div className="card">
+        <div className="ct">⭐ Banner grande de arriba</div>
+        <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>Los productos que pasan en el banner, en este orden (hasta 12). Conviene que tengan buena foto.</div>
+        <ListaElegidos lista={d.banner} productos={productos} temaPal={tp} onCambiar={l => cambiar({ ...d, banner: l })} />
+        {d.banner.length < 12 && <ElegirProductos productos={productos} ya={d.banner} temaPal={tp} onAgregar={id => cambiar({ ...d, banner: [...d.banner, id] })} />}
+      </div>
+      <div className="card">
+        <div className="ct">📋 Filas de la portada</div>
+        <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>Aparecen debajo del banner, con el nombre que les pongas. Ej: "Lo más vendido", "Ideal para regalar".</div>
+        {d.filas.map((f, i) => (
+          <div key={f.id} style={tarjeta}>
+            {cab(<input className="inp" style={{ flex: 1 }} placeholder="Nombre de la fila" value={f.titulo} onChange={e => editar("filas", i, { titulo: e.target.value })} aria-label="Nombre de la fila" />, "filas", i, d.filas.length)}
+            <ListaElegidos lista={f.productos} productos={productos} temaPal={tp} onCambiar={l => editar("filas", i, { productos: l })} />
+            <ElegirProductos productos={productos} ya={f.productos} temaPal={tp} onAgregar={id => editar("filas", i, { productos: [...f.productos, id] })} />
+          </div>
+        ))}
+        {d.filas.length < 12 && <button className="btn btn-g btn-sm" onClick={() => cambiar({ ...d, filas: [...d.filas, { id: nuevoId(), titulo: "", productos: [] }] })}>+ Nueva fila</button>}
+      </div>
+      <div className="card" style={{ gridColumn: "1 / -1" }}>
+        <div className="ct">🗂 Sectores del menú</div>
+        <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>Son las opciones del menú de arriba de la tienda (ej: SKINCARE, MAQUILLAJE, FRAGANCIAS, REGALOS). Cada sector junta categorías enteras y, si querés, productos sueltos. Si no armás ninguno, el menú muestra tus categorías.</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 10 }}>
+          {d.sectores.map((sc, i) => (
+            <div key={sc.id} style={{ ...tarjeta, marginBottom: 0 }}>
+              {cab(<input className="inp" style={{ flex: 1, fontWeight: 700 }} placeholder="Nombre del sector (ej: Skincare)" value={sc.nombre} onChange={e => editar("sectores", i, { nombre: e.target.value })} aria-label="Nombre del sector" />, "sectores", i, d.sectores.length)}
+              <div className="fl" style={{ marginTop: 4 }}>Categorías que incluye</div>
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 6 }}>
+                {cats.length === 0 ? <span style={{ fontSize: 12, color: tp.textMuted }}>No hay categorías en los productos publicados.</span> : cats.map(c => { const on = sc.categorias.includes(c); return <button key={c} className={"chip-btn" + (on ? " on" : "")} onClick={() => editar("sectores", i, { categorias: on ? sc.categorias.filter(x => x !== c) : [...sc.categorias, c] })}>{on ? "✓ " : ""}{c}</button>; })}
+              </div>
+              <div className="fl">Productos sueltos (además de las categorías)</div>
+              <ListaElegidos lista={sc.productos} productos={productos} temaPal={tp} onCambiar={l => editar("sectores", i, { productos: l })} />
+              <ElegirProductos productos={productos} ya={sc.productos} temaPal={tp} onAgregar={id => editar("sectores", i, { productos: [...sc.productos, id] })} />
+              <div style={{ fontSize: 11.5, color: tp.textMuted, marginTop: 6 }}>{productos.filter(p => p.publicado && (sc.productos.includes(p.id) || sc.categorias.includes(p.categoria))).length} productos publicados en este sector</div>
+            </div>
+          ))}
+        </div>
+        {d.sectores.length < 12 && <button className="btn btn-g btn-sm" style={{ marginTop: 10 }} onClick={() => cambiar({ ...d, sectores: [...d.sectores, { id: nuevoId(), nombre: "", categorias: [], productos: [] }] })}>+ Nuevo sector</button>}
+      </div>
+      <div style={{ position: "sticky", bottom: 10, gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end", gap: 10, alignItems: "center" }}>
+        {cambios && <span style={{ fontSize: 12, color: tp.warn, fontWeight: 700, background: tp.card, padding: "4px 10px", borderRadius: 8 }}>Hay cambios sin guardar</span>}
+        <button className="btn btn-p" disabled={!cambios || guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar portada y sectores"}</button>
+      </div>
+    </div>
+  );
+}
+
 // ===================== TIENDA WEB (en Lumiere) =====================
 // Pedidos de la tienda web, productos publicados y configuracion. Ver routes/tienda.js.
 const ESTADOS_TIENDA = {
@@ -23819,7 +23958,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
       {aviso && <div className="pop-in" role={aviso.ok ? "status" : "alert"} style={{ background: aviso.ok ? temaPal.greenDim : temaPal.redDim, border: "1px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, marginBottom: 12 }}>{aviso.texto}</div>}
       {!cfg.activo && <div className="cli-tip" style={{ marginBottom: 12 }}>Para empezar: 1) elegí qué productos publicar en <b>Productos</b>, 2) completá <b>Configuración</b> (entrega y pagos) y tildá "Tienda publicada".</div>}
       <div className="tabs" style={{ marginBottom: 12 }}>
-        {[["pedidos", "Pedidos" + (abiertos.length ? " (" + abiertos.length + ")" : "")], ["productos", "Productos (" + nPub + " publicados)"], ["config", "Configuración"]].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
+        {[["pedidos", "Pedidos" + (abiertos.length ? " (" + abiertos.length + ")" : "")], ["productos", "Productos (" + nPub + " publicados)"], ...(esJefeT ? [["portada", "Portada y sectores"]] : []), ["config", "Configuración"]].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
       </div>
 
       {tab === "pedidos" && (
@@ -23963,6 +24102,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
           )}
         </div>
       )}
+
+      {tab === "portada" && esJefeT && <PortadaTienda productos={productos} temaPal={temaPal} avisar={avisar} alGuardar={cargarProductos} />}
 
       {tab === "config" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 12, alignItems: "start" }}>
