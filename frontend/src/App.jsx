@@ -22696,7 +22696,52 @@ const CSS_TIENDA = `
 .tw-ico{position:relative;width:42px;height:42px;border-radius:50%;border:none;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;text-decoration:none}
 .tw-ico:hover{background:var(--g)}
 .tw-badge{position:absolute;top:3px;right:1px;min-width:19px;height:19px;border-radius:999px;background:var(--c);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 5px}
-.tw-badge.salta{animation:twSalta .5s cubic-bezier(.3,1.6,.5,1)}
+.tw-badge.salta{animation:twGota .6s cubic-bezier(.3,1.6,.5,1)}
+@keyframes twGota{0%{transform:translateY(-14px) scale(.4);opacity:0}55%{transform:translateY(2px) scale(1.25);opacity:1}80%{transform:scale(.92)}100%{transform:none}}
+.tw-bolsa.traga{animation:twGelatina .62s cubic-bezier(.3,1.5,.5,1)}
+@keyframes twGelatina{0%{transform:none}25%{transform:scale(1.28,.8)}45%{transform:scale(.86,1.16)}65%{transform:scale(1.08,.94)}85%{transform:scale(.97,1.03)}100%{transform:none}}
+.tw-vuela{position:fixed;z-index:60;object-fit:cover;pointer-events:none;background:#f3ead7;box-shadow:0 10px 30px rgba(0,0,0,.22);will-change:transform}
+.tw-petalo{position:fixed;z-index:70;width:10px;height:18px;border-radius:50%;pointer-events:none;will-change:transform}
+.tw-petalo.flor{width:auto;height:auto;font-size:20px;background:none}
+.tw-con-onda{overflow:hidden}
+.tw-onda{position:absolute;border-radius:50%;background:currentColor;opacity:.2;pointer-events:none;transform:scale(0);animation:twOnda .6s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes twOnda{to{transform:scale(1);opacity:0}}
+.tw-btn:active,.tw-btn2:active,.tw-rapido:active,.tw-ico:active,.tw-var:active,.tw-cant button:active,.tw-filtro:active,.tw-atajos button:active,.tw-subcats button:active,.tw-compartir button:active,.tw-reel-mas:active{scale:.94}
+.tw-resorte{animation:twResorte .45s cubic-bezier(.3,1.8,.5,1)}
+@keyframes twResorte{0%{scale:.94}55%{scale:1.04}100%{scale:1}}
+.tw-num{display:inline-block}
+.tw-num.arr{animation:twNumArr .3s cubic-bezier(.3,1.5,.5,1)}
+.tw-num.abj{animation:twNumAbj .3s cubic-bezier(.3,1.5,.5,1)}
+@keyframes twNumArr{from{transform:translateY(70%);opacity:0}to{transform:none;opacity:1}}
+@keyframes twNumAbj{from{transform:translateY(-70%);opacity:0}to{transform:none;opacity:1}}
+.tw-rapido svg.tw-tilde path,.tw-btn svg.tw-tilde path{stroke-dasharray:24;stroke-dashoffset:24;animation:twTilde .35s .05s ease-out forwards}
+@keyframes twTilde{to{stroke-dashoffset:0}}
+.tw-btn.hecho,.tw-rapido.hecho{background:#2d7a4f !important;opacity:1 !important;transform:none !important}
+.tw-btn.hecho::after,.tw-rapido.hecho::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.45) 50%,transparent 70%);background-size:250% 100%;animation:twBrillo .9s ease-out 1;pointer-events:none}
+.tw-btn.hecho,.tw-rapido.hecho{position:relative;overflow:hidden}
+.tw-girando{width:18px;height:18px;border-radius:50%;border:2.5px solid rgba(255,255,255,.35);border-top-color:#fff;animation:twGira .6s linear infinite}
+@keyframes twGira{to{transform:rotate(360deg)}}
+.tw-sec.tw-rv .tw-fila-in>*{opacity:0;transform:translateY(18px) scale(.97)}
+.tw-sec.tw-rv.in .tw-fila-in>*{animation:twCascada .7s cubic-bezier(.2,.7,.2,1) both}
+.tw-sec.tw-rv.in .tw-fila-in>*:nth-child(2){animation-delay:.07s}.tw-sec.tw-rv.in .tw-fila-in>*:nth-child(3){animation-delay:.14s}.tw-sec.tw-rv.in .tw-fila-in>*:nth-child(4){animation-delay:.21s}.tw-sec.tw-rv.in .tw-fila-in>*:nth-child(5){animation-delay:.28s}.tw-sec.tw-rv.in .tw-fila-in>*:nth-child(6){animation-delay:.35s}.tw-sec.tw-rv.in .tw-fila-in>*:nth-child(n+7){animation-delay:.42s}
+@keyframes twCascada{from{opacity:0;transform:translateY(18px) scale(.97);filter:blur(5px)}to{opacity:1;transform:none;filter:none}}
+.tw-puntos-compra{display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,#fff8e1,#fdf0c8);border:1px solid #f1dc9a;border-radius:10px;padding:10px 14px;font-size:13.5px;margin:12px 0;color:#5a4410}
+.tw-puntos-compra b{color:#3d2c05}
+.tw-puntos-total{color:#8a6d1f}
+.tw-estrella{font-size:18px;color:#e2a400;display:inline-block}
+.tw-puntos-compra.brilla{animation:twPop .5s cubic-bezier(.3,1.6,.5,1)}
+.tw-puntos-compra.brilla .tw-estrella{animation:twEstrella .8s cubic-bezier(.3,1.5,.5,1)}
+@keyframes twEstrella{0%{transform:scale(.4) rotate(-90deg)}60%{transform:scale(1.5) rotate(20deg);text-shadow:0 0 12px #ffd54a}100%{transform:none}}
+.tw-desc-ok{animation:twDesc 1.2s ease-out}
+@keyframes twDesc{0%{background:rgba(45,122,79,0);transform:scale(.97)}25%{background:rgba(45,122,79,.12);transform:scale(1.02)}100%{background:rgba(45,122,79,0);transform:none}}
+.tw-girasol{display:flex;justify-content:center;margin:-6px 0 6px}
+.tw-girasol .tw-gp{transform-box:fill-box;transform-origin:50% 100%;transform:scale(0);animation:twPetaloAbre .6s cubic-bezier(.3,1.6,.5,1) forwards}
+.tw-girasol .tw-gc{transform-box:fill-box;transform-origin:center;transform:scale(0);animation:twPetaloAbre .5s cubic-bezier(.3,1.6,.5,1) forwards}
+.tw-girasol svg{animation:twFlorGira 6s ease-in-out .9s infinite alternate}
+.tw-girasol .tw-tallo{opacity:0;animation:twAparece .4s ease forwards}
+@keyframes twPetaloAbre{to{transform:scale(1)}}
+@keyframes twFlorGira{from{transform:rotate(-4deg)}to{transform:rotate(4deg)}}
+.tw-sonido{font-size:15px !important}
 @keyframes twSalta{0%{transform:scale(.4)}60%{transform:scale(1.35)}100%{transform:scale(1)}}
 .tw-navbar{background:#000}
 .tw-navbar .tw-nav button{color:#fff !important;opacity:.85;transition:opacity .2s}
@@ -22784,8 +22829,10 @@ const CSS_TIENDA = `
 .tw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:30px 18px}
 .tw-card{position:relative;text-align:left;cursor:pointer;background:none;border:none;padding:0;display:flex;flex-direction:column;min-width:0}
 .tw-card-img{position:relative;aspect-ratio:1;background:var(--g);border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center}
-.tw-card-img img{width:100%;height:100%;object-fit:cover;transition:transform .7s cubic-bezier(.2,.7,.2,1)}
-.tw-card:hover .tw-card-img img{transform:scale(1.07)}
+.tw-card-img img{width:100%;height:100%;object-fit:cover;transition:transform 1.4s cubic-bezier(.2,.7,.2,1)}
+.tw-card:hover .tw-card-img img{transform:scale(1.08)}
+.tw-card-img.inclina{transform:perspective(700px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transition:transform .25s ease-out}
+.tw-card-img.inclina::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at var(--gx,50%) var(--gy,50%),rgba(255,255,255,.35),transparent 55%);z-index:2}
 .tw-card-img video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;animation:twAparece .4s ease both}
 @keyframes twAparece{from{opacity:0}to{opacity:1}}
 .tw-ph{font-size:46px;color:#c8c8c8}
@@ -22798,18 +22845,21 @@ const CSS_TIENDA = `
 .tw-card-m{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-top:12px}
 .tw-card-n{font-size:14px;line-height:1.35;color:#333;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .tw-card-p{font-size:15px;font-weight:800;margin-top:6px}
-.tw-rv{opacity:0;transform:translateY(28px);transition:opacity .8s cubic-bezier(.2,.7,.2,1),transform .8s cubic-bezier(.2,.7,.2,1)}
-.tw-rv.in{opacity:1;transform:none}
-.tw-skel{background:linear-gradient(90deg,#f1f1f1 25%,#e7e7e7 37%,#f1f1f1 63%);background-size:400% 100%;animation:twBrillo 1.3s ease infinite;border-radius:6px}
+.tw-rv{opacity:0;transform:translateY(28px);filter:blur(6px);transition:opacity .8s cubic-bezier(.2,.7,.2,1),transform .8s cubic-bezier(.2,.7,.2,1),filter .8s cubic-bezier(.2,.7,.2,1);transition-delay:calc(var(--i,0) * 70ms)}
+.tw-rv.in{opacity:1;transform:none;filter:none}
+.tw-skel{background:linear-gradient(100deg,#f7f1e6 25%,#efdfbd 40%,#fbf3e2 50%,#f7f1e6 63%);background-size:400% 100%;animation:twBrillo 1.5s ease infinite;border-radius:6px}
 @keyframes twBrillo{from{background-position:100% 50%}to{background-position:0 50%}}
 .tw-subcats{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:-6px 0 22px;padding-bottom:2px}
 .tw-subcats::-webkit-scrollbar{display:none}
 .tw-subcats button{flex-shrink:0;border:1.5px solid var(--b);background:#fff;border-radius:999px;padding:8px 16px;font-size:13.5px;cursor:pointer;transition:all .2s}
-.tw-subcats button.on{background:var(--n);border-color:var(--n);color:#fff !important}
+.tw-subcats button.on{background:#fff;border-color:var(--n);color:#fff !important}
+.tw-subcats button,.tw-filtro{position:relative;overflow:hidden;isolation:isolate}
+.tw-subcats button::before,.tw-filtro::before{content:"";position:absolute;left:50%;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:var(--n);transform:scale(0);transition:transform .5s cubic-bezier(.3,.7,.2,1);z-index:-1}
+.tw-subcats button.on::before,.tw-filtro.on::before{transform:scale(28)}
 .tw-filtros{display:flex;gap:8px;flex-wrap:wrap;margin:-6px 0 22px;align-items:center}
 .tw-filtro{position:relative;display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 14px;border:1.5px solid var(--b);border-radius:999px;background:#fff;color:#111;font-size:13.5px;cursor:pointer;transition:all .2s}
 .tw-filtro:hover{border-color:var(--n)}
-.tw-filtro.on{background:var(--n);border-color:var(--n);color:#fff}
+.tw-filtro.on{background:#fff;border-color:var(--n);color:#fff}
 .tw-filtro select{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;font-size:16px}
 .tw-filtro i{font-style:normal;font-size:11px}
 .tw-filtro-x{border:0;background:none;color:#111;text-decoration:underline;font-size:13.5px;cursor:pointer;padding:0 6px}
@@ -22832,7 +22882,16 @@ const CSS_TIENDA = `
 .tw-progreso{background:var(--g);border-radius:6px;padding:12px 14px;font-size:13.5px;margin-bottom:14px}
 .tw-progreso div{height:6px;border-radius:3px;background:#ddd;margin-top:8px;overflow:hidden}
 .tw-progreso i{display:block;height:100%;background:var(--c);border-radius:3px;transition:width .8s cubic-bezier(.2,.7,.2,1)}
-.tw-item{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--b);animation:twSube .4s ease both}
+.tw-progreso .tw-liquido{height:9px;border-radius:5px;background:#e9e3d6;box-shadow:inset 0 1px 2px rgba(0,0,0,.08)}
+.tw-progreso .tw-liquido i{position:relative;border-radius:5px;background:linear-gradient(90deg,#f4b400,#f7c531 50%,#f4b400);background-size:200% 100%;animation:twLiquido 2.4s linear infinite;transition:width 1s cubic-bezier(.3,1.3,.5,1)}
+.tw-progreso .tw-liquido i::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.65) 50%,transparent 70%);background-size:220% 100%;animation:twBrillo 1.8s ease-in-out infinite}
+.tw-progreso.listo{background:#fff8e1;animation:twPop .5s cubic-bezier(.3,1.6,.5,1)}
+@keyframes twLiquido{from{background-position:0 0}to{background-position:200% 0}}
+@keyframes twPop{0%{transform:scale(.96)}60%{transform:scale(1.03)}100%{transform:none}}
+.tw-item{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--b);animation:twItem .55s cubic-bezier(.3,1.4,.5,1) both;animation-delay:calc(var(--i,0) * 50ms);transform-origin:left center}
+.tw-item.sale{animation:twItemSale .28s ease-in both}
+@keyframes twItem{from{opacity:0;transform:translateX(24px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes twItemSale{to{opacity:0;transform:scale(.85);max-height:0;padding:0;margin:0}}
 .tw-item img,.tw-item .tw-mini{width:76px;height:76px;object-fit:cover;border-radius:6px;background:var(--g);flex-shrink:0}
 .tw-cant{display:inline-flex;align-items:center;border:1px solid var(--b);border-radius:999px;margin-top:8px}
 .tw-cant button{width:32px;height:32px;border:none;background:none;font-size:17px;cursor:pointer;border-radius:50%}
@@ -22980,7 +23039,7 @@ const CSS_TIENDA = `
 }
 @keyframes twHoja{from{transform:translateY(100%)}to{transform:none}}
 @keyframes twSubeBarra{from{transform:translateY(100%)}to{transform:none}}
-@media(prefers-reduced-motion:reduce){.tw *,.tw *::before,.tw *::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}.tw-rv{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.tw *,.tw *::before,.tw *::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}.tw-rv{opacity:1;transform:none;filter:none}.tw-sec.tw-rv .tw-fila-in>*{opacity:1;transform:none}.tw-girasol .tw-gp,.tw-girasol .tw-gc{transform:none}}
 `;
 
 const TwIcono = ({ d, size = 22 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{d}</svg>;
@@ -22999,13 +23058,205 @@ const TW_WA = <path d="M20 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20l1.2-4.2A8.5 8.5 0 1 
 // El video de un producto se puede reproducir solo (al pasar el mouse) si es un archivo, no si es de YouTube/Vimeo
 const videoArchivo = (base, p) => !p.video ? null : p.video.tipo === "subido" ? base + "/video/" + p.id : p.video.tipo === "archivo" ? p.video.url : null;
 
+// ---- Animaciones y sonidos de la tienda (sensacion suave, tipo ASMR) ----
+// Todo dura menos de medio segundo y respeta "reducir movimiento" del celular. Los sonidos son
+// sintetizados (sin archivos), muy bajitos, y se pueden silenciar (se recuerda en el navegador).
+const twMenosMovimiento = () => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } };
+let twAudio = null;
+const twSonidoOn = () => { try { return localStorage.getItem("tienda_sonido") !== "0"; } catch (e) { return true; } };
+function twCtx() {
+  try {
+    if (!twAudio) twAudio = new (window.AudioContext || window.webkitAudioContext)();
+    if (twAudio.state === "suspended") twAudio.resume();
+    return twAudio;
+  } catch (e) { return null; }
+}
+// Un tono: frecuencia que se desliza, con ataque y caida suaves
+function twTono(ctx, { f1, f2, dur, vol, tipo = "sine", cuando = 0 }) {
+  const t = ctx.currentTime + 0.01 + cuando;
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = tipo; o.frequency.setValueAtTime(f1, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur * 0.7);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + dur + 0.02);
+}
+const twSonar = {
+  // burbuja que explota: "pop"
+  pop() { const c = twSonidoOn() && twCtx(); if (!c) return; twTono(c, { f1: 380, f2: 1100, dur: 0.11, vol: 0.22 }); twTono(c, { f1: 1500, f2: 1900, dur: 0.06, vol: 0.05, cuando: 0.05 }); },
+  // tic de madera, para el + y el -
+  tic(arriba) { const c = twSonidoOn() && twCtx(); if (!c) return; twTono(c, { f1: arriba ? 1900 : 1500, f2: arriba ? 2300 : 1200, dur: 0.045, vol: 0.09, tipo: "triangle" }); },
+  // brillo: cupon aplicado, puntos que suben, envio gratis
+  brillo() { const c = twSonidoOn() && twCtx(); if (!c) return; [1318, 1760, 2093].forEach((f, i) => twTono(c, { f1: f, dur: 0.35, vol: 0.06, cuando: i * 0.07 })); },
+  // campanita del final de la compra
+  campana() { const c = twSonidoOn() && twCtx(); if (!c) return; [[1046, 0], [1568, 0.12], [2093, 0.24]].forEach(([f, d]) => { twTono(c, { f1: f, dur: 1.1, vol: 0.09, cuando: d }); twTono(c, { f1: f * 2.01, dur: 0.6, vol: 0.02, cuando: d }); }); },
+};
+const twVibrar = (ms) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} };
+
+// La foto del producto vuela en curva hasta la bolsa, que la "traga" con un rebote
+function twVolarABolsa(desdeEl, src, alLlegar) {
+  const bolsa = document.querySelector(".tw-bolsa");
+  if (!desdeEl || !bolsa || twMenosMovimiento() || !document.body.animate) { alLlegar(); return; }
+  const a = desdeEl.getBoundingClientRect(), b = bolsa.getBoundingClientRect();
+  const lado = Math.min(a.width, a.height, 160);
+  const el = document.createElement(src ? "img" : "div");
+  if (src) el.src = src;
+  el.className = "tw-vuela";
+  Object.assign(el.style, { left: (a.left + a.width / 2 - lado / 2) + "px", top: (a.top + a.height / 2 - lado / 2) + "px", width: lado + "px", height: lado + "px" });
+  document.body.appendChild(el);
+  const dx = b.left + b.width / 2 - (a.left + a.width / 2), dy = b.top + b.height / 2 - (a.top + a.height / 2);
+  const esc = 26 / lado;
+  const anim = el.animate([
+    { transform: "translate(0,0) scale(1)", opacity: 1, borderRadius: "10px" },
+    { transform: `translate(${dx * 0.45}px, ${dy * 0.45 - 90}px) scale(${0.55})`, opacity: 1, borderRadius: "30%", offset: 0.45 },
+    { transform: `translate(${dx}px, ${dy}px) scale(${esc})`, opacity: 0.6, borderRadius: "50%" },
+  ], { duration: 620, easing: "cubic-bezier(.45,.05,.4,1)" });
+  anim.onfinish = () => {
+    el.remove();
+    bolsa.classList.remove("traga"); void bolsa.offsetWidth; bolsa.classList.add("traga");
+    setTimeout(() => bolsa.classList.remove("traga"), 650);
+    alLlegar();
+  };
+}
+
+// Lluvia de petalos de girasol desde un elemento (envio gratis, compra terminada)
+function twPetalos(desdeEl, cantidad = 26) {
+  if (twMenosMovimiento() || !document.body.animate) return;
+  const r = desdeEl ? desdeEl.getBoundingClientRect() : { left: window.innerWidth / 2, top: window.innerHeight / 3, width: 0, height: 0 };
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  for (let i = 0; i < cantidad; i++) {
+    const p = document.createElement("span");
+    p.className = "tw-petalo" + (i % 7 === 0 ? " flor" : "");
+    if (i % 7 === 0) p.textContent = "🌻";
+    else p.style.background = ["#f7c531", "#f4b400", "#ffd86b", "#e9a800"][i % 4];
+    Object.assign(p.style, { left: cx + "px", top: cy + "px" });
+    document.body.appendChild(p);
+    const ang = Math.random() * Math.PI * 2, vel = 70 + Math.random() * 130;
+    const x = Math.cos(ang) * vel, y = Math.sin(ang) * vel * 0.7 - 60;
+    const giro = (Math.random() - 0.5) * 720;
+    p.animate([
+      { transform: "translate(-50%,-50%) scale(.3) rotate(0deg)", opacity: 0 },
+      { transform: `translate(calc(-50% + ${x * 0.6}px), calc(-50% + ${y * 0.6}px)) scale(1) rotate(${giro * 0.4}deg)`, opacity: 1, offset: 0.25 },
+      { transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y + 220}px)) scale(.8) rotate(${giro}deg)`, opacity: 0 },
+    ], { duration: 1300 + Math.random() * 700, easing: "cubic-bezier(.2,.6,.4,1)" }).onfinish = () => p.remove();
+  }
+}
+
+// Onda suave que sale desde donde se toca un boton
+function twOnda(e) {
+  const el = e.target.closest && e.target.closest(".tw-btn,.tw-btn2,.tw-rapido,.tw-filtro,.tw-atajos button,.tw-subcats button,.tw-var,.tw-compartir button,.tw-compartir a,.tw-ciudad-op");
+  if (!el || twMenosMovimiento()) return;
+  const r = el.getBoundingClientRect();
+  if (getComputedStyle(el).position === "static") el.style.position = "relative";
+  el.classList.add("tw-con-onda");
+  const o = document.createElement("span");
+  const lado = Math.max(r.width, r.height) * 2.2;
+  o.className = "tw-onda";
+  Object.assign(o.style, { width: lado + "px", height: lado + "px", left: (e.clientX - r.left - lado / 2) + "px", top: (e.clientY - r.top - lado / 2) + "px" });
+  el.appendChild(o);
+  setTimeout(() => o.remove(), 650);
+}
+
+// Numero que se desliza para arriba o para abajo (cantidades)
+function TwNum({ v }) {
+  const prev = useRef(v);
+  const dir = v > prev.current ? "arr" : v < prev.current ? "abj" : "";
+  useEffect(() => { prev.current = v; });
+  return <span key={v} className={"tw-num " + dir}>{v}</span>;
+}
+// Numero que rueda (solo para lo que da gusto: descuentos y puntos). Rueda al aparecer, desde "desde".
+function TwRueda({ valor, desde = 0, formato = (n) => n, dur = 900 }) {
+  const [v, setV] = useState(twMenosMovimiento() ? valor : desde);
+  const fin = useRef(valor);
+  const animando = useRef(true);
+  useEffect(() => {
+    if (twMenosMovimiento()) return;
+    let raf, t0 = null;
+    const paso = (t) => {
+      if (t0 === null) t0 = t;
+      const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      setV(Math.round(desde + (fin.current - desde) * e));
+      if (k < 1) raf = requestAnimationFrame(paso); else animando.current = false;
+    };
+    raf = requestAnimationFrame(paso);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  useEffect(() => { fin.current = valor; if (!animando.current) setV(valor); }, [valor]);
+  return <span className="tw-rueda">{formato(v)}</span>;
+}
+// Puntos que suma la compra (1 cada $100, como en el local): suben rodando y brillan al crecer
+function TwPuntos({ monto, tengo }) {
+  const pts = Math.floor(Math.max(0, monto) / 100);
+  const prev = useRef(pts);
+  const [brilla, setBrilla] = useState(0);
+  const [desde, setDesde] = useState(pts);
+  useEffect(() => {
+    if (pts > prev.current) { setDesde(prev.current); setBrilla(b => b + 1); twSonar.brillo(); }
+    prev.current = pts;
+  }, [pts]);
+  if (pts <= 0) return null;
+  return (
+    <div className={"tw-puntos-compra" + (brilla ? " brilla" : "")} key={"b" + brilla}>
+      <span className="tw-estrella" aria-hidden="true">✦</span>
+      <span>Con esta compra sumás <b><TwRueda key={brilla} valor={pts} desde={desde} dur={700} /> puntos</b>{tengo != null ? <span className="tw-puntos-total"> · quedás con {(tengo + pts).toLocaleString("es-AR")}</span> : null}</span>
+    </div>
+  );
+}
+// Barra de envio gratis que se llena como liquido; al completarse, lluvia de petalos
+function TwBarraEnvio({ subtotal, gratisDesde }) {
+  const ref = useRef(null);
+  const gratis = subtotal >= gratisDesde;
+  const antes = useRef(gratis);
+  useEffect(() => {
+    if (gratis && !antes.current) { twPetalos(ref.current, 30); twSonar.brillo(); twVibrar([10, 40, 10]); }
+    antes.current = gratis;
+  }, [gratis]);
+  return (
+    <div className={"tw-progreso" + (gratis ? " listo" : "")} ref={ref}>
+      {gratis ? <b>🌻 ¡Tenés envío gratis!</b> : <>Te faltan <b>{fmtTienda(gratisDesde - subtotal)}</b> para el envío gratis</>}
+      <div className="tw-liquido"><i style={{ width: Math.min(100, subtotal / gratisDesde * 100) + "%" }} /></div>
+    </div>
+  );
+}
+// Girasol que florece al terminar la compra
+function TwGirasol() {
+  const ref = useRef(null);
+  useEffect(() => {
+    const t1 = setTimeout(() => twSonar.campana(), 250);
+    const t2 = setTimeout(() => twPetalos(ref.current, 34), 700);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+  return (
+    <div className="tw-girasol" ref={ref} aria-hidden="true">
+      <svg viewBox="-60 -60 120 120" width="120" height="120">
+        <g className="tw-tallo"><path d="M0 22 C 2 40, -2 50, 0 60" stroke="#5a9e4b" strokeWidth="4" fill="none" strokeLinecap="round" /></g>
+        {Array.from({ length: 14 }).map((_, i) => (
+          <g key={i} transform={"rotate(" + (i * 360 / 14) + ")"}>
+            <ellipse className="tw-gp" style={{ animationDelay: (0.25 + i * 0.045) + "s" }} cx="0" cy="-30" rx="9" ry="20" fill={i % 2 ? "#f7c531" : "#f4b400"} />
+          </g>
+        ))}
+        <circle className="tw-gc" cx="0" cy="0" r="17" fill="#6b3f1d" />
+        <circle className="tw-gc" cx="0" cy="0" r="11" fill="#8a5427" style={{ animationDelay: ".15s" }} />
+      </svg>
+    </div>
+  );
+}
+
 function TwTarjeta({ p, base, sin, onAbrir, onAgregar }) {
   const [hover, setHover] = useState(false);
+  const [hecho, setHecho] = useState(false);
+  const imgRef = useRef(null);
   const vid = videoArchivo(base, p);
+  const conMouse = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches && !twMenosMovimiento();
+  const inclinar = (e) => {
+    const el = imgRef.current; if (!el || !conMouse) return;
+    const r = el.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+    el.style.setProperty("--ry", ((x - 0.5) * 8).toFixed(2) + "deg"); el.style.setProperty("--rx", ((0.5 - y) * 8).toFixed(2) + "deg");
+    el.style.setProperty("--gx", (x * 100).toFixed(0) + "%"); el.style.setProperty("--gy", (y * 100).toFixed(0) + "%");
+  };
+  const soltar = () => { const el = imgRef.current; if (el) { el.style.setProperty("--rx", "0deg"); el.style.setProperty("--ry", "0deg"); } };
   return (
     <div className="tw-card" role="button" tabIndex={0} onClick={() => onAbrir(p)} onKeyDown={e => { if (e.key === "Enter") onAbrir(p); }}
-      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
-      <div className="tw-card-img">
+      onMouseEnter={() => setHover(true)} onMouseLeave={() => { setHover(false); soltar(); }} onMouseMove={inclinar}>
+      <div className={"tw-card-img" + (conMouse ? " inclina" : "")} ref={imgRef}>
         {p.foto ? <img src={base + "/foto/" + p.id + (p.foto_v ? "?v=" + p.foto_v : "")} alt={p.nombre} loading="lazy" /> : <span className="tw-ph">✿</span>}
         {hover && vid && <video src={vid} muted autoPlay loop playsInline preload="none" />}
         {hover && !vid && p.fotos && p.fotos.length > 0 && <img className="tw-alt" src={base + "/foto-extra/" + p.fotos[0]} alt="" />}
@@ -23014,8 +23265,8 @@ function TwTarjeta({ p, base, sin, onAbrir, onAgregar }) {
           {p.video && <span className="tw-etq neg">▶ Video</span>}
         </div>
         {sin ? <div className="tw-agotado">AGOTADO</div> : (
-          <button className="tw-rapido" aria-label={"Agregar " + p.nombre} onClick={e => { e.stopPropagation(); p.variantes ? onAbrir(p) : onAgregar(p); }}>
-            +<span>{p.variantes ? " Elegir opción" : " Agregar"}</span>
+          <button className={"tw-rapido" + (hecho ? " hecho" : "")} aria-label={"Agregar " + p.nombre} onClick={e => { e.stopPropagation(); if (p.variantes) return onAbrir(p); onAgregar(p, e.currentTarget); setHecho(true); setTimeout(() => setHecho(false), 1300); }}>
+            {hecho ? <><svg className="tw-tilde" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: "-2px" }}><path d="M4 12.5l5 5L20 6.5" /></svg><span> Agregado</span></> : <>+<span>{p.variantes ? " Elegir opción" : " Agregar"}</span></>}
           </button>
         )}
       </div>
@@ -23054,7 +23305,7 @@ function TwReel({ r, base, prods, onAbrir, onAgregar }) {
             <div key={p.id} className="tw-reel-prod">
               <button className="tw-reel-prod-img" onClick={() => onAbrir(p)} aria-label={"Ver " + p.nombre}>{p.foto ? <img src={base + "/foto/" + p.id + (p.foto_v ? "?v=" + p.foto_v : "")} alt="" /> : "✿"}</button>
               <button className="tw-reel-prod-n" onClick={() => onAbrir(p)}>{p.nombre}<b>{fmtTienda(p.precio)}</b></button>
-              <button className="tw-reel-mas" onClick={() => p.variantes ? onAbrir(p) : onAgregar(p)} aria-label={"Agregar " + p.nombre}>+</button>
+              <button className="tw-reel-mas" onClick={e => p.variantes ? onAbrir(p) : onAgregar(p, e.currentTarget)} aria-label={"Agregar " + p.nombre}>+</button>
             </div>
           ))}
         </div>
@@ -23285,6 +23536,18 @@ function TiendaPublica({ slug }) {
   const [subcat, setSubcat] = useState(""); // categoria elegida dentro de un sector
   const [filtros, setFiltros] = useState({}); // tipo de producto, tipo de piel, necesidad
   const [copiado, setCopiado] = useState(null); // producto cuyo link se acaba de copiar
+  const [saliendo, setSaliendo] = useState([]); // productos que se van del carrito (se encogen antes de irse)
+  const [agregando, setAgregando] = useState(null); // boton de la ficha: null | "carga" | "listo"
+  const [sonido, setSonido] = useState(twSonidoOn);
+  // Botones de goma: onda desde el dedo y resorte al soltar. El sonido se habilita con el primer toque.
+  useEffect(() => {
+    let apretado = null;
+    const abajo = (e) => { twCtx(); twOnda(e); apretado = e.target.closest && e.target.closest(".tw-btn,.tw-btn2,.tw-rapido,.tw-ico,.tw-var,.tw-cant button,.tw-filtro,.tw-atajos button,.tw-subcats button,.tw-compartir button,.tw-reel-mas"); };
+    const arriba = () => { const el = apretado; apretado = null; if (!el || twMenosMovimiento()) return; el.classList.remove("tw-resorte"); void el.offsetWidth; el.classList.add("tw-resorte"); setTimeout(() => el.classList.remove("tw-resorte"), 460); };
+    document.addEventListener("pointerdown", abajo, { passive: true });
+    document.addEventListener("pointerup", arriba, { passive: true });
+    return () => { document.removeEventListener("pointerdown", abajo); document.removeEventListener("pointerup", arriba); };
+  }, []);
   // Mi cuenta (misma del portal de clientas: DNI + contraseña, con sus puntos)
   const [logueada, setLogueada] = useState(() => { try { return !!localStorage.getItem("tienda_cuenta_" + slug); } catch (e) { return false; } });
   const [miCuenta, setMiCuenta] = useState(null);
@@ -23410,17 +23673,39 @@ function TiendaPublica({ slug }) {
   const totalItems = carrito.reduce((t, i) => t + i.cantidad, 0);
   const subtotal = carrito.reduce((t, i) => t + i.precio * i.cantidad, 0);
   const abrir = abrirFicha;
-  const agregar = (p, v, n = 1) => {
+  // Sumar al carrito: pop, toquecito y la foto vuela a la bolsa (el numero cambia cuando llega)
+  const agregar = (p, v, n = 1, el) => {
     const max = dispo(p, v);
-    setCarrito(c => {
-      const ya = c.find(i => i.producto_id === p.id && (i.variante_id || null) === (v ? v.id : null));
-      if (ya) return c.map(i => i === ya ? { ...i, cantidad: Math.min(max, i.cantidad + n) } : i);
-      return [...c, { producto_id: p.id, variante_id: v ? v.id : null, nombre: p.nombre, variante: v ? v.valor : null, precio: p.precio, cantidad: Math.min(max, n), foto: !!p.foto }];
+    twSonar.pop(); twVibrar(12);
+    const desde = el && !el.closest(".tw-cajon") ? (el.closest(".tw-card") || el).querySelector(".tw-card-img") || el.closest(".tw-reel-prod")?.querySelector(".tw-reel-prod-img") || el : null;
+    twVolarABolsa(desde, p.foto ? foto(p) : null, () => {
+      setCarrito(c => {
+        const ya = c.find(i => i.producto_id === p.id && (i.variante_id || null) === (v ? v.id : null));
+        if (ya) return c.map(i => i === ya ? { ...i, cantidad: Math.min(max, i.cantidad + n) } : i);
+        return [...c, { producto_id: p.id, variante_id: v ? v.id : null, nombre: p.nombre, variante: v ? v.valor : null, precio: p.precio, cantidad: Math.min(max, n), foto: !!p.foto }];
+      });
+      setSalto(s => s + 1);
     });
-    setVer(null); setSalto(s => s + 1);
     setToast({ p, v }); clearTimeout(window.__twToast); window.__twToast = setTimeout(() => setToast(null), 2600);
   };
-  const cambiarCant = (i, d) => setCarrito(c => c.map(x => x === i ? { ...x, cantidad: x.cantidad + d } : x).filter(x => x.cantidad > 0));
+  // Desde la ficha: el boton gira, se dibuja el ✓, la foto vuela y despues se cierra la ficha
+  const agregarDesdeFicha = (p, v, n) => {
+    if (agregando) return;
+    setAgregando("carga");
+    setTimeout(() => { setAgregando("listo"); agregar(p, v, n, document.querySelector(".tw-ficha .tw-media")); }, 260);
+    setTimeout(() => { setAgregando(null); setVer(x => x && x.id === p.id ? null : x); }, 1050);
+  };
+  const claveIt = (x) => x.producto_id + "-" + (x.variante_id || "");
+  const cambiarCant = (i, d) => {
+    twSonar.tic(d > 0); twVibrar(6);
+    const k = claveIt(i);
+    if (i.cantidad + d <= 0) {
+      setSaliendo(s => [...s, k]);
+      setTimeout(() => { setCarrito(c => c.filter(x => claveIt(x) !== k)); setSaliendo(s => s.filter(x => x !== k)); }, 280);
+      return;
+    }
+    setCarrito(c => c.map(x => claveIt(x) === k ? { ...x, cantidad: x.cantidad + d } : x));
+  };
   const zona = envioAca ? envioAca.zonas.find(z => z.nombre === datos.zona) : null;
   const gratisDesde = tienda.envio && tienda.envio.gratis_desde;
   const envioGratis = gratisDesde && subtotal >= gratisDesde;
@@ -23430,7 +23715,7 @@ function TiendaPublica({ slug }) {
     const c = String(cod || cuponIn).trim();
     if (!c) return;
     setAvisoCupon("");
-    try { const r = await pedir("/cupon/" + encodeURIComponent(c) + "?monto=" + subtotal); setCuponOk(r); setCuponIn(r.codigo); }
+    try { const r = await pedir("/cupon/" + encodeURIComponent(c) + "?monto=" + subtotal); setCuponOk(r); setCuponIn(r.codigo); twSonar.brillo(); twVibrar([8, 30, 8]); }
     catch (e) { setCuponOk(null); setAvisoCupon(e.message); }
   };
   const confirmar = async () => {
@@ -23486,7 +23771,7 @@ function TiendaPublica({ slug }) {
             {!codigoUrl && ciudades.length > 1 && ciudad && <button className="tw-ciudad" onClick={() => setEligeCiudad(true)} aria-label={"Tu ciudad: " + ciudad.nombre + ". Cambiar"}>📍 <span>{ciudad.nombre}</span> ▾</button>}
             {tienda.whatsapp && <a className="tw-ico tw-ico-wa" href={wa("Hola! Tengo una consulta")} target="_blank" rel="noopener" aria-label="WhatsApp"><TwIcono d={TW_WA} /></a>}
             {!codigoUrl && <button className="tw-ico" onClick={() => { setAvisoCuenta(null); setCanjeHecho(null); setPaso("cuenta"); if (logueada) cargarCuenta(); }} aria-label={logueada ? "Mi cuenta" : "Ingresar o crear cuenta"} title={logueada ? "Mi cuenta" : "Ingresar"}><TwIcono d={TW_PERSONA} />{logueada && <span className="tw-punto" />}</button>}
-            {!codigoUrl && <button className="tw-ico" onClick={() => setPaso("carrito")} aria-label={"Carrito, " + totalItems + " productos"}>
+            {!codigoUrl && <button className="tw-ico tw-bolsa" onClick={() => setPaso("carrito")} aria-label={"Carrito, " + totalItems + " productos"}>
               <TwIcono d={TW_BOLSA} />{totalItems > 0 && <span key={salto} className={"tw-badge" + (salto ? " salta" : "")}>{totalItems}</span>}
             </button>}
           </div>
@@ -23523,6 +23808,7 @@ function TiendaPublica({ slug }) {
         <div className="tw-main">
           {!pedido ? <div className="tw-cartel"><div className="tw-skel" style={{ height: 160 }} /></div> : pedido.error ? <div className="tw-cartel">{pedido.error}</div> : (
             <div className="tw-cartel tw-rv in" style={{ animation: "twSube .6s ease both" }}>
+              {pedido.estado !== "cancelado" && <TwGirasol />}
               <div style={{ fontSize: 12, letterSpacing: ".12em", textTransform: "uppercase", color: "#777", fontWeight: 700 }}>Pedido N° {pedido.codigo}</div>
               <div style={{ fontSize: 26, fontWeight: 800, color: e[1], margin: "6px 0 14px" }}>{pedido.estado === "pendiente_pago" && pedido.pago === "retiro" ? "¡Recibimos tu pedido!" : e[0]}</div>
               {pedido.estado === "pendiente_pago" && pedido.link_pago && <a className="tw-btn full" style={{ marginBottom: 14 }} href={pedido.link_pago}>Pagar con Mercado Pago</a>}
@@ -23600,11 +23886,11 @@ function TiendaPublica({ slug }) {
   };
   const moverTiles = (d) => { const el = tilesRef.current; if (el) el.scrollBy({ left: d * el.clientWidth, behavior: "smooth" }); };
   const reels = tienda.reels || [];
-  const reel = (r) => <TwReel key={r.id} r={r} base={base} prods={(r.productos || []).map(id => visibles.find(p => p.id === id)).filter(Boolean)} onAbrir={abrir} onAgregar={(x) => agregar(x, null)} />;
+  const reel = (r) => <TwReel key={r.id} r={r} base={base} prods={(r.productos || []).map(id => visibles.find(p => p.id === id)).filter(Boolean)} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
   const filasPortada = (tienda.filas || []).map(f => ({ ...f, items: f.productos.map(id => lista0.find(p => p.id === id)).filter(p => p && !agotado(p)) })).filter(f => f.items.length);
   const nSlides = destacados.length;
   const iSlide = nSlides ? slide % nSlides : 0;
-  const tarjeta = (p) => <TwTarjeta key={p.id} p={p} base={base} sin={agotado(p)} onAbrir={abrir} onAgregar={(x) => agregar(x, null)} />;
+  const tarjeta = (p) => <TwTarjeta key={p.id} p={p} base={base} sin={agotado(p)} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
   const opcionesPago = [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar"], ["retiro", "💵 Pago al retirar", "Pagás en el local"]]
     .filter(([k]) => tienda.pagos[k] && !(k === "retiro" && datos.entrega === "envio"));
   const listoParaPedir = lid && datos.nombre && datos.telefono && datos.entrega && datos.pago && (datos.entrega === "retiro" ? retiroAca.length > 0 : (zona && datos.direccion));
@@ -23780,7 +24066,7 @@ function TiendaPublica({ slug }) {
               </div>
             )}
             {lista.length === 0 ? <div style={{ textAlign: "center", color: "#888", margin: "50px 0" }}><p>{hayFiltros ? "No hay productos con esos filtros." : "No encontramos productos con esa búsqueda."}</p>{hayFiltros && <button className="tw-btn2" style={{ display: "inline-flex", width: "auto", padding: "0 22px" }} onClick={() => setFiltros({})}>Ver todos</button>}</div>
-              : <div className="tw-grid">{lista.map(p => <div key={p.id} className="tw-rv">{tarjeta(p)}</div>)}</div>}
+              : <div className="tw-grid">{lista.map((p, i) => <div key={p.id} className="tw-rv" style={{ "--i": i % 4 }}>{tarjeta(p)}</div>)}</div>}
           </>
         ) : visibles.length === 0 ? (
           <div className="tw-cartel" style={{ textAlign: "center" }}><div style={{ fontSize: 40 }}>✿</div><h2>{tienda.titulo}</h2><p>Pronto vas a encontrar nuestros productos acá.</p></div>
@@ -23924,9 +24210,9 @@ function TiendaPublica({ slug }) {
                   {ver.variantes && (<><div className="tw-lbl" style={{ marginTop: 0 }}>{varSel ? "Opción: " + varSel.valor : "Elegí una opción"}</div>
                     <div className="tw-vars">{ver.variantes.map(v => <button key={v.id} disabled={dispo(ver, v) <= 0} className={"tw-var" + (varSel?.id === v.id ? " on" : "")} onClick={() => { setVarSel(v); setCant(1); }}>{v.valor}</button>)}</div></>)}
                   <div className="tw-ficha-btn" style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 20 }}>
-                    {puedeAgregar && <div className="tw-cant" style={{ marginTop: 0 }}><button onClick={() => setCant(c => Math.max(1, c - 1))} aria-label="Uno menos">−</button><b>{cant}</b><button onClick={() => setCant(c => Math.min(maxVer, c + 1))} aria-label="Uno más">+</button></div>}
-                    <button className="tw-btn full" disabled={!puedeAgregar} onClick={() => agregar(ver, varElegida, cant)}>
-                      {ver.variantes && !varSel ? "Elegí una opción" : maxVer <= 0 ? "Agotado" : "Agregar al carrito"}
+                    {puedeAgregar && <div className="tw-cant" style={{ marginTop: 0 }}><button onClick={() => { if (cant > 1) twSonar.tic(false); setCant(c => Math.max(1, c - 1)); }} aria-label="Uno menos">−</button><b><TwNum v={cant} /></b><button onClick={() => { if (cant < maxVer) twSonar.tic(true); setCant(c => Math.min(maxVer, c + 1)); }} aria-label="Uno más">+</button></div>}
+                    <button className={"tw-btn full" + (agregando === "listo" ? " hecho" : "")} disabled={!puedeAgregar && !agregando} onClick={() => agregarDesdeFicha(ver, varElegida, cant)}>
+                      {agregando === "carga" ? <span className="tw-girando" aria-label="Agregando" /> : agregando === "listo" ? <><svg className="tw-tilde" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12.5l5 5L20 6.5" /></svg> ¡Agregado!</> : ver.variantes && !varSel ? "Elegí una opción" : maxVer <= 0 ? "Agotado" : "Agregar al carrito"}
                     </button>
                   </div>
                   {(!ver.variantes || varSel) && (
@@ -23956,22 +24242,22 @@ function TiendaPublica({ slug }) {
           <aside className="tw-cajon" role="dialog" aria-modal="true" aria-label={paso === "cuenta" ? "Mi cuenta" : paso === "carrito" ? "Tu carrito" : "Tus datos"}>
             <div className="tw-cajon-cab">
               <h2>{paso === "cuenta" ? (logueada ? "Mi cuenta" : "Ingresá a tu cuenta") : paso === "carrito" ? "Tu carrito" + (totalItems ? " (" + totalItems + ")" : "") : "Finalizar compra"}</h2>
-              <button className="tw-ico" onClick={() => setPaso(null)} aria-label="Cerrar"><TwIcono d={TW_X} size={20} /></button>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button className="tw-ico tw-sonido" onClick={() => { const n = !sonido; setSonido(n); try { localStorage.setItem("tienda_sonido", n ? "1" : "0"); } catch (e) {} if (n) setTimeout(() => twSonar.pop(), 30); }} aria-label={sonido ? "Silenciar sonidos" : "Activar sonidos"} title={sonido ? "Silenciar sonidos" : "Activar sonidos"}>{sonido ? "🔊" : "🔇"}</button>
+                <button className="tw-ico" onClick={() => setPaso(null)} aria-label="Cerrar"><TwIcono d={TW_X} size={20} /></button>
+              </div>
             </div>
             {paso === "cuenta" ? panelCuenta : paso === "carrito" ? (
               <>
                 <div className="tw-cajon-cuerpo">
-                  {gratisDesde > 0 && carrito.length > 0 && (
-                    <div className="tw-progreso">{envioGratis ? <b>🎉 ¡Tenés envío gratis!</b> : <>Te faltan <b>{fmtTienda(gratisDesde - subtotal)}</b> para el envío gratis</>}
-                      <div><i style={{ width: Math.min(100, subtotal / gratisDesde * 100) + "%" }} /></div></div>
-                  )}
-                  {carrito.length === 0 ? <div style={{ textAlign: "center", padding: "50px 0", color: "#666" }}><div style={{ fontSize: 44 }}>🛍️</div><p>Tu carrito está vacío.</p><button className="tw-btn2" onClick={() => setPaso(null)}>Ver productos</button></div> : carrito.map(i => (
-                    <div key={i.producto_id + "-" + (i.variante_id || "")} className="tw-item">
+                  {gratisDesde > 0 && carrito.length > 0 && <TwBarraEnvio subtotal={subtotal} gratisDesde={gratisDesde} />}
+                  {carrito.length === 0 ? <div style={{ textAlign: "center", padding: "50px 0", color: "#666" }}><div style={{ fontSize: 44 }}>🛍️</div><p>Tu carrito está vacío.</p><button className="tw-btn2" onClick={() => setPaso(null)}>Ver productos</button></div> : carrito.map((i, n) => (
+                    <div key={i.producto_id + "-" + (i.variante_id || "")} className={"tw-item" + (saliendo.includes(claveIt(i)) ? " sale" : "")} style={{ "--i": Math.min(n, 6) }}>
                       {i.foto ? <img src={base + "/foto/" + i.producto_id} alt="" /> : <div className="tw-mini" />}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 14.5, fontWeight: 700 }}>{i.nombre}</div>
                         {i.variante && <div style={{ fontSize: 13, color: "#666" }}>{i.variante}</div>}
-                        <div className="tw-cant"><button onClick={() => cambiarCant(i, -1)} aria-label="Uno menos">−</button><b>{i.cantidad}</b><button onClick={() => cambiarCant(i, +1)} disabled={i.cantidad >= maxDeItem(i)} aria-label="Uno más">+</button></div>
+                        <div className="tw-cant"><button onClick={() => cambiarCant(i, -1)} aria-label="Uno menos">−</button><b><TwNum v={i.cantidad} /></b><button onClick={() => cambiarCant(i, +1)} disabled={i.cantidad >= maxDeItem(i)} aria-label="Uno más">+</button></div>
                         {i.cantidad > maxDeItem(i) && <div style={{ color: "#c0392b", fontSize: 12.5, fontWeight: 700, marginTop: 4 }}>{maxDeItem(i) <= 0 ? "No hay" + (ciudad ? " en " + ciudad.nombre : "") : "Solo quedan " + maxDeItem(i) + (ciudad ? " en " + ciudad.nombre : "")}</div>}
                       </div>
                       <div style={{ fontWeight: 800, fontSize: 15 }}>{fmtTienda(i.precio * i.cantidad)}</div>
@@ -23987,7 +24273,7 @@ function TiendaPublica({ slug }) {
                             <button className="tw-rutina-img" onClick={() => abrir(p)} aria-label={"Ver " + p.nombre}>{p.foto ? <img src={foto(p)} alt="" /> : <span className="tw-ph" style={{ fontSize: 26 }}>✿</span>}</button>
                             <div className="tw-rutina-n">{p.nombre}</div>
                             <div style={{ fontWeight: 800, fontSize: 13 }}>{fmtTienda(p.precio)}</div>
-                            <button className="tw-btn2" style={{ padding: "6px 10px", fontSize: 11, marginTop: 6 }} onClick={() => p.variantes ? abrir(p) : agregar(p, null)}>{p.variantes ? "Elegir" : "+ Agregar"}</button>
+                            <button className="tw-btn2" style={{ padding: "6px 10px", fontSize: 11, marginTop: 6 }} onClick={e => p.variantes ? abrir(p) : agregar(p, null, 1, e.currentTarget)}>{p.variantes ? "Elegir" : "+ Agregar"}</button>
                           </div>
                         ))}
                       </div>
@@ -23995,6 +24281,7 @@ function TiendaPublica({ slug }) {
                   )}
                 </div>
                 {carrito.length > 0 && <div className="tw-cajon-pie">
+                  <TwPuntos monto={subtotal} tengo={logueada && miCuenta ? (miCuenta.puntos || 0) : null} />
                   <div className="tw-linea" style={{ fontWeight: 800, fontSize: 18, marginBottom: 12 }}><span>Subtotal</span><span>{fmtTienda(subtotal)}</span></div>
                   {problemas.length > 0 && <div style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, marginBottom: 10, fontSize: 13.5 }}>Algunos productos no están disponibles{ciudad ? " en " + ciudad.nombre : ""} en esa cantidad. <button className="tw-btn2" style={{ padding: "6px 12px", fontSize: 11.5, marginTop: 6 }} onClick={ajustarCarrito}>Ajustar a lo disponible</button></div>}
                   <button className="tw-btn full" disabled={problemas.length > 0} onClick={() => setPaso("datos")}>Finalizar compra</button>
@@ -24045,9 +24332,10 @@ function TiendaPublica({ slug }) {
                 </div>
                 <div className="tw-cajon-pie">
                   <div className="tw-linea"><span>Productos</span><span>{fmtTienda(subtotal)}</span></div>
-                  {descuentoCupon > 0 && <div className="tw-linea" style={{ color: "#2d7a4f" }}><span>Descuento ({cuponOk.codigo})</span><span>−{fmtTienda(descuentoCupon)}</span></div>}
+                  {descuentoCupon > 0 && <div key={"d" + cuponOk.codigo} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>✨ Descuento ({cuponOk.codigo})</span><span>−<TwRueda valor={descuentoCupon} formato={fmtTienda} dur={1000} /></span></div>}
                   {datos.entrega === "envio" && <div className="tw-linea"><span>Envío</span><span>{zona ? (costoEnvio ? fmtTienda(costoEnvio) : "Gratis") : "—"}</span></div>}
-                  <div className="tw-linea" style={{ fontWeight: 800, fontSize: 19, marginBottom: 12 }}><span>Total</span><span>{fmtTienda(subtotal - descuentoCupon + costoEnvio)}</span></div>
+                  <div className="tw-linea" style={{ fontWeight: 800, fontSize: 19, marginBottom: 12 }}><span>Total</span><span><TwRueda key={"t" + (cuponOk ? cuponOk.codigo : "")} valor={subtotal - descuentoCupon + costoEnvio} desde={subtotal + costoEnvio} formato={fmtTienda} dur={1000} /></span></div>
+                  <TwPuntos monto={subtotal - descuentoCupon} tengo={logueada && miCuenta ? (miCuenta.puntos || 0) : null} />
                   <div style={{ display: "flex", gap: 8 }}>
                     <button className="tw-btn2" onClick={() => setPaso("carrito")}>Atrás</button>
                     <button className="tw-btn full" disabled={!listoParaPedir || enviando} onClick={confirmar}>{enviando ? "Enviando…" : datos.pago === "mp" ? "Ir a pagar" : "Hacer el pedido"}</button>
