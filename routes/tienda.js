@@ -51,6 +51,12 @@ router.put('/config', async (req, res) => {
        !!b.pago_mp, !!b.pago_transferencia, String(b.transferencia_datos || '').trim().slice(0, 300) || null, !!b.pago_retiro,
        Math.min(168, Math.max(1, parseInt(b.horas_reserva) || 24)),
        String(b.anuncios || '').split('\n').map(x => x.trim().slice(0, 90)).filter(Boolean).slice(0, 5).join('\n') || null]);
+    // Logo propio de la tienda (imagen chica, ya achicada en el navegador). Vacio = usar el del negocio
+    if (Object.prototype.hasOwnProperty.call(b, 'logo')) {
+      const logo = String(b.logo || '');
+      if (logo && (!/^data:image\/(png|webp|jpeg);base64,[A-Za-z0-9+/=]+$/.test(logo) || logo.length > 600000)) return res.status(400).json({ error: 'El logo tiene que ser una imagen PNG o JPG' });
+      await pool.query('UPDATE tienda_config SET logo = $1 WHERE id = 1', [logo || null]);
+    }
     res.json({ ok: true });
   } catch (e) {
     console.error('[tienda] config:', e.message);
