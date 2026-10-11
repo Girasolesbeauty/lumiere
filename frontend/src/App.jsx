@@ -23341,6 +23341,9 @@ function TwPuntos({ monto, tengo }) {
   );
 }
 // Para quien compra sin entrar a su cuenta: que entre y sume los puntos de la compra
+// Nivel de la clienta en castellano (en Lumiere se guarda en ingles)
+const TW_NIVELES_ES = { bronze: "Bronce", silver: "Plata", gold: "Oro", platinum: "Platino", black: "Black" };
+const twNivel = (n) => TW_NIVELES_ES[String(n || "").toLowerCase()] || n;
 function TwSumaConCuenta({ monto, onIngresar, onCrear }) {
   const pts = Math.floor(Math.max(0, monto) / 100);
   if (pts <= 0) return null;
@@ -24223,7 +24226,7 @@ function TiendaPublica({ slug }) {
             <span className="tw-saludo-txt">
               <b>{cumple ? <>¡Feliz cumpleaños, {nombre}!</> : <>¡Hola, {nombre}!</>}</b>
               {cumple && <span className="tw-saludo-cumple">Porque todo el mes es tu cumpleaños <span className="tw-saludo-emo">💁🏻‍♀️😌</span></span>}
-              <small>{miCuenta.nivel ? <>Sos <b className="tw-saludo-nivel">{miCuenta.nivel}</b> con </> : "Tenés "}<b><TwRueda key={miCuenta.puntos} valor={miCuenta.puntos || 0} desde={0} dur={900} formato={n => n.toLocaleString("es-AR")} /></b> puntos</small>
+              <small>{miCuenta.nivel ? <>Sos <b className="tw-saludo-nivel">{twNivel(miCuenta.nivel)}</b> con </> : "Tenés "}<b><TwRueda key={miCuenta.puntos} valor={miCuenta.puntos || 0} desde={0} dur={900} formato={n => n.toLocaleString("es-AR")} /></b> puntos</small>
             </span>
             <span className="tw-saludo-ir" aria-hidden="true">›</span>
           </button>
@@ -24454,7 +24457,7 @@ function TiendaPublica({ slug }) {
       <div className="tw-cajon-cuerpo">
         <div className="tw-puntos-card">
           <div style={{ fontSize: 13, opacity: .85 }}>Hola, {String(miCuenta.nombre || "").split(" ")[0]} 👋</div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8, margin: "6px 0 2px" }}><span style={{ fontSize: 42, fontWeight: 800, lineHeight: 1 }}>{pts.toLocaleString("es-AR")}</span><span style={{ fontSize: 15, fontWeight: 700 }}>puntos</span>{miCuenta.nivel && <span className="tw-nivel">{miCuenta.nivel}</span>}</div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, margin: "6px 0 2px" }}><span style={{ fontSize: 42, fontWeight: 800, lineHeight: 1 }}>{pts.toLocaleString("es-AR")}</span><span style={{ fontSize: 15, fontWeight: 700 }}>puntos</span>{miCuenta.nivel && <span className="tw-nivel">{twNivel(miCuenta.nivel)}</span>}</div>
           <div style={{ fontSize: 12.5, opacity: .8 }}>Sumás 1 punto cada {fmtTienda(miCuenta.pesos_por_punto || 100)} de compra</div>
           {proximo && <div style={{ marginTop: 12 }}>
             <div style={{ fontSize: 12.5 }}>Te faltan <b>{proximo.falta.toLocaleString("es-AR")}</b> para <b>{proximo.nombre}</b></div>
