@@ -22816,6 +22816,9 @@ const CSS_TIENDA = `
 .tw-atajos{display:flex;gap:10px;flex-wrap:wrap}
 .tw-atajos button{border:1.5px solid var(--b);background:#fff;color:#111;border-radius:999px;padding:11px 20px;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit}
 .tw-atajos button:hover{background:var(--n);border-color:var(--n);color:#fff}
+.tw-compartir{display:flex;gap:8px;flex-wrap:wrap;margin:-2px 0 14px}
+.tw-compartir button,.tw-compartir a{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 14px;border:1.5px solid var(--b);border-radius:999px;background:#fff;color:#111 !important;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;font-family:inherit;transition:border-color .2s}
+.tw-compartir button:hover,.tw-compartir a:hover{border-color:var(--n)}
 .tw-lista-cab{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:26px 0 20px}
 .tw-lista-cab h1{font-size:30px;margin:0;font-weight:800}
 .tw-lista-cab select{height:40px;border:1px solid var(--b);border-radius:999px;padding:0 14px;font-family:inherit;font-size:14px;background:#fff}
@@ -22990,6 +22993,7 @@ const TW_PERSONA = <><circle cx="12" cy="8" r="4" /><path d="M4 20c1.5-4 4.5-6 8
 const TW_IG = <><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="1" fill="currentColor" /></>;
 const TW_TT = <path d="M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5M14 3c.5 2.8 2.3 4.6 5 5" />;
 const TW_FB = <path d="M14 21v-7h2.5l.5-3H14V9c0-.9.4-1.5 1.6-1.5H17V5c-.4-.1-1.4-.2-2.5-.2-2.4 0-3.9 1.4-3.9 4V11H8v3h2.6v7" />;
+const TW_COMPARTIR = <><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4" /></>;
 const TW_WA = <path d="M20 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20l1.2-4.2A8.5 8.5 0 1 1 20 11.5Z" />;
 
 // El video de un producto se puede reproducir solo (al pasar el mouse) si es un archivo, no si es de YouTube/Vimeo
@@ -23236,6 +23240,27 @@ function twCoincide(p, q) {
   return debil ? 0.5 : puntos;
 }
 
+// Link lindo de cada producto (misma regla que slugProducto en lib/tienda.js del servidor):
+// "Limpiador Facial Espumoso" -> "limpiador-facial-espumoso"; si dos se llaman igual, se suma el numero.
+const twSlug = (nombre) => String(nombre || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+  .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80).replace(/-+$/, "") || "producto";
+function twSlugs(lista) {
+  const cuenta = new Map();
+  lista.forEach(p => { const b = twSlug(p.nombre); cuenta.set(b, (cuenta.get(b) || 0) + 1); });
+  return new Map(lista.map(p => { const b = twSlug(p.nombre); return [p.id, cuenta.get(b) > 1 ? b + "-" + p.id : b]; }));
+}
+// Producto que pide la direccion: /nombre-del-producto (dominio propio) o ?producto=... (link de Lumiere)
+const twProductoDeUrl = () => {
+  try {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("producto")) return q.get("producto").toLowerCase();
+    if (q.get("tienda")) return null;
+    const seg = decodeURIComponent(window.location.pathname.replace(/^\/+|\/+$/g, ""));
+    return seg && !seg.includes("/") ? seg.toLowerCase() : null;
+  } catch (e) { return null; }
+};
+const twBuscarPorSlug = (lista, slugs, s) => { if (!s) return null; const m = /-(\d+)$/.exec(s); return lista.find(p => slugs.get(p.id) === s) || (m && lista.find(p => p.id === Number(m[1]))) || null; };
+
 function TiendaPublica({ slug }) {
   const base = (API.defaults.baseURL || "") + "/tienda-publica/" + encodeURIComponent(slug);
   const tokenCuenta = () => { try { return localStorage.getItem("tienda_cuenta_" + slug) || ""; } catch (e) { return ""; } };
@@ -23259,6 +23284,7 @@ function TiendaPublica({ slug }) {
   const [orden, setOrden] = useState("");
   const [subcat, setSubcat] = useState(""); // categoria elegida dentro de un sector
   const [filtros, setFiltros] = useState({}); // tipo de producto, tipo de piel, necesidad
+  const [copiado, setCopiado] = useState(null); // producto cuyo link se acaba de copiar
   // Mi cuenta (misma del portal de clientas: DNI + contraseña, con sus puntos)
   const [logueada, setLogueada] = useState(() => { try { return !!localStorage.getItem("tienda_cuenta_" + slug); } catch (e) { return false; } });
   const [miCuenta, setMiCuenta] = useState(null);
@@ -23299,6 +23325,43 @@ function TiendaPublica({ slug }) {
     return () => window.removeEventListener("scroll", s);
   }, []);
   useEffect(() => { try { localStorage.setItem("tienda_carrito_" + slug, JSON.stringify(carrito)); } catch (e) {} }, [carrito]);
+  // La direccion sigue al producto abierto: se puede copiar o compartir, y "atras" cierra la ficha
+  const abrirFicha = (p) => { setVer(p); setVarSel(null); setCant(1); setMedia(p.foto || (p.fotos && p.fotos.length) || !p.video ? 0 : "video"); };
+  const slugsRef = useRef(new Map());
+  const abrioDesdeUrl = useRef(false);
+  const modoRuta = !params.get("tienda"); // dominio propio: /nombre-del-producto; si no, ?tienda=...&producto=...
+  const urlDe = (sp) => {
+    if (modoRuta) return "/" + (sp || "") + window.location.search;
+    const q = new URLSearchParams(window.location.search);
+    if (sp) q.set("producto", sp); else q.delete("producto");
+    return window.location.pathname + "?" + q.toString();
+  };
+  useEffect(() => {
+    if (!productos || !tienda) return;
+    slugsRef.current = twSlugs(productos);
+    if (!abrioDesdeUrl.current) {
+      abrioDesdeUrl.current = true;
+      const p = twBuscarPorSlug(productos, slugsRef.current, twProductoDeUrl());
+      if (p) { abrirFicha(p); return; }
+      if (twProductoDeUrl()) try { window.history.replaceState(null, "", urlDe(null)); } catch (e) {}
+    }
+  }, [productos, tienda]);
+  useEffect(() => {
+    if (!abrioDesdeUrl.current) return;
+    const actual = twProductoDeUrl();
+    const quiere = ver ? slugsRef.current.get(ver.id) || null : null;
+    if (actual === quiere) return;
+    try {
+      if (quiere && !actual) window.history.pushState({ twp: 1 }, "", urlDe(quiere));
+      else if (!quiere && window.history.state && window.history.state.twp) window.history.back();
+      else window.history.replaceState(window.history.state, "", urlDe(quiere));
+    } catch (e) {}
+  }, [ver && ver.id]);
+  useEffect(() => {
+    const atras = () => { const p = twBuscarPorSlug(productos || [], slugsRef.current, twProductoDeUrl()); if (p) abrirFicha(p); else setVer(null); };
+    window.addEventListener("popstate", atras);
+    return () => window.removeEventListener("popstate", atras);
+  }, [productos]);
   useEffect(() => { try { if (local) localStorage.setItem("tienda_local_" + slug, String(local)); } catch (e) {} }, [local]);
   const cargarRecs = (ids) => { const k = ids.slice().sort((x, y) => x - y).join(","); if (!k || recs[k]) return; pedir("/recomendados?ids=" + k).then(r => setRecs(m => ({ ...m, [k]: r }))).catch(() => setRecs(m => ({ ...m, [k]: [] }))); };
   useEffect(() => { if (ver) cargarRecs([ver.id]); }, [ver && ver.id]);
@@ -23346,7 +23409,7 @@ function TiendaPublica({ slug }) {
   const agotado = (p) => p.variantes ? p.variantes.every(v => dispo(p, v) <= 0) : dispo(p) <= 0;
   const totalItems = carrito.reduce((t, i) => t + i.cantidad, 0);
   const subtotal = carrito.reduce((t, i) => t + i.precio * i.cantidad, 0);
-  const abrir = (p) => { setVer(p); setVarSel(null); setCant(1); setMedia(p.foto || (p.fotos && p.fotos.length) || !p.video ? 0 : "video"); };
+  const abrir = abrirFicha;
   const agregar = (p, v, n = 1) => {
     const max = dispo(p, v);
     setCarrito(c => {
@@ -23377,11 +23440,24 @@ function TiendaPublica({ slug }) {
       const r = await pedir("/pedidos", { method: "POST", body: JSON.stringify({ ...datos, local_id: lid, items: carrito, cupon: cuponOk ? cuponOk.codigo : null, volver_a: window.location.href }) });
       setCarrito([]); setCuponOk(null); setCuponIn("");
       if (r.link_pago) { window.location.href = r.link_pago; return; }
-      window.location.href = window.location.pathname + "?tienda=" + encodeURIComponent(slug) + "&pedido=" + r.codigo;
+      window.location.href = (modoRuta ? "/" : window.location.pathname) + "?tienda=" + encodeURIComponent(slug) + "&pedido=" + r.codigo;
     } catch (e) { setAviso(e.message); }
     setEnviando(false);
   };
   const wa = (txt) => tienda.whatsapp ? "https://wa.me/" + (() => { let n = String(tienda.whatsapp).replace(/[^0-9]/g, ""); if (n.startsWith("0")) n = n.slice(1); if (!n.startsWith("54")) n = "549" + n; return n; })() + "?text=" + encodeURIComponent(txt) : null;
+  // Link para compartir: con el dominio propio (girasolesbeauty.com.ar/limpiador-facial) si hay uno
+  const linkProducto = (p) => {
+    const sp = slugsRef.current.get(p.id) || twSlug(p.nombre);
+    if (tienda.dominio) return "https://" + tienda.dominio + "/" + sp;
+    return window.location.origin + window.location.pathname + "?tienda=" + encodeURIComponent(slug) + "&producto=" + sp;
+  };
+  const compartir = async (p) => {
+    const url = linkProducto(p);
+    const texto = p.nombre + " en " + tienda.titulo;
+    if (navigator.share) { try { await navigator.share({ title: p.nombre, text: texto, url }); return; } catch (e) { if (e && e.name === "AbortError") return; } }
+    try { await navigator.clipboard.writeText(url); setCopiado(p.id); setTimeout(() => setCopiado(null), 2500); }
+    catch (e) { window.prompt("Copiá el link del producto:", url); }
+  };
   const irInicio = () => { setCat(""); setBusca(""); setFiltros({}); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const irCat = (c, f) => { setCat(c); setSubcat(""); setBusca(""); setFiltros(f || {}); window.scrollTo({ top: 0, behavior: "smooth" }); };
 
@@ -23841,6 +23917,10 @@ function TiendaPublica({ slug }) {
                   {ver.marca && <div className="tw-card-m" style={{ marginTop: 0, fontSize: 13 }}>{ver.marca}</div>}
                   <h1>{ver.nombre}</h1>
                   <div className="tw-precio">{fmtTienda(ver.precio)}</div>
+                  <div className="tw-compartir">
+                    <button onClick={() => compartir(ver)} aria-label="Compartir este producto"><TwIcono d={TW_COMPARTIR} size={16} /> {copiado === ver.id ? "¡Link copiado!" : "Compartir"}</button>
+                    <a href={"https://wa.me/?text=" + encodeURIComponent(ver.nombre + " en " + tienda.titulo + " " + linkProducto(ver))} target="_blank" rel="noopener" aria-label="Mandar por WhatsApp"><TwIcono d={TW_WA} size={16} /> WhatsApp</a>
+                  </div>
                   {ver.variantes && (<><div className="tw-lbl" style={{ marginTop: 0 }}>{varSel ? "Opción: " + varSel.valor : "Elegí una opción"}</div>
                     <div className="tw-vars">{ver.variantes.map(v => <button key={v.id} disabled={dispo(ver, v) <= 0} className={"tw-var" + (varSel?.id === v.id ? " on" : "")} onClick={() => { setVarSel(v); setCant(1); }}>{v.valor}</button>)}</div></>)}
                   <div className="tw-ficha-btn" style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 20 }}>
