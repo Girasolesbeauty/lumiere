@@ -22984,10 +22984,10 @@ const CSS_TIENDA = `
 .tw-progreso{background:var(--g);border-radius:6px;padding:12px 14px;font-size:13.5px;margin-bottom:14px}
 .tw-progreso div{height:6px;border-radius:3px;background:#ddd;margin-top:8px;overflow:hidden}
 .tw-progreso i{display:block;height:100%;background:var(--c);border-radius:3px;transition:width .8s cubic-bezier(.2,.7,.2,1)}
-.tw-progreso .tw-liquido{height:9px;border-radius:5px;background:#e9e3d6;box-shadow:inset 0 1px 2px rgba(0,0,0,.08)}
-.tw-progreso .tw-liquido i{position:relative;border-radius:5px;background:linear-gradient(90deg,#f4b400,#f7c531 50%,#f4b400);background-size:200% 100%;animation:twLiquido 2.4s linear infinite;transition:width 1s cubic-bezier(.3,1.3,.5,1)}
+.tw-progreso .tw-liquido{height:9px;border-radius:5px;background:#dfece3;box-shadow:inset 0 1px 2px rgba(0,0,0,.08)}
+.tw-progreso .tw-liquido i{position:relative;border-radius:5px;background:linear-gradient(90deg,#1fa463,#4cd38a 50%,#1fa463);background-size:200% 100%;animation:twLiquido 2.4s linear infinite;transition:width 1s cubic-bezier(.3,1.3,.5,1)}
 .tw-progreso .tw-liquido i::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.65) 50%,transparent 70%);background-size:220% 100%;animation:twBrillo 1.8s ease-in-out infinite}
-.tw-progreso.listo{background:#fff8e1;animation:twPop .5s cubic-bezier(.3,1.6,.5,1)}
+.tw-progreso.listo{background:#e6f6ec;color:#17603a;animation:twPop .5s cubic-bezier(.3,1.6,.5,1)}
 @keyframes twLiquido{from{background-position:0 0}to{background-position:200% 0}}
 @keyframes twPop{0%{transform:scale(.96)}60%{transform:scale(1.03)}100%{transform:none}}
 .tw-item{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--b);animation:twItem .55s cubic-bezier(.3,1.4,.5,1) both;animation-delay:calc(var(--i,0) * 50ms);transform-origin:left center}
@@ -24619,7 +24619,7 @@ function TiendaPublica({ slug }) {
               <>
                 <div className="tw-cajon-cuerpo">
                   {gratisDesde > 0 && carrito.length > 0 && <TwBarraEnvio subtotal={subtotal} gratisDesde={gratisDesde} />}
-                  {carrito.length === 0 ? <div style={{ textAlign: "center", padding: "50px 0", color: "#666" }}><div style={{ fontSize: 44 }}>🛍️</div><p>Tu carrito está vacío.</p><button className="tw-btn2" onClick={() => setPaso(null)}>Ver productos</button></div> : carrito.map((i, n) => (
+                  {carrito.length === 0 ? <div style={{ textAlign: "center", padding: "50px 0", color: "#666" }}><div style={{ fontSize: 44, lineHeight: 1.3, height: 60, marginBottom: 14 }}>🛍️</div><p style={{ margin: "0 0 14px" }}>Tu carrito está vacío.</p><button className="tw-btn2" onClick={() => setPaso(null)}>Ver productos</button></div> : carrito.map((i, n) => (
                     <div key={i.producto_id + "-" + (i.variante_id || "")} className={"tw-item" + (saliendo.includes(claveIt(i)) ? " sale" : "")} style={{ "--i": Math.min(n, 6) }}>
                       {i.foto ? <img src={base + "/foto/" + i.producto_id} alt="" /> : <div className="tw-mini" />}
                       <div style={{ flex: 1, minWidth: 0 }}>
