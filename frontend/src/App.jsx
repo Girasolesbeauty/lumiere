@@ -22680,7 +22680,7 @@ function TiendaPublica({ slug }) {
     return () => { vivo = false; clearInterval(t); };
   }, [codigoUrl]);
 
-  if (error) return <div style={{ fontFamily: "system-ui, sans-serif", padding: 40, textAlign: "center", color: "#555" }}><div style={{ fontSize: 44 }}>🛍️</div><h2>{error}</h2></div>;
+  if (error) return <div style={{ fontFamily: "system-ui, sans-serif", padding: 40, textAlign: "center", color: "#555" }}><div style={{ fontSize: 44 }}>🛍️</div><h2>{error}</h2><p style={{ fontSize: 14, maxWidth: 420, margin: "12px auto 0", lineHeight: 1.5 }}>¿Es tu tienda? Activala desde Lumiere, en Ventas → Tienda online → Configuración.</p></div>;
   if (!tienda) return <div style={{ fontFamily: "system-ui, sans-serif", padding: 40, textAlign: "center", color: "#888" }}>Cargando…</div>;
   const color = tienda.color || "#c9a84c";
   const foto = (p) => p.foto ? base + "/foto/" + p.id : null;

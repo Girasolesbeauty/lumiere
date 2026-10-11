@@ -31,16 +31,17 @@ router.put('/config', async (req, res) => {
     const b = req.body || {};
     const slug = String(b.slug || '').trim().toLowerCase();
     if (b.activo && !SLUG_OK.test(slug)) return res.status(400).json({ error: 'La dirección tiene que tener entre 3 y 40 letras o números (sin espacios; podés usar guiones). Ej: girasoles' });
-    if (slug && SLUG_OK.test(slug)) {
-      const ok = await tienda.guardarSlug(slug, req.negocio ? req.negocio.id : 1);
-      if (!ok) return res.status(400).json({ error: 'Esa dirección ya la usa otra tienda. Probá con otra.' });
-    }
     const zonas = (Array.isArray(b.envio_zonas) ? b.envio_zonas : []).map(z => ({ nombre: String(z.nombre || '').trim().slice(0, 60), costo: Math.max(0, num(z.costo)) })).filter(z => z.nombre).slice(0, 30);
     if (b.envio_activo && !zonas.length) return res.status(400).json({ error: 'Para ofrecer envío, cargá al menos una zona con su costo' });
     if (b.activo && !b.retiro_activo && !b.envio_activo) return res.status(400).json({ error: 'Elegí al menos una forma de entrega (retiro o envío)' });
     if (b.activo && !b.pago_mp && !b.pago_transferencia && !b.pago_retiro) return res.status(400).json({ error: 'Elegí al menos una forma de pago' });
     if (b.pago_transferencia && !String(b.transferencia_datos || '').trim()) return res.status(400).json({ error: 'Para cobrar por transferencia, escribí el alias o CBU y el titular' });
     const locales = (Array.isArray(b.retiro_locales) ? b.retiro_locales : []).map(Number).filter(x => x === 1 || x === 2);
+    // La direccion se reserva recien cuando todo lo demas esta bien
+    if (slug && SLUG_OK.test(slug)) {
+      const ok = await tienda.guardarSlug(slug, req.negocio ? req.negocio.id : 1);
+      if (!ok) return res.status(400).json({ error: 'Esa dirección ya la usa otra tienda. Probá con otra.' });
+    }
     await pool.query(`UPDATE tienda_config SET activo=$1, slug=$2, titulo=$3, mensaje=$4, color=$5, whatsapp=$6, retiro_activo=$7, retiro_locales=$8,
         envio_activo=$9, envio_zonas=$10, envio_gratis_desde=$11, envio_local=$12, pago_mp=$13, pago_transferencia=$14, transferencia_datos=$15, pago_retiro=$16, horas_reserva=$17 WHERE id=1`,
       [!!b.activo, slug || null, String(b.titulo || '').trim().slice(0, 80) || null, String(b.mensaje || '').trim().slice(0, 300) || null,
