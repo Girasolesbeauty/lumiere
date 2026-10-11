@@ -83,8 +83,39 @@ router.get('/:slug', async (req, res) => {
       reels: (await pool.query('SELECT id, titulo, tipo, codigo, productos FROM tienda_reels ORDER BY orden, id').catch(() => ({ rows: [] }))).rows,
       banner: c.banner || [], banners_img: c.banners_img || [], filas: c.filas || [], sectores: c.sectores || [],
       reingreso: c.reingreso_activo ? { nombre: c.reingreso_nombre || 'Nuevamente en stock', dias: c.reingreso_dias || 14 } : null,
+      dominio: await tienda.dominioDe(req.negTienda.id).catch(() => null),
     });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la tienda' }); }
+});
+
+// Datos para la vista previa al compartir un link (WhatsApp, Instagram, Facebook): titulo, texto e imagen.
+// ?p=slug-del-producto. Si no hay producto (o no se encuentra), los de la tienda.
+router.get('/:slug/vista-previa', async (req, res) => {
+  try {
+    const c = req.tienda;
+    const neg = (await pool.query('SELECT nombre_negocio, logo_url FROM configuracion_negocio LIMIT 1').catch(() => ({ rows: [] }))).rows[0] || {};
+    const titulo = c.titulo || neg.nombre_negocio || 'Tienda';
+    const base = '/tienda-publica/' + encodeURIComponent(req.params.slug);
+    const logo = [c.logo, neg.logo_url].find(x => /^https:\/\//.test(x || ''));
+    const banner = (c.banners_img || []).find(b => b.imagen);
+    const deTienda = { titulo, descripcion: c.mensaje || ('Comprá online en ' + titulo), imagen: logo || (banner ? base + '/banner/' + banner.imagen : null) };
+    const pedido = String(req.query.p || '').toLowerCase().slice(0, 120);
+    if (!pedido) return res.set('Cache-Control', 'public, max-age=300').json(deTienda);
+    const lista = (await pool.query(`SELECT p.id, p.nombre, p.marca, p.precio, tp.descripcion, EXISTS (SELECT 1 FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto
+      FROM tienda_productos tp JOIN productos p ON p.id = tp.producto_id WHERE tp.publicado AND p.activo = TRUE AND COALESCE(p.precio, 0) > 0`)).rows;
+    const slugs = tienda.slugsProductos(lista);
+    const porId = /-(\d+)$/.exec(pedido);
+    const p = lista.find(x => slugs.get(x.id) === pedido) || (porId && lista.find(x => x.id === Number(porId[1])));
+    if (!p) return res.set('Cache-Control', 'public, max-age=60').json(deTienda);
+    const precio = '$' + Math.round(num(p.precio)).toLocaleString('es-AR');
+    const desc = String(p.descripcion || '').replace(/\s+/g, ' ').trim();
+    res.set('Cache-Control', 'public, max-age=300').json({
+      titulo: p.nombre + ' | ' + titulo,
+      descripcion: (precio + (p.marca ? ' · ' + p.marca : '') + (desc ? ' · ' + desc : '')).slice(0, 200),
+      imagen: p.foto ? base + '/foto/' + p.id : deTienda.imagen,
+      producto: slugs.get(p.id),
+    });
+  } catch (e) { res.status(500).json({ error: 'No se pudo' }); }
 });
 
 // Productos publicados con precio y lo disponible en cada local (y sus variantes)
