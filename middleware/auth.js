@@ -11,6 +11,7 @@ function rutaLibre(req) {
   if (p === '/auth/login') return true;
   if (p === '/portal' || p.startsWith('/portal/')) return true;
   if (p === '/legal' || p === '/legal/') return true; // los terminos se pueden leer sin sesion
+  if (p.startsWith('/tienda-publica/')) return true; // la tienda web la ve cualquiera (el negocio sale de la direccion)
   return false;
 }
 

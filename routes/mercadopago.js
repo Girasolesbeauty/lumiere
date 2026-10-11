@@ -203,3 +203,5 @@ router.post('/cobros/:id/cancelar', async (req, res) => {
 });
 
 module.exports = router;
+// Para la tienda web: crear links de pago y consultar pagos con la cuenta del negocio
+module.exports.ayudaMP = { mp, token, asegurar, medioMP };

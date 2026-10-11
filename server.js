@@ -86,6 +86,8 @@ app.use('/api/mercadopago', require('./routes/mercadopago'));
 app.use('/api/gastro', require('./routes/gastro'));
 app.use('/api/consultorio', require('./routes/consultorio'));
 app.use('/api/modulos', require('./routes/modulos'));
+app.use('/api/tienda', require('./routes/tienda'));
+app.use('/api/tienda-publica', require('./routes/tiendaPublica'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {
