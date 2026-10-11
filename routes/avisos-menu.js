@@ -50,8 +50,8 @@ router.get('/tienda-nuevos', async (req, res) => {
     const r = await pool.query(`SELECT id, codigo, nombre, telefono, entrega, local_id, zona, pago, pagado, estado, total, creado_en
       FROM tienda_pedidos WHERE id > $1 AND estado <> 'cancelado' ORDER BY id LIMIT 20`, [desde]);
     const ids = r.rows.map(p => p.id);
-    const items = ids.length ? (await pool.query('SELECT pedido_id, nombre, variante_valor, cantidad FROM tienda_pedido_items WHERE pedido_id = ANY($1) ORDER BY id', [ids])).rows : [];
-    res.json({ ultimo, pedidos: r.rows.map(p => ({ ...p, total: Number(p.total) || 0, items: items.filter(i => i.pedido_id === p.id) })) });
+    const items = ids.length ? (await pool.query('SELECT * FROM tienda_pedido_items WHERE pedido_id = ANY($1) ORDER BY id', [ids])).rows : [];
+    res.json({ ultimo, pedidos: r.rows.map(p => ({ ...p, total: Number(p.total) || 0, items: items.filter(i => i.pedido_id === p.id).map(i => ({ nombre: i.nombre, variante_valor: i.variante_valor, cantidad: i.cantidad, preventa: !!i.preventa })) })) });
   } catch (e) { res.json({ ultimo: null, pedidos: [] }); }
 });
 
