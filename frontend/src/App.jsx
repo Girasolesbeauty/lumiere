@@ -2946,6 +2946,8 @@ function POS({ localId, usuario, paletaActual }) {
   const [mediosPago, setMediosPago] = useState([]);
   const [descuentoManual, setDescuentoManual] = useState("");
   const [referenciaVenta, setReferenciaVenta] = useState("");
+  // Pedido de la tienda web que se esta cobrando (se puede cambiar lo que se lleva: sacar o sumar productos)
+  const [pedidoWeb, setPedidoWeb] = useState(null);
   const [tipoDescuento, setTipoDescuento] = useState("%");
   const [medioPagoSel, setMedioPagoSel] = useState(null);
   useEffect(() => {
@@ -3229,7 +3231,7 @@ function POS({ localId, usuario, paletaActual }) {
     retoEvaluadoRef.current = false;
     setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
     setClienteSeleccionado(null); setShowNuevoCliente(false); setDescuentoManual(""); setTipoDescuento("%");
-    setInsumosSel({}); setMostrarInsumos(false); setMontoRecibidoEfectivo(""); setReferenciaVenta("");
+    setInsumosSel({}); setMostrarInsumos(false); setMontoRecibidoEfectivo(""); setReferenciaVenta(""); setPedidoWeb(null);
     setJustificacionesStock({}); setItemsSinStock(null); quitarGiftCard();
     setFichaCliente(null); fichaClienteIdRef.current = null; setReto(null); setRetoDescartadoId(null); setTipoPagoAbierto("");
   };
@@ -3882,8 +3884,9 @@ function POS({ localId, usuario, paletaActual }) {
       });
       if (mpPago) mpPagoRef.current = null;
       // Si la venta salio de un pedido de la tienda web, queda entregado
-      const tiendaId = (cart.find(i => i.tienda_pedido) || {}).tienda_pedido;
+      const tiendaId = (pedidoWeb && referenciaVenta === "Tienda web " + pedidoWeb.codigo ? pedidoWeb.id : null) || (cart.find(i => i.tienda_pedido) || {}).tienda_pedido;
       if (tiendaId) API.put("/tienda/pedidos/" + tiendaId + "/vendido", { venta_id: ventaRes.data.id }).catch(() => {});
+      setPedidoWeb(null);
       // Si la venta salio de un turno de la agenda, el turno queda cobrado (y atendido)
       cart.filter(i => i.turno_id).forEach(i => API.put("/consultorio/turnos/" + i.turno_id + "/cobrado", { venta_id: ventaRes.data.id }).catch(() => {}));
       // Si la venta salio de una mesa, esos items quedan cobrados (y si no queda nada, se libera la mesa)
@@ -4053,6 +4056,9 @@ function POS({ localId, usuario, paletaActual }) {
       if (pe.costo_envio > 0) lineas.push({ id: "ajuste-envio-" + pe.id, es_ajuste: true, tienda_pedido: pe.id, nombre: "Envío" + (pe.zona ? " (" + pe.zona + ")" : ""), precio: pe.costo_envio, qty: 1, disponible: 9999 });
       setCart(lineas);
       setReferenciaVenta("Tienda web " + pe.codigo);
+      setPedidoWeb({ id: pe.id, codigo: pe.codigo, nombre: pe.nombre, pagado: !!pe.pagado, pago: pe.pago, total: pe.total, cupon: pe.cupon });
+      // Codigo de descuento usado en la tienda (ej: premio 10% off): entra como descuento general de la venta
+      if (parseFloat(pe.descuento) > 0) { setTipoDescuento(pe.cupon_tipo === "%" ? "%" : "$"); setDescuentoManual(String(pe.cupon_tipo === "%" ? parseFloat(pe.cupon_valor) : parseFloat(pe.descuento))); }
       if (pe.cliente_id) API.get("/clientes").then(rc => { const c = (rc.data || []).find(x => x.id === pe.cliente_id); if (c) { setClienteSeleccionado(c); setDniInput(c.cuit_dni || ""); cargarFicha(c.id, false); } }).catch(() => {});
       const medios = (rm.data || []).filter(m => m.activo !== false);
       const medio = pe.pagado && pe.pago === "mp" ? medios.find(m => m.nombre === "Mercado Pago (tienda web)") : pe.pagado && pe.pago === "transferencia" ? medios.find(m => m.tipo === "transferencia") : null;
@@ -5144,6 +5150,12 @@ function POS({ localId, usuario, paletaActual }) {
       {mensaje && (
         <div style={{ background: mensaje.includes("Error") ? "#c0392b12" : "#2d7a4f12", border: "1px solid " + (mensaje.includes("Error") ? "#c0392b" : "#2d7a4f"), borderRadius: 6, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: mensaje.includes("Error") ? "#c0392b" : "#2d7a4f" }}>
           {mensaje}
+        </div>
+      )}
+      {pedidoWeb && referenciaVenta === "Tienda web " + pedidoWeb.codigo && (
+        <div role="status" style={{ background: temaPal.accent + "14", border: "1px solid " + temaPal.accent, borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 12.5, lineHeight: 1.5 }}>
+          🛍️ <b>Cobrando el pedido web N° {pedidoWeb.codigo}</b> de {pedidoWeb.nombre}.{pedidoWeb.cupon ? " Usó el código " + pedidoWeb.cupon + " (ya está aplicado como descuento general)." : ""} Si se lleva otra cosa, <b>sacá o sumá productos</b> en el carrito como en cualquier venta: se registra lo que se lleva y el pedido queda entregado.
+          {pedidoWeb.pagado && <div style={{ marginTop: 4 }}>Ya pagó <b>{fmt(pedidoWeb.total)}</b> con {pedidoWeb.pago === "mp" ? "Mercado Pago" : "transferencia"}. {Math.round(total - pedidoWeb.total) !== 0 ? (total > pedidoWeb.total ? " Falta cobrar " + fmt(total - pedidoWeb.total) + " (con otro medio de pago)." : " Hay que devolverle " + fmt(pedidoWeb.total - total) + ".") : ""}</div>}
         </div>
       )}
       {modoVista === "clasico" && (
@@ -14482,7 +14494,7 @@ function ConfiguracionNegocio({ paletaActual }) {
 
 // ============ Portal Cliente -> Premios ============
 // Los premios que tus clientes canjean con puntos (antes estaban en Fidelizacion).
-const PREMIO_VACIO = { nombre: "", descripcion: "", puntos_requeridos: "", imagen_url: "", stock_total: "", solo_mes_cumpleanos: false, nivel_minimo: "Bronze" };
+const PREMIO_VACIO = { nombre: "", descripcion: "", puntos_requeridos: "", imagen_url: "", stock_total: "", solo_mes_cumpleanos: false, nivel_minimo: "Bronze", descuento_pct: "" };
 function PremiosPortal({ p, avisar }) {
   const [premios, setPremios] = useState(null);
   const [form, setForm] = useState(null); // null = cerrado; objeto = creando/editando
@@ -14498,14 +14510,15 @@ function PremiosPortal({ p, avisar }) {
   const abrirEditar = (pr) => {
     setEditando(pr);
     setForm({ nombre: pr.nombre || "", descripcion: pr.descripcion || "", puntos_requeridos: String(pr.puntos_requeridos || ""), imagen_url: pr.imagen_url || "",
-      stock_total: pr.stock_total != null ? String(pr.stock_total) : "", solo_mes_cumpleanos: pr.solo_mes_cumpleanos === true, nivel_minimo: pr.nivel_minimo || "Bronze", activo: pr.activo });
+      stock_total: pr.stock_total != null ? String(pr.stock_total) : "", solo_mes_cumpleanos: pr.solo_mes_cumpleanos === true, nivel_minimo: pr.nivel_minimo || "Bronze", activo: pr.activo,
+      descuento_pct: pr.descuento_pct != null ? String(parseFloat(pr.descuento_pct)) : (/(\d{1,2})\s*%\s*(off|de\s*desc|desc)/i.exec(pr.nombre || "") || [])[1] || "" });
     setPrecioCalc("");
   };
   const guardar = async () => {
     if (!form.nombre.trim() || !(parseInt(form.puntos_requeridos) > 0)) return avisar("Error: completá el nombre y los puntos");
     setGuardando(true);
     try {
-      const datos = { ...form, puntos_requeridos: parseInt(form.puntos_requeridos), stock_total: form.stock_total ? parseInt(form.stock_total) : null };
+      const datos = { ...form, puntos_requeridos: parseInt(form.puntos_requeridos), stock_total: form.stock_total ? parseInt(form.stock_total) : null, descuento_pct: parseFloat(form.descuento_pct) > 0 ? parseFloat(form.descuento_pct) : 0 };
       if (editando) await API.put("/fidelizacion/premios/" + editando.id, { ...datos, activo: editando.activo });
       else await API.post("/fidelizacion/premios", datos);
       avisar(editando ? "✓ Premio actualizado" : "✓ Premio creado: ya lo ven tus clientes en el portal");
@@ -14595,6 +14608,11 @@ function PremiosPortal({ p, avisar }) {
             <div className="prem-form-2">
               <div className="fg"><div className="fl">Puntos para canjearlo</div><input className="inp" type="number" min="1" placeholder="500" value={form.puntos_requeridos} onChange={set("puntos_requeridos")} /></div>
               <div className="fg"><div className="fl">Cuántos hay (vacío = sin límite)</div><input className="inp" type="number" min="0" placeholder="Ej: 10" value={form.stock_total} onChange={set("stock_total")} /></div>
+            </div>
+            <div className="fg">
+              <div className="fl">¿Es un descuento? % de descuento (dejalo vacío si el premio es un producto)</div>
+              <input className="inp" type="number" min="0" max="100" placeholder="Ej: 10 para 10% off" value={form.descuento_pct || ""} onChange={set("descuento_pct")} />
+              <div style={{ fontSize: 11, color: p.textMuted, marginTop: 3 }}>Al canjearlo, la clienta recibe un código de un solo uso (vale 90 días) para usar en la tienda online o en el Punto de Venta.</div>
             </div>
             <div className="prem-form-2">
               <div className="fg">
@@ -22654,6 +22672,11 @@ const CSS_TIENDA = `
 #root:has(>.tw){width:auto;max-width:none;border:0;text-align:left;display:block;margin:0}
 .tw{text-align:left;--n:#111;--g:#f6f6f6;--b:#e6e6e6;--m:#666;font-family:"Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;color:var(--n);background:#fff;min-height:100vh;-webkit-font-smoothing:antialiased}
 .tw *{box-sizing:border-box}
+.tw{color-scheme:light}
+.tw h1,.tw h2,.tw h3,.tw h4,.tw p,.tw label,.tw b{color:inherit}
+.tw input,.tw select,.tw textarea{color:#111;background-color:#fff;-webkit-text-fill-color:#111}
+.tw input::placeholder,.tw textarea::placeholder{color:#888;-webkit-text-fill-color:#888}
+.tw ::selection{background:#c9a84c55;color:#111}
 .tw button{font-family:inherit;color:inherit}
 .tw a{color:inherit}
 .tw-anuncio{background:#000;color:#fff;font-size:12.5px;letter-spacing:.04em;text-align:center;height:34px;overflow:hidden;position:relative}
@@ -22729,6 +22752,23 @@ const CSS_TIENDA = `
 .tw-tile-txt span{font-size:14px;color:#444;line-height:1.4}
 .tw-tile-txt u{font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;text-underline-offset:3px;margin-top:4px}
 .tw-tiles-sec:hover .tw-flecha{opacity:1}
+.tw-reels-fila{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding-bottom:6px}
+.tw-reels-fila::-webkit-scrollbar{display:none}
+.tw-reels-fila .tw-reel{flex:0 0 300px;scroll-snap-align:start}
+.tw-reels-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:22px 16px}
+.tw-reel{display:flex;flex-direction:column;min-width:0}
+.tw-reel-media{position:relative;aspect-ratio:9/16;background:#000;border-radius:8px;overflow:hidden}
+.tw-reel-media.ig{aspect-ratio:auto;height:600px;background:#fff;border:1px solid var(--b)}
+.tw-reel-media iframe,.tw-reel-media video{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:cover}
+.tw-reel-sonido{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff !important;border:none;border-radius:999px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
+.tw-reel-t{font-weight:800;font-size:15px;margin-top:10px}
+.tw-reel-prods{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.tw-reel-prod{display:flex;align-items:center;gap:8px;border:1px solid var(--b);border-radius:8px;padding:6px}
+.tw-reel-prod-img{width:44px;height:44px;border-radius:6px;overflow:hidden;background:var(--g);border:none;padding:0;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.tw-reel-prod-img img{width:100%;height:100%;object-fit:cover}
+.tw-reel-prod-n{flex:1;min-width:0;text-align:left;background:none;border:none;padding:0;cursor:pointer;font-size:13px;line-height:1.3;display:flex;flex-direction:column}
+.tw-reel-prod-n b{font-size:13px;margin-top:2px}
+.tw-reel-mas{width:34px;height:34px;border-radius:50%;border:none;background:var(--n);color:#fff !important;font-size:19px;cursor:pointer;flex-shrink:0}
 .tw-benef{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:18px 0 6px}
 .tw-benef div{display:flex;gap:12px;align-items:center;padding:14px 16px;border:1px solid var(--b);border-radius:6px;font-size:13.5px;line-height:1.35}
 .tw-benef span{font-size:24px}
@@ -22829,7 +22869,31 @@ const CSS_TIENDA = `
 .tw-tabs-cuenta button{flex:1;background:none;border:none;padding:12px;font-size:14px;font-weight:700;cursor:pointer;border-bottom:2px solid transparent}
 .tw-tabs-cuenta button.on{border-bottom-color:var(--n)}
 .tw-puntos-card{background:linear-gradient(135deg,#111,#333);color:#fff;border-radius:10px;padding:18px 20px;margin-bottom:14px;animation:twSube .5s ease both}
-.tw-premio{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--b)}
+.tw-nivel{margin-left:auto;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;background:#c9a84c;color:#111;border-radius:999px;padding:4px 10px}
+.tw-barra-pts{height:6px;border-radius:3px;background:rgba(255,255,255,.2);overflow:hidden;margin-top:6px}
+.tw-barra-pts i{display:block;height:100%;background:#c9a84c;border-radius:3px;transition:width .8s cubic-bezier(.2,.7,.2,1)}
+.tw-barra-pts.gris{background:#eee}
+.tw-tabs-chicas{margin-top:4px}
+.tw-tabs-chicas button{font-size:12.5px;padding:10px 4px;white-space:nowrap}
+.tw-tabs-chicas button span{display:inline-block;margin-left:5px;background:#c9a84c;color:#111;border-radius:999px;font-size:10.5px;padding:1px 6px}
+.tw-premios{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.tw-premio-card{border:1px solid var(--b);border-radius:10px;padding:10px;display:flex;flex-direction:column;animation:twSube .4s ease both}
+.tw-premio-card.ok{border-color:#111;box-shadow:0 4px 14px rgba(0,0,0,.08)}
+.tw-premio-img{position:relative;aspect-ratio:1;border-radius:8px;background:linear-gradient(135deg,#f6efe2,#efe6f3);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:30px;font-weight:800}
+.tw-premio-img img{width:100%;height:100%;object-fit:cover}
+.tw-premio-img em{position:absolute;top:6px;left:6px;font-style:normal;font-size:10px;font-weight:800;letter-spacing:.06em;background:#111;color:#fff;border-radius:4px;padding:3px 6px}
+.tw-premio-n{font-size:13px;font-weight:700;line-height:1.3;margin-top:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:34px}
+.tw-premio-pts{font-size:12.5px;color:#666;margin-top:2px}
+.tw-premio-falta{font-size:11.5px;color:#888;margin-top:4px}
+.tw-cupon{border:1.5px dashed #c9a84c;border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#fffdf7}
+.tw-cupon.usado{opacity:.55;border-color:#ccc;background:#fafafa}
+.tw-cupon-nuevo{animation:twSube .5s ease both}
+.tw-cupon-cod{font-size:22px;font-weight:800;letter-spacing:.12em;margin:6px 0 4px;font-family:ui-monospace,monospace}
+.tw-cupon-estado{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#8a6d3b}
+.tw-fila-cuenta{display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid var(--b);text-decoration:none;font-size:13.5px}
+.tw-fila-cuenta span:first-child{display:flex;flex-direction:column;min-width:0}
+.tw-fila-cuenta small{color:#666;font-size:12.5px;margin-top:2px}
+.tw-vacio{color:#777;font-size:13.5px;text-align:center;padding:24px 0}
 .tw-rutina{margin-top:18px}
 .tw-rutina-fila{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px}
 .tw-rutina-fila::-webkit-scrollbar{display:none}
@@ -22885,6 +22949,8 @@ const CSS_TIENDA = `
   .tw-flecha{display:none}
   .tw-fila-in{grid-auto-columns:44%;gap:12px}
   .tw-tiles{grid-auto-columns:84%;gap:12px}
+  .tw-reels-fila .tw-reel{flex-basis:78%}
+  .tw-reels-grid{grid-template-columns:1fr}
   .tw-tile-txt b{font-size:16px}
   .tw-grid{grid-template-columns:repeat(2,1fr);gap:22px 12px}
   .tw-rapido{opacity:1;transform:none;left:auto;right:8px;bottom:8px;width:38px;height:38px;padding:0;font-size:20px;border-radius:50%}
@@ -22946,6 +23012,43 @@ function TwTarjeta({ p, base, sin, onAbrir, onAgregar }) {
   );
 }
 
+// Un video del sector de videos: reel de Instagram, TikTok, YouTube (con su reproductor) o video subido
+function TwReel({ r, base, prods, onAbrir, onAgregar }) {
+  const ref = useRef(null);
+  const [sonido, setSonido] = useState(false);
+  useEffect(() => {
+    const v = ref.current;
+    if (!v || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) v.play().catch(() => {}); else v.pause(); }, { threshold: 0.6 });
+    io.observe(v);
+    return () => io.disconnect();
+  }, []);
+  const marco = { instagram: "https://www.instagram.com/reel/" + r.codigo + "/embed", tiktok: "https://www.tiktok.com/player/v1/" + r.codigo + "?music_info=0&description=0&rel=0", youtube: "https://www.youtube-nocookie.com/embed/" + r.codigo + "?playsinline=1&rel=0&modestbranding=1" }[r.tipo];
+  return (
+    <div className="tw-reel">
+      <div className={"tw-reel-media" + (r.tipo === "instagram" ? " ig" : "")}>
+        {marco ? <iframe src={marco} title={r.titulo || "Video"} loading="lazy" scrolling="no" allow="autoplay; encrypted-media; picture-in-picture; clipboard-write; fullscreen" allowFullScreen />
+          : <>
+            <video ref={ref} src={base + "/reel/" + r.id} muted={!sonido} loop playsInline preload="metadata" controls={sonido} onClick={() => setSonido(true)} />
+            {!sonido && <button className="tw-reel-sonido" onClick={() => setSonido(true)} aria-label="Activar sonido">🔊 Tocá para escuchar</button>}
+          </>}
+      </div>
+      {r.titulo && <div className="tw-reel-t">{r.titulo}</div>}
+      {prods.length > 0 && (
+        <div className="tw-reel-prods">
+          {prods.map(p => (
+            <div key={p.id} className="tw-reel-prod">
+              <button className="tw-reel-prod-img" onClick={() => onAbrir(p)} aria-label={"Ver " + p.nombre}>{p.foto ? <img src={base + "/foto/" + p.id + (p.foto_v ? "?v=" + p.foto_v : "")} alt="" /> : "✿"}</button>
+              <button className="tw-reel-prod-n" onClick={() => onAbrir(p)}>{p.nombre}<b>{fmtTienda(p.precio)}</b></button>
+              <button className="tw-reel-mas" onClick={() => p.variantes ? onAbrir(p) : onAgregar(p)} aria-label={"Agregar " + p.nombre}>+</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TwFila({ titulo, items, onVerTodo, render }) {
   const ref = useRef(null);
   const mover = (d) => { const el = ref.current; if (el) el.scrollBy({ left: d * el.clientWidth * 0.9, behavior: "smooth" }); };
@@ -22990,6 +23093,10 @@ function TiendaPublica({ slug }) {
   const [formCuenta, setFormCuenta] = useState({ modo: "ingresar" });
   const [avisoCuenta, setAvisoCuenta] = useState(null);
   const [canjeHecho, setCanjeHecho] = useState(null);
+  // Codigo de descuento (cupon de Lumiere o premio canjeado)
+  const [cuponIn, setCuponIn] = useState("");
+  const [cuponOk, setCuponOk] = useState(null);
+  const [avisoCupon, setAvisoCupon] = useState("");
   // Recomendaciones segun lo que compran juntas las clientas
   const [recs, setRecs] = useState({});
   const [carrito, setCarrito] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_carrito_" + slug) || "[]"); } catch (e) { return []; } });
@@ -23026,6 +23133,7 @@ function TiendaPublica({ slug }) {
   useEffect(() => { if (paso === "carrito" && carrito.length) cargarRecs([...new Set(carrito.map(i => i.producto_id))]); }, [paso, carrito.length]);
   const cargarCuenta = () => pedir("/cuenta").then(d => { setMiCuenta(d); setDatos(x => ({ ...x, nombre: x.nombre || d.nombre, telefono: x.telefono || d.telefono || "", email: x.email || d.email || "" })); }).catch(() => {});
   useEffect(() => { if (logueada) cargarCuenta(); }, [logueada]);
+  useEffect(() => { if (paso === "datos" && cuponIn && !cuponOk) aplicarCupon(cuponIn); }, [paso]);
   // Banner y tira de anuncios pasan solos
   useEffect(() => { const t = setInterval(() => setSlide(s => s + 1), 5500); return () => clearInterval(t); }, [slide]);
   useEffect(() => { const t = setInterval(() => setAnuncio(a => a + 1), 4000); return () => clearInterval(t); }, []);
@@ -23082,12 +23190,20 @@ function TiendaPublica({ slug }) {
   const gratisDesde = tienda.envio && tienda.envio.gratis_desde;
   const envioGratis = gratisDesde && subtotal >= gratisDesde;
   const costoEnvio = datos.entrega === "envio" && zona && !envioGratis ? zona.costo : 0;
+  const descuentoCupon = cuponOk ? Math.round(Math.min(subtotal, cuponOk.tipo === "%" ? subtotal * cuponOk.valor / 100 : cuponOk.valor)) : 0;
+  const aplicarCupon = async (cod) => {
+    const c = String(cod || cuponIn).trim();
+    if (!c) return;
+    setAvisoCupon("");
+    try { const r = await pedir("/cupon/" + encodeURIComponent(c) + "?monto=" + subtotal); setCuponOk(r); setCuponIn(r.codigo); }
+    catch (e) { setCuponOk(null); setAvisoCupon(e.message); }
+  };
   const confirmar = async () => {
     setAviso(""); setEnviando(true);
     try { localStorage.setItem("tienda_datos", JSON.stringify({ nombre: datos.nombre, telefono: datos.telefono, email: datos.email, direccion: datos.direccion })); } catch (e) {}
     try {
-      const r = await pedir("/pedidos", { method: "POST", body: JSON.stringify({ ...datos, local_id: lid, items: carrito, volver_a: window.location.href }) });
-      setCarrito([]);
+      const r = await pedir("/pedidos", { method: "POST", body: JSON.stringify({ ...datos, local_id: lid, items: carrito, cupon: cuponOk ? cuponOk.codigo : null, volver_a: window.location.href }) });
+      setCarrito([]); setCuponOk(null); setCuponIn("");
       if (r.link_pago) { window.location.href = r.link_pago; return; }
       window.location.href = window.location.pathname + "?tienda=" + encodeURIComponent(slug) + "&pedido=" + r.codigo;
     } catch (e) { setAviso(e.message); }
@@ -23171,6 +23287,7 @@ function TiendaPublica({ slug }) {
               )}
               <div style={{ fontSize: 15, marginBottom: 12 }}>{pedido.entrega === "retiro" ? <>📍 Retirás en <b>{pedido.local?.nombre}</b>{pedido.local?.direccion ? " (" + pedido.local.direccion + ")" : ""}{pedido.pago === "retiro" && !pedido.pagado ? " · pagás al retirar" : ""}</> : <>🛵 Envío a <b>{pedido.direccion}</b> ({pedido.zona})</>}</div>
               {pedido.items.map((i, k) => <div key={k} className="tw-linea"><span>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""}</span><span>{fmtTienda(i.precio * i.cantidad)}</span></div>)}
+              {pedido.descuento > 0 && <div className="tw-linea" style={{ color: "#2d7a4f" }}><span>Descuento{pedido.cupon ? " (" + pedido.cupon + ")" : ""}</span><span>−{fmtTienda(pedido.descuento)}</span></div>}
               {pedido.costo_envio > 0 && <div className="tw-linea"><span>Envío</span><span>{fmtTienda(pedido.costo_envio)}</span></div>}
               <div className="tw-linea" style={{ fontWeight: 800, fontSize: 18, borderTop: "1px solid #e6e6e6", marginTop: 8, paddingTop: 10 }}><span>Total</span><span>{fmtTienda(pedido.total)}</span></div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 18 }}>
@@ -23198,7 +23315,7 @@ function TiendaPublica({ slug }) {
   const sectores = (tienda.sectores || []).filter(sc => visibles.some(p => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria)));
   const sector = cat.startsWith("s:") ? sectores.find(sc => "s:" + sc.id === cat) : null;
   // Si la seccion elegida quedo vacia (otra ciudad, se agoto todo), se vuelve al inicio
-  if ((cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat && cat !== "*" && !cat.startsWith("s:") && !cat.startsWith("m:") && cat !== "reingreso" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2)))) { setTimeout(() => setCat(""), 0); }
+  if ((cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat && cat !== "*" && !cat.startsWith("s:") && !cat.startsWith("m:") && cat !== "reingreso" && cat !== "videos" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2)))) { setTimeout(() => setCat(""), 0); }
   const enSector = (sc, p) => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria);
   const delSector = sector ? visibles.filter(p => enSector(sector, p)) : [];
   const catsSector = sector ? [...new Set(delSector.map(p => p.categoria).filter(Boolean))].sort() : [];
@@ -23220,6 +23337,8 @@ function TiendaPublica({ slug }) {
     else if (bn.destino === "reingreso") irCat("reingreso");
   };
   const moverTiles = (d) => { const el = tilesRef.current; if (el) el.scrollBy({ left: d * el.clientWidth, behavior: "smooth" }); };
+  const reels = tienda.reels || [];
+  const reel = (r) => <TwReel key={r.id} r={r} base={base} prods={(r.productos || []).map(id => visibles.find(p => p.id === id)).filter(Boolean)} onAbrir={abrir} onAgregar={(x) => agregar(x, null)} />;
   const filasPortada = (tienda.filas || []).map(f => ({ ...f, items: f.productos.map(id => lista0.find(p => p.id === id)).filter(p => p && !agotado(p)) })).filter(f => f.items.length);
   const nSlides = destacados.length;
   const iSlide = nSlides ? slide % nSlides : 0;
@@ -23257,7 +23376,7 @@ function TiendaPublica({ slug }) {
   const salirCuenta = () => { try { localStorage.removeItem("tienda_cuenta_" + slug); } catch (x) {} setLogueada(false); setMiCuenta(null); };
   const canjear = async (pr) => {
     if (!confirm("¿Canjear " + pr.nombre + " por " + pr.puntos_requeridos + " puntos?")) return;
-    try { const r = await pedir("/cuenta/canjear", { method: "POST", body: JSON.stringify({ premio_id: pr.id }) }); setCanjeHecho({ nombre: pr.nombre, codigo: r.codigo }); cargarCuenta(); }
+    try { const r = await pedir("/cuenta/canjear", { method: "POST", body: JSON.stringify({ premio_id: pr.id }) }); setCanjeHecho({ nombre: pr.nombre, codigo: r.codigo, descuento_pct: r.descuento_pct || 0 }); cargarCuenta(); }
     catch (x) { setAvisoCuenta(x.message); }
   };
   const fc = formCuenta, setF = (k, v) => setFormCuenta(x => ({ ...x, [k]: v }));
@@ -23281,49 +23400,84 @@ function TiendaPublica({ slug }) {
       </form>
       {fc.modo !== "crear" && tienda.whatsapp && <p style={{ fontSize: 12.5, color: "#666", marginTop: 14 }}>¿Te olvidaste la contraseña? <a href={wa("Hola! Me olvidé la contraseña de mi cuenta de la tienda. Mi DNI es " + (fc.dni || ""))} target="_blank" rel="noopener">Escribinos por WhatsApp</a>.</p>}
     </div>
-  ) : !miCuenta ? <div className="tw-cajon-cuerpo"><div className="tw-skel" style={{ height: 140 }} /></div> : (
-    <div className="tw-cajon-cuerpo">
-      <div className="tw-puntos-card">
-        <div style={{ fontSize: 13, opacity: .85 }}>Hola, {String(miCuenta.nombre || "").split(" ")[0]} 👋</div>
-        <div style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.1, margin: "6px 0 2px" }}>{miCuenta.puntos || 0}<span style={{ fontSize: 15, fontWeight: 700 }}> puntos</span></div>
-        <div style={{ fontSize: 13, opacity: .85 }}>{miCuenta.nivel ? "Nivel " + miCuenta.nivel + " · " : ""}Sumás 1 punto cada {fmtTienda(miCuenta.pesos_por_punto || 100)} de compra</div>
-      </div>
-      {canjeHecho && <div className="tw-progreso" style={{ background: "#e8f5ee" }}>🎁 <b>¡Canjeaste {canjeHecho.nombre}!</b><br />Mostrá este código en el local: <b style={{ fontSize: 18, letterSpacing: ".08em" }}>{canjeHecho.codigo}</b></div>}
-      {avisoCuenta && <div role="alert" style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, fontSize: 13.5, fontWeight: 600, marginBottom: 10 }}>{avisoCuenta}</div>}
-      {(miCuenta.premios || []).length > 0 && <>
-        <div className="tw-lbl">Premios para canjear</div>
-        {miCuenta.premios.map(pr => { const falta = Math.max(0, pr.puntos_requeridos - (miCuenta.puntos || 0)); const no = pr.agotado || pr.fuera_de_mes || falta > 0; return (
-          <div key={pr.id} className="tw-premio">
-            <div style={{ flex: 1, minWidth: 0 }}><b style={{ fontSize: 14 }}>{pr.nombre}</b><div style={{ fontSize: 12.5, color: "#666" }}>{pr.puntos_requeridos} puntos{pr.agotado ? " · agotado" : pr.fuera_de_mes ? " · solo en el mes de tu cumple" : falta > 0 ? " · te faltan " + falta : ""}</div></div>
-            <button className="tw-btn2" style={{ padding: "7px 12px", fontSize: 11.5 }} disabled={no} onClick={() => canjear(pr)}>Canjear</button>
+  ) : !miCuenta ? <div className="tw-cajon-cuerpo"><div className="tw-skel" style={{ height: 140 }} /></div> : (() => {
+    const pts = miCuenta.puntos || 0;
+    const premios = (miCuenta.premios || []).map(pr => ({ ...pr, falta: Math.max(0, pr.puntos_requeridos - pts), no: pr.agotado || pr.fuera_de_mes || pr.puntos_requeridos > pts }))
+      .sort((a, b) => (a.no - b.no) || (a.puntos_requeridos - b.puntos_requeridos));
+    const proximo = premios.filter(pr => !pr.agotado && !pr.fuera_de_mes && pr.falta > 0).sort((a, b) => a.falta - b.falta)[0];
+    const codigos = (miCuenta.canjes || []).filter(c => c.cupon && c.cupon.usable);
+    const pestana = formCuenta.pestana || "premios";
+    const tab = (k, t, n) => <button className={pestana === k ? "on" : ""} onClick={() => setFormCuenta(x => ({ ...x, pestana: k }))}>{t}{n ? <span>{n}</span> : null}</button>;
+    return (
+      <div className="tw-cajon-cuerpo">
+        <div className="tw-puntos-card">
+          <div style={{ fontSize: 13, opacity: .85 }}>Hola, {String(miCuenta.nombre || "").split(" ")[0]} 👋</div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, margin: "6px 0 2px" }}><span style={{ fontSize: 42, fontWeight: 800, lineHeight: 1 }}>{pts.toLocaleString("es-AR")}</span><span style={{ fontSize: 15, fontWeight: 700 }}>puntos</span>{miCuenta.nivel && <span className="tw-nivel">{miCuenta.nivel}</span>}</div>
+          <div style={{ fontSize: 12.5, opacity: .8 }}>Sumás 1 punto cada {fmtTienda(miCuenta.pesos_por_punto || 100)} de compra</div>
+          {proximo && <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 12.5 }}>Te faltan <b>{proximo.falta.toLocaleString("es-AR")}</b> para <b>{proximo.nombre}</b></div>
+            <div className="tw-barra-pts"><i style={{ width: Math.min(100, pts / proximo.puntos_requeridos * 100) + "%" }} /></div>
+          </div>}
+        </div>
+        {canjeHecho && <div className="tw-cupon tw-cupon-nuevo">
+          <div style={{ fontSize: 13 }}>🎁 <b>¡Canjeaste {canjeHecho.nombre}!</b></div>
+          <div className="tw-cupon-cod">{canjeHecho.codigo}</div>
+          <div style={{ fontSize: 12.5, color: "#555" }}>{canjeHecho.descuento_pct ? "Usalo en tu próxima compra: acá en la tienda (al finalizar la compra) o en el local." : "Mostrá este código en el local para retirar tu premio."}</div>
+          {canjeHecho.descuento_pct > 0 && <button className="tw-btn" style={{ marginTop: 10, padding: "10px 18px", fontSize: 12 }} onClick={() => { setCuponIn(canjeHecho.codigo); setPaso(carrito.length ? "carrito" : null); }}>Usar ahora</button>}
+        </div>}
+        {avisoCuenta && <div role="alert" style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, fontSize: 13.5, fontWeight: 600, marginBottom: 10 }}>{avisoCuenta}</div>}
+        <div className="tw-tabs-cuenta tw-tabs-chicas">
+          {tab("premios", "Premios")}{tab("codigos", "Mis códigos", codigos.length)}{tab("pedidos", "Pedidos")}{tab("compras", "Compras")}
+        </div>
+        {pestana === "premios" && (premios.length === 0 ? <p className="tw-vacio">Todavía no hay premios para canjear.</p> : (
+          <div className="tw-premios">
+            {premios.map(pr => (
+              <div key={pr.id} className={"tw-premio-card" + (pr.no ? "" : " ok")}>
+                <div className="tw-premio-img">{pr.imagen_url ? <img src={pr.imagen_url} alt="" /> : <span>{pr.descuento_pct ? pr.descuento_pct + "%" : "🎁"}</span>}{pr.descuento_pct ? <em>{pr.descuento_pct}% OFF</em> : null}</div>
+                <div className="tw-premio-n">{pr.nombre}</div>
+                <div className="tw-premio-pts">{pr.puntos_requeridos.toLocaleString("es-AR")} pts</div>
+                {pr.no ? <>
+                  <div className="tw-barra-pts gris"><i style={{ width: Math.min(100, pts / pr.puntos_requeridos * 100) + "%" }} /></div>
+                  <div className="tw-premio-falta">{pr.agotado ? "Agotado" : pr.fuera_de_mes ? "Solo en el mes de tu cumple" : "Te faltan " + pr.falta.toLocaleString("es-AR")}</div>
+                </> : <button className="tw-btn full" style={{ padding: "9px 10px", fontSize: 11.5, marginTop: 8 }} onClick={() => canjear(pr)}>Canjear</button>}
+              </div>
+            ))}
           </div>
-        ); })}
-      </>}
-      {(miCuenta.canjes || []).length > 0 && <>
-        <div className="tw-lbl">Mis canjes</div>
-        {miCuenta.canjes.map(c => <div key={c.id} className="tw-linea" style={{ fontSize: 13.5 }}><span>{c.premio_nombre} · <b>{c.codigo}</b></span><span style={{ color: c.estado === "pendiente" ? "#b7950b" : "#2d7a4f" }}>{c.estado === "pendiente" ? "Para retirar" : "Entregado"}</span></div>)}
-      </>}
-      {(miCuenta.pedidos || []).length > 0 && <>
-        <div className="tw-lbl">Mis pedidos de la tienda</div>
-        {miCuenta.pedidos.map(pd => <a key={pd.codigo} className="tw-linea" style={{ fontSize: 13.5, textDecoration: "none" }} href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}><span>N° {pd.codigo} · {new Date(pd.creado_en).toLocaleDateString("es-AR")}</span><span>{(ESTADOS_PEDIDO_WEB[pd.estado] || ["", ""])[0].split(":")[0]} · {fmtTienda(pd.total)} ›</span></a>)}
-      </>}
-      {(miCuenta.compras || []).length > 0 && <>
-        <div className="tw-lbl">Mis compras</div>
-        {miCuenta.compras.map(c => <div key={c.id} style={{ fontSize: 13, padding: "6px 0", borderBottom: "1px solid #eee" }}><div className="tw-linea" style={{ padding: 0 }}><span>{new Date(c.creado_en).toLocaleDateString("es-AR")}</span><b>{fmtTienda(c.total)}</b></div><div style={{ color: "#666" }}>{(c.items || []).map(i => i.cantidad + " × " + i.nombre).join(", ")}</div></div>)}
-      </>}
-      <button className="tw-btn2" style={{ marginTop: 18 }} onClick={salirCuenta}>Cerrar sesión</button>
-    </div>
-  );
+        ))}
+        {pestana === "codigos" && ((miCuenta.canjes || []).length === 0 ? <p className="tw-vacio">Cuando canjees un premio, tu código aparece acá.</p> : (miCuenta.canjes || []).map(c => {
+          const usable = c.cupon ? c.cupon.usable : c.estado === "pendiente";
+          return (
+            <div key={c.id} className={"tw-cupon" + (usable ? "" : " usado")}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                <b style={{ fontSize: 14 }}>{c.premio_nombre}</b>
+                <span className="tw-cupon-estado">{usable ? (c.cupon ? "Para usar" : "Para retirar") : (c.cupon ? "Usado" : "Entregado")}</span>
+              </div>
+              <div className="tw-cupon-cod">{c.codigo}</div>
+              {c.cupon && usable && <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ fontSize: 12.5, color: "#555" }}>{c.cupon.tipo === "%" ? c.cupon.valor + "% de descuento" : fmtTienda(c.cupon.valor) + " de descuento"}{c.cupon.vence ? " · vence el " + new Date(c.cupon.vence).toLocaleDateString("es-AR") : ""}</span>
+                <button className="tw-btn2" style={{ padding: "6px 12px", fontSize: 11 }} onClick={() => { setCuponIn(c.codigo); setPaso(carrito.length ? "carrito" : null); }}>Usar en mi compra</button>
+              </div>}
+              {!c.cupon && usable && <div style={{ fontSize: 12.5, color: "#555" }}>Mostralo en el local para retirar tu premio.</div>}
+            </div>
+          );
+        }))}
+        {pestana === "pedidos" && ((miCuenta.pedidos || []).length === 0 ? <p className="tw-vacio">Todavía no hiciste pedidos en la tienda.</p> : miCuenta.pedidos.map(pd => <a key={pd.codigo} className="tw-fila-cuenta" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}><span><b>N° {pd.codigo}</b><small>{new Date(pd.creado_en).toLocaleDateString("es-AR")} · {(ESTADOS_PEDIDO_WEB[pd.estado] || ["", ""])[0].split(":")[0]}</small></span><span>{fmtTienda(pd.total)} ›</span></a>))}
+        {pestana === "compras" && ((miCuenta.compras || []).length === 0 ? <p className="tw-vacio">Todavía no hay compras registradas.</p> : miCuenta.compras.map(c => <div key={c.id} className="tw-fila-cuenta"><span><b>{new Date(c.creado_en).toLocaleDateString("es-AR")}</b><small>{(c.items || []).map(i => i.cantidad + " × " + i.nombre).join(", ")}</small></span><span>{fmtTienda(c.total)}</span></div>))}
+        <button className="tw-btn2" style={{ marginTop: 22 }} onClick={salirCuenta}>Cerrar sesión</button>
+      </div>
+    );
+  })();
 
   return (
     <div className="tw" style={{ "--c": color }}><style>{CSS_TIENDA}</style>
       {cabecera}
-      {(cats.length > 0 || sectores.length > 0 || reingresados.length > 0) && (
+      {(cats.length > 0 || sectores.length > 0 || reingresados.length > 0 || reels.length > 0) && (
         <div className="tw-navbar">
           <nav className="tw-nav" aria-label="Categorías">
             <button className={!enLista ? "on" : ""} onClick={irInicio}>Inicio</button>
             <button className={cat === "*" && !q ? "on" : ""} onClick={() => irCat("*")}>Todo</button>
             {reingresados.length > 0 && <button className={cat === "reingreso" && !q ? "on" : ""} onClick={() => irCat("reingreso")}>{reingreso.nombre}</button>}
+            {reels.length > 0 && <button className={cat === "videos" && !q ? "on" : ""} onClick={() => irCat("videos")}>{tienda.reels_titulo || "Videos"}</button>}
             {cats.map(c => <button key={c} className={cat === c && !q ? "on" : ""} onClick={() => irCat(c)}>{c}</button>)}
           </nav>
         </div>
@@ -23331,6 +23485,11 @@ function TiendaPublica({ slug }) {
       <main className="tw-main">
         {productos === null ? (
           <><div className="tw-skel" style={{ height: 400, marginTop: 20 }} /><div className="tw-grid" style={{ marginTop: 30 }}>{[1, 2, 3, 4, 5].map(i => <div key={i}><div className="tw-skel" style={{ aspectRatio: "1" }} /><div className="tw-skel" style={{ height: 14, marginTop: 12, width: "60%" }} /></div>)}</div></>
+        ) : cat === "videos" && !q ? (
+          <>
+            <div className="tw-lista-cab"><div><h1>{tienda.reels_titulo || "Videos"}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4 }}>{reels.length} {reels.length === 1 ? "video" : "videos"}</div></div></div>
+            <div className="tw-reels-grid">{reels.map(reel)}</div>
+          </>
         ) : enLista ? (
           <>
             <div className="tw-lista-cab">
@@ -23398,6 +23557,12 @@ function TiendaPublica({ slug }) {
               <div><span>🔒</span><span style={{ fontSize: 13.5 }}><b>Compra segura</b><br />{tienda.pagos.mp ? "Con Mercado Pago" : "Te confirmamos por WhatsApp"}</span></div>
             </div>
             {filasPortada.map(f => <TwFila key={f.id} titulo={f.titulo} items={f.items} render={tarjeta} />)}
+            {reels.length > 0 && (
+              <section className="tw-sec tw-rv">
+                <div className="tw-sec-t"><h3>{tienda.reels_titulo || "Videos"}</h3>{reels.length > 3 && <button onClick={() => irCat("videos")}>Ver todos</button>}</div>
+                <div className="tw-reels-fila">{reels.slice(0, 10).map(reel)}</div>
+              </section>
+            )}
             {reingresados.length > 0 && <TwFila titulo={reingreso.nombre} items={reingresados.slice(0, 12)} onVerTodo={() => irCat("reingreso")} render={tarjeta} />}
             <TwFila titulo="Novedades" items={conStock.filter(p => p.nuevo).slice(0, 12)} onVerTodo={() => irCat("*")} render={tarjeta} />
             <TwFila titulo="Miralos en video" items={conStock.filter(p => p.video).slice(0, 12)} render={tarjeta} />
@@ -23574,13 +23739,28 @@ function TiendaPublica({ slug }) {
                   )}
                   <div className="tw-lbl">¿Cómo pagás?</div>
                   {opcionesPago.map(([k, t, d]) => <button key={k} className={"tw-op" + (datos.pago === k ? " on" : "")} onClick={() => setDatos(x => ({ ...x, pago: k }))}><b>{t}</b><div style={{ fontSize: 13, color: "#666" }}>{d}</div></button>)}
+                  <div className="tw-lbl">¿Tenés un código de descuento?</div>
+                  {cuponOk ? (
+                    <div className="tw-cupon" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "10px 12px" }}>
+                      <span style={{ fontSize: 13.5 }}>✓ <b>{cuponOk.codigo}</b> · {cuponOk.tipo === "%" ? cuponOk.valor + "% off" : fmtTienda(cuponOk.valor) + " off"}</span>
+                      <button className="tw-btn2" style={{ padding: "5px 10px", fontSize: 11 }} onClick={() => { setCuponOk(null); setCuponIn(""); }}>Quitar</button>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <input className="tw-inp" style={{ textTransform: "uppercase" }} placeholder="Ej: PREMIO-AB12" value={cuponIn} onChange={e => setCuponIn(e.target.value)} onKeyDown={e => { if (e.key === "Enter") aplicarCupon(); }} aria-label="Código de descuento" />
+                      <button className="tw-btn2" disabled={!cuponIn.trim()} onClick={() => aplicarCupon()}>Aplicar</button>
+                    </div>
+                  )}
+                  {avisoCupon && <div style={{ color: "#c0392b", fontSize: 13, marginTop: 6 }}>{avisoCupon}</div>}
+                  {!cuponOk && logueada && miCuenta && (miCuenta.canjes || []).filter(c => c.cupon && c.cupon.usable).map(c => <button key={c.codigo} className="tw-var" style={{ marginTop: 8, marginRight: 6 }} onClick={() => aplicarCupon(c.codigo)}>🎁 Usar {c.codigo} ({c.cupon.tipo === "%" ? c.cupon.valor + "%" : fmtTienda(c.cupon.valor)} off)</button>)}
                   <textarea className="tw-inp" rows={2} placeholder="¿Algo que quieras aclarar? (opcional)" value={datos.nota || ""} onChange={e => setDatos(d => ({ ...d, nota: e.target.value }))} style={{ marginTop: 8 }} />
                   {aviso && <div role="alert" style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, marginTop: 10, fontSize: 14, fontWeight: 600 }}>{aviso}</div>}
                 </div>
                 <div className="tw-cajon-pie">
                   <div className="tw-linea"><span>Productos</span><span>{fmtTienda(subtotal)}</span></div>
+                  {descuentoCupon > 0 && <div className="tw-linea" style={{ color: "#2d7a4f" }}><span>Descuento ({cuponOk.codigo})</span><span>−{fmtTienda(descuentoCupon)}</span></div>}
                   {datos.entrega === "envio" && <div className="tw-linea"><span>Envío</span><span>{zona ? (costoEnvio ? fmtTienda(costoEnvio) : "Gratis") : "—"}</span></div>}
-                  <div className="tw-linea" style={{ fontWeight: 800, fontSize: 19, marginBottom: 12 }}><span>Total</span><span>{fmtTienda(subtotal + costoEnvio)}</span></div>
+                  <div className="tw-linea" style={{ fontWeight: 800, fontSize: 19, marginBottom: 12 }}><span>Total</span><span>{fmtTienda(subtotal - descuentoCupon + costoEnvio)}</span></div>
                   <div style={{ display: "flex", gap: 8 }}>
                     <button className="tw-btn2" onClick={() => setPaso("carrito")}>Atrás</button>
                     <button className="tw-btn full" disabled={!listoParaPedir || enviando} onClick={confirmar}>{enviando ? "Enviando…" : datos.pago === "mp" ? "Ir a pagar" : "Hacer el pedido"}</button>
@@ -23984,6 +24164,60 @@ function ListaElegidos({ lista, productos, onCambiar, temaPal }) {
   );
 }
 
+// Sector de videos: links de reels de Instagram, TikTok o YouTube, o videos subidos (se guarda al instante)
+function VideosTienda({ productos, temaPal, avisar }) {
+  const tp = temaPal || PALETA_CLARA;
+  const [d, setD] = useState(null);
+  const [link, setLink] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const cargar = () => API.get("/tienda/reels").then(r => setD(r.data)).catch(() => setD({ titulo: "", reels: [] }));
+  useEffect(() => { cargar(); }, []);
+  if (!d) return <div className="skel" style={{ height: 120 }} />;
+  const hacer = async (fn, ok) => { setOcupado(true); try { await fn(); if (ok) avisar(true, ok); await cargar(); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); } setOcupado(false); };
+  const agregarLink = () => hacer(async () => { await API.post("/tienda/reels/link", { url: link }); setLink(""); }, "✓ Video agregado");
+  const subir = (f) => {
+    if (f.size > 25 * 1024 * 1024) return avisar(false, "El video pesa más de 25 MB. Probá con uno más corto.");
+    hacer(() => API.post("/tienda/reels/subir", f, { headers: { "Content-Type": f.type || (/\.mov$/i.test(f.name) ? "video/quicktime" : "video/mp4") }, timeout: 180000 }), "✓ Video subido");
+  };
+  const guardarUno = (r, cambio) => { const n = { ...r, ...cambio }; setD(x => ({ ...x, reels: x.reels.map(y => y.id === r.id ? n : y) })); API.put("/tienda/reels/" + r.id, { titulo: n.titulo, productos: n.productos }).catch(() => avisar(false, "No se pudo guardar")); };
+  const mover = (i, dd) => { const l = [...d.reels]; const j = i + dd; if (j < 0 || j >= l.length) return; [l[i], l[j]] = [l[j], l[i]]; setD(x => ({ ...x, reels: l })); API.put("/tienda/reels/orden", { ids: l.map(r => r.id) }).catch(() => cargar()); };
+  const icono = { instagram: "📸 Instagram", tiktok: "🎵 TikTok", youtube: "▶️ YouTube", subido: "🎬 Video subido" };
+  const linkOriginal = (r) => r.tipo === "instagram" ? "https://www.instagram.com/reel/" + r.codigo + "/" : r.tipo === "youtube" ? "https://youtu.be/" + r.codigo : r.tipo === "tiktok" ? "https://www.tiktok.com/embed/v2/" + r.codigo : null;
+  return (
+    <div className="card" style={{ gridColumn: "1 / -1" }}>
+      <div className="ct">🎬 Sector de videos (reels)</div>
+      <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>Pegá el link de un <b>reel de Instagram</b>, un video de <b>TikTok</b> o de YouTube (o subí un video). Aparecen en una fila de la portada y en el menú. A cada uno le podés sumar los productos que se ven, para que los agreguen al carrito. Se guarda al instante.</div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <input className="inp" style={{ flex: "1 1 300px" }} placeholder="Pegá el link (instagram.com/reel/…, tiktok.com/…, youtube.com/…)" value={link} onChange={e => setLink(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && link.trim()) agregarLink(); }} aria-label="Link del video" />
+        <button className="btn btn-p btn-sm" disabled={!link.trim() || ocupado} onClick={agregarLink}>Agregar</button>
+        <label className="btn btn-g btn-sm" style={{ cursor: ocupado ? "wait" : "pointer", opacity: ocupado ? 0.6 : 1 }}>📤 Subir video
+          <input type="file" accept="video/mp4,video/quicktime,video/webm" style={{ display: "none" }} disabled={ocupado} onChange={e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) subir(f); }} />
+        </label>
+        <span style={{ fontSize: 12, color: tp.textMuted }}>Nombre del sector:</span>
+        <input className="inp" style={{ width: 170 }} placeholder="Videos" value={d.titulo || ""} onChange={e => setD(x => ({ ...x, titulo: e.target.value }))} onBlur={() => API.put("/tienda/reels/orden", { ids: d.reels.map(r => r.id), titulo: d.titulo }).catch(() => {})} aria-label="Nombre del sector de videos" />
+      </div>
+      {d.reels.length === 0 ? <div style={{ fontSize: 12.5, color: tp.textMuted, marginTop: 10 }}>Todavía no hay videos. Abrí tu reel en Instagram, tocá ⋯ → <b>Copiar enlace</b> y pegalo acá.</div> : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10, marginTop: 10 }}>
+          {d.reels.map((r, i) => (
+            <div key={r.id} style={{ border: "1px solid " + tp.border, borderRadius: 10, padding: 10 }}>
+              <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
+                <b style={{ flex: 1, fontSize: 12.5 }}>{icono[r.tipo] || r.tipo}{linkOriginal(r) && <> · <a href={linkOriginal(r)} target="_blank" rel="noopener" style={{ fontWeight: 400 }}>ver</a></>}</b>
+                <button className="chip-btn" style={{ padding: "2px 8px" }} disabled={i === 0} onClick={() => mover(i, -1)} aria-label="Subir">↑</button>
+                <button className="chip-btn" style={{ padding: "2px 8px" }} disabled={i === d.reels.length - 1} onClick={() => mover(i, 1)} aria-label="Bajar">↓</button>
+                <button className="chip-btn" style={{ padding: "2px 8px", color: tp.red }} onClick={() => confirm("¿Sacar este video de la tienda?") && hacer(() => API.delete("/tienda/reels/" + r.id), "Video sacado")} aria-label="Borrar">🗑</button>
+              </div>
+              <input className="inp" placeholder="Título (opcional). Ej: Mi rutina de noche" defaultValue={r.titulo || ""} onBlur={e => { if ((e.target.value || "") !== (r.titulo || "")) guardarUno(r, { titulo: e.target.value }); }} aria-label="Título del video" />
+              <div className="fl" style={{ marginTop: 6 }}>Productos que aparecen</div>
+              {(r.productos || []).length > 0 && <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 6 }}>{r.productos.map(pid => { const p = productos.find(x => x.id === pid); return <span key={pid} className="chip-btn on" style={{ fontSize: 11 }}>{p ? p.nombre : "Producto"} <button onClick={() => guardarUno(r, { productos: r.productos.filter(x => x !== pid) })} aria-label="Quitar" style={{ border: "none", background: "transparent", cursor: "pointer", color: "inherit", padding: 0, marginLeft: 3 }}>✕</button></span>; })}</div>}
+              {(r.productos || []).length < 12 && <ElegirProductos productos={productos} ya={r.productos || []} temaPal={tp} placeholder="➕ Sumar producto del video…" onAgregar={id => guardarUno(r, { productos: [...(r.productos || []), id] })} />}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
   const tp = temaPal || PALETA_CLARA;
   const [d, setD] = useState(null);
@@ -24060,6 +24294,7 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
           </label>
         )}
       </div>
+      <VideosTienda productos={productos} temaPal={tp} avisar={avisar} />
       <div className="card">
         <div className="ct">⭐ Productos destacados</div>
         <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>Si no hay banners con imagen, pasan en el banner grande de arriba; si hay, se muestran en una fila "Destacados". En este orden (hasta 12).</div>

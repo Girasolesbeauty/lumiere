@@ -79,6 +79,8 @@ router.get('/:slug', async (req, res) => {
       pagos: { mp, transferencia: !!c.pago_transferencia, retiro: !!c.pago_retiro }, horas_reserva: c.horas_reserva,
       anuncios: String(c.anuncios || '').split('\n').filter(Boolean),
       redes: linksRedes(c.redes),
+      reels_titulo: c.reels_titulo || 'Videos',
+      reels: (await pool.query('SELECT id, titulo, tipo, codigo, productos FROM tienda_reels ORDER BY orden, id').catch(() => ({ rows: [] }))).rows,
       banner: c.banner || [], banners_img: c.banners_img || [], filas: c.filas || [], sectores: c.sectores || [],
       reingreso: c.reingreso_activo ? { nombre: c.reingreso_nombre || 'Nuevamente en stock', dias: c.reingreso_dias || 14 } : null,
     });
@@ -160,25 +162,26 @@ router.get('/:slug/foto-extra/:id', async (req, res) => {
 router.get('/:slug/video/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const r = (await pool.query(`SELECT v.tipo, octet_length(v.datos) AS largo, v.actualizado_en FROM tienda_videos v
-      JOIN tienda_productos tp ON tp.producto_id = v.producto_id AND tp.publicado WHERE v.producto_id = $1`, [id])).rows[0];
-    if (!r) return res.status(404).end();
-    const largo = parseInt(r.largo);
-    let desde = 0, hasta = largo - 1, parcial = false;
-    const m = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || ''));
-    if (m && (m[1] || m[2])) {
-      if (m[1]) { desde = parseInt(m[1]); if (m[2]) hasta = Math.min(parseInt(m[2]), largo - 1); }
-      else { desde = Math.max(0, largo - parseInt(m[2])); }
-      hasta = Math.min(hasta, desde + 2 * 1024 * 1024 - 1); // de a 2 MB
-      if (desde >= largo || desde > hasta) return res.status(416).set('Content-Range', 'bytes */' + largo).end();
-      parcial = true;
-    }
-    const d = (await pool.query('SELECT substring(datos FROM $2 FOR $3) AS trozo FROM tienda_videos WHERE producto_id = $1', [id, desde + 1, hasta - desde + 1])).rows[0];
-    res.status(parcial ? 206 : 200).set({
-      'Content-Type': r.tipo, 'Accept-Ranges': 'bytes', 'Content-Length': String(d.trozo.length), 'Cache-Control': 'public, max-age=600',
-      ...(parcial ? { 'Content-Range': 'bytes ' + desde + '-' + (desde + d.trozo.length - 1) + '/' + largo } : {}),
-    }).send(d.trozo);
+    const pub = (await pool.query('SELECT 1 FROM tienda_productos WHERE producto_id = $1 AND publicado', [id])).rows.length;
+    if (!pub) return res.status(404).end();
+    await tienda.servirVideo(req, res, 'tienda_videos', 'producto_id', id);
   } catch (e) { res.status(404).end(); }
+});
+
+// Probar un codigo de descuento antes de comprar
+router.get('/:slug/cupon/:codigo', async (req, res) => {
+  try {
+    const k = 'cupon:' + (req.ip || '');
+    if (cuentas.bloqueado(k)) return res.status(429).json({ error: 'Demasiados intentos. Esperá unos minutos.' });
+    const r = await tienda.revisarCupon(pool, req.params.codigo, Math.max(0, parseFloat(req.query.monto) || 0), false);
+    if (!r || r.error) { cuentas.sumarIntento(k); return res.status(400).json({ error: (r && r.error) || 'Código inválido' }); }
+    res.json(r);
+  } catch (e) { res.status(500).json({ error: 'No se pudo revisar el código' }); }
+});
+
+// Video subido del sector de videos
+router.get('/:slug/reel/:id', async (req, res) => {
+  try { await tienda.servirVideo(req, res, 'tienda_reels', 'id', parseInt(req.params.id)); } catch (e) { res.status(404).end(); }
 });
 
 // Busca el cliente por telefono o mail; si no existe, lo crea (asi suma puntos y queda en Clientes)
@@ -249,14 +252,22 @@ router.post('/:slug/pedidos', async (req, res) => {
     }
     const subtotal = Math.round(lineas.reduce((t, l) => t + l.precio * l.cantidad, 0) * 100) / 100;
     if (entrega === 'envio' && c.envio_gratis_desde && subtotal >= c.envio_gratis_desde) costoEnvio = 0;
-    const total = Math.round((subtotal + costoEnvio) * 100) / 100;
+    let cupon = null;
+    if (b.cupon) {
+      cupon = await tienda.revisarCupon(client, b.cupon, subtotal, true);
+      if (cupon && cupon.error) { await client.query('ROLLBACK'); return res.status(400).json({ error: cupon.error }); }
+      if (cupon) await client.query('UPDATE cupones SET usos = COALESCE(usos, 0) + 1 WHERE codigo = $1', [cupon.codigo]);
+    }
+    const descuento = cupon ? cupon.descuento : 0;
+    const total = Math.round((subtotal - descuento + costoEnvio) * 100) / 100;
     const clienteId = clienteDeToken(req) || await clienteDe(client, nombre, telefono, email);
     const codigo = crypto.randomBytes(4).toString('hex').toUpperCase();
     const estado = pago === 'retiro' ? 'confirmado' : 'pendiente_pago';
     const horas = pago === 'mp' ? 2 : Math.min(168, Math.max(1, parseInt(c.horas_reserva) || 24));
-    pedido = (await client.query(`INSERT INTO tienda_pedidos (codigo, cliente_id, nombre, telefono, email, entrega, local_id, direccion, zona, costo_envio, pago, subtotal, total, nota, estado, vence_en)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, CASE WHEN $15 = 'pendiente_pago' THEN NOW() + ($16 || ' hours')::interval ELSE NULL END) RETURNING *`,
-      [codigo, clienteId, nombre, telefono, email, entrega, localId, direccion, zona, costoEnvio, pago, subtotal, total, String(b.nota || '').trim().slice(0, 500) || null, estado, String(horas)])).rows[0];
+    pedido = (await client.query(`INSERT INTO tienda_pedidos (codigo, cliente_id, nombre, telefono, email, entrega, local_id, direccion, zona, costo_envio, pago, subtotal, total, nota, estado, vence_en, cupon, cupon_tipo, cupon_valor, descuento)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, CASE WHEN $15 = 'pendiente_pago' THEN NOW() + ($16 || ' hours')::interval ELSE NULL END, $17, $18, $19, $20) RETURNING *`,
+      [codigo, clienteId, nombre, telefono, email, entrega, localId, direccion, zona, costoEnvio, pago, subtotal, total, String(b.nota || '').trim().slice(0, 500) || null, estado, String(horas),
+       cupon ? cupon.codigo : null, cupon ? cupon.tipo : null, cupon ? cupon.valor : null, descuento])).rows[0];
     for (const l of lineas) {
       await client.query('INSERT INTO tienda_pedido_items (pedido_id, producto_id, variante_id, nombre, variante_valor, cantidad, precio) VALUES ($1,$2,$3,$4,$5,$6,$7)',
         [pedido.id, l.producto_id, l.variante_id, l.nombre, l.variante_valor, l.cantidad, l.precio]);
@@ -311,7 +322,7 @@ router.get('/:slug/pedidos/:codigo', async (req, res) => {
     const loc = p.entrega === 'retiro' ? (await pool.query('SELECT nombre, direccion FROM locales WHERE id = $1', [p.local_id]).catch(() => ({ rows: [] }))).rows[0] : null;
     res.json({
       codigo: p.codigo, estado: p.estado, pagado: p.pagado, pago: p.pago, entrega: p.entrega, local: loc || null, direccion: p.direccion, zona: p.zona,
-      subtotal: num(p.subtotal), costo_envio: num(p.costo_envio), total: num(p.total), items, link_pago: p.estado === 'pendiente_pago' ? p.mp_link : null,
+      subtotal: num(p.subtotal), costo_envio: num(p.costo_envio), descuento: num(p.descuento), cupon: p.cupon || null, total: num(p.total), items, link_pago: p.estado === 'pendiente_pago' ? p.mp_link : null,
       vence_en: p.vence_en, transferencia: p.pago === 'transferencia' && !p.pagado ? (req.tienda.transferencia_datos || '') : null, creado_en: p.creado_en,
     });
   } catch (e) { res.status(500).json({ error: 'No se pudo consultar el pedido' }); }
@@ -396,7 +407,16 @@ router.get('/:slug/cuenta', conCuenta, async (req, res) => {
       cuentas.canjesDeCliente(req.clienteId).catch(() => []),
       pool.query(`SELECT codigo, estado, total, creado_en, entrega FROM tienda_pedidos WHERE cliente_id = $1 ORDER BY creado_en DESC LIMIT 20`, [req.clienteId]).then(r => r.rows).catch(() => []),
     ]);
-    res.json({ ...d, compras: (d.compras || []).slice(0, 15), premios, canjes: canjes.slice(0, 20), pedidos });
+    // Los canjes que son codigos de descuento: si todavia se pueden usar
+    const cods = canjes.map(c => c.codigo).filter(Boolean);
+    const cups = cods.length ? (await pool.query('SELECT codigo, tipo, valor, fecha_vencimiento, usos, max_usos, activo FROM cupones WHERE codigo = ANY($1)', [cods]).catch(() => ({ rows: [] }))).rows : [];
+    const canjesInfo = canjes.slice(0, 20).map(c => {
+      const cu = cups.find(x => x.codigo === c.codigo);
+      if (!cu) return c;
+      const usable = cu.activo && !(cu.max_usos && (cu.usos || 0) >= cu.max_usos) && !(cu.fecha_vencimiento && new Date(cu.fecha_vencimiento) < new Date(new Date().toDateString()));
+      return { ...c, cupon: { tipo: cu.tipo === '%' ? '%' : '$', valor: parseFloat(cu.valor) || 0, vence: cu.fecha_vencimiento, usable } };
+    });
+    res.json({ ...d, compras: (d.compras || []).slice(0, 15), premios: premios.map(p => ({ ...p, descuento_pct: cuentas.descuentoDePremio(p) })), canjes: canjesInfo, pedidos });
   } catch (e) { console.error('[tienda] cuenta:', e.message); res.status(500).json({ error: 'No pudimos cargar tu cuenta' }); }
 });
 

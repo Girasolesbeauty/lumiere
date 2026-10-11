@@ -185,6 +185,13 @@ router.get('/premios', verificarTokenCliente, async (req, res) => {
 });
 
 // Canjear un premio: genera codigo para mostrar en el local
+// % de descuento de un premio: el campo descuento_pct o, si no se cargo, un nombre como "10% off"
+function descuentoDePremio(p) {
+  const v = parseFloat(p.descuento_pct);
+  if (v > 0) return Math.min(100, v);
+  const m = /(\d{1,2})\s*%\s*(off|de\s*desc|desc)/i.exec(String(p.nombre || ''));
+  return m ? parseInt(m[1]) : null;
+}
 class ErrorCanje extends Error { constructor(codigo, msg) { super(msg); this.codigo = codigo; } }
 async function canjearPremio(clienteId, premio_id) {
   const client = await pool.connect();
@@ -246,8 +253,16 @@ async function canjearPremio(clienteId, premio_id) {
       [premio_id, clienteId, codigo, premio.puntos_requeridos]
     );
 
+    // Premio de descuento (ej: "10% off en tu compra"): el codigo queda como cupon de un solo uso,
+    // que sirve en la tienda online y en el Punto de Venta, por 90 dias
+    const pct = descuentoDePremio(premio);
+    if (pct) {
+      await client.query(`INSERT INTO cupones (codigo, descripcion, tipo, valor, canal, max_usos, fecha_vencimiento, activo)
+        VALUES ($1, $2, '%', $3, 'Premio de puntos', 1, CURRENT_DATE + 90, TRUE)`, [codigo, 'Premio canjeado: ' + premio.nombre, pct]);
+    }
+
     await client.query('COMMIT');
-    return { mensaje: 'Canje realizado! Mostra este codigo en el local', codigo };
+    return pct ? { mensaje: 'Canje realizado! Usá este código en tu próxima compra (online o en el local)', codigo, descuento_pct: pct } : { mensaje: 'Canje realizado! Mostra este codigo en el local', codigo };
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
     throw error;
@@ -340,4 +355,4 @@ router.get('/mis-regalos', verificarTokenCliente, async (req, res) => {
 });
 
 module.exports = router;
-module.exports.cuentas = { soloNumeros, buscarPorDni, bloqueado, sumarIntento, intentos, datosDeCliente, premiosDeCliente, canjearPremio, canjesDeCliente, ErrorCanje };
+module.exports.cuentas = { descuentoDePremio, soloNumeros, buscarPorDni, bloqueado, sumarIntento, intentos, datosDeCliente, premiosDeCliente, canjearPremio, canjesDeCliente, ErrorCanje };
