@@ -84,7 +84,7 @@ router.get('/:slug', async (req, res) => {
       banner: c.banner || [], banners_img: c.banners_img || [], filas: c.filas || [], sectores: c.sectores || [],
       reingreso: c.reingreso_activo ? { nombre: c.reingreso_nombre || 'Nuevamente en stock', dias: c.reingreso_dias || 14 } : null,
       dominio: await tienda.dominioDe(req.negTienda.id).catch(() => null),
-      ruleta: (() => { const r = tienda.ruletaDe(c); return r.activo ? { minimo: r.minimo } : null; })(),
+      ruleta: (() => { const r = tienda.ruletaDe(c); return r.activo ? { minimo: r.minimo, aviso: r.aviso_carrito } : null; })(),
     });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la tienda' }); }
 });
@@ -377,6 +377,8 @@ router.post('/:slug/pedidos/:codigo/ruleta', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    // De a un giro por vez en todo el negocio, asi los topes ("1 cada 100") se respetan aunque giren dos a la vez
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext('tienda_ruleta'))`);
     const p = (await client.query('SELECT * FROM tienda_pedidos WHERE codigo = $1 FOR UPDATE', [String(req.params.codigo || '').toUpperCase()])).rows[0];
     if (!p) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'No encontramos ese pedido' }); }
     const ya = (await client.query('SELECT premio_id, texto, tipo, valor, cupon FROM tienda_ruleta WHERE pedido_id = $1', [p.id])).rows[0];
@@ -384,7 +386,14 @@ router.post('/:slug/pedidos/:codigo/ruleta', async (req, res) => {
     if (ya) { await client.query('ROLLBACK'); return res.json({ id: ya.premio_id, texto: ya.texto, tipo: ya.tipo, valor: num(ya.valor), cupon: ya.cupon }); }
     const est = await estadoRuleta(req.tienda, p);
     if (!est || !est.disponible) { await client.query('ROLLBACK'); return res.status(400).json({ error: est && est.espera ? 'Vas a poder girar la ruleta cuando se acredite el pago' : 'Esta compra no tiene ruleta' }); }
-    const premio = tienda.elegirPremio(r.premios);
+    // Topes ("como maximo 1 cada N giros"): cuantos giros hubo desde la ultima vez que salio cada uno
+    const bloqueados = [];
+    for (const x of r.premios.filter(x => x.cada > 1 && x.chance > 0)) {
+      const desde = (await client.query(`SELECT COUNT(*)::int AS n FROM tienda_ruleta WHERE creado_en > COALESCE((SELECT MAX(creado_en) FROM tienda_ruleta WHERE premio_id = $1), '-infinity')`, [x.id])).rows[0].n;
+      const salio = (await client.query('SELECT 1 FROM tienda_ruleta WHERE premio_id = $1 LIMIT 1', [x.id])).rows.length;
+      if (salio && desde < x.cada - 1) bloqueados.push(x.id);
+    }
+    const premio = tienda.elegirPremio(r.premios, bloqueados);
     let cupon = null;
     if (premio.tipo === 'cupon') {
       for (let i = 0; i < 5 && !cupon; i++) {
