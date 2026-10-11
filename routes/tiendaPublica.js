@@ -62,6 +62,7 @@ router.get('/:slug', async (req, res) => {
       pagos: { mp, transferencia: !!c.pago_transferencia, retiro: !!c.pago_retiro }, horas_reserva: c.horas_reserva,
       anuncios: String(c.anuncios || '').split('\n').filter(Boolean),
       banner: c.banner || [], filas: c.filas || [], sectores: c.sectores || [],
+      reingreso: c.reingreso_activo ? { nombre: c.reingreso_nombre || 'Nuevamente en stock', dias: c.reingreso_dias || 14 } : null,
     });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la tienda' }); }
 });
@@ -74,11 +75,13 @@ router.get('/:slug/productos', async (req, res) => {
              COALESCE(p.tiene_variantes, FALSE) AS tiene_variantes, tp.descripcion, tp.orden, COALESCE(tp.destacado, FALSE) AS destacado, tp.video_url, (p.creado_en > NOW() - INTERVAL '30 days') AS nuevo,
              EXISTS (SELECT 1 FROM tienda_videos tv WHERE tv.producto_id = p.id) AS video_subido,
              ARRAY(SELECT f.id FROM tienda_fotos f WHERE f.producto_id = p.id ORDER BY f.orden, f.id) AS fotos_extra,
+             (SELECT json_object_agg(r.local_id, EXTRACT(EPOCH FROM r.f)::bigint) FROM (SELECT local_id, MAX(fecha) AS f FROM tienda_reingresos
+                WHERE producto_id = p.id AND fecha > NOW() - make_interval(days => $1::int) GROUP BY local_id) r) AS reingreso,
              (SELECT EXTRACT(EPOCH FROM i.actualizado_en)::bigint FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto_v,
              EXISTS (SELECT 1 FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto
       FROM tienda_productos tp JOIN productos p ON p.id = tp.producto_id
       WHERE tp.publicado AND p.activo = TRUE AND COALESCE(p.precio, 0) > 0
-      ORDER BY tp.orden, p.nombre`).catch(async () => (await pool.query(`
+      ORDER BY tp.orden, p.nombre`, [req.tienda.reingreso_activo ? (req.tienda.reingreso_dias || 14) : 0]).catch(async () => (await pool.query(`
       SELECT p.id, p.nombre, p.marca, p.categoria, p.precio, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush,
              COALESCE(p.tiene_variantes, FALSE) AS tiene_variantes, tp.descripcion, tp.orden, COALESCE(tp.destacado, FALSE) AS destacado, tp.video_url, (p.creado_en > NOW() - INTERVAL '30 days') AS nuevo, EXISTS (SELECT 1 FROM tienda_videos tv WHERE tv.producto_id = p.id) AS video_subido, ARRAY[]::int[] AS fotos_extra, NULL::bigint AS foto_v, FALSE AS foto
       FROM tienda_productos tp JOIN productos p ON p.id = tp.producto_id
@@ -89,7 +92,7 @@ router.get('/:slug/productos', async (req, res) => {
       const v = vars.filter(x => x.producto_id === p.id).map(x => ({ id: x.id, valor: x.valor, stock: { 1: Math.max(0, x.stock_rg), 2: Math.max(0, x.stock_ush) } }));
       return {
         id: p.id, nombre: p.nombre, marca: p.marca, categoria: p.categoria, precio: num(p.precio), descripcion: p.descripcion || '', foto: !!p.foto,
-        destacado: !!p.destacado, nuevo: !!p.nuevo, fotos: p.fotos_extra || [], foto_v: p.foto_v ? Number(p.foto_v) : null,
+        destacado: !!p.destacado, nuevo: !!p.nuevo, fotos: p.fotos_extra || [], reingreso: p.reingreso || null, foto_v: p.foto_v ? Number(p.foto_v) : null,
         video: p.video_subido ? { tipo: 'subido' } : tienda.videoDeLink(p.video_url),
         variantes: p.tiene_variantes && v.length ? v : null,
         stock: { 1: Math.max(0, parseInt(p.stock_rg) || 0), 2: Math.max(0, parseInt(p.stock_ush) || 0) },

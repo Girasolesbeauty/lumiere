@@ -76,7 +76,7 @@ router.get('/portada', async (req, res) => {
     const dest = (await pool.query('SELECT producto_id FROM tienda_productos WHERE destacado ORDER BY producto_id')).rows.map(r => r.producto_id);
     // El banner respeta el orden guardado y suma los destacados marcados con la estrella en Productos
     const banner = [...(c.banner || []).filter(id => dest.includes(id)), ...dest.filter(id => !(c.banner || []).includes(id))];
-    res.json({ banner, filas: c.filas || [], sectores: c.sectores || [] });
+    res.json({ banner, filas: c.filas || [], sectores: c.sectores || [], reingreso: { activo: !!c.reingreso_activo, dias: c.reingreso_dias || 14, nombre: c.reingreso_nombre || '' } });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la portada' }); }
 });
 
@@ -95,7 +95,9 @@ router.put('/portada', async (req, res) => {
     if (filas.some(f => !f.productos.length)) return res.status(400).json({ error: 'Cada fila de la portada necesita al menos un producto' });
     if (sectores.some(s => !s.categorias.length && !s.productos.length)) return res.status(400).json({ error: 'Cada sector necesita al menos una categoría o un producto' });
     await client.query('BEGIN');
-    await client.query('UPDATE tienda_config SET banner = $1, filas = $2, sectores = $3 WHERE id = 1', [JSON.stringify(banner), JSON.stringify(filas), JSON.stringify(sectores)]);
+    const re = b.reingreso || {};
+    await client.query('UPDATE tienda_config SET banner = $1, filas = $2, sectores = $3, reingreso_activo = $4, reingreso_dias = $5, reingreso_nombre = $6 WHERE id = 1',
+      [JSON.stringify(banner), JSON.stringify(filas), JSON.stringify(sectores), !!re.activo, Math.min(90, Math.max(1, parseInt(re.dias) || 14)), texto(re.nombre, 40) || null]);
     // Los del banner quedan destacados (la estrella en Productos) y los demas no
     await client.query('UPDATE tienda_productos SET destacado = FALSE WHERE destacado AND NOT (producto_id = ANY($1::int[]))', [banner]);
     for (const id of banner) await client.query(`INSERT INTO tienda_productos (producto_id, destacado) VALUES ($1, TRUE) ON CONFLICT (producto_id) DO UPDATE SET destacado = TRUE`, [id]);

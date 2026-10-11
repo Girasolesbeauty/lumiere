@@ -14300,7 +14300,7 @@ function ConfiguracionNegocio({ paletaActual }) {
                   {editandoLocal?.id === l.id ? (
                     <>
                       <td><input className="inp" value={editandoLocal.nombre} onChange={e => setEditandoLocal(p => ({ ...p, nombre: e.target.value }))} /></td>
-                      <td><input className="inp" value={editandoLocal.direccion || ""} onChange={e => setEditandoLocal(p => ({ ...p, direccion: e.target.value }))} /></td>
+                      <td style={{ minWidth: 220 }}><input className="inp" style={{ width: "100%" }} placeholder="Ej: San Martín 123" value={editandoLocal.direccion || ""} onChange={e => setEditandoLocal(p => ({ ...p, direccion: e.target.value }))} /></td>
                       <td>
                         <button className="btn btn-p btn-sm" onClick={() => guardarLocal(editandoLocal)}>Guardar</button>
                         <button className="btn btn-g btn-sm" onClick={() => setEditandoLocal(null)}>Cancelar</button>
@@ -23056,7 +23056,7 @@ function TiendaPublica({ slug }) {
           </button>
           {!codigoUrl && (
             <label className="tw-busca"><TwIcono d={TW_LUPA} size={18} />
-              <input placeholder="Buscar productos, marcas…" value={busca} onChange={e => { setBusca(e.target.value); if (!cat && e.target.value) window.scrollTo({ top: 0 }); }} aria-label="Buscar" />
+              <input placeholder="Buscar productos, marcas…" value={busca} onChange={e => { setBusca(e.target.value); if (e.target.value) { setCat(""); setSubcat(""); window.scrollTo({ top: 0 }); } }} aria-label="Buscar" />
             </label>
           )}
           <div className="tw-iconos">
@@ -23117,18 +23117,25 @@ function TiendaPublica({ slug }) {
     );
   }
 
-  const cats = [...new Set(lista0.map(p => p.categoria).filter(Boolean))].sort();
+  // Lo agotado en la ciudad elegida no se muestra; vuelve solo cuando entra stock (con sus sectores y filas)
+  const visibles = lista0.filter(p => !agotado(p));
+  const reingreso = tienda.reingreso;
+  const reingresados = reingreso ? visibles.map(p => ({ p, t: p.reingreso ? Math.max(0, ...(lid ? [p.reingreso[lid] || 0] : Object.values(p.reingreso))) : 0 }))
+    .filter(x => x.t && Date.now() / 1000 - x.t < reingreso.dias * 86400).sort((a, b) => b.t - a.t).map(x => x.p) : [];
+  const cats = [...new Set(visibles.map(p => p.categoria).filter(Boolean))].sort();
   const q = busca.trim().toLowerCase();
   const enLista = !!q || !!cat;
   const ordenar = (arr) => orden === "menor" ? [...arr].sort((a, b) => a.precio - b.precio) : orden === "mayor" ? [...arr].sort((a, b) => b.precio - a.precio) : orden === "az" ? [...arr].sort((a, b) => a.nombre.localeCompare(b.nombre)) : arr;
   // Sectores del menu (armados en Lumiere): agrupan categorias enteras y productos sueltos
-  const sectores = (tienda.sectores || []).filter(sc => lista0.some(p => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria)));
+  const sectores = (tienda.sectores || []).filter(sc => visibles.some(p => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria)));
   const sector = cat.startsWith("s:") ? sectores.find(sc => "s:" + sc.id === cat) : null;
+  // Si la seccion elegida quedo vacia (otra ciudad, se agoto todo), se vuelve al inicio
+  if ((cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat && cat !== "*" && !cat.startsWith("s:") && cat !== "reingreso" && !cats.includes(cat))) { setTimeout(() => setCat(""), 0); }
   const enSector = (sc, p) => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria);
-  const delSector = sector ? lista0.filter(p => enSector(sector, p)) : [];
+  const delSector = sector ? visibles.filter(p => enSector(sector, p)) : [];
   const catsSector = sector ? [...new Set(delSector.map(p => p.categoria).filter(Boolean))].sort() : [];
-  const lista = ordenar(lista0.filter(p => (!cat || cat === "*" || (sector ? enSector(sector, p) && (!subcat || p.categoria === subcat) : p.categoria === cat)) && (!q || [p.nombre, p.marca, p.categoria].some(v => (v || "").toLowerCase().includes(q)))));
-  const conStock = lista0.filter(p => !agotado(p));
+  const lista = ordenar((cat === "reingreso" ? reingresados : visibles).filter(p => (!cat || cat === "*" || cat === "reingreso" || (sector ? enSector(sector, p) && (!subcat || p.categoria === subcat) : p.categoria === cat)) && (!q || [p.nombre, p.marca, p.categoria].some(v => (v || "").toLowerCase().includes(q)))));
+  const conStock = visibles;
   const destacados = (() => {
     const ordenB = tienda.banner || [];
     const pos = (p) => { const i = ordenB.indexOf(p.id); return i < 0 ? 999 : i; };
@@ -23157,11 +23164,12 @@ function TiendaPublica({ slug }) {
   return (
     <div className="tw" style={{ "--c": color }}><style>{CSS_TIENDA}</style>
       {cabecera}
-      {(cats.length > 0 || sectores.length > 0) && (
+      {(cats.length > 0 || sectores.length > 0 || reingresados.length > 0) && (
         <div style={{ borderBottom: "1px solid #e6e6e6" }}>
           <nav className="tw-nav" aria-label={sectores.length ? "Sectores" : "Categorías"}>
             <button className={!enLista ? "on" : ""} onClick={irInicio}>Inicio</button>
             <button className={cat === "*" && !q ? "on" : ""} onClick={() => irCat("*")}>Todo</button>
+            {reingresados.length > 0 && <button className={cat === "reingreso" && !q ? "on" : ""} onClick={() => irCat("reingreso")}>{reingreso.nombre}</button>}
             {sectores.length ? sectores.map(sc => <button key={sc.id} className={cat === "s:" + sc.id && !q ? "on" : ""} onClick={() => irCat("s:" + sc.id)}>{sc.nombre}</button>)
               : cats.map(c => <button key={c} className={cat === c && !q ? "on" : ""} onClick={() => irCat(c)}>{c}</button>)}
           </nav>
@@ -23173,7 +23181,7 @@ function TiendaPublica({ slug }) {
         ) : enLista ? (
           <>
             <div className="tw-lista-cab">
-              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" ? "Todos los productos" : sector ? sector.nombre : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4 }}>{lista.length} {lista.length === 1 ? "producto" : "productos"}</div></div>
+              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" ? "Todos los productos" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4 }}>{lista.length} {lista.length === 1 ? "producto" : "productos"}</div></div>
               <select value={orden} onChange={e => setOrden(e.target.value)} aria-label="Ordenar">{TW_ORDEN.map(([k, t]) => <option key={k} value={k}>Ordenar: {t}</option>)}</select>
             </div>
             {sector && !q && catsSector.length > 1 && (
@@ -23185,7 +23193,7 @@ function TiendaPublica({ slug }) {
             {lista.length === 0 ? <p style={{ textAlign: "center", color: "#888", margin: "50px 0" }}>No encontramos productos con esa búsqueda.</p>
               : <div className="tw-grid">{lista.map(p => <div key={p.id} className="tw-rv">{tarjeta(p)}</div>)}</div>}
           </>
-        ) : lista0.length === 0 ? (
+        ) : visibles.length === 0 ? (
           <div className="tw-cartel" style={{ textAlign: "center" }}><div style={{ fontSize: 40 }}>✿</div><h2>{tienda.titulo}</h2><p>Pronto vas a encontrar nuestros productos acá.</p></div>
         ) : (
           <>
@@ -23217,11 +23225,12 @@ function TiendaPublica({ slug }) {
               <div><span>🔒</span><span style={{ fontSize: 13.5 }}><b>Compra segura</b><br />{tienda.pagos.mp ? "Con Mercado Pago" : "Te confirmamos por WhatsApp"}</span></div>
             </div>
             {filasPortada.map(f => <TwFila key={f.id} titulo={f.titulo} items={f.items} render={tarjeta} />)}
+            {reingresados.length > 0 && <TwFila titulo={reingreso.nombre} items={reingresados.slice(0, 12)} onVerTodo={() => irCat("reingreso")} render={tarjeta} />}
             <TwFila titulo="Novedades" items={conStock.filter(p => p.nuevo).slice(0, 12)} onVerTodo={() => irCat("*")} render={tarjeta} />
             <TwFila titulo="Miralos en video" items={conStock.filter(p => p.video).slice(0, 12)} render={tarjeta} />
-            {sectores.length ? sectores.map(sc => <TwFila key={sc.id} titulo={sc.nombre} items={lista0.filter(p => enSector(sc, p)).slice(0, 12)} onVerTodo={() => irCat("s:" + sc.id)} render={tarjeta} />)
-              : cats.slice(0, 10).map(c => <TwFila key={c} titulo={c} items={lista0.filter(p => p.categoria === c).slice(0, 12)} onVerTodo={() => irCat(c)} render={tarjeta} />)}
-            {!cats.length && <TwFila titulo="Nuestros productos" items={lista0} render={tarjeta} />}
+            {sectores.length ? sectores.map(sc => <TwFila key={sc.id} titulo={sc.nombre} items={visibles.filter(p => enSector(sc, p)).slice(0, 12)} onVerTodo={() => irCat("s:" + sc.id)} render={tarjeta} />)
+              : cats.slice(0, 10).map(c => <TwFila key={c} titulo={c} items={visibles.filter(p => p.categoria === c).slice(0, 12)} onVerTodo={() => irCat(c)} render={tarjeta} />)}
+            {!cats.length && <TwFila titulo="Nuestros productos" items={visibles} render={tarjeta} />}
           </>
         )}
       </main>
@@ -23808,6 +23817,23 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
         {d.filas.length < 12 && <button className="btn btn-g btn-sm" onClick={() => cambiar({ ...d, filas: [...d.filas, { id: nuevoId(), titulo: "", productos: [] }] })}>+ Nueva fila</button>}
       </div>
       <div className="card" style={{ gridColumn: "1 / -1" }}>
+        <label style={{ display: "flex", gap: 10, alignItems: "center", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
+          <input type="checkbox" checked={!!(d.reingreso && d.reingreso.activo)} onChange={e => cambiar({ ...d, reingreso: { ...(d.reingreso || { dias: 14, nombre: "" }), activo: e.target.checked } })} style={{ width: 20, height: 20 }} />
+          🔄 Sector automático "Nuevamente en stock"
+        </label>
+        <div style={{ fontSize: 12, color: tp.textMuted, margin: "4px 0 8px 30px" }}>Muestra solo los productos que estaban agotados y volvieron a tener stock (en la ciudad que eligió el cliente). Se arma solo: no hay que elegir nada.</div>
+        {d.reingreso && d.reingreso.activo && (
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginLeft: 30 }}>
+            <div style={{ flex: "1 1 220px" }}><div className="fl">Nombre en el menú</div><input className="inp" placeholder="Nuevamente en stock" value={d.reingreso.nombre || ""} onChange={e => cambiar({ ...d, reingreso: { ...d.reingreso, nombre: e.target.value } })} /></div>
+            <div><div className="fl">Mostrar los que volvieron en los últimos</div>
+              <select className="sel" value={d.reingreso.dias || 14} onChange={e => cambiar({ ...d, reingreso: { ...d.reingreso, dias: parseInt(e.target.value) } })}>
+                {[3, 7, 10, 14, 21, 30, 45, 60].map(n => <option key={n} value={n}>{n} días{n === 7 ? " (1 semana)" : n === 14 ? " (2 semanas)" : n === 30 ? " (1 mes)" : ""}</option>)}
+              </select>
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="card" style={{ gridColumn: "1 / -1" }}>
         <div className="ct">🗂 Sectores del menú</div>
         <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>Son las opciones del menú de arriba de la tienda (ej: SKINCARE, MAQUILLAJE, FRAGANCIAS, REGALOS). Cada sector junta categorías enteras y, si querés, productos sueltos. Si no armás ninguno, el menú muestra tus categorías.</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 10 }}>
@@ -23865,6 +23891,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const avisar = (ok, texto) => { setAviso({ ok, texto }); setTimeout(() => setAviso(null), 4500); };
   const esJefeT = ["jefe", "admin", "administrativo"].includes(usuario?.rol);
 
+  const [locs, setLocs] = useState([]);
+  useEffect(() => { API.get("/locales").then(r => setLocs((r.data || []).map(l => ({ ...l, direccion0: l.direccion || "" })))).catch(() => {}); }, []);
   const cargarCfg = () => API.get("/tienda/config").then(r => setCfg({ ...r.data, slug: r.data.slug || r.data.slug_sugerido, retiro_locales: r.data.retiro_locales || [1, 2] })).catch(() => setCfg({}));
   const cargarPedidos = () => API.get("/tienda/pedidos").then(r => setPedidos(r.data || [])).catch(() => setPedidos([]));
   const cargarProductos = () => API.get("/tienda/productos").then(r => setProductos(r.data || [])).catch(() => setProductos([]));
@@ -23930,7 +23958,10 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
     catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); }
   };
   const guardarCfg = async () => {
-    try { await API.put("/tienda/config", cfg); avisar(true, cfg.activo ? "✓ Tienda guardada y publicada" : "✓ Guardado (la tienda está apagada)"); cargarCfg(); }
+    try {
+      for (const l of locs.filter(l => (l.direccion || "") !== l.direccion0)) await API.put("/locales/" + l.id, { nombre: l.nombre, direccion: (l.direccion || "").trim() || null });
+      setLocs(ls => ls.map(l => ({ ...l, direccion0: l.direccion || "" })));
+      await API.put("/tienda/config", cfg); avisar(true, cfg.activo ? "✓ Tienda guardada y publicada" : "✓ Guardado (la tienda está apagada)"); cargarCfg(); }
     catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
   };
 
@@ -24157,14 +24188,20 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                 {[1, 2].map(l => <label key={l} style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}><input type="checkbox" checked={(cfg.retiro_locales || []).includes(l)} onChange={e => set("retiro_locales", e.target.checked ? [...new Set([...(cfg.retiro_locales || []), l])] : (cfg.retiro_locales || []).filter(x => x !== l))} /> {nombreLocal(l)}</label>)}
               </div>
             )}
+            {cfg.retiro_activo && locs.filter(l => UN_SOLO_LOCAL ? l.id === 1 : (cfg.retiro_locales || []).includes(l.id)).map(l => (
+              <div key={l.id} style={{ margin: "8px 0 0 26px" }}>
+                <div className="fl">Dirección de {l.nombre} (se muestra a quien retira)</div>
+                <input className="inp" style={{ width: "100%" }} placeholder="Ej: San Martín 123" value={l.direccion || ""} onChange={e => setLocs(ls => ls.map(x => x.id === l.id ? { ...x, direccion: e.target.value } : x))} />
+              </div>
+            ))}
             <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", marginTop: 12 }}><input type="checkbox" checked={!!cfg.envio_activo} onChange={e => set("envio_activo", e.target.checked)} /> <b>Envío propio</b></label>
             {cfg.envio_activo && (
               <div style={{ margin: "6px 0 0 26px" }}>
                 {(cfg.envio_zonas || []).map((z, i) => (
                   <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                    <input className="inp" style={{ flex: 2 }} placeholder="Zona (ej: Centro)" value={z.nombre} onChange={e => set("envio_zonas", cfg.envio_zonas.map((x, j) => j === i ? { ...x, nombre: e.target.value } : x))} />
-                    <input className="inp" style={{ flex: 1 }} type="number" min="0" placeholder="Costo" value={z.costo} onChange={e => set("envio_zonas", cfg.envio_zonas.map((x, j) => j === i ? { ...x, costo: e.target.value } : x))} />
-                    {!UN_SOLO_LOCAL && <select className="sel" style={{ flex: 1.3 }} aria-label="Ciudad de la zona" value={z.local || cfg.envio_local || 1} onChange={e => set("envio_zonas", cfg.envio_zonas.map((x, j) => j === i ? { ...x, local: parseInt(e.target.value) } : x))}>{[1, 2].map(l => <option key={l} value={l}>{nombreLocal(l)}</option>)}</select>}
+                    <input className="inp" style={{ flex: "1 1 120px", minWidth: 0 }} placeholder="Zona (ej: Centro)" value={z.nombre} onChange={e => set("envio_zonas", cfg.envio_zonas.map((x, j) => j === i ? { ...x, nombre: e.target.value } : x))} />
+                    <input className="inp" style={{ flex: "0 0 96px", minWidth: 0 }} type="number" min="0" placeholder="Costo" value={z.costo} onChange={e => set("envio_zonas", cfg.envio_zonas.map((x, j) => j === i ? { ...x, costo: e.target.value } : x))} />
+                    {!UN_SOLO_LOCAL && <select className="sel" style={{ flex: "0 0 118px", minWidth: 0 }} aria-label="Ciudad de la zona" value={z.local || cfg.envio_local || 1} onChange={e => set("envio_zonas", cfg.envio_zonas.map((x, j) => j === i ? { ...x, local: parseInt(e.target.value) } : x))}>{[1, 2].map(l => <option key={l} value={l}>{nombreLocal(l)}</option>)}</select>}
                     <button className="btn btn-g btn-sm" aria-label="Quitar zona" onClick={() => set("envio_zonas", cfg.envio_zonas.filter((_, j) => j !== i))}>✕</button>
                   </div>
                 ))}
