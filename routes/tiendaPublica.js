@@ -491,6 +491,7 @@ function fechaNacimiento(x) {
 }
 
 router.post('/:slug/cuenta/crear', async (req, res) => {
+  let candado = null;
   try {
     const b = req.body || {};
     const dni = cuentas.soloNumeros(b.dni), password = String(b.password || ''), nombre = String(b.nombre || '').trim().replace(/\s+/g, ' ').slice(0, 120);
@@ -504,6 +505,11 @@ router.post('/:slug/cuenta/crear', async (req, res) => {
     if (!nacimiento) return res.status(400).json({ error: 'Elegí tu fecha de nacimiento (así te saludamos en tu cumple 🎂)' });
     const k = 'tienda-crear:' + req.negTienda.id + ':' + dni;
     if (cuentas.bloqueado(k)) return res.status(429).json({ error: 'Demasiados intentos. Esperá 15 minutos y volvé a probar.' });
+    // Un DNI = una sola cuenta: de a una alta por DNI a la vez (si dos se crean en el mismo momento,
+    // la segunda espera y ve que ya existe)
+    candado = await pool.connect();
+    await candado.query('BEGIN');
+    await candado.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['cuenta-dni:' + dni]);
     let c = (await cuentas.buscarPorDni(dni)).rows[0];
     if (c) {
       if (c.password_hash) return res.status(400).json({ error: 'Ese DNI ya tiene una cuenta (puede ser del portal de clientas). Ingresá con tu contraseña.' });
@@ -535,7 +541,8 @@ router.post('/:slug/cuenta/crear', async (req, res) => {
     cuentas.intentos.delete(k);
     const f = (await pool.query('SELECT nombre, telefono, email FROM clientes WHERE id = $1', [c.id])).rows[0];
     res.status(201).json({ token: firmar(req, c.id), cliente: f });
-  } catch (e) { console.error('[tienda] crear cuenta:', e.message); res.status(500).json({ error: 'No pudimos crear la cuenta. Probá de nuevo.' }); }
+  } catch (e) { console.error('[tienda] crear cuenta:', e.message); if (!res.headersSent) res.status(500).json({ error: 'No pudimos crear la cuenta. Probá de nuevo.' }); }
+  finally { if (candado) { try { await candado.query('COMMIT'); } catch (x) {} candado.release(); } }
 });
 
 router.get('/:slug/cuenta', conCuenta, async (req, res) => {
