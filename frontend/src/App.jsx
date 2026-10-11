@@ -26708,6 +26708,92 @@ function AsistenteAyuda({ usuario, seccion, paletaActual }) {
   );
 }
 
+// ---- Aviso de venta en la tienda online: ventana emergente con sonido, en cualquier seccion ----
+// Revisa cada 20 segundos. El stock ya se aparta solo al comprar; el aviso es para que en el local
+// no vendan lo que se acaba de vender por la web. Suena hasta 3 veces mientras nadie lo mire.
+let audioAviso = null;
+const prepararSonido = () => {
+  try { if (!audioAviso) audioAviso = new (window.AudioContext || window.webkitAudioContext)(); if (audioAviso.state === "suspended") audioAviso.resume(); } catch (e) {}
+};
+function sonarVenta() {
+  try {
+    prepararSonido();
+    const ctx = audioAviso; if (!ctx) return;
+    const t0 = ctx.currentTime + 0.05;
+    [[880, 0], [1175, 0.16], [1568, 0.32], [880, 0.75], [1175, 0.91], [1568, 1.07]].forEach(([f, d]) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "sine"; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t0 + d); g.gain.exponentialRampToValueAtTime(0.35, t0 + d + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 0.45);
+      o.connect(g).connect(ctx.destination); o.start(t0 + d); o.stop(t0 + d + 0.5);
+    });
+  } catch (e) {}
+}
+function AvisoVentaWeb({ usuario, local, paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
+  const [nuevos, setNuevos] = useState([]);
+  const clave = "lumiere_tienda_visto_" + (usuario?.email || usuario?.id || "");
+  const esJefeU = ["jefe", "admin"].includes(usuario?.rol) || usuario?.rol_id === 1;
+  // El navegador solo deja sonar despues de que la persona toca algo en la pagina
+  useEffect(() => { const f = () => prepararSonido(); window.addEventListener("pointerdown", f, { once: true }); window.addEventListener("keydown", f, { once: true }); return () => { window.removeEventListener("pointerdown", f); window.removeEventListener("keydown", f); }; }, []);
+  useEffect(() => {
+    if (!usuario || !local) return;
+    let vivo = true;
+    const revisar = async () => {
+      let visto = null; try { const v = localStorage.getItem(clave); visto = v === null ? null : parseInt(v); } catch (e) {}
+      try {
+        const r = await API.get("/avisos-menu/tienda-nuevos?desde=" + (visto === null || isNaN(visto) ? -1 : visto));
+        if (!vivo || r.data.ultimo === null) return;
+        const lista = (r.data.pedidos || []).filter(x => esJefeU || Number(x.local_id) === Number(local.id));
+        try { localStorage.setItem(clave, String(Math.max(r.data.ultimo, visto || 0))); } catch (e) {}
+        if (lista.length) {
+          setNuevos(n => [...n, ...lista.filter(x => !n.some(y => y.id === x.id))]);
+          sonarVenta();
+          window.dispatchEvent(new Event("lumiere-avisos"));
+          try { if (document.hidden && "Notification" in window && Notification.permission === "granted") new Notification("🛍️ Nueva venta online", { body: lista.map(x => x.nombre + ": " + x.items.map(i => i.cantidad + " × " + i.nombre).join(", ")).join("\n") }); } catch (e) {}
+        }
+      } catch (e) {}
+    };
+    revisar();
+    const t = setInterval(revisar, 20000);
+    return () => { vivo = false; clearInterval(t); };
+  }, [usuario, local && local.id]);
+  // Mientras nadie la mire, vuelve a sonar (hasta 3 veces en total)
+  useEffect(() => {
+    if (!nuevos.length) return;
+    let veces = 1;
+    const t = setInterval(() => { if (veces >= 3) return clearInterval(t); veces++; sonarVenta(); }, 25000);
+    return () => clearInterval(t);
+  }, [nuevos.length]);
+  if (!nuevos.length) return null;
+  const cerrar = () => setNuevos([]);
+  const pagoTxt = (x) => x.pagado ? "✓ Pagado" : x.pago === "transferencia" ? "Esperando la transferencia" : x.pago === "mp" ? "Esperando el pago" : "Paga al retirar";
+  return (
+    <div className="pos-overlay" style={{ zIndex: 400 }} role="alertdialog" aria-modal="true" aria-label="Nueva venta en la tienda online">
+      <div className="card pop-in" style={{ width: 480, maxWidth: "94vw", maxHeight: "88vh", overflowY: "auto", background: p.card, borderTop: "6px solid #16a085" }}>
+        <div style={{ textAlign: "center", marginBottom: 10 }}>
+          <div style={{ fontSize: 44, lineHeight: 1 }} className="aviso-venta-icono">🛍️</div>
+          <div style={{ fontSize: 20, fontWeight: 900, marginTop: 6 }}>{nuevos.length === 1 ? "¡Nueva venta online!" : "¡" + nuevos.length + " ventas online nuevas!"}</div>
+          <div style={{ fontSize: 13, color: p.textMuted, marginTop: 4 }}>Este stock ya quedó apartado: <b>no lo vendas en el local</b>.</div>
+        </div>
+        {nuevos.map(x => (
+          <div key={x.id} style={{ border: "1px solid " + p.border, borderRadius: 10, padding: "10px 12px", marginBottom: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+              <b>{x.nombre}</b><b>{fmt(x.total)}</b>
+            </div>
+            <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 6 }}>N° {x.codigo} · {x.entrega === "retiro" ? "📍 Retira en " + nombreLocal(x.local_id) : "🛵 Envío" + (x.zona ? " a " + x.zona : "") + " (" + nombreLocal(x.local_id) + ")"} · {pagoTxt(x)}</div>
+            {x.items.map((i, k) => <div key={k} style={{ fontSize: 14, fontWeight: 700 }}>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""}</div>)}
+          </div>
+        ))}
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap", marginTop: 6 }}>
+          {"Notification" in window && Notification.permission === "default" && <button className="btn btn-g btn-sm" onClick={() => { try { Notification.requestPermission(); } catch (e) {} }} title="Para enterarte aunque estés en otra pestaña">🔔 Avisarme también fuera de Lumiere</button>}
+          <button className="btn btn-g" onClick={cerrar}>Entendido</button>
+          <button className="btn btn-p" onClick={() => { cerrar(); irASeccion("tienda-online:pedidos"); }}>Ver pedidos</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // La tienda web (?tienda=nombre) se muestra sin iniciar sesion; todo lo demas es Lumiere
 // Direcciones propias de Lumiere: ahi se abre el sistema. Cualquier otra (un dominio propio de
 // una tienda, ej: girasolesbeauty.com.ar) muestra directamente esa tienda.
@@ -27097,6 +27183,7 @@ function AppWrapper() {
         </main>
         {page !== "pos" && <BarraCelular secciones={NAV_CON_PERMISOS} page={page} setPage={setPage} avisos={avisosMenu} onMas={() => setMenuAbierto(true)} />}
         <AsistenteAyuda usuario={usuario} seccion={page} paletaActual={paletaActual} />
+        {puedeVer("tienda-online") && <AvisoVentaWeb usuario={usuario} local={local} paletaActual={paletaActual} />}
       </div>
     </>
   );
