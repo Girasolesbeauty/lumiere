@@ -23112,7 +23112,7 @@ const TW_FILTROS = [
 ];
 // "Todo tipo de piel" vale para cualquier tipo de piel
 const TW_TODO_TIPO = /todo tipo de piel|todos los tipos de piel|todas las pieles|all skin types/;
-function twEtiquetas(p) {
+function twEtiquetasAuto(p) {
   const nom = twNorm([p.nombre, p.categoria].join(" "));
   const todo = nom + " " + twNorm(p.descripcion);
   const e = {};
@@ -23122,6 +23122,95 @@ function twEtiquetas(p) {
   e.todoTipo = TW_TODO_TIPO.test(todo);
   return e;
 }
+// Lo elegido a mano en Lumiere manda sobre lo automatico, grupo por grupo
+function twEtiquetas(p) {
+  const e = twEtiquetasAuto(p), m = p.etiquetas || {};
+  ["tipo", "piel", "necesidad"].forEach(k => { if (Array.isArray(m[k])) e[k] = m[k].filter(x => x !== "todo"); });
+  if (Array.isArray(m.piel)) e.todoTipo = m.piel.includes("todo");
+  return e;
+}
+// Para elegir a mano: "Todo tipo de piel" es una opcion mas
+const twOpcionesGrupo = (k) => { const f = TW_FILTROS.find(x => x.k === k); return k === "piel" ? [...f.op, ["todo", "Todo tipo de piel"]] : f.op; };
+const twElegidas = (e, k) => k === "piel" && e.todoTipo ? [...e.piel, "todo"] : e[k];
+const twNombreEtiqueta = (k, v) => (twOpcionesGrupo(k).find(o => o[0] === v) || [v, v])[1];
+
+// Ventana para segmentar en Lumiere: un producto (elegir cada cosa) o varios (sumar o sacar una opcion)
+function SegmentarTienda({ lista, temaPal, avisar, onCerrar, onListo }) {
+  const uno = lista.length === 1 ? lista[0] : null;
+  const auto = uno ? twEtiquetasAuto(uno) : null;
+  const efect = uno ? twEtiquetas(uno) : null;
+  const [sel, setSel] = useState(() => uno ? Object.fromEntries(TW_FILTROS.map(f => [f.k, twElegidas(efect, f.k)])) : null);
+  const [aMano, setAMano] = useState(() => uno ? Object.fromEntries(TW_FILTROS.map(f => [f.k, Array.isArray((uno.etiquetas || {})[f.k])])) : null);
+  const [masivo, setMasivo] = useState({ k: "piel", v: "", accion: "sumar" });
+  const [guardando, setGuardando] = useState(false);
+  const enviar = async (cambios, msj) => {
+    setGuardando(true);
+    try { const r = await API.post("/tienda/productos/etiquetas", { cambios }); avisar(true, msj(r.data.cambiados)); onListo(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); setGuardando(false); }
+  };
+  const guardarUno = () => {
+    const et = {}; TW_FILTROS.forEach(f => { if (aMano[f.k]) et[f.k] = sel[f.k]; });
+    enviar([{ id: uno.id, etiquetas: Object.keys(et).length ? et : null }], () => "✓ Guardado");
+  };
+  const aplicarVarios = () => {
+    const { k, v, accion } = masivo;
+    const cambios = lista.map(p => {
+      const et = { ...(p.etiquetas || {}) };
+      if (accion === "auto") delete et[k];
+      else { const cur = twElegidas(twEtiquetas(p), k); et[k] = accion === "sumar" ? [...new Set([...cur, v])] : cur.filter(x => x !== v); }
+      return { id: p.id, etiquetas: Object.keys(et).length ? et : null };
+    });
+    const nombre = accion === "auto" ? "" : twNombreEtiqueta(k, v);
+    enviar(cambios, n => "✓ " + n + (n === 1 ? " producto" : " productos") + (accion === "sumar" ? ": se sumó " + nombre : accion === "sacar" ? ": se sacó " + nombre : ": vuelven a lo automático"));
+  };
+  const chip = (on, onClick, txt, key) => <button key={key} type="button" className={"chip-btn" + (on ? " on" : "")} onClick={onClick} style={{ marginBottom: 6 }}>{on ? "✓ " : ""}{txt}</button>;
+  return (
+    <div className="pos-overlay" onClick={() => !guardando && onCerrar()}>
+      <div className="card pop-in" style={{ width: 600, maxWidth: "95vw", maxHeight: "90vh", overflowY: "auto", background: temaPal.card }} onClick={e => e.stopPropagation()}>
+        {uno ? <>
+          <div className="ct">🏷 Segmentar: {uno.nombre}</div>
+          <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginBottom: 12 }}>Así aparece en los filtros de la tienda y en "Comprá según tu tipo de piel". Lo marcado con <b>automático</b> sale de la descripción; si tocás una opción, queda como lo elegiste vos.</div>
+          {TW_FILTROS.map(f => (
+            <div key={f.k} style={{ marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+                <b style={{ fontSize: 13.5 }}>{f.titulo}</b>
+                <span className="tag" style={{ fontSize: 10.5, background: aMano[f.k] ? temaPal.greenDim : temaPal.border, color: aMano[f.k] ? temaPal.green : temaPal.textMuted }}>{aMano[f.k] ? "elegido por vos" : "automático"}</span>
+                {aMano[f.k] && <button type="button" className="chip-btn" style={{ fontSize: 11 }} onClick={() => { setSel(x => ({ ...x, [f.k]: twElegidas(auto, f.k) })); setAMano(x => ({ ...x, [f.k]: false })); }}>↺ Volver a automático</button>}
+              </div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {twOpcionesGrupo(f.k).map(o => chip(sel[f.k].includes(o[0]), () => { setSel(x => ({ ...x, [f.k]: x[f.k].includes(o[0]) ? x[f.k].filter(y => y !== o[0]) : [...x[f.k], o[0]] })); setAMano(x => ({ ...x, [f.k]: true })); }, o[1], o[0]))}
+              </div>
+              {aMano[f.k] && !sel[f.k].length && <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>Sin ninguna: no aparece en este filtro.</div>}
+            </div>
+          ))}
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 6 }}><button className="btn btn-g" disabled={guardando} onClick={onCerrar}>Cancelar</button><button className="btn btn-p" disabled={guardando} onClick={guardarUno}>{guardando ? "Guardando…" : "Guardar"}</button></div>
+        </> : <>
+          <div className="ct">🏷 Segmentar {lista.length} productos</div>
+          <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginBottom: 12 }}>Se aplica a los {lista.length} productos que estás viendo con los filtros de la lista. Lo que ya tenía cada uno se mantiene: solo se suma o se saca la opción que elijas.</div>
+          <div className="fl">Qué querés hacer</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+            {[["sumar", "➕ Sumar"], ["sacar", "➖ Sacar"], ["auto", "↺ Volver a automático"]].map(([a, t]) => chip(masivo.accion === a, () => setMasivo(m => ({ ...m, accion: a })), t, a))}
+          </div>
+          <div className="fl">{masivo.accion === "auto" ? "En qué" : "En"}</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+            {TW_FILTROS.map(f => chip(masivo.k === f.k, () => setMasivo(m => ({ ...m, k: f.k, v: "" })), f.titulo, f.k))}
+          </div>
+          {masivo.accion !== "auto" && <>
+            <div className="fl">Opción</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+              {twOpcionesGrupo(masivo.k).map(o => chip(masivo.v === o[0], () => setMasivo(m => ({ ...m, v: o[0] })), o[1], o[0]))}
+            </div>
+          </>}
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 6 }}>
+            <button className="btn btn-g" disabled={guardando} onClick={onCerrar}>Cancelar</button>
+            <button className="btn btn-p" disabled={guardando || (masivo.accion !== "auto" && !masivo.v)} onClick={aplicarVarios}>{guardando ? "Guardando…" : masivo.accion === "auto" ? "Aplicar a " + lista.length : (masivo.accion === "sumar" ? "Sumar " : "Sacar ") + (masivo.v ? '"' + twNombreEtiqueta(masivo.k, masivo.v) + '"' : "") + " en " + lista.length}</button>
+          </div>
+        </>}
+      </div>
+    </div>
+  );
+}
+
 // Busqueda: sin tildes, cada palabra tiene que aparecer (o ser un tipo/necesidad del producto).
 // "limpiador" encuentra limpiadores, limpiadoras, gel de limpieza, cleanser, etc.
 const twRaiz = (w) => { let r = w.replace(/(es|s)$/, ""); if (r.length > 5) r = r.replace(/(dor|dora|nte|cion)$/, ""); else if (r.length > 4) r = r.replace(/[ao]$/, ""); return r; };
@@ -24499,7 +24588,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const [galeria, setGaleria] = useState(null); // producto con la ventana de fotos abierta
   const [importando, setImportando] = useState(false);
   const [limiteProd, setLimiteProd] = useState(150);
-  const [filtros, setFiltros] = useState({ marca: "", proveedor: "", categoria: "", foto: "" });
+  const [filtros, setFiltros] = useState({ marca: "", proveedor: "", categoria: "", foto: "", seg: "" });
+  const [segmentar, setSegmentar] = useState(null); // productos a segmentar (uno o varios)
   useEffect(() => { setLimiteProd(150); }, [busca, soloPub, filtros]);
   const [qr, setQr] = useState(null);
   const [aviso, setAviso] = useState(null);
@@ -24586,12 +24676,15 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const nPub = productos.filter(p => p.publicado).length;
   const q = busca.trim().toLowerCase();
   const qN = normTxt(busca);
-  const prodFiltro = productos.filter(p => (!soloPub || p.publicado)
+  // Segmento de cada producto (tipo, piel, necesidad): lo elegido a mano o lo automatico
+  const segDe = (p) => { if (!p._seg) p._seg = twEtiquetas(p); return p._seg; };
+  const pasaSeg = (p) => { if (!filtros.seg) return true; const [k, v] = filtros.seg.split(":"); const e = segDe(p); return v === "-" ? !(e[k].length || (k === "piel" && e.todoTipo)) : twElegidas(e, k).includes(v); };
+  const prodFiltro = productos.filter(p => (!soloPub || p.publicado) && pasaSeg(p)
     && (!filtros.marca || (p.marca || "") === filtros.marca) && (!filtros.proveedor || String(p.proveedor || "") === filtros.proveedor)
     && (!filtros.categoria || (p.categoria || "") === filtros.categoria) && (!filtros.foto || (filtros.foto === "con" ? p.foto : !p.foto))
     && (!qN || qN.split(" ").every(w => normTxt([p.nombre, p.marca, p.categoria, p.proveedor, p.codigo_barras].join(" ")).includes(w))));
   const opciones = (k) => [...new Set(productos.map(p => p[k]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
-  const hayFiltros = filtros.marca || filtros.proveedor || filtros.categoria || filtros.foto || busca || soloPub;
+  const hayFiltros = filtros.marca || filtros.proveedor || filtros.categoria || filtros.foto || filtros.seg || busca || soloPub;
   const prodVis = prodFiltro.slice(0, limiteProd);
   const set = (k, v) => setCfg(c => ({ ...c, [k]: v }));
 
@@ -24671,8 +24764,15 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             <select className="sel" aria-label="Filtrar por foto" style={{ flex: "0 1 150px", fontWeight: filtros.foto ? 700 : 400 }} value={filtros.foto} onChange={e => setFiltros(f => ({ ...f, foto: e.target.value }))}>
               <option value="">Con y sin foto</option><option value="sin">Sin foto</option><option value="con">Con foto</option>
             </select>
+            <select className="sel" aria-label="Filtrar por segmento" style={{ flex: "1 1 170px", maxWidth: 240, fontWeight: filtros.seg ? 700 : 400 }} value={filtros.seg} onChange={e => setFiltros(f => ({ ...f, seg: e.target.value }))}>
+              <option value="">Todos los segmentos</option>
+              {TW_FILTROS.map(f => <optgroup key={f.k} label={f.titulo}>
+                <option value={f.k + ":-"}>Sin {f.titulo.toLowerCase()}</option>
+                {twOpcionesGrupo(f.k).map(o => <option key={o[0]} value={f.k + ":" + o[0]}>{o[1]}</option>)}
+              </optgroup>)}
+            </select>
             <button className={"chip-btn" + (soloPub ? " on" : "")} onClick={() => setSoloPub(v => !v)}>Solo publicados</button>
-            {hayFiltros && <button className="chip-btn" onClick={() => { setFiltros({ marca: "", proveedor: "", categoria: "", foto: "" }); setBusca(""); setSoloPub(false); }}>✕ Limpiar filtros</button>}
+            {hayFiltros && <button className="chip-btn" onClick={() => { setFiltros({ marca: "", proveedor: "", categoria: "", foto: "", seg: "" }); setBusca(""); setSoloPub(false); }}>✕ Limpiar filtros</button>}
             <span style={{ fontSize: 12, color: temaPal.textMuted }}>{prodFiltro.length} {prodFiltro.length === 1 ? "producto" : "productos"}</span>
             {esJefeT && <button className="btn btn-g btn-sm" onClick={publicarConFoto} title="Publica de una vez los que tienen foto, precio y stock">📸 Publicar los que tienen foto</button>}
           </div>
@@ -24680,6 +24780,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
               <button className="btn btn-p btn-sm" disabled={prodFiltro.every(p => p.publicado)} onClick={() => publicarVarios(prodFiltro.filter(p => !p.publicado), true)}>☑ Publicar {hayFiltros ? "los que se ven" : "todos"} ({prodFiltro.filter(p => !p.publicado).length})</button>
               <button className="btn btn-g btn-sm" disabled={!prodFiltro.some(p => p.publicado)} onClick={() => publicarVarios(prodFiltro.filter(p => p.publicado), false)}>☐ Sacar {hayFiltros ? "los que se ven" : "todos"} ({prodFiltro.filter(p => p.publicado).length})</button>
+              <button className="btn btn-g btn-sm" onClick={() => setSegmentar(prodFiltro)} title="Sumar o sacar un tipo de producto, tipo de piel o necesidad a todos los que se ven">🏷 Segmentar {hayFiltros ? "los que se ven" : "todos"} ({prodFiltro.length})</button>
               <button className="btn btn-g btn-sm" onClick={() => setImportando(true)} title="Desde el archivo de productos de Tiendanube u otra tienda">📥 Traer descripciones de mi tienda anterior</button>
               {prodFiltro.some(p => !p.foto) && <button className="btn btn-g btn-sm" onClick={() => setBuscaFoto({ cola: prodFiltro.filter(p => !p.foto), i: 0 })}>🔍 Buscar fotos para los que no tienen ({prodFiltro.filter(p => !p.foto).length})</button>}
               {prodFiltro.length > prodVis.length && <span style={{ fontSize: 11.5, color: temaPal.textMuted }}>Se muestran {prodVis.length} de {prodFiltro.length} (abajo está "Ver más"); los botones toman todos.</span>}
@@ -24691,12 +24792,14 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", flex: "1 1 240px", minWidth: 0 }}>
                 <input type="checkbox" checked={!!p.publicado} disabled={!esJefeT} onChange={e => publicar(p, e.target.checked)} style={{ width: 20, height: 20 }} aria-label={"Publicar " + p.nombre} />
                 <span style={{ minWidth: 0 }}><b>{p.nombre}</b> <span style={{ fontSize: 12, color: temaPal.textMuted }}>{p.marca || ""}</span>
-                  <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{fmt(p.precio)} · stock {nombreLocal(1)} {p.stock_rg}{!UN_SOLO_LOCAL ? " · " + nombreLocal(2) + " " + p.stock_ush : ""} · {p.foto ? "📷 con foto" : <span style={{ color: temaPal.warn }}>sin foto</span>}{p.descripcion ? " · con descripción" : ""}{p.video_subido || p.video_url ? " · 🎬 con video" : ""}{p.destacado ? " · ⭐ destacado" : ""}</div></span>
+                  <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{fmt(p.precio)} · stock {nombreLocal(1)} {p.stock_rg}{!UN_SOLO_LOCAL ? " · " + nombreLocal(2) + " " + p.stock_ush : ""} · {p.foto ? "📷 con foto" : <span style={{ color: temaPal.warn }}>sin foto</span>}{p.descripcion ? " · con descripción" : ""}{p.video_subido || p.video_url ? " · 🎬 con video" : ""}{p.destacado ? " · ⭐ destacado" : ""}</div>
+                  {(() => { const e = segDe(p); const n = TW_FILTROS.flatMap(f => twElegidas(e, f.k).map(v => twNombreEtiqueta(f.k, v))); return <div style={{ fontSize: 11.5, color: n.length ? temaPal.text : temaPal.textMuted }}>🏷 {n.length ? n.join(" · ") : "sin segmentar"}{p.etiquetas ? <span style={{ color: temaPal.textMuted }}> (elegido por vos)</span> : ""}</div>; })()}</span>
               </label>
               {p.publicado && esJefeT && <>
                 <button className={"chip-btn" + (p.destacado ? " on" : "")} onClick={() => destacar(p, !p.destacado)} title="Los destacados van al banner grande de la tienda">⭐ Destacado</button>
                 <button className="btn btn-g btn-sm" onClick={() => setVideo({ id: p.id, nombre: p.nombre, link: p.video_url || "", subido: !!p.video_subido })}>🎬 Video</button>
                 <button className="btn btn-g btn-sm" onClick={() => setDesc({ id: p.id, nombre: p.nombre, texto: p.descripcion || "" })}>✏️ Descripción</button>
+                <button className="btn btn-g btn-sm" onClick={() => setSegmentar([p])} title="Tipo de producto, tipo de piel y necesidad">🏷 Segmentar</button>
               </>}
               {esJefeT && <button className="btn btn-g btn-sm" onClick={() => setGaleria(p)} title="Portada y más fotos">🖼 Fotos ({(p.foto ? 1 : 0) + (p.fotos_extra || 0)})</button>}
             </div>
@@ -24707,6 +24810,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               <div style={{ fontSize: 11.5, color: temaPal.textMuted, marginTop: 4 }}>O escribí en el buscador de arriba para ir directo a uno.</div>
             </div>
           )}
+          {segmentar && <SegmentarTienda lista={segmentar} temaPal={temaPal} avisar={avisar} onCerrar={() => setSegmentar(null)} onListo={() => { setSegmentar(null); cargarProductos(); }} />}
           {importando && <ImportarDescripciones productos={productos} temaPal={temaPal} avisar={avisar} onCerrar={() => setImportando(false)} onListo={() => { setImportando(false); cargarProductos(); }} />}
           {galeria && <GaleriaFotos producto={galeria} temaPal={temaPal} avisar={avisar} onCerrar={() => { setGaleria(null); cargarProductos(); }} />}
           {buscaFoto && (() => { const p = buscaFoto.cola[buscaFoto.i]; const varios = buscaFoto.cola.length > 1; return (
