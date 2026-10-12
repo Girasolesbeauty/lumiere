@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
+const cuponesLib = require('../lib/cupones');
 const { NIVELES, VENTA_VALIDA, obtenerUmbrales, gastoDeCliente } = require('../lib/niveles');
 
 // El DNI se compara solo por sus numeros: "30.111.222", "30111222" y "30 111 222" son el mismo.
@@ -194,6 +195,7 @@ function descuentoDePremio(p) {
 }
 class ErrorCanje extends Error { constructor(codigo, msg) { super(msg); this.codigo = codigo; } }
 async function canjearPremio(clienteId, premio_id) {
+  const tablasCupon = await cuponesLib.asegurar();
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -259,6 +261,11 @@ async function canjearPremio(clienteId, premio_id) {
     if (pct) {
       await client.query(`INSERT INTO cupones (codigo, descripcion, tipo, valor, canal, max_usos, fecha_vencimiento, activo)
         VALUES ($1, $2, '%', $3, 'Premio de puntos', 1, CURRENT_DATE + 90, TRUE)`, [codigo, 'Premio canjeado: ' + premio.nombre, pct]);
+      // Es solo de esta clienta (su ficha, su DNI y su WhatsApp)
+      if (tablasCupon) {
+        const d = await cuponesLib.duenoPara(client, { cliente_id: clienteId });
+        await client.query('UPDATE cupones SET cliente_id = $1, dueno_dni = $2, dueno_tel = $3 WHERE codigo = $4', [d.cliente_id, d.dueno_dni, d.dueno_tel, codigo]);
+      }
     }
 
     await client.query('COMMIT');

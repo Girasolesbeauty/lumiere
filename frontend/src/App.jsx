@@ -3664,8 +3664,11 @@ function POS({ localId, usuario, paletaActual }) {
     const codigo = codigoParam !== undefined ? codigoParam : cupon;
     if (!codigo) return;
     try {
-      const res = await API.get("/cupones");
-      const c = res.data.find(x => (x.codigo || x.code) === codigo.toUpperCase() && (x.activo || x.active));
+      // Se valida en el servidor con la clienta elegida (cupones personales y "uno por clienta")
+      let c = null, motivo = "";
+      try { c = (await API.get("/cupones/" + encodeURIComponent(codigo.toUpperCase()) + "/validar?monto=0" + (clienteSeleccionado?.id ? "&cliente_id=" + clienteSeleccionado.id : ""))).data.cupon; }
+      catch (er) { motivo = er.response?.data?.error || ""; }
+      if (motivo && !/no encontrado/i.test(motivo)) { setCuponAplicado(null); setMensaje("⚠️ " + motivo); setTimeout(() => setMensaje(""), 5000); return; }
       if (c) {
         setCuponAplicado({
           tipo: c.tipo || c.type, valor: parseFloat(c.valor || c.value),
@@ -3688,8 +3691,9 @@ function POS({ localId, usuario, paletaActual }) {
     const val = codigoPromo.trim();
     if (!val) return;
     if (val.toUpperCase().startsWith("GIFT")) {
+      // Puede ser una gift card o un cupon que empieza con GIFT (ej: GIFT5): si no es gift card, se prueba como cupon
       setCodigoGC(val);
-      buscarGiftCard(val);
+      API.get("/gift-cards/codigo/" + val.toUpperCase()).then(() => buscarGiftCard(val)).catch(() => { setCodigoGC(""); setCupon(val); aplicarCupon(val); });
     } else {
       setCupon(val);
       aplicarCupon(val);
@@ -10216,13 +10220,22 @@ function Cupones({ localId, usuario, paletaActual }) {
 
   const guardarCupon = async () => {
     try {
-      await createCupon({ codigo: nc.code, descripcion: nc.desc, tipo: nc.type, valor: nc.value, canal: nc.channel, max_usos: nc.max || null });
+      await createCupon({ codigo: nc.code, descripcion: nc.desc, tipo: nc.type, valor: nc.value, canal: nc.channel, max_usos: nc.max || null, uno_por_clienta: !!nc.uno });
       setMensaje("Cupon creado!");
-      setNc({ code: "", desc: "", type: "%", value: "", channel: "Instagram", max: "" });
+      setNc({ code: "", desc: "", type: "%", value: "", channel: "Instagram", max: "", uno: false });
       getCupones().then(res => setCupons(res.data));
       setTab("lista");
       setTimeout(() => setMensaje(""), 3000);
     } catch (e) { setMensaje("Error: " + (e.response?.data?.error || "no se pudo crear el cupón")); }
+  };
+
+  // "Uno por clienta": cada clienta lo puede usar una vez (en la caja hay que elegir a la clienta; online, con su cuenta o su WhatsApp)
+  const toggleUnoPorClienta = async (c) => {
+    try {
+      await updateCupon(c.id, { ...c, uno_por_clienta: !c.uno_por_clienta });
+      setCupons(p => p.map(x => x.id === c.id ? { ...x, uno_por_clienta: !x.uno_por_clienta } : x));
+      setMensaje(!c.uno_por_clienta ? "✓ " + c.codigo + ": ahora cada clienta lo puede usar una sola vez" : c.codigo + ": se puede usar sin límite por clienta"); setTimeout(() => setMensaje(""), 3500);
+    } catch (e) { setMensaje("Error: " + (e.response?.data?.error || "no se pudo cambiar")); }
   };
 
   const toggleCupon = async (c) => {
@@ -10299,19 +10312,20 @@ function Cupones({ localId, usuario, paletaActual }) {
       {tab === "lista" && (
         <div className="card fade">
           <table>
-            <thead><tr><th>Codigo</th><th>Descripcion</th><th>Descuento</th><th>Canal</th><th>Usos</th><th>Vence</th><th>Activo</th></tr></thead>
+            <thead><tr><th>Codigo</th><th>Descripcion</th><th>Descuento</th><th>Canal</th><th>Usos</th><th>Vence</th><th title="Cada clienta lo puede usar una sola vez">1 por clienta</th><th>Activo</th></tr></thead>
             <tbody>
               {cuponsAMostrar.length === 0 && (
-                <tr><td colSpan={7} style={{ textAlign: "center", color: temaPal.textMuted, padding: 20 }}>Todavía no hay cupones. Creá el primero en la pestaña Crear.</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: "center", color: temaPal.textMuted, padding: 20 }}>Todavía no hay cupones. Creá el primero en la pestaña Crear.</td></tr>
               )}
               {cuponsAMostrar.map(c => (
                 <tr key={c.id}>
                   <td style={{ color: "var(--acento-texto)", letterSpacing: ".06em", fontWeight: 600 }}>{c.codigo || c.code}</td>
-                  <td>{c.descripcion || c.desc}</td>
+                  <td>{c.descripcion || c.desc}{c.personal && <div><span className="badge" style={{ background: "#8e44ad22", color: "#8e44ad", fontWeight: 700 }} title="Lo ganó una clienta: solo lo puede usar ella">🔒 Personal{c.duena_nombre ? ": " + c.duena_nombre : ""}</span></div>}</td>
                   <td>{(c.tipo || c.type) === "%" ? (c.valor || c.value) + "%" : fmt((c.valor || c.value || 0))}</td>
                   <td><span className="badge bb">{c.canal || c.channel}</span></td>
                   <td>{c.usos || c.uses || 0}{(c.max_usos || c.max) ? "/" + (c.max_usos || c.max) : ""}</td>
                   <td style={{ fontSize: 10, color: temaPal.textMuted }}>{c.fecha_vencimiento || c.expires || "Sin venc."}</td>
+                  <td>{c.personal ? <span style={{ fontSize: 11, color: temaPal.textMuted }}>—</span> : <><Sw on={!!c.uno_por_clienta} toggle={() => toggleUnoPorClienta(c)} />{c.uno_por_clienta && c.clientas_usaron > 0 && <div style={{ fontSize: 10, color: temaPal.textMuted }}>{c.clientas_usaron} ya lo usaron</div>}</>}</td>
                   <td><Sw on={c.activo !== undefined ? c.activo : c.active} toggle={() => toggleCupon(c)} /></td>
                 </tr>
               ))}
@@ -10329,6 +10343,7 @@ function Cupones({ localId, usuario, paletaActual }) {
             <div className="fg"><div className="fl">Valor</div><input className="inp" type="number" placeholder={nc.type === "%" ? "15" : "5000"} value={nc.value} onChange={e => setNc(p => ({ ...p, value: e.target.value }))} /></div>
             <div className="fg"><div className="fl">Canal</div><select className="sel" value={nc.channel} onChange={e => setNc(p => ({ ...p, channel: e.target.value }))}><option>Instagram</option><option>TikTok</option><option>Email</option><option>Influencer</option><option>Automatico</option></select></div>
             <div className="fg"><div className="fl">Max. usos (vacio = ilimitado)</div><input className="inp" type="number" placeholder="100" value={nc.max} onChange={e => setNc(p => ({ ...p, max: e.target.value }))} /></div>
+            <label style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer", fontSize: 13, margin: "4px 0 12px" }}><input type="checkbox" checked={!!nc.uno} onChange={e => setNc(p => ({ ...p, uno: e.target.checked }))} style={{ marginTop: 3 }} /><span><b>Una sola vez por clienta</b><div style={{ fontSize: 11, color: temaPal.textMuted }}>En la caja hay que elegir a la clienta (por DNI). En la tienda online se controla con su cuenta o su WhatsApp.</div></span></label>
             <button className="btn btn-p" style={{ width: "100%" }} onClick={guardarCupon}>Crear cupon</button>
           </div>
           <div className="card">
@@ -24362,7 +24377,7 @@ function TiendaPublica({ slug }) {
     const c = String(cod || cuponIn).trim();
     if (!c) return;
     setAvisoCupon("");
-    try { const r = await pedir("/cupon/" + encodeURIComponent(c) + "?monto=" + subtotal); setCuponOk(r); setCuponIn(r.codigo); twSonar.brillo(); twVibrar([8, 30, 8]); }
+    try { const r = await pedir("/cupon/" + encodeURIComponent(c) + "?monto=" + subtotal + (datos.telefono ? "&tel=" + encodeURIComponent(datos.telefono) : "")); setCuponOk(r); setCuponIn(r.codigo); twSonar.brillo(); twVibrar([8, 30, 8]); }
     catch (e) { setCuponOk(null); setAvisoCupon(e.message); }
   };
   const confirmar = async () => {

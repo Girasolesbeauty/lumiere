@@ -5,6 +5,7 @@ const pool = require('../config/database');
 const negocios = require('../lib/negocios');
 const { enNegocio } = require('../lib/contexto');
 const tienda = require('../lib/tienda');
+const cuponesLib = require('../lib/cupones');
 const { ayudaMP } = require('./mercadopago');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -231,9 +232,11 @@ router.get('/:slug/cupon/:codigo', async (req, res) => {
   try {
     const k = 'cupon:' + (req.ip || '');
     if (cuentas.bloqueado(k)) return res.status(429).json({ error: 'Demasiados intentos. Esperá unos minutos.' });
-    const r = await tienda.revisarCupon(pool, req.params.codigo, Math.max(0, parseFloat(req.query.monto) || 0), false);
+    await cuponesLib.asegurar();
+    const r = await tienda.revisarCupon(pool, req.params.codigo, Math.max(0, parseFloat(req.query.monto) || 0), false, { cliente_id: clienteDeToken(req), telefono: req.query.tel });
     if (!r || r.error) { cuentas.sumarIntento(k); return res.status(400).json({ error: (r && r.error) || 'Código inválido' }); }
-    res.json(r);
+    const { _cupon, ...publico } = r; // los datos de la duena del cupon no salen del servidor
+    res.json(publico);
   } catch (e) { res.status(500).json({ error: 'No se pudo revisar el código' }); }
 });
 
@@ -289,6 +292,7 @@ router.post('/:slug/pedidos', async (req, res) => {
   if (!items.length) return res.status(400).json({ error: 'El carrito está vacío' });
 
   const col = colLocal(localId);
+  if (b.cupon) await cuponesLib.asegurar();
   const client = await pool.connect();
   let pedido;
   try {
@@ -317,14 +321,14 @@ router.post('/:slug/pedidos', async (req, res) => {
     const subtotal = Math.round(lineas.reduce((t, l) => t + l.precio * l.cantidad, 0) * 100) / 100;
     if (entrega === 'envio' && c.envio_gratis_desde && subtotal >= c.envio_gratis_desde) costoEnvio = 0;
     let cupon = null;
+    const clienteId = clienteDeToken(req) || await clienteDe(client, nombre, telefono, email);
     if (b.cupon) {
-      cupon = await tienda.revisarCupon(client, b.cupon, subtotal, true);
+      cupon = await tienda.revisarCupon(client, b.cupon, subtotal, true, { cliente_id: clienteId, telefono });
       if (cupon && cupon.error) { await client.query('ROLLBACK'); return res.status(400).json({ error: cupon.error }); }
       if (cupon) await client.query('UPDATE cupones SET usos = COALESCE(usos, 0) + 1 WHERE codigo = $1', [cupon.codigo]);
     }
     const descuento = cupon ? cupon.descuento : 0;
     const total = Math.round((subtotal - descuento + costoEnvio) * 100) / 100;
-    const clienteId = clienteDeToken(req) || await clienteDe(client, nombre, telefono, email);
     const codigo = crypto.randomBytes(4).toString('hex').toUpperCase();
     const estado = pago === 'retiro' ? 'confirmado' : 'pendiente_pago';
     const horas = pago === 'mp' ? 2 : Math.min(168, Math.max(1, parseInt(c.horas_reserva) || 24));
@@ -338,6 +342,7 @@ router.post('/:slug/pedidos', async (req, res) => {
       await client.query('INSERT INTO tienda_pedido_items (pedido_id, producto_id, variante_id, nombre, variante_valor, cantidad, precio, preventa) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
         [pedido.id, l.producto_id, l.variante_id, l.nombre, l.variante_valor, l.cantidad, l.precio, !!l.preventa]);
     }
+    if (cupon) await cuponesLib.registrarUso(client, cupon._cupon, { cliente_id: clienteId, telefono }, { pedido_id: pedido.id });
     await tienda.moverStock(client, pedido, -1);
     await tienda.reservarPreventa(client, pedido, +1);
     if (clienteId) await client.query('DELETE FROM tienda_carritos WHERE cliente_id = $1', [clienteId]);
@@ -410,6 +415,7 @@ async function estadoRuleta(cfg, p) {
   return { premios: r.premios.map(premioPublico), disponible: true, minimo: r.minimo };
 }
 router.post('/:slug/pedidos/:codigo/ruleta', async (req, res) => {
+  const tablasCupon = await cuponesLib.asegurar();
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -440,6 +446,11 @@ router.post('/:slug/pedidos/:codigo/ruleta', async (req, res) => {
         if (ok.rows.length) cupon = cod;
       }
       if (!cupon) throw new Error('no se pudo crear el cupon');
+      // El cupon es solo de quien hizo la compra (su ficha y, por si acaso, su WhatsApp)
+      if (tablasCupon) {
+        const d = await cuponesLib.duenoPara(client, { cliente_id: p.cliente_id, telefono: p.telefono });
+        await client.query('UPDATE cupones SET cliente_id = $1, dueno_dni = $2, dueno_tel = $3 WHERE codigo = $4', [d.cliente_id, d.dueno_dni, d.dueno_tel, cupon]);
+      }
     }
     await client.query('INSERT INTO tienda_ruleta (pedido_id, premio_id, texto, tipo, valor, cupon) VALUES ($1, $2, $3, $4, $5, $6)', [p.id, premio.id, premio.texto, premio.tipo, premio.valor, cupon]);
     await client.query('COMMIT');
