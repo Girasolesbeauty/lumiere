@@ -635,6 +635,36 @@ router.put('/resenas/puntos', async (req, res) => {
     res.json(r);
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
 });
+// Compras del local (ventas con ficha de clienta y WhatsApp) para pedirles reseña, filtradas por proveedor y periodo.
+// Solo los productos que todavia no reseño. Si no tiene cuenta, la crea con su DNI desde el link (se la reconoce).
+router.get('/resenas/pedir-local', async (req, res) => {
+  try {
+    const dias = [30, 60, 90, 180, 365].includes(parseInt(req.query.dias)) ? parseInt(req.query.dias) : 90;
+    const prov = parseInt(req.query.proveedor) || null;
+    const [clientas, proveedores] = await Promise.all([
+      pool.query(`SELECT c.id AS cliente_id, c.nombre, c.telefono, (c.password_hash IS NOT NULL) AS con_cuenta, MAX(v.creado_en) AS ultima,
+          ARRAY_AGG(DISTINCT p.nombre) AS productos, rp.pedido_en
+        FROM ventas v JOIN venta_items vi ON vi.venta_id = v.id JOIN productos p ON p.id = vi.producto_id JOIN clientes c ON c.id = v.cliente_id
+        LEFT JOIN tienda_resenas_pedidas rp ON rp.cliente_id = c.id
+        WHERE ${VENTA_VALIDA} AND v.creado_en > NOW() - make_interval(days => $1::int) AND ($2::int IS NULL OR p.proveedor_id = $2::int)
+          AND LENGTH(REGEXP_REPLACE(COALESCE(c.telefono, ''), '[^0-9]', '', 'g')) >= 8
+          AND NOT EXISTS (SELECT 1 FROM tienda_resenas r WHERE r.producto_id = vi.producto_id AND r.cliente_id = c.id)
+        GROUP BY c.id, rp.pedido_en
+        ORDER BY (rp.pedido_en IS NULL) DESC, MAX(v.creado_en) DESC LIMIT 300`, [dias, prov]),
+      pool.query(`SELECT pr.id, pr.nombre, COUNT(DISTINCT v.cliente_id)::int AS clientas
+        FROM ventas v JOIN venta_items vi ON vi.venta_id = v.id JOIN productos p ON p.id = vi.producto_id JOIN proveedores pr ON pr.id = p.proveedor_id
+        WHERE ${VENTA_VALIDA} AND v.cliente_id IS NOT NULL AND v.creado_en > NOW() - make_interval(days => $1::int)
+        GROUP BY pr.id ORDER BY pr.nombre`, [dias]).catch(() => ({ rows: [] })),
+    ]);
+    res.json({ clientas: clientas.rows, proveedores: proveedores.rows, dias });
+  } catch (e) { console.error('[tienda] pedir-local:', e.message); res.status(500).json({ error: 'No se pudieron cargar las compras' }); }
+});
+router.post('/resenas/pedida-clienta/:clienteId', async (req, res) => {
+  try {
+    await pool.query(`INSERT INTO tienda_resenas_pedidas (cliente_id) VALUES ($1) ON CONFLICT (cliente_id) DO UPDATE SET pedido_en = NOW()`, [parseInt(req.params.clienteId) || 0]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'No se pudo' }); }
+});
 router.get('/resenas/pendientes', async (req, res) => {
   try { res.json({ n: (await pool.query(`SELECT COUNT(*)::int AS n FROM tienda_resenas WHERE estado = 'pendiente'`)).rows[0].n }); } catch (e) { res.json({ n: 0 }); }
 });
