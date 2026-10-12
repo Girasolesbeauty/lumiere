@@ -23203,6 +23203,22 @@ const CSS_TIENDA = `
 .tw-res-estado.aprobada{background:#e6f4ea;color:#2d7a4f}
 .tw-res-estado.rechazada{background:#eee;color:#777}
 .tw-form-res{max-width:480px;padding:26px}
+.tw-ver-video{position:absolute;left:12px;bottom:12px;z-index:2;display:inline-flex;align-items:center;gap:8px;border:none;border-radius:999px;background:rgba(17,17,17,.82) !important;color:#fff !important;font-family:inherit;font-size:12.5px;font-weight:800;letter-spacing:.04em;padding:9px 15px 9px 9px;cursor:pointer;backdrop-filter:blur(6px);box-shadow:0 4px 14px rgba(0,0,0,.25);animation:twLatido 2.4s ease-in-out infinite}
+.tw-ver-video span{width:26px;height:26px;border-radius:50%;background:#fff;color:#111;display:inline-flex;align-items:center;justify-content:center;font-size:11px;padding-left:2px}
+@keyframes twLatido{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+.tw-vg{position:fixed;inset:0;z-index:66;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:16px;animation:twFade .2s ease both}
+@keyframes twFade{from{opacity:0}to{opacity:1}}
+.tw-vg-in{position:relative;width:min(420px,100%);display:flex;flex-direction:column;gap:10px}
+.tw-vg-in.horiz{width:min(900px,100%)}
+.tw-vg-media{position:relative;width:100%;aspect-ratio:9/16;max-height:calc(100vh - 120px);margin:0 auto;border-radius:14px;overflow:hidden;background:#000}
+.tw-vg-in.horiz .tw-vg-media{aspect-ratio:16/9}
+.tw-vg-media iframe,.tw-vg-media video{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:contain;background:#000}
+.tw-vg-x{position:absolute;top:-6px;right:-6px;z-index:3;width:40px;height:40px;border-radius:50%;border:none;background:#fff;color:#111;font-size:17px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+.tw-vg-pie{display:flex;justify-content:space-between;align-items:center;gap:10px;color:#fff;font-size:14px}
+.tw-vg-nav{display:flex;gap:6px}
+.tw-vg-nav button{width:30px;height:30px;border-radius:50%;border:1.5px solid rgba(255,255,255,.5);background:transparent;color:#fff;font-family:inherit;font-weight:800;cursor:pointer}
+.tw-vg-nav button.on{background:#fff;color:#111}
+@media (prefers-reduced-motion: reduce){.tw-ver-video{animation:none}}
 .tw-res-pts{background:linear-gradient(90deg,#fff6db,#fffbef);border:1px solid #f1d58a;border-radius:10px;padding:9px 12px;font-size:13px;color:#6b5200;margin-bottom:12px}
 .tw-elegir-est{display:flex;align-items:center;gap:4px}
 .tw-elegir-est button{font-size:36px;line-height:1;background:none;border:none;color:#ddd;cursor:pointer;padding:0 2px;transition:transform .15s,color .15s}
@@ -23831,6 +23847,38 @@ function TwTarjeta({ p, base, sin, preventa, fav, onFav, onAbrir, onAgregar }) {
 }
 
 // Un video del sector de videos: reel de Instagram, TikTok, YouTube (con su reproductor) o video subido
+// Reproductor de un reel por link (Instagram, TikTok, YouTube); los subidos van con <video>
+const twMarcoReel = (r, auto) => ({ instagram: "https://www.instagram.com/reel/" + r.codigo + "/embed", tiktok: "https://www.tiktok.com/player/v1/" + r.codigo + "?music_info=0&description=0&rel=0" + (auto ? "&autoplay=1" : ""), youtube: "https://www.youtube-nocookie.com/embed/" + r.codigo + "?playsinline=1&rel=0&modestbranding=1" + (auto ? "&autoplay=1" : "") })[r.tipo];
+
+// Ventana de video del producto: grande, sobre un fondo oscuro, sin tapar la ficha. Si hay varios (el del
+// producto y los reels donde aparece), se pasa de uno a otro.
+function TwVideoGrande({ lista, i, setI, base, nombre, onCerrar }) {
+  const v = lista[i] || lista[0];
+  const vid = useRef(null);
+  // Si el navegador no deja arrancar con sonido (ej: llegó por el QR), arranca sin sonido
+  useEffect(() => { const el = vid.current; if (el) el.play().catch(() => { el.muted = true; el.play().catch(() => {}); }); }, [i]);
+  useEffect(() => { const k = (e) => { if (e.key === "Escape") onCerrar(); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, []);
+  if (!v) return null;
+  const vertical = v.reel ? v.reel.tipo !== "youtube" : !v.iframe || /tiktok|instagram/.test(v.iframe);
+  return (
+    <div className="tw-vg" role="dialog" aria-modal="true" aria-label={"Video de " + nombre} onClick={onCerrar}>
+      <div className={"tw-vg-in" + (vertical ? "" : " horiz")} onClick={e => e.stopPropagation()}>
+        <button className="tw-vg-x" onClick={onCerrar} aria-label="Cerrar video">✕</button>
+        <div className="tw-vg-media">
+          {v.reel ? (twMarcoReel(v.reel, true) ? <iframe key={"r" + v.reel.id} src={twMarcoReel(v.reel, true)} title={v.reel.titulo || "Video"} allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen />
+            : <video ref={vid} key={"r" + v.reel.id} src={base + "/reel/" + v.reel.id} controls playsInline />)
+            : v.iframe ? <iframe key="p" src={v.iframe} title={"Video de " + nombre} allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen />
+            : <video ref={vid} key="p" src={v.src} controls playsInline />}
+        </div>
+        <div className="tw-vg-pie">
+          <b>{v.reel && v.reel.titulo ? v.reel.titulo : nombre}</b>
+          {lista.length > 1 && <div className="tw-vg-nav">{lista.map((_, k) => <button key={k} className={k === i ? "on" : ""} onClick={() => setI(k)} aria-label={"Video " + (k + 1)}>{k + 1}</button>)}</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TwReel({ r, base, prods, onAbrir, onAgregar }) {
   const ref = useRef(null);
   const [sonido, setSonido] = useState(false);
@@ -23841,7 +23889,7 @@ function TwReel({ r, base, prods, onAbrir, onAgregar }) {
     io.observe(v);
     return () => io.disconnect();
   }, []);
-  const marco = { instagram: "https://www.instagram.com/reel/" + r.codigo + "/embed", tiktok: "https://www.tiktok.com/player/v1/" + r.codigo + "?music_info=0&description=0&rel=0", youtube: "https://www.youtube-nocookie.com/embed/" + r.codigo + "?playsinline=1&rel=0&modestbranding=1" }[r.tipo];
+  const marco = twMarcoReel(r);
   return (
     <div className="tw-reel">
       <div className={"tw-reel-media" + (r.tipo === "instagram" ? " ig" : "")}>
@@ -24203,6 +24251,7 @@ function TiendaPublica({ slug }) {
   const [varSel, setVarSel] = useState(null);
   const [cant, setCant] = useState(1);
   const [media, setMedia] = useState(0); // numero de foto, o "video"
+  const [videoI, setVideoI] = useState(null); // video abierto en grande (numero en la lista), o null
   const toqueMedia = useRef(null);
   const [paso, setPaso] = useState(null); // null | "carrito" | "datos"
   useEffect(() => { if (paso !== "cuenta") { setVolverA(null); setMotivoCuenta(""); } }, [paso]);
@@ -24285,7 +24334,7 @@ function TiendaPublica({ slug }) {
   // La direccion sigue al producto abierto: se puede copiar o compartir, y "atras" cierra la ficha
   const abrirFicha = (p) => {
     setVistos(v => { const n = [p.id, ...v.filter(x => x !== p.id)].slice(0, 20); try { localStorage.setItem("tienda_vistos_" + slug, JSON.stringify(n)); } catch (e) {} return n; });
-    setVer(p); setVarSel(null); setCant(1); setMedia(p.foto || (p.fotos && p.fotos.length) || !p.video ? 0 : "video"); };
+    setVer(p); setVarSel(null); setCant(1); setVideoI(null); setMedia(p.foto || (p.fotos && p.fotos.length) || !p.video ? 0 : "video"); };
   const slugsRef = useRef(new Map());
   const abrioDesdeUrl = useRef(false);
   const modoRuta = !params.get("tienda"); // dominio propio: /nombre-del-producto; si no, ?tienda=...&producto=...
@@ -24300,6 +24349,13 @@ function TiendaPublica({ slug }) {
     slugsRef.current = twSlugs(productos);
     if (!abrioDesdeUrl.current) {
       abrioDesdeUrl.current = true;
+      // QR de la etiqueta del local (?pid=123&qr=1): abre ese producto y, si tiene, su video
+      const pid = parseInt(params.get("pid"));
+      if (pid) {
+        try { const q = new URLSearchParams(window.location.search); q.delete("pid"); q.delete("qr"); const r = q.toString(); window.history.replaceState(null, "", window.location.pathname + (r ? "?" + r : "")); } catch (e) {}
+        const pq = productos.find(x => x.id === pid);
+        if (pq) { abrirFicha(pq); if (params.get("qr")) setTimeout(() => setVideoI(0), 350); return; }
+      }
       const p = twBuscarPorSlug(productos, slugsRef.current, twProductoDeUrl());
       if (p) { abrirFicha(p); return; }
       if (twProductoDeUrl()) try { window.history.replaceState(null, "", urlDe(null)); } catch (e) {}
@@ -24659,7 +24715,9 @@ function TiendaPublica({ slug }) {
   const vidVer = ver && ver.video ? (ver.video.tipo === "youtube" ? { iframe: "https://www.youtube-nocookie.com/embed/" + ver.video.id + "?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1" }
     : ver.video.tipo === "vimeo" ? { iframe: "https://player.vimeo.com/video/" + ver.video.id + "?autoplay=1&muted=1" } : { src: videoArchivo(base, ver) }) : null;
   const galeria = ver ? [...(ver.foto ? [foto(ver)] : []), ...(ver.fotos || []).map(id => base + "/foto-extra/" + id)] : [];
-  const piezas = [...galeria.map((_, i) => i), ...(vidVer ? ["video"] : [])];
+  // El video ya no va entre las fotos: se abre aparte con "Ver video" (salvo que no haya ninguna foto)
+  const piezas = [...galeria.map((_, i) => i), ...(vidVer && !galeria.length ? ["video"] : [])];
+  const videosVer = ver ? [...(vidVer ? [vidVer] : []), ...(tienda.reels || []).filter(r => (r.productos || []).includes(ver.id)).map(r => ({ reel: r }))] : [];
   const moverMedia = (d) => { const i = piezas.indexOf(media); if (i >= 0 && piezas.length > 1) setMedia(piezas[(i + d + piezas.length) % piezas.length]); };
   const deRecs = (ids, excluir) => ((recs[ids.slice().sort((x, y) => x - y).join(",")] || []).map(r => conStock.find(p => p.id === r.id)).filter(p => p && !excluir.includes(p.id)));
   const recVer = ver ? deRecs([ver.id], [ver.id]) : [];
@@ -25051,11 +25109,12 @@ function TiendaPublica({ slug }) {
                       <button className="tw-flecha" style={{ right: 10, opacity: 1 }} onClick={() => moverMedia(1)} aria-label="Foto siguiente"><TwIcono d={TW_DER} /></button>
                       <div className="tw-contador">{media + 1} / {galeria.length}</div>
                     </>}
+                    {videosVer.length > 0 && media !== "video" && <button className="tw-ver-video" onClick={() => setVideoI(0)}><span>▶</span> {videosVer.length > 1 ? "Ver videos (" + videosVer.length + ")" : "Ver video"}</button>}
                   </div>
                   {piezas.length > 1 && (
                     <div className="tw-miniaturas">
                       {galeria.map((g, i) => <button key={i} className={media === i ? "on" : ""} onClick={() => setMedia(i)} aria-label={"Ver foto " + (i + 1)}><img src={g} alt="" /></button>)}
-                      {vidVer && <button className={media === "video" ? "on" : ""} onClick={() => setMedia("video")} aria-label="Ver video" style={{ background: "#111", color: "#fff" }}>▶</button>}
+                      {videosVer.length > 0 && galeria.length > 0 && <button onClick={() => setVideoI(0)} aria-label="Ver video" style={{ background: "#111", color: "#fff" }}>▶</button>}
                     </div>
                   )}
                 </div>
@@ -25118,6 +25177,7 @@ function TiendaPublica({ slug }) {
         </>
       )}
 
+      {ver && videoI !== null && videosVer.length > 0 && <TwVideoGrande lista={videosVer} i={videoI} setI={setVideoI} base={base} nombre={ver.nombre} onCerrar={() => setVideoI(null)} />}
       {paso && (
         <>
           <div className="tw-velo" onClick={() => setPaso(null)} />
@@ -26173,6 +26233,31 @@ function ResenasTienda({ temaPal, avisar, urlTienda, nombreTienda, esJefe, alCam
   );
 }
 
+// Etiquetas de precio con QR para el local: se arma una hoja para imprimir (6 × 3,5 cm cada una).
+// El QR lleva al producto en la tienda (por su numero, asi no se rompe si cambia el nombre) y abre su video.
+async function imprimirEtiquetasQR(lista, urlDe, nombreTienda) {
+  const w = window.open("", "_blank"); // se abre ya (si se abre despues de esperar, el navegador la bloquea)
+  if (!w) { alert("El navegador bloqueó la ventana. Permití las ventanas emergentes para imprimir."); return; }
+  w.document.write("<p style='font-family:sans-serif;padding:20px'>Armando las etiquetas…</p>");
+  try {
+    const r = await API.post("/tienda/qr-lote", { urls: lista.map(urlDe) });
+    const esc = (t) => String(t || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+    const tarjetas = lista.map((p, i) => `<div class="et"><img src="${r.data.qrs[i]}" alt=""><div class="tx">${p.marca ? `<div class="m">${esc(p.marca)}</div>` : ""}<div class="n">${esc(p.nombre)}</div><div class="p">${esc(fmt(p.precio))}</div><div class="c">📱 ${p.video_url || p.video_subido ? "Escaneá y mirá el video" : "Escaneá para ver más"}</div></div></div>`).join("");
+    w.document.open();
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Etiquetas con QR</title><style>
+      @page{size:A4;margin:8mm} *{box-sizing:border-box} body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;color:#111}
+      .bar{padding:10px 12px;background:#f4f4f4;display:flex;gap:10px;align-items:center;font-size:13px} .bar button{font-size:14px;padding:8px 16px;border-radius:8px;border:none;background:#111;color:#fff;cursor:pointer}
+      .hoja{display:flex;flex-wrap:wrap;gap:2mm;padding:2mm}
+      .et{width:60mm;height:35mm;border:0.3mm dashed #bbb;border-radius:2mm;padding:2mm;display:flex;gap:2mm;align-items:center;page-break-inside:avoid;break-inside:avoid}
+      .et img{width:28mm;height:28mm;flex-shrink:0} .tx{min-width:0;display:flex;flex-direction:column;gap:0.6mm}
+      .m{font-size:6.5pt;letter-spacing:.08em;text-transform:uppercase;color:#666} .n{font-size:8pt;font-weight:700;line-height:1.15;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+      .p{font-size:13pt;font-weight:900} .c{font-size:6.5pt;color:#333}
+      @media print{.bar{display:none}}
+    </style></head><body><div class="bar"><b>${lista.length} etiqueta${lista.length !== 1 ? "s" : ""}</b> · ${esc(nombreTienda || "")} · Recortalas por la línea punteada. <button onclick="window.print()">🖨 Imprimir</button></div><div class="hoja">${tarjetas}</div></body></html>`);
+    w.document.close();
+  } catch (e) { w.document.body.innerHTML = "<p style='font-family:sans-serif;padding:20px'>No se pudieron armar las etiquetas. Probá de nuevo.</p>"; }
+}
+
 function TiendaOnline({ localId, usuario, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState(() => tabInicialDe("tienda-online") || "pedidos");
@@ -26197,6 +26282,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const [limiteProd, setLimiteProd] = useState(150);
   const [filtros, setFiltros] = useState({ marca: "", proveedor: "", categoria: "", foto: "", seg: "" });
   const [segmentar, setSegmentar] = useState(null); // productos a segmentar (uno o varios)
+  const [qrProd, setQrProd] = useState(null); // { p, qr } QR de un producto (para la etiqueta del local)
   useEffect(() => { setLimiteProd(150); }, [busca, soloPub, filtros]);
   const [qr, setQr] = useState(null);
   const [aviso, setAviso] = useState(null);
@@ -26303,6 +26389,9 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const hayFiltros = filtros.marca || filtros.proveedor || filtros.categoria || filtros.foto || filtros.seg || busca || soloPub;
   const prodVis = prodFiltro.slice(0, limiteProd);
   const set = (k, v) => { setCfg(c => ({ ...c, [k]: v })); setCfgCambios(true); };
+  // Link del producto para el QR: por su numero (no cambia aunque le cambien el nombre) y con qr=1 (abre el video)
+  const urlQR = (p) => (cfg.dominio && cfg.dominioGuardado ? "https://" + cfg.dominio + "/?" : window.location.origin + "/?tienda=" + encodeURIComponent(cfg.slug || "") + "&") + "pid=" + p.id + "&qr=1";
+  const abrirQR = (p) => { setQrProd({ p, qr: null }); API.get("/tienda/qr?url=" + encodeURIComponent(urlQR(p))).then(r => setQrProd(x => x && x.p.id === p.id ? { ...x, qr: r.data.qr } : x)).catch(() => avisar(false, "No se pudo armar el QR")); };
   const qP = normTxt(buscaPed);
   const pasaPed = (p) => !qP || qP.split(" ").every(w => normTxt([p.nombre, p.codigo, p.telefono, ...(p.items || []).map(i => i.nombre)].join(" ")).includes(w));
   const visiblesB = visibles.filter(pasaPed);
@@ -26321,6 +26410,23 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         {cfg.activo && url && <div className="dash-actions"><a className="btn btn-g" href={url} target="_blank" rel="noopener" style={{ textDecoration: "none" }}>👁 Ver mi tienda</a></div>}
       </div>
       {aviso && <div className="pop-in" role={aviso.ok ? "status" : "alert"} style={{ background: aviso.ok ? temaPal.greenDim : temaPal.redDim, border: "1px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, marginBottom: 12 }}>{aviso.texto}</div>}
+      {qrProd && (
+        <div className="pos-overlay" style={{ zIndex: 300 }} onClick={() => setQrProd(null)}>
+          <div className="card pop-in" style={{ width: 360, maxWidth: "94vw", textAlign: "center" }} onClick={e => e.stopPropagation()}>
+            <div className="ct" style={{ justifyContent: "center" }}>🔳 QR del producto</div>
+            <div style={{ fontWeight: 800 }}>{qrProd.p.nombre}</div>
+            <div style={{ fontSize: 13, color: temaPal.textMuted, marginBottom: 10 }}>{fmt(qrProd.p.precio)}{qrProd.p.video_url || qrProd.p.video_subido ? " · al escanear arranca su video" : " · sin video (podés sumarle uno en 🎬 Video)"}</div>
+            {qrProd.qr ? <img src={qrProd.qr} alt="QR" style={{ width: 220, height: 220, background: "#fff", padding: 6, borderRadius: 10 }} /> : <div className="skel" style={{ width: 220, height: 220, margin: "0 auto" }} />}
+            <div style={{ fontSize: 11.5, color: temaPal.textMuted, margin: "8px 0 12px" }}>Lleva al producto en la tienda aunque le cambies el nombre o el precio.</div>
+            <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" }}>
+              <button className="btn btn-p btn-sm" onClick={() => imprimirEtiquetasQR([qrProd.p], urlQR, cfg.titulo)}>🖨 Imprimir etiqueta</button>
+              {qrProd.qr && <a className="btn btn-g btn-sm" style={{ textDecoration: "none" }} href={qrProd.qr} download={"qr-" + twSlug(qrProd.p.nombre) + ".png"}>⬇ Descargar</a>}
+              <a className="btn btn-g btn-sm" style={{ textDecoration: "none" }} href={urlQR(qrProd.p)} target="_blank" rel="noopener">👁 Probar</a>
+              <button className="btn btn-g btn-sm" onClick={() => setQrProd(null)}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
       {!cfg.activo && <div className="cli-tip" style={{ marginBottom: 12 }}>Para empezar: 1) elegí qué productos publicar en <b>Productos</b>, 2) completá <b>Configuración</b> (entrega y pagos) y tildá "Tienda publicada".</div>}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8, marginBottom: 12 }}>
         {[
@@ -26448,6 +26554,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
               <button className="btn btn-p btn-sm" disabled={prodFiltro.every(p => p.publicado)} onClick={() => publicarVarios(prodFiltro.filter(p => !p.publicado), true)}>☑ Publicar {hayFiltros ? "los que se ven" : "todos"} ({prodFiltro.filter(p => !p.publicado).length})</button>
               <button className="btn btn-g btn-sm" disabled={!prodFiltro.some(p => p.publicado)} onClick={() => publicarVarios(prodFiltro.filter(p => p.publicado), false)}>☐ Sacar {hayFiltros ? "los que se ven" : "todos"} ({prodFiltro.filter(p => p.publicado).length})</button>
+              {prodFiltro.some(p => p.publicado) && <button className="btn btn-g btn-sm" onClick={() => { const l = prodFiltro.filter(p => p.publicado); if (l.length > 150 && !confirm("Son " + l.length + " productos: se imprimen los primeros 150. Filtrá por marca o categoría para elegir. ¿Seguir?")) return; imprimirEtiquetasQR(l.slice(0, 150), urlQR, cfg.titulo); }} title="Hoja con etiquetas de precio y QR de los productos publicados que se ven">🖨 Etiquetas con QR ({Math.min(150, prodFiltro.filter(p => p.publicado).length)})</button>}
               <button className="btn btn-g btn-sm" onClick={() => setSegmentar(prodFiltro)} title="Sumar o sacar un tipo de producto, tipo de piel o necesidad a todos los que se ven">🏷 Segmentar {hayFiltros ? "los que se ven" : "todos"} ({prodFiltro.length})</button>
               <button className="btn btn-g btn-sm" onClick={() => setImportando(true)} title="Desde el archivo de productos de Tiendanube u otra tienda">📥 Traer descripciones de mi tienda anterior</button>
               {prodFiltro.some(p => !p.foto) && <button className="btn btn-g btn-sm" onClick={() => setBuscaFoto({ cola: prodFiltro.filter(p => !p.foto), i: 0 })}>🔍 Buscar fotos para los que no tienen ({prodFiltro.filter(p => !p.foto).length})</button>}
@@ -26465,7 +26572,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               </label>
               {p.publicado && esJefeT && <>
                 <button className={"chip-btn" + (p.destacado ? " on" : "")} onClick={() => destacar(p, !p.destacado)} title="Los destacados van al banner grande de la tienda">⭐ Destacado</button>
-                <button className="btn btn-g btn-sm" onClick={() => setVideo({ id: p.id, nombre: p.nombre, link: p.video_url || "", subido: !!p.video_subido })}>🎬 Video</button>
+                <button className="btn btn-g btn-sm" onClick={() => setVideo({ id: p.id, nombre: p.nombre, link: p.video_url || "", subido: !!p.video_subido })}>🎬 Video{p.video_url || p.video_subido ? " ✓" : ""}</button>
+                <button className="btn btn-g btn-sm" onClick={() => abrirQR(p)} title="QR para la etiqueta de precio del local">🔳 QR</button>
                 <button className="btn btn-g btn-sm" onClick={() => setDesc({ id: p.id, nombre: p.nombre, texto: p.descripcion || "" })}>✏️ Descripción</button>
                 <button className="btn btn-g btn-sm" onClick={() => setSegmentar([p])} title="Tipo de producto, tipo de piel y necesidad">🏷 Segmentar</button>
               </>}

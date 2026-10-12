@@ -230,6 +230,15 @@ router.get('/qr', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'No se pudo armar el QR' }); }
 });
 
+// QRs de varios productos de una vez (para imprimir las etiquetas de precio del local)
+router.post('/qr-lote', async (req, res) => {
+  try {
+    const urls = (Array.isArray(req.body && req.body.urls) ? req.body.urls : []).slice(0, 150).map(String);
+    if (urls.some(u => !/^https?:\/\/\S+$/.test(u) || u.length > 300)) return res.status(400).json({ error: 'Dirección no válida' });
+    res.json({ qrs: await Promise.all(urls.map(u => QRCode.toDataURL(u, { width: 320, margin: 1, errorCorrectionLevel: 'M' }))) });
+  } catch (e) { res.status(500).json({ error: 'No se pudieron armar los QR' }); }
+});
+
 // Productos para elegir que se publica
 router.get('/productos', async (req, res) => {
   try {
