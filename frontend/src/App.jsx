@@ -22897,7 +22897,7 @@ const CSS_TIENDA = `
 .tw-reels-fila{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding-bottom:6px}
 .tw-reels-fila::-webkit-scrollbar{display:none}
 .tw-reels-fila .tw-reel{flex:0 0 300px;scroll-snap-align:start}
-.tw-reels-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:22px 16px}
+.tw-reels-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:22px 16px}
 .tw-reel{display:flex;flex-direction:column;min-width:0}
 .tw-reel-media{position:relative;aspect-ratio:9/16;background:#000;border-radius:8px;overflow:hidden}
 .tw-reel-media.ig{aspect-ratio:auto;height:600px;background:#fff;border:1px solid var(--b)}
@@ -22938,7 +22938,8 @@ const CSS_TIENDA = `
 .tw-etq.neg{background:var(--n);color:#fff}
 .tw-rapido{position:absolute;left:10px;right:10px;bottom:10px;z-index:1;background:var(--n);color:#fff !important;border:none;border-radius:999px;padding:11px;font-size:12.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;opacity:0;transform:translateY(12px);transition:opacity .25s,transform .25s}
 .tw-card:hover .tw-rapido,.tw-card:focus-within .tw-rapido{opacity:1;transform:none}
-.tw-agotado{position:absolute;inset:0;background:rgba(255,255,255,.55);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;letter-spacing:.14em}
+.tw-agotado{position:absolute;inset:0;background:rgba(255,255,255,.55);display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;font-size:12px;font-weight:800;letter-spacing:.14em}
+.tw-agotado button{font-family:inherit;letter-spacing:0;font-size:11.5px;font-weight:700;background:#141414;color:#fff;border:none;border-radius:999px;padding:7px 12px;cursor:pointer}
 .tw-card-m{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-top:12px}
 .tw-card-n{font-size:14px;line-height:1.35;color:#333;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .tw-card-p{font-size:15px;font-weight:800;margin-top:6px}
@@ -23191,7 +23192,7 @@ const CSS_TIENDA = `
   .tw-fila-in{grid-auto-columns:44%;gap:12px}
   .tw-tiles{grid-auto-columns:84%;gap:12px}
   .tw-reels-fila .tw-reel{flex-basis:78%}
-  .tw-reels-grid{grid-template-columns:1fr}
+  .tw-reels-grid{grid-template-columns:1fr;max-width:380px;margin:0 auto}
   .tw-tile-txt b{font-size:16px}
   .tw-grid{grid-template-columns:repeat(2,1fr);gap:22px 12px}
   .tw-rapido{opacity:1;transform:none;left:auto;right:8px;bottom:8px;width:38px;height:38px;padding:0;font-size:20px;border-radius:50%}
@@ -23709,11 +23710,11 @@ function TwTarjeta({ p, base, sin, preventa, fav, onFav, onAbrir, onAgregar }) {
         {preventa && <><span className="tw-pre-brillo" aria-hidden="true" /><span className="tw-pre-chispas" aria-hidden="true"><i>✦</i><i>✦</i><i>✧</i><i>✦</i></span></>}
         <div className="tw-etqs">
           {preventa && <span className="tw-etq pre">✨ Preventa</span>}
-          {p.top && !preventa && <span className="tw-etq top">🔥 {p.top <= 3 ? "#" + p.top + " más vendido" : "Top ventas"}</span>}
+          {p.top && !preventa && !sin && <span className="tw-etq top">🔥 {p.top <= 3 ? "#" + p.top + " más vendido" : "Top ventas"}</span>}
           {p.nuevo && !preventa && !p.top && <span className="tw-etq">Nuevo</span>}
           {p.video && <span className="tw-etq neg">▶ Video</span>}
         </div>
-        {sin ? <div className="tw-agotado">AGOTADO</div> : (
+        {sin ? <div className="tw-agotado"><span>AGOTADO</span><button onClick={e => { e.stopPropagation(); onAbrir(p); }}>🔔 Avisame cuando vuelva</button></div> : (
           <button className={"tw-rapido" + (hecho ? " hecho" : "")} aria-label={"Agregar " + p.nombre} onClick={e => { e.stopPropagation(); if (p.variantes) return onAbrir(p); onAgregar(p, e.currentTarget); setHecho(true); setTimeout(() => setHecho(false), 1300); }}>
             {hecho ? <><svg className="tw-tilde" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: "-2px" }}><path d="M4 12.5l5 5L20 6.5" /></svg><span> Agregado</span></> : <>+<span>{p.variantes ? " Elegir opción" : preventa ? " Reservar" : " Agregar"}</span></>}
           </button>
@@ -23939,6 +23940,13 @@ function twCoincide(p, q) {
   }
   // "debil" = alguna palabra aparece solo en la descripcion (ej: un serum que dice "aplicar sobre piel limpia")
   return debil ? 0.5 : puntos;
+}
+
+// Busqueda puntual: todas las palabras estan en el nombre o la marca (asi aparece aunque este agotado)
+function twEnNombre(p, q) {
+  const pal = twNorm(q).split(/[^a-z0-9ñ]+/).filter(w => w && !TW_PALABRAS_VACIAS.has(w));
+  const nombre = twNorm([p.nombre, p.marca].join(" "));
+  return pal.length > 0 && pal.every(w => nombre.includes(twRaiz(w)) || nombre.includes(w));
 }
 
 // Link lindo de cada producto (misma regla que slugProducto en lib/tienda.js del servidor):
@@ -24376,9 +24384,10 @@ function TiendaPublica({ slug }) {
     );
   }
 
+  const reels = tienda.reels || [];
   // Lo agotado en la ciudad elegida no se muestra; vuelve solo cuando entra stock (con sus sectores y filas)
   const visibles = lista0.filter(p => !agotado(p));
-  visibles.forEach(p => { if (!p._et) p._et = twEtiquetas(p); });
+  lista0.forEach(p => { if (!p._et) p._et = twEtiquetas(p); }); // tambien los agotados (aparecen al buscarlos)
   const reingreso = tienda.reingreso;
   const reingresados = reingreso ? visibles.map(p => ({ p, t: p.reingreso ? Math.max(0, ...(lid ? [p.reingreso[lid] || 0] : Object.values(p.reingreso))) : 0 }))
     .filter(x => x.t && Date.now() / 1000 - x.t < reingreso.dias * 86400).sort((a, b) => b.t - a.t).map(x => x.p) : [];
@@ -24401,7 +24410,9 @@ function TiendaPublica({ slug }) {
   // Busqueda inteligente: primero lo que coincide en el nombre, despues por tipo, despues por descripcion
   const puntaje = new Map();
   const favLista = favs.map(id => lista0.find(p => p.id === id)).filter(Boolean);
-  const base1 = (cat === "reingreso" ? reingresados : cat === "preventa" ? preventas : cat === "favoritos" ? favLista : visibles).filter(p => (!cat || cat === "*" || cat === "reingreso" || cat === "preventa" || cat === "favoritos" || (sector ? enSector(sector, p) && (!subcat || p.categoria === subcat) : cat.startsWith("m:") ? (p.marca || "") === cat.slice(2) : p.categoria === cat)) && (!q || (puntaje.set(p.id, twCoincide(p, q)), puntaje.get(p.id) > 0)));
+  const base1 = (cat === "reingreso" ? reingresados : cat === "preventa" ? preventas : cat === "favoritos" ? favLista : q && (!cat || cat === "*") ? lista0 : visibles).filter(p => (!cat || cat === "*" || cat === "reingreso" || cat === "preventa" || cat === "favoritos" || (sector ? enSector(sector, p) && (!subcat || p.categoria === subcat) : cat.startsWith("m:") ? (p.marca || "") === cat.slice(2) : p.categoria === cat)) && (!q || (puntaje.set(p.id, twCoincide(p, q)), puntaje.get(p.id) > 0))
+    // Lo agotado no se ve al navegar; si lo buscan por nombre aparece (al final), para poder pedir "Avisame cuando vuelva"
+    && (!q || !agotado(p) || twEnNombre(p, q)));
   // Si hay productos que coinciden por nombre o tipo, no se mezclan los que solo lo mencionan en la descripcion
   const base0 = q && base1.some(p => puntaje.get(p.id) >= 1) ? base1.filter(p => puntaje.get(p.id) >= 1) : base1;
   // Filtros: cada uno cuenta sobre lo que dejan los otros (asi los numeros siempre dan algo)
@@ -24410,7 +24421,8 @@ function TiendaPublica({ slug }) {
   const opcionesFiltro = TW_FILTROS.map(f => ({ ...f, op: f.op.map(o => ({ v: o[0], t: o[1], n: base0.filter(p => pasaOtros(p, f.k) && (p._et[f.k] || []).includes(o[0])).length })).filter(o => o.n > 0 || filtros[f.k] === o.v) })).filter(f => f.op.length > 0);
   const hayFiltros = TW_FILTROS.some(f => filtros[f.k]);
   const filtrada = base0.filter(p => pasaOtros(p, null));
-  const lista = q && !orden ? [...filtrada].sort((a, b) => (puntaje.get(b.id) || 0) - (puntaje.get(a.id) || 0)) : ordenar(filtrada);
+  const lista0b = q && !orden ? [...filtrada].sort((a, b) => (puntaje.get(b.id) || 0) - (puntaje.get(a.id) || 0)) : ordenar(filtrada);
+  const lista = q ? [...lista0b.filter(p => !agotado(p)), ...lista0b.filter(p => agotado(p))] : lista0b;
   // Menu de skincare: la categoria que se llama skincare / cuidado de la piel / facial (si no hay, un boton propio)
   const esSkin = (c) => /skin|piel|facial|cuidado|dermo/i.test(c || "");
   const catSkin = cats.find(esSkin) || null;
@@ -24435,7 +24447,6 @@ function TiendaPublica({ slug }) {
     else if (bn.destino === "reingreso") irCat("reingreso");
   };
   const moverTiles = (d) => { const el = tilesRef.current; if (el) el.scrollBy({ left: d * el.clientWidth, behavior: "smooth" }); };
-  const reels = tienda.reels || [];
   const reel = (r) => <TwReel key={r.id} r={r} base={base} prods={(r.productos || []).map(id => visibles.find(p => p.id === id)).filter(Boolean)} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
   const filasPortada = (tienda.filas || []).map(f => ({ ...f, items: f.productos.map(id => lista0.find(p => p.id === id)).filter(p => p && !agotado(p)) })).filter(f => f.items.length);
   const nSlides = destacados.length;
