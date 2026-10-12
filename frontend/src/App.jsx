@@ -23209,7 +23209,7 @@ const CSS_TIENDA = `
 .tw-elegir-est button.on{color:#f5a623}
 .tw-elegir-est button:active{transform:scale(1.25)}
 .tw-elegir-est span{margin-left:8px;font-size:13.5px;font-weight:700;color:#555}
-.tw-pide-res{position:fixed;left:16px;bottom:16px;z-index:35;display:flex;gap:10px;align-items:center;background:#fff;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.18);padding:12px 12px 12px 14px;max-width:420px;animation:twFicha .45s cubic-bezier(.2,.8,.2,1) both}
+.tw-pide-res{position:fixed;left:16px;bottom:16px;z-index:35;display:flex;gap:8px;align-items:center;background:#fff;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.16);padding:8px 8px 8px 12px;max-width:360px;animation:twFicha .45s cubic-bezier(.2,.8,.2,1) both}
 .tw-pide-x{border:none;background:none;font-size:15px;color:#999;cursor:pointer;padding:4px}
 .tw-foto-grande{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out}
 .tw-foto-grande img{max-width:100%;max-height:100%;border-radius:8px}
@@ -23302,7 +23302,7 @@ const CSS_TIENDA = `
   .tw-ficha-grid{grid-template-columns:1fr;gap:16px;padding:16px}
   .tw-res-marco{padding:0 16px 20px}
   .tw-form-res{padding:22px 18px calc(22px + env(safe-area-inset-bottom))}
-  .tw-pide-res{left:10px;right:10px;bottom:calc(76px + env(safe-area-inset-bottom));max-width:none}
+  .tw-pide-res{left:10px;right:10px;bottom:calc(12px + env(safe-area-inset-bottom));max-width:none}
   .tw-ficha h1{font-size:21px}
   .tw-ficha-btn{position:sticky;bottom:0;background:#fff;margin:16px -16px 0 !important;padding:12px 16px calc(12px + env(safe-area-inset-bottom));box-shadow:0 -4px 18px rgba(0,0,0,.08);z-index:2}
   .tw-barra{display:block;position:fixed;left:0;right:0;bottom:0;padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:#fff;box-shadow:0 -4px 18px rgba(0,0,0,.1);z-index:12;animation:twSubeBarra .4s cubic-bezier(.2,.8,.2,1) both}
@@ -24213,7 +24213,15 @@ function TiendaPublica({ slug }) {
   const [resAviso, setResAviso] = useState(null); // producto donde se le explico que solo opinan quienes compraron
   const [fotoGrande, setFotoGrande] = useState(null);
   const [motivoCuenta, setMotivoCuenta] = useState("");
-  const [resCerrado, setResCerrado] = useState(() => { try { return Date.now() - (parseInt(localStorage.getItem("tienda_res_cerrado_" + slug)) || 0) < 7 * 864e5; } catch (e) { return false; } });
+  // Cartelito "¿Qué te pareció…?": como mucho una vez por día, aparece a los segundos y se va solo; si lo cierra, no vuelve por 7 días
+  const [resCerrado, setResCerrado] = useState(() => { try { return Date.now() - (parseInt(localStorage.getItem("tienda_res_cerrado_" + slug)) || 0) < 7 * 864e5 || Date.now() - (parseInt(localStorage.getItem("tienda_res_visto_" + slug)) || 0) < 864e5; } catch (e) { return false; } });
+  const [resMostrar, setResMostrar] = useState(false);
+  useEffect(() => {
+    if (resCerrado || !misRes || !misRes.para_resenar.length) return;
+    const t1 = setTimeout(() => { setResMostrar(true); try { localStorage.setItem("tienda_res_visto_" + slug, String(Date.now())); } catch (e) {} }, 6000);
+    const t2 = setTimeout(() => { setResMostrar(false); setResCerrado(true); }, 16000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [misRes, resCerrado]);
   useEffect(() => { if (!ver) return; let vivo = true; setResAviso(null); pedir("/resenas/" + ver.id).then(d => vivo && setResVer({ id: ver.id, d })).catch(() => {}); return () => { vivo = false; }; }, [ver && ver.id]);
   const cargarMisRes = () => pedir("/cuenta/resenas").then(setMisRes).catch(() => {});
   useEffect(() => { if (logueada) cargarMisRes(); else setMisRes(null); }, [logueada]);
@@ -24947,11 +24955,11 @@ function TiendaPublica({ slug }) {
       {pie}
 
       {totalItems > 0 && !paso && !ver && <div className="tw-barra"><button className="tw-btn full" onClick={() => setPaso("carrito")}>Ver carrito ({totalItems}) · {fmtTienda(subtotal)}</button></div>}
-      {logueada && misRes && misRes.para_resenar.length > 0 && !resCerrado && !paso && !ver && !formRes && !toast && (
+      {logueada && misRes && misRes.para_resenar.length > 0 && resMostrar && !resCerrado && !paso && !ver && !formRes && !toast && !totalItems && (
         <div className="tw-pide-res" role="status">
-          <span style={{ fontSize: 22 }}>⭐</span>
-          <div style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}><b>¿Qué te pareció {misRes.para_resenar[0].nombre}?</b><div style={{ color: "#666", fontSize: 12.5 }}>{ptsRes ? "🎁 " + textoPtsRes + " por tu reseña" : "Contanos y ayudá a otras clientas a elegir"}</div></div>
-          <button className="tw-btn" style={{ padding: "8px 14px", fontSize: 11.5 }} onClick={() => abrirFormRes(misRes.para_resenar[0])}>Opinar</button>
+          <span style={{ fontSize: 18 }}>⭐</span>
+          <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, lineHeight: 1.35 }}><b style={{ display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>¿Qué te pareció {misRes.para_resenar[0].nombre}?</b><span style={{ color: "#777" }}>{ptsRes ? "🎁 Sumá " + ((ptsRes.puntos || 0) + (ptsRes.extra_foto || 0)) + " puntos" : "Contanos qué te pareció"}</span></div>
+          <button className="tw-btn" style={{ padding: "7px 12px", fontSize: 11 }} onClick={() => { setResMostrar(false); abrirFormRes(misRes.para_resenar[0]); }}>Opinar</button>
           <button className="tw-pide-x" aria-label="Ahora no" onClick={() => { setResCerrado(true); try { localStorage.setItem("tienda_res_cerrado_" + slug, String(Date.now())); } catch (e) {} }}>✕</button>
         </div>
       )}
