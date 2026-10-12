@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
+const { schemaActual } = require('../lib/contexto');
 
 // ===================== Tipos de comision =====================
 // La comision es del LOCAL (equipo). Cada local tiene una regla (tabla reglas_comision):
@@ -72,7 +73,16 @@ function inicioPeriodo(fecha, periodo) {
   return aTexto(d);
 }
 
+// Las ventas que salen de un pedido de la tienda web se cobran en la caja (cuentan como venta del dia
+// y se facturan), pero no las hizo una vendedora: no suman para la comision. La tabla de la tienda
+// existe solo si el negocio la uso alguna vez.
+async function sinTiendaWeb(alias) {
+  const t = (await pool.query(`SELECT to_regclass('tienda_pedidos') AS t`)).rows[0].t;
+  return t ? ` AND NOT EXISTS (SELECT 1 FROM tienda_pedidos tpw WHERE tpw.venta_id = ${alias}.id)` : '';
+}
+
 // Ventas presenciales del local entre dos fechas (inclusive), sin las de cupones de influencers
+// ni las de la tienda web
 async function ventasEntre(local_id, desde, hasta) {
   const r = await pool.query(
     `SELECT COALESCE(SUM(total), 0) AS total
@@ -81,10 +91,22 @@ async function ventasEntre(local_id, desde, hasta) {
        AND DATE(creado_en) BETWEEN $2 AND $3
        AND (cupon_id IS NULL OR cupon_id NOT IN (
          SELECT cupon_id FROM influencers WHERE cupon_id IS NOT NULL
-       ))`,
+       ))${await sinTiendaWeb('ventas')}`,
     [local_id, desde, hasta]
   );
   return parseFloat(r.rows[0].total) || 0;
+}
+
+// Dias guardados y todavia sin pagar de los ultimos 2 meses: se recalculan una vez por dia (asi un
+// cambio como sacar las ventas de la tienda web tambien corrige los dias anteriores no pagados)
+const recalculados = new Map();
+async function recalcularSinPagar(local_id, hoy) {
+  const k = schemaActual() + ':' + local_id;
+  if (recalculados.get(k) === hoy) return;
+  recalculados.set(k, hoy);
+  const r = await pool.query(`SELECT TO_CHAR(fecha, 'YYYY-MM-DD') AS f FROM comisiones WHERE local_id = $1 AND NOT pagada
+    AND fecha >= $2::date - 62 AND fecha < $2::date ORDER BY fecha`, [local_id, hoy]);
+  for (const x of r.rows) await calcularYGuardarDia(local_id, x.f);
 }
 
 async function leerRegla(local_id) {
@@ -256,7 +278,7 @@ router.get('/config/sugerencia/:local_id', async (req, res) => {
     const AR = (col) => `(((${col}) AT TIME ZONE current_setting('TimeZone')) AT TIME ZONE 'America/Argentina/Buenos_Aires')`;
     const FILTRO = `v.local_id = $1 AND v.canal = 'presencial' AND COALESCE(v.anulada, FALSE) = FALSE
       AND (COALESCE(v.es_preventa, FALSE) = FALSE OR v.estado_pago = 'confirmada')
-      AND (v.cupon_id IS NULL OR v.cupon_id NOT IN (SELECT cupon_id FROM influencers WHERE cupon_id IS NOT NULL))
+      AND (v.cupon_id IS NULL OR v.cupon_id NOT IN (SELECT cupon_id FROM influencers WHERE cupon_id IS NOT NULL))${await sinTiendaWeb('v')}
       AND ${AR('v.creado_en')}::date >= (${AR('NOW()')})::date - 90 AND ${AR('v.creado_en')}::date < (${AR('NOW()')})::date`;
     const [ventas, margen] = await Promise.all([
       pool.query(`SELECT COALESCE(SUM(v.total), 0) AS total, MIN(${AR('v.creado_en')})::date AS desde,
@@ -330,6 +352,7 @@ router.get('/:local_id', async (req, res) => {
   try {
     const { local_id } = req.params;
     const hoy = new Date().toISOString().slice(0, 10);
+    await recalcularSinPagar(local_id, hoy).catch(e => console.error('[comisiones] recalcular:', e.message));
     const data = await calcularYGuardarDia(local_id, hoy);
     res.json({ ...data, fecha: hoy });
   } catch (e) { res.status(500).json({ error: e.message }); }
