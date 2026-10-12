@@ -504,19 +504,24 @@ button.tab { font-family: inherit; }
 .mini-inp:focus { border-color: ${p.accent}; }
 @media (hover: none) { .cart-acc { opacity: 1; } }
 /* --- Inicio del celular: botones grandes --- */
-.pcel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.pcel-btn { position: relative; min-height: 132px; border: 1px solid ${p.border}; border-radius: 22px; padding: 14px 10px 12px; cursor: pointer; font-family: inherit; color: ${p.text};
+.pcel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pcel-btn { position: relative; min-height: 94px; border: 1px solid ${p.border}; border-radius: 20px; padding: 10px 8px 12px; cursor: pointer; font-family: inherit; color: ${p.text};
   background: linear-gradient(160deg, color-mix(in srgb, var(--c) 14%, ${p.card}) 0%, ${p.card} 62%); box-shadow: 0 4px 14px ${p.shadowSoft};
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; overflow: hidden;
   animation: pcelEntra .42s cubic-bezier(.2,.8,.2,1) both; transition: transform .12s, box-shadow .12s; -webkit-tap-highlight-color: transparent; }
 .pcel-btn::after { content: ""; position: absolute; left: 18%; right: 18%; bottom: 0; height: 4px; border-radius: 4px 4px 0 0; background: var(--c); opacity: .9; }
 .pcel-btn:active { transform: scale(.96); box-shadow: 0 1px 4px ${p.shadowSoft}; }
-.pcel-ico { width: 62px; height: 62px; border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 34px; line-height: 1;
+.pcel-ico { width: 46px; height: 46px; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 25px; line-height: 1;
   background: color-mix(in srgb, var(--c) 18%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 30%, transparent); }
-.pcel-txt { font-size: 17px; font-weight: 800; text-align: center; line-height: 1.15; letter-spacing: -.01em; }
-.pcel-menu { min-height: 64px; border: 2px dashed ${p.border}; border-radius: 22px; background: transparent; display: flex; align-items: center; justify-content: center; gap: 10px;
+.pcel-txt { font-size: 15.5px; font-weight: 800; text-align: center; line-height: 1.15; letter-spacing: -.01em; }
+.pcel-menu { min-height: 54px; border: 2px dashed ${p.border}; border-radius: 22px; background: transparent; display: flex; align-items: center; justify-content: center; gap: 10px;
   font-family: inherit; color: ${p.textMuted}; cursor: pointer; font-size: 17px; font-weight: 800; animation: pcelEntra .42s .3s cubic-bezier(.2,.8,.2,1) both; }
 .pcel-menu span:first-child { font-size: 24px; }
+/* En el inicio del celular, la Ayuda va como boton chico arriba (el flotante tapaba los botones) */
+body:has(.pcel-grid) .ayuda-fab { display: none !important; }
+.pcel-chip { display: inline-flex; align-items: center; gap: 7px; border: 1.5px solid ${p.border}; background: ${p.card}; color: ${p.text}; border-radius: 999px; padding: 7px 13px;
+  font-family: inherit; font-size: 14px; font-weight: 800; cursor: pointer; box-shadow: 0 2px 8px ${p.shadowSoft}; }
+.pcel-chip span { font-size: 12.5px; font-weight: 700; color: ${p.textMuted}; }
 @keyframes pcelEntra { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .pcel-btn, .pcel-menu { animation: none; } }
 /* --- Panel de cobro del POS --- */
@@ -26720,16 +26725,19 @@ function PanelCelular({ secciones, usuario, localId, avisos, setPage, onMenu, on
   const fecha = new Date().toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
   return (
     <div className="fade" style={{ textAlign: "left", paddingBottom: 20 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 14 }}>
-        <div>
-          <div style={{ fontSize: 26, fontWeight: 900, lineHeight: 1.2 }}>{saludo}{nombre ? ", " + nombre : ""} 👋</div>
-          <div style={{ fontSize: 16, color: temaPal.textMuted, marginTop: 4, textTransform: "capitalize" }}>{fecha}</div>
-          {!UN_SOLO_LOCAL && onCambiarLocal && <button onClick={onCambiarLocal} style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 8, border: "1.5px solid " + temaPal.border, background: temaPal.card, color: temaPal.text, borderRadius: 999, padding: "8px 14px", fontFamily: "inherit", fontSize: 15, fontWeight: 800, cursor: "pointer", boxShadow: "0 2px 8px " + temaPal.shadowSoft }}>📍 {nombreLocal(localId)} <span style={{ fontSize: 13, fontWeight: 700, color: temaPal.textMuted }}>⇄ Cambiar</span></button>}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 12 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 22, fontWeight: 900, lineHeight: 1.2 }}>{saludo}{nombre ? ", " + nombre : ""} 👋</div>
+          <div style={{ fontSize: 14, color: temaPal.textMuted, marginTop: 2, textTransform: "capitalize" }}>{fecha}</div>
         </div>
         <button onClick={cambiarLetra} aria-label={"Tamaño de letra: " + (TAMANOS_LETRA.find(x => x[0] === letra) || [])[2]} title="Tamaño de letra"
           style={{ flexShrink: 0, border: "2px solid " + temaPal.border, background: temaPal.card, color: temaPal.text, borderRadius: 14, padding: "8px 12px", fontFamily: "inherit", fontWeight: 900, fontSize: 18, cursor: "pointer", lineHeight: 1 }}>
           Aa<div style={{ fontSize: 10, fontWeight: 700, marginTop: 3 }}>{(TAMANOS_LETRA.find(x => x[0] === letra) || [])[2]}</div>
         </button>
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "-2px 0 12px" }}>
+        {!UN_SOLO_LOCAL && onCambiarLocal && <button className="pcel-chip" onClick={onCambiarLocal}>📍 {nombreLocal(localId)} <span>⇄ Cambiar</span></button>}
+        <button className="pcel-chip" onClick={() => { const b = document.querySelector(".ayuda-fab"); if (b) b.click(); }}>❓ Ayuda</button>
       </div>
       {tipo === "consultorio" && hoy && (
         <button onClick={() => setPage("agenda")} style={{ width: "100%", textAlign: "left", border: "none", borderRadius: 18, padding: "16px 18px", marginBottom: 14, background: temaPal.card, boxShadow: "0 2px 10px " + temaPal.shadowSoft, fontFamily: "inherit", color: temaPal.text, cursor: "pointer" }}>
