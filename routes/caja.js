@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
+const { esVentaWeb } = require('../lib/tiendaWeb');
 const { porNegocio } = require('../lib/contexto');
 // Obtener movimientos de caja por local
 router.get('/', async (req, res) => {
@@ -107,11 +108,12 @@ const num = (x) => parseFloat(x) || 0;
 
 const calcularCierre = async (localId, fecha) => {
   const conPagos = await tieneVentaPagos();
-  const [ventasR, mediosR, movsR, gcR] = await Promise.all([
+  const web = await esVentaWeb('v');
+  const [ventasR, mediosR, movsR, gcR, webR] = await Promise.all([
     pool.query(`
       SELECT v.id, v.numero_factura, v.total, COALESCE(v.monto_gift_card, 0) AS monto_gift_card,
         v.medio_pago, v.medio_pago_id, COALESCE(v.anulada, FALSE) AS anulada, v.motivo_anulacion,
-        v.estado_facturacion, v.canal, v.cae, c.nombre AS cliente_nombre, u.nombre AS vendedora_nombre,
+        v.estado_facturacion, v.canal, v.cae, c.nombre AS cliente_nombre, CASE WHEN ${web} THEN 'Tienda web' ELSE u.nombre END AS vendedora_nombre, ${web} AS tienda_web,
         ${HORA_AR('v.creado_en')} AS hora,
         ${conPagos ? `COALESCE((SELECT json_agg(json_build_object('medio_pago_id', vp.medio_pago_id, 'nombre', vp.medio_pago_nombre, 'importe', vp.importe))
           FROM venta_pagos vp WHERE vp.venta_id = v.id), '[]')` : `'[]'::json`} AS pagos
@@ -135,6 +137,13 @@ const calcularCierre = async (localId, fecha) => {
       WHERE local_id = $1 AND ${DIA_AR('creado_en')} = $2::date AND COALESCE(anulado, FALSE) = FALSE
         AND tipo = 'I' AND concepto LIKE 'Gift Card%' AND importe > 0
       ORDER BY creado_en`, [localId, fecha]),
+    // Pedidos de la tienda web de este local, hechos hasta ese dia, que todavia no se cobraron en la caja
+    // (una venta web entra a la caja recien cuando se registra en el Punto de Venta)
+    web === 'FALSE' ? { rows: [] } : pool.query(`
+      SELECT id, codigo, nombre, total, pago, pagado, estado, ${HORA_AR('creado_en')} AS hora, ${DIA_AR('creado_en')} AS dia
+      FROM tienda_pedidos
+      WHERE local_id = $1 AND estado IN ('pendiente_pago', 'confirmado', 'preparado', 'en_caja') AND ${DIA_AR('creado_en')} <= $2::date
+      ORDER BY creado_en DESC LIMIT 30`, [localId, fecha]).catch(() => ({ rows: [] })),
   ]);
 
   const mediosPorId = {};
@@ -196,6 +205,7 @@ const calcularCierre = async (localId, fecha) => {
     ventas: ventasR.rows,
     medios: Object.values(medios).sort((a, b) => b.total - a.total),
     gift_cards: gcR.rows,
+    tienda_sin_caja: webR.rows.map(x => ({ ...x, total: num(x.total) })),
     movimientos: movsR.rows,
     resumen: {
       total_dia: totalVentas + totalGiftCards,

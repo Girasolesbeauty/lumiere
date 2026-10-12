@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
 const { schemaActual } = require('../lib/contexto');
+const { esVentaWeb } = require('../lib/tiendaWeb');
 
 // ===================== Tipos de comision =====================
 // La comision es del LOCAL (equipo). Cada local tiene una regla (tabla reglas_comision):
@@ -76,10 +77,7 @@ function inicioPeriodo(fecha, periodo) {
 // Las ventas que salen de un pedido de la tienda web se cobran en la caja (cuentan como venta del dia
 // y se facturan), pero no las hizo una vendedora: no suman para la comision. La tabla de la tienda
 // existe solo si el negocio la uso alguna vez.
-async function sinTiendaWeb(alias) {
-  const t = (await pool.query(`SELECT to_regclass('tienda_pedidos') AS t`)).rows[0].t;
-  return t ? ` AND NOT EXISTS (SELECT 1 FROM tienda_pedidos tpw WHERE tpw.venta_id = ${alias}.id)` : '';
-}
+const sinTiendaWeb = async (alias) => ` AND NOT ${await esVentaWeb(alias)}`;
 
 // Ventas presenciales del local entre dos fechas (inclusive), sin las de cupones de influencers
 // ni las de la tienda web

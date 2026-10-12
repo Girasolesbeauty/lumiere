@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { esVentaWeb } = require('../lib/tiendaWeb');
 const cc = require('../lib/cuentaCorriente');
 const { recalcularNivel } = require('../lib/niveles');
 
@@ -33,8 +34,10 @@ const acreditarEfectivoEnCaja = async (client, { pagos, medio_pago_id, medio_pag
 const getAll = async (req, res) => {
   try {
     const { local_id, mes, anio, es_preventa } = req.query;
+    // Las ventas de la tienda web figuran como "Tienda web" (no las hizo quien las cobro)
+    const web = await esVentaWeb('v');
     let query = `
-      SELECT v.*, c.nombre AS cliente_nombre, u.nombre AS vendedora_nombre,
+      SELECT v.*, c.nombre AS cliente_nombre, CASE WHEN ${web} THEN 'Tienda web' ELSE u.nombre END AS vendedora_nombre, ${web} AS tienda_web,
         COALESCE(SUM(vi.cantidad * COALESCE(p.costo, 0)), 0) AS costo_total,
         COALESCE(
           json_agg(
