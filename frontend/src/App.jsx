@@ -22688,6 +22688,7 @@ const CSS_TIENDA = `
 .tw-cab1{max-width:1280px;margin:0 auto;display:flex;align-items:center;gap:18px;padding:14px 20px}
 .tw-marca{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0;cursor:pointer;background:none;border:none;padding:0}
 .tw-marca img{height:40px;max-width:230px;object-fit:contain;display:block}
+.tw-marca img.cuadrado{height:76px;margin:-14px 0}
 .tw-marca b{font-size:22px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
 .tw-busca{flex:1;position:relative;max-width:560px}
 .tw-busca input{width:100%;height:42px;border-radius:999px;border:1px solid transparent;background:var(--g);padding:0 16px 0 42px;font-size:15px;font-family:inherit;transition:border-color .2s,background .2s}
@@ -23153,6 +23154,7 @@ const CSS_TIENDA = `
   .tw-ciudad{height:32px;padding:0 10px;font-size:12px}
   .tw-elegir{border-radius:14px 14px 0 0;padding:24px 18px calc(24px + env(safe-area-inset-bottom))}
   .tw-marca img{height:28px;max-width:140px}
+  .tw-marca img.cuadrado{height:54px;margin:-8px 0}
   .tw-ico-wa{display:none !important}
   .tw-ico{width:38px;height:38px}
   .tw-iconos{gap:2px}
@@ -24038,7 +24040,15 @@ function TiendaPublica({ slug }) {
   const codigoUrl = params.get("pedido");
 
   useEffect(() => {
-    pedir("").then(t => { setTienda(t); document.title = t.titulo; }).catch(e => setError(e.message));
+    pedir("").then(t => {
+      setTienda(t); document.title = t.titulo;
+      // Icono de la tienda en la pestaña y en el acceso directo (en el dominio propio ya lo pone Vercel)
+      if (t.icono_v) {
+        const u = base + "/icono?v=" + t.icono_v;
+        [["icon", "image/png"], ["apple-touch-icon", null]].forEach(([rel, tipo]) => { document.querySelectorAll('link[rel="' + rel + '"]').forEach(l => l.remove()); const l = document.createElement("link"); l.rel = rel; if (tipo) l.type = tipo; l.href = u; document.head.appendChild(l); });
+        document.querySelectorAll('meta[name="apple-mobile-web-app-title"],meta[name="application-name"]').forEach(m => m.setAttribute("content", t.titulo));
+      }
+    }).catch(e => setError(e.message));
     pedir("/productos").then(setProductos).catch(() => setProductos([]));
     const s = () => setSombra(window.scrollY > 10);
     window.addEventListener("scroll", s, { passive: true });
@@ -24243,7 +24253,7 @@ function TiendaPublica({ slug }) {
       <header className={"tw-cab" + (sombra ? " sombra" : "")}>
         <div className="tw-cab1">
           <button className="tw-marca" onClick={() => { if (codigoUrl) window.location.href = "?tienda=" + encodeURIComponent(slug); else irInicio(); }} aria-label="Inicio">
-            {tienda.logo ? <img src={tienda.logo} alt={tienda.titulo} /> : <b>{tienda.titulo}</b>}
+            {tienda.logo ? <img src={tienda.logo} alt={tienda.titulo} onLoad={e => { const im = e.currentTarget; if (im.naturalWidth && im.naturalWidth / im.naturalHeight < 1.35) im.classList.add("cuadrado"); }} /> : <b>{tienda.titulo}</b>}
           </button>
           {!codigoUrl && (
             <label className="tw-busca"><TwIcono d={TW_LUPA} size={18} />
@@ -25523,6 +25533,18 @@ const PAGO_TIENDA = { mp: "Mercado Pago", transferencia: "Transferencia", retiro
 const MSJ_CARRITO = "Hola {nombre}! 🛍️ Te quedaron estos productos en el carrito de {tienda}: {productos} ({total}). ¿Te ayudo a terminar la compra? {link}";
 const MSJ_AVISO = "Hola {nombre}! 🌻 Ya volvió {producto} a {tienda}. Lo podés comprar acá: {link}";
 const llenarMsj = (t, v) => String(t || "").replace(/\{(\w+)\}/g, (m, k) => v[k] !== undefined && v[k] !== null ? v[k] : m).replace(/\s+/g, " ").trim();
+// Icono para el acceso directo: cuadrado de 512 px (se recorta al centro si no es cuadrado)
+async function iconoCuadrado(archivo) {
+  if (!archivo || !/^image\//.test(archivo.type)) throw new Error("Elegí una imagen (PNG o JPG)");
+  const obj = URL.createObjectURL(archivo);
+  try {
+    const img = await new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => mal(new Error("No se pudo leer la imagen")); i.src = obj; });
+    const lado = Math.min(img.width, img.height), c = document.createElement("canvas"); c.width = c.height = 512;
+    const ctx = c.getContext("2d"); ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, 512, 512);
+    ctx.drawImage(img, (img.width - lado) / 2, (img.height - lado) / 2, lado, lado, 0, 0, 512, 512);
+    return c.toDataURL("image/png");
+  } finally { URL.revokeObjectURL(obj); }
+}
 function ClientasWeb({ temaPal, avisar, urlTienda, nombreTienda, esJefe }) {
   const [d, setD] = useState(null);
   const [msj, setMsj] = useState(null); // editor de mensajes
@@ -25986,7 +26008,18 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               </label>
               {cfg.logo && <button className="btn btn-g btn-sm" onClick={() => set("logo", "")}>Quitar</button>}
             </div>
-            <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>Mejor si tiene fondo transparente (PNG). Tocá Guardar para que se vea en la tienda.</div>
+            <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>Mejor si tiene fondo transparente (PNG). Si es redondo o cuadrado, en la tienda se ve más grande. Tocá Guardar para que se vea en la tienda.</div>
+            <div className="fl" style={{ marginTop: 12 }}>Ícono para el celular (acceso directo y pestaña)</div>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <div style={{ width: 64, height: 64, borderRadius: 14, overflow: "hidden", border: "1px solid " + temaPal.border, background: "#f4f4f4", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                {cfg.icono ? <img src={cfg.icono} alt="Ícono de la tienda" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 10.5, color: "#888", textAlign: "center", padding: 4 }}>El de Lumiere</span>}
+              </div>
+              <label className="btn btn-g btn-sm" style={{ cursor: "pointer" }}>📤 {cfg.icono ? "Cambiar ícono" : "Subir ícono"}
+                <input type="file" accept="image/png,image/jpeg,image/webp" style={{ display: "none" }} onChange={async e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; try { set("icono", await iconoCuadrado(f)); } catch (err) { avisar(false, err.message); } }} />
+              </label>
+              {cfg.icono && <button className="btn btn-g btn-sm" onClick={() => set("icono", "")}>Quitar</button>}
+            </div>
+            <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>Imagen cuadrada con fondo de color (ej: el logo sobre violeta). Es el ícono que queda en el celular cuando agregan la tienda a la pantalla de inicio. Si ya la tenían agregada, tienen que borrarla y volver a agregarla para ver el nuevo.</div>
             <div className="fl" style={{ marginTop: 12 }}>Nombre que se ve</div>
             <input className="inp" placeholder="Ej: Girasoles" value={cfg.titulo || ""} onChange={e => set("titulo", e.target.value)} />
             <div className="fl" style={{ marginTop: 10 }}>Mensaje corto (opcional)</div>
