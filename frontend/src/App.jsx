@@ -22982,6 +22982,18 @@ const CSS_TIENDA = `
 .tw-rv.in .tw-pre-sub mark{background-size:100% 100%}
 @keyframes twMarcador{from{background-size:0% 100%}to{background-size:100% 100%}}
 .tw-pre-txt{font-size:13.5px;color:#6b5000;margin-top:6px;max-width:560px}
+.tw-fav{position:absolute;top:8px;right:8px;z-index:2;width:34px;height:34px;border-radius:50%;border:none;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;cursor:pointer;color:#333;box-shadow:0 1px 6px rgba(0,0,0,.12)}
+.tw-fav.on{color:#e0245e}
+.tw-fav.on svg path{fill:#e0245e;stroke:#e0245e}
+.tw-fav.on{animation:twCorazon .45s cubic-bezier(.3,1.8,.5,1)}
+@keyframes twCorazon{0%{transform:scale(.6)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+.tw-compartir .fav-on{color:#e0245e !important;border-color:#e0245e}
+.tw-compartir .fav-on svg path{fill:#e0245e;stroke:#e0245e}
+.tw-punto.fav{background:#e0245e}
+.tw-nav-fav{color:#ff8fb1 !important}
+.tw-avisame{display:flex;flex-direction:column;gap:8px;background:#f4f8ff;border:1.5px solid #b9c9f3;border-radius:10px;padding:12px;margin-top:10px}
+.tw-avisame.ok{background:#eaf7ef;border-color:#9fd8b4;color:#1f5c38;font-weight:700;font-size:14px}
+@media(max-width:760px){.tw-ico-fav{display:none !important}}
 .tw-etq.top{background:#ff5a36;color:#fff !important;font-weight:800}
 .tw-etq.pre{background:linear-gradient(90deg,#ffd23f,#fff1a8,#ffd23f);background-size:200% 100%;color:#3d2c05 !important;font-weight:900;animation:twEtqPre 1.6s ease-in-out infinite,twLiquido 2.2s linear infinite;box-shadow:0 2px 10px rgba(255,195,0,.55)}
 @keyframes twEtqPre{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
@@ -23189,6 +23201,7 @@ const TW_LUPA = <><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></>
 const TW_X = <path d="M6 6l12 12M18 6 6 18" />;
 const TW_IZQ = <path d="m15 6-6 6 6 6" />;
 const TW_DER = <path d="m9 6 6 6-6 6" />;
+const TW_CORAZON = <path d="M12 20.5s-7.5-4.6-9.2-9.4C1.6 7.6 4 4.5 7.3 4.5c2 0 3.6 1.1 4.7 2.7 1.1-1.6 2.7-2.7 4.7-2.7 3.3 0 5.7 3.1 4.5 6.6-1.7 4.8-9.2 9.4-9.2 9.4Z" />;
 const TW_PERSONA = <><circle cx="12" cy="8" r="4" /><path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6" /></>;
 const TW_IG = <><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="1" fill="currentColor" /></>;
 const TW_TT = <path d="M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5M14 3c.5 2.8 2.3 4.6 5 5" />;
@@ -23656,7 +23669,7 @@ function TwMenuSkincare({ titulo, grupos, onTodo, onElegir, onCerrar }) {
   );
 }
 
-function TwTarjeta({ p, base, sin, preventa, onAbrir, onAgregar }) {
+function TwTarjeta({ p, base, sin, preventa, fav, onFav, onAbrir, onAgregar }) {
   const [hover, setHover] = useState(false);
   const [hecho, setHecho] = useState(false);
   const imgRef = useRef(null);
@@ -23676,6 +23689,7 @@ function TwTarjeta({ p, base, sin, preventa, onAbrir, onAgregar }) {
         {p.foto ? <img src={base + "/foto/" + p.id + (p.foto_v ? "?v=" + p.foto_v : "")} alt={p.nombre} loading="lazy" /> : <span className="tw-ph">✿</span>}
         {hover && vid && <video src={vid} muted autoPlay loop playsInline preload="none" />}
         {hover && !vid && p.fotos && p.fotos.length > 0 && <img className="tw-alt" src={base + "/foto-extra/" + p.fotos[0]} alt="" />}
+        {onFav && <button className={"tw-fav" + (fav ? " on" : "")} key={fav ? "si" : "no"} onClick={e => { e.stopPropagation(); onFav(p); }} aria-label={fav ? "Sacar de favoritos" : "Guardar en favoritos"} aria-pressed={!!fav}><TwIcono d={TW_CORAZON} size={18} /></button>}
         {preventa && <><span className="tw-pre-brillo" aria-hidden="true" /><span className="tw-pre-chispas" aria-hidden="true"><i>✦</i><i>✦</i><i>✧</i><i>✦</i></span></>}
         <div className="tw-etqs">
           {preventa && <span className="tw-etq pre">✨ Preventa</span>}
@@ -23973,6 +23987,16 @@ function TiendaPublica({ slug }) {
   }, []);
   // Mi cuenta (misma del portal de clientas: DNI + contraseña, con sus puntos)
   const [logueada, setLogueada] = useState(() => { try { return !!localStorage.getItem("tienda_cuenta_" + slug); } catch (e) { return false; } });
+  // Favoritos: en el navegador y, con cuenta, tambien en Lumiere (se unen al entrar)
+  const [favs, setFavs] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_favs_" + slug) || "[]"); } catch (e) { return []; } });
+  useEffect(() => { try { localStorage.setItem("tienda_favs_" + slug, JSON.stringify(favs)); } catch (e) {} }, [favs]);
+  useEffect(() => {
+    if (!logueada) return;
+    pedir("/cuenta/favoritos").then(srv => setFavs(f => { const u = [...new Set([...f, ...(srv || [])])]; if (u.length !== (srv || []).length) pedir("/cuenta/favoritos", { method: "PUT", body: JSON.stringify({ ids: u }) }).catch(() => {}); return u; })).catch(() => {});
+  }, [logueada]);
+  // "Avisame cuando vuelva" (ficha de un producto agotado)
+  const [aviso1, setAviso1] = useState(null); // { id, nombre, telefono, enviando, error }
+  const [avisados, setAvisados] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_avisados_" + slug) || "[]"); } catch (e) { return []; } });
   const [miCuenta, setMiCuenta] = useState(null);
   const [formCuenta, setFormCuenta] = useState({ modo: "ingresar" });
   // Al crear la cuenta: se fija si el DNI ya esta en Lumiere (clienta del local), si ya tiene cuenta o si es nueva
@@ -24021,6 +24045,12 @@ function TiendaPublica({ slug }) {
     return () => window.removeEventListener("scroll", s);
   }, []);
   useEffect(() => { try { localStorage.setItem("tienda_carrito_" + slug, JSON.stringify(carrito)); } catch (e) {} }, [carrito]);
+  // Con cuenta, el carrito se guarda tambien en Lumiere (para poder recordarle si lo deja sin terminar)
+  useEffect(() => {
+    if (!logueada) return;
+    const t = setTimeout(() => pedir("/cuenta/carrito", { method: "PUT", body: JSON.stringify({ items: carrito, local_id: local }) }).catch(() => {}), 2500);
+    return () => clearTimeout(t);
+  }, [carrito, logueada]);
   // La direccion sigue al producto abierto: se puede copiar o compartir, y "atras" cierra la ficha
   const abrirFicha = (p) => {
     setVistos(v => { const n = [p.id, ...v.filter(x => x !== p.id)].slice(0, 20); try { localStorage.setItem("tienda_vistos_" + slug, JSON.stringify(n)); } catch (e) {} return n; });
@@ -24135,6 +24165,19 @@ function TiendaPublica({ slug }) {
     setTimeout(() => { setAgregando("listo"); agregar(p, v, n, document.querySelector(".tw-ficha .tw-media")); }, 260);
     setTimeout(() => { setAgregando(null); setVer(x => x && x.id === p.id ? null : x); }, 1050);
   };
+  const toggleFav = (p) => {
+    setFavs(f => { const n = f.includes(p.id) ? f.filter(x => x !== p.id) : [p.id, ...f]; if (logueada) pedir("/cuenta/favoritos", { method: "PUT", body: JSON.stringify({ ids: n }) }).catch(() => {}); return n; });
+    twSonar.pop(); twVibrar(8);
+  };
+  const pedirAviso = async () => {
+    const a = aviso1; if (!a) return;
+    setAviso1({ ...a, enviando: true, error: "" });
+    try {
+      await pedir("/avisame", { method: "POST", body: JSON.stringify({ producto_id: a.id, nombre: a.nombre, telefono: a.telefono, local_id: lid }) });
+      const n = [...new Set([...avisados, a.id])]; setAvisados(n); try { localStorage.setItem("tienda_avisados_" + slug, JSON.stringify(n)); } catch (e) {}
+      setAviso1(null); twSonar.brillo();
+    } catch (e) { setAviso1({ ...a, enviando: false, error: e.message }); }
+  };
   const claveIt = (x) => x.producto_id + "-" + (x.variante_id || "");
   const cambiarCant = (i, d) => {
     twSonar.tic(d > 0); twVibrar(6);
@@ -24211,6 +24254,7 @@ function TiendaPublica({ slug }) {
             {!codigoUrl && ciudades.length > 1 && ciudad && <button className="tw-ciudad" onClick={() => setEligeCiudad(true)} aria-label={"Tu ciudad: " + ciudad.nombre + ". Cambiar"}>📍 <span>{ciudad.nombre}</span> ▾</button>}
             {tienda.whatsapp && <a className="tw-ico tw-ico-wa" href={wa("Hola! Tengo una consulta")} target="_blank" rel="noopener" aria-label="WhatsApp"><TwIcono d={TW_WA} /></a>}
             {!codigoUrl && <button className="tw-ico" onClick={() => { setAvisoCuenta(null); setCanjeHecho(null); setPaso("cuenta"); if (logueada) cargarCuenta(); }} aria-label={logueada ? "Mi cuenta" : "Ingresar o crear cuenta"} title={logueada ? "Mi cuenta" : "Ingresar"}><TwIcono d={TW_PERSONA} />{logueada && <span className="tw-punto" />}</button>}
+            {!codigoUrl && <button className="tw-ico tw-ico-fav" onClick={() => irCat("favoritos")} aria-label={"Favoritos" + (favs.length ? ", " + favs.length : "")} title="Mis favoritos"><TwIcono d={TW_CORAZON} />{favs.length > 0 && <span className="tw-punto fav" />}</button>}
             {!codigoUrl && <button className="tw-ico tw-bolsa" onClick={() => setPaso("carrito")} aria-label={"Carrito, " + totalItems + " productos"}>
               <TwIcono d={TW_BOLSA} />{totalItems > 0 && <span key={salto} className={"tw-badge" + (salto ? " salta" : "")}>{totalItems}</span>}
             </button>}
@@ -24326,13 +24370,14 @@ function TiendaPublica({ slug }) {
   const sectores = (tienda.sectores || []).filter(sc => visibles.some(p => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria)));
   const sector = cat.startsWith("s:") ? sectores.find(sc => "s:" + sc.id === cat) : null;
   // Si la seccion elegida quedo vacia (otra ciudad, se agoto todo), se vuelve al inicio
-  if ((cat === "preventa" && !preventas.length) || (cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat && cat !== "*" && !cat.startsWith("s:") && !cat.startsWith("m:") && cat !== "reingreso" && cat !== "videos" && cat !== "preventa" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2)))) { setTimeout(() => setCat(""), 0); }
+  if ((cat === "preventa" && !preventas.length) || (cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat && cat !== "*" && !cat.startsWith("s:") && !cat.startsWith("m:") && cat !== "reingreso" && cat !== "videos" && cat !== "preventa" && cat !== "favoritos" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2)))) { setTimeout(() => setCat(""), 0); }
   const enSector = (sc, p) => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria);
   const delSector = sector ? visibles.filter(p => enSector(sector, p)) : [];
   const catsSector = sector ? [...new Set(delSector.map(p => p.categoria).filter(Boolean))].sort() : [];
   // Busqueda inteligente: primero lo que coincide en el nombre, despues por tipo, despues por descripcion
   const puntaje = new Map();
-  const base1 = (cat === "reingreso" ? reingresados : cat === "preventa" ? preventas : visibles).filter(p => (!cat || cat === "*" || cat === "reingreso" || cat === "preventa" || (sector ? enSector(sector, p) && (!subcat || p.categoria === subcat) : cat.startsWith("m:") ? (p.marca || "") === cat.slice(2) : p.categoria === cat)) && (!q || (puntaje.set(p.id, twCoincide(p, q)), puntaje.get(p.id) > 0)));
+  const favLista = favs.map(id => lista0.find(p => p.id === id)).filter(Boolean);
+  const base1 = (cat === "reingreso" ? reingresados : cat === "preventa" ? preventas : cat === "favoritos" ? favLista : visibles).filter(p => (!cat || cat === "*" || cat === "reingreso" || cat === "preventa" || cat === "favoritos" || (sector ? enSector(sector, p) && (!subcat || p.categoria === subcat) : cat.startsWith("m:") ? (p.marca || "") === cat.slice(2) : p.categoria === cat)) && (!q || (puntaje.set(p.id, twCoincide(p, q)), puntaje.get(p.id) > 0)));
   // Si hay productos que coinciden por nombre o tipo, no se mezclan los que solo lo mencionan en la descripcion
   const base0 = q && base1.some(p => puntaje.get(p.id) >= 1) ? base1.filter(p => puntaje.get(p.id) >= 1) : base1;
   // Filtros: cada uno cuenta sobre lo que dejan los otros (asi los numeros siempre dan algo)
@@ -24371,7 +24416,7 @@ function TiendaPublica({ slug }) {
   const filasPortada = (tienda.filas || []).map(f => ({ ...f, items: f.productos.map(id => lista0.find(p => p.id === id)).filter(p => p && !agotado(p)) })).filter(f => f.items.length);
   const nSlides = destacados.length;
   const iSlide = nSlides ? slide % nSlides : 0;
-  const tarjeta = (p) => <TwTarjeta key={p.id} p={p} base={base} sin={agotado(p)} preventa={esPreventa(p)} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
+  const tarjeta = (p) => <TwTarjeta key={p.id} p={p} base={base} sin={agotado(p)} preventa={esPreventa(p)} fav={favs.includes(p.id)} onFav={toggleFav} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
   const opcionesPago = [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar"], ["retiro", "💵 Pago al retirar", "Pagás en el local"]]
     .filter(([k]) => tienda.pagos[k] && !(k === "retiro" && datos.entrega === "envio"));
   const listoParaPedir = lid && datos.nombre && datos.telefono && datos.entrega && datos.pago && (datos.entrega === "retiro" ? retiroAca.length > 0 : (zona && datos.direccion));
@@ -24521,12 +24566,13 @@ function TiendaPublica({ slug }) {
   return (
     <div className="tw" style={{ "--c": color }}><style>{CSS_TIENDA}</style>
       {cabecera}
-      {(cats.length > 0 || sectores.length > 0 || reingresados.length > 0 || reels.length > 0 || preventas.length > 0) && (
+      {(cats.length > 0 || sectores.length > 0 || reingresados.length > 0 || reels.length > 0 || preventas.length > 0 || favs.length > 0) && (
         <div className="tw-navbar">
           <nav className="tw-nav" aria-label="Categorías">
             <button className={!enLista ? "on" : ""} onClick={irInicio}>Inicio</button>
             <button className={cat === "*" && !q ? "on" : ""} onClick={() => irCat("*")}>Todo</button>
             {preventas.length > 0 && <button className={"tw-nav-pre" + (cat === "preventa" && !q ? " on" : "")} onClick={() => irCat("preventa")}>⏳ {tienda.preventa.titulo}</button>}
+            {favs.length > 0 && <button className={"tw-nav-fav" + (cat === "favoritos" && !q ? " on" : "")} onClick={() => irCat("favoritos")}>♥ Favoritos ({favs.length})</button>}
             {reingresados.length > 0 && <button className={cat === "reingreso" && !q ? "on" : ""} onClick={() => irCat("reingreso")}>{reingreso.nombre}</button>}
             {reels.length > 0 && <button className={cat === "videos" && !q ? "on" : ""} onClick={() => irCat("videos")}>{tienda.reels_titulo || "Videos"}</button>}
             {!catSkin && hayMenuSkin && <button className={menuSkin ? "on" : ""} onClick={() => setMenuSkin("*")}>Skincare ▾</button>}
@@ -24545,7 +24591,7 @@ function TiendaPublica({ slug }) {
         ) : enLista ? (
           <>
             <div className="tw-lista-cab">
-              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : cat === "preventa" ? "⏳ " + tienda.preventa.titulo : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4 }}>{lista.length} {lista.length === 1 ? "producto" : "productos"}</div></div>
+              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : cat === "preventa" ? "⏳ " + tienda.preventa.titulo : cat === "favoritos" ? "❤️ Tus favoritos" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4 }}>{lista.length} {lista.length === 1 ? "producto" : "productos"}</div></div>
               <select value={orden} onChange={e => setOrden(e.target.value)} aria-label="Ordenar">{TW_ORDEN.map(([k, t]) => <option key={k} value={k}>Ordenar: {t}</option>)}</select>
             </div>
             {sector && !q && catsSector.length > 1 && (
@@ -24570,7 +24616,7 @@ function TiendaPublica({ slug }) {
                 {hayFiltros && <button className="tw-filtro-x" onClick={() => setFiltros({})}>Limpiar filtros ✕</button>}
               </div>
             )}
-            {lista.length === 0 ? <div style={{ textAlign: "center", color: "#888", margin: "50px 0" }}><p>{hayFiltros ? "No hay productos con esos filtros." : "No encontramos productos con esa búsqueda."}</p>{hayFiltros && <button className="tw-btn2" style={{ display: "inline-flex", width: "auto", padding: "0 22px" }} onClick={() => setFiltros({})}>Ver todos</button>}</div>
+            {lista.length === 0 ? <div style={{ textAlign: "center", color: "#888", margin: "50px 0" }}><p>{cat === "favoritos" && !q && !hayFiltros ? "Todavía no guardaste favoritos. Tocá el ♡ en los productos que te gusten y los encontrás acá." : hayFiltros ? "No hay productos con esos filtros." : "No encontramos productos con esa búsqueda."}</p>{hayFiltros && <button className="tw-btn2" style={{ display: "inline-flex", width: "auto", padding: "0 22px" }} onClick={() => setFiltros({})}>Ver todos</button>}</div>
               : <div className="tw-grid">{lista.map((p, i) => <div key={p.id} className="tw-rv" style={{ "--i": i % 4 }}>{tarjeta(p)}</div>)}</div>}
           </>
         ) : visibles.length === 0 ? (
@@ -24716,6 +24762,7 @@ function TiendaPublica({ slug }) {
                     </div>
                   )}
                   <div className="tw-compartir">
+                    <button className={favs.includes(ver.id) ? "fav-on" : ""} onClick={() => toggleFav(ver)} aria-pressed={favs.includes(ver.id)}><TwIcono d={TW_CORAZON} size={16} /> {favs.includes(ver.id) ? "Guardado" : "Guardar"}</button>
                     <button onClick={() => compartir(ver)} aria-label="Compartir este producto"><TwIcono d={TW_COMPARTIR} size={16} /> {copiado === ver.id ? "¡Link copiado!" : "Compartir"}</button>
                     <a href={"https://wa.me/?text=" + encodeURIComponent(ver.nombre + " en " + tienda.titulo + " " + linkProducto(ver))} target="_blank" rel="noopener" aria-label="Mandar por WhatsApp"><TwIcono d={TW_WA} size={16} /> WhatsApp</a>
                   </div>
@@ -24727,6 +24774,18 @@ function TiendaPublica({ slug }) {
                       {agregando === "carga" ? <span className="tw-girando" aria-label="Agregando" /> : agregando === "listo" ? <><svg className="tw-tilde" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12.5l5 5L20 6.5" /></svg> ¡Agregado!</> : ver.variantes && !varSel ? "Elegí una opción" : maxVer <= 0 ? "Agotado" : preVer ? "Reservar en preventa" : "Agregar al carrito"}
                     </button>
                   </div>
+                  {(!ver.variantes || varSel) && maxVer <= 0 && (
+                    avisados.includes(ver.id) ? <div className="tw-avisame ok">✓ Listo: te avisamos por WhatsApp cuando vuelva.</div>
+                    : aviso1 && aviso1.id === ver.id ? (
+                      <div className="tw-avisame">
+                        <b>🔔 Te avisamos cuando vuelva</b>
+                        <input className="tw-inp" placeholder="Tu nombre" value={aviso1.nombre} onChange={e => setAviso1(a => ({ ...a, nombre: e.target.value }))} />
+                        <input className="tw-inp" placeholder="WhatsApp (ej: 2964 123456)" inputMode="tel" value={aviso1.telefono} onChange={e => setAviso1(a => ({ ...a, telefono: e.target.value }))} />
+                        {aviso1.error && <div style={{ color: "#c0392b", fontSize: 13 }}>{aviso1.error}</div>}
+                        <button className="tw-btn full" disabled={aviso1.enviando} onClick={pedirAviso}>{aviso1.enviando ? "Guardando…" : "Avisarme"}</button>
+                      </div>
+                    ) : <button className="tw-btn2 full" style={{ width: "100%", marginTop: 10 }} onClick={() => setAviso1({ id: ver.id, nombre: (miCuenta && miCuenta.nombre) || datos.nombre || "", telefono: (miCuenta && miCuenta.telefono) || datos.telefono || "" })}>🔔 Avisame cuando vuelva</button>
+                  )}
                   {(!ver.variantes || varSel) && (
                     <div className="tw-disp">
                       {ciudad && maxVer <= 0 && <div>✕ Agotado en <b>{ciudad.nombre}</b></div>}
@@ -25460,6 +25519,132 @@ const ESTADOS_TIENDA = {
 };
 const PAGO_TIENDA = { mp: "Mercado Pago", transferencia: "Transferencia", retiro: "Paga al retirar" };
 
+// ---- Lumiere: clientas de la tienda web (avisos de reposicion, carritos sin terminar, analisis de favoritos) ----
+const MSJ_CARRITO = "Hola {nombre}! 🛍️ Te quedaron estos productos en el carrito de {tienda}: {productos} ({total}). ¿Te ayudo a terminar la compra? {link}";
+const MSJ_AVISO = "Hola {nombre}! 🌻 Ya volvió {producto} a {tienda}. Lo podés comprar acá: {link}";
+const llenarMsj = (t, v) => String(t || "").replace(/\{(\w+)\}/g, (m, k) => v[k] !== undefined && v[k] !== null ? v[k] : m).replace(/\s+/g, " ").trim();
+function ClientasWeb({ temaPal, avisar, urlTienda, nombreTienda, esJefe }) {
+  const [d, setD] = useState(null);
+  const [msj, setMsj] = useState(null); // editor de mensajes
+  const cargar = () => API.get("/tienda/clientas-web").then(r => setD(r.data)).catch(() => setD({ avisos: [], carritos: [], favoritos: [], resumen_fav: {}, mensajes: {}, error: true }));
+  useEffect(() => { cargar(); }, []);
+  if (!d) return <div className="card"><div className="skel" style={{ height: 120 }} /></div>;
+  const tCarrito = (d.mensajes && d.mensajes.carrito) || MSJ_CARRITO, tAviso = (d.mensajes && d.mensajes.aviso) || MSJ_AVISO;
+  const hace = (f) => { const h = Math.round((Date.now() - new Date(f).getTime()) / 36e5); return h < 1 ? "recién" : h < 24 ? "hace " + h + " h" : "hace " + Math.round(h / 24) + " días"; };
+  const primer = (n) => String(n || "").trim().split(/\s+/)[0] || "";
+  const porProducto = {};
+  d.avisos.forEach(a => { (porProducto[a.producto_id] = porProducto[a.producto_id] || { nombre: a.producto, rg: a.stock_rg, ush: a.stock_ush, lista: [] }).lista.push(a); });
+  const grupos = Object.entries(porProducto).sort((a, b) => (b[1].rg + b[1].ush > 0) - (a[1].rg + a[1].ush > 0));
+  const avisarUna = async (a, prod) => {
+    const txt = llenarMsj(tAviso, { nombre: primer(a.nombre), producto: prod, tienda: nombreTienda || "la tienda", link: urlTienda || "" });
+    window.open(linkWhatsapp(a.telefono, txt) || ("https://wa.me/?text=" + encodeURIComponent(txt)), "_blank");
+    try { await API.post("/tienda/avisos/" + a.id + "/avisado"); cargar(); } catch (e) {}
+  };
+  const textoCarrito = (k) => llenarMsj(tCarrito, { nombre: primer(k.nombre), tienda: nombreTienda || "la tienda", total: fmt(k.subtotal), link: urlTienda || "",
+    productos: (k.items || []).map(i => i.nombre + (i.cantidad > 1 ? " x" + i.cantidad : "")).join(", ") });
+  const recordar = async (k) => {
+    const txt = textoCarrito(k);
+    window.open(linkWhatsapp(k.telefono, txt) || ("https://wa.me/?text=" + encodeURIComponent(txt)), "_blank");
+    try { await API.post("/tienda/carritos/" + k.cliente_id + "/recordado"); cargar(); } catch (e) {}
+  };
+  const borrarAviso = async (a) => { if (!confirm("¿Borrar el pedido de aviso de " + a.nombre + "?")) return; try { await API.delete("/tienda/avisos/" + a.id); cargar(); } catch (e) { avisar(false, "No se pudo"); } };
+  const guardarMsj = async () => { try { await API.put("/tienda/mensajes", msj); avisar(true, "✓ Mensajes guardados"); setMsj(null); cargar(); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); } };
+  // Analisis de favoritos
+  const rf = d.resumen_fav || {};
+  const favs = (d.favoritos || []).map(f => {
+    const stock = (f.stock_rg || 0) + (f.stock_ush || 0), conv = f.n ? f.compraron / f.n : 0;
+    const consejo = stock <= 0 ? ["🔴", "Reponer: lo quieren " + f.n + " y no hay stock", temaPal.red]
+      : f.n >= 3 && conv < 0.25 ? ["💡", "Muchas lo guardan y pocas lo compran: destacalo o probá una promo", temaPal.warn]
+      : f.n7 >= 2 ? ["📈", "Viene creciendo esta semana", temaPal.green]
+      : conv >= 0.5 && f.n >= 2 ? ["✅", "Se guarda y se compra: buen candidato a destacado", temaPal.green] : null;
+    return { ...f, stock, conv, consejo };
+  });
+  const porCat = {}; favs.forEach(f => { const c = f.categoria || "Sin categoría"; porCat[c] = (porCat[c] || 0) + f.n; });
+  const cats = Object.entries(porCat).sort((a, b) => b[1] - a[1]).slice(0, 6), maxCat = cats.length ? cats[0][1] : 1;
+  const ejemplo = { nombre: "Laura", tienda: nombreTienda || "Girasoles", total: fmt(25800), link: urlTienda || "girasolesbeauty.com.ar", productos: "Sérum Vitamina C, Protector solar x2", producto: "Sérum Vitamina C" };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="card">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <div className="ct" style={{ marginBottom: 0 }}>❤️ Análisis de favoritos</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {[["Guardados", rf.guardados || 0], ["Clientas", rf.clientas || 0], ["Esta semana", rf.semana || 0]].map(([t, v]) => <div key={t} style={{ background: temaPal.bg || temaPal.border, borderRadius: 8, padding: "6px 12px", textAlign: "center", minWidth: 86 }}><div style={{ fontSize: 18, fontWeight: 900 }}>{v}</div><div style={{ fontSize: 11, color: temaPal.textMuted }}>{t}</div></div>)}
+          </div>
+        </div>
+        <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "6px 0 10px" }}>Lo que las clientas con cuenta guardan con el ♡. "Compraron" = cuántas de las que lo guardaron lo compraron después (en el local o en la web).</div>
+        {!favs.length ? <div className="empty">Todavía nadie guardó favoritos. Cuando empiecen, acá vas a ver qué quieren, qué reponer y qué destacar.</div> : <>
+          {cats.length > 1 && <div style={{ marginBottom: 12 }}>
+            <div className="fl">Por categoría</div>
+            {cats.map(([c, n]) => <div key={c} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, margin: "3px 0" }}><span style={{ width: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c}</span><div style={{ flex: 1, height: 10, background: temaPal.border, borderRadius: 5, overflow: "hidden" }}><div style={{ width: (n / maxCat * 100) + "%", height: "100%", background: "#e0245e", borderRadius: 5 }} /></div><b style={{ width: 28, textAlign: "right" }}>{n}</b></div>)}
+          </div>}
+          <div style={{ overflowX: "auto" }}>
+            <table className="cli-tabla" style={{ width: "100%", fontSize: 13 }}>
+              <thead><tr><th style={{ textAlign: "left" }}>Producto</th><th>♥</th><th>7 días</th><th>Compraron</th><th>Stock</th><th style={{ textAlign: "left" }}>Qué hacer</th></tr></thead>
+              <tbody>{favs.map(f => (
+                <tr key={f.producto_id}>
+                  <td><b>{f.nombre}</b><div style={{ fontSize: 11, color: temaPal.textMuted }}>{f.categoria || ""}</div></td>
+                  <td style={{ textAlign: "center", fontWeight: 800 }}>{f.n}</td>
+                  <td style={{ textAlign: "center", color: f.n7 ? temaPal.green : temaPal.textMuted }}>{f.n7 ? "+" + f.n7 : "—"}</td>
+                  <td style={{ textAlign: "center" }}>{f.compraron} <span style={{ color: temaPal.textMuted, fontSize: 11 }}>({Math.round(f.conv * 100)}%)</span></td>
+                  <td style={{ textAlign: "center", color: f.stock > 0 ? undefined : temaPal.red, fontWeight: f.stock > 0 ? 400 : 800 }}>{f.stock > 0 ? f.stock : "0"}</td>
+                  <td style={{ fontSize: 12 }}>{f.consejo ? <span style={{ color: f.consejo[2] }}>{f.consejo[0]} {f.consejo[1]}</span> : <span style={{ color: temaPal.textMuted }}>—</span>}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </>}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 12, alignItems: "start" }}>
+        <div className="card">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}><div className="ct" style={{ marginBottom: 0 }}>🛒 Carritos abandonados</div>{esJefe && <button className="btn btn-g btn-sm" onClick={() => setMsj({ carrito: tCarrito, aviso: tAviso })}>✏️ Editar mensajes</button>}</div>
+          <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "6px 0 8px" }}>Clientas con cuenta que armaron un carrito hace más de una hora y no compraron (últimos 30 días). "Recordarle" abre WhatsApp con tu mensaje.</div>
+          {!d.carritos.length ? <div className="empty">No hay carritos abandonados.</div> : d.carritos.map(k => (
+            <div key={k.cliente_id} style={{ borderTop: "1px solid " + temaPal.border, padding: "8px 0" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><b>{k.nombre}</b><b>{fmt(k.subtotal)}</b></div>
+              <div style={{ fontSize: 12, color: temaPal.textMuted }}>{k.telefono || "sin WhatsApp"} · {hace(k.actualizado_en)}{k.recordado_en ? " · ya le recordaste " + hace(k.recordado_en) : ""}</div>
+              <div style={{ fontSize: 13, margin: "4px 0" }}>{(k.items || []).map((i, n) => <div key={n}>{i.cantidad} × {i.nombre}{i.variante ? " (" + i.variante + ")" : ""}{i.preventa ? " · preventa" : ""}</div>)}</div>
+              {k.telefono && <button className={"btn btn-sm " + (k.recordado_en ? "btn-g" : "btn-p")} onClick={() => recordar(k)}>💬 {k.recordado_en ? "Recordarle de nuevo" : "Recordarle"}</button>}
+            </div>
+          ))}
+        </div>
+        <div className="card">
+          <div className="ct">🔔 Piden que les avisen cuando vuelva</div>
+          <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 8 }}>Dejaron su WhatsApp en un producto agotado. Arriba, los que ya tienen stock: tocá "Avisar" y se abre el WhatsApp con tu mensaje.</div>
+          {!grupos.length ? <div className="empty">Nadie pidió aviso todavía.</div> : grupos.map(([id, g]) => (
+            <div key={id} style={{ borderTop: "1px solid " + temaPal.border, padding: "8px 0" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}><b>{g.nombre}</b>
+                <span className="tag" style={{ background: g.rg + g.ush > 0 ? temaPal.greenDim : temaPal.border, color: g.rg + g.ush > 0 ? temaPal.green : temaPal.textMuted, fontWeight: 700 }}>{g.rg + g.ush > 0 ? "✓ Hay stock" : "Sin stock"} · {nombreLocal(1)} {g.rg}{!UN_SOLO_LOCAL ? " · " + nombreLocal(2) + " " + g.ush : ""}</span></div>
+              {g.lista.map(a => (
+                <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginTop: 6, flexWrap: "wrap" }}>
+                  <span style={{ flex: 1, minWidth: 140 }}>{a.nombre} <span style={{ color: temaPal.textMuted }}>· {a.telefono}{!UN_SOLO_LOCAL ? " · " + nombreLocal(a.local_id) : ""} · {hace(a.creado_en)}</span></span>
+                  <button className="btn btn-p btn-sm" onClick={() => avisarUna(a, g.nombre)}>💬 Avisar</button>
+                  <button className="btn btn-g btn-sm" onClick={() => borrarAviso(a)} aria-label="Borrar">✕</button>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+      {msj && (
+        <div className="pos-overlay" onClick={() => setMsj(null)}>
+          <div className="card pop-in" style={{ width: 620, maxWidth: "95vw", maxHeight: "90vh", overflowY: "auto", background: temaPal.card }} onClick={e => e.stopPropagation()}>
+            <div className="ct">✏️ Mensajes de WhatsApp</div>
+            <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 10 }}>Podés usar: <b>{"{nombre}"}</b> (primer nombre), <b>{"{tienda}"}</b>, <b>{"{link}"}</b> y, en el del carrito, <b>{"{productos}"}</b> y <b>{"{total}"}</b>; en el del aviso, <b>{"{producto}"}</b>.</div>
+            {[["carrito", "🛒 Carrito abandonado", MSJ_CARRITO], ["aviso", "🔔 Volvió el producto", MSJ_AVISO]].map(([k, t, def]) => (
+              <div key={k} style={{ marginBottom: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div className="fl">{t}</div><button className="chip-btn" style={{ fontSize: 11 }} onClick={() => setMsj(m => ({ ...m, [k]: def }))}>↺ Volver al de siempre</button></div>
+                <textarea className="inp" rows={3} maxLength={700} value={msj[k]} onChange={e => setMsj(m => ({ ...m, [k]: e.target.value }))} style={{ width: "100%" }} />
+                <div style={{ fontSize: 12, background: "#e7fbe9", color: "#1d4d2b", borderRadius: 8, padding: "8px 10px", marginTop: 4 }}><b>Así le llega:</b> {llenarMsj(msj[k], ejemplo)}</div>
+              </div>
+            ))}
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}><button className="btn btn-g" onClick={() => setMsj(null)}>Cancelar</button><button className="btn btn-p" onClick={guardarMsj}>Guardar</button></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TiendaOnline({ localId, usuario, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState(() => tabInicialDe("tienda-online") || "pedidos");
@@ -25593,7 +25778,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
       {aviso && <div className="pop-in" role={aviso.ok ? "status" : "alert"} style={{ background: aviso.ok ? temaPal.greenDim : temaPal.redDim, border: "1px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, marginBottom: 12 }}>{aviso.texto}</div>}
       {!cfg.activo && <div className="cli-tip" style={{ marginBottom: 12 }}>Para empezar: 1) elegí qué productos publicar en <b>Productos</b>, 2) completá <b>Configuración</b> (entrega y pagos) y tildá "Tienda publicada".</div>}
       <div className="tabs" style={{ marginBottom: 12 }}>
-        {[["pedidos", "Pedidos" + (abiertos.length ? " (" + abiertos.length + ")" : "")], ["productos", "Productos (" + nPub + " publicados)"], ...(esJefeT ? [["portada", "Portada y sectores"]] : []), ["config", "Configuración"]].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
+        {[["pedidos", "Pedidos" + (abiertos.length ? " (" + abiertos.length + ")" : "")], ["productos", "Productos (" + nPub + " publicados)"], ...(esJefeT ? [["portada", "Portada y sectores"]] : []), ["clientas", "Clientas web"], ["config", "Configuración"]].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
       </div>
 
       {tab === "pedidos" && (
@@ -25754,6 +25939,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         </div>
       )}
 
+      {tab === "clientas" && <ClientasWeb temaPal={temaPal} avisar={avisar} urlTienda={url} nombreTienda={cfg?.titulo} esJefe={esJefeT} />}
       {tab === "portada" && esJefeT && <PortadaTienda productos={productos} temaPal={temaPal} avisar={avisar} alGuardar={cargarProductos} />}
 
       {tab === "config" && (
