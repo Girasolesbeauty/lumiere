@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { esVentaWeb } = require('../lib/tiendaWeb');
 const { porNegocio } = require('../lib/contexto');
 
 // Convierte "rg"/"ush" (o numeros) al id numerico del local. null si es consolidado/vacio.
@@ -144,7 +145,7 @@ const ETIQUETAS_DESTINO_ORIGEN = {
   otro: 'Otro'
 };
 const etiquetaDestinoOrigen = (valor) => ETIQUETAS_DESTINO_ORIGEN[valor] || valor || 'Otros';
-const CANALES = { presencial: 'Ventas en el local', online: 'Ventas online' };
+const CANALES = { presencial: 'Ventas en el local', online: 'Ventas online', tienda_web: 'Ventas de la tienda web' };
 
 // Egresos del mes, de las dos tablas de movimientos, sin anulados y sin contar dos veces
 // el pago de comisiones en efectivo (que se guarda en las dos tablas a la vez).
@@ -188,12 +189,14 @@ async function calcularFlujoEstructurado(mesActual, anioActual, local_id) {
   const params = [mesActual, anioActual];
   if (localNum !== null) params.push(localNum);
 
+  // Los pedidos de la tienda web se cobran en la caja: se muestran en su propio renglon (el total no cambia)
+  const canalSql = `CASE WHEN ${await esVentaWeb('v')} THEN 'tienda_web' ELSE COALESCE(v.canal, 'presencial') END`;
   const [ventasRes, cambiosRes, factExtRes, egresos, comisionesMedios] = await Promise.all([
     pool.query(`
-      SELECT COALESCE(v.canal, 'presencial') AS canal, SUM(v.total) AS total, COUNT(*) AS cantidad
+      SELECT ${canalSql} AS canal, SUM(v.total) AS total, COUNT(*) AS cantidad
       FROM ventas v
       WHERE ${VENTA_VALIDA('v')} AND ${EN_MES('v.creado_en', 1, 2)} ${localNum !== null ? 'AND v.local_id = $3' : ''}
-      GROUP BY COALESCE(v.canal, 'presencial')`, params),
+      GROUP BY 1`, params),
     // Diferencias cobradas en cambios de producto: plata que entra y no es una venta nueva
     pool.query(`
       SELECT COALESCE(SUM(m.importe), 0) AS total FROM movimientos_caja m

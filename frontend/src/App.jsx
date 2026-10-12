@@ -17910,6 +17910,15 @@ function CierreCaja({ localId, usuario, paletaActual }) {
             </div>
           </div>
 
+          {(datos?.tienda_sin_caja || []).length > 0 && (() => { const l = datos.tienda_sin_caja; const suma = l.reduce((t, x) => t + x.total, 0); return (
+            <div className="dash-alert" style={{ marginTop: 12, marginBottom: 0, display: "block" }}>
+              <div>🛍️ <b>{l.length === 1 ? "1 pedido de la tienda web" : l.length + " pedidos de la tienda web"} sin cobrar en la caja</b> ({fmt(suma)}). <b>Todavía no suman</b> a este cierre: entran recién cuando lo cobrás en el Punto de Venta (botón "Cobrar en caja" o "Entregar y registrar venta" en Tienda online), aunque ya lo hayan pagado por Mercado Pago o transferencia.</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8, alignItems: "center" }}>
+                {l.slice(0, 8).map(x => <span key={x.id} className="tag" style={{ fontWeight: 700 }}>N° {x.codigo} · {x.nombre} · {fmt(x.total)}{x.pagado ? " · ya pagado" : ""}{x.dia && String(x.dia).slice(0, 10) !== fecha ? " · del " + new Date(String(x.dia).slice(0, 10) + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }) : ""}</span>)}
+                <button className="btn btn-p btn-sm" onClick={() => irASeccion("tienda-online")}>Ir a Tienda online</button>
+              </div>
+            </div>
+          ); })()}
           {r.pendientes_arca > 0 && (
             <div className="dash-alert" style={{ marginTop: 12, marginBottom: 0 }}>
               <span>⚠️ <b>{r.pendientes_arca} venta{r.pendientes_arca !== 1 ? "s" : ""} sin facturar en ARCA</b> este día. Están sumadas al total; reintentá la facturación desde el Punto de Venta.</span>
