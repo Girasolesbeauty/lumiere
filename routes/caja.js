@@ -109,11 +109,15 @@ const num = (x) => parseFloat(x) || 0;
 const calcularCierre = async (localId, fecha) => {
   const conPagos = await tieneVentaPagos();
   const web = await esVentaWeb('v');
-  const [ventasR, mediosR, movsR, gcR, webR] = await Promise.all([
+  // Con tienda: que esten sus columnas (pagado_en) antes de consultarlas
+  if (web !== 'FALSE') await require('../lib/tienda').asegurar();
+  const [ventasR, mediosR, movsR, gcR, webR, cobradosR] = await Promise.all([
     pool.query(`
       SELECT v.id, v.numero_factura, v.total, COALESCE(v.monto_gift_card, 0) AS monto_gift_card,
         v.medio_pago, v.medio_pago_id, COALESCE(v.anulada, FALSE) AS anulada, v.motivo_anulacion,
         v.estado_facturacion, v.canal, v.cae, c.nombre AS cliente_nombre, CASE WHEN ${web} THEN 'Tienda web' ELSE u.nombre END AS vendedora_nombre, ${web} AS tienda_web,
+        ${web === 'FALSE' ? 'NULL' : `(SELECT TO_CHAR(${DIA_AR('tpw.pagado_en')}, 'YYYY-MM-DD') FROM tienda_pedidos tpw WHERE tpw.venta_id = v.id AND tpw.pagado_en IS NOT NULL
+          AND tpw.pago IN ('mp', 'transferencia') AND tpw.pagado_en <= v.creado_en LIMIT 1)`} AS cobrada_online_el,
         ${HORA_AR('v.creado_en')} AS hora,
         ${conPagos ? `COALESCE((SELECT json_agg(json_build_object('medio_pago_id', vp.medio_pago_id, 'nombre', vp.medio_pago_nombre, 'importe', vp.importe))
           FROM venta_pagos vp WHERE vp.venta_id = v.id), '[]')` : `'[]'::json`} AS pagos
@@ -140,10 +144,17 @@ const calcularCierre = async (localId, fecha) => {
     // Pedidos de la tienda web de este local, hechos hasta ese dia, que todavia no se cobraron en la caja
     // (una venta web entra a la caja recien cuando se registra en el Punto de Venta)
     web === 'FALSE' ? { rows: [] } : pool.query(`
-      SELECT id, codigo, nombre, total, pago, pagado, estado, ${HORA_AR('creado_en')} AS hora, ${DIA_AR('creado_en')} AS dia
+      SELECT id, codigo, nombre, total, pago, pagado, estado, ${HORA_AR('creado_en')} AS hora, ${DIA_AR('creado_en')} AS dia, (pagado_en IS NOT NULL AND pago IN ('mp', 'transferencia')) AS cobrado_online
       FROM tienda_pedidos
       WHERE local_id = $1 AND estado IN ('pendiente_pago', 'confirmado', 'preparado', 'en_caja') AND ${DIA_AR('creado_en')} <= $2::date
       ORDER BY creado_en DESC LIMIT 30`, [localId, fecha]).catch(() => ({ rows: [] })),
+    // Lo que se cobro online ese dia (Mercado Pago o transferencia confirmada): cuenta en el cierre de ese dia,
+    // aunque todavia no lo hayan retirado. Cuando despues se registra la venta en la caja, esa venta ya no se vuelve a sumar.
+    web === 'FALSE' ? { rows: [] } : pool.query(`
+      SELECT id, codigo, nombre, total, pago, estado, ${HORA_AR('pagado_en')} AS hora
+      FROM tienda_pedidos
+      WHERE local_id = $1 AND pago IN ('mp', 'transferencia') AND pagado_en IS NOT NULL AND ${DIA_AR('pagado_en')} = $2::date AND estado <> 'cancelado'
+      ORDER BY pagado_en`, [localId, fecha]).catch(() => ({ rows: [] })),
   ]);
 
   const mediosPorId = {};
@@ -168,6 +179,8 @@ const calcularCierre = async (localId, fecha) => {
   for (const v of ventasR.rows) {
     const neto = num(v.total) - num(v.monto_gift_card);
     if (v.anulada) { anuladas++; montoAnulado += num(v.total); continue; }
+    // Pedido web pagado online antes: ya se sumo el dia que se cobro (abajo, en cobradosR)
+    if (v.cobrada_online_el) { v.ya_contada = true; continue; }
     cantidad++;
     totalVentas += neto;
     pagadoGiftCard += num(v.monto_gift_card);
@@ -185,6 +198,14 @@ const calcularCierre = async (localId, fecha) => {
       sumar(v.medio_pago || 'Efectivo', neto, ef, true);
       if (ef) ventasEfectivo += neto;
     }
+  }
+
+  // Cobrado online ese dia (no es efectivo: entra a Mercado Pago o a la cuenta)
+  let cobradoOnline = 0;
+  for (const w of cobradosR.rows) {
+    const t = num(w.total);
+    cobradoOnline += t; totalVentas += t; cantidad++;
+    sumar(w.pago === 'mp' ? 'Mercado Pago (tienda web)' : 'Transferencia (tienda web)', t, false, true);
   }
 
   let totalGiftCards = 0, gcEfectivo = 0;
@@ -206,6 +227,7 @@ const calcularCierre = async (localId, fecha) => {
     medios: Object.values(medios).sort((a, b) => b.total - a.total),
     gift_cards: gcR.rows,
     tienda_sin_caja: webR.rows.map(x => ({ ...x, total: num(x.total) })),
+    tienda_cobrados: cobradosR.rows.map(x => ({ ...x, total: num(x.total) })),
     movimientos: movsR.rows,
     resumen: {
       total_dia: totalVentas + totalGiftCards,
@@ -219,6 +241,7 @@ const calcularCierre = async (localId, fecha) => {
       ingresos, egresos,
       efectivo_del_dia: efectivoDelDia,
       pendientes_arca: pendientesArca,
+      cobrado_online: cobradoOnline,
     },
   };
 };

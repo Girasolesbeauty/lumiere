@@ -17945,11 +17945,23 @@ function CierreCaja({ localId, usuario, paletaActual }) {
             </div>
           </div>
 
-          {(datos?.tienda_sin_caja || []).length > 0 && (() => { const l = datos.tienda_sin_caja; const suma = l.reduce((t, x) => t + x.total, 0); return (
+          {(datos?.tienda_cobrados || []).length > 0 && (() => { const l = datos.tienda_cobrados; return (
+            <div className="chart-card anim-in" style={{ marginTop: 12, borderLeft: "5px solid #1e8e4f" }}>
+              <div className="chart-head">
+                <div className="chart-title">🛍️ Cobrado online este día</div>
+                <div className="chart-meta" style={{ color: "#1e8e4f", fontWeight: 800 }}>{fmt(r.cobrado_online || 0)}</div>
+              </div>
+              <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 8 }}>Pedidos de la tienda pagados por Mercado Pago o transferencia. <b>Ya están sumados</b> al total del día (no son efectivo). Cuando los entregues y registres en la caja, esa venta no se vuelve a sumar.</div>
+              {l.map(x => (
+                <div key={x.id} className="cc-linea"><span>{x.hora} · N° {x.codigo} · {x.nombre} <span className="tag" style={{ marginLeft: 4 }}>{x.pago === "mp" ? "Mercado Pago" : "Transferencia"}</span>{x.estado === "entregado" ? <span className="tag tag-ok" style={{ marginLeft: 4 }}>entregado</span> : <span className="tag tag-warn" style={{ marginLeft: 4 }}>falta entregar</span>}</span><b>{fmt(x.total)}</b></div>
+              ))}
+            </div>
+          ); })()}
+          {(datos?.tienda_sin_caja || []).filter(x => !x.cobrado_online).length > 0 && (() => { const l = datos.tienda_sin_caja.filter(x => !x.cobrado_online); const suma = l.reduce((t, x) => t + x.total, 0); return (
             <div className="dash-alert" style={{ marginTop: 12, marginBottom: 0, display: "block" }}>
-              <div>🛍️ <b>{l.length === 1 ? "1 pedido de la tienda web" : l.length + " pedidos de la tienda web"} sin cobrar en la caja</b> ({fmt(suma)}). <b>Todavía no suman</b> a este cierre: entran recién cuando lo cobrás en el Punto de Venta (botón "Cobrar en caja" o "Entregar y registrar venta" en Tienda online), aunque ya lo hayan pagado por Mercado Pago o transferencia.</div>
+              <div>🛍️ <b>{l.length === 1 ? "1 pedido de la tienda web" : l.length + " pedidos de la tienda web"} sin pagar todavía</b> ({fmt(suma)}). <b>No suman</b> a este cierre hasta que los cobres en el Punto de Venta (botón "Cobrar en caja" en Tienda online) o se acredite el pago online.</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8, alignItems: "center" }}>
-                {l.slice(0, 8).map(x => <span key={x.id} className="tag" style={{ fontWeight: 700 }}>N° {x.codigo} · {x.nombre} · {fmt(x.total)}{x.pagado ? " · ya pagado" : ""}{x.dia && String(x.dia).slice(0, 10) !== fecha ? " · del " + new Date(String(x.dia).slice(0, 10) + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }) : ""}</span>)}
+                {l.slice(0, 8).map(x => <span key={x.id} className="tag" style={{ fontWeight: 700 }}>N° {x.codigo} · {x.nombre} · {fmt(x.total)}{x.pago === "retiro" ? " · paga al retirar" : " · esperando pago"}{x.dia && String(x.dia).slice(0, 10) !== fecha ? " · del " + new Date(String(x.dia).slice(0, 10) + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }) : ""}</span>)}
                 <button className="btn btn-p btn-sm" onClick={() => irASeccion("tienda-online")}>Ir a Tienda online</button>
               </div>
             </div>
@@ -18129,6 +18141,7 @@ function CierreCaja({ localId, usuario, paletaActual }) {
                       <td style={{ fontSize: 11, fontFamily: "monospace", textDecoration: v.anulada ? "line-through" : "none" }}>
                         {v.numero_factura || "-"}
                         {v.pendiente_arca && !v.anulada && <span className="tag tag-warn" style={{ marginLeft: 6, fontFamily: "inherit" }}>sin facturar</span>}
+                        {v.ya_contada && <span className="tag" style={{ marginLeft: 6, fontFamily: "inherit" }} title="Se pagó online: se sumó el día que se cobró">cobrada online el {new Date(v.cobrada_online_el + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })} · no se suma de nuevo</span>}
                       </td>
                       <td style={{ fontSize: 12 }}>{v.cliente_nombre || "Consumidor final"}{v.anulada && <div style={{ fontSize: 10, color: p.red }}>ANULADA: {v.motivo_anulacion}</div>}</td>
                       <td style={{ fontSize: 11, color: p.textMuted }}>{v.vendedora_nombre || "-"}</td>
@@ -26255,12 +26268,12 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                 const e = ESTADOS_TIENDA[p.estado] || ESTADOS_TIENDA.confirmado;
                 const cerrado = ["entregado", "cancelado"].includes(p.estado);
                 // Pago: bien distinto si ya esta confirmado o no (franja arriba de la tarjeta)
-                const pago = p.estado === "cancelado" ? null : p.pagado ? { t: "✅ PAGO CONFIRMADO", sub: PAGO_TIENDA[p.pago] + (p.estado === "entregado" ? "" : " · ya está pagado"), c: "#1e8e4f", bg: "#1e8e4f" }
+                const pago = p.estado === "cancelado" ? (p.pagado ? { t: "⚠️ CANCELADO PERO PAGÓ", sub: "Se canceló por vencido pero el pago de Mercado Pago entró: devolvele la plata o registrá la venta", c: "#c0392b", bg: "#e74c3c" } : null) : p.pagado ? { t: "✅ PAGO CONFIRMADO", sub: PAGO_TIENDA[p.pago] + (p.estado === "entregado" ? "" : " · ya está pagado"), c: "#1e8e4f", bg: "#1e8e4f" }
                   : p.pago === "retiro" ? { t: "💵 SIN PAGAR · paga al retirar", sub: "Cobrale " + fmt(p.total) + " cuando lo retire", c: "#b26a00", bg: "#f39c12" }
                   : { t: "⏳ ESPERANDO EL PAGO", sub: p.pago === "transferencia" ? "Fijate si llegó la transferencia y tocá \"Pago recibido\"" : "Todavía no se acreditó el pago de Mercado Pago", c: "#c0392b", bg: "#e74c3c" };
                 return (
                   <div key={p.id} className="card" style={{ borderLeft: "5px solid " + e.c }}>
-                    {pago && !cerrado && <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", margin: "0 0 12px", padding: "8px 12px", borderRadius: 8, background: pago.bg + "1f", border: "1.5px solid " + pago.bg }}>
+                    {pago && (!cerrado || p.estado === "cancelado") && <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", margin: "0 0 12px", padding: "8px 12px", borderRadius: 8, background: pago.bg + "1f", border: "1.5px solid " + pago.bg }}>
                       <span style={{ fontWeight: 900, fontSize: 13, color: pago.c, letterSpacing: ".02em" }}>{pago.t}</span>
                       <span style={{ fontSize: 12, color: temaPal.textMuted }}>{pago.sub}</span>
                     </div>}
