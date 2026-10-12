@@ -383,14 +383,7 @@ router.get('/:slug/pedidos/:codigo', async (req, res) => {
   try {
     let p = (await pool.query('SELECT * FROM tienda_pedidos WHERE codigo = $1', [String(req.params.codigo || '').toUpperCase()])).rows[0];
     if (!p) return res.status(404).json({ error: 'No encontramos ese pedido' });
-    if (p.pago === 'mp' && !p.pagado && p.estado === 'pendiente_pago') {
-      try {
-        const tok = await ayudaMP.token();
-        const r = await ayudaMP.mp(tok, 'GET', '/v1/payments/search?sort=date_created&criteria=desc&external_reference=' + encodeURIComponent('tienda-' + p.codigo));
-        const ok = ((r && r.results) || []).find(x => x.status === 'approved' && Math.abs(num(x.transaction_amount) - num(p.total)) < 0.01);
-        if (ok) p = (await pool.query(`UPDATE tienda_pedidos SET pagado = TRUE, pago_ref = $1, estado = 'confirmado', vence_en = NULL, actualizado_en = NOW() WHERE id = $2 RETURNING *`, [String(ok.id), p.id])).rows[0];
-      } catch (e) { /* sin respuesta de Mercado Pago: se vuelve a preguntar despues */ }
-    }
+    if (p.pago === 'mp' && !p.pagado && p.estado === 'pendiente_pago') p = await tienda.revisarPagoMP(p, true);
     const items = (await pool.query('SELECT nombre, variante_valor, cantidad, precio, preventa FROM tienda_pedido_items WHERE pedido_id = $1 ORDER BY id', [p.id])).rows.map(i => ({ ...i, precio: num(i.precio) }));
     const loc = p.entrega === 'retiro' ? (await pool.query('SELECT nombre, direccion FROM locales WHERE id = $1', [p.local_id]).catch(() => ({ rows: [] }))).rows[0] : null;
     res.json({

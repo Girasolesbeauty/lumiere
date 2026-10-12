@@ -439,6 +439,10 @@ async function pedidoCompleto(id) {
 
 router.get('/pedidos', async (req, res) => {
   try {
+    // Los de Mercado Pago que siguen "esperando el pago": se le pregunta a Mercado Pago (por si pagaron y cerraron la pagina)
+    const esperando = (await pool.query(`SELECT * FROM tienda_pedidos WHERE pago = 'mp' AND NOT pagado AND creado_en > NOW() - INTERVAL '7 days'
+      AND (estado = 'pendiente_pago' OR (estado = 'cancelado' AND motivo = 'Venció sin pagar')) ORDER BY creado_en DESC LIMIT 12`)).rows;
+    await Promise.all(esperando.map(p => tienda.revisarPagoMP(p)));
     const r = await pool.query(`SELECT p.*, CASE WHEN r.pedido_id IS NULL THEN NULL ELSE json_build_object('texto', r.texto, 'tipo', r.tipo, 'valor', r.valor, 'cupon', r.cupon) END AS ruleta
       FROM tienda_pedidos p LEFT JOIN tienda_ruleta r ON r.pedido_id = p.id
       ORDER BY CASE WHEN p.estado IN ('confirmado','pendiente_pago','preparado','en_caja') THEN 0 ELSE 1 END, p.creado_en DESC LIMIT 200`);
@@ -466,7 +470,7 @@ router.put('/pedidos/:id/estado', async (req, res) => {
     if (estado === 'cancelado') {
       await tienda.cancelar(p.id, String((req.body && req.body.motivo) || 'Cancelado desde Lumiere').slice(0, 200));
     } else if (estado === 'pagado') {
-      await pool.query(`UPDATE tienda_pedidos SET pagado = TRUE, estado = CASE WHEN estado = 'pendiente_pago' THEN 'confirmado' ELSE estado END, vence_en = NULL, actualizado_en = NOW() WHERE id = $1`, [p.id]);
+      await pool.query(`UPDATE tienda_pedidos SET pagado = TRUE, pagado_en = COALESCE(pagado_en, NOW()), estado = CASE WHEN estado = 'pendiente_pago' THEN 'confirmado' ELSE estado END, vence_en = NULL, actualizado_en = NOW() WHERE id = $1`, [p.id]);
     } else if (estado === 'preparado' || estado === 'confirmado') {
       if (p.estado === 'pendiente_pago' && estado === 'preparado') return res.status(400).json({ error: 'Todavía no está pagado: marcá el pago primero (o cancelalo)' });
       await pool.query(`UPDATE tienda_pedidos SET estado = $1, actualizado_en = NOW() WHERE id = $2`, [estado, p.id]);
