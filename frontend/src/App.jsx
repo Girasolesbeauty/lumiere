@@ -23196,6 +23196,7 @@ const CSS_TIENDA = `
 .tw-res-estado.aprobada{background:#e6f4ea;color:#2d7a4f}
 .tw-res-estado.rechazada{background:#eee;color:#777}
 .tw-form-res{max-width:480px;padding:26px}
+.tw-res-pts{background:linear-gradient(90deg,#fff6db,#fffbef);border:1px solid #f1d58a;border-radius:10px;padding:9px 12px;font-size:13px;color:#6b5200;margin-bottom:12px}
 .tw-elegir-est{display:flex;align-items:center;gap:4px}
 .tw-elegir-est button{font-size:36px;line-height:1;background:none;border:none;color:#ddd;cursor:pointer;padding:0 2px;transition:transform .15s,color .15s}
 .tw-elegir-est button.on{color:#f5a623}
@@ -24218,6 +24219,9 @@ function TiendaPublica({ slug }) {
     if (ex || (misRes && misRes.para_resenar.some(x => x.id === p.id))) abrirFormRes({ id: p.id, nombre: p.nombre }, ex);
     else setResAviso(p.id);
   };
+  // Puntos que gana por la reseña (configurado en Lumiere)
+  const ptsRes = tienda && tienda.resenas_puntos;
+  const textoPtsRes = ptsRes ? (ptsRes.puntos ? "Ganás " + ptsRes.puntos + " puntos" + (ptsRes.extra_foto ? " (+" + ptsRes.extra_foto + " con foto)" : "") : "Ganás " + ptsRes.extra_foto + " puntos si sumás una foto") : "";
   const enviarRes = async () => {
     const f = formRes;
     if (!f.estrellas) return setFormRes(x => ({ ...x, error: "Elegí de 1 a 5 estrellas" }));
@@ -24759,6 +24763,7 @@ function TiendaPublica({ slug }) {
           <div>
             {misRes.para_resenar.length > 0 ? <>
               <p style={{ fontSize: 13.5, color: "#555", margin: "4px 0 10px" }}>¿Qué te parecieron? Tu opinión ayuda a otras clientas a elegir 💛</p>
+              {ptsRes && <div className="tw-res-pts" style={{ marginBottom: 10 }}>🎁 <b>{textoPtsRes}</b> por cada reseña que publiquemos</div>}
               {misRes.para_resenar.map(pr => (
                 <div key={pr.id} className="tw-fila-cuenta" style={{ alignItems: "center" }}>
                   {pr.foto ? <img src={base + "/foto/" + pr.id} alt="" style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} /> : <span className="tw-mini" style={{ width: 44, height: 44 }} />}
@@ -24771,7 +24776,7 @@ function TiendaPublica({ slug }) {
               <div className="tw-lbl" style={{ marginTop: 18 }}>Tus reseñas</div>
               {misRes.mias.map(r => (
                 <div key={r.id} className="tw-fila-cuenta" style={{ flexDirection: "column", alignItems: "stretch", gap: 4 }}>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}><b style={{ flex: 1, minWidth: 0 }}>{r.nombre}</b><span className={"tw-res-estado " + r.estado}>{r.estado === "aprobada" ? "Publicada" : r.estado === "rechazada" ? "No publicada" : "En revisión"}</span></div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}><b style={{ flex: 1, minWidth: 0 }}>{r.nombre}</b><span className={"tw-res-estado " + r.estado}>{r.estado === "aprobada" ? "Publicada" : r.estado === "rechazada" ? "No publicada" : "En revisión"}</span>{r.puntos_dados > 0 && <span className="tw-res-estado aprobada">🎁 +{r.puntos_dados} pts</span>}</div>
                   <TwEstrellas v={r.estrellas} size={13} />
                   <div style={{ fontSize: 13, color: "#444" }}>{r.texto}</div>
                   <button className="tw-btn2" style={{ alignSelf: "flex-start", padding: "6px 12px", fontSize: 11, marginTop: 4 }} onClick={() => abrirFormRes({ id: r.producto_id, nombre: r.nombre }, r)}>Editar</button>
@@ -24938,7 +24943,7 @@ function TiendaPublica({ slug }) {
       {logueada && misRes && misRes.para_resenar.length > 0 && !resCerrado && !paso && !ver && !formRes && !toast && (
         <div className="tw-pide-res" role="status">
           <span style={{ fontSize: 22 }}>⭐</span>
-          <div style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}><b>¿Qué te pareció {misRes.para_resenar[0].nombre}?</b><div style={{ color: "#666", fontSize: 12.5 }}>Contanos y ayudá a otras clientas a elegir</div></div>
+          <div style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}><b>¿Qué te pareció {misRes.para_resenar[0].nombre}?</b><div style={{ color: "#666", fontSize: 12.5 }}>{ptsRes ? "🎁 " + textoPtsRes + " por tu reseña" : "Contanos y ayudá a otras clientas a elegir"}</div></div>
           <button className="tw-btn" style={{ padding: "8px 14px", fontSize: 11.5 }} onClick={() => abrirFormRes(misRes.para_resenar[0])}>Opinar</button>
           <button className="tw-pide-x" aria-label="Ahora no" onClick={() => { setResCerrado(true); try { localStorage.setItem("tienda_res_cerrado_" + slug, String(Date.now())); } catch (e) {} }}>✕</button>
         </div>
@@ -24953,12 +24958,13 @@ function TiendaPublica({ slug }) {
                 <div style={{ textAlign: "center", padding: "10px 0" }}>
                   <div style={{ fontSize: 44 }}>💛</div>
                   <h2 style={{ margin: "6px 0" }}>¡Gracias por tu reseña!</h2>
-                  <p style={{ color: "#555", fontSize: 14, lineHeight: 1.5 }}>La vamos a revisar y en unas horas aparece en la tienda.</p>
+                  <p style={{ color: "#555", fontSize: 14, lineHeight: 1.5 }}>La vamos a revisar y en unas horas aparece en la tienda.{ptsRes && !formRes.editando ? " Cuando la publiquemos, te sumamos los puntos 🎁" : ""}</p>
                   {misRes && misRes.para_resenar.length > 0 ? <button className="tw-btn full" onClick={() => abrirFormRes(misRes.para_resenar[0])}>Opinar de {misRes.para_resenar[0].nombre}</button> : <button className="tw-btn full" onClick={() => setFormRes(null)}>Listo</button>}
                 </div>
               ) : <>
                 <div className="tw-lbl" style={{ marginTop: 0 }}>{formRes.editando ? "Editar tu reseña" : "Tu reseña"}</div>
                 <h2 style={{ margin: "2px 0 14px", fontSize: 19 }}>{formRes.nombre}</h2>
+                {ptsRes && !formRes.editando && <div className="tw-res-pts">🎁 <b>{textoPtsRes}</b> cuando publiquemos tu reseña</div>}
                 <div className="tw-elegir-est" role="radiogroup" aria-label="Estrellas">
                   {[1, 2, 3, 4, 5].map(e => <button key={e} role="radio" aria-checked={formRes.estrellas === e} aria-label={e + (e === 1 ? " estrella" : " estrellas")} className={formRes.estrellas >= e ? "on" : ""} onClick={() => { twSonar.tic && twSonar.tic(true); setFormRes(x => ({ ...x, estrellas: e, error: "" })); }}>★</button>)}
                   <span>{["", "No me gustó", "Regular", "Está bien", "Me gustó", "¡Me encantó!"][formRes.estrellas]}</span>
@@ -25994,7 +26000,7 @@ function ClientasWeb({ temaPal, avisar, urlTienda, nombreTienda, esJefe }) {
 }
 
 // ---- Lumiere: reseñas de la tienda (se aprueban antes de publicarse) y pedido de reseña por WhatsApp ----
-const MSJ_RESENA = "Hola {nombre}! 🌻 ¿Qué te pareció {productos}? Nos ayudás muchísimo si dejás tu reseña (con foto si querés 📸) acá: {link} ¡Gracias!";
+const MSJ_RESENA = "Hola {nombre}! 🌻 ¿Qué te pareció {productos}? Nos ayudás muchísimo si dejás tu reseña (con foto si querés 📸) acá: {link} ¡Y sumás puntos! Gracias 💛";
 function FotoResenaAdmin({ id, onAbrir }) {
   const [src, setSrc] = useState(null);
   useEffect(() => {
@@ -26010,15 +26016,16 @@ function ResenasTienda({ temaPal, avisar, urlTienda, nombreTienda, esJefe, alCam
   const [filtro, setFiltro] = useState("pendiente");
   const [msj, setMsj] = useState(null);
   const [grande, setGrande] = useState(null);
-  const cargar = () => API.get("/tienda/resenas").then(r => { setD(r.data); setMsj(m => m === null ? (r.data.mensaje || MSJ_RESENA) : m); alCambiar && alCambiar(r.data.lista.filter(x => x.estado === "pendiente").length); }).catch(() => setD({ lista: [], pedir: [] }));
+  const [pts, setPts] = useState(null); // { activo, puntos, extra_foto }
+  const cargar = () => API.get("/tienda/resenas").then(r => { setD(r.data); setPts(x => x || r.data.puntos || { activo: true, puntos: 50, extra_foto: 50 }); setMsj(m => m === null ? (r.data.mensaje || MSJ_RESENA) : m); alCambiar && alCambiar(r.data.lista.filter(x => x.estado === "pendiente").length); }).catch(() => setD({ lista: [], pedir: [] }));
   useEffect(() => { cargar(); }, []);
   if (!d) return <div className="skel" style={{ height: 240 }} />;
   const accion = async (r, estado) => {
     try {
       if (estado === "borrar") { if (!confirm("¿Borrar esta reseña para siempre?")) return; await API.delete("/tienda/resenas/" + r.id); }
       else if (estado === "sin-foto") { if (!confirm("¿Sacarle la foto a esta reseña?")) return; await API.post("/tienda/resenas/" + r.id + "/sin-foto"); }
-      else await API.post("/tienda/resenas/" + r.id + "/estado", { estado });
-      avisar(true, estado === "aprobada" ? "✓ Reseña publicada en la tienda" : estado === "rechazada" ? "Reseña sin publicar" : "✓ Listo"); cargar();
+      else { const res = await API.post("/tienda/resenas/" + r.id + "/estado", { estado }); if (estado === "aprobada") { avisar(true, "✓ Reseña publicada" + (res.data.puntos ? " · se le sumaron " + res.data.puntos + " puntos a " + String(r.clienta || "la clienta").split(" ")[0] : "")); cargar(); return; } }
+      avisar(true, estado === "rechazada" ? "Reseña sin publicar" : "✓ Listo"); cargar();
     } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); }
   };
   const link = urlTienda ? urlTienda + (urlTienda.includes("?") ? "&" : "/?") + "resenar=1" : "";
@@ -26027,6 +26034,8 @@ function ResenasTienda({ temaPal, avisar, urlTienda, nombreTienda, esJefe, alCam
     window.open(linkWhatsapp(pd.telefono, txt) || ("https://wa.me/?text=" + encodeURIComponent(txt)), "_blank");
     try { await API.post("/tienda/pedidos/" + pd.id + "/resena-pedida"); cargar(); } catch (e) {}
   };
+  const guardarPts = async () => { try { const r = await API.put("/tienda/resenas/puntos", pts); setPts(r.data); avisar(true, "✓ Puntos por reseña guardados"); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); } };
+  const ptsDe = (r) => pts && pts.activo && !r.puntos_dados ? (Number(pts.puntos) || 0) + (r.foto ? Number(pts.extra_foto) || 0 : 0) : 0;
   const guardarMsj = async () => { try { const r0 = await API.get("/tienda/clientas-web"); await API.put("/tienda/mensajes", { ...(r0.data.mensajes || {}), resena: msj === MSJ_RESENA ? "" : msj }); avisar(true, "✓ Mensaje guardado"); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); } };
   const cuenta = (k) => d.lista.filter(r => r.estado === k).length;
   const lista = d.lista.filter(r => filtro === "todas" || r.estado === filtro);
@@ -26048,11 +26057,11 @@ function ResenasTienda({ temaPal, avisar, urlTienda, nombreTienda, esJefe, alCam
               <div key={r.id} style={{ border: "1px solid " + tp.border, borderLeft: "5px solid " + (r.estado === "aprobada" ? "#2d7a4f" : r.estado === "rechazada" ? "#95a5a6" : "#f5a623"), borderRadius: 10, padding: 12, display: "flex", gap: 12, flexWrap: "wrap" }}>
                 {r.foto && <FotoResenaAdmin id={r.id} onAbrir={setGrande} />}
                 <div style={{ flex: "1 1 260px", minWidth: 0 }}>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>{est(r.estrellas)}<b style={{ fontSize: 13.5 }}>{r.producto || "Producto"}</b></div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>{est(r.estrellas)}<b style={{ fontSize: 13.5 }}>{r.producto || "Producto"}</b>{r.puntos_dados > 0 && <span className="tag" style={{ background: "#c9a84c22", color: "#9a7b1c", fontWeight: 800 }}>🎁 +{r.puntos_dados} pts</span>}</div>
                   <div style={{ fontSize: 12, color: tp.textMuted, marginTop: 2 }}>{r.clienta || "Clienta"}{r.telefono ? " · " + r.telefono : ""} · {new Date(r.creado_en).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
                   <div style={{ fontSize: 13.5, marginTop: 6, whiteSpace: "pre-line" }}>{r.texto}</div>
                   {esJefe && <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
-                    {r.estado !== "aprobada" && <button className="btn btn-p btn-sm" onClick={() => accion(r, "aprobada")}>✓ Publicar</button>}
+                    {r.estado !== "aprobada" && <button className="btn btn-p btn-sm" onClick={() => accion(r, "aprobada")}>✓ Publicar{ptsDe(r) ? " (+" + ptsDe(r) + " pts)" : ""}</button>}
                     {r.estado !== "rechazada" && <button className="btn btn-g btn-sm" onClick={() => accion(r, "rechazada")}>No publicar</button>}
                     {r.foto && <button className="btn btn-g btn-sm" onClick={() => accion(r, "sin-foto")}>Sacar la foto</button>}
                     {r.telefono && <a className="btn btn-g btn-sm" style={{ textDecoration: "none" }} href={linkWhatsapp(r.telefono, "Hola " + String(r.clienta || "").split(" ")[0] + "! Gracias por tu reseña de " + r.producto + " 💛")} target="_blank" rel="noopener">WhatsApp</a>}
@@ -26064,7 +26073,19 @@ function ResenasTienda({ temaPal, avisar, urlTienda, nombreTienda, esJefe, alCam
           </div>
         )}
       </div>
-      <div className="card" style={{ flex: "1 1 320px", minWidth: 0 }}>
+      <div style={{ flex: "1 1 320px", minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+      {pts && <div className="card" style={{ borderTop: "4px solid #c9a84c" }}>
+        <label style={{ display: "flex", gap: 10, alignItems: "center", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
+          <input type="checkbox" checked={!!pts.activo} onChange={e => setPts(x => ({ ...x, activo: e.target.checked }))} style={{ width: 18, height: 18 }} /> 🎁 Puntos por dejar reseña
+        </label>
+        <div style={{ fontSize: 12, color: tp.textMuted, margin: "4px 0 10px" }}>Se suman una sola vez, cuando publicás la reseña. En la tienda se les avisa cuántos puntos ganan.</div>
+        {pts.activo && <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ flex: "1 1 120px" }}><div className="fl">Puntos por reseña</div><input className="inp" type="number" min="0" value={pts.puntos} onChange={e => setPts(x => ({ ...x, puntos: e.target.value }))} /></div>
+          <div style={{ flex: "1 1 120px" }}><div className="fl">Extra si sube foto</div><input className="inp" type="number" min="0" value={pts.extra_foto} onChange={e => setPts(x => ({ ...x, extra_foto: e.target.value }))} /></div>
+        </div>}
+        {esJefe && <button className="btn btn-p btn-sm" style={{ marginTop: 10 }} onClick={guardarPts}>Guardar</button>}
+      </div>}
+      <div className="card" style={{ minWidth: 0 }}>
         <div className="ct">💬 Pedir reseñas</div>
         <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 10 }}>Como Mercado Libre: a quien ya retiró su pedido (últimos 45 días) mandale un WhatsApp para que deje su reseña. El link la lleva directo a opinar. Además, cuando entra a la tienda con su cuenta, le aparece un cartelito.</div>
         {d.pedir.length === 0 ? <div className="empty">No hay pedidos entregados para pedir reseña.</div> : d.pedir.map(pd => (
@@ -26084,6 +26105,7 @@ function ResenasTienda({ temaPal, avisar, urlTienda, nombreTienda, esJefe, alCam
           <button className="btn btn-g btn-sm" onClick={() => setMsj(MSJ_RESENA)}>Volver al de siempre</button>
         </div>
         <div style={{ fontSize: 11.5, color: tp.textMuted, marginTop: 8 }}>Así se ve: {llenarMsj(msj || MSJ_RESENA, { nombre: "Sabrina", tienda: nombreTienda || "la tienda", productos: "Crema hidratante", link: link || "(link de tu tienda)" })}</div>
+      </div>
       </div>
       {grande && <div onClick={() => setGrande(null)} style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,.85)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "zoom-out", padding: 20 }}><img src={grande} alt="" style={{ maxWidth: "100%", maxHeight: "100%", borderRadius: 8 }} /></div>}
     </div>

@@ -613,7 +613,7 @@ router.get('/resenas', async (req, res) => {
   try {
     const c = await tienda.leerConfig();
     const [lista, pedir] = await Promise.all([
-      pool.query(`SELECT r.id, r.producto_id, r.estrellas, r.texto, r.estado, r.creado_en, r.revisado_en, (r.foto IS NOT NULL) AS foto, p.nombre AS producto, cl.nombre AS clienta, cl.telefono
+      pool.query(`SELECT r.id, r.producto_id, r.estrellas, r.texto, r.estado, r.creado_en, r.revisado_en, r.puntos_dados, (r.foto IS NOT NULL) AS foto, p.nombre AS producto, cl.nombre AS clienta, cl.telefono
         FROM tienda_resenas r LEFT JOIN productos p ON p.id = r.producto_id LEFT JOIN clientes cl ON cl.id = r.cliente_id
         ORDER BY (r.estado = 'pendiente') DESC, r.creado_en DESC LIMIT 400`),
       // Pedidos entregados en los ultimos 45 dias con productos sin reseñar
@@ -623,8 +623,17 @@ router.get('/resenas', async (req, res) => {
         FROM tienda_pedidos tp WHERE tp.estado = 'entregado' AND tp.actualizado_en > NOW() - INTERVAL '45 days' AND COALESCE(tp.telefono, '') <> ''
         ORDER BY (tp.resena_pedida_en IS NULL) DESC, tp.actualizado_en DESC LIMIT 100`),
     ]);
-    res.json({ lista: lista.rows, pedir: pedir.rows.filter(p => p.sin_resena.length), mensaje: (c.mensajes || {}).resena || '' });
+    res.json({ lista: lista.rows, pedir: pedir.rows.filter(p => p.sin_resena.length), mensaje: (c.mensajes || {}).resena || '', puntos: tienda.puntosResenaDe(c) });
   } catch (e) { console.error('[tienda] resenas:', e.message); res.status(500).json({ error: 'No se pudieron cargar las reseñas' }); }
+});
+router.put('/resenas/puntos', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    const b = req.body || {};
+    const r = tienda.puntosResenaDe({ resenas_puntos: { activo: !!b.activo, puntos: b.puntos, extra_foto: b.extra_foto } });
+    await pool.query('UPDATE tienda_config SET resenas_puntos = $1 WHERE id = 1', [JSON.stringify(r)]);
+    res.json(r);
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
 });
 router.get('/resenas/pendientes', async (req, res) => {
   try { res.json({ n: (await pool.query(`SELECT COUNT(*)::int AS n FROM tienda_resenas WHERE estado = 'pendiente'`)).rows[0].n }); } catch (e) { res.json({ n: 0 }); }
@@ -641,9 +650,27 @@ router.post('/resenas/:id/estado', async (req, res) => {
     if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
     const estado = ['aprobada', 'rechazada', 'pendiente'].includes(req.body && req.body.estado) ? req.body.estado : null;
     if (!estado) return res.status(400).json({ error: 'Estado inválido' });
-    await pool.query('UPDATE tienda_resenas SET estado = $1, revisado_en = NOW() WHERE id = $2', [estado, parseInt(req.params.id) || 0]);
-    res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: 'No se pudo' }); }
+    const id = parseInt(req.params.id) || 0;
+    const pr = tienda.puntosResenaDe(await tienda.leerConfig());
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const r = (await client.query('SELECT * FROM tienda_resenas WHERE id = $1 FOR UPDATE', [id])).rows[0];
+      if (!r) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'No se encontró la reseña' }); }
+      await client.query('UPDATE tienda_resenas SET estado = $1, revisado_en = NOW() WHERE id = $2', [estado, id]);
+      // La primera vez que se publica: se le suman los puntos (si la despublican despues, los puntos quedan)
+      let puntos = 0;
+      if (estado === 'aprobada' && pr.activo && !r.puntos_dados) {
+        puntos = pr.puntos + (r.foto ? pr.extra_foto : 0);
+        if (puntos > 0) {
+          await client.query('UPDATE clientes SET puntos = COALESCE(puntos, 0) + $1 WHERE id = $2', [puntos, r.cliente_id]);
+          await client.query('UPDATE tienda_resenas SET puntos_dados = $1 WHERE id = $2', [puntos, id]);
+        }
+      }
+      await client.query('COMMIT');
+      res.json({ ok: true, puntos });
+    } catch (e) { await client.query('ROLLBACK').catch(() => {}); throw e; } finally { client.release(); }
+  } catch (e) { console.error('[tienda] resena estado:', e.message); res.status(500).json({ error: 'No se pudo' }); }
 });
 router.post('/resenas/:id/sin-foto', async (req, res) => {
   try {
