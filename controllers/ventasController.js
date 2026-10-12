@@ -1,5 +1,6 @@
 const pool = require('../config/database');
 const { esVentaWeb } = require('../lib/tiendaWeb');
+const cuponesLib = require('../lib/cupones');
 const cc = require('../lib/cuentaCorriente');
 const { recalcularNivel } = require('../lib/niveles');
 
@@ -110,6 +111,7 @@ const getById = async (req, res) => {
 
 const create = async (req, res) => {
   try { await cc.asegurar(); } catch (e) { console.error('[cuenta corriente] tabla:', e.message); }
+  if (req.body && req.body.cupon_codigo) await cuponesLib.asegurar();
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -187,7 +189,7 @@ const create = async (req, res) => {
     }
 
     let descuento_total = descuento || 0;
-    let cuponId = null;
+    let cuponId = null, cuponUsado = null;
     // Preventa (factura al confirmar entrega) o pagada 100% con gift card ya facturada:
     // no corresponde facturar ahora en ARCA.
     const totalGCInicial = parseFloat(monto_gift_card) || 0;
@@ -198,6 +200,10 @@ const create = async (req, res) => {
       );
       if (cupon.rows.length > 0) {
         const c = cupon.rows[0];
+        // Cupon personal (lo gano una clienta) o "uno por clienta": se revisa con la clienta elegida
+        const deOtra = await cuponesLib.revisarClienta(client, c, { cliente_id }, 'caja');
+        if (deOtra) { await client.query('ROLLBACK'); return res.status(400).json({ error: deOtra }); }
+        cuponUsado = c;
         cuponId = c.id;
         // Si el cupon exige un monto minimo de compra para el descuento, y no se llega,
         // el cupon queda vinculado a la venta (para comision de influencer) pero sin descuento.
@@ -259,6 +265,7 @@ const create = async (req, res) => {
         montoSenaInicial > 0 ? (sena_referencia || null) : null
       ]
     );
+    if (cuponUsado) await cuponesLib.registrarUso(client, cuponUsado, { cliente_id }, { venta_id: venta.rows[0].id });
 
     const ventaId = venta.rows[0].id;
 
