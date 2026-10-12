@@ -96,6 +96,7 @@ router.get('/:slug', async (req, res) => {
       ruleta: (() => { const r = tienda.ruletaDe(c); return r.activo ? { minimo: r.minimo, aviso: r.aviso_carrito } : null; })(),
       preventa: (() => { const pv = tienda.preventaDe(c); return pv.activo ? { titulo: pv.titulo } : null; })(),
       icono_v: c.icono ? versionIcono(c.icono) : null,
+      resenas_puntos: (() => { const r = tienda.puntosResenaDe(c); return r.activo && (r.puntos || r.extra_foto) ? { puntos: r.puntos, extra_foto: r.extra_foto } : null; })(),
     });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la tienda' }); }
 });
@@ -688,7 +689,7 @@ router.get('/:slug/resena-foto/:id', async (req, res) => {
 router.get('/:slug/cuenta/resenas', conCuenta, async (req, res) => {
   try {
     const [compras, mias] = await Promise.all([compradosPor(req.clienteId),
-      pool.query(`SELECT r.id, r.producto_id, r.estrellas, r.texto, r.estado, (r.foto IS NOT NULL) AS foto, p.nombre FROM tienda_resenas r JOIN productos p ON p.id = r.producto_id
+      pool.query(`SELECT r.id, r.producto_id, r.estrellas, r.texto, r.estado, r.puntos_dados, (r.foto IS NOT NULL) AS foto, p.nombre FROM tienda_resenas r JOIN productos p ON p.id = r.producto_id
         WHERE r.cliente_id = $1 ORDER BY r.creado_en DESC`, [req.clienteId]).then(r => r.rows)]);
     const hechas = new Set(mias.map(x => x.producto_id));
     const ids = compras.map(x => x.producto_id).filter(id => !hechas.has(id));
