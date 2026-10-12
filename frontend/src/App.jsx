@@ -215,6 +215,10 @@ ${p.textHalo ? `.main { text-shadow: ${p.textHalo}; } .main .btn, .main .tab.on,
 .logo-marca { display: flex; justify-content: center; margin-bottom: 4px; }
 .logo { text-align: center; }
 .logo-name { font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 800; letter-spacing: .05em; color: ${p.logoText}; text-transform: uppercase; }
+.logo-local { margin-top: 8px; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 11.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+  color: ${p.logoText}; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); border-radius: 999px; padding: 5px 10px; cursor: pointer; }
+.logo-local span { font-size: 10px; font-weight: 700; text-transform: none; letter-spacing: 0; opacity: .75; }
+.logo-local:hover { background: rgba(255,255,255,.15); }
 .logo-sub { font-size: 9.5px; color: ${p.logoSub}; letter-spacing: .3em; margin-top: 3px; text-transform: uppercase; }
 .nav { padding: 12px 10px; flex: 1; }
 .nav-section { font-size: 9.5px; font-weight: 700; letter-spacing: .16em; color: ${p.navTextDim}; padding: 10px 10px 5px; text-transform: uppercase; }
@@ -499,6 +503,22 @@ button.tab { font-family: inherit; }
 .mini-inp { font-family: inherit; font-size: 11px; padding: 3px 6px; height: 24px; border-radius: 6px; border: 1px solid ${p.border}; background: ${p.inpBg}; color: ${p.text}; outline: none; }
 .mini-inp:focus { border-color: ${p.accent}; }
 @media (hover: none) { .cart-acc { opacity: 1; } }
+/* --- Inicio del celular: botones grandes --- */
+.pcel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pcel-btn { position: relative; min-height: 132px; border: 1px solid ${p.border}; border-radius: 22px; padding: 14px 10px 12px; cursor: pointer; font-family: inherit; color: ${p.text};
+  background: linear-gradient(160deg, color-mix(in srgb, var(--c) 14%, ${p.card}) 0%, ${p.card} 62%); box-shadow: 0 4px 14px ${p.shadowSoft};
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; overflow: hidden;
+  animation: pcelEntra .42s cubic-bezier(.2,.8,.2,1) both; transition: transform .12s, box-shadow .12s; -webkit-tap-highlight-color: transparent; }
+.pcel-btn::after { content: ""; position: absolute; left: 18%; right: 18%; bottom: 0; height: 4px; border-radius: 4px 4px 0 0; background: var(--c); opacity: .9; }
+.pcel-btn:active { transform: scale(.96); box-shadow: 0 1px 4px ${p.shadowSoft}; }
+.pcel-ico { width: 62px; height: 62px; border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 34px; line-height: 1;
+  background: color-mix(in srgb, var(--c) 18%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 30%, transparent); }
+.pcel-txt { font-size: 17px; font-weight: 800; text-align: center; line-height: 1.15; letter-spacing: -.01em; }
+.pcel-menu { min-height: 64px; border: 2px dashed ${p.border}; border-radius: 22px; background: transparent; display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-family: inherit; color: ${p.textMuted}; cursor: pointer; font-size: 17px; font-weight: 800; animation: pcelEntra .42s .3s cubic-bezier(.2,.8,.2,1) both; }
+.pcel-menu span:first-child { font-size: 24px; }
+@keyframes pcelEntra { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .pcel-btn, .pcel-menu { animation: none; } }
 /* --- Panel de cobro del POS --- */
 .pc-sec { background: ${p.card}; border: 1px solid ${p.border}; border-radius: 10px; padding: 10px 12px; text-align: left; }
 .pc-tit { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 10px; font-weight: 800; letter-spacing: .08em; color: ${p.textMuted}; margin-bottom: 8px; }
@@ -26234,8 +26254,16 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             const tarjetaPed = (p) => {
                 const e = ESTADOS_TIENDA[p.estado] || ESTADOS_TIENDA.confirmado;
                 const cerrado = ["entregado", "cancelado"].includes(p.estado);
+                // Pago: bien distinto si ya esta confirmado o no (franja arriba de la tarjeta)
+                const pago = p.estado === "cancelado" ? null : p.pagado ? { t: "✅ PAGO CONFIRMADO", sub: PAGO_TIENDA[p.pago] + (p.estado === "entregado" ? "" : " · ya está pagado"), c: "#1e8e4f", bg: "#1e8e4f" }
+                  : p.pago === "retiro" ? { t: "💵 SIN PAGAR · paga al retirar", sub: "Cobrale " + fmt(p.total) + " cuando lo retire", c: "#b26a00", bg: "#f39c12" }
+                  : { t: "⏳ ESPERANDO EL PAGO", sub: p.pago === "transferencia" ? "Fijate si llegó la transferencia y tocá \"Pago recibido\"" : "Todavía no se acreditó el pago de Mercado Pago", c: "#c0392b", bg: "#e74c3c" };
                 return (
                   <div key={p.id} className="card" style={{ borderLeft: "5px solid " + e.c }}>
+                    {pago && !cerrado && <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", margin: "0 0 12px", padding: "8px 12px", borderRadius: 8, background: pago.bg + "1f", border: "1.5px solid " + pago.bg }}>
+                      <span style={{ fontWeight: 900, fontSize: 13, color: pago.c, letterSpacing: ".02em" }}>{pago.t}</span>
+                      <span style={{ fontSize: 12, color: temaPal.textMuted }}>{pago.sub}</span>
+                    </div>}
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
                       <div>
                         <div style={{ fontWeight: 900, fontSize: 15 }}>{p.nombre} <span style={{ fontWeight: 400, fontSize: 12, color: temaPal.textMuted }}>N° {p.codigo} · {new Date(p.creado_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span></div>
@@ -26250,7 +26278,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                         </div>}
                         {p.estado === "cancelado" && p.motivo && <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{p.motivo}</div>}
                       </div>
-                      <div style={{ textAlign: "right" }}><span className="tag" style={{ background: e.c + "22", color: e.c, fontWeight: 800 }}>{e.t}</span><div style={{ fontSize: 18, fontWeight: 900, marginTop: 4 }}>{fmt(p.total)}</div></div>
+                      <div style={{ textAlign: "right" }}><span className="tag" style={{ background: e.c + "22", color: e.c, fontWeight: 800 }}>{e.t}</span><div style={{ fontSize: 18, fontWeight: 900, marginTop: 4 }}>{fmt(p.total)}</div>{pago && <div style={{ fontSize: 11, fontWeight: 800, color: pago.c }}>{p.pagado ? "Pagado" : "A cobrar"}</div>}</div>
                     </div>
                     <div style={{ fontSize: 13, margin: "8px 0", lineHeight: 1.6 }}>
                       {p.items.map(i => <div key={i.id}>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""} <span style={{ color: temaPal.textMuted }}>· {fmt(i.precio * i.cantidad)}</span>{i.preventa && <span className="tag" style={{ marginLeft: 6, background: "#ffd23f33", color: temaPal.warn, fontWeight: 800 }}>⏳ preventa · esperando ingreso</span>}</div>)}
@@ -26611,19 +26639,19 @@ try { aplicarLetra(localStorage.getItem("lumiere_letra") || "normal"); } catch (
 const BOTONES_PANEL = {
   consultorio: [
     ["agenda", "📅", "Agenda", "#16a085"], ["pacientes", "🩺", "Pacientes", "#2471a3"], ["recordatorios", "💬", "Recordatorios", "#8e44ad"],
-    ["pos", "💵", "Cobrar", "#2d7a4f"], ["inventory", "📦", "Stock", "#a0522d"], ["caja", "🧾", "Caja", "#b7950b"], ["gerente", "✨", "Mi gerente", "#c9a84c"],
+    ["pos", "💵", "Cobrar", "#2d7a4f"], ["inventory", "📦", "Stock", "#a0522d"], ["cierre", "🔒", "Cierre de caja", "#b7950b"], ["gerente", "✨", "Mi gerente", "#c9a84c"],
   ],
   gastronomia: [
     ["mesas", "🍽️", "Mesas", "#d35400"], ["cocina", "👨‍🍳", "Cocina", "#c0392b"], ["pos", "🛒", "Vender", "#2d7a4f"],
-    ["inventory", "📦", "Stock", "#a0522d"], ["caja", "🧾", "Caja", "#b7950b"], ["gerente", "✨", "Mi gerente", "#c9a84c"],
+    ["inventory", "📦", "Stock", "#a0522d"], ["cierre", "🔒", "Cierre de caja", "#b7950b"], ["gerente", "✨", "Mi gerente", "#c9a84c"],
   ],
   comercio: [
     ["pos", "🛒", "Vender", "#2d7a4f"], ["buscar-precio", "🔎", "Buscar precio", "#2471a3"], ["inventory", "📦", "Stock", "#a0522d"],
-    ["clients", "👥", "Clientes", "#8e44ad"], ["pedidos", "📝", "Pedidos", "#d35400"], ["tienda-online", "🛍️", "Tienda web", "#16a085"], ["caja", "🧾", "Caja", "#b7950b"], ["gerente", "✨", "Mi gerente", "#c9a84c"],
+    ["clients", "👥", "Clientes", "#8e44ad"], ["pedidos", "📝", "Pedidos", "#d35400"], ["tienda-online", "🛍️", "Tienda web", "#16a085"], ["cierre", "🔒", "Cierre de caja", "#b7950b"], ["gerente", "✨", "Mi gerente", "#c9a84c"],
   ],
 };
 
-function PanelCelular({ secciones, usuario, localId, avisos, setPage, onMenu, paletaActual }) {
+function PanelCelular({ secciones, usuario, localId, avisos, setPage, onMenu, onCambiarLocal, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [letra, setLetra] = useState(() => { try { return localStorage.getItem("lumiere_letra") || "normal"; } catch (e) { return "normal"; } });
   const [hoy, setHoy] = useState(null);
@@ -26660,7 +26688,8 @@ function PanelCelular({ secciones, usuario, localId, avisos, setPage, onMenu, pa
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 14 }}>
         <div>
           <div style={{ fontSize: 26, fontWeight: 900, lineHeight: 1.2 }}>{saludo}{nombre ? ", " + nombre : ""} 👋</div>
-          <div style={{ fontSize: 16, color: temaPal.textMuted, marginTop: 4, textTransform: "capitalize" }}>{fecha}{!UN_SOLO_LOCAL ? " · " + nombreLocal(localId) : ""}</div>
+          <div style={{ fontSize: 16, color: temaPal.textMuted, marginTop: 4, textTransform: "capitalize" }}>{fecha}</div>
+          {!UN_SOLO_LOCAL && onCambiarLocal && <button onClick={onCambiarLocal} style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 8, border: "1.5px solid " + temaPal.border, background: temaPal.card, color: temaPal.text, borderRadius: 999, padding: "8px 14px", fontFamily: "inherit", fontSize: 15, fontWeight: 800, cursor: "pointer", boxShadow: "0 2px 8px " + temaPal.shadowSoft }}>📍 {nombreLocal(localId)} <span style={{ fontSize: 13, fontWeight: 700, color: temaPal.textMuted }}>⇄ Cambiar</span></button>}
         </div>
         <button onClick={cambiarLetra} aria-label={"Tamaño de letra: " + (TAMANOS_LETRA.find(x => x[0] === letra) || [])[2]} title="Tamaño de letra"
           style={{ flexShrink: 0, border: "2px solid " + temaPal.border, background: temaPal.card, color: temaPal.text, borderRadius: 14, padding: "8px 12px", fontFamily: "inherit", fontWeight: 900, fontSize: 18, cursor: "pointer", lineHeight: 1 }}>
@@ -26673,22 +26702,20 @@ function PanelCelular({ secciones, usuario, localId, avisos, setPage, onMenu, pa
           {hoy.prox && <div style={{ fontSize: 17, marginTop: 4 }}>Próximo: <b>{hoy.prox.inicio.slice(11, 16)}</b> · {hoy.prox.paciente_nombre}</div>}
         </button>
       )}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        {botones.map(([id, ic, txt, col]) => {
+      <div className="pcel-grid">
+        {botones.map(([id, ic, txt, col], i) => {
           const n = numero(id);
           return (
-            <button key={id} onClick={() => { setPage(id); window.scrollTo(0, 0); }}
-              style={{ position: "relative", minHeight: 128, border: "none", borderRadius: 20, background: temaPal.card, boxShadow: "0 2px 10px " + temaPal.shadowSoft, borderBottom: "6px solid " + col,
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "inherit", color: temaPal.text, cursor: "pointer", padding: 10 }}>
-              <span style={{ fontSize: 46, lineHeight: 1 }} aria-hidden="true">{ic}</span>
-              <span style={{ fontSize: 20, fontWeight: 900, textAlign: "center", lineHeight: 1.15 }}>{txt}</span>
+            <button key={id} className="pcel-btn" onClick={() => { setPage(id); window.scrollTo(0, 0); }} style={{ "--c": col, animationDelay: (i * 45) + "ms" }}>
+              <span className="pcel-ico" aria-hidden="true">{ic}</span>
+              <span className="pcel-txt">{txt}</span>
               {n > 0 && <span style={{ position: "absolute", top: 10, right: 12, minWidth: 30, height: 30, borderRadius: 15, background: temaPal.red, color: "#fff", fontSize: 16, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 8px" }}>{n > 99 ? "99+" : n}</span>}
             </button>
           );
         })}
-        <button onClick={onMenu} style={{ minHeight: 128, border: "2px dashed " + temaPal.border, borderRadius: 20, background: "transparent", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "inherit", color: temaPal.textMuted, cursor: "pointer", gridColumn: botones.length % 2 === 0 ? "1 / -1" : undefined }}>
-          <span style={{ fontSize: 40, lineHeight: 1 }} aria-hidden="true">☰</span>
-          <span style={{ fontSize: 18, fontWeight: 800 }}>Todo el menú</span>
+        <button className="pcel-menu" onClick={onMenu} style={{ gridColumn: botones.length % 2 === 0 ? "1 / -1" : undefined }}>
+          <span aria-hidden="true">☰</span>
+          <span>Todo el menú</span>
         </button>
       </div>
     </div>
@@ -28612,7 +28639,7 @@ function AppWrapper() {
   );
 
   const getPageWithLocal = (id) => {
-    if (id === "panel") return <PanelCelular secciones={NAV_CON_PERMISOS} usuario={usuario} localId={local.id} avisos={avisosMenu} setPage={setPage} onMenu={() => setMenuAbierto(true)} paletaActual={paletaActual} />;
+    if (id === "panel") return <PanelCelular secciones={NAV_CON_PERMISOS} usuario={usuario} localId={local.id} avisos={avisosMenu} setPage={setPage} onMenu={() => setMenuAbierto(true)} onCambiarLocal={() => setCambiandoLocal(true)} paletaActual={paletaActual} />;
     if (!puedeVer(id)) return <SinPermiso />;
     if (id === "dashboard") return <Dashboard localId={local.id} paletaActual={paletaActual} />;
     if (id === "pos") return <POS localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
@@ -28701,7 +28728,8 @@ function AppWrapper() {
           </div>
           <div className="logo">
             {menuChico ? <LogoIcono tam={38} /> : <div className="logo-marca"><LogoLumiere alto={40} color={paletaActual.logoText} /></div>}
-            {!menuChico && <div className="logo-sub">{local.nombre}</div>}
+            {!menuChico && (UN_SOLO_LOCAL ? <div className="logo-sub">{local.nombre}</div>
+              : <button className="logo-local" onClick={() => { setMenuAbierto(false); setCambiandoLocal(true); }} title="Cambiar de local">📍 {local.nombre} <span>⇄ cambiar</span></button>)}
           </div>
           <MenuLateral secciones={NAV_CON_PERMISOS} page={page} setPage={setPage} comprimido={menuChico} p={paletaActual} avisos={avisosMenu} onElegir={() => setMenuAbierto(false)} />
           <div className="sb-footer">
@@ -28721,7 +28749,7 @@ function AppWrapper() {
                 </button>
               ))}
             </div>
-            {!UN_SOLO_LOCAL && <div style={{ marginTop: 12, fontSize: 11, color: paletaActual.navTextDim, cursor: "pointer" }} onClick={() => setCambiandoLocal(true)}>Cambiar local</div>}
+
             <div style={{ marginTop: 6, fontSize: 11, color: paletaActual.navTextDim, cursor: "pointer" }} onClick={handleLogout}>Cerrar sesion</div>
           </div>
         </aside>
