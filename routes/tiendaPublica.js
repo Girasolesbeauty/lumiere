@@ -59,6 +59,14 @@ async function mpDisponible() {
   try { await ayudaMP.asegurar(); return !!(await ayudaMP.token()); } catch (e) { return false; }
 }
 
+// Icono de la tienda (acceso directo del celular): se sirve como imagen, con version para el cache
+const versionIcono = (ic) => crypto.createHash('md5').update(String(ic)).digest('hex').slice(0, 10);
+router.get('/:slug/icono', async (req, res) => {
+  const m = /^data:(image\/(?:png|jpeg));base64,(.+)$/.exec(req.tienda.icono || '');
+  if (!m) return res.status(404).end();
+  res.set('Content-Type', m[1]).set('Cache-Control', 'public, max-age=86400').send(Buffer.from(m[2], 'base64'));
+});
+
 // Datos de la tienda: nombre, logo, formas de entrega y de pago
 router.get('/:slug', async (req, res) => {
   try {
@@ -86,6 +94,7 @@ router.get('/:slug', async (req, res) => {
       dominio: await tienda.dominioDe(req.negTienda.id).catch(() => null),
       ruleta: (() => { const r = tienda.ruletaDe(c); return r.activo ? { minimo: r.minimo, aviso: r.aviso_carrito } : null; })(),
       preventa: (() => { const pv = tienda.preventaDe(c); return pv.activo ? { titulo: pv.titulo } : null; })(),
+      icono_v: c.icono ? versionIcono(c.icono) : null,
     });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la tienda' }); }
 });
@@ -100,7 +109,8 @@ router.get('/:slug/vista-previa', async (req, res) => {
     const base = '/tienda-publica/' + encodeURIComponent(req.params.slug);
     const logo = [c.logo, neg.logo_url].find(x => /^https:\/\//.test(x || ''));
     const banner = (c.banners_img || []).find(b => b.imagen);
-    const deTienda = { titulo, descripcion: c.mensaje || ('Comprá online en ' + titulo), imagen: logo || (banner ? base + '/banner/' + banner.imagen : null) };
+    const deTienda = { titulo, descripcion: c.mensaje || ('Comprá online en ' + titulo), imagen: logo || (banner ? base + '/banner/' + banner.imagen : null),
+      icono: c.icono ? base + '/icono?v=' + versionIcono(c.icono) : null, nombre: titulo, color: c.color || '#111111' };
     const pedido = String(req.query.p || '').toLowerCase().slice(0, 120);
     if (!pedido) return res.set('Cache-Control', 'public, max-age=300').json(deTienda);
     const lista = (await pool.query(`SELECT p.id, p.nombre, p.marca, p.precio, tp.descripcion, EXISTS (SELECT 1 FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto
@@ -115,7 +125,7 @@ router.get('/:slug/vista-previa', async (req, res) => {
       titulo: p.nombre + ' | ' + titulo,
       descripcion: (precio + (p.marca ? ' · ' + p.marca : '') + (desc ? ' · ' + desc : '')).slice(0, 200),
       imagen: p.foto ? base + '/foto/' + p.id : deTienda.imagen,
-      producto: slugs.get(p.id),
+      producto: slugs.get(p.id), icono: deTienda.icono, nombre: titulo, color: deTienda.color,
     });
   } catch (e) { res.status(500).json({ error: 'No se pudo' }); }
 });

@@ -75,6 +75,12 @@ router.put('/config', async (req, res) => {
       for (const k of ['instagram', 'tiktok', 'facebook']) { const v = String(b.redes[k] || '').trim().slice(0, 200); if (v) redes[k] = v; }
       await pool.query('UPDATE tienda_config SET redes = $1 WHERE id = 1', [JSON.stringify(redes)]);
     }
+    // Icono para el acceso directo del celular (cuadrado, ya achicado en el navegador). Vacio = el de Lumiere
+    if (Object.prototype.hasOwnProperty.call(b, 'icono')) {
+      const ic = String(b.icono || '');
+      if (ic && (!/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(ic) || ic.length > 700000)) return res.status(400).json({ error: 'El ícono tiene que ser una imagen PNG o JPG' });
+      await pool.query('UPDATE tienda_config SET icono = $1 WHERE id = 1', [ic || null]);
+    }
     // Logo propio de la tienda (imagen chica, ya achicada en el navegador). Vacio = usar el del negocio
     if (Object.prototype.hasOwnProperty.call(b, 'logo')) {
       const logo = String(b.logo || '');
