@@ -23115,6 +23115,48 @@ const CSS_TIENDA = `
 .tw-barra-pts i{display:block;height:100%;background:#c9a84c;border-radius:3px;transition:width .8s cubic-bezier(.2,.7,.2,1)}
 .tw-barra-pts.gris{background:#eee}
 .tw-tabs-chicas{margin-top:4px}
+.tw-est{position:relative;display:inline-block;line-height:1;letter-spacing:1px;vertical-align:-1px;white-space:nowrap}
+.tw-est-base{color:#ddd}
+.tw-est-llena{position:absolute;left:0;top:0;overflow:hidden;color:#f5a623}
+.tw-card-est{display:flex;align-items:center;gap:4px;font-size:11.5px;color:#777;margin-top:3px}
+.tw-ficha-est{display:inline-flex;align-items:center;gap:6px;background:none;border:none;padding:0;margin:-4px 0 8px;cursor:pointer;font-family:inherit;font-size:13px;color:#333}
+.tw-ficha-est span{color:#777;text-decoration:underline}
+.tw-res-marco{padding:0 32px 24px}
+.tw-resenas{border-top:1px solid #eee;padding-top:22px}
+.tw-res-cab{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.tw-res-cab h3{margin:0;font-size:19px}
+.tw-res-aviso{background:#fff8e6;border:1px solid #f2d48a;border-radius:10px;padding:10px 12px;font-size:13px;margin-top:12px;line-height:1.5}
+.tw-res-resumen{display:flex;gap:28px;align-items:center;flex-wrap:wrap;margin:16px 0}
+.tw-res-prom{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.tw-res-prom b{font-size:40px;line-height:1}
+.tw-res-prom small{color:#777;font-size:12.5px}
+.tw-res-dist{flex:1;min-width:200px;max-width:340px;display:flex;flex-direction:column;gap:4px}
+.tw-res-dist div{display:flex;align-items:center;gap:8px;font-size:12px;color:#666}
+.tw-res-dist div span:first-child{width:30px}
+.tw-res-dist i{flex:1;height:7px;background:#eee;border-radius:9px;overflow:hidden}
+.tw-res-dist em{display:block;height:100%;background:#f5a623;border-radius:9px}
+.tw-res-fotos{display:flex;gap:8px;overflow-x:auto;margin-bottom:10px}
+.tw-res-fotos button,.tw-res-foto{border:none;padding:0;background:none;cursor:zoom-in;flex-shrink:0}
+.tw-res-fotos img{width:78px;height:78px;object-fit:cover;border-radius:10px;display:block}
+.tw-res{border-top:1px solid #f0f0f0;padding:14px 0}
+.tw-res-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}
+.tw-res-top small{color:#999;margin-left:auto}
+.tw-res-ok{color:#2d7a4f;font-size:11.5px;font-weight:700}
+.tw-res p{margin:6px 0 0;font-size:14px;line-height:1.55;color:#333;white-space:pre-line}
+.tw-res-foto img{width:110px;height:110px;object-fit:cover;border-radius:10px;margin-top:8px;display:block}
+.tw-res-estado{font-size:11px;font-weight:800;border-radius:999px;padding:2px 9px;background:#fff3cd;color:#8a6d00;white-space:nowrap}
+.tw-res-estado.aprobada{background:#e6f4ea;color:#2d7a4f}
+.tw-res-estado.rechazada{background:#eee;color:#777}
+.tw-form-res{max-width:480px;padding:26px}
+.tw-elegir-est{display:flex;align-items:center;gap:4px}
+.tw-elegir-est button{font-size:36px;line-height:1;background:none;border:none;color:#ddd;cursor:pointer;padding:0 2px;transition:transform .15s,color .15s}
+.tw-elegir-est button.on{color:#f5a623}
+.tw-elegir-est button:active{transform:scale(1.25)}
+.tw-elegir-est span{margin-left:8px;font-size:13.5px;font-weight:700;color:#555}
+.tw-pide-res{position:fixed;left:16px;bottom:16px;z-index:35;display:flex;gap:10px;align-items:center;background:#fff;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.18);padding:12px 12px 12px 14px;max-width:420px;animation:twFicha .45s cubic-bezier(.2,.8,.2,1) both}
+.tw-pide-x{border:none;background:none;font-size:15px;color:#999;cursor:pointer;padding:4px}
+.tw-foto-grande{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out}
+.tw-foto-grande img{max-width:100%;max-height:100%;border-radius:8px}
 .tw-tabs-chicas button{font-size:12.5px;padding:10px 4px;white-space:nowrap}
 .tw-tabs-chicas button span{display:inline-block;margin-left:5px;background:#c9a84c;color:#111;border-radius:999px;font-size:10.5px;padding:1px 6px}
 .tw-premios{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
@@ -23202,6 +23244,9 @@ const CSS_TIENDA = `
   .tw-ficha{padding:0;align-items:flex-end}
   .tw-ficha-in{max-height:94vh;border-radius:14px 14px 0 0;animation-name:twHoja}
   .tw-ficha-grid{grid-template-columns:1fr;gap:16px;padding:16px}
+  .tw-res-marco{padding:0 16px 20px}
+  .tw-form-res{padding:22px 18px calc(22px + env(safe-area-inset-bottom))}
+  .tw-pide-res{left:10px;right:10px;bottom:calc(76px + env(safe-area-inset-bottom));max-width:none}
   .tw-ficha h1{font-size:21px}
   .tw-ficha-btn{position:sticky;bottom:0;background:#fff;margin:16px -16px 0 !important;padding:12px 16px calc(12px + env(safe-area-inset-bottom));box-shadow:0 -4px 18px rgba(0,0,0,.08);z-index:2}
   .tw-barra{display:block;position:fixed;left:0;right:0;bottom:0;padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:#fff;box-shadow:0 -4px 18px rgba(0,0,0,.1);z-index:12;animation:twSubeBarra .4s cubic-bezier(.2,.8,.2,1) both}
@@ -23722,6 +23767,7 @@ function TwTarjeta({ p, base, sin, preventa, fav, onFav, onAbrir, onAgregar }) {
       </div>
       {p.marca && <div className="tw-card-m">{p.marca}</div>}
       <div className="tw-card-n">{p.nombre}</div>
+      {p.resenas && <div className="tw-card-est"><TwEstrellas v={p.resenas[0]} size={12} /><span>({p.resenas[1]})</span></div>}
       <div className="tw-card-p">{fmtTienda(p.precio)}</div>
       {preventa && <div className="tw-card-pre">⏳ Llega pronto · ¡reservalo antes que se agote!</div>}
     </div>
@@ -23760,6 +23806,62 @@ function TwReel({ r, base, prods, onAbrir, onAgregar }) {
             </div>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+// ---- Reseñas de la tienda ----
+function TwEstrellas({ v, size = 14 }) {
+  const n = Math.max(0, Math.min(5, Number(v) || 0));
+  return (
+    <span className="tw-est" style={{ fontSize: size }} aria-label={n.toString().replace(".", ",") + " de 5 estrellas"} role="img">
+      <span className="tw-est-base" aria-hidden="true">★★★★★</span>
+      <span className="tw-est-llena" aria-hidden="true" style={{ width: (n / 5 * 100) + "%" }}>★★★★★</span>
+    </span>
+  );
+}
+// Foto de la reseña: se achica en el celular antes de mandarla (lado mayor 1080 px, JPG)
+async function twFotoResena(archivo) {
+  if (!archivo || !/^image\//.test(archivo.type)) throw new Error("Elegí una foto (JPG o PNG)");
+  const obj = URL.createObjectURL(archivo);
+  try {
+    const img = await new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => mal(new Error("No se pudo leer la foto")); i.src = obj; });
+    const k = Math.min(1, 1080 / Math.max(img.width, img.height)), c = document.createElement("canvas");
+    c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    const ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(img, 0, 0, c.width, c.height);
+    for (const q of [0.82, 0.7, 0.55]) { const d = c.toDataURL("image/jpeg", q); if (d.length < 900000) return d; }
+    throw new Error("La foto es muy pesada");
+  } finally { URL.revokeObjectURL(obj); }
+}
+// Reseñas en la ficha del producto: promedio, cuantas hay de cada estrella y las opiniones (con foto primero)
+function TwResenas({ d, base, onOpinar, aviso, onFoto }) {
+  const [todas, setTodas] = useState(false);
+  if (!d) return <div id="tw-resenas" className="tw-resenas"><div className="tw-skel" style={{ height: 60 }} /></div>;
+  const lista = todas ? d.lista : d.lista.slice(0, 4);
+  return (
+    <div id="tw-resenas" className="tw-resenas">
+      <div className="tw-res-cab">
+        <h3>Reseñas{d.n ? " (" + d.n + ")" : ""}</h3>
+        <button className="tw-btn2" onClick={onOpinar}>✍️ Escribir una reseña</button>
+      </div>
+      {aviso && <div className="tw-res-aviso">Solo pueden opinar quienes compraron este producto (en el local o en la tienda, con su cuenta). ¡Cuando lo compres, te esperamos! 🌻</div>}
+      {d.n === 0 ? <p className="tw-vacio" style={{ margin: "6px 0 0" }}>Todavía no hay reseñas. Si lo compraste, ¡contanos qué te pareció!</p> : (
+        <>
+          <div className="tw-res-resumen">
+            <div className="tw-res-prom"><b>{String(d.prom).replace(".", ",")}</b><TwEstrellas v={d.prom} size={18} /><small>{d.n === 1 ? "1 reseña" : d.n + " reseñas"}</small></div>
+            <div className="tw-res-dist">{[5, 4, 3, 2, 1].map((e, i) => <div key={e}><span>{e} ★</span><i><em style={{ width: (d.n ? d.dist[i] / d.n * 100 : 0) + "%" }} /></i><span>{d.dist[i]}</span></div>)}</div>
+          </div>
+          {d.lista.filter(r => r.foto).length >= 3 && <div className="tw-res-fotos">{d.lista.filter(r => r.foto).slice(0, 8).map(r => <button key={r.id} onClick={() => onFoto(base + "/resena-foto/" + r.id)} aria-label={"Foto de " + r.nombre}><img src={base + "/resena-foto/" + r.id} alt="" loading="lazy" /></button>)}</div>}
+          {lista.map(r => (
+            <div key={r.id} className="tw-res">
+              <div className="tw-res-top"><TwEstrellas v={r.estrellas} size={13} /><b>{r.nombre}</b><span className="tw-res-ok">✓ Compra verificada</span><small>{new Date(r.fecha).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}</small></div>
+              <p>{r.texto}</p>
+              {r.foto && <button className="tw-res-foto" onClick={() => onFoto(base + "/resena-foto/" + r.id)}><img src={base + "/resena-foto/" + r.id} alt={"Foto de la reseña de " + r.nombre} loading="lazy" /></button>}
+            </div>
+          ))}
+          {d.lista.length > 4 && !todas && <button className="tw-btn2" style={{ marginTop: 10 }} onClick={() => setTodas(true)}>Ver las {d.lista.length} reseñas</button>}
+        </>
       )}
     </div>
   );
@@ -24047,7 +24149,37 @@ function TiendaPublica({ slug }) {
   const [media, setMedia] = useState(0); // numero de foto, o "video"
   const toqueMedia = useRef(null);
   const [paso, setPaso] = useState(null); // null | "carrito" | "datos"
-  useEffect(() => { if (paso !== "cuenta") setVolverA(null); }, [paso]);
+  useEffect(() => { if (paso !== "cuenta") { setVolverA(null); setMotivoCuenta(""); } }, [paso]);
+  // Reseñas: las del producto abierto, lo que la clienta puede reseñar y el formulario
+  const [resVer, setResVer] = useState(null); // { id, d }
+  const [misRes, setMisRes] = useState(null); // { para_resenar, mias }
+  const [formRes, setFormRes] = useState(null);
+  const [resAviso, setResAviso] = useState(null); // producto donde se le explico que solo opinan quienes compraron
+  const [fotoGrande, setFotoGrande] = useState(null);
+  const [motivoCuenta, setMotivoCuenta] = useState("");
+  const [resCerrado, setResCerrado] = useState(() => { try { return Date.now() - (parseInt(localStorage.getItem("tienda_res_cerrado_" + slug)) || 0) < 7 * 864e5; } catch (e) { return false; } });
+  useEffect(() => { if (!ver) return; let vivo = true; setResAviso(null); pedir("/resenas/" + ver.id).then(d => vivo && setResVer({ id: ver.id, d })).catch(() => {}); return () => { vivo = false; }; }, [ver && ver.id]);
+  const cargarMisRes = () => pedir("/cuenta/resenas").then(setMisRes).catch(() => {});
+  useEffect(() => { if (logueada) cargarMisRes(); else setMisRes(null); }, [logueada]);
+  // Link para pedir la reseña (?resenar=1): abre Mi cuenta en "Reseñas" (o pide entrar)
+  useEffect(() => { if (params.get("resenar")) { setFormCuenta(x => ({ ...x, pestana: "resenas" })); setPaso("cuenta"); setTimeout(() => setMotivoCuenta("Ingresá a tu cuenta para dejar tu reseña ⭐"), 0); } }, []);
+  const abrirFormRes = (prod, ex) => setFormRes({ producto_id: prod.id, nombre: prod.nombre, estrellas: ex ? ex.estrellas : 0, texto: ex ? ex.texto : "", foto: null, tieneFoto: !!(ex && ex.foto), quitar_foto: false, editando: !!ex });
+  const opinar = (p) => {
+    if (!logueada) { setVer(null); setPaso("cuenta"); setTimeout(() => setMotivoCuenta("Ingresá a tu cuenta para opinar: solo pueden dejar reseña quienes compraron el producto."), 0); return; }
+    const ex = misRes && misRes.mias.find(x => x.producto_id === p.id);
+    if (ex || (misRes && misRes.para_resenar.some(x => x.id === p.id))) abrirFormRes({ id: p.id, nombre: p.nombre }, ex);
+    else setResAviso(p.id);
+  };
+  const enviarRes = async () => {
+    const f = formRes;
+    if (!f.estrellas) return setFormRes(x => ({ ...x, error: "Elegí de 1 a 5 estrellas" }));
+    if (f.texto.trim().length < 10) return setFormRes(x => ({ ...x, error: "Contanos un poquito más (al menos 10 letras)" }));
+    setFormRes(x => ({ ...x, enviando: true, error: "" }));
+    try {
+      await pedir("/cuenta/resenas", { method: "POST", body: JSON.stringify({ producto_id: f.producto_id, estrellas: f.estrellas, texto: f.texto, foto: f.foto || undefined, quitar_foto: f.quitar_foto }) });
+      setFormRes(x => ({ ...x, enviando: false, ok: true })); twSonar.brillo(); cargarMisRes();
+    } catch (e) { setFormRes(x => ({ ...x, enviando: false, error: e.message })); }
+  };
   const [datos, setDatos] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_datos") || "{}"); } catch (e) { return {}; } });
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState("");
@@ -24487,7 +24619,7 @@ function TiendaPublica({ slug }) {
     try {
       const r = await pedir("/cuenta/" + (f.modo === "crear" ? "crear" : "ingresar"), { method: "POST", body: JSON.stringify({ ...f, local_id: lid }) });
       try { localStorage.setItem("tienda_cuenta_" + slug, r.token); } catch (x) {}
-      setFormCuenta({ modo: "ingresar" }); setLogueada(true);
+      setFormCuenta(x => ({ modo: "ingresar", pestana: x.pestana })); setLogueada(true);
       if (volverA) { setPaso(volverA); setVolverA(null); twSonar.brillo(); }
       setDatos(x => ({ ...x, nombre: x.nombre || r.cliente.nombre, telefono: x.telefono || r.cliente.telefono || "", email: x.email || r.cliente.email || "" }));
     } catch (x) { setAvisoCuenta(x.message); }
@@ -24507,6 +24639,7 @@ function TiendaPublica({ slug }) {
         <button className={fc.modo === "crear" ? "on" : ""} onClick={() => { setFormCuenta(x => ({ ...x, modo: "crear" })); setAvisoCuenta(null); }}>Crear mi cuenta</button>
       </div>
       <p style={{ fontSize: 13.5, color: "#555", lineHeight: 1.5 }}>{fc.modo === "crear" ? "Con tu cuenta ves tus puntos, canjeás premios y comprás más rápido. Empezá por tu DNI: si ya compraste en el local, te reconocemos." : "Entrá con tu DNI. Es la misma cuenta del portal de clientas."}</p>
+      {motivoCuenta && <div className="tw-dni-aviso clienta" style={{ marginBottom: 10 }}>{motivoCuenta}</div>}
       <form onSubmit={enviarCuenta} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <input className="tw-inp" placeholder="DNI (solo números)" inputMode="numeric" autoComplete="username" value={fc.dni || ""} onChange={e => setF("dni", e.target.value)} />
         {fc.modo === "crear" && infoDni && infoDni.dni === String(fc.dni || "").replace(/\D/g, "") && (
@@ -24557,7 +24690,7 @@ function TiendaPublica({ slug }) {
         </div>}
         {avisoCuenta && <div role="alert" style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, fontSize: 13.5, fontWeight: 600, marginBottom: 10 }}>{avisoCuenta}</div>}
         <div className="tw-tabs-cuenta tw-tabs-chicas">
-          {tab("premios", "Premios")}{tab("codigos", "Mis códigos", codigos.length)}{tab("pedidos", "Pedidos")}{tab("compras", "Compras")}
+          {tab("premios", "Premios")}{tab("codigos", "Mis códigos", codigos.length)}{tab("resenas", "Reseñas", misRes ? misRes.para_resenar.length : 0)}{tab("pedidos", "Pedidos")}{tab("compras", "Compras")}
         </div>
         {pestana === "premios" && (premios.length === 0 ? <p className="tw-vacio">Todavía no hay premios para canjear.</p> : (
           <div className="tw-premios">
@@ -24572,6 +24705,31 @@ function TiendaPublica({ slug }) {
                 </> : <button className="tw-btn full" style={{ padding: "9px 10px", fontSize: 11.5, marginTop: 8 }} onClick={() => canjear(pr)}>Canjear</button>}
               </div>
             ))}
+          </div>
+        ))}
+        {pestana === "resenas" && (!misRes ? <div className="tw-skel" style={{ height: 100 }} /> : (
+          <div>
+            {misRes.para_resenar.length > 0 ? <>
+              <p style={{ fontSize: 13.5, color: "#555", margin: "4px 0 10px" }}>¿Qué te parecieron? Tu opinión ayuda a otras clientas a elegir 💛</p>
+              {misRes.para_resenar.map(pr => (
+                <div key={pr.id} className="tw-fila-cuenta" style={{ alignItems: "center" }}>
+                  {pr.foto ? <img src={base + "/foto/" + pr.id} alt="" style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} /> : <span className="tw-mini" style={{ width: 44, height: 44 }} />}
+                  <span style={{ flex: 1, minWidth: 0 }}><b>{pr.nombre}</b></span>
+                  <button className="tw-btn" style={{ padding: "8px 14px", fontSize: 11.5 }} onClick={() => abrirFormRes(pr)}>⭐ Opinar</button>
+                </div>
+              ))}
+            </> : <p className="tw-vacio">{misRes.mias.length ? "¡Ya opinaste de todo lo que compraste! Gracias 💛" : "Cuando compres, acá vas a poder dejar tu reseña de cada producto."}</p>}
+            {misRes.mias.length > 0 && <>
+              <div className="tw-lbl" style={{ marginTop: 18 }}>Tus reseñas</div>
+              {misRes.mias.map(r => (
+                <div key={r.id} className="tw-fila-cuenta" style={{ flexDirection: "column", alignItems: "stretch", gap: 4 }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}><b style={{ flex: 1, minWidth: 0 }}>{r.nombre}</b><span className={"tw-res-estado " + r.estado}>{r.estado === "aprobada" ? "Publicada" : r.estado === "rechazada" ? "No publicada" : "En revisión"}</span></div>
+                  <TwEstrellas v={r.estrellas} size={13} />
+                  <div style={{ fontSize: 13, color: "#444" }}>{r.texto}</div>
+                  <button className="tw-btn2" style={{ alignSelf: "flex-start", padding: "6px 12px", fontSize: 11, marginTop: 4 }} onClick={() => abrirFormRes({ id: r.producto_id, nombre: r.nombre }, r)}>Editar</button>
+                </div>
+              ))}
+            </>}
           </div>
         ))}
         {pestana === "codigos" && ((miCuenta.canjes || []).length === 0 ? <p className="tw-vacio">Cuando canjees un premio, tu código aparece acá.</p> : (miCuenta.canjes || []).map(c => {
@@ -24729,6 +24887,52 @@ function TiendaPublica({ slug }) {
       {pie}
 
       {totalItems > 0 && !paso && !ver && <div className="tw-barra"><button className="tw-btn full" onClick={() => setPaso("carrito")}>Ver carrito ({totalItems}) · {fmtTienda(subtotal)}</button></div>}
+      {logueada && misRes && misRes.para_resenar.length > 0 && !resCerrado && !paso && !ver && !formRes && !toast && (
+        <div className="tw-pide-res" role="status">
+          <span style={{ fontSize: 22 }}>⭐</span>
+          <div style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}><b>¿Qué te pareció {misRes.para_resenar[0].nombre}?</b><div style={{ color: "#666", fontSize: 12.5 }}>Contanos y ayudá a otras clientas a elegir</div></div>
+          <button className="tw-btn" style={{ padding: "8px 14px", fontSize: 11.5 }} onClick={() => abrirFormRes(misRes.para_resenar[0])}>Opinar</button>
+          <button className="tw-pide-x" aria-label="Ahora no" onClick={() => { setResCerrado(true); try { localStorage.setItem("tienda_res_cerrado_" + slug, String(Date.now())); } catch (e) {} }}>✕</button>
+        </div>
+      )}
+      {formRes && (
+        <>
+          <div className="tw-velo" style={{ zIndex: 60 }} onClick={() => !formRes.enviando && setFormRes(null)} />
+          <div className="tw-ficha" style={{ zIndex: 61 }} role="dialog" aria-modal="true" aria-label="Escribir una reseña">
+            <div className="tw-ficha-in tw-form-res">
+              <button className="tw-cerrar" onClick={() => setFormRes(null)} aria-label="Cerrar"><TwIcono d={TW_X} size={20} /></button>
+              {formRes.ok ? (
+                <div style={{ textAlign: "center", padding: "10px 0" }}>
+                  <div style={{ fontSize: 44 }}>💛</div>
+                  <h2 style={{ margin: "6px 0" }}>¡Gracias por tu reseña!</h2>
+                  <p style={{ color: "#555", fontSize: 14, lineHeight: 1.5 }}>La vamos a revisar y en unas horas aparece en la tienda.</p>
+                  {misRes && misRes.para_resenar.length > 0 ? <button className="tw-btn full" onClick={() => abrirFormRes(misRes.para_resenar[0])}>Opinar de {misRes.para_resenar[0].nombre}</button> : <button className="tw-btn full" onClick={() => setFormRes(null)}>Listo</button>}
+                </div>
+              ) : <>
+                <div className="tw-lbl" style={{ marginTop: 0 }}>{formRes.editando ? "Editar tu reseña" : "Tu reseña"}</div>
+                <h2 style={{ margin: "2px 0 14px", fontSize: 19 }}>{formRes.nombre}</h2>
+                <div className="tw-elegir-est" role="radiogroup" aria-label="Estrellas">
+                  {[1, 2, 3, 4, 5].map(e => <button key={e} role="radio" aria-checked={formRes.estrellas === e} aria-label={e + (e === 1 ? " estrella" : " estrellas")} className={formRes.estrellas >= e ? "on" : ""} onClick={() => { twSonar.tic && twSonar.tic(true); setFormRes(x => ({ ...x, estrellas: e, error: "" })); }}>★</button>)}
+                  <span>{["", "No me gustó", "Regular", "Está bien", "Me gustó", "¡Me encantó!"][formRes.estrellas]}</span>
+                </div>
+                <textarea className="tw-inp" rows={4} maxLength={1000} placeholder="¿Qué te pareció? ¿Cómo lo usás? ¿Lo recomendarías?" value={formRes.texto} onChange={e => setFormRes(x => ({ ...x, texto: e.target.value, error: "" }))} style={{ resize: "vertical", marginTop: 12 }} />
+                <div className="tw-lbl">Foto (opcional)</div>
+                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                  {formRes.foto ? <img src={formRes.foto} alt="Tu foto" style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 10 }} /> : formRes.tieneFoto && !formRes.quitar_foto ? <span style={{ fontSize: 13, color: "#555" }}>📷 Ya tiene una foto</span> : null}
+                  <label className="tw-btn2" style={{ cursor: "pointer", padding: "8px 14px", fontSize: 11.5 }}>📷 {formRes.foto || (formRes.tieneFoto && !formRes.quitar_foto) ? "Cambiar foto" : "Sumar una foto"}
+                    <input type="file" accept="image/*" style={{ display: "none" }} onChange={async e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f) return; try { const d = await twFotoResena(f); setFormRes(x => ({ ...x, foto: d, quitar_foto: false })); } catch (er) { setFormRes(x => ({ ...x, error: er.message })); } }} />
+                  </label>
+                  {(formRes.foto || (formRes.tieneFoto && !formRes.quitar_foto)) && <button className="tw-btn2" style={{ padding: "8px 12px", fontSize: 11.5 }} onClick={() => setFormRes(x => ({ ...x, foto: null, quitar_foto: true }))}>Sacar</button>}
+                </div>
+                {formRes.error && <div role="alert" style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, fontSize: 13.5, fontWeight: 600, marginTop: 12 }}>{formRes.error}</div>}
+                <button className="tw-btn full" style={{ marginTop: 16 }} disabled={formRes.enviando} onClick={enviarRes}>{formRes.enviando ? "Enviando…" : "Publicar mi reseña"}</button>
+                <div style={{ fontSize: 12, color: "#888", marginTop: 8, textAlign: "center" }}>Se publica con tu nombre y la inicial del apellido, después de que la revisemos.</div>
+              </>}
+            </div>
+          </div>
+        </>
+      )}
+      {fotoGrande && <div className="tw-foto-grande" onClick={() => setFotoGrande(null)} role="dialog" aria-label="Foto de la reseña"><img src={fotoGrande} alt="" /><button className="tw-cerrar" aria-label="Cerrar"><TwIcono d={TW_X} size={20} /></button></div>}
       {toast && !paso && !ver && (
         <div className="tw-toast" role="status">
           {toast.p.foto ? <img src={foto(toast.p)} alt="" /> : <div className="tw-mini" />}
@@ -24789,6 +24993,7 @@ function TiendaPublica({ slug }) {
                 <div>
                   {ver.marca && <div className="tw-card-m" style={{ marginTop: 0, fontSize: 13 }}>{ver.marca}</div>}
                   <h1>{ver.nombre}</h1>
+                  {ver.resenas && <button className="tw-ficha-est" onClick={() => { const el = document.getElementById("tw-resenas"); el && el.scrollIntoView({ behavior: "smooth", block: "start" }); }}><TwEstrellas v={ver.resenas[0]} size={15} /> <b>{String(ver.resenas[0]).replace(".", ",")}</b> <span>({ver.resenas[1]} {ver.resenas[1] === 1 ? "reseña" : "reseñas"})</span></button>}
                   <div className="tw-precio">{fmtTienda(ver.precio)}</div>
                   {preVer && (
                     <div className="tw-preventa-aviso" role="note">
@@ -24837,6 +25042,7 @@ function TiendaPublica({ slug }) {
                   </div>
                 </div>
               </div>
+              <div className="tw-res-marco"><TwResenas key={ver.id} d={resVer && resVer.id === ver.id ? resVer.d : null} base={base} onOpinar={() => opinar(ver)} aviso={resAviso === ver.id} onFoto={setFotoGrande} /></div>
               {relacionados.length > 0 && <div style={{ padding: "0 32px 32px" }}><TwFila titulo={recVer.length >= 2 ? "Las que compraron esto también llevaron" : "También te puede gustar"} items={relacionados} render={tarjeta} /></div>}
             </div>
           </div>
@@ -25739,6 +25945,103 @@ function ClientasWeb({ temaPal, avisar, urlTienda, nombreTienda, esJefe }) {
   );
 }
 
+// ---- Lumiere: reseñas de la tienda (se aprueban antes de publicarse) y pedido de reseña por WhatsApp ----
+const MSJ_RESENA = "Hola {nombre}! 🌻 ¿Qué te pareció {productos}? Nos ayudás muchísimo si dejás tu reseña (con foto si querés 📸) acá: {link} ¡Gracias!";
+function FotoResenaAdmin({ id, onAbrir }) {
+  const [src, setSrc] = useState(null);
+  useEffect(() => {
+    let url = null, vivo = true;
+    API.get("/tienda/resenas/" + id + "/foto", { responseType: "blob" }).then(r => { if (vivo) { url = URL.createObjectURL(r.data); setSrc(url); } }).catch(() => {});
+    return () => { vivo = false; if (url) URL.revokeObjectURL(url); };
+  }, [id]);
+  return src ? <img src={src} alt="Foto de la reseña" onClick={() => onAbrir(src)} style={{ width: 96, height: 96, objectFit: "cover", borderRadius: 10, cursor: "zoom-in", flexShrink: 0 }} /> : <div className="skel" style={{ width: 96, height: 96, borderRadius: 10 }} />;
+}
+function ResenasTienda({ temaPal, avisar, urlTienda, nombreTienda, esJefe, alCambiar }) {
+  const tp = temaPal || PALETA_CLARA;
+  const [d, setD] = useState(null);
+  const [filtro, setFiltro] = useState("pendiente");
+  const [msj, setMsj] = useState(null);
+  const [grande, setGrande] = useState(null);
+  const cargar = () => API.get("/tienda/resenas").then(r => { setD(r.data); setMsj(m => m === null ? (r.data.mensaje || MSJ_RESENA) : m); alCambiar && alCambiar(r.data.lista.filter(x => x.estado === "pendiente").length); }).catch(() => setD({ lista: [], pedir: [] }));
+  useEffect(() => { cargar(); }, []);
+  if (!d) return <div className="skel" style={{ height: 240 }} />;
+  const accion = async (r, estado) => {
+    try {
+      if (estado === "borrar") { if (!confirm("¿Borrar esta reseña para siempre?")) return; await API.delete("/tienda/resenas/" + r.id); }
+      else if (estado === "sin-foto") { if (!confirm("¿Sacarle la foto a esta reseña?")) return; await API.post("/tienda/resenas/" + r.id + "/sin-foto"); }
+      else await API.post("/tienda/resenas/" + r.id + "/estado", { estado });
+      avisar(true, estado === "aprobada" ? "✓ Reseña publicada en la tienda" : estado === "rechazada" ? "Reseña sin publicar" : "✓ Listo"); cargar();
+    } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); }
+  };
+  const link = urlTienda ? urlTienda + (urlTienda.includes("?") ? "&" : "/?") + "resenar=1" : "";
+  const pedir = async (pd) => {
+    const txt = llenarMsj(msj || MSJ_RESENA, { nombre: String(pd.nombre || "").split(" ")[0], tienda: nombreTienda || "la tienda", productos: pd.sin_resena.slice(0, 3).join(", "), link });
+    window.open(linkWhatsapp(pd.telefono, txt) || ("https://wa.me/?text=" + encodeURIComponent(txt)), "_blank");
+    try { await API.post("/tienda/pedidos/" + pd.id + "/resena-pedida"); cargar(); } catch (e) {}
+  };
+  const guardarMsj = async () => { try { const r0 = await API.get("/tienda/clientas-web"); await API.put("/tienda/mensajes", { ...(r0.data.mensajes || {}), resena: msj === MSJ_RESENA ? "" : msj }); avisar(true, "✓ Mensaje guardado"); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); } };
+  const cuenta = (k) => d.lista.filter(r => r.estado === k).length;
+  const lista = d.lista.filter(r => filtro === "todas" || r.estado === filtro);
+  const prom = (() => { const a = d.lista.filter(r => r.estado === "aprobada"); return a.length ? (a.reduce((t, r) => t + r.estrellas, 0) / a.length).toFixed(1).replace(".", ",") : null; })();
+  const est = (n) => <span style={{ color: "#f5a623", letterSpacing: 1 }}>{"★".repeat(n)}<span style={{ color: tp.border }}>{"★".repeat(5 - n)}</span></span>;
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-start" }}>
+      <div className="card" style={{ flex: "2 1 520px", minWidth: 0 }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
+          <div className="ct" style={{ margin: 0, flex: 1 }}>⭐ Reseñas de las clientas {prom && <span style={{ fontWeight: 600, fontSize: 13, color: tp.textMuted }}>· promedio {prom} ★ ({cuenta("aprobada")} publicadas)</span>}</div>
+        </div>
+        <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 10 }}>Solo pueden opinar quienes compraron el producto (en el local o en la web, con su cuenta). Ninguna se ve en la tienda hasta que la publicás.</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+          {[["pendiente", "Para revisar"], ["aprobada", "Publicadas"], ["rechazada", "No publicadas"], ["todas", "Todas"]].map(([k, t]) => <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(k)}>{t} <span style={{ opacity: .7 }}>({k === "todas" ? d.lista.length : cuenta(k)})</span></button>)}
+        </div>
+        {lista.length === 0 ? <div className="empty">{filtro === "pendiente" ? "No hay reseñas para revisar. 🎉" : "No hay reseñas acá."}</div> : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {lista.map(r => (
+              <div key={r.id} style={{ border: "1px solid " + tp.border, borderLeft: "5px solid " + (r.estado === "aprobada" ? "#2d7a4f" : r.estado === "rechazada" ? "#95a5a6" : "#f5a623"), borderRadius: 10, padding: 12, display: "flex", gap: 12, flexWrap: "wrap" }}>
+                {r.foto && <FotoResenaAdmin id={r.id} onAbrir={setGrande} />}
+                <div style={{ flex: "1 1 260px", minWidth: 0 }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>{est(r.estrellas)}<b style={{ fontSize: 13.5 }}>{r.producto || "Producto"}</b></div>
+                  <div style={{ fontSize: 12, color: tp.textMuted, marginTop: 2 }}>{r.clienta || "Clienta"}{r.telefono ? " · " + r.telefono : ""} · {new Date(r.creado_en).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
+                  <div style={{ fontSize: 13.5, marginTop: 6, whiteSpace: "pre-line" }}>{r.texto}</div>
+                  {esJefe && <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+                    {r.estado !== "aprobada" && <button className="btn btn-p btn-sm" onClick={() => accion(r, "aprobada")}>✓ Publicar</button>}
+                    {r.estado !== "rechazada" && <button className="btn btn-g btn-sm" onClick={() => accion(r, "rechazada")}>No publicar</button>}
+                    {r.foto && <button className="btn btn-g btn-sm" onClick={() => accion(r, "sin-foto")}>Sacar la foto</button>}
+                    {r.telefono && <a className="btn btn-g btn-sm" style={{ textDecoration: "none" }} href={linkWhatsapp(r.telefono, "Hola " + String(r.clienta || "").split(" ")[0] + "! Gracias por tu reseña de " + r.producto + " 💛")} target="_blank" rel="noopener">WhatsApp</a>}
+                    <button className="btn btn-g btn-sm" style={{ color: tp.red }} onClick={() => accion(r, "borrar")}>Borrar</button>
+                  </div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="card" style={{ flex: "1 1 320px", minWidth: 0 }}>
+        <div className="ct">💬 Pedir reseñas</div>
+        <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 10 }}>Como Mercado Libre: a quien ya retiró su pedido (últimos 45 días) mandale un WhatsApp para que deje su reseña. El link la lleva directo a opinar. Además, cuando entra a la tienda con su cuenta, le aparece un cartelito.</div>
+        {d.pedir.length === 0 ? <div className="empty">No hay pedidos entregados para pedir reseña.</div> : d.pedir.map(pd => (
+          <div key={pd.id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "8px 0", borderTop: "1px solid " + tp.border }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: 13 }}>{pd.nombre} <span style={{ fontWeight: 400, color: tp.textMuted, fontSize: 11.5 }}>N° {pd.codigo}</span></div>
+              <div style={{ fontSize: 11.5, color: tp.textMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{pd.sin_resena.join(", ")}</div>
+              {pd.resena_pedida_en && <div style={{ fontSize: 11, color: "#2d7a4f" }}>✓ Pedida el {new Date(pd.resena_pedida_en).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })}</div>}
+            </div>
+            <button className={"btn btn-sm " + (pd.resena_pedida_en ? "btn-g" : "btn-p")} onClick={() => pedir(pd)}>{pd.resena_pedida_en ? "Volver a pedir" : "Pedir reseña"}</button>
+          </div>
+        ))}
+        <div className="fl" style={{ marginTop: 14 }}>Mensaje (podés usar {"{nombre}"}, {"{productos}"}, {"{tienda}"} y {"{link}"})</div>
+        <textarea className="inp" rows={4} value={msj || ""} onChange={e => setMsj(e.target.value)} />
+        <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+          {esJefe && <button className="btn btn-p btn-sm" onClick={guardarMsj}>Guardar mensaje</button>}
+          <button className="btn btn-g btn-sm" onClick={() => setMsj(MSJ_RESENA)}>Volver al de siempre</button>
+        </div>
+        <div style={{ fontSize: 11.5, color: tp.textMuted, marginTop: 8 }}>Así se ve: {llenarMsj(msj || MSJ_RESENA, { nombre: "Sabrina", tienda: nombreTienda || "la tienda", productos: "Crema hidratante", link: link || "(link de tu tienda)" })}</div>
+      </div>
+      {grande && <div onClick={() => setGrande(null)} style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,.85)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "zoom-out", padding: 20 }}><img src={grande} alt="" style={{ maxWidth: "100%", maxHeight: "100%", borderRadius: 8 }} /></div>}
+    </div>
+  );
+}
+
 function TiendaOnline({ localId, usuario, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState(() => tabInicialDe("tienda-online") || "pedidos");
@@ -25751,6 +26054,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const [limitePed, setLimitePed] = useState(30);
   const [secCfg, setSecCfg] = useState("tienda");
   const [cfgCambios, setCfgCambios] = useState(false);
+  const [resPend, setResPend] = useState(0);
+  useEffect(() => { API.get("/tienda/resenas/pendientes").then(r => setResPend(r.data.n || 0)).catch(() => {}); }, []);
   useEffect(() => { setLimitePed(30); }, [filtro, buscaPed]);
   const [soloPub, setSoloPub] = useState(false);
   const [desc, setDesc] = useState(null); // { id, texto }
@@ -25901,7 +26206,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         ))}
       </div>
       <div className="tabs" style={{ marginBottom: 12 }}>
-        {[["pedidos", "📦 Pedidos" + (abiertos.length ? " (" + abiertos.length + ")" : "")], ["productos", "🛍 Productos"], ...(esJefeT ? [["portada", "🏠 Portada y sectores"]] : []), ["clientas", "👥 Clientas web"], ["config", "⚙️ Configuración"]].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
+        {[["pedidos", "📦 Pedidos" + (abiertos.length ? " (" + abiertos.length + ")" : "")], ["productos", "🛍 Productos"], ...(esJefeT ? [["portada", "🏠 Portada y sectores"]] : []), ["clientas", "👥 Clientas web"], ["resenas", "⭐ Reseñas" + (resPend ? " (" + resPend + ")" : "")], ["config", "⚙️ Configuración"]].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
       </div>
 
       {tab === "pedidos" && (
@@ -26077,6 +26382,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         </div>
       )}
 
+      {tab === "resenas" && <ResenasTienda temaPal={temaPal} avisar={avisar} urlTienda={url} nombreTienda={cfg?.titulo} esJefe={esJefeT} alCambiar={setResPend} />}
       {tab === "clientas" && <ClientasWeb temaPal={temaPal} avisar={avisar} urlTienda={url} nombreTienda={cfg?.titulo} esJefe={esJefeT} />}
       {tab === "portada" && esJefeT && <PortadaTienda productos={productos} temaPal={temaPal} avisar={avisar} alGuardar={cargarProductos} />}
 

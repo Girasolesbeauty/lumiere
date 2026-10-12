@@ -160,11 +160,14 @@ router.get('/:slug/productos', async (req, res) => {
       WHERE vi.producto_id = ANY($1::int[]) AND v.creado_en > NOW() - INTERVAL '30 days' AND ${VENTA_VALIDA} GROUP BY vi.producto_id HAVING SUM(vi.cantidad) >= 2 ORDER BY n DESC LIMIT 10`,
       [r.rows.filter(p => p.publicado).map(p => p.id)]).catch(() => ({ rows: [] }))).rows;
     const puesto = new Map(ventas30.map((x, i) => [x.producto_id, i + 1]));
+    // Estrellas de cada producto (solo reseñas aprobadas)
+    const notas = new Map((await pool.query(`SELECT producto_id, ROUND(AVG(estrellas)::numeric, 1)::float AS prom, COUNT(*)::int AS n FROM tienda_resenas WHERE estado = 'aprobada' GROUP BY producto_id`)
+      .catch(() => ({ rows: [] }))).rows.map(x => [x.producto_id, [x.prom, x.n]]));
     res.json(r.rows.map(p => {
       const v = vars.filter(x => x.producto_id === p.id).map(x => ({ id: x.id, valor: x.valor, stock: { 1: Math.max(0, x.stock_rg), 2: Math.max(0, x.stock_ush) } }));
       return {
         id: p.id, nombre: p.nombre, marca: p.marca, categoria: p.categoria, precio: num(p.precio), descripcion: p.descripcion || '', foto: !!p.foto,
-        destacado: !!p.destacado, nuevo: !!p.nuevo, etiquetas: p.etiquetas || null, top: puesto.get(p.id) || null, fotos: p.fotos_extra || [], reingreso: p.reingreso || null, foto_v: p.foto_v ? Number(p.foto_v) : null,
+        destacado: !!p.destacado, nuevo: !!p.nuevo, etiquetas: p.etiquetas || null, top: puesto.get(p.id) || null, resenas: notas.get(p.id) || null, fotos: p.fotos_extra || [], reingreso: p.reingreso || null, foto_v: p.foto_v ? Number(p.foto_v) : null,
         video: p.video_subido ? { tipo: 'subido' } : tienda.videoDeLink(p.video_url),
         variantes: p.tiene_variantes && v.length ? v : null,
         // Para vender ya: stock menos lo reservado por preventas (solo si esta publicado)
@@ -648,6 +651,73 @@ router.post('/:slug/cuenta/canjear', conCuenta, async (req, res) => {
     if (e instanceof cuentas.ErrorCanje) return res.status(e.codigo).json({ error: e.message });
     console.error('[tienda] canjear:', e.message); res.status(500).json({ error: 'No se pudo canjear' });
   }
+});
+
+// ===================== Reseñas =====================
+// Solo opina quien compro el producto (en el local o en la web, con su ficha de clienta).
+// Quedan pendientes hasta que la tienda las aprueba en Lumiere.
+const nombreCorto = (n) => { const p = String(n || '').trim().split(/\s+/).filter(Boolean); return p.length ? p[0] + (p[1] ? ' ' + p[1][0].toUpperCase() + '.' : '') : 'Clienta'; };
+async function compradosPor(clienteId) {
+  return (await pool.query(`SELECT producto_id, MAX(f) AS fecha FROM (
+      SELECT vi.producto_id, v.creado_en AS f FROM ventas v JOIN venta_items vi ON vi.venta_id = v.id WHERE v.cliente_id = $1 AND ${VENTA_VALIDA}
+      UNION ALL
+      SELECT i.producto_id, p.creado_en FROM tienda_pedidos p JOIN tienda_pedido_items i ON i.pedido_id = p.id WHERE p.cliente_id = $1 AND p.estado = 'entregado'
+    ) x WHERE producto_id IS NOT NULL AND f > NOW() - INTERVAL '18 months' GROUP BY producto_id ORDER BY MAX(f) DESC LIMIT 60`, [clienteId])).rows;
+}
+router.get('/:slug/resenas/:productoId', async (req, res) => {
+  try {
+    const r = await pool.query(`SELECT r.id, r.estrellas, r.texto, r.creado_en, (r.foto IS NOT NULL) AS foto, c.nombre FROM tienda_resenas r LEFT JOIN clientes c ON c.id = r.cliente_id
+      WHERE r.producto_id = $1 AND r.estado = 'aprobada' ORDER BY (r.foto IS NOT NULL) DESC, r.creado_en DESC LIMIT 60`, [parseInt(req.params.productoId) || 0]);
+    const n = r.rows.length, prom = n ? Math.round(r.rows.reduce((t, x) => t + x.estrellas, 0) / n * 10) / 10 : 0;
+    const dist = [5, 4, 3, 2, 1].map(e => r.rows.filter(x => x.estrellas === e).length);
+    res.json({ prom, n, dist, lista: r.rows.map(x => ({ id: x.id, estrellas: x.estrellas, texto: x.texto, fecha: x.creado_en, foto: x.foto, nombre: nombreCorto(x.nombre) })) });
+  } catch (e) { res.json({ prom: 0, n: 0, dist: [0, 0, 0, 0, 0], lista: [] }); }
+});
+router.get('/:slug/resena-foto/:id', async (req, res) => {
+  try {
+    const r = (await pool.query(`SELECT foto, foto_tipo FROM tienda_resenas WHERE id = $1 AND estado = 'aprobada' AND foto IS NOT NULL`, [parseInt(req.params.id) || 0])).rows[0];
+    if (!r) return res.status(404).end();
+    res.set('Content-Type', r.foto_tipo || 'image/jpeg').set('Cache-Control', 'public, max-age=86400').send(r.foto);
+  } catch (e) { res.status(404).end(); }
+});
+// Lo que compro y todavia no reseño, y sus reseñas (con el estado)
+router.get('/:slug/cuenta/resenas', conCuenta, async (req, res) => {
+  try {
+    const [compras, mias] = await Promise.all([compradosPor(req.clienteId),
+      pool.query(`SELECT r.id, r.producto_id, r.estrellas, r.texto, r.estado, (r.foto IS NOT NULL) AS foto, p.nombre FROM tienda_resenas r JOIN productos p ON p.id = r.producto_id
+        WHERE r.cliente_id = $1 ORDER BY r.creado_en DESC`, [req.clienteId]).then(r => r.rows)]);
+    const hechas = new Set(mias.map(x => x.producto_id));
+    const ids = compras.map(x => x.producto_id).filter(id => !hechas.has(id));
+    const prods = ids.length ? (await pool.query(`SELECT p.id, p.nombre, EXISTS (SELECT 1 FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto FROM productos p
+      WHERE p.id = ANY($1::int[]) AND p.activo = TRUE`, [ids])).rows : [];
+    res.json({ para_resenar: ids.map(id => prods.find(p => p.id === id)).filter(Boolean), mias });
+  } catch (e) { console.error('[tienda] resenas cuenta:', e.message); res.status(500).json({ error: 'No se pudieron cargar tus reseñas' }); }
+});
+const envioResenas = new Map();
+router.post('/:slug/cuenta/resenas', conCuenta, async (req, res) => {
+  try {
+    const ahora = Date.now(), l = (envioResenas.get(req.clienteId) || []).filter(t => ahora - t < 3600 * 1000); l.push(ahora); envioResenas.set(req.clienteId, l);
+    if (l.length > 20) return res.status(429).json({ error: 'Demasiadas reseñas seguidas. Probá en un rato.' });
+    const b = req.body || {};
+    const productoId = parseInt(b.producto_id), estrellas = parseInt(b.estrellas), texto = String(b.texto || '').trim().replace(/\s+\n/g, '\n').slice(0, 1000);
+    if (!(estrellas >= 1 && estrellas <= 5)) return res.status(400).json({ error: 'Elegí de 1 a 5 estrellas' });
+    if (texto.length < 10) return res.status(400).json({ error: 'Contanos un poquito más (al menos 10 letras)' });
+    if (!(await compradosPor(req.clienteId)).some(x => x.producto_id === productoId)) return res.status(403).json({ error: 'Solo podés opinar de productos que compraste' });
+    let foto = null, tipo = null;
+    if (b.foto) {
+      const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(String(b.foto));
+      if (!m) return res.status(400).json({ error: 'La foto tiene que ser JPG, PNG o WebP' });
+      foto = Buffer.from(m[2], 'base64'); tipo = m[1];
+      if (foto.length > 700 * 1024) return res.status(400).json({ error: 'La foto es muy pesada' });
+    }
+    // Si la edita, vuelve a quedar pendiente de aprobación. La foto se mantiene si no manda otra (salvo que la saque).
+    await pool.query(`INSERT INTO tienda_resenas (producto_id, cliente_id, estrellas, texto, foto, foto_tipo) VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (producto_id, cliente_id) DO UPDATE SET estrellas = EXCLUDED.estrellas, texto = EXCLUDED.texto, estado = 'pendiente', creado_en = NOW(), revisado_en = NULL,
+        foto = CASE WHEN EXCLUDED.foto IS NOT NULL THEN EXCLUDED.foto WHEN $7 THEN NULL ELSE tienda_resenas.foto END,
+        foto_tipo = CASE WHEN EXCLUDED.foto IS NOT NULL THEN EXCLUDED.foto_tipo WHEN $7 THEN NULL ELSE tienda_resenas.foto_tipo END`,
+      [productoId, req.clienteId, estrellas, texto, foto, tipo, !!b.quitar_foto]);
+    res.json({ ok: true });
+  } catch (e) { console.error('[tienda] resena:', e.message); res.status(500).json({ error: 'No se pudo guardar tu reseña. Probá de nuevo.' }); }
 });
 
 // ===================== Recomendaciones (lo que compran juntas) =====================
