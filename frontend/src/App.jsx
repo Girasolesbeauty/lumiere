@@ -24216,7 +24216,7 @@ function TiendaPublica({ slug }) {
   const cargarMisRes = () => pedir("/cuenta/resenas").then(setMisRes).catch(() => {});
   useEffect(() => { if (logueada) cargarMisRes(); else setMisRes(null); }, [logueada]);
   // Link para pedir la reseña (?resenar=1): abre Mi cuenta en "Reseñas" (o pide entrar)
-  useEffect(() => { if (params.get("resenar")) { setFormCuenta(x => ({ ...x, pestana: "resenas" })); setPaso("cuenta"); setTimeout(() => setMotivoCuenta("Ingresá a tu cuenta para dejar tu reseña ⭐"), 0); } }, []);
+  useEffect(() => { if (params.get("resenar")) { setFormCuenta(x => ({ ...x, pestana: "resenas" })); setPaso("cuenta"); setTimeout(() => setMotivoCuenta("Ingresá a tu cuenta para dejar tu reseña ⭐ ¿No tenés? Tocá \"Crear mi cuenta\" y poné tu DNI: si compraste en el local, te reconocemos."), 0); } }, []);
   const abrirFormRes = (prod, ex) => setFormRes({ producto_id: prod.id, nombre: prod.nombre, estrellas: ex ? ex.estrellas : 0, texto: ex ? ex.texto : "", foto: null, tieneFoto: !!(ex && ex.foto), quitar_foto: false, editando: !!ex });
   const opinar = (p) => {
     if (!logueada) { setVer(null); setPaso("cuenta"); setTimeout(() => setMotivoCuenta("Ingresá a tu cuenta para opinar: solo pueden dejar reseña quienes compraron el producto."), 0); return; }
@@ -26022,6 +26022,17 @@ function ResenasTienda({ temaPal, avisar, urlTienda, nombreTienda, esJefe, alCam
   const [msj, setMsj] = useState(null);
   const [grande, setGrande] = useState(null);
   const [pts, setPts] = useState(null); // { activo, puntos, extra_foto }
+  // Pedir reseña: pedidos de la tienda web o compras del local (por proveedor y periodo)
+  const [fuente, setFuente] = useState("local");
+  const [loc, setLoc] = useState(null); // { clientas, proveedores, dias }
+  const [prov, setProv] = useState(null); // null = todavia no se eligio (se busca BEK)
+  const [dias, setDias] = useState(90);
+  const cargarLoc = (pv, ds) => API.get("/tienda/resenas/pedir-local?dias=" + ds + (pv ? "&proveedor=" + pv : "")).then(r => {
+    setLoc(r.data);
+    // La primera vez se elige solo el proveedor BEK (si esta)
+    if (pv === null) { const bek = (r.data.proveedores || []).find(x => /\bbek\b/i.test(x.nombre)); if (bek) { setProv(String(bek.id)); return cargarLoc(String(bek.id), ds); } setProv(""); }
+  }).catch(() => setLoc({ clientas: [], proveedores: [] }));
+  useEffect(() => { if (fuente === "local") cargarLoc(prov, dias); }, [fuente, prov, dias]);
   const cargar = () => API.get("/tienda/resenas").then(r => { setD(r.data); setPts(x => x || r.data.puntos || { activo: true, puntos: 200, extra_foto: 100 }); setMsj(m => m === null ? (r.data.mensaje || MSJ_RESENA) : m); alCambiar && alCambiar(r.data.lista.filter(x => x.estado === "pendiente").length); }).catch(() => setD({ lista: [], pedir: [] }));
   useEffect(() => { cargar(); }, []);
   if (!d) return <div className="skel" style={{ height: 240 }} />;
@@ -26034,6 +26045,12 @@ function ResenasTienda({ temaPal, avisar, urlTienda, nombreTienda, esJefe, alCam
     } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); }
   };
   const link = urlTienda ? urlTienda + (urlTienda.includes("?") ? "&" : "/?") + "resenar=1" : "";
+  const pedirLocal = async (cl) => {
+    const txt = llenarMsj(msj || MSJ_RESENA, { nombre: String(cl.nombre || "").split(" ")[0], tienda: nombreTienda || "la tienda", productos: cl.productos.slice(0, 3).join(", "), link })
+      + (cl.con_cuenta ? "" : " (Si todavía no tenés cuenta, la creás con tu DNI en un minuto 💛)");
+    window.open(linkWhatsapp(cl.telefono, txt) || ("https://wa.me/?text=" + encodeURIComponent(txt)), "_blank");
+    try { await API.post("/tienda/resenas/pedida-clienta/" + cl.cliente_id); setLoc(x => x && ({ ...x, clientas: x.clientas.map(y => y.cliente_id === cl.cliente_id ? { ...y, pedido_en: new Date().toISOString() } : y) })); } catch (e) {}
+  };
   const pedir = async (pd) => {
     const txt = llenarMsj(msj || MSJ_RESENA, { nombre: String(pd.nombre || "").split(" ")[0], tienda: nombreTienda || "la tienda", productos: pd.sin_resena.slice(0, 3).join(", "), link });
     window.open(linkWhatsapp(pd.telefono, txt) || ("https://wa.me/?text=" + encodeURIComponent(txt)), "_blank");
@@ -26092,8 +26109,36 @@ function ResenasTienda({ temaPal, avisar, urlTienda, nombreTienda, esJefe, alCam
       </div>}
       <div className="card" style={{ minWidth: 0 }}>
         <div className="ct">💬 Pedir reseñas</div>
-        <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 10 }}>Como Mercado Libre: a quien ya retiró su pedido (últimos 45 días) mandale un WhatsApp para que deje su reseña. El link la lleva directo a opinar. Además, cuando entra a la tienda con su cuenta, le aparece un cartelito.</div>
-        {d.pedir.length === 0 ? <div className="empty">No hay pedidos entregados para pedir reseña.</div> : d.pedir.map(pd => (
+        <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 10 }}>Como Mercado Libre: mandale un WhatsApp a quien ya compró para que deje su reseña. El link la lleva directo a opinar (si no tiene cuenta, la crea con su DNI y se la reconoce). Además, cuando entra a la tienda con su cuenta, le aparece un cartelito.</div>
+        <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+          {[["local", "🏪 Compras del local"], ["web", "🛍️ Tienda online (" + d.pedir.length + ")"]].map(([k, t]) => <button key={k} className={"chip-btn" + (fuente === k ? " on" : "")} onClick={() => setFuente(k)}>{t}</button>)}
+        </div>
+        {fuente === "local" ? <>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
+            <select className="sel" style={{ flex: "1 1 150px" }} aria-label="Proveedor" value={prov || ""} onChange={e => setProv(e.target.value)}>
+              <option value="">Todos los proveedores</option>
+              {((loc && loc.proveedores) || []).map(x => <option key={x.id} value={x.id}>{x.nombre} ({x.clientas})</option>)}
+            </select>
+            <select className="sel" aria-label="Período" value={dias} onChange={e => setDias(parseInt(e.target.value))}>
+              {[[30, "Último mes"], [60, "Últimos 2 meses"], [90, "Últimos 3 meses"], [180, "Últimos 6 meses"], [365, "Último año"]].map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+            </select>
+          </div>
+          {!loc ? <div className="skel" style={{ height: 80 }} /> : loc.clientas.length === 0 ? <div className="empty">No hay clientas con WhatsApp que hayan comprado esto y falten reseñar.</div> : <>
+            <div style={{ fontSize: 11.5, color: tp.textMuted, marginBottom: 4 }}>{loc.clientas.length} clienta{loc.clientas.length !== 1 ? "s" : ""} · {loc.clientas.filter(c => c.pedido_en).length} ya pedidas</div>
+            <div style={{ maxHeight: 420, overflowY: "auto" }}>
+              {loc.clientas.map(cl => (
+                <div key={cl.cliente_id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "8px 0", borderTop: "1px solid " + tp.border }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13 }}>{cl.nombre} {!cl.con_cuenta && <span className="tag" style={{ fontSize: 10, fontWeight: 600 }} title="Va a crear la cuenta con su DNI desde el link">sin cuenta</span>}</div>
+                    <div style={{ fontSize: 11.5, color: tp.textMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={cl.productos.join(", ")}>{cl.productos.join(", ")}</div>
+                    <div style={{ fontSize: 11, color: tp.textMuted }}>Compró el {new Date(cl.ultima).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })}{cl.pedido_en && <span style={{ color: "#2d7a4f" }}> · ✓ pedida el {new Date(cl.pedido_en).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })}</span>}</div>
+                  </div>
+                  <button className={"btn btn-sm " + (cl.pedido_en ? "btn-g" : "btn-p")} onClick={() => pedirLocal(cl)}>{cl.pedido_en ? "Volver a pedir" : "Pedir reseña"}</button>
+                </div>
+              ))}
+            </div>
+          </>}
+        </> : d.pedir.length === 0 ? <div className="empty">No hay pedidos entregados para pedir reseña.</div> : d.pedir.map(pd => (
           <div key={pd.id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "8px 0", borderTop: "1px solid " + tp.border }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 700, fontSize: 13 }}>{pd.nombre} <span style={{ fontWeight: 400, color: tp.textMuted, fontSize: 11.5 }}>N° {pd.codigo}</span></div>
@@ -26102,7 +26147,8 @@ function ResenasTienda({ temaPal, avisar, urlTienda, nombreTienda, esJefe, alCam
             </div>
             <button className={"btn btn-sm " + (pd.resena_pedida_en ? "btn-g" : "btn-p")} onClick={() => pedir(pd)}>{pd.resena_pedida_en ? "Volver a pedir" : "Pedir reseña"}</button>
           </div>
-        ))}
+        ))
+        }
         <div className="fl" style={{ marginTop: 14 }}>Mensaje (podés usar {"{nombre}"}, {"{productos}"}, {"{tienda}"} y {"{link}"})</div>
         <textarea className="inp" rows={4} value={msj || ""} onChange={e => setMsj(e.target.value)} />
         <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
