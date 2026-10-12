@@ -26017,7 +26017,7 @@ function ResenasTienda({ temaPal, avisar, urlTienda, nombreTienda, esJefe, alCam
   const [msj, setMsj] = useState(null);
   const [grande, setGrande] = useState(null);
   const [pts, setPts] = useState(null); // { activo, puntos, extra_foto }
-  const cargar = () => API.get("/tienda/resenas").then(r => { setD(r.data); setPts(x => x || r.data.puntos || { activo: true, puntos: 50, extra_foto: 50 }); setMsj(m => m === null ? (r.data.mensaje || MSJ_RESENA) : m); alCambiar && alCambiar(r.data.lista.filter(x => x.estado === "pendiente").length); }).catch(() => setD({ lista: [], pedir: [] }));
+  const cargar = () => API.get("/tienda/resenas").then(r => { setD(r.data); setPts(x => x || r.data.puntos || { activo: true, puntos: 200, extra_foto: 100 }); setMsj(m => m === null ? (r.data.mensaje || MSJ_RESENA) : m); alCambiar && alCambiar(r.data.lista.filter(x => x.estado === "pendiente").length); }).catch(() => setD({ lista: [], pedir: [] }));
   useEffect(() => { cargar(); }, []);
   if (!d) return <div className="skel" style={{ height: 240 }} />;
   const accion = async (r, estado) => {
