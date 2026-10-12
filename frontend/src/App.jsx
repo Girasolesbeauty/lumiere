@@ -504,17 +504,19 @@ button.tab { font-family: inherit; }
 .mini-inp:focus { border-color: ${p.accent}; }
 @media (hover: none) { .cart-acc { opacity: 1; } }
 /* --- Inicio del celular: botones grandes --- */
-.pcel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+/* El inicio ocupa todo el alto libre de la pantalla: los botones se estiran (grandes en celulares altos, compactos en los chicos) */
+.pcel-wrap { box-sizing: border-box; min-height: calc(100dvh - 148px - env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; }
+.pcel-grid { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: minmax(94px, 1fr); gap: 10px; flex: 1; }
 .pcel-btn { position: relative; min-height: 94px; border: 1px solid ${p.border}; border-radius: 20px; padding: 10px 8px 12px; cursor: pointer; font-family: inherit; color: ${p.text};
   background: linear-gradient(160deg, color-mix(in srgb, var(--c) 14%, ${p.card}) 0%, ${p.card} 62%); box-shadow: 0 4px 14px ${p.shadowSoft};
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; overflow: hidden;
   animation: pcelEntra .42s cubic-bezier(.2,.8,.2,1) both; transition: transform .12s, box-shadow .12s; -webkit-tap-highlight-color: transparent; }
 .pcel-btn::after { content: ""; position: absolute; left: 18%; right: 18%; bottom: 0; height: 4px; border-radius: 4px 4px 0 0; background: var(--c); opacity: .9; }
 .pcel-btn:active { transform: scale(.96); box-shadow: 0 1px 4px ${p.shadowSoft}; }
-.pcel-ico { width: 46px; height: 46px; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 25px; line-height: 1;
+.pcel-ico { width: clamp(46px, 7.5dvh, 66px); height: clamp(46px, 7.5dvh, 66px); border-radius: 30%; display: flex; align-items: center; justify-content: center; font-size: clamp(25px, 4.2dvh, 36px); line-height: 1;
   background: color-mix(in srgb, var(--c) 18%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 30%, transparent); }
-.pcel-txt { font-size: 15.5px; font-weight: 800; text-align: center; line-height: 1.15; letter-spacing: -.01em; }
-.pcel-menu { min-height: 54px; border: 2px dashed ${p.border}; border-radius: 22px; background: transparent; display: flex; align-items: center; justify-content: center; gap: 10px;
+.pcel-txt { font-size: clamp(15.5px, 2.3dvh, 19px); font-weight: 800; text-align: center; line-height: 1.15; letter-spacing: -.01em; }
+.pcel-menu { min-height: 54px; margin-top: 10px; width: 100%; border: 2px dashed ${p.border}; border-radius: 22px; background: transparent; display: flex; align-items: center; justify-content: center; gap: 10px;
   font-family: inherit; color: ${p.textMuted}; cursor: pointer; font-size: 17px; font-weight: 800; animation: pcelEntra .42s .3s cubic-bezier(.2,.8,.2,1) both; }
 .pcel-menu span:first-child { font-size: 24px; }
 /* En el inicio del celular, la Ayuda va como boton chico arriba (el flotante tapaba los botones) */
@@ -26770,7 +26772,7 @@ function PanelCelular({ secciones, usuario, localId, avisos, setPage, onMenu, on
   const saludo = hora < 12 ? "Buen día" : hora < 20 ? "Buenas tardes" : "Buenas noches";
   const fecha = new Date().toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
   return (
-    <div className="fade" style={{ textAlign: "left", paddingBottom: 20 }}>
+    <div className="fade pcel-wrap" style={{ textAlign: "left", paddingBottom: 6 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 12 }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 22, fontWeight: 900, lineHeight: 1.2 }}>{saludo}{nombre ? ", " + nombre : ""} 👋</div>
@@ -26802,11 +26804,11 @@ function PanelCelular({ secciones, usuario, localId, avisos, setPage, onMenu, on
             </button>
           );
         })}
-        <button className="pcel-menu" onClick={onMenu} style={{ gridColumn: botones.length % 2 === 0 ? "1 / -1" : undefined }}>
-          <span aria-hidden="true">☰</span>
-          <span>Todo el menú</span>
-        </button>
       </div>
+      <button className="pcel-menu" onClick={onMenu}>
+        <span aria-hidden="true">☰</span>
+        <span>Todo el menú</span>
+      </button>
     </div>
   );
 }
