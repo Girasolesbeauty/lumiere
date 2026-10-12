@@ -693,8 +693,9 @@ router.get('/:slug/cuenta/resenas', conCuenta, async (req, res) => {
         WHERE r.cliente_id = $1 ORDER BY r.creado_en DESC`, [req.clienteId]).then(r => r.rows)]);
     const hechas = new Set(mias.map(x => x.producto_id));
     const ids = compras.map(x => x.producto_id).filter(id => !hechas.has(id));
+    // Solo lo que esta publicado en la tienda (ahi es donde se ve la reseña)
     const prods = ids.length ? (await pool.query(`SELECT p.id, p.nombre, EXISTS (SELECT 1 FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto FROM productos p
-      WHERE p.id = ANY($1::int[]) AND p.activo = TRUE`, [ids])).rows : [];
+      JOIN tienda_productos tp ON tp.producto_id = p.id AND tp.publicado WHERE p.id = ANY($1::int[]) AND p.activo = TRUE`, [ids])).rows : [];
     res.json({ para_resenar: ids.map(id => prods.find(p => p.id === id)).filter(Boolean), mias });
   } catch (e) { console.error('[tienda] resenas cuenta:', e.message); res.status(500).json({ error: 'No se pudieron cargar tus reseñas' }); }
 });
