@@ -327,6 +327,7 @@ router.post('/:slug/pedidos', async (req, res) => {
     }
     await tienda.moverStock(client, pedido, -1);
     await tienda.reservarPreventa(client, pedido, +1);
+    if (clienteId) await client.query('DELETE FROM tienda_carritos WHERE cliente_id = $1', [clienteId]);
     await client.query('COMMIT');
   } catch (e) {
     try { await client.query('ROLLBACK'); } catch (x) {}
@@ -549,6 +550,61 @@ router.post('/:slug/cuenta/crear', async (req, res) => {
     res.status(201).json({ token: firmar(req, c.id), cliente: f });
   } catch (e) { console.error('[tienda] crear cuenta:', e.message); if (!res.headersSent) res.status(500).json({ error: 'No pudimos crear la cuenta. Probá de nuevo.' }); }
   finally { if (candado) { try { await candado.query('COMMIT'); } catch (x) {} candado.release(); } }
+});
+
+// ===================== Favoritos, "avisame cuando llegue" y carrito guardado =====================
+router.get('/:slug/cuenta/favoritos', conCuenta, async (req, res) => {
+  try { res.json((await pool.query('SELECT producto_id FROM tienda_favoritos WHERE cliente_id = $1 ORDER BY creado_en DESC', [req.clienteId])).rows.map(r => r.producto_id)); }
+  catch (e) { res.status(500).json({ error: 'No se pudieron cargar tus favoritos' }); }
+});
+// Reemplaza la lista de favoritos (la tienda manda la lista completa)
+router.put('/:slug/cuenta/favoritos', conCuenta, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const ids = [...new Set((Array.isArray(req.body && req.body.ids) ? req.body.ids : []).map(x => parseInt(x)).filter(x => x > 0))].slice(0, 300);
+    await client.query('BEGIN');
+    await client.query('DELETE FROM tienda_favoritos WHERE cliente_id = $1 AND NOT (producto_id = ANY($2::int[]))', [req.clienteId, ids]);
+    if (ids.length) await client.query(`INSERT INTO tienda_favoritos (cliente_id, producto_id) SELECT $1, x FROM unnest($2::int[]) x JOIN productos p ON p.id = x ON CONFLICT DO NOTHING`, [req.clienteId, ids]);
+    await client.query('COMMIT');
+    res.json({ ok: true });
+  } catch (e) { try { await client.query('ROLLBACK'); } catch (x) {} res.status(500).json({ error: 'No se pudo guardar' }); }
+  finally { client.release(); }
+});
+// "Avisame cuando llegue": deja el WhatsApp para que la tienda le avise cuando vuelve el stock
+const pedidosAviso = new Map();
+router.post('/:slug/avisame', async (req, res) => {
+  try {
+    const ip = req.ip || 'x', ahora = Date.now();
+    const l = (pedidosAviso.get(ip) || []).filter(t => ahora - t < 10 * 60 * 1000); l.push(ahora); pedidosAviso.set(ip, l);
+    if (l.length > 15) return res.status(429).json({ error: 'Demasiados pedidos. Probá en un rato.' });
+    const b = req.body || {};
+    const productoId = parseInt(b.producto_id);
+    const clienteId = clienteDeToken(req);
+    const nombre = String(b.nombre || '').trim().slice(0, 80), telefono = String(b.telefono || '').trim().slice(0, 40);
+    if (nombre.length < 2) return res.status(400).json({ error: 'Escribí tu nombre' });
+    if (cuentas.soloNumeros(telefono).length < 8) return res.status(400).json({ error: 'Escribí tu WhatsApp con código de área' });
+    const p = (await pool.query('SELECT id, nombre FROM productos WHERE id = $1 AND activo = TRUE', [productoId])).rows[0];
+    if (!p) return res.status(400).json({ error: 'No encontramos ese producto' });
+    const ya = (await pool.query(`SELECT 1 FROM tienda_avisos WHERE producto_id = $1 AND avisado_en IS NULL AND RIGHT(REGEXP_REPLACE(telefono, '[^0-9]', '', 'g'), 8) = $2`, [p.id, cuentas.soloNumeros(telefono).slice(-8)])).rows.length;
+    if (!ya) await pool.query('INSERT INTO tienda_avisos (producto_id, cliente_id, nombre, telefono, local_id) VALUES ($1, $2, $3, $4, $5)', [p.id, clienteId, nombre, telefono, Number(b.local_id) === 2 ? 2 : 1]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar. Probá de nuevo.' }); }
+});
+// Carrito de la clienta con cuenta (para que la tienda le pueda recordar si lo deja sin terminar)
+router.put('/:slug/cuenta/carrito', conCuenta, async (req, res) => {
+  try {
+    const items = (Array.isArray(req.body && req.body.items) ? req.body.items : []).slice(0, 50).map(i => ({
+      producto_id: parseInt(i.producto_id), variante_id: parseInt(i.variante_id) || null, nombre: String(i.nombre || '').slice(0, 120), variante: i.variante ? String(i.variante).slice(0, 60) : null,
+      cantidad: Math.min(99, Math.max(1, parseInt(i.cantidad) || 1)), precio: Math.max(0, num(i.precio)), preventa: !!i.preventa,
+    })).filter(i => i.producto_id > 0);
+    if (!items.length) { await pool.query('DELETE FROM tienda_carritos WHERE cliente_id = $1', [req.clienteId]); return res.json({ ok: true }); }
+    const subtotal = items.reduce((t, i) => t + i.precio * i.cantidad, 0);
+    await pool.query(`INSERT INTO tienda_carritos (cliente_id, items, subtotal, local_id, actualizado_en) VALUES ($1, $2, $3, $4, NOW())
+      ON CONFLICT (cliente_id) DO UPDATE SET items = EXCLUDED.items, subtotal = EXCLUDED.subtotal, local_id = EXCLUDED.local_id, actualizado_en = NOW(),
+        recordado_en = CASE WHEN tienda_carritos.items::text = EXCLUDED.items::text THEN tienda_carritos.recordado_en ELSE NULL END`,
+      [req.clienteId, JSON.stringify(items), subtotal, Number(req.body.local_id) === 2 ? 2 : 1]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar el carrito' }); }
 });
 
 router.get('/:slug/cuenta', conCuenta, async (req, res) => {

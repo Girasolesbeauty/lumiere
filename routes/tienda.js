@@ -4,6 +4,7 @@ const pool = require('../config/database');
 const tienda = require('../lib/tienda');
 const { ayudaMP } = require('./mercadopago');
 const QRCode = require('qrcode');
+const { VENTA_VALIDA } = require('../lib/niveles');
 
 // Tienda web: lo que se maneja desde Lumiere (configuracion, productos publicados y pedidos).
 // La parte publica esta en routes/tiendaPublica.js. Ver lib/tienda.js.
@@ -565,6 +566,49 @@ router.post('/pedidos/:id/extender', async (req, res) => {
     if (!r.rows.length) return res.status(400).json({ error: 'Ese pedido no tiene vencimiento' });
     res.json({ ok: true, vence_en: r.rows[0].vence_en, horas });
   } catch (e) { res.status(500).json({ error: 'No se pudo' }); }
+});
+
+// ---- Clientas de la web: quien pidio aviso de un producto, carritos sin terminar y favoritos ----
+router.get('/clientas-web', async (req, res) => {
+  try {
+    const avisos = (await pool.query(`SELECT a.*, p.nombre AS producto, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush
+      FROM tienda_avisos a JOIN productos p ON p.id = a.producto_id WHERE a.avisado_en IS NULL ORDER BY a.creado_en`)).rows;
+    const carritos = (await pool.query(`SELECT k.*, c.nombre, c.telefono FROM tienda_carritos k JOIN clientes c ON c.id = k.cliente_id
+      WHERE k.actualizado_en < NOW() - INTERVAL '1 hour' AND k.actualizado_en > NOW() - INTERVAL '30 days' ORDER BY k.actualizado_en DESC LIMIT 100`)).rows;
+    // Analisis de favoritos: cuantas lo guardaron (total y esta semana), cuantas de ellas lo compraron despues, stock
+    const favoritos = (await pool.query(`SELECT f.producto_id, p.nombre, p.categoria, p.precio, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush,
+        COUNT(*)::int AS n, COUNT(*) FILTER (WHERE f.creado_en > NOW() - INTERVAL '7 days')::int AS n7,
+        (SELECT COUNT(DISTINCT f2.cliente_id)::int FROM tienda_favoritos f2 JOIN ventas v ON v.cliente_id = f2.cliente_id AND v.creado_en >= f2.creado_en
+           JOIN venta_items vi ON vi.venta_id = v.id AND vi.producto_id = f2.producto_id WHERE f2.producto_id = f.producto_id AND ${VENTA_VALIDA}) AS compraron
+      FROM tienda_favoritos f JOIN productos p ON p.id = f.producto_id
+      GROUP BY f.producto_id, p.nombre, p.categoria, p.precio, p.stock_rg, p.stock_ush ORDER BY n DESC, n7 DESC LIMIT 40`).catch(e => { console.error('[tienda] favoritos:', e.message); return { rows: [] }; })).rows;
+    const resumenFav = (await pool.query(`SELECT COUNT(*)::int AS guardados, COUNT(DISTINCT cliente_id)::int AS clientas,
+        COUNT(*) FILTER (WHERE creado_en > NOW() - INTERVAL '7 days')::int AS semana FROM tienda_favoritos`)).rows[0];
+    const c = await tienda.leerConfig();
+    res.json({ avisos, carritos: carritos.map(k => ({ ...k, subtotal: num(k.subtotal) })), favoritos: favoritos.map(f => ({ ...f, precio: num(f.precio) })), resumen_fav: resumenFav, mensajes: c.mensajes || {} });
+  } catch (e) { console.error('[tienda] clientas web:', e.message); res.status(500).json({ error: 'No se pudo cargar' }); }
+});
+// Mensajes de WhatsApp editables: { carrito, aviso } (vacio = el de siempre)
+router.put('/mensajes', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    const b = req.body || {};
+    const m = {}; for (const k of ['carrito', 'aviso']) { const t = String(b[k] || '').trim().slice(0, 700); if (t) m[k] = t; }
+    await pool.query('UPDATE tienda_config SET mensajes = $1 WHERE id = 1', [JSON.stringify(m)]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+});
+router.post('/avisos/:id/avisado', async (req, res) => {
+  try { await pool.query('UPDATE tienda_avisos SET avisado_en = NOW() WHERE id = $1', [req.params.id]); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: 'No se pudo' }); }
+});
+router.delete('/avisos/:id', async (req, res) => {
+  try { await pool.query('DELETE FROM tienda_avisos WHERE id = $1', [req.params.id]); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: 'No se pudo' }); }
+});
+router.post('/carritos/:clienteId/recordado', async (req, res) => {
+  try { await pool.query('UPDATE tienda_carritos SET recordado_en = NOW() WHERE cliente_id = $1', [req.params.clienteId]); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: 'No se pudo' }); }
 });
 
 // Lo llama el Punto de Venta al registrar la venta del pedido
