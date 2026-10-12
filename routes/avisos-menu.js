@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
   const contar = async (sql, params = []) => {
     try { const r = await pool.query(sql, params); return parseInt(r.rows[0].n) || 0; } catch (e) { return 0; }
   };
-  const [portal, pedidos, compras, tareas, control, ajustes, traspasos, tienda] = await Promise.all([
+  const [portal, pedidos, compras, tareas, control, ajustes, traspasos, tienda, resenas] = await Promise.all([
     // Premios canjeados en el portal que falta entregar
     contar(`SELECT COUNT(*) AS n FROM canjes_premios WHERE estado = 'pendiente'`),
     // Pedidos de clientes cuya mercaderia ya llego a este local y todavia no se avisaron
@@ -33,8 +33,10 @@ router.get('/', async (req, res) => {
     contar(`SELECT COUNT(*) AS n FROM traspasos_stock WHERE estado = 'en_transito' AND local_destino = $1`, [localNum]),
     // Pedidos de la tienda web para atender (pagados o para pagar al retirar, todavia sin preparar)
     contar(`SELECT COUNT(*) AS n FROM tienda_pedidos WHERE estado IN ('confirmado', 'pendiente_pago')`),
+    // Reseñas de la tienda esperando que se revisen (tambien van en el globito de Tienda online)
+    contar(`SELECT COUNT(*) AS n FROM tienda_resenas WHERE estado = 'pendiente'`),
   ]);
-  res.json({ portal, pedidos, compras, tareas, 'control-inv': control, ajustes_pendientes: ajustes, traspasos_por_recibir: traspasos, 'tienda-online': tienda });
+  res.json({ portal, pedidos, compras, tareas, 'control-inv': control, ajustes_pendientes: ajustes, traspasos_por_recibir: traspasos, 'tienda-online': tienda + resenas, resenas_pendientes: resenas });
 });
 
 // Ventas nuevas de la tienda web (para la ventana con sonido de Lumiere). ?desde=ultimo id visto.
@@ -46,12 +48,20 @@ router.get('/tienda-nuevos', async (req, res) => {
     if (!existe) return res.json({ ultimo: 0, pedidos: [] });
     const ultimo = parseInt((await pool.query('SELECT COALESCE(MAX(id), 0) AS m FROM tienda_pedidos')).rows[0].m) || 0;
     const desde = parseInt(req.query.desde);
-    if (!(desde >= 0)) return res.json({ ultimo, pedidos: [] });
-    const r = await pool.query(`SELECT id, codigo, nombre, telefono, entrega, local_id, zona, pago, pagado, estado, total, creado_en
-      FROM tienda_pedidos WHERE id > $1 AND estado <> 'cancelado' ORDER BY id LIMIT 20`, [desde]);
+    const r = desde >= 0 ? await pool.query(`SELECT id, codigo, nombre, telefono, entrega, local_id, zona, pago, pagado, estado, total, creado_en
+      FROM tienda_pedidos WHERE id > $1 AND estado <> 'cancelado' ORDER BY id LIMIT 20`, [desde]) : { rows: [] };
     const ids = r.rows.map(p => p.id);
     const items = ids.length ? (await pool.query('SELECT * FROM tienda_pedido_items WHERE pedido_id = ANY($1) ORDER BY id', [ids])).rows : [];
-    res.json({ ultimo, pedidos: r.rows.map(p => ({ ...p, total: Number(p.total) || 0, items: items.filter(i => i.pedido_id === p.id).map(i => ({ nombre: i.nombre, variante_valor: i.variante_valor, cantidad: i.cantidad, preventa: !!i.preventa })) })) });
+    // Reseñas nuevas para revisar (?desde_res=ultimo id visto; sin el, solo el ultimo id)
+    let ultimoRes = 0, resenas = [];
+    if ((await pool.query(`SELECT to_regclass('tienda_resenas') IS NOT NULL AS ok`)).rows[0].ok) {
+      ultimoRes = parseInt((await pool.query('SELECT COALESCE(MAX(id), 0) AS m FROM tienda_resenas')).rows[0].m) || 0;
+      const desdeRes = parseInt(req.query.desde_res);
+      if (desdeRes >= 0) resenas = (await pool.query(`SELECT r.id, r.estrellas, r.texto, (r.foto IS NOT NULL) AS foto, p.nombre AS producto, c.nombre AS clienta
+        FROM tienda_resenas r LEFT JOIN productos p ON p.id = r.producto_id LEFT JOIN clientes c ON c.id = r.cliente_id
+        WHERE r.id > $1 AND r.estado = 'pendiente' ORDER BY r.id LIMIT 10`, [desdeRes])).rows;
+    }
+    res.json({ ultimo, ultimo_res: ultimoRes, resenas, pedidos: r.rows.map(p => ({ ...p, total: Number(p.total) || 0, items: items.filter(i => i.pedido_id === p.id).map(i => ({ nombre: i.nombre, variante_valor: i.variante_valor, cantidad: i.cantidad, preventa: !!i.preventa })) })) });
   } catch (e) { res.json({ ultimo: null, pedidos: [] }); }
 });
 

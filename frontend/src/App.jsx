@@ -28388,7 +28388,10 @@ function sonarVenta() {
 function AvisoVentaWeb({ usuario, local, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
   const [nuevos, setNuevos] = useState([]);
+  const [nuevasRes, setNuevasRes] = useState([]); // reseñas nuevas para revisar (solo quien las puede publicar)
   const clave = "lumiere_tienda_visto_" + (usuario?.email || usuario?.id || "");
+  const claveRes = "lumiere_resena_vista_" + (usuario?.email || usuario?.id || "");
+  const revisaRes = ["jefe", "admin", "administrativo"].includes(usuario?.rol) || usuario?.rol_id === 1;
   const esJefeU = ["jefe", "admin"].includes(usuario?.rol) || usuario?.rol_id === 1;
   // El navegador solo deja sonar despues de que la persona toca algo en la pagina
   useEffect(() => { const f = () => prepararSonido(); window.addEventListener("pointerdown", f, { once: true }); window.addEventListener("keydown", f, { once: true }); return () => { window.removeEventListener("pointerdown", f); window.removeEventListener("keydown", f); }; }, []);
@@ -28397,9 +28400,20 @@ function AvisoVentaWeb({ usuario, local, paletaActual }) {
     let vivo = true;
     const revisar = async () => {
       let visto = null; try { const v = localStorage.getItem(clave); visto = v === null ? null : parseInt(v); } catch (e) {}
+      let vistoRes = null; try { const v = localStorage.getItem(claveRes); vistoRes = v === null ? null : parseInt(v); } catch (e) {}
       try {
-        const r = await API.get("/avisos-menu/tienda-nuevos?desde=" + (visto === null || isNaN(visto) ? -1 : visto));
+        const r = await API.get("/avisos-menu/tienda-nuevos?desde=" + (visto === null || isNaN(visto) ? -1 : visto) + "&desde_res=" + (vistoRes === null || isNaN(vistoRes) ? -1 : vistoRes));
         if (!vivo || r.data.ultimo === null) return;
+        if (revisaRes && r.data.ultimo_res !== undefined) {
+          try { localStorage.setItem(claveRes, String(Math.max(r.data.ultimo_res || 0, vistoRes || 0))); } catch (e) {}
+          const rs = r.data.resenas || [];
+          if (rs.length) {
+            setNuevasRes(n => [...n, ...rs.filter(x => !n.some(y => y.id === x.id))]);
+            window.dispatchEvent(new Event("lumiere-avisos"));
+            if (!(r.data.pedidos || []).length) sonarVenta();
+            try { if (document.hidden && "Notification" in window && Notification.permission === "granted") new Notification("⭐ Nueva reseña para revisar", { body: rs.map(x => (x.clienta || "Clienta") + ": " + "★".repeat(x.estrellas) + " " + (x.producto || "")).join("\n") }); } catch (e) {}
+          }
+        }
         const lista = (r.data.pedidos || []).filter(x => esJefeU || Number(x.local_id) === Number(local.id));
         try { localStorage.setItem(clave, String(Math.max(r.data.ultimo, visto || 0))); } catch (e) {}
         if (lista.length) {
@@ -28421,6 +28435,30 @@ function AvisoVentaWeb({ usuario, local, paletaActual }) {
     const t = setInterval(() => { if (veces >= 3) return clearInterval(t); veces++; sonarVenta(); }, 25000);
     return () => clearInterval(t);
   }, [nuevos.length]);
+  if (!nuevos.length && nuevasRes.length) return (
+    <div className="pos-overlay" style={{ zIndex: 400 }} role="alertdialog" aria-modal="true" aria-label="Nueva reseña para revisar">
+      <div className="card pop-in" style={{ width: 460, maxWidth: "94vw", maxHeight: "88vh", overflowY: "auto", background: p.card, borderTop: "6px solid #f5a623" }}>
+        <div style={{ textAlign: "center", marginBottom: 10 }}>
+          <div style={{ fontSize: 44, lineHeight: 1 }} className="aviso-venta-icono">⭐</div>
+          <div style={{ fontSize: 20, fontWeight: 900, marginTop: 6 }}>{nuevasRes.length === 1 ? "¡Nueva reseña!" : "¡" + nuevasRes.length + " reseñas nuevas!"}</div>
+          <div style={{ fontSize: 13, color: p.textMuted, marginTop: 4 }}>No se ven en la tienda hasta que las publiques.</div>
+        </div>
+        {nuevasRes.map(x => (
+          <div key={x.id} style={{ border: "1px solid " + p.border, borderRadius: 10, padding: "10px 12px", marginBottom: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <b>{x.clienta || "Clienta"}</b><span style={{ color: "#f5a623", letterSpacing: 1 }}>{"★".repeat(x.estrellas)}<span style={{ color: p.border }}>{"★".repeat(5 - x.estrellas)}</span></span>
+            </div>
+            <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 4 }}>{x.producto}{x.foto ? " · 📷 con foto" : ""}</div>
+            <div style={{ fontSize: 13.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical" }}>{x.texto}</div>
+          </div>
+        ))}
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap", marginTop: 6 }}>
+          <button className="btn btn-g" onClick={() => setNuevasRes([])}>Después</button>
+          <button className="btn btn-p" onClick={() => { setNuevasRes([]); irASeccion("tienda-online:resenas"); }}>Revisar y publicar</button>
+        </div>
+      </div>
+    </div>
+  );
   if (!nuevos.length) return null;
   const cerrar = () => setNuevos([]);
   const pagoTxt = (x) => x.pagado ? "✓ Pagado" : x.pago === "transferencia" ? "Esperando la transferencia" : x.pago === "mp" ? "Esperando el pago" : "Paga al retirar";
