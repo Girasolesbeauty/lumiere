@@ -1086,6 +1086,7 @@ button.tab { font-family: inherit; }
 }
 /* ---- Celular: barra de abajo, tablas como tarjetas y encabezados mas cortos ---- */
 .barra-celu { display: none; }
+.to-guardar { position: sticky; bottom: 10px; z-index: 5; }
 .dash-ver-graficos { width: 100%; margin-top: 4px; }
 @media (max-width: 860px) {
   .barra-celu { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; background: ${p.card}; border-top: 1px solid ${p.border}; box-shadow: 0 -4px 16px ${p.shadowCol}; padding-bottom: env(safe-area-inset-bottom, 0px); }
@@ -1094,6 +1095,10 @@ button.tab { font-family: inherit; }
   .barra-celu button.on::before { content: ""; position: absolute; top: 0; left: 28%; right: 28%; height: 3px; border-radius: 0 0 3px 3px; background: var(--acento); }
   .bc-ico { font-size: 20px; line-height: 1; position: relative; }
   .bc-ico i { position: absolute; top: -6px; left: 14px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: #e5484d; color: #fff; font-size: 10px; font-style: normal; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+  .to-guardar { bottom: calc(68px + env(safe-area-inset-bottom, 0px)); }
+  .to-guardar.hay { position: fixed; left: 12px; right: 12px; z-index: 30; background: ${p.card}; border: 1px solid ${p.border}; border-radius: 12px; padding: 8px 10px; box-shadow: 0 6px 20px ${p.shadowCol}; justify-content: space-between !important; flex-wrap: nowrap !important; z-index: 60; }
+  body:has(.to-guardar.hay) .ayuda-fab { display: none !important; }
+  .to-guardar.hay > span { font-size: 11.5px !important; border: none !important; padding: 0 !important; }
   .main:not(.en-pos) { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important; }
   .main:not(.en-pos) ~ .ayuda-fab, body:has(.barra-celu) .ayuda-fab { bottom: calc(70px + env(safe-area-inset-bottom, 0px)); padding: 9px 13px; font-size: 12px; }
   .dash-head { flex-direction: column; align-items: stretch !important; gap: 10px; }
@@ -25328,12 +25333,49 @@ function ListaElegidos({ lista, productos, onCambiar, temaPal }) {
 }
 
 // Sector de videos: links de reels de Instagram, TikTok o YouTube, o videos subidos (se guarda al instante)
-function VideosTienda({ productos, temaPal, avisar }) {
+// Menu de secciones con color propio (Portada y Configuracion de la tienda): se ve una seccion a la vez
+// y cada una tiene su color, asi no se confunde una con otra.
+function MenuSecciones({ items, activa, onElegir, temaPal }) {
+  const tp = temaPal || PALETA_CLARA;
+  return (
+    <div role="tablist" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 8, marginBottom: 12 }}>
+      {items.map(it => {
+        const on = it.k === activa;
+        return (
+          <button key={it.k} role="tab" aria-selected={on} onClick={() => onElegir(it.k)} style={{ fontFamily: "inherit", textAlign: "left", cursor: "pointer", display: "flex", gap: 10, alignItems: "center", padding: "10px 12px", borderRadius: 12, border: (on ? 2 : 1) + "px solid " + (on ? it.color : tp.border), background: on ? it.color + "1f" : tp.card, color: tp.text, boxShadow: on ? "0 2px 10px " + it.color + "33" : "none", transition: "all .15s" }}>
+            <span aria-hidden="true" style={{ width: 34, height: 34, borderRadius: 10, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, background: it.color + (on ? "" : "26"), color: on ? "#fff" : it.color }}>{it.icono}</span>
+            <span style={{ minWidth: 0 }}>
+              <span style={{ display: "block", fontWeight: 800, fontSize: 13, lineHeight: 1.2 }}>{it.titulo}</span>
+              {it.sub && <span style={{ display: "block", fontSize: 11, color: it.alerta ? tp.warn : tp.textMuted, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.sub}</span>}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+// Tarjeta de una seccion: franja de color arriba y titulo con su icono
+function CajaSeccion({ it, children, temaPal, extra }) {
+  const tp = temaPal || PALETA_CLARA;
+  return (
+    <div className="card fade" style={{ borderTop: "5px solid " + it.color, paddingTop: 14 }}>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 6, flexWrap: "wrap" }}>
+        <span aria-hidden="true" style={{ width: 30, height: 30, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, background: it.color, color: "#fff" }}>{it.icono}</span>
+        <div style={{ fontWeight: 900, fontSize: 16, color: it.color, flex: 1 }}>{it.titulo}</div>
+        {extra}
+      </div>
+      {it.ayuda && <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 10, lineHeight: 1.5 }}>{it.ayuda}</div>}
+      {children}
+    </div>
+  );
+}
+
+function VideosTienda({ productos, temaPal, avisar, it, alCambiar }) {
   const tp = temaPal || PALETA_CLARA;
   const [d, setD] = useState(null);
   const [link, setLink] = useState("");
   const [ocupado, setOcupado] = useState(false);
-  const cargar = () => API.get("/tienda/reels").then(r => setD(r.data)).catch(() => setD({ titulo: "", reels: [] }));
+  const cargar = () => API.get("/tienda/reels").then(r => { setD(r.data); alCambiar && alCambiar((r.data.reels || []).length); }).catch(() => setD({ titulo: "", reels: [] }));
   useEffect(() => { cargar(); }, []);
   if (!d) return <div className="skel" style={{ height: 120 }} />;
   const hacer = async (fn, ok) => { setOcupado(true); try { await fn(); if (ok) avisar(true, ok); await cargar(); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); } setOcupado(false); };
@@ -25347,8 +25389,7 @@ function VideosTienda({ productos, temaPal, avisar }) {
   const icono = { instagram: "📸 Instagram", tiktok: "🎵 TikTok", youtube: "▶️ YouTube", subido: "🎬 Video subido" };
   const linkOriginal = (r) => r.tipo === "instagram" ? "https://www.instagram.com/reel/" + r.codigo + "/" : r.tipo === "youtube" ? "https://youtu.be/" + r.codigo : r.tipo === "tiktok" ? "https://www.tiktok.com/embed/v2/" + r.codigo : null;
   return (
-    <div className="card" style={{ gridColumn: "1 / -1" }}>
-      <div className="ct">🎬 Sector de videos (reels)</div>
+    <CajaSeccion it={it || { color: "#c0392b", icono: "🎬", titulo: "Videos (reels)" }} temaPal={tp} extra={<span className="tag" style={{ fontWeight: 700 }}>Se guarda al instante</span>}>
       <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>Pegá el link de un <b>reel de Instagram</b>, un video de <b>TikTok</b> o de YouTube (o subí un video). Aparecen en una fila de la portada y en el menú. A cada uno le podés sumar los productos que se ven, para que los agreguen al carrito. Se guarda al instante.</div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <input className="inp" style={{ flex: "1 1 300px" }} placeholder="Pegá el link (instagram.com/reel/…, tiktok.com/…, youtube.com/…)" value={link} onChange={e => setLink(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && link.trim()) agregarLink(); }} aria-label="Link del video" />
@@ -25377,7 +25418,7 @@ function VideosTienda({ productos, temaPal, avisar }) {
           ))}
         </div>
       )}
-    </div>
+    </CajaSeccion>
   );
 }
 
@@ -25387,6 +25428,9 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
   const [cambios, setCambios] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [subiendo, setSubiendo] = useState(false);
+  const [sec, setSec] = useState(() => { try { return localStorage.getItem("lumiere_portada_sec") || "banners"; } catch (e) { return "banners"; } });
+  const [nVideos, setNVideos] = useState(null);
+  const elegirSec = (k) => { setSec(k); try { localStorage.setItem("lumiere_portada_sec", k); } catch (e) {} };
   useEffect(() => { API.get("/tienda/portada").then(r => setD({ banners_img: [], ...r.data })).catch(() => setD({ banner: [], banners_img: [], filas: [], sectores: [] })); }, []);
   if (!d) return <div className="skel" style={{ height: 240 }} />;
   const cambiar = (f) => { setD(f); setCambios(true); };
@@ -25421,10 +25465,21 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
       <button className="chip-btn" style={{ padding: "3px 9px", color: tp.red }} onClick={() => confirm("¿Borrar?") && cambiar({ ...d, [k]: d[k].filter((_, j) => j !== i) })} aria-label="Borrar">🗑</button>
     </div>
   );
+  const cant = (n, uno, varios) => n === 0 ? "Vacío" : n + " " + (n === 1 ? uno : varios);
+  const SECS = [
+    { k: "banners", icono: "🖼", titulo: "Banners con imagen", color: "#e67e22", sub: cant((d.banners_img || []).length, "banner", "banners") },
+    { k: "videos", icono: "🎬", titulo: "Videos (reels)", color: "#c0392b", sub: nVideos === null ? "…" : cant(nVideos, "video", "videos") },
+    { k: "destacados", icono: "⭐", titulo: "Destacados", color: "#c9a227", sub: cant(d.banner.length, "producto", "productos") },
+    { k: "filas", icono: "📋", titulo: "Filas de la portada", color: "#2471a3", sub: cant(d.filas.length, "fila", "filas") },
+    { k: "sectores", icono: "🗂", titulo: "Sectores", color: "#16a085", sub: cant(d.sectores.length, "sector", "sectores") },
+    { k: "reingreso", icono: "🔄", titulo: "Nuevamente en stock", color: "#8e44ad", sub: d.reingreso && d.reingreso.activo ? "Activado" : "Apagado" },
+  ];
+  const it = SECS.find(x => x.k === sec) || SECS[0];
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 12, alignItems: "start", paddingBottom: 60 }}>
-      <div className="card" style={{ gridColumn: "1 / -1" }}>
-        <div className="ct">🖼 Banners con imagen (arriba de todo, 3 por fila)</div>
+    <div style={{ paddingBottom: 60 }}>
+      <div style={{ fontSize: 12.5, color: tp.textMuted, marginBottom: 8 }}>Así se arma la portada de la tienda, de arriba hacia abajo. Elegí qué parte querés editar:</div>
+      <MenuSecciones items={SECS} activa={it.k} onElegir={elegirSec} temaPal={tp} />
+      {it.k === "banners" && <CajaSeccion it={{ ...it, titulo: "Banners con imagen (arriba de todo, 3 por fila)" }} temaPal={tp}>
         <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>Se ven 3 juntos al abrir la tienda (en el celular, de a uno y se deslizan). Usá imágenes <b>cuadradas</b> de buena calidad (ideal 1200 × 1200). Cada uno puede llevar a un producto, sector, categoría o marca. Si cargás banners con imagen, los destacados pasan a una fila más abajo.</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 10 }}>
           {(d.banners_img || []).map((bn, i) => (
@@ -25456,16 +25511,14 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
             <input type="file" accept="image/*" style={{ display: "none" }} disabled={subiendo} onChange={e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) subirBanner(f, -1); }} />
           </label>
         )}
-      </div>
-      <VideosTienda productos={productos} temaPal={tp} avisar={avisar} />
-      <div className="card">
-        <div className="ct">⭐ Productos destacados</div>
+      </CajaSeccion>}
+      <div style={{ display: it.k === "videos" ? "block" : "none" }}><VideosTienda productos={productos} temaPal={tp} avisar={avisar} it={SECS[1]} alCambiar={setNVideos} /></div>
+      {it.k === "destacados" && <CajaSeccion it={{ ...it, titulo: "Productos destacados" }} temaPal={tp}>
         <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>Si no hay banners con imagen, pasan en el banner grande de arriba; si hay, se muestran en una fila "Destacados". En este orden (hasta 12).</div>
         <ListaElegidos lista={d.banner} productos={productos} temaPal={tp} onCambiar={l => cambiar({ ...d, banner: l })} />
         {d.banner.length < 12 && <ElegirProductos productos={productos} ya={d.banner} temaPal={tp} onAgregar={id => cambiar({ ...d, banner: [...d.banner, id] })} />}
-      </div>
-      <div className="card">
-        <div className="ct">📋 Filas de la portada</div>
+      </CajaSeccion>}
+      {it.k === "filas" && <CajaSeccion it={it} temaPal={tp}>
         <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>Aparecen debajo del banner, con el nombre que les pongas. Ej: "Lo más vendido", "Ideal para regalar".</div>
         {d.filas.map((f, i) => (
           <div key={f.id} style={tarjeta}>
@@ -25475,11 +25528,11 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
           </div>
         ))}
         {d.filas.length < 12 && <button className="btn btn-g btn-sm" onClick={() => cambiar({ ...d, filas: [...d.filas, { id: nuevoId(), titulo: "", productos: [] }] })}>+ Nueva fila</button>}
-      </div>
-      <div className="card" style={{ gridColumn: "1 / -1" }}>
+      </CajaSeccion>}
+      {it.k === "reingreso" && <CajaSeccion it={it} temaPal={tp}>
         <label style={{ display: "flex", gap: 10, alignItems: "center", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
           <input type="checkbox" checked={!!(d.reingreso && d.reingreso.activo)} onChange={e => cambiar({ ...d, reingreso: { ...(d.reingreso || { dias: 14, nombre: "" }), activo: e.target.checked } })} style={{ width: 20, height: 20 }} />
-          🔄 Sector automático "Nuevamente en stock"
+          Activar el sector automático "Nuevamente en stock"
         </label>
         <div style={{ fontSize: 12, color: tp.textMuted, margin: "4px 0 8px 30px" }}>Muestra solo los productos que estaban agotados y volvieron a tener stock (en la ciudad que eligió el cliente). Se arma solo: no hay que elegir nada.</div>
         {d.reingreso && d.reingreso.activo && (
@@ -25492,9 +25545,8 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
             </div>
           </div>
         )}
-      </div>
-      <div className="card" style={{ gridColumn: "1 / -1" }}>
-        <div className="ct">🗂 Sectores</div>
+      </CajaSeccion>}
+      {it.k === "sectores" && <CajaSeccion it={it} temaPal={tp}>
         <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>Cada sector aparece como una fila en la portada (con su "Ver todo") y se puede usar como destino de un banner. Junta categorías enteras y, si querés, productos sueltos (ej: SKINCARE, REGALOS, OFERTAS). El menú de arriba de la tienda muestra tus categorías.</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 10 }}>
           {d.sectores.map((sc, i) => (
@@ -25512,8 +25564,8 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
           ))}
         </div>
         {d.sectores.length < 12 && <button className="btn btn-g btn-sm" style={{ marginTop: 10 }} onClick={() => cambiar({ ...d, sectores: [...d.sectores, { id: nuevoId(), nombre: "", categorias: [], productos: [] }] })}>+ Nuevo sector</button>}
-      </div>
-      <div style={{ position: "sticky", bottom: 10, gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end", gap: 10, alignItems: "center" }}>
+      </CajaSeccion>}
+      <div className={"to-guardar" + (cambios ? " hay" : "")} style={{ marginTop: 12, display: it.k === "videos" && !cambios ? "none" : "flex", justifyContent: "flex-end", gap: 10, alignItems: "center" }}>
         {cambios && <span style={{ fontSize: 12, color: tp.warn, fontWeight: 700, background: tp.card, padding: "4px 10px", borderRadius: 8 }}>Hay cambios sin guardar</span>}
         <button className="btn btn-p" disabled={!cambios || guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar portada y sectores"}</button>
       </div>
@@ -25675,6 +25727,11 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const [productos, setProductos] = useState(null);
   const [filtro, setFiltro] = useState("activos");
   const [busca, setBusca] = useState("");
+  const [buscaPed, setBuscaPed] = useState("");
+  const [limitePed, setLimitePed] = useState(30);
+  const [secCfg, setSecCfg] = useState("tienda");
+  const [cfgCambios, setCfgCambios] = useState(false);
+  useEffect(() => { setLimitePed(30); }, [filtro, buscaPed]);
   const [soloPub, setSoloPub] = useState(false);
   const [desc, setDesc] = useState(null); // { id, texto }
   const [video, setVideo] = useState(null); // { id, nombre, link, subido, subiendo }
@@ -25769,7 +25826,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
     try {
       for (const l of locs.filter(l => (l.direccion || "") !== l.direccion0)) await API.put("/locales/" + l.id, { nombre: l.nombre, direccion: (l.direccion || "").trim() || null });
       setLocs(ls => ls.map(l => ({ ...l, direccion0: l.direccion || "" })));
-      await API.put("/tienda/config", cfg); avisar(true, cfg.activo ? "✓ Tienda guardada y publicada" : "✓ Guardado (la tienda está apagada)"); cargarCfg(); }
+      await API.put("/tienda/config", cfg); setCfgCambios(false); avisar(true, cfg.activo ? "✓ Tienda guardada y publicada" : "✓ Guardado (la tienda está apagada)"); cargarCfg(); }
     catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
   };
 
@@ -25789,7 +25846,17 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const opciones = (k) => [...new Set(productos.map(p => p[k]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
   const hayFiltros = filtros.marca || filtros.proveedor || filtros.categoria || filtros.foto || filtros.seg || busca || soloPub;
   const prodVis = prodFiltro.slice(0, limiteProd);
-  const set = (k, v) => setCfg(c => ({ ...c, [k]: v }));
+  const set = (k, v) => { setCfg(c => ({ ...c, [k]: v })); setCfgCambios(true); };
+  const qP = normTxt(buscaPed);
+  const pasaPed = (p) => !qP || qP.split(" ").every(w => normTxt([p.nombre, p.codigo, p.telefono, ...(p.items || []).map(i => i.nombre)].join(" ")).includes(w));
+  const visiblesB = visibles.filter(pasaPed);
+  const hace30 = Date.now() - 30 * 864e5;
+  const entregados30 = pedidos.filter(p => p.estado === "entregado" && new Date(p.creado_en).getTime() >= hace30);
+  const vendido30 = entregados30.reduce((t, p) => t + Number(p.total || 0), 0);
+  const nNuevos = pedidos.filter(p => p.estado === "confirmado").length;
+  const contar = (k) => k === "todos" ? pedidos.length : k === "activos" ? abiertos.length : pedidos.filter(p => p.estado === k).length;
+  // Para atender: agrupados por lo que hay que hacer, en ese orden
+  const GRUPOS_PED = [["confirmado", "📥 Nuevos: hay que prepararlos"], ["pendiente_pago", "⏳ Esperando el pago"], ["preparado", "📦 Listos: esperando que los retiren o salgan"], ["en_caja", "💵 En la caja"]];
 
   return (
     <div className="fade" style={{ textAlign: "left" }}>
@@ -25799,18 +25866,32 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
       </div>
       {aviso && <div className="pop-in" role={aviso.ok ? "status" : "alert"} style={{ background: aviso.ok ? temaPal.greenDim : temaPal.redDim, border: "1px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, marginBottom: 12 }}>{aviso.texto}</div>}
       {!cfg.activo && <div className="cli-tip" style={{ marginBottom: 12 }}>Para empezar: 1) elegí qué productos publicar en <b>Productos</b>, 2) completá <b>Configuración</b> (entrega y pagos) y tildá "Tienda publicada".</div>}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8, marginBottom: 12 }}>
+        {[
+          { t: "Para atender", v: abiertos.length, sub: nNuevos ? nNuevos + (nNuevos === 1 ? " nuevo" : " nuevos") + " para preparar" : "al día", c: abiertos.length ? "#d35400" : "#2d7a4f", ir: () => { setTab("pedidos"); setFiltro("activos"); } },
+          { t: "Vendido online (30 días)", v: fmt(vendido30), sub: entregados30.length + (entregados30.length === 1 ? " pedido entregado" : " pedidos entregados"), c: "#2d7a4f", ir: () => { setTab("pedidos"); setFiltro("entregado"); } },
+          { t: "Productos a la venta", v: nPub, sub: "de " + productos.length + " cargados", c: "#2471a3", ir: () => setTab("productos") },
+          { t: "Tienda", v: cfg.activo ? "Publicada" : "Apagada", sub: cfg.activo ? (cfg.dominio && cfg.dominioGuardado ? cfg.dominio : "con link propio") : "prendela en Configuración", c: cfg.activo ? "#16a085" : "#95a5a6", ir: () => { setTab("config"); setSecCfg("tienda"); } },
+        ].map(k => (
+          <button key={k.t} onClick={k.ir} style={{ fontFamily: "inherit", textAlign: "left", cursor: "pointer", background: temaPal.card, color: temaPal.text, border: "1px solid " + temaPal.border, borderLeft: "5px solid " + k.c, borderRadius: 12, padding: "10px 12px" }}>
+            <div style={{ fontSize: 11.5, color: temaPal.textMuted, fontWeight: 700 }}>{k.t}</div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: k.c, lineHeight: 1.25 }}>{k.v}</div>
+            <div style={{ fontSize: 11, color: temaPal.textMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{k.sub}</div>
+          </button>
+        ))}
+      </div>
       <div className="tabs" style={{ marginBottom: 12 }}>
-        {[["pedidos", "Pedidos" + (abiertos.length ? " (" + abiertos.length + ")" : "")], ["productos", "Productos (" + nPub + " publicados)"], ...(esJefeT ? [["portada", "Portada y sectores"]] : []), ["clientas", "Clientas web"], ["config", "Configuración"]].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
+        {[["pedidos", "📦 Pedidos" + (abiertos.length ? " (" + abiertos.length + ")" : "")], ["productos", "🛍 Productos"], ...(esJefeT ? [["portada", "🏠 Portada y sectores"]] : []), ["clientas", "👥 Clientas web"], ["config", "⚙️ Configuración"]].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
       </div>
 
       {tab === "pedidos" && (
         <>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-            {[["activos", "Para atender"], ["entregado", "Entregados"], ["cancelado", "Cancelados"], ["todos", "Todos"]].map(([k, t]) => <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(k)}>{t}</button>)}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10, alignItems: "center" }}>
+            {[["activos", "Para atender"], ["entregado", "Entregados"], ["cancelado", "Cancelados"], ["todos", "Todos"]].map(([k, t]) => <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(k)}>{t} <span style={{ opacity: 0.7 }}>({contar(k)})</span></button>)}
+            <input className="inp" style={{ flex: "1 1 220px", marginLeft: "auto" }} placeholder="🔎 Buscar por nombre, N° de pedido, teléfono o producto" value={buscaPed} onChange={e => setBuscaPed(e.target.value)} aria-label="Buscar pedido" />
           </div>
-          {visibles.length === 0 ? <div className="card"><div className="empty">{filtro === "activos" ? "No hay pedidos para atender. Cuando alguien compre en la tienda, aparece acá." : "No hay pedidos en este filtro."}</div></div> : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {visibles.map(p => {
+          {visiblesB.length === 0 ? <div className="card"><div className="empty">{buscaPed ? "Ningún pedido coincide con la búsqueda." : filtro === "activos" ? "No hay pedidos para atender. Cuando alguien compre en la tienda, aparece acá." : "No hay pedidos en este filtro."}</div></div> : (() => {
+            const tarjetaPed = (p) => {
                 const e = ESTADOS_TIENDA[p.estado] || ESTADOS_TIENDA.confirmado;
                 const cerrado = ["entregado", "cancelado"].includes(p.estado);
                 return (
@@ -25850,9 +25931,24 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                     {p.estado === "en_caja" && <div style={{ fontSize: 11.5, color: temaPal.warn, marginTop: 6 }}>El stock ya no está apartado: cobralo en la caja (o tocá "Volver a apartar el stock" si no se llevó).</div>}
                   </div>
                 );
-              })}
-            </div>
-          )}
+            };
+            if (filtro === "activos") return (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {GRUPOS_PED.map(([est, titulo]) => { const l = visiblesB.filter(p => p.estado === est); if (!l.length) return null; const c = (ESTADOS_TIENDA[est] || {}).c; return (
+                  <div key={est}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 0 8px", fontWeight: 900, fontSize: 14, color: c }}>{titulo} <span className="tag" style={{ background: c + "22", color: c, fontWeight: 800 }}>{l.length}</span><span style={{ flex: 1, height: 1, background: c + "44" }} /></div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{l.map(tarjetaPed)}</div>
+                  </div>
+                ); })}
+              </div>
+            );
+            return (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {visiblesB.slice(0, limitePed).map(tarjetaPed)}
+                {visiblesB.length > limitePed && <button className="btn btn-g" onClick={() => setLimitePed(n => n + 30)}>Ver más pedidos ({visiblesB.length - limitePed} más)</button>}
+              </div>
+            );
+          })()}
         </>
       )}
 
@@ -25964,9 +26060,19 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
       {tab === "clientas" && <ClientasWeb temaPal={temaPal} avisar={avisar} urlTienda={url} nombreTienda={cfg?.titulo} esJefe={esJefeT} />}
       {tab === "portada" && esJefeT && <PortadaTienda productos={productos} temaPal={temaPal} avisar={avisar} alGuardar={cargarProductos} />}
 
-      {tab === "config" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 12, alignItems: "start" }}>
-          <div className="card">
+      {tab === "config" && (() => {
+        const SECS_CFG = [
+          { k: "tienda", icono: "🏪", titulo: "Tienda y dirección", color: "#16a085", sub: cfg.activo ? "Publicada" : "Apagada", alerta: !cfg.activo, ayuda: "Prendé o apagá la tienda, elegí su dirección y compartila." },
+          { k: "marca", icono: "🎨", titulo: "Marca y redes", color: "#8e44ad", sub: cfg.logo ? "Con logo" : "Sin logo", ayuda: "Cómo se ve: logo, ícono del celular, nombre, color, redes y frases de arriba." },
+          { k: "entrega", icono: "🚚", titulo: "Entrega y pagos", color: "#2471a3", sub: [cfg.retiro_activo && "Retiro", cfg.envio_activo && "Envío"].filter(Boolean).join(" + ") || "Falta elegir", alerta: !cfg.retiro_activo && !cfg.envio_activo, ayuda: "Cómo reciben el pedido y cómo pueden pagar." },
+          ...(cfg.preventa ? [{ k: "preventa", icono: "⏳", titulo: "Preventa", color: "#d35400", sub: cfg.preventa.activo ? "Activada" : "Apagada" }] : []),
+          ...(cfg.ruleta ? [{ k: "ruleta", icono: "🎡", titulo: "Ruleta de premios", color: "#c0392b", sub: cfg.ruleta.activo ? "Activada" : "Apagada" }] : []),
+        ];
+        const it = SECS_CFG.find(x => x.k === secCfg) || SECS_CFG[0];
+        return (
+        <div style={{ paddingBottom: 10 }}>
+          <MenuSecciones items={SECS_CFG} activa={it.k} onElegir={setSecCfg} temaPal={temaPal} />
+          {it.k === "tienda" && <CajaSeccion it={it} temaPal={temaPal}>
             <label style={{ display: "flex", gap: 10, alignItems: "center", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>
               <input type="checkbox" checked={!!cfg.activo} onChange={e => set("activo", e.target.checked)} style={{ width: 20, height: 20 }} /> Tienda publicada
             </label>
@@ -25998,7 +26104,9 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                 </ol>
               </div>
             ) : <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>Si tenés un dominio (ej: tumarca.com.ar), escribilo acá para que tu tienda se vea en esa dirección.</div>}
-            <div className="fl" style={{ marginTop: 12 }}>Logo de la tienda</div>
+          </CajaSeccion>}
+          {it.k === "marca" && <CajaSeccion it={it} temaPal={temaPal}>
+            <div className="fl">Logo de la tienda</div>
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
               <div style={{ background: "#fff", border: "1px solid " + temaPal.border, borderRadius: 8, padding: "8px 12px", minWidth: 120, minHeight: 48, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {cfg.logo ? <img src={cfg.logo} alt="Logo de la tienda" style={{ maxHeight: 40, maxWidth: 200 }} /> : <span style={{ fontSize: 11.5, color: "#888" }}>Sin logo: se ve el nombre</span>}
@@ -26038,8 +26146,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             <div className="fl" style={{ marginTop: 10 }}>Frases de la tira negra de arriba (una por renglón, hasta 5)</div>
             <textarea className="inp" rows={3} placeholder={"Ej: 3 cuotas sin interés con Mercado Pago\nEnvíos en el día en Río Grande"} value={cfg.anuncios || ""} onChange={e => set("anuncios", e.target.value)} />
             <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>Si lo dejás vacío, se arman solas con tus envíos, retiros y formas de pago.</div>
-          </div>
-          <div className="card">
+          </CajaSeccion>}
+          {it.k === "entrega" && <CajaSeccion it={it} temaPal={temaPal}>
             <div className="ct">Entrega</div>
             <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={!!cfg.retiro_activo} onChange={e => set("retiro_activo", e.target.checked)} /> <b>Retiro en el local</b></label>
             {cfg.retiro_activo && !UN_SOLO_LOCAL && (
@@ -26050,7 +26158,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             {cfg.retiro_activo && locs.filter(l => UN_SOLO_LOCAL ? l.id === 1 : (cfg.retiro_locales || []).includes(l.id)).map(l => (
               <div key={l.id} style={{ margin: "8px 0 0 26px" }}>
                 <div className="fl">Dirección de {l.nombre} (se muestra a quien retira)</div>
-                <input className="inp" style={{ width: "100%" }} placeholder="Ej: San Martín 123" value={l.direccion || ""} onChange={e => setLocs(ls => ls.map(x => x.id === l.id ? { ...x, direccion: e.target.value } : x))} />
+                <input className="inp" style={{ width: "100%" }} placeholder="Ej: San Martín 123" value={l.direccion || ""} onChange={e => { setLocs(ls => ls.map(x => x.id === l.id ? { ...x, direccion: e.target.value } : x)); setCfgCambios(true); }} />
               </div>
             ))}
             <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", marginTop: 12 }}><input type="checkbox" checked={!!cfg.envio_activo} onChange={e => set("envio_activo", e.target.checked)} /> <b>Envío propio</b></label>
@@ -26082,21 +26190,19 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             )}
             <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", marginTop: 8 }}><input type="checkbox" checked={!!cfg.pago_retiro} onChange={e => set("pago_retiro", e.target.checked)} /> <b>Paga al retirar</b> <span style={{ fontSize: 12, color: temaPal.textMuted }}>(solo con retiro)</span></label>
             {(cfg.pago_transferencia || cfg.pago_retiro) && <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", fontSize: 12.5, marginTop: 10, background: temaPal.bg || "transparent", border: "1px solid " + temaPal.border, borderRadius: 8, padding: "8px 10px" }}>⏰ Guardar los productos <input className="inp" type="number" min="1" max="168" style={{ width: 70 }} value={cfg.horas_reserva || 24} onChange={e => set("horas_reserva", e.target.value)} /> horas. <span style={{ color: temaPal.textMuted }}>Si en ese tiempo no paga (transferencia) o no lo retira (paga al retirar), el pedido se cancela solo y el stock vuelve. Desde el pedido le podés dar más tiempo.</span></div>}
-          </div>
-          {cfg.preventa && (
-            <div className="card" style={{ gridColumn: "1 / -1" }}>
-              <div className="ct">⏳ Preventa (productos que vienen en camino)</div>
+          </CajaSeccion>}
+          {it.k === "preventa" && cfg.preventa && (
+            <CajaSeccion it={{ ...it, titulo: "Preventa (productos que vienen en camino)" }} temaPal={temaPal}>
               <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", fontWeight: 800 }}><input type="checkbox" checked={!!cfg.preventa.activo} onChange={e => set("preventa", { ...cfg.preventa, activo: e.target.checked })} style={{ width: 18, height: 18 }} /> Vender en preventa lo que cargo en las órdenes de ingreso</label>
               <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "4px 0 10px", lineHeight: 1.5 }}>Cuando cargás una orden de ingreso, lo que viene en camino aparece en la tienda en un sector propio, con un aviso bien claro de que <b>todavía no llegó</b>. La clienta lo reserva (usa lo mismo que la preventa de la caja, así no se vende dos veces). Cuando recibís la orden, en el pedido tocás <b>"📦 Llegó la preventa"</b> y le avisás por WhatsApp. Los pedidos con preventa no vencen hasta que llega.</div>
               <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
                 <div><div className="fl">Nombre del sector</div><input className="inp" style={{ width: 260 }} maxLength={40} value={cfg.preventa.titulo || ""} onChange={e => set("preventa", { ...cfg.preventa, titulo: e.target.value })} placeholder="Próximos a ingresar" /></div>
                 <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", fontSize: 13, marginTop: 14 }}><input type="checkbox" checked={cfg.preventa.incluir_no_publicados !== false} onChange={e => set("preventa", { ...cfg.preventa, incluir_no_publicados: e.target.checked })} /> Mostrar también los que todavía no publiqué en la tienda</label>
               </div>
-            </div>
+            </CajaSeccion>
           )}
-          {cfg.ruleta && (() => { const r = cfg.ruleta; const setR = (x) => set("ruleta", { ...r, ...x }); const setP = (i, x) => setR({ premios: r.premios.map((y, j) => j === i ? { ...y, ...x } : y) }); const suma = r.premios.reduce((t, x) => t + (Number(x.chance) || 0), 0); return (
-            <div className="card" style={{ gridColumn: "1 / -1" }}>
-              <div className="ct">🎡 Ruleta de premios</div>
+          {it.k === "ruleta" && cfg.ruleta && (() => { const r = cfg.ruleta; const setR = (x) => set("ruleta", { ...r, ...x }); const setP = (i, x) => setR({ premios: r.premios.map((y, j) => j === i ? { ...y, ...x } : y) }); const suma = r.premios.reduce((t, x) => t + (Number(x.chance) || 0), 0); return (
+            <CajaSeccion it={it} temaPal={temaPal}>
               <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-start" }}>
                 <div style={{ flex: "1 1 380px", minWidth: 0 }}>
                   <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", fontWeight: 800 }}><input type="checkbox" checked={!!r.activo} onChange={e => setR({ activo: e.target.checked })} style={{ width: 18, height: 18 }} /> Activar la ruleta</label>
@@ -26130,11 +26236,14 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                 </div>
                 <div style={{ flex: "0 0 auto", margin: "0 auto" }}><TwRuletaDibujo premios={r.premios.map((x, i) => ({ ...x, id: x.id || "p" + i, texto: String(x.texto || "") }))} tamano={240} /></div>
               </div>
-            </div>
+            </CajaSeccion>
           ); })()}
-          <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" }}><button className="btn btn-p" disabled={!esJefeT} onClick={guardarCfg}>Guardar configuración</button></div>
+          <div className={"to-guardar" + (cfgCambios ? " hay" : "")} style={{ marginTop: 12, display: "flex", justifyContent: "flex-end", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            {cfgCambios && <span style={{ fontSize: 12, color: temaPal.warn, fontWeight: 700, background: temaPal.card, border: "1px solid " + temaPal.border, padding: "4px 10px", borderRadius: 8 }}>Hay cambios sin guardar</span>}
+            <button className="btn btn-p" disabled={!esJefeT || !cfgCambios} onClick={guardarCfg} style={{ boxShadow: "0 4px 14px rgba(0,0,0,.18)" }}>Guardar configuración</button>
+          </div>
         </div>
-      )}
+        ); })()}
     </div>
   );
 }
