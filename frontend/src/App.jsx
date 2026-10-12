@@ -22897,7 +22897,7 @@ const CSS_TIENDA = `
 .tw-reels-fila{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding-bottom:6px}
 .tw-reels-fila::-webkit-scrollbar{display:none}
 .tw-reels-fila .tw-reel{flex:0 0 300px;scroll-snap-align:start}
-.tw-reels-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:22px 16px}
+.tw-reels-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:22px 16px}
 .tw-reel{display:flex;flex-direction:column;min-width:0}
 .tw-reel-media{position:relative;aspect-ratio:9/16;background:#000;border-radius:8px;overflow:hidden}
 .tw-reel-media.ig{aspect-ratio:auto;height:600px;background:#fff;border:1px solid var(--b)}
@@ -23192,7 +23192,7 @@ const CSS_TIENDA = `
   .tw-fila-in{grid-auto-columns:44%;gap:12px}
   .tw-tiles{grid-auto-columns:84%;gap:12px}
   .tw-reels-fila .tw-reel{flex-basis:78%}
-  .tw-reels-grid{grid-template-columns:1fr}
+  .tw-reels-grid{grid-template-columns:1fr;max-width:380px;margin:0 auto}
   .tw-tile-txt b{font-size:16px}
   .tw-grid{grid-template-columns:repeat(2,1fr);gap:22px 12px}
   .tw-rapido{opacity:1;transform:none;left:auto;right:8px;bottom:8px;width:38px;height:38px;padding:0;font-size:20px;border-radius:50%}
@@ -24384,6 +24384,7 @@ function TiendaPublica({ slug }) {
     );
   }
 
+  const reels = tienda.reels || [];
   // Lo agotado en la ciudad elegida no se muestra; vuelve solo cuando entra stock (con sus sectores y filas)
   const visibles = lista0.filter(p => !agotado(p));
   lista0.forEach(p => { if (!p._et) p._et = twEtiquetas(p); }); // tambien los agotados (aparecen al buscarlos)
@@ -24446,7 +24447,6 @@ function TiendaPublica({ slug }) {
     else if (bn.destino === "reingreso") irCat("reingreso");
   };
   const moverTiles = (d) => { const el = tilesRef.current; if (el) el.scrollBy({ left: d * el.clientWidth, behavior: "smooth" }); };
-  const reels = tienda.reels || [];
   const reel = (r) => <TwReel key={r.id} r={r} base={base} prods={(r.productos || []).map(id => visibles.find(p => p.id === id)).filter(Boolean)} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
   const filasPortada = (tienda.filas || []).map(f => ({ ...f, items: f.productos.map(id => lista0.find(p => p.id === id)).filter(p => p && !agotado(p)) })).filter(f => f.items.length);
   const nSlides = destacados.length;
