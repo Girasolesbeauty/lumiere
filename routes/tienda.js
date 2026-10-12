@@ -599,10 +599,65 @@ router.put('/mensajes', async (req, res) => {
   try {
     if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
     const b = req.body || {};
-    const m = {}; for (const k of ['carrito', 'aviso']) { const t = String(b[k] || '').trim().slice(0, 700); if (t) m[k] = t; }
+    const m = {}; for (const k of ['carrito', 'aviso', 'resena']) { const t = String(b[k] || '').trim().slice(0, 700); if (t) m[k] = t; }
     await pool.query('UPDATE tienda_config SET mensajes = $1 WHERE id = 1', [JSON.stringify(m)]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+});
+// ---- Reseñas: se aprueban antes de publicarse. Y a quien retiro su pedido se le puede pedir la reseña por WhatsApp. ----
+router.get('/resenas', async (req, res) => {
+  try {
+    const c = await tienda.leerConfig();
+    const [lista, pedir] = await Promise.all([
+      pool.query(`SELECT r.id, r.producto_id, r.estrellas, r.texto, r.estado, r.creado_en, r.revisado_en, (r.foto IS NOT NULL) AS foto, p.nombre AS producto, cl.nombre AS clienta, cl.telefono
+        FROM tienda_resenas r LEFT JOIN productos p ON p.id = r.producto_id LEFT JOIN clientes cl ON cl.id = r.cliente_id
+        ORDER BY (r.estado = 'pendiente') DESC, r.creado_en DESC LIMIT 400`),
+      // Pedidos entregados en los ultimos 45 dias con productos sin reseñar
+      pool.query(`SELECT tp.id, tp.codigo, tp.nombre, tp.telefono, tp.actualizado_en, tp.resena_pedida_en,
+          ARRAY(SELECT DISTINCT i.nombre FROM tienda_pedido_items i WHERE i.pedido_id = tp.id
+            AND NOT EXISTS (SELECT 1 FROM tienda_resenas r WHERE r.producto_id = i.producto_id AND r.cliente_id = tp.cliente_id)) AS sin_resena
+        FROM tienda_pedidos tp WHERE tp.estado = 'entregado' AND tp.actualizado_en > NOW() - INTERVAL '45 days' AND COALESCE(tp.telefono, '') <> ''
+        ORDER BY (tp.resena_pedida_en IS NULL) DESC, tp.actualizado_en DESC LIMIT 100`),
+    ]);
+    res.json({ lista: lista.rows, pedir: pedir.rows.filter(p => p.sin_resena.length), mensaje: (c.mensajes || {}).resena || '' });
+  } catch (e) { console.error('[tienda] resenas:', e.message); res.status(500).json({ error: 'No se pudieron cargar las reseñas' }); }
+});
+router.get('/resenas/pendientes', async (req, res) => {
+  try { res.json({ n: (await pool.query(`SELECT COUNT(*)::int AS n FROM tienda_resenas WHERE estado = 'pendiente'`)).rows[0].n }); } catch (e) { res.json({ n: 0 }); }
+});
+router.get('/resenas/:id/foto', async (req, res) => {
+  try {
+    const r = (await pool.query('SELECT foto, foto_tipo FROM tienda_resenas WHERE id = $1 AND foto IS NOT NULL', [parseInt(req.params.id) || 0])).rows[0];
+    if (!r) return res.status(404).end();
+    res.set('Content-Type', r.foto_tipo || 'image/jpeg').set('Cache-Control', 'private, max-age=3600').send(r.foto);
+  } catch (e) { res.status(404).end(); }
+});
+router.post('/resenas/:id/estado', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    const estado = ['aprobada', 'rechazada', 'pendiente'].includes(req.body && req.body.estado) ? req.body.estado : null;
+    if (!estado) return res.status(400).json({ error: 'Estado inválido' });
+    await pool.query('UPDATE tienda_resenas SET estado = $1, revisado_en = NOW() WHERE id = $2', [estado, parseInt(req.params.id) || 0]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'No se pudo' }); }
+});
+router.post('/resenas/:id/sin-foto', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    await pool.query('UPDATE tienda_resenas SET foto = NULL, foto_tipo = NULL WHERE id = $1', [parseInt(req.params.id) || 0]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'No se pudo' }); }
+});
+router.delete('/resenas/:id', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    await pool.query('DELETE FROM tienda_resenas WHERE id = $1', [parseInt(req.params.id) || 0]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'No se pudo' }); }
+});
+router.post('/pedidos/:id/resena-pedida', async (req, res) => {
+  try { await pool.query('UPDATE tienda_pedidos SET resena_pedida_en = NOW() WHERE id = $1', [parseInt(req.params.id) || 0]); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: 'No se pudo' }); }
 });
 router.post('/avisos/:id/avisado', async (req, res) => {
   try { await pool.query('UPDATE tienda_avisos SET avisado_en = NOW() WHERE id = $1', [req.params.id]); res.json({ ok: true }); }
