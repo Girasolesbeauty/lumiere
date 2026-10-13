@@ -11,10 +11,21 @@ const { VENTA_VALIDA } = require('../lib/niveles');
 // La parte publica esta en routes/tiendaPublica.js. Ver lib/tienda.js.
 
 const { num } = tienda;
-const esJefe = (req) => req.usuario && ['jefe', 'admin', 'administrativo'].includes(req.usuario.rol);
+// Quien maneja la tienda: dueña, admin y administrativo, o quien tenga el permiso "Manejar toda la tienda online"
+// (se lee en cada pedido, ver router.use). Las claves de GoCuotas y el dominio quedan solo para la dueña o admin.
+const esDuena = (req) => req.usuario && ['jefe', 'admin', 'administrativo'].includes(req.usuario.rol);
+const esJefe = (req) => esDuena(req) || !!req.manejaTienda;
 const SLUG_OK = /^[a-z0-9][a-z0-9-]{2,40}$/;
 
-router.use(async (req, res, next) => { try { await tienda.asegurar(); await tienda.vencerPendientes().catch(() => {}); next(); } catch (e) { res.status(500).json({ error: 'No se pudo abrir la tienda' }); } });
+router.use(async (req, res, next) => {
+  try {
+    await tienda.asegurar(); await tienda.vencerPendientes().catch(() => {});
+    if (req.usuario && !esDuena(req) && req.usuario.id) {
+      req.manejaTienda = (await pool.query(`SELECT 1 FROM permisos_usuario WHERE usuario_id = $1 AND permiso = 'tienda.admin'`, [req.usuario.id]).catch(() => ({ rows: [] }))).rows.length > 0;
+    }
+    next();
+  } catch (e) { res.status(500).json({ error: 'No se pudo abrir la tienda' }); }
+});
 
 router.get('/config', async (req, res) => {
   try {
@@ -57,7 +68,7 @@ router.put('/config', async (req, res) => {
        String(b.anuncios || '').split('\n').map(x => x.trim().slice(0, 90)).filter(Boolean).slice(0, 5).join('\n') || null]);
     await pool.query('UPDATE tienda_config SET pago_gocuotas = $1, descuentos_pago = $2 WHERE id = 1', [!!b.pago_gocuotas, JSON.stringify(tienda.descuentosPagoDe({ descuentos_pago: b.descuentos_pago }))]);
     // Dominio propio (opcional): se guarda en el registro central, junto a la direccion de la tienda
-    if (b.dominio !== undefined) {
+    if (b.dominio !== undefined && esDuena(req)) {
       const d = String(b.dominio || '').trim() ? tienda.limpiarDominio(b.dominio) : null;
       if (String(b.dominio || '').trim() && !d) return res.status(400).json({ error: 'El dominio no es válido. Escribilo así: girasolesbeauty.com.ar' });
       if (d && /(^|\.)(sistemalumiere\.com|vercel\.app|railway\.app)$/.test(d)) return res.status(400).json({ error: 'Ese dominio no se puede usar' });
@@ -240,14 +251,14 @@ router.get('/gocuotas', async (req, res) => {
 });
 router.put('/gocuotas', async (req, res) => {
   try {
-    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    if (!esDuena(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
     await gocuotas.conectar(req.body && req.body.email, req.body && req.body.password);
     res.json({ conectado: true, email: String(req.body.email || '').trim() });
   } catch (e) { res.status(400).json({ error: e.message || 'No se pudo conectar con GoCuotas' }); }
 });
 router.delete('/gocuotas', async (req, res) => {
   try {
-    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    if (!esDuena(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
     await gocuotas.desconectar();
     await pool.query('UPDATE tienda_config SET pago_gocuotas = FALSE WHERE id = 1');
     res.json({ conectado: false });
