@@ -27208,7 +27208,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const [qr, setQr] = useState(null);
   const [aviso, setAviso] = useState(null);
   const avisar = (ok, texto) => { setAviso({ ok, texto }); setTimeout(() => setAviso(null), 4500); };
-  const esJefeT = ["jefe", "admin", "administrativo"].includes(usuario?.rol);
+  const esJefeT = ["jefe", "admin", "administrativo"].includes(usuario?.rol) || puedeHacer("tienda.admin");
+  const esDuenaT = ["jefe", "admin", "administrativo"].includes(usuario?.rol);
 
   const [locs, setLocs] = useState([]);
   useEffect(() => { API.get("/locales").then(r => setLocs((r.data || []).map(l => ({ ...l, direccion0: l.direccion || "" })))).catch(() => {}); }, []);
@@ -27597,7 +27598,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               </div>
             )}
             <div className="fl" style={{ marginTop: 12 }}>Dominio propio (opcional)</div>
-            <input className="inp" placeholder="Ej: girasolesbeauty.com.ar" value={cfg.dominio || ""} onChange={e => set("dominio", e.target.value.trim().toLowerCase())} aria-label="Dominio propio" />
+            <input className="inp" placeholder="Ej: girasolesbeauty.com.ar" value={cfg.dominio || ""} disabled={!esDuenaT} title={esDuenaT ? undefined : "Solo la dueña puede cambiar el dominio"} onChange={e => set("dominio", e.target.value.trim().toLowerCase())} aria-label="Dominio propio" />
             {cfg.dominio ? (
               <div className="cli-tip" style={{ marginTop: 6, fontSize: 12, lineHeight: 1.6 }}>
                 Para que <b>{cfg.dominio}</b> muestre tu tienda:
@@ -27687,7 +27688,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             )}
             <div className="ct" style={{ marginTop: 16 }}>Pagos</div>
             <label style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer" }}><input type="checkbox" checked={!!cfg.pago_mp} onChange={e => set("pago_mp", e.target.checked)} style={{ marginTop: 3 }} /> <span><b>Mercado Pago</b>{!cfg.mp_conectado && <div style={{ fontSize: 11.5, color: temaPal.warn }}>Conectá tu cuenta en Configuración del Negocio → Medios de pago para que aparezca.</div>}</span></label>
-            <GoCuotasConfig temaPal={temaPal} avisar={avisar} activo={!!cfg.pago_gocuotas} onActivo={v => set("pago_gocuotas", v)} esJefe={esJefeT} />
+            <GoCuotasConfig temaPal={temaPal} avisar={avisar} activo={!!cfg.pago_gocuotas} onActivo={v => set("pago_gocuotas", v)} esJefe={esDuenaT} />
             <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", marginTop: 8 }}><input type="checkbox" checked={!!cfg.pago_transferencia} onChange={e => set("pago_transferencia", e.target.checked)} /> <b>Transferencia</b></label>
             {cfg.pago_transferencia && (
               <div style={{ margin: "6px 0 0 26px" }}>
@@ -28799,6 +28800,7 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
       ["Dashboard", [["dashboard.ver", "Ver el Dashboard"]]],
       ["Punto de Venta", [["pos.ver", "Usar el Punto de Venta"], ["pos.descuento", "Hacer descuentos a mano"]]],
       ["Ventas Online", [["ventas_online.ver", "Ver ventas online"], ["ventas_online.editar", "Editar y eliminar ventas online"]]],
+      ["Tienda online", [["tienda.ver", "Ver y atender los pedidos de la tienda online"], ["tienda.admin", "Manejar toda la tienda online (productos, portada, configuración, regalos y reseñas)"]]],
       ["Buscar Precio", [["buscar_precio.ver", "Buscar precios"]]],
       ["Cambio / Devolución", [["cambios.ver", "Hacer cambios y devoluciones"]]] ] },
     { grupo: "STOCK", secciones: [
@@ -28840,7 +28842,7 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
   ];
   const TODAS_LAS_CLAVES = GRUPOS_PERMISOS.flatMap(g => g.secciones.flatMap(([, perms]) => perms.map(x => x[0])));
   // Lo tipico para quien atiende el local
-  const PLANTILLA_VENDEDORA = ["dashboard.ver", "pos.ver", "pos.descuento", "ventas_online.ver", "buscar_precio.ver", "cambios.ver", "inventario.ver", "control_inv.ver", "kits.ver",
+  const PLANTILLA_VENDEDORA = ["dashboard.ver", "pos.ver", "pos.descuento", "ventas_online.ver", "tienda.ver", "tienda.admin", "buscar_precio.ver", "cambios.ver", "inventario.ver", "control_inv.ver", "kits.ver",
     "caja.ver", "cierre_caja.ver", "giftcards.ver", "clientes.ver", "pedidos.ver", "fidelizacion.ver", "tareas.ver", "comisiones.propias"];
   const [eliminando, setEliminando] = useState(null); // { u, actividad }
 
@@ -29748,7 +29750,7 @@ function AppWrapper() {
       if (!esJefe && !permisos.includes("dashboard.ver")) {
         const ordenPrioridad = ["pos", "ventas-online", "clients", "inventory", "caja"];
         const mapaModulos2 = {
-          "pos": "pos.ver", "tienda-online": "ventas_online.ver", "presupuestos": "pos.ver", "mesas": "pos.ver", "cocina": "pos.ver", "agenda": "pos.ver", "pacientes": "pos.ver", "recordatorios": "pos.ver", "ventas-online": "ventas_online.ver", "inventory": "inventario.ver",
+          "pos": "pos.ver", "tienda-online": "tienda.ver", "presupuestos": "pos.ver", "mesas": "pos.ver", "cocina": "pos.ver", "agenda": "pos.ver", "pacientes": "pos.ver", "recordatorios": "pos.ver", "ventas-online": "ventas_online.ver", "inventory": "inventario.ver",
           "clients": "clientes.ver", "cuenta-corriente": "clientes.ver", "caja": "caja.ver"
         };
         const disponible = ordenPrioridad.find(id => !mapaModulos2[id] || permisos.includes(mapaModulos2[id]));
@@ -29761,7 +29763,7 @@ function AppWrapper() {
     if (!usuario) return false;
     if (usuario.rol === "jefe" || usuario.rol_id === 1) return true;
  const mapaModulos = {
-      "pos": "pos.ver", "tienda-online": "ventas_online.ver", "presupuestos": "pos.ver", "mesas": "pos.ver", "cocina": "pos.ver", "agenda": "pos.ver", "pacientes": "pos.ver", "recordatorios": "pos.ver", "dashboard": "dashboard.ver",
+      "pos": "pos.ver", "tienda-online": "tienda.ver", "presupuestos": "pos.ver", "mesas": "pos.ver", "cocina": "pos.ver", "agenda": "pos.ver", "pacientes": "pos.ver", "recordatorios": "pos.ver", "dashboard": "dashboard.ver",
       "ventas-online": "ventas_online.ver", "buscar-precio": "buscar_precio.ver", "cambio-devolucion": "cambios.ver",
       "inventory": "inventario.ver", "rotacion": "rotacion.ver", "ordenes": "ordenes.ver", "inconsistencias": "inconsistencias.ver", "kits": "kits.ver", "etiquetas": "inventario.ver", "listas-precios": "inventario.ver", "stock-alertas": "inventario.ver", "traspasos": "inventario.ver", "valorizacion": "inventario.ver", "historial-ajustes": "inventario.ver", "salud-stock": "inventario.ver", "vencimientos": "inventario.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
       "compras": "compras.ver", "reclamos-proveedores": "compras.ver",
