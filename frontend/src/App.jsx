@@ -178,6 +178,8 @@ const aplicarModulos = (m) => {
 // Permisos de la persona que esta usando el sistema (los carga App al entrar). El jefe puede todo.
 let PERMISOS_ACTUALES = [];
 let ES_JEFE_ACTUAL = false;
+// El estilo Girasoles (colores y collage) es solo del negocio original; los negocios clientes no lo ven
+let ES_NEGOCIO_ORIGINAL = false;
 const puedeHacer = (clave) => ES_JEFE_ACTUAL || PERMISOS_ACTUALES.includes(clave);
 const nombreLocal = (id) => NOMBRES_LOCALES[Number(id)] || NOMBRES_LOCALES[1];
 
@@ -14699,7 +14701,8 @@ const TEMAS_PORTAL = [
   { id: "oscuro", nombre: "Oscuro", colores: ["#090c10", "#c9a84c", "#1a1f28", "#e6e8ec"] },
   { id: "salvia", nombre: "Salvia", colores: ["#F5F1E8", "#C4A35A", "#4A6343", "#ffffff"] },
 ];
-const DISENO_INICIAL = { tema: "girasoles", fondo: "estilo", bienvenida: "", mostrar_cumple: true, mostrar_niveles: true, fondo_v: null };
+const disenoInicial = () => ({ tema: ES_NEGOCIO_ORIGINAL ? "girasoles" : "claro", fondo: "estilo", bienvenida: "", mostrar_cumple: true, mostrar_niveles: true, fondo_v: null });
+const temasPortal = () => TEMAS_PORTAL.filter(t => t.id !== "girasoles" || ES_NEGOCIO_ORIGINAL);
 
 // Achica la imagen en el navegador (max 1600px, webp) para que el portal cargue rapido en el celular
 const achicarImagen = (archivo) => new Promise((ok, mal) => {
@@ -14733,11 +14736,12 @@ function DisenoPortal({ p, avisar, portalUrl }) {
 
   useEffect(() => {
     API.get("/configuracion").then(r => {
-      const dd = { ...DISENO_INICIAL, ...(r.data.portal_diseno || {}) };
+      const dd = { ...disenoInicial(), ...(r.data.portal_diseno || {}) };
+      if (!temasPortal().some(t => t.id === dd.tema)) dd.tema = disenoInicial().tema;
       setD(dd); setGuardado(dd);
       setNegocio({ nombre_negocio: r.data.nombre_negocio, logo_url: r.data.logo_url });
       if (dd.fondo_v) setFondoPrevia(API.defaults.baseURL + "/portal/fondo?v=" + dd.fondo_v);
-    }).catch(() => { setD({ ...DISENO_INICIAL }); setGuardado({ ...DISENO_INICIAL }); });
+    }).catch(() => { setD(disenoInicial()); setGuardado(disenoInicial()); });
     const oir = (e) => { if (e.data && e.data.tipo === "lumiere-portal-listo") setListo(true); };
     window.addEventListener("message", oir);
     return () => window.removeEventListener("message", oir);
@@ -14785,7 +14789,7 @@ function DisenoPortal({ p, avisar, portalUrl }) {
       avisar("Imagen quitada");
     } catch (err) { avisar("Error: " + (err.response?.data?.error || err.message)); }
   };
-  const temaSel = TEMAS_PORTAL.find(t => t.id === d.tema) || TEMAS_PORTAL[0];
+  const temaSel = temasPortal().find(t => t.id === d.tema) || temasPortal()[0];
 
   return (
     <div className="dis-grid fade">
@@ -14793,7 +14797,7 @@ function DisenoPortal({ p, avisar, portalUrl }) {
         <div className="chart-card">
           <div className="chart-title">🎨 Estilo</div>
           <div className="dis-temas" role="radiogroup" aria-label="Estilo del portal">
-            {TEMAS_PORTAL.map(t => (
+            {temasPortal().map(t => (
               <button key={t.id} role="radio" aria-checked={d.tema === t.id} className={"dis-tema" + (d.tema === t.id ? " on" : "")} onClick={() => cambio("tema", t.id)}>
                 <span className="dis-muestra" style={{ background: t.colores[0] }}>
                   {t.colores.slice(1).map(c => <i key={c} style={{ background: c }} />)}
@@ -28880,6 +28884,7 @@ function AppWrapper() {
   // Multi-negocio: si quien entro administra Lumiere (ve el Panel) y el estado de su negocio (prueba gratis)
   const [adminPlataforma, setAdminPlataforma] = useState(false);
   const [miNegocio, setMiNegocio] = useState(null);
+  ES_NEGOCIO_ORIGINAL = Number(miNegocio?.id) === 1;
   const [avisoVencida, setAvisoVencida] = useState("");
   // Primer ingreso de un negocio: null = todavia no se sabe, true = falta aceptar los terminos
   const [faltaTerminos, setFaltaTerminos] = useState(null);
@@ -28894,6 +28899,7 @@ function AppWrapper() {
     window.addEventListener("lumiere-prueba-vencida", f);
     return () => window.removeEventListener("lumiere-prueba-vencida", f);
   }, []);
+  useEffect(() => { if (miNegocio && miNegocio.id && Number(miNegocio.id) !== 1 && tema === "girasoles") elegirTema("claro"); }, [miNegocio?.id, tema]);
   useEffect(() => { if (!avisoVencida) return; const t = setTimeout(() => setAvisoVencida(""), 7000); return () => clearTimeout(t); }, [avisoVencida]);
   const [, setVersionMoneda] = useState(0);
   // Moneda del negocio: se carga al entrar y cuando se cambia en Configuración
@@ -29138,7 +29144,7 @@ function AppWrapper() {
               <span style={{ color: paletaActual.navTextDim }}><StatusDot color="#3fbf7f" label="ARCA" /></span>
             </div>
             <div className="tema-sel" role="radiogroup" aria-label="Colores del sistema">
-              {[["claro", "☀️", "Claro"], ["oscuro", "🌙", "Oscuro"], ["salvia", "🌿", "Salvia"], ["girasoles", "🌻", "Girasoles"]].map(([id, ic, l]) => (
+              {[["claro", "☀️", "Claro"], ["oscuro", "🌙", "Oscuro"], ["salvia", "🌿", "Salvia"], ["girasoles", "🌻", "Girasoles"]].filter(([id]) => id !== "girasoles" || ES_NEGOCIO_ORIGINAL).map(([id, ic, l]) => (
                 <button key={id} type="button" role="radio" aria-checked={tema === id} className={tema === id ? "on" : ""} onClick={() => elegirTema(id)} title={"Fondo " + l.toLowerCase()}>
                   <span aria-hidden="true">{ic}</span> {l}
                 </button>
