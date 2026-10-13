@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
 const tienda = require('../lib/tienda');
+const gocuotas = require('../lib/gocuotas');
 const { ayudaMP } = require('./mercadopago');
 const QRCode = require('qrcode');
 const { VENTA_VALIDA } = require('../lib/niveles');
@@ -36,7 +37,8 @@ router.put('/config', async (req, res) => {
     const zonas = (Array.isArray(b.envio_zonas) ? b.envio_zonas : []).map(z => ({ nombre: String(z.nombre || '').trim().slice(0, 60), costo: Math.max(0, num(z.costo)), local: Number(z.local || b.envio_local) === 2 ? 2 : 1 })).filter(z => z.nombre).slice(0, 30);
     if (b.envio_activo && !zonas.length) return res.status(400).json({ error: 'Para ofrecer envío, cargá al menos una zona con su costo' });
     if (b.activo && !b.retiro_activo && !b.envio_activo) return res.status(400).json({ error: 'Elegí al menos una forma de entrega (retiro o envío)' });
-    if (b.activo && !b.pago_mp && !b.pago_transferencia && !b.pago_retiro) return res.status(400).json({ error: 'Elegí al menos una forma de pago' });
+    if (b.activo && !b.pago_mp && !b.pago_transferencia && !b.pago_retiro && !b.pago_gocuotas) return res.status(400).json({ error: 'Elegí al menos una forma de pago' });
+    if (b.pago_gocuotas && !(await gocuotas.conectado())) return res.status(400).json({ error: 'Para cobrar con GoCuotas, primero conectá tu cuenta (mail y contraseña de GoCuotas)' });
     if (b.pago_transferencia && !String(b.transferencia_datos || '').trim()) return res.status(400).json({ error: 'Para cobrar por transferencia, escribí el alias o CBU y el titular' });
     const locales = (Array.isArray(b.retiro_locales) ? b.retiro_locales : []).map(Number).filter(x => x === 1 || x === 2);
     // La direccion se reserva recien cuando todo lo demas esta bien
@@ -53,6 +55,7 @@ router.put('/config', async (req, res) => {
        !!b.pago_mp, !!b.pago_transferencia, String(b.transferencia_datos || '').trim().slice(0, 300) || null, !!b.pago_retiro,
        Math.min(168, Math.max(1, parseInt(b.horas_reserva) || 24)),
        String(b.anuncios || '').split('\n').map(x => x.trim().slice(0, 90)).filter(Boolean).slice(0, 5).join('\n') || null]);
+    await pool.query('UPDATE tienda_config SET pago_gocuotas = $1 WHERE id = 1', [!!b.pago_gocuotas]);
     // Dominio propio (opcional): se guarda en el registro central, junto a la direccion de la tienda
     if (b.dominio !== undefined) {
       const d = String(b.dominio || '').trim() ? tienda.limpiarDominio(b.dominio) : null;
@@ -228,6 +231,27 @@ router.get('/qr', async (req, res) => {
     if (!/^https?:\/\/\S+$/.test(url) || url.length > 300) return res.status(400).json({ error: 'Dirección no válida' });
     res.json({ qr: await QRCode.toDataURL(url, { width: 360, margin: 1 }) });
   } catch (e) { res.status(500).json({ error: 'No se pudo armar el QR' }); }
+});
+
+// ---- GoCuotas: conectar la cuenta de comercio (mail y contraseña; la contraseña no vuelve al navegador) ----
+router.get('/gocuotas', async (req, res) => {
+  try { const c = await gocuotas.credenciales(); res.json({ conectado: !!c, email: c ? c.email : null }); }
+  catch (e) { res.json({ conectado: false, email: null }); }
+});
+router.put('/gocuotas', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    await gocuotas.conectar(req.body && req.body.email, req.body && req.body.password);
+    res.json({ conectado: true, email: String(req.body.email || '').trim() });
+  } catch (e) { res.status(400).json({ error: e.status === 401 || e.status === 403 ? 'GoCuotas no aceptó ese mail y contraseña' : (e.message || 'No se pudo conectar con GoCuotas') }); }
+});
+router.delete('/gocuotas', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    await gocuotas.desconectar();
+    await pool.query('UPDATE tienda_config SET pago_gocuotas = FALSE WHERE id = 1');
+    res.json({ conectado: false });
+  } catch (e) { res.status(500).json({ error: 'No se pudo desconectar' }); }
 });
 
 // QRs de varios productos de una vez (para imprimir las etiquetas de precio del local)
@@ -513,9 +537,10 @@ router.post('/pedidos/:id/a-caja', async (req, res) => {
   let medio = null;
   try {
     const p = (await pool.query('SELECT pago, pagado FROM tienda_pedidos WHERE id = $1', [req.params.id])).rows[0];
-    if (p.pagado && p.pago === 'mp') {
-      let m = (await pool.query(`SELECT * FROM medios_pago WHERE nombre = 'Mercado Pago (tienda web)' LIMIT 1`)).rows[0];
-      if (!m) m = (await pool.query(`INSERT INTO medios_pago (nombre, tipo, cuotas, con_interes, coeficiente, comision, activo, disponible_online) VALUES ('Mercado Pago (tienda web)', 'plataforma', 1, FALSE, 1.0, 0, TRUE, TRUE) RETURNING *`)).rows[0];
+    if (p.pagado && (p.pago === 'mp' || p.pago === 'gocuotas')) {
+      const nombreMedio = p.pago === 'mp' ? 'Mercado Pago (tienda web)' : 'GoCuotas (tienda web)';
+      let m = (await pool.query(`SELECT * FROM medios_pago WHERE nombre = $1 LIMIT 1`, [nombreMedio])).rows[0];
+      if (!m) m = (await pool.query(`INSERT INTO medios_pago (nombre, tipo, cuotas, con_interes, coeficiente, comision, activo, disponible_online) VALUES ($1, 'plataforma', 1, FALSE, 1.0, 0, TRUE, TRUE) RETURNING *`, [nombreMedio])).rows[0];
       else if (!m.activo) await pool.query('UPDATE medios_pago SET activo = TRUE WHERE id = $1', [m.id]);
       medio = m.id;
     } else if (p.pagado && p.pago === 'transferencia') {

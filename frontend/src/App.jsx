@@ -4097,9 +4097,9 @@ function POS({ localId, usuario, paletaActual }) {
       if (parseFloat(pe.descuento) > 0) { setTipoDescuento(pe.cupon_tipo === "%" ? "%" : "$"); setDescuentoManual(String(pe.cupon_tipo === "%" ? parseFloat(pe.cupon_valor) : parseFloat(pe.descuento))); }
       if (pe.cliente_id) API.get("/clientes").then(rc => { const c = (rc.data || []).find(x => x.id === pe.cliente_id); if (c) { setClienteSeleccionado(c); setDniInput(c.cuit_dni || ""); cargarFicha(c.id, false); } }).catch(() => {});
       const medios = (rm.data || []).filter(m => m.activo !== false);
-      const medio = pe.pagado && pe.pago === "mp" ? medios.find(m => m.nombre === "Mercado Pago (tienda web)") : pe.pagado && pe.pago === "transferencia" ? medios.find(m => m.tipo === "transferencia") : null;
+      const medio = pe.pagado && pe.pago === "mp" ? medios.find(m => m.nombre === "Mercado Pago (tienda web)") : pe.pagado && pe.pago === "gocuotas" ? medios.find(m => m.nombre === "GoCuotas (tienda web)") : pe.pagado && pe.pago === "transferencia" ? medios.find(m => m.tipo === "transferencia") : null;
       if (medio) { setMedioPagoSel(medio); setTipoPagoAbierto(medio.tipo); }
-      setMensaje("🛍️ Pedido web " + pe.codigo + " de " + pe.nombre + (pe.pagado ? " · ya pagó con " + (pe.pago === "mp" ? "Mercado Pago" : "transferencia") : "") + ". Revisá y registrá la venta.");
+      setMensaje("🛍️ Pedido web " + pe.codigo + " de " + pe.nombre + (pe.pagado ? " · ya pagó con " + (pe.pago === "mp" ? "Mercado Pago" : pe.pago === "gocuotas" ? "GoCuotas" : "transferencia") : "") + ". Revisá y registrá la venta.");
       setTimeout(() => setMensaje(""), 8000);
     }).catch(() => setMensaje("No se pudo cargar el pedido de la tienda"));
   }, [productos.length > 0]);
@@ -24557,6 +24557,7 @@ function TiendaPublica({ slug }) {
     gratisDesde ? "Envío gratis en compras desde " + fmtTienda(gratisDesde) : tienda.envio ? "Te lo llevamos a tu casa" : null,
     tienda.retiro.length ? "Retirá sin costo en " + tienda.retiro.map(l => l.nombre).join(" y ") : null,
     tienda.pagos.mp ? "Pagá con Mercado Pago: tarjeta, débito o dinero en cuenta" : null,
+    tienda.pagos.gocuotas ? "Hasta 4 cuotas sin interés con débito (GoCuotas)" : null,
     tienda.pagos.transferencia ? "También podés pagar por transferencia" : null,
   ].filter(Boolean);
 
@@ -24615,7 +24616,7 @@ function TiendaPublica({ slug }) {
       <div className="tw-pie-in">
         <div>{tienda.logo ? <img src={tienda.logo} alt={tienda.titulo} style={{ height: 34, maxWidth: 200, objectFit: "contain", filter: "brightness(0) invert(1)", marginBottom: 12, display: "block" }} /> : <h4>{tienda.titulo}</h4>}{tienda.mensaje || "Gracias por elegirnos."}</div>
         {tienda.retiro.length > 0 && <div><h4>Nuestros locales</h4>{tienda.retiro.map(l => <div key={l.id}>📍 {l.nombre}{l.direccion ? " · " + l.direccion : ""}</div>)}</div>}
-        <div><h4>Formas de pago</h4>{tienda.pagos.mp && <div>Mercado Pago</div>}{tienda.pagos.transferencia && <div>Transferencia</div>}{tienda.pagos.retiro && <div>En el local, al retirar</div>}</div>
+        <div><h4>Formas de pago</h4>{tienda.pagos.mp && <div>Mercado Pago</div>}{tienda.pagos.gocuotas && <div>GoCuotas (cuotas con débito)</div>}{tienda.pagos.transferencia && <div>Transferencia</div>}{tienda.pagos.retiro && <div>En el local, al retirar</div>}</div>
         {(tienda.whatsapp || Object.keys(tienda.redes || {}).length > 0) && <div><h4>Seguinos</h4>
           <div className="tw-redes">
             {tienda.redes && tienda.redes.instagram && <a href={tienda.redes.instagram} target="_blank" rel="noopener" aria-label="Instagram"><TwIcono d={TW_IG} /></a>}
@@ -24644,7 +24645,9 @@ function TiendaPublica({ slug }) {
               {pedido.estado !== "cancelado" && <TwPuntos monto={pedido.subtotal - (pedido.descuento || 0)} />}
               <div style={{ fontSize: 12, letterSpacing: ".12em", textTransform: "uppercase", color: "#777", fontWeight: 700 }}>Pedido N° {pedido.codigo}</div>
               <div style={{ fontSize: 26, fontWeight: 800, color: e[1], margin: "6px 0 14px" }}>{pedido.estado === "pendiente_pago" && pedido.pago === "retiro" ? "¡Recibimos tu pedido!" : e[0]}</div>
-              {pedido.estado === "pendiente_pago" && pedido.link_pago && <a className="tw-btn full" style={{ marginBottom: 14 }} href={pedido.link_pago}>Pagar con Mercado Pago</a>}
+              {pedido.estado === "pendiente_pago" && pedido.pago === "gocuotas" && params.get("gc") === "no" && <div style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 12, fontSize: 14, fontWeight: 600, marginBottom: 12 }}>El pago con GoCuotas no se completó. Podés volver a intentarlo.</div>}
+              {pedido.estado === "pendiente_pago" && pedido.pago === "gocuotas" && params.get("gc") !== "no" && <div style={{ fontSize: 14, color: "#555", marginBottom: 12 }}>Si ya pagaste con GoCuotas, en unos minutos se confirma solo.</div>}
+              {pedido.estado === "pendiente_pago" && pedido.link_pago && <a className="tw-btn full" style={{ marginBottom: 14 }} href={pedido.link_pago}>{pedido.pago === "gocuotas" ? "Pagar con GoCuotas" : "Pagar con Mercado Pago"}</a>}
               {pedido.transferencia && pedido.estado !== "cancelado" && (
                 <div style={{ background: "#f6f6f6", borderRadius: 6, padding: 14, marginBottom: 14, fontSize: 15 }}>
                   <b>Transferí {fmtTienda(pedido.total)} a:</b>
@@ -24743,7 +24746,7 @@ function TiendaPublica({ slug }) {
   const nSlides = destacados.length;
   const iSlide = nSlides ? slide % nSlides : 0;
   const tarjeta = (p) => <TwTarjeta key={p.id} p={p} base={base} sin={agotado(p)} preventa={esPreventa(p)} fav={favs.includes(p.id)} onFav={toggleFav} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
-  const opcionesPago = [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar"], ["retiro", "💵 Pago al retirar", "Pagás en el local"]]
+  const opcionesPago = [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["gocuotas", "💜 GoCuotas", "Hasta 4 cuotas sin interés con tu tarjeta de débito"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar"], ["retiro", "💵 Pago al retirar", "Pagás en el local"]]
     .filter(([k]) => tienda.pagos[k] && !(k === "retiro" && datos.entrega === "envio"));
   const listoParaPedir = lid && datos.nombre && datos.telefono && datos.entrega && datos.pago && (datos.entrega === "retiro" ? retiroAca.length > 0 : (zona && datos.direccion));
   const problemas = carrito.filter(i => i.cantidad > maxDeItem(i));
@@ -25202,7 +25205,7 @@ function TiendaPublica({ slug }) {
                     {ver.descripcion && <details open><summary>Descripción</summary><div>{ver.descripcion}</div></details>}
                     <details><summary>Envíos y retiro</summary><div>{[retiroAca.length ? "Retiro sin costo en " + retiroAca.map(l => l.nombre + (l.direccion ? " (" + l.direccion + ")" : "")).join(", ") + "." : null,
                       envioAca ? "Envío a domicilio: " + envioAca.zonas.map(z => z.nombre + " " + fmtTienda(z.costo)).join(" · ") + (gratisDesde ? ". Gratis desde " + fmtTienda(gratisDesde) + "." : ".") : null].filter(Boolean).join("\n")}</div></details>
-                    <details><summary>Formas de pago</summary><div>{[tienda.pagos.mp && "Mercado Pago: tarjeta de crédito, débito o dinero en cuenta.", tienda.pagos.transferencia && "Transferencia bancaria.", tienda.pagos.retiro && "En el local, cuando retirás."].filter(Boolean).join("\n")}</div></details>
+                    <details><summary>Formas de pago</summary><div>{[tienda.pagos.mp && "Mercado Pago: tarjeta de crédito, débito o dinero en cuenta.", tienda.pagos.gocuotas && "GoCuotas: hasta 4 cuotas sin interés con tarjeta de débito.", tienda.pagos.transferencia && "Transferencia bancaria.", tienda.pagos.retiro && "En el local, cuando retirás."].filter(Boolean).join("\n")}</div></details>
                   </div>
                 </div>
               </div>
@@ -25322,7 +25325,7 @@ function TiendaPublica({ slug }) {
                   {tienda.ruleta && tienda.ruleta.aviso && <TwRuletaAviso monto={subtotal - descuentoCupon} minimo={tienda.ruleta.minimo} />}
                   <div style={{ display: "flex", gap: 8 }}>
                     <button className="tw-btn2" onClick={() => setPaso("carrito")}>Atrás</button>
-                    <button className="tw-btn full" disabled={!listoParaPedir || enviando} onClick={confirmar}>{enviando ? "Enviando…" : datos.pago === "mp" ? "Ir a pagar" : "Hacer el pedido"}</button>
+                    <button className="tw-btn full" disabled={!listoParaPedir || enviando} onClick={confirmar}>{enviando ? "Enviando…" : datos.pago === "mp" || datos.pago === "gocuotas" ? "Ir a pagar" : "Hacer el pedido"}</button>
                   </div>
                 </div>
               </>
@@ -25970,7 +25973,7 @@ const ESTADOS_TIENDA = {
   pendiente_pago: { t: "Esperando pago", c: "#b7950b" }, confirmado: { t: "Nuevo · para preparar", c: "#2471a3" }, preparado: { t: "Listo para entregar", c: "#8e44ad" },
   en_caja: { t: "En la caja", c: "#d35400" }, entregado: { t: "Entregado", c: "#2d7a4f" }, cancelado: { t: "Cancelado", c: "#95a5a6" },
 };
-const PAGO_TIENDA = { mp: "Mercado Pago", transferencia: "Transferencia", retiro: "Paga al retirar" };
+const PAGO_TIENDA = { mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "Transferencia", retiro: "Paga al retirar" };
 
 // ---- Lumiere: clientas de la tienda web (avisos de reposicion, carritos sin terminar, analisis de favoritos) ----
 const MSJ_CARRITO = "Hola {nombre}! 🛍️ Te quedaron estos productos en el carrito de {tienda}: {productos} ({total}). ¿Te ayudo a terminar la compra? {link}";
@@ -26294,6 +26297,45 @@ async function imprimirEtiquetasQR(lista, urlDe, nombreTienda) {
   } catch (e) { w.document.body.innerHTML = "<p style='font-family:sans-serif;padding:20px'>No se pudieron armar las etiquetas. Probá de nuevo.</p>"; }
 }
 
+// GoCuotas en la configuracion de la tienda: conectar la cuenta de comercio y prender el medio de pago
+function GoCuotasConfig({ temaPal, avisar, activo, onActivo, esJefe }) {
+  const tp = temaPal || PALETA_CLARA;
+  const [est, setEst] = useState(null); // { conectado, email }
+  const [f, setF] = useState({ email: "", password: "" });
+  const [ocupado, setOcupado] = useState(false);
+  useEffect(() => { API.get("/tienda/gocuotas").then(r => setEst(r.data)).catch(() => setEst({ conectado: false })); }, []);
+  const conectar = async () => {
+    setOcupado(true);
+    try { const r = await API.put("/tienda/gocuotas", f); setEst(r.data); setF({ email: "", password: "" }); avisar(true, "✓ GoCuotas conectado. Tildá \"GoCuotas\" y guardá la configuración."); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo conectar con GoCuotas"); }
+    setOcupado(false);
+  };
+  const desconectar = async () => { if (!confirm("¿Desconectar GoCuotas? Se deja de ofrecer en la tienda.")) return; try { await API.delete("/tienda/gocuotas"); setEst({ conectado: false }); onActivo(false); avisar(true, "GoCuotas desconectado"); } catch (e) { avisar(false, "No se pudo"); } };
+  if (!est) return null;
+  return (
+    <div style={{ marginTop: 8 }}>
+      <label style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: est.conectado ? "pointer" : "default" }}>
+        <input type="checkbox" checked={!!activo} disabled={!est.conectado} onChange={e => onActivo(e.target.checked)} style={{ marginTop: 3 }} />
+        <span><b>💜 GoCuotas</b> <span style={{ fontSize: 12, color: tp.textMuted }}>(hasta 4 cuotas sin interés con débito)</span>
+          {est.conectado ? <div style={{ fontSize: 11.5, color: tp.green }}>✓ Conectado como {est.email} {esJefe && <button className="chip-btn" style={{ fontSize: 10.5, marginLeft: 4 }} onClick={e => { e.preventDefault(); desconectar(); }}>Desconectar</button>}</div>
+            : <div style={{ fontSize: 11.5, color: tp.warn }}>Primero conectá tu cuenta de comercio de GoCuotas</div>}
+        </span>
+      </label>
+      {!est.conectado && esJefe && (
+        <div style={{ margin: "6px 0 0 26px", display: "flex", flexDirection: "column", gap: 6 }}>
+          <input className="inp" placeholder="Mail de tu cuenta de comercio de GoCuotas" value={f.email} onChange={e => setF(x => ({ ...x, email: e.target.value }))} autoComplete="off" />
+          <input className="inp" type="password" placeholder="Contraseña de GoCuotas" value={f.password} onChange={e => setF(x => ({ ...x, password: e.target.value }))} autoComplete="new-password" />
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <button className="btn btn-p btn-sm" disabled={ocupado || !f.email || !f.password} onClick={conectar}>{ocupado ? "Conectando…" : "Conectar GoCuotas"}</button>
+            <span style={{ fontSize: 11, color: tp.textMuted }}>Son los datos con los que entrás al panel de comercio de GoCuotas. Se guardan en Lumiere y no se muestran.</span>
+          </div>
+        </div>
+      )}
+      {activo && est.conectado && <div style={{ fontSize: 11, color: tp.textMuted, margin: "4px 0 0 26px" }}>La clienta paga en la página de GoCuotas y vuelve a la tienda. El pedido se confirma solo cuando GoCuotas aprueba el pago. GoCuotas te deposita según tu acuerdo con ellos.</div>}
+    </div>
+  );
+}
+
 function TiendaOnline({ localId, usuario, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState(() => tabInicialDe("tienda-online") || "pedidos");
@@ -26495,7 +26537,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                 // Pago: bien distinto si ya esta confirmado o no (franja arriba de la tarjeta)
                 const pago = p.estado === "cancelado" ? (p.pagado ? { t: "⚠️ CANCELADO PERO PAGÓ", sub: "Se canceló por vencido pero el pago de Mercado Pago entró: devolvele la plata o registrá la venta", c: "#c0392b", bg: "#e74c3c" } : null) : p.pagado ? { t: "✅ PAGO CONFIRMADO", sub: PAGO_TIENDA[p.pago] + (p.estado === "entregado" ? "" : " · ya está pagado"), c: "#1e8e4f", bg: "#1e8e4f" }
                   : p.pago === "retiro" ? { t: "💵 SIN PAGAR · paga al retirar", sub: "Cobrale " + fmt(p.total) + " cuando lo retire", c: "#b26a00", bg: "#f39c12" }
-                  : { t: "⏳ ESPERANDO EL PAGO", sub: p.pago === "transferencia" ? "Fijate si llegó la transferencia y tocá \"Pago recibido\"" : "Todavía no se acreditó el pago de Mercado Pago", c: "#c0392b", bg: "#e74c3c" };
+                  : { t: "⏳ ESPERANDO EL PAGO", sub: p.pago === "transferencia" ? "Fijate si llegó la transferencia y tocá \"Pago recibido\"" : p.pago === "gocuotas" ? "Todavía no se acreditó el pago de GoCuotas" : "Todavía no se acreditó el pago de Mercado Pago", c: "#c0392b", bg: "#e74c3c" };
                 return (
                   <div key={p.id} className="card" style={{ borderLeft: "5px solid " + e.c }}>
                     {pago && (!cerrado || p.estado === "cancelado") && <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", margin: "0 0 12px", padding: "8px 12px", borderRadius: 8, background: pago.bg + "1f", border: "1.5px solid " + pago.bg }}>
@@ -26797,6 +26839,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             )}
             <div className="ct" style={{ marginTop: 16 }}>Pagos</div>
             <label style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer" }}><input type="checkbox" checked={!!cfg.pago_mp} onChange={e => set("pago_mp", e.target.checked)} style={{ marginTop: 3 }} /> <span><b>Mercado Pago</b>{!cfg.mp_conectado && <div style={{ fontSize: 11.5, color: temaPal.warn }}>Conectá tu cuenta en Configuración del Negocio → Medios de pago para que aparezca.</div>}</span></label>
+            <GoCuotasConfig temaPal={temaPal} avisar={avisar} activo={!!cfg.pago_gocuotas} onActivo={v => set("pago_gocuotas", v)} esJefe={esJefeT} />
             <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", marginTop: 8 }}><input type="checkbox" checked={!!cfg.pago_transferencia} onChange={e => set("pago_transferencia", e.target.checked)} /> <b>Transferencia</b></label>
             {cfg.pago_transferencia && (
               <div style={{ margin: "6px 0 0 26px" }}>
@@ -28619,7 +28662,7 @@ function AvisoVentaWeb({ usuario, local, paletaActual }) {
   );
   if (!nuevos.length) return null;
   const cerrar = () => setNuevos([]);
-  const pagoTxt = (x) => x.pagado ? "✓ Pagado" : x.pago === "transferencia" ? "Esperando la transferencia" : x.pago === "mp" ? "Esperando el pago" : "Paga al retirar";
+  const pagoTxt = (x) => x.pagado ? "✓ Pagado" : x.pago === "transferencia" ? "Esperando la transferencia" : x.pago === "mp" || x.pago === "gocuotas" ? "Esperando el pago" : "Paga al retirar";
   return (
     <div className="pos-overlay" style={{ zIndex: 400 }} role="alertdialog" aria-modal="true" aria-label="Nueva venta en la tienda online">
       <div className="card pop-in" style={{ width: 480, maxWidth: "94vw", maxHeight: "88vh", overflowY: "auto", background: p.card, borderTop: "6px solid #16a085" }}>

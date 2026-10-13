@@ -6,6 +6,7 @@ const negocios = require('../lib/negocios');
 const { enNegocio } = require('../lib/contexto');
 const tienda = require('../lib/tienda');
 const cuponesLib = require('../lib/cupones');
+const gocuotas = require('../lib/gocuotas');
 const { ayudaMP } = require('./mercadopago');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -85,7 +86,7 @@ router.get('/:slug', async (req, res) => {
       titulo: c.titulo || neg.nombre_negocio || 'Tienda', mensaje: c.mensaje || '', logo: c.logo || neg.logo_url || null, color: c.color || '#c9a84c', whatsapp: c.whatsapp || null,
       retiro: c.retiro_activo ? locales : [], ciudades,
       envio: c.envio_activo ? { zonas: c.envio_zonas, gratis_desde: c.envio_gratis_desde } : null,
-      pagos: { mp, transferencia: !!c.pago_transferencia, retiro: !!c.pago_retiro }, horas_reserva: c.horas_reserva,
+      pagos: { mp, transferencia: !!c.pago_transferencia, retiro: !!c.pago_retiro, gocuotas: !!c.pago_gocuotas && await gocuotas.conectado() }, horas_reserva: c.horas_reserva,
       anuncios: String(c.anuncios || '').split('\n').filter(Boolean),
       redes: linksRedes(c.redes),
       reels_titulo: c.reels_titulo || 'Videos',
@@ -287,8 +288,8 @@ router.post('/:slug/pedidos', async (req, res) => {
     if (direccion.length < 5) return res.status(400).json({ error: 'Escribí la dirección de entrega' });
     localId = z.local; zona = z.nombre; costoEnvio = Math.max(0, num(z.costo));
   }
-  const pago = ['mp', 'transferencia', 'retiro'].includes(b.pago) ? b.pago : null;
-  if (!pago || (pago === 'mp' && !(c.pago_mp && await mpDisponible())) || (pago === 'transferencia' && !c.pago_transferencia) || (pago === 'retiro' && !c.pago_retiro)) return res.status(400).json({ error: 'Elegí cómo vas a pagar' });
+  const pago = ['mp', 'transferencia', 'retiro', 'gocuotas'].includes(b.pago) ? b.pago : null;
+  if (!pago || (pago === 'gocuotas' && !(c.pago_gocuotas && await gocuotas.conectado())) || (pago === 'mp' && !(c.pago_mp && await mpDisponible())) || (pago === 'transferencia' && !c.pago_transferencia) || (pago === 'retiro' && !c.pago_retiro)) return res.status(400).json({ error: 'Elegí cómo vas a pagar' });
   const items = (Array.isArray(b.items) ? b.items : []).slice(0, 50).map(it => ({ producto_id: parseInt(it.producto_id), variante_id: parseInt(it.variante_id) || null, cantidad: Math.min(99, Math.max(1, parseInt(it.cantidad) || 1)), preventa: !!it.preventa && !parseInt(it.variante_id) })).filter(it => it.producto_id);
   if (!items.length) return res.status(400).json({ error: 'El carrito está vacío' });
 
@@ -332,7 +333,7 @@ router.post('/:slug/pedidos', async (req, res) => {
     const total = Math.round((subtotal - descuento + costoEnvio) * 100) / 100;
     const codigo = crypto.randomBytes(4).toString('hex').toUpperCase();
     const estado = pago === 'retiro' ? 'confirmado' : 'pendiente_pago';
-    const horas = pago === 'mp' ? 2 : Math.min(168, Math.max(1, parseInt(c.horas_reserva) || 24));
+    const horas = pago === 'mp' || pago === 'gocuotas' ? 2 : Math.min(168, Math.max(1, parseInt(c.horas_reserva) || 24));
     // Con preventa, "paga al retirar" no vence hasta que llega (se renueva al marcar "Llegó la preventa")
     const conPreventa = lineas.some(l => l.preventa);
     pedido = (await client.query(`INSERT INTO tienda_pedidos (codigo, cliente_id, nombre, telefono, email, entrega, local_id, direccion, zona, costo_envio, pago, subtotal, total, nota, estado, vence_en, cupon, cupon_tipo, cupon_valor, descuento)
@@ -376,7 +377,46 @@ router.post('/:slug/pedidos', async (req, res) => {
       return res.status(502).json({ error: 'No se pudo abrir el pago con Mercado Pago. Probá con otra forma de pago.' });
     }
   }
+  // GoCuotas: cobro en cuotas con debito (vuelve a la tienda; el resultado llega por el webhook firmado)
+  if (pago === 'gocuotas') {
+    try {
+      const origen = String(b.volver_a || '').startsWith('http') ? String(b.volver_a).split('?')[0].split('#')[0] : null;
+      const volver = (origen || (req.protocol + '://' + req.get('host') + '/')) + '?tienda=' + encodeURIComponent(req.params.slug) + '&pedido=' + pedido.codigo;
+      const yo = (req.headers['x-forwarded-proto'] || req.protocol) + '://' + req.get('host');
+      link = await gocuotas.crearCheckout({ total: num(pedido.total), codigo: pedido.codigo, urlOk: volver, urlFalla: volver + '&gc=no',
+        webhook: yo + '/api/tienda-publica/' + encodeURIComponent(req.params.slug) + '/gocuotas/aviso/' + pedido.codigo + '/' + gocuotas.firma(pedido.codigo), email });
+      await pool.query('UPDATE tienda_pedidos SET mp_link = $1 WHERE id = $2', [link, pedido.id]);
+    } catch (e) {
+      console.error('[tienda publica] gocuotas:', e.message);
+      await tienda.cancelar(pedido.id, 'No se pudo crear el pago en GoCuotas').catch(() => {});
+      return res.status(502).json({ error: 'No se pudo abrir el pago con GoCuotas. Probá con otra forma de pago.' });
+    }
+  }
   res.status(201).json({ codigo: pedido.codigo, total: num(pedido.total), estado: pedido.estado, link_pago: link });
+});
+
+// Aviso de GoCuotas con el resultado del pago (POST al webhook firmado de cada pedido).
+// Solo se acepta con la firma del pedido y si el monto coincide con el total.
+router.post('/:slug/gocuotas/aviso/:codigo/:firma', express.urlencoded({ extended: false }), async (req, res) => {
+  try {
+    const codigo = String(req.params.codigo || '').toUpperCase();
+    if (!gocuotas.firmaOk(codigo, req.params.firma)) return res.status(403).json({ error: 'firma' });
+    const b = req.body || {};
+    const p = (await pool.query('SELECT * FROM tienda_pedidos WHERE codigo = $1', [codigo])).rows[0];
+    if (!p || p.pago !== 'gocuotas') return res.json({ ok: true });
+    const estado = String(b.status || '').toLowerCase();
+    const monto = Number(b.amount_in_cents);
+    if (estado !== 'approved' || p.pagado) return res.json({ ok: true });
+    if (Number.isFinite(monto) && Math.abs(monto - Math.round(num(p.total) * 100)) > 1) { console.error('[gocuotas] monto distinto en', codigo, monto); return res.json({ ok: true }); }
+    const ref = String(b.order_id || '').slice(0, 80) || null, cuotas = parseInt(b.number_of_installments) || null;
+    if (p.estado === 'cancelado') {
+      await pool.query(`UPDATE tienda_pedidos SET pagado = TRUE, pagado_en = COALESCE(pagado_en, NOW()), pago_ref = $1, motivo = 'Pagó con GoCuotas después de cancelarse: devolvele la plata o registrá la venta', actualizado_en = NOW() WHERE id = $2`, [ref, p.id]);
+    } else {
+      await pool.query(`UPDATE tienda_pedidos SET pagado = TRUE, pagado_en = COALESCE(pagado_en, NOW()), pago_ref = $1, estado = CASE WHEN estado = 'pendiente_pago' THEN 'confirmado' ELSE estado END,
+        vence_en = NULL, nota = CASE WHEN $3::int IS NULL THEN nota ELSE TRIM(COALESCE(nota, '') || ' [GoCuotas: ' || $3::int || ' cuotas]') END, actualizado_en = NOW() WHERE id = $2`, [ref, p.id, cuotas]);
+    }
+    res.json({ ok: true });
+  } catch (e) { console.error('[gocuotas] aviso:', e.message); res.status(500).json({ error: 'No se pudo procesar' }); }
 });
 
 // Estado del pedido (si pago con Mercado Pago y todavia no se confirmo, se pregunta)
