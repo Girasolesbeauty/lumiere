@@ -25,12 +25,27 @@ const validar = async (req, res) => {
     const { codigo } = req.params;
     const { monto } = req.query;
 
-    const result = await pool.query(
-      'SELECT * FROM cupones WHERE codigo = $1 AND activo = TRUE', [codigo]
+    let result = await pool.query(
+      'SELECT * FROM cupones WHERE UPPER(codigo) = UPPER($1) AND activo = TRUE', [codigo]
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ valido: false, error: 'Cupon no encontrado o inactivo' });
+      // Cupon de la ruleta de la tienda: nace apagado y se activa cuando se entrega el pedido con el que se gano.
+      // Si el pedido ya esta entregado (y no se activo), se activa ahora; si no, se explica por que no se puede usar.
+      const ru = (await pool.query(`SELECT c.id, tp.codigo AS pedido, tp.nombre, tp.estado, tp.venta_id FROM cupones c
+        JOIN tienda_ruleta tr ON UPPER(tr.cupon) = UPPER(c.codigo) JOIN tienda_pedidos tp ON tp.id = tr.pedido_id
+        WHERE UPPER(c.codigo) = UPPER($1) AND c.activo = FALSE AND c.canal = 'Ruleta tienda' LIMIT 1`, [codigo]).catch(() => ({ rows: [] }))).rows[0];
+      if (ru && (ru.estado === 'entregado' || ru.venta_id)) {
+        await pool.query(`UPDATE cupones SET activo = TRUE, fecha_vencimiento = GREATEST(COALESCE(fecha_vencimiento, CURRENT_DATE), CURRENT_DATE + 30) WHERE id = $1`, [ru.id]);
+        result = await pool.query('SELECT * FROM cupones WHERE id = $1', [ru.id]);
+      } else if (ru) {
+        const quien = String(ru.nombre || '').trim().split(/\s+/)[0];
+        return res.status(400).json({ valido: false, error: ru.estado === 'cancelado'
+          ? 'Este cupón de la ruleta no vale: el pedido N° ' + ru.pedido + ' con el que se ganó se canceló'
+          : 'Este cupón de la ruleta se activa cuando se entrega el pedido N° ' + ru.pedido + (quien ? ' de ' + quien : '') + '. Entregalo primero (Tienda online → Pedidos → "Entregar y registrar venta") y después usalo en otra compra.' });
+      } else {
+        return res.status(404).json({ valido: false, error: 'Cupon no encontrado o inactivo' });
+      }
     }
 
     const cupon = result.rows[0];

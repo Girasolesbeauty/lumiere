@@ -820,6 +820,38 @@ router.post('/carritos/:clienteId/recordado', async (req, res) => {
 });
 
 // Lo llama el Punto de Venta al registrar la venta del pedido
+// Pedido que se cobro en la caja sin cargarlo desde la tienda: queda entregado, se devuelve el stock apartado
+// (la venta de la caja ya lo desconto), se activa el cupon de la ruleta y, si se indica, se vincula esa venta
+// (asi el cierre no cuenta dos veces lo que ya se cobro online).
+router.post('/pedidos/:id/cobrado-aparte', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const p = (await client.query('SELECT * FROM tienda_pedidos WHERE id = $1 FOR UPDATE', [req.params.id])).rows[0];
+    if (!p) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'No se encontró el pedido' }); }
+    if (['entregado', 'cancelado'].includes(p.estado)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Ese pedido ya está cerrado' }); }
+    if (p.tipo === 'giftcard') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Es una gift card: se entrega sola cuando se confirma el pago' }); }
+    if ((await client.query('SELECT 1 FROM tienda_pedido_items WHERE pedido_id = $1 AND preventa LIMIT 1', [p.id])).rows.length) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Tiene productos en preventa que todavía no llegaron' }); }
+    let ventaId = null;
+    const num = String((req.body && req.body.venta) || '').trim();
+    if (num) {
+      const v = (await client.query(`SELECT id FROM ventas WHERE numero_factura = $1 OR ($1 ~ '^[0-9]+$' AND id = $1::int) ORDER BY creado_en DESC LIMIT 1`, [num])).rows[0];
+      if (!v) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'No encontré una venta con ese número' }); }
+      ventaId = v.id;
+    }
+    if (p.stock_apartado) await tienda.moverStock(client, p, +1);
+    await client.query(`UPDATE tienda_pedidos SET estado = 'entregado', stock_apartado = FALSE, pagado = TRUE, venta_id = COALESCE($2, venta_id), actualizado_en = NOW() WHERE id = $1`, [p.id, ventaId]);
+    if (ventaId) await client.query(`UPDATE gift_card_movimientos SET venta_id = $1 WHERE id = $2 AND venta_id IS NULL`, [ventaId, p.gc_mov_id || 0]).catch(() => {});
+    await client.query(`UPDATE cupones SET activo = TRUE, fecha_vencimiento = CURRENT_DATE + 30 WHERE codigo = (SELECT cupon FROM tienda_ruleta WHERE pedido_id = $1)`, [p.id]).catch(() => {});
+    await client.query('COMMIT');
+    res.json({ ok: true });
+  } catch (e) {
+    try { await client.query('ROLLBACK'); } catch (x) {}
+    console.error('[tienda] cobrado aparte:', e.message);
+    res.status(500).json({ error: 'No se pudo marcar como entregado' });
+  } finally { client.release(); }
+});
+
 router.put('/pedidos/:id/vendido', async (req, res) => {
   try {
     await pool.query(`UPDATE tienda_pedidos SET estado = 'entregado', venta_id = $1, pagado = TRUE, actualizado_en = NOW() WHERE id = $2 AND estado <> 'cancelado'`,
