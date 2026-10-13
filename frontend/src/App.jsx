@@ -3933,7 +3933,7 @@ function POS({ localId, usuario, paletaActual }) {
       // Si la venta salio de un presupuesto, queda marcado como vendido (aunque despues falle ARCA)
       const presuId = (cart.find(i => i.presupuesto_id) || {}).presupuesto_id;
       if (presuId) API.put("/presupuestos/" + presuId + "/vendido", { venta_id: ventaRes.data.id }).catch(() => {});
-      if (giftCardAplicada && montoAplicadoGC > 0) {
+      if (giftCardAplicada && montoAplicadoGC > 0 && !giftCardAplicada.ya_canjeada) {
         try {
           await API.post("/gift-cards/" + giftCardAplicada.id + "/canjear", {
             importe: montoAplicadoGC, venta_id: ventaRes.data.id, usuario_id: usuario?.id || null
@@ -4094,7 +4094,9 @@ function POS({ localId, usuario, paletaActual }) {
       if (pe.costo_envio > 0) lineas.push({ id: "ajuste-envio-" + pe.id, es_ajuste: true, tienda_pedido: pe.id, nombre: "Envío" + (pe.zona ? " (" + pe.zona + ")" : ""), precio: pe.costo_envio, qty: 1, disponible: 9999 });
       setCart(lineas);
       setReferenciaVenta("Tienda web " + pe.codigo);
-      setPedidoWeb({ id: pe.id, codigo: pe.codigo, nombre: pe.nombre, pagado: !!pe.pagado, pago: pe.pago, total: pe.total, cupon: pe.cupon, ruleta: pe.ruleta || null });
+      setPedidoWeb({ id: pe.id, codigo: pe.codigo, nombre: pe.nombre, pagado: !!pe.pagado, pago: pe.pago, total: pe.total, cupon: pe.cupon, ruleta: pe.ruleta || null, gc: parseFloat(pe.gc_usado_monto) > 0 ? { codigo: pe.gc_usado_codigo, monto: parseFloat(pe.gc_usado_monto) } : null });
+      // Lo que pago con gift card en la tienda: entra como pago con gift card (ya descontada: no se vuelve a canjear)
+      if (parseFloat(pe.gc_usado_monto) > 0) setGiftCardAplicada({ id: pe.gc_usado_id, codigo: pe.gc_usado_codigo, saldo: parseFloat(pe.gc_usado_monto), estado: "activa", ya_canjeada: true });
       // Codigo de descuento usado en la tienda (ej: premio 10% off): entra como descuento general de la venta
       // (y el descuento por forma de pago: entonces va todo junto en pesos)
       if (parseFloat(pe.descuento_pago) > 0) { setTipoDescuento("$"); setDescuentoManual(String((parseFloat(pe.descuento) || 0) + parseFloat(pe.descuento_pago))); }
@@ -4103,7 +4105,8 @@ function POS({ localId, usuario, paletaActual }) {
       const medios = (rm.data || []).filter(m => m.activo !== false);
       const medio = pe.pagado && pe.pago === "mp" ? medios.find(m => m.nombre === "Mercado Pago (tienda web)") : pe.pagado && pe.pago === "gocuotas" ? medios.find(m => m.nombre === "GoCuotas (tienda web)") : pe.pagado && pe.pago === "transferencia" ? medios.find(m => m.tipo === "transferencia") : null;
       if (medio) { setMedioPagoSel(medio); setTipoPagoAbierto(medio.tipo); }
-      setMensaje("🛍️ Pedido web " + pe.codigo + " de " + pe.nombre + (pe.pagado ? " · ya pagó con " + (pe.pago === "mp" ? "Mercado Pago" : pe.pago === "gocuotas" ? "GoCuotas" : "transferencia") : "") + ". Revisá y registrá la venta.");
+      const conGc = parseFloat(pe.gc_usado_monto) > 0 ? " · pagó " + fmt(parseFloat(pe.gc_usado_monto)) + " con gift card" : "";
+      setMensaje("🛍️ Pedido web " + pe.codigo + " de " + pe.nombre + (pe.pagado && pe.pago !== "giftcard" ? " · ya pagó con " + (pe.pago === "mp" ? "Mercado Pago" : pe.pago === "gocuotas" ? "GoCuotas" : "transferencia") : "") + conGc + ". Revisá y registrá la venta.");
       setTimeout(() => setMensaje(""), 8000);
     }).catch(() => setMensaje("No se pudo cargar el pedido de la tienda"));
   }, [productos.length > 0]);
@@ -5196,7 +5199,8 @@ function POS({ localId, usuario, paletaActual }) {
         <div role="status" style={{ background: temaPal.accent + "14", border: "1px solid " + temaPal.accent, borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 12.5, lineHeight: 1.5 }}>
           {pedidoWeb.ruleta && pedidoWeb.ruleta.tipo !== "nada" && <div style={{ fontWeight: 800, fontSize: 13.5, marginBottom: 4 }}>🎡 {pedidoWeb.ruleta.tipo === "regalo" ? "Ganó " + (/mega/i.test(pedidoWeb.ruleta.texto || "") ? "el 💎 MEGA REGALO" : "un REGALO 🎁") + " en la ruleta: dáselo con el pedido" : "Ganó " + pedidoWeb.ruleta.texto + " en la ruleta (cupón " + pedidoWeb.ruleta.cupon + "): se activa al registrar esta venta, para su próxima compra."}</div>}
           🛍️ <b>Cobrando el pedido web N° {pedidoWeb.codigo}</b> de {pedidoWeb.nombre}.{pedidoWeb.cupon ? " Usó el código " + pedidoWeb.cupon + " (ya está aplicado como descuento general)." : ""} Si se lleva otra cosa, <b>sacá o sumá productos</b> en el carrito como en cualquier venta: se registra lo que se lleva y el pedido queda entregado.
-          {pedidoWeb.pagado && <div style={{ marginTop: 4 }}>Ya pagó <b>{fmt(pedidoWeb.total)}</b> con {pedidoWeb.pago === "mp" ? "Mercado Pago" : "transferencia"}. {Math.round(total - pedidoWeb.total) !== 0 ? (total > pedidoWeb.total ? " Falta cobrar " + fmt(total - pedidoWeb.total) + " (con otro medio de pago)." : " Hay que devolverle " + fmt(pedidoWeb.total - total) + ".") : ""}</div>}
+          {pedidoWeb.gc && <div style={{ marginTop: 4 }}>🎁 Pagó <b>{fmt(pedidoWeb.gc.monto)}</b> con la gift card <b>{pedidoWeb.gc.codigo}</b> (ya está descontada: figura como pago con gift card, no hace falta volver a canjearla).</div>}
+          {pedidoWeb.pagado && (() => { const yaPago = (pedidoWeb.pago === "giftcard" ? 0 : pedidoWeb.total) + (pedidoWeb.gc ? pedidoWeb.gc.monto : 0); const falta = total - yaPago; return <div style={{ marginTop: 4 }}>{pedidoWeb.pago !== "giftcard" && <>Ya pagó <b>{fmt(pedidoWeb.total)}</b> con {pedidoWeb.pago === "mp" ? "Mercado Pago" : pedidoWeb.pago === "gocuotas" ? "GoCuotas" : "transferencia"}. </>}{Math.round(falta) !== 0 ? (falta > 0 ? " Falta cobrar " + fmt(falta) + " (con otro medio de pago)." : " Hay que devolverle " + fmt(-falta) + ".") : pedidoWeb.pago === "giftcard" ? "No falta cobrar nada." : ""}</div>; })()}
         </div>
       )}
       {modoVista === "clasico" && (
@@ -24432,15 +24436,15 @@ const twBuscarPorSlug = (lista, slugs, s) => { if (!s) return null; const m = /-
 // Gift cards online (se emiten en Lumiere cuando se acredita el pago) y un armador de regalos que elige
 // entre lo mas vendido con stock, segun el presupuesto y lo que le gusta a la persona.
 const TW_TEMAS_REGALO = {
-  madre: { nombre: "Día de la Madre", emoji: "🌻", deco: ["🌻", "💛", "🌼", "🌻", "✨", "🌻", "💛"], c1: "#ff4f87", c2: "#ff9b85", c3: "#fff0f4", tinta: "#7a1d3f", titulo: "Regalale algo lindo a mamá", para: ["Mamá", "Abuela", "Suegra", "Tía", "Amiga", "Otra persona"],
+  madre: { nombre: "Día de la Madre", emoji: "🌻", deco: ["🌻", "💛", "🌼", "🌻", "✨", "🌻", "💛"], c1: "#ff4f87", c2: "#ff9b85", c3: "#fff0f4", tinta: "#7a1d3f", titulo: "Regalale algo lindo a mamá", para: ["Mamá", "Esposa", "Novia", "Pareja", "Abuela", "Suegra", "Tía", "Amiga", "Otra persona"],
     mensajes: ["¡Feliz día, ma! Te quiero mucho 💖", "Para que te des un gustito 🌻", "Gracias por todo, siempre ✨"] },
   padre: { nombre: "Día del Padre", emoji: "👔", deco: ["🎁", "👔", "⌚", "💙", "⭐", "✨"], c1: "#2b59c3", c2: "#46a6ff", c3: "#eef5ff", tinta: "#13285c", titulo: "Sorprendé a papá", para: ["Papá", "Abuelo", "Suegro", "Tío", "Amigo", "Otra persona"],
     mensajes: ["¡Feliz día, pa! 💙", "Para que te des un gustito", "Gracias por todo ✨"] },
-  navidad: { nombre: "Navidad", emoji: "🎄", deco: ["🎄", "🎁", "⭐", "❄️", "🔔", "✨"], c1: "#c62828", c2: "#2e7d32", c3: "#fff4f2", tinta: "#5b0f0f", titulo: "Regalos para esta Navidad", para: ["Mamá", "Papá", "Pareja", "Amiga/o", "Hermana/o", "Otra persona"],
+  navidad: { nombre: "Navidad", emoji: "🎄", deco: ["🎄", "🎁", "⭐", "❄️", "🔔", "✨"], c1: "#c62828", c2: "#2e7d32", c3: "#fff4f2", tinta: "#5b0f0f", titulo: "Regalos para esta Navidad", para: ["Mamá", "Papá", "Novia", "Esposa", "Pareja", "Amiga/o", "Hermana/o", "Otra persona"],
     mensajes: ["¡Feliz Navidad! 🎄", "Que tengas unas fiestas hermosas ✨", "Un mimo para estas fiestas 🎁"] },
-  enamorados: { nombre: "San Valentín", emoji: "💘", deco: ["💘", "❤️", "🌻", "💌", "✨", "💕"], c1: "#e5384f", c2: "#ff7aa2", c3: "#fff0f3", tinta: "#6d0f1f", titulo: "Un regalo para tu amor", para: ["Mi pareja", "Amiga/o", "Otra persona"],
+  enamorados: { nombre: "San Valentín", emoji: "💘", deco: ["💘", "❤️", "🌻", "💌", "✨", "💕"], c1: "#e5384f", c2: "#ff7aa2", c3: "#fff0f3", tinta: "#6d0f1f", titulo: "Un regalo para tu amor", para: ["Novia", "Esposa", "Pareja", "Novio", "Esposo", "Otra persona"],
     mensajes: ["Te amo 💘", "Feliz San Valentín ❤️", "Para vos, con todo mi amor 🌹"] },
-  general: { nombre: "Regalos", emoji: "🎁", deco: ["🎁", "✨", "🎀", "💝", "⭐", "🌻"], c1: "#8e5cf5", c2: "#ff7eb3", c3: "#f6f0ff", tinta: "#3b1d73", titulo: "¿Querés hacer un regalo?", para: ["Mamá", "Papá", "Pareja", "Amiga/o", "Hermana/o", "Otra persona"],
+  general: { nombre: "Regalos", emoji: "🎁", deco: ["🎁", "✨", "🎀", "💝", "⭐", "🌻"], c1: "#8e5cf5", c2: "#ff7eb3", c3: "#f6f0ff", tinta: "#3b1d73", titulo: "¿Querés hacer un regalo?", para: ["Mamá", "Papá", "Novia", "Esposa", "Pareja", "Amiga/o", "Hermana/o", "Otra persona"],
     mensajes: ["¡Feliz cumple! 🎉", "Para que te des un gustito ✨", "Un mimo para vos 💝"] },
 };
 const twTemaRegalo = (r) => TW_TEMAS_REGALO[r && r.tema] || TW_TEMAS_REGALO.general;
@@ -24652,11 +24656,21 @@ function TwRegaloAbrir({ tienda, valor, pedir, slug, modoRuta }) {
 
 // Elige productos para el regalo: lo mas vendido / mejor reseñado, con stock, que entre en el presupuesto,
 // variado (distintos tipos) y priorizando lo que le gusta. Prueba varias combinaciones y se queda con la mejor.
-function twArmarRegalo(cands, presupuesto, gustos, piel, evitar = []) {
+// Siempre suma una mascarilla (si entra en el presupuesto). "Sorprendeme" (sin gustos) elige al azar pero solo entre lo mas vendido.
+const twEsMascarilla = (p) => (p._et.tipo || []).includes("mascarilla") || /mascarilla|sheet ?mask/.test(twNorm(p.nombre));
+function twArmarRegalo(cands0, presupuesto, gustos, piel, evitar = [], gustaFn, conMascarilla = true) {
+  const maxItems = presupuesto >= 150000 ? 8 : presupuesto >= 80000 ? 6 : 4;
+  let cands = cands0;
+  if (!gustos.length) {
+    // Lo mas vendido de los ultimos 3 meses: el primer 40% del ranking (al menos 12 productos)
+    const conRk = cands0.filter(x => x.p.rk).sort((a, b) => a.p.rk - b.p.rk);
+    const top = conRk.slice(0, Math.max(12, Math.ceil(conRk.length * 0.4)));
+    if (top.filter(x => x.precio <= presupuesto).length >= 3) cands = top.concat(conMascarilla ? cands0.filter(x => twEsMascarilla(x.p) && !top.includes(x)) : []);
+  }
   if (!cands.length) return [];
   const peso = (x) => {
-    const p = x.p; let w = 1 + (p.top ? (12 - p.top) * 0.45 : 0) + (p.resenas ? Math.max(0, p.resenas[0] - 3) * 1.4 : 0) + (p.destacado ? 1 : 0) + (p.foto ? 0.8 : -0.6);
-    if (gustos.length && gustos.some(gu => (p._et.tipo || []).includes(gu) || p.categoria === gu)) w *= 4;
+    const p = x.p; let w = 1 + (p.rk ? Math.max(0, 40 - p.rk) * 0.18 : 0) + (p.top ? (12 - p.top) * 0.45 : 0) + (p.resenas ? Math.max(0, p.resenas[0] - 3) * 1.4 : 0) + (p.destacado ? 1 : 0) + (p.foto ? 0.8 : -0.6);
+    if (gustos.length && gustos.some(gu => gustaFn ? gustaFn(p, gu) : p.categoria === gu)) w *= 4;
     // Tipo de piel: primero lo que es para su piel (o para todo tipo); lo que es solo para otra piel, casi nunca
     if (piel && ((p._et.piel || []).includes(piel) || p._et.todoTipo)) w *= 2.5;
     else if (piel && (p._et.piel || []).length) w *= 0.08;
@@ -24664,24 +24678,35 @@ function twArmarRegalo(cands, presupuesto, gustos, piel, evitar = []) {
     return Math.max(0.15, w);
   };
   const tipoDe = (p) => (p._et.tipo || [])[0] || p.categoria || "otro";
-  let mejor = null, mejorPuntos = -1;
-  for (let intento = 0; intento < 45; intento++) {
+  const pruebas = [];
+  for (let intento = 0; intento < 60; intento++) {
     let resta = presupuesto; const elegidos = [], tipos = new Set();
-    while (elegidos.length < 4) {
-      const opc = cands.filter(x => x.precio <= resta && !elegidos.includes(x));
+    // Primero la mascarilla de regalo (la mas vendida tiene mas chances)
+    if (conMascarilla) {
+      const ms = cands.filter(x => twEsMascarilla(x.p) && x.precio <= presupuesto * 0.5);
+      if (ms.length) { const ws = ms.map(peso); let r = Math.random() * ws.reduce((a, b) => a + b, 0), k = 0; while (r > ws[k] && k < ws.length - 1) { r -= ws[k]; k++; } elegidos.push(ms[k]); tipos.add("mascarilla"); resta -= ms[k].precio; }
+    }
+    while (elegidos.length < maxItems) {
+      const opc = cands.filter(x => x.precio <= resta && !elegidos.includes(x) && !(conMascarilla && twEsMascarilla(x.p)));
       if (!opc.length) break;
       const ws = opc.map(x => peso(x) * (tipos.has(tipoDe(x.p)) ? 0.3 : 1));
       let r = Math.random() * ws.reduce((a, b) => a + b, 0), k = 0;
       while (r > ws[k] && k < ws.length - 1) { r -= ws[k]; k++; }
       elegidos.push(opc[k]); tipos.add(tipoDe(opc[k].p)); resta -= opc[k].precio;
-      if (resta < presupuesto * 0.1) break;
+      if (resta < presupuesto * 0.08) break;
     }
     if (!elegidos.length) continue;
     const gastado = presupuesto - resta;
     const puntos = (gastado / presupuesto) * 10 + tipos.size * 0.9 + (elegidos.length >= 2 ? 1.2 : 0) + elegidos.reduce((a, x) => a + peso(x), 0) / elegidos.length * 0.25 + Math.random() * 0.8;
-    if (puntos > mejorPuntos) { mejorPuntos = puntos; mejor = elegidos; }
+    pruebas.push({ elegidos, puntos, clave: elegidos.map(x => x.p.id).sort().join(",") });
   }
-  return mejor || [];
+  if (!pruebas.length) return [];
+  // Al azar entre las mejores combinaciones distintas (y, si se pide "otra", distinta de la anterior)
+  const antes = [...evitar].sort().join(",");
+  const unicas = [...new Map(pruebas.sort((a, b) => b.puntos - a.puntos).map(x => [x.clave, x])).values()];
+  const buenas = unicas.filter(x => x.puntos >= unicas[0].puntos - 2.5 && x.clave !== antes).slice(0, 5);
+  const lista = buenas.length ? buenas : unicas;
+  return lista[Math.floor(Math.random() * lista.length)].elegidos;
 }
 
 // Pagina del sector de regalos
@@ -24713,19 +24738,27 @@ function TwRegalos({ r, tienda, modo, setModo, productos, dispo, foto, ciudades,
     if (p.variantes) { const v = p.variantes.find(v => dispo(p, v) > 0); return v ? { p, v, precio: p.precio } : null; }
     return dispo(p) > 0 && p.precio > 0 ? { p, v: null, precio: p.precio } : null;
   }).filter(Boolean);
-  const tiposHay = TW_FILTROS[0].op.map(o => ({ v: o[0], t: o[1], n: cands.filter(x => (x.p._et.tipo || []).includes(o[0])).length })).filter(o => o.n > 0);
-  const porTipo = tiposHay.length >= 3;
-  const gustosOp = porTipo ? tiposHay.map(o => [o.v, o.t]) : [...new Set(cands.map(x => x.p.categoria).filter(Boolean))].sort().slice(0, 14).map(c => [c, c]);
+  // "¿Qué le gusta?": los sectores del menu de la tienda (ej: Facial, Perfumes, Capilar, Accesorios) y las categorias sueltas
+  const sectoresR = (tienda.sectores || []).filter(sc => cands.some(x => sc.productos.includes(x.p.id) || sc.categorias.includes(x.p.categoria)));
+  const enSectorR = (sc, p) => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria);
+  const catsSueltas = [...new Set(cands.map(x => x.p.categoria).filter(Boolean))].filter(c => !sectoresR.some(sc => sc.categorias.includes(c))).sort();
+  const gustosOp = [...sectoresR.map(sc => ["s:" + sc.id, sc.nombre]), ...catsSueltas.map(c => [c, c])].slice(0, 16);
+  const gustaFn = (p, g) => g.startsWith("s:") ? (() => { const sc = sectoresR.find(x => "s:" + x.id === g); return !!sc && enSectorR(sc, p); })() : p.categoria === g;
+  // Si marca algo facial (por el nombre o porque son productos de skincare), se pregunta el tipo de piel
+  const FACIALES = ["limpiador", "desmaquillante", "tonico", "serum", "hidratante", "solar", "ojos", "exfoliante", "mascarilla"];
+  const esFacial = (g) => { const n = twNorm((gustosOp.find(o => o[0] === g) || ["", ""])[1]); if (/facial|skin ?care|rostro|cara|cutis|dermo/.test(n)) return true;
+    const ps = cands.filter(x => gustaFn(x.p, g)); return ps.length > 0 && ps.filter(x => (x.p._et.tipo || []).some(t => FACIALES.includes(t))).length / ps.length >= 0.6; };
   const [arm, setArm] = useState({ para: "", pres: r.presupuestos[1] || r.presupuestos[0], otro: "", gustos: [], piel: "" });
   const [armando, setArmando] = useState(false);
   const [regalo, setRegalo] = useState(null); // [{ p, v, precio }]
   const [tarjeta, setTarjeta] = useState({ envolver: true, mensaje: "" });
   const pres = arm.pres === "otro" ? Math.round(Number(arm.otro) || 0) : arm.pres;
+  const conPiel = arm.gustos.some(esFacial);
   const armar = (evitar) => {
     if (!pres) return;
     setArmando(true); setRegalo(null); twSonar.pop();
     setTimeout(() => {
-      const res = twArmarRegalo(cands, pres, arm.gustos, arm.piel, evitar || []);
+      const res = twArmarRegalo(cands, pres, arm.gustos, conPiel ? arm.piel : "", evitar || [], gustaFn);
       setRegalo(res); setArmando(false);
       if (res.length) { twSonar.brillo(); twVibrar([10, 30, 10]); }
       setTimeout(() => { const el = document.querySelector(".tw-rg-resultado"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 60);
@@ -24735,9 +24768,11 @@ function TwRegalos({ r, tienda, modo, setModo, productos, dispo, foto, ciudades,
     const actual = regalo[i]; const resto = regalo.reduce((a, x, k) => k === i ? a : a + x.precio, 0);
     const opc = cands.filter(x => !regalo.some(y => y.p.id === x.p.id) && x.precio <= pres - resto);
     if (!opc.length) return;
-    const mismos = opc.filter(x => (x.p._et.tipo || [])[0] && (x.p._et.tipo || [])[0] === (actual.p._et.tipo || [])[0]);
-    const lista = mismos.length ? mismos : opc;
-    const nuevo = twArmarRegalo(lista, pres - resto, arm.gustos, arm.piel, [actual.p.id])[0] || lista[Math.floor(Math.random() * lista.length)];
+    const esM = twEsMascarilla(actual.p);
+    const opc2 = opc.filter(x => twEsMascarilla(x.p) === esM);
+    const mismos = opc2.filter(x => (x.p._et.tipo || [])[0] && (x.p._et.tipo || [])[0] === (actual.p._et.tipo || [])[0]);
+    const lista = mismos.length ? mismos : opc2.length ? opc2 : opc;
+    const nuevo = twArmarRegalo(lista, pres - resto, arm.gustos, conPiel ? arm.piel : "", [actual.p.id], gustaFn, false)[0] || lista[Math.floor(Math.random() * lista.length)];
     setRegalo(g => g.map((x, k) => k === i ? nuevo : x)); twSonar.pop();
   };
   const total = regalo ? regalo.reduce((a, x) => a + x.precio, 0) : 0;
@@ -24818,8 +24853,8 @@ function TwRegalos({ r, tienda, modo, setModo, productos, dispo, foto, ciudades,
               {chip(!arm.gustos.length, () => setArm(a => ({ ...a, gustos: [] })), "🎲 Sorprendeme", "_")}
               {gustosOp.map(([v, n]) => chip(arm.gustos.includes(v), () => setArm(a => ({ ...a, gustos: a.gustos.includes(v) ? a.gustos.filter(x => x !== v) : [...a.gustos, v] })), n, v))}
             </div>
-            {porTipo && <>
-              <div className="tw-rg-paso"><b>4</b> ¿Sabés su tipo de piel? <small>(elegimos productos para su piel)</small></div>
+            {conPiel && <>
+              <div className="tw-rg-paso"><b>4</b> ¿Sabés su tipo de piel? <small>(para elegir los productos faciales)</small></div>
               <div className="tw-rg-chips">{[["", "No sé"], ...TW_FILTROS[1].op.map(o => [o[0], o[1]])].map(([v, n]) => chip(arm.piel === v, () => setArm(a => ({ ...a, piel: v })), n, v || "no"))}</div>
             </>}
             <button className="tw-rg-comprar" disabled={!pres || armando} onClick={() => armar()}>{armando ? "Armando tu regalo…" : "✨ Armar el regalo"}</button>
@@ -24833,7 +24868,7 @@ function TwRegalos({ r, tienda, modo, setModo, productos, dispo, foto, ciudades,
               <div className="tw-rg-vacio"><div style={{ fontSize: 46 }}>💭</div><b>Con ese presupuesto no encontramos productos</b><small>Probá con un monto un poco más alto{r.giftcards ? " o regalá una gift card" : ""}.</small>{r.giftcards && <button className="tw-rg-b1" style={{ marginTop: 12 }} onClick={() => setModo("gift")}>🎁 Regalar una gift card</button>}</div>
             ) : (
               <div className="tw-rg-caja-res">
-                <div className="tw-rg-res-cab"><span>🎁</span><div><b>{arm.para ? "El regalo para " + arm.para : "Tu regalo"}</b><small>{regalo.length} {regalo.length === 1 ? "producto" : "productos"} · {fmtTienda(total)} de {fmtTienda(pres)}{arm.piel ? " · para piel " + (TW_FILTROS[1].op.find(o => o[0] === arm.piel) || ["", ""])[1].toLowerCase() : ""}</small></div></div>
+                <div className="tw-rg-res-cab"><span>🎁</span><div><b>{arm.para ? "El regalo para " + arm.para : "Tu regalo"}</b><small>{regalo.length} {regalo.length === 1 ? "producto" : "productos"} · {fmtTienda(total)} de {fmtTienda(pres)}{conPiel && arm.piel ? " · para piel " + (TW_FILTROS[1].op.find(o => o[0] === arm.piel) || ["", ""])[1].toLowerCase() : ""}</small></div></div>
                 <div className="tw-rg-barra"><span style={{ width: Math.min(100, Math.round(total / pres * 100)) + "%" }} /></div>
                 {regalo.map((x, i) => (
                   <div key={x.p.id} className="tw-rg-item" style={{ animationDelay: (i * 0.12) + "s" }}>
@@ -24925,6 +24960,10 @@ function TiendaPublica({ slug }) {
   const [cuponIn, setCuponIn] = useState("");
   const [cuponOk, setCuponOk] = useState(null);
   const [avisoCupon, setAvisoCupon] = useState("");
+  // Gift card para pagar en la tienda
+  const [gcIn, setGcIn] = useState("");
+  const [gcOk, setGcOk] = useState(null); // { codigo, saldo }
+  const [avisoGc, setAvisoGc] = useState("");
   // Recomendaciones segun lo que compran juntas las clientas
   const [recs, setRecs] = useState({});
   const [carrito, setCarrito] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_carrito_" + slug) || "[]"); } catch (e) { return []; } });
@@ -25165,8 +25204,19 @@ function TiendaPublica({ slug }) {
   const descuentoCupon = cuponOk ? Math.round(Math.min(subtotal, cuponOk.tipo === "%" ? subtotal * cuponOk.valor / 100 : cuponOk.valor)) : 0;
   // Descuento por forma de pago (configurado en Lumiere; el servidor lo vuelve a calcular)
   const descPagos = tienda.descuentos_pago || {};
-  const pctPago = datos.pago ? (descPagos[datos.pago] || 0) : 0;
+  // Gift card para pagar (se valida en el servidor y se vuelve a revisar al hacer el pedido)
+  const gcCubre = !!gcOk && gcOk.saldo >= subtotal - descuentoCupon + costoEnvio;
+  const pctPago = datos.pago && !gcCubre ? (descPagos[datos.pago] || 0) : 0;
   const descuentoPago = pctPago ? Math.round((subtotal - descuentoCupon) * pctPago / 100) : 0;
+  const totalConDesc = subtotal - descuentoCupon - descuentoPago + costoEnvio;
+  const gcUsa = gcOk ? Math.min(gcOk.saldo, totalConDesc) : 0;
+  const totalPagar = Math.max(0, totalConDesc - gcUsa);
+  const aplicarGc = async () => {
+    const c = gcIn.trim(); if (!c) return;
+    setAvisoGc("");
+    try { const r = await pedir("/giftcard/" + encodeURIComponent(c)); setGcOk(r); setGcIn(r.codigo); twSonar.brillo(); twVibrar([8, 30, 8]); }
+    catch (e) { setGcOk(null); setAvisoGc(e.message); }
+  };
   const NOMBRE_PAGO = { mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia", retiro: "pago al retirar" };
   const aplicarCupon = async (cod) => {
     const c = String(cod || cuponIn).trim();
@@ -25179,8 +25229,8 @@ function TiendaPublica({ slug }) {
     setAviso(""); setEnviando(true);
     try { localStorage.setItem("tienda_datos", JSON.stringify({ nombre: datos.nombre, telefono: datos.telefono, email: datos.email, direccion: datos.direccion })); } catch (e) {}
     try {
-      const r = await pedir("/pedidos", { method: "POST", body: JSON.stringify({ ...datos, local_id: lid, items: carrito, cupon: cuponOk ? cuponOk.codigo : null, volver_a: window.location.href }) });
-      setCarrito([]); setCuponOk(null); setCuponIn("");
+      const r = await pedir("/pedidos", { method: "POST", body: JSON.stringify({ ...datos, pago: gcCubre ? "giftcard" : datos.pago, giftcard: gcOk ? gcOk.codigo : null, local_id: lid, items: carrito, cupon: cuponOk ? cuponOk.codigo : null, volver_a: window.location.href }) });
+      setCarrito([]); setCuponOk(null); setCuponIn(""); setGcOk(null); setGcIn("");
       if (r.link_pago) { window.location.href = r.link_pago; return; }
       window.location.href = (modoRuta ? "/" : window.location.pathname) + "?tienda=" + encodeURIComponent(slug) + "&pedido=" + r.codigo;
     } catch (e) { setAviso(e.message); }
@@ -25323,6 +25373,7 @@ function TiendaPublica({ slug }) {
               {pedido.items.some(i => i.preventa) && !["cancelado", "entregado"].includes(pedido.estado) && <div className="tw-preventa-aviso"><b>⏳ Esperando que llegue tu preventa</b><span>Algunos productos todavía no llegaron al local. Te avisamos por WhatsApp apenas estén para que retires todo junto.</span></div>}
               {pedido.items.map((i, k) => <div key={k} className="tw-linea"><span>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""}{i.preventa ? <span className="tw-item-pre" style={{ display: "inline-block", marginLeft: 6 }}>⏳ preventa</span> : null}</span><span>{fmtTienda(i.precio * i.cantidad)}</span></div>)}
               {pedido.descuento > 0 && <div className="tw-linea" style={{ color: "#2d7a4f" }}><span>Descuento{pedido.cupon ? " (" + pedido.cupon + ")" : ""}</span><span>−{fmtTienda(pedido.descuento)}</span></div>}
+              {pedido.gc_usado && <div className="tw-linea" style={{ color: "#2d7a4f" }}><span>🎁 Pagado con gift card ({pedido.gc_usado.codigo})</span><span>−{fmtTienda(pedido.gc_usado.monto)}</span></div>}
               {pedido.costo_envio > 0 && <div className="tw-linea"><span>Envío</span><span>{fmtTienda(pedido.costo_envio)}</span></div>}
               <div className="tw-linea" style={{ fontWeight: 800, fontSize: 18, borderTop: "1px solid #e6e6e6", marginTop: 8, paddingTop: 10 }}><span>Total</span><span>{fmtTienda(pedido.total)}</span></div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 18 }}>
@@ -25407,7 +25458,7 @@ function TiendaPublica({ slug }) {
   const tarjeta = (p) => <TwTarjeta key={p.id} p={p} base={base} sin={agotado(p)} preventa={esPreventa(p)} fav={favs.includes(p.id)} onFav={toggleFav} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
   const opcionesPago = [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["gocuotas", "💜 GoCuotas", "Hasta 4 cuotas sin interés con tu tarjeta de débito"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar"], ["retiro", "💵 Pago al retirar", "Pagás en el local"]]
     .filter(([k]) => tienda.pagos[k] && !(k === "retiro" && datos.entrega === "envio"));
-  const listoParaPedir = lid && datos.nombre && datos.telefono && datos.entrega && datos.pago && (datos.entrega === "retiro" ? retiroAca.length > 0 : (zona && datos.direccion));
+  const listoParaPedir = lid && datos.nombre && datos.telefono && datos.entrega && (datos.pago || gcCubre) && (datos.entrega === "retiro" ? retiroAca.length > 0 : (zona && datos.direccion));
   const problemas = carrito.filter(i => i.cantidad > maxDeItem(i));
   const ajustarCarrito = () => setCarrito(c => c.map(i => ({ ...i, cantidad: Math.min(i.cantidad, maxDeItem(i)) })).filter(i => i.cantidad > 0));
   const vidVer = ver && ver.video ? (ver.video.tipo === "youtube" ? { iframe: "https://www.youtube-nocookie.com/embed/" + ver.video.id + "?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1" }
@@ -25963,8 +26014,21 @@ function TiendaPublica({ slug }) {
                       <input className="tw-inp" placeholder="Dirección (calle, número, depto, referencias)" autoComplete="street-address" value={datos.direccion || ""} onChange={e => setDatos(d => ({ ...d, direccion: e.target.value }))} />
                     </>
                   )}
-                  <div className="tw-lbl">¿Cómo pagás?</div>
-                  {opcionesPago.map(([k, t, d]) => <button key={k} className={"tw-op" + (datos.pago === k ? " on" : "")} onClick={() => setDatos(x => ({ ...x, pago: k }))}><b>{t}</b>{descPagos[k] > 0 && <span className="tw-op-off">{String(descPagos[k]).replace(".", ",")}% OFF</span>}<div style={{ fontSize: 13, color: "#666" }}>{d}</div></button>)}
+                  <div className="tw-lbl">¿Tenés una gift card?</div>
+                  {gcOk ? (
+                    <div className="tw-cupon" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "10px 12px" }}>
+                      <span style={{ fontSize: 13.5 }}>🎁 <b>{gcOk.codigo}</b> · saldo {fmtTienda(gcOk.saldo)}{gcUsa < gcOk.saldo ? " · te quedan " + fmtTienda(gcOk.saldo - gcUsa) : ""}</span>
+                      <button className="tw-btn2" style={{ padding: "5px 10px", fontSize: 11 }} onClick={() => { setGcOk(null); setGcIn(""); }}>Quitar</button>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <input className="tw-inp" style={{ textTransform: "uppercase" }} placeholder="Ej: GIFT-AB12CD" value={gcIn} onChange={e => setGcIn(e.target.value)} onKeyDown={e => { if (e.key === "Enter") aplicarGc(); }} aria-label="Código de la gift card" />
+                      <button className="tw-btn2" disabled={!gcIn.trim()} onClick={aplicarGc}>Usar</button>
+                    </div>
+                  )}
+                  {avisoGc && <div style={{ color: "#c0392b", fontSize: 13, marginTop: 6 }}>{avisoGc}</div>}
+                  <div className="tw-lbl">{gcOk && !gcCubre ? "¿Cómo pagás el resto (" + fmtTienda(totalPagar) + ")?" : "¿Cómo pagás?"}</div>
+                  {gcCubre ? <div className="tw-cupon" style={{ padding: "10px 12px", fontSize: 14 }}>✓ <b>Lo pagás todo con tu gift card.</b> No hace falta otra forma de pago.</div> : opcionesPago.map(([k, t, d]) => <button key={k} className={"tw-op" + (datos.pago === k ? " on" : "")} onClick={() => setDatos(x => ({ ...x, pago: k }))}><b>{t}</b>{descPagos[k] > 0 && <span className="tw-op-off">{String(descPagos[k]).replace(".", ",")}% OFF</span>}<div style={{ fontSize: 13, color: "#666" }}>{d}</div></button>)}
                   <div className="tw-lbl">¿Tenés un código de descuento?</div>
                   {cuponOk ? (
                     <div className="tw-cupon" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "10px 12px" }}>
@@ -25988,12 +26052,13 @@ function TiendaPublica({ slug }) {
                   {descuentoCupon > 0 && <div key={"d" + cuponOk.codigo} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>✨ Descuento ({cuponOk.codigo})</span><span>−<TwRueda valor={descuentoCupon} formato={fmtTienda} dur={1000} /></span></div>}
                   {descuentoPago > 0 && <div key={"p" + datos.pago} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>💸 {String(pctPago).replace(".", ",")}% OFF por {NOMBRE_PAGO[datos.pago]}</span><span>−<TwRueda valor={descuentoPago} formato={fmtTienda} dur={800} /></span></div>}
                   {datos.entrega === "envio" && <div className="tw-linea"><span>Envío</span><span>{zona ? (costoEnvio ? fmtTienda(costoEnvio) : "Gratis") : "—"}</span></div>}
-                  <div className="tw-linea" style={{ fontWeight: 800, fontSize: 19, marginBottom: 12 }}><span>Total</span><span><TwRueda key={"t" + (cuponOk ? cuponOk.codigo : "") + datos.pago} valor={subtotal - descuentoCupon - descuentoPago + costoEnvio} desde={subtotal + costoEnvio} formato={fmtTienda} dur={1000} /></span></div>
+                  {gcUsa > 0 && <div key={"g" + gcOk.codigo} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>🎁 Gift card ({gcOk.codigo})</span><span>−<TwRueda valor={gcUsa} formato={fmtTienda} dur={900} /></span></div>}
+                  <div className="tw-linea" style={{ fontWeight: 800, fontSize: 19, marginBottom: 12 }}><span>{gcUsa > 0 ? "Total a pagar" : "Total"}</span><span><TwRueda key={"t" + (cuponOk ? cuponOk.codigo : "") + datos.pago + (gcOk ? gcOk.codigo : "")} valor={totalPagar} desde={subtotal + costoEnvio} formato={fmtTienda} dur={1000} /></span></div>
                   {logueada && <TwPuntos monto={subtotal - descuentoCupon} tengo={miCuenta ? (miCuenta.puntos || 0) : null} />}
                   {tienda.ruleta && tienda.ruleta.aviso && <TwRuletaAviso monto={subtotal - descuentoCupon} minimo={tienda.ruleta.minimo} />}
                   <div style={{ display: "flex", gap: 8 }}>
                     <button className="tw-btn2" onClick={() => setPaso("carrito")}>Atrás</button>
-                    <button className="tw-btn full" disabled={!listoParaPedir || enviando} onClick={confirmar}>{enviando ? "Enviando…" : datos.pago === "mp" || datos.pago === "gocuotas" ? "Ir a pagar" : "Hacer el pedido"}</button>
+                    <button className="tw-btn full" disabled={!listoParaPedir || enviando} onClick={confirmar}>{enviando ? "Enviando…" : !gcCubre && (datos.pago === "mp" || datos.pago === "gocuotas") ? "Ir a pagar" : "Hacer el pedido"}</button>
                   </div>
                 </div>
               </>
@@ -26641,7 +26706,7 @@ const ESTADOS_TIENDA = {
   pendiente_pago: { t: "Esperando pago", c: "#b7950b" }, confirmado: { t: "Nuevo · para preparar", c: "#2471a3" }, preparado: { t: "Listo para entregar", c: "#8e44ad" },
   en_caja: { t: "En la caja", c: "#d35400" }, entregado: { t: "Entregado", c: "#2d7a4f" }, cancelado: { t: "Cancelado", c: "#95a5a6" },
 };
-const PAGO_TIENDA = { mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "Transferencia", retiro: "Paga al retirar" };
+const PAGO_TIENDA = { mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "Transferencia", retiro: "Paga al retirar", giftcard: "Gift card" };
 
 // ---- Lumiere: clientas de la tienda web (avisos de reposicion, carritos sin terminar, analisis de favoritos) ----
 const MSJ_CARRITO = "Hola {nombre}! 🛍️ Te quedaron estos productos en el carrito de {tienda}: {productos} ({total}). ¿Te ayudo a terminar la compra? {link}";
@@ -27343,6 +27408,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                       {p.items.map(i => <div key={i.id}>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""} <span style={{ color: temaPal.textMuted }}>· {fmt(i.precio * i.cantidad)}</span>{i.preventa && <span className="tag" style={{ marginLeft: 6, background: "#ffd23f33", color: temaPal.warn, fontWeight: 800 }}>⏳ preventa · esperando ingreso</span>}</div>)}
                       {parseFloat(p.descuento) > 0 && <div style={{ color: temaPal.green }}>Descuento{p.cupon ? " (" + p.cupon + ")" : ""} · −{fmt(parseFloat(p.descuento))}</div>}
                       {parseFloat(p.descuento_pago) > 0 && <div style={{ color: temaPal.green }}>{parseFloat(p.descuento_pago_pct)}% OFF por {PAGO_TIENDA[p.pago]} · −{fmt(parseFloat(p.descuento_pago))}</div>}
+                      {parseFloat(p.gc_usado_monto) > 0 && <div style={{ color: temaPal.green }}>🎁 Pagó {fmt(parseFloat(p.gc_usado_monto))} con la gift card {p.gc_usado_codigo} (ya descontada del saldo)</div>}
                       {p.costo_envio > 0 && <div style={{ color: temaPal.textMuted }}>Envío · {fmt(p.costo_envio)}</div>}
                     </div>
                     {!cerrado && (

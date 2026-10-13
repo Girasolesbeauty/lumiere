@@ -813,6 +813,9 @@ router.put('/pedidos/:id/vendido', async (req, res) => {
   try {
     await pool.query(`UPDATE tienda_pedidos SET estado = 'entregado', venta_id = $1, pagado = TRUE, actualizado_en = NOW() WHERE id = $2 AND estado <> 'cancelado'`,
       [parseInt(req.body && req.body.venta_id) || null, req.params.id]);
+    // Lo pagado con gift card en la tienda queda atado a esa venta (el saldo ya se desconto al hacer el pedido)
+    await pool.query(`UPDATE gift_card_movimientos SET venta_id = $1 WHERE id = (SELECT gc_mov_id FROM tienda_pedidos WHERE id = $2) AND venta_id IS NULL`,
+      [parseInt(req.body && req.body.venta_id) || null, req.params.id]).catch(() => {});
     // Cupon ganado en la ruleta con este pedido: ya se puede usar, por 30 dias desde hoy
     await pool.query(`UPDATE cupones SET activo = TRUE, fecha_vencimiento = CURRENT_DATE + 30 WHERE codigo = (SELECT cupon FROM tienda_ruleta WHERE pedido_id = $1)
       AND EXISTS (SELECT 1 FROM tienda_pedidos WHERE id = $1 AND estado = 'entregado')`, [req.params.id]).catch(() => {});

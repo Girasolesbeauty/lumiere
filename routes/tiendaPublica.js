@@ -172,6 +172,11 @@ router.get('/:slug/productos', async (req, res) => {
       WHERE vi.producto_id = ANY($1::int[]) AND v.creado_en > NOW() - INTERVAL '30 days' AND ${VENTA_VALIDA} GROUP BY vi.producto_id HAVING SUM(vi.cantidad) >= 2 ORDER BY n DESC LIMIT 10`,
       [r.rows.filter(p => p.publicado).map(p => p.id)]).catch(() => ({ rows: [] }))).rows;
     const puesto = new Map(ventas30.map((x, i) => [x.producto_id, i + 1]));
+    // Ranking de lo mas vendido de los ultimos 90 dias (solo el puesto, no las cantidades): lo usa el armador de regalos
+    const ventas90 = (await pool.query(`SELECT vi.producto_id FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id
+      WHERE vi.producto_id = ANY($1::int[]) AND v.creado_en > NOW() - INTERVAL '90 days' AND ${VENTA_VALIDA} GROUP BY vi.producto_id ORDER BY SUM(vi.cantidad) DESC LIMIT 200`,
+      [r.rows.filter(p => p.publicado).map(p => p.id)]).catch(() => ({ rows: [] }))).rows;
+    const ranking = new Map(ventas90.map((x, i) => [x.producto_id, i + 1]));
     // Estrellas de cada producto (solo reseñas aprobadas)
     const notas = new Map((await pool.query(`SELECT producto_id, ROUND(AVG(estrellas)::numeric, 1)::float AS prom, COUNT(*)::int AS n FROM tienda_resenas WHERE estado = 'aprobada' GROUP BY producto_id`)
       .catch(() => ({ rows: [] }))).rows.map(x => [x.producto_id, [x.prom, x.n]]));
@@ -179,7 +184,7 @@ router.get('/:slug/productos', async (req, res) => {
       const v = vars.filter(x => x.producto_id === p.id).map(x => ({ id: x.id, valor: x.valor, stock: { 1: Math.max(0, x.stock_rg), 2: Math.max(0, x.stock_ush) } }));
       return {
         id: p.id, nombre: p.nombre, marca: p.marca, categoria: p.categoria, precio: num(p.precio), descripcion: p.descripcion || '', foto: !!p.foto,
-        destacado: !!p.destacado, nuevo: !!p.nuevo, etiquetas: p.etiquetas || null, top: puesto.get(p.id) || null, resenas: notas.get(p.id) || null, fotos: p.fotos_extra || [], reingreso: p.reingreso || null, foto_v: p.foto_v ? Number(p.foto_v) : null,
+        destacado: !!p.destacado, nuevo: !!p.nuevo, etiquetas: p.etiquetas || null, top: puesto.get(p.id) || null, rk: ranking.get(p.id) || null, resenas: notas.get(p.id) || null, fotos: p.fotos_extra || [], reingreso: p.reingreso || null, foto_v: p.foto_v ? Number(p.foto_v) : null,
         video: p.video_subido ? { tipo: 'subido' } : tienda.videoDeLink(p.video_url),
         variantes: p.tiene_variantes && v.length ? v : null,
         // Para vender ya: stock menos lo reservado por preventas (solo si esta publicado)
@@ -251,6 +256,29 @@ router.get('/:slug/cupon/:codigo', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'No se pudo revisar el código' }); }
 });
 
+// Gift card para pagar en la tienda: devuelve el saldo. Con limite de intentos por IP y en total (para que no
+// se puedan probar codigos al azar).
+const fallasGcTotal = { n: 0, desde: Date.now() };
+const gcBloqueada = (k) => { if (Date.now() - fallasGcTotal.desde > 3600e3) { fallasGcTotal.n = 0; fallasGcTotal.desde = Date.now(); } return fallasGcTotal.n > 300 || cuentas.bloqueado(k); };
+const gcFallo = (k) => { fallasGcTotal.n++; cuentas.sumarIntento(k); };
+async function giftCardParaUsar(db, codigo, bloquear) {
+  const cod = String(codigo || '').trim().toUpperCase().slice(0, 30);
+  if (!cod) return null;
+  const g = (await db.query('SELECT id, codigo, saldo, estado, COALESCE(anulada, FALSE) AS anulada FROM gift_cards WHERE UPPER(codigo) = $1' + (bloquear ? ' FOR UPDATE' : ''), [cod])).rows[0];
+  if (!g || g.anulada) return { error: 'Esa gift card no existe. Revisá el código.' };
+  if (g.estado === 'agotada' || num(g.saldo) <= 0) return { error: 'Esa gift card ya no tiene saldo' };
+  return { id: g.id, codigo: g.codigo, saldo: num(g.saldo) };
+}
+router.get('/:slug/giftcard/:codigo', async (req, res) => {
+  const k = 'gc:' + (req.ip || '');
+  try {
+    if (gcBloqueada(k)) return res.status(429).json({ error: 'Demasiados intentos. Esperá unos minutos.' });
+    const g = await giftCardParaUsar(pool, req.params.codigo, false);
+    if (!g || g.error) { gcFallo(k); return res.status(400).json({ error: (g && g.error) || 'Código inválido' }); }
+    res.json({ codigo: g.codigo, saldo: g.saldo });
+  } catch (e) { res.status(500).json({ error: 'No se pudo revisar la gift card' }); }
+});
+
 // Video subido del sector de videos
 router.get('/:slug/reel/:id', async (req, res) => {
   try { await tienda.servirVideo(req, res, 'tienda_reels', 'id', parseInt(req.params.id)); } catch (e) { res.status(404).end(); }
@@ -297,7 +325,8 @@ router.post('/:slug/pedidos', async (req, res) => {
     if (direccion.length < 5) return res.status(400).json({ error: 'Escribí la dirección de entrega' });
     localId = z.local; zona = z.nombre; costoEnvio = Math.max(0, num(z.costo));
   }
-  const pago = ['mp', 'transferencia', 'retiro', 'gocuotas'].includes(b.pago) ? b.pago : null;
+  let pago = ['mp', 'transferencia', 'retiro', 'gocuotas'].includes(b.pago) ? b.pago : b.giftcard && b.pago === 'giftcard' ? 'giftcard' : null;
+  if (b.giftcard && gcBloqueada('gc:' + ip)) return res.status(429).json({ error: 'Demasiados intentos con gift cards. Esperá unos minutos.' });
   if (!pago || (pago === 'gocuotas' && !(c.pago_gocuotas && await gocuotas.conectado())) || (pago === 'mp' && !(c.pago_mp && await mpDisponible())) || (pago === 'transferencia' && !c.pago_transferencia) || (pago === 'retiro' && !c.pago_retiro)) return res.status(400).json({ error: 'Elegí cómo vas a pagar' });
   const items = (Array.isArray(b.items) ? b.items : []).slice(0, 50).map(it => ({ producto_id: parseInt(it.producto_id), variante_id: parseInt(it.variante_id) || null, cantidad: Math.min(99, Math.max(1, parseInt(it.cantidad) || 1)), preventa: !!it.preventa && !parseInt(it.variante_id) })).filter(it => it.producto_id);
   if (!items.length) return res.status(400).json({ error: 'El carrito está vacío' });
@@ -339,12 +368,26 @@ router.post('/:slug/pedidos', async (req, res) => {
       if (cupon) await client.query('UPDATE cupones SET usos = COALESCE(usos, 0) + 1 WHERE codigo = $1', [cupon.codigo]);
     }
     const descuento = cupon ? cupon.descuento : 0;
+    // Gift card: si cubre todo, no hace falta otra forma de pago (ni corre su descuento)
+    let gc = null, gcUsa = 0;
+    if (b.giftcard) {
+      gc = await giftCardParaUsar(client, b.giftcard, true);
+      if (!gc || gc.error) { await client.query('ROLLBACK'); gcFallo('gc:' + ip); return res.status(400).json({ error: (gc && gc.error) || 'Revisá el código de la gift card' }); }
+      if (gc.saldo >= subtotal - descuento + costoEnvio) pago = 'giftcard';
+    }
     // Descuento por la forma de pago elegida (sobre los productos, despues del cupon; no sobre el envio)
     const pctPago = tienda.descuentosPagoDe(c)[pago] || 0;
     const descuentoPago = pctPago ? Math.round((subtotal - descuento) * pctPago / 100) : 0;
-    const total = Math.round((subtotal - descuento - descuentoPago + costoEnvio) * 100) / 100;
+    let total = Math.round((subtotal - descuento - descuentoPago + costoEnvio) * 100) / 100;
+    // Gift card: paga lo que alcance (se descuenta ahora; si el pedido se cancela, vuelve)
+    if (gc) {
+      gcUsa = Math.round(Math.min(gc.saldo, total) * 100) / 100;
+      total = Math.round((total - gcUsa) * 100) / 100;
+    }
+    if (total <= 0 && gc) pago = 'giftcard';
+    else if (pago === 'giftcard') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'La gift card no alcanza: elegí cómo pagás el resto (' + '$' + Math.round(total).toLocaleString('es-AR') + ')' }); }
     const codigo = crypto.randomBytes(4).toString('hex').toUpperCase();
-    const estado = pago === 'retiro' ? 'confirmado' : 'pendiente_pago';
+    const estado = pago === 'retiro' || pago === 'giftcard' ? 'confirmado' : 'pendiente_pago';
     const horas = pago === 'mp' || pago === 'gocuotas' ? 2 : Math.min(168, Math.max(1, parseInt(c.horas_reserva) || 24));
     // Con preventa, "paga al retirar" no vence hasta que llega (se renueva al marcar "Llegó la preventa")
     const conPreventa = lineas.some(l => l.preventa);
@@ -353,6 +396,14 @@ router.post('/:slug/pedidos', async (req, res) => {
       [codigo, clienteId, nombre, telefono, email, entrega, localId, direccion, zona, costoEnvio, pago, subtotal, total, String(b.nota || '').trim().slice(0, 500) || null, estado, String(horas),
        cupon ? cupon.codigo : null, cupon ? cupon.tipo : null, cupon ? cupon.valor : null, descuento, conPreventa])).rows[0];
     if (descuentoPago) await client.query('UPDATE tienda_pedidos SET descuento_pago = $1, descuento_pago_pct = $2 WHERE id = $3', [descuentoPago, pctPago, pedido.id]);
+    if (gc && gcUsa > 0) {
+      const nuevo = Math.round((gc.saldo - gcUsa) * 100) / 100;
+      await client.query(`UPDATE gift_cards SET saldo = $1, estado = $2 WHERE id = $3`, [nuevo, nuevo <= 0 ? 'agotada' : 'activa', gc.id]);
+      const mov = (await client.query(`INSERT INTO gift_card_movimientos (gift_card_id, tipo, importe, saldo_resultante) VALUES ($1, 'canje', $2, $3) RETURNING id`, [gc.id, gcUsa, nuevo])).rows[0];
+      await client.query(`UPDATE tienda_pedidos SET gc_usado_id = $1, gc_usado_codigo = $2, gc_usado_monto = $3, gc_mov_id = $4,
+        pagado = CASE WHEN pago = 'giftcard' THEN TRUE ELSE pagado END, pagado_en = CASE WHEN pago = 'giftcard' THEN NOW() ELSE pagado_en END,
+        vence_en = CASE WHEN pago = 'giftcard' THEN NULL ELSE vence_en END WHERE id = $5`, [gc.id, gc.codigo, gcUsa, mov.id, pedido.id]);
+    }
     for (const l of lineas) {
       await client.query('INSERT INTO tienda_pedido_items (pedido_id, producto_id, variante_id, nombre, variante_valor, cantidad, precio, preventa) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
         [pedido.id, l.producto_id, l.variante_id, l.nombre, l.variante_valor, l.cantidad, l.precio, !!l.preventa]);
@@ -520,6 +571,7 @@ router.get('/:slug/pedidos/:codigo', async (req, res) => {
       codigo: p.codigo, estado: p.estado, pagado: p.pagado, pago: p.pago, entrega: p.entrega, local: loc || null, direccion: p.direccion, zona: p.zona,
       subtotal: num(p.subtotal), costo_envio: num(p.costo_envio), descuento: num(p.descuento), descuento_pago: num(p.descuento_pago), descuento_pago_pct: p.descuento_pago_pct === null ? null : num(p.descuento_pago_pct), cupon: p.cupon || null, total: num(p.total), items, link_pago: p.estado === 'pendiente_pago' ? p.mp_link : null,
       vence_en: p.vence_en, transferencia: p.pago === 'transferencia' && !p.pagado ? (req.tienda.transferencia_datos || '') : null, creado_en: p.creado_en,
+      gc_usado: num(p.gc_usado_monto) > 0 ? { codigo: p.gc_usado_codigo, monto: num(p.gc_usado_monto) } : null,
       giftcard: p.tipo === 'giftcard' ? { para: p.gc_para, mensaje: p.gc_mensaje, para_telefono: p.gc_para_tel, codigo: p.gc_codigo || null, firma: p.gc_codigo ? tienda.firmaRegalo(p.gc_codigo) : null, monto: num(p.total), de: p.nombre } : null,
     });
   } catch (e) { res.status(500).json({ error: 'No se pudo consultar el pedido' }); }
