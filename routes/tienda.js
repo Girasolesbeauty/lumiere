@@ -243,7 +243,7 @@ router.put('/gocuotas', async (req, res) => {
     if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
     await gocuotas.conectar(req.body && req.body.email, req.body && req.body.password);
     res.json({ conectado: true, email: String(req.body.email || '').trim() });
-  } catch (e) { res.status(400).json({ error: e.status === 401 || e.status === 403 ? 'GoCuotas no aceptó ese mail y contraseña' : (e.message || 'No se pudo conectar con GoCuotas') }); }
+  } catch (e) { res.status(400).json({ error: e.message || 'No se pudo conectar con GoCuotas' }); }
 });
 router.delete('/gocuotas', async (req, res) => {
   try {

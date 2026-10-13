@@ -26303,11 +26303,12 @@ function GoCuotasConfig({ temaPal, avisar, activo, onActivo, esJefe }) {
   const [est, setEst] = useState(null); // { conectado, email }
   const [f, setF] = useState({ email: "", password: "" });
   const [ocupado, setOcupado] = useState(false);
+  const [error, setError] = useState("");
   useEffect(() => { API.get("/tienda/gocuotas").then(r => setEst(r.data)).catch(() => setEst({ conectado: false })); }, []);
   const conectar = async () => {
-    setOcupado(true);
+    setOcupado(true); setError("");
     try { const r = await API.put("/tienda/gocuotas", f); setEst(r.data); setF({ email: "", password: "" }); avisar(true, "✓ GoCuotas conectado. Tildá \"GoCuotas\" y guardá la configuración."); }
-    catch (e) { avisar(false, e.response?.data?.error || "No se pudo conectar con GoCuotas"); }
+    catch (e) { setError(e.response?.data?.error || "No se pudo conectar con GoCuotas"); }
     setOcupado(false);
   };
   const desconectar = async () => { if (!confirm("¿Desconectar GoCuotas? Se deja de ofrecer en la tienda.")) return; try { await API.delete("/tienda/gocuotas"); setEst({ conectado: false }); onActivo(false); avisar(true, "GoCuotas desconectado"); } catch (e) { avisar(false, "No se pudo"); } };
@@ -26329,6 +26330,7 @@ function GoCuotasConfig({ temaPal, avisar, activo, onActivo, esJefe }) {
             <button className="btn btn-p btn-sm" disabled={ocupado || !f.email || !f.password} onClick={conectar}>{ocupado ? "Conectando…" : "Conectar GoCuotas"}</button>
             <span style={{ fontSize: 11, color: tp.textMuted }}>Son los datos con los que entrás al panel de comercio de GoCuotas. Se guardan en Lumiere y no se muestran.</span>
           </div>
+          {error && <div role="alert" style={{ fontSize: 12, lineHeight: 1.5, background: tp.redDim, border: "1px solid " + tp.red, borderRadius: 8, padding: "8px 10px" }}>⚠️ {error}</div>}
         </div>
       )}
       {activo && est.conectado && <div style={{ fontSize: 11, color: tp.textMuted, margin: "4px 0 0 26px" }}>La clienta paga en la página de GoCuotas y vuelve a la tienda. El pedido se confirma solo cuando GoCuotas aprueba el pago. GoCuotas te deposita según tu acuerdo con ellos.</div>}
