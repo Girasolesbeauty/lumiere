@@ -26335,11 +26335,11 @@ function GoCuotasConfig({ temaPal, avisar, activo, onActivo, esJefe }) {
       </label>
       {!est.conectado && esJefe && (
         <div style={{ margin: "6px 0 0 26px", display: "flex", flexDirection: "column", gap: 6 }}>
-          <input className="inp" placeholder="Mail de tu cuenta de comercio de GoCuotas" value={f.email} onChange={e => setF(x => ({ ...x, email: e.target.value }))} autoComplete="off" />
+          <input className="inp" placeholder="Usuario de GoCuotas (mail o DNI/CUIT)" value={f.email} onChange={e => setF(x => ({ ...x, email: e.target.value }))} autoComplete="off" />
           <input className="inp" type="password" placeholder="Contraseña de GoCuotas" value={f.password} onChange={e => setF(x => ({ ...x, password: e.target.value }))} autoComplete="new-password" />
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <button className="btn btn-p btn-sm" disabled={ocupado || !f.email || !f.password} onClick={conectar}>{ocupado ? "Conectando…" : "Conectar GoCuotas"}</button>
-            <span style={{ fontSize: 11, color: tp.textMuted }}>Son los datos con los que entrás al panel de comercio de GoCuotas. Se guardan en Lumiere y no se muestran.</span>
+            <span style={{ fontSize: 11, color: tp.textMuted }}>Los de la integración por API que te da GoCuotas (a veces son los mismos del panel de vendedor). Se guardan en Lumiere y no se muestran.</span>
           </div>
           {error && <div role="alert" style={{ fontSize: 12, lineHeight: 1.5, background: tp.redDim, border: "1px solid " + tp.red, borderRadius: 8, padding: "8px 10px" }}>⚠️ {error}</div>}
         </div>
