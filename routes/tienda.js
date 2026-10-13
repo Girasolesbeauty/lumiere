@@ -55,7 +55,7 @@ router.put('/config', async (req, res) => {
        !!b.pago_mp, !!b.pago_transferencia, String(b.transferencia_datos || '').trim().slice(0, 300) || null, !!b.pago_retiro,
        Math.min(168, Math.max(1, parseInt(b.horas_reserva) || 24)),
        String(b.anuncios || '').split('\n').map(x => x.trim().slice(0, 90)).filter(Boolean).slice(0, 5).join('\n') || null]);
-    await pool.query('UPDATE tienda_config SET pago_gocuotas = $1 WHERE id = 1', [!!b.pago_gocuotas]);
+    await pool.query('UPDATE tienda_config SET pago_gocuotas = $1, descuentos_pago = $2 WHERE id = 1', [!!b.pago_gocuotas, JSON.stringify(tienda.descuentosPagoDe({ descuentos_pago: b.descuentos_pago }))]);
     // Dominio propio (opcional): se guarda en el registro central, junto a la direccion de la tienda
     if (b.dominio !== undefined) {
       const d = String(b.dominio || '').trim() ? tienda.limpiarDominio(b.dominio) : null;

@@ -97,6 +97,7 @@ router.get('/:slug', async (req, res) => {
       ruleta: (() => { const r = tienda.ruletaDe(c); return r.activo ? { minimo: r.minimo, aviso: r.aviso_carrito } : null; })(),
       preventa: (() => { const pv = tienda.preventaDe(c); return pv.activo ? { titulo: pv.titulo } : null; })(),
       icono_v: c.icono ? versionIcono(c.icono) : null,
+      descuentos_pago: (() => { const d = tienda.descuentosPagoDe(c); return Object.fromEntries(Object.entries(d).filter(([, v]) => v > 0)); })(),
       resenas_puntos: (() => { const r = tienda.puntosResenaDe(c); return r.activo && (r.puntos || r.extra_foto) ? { puntos: r.puntos, extra_foto: r.extra_foto } : null; })(),
     });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la tienda' }); }
@@ -330,7 +331,10 @@ router.post('/:slug/pedidos', async (req, res) => {
       if (cupon) await client.query('UPDATE cupones SET usos = COALESCE(usos, 0) + 1 WHERE codigo = $1', [cupon.codigo]);
     }
     const descuento = cupon ? cupon.descuento : 0;
-    const total = Math.round((subtotal - descuento + costoEnvio) * 100) / 100;
+    // Descuento por la forma de pago elegida (sobre los productos, despues del cupon; no sobre el envio)
+    const pctPago = tienda.descuentosPagoDe(c)[pago] || 0;
+    const descuentoPago = pctPago ? Math.round((subtotal - descuento) * pctPago / 100) : 0;
+    const total = Math.round((subtotal - descuento - descuentoPago + costoEnvio) * 100) / 100;
     const codigo = crypto.randomBytes(4).toString('hex').toUpperCase();
     const estado = pago === 'retiro' ? 'confirmado' : 'pendiente_pago';
     const horas = pago === 'mp' || pago === 'gocuotas' ? 2 : Math.min(168, Math.max(1, parseInt(c.horas_reserva) || 24));
@@ -340,6 +344,7 @@ router.post('/:slug/pedidos', async (req, res) => {
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, CASE WHEN $15 = 'pendiente_pago' OR ($11 = 'retiro' AND NOT $21::boolean) THEN NOW() + ($16 || ' hours')::interval ELSE NULL END, $17, $18, $19, $20) RETURNING *`,
       [codigo, clienteId, nombre, telefono, email, entrega, localId, direccion, zona, costoEnvio, pago, subtotal, total, String(b.nota || '').trim().slice(0, 500) || null, estado, String(horas),
        cupon ? cupon.codigo : null, cupon ? cupon.tipo : null, cupon ? cupon.valor : null, descuento, conPreventa])).rows[0];
+    if (descuentoPago) await client.query('UPDATE tienda_pedidos SET descuento_pago = $1, descuento_pago_pct = $2 WHERE id = $3', [descuentoPago, pctPago, pedido.id]);
     for (const l of lineas) {
       await client.query('INSERT INTO tienda_pedido_items (pedido_id, producto_id, variante_id, nombre, variante_valor, cantidad, precio, preventa) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
         [pedido.id, l.producto_id, l.variante_id, l.nombre, l.variante_valor, l.cantidad, l.precio, !!l.preventa]);
@@ -430,7 +435,7 @@ router.get('/:slug/pedidos/:codigo', async (req, res) => {
     res.json({
       ruleta: await estadoRuleta(req.tienda, p),
       codigo: p.codigo, estado: p.estado, pagado: p.pagado, pago: p.pago, entrega: p.entrega, local: loc || null, direccion: p.direccion, zona: p.zona,
-      subtotal: num(p.subtotal), costo_envio: num(p.costo_envio), descuento: num(p.descuento), cupon: p.cupon || null, total: num(p.total), items, link_pago: p.estado === 'pendiente_pago' ? p.mp_link : null,
+      subtotal: num(p.subtotal), costo_envio: num(p.costo_envio), descuento: num(p.descuento), descuento_pago: num(p.descuento_pago), descuento_pago_pct: p.descuento_pago_pct === null ? null : num(p.descuento_pago_pct), cupon: p.cupon || null, total: num(p.total), items, link_pago: p.estado === 'pendiente_pago' ? p.mp_link : null,
       vence_en: p.vence_en, transferencia: p.pago === 'transferencia' && !p.pagado ? (req.tienda.transferencia_datos || '') : null, creado_en: p.creado_en,
     });
   } catch (e) { res.status(500).json({ error: 'No se pudo consultar el pedido' }); }

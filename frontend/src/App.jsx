@@ -4094,7 +4094,9 @@ function POS({ localId, usuario, paletaActual }) {
       setReferenciaVenta("Tienda web " + pe.codigo);
       setPedidoWeb({ id: pe.id, codigo: pe.codigo, nombre: pe.nombre, pagado: !!pe.pagado, pago: pe.pago, total: pe.total, cupon: pe.cupon, ruleta: pe.ruleta || null });
       // Codigo de descuento usado en la tienda (ej: premio 10% off): entra como descuento general de la venta
-      if (parseFloat(pe.descuento) > 0) { setTipoDescuento(pe.cupon_tipo === "%" ? "%" : "$"); setDescuentoManual(String(pe.cupon_tipo === "%" ? parseFloat(pe.cupon_valor) : parseFloat(pe.descuento))); }
+      // (y el descuento por forma de pago: entonces va todo junto en pesos)
+      if (parseFloat(pe.descuento_pago) > 0) { setTipoDescuento("$"); setDescuentoManual(String((parseFloat(pe.descuento) || 0) + parseFloat(pe.descuento_pago))); }
+      else if (parseFloat(pe.descuento) > 0) { setTipoDescuento(pe.cupon_tipo === "%" ? "%" : "$"); setDescuentoManual(String(pe.cupon_tipo === "%" ? parseFloat(pe.cupon_valor) : parseFloat(pe.descuento))); }
       if (pe.cliente_id) API.get("/clientes").then(rc => { const c = (rc.data || []).find(x => x.id === pe.cliente_id); if (c) { setClienteSeleccionado(c); setDniInput(c.cuit_dni || ""); cargarFicha(c.id, false); } }).catch(() => {});
       const medios = (rm.data || []).filter(m => m.activo !== false);
       const medio = pe.pagado && pe.pago === "mp" ? medios.find(m => m.nombre === "Mercado Pago (tienda web)") : pe.pagado && pe.pago === "gocuotas" ? medios.find(m => m.nombre === "GoCuotas (tienda web)") : pe.pagado && pe.pago === "transferencia" ? medios.find(m => m.tipo === "transferencia") : null;
@@ -23239,6 +23241,8 @@ const CSS_TIENDA = `
 .tw-res-estado.aprobada{background:#e6f4ea;color:#2d7a4f}
 .tw-res-estado.rechazada{background:#eee;color:#777}
 .tw-form-res{max-width:480px;padding:26px}
+.tw-op-off{display:inline-block;margin-left:8px;background:#2d7a4f;color:#fff;font-size:10.5px;font-weight:800;letter-spacing:.04em;border-radius:999px;padding:2px 8px;vertical-align:2px}
+.tw-precio-pago{font-size:13px;color:#2d7a4f;font-weight:700;margin:-4px 0 10px}
 .tw-ver-video{position:absolute;left:12px;bottom:12px;z-index:2;display:inline-flex;align-items:center;gap:8px;border:none;border-radius:999px;background:rgba(17,17,17,.82) !important;color:#fff !important;font-family:inherit;font-size:12.5px;font-weight:800;letter-spacing:.04em;padding:9px 15px 9px 9px;cursor:pointer;backdrop-filter:blur(6px);box-shadow:0 4px 14px rgba(0,0,0,.25);animation:twLatido 2.4s ease-in-out infinite}
 .tw-ver-video span{width:26px;height:26px;border-radius:50%;background:#fff;color:#111;display:inline-flex;align-items:center;justify-content:center;font-size:11px;padding-left:2px}
 @keyframes twLatido{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
@@ -24517,6 +24521,11 @@ function TiendaPublica({ slug }) {
   const envioGratis = gratisDesde && subtotal >= gratisDesde;
   const costoEnvio = datos.entrega === "envio" && zona && !envioGratis ? zona.costo : 0;
   const descuentoCupon = cuponOk ? Math.round(Math.min(subtotal, cuponOk.tipo === "%" ? subtotal * cuponOk.valor / 100 : cuponOk.valor)) : 0;
+  // Descuento por forma de pago (configurado en Lumiere; el servidor lo vuelve a calcular)
+  const descPagos = tienda.descuentos_pago || {};
+  const pctPago = datos.pago ? (descPagos[datos.pago] || 0) : 0;
+  const descuentoPago = pctPago ? Math.round((subtotal - descuentoCupon) * pctPago / 100) : 0;
+  const NOMBRE_PAGO = { mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia", retiro: "pago al retirar" };
   const aplicarCupon = async (cod) => {
     const c = String(cod || cuponIn).trim();
     if (!c) return;
@@ -25162,6 +25171,7 @@ function TiendaPublica({ slug }) {
                   <h1>{ver.nombre}</h1>
                   {ver.resenas && <button className="tw-ficha-est" onClick={() => { const el = document.getElementById("tw-resenas"); el && el.scrollIntoView({ behavior: "smooth", block: "start" }); }}><TwEstrellas v={ver.resenas[0]} size={15} /> <b>{String(ver.resenas[0]).replace(".", ",")}</b> <span>({ver.resenas[1]} {ver.resenas[1] === 1 ? "reseña" : "reseñas"})</span></button>}
                   <div className="tw-precio">{fmtTienda(ver.precio)}</div>
+                  {(() => { const mejor = Object.entries(tienda.descuentos_pago || {}).filter(([k]) => tienda.pagos[k]).sort((a, b) => b[1] - a[1])[0]; return mejor ? <div className="tw-precio-pago">💸 {fmtTienda(Math.round(ver.precio * (1 - mejor[1] / 100)))} pagando con {({ mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia", retiro: "efectivo al retirar" })[mejor[0]]} ({String(mejor[1]).replace(".", ",")}% OFF)</div> : null; })()}
                   {preVer && (
                     <div className="tw-preventa-aviso" role="note">
                       <b>⏳ PREVENTA · Todavía no llegó</b>
@@ -25297,7 +25307,7 @@ function TiendaPublica({ slug }) {
                     </>
                   )}
                   <div className="tw-lbl">¿Cómo pagás?</div>
-                  {opcionesPago.map(([k, t, d]) => <button key={k} className={"tw-op" + (datos.pago === k ? " on" : "")} onClick={() => setDatos(x => ({ ...x, pago: k }))}><b>{t}</b><div style={{ fontSize: 13, color: "#666" }}>{d}</div></button>)}
+                  {opcionesPago.map(([k, t, d]) => <button key={k} className={"tw-op" + (datos.pago === k ? " on" : "")} onClick={() => setDatos(x => ({ ...x, pago: k }))}><b>{t}</b>{descPagos[k] > 0 && <span className="tw-op-off">{String(descPagos[k]).replace(".", ",")}% OFF</span>}<div style={{ fontSize: 13, color: "#666" }}>{d}</div></button>)}
                   <div className="tw-lbl">¿Tenés un código de descuento?</div>
                   {cuponOk ? (
                     <div className="tw-cupon" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "10px 12px" }}>
@@ -25319,8 +25329,9 @@ function TiendaPublica({ slug }) {
                   {carrito.some(i => i.preventa) && <div className="tw-preventa-aviso chico"><b>⏳ Tu pedido tiene productos en PREVENTA</b><span>Todavía no llegaron: te avisamos por WhatsApp cuando estén y ahí retirás todo junto.</span></div>}
                   <div className="tw-linea"><span>Productos</span><span>{fmtTienda(subtotal)}</span></div>
                   {descuentoCupon > 0 && <div key={"d" + cuponOk.codigo} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>✨ Descuento ({cuponOk.codigo})</span><span>−<TwRueda valor={descuentoCupon} formato={fmtTienda} dur={1000} /></span></div>}
+                  {descuentoPago > 0 && <div key={"p" + datos.pago} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>💸 {String(pctPago).replace(".", ",")}% OFF por {NOMBRE_PAGO[datos.pago]}</span><span>−<TwRueda valor={descuentoPago} formato={fmtTienda} dur={800} /></span></div>}
                   {datos.entrega === "envio" && <div className="tw-linea"><span>Envío</span><span>{zona ? (costoEnvio ? fmtTienda(costoEnvio) : "Gratis") : "—"}</span></div>}
-                  <div className="tw-linea" style={{ fontWeight: 800, fontSize: 19, marginBottom: 12 }}><span>Total</span><span><TwRueda key={"t" + (cuponOk ? cuponOk.codigo : "")} valor={subtotal - descuentoCupon + costoEnvio} desde={subtotal + costoEnvio} formato={fmtTienda} dur={1000} /></span></div>
+                  <div className="tw-linea" style={{ fontWeight: 800, fontSize: 19, marginBottom: 12 }}><span>Total</span><span><TwRueda key={"t" + (cuponOk ? cuponOk.codigo : "") + datos.pago} valor={subtotal - descuentoCupon - descuentoPago + costoEnvio} desde={subtotal + costoEnvio} formato={fmtTienda} dur={1000} /></span></div>
                   {logueada && <TwPuntos monto={subtotal - descuentoCupon} tengo={miCuenta ? (miCuenta.puntos || 0) : null} />}
                   {tienda.ruleta && tienda.ruleta.aviso && <TwRuletaAviso monto={subtotal - descuentoCupon} minimo={tienda.ruleta.minimo} />}
                   <div style={{ display: "flex", gap: 8 }}>
@@ -26564,6 +26575,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                     </div>
                     <div style={{ fontSize: 13, margin: "8px 0", lineHeight: 1.6 }}>
                       {p.items.map(i => <div key={i.id}>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""} <span style={{ color: temaPal.textMuted }}>· {fmt(i.precio * i.cantidad)}</span>{i.preventa && <span className="tag" style={{ marginLeft: 6, background: "#ffd23f33", color: temaPal.warn, fontWeight: 800 }}>⏳ preventa · esperando ingreso</span>}</div>)}
+                      {parseFloat(p.descuento) > 0 && <div style={{ color: temaPal.green }}>Descuento{p.cupon ? " (" + p.cupon + ")" : ""} · −{fmt(parseFloat(p.descuento))}</div>}
+                      {parseFloat(p.descuento_pago) > 0 && <div style={{ color: temaPal.green }}>{parseFloat(p.descuento_pago_pct)}% OFF por {PAGO_TIENDA[p.pago]} · −{fmt(parseFloat(p.descuento_pago))}</div>}
                       {p.costo_envio > 0 && <div style={{ color: temaPal.textMuted }}>Envío · {fmt(p.costo_envio)}</div>}
                     </div>
                     {!cerrado && (
@@ -26849,6 +26862,19 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               </div>
             )}
             <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", marginTop: 8 }}><input type="checkbox" checked={!!cfg.pago_retiro} onChange={e => set("pago_retiro", e.target.checked)} /> <b>Paga al retirar</b> <span style={{ fontSize: 12, color: temaPal.textMuted }}>(solo con retiro)</span></label>
+            {[["mp", "Mercado Pago", cfg.pago_mp], ["gocuotas", "GoCuotas", cfg.pago_gocuotas], ["transferencia", "Transferencia", cfg.pago_transferencia], ["retiro", "Paga al retirar", cfg.pago_retiro]].some(x => x[2]) && (
+              <div style={{ marginTop: 12, border: "1px solid " + temaPal.border, borderRadius: 8, padding: "10px 12px" }}>
+                <div style={{ fontWeight: 800, fontSize: 13 }}>💸 Descuento por forma de pago</div>
+                <div style={{ fontSize: 11.5, color: temaPal.textMuted, margin: "2px 0 8px" }}>Ej: 10% pagando con transferencia. Se aplica sobre los productos (después del cupón, sin contar el envío) y se ve en la tienda. Vacío = sin descuento.</div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  {[["mp", "Mercado Pago", cfg.pago_mp], ["gocuotas", "GoCuotas", cfg.pago_gocuotas], ["transferencia", "Transferencia", cfg.pago_transferencia], ["retiro", "Paga al retirar", cfg.pago_retiro]].filter(x => x[2]).map(([k, t]) => (
+                    <label key={k} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5 }}>{t}
+                      <input className="inp" type="number" min="0" max="50" step="0.5" style={{ width: 70 }} placeholder="0" value={(cfg.descuentos_pago || {})[k] || ""} onChange={e => set("descuentos_pago", { ...(cfg.descuentos_pago || {}), [k]: e.target.value === "" ? 0 : Math.min(50, Math.max(0, parseFloat(e.target.value) || 0)) })} aria-label={"Descuento " + t} />%
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
             {(cfg.pago_transferencia || cfg.pago_retiro) && <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", fontSize: 12.5, marginTop: 10, background: temaPal.bg || "transparent", border: "1px solid " + temaPal.border, borderRadius: 8, padding: "8px 10px" }}>⏰ Guardar los productos <input className="inp" type="number" min="1" max="168" style={{ width: 70 }} value={cfg.horas_reserva || 24} onChange={e => set("horas_reserva", e.target.value)} /> horas. <span style={{ color: temaPal.textMuted }}>Si en ese tiempo no paga (transferencia) o no lo retira (paga al retirar), el pedido se cancela solo y el stock vuelve. Desde el pedido le podés dar más tiempo.</span></div>}
           </CajaSeccion>}
           {it.k === "preventa" && cfg.preventa && (
