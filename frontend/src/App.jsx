@@ -19417,6 +19417,53 @@ function ControlInventario({ localId, usuario, paletaActual }) {
   );
 }
 
+// Ingresos: cuanto mandar a cada local. Se reparte de a una unidad al local que queda con menos semanas de
+// venta cubiertas (stock + en camino - reservado, sobre lo que vendio en 60 dias). Si no se vendio en ningun
+// local, se empareja el stock. d: respuesta de /ordenes-ingreso/reparto para un producto.
+function repartoRecomendado(d, total) {
+  const t = Math.max(0, parseInt(total) || 0);
+  if (!d || !t) return null;
+  const disp = { 1: d.stock[1] + d.transito[1] - d.reservado[1], 2: d.stock[2] + d.transito[2] - d.reservado[2] };
+  const vel = { 1: d.ventas60[1] / 60, 2: d.ventas60[2] / 60 };
+  const max = Math.max(vel[1], vel[2]);
+  const ef = max > 0 ? { 1: Math.max(vel[1], max * 0.1), 2: Math.max(vel[2], max * 0.1) } : { 1: 1, 2: 1 };
+  const as = { 1: 0, 2: 0 };
+  for (let k = 0; k < t; k++) {
+    const c1 = (disp[1] + as[1] + 0.5) / ef[1], c2 = (disp[2] + as[2] + 0.5) / ef[2];
+    const l = c1 < c2 || (c1 === c2 && vel[1] >= vel[2]) ? 1 : 2;
+    as[l]++;
+  }
+  const semanas = (l) => vel[l] > 0 ? (disp[l] + as[l]) / (vel[l] * 7) : null;
+  return { 1: as[1], 2: as[2], semanas: { 1: semanas(1), 2: semanas(2) }, sinVentas: max === 0 };
+}
+// Cuadrito con el stock de cada local y la recomendacion para un producto del ingreso
+function RepartoLocales({ d, total, actual, onUsar, temaPal, chico }) {
+  if (!d) return null;
+  const r = repartoRecomendado(d, total);
+  const porSemana = (n) => n / (60 / 7);
+  const igual = r && actual && r[1] === (parseInt(actual[1]) || 0) && r[2] === (parseInt(actual[2]) || 0);
+  const loc = (l) => (
+    <div key={l} style={{ flex: 1, minWidth: 0, background: temaPal.bg || "transparent", border: "1px solid " + temaPal.border, borderRadius: 8, padding: chico ? "4px 6px" : "6px 9px" }}>
+      <div style={{ fontWeight: 800, fontSize: chico ? 10.5 : 11.5 }}>📍 {nombreLocal(l)}</div>
+      <div style={{ fontSize: chico ? 10 : 11 }}>Stock <b>{d.stock[l]}</b>{d.transito[l] ? <> · en camino <b>{d.transito[l]}</b></> : null}{d.reservado[l] ? <> · reservado {d.reservado[l]}</> : null}</div>
+      <div style={{ fontSize: chico ? 10 : 11, color: temaPal.textMuted }}>Vendió {d.ventas60[l]} en 60 días{d.ventas60[l] ? " (≈" + porSemana(d.ventas60[l]).toFixed(1).replace(".0", "").replace(".", ",") + "/sem)" : ""}</div>
+    </div>
+  );
+  return (
+    <div style={{ marginTop: chico ? 4 : 8 }}>
+      <div style={{ display: "flex", gap: 6 }}>{loc(1)}{loc(2)}</div>
+      {r ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 6, background: temaPal.accent + "14", border: "1px solid " + temaPal.accent + "66", borderRadius: 8, padding: chico ? "4px 8px" : "6px 10px", fontSize: chico ? 11 : 12 }}>
+          <span>💡 Recomendado: <b>{nombreLocal(1)} {r[1]}</b> · <b>{nombreLocal(2)} {r[2]}</b>
+            {!chico && <span style={{ color: temaPal.textMuted }}>{r.sinVentas ? " — todavía no se vendió: se empareja el stock" : " — así los dos quedan cubiertos" + (r.semanas[1] && r.semanas[2] ? " ≈" + Math.round(Math.min(r.semanas[1], r.semanas[2])) + " semanas" : "")}</span>}</span>
+          {onUsar && !igual && <button className="chip-btn" style={{ fontSize: 11 }} onClick={() => onUsar(r)}>Usar</button>}
+          {igual && <span style={{ color: temaPal.green, fontWeight: 700 }}>✓</span>}
+        </div>
+      ) : !chico ? <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>Escribí la cantidad total que llegó y te digo cuánto mandar a cada local.</div> : null}
+    </div>
+  );
+}
+
 function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const localActual = Number(localId) === 2 ? "ush" : "rg";
@@ -19432,7 +19479,16 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
   const [itemsDetalle, setItemsDetalle] = useState([]);
   const [mensaje, setMensaje] = useState("");
   const [nueva, setNueva] = useState({ proveedor_id: "", numero_factura: "", total: "", notas: "", items: [] });
-  const [itemTemp, setItemTemp] = useState({ producto_id: "", cantidad_rg: "", cantidad_ush: "", costo_unitario: "" });
+  const [itemTemp, setItemTemp] = useState({ producto_id: "", cantidad_rg: "", cantidad_ush: "", costo_unitario: "", total: "" });
+  // Stock y ventas de cada local para recomendar el reparto (del producto que se esta cargando y de la factura)
+  const [repTemp, setRepTemp] = useState(null);
+  const [repFact, setRepFact] = useState({});
+  useEffect(() => {
+    if (UN_SOLO_LOCAL || !itemTemp.producto_id) { setRepTemp(null); return; }
+    let vivo = true;
+    API.get("/ordenes-ingreso/reparto", { params: { ids: itemTemp.producto_id } }).then(r => vivo && setRepTemp((r.data || [])[0] || null)).catch(() => vivo && setRepTemp(null));
+    return () => { vivo = false; };
+  }, [itemTemp.producto_id]);
   const [busquedaProd, setBusquedaProd] = useState("");
   const [conteo, setConteo] = useState({});
   const [recibidoHist, setRecibidoHist] = useState([]);
@@ -19443,6 +19499,17 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
   const [facturaItems, setFacturaItems] = useState(null);
   const [facturaProcesando, setFacturaProcesando] = useState(false);
   const [facturaBuscarProd, setFacturaBuscarProd] = useState({});
+  const idsFactura = (facturaItems || []).map(it => it.producto_id).filter(Boolean).join(",");
+  useEffect(() => {
+    if (UN_SOLO_LOCAL || !idsFactura) return;
+    let vivo = true;
+    API.get("/ordenes-ingreso/reparto", { params: { ids: idsFactura } }).then(r => vivo && setRepFact(Object.fromEntries((r.data || []).map(x => [String(x.producto_id), x])))).catch(() => {});
+    return () => { vivo = false; };
+  }, [idsFactura]);
+  const repartirFactura = () => setFacturaItems(prev => prev.map(x => {
+    const r = repartoRecomendado(repFact[String(x.producto_id)], (parseInt(x.cantidad_rg) || 0) + (parseInt(x.cantidad_ush) || 0));
+    return r ? { ...x, cantidad_rg: r[1], cantidad_ush: r[2] } : x;
+  }));
 
   const cargar = async () => {
     setLoading(true);
@@ -19489,7 +19556,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
       }
       return { ...p, items: [...p.items, { producto_id: prod.id, producto_nombre: prod.nombre, cantidad_rg: cantRg, cantidad_ush: cantUsh, cantidad_total: cantRg + cantUsh, costo_unitario: costo }] };
     });
-    setItemTemp({ producto_id: "", cantidad_rg: "", cantidad_ush: "", costo_unitario: "" });
+    setItemTemp({ producto_id: "", cantidad_rg: "", cantidad_ush: "", costo_unitario: "", total: "" });
     setMensaje("");
   };
 
@@ -19938,6 +20005,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
           ) : (
             <div className="card">
               <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 4 }}>REVISA LOS PRODUCTOS DETECTADOS</div>
+              {!UN_SOLO_LOCAL && Object.keys(repFact).length > 0 && <button className="btn btn-g btn-sm" style={{ float: "right", marginTop: -20 }} onClick={repartirFactura} title="Reparte la cantidad de cada producto entre los locales según el stock y lo que vende cada uno">💡 Repartir todo como recomienda</button>}
               <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 14 }}>Corregi el producto vinculado donde haga falta, {UN_SOLO_LOCAL ? "y revisá la cantidad. " : <>y reparti la cantidad entre {nombreLocal(1)} y {nombreLocal(2)} (por defecto va todo a {nombreLocal(1)}). </>}El costo se toma del que ya tiene cargado cada producto, no de la factura.</div>
               <table>
                 <thead><tr><th>Nombre en la factura</th><th>Codigo</th><th>{UN_SOLO_LOCAL ? "Cantidad" : "Cant. " + nombreLocal(1)}</th>{!UN_SOLO_LOCAL && <th>Cant. {nombreLocal(2)}</th>}<th>Costo (del producto)</th><th>Producto vinculado</th><th></th></tr></thead>
@@ -19955,7 +20023,9 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
                       <td>
                         {it.producto_id ? (
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
-                            <span style={{ fontSize: 12, color: it.es_alias_conocido ? "#2d7a4f" : temaPal.text }}>{it.producto_nombre}</span>
+                            <span style={{ fontSize: 12, color: it.es_alias_conocido ? "#2d7a4f" : temaPal.text }}>{it.producto_nombre}
+                              {!UN_SOLO_LOCAL && repFact[String(it.producto_id)] && <RepartoLocales chico d={repFact[String(it.producto_id)]} total={(parseInt(it.cantidad_rg) || 0) + (parseInt(it.cantidad_ush) || 0)} actual={{ 1: it.cantidad_rg, 2: it.cantidad_ush }}
+                                onUsar={r => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, cantidad_rg: r[1], cantidad_ush: r[2] } : x))} temaPal={temaPal} />}</span>
                             <span onClick={() => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, producto_id: "", producto_nombre: "" } : x))} style={{ cursor: "pointer", color: "var(--acento-texto)", fontSize: 11, whiteSpace: "nowrap" }}>cambiar</span>
                           </div>
                         ) : (
@@ -20040,9 +20110,20 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
                 )}
               </div>
             </div>
+            {!UN_SOLO_LOCAL && itemTemp.producto_id && (
+              <div className="fg">
+                <div className="fl">Cantidad total que llegó</div>
+                <input className="inp" type="number" placeholder="Ej: 10 (se reparte solo entre los locales)" value={itemTemp.total} onChange={e => {
+                  const v = e.target.value; const r = repartoRecomendado(repTemp, v);
+                  setItemTemp(p => ({ ...p, total: v, ...(r ? { cantidad_rg: String(r[1]), cantidad_ush: String(r[2]) } : {}) }));
+                }} />
+                <RepartoLocales d={repTemp} total={itemTemp.total || ((parseInt(itemTemp.cantidad_rg) || 0) + (parseInt(itemTemp.cantidad_ush) || 0))} actual={{ 1: itemTemp.cantidad_rg, 2: itemTemp.cantidad_ush }}
+                  onUsar={r => setItemTemp(p => ({ ...p, cantidad_rg: String(r[1]), cantidad_ush: String(r[2]) }))} temaPal={temaPal} />
+              </div>
+            )}
             <div style={{ display: "flex", gap: 8 }}>
-              <div className="fg" style={{ flex: 1 }}><div className="fl">{UN_SOLO_LOCAL ? "Cantidad" : "Cant. " + nombreLocal(1)}</div><input className="inp" type="number" placeholder="10" value={itemTemp.cantidad_rg} onChange={e => setItemTemp(p => ({ ...p, cantidad_rg: e.target.value }))} /></div>
-              {!UN_SOLO_LOCAL && <div className="fg" style={{ flex: 1 }}><div className="fl">Cant. {nombreLocal(2)}</div><input className="inp" type="number" placeholder="0" value={itemTemp.cantidad_ush} onChange={e => setItemTemp(p => ({ ...p, cantidad_ush: e.target.value }))} /></div>}
+              <div className="fg" style={{ flex: 1 }}><div className="fl">{UN_SOLO_LOCAL ? "Cantidad" : "Cant. " + nombreLocal(1)}</div><input className="inp" type="number" placeholder="10" value={itemTemp.cantidad_rg} onChange={e => setItemTemp(p => ({ ...p, cantidad_rg: e.target.value, total: "" }))} /></div>
+              {!UN_SOLO_LOCAL && <div className="fg" style={{ flex: 1 }}><div className="fl">Cant. {nombreLocal(2)}</div><input className="inp" type="number" placeholder="0" value={itemTemp.cantidad_ush} onChange={e => setItemTemp(p => ({ ...p, cantidad_ush: e.target.value, total: "" }))} /></div>}
               <div className="fg" style={{ flex: 1 }}><div className="fl">Costo unit. ($)</div><input className="inp" type="number" placeholder="1500" value={itemTemp.costo_unitario} onChange={e => setItemTemp(p => ({ ...p, costo_unitario: e.target.value }))} /></div>
             </div>
             <button className="btn btn-sm" style={{ width: "100%" }} onClick={agregarItem}>+ Agregar producto</button>
