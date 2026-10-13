@@ -22922,7 +22922,7 @@ const ESTADOS_PEDIDO_WEB = {
   pendiente_pago: ["Esperando el pago", "#b7950b"], confirmado: ["Recibido: lo estamos preparando", "#2471a3"], preparado: ["¡Listo!", "#2d7a4f"],
   en_caja: ["¡Listo!", "#2d7a4f"], entregado: ["Entregado. ¡Gracias por tu compra!", "#2d7a4f"], cancelado: ["Cancelado", "#c0392b"],
 };
-const TW_ORDEN = [["", "Destacados"], ["menor", "Menor precio"], ["mayor", "Mayor precio"], ["az", "A – Z"]];
+const TW_ORDEN = [["", "Destacados"], ["nuevos", "Más nuevos"], ["menor", "Menor precio"], ["mayor", "Mayor precio"], ["az", "A – Z"]];
 
 const CSS_TIENDA = `
 #root:has(>.tw){width:auto;max-width:none;border:0;text-align:left;display:block;margin:0}
@@ -25483,7 +25483,7 @@ function TiendaPublica({ slug }) {
   const vistosLista = vistos.map(id => visibles.find(p => p.id === id)).filter(Boolean).slice(0, 12);
   const q = busca.trim().toLowerCase();
   const enLista = !!q || !!cat;
-  const ordenar = (arr) => orden === "menor" ? [...arr].sort((a, b) => a.precio - b.precio) : orden === "mayor" ? [...arr].sort((a, b) => b.precio - a.precio) : orden === "az" ? [...arr].sort((a, b) => a.nombre.localeCompare(b.nombre)) : arr;
+  const ordenar = (arr) => orden === "nuevos" ? [...arr].sort((a, b) => (b.creado || 0) - (a.creado || 0) || b.id - a.id) : orden === "menor" ? [...arr].sort((a, b) => a.precio - b.precio) : orden === "mayor" ? [...arr].sort((a, b) => b.precio - a.precio) : orden === "az" ? [...arr].sort((a, b) => a.nombre.localeCompare(b.nombre)) : arr;
   // Sectores del menu (armados en Lumiere): agrupan categorias enteras y productos sueltos
   const sectores = (tienda.sectores || []).filter(sc => visibles.some(p => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria)));
   const sector = cat.startsWith("s:") ? sectores.find(sc => "s:" + sc.id === cat) : null;
@@ -27276,6 +27276,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   useEffect(() => { API.get("/tienda/resenas/pendientes").then(r => setResPend(r.data.n || 0)).catch(() => {}); }, []);
   useEffect(() => { setLimitePed(30); }, [filtro, buscaPed]);
   const [soloPub, setSoloPub] = useState(false);
+  const [ordenProd, setOrdenProd] = useState(""); // "" publicados primero | nuevos | viejos | az | precio
   const [desc, setDesc] = useState(null); // { id, texto }
   const [video, setVideo] = useState(null); // { id, nombre, link, subido, subiendo }
   const [buscaFoto, setBuscaFoto] = useState(null); // { cola: [productos], i }
@@ -27387,7 +27388,11 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const prodFiltro = productos.filter(p => (!soloPub || p.publicado) && pasaSeg(p)
     && (!filtros.marca || (p.marca || "") === filtros.marca) && (!filtros.proveedor || String(p.proveedor || "") === filtros.proveedor)
     && (!filtros.categoria || (p.categoria || "") === filtros.categoria) && (!filtros.foto || (filtros.foto === "con" ? p.foto : !p.foto))
-    && (!qN || qN.split(" ").every(w => normTxt([p.nombre, p.marca, p.categoria, p.proveedor, p.codigo_barras].join(" ")).includes(w))));
+    && (!qN || qN.split(" ").every(w => normTxt([p.nombre, p.marca, p.categoria, p.proveedor, p.codigo_barras].join(" ")).includes(w))))
+    .sort(ordenProd === "nuevos" ? (a, b) => new Date(b.creado_en || 0) - new Date(a.creado_en || 0) || b.id - a.id
+      : ordenProd === "viejos" ? (a, b) => new Date(a.creado_en || 0) - new Date(b.creado_en || 0) || a.id - b.id
+      : ordenProd === "az" ? (a, b) => String(a.nombre).localeCompare(String(b.nombre))
+      : ordenProd === "precio" ? (a, b) => (b.precio || 0) - (a.precio || 0) : () => 0);
   const opciones = (k) => [...new Set(productos.map(p => p[k]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
   const hayFiltros = filtros.marca || filtros.proveedor || filtros.categoria || filtros.foto || filtros.seg || busca || soloPub;
   const prodVis = prodFiltro.slice(0, limiteProd);
@@ -27558,6 +27563,9 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                 {twOpcionesGrupo(f.k).map(o => <option key={o[0]} value={f.k + ":" + o[0]}>{o[1]}</option>)}
               </optgroup>)}
             </select>
+            <select className="sel" aria-label="Ordenar productos" style={{ flex: "0 1 190px", fontWeight: ordenProd ? 700 : 400 }} value={ordenProd} onChange={e => setOrdenProd(e.target.value)}>
+              <option value="">Orden: publicados primero</option><option value="nuevos">🆕 Más nuevos primero</option><option value="viejos">Más viejos primero</option><option value="az">A – Z</option><option value="precio">Mayor precio</option>
+            </select>
             <button className={"chip-btn" + (soloPub ? " on" : "")} onClick={() => setSoloPub(v => !v)}>Solo publicados</button>
             {hayFiltros && <button className="chip-btn" onClick={() => { setFiltros({ marca: "", proveedor: "", categoria: "", foto: "", seg: "" }); setBusca(""); setSoloPub(false); }}>✕ Limpiar filtros</button>}
             <span style={{ fontSize: 12, color: temaPal.textMuted }}>{prodFiltro.length} {prodFiltro.length === 1 ? "producto" : "productos"}</span>
@@ -27586,6 +27594,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", flex: "1 1 240px", minWidth: 0 }}>
                 <input type="checkbox" checked={!!p.publicado} disabled={!esJefeT} onChange={e => publicar(p, e.target.checked)} style={{ width: 20, height: 20 }} aria-label={"Publicar " + p.nombre} />
                 <span style={{ minWidth: 0 }}><b>{p.nombre}</b> <span style={{ fontSize: 12, color: temaPal.textMuted }}>{p.marca || ""}</span>
+                  {p.creado_en && (ordenProd === "nuevos" || ordenProd === "viejos" || Date.now() - new Date(p.creado_en) < 30 * 864e5) && <span className="tag" style={{ marginLeft: 6, fontSize: 10.5, background: Date.now() - new Date(p.creado_en) < 30 * 864e5 ? "#16a08522" : temaPal.border, color: Date.now() - new Date(p.creado_en) < 30 * 864e5 ? "#16a085" : temaPal.textMuted, fontWeight: 700 }}>{Date.now() - new Date(p.creado_en) < 30 * 864e5 ? "🆕 " : ""}cargado el {new Date(p.creado_en).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" })}</span>}
                   <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{fmt(p.precio)} · stock {nombreLocal(1)} {p.stock_rg}{!UN_SOLO_LOCAL ? " · " + nombreLocal(2) + " " + p.stock_ush : ""} · {p.foto ? "📷 con foto" : <span style={{ color: temaPal.warn }}>sin foto</span>}{p.descripcion ? " · con descripción" : ""}{p.video_subido || p.video_url ? " · 🎬 con video" : ""}{p.destacado ? " · ⭐ destacado" : ""}</div>
                   {(() => { const e = segDe(p); const n = TW_FILTROS.flatMap(f => twElegidas(e, f.k).map(v => twNombreEtiqueta(f.k, v))); return <div style={{ fontSize: 11.5, color: n.length ? temaPal.text : temaPal.textMuted }}>🏷 {n.length ? n.join(" · ") : "sin segmentar"}{p.etiquetas ? <span style={{ color: temaPal.textMuted }}> (elegido por vos)</span> : ""}</div>; })()}</span>
               </label>
