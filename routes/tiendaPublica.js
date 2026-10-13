@@ -389,7 +389,7 @@ router.post('/:slug/pedidos', async (req, res) => {
       const volver = (origen || (req.protocol + '://' + req.get('host') + '/')) + '?tienda=' + encodeURIComponent(req.params.slug) + '&pedido=' + pedido.codigo;
       const yo = (req.headers['x-forwarded-proto'] || req.protocol) + '://' + req.get('host');
       link = await gocuotas.crearCheckout({ total: num(pedido.total), codigo: pedido.codigo, urlOk: volver, urlFalla: volver + '&gc=no',
-        webhook: yo + '/api/tienda-publica/' + encodeURIComponent(req.params.slug) + '/gocuotas/aviso/' + pedido.codigo + '/' + gocuotas.firma(pedido.codigo), email });
+        webhook: yo + '/api/tienda-publica/' + encodeURIComponent(req.params.slug) + '/gocuotas/aviso/' + pedido.codigo + '/' + gocuotas.firma(pedido.codigo), email, telefono });
       await pool.query('UPDATE tienda_pedidos SET mp_link = $1 WHERE id = $2', [link, pedido.id]);
     } catch (e) {
       console.error('[tienda publica] gocuotas:', e.message);
@@ -414,6 +414,14 @@ router.post('/:slug/gocuotas/aviso/:codigo/:firma', express.urlencoded({ extende
     if (estado !== 'approved' || p.pagado) return res.json({ ok: true });
     if (Number.isFinite(monto) && Math.abs(monto - Math.round(num(p.total) * 100)) > 1) { console.error('[gocuotas] monto distinto en', codigo, monto); return res.json({ ok: true }); }
     const ref = String(b.order_id || '').slice(0, 80) || null, cuotas = parseInt(b.number_of_installments) || null;
+    // Se confirma con GoCuotas: si la orden existe y no figura aprobada (o es de otro pedido), no se marca pagado
+    if (ref) {
+      const o = await gocuotas.orden(ref);
+      const ord = o && (o.order || o.data || o);
+      if (ord && ord.status && (String(ord.status).toLowerCase() !== 'approved' || (ord.order_reference_id && ord.order_reference_id !== 'tienda-' + codigo))) {
+        console.error('[gocuotas] aviso no coincide con la orden', codigo, ord.status, ord.order_reference_id); return res.json({ ok: true });
+      }
+    }
     if (p.estado === 'cancelado') {
       await pool.query(`UPDATE tienda_pedidos SET pagado = TRUE, pagado_en = COALESCE(pagado_en, NOW()), pago_ref = $1, motivo = 'Pagó con GoCuotas después de cancelarse: devolvele la plata o registrá la venta', actualizado_en = NOW() WHERE id = $2`, [ref, p.id]);
     } else {

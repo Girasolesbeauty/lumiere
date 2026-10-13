@@ -26339,7 +26339,7 @@ function GoCuotasConfig({ temaPal, avisar, activo, onActivo, esJefe }) {
           <input className="inp" type="password" placeholder="Contraseña de GoCuotas" value={f.password} onChange={e => setF(x => ({ ...x, password: e.target.value }))} autoComplete="new-password" />
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <button className="btn btn-p btn-sm" disabled={ocupado || !f.email || !f.password} onClick={conectar}>{ocupado ? "Conectando…" : "Conectar GoCuotas"}</button>
-            <span style={{ fontSize: 11, color: tp.textMuted }}>Los de la integración por API que te da GoCuotas (a veces son los mismos del panel de vendedor). Se guardan en Lumiere y no se muestran.</span>
+            <span style={{ fontSize: 11, color: tp.textMuted }}>No son los del panel: en GoCuotas creá un <b>usuario sucursal</b> para la tienda online (Otros → Sucursales → Nueva, con un mail y una contraseña) y poné esos acá. Se guardan en Lumiere y no se muestran.</span>
           </div>
           {error && <div role="alert" style={{ fontSize: 12, lineHeight: 1.5, background: tp.redDim, border: "1px solid " + tp.red, borderRadius: 8, padding: "8px 10px" }}>⚠️ {error}</div>}
         </div>
