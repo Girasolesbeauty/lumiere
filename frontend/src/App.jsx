@@ -25005,13 +25005,15 @@ function TiendaPublica({ slug }) {
   const [error, setError] = useState("");
   const [productos, setProductos] = useState(null);
   const [busca, setBusca] = useState("");
-  const [cat, setCat] = useState(""); // "" = inicio; "*" = todos; o una categoria
+  // Al actualizar vuelve a la misma seccion (categoria, preventa, regalos...), con sus filtros y a la misma altura
+  const vistaGuardada = useRef((() => { try { return JSON.parse(sessionStorage.getItem("tienda_vista_" + slug) || "null"); } catch (e) { return null; } })());
+  const [cat, setCat] = useState(() => (vistaGuardada.current && vistaGuardada.current.cat) || ""); // "" = inicio; "*" = todos; o una categoria
   // Ciudad del cliente: compra solo con el stock del local de su ciudad
   const [local, setLocal] = useState(() => { try { return parseInt(localStorage.getItem("tienda_local_" + slug)) || null; } catch (e) { return null; } });
   const [eligeCiudad, setEligeCiudad] = useState(false);
-  const [orden, setOrden] = useState("");
-  const [subcat, setSubcat] = useState(""); // categoria elegida dentro de un sector
-  const [filtros, setFiltros] = useState({}); // tipo de producto, tipo de piel, necesidad
+  const [orden, setOrden] = useState(() => (vistaGuardada.current && vistaGuardada.current.orden) || "");
+  const [subcat, setSubcat] = useState(() => (vistaGuardada.current && vistaGuardada.current.subcat) || ""); // categoria elegida dentro de un sector
+  const [filtros, setFiltros] = useState(() => (vistaGuardada.current && vistaGuardada.current.filtros) || {}); // tipo de producto, tipo de piel, necesidad
   const [copiado, setCopiado] = useState(null); // producto cuyo link se acaba de copiar
   const [vistos, setVistos] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_vistos_" + slug) || "[]"); } catch (e) { return []; } }); // lo que miro hace poco
   const [menuSkin, setMenuSkin] = useState(null); // categoria de skincare con el panel abierto ("*" = todas)
@@ -25071,7 +25073,16 @@ function TiendaPublica({ slug }) {
   const [videoI, setVideoI] = useState(null); // video abierto en grande (numero en la lista), o null
   const toqueMedia = useRef(null);
   const [paso, setPaso] = useState(null); // null | "carrito" | "datos"
-  const [regModo, setRegModo] = useState("gift"); // sector de regalos: "gift" (gift card) o "armar"
+  const [regModo, setRegModo] = useState(() => (vistaGuardada.current && vistaGuardada.current.regModo) || "gift"); // sector de regalos: "gift" (gift card) o "armar"
+  // Se guarda la vista para volver a ella si se actualiza la pagina (solo dura lo que la pestaña)
+  useEffect(() => { try { sessionStorage.setItem("tienda_vista_" + slug, JSON.stringify({ cat, subcat, filtros, orden, regModo, y: window.scrollY })); } catch (e) {} }, [cat, subcat, filtros, orden, regModo]);
+  useEffect(() => {
+    let t = null;
+    const guardarY = () => { clearTimeout(t); t = setTimeout(() => { try { const v = JSON.parse(sessionStorage.getItem("tienda_vista_" + slug) || "{}"); v.y = window.scrollY; sessionStorage.setItem("tienda_vista_" + slug, JSON.stringify(v)); } catch (e) {} }, 250); };
+    window.addEventListener("scroll", guardarY, { passive: true });
+    return () => { window.removeEventListener("scroll", guardarY); clearTimeout(t); };
+  }, []);
+
   useEffect(() => { if (paso !== "cuenta") { setVolverA(null); setMotivoCuenta(""); } }, [paso]);
   // Reseñas: las del producto abierto, lo que la clienta puede reseñar y el formulario
   const [resVer, setResVer] = useState(null); // { id, d }
@@ -25143,6 +25154,14 @@ function TiendaPublica({ slug }) {
     return () => window.removeEventListener("scroll", s);
   }, []);
   useEffect(() => { try { localStorage.setItem("tienda_carrito_" + slug, JSON.stringify(carrito)); } catch (e) {} }, [carrito]);
+  // Al actualizar: vuelve a la misma altura cuando ya cargaron los productos (una sola vez)
+  const alturaRestaurada = useRef(false);
+  useEffect(() => {
+    if (alturaRestaurada.current || !productos || !tienda) return;
+    alturaRestaurada.current = true;
+    const y = vistaGuardada.current && vistaGuardada.current.y;
+    if (y > 0 && !params.get("pedido") && !params.get("regalo")) setTimeout(() => window.scrollTo(0, y), 120);
+  }, [productos, tienda]);
   // Con cuenta, el carrito se guarda tambien en Lumiere (para poder recordarle si lo deja sin terminar)
   useEffect(() => {
     if (!logueada) return;
@@ -25506,7 +25525,7 @@ function TiendaPublica({ slug }) {
   const sectores = (tienda.sectores || []).filter(sc => visibles.some(p => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria)));
   const sector = cat.startsWith("s:") ? sectores.find(sc => "s:" + sc.id === cat) : null;
   // Si la seccion elegida quedo vacia (otra ciudad, se agoto todo), se vuelve al inicio
-  if ((cat === "preventa" && !preventas.length) || (cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat === "regalos" && !tienda.regalos) || (cat && cat !== "*" && !cat.startsWith("s:") && !cat.startsWith("m:") && cat !== "reingreso" && cat !== "videos" && cat !== "regalos" && cat !== "preventa" && cat !== "favoritos" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2)))) { setTimeout(() => setCat(""), 0); }
+  if (productos !== null && ((cat === "preventa" && !preventas.length) || (cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat === "regalos" && !tienda.regalos) || (cat && cat !== "*" && !cat.startsWith("s:") && !cat.startsWith("m:") && cat !== "reingreso" && cat !== "videos" && cat !== "regalos" && cat !== "preventa" && cat !== "favoritos" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2))))) { setTimeout(() => setCat(""), 0); }
   const enSector = (sc, p) => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria);
   const delSector = sector ? visibles.filter(p => enSector(sector, p)) : [];
   const catsSector = sector ? [...new Set(delSector.map(p => p.categoria).filter(Boolean))].sort() : [];
@@ -27306,7 +27325,8 @@ function RegalosTienda({ cfg, pedidos, temaPal, avisar, urlTienda, esJefe, onGua
 
 function TiendaOnline({ localId, usuario, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
-  const [tab, setTab] = useState(() => tabInicialDe("tienda-online") || "pedidos");
+  const [tab, setTab] = useState(() => { const t = tabInicialDe("tienda-online"); if (t) return t; try { return sessionStorage.getItem("lumiere_tienda_tab") || "pedidos"; } catch (e) { return "pedidos"; } });
+  useEffect(() => { try { sessionStorage.setItem("lumiere_tienda_tab", tab); } catch (e) {} }, [tab]);
   const [cfg, setCfg] = useState(null);
   const [pedidos, setPedidos] = useState(null);
   const [productos, setProductos] = useState(null);
@@ -27314,7 +27334,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const [busca, setBusca] = useState("");
   const [buscaPed, setBuscaPed] = useState("");
   const [limitePed, setLimitePed] = useState(30);
-  const [secCfg, setSecCfg] = useState("tienda");
+  const [secCfg, setSecCfg] = useState(() => { try { return sessionStorage.getItem("lumiere_tienda_cfg") || "tienda"; } catch (e) { return "tienda"; } });
+  useEffect(() => { try { sessionStorage.setItem("lumiere_tienda_cfg", secCfg); } catch (e) {} }, [secCfg]);
   const [cfgCambios, setCfgCambios] = useState(false);
   const [resPend, setResPend] = useState(0);
   useEffect(() => { API.get("/tienda/resenas/pendientes").then(r => setResPend(r.data.n || 0)).catch(() => {}); }, []);
@@ -29721,7 +29742,9 @@ function AppWrapper() {
   const elegirLocalApp = (l) => { setLocal(l); setCambiandoLocal(false); try { localStorage.setItem("lumiere_local", JSON.stringify(l)); } catch (e) {} };
   const [nombresLocalesVersion, setNombresLocalesVersion] = useState(0);
   // En el celular se arranca en el Inicio de botones grandes; en la computadora, en el Dashboard
-  const [page, setPage] = useState(() => (typeof window !== "undefined" && window.innerWidth < 760 ? "panel" : "dashboard"));
+  // Al actualizar la pagina vuelve a la seccion donde estaba (se guarda en la pestaña del navegador)
+  const [page, setPage] = useState(() => { try { const g = sessionStorage.getItem("lumiere_pagina"); if (g) return g; } catch (e) {} return typeof window !== "undefined" && window.innerWidth < 760 ? "panel" : "dashboard"; });
+  useEffect(() => { try { sessionStorage.setItem("lumiere_pagina", page); } catch (e) {} }, [page]);
   // Una seccion puede llevar a otra (ej: Rotacion -> "Simular liquidación" en Toma de decisiones)
   useEffect(() => {
     const ir = (e) => { if (typeof e.detail === "string") { setPage(e.detail); window.scrollTo(0, 0); } };
@@ -29802,6 +29825,7 @@ function AppWrapper() {
   };
 
   const handleLogout = () => {
+    try { sessionStorage.removeItem("lumiere_pagina"); Object.keys(sessionStorage).filter(k => k.startsWith("lumiere_tienda_")).forEach(k => sessionStorage.removeItem(k)); } catch (e) {}
     localStorage.removeItem("lumiere_token");
     localStorage.removeItem("lumiere_user");
     localStorage.removeItem("lumiere_local");
