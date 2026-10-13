@@ -3247,7 +3247,8 @@ function POS({ localId, usuario, paletaActual }) {
     setCart(prev => {
       let cambio = false;
       const out = prev.map(i => {
-        if (i.es_kit || i.es_ajuste || i.presupuesto_id || i.gastro_ids || i.turno_id || i.tienda_pedido || !(parseInt(i.id) > 0) || String(i.id).startsWith("insumo")) return i;
+        // (el precio cambiado a mano o redondeado en efectivo se respeta)
+        if (i.es_kit || i.es_ajuste || i.presupuesto_id || i.gastro_ids || i.turno_id || i.tienda_pedido || i.redondeado || i.precio_manual || !(parseInt(i.id) > 0) || String(i.id).startsWith("insumo")) return i;
         const base = i.precio_base !== undefined ? i.precio_base : (i.precio ?? i.price);
         const objetivo = precioDeLista(listaSel, parseInt(i.id), base);
         if (i.precio_base === base && i.precio === objetivo) return i;
@@ -4545,6 +4546,20 @@ function POS({ localId, usuario, paletaActual }) {
       </div>
     );
   })() : null;
+  // Pago en efectivo: se puede redondear el precio de cada producto (cualquier vendedora, con tope:
+  // hasta $1.000 o el 3% del precio). Si se cambia a otro medio, vuelven los precios originales.
+  const esEfectivoSel = !pagoMixto && !!medioPagoSel && (medioPagoSel.tipo === "efectivo" || /efectivo/i.test(medioPagoSel.nombre || ""));
+  const topeRedondeo = (base) => Math.max(1000, Math.round(base * 0.03));
+  const opcionesRedondeo = (base) => {
+    if (!base) return [];
+    const r = (n, m, f) => Math[f](n / m) * m;
+    return [...new Set([r(base, 100, "floor"), r(base, 500, "floor"), r(base, 1000, "floor"), r(base, 100, "ceil"), r(base, 500, "ceil"), r(base, 1000, "ceil")])]
+      .filter(v => v > 0 && v !== base && Math.abs(v - base) <= topeRedondeo(base)).sort((a, b) => a - b);
+  };
+  useEffect(() => {
+    if (esEfectivoSel) return;
+    setCart(prev => prev.some(x => x.redondeado) ? prev.map(x => x.redondeado ? { ...x, precio: x.precio_orig, price: x.precio_orig, redondeado: false } : x) : prev);
+  }, [esEfectivoSel]);
   const carritoJSX = (
           <div style={{ background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 8, flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 240 }}>
           <div style={{ padding: "10px 14px", borderBottom: "1px solid " + temaPal.border, fontSize: 10, color: temaPal.textMuted, fontWeight: 700, letterSpacing: ".1em", background: preventa ? "#2471a320" : temaPal.bg }}>
@@ -4604,6 +4619,7 @@ function POS({ localId, usuario, paletaActual }) {
                       {desc > 0 && (
                         <button className="desc-chip" onClick={() => setItem({ descuento_pct: 0 })} title="Quitar el descuento">🏷 -{desc}% ✕</button>
                       )}
+                      {i.redondeado && <button className="desc-chip" onClick={() => setItem({ precio: i.precio_orig, price: i.precio_orig, redondeado: false })} title="Volver al precio original">🪙 redondeado (era {fmt(i.precio_orig).replace(SIN_CEROS, "")}) ✕</button>}
                     </div>
                   </div>
                   <div className="cart-der">
@@ -4611,11 +4627,26 @@ function POS({ localId, usuario, paletaActual }) {
                     {desc > 0 && <div className="cart-tach">{fmt(precioUnit * i.qty)}</div>}
                   </div>
                   <div className="cart-acc">
-                      {puedeHacer("pos.descuento") && <button className={"icon-btn" + (abierto || desc > 0 ? " on" : "")} onClick={() => setEditandoItemCarrito(abierto ? null : k)} aria-expanded={abierto} aria-label={"Descuento o precio de " + (i.nombre || i.name)} title="Descuento / cambiar precio">🏷</button>}
+                      {(puedeHacer("pos.descuento") || esEfectivoSel) && <button className={"icon-btn" + (abierto || desc > 0 || i.redondeado ? " on" : "")} onClick={() => setEditandoItemCarrito(abierto ? null : k)} aria-expanded={abierto} aria-label={(puedeHacer("pos.descuento") ? "Descuento o precio de " : "Redondear el precio de ") + (i.nombre || i.name)} title={puedeHacer("pos.descuento") ? "Descuento / cambiar precio" : "Redondear el precio (pago en efectivo)"}>🏷</button>}
                       <button className="icon-btn peligro" onClick={() => remove(i)} aria-label={"Sacar " + (i.nombre || i.name) + " del carrito"} title="Sacar del carrito">✕</button>
                   </div>
                   {abierto && (
                     <div className="cart-editor pop-in" role="group" aria-label={"Descuento de " + (i.nombre || i.name)}>
+                      {esEfectivoSel && (() => {
+                        const base = i.redondeado ? i.precio_orig : precioUnit;
+                        const ops = opcionesRedondeo(base);
+                        return <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center", width: "100%", marginBottom: 4 }}>
+                          <span style={{ fontSize: 11.5, fontWeight: 700 }}>🪙 Redondear (efectivo):</span>
+                          {ops.map(v => <button key={v} className={"mini-chip" + (i.redondeado && precioUnit === v ? " on" : "")} onClick={() => { setItem({ precio: v, price: v, precio_orig: base, redondeado: true }); setEditandoItemCarrito(null); }}>{fmt(v).replace(SIN_CEROS, "")}</button>)}
+                          {i.redondeado && <button className="mini-chip" onClick={() => setItem({ precio: base, price: base, redondeado: false })}>Original {fmt(base).replace(SIN_CEROS, "")}</button>}
+                          {!puedeHacer("pos.descuento") && <>
+                            <input type="number" min="0" placeholder="Otro" className="mini-inp" style={{ width: 80, textAlign: "right" }} aria-label="Precio redondeado"
+                              onKeyDown={e => { if (e.key !== "Enter") return; const v = parseFloat(e.target.value) || 0; if (!v) return; if (Math.abs(v - base) > topeRedondeo(base)) { setMensaje("Para redondear se puede cambiar hasta " + fmt(topeRedondeo(base)).replace(SIN_CEROS, "") + ". Para más, pedí un descuento a la encargada."); setTimeout(() => setMensaje(""), 4000); return; } setItem({ precio: v, price: v, precio_orig: base, redondeado: v !== base }); setEditandoItemCarrito(null); }} />
+                            <span style={{ fontSize: 10.5, color: temaPal.textMuted }}>hasta ±{fmt(topeRedondeo(base)).replace(SIN_CEROS, "")} (Enter)</span>
+                          </>}
+                        </div>;
+                      })()}
+                      {puedeHacer("pos.descuento") && <>
                       <span aria-hidden="true" style={{ fontSize: 12 }}>🏷</span>
                       {[5, 10, 15, 20].map(d => (
                         <button key={d} className={"mini-chip" + (desc === d ? " on" : "")} onClick={() => { setItem({ descuento_pct: desc === d ? 0 : d }); setEditandoItemCarrito(null); }}>{d}%</button>
@@ -4626,9 +4657,10 @@ function POS({ localId, usuario, paletaActual }) {
                         className="mini-inp" style={{ width: 46 }} aria-label="Otro porcentaje de descuento" title="Otro %" />
                       <span className="cart-editor-sep" />
                       <span style={{ fontSize: 11, color: temaPal.textMuted }}>{MONEDA.simbolo}</span>
-                      <input type="number" min="0" value={precioUnit || ""} onChange={e => { const v = parseFloat(e.target.value) || 0; setItem({ precio: v, price: v }); }}
+                      <input type="number" min="0" value={precioUnit || ""} onChange={e => { const v = parseFloat(e.target.value) || 0; setItem({ precio: v, price: v, precio_manual: true, redondeado: false }); }}
                         onKeyDown={e => e.key === "Enter" && setEditandoItemCarrito(null)}
                         className="mini-inp" style={{ width: 80, textAlign: "right" }} aria-label="Precio unitario" title="Precio unitario" />
+                      </>}
                       <button className="icon-btn" style={{ marginLeft: "auto", color: temaPal.green }} onClick={() => setEditandoItemCarrito(null)} aria-label="Listo" title="Listo">✓</button>
                     </div>
                   )}
