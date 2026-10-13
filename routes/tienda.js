@@ -24,7 +24,7 @@ router.get('/config', async (req, res) => {
     const neg = (await pool.query('SELECT nombre_negocio FROM configuracion_negocio LIMIT 1').catch(() => ({ rows: [] }))).rows[0] || {};
     const sugerido = String(neg.nombre_negocio || 'mi-tienda').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'mi-tienda';
     const dominio = await tienda.dominioDe(req.negocio ? req.negocio.id : 1).catch(() => null);
-    res.json({ ...c, ruleta: tienda.ruletaDe(c), preventa: tienda.preventaDe(c), mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
+    res.json({ ...c, ruleta: tienda.ruletaDe(c), preventa: tienda.preventaDe(c), regalos: tienda.regalosDe(c), regalos_hoy: tienda.temaRegaloHoy(tienda.regalosDe(c)), mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la configuración' }); }
 });
 
@@ -476,6 +476,7 @@ router.get('/pedidos', async (req, res) => {
     const esperando = (await pool.query(`SELECT * FROM tienda_pedidos WHERE pago = 'mp' AND NOT pagado AND creado_en > NOW() - INTERVAL '7 days'
       AND (estado = 'pendiente_pago' OR (estado = 'cancelado' AND motivo = 'Venció sin pagar')) ORDER BY creado_en DESC LIMIT 12`)).rows;
     await Promise.all(esperando.map(p => tienda.revisarPagoMP(p)));
+    await tienda.emitirGiftCardsPendientes();
     const r = await pool.query(`SELECT p.*, CASE WHEN r.pedido_id IS NULL THEN NULL ELSE json_build_object('texto', r.texto, 'tipo', r.tipo, 'valor', r.valor, 'cupon', r.cupon) END AS ruleta
       FROM tienda_pedidos p LEFT JOIN tienda_ruleta r ON r.pedido_id = p.id
       ORDER BY CASE WHEN p.estado IN ('confirmado','pendiente_pago','preparado','en_caja') THEN 0 ELSE 1 END, p.creado_en DESC LIMIT 200`);
@@ -504,6 +505,10 @@ router.put('/pedidos/:id/estado', async (req, res) => {
       await tienda.cancelar(p.id, String((req.body && req.body.motivo) || 'Cancelado desde Lumiere').slice(0, 200));
     } else if (estado === 'pagado') {
       await pool.query(`UPDATE tienda_pedidos SET pagado = TRUE, pagado_en = COALESCE(pagado_en, NOW()), estado = CASE WHEN estado = 'pendiente_pago' THEN 'confirmado' ELSE estado END, vence_en = NULL, actualizado_en = NOW() WHERE id = $1`, [p.id]);
+      // Gift card: con el pago se emite en Lumiere y el pedido queda entregado
+      if (p.tipo === 'giftcard') await tienda.emitirGiftCard(p.id);
+    } else if (p.tipo === 'giftcard') {
+      return res.status(400).json({ error: 'Las gift cards se entregan solas cuando se confirma el pago' });
     } else if (estado === 'preparado' || estado === 'confirmado') {
       if (p.estado === 'pendiente_pago' && estado === 'preparado') return res.status(400).json({ error: 'Todavía no está pagado: marcá el pago primero (o cancelalo)' });
       await pool.query(`UPDATE tienda_pedidos SET estado = $1, actualizado_en = NOW() WHERE id = $2`, [estado, p.id]);
@@ -524,6 +529,7 @@ router.post('/pedidos/:id/a-caja', async (req, res) => {
     if (!p) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'No se encontró el pedido' }); }
     if (['entregado', 'cancelado'].includes(p.estado)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Ese pedido ya está cerrado' }); }
     if (p.estado === 'pendiente_pago' && p.pago !== 'retiro') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Todavía no figura pagado. Si ya te pagó, marcá "Pago recibido" primero.' }); }
+    if (p.tipo === 'giftcard') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Es una gift card: se emite sola cuando se confirma el pago' }); }
     if ((await client.query('SELECT 1 FROM tienda_pedido_items WHERE pedido_id = $1 AND preventa LIMIT 1', [p.id])).rows.length) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Tiene productos en preventa que todavía no llegaron. Cuando lleguen, tocá "Llegó la preventa".' }); }
     if (p.stock_apartado) await tienda.moverStock(client, p, +1);
     await client.query(`UPDATE tienda_pedidos SET estado = 'en_caja', stock_apartado = FALSE, actualizado_en = NOW() WHERE id = $1`, [p.id]);
@@ -664,6 +670,36 @@ router.get('/resenas', async (req, res) => {
     ]);
     res.json({ lista: lista.rows, pedir: pedir.rows.filter(p => p.sin_resena.length), mensaje: (c.mensajes || {}).resena || '', puntos: tienda.puntosResenaDe(c) });
   } catch (e) { console.error('[tienda] resenas:', e.message); res.status(500).json({ error: 'No se pudieron cargar las reseñas' }); }
+});
+// Gift card online de cualquier gift card de Lumiere (tambien las vendidas en el local): mensaje y link para mandarla
+router.get('/giftcard/:id/online', async (req, res) => {
+  try {
+    const g = (await pool.query('SELECT id, codigo, mensaje, beneficiario_nombre, beneficiario_telefono, comprador_nombre, monto_inicial, saldo FROM gift_cards WHERE id = $1', [req.params.id])).rows[0];
+    if (!g) return res.status(404).json({ error: 'No se encontró la gift card' });
+    const c = await tienda.leerConfig();
+    const dominio = await tienda.dominioDe(req.negocio ? req.negocio.id : 1).catch(() => null);
+    res.json({ ...g, monto_inicial: num(g.monto_inicial), saldo: num(g.saldo), firma: tienda.firmaRegalo(g.codigo), slug: c.slug || null, dominio: dominio || null, tienda_activa: !!c.activo, titulo: c.titulo || null, tema: tienda.temaRegaloHoy(tienda.regalosDe(c)).tema,
+      logo_marca: Number(req.negocio ? req.negocio.id : 1) === 1 ? { blanco: '/logos/girasoles-logo-blanco.svg', color: '/logos/girasoles-logo.svg' } : null });
+  } catch (e) { res.status(500).json({ error: 'No se pudo armar la gift card online' }); }
+});
+router.put('/giftcard/:id/mensaje', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const r = await pool.query('UPDATE gift_cards SET mensaje = $1, comprador_nombre = COALESCE($3, comprador_nombre) WHERE id = $2 RETURNING id',
+      [String(b.mensaje || '').trim().slice(0, 300) || null, req.params.id, String(b.de || '').trim().slice(0, 80) || null]);
+    if (!r.rows.length) return res.status(404).json({ error: 'No se encontró la gift card' });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+});
+
+// Sector "¿Querés hacer un regalo?" (gift cards online y armador de regalos)
+router.put('/regalos', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    const r = tienda.regalosDe({ regalos: req.body || {} });
+    await pool.query('UPDATE tienda_config SET regalos = $1 WHERE id = 1', [JSON.stringify(r)]);
+    res.json({ regalos: r, regalos_hoy: tienda.temaRegaloHoy(r) });
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
 });
 router.put('/resenas/puntos', async (req, res) => {
   try {

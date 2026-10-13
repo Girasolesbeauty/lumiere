@@ -12309,6 +12309,63 @@ function Calculadoras({ usuario, paletaActual }) {
   );
 }
 
+// Gift Cards -> "Enviar online": mensaje, vista previa y link para que la abra con animacion (sirve tambien para las del local)
+function GiftCardOnline({ gc, p, onCerrar }) {
+  const [d, setD] = useState(null);
+  const [f, setF] = useState({ mensaje: "", de: "", tel: "" });
+  const [aviso, setAviso] = useState("");
+  const [copiado, setCopiado] = useState(false);
+  useEffect(() => {
+    API.get("/tienda/giftcard/" + gc.id + "/online").then(r => { setD(r.data); setF({ mensaje: r.data.mensaje || "", de: r.data.comprador_nombre || "", tel: r.data.beneficiario_telefono || "" }); })
+      .catch(e => setAviso(e.response?.data?.error || "No se pudo abrir"));
+  }, []);
+  const t = TW_TEMAS_REGALO[d && d.tema] || TW_TEMAS_REGALO.general;
+  const link = d && d.slug ? twLinkRegalo(d.dominio, d.slug, d.codigo, d.firma) : "";
+  const de1 = String(f.de || "").trim().split(/\s+/)[0];
+  const texto = d ? "🎁 ¡" + d.beneficiario_nombre + ", te regalaron una gift card de " + fmt(d.monto_inicial) + " en " + (d.titulo || "nuestra tienda") + "!" + (de1 ? " De parte de " + de1 + "." : "") + "\n\nAbrí tu regalo acá 👉 " + link + "\n\nTu código es *" + d.codigo + "*. Mostralo en el local para usarla." : "";
+  const guardar = async () => { await API.put("/tienda/giftcard/" + gc.id + "/mensaje", { mensaje: f.mensaje, de: f.de }); };
+  const enviar = async () => {
+    try { await guardar(); } catch (e) { return setAviso("No se pudo guardar el mensaje"); }
+    window.open(linkWhatsapp(f.tel, texto) || ("https://wa.me/?text=" + encodeURIComponent(texto)), "_blank");
+  };
+  return (
+    <div className="pos-overlay" style={{ zIndex: 300 }} onClick={onCerrar}>
+      <div className="card pop-in" style={{ width: 440, maxWidth: "95vw", maxHeight: "92vh", overflowY: "auto", background: p.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+        <div className="ct">📲 Gift card online</div>
+        {!d ? <div style={{ fontSize: 13, color: aviso ? p.red : p.textMuted }}>{aviso || "Cargando…"}</div> : !d.slug ? (
+          <div className="cli-tip">Para mandar gift cards online primero configurá la tienda online (Ventas → Tienda online → Configuración): el link se abre en tu tienda.</div>
+        ) : (
+          <>
+            <div style={{ borderRadius: 18, padding: "18px 20px", color: t.texto || "#fff", background: "linear-gradient(135deg," + t.c1 + "," + t.c2 + ")", boxShadow: "0 18px 34px -18px " + t.c1, position: "relative", overflow: "hidden" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 800, fontSize: 13 }}>{d.logo_marca ? <img src={t.texto ? d.logo_marca.color : d.logo_marca.blanco} alt="" style={{ height: 40 }} /> : <span>{d.titulo || "Tu tienda"}</span>}<span style={{ fontSize: 10, letterSpacing: ".14em", background: "rgba(255,255,255,.25)", borderRadius: 99, padding: "3px 9px" }}>GIFT CARD</span></div>
+              <div style={{ fontSize: 34, fontWeight: 900, margin: "18px 0 2px" }}>{fmt(d.monto_inicial)}</div>
+              <div style={{ fontSize: 13 }}>Para <b>{d.beneficiario_nombre}</b>{de1 ? <> · de <b>{de1}</b></> : null}</div>
+              {f.mensaje && <div style={{ fontSize: 12.5, fontStyle: "italic", fontFamily: "Georgia, serif", marginTop: 4 }}>“{f.mensaje}”</div>}
+              <div style={{ display: "inline-block", marginTop: 10, background: t.texto ? "#2b2b2b" : "#fff", color: t.texto ? "#fff" : t.tinta, borderRadius: 8, padding: "4px 10px", fontFamily: "monospace", fontWeight: 900 }}>{d.codigo}</div>
+              <div style={{ position: "absolute", right: 10, bottom: -6, fontSize: 60, opacity: .22 }}>{t.emoji}</div>
+            </div>
+            <div style={{ fontSize: 11.5, color: p.textMuted, margin: "8px 0 4px" }}>Quien la recibe abre el link y ve una caja de regalo que se abre con confeti, con el logo de tu tienda, el mensaje que se escribe solo y su código.{d.saldo < d.monto_inicial ? " Le muestra el saldo que le queda (" + fmt(d.saldo) + ")." : ""}</div>
+            <div className="fg"><div className="fl">Mensaje</div><textarea className="inp" rows={2} maxLength={300} value={f.mensaje} placeholder={t.mensajes[0]} onChange={e => setF(x => ({ ...x, mensaje: e.target.value }))} /></div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>{t.mensajes.map(m => <button key={m} className="chip-btn" style={{ fontSize: 11 }} onClick={() => setF(x => ({ ...x, mensaje: m }))}>{m}</button>)}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div className="fg"><div className="fl">De parte de</div><input className="inp" value={f.de} onChange={e => setF(x => ({ ...x, de: e.target.value }))} placeholder="Quién la regala" /></div>
+              <div className="fg"><div className="fl">WhatsApp de quien la recibe</div><input className="inp" value={f.tel} onChange={e => setF(x => ({ ...x, tel: e.target.value }))} placeholder="Opcional" /></div>
+            </div>
+            {aviso && <div style={{ fontSize: 12, color: p.red, marginBottom: 6 }}>{aviso}</div>}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <button className="btn btn-p" onClick={enviar}>💬 Enviar por WhatsApp</button>
+              <button className="btn btn-g" onClick={async () => { try { await guardar(); } catch (e) {} window.open(link, "_blank"); }}>👀 Ver cómo se abre</button>
+              <button className="btn btn-g" onClick={async () => { try { await guardar(); await navigator.clipboard.writeText(link); setCopiado(true); setTimeout(() => setCopiado(false), 2000); } catch (e) { window.prompt("Copiá el link:", link); } }}>{copiado ? "✓ Copiado" : "🔗 Copiar link"}</button>
+              <button className="btn btn-g" onClick={onCerrar}>Cerrar</button>
+            </div>
+            {!d.tienda_activa && <div style={{ fontSize: 11, color: p.warn, marginTop: 8 }}>Tu tienda online está apagada: el link igual funciona, pero el botón "Ver los productos" lleva a la tienda cerrada.</div>}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function GiftCards({ localId, usuario, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState("pendientes");
@@ -12318,6 +12375,7 @@ function GiftCards({ localId, usuario, paletaActual }) {
   const [mensaje, setMensaje] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [verMov, setVerMov] = useState(null);
+  const [online, setOnline] = useState(null); // gift card que se esta mandando online
   const [movimientos, setMovimientos] = useState([]);
   const [nueva, setNueva] = useState({ monto: "", beneficiario_nombre: "", beneficiario_telefono: "", cliente_id: "", migracion: false, forma_pago: "" });
   const [mediosPago, setMediosPago] = useState([]);
@@ -12405,7 +12463,7 @@ function GiftCards({ localId, usuario, paletaActual }) {
                   <td><span className={"badge " + (parseFloat(g.saldo) === 0 ? "br" : parseFloat(g.saldo) < parseFloat(g.monto_inicial) ? "ba" : "bg")}>{fmt(parseFloat(g.saldo))}</span></td>
                   <td style={{ fontSize: 11, color: p.textMuted }}>{g.cliente_nombre || "-"}</td>
                   <td style={{ fontSize: 10, color: p.textMuted }}>{new Date(g.creado_en).toLocaleDateString("es-AR")}</td>
-                  <td><div style={{ display: "flex", gap: 4 }}><button className="btn btn-sm" onClick={() => verMovimientos(g)}>Ver historial</button>{puedeHacer("ventas.anular") && !g.anulada && <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => anularGiftCard(g)}>Anular</button>}</div></td>
+                  <td><div style={{ display: "flex", gap: 4 }}>{!g.anulada && parseFloat(g.saldo) > 0 && <button className="btn btn-p btn-sm" onClick={() => setOnline(g)} title="Mandarla por WhatsApp como gift card online, con mensaje y animación">📲 Enviar online</button>}<button className="btn btn-sm" onClick={() => verMovimientos(g)}>Ver historial</button>{puedeHacer("ventas.anular") && !g.anulada && <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => anularGiftCard(g)}>Anular</button>}</div></td>
                 </tr>
               ))}
             </tbody>
@@ -12413,6 +12471,7 @@ function GiftCards({ localId, usuario, paletaActual }) {
         )}
       </div>
 
+      {online && <GiftCardOnline gc={online} p={p} onCerrar={() => { setOnline(null); cargar(); }} />}
       {showForm && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
           <div className="card" style={{ width: 400, background: p.card }}>
@@ -23371,6 +23430,155 @@ const CSS_TIENDA = `
 @keyframes twHoja{from{transform:translateY(100%)}to{transform:none}}
 @keyframes twSubeBarra{from{transform:translateY(100%)}to{transform:none}}
 @media(prefers-reduced-motion:reduce){.tw *,.tw *::before,.tw *::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}.tw-rv{opacity:1;transform:none;filter:none}.tw-sec.tw-rv .tw-fila-in>*{opacity:1;transform:none}.tw-girasol .tw-gp,.tw-girasol .tw-gc{transform:none}}
+.tw-rg-hero{position:relative;overflow:hidden;margin:26px 0 8px;border-radius:24px;padding:38px 40px;display:grid;grid-template-columns:1.3fr 1fr;gap:20px;align-items:center;background:radial-gradient(120% 120% at 100% 0%,var(--r2) 0%,transparent 55%),linear-gradient(135deg,var(--r1),var(--r2));color:var(--rx);box-shadow:0 20px 50px -18px var(--r1)}
+.tw-rg-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.28) 48%,transparent 62%);background-size:250% 100%;animation:twRgBrillo 4.5s ease-in-out infinite;pointer-events:none}
+@keyframes twRgBrillo{0%,40%{background-position:130% 0}100%{background-position:-130% 0}}
+.tw-rg-deco{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.tw-rg-deco span{position:absolute;bottom:-40px;opacity:.5;animation:twRgSube linear infinite;filter:drop-shadow(0 3px 5px rgba(0,0,0,.12))}
+@keyframes twRgSube{0%{transform:translateY(0) rotate(0);opacity:0}10%{opacity:.45}90%{opacity:.4}100%{transform:translateY(-560px) rotate(200deg);opacity:0}}
+.tw-rg-hero-txt{position:relative;z-index:1}
+.tw-rg-ceja{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.22);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.4);border-radius:999px;padding:7px 15px;font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+.tw-rg-ceja span{font-size:17px;animation:twRgLatido 1.6s ease-in-out infinite}
+@keyframes twRgLatido{0%,100%{transform:scale(1)}50%{transform:scale(1.25)}}
+.tw-rg-hero h2{font-size:clamp(30px,4.6vw,52px);line-height:1.04;margin:16px 0 14px;font-weight:900;letter-spacing:-.02em;text-shadow:0 3px 18px rgba(0,0,0,.12)}
+.tw-rg-hero p{font-size:17px;line-height:1.45;margin:0;max-width:44ch;opacity:.95}
+.tw-rg-btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+.tw-rg-b1,.tw-rg-b2{font:inherit;font-weight:800;font-size:15.5px;border:0;border-radius:999px;padding:15px 24px;cursor:pointer;transition:transform .15s}
+.tw-rg-b1{background:var(--b1)!important;color:var(--b1t)!important;box-shadow:0 10px 24px -8px rgba(0,0,0,.35);animation:twRgPulso 2.4s ease-in-out infinite}
+.tw-rg-b2{background:rgba(255,255,255,.3)!important;color:var(--rx)!important;border:2px solid var(--rx)}
+.tw-rg-b1:hover,.tw-rg-b2:hover{transform:translateY(-2px)}
+@keyframes twRgPulso{0%,100%{box-shadow:0 10px 24px -8px rgba(0,0,0,.35),0 0 0 0 rgba(255,255,255,.6)}50%{box-shadow:0 10px 24px -8px rgba(0,0,0,.35),0 0 0 10px rgba(255,255,255,0)}}
+.tw-rg-hero-art{position:relative;z-index:1;height:230px;display:flex;align-items:center;justify-content:center}
+.tw-rg-faltan{position:absolute;top:0;right:6px;width:84px;height:84px;border-radius:50%;background:#fff;color:var(--rt);display:flex;flex-direction:column;align-items:center;justify-content:center;transform:rotate(10deg);box-shadow:0 10px 24px -8px rgba(0,0,0,.4);animation:twRgFlota 3s ease-in-out infinite;z-index:3}
+.tw-rg-faltan b{font-size:34px;line-height:1;font-weight:900}.tw-rg-faltan span{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.tw-rg-caja{position:relative;width:150px;height:150px;animation:twRgFlota 3.2s ease-in-out infinite}
+.tw-rg-caja.chica{width:96px;height:96px}
+.tw-rg-cuerpo{position:absolute;left:8%;right:8%;bottom:0;height:62%;border-radius:10px;background:linear-gradient(90deg,transparent 43%,#ffd34d 43% 57%,transparent 57%),linear-gradient(135deg,#fff,var(--r3));box-shadow:0 18px 30px -12px rgba(0,0,0,.4)}
+.tw-rg-tapa{position:absolute;left:0;right:0;top:24%;height:20%;border-radius:8px;background:linear-gradient(90deg,transparent 42%,#ffc61a 42% 58%,transparent 58%),#fff;box-shadow:0 6px 12px -6px rgba(0,0,0,.3);z-index:2;animation:twRgTapa 3.2s ease-in-out infinite;transform-origin:20% 100%}
+@keyframes twRgTapa{0%,60%,100%{transform:none}70%{transform:translateY(-14px) rotate(-12deg)}80%{transform:translateY(-6px) rotate(-4deg)}}
+.tw-rg-moño{position:absolute;top:2%;left:50%;transform:translateX(-50%);font-size:46px;z-index:3;animation:twRgTapa 3.2s ease-in-out infinite}
+.tw-rg-caja.chica .tw-rg-moño{font-size:30px}
+.tw-rg-brillos i{position:absolute;color:#fff;font-style:normal;font-size:22px;animation:twRgTitila 1.8s ease-in-out infinite}
+.tw-rg-brillos i:nth-child(1){top:-6px;left:-14px}.tw-rg-brillos i:nth-child(2){top:30%;right:-22px;animation-delay:.6s;font-size:16px}.tw-rg-brillos i:nth-child(3){bottom:12%;left:-24px;animation-delay:1.1s;font-size:14px}
+@keyframes twRgTitila{0%,100%{opacity:0;transform:scale(.4)}50%{opacity:1;transform:scale(1.15)}}
+@keyframes twRgFlota{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.tw-rg-faltan{animation-name:twRgFlotaR}
+@keyframes twRgFlotaR{0%,100%{transform:rotate(10deg) translateY(0)}50%{transform:rotate(6deg) translateY(-8px)}}
+.tw-rg-mini{position:absolute;left:4%;bottom:10px;background:linear-gradient(135deg,#fff,var(--r3));color:var(--rt);font-weight:900;font-size:12px;letter-spacing:.12em;padding:22px 26px 12px;border-radius:12px;transform:rotate(-12deg);box-shadow:0 12px 24px -10px rgba(0,0,0,.4);animation:twRgFlota 3.6s ease-in-out infinite reverse}
+.tw-rg-caja.sacude{animation:twRgSacude .5s ease-in-out infinite}
+@keyframes twRgSacude{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg) scale(1.04)}75%{transform:rotate(8deg) scale(1.04)}}
+@media(max-width:760px){.tw-rg-hero{grid-template-columns:1fr;padding:28px 22px 22px;margin-top:18px}.tw-rg-hero-art{height:150px;order:-1;margin:-6px 0 -4px}.tw-rg-caja{width:110px;height:110px}.tw-rg-mini{left:12%}.tw-rg-faltan{width:68px;height:68px;right:8%}.tw-rg-faltan b{font-size:26px}.tw-rg-b1,.tw-rg-b2{flex:1 1 100%;text-align:center}}
+.tw-nav .tw-nav-regalo{background:linear-gradient(90deg,var(--r1,#ff4f87),var(--r2,#ff9b85))!important;color:#fff!important;opacity:1!important;text-shadow:0 1px 2px rgba(0,0,0,.25);border-radius:999px;font-weight:900;padding-left:14px!important;padding-right:14px!important;animation:twRgLatidoS 2.2s ease-in-out infinite}
+@keyframes twRgLatidoS{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+.tw-rg{margin-top:18px}
+.tw-rg-cab{position:relative;overflow:hidden;border-radius:24px;padding:34px 28px 26px;text-align:center;background:linear-gradient(135deg,var(--r1),var(--r2));color:var(--rx)}
+.tw-rg-cab h1{font-size:clamp(28px,4.4vw,46px);line-height:1.08;font-weight:900;margin:14px 0 12px;letter-spacing:-.02em;position:relative}
+.tw-rg-cab p{max-width:58ch;margin:0 auto;font-size:16px;line-height:1.45;opacity:.95;position:relative}
+.tw-rg-cab .tw-rg-ceja{position:relative}
+.tw-rg-tabs{position:relative;display:flex;gap:12px;justify-content:center;margin-top:22px;flex-wrap:wrap}
+.tw .tw-rg-tabs button{font:inherit;cursor:pointer;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:10px;text-align:left;align-items:center;min-width:230px;border:2px solid var(--rx);background:rgba(255,255,255,.3);color:var(--rx);border-radius:18px;padding:14px 18px;transition:all .2s}
+.tw-rg-tabs button span{grid-row:1/3;font-size:30px}.tw-rg-tabs button b{font-size:16.5px}.tw-rg-tabs button small{font-size:12.5px;opacity:.9}
+.tw .tw-rg-tabs button.on{background:var(--b1);color:var(--b1t);border-color:var(--b1);box-shadow:0 12px 26px -10px rgba(0,0,0,.4);transform:translateY(-2px)}
+.tw-rg-panel{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin:26px 0 10px;align-items:start}
+@media(max-width:860px){.tw-rg-panel{grid-template-columns:1fr}.tw-rg-tabs button{min-width:0;flex:1 1 100%}}
+.tw-rg-gift-prev{position:sticky;top:90px}
+@media(max-width:860px){.tw-rg-gift-prev{position:static}}
+.tw-gc{position:relative;overflow:hidden;min-height:clamp(210px,40vw,300px);border-radius:22px;padding:22px 24px;color:var(--rx);background:radial-gradient(90% 120% at 100% 100%,rgba(255,255,255,.25),transparent 60%),linear-gradient(135deg,var(--r1),var(--r2));box-shadow:0 26px 50px -20px var(--r1),inset 0 0 0 1px rgba(255,255,255,.25);display:flex;flex-direction:column;animation:twRgGc .7s cubic-bezier(.2,1.4,.4,1) both}
+@keyframes twRgGc{from{transform:rotateX(25deg) translateY(20px) scale(.94);opacity:0}to{transform:none;opacity:1}}
+.tw-gc-brillo{position:absolute;inset:0;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.35) 50%,transparent 65%);background-size:260% 100%;animation:twRgBrillo 3.8s ease-in-out infinite}
+.tw-gc-top{display:flex;justify-content:space-between;align-items:center;gap:10px;position:relative;margin-bottom:18px}
+.tw-gc-logo{height:46px;width:auto;display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,.18))}
+.tw-gc-marca{display:flex;align-items:center;gap:8px;font-weight:800;font-size:15px}.tw-gc-marca img{width:30px;height:30px;border-radius:50%;object-fit:cover;background:#fff}
+.tw-gc-tag{font-size:11px;font-weight:900;letter-spacing:.14em;background:rgba(255,255,255,.4);border-radius:999px;padding:5px 10px}
+.tw-gc-monto{font-size:clamp(38px,6vw,56px);line-height:1.05;font-weight:900;letter-spacing:-.02em;margin:auto 0 6px;position:relative;text-shadow:0 3px 14px rgba(0,0,0,.15)}
+.tw-gc-para{font-size:15px;position:relative;opacity:.96}
+.tw-gc-msj{font-family:Georgia,serif;font-style:italic;font-size:14px;margin-top:6px;position:relative;opacity:.95;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tw-gc-cod{position:relative;align-self:flex-start;margin-top:10px;background:var(--b1);color:var(--b1t);border-radius:10px;padding:6px 12px;font:900 20px ui-monospace,Menlo,monospace;letter-spacing:.06em}
+.tw-gc-cod small{display:block;font:800 9.5px Helvetica,Arial,sans-serif;letter-spacing:.14em;opacity:.7}
+.tw-gc-emoji{position:absolute;right:14px;bottom:4px;font-size:78px;opacity:.22;transform:rotate(-12deg)}
+.tw-rg-como{list-style:none;padding:0;margin:20px 0 0;display:flex;flex-direction:column;gap:10px}
+.tw-rg-como li{display:flex;gap:12px;align-items:center;background:var(--r3);border-radius:14px;padding:12px 14px;font-size:14.5px;line-height:1.35;color:#333}
+.tw-rg-como li span{font-size:22px}
+.tw-rg-form{background:#fff;border:1px solid #eee;border-radius:20px;padding:22px;box-shadow:0 16px 40px -28px rgba(0,0,0,.35)}
+.tw-rg-paso{display:flex;align-items:center;gap:10px;font-weight:800;font-size:16px;margin:18px 0 10px}
+.tw-rg-paso:first-child{margin-top:0}
+.tw-rg-paso b{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--r1),var(--r2));color:#fff;font-size:13px;flex:none}
+.tw-rg-paso small{font-weight:500;color:#888;font-size:12.5px}
+.tw-rg-chips{display:flex;flex-wrap:wrap;gap:8px}
+.tw .tw-rg-chip{font:inherit;cursor:pointer;border:1.5px solid #e2e2e2;background:#fff;border-radius:999px;padding:10px 16px;font-size:14.5px;font-weight:700;color:#333;transition:all .15s}
+.tw-rg-chip:hover{border-color:var(--r1)}
+.tw .tw-rg-chip.on{background:linear-gradient(135deg,var(--r1),var(--r2));border-color:transparent;color:#fff;box-shadow:0 8px 18px -8px var(--r1);transform:scale(1.03)}
+.tw-rg-chips.chicos{margin-top:8px}.tw-rg-chips.chicos .tw-rg-chip{font-size:12.5px;padding:7px 12px;font-weight:600}
+.tw-rg-campo{display:flex;flex-direction:column;gap:5px;margin-top:10px;font-size:13px;color:#666;font-weight:600}
+.tw-rg-campo input,.tw-rg-campo textarea{font:inherit;font-size:15.5px;color:#111;border:1.5px solid #e2e2e2;border-radius:12px;padding:12px 14px;outline:none;resize:vertical;background:#fff}
+.tw-rg-campo input:focus,.tw-rg-campo textarea:focus{border-color:var(--r1);box-shadow:0 0 0 3px var(--r3)}
+.tw-rg-fila2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:520px){.tw-rg-fila2{grid-template-columns:1fr}}
+.tw-rg-pagos{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.tw .tw-rg-pagos button{font:inherit;cursor:pointer;text-align:left;border:1.5px solid #e2e2e2;background:#fff;border-radius:14px;padding:11px 13px;display:flex;flex-direction:column;gap:2px}
+.tw-rg-pagos button b{font-size:14.5px}.tw-rg-pagos button small{font-size:12px;color:#777}
+.tw-rg-pagos button.on{border-color:var(--r1);background:var(--r3);box-shadow:0 0 0 2px var(--r1) inset}
+.tw-rg-aviso{margin-top:14px;background:#fdecea;color:#b3261e;border-radius:12px;padding:11px 14px;font-size:14px;font-weight:600}
+.tw .tw-rg-comprar{font:inherit;width:100%;margin-top:18px;border:0;border-radius:999px;padding:17px 20px;font-size:16.5px;font-weight:900;color:#fff;cursor:pointer;background:linear-gradient(135deg,var(--r1),var(--r2));box-shadow:0 14px 28px -12px var(--r1);transition:transform .15s}
+.tw-rg-comprar:hover:not(:disabled){transform:translateY(-2px)}
+.tw-rg-comprar:disabled{opacity:.6;cursor:default}
+.tw-rg-resultado{min-height:200px;scroll-margin-top:90px}
+.tw-rg-vacio,.tw-rg-armando{border:2px dashed #eadbe1;border-radius:20px;padding:34px 22px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;background:var(--r3)}
+.tw-rg-vacio b,.tw-rg-armando b{font-size:17px}.tw-rg-vacio small,.tw-rg-armando small{color:#777;font-size:14px;max-width:36ch}
+.tw-rg-armando .tw-rg-caja{margin-bottom:14px}
+.tw-rg-caja-res{border-radius:20px;padding:18px;background:linear-gradient(180deg,var(--r3),#fff 60%);border:2px solid var(--r1);box-shadow:0 20px 44px -24px var(--r1);animation:twRgGc .6s cubic-bezier(.2,1.4,.4,1) both}
+.tw-rg-res-cab{display:flex;gap:12px;align-items:center}.tw-rg-res-cab>span{font-size:40px;animation:twRgLatido 1.6s ease-in-out infinite}
+.tw-rg-res-cab b{display:block;font-size:19px}.tw-rg-res-cab small{color:#666;font-size:13.5px}
+.tw-rg-barra{height:8px;border-radius:9px;background:#fff;border:1px solid #f0dbe3;margin:12px 0 10px;overflow:hidden}
+.tw-rg-barra span{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,var(--r1),var(--r2));transition:width .6s}
+.tw-rg-item{display:grid;grid-template-columns:64px 1fr auto;gap:12px;align-items:center;background:#fff;border:1px solid #eee;border-radius:14px;padding:8px;margin-top:8px;animation:twRgItem .45s cubic-bezier(.2,1.3,.4,1) both}
+@keyframes twRgItem{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
+.tw-rg-item-img{width:64px;height:64px;border-radius:10px;overflow:hidden;border:0;padding:0;background:#f6f6f6;cursor:pointer;display:grid;place-items:center}
+.tw-rg-item-img img{width:100%;height:100%;object-fit:cover}
+.tw-rg-item-txt b{display:block;font-size:14.5px;line-height:1.25}.tw-rg-item-txt small{color:#777;font-size:12.5px}
+.tw-rg-item-der{text-align:right;display:flex;flex-direction:column;gap:4px;align-items:flex-end}
+.tw-rg-item-der b{font-size:15px}
+.tw .tw-rg-item-der button{font:inherit;font-size:12px;font-weight:700;border:1px solid #e2e2e2;background:#fff;border-radius:999px;padding:4px 9px;cursor:pointer;color:#555}
+.tw-rg-check{display:flex;gap:8px;align-items:center;font-size:14px;margin-top:14px;font-weight:600}
+.tw-rg-res-btns{display:flex;flex-direction:column;gap:8px}
+.tw .tw-rg-otra{font:inherit;border:2px solid var(--r1);background:#fff;color:var(--rt);border-radius:999px;padding:13px;font-weight:800;font-size:15px;cursor:pointer}
+.tw-gc-acciones{display:flex;flex-direction:column;gap:8px;margin:16px 0 6px}
+@media(prefers-reduced-motion:reduce){.tw-rg-deco,.tw-rg-hero::after,.tw-gc-brillo{display:none}.tw-rg-caja,.tw-rg-tapa,.tw-rg-moño,.tw-rg-faltan,.tw-rg-mini,.tw-rg-b1,.tw-nav .tw-nav-regalo{animation:none}}
+.tw-ab{position:relative;min-height:100vh;min-height:100dvh;overflow:hidden;display:flex;flex-direction:column;align-items:center;padding:22px 18px 40px;color:var(--rx);background:radial-gradient(120% 80% at 50% 0%,rgba(255,255,255,.28),transparent 60%),linear-gradient(160deg,var(--r1),var(--r2))}
+.tw-ab .tw-rg-deco span{opacity:.6}
+.tw-ab-logo{position:relative;z-index:2;display:block;animation:twRgFlota 4s ease-in-out infinite}
+.tw-ab-logo img{height:96px;width:auto;display:block;filter:drop-shadow(0 4px 14px rgba(0,0,0,.2))}
+.tw-ab-marca{position:relative;z-index:2;display:flex;align-items:center;gap:10px;color:var(--rx)!important;text-decoration:none;font-weight:800;font-size:17px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.4);border-radius:999px;padding:6px 16px 6px 6px;backdrop-filter:blur(4px)}
+.tw-ab-marca img{width:38px;height:38px;border-radius:50%;object-fit:cover;background:#fff}
+.tw-ab-caja-txt,.tw-ab-abierto{position:relative;z-index:2;width:100%;max-width:520px;text-align:center;margin-top:5vh;display:flex;flex-direction:column;align-items:center}
+.tw-ab-ceja{display:inline-flex;gap:8px;align-items:center;background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.45);border-radius:999px;padding:7px 15px;font-size:13px;font-weight:800;letter-spacing:.05em;text-transform:uppercase}
+.tw-ab h1{font-size:clamp(28px,7vw,44px);line-height:1.08;font-weight:900;margin:16px 0 6px;text-shadow:0 3px 18px rgba(0,0,0,.15)}
+.tw-ab p{margin:0;font-size:17px;opacity:.95}
+.tw .tw-ab-caja{position:relative;width:200px;height:200px;margin:34px 0 26px;border:0;background:none;padding:0;cursor:pointer;animation:twAbMenea 2.6s ease-in-out infinite}
+.tw-ab-cuerpo{position:absolute;left:7%;right:7%;bottom:0;height:64%;border-radius:14px;background:linear-gradient(90deg,transparent 43%,#ffd34d 43% 57%,transparent 57%),linear-gradient(135deg,#fff,var(--r3));box-shadow:0 26px 40px -16px rgba(0,0,0,.45)}
+.tw-ab-tapa{position:absolute;left:0;right:0;top:20%;height:21%;border-radius:12px;z-index:2;background:linear-gradient(90deg,transparent 42%,#ffc61a 42% 58%,transparent 58%),#fff;box-shadow:0 8px 14px -8px rgba(0,0,0,.35);transform-origin:15% 100%}
+.tw-ab-tapa i{position:absolute;left:50%;top:-52px;transform:translateX(-50%);font-size:64px;font-style:normal}
+.tw-ab-luz{position:absolute;left:50%;top:40%;width:10px;height:10px;border-radius:50%;transform:translate(-50%,-50%);background:#fff;opacity:0;box-shadow:0 0 60px 30px rgba(255,255,255,.9)}
+@keyframes twAbMenea{0%,70%,100%{transform:rotate(0)}74%{transform:rotate(-7deg)}78%{transform:rotate(6deg)}82%{transform:rotate(-4deg)}86%{transform:rotate(2deg)}}
+.tw .tw-ab-caja.abriendo{animation:twRgSacude .25s ease-in-out 3}
+.tw-ab-caja.abriendo .tw-ab-tapa{animation:twAbTapa .9s cubic-bezier(.5,-0.4,.6,1) .45s forwards}
+.tw-ab-caja.abriendo .tw-ab-luz{animation:twAbLuz .9s ease .5s forwards}
+@keyframes twAbTapa{to{transform:translate(40px,-220px) rotate(-55deg);opacity:0}}
+@keyframes twAbLuz{0%{opacity:0}50%{opacity:1;box-shadow:0 0 120px 80px rgba(255,255,255,.95)}100%{opacity:.9;box-shadow:0 0 200px 140px rgba(255,255,255,.9)}}
+.tw-ab-abrir{font-size:17px!important;padding:17px 30px!important}
+.tw-ab-tarjeta{width:100%;margin:22px 0 4px;transition:transform .15s ease-out;animation:twAbSale 1.1s cubic-bezier(.2,1.2,.35,1) both;transform-style:preserve-3d}
+@keyframes twAbSale{0%{opacity:0;transform:perspective(900px) translateY(120px) rotateY(-180deg) scale(.5)}60%{opacity:1}100%{opacity:1;transform:perspective(900px) translateY(0) rotateY(0) scale(1)}}
+.tw-ab-tarjeta .tw-gc{animation:none;box-shadow:0 34px 60px -20px rgba(0,0,0,.55),0 0 0 3px rgba(255,255,255,.75);text-align:left}
+.tw-ab-tarjeta .tw-gc-msj{-webkit-line-clamp:4;min-height:1.4em}
+.tw-ab-info{width:100%;display:flex;flex-direction:column;gap:8px;margin-top:16px;animation:twRgItem .5s ease 1s both}
+.tw-ab-info div{display:flex;gap:10px;align-items:flex-start;text-align:left;background:rgba(255,255,255,.95);color:#333;border-radius:14px;padding:12px 14px;font-size:14.5px;line-height:1.4}
+.tw-ab-info span{font-size:20px}
+.tw-ab .tw-ab-info p{margin:0;font-size:14.5px;opacity:1}
+.tw-ab-btns{width:100%;display:flex;flex-direction:column;gap:8px;margin-top:16px;animation:twRgItem .5s ease 1.2s both}
+.tw-ab .tw-rg-comprar{background:var(--b1)!important;color:var(--b1t)!important;box-shadow:0 14px 30px -12px rgba(0,0,0,.4)}
+.tw-ab .tw-rg-otra{background:rgba(255,255,255,.3);color:var(--rx)!important;border-color:var(--rx)}
+.tw-ab-tienda{color:var(--rx)!important;font-weight:700;margin-top:6px;text-decoration:underline}
+@media(prefers-reduced-motion:reduce){.tw .tw-ab-caja,.tw-ab-tarjeta,.tw-ab-info,.tw-ab-btns{animation:none}}
 `;
 
 const TwIcono = ({ d, size = 22 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{d}</svg>;
@@ -24220,6 +24428,435 @@ const twProductoDeUrl = () => {
 };
 const twBuscarPorSlug = (lista, slugs, s) => { if (!s) return null; const m = /-(\d+)$/.exec(s); return lista.find(p => slugs.get(p.id) === s) || (m && lista.find(p => p.id === Number(m[1]))) || null; };
 
+// ===================== Regalos: "¿Querés hacer un regalo?" =====================
+// Gift cards online (se emiten en Lumiere cuando se acredita el pago) y un armador de regalos que elige
+// entre lo mas vendido con stock, segun el presupuesto y lo que le gusta a la persona.
+const TW_TEMAS_REGALO = {
+  madre: { nombre: "Día de la Madre", emoji: "🌻", deco: ["🌻", "💛", "🌼", "🌻", "✨", "🌻", "💛"], c1: "#ff4f87", c2: "#ff9b85", c3: "#fff0f4", tinta: "#7a1d3f", titulo: "Regalale algo lindo a mamá", para: ["Mamá", "Abuela", "Suegra", "Tía", "Amiga", "Otra persona"],
+    mensajes: ["¡Feliz día, ma! Te quiero mucho 💖", "Para que te des un gustito 🌻", "Gracias por todo, siempre ✨"] },
+  padre: { nombre: "Día del Padre", emoji: "👔", deco: ["🎁", "👔", "⌚", "💙", "⭐", "✨"], c1: "#2b59c3", c2: "#46a6ff", c3: "#eef5ff", tinta: "#13285c", titulo: "Sorprendé a papá", para: ["Papá", "Abuelo", "Suegro", "Tío", "Amigo", "Otra persona"],
+    mensajes: ["¡Feliz día, pa! 💙", "Para que te des un gustito", "Gracias por todo ✨"] },
+  navidad: { nombre: "Navidad", emoji: "🎄", deco: ["🎄", "🎁", "⭐", "❄️", "🔔", "✨"], c1: "#c62828", c2: "#2e7d32", c3: "#fff4f2", tinta: "#5b0f0f", titulo: "Regalos para esta Navidad", para: ["Mamá", "Papá", "Pareja", "Amiga/o", "Hermana/o", "Otra persona"],
+    mensajes: ["¡Feliz Navidad! 🎄", "Que tengas unas fiestas hermosas ✨", "Un mimo para estas fiestas 🎁"] },
+  enamorados: { nombre: "San Valentín", emoji: "💘", deco: ["💘", "❤️", "🌻", "💌", "✨", "💕"], c1: "#e5384f", c2: "#ff7aa2", c3: "#fff0f3", tinta: "#6d0f1f", titulo: "Un regalo para tu amor", para: ["Mi pareja", "Amiga/o", "Otra persona"],
+    mensajes: ["Te amo 💘", "Feliz San Valentín ❤️", "Para vos, con todo mi amor 🌹"] },
+  general: { nombre: "Regalos", emoji: "🎁", deco: ["🎁", "✨", "🎀", "💝", "⭐", "🌻"], c1: "#8e5cf5", c2: "#ff7eb3", c3: "#f6f0ff", tinta: "#3b1d73", titulo: "¿Querés hacer un regalo?", para: ["Mamá", "Papá", "Pareja", "Amiga/o", "Hermana/o", "Otra persona"],
+    mensajes: ["¡Feliz cumple! 🎉", "Para que te des un gustito ✨", "Un mimo para vos 💝"] },
+};
+const twTemaRegalo = (r) => TW_TEMAS_REGALO[r && r.tema] || TW_TEMAS_REGALO.general;
+// --rx: color del texto sobre el fondo de la tematica (oscuro sobre el amarillo girasol, blanco sobre los demas)
+const twVarsRegalo = (t) => ({ "--r1": t.c1, "--r2": t.c2, "--r3": t.c3, "--rt": t.tinta, "--rx": t.texto || "#fff", "--b1": t.texto ? "#2b2b2b" : "#fff", "--b1t": t.texto ? "#fff" : t.tinta });
+// Logo de la marca que se lee sobre ese fondo
+const twLogoRegalo = (tienda, t) => tienda.logo_marca ? (t.texto ? tienda.logo_marca.color : tienda.logo_marca.blanco) : null;
+// "Este domingo 18 es el Día de la Madre" / "¡Hoy es el Día de la Madre!"
+function twCejaRegalo(r, t) {
+  if (!r || r.tema === "general" || r.faltan === null || r.faltan === undefined) return r && r.tema !== "general" ? "Se viene el " + t.nombre : "Regalos para todas las ocasiones";
+  if (r.faltan === 0) return "¡Hoy es el " + t.nombre + "!";
+  if (r.faltan === 1) return "¡Mañana es el " + t.nombre + "!";
+  const dia = r.fecha ? new Date(r.fecha + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric" }) : "";
+  return r.faltan <= 6 ? "Este " + dia + " es el " + t.nombre : "Se viene el " + t.nombre + " · faltan " + r.faltan + " días";
+}
+// Lluvia suave de flores / corazones de fondo (posiciones fijas, asi no salta al redibujar)
+function TwDecoRegalo({ t, n = 16 }) {
+  return <div className="tw-rg-deco" aria-hidden="true">{Array.from({ length: n }, (_, i) => <span key={i} style={{ left: ((i * 37) % 100) + "%", animationDelay: -((i * 1.7) % 9) + "s", animationDuration: 7 + (i % 5) + "s", fontSize: 16 + ((i * 7) % 18) }}>{t.deco[i % t.deco.length]}</span>)}</div>;
+}
+
+// Franja grande de la portada
+function TwRegalosHero({ r, tienda, onGift, onArmar }) {
+  const t = twTemaRegalo(r);
+  return (
+    <section className="tw-rg-hero tw-rv" style={twVarsRegalo(t)}>
+      <TwDecoRegalo t={t} />
+      <div className="tw-rg-hero-txt">
+        <div className="tw-rg-ceja"><span>{t.emoji}</span> {twCejaRegalo(r, t)}</div>
+        <h2>{r.titulo || t.titulo}</h2>
+        <p>{r.texto || "Una gift card para que elija lo que más le guste, o te armamos el regalo según tu presupuesto."}</p>
+        <div className="tw-rg-btns">
+          {r.giftcards && <button className="tw-rg-b1" onClick={onGift}>🎁 Regalá una Gift Card</button>}
+          {r.armador && <button className="tw-rg-b2" onClick={onArmar}>✨ Armamos el regalo por vos</button>}
+        </div>
+      </div>
+      <div className="tw-rg-hero-art" aria-hidden="true">
+        {r.faltan > 0 && r.faltan <= 21 && <div className="tw-rg-faltan"><b>{r.faltan}</b><span>{r.faltan === 1 ? "día" : "días"}</span></div>}
+        <div className="tw-rg-caja"><div className="tw-rg-tapa" /><div className="tw-rg-cuerpo" /><div className="tw-rg-moño">🎀</div><div className="tw-rg-brillos"><i>✦</i><i>✧</i><i>✦</i></div></div>
+        <div className="tw-rg-mini">GIFT CARD</div>
+      </div>
+    </section>
+  );
+}
+
+// La gift card dibujada (vista previa al comprarla y, ya pagada, con su codigo)
+function TwGiftCard({ t, tienda, monto, para, de, mensaje, codigo }) {
+  return (
+    <div className="tw-gc" style={twVarsRegalo(t)}>
+      <div className="tw-gc-brillo" />
+      <div className="tw-gc-top">{twLogoRegalo(tienda, t) ? <img className="tw-gc-logo" src={twLogoRegalo(tienda, t)} alt={tienda.titulo} /> : <span className="tw-gc-marca">{tienda.logo ? <img src={tienda.logo} alt="" /> : null}{tienda.titulo}</span>}<span className="tw-gc-tag">GIFT CARD</span></div>
+      <div className="tw-gc-monto">{monto ? fmtTienda(monto) : "$ —"}</div>
+      <div className="tw-gc-para">Para <b>{para || "…"}</b>{de ? <> · de <b>{de}</b></> : null}</div>
+      {mensaje ? <div className="tw-gc-msj">“{mensaje}”</div> : null}
+      {codigo ? <div className="tw-gc-cod"><small>Código</small>{codigo}</div> : null}
+      <div className="tw-gc-emoji" aria-hidden="true">{t.emoji}</div>
+    </div>
+  );
+}
+
+// Imagen de la gift card (para mandarla por WhatsApp o guardarla)
+async function twImagenGiftCard({ t, titulo, monto, para, de, mensaje, codigo, logo }) {
+  let img = null;
+  if (logo) { try { img = new Image(); img.src = logo; await img.decode(); } catch (e) { img = null; } }
+  const W = 1080, H = 680, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const g = cv.getContext("2d");
+  const rr = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
+  const fondo = g.createLinearGradient(0, 0, W, H); fondo.addColorStop(0, t.c1); fondo.addColorStop(1, t.c2);
+  rr(0, 0, W, H, 48); g.fillStyle = fondo; g.fill();
+  g.globalAlpha = .16; g.font = "220px serif"; g.fillText(t.emoji, W - 300, H - 60); g.globalAlpha = 1;
+  const tx = t.texto || "#fff";
+  g.fillStyle = tx; g.textBaseline = "alphabetic";
+  if (img) { const h = 120, w = h * (img.naturalWidth || 709) / (img.naturalHeight || 517); g.drawImage(img, 56, 26, w, h); }
+  else { g.font = "700 40px Helvetica, Arial, sans-serif"; g.fillText(String(titulo || "").slice(0, 34), 64, 100); }
+  g.font = "800 28px Helvetica, Arial, sans-serif"; const tag = "GIFT CARD"; const tw = g.measureText(tag).width;
+  rr(W - 64 - tw - 40, 62, tw + 40, 52, 26); g.fillStyle = "rgba(255,255,255,.4)"; g.fill(); g.fillStyle = tx; g.fillText(tag, W - 64 - tw - 20, 98);
+  g.font = "900 150px Helvetica, Arial, sans-serif"; g.fillText(fmtTienda(monto), 64, 300);
+  g.font = "400 40px Helvetica, Arial, sans-serif"; g.fillText("Para " + (para || "") + (de ? "  ·  de " + de : ""), 64, 380);
+  if (mensaje) {
+    g.font = "italic 34px Georgia, serif";
+    const palabras = ("“" + mensaje + "”").split(" "); let linea = "", y = 440, lineas = 0;
+    for (const p of palabras) { const prueba = linea ? linea + " " + p : p; if (g.measureText(prueba).width > W - 140 && linea) { g.fillText(linea, 64, y); y += 46; linea = p; if (++lineas >= 2) { linea += "…"; break; } } else linea = prueba; }
+    if (lineas < 3) g.fillText(linea, 64, y);
+  }
+  if (codigo) {
+    rr(64, H - 140, 520, 92, 20); g.fillStyle = t.texto ? "#2b2b2b" : "rgba(255,255,255,.95)"; g.fill();
+    g.fillStyle = t.texto ? "#fff" : t.tinta; g.font = "700 22px Helvetica, Arial, sans-serif"; g.fillText("CÓDIGO", 92, H - 100);
+    g.font = "900 44px ui-monospace, Menlo, monospace"; g.fillText(codigo, 92, H - 62);
+  }
+  return await new Promise(ok => cv.toBlob(ok, "image/png"));
+}
+
+// En la pagina del pedido: la gift card (con su codigo cuando ya se pago) y como mandarla
+function TwGiftCardPedido({ pedido, tienda, slug }) {
+  const g = pedido.giftcard, t = twTemaRegalo(tienda.regalos);
+  const [copiado, setCopiado] = useState(false);
+  const [aviso, setAviso] = useState("");
+  const de = String(g.de || "").split(" ")[0];
+  const link = g.codigo && g.firma ? twLinkRegalo(tienda.dominio, slug, g.codigo, g.firma) : "";
+  const texto = "🎁 ¡" + g.para + ", te regalaron una gift card de " + fmtTienda(g.monto) + " en " + tienda.titulo + "!" + (de ? " De parte de " + de + "." : "") + "\n\nAbrí tu regalo acá 👉 " + link + "\n\nTu código es *" + g.codigo + "*. Mostralo en el local para usarla.";
+  const linkWa = () => { let n = String(g.para_telefono || "").replace(/\D/g, ""); if (n.startsWith("0")) n = n.slice(1); if (n && !n.startsWith("54")) n = "549" + n; return "https://wa.me/" + (n.length >= 10 ? n : "") + "?text=" + encodeURIComponent(texto); };
+  const compartir = async () => {
+    setAviso("");
+    try {
+      const blob = await twImagenGiftCard({ t, titulo: tienda.titulo, monto: g.monto, para: g.para, de, mensaje: g.mensaje, codigo: g.codigo, logo: twLogoRegalo(tienda, t) });
+      const archivo = new File([blob], "gift-card-" + g.codigo + ".png", { type: "image/png" });
+      if (navigator.canShare && navigator.canShare({ files: [archivo] })) { await navigator.share({ files: [archivo], text: texto }); return; }
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = archivo.name; document.body.appendChild(a); a.click(); a.remove();
+      setAviso("✓ Se descargó la imagen: mandala por WhatsApp junto con el mensaje.");
+    } catch (e) { if (!e || e.name !== "AbortError") setAviso("No se pudo armar la imagen. Mandá el mensaje con el código."); }
+  };
+  return (
+    <div style={{ margin: "4px 0 18px" }}>
+      <TwGiftCard t={t} tienda={tienda} monto={g.monto} para={g.para} de={de} mensaje={g.mensaje} codigo={g.codigo} />
+      {g.codigo ? (
+        <div className="tw-gc-acciones" style={twVarsRegalo(t)}>
+          <button className="tw-rg-otra" onClick={compartir}>📲 Mandar la gift card como imagen</button>
+          <a className="tw-rg-comprar" style={{ marginTop: 0, textAlign: "center", textDecoration: "none" }} href={linkWa()} target="_blank" rel="noopener">💬 Mandarle el regalo por WhatsApp{g.para_telefono ? " a " + g.para : ""}</a>
+          <a className="tw-rg-otra" style={{ textAlign: "center", textDecoration: "none" }} href={link} target="_blank" rel="noopener">👀 Ver cómo lo recibe (se abre con animación)</a>
+          <button className="tw-btn2" onClick={() => { try { navigator.clipboard.writeText(g.codigo); setCopiado(true); setTimeout(() => setCopiado(false), 2000); } catch (e) {} }}>{copiado ? "✓ Código copiado" : "Copiar el código " + g.codigo}</button>
+          {aviso && <div style={{ fontSize: 13.5, color: "#555" }}>{aviso}</div>}
+          <div style={{ fontSize: 13, color: "#666", lineHeight: 1.45 }}>Se usa en el local presentando el código. El saldo que no use le queda para la próxima.</div>
+        </div>
+      ) : pedido.estado !== "cancelado" ? <div style={{ fontSize: 14, color: "#666", margin: "12px 0 0", lineHeight: 1.45 }}>Cuando se acredite el pago vas a ver acá el código para regalarla.</div> : null}
+    </div>
+  );
+}
+
+// Link de una gift card online (?regalo=CODIGO.FIRMA): con el dominio propio si hay uno
+function twLinkRegalo(dominio, slug, codigo, firma) {
+  const v = encodeURIComponent(codigo + "." + firma);
+  return dominio ? "https://" + dominio + "/?regalo=" + v : window.location.origin + window.location.pathname + "?tienda=" + encodeURIComponent(slug) + "&regalo=" + v;
+}
+
+// Lo que ve quien recibe la gift card: una caja que se abre (con confeti) y la tarjeta que sale girando
+function TwRegaloAbrir({ tienda, valor, pedir, slug, modoRuta }) {
+  const [codigo, firma] = String(valor || "").split(".");
+  const [g, setG] = useState(null);
+  const [error, setError] = useState("");
+  const [fase, setFase] = useState("cerrado"); // cerrado | abriendo | abierto
+  const [escrito, setEscrito] = useState("");
+  const [copiado, setCopiado] = useState(false);
+  const [giro, setGiro] = useState({ x: 0, y: 0 });
+  const t = twTemaRegalo(tienda.regalos);
+  useEffect(() => { pedir("/regalo/" + encodeURIComponent(codigo || "") + "/" + encodeURIComponent(firma || "")).then(setG).catch(e => setError(e.message)); }, []);
+  // El mensaje se escribe solo, letra por letra
+  useEffect(() => {
+    if (fase !== "abierto" || !g || !g.mensaje) return;
+    let i = 0; const txt = g.mensaje;
+    const iv = setInterval(() => { i++; setEscrito(txt.slice(0, i)); if (i >= txt.length) clearInterval(iv); }, 38);
+    return () => clearInterval(iv);
+  }, [fase, g]);
+  const abrir = () => {
+    if (fase !== "cerrado") return;
+    setFase("abriendo"); twVibrar([20, 60, 20]); twSonar.pop();
+    setTimeout(() => { setFase("abierto"); twConfeti(140, true); twSonar.campana(); twVibrar([10, 40, 10, 40, 30]); }, 950);
+  };
+  const mover = (e) => { if (twMenosMovimiento()) return; const r = e.currentTarget.getBoundingClientRect(); const x = ((e.clientX - r.left) / r.width - 0.5), y = ((e.clientY - r.top) / r.height - 0.5); setGiro({ x: -y * 14, y: x * 18 }); };
+  const guardar = async () => {
+    try {
+      const blob = await twImagenGiftCard({ t, titulo: tienda.titulo, monto: g.monto, para: g.para, de: g.de, mensaje: g.mensaje, codigo: g.codigo, logo: twLogoRegalo(tienda, t) });
+      const archivo = new File([blob], "gift-card-" + g.codigo + ".png", { type: "image/png" });
+      if (navigator.canShare && navigator.canShare({ files: [archivo] })) { await navigator.share({ files: [archivo] }); return; }
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = archivo.name; document.body.appendChild(a); a.click(); a.remove();
+    } catch (e) {}
+  };
+  const inicio = modoRuta ? "/" : "?tienda=" + encodeURIComponent(slug);
+  const locales = (tienda.retiro || []).map(l => l.nombre);
+  return (
+    <div className="tw-ab" style={twVarsRegalo(t)}>
+      <TwDecoRegalo t={t} n={22} />
+      {twLogoRegalo(tienda, t) ? <a className="tw-ab-logo" href={inicio} aria-label={tienda.titulo}><img src={twLogoRegalo(tienda, t)} alt={tienda.titulo} /></a>
+        : <a className="tw-ab-marca" href={inicio}>{tienda.logo ? <img src={tienda.logo} alt="" /> : null}<span>{tienda.titulo}</span></a>}
+      {error ? <div className="tw-ab-caja-txt"><div style={{ fontSize: 50 }}>💭</div><h1>{error}</h1><a className="tw-rg-b1" href={inicio} style={{ textDecoration: "none", display: "inline-block", marginTop: 16 }}>Ir a la tienda</a></div>
+        : !g ? <div className="tw-ab-caja-txt"><div className="tw-rg-caja"><div className="tw-rg-tapa" /><div className="tw-rg-cuerpo" /><div className="tw-rg-moño">🎀</div></div></div>
+        : fase !== "abierto" ? (
+          <div className="tw-ab-caja-txt">
+            <div className="tw-ab-ceja">{t.emoji} Tenés un regalo</div>
+            <h1>{g.para ? "¡" + g.para + ", esto es para vos!" : "¡Esto es para vos!"}</h1>
+            {g.de && <p>De parte de <b>{g.de}</b></p>}
+            <button className={"tw-ab-caja" + (fase === "abriendo" ? " abriendo" : "")} onClick={abrir} aria-label="Abrir el regalo">
+              <span className="tw-ab-tapa"><i>🎀</i></span><span className="tw-ab-cuerpo" /><span className="tw-ab-luz" />
+            </button>
+            <button className="tw-rg-b1 tw-ab-abrir" onClick={abrir} disabled={fase === "abriendo"}>{fase === "abriendo" ? "Abriendo…" : "🎁 Abrir mi regalo"}</button>
+          </div>
+        ) : (
+          <div className="tw-ab-abierto">
+            <div className="tw-ab-ceja">{t.emoji} ¡Te regalaron una gift card!</div>
+            <div className="tw-ab-tarjeta" onPointerMove={mover} onPointerLeave={() => setGiro({ x: 0, y: 0 })} style={{ transform: "perspective(900px) rotateX(" + giro.x + "deg) rotateY(" + giro.y + "deg)" }}>
+              <TwGiftCard t={t} tienda={tienda} monto={g.monto} para={g.para} de={g.de} mensaje={escrito} codigo={g.codigo} />
+            </div>
+            {g.estado === "anulada" ? <div className="tw-rg-aviso">Esta gift card ya no está activa. Escribinos si tenés dudas.</div>
+              : g.saldo <= 0 ? <div className="tw-rg-aviso">Esta gift card ya se usó completa.</div>
+              : <div className="tw-ab-info">
+                  {g.saldo < g.monto && <div><span>💳</span><p>Te quedan <b>{fmtTienda(g.saldo)}</b> para usar.</p></div>}
+                  <div><span>🛍️</span><p>Mostrá el código <b>{g.codigo}</b> en {locales.length > 1 ? "cualquiera de nuestros locales (" + locales.join(" o ") + ")" : locales.length ? "nuestro local de " + locales[0] : "el local"} y elegí lo que más te guste.</p></div>
+                  <div><span>✨</span><p>Si no la usás toda de una vez, el saldo te queda para la próxima.</p></div>
+                </div>}
+            <div className="tw-ab-btns">
+              <button className="tw-rg-comprar" style={{ marginTop: 0 }} onClick={guardar}>📲 Guardar mi gift card</button>
+              <button className="tw-rg-otra" onClick={() => { try { navigator.clipboard.writeText(g.codigo); setCopiado(true); setTimeout(() => setCopiado(false), 2000); } catch (e) {} }}>{copiado ? "✓ Código copiado" : "Copiar el código"}</button>
+              <a className="tw-rg-otra" style={{ textAlign: "center", textDecoration: "none" }} href={"https://wa.me/?text=" + encodeURIComponent("¡Gracias por la gift card de " + tienda.titulo + "! 💖")} target="_blank" rel="noopener">💬 Agradecer por WhatsApp</a>
+              <a className="tw-ab-tienda" href={inicio}>Ver los productos de la tienda ›</a>
+            </div>
+          </div>
+        )}
+    </div>
+  );
+}
+
+// Elige productos para el regalo: lo mas vendido / mejor reseñado, con stock, que entre en el presupuesto,
+// variado (distintos tipos) y priorizando lo que le gusta. Prueba varias combinaciones y se queda con la mejor.
+function twArmarRegalo(cands, presupuesto, gustos, piel, evitar = []) {
+  if (!cands.length) return [];
+  const peso = (x) => {
+    const p = x.p; let w = 1 + (p.top ? (12 - p.top) * 0.45 : 0) + (p.resenas ? Math.max(0, p.resenas[0] - 3) * 1.4 : 0) + (p.destacado ? 1 : 0) + (p.foto ? 0.8 : -0.6);
+    if (gustos.length && gustos.some(gu => (p._et.tipo || []).includes(gu) || p.categoria === gu)) w *= 4;
+    // Tipo de piel: primero lo que es para su piel (o para todo tipo); lo que es solo para otra piel, casi nunca
+    if (piel && ((p._et.piel || []).includes(piel) || p._et.todoTipo)) w *= 2.5;
+    else if (piel && (p._et.piel || []).length) w *= 0.08;
+    if (evitar.includes(p.id)) w *= 0.25;
+    return Math.max(0.15, w);
+  };
+  const tipoDe = (p) => (p._et.tipo || [])[0] || p.categoria || "otro";
+  let mejor = null, mejorPuntos = -1;
+  for (let intento = 0; intento < 45; intento++) {
+    let resta = presupuesto; const elegidos = [], tipos = new Set();
+    while (elegidos.length < 4) {
+      const opc = cands.filter(x => x.precio <= resta && !elegidos.includes(x));
+      if (!opc.length) break;
+      const ws = opc.map(x => peso(x) * (tipos.has(tipoDe(x.p)) ? 0.3 : 1));
+      let r = Math.random() * ws.reduce((a, b) => a + b, 0), k = 0;
+      while (r > ws[k] && k < ws.length - 1) { r -= ws[k]; k++; }
+      elegidos.push(opc[k]); tipos.add(tipoDe(opc[k].p)); resta -= opc[k].precio;
+      if (resta < presupuesto * 0.1) break;
+    }
+    if (!elegidos.length) continue;
+    const gastado = presupuesto - resta;
+    const puntos = (gastado / presupuesto) * 10 + tipos.size * 0.9 + (elegidos.length >= 2 ? 1.2 : 0) + elegidos.reduce((a, x) => a + peso(x), 0) / elegidos.length * 0.25 + Math.random() * 0.8;
+    if (puntos > mejorPuntos) { mejorPuntos = puntos; mejor = elegidos; }
+  }
+  return mejor || [];
+}
+
+// Pagina del sector de regalos
+function TwRegalos({ r, tienda, modo, setModo, productos, dispo, foto, ciudades, lid, datos, setDatos, pedir, slug, modoRuta, onAgregar, onAbrir }) {
+  const t = twTemaRegalo(r);
+  const pagos = [tienda.pagos.mp && ["mp", "Mercado Pago", "Tarjeta, débito o dinero en cuenta"], tienda.pagos.gocuotas && ["gocuotas", "GoCuotas", "Cuotas sin interés con débito"], tienda.pagos.transferencia && ["transferencia", "Transferencia", "Te pasamos los datos"]].filter(Boolean);
+  const [gc, setGc] = useState(() => ({ monto: r.montos[1] || r.montos[0] || "", otro: "", para: "", para_telefono: "", mensaje: "", local_id: lid || (ciudades[0] && ciudades[0].id) || 1, pago: pagos[0] ? pagos[0][0] : "" }));
+  const [enviando, setEnviando] = useState(false);
+  const [aviso, setAviso] = useState("");
+  const monto = gc.monto === "otro" ? Math.round(Number(gc.otro) || 0) : gc.monto;
+  const comprarGc = async () => {
+    setAviso("");
+    if (!monto) return setAviso("Elegí el monto de la gift card");
+    if (gc.para.trim().length < 2) return setAviso("Escribí para quién es");
+    if (String(datos.nombre || "").trim().length < 2) return setAviso("Escribí tu nombre");
+    if (String(datos.telefono || "").replace(/\D/g, "").length < 8) return setAviso("Escribí tu WhatsApp (con código de área)");
+    if (!gc.pago) return setAviso("Elegí cómo vas a pagar");
+    setEnviando(true);
+    try { localStorage.setItem("tienda_datos", JSON.stringify({ nombre: datos.nombre, telefono: datos.telefono, email: datos.email, direccion: datos.direccion })); } catch (e) {}
+    try {
+      const x = await pedir("/giftcards", { method: "POST", body: JSON.stringify({ monto, para: gc.para, para_telefono: gc.para_telefono, mensaje: gc.mensaje, local_id: gc.local_id, pago: gc.pago, nombre: datos.nombre, telefono: datos.telefono, email: datos.email, volver_a: window.location.href }) });
+      if (x.link_pago) { window.location.href = x.link_pago; return; }
+      window.location.href = (modoRuta ? "/" : window.location.pathname) + "?tienda=" + encodeURIComponent(slug) + "&pedido=" + x.codigo;
+    } catch (e) { setAviso(e.message); setEnviando(false); }
+  };
+
+  // ----- Armador -----
+  const cands = productos.map(p => {
+    if (p.variantes) { const v = p.variantes.find(v => dispo(p, v) > 0); return v ? { p, v, precio: p.precio } : null; }
+    return dispo(p) > 0 && p.precio > 0 ? { p, v: null, precio: p.precio } : null;
+  }).filter(Boolean);
+  const tiposHay = TW_FILTROS[0].op.map(o => ({ v: o[0], t: o[1], n: cands.filter(x => (x.p._et.tipo || []).includes(o[0])).length })).filter(o => o.n > 0);
+  const porTipo = tiposHay.length >= 3;
+  const gustosOp = porTipo ? tiposHay.map(o => [o.v, o.t]) : [...new Set(cands.map(x => x.p.categoria).filter(Boolean))].sort().slice(0, 14).map(c => [c, c]);
+  const [arm, setArm] = useState({ para: "", pres: r.presupuestos[1] || r.presupuestos[0], otro: "", gustos: [], piel: "" });
+  const [armando, setArmando] = useState(false);
+  const [regalo, setRegalo] = useState(null); // [{ p, v, precio }]
+  const [tarjeta, setTarjeta] = useState({ envolver: true, mensaje: "" });
+  const pres = arm.pres === "otro" ? Math.round(Number(arm.otro) || 0) : arm.pres;
+  const armar = (evitar) => {
+    if (!pres) return;
+    setArmando(true); setRegalo(null); twSonar.pop();
+    setTimeout(() => {
+      const res = twArmarRegalo(cands, pres, arm.gustos, arm.piel, evitar || []);
+      setRegalo(res); setArmando(false);
+      if (res.length) { twSonar.brillo(); twVibrar([10, 30, 10]); }
+      setTimeout(() => { const el = document.querySelector(".tw-rg-resultado"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 60);
+    }, 1300);
+  };
+  const cambiarUno = (i) => {
+    const actual = regalo[i]; const resto = regalo.reduce((a, x, k) => k === i ? a : a + x.precio, 0);
+    const opc = cands.filter(x => !regalo.some(y => y.p.id === x.p.id) && x.precio <= pres - resto);
+    if (!opc.length) return;
+    const mismos = opc.filter(x => (x.p._et.tipo || [])[0] && (x.p._et.tipo || [])[0] === (actual.p._et.tipo || [])[0]);
+    const lista = mismos.length ? mismos : opc;
+    const nuevo = twArmarRegalo(lista, pres - resto, arm.gustos, arm.piel, [actual.p.id])[0] || lista[Math.floor(Math.random() * lista.length)];
+    setRegalo(g => g.map((x, k) => k === i ? nuevo : x)); twSonar.pop();
+  };
+  const total = regalo ? regalo.reduce((a, x) => a + x.precio, 0) : 0;
+  const agregarRegalo = () => {
+    const nota = tarjeta.envolver || tarjeta.mensaje.trim() ? "🎁 ES PARA REGALO" + (tarjeta.envolver ? " (envolver, sin precio)" : "") + (tarjeta.mensaje.trim() ? " · Tarjeta: " + tarjeta.mensaje.trim() : "") : "";
+    if (nota) setDatos(d => ({ ...d, nota: [nota, String(d.nota || "").replace(/🎁 ES PARA REGALO[^\n]*\n?/g, "").trim()].filter(Boolean).join("\n") }));
+    onAgregar(regalo);
+  };
+
+  const chip = (on, onClick, txt, k) => <button key={k} type="button" className={"tw-rg-chip" + (on ? " on" : "")} onClick={onClick}>{txt}</button>;
+  return (
+    <div className="tw-rg" style={twVarsRegalo(t)}>
+      <section className="tw-rg-cab">
+        <TwDecoRegalo t={t} n={12} />
+        <div className="tw-rg-ceja"><span>{t.emoji}</span> {twCejaRegalo(r, t)}</div>
+        <h1>{r.titulo || t.titulo}</h1>
+        <p>{r.texto || "Elegí cómo querés regalar: una gift card para que elija lo que quiera, o te armamos un regalo con lo más vendido según tu presupuesto."}</p>
+        <div className="tw-rg-tabs" role="tablist">
+          {r.giftcards && <button role="tab" aria-selected={modo === "gift"} className={modo === "gift" ? "on" : ""} onClick={() => setModo("gift")}><span>🎁</span><b>Gift Card</b><small>Que elija lo que quiera</small></button>}
+          {r.armador && <button role="tab" aria-selected={modo === "armar"} className={modo === "armar" ? "on" : ""} onClick={() => setModo("armar")}><span>✨</span><b>Armamos el regalo</b><small>Según tu presupuesto</small></button>}
+        </div>
+      </section>
+
+      {modo === "gift" && r.giftcards && (
+        <section className="tw-rg-panel tw-rg-gift">
+          <div className="tw-rg-gift-prev">
+            <TwGiftCard t={t} tienda={tienda} monto={monto} para={gc.para} de={String(datos.nombre || "").split(" ")[0]} mensaje={gc.mensaje} />
+            <ul className="tw-rg-como">
+              <li><span>💳</span>Pagás online y te mostramos el código al instante.</li>
+              <li><span>📲</span>Se la mandás por WhatsApp como imagen, con tu mensaje.</li>
+              <li><span>🛍️</span>La usa en {ciudades.length > 1 ? "cualquiera de nuestros locales" : "el local"} con su código{tienda.retiro && tienda.retiro.length ? " (" + tienda.retiro.map(l => l.nombre).join(" o ") + ")" : ""}.</li>
+            </ul>
+          </div>
+          <div className="tw-rg-form">
+            <div className="tw-rg-paso"><b>1</b> Elegí el monto</div>
+            <div className="tw-rg-chips">
+              {r.montos.map(m => chip(gc.monto === m, () => setGc(g => ({ ...g, monto: m })), fmtTienda(m), m))}
+              {r.libre && chip(gc.monto === "otro", () => setGc(g => ({ ...g, monto: "otro" })), "Otro monto", "otro")}
+            </div>
+            {gc.monto === "otro" && <label className="tw-rg-campo"><span>Monto (entre {fmtTienda(r.minimo)} y {fmtTienda(r.maximo)})</span><input inputMode="numeric" value={gc.otro} onChange={e => setGc(g => ({ ...g, otro: e.target.value.replace(/\D/g, "") }))} placeholder="Ej: 25000" /></label>}
+            <div className="tw-rg-paso"><b>2</b> ¿Para quién es?</div>
+            <div className="tw-rg-chips">{t.para.slice(0, -1).map(x => chip(gc.para === x, () => setGc(g => ({ ...g, para: x })), x, x))}</div>
+            <label className="tw-rg-campo"><span>Nombre</span><input value={gc.para} maxLength={80} onChange={e => setGc(g => ({ ...g, para: e.target.value }))} placeholder="Ej: Mamá, Laura" /></label>
+            <label className="tw-rg-campo"><span>Mensaje (opcional)</span><textarea rows={2} maxLength={300} value={gc.mensaje} onChange={e => setGc(g => ({ ...g, mensaje: e.target.value }))} placeholder="Escribile algo lindo" /></label>
+            <div className="tw-rg-chips chicos">{t.mensajes.map(m => chip(gc.mensaje === m, () => setGc(g => ({ ...g, mensaje: m })), m, m))}</div>
+            {ciudades.length > 1 && <>
+              <div className="tw-rg-paso"><b>3</b> ¿Dónde la va a usar?</div>
+              <div className="tw-rg-chips">{ciudades.map(c => chip(gc.local_id === c.id, () => setGc(g => ({ ...g, local_id: c.id })), "📍 " + c.nombre, c.id))}</div>
+            </>}
+            <div className="tw-rg-paso"><b>{ciudades.length > 1 ? 4 : 3}</b> Tus datos</div>
+            <div className="tw-rg-fila2">
+              <label className="tw-rg-campo"><span>Tu nombre</span><input value={datos.nombre || ""} onChange={e => setDatos(d => ({ ...d, nombre: e.target.value }))} autoComplete="name" /></label>
+              <label className="tw-rg-campo"><span>Tu WhatsApp</span><input value={datos.telefono || ""} onChange={e => setDatos(d => ({ ...d, telefono: e.target.value }))} inputMode="tel" autoComplete="tel" placeholder="Ej: 2964 123456" /></label>
+            </div>
+            <div className="tw-rg-paso"><b>{ciudades.length > 1 ? 5 : 4}</b> ¿Cómo pagás?</div>
+            {pagos.length === 0 ? <div className="tw-rg-aviso">Por ahora no hay pagos online disponibles. Escribinos por WhatsApp.</div> : (
+              <div className="tw-rg-pagos">{pagos.map(([k, n, s]) => <button key={k} type="button" className={gc.pago === k ? "on" : ""} onClick={() => setGc(g => ({ ...g, pago: k }))}><b>{n}</b><small>{s}</small></button>)}</div>
+            )}
+            {aviso && <div className="tw-rg-aviso" role="alert">{aviso}</div>}
+            <button className="tw-rg-comprar" disabled={enviando || !pagos.length} onClick={comprarGc}>{enviando ? "Un segundo…" : "🎁 Regalar " + (monto ? fmtTienda(monto) : "gift card")}</button>
+          </div>
+        </section>
+      )}
+
+      {modo === "armar" && r.armador && (
+        <section className="tw-rg-panel tw-rg-armar">
+          <div className="tw-rg-form">
+            <div className="tw-rg-paso"><b>1</b> ¿Para quién es?</div>
+            <div className="tw-rg-chips">{t.para.map(x => chip(arm.para === x, () => setArm(a => ({ ...a, para: a.para === x ? "" : x })), x, x))}</div>
+            <div className="tw-rg-paso"><b>2</b> ¿Cuánto querés gastar?</div>
+            <div className="tw-rg-chips">
+              {r.presupuestos.map(m => chip(arm.pres === m, () => setArm(a => ({ ...a, pres: m })), "Hasta " + fmtTienda(m), m))}
+              {chip(arm.pres === "otro", () => setArm(a => ({ ...a, pres: "otro" })), "Otro", "otro")}
+            </div>
+            {arm.pres === "otro" && <label className="tw-rg-campo"><span>Tu presupuesto</span><input inputMode="numeric" value={arm.otro} onChange={e => setArm(a => ({ ...a, otro: e.target.value.replace(/\D/g, "") }))} placeholder="Ej: 40000" /></label>}
+            <div className="tw-rg-paso"><b>3</b> ¿Qué le gusta? <small>(podés elegir varias, o ninguna)</small></div>
+            <div className="tw-rg-chips">
+              {chip(!arm.gustos.length, () => setArm(a => ({ ...a, gustos: [] })), "🎲 Sorprendeme", "_")}
+              {gustosOp.map(([v, n]) => chip(arm.gustos.includes(v), () => setArm(a => ({ ...a, gustos: a.gustos.includes(v) ? a.gustos.filter(x => x !== v) : [...a.gustos, v] })), n, v))}
+            </div>
+            {porTipo && <>
+              <div className="tw-rg-paso"><b>4</b> ¿Sabés su tipo de piel? <small>(elegimos productos para su piel)</small></div>
+              <div className="tw-rg-chips">{[["", "No sé"], ...TW_FILTROS[1].op.map(o => [o[0], o[1]])].map(([v, n]) => chip(arm.piel === v, () => setArm(a => ({ ...a, piel: v })), n, v || "no"))}</div>
+            </>}
+            <button className="tw-rg-comprar" disabled={!pres || armando} onClick={() => armar()}>{armando ? "Armando tu regalo…" : "✨ Armar el regalo"}</button>
+          </div>
+          <div className="tw-rg-resultado">
+            {armando ? (
+              <div className="tw-rg-armando"><div className="tw-rg-caja chica sacude"><div className="tw-rg-tapa" /><div className="tw-rg-cuerpo" /><div className="tw-rg-moño">🎀</div></div><b>Eligiendo entre lo más vendido…</b><small>Buscamos lo que entra en tu presupuesto y combina bien.</small></div>
+            ) : regalo === null ? (
+              <div className="tw-rg-vacio"><div style={{ fontSize: 54 }}>🎁</div><b>Contanos un poco y te armamos un regalo</b><small>Elegimos entre los productos más vendidos y mejor puntuados que tenemos en stock.</small></div>
+            ) : regalo.length === 0 ? (
+              <div className="tw-rg-vacio"><div style={{ fontSize: 46 }}>💭</div><b>Con ese presupuesto no encontramos productos</b><small>Probá con un monto un poco más alto{r.giftcards ? " o regalá una gift card" : ""}.</small>{r.giftcards && <button className="tw-rg-b1" style={{ marginTop: 12 }} onClick={() => setModo("gift")}>🎁 Regalar una gift card</button>}</div>
+            ) : (
+              <div className="tw-rg-caja-res">
+                <div className="tw-rg-res-cab"><span>🎁</span><div><b>{arm.para ? "El regalo para " + arm.para : "Tu regalo"}</b><small>{regalo.length} {regalo.length === 1 ? "producto" : "productos"} · {fmtTienda(total)} de {fmtTienda(pres)}{arm.piel ? " · para piel " + (TW_FILTROS[1].op.find(o => o[0] === arm.piel) || ["", ""])[1].toLowerCase() : ""}</small></div></div>
+                <div className="tw-rg-barra"><span style={{ width: Math.min(100, Math.round(total / pres * 100)) + "%" }} /></div>
+                {regalo.map((x, i) => (
+                  <div key={x.p.id} className="tw-rg-item" style={{ animationDelay: (i * 0.12) + "s" }}>
+                    <button className="tw-rg-item-img" onClick={() => onAbrir(x.p)} aria-label={"Ver " + x.p.nombre}>{x.p.foto ? <img src={foto(x.p)} alt="" /> : <span>✿</span>}</button>
+                    <div className="tw-rg-item-txt"><b>{x.p.nombre}</b><small>{x.p.marca || ""}{x.v ? (x.p.marca ? " · " : "") + x.v.valor : ""}{x.p.top ? " · 🔥 Top " + x.p.top : x.p.resenas ? " · ★ " + x.p.resenas[0] : ""}</small></div>
+                    <div className="tw-rg-item-der"><b>{fmtTienda(x.precio)}</b><button onClick={() => cambiarUno(i)} title="Cambiar este producto">🔄 Cambiar</button></div>
+                  </div>
+                ))}
+                <label className="tw-rg-check"><input type="checkbox" checked={tarjeta.envolver} onChange={e => setTarjeta(x => ({ ...x, envolver: e.target.checked }))} /> Es para regalo: envolvelo y sin precio a la vista</label>
+                <label className="tw-rg-campo"><span>Mensaje para la tarjetita (opcional)</span><input maxLength={160} value={tarjeta.mensaje} onChange={e => setTarjeta(x => ({ ...x, mensaje: e.target.value }))} placeholder={t.mensajes[0]} /></label>
+                <div className="tw-rg-res-btns">
+                  <button className="tw-rg-comprar" onClick={agregarRegalo}>🛍️ Agregar el regalo al carrito · {fmtTienda(total)}</button>
+                  <button className="tw-rg-otra" onClick={() => armar(regalo.map(x => x.p.id))}>🔀 Otra combinación</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
 function TiendaPublica({ slug }) {
   const base = (API.defaults.baseURL || "") + "/tienda-publica/" + encodeURIComponent(slug);
   const tokenCuenta = () => { try { return localStorage.getItem("tienda_cuenta_" + slug) || ""; } catch (e) { return ""; } };
@@ -24298,6 +24935,7 @@ function TiendaPublica({ slug }) {
   const [videoI, setVideoI] = useState(null); // video abierto en grande (numero en la lista), o null
   const toqueMedia = useRef(null);
   const [paso, setPaso] = useState(null); // null | "carrito" | "datos"
+  const [regModo, setRegModo] = useState("gift"); // sector de regalos: "gift" (gift card) o "armar"
   useEffect(() => { if (paso !== "cuenta") { setVolverA(null); setMotivoCuenta(""); } }, [paso]);
   // Reseñas: las del producto abierto, lo que la clienta puede reseñar y el formulario
   const [resVer, setResVer] = useState(null); // { id, d }
@@ -24564,6 +25202,9 @@ function TiendaPublica({ slug }) {
   };
   const irInicio = () => { setCat(""); setBusca(""); setFiltros({}); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const irCat = (c, f) => { setCat(c); setSubcat(""); setBusca(""); setFiltros(f || {}); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const irRegalos = (m) => { const r = tienda.regalos; setRegModo(m || (r && r.giftcards ? "gift" : "armar")); irCat("regalos"); };
+  // Regalo armado: todo al carrito y se abre el carrito
+  const agregarRegalo = (items) => { items.forEach((x, i) => setTimeout(() => agregar(x.p, x.v, 1, null), i * 120)); setTimeout(() => setPaso("carrito"), items.length * 120 + 500); };
 
   // Frases de la tira negra: las que cargo el negocio o, si no hay, se arman con lo que ofrece
   const anuncios = tienda.anuncios && tienda.anuncios.length ? tienda.anuncios : [
@@ -24645,6 +25286,9 @@ function TiendaPublica({ slug }) {
   );
 
   // ---- Seguimiento de un pedido ----
+  // Gift card online (link que llega por WhatsApp): la caja que se abre
+  const regaloUrl = params.get("regalo");
+  if (regaloUrl) return <div className="tw" style={{ "--c": color }}><style>{CSS_TIENDA}</style><TwRegaloAbrir tienda={tienda} valor={regaloUrl} pedir={pedir} slug={slug} modoRuta={modoRuta} /></div>;
   if (codigoUrl) {
     const e = pedido && !pedido.error ? (ESTADOS_PEDIDO_WEB[pedido.estado] || ESTADOS_PEDIDO_WEB.confirmado) : null;
     return (
@@ -24653,11 +25297,12 @@ function TiendaPublica({ slug }) {
         <div className="tw-main">
           {!pedido ? <div className="tw-cartel"><div className="tw-skel" style={{ height: 160 }} /></div> : pedido.error ? <div className="tw-cartel">{pedido.error}</div> : (
             <div className="tw-cartel tw-rv in" style={{ animation: "twSube .6s ease both" }}>
-              {pedido.estado !== "cancelado" && !pedido.ruleta && <TwGirasol />}
+              {pedido.estado !== "cancelado" && !pedido.ruleta && !pedido.giftcard && <TwGirasol />}
               {pedido.ruleta && <TwRuleta ruleta={pedido.ruleta} codigo={pedido.codigo} pedir={pedir} />}
-              {pedido.estado !== "cancelado" && <TwPuntos monto={pedido.subtotal - (pedido.descuento || 0)} />}
+              {pedido.estado !== "cancelado" && !pedido.giftcard && <TwPuntos monto={pedido.subtotal - (pedido.descuento || 0)} />}
               <div style={{ fontSize: 12, letterSpacing: ".12em", textTransform: "uppercase", color: "#777", fontWeight: 700 }}>Pedido N° {pedido.codigo}</div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: e[1], margin: "6px 0 14px" }}>{pedido.estado === "pendiente_pago" && pedido.pago === "retiro" ? "¡Recibimos tu pedido!" : e[0]}</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: e[1], margin: "6px 0 14px" }}>{pedido.giftcard && pedido.giftcard.codigo ? "¡Tu gift card está lista! 🎁" : pedido.giftcard && pedido.estado === "pendiente_pago" ? "Esperando el pago de tu gift card" : pedido.estado === "pendiente_pago" && pedido.pago === "retiro" ? "¡Recibimos tu pedido!" : e[0]}</div>
+              {pedido.giftcard && <TwGiftCardPedido pedido={pedido} tienda={tienda} slug={slug} />}
               {pedido.estado === "pendiente_pago" && pedido.pago === "gocuotas" && params.get("gc") === "no" && <div style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 12, fontSize: 14, fontWeight: 600, marginBottom: 12 }}>El pago con GoCuotas no se completó. Podés volver a intentarlo.</div>}
               {pedido.estado === "pendiente_pago" && pedido.pago === "gocuotas" && params.get("gc") !== "no" && <div style={{ fontSize: 14, color: "#555", marginBottom: 12 }}>Si ya pagaste con GoCuotas, en unos minutos se confirma solo.</div>}
               {pedido.estado === "pendiente_pago" && pedido.link_pago && <a className="tw-btn full" style={{ marginBottom: 14 }} href={pedido.link_pago}>{pedido.pago === "gocuotas" ? "Pagar con GoCuotas" : "Pagar con Mercado Pago"}</a>}
@@ -24665,7 +25310,7 @@ function TiendaPublica({ slug }) {
                 <div style={{ background: "#f6f6f6", borderRadius: 6, padding: 14, marginBottom: 14, fontSize: 15 }}>
                   <b>Transferí {fmtTienda(pedido.total)} a:</b>
                   <div style={{ whiteSpace: "pre-wrap", margin: "6px 0", fontFamily: "ui-monospace,monospace" }}>{pedido.transferencia}</div>
-                  <div style={{ fontSize: 13, color: "#666" }}>Mandanos el comprobante por WhatsApp.{pedido.vence_en ? " Te guardamos los productos hasta el " + new Date(pedido.vence_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) + "." : ""}</div>
+                  <div style={{ fontSize: 13, color: "#666" }}>Mandanos el comprobante por WhatsApp.{pedido.giftcard ? " Cuando lo confirmemos, vas a ver acá el código de la gift card." : pedido.vence_en ? " Te guardamos los productos hasta el " + new Date(pedido.vence_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) + "." : ""}</div>
                 </div>
               )}
               {pedido.pago === "retiro" && pedido.vence_en && !["cancelado", "entregado"].includes(pedido.estado) && (
@@ -24673,7 +25318,8 @@ function TiendaPublica({ slug }) {
                   ⏰ Te guardamos los productos hasta el <b>{new Date(pedido.vence_en).toLocaleString("es-AR", { weekday: "long", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false })}</b>. Si no llegás, escribinos y te esperamos un poco más.
                 </div>
               )}
-              <div style={{ fontSize: 15, marginBottom: 12 }}>{pedido.entrega === "retiro" ? <>📍 Retirás en <b>{pedido.local?.nombre}</b>{pedido.local?.direccion ? " (" + pedido.local.direccion + ")" : ""}{pedido.pago === "retiro" && !pedido.pagado ? " · pagás al retirar" : ""}</> : <>🛵 Envío a <b>{pedido.direccion}</b> ({pedido.zona})</>}</div>
+              {!pedido.giftcard && <div style={{ fontSize: 15, marginBottom: 12 }}>{pedido.entrega === "retiro" ? <>📍 Retirás en <b>{pedido.local?.nombre}</b>{pedido.local?.direccion ? " (" + pedido.local.direccion + ")" : ""}{pedido.pago === "retiro" && !pedido.pagado ? " · pagás al retirar" : ""}</> : <>🛵 Envío a <b>{pedido.direccion}</b> ({pedido.zona})</>}</div>}
+              {pedido.giftcard && <div className="tw-linea"><span>🎁 Gift card para {pedido.giftcard.para}</span><span>{fmtTienda(pedido.giftcard.monto)}</span></div>}
               {pedido.items.some(i => i.preventa) && !["cancelado", "entregado"].includes(pedido.estado) && <div className="tw-preventa-aviso"><b>⏳ Esperando que llegue tu preventa</b><span>Algunos productos todavía no llegaron al local. Te avisamos por WhatsApp apenas estén para que retires todo junto.</span></div>}
               {pedido.items.map((i, k) => <div key={k} className="tw-linea"><span>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""}{i.preventa ? <span className="tw-item-pre" style={{ display: "inline-block", marginLeft: 6 }}>⏳ preventa</span> : null}</span><span>{fmtTienda(i.precio * i.cantidad)}</span></div>)}
               {pedido.descuento > 0 && <div className="tw-linea" style={{ color: "#2d7a4f" }}><span>Descuento{pedido.cupon ? " (" + pedido.cupon + ")" : ""}</span><span>−{fmtTienda(pedido.descuento)}</span></div>}
@@ -24710,7 +25356,7 @@ function TiendaPublica({ slug }) {
   const sectores = (tienda.sectores || []).filter(sc => visibles.some(p => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria)));
   const sector = cat.startsWith("s:") ? sectores.find(sc => "s:" + sc.id === cat) : null;
   // Si la seccion elegida quedo vacia (otra ciudad, se agoto todo), se vuelve al inicio
-  if ((cat === "preventa" && !preventas.length) || (cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat && cat !== "*" && !cat.startsWith("s:") && !cat.startsWith("m:") && cat !== "reingreso" && cat !== "videos" && cat !== "preventa" && cat !== "favoritos" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2)))) { setTimeout(() => setCat(""), 0); }
+  if ((cat === "preventa" && !preventas.length) || (cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat === "regalos" && !tienda.regalos) || (cat && cat !== "*" && !cat.startsWith("s:") && !cat.startsWith("m:") && cat !== "reingreso" && cat !== "videos" && cat !== "regalos" && cat !== "preventa" && cat !== "favoritos" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2)))) { setTimeout(() => setCat(""), 0); }
   const enSector = (sc, p) => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria);
   const delSector = sector ? visibles.filter(p => enSector(sector, p)) : [];
   const catsSector = sector ? [...new Set(delSector.map(p => p.categoria).filter(Boolean))].sort() : [];
@@ -24937,11 +25583,12 @@ function TiendaPublica({ slug }) {
   return (
     <div className="tw" style={{ "--c": color }}><style>{CSS_TIENDA}</style>
       {cabecera}
-      {(cats.length > 0 || sectores.length > 0 || reingresados.length > 0 || reels.length > 0 || preventas.length > 0 || favs.length > 0) && (
+      {(cats.length > 0 || sectores.length > 0 || reingresados.length > 0 || reels.length > 0 || preventas.length > 0 || favs.length > 0 || tienda.regalos) && (
         <div className="tw-navbar">
           <nav className="tw-nav" aria-label="Categorías">
             <button className={!enLista ? "on" : ""} onClick={irInicio}>Inicio</button>
             <button className={cat === "*" && !q ? "on" : ""} onClick={() => irCat("*")}>Todo</button>
+            {tienda.regalos && (() => { const t = twTemaRegalo(tienda.regalos); return <button className={"tw-nav-regalo" + (cat === "regalos" && !q ? " on" : "")} style={twVarsRegalo(t)} onClick={() => irRegalos()}>{t.emoji} {tienda.regalos.tema === "general" ? "Regalos" : t.nombre}</button>; })()}
             {preventas.length > 0 && <button className={"tw-nav-pre" + (cat === "preventa" && !q ? " on" : "")} onClick={() => irCat("preventa")}>⏳ {tienda.preventa.titulo}</button>}
             {favs.length > 0 && <button className={"tw-nav-fav" + (cat === "favoritos" && !q ? " on" : "")} onClick={() => irCat("favoritos")}>♥ Favoritos ({favs.length})</button>}
             {reingresados.length > 0 && <button className={cat === "reingreso" && !q ? "on" : ""} onClick={() => irCat("reingreso")}>{reingreso.nombre}</button>}
@@ -24954,6 +25601,9 @@ function TiendaPublica({ slug }) {
       <main className="tw-main">
         {productos === null ? (
           <><div className="tw-skel" style={{ height: 400, marginTop: 20 }} /><div className="tw-grid" style={{ marginTop: 30 }}>{[1, 2, 3, 4, 5].map(i => <div key={i}><div className="tw-skel" style={{ aspectRatio: "1" }} /><div className="tw-skel" style={{ height: 14, marginTop: 12, width: "60%" }} /></div>)}</div></>
+        ) : cat === "regalos" && !q && tienda.regalos ? (
+          <TwRegalos r={tienda.regalos} tienda={tienda} modo={regModo} setModo={setRegModo} productos={visibles} dispo={dispo} foto={foto} ciudades={ciudades.length ? ciudades : tienda.retiro} lid={lid}
+            datos={datos} setDatos={setDatos} pedir={pedir} slug={slug} modoRuta={modoRuta} onAgregar={agregarRegalo} onAbrir={abrir} />
         ) : cat === "videos" && !q ? (
           <>
             <div className="tw-lista-cab"><div><h1>{tienda.reels_titulo || "Videos"}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4 }}>{reels.length} {reels.length === 1 ? "video" : "videos"}</div></div></div>
@@ -24994,6 +25644,8 @@ function TiendaPublica({ slug }) {
           <div className="tw-cartel" style={{ textAlign: "center" }}><div style={{ fontSize: 40 }}>✿</div><h2>{tienda.titulo}</h2><p>Pronto vas a encontrar nuestros productos acá.</p></div>
         ) : (
           <>
+            {/* Regalos: en una fecha especial (Dia de la Madre, Navidad...) va arriba de todo; si no, debajo de los banners */}
+            {tienda.regalos && tienda.regalos.tema !== "general" && <TwRegalosHero r={tienda.regalos} tienda={tienda} onGift={() => irRegalos("gift")} onArmar={() => irRegalos("armar")} />}
             {bannersImg.length > 0 ? (
               <section className="tw-tiles-sec" aria-label="Novedades de la tienda">
                 {bannersImg.length > 3 && <button className="tw-flecha" style={{ left: -14 }} onClick={() => moverTiles(-1)} aria-label="Anteriores"><TwIcono d={TW_IZQ} /></button>}
@@ -25035,6 +25687,7 @@ function TiendaPublica({ slug }) {
             ) : (
               <div className="tw-hero" style={{ height: 220, display: "flex", alignItems: "center", padding: "0 40px" }}><div><div className="tw-ceja" style={{ color }}>Bienvenida</div><h2 style={{ fontSize: 40, margin: "8px 0" }}>{tienda.titulo}</h2><p style={{ margin: 0 }}>{tienda.mensaje}</p></div></div>
             )}
+            {tienda.regalos && tienda.regalos.tema === "general" && <TwRegalosHero r={tienda.regalos} tienda={tienda} onGift={() => irRegalos("gift")} onArmar={() => irRegalos("armar")} />}
             {bannersImg.length > 0 && <TwFila titulo="Destacados" items={destacados} render={tarjeta} />}
             {vistosLista.length >= 2 && <TwFila titulo="👀 Lo viste hace poco" items={vistosLista} render={tarjeta} />}
             {preventas.length > 0 && <TwFila clase="tw-pre-bloque" items={preventas.slice(0, 12)} onVerTodo={() => irCat("preventa")} render={tarjeta}
@@ -26390,6 +27043,77 @@ function GoCuotasConfig({ temaPal, avisar, activo, onActivo, esJefe }) {
   );
 }
 
+// Tienda online -> Regalos: gift cards online y armador de regalos (sector "¿Querés hacer un regalo?")
+function RegalosTienda({ cfg, pedidos, temaPal, avisar, urlTienda, esJefe, onGuardado }) {
+  const [r, setR] = useState(() => ({ ...(cfg.regalos || {}), montosTxt: ((cfg.regalos || {}).montos || []).join(", "), presTxt: ((cfg.regalos || {}).presupuestos || []).join(", ") }));
+  const [hoy, setHoy] = useState(cfg.regalos_hoy || null);
+  const [guardando, setGuardando] = useState(false);
+  const set = (k, v) => setR(x => ({ ...x, [k]: v }));
+  const numeros = (txt) => String(txt || "").split(/[,;\s]+/).map(x => parseInt(x.replace(/\D/g, ""))).filter(n => n > 0);
+  const guardar = async () => {
+    setGuardando(true);
+    try {
+      const body = { activo: !!r.activo, giftcards: !!r.giftcards, armador: !!r.armador, libre: !!r.libre, minimo: parseInt(r.minimo) || 0, maximo: parseInt(r.maximo) || 0,
+        montos: numeros(r.montosTxt), presupuestos: numeros(r.presTxt), tema: r.tema, titulo: r.titulo || "", texto: r.texto || "" };
+      const x = await API.put("/tienda/regalos", body);
+      setR({ ...x.data.regalos, montosTxt: x.data.regalos.montos.join(", "), presTxt: x.data.regalos.presupuestos.join(", ") }); setHoy(x.data.regalos_hoy);
+      avisar(true, "✓ Guardado"); onGuardado && onGuardado();
+    } catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+    setGuardando(false);
+  };
+  const t = TW_TEMAS_REGALO[hoy && hoy.tema] || TW_TEMAS_REGALO.general;
+  const gcs = (pedidos || []).filter(p => p.tipo === "giftcard");
+  const vendidas = gcs.filter(p => p.gc_codigo);
+  const pagos = [cfg.pago_mp && cfg.mp_conectado && "Mercado Pago", cfg.pago_gocuotas && "GoCuotas", cfg.pago_transferencia && "transferencia"].filter(Boolean);
+  const fila = { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 8 };
+  const sw = (k, txt, sub) => <label style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer", marginTop: 10 }}><input type="checkbox" checked={!!r[k]} disabled={!esJefe} onChange={e => set(k, e.target.checked)} style={{ marginTop: 3 }} /><span><b style={{ fontSize: 13.5 }}>{txt}</b>{sub && <div style={{ fontSize: 12, color: temaPal.textMuted }}>{sub}</div>}</span></label>;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="card" style={{ background: "linear-gradient(135deg," + t.c1 + "," + t.c2 + ")", color: t.texto || "#fff", border: 0 }}>
+        <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", opacity: .9 }}>{t.emoji} Lo que se ve hoy en la tienda</div>
+        <div style={{ fontSize: 22, fontWeight: 900, margin: "4px 0" }}>{r.titulo || t.titulo}</div>
+        <div style={{ fontSize: 13, opacity: .95 }}>{hoy && hoy.tema !== "general" ? "Temática " + t.nombre + (hoy.faltan !== null && hoy.faltan !== undefined ? (hoy.faltan === 0 ? " · ¡es hoy!" : " · faltan " + hoy.faltan + (hoy.faltan === 1 ? " día" : " días")) : "") + ". Va arriba de todo en la portada." : "Temática general: va debajo de los banners."}{!r.activo ? " (APAGADO: no se ve)" : ""}</div>
+        {urlTienda && <a className="btn btn-sm" style={{ marginTop: 10, background: "#fff", color: t.tinta, textDecoration: "none", display: "inline-block" }} href={urlTienda} target="_blank" rel="noopener">👁 Verlo en la tienda</a>}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
+        <div className="card" style={{ padding: 12 }}><div style={{ fontSize: 11.5, color: temaPal.textMuted, fontWeight: 700 }}>Gift cards vendidas online</div><div style={{ fontSize: 20, fontWeight: 900 }}>{vendidas.length}</div><div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{fmt(vendidas.reduce((a, p) => a + p.total, 0))} · últimos pedidos</div></div>
+        <div className="card" style={{ padding: 12 }}><div style={{ fontSize: 11.5, color: temaPal.textMuted, fontWeight: 700 }}>Esperando el pago</div><div style={{ fontSize: 20, fontWeight: 900 }}>{gcs.filter(p => p.estado === "pendiente_pago").length}</div><div style={{ fontSize: 11.5, color: temaPal.textMuted }}>se ven en Pedidos</div></div>
+      </div>
+      <div className="card">
+        <div className="ct">🎁 Sector "¿Querés hacer un regalo?"</div>
+        {sw("activo", "Mostrar el sector en la tienda", "Botón en el menú y una franja grande en la portada.")}
+        <div style={{ fontSize: 12.5, fontWeight: 800, marginTop: 14 }}>Temática</div>
+        <div style={fila}>
+          {[["auto", "✨ Automática"], ["madre", "🌻 Día de la Madre"], ["padre", "👔 Día del Padre"], ["navidad", "🎄 Navidad"], ["enamorados", "💘 San Valentín"], ["general", "🎁 General"]].map(([k, n]) => <button key={k} className={"chip-btn" + ((r.tema || "auto") === k ? " on" : "")} disabled={!esJefe} onClick={() => set("tema", k)}>{n}</button>)}
+        </div>
+        <div style={{ fontSize: 11.5, color: temaPal.textMuted, marginTop: 4 }}>Automática: se viste sola las semanas antes de cada fecha (Día de la Madre: 3er domingo de octubre; del Padre: 3er domingo de junio; Navidad; San Valentín) y el resto del año queda general.</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 10, marginTop: 12 }}>
+          <div><div className="fl">Título (opcional)</div><input className="inp" maxLength={80} placeholder={t.titulo} value={r.titulo || ""} disabled={!esJefe} onChange={e => set("titulo", e.target.value)} /></div>
+          <div><div className="fl">Texto (opcional)</div><input className="inp" maxLength={200} placeholder="Una gift card para que elija lo que más le guste…" value={r.texto || ""} disabled={!esJefe} onChange={e => set("texto", e.target.value)} /></div>
+        </div>
+      </div>
+      <div className="card">
+        <div className="ct">💳 Gift cards online</div>
+        {sw("giftcards", "Vender gift cards en la tienda", "Se pagan online y, cuando se acredita el pago, se crean solas en Ventas → Gift Cards de Lumiere (con su código y saldo). Se canjean en el Punto de Venta como cualquier otra y entran al cierre de caja del local que elige la clienta.")}
+        {r.giftcards && !pagos.length && <div className="cli-tip" style={{ marginTop: 8 }}>Para venderlas hace falta un pago online prendido en Configuración (Mercado Pago, GoCuotas o transferencia).</div>}
+        {r.giftcards && pagos.length > 0 && <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 6 }}>Se pueden pagar con: {pagos.join(", ")}. Con transferencia, la gift card se emite cuando tocás "✓ Pago recibido" en el pedido.</div>}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10, marginTop: 10 }}>
+          <div><div className="fl">Montos para elegir (separados por coma)</div><input className="inp" value={r.montosTxt || ""} disabled={!esJefe} onChange={e => set("montosTxt", e.target.value)} placeholder="10000, 20000, 30000, 50000" /></div>
+          <div><div className="fl">Monto libre: mínimo</div><input className="inp" inputMode="numeric" value={r.minimo || ""} disabled={!esJefe || !r.libre} onChange={e => set("minimo", e.target.value.replace(/\D/g, ""))} /></div>
+          <div><div className="fl">Monto libre: máximo</div><input className="inp" inputMode="numeric" value={r.maximo || ""} disabled={!esJefe || !r.libre} onChange={e => set("maximo", e.target.value.replace(/\D/g, ""))} /></div>
+        </div>
+        {sw("libre", "Dejar que escriban otro monto")}
+      </div>
+      <div className="card">
+        <div className="ct">✨ Armamos el regalo</div>
+        {sw("armador", "Mostrar el armador de regalos", "La clienta dice para quién es, cuánto quiere gastar y qué le gusta; la tienda elige productos con stock entre lo más vendido y mejor puntuado, y los suma al carrito marcado como regalo.")}
+        <div style={{ marginTop: 10, maxWidth: 420 }}><div className="fl">Presupuestos para elegir (separados por coma)</div><input className="inp" value={r.presTxt || ""} disabled={!esJefe} onChange={e => set("presTxt", e.target.value)} placeholder="20000, 35000, 50000, 80000" /></div>
+      </div>
+      {esJefe && <div style={{ display: "flex", justifyContent: "flex-end" }}><button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar"}</button></div>}
+    </div>
+  );
+}
+
 function TiendaOnline({ localId, usuario, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState(() => tabInicialDe("tienda-online") || "pedidos");
@@ -26575,7 +27299,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         ))}
       </div>
       <div className="tabs" style={{ marginBottom: 12 }}>
-        {[["pedidos", "📦 Pedidos" + (abiertos.length ? " (" + abiertos.length + ")" : "")], ["productos", "🛍 Productos"], ...(esJefeT ? [["portada", "🏠 Portada y sectores"]] : []), ["clientas", "👥 Clientas web"], ["resenas", "⭐ Reseñas" + (resPend ? " (" + resPend + ")" : "")], ["config", "⚙️ Configuración"]].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
+        {[["pedidos", "📦 Pedidos" + (abiertos.length ? " (" + abiertos.length + ")" : "")], ["productos", "🛍 Productos"], ...(esJefeT ? [["portada", "🏠 Portada y sectores"]] : []), ["clientas", "👥 Clientas web"], ["resenas", "⭐ Reseñas" + (resPend ? " (" + resPend + ")" : "")], ["regalos", "🎁 Regalos"], ["config", "⚙️ Configuración"]].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
       </div>
 
       {tab === "pedidos" && (
@@ -26602,7 +27326,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                       <div>
                         <div style={{ fontWeight: 900, fontSize: 15 }}>{p.nombre} <span style={{ fontWeight: 400, fontSize: 12, color: temaPal.textMuted }}>N° {p.codigo} · {new Date(p.creado_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span></div>
                         <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginTop: 2 }}>
-                          {p.entrega === "retiro" ? "📍 Retira en " + nombreLocal(p.local_id) : "🛵 Envío a " + p.direccion + " (" + p.zona + ")"} · {PAGO_TIENDA[p.pago]}{p.pagado ? " ✓ pagado" : ""}{p.telefono ? " · " + p.telefono : ""}
+                          {p.tipo === "giftcard" ? "🎁 Gift card · se usa en " + nombreLocal(p.local_id) : p.entrega === "retiro" ? "📍 Retira en " + nombreLocal(p.local_id) : "🛵 Envío a " + p.direccion + " (" + p.zona + ")"} · {PAGO_TIENDA[p.pago]}{p.pagado ? " ✓ pagado" : ""}{p.telefono ? " · " + p.telefono : ""}
                         </div>
                         {p.nota && <div style={{ fontSize: 12.5, marginTop: 2 }}>📝 {p.nota}</div>}
                         {p.ruleta && <div style={{ fontSize: 12.5, marginTop: 4, fontWeight: 700, color: p.ruleta.tipo === "nada" ? temaPal.textMuted : temaPal.warn }}>🎡 Ruleta: {p.ruleta.tipo === "regalo" ? "ganó " + (/mega/i.test(p.ruleta.texto || "") ? "el 💎 MEGA REGALO" : "un REGALO 🎁") + " — dáselo con el pedido" : p.ruleta.tipo === "cupon" ? "ganó " + p.ruleta.texto + " (cupón " + p.ruleta.cupon + ", se activa al entregar)" : "seguí participando"}</div>}
@@ -26615,6 +27339,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                       <div style={{ textAlign: "right" }}><span className="tag" style={{ background: e.c + "22", color: e.c, fontWeight: 800 }}>{e.t}</span><div style={{ fontSize: 18, fontWeight: 900, marginTop: 4 }}>{fmt(p.total)}</div>{pago && <div style={{ fontSize: 11, fontWeight: 800, color: pago.c }}>{p.pagado ? "Pagado" : "A cobrar"}</div>}</div>
                     </div>
                     <div style={{ fontSize: 13, margin: "8px 0", lineHeight: 1.6 }}>
+                      {p.tipo === "giftcard" && <div style={{ background: "#ff4f8714", border: "1px solid #ff4f8755", borderRadius: 8, padding: "8px 10px" }}>🎁 <b>Gift card de {fmt(p.total)}</b> para <b>{p.gc_para}</b>{p.gc_mensaje ? <span style={{ color: temaPal.textMuted }}> · “{p.gc_mensaje}”</span> : null}<div style={{ fontSize: 12, marginTop: 2 }}>{p.gc_codigo ? <>Código <b>{p.gc_codigo}</b> · ya está en Ventas → Gift Cards <button className="chip-btn" style={{ fontSize: 11, marginLeft: 6 }} onClick={() => irASeccion("giftcards")}>Ver</button></> : p.estado === "cancelado" ? "No se emitió" : "Se emite sola en Gift Cards cuando se confirma el pago"}</div></div>}
                       {p.items.map(i => <div key={i.id}>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""} <span style={{ color: temaPal.textMuted }}>· {fmt(i.precio * i.cantidad)}</span>{i.preventa && <span className="tag" style={{ marginLeft: 6, background: "#ffd23f33", color: temaPal.warn, fontWeight: 800 }}>⏳ preventa · esperando ingreso</span>}</div>)}
                       {parseFloat(p.descuento) > 0 && <div style={{ color: temaPal.green }}>Descuento{p.cupon ? " (" + p.cupon + ")" : ""} · −{fmt(parseFloat(p.descuento))}</div>}
                       {parseFloat(p.descuento_pago) > 0 && <div style={{ color: temaPal.green }}>{parseFloat(p.descuento_pago_pct)}% OFF por {PAGO_TIENDA[p.pago]} · −{fmt(parseFloat(p.descuento_pago))}</div>}
@@ -26623,10 +27348,10 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                     {!cerrado && (
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                         {p.estado === "pendiente_pago" && p.pago === "transferencia" && <button className="btn btn-p btn-sm" onClick={() => estado(p, "pagado")}>✓ Pago recibido</button>}
-                        {p.estado === "confirmado" && !p.items.some(i => i.preventa) && <button className="btn btn-p btn-sm" onClick={() => estado(p, "preparado")}>📦 Ya está listo</button>}
-                        {["confirmado", "preparado"].includes(p.estado) && !p.items.some(i => i.preventa) && <button className="btn btn-g btn-sm" onClick={() => avisarListo(p)}>💬 Avisar que está listo</button>}
+                        {p.estado === "confirmado" && p.tipo !== "giftcard" && !p.items.some(i => i.preventa) && <button className="btn btn-p btn-sm" onClick={() => estado(p, "preparado")}>📦 Ya está listo</button>}
+                        {["confirmado", "preparado"].includes(p.estado) && p.tipo !== "giftcard" && !p.items.some(i => i.preventa) && <button className="btn btn-g btn-sm" onClick={() => avisarListo(p)}>💬 Avisar que está listo</button>}
                         {p.items.some(i => i.preventa) && <button className="btn btn-p btn-sm" onClick={() => llegoPreventa(p)} title="Cuando recibiste la orden de ingreso: pasa al stock del local y le avisás">📦 Llegó la preventa</button>}
-                        {!p.items.some(i => i.preventa) && (["confirmado", "preparado"].includes(p.estado) || (p.estado === "pendiente_pago" && p.pago === "retiro")) && <button className="btn btn-p btn-sm" onClick={() => aCaja(p)}>💵 {p.pagado ? "Entregar y registrar venta" : "Cobrar en caja"}</button>}
+                        {p.tipo !== "giftcard" && !p.items.some(i => i.preventa) && (["confirmado", "preparado"].includes(p.estado) || (p.estado === "pendiente_pago" && p.pago === "retiro")) && <button className="btn btn-p btn-sm" onClick={() => aCaja(p)}>💵 {p.pagado ? "Entregar y registrar venta" : "Cobrar en caja"}</button>}
                         {p.estado === "en_caja" && <><button className="btn btn-p btn-sm" onClick={() => { try { sessionStorage.setItem("lumiere_pos_tienda", String(p.id)); } catch (e) {} irASeccion("pos"); }}>Ir a la caja</button><button className="btn btn-g btn-sm" onClick={() => reapartar(p)} title="Si no se llegó a cobrar">Volver a apartar el stock</button></>}
                         {p.telefono && <a className="btn btn-g btn-sm" style={{ textDecoration: "none" }} href={linkWhatsapp(p.telefono, "Hola " + String(p.nombre).split(" ")[0] + "! Te escribo por tu pedido N° " + p.codigo)} target="_blank" rel="noopener">WhatsApp</a>}
                         {p.estado !== "en_caja" && <button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={() => estado(p, "cancelado")}>Cancelar</button>}
@@ -26769,6 +27494,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         </div>
       )}
 
+      {tab === "regalos" && <RegalosTienda cfg={cfg} pedidos={pedidos} temaPal={temaPal} avisar={avisar} urlTienda={url} esJefe={esJefeT} onGuardado={cargarCfg} />}
       {tab === "resenas" && <ResenasTienda temaPal={temaPal} avisar={avisar} urlTienda={url} nombreTienda={cfg?.titulo} esJefe={esJefeT} alCambiar={setResPend} />}
       {tab === "clientas" && <ClientasWeb temaPal={temaPal} avisar={avisar} urlTienda={url} nombreTienda={cfg?.titulo} esJefe={esJefeT} slug={cfg?.slug} />}
       {tab === "portada" && esJefeT && <PortadaTienda productos={productos} temaPal={temaPal} avisar={avisar} alGuardar={cargarProductos} />}
