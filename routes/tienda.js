@@ -619,6 +619,11 @@ router.get('/clientas-web', async (req, res) => {
       FROM tienda_avisos a JOIN productos p ON p.id = a.producto_id WHERE a.avisado_en IS NULL ORDER BY a.creado_en`)).rows;
     const carritos = (await pool.query(`SELECT k.*, c.nombre, c.telefono FROM tienda_carritos k JOIN clientes c ON c.id = k.cliente_id
       WHERE k.actualizado_en < NOW() - INTERVAL '1 hour' AND k.actualizado_en > NOW() - INTERVAL '30 days' ORDER BY k.actualizado_en DESC LIMIT 100`)).rows;
+    // A cada producto del carrito: si hoy tiene stock en el local de la clienta y si tiene foto
+    const idsCarr = [...new Set(carritos.flatMap(k => (k.items || []).map(i => parseInt(i.producto_id)).filter(Boolean)))];
+    const infoProd = new Map((idsCarr.length ? (await pool.query(`SELECT p.id, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush, p.precio,
+        EXISTS (SELECT 1 FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto FROM productos p WHERE p.id = ANY($1::int[])`, [idsCarr])).rows : []).map(p => [p.id, p]));
+    carritos.forEach(k => { k.items = (k.items || []).map(i => { const p = infoProd.get(parseInt(i.producto_id)); return p ? { ...i, foto: p.foto, stock: Number(k.local_id) === 2 ? p.stock_ush : p.stock_rg, precio_hoy: num(p.precio) } : { ...i, foto: false, stock: 0 }; }); });
     // Analisis de favoritos: cuantas lo guardaron (total y esta semana), cuantas de ellas lo compraron despues, stock
     const favoritos = (await pool.query(`SELECT f.producto_id, p.nombre, p.categoria, p.precio, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush,
         COUNT(*)::int AS n, COUNT(*) FILTER (WHERE f.creado_en > NOW() - INTERVAL '7 days')::int AS n7,

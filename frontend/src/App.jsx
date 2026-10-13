@@ -26002,7 +26002,7 @@ async function iconoCuadrado(archivo) {
     return c.toDataURL("image/png");
   } finally { URL.revokeObjectURL(obj); }
 }
-function ClientasWeb({ temaPal, avisar, urlTienda, nombreTienda, esJefe }) {
+function ClientasWeb({ temaPal, avisar, urlTienda, nombreTienda, esJefe, slug }) {
   const [d, setD] = useState(null);
   const [msj, setMsj] = useState(null); // editor de mensajes
   const cargar = () => API.get("/tienda/clientas-web").then(r => setD(r.data)).catch(() => setD({ avisos: [], carritos: [], favoritos: [], resumen_fav: {}, mensajes: {}, error: true }));
@@ -26077,14 +26077,51 @@ function ClientasWeb({ temaPal, avisar, urlTienda, nombreTienda, esJefe }) {
         <div className="card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}><div className="ct" style={{ marginBottom: 0 }}>🛒 Carritos abandonados</div>{esJefe && <button className="btn btn-g btn-sm" onClick={() => setMsj({ carrito: tCarrito, aviso: tAviso })}>✏️ Editar mensajes</button>}</div>
           <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "6px 0 8px" }}>Clientas con cuenta que armaron un carrito hace más de una hora y no compraron (últimos 30 días). "Recordarle" abre WhatsApp con tu mensaje.</div>
-          {!d.carritos.length ? <div className="empty">No hay carritos abandonados.</div> : d.carritos.map(k => (
-            <div key={k.cliente_id} style={{ borderTop: "1px solid " + temaPal.border, padding: "8px 0" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><b>{k.nombre}</b><b>{fmt(k.subtotal)}</b></div>
-              <div style={{ fontSize: 12, color: temaPal.textMuted }}>{k.telefono || "sin WhatsApp"} · {hace(k.actualizado_en)}{k.recordado_en ? " · ya le recordaste " + hace(k.recordado_en) : ""}</div>
-              <div style={{ fontSize: 13, margin: "4px 0" }}>{(k.items || []).map((i, n) => <div key={n}>{i.cantidad} × {i.nombre}{i.variante ? " (" + i.variante + ")" : ""}{i.preventa ? " · preventa" : ""}</div>)}</div>
-              {k.telefono && <button className={"btn btn-sm " + (k.recordado_en ? "btn-g" : "btn-p")} onClick={() => recordar(k)}>💬 {k.recordado_en ? "Recordarle de nuevo" : "Recordarle"}</button>}
+          {!d.carritos.length ? <div className="empty">No hay carritos abandonados.</div> : d.carritos.map(k => {
+            const items = k.items || [];
+            const sinStock = items.filter(i => !i.preventa && (i.stock || 0) < (i.cantidad || 1)).length;
+            const unidades = items.reduce((t, i) => t + (parseInt(i.cantidad) || 1), 0);
+            return (
+            <div key={k.cliente_id} style={{ border: "1px solid " + temaPal.border, borderLeft: "4px solid " + (k.recordado_en ? temaPal.border : "#d35400"), borderRadius: 10, padding: "10px 12px", marginTop: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 800, fontSize: 14 }}>{k.nombre}</div>
+                  <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{k.telefono || "sin WhatsApp"} · lo dejó {hace(k.actualizado_en)}{!UN_SOLO_LOCAL ? " · " + nombreLocal(k.local_id || 1) : ""}</div>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontWeight: 900, fontSize: 16 }}>{fmt(k.subtotal)}</div>
+                  <div style={{ fontSize: 11, color: temaPal.textMuted }}>{unidades} {unidades === 1 ? "producto" : "productos"}</div>
+                </div>
+              </div>
+              <div style={{ margin: "8px 0", display: "flex", flexDirection: "column", gap: 6 }}>
+                {items.map((i, n) => {
+                  const falta = !i.preventa && (i.stock || 0) < (i.cantidad || 1);
+                  return (
+                    <div key={n} style={{ display: "grid", gridTemplateColumns: "40px 1fr auto", gap: 10, alignItems: "center", background: temaPal.bg || "transparent", borderRadius: 8, padding: "6px 8px", opacity: falta ? 0.75 : 1 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 8, overflow: "hidden", background: temaPal.border, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
+                        {i.foto && slug ? <img src={(API.defaults.baseURL || "") + "/tienda-publica/" + encodeURIComponent(slug) + "/foto/" + i.producto_id} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.currentTarget.style.display = "none"; }} /> : "🛍️"}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.25, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{i.nombre}</div>
+                        <div style={{ fontSize: 11.5, color: temaPal.textMuted, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                          <span>{i.cantidad} × {fmt(i.precio)}</span>
+                          {i.variante && <span className="tag" style={{ fontSize: 10.5 }}>{i.variante}</span>}
+                          {i.preventa && <span className="tag" style={{ fontSize: 10.5, background: "#ffd23f33", color: temaPal.warn }}>preventa</span>}
+                          {falta && <span className="tag" style={{ fontSize: 10.5, background: temaPal.redDim, color: temaPal.red }}>{(i.stock || 0) > 0 ? "quedan " + i.stock : "sin stock"}</span>}
+                        </div>
+                      </div>
+                      <div style={{ fontWeight: 800, fontSize: 13, whiteSpace: "nowrap" }}>{fmt((parseFloat(i.precio) || 0) * (parseInt(i.cantidad) || 1))}</div>
+                    </div>
+                  );
+                })}
+              </div>
+              {sinStock > 0 && <div style={{ fontSize: 11.5, color: temaPal.warn, marginBottom: 6 }}>⚠️ {sinStock === 1 ? "Un producto ya no tiene" : sinStock + " productos ya no tienen"} stock suficiente: avisale o sugerile otro.</div>}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 11.5, color: k.recordado_en ? temaPal.green : temaPal.textMuted }}>{k.recordado_en ? "✓ Le recordaste " + hace(k.recordado_en) : "Todavía no le escribiste"}</span>
+                {k.telefono && <button className={"btn btn-sm " + (k.recordado_en ? "btn-g" : "btn-p")} onClick={() => recordar(k)}>💬 {k.recordado_en ? "Recordarle de nuevo" : "Recordarle"}</button>}
+              </div>
             </div>
-          ))}
+          ); })}
         </div>
         <div className="card">
           <div className="ct">🔔 Piden que les avisen cuando vuelva</div>
@@ -26729,7 +26766,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
       )}
 
       {tab === "resenas" && <ResenasTienda temaPal={temaPal} avisar={avisar} urlTienda={url} nombreTienda={cfg?.titulo} esJefe={esJefeT} alCambiar={setResPend} />}
-      {tab === "clientas" && <ClientasWeb temaPal={temaPal} avisar={avisar} urlTienda={url} nombreTienda={cfg?.titulo} esJefe={esJefeT} />}
+      {tab === "clientas" && <ClientasWeb temaPal={temaPal} avisar={avisar} urlTienda={url} nombreTienda={cfg?.titulo} esJefe={esJefeT} slug={cfg?.slug} />}
       {tab === "portada" && esJefeT && <PortadaTienda productos={productos} temaPal={temaPal} avisar={avisar} alGuardar={cargarProductos} />}
 
       {tab === "config" && (() => {
