@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
-const { porNegocio } = require('../lib/contexto');
+const { porNegocio, negocioActual } = require('../lib/contexto');
 
 const TEMAS_PORTAL = ['girasoles', 'claro', 'oscuro', 'salvia'];
+// El estilo Girasoles es solo del negocio original (Girasoles); los demas negocios eligen entre los otros
+const esOriginal = () => { const n = negocioActual(); return !n || !n.id || Number(n.id) === 1; };
 
 // Plantilla del mensaje de "Buscar precio" (texto que se manda al cliente). La columna se crea
 // sola la primera vez, para no depender de correr una migracion en cada base.
@@ -71,7 +73,7 @@ router.put('/', async (req, res) => {
     if (req.body.portal_diseno && typeof req.body.portal_diseno === 'object') {
       const d = req.body.portal_diseno;
       const limpio = {
-        tema: TEMAS_PORTAL.includes(d.tema) ? d.tema : 'girasoles',
+        tema: TEMAS_PORTAL.includes(d.tema) && (d.tema !== 'girasoles' || esOriginal()) ? d.tema : (esOriginal() ? 'girasoles' : 'claro'),
         fondo: ['estilo', 'color', 'propio'].includes(d.fondo) ? d.fondo : 'estilo',
         bienvenida: String(d.bienvenida || '').slice(0, 160).trim(),
         mostrar_cumple: d.mostrar_cumple !== false,

@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
+const { negocioActual } = require('../lib/contexto');
 const cuponesLib = require('../lib/cupones');
 const { NIVELES, VENTA_VALIDA, obtenerUmbrales, gastoDeCliente } = require('../lib/niveles');
 
@@ -32,7 +33,12 @@ router.get('/negocio', async (req, res) => {
   try {
     const r = await pool.query('SELECT * FROM configuracion_negocio WHERE id = 1');
     const c = r.rows[0] || {};
-    res.json({ nombre_negocio: c.nombre_negocio || null, logo_url: c.logo_url || null, diseno: c.portal_diseno || null });
+    // El estilo Girasoles es solo del negocio original: los demas ven el claro si no eligieron otro
+    const n = negocioActual();
+    const original = !n || !n.id || Number(n.id) === 1;
+    let diseno = c.portal_diseno || null;
+    if (!original && (!diseno || !diseno.tema || diseno.tema === 'girasoles')) diseno = { ...(diseno || {}), tema: 'claro', fondo: (diseno && diseno.fondo) || 'estilo' };
+    res.json({ nombre_negocio: c.nombre_negocio || null, logo_url: c.logo_url || null, diseno });
   } catch (e) { res.json({ nombre_negocio: null, logo_url: null, diseno: null }); }
 });
 
