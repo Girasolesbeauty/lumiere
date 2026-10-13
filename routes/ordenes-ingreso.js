@@ -25,6 +25,27 @@ router.get('/', async (req, res) => {
 });
 
 // Obtener orden con items
+// Para recomendar cuanto mandar a cada local al cargar un ingreso: stock, lo que esta en camino (y lo
+// reservado por preventas) y las unidades vendidas en los ultimos 60 dias en cada local.
+router.get('/reparto', async (req, res) => {
+  try {
+    const ids = String(req.query.ids || '').split(',').map(x => parseInt(x)).filter(x => x > 0).slice(0, 300);
+    if (!ids.length) return res.json([]);
+    const { VENTA_VALIDA } = require('../lib/niveles');
+    const [prods, ventas] = await Promise.all([
+      pool.query(`SELECT id, COALESCE(stock_rg, 0) AS s1, COALESCE(stock_ush, 0) AS s2, COALESCE(stock_transito_rg, 0) AS t1, COALESCE(stock_transito_ush, 0) AS t2,
+        COALESCE(reservado_rg, 0) AS r1, COALESCE(reservado_ush, 0) AS r2 FROM productos WHERE id = ANY($1::int[])`, [ids]),
+      pool.query(`SELECT vi.producto_id, v.local_id, SUM(vi.cantidad)::int AS n FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id
+        WHERE vi.producto_id = ANY($1::int[]) AND v.creado_en > NOW() - INTERVAL '60 days' AND ${VENTA_VALIDA} GROUP BY vi.producto_id, v.local_id`, [ids]),
+    ]);
+    const n = (x) => parseInt(x) || 0;
+    res.json(prods.rows.map(p => {
+      const v = (l) => n((ventas.rows.find(x => x.producto_id === p.id && Number(x.local_id) === l) || {}).n);
+      return { producto_id: p.id, stock: { 1: n(p.s1), 2: n(p.s2) }, transito: { 1: n(p.t1), 2: n(p.t2) }, reservado: { 1: n(p.r1), 2: n(p.r2) }, ventas60: { 1: v(1), 2: v(2) } };
+    }));
+  } catch (e) { console.error('[ordenes] reparto:', e.message); res.status(500).json({ error: 'No se pudo calcular el reparto' }); }
+});
+
 router.get('/:id', async (req, res) => {
   try {
     const orden = await pool.query(
