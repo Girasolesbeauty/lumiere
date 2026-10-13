@@ -703,6 +703,28 @@ router.put('/giftcard/:id/mensaje', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
 });
 
+// Preventa: ordenes de ingreso que todavia tienen mercaderia en camino, para ponerles la fecha estimada de ingreso
+router.get('/preventa/ordenes', async (req, res) => {
+  try {
+    const r = await pool.query(`SELECT o.id, o.numero_factura, o.fecha_factura, TO_CHAR(o.fecha_estimada, 'YYYY-MM-DD') AS fecha_estimada, COALESCE(p.nombre, o.proveedor_nombre) AS proveedor,
+        COUNT(oi.id)::int AS productos, SUM(GREATEST(CASE WHEN NOT COALESCE(oi.revisado_rg, FALSE) THEN COALESCE(oi.cantidad_rg, 0) ELSE 0 END, 0) + GREATEST(CASE WHEN NOT COALESCE(oi.revisado_ush, FALSE) THEN COALESCE(oi.cantidad_ush, 0) ELSE 0 END, 0))::int AS unidades,
+        STRING_AGG(oi.producto_nombre, ', ' ORDER BY oi.id) AS nombres
+      FROM ordenes_ingreso o JOIN ordenes_ingreso_items oi ON oi.orden_id = o.id LEFT JOIN proveedores p ON p.id = o.proveedor_id
+      WHERE (oi.cantidad_rg > 0 AND NOT COALESCE(oi.revisado_rg, FALSE)) OR (oi.cantidad_ush > 0 AND NOT COALESCE(oi.revisado_ush, FALSE))
+      GROUP BY o.id, p.nombre ORDER BY o.creado_en DESC LIMIT 40`);
+    res.json(r.rows);
+  } catch (e) { console.error('[tienda] preventa ordenes:', e.message); res.status(500).json({ error: 'No se pudieron cargar las órdenes' }); }
+});
+router.put('/preventa/ordenes/:id', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    const f = String((req.body && req.body.fecha_estimada) || '');
+    if (f && !/^\d{4}-\d{2}-\d{2}$/.test(f)) return res.status(400).json({ error: 'Fecha no válida' });
+    await pool.query('UPDATE ordenes_ingreso SET fecha_estimada = $1 WHERE id = $2', [f || null, req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar la fecha' }); }
+});
+
 // Sector "¿Querés hacer un regalo?" (gift cards online y armador de regalos)
 router.put('/regalos', async (req, res) => {
   try {
