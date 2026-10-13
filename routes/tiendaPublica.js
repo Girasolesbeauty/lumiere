@@ -99,6 +99,14 @@ router.get('/:slug', async (req, res) => {
       icono_v: c.icono ? versionIcono(c.icono) : null,
       descuentos_pago: (() => { const d = tienda.descuentosPagoDe(c); return Object.fromEntries(Object.entries(d).filter(([, v]) => v > 0)); })(),
       resenas_puntos: (() => { const r = tienda.puntosResenaDe(c); return r.activo && (r.puntos || r.extra_foto) ? { puntos: r.puntos, extra_foto: r.extra_foto } : null; })(),
+      // Logo de la marca para la gift card (blanco sobre el color de la tarjeta)
+      logo_marca: Number(req.negTienda.id) === 1 ? { blanco: '/logos/girasoles-logo-blanco.svg', color: '/logos/girasoles-logo.svg' } : null,
+      regalos: (() => {
+        const r = tienda.regalosDe(c);
+        if (!r.activo || (!r.giftcards && !r.armador)) return null;
+        return { giftcards: r.giftcards && (mp || !!c.pago_transferencia || !!c.pago_gocuotas), montos: r.montos, libre: r.libre, minimo: r.minimo, maximo: r.maximo,
+          armador: r.armador, presupuestos: r.presupuestos, titulo: r.titulo, texto: r.texto, ...tienda.temaRegaloHoy(r) };
+      })(),
     });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la tienda' }); }
 });
@@ -360,44 +368,109 @@ router.post('/:slug/pedidos', async (req, res) => {
     return res.status(500).json({ error: 'No se pudo hacer el pedido. Probá de nuevo.' });
   } finally { client.release(); }
 
-  // Mercado Pago: link de pago por el total (vuelve a la tienda al terminar)
   let link = null;
-  if (pago === 'mp') {
+  try { link = await linkDePago(req, c, pedido, { nombre, email, telefono }, b.volver_a, 'Pedido ' + pedido.codigo + ' · ' + (c.titulo || 'Tienda'), 'Compra en la tienda web'); }
+  catch (e) { return res.status(502).json({ error: e.message }); }
+  res.status(201).json({ codigo: pedido.codigo, total: num(pedido.total), estado: pedido.estado, link_pago: link });
+});
+
+// Link de pago online de un pedido (Mercado Pago o GoCuotas). Si no se puede crear, cancela el pedido y tira el error.
+async function linkDePago(req, c, pedido, { nombre, email, telefono }, volverA, titulo, descripcion) {
+  const origen = String(volverA || '').startsWith('http') ? String(volverA).split('?')[0].split('#')[0] : null;
+  if (pedido.pago === 'mp') {
     try {
       const tok = await ayudaMP.token();
-      const origen = String(b.volver_a || '').startsWith('http') ? String(b.volver_a).split('?')[0].split('#')[0] : null;
       const volver = origen ? origen + '?tienda=' + encodeURIComponent(req.params.slug) + '&pedido=' + pedido.codigo : null;
       const pref = await ayudaMP.mp(tok, 'POST', '/checkout/preferences', {
-        items: [{ id: 'pedido-' + pedido.codigo, title: 'Pedido ' + pedido.codigo + ' · ' + (c.titulo || 'Tienda'), description: 'Compra en la tienda web', category_id: 'others', quantity: 1, unit_price: num(pedido.total), currency_id: 'ARS' }],
+        items: [{ id: 'pedido-' + pedido.codigo, title: titulo, description: descripcion, category_id: 'others', quantity: 1, unit_price: num(pedido.total), currency_id: 'ARS' }],
         external_reference: 'tienda-' + pedido.codigo,
         payer: { name: nombre, ...(email ? { email } : {}) },
         ...(volver ? { back_urls: { success: volver, pending: volver, failure: volver }, auto_return: 'approved' } : {}),
         expires: true, expiration_date_to: new Date(Date.now() + 2 * 3600 * 1000).toISOString().replace('Z', '-00:00'),
       });
-      link = pref.init_point;
-      await pool.query('UPDATE tienda_pedidos SET mp_link = $1 WHERE id = $2', [link, pedido.id]);
+      await pool.query('UPDATE tienda_pedidos SET mp_link = $1 WHERE id = $2', [pref.init_point, pedido.id]);
+      return pref.init_point;
     } catch (e) {
       console.error('[tienda publica] mp:', e.message);
       await tienda.cancelar(pedido.id, 'No se pudo crear el pago en Mercado Pago').catch(() => {});
-      return res.status(502).json({ error: 'No se pudo abrir el pago con Mercado Pago. Probá con otra forma de pago.' });
+      throw new Error('No se pudo abrir el pago con Mercado Pago. Probá con otra forma de pago.');
     }
   }
   // GoCuotas: cobro en cuotas con debito (vuelve a la tienda; el resultado llega por el webhook firmado)
-  if (pago === 'gocuotas') {
+  if (pedido.pago === 'gocuotas') {
     try {
-      const origen = String(b.volver_a || '').startsWith('http') ? String(b.volver_a).split('?')[0].split('#')[0] : null;
       const volver = (origen || (req.protocol + '://' + req.get('host') + '/')) + '?tienda=' + encodeURIComponent(req.params.slug) + '&pedido=' + pedido.codigo;
       const yo = (req.headers['x-forwarded-proto'] || req.protocol) + '://' + req.get('host');
-      link = await gocuotas.crearCheckout({ total: num(pedido.total), codigo: pedido.codigo, urlOk: volver, urlFalla: volver + '&gc=no',
+      const link = await gocuotas.crearCheckout({ total: num(pedido.total), codigo: pedido.codigo, urlOk: volver, urlFalla: volver + '&gc=no',
         webhook: yo + '/api/tienda-publica/' + encodeURIComponent(req.params.slug) + '/gocuotas/aviso/' + pedido.codigo + '/' + gocuotas.firma(pedido.codigo), email, telefono });
       await pool.query('UPDATE tienda_pedidos SET mp_link = $1 WHERE id = $2', [link, pedido.id]);
+      return link;
     } catch (e) {
       console.error('[tienda publica] gocuotas:', e.message);
       await tienda.cancelar(pedido.id, 'No se pudo crear el pago en GoCuotas').catch(() => {});
-      return res.status(502).json({ error: 'No se pudo abrir el pago con GoCuotas. Probá con otra forma de pago.' });
+      throw new Error('No se pudo abrir el pago con GoCuotas. Probá con otra forma de pago.');
     }
   }
-  res.status(201).json({ codigo: pedido.codigo, total: num(pedido.total), estado: pedido.estado, link_pago: link });
+  return null;
+}
+
+// Abrir una gift card online (link que llega por WhatsApp). Sin la firma no se ve nada; no muestra telefonos ni DNI.
+router.get('/:slug/regalo/:codigo/:firma', async (req, res) => {
+  try {
+    const codigo = String(req.params.codigo || '').toUpperCase().slice(0, 30);
+    if (!tienda.firmaRegaloOk(codigo, req.params.firma)) return res.status(404).json({ error: 'No encontramos este regalo. Revisá el link.' });
+    await tienda.asegurar();
+    const g = (await pool.query(`SELECT g.codigo, g.monto_inicial, g.saldo, g.beneficiario_nombre, g.comprador_nombre, g.estado, COALESCE(g.anulada, FALSE) AS anulada, g.mensaje, g.creado_en, l.nombre AS local
+      FROM gift_cards g LEFT JOIN locales l ON l.id = g.local_id WHERE UPPER(g.codigo) = $1`, [codigo])).rows[0];
+    if (!g) return res.status(404).json({ error: 'No encontramos este regalo. Revisá el link.' });
+    res.json({ codigo: g.codigo, monto: num(g.monto_inicial), saldo: num(g.saldo), para: g.beneficiario_nombre, de: String(g.comprador_nombre || '').trim().split(/\s+/)[0] || null,
+      mensaje: g.mensaje || null, estado: g.anulada ? 'anulada' : g.estado, local: g.local || null, creado_en: g.creado_en });
+  } catch (e) { res.status(500).json({ error: 'No se pudo abrir el regalo' }); }
+});
+
+// Comprar una gift card online (sector "¿Querés hacer un regalo?"). Es un pedido sin productos: cuando se
+// acredita el pago se emite la gift card en Lumiere (Gift Cards del Punto de Venta) y se ve el codigo para regalarla.
+router.post('/:slug/giftcards', async (req, res) => {
+  const ip = req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : req.ip;
+  if (demasiados(ip)) return res.status(429).json({ error: 'Hiciste muchos pedidos seguidos. Esperá unos minutos o escribinos por WhatsApp.' });
+  const c = req.tienda;
+  const r = tienda.regalosDe(c);
+  if (!r.activo || !r.giftcards) return res.status(400).json({ error: 'Las gift cards online no están disponibles' });
+  const b = req.body || {};
+  const monto = Math.round(Number(b.monto));
+  if (!(r.montos.includes(monto) || (r.libre && monto >= r.minimo && monto <= r.maximo))) {
+    return res.status(400).json({ error: r.libre ? 'El monto tiene que ser entre $' + r.minimo.toLocaleString('es-AR') + ' y $' + r.maximo.toLocaleString('es-AR') : 'Elegí uno de los montos' });
+  }
+  const para = String(b.para || '').trim().slice(0, 80);
+  if (para.length < 2) return res.status(400).json({ error: 'Escribí para quién es la gift card' });
+  const paraTel = String(b.para_telefono || '').replace(/[^0-9]/g, '').slice(0, 20) || null;
+  const mensaje = String(b.mensaje || '').trim().slice(0, 300) || null;
+  const nombre = String(b.nombre || '').trim().slice(0, 120);
+  const telefono = String(b.telefono || '').trim().slice(0, 40);
+  const email = String(b.email || '').trim().slice(0, 120) || null;
+  if (nombre.length < 2) return res.status(400).json({ error: 'Escribí tu nombre' });
+  if (telefono.replace(/[^0-9]/g, '').length < 8) return res.status(400).json({ error: 'Escribí tu WhatsApp (con código de área) para avisarte' });
+  const pago = ['mp', 'transferencia', 'gocuotas'].includes(b.pago) ? b.pago : null;
+  if (!pago || (pago === 'gocuotas' && !(c.pago_gocuotas && await gocuotas.conectado())) || (pago === 'mp' && !(c.pago_mp && await mpDisponible())) || (pago === 'transferencia' && !c.pago_transferencia)) return res.status(400).json({ error: 'Elegí cómo vas a pagar' });
+  // Local donde se va a usar (su caja recibe la venta de la gift card)
+  const locales = (await pool.query('SELECT id FROM locales WHERE COALESCE(activo, TRUE) ORDER BY id').catch(() => ({ rows: [{ id: 1 }] }))).rows.map(x => x.id);
+  const localId = locales.includes(Number(b.local_id)) ? Number(b.local_id) : (locales[0] || 1);
+  let pedido;
+  try {
+    const clienteId = clienteDeToken(req) || await clienteDe(pool, nombre, telefono, email);
+    const codigo = crypto.randomBytes(4).toString('hex').toUpperCase();
+    const horas = pago === 'transferencia' ? Math.min(168, Math.max(1, parseInt(c.horas_reserva) || 24)) : 2;
+    pedido = (await pool.query(`INSERT INTO tienda_pedidos (codigo, cliente_id, nombre, telefono, email, entrega, local_id, pago, subtotal, total, estado, stock_apartado, vence_en, tipo, gc_para, gc_para_tel, gc_mensaje)
+      VALUES ($1, $2, $3, $4, $5, 'giftcard', $6, $7, $8, $8, 'pendiente_pago', FALSE, NOW() + ($9 || ' hours')::interval, 'giftcard', $10, $11, $12) RETURNING *`,
+      [codigo, clienteId, nombre, telefono, email, localId, pago, monto, String(horas), para, paraTel, mensaje])).rows[0];
+  } catch (e) {
+    console.error('[tienda publica] gift card:', e.message);
+    return res.status(500).json({ error: 'No se pudo hacer el pedido. Probá de nuevo.' });
+  }
+  let link = null;
+  try { link = await linkDePago(req, c, pedido, { nombre, email, telefono }, b.volver_a, 'Gift card $' + monto.toLocaleString('es-AR') + ' · ' + (c.titulo || 'Tienda'), 'Gift card para ' + para); }
+  catch (e) { return res.status(502).json({ error: e.message }); }
+  res.status(201).json({ codigo: pedido.codigo, total: monto, estado: pedido.estado, link_pago: link });
 });
 
 // Aviso de GoCuotas con el resultado del pago (POST al webhook firmado de cada pedido).
@@ -427,6 +500,7 @@ router.post('/:slug/gocuotas/aviso/:codigo/:firma', express.urlencoded({ extende
     } else {
       await pool.query(`UPDATE tienda_pedidos SET pagado = TRUE, pagado_en = COALESCE(pagado_en, NOW()), pago_ref = $1, estado = CASE WHEN estado = 'pendiente_pago' THEN 'confirmado' ELSE estado END,
         vence_en = NULL, nota = CASE WHEN $3::int IS NULL THEN nota ELSE TRIM(COALESCE(nota, '') || ' [GoCuotas: ' || $3::int || ' cuotas]') END, actualizado_en = NOW() WHERE id = $2`, [ref, p.id, cuotas]);
+      if (p.tipo === 'giftcard') await tienda.emitirGiftCard(p.id);
     }
     res.json({ ok: true });
   } catch (e) { console.error('[gocuotas] aviso:', e.message); res.status(500).json({ error: 'No se pudo procesar' }); }
@@ -438,6 +512,7 @@ router.get('/:slug/pedidos/:codigo', async (req, res) => {
     let p = (await pool.query('SELECT * FROM tienda_pedidos WHERE codigo = $1', [String(req.params.codigo || '').toUpperCase()])).rows[0];
     if (!p) return res.status(404).json({ error: 'No encontramos ese pedido' });
     if (p.pago === 'mp' && !p.pagado && p.estado === 'pendiente_pago') p = await tienda.revisarPagoMP(p, true);
+    if (p.tipo === 'giftcard' && p.pagado && !p.gc_codigo && p.estado !== 'cancelado') p = (await tienda.emitirGiftCard(p.id)) || p;
     const items = (await pool.query('SELECT nombre, variante_valor, cantidad, precio, preventa FROM tienda_pedido_items WHERE pedido_id = $1 ORDER BY id', [p.id])).rows.map(i => ({ ...i, precio: num(i.precio) }));
     const loc = p.entrega === 'retiro' ? (await pool.query('SELECT nombre, direccion FROM locales WHERE id = $1', [p.local_id]).catch(() => ({ rows: [] }))).rows[0] : null;
     res.json({
@@ -445,6 +520,7 @@ router.get('/:slug/pedidos/:codigo', async (req, res) => {
       codigo: p.codigo, estado: p.estado, pagado: p.pagado, pago: p.pago, entrega: p.entrega, local: loc || null, direccion: p.direccion, zona: p.zona,
       subtotal: num(p.subtotal), costo_envio: num(p.costo_envio), descuento: num(p.descuento), descuento_pago: num(p.descuento_pago), descuento_pago_pct: p.descuento_pago_pct === null ? null : num(p.descuento_pago_pct), cupon: p.cupon || null, total: num(p.total), items, link_pago: p.estado === 'pendiente_pago' ? p.mp_link : null,
       vence_en: p.vence_en, transferencia: p.pago === 'transferencia' && !p.pagado ? (req.tienda.transferencia_datos || '') : null, creado_en: p.creado_en,
+      giftcard: p.tipo === 'giftcard' ? { para: p.gc_para, mensaje: p.gc_mensaje, para_telefono: p.gc_para_tel, codigo: p.gc_codigo || null, firma: p.gc_codigo ? tienda.firmaRegalo(p.gc_codigo) : null, monto: num(p.total), de: p.nombre } : null,
     });
   } catch (e) { res.status(500).json({ error: 'No se pudo consultar el pedido' }); }
 });
@@ -457,7 +533,7 @@ async function estadoRuleta(cfg, p) {
   const hecho = (await pool.query('SELECT premio_id, texto, tipo, valor, cupon FROM tienda_ruleta WHERE pedido_id = $1', [p.id]).catch(() => ({ rows: [] }))).rows[0];
   const r = tienda.ruletaDe(cfg);
   if (hecho) return { premios: r.premios.map(premioPublico), resultado: { id: hecho.premio_id, texto: hecho.texto, tipo: hecho.tipo, valor: num(hecho.valor), cupon: hecho.cupon } };
-  if (!r.activo || p.estado === 'cancelado' || num(p.subtotal) - num(p.descuento) < r.minimo) return null;
+  if (!r.activo || p.tipo === 'giftcard' || p.estado === 'cancelado' || num(p.subtotal) - num(p.descuento) < r.minimo) return null;
   if (p.pago === 'mp' && !p.pagado) return { premios: r.premios.map(premioPublico), espera: true, minimo: r.minimo };
   return { premios: r.premios.map(premioPublico), disponible: true, minimo: r.minimo };
 }
