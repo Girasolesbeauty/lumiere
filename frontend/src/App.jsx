@@ -19866,6 +19866,11 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
             <div style={{ fontSize: 15, fontWeight: 800 }}>{o.proveedor_nombre || "Sin proveedor"}</div>
             <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 2 }}>Factura <b style={{ color: temaPal.text }}>{o.numero_factura || "—"}</b> · {fechaCortaOI(o.fecha_factura || o.creado_en)}</div>
             {o.notas && <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 2 }}>📝 {o.notas}</div>}
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, marginTop: 4, color: o.fecha_estimada ? temaPal.text : temaPal.textMuted }} title="Se muestra en la tienda online en los productos en preventa">
+              📅 Llega aprox.:
+              <input type="date" className="mini-inp" style={{ padding: "2px 4px", fontSize: 11.5 }} disabled={!puedeCrear} value={o.fecha_estimada ? String(o.fecha_estimada).slice(0, 10) : ""}
+                onChange={async e => { const v = e.target.value; try { await API.put("/ordenes-ingreso/" + o.id + "/fecha-estimada", { fecha_estimada: v }); setOrdenes(prev => prev.map(x => x.id === o.id ? { ...x, fecha_estimada: v || null } : x)); setMensaje("✓ Fecha estimada guardada"); } catch (er) { setMensaje("Error: " + (er.response?.data?.error || "no se pudo guardar la fecha")); } }} />
+            </label>
           </div>
           <div style={{ textAlign: "right", flexShrink: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 900, fontVariantNumeric: "tabular-nums" }}>{fmt(parseFloat(o.total || 0)).replace(SIN_CEROS, "")}</div>
@@ -20074,6 +20079,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
             </div>
             <div className="fg"><div className="fl">Numero de factura</div><input className="inp" value={nueva.numero_factura} onChange={e => setNueva(p => ({ ...p, numero_factura: e.target.value }))} /></div>
             <div className="fg"><div className="fl">Total factura ($)</div><input className="inp" type="number" value={nueva.total} onChange={e => setNueva(p => ({ ...p, total: e.target.value }))} /></div>
+            <div className="fg"><div className="fl">Fecha estimada de ingreso (opcional)</div><input className="inp" type="date" value={nueva.fecha_estimada || ""} onChange={e => setNueva(p => ({ ...p, fecha_estimada: e.target.value }))} /><div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 3 }}>Se muestra en la tienda online en los productos en preventa ("Llega aprox. el …").</div></div>
             <div className="fg"><div className="fl">Notas</div><textarea className="inp" rows={2} placeholder="Observaciones..." value={nueva.notas} onChange={e => setNueva(p => ({ ...p, notas: e.target.value }))} /></div>
             <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", margin: "16px 0 10px" }}>AGREGAR PRODUCTO (dividi por local)</div>
             <div className="fg"><div className="fl">Producto</div>
@@ -24140,7 +24146,17 @@ function TwMenuSkincare({ titulo, grupos, onTodo, onElegir, onCerrar }) {
   );
 }
 
-function TwTarjeta({ p, base, sin, preventa, fav, onFav, onAbrir, onAgregar }) {
+// "el vie 25/10" (fecha estimada de ingreso de la preventa); si ya paso, "en estos días"
+function twTextoLlega(f) {
+  if (!f) return null;
+  const d = new Date(f + "T12:00:00"), hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  if (isNaN(d)) return null;
+  if (d < hoy) return "en estos días";
+  const dias = Math.round((d - hoy) / 864e5);
+  if (dias === 0) return "hoy"; if (dias === 1) return "mañana";
+  return "el " + d.toLocaleDateString("es-AR", { weekday: "short" }).replace(".", "") + " " + d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" });
+}
+function TwTarjeta({ p, base, sin, preventa, llega, fav, onFav, onAbrir, onAgregar }) {
   const [hover, setHover] = useState(false);
   const [hecho, setHecho] = useState(false);
   const imgRef = useRef(null);
@@ -24178,7 +24194,7 @@ function TwTarjeta({ p, base, sin, preventa, fav, onFav, onAbrir, onAgregar }) {
       <div className="tw-card-n">{p.nombre}</div>
       {p.resenas && <div className="tw-card-est"><TwEstrellas v={p.resenas[0]} size={12} /><span>({p.resenas[1]})</span></div>}
       <div className="tw-card-p">{fmtTienda(p.precio)}</div>
-      {preventa && <div className="tw-card-pre">⏳ Llega pronto · ¡reservalo antes que se agote!</div>}
+      {preventa && <div className="tw-card-pre">{llega ? <>⏳ Llega aprox. <b>{llega}</b> · ¡reservalo!</> : "⏳ Llega pronto · ¡reservalo antes que se agote!"}</div>}
     </div>
   );
 }
@@ -25226,6 +25242,8 @@ function TiendaPublica({ slug }) {
   // Preventa: lo que viene en camino (orden de ingreso) y se puede reservar aunque todavia no llego
   const prevDispo = (p) => p.preventa && !p.variantes ? (lid ? Math.max(0, p.preventa[lid] || 0) : Math.max(0, ...ciudades.map(c => p.preventa[c.id] || 0), 0)) : 0;
   const esPreventa = (p) => !p.variantes && dispo(p) <= 0 && prevDispo(p) > 0;
+  // Fecha estimada de ingreso de la preventa en la ciudad elegida (o la mas proxima)
+  const llegaDe = (p) => { if (!p || !p.llega) return null; const f = lid ? p.llega[lid] : [p.llega[1], p.llega[2]].filter(Boolean).sort()[0]; return twTextoLlega(f); };
   const maxDeItem = (i) => { const p = lista0.find(x => x.id === i.producto_id); if (!p) return 0; if (i.preventa) return esPreventa(p) ? prevDispo(p) : 0; const v = i.variante_id ? (p.variantes || []).find(x => x.id === i.variante_id) : null; return i.variante_id && !v ? 0 : dispo(p, v); };
   const agotado = (p) => (p.variantes ? p.variantes.every(v => dispo(p, v) <= 0) : dispo(p) <= 0) && prevDispo(p) <= 0;
   const totalItems = carrito.reduce((t, i) => t + i.cantidad, 0);
@@ -25536,7 +25554,7 @@ function TiendaPublica({ slug }) {
   const filasPortada = (tienda.filas || []).map(f => ({ ...f, items: f.productos.map(id => lista0.find(p => p.id === id)).filter(p => p && !agotado(p)) })).filter(f => f.items.length);
   const nSlides = destacados.length;
   const iSlide = nSlides ? slide % nSlides : 0;
-  const tarjeta = (p) => <TwTarjeta key={p.id} p={p} base={base} sin={agotado(p)} preventa={esPreventa(p)} fav={favs.includes(p.id)} onFav={toggleFav} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
+  const tarjeta = (p) => <TwTarjeta key={p.id} p={p} base={base} sin={agotado(p)} preventa={esPreventa(p)} llega={esPreventa(p) ? llegaDe(p) : null} fav={favs.includes(p.id)} onFav={toggleFav} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
   const opcionesPago = [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["gocuotas", "💜 GoCuotas", "Hasta 4 cuotas sin interés con tu tarjeta de débito"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar"], ["retiro", "💵 Pago al retirar", "Pagás en el local"]]
     .filter(([k]) => tienda.pagos[k] && !(k === "retiro" && datos.entrega === "envio"));
   const listoParaPedir = lid && datos.nombre && datos.telefono && datos.entrega && (datos.pago || gcCubre) && (datos.entrega === "retiro" ? retiroAca.length > 0 : (zona && datos.direccion));
@@ -25995,7 +26013,7 @@ function TiendaPublica({ slug }) {
                   {(!ver.variantes || varSel) && (
                     <div className="tw-disp">
                       {ciudad && maxVer <= 0 && <div>✕ Agotado en <b>{ciudad.nombre}</b></div>}
-                      {maxVer > 0 && preVer && <div>⏳ Llega pronto{ciudad ? " a " + ciudad.nombre : ""}: <b>reservalo ahora</b>{maxVer <= 3 ? " (¡quedan " + maxVer + " por reservar!)" : ""}</div>}
+                      {maxVer > 0 && preVer && <div>⏳ {llegaDe(ver) ? <>Llega aprox. <b>{llegaDe(ver)}</b></> : "Llega pronto"}{ciudad ? " a " + ciudad.nombre : ""}: <b>reservalo ahora</b>{maxVer <= 3 ? " (¡quedan " + maxVer + " por reservar!)" : ""}{llegaDe(ver) ? <div style={{ fontSize: 12, color: "#888", fontWeight: 400 }}>Es una fecha estimada: te avisamos por WhatsApp cuando llegue.</div> : null}</div>}
                       {maxVer > 0 && !preVer && retiroAca.map(l => <div key={l.id}>✓ Disponible para retirar en <b>{l.nombre}</b>{maxVer <= 3 ? " (¡quedan " + maxVer + "!)" : ""}</div>)}
                       {maxVer > 0 && !preVer && envioAca && <div>✓ Envío a domicilio{ciudad ? " en " + ciudad.nombre : ""}{gratisDesde ? " (gratis desde " + fmtTienda(gratisDesde) + ")" : ""}</div>}
                     </div>
@@ -26037,7 +26055,7 @@ function TiendaPublica({ slug }) {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 14.5, fontWeight: 700 }}>{i.nombre}</div>
                         {i.variante && <div style={{ fontSize: 13, color: "#666" }}>{i.variante}</div>}
-                        {i.preventa && <div className="tw-item-pre">⏳ PREVENTA · todavía no llegó</div>}
+                        {i.preventa && <div className="tw-item-pre">⏳ PREVENTA · {(() => { const t = llegaDe(lista0.find(x => x.id === i.producto_id)); return t ? "llega aprox. " + t : "todavía no llegó"; })()}</div>}
                         <div className="tw-cant"><button onClick={() => cambiarCant(i, -1)} aria-label="Uno menos">−</button><b><TwNum v={i.cantidad} /></b><button onClick={() => cambiarCant(i, +1)} disabled={i.cantidad >= maxDeItem(i)} aria-label="Uno más">+</button></div>
                         {i.cantidad > maxDeItem(i) && <div style={{ color: "#c0392b", fontSize: 12.5, fontWeight: 700, marginTop: 4 }}>{maxDeItem(i) <= 0 ? "No hay" + (ciudad ? " en " + ciudad.nombre : "") : "Solo quedan " + maxDeItem(i) + (ciudad ? " en " + ciudad.nombre : "")}</div>}
                       </div>
@@ -27190,6 +27208,32 @@ function GoCuotasConfig({ temaPal, avisar, activo, onActivo, esJefe }) {
 }
 
 // Tienda online -> Regalos: gift cards online y armador de regalos (sector "¿Querés hacer un regalo?")
+// Tienda online -> Configuracion -> Preventa: ordenes de ingreso en camino y su fecha estimada de ingreso
+function OrdenesPreventa({ temaPal, avisar, esJefe }) {
+  const [ords, setOrds] = useState(null);
+  useEffect(() => { API.get("/tienda/preventa/ordenes").then(r => setOrds(r.data || [])).catch(() => setOrds([])); }, []);
+  const guardar = async (o, f) => {
+    try { await API.put("/tienda/preventa/ordenes/" + o.id, { fecha_estimada: f }); setOrds(l => l.map(x => x.id === o.id ? { ...x, fecha_estimada: f || null } : x)); avisar(true, f ? "✓ Fecha guardada: se ve en la tienda" : "✓ Sin fecha"); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+  };
+  return (
+    <div style={{ marginBottom: 14, padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + temaPal.border, background: temaPal.bg || "transparent" }}>
+      <div style={{ fontWeight: 800, fontSize: 13.5 }}>📅 Fecha estimada de ingreso</div>
+      <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "2px 0 8px" }}>Poné cuándo creés que llega cada orden: en la tienda sus productos en preventa dicen "Llega aprox. el …". También se carga en Ingresos.</div>
+      {ords === null ? <div className="skel" style={{ height: 40 }} /> : ords.length === 0 ? <div style={{ fontSize: 12.5, color: temaPal.textMuted }}>No hay órdenes de ingreso con mercadería en camino.</div> : ords.map(o => (
+        <div key={o.id} style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "7px 0", borderTop: "1px solid " + temaPal.border }}>
+          <div style={{ flex: "1 1 260px", minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 13 }}>{o.proveedor || "Sin proveedor"} <span style={{ fontWeight: 400, fontSize: 11.5, color: temaPal.textMuted }}>· factura {o.numero_factura || "—"} · {o.unidades} u. en camino</span></div>
+            <div style={{ fontSize: 11.5, color: temaPal.textMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o.nombres}</div>
+          </div>
+          <input type="date" className="inp" style={{ width: 160 }} disabled={!esJefe} value={o.fecha_estimada || ""} onChange={e => guardar(o, e.target.value)} aria-label={"Fecha estimada de ingreso de la orden de " + (o.proveedor || "")} />
+          {o.fecha_estimada && <span style={{ fontSize: 11.5, color: temaPal.green }}>Se ve: "Llega aprox. {twTextoLlega(o.fecha_estimada)}"</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function RegalosTienda({ cfg, pedidos, temaPal, avisar, urlTienda, esJefe, onGuardado }) {
   const [r, setR] = useState(() => ({ ...(cfg.regalos || {}), montosTxt: ((cfg.regalos || {}).montos || []).join(", "), presTxt: ((cfg.regalos || {}).presupuestos || []).join(", ") }));
   const [hoy, setHoy] = useState(cfg.regalos_hoy || null);
@@ -27809,6 +27853,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
           </CajaSeccion>}
           {it.k === "preventa" && cfg.preventa && (
             <CajaSeccion it={{ ...it, titulo: "Preventa (productos que vienen en camino)" }} temaPal={temaPal}>
+              <OrdenesPreventa temaPal={temaPal} avisar={avisar} esJefe={esJefeT} />
               <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", fontWeight: 800 }}><input type="checkbox" checked={!!cfg.preventa.activo} onChange={e => set("preventa", { ...cfg.preventa, activo: e.target.checked })} style={{ width: 18, height: 18 }} /> Vender en preventa lo que cargo en las órdenes de ingreso</label>
               <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "4px 0 10px", lineHeight: 1.5 }}>Cuando cargás una orden de ingreso, lo que viene en camino aparece en la tienda en un sector propio, con un aviso bien claro de que <b>todavía no llegó</b>. La clienta lo reserva (usa lo mismo que la preventa de la caja, así no se vende dos veces). Cuando recibís la orden, en el pedido tocás <b>"📦 Llegó la preventa"</b> y le avisás por WhatsApp. Los pedidos con preventa no vencen hasta que llega.</div>
               <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>

@@ -178,6 +178,12 @@ router.get('/:slug/productos', async (req, res) => {
       WHERE vi.producto_id = ANY($1::int[]) AND v.creado_en > NOW() - INTERVAL '90 days' AND ${VENTA_VALIDA} GROUP BY vi.producto_id ORDER BY SUM(vi.cantidad) DESC LIMIT 200`,
       [r.rows.filter(p => p.publicado).map(p => p.id)]).catch(() => ({ rows: [] }))).rows;
     const ranking = new Map(ventas90.map((x, i) => [x.producto_id, i + 1]));
+    // Preventa: fecha estimada de ingreso (la mas proxima de las ordenes que todavia no llegaron a cada local)
+    const llegas = pv.activo ? new Map((await pool.query(`SELECT oi.producto_id,
+        TO_CHAR(MIN(CASE WHEN oi.cantidad_rg > 0 AND NOT COALESCE(oi.revisado_rg, FALSE) THEN o.fecha_estimada END), 'YYYY-MM-DD') AS l1,
+        TO_CHAR(MIN(CASE WHEN oi.cantidad_ush > 0 AND NOT COALESCE(oi.revisado_ush, FALSE) THEN o.fecha_estimada END), 'YYYY-MM-DD') AS l2
+      FROM ordenes_ingreso_items oi JOIN ordenes_ingreso o ON o.id = oi.orden_id WHERE o.fecha_estimada IS NOT NULL AND oi.producto_id = ANY($1::int[]) GROUP BY oi.producto_id`,
+      [r.rows.map(p => p.id)]).catch(() => ({ rows: [] }))).rows.map(x => [x.producto_id, { 1: x.l1, 2: x.l2 }])) : new Map();
     // Estrellas de cada producto (solo reseñas aprobadas)
     const notas = new Map((await pool.query(`SELECT producto_id, ROUND(AVG(estrellas)::numeric, 1)::float AS prom, COUNT(*)::int AS n FROM tienda_resenas WHERE estado = 'aprobada' GROUP BY producto_id`)
       .catch(() => ({ rows: [] }))).rows.map(x => [x.producto_id, [x.prom, x.n]]));
@@ -192,6 +198,7 @@ router.get('/:slug/productos', async (req, res) => {
         stock: p.publicado ? { 1: tienda.disponibles(p, 1).ya, 2: tienda.disponibles(p, 2).ya } : { 1: 0, 2: 0 },
         // En preventa: lo que viene en camino sin reservar (sin variantes)
         preventa: pv.activo && !p.tiene_variantes ? { 1: tienda.disponibles(p, 1).preventa, 2: tienda.disponibles(p, 2).preventa } : null,
+        llega: pv.activo && llegas.has(p.id) ? llegas.get(p.id) : null,
       };
     }));
   } catch (e) {

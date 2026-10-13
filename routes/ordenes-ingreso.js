@@ -1,6 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
+const { porNegocio } = require('../lib/contexto');
+
+// Fecha estimada de ingreso de la orden (la tienda online la muestra en los productos en preventa)
+const conFechaEstimada = porNegocio(false);
+const fechaOk = (f) => /^\d{4}-\d{2}-\d{2}$/.test(String(f || '')) ? String(f) : null;
+router.use(async (req, res, next) => {
+  if (!conFechaEstimada.get()) {
+    try { await pool.query('ALTER TABLE ordenes_ingreso ADD COLUMN IF NOT EXISTS fecha_estimada DATE'); conFechaEstimada.set(true); } catch (e) {}
+  }
+  next();
+});
 
 // Listar ordenes (incluye si cada local ya termino de recibir su parte, para no mostrar "Recibir" cuando ya esta hecho)
 router.get('/', async (req, res) => {
@@ -64,6 +75,17 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// Cambiar la fecha estimada de ingreso (vacia = sin fecha)
+router.put('/:id/fecha-estimada', async (req, res) => {
+  try {
+    const f = fechaOk(req.body && req.body.fecha_estimada);
+    if (req.body && req.body.fecha_estimada && !f) return res.status(400).json({ error: 'Fecha no válida' });
+    const r = await pool.query('UPDATE ordenes_ingreso SET fecha_estimada = $1 WHERE id = $2 RETURNING id, fecha_estimada', [f, req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'No se encontró la orden' });
+    res.json(r.rows[0]);
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar la fecha' }); }
+});
+
 // Items de una orden (compatibilidad con frontend existente)
 router.get('/:id/items', async (req, res) => {
   try {
@@ -81,7 +103,7 @@ router.post('/', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { proveedor_id, fecha_factura, numero_factura, total, forma_pago, cuenta_pago_id, notas, items } = req.body;
+    const { proveedor_id, fecha_factura, numero_factura, total, forma_pago, cuenta_pago_id, notas, items, fecha_estimada } = req.body;
 
     const provRes = await client.query('SELECT dias_pago FROM proveedores WHERE id = $1', [proveedor_id]);
     const dias = provRes.rows[0]?.dias_pago || 30;
@@ -95,6 +117,7 @@ router.post('/', async (req, res) => {
     );
 
     const ordenId = orden.rows[0].id;
+    if (fechaOk(fecha_estimada)) await client.query('UPDATE ordenes_ingreso SET fecha_estimada = $1 WHERE id = $2', [fechaOk(fecha_estimada), ordenId]);
 
     for (const item of items) {
       const cantRg = parseInt(item.cantidad_rg) || 0;
