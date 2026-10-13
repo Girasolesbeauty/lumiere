@@ -23670,6 +23670,9 @@ const CSS_TIENDA = `
 .tw-ab .tw-rg-otra{background:rgba(255,255,255,.3);color:var(--rx)!important;border-color:var(--rx)}
 .tw-ab-tienda{color:var(--rx)!important;font-weight:700;margin-top:6px;text-decoration:underline}
 @media(prefers-reduced-motion:reduce){.tw .tw-ab-caja,.tw-ab-tarjeta,.tw-ab-info,.tw-ab-btns{animation:none}}
+.tw .tw-compartir-sec{font:inherit;font-size:12.5px;font-weight:700;border:1.5px solid #ddd;background:#fff;color:#333;border-radius:999px;padding:5px 12px;cursor:pointer}
+.tw .tw-compartir-sec:hover{border-color:var(--c)}
+.tw .tw-compartir-sec.claro{position:relative;margin:0 auto 10px;display:inline-block;background:rgba(255,255,255,.25);color:var(--rx,#fff);border-color:rgba(255,255,255,.7)}
 `;
 
 const TwIcono = ({ d, size = 22 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{d}</svg>;
@@ -24518,13 +24521,26 @@ function twSlugs(lista) {
   return new Map(lista.map(p => { const b = twSlug(p.nombre); return [p.id, cuenta.get(b) > 1 ? b + "-" + p.id : b]; }));
 }
 // Producto que pide la direccion: /nombre-del-producto (dominio propio) o ?producto=... (link de Lumiere)
+// Direccion de cada seccion: /preventa, /regalos, /videos, /favoritos, /todo, /nuevamente-en-stock y, con una
+// letra adelante para no chocar con los productos, /c/categoria, /s/sector, /m/marca (sin dominio: ?seccion=...)
+const TW_SECC_FIJAS = { preventa: "preventa", regalos: "regalos", videos: "videos", favoritos: "favoritos", "*": "todo", reingreso: "nuevamente-en-stock" };
+const TW_SECC_RUTAS = Object.fromEntries(Object.entries(TW_SECC_FIJAS).map(([k, v]) => [v, k]));
+const twSeccionDeUrl = () => {
+  try {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("seccion")) return q.get("seccion").toLowerCase();
+    if (q.get("tienda")) return null;
+    const seg = decodeURIComponent(window.location.pathname.replace(/^\/+|\/+$/g, "")).toLowerCase();
+    return TW_SECC_RUTAS[seg] || /^(c|s|m)\/[^/]+$/.test(seg) ? seg : null;
+  } catch (e) { return null; }
+};
 const twProductoDeUrl = () => {
   try {
     const q = new URLSearchParams(window.location.search);
     if (q.get("producto")) return q.get("producto").toLowerCase();
     if (q.get("tienda")) return null;
     const seg = decodeURIComponent(window.location.pathname.replace(/^\/+|\/+$/g, ""));
-    return seg && !seg.includes("/") ? seg.toLowerCase() : null;
+    return seg && !seg.includes("/") && !TW_SECC_RUTAS[seg.toLowerCase()] ? seg.toLowerCase() : null;
   } catch (e) { return null; }
 };
 const twBuscarPorSlug = (lista, slugs, s) => { if (!s) return null; const m = /-(\d+)$/.exec(s); return lista.find(p => slugs.get(p.id) === s) || (m && lista.find(p => p.id === Number(m[1]))) || null; };
@@ -24672,7 +24688,7 @@ function TwGiftCardPedido({ pedido, tienda, slug }) {
 // Link de una gift card online (?regalo=CODIGO.FIRMA): con el dominio propio si hay uno
 function twLinkRegalo(dominio, slug, codigo, firma) {
   const v = encodeURIComponent(codigo + "." + firma);
-  return dominio ? "https://" + dominio + "/?regalo=" + v : window.location.origin + window.location.pathname + "?tienda=" + encodeURIComponent(slug) + "&regalo=" + v;
+  return dominio ? "https://" + dominio + "/?regalo=" + v : window.location.origin + "/?tienda=" + encodeURIComponent(slug) + "&regalo=" + v;
 }
 
 // Lo que ve quien recibe la gift card: una caja que se abre (con confeti) y la tarjeta que sale girando
@@ -24807,7 +24823,7 @@ function twArmarRegalo(cands0, presupuesto, gustos, piel, evitar = [], gustaFn, 
 }
 
 // Pagina del sector de regalos
-function TwRegalos({ r, tienda, modo, setModo, productos, dispo, foto, ciudades, lid, datos, setDatos, pedir, slug, modoRuta, onAgregar, onAbrir }) {
+function TwRegalos({ r, tienda, modo, setModo, productos, dispo, foto, ciudades, lid, datos, setDatos, pedir, slug, modoRuta, onAgregar, onAbrir, onCompartir, copiado }) {
   const t = twTemaRegalo(r);
   const pagos = [tienda.pagos.mp && ["mp", "Mercado Pago", "Tarjeta, débito o dinero en cuenta"], tienda.pagos.gocuotas && ["gocuotas", "GoCuotas", "Cuotas sin interés con débito"], tienda.pagos.transferencia && ["transferencia", "Transferencia", "Te pasamos los datos"]].filter(Boolean);
   const [gc, setGc] = useState(() => ({ monto: r.montos[1] || r.montos[0] || "", otro: "", para: "", para_telefono: "", mensaje: "", local_id: lid || (ciudades[0] && ciudades[0].id) || 1, pago: pagos[0] ? pagos[0][0] : "" }));
@@ -24886,6 +24902,7 @@ function TwRegalos({ r, tienda, modo, setModo, productos, dispo, foto, ciudades,
         <TwDecoRegalo t={t} n={12} />
         <div className="tw-rg-ceja"><span>{t.emoji}</span> {twCejaRegalo(r, t)}</div>
         <h1>{r.titulo || t.titulo}</h1>
+        {onCompartir && <button className="tw-compartir-sec claro" onClick={() => onCompartir(r.titulo || t.titulo)}>{copiado ? "✓ Link copiado" : "🔗 Compartir"}</button>}
         <p>{r.texto || "Elegí cómo querés regalar: una gift card para que elija lo que quiera, o te armamos un regalo con lo más vendido según tu presupuesto."}</p>
         <div className="tw-rg-tabs" role="tablist">
           {r.giftcards && <button role="tab" aria-selected={modo === "gift"} className={modo === "gift" ? "on" : ""} onClick={() => setModo("gift")}><span>🎁</span><b>Gift Card</b><small>Que elija lo que quiera</small></button>}
@@ -25007,7 +25024,9 @@ function TiendaPublica({ slug }) {
   const [busca, setBusca] = useState("");
   // Al actualizar vuelve a la misma seccion (categoria, preventa, regalos...), con sus filtros y a la misma altura
   const vistaGuardada = useRef((() => { try { return JSON.parse(sessionStorage.getItem("tienda_vista_" + slug) || "null"); } catch (e) { return null; } })());
-  const [cat, setCat] = useState(() => (vistaGuardada.current && vistaGuardada.current.cat) || ""); // "" = inicio; "*" = todos; o una categoria
+  const segInicial = useRef(twSeccionDeUrl());
+  if (vistaGuardada.current && (vistaGuardada.current.seg || null) !== segInicial.current) vistaGuardada.current = null; // otra seccion: no se usa lo guardado
+  const [cat, setCat] = useState(() => (vistaGuardada.current && vistaGuardada.current.cat) || TW_SECC_RUTAS[segInicial.current] || ""); // "" = inicio; "*" = todos; o una categoria
   // Ciudad del cliente: compra solo con el stock del local de su ciudad
   const [local, setLocal] = useState(() => { try { return parseInt(localStorage.getItem("tienda_local_" + slug)) || null; } catch (e) { return null; } });
   const [eligeCiudad, setEligeCiudad] = useState(false);
@@ -25075,7 +25094,7 @@ function TiendaPublica({ slug }) {
   const [paso, setPaso] = useState(null); // null | "carrito" | "datos"
   const [regModo, setRegModo] = useState(() => (vistaGuardada.current && vistaGuardada.current.regModo) || "gift"); // sector de regalos: "gift" (gift card) o "armar"
   // Se guarda la vista para volver a ella si se actualiza la pagina (solo dura lo que la pestaña)
-  useEffect(() => { try { sessionStorage.setItem("tienda_vista_" + slug, JSON.stringify({ cat, subcat, filtros, orden, regModo, y: window.scrollY })); } catch (e) {} }, [cat, subcat, filtros, orden, regModo]);
+  useEffect(() => { try { sessionStorage.setItem("tienda_vista_" + slug, JSON.stringify({ cat, seg: segDeCat(cat), subcat, filtros, orden, regModo, y: window.scrollY })); } catch (e) {} }, [cat, subcat, filtros, orden, regModo, productos]);
   useEffect(() => {
     let t = null;
     const guardarY = () => { clearTimeout(t); t = setTimeout(() => { try { const v = JSON.parse(sessionStorage.getItem("tienda_vista_" + slug) || "{}"); v.y = window.scrollY; sessionStorage.setItem("tienda_vista_" + slug, JSON.stringify(v)); } catch (e) {} }, 250); };
@@ -25175,11 +25194,38 @@ function TiendaPublica({ slug }) {
   const slugsRef = useRef(new Map());
   const abrioDesdeUrl = useRef(false);
   const modoRuta = !params.get("tienda"); // dominio propio: /nombre-del-producto; si no, ?tienda=...&producto=...
+  // Seccion <-> direccion (ver TW_SECC_FIJAS)
+  const segDeCat = (c) => {
+    if (!c) return null;
+    if (TW_SECC_FIJAS[c]) return TW_SECC_FIJAS[c];
+    if (c.startsWith("s:")) { const sc = ((tienda && tienda.sectores) || []).find(x => "s:" + x.id === c); return sc ? "s/" + twSlug(sc.nombre) : null; }
+    if (c.startsWith("m:")) return "m/" + twSlug(c.slice(2));
+    return "c/" + twSlug(c);
+  };
+  const catDeSeg = (sg) => {
+    if (!sg) return null;
+    if (TW_SECC_RUTAS[sg]) return TW_SECC_RUTAS[sg];
+    const [t, v] = sg.split("/");
+    if (t === "s") { const sc = ((tienda && tienda.sectores) || []).find(x => twSlug(x.nombre) === v); return sc ? "s:" + sc.id : null; }
+    if (t === "m") { const m = (productos || []).map(x => x.marca).find(x => x && twSlug(x) === v); return m ? "m:" + m : null; }
+    if (t === "c") return (productos || []).map(x => x.categoria).find(x => x && twSlug(x) === v) || null;
+    return null;
+  };
   const urlDe = (sp) => {
-    if (modoRuta) return "/" + (sp || "") + window.location.search;
+    const seg = sp ? null : segDeCat(cat);
+    if (modoRuta) { const q = new URLSearchParams(window.location.search); q.delete("seccion"); const r = q.toString(); return "/" + (sp || seg || "") + (r ? "?" + r : ""); }
     const q = new URLSearchParams(window.location.search);
     if (sp) q.set("producto", sp); else q.delete("producto");
+    if (seg) q.set("seccion", seg); else q.delete("seccion");
     return window.location.pathname + "?" + q.toString();
+  };
+  // Link para compartir la seccion que se esta viendo
+  const linkSeccion = () => { const sg = segDeCat(cat); return tienda.dominio ? "https://" + tienda.dominio + "/" + (sg || "") : window.location.origin + window.location.pathname + "?tienda=" + encodeURIComponent(slug) + (sg ? "&seccion=" + encodeURIComponent(sg) : ""); };
+  const [seccionCopiada, setSeccionCopiada] = useState(false);
+  const compartirSeccion = async (titulo) => {
+    const url = linkSeccion();
+    if (navigator.share) { try { await navigator.share({ title: titulo + " · " + tienda.titulo, url }); return; } catch (e) { if (e && e.name === "AbortError") return; } }
+    try { await navigator.clipboard.writeText(url); setSeccionCopiada(true); setTimeout(() => setSeccionCopiada(false), 2500); } catch (e) { window.prompt("Copiá el link:", url); }
   };
   useEffect(() => {
     if (!productos || !tienda) return;
@@ -25193,11 +25239,18 @@ function TiendaPublica({ slug }) {
         const pq = productos.find(x => x.id === pid);
         if (pq) { abrirFicha(pq); if (params.get("qr")) setTimeout(() => setVideoI(0), 350); return; }
       }
+      const sg = twSeccionDeUrl();
+      if (sg) { const c = catDeSeg(sg); if (c && c !== cat) { setCat(c); setSubcat(""); setFiltros({}); } }
       const p = twBuscarPorSlug(productos, slugsRef.current, twProductoDeUrl());
       if (p) { abrirFicha(p); return; }
       if (twProductoDeUrl()) try { window.history.replaceState(null, "", urlDe(null)); } catch (e) {}
     }
   }, [productos, tienda]);
+  useEffect(() => {
+    if (!abrioDesdeUrl.current || ver || !productos) return;
+    const quiere = urlDe(null), ahora = window.location.pathname + window.location.search;
+    if (quiere !== ahora && quiere.replace(/\?$/, "") !== ahora) try { window.history.replaceState(window.history.state, "", quiere); } catch (e) {}
+  }, [cat, productos]);
   useEffect(() => {
     if (!abrioDesdeUrl.current) return;
     const actual = twProductoDeUrl();
@@ -25772,16 +25825,17 @@ function TiendaPublica({ slug }) {
           <><div className="tw-skel" style={{ height: 400, marginTop: 20 }} /><div className="tw-grid" style={{ marginTop: 30 }}>{[1, 2, 3, 4, 5].map(i => <div key={i}><div className="tw-skel" style={{ aspectRatio: "1" }} /><div className="tw-skel" style={{ height: 14, marginTop: 12, width: "60%" }} /></div>)}</div></>
         ) : cat === "regalos" && !q && tienda.regalos ? (
           <TwRegalos r={tienda.regalos} tienda={tienda} modo={regModo} setModo={setRegModo} productos={visibles} dispo={dispo} foto={foto} ciudades={ciudades.length ? ciudades : tienda.retiro} lid={lid}
-            datos={datos} setDatos={setDatos} pedir={pedir} slug={slug} modoRuta={modoRuta} onAgregar={agregarRegalo} onAbrir={abrir} />
+            datos={datos} setDatos={setDatos} pedir={pedir} slug={slug} modoRuta={modoRuta} onAgregar={agregarRegalo} onAbrir={abrir} onCompartir={compartirSeccion} copiado={seccionCopiada} />
         ) : cat === "videos" && !q ? (
           <>
-            <div className="tw-lista-cab"><div><h1>{tienda.reels_titulo || "Videos"}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4 }}>{reels.length} {reels.length === 1 ? "video" : "videos"}</div></div></div>
+            <div className="tw-lista-cab"><div><h1>{tienda.reels_titulo || "Videos"}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4, display: "flex", gap: 10, alignItems: "center" }}>{reels.length} {reels.length === 1 ? "video" : "videos"}<button className="tw-compartir-sec" onClick={() => compartirSeccion(tienda.reels_titulo || "Videos")}>{seccionCopiada ? "✓ Link copiado" : "🔗 Compartir"}</button></div></div></div>
             <div className="tw-reels-grid">{reels.map(reel)}</div>
           </>
         ) : enLista ? (
           <>
             <div className="tw-lista-cab">
-              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : cat === "preventa" ? "⏳ " + tienda.preventa.titulo : cat === "favoritos" ? "❤️ Tus favoritos" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4 }}>{lista.length} {lista.length === 1 ? "producto" : "productos"}</div></div>
+              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : cat === "preventa" ? "⏳ " + tienda.preventa.titulo : cat === "favoritos" ? "❤️ Tus favoritos" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>{lista.length} {lista.length === 1 ? "producto" : "productos"}
+                {!q && cat && cat !== "favoritos" && <button className="tw-compartir-sec" onClick={() => compartirSeccion(cat === "preventa" ? tienda.preventa.titulo : sector ? sector.nombre : cat === "*" ? "Todos los productos" : cat === "reingreso" ? reingreso.nombre : cat.startsWith("m:") ? cat.slice(2) : cat)}>{seccionCopiada ? "✓ Link copiado" : "🔗 Compartir"}</button>}</div></div>
               <select value={orden} onChange={e => setOrden(e.target.value)} aria-label="Ordenar">{TW_ORDEN.map(([k, t]) => <option key={k} value={k}>Ordenar: {t}</option>)}</select>
             </div>
             {sector && !q && catsSector.length > 1 && (
@@ -27326,7 +27380,11 @@ function RegalosTienda({ cfg, pedidos, temaPal, avisar, urlTienda, esJefe, onGua
 function TiendaOnline({ localId, usuario, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState(() => { const t = tabInicialDe("tienda-online"); if (t) return t; try { return sessionStorage.getItem("lumiere_tienda_tab") || "pedidos"; } catch (e) { return "pedidos"; } });
-  useEffect(() => { try { sessionStorage.setItem("lumiere_tienda_tab", tab); } catch (e) {} }, [tab]);
+  useEffect(() => {
+    try { sessionStorage.setItem("lumiere_tienda_tab", tab); } catch (e) {}
+    try { if (window.location.pathname.split("/")[1] === "tienda-online" && window.location.pathname !== "/tienda-online/" + tab) window.history.replaceState(window.history.state, "", "/tienda-online/" + tab + window.location.search); } catch (e) {}
+  }, [tab]);
+  useEffect(() => { const f = () => { const t = tabInicialDe("tienda-online"); if (t) setTab(t); }; window.addEventListener("lumiere-pestana-url", f); return () => window.removeEventListener("lumiere-pestana-url", f); }, []);
   const [cfg, setCfg] = useState(null);
   const [pedidos, setPedidos] = useState(null);
   const [productos, setProductos] = useState(null);
@@ -27364,7 +27422,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const cargarPedidos = () => API.get("/tienda/pedidos").then(r => setPedidos(r.data || [])).catch(() => setPedidos([]));
   const cargarProductos = () => API.get("/tienda/productos").then(r => setProductos(r.data || [])).catch(() => setProductos([]));
   useEffect(() => { cargarCfg(); cargarPedidos(); cargarProductos(); const t = setInterval(() => { if (!document.hidden) cargarPedidos(); }, 30000); return () => clearInterval(t); }, []);
-  const url = cfg && cfg.dominio && cfg.dominioGuardado ? "https://" + cfg.dominio : cfg && cfg.slug ? window.location.origin + window.location.pathname + "?tienda=" + cfg.slug : "";
+  const url = cfg && cfg.dominio && cfg.dominioGuardado ? "https://" + cfg.dominio : cfg && cfg.slug ? window.location.origin + "/" + "?tienda=" + cfg.slug : "";
   useEffect(() => { if (cfg && cfg.activo && cfg.slug) API.get("/tienda/qr?url=" + encodeURIComponent(url)).then(r => setQr(r.data.qr)).catch(() => {}); }, [cfg?.activo, cfg?.slug]);
 
   const estado = async (p, est, extra) => {
@@ -29734,6 +29792,20 @@ export default function Raiz() {
   return <AppWrapper />;
 }
 
+// Cada seccion de Lumiere tiene su direccion: /ingresos, /tienda-online/pedidos, /cierre... (solo las del menu)
+// La direccion usa el nombre que se ve en el menu (Ingresos -> /ingresos, Punto de Venta -> /punto-de-venta)
+const RUTA_DE_PAGINA = Object.fromEntries([...NAV_SECTIONS.flatMap(s => (s.items || []).map(i => [i.id, twSlug(i.label)])), ["panel", "panel"], ["plataforma", "plataforma"]]);
+const PAGINA_DE_RUTA = Object.fromEntries(Object.entries(RUTA_DE_PAGINA).map(([id, r]) => [r, id]));
+const rutaDePagina = (id) => RUTA_DE_PAGINA[id] || id;
+const paginaDeUrl = () => {
+  try {
+    if (new URLSearchParams(window.location.search).get("tienda")) return null;
+    const [r, pestana] = decodeURIComponent(window.location.pathname).split("/").filter(Boolean);
+    const id = r && (PAGINA_DE_RUTA[r] || (RUTA_DE_PAGINA[r] ? r : null)); // tambien acepta el nombre interno (ej: /ordenes)
+    return id ? { id, pestana: pestana || null } : null;
+  } catch (e) { return null; }
+};
+
 function AppWrapper() {
   const [usuario, setUsuario] = useState(null);
   const [local, setLocal] = useState(null);
@@ -29743,8 +29815,29 @@ function AppWrapper() {
   const [nombresLocalesVersion, setNombresLocalesVersion] = useState(0);
   // En el celular se arranca en el Inicio de botones grandes; en la computadora, en el Dashboard
   // Al actualizar la pagina vuelve a la seccion donde estaba (se guarda en la pestaña del navegador)
-  const [page, setPage] = useState(() => { try { const g = sessionStorage.getItem("lumiere_pagina"); if (g) return g; } catch (e) {} return typeof window !== "undefined" && window.innerWidth < 760 ? "panel" : "dashboard"; });
-  useEffect(() => { try { sessionStorage.setItem("lumiere_pagina", page); } catch (e) {} }, [page]);
+  // y la direccion (app.sistemalumiere.com/ingresos) manda: se puede compartir o guardar en favoritos
+  const [page, setPage] = useState(() => {
+    const u = paginaDeUrl();
+    if (u) { if (u.pestana) { try { sessionStorage.setItem("lumiere_tab_" + u.id, u.pestana); } catch (e) {} } return u.id; }
+    try { const g = sessionStorage.getItem("lumiere_pagina"); if (g) return g; } catch (e) {}
+    return typeof window !== "undefined" && window.innerWidth < 760 ? "panel" : "dashboard";
+  });
+  useEffect(() => {
+    try { sessionStorage.setItem("lumiere_pagina", page); } catch (e) {}
+    // La direccion sigue a la seccion ("atras" del navegador vuelve a la anterior)
+    try {
+      const u = paginaDeUrl();
+      if (u && u.id === page) return;
+      const nueva = "/" + rutaDePagina(page) + window.location.search;
+      if (!u && window.location.pathname === "/") window.history.replaceState({ lp: page }, "", nueva);
+      else window.history.pushState({ lp: page }, "", nueva);
+    } catch (e) {}
+  }, [page]);
+  useEffect(() => {
+    const atras = () => { const u = paginaDeUrl(); if (u) { if (u.pestana) { try { sessionStorage.setItem("lumiere_tab_" + u.id, u.pestana); } catch (e) {} } setPage(u.id); window.dispatchEvent(new CustomEvent("lumiere-pestana-url")); } };
+    window.addEventListener("popstate", atras);
+    return () => window.removeEventListener("popstate", atras);
+  }, []);
   // Una seccion puede llevar a otra (ej: Rotacion -> "Simular liquidación" en Toma de decisiones)
   useEffect(() => {
     const ir = (e) => { if (typeof e.detail === "string") { setPage(e.detail); window.scrollTo(0, 0); } };
