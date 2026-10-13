@@ -20441,10 +20441,20 @@ function htmlEtiquetas(items, estilo, tamId, op, limite) {
     .lado .der .bar { width: 100%; height: 62%; margin: 0; }
     .lado .pre { margin-bottom: 0; }
     .lado .pre.xxl { font-size: ${(t.h * 0.5).toFixed(2)}mm; flex: 0 0 auto; }
+    /* Con QR de la tienda online: el QR a la izquierda y la etiqueta al lado */
+    .et.conqr { flex-direction: row; gap: ${(u * 0.06).toFixed(2)}mm; }
+    .qrbox { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .qrbox img { width: ${Math.min(t.h * 0.8, t.w * 0.4).toFixed(2)}mm; height: ${Math.min(t.h * 0.8, t.w * 0.4).toFixed(2)}mm; display: block; }
+    .qrbox span { font-size: ${Math.max(1.6, u * 0.055).toFixed(2)}mm; color: #444; margin-top: 0.4mm; white-space: nowrap; }
+    .qrtx { flex: 1 1 auto; min-width: 0; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .et.conqr.oferta .qrtx, .et.conqr.promo .qrtx { justify-content: flex-start; }
+    .et.conqr.promo .qrtx { flex-direction: row; }
     /* Etiquetas muy chicas: solo lo esencial */
     ${u < 24 ? ".sub, .neg, .hasta, .psub, .cod { display: none; } .bar { height: " + (t.h * 0.3).toFixed(2) + "mm; }" : ""}
   `;
-  const cuerpo = dibujar.map(it => it ? `<div class="et ${estilo}${ancha ? " lado" : ""}">${htmlUnaEtiqueta(it, estilo, op, ancha)}</div>` : '<div class="et vacia"></div>').join("");
+  const cuerpo = dibujar.map(it => !it ? '<div class="et vacia"></div>'
+    : it.qr ? `<div class="et ${estilo} conqr"><div class="qrbox"><img src="${it.qr}" alt=""><span>📱 Escaneá</span></div><div class="qrtx">${htmlUnaEtiqueta(it, estilo, op, false)}</div></div>`
+    : `<div class="et ${estilo}${ancha ? " lado" : ""}">${htmlUnaEtiqueta(it, estilo, op, ancha)}</div>`).join("");
   return `<!doctype html><html><head><meta charset="utf-8"><title>Etiquetas</title><style>${css}</style></head><body><div class="hoja">${cuerpo}</div></body></html>`;
 }
 
@@ -20461,6 +20471,27 @@ function Etiquetas({ paletaActual, localId }) {
   const [ultimoCambio, setUltimoCambio] = useState(null);
   const [agregarPor, setAgregarPor] = useState({ tipo: "categoria", valor: "" });
   const esUsh = Number(localId) === 2;
+  // QR de la tienda online: al escanearlo en el local se abre el producto en la tienda y su video
+  const [tiendaQR, setTiendaQR] = useState(null); // { base, publicados: Set } o { sinTienda: true }
+  const [qrs, setQrs] = useState({}); // producto_id -> imagen del QR
+  useEffect(() => { try { if (sessionStorage.getItem("lumiere_etiquetas_qr")) { sessionStorage.removeItem("lumiere_etiquetas_qr"); setOp(o => ({ ...o, qr: true })); } } catch (e) {} }, []);
+  useEffect(() => {
+    if (!op.qr || tiendaQR) return;
+    Promise.all([API.get("/tienda/config"), API.get("/tienda/productos")]).then(([c, pr]) => {
+      const cfg = c.data || {};
+      if (!cfg.activo || !(cfg.slug || cfg.slug_sugerido)) return setTiendaQR({ sinTienda: true });
+      const base = cfg.dominio ? "https://" + cfg.dominio + "/?" : window.location.origin + "/?tienda=" + encodeURIComponent(cfg.slug || cfg.slug_sugerido) + "&";
+      setTiendaQR({ base, publicados: new Set((pr.data || []).filter(x => x.publicado).map(x => x.id)) });
+    }).catch(() => setTiendaQR({ sinTienda: true }));
+  }, [op.qr]);
+  useEffect(() => {
+    if (!op.qr || !tiendaQR || tiendaQR.sinTienda) return;
+    const faltan = [...new Set(items.map(x => x.producto_id))].filter(id => tiendaQR.publicados.has(id) && !qrs[id]).slice(0, 150);
+    if (!faltan.length) return;
+    API.post("/tienda/qr-lote", { urls: faltan.map(id => tiendaQR.base + "pid=" + id + "&qr=1") })
+      .then(r => setQrs(q => { const n = { ...q }; faltan.forEach((id, i) => { n[id] = r.data.qrs[i]; }); return n; })).catch(() => {});
+  }, [op.qr, tiendaQR, items]);
+  const conQR = (lista) => op.qr ? lista.map(x => ({ ...x, qr: qrs[x.producto_id] || null })) : lista;
   const avisar = (t) => { setAviso(t); setTimeout(() => setAviso(""), 3500); };
 
   useEffect(() => { try { localStorage.setItem("lumiere_etiquetas", JSON.stringify({ estilo, tam, op: { ...op, saltear: 0, negocio: "" } })); } catch (e) {} }, [estilo, tam, op]);
@@ -20523,7 +20554,7 @@ function Etiquetas({ paletaActual, localId }) {
 
   // Vista previa: la primera hoja (o las primeras etiquetas del rollo), con ejemplos si no hay nada cargado
   const ejemplo = [{ key: "e1", nombre: "Producto de ejemplo", marca: "Marca", variante: estilo === "prenda" ? "M" : "", codigo: "7790001000014", precio: 12500, cantidad: 3, precio_oferta: "" }];
-  const htmlPrevia = htmlEtiquetas(items.length ? items : ejemplo, estilo, tam, op, t.rollo ? 3 : cols * filas);
+  const htmlPrevia = htmlEtiquetas(items.length ? conQR(items) : ejemplo, estilo, tam, op, t.rollo ? 3 : cols * filas);
   const escala = t.rollo ? Math.min(1.6, 300 / (t.w * 3.78)) : 0.62;
 
   const imprimir = () => {
@@ -20532,7 +20563,7 @@ function Etiquetas({ paletaActual, localId }) {
     marco.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
     document.body.appendChild(marco);
     const d = marco.contentWindow.document;
-    d.open(); d.write(htmlEtiquetas(items, estilo, tam, op)); d.close();
+    d.open(); d.write(htmlEtiquetas(conQR(items), estilo, tam, op)); d.close();
     setTimeout(() => { marco.contentWindow.focus(); marco.contentWindow.print(); setTimeout(() => marco.remove(), 2000); }, 400);
   };
 
@@ -20606,6 +20637,11 @@ function Etiquetas({ paletaActual, localId }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
               {(estilo === "clasica" || estilo === "prenda") && <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={op.mostrarCodigo} onChange={e => setOp(o => ({ ...o, mostrarCodigo: e.target.checked }))} /> Código de barras</label>}
               {(estilo === "precio" || estilo === "prenda" || estilo === "elegante") && <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={op.mostrarNegocio} onChange={e => setOp(o => ({ ...o, mostrarNegocio: e.target.checked }))} /> Nombre del negocio</label>}
+              <label style={{ display: "flex", gap: 6, alignItems: "flex-start", cursor: "pointer" }}><input type="checkbox" checked={!!op.qr} onChange={e => setOp(o => ({ ...o, qr: e.target.checked }))} style={{ marginTop: 2 }} /> <span>📱 <b>QR de la tienda online</b><div style={{ fontSize: 11, color: temaPal.textMuted }}>Al escanearlo, la clienta ve el producto en la tienda y su video.</div>
+                {op.qr && tiendaQR && (tiendaQR.sinTienda ? <div style={{ fontSize: 11, color: temaPal.warn }}>La tienda online no está publicada: los QR no se pueden armar.</div>
+                  : items.length > 0 && <div style={{ fontSize: 11, color: items.some(x => !tiendaQR.publicados.has(x.producto_id)) ? temaPal.warn : temaPal.green }}>{items.filter(x => tiendaQR.publicados.has(x.producto_id)).length} de {items.length} están en la tienda{items.some(x => !tiendaQR.publicados.has(x.producto_id)) ? ": los otros salen sin QR (publicalos en Tienda online)" : " ✓"}</div>)}
+                {op.qr && Math.min(t.w, t.h) < 22 && <div style={{ fontSize: 11, color: temaPal.warn }}>En etiquetas tan chicas el QR puede costar leerlo: mejor una más grande.</div>}
+              </span></label>
               {!t.rollo && <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={op.corte} onChange={e => setOp(o => ({ ...o, corte: e.target.checked }))} /> Línea para recortar</label>}
               {!t.rollo && <label style={{ display: "flex", gap: 6, alignItems: "center" }}>Saltear las primeras <input className="mini-inp" type="number" min="0" max={cols * filas - 1} value={op.saltear} onChange={e => setOp(o => ({ ...o, saltear: Math.max(0, parseInt(e.target.value) || 0) }))} style={{ width: 50 }} /> (hoja ya usada)</label>}
             </div>
@@ -26550,11 +26586,17 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             <span style={{ fontSize: 12, color: temaPal.textMuted }}>{prodFiltro.length} {prodFiltro.length === 1 ? "producto" : "productos"}</span>
             {esJefeT && <button className="btn btn-g btn-sm" onClick={publicarConFoto} title="Publica de una vez los que tienen foto, precio y stock">📸 Publicar los que tienen foto</button>}
           </div>
+          {prodFiltro.some(p => p.publicado) && (
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", margin: "0 0 10px", padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + temaPal.border, background: temaPal.bg || "transparent" }}>
+              <span style={{ fontSize: 22 }}>🔳</span>
+              <div style={{ flex: "1 1 240px", fontSize: 12.5 }}><b>Etiquetas de precio con QR</b><div style={{ color: temaPal.textMuted }}>Se imprimen en Productos → Etiquetas, con el estilo que ya usás: tildá "QR de la tienda online". Al escanear, la clienta ve el producto en la tienda y su video.</div></div>
+              <button className="btn btn-p btn-sm" onClick={() => { try { sessionStorage.setItem("lumiere_etiquetas_qr", "1"); } catch (e) {} irASeccion("etiquetas"); }}>🏷️ Ir a Etiquetas (con QR)</button>
+            </div>
+          )}
           {esJefeT && prodFiltro.length > 0 && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
               <button className="btn btn-p btn-sm" disabled={prodFiltro.every(p => p.publicado)} onClick={() => publicarVarios(prodFiltro.filter(p => !p.publicado), true)}>☑ Publicar {hayFiltros ? "los que se ven" : "todos"} ({prodFiltro.filter(p => !p.publicado).length})</button>
               <button className="btn btn-g btn-sm" disabled={!prodFiltro.some(p => p.publicado)} onClick={() => publicarVarios(prodFiltro.filter(p => p.publicado), false)}>☐ Sacar {hayFiltros ? "los que se ven" : "todos"} ({prodFiltro.filter(p => p.publicado).length})</button>
-              {prodFiltro.some(p => p.publicado) && <button className="btn btn-g btn-sm" onClick={() => { const l = prodFiltro.filter(p => p.publicado); if (l.length > 150 && !confirm("Son " + l.length + " productos: se imprimen los primeros 150. Filtrá por marca o categoría para elegir. ¿Seguir?")) return; imprimirEtiquetasQR(l.slice(0, 150), urlQR, cfg.titulo); }} title="Hoja con etiquetas de precio y QR de los productos publicados que se ven">🖨 Etiquetas con QR ({Math.min(150, prodFiltro.filter(p => p.publicado).length)})</button>}
               <button className="btn btn-g btn-sm" onClick={() => setSegmentar(prodFiltro)} title="Sumar o sacar un tipo de producto, tipo de piel o necesidad a todos los que se ven">🏷 Segmentar {hayFiltros ? "los que se ven" : "todos"} ({prodFiltro.length})</button>
               <button className="btn btn-g btn-sm" onClick={() => setImportando(true)} title="Desde el archivo de productos de Tiendanube u otra tienda">📥 Traer descripciones de mi tienda anterior</button>
               {prodFiltro.some(p => !p.foto) && <button className="btn btn-g btn-sm" onClick={() => setBuscaFoto({ cola: prodFiltro.filter(p => !p.foto), i: 0 })}>🔍 Buscar fotos para los que no tienen ({prodFiltro.filter(p => !p.foto).length})</button>}
