@@ -23,20 +23,34 @@ const esFecha = (f) => /^\d{4}-\d{2}-\d{2}$/.test(String(f || ''));
 router.get('/', async (req, res) => {
   try {
     const { desde, hasta, local_id, q, tipo, estado } = req.query;
-    if (!esFecha(desde) || !esFecha(hasta)) return res.status(400).json({ error: 'Elegí el período' });
+    const texto = String(q || '').trim().slice(0, 60);
+    // Con texto de busqueda se busca en todas las fechas (para encontrar una factura vieja por su numero)
+    const todasLasFechas = !!texto;
+    if (!todasLasFechas && (!esFecha(desde) || !esFecha(hasta))) return res.status(400).json({ error: 'Elegí el período' });
     const conPagos = await tieneVentaPagos();
-    const params = [desde, hasta];
-    let where = `${AR('v.creado_en')}::date BETWEEN $1::date AND $2::date
+    const params = todasLasFechas ? [] : [desde, hasta];
+    let where = `${todasLasFechas ? 'TRUE' : `${AR('v.creado_en')}::date BETWEEN $1::date AND $2::date`}
       AND COALESCE(v.canal, '') <> 'prueba'
       AND (COALESCE(v.cae, '') <> '' OR ${PENDIENTE})`;
     const localNum = parseInt(local_id);
     if (localNum) { params.push(localNum); where += ` AND v.local_id = $${params.length}`; }
     if (['A', 'B', 'C'].includes(tipo)) { params.push(tipo); where += ` AND COALESCE(v.tipo_factura, 'B') = $${params.length}`; }
-    if (q && String(q).trim()) {
-      params.push('%' + String(q).trim() + '%');
+    if (texto) {
+      params.push('%' + texto.replace(/[\\%_]/g, '\\$&') + '%');
       const i = params.length;
+      let extra = '';
+      // "0005-00000123" o "5-123": punto de venta y numero exactos
+      const pvNro = texto.match(/^(\d{1,5})\s*-\s*(\d{1,8})$/);
+      if (pvNro) {
+        params.push(parseInt(pvNro[1], 10), parseInt(pvNro[2], 10));
+        extra = ` OR (COALESCE(v.punto_venta, 5) = $${params.length - 1} AND v.nro_comprobante = $${params.length})`;
+      } else if (/^\d{1,8}$/.test(texto)) {
+        // Solo numeros: tambien el numero de comprobante exacto, aunque lo escriban con ceros adelante
+        params.push(parseInt(texto, 10));
+        extra = ` OR v.nro_comprobante = $${params.length}`;
+      }
       where += ` AND (v.numero_factura ILIKE $${i} OR v.nro_comprobante::text ILIKE $${i} OR v.cae ILIKE $${i}
-        OR c.nombre ILIKE $${i} OR c.cuit_dni ILIKE $${i})`;
+        OR c.nombre ILIKE $${i} OR c.cuit_dni ILIKE $${i}${extra})`;
     }
     const r = await pool.query(`
       SELECT v.id, v.numero_factura, v.tipo_factura, v.punto_venta, v.nro_comprobante, v.cae, v.cae_vto,
@@ -56,7 +70,7 @@ router.get('/', async (req, res) => {
       LEFT JOIN usuarios u ON u.id = v.usuario_id
       WHERE ${where}
       ORDER BY v.creado_en DESC
-      LIMIT 2000`, params);
+      LIMIT ${todasLasFechas ? 300 : 2000}`, params);
 
     let filas = r.rows;
     // Resumen del periodo (antes de filtrar por estado, asi los contadores de arriba no cambian)
@@ -76,7 +90,7 @@ router.get('/', async (req, res) => {
     if (estado === 'emitidos') filas = emitidos;
     else if (estado === 'pendientes') filas = filas.filter(f => f.pendiente && !f.anulada);
     else if (estado === 'anulados') filas = filas.filter(f => f.anulada);
-    res.json({ comprobantes: filas, resumen });
+    res.json({ comprobantes: filas, resumen, todas_las_fechas: todasLasFechas });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al obtener comprobantes: ' + error.message });
