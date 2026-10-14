@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
 const tienda = require('../lib/tienda');
+const describir = require('../lib/describir');
 const gocuotas = require('../lib/gocuotas');
 const { ayudaMP } = require('./mercadopago');
 const QRCode = require('qrcode');
@@ -289,6 +290,23 @@ router.get('/productos', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'No se pudieron cargar los productos' }); }
 });
 
+// Propuesta de descripcion y segmentos (con IA si esta configurada). No guarda nada: la tienda revisa y guarda.
+const usosDescribir = new Map();
+router.post('/productos/:id/sugerir', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño, el encargado o quien maneja la tienda' });
+    const k = req.usuario ? req.usuario.id : 0, ahora = Date.now();
+    const l = (usosDescribir.get(k) || []).filter(t => ahora - t < 3600e3);
+    if (l.length >= 120) return res.status(429).json({ error: 'Pediste muchas propuestas seguidas. Probá de nuevo en un rato.' });
+    l.push(ahora); usosDescribir.set(k, l);
+    const p = (await pool.query(`SELECT p.id, p.nombre, p.marca, p.categoria, tp.descripcion FROM productos p LEFT JOIN tienda_productos tp ON tp.producto_id = p.id WHERE p.id = $1`, [req.params.id])).rows[0];
+    if (!p) return res.status(404).json({ error: 'No se encontró el producto' });
+    res.json(await describir.proponer(p));
+  } catch (e) {
+    console.error('[tienda] sugerir descripcion:', e.status || '', e.message);
+    res.status(502).json({ error: 'No se pudo armar la propuesta. Probá de nuevo en un momento.' });
+  }
+});
 router.put('/productos/:id', async (req, res) => {
   try {
     if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
