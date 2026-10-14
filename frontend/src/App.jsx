@@ -25684,8 +25684,9 @@ function TiendaPublica({ slug }) {
   const lista0b = q && !orden ? [...filtrada].sort((a, b) => (puntaje.get(b.id) || 0) - (puntaje.get(a.id) || 0)) : ordenar(filtrada);
   const lista = q ? [...lista0b.filter(p => !agotado(p)), ...lista0b.filter(p => agotado(p))] : lista0b;
   // Menu de skincare: la categoria que se llama skincare / cuidado de la piel / facial (si no hay, un boton propio)
-  const esSkin = (c) => /skin|piel|facial|cuidado|dermo/i.test(c || "");
-  const catSkin = cats.find(esSkin) || null;
+  // "Cuidado capilar" o "Cuidado corporal" no son skincare facial (antes le ganaban el lugar a Facial por orden alfabetico)
+  const esSkin = (c) => /skin|piel|facial|rostro|dermo/i.test(c || "") || (/cuidado/i.test(c || "") && !/capilar|cabello|pelo|corporal|cuerpo|u[ñn]as|manos|pies/i.test(c || ""));
+  const catSkin = cats.find(c => /facial|rostro/i.test(c)) || cats.find(esSkin) || null;
   const gruposMenu = (c) => { const base = visibles.filter(p => c === "*" || p.categoria === c); return ["tipo", "piel", "necesidad"].map(k => { const f = TW_FILTROS.find(x => x.k === k); return { k, op: f.op.filter(o => base.some(p => p._et[k].includes(o[0]))) }; }).filter(g => g.op.length > 0); };
   const hayMenuSkin = catSkin ? gruposMenu(catSkin).length > 0 : gruposMenu("*").some(g => g.k !== "tipo");
   // Para la portada: "Comprá según tu piel" y "según tu necesidad"
@@ -25908,12 +25909,13 @@ function TiendaPublica({ slug }) {
             <button className={!enLista ? "on" : ""} onClick={irInicio}>Inicio</button>
             <button className={cat === "*" && !q ? "on" : ""} onClick={() => irCat("*")}>Todo</button>
             {tienda.regalos && (() => { const t = twTemaRegalo(tienda.regalos); return <button className={"tw-nav-regalo" + (cat === "regalos" && !q ? " on" : "")} style={twVarsRegalo(t)} onClick={() => irRegalos()}>{t.emoji} {tienda.regalos.tema === "general" ? "Regalos" : t.nombre}</button>; })()}
-            {preventas.length > 0 && <button className={"tw-nav-pre" + (cat === "preventa" && !q ? " on" : "")} onClick={() => irCat("preventa")}>⏳ {tienda.preventa.titulo}</button>}
+            {!catSkin && hayMenuSkin && <button className={menuSkin ? "on" : ""} onClick={() => setMenuSkin("*")}>Skincare ▾</button>}
+            {catSkin && <button className={(cat === catSkin && !q) || menuSkin === catSkin ? "on" : ""} onClick={() => hayMenuSkin ? setMenuSkin(catSkin) : irCat(catSkin)}>{catSkin}{hayMenuSkin ? " ▾" : ""}</button>}
             {favs.length > 0 && <button className={"tw-nav-fav" + (cat === "favoritos" && !q ? " on" : "")} onClick={() => irCat("favoritos")}>♥ Favoritos ({favs.length})</button>}
             {reingresados.length > 0 && <button className={cat === "reingreso" && !q ? "on" : ""} onClick={() => irCat("reingreso")}>{reingreso.nombre}</button>}
             {reels.length > 0 && <button className={cat === "videos" && !q ? "on" : ""} onClick={() => irCat("videos")}>{tienda.reels_titulo || "Videos"}</button>}
-            {!catSkin && hayMenuSkin && <button className={menuSkin ? "on" : ""} onClick={() => setMenuSkin("*")}>Skincare ▾</button>}
-            {cats.map(c => <button key={c} className={(cat === c && !q) || menuSkin === c ? "on" : ""} onClick={() => c === catSkin && hayMenuSkin ? setMenuSkin(c) : irCat(c)}>{c}{c === catSkin && hayMenuSkin ? " ▾" : ""}</button>)}
+            {cats.filter(c => c !== catSkin).map(c => <button key={c} className={cat === c && !q ? "on" : ""} onClick={() => irCat(c)}>{c}</button>)}
+            {preventas.length > 0 && <button className={"tw-nav-pre" + (cat === "preventa" && !q ? " on" : "")} onClick={() => irCat("preventa")}>⏳ {tienda.preventa.titulo}</button>}
           </nav>
         </div>
       )}
