@@ -58,7 +58,7 @@ router.get('/', async (req, res) => {
         COALESCE(v.anulada, FALSE) AS anulada, v.motivo_anulacion, v.anulada_por,
         v.ultimo_error_facturacion, v.intentos_facturacion,
         ${PENDIENTE} AS pendiente,
-        c.nombre AS cliente_nombre, c.cuit_dni, u.nombre AS vendedora_nombre,
+        c.nombre AS cliente_nombre, c.cuit_dni, c.telefono AS cliente_telefono, u.nombre AS vendedora_nombre,
         v.creado_en, to_char(${AR('v.creado_en')}, 'YYYY-MM-DD') AS fecha, to_char(${AR('v.creado_en')}, 'HH24:MI') AS hora,
         COALESCE((SELECT json_agg(json_build_object('nombre', COALESCE(p.nombre, 'Ajuste'), 'marca', p.marca, 'cantidad', vi.cantidad,
             'precio_unitario', vi.precio_unitario) ORDER BY vi.id)

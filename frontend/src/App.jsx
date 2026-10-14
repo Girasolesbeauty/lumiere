@@ -17521,6 +17521,29 @@ function Comprobantes({ localId, paletaActual }) {
   const [aviso, setAviso] = useState("");
   const [configTicket, setConfigTicket] = useState({});
   const [verTicket, setVerTicket] = useState(null);
+  const [telTicket, setTelTicket] = useState("");
+  const abrirTicket = (v) => { setVerTicket(v); setTelTicket(v.cliente_telefono || ""); };
+  // Ticket por WhatsApp: el mismo detalle del ticket en texto, al numero de la clienta
+  const textoTicketWA = (v) => [
+    "*" + nombreLocal(v.local_id) + "*",
+    (v.cae ? "Factura " + (v.tipo_factura || "B") : "Comprobante") + " " + fmtNro(v),
+    fmtDia(v.fecha) + " " + (v.hora || ""),
+    "",
+    ...(v.items || []).map(i => i.cantidad + "x " + i.nombre + " — " + fmt(parseFloat(i.precio_unitario || 0) * parseFloat(i.cantidad || 0))),
+    "",
+    "*TOTAL: " + fmt(parseFloat(v.total || 0)) + "*",
+    ...((v.pagos || []).length ? v.pagos.map(pg => "Pago: " + pg.nombre + " " + fmt(parseFloat(pg.importe))) : v.medio_pago ? ["Pago: " + v.medio_pago] : []),
+    v.cae ? "CAE: " + v.cae + " (vto. " + fmtCaeVto(v.cae_vto) + ")" : null,
+    "",
+    (configTicket && configTicket.mensaje_pie) || "Gracias por tu compra!",
+  ].filter(x => x !== null).join("\n");
+  const mandarTicketWA = (v) => {
+    let tel = String(telTicket || "").replace(/[^0-9]/g, "");
+    if (tel.length < 8) return avisar("Error: escribí el WhatsApp de la clienta (con código de área)");
+    if (tel.startsWith("0")) tel = tel.slice(1);
+    if (!tel.startsWith("54")) tel = "549" + tel;
+    window.open("https://wa.me/" + tel + "?text=" + encodeURIComponent(textoTicketWA(v)), "_blank");
+  };
   const avisar = (t) => { setAviso(t); setTimeout(() => setAviso(a => (a === t ? "" : a)), 4000); };
 
   useEffect(() => { API.get("/config-ticket").then(res => { if (res.data) setConfigTicket(res.data); }).catch(() => {}); }, []);
@@ -17667,6 +17690,10 @@ function Comprobantes({ localId, paletaActual }) {
             </div>
             <iframe title="Vista del ticket" srcDoc={htmlTicket(verTicket, false)} sandbox="" style={{ width: "100%", height: "60vh", border: "1px solid " + p.border, borderRadius: 8, background: "#fff" }} />
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <input className="inp" style={{ flex: 1 }} inputMode="tel" placeholder="WhatsApp de la clienta (ej: 2964 123456)" value={telTicket} onChange={e => setTelTicket(e.target.value)} aria-label="WhatsApp de la clienta" />
+              <button className="btn btn-g" style={{ background: "#25d366", color: "#fff", borderColor: "#25d366" }} onClick={() => mandarTicketWA(verTicket)}>📲 Enviar por WhatsApp</button>
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
               <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setVerTicket(null)}>Cerrar</button>
               <button className="btn btn-p" style={{ flex: 2 }} onClick={() => reimprimir(verTicket)}>🖨️ Reimprimir</button>
             </div>
@@ -17758,7 +17785,7 @@ function Comprobantes({ localId, paletaActual }) {
                         </td>
                         <td style={{ textAlign: "right", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
                           {est === "pendiente" && <button className="mini-chip" disabled={reintentando === v.id} onClick={() => reintentar(v)}>{reintentando === v.id ? "Facturando..." : "↻ Facturar"}</button>}
-                          <button className="mini-chip" onClick={() => setVerTicket(v)} aria-label={"Ver ticket " + fmtNro(v)} title="Ver el ticket">🧾 Ver ticket</button>
+                          <button className="mini-chip" onClick={() => abrirTicket(v)} aria-label={"Ver ticket " + fmtNro(v)} title="Ver el ticket">🧾 Ver ticket</button>
                           <button className="icon-btn" onClick={() => reimprimir(v)} aria-label={"Reimprimir " + fmtNro(v)} title="Reimprimir el ticket">🖨️</button>
                           <button className="icon-btn" onClick={() => setExpandido(abierto ? null : v.id)} aria-label={abierto ? "Ocultar detalle" : "Ver detalle"} aria-expanded={abierto}>{abierto ? "▴" : "▾"}</button>
                         </td>
