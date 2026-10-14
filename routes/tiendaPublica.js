@@ -864,8 +864,19 @@ router.get('/:slug/cuenta', conCuenta, async (req, res) => {
     // Cada vez que entra se renueva la llave (si ya tiene mas de un dia): mientras use la tienda, no se sale
     let tokenNuevo = null;
     try { const t = jwt.decode(String(req.headers.authorization || '').replace(/^Bearer /, '')); if (t && t.iat && Date.now() / 1000 - t.iat > 86400) tokenNuevo = firmar(req, req.clienteId); } catch (e) {}
-    res.json({ ...d, compras: (d.compras || []).slice(0, 15), premios: premios.map(p => ({ ...p, descuento_pct: cuentas.descuentoDePremio(p) })), canjes: canjesInfo, pedidos, logros, amiga, token_nuevo: tokenNuevo });
+    res.json({ ...d, compras: (d.compras || []).slice(0, 15), premios: premios.map(p => ({ ...p, descuento_pct: cuentas.descuentoDePremio(p) })), canjes: canjesInfo, pedidos, logros, amiga, perfil_piel: ((await pool.query('SELECT perfil_piel FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).perfil_piel || null, token_nuevo: tokenNuevo });
   } catch (e) { console.error('[tienda] cuenta:', e.message); res.status(500).json({ error: 'No pudimos cargar tu cuenta' }); }
+});
+
+const PIELES = ['grasa', 'seca', 'mixta', 'sensible', 'normal'];
+const NECESIDADES = ['acne', 'manchas', 'antiedad', 'rojeces', 'hidratacion', 'poros', 'ojeras'];
+router.put('/:slug/cuenta/perfil', conCuenta, async (req, res) => {
+  try {
+    const b = req.body || {};
+    const perfil = { piel: PIELES.includes(b.piel) ? b.piel : null, nec: [...new Set((Array.isArray(b.nec) ? b.nec : []).filter(n => NECESIDADES.includes(n)))].slice(0, 3) };
+    await pool.query('UPDATE clientes SET perfil_piel = $1 WHERE id = $2', [perfil.piel || perfil.nec.length ? JSON.stringify(perfil) : null, req.clienteId]);
+    res.json({ perfil_piel: perfil.piel || perfil.nec.length ? perfil : null });
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
 });
 
 router.post('/:slug/cuenta/canjear', conCuenta, async (req, res) => {
@@ -912,11 +923,11 @@ async function compradosPor(clienteId) {
 }
 router.get('/:slug/resenas/:productoId', async (req, res) => {
   try {
-    const r = await pool.query(`SELECT r.id, r.estrellas, r.texto, r.creado_en, (r.foto IS NOT NULL) AS foto, c.nombre FROM tienda_resenas r LEFT JOIN clientes c ON c.id = r.cliente_id
+    const r = await pool.query(`SELECT r.id, r.estrellas, r.texto, r.creado_en, (r.foto IS NOT NULL) AS foto, c.nombre, c.perfil_piel->>'piel' AS piel FROM tienda_resenas r LEFT JOIN clientes c ON c.id = r.cliente_id
       WHERE r.producto_id = $1 AND r.estado = 'aprobada' ORDER BY (r.foto IS NOT NULL) DESC, r.creado_en DESC LIMIT 60`, [parseInt(req.params.productoId) || 0]);
     const n = r.rows.length, prom = n ? Math.round(r.rows.reduce((t, x) => t + x.estrellas, 0) / n * 10) / 10 : 0;
     const dist = [5, 4, 3, 2, 1].map(e => r.rows.filter(x => x.estrellas === e).length);
-    res.json({ prom, n, dist, lista: r.rows.map(x => ({ id: x.id, estrellas: x.estrellas, texto: x.texto, fecha: x.creado_en, foto: x.foto, nombre: nombreCorto(x.nombre) })) });
+    res.json({ prom, n, dist, lista: r.rows.map(x => ({ id: x.id, estrellas: x.estrellas, texto: x.texto, fecha: x.creado_en, foto: x.foto, nombre: nombreCorto(x.nombre), piel: x.piel || null })) });
   } catch (e) { res.json({ prom: 0, n: 0, dist: [0, 0, 0, 0, 0], lista: [] }); }
 });
 router.get('/:slug/resena-foto/:id', async (req, res) => {

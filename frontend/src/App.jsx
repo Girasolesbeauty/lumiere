@@ -23319,6 +23319,17 @@ const CSS_TIENDA = `
 .tw-amiga-card-ic{font-size:28px;line-height:1}.tw-amiga-card b{font-size:14.5px}.tw-amiga-card p{margin:4px 0 6px;font-size:13px;color:#6b5a50;line-height:1.4}.tw-amiga-card p b{font-size:13px}
 .tw-amiga-stats{font-size:12.5px;font-weight:700;color:#2d7a4f;margin-bottom:6px}
 .tw-amiga-cod span{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-weight:800;letter-spacing:.08em;background:#fff;border:1px dashed #e0b6c4;border-radius:8px;padding:5px 10px;font-size:13px}
+.tw-piel-card{background:#f6fbf7;border:1px solid #d9eedf;border-radius:14px;padding:12px 14px;margin-bottom:14px}
+.tw-piel-card>b,.tw-piel-card b{font-size:14.5px}.tw-piel-card p{margin:6px 0 0;font-size:13px;color:#5d6b60}
+.tw .tw-link{background:none;border:none;padding:0;color:#2d7a4f;font-weight:800;font-size:12.5px;cursor:pointer;font-family:inherit;text-decoration:underline;text-underline-offset:3px}
+.tw-piel-lbl{font-size:12px;font-weight:800;margin:10px 0 6px;color:#3d4a40}.tw-piel-lbl small{font-weight:500;color:#888}
+.tw-piel-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tw-piel-chips span,.tw .tw-piel-chips button{font-size:12.5px;font-weight:700;border-radius:999px;padding:6px 11px;background:#fff;border:1px solid #cfe5d6;color:#2d5a3c;font-family:inherit;cursor:default}
+.tw .tw-piel-chips button{cursor:pointer}.tw-piel-chips .on,.tw .tw-piel-chips button.on{background:#2d7a4f;border-color:#2d7a4f;color:#fff}
+.tw-res-filtro{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}
+.tw .tw-res-filtro button{border:1px solid #ddd;background:#fff;border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;color:#333}
+.tw .tw-res-filtro button.on{background:#111;border-color:#111;color:#fff}
+.tw-res-piel{font-size:11px;font-weight:700;color:#2d7a4f;background:#eef8f1;border-radius:999px;padding:2px 8px}
 .tw .tw-menu-test{background:linear-gradient(90deg,#fff7ef,#fdf0f4)}.tw-menu-test b{display:block}.tw-menu-test small{display:block;font-size:13px;color:#8a6f6f;margin-top:2px}
 .tw-rut{max-width:760px;margin:26px auto 40px}
 .tw-rut-ceja{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#b07a4a}
@@ -24499,10 +24510,14 @@ async function twFotoResena(archivo) {
   } finally { URL.revokeObjectURL(obj); }
 }
 // Reseñas en la ficha del producto: promedio, cuantas hay de cada estrella y las opiniones (con foto primero)
-function TwResenas({ d, base, onOpinar, aviso, onFoto }) {
+function TwResenas({ d, base, onOpinar, aviso, onFoto, piel }) {
   const [todas, setTodas] = useState(false);
+  const [comoYo, setComoYo] = useState(false);
   if (!d) return <div id="tw-resenas" className="tw-resenas"><div className="tw-skel" style={{ height: 60 }} /></div>;
-  const lista = todas ? d.lista : d.lista.slice(0, 4);
+  const pielTxt = (p) => ((TW_FILTROS[1].op.find(o => o[0] === p) || ["", p || ""])[1] || "").toLowerCase();
+  const mias = piel ? d.lista.filter(r => r.piel === piel) : [];
+  const base0 = comoYo && mias.length ? mias : d.lista;
+  const lista = todas ? base0 : base0.slice(0, 4);
   return (
     <div id="tw-resenas" className="tw-resenas">
       <div className="tw-res-cab">
@@ -24517,14 +24532,15 @@ function TwResenas({ d, base, onOpinar, aviso, onFoto }) {
             <div className="tw-res-dist">{[5, 4, 3, 2, 1].map((e, i) => <div key={e}><span>{e} ★</span><i><em style={{ width: (d.n ? d.dist[i] / d.n * 100 : 0) + "%" }} /></i><span>{d.dist[i]}</span></div>)}</div>
           </div>
           {d.lista.filter(r => r.foto).length >= 3 && <div className="tw-res-fotos">{d.lista.filter(r => r.foto).slice(0, 8).map(r => <button key={r.id} onClick={() => onFoto(base + "/resena-foto/" + r.id)} aria-label={"Foto de " + r.nombre}><img src={base + "/resena-foto/" + r.id} alt="" loading="lazy" /></button>)}</div>}
+          {mias.length > 0 && <div className="tw-res-filtro"><button className={!comoYo ? "on" : ""} onClick={() => setComoYo(false)}>Todas ({d.lista.length})</button><button className={comoYo ? "on" : ""} onClick={() => setComoYo(true)}>🌿 Piel {pielTxt(piel)} como la tuya ({mias.length})</button></div>}
           {lista.map(r => (
             <div key={r.id} className="tw-res">
-              <div className="tw-res-top"><TwEstrellas v={r.estrellas} size={13} /><b>{r.nombre}</b><span className="tw-res-ok">✓ Compra verificada</span><small>{new Date(r.fecha).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}</small></div>
+              <div className="tw-res-top"><TwEstrellas v={r.estrellas} size={13} /><b>{r.nombre}</b>{r.piel && <span className="tw-res-piel">Piel {pielTxt(r.piel)}</span>}<span className="tw-res-ok">✓ Compra verificada</span><small>{new Date(r.fecha).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}</small></div>
               <p>{r.texto}</p>
               {r.foto && <button className="tw-res-foto" onClick={() => onFoto(base + "/resena-foto/" + r.id)}><img src={base + "/resena-foto/" + r.id} alt={"Foto de la reseña de " + r.nombre} loading="lazy" /></button>}
             </div>
           ))}
-          {d.lista.length > 4 && !todas && <button className="tw-btn2" style={{ marginTop: 10 }} onClick={() => setTodas(true)}>Ver las {d.lista.length} reseñas</button>}
+          {base0.length > 4 && !todas && <button className="tw-btn2" style={{ marginTop: 10 }} onClick={() => setTodas(true)}>Ver las {base0.length} reseñas</button>}
         </>
       )}
     </div>
@@ -25496,7 +25512,11 @@ function TiendaPublica({ slug }) {
   const [menuSkin, setMenuSkin] = useState(null);
   // Perfil de piel (lo guarda el test de rutina; despues lo usan recomendados y la cuenta)
   const [perfilPiel, setPerfilPiel] = useState(() => { try { return JSON.parse(localStorage.getItem("tw_perfil_" + slug) || "null"); } catch (e) { return null; } });
-  const guardarPerfilPiel = (pf) => { setPerfilPiel(pf); try { localStorage.setItem("tw_perfil_" + slug, JSON.stringify(pf)); } catch (e) {} }; // categoria de skincare con el panel abierto ("*" = todas)
+  const guardarPerfilPiel = (pf) => {
+    setPerfilPiel(pf); try { localStorage.setItem("tw_perfil_" + slug, JSON.stringify(pf)); } catch (e) {}
+    // Con cuenta, queda guardado en su ficha (lo ve en cualquier celular)
+    if (logueada) pedir("/cuenta/perfil", { method: "PUT", body: JSON.stringify(pf) }).then(r => setMiCuenta(m => m ? { ...m, perfil_piel: r.perfil_piel } : m)).catch(() => {});
+  }; // categoria de skincare con el panel abierto ("*" = todas)
   // Si cambió el precio (por ejemplo empezó o terminó una oferta), el carrito toma el precio de hoy
   useEffect(() => {
     if (!productos) return;
@@ -25740,7 +25760,10 @@ function TiendaPublica({ slug }) {
   useEffect(() => { if (ver) cargarRecs([ver.id]); }, [ver && ver.id]);
   useEffect(() => { if (paso === "carrito" && carrito.length) cargarRecs([...new Set(carrito.map(i => i.producto_id))]); }, [paso, carrito.length]);
   const cargarCuenta = () => pedir("/cuenta").then(d => {
-    if (d.token_nuevo) { try { localStorage.setItem("tienda_cuenta_" + slug, d.token_nuevo); } catch (e) {} } setMiCuenta(d); setDatos(x => ({ ...x, nombre: x.nombre || d.nombre, telefono: x.telefono || d.telefono || "", email: x.email || d.email || "" })); }).catch(() => {});
+    if (d.token_nuevo) { try { localStorage.setItem("tienda_cuenta_" + slug, d.token_nuevo); } catch (e) {} } setMiCuenta(d);
+    // Perfil de piel: el de la cuenta manda; si no tiene y hizo el test en este celular, se guarda en la cuenta
+    if (d.perfil_piel) { setPerfilPiel(d.perfil_piel); try { localStorage.setItem("tw_perfil_" + slug, JSON.stringify(d.perfil_piel)); } catch (e) {} }
+    else { try { const pl = JSON.parse(localStorage.getItem("tw_perfil_" + slug) || "null"); if (pl && (pl.piel || (pl.nec || []).length)) pedir("/cuenta/perfil", { method: "PUT", body: JSON.stringify(pl) }).then(r => setMiCuenta(m => m ? { ...m, perfil_piel: r.perfil_piel } : m)).catch(() => {}); } catch (e) {} } setDatos(x => ({ ...x, nombre: x.nombre || d.nombre, telefono: x.telefono || d.telefono || "", email: x.email || d.email || "" })); }).catch(() => {});
   useEffect(() => { if (logueada) cargarCuenta(); }, [logueada]);
   useEffect(() => { if (paso === "datos" && cuponIn && !cuponOk) aplicarCupon(cuponIn); }, [paso]);
   // Banner y tira de anuncios pasan solos
@@ -26097,6 +26120,10 @@ function TiendaPublica({ slug }) {
   // el tipo de producto solo con lo que hay en la categoria
   const gruposMenu = (c) => { const base = visibles.filter(p => c === "*" || p.categoria === c); return ["tipo", "piel", "necesidad"].map(k => { const f = TW_FILTROS.find(x => x.k === k); return { k, op: k === "tipo" ? f.op.filter(o => base.some(p => p._et[k].includes(o[0]))) : f.op }; }).filter(g => g.op.length > 0); };
   const ofertaP = tienda.ofertas && tienda.ofertas.dia ? visibles.find(p => p.id === tienda.ofertas.dia.producto_id && p.precio_antes) || null : null;
+  // Recomendados para su piel (perfil guardado con el test o en su cuenta)
+  const paraTuPiel = perfilPiel && perfilPiel.piel ? visibles.filter(p => !agotado(p) && ((p._et.piel || []).includes(perfilPiel.piel) || p._et.todoTipo))
+    .map(p => ({ p, w: 1 + (perfilPiel.nec || []).filter(n => (p._et.necesidad || []).includes(n)).length * 2 + ((p._et.piel || []).includes(perfilPiel.piel) ? 1 : 0) + (p.rk ? Math.max(0, 40 - p.rk) / 40 : 0) + (p.resenas ? p.resenas[0] / 5 : 0) }))
+    .sort((a, b) => b.w - a.w).slice(0, 12).map(x => x.p) : [];
   const hayRutina = ["limpiador", "hidratante", "solar", "serum"].filter(t => visibles.some(p => (p._et.tipo || []).includes(t))).length >= 2;
   const hayMenuSkin = catSkin ? true : visibles.some(p => p._et.piel.length || p._et.necesidad.length);
   // Para la portada: "Comprá según tu piel" y "según tu necesidad"
@@ -26259,6 +26286,33 @@ function TiendaPublica({ slug }) {
           {canjeHecho.descuento_pct > 0 && <button className="tw-btn" style={{ marginTop: 10, padding: "10px 18px", fontSize: 12 }} onClick={() => { setCuponIn(canjeHecho.codigo); setPaso(carrito.length ? "carrito" : null); }}>Usar ahora</button>}
         </div>}
         {avisoCuenta && <div role="alert" style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, fontSize: 13.5, fontWeight: 600, marginBottom: 10 }}>{avisoCuenta}</div>}
+        {(() => {
+          const pf = perfilPiel || {}, editando = !!formCuenta.pielTmp, tmp = formCuenta.pielTmp || {};
+          const necOps = TW_FILTROS.find(f => f.k === "necesidad").op, pielOps = TW_FILTROS[1].op;
+          const nombreNec = (n) => (necOps.find(o => o[0] === n) || ["", n])[1];
+          return (
+            <div className="tw-piel-card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                <b>🌿 Mi piel</b>
+                {!editando && <button className="tw-link" onClick={() => setFormCuenta(x => ({ ...x, pielTmp: { piel: pf.piel || "", nec: pf.nec || [] } }))}>{pf.piel || (pf.nec || []).length ? "Editar" : "Completar"}</button>}
+              </div>
+              {!editando ? (pf.piel || (pf.nec || []).length ? <div className="tw-piel-chips">{pf.piel && <span className="on">Piel {(pielOps.find(o => o[0] === pf.piel) || ["", pf.piel])[1].toLowerCase()}</span>}{(pf.nec || []).map(n => <span key={n}>{nombreNec(n)}</span>)}</div>
+                : <p>Contanos cómo es tu piel y te recomendamos los productos ideales para vos.</p>) : (
+                <>
+                  <div className="tw-piel-lbl">Tipo de piel</div>
+                  <div className="tw-piel-chips">{pielOps.map(([k, t]) => <button key={k} className={tmp.piel === k ? "on" : ""} onClick={() => setFormCuenta(x => ({ ...x, pielTmp: { ...x.pielTmp, piel: x.pielTmp.piel === k ? "" : k } }))}>{t}</button>)}</div>
+                  <div className="tw-piel-lbl">Qué querés mejorar <small>(hasta 3)</small></div>
+                  <div className="tw-piel-chips">{necOps.map(([k, t]) => { const on = (tmp.nec || []).includes(k); return <button key={k} className={on ? "on" : ""} onClick={() => setFormCuenta(x => ({ ...x, pielTmp: { ...x.pielTmp, nec: on ? x.pielTmp.nec.filter(n => n !== k) : [...(x.pielTmp.nec || []), k].slice(-3) } }))}>{t}</button>; })}</div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    <button className="tw-btn" style={{ padding: "9px 16px", fontSize: 11.5 }} onClick={() => { guardarPerfilPiel({ piel: tmp.piel || null, nec: tmp.nec || [] }); setFormCuenta(x => ({ ...x, pielTmp: null })); }}>Guardar</button>
+                    <button className="tw-btn2" style={{ padding: "9px 16px", fontSize: 11.5 }} onClick={() => setFormCuenta(x => ({ ...x, pielTmp: null }))}>Cancelar</button>
+                  </div>
+                </>
+              )}
+              {!editando && hayRutina && <button className="tw-link" style={{ marginTop: 6 }} onClick={() => { setPaso(null); irCat("rutina"); }}>✨ {pf.piel ? "Ver mi rutina ideal" : "¿No sabés tu tipo de piel? Hacé el test"}</button>}
+            </div>
+          );
+        })()}
         {miCuenta.amiga && (() => {
           const am = miCuenta.amiga;
           const link = (tienda.dominio ? "https://" + tienda.dominio + "/" : window.location.origin + window.location.pathname) + "?" + (tienda.dominio ? "" : "tienda=" + encodeURIComponent(slug) + "&") + "amiga=" + am.codigo;
@@ -26494,7 +26548,8 @@ function TiendaPublica({ slug }) {
             {ofertaP && <TwOfertaDia p={ofertaP} oferta={tienda.ofertas.dia} foto={foto} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} sin={agotado(ofertaP)} />}
             {bannersImg.length > 0 && <TwFila titulo="Destacados" items={destacados} render={tarjeta} />}
             {vistosLista.length >= 2 && <TwFila titulo="👀 Lo viste hace poco" items={vistosLista} render={tarjeta} />}
-            {hayRutina && <TwRutinaBanner onIr={() => irCat("rutina")} />}
+            {paraTuPiel.length >= 3 && <TwFila titulo={"🌿 Para tu piel " + ((TW_FILTROS[1].op.find(o => o[0] === perfilPiel.piel) || ["", ""])[1] || "").toLowerCase()} sub={<div className="tw-pre-txt">Elegidos según tu perfil de piel{perfilPiel.nec && perfilPiel.nec.length ? " y lo que querés mejorar" : ""}.</div>} items={paraTuPiel} render={tarjeta} />}
+            {hayRutina && !paraTuPiel.length && <TwRutinaBanner onIr={() => irCat("rutina")} />}
             {preventas.length > 0 && <TwFila clase="tw-pre-bloque" items={preventas.slice(0, 12)} onVerTodo={() => irCat("preventa")} render={tarjeta}
               titulo={<>⏳ {tienda.preventa.titulo}</>}
               sub={<><div className="tw-pre-sub">Comprá en <mark>PREVENTA</mark></div><div className="tw-pre-txt">Todavía no llegaron al local: reservalos ahora y te avisamos por WhatsApp cuando estén para retirar.</div></>} />}
@@ -26686,7 +26741,7 @@ function TiendaPublica({ slug }) {
                   </div>
                 </div>
               </div>
-              <div className="tw-res-marco"><TwResenas key={ver.id} d={resVer && resVer.id === ver.id ? resVer.d : null} base={base} onOpinar={() => opinar(ver)} aviso={resAviso === ver.id} onFoto={setFotoGrande} /></div>
+              <div className="tw-res-marco"><TwResenas key={ver.id} piel={perfilPiel && perfilPiel.piel} d={resVer && resVer.id === ver.id ? resVer.d : null} base={base} onOpinar={() => opinar(ver)} aviso={resAviso === ver.id} onFoto={setFotoGrande} /></div>
               {relacionados.length > 0 && <div style={{ padding: "0 32px 32px" }}><TwFila titulo={recVer.length >= 2 ? "Las que compraron esto también llevaron" : "También te puede gustar"} items={relacionados} render={tarjeta} /></div>}
             </div>
           </div>
