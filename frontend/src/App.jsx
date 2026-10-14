@@ -28279,8 +28279,22 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const sacarVideo = async () => {
     try { await API.delete("/tienda/productos/" + video.id + "/video"); setVideo(null); avisar(true, "Video sacado"); cargarProductos(); } catch (e) { avisar(false, "No se pudo"); }
   };
-  const guardarDesc = async () => {
-    try { await API.put("/tienda/productos/" + desc.id, { descripcion: desc.texto }); setDesc(null); cargarProductos(); } catch (e) { avisar(false, "No se pudo guardar"); }
+  // Propuesta de descripcion y segmentos (IA si el servidor la tiene): se revisa antes de guardar
+  const proponerDesc = async () => {
+    setDesc(d => ({ ...d, cargando: true }));
+    try { const r = await API.post("/tienda/productos/" + desc.id + "/sugerir"); setDesc(d => d && { ...d, cargando: false, texto: r.data.descripcion, sug: r.data, aplicarEt: !!r.data.etiquetas }); }
+    catch (e) { setDesc(d => d && { ...d, cargando: false }); avisar(false, e.response?.data?.error || "No se pudo armar la propuesta"); }
+  };
+  const guardarDesc = async (seguir) => {
+    const body = { descripcion: desc.texto };
+    if (desc.sug && desc.sug.etiquetas && desc.aplicarEt) { const p = productos.find(x => x.id === desc.id); body.etiquetas = { ...((p && p.etiquetas) || {}), ...desc.sug.etiquetas }; }
+    try {
+      await API.put("/tienda/productos/" + desc.id, body);
+      // Siguiente de la lista (con los filtros de ahora) que todavia no tiene descripcion
+      const sig = seguir ? prodFiltro.find(x => x.id !== desc.id && !(x.descripcion || "").trim()) : null;
+      setDesc(sig ? { id: sig.id, nombre: sig.nombre, texto: "" } : null);
+      cargarProductos(); if (seguir && !sig) avisar(true, "✓ ¡No quedan productos sin descripción en esta lista!");
+    } catch (e) { avisar(false, "No se pudo guardar"); }
   };
   const guardarFotoWeb = async (p, d) => {
     await API.put("/productos/" + p.id + "/imagen", { imagen: d });
@@ -28584,8 +28598,20 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             <div className="pos-overlay" onClick={() => setDesc(null)}>
               <div className="card pop-in" style={{ width: 520, maxWidth: "95vw", background: temaPal.card }} onClick={e => e.stopPropagation()}>
                 <div className="ct">Descripción de {desc.nombre} en la tienda</div>
-                <textarea className="inp" rows={6} autoFocus placeholder="Para qué sirve, cómo se usa, tamaño, ingredientes…" value={desc.texto} onChange={e => setDesc(d => ({ ...d, texto: e.target.value }))} />
-                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}><button className="btn btn-g" onClick={() => setDesc(null)}>Cancelar</button><button className="btn btn-p" onClick={guardarDesc}>Guardar</button></div>
+                <textarea className="inp" rows={6} autoFocus placeholder="Para qué sirve, cómo se usa, tamaño, ingredientes…" value={desc.texto} onChange={e => setDesc(d => ({ ...d, texto: e.target.value }))} disabled={desc.cargando} />
+                <button className="btn btn-g btn-sm" style={{ marginTop: 8 }} disabled={desc.cargando} onClick={proponerDesc}>{desc.cargando ? "✨ Armando la propuesta…" : desc.sug ? "✨ Proponer otra" : "✨ Proponer una descripción"}</button>
+                {desc.sug && <div style={{ background: temaPal.bg, borderRadius: 10, padding: 10, marginTop: 8, fontSize: 12.5 }}>
+                  <div style={{ color: temaPal.textMuted }}>{desc.sug.ia ? "Es una propuesta: leela y cambiá lo que quieras antes de guardar." : "Propuesta simple con el nombre y la categoría (la ayuda con IA no está configurada en este servidor). Completala antes de guardar."}</div>
+                  {desc.sug.etiquetas && <>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>{Object.entries(desc.sug.etiquetas).flatMap(([k, vs]) => vs.map(v => <span key={k + v} className="mini-chip">{twNombreEtiqueta(k, v)}</span>))}</div>
+                    <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 8, cursor: "pointer" }}><input type="checkbox" checked={!!desc.aplicarEt} onChange={e => setDesc(d => ({ ...d, aplicarEt: e.target.checked }))} />Guardar también estos segmentos (tipo, piel, necesidad, ingredientes)</label>
+                  </>}
+                </div>}
+                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10, flexWrap: "wrap" }}>
+                  <button className="btn btn-g" onClick={() => setDesc(null)}>Cancelar</button>
+                  {prodFiltro.some(x => x.id !== desc.id && !(x.descripcion || "").trim()) && <button className="btn btn-g" disabled={desc.cargando || !desc.texto.trim()} onClick={() => guardarDesc(true)}>Guardar y seguir con el próximo ›</button>}
+                  <button className="btn btn-p" disabled={desc.cargando} onClick={() => guardarDesc(false)}>Guardar</button>
+                </div>
               </div>
             </div>
           )}
