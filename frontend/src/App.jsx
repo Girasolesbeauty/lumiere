@@ -23333,6 +23333,7 @@ const CSS_TIENDA = `
 .tw-card-ing{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}.tw-card-ing span{font-size:10.5px;font-weight:800;letter-spacing:.02em;color:#2f6d8a;background:#eef6fa;border-radius:999px;padding:2px 8px}
 .tw-ficha-ing{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0 2px;font-size:13px;color:#666}
 .tw .tw-ficha-ing button{font-size:12.5px;font-weight:700;color:#2f6d8a;background:#eef6fa;border:1px solid #d4e8f1;border-radius:999px;padding:5px 11px;cursor:pointer;font-family:inherit}
+.tw-cumple-card{background:#fff8ef;border:1px solid #f3e2c8;border-radius:14px;padding:12px 14px;margin-bottom:14px}.tw-cumple-card b{font-size:14.5px}.tw-cumple-card p{margin:4px 0 8px;font-size:13px;color:#6b5a50}
 .tw .tw-menu-test{background:linear-gradient(90deg,#fff7ef,#fdf0f4)}.tw-menu-test b{display:block}.tw-menu-test small{display:block;font-size:13px;color:#8a6f6f;margin-top:2px}
 .tw-rut{max-width:760px;margin:26px auto 40px}
 .tw-rut-ceja{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#b07a4a}
@@ -24831,7 +24832,7 @@ function TwCumple({ value, onChange }) {
   const diasMes = mes ? [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][+mes - 1] : 31;
   const poner = (d, m) => { setDia(d); setMes(m); if (d && m && +d <= [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][+m - 1]) onChange("1904-" + String(m).padStart(2, "0") + "-" + String(d).padStart(2, "0")); else onChange(""); };
   return (
-    <div className="tw-lbl-campo">Tu cumpleaños 🎂 <span style={{ fontWeight: 400, color: "#888" }}>(solo día y mes)</span>
+    <div className="tw-lbl-campo">Tu cumpleaños 🎂 <span style={{ fontWeight: 400, color: "#888" }}>(día y mes: te regalamos algo en tu mes)</span>
       <div style={{ display: "flex", gap: 8 }}>
         <select className="tw-inp" style={{ flex: "0 0 92px" }} aria-label="Día de tu cumpleaños" value={dia} onChange={e => poner(e.target.value, mes)}>
           <option value="">Día</option>{Array.from({ length: diasMes }, (_, i) => <option key={i + 1} value={String(i + 1)}>{i + 1}</option>)}
@@ -26213,7 +26214,7 @@ function TiendaPublica({ slug }) {
     if (f.modo === "crear") {
       const clienta = infoDni && infoDni.estado === "clienta";
       const falta = [!String(f.dni || "").replace(/\D/g, "") && "DNI", !clienta && !String(f.nombre || "").trim().includes(" ") && "nombre y apellido", String(f.telefono || "").replace(/\D/g, "").length < 8 && "WhatsApp",
-        !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(f.email || "").trim()) && "email", !f.fecha_nacimiento && "día y mes de tu cumpleaños", String(f.password || "").length < 6 && "contraseña (6 o más)"].filter(Boolean);
+        !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(f.email || "").trim()) && "email", String(f.password || "").length < 6 && "contraseña (6 o más)"].filter(Boolean);
       if (falta.length) { setAvisoCuenta("Completá: " + falta.join(", ") + "."); return; }
       if (f.password !== f.password2) { setAvisoCuenta("Las dos contraseñas no coinciden."); return; }
       if (infoDni && infoDni.estado === "con_cuenta") { setAvisoCuenta("Ese DNI ya tiene cuenta: ingresá con tu contraseña."); return; }
@@ -26258,7 +26259,7 @@ function TiendaPublica({ slug }) {
         {!(fc.modo === "crear" && infoDni && infoDni.estado === "con_cuenta") && <input className="tw-inp" type="password" placeholder={fc.modo === "crear" ? "Elegí una contraseña (6 o más)" : "Contraseña"} autoComplete={fc.modo === "crear" ? "new-password" : "current-password"} value={fc.password || ""} onChange={e => setF("password", e.target.value)} />}
         {fc.modo === "crear" && !(infoDni && infoDni.estado === "con_cuenta") && <>
           <input className="tw-inp" type="password" placeholder="Repetí la contraseña" autoComplete="new-password" value={fc.password2 || ""} onChange={e => setF("password2", e.target.value)} />
-          <div style={{ fontSize: 12, color: "#777" }}>Todos los datos son obligatorios. Los usamos para tu cuenta, tus puntos y para saludarte en tu cumple.</div>
+          <div style={{ fontSize: 12, color: "#777" }}>Los usamos para tu cuenta, tus puntos y para saludarte en tu cumple.</div>
         </>}
         {avisoCuenta && <div role="alert" style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, fontSize: 13.5, fontWeight: 600 }}>{avisoCuenta}</div>}
         <button className="tw-btn full" type="submit">{fc.modo === "crear" ? "Crear mi cuenta" : "Ingresar"}</button>
@@ -26308,6 +26309,14 @@ function TiendaPublica({ slug }) {
           {canjeHecho.descuento_pct > 0 && <button className="tw-btn" style={{ marginTop: 10, padding: "10px 18px", fontSize: 12 }} onClick={() => { setCuponIn(canjeHecho.codigo); setPaso(carrito.length ? "carrito" : null); }}>Usar ahora</button>}
         </div>}
         {avisoCuenta && <div role="alert" style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, fontSize: 13.5, fontWeight: 600, marginBottom: 10 }}>{avisoCuenta}</div>}
+        {miCuenta.falta_cumple && (
+          <div className="tw-cumple-card">
+            <b>🎂 ¿Cuándo es tu cumple?</b>
+            <p>Contanos el día y el mes y te esperamos con un regalo en tu mes.</p>
+            <TwCumple value={formCuenta.cumpleTmp || ""} onChange={v => setFormCuenta(x => ({ ...x, cumpleTmp: v }))} />
+            <button className="tw-btn" style={{ padding: "9px 16px", fontSize: 11.5, marginTop: 8 }} disabled={!formCuenta.cumpleTmp} onClick={() => pedir("/cuenta/cumple", { method: "PUT", body: JSON.stringify({ fecha_nacimiento: formCuenta.cumpleTmp }) }).then(() => { setMiCuenta(m => ({ ...m, falta_cumple: false })); setFormCuenta(x => ({ ...x, cumpleTmp: null })); }).catch(e => setAvisoCuenta(e.message))}>Guardar mi cumple</button>
+          </div>
+        )}
         {(() => {
           const pf = perfilPiel || {}, editando = !!formCuenta.pielTmp, tmp = formCuenta.pielTmp || {};
           const necOps = TW_FILTROS.find(f => f.k === "necesidad").op, pielOps = TW_FILTROS[1].op;

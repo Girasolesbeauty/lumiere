@@ -737,7 +737,7 @@ router.post('/:slug/cuenta/crear', async (req, res) => {
     if (password.length < 6) return res.status(400).json({ error: 'La contraseña tiene que tener al menos 6 caracteres' });
     if (digitos(telefono).length < 8) return res.status(400).json({ error: 'Escribí tu WhatsApp con código de área' });
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return res.status(400).json({ error: 'Escribí tu email' });
-    if (!nacimiento) return res.status(400).json({ error: 'Elegí el día y el mes de tu cumpleaños (así te saludamos en tu cumple 🎂)' });
+    // El cumpleaños no frena la cuenta: si no lo cargó, se lo pedimos despues en "Mi cuenta"
     const k = 'tienda-crear:' + req.negTienda.id + ':' + dni;
     if (cuentas.bloqueado(k)) return res.status(429).json({ error: 'Demasiados intentos. Esperá 15 minutos y volvé a probar.' });
     // Un DNI = una sola cuenta: de a una alta por DNI a la vez (si dos se crean en el mismo momento,
@@ -864,7 +864,7 @@ router.get('/:slug/cuenta', conCuenta, async (req, res) => {
     // Cada vez que entra se renueva la llave (si ya tiene mas de un dia): mientras use la tienda, no se sale
     let tokenNuevo = null;
     try { const t = jwt.decode(String(req.headers.authorization || '').replace(/^Bearer /, '')); if (t && t.iat && Date.now() / 1000 - t.iat > 86400) tokenNuevo = firmar(req, req.clienteId); } catch (e) {}
-    res.json({ ...d, compras: (d.compras || []).slice(0, 15), premios: premios.map(p => ({ ...p, descuento_pct: cuentas.descuentoDePremio(p) })), canjes: canjesInfo, pedidos, logros, amiga, perfil_piel: ((await pool.query('SELECT perfil_piel FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).perfil_piel || null, token_nuevo: tokenNuevo });
+    res.json({ ...d, compras: (d.compras || []).slice(0, 15), premios: premios.map(p => ({ ...p, descuento_pct: cuentas.descuentoDePremio(p) })), canjes: canjesInfo, pedidos, logros, amiga, falta_cumple: !((await pool.query('SELECT fecha_nacimiento FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).fecha_nacimiento, perfil_piel: ((await pool.query('SELECT perfil_piel FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).perfil_piel || null, token_nuevo: tokenNuevo });
   } catch (e) { console.error('[tienda] cuenta:', e.message); res.status(500).json({ error: 'No pudimos cargar tu cuenta' }); }
 });
 
@@ -876,6 +876,15 @@ router.put('/:slug/cuenta/perfil', conCuenta, async (req, res) => {
     const perfil = { piel: PIELES.includes(b.piel) ? b.piel : null, nec: [...new Set((Array.isArray(b.nec) ? b.nec : []).filter(n => NECESIDADES.includes(n)))].slice(0, 3) };
     await pool.query('UPDATE clientes SET perfil_piel = $1 WHERE id = $2', [perfil.piel || perfil.nec.length ? JSON.stringify(perfil) : null, req.clienteId]);
     res.json({ perfil_piel: perfil.piel || perfil.nec.length ? perfil : null });
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+});
+
+router.put('/:slug/cuenta/cumple', conCuenta, async (req, res) => {
+  try {
+    const nac = fechaNacimiento((req.body || {}).fecha_nacimiento);
+    if (!nac) return res.status(400).json({ error: 'Elegí el día y el mes de tu cumpleaños' });
+    await pool.query('UPDATE clientes SET fecha_nacimiento = $1::date WHERE id = $2', [nac, req.clienteId]);
+    res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
 });
 
