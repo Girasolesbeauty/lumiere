@@ -23285,6 +23285,46 @@ const CSS_TIENDA = `
 .tw-menu-skin-cab h2{margin:0;text-align:center;font-size:19px;font-weight:800}
 .tw-menu-skin-cuerpo{overflow-y:auto;padding:0 0 18px}
 .tw-menu-fila{display:flex;width:100%;align-items:center;justify-content:space-between;background:none;border:none;border-bottom:1px solid var(--b);padding:16px 20px;font-size:16px;cursor:pointer;font-family:inherit;color:#111;text-align:left}
+.tw .tw-menu-test{background:linear-gradient(90deg,#fff7ef,#fdf0f4)}.tw-menu-test b{display:block}.tw-menu-test small{display:block;font-size:13px;color:#8a6f6f;margin-top:2px}
+.tw-rut{max-width:760px;margin:26px auto 40px}
+.tw-rut-ceja{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#b07a4a}
+.tw-rut-prog{display:flex;gap:6px;margin:12px 0 18px}.tw-rut-prog i{flex:1;height:4px;border-radius:2px;background:#eee;transition:background .4s}.tw-rut-prog i.on{background:linear-gradient(90deg,#e8b7a0,#c9a84c)}
+.tw-rut h1{font-size:clamp(24px,3.6vw,34px);line-height:1.15;margin:0 0 18px;letter-spacing:-.01em;animation:twSube .4s ease both}
+.tw-rut h1 span{color:#b07a4a;font-weight:700}
+.tw-rut-sub{margin:-10px 0 14px;color:#777;font-size:14px}
+.tw-rut-ops{display:grid;gap:10px}.tw-rut-ops.dos{grid-template-columns:repeat(2,minmax(0,1fr))}
+.tw .tw-rut-op{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:#fff;border:1.5px solid #ececec;border-radius:16px;padding:14px 16px;cursor:pointer;font-family:inherit;color:#111;box-shadow:0 2px 8px rgba(0,0,0,.04);transition:border-color .2s,box-shadow .2s,transform .2s,background .2s;animation:twSube .4s ease both;animation-delay:calc(var(--i) * 45ms)}
+.tw-rut-op:hover{border-color:#e3c9b5;transform:translateY(-1px);box-shadow:0 6px 16px rgba(176,122,74,.12)}
+.tw .tw-rut-op.on{border-color:#c9a84c;background:#fffaf0;box-shadow:0 0 0 1px #c9a84c,0 6px 16px rgba(201,168,76,.18)}
+.tw-rut-op b{display:block;font-size:15.5px}.tw-rut-op b em{font-style:normal;font-weight:600;color:#b07a4a;font-size:13px;margin-left:6px}
+.tw-rut-op small{display:block;font-size:13px;color:#777;margin-top:2px;line-height:1.35}
+.tw-rut-op svg{flex-shrink:0;background:#fbf7f2;border-radius:50%;padding:6px}
+.tw-rut-num{flex-shrink:0;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:17px;background:radial-gradient(circle at 35% 30%,#fffdf6,#f5e7c8);color:#7a5a1e;box-shadow:inset 0 0 0 1.5px #e6cf91}
+.tw .tw-rut-atras{background:none;border:none;color:#777;font-size:14px;margin-top:16px;cursor:pointer;font-family:inherit;padding:6px 0}
+.tw-rut-lista{display:flex;flex-direction:column;gap:10px;margin:6px 0 16px}
+.tw-rut-item{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #eee;border-radius:16px;padding:10px 12px;box-shadow:0 2px 10px rgba(0,0,0,.04);animation:twSube .45s ease both;animation-delay:calc(var(--i) * 80ms)}
+.tw-rut-n{width:74px;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-start}
+.tw-rut-n b{width:24px;height:24px;border-radius:50%;background:#111;color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;margin-bottom:4px}
+.tw-rut-n span{font-size:12.5px;font-weight:800;line-height:1.15}.tw-rut-n small{font-size:10.5px;color:#999;line-height:1.2}
+.tw .tw-rut-img{width:66px;height:66px;flex-shrink:0;border:none;padding:0;border-radius:12px;overflow:hidden;background:#f6f6f6;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.tw-rut-img img{width:100%;height:100%;object-fit:cover}
+.tw-rut-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.tw-rut-info small{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#999}
+.tw-rut-info b{font-size:14px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tw-rut-info span{font-size:14px;font-weight:800}
+.tw .tw-rut-cambiar{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:1px;background:#fbf7f2;border:none;border-radius:12px;padding:8px 10px;cursor:pointer;font-family:inherit;color:#7a5a1e;font-size:17px}
+.tw-rut-cambiar span{font-size:10.5px;font-weight:800}
+.tw-rut-total{display:flex;justify-content:space-between;align-items:baseline;font-size:15px;margin:0 2px 12px}.tw-rut-total b{font-size:22px}
+.tw-rut-acciones{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.tw-rut-nota{font-size:12.5px;color:#999;margin-top:14px}
+.tw-rut-banner{position:relative;overflow:hidden;margin:26px 0 8px;border-radius:24px;padding:30px 34px;display:grid;grid-template-columns:1.4fr 1fr;align-items:center;gap:16px;cursor:pointer;background:radial-gradient(90% 120% at 100% 0%,#fde7ee 0%,transparent 60%),linear-gradient(135deg,#fff8ef,#fbeee6);border:1px solid #f3e2d4;box-shadow:0 14px 34px -20px rgba(176,122,74,.5)}
+.tw-rut-banner h2{font-size:clamp(26px,3.6vw,38px);margin:10px 0 8px;letter-spacing:-.01em;line-height:1.1}
+.tw-rut-banner p{margin:0 0 16px;color:#6b5a50;font-size:15.5px;max-width:42ch;line-height:1.45}
+.tw-rut-banner-art{position:relative;height:150px}
+.tw-rut-banner-art span{position:absolute;font-size:40px;width:74px;height:74px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 35% 30%,#fffefa,#fbefd6);box-shadow:0 0 0 3px #fff,0 0 0 4.5px #e6cf91,0 10px 20px rgba(176,122,74,.18);animation:twFlotar 4s ease-in-out infinite}
+.tw-rut-banner-art span:nth-child(1){left:8%;top:8%}.tw-rut-banner-art span:nth-child(2){left:42%;top:42%;animation-delay:.6s}.tw-rut-banner-art span:nth-child(3){right:6%;top:2%;animation-delay:1.2s}.tw-rut-banner-art span:nth-child(4){left:18%;bottom:-6%;font-size:30px;width:56px;height:56px;animation-delay:1.8s}
+@keyframes twFlotar{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@media(max-width:760px){.tw-rut-banner{grid-template-columns:1fr;padding:24px 22px}.tw-rut-banner-art{height:110px;order:-1}.tw-rut-banner-art span{width:58px;height:58px;font-size:30px}.tw-rut-ops.dos{grid-template-columns:1fr}.tw-rut-n{width:58px}.tw-rut-img{width:56px!important;height:56px!important}}
 .tw-menu-flecha{font-size:22px;line-height:1;transition:transform .25s;display:inline-block;transform:translateY(-4px)}
 .tw-menu-flecha.on{transform:rotate(180deg) translateY(-2px)}
 .tw-menu-lista{display:flex;flex-direction:column;padding:4px 0 8px}
@@ -24248,7 +24288,7 @@ function TwComprarPor({ grupos, onElegir }) {
 
 // Menu de skincare (como el de Sephora): al tocar la categoria se abre un panel con "Ver todo",
 // tipo de producto y las tarjetas por tipo de piel y por necesidad
-function TwMenuSkincare({ titulo, grupos, onTodo, onElegir, onCerrar }) {
+function TwMenuSkincare({ titulo, grupos, onTodo, onElegir, onCerrar, onTest }) {
   const [abierto, setAbierto] = useState({ tipo: true, piel: true, necesidad: true });
   useEffect(() => { const k = (e) => { if (e.key === "Escape") onCerrar(); }; window.addEventListener("keydown", k); const o = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { window.removeEventListener("keydown", k); document.body.style.overflow = o; }; }, []);
   const nombres = { tipo: "Tipo de producto", piel: "Por tipo de piel", necesidad: "Por lo que necesita tu piel" };
@@ -24259,6 +24299,7 @@ function TwMenuSkincare({ titulo, grupos, onTodo, onElegir, onCerrar }) {
         <div className="tw-menu-skin-cab"><span /><h2>{titulo}</h2><button className="tw-ico" onClick={onCerrar} aria-label="Cerrar"><TwIcono d={TW_X} size={20} /></button></div>
         <div className="tw-menu-skin-cuerpo">
           <button className="tw-menu-fila" onClick={onTodo}><b>Ver todo {titulo}</b><TwIcono d={TW_DER} size={18} /></button>
+          {onTest && <button className="tw-menu-fila tw-menu-test" onClick={onTest}><span><b>✨ ¿No sabés qué elegir?</b><small>Hacé el test y encontrá tu rutina ideal</small></span><TwIcono d={TW_DER} size={18} /></button>}
           {grupos.map(g => (
             <div key={g.k} className="tw-menu-grupo">
               <button className="tw-menu-fila" aria-expanded={!!abierto[g.k]} onClick={() => setAbierto(a => ({ ...a, [g.k]: !a[g.k] }))}><b>{nombres[g.k]}</b><span className={"tw-menu-flecha" + (abierto[g.k] ? " on" : "")}>⌄</span></button>
@@ -24651,7 +24692,7 @@ function twSlugs(lista) {
 // Producto que pide la direccion: /nombre-del-producto (dominio propio) o ?producto=... (link de Lumiere)
 // Direccion de cada seccion: /preventa, /regalos, /videos, /favoritos, /todo, /nuevamente-en-stock y, con una
 // letra adelante para no chocar con los productos, /c/categoria, /s/sector, /m/marca (sin dominio: ?seccion=...)
-const TW_SECC_FIJAS = { preventa: "preventa", regalos: "regalos", videos: "videos", favoritos: "favoritos", "*": "todo", reingreso: "nuevamente-en-stock" };
+const TW_SECC_FIJAS = { preventa: "preventa", regalos: "regalos", rutina: "rutina", videos: "videos", favoritos: "favoritos", "*": "todo", reingreso: "nuevamente-en-stock" };
 const TW_SECC_RUTAS = Object.fromEntries(Object.entries(TW_SECC_FIJAS).map(([k, v]) => [v, k]));
 const twSeccionDeUrl = () => {
   try {
@@ -24707,6 +24748,154 @@ function TwDecoRegalo({ t, n = 16 }) {
 }
 
 // Franja grande de la portada
+// ===================== Test "Encontrá tu rutina" =====================
+// 4 preguntas (piel, qué mejorar, cuántos pasos, presupuesto) y arma una rutina con productos de la tienda que tengan stock.
+const TW_RUT_PIEL = [
+  ["grasa", "Brilla en toda la cara", "Se pone brillosa y a veces aparecen granitos"],
+  ["mixta", "Brilla en la zona T", "Frente, nariz y mentón brillan; las mejillas, normales"],
+  ["seca", "Se siente tirante", "Opaca, a veces se descama o pide crema"],
+  ["sensible", "Se irrita fácil", "Se enrojece, pica o arde con algunos productos"],
+  ["normal", "Cómoda todo el día", "Ni brillo ni tirantez: está equilibrada"],
+];
+const TW_RUT_PASOS = {
+  basica: ["limpiador", "hidratante", "solar"],
+  completa: ["limpiador", "tonico", "serum", "hidratante", "solar"],
+  pro: ["desmaquillante", "limpiador", "tonico", "serum", "ojos", "hidratante", "solar", "mascarilla"],
+};
+const TW_RUT_NOMBRE = { desmaquillante: "Desmaquillar", limpiador: "Limpiar", tonico: "Tonificar", serum: "Tratar", ojos: "Contorno de ojos", hidratante: "Hidratar", solar: "Proteger", mascarilla: "Extra semanal" };
+const TW_RUT_CUANDO = { desmaquillante: "noche", limpiador: "mañana y noche", tonico: "mañana y noche", serum: "mañana y noche", ojos: "mañana y noche", hidratante: "mañana y noche", solar: "mañana", mascarilla: "1 o 2 veces por semana" };
+
+function twArmarRutina(productos, dispo, { piel, nec, pasos, presupuesto }) {
+  const conStock = productos.filter(p => p.variantes ? p.variantes.some(v => dispo(p, v) > 0) : dispo(p) > 0);
+  const tipos = TW_RUT_PASOS[pasos] || TW_RUT_PASOS.completa;
+  const usados = new Set();
+  const puntaje = (p) => {
+    let w = 1 + (p.rk ? Math.max(0, 40 - p.rk) * 0.12 : 0) + (p.top ? (12 - p.top) * 0.3 : 0) + (p.resenas ? Math.max(0, p.resenas[0] - 3) * 1.2 : 0) + (p.foto ? 0.6 : -0.8) + (p.descripcion ? 0.3 : 0);
+    const pi = p._et.piel || [];
+    if (piel && (pi.includes(piel) || p._et.todoTipo)) w *= 2.6; else if (piel && pi.length) w *= 0.12;
+    (nec || []).forEach(n => { if ((p._et.necesidad || []).includes(n)) w *= 1.9; });
+    return w;
+  };
+  // Lo que se le puede dar a cada paso: primero lo mejor puntuado
+  const opciones = tipos.map(t => ({ t, ops: conStock.filter(p => (p._et.tipo || []).includes(t)).map(p => ({ p, v: p.variantes ? p.variantes.find(v => dispo(p, v) > 0) : null, w: puntaje(p) })).sort((a, b) => b.w - a.w) })).filter(x => x.ops.length);
+  let pasosR = opciones.map(x => { const ops = x.ops.filter(o => !usados.has(o.p.id)); const o = ops[0] || x.ops[0]; usados.add(o.p.id); return { t: x.t, ops: x.ops, i: x.ops.indexOf(o) }; });
+  // Presupuesto: mientras se pase, cambia el paso donde bajar de precio cueste menos puntaje
+  const precio = (o) => o.p.precio;
+  if (presupuesto) {
+    for (let vuelta = 0; vuelta < 40; vuelta++) {
+      const total = pasosR.reduce((s, x) => s + precio(x.ops[x.i]), 0);
+      if (total <= presupuesto) break;
+      let mejor = null;
+      pasosR.forEach((x, k) => {
+        const act = x.ops[x.i];
+        x.ops.forEach((o, j) => {
+          if (precio(o) >= precio(act) || pasosR.some((y, kk) => kk !== k && y.ops[y.i].p.id === o.p.id)) return;
+          const costo = (act.w - o.w) / (precio(act) - precio(o));
+          if (!mejor || costo < mejor.costo) mejor = { k, j, costo };
+        });
+      });
+      if (!mejor) {
+        // Ni con lo mas barato entra: se sacan los pasos opcionales (extras primero)
+        const quitable = ["mascarilla", "ojos", "desmaquillante", "tonico", "serum"].find(t => pasosR.some(x => x.t === t));
+        if (!quitable) break;
+        pasosR = pasosR.filter(x => x.t !== quitable);
+        continue;
+      }
+      pasosR = pasosR.map((x, k) => k === mejor.k ? { ...x, i: mejor.j } : x);
+    }
+  }
+  return pasosR;
+}
+
+function TwRutina({ productos, dispo, foto, onAgregar, onAbrir, onCompartir, copiado, perfil, onPerfil }) {
+  const [paso, setPaso] = useState(0);
+  const [r, setR] = useState(() => ({ piel: (perfil && perfil.piel) || "", nec: (perfil && perfil.nec) || [], pasos: "completa", presupuesto: 0 }));
+  const [rutina, setRutina] = useState(null);
+  const [agregada, setAgregada] = useState(false);
+  const armar = (datos) => { setRutina(twArmarRutina(productos, dispo, datos)); setPaso(4); setAgregada(false); twSonar.pop(); onPerfil && onPerfil({ piel: datos.piel, nec: datos.nec }); try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) {} };
+  const sigue = (cambio, auto) => { const n = { ...r, ...cambio }; setR(n); if (auto) setTimeout(() => setPaso(p => p + 1), 180); };
+  const necOps = TW_FILTROS.find(f => f.k === "necesidad").op;
+  const total = rutina ? rutina.reduce((s, x) => s + x.ops[x.i].p.precio, 0) : 0;
+  const cambiar = (k) => setRutina(rt => rt.map((x, kk) => { if (kk !== k) return x; const otros = rt.filter((_, j) => j !== k).map(y => y.ops[y.i].p.id); let i = x.i; for (let n = 0; n < x.ops.length; n++) { i = (i + 1) % x.ops.length; if (!otros.includes(x.ops[i].p.id)) break; } return { ...x, i }; }));
+  const pielTxt = (TW_FILTROS[1].op.find(o => o[0] === r.piel) || ["", ""])[1].toLowerCase();
+  const titulos = ["¿Cómo sentís tu piel a media tarde?", "¿Qué te gustaría mejorar?", "¿Cuántos pasos querés hacer?", "¿Cuánto querés invertir?"];
+  return (
+    <div className="tw-rut">
+      {paso < 4 ? (
+        <div className="tw-rut-test">
+          <div className="tw-rut-ceja">✨ Encontrá tu rutina · Paso {paso + 1} de 4</div>
+          <div className="tw-rut-prog">{[0, 1, 2, 3].map(i => <i key={i} className={i <= paso ? "on" : ""} />)}</div>
+          <h1 key={"t" + paso}>{titulos[paso]}</h1>
+          {paso === 0 && <div className="tw-rut-ops" key="p0">{TW_RUT_PIEL.map(([k, t, d], i) => { const [col, dib] = TW_ICONOS_PIEL[k] || ["#999", null]; return (
+            <button key={k} className={"tw-rut-op" + (r.piel === k ? " on" : "")} style={{ "--i": i }} onClick={() => sigue({ piel: k }, true)}>
+              <svg viewBox="0 0 48 48" width="40" height="40" fill="none" stroke={col} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: col }} aria-hidden="true">{dib}</svg>
+              <span><b>{t}</b><small>{d}</small></span>
+            </button>); })}</div>}
+          {paso === 1 && <>
+            <p className="tw-rut-sub">Elegí hasta 2</p>
+            <div className="tw-rut-ops dos" key="p1">{necOps.map(([k, t], i) => { const [col, dib] = TW_ICONOS_PIEL[k] || ["#999", null]; const on = r.nec.includes(k); return (
+              <button key={k} className={"tw-rut-op" + (on ? " on" : "")} style={{ "--i": i }} onClick={() => sigue({ nec: on ? r.nec.filter(x => x !== k) : [...r.nec, k].slice(-2) })}>
+                <svg viewBox="0 0 48 48" width="34" height="34" fill="none" stroke={col} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: col }} aria-hidden="true">{dib}</svg>
+                <span><b>{t}</b></span>
+              </button>); })}</div>
+            <button className="tw-btn full" style={{ marginTop: 14 }} onClick={() => setPaso(2)}>{r.nec.length ? "Seguir" : "Nada en especial, seguir"}</button>
+          </>}
+          {paso === 2 && <div className="tw-rut-ops" key="p2">{[["basica", "Básica", "3 pasos · 2 minutos", "Limpiar, hidratar y proteger"], ["completa", "Completa", "5 pasos", "Suma tónico y sérum para tratar lo que te preocupa"], ["pro", "Full skincare", "Hasta 8 pasos", "Doble limpieza, contorno de ojos y mascarilla semanal"]].map(([k, t, d, x], i) => (
+            <button key={k} className={"tw-rut-op" + (r.pasos === k ? " on" : "")} style={{ "--i": i }} onClick={() => sigue({ pasos: k }, true)}>
+              <span className="tw-rut-num">{k === "basica" ? "3" : k === "completa" ? "5" : "8"}</span>
+              <span><b>{t} <em>{d}</em></b><small>{x}</small></span>
+            </button>))}</div>}
+          {paso === 3 && <div className="tw-rut-ops" key="p3">{[[40000, "Hasta $40.000"], [80000, "Hasta $80.000"], [150000, "Hasta $150.000"], [0, "Sin límite: lo mejor para mi piel"]].map(([v, t], i) => (
+            <button key={v} className={"tw-rut-op" + (r.presupuesto === v ? " on" : "")} style={{ "--i": i }} onClick={() => { const n = { ...r, presupuesto: v }; setR(n); armar(n); }}>
+              <span className="tw-rut-num">{v ? "$" : "∞"}</span><span><b>{t}</b></span>
+            </button>))}</div>}
+          {paso > 0 && <button className="tw-rut-atras" onClick={() => setPaso(p => p - 1)}>‹ Volver</button>}
+        </div>
+      ) : (
+        <div className="tw-rut-res">
+          <div className="tw-rut-ceja">✨ Tu rutina ideal</div>
+          <h1>Para piel {pielTxt}{r.nec.length ? <span> · {r.nec.map(n => (necOps.find(o => o[0] === n) || ["", n])[1].toLowerCase()).join(" y ")}</span> : null}</h1>
+          {!rutina || !rutina.length ? <div className="tw-cartel" style={{ textAlign: "center" }}><p>Todavía no tenemos productos con stock para armar esta rutina. ¡Escribinos y te asesoramos!</p></div> : <>
+            <div className="tw-rut-lista">
+              {rutina.map((x, k) => { const o = x.ops[x.i]; return (
+                <div key={x.t} className="tw-rut-item" style={{ "--i": k }}>
+                  <div className="tw-rut-n"><b>{k + 1}</b><span>{TW_RUT_NOMBRE[x.t]}</span><small>{TW_RUT_CUANDO[x.t]}</small></div>
+                  <button className="tw-rut-img" onClick={() => onAbrir(o.p)} aria-label={"Ver " + o.p.nombre}>{o.p.foto ? <img src={foto(o.p)} alt="" /> : <span className="tw-ph" style={{ fontSize: 30 }}>✿</span>}</button>
+                  <div className="tw-rut-info">
+                    {o.p.marca && <small>{o.p.marca}</small>}
+                    <b>{o.p.nombre}{o.v ? " · " + o.v.valor : ""}</b>
+                    <span>{fmtTienda(o.p.precio)}</span>
+                  </div>
+                  {x.ops.length > 1 && <button className="tw-rut-cambiar" onClick={() => cambiar(k)} aria-label="Ver otra opción">↻<span>Otra</span></button>}
+                </div>); })}
+            </div>
+            <div className="tw-rut-total"><span>Total de tu rutina</span><b>{fmtTienda(total)}</b></div>
+            <button className={"tw-btn full" + (agregada ? " hecho" : "")} onClick={() => { onAgregar(rutina.map(x => ({ p: x.ops[x.i].p, v: x.ops[x.i].v }))); setAgregada(true); }}>{agregada ? "✓ ¡Rutina agregada al carrito!" : "Agregar mi rutina al carrito (" + rutina.length + ")"}</button>
+          </>}
+          <div className="tw-rut-acciones">
+            <button className="tw-btn2" onClick={() => { setPaso(0); setRutina(null); }}>Volver a hacer el test</button>
+            {onCompartir && <button className="tw-btn2" onClick={onCompartir}>{copiado ? "¡Link copiado!" : "🔗 Compartir el test"}</button>}
+          </div>
+          <p className="tw-rut-nota">Te sugerimos productos que hay en stock según lo que respondiste. Si tenés dudas, escribinos y te asesoramos.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+function TwRutinaBanner({ onIr }) {
+  return (
+    <section className="tw-rut-banner tw-rv" onClick={onIr} role="link" tabIndex={0} onKeyDown={e => { if (e.key === "Enter") onIr(); }}>
+      <div className="tw-rut-banner-txt">
+        <div className="tw-rut-ceja">✨ Test de skincare · 1 minuto</div>
+        <h2>Encontrá tu rutina ideal</h2>
+        <p>Respondé 4 preguntas sobre tu piel y te armamos la rutina perfecta con nuestros productos.</p>
+        <span className="tw-btn" style={{ display: "inline-flex", width: "auto" }}>Hacer el test</span>
+      </div>
+      <div className="tw-rut-banner-art" aria-hidden="true"><span>💧</span><span>🧴</span><span>☀️</span><span>✨</span></div>
+    </section>
+  );
+}
+
 function TwRegalosHero({ r, tienda, onGift, onArmar }) {
   const t = twTemaRegalo(r);
   return (
@@ -25163,7 +25352,10 @@ function TiendaPublica({ slug }) {
   const [filtros, setFiltros] = useState(() => (vistaGuardada.current && vistaGuardada.current.filtros) || {}); // tipo de producto, tipo de piel, necesidad
   const [copiado, setCopiado] = useState(null); // producto cuyo link se acaba de copiar
   const [vistos, setVistos] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_vistos_" + slug) || "[]"); } catch (e) { return []; } }); // lo que miro hace poco
-  const [menuSkin, setMenuSkin] = useState(null); // categoria de skincare con el panel abierto ("*" = todas)
+  const [menuSkin, setMenuSkin] = useState(null);
+  // Perfil de piel (lo guarda el test de rutina; despues lo usan recomendados y la cuenta)
+  const [perfilPiel, setPerfilPiel] = useState(() => { try { return JSON.parse(localStorage.getItem("tw_perfil_" + slug) || "null"); } catch (e) { return null; } });
+  const guardarPerfilPiel = (pf) => { setPerfilPiel(pf); try { localStorage.setItem("tw_perfil_" + slug, JSON.stringify(pf)); } catch (e) {} }; // categoria de skincare con el panel abierto ("*" = todas)
   const [volverA, setVolverA] = useState(null); // al entrar a la cuenta desde el carrito, vuelve ahi
   const [saliendo, setSaliendo] = useState([]); // productos que se van del carrito (se encogen antes de irse)
   const [agregando, setAgregando] = useState(null); // boton de la ficha: null | "carga" | "listo"
@@ -25707,7 +25899,7 @@ function TiendaPublica({ slug }) {
   const sectores = (tienda.sectores || []).filter(sc => visibles.some(p => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria)));
   const sector = cat.startsWith("s:") ? sectores.find(sc => "s:" + sc.id === cat) : null;
   // Si la seccion elegida quedo vacia (otra ciudad, se agoto todo), se vuelve al inicio
-  if (productos !== null && ((cat === "preventa" && !preventas.length) || (cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat === "regalos" && !tienda.regalos) || (cat && cat !== "*" && !cat.startsWith("s:") && !cat.startsWith("m:") && cat !== "reingreso" && cat !== "videos" && cat !== "regalos" && cat !== "preventa" && cat !== "favoritos" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2))))) { setTimeout(() => setCat(""), 0); }
+  if (productos !== null && ((cat === "preventa" && !preventas.length) || (cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat === "regalos" && !tienda.regalos) || (cat && cat !== "*" && !cat.startsWith("s:") && !cat.startsWith("m:") && cat !== "reingreso" && cat !== "videos" && cat !== "regalos" && cat !== "rutina" && cat !== "preventa" && cat !== "favoritos" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2))))) { setTimeout(() => setCat(""), 0); }
   const enSector = (sc, p) => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria);
   const delSector = sector ? visibles.filter(p => enSector(sector, p)) : [];
   const catsSector = sector ? [...new Set(delSector.map(p => p.categoria).filter(Boolean))].sort() : [];
@@ -25734,6 +25926,7 @@ function TiendaPublica({ slug }) {
   // Como Sephora: tipo de piel y necesidad se muestran siempre completos (aunque los productos todavia no tengan descripcion);
   // el tipo de producto solo con lo que hay en la categoria
   const gruposMenu = (c) => { const base = visibles.filter(p => c === "*" || p.categoria === c); return ["tipo", "piel", "necesidad"].map(k => { const f = TW_FILTROS.find(x => x.k === k); return { k, op: k === "tipo" ? f.op.filter(o => base.some(p => p._et[k].includes(o[0]))) : f.op }; }).filter(g => g.op.length > 0); };
+  const hayRutina = ["limpiador", "hidratante", "solar", "serum"].filter(t => visibles.some(p => (p._et.tipo || []).includes(t))).length >= 2;
   const hayMenuSkin = catSkin ? true : visibles.some(p => p._et.piel.length || p._et.necesidad.length);
   // Para la portada: "Comprá según tu piel" y "según tu necesidad"
   const atajos = ["piel", "necesidad"].map(k => { const f = TW_FILTROS.find(x => x.k === k); return { ...f, op: f.op.filter(o => visibles.some(p => p._et[k].includes(o[0]))) }; }).filter(f => f.op.length >= 2);
@@ -26018,6 +26211,9 @@ function TiendaPublica({ slug }) {
         ) : cat === "regalos" && !q && tienda.regalos ? (
           <TwRegalos r={tienda.regalos} tienda={tienda} modo={regModo} setModo={setRegModo} productos={visibles} dispo={dispo} foto={foto} ciudades={ciudades.length ? ciudades : tienda.retiro} lid={lid}
             datos={datos} setDatos={setDatos} pedir={pedir} slug={slug} modoRuta={modoRuta} onAgregar={agregarRegalo} onAbrir={abrir} onCompartir={compartirSeccion} copiado={seccionCopiada} />
+        ) : cat === "rutina" && !q ? (
+          <TwRutina productos={visibles} dispo={dispo} foto={foto} onAgregar={agregarRegalo} onAbrir={abrir} perfil={perfilPiel} onPerfil={guardarPerfilPiel}
+            onCompartir={() => compartirSeccion("Encontrá tu rutina")} copiado={seccionCopiada} />
         ) : cat === "videos" && !q ? (
           <>
             <div className="tw-lista-cab"><div><h1>{tienda.reels_titulo || "Videos"}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4, display: "flex", gap: 10, alignItems: "center" }}>{reels.length} {reels.length === 1 ? "video" : "videos"}<button className="tw-compartir-sec" onClick={() => compartirSeccion(tienda.reels_titulo || "Videos")}>{seccionCopiada ? "✓ Link copiado" : "🔗 Compartir"}</button></div></div></div>
@@ -26105,6 +26301,7 @@ function TiendaPublica({ slug }) {
             {tienda.regalos && tienda.regalos.tema === "general" && <TwRegalosHero r={tienda.regalos} tienda={tienda} onGift={() => irRegalos("gift")} onArmar={() => irRegalos("armar")} />}
             {bannersImg.length > 0 && <TwFila titulo="Destacados" items={destacados} render={tarjeta} />}
             {vistosLista.length >= 2 && <TwFila titulo="👀 Lo viste hace poco" items={vistosLista} render={tarjeta} />}
+            {hayRutina && <TwRutinaBanner onIr={() => irCat("rutina")} />}
             {preventas.length > 0 && <TwFila clase="tw-pre-bloque" items={preventas.slice(0, 12)} onVerTodo={() => irCat("preventa")} render={tarjeta}
               titulo={<>⏳ {tienda.preventa.titulo}</>}
               sub={<><div className="tw-pre-sub">Comprá en <mark>PREVENTA</mark></div><div className="tw-pre-txt">Todavía no llegaron al local: reservalos ahora y te avisamos por WhatsApp cuando estén para retirar.</div></>} />}
@@ -26211,7 +26408,7 @@ function TiendaPublica({ slug }) {
       )}
 
       {menuSkin && <TwMenuSkincare titulo={menuSkin === "*" ? "Skincare" : menuSkin} grupos={gruposMenu(menuSkin)}
-        onCerrar={() => setMenuSkin(null)} onTodo={() => { const c = menuSkin; setMenuSkin(null); irCat(c); }} onElegir={(k, v) => { const c = menuSkin; setMenuSkin(null); irCat(c, { [k]: v }); }} />}
+        onCerrar={() => setMenuSkin(null)} onTest={hayRutina ? () => { setMenuSkin(null); irCat("rutina"); } : null} onTodo={() => { const c = menuSkin; setMenuSkin(null); irCat(c); }} onElegir={(k, v) => { const c = menuSkin; setMenuSkin(null); irCat(c, { [k]: v }); }} />}
       {ver && (
         <>
           <div className="tw-velo" onClick={() => setVer(null)} />
