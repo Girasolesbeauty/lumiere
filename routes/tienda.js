@@ -36,7 +36,7 @@ router.get('/config', async (req, res) => {
     const neg = (await pool.query('SELECT nombre_negocio FROM configuracion_negocio LIMIT 1').catch(() => ({ rows: [] }))).rows[0] || {};
     const sugerido = String(neg.nombre_negocio || 'mi-tienda').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'mi-tienda';
     const dominio = await tienda.dominioDe(req.negocio ? req.negocio.id : 1).catch(() => null);
-    res.json({ ...c, ruleta: tienda.ruletaDe(c), preventa: tienda.preventaDe(c), referidos: tienda.referidosDe(c), ofertas: tienda.ofertasDe(c), regalos: tienda.regalosDe(c), regalos_hoy: tienda.temaRegaloHoy(tienda.regalosDe(c)), mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
+    res.json({ ...c, ruleta: tienda.ruletaDe(c), preventa: tienda.preventaDe(c), rutinas: tienda.rutinasDe(c), referidos: tienda.referidosDe(c), ofertas: tienda.ofertasDe(c), regalos: tienda.regalosDe(c), regalos_hoy: tienda.temaRegaloHoy(tienda.regalosDe(c)), mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la configuración' }); }
 });
 
@@ -751,6 +751,15 @@ router.put('/referidos', async (req, res) => {
     const r = tienda.referidosDe({ referidos: { activo: !!b.activo, pct: b.pct, puntos: b.puntos } });
     await pool.query('UPDATE tienda_config SET referidos = $1 WHERE id = 1', [JSON.stringify(r)]);
     res.json({ referidos: r });
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+});
+router.put('/rutinas', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño, el encargado o quien maneja la tienda' });
+    const r = tienda.rutinasDe({ rutinas: Array.isArray(req.body) ? req.body : (req.body || {}).rutinas });
+    for (const x of r) if (x.video_url && !tienda.videoRutina(x.video_url)) return res.status(400).json({ error: 'El video de "' + x.titulo + '" no es un link que podamos mostrar (Instagram, TikTok —el link largo— o YouTube).' });
+    await pool.query('UPDATE tienda_config SET rutinas = $1 WHERE id = 1', [JSON.stringify(r)]);
+    res.json({ rutinas: r });
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
 });
 router.put('/ofertas', async (req, res) => {
