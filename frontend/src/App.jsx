@@ -8234,6 +8234,18 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
                 <option value="">Proveedor: todos</option>
                 {provsTodos.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
+              <select className="sel" style={{ width: 190 }} value={ordenInv.campo + "-" + ordenInv.dir} onChange={e => { const [campo, dir] = e.target.value.split("-"); setOrdenInv({ campo, dir }); }} aria-label="Ordenar">
+                <option value="nombre-asc">Ordenar: nombre A → Z</option>
+                <option value="nombre-desc">Ordenar: nombre Z → A</option>
+                <option value="stock-desc">📦 Más stock primero</option>
+                <option value="stock-asc">Menos stock primero</option>
+                <option value="precio-desc">Mayor precio primero</option>
+                <option value="precio-asc">Menor precio primero</option>
+                <option value="margen-desc">Mayor margen primero</option>
+                <option value="margen-asc">Menor margen primero</option>
+                <option value="categoria-asc">Categoría A → Z</option>
+                <option value="categoria-desc">Categoría Z → A</option>
+              </select>
               <select className="sel" style={{ width: 130 }} value={filtroEstadoProd} onChange={e => setFiltroEstadoProd(e.target.value)} aria-label="Estado">
                 <option value="activos">Activos</option>
                 <option value="inactivos">Inactivos</option>
@@ -8244,6 +8256,9 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
               {[["", "Todo"], ["bajo", "⚠ Stock bajo"], ["sin", "⛔ Sin stock"], ["negativo", "➖ Stock negativo" + (cantNegativos ? " (" + cantNegativos + ")" : "")], ["reservas", "🔒 Con reservas"], ["incompletos", "📝 Datos incompletos" + (cantIncompletos ? " (" + cantIncompletos + ")" : "")], ["sin_costo", "Sin costo cargado"], ["sin_codigo", "Sin código"]].map(([id, l]) => (
                 <button key={id || "todo"} className={"chip-btn" + (filtroStock === id ? " on" : "")} aria-pressed={filtroStock === id} onClick={() => setFiltroStock(id)}>{l}</button>
               ))}
+              <button className={"chip-btn" + (ordenInv.campo === "stock" && ordenInv.dir === "desc" ? " on" : "")} aria-pressed={ordenInv.campo === "stock" && ordenInv.dir === "desc"}
+                title="Ordena la lista de mayor a menor stock. Se combina con los demás filtros (proveedor, marca, categoría)."
+                onClick={() => setOrdenInv(o => o.campo === "stock" && o.dir === "desc" ? { campo: "nombre", dir: "asc" } : { campo: "stock", dir: "desc" })}>📦 Más stock</button>
               <span style={{ flex: 1 }} />
               {hayFiltros && <button className="chip-btn" onClick={limpiarFiltros}>✕ Limpiar filtros</button>}
               {minimoAuto !== null && (
