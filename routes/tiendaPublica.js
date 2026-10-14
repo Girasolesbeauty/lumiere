@@ -13,6 +13,7 @@ const jwt = require('jsonwebtoken');
 const { cuentas } = require('./portal');
 const { VENTA_VALIDA, NIVELES, nivelPorGasto } = require('../lib/niveles');
 const logrosLib = require('../lib/logros');
+const misionesLib = require('../lib/misiones');
 
 // Tienda web publica (sin iniciar sesion): /api/tienda-publica/:slug/...
 // El slug dice de que negocio es; todo lo que sigue corre dentro del cajon de ese negocio.
@@ -848,6 +849,9 @@ router.get('/:slug/cuenta', conCuenta, async (req, res) => {
       const st = (await pool.query('SELECT COUNT(*)::int AS n, COALESCE(SUM(puntos), 0)::int AS pts FROM tienda_referidos WHERE referente_id = $1', [req.clienteId]).catch(() => ({ rows: [{}] }))).rows[0] || {};
       return codigo ? { codigo, pct: cfgAmiga.pct, puntos: cfgAmiga.puntos, invitadas: st.n || 0, ganados: st.pts || 0 } : null;
     })() : null;
+    // Misiones: primero (si cumplio alguna, acredita los puntos antes de leer sus datos)
+    const misiones = await misionesLib.misionesDeCliente(req.tienda, req.clienteId).catch(e => { console.error('[tienda] misiones:', e.message); return []; });
+    const dd = misiones.some(m => m.recien) ? await cuentas.datosDeCliente(req.clienteId) : d;
     const [logros, premios, canjes, pedidos] = await Promise.all([
       logrosLib.logrosDeCliente(req.clienteId, [d.nivel, nivelPorGasto(d.gastado, d.umbrales)].sort((x, y) => NIVELES.indexOf(y) - NIVELES.indexOf(x))[0], marca).catch(e => { console.error('[tienda] logros:', e.message); return []; }),
       cuentas.premiosDeCliente(req.clienteId).catch(() => []),
@@ -866,7 +870,7 @@ router.get('/:slug/cuenta', conCuenta, async (req, res) => {
     // Cada vez que entra se renueva la llave (si ya tiene mas de un dia): mientras use la tienda, no se sale
     let tokenNuevo = null;
     try { const t = jwt.decode(String(req.headers.authorization || '').replace(/^Bearer /, '')); if (t && t.iat && Date.now() / 1000 - t.iat > 86400) tokenNuevo = firmar(req, req.clienteId); } catch (e) {}
-    res.json({ ...d, compras: (d.compras || []).slice(0, 15), premios: premios.map(p => ({ ...p, descuento_pct: cuentas.descuentoDePremio(p) })), canjes: canjesInfo, pedidos, logros, amiga, falta_cumple: !((await pool.query('SELECT fecha_nacimiento FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).fecha_nacimiento, perfil_piel: ((await pool.query('SELECT perfil_piel FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).perfil_piel || null, token_nuevo: tokenNuevo });
+    res.json({ ...dd, misiones, compras: (dd.compras || []).slice(0, 15), premios: premios.map(p => ({ ...p, descuento_pct: cuentas.descuentoDePremio(p) })), canjes: canjesInfo, pedidos, logros, amiga, falta_cumple: !((await pool.query('SELECT fecha_nacimiento FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).fecha_nacimiento, perfil_piel: ((await pool.query('SELECT perfil_piel FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).perfil_piel || null, token_nuevo: tokenNuevo });
   } catch (e) { console.error('[tienda] cuenta:', e.message); res.status(500).json({ error: 'No pudimos cargar tu cuenta' }); }
 });
 
