@@ -23440,8 +23440,52 @@ const CSS_TIENDA = `
 .tw-tabs-cuenta{display:flex;border-bottom:1px solid var(--b);margin-bottom:14px}
 .tw-tabs-cuenta button{flex:1;background:none;border:none;padding:12px;font-size:14px;font-weight:700;cursor:pointer;border-bottom:2px solid transparent}
 .tw-tabs-cuenta button.on{border-bottom-color:var(--n)}
-.tw-puntos-card{background:linear-gradient(135deg,#111,#333);color:#fff;border-radius:10px;padding:18px 20px;margin-bottom:14px;animation:twSube .5s ease both}
+.tw-puntos-card{position:relative;overflow:hidden;background:linear-gradient(135deg,#111,#333);color:#fff;border-radius:14px;padding:18px 20px;margin-bottom:14px;animation:twSube .5s ease both;box-shadow:0 8px 22px rgba(0,0,0,.14)}
+.tw-puntos-card::after{content:"";position:absolute;inset:-40% -20% auto auto;width:70%;height:140%;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.28) 48%,transparent 62%);transform:rotate(8deg);pointer-events:none;animation:twBrillo 5s ease-in-out 1s infinite}
+@keyframes twBrillo{0%,70%{transform:translateX(-160%) rotate(8deg)}100%{transform:translateX(160%) rotate(8deg)}}
+.tw-puntos-card>*{position:relative;z-index:1}
+.tw-puntos-card.nivel-bronze{background:linear-gradient(135deg,#7a4a22,#b9773d 45%,#e2a970 75%,#a8662f);color:#fff8f0}
+.tw-puntos-card.nivel-silver{background:linear-gradient(135deg,#8a9097,#cfd4d9 40%,#f4f6f8 60%,#a9b0b7);color:#1f2328}
+.tw-puntos-card.nivel-gold{background:linear-gradient(135deg,#a7791f,#e3bf62 40%,#f8e6a8 60%,#c0942f);color:#2b1f05}
+.tw-puntos-card.nivel-platinum{background:linear-gradient(135deg,#5f5a7d,#a9a3c9 40%,#e7e3f5 60%,#7d76a3);color:#1e1a33}
+.tw-puntos-card.nivel-black{background:linear-gradient(135deg,#050505,#262626 55%,#0d0d0d);color:#fff;box-shadow:0 8px 22px rgba(0,0,0,.3),inset 0 0 0 1px rgba(201,168,76,.45)}
 .tw-nivel{margin-left:auto;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;background:#c9a84c;color:#111;border-radius:999px;padding:4px 10px}
+.nivel-bronze .tw-nivel{background:#fff3e6;color:#7a4a22}
+.nivel-silver .tw-nivel{background:#1f2328;color:#eef1f4}
+.nivel-gold .tw-nivel{background:#2b1f05;color:#f8e6a8}
+.nivel-platinum .tw-nivel{background:#1e1a33;color:#e7e3f5}
+.nivel-black .tw-nivel{background:linear-gradient(135deg,#c9a84c,#f3dc95);color:#111}
+.tw-niv-prox{margin-top:12px;padding-top:10px;border-top:1px solid currentColor;border-top-color:rgba(127,127,127,.35)}
+.tw-puntos-card .tw-barra-pts{background:rgba(0,0,0,.16)}
+.tw-puntos-card.nivel-black .tw-barra-pts,.tw-puntos-card.nivel-bronze .tw-barra-pts{background:rgba(255,255,255,.22)}
+.tw-puntos-card .tw-barra-pts i{background:currentColor}
+.tw-puntos-card.nivel-black .tw-barra-pts i{background:linear-gradient(90deg,#c9a84c,#f3dc95)}
+.tw-niv-extremos{display:flex;justify-content:space-between;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;opacity:.7;margin-top:4px}
+.tw .tw-logros-tira{display:flex;align-items:center;gap:12px;width:100%;background:#fffaf0;border:1px solid #f1e3c4;border-radius:12px;padding:10px 12px;margin-bottom:14px;cursor:pointer;color:#3a2e14;font-family:inherit}
+.tw-logros-tira b{display:block;font-size:13.5px}.tw-logros-tira small{display:block;font-size:12px;color:#8a7a55}
+.tw-logros-mini{display:flex}.tw-logros-mini i{font-style:normal;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;background:radial-gradient(circle at 35% 30%,#fffdf6,#f5e7c8);box-shadow:0 0 0 2px #fff,0 0 0 3px #d9b65e;margin-left:-6px}
+.tw-logros-mini i:first-child{margin-left:0}.tw-logros-mini i.off{filter:grayscale(1);opacity:.5;box-shadow:0 0 0 2px #fff,0 0 0 3px #ddd}
+.tw-logros-cab{margin:4px 0 12px}.tw-logros-cab b{font-size:13.5px}
+.tw-logros{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 8px;padding-bottom:6px}
+.tw .tw-medalla{display:flex;flex-direction:column;align-items:center;gap:5px;background:none;border:none;padding:4px 2px;cursor:pointer;font-family:inherit;color:#222;text-align:center;animation:twSube .45s ease both;animation-delay:calc(var(--i) * 35ms)}
+.tw-medalla b{font-size:11.5px;line-height:1.25}
+.tw-medalla small{font-size:10.5px;color:#999;font-weight:700}.tw-medalla small.ok{color:#2d7a4f}
+.tw-med-disco{position:relative;width:64px;height:64px;border-radius:50%;padding:3px;background:#e4e4e4;transition:transform .25s;margin-bottom:9px}
+.tw-med-disco>span{display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:50%;background:#f6f6f6;font-size:27px;filter:grayscale(1);opacity:.45;box-shadow:inset 0 0 0 2px #fff}
+.tw-med-disco::before,.tw-med-disco::after{content:"";position:absolute;bottom:-9px;width:12px;height:16px;background:#ddd;z-index:-1;clip-path:polygon(0 0,100% 0,100% 100%,50% 75%,0 100%)}
+.tw-med-disco::before{left:17px;transform:rotate(14deg)}.tw-med-disco::after{right:17px;transform:rotate(-14deg)}
+.tw-medalla.ok .tw-med-disco{background:conic-gradient(from 210deg,#b8892d,#f6dd8f,#c9a227,#fff1c4,#b8892d);box-shadow:0 4px 12px rgba(184,137,45,.3)}
+.tw-medalla.ok .tw-med-disco>span{filter:none;opacity:1;background:radial-gradient(circle at 35% 28%,#fffefa,#fbefd6 70%,#f3dfb4);box-shadow:inset 0 0 0 2px rgba(255,255,255,.85),inset 0 -4px 8px rgba(184,137,45,.18)}
+.tw-medalla.ok .tw-med-disco::before,.tw-medalla.ok .tw-med-disco::after{background:#f2b8c6}
+.tw-medalla.ok .tw-med-disco>span::after{content:"";position:absolute;inset:3px;border-radius:50%;background:linear-gradient(120deg,transparent 35%,rgba(255,255,255,.75) 50%,transparent 65%);background-size:250% 100%;animation:twMedBrillo 3.5s ease-in-out infinite;animation-delay:calc(var(--i) * 300ms)}
+@keyframes twMedBrillo{0%,60%{background-position:150% 0}100%{background-position:-60% 0}}
+.tw-medalla:hover .tw-med-disco,.tw-medalla.sel .tw-med-disco{transform:translateY(-3px) scale(1.04)}
+.tw-medalla.sel b{text-decoration:underline;text-underline-offset:3px}
+.tw-med-detalle{display:flex;gap:12px;align-items:center;background:#f7f7f7;border-radius:12px;padding:12px;margin-bottom:14px;animation:twSube .3s ease both}
+.tw-med-detalle.ok{background:#fffaf0;border:1px solid #f1e3c4}
+.tw-med-detalle-ic{font-size:30px;line-height:1}.tw-med-detalle:not(.ok) .tw-med-detalle-ic{filter:grayscale(1);opacity:.5}
+.tw-med-detalle b{display:block;font-size:14px}.tw-med-detalle small{display:block;font-size:12.5px;color:#666;margin:2px 0}
+.tw-med-detalle em{font-style:normal;font-size:12px;font-weight:800;color:#8a7a55}.tw-med-detalle.ok em{color:#2d7a4f}
 .tw-barra-pts{height:6px;border-radius:3px;background:rgba(255,255,255,.2);overflow:hidden;margin-top:6px}
 .tw-barra-pts i{display:block;height:100%;background:#c9a84c;border-radius:3px;transition:width .8s cubic-bezier(.2,.7,.2,1)}
 .tw-barra-pts.gris{background:#eee}
@@ -25815,13 +25859,30 @@ function TiendaPublica({ slug }) {
     const proximo = premios.filter(pr => !pr.agotado && !pr.fuera_de_mes && pr.falta > 0).sort((a, b) => a.falta - b.falta)[0];
     const codigos = (miCuenta.canjes || []).filter(c => c.cupon && c.cupon.usable);
     const pestana = formCuenta.pestana || "premios";
+    // Nivel: sale de todo lo que compró (no de los puntos que le quedan); 1 punto = pesos_por_punto de compra
+    const NIV = ["Bronze", "Silver", "Gold", "Platinum", "Black"];
+    const umbN = miCuenta.umbrales || {}, ppp = miCuenta.pesos_por_punto || 100, gastado = parseFloat(miCuenta.gastado) || 0;
+    // El mayor entre el nivel guardado y el que corresponde por lo comprado (por si el guardado quedó atrasado)
+    const iPorGasto = NIV.reduce((m, n, i) => (i > 0 && umbN[n] && gastado >= umbN[n] ? i : m), 0);
+    const iNiv = Math.max(Math.max(0, NIV.indexOf(miCuenta.nivel)), iPorGasto), nivelC = NIV[iNiv], sigNiv = NIV[iNiv + 1] || null;
+    const desdeN = iNiv === 0 ? 0 : (umbN[nivelC] || 0), hastaN = sigNiv ? umbN[sigNiv] : null;
+    const faltaNivPts = hastaN ? Math.max(1, Math.ceil((hastaN - gastado) / ppp)) : 0;
+    const pctNiv = hastaN ? Math.max(3, Math.min(100, (gastado - desdeN) / Math.max(1, hastaN - desdeN) * 100)) : 100;
+    const logros = miCuenta.logros || [];
+    const logrosOk = logros.filter(l => l.ok);
+    const medSel = logros.find(l => l.id === formCuenta.medalla) || null;
     const tab = (k, t, n) => <button className={pestana === k ? "on" : ""} onClick={() => setFormCuenta(x => ({ ...x, pestana: k }))}>{t}{n ? <span>{n}</span> : null}</button>;
     return (
       <div className="tw-cajon-cuerpo">
-        <div className="tw-puntos-card">
+        <div className={"tw-puntos-card nivel-" + nivelC.toLowerCase()}>
           <div style={{ fontSize: 13, opacity: .85 }}>Hola, {String(miCuenta.nombre || "").split(" ")[0]} 👋</div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8, margin: "6px 0 2px" }}><span style={{ fontSize: 42, fontWeight: 800, lineHeight: 1 }}>{pts.toLocaleString("es-AR")}</span><span style={{ fontSize: 15, fontWeight: 700 }}>puntos</span>{miCuenta.nivel && <span className="tw-nivel">{miCuenta.nivel}</span>}</div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, margin: "6px 0 2px" }}><span style={{ fontSize: 42, fontWeight: 800, lineHeight: 1 }}>{pts.toLocaleString("es-AR")}</span><span style={{ fontSize: 15, fontWeight: 700 }}>puntos</span>{miCuenta.nivel && <span className="tw-nivel">{nivelC}</span>}</div>
           <div style={{ fontSize: 12.5, opacity: .8 }}>Sumás 1 punto cada {fmtTienda(miCuenta.pesos_por_punto || 100)} de compra</div>
+          {miCuenta.umbrales && (sigNiv ? <div className="tw-niv-prox">
+            <div style={{ fontSize: 12.5 }}>Te {faltaNivPts === 1 ? "falta" : "faltan"} <b>{faltaNivPts.toLocaleString("es-AR")} {faltaNivPts === 1 ? "punto" : "puntos"}</b> para ser <b>{sigNiv}</b> <span style={{ opacity: .75 }}>(≈ {fmtTienda(faltaNivPts * ppp)} en compras)</span></div>
+            <div className="tw-barra-pts tw-barra-niv"><i style={{ width: pctNiv + "%" }} /></div>
+            <div className="tw-niv-extremos"><span>{nivelC}</span><span>{sigNiv}</span></div>
+          </div> : <div className="tw-niv-prox" style={{ fontSize: 12.5 }}>✦ ¡Llegaste al nivel máximo! Gracias por elegirnos siempre.</div>)}
           {proximo && <div style={{ marginTop: 12 }}>
             <div style={{ fontSize: 12.5 }}>Te faltan <b>{proximo.falta.toLocaleString("es-AR")}</b> para <b>{proximo.nombre}</b></div>
             <div className="tw-barra-pts"><i style={{ width: Math.min(100, pts / proximo.puntos_requeridos * 100) + "%" }} /></div>
@@ -25834,8 +25895,15 @@ function TiendaPublica({ slug }) {
           {canjeHecho.descuento_pct > 0 && <button className="tw-btn" style={{ marginTop: 10, padding: "10px 18px", fontSize: 12 }} onClick={() => { setCuponIn(canjeHecho.codigo); setPaso(carrito.length ? "carrito" : null); }}>Usar ahora</button>}
         </div>}
         {avisoCuenta && <div role="alert" style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, fontSize: 13.5, fontWeight: 600, marginBottom: 10 }}>{avisoCuenta}</div>}
+        {logros.length > 0 && pestana !== "logros" && (
+          <button className="tw-logros-tira" onClick={() => setFormCuenta(x => ({ ...x, pestana: "logros" }))}>
+            <span className="tw-logros-mini">{(logrosOk.length ? logrosOk : logros).slice(-4).map(l => <i key={l.id} className={l.ok ? "" : "off"}>{l.icono}</i>)}</span>
+            <span style={{ flex: 1, textAlign: "left" }}><b>Tus logros</b><small>{logrosOk.length} de {logros.length} medallas</small></span>
+            <TwIcono d={TW_DER} size={16} />
+          </button>
+        )}
         <div className="tw-tabs-cuenta tw-tabs-chicas">
-          {tab("premios", "Premios")}{tab("codigos", "Mis códigos", codigos.length)}{tab("resenas", "Reseñas", misRes ? misRes.para_resenar.length : 0)}{tab("pedidos", "Pedidos")}{tab("compras", "Compras")}
+          {tab("premios", "Premios")}{logros.length > 0 && tab("logros", "Logros")}{tab("codigos", "Mis códigos", codigos.length)}{tab("resenas", "Reseñas", misRes ? misRes.para_resenar.length : 0)}{tab("pedidos", "Pedidos")}{tab("compras", "Compras")}
         </div>
         {pestana === "premios" && (premios.length === 0 ? <p className="tw-vacio">Todavía no hay premios para canjear.</p> : (
           <div className="tw-premios">
@@ -25852,6 +25920,29 @@ function TiendaPublica({ slug }) {
             ))}
           </div>
         ))}
+        {pestana === "logros" && (
+          <div className="tw-logros-sec">
+            <div className="tw-logros-cab">
+              <b>{logrosOk.length} de {logros.length} medallas</b>
+              <div className="tw-barra-pts gris"><i style={{ width: (logros.length ? logrosOk.length / logros.length * 100 : 0) + "%" }} /></div>
+            </div>
+            {medSel && <div className={"tw-med-detalle" + (medSel.ok ? " ok" : "")} key={medSel.id}>
+              <span className="tw-med-detalle-ic">{medSel.icono}</span>
+              <span style={{ flex: 1, minWidth: 0 }}><b>{medSel.nombre}</b><small>{medSel.desc}</small>
+                <em>{medSel.ok ? "✓ ¡Lo lograste!" : medSel.meta > 1 ? "Vas " + medSel.n + " de " + medSel.meta : "Todavía no"}</em></span>
+            </div>}
+            <div className="tw-logros">
+              {[...logrosOk, ...logros.filter(l => !l.ok)].map((l, i) => (
+                <button key={l.id} className={"tw-medalla" + (l.ok ? " ok" : "") + (medSel && medSel.id === l.id ? " sel" : "")} style={{ "--i": i }}
+                  onClick={() => setFormCuenta(x => ({ ...x, medalla: x.medalla === l.id ? null : l.id }))} aria-label={l.nombre + (l.ok ? ", lograda" : ", bloqueada")}>
+                  <span className="tw-med-disco"><span>{l.icono}</span></span>
+                  <b>{l.nombre}</b>
+                  {l.ok ? <small className="ok">✓ Lograda</small> : l.meta > 1 ? <small>{l.n}/{l.meta}</small> : <small>🔒</small>}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {pestana === "resenas" && (!misRes ? <div className="tw-skel" style={{ height: 100 }} /> : (
           <div>
             {misRes.para_resenar.length > 0 ? <>
