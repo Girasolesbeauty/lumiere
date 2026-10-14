@@ -23349,8 +23349,21 @@ const CSS_TIENDA = `
 .tw-inp{width:100%;padding:13px 14px;border-radius:6px;border:1px solid #ccc;font-size:16px;font-family:inherit;background:#fff;transition:border-color .2s}
 .tw-inp:focus{outline:none;border-color:var(--n)}
 .tw-lbl{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin:18px 0 8px}
-.tw-op{display:block;border:1.5px solid var(--b);border-radius:6px;padding:12px 14px;margin-bottom:8px;cursor:pointer;background:#fff;width:100%;text-align:left;font-size:15px;transition:border-color .2s,background .2s}
-.tw-op.on{border-color:var(--n);background:var(--g)}
+.tw-op{display:block;position:relative;border:2px solid #cfcfcf;border-radius:10px;padding:13px 14px 13px 50px;margin-bottom:10px;cursor:pointer;background:#fff;width:100%;text-align:left;font-size:15px;box-shadow:0 1px 3px rgba(0,0,0,.06);transition:border-color .2s,background .2s,box-shadow .2s}
+.tw-op::before{content:"";position:absolute;left:15px;top:14px;width:22px;height:22px;box-sizing:border-box;border-radius:50%;border:2px solid #aaa;background:#fff;transition:all .2s}
+.tw-op:hover{border-color:#888}
+.tw-op.on{border-color:var(--n);background:var(--g);box-shadow:0 0 0 1px var(--n),0 2px 8px rgba(0,0,0,.08)}
+.tw-op.on::before{border-color:var(--n);background:var(--n) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center/13px no-repeat}
+.tw-op.falta{border-color:#e0a0a0;background:#fff8f7;animation:twFaltaOp 1.2s ease 2}
+.tw-op.falta::before{border-color:#d9534f}
+@keyframes twFaltaOp{0%,100%{box-shadow:0 0 0 0 rgba(217,83,79,0)}50%{box-shadow:0 0 0 4px rgba(217,83,79,.25)}}
+.tw-paso{display:flex;align-items:center;gap:8px;flex-wrap:wrap;scroll-margin-top:12px}
+.tw-paso-n{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--n);color:#fff;font-size:11.5px;letter-spacing:0}
+.tw-paso-n.ok{background:#2d7a4f}
+.tw-falta-tag{background:#d9534f;color:#fff;border-radius:999px;padding:3px 9px;font-size:10.5px;letter-spacing:.04em}
+.tw-faltan{background:#fff6e5;color:#8a5a00;border:1px solid #f0d49b;border-radius:8px;padding:9px 11px;margin-bottom:10px;font-size:13.5px;line-height:1.4}
+.tw-faltan.fuerte{background:#fdecea;color:#b0322a;border-color:#f1b5b0}
+.tw .tw-btn.apagado{opacity:.45}
 .tw-ficha{position:fixed;inset:0;z-index:41;display:flex;align-items:center;justify-content:center;padding:24px;pointer-events:none}
 .tw-ficha-in{pointer-events:auto;background:#fff;width:100%;max-width:1040px;max-height:calc(100vh - 48px);overflow-y:auto;border-radius:8px;position:relative;animation:twFicha .45s cubic-bezier(.2,.8,.2,1) both}
 @keyframes twFicha{from{opacity:0;transform:translateY(30px) scale(.98)}to{opacity:1;transform:none}}
@@ -25179,6 +25192,7 @@ function TiendaPublica({ slug }) {
   const [datos, setDatos] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_datos") || "{}"); } catch (e) { return {}; } });
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState("");
+  const [intentoPedir, setIntentoPedir] = useState(false);
   const [toast, setToast] = useState(null);
   const [salto, setSalto] = useState(0);
   const [slide, setSlide] = useState(0);
@@ -25662,6 +25676,18 @@ function TiendaPublica({ slug }) {
   const opcionesPago = [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["gocuotas", "💜 GoCuotas", "Hasta 4 cuotas sin interés con tu tarjeta de débito"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar"], ["retiro", "💵 Pago al retirar", "Pagás en el local"]]
     .filter(([k]) => tienda.pagos[k] && !(k === "retiro" && datos.entrega === "envio"));
   const listoParaPedir = lid && datos.nombre && datos.telefono && datos.entrega && (datos.pago || gcCubre) && (datos.entrega === "retiro" ? retiroAca.length > 0 : (zona && datos.direccion));
+  const faltaDatos = !datos.nombre || !datos.telefono;
+  const faltaEntrega = !lid || !datos.entrega || (datos.entrega === "retiro" && !retiroAca.length);
+  const faltaEnvio = datos.entrega === "envio" && (!zona || !datos.direccion);
+  const faltaPago = !datos.pago && !gcCubre;
+  const faltan = [!lid && "elegir tu ciudad", !datos.nombre && "tu nombre", !datos.telefono && "tu WhatsApp", lid && !datos.entrega && "cómo lo recibís (retiro o envío)",
+    datos.entrega === "envio" && !zona && "tu zona de envío", datos.entrega === "envio" && !datos.direccion && "la dirección", faltaPago && "cómo pagás"].filter(Boolean);
+  const irAPedir = () => {
+    if (listoParaPedir) { setIntentoPedir(false); return confirmar(); }
+    setIntentoPedir(true);
+    const el = document.getElementById(faltaDatos ? "tw-ck-datos" : faltaEntrega || faltaEnvio ? "tw-ck-entrega" : "tw-ck-pago");
+    el && el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
   const problemas = carrito.filter(i => i.cantidad > maxDeItem(i));
   const ajustarCarrito = () => setCarrito(c => c.map(i => ({ ...i, cantidad: Math.min(i.cantidad, maxDeItem(i)) })).filter(i => i.cantidad > 0));
   const vidVer = ver && ver.video ? (ver.video.tipo === "youtube" ? { iframe: "https://www.youtube-nocookie.com/embed/" + ver.video.id + "?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1" }
@@ -26199,15 +26225,15 @@ function TiendaPublica({ slug }) {
                 <div className="tw-cajon-cuerpo">
                   {logueada && miCuenta ? <div className="tw-progreso" style={{ marginBottom: 12 }}>👋 Comprás como <b>{miCuenta.nombre}</b>. Esta compra suma puntos a tu cuenta.</div>
                     : <TwSumaConCuenta monto={subtotal - descuentoCupon} onIngresar={() => irACuenta("datos")} onCrear={() => irACuenta("datos", "crear")} />}
-                  <div className="tw-lbl" style={{ marginTop: 0 }}>Tus datos</div>
+                  <div id="tw-ck-datos" className="tw-lbl tw-paso" style={{ marginTop: 0 }}><span className={"tw-paso-n" + (faltaDatos ? "" : " ok")}>{faltaDatos ? "1" : "✓"}</span>Tus datos{intentoPedir && faltaDatos && <span className="tw-falta-tag">Falta completar</span>}</div>
                   <input className="tw-inp" placeholder="Nombre y apellido" autoComplete="name" value={datos.nombre || ""} onChange={e => setDatos(d => ({ ...d, nombre: e.target.value }))} style={{ marginBottom: 8 }} />
                   <input className="tw-inp" placeholder="WhatsApp (ej: 2964 123456)" inputMode="tel" autoComplete="tel" value={datos.telefono || ""} onChange={e => setDatos(d => ({ ...d, telefono: e.target.value }))} style={{ marginBottom: 8 }} />
                   <input className="tw-inp" placeholder="Email (opcional)" inputMode="email" autoComplete="email" value={datos.email || ""} onChange={e => setDatos(d => ({ ...d, email: e.target.value }))} />
-                  <div className="tw-lbl">¿Cómo lo recibís?</div>
+                  <div id="tw-ck-entrega" className="tw-lbl tw-paso"><span className={"tw-paso-n" + (faltaEntrega || faltaEnvio ? "" : " ok")}>{faltaEntrega || faltaEnvio ? "2" : "✓"}</span>¿Cómo lo recibís?{intentoPedir && (faltaEntrega || faltaEnvio) && <span className="tw-falta-tag">{faltaEntrega ? "Tocá una opción" : "Falta completar"}</span>}</div>
                   {ciudad && <div style={{ fontSize: 13, color: "#666", marginBottom: 8 }}>Comprás en <b>{ciudad.nombre}</b>. {ciudades.length > 1 && <button style={{ background: "none", border: "none", padding: 0, textDecoration: "underline", cursor: "pointer", fontSize: 13 }} onClick={() => setEligeCiudad(true)}>Cambiar</button>}</div>}
-                  {retiroAca.map(l => <button key={l.id} className={"tw-op" + (datos.entrega === "retiro" ? " on" : "")} onClick={() => setDatos(d => ({ ...d, entrega: "retiro", local_id: l.id }))}>📍 <b>Retiro en {l.nombre}</b>{l.direccion ? <div style={{ fontSize: 13, color: "#666" }}>{l.direccion}</div> : null}<div style={{ fontSize: 13, color: "#2d7a4f" }}>Sin costo</div></button>)}
+                  {retiroAca.map(l => <button key={l.id} className={"tw-op" + (datos.entrega === "retiro" && datos.local_id === l.id ? " on" : "") + (intentoPedir && faltaEntrega ? " falta" : "")} onClick={() => setDatos(d => ({ ...d, entrega: "retiro", local_id: l.id }))}>📍 <b>Retiro en {l.nombre}</b>{l.direccion ? <div style={{ fontSize: 13, color: "#666" }}>{l.direccion}</div> : null}<div style={{ fontSize: 13, color: "#2d7a4f" }}>Sin costo</div></button>)}
                   {envioAca && (
-                    <button className={"tw-op" + (datos.entrega === "envio" ? " on" : "")} onClick={() => setDatos(d => ({ ...d, entrega: "envio", pago: d.pago === "retiro" ? null : d.pago }))}>🛵 <b>Envío a domicilio</b><div style={{ fontSize: 13, color: "#666" }}>{envioGratis ? "¡Gratis por tu compra!" : "El costo depende de la zona"}{gratisDesde && !envioGratis ? " · gratis desde " + fmtTienda(gratisDesde) : ""}</div></button>
+                    <button className={"tw-op" + (datos.entrega === "envio" ? " on" : "") + (intentoPedir && faltaEntrega ? " falta" : "")} onClick={() => setDatos(d => ({ ...d, entrega: "envio", pago: d.pago === "retiro" ? null : d.pago }))}>🛵 <b>Envío a domicilio</b><div style={{ fontSize: 13, color: "#666" }}>{envioGratis ? "¡Gratis por tu compra!" : "El costo depende de la zona"}{gratisDesde && !envioGratis ? " · gratis desde " + fmtTienda(gratisDesde) : ""}</div></button>
                   )}
                   {datos.entrega === "envio" && envioAca && (
                     <>
@@ -26231,8 +26257,8 @@ function TiendaPublica({ slug }) {
                     </div>
                   )}
                   {avisoGc && <div style={{ color: "#c0392b", fontSize: 13, marginTop: 6 }}>{avisoGc}</div>}
-                  <div className="tw-lbl">{gcOk && !gcCubre ? "¿Cómo pagás el resto (" + fmtTienda(totalPagar) + ")?" : "¿Cómo pagás?"}</div>
-                  {gcCubre ? <div className="tw-cupon" style={{ padding: "10px 12px", fontSize: 14 }}>✓ <b>Lo pagás todo con tu gift card.</b> No hace falta otra forma de pago.</div> : opcionesPago.map(([k, t, d]) => <button key={k} className={"tw-op" + (datos.pago === k ? " on" : "")} onClick={() => setDatos(x => ({ ...x, pago: k }))}><b>{t}</b>{descPagos[k] > 0 && <span className="tw-op-off">{String(descPagos[k]).replace(".", ",")}% OFF</span>}<div style={{ fontSize: 13, color: "#666" }}>{d}</div></button>)}
+                  <div id="tw-ck-pago" className="tw-lbl tw-paso"><span className={"tw-paso-n" + (faltaPago ? "" : " ok")}>{faltaPago ? "3" : "✓"}</span>{gcOk && !gcCubre ? "¿Cómo pagás el resto (" + fmtTienda(totalPagar) + ")?" : "¿Cómo pagás?"}{intentoPedir && faltaPago && <span className="tw-falta-tag">Tocá una opción</span>}</div>
+                  {gcCubre ? <div className="tw-cupon" style={{ padding: "10px 12px", fontSize: 14 }}>✓ <b>Lo pagás todo con tu gift card.</b> No hace falta otra forma de pago.</div> : opcionesPago.map(([k, t, d]) => <button key={k} className={"tw-op" + (datos.pago === k ? " on" : "") + (intentoPedir && faltaPago ? " falta" : "")} onClick={() => setDatos(x => ({ ...x, pago: k }))}><b>{t}</b>{descPagos[k] > 0 && <span className="tw-op-off">{String(descPagos[k]).replace(".", ",")}% OFF</span>}<div style={{ fontSize: 13, color: "#666" }}>{d}</div></button>)}
                   <div className="tw-lbl">¿Tenés un código de descuento?</div>
                   {cuponOk ? (
                     <div className="tw-cupon" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "10px 12px" }}>
@@ -26260,9 +26286,10 @@ function TiendaPublica({ slug }) {
                   <div className="tw-linea" style={{ fontWeight: 800, fontSize: 19, marginBottom: 12 }}><span>{gcUsa > 0 ? "Total a pagar" : "Total"}</span><span><TwRueda key={"t" + (cuponOk ? cuponOk.codigo : "") + datos.pago + (gcOk ? gcOk.codigo : "")} valor={totalPagar} desde={subtotal + costoEnvio} formato={fmtTienda} dur={1000} /></span></div>
                   {logueada && <TwPuntos monto={subtotal - descuentoCupon} tengo={miCuenta ? (miCuenta.puntos || 0) : null} />}
                   {tienda.ruleta && tienda.ruleta.aviso && <TwRuletaAviso monto={subtotal - descuentoCupon} minimo={tienda.ruleta.minimo} />}
+                  {faltan.length > 0 && <div className={"tw-faltan" + (intentoPedir ? " fuerte" : "")} role="status">⚠️ Para seguir te falta: <b>{faltan.join(", ")}</b></div>}
                   <div style={{ display: "flex", gap: 8 }}>
                     <button className="tw-btn2" onClick={() => setPaso("carrito")}>Atrás</button>
-                    <button className="tw-btn full" disabled={!listoParaPedir || enviando} onClick={confirmar}>{enviando ? "Enviando…" : !gcCubre && (datos.pago === "mp" || datos.pago === "gocuotas") ? "Ir a pagar" : "Hacer el pedido"}</button>
+                    <button className={"tw-btn full" + (listoParaPedir ? "" : " apagado")} disabled={enviando} aria-disabled={!listoParaPedir} onClick={irAPedir}>{enviando ? "Enviando…" : !gcCubre && (datos.pago === "mp" || datos.pago === "gocuotas") ? "Ir a pagar" : "Hacer el pedido"}</button>
                   </div>
                 </div>
               </>
