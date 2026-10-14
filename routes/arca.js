@@ -4,9 +4,10 @@ const forge = require('node-forge');
 const axios = require('axios');
 const pool = require('../config/database');
 const { acreditarEfectivoEnCaja } = require('../controllers/ventasController');
+const { porNegocio } = require('../lib/contexto');
 
-const WSAA_URL = 'https://wsaa.afip.gov.ar/ws/services/LoginCms';
-const WSFE_URL = 'https://servicios1.afip.gov.ar/wsfev1/service.asmx';
+const WSAA_URL = process.env.ARCA_WSAA_URL || 'https://wsaa.afip.gov.ar/ws/services/LoginCms';
+const WSFE_URL = process.env.ARCA_WSFE_URL || 'https://servicios1.afip.gov.ar/wsfev1/service.asmx';
 
 // Lee los datos fiscales (CUIT, punto de venta, certificado y clave) desde la configuracion
 // del negocio guardada en la base. Si algun campo no esta cargado ahi, cae a las variables
@@ -105,8 +106,13 @@ async function obtenerToken(cfg) {
   return { token, sign };
 }
 
-async function obtenerUltimoComprobante(tipo, token, sign, cfg) {
-  const tipoNum = tipo === 'A' ? 1 : tipo === 'B' ? 6 : 11;
+// Codigo de comprobante en ARCA: facturas A=1, B=6, C=11; notas de credito A=3, B=8, C=13
+const codigoComprobante = (tipo, notaCredito) => notaCredito
+  ? (tipo === 'A' ? 3 : tipo === 'B' ? 8 : 13)
+  : (tipo === 'A' ? 1 : tipo === 'B' ? 6 : 11);
+
+async function obtenerUltimoComprobante(tipo, token, sign, cfg, notaCredito = false) {
+  const tipoNum = codigoComprobante(tipo, notaCredito);
   const soapBody = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
   <soap:Body>
@@ -128,28 +134,26 @@ async function obtenerUltimoComprobante(tipo, token, sign, cfg) {
   return (nroMatch ? parseInt(nroMatch[1]) : 0) + 1;
 }
 
+// Tipo y numero de documento de la clienta (CUIT, DNI o consumidor final)
+function documentoCliente(tipo, cliente_cuit) {
+  const docLimpio = cliente_cuit ? cliente_cuit.toString().replace(/[^0-9]/g, '') : '';
+  if (tipo === 'A') return { docTipo: 80, docNro: docLimpio || 0 };
+  if (docLimpio.length === 11) return { docTipo: 80, docNro: docLimpio };
+  if (docLimpio.length === 7 || docLimpio.length === 8) return { docTipo: 96, docNro: docLimpio };
+  return { docTipo: 99, docNro: 0 };
+}
+
 // --- Logica reutilizable: pedir CAE para una venta puntual ---
 async function intentarEmitirCAE({ tipo, items, total, cliente_cuit, venta_id }) {
   const cfg = await obtenerConfigArca();
   const { token, sign } = await obtenerToken(cfg);
-  const tipoNum = tipo === 'A' ? 1 : tipo === 'B' ? 6 : 11;
+  const tipoNum = codigoComprobante(tipo, false);
   const nroComprobante = await obtenerUltimoComprobante(tipo, token, sign, cfg);
   const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).replace(/-/g, '');
   const ivaTotal = 0;
   const neto = total;
 
-  const docLimpio = cliente_cuit ? cliente_cuit.toString().replace(/[^0-9]/g, '') : '';
-  let docTipo, docNro;
-  if (tipo === 'A') {
-    docTipo = 80;
-    docNro = docLimpio || 0;
-  } else if (docLimpio.length === 11) {
-    docTipo = 80; docNro = docLimpio;
-  } else if (docLimpio.length === 7 || docLimpio.length === 8) {
-    docTipo = 96; docNro = docLimpio;
-  } else {
-    docTipo = 99; docNro = 0;
-  }
+  const { docTipo, docNro } = documentoCliente(tipo, cliente_cuit);
 
   const soapBody = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
@@ -367,6 +371,158 @@ router.post('/reintentar/:venta_id', async (req, res) => {
   } catch (error) {
     await marcarError(req.params.venta_id, error.message);
     res.status(500).json({ error: 'Error al emitir factura: ' + error.message });
+  }
+});
+
+// --- Notas de credito ---
+// Anulan (total o parcialmente) una factura que ya tiene CAE. Es solo el comprobante fiscal:
+// no devuelve stock ni mueve la caja (eso se hace con Cambios / anular venta como siempre).
+const listaNC = porNegocio(false);
+async function asegurarNC() {
+  if (listaNC.get()) return;
+  await pool.query(`CREATE TABLE IF NOT EXISTS notas_credito (
+    id SERIAL PRIMARY KEY,
+    venta_id INT NOT NULL,
+    tipo CHAR(1) NOT NULL,
+    punto_venta INT NOT NULL,
+    nro INT NOT NULL,
+    cae TEXT NOT NULL,
+    cae_vto TEXT,
+    importe NUMERIC(14,2) NOT NULL,
+    motivo TEXT,
+    usuario_id INT,
+    usuario_nombre TEXT,
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW())`);
+  await pool.query('CREATE INDEX IF NOT EXISTS notas_credito_venta_idx ON notas_credito (venta_id)');
+  listaNC.set(true);
+}
+const puedeHacerNC = (req) => req.usuario && ['jefe', 'admin', 'administrativo'].includes(req.usuario.rol);
+const redondear = (n) => Math.round(n * 100) / 100;
+
+async function pedirCAENotaCredito({ cfg, token, sign, venta, importe }) {
+  const tipo = venta.tipo_factura || 'B';
+  const tipoNum = codigoComprobante(tipo, true);
+  const nro = await obtenerUltimoComprobante(tipo, token, sign, cfg, true);
+  const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).replace(/-/g, '');
+  const { docTipo, docNro } = documentoCliente(tipo, venta.cliente_cuit);
+  const ptoVtaFactura = parseInt(venta.punto_venta) || cfg.puntoVenta;
+  const soapBody = `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <FECAESolicitar xmlns="http://ar.gov.afip.dif.FEV1/">
+      <Auth>
+        <Token>${token}</Token>
+        <Sign>${sign}</Sign>
+        <Cuit>${cfg.cuit}</Cuit>
+      </Auth>
+      <FeCAEReq>
+        <FeCabReq>
+          <CantReg>1</CantReg>
+          <PtoVta>${cfg.puntoVenta}</PtoVta>
+          <CbteTipo>${tipoNum}</CbteTipo>
+        </FeCabReq>
+        <FeDetReq>
+          <FECAEDetRequest>
+            <Concepto>1</Concepto>
+            <DocTipo>${docTipo}</DocTipo>
+            <DocNro>${docNro}</DocNro>
+            <CbteDesde>${nro}</CbteDesde>
+            <CbteHasta>${nro}</CbteHasta>
+            <CbteFch>${hoy}</CbteFch>
+            <ImpTotal>${importe}</ImpTotal>
+            <ImpTotConc>0</ImpTotConc>
+            <ImpNeto>0</ImpNeto>
+            <ImpOpEx>${importe}</ImpOpEx>
+            <ImpIVA>0</ImpIVA>
+            <ImpTrib>0</ImpTrib>
+            <MonId>PES</MonId>
+            <MonCotiz>1</MonCotiz>
+            <CbtesAsoc>
+              <CbteAsoc>
+                <Tipo>${codigoComprobante(tipo, false)}</Tipo>
+                <PtoVta>${ptoVtaFactura}</PtoVta>
+                <Nro>${venta.nro_comprobante}</Nro>
+                <Cuit>${cfg.cuit}</Cuit>
+              </CbteAsoc>
+            </CbtesAsoc>
+            ${tipo === 'A' ? `<Iva><AlicIva><Id>5</Id><BaseImp>${importe}</BaseImp><Importe>0</Importe></AlicIva></Iva>` : ''}
+          </FECAEDetRequest>
+        </FeDetReq>
+      </FeCAEReq>
+    </FECAESolicitar>
+  </soap:Body>
+</soap:Envelope>`;
+  const response = await axios.post(WSFE_URL, soapBody, {
+    headers: { 'Content-Type': 'text/xml', 'SOAPAction': 'http://ar.gov.afip.dif.FEV1/FECAESolicitar' }
+  });
+  const caeMatch = response.data.match(/<CAE>(.*?)<\/CAE>/);
+  const caeFchMatch = response.data.match(/<CAEFchVto>(.*?)<\/CAEFchVto>/);
+  const resultMatch = response.data.match(/<Resultado>(.*?)<\/Resultado>/);
+  if (!caeMatch || !caeMatch[1] || resultMatch?.[1] !== 'A') {
+    const obs = response.data.match(/<Obs>[\s\S]*?<Msg>(.*?)<\/Msg>/);
+    const errMatch = obs || response.data.match(/<Msg>(.*?)<\/Msg>/);
+    throw new Error(errMatch ? errMatch[1] : 'ARCA rechazó la nota de crédito. Respuesta: ' + String(response.data).substring(0, 300));
+  }
+  return { tipo, nro, puntoVenta: cfg.puntoVenta, cae: caeMatch[1], caeVto: caeFchMatch ? caeFchMatch[1] : '' };
+}
+
+// Notas de credito ya emitidas de una venta
+router.get('/notas-credito/:venta_id', async (req, res) => {
+  try {
+    await asegurarNC();
+    const r = await pool.query('SELECT * FROM notas_credito WHERE venta_id = $1 ORDER BY id', [parseInt(req.params.venta_id) || 0]);
+    res.json({ notas: r.rows });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener las notas de crédito: ' + error.message });
+  }
+});
+
+// Emitir una nota de credito (total si no se manda importe)
+router.post('/nota-credito/:venta_id', async (req, res) => {
+  if (!puedeHacerNC(req)) return res.status(403).json({ error: 'Solo la dueña o administración puede emitir notas de crédito' });
+  const ventaId = parseInt(req.params.venta_id) || 0;
+  const motivo = String((req.body && req.body.motivo) || '').trim().slice(0, 300);
+  if (!motivo) return res.status(400).json({ error: 'Contá el motivo de la nota de crédito' });
+  let client;
+  try {
+    await asegurarNC();
+    client = await pool.connect();
+    await client.query('BEGIN');
+    // Una nota de credito a la vez: la numeracion sale del ultimo autorizado en ARCA
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext('lumiere_arca_nc'))`);
+    const vr = await client.query(
+      `SELECT v.id, v.tipo_factura, v.total, COALESCE(v.monto_gift_card, 0) AS monto_gift_card, v.cae, v.punto_venta, v.nro_comprobante,
+         c.cuit_dni AS cliente_cuit
+       FROM ventas v LEFT JOIN clientes c ON c.id = v.cliente_id WHERE v.id = $1 FOR UPDATE OF v`, [ventaId]);
+    const venta = vr.rows[0];
+    if (!venta) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Venta no encontrada' }); }
+    if (!venta.cae || !venta.nro_comprobante) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Esta venta no tiene factura con CAE: no hace falta nota de crédito' }); }
+    const facturado = redondear(parseFloat(venta.total) - parseFloat(venta.monto_gift_card || 0));
+    const previas = await client.query('SELECT COALESCE(SUM(importe), 0) AS s FROM notas_credito WHERE venta_id = $1', [ventaId]);
+    const disponible = redondear(facturado - parseFloat(previas.rows[0].s));
+    if (disponible <= 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Esta factura ya tiene nota de crédito por el total' }); }
+    const pedido = req.body && req.body.importe !== undefined && req.body.importe !== null && req.body.importe !== '' ? redondear(Number(req.body.importe)) : disponible;
+    if (!(pedido > 0)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'El importe tiene que ser mayor a cero' }); }
+    if (pedido > disponible) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'El importe no puede superar lo que queda de la factura ($' + disponible.toLocaleString('es-AR') + ')' }); }
+
+    const cfg = await obtenerConfigArca();
+    const { token, sign } = await obtenerToken(cfg);
+    const nc = await pedirCAENotaCredito({ cfg, token, sign, venta, importe: pedido });
+    const ins = await client.query(
+      `INSERT INTO notas_credito (venta_id, tipo, punto_venta, nro, cae, cae_vto, importe, motivo, usuario_id, usuario_nombre)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::int, (SELECT nombre FROM usuarios WHERE id = $9::int)) RETURNING *`,
+      [ventaId, nc.tipo, nc.puntoVenta, nc.nro, nc.cae, nc.caeVto, pedido, motivo, req.usuario.id || null]);
+    await client.query('COMMIT');
+    res.json({
+      nota: ins.rows[0], disponible: redondear(disponible - pedido),
+      mensaje: `Nota de crédito ${nc.tipo} N° ${String(nc.puntoVenta).padStart(4, '0')}-${String(nc.nro).padStart(8, '0')} emitida correctamente`
+    });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK').catch(() => {});
+    console.error('Error ARCA nota de credito:', error.message);
+    res.status(500).json({ error: 'No se pudo emitir la nota de crédito: ' + error.message });
+  } finally {
+    if (client) client.release();
   }
 });
 

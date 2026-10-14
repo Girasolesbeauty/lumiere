@@ -17598,8 +17598,12 @@ function CajaRespaldo({ usuario, paletaActual }) {
   );
 }
 
-function Comprobantes({ localId, paletaActual }) {
+function Comprobantes({ localId, usuario, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
+  const puedeNC = !!usuario && ["jefe", "admin", "administrativo"].includes(usuario.rol);
+  // Nota de credito: { v, modo: "total" | "parcial", importe, motivo }
+  const [nc, setNc] = useState(null);
+  const [ncEnviando, setNcEnviando] = useState(false);
   const hoy = new Date();
   const [desde, setDesde] = useState(isoLocal(new Date(hoy.getFullYear(), hoy.getMonth(), 1)));
   const [hasta, setHasta] = useState(isoLocal(hoy));
@@ -17689,6 +17693,53 @@ function Comprobantes({ localId, paletaActual }) {
     setReintentando(null);
   };
 
+  const fmtNroNC = (n) => String(n.punto_venta).padStart(4, "0") + "-" + String(n.nro).padStart(8, "0");
+  const abrirNC = (v) => setNc({ v, modo: "total", importe: "", motivo: v.anulada && v.motivo_anulacion ? v.motivo_anulacion : "" });
+  const emitirNC = async () => {
+    if (!nc || ncEnviando) return;
+    const motivo = nc.motivo.trim();
+    if (!motivo) return avisar("Error: contá el motivo de la nota de crédito");
+    const txtImp = String(nc.importe).trim();
+    const importe = nc.modo === "parcial" ? parseFloat(txtImp.includes(",") ? txtImp.replace(/\./g, "").replace(",", ".") : txtImp) : null;
+    if (nc.modo === "parcial" && !(importe > 0 && importe <= nc.v.nc_disponible)) return avisar("Error: el importe tiene que ser entre $1 y " + fmt(nc.v.nc_disponible));
+    setNcEnviando(true);
+    try {
+      const res = await API.post("/arca/nota-credito/" + nc.v.id, { motivo, importe });
+      avisar("✓ " + (res.data.mensaje || "Nota de crédito emitida"));
+      setNc(null); setExpandido(nc.v.id);
+      cargar();
+    } catch (e) { avisar("Error: " + (e.response?.data?.error || e.message)); }
+    setNcEnviando(false);
+  };
+  const imprimirNC = (v, n) => {
+    const cfg = configTicket || {};
+    const html = `
+      <html><head><meta charset="utf-8"><style>
+        @page { size: 80mm auto; margin: 0; }
+        body { width: 72mm; margin: 0 auto; font-family: monospace; font-size: 12px; color: #000; background: #fff; padding: 6px; }
+        .c { text-align: center; } .b { font-weight: bold; } hr { border: none; border-top: 1px dashed #000; margin: 6px 0; }
+        table { width: 100%; border-collapse: collapse; } td { padding: 1px 0; font-size: 12px; } .tot { font-size: 15px; font-weight: bold; }
+        img.logo { width: 60mm; display: block; margin: 0 auto 4px; }
+      </style></head><body>
+        <img class="logo" src="${escHtml(cfg.logo_ticket_url || LOGO_TICKET)}" />
+        <div class="c">${escHtml(nombreLocal(v.local_id))}</div>
+        <div class="c" style="font-size:10px">${fmtDia(n.fecha)} ${escHtml(n.hora || "")}</div>
+        <div class="c b" style="font-size:12px">NOTA DE CRÉDITO ${escHtml(n.tipo)} ${escHtml(fmtNroNC(n))}</div>
+        ${v.cliente_nombre ? `<div class="c" style="font-size:10px">Cliente: ${escHtml(v.cliente_nombre)}${v.cuit_dni ? " (" + escHtml(v.cuit_dni) + ")" : ""}</div>` : ""}
+        <hr>
+        <div style="font-size:11px">Anula ${n.importe < (parseFloat(v.total || 0) - parseFloat(v.monto_gift_card || 0)) ? "parcialmente " : ""}la Factura ${escHtml(v.tipo_factura || "B")} ${escHtml(fmtNro(v))} del ${fmtDia(v.fecha)}</div>
+        ${n.motivo ? `<div style="font-size:11px">Motivo: ${escHtml(n.motivo)}</div>` : ""}
+        <hr>
+        <table><tr><td class="tot">TOTAL</td><td class="tot" style="text-align:right">${plata(n.importe)}</td></tr></table>
+        <hr><div style="font-size:10px">CAE: ${escHtml(n.cae)}</div><div style="font-size:10px">Vto. CAE: ${escHtml(fmtCaeVto(n.cae_vto))}</div>
+        <br><br>
+      </body></html>`;
+    const w = window.open("", "_blank", "width=380,height=600");
+    if (!w) { avisar("Error: habilitá las ventanas emergentes para imprimir"); return; }
+    w.document.write(html); w.document.close(); w.focus();
+    setTimeout(() => { w.print(); }, 300);
+  };
+
   const plata = (n) => "$" + (parseFloat(n) || 0).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const htmlTicket = (v, reimpresion = true) => {
     const cfg = configTicket || {};
@@ -17741,12 +17792,13 @@ function Comprobantes({ localId, paletaActual }) {
     if (filas.length === 0) return avisar("Error: no hay comprobantes para descargar en este filtro");
     const num = (n) => (parseFloat(n) || 0).toFixed(2).replace(".", ",");
     const txt = (s) => '"' + String(s ?? "").replace(/"/g, '""') + '"';
-    const cab = ["Fecha", "Hora", "Tipo", "Punto de venta", "Número", "Comprobante", "Cliente", "CUIT/DNI", "Local", "Medio de pago", "Total", "CAE", "Vto CAE", "Estado"];
+    const cab = ["Fecha", "Hora", "Tipo", "Punto de venta", "Número", "Comprobante", "Cliente", "CUIT/DNI", "Local", "Medio de pago", "Total", "CAE", "Vto CAE", "Estado", "Notas de crédito", "Importe NC"];
     const lineas = filas.map(v => [
       fmtDia(v.fecha), v.hora, v.tipo_factura || "B", v.punto_venta || "", v.nro_comprobante || "", fmtNro(v),
       v.cliente_nombre || "Consumidor final", v.cuit_dni || "", nombreLocal(v.local_id), v.medio_pago || "",
       num(v.total), v.cae || "", fmtCaeVto(v.cae_vto), estadoDe(v),
-    ].map((x, i) => (i === 10 ? x : txt(x))).join(";"));
+      (v.notas_credito || []).map(n => n.tipo + " " + fmtNroNC(n) + " (CAE " + n.cae + ")").join(" / "), num(v.total_nc || 0),
+    ].map((x, i) => (i === 10 || i === 15 ? x : txt(x))).join(";"));
     const csv = "﻿" + cab.map(txt).join(";") + "\n" + lineas.join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
@@ -17774,6 +17826,45 @@ function Comprobantes({ localId, paletaActual }) {
       </div>
 
       {aviso && <div className={"pop-in cc-aviso " + (aviso.startsWith("Error") ? "bad" : "ok")} role="status">{aviso}</div>}
+
+      {nc && (
+        <div className="pos-overlay" onClick={() => !ncEnviando && setNc(null)}>
+          <div className="card pop-in" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Emitir nota de crédito" style={{ width: 440, maxWidth: "95vw", background: p.card, textAlign: "left" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <div style={{ fontSize: 15, fontWeight: 800 }}>↩ Nota de crédito</div>
+              <button className="icon-btn" onClick={() => !ncEnviando && setNc(null)} aria-label="Cerrar">✕</button>
+            </div>
+            <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 12 }}>
+              Para la Factura <b style={{ color: p.text }}>{nc.v.tipo_factura || "B"} {fmtNro(nc.v)}</b> del {fmtDia(nc.v.fecha)} · {nc.v.cliente_nombre || "Consumidor final"}
+            </div>
+            <div className="seg" role="group" aria-label="Importe de la nota de crédito" style={{ marginBottom: 10 }}>
+              <button className={nc.modo === "total" ? "on" : ""} onClick={() => setNc(x => ({ ...x, modo: "total" }))}>{nc.v.total_nc > 0 ? "Todo lo que queda" : "Total"} · {fmt(nc.v.nc_disponible)}</button>
+              <button className={nc.modo === "parcial" ? "on" : ""} onClick={() => setNc(x => ({ ...x, modo: "parcial" }))}>Una parte</button>
+            </div>
+            {nc.modo === "parcial" && (
+              <label style={{ display: "block", marginBottom: 10 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: p.textMuted }}>IMPORTE</span>
+                <input className="inp" inputMode="decimal" autoFocus placeholder={"Hasta " + fmt(nc.v.nc_disponible)} value={nc.importe} onChange={e => setNc(x => ({ ...x, importe: e.target.value }))} />
+              </label>
+            )}
+            <label style={{ display: "block", marginBottom: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: p.textMuted }}>MOTIVO</span>
+              <input className="inp" maxLength={300} placeholder="Ej: devolución del producto, error en la factura" value={nc.motivo} onChange={e => setNc(x => ({ ...x, motivo: e.target.value }))} />
+            </label>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+              {["Devolución", "Error en la factura", "Venta anulada", "Descuento posterior"].map(t => <button key={t} className="mini-chip" onClick={() => setNc(x => ({ ...x, motivo: t }))}>{t}</button>)}
+            </div>
+            <div style={{ fontSize: 11, color: p.textMuted, background: p.bg, borderRadius: 8, padding: "8px 10px", marginBottom: 12 }}>
+              ℹ️ La nota de crédito es el comprobante para ARCA: no devuelve stock ni saca plata de la caja. Si la clienta devolvió productos o se le reintegró plata, hacelo como siempre desde Cambios o anulando la venta.
+            </div>
+            {nc.v.total_nc > 0 && <div style={{ fontSize: 11, color: p.textMuted, marginBottom: 10 }}>Esta factura ya tiene notas de crédito por {fmt(nc.v.total_nc)}.</div>}
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} disabled={ncEnviando} onClick={() => setNc(null)}>Cancelar</button>
+              <button className="btn btn-p" style={{ flex: 2 }} disabled={ncEnviando} onClick={emitirNC}>{ncEnviando ? "Pidiendo CAE a ARCA..." : "Emitir nota de crédito"}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {verTicket && (
         <div className="pos-overlay" onClick={() => setVerTicket(null)}>
@@ -17829,7 +17920,7 @@ function Comprobantes({ localId, paletaActual }) {
 
       {r && r.anulados_con_cae > 0 && (
         <div className="dash-alert">
-          <span>⚠️ <b>{r.anulados_con_cae} factura{r.anulados_con_cae !== 1 ? "s" : ""} con CAE anulada{r.anulados_con_cae !== 1 ? "s" : ""}</b> en el sistema. Ante ARCA siguen vigentes: hay que emitir la nota de crédito desde el portal de ARCA (o avisale al contador).</span>
+          <span>⚠️ <b>{r.anulados_con_cae} factura{r.anulados_con_cae !== 1 ? "s" : ""} con CAE anulada{r.anulados_con_cae !== 1 ? "s" : ""}</b> en el sistema. Ante ARCA siguen vigentes hasta que les hagas la nota de crédito{puedeNC ? ": entrá a cada una y tocá “↩ Nota de crédito”." : " (pedíselo a la dueña o a administración)."}</span>
           <button className="chip-btn" onClick={() => setEstado("anulados")}>Ver cuáles</button>
         </div>
       )}
@@ -17876,9 +17967,11 @@ function Comprobantes({ localId, paletaActual }) {
                           {est === "emitido" && <span className="tag tag-ok">✓ CAE</span>}
                           {est === "pendiente" && <span className="tag tag-warn">sin facturar</span>}
                           {est === "anulado" && <span className="tag tag-bad">anulada</span>}
+                          {v.total_nc > 0 && <div><span className="tag" title={"Notas de crédito por " + fmt(v.total_nc)}>{v.nc_disponible > 0 ? "NC parcial" : "NC total"}</span></div>}
                         </td>
                         <td style={{ textAlign: "right", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
                           {est === "pendiente" && <button className="mini-chip" disabled={reintentando === v.id} onClick={() => reintentar(v)}>{reintentando === v.id ? "Facturando..." : "↻ Facturar"}</button>}
+                          {puedeNC && v.cae && v.nc_disponible > 0 && <button className="mini-chip" onClick={() => abrirNC(v)} aria-label={"Nota de crédito para " + fmtNro(v)} title="Emitir una nota de crédito en ARCA">↩ Nota de crédito</button>}
                           <button className="mini-chip" onClick={() => abrirTicket(v)} aria-label={"Ver ticket " + fmtNro(v)} title="Ver el ticket">🧾 Ver ticket</button>
                           <button className="icon-btn" onClick={() => reimprimir(v)} aria-label={"Reimprimir " + fmtNro(v)} title="Reimprimir el ticket">🖨️</button>
                           <button className="icon-btn" onClick={() => setExpandido(abierto ? null : v.id)} aria-label={abierto ? "Ocultar detalle" : "Ver detalle"} aria-expanded={abierto}>{abierto ? "▴" : "▾"}</button>
@@ -17909,8 +18002,24 @@ function Comprobantes({ localId, paletaActual }) {
                                 {v.cae_vto && <div className="cc-linea" style={{ padding: "4px 0" }}><span>Vencimiento CAE</span><b>{fmtCaeVto(v.cae_vto)}</b></div>}
                                 {v.numero_factura && v.nro_comprobante && <div className="cc-linea" style={{ padding: "4px 0" }}><span>N° interno</span><b>{v.numero_factura}</b></div>}
                                 {est === "pendiente" && v.ultimo_error_facturacion && <div style={{ fontSize: 11, color: p.warn, marginTop: 6 }}>Último error de ARCA{v.intentos_facturacion ? " (" + v.intentos_facturacion + " intentos)" : ""}: {v.ultimo_error_facturacion}</div>}
-                                {est === "anulado" && <div style={{ fontSize: 11, color: p.red, marginTop: 6 }}>Anulada{v.anulada_por ? " por " + v.anulada_por : ""}: {v.motivo_anulacion || "sin motivo"}{v.cae ? ". Ante ARCA sigue vigente: falta la nota de crédito." : ""}</div>}
+                                {est === "anulado" && <div style={{ fontSize: 11, color: p.red, marginTop: 6 }}>Anulada{v.anulada_por ? " por " + v.anulada_por : ""}: {v.motivo_anulacion || "sin motivo"}{v.cae && v.nc_disponible > 0 ? ". Ante ARCA sigue vigente: falta la nota de crédito." : ""}</div>}
                               </div>
+                              {(v.notas_credito || []).length > 0 && (
+                                <div>
+                                  <div className="comp-det-tit">NOTAS DE CRÉDITO</div>
+                                  {v.notas_credito.map(n => (
+                                    <div key={n.id} style={{ padding: "4px 0", borderBottom: "1px solid " + p.border }}>
+                                      <div className="cc-linea" style={{ padding: 0 }}>
+                                        <span style={{ fontFamily: "ui-monospace, Consolas, monospace", fontSize: 12 }}>NC {n.tipo} {fmtNroNC(n)}</span>
+                                        <b>−{fmt(parseFloat(n.importe))}</b>
+                                      </div>
+                                      <div style={{ fontSize: 11, color: p.textMuted }}>{fmtDia(n.fecha)} {n.hora}{n.usuario_nombre ? " · " + n.usuario_nombre : ""}{n.motivo ? " · " + n.motivo : ""}</div>
+                                      <div style={{ fontSize: 11, color: p.textMuted }}>CAE {n.cae} · vto. {fmtCaeVto(n.cae_vto)} <button className="mini-chip" onClick={() => imprimirNC(v, n)} aria-label={"Imprimir nota de crédito " + fmtNroNC(n)}>🖨️ Imprimir</button></div>
+                                    </div>
+                                  ))}
+                                  {v.nc_disponible > 0 && <div style={{ fontSize: 11, color: p.textMuted, marginTop: 4 }}>Queda sin anular: {fmt(v.nc_disponible)}</div>}
+                                </div>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -31353,7 +31462,7 @@ function AppWrapper() {
     if (id === "gerente") return <TuGerente localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "rotacion") return <Rotacion localId={local.id} paletaActual={paletaActual} />;
     if (id === "calculadoras") return <Calculadoras usuario={usuario} paletaActual={paletaActual} />;
-    if (id === "comprobantes") return <Comprobantes localId={local.id} paletaActual={paletaActual} />;
+    if (id === "comprobantes") return <Comprobantes localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "productividad") return <Productividad localId={local.id} paletaActual={paletaActual} />;
     if (id === "cupones") return <Cupones localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "promociones") return <Promociones paletaActual={paletaActual} />;
