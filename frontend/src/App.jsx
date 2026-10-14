@@ -594,6 +594,19 @@ body:has(.pcel-grid) .ayuda-fab { display: none !important; }
 .cli-busca { display: grid; grid-template-columns: 1fr 180px; gap: 8px; }
 @media (max-width: 600px) { .cli-busca { grid-template-columns: 1fr; } }
 .cli-tip { margin: 10px 14px 0; font-size: 12.5px; line-height: 1.5; padding: 10px 12px; border-radius: 8px; background: ${p.accentDim}; }
+.tw-completa { position: relative; overflow: hidden; margin-bottom: 12px; padding: 16px; border-radius: 14px; background: linear-gradient(135deg, ${p.accentDim}, ${p.card}); border: 1px solid ${p.border}; box-shadow: 0 6px 18px rgba(0,0,0,.06); }
+.tw-completa-cab { display: flex; gap: 14px; align-items: center; }
+.tw-completa-anillo { --p: 0; flex-shrink: 0; width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: conic-gradient(${p.accentText} calc(var(--p) * 1%), ${p.border} 0); }
+.tw-completa-anillo b { width: 50px; height: 50px; border-radius: 50%; background: ${p.card}; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 900; color: ${p.text}; }
+.tw-completa-tit { font-size: 16px; font-weight: 900; color: ${p.text}; }
+.tw-completa-sub { font-size: 12.5px; color: ${p.textMuted}; margin-top: 3px; line-height: 1.45; max-width: 70ch; }
+.tw-completa-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; margin-top: 12px; }
+.tw-completa-tile { display: flex; align-items: center; gap: 10px; text-align: left; font-family: inherit; cursor: pointer; background: ${p.card}; color: ${p.text}; border: 1px solid ${p.border}; border-radius: 12px; padding: 10px 12px; transition: transform .15s, box-shadow .15s; }
+.tw-completa-tile:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(0,0,0,.08); }
+.tw-completa-tile b { display: block; font-size: 13.5px; }
+.tw-completa-tile small { display: block; font-size: 11.5px; color: ${p.textMuted}; margin-top: 2px; }
+.tw-completa-ic { font-size: 24px; }
+.tw-completa-btn { flex-shrink: 0; font-size: 11.5px; font-weight: 800; color: ${p.accentText}; white-space: nowrap; }
 .cli-tabla td { vertical-align: middle; }
 .cli-fila { cursor: pointer; transition: background .12s; }
 .cli-fila:hover, .cli-fila:focus-visible { background: ${p.trHover}; outline: none; }
@@ -28394,6 +28407,40 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
           </button>
         ))}
       </div>
+      {/* Completá tu tienda: productos publicados a los que les falta algo para venderse bien */}
+      {productos && nPub > 0 && (() => {
+        const pubs = productos.filter(p => p.publicado);
+        const SKIN = ["limpiador", "desmaquillante", "tonico", "serum", "hidratante", "solar", "ojos", "exfoliante", "mascarilla"];
+        const sinFoto = pubs.filter(p => !p.foto), sinDesc = pubs.filter(p => !(p.descripcion || "").trim());
+        const skin = pubs.filter(p => { const e = twEtiquetas(p); return (e.tipo || []).some(t => SKIN.includes(t)); });
+        const sinPiel = skin.filter(p => { const e = twEtiquetas(p); return !(e.piel || []).length && !e.todoTipo; });
+        const total = pubs.length * 2 + skin.length, faltan = sinFoto.length + sinDesc.length + sinPiel.length;
+        const pct = total ? Math.round((1 - faltan / total) * 100) : 100;
+        const ir = (f) => { setTab("productos"); setSoloPub(true); setBusca(""); setFiltros({ marca: "", proveedor: "", categoria: "", foto: "", desc: "", seg: "", ...f }); setTimeout(() => { const el = document.getElementById("tw-admin-lista"); el && el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 150); };
+        if (!faltan) return <div className="cli-tip" style={{ marginBottom: 12, borderColor: temaPal.green }}>✅ <b>¡Tu tienda está completa!</b> Todos los productos publicados tienen foto, descripción{skin.length ? " y tipo de piel" : ""}.</div>;
+        const tiles = [
+          { n: sinFoto.length, ic: "📷", t: "sin foto", d: "Sin foto casi no se venden", b: "Agregar fotos", f: { foto: "sin" } },
+          { n: sinDesc.length, ic: "📝", t: "sin descripción", d: "Proponé el texto con ✨ y revisalo", b: "Completar", f: { desc: "sin" } },
+          ...(skin.length ? [{ n: sinPiel.length, ic: "🌿", t: "de skincare sin tipo de piel", d: "No aparecen en los filtros ni en el test de rutina", b: "Elegir tipo de piel", f: { seg: "piel:-" } }] : []),
+        ].filter(x => x.n > 0);
+        return (
+          <div className="tw-completa" style={{ "--tc": temaPal.card, "--tb": temaPal.border, "--tt": temaPal.text, "--tm": temaPal.textMuted }}>
+            <div className="tw-completa-cab">
+              <div className="tw-completa-anillo" style={{ "--p": pct }}><b>{pct}%</b></div>
+              <div><div className="tw-completa-tit">✨ Completá tu tienda</div><div className="tw-completa-sub">Hay {faltan} {faltan === 1 ? "cosa" : "cosas"} por completar en tus productos publicados. Los productos completos se venden más y aparecen en los filtros, el test de rutina y los recomendados.</div></div>
+            </div>
+            <div className="tw-completa-tiles">
+              {tiles.map(x => (
+                <button key={x.t} className="tw-completa-tile" onClick={() => ir(x.f)}>
+                  <span className="tw-completa-ic">{x.ic}</span>
+                  <span style={{ flex: 1, minWidth: 0 }}><b>{x.n} {x.n === 1 ? "producto" : "productos"} {x.t}</b><small>{x.d}</small></span>
+                  <span className="tw-completa-btn">{x.b} ›</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
       <div className="tabs" style={{ marginBottom: 12 }}>
         {[["pedidos", "📦 Pedidos" + (abiertos.length ? " (" + abiertos.length + ")" : "")], ["productos", "🛍 Productos"], ...(esJefeT ? [["portada", "🏠 Portada y sectores"]] : []), ["clientas", "👥 Clientas web"], ["resenas", "⭐ Reseñas" + (resPend ? " (" + resPend + ")" : "")], ["ofertas", "⚡ Ofertas y combos"], ["regalos", "🎁 Regalos"], ["config", "⚙️ Configuración"]].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
       </div>
@@ -28537,7 +28584,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               {prodFiltro.length > prodVis.length && <span style={{ fontSize: 11.5, color: temaPal.textMuted }}>Se muestran {prodVis.length} de {prodFiltro.length} (abajo está "Ver más"); los botones toman todos.</span>}
             </div>
           )}
-          <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 8 }}>Tocá el interruptor para publicar o sacar un producto. El precio y el stock son los de Lumiere. La foto es la del producto (se carga en Productos → editar). Marcá ⭐ los que quieras en el banner grande y sumá 🎬 videos para que se luzcan.</div>
+          <div id="tw-admin-lista" style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 8, scrollMarginTop: 12 }}>Tocá el interruptor para publicar o sacar un producto. El precio y el stock son los de Lumiere. La foto es la del producto (se carga en Productos → editar). Marcá ⭐ los que quieras en el banner grande y sumá 🎬 videos para que se luzcan.</div>
           {prodVis.map(p => (
             <div key={p.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 0", borderTop: "1px solid " + temaPal.border, flexWrap: "wrap" }}>
               <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", flex: "1 1 240px", minWidth: 0 }}>
