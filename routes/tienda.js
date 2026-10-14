@@ -35,7 +35,7 @@ router.get('/config', async (req, res) => {
     const neg = (await pool.query('SELECT nombre_negocio FROM configuracion_negocio LIMIT 1').catch(() => ({ rows: [] }))).rows[0] || {};
     const sugerido = String(neg.nombre_negocio || 'mi-tienda').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'mi-tienda';
     const dominio = await tienda.dominioDe(req.negocio ? req.negocio.id : 1).catch(() => null);
-    res.json({ ...c, ruleta: tienda.ruletaDe(c), preventa: tienda.preventaDe(c), regalos: tienda.regalosDe(c), regalos_hoy: tienda.temaRegaloHoy(tienda.regalosDe(c)), mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
+    res.json({ ...c, ruleta: tienda.ruletaDe(c), preventa: tienda.preventaDe(c), ofertas: tienda.ofertasDe(c), regalos: tienda.regalosDe(c), regalos_hoy: tienda.temaRegaloHoy(tienda.regalosDe(c)), mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la configuración' }); }
 });
 
@@ -726,6 +726,14 @@ router.put('/preventa/ordenes/:id', async (req, res) => {
 });
 
 // Sector "¿Querés hacer un regalo?" (gift cards online y armador de regalos)
+router.put('/ofertas', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño, el encargado o quien maneja la tienda' });
+    const o = tienda.ofertasDe({ ofertas: req.body || {} });
+    await pool.query('UPDATE tienda_config SET ofertas = $1 WHERE id = 1', [JSON.stringify(o)]);
+    res.json({ ofertas: o });
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+});
 router.put('/regalos', async (req, res) => {
   try {
     if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
