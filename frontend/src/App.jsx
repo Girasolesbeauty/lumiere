@@ -24683,13 +24683,13 @@ function TwFila({ titulo, sub, clase, items, onVerTodo, render }) {
 const twNorm = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 const TW_FILTROS = [
   { k: "tipo", titulo: "Tipo de producto", en: "n", op: [
-    ["limpiador", "Limpiadores", /limpia(dor|dora|dores|doras|nte)?\b|limpieza|cleanser|cleansing|jabon|espuma limpi|gel de limpieza|face ?wash/],
+    ["limpiador", "Limpiadores", /limpia(dor|dora|dores|doras|nte)?\b|limpieza|cleanser|cleansing|jabon|espuma limpi|gel de limpieza|face ?wash|leche limpiadora|\bfoam\b|espuma facial/],
     ["desmaquillante", "Desmaquillantes", /desmaquill|micelar|micellar|aceite limpiador|balsamo limpiador|make ?up remover/],
-    ["tonico", "Tónicos y esencias", /tonico|toner|tonificante|esencia facial|essence|bruma facial|facial mist/],
-    ["serum", "Sérums y ampollas", /\bserum|ampolla|concentrado|booster/],
-    ["hidratante", "Hidratantes", /hidratante|crema (facial|hidrat|de dia|de noche|nutritiva|reparadora)|moistur|gel crema|emulsion|crema gel/],
-    ["solar", "Protectores solares", /protector solar|proteccion solar|pantalla solar|sunscreen|\bsolar\b|\bfps\b|\bspf\b/],
-    ["ojos", "Contorno de ojos", /contorno de ojos|eye cream|contorno ojos|parches? de ojos|eye patch/],
+    ["tonico", "Tónicos y esencias", /tonico|toner|tonificante|esencia facial|essence|\bbruma\b|\bmist\b/],
+    ["serum", "Sérums y ampollas", /\bserum|ampolla|ampoule|concentrado|booster/],
+    ["hidratante", "Hidratantes", /hidratante|\bcrema\b|\bcream\b|moistur|gel crema|emulsion|water ?gel|\blotion\b|\blocion\b|sleeping (pack|mask)/],
+    ["solar", "Protectores solares", /protector solar|proteccion solar|pantalla solar|sunscreen|\bsolar\b|\bfps\b|\bspf\b|\bsun ?(cream|stick|screen|block|serum|fluid|milk|gel|essence|cushion|protect)|\buv\b|bloqueador/],
+    ["ojos", "Contorno de ojos", /contorno de ojos|contorno ojos|\beye ?(cream|serum|gel|stick|patch)|parches? de ojos|ojeras/],
     ["exfoliante", "Exfoliantes y peelings", /exfolia|peeling|scrub|\bpeel\b/],
     ["mascarilla", "Mascarillas", /mascarilla|sheet mask|\bmask\b|mascara facial|parches?\b/],
     ["labios", "Labios", /labial|labios|\blip\b|lip balm|balsamo labial/],
@@ -24751,6 +24751,16 @@ function twEtiquetasAuto(p) {
   const todo = nom + " " + twNorm(p.descripcion);
   const e = {};
   TW_FILTROS.forEach(f => { e[f.k] = f.op.filter(o => o[2].test(f.en === "n" ? nom : todo)).map(o => o[0]); });
+  // "Crema" o "cream" en un contorno, un protector, un limpiador o algo corporal no es la crema hidratante de la rutina
+  if (e.tipo.includes("hidratante") && e.tipo.some(t => ["ojos", "solar", "limpiador", "desmaquillante", "corporal", "labios", "mascarilla"].includes(t)) && !/hidratante|moistur/.test(nom)) e.tipo = e.tipo.filter(x => x !== "hidratante");
+  // Un serum, ampolla o tonico "hidratante" no es la crema de la rutina (salvo que diga crema o cream)
+  if (e.tipo.includes("hidratante") && e.tipo.some(t => ["serum", "tonico"].includes(t)) && !/\bcrema\b|\bcream\b|moistur/.test(nom)) e.tipo = e.tipo.filter(x => x !== "hidratante");
+  // Tipo de piel por la forma del producto, cuando no lo dice: leches y balsamos limpiadores son para piel seca o sensible;
+  // espumas, geles y lo matificante, para piel grasa o mixta
+  if (!e.piel.length && !TW_TODO_TIPO.test(todo)) {
+    if (/leche (de )?limpieza|leche limpiadora|cleansing milk|balsamo|cleansing balm|crema limpiadora|cleansing cream|nutritiv|\brich\b|barrier|intensiv/.test(todo)) e.piel = ["seca", "sensible", "normal"];
+    else if (/\bfoam\b|espuma|gel limpiador|gel de limpieza|matific|mattif|oil[- ]?free|libre de aceite|control (de )?(brillo|grasa|sebo)|sebum|\bbha\b|salicil|water ?gel/.test(todo)) e.piel = ["grasa", "mixta", "normal"];
+  }
   // El desmaquillante no es tambien "limpiador" salvo que lo diga el nombre (ej: "gel limpiador y desmaquillante")
   if (e.tipo.includes("desmaquillante") && !/limpiador|limpiadora|cleanser|limpieza/.test(nom)) e.tipo = e.tipo.filter(x => x !== "limpiador");
   e.todoTipo = TW_TODO_TIPO.test(todo);
@@ -25085,7 +25095,8 @@ function twArmarRutina(productos, dispo, { piel, nec, pasos, presupuesto, corean
     return w;
   };
   // Lo que se le puede dar a cada paso: primero lo mejor puntuado
-  const opciones = tipos.map(t => ({ t, ops: conStock.filter(p => (p._et.tipo || []).includes(t)).map(p => ({ p, v: p.variantes ? p.variantes.find(v => dispo(p, v) > 0) : null, w: puntaje(p) })).sort((a, b) => b.w - a.w) })).filter(x => x.ops.length);
+  const aptaPiel = (p) => !piel || !(p._et.piel || []).length || (p._et.piel || []).includes(piel) || p._et.todoTipo;
+  const opciones = tipos.map(t => { const deTipo = conStock.filter(p => (p._et.tipo || []).includes(t)); const aptos = deTipo.filter(aptaPiel); return { t, lista: aptos.length ? aptos : deTipo }; }).map(({ t, lista }) => ({ t, ops: lista.map(p => ({ p, v: p.variantes ? p.variantes.find(v => dispo(p, v) > 0) : null, w: puntaje(p) })).sort((a, b) => b.w - a.w) })).filter(x => x.ops.length);
   let pasosR = opciones.map(x => { const ops = x.ops.filter(o => !usados.has(o.p.id)); const o = ops[0] || x.ops[0]; usados.add(o.p.id); return { t: x.t, ops: x.ops, i: x.ops.indexOf(o) }; });
   // Presupuesto: mientras se pase, cambia el paso donde bajar de precio cueste menos puntaje
   const precio = (o) => o.p.precio;
@@ -28532,13 +28543,16 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         const sinFoto = pubs.filter(p => !p.foto), sinDesc = pubs.filter(p => !(p.descripcion || "").trim());
         const skin = pubs.filter(p => { const e = twEtiquetas(p); return (e.tipo || []).some(t => SKIN.includes(t)); });
         const sinPiel = skin.filter(p => { const e = twEtiquetas(p); return !(e.piel || []).length && !e.todoTipo; });
-        const total = pubs.length * 2 + skin.length, faltan = sinFoto.length + sinDesc.length + sinPiel.length;
+        // Productos de la categoria Facial sin tipo reconocido: no entran en el test de rutina ni en los filtros
+        const facialSinTipo = pubs.filter(p => /facial|rostro/i.test(p.categoria || "") && !(twEtiquetas(p).tipo || []).length);
+        const total = pubs.length * 2 + skin.length + facialSinTipo.length, faltan = sinFoto.length + sinDesc.length + sinPiel.length + facialSinTipo.length;
         const pct = total ? Math.round((1 - faltan / total) * 100) : 100;
         const ir = (f) => { setTab("productos"); setSoloPub(true); setBusca(""); setFiltros({ marca: "", proveedor: "", categoria: "", foto: "", desc: "", seg: "", ...f }); setTimeout(() => { const el = document.getElementById("tw-admin-lista"); el && el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 150); };
         if (!faltan) return <div className="cli-tip" style={{ marginBottom: 12, borderColor: temaPal.green }}>✅ <b>¡Tu tienda está completa!</b> Todos los productos publicados tienen foto, descripción{skin.length ? " y tipo de piel" : ""}.</div>;
         const tiles = [
           { n: sinFoto.length, ic: "📷", t: "sin foto", d: "Sin foto casi no se venden", b: "Agregar fotos", f: { foto: "sin" } },
           { n: sinDesc.length, ic: "📝", t: "sin descripción", d: "Proponé el texto con ✨ y revisalo", b: "Completar", f: { desc: "sin" } },
+          { n: facialSinTipo.length, ic: "🧴", t: "de Facial sin tipo de producto", d: "No entran en el test de rutina: elegí si es limpiador, sérum, crema, protector…", b: "Elegir tipo", f: { categoria: facialSinTipo[0] ? facialSinTipo[0].categoria : "", seg: "tipo:-" } },
           ...(skin.length ? [{ n: sinPiel.length, ic: "🌿", t: "de skincare sin tipo de piel", d: "No aparecen en los filtros ni en el test de rutina", b: "Elegir tipo de piel", f: { seg: "piel:-" } }] : []),
         ].filter(x => x.n > 0);
         return (
