@@ -593,6 +593,12 @@ body:has(.pcel-grid) .ayuda-fab { display: none !important; }
 .cli-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .cli-busca { display: grid; grid-template-columns: 1fr 180px; gap: 8px; }
 @media (max-width: 600px) { .cli-busca { grid-template-columns: 1fr; } }
+.pos-tambien { padding: 8px 12px; }
+.pos-tambien-lista { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; max-height: 150px; overflow-y: auto; }
+.pos-tambien-item { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; font-family: inherit; cursor: pointer; border: 1px solid; border-radius: 8px; padding: 6px 9px; font-size: 12px; }
+.pos-tambien-item b { display: block; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pos-tambien-item small { display: block; font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pos-tambien-item:hover { filter: brightness(.97); }
 .cli-tip { margin: 10px 14px 0; font-size: 12.5px; line-height: 1.5; padding: 10px 12px; border-radius: 8px; background: ${p.accentDim}; }
 .tw-completa { position: relative; overflow: hidden; margin-bottom: 12px; padding: 16px; border-radius: 14px; background: linear-gradient(135deg, ${p.accentDim}, ${p.card}); border: 1px solid ${p.border}; box-shadow: 0 6px 18px rgba(0,0,0,.06); }
 .tw-completa-cab { display: flex; gap: 14px; align-items: center; }
@@ -3255,6 +3261,14 @@ function POS({ localId, usuario, paletaActual }) {
   };
   // Se identifica por producto + variante (antes sacar un talle sacaba todos los talles).
   const remove = (item) => setCart(prev => prev.filter(i => claveItem(i) !== claveItem(item)));
+  // "Tambien llevan": que ofrecer segun lo que hay en el carrito (compras juntas de otras clientas o lo que completa la rutina)
+  const [tambien, setTambien] = useState([]);
+  const idsCarrito = [...new Set(cart.filter(i => !i.es_ajuste && Number(i.id) > 0).map(i => Number(i.id)))].sort((a, b) => a - b).join(",");
+  useEffect(() => {
+    if (!idsCarrito) { setTambien([]); return; }
+    const t = setTimeout(() => API.get("/productos/tambien-llevan?ids=" + idsCarrito + "&local=" + (Number(localId) === 2 ? "ush" : "rg")).then(r => setTambien(r.data || [])).catch(() => setTambien([])), 400);
+    return () => clearTimeout(t);
+  }, [idsCarrito, localId]);
   // Cada producto del carrito guarda su precio normal (precio_base) y se cobra al precio de la lista elegida
   useEffect(() => {
     setCart(prev => {
@@ -4737,6 +4751,18 @@ function POS({ localId, usuario, paletaActual }) {
                     + {pr.nombre || pr.name} · <span style={{ color: temaPal.accentText }}>{fmt(pr.precio || pr.price || 0)}</span>
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
+          {cart.length > 0 && tambien.filter(s => !cart.some(i => Number(i.id) === s.id)).length > 0 && (
+            <div className="pos-tambien" style={{ borderTop: "1px solid " + temaPal.border, background: temaPal.accentDim }}>
+              <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".08em", color: temaPal.accentText }}>💡 OFRECELE TAMBIÉN</div>
+              <div className="pos-tambien-lista">
+                {tambien.filter(s => !cart.some(i => Number(i.id) === s.id)).map(s => { const prod = productos.find(p => Number(p.id) === s.id); return (
+                  <button key={s.id} className="pos-tambien-item" title={s.motivo} style={{ background: temaPal.card, borderColor: temaPal.border, color: temaPal.text }} disabled={!prod} onClick={() => prod && add(prod)}>
+                    <span style={{ flex: 1, minWidth: 0 }}><b>{s.nombre}</b><small style={{ color: temaPal.textMuted }}>{s.motivo}</small></span>
+                    <span style={{ whiteSpace: "nowrap", fontWeight: 800 }}>{fmt(s.precio)} <em style={{ color: temaPal.accentText, fontStyle: "normal" }}>＋</em></span>
+                  </button>); })}
               </div>
             </div>
           )}
