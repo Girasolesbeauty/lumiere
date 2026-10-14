@@ -35,7 +35,7 @@ router.get('/config', async (req, res) => {
     const neg = (await pool.query('SELECT nombre_negocio FROM configuracion_negocio LIMIT 1').catch(() => ({ rows: [] }))).rows[0] || {};
     const sugerido = String(neg.nombre_negocio || 'mi-tienda').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'mi-tienda';
     const dominio = await tienda.dominioDe(req.negocio ? req.negocio.id : 1).catch(() => null);
-    res.json({ ...c, ruleta: tienda.ruletaDe(c), preventa: tienda.preventaDe(c), ofertas: tienda.ofertasDe(c), regalos: tienda.regalosDe(c), regalos_hoy: tienda.temaRegaloHoy(tienda.regalosDe(c)), mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
+    res.json({ ...c, ruleta: tienda.ruletaDe(c), preventa: tienda.preventaDe(c), referidos: tienda.referidosDe(c), ofertas: tienda.ofertasDe(c), regalos: tienda.regalosDe(c), regalos_hoy: tienda.temaRegaloHoy(tienda.regalosDe(c)), mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la configuración' }); }
 });
 
@@ -726,6 +726,15 @@ router.put('/preventa/ordenes/:id', async (req, res) => {
 });
 
 // Sector "¿Querés hacer un regalo?" (gift cards online y armador de regalos)
+router.put('/referidos', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño, el encargado o quien maneja la tienda' });
+    const b = req.body || {};
+    const r = tienda.referidosDe({ referidos: { activo: !!b.activo, pct: b.pct, puntos: b.puntos } });
+    await pool.query('UPDATE tienda_config SET referidos = $1 WHERE id = 1', [JSON.stringify(r)]);
+    res.json({ referidos: r });
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+});
 router.put('/ofertas', async (req, res) => {
   try {
     if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño, el encargado o quien maneja la tienda' });
@@ -873,6 +882,7 @@ router.post('/pedidos/:id/cobrado-aparte', async (req, res) => {
     await client.query(`UPDATE tienda_pedidos SET estado = 'entregado', stock_apartado = FALSE, pagado = TRUE, venta_id = COALESCE($2, venta_id), actualizado_en = NOW() WHERE id = $1`, [p.id, ventaId]);
     if (ventaId) await client.query(`UPDATE gift_card_movimientos SET venta_id = $1 WHERE id = $2 AND venta_id IS NULL`, [ventaId, p.gc_mov_id || 0]).catch(() => {});
     await client.query(`UPDATE cupones SET activo = TRUE, fecha_vencimiento = CURRENT_DATE + 30 WHERE codigo = (SELECT cupon FROM tienda_ruleta WHERE pedido_id = $1)`, [p.id]).catch(() => {});
+    await tienda.premiarReferida(client, p.id).catch(e => console.error('[tienda] premiar amiga:', e.message));
     await client.query('COMMIT');
     res.json({ ok: true });
   } catch (e) {
@@ -892,6 +902,7 @@ router.put('/pedidos/:id/vendido', async (req, res) => {
     // Cupon ganado en la ruleta con este pedido: ya se puede usar, por 30 dias desde hoy
     await pool.query(`UPDATE cupones SET activo = TRUE, fecha_vencimiento = CURRENT_DATE + 30 WHERE codigo = (SELECT cupon FROM tienda_ruleta WHERE pedido_id = $1)
       AND EXISTS (SELECT 1 FROM tienda_pedidos WHERE id = $1 AND estado = 'entregado')`, [req.params.id]).catch(() => {});
+    await tienda.premiarReferida(pool, parseInt(req.params.id)).catch(e => console.error('[tienda] premiar amiga:', e.message));
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'No se pudo marcar como entregado' }); }
 });

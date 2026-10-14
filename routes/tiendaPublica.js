@@ -98,6 +98,7 @@ router.get('/:slug', async (req, res) => {
       ruleta: (() => { const r = tienda.ruletaDe(c); return r.activo ? { minimo: r.minimo, aviso: r.aviso_carrito } : null; })(),
       preventa: (() => { const pv = tienda.preventaDe(c); return pv.activo ? { titulo: pv.titulo } : null; })(),
       icono_v: c.icono ? versionIcono(c.icono) : null,
+      referidos: (() => { const r = tienda.referidosDe(c); return r.activo ? { pct: r.pct, puntos: r.puntos } : null; })(),
       ofertas: (() => { const o = tienda.ofertasDe(c), d = tienda.ofertaDiaActiva(c); return { dia: d ? { producto_id: d.producto_id, precio: d.precio, hasta: d.hasta, titulo: d.titulo } : null, combos: o.combos.filter(x => x.activo && x.precio > 0).map(x => ({ id: x.id, nombre: x.nombre, productos: x.productos, precio: x.precio })) }; })(),
       descuentos_pago: (() => { const d = tienda.descuentosPagoDe(c); return Object.fromEntries(Object.entries(d).filter(([, v]) => v > 0)); })(),
       resenas_puntos: (() => { const r = tienda.puntosResenaDe(c); return r.activo && (r.puntos || r.extra_foto) ? { puntos: r.puntos, extra_foto: r.extra_foto } : null; })(),
@@ -385,17 +386,24 @@ router.post('/:slug/pedidos', async (req, res) => {
       if (cupon) await client.query('UPDATE cupones SET usos = COALESCE(usos, 0) + 1 WHERE codigo = $1', [cupon.codigo]);
     }
     const descuento = cupon ? cupon.descuento : 0;
+    // Regalo de amiga (primera compra; no se suma a un cupon)
+    let amiga = null, descAmiga = 0;
+    if (b.amiga && !cupon) {
+      amiga = await tienda.amigaParaUsar(client, c, b.amiga, telefono, clienteId);
+      if (amiga && amiga.error) amiga = null;
+      else if (amiga) descAmiga = Math.round((subtotal - descCombo) * amiga.pct / 100);
+    }
     // Gift card: si cubre todo, no hace falta otra forma de pago (ni corre su descuento)
     let gc = null, gcUsa = 0;
     if (b.giftcard) {
       gc = await giftCardParaUsar(client, b.giftcard, true);
       if (!gc || gc.error) { await client.query('ROLLBACK'); gcFallo('gc:' + ip); return res.status(400).json({ error: (gc && gc.error) || 'Revisá el código de la gift card' }); }
-      if (gc.saldo >= subtotal - descCombo - descuento + costoEnvio) pago = 'giftcard';
+      if (gc.saldo >= subtotal - descCombo - descuento - descAmiga + costoEnvio) pago = 'giftcard';
     }
     // Descuento por la forma de pago elegida (sobre los productos, despues del cupon; no sobre el envio)
     const pctPago = tienda.descuentosPagoDe(c)[pago] || 0;
-    const descuentoPago = pctPago ? Math.round((subtotal - descCombo - descuento) * pctPago / 100) : 0;
-    let total = Math.round((subtotal - descCombo - descuento - descuentoPago + costoEnvio) * 100) / 100;
+    const descuentoPago = pctPago ? Math.round((subtotal - descCombo - descuento - descAmiga) * pctPago / 100) : 0;
+    let total = Math.round((subtotal - descCombo - descuento - descAmiga - descuentoPago + costoEnvio) * 100) / 100;
     // Gift card: paga lo que alcance (se descuenta ahora; si el pedido se cancela, vuelve)
     if (gc) {
       gcUsa = Math.round(Math.min(gc.saldo, total) * 100) / 100;
@@ -413,6 +421,7 @@ router.post('/:slug/pedidos', async (req, res) => {
       [codigo, clienteId, nombre, telefono, email, entrega, localId, direccion, zona, costoEnvio, pago, subtotal, total, String(b.nota || '').trim().slice(0, 500) || null, estado, String(horas),
        cupon ? cupon.codigo : null, cupon ? cupon.tipo : null, cupon ? cupon.valor : null, descuento, conPreventa])).rows[0];
     if (descuentoPago) await client.query('UPDATE tienda_pedidos SET descuento_pago = $1, descuento_pago_pct = $2 WHERE id = $3', [descuentoPago, pctPago, pedido.id]);
+    if (amiga && descAmiga) await client.query('UPDATE tienda_pedidos SET amiga_de = $1, descuento_amiga = $2 WHERE id = $3', [amiga.referente_id, descAmiga, pedido.id]);
     if (descCombo) await client.query('UPDATE tienda_pedidos SET descuento_combo = $1, combos = $2 WHERE id = $3', [descCombo, combo.combos.map(x => x.nombre + (x.veces > 1 ? ' x' + x.veces : '')).join(', '), pedido.id]);
     if (gc && gcUsa > 0) {
       const nuevo = Math.round((gc.saldo - gcUsa) * 100) / 100;
@@ -587,7 +596,7 @@ router.get('/:slug/pedidos/:codigo', async (req, res) => {
     res.json({
       ruleta: await estadoRuleta(req.tienda, p),
       codigo: p.codigo, estado: p.estado, pagado: p.pagado, pago: p.pago, entrega: p.entrega, local: loc || null, direccion: p.direccion, zona: p.zona,
-      subtotal: num(p.subtotal), costo_envio: num(p.costo_envio), descuento: num(p.descuento), descuento_combo: num(p.descuento_combo), combos: p.combos || null, descuento_pago: num(p.descuento_pago), descuento_pago_pct: p.descuento_pago_pct === null ? null : num(p.descuento_pago_pct), cupon: p.cupon || null, total: num(p.total), items, link_pago: p.estado === 'pendiente_pago' ? p.mp_link : null,
+      subtotal: num(p.subtotal), costo_envio: num(p.costo_envio), descuento: num(p.descuento), descuento_amiga: num(p.descuento_amiga), descuento_combo: num(p.descuento_combo), combos: p.combos || null, descuento_pago: num(p.descuento_pago), descuento_pago_pct: p.descuento_pago_pct === null ? null : num(p.descuento_pago_pct), cupon: p.cupon || null, total: num(p.total), items, link_pago: p.estado === 'pendiente_pago' ? p.mp_link : null,
       vence_en: p.vence_en, transferencia: p.pago === 'transferencia' && !p.pagado ? (req.tienda.transferencia_datos || '') : null, creado_en: p.creado_en,
       gc_usado: num(p.gc_usado_monto) > 0 ? { codigo: p.gc_usado_codigo, monto: num(p.gc_usado_monto) } : null,
       giftcard: p.tipo === 'giftcard' ? { para: p.gc_para, mensaje: p.gc_mensaje, para_telefono: p.gc_para_tel, codigo: p.gc_codigo || null, firma: p.gc_codigo ? tienda.firmaRegalo(p.gc_codigo) : null, monto: num(p.total), de: p.nombre } : null,
@@ -603,7 +612,7 @@ async function estadoRuleta(cfg, p) {
   const hecho = (await pool.query('SELECT premio_id, texto, tipo, valor, cupon FROM tienda_ruleta WHERE pedido_id = $1', [p.id]).catch(() => ({ rows: [] }))).rows[0];
   const r = tienda.ruletaDe(cfg);
   if (hecho) return { premios: r.premios.map(premioPublico), resultado: { id: hecho.premio_id, texto: hecho.texto, tipo: hecho.tipo, valor: num(hecho.valor), cupon: hecho.cupon } };
-  if (!r.activo || p.tipo === 'giftcard' || p.estado === 'cancelado' || num(p.subtotal) - num(p.descuento) - num(p.descuento_combo) < r.minimo) return null;
+  if (!r.activo || p.tipo === 'giftcard' || p.estado === 'cancelado' || num(p.subtotal) - num(p.descuento) - num(p.descuento_combo) - num(p.descuento_amiga) < r.minimo) return null;
   if (p.pago === 'mp' && !p.pagado) return { premios: r.premios.map(premioPublico), espera: true, minimo: r.minimo };
   return { premios: r.premios.map(premioPublico), disponible: true, minimo: r.minimo };
 }
@@ -829,6 +838,12 @@ router.get('/:slug/cuenta', conCuenta, async (req, res) => {
     const d = await cuentas.datosDeCliente(req.clienteId);
     if (!d) return res.status(401).json({ error: 'Volvé a ingresar a tu cuenta', sesion: true });
     const marca = (req.tienda && req.tienda.titulo) || ((await pool.query('SELECT nombre_negocio FROM configuracion_negocio LIMIT 1').catch(() => ({ rows: [] }))).rows[0] || {}).nombre_negocio || '';
+    const cfgAmiga = tienda.referidosDe(req.tienda);
+    const amiga = cfgAmiga.activo ? await (async () => {
+      const codigo = await tienda.codigoAmiga(pool, req.clienteId).catch(() => null);
+      const st = (await pool.query('SELECT COUNT(*)::int AS n, COALESCE(SUM(puntos), 0)::int AS pts FROM tienda_referidos WHERE referente_id = $1', [req.clienteId]).catch(() => ({ rows: [{}] }))).rows[0] || {};
+      return codigo ? { codigo, pct: cfgAmiga.pct, puntos: cfgAmiga.puntos, invitadas: st.n || 0, ganados: st.pts || 0 } : null;
+    })() : null;
     const [logros, premios, canjes, pedidos] = await Promise.all([
       logrosLib.logrosDeCliente(req.clienteId, [d.nivel, nivelPorGasto(d.gastado, d.umbrales)].sort((x, y) => NIVELES.indexOf(y) - NIVELES.indexOf(x))[0], marca).catch(e => { console.error('[tienda] logros:', e.message); return []; }),
       cuentas.premiosDeCliente(req.clienteId).catch(() => []),
@@ -847,7 +862,7 @@ router.get('/:slug/cuenta', conCuenta, async (req, res) => {
     // Cada vez que entra se renueva la llave (si ya tiene mas de un dia): mientras use la tienda, no se sale
     let tokenNuevo = null;
     try { const t = jwt.decode(String(req.headers.authorization || '').replace(/^Bearer /, '')); if (t && t.iat && Date.now() / 1000 - t.iat > 86400) tokenNuevo = firmar(req, req.clienteId); } catch (e) {}
-    res.json({ ...d, compras: (d.compras || []).slice(0, 15), premios: premios.map(p => ({ ...p, descuento_pct: cuentas.descuentoDePremio(p) })), canjes: canjesInfo, pedidos, logros, token_nuevo: tokenNuevo });
+    res.json({ ...d, compras: (d.compras || []).slice(0, 15), premios: premios.map(p => ({ ...p, descuento_pct: cuentas.descuentoDePremio(p) })), canjes: canjesInfo, pedidos, logros, amiga, token_nuevo: tokenNuevo });
   } catch (e) { console.error('[tienda] cuenta:', e.message); res.status(500).json({ error: 'No pudimos cargar tu cuenta' }); }
 });
 
@@ -857,6 +872,29 @@ router.post('/:slug/cuenta/canjear', conCuenta, async (req, res) => {
     if (e instanceof cuentas.ErrorCanje) return res.status(e.codigo).json({ error: e.message });
     console.error('[tienda] canjear:', e.message); res.status(500).json({ error: 'No se pudo canjear' });
   }
+});
+
+// ===================== Invitá a una amiga =====================
+const intentosAmiga = new Map();
+router.get('/:slug/amiga/:codigo', async (req, res) => {
+  try {
+    const cfg = tienda.referidosDe(req.tienda);
+    if (!cfg.activo) return res.json({ ok: false });
+    const ref = (await pool.query('SELECT nombre FROM clientes WHERE UPPER(codigo_amiga) = UPPER($1)', [String(req.params.codigo || '').slice(0, 30)])).rows[0];
+    res.json(ref ? { ok: true, nombre: String(ref.nombre || '').trim().split(/\s+/)[0] || 'Tu amiga', pct: cfg.pct } : { ok: false });
+  } catch (e) { res.json({ ok: false }); }
+});
+router.post('/:slug/amiga/validar', async (req, res) => {
+  try {
+    const ip = req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : req.ip;
+    const r0 = intentosAmiga.get(ip); const ahora = Date.now();
+    if (r0 && ahora - r0.desde < 10 * 60000 && r0.n > 40) return res.status(429).json({ ok: false, motivo: 'Esperá unos minutos' });
+    if (intentosAmiga.size > 5000) intentosAmiga.clear();
+    intentosAmiga.set(ip, r0 && ahora - r0.desde < 10 * 60000 ? { ...r0, n: r0.n + 1 } : { n: 1, desde: ahora });
+    const b = req.body || {};
+    const a = await tienda.amigaParaUsar(pool, req.tienda, b.codigo, b.telefono, clienteDeToken(req));
+    res.json(a.error ? { ok: false, motivo: a.error } : { ok: true, nombre: a.nombre, pct: a.pct });
+  } catch (e) { res.json({ ok: false, motivo: 'No se pudo revisar' }); }
 });
 
 // ===================== Reseñas =====================
