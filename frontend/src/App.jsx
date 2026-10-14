@@ -23330,6 +23330,9 @@ const CSS_TIENDA = `
 .tw .tw-res-filtro button{border:1px solid #ddd;background:#fff;border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;color:#333}
 .tw .tw-res-filtro button.on{background:#111;border-color:#111;color:#fff}
 .tw-res-piel{font-size:11px;font-weight:700;color:#2d7a4f;background:#eef8f1;border-radius:999px;padding:2px 8px}
+.tw-card-ing{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}.tw-card-ing span{font-size:10.5px;font-weight:800;letter-spacing:.02em;color:#2f6d8a;background:#eef6fa;border-radius:999px;padding:2px 8px}
+.tw-ficha-ing{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0 2px;font-size:13px;color:#666}
+.tw .tw-ficha-ing button{font-size:12.5px;font-weight:700;color:#2f6d8a;background:#eef6fa;border:1px solid #d4e8f1;border-radius:999px;padding:5px 11px;cursor:pointer;font-family:inherit}
 .tw .tw-menu-test{background:linear-gradient(90deg,#fff7ef,#fdf0f4)}.tw-menu-test b{display:block}.tw-menu-test small{display:block;font-size:13px;color:#8a6f6f;margin-top:2px}
 .tw-rut{max-width:760px;margin:26px auto 40px}
 .tw-rut-ceja{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#b07a4a}
@@ -24410,6 +24413,7 @@ function TwTarjeta({ p, base, sin, preventa, llega, fav, onFav, onAbrir, onAgreg
       </div>
       {p.marca && <div className="tw-card-m">{p.marca}</div>}
       <div className="tw-card-n">{p.nombre}</div>
+      {p._et && (p._et.ingrediente || []).length > 0 && <div className="tw-card-ing">{p._et.ingrediente.slice(0, 2).map(k => { const o = TW_ING_OP.find(x => x[0] === k); return o ? <span key={k}>{o[3]}</span> : null; })}</div>}
       {p.resenas && <div className="tw-card-est"><TwEstrellas v={p.resenas[0]} size={12} /><span>({p.resenas[1]})</span></div>}
       <div className="tw-card-p">{p.precio_antes ? <><s className="tw-antes">{fmtTienda(p.precio_antes)}</s> <span className="tw-precio-of">{fmtTienda(p.precio)}</span></> : fmtTienda(p.precio)}</div>
       {preventa && <div className="tw-card-pre">{llega ? <>⏳ Llega aprox. <b>{llega}</b> · ¡reservalo!</> : "⏳ Llega pronto · ¡reservalo antes que se agote!"}</div>}
@@ -24597,9 +24601,27 @@ const TW_FILTROS = [
     ["poros", "Poros y brillo", /poros?\b|(exceso de|controla el|anti-?|sin) ?brillos?|oleosidad|sebo\b|sebacea|matific/],
     ["ojeras", "Ojeras y bolsas", /ojeras|bolsas|hinchazon/],
   ] },
+  { k: "ingrediente", titulo: "Ingrediente", en: "t", op: [
+    ["hialuronico", "Ácido hialurónico", /hialuron|hyaluron/, "Hialurónico"],
+    ["niacinamida", "Niacinamida", /niacinamid/, "Niacinamida"],
+    ["vitaminac", "Vitamina C", /vitamina c\b|vitamin c\b|vit\.? ?c\b|acido ascorbico|ascorbic/, "Vitamina C"],
+    ["retinol", "Retinol", /retinol|retinal\b|retinoid/, "Retinol"],
+    ["salicilico", "Ácido salicílico (BHA)", /salicilic|salicylic|\bbha\b/, "Salicílico"],
+    ["aha", "AHA (glicólico, láctico)", /glicolic|glycolic|acido lactico|lactic acid|mandelic|\baha\b/, "AHA"],
+    ["centella", "Centella asiática", /centella|\bcica\b|madecass/, "Centella"],
+    ["ceramidas", "Ceramidas", /ceramid/, "Ceramidas"],
+    ["peptidos", "Péptidos", /peptid/, "Péptidos"],
+    ["colageno", "Colágeno", /colagen|collagen/, "Colágeno"],
+    ["caracol", "Mucina de caracol", /caracol|snail|mucina/, "Caracol"],
+    ["azelaico", "Ácido azelaico", /azelaic/, "Azelaico"],
+    ["teatree", "Árbol de té", /arbol de te|tea tree/, "Árbol de té"],
+    ["aloe", "Aloe vera", /\baloe/, "Aloe vera"],
+  ] },
 ];
 // "Todo tipo de piel" vale para cualquier tipo de piel
 const TW_TODO_TIPO = /todo tipo de piel|todos los tipos de piel|todas las pieles|all skin types/;
+// Ingredientes destacados (para los sellos de las tarjetas y la ficha)
+const TW_ING_OP = TW_FILTROS.find(f => f.k === "ingrediente").op;
 function twEtiquetasAuto(p) {
   const nom = twNorm([p.nombre, p.categoria].join(" "));
   const todo = nom + " " + twNorm(p.descripcion);
@@ -24613,7 +24635,7 @@ function twEtiquetasAuto(p) {
 // Lo elegido a mano en Lumiere manda sobre lo automatico, grupo por grupo
 function twEtiquetas(p) {
   const e = twEtiquetasAuto(p), m = p.etiquetas || {};
-  ["tipo", "piel", "necesidad"].forEach(k => { if (Array.isArray(m[k])) e[k] = m[k].filter(x => x !== "todo"); });
+  ["tipo", "piel", "necesidad", "ingrediente"].forEach(k => { if (Array.isArray(m[k])) e[k] = m[k].filter(x => x !== "todo"); });
   if (Array.isArray(m.piel)) e.todoTipo = m.piel.includes("todo");
   return e;
 }
@@ -26468,7 +26490,7 @@ function TiendaPublica({ slug }) {
         ) : enLista ? (
           <>
             <div className="tw-lista-cab">
-              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : cat === "preventa" ? "⏳ " + tienda.preventa.titulo : cat === "favoritos" ? "❤️ Tus favoritos" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>{lista.length} {lista.length === 1 ? "producto" : "productos"}
+              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.ingrediente && !filtros.tipo && !filtros.piel && !filtros.necesidad ? "Con " + ((TW_ING_OP.find(o => o[0] === filtros.ingrediente) || ["", ""])[1]) : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : cat === "preventa" ? "⏳ " + tienda.preventa.titulo : cat === "favoritos" ? "❤️ Tus favoritos" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>{lista.length} {lista.length === 1 ? "producto" : "productos"}
                 {!q && cat && cat !== "favoritos" && <button className="tw-compartir-sec" onClick={() => compartirSeccion(cat === "preventa" ? tienda.preventa.titulo : sector ? sector.nombre : cat === "*" ? "Todos los productos" : cat === "reingreso" ? reingreso.nombre : cat.startsWith("m:") ? cat.slice(2) : cat)}>{seccionCopiada ? "✓ Link copiado" : "🔗 Compartir"}</button>}</div></div>
               <select value={orden} onChange={e => setOrden(e.target.value)} aria-label="Ordenar">{TW_ORDEN.map(([k, t]) => <option key={k} value={k}>Ordenar: {t}</option>)}</select>
             </div>
@@ -26694,6 +26716,7 @@ function TiendaPublica({ slug }) {
                     <div key={cb.id} className="tw-ficha-combo"><span>🎁 <b>Llevalo en combo:</b> {cb.nombre} por <b>{fmtTienda(cb.precio)}</b>{suma > cb.precio ? " (ahorrás " + fmtTienda(suma - cb.precio) + ")" : ""}</span>
                       <button className="tw-btn2" onClick={() => agregarRegalo(its.map(x => ({ p: x, v: x.variantes ? x.variantes.find(v => dispo(x, v) > 0) : null })))}>Agregar combo</button></div>); })}
                   {(() => { const mejor = Object.entries(tienda.descuentos_pago || {}).filter(([k]) => tienda.pagos[k]).sort((a, b) => b[1] - a[1])[0]; return mejor ? <div className="tw-precio-pago">💸 {fmtTienda(Math.round(ver.precio * (1 - mejor[1] / 100)))} pagando con {({ mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia", retiro: "efectivo al retirar" })[mejor[0]]} ({String(mejor[1]).replace(".", ",")}% OFF)</div> : null; })()}
+                  {(ver._et && (ver._et.ingrediente || []).length > 0) && <div className="tw-ficha-ing"><span>Con</span>{ver._et.ingrediente.map(k => { const o = TW_ING_OP.find(x => x[0] === k); return o ? <button key={k} onClick={() => { setVer(null); irCat("*", { ingrediente: k }); }} title={"Ver todo con " + o[1]}>{o[1]}</button> : null; })}</div>}
                   {preVer && (
                     <div className="tw-preventa-aviso" role="note">
                       <b>⏳ PREVENTA · Todavía no llegó</b>
