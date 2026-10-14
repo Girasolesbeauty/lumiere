@@ -25687,8 +25687,10 @@ function TiendaPublica({ slug }) {
   // "Cuidado capilar" o "Cuidado corporal" no son skincare facial (antes le ganaban el lugar a Facial por orden alfabetico)
   const esSkin = (c) => /skin|piel|facial|rostro|dermo/i.test(c || "") || (/cuidado/i.test(c || "") && !/capilar|cabello|pelo|corporal|cuerpo|u[ñn]as|manos|pies/i.test(c || ""));
   const catSkin = cats.find(c => /facial|rostro/i.test(c)) || cats.find(esSkin) || null;
-  const gruposMenu = (c) => { const base = visibles.filter(p => c === "*" || p.categoria === c); return ["tipo", "piel", "necesidad"].map(k => { const f = TW_FILTROS.find(x => x.k === k); return { k, op: f.op.filter(o => base.some(p => p._et[k].includes(o[0]))) }; }).filter(g => g.op.length > 0); };
-  const hayMenuSkin = catSkin ? gruposMenu(catSkin).length > 0 : gruposMenu("*").some(g => g.k !== "tipo");
+  // Como Sephora: tipo de piel y necesidad se muestran siempre completos (aunque los productos todavia no tengan descripcion);
+  // el tipo de producto solo con lo que hay en la categoria
+  const gruposMenu = (c) => { const base = visibles.filter(p => c === "*" || p.categoria === c); return ["tipo", "piel", "necesidad"].map(k => { const f = TW_FILTROS.find(x => x.k === k); return { k, op: k === "tipo" ? f.op.filter(o => base.some(p => p._et[k].includes(o[0]))) : f.op }; }).filter(g => g.op.length > 0); };
+  const hayMenuSkin = catSkin ? true : visibles.some(p => p._et.piel.length || p._et.necesidad.length);
   // Para la portada: "Comprá según tu piel" y "según tu necesidad"
   const atajos = ["piel", "necesidad"].map(k => { const f = TW_FILTROS.find(x => x.k === k); return { ...f, op: f.op.filter(o => visibles.some(p => p._et[k].includes(o[0]))) }; }).filter(f => f.op.length >= 2);
   const conStock = visibles;
@@ -27506,7 +27508,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const [galeria, setGaleria] = useState(null); // producto con la ventana de fotos abierta
   const [importando, setImportando] = useState(false);
   const [limiteProd, setLimiteProd] = useState(150);
-  const [filtros, setFiltros] = useState({ marca: "", proveedor: "", categoria: "", foto: "", seg: "" });
+  const [filtros, setFiltros] = useState({ marca: "", proveedor: "", categoria: "", foto: "", desc: "", seg: "" });
   const [segmentar, setSegmentar] = useState(null); // productos a segmentar (uno o varios)
   const [qrProd, setQrProd] = useState(null); // { p, qr } QR de un producto (para la etiqueta del local)
   useEffect(() => { setLimiteProd(150); }, [busca, soloPub, filtros]);
@@ -27611,13 +27613,14 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const prodFiltro = productos.filter(p => (!soloPub || p.publicado) && pasaSeg(p)
     && (!filtros.marca || (p.marca || "") === filtros.marca) && (!filtros.proveedor || String(p.proveedor || "") === filtros.proveedor)
     && (!filtros.categoria || (p.categoria || "") === filtros.categoria) && (!filtros.foto || (filtros.foto === "con" ? p.foto : !p.foto))
+    && (!filtros.desc || (filtros.desc === "con" ? !!(p.descripcion || "").trim() : !(p.descripcion || "").trim()))
     && (!qN || qN.split(" ").every(w => normTxt([p.nombre, p.marca, p.categoria, p.proveedor, p.codigo_barras].join(" ")).includes(w))))
     .sort(ordenProd === "nuevos" ? (a, b) => new Date(b.creado_en || 0) - new Date(a.creado_en || 0) || b.id - a.id
       : ordenProd === "viejos" ? (a, b) => new Date(a.creado_en || 0) - new Date(b.creado_en || 0) || a.id - b.id
       : ordenProd === "az" ? (a, b) => String(a.nombre).localeCompare(String(b.nombre))
       : ordenProd === "precio" ? (a, b) => (b.precio || 0) - (a.precio || 0) : () => 0);
   const opciones = (k) => [...new Set(productos.map(p => p[k]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
-  const hayFiltros = filtros.marca || filtros.proveedor || filtros.categoria || filtros.foto || filtros.seg || busca || soloPub;
+  const hayFiltros = filtros.marca || filtros.proveedor || filtros.categoria || filtros.foto || filtros.desc || filtros.seg || busca || soloPub;
   const prodVis = prodFiltro.slice(0, limiteProd);
   const set = (k, v) => { setCfg(c => ({ ...c, [k]: v })); setCfgCambios(true); };
   // Link del producto para el QR: por su numero (no cambia aunque le cambien el nombre) y con qr=1 (abre el video)
@@ -27779,6 +27782,9 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             <select className="sel" aria-label="Filtrar por foto" style={{ flex: "0 1 150px", fontWeight: filtros.foto ? 700 : 400 }} value={filtros.foto} onChange={e => setFiltros(f => ({ ...f, foto: e.target.value }))}>
               <option value="">Con y sin foto</option><option value="sin">Sin foto</option><option value="con">Con foto</option>
             </select>
+            <select className="sel" aria-label="Filtrar por descripción" style={{ flex: "0 1 190px", fontWeight: filtros.desc ? 700 : 400 }} value={filtros.desc} onChange={e => setFiltros(f => ({ ...f, desc: e.target.value }))}>
+              <option value="">Con y sin descripción</option><option value="sin">📝 Sin descripción</option><option value="con">Con descripción</option>
+            </select>
             <select className="sel" aria-label="Filtrar por segmento" style={{ flex: "1 1 170px", maxWidth: 240, fontWeight: filtros.seg ? 700 : 400 }} value={filtros.seg} onChange={e => setFiltros(f => ({ ...f, seg: e.target.value }))}>
               <option value="">Todos los segmentos</option>
               {TW_FILTROS.map(f => <optgroup key={f.k} label={f.titulo}>
@@ -27790,7 +27796,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               <option value="">Orden: publicados primero</option><option value="nuevos">🆕 Más nuevos primero</option><option value="viejos">Más viejos primero</option><option value="az">A – Z</option><option value="precio">Mayor precio</option>
             </select>
             <button className={"chip-btn" + (soloPub ? " on" : "")} onClick={() => setSoloPub(v => !v)}>Solo publicados</button>
-            {hayFiltros && <button className="chip-btn" onClick={() => { setFiltros({ marca: "", proveedor: "", categoria: "", foto: "", seg: "" }); setBusca(""); setSoloPub(false); }}>✕ Limpiar filtros</button>}
+            {hayFiltros && <button className="chip-btn" onClick={() => { setFiltros({ marca: "", proveedor: "", categoria: "", foto: "", desc: "", seg: "" }); setBusca(""); setSoloPub(false); }}>✕ Limpiar filtros</button>}
             <span style={{ fontSize: 12, color: temaPal.textMuted }}>{prodFiltro.length} {prodFiltro.length === 1 ? "producto" : "productos"}</span>
             {esJefeT && <button className="btn btn-g btn-sm" onClick={publicarConFoto} title="Publica de una vez los que tienen foto, precio y stock">📸 Publicar los que tienen foto</button>}
           </div>
