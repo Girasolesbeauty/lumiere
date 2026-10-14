@@ -23465,6 +23465,7 @@ const CSS_TIENDA = `
 .tw-rut-info span{font-size:14px;font-weight:800}
 .tw .tw-rut-cambiar{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:1px;background:#fbf7f2;border:none;border-radius:12px;padding:8px 10px;cursor:pointer;font-family:inherit;color:#7a5a1e;font-size:17px}
 .tw-rut-cambiar span{font-size:10.5px;font-weight:800}
+.tw-rut-falta{font-size:13px;color:#8a6a3a;background:#fff8ec;border:1px dashed #ecd3a5;border-radius:12px;padding:9px 12px;margin:0 0 12px}
 .tw-rut-total{display:flex;justify-content:space-between;align-items:baseline;font-size:15px;margin:0 2px 12px}.tw-rut-total b{font-size:22px}
 .tw-rut-acciones{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .tw-rut-nota{font-size:12.5px;color:#999;margin-top:14px}
@@ -25041,15 +25042,19 @@ const TW_RUT_PIEL = [
 ];
 const TW_RUT_PASOS = {
   basica: ["limpiador", "hidratante", "solar"],
-  completa: ["limpiador", "tonico", "serum", "hidratante", "solar"],
-  pro: ["desmaquillante", "limpiador", "tonico", "serum", "ojos", "hidratante", "solar", "mascarilla"],
+  completa: ["limpiador", "serum", "hidratante", "solar"],
+  pro: ["limpiador", "tonico", "serum", "hidratante", "ojos", "solar"],
 };
-const TW_RUT_NOMBRE = { desmaquillante: "Desmaquillar", limpiador: "Limpiar", tonico: "Tonificar", serum: "Tratar", ojos: "Contorno de ojos", hidratante: "Hidratar", solar: "Proteger", mascarilla: "Extra semanal" };
+const TW_RUT_NOMBRE = { desmaquillante: "Desmaquillante", limpiador: "Limpiador", tonico: "Tónico o bruma", serum: "Sérum", ojos: "Contorno de ojos", hidratante: "Crema", solar: "Protector solar", mascarilla: "Extra semanal" };
 const TW_RUT_CUANDO = { desmaquillante: "noche", limpiador: "mañana y noche", tonico: "mañana y noche", serum: "mañana y noche", ojos: "mañana y noche", hidratante: "mañana y noche", solar: "mañana", mascarilla: "1 o 2 veces por semana" };
 
 function twArmarRutina(productos, dispo, { piel, nec, pasos, presupuesto, coreano }) {
+  // Solo productos de la categoria Facial (asi no entran, por ejemplo, ampollas para el pelo como "serum").
+  // Si la tienda no tiene esa categoria, se usan todos.
+  const faciales = productos.filter(p => /facial|rostro/i.test(p.categoria || ""));
+  const base = faciales.length ? faciales : productos;
   // Skincare coreano: solo los productos del proveedor de coreano (BEK)
-  const conStock = productos.filter(p => (!coreano || p.coreano) && (p.variantes ? p.variantes.some(v => dispo(p, v) > 0) : dispo(p) > 0));
+  const conStock = base.filter(p => (!coreano || p.coreano) && (p.variantes ? p.variantes.some(v => dispo(p, v) > 0) : dispo(p) > 0));
   const tipos = TW_RUT_PASOS[pasos] || TW_RUT_PASOS.completa;
   const usados = new Set();
   const puntaje = (p) => {
@@ -25130,9 +25135,9 @@ function TwRutina({ productos, dispo, foto, onAgregar, onAbrir, onCompartir, cop
             <button key={t} className={"tw-rut-op" + (r.coreano === v ? " on" : "")} style={{ "--i": i }} onClick={() => sigue({ coreano: v }, true)}>
               <span className="tw-rut-num">{ic}</span><span><b>{t}</b><small>{d}</small></span>
             </button>))}</div>}
-          {actual === "pasos" && <div className="tw-rut-ops" key="p2">{[["basica", "Básica", "3 pasos · 2 minutos", "Limpiar, hidratar y proteger"], ["completa", "Completa", "5 pasos", "Suma tónico y sérum para tratar lo que te preocupa"], ["pro", "Full skincare", "Hasta 8 pasos", "Doble limpieza, contorno de ojos y mascarilla semanal"]].map(([k, t, d, x], i) => (
+          {actual === "pasos" && <div className="tw-rut-ops" key="p2">{[["basica", "Básica", "3 pasos", "Limpiador, crema y protector solar"], ["completa", "Completa", "4 pasos", "Limpiador, sérum, crema y protector solar"], ["pro", "Completísima", "6 pasos", "Limpiador, tónico o bruma, sérum, crema, contorno de ojos y protector solar"]].map(([k, t, d, x], i) => (
             <button key={k} className={"tw-rut-op" + (r.pasos === k ? " on" : "")} style={{ "--i": i }} onClick={() => sigue({ pasos: k }, true)}>
-              <span className="tw-rut-num">{k === "basica" ? "3" : k === "completa" ? "5" : "8"}</span>
+              <span className="tw-rut-num">{k === "basica" ? "3" : k === "completa" ? "4" : "6"}</span>
               <span><b>{t} <em>{d}</em></b><small>{x}</small></span>
             </button>))}</div>}
           {actual === "plata" && <div className="tw-rut-ops" key="p3">{[[150000, "Hasta $150.000"], [250000, "Hasta $250.000"], [400000, "Hasta $400.000"], [0, "Sin límite: lo mejor para mi piel"]].map(([v, t], i) => (
@@ -25159,6 +25164,7 @@ function TwRutina({ productos, dispo, foto, onAgregar, onAbrir, onCompartir, cop
                   {x.ops.length > 1 && <button className="tw-rut-cambiar" onClick={() => cambiar(k)} aria-label="Ver otra opción">↻<span>Otra</span></button>}
                 </div>); })}
             </div>
+            {(() => { const falta = (TW_RUT_PASOS[r.pasos] || []).filter(t => !rutina.some(x => x.t === t)); return falta.length ? <div className="tw-rut-falta">{r.presupuesto ? "Para respetar tu presupuesto (o porque no hay stock) no sumamos: " : "Por ahora no tenemos con stock: "}<b>{falta.map(t => TW_RUT_NOMBRE[t].toLowerCase()).join(", ")}</b>. ¡Escribinos y te asesoramos!</div> : null; })()}
             <div className="tw-rut-total"><span>Total de tu rutina</span><b>{fmtTienda(total)}</b></div>
             <button className={"tw-btn full" + (agregada ? " hecho" : "")} onClick={() => { onAgregar(rutina.map(x => ({ p: x.ops[x.i].p, v: x.ops[x.i].v }))); setAgregada(true); }}>{agregada ? "✓ ¡Rutina agregada al carrito!" : "Agregar mi rutina al carrito (" + rutina.length + ")"}</button>
           </>}
