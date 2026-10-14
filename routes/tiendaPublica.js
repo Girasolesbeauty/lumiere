@@ -98,6 +98,7 @@ router.get('/:slug', async (req, res) => {
       ruleta: (() => { const r = tienda.ruletaDe(c); return r.activo ? { minimo: r.minimo, aviso: r.aviso_carrito } : null; })(),
       preventa: (() => { const pv = tienda.preventaDe(c); return pv.activo ? { titulo: pv.titulo } : null; })(),
       icono_v: c.icono ? versionIcono(c.icono) : null,
+      ofertas: (() => { const o = tienda.ofertasDe(c), d = tienda.ofertaDiaActiva(c); return { dia: d ? { producto_id: d.producto_id, precio: d.precio, hasta: d.hasta, titulo: d.titulo } : null, combos: o.combos.filter(x => x.activo && x.precio > 0).map(x => ({ id: x.id, nombre: x.nombre, productos: x.productos, precio: x.precio })) }; })(),
       descuentos_pago: (() => { const d = tienda.descuentosPagoDe(c); return Object.fromEntries(Object.entries(d).filter(([, v]) => v > 0)); })(),
       resenas_puntos: (() => { const r = tienda.puntosResenaDe(c); return r.activo && (r.puntos || r.extra_foto) ? { puntos: r.puntos, extra_foto: r.extra_foto } : null; })(),
       // Logo de la marca para la gift card (blanco sobre el color de la tarjeta)
@@ -188,10 +189,11 @@ router.get('/:slug/productos', async (req, res) => {
     // Estrellas de cada producto (solo reseñas aprobadas)
     const notas = new Map((await pool.query(`SELECT producto_id, ROUND(AVG(estrellas)::numeric, 1)::float AS prom, COUNT(*)::int AS n FROM tienda_resenas WHERE estado = 'aprobada' GROUP BY producto_id`)
       .catch(() => ({ rows: [] }))).rows.map(x => [x.producto_id, [x.prom, x.n]]));
+    const ofDia = tienda.ofertaDiaActiva(req.tienda);
     res.json(r.rows.map(p => {
       const v = vars.filter(x => x.producto_id === p.id).map(x => ({ id: x.id, valor: x.valor, stock: { 1: Math.max(0, x.stock_rg), 2: Math.max(0, x.stock_ush) } }));
       return {
-        id: p.id, nombre: p.nombre, marca: p.marca, categoria: p.categoria, precio: num(p.precio), descripcion: p.descripcion || '', foto: !!p.foto,
+        id: p.id, nombre: p.nombre, marca: p.marca, categoria: p.categoria, precio: ofDia && ofDia.producto_id === p.id ? ofDia.precio : num(p.precio), precio_antes: ofDia && ofDia.producto_id === p.id ? num(p.precio) : null, descripcion: p.descripcion || '', foto: !!p.foto,
         destacado: !!p.destacado, nuevo: !!p.nuevo, creado: p.creado ? Number(p.creado) : 0, etiquetas: p.etiquetas || null, top: puesto.get(p.id) || null, rk: ranking.get(p.id) || null, resenas: notas.get(p.id) || null, fotos: p.fotos_extra || [], reingreso: p.reingreso || null, foto_v: p.foto_v ? Number(p.foto_v) : null,
         video: p.video_subido ? { tipo: 'subido' } : tienda.videoDeLink(p.video_url),
         variantes: p.tiene_variantes && v.length ? v : null,
@@ -347,6 +349,7 @@ router.post('/:slug/pedidos', async (req, res) => {
   try {
     await client.query('BEGIN');
     const lineas = [];
+    const ofDia = tienda.ofertaDiaActiva(c);
     for (const it of items) {
       const p = (await client.query(`SELECT p.id, p.nombre, p.precio, COALESCE(tp.publicado, FALSE) AS publicado,
           COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush, COALESCE(p.stock_transito_rg, 0) AS transito_rg, COALESCE(p.stock_transito_ush, 0) AS transito_ush,
@@ -365,14 +368,19 @@ router.post('/:slug/pedidos', async (req, res) => {
       const ya = lineas.filter(l => l.producto_id === p.id && l.variante_id === it.variante_id && l.preventa === it.preventa).reduce((t, l) => t + l.cantidad, 0);
       if (it.preventa && stock - ya < it.cantidad) { await client.query('ROLLBACK'); return res.status(409).json({ error: (stock - ya > 0 ? 'Solo quedan ' + (stock - ya) + ' de ' + p.nombre + ' para reservar en preventa' : 'Ya se reservó todo lo que viene de ' + p.nombre) + '. Actualizá la página.' }); }
       if (stock - ya < it.cantidad) { await client.query('ROLLBACK'); return res.status(409).json({ error: 'No hay stock suficiente de ' + p.nombre + (valor ? ' (' + valor + ')' : '') + (stock - ya > 0 ? ': quedan ' + (stock - ya) : '') + ' en ' + (entrega === 'retiro' ? 'ese local' : 'este momento') }); }
-      lineas.push({ producto_id: p.id, variante_id: it.variante_id, nombre: p.nombre, variante_valor: valor, cantidad: it.cantidad, precio: num(p.precio), preventa: it.preventa });
+      // Oferta del dia: el precio especial vale mientras dure (no para preventa)
+      const precioLinea = ofDia && ofDia.producto_id === p.id && !it.preventa ? ofDia.precio : num(p.precio);
+      lineas.push({ producto_id: p.id, variante_id: it.variante_id, nombre: p.nombre, variante_valor: valor, cantidad: it.cantidad, precio: precioLinea, preventa: it.preventa });
     }
     const subtotal = Math.round(lineas.reduce((t, l) => t + l.precio * l.cantidad, 0) * 100) / 100;
     if (entrega === 'envio' && c.envio_gratis_desde && subtotal >= c.envio_gratis_desde) costoEnvio = 0;
+    // Combos: si estan todos los productos de un combo, se descuenta la diferencia
+    const combo = tienda.descuentoCombos(c, lineas);
+    const descCombo = combo.descuento;
     let cupon = null;
     const clienteId = clienteDeToken(req) || await clienteDe(client, nombre, telefono, email);
     if (b.cupon) {
-      cupon = await tienda.revisarCupon(client, b.cupon, subtotal, true, { cliente_id: clienteId, telefono });
+      cupon = await tienda.revisarCupon(client, b.cupon, subtotal - descCombo, true, { cliente_id: clienteId, telefono });
       if (cupon && cupon.error) { await client.query('ROLLBACK'); return res.status(400).json({ error: cupon.error }); }
       if (cupon) await client.query('UPDATE cupones SET usos = COALESCE(usos, 0) + 1 WHERE codigo = $1', [cupon.codigo]);
     }
@@ -382,12 +390,12 @@ router.post('/:slug/pedidos', async (req, res) => {
     if (b.giftcard) {
       gc = await giftCardParaUsar(client, b.giftcard, true);
       if (!gc || gc.error) { await client.query('ROLLBACK'); gcFallo('gc:' + ip); return res.status(400).json({ error: (gc && gc.error) || 'Revisá el código de la gift card' }); }
-      if (gc.saldo >= subtotal - descuento + costoEnvio) pago = 'giftcard';
+      if (gc.saldo >= subtotal - descCombo - descuento + costoEnvio) pago = 'giftcard';
     }
     // Descuento por la forma de pago elegida (sobre los productos, despues del cupon; no sobre el envio)
     const pctPago = tienda.descuentosPagoDe(c)[pago] || 0;
-    const descuentoPago = pctPago ? Math.round((subtotal - descuento) * pctPago / 100) : 0;
-    let total = Math.round((subtotal - descuento - descuentoPago + costoEnvio) * 100) / 100;
+    const descuentoPago = pctPago ? Math.round((subtotal - descCombo - descuento) * pctPago / 100) : 0;
+    let total = Math.round((subtotal - descCombo - descuento - descuentoPago + costoEnvio) * 100) / 100;
     // Gift card: paga lo que alcance (se descuenta ahora; si el pedido se cancela, vuelve)
     if (gc) {
       gcUsa = Math.round(Math.min(gc.saldo, total) * 100) / 100;
@@ -405,6 +413,7 @@ router.post('/:slug/pedidos', async (req, res) => {
       [codigo, clienteId, nombre, telefono, email, entrega, localId, direccion, zona, costoEnvio, pago, subtotal, total, String(b.nota || '').trim().slice(0, 500) || null, estado, String(horas),
        cupon ? cupon.codigo : null, cupon ? cupon.tipo : null, cupon ? cupon.valor : null, descuento, conPreventa])).rows[0];
     if (descuentoPago) await client.query('UPDATE tienda_pedidos SET descuento_pago = $1, descuento_pago_pct = $2 WHERE id = $3', [descuentoPago, pctPago, pedido.id]);
+    if (descCombo) await client.query('UPDATE tienda_pedidos SET descuento_combo = $1, combos = $2 WHERE id = $3', [descCombo, combo.combos.map(x => x.nombre + (x.veces > 1 ? ' x' + x.veces : '')).join(', '), pedido.id]);
     if (gc && gcUsa > 0) {
       const nuevo = Math.round((gc.saldo - gcUsa) * 100) / 100;
       await client.query(`UPDATE gift_cards SET saldo = $1, estado = $2 WHERE id = $3`, [nuevo, nuevo <= 0 ? 'agotada' : 'activa', gc.id]);
@@ -578,7 +587,7 @@ router.get('/:slug/pedidos/:codigo', async (req, res) => {
     res.json({
       ruleta: await estadoRuleta(req.tienda, p),
       codigo: p.codigo, estado: p.estado, pagado: p.pagado, pago: p.pago, entrega: p.entrega, local: loc || null, direccion: p.direccion, zona: p.zona,
-      subtotal: num(p.subtotal), costo_envio: num(p.costo_envio), descuento: num(p.descuento), descuento_pago: num(p.descuento_pago), descuento_pago_pct: p.descuento_pago_pct === null ? null : num(p.descuento_pago_pct), cupon: p.cupon || null, total: num(p.total), items, link_pago: p.estado === 'pendiente_pago' ? p.mp_link : null,
+      subtotal: num(p.subtotal), costo_envio: num(p.costo_envio), descuento: num(p.descuento), descuento_combo: num(p.descuento_combo), combos: p.combos || null, descuento_pago: num(p.descuento_pago), descuento_pago_pct: p.descuento_pago_pct === null ? null : num(p.descuento_pago_pct), cupon: p.cupon || null, total: num(p.total), items, link_pago: p.estado === 'pendiente_pago' ? p.mp_link : null,
       vence_en: p.vence_en, transferencia: p.pago === 'transferencia' && !p.pagado ? (req.tienda.transferencia_datos || '') : null, creado_en: p.creado_en,
       gc_usado: num(p.gc_usado_monto) > 0 ? { codigo: p.gc_usado_codigo, monto: num(p.gc_usado_monto) } : null,
       giftcard: p.tipo === 'giftcard' ? { para: p.gc_para, mensaje: p.gc_mensaje, para_telefono: p.gc_para_tel, codigo: p.gc_codigo || null, firma: p.gc_codigo ? tienda.firmaRegalo(p.gc_codigo) : null, monto: num(p.total), de: p.nombre } : null,
@@ -594,7 +603,7 @@ async function estadoRuleta(cfg, p) {
   const hecho = (await pool.query('SELECT premio_id, texto, tipo, valor, cupon FROM tienda_ruleta WHERE pedido_id = $1', [p.id]).catch(() => ({ rows: [] }))).rows[0];
   const r = tienda.ruletaDe(cfg);
   if (hecho) return { premios: r.premios.map(premioPublico), resultado: { id: hecho.premio_id, texto: hecho.texto, tipo: hecho.tipo, valor: num(hecho.valor), cupon: hecho.cupon } };
-  if (!r.activo || p.tipo === 'giftcard' || p.estado === 'cancelado' || num(p.subtotal) - num(p.descuento) < r.minimo) return null;
+  if (!r.activo || p.tipo === 'giftcard' || p.estado === 'cancelado' || num(p.subtotal) - num(p.descuento) - num(p.descuento_combo) < r.minimo) return null;
   if (p.pago === 'mp' && !p.pagado) return { premios: r.premios.map(premioPublico), espera: true, minimo: r.minimo };
   return { premios: r.premios.map(premioPublico), disponible: true, minimo: r.minimo };
 }
