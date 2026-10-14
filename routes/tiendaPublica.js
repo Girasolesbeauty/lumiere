@@ -11,7 +11,8 @@ const { ayudaMP } = require('./mercadopago');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { cuentas } = require('./portal');
-const { VENTA_VALIDA } = require('../lib/niveles');
+const { VENTA_VALIDA, NIVELES, nivelPorGasto } = require('../lib/niveles');
+const logrosLib = require('../lib/logros');
 
 // Tienda web publica (sin iniciar sesion): /api/tienda-publica/:slug/...
 // El slug dice de que negocio es; todo lo que sigue corre dentro del cajon de ese negocio.
@@ -818,7 +819,9 @@ router.get('/:slug/cuenta', conCuenta, async (req, res) => {
   try {
     const d = await cuentas.datosDeCliente(req.clienteId);
     if (!d) return res.status(401).json({ error: 'Volvé a ingresar a tu cuenta', sesion: true });
-    const [premios, canjes, pedidos] = await Promise.all([
+    const marca = (req.tienda && req.tienda.titulo) || ((await pool.query('SELECT nombre_negocio FROM configuracion_negocio LIMIT 1').catch(() => ({ rows: [] }))).rows[0] || {}).nombre_negocio || '';
+    const [logros, premios, canjes, pedidos] = await Promise.all([
+      logrosLib.logrosDeCliente(req.clienteId, [d.nivel, nivelPorGasto(d.gastado, d.umbrales)].sort((x, y) => NIVELES.indexOf(y) - NIVELES.indexOf(x))[0], marca).catch(e => { console.error('[tienda] logros:', e.message); return []; }),
       cuentas.premiosDeCliente(req.clienteId).catch(() => []),
       cuentas.canjesDeCliente(req.clienteId).catch(() => []),
       pool.query(`SELECT codigo, estado, total, creado_en, entrega FROM tienda_pedidos WHERE cliente_id = $1 ORDER BY creado_en DESC LIMIT 20`, [req.clienteId]).then(r => r.rows).catch(() => []),
@@ -835,7 +838,7 @@ router.get('/:slug/cuenta', conCuenta, async (req, res) => {
     // Cada vez que entra se renueva la llave (si ya tiene mas de un dia): mientras use la tienda, no se sale
     let tokenNuevo = null;
     try { const t = jwt.decode(String(req.headers.authorization || '').replace(/^Bearer /, '')); if (t && t.iat && Date.now() / 1000 - t.iat > 86400) tokenNuevo = firmar(req, req.clienteId); } catch (e) {}
-    res.json({ ...d, compras: (d.compras || []).slice(0, 15), premios: premios.map(p => ({ ...p, descuento_pct: cuentas.descuentoDePremio(p) })), canjes: canjesInfo, pedidos, token_nuevo: tokenNuevo });
+    res.json({ ...d, compras: (d.compras || []).slice(0, 15), premios: premios.map(p => ({ ...p, descuento_pct: cuentas.descuentoDePremio(p) })), canjes: canjesInfo, pedidos, logros, token_nuevo: tokenNuevo });
   } catch (e) { console.error('[tienda] cuenta:', e.message); res.status(500).json({ error: 'No pudimos cargar tu cuenta' }); }
 });
 
