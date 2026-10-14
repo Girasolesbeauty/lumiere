@@ -23442,6 +23442,14 @@ const CSS_TIENDA = `
 .tw-ficha-ing{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0 2px;font-size:13px;color:#666}
 .tw .tw-ficha-ing button{font-size:12.5px;font-weight:700;color:#2f6d8a;background:#eef6fa;border:1px solid #d4e8f1;border-radius:999px;padding:5px 11px;cursor:pointer;font-family:inherit}
 .tw-cumple-card{background:#fff8ef;border:1px solid #f3e2c8;border-radius:14px;padding:12px 14px;margin-bottom:14px}.tw-cumple-card b{font-size:14.5px}.tw-cumple-card p{margin:4px 0 8px;font-size:13px;color:#6b5a50}
+.tw-misiones{background:linear-gradient(135deg,#f3f0ff,#fff7fb);border:1px solid #e3dcfa;border-radius:14px;padding:12px 14px;margin-bottom:14px}
+.tw-misiones-tit{display:block;font-size:14.5px;margin-bottom:8px}
+.tw-mision{background:#fff;border-radius:10px;padding:9px 11px;margin-top:6px;border:1px solid #ece8fb}.tw-mision b{font-size:13.5px}
+.tw-mision-pts{font-size:12px;font-weight:900;color:#6b4fd8;white-space:nowrap}
+.tw-mision-av{display:flex;justify-content:space-between;font-size:11.5px;color:#888;margin-top:4px}
+.tw-mision .tw-barra-pts i{background:linear-gradient(90deg,#8f73f0,#d36fb0)}
+.tw-mision.ok{background:#f2fbf5;border-color:#cfeedd}.tw-mision-ok{font-size:12.5px;font-weight:800;color:#2d7a4f;margin-top:4px}
+.tw-mision.recien{animation:twLatido 1.2s ease 3}
 .tw .tw-menu-test{background:linear-gradient(90deg,#fff7ef,#fdf0f4)}.tw-menu-test b{display:block}.tw-menu-test small{display:block;font-size:13px;color:#8a6f6f;margin-top:2px}
 .tw-rut{max-width:760px;margin:26px auto 40px}
 .tw-rut-ceja{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#b07a4a}
@@ -24752,6 +24760,9 @@ const TW_FILTROS = [
     ["cafeina", "Cafeína", /cafein|caffeine/, "Cafeína"],
     ["ginseng", "Ginseng", /ginseng/, "Ginseng"],
     ["calamina", "Calamina", /calamin/, "Calamina"],
+    ["nad", "NAD+", /\bnad\b|nicotinamide adenine|nicotinamida adenin/, "NAD+"],
+    ["egf", "EGF (factor de crecimiento)", /\begf\b|factor de crecimiento epiderm|epidermal growth|oligopeptide-1\b/, "EGF"],
+    ["escualano", "Escualano", /escual[ae]n|squal[ae]n/, "Escualano"],
     ["pantenol", "Pantenol (vitamina B5)", /pantenol|panthenol|provitamina b5|vitamina b5|\bb5\b/, "Pantenol"],
   ] },
 ];
@@ -26578,6 +26589,20 @@ function TiendaPublica({ slug }) {
             </div>
           );
         })()}
+        {(miCuenta.misiones || []).length > 0 && (
+          <div className="tw-misiones">
+            <b className="tw-misiones-tit">🎯 Misiones con puntos extra</b>
+            {miCuenta.misiones.map(m => (
+              <div key={m.id} className={"tw-mision" + (m.lograda ? " ok" : "") + (m.recien ? " recien" : "")}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}><b>{m.titulo}</b><span className="tw-mision-pts">+{m.puntos.toLocaleString("es-AR")} pts</span></div>
+                {m.lograda ? <div className="tw-mision-ok">{m.recien ? "🎉 ¡Misión cumplida! Ya sumaste los puntos" : "✓ Cumplida"}</div> : <>
+                  <div className="tw-barra-pts gris"><i style={{ width: Math.max(4, m.n / m.meta * 100) + "%" }} /></div>
+                  <div className="tw-mision-av"><span>{m.tipo === "monto" ? fmtTienda(m.n) + " de " + fmtTienda(m.meta) : m.n + " de " + m.meta}</span><span>Termina el {String(m.hasta).slice(8, 10)}/{String(m.hasta).slice(5, 7)}</span></div>
+                </>}
+              </div>
+            ))}
+          </div>
+        )}
         {logros.length > 0 && pestana !== "logros" && (
           <button className="tw-logros-tira" onClick={() => setFormCuenta(x => ({ ...x, pestana: "logros" }))}>
             <span className="tw-logros-mini">{(logrosOk.length ? logrosOk : logros).slice(-4).map(l => <i key={l.id} className={l.ok ? "" : "off"}>{l.icono}</i>)}</span>
@@ -28227,6 +28252,23 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
   const [combos, setCombos] = useState(() => (o0.combos || []).map(c => ({ ...c })));
   const [guardando, setGuardando] = useState(false);
   const [ref, setRef] = useState(() => ({ ...(cfg.referidos || { activo: true, pct: 10, puntos: 500 }) }));
+  const [mis, setMis] = useState(() => (cfg.misiones || []).map(m => ({ ...m })));
+  const TIPOS_MIS = cfg.misiones_tipos || { resenas: "Dejar reseñas", compras: "Hacer compras", monto: "Comprar por un monto", coreano: "Comprar productos coreanos", categoria: "Comprar de una categoría", online: "Comprar en la tienda online", invitar: "Invitar amigas que compren" };
+  const hoyISO = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+  const enDias = (d) => new Date(Date.now() - 3 * 3600e3 + d * 864e5).toISOString().slice(0, 10);
+  const finDeMes = () => { const h = new Date(Date.now() - 3 * 3600e3); return new Date(Date.UTC(h.getUTCFullYear(), h.getUTCMonth() + 1, 0)).toISOString().slice(0, 10); };
+  const plantillasMis = [
+    { titulo: "Dejá 2 reseñas esta semana", tipo: "resenas", meta: 2, puntos: 300, desde: hoyISO(), hasta: enDias(6) },
+    { titulo: "Probá algo de skincare coreano", tipo: "coreano", meta: 1, puntos: 500, desde: hoyISO(), hasta: finDeMes() },
+    { titulo: "Comprá $50.000 este mes", tipo: "monto", meta: 50000, puntos: 400, desde: hoyISO(), hasta: finDeMes() },
+    { titulo: "Invitá a una amiga este mes", tipo: "invitar", meta: 1, puntos: 300, desde: hoyISO(), hasta: finDeMes() },
+  ];
+  const setMi = (i, cambio) => setMis(l => l.map((m, k) => k === i ? { ...m, ...cambio } : m));
+  const guardarMis = async () => {
+    try { const r = await API.put("/tienda/misiones", { misiones: mis }); setMis(r.data.misiones); avisar(true, "✓ Misiones guardadas"); onGuardado && onGuardado(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+  };
+  const categoriasProd = [...new Set((productos || []).map(p => p.categoria).filter(Boolean))].sort();
   const guardarRef = async () => {
     try { const r = await API.put("/tienda/referidos", { activo: !!ref.activo, pct: parseInt(ref.pct) || 0, puntos: parseInt(ref.puntos) || 0 }); setRef(r.data.referidos); avisar(true, "✓ Guardado"); onGuardado && onGuardado(); }
     catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
@@ -28307,6 +28349,33 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
       {esJefe && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar ofertas"}</button>
       </div>}
+      <div className="card">
+        <div className="ct">🎯 Misiones con puntos extra</div>
+        <div style={{ fontSize: 13, color: temaPal.textMuted, marginBottom: 10 }}>Desafíos con fecha de inicio y fin: la clienta ve su avance en "Mi cuenta" y, cuando la cumple, se le suman los puntos (una sola vez). Cuentan las compras en el local y online con su ficha.</div>
+        {esJefe && <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}><span style={{ fontSize: 12, color: temaPal.textMuted, alignSelf: "center" }}>Ideas:</span>{plantillasMis.map(pl => <button key={pl.titulo} className="mini-chip" onClick={() => setMis(l => [...l, { ...pl, id: "m" + Date.now().toString(36) + l.length, activo: true }])}>+ {pl.titulo}</button>)}</div>}
+        {mis.length === 0 && <div className="empty" style={{ padding: 12 }}>Todavía no hay misiones.</div>}
+        {mis.map((m, i) => { const vig = m.desde <= hoyISO() && m.hasta >= hoyISO(); return (
+          <div key={m.id || i} style={{ border: "1px solid " + temaPal.border, borderRadius: 12, padding: 12, marginBottom: 8, opacity: m.activo === false ? .6 : 1 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <input className="inp" style={{ flex: "2 1 220px", fontWeight: 700 }} placeholder="Título (lo ve la clienta)" value={m.titulo || ""} disabled={!esJefe} onChange={e => setMi(i, { titulo: e.target.value })} />
+              <span className={"tag " + (m.activo === false ? "tag-neutral" : vig ? "tag-ok" : m.hasta < hoyISO() ? "tag-neutral" : "tag-warn")}>{m.activo === false ? "Apagada" : vig ? "En curso" : m.hasta < hoyISO() ? "Terminada" : "Programada"}</span>
+              <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}><input type="checkbox" checked={m.activo !== false} disabled={!esJefe} onChange={e => setMi(i, { activo: e.target.checked })} />Activa</label>
+              {esJefe && <button className="btn btn-g btn-sm" onClick={() => setMis(l => l.filter((_, k) => k !== i))}>🗑</button>}
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8, alignItems: "flex-end" }}>
+              <div className="fg" style={{ flex: "1 1 200px" }}><div className="fl">Qué tiene que hacer</div><select className="sel" value={m.tipo} disabled={!esJefe} onChange={e => setMi(i, { tipo: e.target.value })}>{Object.entries(TIPOS_MIS).map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select></div>
+              {m.tipo === "categoria" && <div className="fg" style={{ flex: "1 1 160px" }}><div className="fl">Categoría</div><select className="sel" value={m.categoria || ""} disabled={!esJefe} onChange={e => setMi(i, { categoria: e.target.value })}><option value="">Elegí…</option>{categoriasProd.map(c => <option key={c} value={c}>{c}</option>)}</select></div>}
+              <div className="fg" style={{ flex: "0 1 130px" }}><div className="fl">{m.tipo === "monto" ? "Monto ($)" : m.tipo === "coreano" || m.tipo === "categoria" ? "Productos" : "Cantidad"}</div><input className="inp" type="number" min="1" value={m.meta || ""} disabled={!esJefe} onChange={e => setMi(i, { meta: e.target.value })} /></div>
+              <div className="fg" style={{ flex: "0 1 110px" }}><div className="fl">Puntos</div><input className="inp" type="number" min="0" value={m.puntos ?? ""} disabled={!esJefe} onChange={e => setMi(i, { puntos: e.target.value })} /></div>
+              <div className="fg" style={{ flex: "0 1 150px" }}><div className="fl">Desde</div><input className="inp" type="date" value={m.desde || ""} disabled={!esJefe} onChange={e => setMi(i, { desde: e.target.value })} /></div>
+              <div className="fg" style={{ flex: "0 1 150px" }}><div className="fl">Hasta</div><input className="inp" type="date" value={m.hasta || ""} min={m.desde || undefined} disabled={!esJefe} onChange={e => setMi(i, { hasta: e.target.value })} /></div>
+            </div>
+          </div>); })}
+        {esJefe && <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+          <button className="btn btn-g btn-sm" onClick={() => setMis(l => [...l, { id: "m" + Date.now().toString(36), titulo: "", tipo: "compras", meta: 1, puntos: 200, desde: hoyISO(), hasta: enDias(6), activo: true }])}>+ Nueva misión</button>
+          <button className="btn btn-g btn-sm" onClick={guardarMis}>Guardar misiones</button>
+        </div>}
+      </div>
       <div className="card">
         <div className="ct">💌 Invitá a una amiga</div>
         <div style={{ fontSize: 13, color: temaPal.textMuted, marginBottom: 10 }}>Cada clienta con cuenta tiene su link para invitar (lo ve en "Mi cuenta"). La amiga tiene un descuento en su <b>primera</b> compra y, cuando retira su pedido, la que la invitó suma puntos.</div>
