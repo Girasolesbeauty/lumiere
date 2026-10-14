@@ -11879,6 +11879,67 @@ function RecuperarClientes({ temaPal, grupoInicial }) {
   );
 }
 
+// Para reponer: clientas a las que se les esta por terminar un producto (segun cuanto dura cada tipo)
+const PLANTILLA_REPONER = "¡Hola {nombre}! 🌻 ¿Cómo te está yendo con {producto}? Calculamos que ya se te debe estar terminando 😉 Si querés reponerlo, te lo separamos en el local o lo pedís en nuestra tienda online. ¡Te esperamos en {negocio}!";
+function ReponerClientes({ temaPal }) {
+  const [datos, setDatos] = useState(null);
+  const [plantilla, setPlantilla] = useState(PLANTILLA_REPONER);
+  const [negocio, setNegocio] = useState("");
+  const [ocultar, setOcultar] = useState(true);
+  const [busca, setBusca] = useState("");
+  const [limite, setLimite] = useState(50);
+  useEffect(() => { API.get("/configuracion").then(r => setNegocio(r.data?.nombre_negocio || "")).catch(() => {}); }, []);
+  const cargar = () => API.get("/postventa/reponer").then(r => setDatos(r.data)).catch(() => setDatos({ error: true, clientes: [] }));
+  useEffect(() => { cargar(); }, []);
+  const armar = (c) => plantilla.replace(/\{nombre\}/g, (c.nombre || "").split(/[ ,]/)[0].trim() || "").replace(/\{producto\}/g, c.producto || "tu producto").replace(/\{negocio\}/g, negocio || "el local");
+  const enviar = async (c) => {
+    const numero = numeroWhatsApp(c.telefono); if (!numero) return;
+    const texto = armar(c);
+    window.open("https://wa.me/" + numero + "?text=" + encodeURIComponent(texto), "_blank");
+    try {
+      await API.post("/postventa/marcar-enviado", { cliente_id: c.id, mensaje: texto, plantilla: "p" + c.producto_id, grupo: "reponer" });
+      setDatos(d => d ? { ...d, clientes: d.clientes.map(x => x.id === c.id && x.producto_id === c.producto_id ? { ...x, avisado: new Date().toISOString(), recien: true } : x) } : d);
+    } catch (e) {}
+  };
+  const todos = (datos && datos.clientes) || [];
+  const q = busca.trim().toLowerCase();
+  const lista = todos.filter(c => (!q || (c.nombre || "").toLowerCase().includes(q) || (c.producto || "").toLowerCase().includes(q)) && (!ocultar || !c.avisado || c.recien));
+  const estado = (c) => { const r = c.duracion - c.dias; return r > 0 ? ["Se le termina en ~" + r + " día" + (r === 1 ? "" : "s"), "#b7950b"] : r === 0 ? ["Se le termina hoy", "#d35400"] : ["Ya se le terminó (hace ~" + (-r) + " día" + (r === -1 ? "" : "s") + ")", "#c0392b"]; };
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div className="cli-tip" style={{ margin: "0 0 12px" }}>🧴 Clientas a las que <b>se les está por terminar</b> un producto que compraron, según cuánto dura cada tipo (aprox.): {((datos && datos.duraciones) || []).map(d => d.tipo.toLowerCase() + " " + d.dias + " días").join(" · ")}. Un mensaje a tiempo trae la recompra.</div>
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div className="ct">Mensaje (podés editarlo)</div>
+        <textarea className="inp" rows={3} style={{ resize: "vertical" }} value={plantilla} onChange={e => setPlantilla(e.target.value)} aria-label="Mensaje" />
+        <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 6 }}>{"{nombre}"}, {"{producto}"} y {"{negocio}"} se reemplazan solos.</div>
+      </div>
+      <div className="card">
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
+          <input className="inp" style={{ flex: "1 1 200px" }} placeholder="🔍 Buscar por nombre o producto" value={busca} onChange={e => setBusca(e.target.value)} aria-label="Buscar" />
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer" }}><input type="checkbox" checked={ocultar} onChange={e => setOcultar(e.target.checked)} /> Ocultar a las que ya les avisé</label>
+          <button className="btn btn-g btn-sm" onClick={cargar}>Actualizar</button>
+        </div>
+        {!datos ? <div className="skel" style={{ height: 160 }} /> : datos.error ? <div className="empty">No se pudo cargar la lista.</div>
+          : lista.length === 0 ? <div className="empty" style={{ padding: 24 }}>{todos.length ? "Ya les avisaste a todas. 👏" : "Por ahora no hay clientas a las que se les esté terminando un producto."}</div> : (
+          <div>
+            {lista.slice(0, limite).map(c => { const tel = numeroWhatsApp(c.telefono); const [txt, col] = estado(c); return (
+              <div key={c.id + "-" + c.producto_id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: "1px solid " + temaPal.border, opacity: c.recien ? 0.55 : 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>{c.nombre || "Sin nombre"} <span style={{ fontWeight: 400, color: temaPal.textMuted }}>· {c.producto}</span></div>
+                  <div style={{ fontSize: 11, color: temaPal.textMuted }}>Lo compró hace {c.dias} días · {c.tipo.toLowerCase()} (dura ~{c.duracion} días) · <b style={{ color: col }}>{txt}</b></div>
+                  {c.avisado && <div style={{ fontSize: 10.5, color: "#2d7a4f", fontWeight: 600, marginTop: 2 }}>{c.recien ? "✓ Mensaje enviado recién" : "Ya le avisaste el " + new Date(c.avisado).toLocaleDateString("es-AR")}</div>}
+                </div>
+                {tel ? <button className="btn btn-sm" style={{ background: "#25d366", color: "#1B2431", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }} onClick={() => enviar(c)}>💬 {c.avisado ? "Escribir de nuevo" : "Enviar WhatsApp"}</button>
+                  : <span className="tag tag-neutral" title="Cargale el teléfono en Clientes">Sin teléfono</span>}
+              </div>); })}
+            {lista.length > limite && <button className="chip-btn" style={{ marginTop: 10 }} onClick={() => setLimite(l => l + 50)}>Ver 50 más (quedan {lista.length - limite})</button>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function PostventaWA({ paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [rules, setRules] = useState([]);
@@ -11994,7 +12055,7 @@ function PostventaWA({ paletaActual }) {
         <MCard label="Total reglas" value={String(rulesAMostrar.length)} color="#2471a3" />
       </div>
       <div className="tabs">
-        {[["reglas", "REGLAS"], ["enviar", "ENVIAR HOY"], ["recuperar", "RECUPERAR CLIENTES"], ["enviados", "MENSAJES ENVIADOS"], ["nueva", "NUEVA REGLA"]].map(([id, l]) => (
+        {[["reglas", "REGLAS"], ["enviar", "ENVIAR HOY"], ["reponer", "PARA REPONER"], ["recuperar", "RECUPERAR CLIENTES"], ["enviados", "MENSAJES ENVIADOS"], ["nueva", "NUEVA REGLA"]].map(([id, l]) => (
           <div key={id} className={"tab " + (tab === id ? "on" : "")} onClick={() => { setTab(id); setSel(null); if (id === "enviar") cargarPendientesWA(); if (id === "enviados") cargarMensajesReales(); }}>{l}</div>
         ))}
       </div>
@@ -12116,6 +12177,7 @@ function PostventaWA({ paletaActual }) {
           </div>
         </div>
       )}
+      {tab === "reponer" && <ReponerClientes temaPal={temaPal} />}
       {tab === "recuperar" && <RecuperarClientes temaPal={temaPal} grupoInicial={tabInicial === "recuperar_inactivos" ? "inactivos" : "una_compra"} />}
       {tab === "enviar" && (
         <div className="fade">

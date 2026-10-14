@@ -353,4 +353,44 @@ const getResultados = async (req, res) => {
   }
 };
 
-module.exports = { getReglas, createRegla, updateRegla, getMensajes, ejecutarReglas, getPendientesWhatsApp, marcarEnviadoWhatsApp, marcarMensajeEnviado, getRecuperar, getResultados };
+// Para reponer: clientas a las que se les esta por terminar un producto que compraron (segun cuanto dura
+// cada tipo de producto, aproximado). Ventana: desde 7 dias antes hasta 30 dias despues de que se termina.
+const DURACIONES = [
+  [/protector solar|proteccion solar|\bfps\b|\bspf\b|sunscreen/, 45, 'Protector solar'],
+  [/mascarilla|sheet ?mask|\bmask\b|parches?/, 45, 'Mascarilla'],
+  [/contorno de ojos|eye cream|ojeras/, 90, 'Contorno de ojos'],
+  [/exfolia|peeling|scrub/, 90, 'Exfoliante'],
+  [/serum|ampolla|booster|concentrado/, 60, 'Sérum'],
+  [/tonico|toner|esencia|essence|bruma/, 75, 'Tónico'],
+  [/limpia|cleanser|espuma|jabon|desmaquill|micelar|balsamo limpiador/, 60, 'Limpieza'],
+  [/hidratante|crema|moistur|gel crema|emulsion/, 60, 'Crema'],
+  [/shampoo|acondicionador|mascara capilar|capilar/, 45, 'Capilar'],
+  [/perfume|fragancia|eau de|colonia|body mist|splash/, 120, 'Fragancia'],
+  [/labial|lip|base de maquillaje|corrector|mascara de pesta|rimel|delineador|polvo|rubor/, 120, 'Maquillaje'],
+];
+const normTxt = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const duracionDe = (p) => { const t = normTxt([p.nombre, p.categoria].join(' ')); const d = DURACIONES.find(([r]) => r.test(t)); return d ? { dias: d[1], tipo: d[2] } : null; };
+const getReponer = async (req, res) => {
+  try {
+    await asegurarColumnas();
+    const r = await pool.query(`
+      SELECT DISTINCT ON (v.cliente_id, vi.producto_id) v.cliente_id, c.nombre, c.telefono, vi.producto_id, p.nombre AS producto, p.categoria,
+        v.creado_en AS fecha, EXTRACT(DAY FROM NOW() - v.creado_en)::int AS dias
+      FROM ventas v JOIN venta_items vi ON vi.venta_id = v.id JOIN productos p ON p.id = vi.producto_id JOIN clientes c ON c.id = v.cliente_id
+      WHERE ${VENTA_VALIDA} AND v.creado_en > NOW() - INTERVAL '160 days'
+      ORDER BY v.cliente_id, vi.producto_id, v.creado_en DESC`);
+    const avisos = (await pool.query(`SELECT cliente_id, plantilla, MAX(creado_en) AS f FROM mensajes_enviados WHERE grupo = 'reponer' AND estado = 'enviado_wa' GROUP BY cliente_id, plantilla`)).rows;
+    const lista = r.rows.map(x => {
+      const d = duracionDe(x);
+      if (!d || x.dias < d.dias - 7 || x.dias > d.dias + 30) return null;
+      const av = avisos.find(a => a.cliente_id === x.cliente_id && a.plantilla === 'p' + x.producto_id && new Date(a.f) > new Date(x.fecha));
+      return { id: x.cliente_id, nombre: x.nombre, telefono: x.telefono, producto_id: x.producto_id, producto: x.producto, tipo: d.tipo, fecha: x.fecha, dias: x.dias, duracion: d.dias, avisado: av ? av.f : null };
+    }).filter(Boolean).sort((a, b) => (a.dias - a.duracion) - (b.dias - b.duracion));
+    res.json({ clientes: lista, duraciones: DURACIONES.map(([, d, t]) => ({ tipo: t, dias: d })) });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'No se pudo armar la lista' });
+  }
+};
+
+module.exports = { getReponer, getReglas, createRegla, updateRegla, getMensajes, ejecutarReglas, getPendientesWhatsApp, marcarEnviadoWhatsApp, marcarMensajeEnviado, getRecuperar, getResultados };
