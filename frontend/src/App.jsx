@@ -13174,7 +13174,7 @@ function PacientesConsultorio({ usuario, paletaActual }) {
 
   const q = busca.trim().toLowerCase();
   const lista = (q ? clientes.filter(c => [c.nombre, c.cuit_dni, c.telefono].some(v => String(v || "").toLowerCase().includes(q))) : clientes).slice(0, 80);
-  const edad = h?.paciente?.fecha_nacimiento ? Math.floor((Date.now() - new Date(h.paciente.fecha_nacimiento).getTime()) / (365.25 * 86400000)) : null;
+  const edad = h?.paciente?.fecha_nacimiento && !String(h.paciente.fecha_nacimiento).startsWith("1904") ? Math.floor((Date.now() - new Date(h.paciente.fecha_nacimiento).getTime()) / (365.25 * 86400000)) : null;
   const zonas = h ? [...new Set(h.fotos.map(f => f.zona || "General"))] : [];
   const ETQ_FOTO = { antes: "Antes", despues: "Después", otra: "Foto" };
   const campo = (k, label, ph, multi) => (
@@ -24783,6 +24783,29 @@ function TwDecoRegalo({ t, n = 16 }) {
 }
 
 // Franja grande de la portada
+// Cumpleaños sin año: dia y mes con dos listas grandes (el calendario con el año confundía a muchas clientas).
+// Se guarda con el año 1904, que en el sistema significa "año desconocido".
+const TW_MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+function TwCumple({ value, onChange }) {
+  const m0 = /^\d{4}-(\d{2})-(\d{2})$/.exec(value || "");
+  const [dia, setDia] = useState(m0 ? String(+m0[2]) : "");
+  const [mes, setMes] = useState(m0 ? String(+m0[1]) : "");
+  const diasMes = mes ? [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][+mes - 1] : 31;
+  const poner = (d, m) => { setDia(d); setMes(m); if (d && m && +d <= [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][+m - 1]) onChange("1904-" + String(m).padStart(2, "0") + "-" + String(d).padStart(2, "0")); else onChange(""); };
+  return (
+    <div className="tw-lbl-campo">Tu cumpleaños 🎂 <span style={{ fontWeight: 400, color: "#888" }}>(solo día y mes)</span>
+      <div style={{ display: "flex", gap: 8 }}>
+        <select className="tw-inp" style={{ flex: "0 0 92px" }} aria-label="Día de tu cumpleaños" value={dia} onChange={e => poner(e.target.value, mes)}>
+          <option value="">Día</option>{Array.from({ length: diasMes }, (_, i) => <option key={i + 1} value={String(i + 1)}>{i + 1}</option>)}
+        </select>
+        <select className="tw-inp" style={{ flex: 1 }} aria-label="Mes de tu cumpleaños" value={mes} onChange={e => poner(dia && +dia > [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][+e.target.value - 1] ? "" : dia, e.target.value)}>
+          <option value="">Mes</option>{TW_MESES.map((n, i) => <option key={n} value={String(i + 1)}>{n}</option>)}
+        </select>
+      </div>
+    </div>
+  );
+}
+
 // ===================== Ofertas del dia y combos =====================
 // Mismo calculo que el servidor (lib/tienda.js descuentoCombos): cada combo completo descuenta la diferencia
 function twDescCombos(combos, carrito) {
@@ -26141,7 +26164,7 @@ function TiendaPublica({ slug }) {
     if (f.modo === "crear") {
       const clienta = infoDni && infoDni.estado === "clienta";
       const falta = [!String(f.dni || "").replace(/\D/g, "") && "DNI", !clienta && !String(f.nombre || "").trim().includes(" ") && "nombre y apellido", String(f.telefono || "").replace(/\D/g, "").length < 8 && "WhatsApp",
-        !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(f.email || "").trim()) && "email", !f.fecha_nacimiento && "fecha de nacimiento", String(f.password || "").length < 6 && "contraseña (6 o más)"].filter(Boolean);
+        !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(f.email || "").trim()) && "email", !f.fecha_nacimiento && "día y mes de tu cumpleaños", String(f.password || "").length < 6 && "contraseña (6 o más)"].filter(Boolean);
       if (falta.length) { setAvisoCuenta("Completá: " + falta.join(", ") + "."); return; }
       if (f.password !== f.password2) { setAvisoCuenta("Las dos contraseñas no coinciden."); return; }
       if (infoDni && infoDni.estado === "con_cuenta") { setAvisoCuenta("Ese DNI ya tiene cuenta: ingresá con tu contraseña."); return; }
@@ -26181,7 +26204,7 @@ function TiendaPublica({ slug }) {
           {!(infoDni && infoDni.estado === "clienta") && <input className="tw-inp" placeholder="Nombre y apellido" autoComplete="name" value={fc.nombre || ""} onChange={e => setF("nombre", e.target.value)} />}
           <input className="tw-inp" placeholder="WhatsApp (ej: 2964 123456)" inputMode="tel" autoComplete="tel" value={fc.telefono || ""} onChange={e => setF("telefono", e.target.value)} />
           <input className="tw-inp" placeholder="Email" inputMode="email" autoComplete="email" value={fc.email || ""} onChange={e => setF("email", e.target.value)} />
-          <label className="tw-lbl-campo">Tu cumpleaños 🎂<input className="tw-inp" type="date" max={new Date().toISOString().slice(0, 10)} autoComplete="bday" value={fc.fecha_nacimiento || ""} onChange={e => setF("fecha_nacimiento", e.target.value)} /></label>
+          <TwCumple value={fc.fecha_nacimiento || ""} onChange={v => setF("fecha_nacimiento", v)} />
         </>}
         {!(fc.modo === "crear" && infoDni && infoDni.estado === "con_cuenta") && <input className="tw-inp" type="password" placeholder={fc.modo === "crear" ? "Elegí una contraseña (6 o más)" : "Contraseña"} autoComplete={fc.modo === "crear" ? "new-password" : "current-password"} value={fc.password || ""} onChange={e => setF("password", e.target.value)} />}
         {fc.modo === "crear" && !(infoDni && infoDni.estado === "con_cuenta") && <>

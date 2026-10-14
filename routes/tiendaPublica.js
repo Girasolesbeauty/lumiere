@@ -719,6 +719,8 @@ function fechaNacimiento(x) {
   if (!m) return null;
   const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
   if (d.getUTCMonth() !== +m[2] - 1) return null;
+  // Año 1904 = "solo el cumpleaños" (la clienta no cargo el año; el dia y el mes alcanzan para saludarla)
+  if (+m[1] === 1904) return m[0];
   const edad = (Date.now() - d.getTime()) / (365.25 * 864e5);
   return edad >= 10 && edad <= 110 ? m[0] : null;
 }
@@ -735,7 +737,7 @@ router.post('/:slug/cuenta/crear', async (req, res) => {
     if (password.length < 6) return res.status(400).json({ error: 'La contraseña tiene que tener al menos 6 caracteres' });
     if (digitos(telefono).length < 8) return res.status(400).json({ error: 'Escribí tu WhatsApp con código de área' });
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return res.status(400).json({ error: 'Escribí tu email' });
-    if (!nacimiento) return res.status(400).json({ error: 'Elegí tu fecha de nacimiento (así te saludamos en tu cumple 🎂)' });
+    if (!nacimiento) return res.status(400).json({ error: 'Elegí el día y el mes de tu cumpleaños (así te saludamos en tu cumple 🎂)' });
     const k = 'tienda-crear:' + req.negTienda.id + ':' + dni;
     if (cuentas.bloqueado(k)) return res.status(429).json({ error: 'Demasiados intentos. Esperá 15 minutos y volvé a probar.' });
     // Un DNI = una sola cuenta: de a una alta por DNI a la vez (si dos se crean en el mismo momento,
