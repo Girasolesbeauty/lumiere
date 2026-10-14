@@ -17507,6 +17507,7 @@ function Comprobantes({ localId, paletaActual }) {
   const [reintentando, setReintentando] = useState(null);
   const [aviso, setAviso] = useState("");
   const [configTicket, setConfigTicket] = useState({});
+  const [verTicket, setVerTicket] = useState(null);
   const avisar = (t) => { setAviso(t); setTimeout(() => setAviso(a => (a === t ? "" : a)), 4000); };
 
   useEffect(() => { API.get("/config-ticket").then(res => { if (res.data) setConfigTicket(res.data); }).catch(() => {}); }, []);
@@ -17558,36 +17559,42 @@ function Comprobantes({ localId, paletaActual }) {
     setReintentando(null);
   };
 
-  const reimprimir = (v) => {
+  const plata = (n) => "$" + (parseFloat(n) || 0).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const htmlTicket = (v, reimpresion = true) => {
     const cfg = configTicket || {};
-    const items = v.items || [];
-    const lineas = items.map(i =>
-      `<tr><td style="text-align:left">${i.cantidad}x ${i.nombre}</td><td style="text-align:right">$${(parseFloat(i.precio_unitario) * i.cantidad).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`
+    const lineas = (v.items || []).map(i =>
+      `<tr><td style="text-align:left">${escHtml(i.cantidad)}x ${escHtml(i.nombre)}</td><td style="text-align:right">${plata(parseFloat(i.precio_unitario) * parseFloat(i.cantidad))}</td></tr>`
     ).join("");
-    const html = `
+    const pagos = (v.pagos || []).length > 0 ? v.pagos.map(pg => `<tr><td>${escHtml(pg.nombre)}</td><td style="text-align:right">${plata(pg.importe)}</td></tr>`).join("")
+      : v.medio_pago ? `<tr><td>Pago: ${escHtml(v.medio_pago)}</td><td></td></tr>` : "";
+    return `
       <html><head><meta charset="utf-8"><style>
         @page { size: 80mm auto; margin: 0; }
-        body { width: 72mm; margin: 0 auto; font-family: monospace; font-size: 12px; color: #000; padding: 6px; }
+        body { width: 72mm; margin: 0 auto; font-family: monospace; font-size: 12px; color: #000; background: #fff; padding: 6px; }
         .c { text-align: center; } .b { font-weight: bold; }
         table { width: 100%; border-collapse: collapse; } td { padding: 1px 0; font-size: 12px; }
         hr { border: none; border-top: 1px dashed #000; margin: 6px 0; }
         .tot { font-size: 15px; font-weight: bold; }
         img.logo { width: 60mm; display: block; margin: 0 auto 4px; }
       </style></head><body>
-        <img class="logo" src="${cfg.logo_ticket_url || LOGO_TICKET}" />
-        <div class="c">${nombreLocal(v.local_id)}</div>
-        <div class="c" style="font-size:9px; color:#555">REIMPRESIÓN${v.anulada ? " · ANULADA" : ""}</div>
-        ${cfg.mostrar_fecha !== false ? `<div class="c" style="font-size:10px">${fmtDia(v.fecha)} ${v.hora || ""}</div>` : ""}
-        ${cfg.mostrar_numero !== false ? `<div class="c b" style="font-size:11px">Factura ${v.tipo_factura || "B"} ${fmtNro(v)}</div>` : ""}
-        ${(cfg.mostrar_cliente !== false && v.cliente_nombre) ? `<div class="c" style="font-size:10px">Cliente: ${v.cliente_nombre}${v.cuit_dni ? " (" + v.cuit_dni + ")" : ""}</div>` : ""}
+        <img class="logo" src="${escHtml(cfg.logo_ticket_url || LOGO_TICKET)}" />
+        <div class="c">${escHtml(nombreLocal(v.local_id))}</div>
+        ${reimpresion || v.anulada ? `<div class="c" style="font-size:9px; color:#555">${reimpresion ? "REIMPRESIÓN" : ""}${reimpresion && v.anulada ? " · " : ""}${v.anulada ? "ANULADA" : ""}</div>` : ""}
+        ${cfg.mostrar_fecha !== false ? `<div class="c" style="font-size:10px">${fmtDia(v.fecha)} ${escHtml(v.hora || "")}</div>` : ""}
+        ${cfg.mostrar_numero !== false ? `<div class="c b" style="font-size:11px">${v.cae ? "Factura " + escHtml(v.tipo_factura || "B") : "Comprobante"} ${escHtml(fmtNro(v))}</div>` : ""}
+        ${(cfg.mostrar_cliente !== false && v.cliente_nombre) ? `<div class="c" style="font-size:10px">Cliente: ${escHtml(v.cliente_nombre)}${v.cuit_dni ? " (" + escHtml(v.cuit_dni) + ")" : ""}</div>` : ""}
         <hr><table>${lineas}</table><hr>
-        <table><tr><td class="tot">TOTAL</td><td class="tot" style="text-align:right">$${parseFloat(v.total || 0).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr></table>
-        ${v.cae ? `<hr><div style="font-size:10px">CAE: ${v.cae}</div><div style="font-size:10px">Vto. CAE: ${fmtCaeVto(v.cae_vto)}</div>` : ""}
+        <table><tr><td class="tot">TOTAL</td><td class="tot" style="text-align:right">${plata(v.total)}</td></tr>${pagos}${parseFloat(v.monto_gift_card) > 0 ? `<tr><td>Gift card</td><td style="text-align:right">${plata(v.monto_gift_card)}</td></tr>` : ""}</table>
+        ${v.cae ? `<hr><div style="font-size:10px">CAE: ${escHtml(v.cae)}</div><div style="font-size:10px">Vto. CAE: ${escHtml(fmtCaeVto(v.cae_vto))}</div>` : ""}
         <hr>
-        <div class="c">${cfg.mensaje_pie || "Gracias por tu compra!"}</div>
-        ${cfg.texto_extra ? `<div class="c" style="font-size:10px">${cfg.texto_extra}</div>` : ""}
+        <div class="c">${escHtml(cfg.mensaje_pie || "Gracias por tu compra!")}</div>
+        ${cfg.texto_extra ? `<div class="c" style="font-size:10px">${escHtml(cfg.texto_extra)}</div>` : ""}
         <br><br>
       </body></html>`;
+  };
+
+  const reimprimir = (v) => {
+    const html = htmlTicket(v);
     const w = window.open("", "_blank", "width=380,height=600");
     if (!w) { avisar("Error: habilitá las ventanas emergentes para imprimir"); return; }
     w.document.write(html); w.document.close(); w.focus();
@@ -17638,6 +17645,22 @@ function Comprobantes({ localId, paletaActual }) {
 
       {aviso && <div className={"pop-in cc-aviso " + (aviso.startsWith("Error") ? "bad" : "ok")} role="status">{aviso}</div>}
 
+      {verTicket && (
+        <div className="pos-overlay" onClick={() => setVerTicket(null)}>
+          <div className="card pop-in" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={"Ticket " + fmtNro(verTicket)} style={{ width: 420, maxWidth: "95vw", background: p.card, textAlign: "left" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div style={{ fontSize: 15, fontWeight: 800 }}>🧾 Ticket {fmtNro(verTicket)}</div>
+              <button className="icon-btn" onClick={() => setVerTicket(null)} aria-label="Cerrar">✕</button>
+            </div>
+            <iframe title="Vista del ticket" srcDoc={htmlTicket(verTicket, false)} sandbox="" style={{ width: "100%", height: "60vh", border: "1px solid " + p.border, borderRadius: 8, background: "#fff" }} />
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setVerTicket(null)}>Cerrar</button>
+              <button className="btn btn-p" style={{ flex: 2 }} onClick={() => reimprimir(verTicket)}>🖨️ Reimprimir</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="chart-card" style={{ marginBottom: 12 }}>
         <div className="fin-filtros">
           <div className="seg" role="group" aria-label="Período rápido">
@@ -17650,7 +17673,7 @@ function Comprobantes({ localId, paletaActual }) {
           <input className="inp" type="date" style={{ width: 150 }} value={hasta} min={desde} onChange={e => e.target.value && setHasta(e.target.value)} aria-label="Hasta" />
           <div style={{ position: "relative", flex: "1 1 220px" }}>
             <span aria-hidden="true" style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", opacity: .5 }}>🔍</span>
-            <input className="inp" style={{ paddingLeft: 34 }} placeholder="N° de comprobante, cliente, DNI/CUIT o CAE" value={busqueda} onChange={e => setBusqueda(e.target.value)} aria-label="Buscar comprobante" />
+            <input className="inp" style={{ paddingLeft: 34 }} placeholder="Buscar N° de factura (ej: 0005-00000123), cliente, DNI/CUIT o CAE" value={busqueda} onChange={e => setBusqueda(e.target.value)} aria-label="Buscar comprobante" />
           </div>
         </div>
       </div>
@@ -17688,7 +17711,7 @@ function Comprobantes({ localId, paletaActual }) {
             <button key={k} className={tipo === k ? "on" : ""} onClick={() => setTipo(k)}>{l}</button>
           ))}
         </div>
-        <span style={{ marginLeft: "auto", fontSize: 12, color: p.textMuted }}>{lista.length} comprobante{lista.length !== 1 ? "s" : ""}{lista.length >= 2000 ? " (se muestran los 2000 más recientes)" : ""}</span>
+        <span style={{ marginLeft: "auto", fontSize: 12, color: p.textMuted }}>{lista.length} comprobante{lista.length !== 1 ? "s" : ""}{datos.todas_las_fechas ? " encontrados en todas las fechas" : ""}{lista.length >= (datos.todas_las_fechas ? 300 : 2000) ? " (se muestran los " + (datos.todas_las_fechas ? 300 : 2000) + " más recientes)" : ""}</span>
       </div>
 
       <div className="chart-card" style={{ padding: 0, overflow: "hidden", opacity: loading && lista.length ? 0.6 : 1, transition: "opacity .2s" }}>
@@ -17722,7 +17745,8 @@ function Comprobantes({ localId, paletaActual }) {
                         </td>
                         <td style={{ textAlign: "right", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
                           {est === "pendiente" && <button className="mini-chip" disabled={reintentando === v.id} onClick={() => reintentar(v)}>{reintentando === v.id ? "Facturando..." : "↻ Facturar"}</button>}
-                          <button className="icon-btn" onClick={() => reimprimir(v)} aria-label={"Reimprimir " + fmtNro(v)} title="Reimprimir">🖨️</button>
+                          <button className="mini-chip" onClick={() => setVerTicket(v)} aria-label={"Ver ticket " + fmtNro(v)} title="Ver el ticket">🧾 Ver ticket</button>
+                          <button className="icon-btn" onClick={() => reimprimir(v)} aria-label={"Reimprimir " + fmtNro(v)} title="Reimprimir el ticket">🖨️</button>
                           <button className="icon-btn" onClick={() => setExpandido(abierto ? null : v.id)} aria-label={abierto ? "Ocultar detalle" : "Ver detalle"} aria-expanded={abierto}>{abierto ? "▴" : "▾"}</button>
                         </td>
                       </tr>
