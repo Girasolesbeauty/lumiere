@@ -6067,6 +6067,12 @@ function Rotacion({ localId, paletaActual }) {
   }, [tabLocal, dias, recargar]);
 
   const $ = (v) => fmt(Math.round(v)).replace(SIN_CEROS, "");
+  // Producto parado o lento → Oferta del dia de la tienda online, con el precio sugerido (sin perder plata)
+  const ponerEnOferta = (x) => {
+    const pct = x.descuento_max > 0 ? Math.min(30, Math.max(10, Math.floor(x.descuento_max))) : 10;
+    try { sessionStorage.setItem("lumiere_oferta_pre", JSON.stringify({ producto_id: x.id, nombre: x.nombre, precio: Math.round(x.precio * (1 - pct / 100) / 100) * 100, pct })); } catch (e) {}
+    irASeccion("tienda-online:ofertas");
+  };
   const simularLiquidacion = (lista) => {
     const costo = lista.reduce((s2, x) => s2 + x.valor_costo, 0);
     const venta = lista.reduce((s2, x) => s2 + Math.max(0, x.stock) * x.precio, 0);
@@ -6185,7 +6191,7 @@ function Rotacion({ localId, paletaActual }) {
                       <td style={{ whiteSpace: "nowrap" }}><span className={"tag " + e.cls}>{e.i} {e.l}</span></td>
                       <td style={{ fontSize: 12, whiteSpace: "nowrap" }}>
                         {x.reponer ? <b style={{ color: p.red }}>Reponer{x.stock <= 0 ? " ya" : ""}</b>
-                          : (x.estado === "parado" || x.estado === "lento") ? (x.descuento_max > 0 ? <span title="Descuento máximo que todavía recupera lo que pagaste">Liquidar hasta <b>{x.descuento_max}%</b> off</span> : "Liquidar")
+                          : (x.estado === "parado" || x.estado === "lento") ? <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}><button className="mini-chip" title="Ponerlo como oferta del día en la tienda online" onClick={() => ponerEnOferta(x)}>⚡ Poner en oferta</button>{x.descuento_max > 0 ? <span title="Descuento máximo que todavía recupera lo que pagaste">Liquidar hasta <b>{x.descuento_max}%</b> off</span> : "Liquidar"}</span>
                           : x.estado === "nuevo" ? <span style={{ color: p.textMuted }} title={"Llegó hace " + (x.edad_dias ?? 0) + " días"}>Se evalúa en {x.evalua_en} {x.evalua_en === 1 ? "día" : "días"}</span>
                           : <span style={{ color: p.textMuted }}>—</span>}
                       </td>
@@ -28120,7 +28126,9 @@ function BuscaProductoTienda({ productos, onElegir, placeholder, excluir = [] })
 function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, urlTienda }) {
   const o0 = cfg.ofertas || { dia: {}, combos: [] };
   const aLocal = (iso) => { if (!iso) return ""; const d = new Date(iso); const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return z.toISOString().slice(0, 16); };
-  const [dia, setDia] = useState(() => ({ ...o0.dia, hastaLocal: aLocal(o0.dia && o0.dia.hasta) }));
+  // Si viene desde Rotación con un producto parado: se precarga como oferta del dia por 24 h (falta guardar)
+  const [desdeRot] = useState(() => { try { const x = JSON.parse(sessionStorage.getItem("lumiere_oferta_pre") || "null"); sessionStorage.removeItem("lumiere_oferta_pre"); return x; } catch (e) { return null; } });
+  const [dia, setDia] = useState(() => desdeRot ? { ...o0.dia, activo: true, producto_id: desdeRot.producto_id, precio: desdeRot.precio, titulo: (o0.dia && o0.dia.titulo) || "", hastaLocal: aLocal(new Date(Date.now() + 24 * 3600e3).toISOString()) } : ({ ...o0.dia, hastaLocal: aLocal(o0.dia && o0.dia.hasta) }));
   const [combos, setCombos] = useState(() => (o0.combos || []).map(c => ({ ...c })));
   const [guardando, setGuardando] = useState(false);
   const [ref, setRef] = useState(() => ({ ...(cfg.referidos || { activo: true, pct: 10, puntos: 500 }) }));
@@ -28150,6 +28158,7 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
   const avisoDia = !dia.activo ? "Apagada" : !pDia ? "Elegí el producto" : !(parseInt(dia.precio) > 0) ? "Poné el precio de oferta" : !dia.hastaLocal ? "Elegí hasta cuándo dura" : !t.ms ? "Ya terminó" : parseInt(dia.precio) >= parseFloat(pDia.precio) ? "El precio de oferta tiene que ser menor al normal" : null;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {desdeRot && <div className="cli-tip" style={{ margin: 0 }}>♻️ Cargamos <b>{desdeRot.nombre}</b> desde Rotación con {desdeRot.pct}% OFF por 24 horas (sin perder lo que pagaste). Revisá el precio y la duración y tocá <b>Guardar ofertas</b>.</div>}
       <div className="card">
         <div className="ct">⚡ Oferta del día</div>
         <div style={{ fontSize: 13, color: temaPal.textMuted, marginBottom: 10 }}>Un producto a precio especial por tiempo limitado. En la tienda aparece arriba con una cuenta regresiva, y el precio vale solo hasta la hora que elijas.</div>
