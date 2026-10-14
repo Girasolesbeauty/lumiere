@@ -98,6 +98,7 @@ router.get('/:slug', async (req, res) => {
       ruleta: (() => { const r = tienda.ruletaDe(c); return r.activo ? { minimo: r.minimo, aviso: r.aviso_carrito } : null; })(),
       preventa: (() => { const pv = tienda.preventaDe(c); return pv.activo ? { titulo: pv.titulo } : null; })(),
       icono_v: c.icono ? versionIcono(c.icono) : null,
+      rutinas: tienda.rutinasDe(c).filter(x => x.activo).map(x => ({ ...x, video: tienda.videoRutina(x.video_url), video_url: undefined })),
       referidos: (() => { const r = tienda.referidosDe(c); return r.activo ? { pct: r.pct, puntos: r.puntos } : null; })(),
       ofertas: (() => { const o = tienda.ofertasDe(c), d = tienda.ofertaDiaActiva(c); return { dia: d ? { producto_id: d.producto_id, precio: d.precio, hasta: d.hasta, titulo: d.titulo } : null, combos: o.combos.filter(x => x.activo && x.precio > 0).map(x => ({ id: x.id, nombre: x.nombre, productos: x.productos, precio: x.precio })) }; })(),
       descuentos_pago: (() => { const d = tienda.descuentosPagoDe(c); return Object.fromEntries(Object.entries(d).filter(([, v]) => v > 0)); })(),
