@@ -28,6 +28,7 @@ router.get('/', async (req, res) => {
     const todasLasFechas = !!texto;
     if (!todasLasFechas && (!esFecha(desde) || !esFecha(hasta))) return res.status(400).json({ error: 'Elegí el período' });
     const conPagos = await tieneVentaPagos();
+    const conNC = !!(await pool.query(`SELECT to_regclass('notas_credito') AS t`)).rows[0].t;
     const params = todasLasFechas ? [] : [desde, hasta];
     let where = `${todasLasFechas ? 'TRUE' : `${AR('v.creado_en')}::date BETWEEN $1::date AND $2::date`}
       AND COALESCE(v.canal, '') <> 'prueba'
@@ -65,6 +66,10 @@ router.get('/', async (req, res) => {
           FROM venta_items vi LEFT JOIN productos p ON p.id = vi.producto_id WHERE vi.venta_id = v.id), '[]') AS items
         ${conPagos ? `, COALESCE((SELECT json_agg(json_build_object('nombre', vp.medio_pago_nombre, 'importe', vp.importe))
           FROM venta_pagos vp WHERE vp.venta_id = v.id), '[]') AS pagos` : ''}
+        ${conNC ? `, COALESCE((SELECT json_agg(json_build_object('id', nc.id, 'tipo', nc.tipo, 'punto_venta', nc.punto_venta, 'nro', nc.nro,
+            'cae', nc.cae, 'cae_vto', nc.cae_vto, 'importe', nc.importe, 'motivo', nc.motivo, 'usuario_nombre', nc.usuario_nombre,
+            'fecha', to_char(${AR('nc.creado_en')}, 'YYYY-MM-DD'), 'hora', to_char(${AR('nc.creado_en')}, 'HH24:MI')) ORDER BY nc.id)
+          FROM notas_credito nc WHERE nc.venta_id = v.id), '[]') AS notas_credito` : `, '[]'::json AS notas_credito`}
       FROM ventas v
       LEFT JOIN clientes c ON c.id = v.cliente_id
       LEFT JOIN usuarios u ON u.id = v.usuario_id
@@ -73,6 +78,12 @@ router.get('/', async (req, res) => {
       LIMIT ${todasLasFechas ? 300 : 2000}`, params);
 
     let filas = r.rows;
+    // Cuanto de cada factura ya se anulo con nota de credito
+    filas.forEach(f => {
+      const facturado = parseFloat(f.total || 0) - parseFloat(f.monto_gift_card || 0);
+      f.total_nc = (f.notas_credito || []).reduce((s, n) => s + parseFloat(n.importe || 0), 0);
+      f.nc_disponible = f.cae ? Math.max(0, Math.round((facturado - f.total_nc) * 100) / 100) : 0;
+    });
     // Resumen del periodo (antes de filtrar por estado, asi los contadores de arriba no cambian)
     const emitidos = filas.filter(f => f.cae && !f.anulada);
     const resumen = {
@@ -81,7 +92,9 @@ router.get('/', async (req, res) => {
       pendientes: filas.filter(f => f.pendiente && !f.anulada).length,
       total_pendiente: filas.filter(f => f.pendiente && !f.anulada).reduce((s, f) => s + parseFloat(f.total || 0), 0),
       anulados: filas.filter(f => f.anulada).length,
-      anulados_con_cae: filas.filter(f => f.anulada && f.cae).length,
+      anulados_con_cae: filas.filter(f => f.anulada && f.cae && f.nc_disponible > 0).length,
+      con_nc: filas.filter(f => f.total_nc > 0).length,
+      total_nc: filas.reduce((s, f) => s + f.total_nc, 0),
       por_tipo: ['A', 'B', 'C'].map(t => {
         const l = emitidos.filter(f => (f.tipo_factura || 'B') === t);
         return { tipo: t, cantidad: l.length, total: l.reduce((s, f) => s + parseFloat(f.total || 0), 0) };
