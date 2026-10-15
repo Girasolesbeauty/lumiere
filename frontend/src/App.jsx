@@ -4312,6 +4312,22 @@ function POS({ localId, usuario, paletaActual }) {
     return () => window.removeEventListener("keydown", h);
   }, []);
 
+  // Pago en efectivo: se puede redondear el precio de cada producto (cualquier vendedora, con tope:
+  // hasta $1.000 o el 3% del precio). Si se cambia a otro medio, vuelven los precios originales.
+  const esEfectivoSel = !pagoMixto && !!medioPagoSel && (medioPagoSel.tipo === "efectivo" || /efectivo/i.test(medioPagoSel.nombre || ""));
+  const topeRedondeo = (base) => Math.max(1000, Math.round(base * 0.03));
+  const opcionesRedondeo = (base) => {
+    if (!base) return [];
+    const r = (n, m, f) => Math[f](n / m) * m;
+    return [...new Set([r(base, 100, "floor"), r(base, 500, "floor"), r(base, 1000, "floor"), r(base, 100, "ceil"), r(base, 500, "ceil"), r(base, 1000, "ceil")])]
+      .filter(v => v > 0 && v !== base && Math.abs(v - base) <= topeRedondeo(base)).sort((a, b) => a - b);
+  };
+  // (este useEffect tiene que quedar antes de los return de las pestañas: si no, React se rompe al cambiar de pestaña)
+  useEffect(() => {
+    if (esEfectivoSel) return;
+    setCart(prev => prev.some(x => x.redondeado) ? prev.map(x => x.redondeado ? { ...x, precio: x.precio_orig, price: x.precio_orig, redondeado: false } : x) : prev);
+  }, [esEfectivoSel]);
+
   const tabCambios = (
     <div className={"tab " + (tabPos === "cambios" ? "on" : "")} onClick={() => setTabPos("cambios")}>CAMBIOS / DEVOLUCIONES</div>
   );
@@ -4573,20 +4589,6 @@ function POS({ localId, usuario, paletaActual }) {
       </div>
     );
   })() : null;
-  // Pago en efectivo: se puede redondear el precio de cada producto (cualquier vendedora, con tope:
-  // hasta $1.000 o el 3% del precio). Si se cambia a otro medio, vuelven los precios originales.
-  const esEfectivoSel = !pagoMixto && !!medioPagoSel && (medioPagoSel.tipo === "efectivo" || /efectivo/i.test(medioPagoSel.nombre || ""));
-  const topeRedondeo = (base) => Math.max(1000, Math.round(base * 0.03));
-  const opcionesRedondeo = (base) => {
-    if (!base) return [];
-    const r = (n, m, f) => Math[f](n / m) * m;
-    return [...new Set([r(base, 100, "floor"), r(base, 500, "floor"), r(base, 1000, "floor"), r(base, 100, "ceil"), r(base, 500, "ceil"), r(base, 1000, "ceil")])]
-      .filter(v => v > 0 && v !== base && Math.abs(v - base) <= topeRedondeo(base)).sort((a, b) => a - b);
-  };
-  useEffect(() => {
-    if (esEfectivoSel) return;
-    setCart(prev => prev.some(x => x.redondeado) ? prev.map(x => x.redondeado ? { ...x, precio: x.precio_orig, price: x.precio_orig, redondeado: false } : x) : prev);
-  }, [esEfectivoSel]);
   const carritoJSX = (
           <div style={{ background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 8, flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 240 }}>
           <div style={{ padding: "10px 14px", borderBottom: "1px solid " + temaPal.border, fontSize: 10, color: temaPal.textMuted, fontWeight: 700, letterSpacing: ".1em", background: preventa ? "#2471a320" : temaPal.bg }}>
