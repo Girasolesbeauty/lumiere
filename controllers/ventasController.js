@@ -32,6 +32,40 @@ const acreditarEfectivoEnCaja = async (client, { pagos, medio_pago_id, medio_pag
   }
 };
 
+// Pagos de señas y preventas: cada medio con el que se pago (la seña y despues el saldo) queda en
+// venta_pagos con su etapa ('sena' o 'saldo'). Asi una seña puede pagarse con varios medios y
+// Finanzas reparte bien cada peso por medio de pago cuando la preventa se entrega.
+const { porNegocio } = require('../lib/contexto');
+const etapaLista = porNegocio(false);
+const asegurarEtapaPagos = async () => {
+  if (etapaLista.get()) return;
+  await pool.query('ALTER TABLE venta_pagos ADD COLUMN IF NOT EXISTS etapa TEXT');
+  etapaLista.set(true);
+};
+// Limpia una lista de pagos [{medio_pago_id, medio_pago_nombre, importe}] (solo los que tienen importe)
+const limpiarTramos = (lista) => (Array.isArray(lista) ? lista : [])
+  .map(p => ({ medio_pago_id: parseInt(p.medio_pago_id) || null, medio_pago_nombre: p.medio_pago_nombre ? String(p.medio_pago_nombre).slice(0, 100) : null, importe: Math.round((parseFloat(p.importe) || 0) * 100) / 100 }))
+  .filter(p => p.importe > 0);
+// Completa el nombre de cada medio desde la tabla (por si no vino) y avisa si falta elegir alguno
+const nombrarTramos = async (client, tramos) => {
+  for (const t of tramos) {
+    if (!t.medio_pago_id && !t.medio_pago_nombre) return 'Elegí el medio de pago en cada línea';
+    if (t.medio_pago_id) {
+      const m = await client.query('SELECT nombre, tipo FROM medios_pago WHERE id = $1', [t.medio_pago_id]);
+      if (!m.rows.length) return 'Uno de los medios de pago no existe';
+      if (m.rows[0].tipo === 'cuenta_corriente') return 'Las señas y preventas no se pueden pagar con cuenta corriente';
+      t.medio_pago_nombre = m.rows[0].nombre;
+    }
+  }
+  return null;
+};
+const guardarTramos = async (client, ventaId, tramos, etapa) => {
+  for (const t of tramos) {
+    await client.query('INSERT INTO venta_pagos (venta_id, medio_pago_id, medio_pago_nombre, importe, etapa) VALUES ($1, $2, $3, $4, $5)',
+      [ventaId, t.medio_pago_id, t.medio_pago_nombre, t.importe, etapa]);
+  }
+};
+
 const getAll = async (req, res) => {
   try {
     const { local_id, mes, anio, es_preventa } = req.query;
@@ -74,6 +108,13 @@ const getAll = async (req, res) => {
       query += ` AND EXTRACT(YEAR FROM v.creado_en) = $${params.length}`;
     }
     if (es_preventa === 'true') {
+      // Con que medios pago la seña (y el saldo, si ya se entrego)
+      try { await asegurarEtapaPagos(); } catch (e) { /* sin venta_pagos: sin detalle */ }
+      const conDetalle = etapaLista.get();
+      if (conDetalle) query = query.replace('AS items\n      FROM ventas v', `AS items,
+        COALESCE((SELECT json_agg(json_build_object('medio_pago_id', vp.medio_pago_id, 'nombre', vp.medio_pago_nombre, 'importe', vp.importe, 'etapa', vp.etapa) ORDER BY vp.id)
+          FROM venta_pagos vp WHERE vp.venta_id = v.id), '[]') AS pagos
+      FROM ventas v`);
       query += ` AND v.es_preventa = TRUE`;
     } else if (es_preventa === 'false') {
       query += ` AND COALESCE(v.es_preventa, FALSE) = FALSE`;
@@ -119,7 +160,8 @@ const create = async (req, res) => {
       cliente_id, tipo_factura, items, descuento, canal, cupon_codigo, local_id,
       medio_pago_id, medio_pago_nombre, total_con_interes, es_preventa, nombre_preventa,
       usuario_id, usuario_nombre, inicio_venta, duracion_segundos, monto_gift_card, insumos_usados, pagos, referencia,
-      justificaciones_stock, monto_sena, sena_medio_pago_id, sena_medio_pago_nombre, sena_referencia } = req.body;
+      justificaciones_stock, monto_sena, sena_referencia, sena_pagos } = req.body;
+    let { sena_medio_pago_id, sena_medio_pago_nombre } = req.body;
 
     let subtotal = 0;
     for (const item of items) {
@@ -238,7 +280,21 @@ const create = async (req, res) => {
     // Se calcula reci\u00e9n ac\u00e1 porque depende de 'total', que se define m\u00e1s arriba.
     const estadoFacturacionInicial = (es_preventa === true || totalGCInicial >= total) ? 'no_aplica' : 'pendiente';
 
-    const montoSenaInicial = (es_preventa === true) ? (parseFloat(monto_sena) || 0) : 0;
+    let montoSenaInicial = (es_preventa === true) ? (parseFloat(monto_sena) || 0) : 0;
+    // Seña/pago de preventa con uno o varios medios
+    let tramosSena = [];
+    if (es_preventa === true) {
+      tramosSena = limpiarTramos(Array.isArray(sena_pagos) && sena_pagos.length ? sena_pagos
+        : (montoSenaInicial > 0 ? [{ medio_pago_id: sena_medio_pago_id, medio_pago_nombre: sena_medio_pago_nombre, importe: montoSenaInicial }] : []));
+      if (tramosSena.length) {
+        const err = await nombrarTramos(client, tramosSena);
+        if (err) { await client.query('ROLLBACK'); return res.status(400).json({ error: err }); }
+        montoSenaInicial = Math.round(tramosSena.reduce((a, t) => a + t.importe, 0) * 100) / 100;
+        if (montoSenaInicial > total + 0.5) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Lo que paga ahora no puede ser mayor al total' }); }
+        sena_medio_pago_id = tramosSena[0].medio_pago_id;
+        sena_medio_pago_nombre = tramosSena.map(t => t.medio_pago_nombre).join(' + ');
+      } else montoSenaInicial = 0;
+    }
 
     const venta = await client.query(
       `INSERT INTO ventas
@@ -269,8 +325,13 @@ const create = async (req, res) => {
 
     const ventaId = venta.rows[0].id;
 
-    // Pago mixto: si vienen varios pagos, se guardan en venta_pagos.
-    if (Array.isArray(pagos) && pagos.length > 0) {
+    if (tramosSena.length) {
+      await asegurarEtapaPagos();
+      await guardarTramos(client, ventaId, tramosSena, 'sena');
+    }
+
+    // Pago mixto: si vienen varios pagos, se guardan en venta_pagos (las preventas usan sena_pagos).
+    if (es_preventa !== true && Array.isArray(pagos) && pagos.length > 0) {
       for (const p of pagos) {
         const imp = parseFloat(p.importe) || 0;
         if (imp <= 0) continue;
@@ -398,7 +459,7 @@ const create = async (req, res) => {
         [(montoSenaInicial >= total - 0.5 ? 'Pago preventa ' : 'Seña preventa ') + numero, montoSenaInicial, sena_referencia || numero, local_id || 1]
       );
       await acreditarEfectivoEnCaja(client, {
-        pagos: null, medio_pago_id: sena_medio_pago_id, medio_pago_nombre: sena_medio_pago_nombre, monto: montoSenaInicial,
+        pagos: tramosSena, medio_pago_id: sena_medio_pago_id, medio_pago_nombre: sena_medio_pago_nombre, monto: montoSenaInicial,
         local_id: local_id || 1, usuario_id, concepto: (montoSenaInicial >= total - 0.5 ? 'Pago preventa ' : 'Seña preventa ') + numero
       });
     }
@@ -477,9 +538,10 @@ const confirmarEntrega = async (req, res) => {
   try {
     await client.query('BEGIN');
     const { id } = req.params;
-    const { medio_pago_id, medio_pago_nombre, total_con_interes, usuario_id } = req.body;
+    const { total_con_interes, usuario_id } = req.body;
+    let { medio_pago_id, medio_pago_nombre } = req.body;
 
-    const ventaRes = await client.query('SELECT * FROM ventas WHERE id = $1', [id]);
+    const ventaRes = await client.query('SELECT * FROM ventas WHERE id = $1 FOR UPDATE', [id]);
     if (ventaRes.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Preventa no encontrada' });
@@ -532,9 +594,29 @@ const confirmarEntrega = async (req, res) => {
     }
 
     // Si se eligio un medio de pago distinto (o no se habia definido), actualizarlo
-    const totalFinal = (total_con_interes !== undefined && total_con_interes !== null)
+    let totalFinal = (total_con_interes !== undefined && total_con_interes !== null)
       ? parseFloat(total_con_interes)
       : parseFloat(venta.total);
+    const montoGC = parseFloat(venta.monto_gift_card) || 0;
+    const montoSenaYaPagada = parseFloat(venta.monto_sena) || 0;
+    const medioSaldoNombre = medio_pago_nombre || null;
+
+    // El saldo se puede pagar con uno o varios medios (pagos: [{medio_pago_id, importe}])
+    const tramosSaldo = limpiarTramos(req.body.pagos);
+    if (tramosSaldo.length) {
+      const err = await nombrarTramos(client, tramosSaldo);
+      if (err) { await client.query('ROLLBACK'); return res.status(400).json({ error: err }); }
+      const saldo = parseFloat(venta.total) - montoGC - montoSenaYaPagada;
+      const suma = tramosSaldo.reduce((a, t) => a + t.importe, 0);
+      if (Math.abs(suma - saldo) >= 1) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'La suma de los pagos ($' + suma.toLocaleString('es-AR') + ') tiene que ser igual a lo que falta ($' + saldo.toLocaleString('es-AR') + ')' }); }
+      totalFinal = parseFloat(venta.total) - saldo + suma;
+      medio_pago_id = tramosSaldo[0].medio_pago_id;
+    }
+    // Medio de pago de la venta: todos los que se usaron (seña + saldo), sin repetir
+    const anteriores = (venta.sena_medio_pago_nombre && montoSenaYaPagada > 0) ? venta.sena_medio_pago_nombre.split(' + ') : [];
+    const delSaldo = tramosSaldo.length ? tramosSaldo.map(t => t.medio_pago_nombre) : (medioSaldoNombre && totalFinal - montoGC - montoSenaYaPagada > 0.5 ? [medioSaldoNombre] : []);
+    const todos = [...new Set([...anteriores, ...delSaldo].filter(Boolean))];
+    if (todos.length) medio_pago_nombre = todos.join(' + ');
 
     await client.query(
       `UPDATE ventas SET
@@ -548,9 +630,24 @@ const confirmarEntrega = async (req, res) => {
 
     // Ahora si genera el movimiento de caja, porque recien ahora se cobra el saldo.
     // Si hubo una seña, esa plata ya entro a caja cuando se cargo la preventa: no se vuelve a cobrar.
-    const montoGC = parseFloat(venta.monto_gift_card) || 0;
-    const montoSenaYaPagada = parseFloat(venta.monto_sena) || 0;
-    const ingresoCaja = totalFinal - montoGC - montoSenaYaPagada;
+    const ingresoCaja = Math.round((totalFinal - montoGC - montoSenaYaPagada) * 100) / 100;
+
+    // Detalle por medio de pago (para Finanzas): la seña (si era de antes y no estaba anotada) y el saldo
+    const conPagos = (await client.query(`SELECT to_regclass('venta_pagos') AS t`)).rows[0].t;
+    if (conPagos) {
+      await asegurarEtapaPagos();
+      const yaAnotados = (await client.query('SELECT COUNT(*)::int AS n FROM venta_pagos WHERE venta_id = $1', [id])).rows[0].n;
+      let anotados = yaAnotados;
+      if (!yaAnotados && montoSenaYaPagada > 0 && (venta.sena_medio_pago_id || venta.sena_medio_pago_nombre)) {
+        await guardarTramos(client, id, [{ medio_pago_id: venta.sena_medio_pago_id || null, medio_pago_nombre: venta.sena_medio_pago_nombre || null, importe: montoSenaYaPagada }], 'sena');
+        anotados = 1;
+      }
+      if (anotados || tramosSaldo.length) {
+        const saldoTramos = tramosSaldo.length ? tramosSaldo
+          : (ingresoCaja > 0 ? [{ medio_pago_id: medio_pago_id || null, medio_pago_nombre: medioSaldoNombre, importe: ingresoCaja }] : []);
+        await guardarTramos(client, id, saldoTramos, 'saldo');
+      }
+    }
     if (ingresoCaja > 0) {
       const conceptoEntrega = (montoSenaYaPagada > 0 ? 'Saldo entrega preventa ' : 'Entrega preventa ') + (venta.numero_factura || '');
       await client.query(
@@ -559,7 +656,7 @@ const confirmarEntrega = async (req, res) => {
         [conceptoEntrega, ingresoCaja, venta.numero_factura, venta.local_id || 1]
       );
       await acreditarEfectivoEnCaja(client, {
-        pagos: null, medio_pago_id, medio_pago_nombre, monto: ingresoCaja,
+        pagos: tramosSaldo.length ? tramosSaldo : null, medio_pago_id, medio_pago_nombre: medioSaldoNombre, monto: ingresoCaja,
         local_id: venta.local_id || 1, usuario_id, concepto: conceptoEntrega
       });
     }
