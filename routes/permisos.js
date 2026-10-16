@@ -62,6 +62,14 @@ async function asegurarPermisosV2() {
     await pool.query(`INSERT INTO permisos_usuario (usuario_id, permiso) SELECT id, p FROM usuarios, (VALUES ('tienda.ver'), ('tienda.admin')) v(p) WHERE rol = 'vendedora' ON CONFLICT DO NOTHING`);
     await pool.query(`INSERT INTO permisos_meta (clave) VALUES ('permisos_v5') ON CONFLICT DO NOTHING`);
   }
+  // v6: Salud del stock, Valorización e Historial de ajustes tienen su permiso (antes colgaban de "Ver el inventario").
+  // Se dan a quien ya veia el inventario, asi nadie pierde acceso; despues el jefe los saca a quien no corresponda.
+  const ya6 = await pool.query(`SELECT 1 FROM permisos_meta WHERE clave = 'permisos_v6'`);
+  if (!ya6.rows.length) {
+    await pool.query(`INSERT INTO permisos_usuario (usuario_id, permiso) SELECT DISTINCT usuario_id, p FROM permisos_usuario,
+      (VALUES ('salud_stock.ver'), ('valorizacion.ver'), ('historial_ajustes.ver')) v(p) WHERE permiso = 'inventario.ver' ON CONFLICT DO NOTHING`);
+    await pool.query(`INSERT INTO permisos_meta (clave) VALUES ('permisos_v6') ON CONFLICT DO NOTHING`);
+  }
   migrado.set(true);
 }
 
