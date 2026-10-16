@@ -23886,9 +23886,11 @@ const CSS_TIENDA = `
 .tw-faltan.fuerte{background:#fdecea;color:#b0322a;border-color:#f1b5b0}
 .tw .tw-btn.apagado{opacity:.45}
 .tw-ficha{position:fixed;inset:0;z-index:41;display:flex;align-items:center;justify-content:center;padding:24px;pointer-events:none}
-.tw-ficha-in{pointer-events:auto;background:#fff;width:100%;max-width:1040px;max-height:calc(100vh - 48px);overflow-y:auto;border-radius:8px;position:relative;animation:twFicha .45s cubic-bezier(.2,.8,.2,1) both}
+.tw-ficha-in{pointer-events:auto;background:#fff;width:100%;max-width:1040px;max-height:calc(100vh - 48px);overflow-y:auto;overflow-x:hidden;border-radius:8px;position:relative;animation:twFicha .45s cubic-bezier(.2,.8,.2,1) both}
 @keyframes twFicha{from{opacity:0;transform:translateY(30px) scale(.98)}to{opacity:1;transform:none}}
-.tw-ficha-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:36px;padding:32px}
+.tw-ficha-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:36px;padding:32px}
+.tw-ficha-grid>div{min-width:0}
+.tw-ficha h1,.tw-acord details>div,.tw-ficha-combo,.tw-disp{overflow-wrap:anywhere}
 .tw-cerrar{position:absolute;top:12px;right:12px;z-index:3;width:40px;height:40px;border-radius:50%;border:none;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.15);cursor:pointer;display:flex;align-items:center;justify-content:center}
 .tw-media{position:relative;aspect-ratio:1;background:var(--g);border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center}
 .tw-media img{width:100%;height:100%;object-fit:contain;animation:twAparece .4s ease both}
@@ -24119,7 +24121,7 @@ const CSS_TIENDA = `
   .tw-sec-t h3{font-size:19px}
   .tw-ficha{padding:0;align-items:flex-end}
   .tw-ficha-in{max-height:94vh;border-radius:14px 14px 0 0;animation-name:twHoja}
-  .tw-ficha-grid{grid-template-columns:1fr;gap:16px;padding:16px}
+  .tw-ficha-grid{grid-template-columns:minmax(0,1fr);gap:16px;padding:16px}
   .tw-res-marco{padding:0 16px 20px}
   .tw-form-res{padding:22px 18px calc(22px + env(safe-area-inset-bottom))}
   .tw-pide-res{left:10px;right:10px;bottom:calc(12px + env(safe-area-inset-bottom));max-width:none}
