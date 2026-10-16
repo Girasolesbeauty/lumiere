@@ -30506,10 +30506,14 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
       ["Compras y proveedores", [["compras.ver", "Ver qué pedir, pedidos y reclamos"], ["proveedores.ver", "Ver proveedores (datos y pagos)"]]],
       ["Ingresos", [["ordenes.ver", "Ver ingresos de mercadería"], ["ordenes.crear", "Cargar ingresos nuevos"]]],
       ["Control de Inventario", [["control_inv.ver", "Hacer controles de inventario"]]],
-      ["Rotación", [["rotacion.ver", "Ver la rotación (incluye costos)"]]],
-      ["Inconsistencias", [["inconsistencias.ver", "Ver inconsistencias de stock"]]],
       ["Kits", [["kits.ver", "Ver y armar kits"]]],
       ["Insumos", [["insumos.ver", "Ver insumos"]]] ] },
+    { grupo: "ANÁLISIS DE INVENTARIO", secciones: [
+      ["Salud del stock", [["salud_stock.ver", "Ver la salud del stock (problemas para revisar)"]]],
+      ["Valorización", [["valorizacion.ver", "Ver la valorización (plata en mercadería, incluye costos)"]]],
+      ["Rotación", [["rotacion.ver", "Ver la rotación (incluye costos)"]]],
+      ["Inconsistencias", [["inconsistencias.ver", "Ver inconsistencias de stock"]]],
+      ["Historial de ajustes", [["historial_ajustes.ver", "Ver el historial de ajustes de stock"]]] ] },
     { grupo: "CAJA", secciones: [
       ["Caja", [["caja.ver", "Ver la caja"]]],
       ["Cierre de Caja", [["cierre_caja.ver", "Hacer el cierre de caja"]]],
@@ -31500,7 +31504,7 @@ function AppWrapper() {
  const mapaModulos = {
       "pos": "pos.ver", "tienda-online": "tienda.ver", "presupuestos": "pos.ver", "mesas": "pos.ver", "cocina": "pos.ver", "agenda": "pos.ver", "pacientes": "pos.ver", "recordatorios": "pos.ver", "dashboard": "dashboard.ver",
       "ventas-online": "ventas_online.ver", "buscar-precio": "buscar_precio.ver", "cambio-devolucion": "cambios.ver",
-      "inventory": "inventario.ver", "rotacion": "rotacion.ver", "ordenes": "ordenes.ver", "inconsistencias": "inconsistencias.ver", "kits": "kits.ver", "etiquetas": "inventario.ver", "listas-precios": "inventario.ver", "stock-alertas": "inventario.ver", "traspasos": "inventario.ver", "valorizacion": "inventario.ver", "historial-ajustes": "inventario.ver", "salud-stock": "inventario.ver", "vencimientos": "inventario.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
+      "inventory": "inventario.ver", "rotacion": "rotacion.ver", "ordenes": "ordenes.ver", "inconsistencias": "inconsistencias.ver", "kits": "kits.ver", "etiquetas": "inventario.ver", "listas-precios": "inventario.ver", "stock-alertas": "inventario.ver", "traspasos": "inventario.ver", "valorizacion": "valorizacion.ver", "historial-ajustes": "historial_ajustes.ver", "salud-stock": "salud_stock.ver", "vencimientos": "inventario.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
       "compras": "compras.ver", "reclamos-proveedores": "compras.ver",
       "clients": "clientes.ver", "cuenta-corriente": "clientes.ver", "pedidos": "pedidos.ver", "fidelizacion": "fidelizacion.ver", "tareas": "tareas.ver",
       "finance": "finanzas.flujo", "decisiones": "decisiones.ver", "gerente": "gerente.ver", "comprobantes": "comprobantes.ver",
