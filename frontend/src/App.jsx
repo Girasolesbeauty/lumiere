@@ -22419,6 +22419,14 @@ function Kits({ paletaActual, localId }) {
   const [editando, setEditando] = useState(null);
   const [nuevo, setNuevo] = useState({ nombre: "", descripcion: "", precio: "", items: [] });
   const [itemTemp, setItemTemp] = useState({ producto_id: "", cantidad: 1 });
+  // Buscador de productos para armar el kit: nombre, marca, proveedor o código (también con lector o cámara)
+  const [busqKit, setBusqKit] = useState("");
+  const [escaneandoKit, setEscaneandoKit] = useState(false);
+  const [avisoKit, setAvisoKit] = useState("");
+  const scannerKitRef = useRef(null);
+  const ultimoKitRef = useRef({ codigo: "", t: 0 });
+  const agregarProdRef = useRef(null);
+  const productosRef = useRef([]);
 
   const cargar = async () => {
     setLoading(true);
@@ -22431,14 +22439,72 @@ function Kits({ paletaActual, localId }) {
   };
 
   useEffect(() => { cargar(); }, []);
+  useEffect(() => { productosRef.current = productos; }, [productos]);
 
-  const agregarItem = () => {
-    if (!itemTemp.producto_id || !itemTemp.cantidad) return;
-    const prod = productos.find(p => p.id === parseInt(itemTemp.producto_id));
+  const avisarKit = (t) => { setAvisoKit(t); setTimeout(() => setAvisoKit(a => (a === t ? "" : a)), 3500); };
+  const codigoDe = (p) => String(p.codigo_barras || p.codigo || "").trim();
+  // Suma un producto al kit (si ya estaba, le suma la cantidad)
+  const agregarProducto = (prod, cant) => {
+    const n = Math.max(1, parseInt(cant) || 1);
     const setForm = editando ? setEditando : setNuevo;
-    setForm(f => ({ ...f, items: [...f.items, { ...itemTemp, producto_nombre: prod?.nombre || "", producto_precio: (prod?.precio || prod?.price || 0) }] }));
-    setItemTemp({ producto_id: "", cantidad: 1 });
+    setForm(f => {
+      const i = f.items.findIndex(it => parseInt(it.producto_id) === prod.id);
+      if (i >= 0) return { ...f, items: f.items.map((it, j) => (j === i ? { ...it, cantidad: (parseInt(it.cantidad) || 1) + n } : it)) };
+      return { ...f, items: [...f.items, { producto_id: prod.id, cantidad: n, producto_nombre: prod.nombre || "", producto_precio: (prod.precio || prod.price || 0) }] };
+    });
+    avisarKit("✓ " + (prod.nombre || "Producto") + (n > 1 ? " x" + n : "") + " agregado al kit");
   };
+  agregarProdRef.current = agregarProducto;
+  const resultadosKit = (() => {
+    const q = normTxt(busqKit);
+    if (!q) return [];
+    const palabras = q.split(" ");
+    return productos.filter(p => {
+      const txt = normTxt([p.nombre, p.marca, p.proveedor_nombre, codigoDe(p)].join(" "));
+      return palabras.every(w => txt.includes(w));
+    }).slice(0, 12);
+  })();
+  // Lector de códigos (pistola): escribe el código y Enter. Si coincide justo con un código, se agrega directo.
+  const enterBusqKit = () => {
+    const cod = busqKit.trim();
+    if (!cod) return;
+    const exacto = productos.find(p => codigoDe(p) && codigoDe(p) === cod);
+    if (exacto) { agregarProducto(exacto, itemTemp.cantidad); setBusqKit(""); return; }
+    if (resultadosKit.length === 1) { agregarProducto(resultadosKit[0], itemTemp.cantidad); setBusqKit(""); return; }
+    if (/^\d{6,}$/.test(cod)) avisarKit("Código no encontrado: " + cod);
+  };
+  // Cámara del celular
+  useEffect(() => {
+    if (!escaneandoKit) return;
+    let cancelado = false;
+    (async () => {
+      try {
+        const mod = await import("https://cdn.jsdelivr.net/npm/html5-qrcode/+esm");
+        if (cancelado) return;
+        const scanner = new mod.Html5Qrcode("lector-kit");
+        scannerKitRef.current = scanner;
+        await scanner.start({ facingMode: "environment" }, { fps: 12, qrbox: (w, h) => ({ width: Math.min(w * 0.85, 320), height: Math.min(h * 0.45, 140) }) },
+          (texto) => {
+            const ahora = Date.now();
+            if (texto === ultimoKitRef.current.codigo && ahora - ultimoKitRef.current.t < 1500) return;
+            ultimoKitRef.current = { codigo: texto, t: ahora };
+            try { navigator.vibrate && navigator.vibrate(60); } catch (e) {}
+            const prod = productosRef.current.find(x => String(x.codigo_barras || x.codigo || "").trim() === texto);
+            if (prod) agregarProdRef.current(prod, 1);
+            else avisarKit("Código no encontrado: " + texto);
+          }, () => {});
+      } catch (e) {
+        avisarKit("No se pudo abrir la cámara (revisá los permisos)");
+        setEscaneandoKit(false);
+      }
+    })();
+    return () => {
+      cancelado = true;
+      if (scannerKitRef.current) { const sc = scannerKitRef.current; scannerKitRef.current = null; sc.stop().then(() => sc.clear()).catch(() => {}); }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [escaneandoKit]);
+  useEffect(() => { if (tab !== "nuevo" && !editando) setEscaneandoKit(false); }, [tab, editando]);
 
   const quitarItem = (idx) => {
     const setForm = editando ? setEditando : setNuevo;
@@ -22568,16 +22634,44 @@ function Kits({ paletaActual, localId }) {
             </div>
             <div className="divider" />
             <div className="ct">Agregar productos al kit</div>
-            <div className="fg"><div className="fl">Producto</div>
-              <select className="sel" value={itemTemp.producto_id} onChange={e => setItemTemp(p => ({ ...p, producto_id: e.target.value }))}>
-                <option value="">Seleccionar...</option>
-                {productos.map(p => <option key={p.id} value={p.id}>{p.nombre} (Stock: {p.stock || 0})</option>)}
-              </select>
+            <div className="fg"><div className="fl">Buscar producto</div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input className="inp" style={{ flex: 1 }} placeholder="Nombre, marca, proveedor o código (o escaneá)" value={busqKit} onChange={e => setBusqKit(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); enterBusqKit(); } }} aria-label="Buscar producto para el kit" autoComplete="off" />
+                <button type="button" className="btn btn-g" style={{ padding: "0 12px", fontSize: 18 }} onClick={() => setEscaneandoKit(v => !v)} aria-label={escaneandoKit ? "Cerrar cámara" : "Escanear con la cámara"} title="Escanear el código con la cámara">{escaneandoKit ? "✕" : "📷"}</button>
+              </div>
+              <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 4 }}>Con el lector de códigos: hacé foco acá y escaneá, se agrega solo.</div>
             </div>
-            <div className="fg"><div className="fl">Cantidad</div>
-              <input className="inp" type="number" min="1" value={itemTemp.cantidad} onChange={e => setItemTemp(p => ({ ...p, cantidad: parseInt(e.target.value) || 1 }))} />
+            {escaneandoKit && (
+              <div className="pop-in" style={{ marginBottom: 10 }}>
+                <div id="lector-kit" style={{ width: "100%", minHeight: 200, borderRadius: 10, overflow: "hidden", background: "#000" }} />
+                <div style={{ fontSize: 11, color: temaPal.textMuted, textAlign: "center", marginTop: 6 }}>Cada código que leas se suma al kit</div>
+              </div>
+            )}
+            {avisoKit && <div className="pop-in" role="status" style={{ fontSize: 12, fontWeight: 700, borderRadius: 8, padding: "7px 10px", marginBottom: 8, background: avisoKit.startsWith("✓") ? "#2d7a4f18" : temaPal.redDim, color: avisoKit.startsWith("✓") ? "#2d7a4f" : temaPal.red }}>{avisoKit}</div>}
+            {busqKit.trim() && (
+              <div style={{ border: "1px solid " + temaPal.border, borderRadius: 8, marginBottom: 10, maxHeight: 280, overflowY: "auto" }} role="listbox" aria-label="Resultados">
+                {resultadosKit.length === 0 ? <div style={{ padding: 12, fontSize: 12, color: temaPal.textMuted, textAlign: "center" }}>No hay productos con "{busqKit.trim()}"</div>
+                : resultadosKit.map(p => (
+                  <button key={p.id} type="button" role="option" aria-selected="false" onClick={() => { agregarProducto(p, itemTemp.cantidad); setBusqKit(""); }}
+                    style={{ display: "flex", width: "100%", alignItems: "center", gap: 8, textAlign: "left", background: "transparent", border: "none", borderBottom: "1px solid " + temaPal.border, padding: "8px 10px", cursor: "pointer", color: temaPal.text, fontFamily: "inherit" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.nombre}</div>
+                      <div style={{ fontSize: 10.5, color: temaPal.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{[p.marca, p.proveedor_nombre, codigoDe(p)].filter(Boolean).join(" · ") || "—"}</div>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700 }}>{fmt(parseFloat(p.precio || p.price || 0))}</div>
+                      <div style={{ fontSize: 10, color: (p.stock || 0) > 0 ? temaPal.textMuted : temaPal.red }}>Stock: {p.stock || 0}</div>
+                    </div>
+                    <span style={{ fontSize: 16, color: "#2d7a4f", fontWeight: 800 }} aria-hidden="true">+</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="fg"><div className="fl">Cantidad a agregar</div>
+              <input className="inp" type="number" min="1" value={itemTemp.cantidad} onChange={e => setItemTemp(p => ({ ...p, cantidad: parseInt(e.target.value) || 1 }))} aria-label="Cantidad a agregar" />
             </div>
-            <button className="btn btn-g btn-sm" style={{ width: "100%", marginBottom: 12 }} onClick={agregarItem}>+ Agregar al kit</button>
+            <div style={{ height: 4 }} />
             <button className="btn btn-p" style={{ width: "100%" }} onClick={guardar}>{editando ? "Guardar cambios" : "Crear kit"}</button>
             {editando && <button className="btn btn-g" style={{ width: "100%", marginTop: 8 }} onClick={() => { setEditando(null); setTab("lista"); }}>Cancelar</button>}
           </div>
