@@ -265,4 +265,86 @@ router.post('/eliminar', async (req, res) => {
   }
 });
 
+// ---------- Eliminar UN traspaso devolviendo el stock ----------
+// Deshace el traspaso como si nunca se hubiera hecho:
+// - Si estaba en camino: vuelve al local de origen y se saca de "En camino" del destino.
+// - Si ya se recibió: el destino devuelve lo que recibió y el origen recupera lo que había mandado.
+// Deja las líneas de la vuelta en el historial de ajustes y queda registrado en Auditoría.
+router.post('/:id/eliminar', async (req, res) => {
+  if (!esJefe(req)) return res.status(403).json({ error: 'Solo el jefe puede eliminar traspasos' });
+  const id = parseInt(req.params.id) || 0;
+  const motivo = String((req.body && req.body.motivo) || '').trim().slice(0, 300);
+  if (!motivo) return res.status(400).json({ error: 'Escribí el motivo' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const tRes = await client.query('SELECT * FROM traspasos_stock WHERE id = $1 FOR UPDATE', [id]);
+    const t = tRes.rows[0];
+    if (!t) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Ese traspaso ya no existe' }); }
+    const origen = Number(t.local_origen), destino = Number(t.local_destino);
+    const enviada = parseInt(t.cantidad) || 0;
+    const recibido = t.estado === 'recibido';
+    const recibida = recibido ? (parseInt(t.cantidad_recibida) || 0) : 0;
+    const colOrigen = origen === 2 ? 'stock_ush' : 'stock_rg';
+    const colDestino = destino === 2 ? 'stock_ush' : 'stock_rg';
+    const colTransito = destino === 2 ? 'stock_transito_ush' : 'stock_transito_rg';
+    const pRes = await client.query(`SELECT nombre, COALESCE(${colOrigen}, 0) AS st_origen, COALESCE(${colDestino}, 0) AS st_destino FROM productos WHERE id = $1 FOR UPDATE`, [t.producto_id]);
+    const prod = pRes.rows[0];
+    if (!prod) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'El producto de este traspaso ya no existe: no se puede devolver el stock' }); }
+    const nombreLocal = async (n) => { try { return (await client.query('SELECT nombre FROM locales WHERE id = $1', [n])).rows[0]?.nombre || ('local ' + n); } catch (e) { return 'local ' + n; } };
+    const nomOrigen = await nombreLocal(origen), nomDestino = await nombreLocal(destino);
+    const stOrigen = parseInt(prod.st_origen) || 0, stDestino = parseInt(prod.st_destino) || 0;
+    if (recibido && recibida > stDestino) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `En ${nomDestino} quedan ${stDestino} de "${prod.nombre}" y habría que devolver ${recibida} (seguramente se vendió una parte). Corregí el stock con un ajuste en lugar de eliminar el traspaso.` });
+    }
+
+    if (recibido) {
+      await client.query(
+        `UPDATE productos SET ${colOrigen} = COALESCE(${colOrigen}, 0) + $1, ${colDestino} = COALESCE(${colDestino}, 0) - $2,
+           stock = COALESCE(stock, 0) + $1 - $2 WHERE id = $3`, [enviada, recibida, t.producto_id]);
+    } else {
+      await client.query(
+        `UPDATE productos SET ${colOrigen} = COALESCE(${colOrigen}, 0) + $1, stock = COALESCE(stock, 0) + $1,
+           ${colTransito} = GREATEST(COALESCE(${colTransito}, 0) - $1, 0) WHERE id = $2`, [enviada, t.producto_id]);
+    }
+
+    let quien = null;
+    try { quien = (await client.query('SELECT nombre FROM usuarios WHERE id = $1', [req.usuario.id])).rows[0]?.nombre || null; } catch (e) {}
+    if ((await client.query(`SELECT to_regclass('ajustes_stock') AS x`)).rows[0].x) {
+      await client.query(
+        `INSERT INTO ajustes_stock (producto_id, stock_anterior, stock_nuevo, diferencia, motivo, usuario_id, usuario_nombre, local_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [t.producto_id, stOrigen, stOrigen + enviada, enviada, 'Traspaso eliminado: vuelve desde ' + nomDestino + ' (' + motivo + ')', req.usuario.id || null, quien, origen]);
+      if (recibido && recibida > 0) {
+        await client.query(
+          `INSERT INTO ajustes_stock (producto_id, stock_anterior, stock_nuevo, diferencia, motivo, usuario_id, usuario_nombre, local_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [t.producto_id, stDestino, stDestino - recibida, -recibida, 'Traspaso eliminado: vuelve a ' + nomOrigen + ' (' + motivo + ')', req.usuario.id || null, quien, destino]);
+      }
+    }
+    await client.query('DELETE FROM traspasos_stock WHERE id = $1', [id]);
+    if ((await client.query(`SELECT to_regclass('anulaciones') AS x`)).rows[0].x) {
+      await client.query(
+        `INSERT INTO anulaciones (tipo, referencia_id, referencia_codigo, motivo, usuario_id, usuario_nombre, detalle_json)
+         VALUES ('traspaso_eliminado', $1, $2, $3, $4, $5, $6)`,
+        [id, prod.nombre + ' · ' + enviada + 'u ' + nomOrigen + ' → ' + nomDestino, motivo, req.usuario.id || null, quien,
+         JSON.stringify({ producto_id: t.producto_id, producto: prod.nombre, cantidad: enviada, cantidad_recibida: recibido ? recibida : null, origen, destino, estado: t.estado, creado_en: t.creado_en, stock_devuelto: true })]);
+    }
+    await client.query('COMMIT');
+    res.json({
+      ok: true,
+      mensaje: recibido
+        ? `Traspaso eliminado: ${nomOrigen} recuperó ${enviada} y ${nomDestino} devolvió ${recibida} de "${prod.nombre}".`
+        : `Traspaso eliminado: las ${enviada} unidades de "${prod.nombre}" volvieron a ${nomOrigen}.`,
+    });
+  } catch (e) {
+    try { await client.query('ROLLBACK'); } catch (x) {}
+    console.error('[traspasos] eliminar uno:', e.message);
+    res.status(500).json({ error: 'No se pudo eliminar el traspaso. No se cambió nada.' });
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = router;

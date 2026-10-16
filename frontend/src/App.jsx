@@ -7702,6 +7702,7 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
   const [recibiendoTraspaso, setRecibiendoTraspaso] = useState(null);
   const [cantidadRecibidaInput, setCantidadRecibidaInput] = useState("");
   const [notaRecepcionInput, setNotaRecepcionInput] = useState("");
+  const [eliminandoTr, setEliminandoTr] = useState(null); // { tr, motivo, enviando, error }
 
   const cargarTraspasos = () => {
     setCargandoTraspasos(true);
@@ -7729,6 +7730,20 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
       cargarTraspasos();
       setTimeout(() => setMensaje(""), 3000);
     } catch (e) { setMensaje(e.response?.data?.error || "Error al crear el traspaso"); }
+  };
+
+  // Eliminar un traspaso devolviendo el stock (solo jefe)
+  const eliminarTraspaso = async () => {
+    if (!eliminandoTr || eliminandoTr.enviando) return;
+    if (!eliminandoTr.motivo.trim()) return setEliminandoTr(x => ({ ...x, error: "Escribí el motivo" }));
+    setEliminandoTr(x => ({ ...x, enviando: true, error: "" }));
+    try {
+      const r = await API.post("/traspasos/" + eliminandoTr.tr.id + "/eliminar", { motivo: eliminandoTr.motivo.trim() });
+      setEliminandoTr(null);
+      setMensaje("✓ " + r.data.mensaje);
+      cargarTraspasos(); cargar();
+      setTimeout(() => setMensaje(""), 8000);
+    } catch (e) { setEliminandoTr(x => ({ ...x, enviando: false, error: e.response?.data?.error || "No se pudo eliminar el traspaso" })); }
   };
 
   const confirmarRecepcionTraspaso = async (tr) => {
@@ -8744,6 +8759,11 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
                             <button className="btn btn-p btn-sm" onClick={() => { setRecibiendoTraspaso(tr); setCantidadRecibidaInput(String(tr.cantidad)); }}>Confirmar recepcion</button>
                           </div>
                         )}
+                        {["jefe", "admin"].includes(usuario?.rol) && (
+                          <div style={{ marginTop: 8 }}>
+                            <button className="mini-chip" onClick={() => setEliminandoTr({ tr, motivo: "", enviando: false, error: "" })} aria-label={"Eliminar traspaso de " + tr.producto_nombre} title="Eliminar este traspaso y devolver el stock">🗑 Eliminar</button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -8751,6 +8771,37 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
               })}
             </div>
           )}
+
+          {eliminandoTr && (() => {
+            const tr = eliminandoTr.tr, rec = tr.estado === "recibido";
+            return (
+              <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={() => !eliminandoTr.enviando && setEliminandoTr(null)}>
+                <div className="card fade" role="dialog" aria-modal="true" aria-label="Eliminar traspaso" style={{ maxWidth: 440, width: "90vw", background: temaPal.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+                  <div className="ct">🗑 Eliminar traspaso</div>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>{tr.producto_nombre} · {tr.cantidad}u</div>
+                  <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 10 }}>{nombreLocal(tr.local_origen)} → {nombreLocal(tr.local_destino)} · {new Date(tr.creado_en).toLocaleString("es-AR")}</div>
+                  <div style={{ fontSize: 12, background: temaPal.bg, borderRadius: 8, padding: "8px 10px", marginBottom: 10 }}>
+                    <b>Qué pasa con el stock:</b>
+                    {rec ? <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+                      <li>{nombreLocal(tr.local_origen)} recupera <b>{tr.cantidad}</b> unidad{tr.cantidad == 1 ? "" : "es"}.</li>
+                      <li>{nombreLocal(tr.local_destino)} devuelve <b>{tr.cantidad_recibida}</b> (lo que recibió).</li>
+                    </ul> : <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+                      <li>Las <b>{tr.cantidad}</b> unidades vuelven a {nombreLocal(tr.local_origen)}.</li>
+                      <li>Se sacan de "En camino" de {nombreLocal(tr.local_destino)}.</li>
+                    </ul>}
+                  </div>
+                  <div className="fg"><div className="fl">Motivo</div>
+                    <input className="inp" autoFocus maxLength={300} placeholder="Ej: se cargó por error, no se mandó" value={eliminandoTr.motivo} onChange={e => setEliminandoTr(x => ({ ...x, motivo: e.target.value, error: "" }))} />
+                  </div>
+                  {eliminandoTr.error && <div style={{ fontSize: 12, color: temaPal.red, marginBottom: 8 }}>{eliminandoTr.error}</div>}
+                  <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                    <button className="btn btn-g" style={{ flex: 1 }} disabled={eliminandoTr.enviando} onClick={() => setEliminandoTr(null)}>Cancelar</button>
+                    <button className="btn btn-p" style={{ flex: 2, background: temaPal.red, borderColor: temaPal.red }} disabled={eliminandoTr.enviando} onClick={eliminarTraspaso}>{eliminandoTr.enviando ? "Eliminando..." : "Eliminar y devolver el stock"}</button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {showNuevoTraspaso && (
             <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={() => setShowNuevoTraspaso(false)}>
