@@ -25421,8 +25421,11 @@ function TwOfertaDia({ p, oferta, foto, onAbrir, onAgregar, sin }) {
     </section>
   );
 }
+// Hay stock para armar el combo (cada producto con la cantidad que lleva)
+const twComboHay = (c, items, dispo) => items.every(p => p.variantes ? p.variantes.some(v => dispo(p, v) >= twCantCombo(c, p.id)) : dispo(p) >= twCantCombo(c, p.id));
 function TwCombos({ combos, productos, foto, onAgregar, onAbrir, dispo }) {
-  const lista = combos.map(c => ({ ...c, items: c.productos.map(id => productos.find(p => p.id === id)) })).filter(c => c.items.every(Boolean));
+  // Solo los combos que se pueden comprar ahora (todos sus productos con stock en la ciudad elegida)
+  const lista = combos.map(c => ({ ...c, items: c.productos.map(id => productos.find(p => p.id === id)) })).filter(c => c.items.every(Boolean) && twComboHay(c, c.items, dispo));
   const [hecho, setHecho] = useState(null);
   if (!lista.length) return null;
   return (
@@ -25431,7 +25434,7 @@ function TwCombos({ combos, productos, foto, onAgregar, onAbrir, dispo }) {
       <div className="tw-combos">
         {lista.map((c, k) => {
           const suma = c.items.reduce((s, p) => s + p.precio * twCantCombo(c, p.id), 0), ahorro = Math.max(0, suma - c.precio);
-          const hay = c.items.every(p => p.variantes ? p.variantes.some(v => dispo(p, v) >= twCantCombo(c, p.id)) : dispo(p) >= twCantCombo(c, p.id));
+          const hay = twComboHay(c, c.items, dispo);
           return (
             <div key={c.id} className="tw-combo" style={{ "--i": k }}>
               {ahorro > 0 && <span className="tw-combo-ahorro">Ahorrás {fmtTienda(ahorro)}</span>}
@@ -27326,7 +27329,7 @@ function TiendaPublica({ slug }) {
                   {ver.resenas && <button className="tw-ficha-est" onClick={() => { const el = document.getElementById("tw-resenas"); el && el.scrollIntoView({ behavior: "smooth", block: "start" }); }}><TwEstrellas v={ver.resenas[0]} size={15} /> <b>{String(ver.resenas[0]).replace(".", ",")}</b> <span>({ver.resenas[1]} {ver.resenas[1] === 1 ? "reseña" : "reseñas"})</span></button>}
                   <div className="tw-precio">{ver.precio_antes ? <><s className="tw-antes">{fmtTienda(ver.precio_antes)}</s> <span className="tw-precio-of">{fmtTienda(ver.precio)}</span></> : fmtTienda(ver.precio)}</div>
                   {ver.precio_antes && tienda.ofertas && tienda.ofertas.dia && <div className="tw-ficha-oferta">⚡ {tienda.ofertas.dia.titulo || "Oferta del día"} · termina en <TwReloj hasta={tienda.ofertas.dia.hasta} chico /></div>}
-                  {tienda.ofertas && tienda.ofertas.combos.filter(cb => cb.productos.includes(ver.id)).map(cb => { const its = cb.productos.map(id => visibles.find(x => x.id === id)); if (!its.every(Boolean)) return null; const suma = its.reduce((t, x) => t + x.precio * twCantCombo(cb, x.id), 0); return (
+                  {tienda.ofertas && tienda.ofertas.combos.filter(cb => cb.productos.includes(ver.id)).map(cb => { const its = cb.productos.map(id => visibles.find(x => x.id === id)); if (!its.every(Boolean) || !twComboHay(cb, its, dispo)) return null; const suma = its.reduce((t, x) => t + x.precio * twCantCombo(cb, x.id), 0); return (
                     <div key={cb.id} className="tw-ficha-combo"><span>🎁 <b>Llevalo en combo:</b> {cb.nombre} por <b>{fmtTienda(cb.precio)}</b>{suma > cb.precio ? " (ahorrás " + fmtTienda(suma - cb.precio) + ")" : ""}</span>
                       <button className="tw-btn2" onClick={() => agregarRegalo(its.map(x => ({ p: x, n: twCantCombo(cb, x.id), v: x.variantes ? x.variantes.find(v => dispo(x, v) > 0) : null })))}>Agregar combo</button></div>); })}
                   {(() => { const mejor = Object.entries(tienda.descuentos_pago || {}).filter(([k]) => tienda.pagos[k]).sort((a, b) => b[1] - a[1])[0]; return mejor ? <div className="tw-precio-pago">💸 {fmtTienda(Math.round(ver.precio * (1 - mejor[1] / 100)))} pagando con {({ mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia", retiro: "efectivo al retirar" })[mejor[0]]} ({String(mejor[1]).replace(".", ",")}% OFF)</div> : null; })()}
@@ -28658,6 +28661,14 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
   // Kits armados en Lumiere (Productos > Kits): se pueden traer como combo de la tienda
   const [kitsL, setKitsL] = useState(null);
   const [eligiendoKit, setEligiendoKit] = useState(false);
+  const [kitsSinStock, setKitsSinStock] = useState(false);
+  // Un kit tiene stock si alcanza para armarlo al menos una vez (stock total de cada producto)
+  const kitConStock = (k) => {
+    const nec = {}, st = {};
+    (k.items || []).filter(it => it && it.producto_id).forEach(it => { nec[it.producto_id] = (nec[it.producto_id] || 0) + (parseInt(it.cantidad) || 1); st[it.producto_id] = parseFloat(it.producto_stock) || 0; });
+    const ids = Object.keys(nec);
+    return ids.length > 0 && ids.every(id => st[id] >= nec[id]);
+  };
   useEffect(() => { if (eligiendoKit && kitsL === null) API.get("/kits").then(r => setKitsL(r.data || [])).catch(() => setKitsL([])); }, [eligiendoKit]);
   const cantC = (c, id) => (c.cantidades && c.cantidades[id]) || 1;
   const setCant = (i, id, n) => setCombos(cs => cs.map((c, k) => { if (k !== i) return c; const q = { ...(c.cantidades || {}) }; if (n > 1) q[id] = Math.min(n, 10); else delete q[id]; return { ...c, cantidades: q }; }));
@@ -28734,11 +28745,18 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
           <div style={{ border: "1px solid " + temaPal.border, borderRadius: 12, padding: 10, marginTop: 10 }}>
             <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginBottom: 8 }}>Elegí un kit de <b>Productos → Kits</b>: se carga como combo con sus productos y cantidades. Después ponés el precio especial.</div>
             {kitsL === null ? <div className="skel" style={{ height: 60 }} /> : kitsL.length === 0 ? <div className="empty" style={{ padding: 10 }}>Todavía no hay kits creados en Lumiere.</div>
-            : kitsL.map(k => { const its = (k.items || []).filter(it => it && it.producto_id); const ya = combos.some(c => c.kit_id === k.id); return (
+            : !kitsSinStock && !kitsL.some(kitConStock) ? <div className="empty" style={{ padding: 10 }}>Ningún kit tiene stock para armarlo ahora.</div>
+            : kitsL.filter(k => kitsSinStock || kitConStock(k)).map(k => { const its = (k.items || []).filter(it => it && it.producto_id); const ya = combos.some(c => c.kit_id === k.id); return (
               <button key={k.id} type="button" className="btn btn-g btn-sm" style={{ display: "flex", width: "100%", justifyContent: "space-between", gap: 8, marginBottom: 4, textAlign: "left" }} onClick={() => traerKit(k)}>
-                <span style={{ minWidth: 0 }}><b>{k.nombre}</b>{ya ? " · ya está como combo" : ""}<div style={{ fontSize: 11, fontWeight: 400, color: temaPal.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{its.map(it => (parseInt(it.cantidad) > 1 ? it.cantidad + "× " : "") + it.producto_nombre).join(" + ") || "sin productos"}</div></span>
+                <span style={{ minWidth: 0 }}><b>{k.nombre}</b>{ya ? " · ya está como combo" : ""}{!kitConStock(k) ? <span style={{ color: temaPal.warn }}> · sin stock</span> : ""}<div style={{ fontSize: 11, fontWeight: 400, color: temaPal.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{its.map(it => (parseInt(it.cantidad) > 1 ? it.cantidad + "× " : "") + it.producto_nombre).join(" + ") || "sin productos"}</div></span>
                 <b style={{ flexShrink: 0 }}>{fmt(parseFloat(k.precio || 0))}</b>
               </button>); })}
+            {kitsL && kitsL.some(k => !kitConStock(k)) && (
+              <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 6, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <span>{kitsSinStock ? "Se muestran todos los kits." : kitsL.filter(k => !kitConStock(k)).length + " kit(s) sin stock suficiente no se muestran."}</span>
+                <button type="button" className="mini-chip" onClick={() => setKitsSinStock(v => !v)}>{kitsSinStock ? "Mostrar solo los que tienen stock" : "Ver también los sin stock"}</button>
+              </div>
+            )}
           </div>
         )}
       </div>
