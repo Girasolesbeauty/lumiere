@@ -27254,6 +27254,8 @@ function TiendaPublica({ slug }) {
           <>
             {/* Regalos: en una fecha especial (Dia de la Madre, Navidad...) va arriba de todo; si no, debajo de los banners */}
             {tienda.regalos && tienda.regalos.tema !== "general" && <TwRegalosHero r={tienda.regalos} tienda={tienda} onGift={() => irRegalos("gift")} onArmar={() => irRegalos("armar")} />}
+            {/* Kits y combos: arriba de todo (después del banner de la fecha especial, si hay) */}
+            {tienda.ofertas && tienda.ofertas.combos.length > 0 && (!tienda.regalos || tienda.regalos.tema !== "general") && <TwCombos pagoKits={pagoKitsMejor} combos={tienda.ofertas.combos} productos={visibles} foto={foto} dispo={dispo} onAgregar={agregarRegalo} onAbrir={abrir} />}
             {bannersImg.length > 0 ? (
               <section className="tw-tiles-sec" aria-label="Novedades de la tienda">
                 {bannersImg.length > 3 && <button className="tw-flecha" style={{ left: -14 }} onClick={() => moverTiles(-1)} aria-label="Anteriores"><TwIcono d={TW_IZQ} /></button>}
@@ -27296,6 +27298,7 @@ function TiendaPublica({ slug }) {
               <div className="tw-hero" style={{ height: 220, display: "flex", alignItems: "center", padding: "0 40px" }}><div><div className="tw-ceja" style={{ color }}>Bienvenida</div><h2 style={{ fontSize: 40, margin: "8px 0" }}>{tienda.titulo}</h2><p style={{ margin: 0 }}>{tienda.mensaje}</p></div></div>
             )}
             {tienda.regalos && tienda.regalos.tema === "general" && <TwRegalosHero r={tienda.regalos} tienda={tienda} onGift={() => irRegalos("gift")} onArmar={() => irRegalos("armar")} />}
+            {tienda.ofertas && tienda.ofertas.combos.length > 0 && tienda.regalos && tienda.regalos.tema === "general" && <TwCombos pagoKits={pagoKitsMejor} combos={tienda.ofertas.combos} productos={visibles} foto={foto} dispo={dispo} onAgregar={agregarRegalo} onAbrir={abrir} />}
             {ofertaP && <TwOfertaDia p={ofertaP} oferta={tienda.ofertas.dia} foto={foto} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} sin={agotado(ofertaP)} />}
             {bannersImg.length > 0 && <TwFila titulo="Destacados" items={destacados} render={tarjeta} />}
             {vistosLista.length >= 2 && <TwFila titulo="👀 Lo viste hace poco" items={vistosLista} render={tarjeta} />}
@@ -27311,7 +27314,6 @@ function TiendaPublica({ slug }) {
               <div><span>🔒</span><span style={{ fontSize: 13.5 }}><b>Compra segura</b><br />{tienda.pagos.mp ? "Con Mercado Pago" : "Te confirmamos por WhatsApp"}</span></div>
             </div>
             {masVendidos.length >= 3 && <TwFila titulo="🔥 Lo más vendido del mes" items={masVendidos} render={tarjeta} />}
-            {tienda.ofertas && tienda.ofertas.combos.length > 0 && <TwCombos pagoKits={pagoKitsMejor} combos={tienda.ofertas.combos} productos={visibles} foto={foto} dispo={dispo} onAgregar={agregarRegalo} onAbrir={abrir} />}
             {filasPortada.map(f => <TwFila key={f.id} titulo={f.titulo} items={f.items} render={tarjeta} />)}
             {reels.length > 0 && (
               <section className="tw-sec tw-rv">
