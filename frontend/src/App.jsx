@@ -25421,14 +25421,14 @@ function TwOfertaDia({ p, oferta, foto, onAbrir, onAgregar, sin }) {
 }
 // Hay stock para armar el combo (cada producto con la cantidad que lleva)
 const twComboHay = (c, items, dispo) => items.every(p => p.variantes ? p.variantes.some(v => dispo(p, v) >= twCantCombo(c, p.id)) : dispo(p) >= twCantCombo(c, p.id));
-function TwCombos({ combos, productos, foto, onAgregar, onAbrir, dispo }) {
+function TwCombos({ combos, productos, foto, onAgregar, onAbrir, dispo, titulo }) {
   // Solo los combos que se pueden comprar ahora (todos sus productos con stock en la ciudad elegida)
   const lista = combos.map(c => ({ ...c, items: c.productos.map(id => productos.find(p => p.id === id)) })).filter(c => c.items.every(Boolean) && twComboHay(c, c.items, dispo));
   const [hecho, setHecho] = useState(null);
   if (!lista.length) return null;
   return (
     <section className="tw-sec tw-rv">
-      <div className="tw-sec-t"><h3>🎁 Combos</h3></div>
+      <div className="tw-sec-t"><h3>{titulo || "🎁 Combos"}</h3></div>
       <div className="tw-combos">
         {lista.map((c, k) => {
           const suma = c.items.reduce((s, p) => s + p.precio * twCantCombo(c, p.id), 0), ahorro = Math.max(0, suma - c.precio);
@@ -26701,7 +26701,9 @@ function TiendaPublica({ slug }) {
   const enLista = !!q || !!cat;
   const ordenar = (arr) => orden === "nuevos" ? [...arr].sort((a, b) => (b.creado || 0) - (a.creado || 0) || b.id - a.id) : orden === "menor" ? [...arr].sort((a, b) => a.precio - b.precio) : orden === "mayor" ? [...arr].sort((a, b) => b.precio - a.precio) : orden === "az" ? [...arr].sort((a, b) => a.nombre.localeCompare(b.nombre)) : arr;
   // Sectores del menu (armados en Lumiere): agrupan categorias enteras y productos sueltos
-  const sectores = (tienda.sectores || []).filter(sc => visibles.some(p => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria)));
+  // Kits y combos de un sector (los combos de Ofertas que tienen todos sus productos publicados)
+  const combosSector = (sc) => ((tienda.ofertas && tienda.ofertas.combos) || []).filter(cb => (sc.combos || []).includes(cb.id) && cb.productos.every(id => visibles.some(p => p.id === id)));
+  const sectores = (tienda.sectores || []).filter(sc => visibles.some(p => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria)) || combosSector(sc).length > 0);
   const sector = cat.startsWith("s:") ? sectores.find(sc => "s:" + sc.id === cat) : null;
   // Si la seccion elegida quedo vacia (otra ciudad, se agoto todo), se vuelve al inicio
   if (productos !== null && ((cat === "preventa" && !preventas.length) || (cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat === "regalos" && !tienda.regalos) || (cat && cat !== "*" && !cat.startsWith("s:") && !cat.startsWith("m:") && cat !== "reingreso" && cat !== "videos" && cat !== "regalos" && cat !== "rutina" && cat !== "preventa" && cat !== "favoritos" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2))))) { setTimeout(() => setCat(""), 0); }
@@ -27104,7 +27106,7 @@ function TiendaPublica({ slug }) {
         ) : enLista ? (
           <>
             <div className="tw-lista-cab">
-              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.ingrediente && !filtros.tipo && !filtros.piel && !filtros.necesidad ? "Con " + ((TW_ING_OP.find(o => o[0] === filtros.ingrediente) || ["", ""])[1]) : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : cat === "preventa" ? "⏳ " + tienda.preventa.titulo : cat === "favoritos" ? "❤️ Tus favoritos" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>{lista.length} {lista.length === 1 ? "producto" : "productos"}
+              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.ingrediente && !filtros.tipo && !filtros.piel && !filtros.necesidad ? "Con " + ((TW_ING_OP.find(o => o[0] === filtros.ingrediente) || ["", ""])[1]) : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : cat === "preventa" ? "⏳ " + tienda.preventa.titulo : cat === "favoritos" ? "❤️ Tus favoritos" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>{sector && !q && lista.length === 0 && combosSector(sector).length > 0 ? combosSector(sector).length + (combosSector(sector).length === 1 ? " kit" : " kits") : lista.length + " " + (lista.length === 1 ? "producto" : "productos")}
                 {!q && cat && cat !== "favoritos" && <button className="tw-compartir-sec" onClick={() => compartirSeccion(cat === "preventa" ? tienda.preventa.titulo : sector ? sector.nombre : cat === "*" ? "Todos los productos" : cat === "reingreso" ? reingreso.nombre : cat.startsWith("m:") ? cat.slice(2) : cat)}>{seccionCopiada ? "✓ Link copiado" : "🔗 Compartir"}</button>}</div></div>
               <select value={orden} onChange={e => setOrden(e.target.value)} aria-label="Ordenar">{TW_ORDEN.map(([k, t]) => <option key={k} value={k}>Ordenar: {t}</option>)}</select>
             </div>
@@ -27130,7 +27132,8 @@ function TiendaPublica({ slug }) {
                 {hayFiltros && <button className="tw-filtro-x" onClick={() => setFiltros({})}>Limpiar filtros ✕</button>}
               </div>
             )}
-            {lista.length === 0 ? <div style={{ textAlign: "center", color: "#888", margin: "50px 0" }}><p>{cat === "favoritos" && !q && !hayFiltros ? "Todavía no guardaste favoritos. Tocá el ♡ en los productos que te gusten y los encontrás acá." : hayFiltros ? "No hay productos con esos filtros." : "No encontramos productos con esa búsqueda."}</p>{hayFiltros && <button className="tw-btn2" style={{ display: "inline-flex", width: "auto", padding: "0 22px" }} onClick={() => setFiltros({})}>Ver todos</button>}</div>
+            {sector && !q && !subcat && combosSector(sector).length > 0 && <TwCombos titulo="🎁 Kits y combos" combos={combosSector(sector)} productos={visibles} foto={foto} dispo={dispo} onAgregar={agregarRegalo} onAbrir={abrir} />}
+            {lista.length === 0 && sector && combosSector(sector).length > 0 ? null : lista.length === 0 ? <div style={{ textAlign: "center", color: "#888", margin: "50px 0" }}><p>{cat === "favoritos" && !q && !hayFiltros ? "Todavía no guardaste favoritos. Tocá el ♡ en los productos que te gusten y los encontrás acá." : hayFiltros ? "No hay productos con esos filtros." : "No encontramos productos con esa búsqueda."}</p>{hayFiltros && <button className="tw-btn2" style={{ display: "inline-flex", width: "auto", padding: "0 22px" }} onClick={() => setFiltros({})}>Ver todos</button>}</div>
               : <div className="tw-grid">{lista.map((p, i) => <div key={p.id} className="tw-rv" style={{ "--i": i % 4 }}>{tarjeta(p)}</div>)}</div>}
           </>
         ) : visibles.length === 0 ? (
@@ -27207,7 +27210,8 @@ function TiendaPublica({ slug }) {
             {reingresados.length > 0 && <TwFila titulo={reingreso.nombre} items={reingresados.slice(0, 12)} onVerTodo={() => irCat("reingreso")} render={tarjeta} />}
             <TwFila titulo="Novedades" items={conStock.filter(p => p.nuevo).slice(0, 12)} onVerTodo={() => irCat("*")} render={tarjeta} />
             <TwFila titulo="Miralos en video" items={conStock.filter(p => p.video).slice(0, 12)} render={tarjeta} />
-            {sectores.length ? sectores.map(sc => <TwFila key={sc.id} titulo={sc.nombre} items={visibles.filter(p => enSector(sc, p)).slice(0, 12)} onVerTodo={() => irCat("s:" + sc.id)} render={tarjeta} />)
+            {sectores.length ? sectores.map(sc => visibles.some(p => enSector(sc, p)) ? <TwFila key={sc.id} titulo={sc.nombre} items={visibles.filter(p => enSector(sc, p)).slice(0, 12)} onVerTodo={() => irCat("s:" + sc.id)} render={tarjeta} />
+              : <TwCombos key={sc.id} titulo={sc.nombre} combos={combosSector(sc)} productos={visibles} foto={foto} dispo={dispo} onAgregar={agregarRegalo} onAbrir={abrir} />)
               : cats.slice(0, 10).map(c => <TwFila key={c} titulo={c} items={visibles.filter(p => p.categoria === c).slice(0, 12)} onVerTodo={() => irCat(c)} render={tarjeta} />)}
             {!cats.length && <TwFila titulo="Nuestros productos" items={visibles} render={tarjeta} />}
           </>
@@ -28006,6 +28010,51 @@ function VideosTienda({ productos, temaPal, avisar, it, alCambiar }) {
   );
 }
 
+// Para sumar a un sector un kit de Lumiere (se arma su combo si no existe) o un combo de Ofertas y combos
+function ElegirKitSector({ temaPal, combos, ya, onAgregar, avisar }) {
+  const tp = temaPal || PALETA_CLARA;
+  const [abierto, setAbierto] = useState(false);
+  const [kits, setKits] = useState(null);
+  const [trabajando, setTrabajando] = useState(null);
+  useEffect(() => { if (abierto && kits === null) API.get("/kits").then(r => setKits(r.data || [])).catch(() => setKits([])); }, [abierto]);
+  const conStock = (k) => { const nec = {}, st = {}; (k.items || []).filter(it => it && it.producto_id).forEach(it => { nec[it.producto_id] = (nec[it.producto_id] || 0) + (parseInt(it.cantidad) || 1); st[it.producto_id] = parseFloat(it.producto_stock) || 0; }); const ids = Object.keys(nec); return ids.length > 0 && ids.every(id => st[id] >= nec[id]); };
+  const elegirKit = async (k) => {
+    const existente = combos.find(c => c.kit_id === k.id);
+    if (existente) { if (!ya.includes(existente.id)) onAgregar(existente.id); setAbierto(false); return; }
+    setTrabajando(k.id);
+    try {
+      const r = await API.post("/tienda/ofertas/desde-kit", { kit_id: k.id });
+      onAgregar(r.data.combo.id, r.data.combo); setAbierto(false);
+      avisar(true, "✓ " + k.nombre + " sumado al sector. Tocá Guardar; si querés ponerle precio especial, hacelo en Ofertas y combos");
+    } catch (e) { avisar(false, e.response?.data?.error || "No se pudo sumar el kit"); }
+    setTrabajando(null);
+  };
+  const sueltos = combos.filter(c => !c.kit_id && !ya.includes(c.id));
+  return (
+    <div>
+      <button type="button" className="btn btn-g btn-sm" onClick={() => setAbierto(v => !v)} aria-expanded={abierto}>🎁 + Sumar un kit o combo</button>
+      {abierto && (
+        <div style={{ border: "1px solid " + tp.border, borderRadius: 10, padding: 8, marginTop: 6, maxHeight: 260, overflowY: "auto" }}>
+          {kits === null ? <div className="skel" style={{ height: 50 }} /> : <>
+            <div style={{ fontSize: 11, fontWeight: 800, color: tp.textMuted, margin: "2px 0 4px" }}>KITS DE LUMIERE</div>
+            {kits.length === 0 ? <div style={{ fontSize: 12, color: tp.textMuted }}>No hay kits creados (Productos → Kits).</div>
+            : kits.map(k => { const cb = combos.find(c => c.kit_id === k.id); const esta = cb && ya.includes(cb.id); const its = (k.items || []).filter(it => it && it.producto_id); return (
+              <button key={k.id} type="button" className="btn btn-g btn-sm" disabled={esta || trabajando === k.id} style={{ display: "flex", width: "100%", justifyContent: "space-between", gap: 8, marginBottom: 3, textAlign: "left" }} onClick={() => elegirKit(k)}>
+                <span style={{ minWidth: 0 }}><b>{k.nombre}</b>{esta ? " · ya está" : ""}{!conStock(k) ? <span style={{ color: tp.warn }}> · sin stock</span> : ""}
+                  <div style={{ fontSize: 11, fontWeight: 400, color: tp.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{its.map(it => (parseInt(it.cantidad) > 1 ? it.cantidad + "× " : "") + it.producto_nombre).join(" + ")}</div></span>
+                <b style={{ flexShrink: 0 }}>{trabajando === k.id ? "…" : cb ? fmt(cb.precio) : fmt(parseFloat(k.precio || 0))}</b>
+              </button>); })}
+            {sueltos.length > 0 && <>
+              <div style={{ fontSize: 11, fontWeight: 800, color: tp.textMuted, margin: "8px 0 4px" }}>COMBOS ARMADOS EN LA TIENDA</div>
+              {sueltos.map(c => <button key={c.id} type="button" className="btn btn-g btn-sm" style={{ display: "flex", width: "100%", justifyContent: "space-between", gap: 8, marginBottom: 3 }} onClick={() => { onAgregar(c.id); setAbierto(false); }}><b>{c.nombre}</b><b>{fmt(c.precio)}</b></button>)}
+            </>}
+          </>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
   const tp = temaPal || PALETA_CLARA;
   const [d, setD] = useState(null);
@@ -28143,7 +28192,16 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
               <div className="fl">Productos sueltos (además de las categorías)</div>
               <ListaElegidos lista={sc.productos} productos={productos} temaPal={tp} onCambiar={l => editar("sectores", i, { productos: l })} />
               <ElegirProductos productos={productos} ya={sc.productos} temaPal={tp} onAgregar={id => editar("sectores", i, { productos: [...sc.productos, id] })} />
-              <div style={{ fontSize: 11.5, color: tp.textMuted, marginTop: 6 }}>{productos.filter(p => p.publicado && (sc.productos.includes(p.id) || sc.categorias.includes(p.categoria))).length} productos publicados en este sector</div>
+              <div className="fl" style={{ marginTop: 10 }}>Kits y combos</div>
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 6 }}>
+                {(sc.combos || []).length === 0 ? <span style={{ fontSize: 12, color: tp.textMuted }}>Ninguno todavía.</span> : (sc.combos || []).map(cid => { const cb = (d.combos || []).find(x => x.id === cid); return (
+                  <span key={cid} className="mini-chip" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>🎁 {cb ? cb.nombre + " · " + fmt(cb.precio) : "Combo borrado"}{cb && cb.activo === false ? " (apagado)" : ""}
+                    <button style={{ border: "none", background: "none", cursor: "pointer", padding: 0 }} onClick={() => editar("sectores", i, { combos: sc.combos.filter(x => x !== cid) })} aria-label="Sacar del sector">✕</button></span>); })}
+              </div>
+              <ElegirKitSector temaPal={tp} combos={d.combos || []} ya={sc.combos || []} avisar={avisar}
+                onAgregar={(cid, cb) => { setD(x => ({ ...x, combos: cb ? [...(x.combos || []).filter(y => y.id !== cb.id), cb] : x.combos,
+                  sectores: x.sectores.map((s2, k) => (k === i ? { ...s2, combos: [...new Set([...(s2.combos || []), cid])] } : s2)) })); setCambios(true); }} />
+              <div style={{ fontSize: 11.5, color: tp.textMuted, marginTop: 6 }}>{productos.filter(p => p.publicado && (sc.productos.includes(p.id) || sc.categorias.includes(p.categoria))).length} productos publicados{(sc.combos || []).length ? " y " + sc.combos.length + " kit(s)/combo(s)" : ""} en este sector</div>
             </div>
           ))}
         </div>

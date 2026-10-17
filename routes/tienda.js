@@ -122,7 +122,8 @@ router.get('/portada', async (req, res) => {
     const dest = (await pool.query('SELECT producto_id FROM tienda_productos WHERE destacado ORDER BY producto_id')).rows.map(r => r.producto_id);
     // El banner respeta el orden guardado y suma los destacados marcados con la estrella en Productos
     const banner = [...(c.banner || []).filter(id => dest.includes(id)), ...dest.filter(id => !(c.banner || []).includes(id))];
-    res.json({ banner, banners_img: c.banners_img || [], filas: c.filas || [], sectores: c.sectores || [], reingreso: { activo: !!c.reingreso_activo, dias: c.reingreso_dias || 14, nombre: c.reingreso_nombre || '' } });
+    const combos = tienda.ofertasDe(c).combos.map(x => ({ id: x.id, nombre: x.nombre, kit_id: x.kit_id, precio: x.precio, activo: x.activo }));
+    res.json({ banner, banners_img: c.banners_img || [], filas: c.filas || [], sectores: c.sectores || [], combos, reingreso: { activo: !!c.reingreso_activo, dias: c.reingreso_dias || 14, nombre: c.reingreso_nombre || '' } });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la portada' }); }
 });
 
@@ -137,6 +138,8 @@ router.put('/portada', async (req, res) => {
       id: idSeccion(s.id), nombre: texto(s.nombre, 40),
       categorias: [...new Set((Array.isArray(s.categorias) ? s.categorias : []).map(x => texto(x, 80)).filter(Boolean))].slice(0, 40),
       productos: ids(s.productos, 300),
+      // Kits y combos del sector (ids de los combos de Ofertas y combos)
+      combos: [...new Set((Array.isArray(s.combos) ? s.combos : []).map(x => String(x || '')).filter(x => /^[a-z0-9]{1,20}$/i.test(x)))].slice(0, 20),
     })).filter(s => s.nombre);
     const DESTINOS = ['producto', 'sector', 'categoria', 'marca', 'reingreso', 'ninguno'];
     const bannersImg = (Array.isArray(b.banners_img) ? b.banners_img : []).slice(0, 10).map(x => ({
@@ -145,7 +148,7 @@ router.put('/portada', async (req, res) => {
       destino: DESTINOS.includes(x.destino) ? x.destino : 'ninguno', valor: texto(x.valor, 120),
     })).filter(x => x.imagen);
     if (filas.some(f => !f.productos.length)) return res.status(400).json({ error: 'Cada fila de la portada necesita al menos un producto' });
-    if (sectores.some(s => !s.categorias.length && !s.productos.length)) return res.status(400).json({ error: 'Cada sector necesita al menos una categoría o un producto' });
+    if (sectores.some(s => !s.categorias.length && !s.productos.length && !s.combos.length)) return res.status(400).json({ error: 'Cada sector necesita al menos una categoría, un producto o un kit' });
     await client.query('BEGIN');
     const re = b.reingreso || {};
     await client.query('UPDATE tienda_config SET banner = $1, filas = $2, sectores = $3, reingreso_activo = $4, reingreso_dias = $5, reingreso_nombre = $6, banners_img = $7 WHERE id = 1',
@@ -778,6 +781,32 @@ router.put('/ofertas', async (req, res) => {
     await pool.query('UPDATE tienda_config SET ofertas = $1 WHERE id = 1', [JSON.stringify(o)]);
     res.json({ ofertas: o });
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+});
+// Un kit de Lumiere (Productos > Kits) como combo de la tienda: si ya hay un combo de ese kit se devuelve ese;
+// si no, se crea con sus productos y cantidades al precio de lista (la suma). El precio especial se pone en Ofertas y combos.
+router.post('/ofertas/desde-kit', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño, el encargado o quien maneja la tienda' });
+    const kitId = parseInt(req.body && req.body.kit_id) || 0;
+    const kit = (await pool.query('SELECT id, nombre FROM kits WHERE id = $1 AND activo = TRUE', [kitId])).rows[0];
+    if (!kit) return res.status(404).json({ error: 'No se encontró el kit' });
+    const c = await tienda.leerConfig();
+    const o = tienda.ofertasDe(c);
+    const ya = o.combos.find(x => x.kit_id === kit.id);
+    if (ya) return res.json({ combo: ya, nuevo: false });
+    const items = (await pool.query(`SELECT ki.producto_id, SUM(ki.cantidad)::int AS cantidad, MAX(p.precio) AS precio FROM kit_items ki
+      JOIN productos p ON p.id = ki.producto_id WHERE ki.kit_id = $1 GROUP BY ki.producto_id ORDER BY MIN(ki.id) LIMIT 6`, [kit.id])).rows;
+    if (!items.length) return res.status(400).json({ error: 'Ese kit no tiene productos' });
+    const cantidades = {};
+    items.forEach(it => { if (it.cantidad > 1) cantidades[it.producto_id] = Math.min(it.cantidad, 10); });
+    const precio = Math.round(items.reduce((s, it) => s + (parseFloat(it.precio) || 0) * Math.min(Math.max(it.cantidad, 1), 10), 0));
+    const nuevo = { id: 'k' + kit.id + Date.now().toString(36).slice(-5), nombre: kit.nombre, productos: items.map(it => it.producto_id), cantidades, kit_id: kit.id, precio, activo: true };
+    const guardado = tienda.ofertasDe({ ofertas: { dia: o.dia, combos: [...o.combos, nuevo] } });
+    const combo = guardado.combos.find(x => x.id === nuevo.id);
+    if (!combo) return res.status(400).json({ error: 'El kit necesita al menos 2 unidades para ser un combo' });
+    await pool.query('UPDATE tienda_config SET ofertas = $1 WHERE id = 1', [JSON.stringify(guardado)]);
+    res.json({ combo, nuevo: true });
+  } catch (e) { console.error('[tienda] combo desde kit:', e.message); res.status(500).json({ error: 'No se pudo armar el combo del kit' }); }
 });
 router.put('/regalos', async (req, res) => {
   try {
