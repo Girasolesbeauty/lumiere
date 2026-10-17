@@ -23801,14 +23801,19 @@ const CSS_TIENDA = `
 .tw-kit-pie{margin-top:auto;padding-top:10px;border-top:1px solid #f1ece4;display:flex;align-items:center;justify-content:space-between;gap:10px}
 .tw-kit-precio{display:flex;flex-direction:column;min-width:0}.tw-kit-precio b{font-size:20px;font-weight:800;letter-spacing:-.01em}
 .tw-kit-precio span{font-size:11.5px;color:#2d7a4f;font-weight:700;white-space:nowrap}
-.tw-kit-pago{display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px 12px;border-radius:14px;background:linear-gradient(135deg,#e9f7ef,#d7f0e1);border:1.5px solid #9fd6b5;color:#14653b;animation:twKitPago 2.8s ease-in-out infinite}
+.tw-kit-pago{position:relative;overflow:hidden;display:flex;align-items:center;gap:10px;margin-top:auto;padding:12px 14px;border-radius:16px;background:linear-gradient(135deg,#1f8a4c,#2fae64 55%,#1f8a4c);color:#fff;box-shadow:0 10px 22px -12px rgba(31,138,76,.75);animation:twKitPago 2.8s ease-in-out infinite}
+.tw-kit-pago::after{content:"";position:absolute;inset:-20% auto -20% -60%;width:45%;background:linear-gradient(105deg,transparent 0%,rgba(255,255,255,.55) 50%,transparent 100%);transform:skewX(-18deg);animation:twKitBrillo 2.6s ease-in-out infinite;pointer-events:none}
+@keyframes twKitBrillo{0%,35%{left:-60%}75%,100%{left:130%}}
+.tw-kit-pie.con-pago{margin-top:10px;border-top:none;padding-top:0}
+.tw-kit-precio-otro{font-size:10.5px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.06em}
+.tw-kit-pie.con-pago .tw-kit-precio b{font-size:16px;color:#555}
 .tw-kit-pago-ico{font-size:20px;line-height:1}
-.tw-kit-pago-txt{flex:1;min-width:0;font-size:13px;font-weight:700;line-height:1.25}.tw-kit-pago-txt b{display:block;font-size:20px;font-weight:900;letter-spacing:-.01em;color:#0f5a32}
-.tw-kit-pago-off{flex-shrink:0;background:#1f8a4c;color:#fff;font-size:13px;font-weight:900;border-radius:999px;padding:5px 10px;box-shadow:0 4px 10px -4px rgba(31,138,76,.6)}
-@keyframes twKitPago{0%,100%{box-shadow:0 0 0 0 rgba(31,138,76,0)}50%{box-shadow:0 0 0 4px rgba(31,138,76,.14)}}
+.tw-kit-pago-txt{flex:1;min-width:0;line-height:1.15}.tw-kit-pago-txt small{display:block;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;opacity:.92}.tw-kit-pago-txt b{display:block;font-size:24px;font-weight:900;letter-spacing:-.01em;color:#fff;text-shadow:0 1px 0 rgba(0,0,0,.08)}
+.tw-kit-pago-off{flex-shrink:0;background:#fff;color:#1f8a4c;font-size:14px;font-weight:900;border-radius:999px;padding:6px 11px;box-shadow:0 4px 10px -4px rgba(0,0,0,.25)}
+@keyframes twKitPago{0%,100%{box-shadow:0 10px 22px -12px rgba(31,138,76,.75),0 0 0 0 rgba(31,138,76,0)}50%{box-shadow:0 10px 22px -12px rgba(31,138,76,.75),0 0 0 5px rgba(31,138,76,.16)}}
 .tw-kit-pct-pago{position:absolute;top:12px;right:12px;z-index:2;display:flex;flex-direction:column;align-items:center;background:#1f8a4c;color:#fff;font-size:14px;font-weight:900;letter-spacing:.01em;line-height:1.1;border-radius:14px;padding:6px 11px;box-shadow:0 6px 16px -6px rgba(31,138,76,.7);transform:rotate(3deg)}
 .tw-kit-pct-pago small{font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;opacity:.92}
-@media(prefers-reduced-motion:reduce){.tw-kit-pago{animation:none}}.tw-kit-precio s{color:#999;font-weight:500}
+@media(prefers-reduced-motion:reduce){.tw-kit-pago,.tw-kit-pago::after{animation:none}.tw-kit-pago::after{display:none}}.tw-kit-precio s{color:#999;font-weight:500}
 .tw .tw-kit-btn{flex-shrink:0;border:1.5px solid #111;background:#111;color:#fff;border-radius:999px;padding:10px 18px;font:inherit;font-size:12.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:background .2s,color .2s,transform .15s}
 @media(hover:hover){.tw .tw-kit-btn:hover{background:#fff;color:#111}}
 .tw .tw-kit-btn.hecho{background:#2d7a4f;border-color:#2d7a4f;color:#fff}
@@ -25519,20 +25524,21 @@ function TwCombos({ combos, productos, foto, onAgregar, onAbrir, dispo, titulo, 
                   {visibles.map(p => <li key={p.id}><button onClick={() => onAbrir(p)}>{twCantCombo(c, p.id) > 1 && <b>{twCantCombo(c, p.id)}×</b>}{p.nombre}</button></li>)}
                   {masItems > 0 && <li className="mas">y {masItems} más</li>}
                 </ul>
-                <div className="tw-kit-pie">
+                {pagoKits && (
+                  <div className="tw-kit-pago">
+                    <span className="tw-kit-pago-ico" aria-hidden="true">💸</span>
+                    <span className="tw-kit-pago-txt"><small>Pagando con {pagoKits.nombre}</small><b>{fmtTienda(Math.round(c.precio * (1 - pagoKits.pct / 100)))}</b></span>
+                    <span className="tw-kit-pago-off">−{String(pagoKits.pct).replace(".", ",")}%</span>
+                  </div>
+                )}
+                <div className={"tw-kit-pie" + (pagoKits ? " con-pago" : "")}>
                   <div className="tw-kit-precio">
+                    {pagoKits && <small className="tw-kit-precio-otro">Con otros medios</small>}
                     <b>{fmtTienda(c.precio)}</b>
                     {ahorro > 0 && <span><s>{fmtTienda(suma)}</s> · ahorrás {fmtTienda(ahorro)}</span>}
                   </div>
                   <button className={"tw-kit-btn" + (hecho === c.id ? " hecho" : "")} onClick={agregar} aria-label={"Agregar el kit " + c.nombre + " al carrito"}>{hecho === c.id ? "✓ Listo" : "Agregar"}</button>
                 </div>
-                {pagoKits && (
-                  <div className="tw-kit-pago">
-                    <span className="tw-kit-pago-ico" aria-hidden="true">💸</span>
-                    <span className="tw-kit-pago-txt"><b>{fmtTienda(Math.round(c.precio * (1 - pagoKits.pct / 100)))}</b> pagando con {pagoKits.nombre}</span>
-                    <span className="tw-kit-pago-off">−{String(pagoKits.pct).replace(".", ",")}%</span>
-                  </div>
-                )}
               </div>
             </article>
           );
