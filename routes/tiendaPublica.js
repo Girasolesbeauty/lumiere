@@ -84,7 +84,9 @@ router.get('/:slug', async (req, res) => {
     const ciudades = todos.filter(l => (c.retiro_activo && locales.some(x => x.id === l.id)) || zonas.some(z => z.local === l.id))
       .map(l => ({ id: l.id, nombre: l.nombre, direccion: l.direccion, retiro: !!c.retiro_activo && locales.some(x => x.id === l.id), envio: zonas.some(z => z.local === l.id) }));
     const mp = c.pago_mp && await mpDisponible();
+    const promosT = await tienda.promosTienda();
     res.json({
+      promos: promosT.map(x => ({ nombre: x.nombre, pct: x.pct, aplica_a: x.aplica_a, productos: x.productos, categorias: x.categorias, pago: x.pago })),
       titulo: c.titulo || neg.nombre_negocio || 'Tienda', mensaje: c.mensaje || '', logo: c.logo || neg.logo_url || null, color: c.color || '#c9a84c', whatsapp: c.whatsapp || null,
       retiro: c.retiro_activo ? locales : [], ciudades,
       envio: c.envio_activo ? { zonas: c.envio_zonas, gratis_desde: c.envio_gratis_desde } : null,
@@ -356,7 +358,7 @@ router.post('/:slug/pedidos', async (req, res) => {
     const lineas = [];
     const ofDia = tienda.ofertaDiaActiva(c);
     for (const it of items) {
-      const p = (await client.query(`SELECT p.id, p.nombre, p.precio, COALESCE(tp.publicado, FALSE) AS publicado,
+      const p = (await client.query(`SELECT p.id, p.nombre, p.precio, p.categoria, COALESCE(tp.publicado, FALSE) AS publicado,
           COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush, COALESCE(p.stock_transito_rg, 0) AS transito_rg, COALESCE(p.stock_transito_ush, 0) AS transito_ush,
           COALESCE(p.reservado_rg, 0) AS reservado_rg, COALESCE(p.reservado_ush, 0) AS reservado_ush
         FROM productos p LEFT JOIN tienda_productos tp ON tp.producto_id = p.id WHERE p.id = $1 AND p.activo = TRUE AND COALESCE(p.precio, 0) > 0 FOR UPDATE OF p`, [it.producto_id])).rows[0];
@@ -375,7 +377,7 @@ router.post('/:slug/pedidos', async (req, res) => {
       if (stock - ya < it.cantidad) { await client.query('ROLLBACK'); return res.status(409).json({ error: 'No hay stock suficiente de ' + p.nombre + (valor ? ' (' + valor + ')' : '') + (stock - ya > 0 ? ': quedan ' + (stock - ya) : '') + ' en ' + (entrega === 'retiro' ? 'ese local' : 'este momento') }); }
       // Oferta del dia: el precio especial vale mientras dure (no para preventa)
       const precioLinea = ofDia && ofDia.producto_id === p.id && !it.preventa ? ofDia.precio : num(p.precio);
-      lineas.push({ producto_id: p.id, variante_id: it.variante_id, nombre: p.nombre, variante_valor: valor, cantidad: it.cantidad, precio: precioLinea, preventa: it.preventa });
+      lineas.push({ producto_id: p.id, variante_id: it.variante_id, nombre: p.nombre, variante_valor: valor, cantidad: it.cantidad, precio: precioLinea, preventa: it.preventa, categoria: p.categoria });
     }
     const subtotal = Math.round(lineas.reduce((t, l) => t + l.precio * l.cantidad, 0) * 100) / 100;
     if (entrega === 'envio' && c.envio_gratis_desde && subtotal >= c.envio_gratis_desde) costoEnvio = 0;
@@ -405,10 +407,13 @@ router.post('/:slug/pedidos', async (req, res) => {
       if (gc.saldo >= subtotal - descCombo - descuento - descAmiga + costoEnvio) pago = 'giftcard';
     }
     // Descuento por la forma de pago elegida (sobre los productos, despues del cupon; no sobre el envio)
-    const dp = tienda.descuentoPagoTotal(c, pago, subtotal - descCombo - descuento - descAmiga, combo.combos.reduce((t, x) => t + (x.monto || 0), 0));
+    // Promociones de Lumiere marcadas para la tienda: esos productos llevan la promo en lugar del descuento por forma de pago
+    const promo = tienda.descuentoPromos(await tienda.promosTienda(client), lineas, combo.enCombos, pago);
+    const descPromo = promo.descuento;
+    const dp = tienda.descuentoPagoTotal(c, pago, Math.max(0, subtotal - descCombo - descuento - descAmiga - promo.monto), combo.combos.reduce((t, x) => t + (x.monto || 0), 0));
     const pctPago = dp.pctKits && !dp.pct ? dp.pctKits : dp.pct;
     const descuentoPago = dp.descuento;
-    let total = Math.round((subtotal - descCombo - descuento - descAmiga - descuentoPago + costoEnvio) * 100) / 100;
+    let total = Math.round((subtotal - descCombo - descuento - descAmiga - descPromo - descuentoPago + costoEnvio) * 100) / 100;
     // Gift card: paga lo que alcance (se descuenta ahora; si el pedido se cancela, vuelve)
     if (gc) {
       gcUsa = Math.round(Math.min(gc.saldo, total) * 100) / 100;
@@ -426,6 +431,7 @@ router.post('/:slug/pedidos', async (req, res) => {
       [codigo, clienteId, nombre, telefono, email, entrega, localId, direccion, zona, costoEnvio, pago, subtotal, total, String(b.nota || '').trim().slice(0, 500) || null, estado, String(horas),
        cupon ? cupon.codigo : null, cupon ? cupon.tipo : null, cupon ? cupon.valor : null, descuento, conPreventa])).rows[0];
     if (descuentoPago) await client.query('UPDATE tienda_pedidos SET descuento_pago = $1, descuento_pago_pct = $2 WHERE id = $3', [descuentoPago, pctPago, pedido.id]);
+    if (descPromo) await client.query('UPDATE tienda_pedidos SET descuento_promo = $1, promos = $2 WHERE id = $3', [descPromo, promo.nombres.join(', ').slice(0, 300), pedido.id]);
     if (amiga && descAmiga) await client.query('UPDATE tienda_pedidos SET amiga_de = $1, descuento_amiga = $2 WHERE id = $3', [amiga.referente_id, descAmiga, pedido.id]);
     if (descCombo) await client.query('UPDATE tienda_pedidos SET descuento_combo = $1, combos = $2 WHERE id = $3', [descCombo, combo.combos.map(x => x.nombre + (x.veces > 1 ? ' x' + x.veces : '')).join(', '), pedido.id]);
     if (gc && gcUsa > 0) {

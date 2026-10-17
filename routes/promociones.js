@@ -1,6 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
+const { porNegocio } = require('../lib/contexto');
+// "También en la tienda online" (solo para promos de tipo Descuento %; ver lib/tienda.js promosTienda)
+const enTiendaLista = porNegocio(false);
+router.use(async (req, res, next) => {
+  if (!enTiendaLista.get()) { try { await pool.query('ALTER TABLE promociones ADD COLUMN IF NOT EXISTS en_tienda BOOLEAN NOT NULL DEFAULT FALSE'); enTiendaLista.set(true); } catch (e) {} }
+  next();
+});
 
 // Listar promociones. ?activas=true&vigentes=true para el POS
 router.get('/', async (req, res) => {
@@ -24,8 +31,8 @@ router.post('/', async (req, res) => {
       `INSERT INTO promociones
         (nombre, tipo, valor, aplica_a, productos_ids, categorias, nx, ny, mismo_producto,
          producto_descuento_id, cross_producto_id, cross_producto_regalo_id, monto_minimo,
-         medio_pago_tipo, combinable, fecha_inicio, fecha_fin, activo)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
+         medio_pago_tipo, combinable, fecha_inicio, fecha_fin, activo, en_tienda)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
       [
         b.nombre, b.tipo, parseFloat(b.valor) || 0, b.aplica_a || 'todo',
         b.productos_ids || [], b.categorias || [],
@@ -33,7 +40,7 @@ router.post('/', async (req, res) => {
         b.producto_descuento_id || null, b.cross_producto_id || null, b.cross_producto_regalo_id || null,
         b.monto_minimo || null, b.medio_pago_tipo || null,
         b.combinable === true, b.fecha_inicio || null, b.fecha_fin || null,
-        b.activo !== false
+        b.activo !== false, b.en_tienda === true && b.tipo === 'descuento'
       ]
     );
     res.status(201).json(r.rows[0]);
@@ -49,7 +56,7 @@ router.put('/:id', async (req, res) => {
         nombre=$1, tipo=$2, valor=$3, aplica_a=$4, productos_ids=$5, categorias=$6,
         nx=$7, ny=$8, mismo_producto=$9, producto_descuento_id=$10, cross_producto_id=$11,
         cross_producto_regalo_id=$12, monto_minimo=$13, medio_pago_tipo=$14, combinable=$15,
-        fecha_inicio=$16, fecha_fin=$17, activo=$18
+        fecha_inicio=$16, fecha_fin=$17, activo=$18, en_tienda=$20
        WHERE id=$19 RETURNING *`,
       [
         b.nombre, b.tipo, parseFloat(b.valor) || 0, b.aplica_a || 'todo',
@@ -58,7 +65,7 @@ router.put('/:id', async (req, res) => {
         b.producto_descuento_id || null, b.cross_producto_id || null, b.cross_producto_regalo_id || null,
         b.monto_minimo || null, b.medio_pago_tipo || null,
         b.combinable === true, b.fecha_inicio || null, b.fecha_fin || null,
-        b.activo !== false, req.params.id
+        b.activo !== false, req.params.id, b.en_tienda === true && b.tipo === 'descuento'
       ]
     );
     if (!r.rows.length) return res.status(404).json({ error: 'Promocion no encontrada' });
