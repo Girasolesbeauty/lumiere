@@ -3541,7 +3541,9 @@ function POS({ localId, usuario, paletaActual }) {
     const avisos = [];
     const subBase = cart.reduce((s, i) => s + precioItem(i) * i.qty, 0);
 
-    for (const promo of promociones) {
+    // Pedido de la tienda web: sus promos y descuentos ya vienen calculados de la tienda (no se aplican dos veces)
+    const esPedidoWeb = cart.some(i => i.tienda_pedido);
+    for (const promo of (esPedidoWeb ? [] : promociones)) {
       // Filtro por medio de pago (si la promo lo exige)
       if (promo.medio_pago_tipo && promo.medio_pago_tipo !== medioPagoTipoActual) continue;
       let desc = 0;
@@ -4152,7 +4154,7 @@ function POS({ localId, usuario, paletaActual }) {
       if (parseFloat(pe.gc_usado_monto) > 0) setGiftCardAplicada({ id: pe.gc_usado_id, codigo: pe.gc_usado_codigo, saldo: parseFloat(pe.gc_usado_monto), estado: "activa", ya_canjeada: true });
       // Codigo de descuento usado en la tienda (ej: premio 10% off): entra como descuento general de la venta
       // (y el descuento por forma de pago: entonces va todo junto en pesos)
-      if (parseFloat(pe.descuento_pago) > 0 || parseFloat(pe.descuento_combo) > 0 || parseFloat(pe.descuento_amiga) > 0) { setTipoDescuento("$"); setDescuentoManual(String((parseFloat(pe.descuento) || 0) + (parseFloat(pe.descuento_pago) || 0) + (parseFloat(pe.descuento_combo) || 0) + (parseFloat(pe.descuento_amiga) || 0))); }
+      if (parseFloat(pe.descuento_pago) > 0 || parseFloat(pe.descuento_combo) > 0 || parseFloat(pe.descuento_amiga) > 0 || parseFloat(pe.descuento_promo) > 0) { setTipoDescuento("$"); setDescuentoManual(String((parseFloat(pe.descuento) || 0) + (parseFloat(pe.descuento_pago) || 0) + (parseFloat(pe.descuento_combo) || 0) + (parseFloat(pe.descuento_amiga) || 0) + (parseFloat(pe.descuento_promo) || 0))); }
       else if (parseFloat(pe.descuento) > 0) { setTipoDescuento(pe.cupon_tipo === "%" ? "%" : "$"); setDescuentoManual(String(pe.cupon_tipo === "%" ? parseFloat(pe.cupon_valor) : parseFloat(pe.descuento))); }
       if (pe.cliente_id) API.get("/clientes").then(rc => { const c = (rc.data || []).find(x => x.id === pe.cliente_id); if (c) { setClienteSeleccionado(c); setDniInput(c.cuit_dni || ""); cargarFicha(c.id, false); } }).catch(() => {});
       const medios = (rm.data || []).filter(m => m.activo !== false);
@@ -23152,7 +23154,7 @@ function Promociones({ paletaActual }) {
       valor: p.valor ?? "", nx: p.nx ?? "", ny: p.ny ?? "", monto_minimo: p.monto_minimo ?? "",
       productos_ids: p.productos_ids || [], categorias: p.categorias || [],
       producto_descuento_id: p.producto_descuento_id || "", cross_producto_id: p.cross_producto_id || "",
-      cross_producto_regalo_id: p.cross_producto_regalo_id || "", medio_pago_tipo: p.medio_pago_tipo || "",
+      cross_producto_regalo_id: p.cross_producto_regalo_id || "", medio_pago_tipo: p.medio_pago_tipo || "", en_tienda: !!p.en_tienda,
       fecha_inicio: p.fecha_inicio ? p.fecha_inicio.slice(0,10) : "", fecha_fin: p.fecha_fin ? p.fecha_fin.slice(0,10) : "",
     });
     setTab("nueva");
@@ -23213,7 +23215,7 @@ function Promociones({ paletaActual }) {
                       {p.tipo === "cross" && ("Llevando " + nombreProd(p.cross_producto_id) + ", " + p.valor + "% en " + nombreProd(p.cross_producto_regalo_id))}
                       {p.tipo === "monto" && ("Gastando +$" + p.monto_minimo + ", " + p.valor + "% off")}
                     </td>
-                    <td style={{ fontSize: 11, color: temaPal.textMuted }}>{p.medio_pago_tipo || "Todos"}</td>
+                    <td style={{ fontSize: 11, color: temaPal.textMuted }}>{p.medio_pago_tipo || "Todos"}{p.en_tienda ? <div style={{ fontWeight: 700, color: temaPal.accentText }}>🛍️ + tienda online</div> : null}</td>
                     <td style={{ fontSize: 10, color: temaPal.textMuted }}>{p.fecha_inicio ? new Date(p.fecha_inicio).toLocaleDateString("es-AR") : "-"} a {p.fecha_fin ? new Date(p.fecha_fin).toLocaleDateString("es-AR") : "sin fin"}</td>
                     <td><Sw on={p.activo} toggle={() => toggle(p)} /></td>
                     <td><div style={{ display: "flex", gap: 4 }}>
@@ -23321,6 +23323,12 @@ function Promociones({ paletaActual }) {
                     ))}
                   </div>
                 </div>
+              )}
+              {form.tipo === "descuento" && (
+                <label style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer", textAlign: "left", margin: "4px 0 12px", padding: "10px 12px", border: "1px solid " + temaPal.border, borderRadius: 10, background: form.en_tienda ? temaPal.accentDim : "transparent" }}>
+                  <input type="checkbox" checked={!!form.en_tienda} onChange={e => setForm(f => ({ ...f, en_tienda: e.target.checked }))} style={{ marginTop: 3 }} />
+                  <span><b>🛍️ También en la tienda online</b><span style={{ display: "block", fontSize: 11.5, color: temaPal.textMuted, marginTop: 2 }}>En la tienda vale con: cualquier medio, transferencia o efectivo (= paga al retirar). Esos productos llevan la promo en lugar del descuento por forma de pago (no se suman).</span></span>
+                </label>
               )}
               <div className="fg"><div className="fl">Solo con este medio de pago (opcional)</div>
                 <select className="sel" value={form.medio_pago_tipo} onChange={e => setForm(f => ({ ...f, medio_pago_tipo: e.target.value }))}>
@@ -25381,6 +25389,32 @@ function TwCumple({ value, onChange }) {
 }
 
 // ===================== Ofertas del dia y combos =====================
+// Promociones de Lumiere que valen en la tienda (mismo criterio que lib/tienda.js promoDe / descuentoPromos)
+function twPromoDe(promos, p, pago) {
+  let mejor = null;
+  (promos || []).forEach(x => {
+    if (x.pago && x.pago !== pago) return;
+    const aplica = x.aplica_a === "todo" || (x.aplica_a === "productos" && x.productos.includes(p.id)) || (x.aplica_a === "categorias" && x.categorias.includes(p.categoria));
+    if (aplica && (!mejor || x.pct > mejor.pct)) mejor = x;
+  });
+  return mejor;
+}
+function twDescPromos(promos, carrito, usados, combos, pago, catDe) {
+  if (!promos || !promos.length) return { descuento: 0, monto: 0, nombres: [] };
+  const enCombos = {};
+  (usados || []).forEach(u => { const cb = (combos || []).find(x => x.id === u.id); if (cb) cb.productos.forEach(id => { enCombos[id] = (enCombos[id] || 0) + u.veces * twCantCombo(cb, id); }); });
+  let descuento = 0, monto = 0; const nombres = new Set();
+  (carrito || []).filter(l => !l.preventa).forEach(l => {
+    const enCombo = Math.min(enCombos[l.producto_id] || 0, l.cantidad);
+    enCombos[l.producto_id] = (enCombos[l.producto_id] || 0) - enCombo;
+    const u = l.cantidad - enCombo;
+    if (u <= 0) return;
+    const pr = twPromoDe(promos, { id: l.producto_id, categoria: l.categoria || (catDe ? catDe(l.producto_id) : null) }, pago);
+    if (!pr) return;
+    monto += u * l.precio; descuento += u * l.precio * pr.pct / 100; nombres.add(pr.nombre);
+  });
+  return { descuento: Math.round(descuento), monto, nombres: [...nombres] };
+}
 // Cantidad de un producto dentro de un combo (1 si no se indica)
 const twCantCombo = (c, id) => (c && c.cantidades && c.cantidades[id]) || 1;
 // Mismo calculo que el servidor (lib/tienda.js descuentoCombos): cada combo completo descuenta la diferencia
@@ -26553,10 +26587,13 @@ function TiendaPublica({ slug }) {
   // Los kits/combos del carrito llevan su propio % (si se configuro); el resto, el general. Mismo calculo que el servidor.
   const montoKits = comboCalc.combos.reduce((t, x) => t + (x.monto || 0), 0);
   const pctKitsPago = datos.pago && !gcCubre && montoKits > 0 ? (descPagosKits[datos.pago] || 0) : 0;
-  const basePago = subtotal - descCombo - descuentoCupon - descAmiga;
+  // Promociones de Lumiere para la tienda: esos productos llevan la promo en lugar del descuento por forma de pago (igual que el servidor)
+  const promoCalc = twDescPromos(tienda.promos, carrito, comboCalc.combos, tienda.ofertas && tienda.ofertas.combos, datos.pago && !gcCubre ? datos.pago : null, (id) => ((productos || []).find(x => x.id === id) || {}).categoria);
+  const descPromo = promoCalc.descuento;
+  const basePago = Math.max(0, subtotal - descCombo - descuentoCupon - descAmiga - promoCalc.monto);
   const enKitsPago = pctKitsPago ? Math.max(0, Math.min(basePago, montoKits)) : 0;
   const descuentoPago = Math.round(enKitsPago * pctKitsPago / 100 + (basePago - enKitsPago) * pctPago / 100);
-  const totalConDesc = subtotal - descCombo - descuentoCupon - descAmiga - descuentoPago + costoEnvio;
+  const totalConDesc = subtotal - descCombo - descuentoCupon - descAmiga - descPromo - descuentoPago + costoEnvio;
   const gcUsa = gcOk ? Math.min(gcOk.saldo, totalConDesc) : 0;
   const totalPagar = Math.max(0, totalConDesc - gcUsa);
   const aplicarGc = async () => {
@@ -27386,7 +27423,12 @@ function TiendaPublica({ slug }) {
                   {tienda.ofertas && tienda.ofertas.combos.filter(cb => cb.productos.includes(ver.id)).map(cb => { const its = cb.productos.map(id => visibles.find(x => x.id === id)); if (!its.every(Boolean) || !twComboHay(cb, its, dispo)) return null; const suma = its.reduce((t, x) => t + x.precio * twCantCombo(cb, x.id), 0); return (
                     <div key={cb.id} className="tw-ficha-combo"><span>🎁 <b>Llevalo en combo:</b> {cb.nombre} por <b>{fmtTienda(cb.precio)}</b>{suma > cb.precio ? " (ahorrás " + fmtTienda(suma - cb.precio) + ")" : ""}</span>
                       <button className="tw-btn2" onClick={() => agregarRegalo(its.map(x => ({ p: x, n: twCantCombo(cb, x.id), v: x.variantes ? x.variantes.find(v => dispo(x, v) > 0) : null })))}>Agregar combo</button></div>); })}
-                  {(() => { const mejor = Object.entries(tienda.descuentos_pago || {}).filter(([k]) => tienda.pagos[k]).sort((a, b) => b[1] - a[1])[0]; return mejor ? <div className="tw-precio-pago">💸 {fmtTienda(Math.round(ver.precio * (1 - mejor[1] / 100)))} pagando con {({ mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia", retiro: "efectivo al retirar" })[mejor[0]]} ({String(mejor[1]).replace(".", ",")}% OFF)</div> : null; })()}
+                  {(() => {
+                    // Promo de Lumiere para este producto (sin medio de pago) o el mejor precio por forma de pago (promo o descuento general)
+                    const promoTodos = twPromoDe(tienda.promos, ver, "__todos__");
+                    if (promoTodos) return <div className="tw-precio-pago">🏷️ {fmtTienda(Math.round(ver.precio * (1 - promoTodos.pct / 100)))} con la promo {promoTodos.nombre} ({String(promoTodos.pct).replace(".", ",")}% OFF)</div>;
+                    const mejor = Object.keys(tienda.pagos || {}).filter(k => tienda.pagos[k]).map(k => { const pr = twPromoDe(tienda.promos, ver, k); return [k, pr ? pr.pct : ((tienda.descuentos_pago || {})[k] || 0)]; }).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1])[0];
+                    return mejor ? <div className="tw-precio-pago">💸 {fmtTienda(Math.round(ver.precio * (1 - mejor[1] / 100)))} pagando con {({ mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia", retiro: "efectivo al retirar" })[mejor[0]]} ({String(mejor[1]).replace(".", ",")}% OFF)</div> : null; })()}
                   {(ver._et && (ver._et.ingrediente || []).length > 0) && <div className="tw-ficha-ing"><span>Con</span>{ver._et.ingrediente.map(k => { const o = TW_ING_OP.find(x => x[0] === k); return o ? <button key={k} onClick={() => { setVer(null); irCat("*", { ingrediente: k }); }} title={"Ver todo con " + o[1]}>{o[1]}</button> : null; })}</div>}
                   {preVer && (
                     <div className="tw-preventa-aviso" role="note">
@@ -27562,6 +27604,7 @@ function TiendaPublica({ slug }) {
                   {comboCalc.combos.map(cb => <div key={"cb" + cb.id} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>🎁 Combo {cb.nombre}{cb.veces > 1 ? " ×" + cb.veces : ""}</span><span>−{fmtTienda(cb.ahorro)}</span></div>)}
                   {descAmiga > 0 && <div className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>💌 Regalo de {amigaOk.nombre} ({amigaOk.pct}%)</span><span>−{fmtTienda(descAmiga)}</span></div>}
                   {descuentoCupon > 0 && <div key={"d" + cuponOk.codigo} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>✨ Descuento ({cuponOk.codigo})</span><span>−<TwRueda valor={descuentoCupon} formato={fmtTienda} dur={1000} /></span></div>}
+                  {descPromo > 0 && <div key={"pr" + datos.pago} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>🏷️ Promo{promoCalc.nombres.length ? ": " + promoCalc.nombres.join(", ") : ""}</span><span>−<TwRueda valor={descPromo} formato={fmtTienda} dur={800} /></span></div>}
                   {descuentoPago > 0 && <div key={"p" + datos.pago} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>💸 {pctKitsPago ? (pctKitsPago + "% OFF en kits" + (pctPago ? " y " + String(pctPago).replace(".", ",") + "% en el resto" : "")) : String(pctPago).replace(".", ",") + "% OFF"} por {NOMBRE_PAGO[datos.pago]}</span><span>−<TwRueda valor={descuentoPago} formato={fmtTienda} dur={800} /></span></div>}
                   {datos.entrega === "envio" && <div className="tw-linea"><span>Envío</span><span>{zona ? (costoEnvio ? fmtTienda(costoEnvio) : "Gratis") : "—"}</span></div>}
                   {gcUsa > 0 && <div key={"g" + gcOk.codigo} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>🎁 Gift card ({gcOk.codigo})</span><span>−<TwRueda valor={gcUsa} formato={fmtTienda} dur={900} /></span></div>}
@@ -29351,6 +29394,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                       {parseFloat(p.descuento) > 0 && <div style={{ color: temaPal.green }}>Descuento{p.cupon ? " (" + p.cupon + ")" : ""} · −{fmt(parseFloat(p.descuento))}</div>}
                       {parseFloat(p.descuento_amiga) > 0 && <div style={{ color: temaPal.green }}>💌 Regalo de amiga (1ra compra) · −{fmt(parseFloat(p.descuento_amiga))}</div>}
                       {parseFloat(p.descuento_combo) > 0 && <div style={{ color: temaPal.green }}>🎁 Combo{p.combos ? " " + p.combos : ""} · −{fmt(parseFloat(p.descuento_combo))}</div>}
+                      {parseFloat(p.descuento_promo) > 0 && <div style={{ color: temaPal.green }}>🏷️ Promo{p.promos ? " " + p.promos : ""} · −{fmt(parseFloat(p.descuento_promo))}</div>}
                       {parseFloat(p.descuento_pago) > 0 && <div style={{ color: temaPal.green }}>{parseFloat(p.descuento_pago_pct)}% OFF por {PAGO_TIENDA[p.pago]} · −{fmt(parseFloat(p.descuento_pago))}</div>}
                       {parseFloat(p.gc_usado_monto) > 0 && <div style={{ color: temaPal.green }}>🎁 Pagó {fmt(parseFloat(p.gc_usado_monto))} con la gift card {p.gc_usado_codigo} (ya descontada del saldo)</div>}
                       {p.costo_envio > 0 && <div style={{ color: temaPal.textMuted }}>Envío · {fmt(p.costo_envio)}</div>}
