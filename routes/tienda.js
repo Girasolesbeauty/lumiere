@@ -799,8 +799,8 @@ router.post('/ofertas/desde-kit', async (req, res) => {
     if (!items.length) return res.status(400).json({ error: 'Ese kit no tiene productos' });
     const cantidades = {};
     items.forEach(it => { if (it.cantidad > 1) cantidades[it.producto_id] = Math.min(it.cantidad, 10); });
-    const precio = Math.round(items.reduce((s, it) => s + (parseFloat(it.precio) || 0) * Math.min(Math.max(it.cantidad, 1), 10), 0));
-    const nuevo = { id: 'k' + kit.id + Date.now().toString(36).slice(-5), nombre: kit.nombre, productos: items.map(it => it.producto_id), cantidades, kit_id: kit.id, precio, activo: true };
+    // Sin precio especial (0) = precio de lista: sigue los precios de los productos
+    const nuevo = { id: 'k' + kit.id + Date.now().toString(36).slice(-5), nombre: kit.nombre, productos: items.map(it => it.producto_id), cantidades, kit_id: kit.id, precio: 0, activo: true };
     const guardado = tienda.ofertasDe({ ofertas: { dia: o.dia, combos: [...o.combos, nuevo] } });
     const combo = guardado.combos.find(x => x.id === nuevo.id);
     if (!combo) return res.status(400).json({ error: 'El kit necesita al menos 2 unidades para ser un combo' });
