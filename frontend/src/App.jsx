@@ -25439,10 +25439,11 @@ function twDescCombos(combos, carrito) {
     const cant = (id) => twCantCombo(x, id);
     const veces = Math.min(...x.productos.map(id => Math.floor((queda.get(id) || 0) / cant(id))));
     if (!(veces > 0)) return;
-    const ahorro = Math.max(0, x.productos.reduce((s, id) => s + (precio.get(id) || 0) * cant(id), 0) - x.precio);
-    if (!ahorro) return;
+    const suma = x.productos.reduce((s, id) => s + (precio.get(id) || 0) * cant(id), 0);
+    const precioCombo = x.precio > 0 ? Math.min(x.precio, suma) : suma; // sin precio = precio de lista
+    const ahorro = Math.max(0, suma - precioCombo);
     x.productos.forEach(id => queda.set(id, queda.get(id) - veces * cant(id)));
-    total += ahorro * veces; usados.push({ ...x, veces, ahorro: ahorro * veces, monto: x.precio * veces });
+    total += ahorro * veces; usados.push({ ...x, veces, ahorro: ahorro * veces, monto: precioCombo * veces });
   });
   return { descuento: Math.round(total), combos: usados };
 }
@@ -25498,7 +25499,8 @@ function TwCombos({ combos, productos, foto, onAgregar, onAbrir, dispo, titulo, 
       <div className="tw-sec-t"><h3>{titulo || "Kits y combos"}</h3></div>
       <div className="tw-combos">
         {lista.map((c, k) => {
-          const suma = c.items.reduce((s, p) => s + p.precio * twCantCombo(c, p.id), 0), ahorro = Math.max(0, suma - c.precio);
+          const suma = c.items.reduce((s, p) => s + p.precio * twCantCombo(c, p.id), 0);
+          const precioC = c.precio > 0 ? Math.min(c.precio, suma) : suma, ahorro = Math.max(0, suma - precioC);
           const pct = ahorro > 0 ? Math.round(ahorro / suma * 100) : 0;
           const unidades = c.items.reduce((s, p) => s + twCantCombo(c, p.id), 0);
           const fotos = c.items.slice(0, 4), resto = c.items.length - fotos.length;
@@ -25527,14 +25529,14 @@ function TwCombos({ combos, productos, foto, onAgregar, onAbrir, dispo, titulo, 
                 {pagoKits && (
                   <div className="tw-kit-pago">
                     <span className="tw-kit-pago-ico" aria-hidden="true">💸</span>
-                    <span className="tw-kit-pago-txt"><small>Pagando con {pagoKits.nombre}</small><b>{fmtTienda(Math.round(c.precio * (1 - pagoKits.pct / 100)))}</b></span>
+                    <span className="tw-kit-pago-txt"><small>Pagando con {pagoKits.nombre}</small><b>{fmtTienda(Math.round(precioC * (1 - pagoKits.pct / 100)))}</b></span>
                     <span className="tw-kit-pago-off">−{String(pagoKits.pct).replace(".", ",")}%</span>
                   </div>
                 )}
                 <div className={"tw-kit-pie" + (pagoKits ? " con-pago" : "")}>
                   <div className="tw-kit-precio">
                     {pagoKits && <small className="tw-kit-precio-otro">Con otros medios</small>}
-                    <b>{fmtTienda(c.precio)}</b>
+                    <b>{fmtTienda(precioC)}</b>
                     {ahorro > 0 && <span><s>{fmtTienda(suma)}</s> · ahorrás {fmtTienda(ahorro)}</span>}
                   </div>
                   <button className={"tw-kit-btn" + (hecho === c.id ? " hecho" : "")} onClick={agregar} aria-label={"Agregar el kit " + c.nombre + " al carrito"}>{hecho === c.id ? "✓ Listo" : "Agregar"}</button>
@@ -27441,8 +27443,8 @@ function TiendaPublica({ slug }) {
                   {ver.resenas && <button className="tw-ficha-est" onClick={() => { const el = document.getElementById("tw-resenas"); el && el.scrollIntoView({ behavior: "smooth", block: "start" }); }}><TwEstrellas v={ver.resenas[0]} size={15} /> <b>{String(ver.resenas[0]).replace(".", ",")}</b> <span>({ver.resenas[1]} {ver.resenas[1] === 1 ? "reseña" : "reseñas"})</span></button>}
                   <div className="tw-precio">{ver.precio_antes ? <><s className="tw-antes">{fmtTienda(ver.precio_antes)}</s> <span className="tw-precio-of">{fmtTienda(ver.precio)}</span></> : fmtTienda(ver.precio)}</div>
                   {ver.precio_antes && tienda.ofertas && tienda.ofertas.dia && <div className="tw-ficha-oferta">⚡ {tienda.ofertas.dia.titulo || "Oferta del día"} · termina en <TwReloj hasta={tienda.ofertas.dia.hasta} chico /></div>}
-                  {tienda.ofertas && tienda.ofertas.combos.filter(cb => cb.productos.includes(ver.id)).map(cb => { const its = cb.productos.map(id => visibles.find(x => x.id === id)); if (!its.every(Boolean) || !twComboHay(cb, its, dispo)) return null; const suma = its.reduce((t, x) => t + x.precio * twCantCombo(cb, x.id), 0); return (
-                    <div key={cb.id} className="tw-ficha-combo"><span>🎁 <b>Llevalo en combo:</b> {cb.nombre} por <b>{fmtTienda(cb.precio)}</b>{suma > cb.precio ? " (ahorrás " + fmtTienda(suma - cb.precio) + ")" : ""}</span>
+                  {tienda.ofertas && tienda.ofertas.combos.filter(cb => cb.productos.includes(ver.id)).map(cb => { const its = cb.productos.map(id => visibles.find(x => x.id === id)); if (!its.every(Boolean) || !twComboHay(cb, its, dispo)) return null; const suma = its.reduce((t, x) => t + x.precio * twCantCombo(cb, x.id), 0); const precioCb = cb.precio > 0 ? Math.min(cb.precio, suma) : suma; return (
+                    <div key={cb.id} className="tw-ficha-combo"><span>🎁 <b>Llevalo en combo:</b> {cb.nombre} por <b>{fmtTienda(precioCb)}</b>{suma > precioCb ? " (ahorrás " + fmtTienda(suma - precioCb) + ")" : ""}</span>
                       <button className="tw-btn2" onClick={() => agregarRegalo(its.map(x => ({ p: x, n: twCantCombo(cb, x.id), v: x.variantes ? x.variantes.find(v => dispo(x, v) > 0) : null })))}>Agregar combo</button></div>); })}
                   {(() => {
                     // Promo de Lumiere para este producto (sin medio de pago) o el mejor precio por forma de pago (promo o descuento general)
@@ -27556,7 +27558,7 @@ function TiendaPublica({ slug }) {
                   {logueada ? <TwPuntos monto={subtotal} tengo={miCuenta ? (miCuenta.puntos || 0) : null} />
                     : <TwSumaConCuenta monto={subtotal} onIngresar={() => irACuenta("carrito")} onCrear={() => irACuenta("carrito", "crear")} />}
                   {tienda.ruleta && tienda.ruleta.aviso && <TwRuletaAviso monto={subtotal} minimo={tienda.ruleta.minimo} />}
-                  {comboCalc.combos.map(cb => <div key={"cb" + cb.id} className="tw-linea" style={{ color: "#2d7a4f", fontWeight: 700 }}><span>🎁 Combo {cb.nombre}{cb.veces > 1 ? " ×" + cb.veces : ""}</span><span>−{fmtTienda(cb.ahorro)}</span></div>)}
+                  {comboCalc.combos.filter(cb => cb.ahorro > 0).map(cb => <div key={"cb" + cb.id} className="tw-linea" style={{ color: "#2d7a4f", fontWeight: 700 }}><span>🎁 Combo {cb.nombre}{cb.veces > 1 ? " ×" + cb.veces : ""}</span><span>−{fmtTienda(cb.ahorro)}</span></div>)}
                   <div className="tw-linea" style={{ fontWeight: 800, fontSize: 18, marginBottom: 12 }}><span>Subtotal</span><span>{fmtTienda(subtotal - descCombo)}</span></div>
                   {problemas.length > 0 && <div style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, marginBottom: 10, fontSize: 13.5 }}>Algunos productos no están disponibles{ciudad ? " en " + ciudad.nombre : ""} en esa cantidad. <button className="tw-btn2" style={{ padding: "6px 12px", fontSize: 11.5, marginTop: 6 }} onClick={ajustarCarrito}>Ajustar a lo disponible</button></div>}
                   <button className="tw-btn full" disabled={problemas.length > 0} onClick={() => setPaso("datos")}>Finalizar compra</button>
@@ -27622,7 +27624,7 @@ function TiendaPublica({ slug }) {
                 <div className="tw-cajon-pie">
                   {carrito.some(i => i.preventa) && <div className="tw-preventa-aviso chico"><b>⏳ Tu pedido tiene productos en PREVENTA</b><span>Todavía no llegaron: te avisamos por WhatsApp cuando estén y ahí retirás todo junto.</span></div>}
                   <div className="tw-linea"><span>Productos</span><span>{fmtTienda(subtotal)}</span></div>
-                  {comboCalc.combos.map(cb => <div key={"cb" + cb.id} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>🎁 Combo {cb.nombre}{cb.veces > 1 ? " ×" + cb.veces : ""}</span><span>−{fmtTienda(cb.ahorro)}</span></div>)}
+                  {comboCalc.combos.filter(cb => cb.ahorro > 0).map(cb => <div key={"cb" + cb.id} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>🎁 Combo {cb.nombre}{cb.veces > 1 ? " ×" + cb.veces : ""}</span><span>−{fmtTienda(cb.ahorro)}</span></div>)}
                   {descAmiga > 0 && <div className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>💌 Regalo de {amigaOk.nombre} ({amigaOk.pct}%)</span><span>−{fmtTienda(descAmiga)}</span></div>}
                   {descuentoCupon > 0 && <div key={"d" + cuponOk.codigo} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>✨ Descuento ({cuponOk.codigo})</span><span>−<TwRueda valor={descuentoCupon} formato={fmtTienda} dur={1000} /></span></div>}
                   {descPromo > 0 && <div key={"pr" + datos.pago} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>🏷️ Promo{promoCalc.nombres.length ? ": " + promoCalc.nombres.join(", ") : ""}</span><span>−<TwRueda valor={descPromo} formato={fmtTienda} dur={800} /></span></div>}
@@ -28165,7 +28167,7 @@ function ElegirKitSector({ temaPal, combos, ya, onAgregar, avisar }) {
               <button key={k.id} type="button" className="btn btn-g btn-sm" disabled={esta || trabajando === k.id} style={{ display: "flex", width: "100%", justifyContent: "space-between", gap: 8, marginBottom: 3, textAlign: "left" }} onClick={() => elegirKit(k)}>
                 <span style={{ minWidth: 0 }}><b>{k.nombre}</b>{esta ? " · ya está" : ""}{!conStock(k) ? <span style={{ color: tp.warn }}> · sin stock</span> : ""}
                   <div style={{ fontSize: 11, fontWeight: 400, color: tp.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{its.map(it => (parseInt(it.cantidad) > 1 ? it.cantidad + "× " : "") + it.producto_nombre).join(" + ")}</div></span>
-                <b style={{ flexShrink: 0 }}>{trabajando === k.id ? "…" : cb ? fmt(cb.precio) : fmt(parseFloat(k.precio || 0))}</b>
+                <b style={{ flexShrink: 0 }}>{trabajando === k.id ? "…" : cb && cb.precio > 0 ? fmt(cb.precio) : fmt(parseFloat(k.precio || 0))}</b>
               </button>); })}
             {sueltos.length > 0 && <>
               <div style={{ fontSize: 11, fontWeight: 800, color: tp.textMuted, margin: "8px 0 4px" }}>COMBOS ARMADOS EN LA TIENDA</div>
@@ -28329,7 +28331,7 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
               <div className="fl" style={{ marginTop: 10 }}>Kits y combos</div>
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 6 }}>
                 {(sc.combos || []).length === 0 ? <span style={{ fontSize: 12, color: tp.textMuted }}>Ninguno todavía.</span> : (sc.combos || []).map(cid => { const cb = (d.combos || []).find(x => x.id === cid); return (
-                  <span key={cid} className="mini-chip" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>🎁 {cb ? cb.nombre + " · " + fmt(cb.precio) : "Combo borrado"}{cb && cb.activo === false ? " (apagado)" : ""}
+                  <span key={cid} className="mini-chip" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>🎁 {cb ? cb.nombre + " · " + (cb.precio > 0 ? fmt(cb.precio) : "precio de lista") : "Combo borrado"}{cb && cb.activo === false ? " (apagado)" : ""}
                     <button style={{ border: "none", background: "none", cursor: "pointer", padding: 0 }} onClick={() => editar("sectores", i, { combos: sc.combos.filter(x => x !== cid) })} aria-label="Sacar del sector">✕</button></span>); })}
               </div>
               <ElegirKitSector temaPal={tp} combos={d.combos || []} ya={sc.combos || []} avisar={avisar}
@@ -28917,8 +28919,8 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
               </div>
               {esJefe && c.productos.length < 6 && <BuscaProductoTienda productos={prods} excluir={c.productos} onElegir={p => setCombo(i, { productos: [...c.productos, p.id] })} placeholder="+ Sumar un producto al combo…" />}
               <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap", marginTop: 10 }}>
-                <div className="fg" style={{ flex: "0 1 180px" }}><div className="fl">Precio del combo</div><input className="inp" type="number" min="0" value={c.precio || ""} disabled={!esJefe} onChange={e => setCombo(i, { precio: e.target.value })} /></div>
-                <div style={{ fontSize: 12.5, color: temaPal.textMuted, paddingBottom: 8 }}>Por separado: <b>{fmt(suma)}</b>{pr > 0 && pr < suma ? <span style={{ color: temaPal.green }}> · ahorran {fmt(suma - pr)} ({Math.round((1 - pr / suma) * 100)}%)</span> : pr >= suma && pr > 0 ? <span style={{ color: temaPal.warn }}> · el combo tiene que salir menos</span> : null}</div>
+                <div className="fg" style={{ flex: "0 1 180px" }}><div className="fl">Precio especial del combo</div><input className="inp" type="number" min="0" placeholder={"Vacío = " + fmt(suma)} value={c.precio || ""} disabled={!esJefe} onChange={e => setCombo(i, { precio: e.target.value })} /></div>
+                <div style={{ fontSize: 12.5, color: temaPal.textMuted, paddingBottom: 8 }}>Por separado: <b>{fmt(suma)}</b>{pr > 0 && pr < suma ? <span style={{ color: temaPal.green }}> · ahorran {fmt(suma - pr)} ({Math.round((1 - pr / suma) * 100)}%)</span> : pr >= suma && pr > 0 ? <span style={{ color: temaPal.warn }}> · es igual o más que por separado: se cobra {fmt(suma)}</span> : <span> · sin precio especial: se vende a precio de lista (y lleva el descuento de kits por forma de pago, si lo configuraste)</span>}</div>
                 {esJefe && its.length >= 2 && <div style={{ display: "flex", gap: 4, paddingBottom: 6 }}>{[10, 15, 20].map(pc => <button key={pc} className="mini-chip" onClick={() => setCombo(i, { precio: Math.round(suma * (1 - pc / 100) / 100) * 100 })}>-{pc}%</button>)}</div>}
               </div>
               {c.productos.reduce((s, id) => s + cantC(c, id), 0) < 2 && <div style={{ fontSize: 12, color: temaPal.warn, marginTop: 6 }}>Sumá al menos 2 productos (o 2 unidades).</div>}
