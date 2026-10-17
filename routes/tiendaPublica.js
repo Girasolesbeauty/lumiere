@@ -103,6 +103,7 @@ router.get('/:slug', async (req, res) => {
       referidos: (() => { const r = tienda.referidosDe(c); return r.activo ? { pct: r.pct, puntos: r.puntos } : null; })(),
       ofertas: (() => { const o = tienda.ofertasDe(c), d = tienda.ofertaDiaActiva(c); return { dia: d ? { producto_id: d.producto_id, precio: d.precio, hasta: d.hasta, titulo: d.titulo } : null, combos: o.combos.filter(x => x.activo && x.precio > 0).map(x => ({ id: x.id, nombre: x.nombre, productos: x.productos, cantidades: x.cantidades, precio: x.precio })) }; })(),
       descuentos_pago: (() => { const d = tienda.descuentosPagoDe(c); return Object.fromEntries(Object.entries(d).filter(([, v]) => v > 0)); })(),
+      descuentos_pago_kits: (() => { const d = tienda.descuentosPagoKitsDe(c); return Object.fromEntries(Object.entries(d).filter(([, v]) => v > 0)); })(),
       resenas_puntos: (() => { const r = tienda.puntosResenaDe(c); return r.activo && (r.puntos || r.extra_foto) ? { puntos: r.puntos, extra_foto: r.extra_foto } : null; })(),
       // Logo de la marca para la gift card (blanco sobre el color de la tarjeta)
       logo_marca: Number(req.negTienda.id) === 1 ? { blanco: '/logos/girasoles-logo-blanco.svg', color: '/logos/girasoles-logo.svg' } : null,
@@ -404,8 +405,9 @@ router.post('/:slug/pedidos', async (req, res) => {
       if (gc.saldo >= subtotal - descCombo - descuento - descAmiga + costoEnvio) pago = 'giftcard';
     }
     // Descuento por la forma de pago elegida (sobre los productos, despues del cupon; no sobre el envio)
-    const pctPago = tienda.descuentosPagoDe(c)[pago] || 0;
-    const descuentoPago = pctPago ? Math.round((subtotal - descCombo - descuento - descAmiga) * pctPago / 100) : 0;
+    const dp = tienda.descuentoPagoTotal(c, pago, subtotal - descCombo - descuento - descAmiga, combo.combos.reduce((t, x) => t + (x.monto || 0), 0));
+    const pctPago = dp.pctKits && !dp.pct ? dp.pctKits : dp.pct;
+    const descuentoPago = dp.descuento;
     let total = Math.round((subtotal - descCombo - descuento - descAmiga - descuentoPago + costoEnvio) * 100) / 100;
     // Gift card: paga lo que alcance (se descuenta ahora; si el pedido se cancela, vuelve)
     if (gc) {
