@@ -23792,7 +23792,7 @@ const CSS_TIENDA = `
 .tw-kit-lista b{color:#111;margin-right:4px}
 .tw-kit-pie{margin-top:auto;padding-top:10px;border-top:1px solid #f1ece4;display:flex;align-items:center;justify-content:space-between;gap:10px}
 .tw-kit-precio{display:flex;flex-direction:column;min-width:0}.tw-kit-precio b{font-size:20px;font-weight:800;letter-spacing:-.01em}
-.tw-kit-precio span{font-size:11.5px;color:#2d7a4f;font-weight:700;white-space:nowrap}.tw-kit-precio s{color:#999;font-weight:500}
+.tw-kit-precio span{font-size:11.5px;color:#2d7a4f;font-weight:700;white-space:nowrap}.tw-kit-precio .tw-kit-pago{color:#a8842f;font-size:12px;font-weight:800}.tw-kit-precio s{color:#999;font-weight:500}
 .tw .tw-kit-btn{flex-shrink:0;border:1.5px solid #111;background:#111;color:#fff;border-radius:999px;padding:10px 18px;font:inherit;font-size:12.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:background .2s,color .2s,transform .15s}
 @media(hover:hover){.tw .tw-kit-btn:hover{background:#fff;color:#111}}
 .tw .tw-kit-btn.hecho{background:#2d7a4f;border-color:#2d7a4f;color:#fff}
@@ -25395,7 +25395,7 @@ function twDescCombos(combos, carrito) {
     const ahorro = Math.max(0, x.productos.reduce((s, id) => s + (precio.get(id) || 0) * cant(id), 0) - x.precio);
     if (!ahorro) return;
     x.productos.forEach(id => queda.set(id, queda.get(id) - veces * cant(id)));
-    total += ahorro * veces; usados.push({ ...x, veces, ahorro: ahorro * veces });
+    total += ahorro * veces; usados.push({ ...x, veces, ahorro: ahorro * veces, monto: x.precio * veces });
   });
   return { descuento: Math.round(total), combos: usados };
 }
@@ -25441,7 +25441,7 @@ function TwOfertaDia({ p, oferta, foto, onAbrir, onAgregar, sin }) {
 }
 // Hay stock para armar el combo (cada producto con la cantidad que lleva)
 const twComboHay = (c, items, dispo) => items.every(p => p.variantes ? p.variantes.some(v => dispo(p, v) >= twCantCombo(c, p.id)) : dispo(p) >= twCantCombo(c, p.id));
-function TwCombos({ combos, productos, foto, onAgregar, onAbrir, dispo, titulo }) {
+function TwCombos({ combos, productos, foto, onAgregar, onAbrir, dispo, titulo, pagoKits }) {
   // Solo los combos que se pueden comprar ahora (todos sus productos con stock en la ciudad elegida)
   const lista = combos.map(c => ({ ...c, items: c.productos.map(id => productos.find(p => p.id === id)) })).filter(c => c.items.every(Boolean) && twComboHay(c, c.items, dispo));
   const [hecho, setHecho] = useState(null);
@@ -25480,6 +25480,7 @@ function TwCombos({ combos, productos, foto, onAgregar, onAbrir, dispo, titulo }
                   <div className="tw-kit-precio">
                     <b>{fmtTienda(c.precio)}</b>
                     {ahorro > 0 && <span><s>{fmtTienda(suma)}</s> · ahorrás {fmtTienda(ahorro)}</span>}
+                    {pagoKits && <span className="tw-kit-pago">{fmtTienda(Math.round(c.precio * (1 - pagoKits.pct / 100)))} con {pagoKits.nombre}</span>}
                   </div>
                   <button className={"tw-kit-btn" + (hecho === c.id ? " hecho" : "")} onClick={agregar} aria-label={"Agregar el kit " + c.nombre + " al carrito"}>{hecho === c.id ? "✓ Listo" : "Agregar"}</button>
                 </div>
@@ -26545,8 +26546,16 @@ function TiendaPublica({ slug }) {
   const descPagos = tienda.descuentos_pago || {};
   // Gift card para pagar (se valida en el servidor y se vuelve a revisar al hacer el pedido)
   const gcCubre = !!gcOk && gcOk.saldo >= subtotal - descCombo - descuentoCupon - descAmiga + costoEnvio;
+  const descPagosKits = tienda.descuentos_pago_kits || {};
+  // El mejor descuento de kits entre las formas de pago activas (se muestra en la tarjeta de cada kit)
+  const pagoKitsMejor = (() => { const m = Object.entries(descPagosKits).filter(([k, v]) => v > 0 && tienda.pagos && tienda.pagos[k]).sort((a, b) => b[1] - a[1])[0]; return m ? { pct: m[1], nombre: ({ mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia", retiro: "pago al retirar" })[m[0]] } : null; })();
   const pctPago = datos.pago && !gcCubre ? (descPagos[datos.pago] || 0) : 0;
-  const descuentoPago = pctPago ? Math.round((subtotal - descCombo - descuentoCupon - descAmiga) * pctPago / 100) : 0;
+  // Los kits/combos del carrito llevan su propio % (si se configuro); el resto, el general. Mismo calculo que el servidor.
+  const montoKits = comboCalc.combos.reduce((t, x) => t + (x.monto || 0), 0);
+  const pctKitsPago = datos.pago && !gcCubre && montoKits > 0 ? (descPagosKits[datos.pago] || 0) : 0;
+  const basePago = subtotal - descCombo - descuentoCupon - descAmiga;
+  const enKitsPago = pctKitsPago ? Math.max(0, Math.min(basePago, montoKits)) : 0;
+  const descuentoPago = Math.round(enKitsPago * pctKitsPago / 100 + (basePago - enKitsPago) * pctPago / 100);
   const totalConDesc = subtotal - descCombo - descuentoCupon - descAmiga - descuentoPago + costoEnvio;
   const gcUsa = gcOk ? Math.min(gcOk.saldo, totalConDesc) : 0;
   const totalPagar = Math.max(0, totalConDesc - gcUsa);
@@ -27175,7 +27184,7 @@ function TiendaPublica({ slug }) {
                 {hayFiltros && <button className="tw-filtro-x" onClick={() => setFiltros({})}>Limpiar filtros ✕</button>}
               </div>
             )}
-            {sector && !q && !subcat && combosSector(sector).length > 0 && <TwCombos titulo="Kits y combos" combos={combosSector(sector)} productos={visibles} foto={foto} dispo={dispo} onAgregar={agregarRegalo} onAbrir={abrir} />}
+            {sector && !q && !subcat && combosSector(sector).length > 0 && <TwCombos pagoKits={pagoKitsMejor} titulo="Kits y combos" combos={combosSector(sector)} productos={visibles} foto={foto} dispo={dispo} onAgregar={agregarRegalo} onAbrir={abrir} />}
             {lista.length === 0 && sector && combosSector(sector).length > 0 ? null : lista.length === 0 ? <div style={{ textAlign: "center", color: "#888", margin: "50px 0" }}><p>{cat === "favoritos" && !q && !hayFiltros ? "Todavía no guardaste favoritos. Tocá el ♡ en los productos que te gusten y los encontrás acá." : hayFiltros ? "No hay productos con esos filtros." : "No encontramos productos con esa búsqueda."}</p>{hayFiltros && <button className="tw-btn2" style={{ display: "inline-flex", width: "auto", padding: "0 22px" }} onClick={() => setFiltros({})}>Ver todos</button>}</div>
               : <div className="tw-grid">{lista.map((p, i) => <div key={p.id} className="tw-rv" style={{ "--i": i % 4 }}>{tarjeta(p)}</div>)}</div>}
           </>
@@ -27242,7 +27251,7 @@ function TiendaPublica({ slug }) {
               <div><span>🔒</span><span style={{ fontSize: 13.5 }}><b>Compra segura</b><br />{tienda.pagos.mp ? "Con Mercado Pago" : "Te confirmamos por WhatsApp"}</span></div>
             </div>
             {masVendidos.length >= 3 && <TwFila titulo="🔥 Lo más vendido del mes" items={masVendidos} render={tarjeta} />}
-            {tienda.ofertas && tienda.ofertas.combos.length > 0 && <TwCombos combos={tienda.ofertas.combos} productos={visibles} foto={foto} dispo={dispo} onAgregar={agregarRegalo} onAbrir={abrir} />}
+            {tienda.ofertas && tienda.ofertas.combos.length > 0 && <TwCombos pagoKits={pagoKitsMejor} combos={tienda.ofertas.combos} productos={visibles} foto={foto} dispo={dispo} onAgregar={agregarRegalo} onAbrir={abrir} />}
             {filasPortada.map(f => <TwFila key={f.id} titulo={f.titulo} items={f.items} render={tarjeta} />)}
             {reels.length > 0 && (
               <section className="tw-sec tw-rv">
@@ -27254,7 +27263,7 @@ function TiendaPublica({ slug }) {
             <TwFila titulo="Novedades" items={conStock.filter(p => p.nuevo).slice(0, 12)} onVerTodo={() => irCat("*")} render={tarjeta} />
             <TwFila titulo="Miralos en video" items={conStock.filter(p => p.video).slice(0, 12)} render={tarjeta} />
             {sectores.length ? sectores.map(sc => visibles.some(p => enSector(sc, p)) ? <TwFila key={sc.id} titulo={sc.nombre} items={visibles.filter(p => enSector(sc, p)).slice(0, 12)} onVerTodo={() => irCat("s:" + sc.id)} render={tarjeta} />
-              : <TwCombos key={sc.id} titulo={sc.nombre} combos={combosSector(sc)} productos={visibles} foto={foto} dispo={dispo} onAgregar={agregarRegalo} onAbrir={abrir} />)
+              : <TwCombos pagoKits={pagoKitsMejor} key={sc.id} titulo={sc.nombre} combos={combosSector(sc)} productos={visibles} foto={foto} dispo={dispo} onAgregar={agregarRegalo} onAbrir={abrir} />)
               : cats.slice(0, 10).map(c => <TwFila key={c} titulo={c} items={visibles.filter(p => p.categoria === c).slice(0, 12)} onVerTodo={() => irCat(c)} render={tarjeta} />)}
             {!cats.length && <TwFila titulo="Nuestros productos" items={visibles} render={tarjeta} />}
           </>
@@ -27529,7 +27538,7 @@ function TiendaPublica({ slug }) {
                   )}
                   {avisoGc && <div style={{ color: "#c0392b", fontSize: 13, marginTop: 6 }}>{avisoGc}</div>}
                   <div id="tw-ck-pago" className="tw-lbl tw-paso"><span className={"tw-paso-n" + (faltaPago ? "" : " ok")}>{faltaPago ? "3" : "✓"}</span>{gcOk && !gcCubre ? "¿Cómo pagás el resto (" + fmtTienda(totalPagar) + ")?" : "¿Cómo pagás?"}{intentoPedir && faltaPago && <span className="tw-falta-tag">Tocá una opción</span>}</div>
-                  {gcCubre ? <div className="tw-cupon" style={{ padding: "10px 12px", fontSize: 14 }}>✓ <b>Lo pagás todo con tu gift card.</b> No hace falta otra forma de pago.</div> : opcionesPago.map(([k, t, d]) => <button key={k} className={"tw-op" + (datos.pago === k ? " on" : "") + (intentoPedir && faltaPago ? " falta" : "")} onClick={() => setDatos(x => ({ ...x, pago: k }))}><b>{t}</b>{descPagos[k] > 0 && <span className="tw-op-off">{String(descPagos[k]).replace(".", ",")}% OFF</span>}<div style={{ fontSize: 13, color: "#666" }}>{d}</div></button>)}
+                  {gcCubre ? <div className="tw-cupon" style={{ padding: "10px 12px", fontSize: 14 }}>✓ <b>Lo pagás todo con tu gift card.</b> No hace falta otra forma de pago.</div> : opcionesPago.map(([k, t, d]) => <button key={k} className={"tw-op" + (datos.pago === k ? " on" : "") + (intentoPedir && faltaPago ? " falta" : "")} onClick={() => setDatos(x => ({ ...x, pago: k }))}><b>{t}</b>{descPagos[k] > 0 && <span className="tw-op-off">{String(descPagos[k]).replace(".", ",")}% OFF</span>}{descPagosKits[k] > 0 && montoKits > 0 && <span className="tw-op-off">Kits {String(descPagosKits[k]).replace(".", ",")}% OFF</span>}<div style={{ fontSize: 13, color: "#666" }}>{d}</div></button>)}
                   <div className="tw-lbl">¿Tenés un código de descuento?</div>
                   {cuponOk ? (
                     <div className="tw-cupon" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "10px 12px" }}>
@@ -27553,7 +27562,7 @@ function TiendaPublica({ slug }) {
                   {comboCalc.combos.map(cb => <div key={"cb" + cb.id} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>🎁 Combo {cb.nombre}{cb.veces > 1 ? " ×" + cb.veces : ""}</span><span>−{fmtTienda(cb.ahorro)}</span></div>)}
                   {descAmiga > 0 && <div className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>💌 Regalo de {amigaOk.nombre} ({amigaOk.pct}%)</span><span>−{fmtTienda(descAmiga)}</span></div>}
                   {descuentoCupon > 0 && <div key={"d" + cuponOk.codigo} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>✨ Descuento ({cuponOk.codigo})</span><span>−<TwRueda valor={descuentoCupon} formato={fmtTienda} dur={1000} /></span></div>}
-                  {descuentoPago > 0 && <div key={"p" + datos.pago} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>💸 {String(pctPago).replace(".", ",")}% OFF por {NOMBRE_PAGO[datos.pago]}</span><span>−<TwRueda valor={descuentoPago} formato={fmtTienda} dur={800} /></span></div>}
+                  {descuentoPago > 0 && <div key={"p" + datos.pago} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>💸 {pctKitsPago ? (pctKitsPago + "% OFF en kits" + (pctPago ? " y " + String(pctPago).replace(".", ",") + "% en el resto" : "")) : String(pctPago).replace(".", ",") + "% OFF"} por {NOMBRE_PAGO[datos.pago]}</span><span>−<TwRueda valor={descuentoPago} formato={fmtTienda} dur={800} /></span></div>}
                   {datos.entrega === "envio" && <div className="tw-linea"><span>Envío</span><span>{zona ? (costoEnvio ? fmtTienda(costoEnvio) : "Gratis") : "—"}</span></div>}
                   {gcUsa > 0 && <div key={"g" + gcOk.codigo} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>🎁 Gift card ({gcOk.codigo})</span><span>−<TwRueda valor={gcUsa} formato={fmtTienda} dur={900} /></span></div>}
                   <div className="tw-linea" style={{ fontWeight: 800, fontSize: 19, marginBottom: 12 }}><span>{gcUsa > 0 ? "Total a pagar" : "Total"}</span><span><TwRueda key={"t" + (cuponOk ? cuponOk.codigo : "") + datos.pago + (gcOk ? gcOk.codigo : "")} valor={totalPagar} desde={subtotal + costoEnvio} formato={fmtTienda} dur={1000} /></span></div>
@@ -29665,6 +29674,15 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                   {[["mp", "Mercado Pago", cfg.pago_mp], ["gocuotas", "GoCuotas", cfg.pago_gocuotas], ["transferencia", "Transferencia", cfg.pago_transferencia], ["retiro", "Paga al retirar", cfg.pago_retiro]].filter(x => x[2]).map(([k, t]) => (
                     <label key={k} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5 }}>{t}
                       <input className="inp" type="number" min="0" max="50" step="0.5" style={{ width: 70 }} placeholder="0" value={(cfg.descuentos_pago || {})[k] || ""} onChange={e => set("descuentos_pago", { ...(cfg.descuentos_pago || {}), [k]: e.target.value === "" ? 0 : Math.min(50, Math.max(0, parseFloat(e.target.value) || 0)) })} aria-label={"Descuento " + t} />%
+                    </label>
+                  ))}
+                </div>
+                <div style={{ fontWeight: 800, fontSize: 12.5, marginTop: 12 }}>🎁 Kits y combos</div>
+                <div style={{ fontSize: 11.5, color: temaPal.textMuted, margin: "2px 0 8px" }}>Si ponés un % acá, los kits y combos del carrito llevan ese descuento con esa forma de pago (en lugar del de arriba); el resto de los productos sigue con el de arriba. Ej: transferencia 5% y kits 25%.</div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  {[["mp", "Mercado Pago", cfg.pago_mp], ["gocuotas", "GoCuotas", cfg.pago_gocuotas], ["transferencia", "Transferencia", cfg.pago_transferencia], ["retiro", "Paga al retirar", cfg.pago_retiro]].filter(x => x[2]).map(([k, t]) => (
+                    <label key={k} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5 }}>{t}
+                      <input className="inp" type="number" min="0" max="60" step="0.5" style={{ width: 70 }} placeholder="0" value={(cfg.descuentos_pago_kits || {})[k] || ""} onChange={e => set("descuentos_pago_kits", { ...(cfg.descuentos_pago_kits || {}), [k]: e.target.value === "" ? 0 : Math.min(60, Math.max(0, parseFloat(e.target.value) || 0)) })} aria-label={"Descuento " + t} />%
                     </label>
                   ))}
                 </div>
