@@ -420,6 +420,8 @@ router.post('/:slug/pedidos', async (req, res) => {
       total = Math.round((total - gcUsa) * 100) / 100;
     }
     if (total <= 0 && gc) pago = 'giftcard';
+    // Con productos en preventa se paga solo con Mercado Pago (o todo con gift card)
+    if (lineas.some(l => l.preventa) && !['mp', 'giftcard'].includes(pago)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Los pedidos con productos en preventa se pagan con Mercado Pago. Elegí Mercado Pago para seguir.' }); }
     else if (pago === 'giftcard') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'La gift card no alcanza: elegí cómo pagás el resto (' + '$' + Math.round(total).toLocaleString('es-AR') + ')' }); }
     const codigo = crypto.randomBytes(4).toString('hex').toUpperCase();
     const estado = pago === 'retiro' || pago === 'giftcard' ? 'confirmado' : 'pendiente_pago';

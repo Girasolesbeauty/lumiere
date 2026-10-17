@@ -26604,14 +26604,17 @@ function TiendaPublica({ slug }) {
   // Gift card para pagar (se valida en el servidor y se vuelve a revisar al hacer el pedido)
   const gcCubre = !!gcOk && gcOk.saldo >= subtotal - descCombo - descuentoCupon - descAmiga + costoEnvio;
   const descPagosKits = tienda.descuentos_pago_kits || {};
+  // Con productos en preventa solo se paga con Mercado Pago: otra forma elegida antes no vale
+  const carritoPreventa = carrito.some(i => i.preventa);
+  const pagoElegido = datos.pago && (!carritoPreventa || datos.pago === "mp") ? datos.pago : null;
   // El mejor descuento de kits entre las formas de pago activas (se muestra en la tarjeta de cada kit)
   const pagoKitsMejor = (() => { const m = Object.entries(descPagosKits).filter(([k, v]) => v > 0 && tienda.pagos && tienda.pagos[k]).sort((a, b) => b[1] - a[1])[0]; return m ? { pct: m[1], nombre: ({ mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia", retiro: "pago al retirar" })[m[0]] } : null; })();
-  const pctPago = datos.pago && !gcCubre ? (descPagos[datos.pago] || 0) : 0;
+  const pctPago = pagoElegido && !gcCubre ? (descPagos[pagoElegido] || 0) : 0;
   // Los kits/combos del carrito llevan su propio % (si se configuro); el resto, el general. Mismo calculo que el servidor.
   const montoKits = comboCalc.combos.reduce((t, x) => t + (x.monto || 0), 0);
-  const pctKitsPago = datos.pago && !gcCubre && montoKits > 0 ? (descPagosKits[datos.pago] || 0) : 0;
+  const pctKitsPago = pagoElegido && !gcCubre && montoKits > 0 ? (descPagosKits[pagoElegido] || 0) : 0;
   // Promociones de Lumiere para la tienda: esos productos llevan la promo en lugar del descuento por forma de pago (igual que el servidor)
-  const promoCalc = twDescPromos(tienda.promos, carrito, comboCalc.combos, tienda.ofertas && tienda.ofertas.combos, datos.pago && !gcCubre ? datos.pago : null, (id) => ((productos || []).find(x => x.id === id) || {}).categoria);
+  const promoCalc = twDescPromos(tienda.promos, carrito, comboCalc.combos, tienda.ofertas && tienda.ofertas.combos, pagoElegido && !gcCubre ? pagoElegido : null, (id) => ((productos || []).find(x => x.id === id) || {}).categoria);
   const descPromo = promoCalc.descuento;
   const basePago = Math.max(0, subtotal - descCombo - descuentoCupon - descAmiga - promoCalc.monto);
   const enKitsPago = pctKitsPago ? Math.max(0, Math.min(basePago, montoKits)) : 0;
@@ -26637,7 +26640,7 @@ function TiendaPublica({ slug }) {
     setAviso(""); setEnviando(true);
     try { localStorage.setItem("tienda_datos", JSON.stringify({ nombre: datos.nombre, telefono: datos.telefono, email: datos.email, direccion: datos.direccion })); } catch (e) {}
     try {
-      const r = await pedir("/pedidos", { method: "POST", body: JSON.stringify({ ...datos, pago: gcCubre ? "giftcard" : datos.pago, giftcard: gcOk ? gcOk.codigo : null, local_id: lid, items: carrito, cupon: cuponOk ? cuponOk.codigo : null, amiga: descAmiga ? amigaCod : null, volver_a: window.location.href }) });
+      const r = await pedir("/pedidos", { method: "POST", body: JSON.stringify({ ...datos, pago: gcCubre ? "giftcard" : pagoElegido, giftcard: gcOk ? gcOk.codigo : null, local_id: lid, items: carrito, cupon: cuponOk ? cuponOk.codigo : null, amiga: descAmiga ? amigaCod : null, volver_a: window.location.href }) });
       setCarrito([]); setCuponOk(null); setCuponIn(""); setGcOk(null); setGcIn("");
       if (descAmiga) { try { localStorage.removeItem("tw_amiga_" + slug); } catch (e) {} }
       if (r.link_pago) { window.location.href = r.link_pago; return; }
@@ -26877,12 +26880,12 @@ function TiendaPublica({ slug }) {
   const iSlide = nSlides ? slide % nSlides : 0;
   const tarjeta = (p) => <TwTarjeta key={p.id} p={p} base={base} sin={agotado(p)} preventa={esPreventa(p)} llega={esPreventa(p) ? llegaDe(p) : null} fav={favs.includes(p.id)} onFav={toggleFav} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
   const opcionesPago = [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["gocuotas", "💜 GoCuotas", "Hasta 4 cuotas sin interés con tu tarjeta de débito"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar"], ["retiro", "💵 Pago al retirar", "Pagás en el local"]]
-    .filter(([k]) => tienda.pagos[k] && !(k === "retiro" && datos.entrega === "envio"));
-  const listoParaPedir = lid && datos.nombre && datos.telefono && datos.entrega && (datos.pago || gcCubre) && (datos.entrega === "retiro" ? retiroAca.length > 0 : (zona && datos.direccion));
+    .filter(([k]) => tienda.pagos[k] && !(k === "retiro" && datos.entrega === "envio") && (!carritoPreventa || k === "mp"));
+  const listoParaPedir = lid && datos.nombre && datos.telefono && datos.entrega && (pagoElegido || gcCubre) && (datos.entrega === "retiro" ? retiroAca.length > 0 : (zona && datos.direccion));
   const faltaDatos = !datos.nombre || !datos.telefono;
   const faltaEntrega = !lid || !datos.entrega || (datos.entrega === "retiro" && !retiroAca.length);
   const faltaEnvio = datos.entrega === "envio" && (!zona || !datos.direccion);
-  const faltaPago = !datos.pago && !gcCubre;
+  const faltaPago = !pagoElegido && !gcCubre;
   const faltan = [!lid && "elegir tu ciudad", !datos.nombre && "tu nombre", !datos.telefono && "tu WhatsApp", lid && !datos.entrega && "cómo lo recibís (retiro o envío)",
     datos.entrega === "envio" && !zona && "tu zona de envío", datos.entrega === "envio" && !datos.direccion && "la dirección", faltaPago && "cómo pagás"].filter(Boolean);
   const irAPedir = () => {
@@ -27452,7 +27455,7 @@ function TiendaPublica({ slug }) {
                     // Promo de Lumiere para este producto (sin medio de pago) o el mejor precio por forma de pago (promo o descuento general)
                     const promoTodos = twPromoDe(tienda.promos, ver, "__todos__");
                     if (promoTodos) return <div className="tw-precio-pago">🏷️ {fmtTienda(Math.round(ver.precio * (1 - promoTodos.pct / 100)))} con la promo {promoTodos.nombre} ({String(promoTodos.pct).replace(".", ",")}% OFF)</div>;
-                    const mejor = Object.keys(tienda.pagos || {}).filter(k => tienda.pagos[k]).map(k => { const pr = twPromoDe(tienda.promos, ver, k); return [k, pr ? pr.pct : ((tienda.descuentos_pago || {})[k] || 0)]; }).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1])[0];
+                    const mejor = Object.keys(tienda.pagos || {}).filter(k => tienda.pagos[k] && (!preVer || k === "mp")).map(k => { const pr = twPromoDe(tienda.promos, ver, k); return [k, pr ? pr.pct : ((tienda.descuentos_pago || {})[k] || 0)]; }).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1])[0];
                     return mejor ? <div className="tw-precio-pago">💸 {fmtTienda(Math.round(ver.precio * (1 - mejor[1] / 100)))} pagando con {({ mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia", retiro: "efectivo al retirar" })[mejor[0]]} ({String(mejor[1]).replace(".", ",")}% OFF)</div> : null; })()}
                   {(ver._et && (ver._et.ingrediente || []).length > 0) && <div className="tw-ficha-ing"><span>Con</span>{ver._et.ingrediente.map(k => { const o = TW_ING_OP.find(x => x[0] === k); return o ? <button key={k} onClick={() => { setVer(null); irCat("*", { ingrediente: k }); }} title={"Ver todo con " + o[1]}>{o[1]}</button> : null; })}</div>}
                   {preVer && (
@@ -27605,7 +27608,8 @@ function TiendaPublica({ slug }) {
                   )}
                   {avisoGc && <div style={{ color: "#c0392b", fontSize: 13, marginTop: 6 }}>{avisoGc}</div>}
                   <div id="tw-ck-pago" className="tw-lbl tw-paso"><span className={"tw-paso-n" + (faltaPago ? "" : " ok")}>{faltaPago ? "3" : "✓"}</span>{gcOk && !gcCubre ? "¿Cómo pagás el resto (" + fmtTienda(totalPagar) + ")?" : "¿Cómo pagás?"}{intentoPedir && faltaPago && <span className="tw-falta-tag">Tocá una opción</span>}</div>
-                  {gcCubre ? <div className="tw-cupon" style={{ padding: "10px 12px", fontSize: 14 }}>✓ <b>Lo pagás todo con tu gift card.</b> No hace falta otra forma de pago.</div> : opcionesPago.map(([k, t, d]) => <button key={k} className={"tw-op" + (datos.pago === k ? " on" : "") + (intentoPedir && faltaPago ? " falta" : "")} onClick={() => setDatos(x => ({ ...x, pago: k }))}><b>{t}</b>{descPagos[k] > 0 && <span className="tw-op-off">{String(descPagos[k]).replace(".", ",")}% OFF</span>}{descPagosKits[k] > 0 && montoKits > 0 && <span className="tw-op-off">Kits {String(descPagosKits[k]).replace(".", ",")}% OFF</span>}<div style={{ fontSize: 13, color: "#666" }}>{d}</div></button>)}
+                  {carritoPreventa && !gcCubre && <div className="tw-preventa-aviso chico" style={{ marginBottom: 8 }}><b>💳 La preventa se paga con Mercado Pago</b><span>{tienda.pagos.mp ? "Para reservar productos que todavía no llegaron, el pago es solo con Mercado Pago (tarjeta, débito o dinero en cuenta)." : "Ahora no podemos cobrar con Mercado Pago: escribinos por WhatsApp para reservar tu preventa."}</span></div>}
+                  {gcCubre ? <div className="tw-cupon" style={{ padding: "10px 12px", fontSize: 14 }}>✓ <b>Lo pagás todo con tu gift card.</b> No hace falta otra forma de pago.</div> : opcionesPago.map(([k, t, d]) => <button key={k} className={"tw-op" + (pagoElegido === k ? " on" : "") + (intentoPedir && faltaPago ? " falta" : "")} onClick={() => setDatos(x => ({ ...x, pago: k }))}><b>{t}</b>{descPagos[k] > 0 && <span className="tw-op-off">{String(descPagos[k]).replace(".", ",")}% OFF</span>}{descPagosKits[k] > 0 && montoKits > 0 && <span className="tw-op-off">Kits {String(descPagosKits[k]).replace(".", ",")}% OFF</span>}<div style={{ fontSize: 13, color: "#666" }}>{d}</div></button>)}
                   <div className="tw-lbl">¿Tenés un código de descuento?</div>
                   {cuponOk ? (
                     <div className="tw-cupon" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "10px 12px" }}>
@@ -27629,17 +27633,17 @@ function TiendaPublica({ slug }) {
                   {comboCalc.combos.filter(cb => cb.ahorro > 0).map(cb => <div key={"cb" + cb.id} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>🎁 Combo {cb.nombre}{cb.veces > 1 ? " ×" + cb.veces : ""}</span><span>−{fmtTienda(cb.ahorro)}</span></div>)}
                   {descAmiga > 0 && <div className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>💌 Regalo de {amigaOk.nombre} ({amigaOk.pct}%)</span><span>−{fmtTienda(descAmiga)}</span></div>}
                   {descuentoCupon > 0 && <div key={"d" + cuponOk.codigo} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>✨ Descuento ({cuponOk.codigo})</span><span>−<TwRueda valor={descuentoCupon} formato={fmtTienda} dur={1000} /></span></div>}
-                  {descPromo > 0 && <div key={"pr" + datos.pago} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>🏷️ Promo{promoCalc.nombres.length ? ": " + promoCalc.nombres.join(", ") : ""}</span><span>−<TwRueda valor={descPromo} formato={fmtTienda} dur={800} /></span></div>}
-                  {descuentoPago > 0 && <div key={"p" + datos.pago} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>💸 {pctKitsPago ? (pctKitsPago + "% OFF en kits" + (pctPago ? " y " + String(pctPago).replace(".", ",") + "% en el resto" : "")) : String(pctPago).replace(".", ",") + "% OFF"} por {NOMBRE_PAGO[datos.pago]}</span><span>−<TwRueda valor={descuentoPago} formato={fmtTienda} dur={800} /></span></div>}
+                  {descPromo > 0 && <div key={"pr" + pagoElegido} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>🏷️ Promo{promoCalc.nombres.length ? ": " + promoCalc.nombres.join(", ") : ""}</span><span>−<TwRueda valor={descPromo} formato={fmtTienda} dur={800} /></span></div>}
+                  {descuentoPago > 0 && <div key={"p" + pagoElegido} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>💸 {pctKitsPago ? (pctKitsPago + "% OFF en kits" + (pctPago ? " y " + String(pctPago).replace(".", ",") + "% en el resto" : "")) : String(pctPago).replace(".", ",") + "% OFF"} por {NOMBRE_PAGO[pagoElegido]}</span><span>−<TwRueda valor={descuentoPago} formato={fmtTienda} dur={800} /></span></div>}
                   {datos.entrega === "envio" && <div className="tw-linea"><span>Envío</span><span>{zona ? (costoEnvio ? fmtTienda(costoEnvio) : "Gratis") : "—"}</span></div>}
                   {gcUsa > 0 && <div key={"g" + gcOk.codigo} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>🎁 Gift card ({gcOk.codigo})</span><span>−<TwRueda valor={gcUsa} formato={fmtTienda} dur={900} /></span></div>}
-                  <div className="tw-linea" style={{ fontWeight: 800, fontSize: 19, marginBottom: 12 }}><span>{gcUsa > 0 ? "Total a pagar" : "Total"}</span><span><TwRueda key={"t" + (cuponOk ? cuponOk.codigo : "") + datos.pago + (gcOk ? gcOk.codigo : "")} valor={totalPagar} desde={subtotal + costoEnvio} formato={fmtTienda} dur={1000} /></span></div>
+                  <div className="tw-linea" style={{ fontWeight: 800, fontSize: 19, marginBottom: 12 }}><span>{gcUsa > 0 ? "Total a pagar" : "Total"}</span><span><TwRueda key={"t" + (cuponOk ? cuponOk.codigo : "") + pagoElegido + (gcOk ? gcOk.codigo : "")} valor={totalPagar} desde={subtotal + costoEnvio} formato={fmtTienda} dur={1000} /></span></div>
                   {logueada && <TwPuntos monto={subtotal - descCombo - descuentoCupon} tengo={miCuenta ? (miCuenta.puntos || 0) : null} />}
                   {tienda.ruleta && tienda.ruleta.aviso && <TwRuletaAviso monto={subtotal - descCombo - descuentoCupon} minimo={tienda.ruleta.minimo} />}
                   {faltan.length > 0 && <div className={"tw-faltan" + (intentoPedir ? " fuerte" : "")} role="status">⚠️ Para seguir te falta: <b>{faltan.join(", ")}</b></div>}
                   <div style={{ display: "flex", gap: 8 }}>
                     <button className="tw-btn2" onClick={() => setPaso("carrito")}>Atrás</button>
-                    <button className={"tw-btn full" + (listoParaPedir ? "" : " apagado")} disabled={enviando} aria-disabled={!listoParaPedir} onClick={irAPedir}>{enviando ? "Enviando…" : !gcCubre && (datos.pago === "mp" || datos.pago === "gocuotas") ? "Ir a pagar" : "Hacer el pedido"}</button>
+                    <button className={"tw-btn full" + (listoParaPedir ? "" : " apagado")} disabled={enviando} aria-disabled={!listoParaPedir} onClick={irAPedir}>{enviando ? "Enviando…" : !gcCubre && (pagoElegido === "mp" || pagoElegido === "gocuotas") ? "Ir a pagar" : "Hacer el pedido"}</button>
                   </div>
                 </div>
               </>
