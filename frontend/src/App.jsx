@@ -23769,14 +23769,34 @@ const CSS_TIENDA = `
 .tw-ficha-oferta{display:inline-block;background:#fff1ee;color:#c0392b;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700;margin:6px 0 4px}
 .tw-ficha-combo{display:flex;align-items:center;gap:10px;justify-content:space-between;background:#fffaf0;border:1px solid #f1e3c4;border-radius:12px;padding:10px 12px;margin:10px 0 0;font-size:13.5px}
 .tw-ficha-combo .tw-btn2{flex-shrink:0;padding:7px 12px;font-size:11px}
-.tw-combos{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
-.tw-combo{position:relative;background:#fff;border:1px solid #eee;border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:6px;box-shadow:0 4px 14px rgba(0,0,0,.05);animation:twSube .45s ease both;animation-delay:calc(var(--i) * 70ms)}
-.tw-combo-ahorro{position:absolute;top:12px;right:12px;background:#2d7a4f;color:#fff;font-size:11px;font-weight:800;border-radius:999px;padding:4px 10px}
-.tw-combo-fotos{display:flex;align-items:center;gap:4px;margin:6px 0 4px}
-.tw .tw-combo-fotos button{width:64px;height:64px;border-radius:12px;overflow:hidden;border:none;padding:0;background:#f6f6f6;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.tw-combo-fotos img{width:100%;height:100%;object-fit:cover}.tw-combo-mas{font-weight:900;color:#c9a84c}
-.tw-combo-n{font-size:16px}.tw-combo-lista{font-size:12.5px;color:#777;line-height:1.35}
-.tw-combo-precios{display:flex;align-items:baseline;gap:8px;margin:2px 0 6px}.tw-combo-precios s{color:#999;font-size:13.5px}.tw-combo-precios b{font-size:20px}
+.tw-combos{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:18px}
+.tw-kit{position:relative;background:#fff;border:1px solid #efe9df;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 1px 2px rgba(60,40,10,.04),0 10px 28px -14px rgba(60,40,10,.18);transition:transform .25s ease,box-shadow .25s ease;animation:twSube .45s ease both;animation-delay:calc(var(--i) * 70ms)}
+@media(hover:hover){.tw-kit:hover{transform:translateY(-3px);box-shadow:0 2px 4px rgba(60,40,10,.05),0 18px 36px -16px rgba(60,40,10,.25)}}
+.tw-kit-arte{position:relative;aspect-ratio:16/10;background:radial-gradient(120% 90% at 50% 100%,#f1e6d3 0%,#faf6ef 60%,#fdfbf7 100%);display:flex;align-items:center;justify-content:center;padding:18px 14px 14px}
+.tw .tw-kit-foto{position:relative;width:34%;aspect-ratio:1;border-radius:16px;overflow:visible;border:3px solid #fff;padding:0;background:#f6f6f6;cursor:pointer;box-shadow:0 8px 18px -8px rgba(60,40,10,.35);margin-left:-7%;transform:rotate(calc((var(--j) - 1.5) * 5deg));transition:transform .25s ease;display:flex;align-items:center;justify-content:center}
+.tw .tw-kit-foto:first-of-type{margin-left:0}
+.tw-kit-arte.n1 .tw-kit-foto{width:44%;transform:none}.tw-kit-arte.n2 .tw-kit-foto{width:40%;transform:rotate(calc((var(--j) - .5) * 6deg))}.tw-kit-arte.n3 .tw-kit-foto{width:36%;transform:rotate(calc((var(--j) - 1) * 6deg))}
+.tw .tw-kit-foto img{width:100%;height:100%;object-fit:cover;border-radius:13px}
+@media(hover:hover){.tw .tw-kit:hover .tw-kit-foto{transform:rotate(0) translateY(-2px)}}
+.tw-kit-foto i{position:absolute;left:-6px;bottom:-6px;z-index:2;font-style:normal;font-size:11px;font-weight:800;background:#111;color:#fff;border-radius:999px;padding:2px 7px;border:2px solid #fff}
+.tw-kit-resto{margin-left:8px;font-size:13px;font-weight:800;color:#8a6d2f;background:#fff;border-radius:999px;padding:5px 9px;box-shadow:0 4px 10px -6px rgba(60,40,10,.4)}
+.tw-kit-pct{position:absolute;top:12px;left:12px;z-index:2;background:#111;color:#fff;font-size:12px;font-weight:800;letter-spacing:.02em;border-radius:999px;padding:4px 10px}
+.tw-kit-txt{display:flex;flex-direction:column;gap:6px;padding:16px 18px 18px;flex:1}
+.tw-kit-ceja{font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#a8842f}
+.tw .tw-kit .tw-combo-n{font-size:17px;font-weight:800;line-height:1.25;margin:0;letter-spacing:-.01em}
+.tw-kit-lista{list-style:none;margin:2px 0 4px;padding:0;display:flex;flex-direction:column;gap:3px}
+.tw-kit-lista li{font-size:13px;color:#666;line-height:1.35;display:flex;gap:7px;align-items:baseline}
+.tw-kit-lista li::before{content:"";flex-shrink:0;width:5px;height:5px;border-radius:50%;background:#d8c49a;transform:translateY(-2px)}
+.tw-kit-lista li.mas{color:#999;font-style:italic}.tw-kit-lista li.mas::before{background:transparent}
+.tw .tw-kit-lista button{all:unset;cursor:pointer;color:inherit}.tw .tw-kit-lista button:hover{color:#111;text-decoration:underline}
+.tw-kit-lista b{color:#111;margin-right:4px}
+.tw-kit-pie{margin-top:auto;padding-top:10px;border-top:1px solid #f1ece4;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.tw-kit-precio{display:flex;flex-direction:column;min-width:0}.tw-kit-precio b{font-size:20px;font-weight:800;letter-spacing:-.01em}
+.tw-kit-precio span{font-size:11.5px;color:#2d7a4f;font-weight:700;white-space:nowrap}.tw-kit-precio s{color:#999;font-weight:500}
+.tw .tw-kit-btn{flex-shrink:0;border:1.5px solid #111;background:#111;color:#fff;border-radius:999px;padding:10px 18px;font:inherit;font-size:12.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:background .2s,color .2s,transform .15s}
+@media(hover:hover){.tw .tw-kit-btn:hover{background:#fff;color:#111}}
+.tw .tw-kit-btn.hecho{background:#2d7a4f;border-color:#2d7a4f;color:#fff}
+@media(max-width:760px){.tw-combos{display:grid;grid-auto-flow:column;grid-auto-columns:82%;grid-template-columns:none;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding:0 16px;scrollbar-width:none;margin:0 -16px;padding:4px 16px 10px}.tw-combos::-webkit-scrollbar{display:none}.tw-kit{scroll-snap-align:start}.tw-combos>.tw-kit:only-child{grid-auto-columns:100%}}
 @media(max-width:760px){.tw-oferta{grid-template-columns:1fr}.tw-oferta-img{min-height:240px}.tw-oferta-txt{padding:22px 20px}.tw-reloj-c{min-width:54px}.tw-reloj-c b{font-size:24px}}
 .tw-amiga-barra{background:linear-gradient(90deg,#fde7ee,#fff3e6);color:#7a3b4f;text-align:center;font-size:13.5px;padding:9px 16px;border-bottom:1px solid #f6d8e0}
 .tw-amiga-check{font-size:13px;border-radius:10px;padding:9px 11px;margin:0 0 8px;background:#fff6f8;color:#7a3b4f;border:1px dashed #efc2cf}
@@ -25428,20 +25448,43 @@ function TwCombos({ combos, productos, foto, onAgregar, onAbrir, dispo, titulo }
   if (!lista.length) return null;
   return (
     <section className="tw-sec tw-rv">
-      <div className="tw-sec-t"><h3>{titulo || "🎁 Combos"}</h3></div>
+      <div className="tw-sec-t"><h3>{titulo || "Kits y combos"}</h3></div>
       <div className="tw-combos">
         {lista.map((c, k) => {
           const suma = c.items.reduce((s, p) => s + p.precio * twCantCombo(c, p.id), 0), ahorro = Math.max(0, suma - c.precio);
-          const hay = twComboHay(c, c.items, dispo);
+          const pct = ahorro > 0 ? Math.round(ahorro / suma * 100) : 0;
+          const unidades = c.items.reduce((s, p) => s + twCantCombo(c, p.id), 0);
+          const fotos = c.items.slice(0, 4), resto = c.items.length - fotos.length;
+          const visibles = c.items.slice(0, 3), masItems = c.items.length - visibles.length;
+          const agregar = () => { onAgregar(c.items.map(p => ({ p, n: twCantCombo(c, p.id), v: p.variantes ? p.variantes.find(v => dispo(p, v) >= twCantCombo(c, p.id)) : null }))); setHecho(c.id); setTimeout(() => setHecho(null), 2500); };
           return (
-            <div key={c.id} className="tw-combo" style={{ "--i": k }}>
-              {ahorro > 0 && <span className="tw-combo-ahorro">Ahorrás {fmtTienda(ahorro)}</span>}
-              <div className="tw-combo-fotos">{c.items.map((p, i) => <Fragment key={p.id}>{i > 0 && <span className="tw-combo-mas">+</span>}<button onClick={() => onAbrir(p)} aria-label={"Ver " + p.nombre}>{p.foto ? <img src={foto(p)} alt="" /> : <span className="tw-ph" style={{ fontSize: 26 }}>✿</span>}</button></Fragment>)}</div>
-              <b className="tw-combo-n">{c.nombre}</b>
-              <div className="tw-combo-lista">{c.items.map(p => (twCantCombo(c, p.id) > 1 ? twCantCombo(c, p.id) + "× " : "") + p.nombre).join(" + ")}</div>
-              <div className="tw-combo-precios">{ahorro > 0 && <s>{fmtTienda(suma)}</s>}<b>{fmtTienda(c.precio)}</b></div>
-              <button className={"tw-btn full" + (hecho === c.id ? " hecho" : "")} disabled={!hay} onClick={() => { onAgregar(c.items.map(p => ({ p, n: twCantCombo(c, p.id), v: p.variantes ? p.variantes.find(v => dispo(p, v) >= twCantCombo(c, p.id)) : null }))); setHecho(c.id); setTimeout(() => setHecho(null), 2500); }}>{!hay ? "Sin stock" : hecho === c.id ? "✓ ¡Agregado!" : "Agregar combo"}</button>
-            </div>
+            <article key={c.id} className="tw-combo tw-kit" style={{ "--i": k }}>
+              <div className={"tw-kit-arte n" + fotos.length}>
+                {pct > 0 && <span className="tw-kit-pct">−{pct}%</span>}
+                {fotos.map((p, i) => (
+                  <button key={p.id} className="tw-kit-foto" style={{ "--j": i }} onClick={() => onAbrir(p)} aria-label={"Ver " + p.nombre}>
+                    {p.foto ? <img src={foto(p)} alt="" loading="lazy" /> : <span className="tw-ph" style={{ fontSize: 24 }}>✿</span>}
+                    {twCantCombo(c, p.id) > 1 && <i>×{twCantCombo(c, p.id)}</i>}
+                  </button>
+                ))}
+                {resto > 0 && <span className="tw-kit-resto">+{resto}</span>}
+              </div>
+              <div className="tw-kit-txt">
+                <span className="tw-kit-ceja">Kit · {unidades} producto{unidades === 1 ? "" : "s"}</span>
+                <h4 className="tw-combo-n">{c.nombre}</h4>
+                <ul className="tw-kit-lista">
+                  {visibles.map(p => <li key={p.id}><button onClick={() => onAbrir(p)}>{twCantCombo(c, p.id) > 1 && <b>{twCantCombo(c, p.id)}×</b>}{p.nombre}</button></li>)}
+                  {masItems > 0 && <li className="mas">y {masItems} más</li>}
+                </ul>
+                <div className="tw-kit-pie">
+                  <div className="tw-kit-precio">
+                    <b>{fmtTienda(c.precio)}</b>
+                    {ahorro > 0 && <span><s>{fmtTienda(suma)}</s> · ahorrás {fmtTienda(ahorro)}</span>}
+                  </div>
+                  <button className={"tw-kit-btn" + (hecho === c.id ? " hecho" : "")} onClick={agregar} aria-label={"Agregar el kit " + c.nombre + " al carrito"}>{hecho === c.id ? "✓ Listo" : "Agregar"}</button>
+                </div>
+              </div>
+            </article>
           );
         })}
       </div>
@@ -27108,7 +27151,7 @@ function TiendaPublica({ slug }) {
             <div className="tw-lista-cab">
               <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.ingrediente && !filtros.tipo && !filtros.piel && !filtros.necesidad ? "Con " + ((TW_ING_OP.find(o => o[0] === filtros.ingrediente) || ["", ""])[1]) : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : cat === "preventa" ? "⏳ " + tienda.preventa.titulo : cat === "favoritos" ? "❤️ Tus favoritos" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>{sector && !q && lista.length === 0 && combosSector(sector).length > 0 ? combosSector(sector).length + (combosSector(sector).length === 1 ? " kit" : " kits") : lista.length + " " + (lista.length === 1 ? "producto" : "productos")}
                 {!q && cat && cat !== "favoritos" && <button className="tw-compartir-sec" onClick={() => compartirSeccion(cat === "preventa" ? tienda.preventa.titulo : sector ? sector.nombre : cat === "*" ? "Todos los productos" : cat === "reingreso" ? reingreso.nombre : cat.startsWith("m:") ? cat.slice(2) : cat)}>{seccionCopiada ? "✓ Link copiado" : "🔗 Compartir"}</button>}</div></div>
-              <select value={orden} onChange={e => setOrden(e.target.value)} aria-label="Ordenar">{TW_ORDEN.map(([k, t]) => <option key={k} value={k}>Ordenar: {t}</option>)}</select>
+              {!(sector && !q && lista.length === 0 && combosSector(sector).length > 0) && <select value={orden} onChange={e => setOrden(e.target.value)} aria-label="Ordenar">{TW_ORDEN.map(([k, t]) => <option key={k} value={k}>Ordenar: {t}</option>)}</select>}
             </div>
             {sector && !q && catsSector.length > 1 && (
               <div className="tw-subcats">
@@ -27132,7 +27175,7 @@ function TiendaPublica({ slug }) {
                 {hayFiltros && <button className="tw-filtro-x" onClick={() => setFiltros({})}>Limpiar filtros ✕</button>}
               </div>
             )}
-            {sector && !q && !subcat && combosSector(sector).length > 0 && <TwCombos titulo="🎁 Kits y combos" combos={combosSector(sector)} productos={visibles} foto={foto} dispo={dispo} onAgregar={agregarRegalo} onAbrir={abrir} />}
+            {sector && !q && !subcat && combosSector(sector).length > 0 && <TwCombos titulo="Kits y combos" combos={combosSector(sector)} productos={visibles} foto={foto} dispo={dispo} onAgregar={agregarRegalo} onAbrir={abrir} />}
             {lista.length === 0 && sector && combosSector(sector).length > 0 ? null : lista.length === 0 ? <div style={{ textAlign: "center", color: "#888", margin: "50px 0" }}><p>{cat === "favoritos" && !q && !hayFiltros ? "Todavía no guardaste favoritos. Tocá el ♡ en los productos que te gusten y los encontrás acá." : hayFiltros ? "No hay productos con esos filtros." : "No encontramos productos con esa búsqueda."}</p>{hayFiltros && <button className="tw-btn2" style={{ display: "inline-flex", width: "auto", padding: "0 22px" }} onClick={() => setFiltros({})}>Ver todos</button>}</div>
               : <div className="tw-grid">{lista.map((p, i) => <div key={p.id} className="tw-rv" style={{ "--i": i % 4 }}>{tarjeta(p)}</div>)}</div>}
           </>
