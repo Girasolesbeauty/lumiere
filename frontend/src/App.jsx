@@ -25363,17 +25363,20 @@ function TwCumple({ value, onChange }) {
 }
 
 // ===================== Ofertas del dia y combos =====================
+// Cantidad de un producto dentro de un combo (1 si no se indica)
+const twCantCombo = (c, id) => (c && c.cantidades && c.cantidades[id]) || 1;
 // Mismo calculo que el servidor (lib/tienda.js descuentoCombos): cada combo completo descuenta la diferencia
 function twDescCombos(combos, carrito) {
   const queda = new Map(), precio = new Map();
   (carrito || []).filter(l => !l.preventa).forEach(l => { queda.set(l.producto_id, (queda.get(l.producto_id) || 0) + l.cantidad); if (!precio.has(l.producto_id)) precio.set(l.producto_id, Number(l.precio) || 0); });
   let total = 0; const usados = [];
   (combos || []).forEach(x => {
-    const veces = Math.min(...x.productos.map(id => queda.get(id) || 0));
+    const cant = (id) => twCantCombo(x, id);
+    const veces = Math.min(...x.productos.map(id => Math.floor((queda.get(id) || 0) / cant(id))));
     if (!(veces > 0)) return;
-    const ahorro = Math.max(0, x.productos.reduce((s, id) => s + (precio.get(id) || 0), 0) - x.precio);
+    const ahorro = Math.max(0, x.productos.reduce((s, id) => s + (precio.get(id) || 0) * cant(id), 0) - x.precio);
     if (!ahorro) return;
-    x.productos.forEach(id => queda.set(id, queda.get(id) - veces));
+    x.productos.forEach(id => queda.set(id, queda.get(id) - veces * cant(id)));
     total += ahorro * veces; usados.push({ ...x, veces, ahorro: ahorro * veces });
   });
   return { descuento: Math.round(total), combos: usados };
@@ -25427,16 +25430,16 @@ function TwCombos({ combos, productos, foto, onAgregar, onAbrir, dispo }) {
       <div className="tw-sec-t"><h3>🎁 Combos</h3></div>
       <div className="tw-combos">
         {lista.map((c, k) => {
-          const suma = c.items.reduce((s, p) => s + p.precio, 0), ahorro = Math.max(0, suma - c.precio);
-          const hay = c.items.every(p => p.variantes ? p.variantes.some(v => dispo(p, v) > 0) : dispo(p) > 0);
+          const suma = c.items.reduce((s, p) => s + p.precio * twCantCombo(c, p.id), 0), ahorro = Math.max(0, suma - c.precio);
+          const hay = c.items.every(p => p.variantes ? p.variantes.some(v => dispo(p, v) >= twCantCombo(c, p.id)) : dispo(p) >= twCantCombo(c, p.id));
           return (
             <div key={c.id} className="tw-combo" style={{ "--i": k }}>
               {ahorro > 0 && <span className="tw-combo-ahorro">Ahorrás {fmtTienda(ahorro)}</span>}
               <div className="tw-combo-fotos">{c.items.map((p, i) => <Fragment key={p.id}>{i > 0 && <span className="tw-combo-mas">+</span>}<button onClick={() => onAbrir(p)} aria-label={"Ver " + p.nombre}>{p.foto ? <img src={foto(p)} alt="" /> : <span className="tw-ph" style={{ fontSize: 26 }}>✿</span>}</button></Fragment>)}</div>
               <b className="tw-combo-n">{c.nombre}</b>
-              <div className="tw-combo-lista">{c.items.map(p => p.nombre).join(" + ")}</div>
+              <div className="tw-combo-lista">{c.items.map(p => (twCantCombo(c, p.id) > 1 ? twCantCombo(c, p.id) + "× " : "") + p.nombre).join(" + ")}</div>
               <div className="tw-combo-precios">{ahorro > 0 && <s>{fmtTienda(suma)}</s>}<b>{fmtTienda(c.precio)}</b></div>
-              <button className={"tw-btn full" + (hecho === c.id ? " hecho" : "")} disabled={!hay} onClick={() => { onAgregar(c.items.map(p => ({ p, v: p.variantes ? p.variantes.find(v => dispo(p, v) > 0) : null }))); setHecho(c.id); setTimeout(() => setHecho(null), 2500); }}>{!hay ? "Sin stock" : hecho === c.id ? "✓ ¡Agregado!" : "Agregar combo"}</button>
+              <button className={"tw-btn full" + (hecho === c.id ? " hecho" : "")} disabled={!hay} onClick={() => { onAgregar(c.items.map(p => ({ p, n: twCantCombo(c, p.id), v: p.variantes ? p.variantes.find(v => dispo(p, v) >= twCantCombo(c, p.id)) : null }))); setHecho(c.id); setTimeout(() => setHecho(null), 2500); }}>{!hay ? "Sin stock" : hecho === c.id ? "✓ ¡Agregado!" : "Agregar combo"}</button>
             </div>
           );
         })}
@@ -26547,7 +26550,7 @@ function TiendaPublica({ slug }) {
   const irCat = (c, f) => { setCat(c); setSubcat(""); setBusca(""); setFiltros(f || {}); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const irRegalos = (m) => { const r = tienda.regalos; setRegModo(m || (r && r.giftcards ? "gift" : "armar")); irCat("regalos"); };
   // Regalo armado: todo al carrito y se abre el carrito
-  const agregarRegalo = (items) => { items.forEach((x, i) => setTimeout(() => agregar(x.p, x.v, 1, null), i * 120)); setTimeout(() => setPaso("carrito"), items.length * 120 + 500); };
+  const agregarRegalo = (items) => { items.forEach((x, i) => setTimeout(() => agregar(x.p, x.v, x.n || 1, null), i * 120)); setTimeout(() => setPaso("carrito"), items.length * 120 + 500); };
 
   // Frases de la tira negra: las que cargo el negocio o, si no hay, se arman con lo que ofrece
   const anuncios = tienda.anuncios && tienda.anuncios.length ? tienda.anuncios : [
@@ -27323,9 +27326,9 @@ function TiendaPublica({ slug }) {
                   {ver.resenas && <button className="tw-ficha-est" onClick={() => { const el = document.getElementById("tw-resenas"); el && el.scrollIntoView({ behavior: "smooth", block: "start" }); }}><TwEstrellas v={ver.resenas[0]} size={15} /> <b>{String(ver.resenas[0]).replace(".", ",")}</b> <span>({ver.resenas[1]} {ver.resenas[1] === 1 ? "reseña" : "reseñas"})</span></button>}
                   <div className="tw-precio">{ver.precio_antes ? <><s className="tw-antes">{fmtTienda(ver.precio_antes)}</s> <span className="tw-precio-of">{fmtTienda(ver.precio)}</span></> : fmtTienda(ver.precio)}</div>
                   {ver.precio_antes && tienda.ofertas && tienda.ofertas.dia && <div className="tw-ficha-oferta">⚡ {tienda.ofertas.dia.titulo || "Oferta del día"} · termina en <TwReloj hasta={tienda.ofertas.dia.hasta} chico /></div>}
-                  {tienda.ofertas && tienda.ofertas.combos.filter(cb => cb.productos.includes(ver.id)).map(cb => { const its = cb.productos.map(id => visibles.find(x => x.id === id)); if (!its.every(Boolean)) return null; const suma = its.reduce((t, x) => t + x.precio, 0); return (
+                  {tienda.ofertas && tienda.ofertas.combos.filter(cb => cb.productos.includes(ver.id)).map(cb => { const its = cb.productos.map(id => visibles.find(x => x.id === id)); if (!its.every(Boolean)) return null; const suma = its.reduce((t, x) => t + x.precio * twCantCombo(cb, x.id), 0); return (
                     <div key={cb.id} className="tw-ficha-combo"><span>🎁 <b>Llevalo en combo:</b> {cb.nombre} por <b>{fmtTienda(cb.precio)}</b>{suma > cb.precio ? " (ahorrás " + fmtTienda(suma - cb.precio) + ")" : ""}</span>
-                      <button className="tw-btn2" onClick={() => agregarRegalo(its.map(x => ({ p: x, v: x.variantes ? x.variantes.find(v => dispo(x, v) > 0) : null })))}>Agregar combo</button></div>); })}
+                      <button className="tw-btn2" onClick={() => agregarRegalo(its.map(x => ({ p: x, n: twCantCombo(cb, x.id), v: x.variantes ? x.variantes.find(v => dispo(x, v) > 0) : null })))}>Agregar combo</button></div>); })}
                   {(() => { const mejor = Object.entries(tienda.descuentos_pago || {}).filter(([k]) => tienda.pagos[k]).sort((a, b) => b[1] - a[1])[0]; return mejor ? <div className="tw-precio-pago">💸 {fmtTienda(Math.round(ver.precio * (1 - mejor[1] / 100)))} pagando con {({ mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia", retiro: "efectivo al retirar" })[mejor[0]]} ({String(mejor[1]).replace(".", ",")}% OFF)</div> : null; })()}
                   {(ver._et && (ver._et.ingrediente || []).length > 0) && <div className="tw-ficha-ing"><span>Con</span>{ver._et.ingrediente.map(k => { const o = TW_ING_OP.find(x => x[0] === k); return o ? <button key={k} onClick={() => { setVer(null); irCat("*", { ingrediente: k }); }} title={"Ver todo con " + o[1]}>{o[1]}</button> : null; })}</div>}
                   {preVer && (
@@ -28644,7 +28647,7 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
     setGuardando(true);
     try {
       const body = { dia: { activo: !!dia.activo, producto_id: dia.producto_id || null, precio: parseInt(dia.precio) || 0, hasta: dia.hastaLocal ? new Date(dia.hastaLocal).toISOString() : null, titulo: dia.titulo || "" },
-        combos: combos.map(c => ({ id: c.id, nombre: c.nombre, productos: c.productos, precio: parseInt(c.precio) || 0, activo: c.activo !== false })) };
+        combos: combos.map(c => ({ id: c.id, nombre: c.nombre, productos: c.productos, cantidades: c.cantidades || {}, kit_id: c.kit_id || null, precio: parseInt(c.precio) || 0, activo: c.activo !== false })) };
       const r = await API.put("/tienda/ofertas", body);
       setDia({ ...r.data.ofertas.dia, hastaLocal: aLocal(r.data.ofertas.dia.hasta) }); setCombos(r.data.ofertas.combos);
       avisar(true, "✓ Ofertas guardadas"); onGuardado && onGuardado();
@@ -28652,6 +28655,22 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
     setGuardando(false);
   };
   const setCombo = (i, cambio) => setCombos(cs => cs.map((c, k) => k === i ? { ...c, ...cambio } : c));
+  // Kits armados en Lumiere (Productos > Kits): se pueden traer como combo de la tienda
+  const [kitsL, setKitsL] = useState(null);
+  const [eligiendoKit, setEligiendoKit] = useState(false);
+  useEffect(() => { if (eligiendoKit && kitsL === null) API.get("/kits").then(r => setKitsL(r.data || [])).catch(() => setKitsL([])); }, [eligiendoKit]);
+  const cantC = (c, id) => (c.cantidades && c.cantidades[id]) || 1;
+  const setCant = (i, id, n) => setCombos(cs => cs.map((c, k) => { if (k !== i) return c; const q = { ...(c.cantidades || {}) }; if (n > 1) q[id] = Math.min(n, 10); else delete q[id]; return { ...c, cantidades: q }; }));
+  const traerKit = (kit) => {
+    const items = (kit.items || []).filter(it => it && it.producto_id);
+    const cant = {}; items.forEach(it => { cant[it.producto_id] = (cant[it.producto_id] || 0) + (parseInt(it.cantidad) || 1); });
+    const ids = Object.keys(cant).map(Number).slice(0, 6);
+    const sinTienda = ids.filter(id => !pDe(id));
+    const cantidades = {}; ids.forEach(id => { if (cant[id] > 1) cantidades[id] = Math.min(cant[id], 10); });
+    setCombos(cs => [...cs, { id: "c" + Date.now().toString(36), nombre: String(kit.nombre || "").slice(0, 60), productos: ids, cantidades, kit_id: kit.id, precio: "", activo: true }]);
+    setEligiendoKit(false);
+    avisar(true, "✓ Kit " + kit.nombre + " cargado como combo: poné el precio y tocá Guardar ofertas" + (Object.keys(cant).length > 6 ? " (se tomaron los primeros 6 productos)" : "") + (sinTienda.length ? ". Ojo: " + sinTienda.length + " producto(s) no están publicados en la tienda" : ""));
+  };
   const avisoDia = !dia.activo ? "Apagada" : !pDia ? "Elegí el producto" : !(parseInt(dia.precio) > 0) ? "Poné el precio de oferta" : !dia.hastaLocal ? "Elegí hasta cuándo dura" : !t.ms ? "Ya terminó" : parseInt(dia.precio) >= parseFloat(pDia.precio) ? "El precio de oferta tiene que ser menor al normal" : null;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -28683,7 +28702,8 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
         <div style={{ fontSize: 13, color: temaPal.textMuted, marginBottom: 10 }}>Varios productos juntos a un precio especial. Aparecen en la portada con un botón para agregarlos de una, y si la clienta tiene todos en el carrito el descuento se aplica solo.</div>
         {combos.length === 0 && <div className="empty" style={{ padding: 12 }}>Todavía no hay combos.</div>}
         {combos.map((c, i) => {
-          const its = c.productos.map(pDe).filter(Boolean), suma = its.reduce((s, p) => s + parseFloat(p.precio || 0), 0), pr = parseInt(c.precio) || 0;
+          const its = c.productos.map(pDe).filter(Boolean), suma = its.reduce((s, p) => s + parseFloat(p.precio || 0) * cantC(c, p.id), 0), pr = parseInt(c.precio) || 0;
+          const kitDe = c.kit_id && kitsL ? kitsL.find(k => k.id === c.kit_id) : null;
           return (
             <div key={c.id || i} style={{ border: "1px solid " + temaPal.border, borderRadius: 12, padding: 12, marginBottom: 10, opacity: c.activo === false ? .6 : 1 }}>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -28692,7 +28712,7 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
                 {esJefe && <button className="btn btn-g btn-sm" onClick={() => setCombos(cs => cs.filter((_, k) => k !== i))}>🗑 Borrar</button>}
               </div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "10px 0" }}>
-                {c.productos.map(id => { const p = pDe(id); return <span key={id} className="mini-chip" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>{p ? p.nombre + " · " + fmt(p.precio) : "Producto borrado"}{esJefe && <button style={{ border: "none", background: "none", cursor: "pointer", padding: 0 }} onClick={() => setCombo(i, { productos: c.productos.filter(x => x !== id) })} aria-label="Sacar">✕</button>}</span>; })}
+                {c.productos.map(id => { const p = pDe(id); return <span key={id} className="mini-chip" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>{esJefe && <button style={{ border: "none", background: "none", cursor: "pointer", padding: 0, fontWeight: 800 }} disabled={cantC(c, id) <= 1} onClick={() => setCant(i, id, cantC(c, id) - 1)} aria-label={"Una unidad menos de " + (p ? p.nombre : "producto")}>−</button>}<b>{cantC(c, id)}×</b>{esJefe && <button style={{ border: "none", background: "none", cursor: "pointer", padding: 0, fontWeight: 800 }} disabled={cantC(c, id) >= 10} onClick={() => setCant(i, id, cantC(c, id) + 1)} aria-label={"Una unidad más de " + (p ? p.nombre : "producto")}>+</button>}{p ? p.nombre + " · " + fmt(p.precio) : "Producto no publicado en la tienda"}{esJefe && <button style={{ border: "none", background: "none", cursor: "pointer", padding: 0 }} onClick={() => setCombos(cs => cs.map((x, k) => { if (k !== i) return x; const q = { ...(x.cantidades || {}) }; delete q[id]; return { ...x, productos: x.productos.filter(y => y !== id), cantidades: q }; }))} aria-label="Sacar">✕</button>}</span>; })}
               </div>
               {esJefe && c.productos.length < 6 && <BuscaProductoTienda productos={prods} excluir={c.productos} onElegir={p => setCombo(i, { productos: [...c.productos, p.id] })} placeholder="+ Sumar un producto al combo…" />}
               <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap", marginTop: 10 }}>
@@ -28700,11 +28720,27 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
                 <div style={{ fontSize: 12.5, color: temaPal.textMuted, paddingBottom: 8 }}>Por separado: <b>{fmt(suma)}</b>{pr > 0 && pr < suma ? <span style={{ color: temaPal.green }}> · ahorran {fmt(suma - pr)} ({Math.round((1 - pr / suma) * 100)}%)</span> : pr >= suma && pr > 0 ? <span style={{ color: temaPal.warn }}> · el combo tiene que salir menos</span> : null}</div>
                 {esJefe && its.length >= 2 && <div style={{ display: "flex", gap: 4, paddingBottom: 6 }}>{[10, 15, 20].map(pc => <button key={pc} className="mini-chip" onClick={() => setCombo(i, { precio: Math.round(suma * (1 - pc / 100) / 100) * 100 })}>-{pc}%</button>)}</div>}
               </div>
-              {c.productos.length < 2 && <div style={{ fontSize: 12, color: temaPal.warn, marginTop: 6 }}>Sumá al menos 2 productos.</div>}
+              {c.productos.reduce((s, id) => s + cantC(c, id), 0) < 2 && <div style={{ fontSize: 12, color: temaPal.warn, marginTop: 6 }}>Sumá al menos 2 productos (o 2 unidades).</div>}
+              {c.kit_id && <div style={{ fontSize: 11.5, color: temaPal.textMuted, marginTop: 6 }}>📦 Armado desde el kit {kitDe ? <b>{kitDe.nombre}</b> : "de Lumiere"}</div>}
+              {c.productos.some(id => !pDe(id)) && <div style={{ fontSize: 12, color: temaPal.warn, marginTop: 6 }}>⚠ Hay productos que no están publicados en la tienda: el combo no se muestra hasta que los publiques.</div>}
             </div>
           );
         })}
-        {esJefe && <button className="btn btn-g btn-sm" onClick={() => setCombos(cs => [...cs, { id: "c" + Date.now().toString(36), nombre: "", productos: [], precio: "", activo: true }])}>+ Nuevo combo</button>}
+        {esJefe && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button className="btn btn-g btn-sm" onClick={() => setCombos(cs => [...cs, { id: "c" + Date.now().toString(36), nombre: "", productos: [], precio: "", activo: true }])}>+ Nuevo combo</button>
+          <button className="btn btn-g btn-sm" onClick={() => setEligiendoKit(v => !v)} aria-expanded={eligiendoKit}>📦 Traer un kit de Lumiere</button>
+        </div>}
+        {esJefe && eligiendoKit && (
+          <div style={{ border: "1px solid " + temaPal.border, borderRadius: 12, padding: 10, marginTop: 10 }}>
+            <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginBottom: 8 }}>Elegí un kit de <b>Productos → Kits</b>: se carga como combo con sus productos y cantidades. Después ponés el precio especial.</div>
+            {kitsL === null ? <div className="skel" style={{ height: 60 }} /> : kitsL.length === 0 ? <div className="empty" style={{ padding: 10 }}>Todavía no hay kits creados en Lumiere.</div>
+            : kitsL.map(k => { const its = (k.items || []).filter(it => it && it.producto_id); const ya = combos.some(c => c.kit_id === k.id); return (
+              <button key={k.id} type="button" className="btn btn-g btn-sm" style={{ display: "flex", width: "100%", justifyContent: "space-between", gap: 8, marginBottom: 4, textAlign: "left" }} onClick={() => traerKit(k)}>
+                <span style={{ minWidth: 0 }}><b>{k.nombre}</b>{ya ? " · ya está como combo" : ""}<div style={{ fontSize: 11, fontWeight: 400, color: temaPal.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{its.map(it => (parseInt(it.cantidad) > 1 ? it.cantidad + "× " : "") + it.producto_nombre).join(" + ") || "sin productos"}</div></span>
+                <b style={{ flexShrink: 0 }}>{fmt(parseFloat(k.precio || 0))}</b>
+              </button>); })}
+          </div>
+        )}
       </div>
       {esJefe && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar ofertas"}</button>
