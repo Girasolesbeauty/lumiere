@@ -23800,7 +23800,15 @@ const CSS_TIENDA = `
 .tw-kit-lista b{color:#111;margin-right:4px}
 .tw-kit-pie{margin-top:auto;padding-top:10px;border-top:1px solid #f1ece4;display:flex;align-items:center;justify-content:space-between;gap:10px}
 .tw-kit-precio{display:flex;flex-direction:column;min-width:0}.tw-kit-precio b{font-size:20px;font-weight:800;letter-spacing:-.01em}
-.tw-kit-precio span{font-size:11.5px;color:#2d7a4f;font-weight:700;white-space:nowrap}.tw-kit-precio .tw-kit-pago{color:#a8842f;font-size:12px;font-weight:800}.tw-kit-precio s{color:#999;font-weight:500}
+.tw-kit-precio span{font-size:11.5px;color:#2d7a4f;font-weight:700;white-space:nowrap}
+.tw-kit-pago{display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px 12px;border-radius:14px;background:linear-gradient(135deg,#e9f7ef,#d7f0e1);border:1.5px solid #9fd6b5;color:#14653b;animation:twKitPago 2.8s ease-in-out infinite}
+.tw-kit-pago-ico{font-size:20px;line-height:1}
+.tw-kit-pago-txt{flex:1;min-width:0;font-size:13px;font-weight:700;line-height:1.25}.tw-kit-pago-txt b{display:block;font-size:20px;font-weight:900;letter-spacing:-.01em;color:#0f5a32}
+.tw-kit-pago-off{flex-shrink:0;background:#1f8a4c;color:#fff;font-size:13px;font-weight:900;border-radius:999px;padding:5px 10px;box-shadow:0 4px 10px -4px rgba(31,138,76,.6)}
+@keyframes twKitPago{0%,100%{box-shadow:0 0 0 0 rgba(31,138,76,0)}50%{box-shadow:0 0 0 4px rgba(31,138,76,.14)}}
+.tw-kit-pct-pago{position:absolute;top:12px;right:12px;z-index:2;display:flex;flex-direction:column;align-items:center;background:#1f8a4c;color:#fff;font-size:14px;font-weight:900;letter-spacing:.01em;line-height:1.1;border-radius:14px;padding:6px 11px;box-shadow:0 6px 16px -6px rgba(31,138,76,.7);transform:rotate(3deg)}
+.tw-kit-pct-pago small{font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;opacity:.92}
+@media(prefers-reduced-motion:reduce){.tw-kit-pago{animation:none}}.tw-kit-precio s{color:#999;font-weight:500}
 .tw .tw-kit-btn{flex-shrink:0;border:1.5px solid #111;background:#111;color:#fff;border-radius:999px;padding:10px 18px;font:inherit;font-size:12.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:background .2s,color .2s,transform .15s}
 @media(hover:hover){.tw .tw-kit-btn:hover{background:#fff;color:#111}}
 .tw .tw-kit-btn.hecho{background:#2d7a4f;border-color:#2d7a4f;color:#fff}
@@ -25495,6 +25503,7 @@ function TwCombos({ combos, productos, foto, onAgregar, onAbrir, dispo, titulo, 
             <article key={c.id} className="tw-combo tw-kit" style={{ "--i": k }}>
               <div className={"tw-kit-arte n" + fotos.length}>
                 {pct > 0 && <span className="tw-kit-pct">−{pct}%</span>}
+                {pagoKits && <span className="tw-kit-pct-pago">💸 {String(pagoKits.pct).replace(".", ",")}% OFF<small>con {pagoKits.nombre}</small></span>}
                 {fotos.map((p, i) => (
                   <button key={p.id} className="tw-kit-foto" style={{ "--j": i }} onClick={() => onAbrir(p)} aria-label={"Ver " + p.nombre}>
                     {p.foto ? <img src={foto(p)} alt="" loading="lazy" /> : <span className="tw-ph" style={{ fontSize: 24 }}>✿</span>}
@@ -25514,10 +25523,16 @@ function TwCombos({ combos, productos, foto, onAgregar, onAbrir, dispo, titulo, 
                   <div className="tw-kit-precio">
                     <b>{fmtTienda(c.precio)}</b>
                     {ahorro > 0 && <span><s>{fmtTienda(suma)}</s> · ahorrás {fmtTienda(ahorro)}</span>}
-                    {pagoKits && <span className="tw-kit-pago">{fmtTienda(Math.round(c.precio * (1 - pagoKits.pct / 100)))} con {pagoKits.nombre}</span>}
                   </div>
                   <button className={"tw-kit-btn" + (hecho === c.id ? " hecho" : "")} onClick={agregar} aria-label={"Agregar el kit " + c.nombre + " al carrito"}>{hecho === c.id ? "✓ Listo" : "Agregar"}</button>
                 </div>
+                {pagoKits && (
+                  <div className="tw-kit-pago">
+                    <span className="tw-kit-pago-ico" aria-hidden="true">💸</span>
+                    <span className="tw-kit-pago-txt"><b>{fmtTienda(Math.round(c.precio * (1 - pagoKits.pct / 100)))}</b> pagando con {pagoKits.nombre}</span>
+                    <span className="tw-kit-pago-off">−{String(pagoKits.pct).replace(".", ",")}%</span>
+                  </div>
+                )}
               </div>
             </article>
           );
