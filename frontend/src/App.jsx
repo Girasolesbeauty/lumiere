@@ -27883,20 +27883,27 @@ async function prepararImagenBanner(archivo) {
     return { blob, ancho: img.width, alto: img.height };
   } finally { URL.revokeObjectURL(obj); }
 }
-function ElegirProductos({ productos, ya, onAgregar, temaPal, placeholder }) {
+// kits + onKit (opcional): ademas de productos, busca los kits de Lumiere y los ofrece primero
+function ElegirProductos({ productos, ya, onAgregar, temaPal, placeholder, kits, onKit }) {
   const tp = temaPal || PALETA_CLARA;
   const [q, setQ] = useState("");
   const qN = normTxt(q);
   const res = qN ? productos.filter(p => p.publicado && !ya.includes(p.id) && qN.split(" ").every(w => normTxt([p.nombre, p.marca, p.categoria].join(" ")).includes(w))).slice(0, 8) : [];
+  const resKits = qN && onKit ? (kits || []).filter(k => qN.split(" ").every(w => normTxt(k.nombre).includes(w))).slice(0, 8) : [];
   return (
     <div style={{ position: "relative" }}>
-      <input className="inp" placeholder={placeholder || "➕ Agregar producto: escribí el nombre…"} value={q} onChange={e => setQ(e.target.value)} aria-label="Buscar producto para agregar" />
-      {res.length > 0 && (
+      <input className="inp" placeholder={placeholder || (onKit ? "➕ Agregar producto o kit: escribí el nombre…" : "➕ Agregar producto: escribí el nombre…")} value={q} onChange={e => setQ(e.target.value)} aria-label="Buscar producto para agregar" />
+      {(res.length > 0 || resKits.length > 0) && (
         <div style={{ position: "absolute", left: 0, right: 0, top: "100%", zIndex: 5, background: tp.card, border: "1px solid " + tp.border, borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.12)", marginTop: 2, maxHeight: 280, overflowY: "auto" }}>
+          {resKits.map(k => { const its = (k.items || []).filter(it => it && it.producto_id); return (
+            <button key={"k" + k.id} type="button" onClick={() => { onKit(k); setQ(""); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", border: "none", borderBottom: "1px solid " + tp.border, background: "transparent", cursor: "pointer", fontSize: 13, color: tp.text, fontFamily: "inherit" }}>
+              <b>🎁 {k.nombre}</b> <span style={{ fontSize: 10.5, fontWeight: 800, color: tp.accentText }}>KIT</span>
+              <div style={{ fontSize: 11, color: tp.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{its.map(it => (parseInt(it.cantidad) > 1 ? it.cantidad + "× " : "") + it.producto_nombre).join(" + ")}</div>
+            </button>); })}
           {res.map(p => <button key={p.id} type="button" onClick={() => { onAgregar(p.id); setQ(""); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", border: "none", borderBottom: "1px solid " + tp.border, background: "transparent", cursor: "pointer", fontSize: 13, color: tp.text }}><b>{p.nombre}</b> <span style={{ color: tp.textMuted, fontSize: 11.5 }}>{[p.marca, p.categoria].filter(Boolean).join(" · ")}</span></button>)}
         </div>
       )}
-      {qN && !res.length && <div style={{ fontSize: 11.5, color: tp.textMuted, marginTop: 4 }}>No hay productos publicados con ese nombre (o ya están en la lista).</div>}
+      {qN && !res.length && !resKits.length && <div style={{ fontSize: 11.5, color: tp.textMuted, marginTop: 4 }}>No hay productos publicados{onKit ? " ni kits" : ""} con ese nombre (o ya están en la lista).</div>}
     </div>
   );
 }
@@ -28063,6 +28070,9 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
   const [subiendo, setSubiendo] = useState(false);
   const [sec, setSec] = useState(() => { try { return localStorage.getItem("lumiere_portada_sec") || "banners"; } catch (e) { return "banners"; } });
   const [nVideos, setNVideos] = useState(null);
+  // Kits de Lumiere: para buscarlos junto con los productos al armar un sector
+  const [kitsP, setKitsP] = useState([]);
+  useEffect(() => { API.get("/kits").then(r => setKitsP(r.data || [])).catch(() => setKitsP([])); }, []);
   const elegirSec = (k) => { setSec(k); try { localStorage.setItem("lumiere_portada_sec", k); } catch (e) {} };
   useEffect(() => { API.get("/tienda/portada").then(r => setD({ banners_img: [], ...r.data })).catch(() => setD({ banner: [], banners_img: [], filas: [], sectores: [] })); }, []);
   if (!d) return <div className="skel" style={{ height: 240 }} />;
@@ -28189,9 +28199,17 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 6 }}>
                 {cats.length === 0 ? <span style={{ fontSize: 12, color: tp.textMuted }}>No hay categorías en los productos publicados.</span> : cats.map(c => { const on = sc.categorias.includes(c); return <button key={c} className={"chip-btn" + (on ? " on" : "")} onClick={() => editar("sectores", i, { categorias: on ? sc.categorias.filter(x => x !== c) : [...sc.categorias, c] })}>{on ? "✓ " : ""}{c}</button>; })}
               </div>
-              <div className="fl">Productos sueltos (además de las categorías)</div>
+              <div className="fl">Productos sueltos y kits (además de las categorías)</div>
               <ListaElegidos lista={sc.productos} productos={productos} temaPal={tp} onCambiar={l => editar("sectores", i, { productos: l })} />
-              <ElegirProductos productos={productos} ya={sc.productos} temaPal={tp} onAgregar={id => editar("sectores", i, { productos: [...sc.productos, id] })} />
+              <ElegirProductos productos={productos} ya={sc.productos} temaPal={tp} onAgregar={id => editar("sectores", i, { productos: [...sc.productos, id] })}
+                kits={kitsP.filter(k => { const cb = (d.combos || []).find(c => c.kit_id === k.id); return !(cb && (sc.combos || []).includes(cb.id)); })}
+                onKit={async (k) => {
+                  let cb = (d.combos || []).find(c => c.kit_id === k.id);
+                  if (!cb) { try { cb = (await API.post("/tienda/ofertas/desde-kit", { kit_id: k.id })).data.combo; } catch (e) { avisar(false, e.response?.data?.error || "No se pudo sumar el kit"); return; } }
+                  setD(x => ({ ...x, combos: [...(x.combos || []).filter(y => y.id !== cb.id), cb], sectores: x.sectores.map((s2, k2) => (k2 === i ? { ...s2, combos: [...new Set([...(s2.combos || []), cb.id])] } : s2)) }));
+                  setCambios(true);
+                  avisar(true, "✓ Kit " + k.nombre + " sumado al sector (queda en \"Kits y combos\"). Tocá Guardar");
+                }} />
               <div className="fl" style={{ marginTop: 10 }}>Kits y combos</div>
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 6 }}>
                 {(sc.combos || []).length === 0 ? <span style={{ fontSize: 12, color: tp.textMuted }}>Ninguno todavía.</span> : (sc.combos || []).map(cid => { const cb = (d.combos || []).find(x => x.id === cid); return (
