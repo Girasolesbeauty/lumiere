@@ -23796,7 +23796,6 @@ const CSS_TIENDA = `
 .tw .tw-res-filtro button{border:1px solid #ddd;background:#fff;border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;color:#333}
 .tw .tw-res-filtro button.on{background:#111;border-color:#111;color:#fff}
 .tw-res-piel{font-size:11px;font-weight:700;color:#2d7a4f;background:#eef8f1;border-radius:999px;padding:2px 8px}
-.tw-card-ing{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}.tw-card-ing span{font-size:10.5px;font-weight:800;letter-spacing:.02em;color:#2f6d8a;background:#eef6fa;border-radius:999px;padding:2px 8px}
 .tw-ficha-ing{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0 2px;font-size:13px;color:#666}
 .tw .tw-ficha-ing button{font-size:12.5px;font-weight:700;color:#2f6d8a;background:#eef6fa;border:1px solid #d4e8f1;border-radius:999px;padding:5px 11px;cursor:pointer;font-family:inherit}
 .tw-cumple-card{background:#fff8ef;border:1px solid #f3e2c8;border-radius:14px;padding:12px 14px;margin-bottom:14px}.tw-cumple-card b{font-size:14.5px}.tw-cumple-card p{margin:4px 0 8px;font-size:13px;color:#6b5a50}
@@ -24903,7 +24902,6 @@ function TwTarjeta({ p, base, sin, preventa, llega, fav, onFav, onAbrir, onAgreg
       </div>
       {p.marca && <div className="tw-card-m">{p.marca}</div>}
       <div className="tw-card-n">{p.nombre}</div>
-      {p._et && (p._et.ingrediente || []).length > 0 && <div className="tw-card-ing">{p._et.ingrediente.slice(0, 2).map(k => { const o = TW_ING_OP.find(x => x[0] === k); return o ? <span key={k}>{o[3]}</span> : null; })}</div>}
       {p.resenas && <div className="tw-card-est"><TwEstrellas v={p.resenas[0]} size={12} /><span>({p.resenas[1]})</span></div>}
       <div className="tw-card-p">{p.precio_antes ? <><s className="tw-antes">{fmtTienda(p.precio_antes)}</s> <span className="tw-precio-of">{fmtTienda(p.precio)}</span></> : fmtTienda(p.precio)}</div>
       {preventa && <div className="tw-card-pre">{llega ? <>⏳ Llega aprox. <b>{llega}</b> · ¡reservalo!</> : "⏳ Llega pronto · ¡reservalo antes que se agote!"}</div>}
