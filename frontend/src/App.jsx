@@ -29365,6 +29365,11 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
     setProductos(ps => ps.map(x => x.id === p.id ? { ...x, publicado } : x));
     try { await API.put("/tienda/productos/" + p.id, { publicado }); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); cargarProductos(); }
   };
+  const marcarNuevo = async (p, no_nuevo) => {
+    setProductos(ps => ps.map(x => x.id === p.id ? { ...x, no_nuevo } : x));
+    try { await API.put("/tienda/productos/" + p.id, { no_nuevo }); avisar(true, no_nuevo ? "✓ " + p.nombre + " ya no sale en Novedades" : "✓ " + p.nombre + " vuelve a salir como nuevo"); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); cargarProductos(); }
+  };
   const destacar = async (p, destacado) => {
     setProductos(ps => ps.map(x => x.id === p.id ? { ...x, destacado } : x));
     try { await API.put("/tienda/productos/" + p.id, { destacado }); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); cargarProductos(); }
@@ -29694,6 +29699,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               </label>
               {p.publicado && esJefeT && <>
                 <button className={"chip-btn" + (p.destacado ? " on" : "")} onClick={() => destacar(p, !p.destacado)} title="Los destacados van al banner grande de la tienda">⭐ Destacado</button>
+                {p.creado_en && Date.now() - new Date(p.creado_en) < 30 * 864e5 && <button className={"chip-btn" + (p.no_nuevo ? "" : " on")} onClick={() => marcarNuevo(p, !p.no_nuevo)}
+                  title={p.no_nuevo ? "No aparece en Novedades. Tocá para volver a mostrarlo como nuevo." : "Se cargó hace menos de 30 días: sale en Novedades con la etiqueta NUEVO. Tocá para sacarlo."}>{p.no_nuevo ? "🚫 No sale como nuevo" : "✨ Sale como nuevo"}</button>}
                 <button className="btn btn-g btn-sm" onClick={() => setVideo({ id: p.id, nombre: p.nombre, link: p.video_url || "", subido: !!p.video_subido })}>🎬 Video{p.video_url || p.video_subido ? " ✓" : ""}</button>
                 <button className="btn btn-g btn-sm" onClick={() => abrirQR(p)} title="QR para la etiqueta de precio del local">🔳 QR</button>
                 <button className="btn btn-g btn-sm" onClick={() => setDesc({ id: p.id, nombre: p.nombre, texto: p.descripcion || "" })}>✏️ Descripción</button>

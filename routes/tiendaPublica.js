@@ -167,7 +167,7 @@ router.get('/:slug/productos', async (req, res) => {
       SELECT p.id, p.nombre, p.marca, p.categoria, p.precio, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush,
              COALESCE(p.stock_transito_rg, 0) AS transito_rg, COALESCE(p.stock_transito_ush, 0) AS transito_ush, COALESCE(p.reservado_rg, 0) AS reservado_rg, COALESCE(p.reservado_ush, 0) AS reservado_ush,
              COALESCE(tp.publicado, FALSE) AS publicado,
-             COALESCE(p.tiene_variantes, FALSE) AS tiene_variantes, tp.descripcion, tp.orden, COALESCE(tp.destacado, FALSE) AS destacado, tp.video_url, (p.creado_en > NOW() - INTERVAL '30 days') AS nuevo, tp.etiquetas,
+             COALESCE(p.tiene_variantes, FALSE) AS tiene_variantes, tp.descripcion, tp.orden, COALESCE(tp.destacado, FALSE) AS destacado, tp.video_url, (p.creado_en > NOW() - INTERVAL '30 days' AND NOT COALESCE(tp.no_nuevo, FALSE)) AS nuevo, tp.etiquetas,
              EXTRACT(EPOCH FROM p.creado_en)::bigint AS creado,
              EXISTS (SELECT 1 FROM tienda_videos tv WHERE tv.producto_id = p.id) AS video_subido,
              EXISTS (SELECT 1 FROM proveedores pr WHERE pr.id = p.proveedor_id AND pr.nombre ~* '(^|[^a-z])bek([^a-z]|$)') AS kb,
