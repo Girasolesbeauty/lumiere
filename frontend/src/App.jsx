@@ -744,6 +744,14 @@ body:has(.pcel-grid) .ayuda-fab { display: none !important; }
 .inv-det-acciones { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
 @media (max-width: 640px) {
   .inv-tabla th:nth-child(3), .inv-tabla td:nth-child(3) { white-space: nowrap; }
+  .inv-tabla.dos-locales th:nth-child(3), .inv-tabla.dos-locales tr.inv-fila td:nth-child(3) { display: none; }
+  .inv-tabla.dos-locales .inv-precio-movil { display: block !important; }
+  table.sin-tarjetas.inv-tabla.dos-locales { display: table !important; table-layout: fixed; width: 100%; white-space: normal !important; }
+  .inv-tabla.dos-locales th:first-child { width: 34px; }
+  .inv-tabla.dos-locales th:nth-child(n+4) { width: 74px; }
+  .inv-tabla.dos-locales td:nth-child(2) { overflow-wrap: anywhere; }
+  .inv-tabla.dos-locales td:nth-child(n+4) div { white-space: normal !important; }
+  .inv-tabla.dos-locales th:nth-child(n+4), .inv-tabla.dos-locales td:nth-child(n+4) { padding-left: 3px !important; padding-right: 3px !important; font-size: 10.5px; }
   .inv-tabla td, .inv-tabla th { padding: 8px 6px !important; }
   .inv-detalle td { padding: 4px 10px 12px !important; }
   .inv-det-grid { grid-template-columns: 1fr 1fr; }
@@ -8131,6 +8139,8 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
     const dir = ordenInv.dir === "asc" ? 1 : -1;
     const val = (p) => ordenInv.campo === "precio" ? parseFloat(p.precio || 0)
       : ordenInv.campo === "stock" ? stockVistaDe(p)
+      : ordenInv.campo === "stock1" ? (p.stock_rg || 0)
+      : ordenInv.campo === "stock2" ? (p.stock_ush || 0)
       : ordenInv.campo === "margen" ? (margenDe(p) ?? -1)
       : ordenInv.campo === "categoria" ? normInv(p.categoria)
       : normInv(p.nombre);
@@ -8191,6 +8201,22 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
       </span>
     );
   };
+
+  // Stock de un local puntual (columnas de los dos locales en el listado), con su color, reservas y lo que viene en camino
+  const StockLocal = ({ p, l }) => {
+    const st = (l === 2 ? p.stock_ush : p.stock_rg) || 0, res = (l === 2 ? p.reservado_ush : p.reservado_rg) || 0, tr = (l === 2 ? p.stock_transito_ush : p.stock_transito_rg) || 0;
+    const est = st <= 0 ? "sin" : Math.max(st - res, 0) <= (p.stock_minimo || 5) ? "bajo" : "ok";
+    return (
+      <>
+        <span className={"tag " + (est === "sin" ? "tag-bad" : est === "bajo" ? "tag-warn" : "tag-ok")} title={nombreLocal(l) + " · mínimo: " + (p.stock_minimo || 5) + (res > 0 ? " · reservado: " + res : "")} style={{ fontSize: 12, padding: "3px 9px", minWidth: 44, justifyContent: "center", fontVariantNumeric: "tabular-nums" }}>
+          {st}{res > 0 ? <span style={{ opacity: .75, fontWeight: 600 }}> ({res} res.)</span> : null}
+        </span>
+        {tr > 0 && <div title="Pedidos al proveedor o traspasos que todavía no se recibieron" style={{ fontSize: 11, fontWeight: 700, color: "#2471a3", marginTop: 3, whiteSpace: "nowrap" }}>🚚 +{tr} en camino</div>}
+      </>
+    );
+  };
+  // Local que se esta mirando (su columna va resaltada)
+  const localVista = vistaLocal === "consolidado" ? null : vistaLocal === "otro" ? (esUshInv ? 1 : 2) : (esUshInv ? 2 : 1);
 
   const vistaNombre = vistaLocal === "consolidado" ? "los dos locales" : nombreLocal(vistaLocal === "otro" ? (esUshInv ? 1 : 2) : localId);
   const tabsInv = [
@@ -8450,13 +8476,14 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
               <div className="empty">{productos.length === 0 ? "Todavía no hay productos cargados." : "Ningún producto coincide con los filtros."}</div>
             ) : (
               <div style={{ overflowX: "auto" }}>
-                <table className="sin-tarjetas inv-tabla">
+                <table className={"sin-tarjetas inv-tabla" + (UN_SOLO_LOCAL ? "" : " dos-locales")}>
                   <thead style={{ position: "sticky", top: 0, background: temaPal.card, zIndex: 1 }}>
                     <tr>
                       <th style={{ width: 34 }} aria-label="Detalle"></th>
                       <th style={{ cursor: "pointer" }} onClick={() => ordenarPor("nombre")} aria-sort={ordenInv.campo === "nombre" ? (ordenInv.dir === "asc" ? "ascending" : "descending") : "none"}>Producto{flechaOrden("nombre")}</th>
                       <th style={{ cursor: "pointer", textAlign: "right" }} onClick={() => ordenarPor("precio")}>Precio{flechaOrden("precio")}</th>
-                      <th style={{ cursor: "pointer", textAlign: "center" }} onClick={() => ordenarPor("stock")}>Stock{flechaOrden("stock")}</th>
+                      {UN_SOLO_LOCAL ? <th style={{ cursor: "pointer", textAlign: "center" }} onClick={() => ordenarPor("stock")}>Stock{flechaOrden("stock")}</th>
+                        : [1, 2].map(l => <th key={l} style={{ cursor: "pointer", textAlign: "center", whiteSpace: "nowrap", color: localVista === l ? temaPal.accentText : undefined }} onClick={() => ordenarPor("stock" + l)} title={"Ordenar por el stock de " + nombreLocal(l)}>{nombreLocal(l)}{flechaOrden("stock" + l)}</th>)}
                     </tr>
                   </thead>
                   <tbody>
@@ -8472,7 +8499,6 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
                         ["Costo", parseFloat(p.costo || 0) > 0 ? fmt(parseFloat(p.costo)) : "Sin cargar"],
                         ["Margen", mg === null ? "—" : <span className={"tag " + (mg >= 40 ? "tag-ok" : mg >= 20 ? "tag-warn" : "tag-bad")}>{mg}%</span>],
                         ["Stock mínimo", p.stock_minimo ?? "—"],
-                        ...(vistaLocal === "mi" && !UN_SOLO_LOCAL ? [["En " + (esUshInv ? nombreLocal(1) : nombreLocal(2)), stockOtroDe(p)]] : []),
                         ...(reservadoVistaDe(p) > 0 ? [["Reservado", reservadoVistaDe(p)]] : []),
                         ...(transitoVista > 0 ? [["En camino", transitoVista]] : []),
                       ];
@@ -8489,16 +8515,17 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
                                 {p.tiene_variantes && <span className="tag tag-neutral" style={{ marginLeft: 6 }}>🎨 {p.tipo_variante || "variantes"}</span>}
                               </div>
                               {p.marca && <div style={{ fontSize: 11, color: temaPal.textMuted }}>{p.marca}</div>}
+                              <div className="inv-precio-movil" style={{ display: "none", fontSize: 12, fontWeight: 700, color: temaPal.accentText, marginTop: 2 }}>{fmt(parseFloat(p.precio || 0))}</div>
                               {filtroStock === "incompletos" && <div style={{ fontSize: 11, color: temaPal.warn || temaPal.red, fontWeight: 600, marginTop: 2 }}>Falta: {faltantesDe(p).join(", ")}</div>}
                             </td>
                             <td style={{ textAlign: "right", whiteSpace: "nowrap", fontWeight: 700, color: temaPal.accentText, fontVariantNumeric: "tabular-nums" }}>{fmt(parseFloat(p.precio || 0))}</td>
-                            <td style={{ textAlign: "center" }}><EstadoStock p={p} />
+                            {UN_SOLO_LOCAL ? <td style={{ textAlign: "center" }}><EstadoStock p={p} />
                               {transitoVista > 0 && <div title="Pedidos al proveedor o traspasos que todavía no se recibieron" style={{ fontSize: 11, fontWeight: 700, color: "#2471a3", marginTop: 3, whiteSpace: "nowrap" }}>🚚 +{transitoVista} en camino</div>}
-                            </td>
+                            </td> : [1, 2].map(l => <td key={l} style={{ textAlign: "center", background: localVista === l ? "rgba(127,127,127,.06)" : undefined }}><StockLocal p={p} l={l} /></td>)}
                           </tr>
                           {abierto && (
                             <tr className="inv-detalle">
-                              <td colSpan={4}>
+                              <td colSpan={UN_SOLO_LOCAL ? 4 : 5}>
                                 <div className="inv-det-grid">
                                   {datos.map(([l, v]) => <div key={l}><span>{l}</span><b>{v}</b></div>)}
                                 </div>
