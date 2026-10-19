@@ -109,6 +109,15 @@ router.get('/:slug', async (req, res) => {
       resenas_puntos: (() => { const r = tienda.puntosResenaDe(c); return r.activo && (r.puntos || r.extra_foto) ? { puntos: r.puntos, extra_foto: r.extra_foto } : null; })(),
       // Logo de la marca para la gift card (blanco sobre el color de la tarjeta)
       logo_marca: Number(req.negTienda.id) === 1 ? { blanco: '/logos/girasoles-logo-blanco.svg', color: '/logos/girasoles-logo.svg' } : null,
+      // Pagina de links para Instagram: los locales que se muestran, con su WhatsApp, horarios y mapa
+      links: (() => {
+        const l = tienda.linksDe(c);
+        const locs = todos.filter(x => !l.locales[x.id] || l.locales[x.id].mostrar).map(x => {
+          const d = l.locales[x.id] || {};
+          return { id: x.id, nombre: x.nombre, direccion: x.direccion || '', whatsapp: d.whatsapp || '', horarios: d.horarios ? d.horarios.split('\n') : [], mapa: d.mapa || '' };
+        });
+        return { texto: l.texto, locales: locs, extras: l.extras };
+      })(),
       regalos: (() => {
         const r = tienda.regalosDe(c);
         if (!r.activo || (!r.giftcards && !r.armador)) return null;
