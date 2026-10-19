@@ -75,6 +75,11 @@ h1{font-family:Fraunces,Georgia,serif;font-weight:900;font-size:clamp(32px,9vw,4
 .btn-gc .destellos i:nth-child(2){bottom:8px;right:110px;font-size:9px;animation-delay:.6s}
 .btn-gc .destellos i:nth-child(3){top:12px;left:42%;font-size:10px;animation-delay:1.1s}
 .btn-gc .chip{display:inline-block;background:#3a2500;color:var(--oro2);font-size:10.5px;font-weight:800;letter-spacing:.1em;padding:3px 7px;border-radius:999px;margin-left:6px;vertical-align:3px}
+.btn-test{background:linear-gradient(135deg,#ff9bb8,#c58cff 55%,#8f7bff);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.2);box-shadow:0 10px 30px -10px rgba(197,140,255,.8)}
+.btn-test .ic{background:rgba(255,255,255,.25)}
+.btn-ase{background:rgba(255,255,255,.07);color:var(--texto);border:1px solid rgba(37,211,102,.55);box-shadow:0 0 22px -8px rgba(37,211,102,.8) inset,0 10px 26px -14px rgba(37,211,102,.9)}
+.btn-ase .ic{background:linear-gradient(135deg,#25d366,#128c4a)}
+.btn-ase small{color:var(--suave)}
 @keyframes oro{0%{background-position:100% 0}100%{background-position:-120% 0}}
 @keyframes pulso{0%,100%{box-shadow:0 0 0 1px rgba(255,233,163,.6),0 12px 34px -8px rgba(245,200,76,.9)}50%{box-shadow:0 0 0 4px rgba(255,233,163,.25),0 16px 44px -6px rgba(245,200,76,1)}}
 
@@ -142,8 +147,18 @@ h1{font-family:Fraunces,Georgia,serif;font-weight:900;font-size:clamp(32px,9vw,4
     <span class="tx">Gift Cards <span class="chip">REGALÁ</span><small>Para que elija lo que más le guste</small></span>
     <span class="fl" aria-hidden="true">›</span>
   </a></div>
+  <a class="btn btn-test entra" style="--i:5" href="https://girasolesbeauty.com.ar/rutina">
+    <span class="ic" aria-hidden="true">✨</span>
+    <span class="tx">Test de rutina facial<small>Respondé unas preguntas y te armamos tu rutina</small></span>
+    <span class="fl" aria-hidden="true">›</span>
+  </a>
+  <a class="btn btn-ase entra" style="--i:6" href="https://wa.me/5492964488770?text=%C2%A1Hola%20Girasoles!%20%F0%9F%8C%BB%20Quiero%20asesoramiento%20para%20mi%20piel" target="_blank" rel="noopener">
+    <span class="ic" aria-hidden="true">💬</span>
+    <span class="tx">Asesoramiento por WhatsApp<small>Te ayudamos a elegir lo ideal para tu piel</small></span>
+    <span class="fl" aria-hidden="true">›</span>
+  </a>
 
-  <h2 class="titulo-sec entra" style="--i:5">Nuestros locales</h2>
+  <h2 class="titulo-sec entra" style="--i:7">Nuestros locales</h2>
   <div id="locales"></div>
 
   <footer class="pie">Hecho con 🌻 por <b>Girasoles</b></footer>
@@ -198,7 +213,7 @@ LOCALES.forEach((l, n) => {
   const q = encodeURIComponent(l.buscar);
   const el = document.createElement("article");
   el.className = "local entra";
-  el.style.setProperty("--i", 6 + n);
+  el.style.setProperty("--i", 8 + n);
   el.innerHTML =
     '<div class="local-in">' +
       '<div class="local-cab"><h3>📍 ' + esc(l.nombre) + '</h3><span class="estado' + (est.abierto ? " abierto" : "") + '">' + esc(est.texto) + '</span></div>' +
