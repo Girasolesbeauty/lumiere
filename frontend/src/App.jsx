@@ -24307,6 +24307,11 @@ const CSS_TIENDA = `
 @media(max-width:760px){.tw-rg-hero{grid-template-columns:1fr;padding:28px 22px 22px;margin-top:18px}.tw-rg-hero-art{height:150px;order:-1;margin:-6px 0 -4px}.tw-rg-caja{width:110px;height:110px}.tw-rg-mini{left:12%}.tw-rg-faltan{width:68px;height:68px;right:8%}.tw-rg-faltan b{font-size:26px}.tw-rg-b1,.tw-rg-b2{flex:1 1 100%;text-align:center}}
 .tw-nav .tw-nav-regalo{background:linear-gradient(90deg,var(--r1,#ff4f87),var(--r2,#ff9b85))!important;color:#fff!important;opacity:1!important;text-shadow:0 1px 2px rgba(0,0,0,.25);border-radius:999px;font-weight:900;padding-left:14px!important;padding-right:14px!important;animation:twRgLatidoS 2.2s ease-in-out infinite}
 @keyframes twRgLatidoS{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+.tw-navbar .tw-nav button.tw-nav-gc{flex-shrink:0;position:relative;overflow:hidden;color:#4a3000!important;background:linear-gradient(110deg,#b8860b,#f5c84c 35%,#fff1b8 50%,#f5c84c 65%,#b8860b)!important;background-size:200% 100%!important;color:#4a3000!important;text-shadow:0 1px 0 rgba(255,255,255,.6);box-shadow:0 0 0 1px rgba(184,134,11,.35),0 4px 14px -4px rgba(245,200,76,.9);animation:twGcOro 3s linear infinite,twRgLatidoS 2.2s ease-in-out infinite}
+.tw-navbar .tw-nav button.tw-nav-gc::after,.tw-navbar .tw-nav button.tw-nav-gc.on::after,.tw-navbar .tw-nav button.tw-nav-gc:hover::after{content:"";position:absolute;top:0;bottom:0;right:auto;height:auto;left:-60%;width:40%;transform-origin:center;background:linear-gradient(100deg,transparent,rgba(255,255,255,.95),transparent);transform:skewX(-20deg);animation:twGcBarre 2.4s ease-in-out infinite;pointer-events:none}
+.tw-nav-gc-chispa{position:absolute;top:1px;right:5px;font-style:normal;font-size:10px;color:#fff;text-shadow:0 0 6px #fff;animation:twRgTitila 1.6s ease-in-out infinite;pointer-events:none}
+@keyframes twGcOro{0%{background-position:100% 0}100%{background-position:-100% 0}}
+@keyframes twGcBarre{0%,55%{left:-60%}100%{left:130%}}
 .tw-rg{margin-top:18px}
 .tw-rg-cab{position:relative;overflow:hidden;border-radius:24px;padding:34px 28px 26px;text-align:center;background:linear-gradient(135deg,var(--r1),var(--r2));color:var(--rx)}
 .tw-rg-cab h1{font-size:clamp(28px,4.4vw,46px);line-height:1.08;font-weight:900;margin:14px 0 12px;letter-spacing:-.02em;position:relative}
@@ -24380,7 +24385,7 @@ const CSS_TIENDA = `
 .tw-rg-res-btns{display:flex;flex-direction:column;gap:8px}
 .tw .tw-rg-otra{font:inherit;border:2px solid var(--r1);background:#fff;color:var(--rt);border-radius:999px;padding:13px;font-weight:800;font-size:15px;cursor:pointer}
 .tw-gc-acciones{display:flex;flex-direction:column;gap:8px;margin:16px 0 6px}
-@media(prefers-reduced-motion:reduce){.tw-rg-deco,.tw-rg-hero::after,.tw-gc-brillo{display:none}.tw-rg-caja,.tw-rg-tapa,.tw-rg-moño,.tw-rg-faltan,.tw-rg-mini,.tw-rg-b1,.tw-nav .tw-nav-regalo{animation:none}}
+@media(prefers-reduced-motion:reduce){.tw-rg-deco,.tw-rg-hero::after,.tw-gc-brillo,.tw-navbar .tw-nav button.tw-nav-gc::after,.tw-nav-gc-chispa{display:none!important}.tw-navbar .tw-nav button.tw-nav-gc{animation:none}.tw-rg-caja,.tw-rg-tapa,.tw-rg-moño,.tw-rg-faltan,.tw-rg-mini,.tw-rg-b1,.tw-nav .tw-nav-regalo{animation:none}}
 .tw-ab{position:relative;min-height:100vh;min-height:100dvh;overflow:hidden;display:flex;flex-direction:column;align-items:center;padding:22px 18px 40px;color:var(--rx);background:radial-gradient(120% 80% at 50% 0%,rgba(255,255,255,.28),transparent 60%),linear-gradient(160deg,var(--r1),var(--r2))}
 .tw-ab .tw-rg-deco span{opacity:.6}
 .tw-ab-logo{position:relative;z-index:2;display:block;animation:twRgFlota 4s ease-in-out infinite}
@@ -27191,7 +27196,9 @@ function TiendaPublica({ slug }) {
           <nav className="tw-nav" aria-label="Categorías">
             <button className={!enLista ? "on" : ""} onClick={irInicio}>Inicio</button>
             <button className={cat === "*" && !q ? "on" : ""} onClick={() => irCat("*")}>Todo</button>
-            {tienda.regalos && (() => { const t = twTemaRegalo(tienda.regalos); return <button className={"tw-nav-regalo" + (cat === "regalos" && !q ? " on" : "")} style={twVarsRegalo(t)} onClick={() => irRegalos()}>{t.emoji} {tienda.regalos.tema === "general" ? "Regalos" : t.nombre}</button>; })()}
+            {tienda.regalos && (tienda.regalos.giftcards
+              ? <button className={"tw-nav-regalo tw-nav-gc" + (cat === "regalos" && !q ? " on" : "")} onClick={() => irRegalos("gift")}><span aria-hidden="true">🎁</span> Gift Cards<i className="tw-nav-gc-chispa" aria-hidden="true">✦</i></button>
+              : (() => { const t = twTemaRegalo(tienda.regalos); return <button className={"tw-nav-regalo" + (cat === "regalos" && !q ? " on" : "")} style={twVarsRegalo(t)} onClick={() => irRegalos()}>{t.emoji} {tienda.regalos.tema === "general" ? "Regalos" : t.nombre}</button>; })())}
             {!catSkin && hayMenuSkin && <button className={menuSkin ? "on" : ""} onClick={() => setMenuSkin("*")}>Skincare ▾</button>}
             {catSkin && <button className={(cat === catSkin && !q) || menuSkin === catSkin ? "on" : ""} onClick={() => hayMenuSkin ? setMenuSkin(catSkin) : irCat(catSkin)}>{catSkin}{hayMenuSkin ? " ▾" : ""}</button>}
             {favs.length > 0 && <button className={"tw-nav-fav" + (cat === "favoritos" && !q ? " on" : "")} onClick={() => irCat("favoritos")}>♥ Favoritos ({favs.length})</button>}
@@ -29101,7 +29108,7 @@ function RegalosTienda({ cfg, pedidos, temaPal, avisar, urlTienda, esJefe, onGua
         <div style={fila}>
           {[["auto", "✨ Automática"], ["madre", "🌻 Día de la Madre"], ["padre", "👔 Día del Padre"], ["navidad", "🎄 Navidad"], ["enamorados", "💘 San Valentín"], ["general", "🎁 General"]].map(([k, n]) => <button key={k} className={"chip-btn" + ((r.tema || "auto") === k ? " on" : "")} disabled={!esJefe} onClick={() => set("tema", k)}>{n}</button>)}
         </div>
-        <div style={{ fontSize: 11.5, color: temaPal.textMuted, marginTop: 4 }}>Automática: se viste sola las semanas antes de cada fecha (Día de la Madre: 3er domingo de octubre; del Padre: 3er domingo de junio; Navidad; San Valentín) y el resto del año queda general.</div>
+        <div style={{ fontSize: 11.5, color: temaPal.textMuted, marginTop: 4 }}>Automática: se viste sola las semanas antes de cada fecha (Día de la Madre: 3er domingo de octubre; del Padre: 3er domingo de junio; Navidad; San Valentín) y el resto del año queda general. Si elegís una fecha a mano, se saca sola al día siguiente.</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 10, marginTop: 12 }}>
           <div><div className="fl">Título (opcional)</div><input className="inp" maxLength={80} placeholder={t.titulo} value={r.titulo || ""} disabled={!esJefe} onChange={e => set("titulo", e.target.value)} /></div>
           <div><div className="fl">Texto (opcional)</div><input className="inp" maxLength={200} placeholder="Una gift card para que elija lo que más le guste…" value={r.texto || ""} disabled={!esJefe} onChange={e => set("texto", e.target.value)} /></div>
