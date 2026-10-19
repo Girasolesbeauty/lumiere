@@ -637,7 +637,7 @@ const getSugerenciaCompra = async (req, res) => {
     const leadOverride = req.query.lead_time !== undefined && req.query.lead_time !== '' ? Math.max(0, parseInt(req.query.lead_time) || 0) : null;
 
     const hayVariantes = !!(await pool.query(`SELECT to_regclass('producto_variantes') AS t`)).rows[0].t;
-    const [provRes, prodRes, ventasRes, varRes] = await Promise.all([
+    const [provRes, prodRes, ventasRes, varRes, anioRes] = await Promise.all([
       pool.query('SELECT id, nombre, whatsapp, telefono, email FROM proveedores WHERE id = $1', [proveedor_id]),
       pool.query(`
         SELECT id, nombre, marca, codigo_barras, categoria, COALESCE(costo, 0) AS costo, COALESCE(precio, 0) AS precio,
@@ -645,7 +645,8 @@ const getSugerenciaCompra = async (req, res) => {
           COALESCE(stock_transito_rg, 0) AS transito_rg, COALESCE(stock_transito_ush, 0) AS transito_ush,
           COALESCE(reservado_rg, 0) AS reservado_rg, COALESCE(reservado_ush, 0) AS reservado_ush,
           COALESCE(stock_minimo, 0) AS stock_minimo, COALESCE(lead_time_dias, 7) AS lead_time_dias,
-          GREATEST(1, LEAST($2::int, CEIL(EXTRACT(EPOCH FROM (NOW() - COALESCE(creado_en, NOW() - INTERVAL '365 days'))) / 86400)::int)) AS dias_vida
+          GREATEST(1, LEAST($2::int, CEIL(EXTRACT(EPOCH FROM (NOW() - COALESCE(creado_en, NOW() - INTERVAL '365 days'))) / 86400)::int)) AS dias_vida,
+          GREATEST(1, LEAST(365, CEIL(EXTRACT(EPOCH FROM (NOW() - COALESCE(creado_en, NOW() - INTERVAL '365 days'))) / 86400)::int)) AS dias_vida_anio
         FROM productos WHERE proveedor_id = $1 AND activo = TRUE ORDER BY nombre`, [proveedor_id, diasAnalisis]),
       pool.query(`
         SELECT vi.producto_id, v.local_id, SUM(vi.cantidad) AS vendido
@@ -658,6 +659,12 @@ const getSugerenciaCompra = async (req, res) => {
         FROM producto_variantes pv JOIN productos p ON p.id = pv.producto_id
         WHERE p.proveedor_id = $1 AND COALESCE(pv.activo, TRUE) = TRUE
         GROUP BY pv.producto_id`, [proveedor_id]),
+      // Ventas del ultimo año: para lo que esta agotado y por eso no se vendio en el periodo elegido
+      pool.query(`
+        SELECT vi.producto_id, v.local_id, SUM(vi.cantidad) AS vendido, MIN(v.creado_en) AS primera
+        FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id JOIN productos p ON p.id = vi.producto_id
+        WHERE p.proveedor_id = $1 AND v.creado_en >= NOW() - INTERVAL '365 days' AND ${VENTA_VALIDA_SQL}
+        GROUP BY vi.producto_id, v.local_id`, [proveedor_id]),
     ]);
     if (provRes.rows.length === 0) return res.status(404).json({ error: 'Proveedor no encontrado' });
 
@@ -666,6 +673,14 @@ const getSugerenciaCompra = async (req, res) => {
       const k = r.producto_id;
       if (!vendidos[k]) vendidos[k] = { 1: 0, 2: 0 };
       vendidos[k][Number(r.local_id) === 2 ? 2 : 1] += parseFloat(r.vendido) || 0;
+    });
+    const vendidosAnio = {};
+    anioRes.rows.forEach(r => {
+      const k = r.producto_id;
+      if (!vendidosAnio[k]) vendidosAnio[k] = { 1: 0, 2: 0, primera: null };
+      vendidosAnio[k][Number(r.local_id) === 2 ? 2 : 1] += parseFloat(r.vendido) || 0;
+      const f = r.primera ? new Date(r.primera).getTime() : null;
+      if (f && (!vendidosAnio[k].primera || f < vendidosAnio[k].primera)) vendidosAnio[k].primera = f;
     });
     const variantes = {};
     varRes.rows.forEach(r => { variantes[r.producto_id] = r; });
@@ -685,26 +700,34 @@ const getSugerenciaCompra = async (req, res) => {
         2: parseInt(p.stock_ush) + (vv ? parseInt(vv.stock_ush) || 0 : 0),
       };
       const vend = vendidos[p.id] || { 1: 0, 2: 0 };
+      const vendAnio = vendidosAnio[p.id] || { 1: 0, 2: 0 };
+      // Dias del año en que se pudo vender: desde que se cargo o desde su primera venta (si se cargo despues)
+      const desdePrimera = vendAnio.primera ? Math.ceil((Date.now() - vendAnio.primera) / 864e5) : 0;
+      const diasAnio = Math.max(diasVenta, Math.min(365, Math.max(parseInt(p.dias_vida_anio) || 365, desdePrimera)));
+      // Agotado (sin stock ni nada en camino) y sin ventas en el periodo: no se vendio porque no habia.
+      // Se calcula con lo que vendia en el ultimo año, asi no queda afuera de la lista.
+      const reponer = ({ vendido, vendidoAnio, stock, transito, reservado }) => {
+        const agotado = stock - reservado + transito <= 0;
+        const historico = agotado && vendido === 0 && vendidoAnio > 0;
+        const r = calcularReposicion({
+          vendido: historico ? vendidoAnio : vendido, diasVenta: historico ? diasAnio : diasVenta,
+          stock, transito, reservado, leadTime, diasSeguridad, diasCobertura,
+        });
+        return { ...r, agotado: stock <= 0 && transito <= 0, ritmo_historico: historico, necesita_pedido: r.necesita_pedido || (stock <= 0 && transito <= 0 && vendidoAnio > 0) };
+      };
       const porLocal = {};
       [1, 2].forEach(l => {
+        const transito = parseInt(l === 1 ? p.transito_rg : p.transito_ush) || 0;
+        const reservado = parseInt(l === 1 ? p.reservado_rg : p.reservado_ush) || 0;
         porLocal[l] = {
-          stock: stock[l],
-          transito: parseInt(l === 1 ? p.transito_rg : p.transito_ush) || 0,
-          reservado: parseInt(l === 1 ? p.reservado_rg : p.reservado_ush) || 0,
-          vendido: vend[l],
-          ...calcularReposicion({
-            vendido: vend[l], diasVenta, stock: stock[l],
-            transito: parseInt(l === 1 ? p.transito_rg : p.transito_ush) || 0,
-            reservado: parseInt(l === 1 ? p.reservado_rg : p.reservado_ush) || 0,
-            leadTime, diasSeguridad, diasCobertura,
-          }),
+          stock: stock[l], transito, reservado, vendido: vend[l], vendido_anio: vendAnio[l],
+          ...reponer({ vendido: vend[l], vendidoAnio: vendAnio[l], stock: stock[l], transito, reservado }),
         };
       });
-      const total = calcularReposicion({
-        vendido: vend[1] + vend[2], diasVenta, stock: stock[1] + stock[2],
+      const total = reponer({
+        vendido: vend[1] + vend[2], vendidoAnio: vendAnio[1] + vendAnio[2], stock: stock[1] + stock[2],
         transito: porLocal[1].transito + porLocal[2].transito,
         reservado: porLocal[1].reservado + porLocal[2].reservado,
-        leadTime, diasSeguridad, diasCobertura,
       });
       return {
         id: p.id, nombre: p.nombre, marca: p.marca, codigo_barras: p.codigo_barras, categoria: p.categoria,
@@ -713,9 +736,10 @@ const getSugerenciaCompra = async (req, res) => {
         tiene_variantes: !!vv, cantidad_variantes: vv ? parseInt(vv.cantidad) : 0,
         vendido: vend[1] + vend[2], stock: stock[1] + stock[2],
         transito: porLocal[1].transito + porLocal[2].transito, reservado: porLocal[1].reservado + porLocal[2].reservado,
-        ...total,
+        ...total, vendido_anio: vendAnio[1] + vendAnio[2],
         por_local: porLocal,
         sin_ventas: vend[1] + vend[2] === 0,
+        dias_anio: diasAnio,
       };
     });
     const orden = (x) => (x.necesita_pedido ? 0 : x.sugerido > 0 ? 1 : x.sin_ventas ? 3 : 2);

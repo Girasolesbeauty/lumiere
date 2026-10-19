@@ -6904,7 +6904,8 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
   const productos = (sug?.productos || []);
   const filtrados = productos.filter(pr => {
     if (buscarProd.trim() && !((pr.nombre || "") + " " + (pr.marca || "") + " " + (pr.codigo_barras || "")).toLowerCase().includes(buscarProd.toLowerCase())) return false;
-    if (soloPedir) return cantPedido(pr) > 0 || datoLocal(pr).necesita_pedido;
+    // Con "solo lo que hay que pedir" tambien entra lo agotado (aunque no se haya vendido justamente por no haber)
+    if (soloPedir) return cantPedido(pr) > 0 || datoLocal(pr).necesita_pedido || datoLocal(pr).agotado;
     return true;
   });
   const enPedido = productos.filter(pr => cantPedido(pr) > 0);
@@ -7162,7 +7163,9 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
                                 <div style={{ fontSize: 10, color: p.textMuted, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: 2 }}>
                                   {pr.marca && <span>{pr.marca}</span>}
                                   {d.necesita_pedido && <span className="tag tag-bad">urgente</span>}
-                                  {pr.sin_ventas && <span className="tag tag-neutral">sin ventas</span>}
+                                  {d.agotado && <span className="tag tag-bad" title="Sin stock y sin nada en camino">agotado</span>}
+                                  {pr.sin_ventas && !d.agotado && <span className="tag tag-neutral">sin ventas</span>}
+                                  {d.agotado && !d.vendido_anio && <span className="tag tag-neutral" title="No se vendió en el último año: poné a mano cuánto pedir">sin ventas en el año</span>}
                                   {pr.tiene_variantes && <span className="tag tag-neutral" title="El stock incluye todas sus variantes">{pr.cantidad_variantes} variantes</span>}
                                   {pr.dias_venta < sug.dias_analisis && <span className="tag tag-neutral" title={"Producto nuevo: se midió sobre " + pr.dias_venta + " días"}>nuevo</span>}
                                 </div>
@@ -7176,7 +7179,8 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
                               </td>
                               <td style={{ textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
                                 {d.ritmo_diario > 0 ? <><b>{d.ritmo_diario}</b><span style={{ fontSize: 10, color: p.textMuted }}>/día</span></> : <span style={{ color: p.textMuted }}>—</span>}
-                                <div style={{ fontSize: 10, color: p.textMuted }}>{d.vendido} en {pr.dias_venta} días</div>
+                                {d.ritmo_historico ? <div style={{ fontSize: 10, color: p.accentText }} title={"Estuvo agotado y por eso no se vendió en los últimos " + pr.dias_venta + " días: se calcula con lo que vendía en el último año"}>{d.vendido_anio} en el último año</div>
+                                  : <div style={{ fontSize: 10, color: p.textMuted }}>{d.vendido} en {pr.dias_venta} días</div>}
                               </td>
                               <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                                 {d.dias_de_stock === null || d.dias_de_stock === undefined ? <span style={{ color: p.textMuted }}>—</span>
