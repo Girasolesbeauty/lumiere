@@ -8082,6 +8082,10 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
   const reservadoVistaDe = (p) => vistaLocal === "consolidado" ? ((p.reservado_rg || 0) + (p.reservado_ush || 0))
     : vistaLocal === "otro" ? (esUshInv ? (p.reservado_rg || 0) : (p.reservado_ush || 0))
     : (esUshInv ? (p.reservado_ush || 0) : (p.reservado_rg || 0));
+  // Mercaderia en camino (pedidos al proveedor y traspasos sin recibir) del local que se esta viendo
+  const transitoVistaDe = (p) => vistaLocal === "consolidado" ? ((p.stock_transito_rg || 0) + (p.stock_transito_ush || 0))
+    : vistaLocal === "otro" ? (esUshInv ? (p.stock_transito_rg || 0) : (p.stock_transito_ush || 0))
+    : (esUshInv ? (p.stock_transito_ush || 0) : (p.stock_transito_rg || 0));
   const stockOtroDe = (p) => (esUshInv ? (p.stock_rg || 0) : (p.stock_ush || 0));
   const stockMiDe = (p) => (esUshInv ? (p.stock_ush || 0) : (p.stock_rg || 0));
   const margenDe = (p) => { const pr = parseFloat(p.precio || 0), co = parseFloat(p.costo || 0); return pr > 0 && co > 0 ? Math.round((pr - co) / pr * 100) : null; };
@@ -8116,6 +8120,7 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
     if (filtroStock === "bajo" && est !== "bajo") return false;
     if (filtroStock === "sin" && est !== "sin") return false;
     if (filtroStock === "reservas" && !(reservadoVistaDe(p) > 0)) return false;
+    if (filtroStock === "camino" && !(transitoVistaDe(p) > 0)) return false;
     if (filtroStock === "sin_costo" && parseFloat(p.costo || 0) > 0) return false;
     if (filtroStock === "sin_codigo" && (p.codigo_barras || "").trim()) return false;
     if (filtroStock === "negativo" && !(stockVistaDe(p) < 0)) return false;
@@ -8137,6 +8142,7 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
   const flechaOrden = (campo) => (ordenInv.campo === campo ? (ordenInv.dir === "asc" ? " ▲" : " ▼") : "");
   const hayFiltros = busqueda || filtroCat || filtroStock || filtroMarcaInv || filtroProvInv;
   const cantNegativos = productos.filter(p => stockVistaDe(p) < 0).length;
+  const cantCamino = productos.filter(p => transitoVistaDe(p) > 0).length;
   const cantIncompletos = productos.filter(p => faltantesDe(p).length > 0).length;
   const limpiarFiltros = () => { setBusqueda(""); setFiltroCat(""); setFiltroStock(""); setFiltroMarcaInv(""); setFiltroProvInv(""); };
 
@@ -8393,7 +8399,7 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
               </select>
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10, alignItems: "center" }}>
-              {[["", "Todo"], ["bajo", "⚠ Stock bajo"], ["sin", "⛔ Sin stock"], ["negativo", "➖ Stock negativo" + (cantNegativos ? " (" + cantNegativos + ")" : "")], ["reservas", "🔒 Con reservas"], ["incompletos", "📝 Datos incompletos" + (cantIncompletos ? " (" + cantIncompletos + ")" : "")], ["sin_costo", "Sin costo cargado"], ["sin_codigo", "Sin código"]].map(([id, l]) => (
+              {[["", "Todo"], ["bajo", "⚠ Stock bajo"], ["sin", "⛔ Sin stock"], ["negativo", "➖ Stock negativo" + (cantNegativos ? " (" + cantNegativos + ")" : "")], ["reservas", "🔒 Con reservas"], ["camino", "🚚 En camino" + (cantCamino ? " (" + cantCamino + ")" : "")], ["incompletos", "📝 Datos incompletos" + (cantIncompletos ? " (" + cantIncompletos + ")" : "")], ["sin_costo", "Sin costo cargado"], ["sin_codigo", "Sin código"]].map(([id, l]) => (
                 <button key={id || "todo"} className={"chip-btn" + (filtroStock === id ? " on" : "")} aria-pressed={filtroStock === id} onClick={() => setFiltroStock(id)}>{l}</button>
               ))}
               <button className={"chip-btn" + (ordenInv.campo === "stock" && ordenInv.dir === "desc" ? " on" : "")} aria-pressed={ordenInv.campo === "stock" && ordenInv.dir === "desc"}
@@ -8457,8 +8463,7 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
                     {visibles.map(p => {
                       const mg = margenDe(p);
                       const abierto = abiertosInv.has(p.id);
-                      const transitoVista = vistaLocal === "consolidado" ? ((p.stock_transito_rg || 0) + (p.stock_transito_ush || 0))
-                        : (vistaLocal === "otro") === esUshInv ? (p.stock_transito_rg || 0) : (p.stock_transito_ush || 0);
+                      const transitoVista = transitoVistaDe(p);
                       const datos = [
                         ["Categoría", p.categoria || "—"],
                         ["Marca", p.marca || "—"],
@@ -8487,7 +8492,9 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
                               {filtroStock === "incompletos" && <div style={{ fontSize: 11, color: temaPal.warn || temaPal.red, fontWeight: 600, marginTop: 2 }}>Falta: {faltantesDe(p).join(", ")}</div>}
                             </td>
                             <td style={{ textAlign: "right", whiteSpace: "nowrap", fontWeight: 700, color: temaPal.accentText, fontVariantNumeric: "tabular-nums" }}>{fmt(parseFloat(p.precio || 0))}</td>
-                            <td style={{ textAlign: "center" }}><EstadoStock p={p} /></td>
+                            <td style={{ textAlign: "center" }}><EstadoStock p={p} />
+                              {transitoVista > 0 && <div title="Pedidos al proveedor o traspasos que todavía no se recibieron" style={{ fontSize: 11, fontWeight: 700, color: "#2471a3", marginTop: 3, whiteSpace: "nowrap" }}>🚚 +{transitoVista} en camino</div>}
+                            </td>
                           </tr>
                           {abierto && (
                             <tr className="inv-detalle">
