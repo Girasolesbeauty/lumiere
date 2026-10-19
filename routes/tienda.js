@@ -284,7 +284,7 @@ router.get('/productos', async (req, res) => {
   try {
     const r = await pool.query(`
       SELECT p.id, p.nombre, p.marca, p.categoria, p.precio, p.codigo_barras, p.proveedor_id, pr.nombre AS proveedor, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush, p.creado_en,
-             COALESCE(tp.publicado, FALSE) AS publicado, tp.descripcion, COALESCE(tp.destacado, FALSE) AS destacado, tp.video_url, tp.etiquetas,
+             COALESCE(tp.publicado, FALSE) AS publicado, tp.descripcion, COALESCE(tp.destacado, FALSE) AS destacado, COALESCE(tp.no_nuevo, FALSE) AS no_nuevo, tp.video_url, tp.etiquetas,
              EXISTS (SELECT 1 FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto,
              EXISTS (SELECT 1 FROM tienda_videos v WHERE v.producto_id = p.id) AS video_subido,
              (SELECT COUNT(*)::int FROM tienda_fotos f WHERE f.producto_id = p.id) AS fotos_extra
@@ -325,6 +325,7 @@ router.put('/productos/:id', async (req, res) => {
       [req.params.id, b.publicado === undefined ? null : !!b.publicado, String(b.descripcion || '').trim().slice(0, 1500) || null, b.descripcion !== undefined,
        b.destacado === undefined ? null : !!b.destacado, link ? link.slice(0, 500) : null, link !== undefined]);
     if (b.etiquetas !== undefined) await pool.query('UPDATE tienda_productos SET etiquetas = $2 WHERE producto_id = $1', [req.params.id, tienda.limpiarEtiquetas(b.etiquetas)]);
+    if (b.no_nuevo !== undefined) await pool.query('UPDATE tienda_productos SET no_nuevo = $2 WHERE producto_id = $1', [req.params.id, !!b.no_nuevo]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
 });
