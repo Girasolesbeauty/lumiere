@@ -27394,6 +27394,8 @@ function TiendaPublica({ slug }) {
             )}
             {tienda.regalos && tienda.regalos.tema === "general" && <TwRegalosHero r={tienda.regalos} tienda={tienda} onGift={() => irRegalos("gift")} onArmar={() => irRegalos("armar")} />}
             {tienda.ofertas && tienda.ofertas.combos.length > 0 && tienda.regalos && tienda.regalos.tema === "general" && <TwCombos pagoKits={pagoKitsMejor} combos={tienda.ofertas.combos} productos={visibles} foto={foto} dispo={dispo} onAgregar={agregarRegalo} onAbrir={abrir} />}
+            {/* Novedades: lo que entró en los últimos 30 días, arriba y lo más nuevo primero */}
+            <TwFila titulo="✨ Novedades" items={[...conStock.filter(p => p.nuevo)].sort((a, b) => (b.creado || 0) - (a.creado || 0) || b.id - a.id).slice(0, 12)} onVerTodo={() => { setOrden("nuevos"); irCat("*"); }} render={tarjeta} />
             {ofertaP && <TwOfertaDia p={ofertaP} oferta={tienda.ofertas.dia} foto={foto} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} sin={agotado(ofertaP)} />}
             {bannersImg.length > 0 && <TwFila titulo="Destacados" items={destacados} render={tarjeta} />}
             {vistosLista.length >= 2 && <TwFila titulo="👀 Lo viste hace poco" items={vistosLista} render={tarjeta} />}
@@ -27417,7 +27419,6 @@ function TiendaPublica({ slug }) {
               </section>
             )}
             {reingresados.length > 0 && <TwFila titulo={reingreso.nombre} items={reingresados.slice(0, 12)} onVerTodo={() => irCat("reingreso")} render={tarjeta} />}
-            <TwFila titulo="Novedades" items={conStock.filter(p => p.nuevo).slice(0, 12)} onVerTodo={() => irCat("*")} render={tarjeta} />
             <TwFila titulo="Miralos en video" items={conStock.filter(p => p.video).slice(0, 12)} render={tarjeta} />
             {sectores.length ? sectores.map(sc => visibles.some(p => enSector(sc, p)) ? <TwFila key={sc.id} titulo={sc.nombre} items={visibles.filter(p => enSector(sc, p)).slice(0, 12)} onVerTodo={() => irCat("s:" + sc.id)} render={tarjeta} />
               : <TwCombos pagoKits={pagoKitsMejor} key={sc.id} titulo={sc.nombre} combos={combosSector(sc)} productos={visibles} foto={foto} dispo={dispo} onAgregar={agregarRegalo} onAbrir={abrir} />)
