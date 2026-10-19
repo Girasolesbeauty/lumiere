@@ -37,7 +37,7 @@ router.get('/config', async (req, res) => {
     const neg = (await pool.query('SELECT nombre_negocio FROM configuracion_negocio LIMIT 1').catch(() => ({ rows: [] }))).rows[0] || {};
     const sugerido = String(neg.nombre_negocio || 'mi-tienda').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'mi-tienda';
     const dominio = await tienda.dominioDe(req.negocio ? req.negocio.id : 1).catch(() => null);
-    res.json({ ...c, ruleta: tienda.ruletaDe(c), preventa: tienda.preventaDe(c), misiones: misiones.misionesDe(c), misiones_tipos: misiones.TIPOS, rutinas: tienda.rutinasDe(c), referidos: tienda.referidosDe(c), ofertas: tienda.ofertasDe(c), regalos: tienda.regalosDe(c), regalos_hoy: tienda.temaRegaloHoy(tienda.regalosDe(c)), mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
+    res.json({ ...c, ruleta: tienda.ruletaDe(c), preventa: tienda.preventaDe(c), misiones: misiones.misionesDe(c), misiones_tipos: misiones.TIPOS, rutinas: tienda.rutinasDe(c), referidos: tienda.referidosDe(c), ofertas: tienda.ofertasDe(c), regalos: tienda.regalosDe(c), links: tienda.linksDe(c), regalos_hoy: tienda.temaRegaloHoy(tienda.regalosDe(c)), mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la configuración' }); }
 });
 
@@ -814,6 +814,14 @@ router.put('/regalos', async (req, res) => {
     const r = tienda.regalosDe({ regalos: req.body || {} });
     await pool.query('UPDATE tienda_config SET regalos = $1 WHERE id = 1', [JSON.stringify(r)]);
     res.json({ regalos: r, regalos_hoy: tienda.temaRegaloHoy(r) });
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+});
+router.put('/links', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    const l = tienda.linksDe({ links: req.body || {} });
+    await pool.query('UPDATE tienda_config SET links = $1 WHERE id = 1', [JSON.stringify(l)]);
+    res.json({ links: l });
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
 });
 router.put('/resenas/puntos', async (req, res) => {

@@ -28096,6 +28096,74 @@ function CajaSeccion({ it, children, temaPal, extra }) {
   );
 }
 
+// Link para la bio de Instagram: por local, WhatsApp, horarios y ubicacion; texto de bienvenida y botones extra
+function LinksInstagram({ cfg, locs, link, temaPal, avisar, onGuardado, it }) {
+  const tp = temaPal || PALETA_CLARA;
+  const ini = cfg.links || { texto: "", locales: {}, extras: [] };
+  const [l, setL] = useState(() => ({ texto: ini.texto || "", locales: { ...(ini.locales || {}) }, extras: (ini.extras || []).length ? ini.extras : [] }));
+  const [guardando, setGuardando] = useState(false);
+  const [qrL, setQrL] = useState(null);
+  useEffect(() => { if (link) API.get("/tienda/qr?url=" + encodeURIComponent(link)).then(r => setQrL(r.data.qr)).catch(() => {}); }, [link]);
+  const dl = (id) => l.locales[id] || { mostrar: true, whatsapp: "", horarios: "", mapa: "" };
+  const setLoc = (id, k, v) => setL(x => ({ ...x, locales: { ...x.locales, [id]: { ...dl(id), [k]: v } } }));
+  const setExtra = (i, k, v) => setL(x => ({ ...x, extras: x.extras.map((e, j) => j === i ? { ...e, [k]: v } : e) }));
+  const guardar = async () => {
+    setGuardando(true);
+    try { const r = await API.put("/tienda/links", l); setL(x => ({ ...x, locales: { ...x.locales, ...r.data.links.locales } })); avisar(true, "✓ Guardado. Ya se ve en el link."); onGuardado && onGuardado(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+    setGuardando(false);
+  };
+  const activos = locs.filter(x => x.activo !== false);
+  return (
+    <CajaSeccion it={it} temaPal={tp}>
+      {!cfg.activo || !link ? <div className="cli-tip" style={{ fontSize: 12.5 }}>Primero publicá la tienda (en <b>Tienda y dirección</b>) para tener el link.</div> : (
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 14 }}>
+          {qrL && <img src={qrL} alt="QR del link para Instagram" style={{ width: 96, height: 96, background: "#fff", borderRadius: 8, padding: 4 }} />}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0, flex: "1 1 220px" }}>
+            <div style={{ fontWeight: 800, fontSize: 13.5, wordBreak: "break-all" }}>{link}</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <button className="btn btn-p btn-sm" onClick={() => { try { navigator.clipboard.writeText(link); avisar(true, "✓ Link copiado. Pegalo en tu bio de Instagram."); } catch (e) {} }}>🔗 Copiar link</button>
+              <a className="btn btn-g btn-sm" style={{ textDecoration: "none" }} href={link} target="_blank" rel="noopener">👀 Ver cómo queda</a>
+            </div>
+            <div style={{ fontSize: 11.5, color: tp.textMuted }}>En Instagram: Editar perfil → Enlaces → Agregar enlace externo → pegá este link.</div>
+          </div>
+        </div>
+      )}
+      <div className="fl">Frase de bienvenida (opcional)</div>
+      <input className="inp" maxLength={200} placeholder={cfg.mensaje || "Ej: Skincare coreano en Río Grande y Ushuaia ✨"} value={l.texto} onChange={e => setL(x => ({ ...x, texto: e.target.value }))} />
+      <div style={{ fontWeight: 900, fontSize: 14, margin: "16px 0 8px" }}>📍 Locales</div>
+      {activos.length === 0 && <div style={{ fontSize: 12.5, color: tp.textMuted }}>No hay locales cargados.</div>}
+      {activos.map(x => { const d = dl(x.id); return (
+        <div key={x.id} style={{ border: "1px solid " + tp.border, borderRadius: 12, padding: 12, marginBottom: 10, opacity: d.mostrar ? 1 : .6 }}>
+          <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 800, cursor: "pointer" }}>
+            <input type="checkbox" checked={d.mostrar} onChange={e => setLoc(x.id, "mostrar", e.target.checked)} /> {x.nombre}
+            <span style={{ fontWeight: 500, fontSize: 12, color: tp.textMuted }}>{x.direccion || "sin dirección (cargala en Locales)"}</span>
+          </label>
+          {d.mostrar && <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10, marginTop: 10 }}>
+            <div><div className="fl">WhatsApp de {x.nombre}</div><input className="inp" inputMode="tel" placeholder="Ej: 2964 123456 (sin 0 ni 15)" value={d.whatsapp} onChange={e => setLoc(x.id, "whatsapp", e.target.value)} />
+              {d.whatsapp && String(d.whatsapp).replace(/\D/g, "").length < 10 && <div style={{ fontSize: 11, color: tp.warn, marginTop: 3 }}>Poné el número con código de área, sin el 0 ni el 15 (ej: 2964 123456).</div>}</div>
+            <div><div className="fl">Ubicación en Google Maps (opcional)</div><input className="inp" placeholder="Pegá el link de Compartir de Google Maps" value={d.mapa} onChange={e => setLoc(x.id, "mapa", e.target.value.trim())} />
+              <div style={{ fontSize: 11, color: tp.textMuted, marginTop: 3 }}>Si lo dejás vacío, "Cómo llegar" busca la dirección.</div></div>
+            <div style={{ gridColumn: "1/-1" }}><div className="fl">Horarios (un renglón por día o franja)</div>
+              <textarea className="inp" rows={3} placeholder={"Lunes a viernes: 10 a 13 y 16 a 21\nSábados: 10 a 13 y 17 a 21\nDomingos: cerrado"} value={d.horarios} onChange={e => setLoc(x.id, "horarios", e.target.value)} /></div>
+          </div>}
+        </div>
+      ); })}
+      <div style={{ fontWeight: 900, fontSize: 14, margin: "16px 0 4px" }}>✨ Botones extra (opcional)</div>
+      <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>La tienda online y las Gift Cards ya aparecen solas. Acá podés sumar otros links (un formulario, una promo, tu catálogo...).</div>
+      {l.extras.map((e, i) => (
+        <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
+          <input className="inp" style={{ flex: "1 1 140px" }} maxLength={60} placeholder="Texto del botón" value={e.texto} onChange={ev => setExtra(i, "texto", ev.target.value)} />
+          <input className="inp" style={{ flex: "2 1 200px" }} placeholder="https://..." value={e.url} onChange={ev => setExtra(i, "url", ev.target.value.trim())} />
+          <button className="btn btn-g btn-sm" aria-label="Quitar botón" onClick={() => setL(x => ({ ...x, extras: x.extras.filter((_, j) => j !== i) }))}>✕</button>
+        </div>
+      ))}
+      {l.extras.length < 6 && <button className="btn btn-g btn-sm" onClick={() => setL(x => ({ ...x, extras: [...x.extras, { texto: "", url: "" }] }))}>+ Agregar botón</button>}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}><button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar"}</button></div>
+    </CajaSeccion>
+  );
+}
+
 function VideosTienda({ productos, temaPal, avisar, it, alCambiar }) {
   const tp = temaPal || PALETA_CLARA;
   const [d, setD] = useState(null);
@@ -29621,6 +29689,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
           { k: "tienda", icono: "🏪", titulo: "Tienda y dirección", color: "#16a085", sub: cfg.activo ? "Publicada" : "Apagada", alerta: !cfg.activo, ayuda: "Prendé o apagá la tienda, elegí su dirección y compartila." },
           { k: "marca", icono: "🎨", titulo: "Marca y redes", color: "#8e44ad", sub: cfg.logo ? "Con logo" : "Sin logo", ayuda: "Cómo se ve: logo, ícono del celular, nombre, color, redes y frases de arriba." },
           { k: "entrega", icono: "🚚", titulo: "Entrega y pagos", color: "#2471a3", sub: [cfg.retiro_activo && "Retiro", cfg.envio_activo && "Envío"].filter(Boolean).join(" + ") || "Falta elegir", alerta: !cfg.retiro_activo && !cfg.envio_activo, ayuda: "Cómo reciben el pedido y cómo pueden pagar." },
+          { k: "links", icono: "🔗", titulo: "Link para Instagram", color: "#d6246e", sub: Object.values((cfg.links && cfg.links.locales) || {}).some(x => x.whatsapp) ? "Listo" : "WhatsApp, horarios y ubicación", ayuda: "Una página para poner en la bio de Instagram: tienda online, gift cards y, por cada local, su WhatsApp, horarios y cómo llegar." },
           ...(cfg.preventa ? [{ k: "preventa", icono: "⏳", titulo: "Preventa", color: "#d35400", sub: cfg.preventa.activo ? "Activada" : "Apagada" }] : []),
           ...(cfg.ruleta ? [{ k: "ruleta", icono: "🎡", titulo: "Ruleta de premios", color: "#c0392b", sub: cfg.ruleta.activo ? "Activada" : "Apagada" }] : []),
         ];
@@ -29628,6 +29697,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         return (
         <div style={{ paddingBottom: 10 }}>
           <MenuSecciones items={SECS_CFG} activa={it.k} onElegir={setSecCfg} temaPal={temaPal} />
+          {it.k === "links" && <LinksInstagram key={cfg.slug || ""} cfg={cfg} locs={locs} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it}
+            link={!cfg.activo || !cfg.slug ? "" : cfg.dominio && cfg.dominioGuardado ? "https://" + cfg.dominio + "/links" : window.location.origin + "/?tienda=" + cfg.slug + "&seccion=links"} />}
           {it.k === "tienda" && <CajaSeccion it={it} temaPal={temaPal}>
             <label style={{ display: "flex", gap: 10, alignItems: "center", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>
               <input type="checkbox" checked={!!cfg.activo} onChange={e => set("activo", e.target.checked)} style={{ width: 20, height: 20 }} /> Tienda publicada
@@ -31617,6 +31688,105 @@ function AvisoVentaWeb({ usuario, local, paletaActual }) {
   );
 }
 
+// Pagina de links para la bio de Instagram (dominio/links o ?tienda=...&seccion=links): tienda online,
+// gift cards y, por cada local, su WhatsApp, horarios y como llegar. Se arma con lo que carga el negocio.
+const twEsLinks = () => {
+  try {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("tienda")) return (q.get("seccion") || "").toLowerCase() === "links";
+    return /^\/links\/?$/i.test(window.location.pathname);
+  } catch (e) { return false; }
+};
+const CSS_LINKS = `
+.tl{min-height:100vh;background:#fbf8f3;background:radial-gradient(120% 60% at 50% 0%,color-mix(in srgb,var(--c) 22%,#fff) 0%,#fbf8f3 60%);color:#1d1d1f;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:32px 16px 40px}
+.tl *{box-sizing:border-box}
+.tl-in{max-width:480px;margin:0 auto;text-align:left}
+.tl-btn>span:nth-child(2){flex:1;min-width:0}
+.tl-cab{text-align:center;margin-bottom:22px}
+.tl-logo{width:96px;height:96px;border-radius:50%;background:#fff;object-fit:contain;padding:8px;box-shadow:0 8px 24px -10px rgba(0,0,0,.3);border:3px solid #fff}
+.tl-logo-txt{width:96px;height:96px;border-radius:50%;background:var(--c);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:38px;font-weight:900}
+.tl-cab h1{font-size:24px;font-weight:900;margin:12px 0 4px;letter-spacing:-.01em}
+.tl-cab p{margin:0;color:#555;font-size:14.5px;line-height:1.45}
+.tl-btn{display:flex;align-items:center;gap:12px;width:100%;text-decoration:none;color:#1d1d1f;background:#fff;border-radius:16px;padding:15px 18px;font-weight:800;font-size:16px;box-shadow:0 2px 0 rgba(0,0,0,.04),0 8px 20px -14px rgba(0,0,0,.35);margin-bottom:12px;transition:transform .15s}
+.tl-btn:active{transform:scale(.98)}
+.tl-btn .tl-ic{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;background:#f4f1ec}
+.tl-btn small{display:block;font-weight:500;color:#666;font-size:12.5px;margin-top:2px}
+.tl-btn .tl-fl{margin-left:auto;color:#aaa;font-size:20px}
+.tl-btn.tl-tienda{background:#1d1d1f;color:#fff}.tl-btn.tl-tienda small{color:rgba(255,255,255,.85)}.tl-btn.tl-tienda .tl-ic{background:rgba(255,255,255,.22)}.tl-btn.tl-tienda .tl-fl{color:rgba(255,255,255,.8)}
+.tl-btn.tl-gc{position:relative;overflow:hidden;background:linear-gradient(110deg,#b8860b,#f5c84c 35%,#fff1b8 50%,#f5c84c 65%,#b8860b);background-size:200% 100%;color:#4a3000;animation:twGcOro 3s linear infinite}
+.tl-btn.tl-gc small{color:#6b4a00}.tl-btn.tl-gc .tl-ic{background:rgba(255,255,255,.45)}.tl-btn.tl-gc .tl-fl{color:#6b4a00}
+.tl-btn.tl-gc::after{content:"";position:absolute;top:0;bottom:0;left:-60%;width:40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.9),transparent);transform:skewX(-20deg);animation:twGcBarre 2.4s ease-in-out infinite;pointer-events:none}
+.tl-h2{font-size:13px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:#777;margin:26px 4px 12px}
+.tl-loc{background:#fff;border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:0 2px 0 rgba(0,0,0,.04),0 8px 20px -14px rgba(0,0,0,.35)}
+.tl-loc h3{margin:0 0 4px;font-size:19px;font-weight:900}
+.tl-loc{text-align:left}
+.tl-dir{color:#555;font-size:14px;margin:0 0 12px;line-height:1.4}
+.tl-hor{background:#f7f4ef;border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:14px;line-height:1.6}
+.tl-hor b{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#888;margin-bottom:2px}
+.tl-acc{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tl-acc a{display:flex;align-items:center;justify-content:center;gap:7px;text-decoration:none;border-radius:12px;padding:12px 8px;font-weight:800;font-size:14.5px;min-height:46px}
+.tl-acc a:only-child{grid-column:1/-1}
+.tl-wa{background:#25d366;color:#fff}
+.tl-map{background:#f1f1f1;color:#1d1d1f}
+.tl-redes{display:flex;justify-content:center;gap:14px;margin-top:26px}
+.tl-redes a{width:46px;height:46px;border-radius:50%;background:#fff;color:#1d1d1f;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px -10px rgba(0,0,0,.4)}
+.tl-pie{text-align:center;color:#999;font-size:12px;margin-top:22px}
+@keyframes twGcOro{0%{background-position:100% 0}100%{background-position:-100% 0}}
+@keyframes twGcBarre{0%,55%{left:-60%}100%{left:130%}}
+@media(prefers-reduced-motion:reduce){.tl-btn.tl-gc{animation:none}.tl-btn.tl-gc::after{display:none}}
+`;
+function TiendaLinks({ slug }) {
+  const [t, setT] = useState(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    fetch((API.defaults.baseURL || "") + "/tienda-publica/" + encodeURIComponent(slug)).then(r => r.json().then(d => ({ ok: r.ok, d })))
+      .then(({ ok, d }) => { if (!ok) throw new Error(d.error || "No encontramos esta tienda"); setT(d); document.title = d.titulo; })
+      .catch(e => setError(e.message || "No se pudo cargar"));
+  }, [slug]);
+  if (error) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center", fontFamily: "sans-serif" }}>{error}</div>;
+  if (!t) return <div style={{ minHeight: "100vh", background: "#fbf8f3" }} />;
+  const base = t.dominio ? "https://" + t.dominio + "/" : window.location.origin + window.location.pathname + "?tienda=" + encodeURIComponent(slug);
+  const ir = (sec) => t.dominio ? base + sec : base + "&seccion=" + sec;
+  const l = t.links || { locales: [], extras: [] };
+  const wa = (n, nombre) => "https://wa.me/" + n + "?text=" + encodeURIComponent("¡Hola! Te escribo desde Instagram por el local de " + nombre + " 😊");
+  const mapa = (x) => x.mapa || "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent([t.titulo, x.direccion, x.nombre].filter(Boolean).join(", "));
+  const locales = l.locales.filter(x => x.whatsapp || x.horarios.length || x.direccion);
+  const redes = t.redes || {};
+  return (
+    <div className="tl" style={{ "--c": t.color || "#c9a84c" }}><style>{CSS_LINKS}</style>
+      <div className="tl-in">
+        <div className="tl-cab">
+          {t.logo ? <img className="tl-logo" src={t.logo} alt={t.titulo} /> : <span className="tl-logo-txt" aria-hidden="true">{String(t.titulo || "?").charAt(0)}</span>}
+          <h1>{t.titulo}</h1>
+          {(l.texto || t.mensaje) && <p>{l.texto || t.mensaje}</p>}
+        </div>
+        <a className="tl-btn tl-tienda" href={base}><span className="tl-ic" aria-hidden="true">🛍️</span><span>Comprar online<small>Pedí y retirá o te lo llevamos</small></span><span className="tl-fl" aria-hidden="true">›</span></a>
+        {t.regalos && t.regalos.giftcards && <a className="tl-btn tl-gc" href={ir("regalos")}><span className="tl-ic" aria-hidden="true">🎁</span><span>Gift Cards<small>Para regalar lo que elija</small></span><span className="tl-fl" aria-hidden="true">›</span></a>}
+        {l.extras.map((x, i) => <a key={i} className="tl-btn" href={x.url} target="_blank" rel="noopener"><span className="tl-ic" aria-hidden="true">✨</span><span>{x.texto}</span><span className="tl-fl" aria-hidden="true">›</span></a>)}
+        {locales.length > 0 && <div className="tl-h2">{locales.length > 1 ? "Nuestros locales" : "Nuestro local"}</div>}
+        {locales.map(x => (
+          <div key={x.id} className="tl-loc">
+            <h3>📍 {x.nombre}</h3>
+            {x.direccion && <p className="tl-dir">{x.direccion}</p>}
+            {x.horarios.length > 0 && <div className="tl-hor"><b>🕒 Horarios</b>{x.horarios.map((h, i) => <div key={i}>{h}</div>)}</div>}
+            <div className="tl-acc">
+              {x.whatsapp && <a className="tl-wa" href={wa(x.whatsapp, x.nombre)} target="_blank" rel="noopener"><TwIcono d={TW_WA} size={18} /> WhatsApp</a>}
+              {(x.direccion || x.mapa) && <a className="tl-map" href={mapa(x)} target="_blank" rel="noopener">🗺️ Cómo llegar</a>}
+            </div>
+          </div>
+        ))}
+        {!locales.some(x => x.whatsapp) && t.whatsapp && <a className="tl-btn" href={"https://wa.me/" + String(t.whatsapp).replace(/\D/g, "") + "?text=" + encodeURIComponent("Hola! Te escribo desde Instagram 😊")} target="_blank" rel="noopener"><span className="tl-ic" aria-hidden="true">💬</span><span>Escribinos por WhatsApp</span><span className="tl-fl" aria-hidden="true">›</span></a>}
+        {(redes.instagram || redes.tiktok || redes.facebook) && <div className="tl-redes">
+          {redes.instagram && <a href={redes.instagram} target="_blank" rel="noopener" aria-label="Instagram"><TwIcono d={TW_IG} /></a>}
+          {redes.tiktok && <a href={redes.tiktok} target="_blank" rel="noopener" aria-label="TikTok"><TwIcono d={TW_TT} /></a>}
+          {redes.facebook && <a href={redes.facebook} target="_blank" rel="noopener" aria-label="Facebook"><TwIcono d={TW_FB} /></a>}
+        </div>}
+        <div className="tl-pie">{t.titulo}</div>
+      </div>
+    </div>
+  );
+}
+
 // La tienda web (?tienda=nombre) se muestra sin iniciar sesion; todo lo demas es Lumiere
 // Direcciones propias de Lumiere: ahi se abre el sistema. Cualquier otra (un dominio propio de
 // una tienda, ej: girasolesbeauty.com.ar) muestra directamente esa tienda.
@@ -31630,9 +31800,9 @@ export default function Raiz() {
     if (!propio) return;
     fetch((API.defaults.baseURL || "") + "/tienda-dominio?host=" + encodeURIComponent(host)).then(r => r.json()).then(d => setSlugDominio(d.slug || null)).catch(() => setSlugDominio(null));
   }, []);
-  if (slugTienda) return <TiendaPublica slug={slugTienda} />;
+  if (slugTienda) return twEsLinks() ? <TiendaLinks slug={slugTienda} /> : <TiendaPublica slug={slugTienda} />;
   if (slugDominio === undefined) return <div style={{ minHeight: "100vh", background: "#fff" }} />;
-  if (slugDominio) return <TiendaPublica slug={slugDominio} />;
+  if (slugDominio) return twEsLinks() ? <TiendaLinks slug={slugDominio} /> : <TiendaPublica slug={slugDominio} />;
   return <AppWrapper />;
 }
 
