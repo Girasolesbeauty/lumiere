@@ -11207,6 +11207,8 @@ function Pedidos({ localId, usuario, paletaActual }) {
   const [vistaEspera, setVistaEspera] = useState("cliente"); // cliente | producto
   const [pedidosListos, setPedidosListos] = useState([]);
   const [nombreNegocio, setNombreNegocio] = useState("");
+  const [mensajeAviso, setMensajeAviso] = useState(""); // plantilla propia de "Ya hay stock" ("" = la original)
+  const [editorAviso, setEditorAviso] = useState(null); // texto en edicion
   const [borrando, setBorrando] = useState(null);
   const [guardandoPed, setGuardandoPed] = useState(false);
   // Edicion de un pedido: { p, productoSel, texto, buscar, nombre, telefono, local }
@@ -11262,7 +11264,7 @@ function Pedidos({ localId, usuario, paletaActual }) {
     API.get("/pedidos/estadisticas?" + qs.toString()).then(r => setStats(r.data)).catch(() => setStats(null)).finally(() => setCargandoStats(false));
   };
 
-  useEffect(() => { API.get("/configuracion").then(res => setNombreNegocio(res.data?.nombre_negocio || "")).catch(() => {}); }, []);
+  useEffect(() => { API.get("/configuracion").then(res => { setNombreNegocio(res.data?.nombre_negocio || ""); setMensajeAviso(res.data?.mensaje_aviso_stock || ""); }).catch(() => {}); }, []);
   useEffect(() => { setFiltroLocal(String(localId || 1)); }, [localId]);
   useEffect(() => {
     if (!mensaje || mensaje.startsWith("Error")) return;
@@ -11305,7 +11307,20 @@ function Pedidos({ localId, usuario, paletaActual }) {
     return n;
   };
   const primerNombre = (n) => String(n || "").split(/[ ,]+/).filter(Boolean)[0] || "";
-  const textoAviso = (pd) => "¡Hola " + primerNombre(pd.cliente_nombre) + "! 💛 Te avisamos que ya llegó *" + pd.producto_nombre + "* que estabas esperando. Te lo guardamos, ¡te esperamos!" + (nombreNegocio ? "\n— " + nombreNegocio : "");
+  // Mensaje de "Ya hay stock": el que eligio el negocio o el original. {nombre}, {producto}, {negocio} y {local} se reemplazan
+  const AVISO_BASE = "¡Hola {nombre}! 💛 Te avisamos que ya llegó *{producto}* que estabas esperando. Te lo guardamos, ¡te esperamos!\n— {negocio}";
+  const armarAviso = (plantilla, pd) => {
+    const vals = { nombre: primerNombre(pd.cliente_nombre), producto: pd.producto_nombre || "", negocio: nombreNegocio, local: nombreLocal(pd.local_id || 1) };
+    return plantilla.split("\n").filter(l => !(/\{negocio\}/.test(l) && !nombreNegocio && l.replace(/\{negocio\}|[—\-\s]/g, "") === ""))
+      .join("\n").replace(/\{(\w+)\}/g, (m, k) => (k in vals ? vals[k] : m)).trim();
+  };
+  const textoAviso = (pd) => armarAviso(mensajeAviso || AVISO_BASE, pd);
+  const puedeEditarAviso = ["jefe", "admin", "administrativo", "encargado"].includes(usuario?.rol);
+  const guardarAviso = async (texto) => {
+    const valor = texto.trim() === AVISO_BASE ? "" : texto.trim();
+    try { await API.put("/configuracion", { mensaje_aviso_stock: valor }); setMensajeAviso(valor); setEditorAviso(null); setMensaje(valor ? "✓ Mensaje guardado: se usa en todos los avisos" : "✓ Se volvió al mensaje original"); }
+    catch (e) { setMensaje("Error: " + (e.response?.data?.error || "no se pudo guardar")); }
+  };
 
   const avisarPedido = async (pd, sinEnviar) => {
     const texto = textoAviso(pd);
@@ -11424,7 +11439,10 @@ function Pedidos({ localId, usuario, paletaActual }) {
           </div>
         ) : (
           <>
-            <div style={{ fontSize: 12, color: pal.textMuted, marginBottom: 10 }}>Estos productos que los clientes esperaban ya tienen stock. Al tocar <b>WhatsApp</b> se abre el mensaje listo y el pedido pasa a <b>Avisados</b>.</div>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
+              <div style={{ fontSize: 12, color: pal.textMuted, flex: "1 1 260px" }}>Estos productos que los clientes esperaban ya tienen stock. Al tocar <b>WhatsApp</b> se abre el mensaje listo y el pedido pasa a <b>Avisados</b>.</div>
+              {puedeEditarAviso && <button className="btn btn-g btn-sm" onClick={() => setEditorAviso(mensajeAviso || AVISO_BASE)}>✏️ Cambiar mensaje</button>}
+            </div>
             <div className="oi-grid">
               {listosLocal.map(pd => (
                 <div key={pd.id} className="card anim-in" style={{ borderLeft: "3px solid " + pal.wa, padding: 14 }}>
@@ -11756,6 +11774,35 @@ function Pedidos({ localId, usuario, paletaActual }) {
           )}
           <div style={{ fontSize: 11, color: pal.textMuted, marginTop: 8 }}>Cuando un producto esperado tiene stock, el aviso aparece en la pestaña <b>Ya hay stock</b>.</div>
         </>
+      )}
+
+      {editorAviso !== null && (
+        <div className="pos-overlay" onClick={() => setEditorAviso(null)}>
+          <div className="card pop-in" role="dialog" aria-label="Cambiar el mensaje de Ya hay stock" style={{ width: 500, maxWidth: "95vw", background: pal.card, textAlign: "left" }} onClick={ev => ev.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <div style={{ fontSize: 15, fontWeight: 800 }}>✏️ Mensaje de "Ya hay stock"</div>
+              <button className="icon-btn" onClick={() => setEditorAviso(null)} aria-label="Cerrar">✕</button>
+            </div>
+            <div style={{ fontSize: 12, color: pal.textMuted, marginBottom: 8 }}>Es el WhatsApp que le llega al cliente cuando llega lo que esperaba. Tocá un dato para sumarlo; se completa solo en cada aviso. Para negrita en WhatsApp usá *asteriscos*.</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+              {[["nombre", "Nombre del cliente"], ["producto", "Producto"], ["negocio", "Nombre del negocio"], ["local", "Local"]].map(([k, t]) => (
+                <button key={k} className="chip-btn" onClick={() => setEditorAviso(x => x + "{" + k + "}")}>+ {t}</button>
+              ))}
+            </div>
+            <textarea className="inp" rows={5} maxLength={1000} value={editorAviso} onChange={e => setEditorAviso(e.target.value)} aria-label="Texto del mensaje" style={{ width: "100%", resize: "vertical" }} />
+            <div style={{ fontSize: 11, fontWeight: 700, color: pal.textMuted, margin: "10px 0 4px" }}>Así le llega (ejemplo)</div>
+            <div style={{ padding: "8px 10px", borderRadius: 8, background: pal.bg, fontSize: 12, color: pal.textSoft, whiteSpace: "pre-wrap", lineHeight: 1.45 }}>
+              {armarAviso(editorAviso || AVISO_BASE, listosLocal[0] || pedidos[0] || { cliente_nombre: "Laura Gómez", producto_nombre: "Serum de vitamina C", local_id: localId || 1 }).replace(/\*/g, "")}
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "space-between", marginTop: 12, flexWrap: "wrap" }}>
+              <button className="btn btn-g btn-sm" onClick={() => setEditorAviso(AVISO_BASE)}>↺ Volver al original</button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-g" onClick={() => setEditorAviso(null)}>Cancelar</button>
+                <button className="btn btn-p" disabled={!editorAviso.trim()} onClick={() => guardarAviso(editorAviso)}>Guardar</button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {editando && (() => {

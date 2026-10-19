@@ -50,6 +50,12 @@ router.put('/', async (req, res) => {
       const txt = String(req.body.mensaje_precio || '').slice(0, 2000).trim();
       await pool.query('UPDATE configuracion_negocio SET mensaje_precio = $1 WHERE id = 1', [txt || null]);
     }
+    // Mensaje de "Ya hay stock" (Pedidos de clientes): solo se toca si vino; vacio = volver al original
+    if (Object.prototype.hasOwnProperty.call(req.body, 'mensaje_aviso_stock')) {
+      const txt = String(req.body.mensaje_aviso_stock || '').slice(0, 1000).trim();
+      await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS mensaje_aviso_stock TEXT');
+      await pool.query('UPDATE configuracion_negocio SET mensaje_aviso_stock = $1 WHERE id = 1', [txt || null]);
+    }
     // Reparto por defecto de los gastos compartidos: % que le toca al local 1
     if (Object.prototype.hasOwnProperty.call(req.body, 'reparto_local1_pct')) {
       const pct = parseFloat(req.body.reparto_local1_pct);
