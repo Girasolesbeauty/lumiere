@@ -172,8 +172,11 @@ router.get('/:slug/productos', async (req, res) => {
              EXISTS (SELECT 1 FROM tienda_videos tv WHERE tv.producto_id = p.id) AS video_subido,
              EXISTS (SELECT 1 FROM proveedores pr WHERE pr.id = p.proveedor_id AND pr.nombre ~* '(^|[^a-z])bek([^a-z]|$)') AS kb,
              ARRAY(SELECT f.id FROM tienda_fotos f WHERE f.producto_id = p.id ORDER BY f.orden, f.id) AS fotos_extra,
-             (SELECT json_object_agg(r.local_id, EXTRACT(EPOCH FROM r.f)::bigint) FROM (SELECT local_id, MAX(fecha) AS f FROM tienda_reingresos
-                WHERE producto_id = p.id AND fecha > NOW() - make_interval(days => $1::int) GROUP BY local_id) r) AS reingreso,
+             -- "Nuevamente en stock": volvio a tener stock y ya se habia vendido antes (el primer ingreso de un producto nuevo no cuenta)
+             (SELECT json_object_agg(r.local_id, EXTRACT(EPOCH FROM r.f)::bigint) FROM (SELECT tr.local_id, MAX(tr.fecha) AS f FROM tienda_reingresos tr
+                WHERE tr.producto_id = p.id AND tr.fecha > NOW() - make_interval(days => $1::int)
+                  AND EXISTS (SELECT 1 FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id WHERE vi.producto_id = p.id AND v.creado_en < tr.fecha AND ${VENTA_VALIDA})
+                GROUP BY tr.local_id) r) AS reingreso,
              (SELECT EXTRACT(EPOCH FROM i.actualizado_en)::bigint FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto_v,
              EXISTS (SELECT 1 FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto
       FROM productos p LEFT JOIN tienda_productos tp ON tp.producto_id = p.id
