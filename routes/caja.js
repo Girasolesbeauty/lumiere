@@ -111,7 +111,7 @@ const calcularCierre = async (localId, fecha) => {
   const web = await esVentaWeb('v');
   // Con tienda: que esten sus columnas (pagado_en) antes de consultarlas
   if (web !== 'FALSE') await require('../lib/tienda').asegurar();
-  const [ventasR, mediosR, movsR, gcR, webR, cobradosR] = await Promise.all([
+  const [ventasR, mediosR, movsR, gcR, webR, cobradosR, extrasR] = await Promise.all([
     pool.query(`
       SELECT v.id, v.numero_factura, v.total, COALESCE(v.monto_gift_card, 0) AS monto_gift_card,
         v.medio_pago, v.medio_pago_id, COALESCE(v.anulada, FALSE) AS anulada, v.motivo_anulacion,
@@ -151,11 +151,20 @@ const calcularCierre = async (localId, fecha) => {
     // Lo que se cobro online ese dia (Mercado Pago o transferencia confirmada): cuenta en el cierre de ese dia,
     // aunque todavia no lo hayan retirado. Cuando despues se registra la venta en la caja, esa venta ya no se vuelve a sumar.
     web === 'FALSE' ? { rows: [] } : pool.query(`
-      SELECT id, codigo, (to_jsonb(tienda_pedidos.*) ->> 'numero') AS numero, nombre, total, pago, estado, ${HORA_AR('pagado_en')} AS hora
+      SELECT id, codigo, (to_jsonb(tienda_pedidos.*) ->> 'numero') AS numero, nombre,
+        COALESCE((to_jsonb(tienda_pedidos.*) ->> 'monto_online')::numeric, total) AS total, pago, estado, ${HORA_AR('pagado_en')} AS hora
       FROM tienda_pedidos
       WHERE local_id = $1 AND pago IN ('mp', 'transferencia', 'gocuotas') AND pagado_en IS NOT NULL AND ${DIA_AR('pagado_en')} = $2::date AND estado <> 'cancelado'
         AND COALESCE(tipo, '') <> 'giftcard'
       ORDER BY pagado_en`, [localId, fecha]).catch(() => ({ rows: [] })),
+    // Diferencias de pedidos web pagados online a los que se les cambio un producto: lo que se cobro o devolvio
+    // aparte ese dia (con su medio de pago). Los creditos a favor (gift card) no mueven plata.
+    web === 'FALSE' ? { rows: [] } : pool.query(`
+      SELECT e ->> 'nombre' AS nombre, (e ->> 'medio_pago_id')::int AS medio_pago_id, (e ->> 'importe')::numeric AS importe, e ->> 'tipo' AS tipo,
+        tp.codigo, (to_jsonb(tp.*) ->> 'numero') AS numero, tp.nombre AS cliente
+      FROM tienda_pedidos tp, jsonb_array_elements(CASE WHEN jsonb_typeof(to_jsonb(tp.*) -> 'pagos_extra') = 'array' THEN to_jsonb(tp.*) -> 'pagos_extra' ELSE '[]'::jsonb END) e
+      WHERE tp.local_id = $1 AND e ->> 'tipo' IN ('cobro', 'devolucion')
+        AND (((e ->> 'fecha')::timestamptz) AT TIME ZONE 'America/Argentina/Buenos_Aires')::date = $2::date`, [localId, fecha]).catch(() => ({ rows: [] })),
   ]);
 
   const mediosPorId = {};
@@ -209,6 +218,14 @@ const calcularCierre = async (localId, fecha) => {
     sumar(w.pago === 'mp' ? 'Mercado Pago (tienda web)' : w.pago === 'gocuotas' ? 'GoCuotas (tienda web)' : 'Transferencia (tienda web)', t, false, true);
   }
 
+  // Diferencias cobradas (+) o devueltas (-) de pedidos web, con su medio de pago
+  for (const x of extrasR.rows) {
+    const imp = num(x.importe), ef = esEfectivo(x.medio_pago_id, x.nombre);
+    totalVentas += imp;
+    sumar(x.nombre, imp, ef, false);
+    if (ef) ventasEfectivo += imp;
+  }
+
   let totalGiftCards = 0, gcEfectivo = 0;
   gcR.rows.forEach(g => {
     totalGiftCards += num(g.importe);
@@ -229,6 +246,7 @@ const calcularCierre = async (localId, fecha) => {
     gift_cards: gcR.rows,
     tienda_sin_caja: webR.rows.map(x => ({ ...x, total: num(x.total) })),
     tienda_cobrados: cobradosR.rows.map(x => ({ ...x, total: num(x.total) })),
+    tienda_diferencias: extrasR.rows.map(x => ({ ...x, importe: num(x.importe) })),
     movimientos: movsR.rows,
     resumen: {
       total_dia: totalVentas + totalGiftCards,
