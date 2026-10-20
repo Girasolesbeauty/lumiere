@@ -878,7 +878,7 @@ router.get('/:slug/cuenta', conCuenta, async (req, res) => {
       logrosLib.logrosDeCliente(req.clienteId, [d.nivel, nivelPorGasto(d.gastado, d.umbrales)].sort((x, y) => NIVELES.indexOf(y) - NIVELES.indexOf(x))[0], marca).catch(e => { console.error('[tienda] logros:', e.message); return []; }),
       cuentas.premiosDeCliente(req.clienteId).catch(() => []),
       cuentas.canjesDeCliente(req.clienteId).catch(() => []),
-      pool.query(`SELECT codigo, estado, total, creado_en, entrega FROM tienda_pedidos WHERE cliente_id = $1 ORDER BY creado_en DESC LIMIT 20`, [req.clienteId]).then(r => r.rows).catch(() => []),
+      pool.query(`SELECT codigo, estado, total, creado_en, entrega, tipo FROM tienda_pedidos WHERE cliente_id = $1 ORDER BY creado_en DESC LIMIT 20`, [req.clienteId]).then(r => r.rows).catch(() => []),
     ]);
     // Los canjes que son codigos de descuento: si todavia se pueden usar
     const cods = canjes.map(c => c.codigo).filter(Boolean);
