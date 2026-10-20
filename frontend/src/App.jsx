@@ -367,6 +367,9 @@ button.tab { font-family: inherit; }
 @keyframes popIn { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
 .pop-in { animation: popIn .24s cubic-bezier(.2,.7,.2,1) backwards; }
 .kbd { display: inline-block; font-size: 10px; font-weight: 700; line-height: 1.4; padding: 0 5px; border: 1px solid ${p.border}; border-bottom-width: 2px; border-radius: 4px; background: ${p.card}; color: ${p.textMuted}; font-family: ui-monospace, Consolas, monospace; vertical-align: middle; }
+.globo-rojo { display: inline-flex; align-items: center; justify-content: center; min-width: 19px; height: 19px; padding: 0 5px; margin-left: 6px; border-radius: 999px; background: #e74c3c; color: #fff; font-size: 11px; font-weight: 900; line-height: 1; box-shadow: 0 0 0 2px ${p.card}; animation: globoLate 2s ease-in-out infinite; }
+@keyframes globoLate { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+@media (prefers-reduced-motion: reduce) { .globo-rojo { animation: none; } }
 .chip-btn { font-family: inherit; font-size: 11px; font-weight: 600; border: 1px solid ${p.border}; background: ${p.card}; color: ${p.text}; border-radius: 999px; padding: 5px 10px; cursor: pointer; transition: border-color .15s, background .15s; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .chip-btn:hover { border-color: ${p.accent}; }
 .chip-btn.on { background: ${p.accentDim}; border-color: ${p.accent}; color: ${p.accentText}; }
@@ -29576,7 +29579,9 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
 
   if (!cfg || !pedidos || !productos) return <div className="fade"><div className="skel" style={{ height: 300 }} /></div>;
   const abiertos = pedidos.filter(p => ["pendiente_pago", "confirmado", "preparado", "en_caja"].includes(p.estado));
-  const visibles = pedidos.filter(p => filtro === "todos" || (filtro === "activos" ? abiertos.includes(p) : p.estado === filtro));
+  // Etapa de un pedido abierto: nuevo (hay que armarlo), preventa (esperando que llegue), pago (esperando el pago) o listo
+  const etapaPed = (p) => p.estado === "pendiente_pago" ? "pago" : p.estado === "confirmado" ? ((p.items || []).some(i => i.preventa) ? "preventa" : "nuevo") : ["preparado", "en_caja"].includes(p.estado) ? "listo" : null;
+  const visibles = pedidos.filter(p => filtro === "todos" || (filtro === "activos" ? abiertos.includes(p) : filtro.startsWith("g:") ? etapaPed(p) === filtro.slice(2) : p.estado === filtro));
   const nPub = productos.filter(p => p.publicado).length;
   const q = busca.trim().toLowerCase();
   const qN = normTxt(busca);
@@ -29606,9 +29611,9 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const entregados30 = pedidos.filter(p => p.estado === "entregado" && new Date(p.creado_en).getTime() >= hace30);
   const vendido30 = entregados30.reduce((t, p) => t + Number(p.total || 0), 0);
   const nNuevos = pedidos.filter(p => p.estado === "confirmado").length;
-  const contar = (k) => k === "todos" ? pedidos.length : k === "activos" ? abiertos.length : pedidos.filter(p => p.estado === k).length;
+  const contar = (k) => k === "todos" ? pedidos.length : k === "activos" ? abiertos.length : k.startsWith("g:") ? pedidos.filter(p => etapaPed(p) === k.slice(2)).length : pedidos.filter(p => p.estado === k).length;
   // Para atender: agrupados por lo que hay que hacer, en ese orden
-  const GRUPOS_PED = [["confirmado", "📥 Nuevos: hay que prepararlos"], ["pendiente_pago", "⏳ Esperando el pago"], ["preparado", "📦 Listos: esperando que los retiren o salgan"], ["en_caja", "💵 En la caja"]];
+  const GRUPOS_PED = [["nuevo", "📥 Nuevos: hay que armarlos", "#2471a3"], ["preventa", "⏳ Preventa: esperando que llegue la mercadería", "#b9770e"], ["pago", "💳 Esperando el pago", "#b7950b"], ["listo", "📦 Listos: esperando que los retiren o salgan", "#8e44ad"]];
 
   return (
     <div className="fade" style={{ textAlign: "left" }}>
@@ -29694,7 +29699,13 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
       {tab === "pedidos" && (
         <>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10, alignItems: "center" }}>
-            {[["activos", "Para atender"], ["entregado", "Entregados"], ["cancelado", "Cancelados"], ["todos", "Todos"]].map(([k, t]) => <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(k)}>{t} <span style={{ opacity: 0.7 }}>({contar(k)})</span></button>)}
+            {/* Por etapa: Nuevos lleva globito rojo con la cantidad (sin globito si no hay) */}
+            {[["activos", "Para atender"], ["g:nuevo", "📥 Nuevos"], ["g:preventa", "⏳ Preventa"], ["g:pago", "💳 Esperando pago"], ["g:listo", "📦 Listos"]].map(([k, t]) => { const n = contar(k); return (
+              <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} style={{ position: "relative", fontSize: 12.5, padding: "7px 13px", fontWeight: 700 }} onClick={() => setFiltro(k)}>{t}
+                {k === "g:nuevo" ? (n > 0 && <span className="globo-rojo" aria-label={n + " nuevos"}>{n}</span>) : <span style={{ opacity: 0.6, marginLeft: 4 }}>{n}</span>}
+              </button>); })}
+            <span style={{ width: 1, alignSelf: "stretch", background: temaPal.border, margin: "0 2px" }} aria-hidden="true" />
+            {[["entregado", "Entregados"], ["cancelado", "Cancelados"], ["todos", "Todos"]].map(([k, t]) => <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(k)}>{t} <span style={{ opacity: 0.7 }}>({contar(k)})</span></button>)}
             <input className="inp" style={{ flex: "1 1 220px", marginLeft: "auto" }} placeholder="🔎 Buscar por nombre, N° de pedido, teléfono o producto" value={buscaPed} onChange={e => setBuscaPed(e.target.value)} aria-label="Buscar pedido" />
           </div>
           {visiblesB.length === 0 ? <div className="card"><div className="empty">{buscaPed ? "Ningún pedido coincide con la búsqueda." : filtro === "activos" ? "No hay pedidos para atender. Cuando alguien compre en la tienda, aparece acá." : "No hay pedidos en este filtro."}</div></div> : (() => {
@@ -29767,9 +29778,9 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                   </div>
                 );
             };
-            if (filtro === "activos") return (
+            if (filtro === "activos" || filtro.startsWith("g:")) return (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                {GRUPOS_PED.map(([est, titulo]) => { const l = visiblesB.filter(p => p.estado === est); if (!l.length) return null; const c = (ESTADOS_TIENDA[est] || {}).c; return (
+                {GRUPOS_PED.map(([est, titulo, c]) => { const l = visiblesB.filter(p => etapaPed(p) === est); if (!l.length) return null; return (
                   <div key={est}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 0 8px", fontWeight: 900, fontSize: 14, color: c }}>{titulo} <span className="tag" style={{ background: c + "22", color: c, fontWeight: 800 }}>{l.length}</span><span style={{ flex: 1, height: 1, background: c + "44" }} /></div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{l.map(tarjetaPed)}</div>
