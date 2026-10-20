@@ -367,6 +367,13 @@ button.tab { font-family: inherit; }
 @keyframes popIn { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
 .pop-in { animation: popIn .24s cubic-bezier(.2,.7,.2,1) backwards; }
 .kbd { display: inline-block; font-size: 10px; font-weight: 700; line-height: 1.4; padding: 0 5px; border: 1px solid ${p.border}; border-bottom-width: 2px; border-radius: 4px; background: ${p.card}; color: ${p.textMuted}; font-family: ui-monospace, Consolas, monospace; vertical-align: middle; }
+.ped-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; width: 100%; }
+.ped-grid .ped-btn { min-height: 118px; gap: 8px; }
+.ped-grid .ped-btn.on { border-color: var(--c); box-shadow: 0 0 0 2px var(--c), 0 10px 26px -12px var(--c); }
+.ped-grid .ped-btn.on::after { left: 8%; right: 8%; height: 5px; }
+.ped-globo { position: absolute; top: 10px; right: 12px; min-width: 28px; height: 28px; border-radius: 14px; padding: 0 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 900; background: ${p.bg}; color: ${p.text}; border: 1px solid ${p.border}; }
+.ped-globo.rojo { background: ${p.red}; color: #fff; border-color: transparent; animation: globoLate 2s ease-in-out infinite; }
+@media (max-width: 760px) { .ped-grid { grid-template-columns: 1fr 1fr; } .ped-grid .ped-btn { min-height: 104px; } }
 .globo-rojo { display: inline-flex; align-items: center; justify-content: center; min-width: 19px; height: 19px; padding: 0 5px; margin-left: 6px; border-radius: 999px; background: #e74c3c; color: #fff; font-size: 11px; font-weight: 900; line-height: 1; box-shadow: 0 0 0 2px ${p.card}; animation: globoLate 2s ease-in-out infinite; }
 @keyframes globoLate { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
 @media (prefers-reduced-motion: reduce) { .globo-rojo { animation: none; } }
@@ -29699,13 +29706,18 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
       {tab === "pedidos" && (
         <>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10, alignItems: "center" }}>
-            {/* Por etapa: Nuevos lleva globito rojo con la cantidad (sin globito si no hay) */}
-            {[["activos", "Para atender"], ["g:nuevo", "📥 Nuevos"], ["g:preventa", "⏳ Preventa"], ["g:pago", "💳 Esperando pago"], ["g:listo", "📦 Listos"]].map(([k, t]) => { const n = contar(k); return (
-              <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} style={{ position: "relative", fontSize: 12.5, padding: "7px 13px", fontWeight: 700 }} onClick={() => setFiltro(k)}>{t}
-                {k === "g:nuevo" ? (n > 0 && <span className="globo-rojo" aria-label={n + " nuevos"}>{n}</span>) : <span style={{ opacity: 0.6, marginLeft: 4 }}>{n}</span>}
-              </button>); })}
-            <span style={{ width: 1, alignSelf: "stretch", background: temaPal.border, margin: "0 2px" }} aria-hidden="true" />
-            {[["entregado", "Entregados"], ["cancelado", "Cancelados"], ["todos", "Todos"]].map(([k, t]) => <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(k)}>{t} <span style={{ opacity: 0.7 }}>({contar(k)})</span></button>)}
+            {/* Por etapa, en tarjetas grandes como las del inicio. Nuevos lleva globito rojo (sin globito si no hay) */}
+            <div className="ped-grid">
+              {[["g:nuevo", "📥", "Nuevos", "#2471a3"], ["g:preventa", "⏳", "Preventa", "#d35400"], ["g:pago", "💳", "Esperando pago", "#b7950b"], ["g:listo", "📦", "Listos", "#8e44ad"]].map(([k, ic, t, col], i) => { const n = contar(k), on = filtro === k; return (
+                <button key={k} className={"pcel-btn ped-btn" + (on ? " on" : "")} aria-pressed={on} style={{ "--c": col, animationDelay: (i * 45) + "ms" }} onClick={() => setFiltro(on ? "activos" : k)}>
+                  <span className="pcel-ico" aria-hidden="true">{ic}</span>
+                  <span className="pcel-txt">{t}</span>
+                  {n > 0 && <span className={"ped-globo" + (k === "g:nuevo" ? " rojo" : "")} aria-label={n + " pedidos"}>{n > 99 ? "99+" : n}</span>}
+                </button>); })}
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", width: "100%" }}>
+              {[["activos", "Todo para atender"], ["entregado", "Entregados"], ["cancelado", "Cancelados"], ["todos", "Todos"]].map(([k, t]) => <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(k)}>{t} <span style={{ opacity: 0.7 }}>({contar(k)})</span></button>)}
+            </div>
             <input className="inp" style={{ flex: "1 1 220px", marginLeft: "auto" }} placeholder="🔎 Buscar por nombre, N° de pedido, teléfono o producto" value={buscaPed} onChange={e => setBuscaPed(e.target.value)} aria-label="Buscar pedido" />
           </div>
           {visiblesB.length === 0 ? <div className="card"><div className="empty">{buscaPed ? "Ningún pedido coincide con la búsqueda." : filtro === "activos" ? "No hay pedidos para atender. Cuando alguien compre en la tienda, aparece acá." : "No hay pedidos en este filtro."}</div></div> : (() => {
