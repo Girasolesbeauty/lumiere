@@ -24250,6 +24250,15 @@ const CSS_TIENDA = `
 .tw-elegir-est button.on{color:#f5a623}
 .tw-elegir-est button:active{transform:scale(1.25)}
 .tw-elegir-est span{margin-left:8px;font-size:13.5px;font-weight:700;color:#555}
+.tw-wa-flota{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:30;display:flex;align-items:center;gap:10px;text-decoration:none;animation:twWaEntra .5s cubic-bezier(.2,.8,.2,1) .6s both}
+.tw-wa-flota .tw-wa-bola{position:relative;width:60px;height:60px;border-radius:50%;background:#25d366;color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 22px rgba(37,211,102,.45),0 2px 6px rgba(0,0,0,.18);transition:transform .2s}
+.tw-wa-flota .tw-wa-bola::before{content:"";position:absolute;inset:0;border-radius:50%;background:#25d366;opacity:.5;animation:twWaPulso 2.2s ease-out infinite;z-index:-1}
+.tw-wa-flota:hover .tw-wa-bola{transform:scale(1.07)}
+.tw-wa-flota .tw-wa-txt{background:#fff;color:#1d1d1f;font-size:13.5px;font-weight:700;padding:9px 14px;border-radius:999px;box-shadow:0 6px 18px rgba(0,0,0,.14);white-space:nowrap}
+@keyframes twWaPulso{0%{transform:scale(1);opacity:.5}100%{transform:scale(1.6);opacity:0}}
+@keyframes twWaEntra{from{opacity:0;transform:translateY(20px) scale(.8)}to{opacity:1;transform:none}}
+@media(max-width:760px){.tw-wa-flota{right:14px}.tw-wa-flota.sube{bottom:calc(84px + env(safe-area-inset-bottom))}.tw-wa-flota .tw-wa-txt{display:none}.tw-wa-flota .tw-wa-bola{width:56px;height:56px}}
+@media(prefers-reduced-motion:reduce){.tw-wa-flota,.tw-wa-flota .tw-wa-bola::before{animation:none}}
 .tw-pide-res{position:fixed;left:16px;bottom:16px;z-index:35;display:flex;gap:8px;align-items:center;background:#fff;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.16);padding:8px 8px 8px 12px;max-width:360px;animation:twFicha .45s cubic-bezier(.2,.8,.2,1) both}
 .tw-pide-x{border:none;background:none;font-size:15px;color:#999;cursor:pointer;padding:4px}
 .tw-foto-grande{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out}
@@ -27432,6 +27441,14 @@ function TiendaPublica({ slug }) {
       </main>
       {pie}
 
+      {/* WhatsApp flotante: siempre a mano, al del local de la ciudad elegida */}
+      {hayWa && !paso && !ver && !formRes && (
+        <a className={"tw-wa-flota" + (totalItems > 0 || (logueada && misRes && misRes.para_resenar.length > 0 && resMostrar && !resCerrado && !toast) ? " sube" : "")}
+          href={wa("Hola! Tengo una consulta")} target="_blank" rel="noopener" aria-label={"Escribinos por WhatsApp" + (ciudad ? " (" + ciudad.nombre + ")" : "")}>
+          <span className="tw-wa-txt">¿Dudas? Escribinos{ciudad ? " · " + ciudad.nombre : ""}</span>
+          <span className="tw-wa-bola"><svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.9 2.1c.1.2.1.4 0 .5l-.3.5-.4.5c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l2 1c.3.1.5.2.5.3.1.1.1.6-.1 1.3Z"/></svg></span>
+        </a>
+      )}
       {totalItems > 0 && !paso && !ver && <div className="tw-barra"><button className="tw-btn full" onClick={() => setPaso("carrito")}>Ver carrito ({totalItems}) · {fmtTienda(subtotal)}</button></div>}
       {logueada && misRes && misRes.para_resenar.length > 0 && resMostrar && !resCerrado && !paso && !ver && !formRes && !toast && !totalItems && (
         <div className="tw-pide-res" role="status">
