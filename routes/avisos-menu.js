@@ -48,7 +48,7 @@ router.get('/tienda-nuevos', async (req, res) => {
     if (!existe) return res.json({ ultimo: 0, pedidos: [] });
     const ultimo = parseInt((await pool.query('SELECT COALESCE(MAX(id), 0) AS m FROM tienda_pedidos')).rows[0].m) || 0;
     const desde = parseInt(req.query.desde);
-    const r = desde >= 0 ? await pool.query(`SELECT id, codigo, nombre, telefono, entrega, local_id, zona, pago, pagado, estado, total, creado_en
+    const r = desde >= 0 ? await pool.query(`SELECT id, codigo, (to_jsonb(tienda_pedidos.*) ->> 'numero') AS numero, nombre, telefono, entrega, local_id, zona, pago, pagado, estado, total, creado_en
       FROM tienda_pedidos WHERE id > $1 AND estado <> 'cancelado' ORDER BY id LIMIT 20`, [desde]) : { rows: [] };
     const ids = r.rows.map(p => p.id);
     const items = ids.length ? (await pool.query('SELECT * FROM tienda_pedido_items WHERE pedido_id = ANY($1) ORDER BY id', [ids])).rows : [];

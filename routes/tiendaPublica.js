@@ -620,7 +620,7 @@ router.get('/:slug/pedidos/:codigo', async (req, res) => {
     const loc = p.entrega === 'retiro' ? (await pool.query('SELECT nombre, direccion FROM locales WHERE id = $1', [p.local_id]).catch(() => ({ rows: [] }))).rows[0] : null;
     res.json({
       ruleta: await estadoRuleta(req.tienda, p),
-      codigo: p.codigo, estado: p.estado, pagado: p.pagado, pago: p.pago, entrega: p.entrega, local_id: p.local_id || 1, local: loc || null, direccion: p.direccion, zona: p.zona,
+      codigo: p.codigo, numero: p.numero || null, estado: p.estado, pagado: p.pagado, pago: p.pago, entrega: p.entrega, local_id: p.local_id || 1, local: loc || null, direccion: p.direccion, zona: p.zona,
       subtotal: num(p.subtotal), costo_envio: num(p.costo_envio), descuento: num(p.descuento), descuento_amiga: num(p.descuento_amiga), descuento_combo: num(p.descuento_combo), combos: p.combos || null, descuento_pago: num(p.descuento_pago), descuento_pago_pct: p.descuento_pago_pct === null ? null : num(p.descuento_pago_pct), cupon: p.cupon || null, total: num(p.total), items, link_pago: p.estado === 'pendiente_pago' ? p.mp_link : null,
       vence_en: p.vence_en, transferencia: p.pago === 'transferencia' && !p.pagado ? (req.tienda.transferencia_datos || '') : null, creado_en: p.creado_en,
       gc_usado: num(p.gc_usado_monto) > 0 ? { codigo: p.gc_usado_codigo, monto: num(p.gc_usado_monto) } : null,
@@ -878,7 +878,7 @@ router.get('/:slug/cuenta', conCuenta, async (req, res) => {
       logrosLib.logrosDeCliente(req.clienteId, [d.nivel, nivelPorGasto(d.gastado, d.umbrales)].sort((x, y) => NIVELES.indexOf(y) - NIVELES.indexOf(x))[0], marca).catch(e => { console.error('[tienda] logros:', e.message); return []; }),
       cuentas.premiosDeCliente(req.clienteId).catch(() => []),
       cuentas.canjesDeCliente(req.clienteId).catch(() => []),
-      pool.query(`SELECT codigo, estado, total, creado_en, entrega, tipo FROM tienda_pedidos WHERE cliente_id = $1 ORDER BY creado_en DESC LIMIT 20`, [req.clienteId]).then(r => r.rows).catch(() => []),
+      pool.query(`SELECT codigo, numero, estado, total, creado_en, entrega, tipo FROM tienda_pedidos WHERE cliente_id = $1 ORDER BY creado_en DESC LIMIT 20`, [req.clienteId]).then(r => r.rows).catch(() => []),
     ]);
     // Los canjes que son codigos de descuento: si todavia se pueden usar
     const cods = canjes.map(c => c.codigo).filter(Boolean);

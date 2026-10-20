@@ -144,14 +144,14 @@ const calcularCierre = async (localId, fecha) => {
     // Pedidos de la tienda web de este local, hechos hasta ese dia, que todavia no se cobraron en la caja
     // (una venta web entra a la caja recien cuando se registra en el Punto de Venta)
     web === 'FALSE' ? { rows: [] } : pool.query(`
-      SELECT id, codigo, nombre, total, pago, pagado, estado, ${HORA_AR('creado_en')} AS hora, ${DIA_AR('creado_en')} AS dia, (pagado_en IS NOT NULL AND pago IN ('mp', 'transferencia', 'gocuotas')) AS cobrado_online
+      SELECT id, codigo, (to_jsonb(tienda_pedidos.*) ->> 'numero') AS numero, nombre, total, pago, pagado, estado, ${HORA_AR('creado_en')} AS hora, ${DIA_AR('creado_en')} AS dia, (pagado_en IS NOT NULL AND pago IN ('mp', 'transferencia', 'gocuotas')) AS cobrado_online
       FROM tienda_pedidos
       WHERE local_id = $1 AND estado IN ('pendiente_pago', 'confirmado', 'preparado', 'en_caja') AND ${DIA_AR('creado_en')} <= $2::date AND COALESCE(tipo, '') <> 'giftcard'
       ORDER BY creado_en DESC LIMIT 30`, [localId, fecha]).catch(() => ({ rows: [] })),
     // Lo que se cobro online ese dia (Mercado Pago o transferencia confirmada): cuenta en el cierre de ese dia,
     // aunque todavia no lo hayan retirado. Cuando despues se registra la venta en la caja, esa venta ya no se vuelve a sumar.
     web === 'FALSE' ? { rows: [] } : pool.query(`
-      SELECT id, codigo, nombre, total, pago, estado, ${HORA_AR('pagado_en')} AS hora
+      SELECT id, codigo, (to_jsonb(tienda_pedidos.*) ->> 'numero') AS numero, nombre, total, pago, estado, ${HORA_AR('pagado_en')} AS hora
       FROM tienda_pedidos
       WHERE local_id = $1 AND pago IN ('mp', 'transferencia', 'gocuotas') AND pagado_en IS NOT NULL AND ${DIA_AR('pagado_en')} = $2::date AND estado <> 'cancelado'
         AND COALESCE(tipo, '') <> 'giftcard'
