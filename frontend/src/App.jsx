@@ -29434,7 +29434,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   useEffect(() => { setLimiteProd(150); }, [busca, soloPub, filtros]);
   const [qr, setQr] = useState(null);
   const [aviso, setAviso] = useState(null);
-  const avisar = (ok, texto) => { setAviso({ ok, texto }); setTimeout(() => setAviso(null), 4500); };
+  const avisar = (ok, texto) => { setAviso({ ok, texto }); setTimeout(() => setAviso(a => (a && a.texto === texto ? null : a)), ok ? 4500 : 10000); };
   const esJefeT = ["jefe", "admin", "administrativo"].includes(usuario?.rol) || puedeHacer("tienda.admin");
   const esDuenaT = ["jefe", "admin", "administrativo"].includes(usuario?.rol);
 
@@ -29458,7 +29458,9 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   };
   const llegoPreventa = async (p) => {
     try {
-      await API.post("/tienda/pedidos/" + p.id + "/llego-preventa"); cargarPedidos();
+      const r = await API.post("/tienda/pedidos/" + p.id + "/llego-preventa"); cargarPedidos();
+      // Llegó una parte: se apartó lo que hay y lo demás sigue esperando
+      if (r.data && r.data.faltan && r.data.faltan.length) return avisar(true, "✓ Apartado lo que ya llegó (" + r.data.llegaron.join(", ") + "). Siguen esperando: " + r.data.faltan.join(", ") + ". Cuando lleguen, tocá de nuevo \"Llegó la preventa\".");
       const txt = "Hola " + String(p.nombre).split(" ")[0] + "! 🎉 Ya llegó tu pedido de preventa N° " + nroPedido(p) + " de " + (cfg?.titulo || "nuestra tienda") + "." + (p.entrega === "retiro" ? " Ya lo podés retirar en " + nombreLocal(p.local_id) + "." : " Te lo enviamos en estos días.") + " ¡Gracias por esperar!";
       avisar(true, "✓ Listo: quedó apartado. Avisale por WhatsApp.");
       if (p.telefono && confirm("¿Le avisás por WhatsApp que ya llegó?")) window.open(linkWhatsapp(p.telefono, txt) || ("https://wa.me/?text=" + encodeURIComponent(txt)), "_blank");
@@ -29582,7 +29584,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         <div><div className="pt">Tienda online</div><div className="ps">{cfg.activo ? "publicada · " + nPub + " productos a la venta" : "todavía no está publicada"}</div></div>
         {cfg.activo && url && <div className="dash-actions"><a className="btn btn-g" href={url} target="_blank" rel="noopener" style={{ textDecoration: "none" }}>👁 Ver mi tienda</a></div>}
       </div>
-      {aviso && <div className="pop-in" role={aviso.ok ? "status" : "alert"} style={{ background: aviso.ok ? temaPal.greenDim : temaPal.redDim, border: "1px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, marginBottom: 12 }}>{aviso.texto}</div>}
+      {/* Aviso flotante: se ve aunque la pantalla esté bajada (en el celular, abajo, arriba de la barra de menú) */}
+      {aviso && <div className="pop-in" role={aviso.ok ? "status" : "alert"} onClick={() => setAviso(null)} style={{ position: "fixed", left: "50%", transform: "translateX(-50%)", bottom: "calc(92px + env(safe-area-inset-bottom))", zIndex: 9999, width: "max-content", maxWidth: "min(560px, 92vw)", background: temaPal.card, color: temaPal.text, border: "1px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderLeft: "5px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderRadius: 10, padding: "10px 14px", fontSize: 13.5, fontWeight: 600, lineHeight: 1.45, boxShadow: "0 10px 30px rgba(0,0,0,.35)", cursor: "pointer" }}>{aviso.ok ? "" : "⚠️ "}{aviso.texto}</div>}
       {qrProd && (
         <div className="pos-overlay" style={{ zIndex: 300 }} onClick={() => setQrProd(null)}>
           <div className="card pop-in" style={{ width: 360, maxWidth: "94vw", textAlign: "center" }} onClick={e => e.stopPropagation()}>
