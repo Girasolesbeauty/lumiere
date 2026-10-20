@@ -294,6 +294,8 @@ router.get('/productos', async (req, res) => {
   try {
     const r = await pool.query(`
       SELECT p.id, p.nombre, p.marca, p.categoria, p.precio, p.codigo_barras, p.proveedor_id, pr.nombre AS proveedor, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush, p.creado_en,
+             COALESCE(p.tiene_variantes, FALSE) AS tiene_variantes, COALESCE(p.stock_transito_rg, 0) AS transito_rg, COALESCE(p.stock_transito_ush, 0) AS transito_ush,
+             COALESCE(p.reservado_rg, 0) AS reservado_rg, COALESCE(p.reservado_ush, 0) AS reservado_ush,
              COALESCE(tp.publicado, FALSE) AS publicado, tp.descripcion, COALESCE(tp.destacado, FALSE) AS destacado, COALESCE(tp.no_nuevo, FALSE) AS no_nuevo, tp.video_url, tp.etiquetas,
              EXISTS (SELECT 1 FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto,
              EXISTS (SELECT 1 FROM tienda_videos v WHERE v.producto_id = p.id) AS video_subido,
@@ -661,6 +663,59 @@ router.post('/pedidos/:id/llego-preventa', async (req, res) => {
     try { await client.query('ROLLBACK'); } catch (x) {}
     console.error('[tienda] llego preventa:', e.message);
     res.status(500).json({ error: 'No se pudo' });
+  } finally { client.release(); }
+});
+
+// Cambiar un producto de un pedido por otro (la clienta se arrepintio o pidio otro): devuelve el stock (o la
+// reserva de preventa) del que se saca, aparta el nuevo (o lo reserva en preventa si todavia no llego) y ajusta
+// el total. Queda anotado en el pedido, con la diferencia a cobrar o devolver.
+router.post('/pedidos/:id/items/:item/cambiar', async (req, res) => {
+  if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const p = (await client.query('SELECT * FROM tienda_pedidos WHERE id = $1 FOR UPDATE', [req.params.id])).rows[0];
+    if (!p || ['entregado', 'cancelado', 'en_caja'].includes(p.estado)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Ese pedido ya está cerrado: no se pueden cambiar sus productos' }); }
+    const it = (await client.query('SELECT * FROM tienda_pedido_items WHERE id = $1 AND pedido_id = $2', [req.params.item, p.id])).rows[0];
+    if (!it) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Ese producto no está en el pedido' }); }
+    const b = req.body || {};
+    const cant = Math.min(99, Math.max(1, parseInt(b.cantidad) || 1));
+    const nuevo = (await client.query('SELECT id, nombre, precio, COALESCE(tiene_variantes, FALSE) AS tiene_variantes FROM productos WHERE id = $1 AND activo = TRUE FOR UPDATE', [parseInt(b.producto_id)])).rows[0];
+    if (!nuevo) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Elegí el producto nuevo' }); }
+    const vari = b.variante_id ? (await client.query('SELECT id, valor FROM producto_variantes WHERE id = $1 AND producto_id = $2 FOR UPDATE', [parseInt(b.variante_id), nuevo.id])).rows[0] : null;
+    if (nuevo.tiene_variantes && !vari) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Elegí cuál de ' + nuevo.nombre + ' (tono, tamaño...)' }); }
+    const u = Number(p.local_id) === 2, col = u ? 'stock_ush' : 'stock_rg', colRes = u ? 'reservado_ush' : 'reservado_rg', colTr = u ? 'stock_transito_ush' : 'stock_transito_rg';
+    await client.query(`SELECT set_config('lumiere.sin_reingreso', '1', true)`);
+    const moverItem = async (productoId, varianteId, delta) => {
+      if (varianteId) await client.query(`UPDATE producto_variantes SET ${col} = COALESCE(${col}, 0) + $1 WHERE id = $2`, [delta, varianteId]);
+      else await client.query(`UPDATE productos SET ${col} = COALESCE(${col}, 0) + $1, stock = COALESCE(stock_rg, 0) + COALESCE(stock_ush, 0) + $1 WHERE id = $2`, [delta, productoId]);
+    };
+    // 1. Lo que sale: vuelve al local (o deja de estar reservado si era preventa)
+    if (it.preventa) await client.query(`UPDATE productos SET ${colRes} = GREATEST(COALESCE(${colRes}, 0) - $1, 0) WHERE id = $2`, [it.cantidad, it.producto_id]);
+    else if (p.stock_apartado) await moverItem(it.producto_id, it.variante_id, +it.cantidad);
+    // 2. Lo que entra: del stock del local si hay; si no, en preventa sobre lo que viene en camino
+    const pr = (await client.query(`SELECT COALESCE(${col}, 0) AS st, COALESCE(${colRes}, 0) AS res, COALESCE(${colTr}, 0) AS tr FROM productos WHERE id = $1`, [nuevo.id])).rows[0];
+    const stockV = vari ? parseInt((await client.query(`SELECT COALESCE(${col}, 0) AS st FROM producto_variantes WHERE id = $1`, [vari.id])).rows[0].st) || 0 : null;
+    const hayYa = vari ? stockV >= cant : (parseInt(pr.st) || 0) - (parseInt(pr.res) || 0) >= cant;
+    const hayPre = !vari && Math.min(parseInt(pr.tr) || 0, (parseInt(pr.st) || 0) + (parseInt(pr.tr) || 0) - (parseInt(pr.res) || 0)) >= cant;
+    if (!hayYa && !hayPre) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'No hay ' + cant + ' de ' + nuevo.nombre + (vari ? ' (' + vari.valor + ')' : '') + ' en ' + (u ? 'Ushuaia' : 'Río Grande') + ' (ni en camino).' }); }
+    const preventa = !hayYa;
+    if (preventa) await client.query(`UPDATE productos SET ${colRes} = COALESCE(${colRes}, 0) + $1 WHERE id = $2`, [cant, nuevo.id]);
+    else if (p.stock_apartado) await moverItem(nuevo.id, vari ? vari.id : null, -cant);
+    // 3. El renglon y el total
+    const precio = num(nuevo.precio);
+    const diferencia = Math.round((precio * cant - num(it.precio) * it.cantidad) * 100) / 100;
+    await client.query(`UPDATE tienda_pedido_items SET producto_id = $2, variante_id = $3, nombre = $4, variante_valor = $5, cantidad = $6, precio = $7, preventa = $8 WHERE id = $1`,
+      [it.id, nuevo.id, vari ? vari.id : null, nuevo.nombre, vari ? vari.valor : null, cant, precio, preventa]);
+    const cambio = { fecha: new Date().toISOString(), de: it.cantidad + ' × ' + it.nombre + (it.variante_valor ? ' (' + it.variante_valor + ')' : ''), a: cant + ' × ' + nuevo.nombre + (vari ? ' (' + vari.valor + ')' : ''), diferencia, usuario: (req.usuario && (req.usuario.nombre || req.usuario.email)) || null };
+    await client.query(`UPDATE tienda_pedidos SET subtotal = GREATEST(subtotal + $2, 0), total = GREATEST(total + $2, 0), cambios = COALESCE(cambios, '[]'::jsonb) || $3::jsonb, actualizado_en = NOW() WHERE id = $1`,
+      [p.id, diferencia, JSON.stringify([cambio])]);
+    await client.query('COMMIT');
+    res.json({ ...(await pedidoCompleto(p.id)), diferencia, preventa });
+  } catch (e) {
+    try { await client.query('ROLLBACK'); } catch (x) {}
+    console.error('[tienda] cambiar item:', e.message);
+    res.status(500).json({ error: 'No se pudo cambiar el producto' });
   } finally { client.release(); }
 });
 
