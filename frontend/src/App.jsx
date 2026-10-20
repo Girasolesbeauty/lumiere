@@ -5330,7 +5330,7 @@ function POS({ localId, usuario, paletaActual }) {
           {pedidoWeb.ruleta && pedidoWeb.ruleta.tipo !== "nada" && <div style={{ fontWeight: 800, fontSize: 13.5, marginBottom: 4 }}>🎡 {pedidoWeb.ruleta.tipo === "regalo" ? "Ganó " + (/mega/i.test(pedidoWeb.ruleta.texto || "") ? "el 💎 MEGA REGALO" : "un REGALO 🎁") + " en la ruleta: dáselo con el pedido" : "Ganó " + pedidoWeb.ruleta.texto + " en la ruleta (cupón " + pedidoWeb.ruleta.cupon + "): se activa al registrar esta venta, para su próxima compra."}</div>}
           🛍️ <b>Cobrando el pedido web N° {nroPedido(pedidoWeb)}</b> de {pedidoWeb.nombre}.{pedidoWeb.cupon ? " Usó el código " + pedidoWeb.cupon + " (ya está aplicado como descuento general)." : ""} Si se lleva otra cosa, <b>sacá o sumá productos</b> en el carrito como en cualquier venta: se registra lo que se lleva y el pedido queda entregado.
           {pedidoWeb.gc && <div style={{ marginTop: 4 }}>🎁 Pagó <b>{fmt(pedidoWeb.gc.monto)}</b> con la gift card <b>{pedidoWeb.gc.codigo}</b> (ya está descontada: figura como pago con gift card, no hace falta volver a canjearla).</div>}
-          {pedidoWeb.pagado && (() => { const yaPago = (pedidoWeb.pago === "giftcard" ? 0 : pedidoWeb.total) + (pedidoWeb.gc ? pedidoWeb.gc.monto : 0); const falta = total - yaPago; return <div style={{ marginTop: 4 }}>{pedidoWeb.pago !== "giftcard" && <>Ya pagó <b>{fmt(pedidoWeb.total)}</b> con {pedidoWeb.pago === "mp" ? "Mercado Pago" : pedidoWeb.pago === "gocuotas" ? "GoCuotas" : "transferencia"}. </>}{Math.round(falta) !== 0 ? (falta > 0 ? " Falta cobrar " + fmt(falta) + " (con otro medio de pago)." : " Hay que devolverle " + fmt(-falta) + ".") : pedidoWeb.pago === "giftcard" ? "No falta cobrar nada." : ""}</div>; })()}
+          {pedidoWeb.pagado && (() => { const online = pedidoWeb.monto_online !== null && pedidoWeb.monto_online !== undefined ? parseFloat(pedidoWeb.monto_online) : pedidoWeb.total; const extra = (pedidoWeb.pagos_extra || []).reduce((t, x) => t + (parseFloat(x.importe) || 0), 0); const yaPago = (pedidoWeb.pago === "giftcard" ? 0 : online) + extra + (pedidoWeb.gc ? pedidoWeb.gc.monto : 0); const falta = total - yaPago; return <div style={{ marginTop: 4 }}>{pedidoWeb.pago !== "giftcard" && <>Ya pagó <b>{fmt(online)}</b>{extra ? <> (y {extra > 0 ? "se le cobró " + fmt(extra) : "se le devolvió o acreditó " + fmt(-extra)} por un cambio)</> : null} con {pedidoWeb.pago === "mp" ? "Mercado Pago" : pedidoWeb.pago === "gocuotas" ? "GoCuotas" : "transferencia"}. </>}{Math.round(falta) !== 0 ? (falta > 0 ? " Falta cobrar " + fmt(falta) + " (con otro medio de pago)." : " Hay que devolverle " + fmt(-falta) + ".") : pedidoWeb.pago === "giftcard" ? "No falta cobrar nada." : ""}</div>; })()}
         </div>
       )}
       {modoVista === "clasico" && (
@@ -29432,6 +29432,23 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const [segmentar, setSegmentar] = useState(null); // productos a segmentar (uno o varios)
   const [qrProd, setQrProd] = useState(null); // { p, qr } QR de un producto (para la etiqueta del local)
   const [cambio, setCambio] = useState(null); // { p, it, q, prod, vars, variante, cant }: cambiar un producto de un pedido
+  // Diferencia de un pedido pagado online al que se le cambio un producto: { p, pend, lineas, medioDev }
+  const [difPed, setDifPed] = useState(null);
+  const [mediosT, setMediosT] = useState([]);
+  useEffect(() => { API.get("/medios-pago").then(r => setMediosT((r.data || []).filter(m => m.activo !== false))).catch(() => {}); }, []);
+  const abrirDif = (p, pend) => setDifPed({ p, pend, lineas: [{ medio_pago_id: null, importe: pend > 0 ? String(pend) : "" }], medioDev: "" });
+  const resolverDif = async (accion) => {
+    const d = difPed;
+    try {
+      const r = await API.post("/tienda/pedidos/" + d.p.id + "/diferencia", accion === "cobrar" ? { accion, pagos: d.lineas } : accion === "devolver" ? { accion, medio_pago_id: d.medioDev } : { accion });
+      setDifPed(null); cargarPedidos();
+      if (accion === "credito") {
+        const cod = r.data.gc_codigo, txt = "Hola " + String(d.p.nombre).split(" ")[0] + "! Por el cambio en tu pedido N° " + nroPedido(d.p) + " te quedó un crédito a favor de " + fmt(-d.pend) + ". Tu código es *" + cod + "*: lo podés usar en el local o en la tienda online. 💛";
+        avisar(true, "✓ Crédito a favor creado: " + cod + " por " + fmt(-d.pend) + ". Ya está en Gift Cards.");
+        if (d.p.telefono && confirm("Crédito " + cod + " creado. ¿Se lo mandás por WhatsApp?")) window.open(linkWhatsapp(d.p.telefono, txt) || ("https://wa.me/?text=" + encodeURIComponent(txt)), "_blank");
+      } else avisar(true, accion === "cobrar" ? "✓ Diferencia cobrada: entra en el cierre de caja de hoy." : "✓ Devolución registrada.");
+    } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); }
+  };
   const elegirCambio = async (pr) => {
     setCambio(c => ({ ...c, prod: pr, vars: pr.tiene_variantes ? [] : null, variante: "" }));
     if (pr.tiene_variantes) { try { const r = await API.get("/productos/" + pr.id + "/variantes"); setCambio(c => c && c.prod && c.prod.id === pr.id ? { ...c, vars: r.data || [] } : c); } catch (e) {} }
@@ -29442,6 +29459,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
       const r = await API.post("/tienda/pedidos/" + c.p.id + "/items/" + c.it.id + "/cambiar", { producto_id: c.prod.id, variante_id: c.variante || null, cantidad: c.cant });
       const d = r.data.diferencia;
       setCambio(null); cargarPedidos();
+      if (r.data.pendiente) setTimeout(() => abrirDif({ ...c.p, ...r.data }, r.data.pendiente), 300);
       avisar(true, "✓ Cambiado por " + c.prod.nombre + (r.data.preventa ? " (queda en preventa: todavía no llegó)" : "") + ". " + (d === 0 ? "Mismo precio." : !c.p.pagado ? "El total quedó en " + fmt(parseFloat(r.data.total)) + "." : d > 0 ? "La clienta tiene que pagar " + fmt(d) + " más." : "Hay que devolverle " + fmt(-d) + "."));
     } catch (e) { avisar(false, e.response?.data?.error || "No se pudo cambiar"); }
   };
@@ -29713,7 +29731,12 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                       {p.tipo === "giftcard" && <div style={{ background: "#ff4f8714", border: "1px solid #ff4f8755", borderRadius: 8, padding: "8px 10px" }}>🎁 <b>Gift card de {fmt(p.total)}</b> para <b>{p.gc_para}</b>{p.gc_mensaje ? <span style={{ color: temaPal.textMuted }}> · “{p.gc_mensaje}”</span> : null}<div style={{ fontSize: 12, marginTop: 2 }}>{p.gc_codigo ? <>Código <b>{p.gc_codigo}</b> · ya está en Ventas → Gift Cards <button className="chip-btn" style={{ fontSize: 11, marginLeft: 6 }} onClick={() => irASeccion("giftcards")}>Ver</button></> : p.estado === "cancelado" ? "No se emitió" : "Se emite sola en Gift Cards cuando se confirma el pago"}</div></div>}
                       {p.items.map(i => <div key={i.id}>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""} <span style={{ color: temaPal.textMuted }}>· {fmt(i.precio * i.cantidad)}</span>{i.preventa && <span className="tag" style={{ marginLeft: 6, background: "#ffd23f33", color: temaPal.warn, fontWeight: 800 }}>⏳ preventa · esperando ingreso</span>}
                         {esJefeT && p.tipo !== "giftcard" && !["entregado", "cancelado", "en_caja"].includes(p.estado) && <button className="chip-btn" style={{ marginLeft: 6, fontSize: 11, padding: "2px 8px" }} onClick={() => setCambio({ p, it: i, q: "", prod: null, vars: null, variante: "", cant: i.cantidad })} title="La clienta lo cambió por otro producto">🔁 Cambiar</button>}</div>)}
-                      {(p.cambios || []).map((c, k) => <div key={"c" + k} style={{ fontSize: 12, color: temaPal.textMuted }}>🔁 Cambió {c.de} por <b style={{ color: temaPal.text }}>{c.a}</b>{c.diferencia ? <span style={{ color: !p.pagado ? temaPal.textMuted : c.diferencia > 0 ? temaPal.warn : temaPal.green, fontWeight: 700 }}> · {!p.pagado ? "total " + (c.diferencia > 0 ? "+" : "−") + fmt(Math.abs(c.diferencia)) : c.diferencia > 0 ? "cobrarle " + fmt(c.diferencia) + " más" : "devolverle " + fmt(-c.diferencia)}</span> : " · mismo precio"}</div>)}
+                      {Math.abs(p.pendiente || 0) >= 1 && p.estado !== "cancelado" && <div style={{ margin: "6px 0", padding: "8px 10px", borderRadius: 8, border: "1px solid " + (p.pendiente > 0 ? temaPal.warn : temaPal.green), background: p.pendiente > 0 ? "#ffd23f1f" : temaPal.greenDim, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                        <span style={{ flex: "1 1 180px", fontWeight: 700 }}>{p.pendiente > 0 ? "💰 Por el cambio falta cobrarle " + fmt(p.pendiente) : "↩️ Por el cambio tiene " + fmt(-p.pendiente) + " a favor"}</span>
+                        {esJefeT && <button className="btn btn-p btn-sm" onClick={() => abrirDif(p, p.pendiente)}>{p.pendiente > 0 ? "Cobrar" : "Resolver"}</button>}
+                      </div>}
+                      {(p.pagos_extra || []).map((x, k) => <div key={"x" + k} style={{ fontSize: 12, color: temaPal.textMuted }}>{x.tipo === "cobro" ? "💵 Cobrado " + fmt(x.importe) + " con " + x.nombre : x.tipo === "devolucion" ? "↩️ Devuelto " + fmt(-x.importe) + " por " + x.nombre : "🎁 Crédito a favor " + fmt(-x.importe) + " · código " + x.gc_codigo}</div>)}
+                      {(p.cambios || []).map((c, k) => <div key={"c" + k} style={{ fontSize: 12, color: temaPal.textMuted }}>🔁 Cambió {c.de} por <b style={{ color: temaPal.text }}>{c.a}</b>{c.diferencia ? <span style={{ fontWeight: 700 }}> · diferencia {c.diferencia > 0 ? "+" : "−"}{fmt(Math.abs(c.diferencia))}</span> : " · mismo precio"}</div>)}
                       {parseFloat(p.descuento) > 0 && <div style={{ color: temaPal.green }}>Descuento{p.cupon ? " (" + p.cupon + ")" : ""} · −{fmt(parseFloat(p.descuento))}</div>}
                       {parseFloat(p.descuento_amiga) > 0 && <div style={{ color: temaPal.green }}>💌 Regalo de amiga (1ra compra) · −{fmt(parseFloat(p.descuento_amiga))}</div>}
                       {parseFloat(p.descuento_combo) > 0 && <div style={{ color: temaPal.green }}>🎁 Combo{p.combos ? " " + p.combos : ""} · −{fmt(parseFloat(p.descuento_combo))}</div>}
@@ -29898,6 +29921,42 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         </div>
       )}
 
+      {difPed && (() => {
+        const d = difPed, cobrar = d.pend > 0;
+        const suma = d.lineas.reduce((t, x) => t + (parseFloat(x.importe) || 0), 0);
+        return (
+          <div className="pos-overlay" onClick={() => setDifPed(null)}>
+            <div className="card pop-in" role="dialog" aria-label="Diferencia del cambio" style={{ width: 460, maxWidth: "95vw", background: temaPal.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <div style={{ fontSize: 15, fontWeight: 800 }}>{cobrar ? "💰 Cobrar la diferencia" : "↩️ Saldo a favor de la clienta"}</div>
+                <button className="icon-btn" onClick={() => setDifPed(null)} aria-label="Cerrar">✕</button>
+              </div>
+              <div style={{ fontSize: 13, color: temaPal.textMuted, marginBottom: 12 }}>Pedido N° {nroPedido(d.p)} de <b style={{ color: temaPal.text }}>{d.p.nombre}</b>: {cobrar ? "falta cobrarle " : "le quedaron "}<b style={{ color: temaPal.text, fontSize: 15 }}>{fmt(Math.abs(d.pend))}</b>{cobrar ? "" : " a favor"} por el cambio.</div>
+              {cobrar ? (<>
+                <div className="fl">¿Con qué paga? (podés dividirlo en varios medios)</div>
+                <LineasPago lineas={d.lineas} setLineas={l => setDifPed(x => ({ ...x, lineas: l }))} medios={mediosT} objetivo={d.pend} temaPal={temaPal} />
+                <div style={{ fontSize: 11.5, color: temaPal.textMuted, marginTop: 6 }}>Entra en el cierre de caja de hoy de {nombreLocal(d.p.local_id)}, cada importe con su medio de pago.</div>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
+                  <button className="btn btn-g" onClick={() => setDifPed(null)}>Después</button>
+                  <button className="btn btn-p" disabled={Math.abs(suma - d.pend) >= 1 || d.lineas.some(x => parseFloat(x.importe) > 0 && !x.medio_pago_id)} onClick={() => resolverDif("cobrar")}>Cobrar {fmt(d.pend)}</button>
+                </div>
+              </>) : (<>
+                <button className="btn btn-p" style={{ width: "100%", padding: "12px 14px", textAlign: "left" }} onClick={() => resolverDif("credito")}>🎁 Generar un crédito a favor por {fmt(-d.pend)}<div style={{ fontSize: 11.5, fontWeight: 500, opacity: .85, marginTop: 2 }}>Un código para usar en el local o en la tienda online (queda en Gift Cards). Se lo podés mandar por WhatsApp.</div></button>
+                <div style={{ fontSize: 12, color: temaPal.textMuted, textAlign: "center", margin: "10px 0" }}>o</div>
+                <div className="fl">Devolverle la plata</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <select className="sel" style={{ flex: 1 }} value={d.medioDev} onChange={e => setDifPed(x => ({ ...x, medioDev: e.target.value }))} aria-label="Medio de la devolución">
+                    <option value="">¿Cómo se lo devolvés?</option>
+                    {mediosT.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
+                  </select>
+                  <button className="btn btn-g" disabled={!d.medioDev} onClick={() => resolverDif("devolver")}>Registrar devolución</button>
+                </div>
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}><button className="btn btn-g" onClick={() => setDifPed(null)}>Después</button></div>
+              </>)}
+            </div>
+          </div>
+        );
+      })()}
       {cambio && (() => {
         const c = cambio, u = Number(c.p.local_id) === 2;
         const dispoDe = (pr) => { const st = u ? pr.stock_ush : pr.stock_rg, res = u ? pr.reservado_ush : pr.reservado_rg, tr = u ? pr.transito_ush : pr.transito_rg; return { ya: Math.max(0, st - res), pre: Math.max(0, Math.min(tr, st + tr - res)) }; };

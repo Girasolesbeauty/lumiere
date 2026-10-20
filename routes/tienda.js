@@ -513,7 +513,7 @@ async function pedidoCompleto(id) {
   const items = (await pool.query(`SELECT i.*, COALESCE(v.stock_rg, p.stock_rg, 0) AS stock_rg, COALESCE(v.stock_ush, p.stock_ush, 0) AS stock_ush
     FROM tienda_pedido_items i LEFT JOIN productos p ON p.id = i.producto_id LEFT JOIN producto_variantes v ON v.id = i.variante_id WHERE i.pedido_id = $1 ORDER BY i.id`, [id])).rows;
   const ruleta = (await pool.query('SELECT texto, tipo, valor, cupon FROM tienda_ruleta WHERE pedido_id = $1', [id]).catch(() => ({ rows: [] }))).rows[0] || null;
-  return { ...p, subtotal: num(p.subtotal), total: num(p.total), costo_envio: num(p.costo_envio), items: items.map(i => ({ ...i, precio: num(i.precio) })), ruleta };
+  return { ...p, subtotal: num(p.subtotal), total: num(p.total), costo_envio: num(p.costo_envio), monto_online: p.monto_online === null ? null : num(p.monto_online), items: items.map(i => ({ ...i, precio: num(i.precio) })), ruleta };
 }
 
 router.get('/pedidos', async (req, res) => {
@@ -528,7 +528,7 @@ router.get('/pedidos', async (req, res) => {
       ORDER BY CASE WHEN p.estado IN ('confirmado','pendiente_pago','preparado','en_caja') THEN 0 ELSE 1 END, p.creado_en DESC LIMIT 200`);
     const ids = r.rows.map(p => p.id);
     const items = ids.length ? (await pool.query('SELECT * FROM tienda_pedido_items WHERE pedido_id = ANY($1) ORDER BY id', [ids])).rows : [];
-    res.json(r.rows.map(p => ({ ...p, subtotal: num(p.subtotal), total: num(p.total), costo_envio: num(p.costo_envio), items: items.filter(i => i.pedido_id === p.id).map(i => ({ ...i, precio: num(i.precio) })) })));
+    res.json(r.rows.map(p => ({ ...p, subtotal: num(p.subtotal), total: num(p.total), costo_envio: num(p.costo_envio), monto_online: p.monto_online === null || p.monto_online === undefined ? null : num(p.monto_online), pendiente: pendienteDe(p), items: items.filter(i => i.pedido_id === p.id).map(i => ({ ...i, precio: num(i.precio) })) })));
   } catch (e) { res.status(500).json({ error: 'No se pudieron cargar los pedidos' }); }
 });
 
@@ -708,14 +708,77 @@ router.post('/pedidos/:id/items/:item/cambiar', async (req, res) => {
     await client.query(`UPDATE tienda_pedido_items SET producto_id = $2, variante_id = $3, nombre = $4, variante_valor = $5, cantidad = $6, precio = $7, preventa = $8 WHERE id = $1`,
       [it.id, nuevo.id, vari ? vari.id : null, nuevo.nombre, vari ? vari.valor : null, cant, precio, preventa]);
     const cambio = { fecha: new Date().toISOString(), de: it.cantidad + ' × ' + it.nombre + (it.variante_valor ? ' (' + it.variante_valor + ')' : ''), a: cant + ' × ' + nuevo.nombre + (vari ? ' (' + vari.valor + ')' : ''), diferencia, usuario: (req.usuario && (req.usuario.nombre || req.usuario.email)) || null };
+    // Pagado online: se guarda cuanto se pago online (el total de antes), asi la diferencia queda como algo a cobrar o devolver
+    await client.query(`UPDATE tienda_pedidos SET monto_online = COALESCE(monto_online, total) WHERE id = $1 AND pagado AND COALESCE(pago, '') <> 'retiro'`, [p.id]);
     await client.query(`UPDATE tienda_pedidos SET subtotal = GREATEST(subtotal + $2, 0), total = GREATEST(total + $2, 0), cambios = COALESCE(cambios, '[]'::jsonb) || $3::jsonb, actualizado_en = NOW() WHERE id = $1`,
       [p.id, diferencia, JSON.stringify([cambio])]);
     await client.query('COMMIT');
-    res.json({ ...(await pedidoCompleto(p.id)), diferencia, preventa });
+    const pc = await pedidoCompleto(p.id);
+    res.json({ ...pc, diferencia, preventa, pendiente: pendienteDe(pc) });
   } catch (e) {
     try { await client.query('ROLLBACK'); } catch (x) {}
     console.error('[tienda] cambiar item:', e.message);
     res.status(500).json({ error: 'No se pudo cambiar el producto' });
+  } finally { client.release(); }
+});
+
+// Lo que falta cobrar (+) o devolver (-) de un pedido pagado online al que se le cambiaron productos
+const pendienteDe = (p) => {
+  if (!p || p.monto_online === null || p.monto_online === undefined) return 0;
+  const extra = (Array.isArray(p.pagos_extra) ? p.pagos_extra : []).reduce((t, x) => t + (num(x.importe) || 0), 0);
+  return Math.round((num(p.total) - num(p.monto_online) - extra) * 100) / 100;
+};
+// Arreglar esa diferencia: cobrarla (uno o varios medios de pago: entra al cierre de caja del dia), devolverla
+// (con un medio de pago) o dejarle un credito a favor (una gift card con ese saldo, para usar en el local o la tienda)
+router.post('/pedidos/:id/diferencia', async (req, res) => {
+  if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const p = (await client.query('SELECT * FROM tienda_pedidos WHERE id = $1 FOR UPDATE', [req.params.id])).rows[0];
+    if (!p || p.estado === 'cancelado') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'No se encontró el pedido' }); }
+    const pend = pendienteDe(p);
+    const b = req.body || {}, fecha = new Date().toISOString();
+    const usuario = (req.usuario && (req.usuario.nombre || req.usuario.email)) || null;
+    const medios = (await client.query('SELECT id, nombre FROM medios_pago')).rows;
+    const nombreMedio = (id) => (medios.find(m => Number(m.id) === Number(id)) || {}).nombre;
+    let nuevos = [], gc = null;
+    if (b.accion === 'cobrar') {
+      if (pend <= 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'No hay nada para cobrar en este pedido' }); }
+      const pagos = (Array.isArray(b.pagos) ? b.pagos : []).map(x => ({ medio_pago_id: parseInt(x.medio_pago_id), importe: Math.round((parseFloat(x.importe) || 0) * 100) / 100 })).filter(x => x.importe > 0);
+      if (!pagos.length || pagos.some(x => !nombreMedio(x.medio_pago_id))) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Elegí el medio de pago de cada importe' }); }
+      const suma = pagos.reduce((t, x) => t + x.importe, 0);
+      if (Math.abs(suma - pend) >= 1) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Los importes suman ' + suma.toLocaleString('es-AR') + ' y hay que cobrar ' + pend.toLocaleString('es-AR') }); }
+      nuevos = pagos.map(x => ({ fecha, tipo: 'cobro', medio_pago_id: x.medio_pago_id, nombre: nombreMedio(x.medio_pago_id), importe: x.importe, usuario }));
+    } else if (b.accion === 'devolver') {
+      if (pend >= 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'No hay nada para devolver en este pedido' }); }
+      if (!nombreMedio(b.medio_pago_id)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Elegí cómo se lo devolvés' }); }
+      nuevos = [{ fecha, tipo: 'devolucion', medio_pago_id: parseInt(b.medio_pago_id), nombre: nombreMedio(b.medio_pago_id), importe: pend, usuario }];
+    } else if (b.accion === 'credito') {
+      if (pend >= 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'No hay saldo a favor de la clienta' }); }
+      const letras = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let codigo = null;
+      for (let i = 0; i < 12 && !codigo; i++) {
+        const c = 'GIFT-' + Array.from(require('crypto').randomBytes(6), x => letras[x % letras.length]).join('');
+        if (!(await client.query('SELECT 1 FROM gift_cards WHERE codigo = $1', [c])).rows.length) codigo = c;
+      }
+      const monto = -pend;
+      gc = (await client.query(`INSERT INTO gift_cards (codigo, monto_inicial, saldo, beneficiario_nombre, beneficiario_telefono, cliente_id, estado, local_id, mensaje)
+        VALUES ($1, $2, $2, $3, $4, $5, 'activa', $6, $7) RETURNING id, codigo`, [codigo, monto, p.nombre, p.telefono || null, p.cliente_id || null, p.local_id || 1, 'Crédito a favor por cambio en el pedido web N° ' + (p.numero || p.codigo)])).rows[0];
+      await client.query(`INSERT INTO gift_card_movimientos (gift_card_id, tipo, importe, saldo_resultante) VALUES ($1, 'emision', $2, $2)`, [gc.id, monto]);
+      // Como los creditos por devolucion: no es plata nueva (importe 0 en la caja)
+      await client.query(`INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id) VALUES ($1, 'I', 0, $2, $3)`,
+        ['Gift Card ' + codigo + ' (credito por cambio, pedido web ' + (p.numero || p.codigo) + ')', codigo, p.local_id || 1]);
+      nuevos = [{ fecha, tipo: 'credito', importe: pend, gc_codigo: codigo, usuario }];
+    } else { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Elegí qué hacer con la diferencia' }); }
+    await client.query(`UPDATE tienda_pedidos SET pagos_extra = COALESCE(pagos_extra, '[]'::jsonb) || $2::jsonb, actualizado_en = NOW() WHERE id = $1`, [p.id, JSON.stringify(nuevos)]);
+    await client.query('COMMIT');
+    const pc = await pedidoCompleto(p.id);
+    res.json({ ...pc, pendiente: pendienteDe(pc), gc_codigo: gc ? gc.codigo : null });
+  } catch (e) {
+    try { await client.query('ROLLBACK'); } catch (x) {}
+    console.error('[tienda] diferencia:', e.message);
+    res.status(500).json({ error: 'No se pudo registrar' });
   } finally { client.release(); }
 });
 
