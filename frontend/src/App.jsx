@@ -29431,6 +29431,20 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const [filtros, setFiltros] = useState({ marca: "", proveedor: "", categoria: "", foto: "", desc: "", seg: "" });
   const [segmentar, setSegmentar] = useState(null); // productos a segmentar (uno o varios)
   const [qrProd, setQrProd] = useState(null); // { p, qr } QR de un producto (para la etiqueta del local)
+  const [cambio, setCambio] = useState(null); // { p, it, q, prod, vars, variante, cant }: cambiar un producto de un pedido
+  const elegirCambio = async (pr) => {
+    setCambio(c => ({ ...c, prod: pr, vars: pr.tiene_variantes ? [] : null, variante: "" }));
+    if (pr.tiene_variantes) { try { const r = await API.get("/productos/" + pr.id + "/variantes"); setCambio(c => c && c.prod && c.prod.id === pr.id ? { ...c, vars: r.data || [] } : c); } catch (e) {} }
+  };
+  const confirmarCambio = async () => {
+    const c = cambio;
+    try {
+      const r = await API.post("/tienda/pedidos/" + c.p.id + "/items/" + c.it.id + "/cambiar", { producto_id: c.prod.id, variante_id: c.variante || null, cantidad: c.cant });
+      const d = r.data.diferencia;
+      setCambio(null); cargarPedidos();
+      avisar(true, "✓ Cambiado por " + c.prod.nombre + (r.data.preventa ? " (queda en preventa: todavía no llegó)" : "") + ". " + (d === 0 ? "Mismo precio." : !c.p.pagado ? "El total quedó en " + fmt(parseFloat(r.data.total)) + "." : d > 0 ? "La clienta tiene que pagar " + fmt(d) + " más." : "Hay que devolverle " + fmt(-d) + "."));
+    } catch (e) { avisar(false, e.response?.data?.error || "No se pudo cambiar"); }
+  };
   useEffect(() => { setLimiteProd(150); }, [busca, soloPub, filtros]);
   const [qr, setQr] = useState(null);
   const [aviso, setAviso] = useState(null);
@@ -29697,7 +29711,9 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                     </div>
                     <div style={{ fontSize: 13, margin: "8px 0", lineHeight: 1.6 }}>
                       {p.tipo === "giftcard" && <div style={{ background: "#ff4f8714", border: "1px solid #ff4f8755", borderRadius: 8, padding: "8px 10px" }}>🎁 <b>Gift card de {fmt(p.total)}</b> para <b>{p.gc_para}</b>{p.gc_mensaje ? <span style={{ color: temaPal.textMuted }}> · “{p.gc_mensaje}”</span> : null}<div style={{ fontSize: 12, marginTop: 2 }}>{p.gc_codigo ? <>Código <b>{p.gc_codigo}</b> · ya está en Ventas → Gift Cards <button className="chip-btn" style={{ fontSize: 11, marginLeft: 6 }} onClick={() => irASeccion("giftcards")}>Ver</button></> : p.estado === "cancelado" ? "No se emitió" : "Se emite sola en Gift Cards cuando se confirma el pago"}</div></div>}
-                      {p.items.map(i => <div key={i.id}>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""} <span style={{ color: temaPal.textMuted }}>· {fmt(i.precio * i.cantidad)}</span>{i.preventa && <span className="tag" style={{ marginLeft: 6, background: "#ffd23f33", color: temaPal.warn, fontWeight: 800 }}>⏳ preventa · esperando ingreso</span>}</div>)}
+                      {p.items.map(i => <div key={i.id}>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""} <span style={{ color: temaPal.textMuted }}>· {fmt(i.precio * i.cantidad)}</span>{i.preventa && <span className="tag" style={{ marginLeft: 6, background: "#ffd23f33", color: temaPal.warn, fontWeight: 800 }}>⏳ preventa · esperando ingreso</span>}
+                        {esJefeT && p.tipo !== "giftcard" && !["entregado", "cancelado", "en_caja"].includes(p.estado) && <button className="chip-btn" style={{ marginLeft: 6, fontSize: 11, padding: "2px 8px" }} onClick={() => setCambio({ p, it: i, q: "", prod: null, vars: null, variante: "", cant: i.cantidad })} title="La clienta lo cambió por otro producto">🔁 Cambiar</button>}</div>)}
+                      {(p.cambios || []).map((c, k) => <div key={"c" + k} style={{ fontSize: 12, color: temaPal.textMuted }}>🔁 Cambió {c.de} por <b style={{ color: temaPal.text }}>{c.a}</b>{c.diferencia ? <span style={{ color: !p.pagado ? temaPal.textMuted : c.diferencia > 0 ? temaPal.warn : temaPal.green, fontWeight: 700 }}> · {!p.pagado ? "total " + (c.diferencia > 0 ? "+" : "−") + fmt(Math.abs(c.diferencia)) : c.diferencia > 0 ? "cobrarle " + fmt(c.diferencia) + " más" : "devolverle " + fmt(-c.diferencia)}</span> : " · mismo precio"}</div>)}
                       {parseFloat(p.descuento) > 0 && <div style={{ color: temaPal.green }}>Descuento{p.cupon ? " (" + p.cupon + ")" : ""} · −{fmt(parseFloat(p.descuento))}</div>}
                       {parseFloat(p.descuento_amiga) > 0 && <div style={{ color: temaPal.green }}>💌 Regalo de amiga (1ra compra) · −{fmt(parseFloat(p.descuento_amiga))}</div>}
                       {parseFloat(p.descuento_combo) > 0 && <div style={{ color: temaPal.green }}>🎁 Combo{p.combos ? " " + p.combos : ""} · −{fmt(parseFloat(p.descuento_combo))}</div>}
@@ -29882,6 +29898,62 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         </div>
       )}
 
+      {cambio && (() => {
+        const c = cambio, u = Number(c.p.local_id) === 2;
+        const dispoDe = (pr) => { const st = u ? pr.stock_ush : pr.stock_rg, res = u ? pr.reservado_ush : pr.reservado_rg, tr = u ? pr.transito_ush : pr.transito_rg; return { ya: Math.max(0, st - res), pre: Math.max(0, Math.min(tr, st + tr - res)) }; };
+        const q = normTxt(c.q);
+        const res = q ? (productos || []).filter(pr => q.split(" ").every(w => normTxt([pr.nombre, pr.marca, pr.codigo_barras].join(" ")).includes(w))).slice(0, 8) : [];
+        const dif = c.prod ? Math.round((parseFloat(c.prod.precio) * c.cant - parseFloat(c.it.precio) * c.it.cantidad) * 100) / 100 : 0;
+        const dp = c.prod ? dispoDe(c.prod) : null;
+        const varSel = c.vars && c.vars.find(v => String(v.id) === String(c.variante));
+        const alcanza = c.prod && (c.prod.tiene_variantes ? varSel && (u ? varSel.stock_ush : varSel.stock_rg) >= c.cant : dp.ya + (c.prod.id === c.it.producto_id && !c.it.preventa ? c.it.cantidad : 0) >= c.cant || dp.pre >= c.cant);
+        return (
+          <div className="pos-overlay" onClick={() => setCambio(null)}>
+            <div className="card pop-in" role="dialog" aria-label="Cambiar producto del pedido" style={{ width: 500, maxWidth: "95vw", background: temaPal.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <div style={{ fontSize: 15, fontWeight: 800 }}>🔁 Cambiar producto · pedido N° {nroPedido(c.p)}</div>
+                <button className="icon-btn" onClick={() => setCambio(null)} aria-label="Cerrar">✕</button>
+              </div>
+              <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginBottom: 10 }}>Sale: <b style={{ color: temaPal.text }}>{c.it.cantidad} × {c.it.nombre}{c.it.variante_valor ? " (" + c.it.variante_valor + ")" : ""}</b> · {fmt(c.it.precio * c.it.cantidad)}. Vuelve al stock de {nombreLocal(c.p.local_id)}.</div>
+              {!c.prod ? (<>
+                <input className="inp" autoFocus placeholder="Buscá el producto nuevo: nombre, marca o código" value={c.q} onChange={e => setCambio(x => ({ ...x, q: e.target.value }))} aria-label="Buscar producto nuevo" />
+                <div style={{ marginTop: 6 }}>
+                  {res.map(pr => { const d = dispoDe(pr); return (
+                    <button key={pr.id} className="btn btn-g" style={{ display: "flex", width: "100%", justifyContent: "space-between", gap: 8, textAlign: "left", marginTop: 4, padding: "8px 10px" }} onClick={() => elegirCambio(pr)}>
+                      <span style={{ minWidth: 0 }}><b>{pr.nombre}</b> <span style={{ fontSize: 11, color: temaPal.textMuted }}>{pr.marca || ""}</span><br /><span style={{ fontSize: 11, color: d.ya > 0 ? temaPal.green : d.pre > 0 ? temaPal.warn : temaPal.red }}>{pr.tiene_variantes ? "con variantes" : d.ya > 0 ? "hay " + d.ya + " en " + nombreLocal(c.p.local_id) : d.pre > 0 ? "en camino (" + d.pre + ")" : "sin stock en " + nombreLocal(c.p.local_id)}</span></span>
+                      <span style={{ fontWeight: 800, whiteSpace: "nowrap" }}>{fmt(parseFloat(pr.precio))}</span>
+                    </button>
+                  ); })}
+                  {q && !res.length && <div style={{ fontSize: 12, color: temaPal.textMuted, padding: 8 }}>No encontré productos con eso.</div>}
+                </div>
+              </>) : (<>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 10, border: "1px solid " + temaPal.border }}>
+                  <span>Entra: <b>{c.prod.nombre}</b> · {fmt(parseFloat(c.prod.precio))}</span>
+                  <button className="chip-btn" onClick={() => setCambio(x => ({ ...x, prod: null, vars: null, variante: "" }))}>Elegir otro</button>
+                </div>
+                {c.prod.tiene_variantes && <select className="inp" style={{ marginTop: 8 }} value={c.variante} onChange={e => setCambio(x => ({ ...x, variante: e.target.value }))} aria-label="Variante">
+                  <option value="">{c.vars && c.vars.length ? "Elegí cuál (tono, tamaño...)" : "Cargando..."}</option>
+                  {(c.vars || []).map(v => <option key={v.id} value={v.id}>{v.valor} · hay {u ? v.stock_ush || 0 : v.stock_rg || 0}</option>)}
+                </select>}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+                  <span className="fl" style={{ margin: 0 }}>Cantidad</span>
+                  <input className="inp" type="number" min="1" max="99" style={{ width: 80 }} value={c.cant} onChange={e => setCambio(x => ({ ...x, cant: Math.max(1, parseInt(e.target.value) || 1) }))} aria-label="Cantidad" />
+                </div>
+                {!c.prod.tiene_variantes && !alcanza && <div style={{ fontSize: 12.5, color: temaPal.red, marginTop: 8 }}>No hay {c.cant} en {nombreLocal(c.p.local_id)} ni en camino.</div>}
+                {!c.prod.tiene_variantes && alcanza && dp.ya + (c.prod.id === c.it.producto_id && !c.it.preventa ? c.it.cantidad : 0) < c.cant && <div style={{ fontSize: 12.5, color: temaPal.warn, marginTop: 8 }}>⏳ Todavía no llegó: queda en preventa hasta que ingrese.</div>}
+                <div style={{ marginTop: 10, padding: "10px 12px", borderRadius: 10, background: dif > 0 ? "#ffd23f22" : dif < 0 ? temaPal.greenDim : temaPal.bg, fontSize: 13.5, fontWeight: 700 }}>
+                  {dif === 0 ? "= Mismo precio, no hay diferencia" : !c.p.pagado ? "El total pasa de " + fmt(parseFloat(c.p.total)) + " a " + fmt(Math.max(0, parseFloat(c.p.total) + dif)) + " (lo paga al retirar)" : dif > 0 ? "💰 La clienta tiene que pagar " + fmt(dif) + " más" : "↩️ Hay que devolverle " + fmt(-dif)}
+                  {dif !== 0 && c.p.pagado && <div style={{ fontSize: 11.5, fontWeight: 500, color: temaPal.textMuted, marginTop: 2 }}>El pedido ya estaba pagado: arreglá la diferencia con ella (el total del pedido se actualiza solo).</div>}
+                </div>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
+                  <button className="btn btn-g" onClick={() => setCambio(null)}>Cancelar</button>
+                  <button className="btn btn-p" disabled={!alcanza} onClick={confirmarCambio}>Confirmar cambio</button>
+                </div>
+              </>)}
+            </div>
+          </div>
+        );
+      })()}
       {tab === "ofertas" && (productos ? <OfertasTienda cfg={cfg} productos={productos} temaPal={temaPal} avisar={avisar} esJefe={esJefeT} onGuardado={cargarCfg} urlTienda={url} /> : <div className="skel" style={{ height: 200 }} />)}
       {tab === "rutinas" && (productos ? <RutinasLocalAdmin cfg={cfg} productos={productos} temaPal={temaPal} avisar={avisar} esJefe={esJefeT} onGuardado={cargarCfg} urlTienda={url} /> : <div className="skel" style={{ height: 200 }} />)}
       {tab === "regalos" && <RegalosTienda cfg={cfg} pedidos={pedidos} temaPal={temaPal} avisar={avisar} urlTienda={url} esJefe={esJefeT} onGuardado={cargarCfg} />}
