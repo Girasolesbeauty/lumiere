@@ -26738,7 +26738,10 @@ function TiendaPublica({ slug }) {
     } catch (e) { setAviso(e.message); }
     setEnviando(false);
   };
-  const wa = (txt) => tienda.whatsapp ? "https://wa.me/" + (() => { let n = String(tienda.whatsapp).replace(/[^0-9]/g, ""); if (n.startsWith("0")) n = n.slice(1); if (!n.startsWith("54")) n = "549" + n; return n; })() + "?text=" + encodeURIComponent(txt) : null;
+  // WhatsApp de la ciudad elegida (si el local tiene el suyo) o el general de la tienda
+  const waNum = (lid) => { const x = ((tienda.links && tienda.links.locales) || []).find(z => Number(z.id) === Number(lid || local) && z.whatsapp); return x ? x.whatsapp : tienda.whatsapp; };
+  const hayWa = !!waNum();
+  const wa = (txt, lid) => waNum(lid) ? "https://wa.me/" + (() => { let n = String(waNum(lid)).replace(/[^0-9]/g, ""); if (n.startsWith("0")) n = n.slice(1); if (!n.startsWith("54")) n = "549" + n; return n; })() + "?text=" + encodeURIComponent(txt) : null;
   // Link para compartir: con el dominio propio (girasolesbeauty.com.ar/limpiador-facial) si hay uno
   const linkProducto = (p) => {
     const sp = slugsRef.current.get(p.id) || twSlug(p.nombre);
@@ -26782,7 +26785,7 @@ function TiendaPublica({ slug }) {
           )}
           <div className="tw-iconos">
             {!codigoUrl && ciudades.length > 1 && ciudad && <button className="tw-ciudad" onClick={() => setEligeCiudad(true)} aria-label={"Tu ciudad: " + ciudad.nombre + ". Cambiar"}>📍 <span>{ciudad.nombre}</span> ▾</button>}
-            {tienda.whatsapp && <a className="tw-ico tw-ico-wa" href={wa("Hola! Tengo una consulta")} target="_blank" rel="noopener" aria-label="WhatsApp"><TwIcono d={TW_WA} /></a>}
+            {hayWa && <a className="tw-ico tw-ico-wa" href={wa("Hola! Tengo una consulta")} target="_blank" rel="noopener" aria-label="WhatsApp"><TwIcono d={TW_WA} /></a>}
             {!codigoUrl && <button className="tw-ico" onClick={() => { setAvisoCuenta(null); setCanjeHecho(null); setPaso("cuenta"); if (logueada) cargarCuenta(); }} aria-label={logueada ? "Mi cuenta" : "Ingresar o crear cuenta"} title={logueada ? "Mi cuenta" : "Ingresar"}><TwIcono d={TW_PERSONA} />{logueada && <span className="tw-punto" />}</button>}
             {!codigoUrl && <button className="tw-ico tw-ico-fav" onClick={() => irCat("favoritos")} aria-label={"Favoritos" + (favs.length ? ", " + favs.length : "")} title="Mis favoritos"><TwIcono d={TW_CORAZON} />{favs.length > 0 && <span className="tw-punto fav" />}</button>}
             {!codigoUrl && <button className="tw-ico tw-bolsa" onClick={() => setPaso("carrito")} aria-label={"Carrito, " + totalItems + " productos"}>
@@ -26823,14 +26826,14 @@ function TiendaPublica({ slug }) {
         <div>{tienda.logo ? <img src={tienda.logo} alt={tienda.titulo} style={{ height: 34, maxWidth: 200, objectFit: "contain", filter: "brightness(0) invert(1)", marginBottom: 12, display: "block" }} /> : <h4>{tienda.titulo}</h4>}{tienda.mensaje || "Gracias por elegirnos."}</div>
         {tienda.retiro.length > 0 && <div><h4>Nuestros locales</h4>{tienda.retiro.map(l => <div key={l.id}>📍 {l.nombre}{l.direccion ? " · " + l.direccion : ""}</div>)}</div>}
         <div><h4>Formas de pago</h4>{tienda.pagos.mp && <div>Mercado Pago</div>}{tienda.pagos.gocuotas && <div>GoCuotas (cuotas con débito)</div>}{tienda.pagos.transferencia && <div>Transferencia</div>}{tienda.pagos.retiro && <div>En el local, al retirar</div>}</div>
-        {(tienda.whatsapp || Object.keys(tienda.redes || {}).length > 0) && <div><h4>Seguinos</h4>
+        {(hayWa || Object.keys(tienda.redes || {}).length > 0) && <div><h4>Seguinos</h4>
           <div className="tw-redes">
             {tienda.redes && tienda.redes.instagram && <a href={tienda.redes.instagram} target="_blank" rel="noopener" aria-label="Instagram"><TwIcono d={TW_IG} /></a>}
             {tienda.redes && tienda.redes.tiktok && <a href={tienda.redes.tiktok} target="_blank" rel="noopener" aria-label="TikTok"><TwIcono d={TW_TT} /></a>}
             {tienda.redes && tienda.redes.facebook && <a href={tienda.redes.facebook} target="_blank" rel="noopener" aria-label="Facebook"><TwIcono d={TW_FB} /></a>}
-            {tienda.whatsapp && <a href={wa("Hola! Tengo una consulta")} target="_blank" rel="noopener" aria-label="WhatsApp"><TwIcono d={TW_WA} /></a>}
+            {hayWa && <a href={wa("Hola! Tengo una consulta")} target="_blank" rel="noopener" aria-label="WhatsApp"><TwIcono d={TW_WA} /></a>}
           </div>
-          {tienda.whatsapp && <a href={wa("Hola! Tengo una consulta")} target="_blank" rel="noopener" style={{ fontSize: 13.5 }}>¿Dudas? Escribinos por WhatsApp</a>}
+          {hayWa && <a href={wa("Hola! Tengo una consulta")} target="_blank" rel="noopener" style={{ fontSize: 13.5 }}>¿Dudas? Escribinos por WhatsApp</a>}
         </div>}
       </div>
       <div className="tw-pie-fin">© {new Date().getFullYear()} {tienda.titulo} · Tienda hecha con Lumiere</div>
@@ -26879,7 +26882,7 @@ function TiendaPublica({ slug }) {
               {pedido.costo_envio > 0 && <div className="tw-linea"><span>Envío</span><span>{fmtTienda(pedido.costo_envio)}</span></div>}
               <div className="tw-linea" style={{ fontWeight: 800, fontSize: 18, borderTop: "1px solid #e6e6e6", marginTop: 8, paddingTop: 10 }}><span>Total</span><span>{fmtTienda(pedido.total)}</span></div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 18 }}>
-                {wa("Hola! Te escribo por mi pedido N° " + pedido.codigo) && <a className="tw-btn2" href={wa("Hola! Te escribo por mi pedido N° " + pedido.codigo)} target="_blank" rel="noopener">💬 Escribinos por WhatsApp</a>}
+                {wa("Hola! Te escribo por mi pedido N° " + pedido.codigo, pedido.local_id) && <a className="tw-btn2" href={wa("Hola! Te escribo por mi pedido N° " + pedido.codigo, pedido.local_id)} target="_blank" rel="noopener">💬 Escribinos por WhatsApp</a>}
                 <a className="tw-btn2" href={"?tienda=" + encodeURIComponent(slug)}>Seguir comprando</a>
               </div>
             </div>
@@ -27060,7 +27063,7 @@ function TiendaPublica({ slug }) {
         {avisoCuenta && <div role="alert" style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, fontSize: 13.5, fontWeight: 600 }}>{avisoCuenta}</div>}
         <button className="tw-btn full" type="submit">{fc.modo === "crear" ? "Crear mi cuenta" : "Ingresar"}</button>
       </form>
-      {fc.modo !== "crear" && tienda.whatsapp && <p style={{ fontSize: 12.5, color: "#666", marginTop: 14 }}>¿Te olvidaste la contraseña? <a href={wa("Hola! Me olvidé la contraseña de mi cuenta de la tienda. Mi DNI es " + (fc.dni || ""))} target="_blank" rel="noopener">Escribinos por WhatsApp</a>.</p>}
+      {fc.modo !== "crear" && hayWa && <p style={{ fontSize: 12.5, color: "#666", marginTop: 14 }}>¿Te olvidaste la contraseña? <a href={wa("Hola! Me olvidé la contraseña de mi cuenta de la tienda. Mi DNI es " + (fc.dni || ""))} target="_blank" rel="noopener">Escribinos por WhatsApp</a>.</p>}
     </div>
   ) : !miCuenta ? <div className="tw-cajon-cuerpo"><div className="tw-skel" style={{ height: 140 }} /></div> : (() => {
     const pts = miCuenta.puntos || 0;
@@ -29856,6 +29859,16 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               <div style={{ flex: 1 }}><div className="fl">WhatsApp de consultas</div><input className="inp" placeholder="2964 123456" value={cfg.whatsapp || ""} onChange={e => set("whatsapp", e.target.value)} /></div>
               <div><div className="fl">Color</div><input type="color" value={cfg.color || "#c9a84c"} onChange={e => set("color", e.target.value)} style={{ width: 54, height: 40, border: "none", background: "none" }} /></div>
             </div>
+            {!UN_SOLO_LOCAL && locs.filter(l => l.activo !== false).length > 1 && <>
+              <div className="fl" style={{ marginTop: 10 }}>WhatsApp de cada ciudad (opcional)</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
+                {locs.filter(l => l.activo !== false).map(l => {
+                  const v = cfg.whatsapp_locales && cfg.whatsapp_locales[l.id] !== undefined ? cfg.whatsapp_locales[l.id] : ((cfg.links && cfg.links.locales && cfg.links.locales[l.id]) || {}).whatsapp || "";
+                  return <div key={l.id}><div style={{ fontSize: 11.5, color: temaPal.textMuted, marginBottom: 3 }}>{l.nombre}</div><input className="inp" type="tel" placeholder="2964 123456" value={v} onChange={e => set("whatsapp_locales", { ...(cfg.whatsapp_locales || {}), [l.id]: e.target.value })} aria-label={"WhatsApp de " + l.nombre} /></div>;
+                })}
+              </div>
+              <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>El botón de WhatsApp de la tienda va al número de la ciudad que eligió la clienta. Si una ciudad queda vacía, usa el de consultas.</div>
+            </>}
             <div className="fl" style={{ marginTop: 10 }}>Redes sociales (tu usuario o el link)</div>
             {[["instagram", "Instagram", "@girasoles"], ["tiktok", "TikTok", "@girasoles"], ["facebook", "Facebook", "facebook.com/girasoles"]].map(([k, t, ej]) => (
               <div key={k} style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>

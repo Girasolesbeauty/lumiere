@@ -91,6 +91,16 @@ router.put('/config', async (req, res) => {
       for (const k of ['instagram', 'tiktok', 'facebook']) { const v = String(b.redes[k] || '').trim().slice(0, 200); if (v) redes[k] = v; }
       await pool.query('UPDATE tienda_config SET redes = $1 WHERE id = 1', [JSON.stringify(redes)]);
     }
+    // WhatsApp de cada ciudad: el boton de WhatsApp de la tienda va al del local que eligio la clienta.
+    // Se guarda en los datos de cada local de la pagina de links (es el mismo numero)
+    if (b.whatsapp_locales && typeof b.whatsapp_locales === 'object') {
+      const actual = tienda.linksDe((await pool.query('SELECT links FROM tienda_config WHERE id = 1')).rows[0] || {});
+      for (const [id, n] of Object.entries(b.whatsapp_locales)) {
+        if (!/^\d+$/.test(id)) continue;
+        actual.locales[id] = { ...(actual.locales[id] || { mostrar: true, horarios: '', mapa: '' }), whatsapp: String(n || '') };
+      }
+      await pool.query('UPDATE tienda_config SET links = $1 WHERE id = 1', [JSON.stringify(tienda.linksDe({ links: actual }))]);
+    }
     // Icono para el acceso directo del celular (cuadrado, ya achicado en el navegador). Vacio = el de Lumiere
     if (Object.prototype.hasOwnProperty.call(b, 'icono')) {
       const ic = String(b.icono || '');
