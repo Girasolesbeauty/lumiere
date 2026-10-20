@@ -5328,7 +5328,7 @@ function POS({ localId, usuario, paletaActual }) {
       {pedidoWeb && referenciaVenta === "Tienda web " + pedidoWeb.codigo && (
         <div role="status" style={{ background: temaPal.accent + "14", border: "1px solid " + temaPal.accent, borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 12.5, lineHeight: 1.5 }}>
           {pedidoWeb.ruleta && pedidoWeb.ruleta.tipo !== "nada" && <div style={{ fontWeight: 800, fontSize: 13.5, marginBottom: 4 }}>🎡 {pedidoWeb.ruleta.tipo === "regalo" ? "Ganó " + (/mega/i.test(pedidoWeb.ruleta.texto || "") ? "el 💎 MEGA REGALO" : "un REGALO 🎁") + " en la ruleta: dáselo con el pedido" : "Ganó " + pedidoWeb.ruleta.texto + " en la ruleta (cupón " + pedidoWeb.ruleta.cupon + "): se activa al registrar esta venta, para su próxima compra."}</div>}
-          🛍️ <b>Cobrando el pedido web N° {pedidoWeb.codigo}</b> de {pedidoWeb.nombre}.{pedidoWeb.cupon ? " Usó el código " + pedidoWeb.cupon + " (ya está aplicado como descuento general)." : ""} Si se lleva otra cosa, <b>sacá o sumá productos</b> en el carrito como en cualquier venta: se registra lo que se lleva y el pedido queda entregado.
+          🛍️ <b>Cobrando el pedido web N° {nroPedido(pedidoWeb)}</b> de {pedidoWeb.nombre}.{pedidoWeb.cupon ? " Usó el código " + pedidoWeb.cupon + " (ya está aplicado como descuento general)." : ""} Si se lleva otra cosa, <b>sacá o sumá productos</b> en el carrito como en cualquier venta: se registra lo que se lleva y el pedido queda entregado.
           {pedidoWeb.gc && <div style={{ marginTop: 4 }}>🎁 Pagó <b>{fmt(pedidoWeb.gc.monto)}</b> con la gift card <b>{pedidoWeb.gc.codigo}</b> (ya está descontada: figura como pago con gift card, no hace falta volver a canjearla).</div>}
           {pedidoWeb.pagado && (() => { const yaPago = (pedidoWeb.pago === "giftcard" ? 0 : pedidoWeb.total) + (pedidoWeb.gc ? pedidoWeb.gc.monto : 0); const falta = total - yaPago; return <div style={{ marginTop: 4 }}>{pedidoWeb.pago !== "giftcard" && <>Ya pagó <b>{fmt(pedidoWeb.total)}</b> con {pedidoWeb.pago === "mp" ? "Mercado Pago" : pedidoWeb.pago === "gocuotas" ? "GoCuotas" : "transferencia"}. </>}{Math.round(falta) !== 0 ? (falta > 0 ? " Falta cobrar " + fmt(falta) + " (con otro medio de pago)." : " Hay que devolverle " + fmt(-falta) + ".") : pedidoWeb.pago === "giftcard" ? "No falta cobrar nada." : ""}</div>; })()}
         </div>
@@ -18559,7 +18559,7 @@ function CierreCaja({ localId, usuario, paletaActual }) {
               </div>
               <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 8 }}>Pedidos de la tienda pagados por Mercado Pago o transferencia. <b>Ya están sumados</b> al total del día (no son efectivo). Cuando los entregues y registres en la caja, esa venta no se vuelve a sumar.</div>
               {l.map(x => (
-                <div key={x.id} className="cc-linea"><span>{x.hora} · N° {x.codigo} · {x.nombre} <span className="tag" style={{ marginLeft: 4 }}>{x.pago === "mp" ? "Mercado Pago" : "Transferencia"}</span>{x.estado === "entregado" ? <span className="tag tag-ok" style={{ marginLeft: 4 }}>entregado</span> : <span className="tag tag-warn" style={{ marginLeft: 4 }}>falta entregar</span>}</span><b>{fmt(x.total)}</b></div>
+                <div key={x.id} className="cc-linea"><span>{x.hora} · N° {nroPedido(x)} · {x.nombre} <span className="tag" style={{ marginLeft: 4 }}>{x.pago === "mp" ? "Mercado Pago" : "Transferencia"}</span>{x.estado === "entregado" ? <span className="tag tag-ok" style={{ marginLeft: 4 }}>entregado</span> : <span className="tag tag-warn" style={{ marginLeft: 4 }}>falta entregar</span>}</span><b>{fmt(x.total)}</b></div>
               ))}
             </div>
           ); })()}
@@ -18567,7 +18567,7 @@ function CierreCaja({ localId, usuario, paletaActual }) {
             <div className="dash-alert" style={{ marginTop: 12, marginBottom: 0, display: "block" }}>
               <div>🛍️ <b>{l.length === 1 ? "1 pedido de la tienda web" : l.length + " pedidos de la tienda web"} sin pagar todavía</b> ({fmt(suma)}). <b>No suman</b> a este cierre hasta que los cobres en el Punto de Venta (botón "Cobrar en caja" en Tienda online) o se acredite el pago online.</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8, alignItems: "center" }}>
-                {l.slice(0, 8).map(x => <span key={x.id} className="tag" style={{ fontWeight: 700 }}>N° {x.codigo} · {x.nombre} · {fmt(x.total)}{x.pago === "retiro" ? " · paga al retirar" : " · esperando pago"}{x.dia && String(x.dia).slice(0, 10) !== fecha ? " · del " + new Date(String(x.dia).slice(0, 10) + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }) : ""}</span>)}
+                {l.slice(0, 8).map(x => <span key={x.id} className="tag" style={{ fontWeight: 700 }}>N° {nroPedido(x)} · {x.nombre} · {fmt(x.total)}{x.pago === "retiro" ? " · paga al retirar" : " · esperando pago"}{x.dia && String(x.dia).slice(0, 10) !== fecha ? " · del " + new Date(String(x.dia).slice(0, 10) + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }) : ""}</span>)}
                 <button className="btn btn-p btn-sm" onClick={() => irASeccion("tienda-online")}>Ir a Tienda online</button>
               </div>
             </div>
@@ -23554,6 +23554,8 @@ const BARRA_CELU = [
 // Diseño de tienda de belleza: tira de anuncios, banner con los destacados, carruseles por
 // categoria, fichas con video y carrito que se desliza desde el costado.
 const fmtTienda = (n) => "$" + Math.round(parseFloat(n) || 0).toLocaleString("es-AR");
+// Numero de pedido que ven las clientas (corrido, ej 18001); los pedidos viejos sin numero muestran su codigo
+const nroPedido = (p) => (p && p.numero ? String(p.numero) : (p && p.codigo) || "");
 const ESTADOS_PEDIDO_WEB = {
   pendiente_pago: ["Esperando el pago", "#b7950b"], confirmado: ["Recibido: lo estamos preparando", "#2471a3"], preparado: ["¡Listo!", "#2d7a4f"],
   en_caja: ["¡Listo!", "#2d7a4f"], entregado: ["Entregado. ¡Gracias por tu compra!", "#2d7a4f"], cancelado: ["Cancelado", "#c0392b"],
@@ -26898,7 +26900,7 @@ function TiendaPublica({ slug }) {
         const pd = (miCuenta.pedidos || []).find(x => x.tipo !== "giftcard" && !["entregado", "cancelado"].includes(x.estado));
         if (!pd) return null;
         const txt = { pendiente_pago: "esperando el pago", confirmado: "lo estamos preparando 💝", preparado: pd.entrega === "envio" ? "¡ya está empaquetado! 🎁" : "¡listo para retirar! 🎁", en_caja: "¡listo para retirar! 🎁" }[pd.estado] || "en curso";
-        return <a className="tw-pedido-chip" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}><span className="tw-pedido-chip-ic" aria-hidden="true">📦</span><span style={{ flex: 1 }}>Tu pedido N° {pd.codigo}: <b>{txt}</b></span><span aria-hidden="true">›</span></a>;
+        return <a className="tw-pedido-chip" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}><span className="tw-pedido-chip-ic" aria-hidden="true">📦</span><span style={{ flex: 1 }}>Tu pedido N° {nroPedido(pd)}: <b>{txt}</b></span><span aria-hidden="true">›</span></a>;
       })()}
       {!codigoUrl && !logueada && (
         <button className="tw-saludo invitada" onClick={() => { setAvisoCuenta(null); setCanjeHecho(null); setFormCuenta({ modo: "ingresar" }); setPaso("cuenta"); }}>
@@ -26944,7 +26946,7 @@ function TiendaPublica({ slug }) {
               {pedido.estado !== "cancelado" && !pedido.ruleta && !pedido.giftcard && <TwGirasol />}
               {pedido.ruleta && <TwRuleta ruleta={pedido.ruleta} codigo={pedido.codigo} pedir={pedir} />}
               {pedido.estado !== "cancelado" && !pedido.giftcard && <TwPuntos monto={pedido.subtotal - (pedido.descuento || 0)} />}
-              <div style={{ fontSize: 12, letterSpacing: ".12em", textTransform: "uppercase", color: "#777", fontWeight: 700 }}>Pedido N° {pedido.codigo}</div>
+              <div style={{ fontSize: 12, letterSpacing: ".12em", textTransform: "uppercase", color: "#777", fontWeight: 700 }}>Pedido N° {nroPedido(pedido)}</div>
               <div style={{ fontSize: 26, fontWeight: 800, color: e[1], margin: "6px 0 14px" }}>{pedido.giftcard && pedido.giftcard.codigo ? "¡Tu gift card está lista! 🎁" : pedido.giftcard && pedido.estado === "pendiente_pago" ? "Esperando el pago de tu gift card" : pedido.estado === "pendiente_pago" && pedido.pago === "retiro" ? "¡Recibimos tu pedido!" : e[0]}</div>
               {!pedido.giftcard && pedido.estado !== "cancelado" && <TwSeguimiento estado={pedido.estado} entrega={pedido.entrega} local={pedido.local?.nombre} festejar />}
               {pedido.giftcard && <TwGiftCardPedido pedido={pedido} tienda={tienda} slug={slug} />}
@@ -26972,7 +26974,7 @@ function TiendaPublica({ slug }) {
               {pedido.costo_envio > 0 && <div className="tw-linea"><span>Envío</span><span>{fmtTienda(pedido.costo_envio)}</span></div>}
               <div className="tw-linea" style={{ fontWeight: 800, fontSize: 18, borderTop: "1px solid #e6e6e6", marginTop: 8, paddingTop: 10 }}><span>Total</span><span>{fmtTienda(pedido.total)}</span></div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 18 }}>
-                {wa("Hola! Te escribo por mi pedido N° " + pedido.codigo, pedido.local_id) && <a className="tw-btn2" href={wa("Hola! Te escribo por mi pedido N° " + pedido.codigo, pedido.local_id)} target="_blank" rel="noopener">💬 Escribinos por WhatsApp</a>}
+                {wa("Hola! Te escribo por mi pedido N° " + nroPedido(pedido), pedido.local_id) && <a className="tw-btn2" href={wa("Hola! Te escribo por mi pedido N° " + nroPedido(pedido), pedido.local_id)} target="_blank" rel="noopener">💬 Escribinos por WhatsApp</a>}
                 <a className="tw-btn2" href={"?tienda=" + encodeURIComponent(slug)}>Seguir comprando</a>
               </div>
             </div>
@@ -27193,7 +27195,7 @@ function TiendaPublica({ slug }) {
         </div>
         {(miCuenta.pedidos || []).filter(pd => pd.tipo !== "giftcard" && !["entregado", "cancelado"].includes(pd.estado)).map(pd => (
           <a key={pd.codigo} className="tw-pedido-curso" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}>
-            <div className="tw-pedido-curso-cab"><b>📦 Tu pedido N° {pd.codigo}</b><span style={{ color: "#888" }}>{fmtTienda(pd.total)} · Ver ›</span></div>
+            <div className="tw-pedido-curso-cab"><b>📦 Tu pedido N° {nroPedido(pd)}</b><span style={{ color: "#888" }}>{fmtTienda(pd.total)} · Ver ›</span></div>
             <TwSeguimiento estado={pd.estado} entrega={pd.entrega} compacto />
           </a>
         ))}
@@ -27364,7 +27366,7 @@ function TiendaPublica({ slug }) {
             </div>
           );
         }))}
-        {pestana === "pedidos" && ((miCuenta.pedidos || []).length === 0 ? <p className="tw-vacio">Todavía no hiciste pedidos en la tienda.</p> : miCuenta.pedidos.map(pd => <a key={pd.codigo} className="tw-fila-cuenta" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}><span><b>N° {pd.codigo}</b><small>{new Date(pd.creado_en).toLocaleDateString("es-AR")} · {(ESTADOS_PEDIDO_WEB[pd.estado] || ["", ""])[0].split(":")[0]}</small></span><span>{fmtTienda(pd.total)} ›</span></a>))}
+        {pestana === "pedidos" && ((miCuenta.pedidos || []).length === 0 ? <p className="tw-vacio">Todavía no hiciste pedidos en la tienda.</p> : miCuenta.pedidos.map(pd => <a key={pd.codigo} className="tw-fila-cuenta" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}><span><b>N° {nroPedido(pd)}</b><small>{new Date(pd.creado_en).toLocaleDateString("es-AR")} · {(ESTADOS_PEDIDO_WEB[pd.estado] || ["", ""])[0].split(":")[0]}</small></span><span>{fmtTienda(pd.total)} ›</span></a>))}
         {pestana === "compras" && ((miCuenta.compras || []).length === 0 ? <p className="tw-vacio">Todavía no hay compras registradas.</p> : miCuenta.compras.map(c => <div key={c.id} className="tw-fila-cuenta"><span><b>{new Date(c.creado_en).toLocaleDateString("es-AR")}</b><small>{(c.items || []).map(i => i.cantidad + " × " + i.nombre).join(", ")}</small></span><span>{fmtTienda(c.total)}</span></div>))}
         <button className="tw-btn2" style={{ marginTop: 22 }} onClick={salirCuenta}>Cerrar sesión</button>
       </div>
@@ -28945,7 +28947,7 @@ function ResenasTienda({ temaPal, avisar, urlTienda, nombreTienda, esJefe, alCam
         </> : d.pedir.length === 0 ? <div className="empty">No hay pedidos entregados para pedir reseña.</div> : d.pedir.map(pd => (
           <div key={pd.id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "8px 0", borderTop: "1px solid " + tp.border }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 700, fontSize: 13 }}>{pd.nombre} <span style={{ fontWeight: 400, color: tp.textMuted, fontSize: 11.5 }}>N° {pd.codigo}</span></div>
+              <div style={{ fontWeight: 700, fontSize: 13 }}>{pd.nombre} <span style={{ fontWeight: 400, color: tp.textMuted, fontSize: 11.5 }}>N° {nroPedido(pd)}</span></div>
               <div style={{ fontSize: 11.5, color: tp.textMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{pd.sin_resena.join(", ")}</div>
               {pd.resena_pedida_en && <div style={{ fontSize: 11, color: "#2d7a4f" }}>✓ Pedida el {new Date(pd.resena_pedida_en).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })}</div>}
             </div>
@@ -29446,7 +29448,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   useEffect(() => { if (cfg && cfg.activo && cfg.slug) API.get("/tienda/qr?url=" + encodeURIComponent(url)).then(r => setQr(r.data.qr)).catch(() => {}); }, [cfg?.activo, cfg?.slug]);
 
   const estado = async (p, est, extra) => {
-    if (est === "cancelado" && !confirm("¿Cancelar el pedido " + p.codigo + " de " + p.nombre + "? El stock vuelve al local.")) return;
+    if (est === "cancelado" && !confirm("¿Cancelar el pedido " + nroPedido(p) + " de " + p.nombre + "? El stock vuelve al local.")) return;
     try { await API.put("/tienda/pedidos/" + p.id + "/estado", { estado: est, ...extra }); cargarPedidos(); }
     catch (e) { avisar(false, e.response?.data?.error || "No se pudo cambiar"); }
   };
@@ -29457,7 +29459,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const llegoPreventa = async (p) => {
     try {
       await API.post("/tienda/pedidos/" + p.id + "/llego-preventa"); cargarPedidos();
-      const txt = "Hola " + String(p.nombre).split(" ")[0] + "! 🎉 Ya llegó tu pedido de preventa N° " + p.codigo + " de " + (cfg?.titulo || "nuestra tienda") + "." + (p.entrega === "retiro" ? " Ya lo podés retirar en " + nombreLocal(p.local_id) + "." : " Te lo enviamos en estos días.") + " ¡Gracias por esperar!";
+      const txt = "Hola " + String(p.nombre).split(" ")[0] + "! 🎉 Ya llegó tu pedido de preventa N° " + nroPedido(p) + " de " + (cfg?.titulo || "nuestra tienda") + "." + (p.entrega === "retiro" ? " Ya lo podés retirar en " + nombreLocal(p.local_id) + "." : " Te lo enviamos en estos días.") + " ¡Gracias por esperar!";
       avisar(true, "✓ Listo: quedó apartado. Avisale por WhatsApp.");
       if (p.telefono && confirm("¿Le avisás por WhatsApp que ya llegó?")) window.open(linkWhatsapp(p.telefono, txt) || ("https://wa.me/?text=" + encodeURIComponent(txt)), "_blank");
     } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); }
@@ -29465,7 +29467,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const extender = async (p) => { try { const r = await API.post("/tienda/pedidos/" + p.id + "/extender"); avisar(true, "✓ Le diste " + r.data.horas + " horas más"); cargarPedidos(); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); } };
   const reapartar = async (p) => { try { await API.post("/tienda/pedidos/" + p.id + "/reapartar"); cargarPedidos(); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); } };
   const avisarListo = (p) => {
-    const txt = "Hola " + String(p.nombre).split(" ")[0] + "! Tu pedido N° " + p.codigo + " de " + (cfg?.titulo || "nuestra tienda") + " ya está listo" + (p.entrega === "retiro" ? " para retirar en " + nombreLocal(p.local_id) : " y sale para tu casa") + "." + (p.entrega === "retiro" && p.vence_en ? " Te lo guardamos hasta el " + new Date(p.vence_en).toLocaleString("es-AR", { weekday: "long", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }) + "." : "") + " ¡Gracias!";
+    const txt = "Hola " + String(p.nombre).split(" ")[0] + "! Tu pedido N° " + nroPedido(p) + " de " + (cfg?.titulo || "nuestra tienda") + " ya está listo" + (p.entrega === "retiro" ? " para retirar en " + nombreLocal(p.local_id) : " y sale para tu casa") + "." + (p.entrega === "retiro" && p.vence_en ? " Te lo guardamos hasta el " + new Date(p.vence_en).toLocaleString("es-AR", { weekday: "long", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }) + "." : "") + " ¡Gracias!";
     window.open(linkWhatsapp(p.telefono, txt) || ("https://wa.me/?text=" + encodeURIComponent(txt)), "_blank");
   };
   const publicar = async (p, publicado) => {
@@ -29564,7 +29566,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const urlQR = (p) => (cfg.dominio && cfg.dominioGuardado ? "https://" + cfg.dominio + "/?" : window.location.origin + "/?tienda=" + encodeURIComponent(cfg.slug || "") + "&") + "pid=" + p.id + "&qr=1";
   const abrirQR = (p) => { setQrProd({ p, qr: null }); API.get("/tienda/qr?url=" + encodeURIComponent(urlQR(p))).then(r => setQrProd(x => x && x.p.id === p.id ? { ...x, qr: r.data.qr } : x)).catch(() => avisar(false, "No se pudo armar el QR")); };
   const qP = normTxt(buscaPed);
-  const pasaPed = (p) => !qP || qP.split(" ").every(w => normTxt([p.nombre, p.codigo, p.telefono, ...(p.items || []).map(i => i.nombre)].join(" ")).includes(w));
+  const pasaPed = (p) => !qP || qP.split(" ").every(w => normTxt([p.nombre, p.codigo, p.numero, p.telefono, ...(p.items || []).map(i => i.nombre)].join(" ")).includes(w));
   const visiblesB = visibles.filter(pasaPed);
   const hace30 = Date.now() - 30 * 864e5;
   const entregados30 = pedidos.filter(p => p.estado === "entregado" && new Date(p.creado_en).getTime() >= hace30);
@@ -29676,7 +29678,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                     </div>}
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
                       <div>
-                        <div style={{ fontWeight: 900, fontSize: 15 }}>{p.nombre} <span style={{ fontWeight: 400, fontSize: 12, color: temaPal.textMuted }}>N° {p.codigo} · {new Date(p.creado_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span></div>
+                        <div style={{ fontWeight: 900, fontSize: 15 }}>{p.nombre} <span style={{ fontWeight: 400, fontSize: 12, color: temaPal.textMuted }}>N° {nroPedido(p)} · {new Date(p.creado_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span></div>
                         <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginTop: 2 }}>
                           {p.tipo === "giftcard" ? "🎁 Gift card · se usa en " + nombreLocal(p.local_id) : p.entrega === "retiro" ? "📍 Retira en " + nombreLocal(p.local_id) : "🛵 Envío a " + p.direccion + " (" + p.zona + ")"} · {PAGO_TIENDA[p.pago]}{p.pagado ? " ✓ pagado" : ""}{p.telefono ? " · " + p.telefono : ""}
                         </div>
@@ -29715,7 +29717,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                           catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); }
                         }}>✓ Ya lo cobré en la caja</button>}
                         {p.estado === "en_caja" && <><button className="btn btn-p btn-sm" onClick={() => { try { sessionStorage.setItem("lumiere_pos_tienda", String(p.id)); } catch (e) {} irASeccion("pos"); }}>Ir a la caja</button><button className="btn btn-g btn-sm" onClick={() => reapartar(p)} title="Si no se llegó a cobrar">Volver a apartar el stock</button></>}
-                        {p.telefono && <a className="btn btn-g btn-sm" style={{ textDecoration: "none" }} href={linkWhatsapp(p.telefono, "Hola " + String(p.nombre).split(" ")[0] + "! Te escribo por tu pedido N° " + p.codigo)} target="_blank" rel="noopener">WhatsApp</a>}
+                        {p.telefono && <a className="btn btn-g btn-sm" style={{ textDecoration: "none" }} href={linkWhatsapp(p.telefono, "Hola " + String(p.nombre).split(" ")[0] + "! Te escribo por tu pedido N° " + nroPedido(p))} target="_blank" rel="noopener">WhatsApp</a>}
                         {p.estado !== "en_caja" && <button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={() => estado(p, "cancelado")}>Cancelar</button>}
                       </div>
                     )}
@@ -31884,7 +31886,7 @@ function AvisoVentaWeb({ usuario, local, paletaActual }) {
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
               <b>{x.nombre}</b><b>{fmt(x.total)}</b>
             </div>
-            <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 6 }}>N° {x.codigo} · {x.entrega === "retiro" ? "📍 Retira en " + nombreLocal(x.local_id) : "🛵 Envío" + (x.zona ? " a " + x.zona : "") + " (" + nombreLocal(x.local_id) + ")"} · {pagoTxt(x)}</div>
+            <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 6 }}>N° {nroPedido(x)} · {x.entrega === "retiro" ? "📍 Retira en " + nombreLocal(x.local_id) : "🛵 Envío" + (x.zona ? " a " + x.zona : "") + " (" + nombreLocal(x.local_id) + ")"} · {pagoTxt(x)}</div>
             {x.items.map((i, k) => <div key={k} style={{ fontSize: 14, fontWeight: 700 }}>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""}{i.preventa ? <span style={{ fontWeight: 600, color: p.warn, fontSize: 12.5 }}> · ⏳ preventa (todavía no llegó)</span> : null}</div>)}
           </div>
         ))}
