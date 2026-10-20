@@ -24250,6 +24250,44 @@ const CSS_TIENDA = `
 .tw-elegir-est button.on{color:#f5a623}
 .tw-elegir-est button:active{transform:scale(1.25)}
 .tw-elegir-est span{margin-left:8px;font-size:13.5px;font-weight:700;color:#555}
+.tw-seg{margin:6px 0 20px;padding:30px 16px 16px;border-radius:18px;background:linear-gradient(135deg,#fff8f1,#fdf0f6);border:1px solid #f3e1ea;position:relative;overflow:hidden}
+.tw-seg.compacto{margin:10px 0 0;padding:22px 10px 10px;border-radius:14px}
+.tw-seg-riel{position:absolute;height:8px;left:calc(16px + (100% - 32px) * .125);width:calc((100% - 32px) * .75);top:48px;border-radius:99px;background:#eee3e8}
+.tw-seg.compacto .tw-seg-riel{left:calc(10px + (100% - 20px) * .125);width:calc((100% - 20px) * .75);top:35px;height:6px}
+.tw-seg-fill{position:absolute;left:0;top:0;bottom:0;width:var(--p);border-radius:99px;background:linear-gradient(90deg,var(--c,#c9a84c),#ff7eb3,var(--c,#c9a84c));background-size:200% 100%;animation:twSegLlena 1.4s cubic-bezier(.2,.8,.2,1) .2s both,twSegBrillo 2.4s linear infinite;overflow:hidden}
+.tw-seg-fill::after{content:"";position:absolute;top:0;bottom:0;width:40%;left:-40%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.8),transparent);animation:twSegBarre 2s ease-in-out 1.6s infinite}
+.tw-seg-bolsa{--y:-50px;position:absolute;top:50%;left:var(--p);z-index:2;font-size:20px;transform:translate(-50%,var(--y));animation:twSegViaja 1.4s cubic-bezier(.2,.8,.2,1) .2s both,twSegSalto 1.6s ease-in-out 1.6s infinite;filter:drop-shadow(0 3px 3px rgba(0,0,0,.15))}
+.tw-seg.compacto .tw-seg-bolsa{font-size:15px;--y:-38px}
+@keyframes twSegLlena{from{width:0}to{width:var(--p)}}
+@keyframes twSegViaja{from{left:0}to{left:var(--p)}}
+@keyframes twSegSalto{0%,100%{transform:translate(-50%,var(--y))}50%{transform:translate(-50%,calc(var(--y) - 6px)) rotate(-8deg)}}
+@keyframes twSegBrillo{0%{background-position:0 0}100%{background-position:200% 0}}
+@keyframes twSegBarre{0%,50%{left:-40%}100%{left:110%}}
+.tw-seg-pasos{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,1fr);position:relative}
+.tw-seg-pasos li{display:flex;flex-direction:column;align-items:center;text-align:center;gap:7px;opacity:0;animation:twSegPaso .5s cubic-bezier(.2,.8,.2,1) var(--d) both}
+@keyframes twSegPaso{from{opacity:0;transform:translateY(10px) scale(.9)}to{opacity:1;transform:none}}
+.tw-seg-ic{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:21px;background:#fff;border:2px solid #eee3e8;filter:grayscale(1);opacity:.55;position:relative;z-index:1;transition:all .4s}
+.tw-seg.compacto .tw-seg-ic{width:32px;height:32px;font-size:15px}
+.tw-seg-pasos li.ok .tw-seg-ic{filter:none;opacity:1;background:var(--c,#c9a84c);border-color:var(--c,#c9a84c);color:#fff}
+.tw-seg-pasos li.ok .tw-seg-ic b{font-size:18px;animation:twSegCheck .45s cubic-bezier(.3,1.6,.5,1) var(--d) both}
+.tw-seg.compacto .tw-seg-pasos li.ok .tw-seg-ic b{font-size:14px}
+@keyframes twSegCheck{from{transform:scale(0) rotate(-45deg)}to{transform:none}}
+.tw-seg-pasos li.ahora .tw-seg-ic{filter:none;opacity:1;border-color:#ff7eb3;box-shadow:0 0 0 0 rgba(255,126,179,.55);animation:twSegLate 1.8s ease-out 1.2s infinite}
+@keyframes twSegLate{0%{box-shadow:0 0 0 0 rgba(255,126,179,.55)}100%{box-shadow:0 0 0 14px rgba(255,126,179,0)}}
+.tw-seg-t{font-size:12px;font-weight:600;color:#9a8f94;line-height:1.25}
+.tw-seg.compacto .tw-seg-t{font-size:10.5px}
+.tw-seg-pasos li.ok .tw-seg-t{color:#444}
+.tw-seg-pasos li.ahora .tw-seg-t{color:#111;font-weight:800}
+.tw-seg-msg{margin-top:14px;background:#fff;border-radius:12px;padding:10px 12px;font-size:13.5px;color:#444;text-align:center;animation:twSegPaso .6s cubic-bezier(.2,.8,.2,1) 1s both;box-shadow:0 4px 14px -8px rgba(122,29,63,.3)}
+.tw-pedido-curso{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid #f0e2e8;border-radius:16px;padding:12px 14px;margin-bottom:12px;box-shadow:0 8px 22px -16px rgba(122,29,63,.45);animation:twSegPaso .5s ease both}
+.tw-pedido-curso-cab{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px}
+.tw-pedido-curso-cab b{font-size:14px}
+.tw-pedido-chip{display:flex;align-items:center;gap:10px;margin:8px 20px 0;padding:10px 14px;border-radius:14px;background:linear-gradient(90deg,#fff3f8,#fff8ee);border:1px solid #f3dfe8;text-decoration:none;color:#222;font-size:13px;animation:twSegPaso .5s ease both}
+.tw-pedido-chip .tw-pedido-chip-ic{font-size:20px;animation:twSegSalto2 1.8s ease-in-out infinite}
+@keyframes twSegSalto2{0%,100%{transform:none}50%{transform:translateY(-3px) rotate(-6deg)}}
+.tw-pedido-chip b{font-weight:800}
+@media(max-width:760px){.tw-pedido-chip{margin:8px 14px 0}}
+@media(prefers-reduced-motion:reduce){.tw-seg *,.tw-pedido-chip *{animation:none!important}.tw-seg-pasos li{opacity:1}.tw-seg-fill{width:var(--p)}.tw-seg-bolsa{left:var(--p)}}
 .tw-wa-flota{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:30;display:flex;align-items:center;gap:10px;text-decoration:none;animation:twWaEntra .5s cubic-bezier(.2,.8,.2,1) .6s both}
 .tw-wa-flota .tw-wa-bola{position:relative;width:60px;height:60px;border-radius:50%;background:#25d366;color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 22px rgba(37,211,102,.45),0 2px 6px rgba(0,0,0,.18);transition:transform .2s}
 .tw-wa-flota .tw-wa-bola::before{content:"";position:absolute;inset:0;border-radius:50%;background:#25d366;opacity:.5;animation:twWaPulso 2.2s ease-out infinite;z-index:-1}
@@ -24711,6 +24749,40 @@ function TwBarraEnvio({ subtotal, gratisDesde }) {
   );
 }
 // Girasol que florece al terminar la compra
+// Seguimiento del pedido paso a paso (página del pedido y Mi cuenta): recibido → preparando → listo → entregado.
+// La barra se llena con brillo, el paso actual late, una bolsita viaja hasta donde va el pedido y al entregarse caen pétalos.
+const TW_PASO_PEDIDO = { pendiente_pago: 0, confirmado: 1, preparado: 2, en_caja: 2, entregado: 3 };
+function TwSeguimiento({ estado, entrega, local, compacto, festejar }) {
+  const ref = useRef(null);
+  const i = TW_PASO_PEDIDO[estado];
+  const envio = entrega === "envio";
+  useEffect(() => { if (festejar && estado === "entregado" && ref.current) { const t = setTimeout(() => twPetalos(ref.current, 28), 900); return () => clearTimeout(t); } }, [estado, festejar]);
+  if (i === undefined) return null;
+  const pasos = [
+    { ic: "🧾", t: i === 0 ? "Esperando el pago" : "Pedido recibido", d: i === 0 ? "Apenas se acredite el pago, empezamos a prepararlo." : "" },
+    { ic: "💝", t: "Preparando", d: "Estamos eligiendo y envolviendo tus productos con mucho amor." },
+    { ic: "🎁", t: envio ? "Empaquetado" : "Listo para retirar", d: envio ? "Tu pedido ya está empaquetado y sale en el próximo reparto." : "¡Ya podés pasar a buscarlo" + (local ? " por " + local : "") + "!" },
+    { ic: envio ? "🏠" : "🛍️", t: "Entregado", d: "¡Que lo disfrutes! Gracias por elegirnos ✨" },
+  ];
+  const pct = (i / (pasos.length - 1)) * 100;
+  return (
+    <div ref={ref} className={"tw-seg" + (compacto ? " compacto" : "")} role="group" aria-label={"Estado del pedido: " + pasos[i].t}>
+      <div className="tw-seg-riel">
+        <div className="tw-seg-fill" style={{ "--p": pct + "%" }} />
+        {i < 3 && <span className="tw-seg-bolsa" style={{ "--p": pct + "%" }} aria-hidden="true">🛍️</span>}
+      </div>
+      <ol className="tw-seg-pasos">
+        {pasos.map((p, k) => (
+          <li key={k} className={k < i || i === 3 ? "ok" : k === i ? "ahora" : ""} style={{ "--d": (0.25 + k * 0.18) + "s" }}>
+            <span className="tw-seg-ic" aria-hidden="true">{k < i || i === 3 ? <b>✓</b> : p.ic}</span>
+            <span className="tw-seg-t">{p.t}</span>
+          </li>
+        ))}
+      </ol>
+      {!compacto && pasos[i].d && <div className="tw-seg-msg" key={i}><span aria-hidden="true">{pasos[i].ic}</span> {pasos[i].d}</div>}
+    </div>
+  );
+}
 function TwGirasol({ mudo }) {
   const ref = useRef(null);
   useEffect(() => {
@@ -26591,13 +26663,14 @@ function TiendaPublica({ slug }) {
   // Con la ficha o el carrito abiertos no se mueve la pagina de atras
   useEffect(() => { document.body.style.overflow = ver || paso ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [ver, paso]);
   useEffect(() => { const k = (e) => { if (e.key === "Escape") { setVer(null); setPaso(null); } }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, []);
-  // Seguimiento del pedido (?pedido=CODIGO): se actualiza solo mientras espera el pago
+  // Seguimiento del pedido (?pedido=CODIGO): se actualiza solo (cada 5 s esperando el pago, cada 30 s mientras
+  // se prepara) hasta que se entrega o se cancela
   useEffect(() => {
     if (!codigoUrl) return;
-    let vivo = true;
-    const traer = () => pedir("/pedidos/" + codigoUrl).then(p => { if (vivo) { setPedido(p); if (p.estado !== "pendiente_pago") clearInterval(t); } }).catch(e => vivo && setPedido({ error: e.message }));
+    let vivo = true, vueltas = 0, ultimo = null;
+    const traer = () => pedir("/pedidos/" + codigoUrl).then(p => { if (vivo) { setPedido(p); ultimo = p.estado; if (["entregado", "cancelado"].includes(p.estado)) clearInterval(t); } }).catch(e => vivo && setPedido({ error: e.message }));
     traer();
-    const t = setInterval(traer, 5000);
+    const t = setInterval(() => { vueltas++; if (ultimo === "pendiente_pago" || vueltas % 6 === 0) traer(); }, 5000);
     return () => { vivo = false; clearInterval(t); };
   }, [codigoUrl]);
 
@@ -26820,6 +26893,13 @@ function TiendaPublica({ slug }) {
           </button>
         );
       })()}
+      {!codigoUrl && logueada && miCuenta && (() => {
+        // Pedido en curso: a un toque de ver cómo va
+        const pd = (miCuenta.pedidos || []).find(x => x.tipo !== "giftcard" && !["entregado", "cancelado"].includes(x.estado));
+        if (!pd) return null;
+        const txt = { pendiente_pago: "esperando el pago", confirmado: "lo estamos preparando 💝", preparado: pd.entrega === "envio" ? "¡ya está empaquetado! 🎁" : "¡listo para retirar! 🎁", en_caja: "¡listo para retirar! 🎁" }[pd.estado] || "en curso";
+        return <a className="tw-pedido-chip" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}><span className="tw-pedido-chip-ic" aria-hidden="true">📦</span><span style={{ flex: 1 }}>Tu pedido N° {pd.codigo}: <b>{txt}</b></span><span aria-hidden="true">›</span></a>;
+      })()}
       {!codigoUrl && !logueada && (
         <button className="tw-saludo invitada" onClick={() => { setAvisoCuenta(null); setCanjeHecho(null); setFormCuenta({ modo: "ingresar" }); setPaso("cuenta"); }}>
           <span className="tw-saludo-av" aria-hidden="true">✦</span>
@@ -26866,6 +26946,7 @@ function TiendaPublica({ slug }) {
               {pedido.estado !== "cancelado" && !pedido.giftcard && <TwPuntos monto={pedido.subtotal - (pedido.descuento || 0)} />}
               <div style={{ fontSize: 12, letterSpacing: ".12em", textTransform: "uppercase", color: "#777", fontWeight: 700 }}>Pedido N° {pedido.codigo}</div>
               <div style={{ fontSize: 26, fontWeight: 800, color: e[1], margin: "6px 0 14px" }}>{pedido.giftcard && pedido.giftcard.codigo ? "¡Tu gift card está lista! 🎁" : pedido.giftcard && pedido.estado === "pendiente_pago" ? "Esperando el pago de tu gift card" : pedido.estado === "pendiente_pago" && pedido.pago === "retiro" ? "¡Recibimos tu pedido!" : e[0]}</div>
+              {!pedido.giftcard && pedido.estado !== "cancelado" && <TwSeguimiento estado={pedido.estado} entrega={pedido.entrega} local={pedido.local?.nombre} festejar />}
               {pedido.giftcard && <TwGiftCardPedido pedido={pedido} tienda={tienda} slug={slug} />}
               {pedido.estado === "pendiente_pago" && pedido.pago === "gocuotas" && params.get("gc") === "no" && <div style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 12, fontSize: 14, fontWeight: 600, marginBottom: 12 }}>El pago con GoCuotas no se completó. Podés volver a intentarlo.</div>}
               {pedido.estado === "pendiente_pago" && pedido.pago === "gocuotas" && params.get("gc") !== "no" && <div style={{ fontSize: 14, color: "#555", marginBottom: 12 }}>Si ya pagaste con GoCuotas, en unos minutos se confirma solo.</div>}
@@ -27110,6 +27191,12 @@ function TiendaPublica({ slug }) {
             <div className="tw-barra-pts"><i style={{ width: Math.min(100, pts / proximo.puntos_requeridos * 100) + "%" }} /></div>
           </div>}
         </div>
+        {(miCuenta.pedidos || []).filter(pd => pd.tipo !== "giftcard" && !["entregado", "cancelado"].includes(pd.estado)).map(pd => (
+          <a key={pd.codigo} className="tw-pedido-curso" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}>
+            <div className="tw-pedido-curso-cab"><b>📦 Tu pedido N° {pd.codigo}</b><span style={{ color: "#888" }}>{fmtTienda(pd.total)} · Ver ›</span></div>
+            <TwSeguimiento estado={pd.estado} entrega={pd.entrega} compacto />
+          </a>
+        ))}
         {canjeHecho && <div className="tw-cupon tw-cupon-nuevo">
           <div style={{ fontSize: 13 }}>🎁 <b>¡Canjeaste {canjeHecho.nombre}!</b></div>
           <div className="tw-cupon-cod">{canjeHecho.codigo}</div>
