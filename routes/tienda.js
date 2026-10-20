@@ -632,14 +632,27 @@ router.post('/pedidos/:id/llego-preventa', async (req, res) => {
     const items = (await client.query(`SELECT i.id, i.producto_id, i.nombre, i.cantidad, COALESCE(pr.${u ? 'stock_ush' : 'stock_rg'}, 0) AS stock
       FROM tienda_pedido_items i JOIN productos pr ON pr.id = i.producto_id WHERE i.pedido_id = $1 AND i.preventa FOR UPDATE OF pr`, [p.id])).rows;
     if (!items.length) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Este pedido no tiene preventa pendiente' }); }
-    const falta = items.find(it => (parseInt(it.stock) || 0) < it.cantidad);
-    if (falta) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Todavía no hay stock de ' + falta.nombre + ' en ' + (u ? 'Ushuaia' : 'Río Grande') + '. Recibí la orden de ingreso primero.' }); }
-    await tienda.reservarPreventa(client, p, -1);
-    await client.query('UPDATE tienda_pedido_items SET preventa = FALSE WHERE pedido_id = $1 AND preventa', [p.id]);
-    // aparta solo lo que era preventa (lo demas ya estaba apartado)
-    const col = u ? 'stock_ush' : 'stock_rg';
+    // Puede llegar de a partes: se aparta lo que ya tiene stock en el local del pedido y lo demas sigue en preventa
+    const llegaron = items.filter(it => (parseInt(it.stock) || 0) >= it.cantidad);
+    const faltan = items.filter(it => (parseInt(it.stock) || 0) < it.cantidad);
+    if (!llegaron.length) {
+      await client.query('ROLLBACK');
+      const otro = u ? 'stock_rg' : 'stock_ush';
+      const enOtro = (await pool.query(`SELECT COUNT(*)::int AS n FROM productos WHERE id = ANY($1::int[]) AND COALESCE(${otro}, 0) > 0`, [faltan.map(it => it.producto_id)])).rows[0].n;
+      return res.status(400).json({ error: 'Todavía no hay stock en ' + (u ? 'Ushuaia' : 'Río Grande') + ' de: ' + faltan.map(it => it.nombre).join(', ') + '. Recibí la orden de ingreso primero' + (enOtro ? ' (o pasalos con un traspaso: hay stock en ' + (u ? 'Río Grande' : 'Ushuaia') + ')' : '') + '.' });
+    }
+    const col = u ? 'stock_ush' : 'stock_rg', colRes = u ? 'reservado_ush' : 'reservado_rg';
     await client.query(`SELECT set_config('lumiere.sin_reingreso', '1', true)`);
-    for (const it of items) await client.query(`UPDATE productos SET ${col} = COALESCE(${col}, 0) - $1, stock = COALESCE(stock_rg, 0) + COALESCE(stock_ush, 0) - $1 WHERE id = $2`, [it.cantidad, it.producto_id]);
+    for (const it of llegaron) {
+      // Deja de estar reservado sobre lo que venia en camino y se aparta del stock que ya entro
+      await client.query(`UPDATE productos SET ${colRes} = GREATEST(COALESCE(${colRes}, 0) - $1, 0), ${col} = COALESCE(${col}, 0) - $1, stock = COALESCE(stock_rg, 0) + COALESCE(stock_ush, 0) - $1 WHERE id = $2`, [it.cantidad, it.producto_id]);
+      await client.query('UPDATE tienda_pedido_items SET preventa = FALSE WHERE id = $1', [it.id]);
+    }
+    if (faltan.length) {
+      await client.query('UPDATE tienda_pedidos SET stock_apartado = TRUE, actualizado_en = NOW() WHERE id = $1', [p.id]);
+      await client.query('COMMIT');
+      return res.json({ ...(await pedidoCompleto(p.id)), llegaron: llegaron.map(it => it.nombre), faltan: faltan.map(it => it.nombre) });
+    }
     const horas = Math.min(168, Math.max(1, parseInt((await tienda.leerConfig(client)).horas_reserva) || 24));
     await client.query(`UPDATE tienda_pedidos SET stock_apartado = TRUE, vence_en = CASE WHEN pago = 'retiro' AND estado IN ('confirmado', 'preparado') THEN NOW() + make_interval(hours => $2) ELSE vence_en END, actualizado_en = NOW() WHERE id = $1`, [p.id, horas]);
     await client.query('COMMIT');
