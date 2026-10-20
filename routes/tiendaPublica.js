@@ -620,7 +620,7 @@ router.get('/:slug/pedidos/:codigo', async (req, res) => {
     const loc = p.entrega === 'retiro' ? (await pool.query('SELECT nombre, direccion FROM locales WHERE id = $1', [p.local_id]).catch(() => ({ rows: [] }))).rows[0] : null;
     res.json({
       ruleta: await estadoRuleta(req.tienda, p),
-      codigo: p.codigo, estado: p.estado, pagado: p.pagado, pago: p.pago, entrega: p.entrega, local: loc || null, direccion: p.direccion, zona: p.zona,
+      codigo: p.codigo, estado: p.estado, pagado: p.pagado, pago: p.pago, entrega: p.entrega, local_id: p.local_id || 1, local: loc || null, direccion: p.direccion, zona: p.zona,
       subtotal: num(p.subtotal), costo_envio: num(p.costo_envio), descuento: num(p.descuento), descuento_amiga: num(p.descuento_amiga), descuento_combo: num(p.descuento_combo), combos: p.combos || null, descuento_pago: num(p.descuento_pago), descuento_pago_pct: p.descuento_pago_pct === null ? null : num(p.descuento_pago_pct), cupon: p.cupon || null, total: num(p.total), items, link_pago: p.estado === 'pendiente_pago' ? p.mp_link : null,
       vence_en: p.vence_en, transferencia: p.pago === 'transferencia' && !p.pagado ? (req.tienda.transferencia_datos || '') : null, creado_en: p.creado_en,
       gc_usado: num(p.gc_usado_monto) > 0 ? { codigo: p.gc_usado_codigo, monto: num(p.gc_usado_monto) } : null,
