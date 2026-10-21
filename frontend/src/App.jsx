@@ -24380,6 +24380,12 @@ html:has(.tw){overflow-x:hidden}
 .tw-seg-pasos li.ok .tw-seg-t{color:#444}
 .tw-seg-pasos li.ahora .tw-seg-t{color:#111;font-weight:800}
 .tw-seg-msg{margin-top:14px;background:#fff;border-radius:12px;padding:10px 12px;font-size:13.5px;color:#444;text-align:center;animation:twSegPaso .6s cubic-bezier(.2,.8,.2,1) 1s both;box-shadow:0 4px 14px -8px rgba(122,29,63,.3)}
+.tw-recompra-card{display:flex;gap:12px;align-items:center;background:linear-gradient(135deg,#fff6ec,#fdeef4);border:1px solid #f3e0d6;border-radius:16px;padding:12px 14px;margin-bottom:12px;animation:twSegPaso .5s ease both}
+.tw-recompra-card b{display:block;font-size:14px}.tw-recompra-card small{display:block;font-size:12px;color:#6b5a55;margin-top:2px;line-height:1.35}
+.tw-recompra-btn{flex-basis:100%;margin-top:8px;font:inherit;font-size:12px;font-weight:800;letter-spacing:.04em;padding:8px 12px;border-radius:999px;border:1px solid #111;background:#fff;color:#111;cursor:pointer}
+.tw-fila-cuenta:has(.tw-recompra-btn){flex-wrap:wrap}
+.tw-recompra-aviso{display:flex;gap:8px;align-items:flex-start;background:#eef8f1;border:1px solid #cfe9d8;color:#1d5c38;border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+.tw-recompra-aviso small{display:block;color:#5b6f62;margin-top:3px}
 .tw-pedido-curso{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid #f0e2e8;border-radius:16px;padding:12px 14px;margin-bottom:12px;box-shadow:0 8px 22px -16px rgba(122,29,63,.45);animation:twSegPaso .5s ease both}
 .tw-pedido-curso-cab{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px}
 .tw-pedido-curso-cab b{font-size:14px}
@@ -26812,6 +26818,7 @@ function TiendaPublica({ slug }) {
   }, [amigaCod, amigaInfo, datos.telefono, cuponOk, paso]);
   // Festejo del envio gratis: si al agregar algo (con el carrito cerrado) llega al monto, confeti y un cartel arriba
   const [festejoEnvio, setFestejoEnvio] = useState(false);
+  const [recompraAviso, setRecompraAviso] = useState(null); // Volver a pedir: { van, faltan } (aviso en el carrito)
   const gratisAntes = useRef(null);
   const subtotalEnvio = carrito.reduce((t, i) => t + i.precio * i.cantidad, 0), desdeEnvio = tienda && tienda.envio && tienda.envio.gratis_desde;
   useEffect(() => {
@@ -26862,6 +26869,34 @@ function TiendaPublica({ slug }) {
     });
     setToast({ p, v }); clearTimeout(window.__twToast); window.__twToast = setTimeout(() => setToast(null), 2600);
   };
+  // Volver a pedir: mete en el carrito lo de una compra anterior (lo que hoy tiene stock en su ciudad) y abre el carrito
+  const recomprar = (items) => {
+    const faltan = [], van = [];
+    (items || []).forEach(it => {
+      const p = (productos || []).find(x => x.id === it.producto_id);
+      if (!p) { if (it.nombre) faltan.push(it.nombre); return; }
+      const v = it.variante_id && p.variantes ? p.variantes.find(x => x.id === it.variante_id) : null;
+      if (p.variantes && p.variantes.length && !v) { faltan.push(p.nombre); return; }
+      const pre = !v && esPreventa(p), max = pre ? prevDispo(p) : dispo(p, v);
+      if (!(max > 0)) { faltan.push(p.nombre + (v ? " (" + v.valor + ")" : "")); return; }
+      van.push({ p, v, n: Math.max(1, parseInt(it.cantidad) || 1), max, pre });
+    });
+    if (van.length) {
+      twSonar.pop(); twVibrar(12);
+      setCarrito(c => {
+        let l = [...c];
+        van.forEach(({ p, v, n, max, pre }) => {
+          const ya = l.find(i => i.producto_id === p.id && (i.variante_id || null) === (v ? v.id : null) && !!i.preventa === pre);
+          if (ya) l = l.map(i => i === ya ? { ...i, cantidad: Math.min(max, i.cantidad + n) } : i);
+          else l.push({ producto_id: p.id, variante_id: v ? v.id : null, nombre: p.nombre, variante: v ? v.valor : null, precio: p.precio, cantidad: Math.min(max, n), foto: !!p.foto, preventa: pre });
+        });
+        return l;
+      });
+      setSalto(x => x + 1);
+    }
+    setRecompraAviso({ van: van.length, faltan }); setPaso("carrito");
+  };
+  const recomprarPedido = (codigo) => pedir("/pedidos/" + codigo).then(pd => recomprar(pd.items || [])).catch(() => setRecompraAviso({ van: 0, faltan: [], error: true }));
   // Desde la ficha: el boton gira, se dibuja el ✓, la foto vuela y despues se cierra la ficha
   const agregarDesdeFicha = (p, v, n) => {
     if (agregando) return;
@@ -27329,6 +27364,21 @@ function TiendaPublica({ slug }) {
             <TwSeguimiento estado={pd.estado} entrega={pd.entrega} compacto />
           </a>
         ))}
+        {(() => {
+          // Ultima compra (en el local o en la tienda): a un toque de volver a pedirla
+          const u = (miCuenta.compras || []).find(c => (c.items || []).some(i => i.producto_id));
+          if (!u) return null;
+          const items = u.items.filter(i => i.producto_id);
+          return (
+            <div className="tw-recompra-card">
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <b>🔁 ¿Se te está terminando algo?</b>
+                <small>Tu última compra ({new Date(u.creado_en).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })}): {items.slice(0, 3).map(i => i.nombre).join(", ")}{items.length > 3 ? " y " + (items.length - 3) + " más" : ""}</small>
+              </div>
+              <button className="tw-btn" style={{ padding: "10px 14px", fontSize: 11.5, whiteSpace: "nowrap" }} onClick={() => recomprar(items)}>Volver a pedir</button>
+            </div>
+          );
+        })()}
         {canjeHecho && <div className="tw-cupon tw-cupon-nuevo">
           <div style={{ fontSize: 13 }}>🎁 <b>¡Canjeaste {canjeHecho.nombre}!</b></div>
           <div className="tw-cupon-cod">{canjeHecho.codigo}</div>
@@ -27496,8 +27546,8 @@ function TiendaPublica({ slug }) {
             </div>
           );
         }))}
-        {pestana === "pedidos" && ((miCuenta.pedidos || []).length === 0 ? <p className="tw-vacio">Todavía no hiciste pedidos en la tienda.</p> : miCuenta.pedidos.map(pd => <a key={pd.codigo} className="tw-fila-cuenta" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}><span><b>N° {nroPedido(pd)}</b><small>{new Date(pd.creado_en).toLocaleDateString("es-AR")} · {(ESTADOS_PEDIDO_WEB[pd.estado] || ["", ""])[0].split(":")[0]}</small></span><span>{fmtTienda(pd.total)} ›</span></a>))}
-        {pestana === "compras" && ((miCuenta.compras || []).length === 0 ? <p className="tw-vacio">Todavía no hay compras registradas.</p> : miCuenta.compras.map(c => <div key={c.id} className="tw-fila-cuenta"><span><b>{new Date(c.creado_en).toLocaleDateString("es-AR")}</b><small>{(c.items || []).map(i => i.cantidad + " × " + i.nombre).join(", ")}</small></span><span>{fmtTienda(c.total)}</span></div>))}
+        {pestana === "pedidos" && ((miCuenta.pedidos || []).length === 0 ? <p className="tw-vacio">Todavía no hiciste pedidos en la tienda.</p> : miCuenta.pedidos.map(pd => <div key={pd.codigo} className="tw-fila-cuenta"><a href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo} style={{ display: "flex", flex: 1, justifyContent: "space-between", gap: 8, color: "inherit", textDecoration: "none", minWidth: 0 }}><span><b>N° {nroPedido(pd)}</b><small>{new Date(pd.creado_en).toLocaleDateString("es-AR")} · {(ESTADOS_PEDIDO_WEB[pd.estado] || ["", ""])[0].split(":")[0]}</small></span><span>{fmtTienda(pd.total)} ›</span></a>{pd.tipo !== "giftcard" && pd.estado === "entregado" && <button className="tw-recompra-btn" onClick={() => recomprarPedido(pd.codigo)}>🔁 Volver a pedir</button>}</div>))}
+        {pestana === "compras" && ((miCuenta.compras || []).length === 0 ? <p className="tw-vacio">Todavía no hay compras registradas.</p> : miCuenta.compras.map(c => <div key={c.id} className="tw-fila-cuenta" style={{ flexWrap: "wrap" }}><span style={{ flex: 1, minWidth: 0 }}><b>{new Date(c.creado_en).toLocaleDateString("es-AR")}</b><small>{(c.items || []).map(i => i.cantidad + " × " + i.nombre).join(", ")}</small></span><span>{fmtTienda(c.total)}</span>{(c.items || []).some(i => i.producto_id) && <button className="tw-recompra-btn" onClick={() => recomprar(c.items)}>🔁 Volver a pedir</button>}</div>))}
         <button className="tw-btn2" style={{ marginTop: 22 }} onClick={salirCuenta}>Cerrar sesión</button>
       </div>
     );
@@ -27867,6 +27917,11 @@ function TiendaPublica({ slug }) {
             {paso === "cuenta" ? panelCuenta : paso === "carrito" ? (
               <>
                 <div className="tw-cajon-cuerpo">
+                  {recompraAviso && <div className="tw-recompra-aviso" role="status">
+                    <span style={{ flex: 1 }}>{recompraAviso.error ? "No pudimos cargar esa compra. Probá de nuevo." : recompraAviso.van ? "🔁 Agregamos " + recompraAviso.van + (recompraAviso.van === 1 ? " producto" : " productos") + " de tu compra anterior." : "Ninguno de esos productos tiene stock ahora en tu ciudad."}
+                      {recompraAviso.faltan.length > 0 && <small>Sin stock por ahora: {recompraAviso.faltan.join(", ")}. Podés tocar ♡ en el producto para que te avisemos.</small>}</span>
+                    <button className="tw-pide-x" aria-label="Cerrar aviso" onClick={() => setRecompraAviso(null)}>✕</button>
+                  </div>}
                   {gratisDesde > 0 && carrito.length > 0 && <TwBarraEnvio subtotal={subtotal} gratisDesde={gratisDesde} />}
                   {carrito.length === 0 ? <div style={{ textAlign: "center", padding: "50px 0", color: "#666" }}><div style={{ fontSize: 44, lineHeight: 1.3, height: 60, marginBottom: 14 }}>🛍️</div><p style={{ margin: "0 0 14px" }}>Tu carrito está vacío.</p><button className="tw-btn2" onClick={() => setPaso(null)}>Ver productos</button></div> : carrito.map((i, n) => (
                     <div key={i.producto_id + "-" + (i.variante_id || "")} className={"tw-item" + (saliendo.includes(claveIt(i)) ? " sale" : "")} style={{ "--i": Math.min(n, 6) }}>

@@ -144,7 +144,7 @@ async function datosDeCliente(clienteId) {
 
     const comprasRes = await pool.query(
       `SELECT v.id, v.numero_factura, v.total, v.creado_en,
-        COALESCE(json_agg(json_build_object('nombre', p.nombre, 'cantidad', vi.cantidad)) FILTER (WHERE vi.id IS NOT NULL), '[]') AS items
+        COALESCE(json_agg(json_build_object('nombre', p.nombre, 'cantidad', vi.cantidad, 'producto_id', vi.producto_id, 'variante_id', vi.variante_id)) FILTER (WHERE vi.id IS NOT NULL), '[]') AS items
        FROM ventas v
        LEFT JOIN venta_items vi ON vi.venta_id = v.id
        LEFT JOIN productos p ON vi.producto_id = p.id
