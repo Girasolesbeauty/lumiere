@@ -23574,6 +23574,12 @@ const TW_ORDEN = [["", "Destacados"], ["nuevos", "Más nuevos"], ["menor", "Meno
 
 const CSS_TIENDA = `
 #root:has(>.tw){width:auto;max-width:none;border:0;text-align:left;display:block;margin:0}
+/* La tienda nunca se corre hacia el costado en el celular, aunque algo de adentro (un nombre largo, una foto, un video de
+   Instagram) sea mas ancho que la pantalla. clip no rompe el encabezado fijo (sticky); hidden en html es el respaldo */
+html:has(.tw){overflow-x:hidden}
+.tw{overflow-x:clip;max-width:100vw}
+.tw img,.tw video,.tw iframe{max-width:100%}
+.tw h1,.tw h2,.tw h3,.tw-lista-cab{overflow-wrap:anywhere;min-width:0}
 .tw{text-align:left;--n:#111;--g:#f6f6f6;--b:#e6e6e6;--m:#666;font-family:"Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;color:var(--n);background:#fff;min-height:100vh;-webkit-font-smoothing:antialiased}
 .tw *{box-sizing:border-box}
 .tw{color-scheme:light}
