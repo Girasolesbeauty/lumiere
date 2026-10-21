@@ -24319,6 +24319,8 @@ html:has(.tw){overflow-x:hidden}
 .tw-form-res{max-width:480px;padding:26px}
 .tw-op-off{display:inline-block;margin-left:8px;background:#2d7a4f;color:#fff;font-size:10.5px;font-weight:800;letter-spacing:.04em;border-radius:999px;padding:2px 8px;vertical-align:2px}
 .tw-precio-pago{font-size:13px;color:#2d7a4f;font-weight:700;margin:-4px 0 10px}
+.tw-cuotas{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:13px;color:#4a2a7a;background:#f4eefc;border:1px solid #e4d7f7;border-radius:14px;padding:5px 12px;margin:-2px 0 12px}
+.tw-cuotas b{font-weight:800}.tw-cuotas span{color:#8a74ad;font-weight:600}
 .tw-ver-video{position:absolute;left:12px;bottom:12px;z-index:2;display:inline-flex;align-items:center;gap:8px;border:none;border-radius:999px;background:rgba(17,17,17,.82) !important;color:#fff !important;font-family:inherit;font-size:12.5px;font-weight:800;letter-spacing:.04em;padding:9px 15px 9px 9px;cursor:pointer;backdrop-filter:blur(6px);box-shadow:0 4px 14px rgba(0,0,0,.25);animation:twLatido 2.4s ease-in-out infinite}
 .tw-ver-video span{width:26px;height:26px;border-radius:50%;background:#fff;color:#111;display:inline-flex;align-items:center;justify-content:center;font-size:11px;padding-left:2px}
 @keyframes twLatido{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
@@ -27767,6 +27769,12 @@ function TiendaPublica({ slug }) {
                     if (promoTodos) return <div className="tw-precio-pago">🏷️ {fmtTienda(Math.round(ver.precio * (1 - promoTodos.pct / 100)))} con la promo {promoTodos.nombre} ({String(promoTodos.pct).replace(".", ",")}% OFF)</div>;
                     const mejor = Object.keys(tienda.pagos || {}).filter(k => tienda.pagos[k] && (!preVer || k === "mp")).map(k => { const pr = twPromoDe(tienda.promos, ver, k); return [k, pr ? pr.pct : ((tienda.descuentos_pago || {})[k] || 0)]; }).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1])[0];
                     return mejor ? <div className="tw-precio-pago">💸 {fmtTienda(Math.round(ver.precio * (1 - mejor[1] / 100)))} pagando con {({ mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia", retiro: "efectivo al retirar" })[mejor[0]]} ({String(mejor[1]).replace(".", ",")}% OFF)</div> : null; })()}
+                  {/* Cuotas sin interés con GoCuotas (hasta 4 con débito), con su descuento si tiene. No aplica a preventas (solo Mercado Pago) */}
+                  {tienda.pagos && tienda.pagos.gocuotas && !preVer && (() => {
+                    const pr = twPromoDe(tienda.promos, ver, "gocuotas"), pct = pr ? pr.pct : ((tienda.descuentos_pago || {}).gocuotas || 0);
+                    const base = Math.round(ver.precio * (1 - pct / 100));
+                    return <div className="tw-cuotas" title="Con tu tarjeta de débito">💜 <b>4 cuotas sin interés</b> de <b>{fmtTienda(Math.ceil(base / 4))}</b> <span>· GoCuotas</span></div>;
+                  })()}
                   {(ver._et && (ver._et.ingrediente || []).length > 0) && <div className="tw-ficha-ing"><span>Con</span>{ver._et.ingrediente.map(k => { const o = TW_ING_OP.find(x => x[0] === k); return o ? <button key={k} onClick={() => { setVer(null); irCat("*", { ingrediente: k }); }} title={"Ver todo con " + o[1]}>{o[1]}</button> : null; })}</div>}
                   {preVer && (
                     <div className="tw-preventa-aviso" role="note">
