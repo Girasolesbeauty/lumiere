@@ -109,7 +109,11 @@ router.get('/:slug', async (req, res) => {
       resenas_puntos: (() => { const r = tienda.puntosResenaDe(c); return r.activo && (r.puntos || r.extra_foto) ? { puntos: r.puntos, extra_foto: r.extra_foto } : null; })(),
       // Logo de la marca para la gift card (blanco sobre el color de la tarjeta)
       logo_marca: Number(req.negTienda.id) === 1 ? { blanco: '/logos/girasoles-logo-blanco.svg', color: '/logos/girasoles-logo.svg' } : null,
-      muestras: (() => { const m = tienda.muestrasDe(c); return m.activo && m.opciones.length ? { desde: m.desde, opciones: m.opciones } : null; })(),
+      muestras: (() => {
+        const m = tienda.muestrasDe(c);
+        const ops = m.opciones.map(o => ({ nombre: o.nombre, producto_id: o.producto_id, locales: tienda.localesMuestra(m, o) })).filter(o => o.locales.length);
+        return m.activo && ops.length ? { desde: m.desde, opciones: ops } : null;
+      })(),
       // Pagina de links para Instagram: los locales que se muestran, con su WhatsApp, horarios y mapa
       links: (() => {
         const l = tienda.linksDe(c);
@@ -450,7 +454,8 @@ router.post('/:slug/pedidos', async (req, res) => {
     if (amiga && descAmiga) await client.query('UPDATE tienda_pedidos SET amiga_de = $1, descuento_amiga = $2 WHERE id = $3', [amiga.referente_id, descAmiga, pedido.id]);
     // Muestra gratis elegida (solo si la compra llega al monto y es una de la lista)
     const mu = tienda.muestrasDe(c);
-    if (mu.activo && b.muestra && mu.opciones.includes(String(b.muestra)) && subtotal >= mu.desde) await client.query('UPDATE tienda_pedidos SET muestra = $1 WHERE id = $2', [String(b.muestra), pedido.id]);
+    const opMu = mu.activo && b.muestra && subtotal >= mu.desde ? mu.opciones.find(o => o.nombre === String(b.muestra)) : null;
+    if (opMu && tienda.localesMuestra(mu, opMu).includes(Number(localId)) && await tienda.moverEnvase(client, localId, -1)) await client.query('UPDATE tienda_pedidos SET muestra = $1 WHERE id = $2', [opMu.nombre, pedido.id]);
     if (combo.combos.length) await client.query('UPDATE tienda_pedidos SET descuento_combo = $1, combos = $2 WHERE id = $3', [descCombo, combo.combos.map(x => x.nombre + (x.veces > 1 ? ' x' + x.veces : '')).join(', '), pedido.id]);
     if (gc && gcUsa > 0) {
       const nuevo = Math.round((gc.saldo - gcUsa) * 100) / 100;

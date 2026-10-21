@@ -961,7 +961,10 @@ router.put('/regalos', async (req, res) => {
 router.put('/muestras', async (req, res) => {
   try {
     if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
-    const m = tienda.muestrasDe({ muestras: req.body || {} });
+    // Los envases se cuentan solos con cada pedido: solo se pisan los locales que se cargaron a mano en esta vez
+    const actual = tienda.muestrasDe((await pool.query('SELECT muestras FROM tienda_config WHERE id = 1')).rows[0] || {});
+    const b = req.body || {};
+    const m = tienda.muestrasDe({ muestras: { ...b, envases: { ...actual.envases, ...(b.envases && typeof b.envases === 'object' ? b.envases : {}) } } });
     if (m.activo && !m.opciones.length) return res.status(400).json({ error: 'Escribí al menos una muestra para elegir' });
     await pool.query('UPDATE tienda_config SET muestras = $1 WHERE id = 1', [JSON.stringify(m)]);
     res.json({ muestras: m });
