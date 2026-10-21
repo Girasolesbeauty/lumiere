@@ -24381,6 +24381,31 @@ html:has(.tw){overflow-x:hidden}
 .tw-seg-pasos li.ahora .tw-seg-t{color:#111;font-weight:800}
 .tw-seg-msg{margin-top:14px;background:#fff;border-radius:12px;padding:10px 12px;font-size:13.5px;color:#444;text-align:center;animation:twSegPaso .6s cubic-bezier(.2,.8,.2,1) 1s both;box-shadow:0 4px 14px -8px rgba(122,29,63,.3)}
 .tw-rutina-paso{display:inline-block;font-size:10.5px;font-weight:800;color:#8a4b00;background:#fff1d6;border-radius:999px;padding:2px 8px;margin:4px 0 2px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.tw-compartir button.comp-on{border-color:#6b4bd1;color:#4b2fa8 !important;background:#f3effd}
+.tw-comp-barra{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom));z-index:13;display:flex;align-items:center;gap:10px;background:#1d1d1f;color:#fff;border-radius:999px;padding:7px 8px 7px 10px;box-shadow:0 10px 28px rgba(0,0,0,.25);max-width:calc(100vw - 120px)}
+.tw-comp-fotos{display:flex}.tw-comp-fotos img,.tw-comp-fotos span{width:34px;height:34px;border-radius:50%;object-fit:cover;background:#fff;border:2px solid #1d1d1f;margin-left:-8px;display:flex;align-items:center;justify-content:center;color:#c9a84c;font-size:14px}
+.tw-comp-fotos>*:first-child{margin-left:0}
+.tw-comp-txt{font-size:12.5px;font-weight:600;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.tw .tw-comp-ver{background:#fff;color:#1d1d1f !important;border:0;border-radius:999px;padding:8px 14px;font:inherit;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap}
+.tw-comp-x{background:transparent;border:0;color:#fff;opacity:.7;font-size:15px;cursor:pointer;padding:4px 6px;margin-left:auto}
+.tw-comp .tw-ficha-in{padding:22px 22px 26px}.tw-comp h2{font-size:20px;margin:0 0 14px}
+.tw-comp-scroll{overflow-x:auto;margin:0 -6px;-webkit-overflow-scrolling:touch}
+.tw-comp-tabla{width:100%;border-collapse:separate;border-spacing:6px 0;table-layout:fixed}
+.tw-comp-tabla td{vertical-align:top;font-size:13px;padding:2px 4px 10px;line-height:1.4}
+.tw-comp-cab td{position:relative;text-align:center}
+.tw-comp-foto{display:flex;align-items:center;justify-content:center;width:100%;aspect-ratio:1;border:0;padding:0;border-radius:14px;background:#f5f1ea;overflow:hidden;cursor:pointer;margin-bottom:6px}
+.tw-comp-foto img{width:100%;height:100%;object-fit:cover}.tw-comp-foto .tw-ph{font-size:34px}
+.tw-comp-quitar{position:absolute;top:8px;right:8px;z-index:1;width:26px;height:26px;border-radius:50%;border:0;background:rgba(255,255,255,.92);box-shadow:0 2px 6px rgba(0,0,0,.15);cursor:pointer;font-size:12px}
+.tw-comp-nom{font-weight:700;font-size:13.5px;line-height:1.3}
+.tw-comp-lbl th{text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#888;font-weight:800;padding:10px 4px 4px;border-top:1px solid #eee}
+.tw-comp-precio{font-weight:800;font-size:15px}
+.tw-comp-mejor{display:inline-block;margin-top:4px;font-size:11px;font-weight:800;color:#1f7a4a;background:#e5f6ec;border-radius:999px;padding:2px 8px}
+.tw-comp-chips{display:flex;flex-wrap:wrap;gap:4px}.tw-comp-chips span{background:#f5f1ea;border-radius:999px;padding:2px 8px;font-size:11.5px;font-weight:600}
+.tw-comp-nada{color:#aaa}.tw-comp-ok{color:#1f7a4a;font-weight:700}
+.tw-comp-desc{font-size:12px;color:#555}
+.tw-comp-pie td{padding-top:10px;border-top:1px solid #eee}.tw-comp-pie button{width:100%;padding:10px 6px;font-size:12px}
+.tw-comp-mas{margin-top:14px;font-size:12.5px;color:#777;text-align:center}
+@media(max-width:760px){.tw-comp-barra{left:14px;right:84px;transform:none;max-width:none}.tw-comp-barra.sube{bottom:calc(84px + env(safe-area-inset-bottom))}.tw-comp .tw-ficha-in{padding:18px 12px 22px}}
 .tw-recompra-card{display:flex;gap:12px;align-items:center;background:linear-gradient(135deg,#fff6ec,#fdeef4);border:1px solid #f3e0d6;border-radius:16px;padding:12px 14px;margin-bottom:12px;animation:twSegPaso .5s ease both}
 .tw-recompra-card b{display:block;font-size:14px}.tw-recompra-card small{display:block;font-size:12px;color:#6b5a55;margin-top:2px;line-height:1.35}
 .tw-recompra-btn{flex-basis:100%;margin-top:8px;font:inherit;font-size:12px;font-weight:800;letter-spacing:.04em;padding:8px 12px;border-radius:999px;border:1px solid #111;background:#fff;color:#111;cursor:pointer}
@@ -26822,6 +26847,10 @@ function TiendaPublica({ slug }) {
   // Festejo del envio gratis: si al agregar algo (con el carrito cerrado) llega al monto, confeti y un cartel arriba
   const [festejoEnvio, setFestejoEnvio] = useState(false);
   const [recompraAviso, setRecompraAviso] = useState(null); // Volver a pedir: { van, faltan } (aviso en el carrito)
+  // Comparar productos: hasta 3, guardados en el navegador
+  const [comparar, setComparar] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_comparar_" + slug) || "[]"); } catch (e) { return []; } });
+  const [verComparar, setVerComparar] = useState(false);
+  useEffect(() => { try { localStorage.setItem("tienda_comparar_" + slug, JSON.stringify(comparar)); } catch (e) {} }, [comparar]);
   const gratisAntes = useRef(null);
   const subtotalEnvio = carrito.reduce((t, i) => t + i.precio * i.cantidad, 0), desdeEnvio = tienda && tienda.envio && tienda.envio.gratis_desde;
   useEffect(() => {
@@ -27232,6 +27261,8 @@ function TiendaPublica({ slug }) {
   const nSlides = destacados.length;
   const iSlide = nSlides ? slide % nSlides : 0;
   const tarjeta = (p) => <TwTarjeta key={p.id} p={p} base={base} sin={agotado(p)} preventa={esPreventa(p)} llega={esPreventa(p) ? llegaDe(p) : null} fav={favs.includes(p.id)} onFav={toggleFav} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
+  const enComparar = comparar.map(id => lista0.find(p => p.id === id)).filter(Boolean);
+  const toggleComparar = (p) => setComparar(c => c.includes(p.id) ? c.filter(x => x !== p.id) : [...c, p.id].slice(-3));
   const opcionesPago = [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["gocuotas", "💜 GoCuotas", "Hasta 4 cuotas sin interés con tu tarjeta de débito"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar"], ["retiro", "💵 Pago al retirar", "Pagás en el local"]]
     .filter(([k]) => tienda.pagos[k] && !(k === "retiro" && datos.entrega === "envio") && (!carritoPreventa || k === "mp"));
   const listoParaPedir = lid && datos.nombre && datos.telefono && datos.entrega && (pagoElegido || gcCubre) && (datos.entrega === "retiro" ? retiroAca.length > 0 : (zona && datos.direccion));
@@ -27737,6 +27768,60 @@ function TiendaPublica({ slug }) {
           <span className="tw-wa-bola"><svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.9 2.1c.1.2.1.4 0 .5l-.3.5-.4.5c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l2 1c.3.1.5.2.5.3.1.1.1.6-.1 1.3Z"/></svg></span>
         </a>
       )}
+      {/* Comparar: los elegidos abajo, hasta 3 */}
+      {enComparar.length > 0 && !paso && !ver && !verComparar && (
+        <div className={"tw-comp-barra" + (totalItems > 0 ? " sube" : "")} role="region" aria-label="Comparar productos">
+          <div className="tw-comp-fotos">{enComparar.map(p => p.foto ? <img key={p.id} src={foto(p)} alt="" /> : <span key={p.id}>✿</span>)}</div>
+          {enComparar.length < 2 ? <span className="tw-comp-txt">Elegí otro producto para comparar</span>
+            : <button className="tw-comp-ver" onClick={() => setVerComparar(true)}>⚖️ Comparar ({enComparar.length})</button>}
+          <button className="tw-comp-x" onClick={() => setComparar([])} aria-label="Dejar de comparar">✕</button>
+        </div>
+      )}
+      {verComparar && enComparar.length > 0 && (() => {
+        const ets = enComparar.map(p => p._et || twEtiquetas(p));
+        const nombres = (k, e) => (e[k] || []).map(v => twNombreEtiqueta(k, v));
+        const precios = enComparar.map(p => p.precio), masBarato = enComparar.length > 1 && Math.min(...precios) < Math.max(...precios) ? Math.min(...precios) : null;
+        const notas = enComparar.map(p => p.resenas ? p.resenas[0] : 0), mejorNota = enComparar.length > 1 && Math.max(...notas) > 0 && notas.filter(n => n === Math.max(...notas)).length === 1 ? Math.max(...notas) : null;
+        const fila = (titulo, celda) => <><tr className="tw-comp-lbl"><th colSpan={enComparar.length}>{titulo}</th></tr><tr>{enComparar.map((p, i) => <td key={p.id}>{celda(p, ets[i])}</td>)}</tr></>;
+        const chips = (l) => l.length ? <div className="tw-comp-chips">{l.map(x => <span key={x}>{x}</span>)}</div> : <span className="tw-comp-nada">—</span>;
+        const miPiel = perfilPiel && perfilPiel.piel;
+        return (
+          <>
+            <div className="tw-velo" onClick={() => setVerComparar(false)} />
+            <div className="tw-ficha tw-comp" role="dialog" aria-modal="true" aria-label="Comparar productos">
+              <div className="tw-ficha-in">
+                <button className="tw-cerrar" onClick={() => setVerComparar(false)} aria-label="Cerrar"><TwIcono d={TW_X} size={20} /></button>
+                <h2>⚖️ Comparar productos</h2>
+                <div className="tw-comp-scroll">
+                  <table className="tw-comp-tabla" style={{ minWidth: enComparar.length * 130 }}>
+                    <tbody>
+                      <tr className="tw-comp-cab">{enComparar.map(p => (
+                        <td key={p.id}>
+                          <button className="tw-comp-quitar" onClick={() => setComparar(c => c.filter(x => x !== p.id))} aria-label={"Sacar " + p.nombre}>✕</button>
+                          <button className="tw-comp-foto" onClick={() => { setVerComparar(false); abrir(p); }}>{p.foto ? <img src={foto(p)} alt="" /> : <span className="tw-ph">✿</span>}</button>
+                          {p.marca && <div className="tw-card-m">{p.marca}</div>}
+                          <div className="tw-comp-nom">{p.nombre}</div>
+                        </td>))}</tr>
+                      {fila("Precio", p => <><div className="tw-comp-precio">{p.precio_antes && <s className="tw-antes">{fmtTienda(p.precio_antes)}</s>} {fmtTienda(p.precio)}</div>{masBarato === p.precio && <span className="tw-comp-mejor">💚 Más económico</span>}</>)}
+                      {fila("Opiniones", p => p.resenas ? <><TwEstrellas v={p.resenas[0]} size={12} /> <small>({p.resenas[1]})</small>{mejorNota === p.resenas[0] && <div><span className="tw-comp-mejor">⭐ Mejor puntuado</span></div>}</> : <span className="tw-comp-nada">Sin opiniones todavía</span>)}
+                      {fila("Qué es", (p, e) => chips(nombres("tipo", e)))}
+                      {fila("Tipo de piel", (p, e) => <>{chips(e.todoTipo ? ["Todo tipo de piel"] : nombres("piel", e))}{miPiel && (e.todoTipo || (e.piel || []).includes(miPiel)) && <span className="tw-comp-mejor">✓ Va con tu piel</span>}</>)}
+                      {fila("Para qué sirve", (p, e) => chips(nombres("necesidad", e)))}
+                      {fila("Ingredientes destacados", (p, e) => chips(nombres("ingrediente", e)))}
+                      {fila("Disponibilidad", p => agotado(p) ? <span className="tw-comp-nada">✕ Agotado</span> : esPreventa(p) ? <span>⏳ Preventa</span> : <span className="tw-comp-ok">✓ En stock</span>)}
+                      {enComparar.some(p => p.descripcion) && fila("Descripción", p => p.descripcion ? <div className="tw-comp-desc">{p.descripcion.length > 170 ? p.descripcion.slice(0, 170).trim() + "…" : p.descripcion}</div> : <span className="tw-comp-nada">—</span>)}
+                      <tr className="tw-comp-pie">{enComparar.map(p => (
+                        <td key={p.id}>{agotado(p) || p.variantes ? <button className="tw-btn2" onClick={() => { setVerComparar(false); abrir(p); }}>{p.variantes ? "Elegir opción" : "Ver producto"}</button>
+                          : <button className="tw-btn" onClick={e => agregar(p, null, 1, e.currentTarget)}>{esPreventa(p) ? "Reservar" : "Agregar"}</button>}</td>))}</tr>
+                    </tbody>
+                  </table>
+                </div>
+                {enComparar.length < 3 && <div className="tw-comp-mas">Podés sumar {enComparar.length < 2 ? "hasta 2 más" : "uno más"} con el botón <b>⚖️ Comparar</b> de cada producto.</div>}
+              </div>
+            </div>
+          </>
+        );
+      })()}
       {totalItems > 0 && !paso && !ver && <div className="tw-barra"><button className="tw-btn full" onClick={() => setPaso("carrito")}>Ver carrito ({totalItems}) · {fmtTienda(subtotal)}</button></div>}
       {logueada && misRes && misRes.para_resenar.length > 0 && resMostrar && !resCerrado && !paso && !ver && !formRes && !toast && !totalItems && (
         <div className="tw-pide-res" role="status">
@@ -27875,6 +27960,7 @@ function TiendaPublica({ slug }) {
                   <div className="tw-compartir">
                     <button className={favs.includes(ver.id) ? "fav-on" : ""} onClick={() => toggleFav(ver)} aria-pressed={favs.includes(ver.id)}><TwIcono d={TW_CORAZON} size={16} /> {favs.includes(ver.id) ? "Guardado" : "Guardar"}</button>
                     <button onClick={() => compartir(ver)} aria-label="Compartir este producto"><TwIcono d={TW_COMPARTIR} size={16} /> {copiado === ver.id ? "¡Link copiado!" : "Compartir"}</button>
+                    <button className={comparar.includes(ver.id) ? "comp-on" : ""} onClick={() => toggleComparar(ver)} aria-pressed={comparar.includes(ver.id)}>⚖️ {comparar.includes(ver.id) ? "Comparando" : "Comparar"}</button>
                     <a href={"https://wa.me/?text=" + encodeURIComponent(ver.nombre + " en " + tienda.titulo + " " + linkProducto(ver))} target="_blank" rel="noopener" aria-label="Mandar por WhatsApp"><TwIcono d={TW_WA} size={16} /> WhatsApp</a>
                   </div>
                   {ver.variantes && (<><div className="tw-lbl" style={{ marginTop: 0 }}>{varSel ? "Opción: " + varSel.valor : "Elegí una opción"}</div>
