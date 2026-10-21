@@ -24380,6 +24380,7 @@ html:has(.tw){overflow-x:hidden}
 .tw-seg-pasos li.ok .tw-seg-t{color:#444}
 .tw-seg-pasos li.ahora .tw-seg-t{color:#111;font-weight:800}
 .tw-seg-msg{margin-top:14px;background:#fff;border-radius:12px;padding:10px 12px;font-size:13.5px;color:#444;text-align:center;animation:twSegPaso .6s cubic-bezier(.2,.8,.2,1) 1s both;box-shadow:0 4px 14px -8px rgba(122,29,63,.3)}
+.tw-rutina-paso{display:inline-block;font-size:10.5px;font-weight:800;color:#8a4b00;background:#fff1d6;border-radius:999px;padding:2px 8px;margin:4px 0 2px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .tw-recompra-card{display:flex;gap:12px;align-items:center;background:linear-gradient(135deg,#fff6ec,#fdeef4);border:1px solid #f3e0d6;border-radius:16px;padding:12px 14px;margin-bottom:12px;animation:twSegPaso .5s ease both}
 .tw-recompra-card b{display:block;font-size:14px}.tw-recompra-card small{display:block;font-size:12px;color:#6b5a55;margin-top:2px;line-height:1.35}
 .tw-recompra-btn{flex-basis:100%;margin-top:8px;font:inherit;font-size:12px;font-weight:800;letter-spacing:.04em;padding:8px 12px;border-radius:999px;border:1px solid #111;background:#fff;color:#111;cursor:pointer}
@@ -25378,6 +25379,8 @@ function TwFila({ titulo, sub, clase, items, onVerTodo, render }) {
 // Se detectan solos con el nombre, la categoria y la descripcion de cada producto.
 // "en" = donde se busca: "n" solo nombre y categoria (para el tipo de producto), "t" tambien la descripcion.
 const twNorm = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+// Pasos de una rutina facial (para sugerir lo que falta en el carrito)
+const TW_PASOS_RUTINA = [["limpiador", "🫧 Limpiador"], ["tonico", "💧 Tónico"], ["serum", "✨ Sérum"], ["hidratante", "🧴 Hidratante"], ["solar", "☀️ Protector solar"]];
 const TW_FILTROS = [
   { k: "tipo", titulo: "Tipo de producto", en: "n", op: [
     ["limpiador", "Limpiadores", /limpia(dor|dora|dores|doras|nte)?\b|limpieza|cleanser|cleansing|jabon|espuma limpi|gel de limpieza|face ?wash|leche limpiadora|\bfoam\b|espuma facial/],
@@ -27257,7 +27260,22 @@ function TiendaPublica({ slug }) {
   const recVer = ver ? deRecs([ver.id], [ver.id]) : [];
   const relacionados = ver ? [...recVer, ...conStock.filter(p => p.id !== ver.id && p.categoria && p.categoria === ver.categoria && !recVer.includes(p))].slice(0, 8) : [];
   const idsCarrito = [...new Set(carrito.map(i => i.producto_id))];
-  const rutina = idsCarrito.length ? deRecs(idsCarrito, idsCarrito).slice(0, 6) : [];
+  // Completá tu rutina: primero lo que suelen llevar quienes compran lo mismo; si no alcanza (pocos datos), los pasos
+  // de la rutina facial que le faltan (limpiador, tónico, sérum, hidratante, protector), con lo más vendido de cada uno
+  const rutina = (() => {
+    if (!idsCarrito.length) return [];
+    const juntos = deRecs(idsCarrito, idsCarrito).slice(0, 6);
+    const tiposCarrito = new Set(carrito.flatMap(i => { const p = conStock.find(x => x.id === i.producto_id) || (productos || []).find(x => x.id === i.producto_id); return p ? ((p._et || twEtiquetas(p)).tipo || []) : []; }));
+    const facial = TW_PASOS_RUTINA.some(([t]) => tiposCarrito.has(t)) || tiposCarrito.has("ojos") || tiposCarrito.has("mascarilla") || tiposCarrito.has("exfoliante");
+    if (!facial || juntos.length >= 4) return juntos;
+    const ya = new Set([...idsCarrito, ...juntos.map(p => p.id)]), pasos = [];
+    TW_PASOS_RUTINA.forEach(([t, nombre]) => {
+      if (tiposCarrito.has(t)) return;
+      const mejor = conStock.filter(p => !ya.has(p.id) && !esPreventa(p) && ((p._et || twEtiquetas(p)).tipo || []).includes(t)).sort((a, b) => (a.rk || 9999) - (b.rk || 9999) || (b.destacado ? 1 : 0) - (a.destacado ? 1 : 0))[0];
+      if (mejor) { ya.add(mejor.id); pasos.push({ ...mejor, _paso: nombre }); }
+    });
+    return [...juntos, ...pasos].slice(0, 6);
+  })();
   const varElegida = ver && ver.variantes ? varSel : null;
   const preVer = ver ? esPreventa(ver) : false;
   const maxVer = ver ? (preVer ? prevDispo(ver) : dispo(ver, varElegida)) : 0;
@@ -27939,11 +27957,12 @@ function TiendaPublica({ slug }) {
                   {rutina.length > 0 && (
                     <div className="tw-rutina">
                       <div className="tw-lbl">Completá tu rutina</div>
-                      <div style={{ fontSize: 12.5, color: "#666", margin: "-4px 0 10px" }}>Lo que suelen llevar las clientas que compran lo mismo que vos</div>
+                      <div style={{ fontSize: 12.5, color: "#666", margin: "-4px 0 10px" }}>{rutina.some(p => p._paso) ? "Los pasos que te faltan para una rutina completa, y lo que suelen sumar las clientas" : "Lo que suelen llevar las clientas que compran lo mismo que vos"}</div>
                       <div className="tw-rutina-fila">
                         {rutina.map(p => (
                           <div key={p.id} className="tw-rutina-item">
                             <button className="tw-rutina-img" onClick={() => abrir(p)} aria-label={"Ver " + p.nombre}>{p.foto ? <img src={foto(p)} alt="" /> : <span className="tw-ph" style={{ fontSize: 26 }}>✿</span>}</button>
+                            {p._paso && <div className="tw-rutina-paso">{p._paso}</div>}
                             <div className="tw-rutina-n">{p.nombre}</div>
                             <div style={{ fontWeight: 800, fontSize: 13 }}>{fmtTienda(p.precio)}</div>
                             <button className="tw-btn2" style={{ padding: "6px 10px", fontSize: 11, marginTop: 6 }} onClick={e => p.variantes ? abrir(p) : agregar(p, null, 1, e.currentTarget)}>{p.variantes ? "Elegir" : "+ Agregar"}</button>
