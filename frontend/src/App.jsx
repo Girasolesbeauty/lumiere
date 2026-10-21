@@ -24165,6 +24165,14 @@ html:has(.tw){overflow-x:hidden}
 .tw-progreso .tw-liquido i{position:relative;border-radius:5px;background:linear-gradient(90deg,#1fa463,#4cd38a 50%,#1fa463);background-size:200% 100%;animation:twLiquido 2.4s linear infinite;transition:width 1s cubic-bezier(.3,1.3,.5,1)}
 .tw-progreso .tw-liquido i::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.65) 50%,transparent 70%);background-size:220% 100%;animation:twBrillo 1.8s ease-in-out infinite}
 .tw-progreso.listo{background:#e6f6ec;color:#17603a;animation:twPop .5s cubic-bezier(.3,1.6,.5,1)}
+.tw-envio-ok{display:inline-block;animation:twEnvioOk 1.6s ease-in-out infinite}
+@keyframes twEnvioOk{0%,100%{transform:none}50%{transform:scale(1.06)}}
+.tw-festejo-envio{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#1fa463,#4cd38a);color:#fff;border-radius:16px;padding:12px 18px;box-shadow:0 14px 34px -10px rgba(31,164,99,.7);cursor:pointer;animation:twFestejoEnvio .6s cubic-bezier(.3,1.6,.5,1) both;width:min(360px,92vw);box-sizing:border-box}
+.tw-festejo-envio>div{flex:1;min-width:0}
+.tw-festejo-envio>span{font-size:26px;animation:twEnvioOk 1.2s ease-in-out infinite}
+.tw-festejo-envio b{display:block;font-size:15.5px}.tw-festejo-envio small{font-size:12px;opacity:.92}
+@keyframes twFestejoEnvio{from{opacity:0;transform:translate(-50%,-30px) scale(.8)}to{opacity:1;transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){.tw-envio-ok,.tw-festejo-envio,.tw-festejo-envio>span{animation:none}}
 @keyframes twLiquido{from{background-position:0 0}to{background-position:200% 0}}
 @keyframes twPop{0%{transform:scale(.96)}60%{transform:scale(1.03)}100%{transform:none}}
 .tw-item{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--b);animation:twItem .55s cubic-bezier(.3,1.4,.5,1) both;animation-delay:calc(var(--i,0) * 50ms);transform-origin:left center}
@@ -24831,12 +24839,12 @@ function TwBarraEnvio({ subtotal, gratisDesde }) {
   const gratis = subtotal >= gratisDesde;
   const antes = useRef(gratis);
   useEffect(() => {
-    if (gratis && !antes.current) { twPetalos(ref.current, 30); twSonar.brillo(); twVibrar([10, 40, 10]); }
+    if (gratis && !antes.current) { twPetalos(ref.current, 30); twConfeti(60); twSonar.brillo(); twVibrar([10, 40, 10]); }
     antes.current = gratis;
   }, [gratis]);
   return (
     <div className={"tw-progreso" + (gratis ? " listo" : "")} ref={ref}>
-      {gratis ? <b>🌻 ¡Tenés envío gratis!</b> : <>Te faltan <b>{fmtTienda(gratisDesde - subtotal)}</b> para el envío gratis</>}
+      {gratis ? <b className="tw-envio-ok">🎉 ¡Ganaste envío gratis! 🛵</b> : gratisDesde - subtotal <= gratisDesde * 0.2 ? <>🔥 ¡Estás muy cerca! Te faltan <b>{fmtTienda(gratisDesde - subtotal)}</b> para el envío gratis</> : <>Te faltan <b>{fmtTienda(gratisDesde - subtotal)}</b> para el envío gratis</>}
       <div className="tw-liquido"><i style={{ width: Math.min(100, subtotal / gratisDesde * 100) + "%" }} /></div>
     </div>
   );
@@ -26802,6 +26810,19 @@ function TiendaPublica({ slug }) {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [amigaCod, amigaInfo, datos.telefono, cuponOk, paso]);
+  // Festejo del envio gratis: si al agregar algo (con el carrito cerrado) llega al monto, confeti y un cartel arriba
+  const [festejoEnvio, setFestejoEnvio] = useState(false);
+  const gratisAntes = useRef(null);
+  const subtotalEnvio = carrito.reduce((t, i) => t + i.precio * i.cantidad, 0), desdeEnvio = tienda && tienda.envio && tienda.envio.gratis_desde;
+  useEffect(() => {
+    if (!desdeEnvio) return;
+    const g = subtotalEnvio >= desdeEnvio;
+    if (gratisAntes.current === false && g && paso !== "carrito") {
+      setFestejoEnvio(true); twConfeti(80); twSonar.brillo(); twVibrar([10, 40, 10]);
+      clearTimeout(window.__twFestejo); window.__twFestejo = setTimeout(() => setFestejoEnvio(false), 4200);
+    }
+    gratisAntes.current = g;
+  }, [subtotalEnvio, desdeEnvio]);
   if (error) return <div style={{ fontFamily: "system-ui, sans-serif", padding: 40, textAlign: "center", color: "#555" }}><div style={{ fontSize: 44 }}>🛍️</div><h2>{error}</h2><p style={{ fontSize: 14, maxWidth: 420, margin: "12px auto 0", lineHeight: 1.5 }}>¿Es tu tienda? Activala desde Lumiere, en Ventas → Tienda online → Configuración.</p></div>;
   if (!tienda) return <div className="tw" style={{ padding: 20 }}><style>{CSS_TIENDA}</style><div className="tw-skel" style={{ height: 60, marginBottom: 20 }} /><div className="tw-skel" style={{ height: 380 }} /></div>;
   const color = tienda.color || "#c9a84c";
@@ -27696,6 +27717,7 @@ function TiendaPublica({ slug }) {
         </>
       )}
       {fotoGrande && <div className="tw-foto-grande" onClick={() => setFotoGrande(null)} role="dialog" aria-label="Foto de la reseña"><img src={fotoGrande} alt="" /><button className="tw-cerrar" aria-label="Cerrar"><TwIcono d={TW_X} size={20} /></button></div>}
+      {festejoEnvio && <div className="tw-festejo-envio" role="status" onClick={() => { setFestejoEnvio(false); setPaso("carrito"); }}><span aria-hidden="true">🎉</span><div><b>¡Ganaste envío gratis!</b><small>Tu compra ya supera {fmtTienda(desdeEnvio)} · Ver carrito ›</small></div><span aria-hidden="true">🛵</span></div>}
       {toast && !paso && !ver && (
         <div className="tw-toast" role="status">
           {toast.p.foto ? <img src={foto(toast.p)} alt="" /> : <div className="tw-mini" />}
