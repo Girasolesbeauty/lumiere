@@ -1312,6 +1312,7 @@ function ResumenSemanal({ p, onCerrar }) {
       d.clientas.nuevas ? "🙋‍♀️ Clientas nuevas: " + d.clientas.nuevas : null,
       d.mejor_dia ? "⭐ Mejor día: " + d.mejor_dia.dia + " (" + fmt(d.mejor_dia.total) + ")" : null,
       ...(d.top.length ? ["", "🔥 Lo más vendido:", ...d.top.map((x, i) => (i + 1) + ". " + x.nombre + " (" + x.unidades + ")")] : []),
+      ...((d.envases_bajos || []).length ? ["", "🧴 Envases de muestras: " + d.envases_bajos.map(e => e.nombre + " " + (e.quedan ? "quedan " + e.quedan : "sin envases")).join(" · ")] : []),
       ...(d.agotan.length ? ["", "⚠️ Se está por agotar:", ...d.agotan.map(x => "• " + x.nombre + ": quedan " + x.stock + (x.camino ? " (+" + x.camino + " en camino)" : ""))] : []),
     ].filter(x => x !== null).join("\n");
   };
@@ -1354,6 +1355,7 @@ function ResumenSemanal({ p, onCerrar }) {
             <div key={x.id} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, padding: "5px 0", borderBottom: "1px solid " + tp.border }}>
               <b style={{ width: 18, color: tp.textMuted }}>{i + 1}</b><span style={{ flex: 1, minWidth: 0 }}>{x.nombre} {x.marca && <span style={{ color: tp.textMuted, fontSize: 11.5 }}>{x.marca}</span>}</span><span style={{ whiteSpace: "nowrap" }}>{x.unidades} u · {fmt(x.total)}</span>
             </div>)) : <div style={{ fontSize: 12.5, color: tp.textMuted }}>No hubo ventas esta semana.</div>}
+          {(d.envases_bajos || []).length > 0 && <div style={{ ...caja, marginTop: 12, borderColor: tp.warn }}>🧴 <b>Envases de muestras:</b> {d.envases_bajos.map(e => e.nombre + " " + (e.quedan ? "quedan " + e.quedan : "sin envases")).join(" · ")}</div>}
           <div style={{ fontWeight: 900, fontSize: 14, margin: "14px 0 6px" }}>⚠️ Se está por agotar <span style={{ fontWeight: 500, fontSize: 11.5, color: tp.textMuted }}>(alcanza para menos de 2 semanas)</span></div>
           {d.agotan.length ? d.agotan.map(x => (
             <div key={x.id} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, padding: "5px 0", borderBottom: "1px solid " + tp.border }}>
@@ -24506,6 +24508,7 @@ html:has(.tw){overflow-x:hidden}
 .tw-muestras.falta{background:#faf7f2;border-color:#eee;color:#555}
 .tw-muestras-ops{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .tw .tw-muestras-ops button{border:1.5px solid #e8c48a;background:#fff;color:#5a3a00 !important;border-radius:999px;padding:7px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.tw .tw-muestras-ops button{display:inline-flex;align-items:center;gap:6px}.tw .tw-muestras-ops img{width:22px;height:22px;border-radius:50%;object-fit:cover;margin-left:-6px}
 .tw .tw-muestras-ops button.on{background:#d98b1f;border-color:#d98b1f;color:#fff !important}
 .tw-recompra-card{display:flex;gap:12px;align-items:center;background:linear-gradient(135deg,#fff6ec,#fdeef4);border:1px solid #f3e0d6;border-radius:16px;padding:12px 14px;margin-bottom:12px;animation:twSegPaso .5s ease both}
 .tw-recompra-card b{display:block;font-size:14px}.tw-recompra-card small{display:block;font-size:12px;color:#6b5a55;margin-top:2px;line-height:1.35}
@@ -26988,8 +26991,10 @@ function TiendaPublica({ slug }) {
   const agotado = (p) => (p.variantes ? p.variantes.every(v => dispo(p, v) <= 0) : dispo(p) <= 0) && prevDispo(p) <= 0;
   const totalItems = carrito.reduce((t, i) => t + i.cantidad, 0);
   const subtotal = carrito.reduce((t, i) => t + i.precio * i.cantidad, 0);
-  const mu = tienda.muestras, ganaMuestra = !!mu && carrito.length > 0 && subtotal >= mu.desde;
-  const muestraOk = ganaMuestra && mu.opciones.includes(muestra) ? muestra : null;
+  // Solo las muestras de la ciudad elegida (donde hay tester y envases)
+  const mu = tienda.muestras, muAca = mu ? mu.opciones.filter(o => !lid || o.locales.includes(lid)) : [];
+  const ganaMuestra = muAca.length > 0 && carrito.length > 0 && subtotal >= mu.desde;
+  const muestraOk = ganaMuestra && muAca.some(o => o.nombre === muestra) ? muestra : null;
   const abrir = abrirFicha;
   // Sumar al carrito: pop, toquecito y la foto vuela a la bolsa (el numero cambia cuando llega)
   const agregar = (p, v, n = 1, el) => {
@@ -28134,10 +28139,10 @@ function TiendaPublica({ slug }) {
                     <button className="tw-pide-x" aria-label="Cerrar aviso" onClick={() => setRecompraAviso(null)}>✕</button>
                   </div>}
                   {gratisDesde > 0 && carrito.length > 0 && <TwBarraEnvio subtotal={subtotal} gratisDesde={gratisDesde} />}
-                  {mu && carrito.length > 0 && (ganaMuestra ? (
+                  {muAca.length > 0 && carrito.length > 0 && (ganaMuestra ? (
                     <div className="tw-muestras">
                       <b>🎁 ¡Te ganaste una muestra gratis! Elegí cuál querés:</b>
-                      <div className="tw-muestras-ops">{mu.opciones.map(o => <button key={o} className={muestraOk === o ? "on" : ""} aria-pressed={muestraOk === o} onClick={() => { setMuestra(m => m === o ? "" : o); if (muestraOk !== o) twSonar.pop(); }}>{muestraOk === o ? "✓ " : ""}{o}</button>)}</div>
+                      <div className="tw-muestras-ops">{muAca.map(({ nombre: o, producto_id }) => { const pr = producto_id && lista0.find(x => x.id === producto_id); return <button key={o} className={muestraOk === o ? "on" : ""} aria-pressed={muestraOk === o} onClick={() => { setMuestra(m => m === o ? "" : o); if (muestraOk !== o) twSonar.pop(); }}>{pr && pr.foto ? <img src={foto(pr)} alt="" /> : null}{muestraOk === o ? "✓ " : ""}{o}</button>; })}</div>
                     </div>
                   ) : <div className="tw-muestras falta">🎁 Sumá <b>{fmtTienda(mu.desde - subtotal)}</b> más y elegí una <b>muestra gratis</b></div>)}
                   {carrito.length === 0 ? <div style={{ textAlign: "center", padding: "50px 0", color: "#666" }}><div style={{ fontSize: 44, lineHeight: 1.3, height: 60, marginBottom: 14 }}>🛍️</div><p style={{ margin: "0 0 14px" }}>Tu carrito está vacío.</p><button className="tw-btn2" onClick={() => setPaso(null)}>Ver productos</button></div> : carrito.map((i, n) => (
@@ -28766,17 +28771,29 @@ function CajaSeccion({ it, children, temaPal, extra }) {
 }
 
 // Link para la bio de Instagram: por local, WhatsApp, horarios y ubicacion; texto de bienvenida y botones extra
-// Muestras gratis: desde un monto de productos, en el carrito la clienta elige una de esta lista
-function MuestrasGratis({ cfg, temaPal, avisar, onGuardado, it }) {
+// Muestras gratis: desde un monto de productos, en el carrito la clienta elige una de esta lista.
+// Cada local tiene sus envases (se descuenta uno por pedido y vuelve si se cancela) y cada muestra dice en qué locales hay tester.
+function MuestrasGratis({ cfg, locs, productos, temaPal, avisar, onGuardado, it }) {
   const tp = temaPal || PALETA_CLARA;
-  const ini = cfg.muestras || {};
-  const [m, setM] = useState(() => ({ activo: !!ini.activo, desde: ini.desde ? String(ini.desde) : "", opciones: (ini.opciones || []).length ? ini.opciones : [""] }));
+  const activos = (locs || []).filter(l => l.activo !== false);
+  const ids = activos.map(l => l.id);
+  const desdeCfg = (mm) => ({ activo: !!mm.activo, desde: mm.desde ? String(mm.desde) : "",
+    opciones: (mm.opciones || []).length ? mm.opciones.map(o => typeof o === "string" ? { nombre: o, producto_id: null, locales: ids } : { ...o, locales: o.locales || ids }) : [{ nombre: "", producto_id: null, locales: ids }] });
+  const [m, setM] = useState(() => desdeCfg(cfg.muestras || {}));
+  const [envases, setEnvases] = useState(() => ({ ...((cfg.muestras || {}).envases || {}) }));
+  const [tocados, setTocados] = useState({}); // locales cuyos envases se cargaron a mano (los demás los cuenta el sistema)
   const [guardando, setGuardando] = useState(false);
-  const setOp = (i, v) => setM(x => ({ ...x, opciones: x.opciones.map((o, j) => j === i ? v : o) }));
+  const setOp = (i, cambios) => setM(x => ({ ...x, opciones: x.opciones.map((o, j) => j === i ? { ...o, ...cambios } : o) }));
+  const nombreOp = (i, v) => { const pr = (productos || []).find(p => p.nombre === v); setOp(i, { nombre: v, producto_id: pr ? pr.id : null }); };
+  const tester = (i, lid, si) => setOp(i, { locales: si ? [...new Set([...m.opciones[i].locales, lid])] : m.opciones[i].locales.filter(x => x !== lid) });
   const guardar = async () => {
     setGuardando(true);
-    try { const r = await API.put("/tienda/muestras", { ...m, desde: parseFloat(m.desde) || 0 }); setM(x => ({ ...x, opciones: r.data.muestras.opciones.length ? r.data.muestras.opciones : [""] })); avisar(true, "✓ Guardado. Ya se ve en el carrito de la tienda."); onGuardado && onGuardado(); }
-    catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+    try {
+      const env = Object.fromEntries(Object.keys(tocados).map(k => [k, parseInt(envases[k]) || 0]));
+      const r = await API.put("/tienda/muestras", { activo: m.activo, desde: parseFloat(m.desde) || 0, opciones: m.opciones, envases: env });
+      setM(desdeCfg(r.data.muestras)); setEnvases({ ...r.data.muestras.envases }); setTocados({});
+      avisar(true, "✓ Guardado. Ya se ve en el carrito de la tienda."); onGuardado && onGuardado();
+    } catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
     setGuardando(false);
   };
   return (
@@ -28786,15 +28803,34 @@ function MuestrasGratis({ cfg, temaPal, avisar, onGuardado, it }) {
       </label>
       <div className="fl" style={{ marginTop: 12 }}>Desde cuánto (en productos)</div>
       <input className="inp" inputMode="numeric" style={{ maxWidth: 200 }} placeholder="Ej: 50000" value={m.desde} onChange={e => setM(x => ({ ...x, desde: e.target.value.replace(/[^\d]/g, "") }))} />
-      <div className="fl" style={{ marginTop: 12 }}>Muestras para elegir (hasta 12)</div>
+      <div style={{ fontWeight: 900, fontSize: 14, margin: "16px 0 4px" }}>🧴 Envases vacíos para muestras</div>
+      <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>Cuántos tenés en cada local. Se descuenta uno solo con cada pedido que lleva muestra (y vuelve si se cancela). Sin envases en un local, ahí no se ofrecen muestras.</div>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        {activos.map(l => { const v = envases[l.id], bajo = v !== undefined && v !== "" && parseInt(v) <= 5; return (
+          <div key={l.id} style={{ flex: "1 1 160px" }}>
+            <div className="fl">{l.nombre}</div>
+            <input className="inp" inputMode="numeric" placeholder="Ej: 30" value={v === undefined ? "" : String(v)} onChange={e => { const t = e.target.value.replace(/[^\d]/g, ""); setEnvases(x => ({ ...x, [l.id]: t })); setTocados(x => ({ ...x, [l.id]: true })); }} />
+            {v === undefined || v === "" ? <div style={{ fontSize: 11, color: tp.warn, marginTop: 3 }}>Cargá cuántos tenés</div>
+              : bajo && <div style={{ fontSize: 11, color: parseInt(v) === 0 ? tp.red : tp.warn, marginTop: 3, fontWeight: 700 }}>{parseInt(v) === 0 ? "Sin envases: no se ofrecen muestras acá" : "⚠️ Quedan pocos"}</div>}
+          </div>); })}
+      </div>
+      <div style={{ fontWeight: 900, fontSize: 14, margin: "16px 0 4px" }}>🎁 Muestras para elegir (hasta 12)</div>
+      <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>Escribí el producto (te lo sugiere de tu lista) y tildá en qué locales tenés el tester abierto para sacar la muestra. Cuando se termina un tester, destildalo.</div>
+      <datalist id="muestras-prods">{(productos || []).slice(0, 800).map(p => <option key={p.id} value={p.nombre} />)}</datalist>
       {m.opciones.map((o, i) => (
-        <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-          <input className="inp" maxLength={80} placeholder={["Ej: Sérum de vitamina C", "Ej: Crema hidratante", "Ej: Protector solar"][i % 3]} value={o} onChange={e => setOp(i, e.target.value)} />
-          {m.opciones.length > 1 && <button className="icon-btn" aria-label="Sacar esta muestra" onClick={() => setM(x => ({ ...x, opciones: x.opciones.filter((_, j) => j !== i) }))}>✕</button>}
+        <div key={i} style={{ border: "1px solid " + tp.border, borderRadius: 10, padding: "8px 10px", marginBottom: 8, opacity: o.locales.length ? 1 : .6 }}>
+          <div style={{ display: "flex", gap: 6 }}>
+            <input className="inp" list="muestras-prods" maxLength={80} placeholder={["Ej: Sérum de vitamina C", "Ej: Crema hidratante", "Ej: Protector solar"][i % 3]} value={o.nombre} onChange={e => nombreOp(i, e.target.value)} />
+            {m.opciones.length > 1 && <button className="icon-btn" aria-label="Sacar esta muestra" onClick={() => setM(x => ({ ...x, opciones: x.opciones.filter((_, j) => j !== i) }))}>✕</button>}
+          </div>
+          <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 6, fontSize: 12.5 }}>
+            {activos.map(l => <label key={l.id} style={{ display: "flex", gap: 5, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={o.locales.includes(l.id)} onChange={e => tester(i, l.id, e.target.checked)} /> Tester en {l.nombre}</label>)}
+            {!o.locales.length && <span style={{ color: tp.warn, fontWeight: 700 }}>Sin tester: no se ofrece</span>}
+          </div>
         </div>
       ))}
-      {m.opciones.length < 12 && <button className="chip-btn" onClick={() => setM(x => ({ ...x, opciones: [...x.opciones, ""] }))}>+ Agregar otra</button>}
-      <div className="cli-tip" style={{ fontSize: 12.5, marginTop: 12 }}>La clienta la elige en el carrito cuando llega al monto. En <b>Pedidos</b> vas a ver "🎁 Muestra gratis: …" para sumarla al armar el paquete. No descuenta stock.</div>
+      {m.opciones.length < 12 && <button className="chip-btn" onClick={() => setM(x => ({ ...x, opciones: [...x.opciones, { nombre: "", producto_id: null, locales: ids }] }))}>+ Agregar otra</button>}
+      <div className="cli-tip" style={{ fontSize: 12.5, marginTop: 12 }}>La clienta ve solo las muestras de su ciudad (con tester y envases). En <b>Pedidos</b> vas a ver "🎁 Muestra gratis: …" para sumarla al armar el paquete.</div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}><button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar"}</button></div>
     </CajaSeccion>
   );
@@ -30619,7 +30655,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
           { k: "marca", icono: "🎨", titulo: "Marca y redes", color: "#8e44ad", sub: cfg.logo ? "Con logo" : "Sin logo", ayuda: "Cómo se ve: logo, ícono del celular, nombre, color, redes y frases de arriba." },
           { k: "entrega", icono: "🚚", titulo: "Entrega y pagos", color: "#2471a3", sub: [cfg.retiro_activo && "Retiro", cfg.envio_activo && "Envío"].filter(Boolean).join(" + ") || "Falta elegir", alerta: !cfg.retiro_activo && !cfg.envio_activo, ayuda: "Cómo reciben el pedido y cómo pueden pagar." },
           { k: "links", icono: "🔗", titulo: "Link para Instagram", color: "#d6246e", sub: Object.values((cfg.links && cfg.links.locales) || {}).some(x => x.whatsapp) ? "Listo" : "WhatsApp, horarios y ubicación", ayuda: "Una página para poner en la bio de Instagram: tienda online, gift cards y, por cada local, su WhatsApp, horarios y cómo llegar." },
-          { k: "muestras", icono: "🎁", titulo: "Muestras gratis", color: "#e67e22", sub: cfg.muestras && cfg.muestras.activo ? "Desde " + fmt(cfg.muestras.desde) : "Apagadas", ayuda: "En compras grandes la clienta elige una muestra de regalo." },
+          { k: "muestras", icono: "🎁", titulo: "Muestras gratis", color: "#e67e22", sub: cfg.muestras && cfg.muestras.activo ? "Desde " + fmt(cfg.muestras.desde) + " · " + Object.values(cfg.muestras.envases || {}).reduce((t, v) => t + (parseInt(v) || 0), 0) + " envases" : "Apagadas", alerta: !!(cfg.muestras && cfg.muestras.activo && Object.values(cfg.muestras.envases || {}).some(v => parseInt(v) <= 5)), ayuda: "En compras grandes la clienta elige una muestra de regalo." },
           ...(cfg.preventa ? [{ k: "preventa", icono: "⏳", titulo: "Preventa", color: "#d35400", sub: cfg.preventa.activo ? "Activada" : "Apagada" }] : []),
           ...(cfg.ruleta ? [{ k: "ruleta", icono: "🎡", titulo: "Ruleta de premios", color: "#c0392b", sub: cfg.ruleta.activo ? "Activada" : "Apagada" }] : []),
         ];
@@ -30627,7 +30663,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         return (
         <div style={{ paddingBottom: 10 }}>
           <MenuSecciones items={SECS_CFG} activa={it.k} onElegir={setSecCfg} temaPal={temaPal} />
-          {it.k === "muestras" && <MuestrasGratis cfg={cfg} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it} />}
+          {it.k === "muestras" && <MuestrasGratis key={JSON.stringify((cfg.muestras || {}).envases || {})} cfg={cfg} locs={locs} productos={productos} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it} />}
           {it.k === "links" && <LinksInstagram key={cfg.slug || ""} cfg={cfg} locs={locs} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it}
             link={!cfg.activo || !cfg.slug ? "" : cfg.dominio && cfg.dominioGuardado ? "https://" + cfg.dominio + "/links" : window.location.origin + "/?tienda=" + cfg.slug + "&seccion=links"} />}
           {it.k === "tienda" && <CajaSeccion it={it} temaPal={temaPal}>

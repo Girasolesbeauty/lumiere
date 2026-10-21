@@ -4,6 +4,7 @@
 const express = require('express');
 const pool = require('../config/database');
 const { VENTA_VALIDA } = require('../lib/niveles');
+const { muestrasDe } = require('../lib/tienda');
 
 const router = express.Router();
 const n = (x) => parseFloat(x) || 0;
@@ -20,7 +21,7 @@ router.get('/', async (req, res) => {
       date_trunc('week', NOW()) - $1::int * INTERVAL '7 days' AS hasta, date_trunc('week', NOW()) - ($1::int + 2) * INTERVAL '7 days' AS antes,
       to_char(date_trunc('week', NOW()) - ($1::int + 1) * INTERVAL '7 days', 'YYYY-MM-DD') AS desde_txt, to_char(date_trunc('week', NOW()) - $1::int * INTERVAL '7 days' - INTERVAL '1 day', 'YYYY-MM-DD') AS hasta_txt`, [atras])).rows[0];
     const P = [sem.desde, sem.hasta, sem.antes];
-    const [locales, top, dias, vendedoras, web, clientas, agotan] = await Promise.all([
+    const [locales, top, dias, vendedoras, web, clientas, agotan, cfgT] = await Promise.all([
       q(`SELECT l.id, l.nombre,
            COALESCE(SUM(v.total) FILTER (WHERE v.creado_en >= $1), 0) AS total, COUNT(v.id) FILTER (WHERE v.creado_en >= $1) AS cant,
            COALESCE(SUM(v.total) FILTER (WHERE v.creado_en < $1), 0) AS total_ant, COUNT(v.id) FILTER (WHERE v.creado_en < $1) AS cant_ant
@@ -46,6 +47,7 @@ router.get('/', async (req, res) => {
          FROM r JOIN productos p ON p.id = r.producto_id WHERE p.activo = TRUE
            AND (GREATEST(COALESCE(p.stock_rg, 0), 0) + GREATEST(COALESCE(p.stock_ush, 0), 0) + COALESCE(p.stock_transito_rg, 0) + COALESCE(p.stock_transito_ush, 0)) < r.vend / 2.0
          ORDER BY (GREATEST(COALESCE(p.stock_rg, 0), 0) + GREATEST(COALESCE(p.stock_ush, 0), 0)) / r.vend, r.vend DESC LIMIT 8`, []),
+      q(`SELECT muestras FROM tienda_config WHERE id = 1`, []),
     ]);
     const total = locales.reduce((t, l) => t + n(l.total), 0), totalAnt = locales.reduce((t, l) => t + n(l.total_ant), 0);
     const cant = locales.reduce((t, l) => t + n(l.cant), 0), cantAnt = locales.reduce((t, l) => t + n(l.cant_ant), 0);
@@ -61,6 +63,8 @@ router.get('/', async (req, res) => {
       vendedoras: vendedoras.map(v => ({ nombre: v.nombre, cant: n(v.cant), total: n(v.total) })),
       web: { cant: n(w.cant), total: n(w.total), cant_ant: n(w.cant_ant), total_ant: n(w.total_ant) },
       clientas: { nuevas: n(c.nuevas), nuevas_ant: n(c.nuevas_ant) },
+      // Envases de muestras gratis que se estan terminando (10 o menos en un local)
+      envases_bajos: (() => { const m = muestrasDe(cfgT[0] || {}); return m.activo ? locales.filter(l => m.envases[l.id] !== undefined && m.envases[l.id] <= 10).map(l => ({ nombre: l.nombre, quedan: m.envases[l.id] })) : []; })(),
       agotan: agotan.map(p => ({ id: p.id, nombre: p.nombre, marca: p.marca, stock: n(p.stock), camino: n(p.camino), vendidos_28: n(p.vendidos_28) })),
     });
   } catch (e) { res.status(500).json({ error: 'No se pudo armar el resumen' }); }
