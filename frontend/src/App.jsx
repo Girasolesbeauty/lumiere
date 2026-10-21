@@ -30026,6 +30026,55 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   };
   const extender = async (p) => { try { const r = await API.post("/tienda/pedidos/" + p.id + "/extender"); avisar(true, "✓ Le diste " + r.data.horas + " horas más"); cargarPedidos(); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); } };
   const reapartar = async (p) => { try { await API.post("/tienda/pedidos/" + p.id + "/reapartar"); cargarPedidos(); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); } };
+  // Etiquetas de envio: una por pedido (10 x 15 cm, sirve para impresora termica o A4), con QR al mapa de la direccion
+  const mapaDe = (p) => "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(p.direccion + ", " + nombreLocal(p.local_id));
+  const cobrarDe = (p) => p.pagado ? 0 : Math.max(0, parseFloat(p.total) || 0);
+  const imprimirEtiquetas = async (lista) => {
+    const w = window.open("", "_blank", "width=520,height=760");
+    if (!w) { avisar(false, "El navegador bloqueó la ventana. Permití las ventanas emergentes y probá de nuevo."); return; }
+    w.document.write("<p style='font-family:system-ui;padding:20px'>Armando etiquetas…</p>");
+    let qrs = [];
+    try { qrs = (await API.post("/tienda/qr-lote", { urls: lista.map(p => mapaDe(p).slice(0, 300)) })).data.qrs; } catch (e) {}
+    const una = (p, i) => {
+      const cant = (p.items || []).reduce((t, it) => t + (parseInt(it.cantidad) || 0), 0), cobrar = cobrarDe(p);
+      return `<section class="et">
+        <div class="cab">${cfg?.logo ? `<img src="${escHtml(cfg.logo)}" alt="">` : ""}<div><b>${escHtml(cfg?.titulo || "Tienda")}</b><span>Sale de ${escHtml(nombreLocal(p.local_id))}</span></div><div class="nro">N° ${escHtml(nroPedido(p))}</div></div>
+        <div class="lbl">Para</div><div class="nom">${escHtml(p.nombre)}</div>
+        <div class="dir">${escHtml(p.direccion)}</div>
+        <div class="zona">${escHtml([p.zona, nombreLocal(p.local_id)].filter(Boolean).join(" · "))}</div>
+        <div class="tel">📞 ${escHtml(p.telefono || "")}</div>
+        ${p.nota ? `<div class="nota">📝 ${escHtml(p.nota)}</div>` : ""}
+        <div class="pie">
+          <div><div class="cobro ${cobrar ? "si" : ""}">${cobrar ? "COBRAR " + escHtml(fmt(cobrar)) : "✓ PAGADO"}</div><div class="cont">${cant} ${cant === 1 ? "producto" : "productos"}${p.muestra ? " + muestra" : ""} · ${escHtml(new Date(p.creado_en).toLocaleDateString("es-AR"))}</div></div>
+          ${qrs[i] ? `<div class="qr"><img src="${qrs[i]}" alt=""><span>Mapa</span></div>` : ""}
+        </div>
+      </section>`;
+    };
+    w.document.open();
+    w.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiquetas de envío</title><style>
+      @page { size: 100mm 150mm; margin: 0; }
+      body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif; color: #000; background: #eee; }
+      .et { box-sizing: border-box; width: 100mm; height: 150mm; margin: 10px auto; background: #fff; padding: 6mm; display: flex; flex-direction: column; border: 1px dashed #999; page-break-after: always; overflow: hidden; }
+      .cab { display: flex; align-items: center; gap: 3mm; border-bottom: 2px solid #000; padding-bottom: 3mm; } .cab img { height: 12mm; max-width: 22mm; object-fit: contain; }
+      .cab b { display: block; font-size: 13pt; } .cab span { font-size: 9pt; color: #333; } .nro { margin-left: auto; font-size: 15pt; font-weight: 900; border: 2px solid #000; border-radius: 2mm; padding: 1mm 2.5mm; white-space: nowrap; }
+      .lbl { margin-top: 5mm; font-size: 9pt; text-transform: uppercase; letter-spacing: .1em; color: #444; font-weight: 700; }
+      .nom { font-size: 20pt; font-weight: 900; line-height: 1.1; } .dir { font-size: 16pt; font-weight: 700; margin-top: 3mm; line-height: 1.2; }
+      .zona { font-size: 12pt; margin-top: 1.5mm; } .tel { font-size: 13pt; margin-top: 3mm; font-weight: 700; }
+      .nota { font-size: 10.5pt; margin-top: 3mm; padding: 2mm; border: 1px solid #000; border-radius: 1.5mm; max-height: 22mm; overflow: hidden; }
+      .pie { margin-top: auto; display: flex; align-items: flex-end; gap: 3mm; border-top: 2px solid #000; padding-top: 3mm; } .pie > div:first-child { flex: 1; }
+      .cobro { font-size: 15pt; font-weight: 900; } .cobro.si { background: #000; color: #fff; display: inline-block; padding: 1mm 3mm; border-radius: 1.5mm; }
+      .cont { font-size: 9.5pt; margin-top: 1.5mm; } .qr { text-align: center; font-size: 8pt; } .qr img { width: 24mm; height: 24mm; display: block; }
+      .barra { text-align: center; padding: 10px; } .barra button { padding: 10px 18px; font-size: 14px; cursor: pointer; }
+      @media print { body { background: #fff; } .et { margin: 0; border: 0; } .barra { display: none; } }
+    </style></head><body><div class="barra"><button onclick="window.print()">🖨️ Imprimir ${lista.length > 1 ? lista.length + " etiquetas" : "etiqueta"}</button></div>${lista.map(una).join("")}</body></html>`);
+    w.document.close(); w.focus();
+  };
+  const mandarCadete = (p) => {
+    const cobrar = cobrarDe(p);
+    const txt = ["🛵 *Envío pedido N° " + nroPedido(p) + "*", "👤 " + p.nombre, "📍 " + p.direccion + (p.zona ? " (" + p.zona + ")" : ""), "🗺️ " + mapaDe(p),
+      p.telefono ? "📞 " + p.telefono : null, cobrar ? "💵 *Cobrar " + fmt(cobrar) + "*" : "✓ Ya está pagado", p.nota ? "📝 " + p.nota : null].filter(Boolean).join("\n");
+    window.open("https://wa.me/?text=" + encodeURIComponent(txt), "_blank");
+  };
   const avisarListo = (p) => {
     const txt = "Hola " + String(p.nombre).split(" ")[0] + "! Tu pedido N° " + nroPedido(p) + " de " + (cfg?.titulo || "nuestra tienda") + " ya está listo" + (p.entrega === "retiro" ? " para retirar en " + nombreLocal(p.local_id) : " y sale para tu casa") + "." + (p.entrega === "retiro" && p.vence_en ? " Te lo guardamos hasta el " + new Date(p.vence_en).toLocaleString("es-AR", { weekday: "long", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }) + "." : "") + " ¡Gracias!";
     window.open(linkWhatsapp(p.telefono, txt) || ("https://wa.me/?text=" + encodeURIComponent(txt)), "_blank");
@@ -30130,6 +30179,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const qP = normTxt(buscaPed);
   const pasaPed = (p) => !qP || qP.split(" ").every(w => normTxt([p.nombre, p.codigo, p.numero, p.telefono, ...(p.items || []).map(i => i.nombre)].join(" ")).includes(w));
   const visiblesB = visibles.filter(pasaPed);
+  // Envios para despachar (pagados o que se cobran al entregar, sin preventa pendiente): todas las etiquetas juntas
+  const paraEtiquetar = pedidos.filter(p => p.entrega === "envio" && p.tipo !== "giftcard" && ["confirmado", "preparado"].includes(p.estado) && !(p.items || []).some(i => i.preventa));
   const hace30 = Date.now() - 30 * 864e5;
   const entregados30 = pedidos.filter(p => p.estado === "entregado" && new Date(p.creado_en).getTime() >= hace30);
   const vendido30 = entregados30.reduce((t, p) => t + Number(p.total || 0), 0);
@@ -30235,6 +30286,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               {[["activos", "Todo para atender"], ["entregado", "Entregados"], ["cancelado", "Cancelados"], ["todos", "Todos"]].map(([k, t]) => <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(k)}>{t} <span style={{ opacity: 0.7 }}>({contar(k)})</span></button>)}
             </div>
             <input className="inp" style={{ flex: "1 1 220px", marginLeft: "auto" }} placeholder="🔎 Buscar por nombre, N° de pedido, teléfono o producto" value={buscaPed} onChange={e => setBuscaPed(e.target.value)} aria-label="Buscar pedido" />
+            {paraEtiquetar.length > 1 && <button className="btn btn-g btn-sm" onClick={() => imprimirEtiquetas(paraEtiquetar)} title="Una etiqueta por cada envío listo para despachar">🏷️ Etiquetas de envío ({paraEtiquetar.length})</button>}
           </div>
           {visiblesB.length === 0 ? <div className="card"><div className="empty">{buscaPed ? "Ningún pedido coincide con la búsqueda." : filtro === "activos" ? "No hay pedidos para atender. Cuando alguien compre en la tienda, aparece acá." : "No hay pedidos en este filtro."}</div></div> : (() => {
             const tarjetaPed = (p) => {
@@ -30299,6 +30351,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                           catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); }
                         }}>✓ Ya lo cobré en la caja</button>}
                         {p.estado === "en_caja" && <><button className="btn btn-p btn-sm" onClick={() => { try { sessionStorage.setItem("lumiere_pos_tienda", String(p.id)); } catch (e) {} irASeccion("pos"); }}>Ir a la caja</button><button className="btn btn-g btn-sm" onClick={() => reapartar(p)} title="Si no se llegó a cobrar">Volver a apartar el stock</button></>}
+                        {p.entrega === "envio" && p.tipo !== "giftcard" && <><button className="btn btn-g btn-sm" onClick={() => imprimirEtiquetas([p])}>🏷️ Etiqueta</button><button className="btn btn-g btn-sm" onClick={() => mandarCadete(p)}>🛵 Mandar al cadete</button></>}
                         {p.telefono && <a className="btn btn-g btn-sm" style={{ textDecoration: "none" }} href={linkWhatsapp(p.telefono, "Hola " + String(p.nombre).split(" ")[0] + "! Te escribo por tu pedido N° " + nroPedido(p))} target="_blank" rel="noopener">WhatsApp</a>}
                         {p.estado !== "en_caja" && <button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={() => estado(p, "cancelado")}>Cancelar</button>}
                       </div>
