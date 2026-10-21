@@ -1290,11 +1290,105 @@ function KpiCard({ p, titulo, valor, formato, sub, tag, chico, color, indice = 0
   );
 }
 
+// Resumen semanal para la dueña: la ultima semana completa (lunes a domingo) contra la anterior.
+// Se abre solo la primera vez que entra en la semana (ver ResumenSemanalAuto) y desde el Dashboard.
+const lunesDeHoy = () => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toLocaleDateString("en-CA"); };
+const fechaSemana = (s) => { const [y, m, d] = String(s || "").split("-").map(Number); return d ? d + " de " + ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"][m - 1] : ""; };
+function ResumenSemanal({ p, onCerrar }) {
+  const tp = p || PALETA_CLARA;
+  const [atras, setAtras] = useState(0);
+  const [d, setD] = useState(null);
+  const [error, setError] = useState(false);
+  useEffect(() => { setD(null); setError(false); API.get("/resumen-semanal?atras=" + atras).then(r => setD(r.data)).catch(() => setError(true)); }, [atras]);
+  const varPct = (a, b) => b > 0 ? Math.round((a - b) / b * 100) : null;
+  const Flecha = ({ a, b }) => { const v = varPct(a, b); if (v === null) return null; return <span style={{ fontSize: 12, fontWeight: 800, color: v >= 0 ? tp.green : tp.red, marginLeft: 6, whiteSpace: "nowrap" }}>{v >= 0 ? "▲" : "▼"} {Math.abs(v)}%</span>; };
+  const texto = () => {
+    if (!d) return "";
+    const v = varPct(d.total, d.total_ant);
+    return ["📊 *Resumen de la semana* (" + fechaSemana(d.desde) + " al " + fechaSemana(d.hasta) + ")", "",
+      "💰 Vendiste " + fmt(d.total) + (v !== null ? " (" + (v >= 0 ? "+" : "") + v + "% vs la semana anterior)" : "") + " en " + d.cant + " ventas · ticket promedio " + fmt(d.ticket),
+      ...(d.locales.length > 1 ? d.locales.map(l => "📍 " + l.nombre + ": " + fmt(l.total)) : []),
+      d.web.cant ? "🛍️ Tienda online: " + d.web.cant + " pedidos por " + fmt(d.web.total) : null,
+      d.clientas.nuevas ? "🙋‍♀️ Clientas nuevas: " + d.clientas.nuevas : null,
+      d.mejor_dia ? "⭐ Mejor día: " + d.mejor_dia.dia + " (" + fmt(d.mejor_dia.total) + ")" : null,
+      ...(d.top.length ? ["", "🔥 Lo más vendido:", ...d.top.map((x, i) => (i + 1) + ". " + x.nombre + " (" + x.unidades + ")")] : []),
+      ...(d.agotan.length ? ["", "⚠️ Se está por agotar:", ...d.agotan.map(x => "• " + x.nombre + ": quedan " + x.stock + (x.camino ? " (+" + x.camino + " en camino)" : ""))] : []),
+    ].filter(x => x !== null).join("\n");
+  };
+  const caja = { border: "1px solid " + tp.border, borderRadius: 12, padding: "10px 12px", background: tp.bg };
+  const maxLocal = d ? Math.max(1, ...d.locales.map(l => l.total)) : 1;
+  return (
+    <div className="pos-overlay" onClick={onCerrar}>
+      <div className="card pop-in" role="dialog" aria-label="Resumen de la semana" style={{ width: 560, maxWidth: "95vw", maxHeight: "92vh", overflowY: "auto", background: tp.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+          <div style={{ fontSize: 18, fontWeight: 900, flex: 1 }}>📊 Tu semana</div>
+          <button className="icon-btn" onClick={onCerrar} aria-label="Cerrar">✕</button>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <button className="chip-btn" onClick={() => setAtras(a => Math.min(52, a + 1))} aria-label="Semana anterior">‹</button>
+          <span style={{ fontSize: 13, color: tp.textMuted, flex: 1, textAlign: "center" }}>{d ? "Del lunes " + fechaSemana(d.desde) + " al domingo " + fechaSemana(d.hasta) : "…"}</span>
+          <button className="chip-btn" disabled={atras === 0} onClick={() => setAtras(a => Math.max(0, a - 1))} aria-label="Semana siguiente">›</button>
+        </div>
+        {error ? <div style={{ color: tp.red, fontSize: 13 }}>No se pudo armar el resumen. Probá de nuevo.</div> : !d ? <div className="skel" style={{ height: 260 }} /> : (<>
+          <div style={{ ...caja, background: tp.greenDim || tp.bg }}>
+            <div style={{ fontSize: 12, color: tp.textMuted, fontWeight: 700 }}>💰 Vendiste</div>
+            <div style={{ fontSize: 26, fontWeight: 900 }}>{fmt(d.total)}<Flecha a={d.total} b={d.total_ant} /></div>
+            <div style={{ fontSize: 12.5, color: tp.textMuted }}>{d.cant} {d.cant === 1 ? "venta" : "ventas"} · ticket promedio {fmt(d.ticket)} · la semana anterior: {fmt(d.total_ant)}</div>
+          </div>
+          {d.locales.length > 1 && <div style={{ ...caja, marginTop: 8 }}>
+            {d.locales.map(l => (
+              <div key={l.id} style={{ marginBottom: 6 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}><b>📍 {l.nombre}</b><span>{fmt(l.total)}<Flecha a={l.total} b={l.total_ant} /></span></div>
+                <div style={{ height: 6, borderRadius: 4, background: tp.border, marginTop: 3 }}><div style={{ height: 6, borderRadius: 4, width: (l.total / maxLocal * 100) + "%", background: tp.accent || "#c9a84c" }} /></div>
+              </div>
+            ))}
+          </div>}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8, marginTop: 8 }}>
+            <div style={caja}><div style={{ fontSize: 12, color: tp.textMuted, fontWeight: 700 }}>🛍️ Tienda online</div><div style={{ fontSize: 17, fontWeight: 900 }}>{d.web.cant} pedidos<Flecha a={d.web.cant} b={d.web.cant_ant} /></div><div style={{ fontSize: 12, color: tp.textMuted }}>{fmt(d.web.total)}</div></div>
+            <div style={caja}><div style={{ fontSize: 12, color: tp.textMuted, fontWeight: 700 }}>🙋‍♀️ Clientas nuevas</div><div style={{ fontSize: 17, fontWeight: 900 }}>{d.clientas.nuevas}<Flecha a={d.clientas.nuevas} b={d.clientas.nuevas_ant} /></div><div style={{ fontSize: 12, color: tp.textMuted }}>la anterior: {d.clientas.nuevas_ant}</div></div>
+            {d.mejor_dia && <div style={caja}><div style={{ fontSize: 12, color: tp.textMuted, fontWeight: 700 }}>⭐ Mejor día</div><div style={{ fontSize: 17, fontWeight: 900, textTransform: "capitalize" }}>{d.mejor_dia.dia}</div><div style={{ fontSize: 12, color: tp.textMuted }}>{fmt(d.mejor_dia.total)}</div></div>}
+            {d.vendedoras[0] && <div style={caja}><div style={{ fontSize: 12, color: tp.textMuted, fontWeight: 700 }}>🏆 Vendió más</div><div style={{ fontSize: 15, fontWeight: 900 }}>{d.vendedoras[0].nombre}</div><div style={{ fontSize: 12, color: tp.textMuted }}>{d.vendedoras[0].cant} {d.vendedoras[0].cant === 1 ? "venta" : "ventas"} · {fmt(d.vendedoras[0].total)}</div></div>}
+          </div>
+          <div style={{ fontWeight: 900, fontSize: 14, margin: "14px 0 6px" }}>🔥 Lo más vendido</div>
+          {d.top.length ? d.top.map((x, i) => (
+            <div key={x.id} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, padding: "5px 0", borderBottom: "1px solid " + tp.border }}>
+              <b style={{ width: 18, color: tp.textMuted }}>{i + 1}</b><span style={{ flex: 1, minWidth: 0 }}>{x.nombre} {x.marca && <span style={{ color: tp.textMuted, fontSize: 11.5 }}>{x.marca}</span>}</span><span style={{ whiteSpace: "nowrap" }}>{x.unidades} u · {fmt(x.total)}</span>
+            </div>)) : <div style={{ fontSize: 12.5, color: tp.textMuted }}>No hubo ventas esta semana.</div>}
+          <div style={{ fontWeight: 900, fontSize: 14, margin: "14px 0 6px" }}>⚠️ Se está por agotar <span style={{ fontWeight: 500, fontSize: 11.5, color: tp.textMuted }}>(alcanza para menos de 2 semanas)</span></div>
+          {d.agotan.length ? d.agotan.map(x => (
+            <div key={x.id} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, padding: "5px 0", borderBottom: "1px solid " + tp.border }}>
+              <span style={{ flex: 1, minWidth: 0 }}>{x.nombre}</span>
+              <span style={{ whiteSpace: "nowrap", fontWeight: 700, color: x.stock <= 0 ? tp.red : tp.warn }}>{x.stock <= 0 ? "Sin stock" : "Quedan " + x.stock}</span>
+              {x.camino > 0 && <span style={{ whiteSpace: "nowrap", fontSize: 11.5, color: tp.textMuted }}>🚚 +{x.camino}</span>}
+            </div>)) : <div style={{ fontSize: 12.5, color: tp.green }}>✓ Nada urgente: lo que más se vende tiene stock.</div>}
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap", marginTop: 16 }}>
+            <a className="btn btn-g" style={{ textDecoration: "none" }} href={"https://wa.me/?text=" + encodeURIComponent(texto())} target="_blank" rel="noopener">📲 Mandar por WhatsApp</a>
+            <button className="btn btn-p" onClick={onCerrar}>Listo</button>
+          </div>
+        </>)}
+      </div>
+    </div>
+  );
+}
+// Se abre solo una vez por semana (la primera vez que la dueña entra desde el lunes)
+function ResumenSemanalAuto({ usuario, p, negocioId }) {
+  const clave = "lumiere_resumen_" + (negocioId || 0) + "_" + (usuario?.id || 0);
+  const [ver, setVer] = useState(false);
+  useEffect(() => {
+    let visto = null; try { visto = localStorage.getItem(clave); } catch (e) {}
+    if (visto === lunesDeHoy()) return;
+    const t = setTimeout(() => setVer(true), 1500);
+    return () => clearTimeout(t);
+  }, [clave]);
+  if (!ver) return null;
+  return <ResumenSemanal p={p} onCerrar={() => { try { localStorage.setItem(clave, lunesDeHoy()); } catch (e) {} setVer(false); }} />;
+}
 function Dashboard({ localId, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
   // En el celular se muestran los numeros y los graficos quedan plegados (la pantalla es mas corta)
   const esCelu = typeof window !== "undefined" && window.innerWidth <= 640;
   const [verGraficos, setVerGraficos] = useState(false);
+  const [verResumen, setVerResumen] = useState(false);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tabLocal, setTabLocal] = useState("rg");
@@ -1468,9 +1562,11 @@ function Dashboard({ localId, paletaActual }) {
       <div className="dash-head">
         <div>
           <div className="pt">Dashboard</div>
+          {verResumen && <ResumenSemanal p={p} onCerrar={() => setVerResumen(false)} />}
           <div className="ps">{NOMBRES_MES[mes - 1] + " " + anio + " · " + (UN_SOLO_LOCAL ? nombreLocal(1) : tabLocal === "rg" ? nombreLocal(1) : tabLocal === "ush" ? nombreLocal(2) : "Todos los locales")}</div>
         </div>
         <div className="dash-actions">
+          {ES_JEFE_ACTUAL && <button className="btn btn-p btn-sm" onClick={() => setVerResumen(true)}>📊 Resumen de la semana</button>}
           {!UN_SOLO_LOCAL && <div className="seg" role="group" aria-label="Local">
             {["rg", "ush", "consolidado"].map(l => (
               <button key={l} className={tabLocal === l ? "on" : ""} aria-pressed={tabLocal === l} onClick={() => setTabLocal(l)}>
@@ -33019,6 +33115,7 @@ function AppWrapper() {
         </main>
         {page !== "pos" && <BarraCelular secciones={NAV_CON_PERMISOS} page={page} setPage={setPage} avisos={avisosMenu} onMas={() => setMenuAbierto(true)} />}
         <AsistenteAyuda usuario={usuario} seccion={page} paletaActual={paletaActual} />
+        {esJefeMenu && page !== "pos" && <ResumenSemanalAuto usuario={usuario} p={paletaActual} negocioId={miNegocio?.id} />}
         {puedeVer("tienda-online") && <AvisoVentaWeb usuario={usuario} local={local} paletaActual={paletaActual} />}
       </div>
     </>
