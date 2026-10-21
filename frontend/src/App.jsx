@@ -26400,7 +26400,11 @@ function TiendaPublica({ slug }) {
   const [tienda, setTienda] = useState(null);
   const [error, setError] = useState("");
   const [productos, setProductos] = useState(null);
-  const [busca, setBusca] = useState("");
+  const [busca, setBusca] = useState(() => { try { return new URLSearchParams(window.location.search).get("q") || ""; } catch (e) { return ""; } });
+  // Lo buscado, ya quieto (para la direccion: ?q=retinal se puede compartir)
+  const [buscaUrl, setBuscaUrl] = useState(busca.trim());
+  useEffect(() => { const t = setTimeout(() => setBuscaUrl(busca.trim()), 700); return () => clearTimeout(t); }, [busca]);
+  const navAtras = useRef(false), catPrev = useRef(null);
   // Al actualizar vuelve a la misma seccion (categoria, preventa, regalos...), con sus filtros y a la misma altura
   const vistaGuardada = useRef((() => { try { return JSON.parse(sessionStorage.getItem("tienda_vista_" + slug) || "null"); } catch (e) { return null; } })());
   const segInicial = useRef(twSeccionDeUrl());
@@ -26606,14 +26610,15 @@ function TiendaPublica({ slug }) {
   };
   const urlDe = (sp) => {
     const seg = sp ? null : segDeCat(cat);
-    if (modoRuta) { const q = new URLSearchParams(window.location.search); q.delete("seccion"); const r = q.toString(); return "/" + (sp || seg || "") + (r ? "?" + r : ""); }
-    const q = new URLSearchParams(window.location.search);
+    const conQ = (q) => { if (buscaUrl && !sp) q.set("q", buscaUrl); else q.delete("q"); return q; };
+    if (modoRuta) { const q = conQ(new URLSearchParams(window.location.search)); q.delete("seccion"); const r = q.toString(); return "/" + (sp || seg || "") + (r ? "?" + r : ""); }
+    const q = conQ(new URLSearchParams(window.location.search));
     if (sp) q.set("producto", sp); else q.delete("producto");
     if (seg) q.set("seccion", seg); else q.delete("seccion");
     return window.location.pathname + "?" + q.toString();
   };
   // Link para compartir la seccion que se esta viendo
-  const linkSeccion = () => { const sg = segDeCat(cat); return tienda.dominio ? "https://" + tienda.dominio + "/" + (sg || "") : window.location.origin + window.location.pathname + "?tienda=" + encodeURIComponent(slug) + (sg ? "&seccion=" + encodeURIComponent(sg) : ""); };
+  const linkSeccion = () => { const sg = segDeCat(cat), qq = busca.trim(); return tienda.dominio ? "https://" + tienda.dominio + "/" + (sg || "") + (qq ? "?q=" + encodeURIComponent(qq) : "") : window.location.origin + window.location.pathname + "?tienda=" + encodeURIComponent(slug) + (sg ? "&seccion=" + encodeURIComponent(sg) : "") + (qq ? "&q=" + encodeURIComponent(qq) : ""); };
   const [seccionCopiada, setSeccionCopiada] = useState(false);
   const compartirSeccion = async (titulo) => {
     const url = linkSeccion();
@@ -26639,11 +26644,15 @@ function TiendaPublica({ slug }) {
       if (twProductoDeUrl()) try { window.history.replaceState(null, "", urlDe(null)); } catch (e) {}
     }
   }, [productos, tienda]);
+  // Al cambiar de seccion queda un paso en el historial (el boton "atras" del celular vuelve a donde estaba);
+  // lo que se va escribiendo en el buscador solo actualiza la direccion
   useEffect(() => {
     if (!abrioDesdeUrl.current || ver || !productos) return;
     const quiere = urlDe(null), ahora = window.location.pathname + window.location.search;
-    if (quiere !== ahora && quiere.replace(/\?$/, "") !== ahora) try { window.history.replaceState(window.history.state, "", quiere); } catch (e) {}
-  }, [cat, productos]);
+    const nueva = catPrev.current !== null && catPrev.current !== cat && !navAtras.current;
+    catPrev.current = cat;
+    if (quiere !== ahora && quiere.replace(/\?$/, "") !== ahora) try { if (nueva) window.history.pushState({ tws: 1 }, "", quiere); else window.history.replaceState(window.history.state, "", quiere); } catch (e) {}
+  }, [cat, productos, buscaUrl]);
   useEffect(() => {
     if (!abrioDesdeUrl.current) return;
     const actual = twProductoDeUrl();
@@ -26656,7 +26665,16 @@ function TiendaPublica({ slug }) {
     } catch (e) {}
   }, [ver && ver.id]);
   useEffect(() => {
-    const atras = () => { const p = twBuscarPorSlug(productos || [], slugsRef.current, twProductoDeUrl()); if (p) abrirFicha(p); else setVer(null); };
+    const atras = () => {
+      const p = twBuscarPorSlug(productos || [], slugsRef.current, twProductoDeUrl());
+      if (p) { abrirFicha(p); return; }
+      setVer(null);
+      // Vuelve a la seccion y a la busqueda de esa direccion
+      navAtras.current = true; setTimeout(() => { navAtras.current = false; }, 400);
+      const sg = twSeccionDeUrl(), c = sg ? catDeSeg(sg) : "";
+      const qq = (() => { try { return new URLSearchParams(window.location.search).get("q") || ""; } catch (e) { return ""; } })();
+      setCat(c || ""); setSubcat(""); setBusca(qq); setBuscaUrl(qq);
+    };
     window.addEventListener("popstate", atras);
     return () => window.removeEventListener("popstate", atras);
   }, [productos]);
@@ -27434,6 +27452,7 @@ function TiendaPublica({ slug }) {
           <>
             <div className="tw-lista-cab">
               <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.ingrediente && !filtros.tipo && !filtros.piel && !filtros.necesidad ? "Con " + ((TW_ING_OP.find(o => o[0] === filtros.ingrediente) || ["", ""])[1]) : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : cat === "preventa" ? "⏳ " + tienda.preventa.titulo : cat === "favoritos" ? "❤️ Tus favoritos" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>{sector && !q && lista.length === 0 && combosSector(sector).length > 0 ? combosSector(sector).length + (combosSector(sector).length === 1 ? " kit" : " kits") : lista.length + " " + (lista.length === 1 ? "producto" : "productos")}
+                {q && <button className="tw-compartir-sec" onClick={() => compartirSeccion("“" + busca.trim() + "”")}>{seccionCopiada ? "✓ Link copiado" : "🔗 Compartir"}</button>}
                 {!q && cat && cat !== "favoritos" && <button className="tw-compartir-sec" onClick={() => compartirSeccion(cat === "preventa" ? tienda.preventa.titulo : sector ? sector.nombre : cat === "*" ? "Todos los productos" : cat === "reingreso" ? reingreso.nombre : cat.startsWith("m:") ? cat.slice(2) : cat)}>{seccionCopiada ? "✓ Link copiado" : "🔗 Compartir"}</button>}</div></div>
               {!(sector && !q && lista.length === 0 && combosSector(sector).length > 0) && <select value={orden} onChange={e => setOrden(e.target.value)} aria-label="Ordenar">{TW_ORDEN.map(([k, t]) => <option key={k} value={k}>Ordenar: {t}</option>)}</select>}
             </div>
