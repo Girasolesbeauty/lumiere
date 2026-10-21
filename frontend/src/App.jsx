@@ -23579,6 +23579,9 @@ const CSS_TIENDA = `
 html:has(.tw){overflow-x:hidden}
 .tw{overflow-x:clip;max-width:100vw}
 .tw img,.tw video,.tw iframe{max-width:100%}
+/* En el iPhone, tocar un campo con letra de menos de 16px hace zoom automatico y la pagina queda agrandada (cortada a la
+   derecha). Con 16px en los campos de la tienda no hace zoom (se puede seguir agrandando con dos dedos) */
+@media (hover:none),(max-width:760px){.tw input,.tw select,.tw textarea{font-size:16px !important}}
 .tw h1,.tw h2,.tw h3,.tw-lista-cab{overflow-wrap:anywhere;min-width:0}
 .tw{text-align:left;--n:#111;--g:#f6f6f6;--b:#e6e6e6;--m:#666;font-family:"Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;color:var(--n);background:#fff;min-height:100vh;-webkit-font-smoothing:antialiased}
 .tw *{box-sizing:border-box}
