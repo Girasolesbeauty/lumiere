@@ -28303,6 +28303,69 @@ function ImagenBanner({ id, style }) {
   }, [id]);
   return src ? <img src={src} alt="" style={style} /> : <div className="skel" style={style} />;
 }
+// Editor para encuadrar una imagen antes de subirla: se mueve con el dedo (o el mouse), se agranda o achica (barra o
+// pellizco) y se gira de a 90°. Lo que queda dentro del recuadro es lo que se ve en la tienda. Devuelve un JPG de 1600 px.
+function RecortarImagen({ src, aspecto = 1, titulo, onListo, onCancelar, temaPal }) {
+  const tp = temaPal || PALETA_CLARA;
+  const marcoRef = useRef(null), toques = useRef(new Map()), pinza = useRef(null);
+  const [img, setImg] = useState(null);
+  const [W, setW] = useState(320);
+  const [zoom, setZoom] = useState(1), [rot, setRot] = useState(0), [pos, setPos] = useState({ x: 0, y: 0 });
+  const [listo, setListo] = useState(false);
+  useEffect(() => { const i = new Image(); i.onload = () => setImg(i); i.src = src; }, [src]);
+  useEffect(() => { const m = () => setW(Math.min(360, Math.round(window.innerWidth * 0.82))); m(); window.addEventListener("resize", m); return () => window.removeEventListener("resize", m); }, []);
+  const H = Math.round(W / aspecto);
+  const girada = rot % 180 !== 0;
+  const nw = img ? (girada ? img.height : img.width) : 1, nh = img ? (girada ? img.width : img.height) : 1;
+  const escala = Math.max(W / nw, H / nh) * zoom;
+  const limitar = (p, z = zoom) => { const e = Math.max(W / nw, H / nh) * z; const mx = Math.max(0, (nw * e - W) / 2), my = Math.max(0, (nh * e - H) / 2); return { x: Math.max(-mx, Math.min(mx, p.x)), y: Math.max(-my, Math.min(my, p.y)) }; };
+  useEffect(() => { setPos(p => limitar(p)); }, [zoom, rot, W, img]);
+  const bajar = (e) => { e.currentTarget.setPointerCapture(e.pointerId); toques.current.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (toques.current.size === 2) { const [a, b] = [...toques.current.values()]; pinza.current = { d: Math.hypot(a.x - b.x, a.y - b.y), z: zoom }; } };
+  const mover = (e) => {
+    const t = toques.current.get(e.pointerId); if (!t) return;
+    const nuevo = { x: e.clientX, y: e.clientY }; toques.current.set(e.pointerId, nuevo);
+    if (toques.current.size === 2 && pinza.current) { const [a, b] = [...toques.current.values()]; setZoom(Math.min(5, Math.max(1, pinza.current.z * Math.hypot(a.x - b.x, a.y - b.y) / pinza.current.d))); return; }
+    setPos(p => limitar({ x: p.x + nuevo.x - t.x, y: p.y + nuevo.y - t.y }));
+  };
+  const soltar = (e) => { toques.current.delete(e.pointerId); if (toques.current.size < 2) pinza.current = null; };
+  const terminar = async () => {
+    setListo(true);
+    const O = 1600, OH = Math.round(O / aspecto), k = O / W;
+    const c = document.createElement("canvas"); c.width = O; c.height = OH;
+    const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, O, OH);
+    x.translate(O / 2 + pos.x * k, OH / 2 + pos.y * k); x.rotate(rot * Math.PI / 180);
+    const ew = img.width * escala * k, eh = img.height * escala * k;
+    x.drawImage(img, -ew / 2, -eh / 2, ew, eh);
+    const blob = await new Promise(ok => c.toBlob(ok, "image/jpeg", 0.9));
+    // Pixeles reales de la foto que entran en el recuadro (para avisar si va a verse borrosa)
+    onListo(blob, Math.round(Math.min(W, H) / escala));
+  };
+  return (
+    <Ventana className="pos-overlay" onClick={onCancelar}>
+      <div className="card pop-in" role="dialog" aria-label="Ajustar la imagen" style={{ width: W + 40, maxWidth: "96vw", background: tp.card, textAlign: "center" }} onClick={e => e.stopPropagation()}>
+        <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>{titulo || "✂️ Ajustá la imagen"}</div>
+        <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 10 }}>Movela con el dedo y agrandala para elegir qué se ve. Lo que queda en el recuadro es lo que sale en la tienda.</div>
+        <div ref={marcoRef} onPointerDown={bajar} onPointerMove={mover} onPointerUp={soltar} onPointerCancel={soltar}
+          style={{ position: "relative", width: W, height: H, margin: "0 auto", overflow: "hidden", borderRadius: 10, background: "#eee", touchAction: "none", cursor: "grab", userSelect: "none" }}>
+          {img ? <img src={src} alt="" draggable={false} style={{ position: "absolute", left: "50%", top: "50%", width: img.width * escala, height: img.height * escala, maxWidth: "none", transform: "translate(-50%,-50%) translate(" + pos.x + "px," + pos.y + "px) rotate(" + rot + "deg)", pointerEvents: "none" }} />
+            : <div className="skel" style={{ position: "absolute", inset: 0 }} />}
+          <div aria-hidden="true" style={{ position: "absolute", inset: 0, pointerEvents: "none", backgroundImage: "linear-gradient(rgba(255,255,255,.35) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.35) 1px, transparent 1px)", backgroundSize: (W / 3) + "px " + (H / 3) + "px", boxShadow: "inset 0 0 0 2px rgba(255,255,255,.8)" }} />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "12px 0 6px" }}>
+          <span aria-hidden="true">➖</span>
+          <input type="range" min="1" max="5" step="0.01" value={zoom} onChange={e => setZoom(parseFloat(e.target.value))} aria-label="Agrandar o achicar" style={{ flex: 1 }} />
+          <span aria-hidden="true">➕</span>
+          <button className="btn btn-g btn-sm" onClick={() => setRot(r => (r + 90) % 360)} title="Girar 90°" aria-label="Girar 90 grados">↻ Girar</button>
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          <button className="btn btn-g" style={{ flex: 1 }} onClick={() => { setZoom(1); setRot(0); setPos({ x: 0, y: 0 }); }}>Volver a como estaba</button>
+          <button className="btn btn-g" onClick={onCancelar}>Cancelar</button>
+          <button className="btn btn-p" style={{ flex: 1 }} disabled={!img || listo} onClick={terminar}>{listo ? "Guardando…" : "✓ Usar así"}</button>
+        </div>
+      </div>
+    </Ventana>
+  );
+}
 // Achica una imagen de banner manteniendo buena calidad (lado mayor hasta 1600 px)
 async function prepararImagenBanner(archivo) {
   if (!archivo || !/^image\//.test(archivo.type)) throw new Error("Elegí una imagen (JPG o PNG)");
@@ -28570,6 +28633,7 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
   const [cambios, setCambios] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [subiendo, setSubiendo] = useState(false);
+  const [recorte, setRecorte] = useState(null); // { src, i } imagen de banner abierta en el editor
   const [sec, setSec] = useState(() => { try { return localStorage.getItem("lumiere_portada_sec") || "banners"; } catch (e) { return "banners"; } });
   const [nVideos, setNVideos] = useState(null);
   // Kits de Lumiere: para buscarlos junto con los productos al armar un sector
@@ -28584,6 +28648,22 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
   const editar = (k, i, cambio) => cambiar({ ...d, [k]: d[k].map((x, j) => j === i ? { ...x, ...cambio } : x) });
   const cats = [...new Set(productos.filter(p => p.publicado).map(p => p.categoria).filter(Boolean))].sort();
   const marcas = [...new Set(productos.filter(p => p.publicado).map(p => p.marca).filter(Boolean))].sort();
+  // Al elegir (o querer ajustar) una imagen se abre el editor para moverla, agrandarla o girarla; despues se sube
+  const abrirRecorte = (archivo, i) => { if (!archivo || !/^image\//.test(archivo.type)) return avisar(false, "Elegí una imagen (JPG o PNG)"); setRecorte({ src: URL.createObjectURL(archivo), i }); };
+  const ajustarBanner = async (bn, i) => {
+    try { const r = await API.get("/tienda/banner-imagen/" + bn.imagen, { responseType: "blob" }); setRecorte({ src: URL.createObjectURL(r.data), i }); }
+    catch (e) { avisar(false, "No se pudo abrir la imagen"); }
+  };
+  const subirRecorte = async (blob, lado) => {
+    const { src, i } = recorte; URL.revokeObjectURL(src); setRecorte(null); setSubiendo(true);
+    try {
+      const r = await API.post("/tienda/banner-imagen", blob, { headers: { "Content-Type": "image/jpeg" }, timeout: 120000 });
+      if (i < 0) cambiar({ ...d, banners_img: [...(d.banners_img || []), { id: nuevoId(), imagen: r.data.id, titulo: "", texto: "", boton: "", destino: "ninguno", valor: "" }] });
+      else editar("banners_img", i, { imagen: r.data.id });
+      if (lado < 700) avisar(false, "Ojo: así de agrandada la foto puede verse borrosa. Probá alejarla un poco o usar una foto más grande.");
+    } catch (e) { avisar(false, e.response?.data?.error || e.message || "No se pudo subir la imagen"); }
+    setSubiendo(false);
+  };
   const subirBanner = async (archivo, i) => {
     setSubiendo(true);
     try {
@@ -28622,6 +28702,7 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
   const it = SECS.find(x => x.k === sec) || SECS[0];
   return (
     <div style={{ paddingBottom: 60 }}>
+      {recorte && <RecortarImagen src={recorte.src} aspecto={1} titulo={"✂️ " + (recorte.i < 0 ? "Nuevo banner" : "Banner " + (recorte.i + 1)) + ": ajustá la imagen"} temaPal={tp} onListo={subirRecorte} onCancelar={() => { URL.revokeObjectURL(recorte.src); setRecorte(null); }} />}
       <div style={{ fontSize: 12.5, color: tp.textMuted, marginBottom: 8 }}>Así se arma la portada de la tienda, de arriba hacia abajo. Elegí qué parte querés editar:</div>
       <MenuSecciones items={SECS} activa={it.k} onElegir={elegirSec} temaPal={tp} />
       {it.k === "banners" && <CajaSeccion it={{ ...it, titulo: "Banners con imagen (arriba de todo, 3 por fila)" }} temaPal={tp}>
@@ -28632,8 +28713,9 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
               {cab(<span style={{ flex: 1, fontWeight: 800, fontSize: 13 }}>Banner {i + 1}</span>, "banners_img", i, d.banners_img.length)}
               <div style={{ position: "relative" }}>
                 <ImagenBanner id={bn.imagen} style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 8, display: "block" }} />
+                <button className="btn btn-g btn-sm" style={{ position: "absolute", left: 8, bottom: 8 }} onClick={() => ajustarBanner(bn, i)}>✂️ Ajustar</button>
                 <label className="btn btn-g btn-sm" style={{ position: "absolute", right: 8, bottom: 8, cursor: "pointer" }}>Cambiar imagen
-                  <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) subirBanner(f, i); }} />
+                  <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) abrirRecorte(f, i); }} />
                 </label>
               </div>
               <input className="inp" style={{ marginTop: 8 }} placeholder="Título (opcional). Ej: Nuevos ingresos" value={bn.titulo || ""} onChange={e => editar("banners_img", i, { titulo: e.target.value })} aria-label="Título del banner" />
@@ -28653,7 +28735,7 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
         </div>
         {(d.banners_img || []).length < 10 && (
           <label className="btn btn-g btn-sm" style={{ marginTop: 10, display: "inline-flex", cursor: subiendo ? "wait" : "pointer", opacity: subiendo ? 0.6 : 1 }}>{subiendo ? "Subiendo imagen…" : "+ Nuevo banner (elegir imagen)"}
-            <input type="file" accept="image/*" style={{ display: "none" }} disabled={subiendo} onChange={e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) subirBanner(f, -1); }} />
+            <input type="file" accept="image/*" style={{ display: "none" }} disabled={subiendo} onChange={e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) abrirRecorte(f, -1); }} />
           </label>
         )}
       </CajaSeccion>}
