@@ -2571,6 +2571,47 @@ const VARIABLES_PRECIO = [
   ["disponibilidad", "Disponibilidad"], ["negocio", "Nombre del negocio"], ["reservar", "Cómo reservar"],
 ];
 
+// Tarjeta de precio como imagen (igual a como se ve el producto en la tienda: foto, marca, nombre y precio) para
+// mandar por Instagram o WhatsApp. Se dibuja en el celular, con la foto que ya esta guardada en el producto.
+async function twTarjetaPrecio({ nombre, marca, precio, foto }) {
+  const W = 1080, M = 40, F = W - M * 2, H = M + F + 380;
+  const c = document.createElement("canvas"); c.width = W; c.height = H;
+  const x = c.getContext("2d");
+  const fuente = (peso, tam) => peso + " " + tam + "px 'Helvetica Neue', Helvetica, Arial, sans-serif";
+  const redondo = (px, py, w, h, r) => { x.beginPath(); x.moveTo(px + r, py); x.arcTo(px + w, py, px + w, py + h, r); x.arcTo(px + w, py + h, px, py + h, r); x.arcTo(px, py + h, px, py, r); x.arcTo(px, py, px + w, py, r); x.closePath(); };
+  x.fillStyle = "#fff"; x.fillRect(0, 0, W, H);
+  // Foto (recortada para llenar el cuadrado, con las puntas redondeadas)
+  x.save(); redondo(M, M, F, F, 30); x.clip(); x.fillStyle = "#f3f3f3"; x.fillRect(M, M, F, F);
+  if (foto) {
+    const img = await new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = mal; i.src = foto; }).catch(() => null);
+    if (img) { const k = Math.max(F / img.width, F / img.height), w = img.width * k, h = img.height * k; x.drawImage(img, M + (F - w) / 2, M + (F - h) / 2, w, h); }
+  } else { x.fillStyle = "#c9c9c9"; x.font = fuente("400", 220); x.textAlign = "center"; x.textBaseline = "middle"; x.fillText("✿", W / 2, M + F / 2); }
+  x.restore();
+  // Corazon arriba a la derecha y "+" abajo, como en la tienda
+  x.fillStyle = "#fff"; x.beginPath(); x.arc(M + F - 74, M + 74, 46, 0, Math.PI * 2); x.fill();
+  x.strokeStyle = "#111"; x.lineWidth = 5; x.lineJoin = "round"; x.beginPath();
+  const cx = M + F - 74, cy = M + 80;
+  x.moveTo(cx, cy + 18); x.bezierCurveTo(cx - 34, cy - 4, cx - 22, cy - 34, cx, cy - 16); x.bezierCurveTo(cx + 22, cy - 34, cx + 34, cy - 4, cx, cy + 18); x.stroke();
+  x.fillStyle = "#111"; x.beginPath(); x.arc(M + F - 84, M + F - 84, 58, 0, Math.PI * 2); x.fill();
+  x.strokeStyle = "#fff"; x.lineWidth = 7; x.lineCap = "round"; x.beginPath();
+  x.moveTo(M + F - 104, M + F - 84); x.lineTo(M + F - 64, M + F - 84); x.moveTo(M + F - 84, M + F - 104); x.lineTo(M + F - 84, M + F - 64); x.stroke();
+  // Textos
+  x.textAlign = "left"; x.textBaseline = "alphabetic"; x.fillStyle = "#111";
+  let y = M + F + 86;
+  if (marca) { x.font = fuente("700", 46); if ("letterSpacing" in x) x.letterSpacing = "4px"; x.fillText(String(marca).toUpperCase(), M, y); if ("letterSpacing" in x) x.letterSpacing = "0px"; y += 78; }
+  x.font = fuente("400", 54); x.fillStyle = "#333";
+  const palabras = String(nombre || "").toUpperCase().split(/\s+/); let linea = "", lineas = [];
+  for (const w of palabras) { const prueba = linea ? linea + " " + w : w; if (x.measureText(prueba).width > F && linea) { lineas.push(linea); linea = w; } else linea = prueba; }
+  if (linea) lineas.push(linea);
+  if (lineas.length > 2) { lineas = lineas.slice(0, 2); while (x.measureText(lineas[1] + "…").width > F) lineas[1] = lineas[1].slice(0, -1); lineas[1] += "…"; }
+  lineas.forEach(l => { x.fillText(l, M, y); y += 66; });
+  x.font = fuente("700", 66); x.fillStyle = "#111"; x.fillText(precio, M, y + 22);
+  // Se recorta lo que sobra abajo (el nombre puede ocupar una o dos lineas)
+  const alto = Math.min(H, Math.round(y + 22 + 56));
+  const out = document.createElement("canvas"); out.width = W; out.height = alto;
+  out.getContext("2d").drawImage(c, 0, 0);
+  return await new Promise(ok => out.toBlob(b => ok(b), "image/png"));
+}
 function BuscarPrecio({ localId, paletaActual, usuario }) {
   const p = paletaActual || PALETA_CLARA;
   const [productos, setProductos] = useState([]);
@@ -2592,6 +2633,20 @@ function BuscarPrecio({ localId, paletaActual, usuario }) {
   const [avisoCodigo, setAvisoCodigo] = useState("");
   const scannerRef = useRef(null);
   const [formato, setFormato] = useState("whatsapp"); // whatsapp | instagram
+  const [tarjeta, setTarjeta] = useState(null); // { url, blob, nombre } imagen del precio para Instagram
+  const armarTarjeta = async (prod) => {
+    setTarjeta({ cargando: true });
+    try {
+      const foto = (await API.get("/productos/" + prod.id + "/imagen").catch(() => ({ data: {} }))).data?.imagen || null;
+      const blob = await twTarjetaPrecio({ nombre: prod.nombre, marca: prod.marca, precio: precioTxt(parseFloat(prod.precio || 0)), foto });
+      setTarjeta({ url: URL.createObjectURL(blob), blob, nombre: (prod.nombre || "precio").replace(/[^a-z0-9]+/gi, "-").toLowerCase() + ".png" });
+    } catch (e) { setTarjeta(null); }
+  };
+  const compartirTarjeta = async () => {
+    const f = new File([tarjeta.blob], tarjeta.nombre, { type: "image/png" });
+    if (navigator.canShare && navigator.canShare({ files: [f] })) { try { await navigator.share({ files: [f] }); return; } catch (e) { if (e && e.name === "AbortError") return; } }
+    const a = document.createElement("a"); a.href = tarjeta.url; a.download = tarjeta.nombre; document.body.appendChild(a); a.click(); a.remove();
+  };
   const [copiado, setCopiado] = useState("");
   const [recientes, setRecientes] = useState(() => { try { return JSON.parse(localStorage.getItem("lumiere_precios_recientes") || "[]"); } catch (e) { return []; } });
 
@@ -2928,6 +2983,21 @@ function BuscarPrecio({ localId, paletaActual, usuario }) {
               </button>
               <button className="btn btn-p" style={{ flex: 1, padding: 13, fontSize: 13 }} onClick={() => compartir(mensaje)}>📤 Compartir</button>
             </div>
+            <button className="btn btn-g" style={{ width: "100%", marginTop: 8, padding: 12, fontSize: 13, background: "linear-gradient(135deg,#833ab4,#c13584 60%,#e1306c)", color: "#fff", border: "none" }} onClick={() => armarTarjeta(prod)}>🖼️ Imagen del precio (para Instagram)</button>
+            {tarjeta && (
+              <div className="pos-overlay" onClick={() => { if (tarjeta.url) URL.revokeObjectURL(tarjeta.url); setTarjeta(null); }}>
+                <div className="card pop-in" role="dialog" aria-label="Imagen del precio" style={{ width: 380, maxWidth: "94vw", background: p.card, textAlign: "center" }} onClick={e => e.stopPropagation()}>
+                  {tarjeta.cargando ? <div style={{ padding: 40, color: p.textMuted }}>Armando la imagen…</div> : (<>
+                    <img src={tarjeta.url} alt="Imagen del precio" style={{ width: "100%", borderRadius: 12, border: "1px solid " + p.border, display: "block" }} />
+                    <div style={{ fontSize: 11.5, color: p.textMuted, margin: "8px 0" }}>Compartila y elegí Instagram, o mantené apretada la imagen para guardarla.</div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button className="btn btn-g" style={{ flex: 1 }} onClick={() => { URL.revokeObjectURL(tarjeta.url); setTarjeta(null); }}>Cerrar</button>
+                      <button className="btn btn-p" style={{ flex: 2 }} onClick={compartirTarjeta}>📤 Compartir imagen</button>
+                    </div>
+                  </>)}
+                </div>
+              </div>
+            )}
             <button className="chip-btn" style={{ width: "100%", marginTop: 8, padding: 9 }} onClick={() => copiarTexto(precioTxt(parseFloat(prod.precio || 0)), "precio")}>
               {copiado === "precio" ? "✓ Precio copiado" : "Copiar solo el precio (" + precioTxt(parseFloat(prod.precio || 0)) + ")"}
             </button>
