@@ -27246,7 +27246,16 @@ function TiendaPublica({ slug }) {
       if (sg) { const c = catDeSeg(sg); if (c && c !== cat) { setCat(c); setSubcat(""); setFiltros({}); } }
       const p = twBuscarPorSlug(productos, slugsRef.current, twProductoDeUrl());
       if (p) { abrirFicha(p); return; }
-      if (twProductoDeUrl()) try { window.history.replaceState(null, "", urlDe(null)); } catch (e) {}
+      const sl = twProductoDeUrl();
+      if (sl) {
+        // Link que no coincide exacto (ej: /retinal-shot para "Celimax Retinal Shot 15ml"): si es uno solo, se abre;
+        // si son varios, se muestran como busqueda con esas palabras
+        const pal = sl.split("-").filter(w => w.length > 1);
+        const cand = pal.length ? productos.filter(x => { const s = (slugsRef.current.get(x.id) || "").split("-"); return pal.every(w => s.includes(w)); }) : [];
+        if (cand.length === 1) { abrirFicha(cand[0]); return; }
+        try { window.history.replaceState(null, "", urlDe(null)); } catch (e) {}
+        if (pal.length) { setCat(""); setSubcat(""); setBusca(pal.join(" ")); }
+      }
     }
   }, [productos, tienda]);
   // Al cambiar de seccion queda un paso en el historial (el boton "atras" del celular vuelve a donde estaba);
