@@ -109,6 +109,7 @@ router.get('/:slug', async (req, res) => {
       resenas_puntos: (() => { const r = tienda.puntosResenaDe(c); return r.activo && (r.puntos || r.extra_foto) ? { puntos: r.puntos, extra_foto: r.extra_foto } : null; })(),
       // Logo de la marca para la gift card (blanco sobre el color de la tarjeta)
       logo_marca: Number(req.negTienda.id) === 1 ? { blanco: '/logos/girasoles-logo-blanco.svg', color: '/logos/girasoles-logo.svg' } : null,
+      express: (() => { const k = tienda.expressDe(c); return k.activo ? { minutos: k.minutos, abierto: tienda.expressAbierto(k), desde: k.desde, hasta: k.hasta } : null; })(),
       muestras: (() => {
         const m = tienda.muestrasDe(c);
         const ops = m.opciones.map(o => ({ nombre: o.nombre, producto_id: o.producto_id, locales: tienda.localesMuestra(m, o) })).filter(o => o.locales.length);
@@ -452,6 +453,9 @@ router.post('/:slug/pedidos', async (req, res) => {
     if (descuentoPago) await client.query('UPDATE tienda_pedidos SET descuento_pago = $1, descuento_pago_pct = $2 WHERE id = $3', [descuentoPago, pctPago, pedido.id]);
     if (descPromo) await client.query('UPDATE tienda_pedidos SET descuento_promo = $1, promos = $2 WHERE id = $3', [descPromo, promo.nombres.join(', ').slice(0, 300), pedido.id]);
     if (amiga && descAmiga) await client.query('UPDATE tienda_pedidos SET amiga_de = $1, descuento_amiga = $2 WHERE id = $3', [amiga.referente_id, descAmiga, pedido.id]);
+    // Retiro express: si ahora se puede prometer y no hay preventa, el pedido guarda los minutos
+    const kx = tienda.expressDe(c);
+    if (entrega === 'retiro' && !conPreventa && b.express !== false && tienda.expressAbierto(kx)) await client.query('UPDATE tienda_pedidos SET express_min = $1 WHERE id = $2', [kx.minutos, pedido.id]);
     // Muestra gratis elegida (solo si la compra llega al monto y es una de la lista)
     const mu = tienda.muestrasDe(c);
     const opMu = mu.activo && b.muestra && subtotal >= mu.desde ? mu.opciones.find(o => o.nombre === String(b.muestra)) : null;
@@ -630,7 +634,7 @@ router.get('/:slug/pedidos/:codigo', async (req, res) => {
     res.json({
       ruleta: await estadoRuleta(req.tienda, p),
       codigo: p.codigo, numero: p.numero || null, estado: p.estado, pagado: p.pagado, pago: p.pago, entrega: p.entrega, local_id: p.local_id || 1, local: loc || null, direccion: p.direccion, zona: p.zona,
-      subtotal: num(p.subtotal), costo_envio: num(p.costo_envio), descuento: num(p.descuento), descuento_amiga: num(p.descuento_amiga), descuento_combo: num(p.descuento_combo), combos: p.combos || null, muestra: p.muestra || null, descuento_pago: num(p.descuento_pago), descuento_pago_pct: p.descuento_pago_pct === null ? null : num(p.descuento_pago_pct), cupon: p.cupon || null, total: num(p.total), items, link_pago: p.estado === 'pendiente_pago' ? p.mp_link : null,
+      subtotal: num(p.subtotal), costo_envio: num(p.costo_envio), descuento: num(p.descuento), descuento_amiga: num(p.descuento_amiga), descuento_combo: num(p.descuento_combo), combos: p.combos || null, muestra: p.muestra || null, express_min: p.express_min || null, listo_express: tienda.listoExpress(p), descuento_pago: num(p.descuento_pago), descuento_pago_pct: p.descuento_pago_pct === null ? null : num(p.descuento_pago_pct), cupon: p.cupon || null, total: num(p.total), items, link_pago: p.estado === 'pendiente_pago' ? p.mp_link : null,
       vence_en: p.vence_en, transferencia: p.pago === 'transferencia' && !p.pagado ? (req.tienda.transferencia_datos || '') : null, creado_en: p.creado_en,
       gc_usado: num(p.gc_usado_monto) > 0 ? { codigo: p.gc_usado_codigo, monto: num(p.gc_usado_monto) } : null,
       giftcard: p.tipo === 'giftcard' ? { para: p.gc_para, mensaje: p.gc_mensaje, para_telefono: p.gc_para_tel, codigo: p.gc_codigo || null, firma: p.gc_codigo ? tienda.firmaRegalo(p.gc_codigo) : null, monto: num(p.total), de: p.nombre } : null,

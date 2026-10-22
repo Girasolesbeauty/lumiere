@@ -24511,6 +24511,8 @@ html:has(.tw){overflow-x:hidden}
 .tw .tw-muestras-ops button{border:1.5px solid #e8c48a;background:#fff;color:#5a3a00 !important;border-radius:999px;padding:7px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
 .tw .tw-muestras-ops button{display:inline-flex;align-items:center;gap:6px}.tw .tw-muestras-ops img{width:22px;height:22px;border-radius:50%;object-fit:cover;margin-left:-6px}
 .tw .tw-muestras-ops button.on{background:#d98b1f;border-color:#d98b1f;color:#fff !important}
+.tw-express{font-size:12.5px;font-weight:700;color:#b35900;margin-top:3px}
+.tw-express.grande{font-size:14px;font-weight:500;background:#fff4e0;border:1px solid #f5d29a;border-radius:12px;padding:10px 12px;margin:10px 0;color:#7a4300}
 .tw-cumple-regalo{text-align:center;background:linear-gradient(140deg,#fff0f6,#fff7e6 60%,#f3edff);border:1.5px solid #f6c9dc;border-radius:18px;padding:16px 14px;margin-bottom:12px;display:flex;flex-direction:column;align-items:center;gap:6px}
 .tw-cumple-regalo>b{font-size:17px}.tw-cumple-regalo>span{font-size:13.5px;color:#5a4a50}.tw-cumple-regalo small{font-size:11.5px;color:#8a7a80}
 .tw-cumple-regalo.usado{font-size:13px;color:#6b5a60;padding:12px}
@@ -27356,6 +27358,7 @@ function TiendaPublica({ slug }) {
               <div style={{ fontSize: 12, letterSpacing: ".12em", textTransform: "uppercase", color: "#777", fontWeight: 700 }}>Pedido N° {nroPedido(pedido)}</div>
               <div style={{ fontSize: 26, fontWeight: 800, color: e[1], margin: "6px 0 14px" }}>{pedido.giftcard && pedido.giftcard.codigo ? "¡Tu gift card está lista! 🎁" : pedido.giftcard && pedido.estado === "pendiente_pago" ? "Esperando el pago de tu gift card" : pedido.estado === "pendiente_pago" && pedido.pago === "retiro" ? "¡Recibimos tu pedido!" : e[0]}</div>
               {!pedido.giftcard && pedido.estado !== "cancelado" && <TwSeguimiento estado={pedido.estado} entrega={pedido.entrega} local={pedido.local?.nombre} festejar />}
+              {pedido.express_min && ["confirmado", "pendiente_pago"].includes(pedido.estado) && <div className="tw-express grande">⚡ <b>Retiro express:</b> {pedido.listo_express ? <>lo tenés listo aprox. a las <b>{new Date(pedido.listo_express).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</b>. Te avisamos por WhatsApp.</> : <>lo preparamos en ~{pedido.express_min} min apenas se confirme el pago.</>}</div>}
               {pedido.giftcard && <TwGiftCardPedido pedido={pedido} tienda={tienda} slug={slug} />}
               {pedido.estado === "pendiente_pago" && pedido.pago === "gocuotas" && params.get("gc") === "no" && <div style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 12, fontSize: 14, fontWeight: 600, marginBottom: 12 }}>El pago con GoCuotas no se completó. Podés volver a intentarlo.</div>}
               {pedido.estado === "pendiente_pago" && pedido.pago === "gocuotas" && params.get("gc") !== "no" && <div style={{ fontSize: 14, color: "#555", marginBottom: 12 }}>Si ya pagaste con GoCuotas, en unos minutos se confirma solo.</div>}
@@ -28351,7 +28354,7 @@ function TiendaPublica({ slug }) {
                   <input className="tw-inp" placeholder="Email (opcional)" inputMode="email" autoComplete="email" value={datos.email || ""} onChange={e => setDatos(d => ({ ...d, email: e.target.value }))} />
                   <div id="tw-ck-entrega" className="tw-lbl tw-paso"><span className={"tw-paso-n" + (faltaEntrega || faltaEnvio ? "" : " ok")}>{faltaEntrega || faltaEnvio ? "2" : "✓"}</span>¿Cómo lo recibís?{intentoPedir && (faltaEntrega || faltaEnvio) && <span className="tw-falta-tag">{faltaEntrega ? "Tocá una opción" : "Falta completar"}</span>}</div>
                   {ciudad && <div style={{ fontSize: 13, color: "#666", marginBottom: 8 }}>Comprás en <b>{ciudad.nombre}</b>. {ciudades.length > 1 && <button style={{ background: "none", border: "none", padding: 0, textDecoration: "underline", cursor: "pointer", fontSize: 13 }} onClick={() => setEligeCiudad(true)}>Cambiar</button>}</div>}
-                  {retiroAca.map(l => <button key={l.id} className={"tw-op" + (datos.entrega === "retiro" && datos.local_id === l.id ? " on" : "") + (intentoPedir && faltaEntrega ? " falta" : "")} onClick={() => setDatos(d => ({ ...d, entrega: "retiro", local_id: l.id }))}>📍 <b>Retiro en {l.nombre}</b>{l.direccion ? <div style={{ fontSize: 13, color: "#666" }}>{l.direccion}</div> : null}<div style={{ fontSize: 13, color: "#2d7a4f" }}>Sin costo</div></button>)}
+                  {retiroAca.map(l => <button key={l.id} className={"tw-op" + (datos.entrega === "retiro" && datos.local_id === l.id ? " on" : "") + (intentoPedir && faltaEntrega ? " falta" : "")} onClick={() => setDatos(d => ({ ...d, entrega: "retiro", local_id: l.id }))}>📍 <b>Retiro en {l.nombre}</b>{l.direccion ? <div style={{ fontSize: 13, color: "#666" }}>{l.direccion}</div> : null}<div style={{ fontSize: 13, color: "#2d7a4f" }}>Sin costo</div>{tienda.express && tienda.express.abierto && !carrito.some(i => i.preventa) && <div className="tw-express">⚡ Retiro express: lo tenés listo en ~{tienda.express.minutos} min</div>}</button>)}
                   {envioAca && (
                     <button className={"tw-op" + (datos.entrega === "envio" ? " on" : "") + (intentoPedir && faltaEntrega ? " falta" : "")} onClick={() => setDatos(d => ({ ...d, entrega: "envio", pago: d.pago === "retiro" ? null : d.pago }))}>🛵 <b>Envío a domicilio</b><div style={{ fontSize: 13, color: "#666" }}>{envioGratis ? "¡Gratis por tu compra!" : "El costo depende de la zona"}{gratisDesde && !envioGratis ? " · gratis desde " + fmtTienda(gratisDesde) : ""}</div></button>
                   )}
@@ -28923,6 +28926,46 @@ function CajaSeccion({ it, children, temaPal, extra }) {
 }
 
 // Link para la bio de Instagram: por local, WhatsApp, horarios y ubicacion; texto de bienvenida y botones extra
+// Cuenta regresiva del retiro express (en Pedidos): verde, amarillo los ultimos 10 minutos, rojo si se paso
+function CronoExpress({ hasta, minutos, temaPal }) {
+  const tp = temaPal || PALETA_CLARA;
+  const [ahora, setAhora] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setAhora(Date.now()), 1000); return () => clearInterval(t); }, []);
+  if (!hasta) return <span className="tag" style={{ background: "#f39c1222", color: "#b26a00", fontWeight: 800 }}>⚡ EXPRESS {minutos} min · arranca cuando entre el pago</span>;
+  const resta = Math.round((new Date(hasta).getTime() - ahora) / 1000), abs = Math.abs(resta);
+  const txt = Math.floor(abs / 60) + ":" + String(abs % 60).padStart(2, "0");
+  const c = resta < 0 ? tp.red : resta <= 600 ? "#d68910" : tp.green;
+  return <span className="tag" role="timer" style={{ background: c + "22", color: c, fontWeight: 900, fontVariantNumeric: "tabular-nums", fontSize: 13 }}>⚡ EXPRESS · {resta < 0 ? "⏰ atrasado " + txt : "preparar en " + txt}</span>;
+}
+// Retiro express: listo en N minutos dentro del horario elegido
+function RetiroExpress({ cfg, temaPal, avisar, onGuardado, it }) {
+  const tp = temaPal || PALETA_CLARA;
+  const ini = cfg.express || {};
+  const [k, setK] = useState(() => ({ activo: !!ini.activo, minutos: String(ini.minutos || 30), desde: ini.desde || "10:00", hasta: ini.hasta || "19:30", dias: ini.dias || [1, 2, 3, 4, 5, 6] }));
+  const [guardando, setGuardando] = useState(false);
+  const guardar = async () => {
+    setGuardando(true);
+    try { await API.put("/tienda/express", { ...k, minutos: parseInt(k.minutos) || 30 }); avisar(true, "✓ Guardado"); onGuardado && onGuardado(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+    setGuardando(false);
+  };
+  return (
+    <CajaSeccion it={it} temaPal={tp}>
+      <label style={{ display: "flex", gap: 10, alignItems: "center", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>
+        <input type="checkbox" checked={k.activo} onChange={e => setK(x => ({ ...x, activo: e.target.checked }))} style={{ width: 20, height: 20 }} /> Ofrecer retiro express
+      </label>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginTop: 12 }}>
+        <div><div className="fl">Listo en (minutos)</div><input className="inp" inputMode="numeric" value={k.minutos} onChange={e => setK(x => ({ ...x, minutos: e.target.value.replace(/[^\d]/g, "") }))} /></div>
+        <div><div className="fl">Desde</div><input className="inp" type="time" value={k.desde} onChange={e => setK(x => ({ ...x, desde: e.target.value }))} /></div>
+        <div><div className="fl">Hasta</div><input className="inp" type="time" value={k.hasta} onChange={e => setK(x => ({ ...x, hasta: e.target.value }))} /></div>
+      </div>
+      <div className="fl" style={{ marginTop: 12 }}>Días</div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((d, i) => { const n = i + 1, on = k.dias.includes(n); return <button key={n} className={"chip-btn" + (on ? " on" : "")} aria-pressed={on} onClick={() => setK(x => ({ ...x, dias: on ? x.dias.filter(y => y !== n) : [...x.dias, n] }))}>{d}</button>; })}</div>
+      <div className="cli-tip" style={{ fontSize: 12.5, marginTop: 12 }}>En ese horario, al elegir retiro la clienta ve "⚡ Lo tenés listo en ~{k.minutos || 30} min" (solo si llega a prepararse antes del cierre). En <b>Pedidos</b> esos pedidos tienen una cuenta regresiva hasta que tocás "Ya está listo". Si paga online, el tiempo corre desde que entra el pago.</div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}><button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar"}</button></div>
+    </CajaSeccion>
+  );
+}
 // Regalo de cumpleaños: cada clienta con cuenta ve su cupon personal en la tienda durante su semana de cumple
 function RegaloCumple({ cfg, temaPal, avisar, onGuardado, it }) {
   const tp = temaPal || PALETA_CLARA;
@@ -30521,6 +30564,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                       <span style={{ fontWeight: 900, fontSize: 13, color: pago.c, letterSpacing: ".02em" }}>{pago.t}</span>
                       <span style={{ fontSize: 12, color: temaPal.textMuted }}>{pago.sub}</span>
                     </div>}
+                    {p.express_min && ["confirmado", "pendiente_pago"].includes(p.estado) && <div style={{ marginBottom: 10 }}><CronoExpress hasta={p.listo_express} minutos={p.express_min} temaPal={temaPal} /></div>}
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
                       <div>
                         <div style={{ fontWeight: 900, fontSize: 15 }}>{p.nombre} <span style={{ fontWeight: 400, fontSize: 12, color: temaPal.textMuted }}>N° {nroPedido(p)} · {new Date(p.creado_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span></div>
@@ -30838,6 +30882,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
           { k: "marca", icono: "🎨", titulo: "Marca y redes", color: "#8e44ad", sub: cfg.logo ? "Con logo" : "Sin logo", ayuda: "Cómo se ve: logo, ícono del celular, nombre, color, redes y frases de arriba." },
           { k: "entrega", icono: "🚚", titulo: "Entrega y pagos", color: "#2471a3", sub: [cfg.retiro_activo && "Retiro", cfg.envio_activo && "Envío"].filter(Boolean).join(" + ") || "Falta elegir", alerta: !cfg.retiro_activo && !cfg.envio_activo, ayuda: "Cómo reciben el pedido y cómo pueden pagar." },
           { k: "links", icono: "🔗", titulo: "Link para Instagram", color: "#d6246e", sub: Object.values((cfg.links && cfg.links.locales) || {}).some(x => x.whatsapp) ? "Listo" : "WhatsApp, horarios y ubicación", ayuda: "Una página para poner en la bio de Instagram: tienda online, gift cards y, por cada local, su WhatsApp, horarios y cómo llegar." },
+          { k: "express", icono: "⚡", titulo: "Retiro express", color: "#d68910", sub: cfg.express && cfg.express.activo ? "Listo en " + cfg.express.minutos + " min" : "Apagado", ayuda: "Pedidos para retirar listos en pocos minutos." },
           { k: "cumple", icono: "🎂", titulo: "Regalo de cumpleaños", color: "#e84393", sub: cfg.cumple && cfg.cumple.activo ? (cfg.cumple.tipo === "%" ? cfg.cumple.valor + "% OFF" : fmt(cfg.cumple.valor)) : "Apagado", ayuda: "Un cupón personal para cada clienta en su cumple." },
           { k: "muestras", icono: "🎁", titulo: "Muestras gratis", color: "#e67e22", sub: cfg.muestras && cfg.muestras.activo ? "Desde " + fmt(cfg.muestras.desde) + " · " + Object.values(cfg.muestras.envases || {}).reduce((t, v) => t + (parseInt(v) || 0), 0) + " envases" : "Apagadas", alerta: !!(cfg.muestras && cfg.muestras.activo && Object.values(cfg.muestras.envases || {}).some(v => parseInt(v) <= 5)), ayuda: "En compras grandes la clienta elige una muestra de regalo." },
           ...(cfg.preventa ? [{ k: "preventa", icono: "⏳", titulo: "Preventa", color: "#d35400", sub: cfg.preventa.activo ? "Activada" : "Apagada" }] : []),
@@ -30847,6 +30892,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         return (
         <div style={{ paddingBottom: 10 }}>
           <MenuSecciones items={SECS_CFG} activa={it.k} onElegir={setSecCfg} temaPal={temaPal} />
+          {it.k === "express" && <RetiroExpress cfg={cfg} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it} />}
           {it.k === "cumple" && <RegaloCumple cfg={cfg} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it} />}
           {it.k === "muestras" && <MuestrasGratis key={JSON.stringify((cfg.muestras || {}).envases || {})} cfg={cfg} locs={locs} productos={productos} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it} />}
           {it.k === "links" && <LinksInstagram key={cfg.slug || ""} cfg={cfg} locs={locs} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it}
