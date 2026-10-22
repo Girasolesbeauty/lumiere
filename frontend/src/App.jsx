@@ -26989,7 +26989,9 @@ function TiendaPublica({ slug }) {
   const tokenCuenta = () => { if (vistaTk) return vistaTk; try { return localStorage.getItem("tienda_cuenta_" + slug) || ""; } catch (e) { return ""; } };
   const pedir = async (ruta, opciones) => {
     const tk = tokenCuenta();
-    const r = await fetch(base + ruta, { headers: { "Content-Type": "application/json", ...(tk ? { Authorization: "Bearer " + tk } : {}) }, ...opciones });
+    // Sin conexion con el servidor (se esta reiniciando, sin señal): un aviso claro en vez de "Load failed"
+    const r = await fetch(base + ruta, { headers: { "Content-Type": "application/json", ...(tk ? { Authorization: "Bearer " + tk } : {}) }, ...opciones })
+      .catch(() => { const e = new Error("No pudimos conectarnos. Revisá tu conexión y probá de nuevo en un ratito."); e.red = true; throw e; });
     if (r.status === 401 && tk && ruta.startsWith("/cuenta")) { try { if (vistaTk) sessionStorage.removeItem("tienda_vista_" + slug); else localStorage.removeItem("tienda_cuenta_" + slug); } catch (e) {} if (vistaTk) setVistaTk(""); setLogueada(false); }
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || "Algo salió mal. Probá de nuevo.");
@@ -27154,7 +27156,9 @@ function TiendaPublica({ slug }) {
   const codigoUrl = params.get("pedido");
 
   useEffect(() => {
-    pedir("").then(t => {
+    // Si el servidor no responde (por ej. mientras se actualiza), se reintenta solo unas veces antes de mostrar el aviso
+    const conReintentos = (ruta, n = 0) => pedir(ruta).catch(e => e.red && n < 4 ? new Promise(ok => setTimeout(ok, 2000 * (n + 1))).then(() => conReintentos(ruta, n + 1)) : Promise.reject(e));
+    conReintentos("").then(t => {
       setTienda(t); document.title = t.titulo;
       // Icono de la tienda en la pestaña y en el acceso directo (en el dominio propio ya lo pone Vercel)
       if (t.icono_v) {
@@ -27162,8 +27166,8 @@ function TiendaPublica({ slug }) {
         [["icon", "image/png"], ["apple-touch-icon", null]].forEach(([rel, tipo]) => { document.querySelectorAll('link[rel="' + rel + '"]').forEach(l => l.remove()); const l = document.createElement("link"); l.rel = rel; if (tipo) l.type = tipo; l.href = u; document.head.appendChild(l); });
         document.querySelectorAll('meta[name="apple-mobile-web-app-title"],meta[name="application-name"]').forEach(m => m.setAttribute("content", t.titulo));
       }
-    }).catch(e => setError(e.message));
-    pedir("/productos").then(setProductos).catch(() => setProductos([]));
+    }).catch(e => setError(e.red ? "red" : e.message));
+    conReintentos("/productos").then(setProductos).catch(() => setProductos([]));
     const s = () => setSombra(window.scrollY > 10);
     window.addEventListener("scroll", s, { passive: true });
     return () => window.removeEventListener("scroll", s);
@@ -27361,6 +27365,7 @@ function TiendaPublica({ slug }) {
     }
     gratisAntes.current = g;
   }, [subtotalEnvio, desdeEnvio]);
+  if (error === "red") return <div style={{ fontFamily: "system-ui, sans-serif", padding: 40, textAlign: "center", color: "#555" }}><div style={{ fontSize: 44 }}>🌻</div><h2 style={{ color: "#222" }}>Estamos actualizando la tienda</h2><p style={{ fontSize: 15, maxWidth: 420, margin: "12px auto 18px", lineHeight: 1.5 }}>No pudimos conectarnos en este momento. Probá de nuevo en un ratito 💛</p><button onClick={() => window.location.reload()} style={{ font: "inherit", fontWeight: 700, fontSize: 15, padding: "12px 26px", borderRadius: 999, border: 0, background: "#111", color: "#fff", cursor: "pointer" }}>Volver a intentar</button></div>;
   if (error) return <div style={{ fontFamily: "system-ui, sans-serif", padding: 40, textAlign: "center", color: "#555" }}><div style={{ fontSize: 44 }}>🛍️</div><h2>{error}</h2><p style={{ fontSize: 14, maxWidth: 420, margin: "12px auto 0", lineHeight: 1.5 }}>¿Es tu tienda? Activala desde Lumiere, en Ventas → Tienda online → Configuración.</p></div>;
   if (!tienda) return <div className="tw" style={{ padding: 20 }}><style>{CSS_TIENDA}</style><div className="tw-skel" style={{ height: 60, marginBottom: 20 }} /><div className="tw-skel" style={{ height: 380 }} /></div>;
   const color = tienda.color || "#c9a84c";
