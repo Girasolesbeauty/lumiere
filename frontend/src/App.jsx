@@ -18476,6 +18476,102 @@ function Comprobantes({ localId, usuario, paletaActual }) {
   );
 }
 
+// 🧪 Testers: qué tester hay abierto en cada local, desde cuándo, cuánto dura cada uno y cuánto se gasta por marca
+function Testers({ localId, usuario, paletaActual }) {
+  const tp = paletaActual || PALETA_CLARA;
+  const [d, setD] = useState(null);
+  const [error, setError] = useState(false);
+  const [prods, setProds] = useState([]);
+  const [nuevo, setNuevo] = useState(null); // { q, prod, local, descontar, nota }
+  const [verTodos, setVerTodos] = useState(UN_SOLO_LOCAL);
+  const [msg, setMsg] = useState("");
+  const cargar = () => API.get("/testers").then(r => { setD(r.data); setError(false); }).catch(() => setError(true));
+  useEffect(() => { cargar(); API.get("/productos").then(r => setProds(r.data || [])).catch(() => {}); }, []);
+  const avisar = (t) => { setMsg(t); setTimeout(() => setMsg(""), 3500); };
+  const abrir = async () => {
+    if (!nuevo || !nuevo.prod) return;
+    try { const r = await API.post("/testers", { producto_id: nuevo.prod.id, local_id: nuevo.local, descontar: nuevo.descontar, nota: nuevo.nota }); avisar(r.data.descontado ? "✓ Tester registrado y descontado del stock" : "✓ Tester registrado" + (d && d.puede_descontar && nuevo.descontar ? " (no había stock para descontar)" : "")); setNuevo(null); cargar(); }
+    catch (e) { avisar(e.response?.data?.error || "No se pudo registrar"); }
+  };
+  const accion = async (url, body, ok) => { try { await API.post(url, body || {}); avisar(ok); cargar(); } catch (e) { avisar(e.response?.data?.error || "No se pudo"); } };
+  if (error) return <div className="card"><div className="empty">No se pudo cargar. Probá de nuevo.</div></div>;
+  if (!d) return <div className="skel" style={{ height: 300 }} />;
+  const enUso = d.testers.filter(t => !t.terminado_en && (verTodos || Number(t.local_id) === Number(localId || 1)));
+  const terminados = d.testers.filter(t => t.terminado_en && (verTodos || Number(t.local_id) === Number(localId || 1)));
+  const q = nuevo ? normTxt(nuevo.q || "") : "";
+  const res = q ? prods.filter(p => q.split(" ").every(w => normTxt([p.nombre, p.marca, p.codigo_barras].join(" ")).includes(w))).slice(0, 8) : [];
+  const fecha = (f) => new Date(f).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" });
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+        <div style={{ flex: 1 }}><div className="pt">🧪 Testers</div><div className="ps">Qué tester hay abierto, desde cuándo y cuánto se gasta</div></div>
+        {!UN_SOLO_LOCAL && <div className="seg" role="group" aria-label="Local"><button className={!verTodos ? "on" : ""} onClick={() => setVerTodos(false)}>{nombreLocal(localId || 1)}</button><button className={verTodos ? "on" : ""} onClick={() => setVerTodos(true)}>Todos</button></div>}
+        <button className="btn btn-p" onClick={() => setNuevo({ q: "", prod: null, local: Number(localId) || 1, descontar: true, nota: "" })}>+ Abrir tester</button>
+      </div>
+      {msg && <div className="card" role="status" style={{ padding: "10px 14px", fontSize: 13 }}>{msg}</div>}
+      {nuevo && (
+        <div className="card">
+          <div className="ct">Abrir un tester</div>
+          {!nuevo.prod ? (<>
+            <input className="inp" autoFocus placeholder="Buscá el producto: nombre, marca o código" value={nuevo.q} onChange={e => setNuevo(x => ({ ...x, q: e.target.value }))} />
+            {res.map(p => <button key={p.id} className="btn btn-g btn-sm" style={{ display: "flex", width: "100%", justifyContent: "space-between", marginTop: 4, textAlign: "left" }} onClick={() => setNuevo(x => ({ ...x, prod: p }))}><span><b>{p.nombre}</b> <span style={{ fontSize: 11, color: tp.textMuted }}>{p.marca || ""}</span></span><span style={{ fontSize: 11, color: tp.textMuted }}>{UN_SOLO_LOCAL ? "stock " + (p.stock_rg || 0) : nombreLocal(1) + " " + (p.stock_rg || 0) + " · " + nombreLocal(2) + " " + (p.stock_ush || 0)}</span></button>)}
+          </>) : (<>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 8, border: "1px solid " + tp.border }}><span><b>{nuevo.prod.nombre}</b> <span style={{ fontSize: 11, color: tp.textMuted }}>{nuevo.prod.marca || ""}</span></span><button className="chip-btn" onClick={() => setNuevo(x => ({ ...x, prod: null }))}>Cambiar</button></div>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginTop: 10, fontSize: 13 }}>
+              {!UN_SOLO_LOCAL && <label>Local: <select className="sel" value={nuevo.local} onChange={e => setNuevo(x => ({ ...x, local: Number(e.target.value) }))}><option value={1}>{nombreLocal(1)}</option><option value={2}>{nombreLocal(2)}</option></select></label>}
+              {d.puede_descontar ? <label style={{ display: "flex", gap: 6, alignItems: "center" }}><input type="checkbox" checked={nuevo.descontar} onChange={e => setNuevo(x => ({ ...x, descontar: e.target.checked }))} /> Descontar 1 del stock de {nombreLocal(nuevo.local)}</label>
+                : <span style={{ color: tp.textMuted, fontSize: 12 }}>Queda registrado; el stock lo descuenta alguien con permiso de ajustar.</span>}
+            </div>
+            <input className="inp" style={{ marginTop: 8 }} maxLength={200} placeholder="Nota (opcional)" value={nuevo.nota} onChange={e => setNuevo(x => ({ ...x, nota: e.target.value }))} />
+          </>)}
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}><button className="btn btn-g" onClick={() => setNuevo(null)}>Cancelar</button><button className="btn btn-p" disabled={!nuevo.prod} onClick={abrir}>Registrar tester</button></div>
+        </div>
+      )}
+      <div className="card">
+        <div className="ct">Abiertos ahora ({enUso.length})</div>
+        {enUso.length === 0 ? <div className="empty">No hay testers abiertos{verTodos ? "" : " en " + nombreLocal(localId || 1)}.</div> : enUso.map(t => {
+          const largo = t.dura_prom && t.dias > t.dura_prom;
+          return (
+            <div key={t.id} style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "8px 0", borderTop: "1px solid " + tp.border }}>
+              <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+                <div style={{ fontWeight: 800, fontSize: 13.5 }}>{t.nombre} <span style={{ fontWeight: 500, fontSize: 11.5, color: tp.textMuted }}>{t.marca || ""}</span></div>
+                <div style={{ fontSize: 11.5, color: largo ? tp.warn : tp.textMuted }}>{!UN_SOLO_LOCAL ? nombreLocal(t.local_id) + " · " : ""}abierto el {fecha(t.abierto_en)} ({t.dias === 0 ? "hoy" : "hace " + t.dias + (t.dias === 1 ? " día" : " días")}){t.dura_prom ? " · suele durar ~" + t.dura_prom + " días" : ""}{largo ? " · ya debería estar por terminarse" : ""}{t.usuario_nombre ? " · " + t.usuario_nombre : ""}</div>
+                {t.nota && <div style={{ fontSize: 11.5 }}>📝 {t.nota}</div>}
+              </div>
+              {!t.descontado && <span className="tag" style={{ background: tp.warn + "22", color: tp.warn }}>sin descontar del stock</span>}
+              {!t.descontado && d.puede_descontar && <button className="btn btn-g btn-sm" onClick={() => accion("/testers/" + t.id + "/descontar", null, "✓ Descontado del stock")}>Descontar</button>}
+              <button className="btn btn-p btn-sm" onClick={() => accion("/testers/" + t.id + "/terminado", { terminado: true }, "✓ Marcado como terminado")}>✓ Se terminó</button>
+            </div>
+          );
+        })}
+      </div>
+      {ES_JEFE_ACTUAL && d.marcas.length > 0 && (
+        <div className="card">
+          <div className="ct">💸 Gasto en testers por marca</div>
+          <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+            <thead><tr style={{ color: tp.textMuted, fontSize: 11, textAlign: "left" }}><th style={{ padding: 6 }}>Marca</th><th style={{ padding: 6, textAlign: "right" }}>Este mes</th><th style={{ padding: 6, textAlign: "right" }}>Últimos 3 meses</th></tr></thead>
+            <tbody>
+              {d.marcas.map(m => <tr key={m.marca} style={{ borderTop: "1px solid " + tp.border }}><td style={{ padding: 6, fontWeight: 700 }}>{m.marca}</td><td style={{ padding: 6, textAlign: "right" }}>{m.cant_mes ? m.cant_mes + " · " + fmt(m.gasto_mes) : "—"}</td><td style={{ padding: 6, textAlign: "right" }}>{m.cant_3m} · {fmt(m.gasto_3m)}</td></tr>)}
+              <tr style={{ borderTop: "2px solid " + tp.border, fontWeight: 900 }}><td style={{ padding: 6 }}>Total</td><td style={{ padding: 6, textAlign: "right" }}>{fmt(d.marcas.reduce((t, m) => t + m.gasto_mes, 0))}</td><td style={{ padding: 6, textAlign: "right" }}>{fmt(d.marcas.reduce((t, m) => t + m.gasto_3m, 0))}</td></tr>
+            </tbody>
+          </table>
+          <div style={{ fontSize: 11.5, color: tp.textMuted, marginTop: 6 }}>Al costo de cada producto cuando se abrió el tester.</div>
+        </div>
+      )}
+      {terminados.length > 0 && (
+        <div className="card">
+          <div className="ct">Terminados (últimos 4 meses)</div>
+          {terminados.slice(0, 60).map(t => (
+            <div key={t.id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "6px 0", borderTop: "1px solid " + tp.border, fontSize: 12.5 }}>
+              <span style={{ flex: 1, minWidth: 0 }}><b>{t.nombre}</b> <span style={{ color: tp.textMuted }}>{!UN_SOLO_LOCAL ? "· " + nombreLocal(t.local_id) + " " : ""}· {fecha(t.abierto_en)} → {fecha(t.terminado_en)} · duró {t.dias} {t.dias === 1 ? "día" : "días"}</span></span>
+              <button className="chip-btn" style={{ fontSize: 11 }} onClick={() => accion("/testers/" + t.id + "/terminado", { terminado: false }, "Listo: vuelve a estar abierto")}>Deshacer</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 // 🏆 Del mes: la vendedora del mes (ranking que arranca de cero cada mes, sin montos para el equipo)
 // y la clienta del mes (solo la ve la dueña), cada una con su premio
 const MESES_DM = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
@@ -23806,7 +23902,8 @@ const NAV_SECTIONS = [
     { id: "compras", icon: "📋", label: "Compras y proveedores", k: "que pedir pedido proveedor comprar reponer" },
     { id: "ordenes", icon: "🚚", label: "Ingresos", k: "mercaderia recibir factura proveedor ordenes" },
     { id: "traspasos", icon: "🔁", label: "Traspasos", k: "inventario mandar local otro local recibir traspaso", multiLocal: true },
-    { id: "control-inv", icon: "🔢", label: "Control de Inventario", k: "conteo contar stock" }] },
+    { id: "control-inv", icon: "🔢", label: "Control de Inventario", k: "conteo contar stock" },
+    { id: "testers", icon: "🧪", label: "Testers", k: "tester probador abierto muestra gasto marca" }] },
   { section: "ANÁLISIS DE INVENTARIO", color: "#5d6d7e", items: [
     { id: "salud-stock", icon: "🩺", label: "Salud del stock", k: "inventario revisar problemas negativo resumen diagnostico" },
     { id: "valorizacion", icon: "💰", label: "Valorización", k: "inventario plata mercaderia valor costo capital" },
@@ -33565,6 +33662,7 @@ function AppWrapper() {
     if (id === "rotacion") return <Rotacion localId={local.id} paletaActual={paletaActual} />;
     if (id === "calculadoras") return <Calculadoras usuario={usuario} paletaActual={paletaActual} />;
     if (id === "comprobantes") return <Comprobantes localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "testers") return <Testers localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "del-mes") return <DelMes usuario={usuario} paletaActual={paletaActual} />;
     if (id === "productividad") return <Productividad localId={local.id} paletaActual={paletaActual} />;
     if (id === "cupones") return <Cupones localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
