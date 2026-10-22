@@ -557,8 +557,8 @@ router.post('/pedidos/:id/contactado', async (req, res) => {
     res.json(r.rows[0]);
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
 });
-// Por que se vencio un pedido (o no lo retiro): motivo de la lista + lo que dijo la clienta. motivo vacio = se borra
-const MOTIVOS_VENC = ['mirando', 'arrepintio', 'pago', 'otro_medio', 'local', 'caro', 'envio', 'sin_respuesta', 'otro'];
+// Por que se vencio o se cancelo un pedido: motivo de la lista + lo que dijo la clienta. motivo vacio = se borra
+const MOTIVOS_VENC = ['mirando', 'arrepintio', 'pago', 'otro_medio', 'local', 'caro', 'envio', 'sin_respuesta', 'otro', 'clienta', 'sin_stock', 'duplicado', 'cambio', 'prueba'];
 router.post('/pedidos/:id/vencimiento', async (req, res) => {
   try {
     const b = req.body || {};
