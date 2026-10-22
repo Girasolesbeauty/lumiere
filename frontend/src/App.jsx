@@ -18430,6 +18430,106 @@ function Comprobantes({ localId, usuario, paletaActual }) {
   );
 }
 
+// 🏆 Del mes: la vendedora del mes (ranking que arranca de cero cada mes, sin montos para el equipo)
+// y la clienta del mes (solo la ve la dueña), cada una con su premio
+const MESES_DM = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+function DelMes({ usuario, paletaActual }) {
+  const tp = paletaActual || PALETA_CLARA;
+  const [periodo, setPeriodo] = useState(null); // null = mes actual
+  const [d, setD] = useState(null);
+  const [error, setError] = useState(false);
+  const [cfg, setCfg] = useState(null);
+  const [msg, setMsg] = useState("");
+  const cargar = () => { setError(false); API.get("/del-mes" + (periodo ? "?anio=" + periodo.anio + "&mes=" + periodo.mes : "")).then(r => { setD(r.data); setCfg(c => c || { premio_vendedora: r.data.premio_vendedora || "", premio_clienta: r.data.premio_clienta || "", criterio_clienta: r.data.criterio_clienta || "monto" }); }).catch(() => setError(true)); };
+  useEffect(() => { setD(null); cargar(); }, [periodo && periodo.anio, periodo && periodo.mes]);
+  const mover = (delta) => { const a = d.anio, m = d.mes - 1 + delta, f = new Date(a, m, 1), hoy = new Date(); if (f > new Date(hoy.getFullYear(), hoy.getMonth(), 1)) return; setPeriodo({ anio: f.getFullYear(), mes: f.getMonth() + 1 }); };
+  const entregar = async (tipo, g, si) => {
+    try { await API.post("/del-mes/entregado", { anio: d.anio, mes: d.mes, tipo, ganador_id: g && g.id, nombre: g && g.nombre, entregado: si }); cargar(); } catch (e) { setMsg("No se pudo guardar"); }
+  };
+  const entregarH = async (h, tipo, g, si) => { try { await API.post("/del-mes/entregado", { anio: h.anio, mes: h.mes, tipo, ganador_id: g && g.id, nombre: g && g.nombre, entregado: si }); cargar(); } catch (e) {} };
+  const guardarCfg = async () => { try { await API.put("/del-mes/config", cfg); setMsg("✓ Premios guardados"); cargar(); setTimeout(() => setMsg(""), 2500); } catch (e) { setMsg("No se pudo guardar"); } };
+  const waClienta = (c, premio) => linkWhatsapp(c.telefono, "¡Hola " + String(c.nombre || "").split(" ")[0] + "! 🌻 Te elegimos como nuestra clienta del mes de " + MESES_DM[d.mes - 1] + " 💛 Gracias por elegirnos siempre." + (premio ? " Te ganaste: " + premio + ". " : " ") + "Pasá por el local cuando quieras a buscar tu regalo 🎁");
+  if (error) return <div className="card"><div className="empty">No se pudo cargar. Probá de nuevo.</div></div>;
+  if (!d) return <div className="skel" style={{ height: 320 }} />;
+  const medalla = ["🥇", "🥈", "🥉"];
+  const yo = d.vendedoras.find(v => v.id === (usuario && usuario.id));
+  const ent = (t) => d.entregas.find(x => x.tipo === t);
+  const ganadora = d.vendedoras[0], clienta = d.clientas[0];
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+        <div style={{ flex: 1 }}><div className="pt">🏆 Del mes</div><div className="ps">Arranca de cero el primer día de cada mes</div></div>
+        <button className="chip-btn" onClick={() => mover(-1)} aria-label="Mes anterior">‹</button>
+        <b style={{ textTransform: "capitalize", minWidth: 130, textAlign: "center" }}>{MESES_DM[d.mes - 1]} {d.anio}</b>
+        <button className="chip-btn" disabled={d.actual} onClick={() => mover(1)} aria-label="Mes siguiente">›</button>
+      </div>
+      <div className="card">
+        <div className="ct">👑 Vendedora del mes</div>
+        {d.premio_vendedora && <div style={{ fontSize: 13.5, marginBottom: 10 }}>🎁 Premio: <b>{d.premio_vendedora}</b></div>}
+        {yo && d.actual && !d.jefe && <div style={{ fontSize: 13, marginBottom: 10, color: tp.textMuted }}>{yo.puesto === 1 ? "🔥 ¡Vas primera! Seguí así." : "Vas en el puesto " + yo.puesto + ". ¡Todavía hay tiempo para subir! 💪"}</div>}
+        {d.vendedoras.length === 0 ? <div className="empty">Todavía no hay ventas este mes.</div> : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {d.vendedoras.map(v => (
+              <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: v.puesto === 1 ? "10px 12px" : "4px 12px", borderRadius: 12, background: v.puesto === 1 ? "linear-gradient(90deg,#fff6d6,#fffdf3)" : "transparent", border: v.puesto === 1 ? "1px solid #f3d77a" : "none" }}>
+                <span style={{ fontSize: v.puesto <= 3 ? 24 : 15, width: 32, textAlign: "center", fontWeight: 800, color: tp.textMuted }}>{medalla[v.puesto - 1] || v.puesto}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 800, fontSize: v.puesto === 1 ? 16 : 14 }}>{v.nombre}{yo && yo.id === v.id ? " (vos)" : ""}</div>
+                  <div style={{ height: 7, borderRadius: 4, background: tp.border, marginTop: 4 }}><div style={{ height: 7, borderRadius: 4, width: v.pct + "%", background: v.puesto === 1 ? "#e0a800" : tp.accent || "#c9a84c", transition: "width .6s" }} /></div>
+                </div>
+                {d.jefe && <span style={{ fontSize: 12.5, color: tp.textMuted, whiteSpace: "nowrap" }}>{v.cant} {v.cant === 1 ? "venta" : "ventas"} · {fmt(v.total)}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+        {!d.actual && ganadora && d.jefe && <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 12, paddingTop: 10, borderTop: "1px solid " + tp.border }}>
+          <span style={{ flex: 1, fontSize: 13 }}>{ent("vendedora") ? "✓ Premio entregado a " + (ent("vendedora").nombre || ganadora.nombre) : "¿Ya le entregaste el premio a " + ganadora.nombre + "?"}</span>
+          <button className={"btn btn-sm " + (ent("vendedora") ? "btn-g" : "btn-p")} onClick={() => entregar("vendedora", ganadora, !ent("vendedora"))}>{ent("vendedora") ? "Desmarcar" : "🎁 Marcar entregado"}</button>
+        </div>}
+      </div>
+      {d.jefe && (
+        <div className="card">
+          <div className="ct">💛 Clienta del mes <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0, color: tp.textMuted }}>· solo lo ves vos</span></div>
+          {!clienta ? <div className="empty">Todavía no hay compras con clienta cargada este mes.</div> : (<>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 12, background: "linear-gradient(90deg,#fff0f6,#fff8ee)", border: "1px solid #f6c9dc" }}>
+              <span style={{ fontSize: 30 }}>🌻</span>
+              <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 900, fontSize: 16 }}>{clienta.nombre}</div><div style={{ fontSize: 12.5, color: tp.textMuted }}>{clienta.cant} {clienta.cant === 1 ? "compra" : "compras"} · {fmt(clienta.total)}{d.criterio_clienta === "compras" ? " · por cantidad de compras" : ""}</div></div>
+            </div>
+            {d.premio_clienta && <div style={{ fontSize: 13.5, margin: "10px 0" }}>🎁 Regalo: <b>{d.premio_clienta}</b></div>}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+              {clienta.telefono && <a className="btn btn-g btn-sm" style={{ textDecoration: "none" }} href={waClienta(clienta, d.premio_clienta)} target="_blank" rel="noopener">💬 Avisarle por WhatsApp</a>}
+              {!d.actual && <button className={"btn btn-sm " + (ent("clienta") ? "btn-g" : "btn-p")} onClick={() => entregar("clienta", clienta, !ent("clienta"))}>{ent("clienta") ? "✓ Entregado · desmarcar" : "🎁 Marcar entregado"}</button>}
+            </div>
+            <div style={{ fontSize: 11.5, color: tp.textMuted, marginTop: 8 }}>El mensaje no dice cuánto gastó: solo que la eligieron como clienta del mes.{d.actual ? " Se define cuando termina el mes." : ""}</div>
+            {d.clientas.length > 1 && <div style={{ fontSize: 12, color: tp.textMuted, marginTop: 8 }}>Le siguen: {d.clientas.slice(1).map(c => c.nombre).join(", ")}</div>}
+          </>)}
+        </div>
+      )}
+      {d.historial.some(h => h.vendedora || h.clienta) && (
+        <div className="card">
+          <div className="ct">📜 Meses anteriores</div>
+          {d.historial.filter(h => h.vendedora || h.clienta).map(h => (
+            <div key={h.anio + "-" + h.mes} style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "6px 0", borderBottom: "1px solid " + tp.border, fontSize: 13 }}>
+              <b style={{ width: 110, textTransform: "capitalize" }}>{MESES_DM[h.mes - 1]} {h.anio}</b>
+              <span style={{ flex: 1, minWidth: 150 }}>👑 {h.vendedora ? h.vendedora.nombre : "—"}{d.jefe && h.vendedora ? <button className="chip-btn" style={{ marginLeft: 6, fontSize: 11 }} onClick={() => entregarH(h, "vendedora", h.vendedora, !h.vendedora_entregado)}>{h.vendedora_entregado ? "✓ entregado" : "sin entregar"}</button> : null}</span>
+              {d.jefe && <span style={{ flex: 1, minWidth: 150 }}>💛 {h.clienta ? h.clienta.nombre : "—"}{h.clienta ? <button className="chip-btn" style={{ marginLeft: 6, fontSize: 11 }} onClick={() => entregarH(h, "clienta", h.clienta, !h.clienta_entregado)}>{h.clienta_entregado ? "✓ entregado" : "sin entregar"}</button> : null}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+      {d.jefe && cfg && (
+        <div className="card">
+          <div className="ct">⚙️ Premios</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 10 }}>
+            <div><div className="fl">Premio para la vendedora del mes</div><input className="inp" maxLength={200} placeholder="Ej: un producto a elección hasta $30.000" value={cfg.premio_vendedora} onChange={e => setCfg(c => ({ ...c, premio_vendedora: e.target.value }))} /></div>
+            <div><div className="fl">Regalo para la clienta del mes</div><input className="inp" maxLength={200} placeholder="Ej: un kit de muestras + 20% en su próxima compra" value={cfg.premio_clienta} onChange={e => setCfg(c => ({ ...c, premio_clienta: e.target.value }))} /></div>
+            <div><div className="fl">Clienta del mes: la que más…</div><select className="sel" value={cfg.criterio_clienta} onChange={e => setCfg(c => ({ ...c, criterio_clienta: e.target.value }))}><option value="monto">compró en plata</option><option value="compras">veces vino a comprar</option></select></div>
+          </div>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "flex-end", marginTop: 10 }}>{msg && <span style={{ fontSize: 12.5 }}>{msg}</span>}<button className="btn btn-p" onClick={guardarCfg}>Guardar premios</button></div>
+        </div>
+      )}
+    </div>
+  );
+}
 function Productividad({ localId, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
   const hoy = new Date();
@@ -23685,6 +23785,7 @@ const NAV_SECTIONS = [
   { section: "EQUIPO", color: "#2471a3", items: [
     { id: "tareas", icon: "📝", label: "Tareas", k: "pendientes" },
     { id: "comisiones", icon: "💎", label: "Comisiones", k: "vendedoras vendedores equipo desafios premios" },
+    { id: "del-mes", icon: "👑", label: "Del mes", k: "vendedora del mes clienta del mes ranking premio" },
     { id: "productividad", icon: "🏆", label: "Productividad", k: "ranking vendedoras vendedores equipo" }] },
   { section: "FINANZAS", color: "#1f6f8b", items: [
     { id: "finance", icon: "💰", label: "Finanzas", k: "gastos egresos salud equilibrio medallas" },
@@ -33418,6 +33519,7 @@ function AppWrapper() {
     if (id === "rotacion") return <Rotacion localId={local.id} paletaActual={paletaActual} />;
     if (id === "calculadoras") return <Calculadoras usuario={usuario} paletaActual={paletaActual} />;
     if (id === "comprobantes") return <Comprobantes localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "del-mes") return <DelMes usuario={usuario} paletaActual={paletaActual} />;
     if (id === "productividad") return <Productividad localId={local.id} paletaActual={paletaActual} />;
     if (id === "cupones") return <Cupones localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "promociones") return <Promociones paletaActual={paletaActual} />;
