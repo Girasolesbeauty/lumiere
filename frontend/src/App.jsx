@@ -4278,17 +4278,35 @@ function POS({ localId, usuario, paletaActual }) {
   const unSoloMedioSena = () => { const l = (senaPagos || []).find(x => x.medio_pago_id); setSenaPagos(null); setSenaMedioPagoId(l ? String(l.medio_pago_id) : ""); };
   // Lo que falta cobrar de una preventa (total menos lo que pagó al registrarla)
   const saldoPreventa = (p) => Math.max(0, parseFloat(p.total || 0) - (parseFloat(p.monto_sena) || 0) - (parseFloat(p.monto_gift_card) || 0));
+  // Al entregar una preventa se factura en ARCA por el total (seña + saldo) y sale el ticket, como una venta normal.
+  // Si ARCA falla, la venta ya quedó entregada: queda en "pendientes de facturar" para reintentar.
+  const facturarEntrega = async (p, venta, msj) => {
+    setConfirmandoPreventa(null); cargarPreventas();
+    try {
+      const a = await API.post("/arca/reintentar/" + p.id);
+      const datosRecibo = {
+        items: (p.items || []).map(i => ({ nombre: i.nombre, cantidad: i.cantidad, precio_unitario: parseFloat(i.precio_unitario) || 0 })),
+        total: parseFloat(venta?.total ?? p.total) || 0, cliente: p.cliente_nombre || p.nombre_preventa || null,
+        numero: a.data.nroComprobante ? String(a.data.puntoVenta || 5).padStart(4, "0") + "-" + String(a.data.nroComprobante).padStart(8, "0") : null
+      };
+      finalizarVenta(datosRecibo, { ventaId: p.id, telefono: p.cliente_telefono || "", medio: venta?.medio_pago || "" });
+      setMensaje("✅ " + msj + " " + (a.data.mensaje || "Factura emitida") + (a.data.cae ? " | CAE: " + a.data.cae : ""));
+    } catch (e) {
+      cargarPendientesArca(); // se reintenta desde la lista de pendientes (con los datos guardados de la venta)
+      setMensaje("⚠️ " + msj + " Pero ARCA dio error al facturar: " + (e.response?.data?.error || e.message) + ". Quedó en pendientes de facturar para reintentar (no se duplica la venta).");
+    }
+    setTimeout(() => setMensaje(""), 9000);
+  };
   const confirmarEntregaPreventa = async () => {
     if (!confirmandoPreventa) return;
     if (saldoPreventa(confirmandoPreventa) <= 0.5) {
       // Ya estaba pagada: se entrega sin cobrar nada más
       try {
-        await API.put("/ventas/" + confirmandoPreventa.id + "/confirmar-entrega", {
+        const rv = await API.put("/ventas/" + confirmandoPreventa.id + "/confirmar-entrega", {
           medio_pago_id: confirmandoPreventa.sena_medio_pago_id || null, medio_pago_nombre: confirmandoPreventa.sena_medio_pago_nombre || null,
           total_con_interes: parseFloat(confirmandoPreventa.total || 0), usuario_id: usuario?.id || null
         });
-        setMensaje("Entrega confirmada (ya estaba pagada). Stock descontado y reserva liberada.");
-        setConfirmandoPreventa(null); cargarPreventas(); setTimeout(() => setMensaje(""), 5000);
+        await facturarEntrega(confirmandoPreventa, rv.data, "Entrega confirmada (ya estaba pagada).");
       } catch (e) { setErrorConfirmacion(e.response?.data?.error || "Error al confirmar la entrega"); }
       return;
     }
@@ -4300,12 +4318,11 @@ function POS({ localId, usuario, paletaActual }) {
       if (Math.abs(suma - saldo) >= 1) return setErrorConfirmacion("La suma de los pagos (" + fmt(suma) + ") tiene que ser igual a lo que falta (" + fmt(saldo) + ")");
       setErrorConfirmacion("");
       try {
-        await API.put("/ventas/" + confirmandoPreventa.id + "/confirmar-entrega", {
+        const rv = await API.put("/ventas/" + confirmandoPreventa.id + "/confirmar-entrega", {
           pagos: lineas.map(l => ({ medio_pago_id: l.medio_pago_id, importe: parseFloat(l.importe) })),
           usuario_id: usuario?.id || null
         });
-        setMensaje("Entrega confirmada! Cobrado con " + lineas.length + " medios de pago. Stock descontado y reserva liberada.");
-        setConfirmandoPreventa(null); cargarPreventas(); setTimeout(() => setMensaje(""), 5000);
+        await facturarEntrega(confirmandoPreventa, rv.data, "Entrega confirmada, cobrada con " + lineas.length + " medios de pago.");
       } catch (e) { setErrorConfirmacion(e.response?.data?.error || "Error al confirmar la entrega"); }
       return;
     }
@@ -4318,16 +4335,13 @@ function POS({ localId, usuario, paletaActual }) {
       // El recargo del medio de pago va solo sobre lo que falta pagar, no sobre lo que ya se pagó
       const saldo = saldoPreventa(confirmandoPreventa);
       const totalConInteres = Math.round(totalOriginal - saldo + saldo * coefM);
-      await API.put("/ventas/" + confirmandoPreventa.id + "/confirmar-entrega", {
+      const rv = await API.put("/ventas/" + confirmandoPreventa.id + "/confirmar-entrega", {
         medio_pago_id: m?.id || null,
         medio_pago_nombre: m?.nombre || null,
         total_con_interes: totalConInteres,
         usuario_id: usuario?.id || null
       });
-      setMensaje("Entrega confirmada! Stock descontado y reserva liberada.");
-      setConfirmandoPreventa(null);
-      cargarPreventas();
-      setTimeout(() => setMensaje(""), 5000);
+      await facturarEntrega(confirmandoPreventa, rv.data, "Entrega confirmada.");
     } catch (e) {
       setErrorConfirmacion(e.response?.data?.error || "Error al confirmar la entrega");
     }
@@ -19046,6 +19060,18 @@ function CierreCaja({ localId, usuario, paletaActual }) {
               ))}
             </div>
           ); })()}
+          {(datos?.preventas || []).length > 0 && (
+            <div className="chart-card anim-in" style={{ marginTop: 12, borderLeft: "5px solid #d35400" }}>
+              <div className="chart-head">
+                <div className="chart-title">⏳ Señas y preventas cobradas este día</div>
+                <div className="chart-meta" style={{ color: "#d35400", fontWeight: 800 }}>{fmt(r.cobrado_preventas || 0)}</div>
+              </div>
+              <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 8 }}>La seña suma el día que se cobra y el saldo el día que se entrega. <b>Ya están sumadas</b> al total del día y a cada medio de pago; lo que fue en efectivo ya está en la caja.</div>
+              {datos.preventas.map((x, i) => (
+                <div key={x.id + "-" + i} className="cc-linea"><span>{x.hora} · {x.cliente_nombre || "Clienta"} <span className="tag" style={{ marginLeft: 4 }}>{x.tipo}</span> <span style={{ color: p.textMuted }}>{x.medios.map(m => m.nombre).join(" + ")}</span>{x.tipo === "Saldo al entregar" && <span className={"tag " + (x.facturada ? "tag-ok" : "tag-warn")} style={{ marginLeft: 4 }}>{x.facturada ? "facturada" : "sin facturar"}</span>}</span><b>{fmt(x.importe)}</b></div>
+              ))}
+            </div>
+          )}
           {(datos?.tienda_sin_caja || []).filter(x => !x.cobrado_online).length > 0 && (() => { const l = datos.tienda_sin_caja.filter(x => !x.cobrado_online); const suma = l.reduce((t, x) => t + x.total, 0); return (
             <div className="dash-alert" style={{ marginTop: 12, marginBottom: 0, display: "block" }}>
               <div>🛍️ <b>{l.length === 1 ? "1 pedido de la tienda web" : l.length + " pedidos de la tienda web"} sin pagar todavía</b> ({fmt(suma)}). <b>No suman</b> a este cierre hasta que los cobres en el Punto de Venta (botón "Cobrar en caja" en Tienda online) o se acredite el pago online.</div>

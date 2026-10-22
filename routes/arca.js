@@ -225,10 +225,11 @@ async function intentarEmitirCAE({ tipo, items, total, cliente_cuit, venta_id })
     // efectivamente se emitio.
     try {
       const ventaRow = await pool.query(
-        `SELECT local_id, usuario_id, medio_pago_id, medio_pago, monto_gift_card, total, numero_factura
+        `SELECT local_id, usuario_id, medio_pago_id, medio_pago, monto_gift_card, total, numero_factura, es_preventa
          FROM ventas WHERE id = $1`, [venta_id]
       );
-      if (ventaRow.rows.length > 0) {
+      // Preventa: el efectivo ya entro a la Caja con la seña y con el saldo (al entregarla); no se vuelve a sumar
+      if (ventaRow.rows.length > 0 && ventaRow.rows[0].es_preventa !== true) {
         const v = ventaRow.rows[0];
         const pagosMixtos = await pool.query(
           `SELECT medio_pago_id, medio_pago_nombre, importe FROM venta_pagos WHERE venta_id = $1`,
@@ -304,9 +305,10 @@ router.get('/estado', async (req, res) => {
 // --- Cantidad de facturas realmente pendientes (para el badge del POS) ---
 router.get('/pendientes/count', async (req, res) => {
   try {
+    await require('../lib/preventasFactura').asegurar();
     const r = await pool.query(
       `SELECT COUNT(*) FROM ventas
-       WHERE canal = 'presencial' AND es_preventa = FALSE
+       WHERE canal = 'presencial' AND (es_preventa = FALSE OR estado_pago = 'confirmada')
          AND (cae IS NULL OR cae = '')
          AND monto_gift_card < total
          AND estado_facturacion != 'no_aplica'`
@@ -321,12 +323,13 @@ router.get('/pendientes/count', async (req, res) => {
 // en una pantalla donde se puedan ver y reintentar una por una.
 router.get('/pendientes', async (req, res) => {
   try {
+    await require('../lib/preventasFactura').asegurar();
     const { local_id } = req.query;
     let q = `SELECT v.id, v.numero_factura, v.total, v.creado_en, v.ultimo_error_facturacion,
                     v.intentos_facturacion, v.local_id, c.nombre AS cliente_nombre
              FROM ventas v
              LEFT JOIN clientes c ON v.cliente_id = c.id
-             WHERE v.canal = 'presencial' AND v.es_preventa = FALSE
+             WHERE v.canal = 'presencial' AND (v.es_preventa = FALSE OR v.estado_pago = 'confirmada')
                AND (v.cae IS NULL OR v.cae = '')
                AND v.monto_gift_card < v.total
                AND v.estado_facturacion != 'no_aplica'`;
@@ -531,7 +534,7 @@ router.post('/reintentar-pendientes', async (req, res) => {
     `SELECT v.id, v.tipo_factura, v.total, v.monto_gift_card, c.cuit_dni AS cliente_cuit
      FROM ventas v
      LEFT JOIN clientes c ON v.cliente_id = c.id
-     WHERE v.canal = 'presencial' AND v.es_preventa = FALSE
+     WHERE v.canal = 'presencial' AND (v.es_preventa = FALSE OR v.estado_pago = 'confirmada')
        AND (v.cae IS NULL OR v.cae = '')
        AND v.monto_gift_card < v.total
        AND v.estado_facturacion != 'no_aplica'
