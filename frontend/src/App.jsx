@@ -373,6 +373,18 @@ button.tab { font-family: inherit; }
 .ped-grid .ped-btn.on::after { left: 8%; right: 8%; height: 5px; }
 .ped-globo { position: absolute; top: 10px; right: 12px; min-width: 28px; height: 28px; border-radius: 14px; padding: 0 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 900; background: ${p.bg}; color: ${p.text}; border: 1px solid ${p.border}; }
 .ped-globo.rojo { background: ${p.red}; color: #fff; border-color: transparent; animation: globoLate 2s ease-in-out infinite; }
+.ped-card { transition: box-shadow .2s; margin-bottom: 0; }
+.ped-card.abierto { box-shadow: 0 6px 22px rgba(0,0,0,.08); }
+.ped-fila { display: flex; gap: 12px; align-items: center; padding: 12px 14px; cursor: pointer; text-align: left; }
+.ped-fila:hover { background: ${p.bg}; }
+.ped-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 700; border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
+.ped-chip.neutro { background: ${p.bg}; color: ${p.textMuted}; border: 1px solid ${p.border}; }
+.ped-flecha { font-size: 13px; color: ${p.textMuted}; transition: transform .2s; }
+.ped-card.abierto .ped-flecha { transform: rotate(180deg); }
+.ped-detalle { padding: 2px 14px 14px; text-align: left; animation: pedAbre .22s ease; }
+@keyframes pedAbre { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.ped-cols { display: grid; grid-template-columns: 1.15fr 1fr; gap: 10px; }
+@media (max-width: 760px) { .ped-cols { grid-template-columns: 1fr; } .ped-fila { flex-wrap: wrap; gap: 8px; padding: 10px 12px; } .ped-fila > div:last-child { width: 100%; justify-content: space-between; } .ped-chip { font-size: 11px; padding: 2px 8px; } .ped-paso { margin-left: auto; } }
 @media (max-width: 760px) { .ped-grid { grid-template-columns: 1fr 1fr; } .ped-grid .ped-btn { min-height: 104px; } }
 .globo-rojo { display: inline-flex; align-items: center; justify-content: center; min-width: 19px; height: 19px; padding: 0 5px; margin-left: 6px; border-radius: 999px; background: #e74c3c; color: #fff; font-size: 11px; font-weight: 900; line-height: 1; box-shadow: 0 0 0 2px ${p.card}; animation: globoLate 2s ease-in-out infinite; }
 @keyframes globoLate { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
@@ -30655,6 +30667,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const [cambio, setCambio] = useState(null); // { p, it, q, prod, vars, variante, cant }: cambiar un producto de un pedido
   // Notas del local en un pedido (la clienta no las ve): { id del pedido, texto }
   const [notaPed, setNotaPed] = useState(null);
+  const [pedAbiertos, setPedAbiertos] = useState([]); // pedidos con el detalle abierto
   const guardarNotaPed = async () => {
     if (!notaPed || !notaPed.texto.trim()) return;
     try { const r = await API.post("/tienda/pedidos/" + notaPed.id + "/notas", { texto: notaPed.texto }); setPedidos(l => l.map(x => x.id === notaPed.id ? { ...x, notas_local: r.data.notas_local } : x)); setNotaPed(null); }
@@ -31005,96 +31018,162 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             {paraEtiquetar.length > 1 && <button className="btn btn-g btn-sm" onClick={() => imprimirEtiquetas(paraEtiquetar)} title="Una etiqueta por cada envío listo para despachar">🏷️ Etiquetas de envío ({paraEtiquetar.length})</button>}
           </div>
           {visiblesB.length === 0 ? <div className="card"><div className="empty">{buscaPed ? "Ningún pedido coincide con la búsqueda." : filtro === "activos" ? "No hay pedidos para atender. Cuando alguien compre en la tienda, aparece acá." : "No hay pedidos en este filtro."}</div></div> : (() => {
+            const agrupado = filtro === "activos" || filtro.startsWith("g:");
             const tarjetaPed = (p) => {
                 const e = ESTADOS_TIENDA[p.estado] || ESTADOS_TIENDA.confirmado;
                 const cerrado = ["entregado", "cancelado"].includes(p.estado);
-                // Pago: bien distinto si ya esta confirmado o no (franja arriba de la tarjeta)
+                const abierto = pedAbiertos.includes(p.id);
+                const preventa = p.items.some(i => i.preventa);
                 const motivoRech = !p.pago_rechazo ? (p.motivo || "") : p.pago_rechazo.startsWith("mp:") ? "Mercado Pago: " + motivoRechazoMP(p.pago_rechazo.slice(3)) : p.pago_rechazo.startsWith("gc:") ? "GoCuotas no lo aprobó" : p.pago_rechazo;
-                const pago = esRechazado(p) ? { t: "❌ PAGO RECHAZADO", sub: motivoRech + (p.estado === "cancelado" ? " · el pedido se canceló" : "") + (p.contactado_en ? "" : " · escribile para que pruebe con otro medio de pago"), c: "#c0392b", bg: "#e74c3c" }
-                  : esVencido(p) ? { t: "⌛ " + (p.motivo === "No lo retiró a tiempo" ? "NO LO RETIRÓ A TIEMPO" : "VENCIÓ SIN PAGAR"), sub: "Se canceló solo" + (p.contactado_en ? "" : " · podés escribirle por si todavía lo quiere"), c: "#8a6d00", bg: "#d4a017" }
-                  : p.estado === "cancelado" ? (p.pagado ? { t: "⚠️ CANCELADO PERO PAGÓ", sub: "Se canceló por vencido pero el pago de Mercado Pago entró: devolvele la plata o registrá la venta", c: "#c0392b", bg: "#e74c3c" } : null) : p.pagado ? { t: "✅ PAGO CONFIRMADO", sub: PAGO_TIENDA[p.pago] + (p.estado === "entregado" ? "" : " · ya está pagado"), c: "#1e8e4f", bg: "#1e8e4f" }
-                  : p.pago === "retiro" ? { t: "💵 SIN PAGAR · paga al retirar", sub: "Cobrale " + fmt(p.total) + " cuando lo retire", c: "#b26a00", bg: "#f39c12" }
-                  : { t: "⏳ ESPERANDO EL PAGO", sub: p.pago === "transferencia" ? "Fijate si llegó la transferencia y tocá \"Pago recibido\"" : p.pago === "gocuotas" ? "Todavía no se acreditó el pago de GoCuotas" : "Todavía no se acreditó el pago de Mercado Pago", c: "#c0392b", bg: "#e74c3c" };
+                // Estado del pago en una etiqueta (y su explicacion, que se ve al abrir)
+                const pago = esRechazado(p) ? { t: "❌ Pago rechazado", sub: motivoRech + (p.estado === "cancelado" ? " · el pedido se canceló" : "") + (p.contactado_en ? "" : " · escribile para que pruebe con otro medio de pago"), c: "#c0392b", fuerte: true }
+                  : esVencido(p) ? { t: "⌛ " + (p.motivo === "No lo retiró a tiempo" ? "No lo retiró" : "Venció sin pagar"), sub: "Se canceló solo" + (p.contactado_en ? "" : " · podés escribirle por si todavía lo quiere"), c: "#8a6d00", fuerte: true }
+                  : p.estado === "cancelado" ? (p.pagado ? { t: "⚠️ Cancelado pero pagó", sub: "El pago entró después de cancelarse: devolvele la plata o registrá la venta", c: "#c0392b", fuerte: true } : { t: "Cancelado", sub: p.motivo || "", c: "#95a5a6" })
+                  : p.pagado ? { t: "✅ Pagado · " + PAGO_TIENDA[p.pago], sub: "", c: "#1e8e4f" }
+                  : p.pago === "retiro" ? { t: "💵 Paga al retirar", sub: "Cobrale " + fmt(p.total) + " cuando lo retire", c: "#b26a00" }
+                  : { t: "⏳ Esperando pago · " + PAGO_TIENDA[p.pago], sub: p.pago === "transferencia" ? "Fijate si llegó la transferencia y tocá \"Pago recibido\"" : "Todavía no se acreditó el pago", c: "#b7950b" };
+                const cant = p.items.reduce((t, i) => t + (parseInt(i.cantidad) || 0), 0);
+                const hace = (() => { const m = Math.round((Date.now() - new Date(p.creado_en).getTime()) / 60000); return m < 1 ? "recién" : m < 60 ? "hace " + m + " min" : m < 1440 ? "hace " + Math.round(m / 60) + " h" : m < 2880 ? "ayer" : new Date(p.creado_en).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }); })();
+                const fh = (f) => new Date(f).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+                const pagarTransf = async () => { if (!window.confirm("¿Ya te transfirió? Queda pagado por transferencia.")) return; try { await API.put("/tienda/pedidos/" + p.id + "/estado", { estado: "pagado", pago: "transferencia" }); avisar(true, "✓ Pedido pagado por transferencia"); cargarPedidos(); } catch (er) { avisar(false, er.response?.data?.error || "No se pudo"); } };
+                const pagaRetiro = async () => { try { await API.put("/tienda/pedidos/" + p.id + "/estado", { estado: "paga_retiro" }); avisar(true, "✓ Queda para pagar al retirar"); cargarPedidos(); } catch (er) { avisar(false, er.response?.data?.error || "No se pudo"); } };
+                const cobradoAparte = async () => {
+                  const venta = prompt("¿Ya lo cobraste en la caja sin cargar este pedido?\n\nQueda entregado, vuelve el stock que estaba apartado (la venta ya lo descontó)" + (p.ruleta && p.ruleta.cupon ? " y se activa su cupón de la ruleta " + p.ruleta.cupon : "") + ".\n\nSi sabés el número de esa venta (factura o ticket), escribilo para vincularla (opcional):", "");
+                  if (venta === null) return;
+                  try { await API.post("/tienda/pedidos/" + p.id + "/cobrado-aparte", { venta }); avisar(true, "✓ Pedido entregado" + (p.ruleta && p.ruleta.cupon ? ": el cupón " + p.ruleta.cupon + " ya se puede usar" : "")); cargarPedidos(); }
+                  catch (er) { avisar(false, er.response?.data?.error || "No se pudo"); }
+                };
+                // El proximo paso, a un toque desde la fila cerrada
+                const paso = cerrado ? null
+                  : esRechazado(p) && !p.contactado_en ? ["💬 Ya le escribimos", () => marcarContactado(p, true)]
+                  : esRechazado(p) && p.estado === "pendiente_pago" && p.pago !== "transferencia" ? ["💵 Pagó por transferencia", pagarTransf]
+                  : p.estado === "pendiente_pago" && p.pago === "transferencia" ? ["✓ Pago recibido", () => estado(p, "pagado")]
+                  : preventa && p.tipo !== "giftcard" ? ["📦 Llegó la preventa", () => llegoPreventa(p)]
+                  : p.estado === "confirmado" && p.tipo !== "giftcard" ? ["📦 Ya está listo", () => estado(p, "preparado")]
+                  : p.tipo !== "giftcard" && (p.estado === "preparado" || (p.estado === "pendiente_pago" && p.pago === "retiro")) ? ["💵 " + (p.pagado ? "Entregar" : "Cobrar en caja"), () => aCaja(p)]
+                  : p.estado === "en_caja" ? ["Ir a la caja", () => { try { sessionStorage.setItem("lumiere_pos_tienda", String(p.id)); } catch (er) {} irASeccion("pos"); }]
+                  : null;
+                const indic = [
+                  (p.nota || (p.notas_local || []).length) && ["🗒️", "Tiene notas"], p.muestra && ["🎁", "Lleva muestra gratis"], p.ruleta && p.ruleta.tipo !== "nada" && ["🎡", "Ganó en la ruleta"],
+                  preventa && ["⏳", "Tiene preventa"], Math.abs(p.pendiente || 0) >= 1 && p.estado !== "cancelado" && ["💰", "Diferencia por un cambio"], p.contactado_en && p.estado !== "entregado" && ["✅", "Ya le escribimos"],
+                ].filter(Boolean);
+                const seccion = { border: "1px solid " + temaPal.border, borderRadius: 12, padding: "10px 12px", background: temaPal.bg };
+                const tit = (t) => <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: temaPal.textMuted, marginBottom: 6 }}>{t}</div>;
                 return (
-                  <div key={p.id} className="card" style={{ borderLeft: "5px solid " + e.c }}>
-                    {pago && (!cerrado || p.estado === "cancelado") && <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", margin: "0 0 12px", padding: "8px 12px", borderRadius: 8, background: pago.bg + "1f", border: "1.5px solid " + pago.bg }}>
-                      <span style={{ fontWeight: 900, fontSize: 13, color: pago.c, letterSpacing: ".02em" }}>{pago.t}</span>
-                      <span style={{ fontSize: 12, color: temaPal.textMuted }}>{pago.sub}</span>
-                    </div>}
-                    {p.express_min && ["confirmado", "pendiente_pago"].includes(p.estado) && <div style={{ marginBottom: 10 }}><CronoExpress hasta={p.listo_express} minutos={p.express_min} temaPal={temaPal} /></div>}
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-                      <div>
-                        <div style={{ fontWeight: 900, fontSize: 15 }}>{p.nombre} <span style={{ fontWeight: 400, fontSize: 12, color: temaPal.textMuted }}>N° {nroPedido(p)} · {new Date(p.creado_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span></div>
-                        <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginTop: 2 }}>
-                          {p.tipo === "giftcard" ? "🎁 Gift card · se usa en " + nombreLocal(p.local_id) : p.entrega === "retiro" ? "📍 Retira en " + nombreLocal(p.local_id) : "🛵 Envío a " + p.direccion + " (" + p.zona + ")"} · {PAGO_TIENDA[p.pago]}{p.pagado ? " ✓ pagado" : ""}{p.telefono ? " · " + p.telefono : ""}
+                  <div key={p.id} className={"card ped-card" + (abierto ? " abierto" : "")} style={{ borderLeft: "5px solid " + e.c, padding: 0, overflow: "hidden" }}>
+                    {/* Fila: lo esencial y el proximo paso. Tocandola se abre el detalle */}
+                    <div className="ped-fila" role="button" tabIndex={0} aria-expanded={abierto} onClick={() => setPedAbiertos(l => l.includes(p.id) ? l.filter(x => x !== p.id) : [...l, p.id])} onKeyDown={ev => { if (ev.key === "Enter") ev.currentTarget.click(); }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                          <b style={{ fontSize: 15 }}>{p.nombre}</b>
+                          <span style={{ fontSize: 12, color: temaPal.textMuted }}>N° {nroPedido(p)} · {hace}</span>
+                          {indic.length > 0 && <span style={{ fontSize: 13, letterSpacing: 2 }}>{indic.map(([ic, t]) => <span key={t} title={t} aria-label={t}>{ic}</span>)}</span>}
                         </div>
-                        {p.nota && <div style={{ fontSize: 12.5, marginTop: 2 }}>📝 {p.nota}</div>}
-                        {(p.notas_local || []).map(n => (
-                          <div key={n.id} style={{ fontSize: 12.5, marginTop: 4, padding: "5px 8px", borderRadius: 8, background: "#fff4d6", color: "#5a4300", display: "flex", gap: 6, alignItems: "flex-start" }}>
-                            <span style={{ flex: 1 }}>🗒️ {n.texto} <span style={{ fontSize: 11, opacity: .7 }}>· {n.por || "Local"}, {new Date(n.en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span></span>
-                            {(["jefe", "admin", "administrativo"].includes(usuario?.rol) || Number(n.usuario_id) === Number(usuario?.id)) && <button className="icon-btn" style={{ fontSize: 11, padding: "0 4px" }} aria-label="Borrar nota" onClick={() => borrarNotaPed(p, n)}>✕</button>}
-                          </div>
-                        ))}
-                        {notaPed && notaPed.id === p.id ? (
-                          <div style={{ display: "flex", gap: 6, marginTop: 6, maxWidth: 520 }}>
-                            <input className="inp" autoFocus maxLength={300} placeholder="Ej: depto 3B, timbre roto · prefiere que la llamen" value={notaPed.texto} onChange={e => setNotaPed(x => ({ ...x, texto: e.target.value }))} onKeyDown={e => { if (e.key === "Enter") guardarNotaPed(); if (e.key === "Escape") setNotaPed(null); }} aria-label="Nota del local" />
-                            <button className="btn btn-p btn-sm" onClick={guardarNotaPed}>Guardar</button>
-                            <button className="btn btn-g btn-sm" onClick={() => setNotaPed(null)}>✕</button>
-                          </div>
-                        ) : <button className="chip-btn" style={{ fontSize: 11, marginTop: 6 }} onClick={() => setNotaPed({ id: p.id, texto: "" })}>🗒️ Agregar nota</button>}
-                        {p.estado !== "entregado" && (p.contactado_en
-                          ? <div style={{ fontSize: 12, marginTop: 6, color: temaPal.green, fontWeight: 700 }}>✅ Ya le escribimos{p.contactado_por ? " (" + p.contactado_por + ")" : ""} · {new Date(p.contactado_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} <button className="chip-btn" style={{ fontSize: 10.5, marginLeft: 4 }} onClick={() => marcarContactado(p, false)}>deshacer</button></div>
-                          : <button className={esRechazado(p) || esVencido(p) ? "btn btn-p btn-sm" : "chip-btn"} style={{ fontSize: 11, marginTop: 6, marginLeft: 6 }} onClick={() => marcarContactado(p, true)}>💬 Ya le escribimos</button>)}
-                        {p.ruleta && <div style={{ fontSize: 12.5, marginTop: 4, fontWeight: 700, color: p.ruleta.tipo === "nada" ? temaPal.textMuted : temaPal.warn }}>🎡 Ruleta: {p.ruleta.tipo === "regalo" ? "ganó " + (/mega/i.test(p.ruleta.texto || "") ? "el 💎 MEGA REGALO" : "un REGALO 🎁") + " — dáselo con el pedido" : p.ruleta.tipo === "cupon" ? "ganó " + p.ruleta.texto + " (cupón " + p.ruleta.cupon + ", se activa al entregar)" : "seguí participando"}</div>}
-                        {p.vence_en && (p.estado === "pendiente_pago" || (p.pago === "retiro" && ["confirmado", "preparado"].includes(p.estado))) && <div style={{ fontSize: 11.5, color: temaPal.warn, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                          <span>{p.estado === "pendiente_pago" && p.pago !== "retiro" ? "Si no paga" : "Si no lo retira"}, se cancela solo el {new Date(p.vence_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} y el stock vuelve.</span>
-                          <button className="chip-btn" style={{ fontSize: 11 }} onClick={() => extender(p)} title="Si te avisó que viene más tarde">⏰ Darle más tiempo</button>
-                        </div>}
-                        {p.estado === "cancelado" && p.motivo && <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{p.motivo}</div>}
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                          {/* El estado ya lo dice el titulo del grupo (Nuevos, Listos...) y "esperando pago"/"cancelado" la etiqueta del pago */}
+                          {!agrupado && !["pendiente_pago", "cancelado"].includes(p.estado) && <span className="ped-chip" style={{ color: e.c, background: e.c + "1a" }}>{e.t}</span>}
+                          <span className="ped-chip" style={{ color: pago.c, background: pago.c + (pago.fuerte ? "26" : "14"), fontWeight: pago.fuerte ? 900 : 700 }}>{pago.t}</span>
+                          <span className="ped-chip neutro">{p.tipo === "giftcard" ? "🎁 Gift card" : (p.entrega === "retiro" ? "📍 " + nombreLocal(p.local_id) : "🛵 " + (p.zona || "Envío")) + " · " + cant + (cant === 1 ? " producto" : " productos")}</span>
+                          {p.express_min && ["confirmado", "pendiente_pago"].includes(p.estado) && <CronoExpress hasta={p.listo_express} minutos={p.express_min} temaPal={temaPal} />}
+                        </div>
                       </div>
-                      <div style={{ textAlign: "right" }}><span className="tag" style={{ background: e.c + "22", color: e.c, fontWeight: 800 }}>{e.t}</span><div style={{ fontSize: 18, fontWeight: 900, marginTop: 4 }}>{fmt(p.total)}</div>{pago && <div style={{ fontSize: 11, fontWeight: 800, color: pago.c }}>{p.pagado ? "Pagado" : "A cobrar"}</div>}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                        <div style={{ fontSize: 17, fontWeight: 900, fontVariantNumeric: "tabular-nums", textAlign: "right" }}>{fmt(p.total)}</div>
+                        {paso && <button className="btn btn-p btn-sm ped-paso" onClick={ev => { ev.stopPropagation(); paso[1](); }}>{paso[0]}</button>}
+                        <span className="ped-flecha" aria-hidden="true">▾</span>
+                      </div>
                     </div>
-                    <div style={{ fontSize: 13, margin: "8px 0", lineHeight: 1.6 }}>
-                      {p.tipo === "giftcard" && <div style={{ background: "#ff4f8714", border: "1px solid #ff4f8755", borderRadius: 8, padding: "8px 10px" }}>🎁 <b>Gift card de {fmt(p.total)}</b> para <b>{p.gc_para}</b>{p.gc_mensaje ? <span style={{ color: temaPal.textMuted }}> · “{p.gc_mensaje}”</span> : null}<div style={{ fontSize: 12, marginTop: 2 }}>{p.gc_codigo ? <>Código <b>{p.gc_codigo}</b> · ya está en Ventas → Gift Cards <button className="chip-btn" style={{ fontSize: 11, marginLeft: 6 }} onClick={() => irASeccion("giftcards")}>Ver</button></> : p.estado === "cancelado" ? "No se emitió" : "Se emite sola en Gift Cards cuando se confirma el pago"}</div></div>}
-                      {p.items.map(i => <div key={i.id}>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""} <span style={{ color: temaPal.textMuted }}>· {fmt(i.precio * i.cantidad)}</span>{i.preventa && <span className="tag" style={{ marginLeft: 6, background: "#ffd23f33", color: temaPal.warn, fontWeight: 800 }}>⏳ preventa · esperando ingreso</span>}
-                        {esJefeT && p.tipo !== "giftcard" && !["entregado", "cancelado", "en_caja"].includes(p.estado) && <button className="chip-btn" style={{ marginLeft: 6, fontSize: 11, padding: "2px 8px" }} onClick={() => setCambio({ p, it: i, q: "", prod: null, vars: null, variante: "", cant: i.cantidad })} title="La clienta lo cambió por otro producto">🔁 Cambiar</button>}</div>)}
-                      {Math.abs(p.pendiente || 0) >= 1 && p.estado !== "cancelado" && <div style={{ margin: "6px 0", padding: "8px 10px", borderRadius: 8, border: "1px solid " + (p.pendiente > 0 ? temaPal.warn : temaPal.green), background: p.pendiente > 0 ? "#ffd23f1f" : temaPal.greenDim, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                        <span style={{ flex: "1 1 180px", fontWeight: 700 }}>{p.pendiente > 0 ? "💰 Por el cambio falta cobrarle " + fmt(p.pendiente) : "↩️ Por el cambio tiene " + fmt(-p.pendiente) + " a favor"}</span>
-                        {esJefeT && <button className="btn btn-p btn-sm" onClick={() => abrirDif(p, p.pendiente)}>{p.pendiente > 0 ? "Cobrar" : "Resolver"}</button>}
-                      </div>}
-                      {(p.pagos_extra || []).map((x, k) => <div key={"x" + k} style={{ fontSize: 12, color: temaPal.textMuted }}>{x.tipo === "cobro" ? "💵 Cobrado " + fmt(x.importe) + " con " + x.nombre : x.tipo === "devolucion" ? "↩️ Devuelto " + fmt(-x.importe) + " por " + x.nombre : "🎁 Crédito a favor " + fmt(-x.importe) + " · código " + x.gc_codigo}</div>)}
-                      {(p.cambios || []).map((c, k) => <div key={"c" + k} style={{ fontSize: 12, color: temaPal.textMuted }}>🔁 Cambió {c.de} por <b style={{ color: temaPal.text }}>{c.a}</b>{c.diferencia ? <span style={{ fontWeight: 700 }}> · diferencia {c.diferencia > 0 ? "+" : "−"}{fmt(Math.abs(c.diferencia))}</span> : " · mismo precio"}</div>)}
-                      {p.muestra && <div style={{ fontWeight: 700, color: "#d35400" }}>🎁 Muestra gratis: {p.muestra} <span style={{ fontWeight: 500, color: temaPal.textMuted }}>(sumala al armar el pedido)</span></div>}
-                      {parseFloat(p.descuento) > 0 && <div style={{ color: temaPal.green }}>Descuento{p.cupon ? " (" + p.cupon + ")" : ""} · −{fmt(parseFloat(p.descuento))}</div>}
-                      {parseFloat(p.descuento_amiga) > 0 && <div style={{ color: temaPal.green }}>💌 Regalo de amiga (1ra compra) · −{fmt(parseFloat(p.descuento_amiga))}</div>}
-                      {parseFloat(p.descuento_combo) > 0 && <div style={{ color: temaPal.green }}>🎁 Combo{p.combos ? " " + p.combos : ""} · −{fmt(parseFloat(p.descuento_combo))}</div>}
-                      {parseFloat(p.descuento_promo) > 0 && <div style={{ color: temaPal.green }}>🏷️ Promo{p.promos ? " " + p.promos : ""} · −{fmt(parseFloat(p.descuento_promo))}</div>}
-                      {parseFloat(p.descuento_pago) > 0 && <div style={{ color: temaPal.green }}>{parseFloat(p.descuento_pago_pct)}% OFF por {PAGO_TIENDA[p.pago]} · −{fmt(parseFloat(p.descuento_pago))}</div>}
-                      {parseFloat(p.gc_usado_monto) > 0 && <div style={{ color: temaPal.green }}>🎁 Pagó {fmt(parseFloat(p.gc_usado_monto))} con la gift card {p.gc_usado_codigo} (ya descontada del saldo)</div>}
-                      {p.costo_envio > 0 && <div style={{ color: temaPal.textMuted }}>Envío · {fmt(p.costo_envio)}</div>}
-                    </div>
-                    {!cerrado && (
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        {p.estado === "pendiente_pago" && p.pago === "transferencia" && <button className="btn btn-p btn-sm" onClick={() => estado(p, "pagado")}>✓ Pago recibido</button>}
-                        {esRechazado(p) && p.estado === "pendiente_pago" && p.pago !== "transferencia" && <button className="btn btn-p btn-sm" onClick={async () => { if (!window.confirm("¿Ya te transfirió? Queda pagado por transferencia.")) return; try { await API.put("/tienda/pedidos/" + p.id + "/estado", { estado: "pagado", pago: "transferencia" }); avisar(true, "✓ Pedido pagado por transferencia"); cargarPedidos(); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); } }}>💵 Pagó por transferencia</button>}
-                        {esRechazado(p) && p.estado === "pendiente_pago" && p.entrega === "retiro" && <button className="btn btn-g btn-sm" onClick={async () => { try { await API.put("/tienda/pedidos/" + p.id + "/estado", { estado: "paga_retiro" }); avisar(true, "✓ Queda para pagar al retirar"); cargarPedidos(); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); } }}>🏪 Paga al retirar</button>}
-                        {p.estado === "confirmado" && p.tipo !== "giftcard" && !p.items.some(i => i.preventa) && <button className="btn btn-p btn-sm" onClick={() => estado(p, "preparado")}>📦 Ya está listo</button>}
-                        {["confirmado", "preparado"].includes(p.estado) && p.tipo !== "giftcard" && !p.items.some(i => i.preventa) && <button className="btn btn-g btn-sm" onClick={() => avisarListo(p)}>💬 Avisar que está listo</button>}
-                        {p.items.some(i => i.preventa) && <button className="btn btn-p btn-sm" onClick={() => llegoPreventa(p)} title="Cuando recibiste la orden de ingreso: pasa al stock del local y le avisás">📦 Llegó la preventa</button>}
-                        {p.tipo !== "giftcard" && !p.items.some(i => i.preventa) && (["confirmado", "preparado"].includes(p.estado) || (p.estado === "pendiente_pago" && p.pago === "retiro")) && <button className="btn btn-p btn-sm" onClick={() => aCaja(p)}>💵 {p.pagado ? "Entregar y registrar venta" : "Cobrar en caja"}</button>}
-                        {p.tipo !== "giftcard" && !p.items.some(i => i.preventa) && p.estado !== "pendiente_pago" && <button className="btn btn-g btn-sm" title="Si ya lo cobraste en la caja sin cargar este pedido" onClick={async () => {
-                          const venta = prompt("¿Ya lo cobraste en la caja sin cargar este pedido?\n\nQueda entregado, vuelve el stock que estaba apartado (la venta ya lo descontó)" + (p.ruleta && p.ruleta.cupon ? " y se activa su cupón de la ruleta " + p.ruleta.cupon : "") + ".\n\nSi sabés el número de esa venta (factura o ticket), escribilo para vincularla (opcional):", "");
-                          if (venta === null) return;
-                          try { await API.post("/tienda/pedidos/" + p.id + "/cobrado-aparte", { venta }); avisar(true, "✓ Pedido entregado" + (p.ruleta && p.ruleta.cupon ? ": el cupón " + p.ruleta.cupon + " ya se puede usar" : "")); cargarPedidos(); }
-                          catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); }
-                        }}>✓ Ya lo cobré en la caja</button>}
-                        {p.estado === "en_caja" && <><button className="btn btn-p btn-sm" onClick={() => { try { sessionStorage.setItem("lumiere_pos_tienda", String(p.id)); } catch (e) {} irASeccion("pos"); }}>Ir a la caja</button><button className="btn btn-g btn-sm" onClick={() => reapartar(p)} title="Si no se llegó a cobrar">Volver a apartar el stock</button></>}
-                        {p.entrega === "envio" && p.tipo !== "giftcard" && <><button className="btn btn-g btn-sm" onClick={() => imprimirEtiquetas([p])}>🏷️ Etiqueta</button><button className="btn btn-g btn-sm" onClick={() => mandarCadete(p)}>🛵 Mandar al cadete</button></>}
-                        {p.telefono && <a className="btn btn-g btn-sm" style={{ textDecoration: "none" }} href={linkWhatsapp(p.telefono, "Hola " + String(p.nombre).split(" ")[0] + "! Te escribo por tu pedido N° " + nroPedido(p))} target="_blank" rel="noopener">WhatsApp</a>}
-                        {p.estado !== "en_caja" && <button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={() => estado(p, "cancelado")}>Cancelar</button>}
+                    {abierto && (
+                      <div className="ped-detalle">
+                        {(pago.sub || (p.vence_en && (p.estado === "pendiente_pago" || (p.pago === "retiro" && ["confirmado", "preparado"].includes(p.estado))))) && (
+                          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", padding: "8px 12px", borderRadius: 10, background: pago.c + "14", border: "1px solid " + pago.c + "55", fontSize: 12.5, marginBottom: 10 }}>
+                            {pago.sub && <span style={{ flex: "1 1 260px" }}><b style={{ color: pago.c }}>{pago.t}:</b> {pago.sub}</span>}
+                            {p.vence_en && (p.estado === "pendiente_pago" || (p.pago === "retiro" && ["confirmado", "preparado"].includes(p.estado))) && <span style={{ color: temaPal.warn }}>⏰ {p.estado === "pendiente_pago" && p.pago !== "retiro" ? "Si no paga" : "Si no lo retira"}, se cancela el {fh(p.vence_en)} <button className="chip-btn" style={{ fontSize: 11, marginLeft: 4 }} onClick={() => extender(p)}>Darle más tiempo</button></span>}
+                          </div>
+                        )}
+                        <div className="ped-cols">
+                          <div style={seccion}>
+                            {tit(p.tipo === "giftcard" ? "🎁 Gift card" : "🛍️ Productos")}
+                            {p.tipo === "giftcard" && <div style={{ fontSize: 13 }}><b>Gift card de {fmt(p.total)}</b> para <b>{p.gc_para}</b>{p.gc_mensaje ? <span style={{ color: temaPal.textMuted }}> · “{p.gc_mensaje}”</span> : null}<div style={{ fontSize: 12, marginTop: 2 }}>{p.gc_codigo ? <>Código <b>{p.gc_codigo}</b> <button className="chip-btn" style={{ fontSize: 11, marginLeft: 6 }} onClick={() => irASeccion("giftcards")}>Ver en Gift Cards</button></> : p.estado === "cancelado" ? "No se emitió" : "Se emite sola cuando se confirma el pago"}</div></div>}
+                            {p.items.map(i => (
+                              <div key={i.id} style={{ display: "flex", gap: 8, alignItems: "baseline", fontSize: 13, padding: "3px 0" }}>
+                                <b style={{ minWidth: 22 }}>{i.cantidad}×</b>
+                                <span style={{ flex: 1, minWidth: 0 }}>{i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""}{i.preventa && <span className="tag" style={{ marginLeft: 6, background: "#ffd23f33", color: temaPal.warn, fontWeight: 800 }}>⏳ preventa</span>}
+                                  {esJefeT && p.tipo !== "giftcard" && !["entregado", "cancelado", "en_caja"].includes(p.estado) && <button className="chip-btn" style={{ marginLeft: 6, fontSize: 10.5, padding: "1px 7px" }} onClick={() => setCambio({ p, it: i, q: "", prod: null, vars: null, variante: "", cant: i.cantidad })} title="La clienta lo cambió por otro producto">🔁 Cambiar</button>}</span>
+                                <span style={{ color: temaPal.textMuted, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{fmt(i.precio * i.cantidad)}</span>
+                              </div>
+                            ))}
+                            {p.muestra && <div style={{ fontSize: 12.5, fontWeight: 700, color: "#d35400", marginTop: 4 }}>🎁 + Muestra gratis: {p.muestra}</div>}
+                            {p.ruleta && <div style={{ fontSize: 12.5, marginTop: 4, fontWeight: 700, color: p.ruleta.tipo === "nada" ? temaPal.textMuted : temaPal.warn }}>🎡 Ruleta: {p.ruleta.tipo === "regalo" ? "ganó " + (/mega/i.test(p.ruleta.texto || "") ? "el 💎 MEGA REGALO" : "un REGALO 🎁") + " — dáselo con el pedido" : p.ruleta.tipo === "cupon" ? "ganó " + p.ruleta.texto + " (cupón " + p.ruleta.cupon + ", se activa al entregar)" : "seguí participando"}</div>}
+                            {(p.cambios || []).map((c, k) => <div key={"c" + k} style={{ fontSize: 12, color: temaPal.textMuted }}>🔁 Cambió {c.de} por <b style={{ color: temaPal.text }}>{c.a}</b>{c.diferencia ? " · diferencia " + (c.diferencia > 0 ? "+" : "−") + fmt(Math.abs(c.diferencia)) : " · mismo precio"}</div>)}
+                            <div style={{ borderTop: "1px dashed " + temaPal.border, marginTop: 8, paddingTop: 6, fontSize: 12.5, lineHeight: 1.6 }}>
+                              {[[parseFloat(p.descuento) > 0, "Descuento" + (p.cupon ? " (" + p.cupon + ")" : ""), -parseFloat(p.descuento)], [parseFloat(p.descuento_amiga) > 0, "💌 Regalo de amiga", -parseFloat(p.descuento_amiga)],
+                                [parseFloat(p.descuento_combo) > 0, "🎁 Combo" + (p.combos ? " " + p.combos : ""), -parseFloat(p.descuento_combo)], [parseFloat(p.descuento_promo) > 0, "🏷️ " + (p.promos || "Promo"), -parseFloat(p.descuento_promo)],
+                                [parseFloat(p.descuento_pago) > 0, parseFloat(p.descuento_pago_pct) + "% OFF por " + PAGO_TIENDA[p.pago], -parseFloat(p.descuento_pago)], [parseFloat(p.gc_usado_monto) > 0, "🎁 Gift card " + (p.gc_usado_codigo || ""), -parseFloat(p.gc_usado_monto)],
+                                [p.costo_envio > 0, "Envío", p.costo_envio]].filter(x => x[0]).map(([, t, v]) => <div key={t} style={{ display: "flex", justifyContent: "space-between", color: v < 0 ? temaPal.green : temaPal.textMuted }}><span>{t}</span><span>{v < 0 ? "−" : ""}{fmt(Math.abs(v))}</span></div>)}
+                              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 900, fontSize: 14 }}><span>Total</span><span>{fmt(p.total)}</span></div>
+                              {(p.pagos_extra || []).map((x, k) => <div key={"x" + k} style={{ fontSize: 12, color: temaPal.textMuted }}>{x.tipo === "cobro" ? "💵 Cobrado " + fmt(x.importe) + " con " + x.nombre : x.tipo === "devolucion" ? "↩️ Devuelto " + fmt(-x.importe) + " por " + x.nombre : "🎁 Crédito a favor " + fmt(-x.importe) + " · código " + x.gc_codigo}</div>)}
+                            </div>
+                            {Math.abs(p.pendiente || 0) >= 1 && p.estado !== "cancelado" && <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 8, border: "1px solid " + (p.pendiente > 0 ? temaPal.warn : temaPal.green), background: p.pendiente > 0 ? "#ffd23f1f" : temaPal.greenDim, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: 13 }}>
+                              <span style={{ flex: "1 1 160px", fontWeight: 700 }}>{p.pendiente > 0 ? "💰 Por el cambio falta cobrarle " + fmt(p.pendiente) : "↩️ Por el cambio tiene " + fmt(-p.pendiente) + " a favor"}</span>
+                              {esJefeT && <button className="btn btn-p btn-sm" onClick={() => abrirDif(p, p.pendiente)}>{p.pendiente > 0 ? "Cobrar" : "Resolver"}</button>}
+                            </div>}
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                            <div style={seccion}>
+                              {tit("👤 Clienta y entrega")}
+                              <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+                                <div><b>{p.nombre}</b>{p.telefono ? " · " + p.telefono : ""}{p.email ? <span style={{ color: temaPal.textMuted }}> · {p.email}</span> : null}</div>
+                                <div>{p.tipo === "giftcard" ? "🎁 Se usa en " + nombreLocal(p.local_id) : p.entrega === "retiro" ? "📍 Retira en " + nombreLocal(p.local_id) : "🛵 " + p.direccion + (p.zona ? " (" + p.zona + ")" : "")}</div>
+                                <div style={{ color: temaPal.textMuted }}>💳 {PAGO_TIENDA[p.pago]}{p.pagado ? " · pagado" + (p.pagado_en ? " el " + fh(p.pagado_en) : "") : ""} · hecho el {fh(p.creado_en)}</div>
+                                {p.nota && <div style={{ marginTop: 4, padding: "5px 8px", borderRadius: 8, background: temaPal.card, border: "1px solid " + temaPal.border }}>📝 <i>“{p.nota}”</i> <span style={{ fontSize: 11, color: temaPal.textMuted }}>· escribió la clienta</span></div>}
+                                {p.estado === "cancelado" && p.motivo && <div style={{ fontSize: 12, color: temaPal.textMuted }}>Motivo: {p.motivo}</div>}
+                              </div>
+                            </div>
+                            <div style={seccion}>
+                              {tit("🗒️ Notas del local")}
+                              {(p.notas_local || []).length === 0 && !(notaPed && notaPed.id === p.id) && <div style={{ fontSize: 12, color: temaPal.textMuted }}>La clienta no las ve.</div>}
+                              {(p.notas_local || []).map(n => (
+                                <div key={n.id} style={{ fontSize: 12.5, marginBottom: 4, padding: "5px 8px", borderRadius: 8, background: "#fff4d6", color: "#5a4300", display: "flex", gap: 6, alignItems: "flex-start" }}>
+                                  <span style={{ flex: 1 }}>{n.texto} <span style={{ fontSize: 11, opacity: .7 }}>· {n.por || "Local"}, {fh(n.en)}</span></span>
+                                  {(["jefe", "admin", "administrativo"].includes(usuario?.rol) || Number(n.usuario_id) === Number(usuario?.id)) && <button className="icon-btn" style={{ fontSize: 11, padding: "0 4px" }} aria-label="Borrar nota" onClick={() => borrarNotaPed(p, n)}>✕</button>}
+                                </div>
+                              ))}
+                              {notaPed && notaPed.id === p.id ? (
+                                <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                                  <input className="inp" autoFocus maxLength={300} placeholder="Ej: depto 3B, timbre roto · retira el hermano" value={notaPed.texto} onChange={ev => setNotaPed(x => ({ ...x, texto: ev.target.value }))} onKeyDown={ev => { if (ev.key === "Enter") guardarNotaPed(); if (ev.key === "Escape") setNotaPed(null); }} aria-label="Nota del local" />
+                                  <button className="btn btn-p btn-sm" onClick={guardarNotaPed}>Guardar</button>
+                                  <button className="btn btn-g btn-sm" onClick={() => setNotaPed(null)}>✕</button>
+                                </div>
+                              ) : <button className="chip-btn" style={{ fontSize: 11, marginTop: 4 }} onClick={() => setNotaPed({ id: p.id, texto: "" })}>+ Agregar nota</button>}
+                              {p.estado !== "entregado" && <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid " + temaPal.border }}>{p.contactado_en
+                                ? <span style={{ fontSize: 12, color: temaPal.green, fontWeight: 700 }}>✅ Ya le escribimos{p.contactado_por ? " (" + p.contactado_por + ")" : ""} · {fh(p.contactado_en)} <button className="chip-btn" style={{ fontSize: 10.5, marginLeft: 4 }} onClick={() => marcarContactado(p, false)}>deshacer</button></span>
+                                : <button className="chip-btn" style={{ fontSize: 11 }} onClick={() => marcarContactado(p, true)}>💬 Marcar "ya le escribimos"</button>}</div>}
+                            </div>
+                          </div>
+                        </div>
+                        {/* Acciones: las del momento primero; WhatsApp, etiqueta y cadete; cancelar aparte */}
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: 12 }}>
+                          {!cerrado && <>
+                            {p.estado === "pendiente_pago" && p.pago === "transferencia" && <button className="btn btn-p btn-sm" onClick={() => estado(p, "pagado")}>✓ Pago recibido</button>}
+                            {esRechazado(p) && p.estado === "pendiente_pago" && p.pago !== "transferencia" && <button className="btn btn-p btn-sm" onClick={pagarTransf}>💵 Pagó por transferencia</button>}
+                            {esRechazado(p) && p.estado === "pendiente_pago" && p.entrega === "retiro" && <button className="btn btn-g btn-sm" onClick={pagaRetiro}>🏪 Paga al retirar</button>}
+                            {p.estado === "confirmado" && p.tipo !== "giftcard" && !preventa && <button className="btn btn-p btn-sm" onClick={() => estado(p, "preparado")}>📦 Ya está listo</button>}
+                            {preventa && <button className="btn btn-p btn-sm" onClick={() => llegoPreventa(p)} title="Cuando recibiste la orden de ingreso: pasa al stock del local y le avisás">📦 Llegó la preventa</button>}
+                            {p.tipo !== "giftcard" && !preventa && (["confirmado", "preparado"].includes(p.estado) || (p.estado === "pendiente_pago" && p.pago === "retiro")) && <button className="btn btn-p btn-sm" onClick={() => aCaja(p)}>💵 {p.pagado ? "Entregar y registrar venta" : "Cobrar en caja"}</button>}
+                            {p.estado === "en_caja" && <><button className="btn btn-p btn-sm" onClick={() => { try { sessionStorage.setItem("lumiere_pos_tienda", String(p.id)); } catch (er) {} irASeccion("pos"); }}>Ir a la caja</button><button className="btn btn-g btn-sm" onClick={() => reapartar(p)} title="Si no se llegó a cobrar">Volver a apartar el stock</button></>}
+                            {["confirmado", "preparado"].includes(p.estado) && p.tipo !== "giftcard" && !preventa && <button className="btn btn-g btn-sm" onClick={() => avisarListo(p)}>💬 Avisar que está listo</button>}
+                          </>}
+                          {p.telefono && <a className="btn btn-g btn-sm" style={{ textDecoration: "none" }} href={linkWhatsapp(p.telefono, "Hola " + String(p.nombre).split(" ")[0] + "! Te escribo por tu pedido N° " + nroPedido(p))} target="_blank" rel="noopener">💬 WhatsApp</a>}
+                          {!cerrado && p.entrega === "envio" && p.tipo !== "giftcard" && <><button className="btn btn-g btn-sm" onClick={() => imprimirEtiquetas([p])}>🏷️ Etiqueta</button><button className="btn btn-g btn-sm" onClick={() => mandarCadete(p)}>🛵 Cadete</button></>}
+                          {!cerrado && <span style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            {p.tipo !== "giftcard" && !preventa && p.estado !== "pendiente_pago" && <button className="btn btn-g btn-sm" title="Si ya lo cobraste en la caja sin cargar este pedido" onClick={cobradoAparte}>✓ Ya lo cobré en la caja</button>}
+                            {p.estado !== "en_caja" && <button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={() => estado(p, "cancelado")}>Cancelar pedido</button>}
+                          </span>}
+                        </div>
+                        {p.estado === "en_caja" && <div style={{ fontSize: 11.5, color: temaPal.warn, marginTop: 6 }}>El stock ya no está apartado: cobralo en la caja (o tocá "Volver a apartar el stock" si no se llevó).</div>}
                       </div>
                     )}
-                    {p.estado === "en_caja" && <div style={{ fontSize: 11.5, color: temaPal.warn, marginTop: 6 }}>El stock ya no está apartado: cobralo en la caja (o tocá "Volver a apartar el stock" si no se llevó).</div>}
                   </div>
                 );
             };
