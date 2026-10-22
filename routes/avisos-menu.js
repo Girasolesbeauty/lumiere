@@ -31,8 +31,10 @@ router.get('/', async (req, res) => {
     contar(`SELECT COUNT(*) AS n FROM ajustes_pendientes WHERE estado = 'pendiente' AND local_id = $1`, [localNum]),
     // Traspasos que le mandaron a este local y nadie confirmo que llegaron
     contar(`SELECT COUNT(*) AS n FROM traspasos_stock WHERE estado = 'en_transito' AND local_destino = $1`, [localNum]),
-    // Pedidos de la tienda web para atender (pagados o para pagar al retirar, todavia sin preparar)
-    contar(`SELECT COUNT(*) AS n FROM tienda_pedidos WHERE estado IN ('confirmado', 'pendiente_pago')`),
+    // Pedidos de la tienda web para atender (pagados o para pagar al retirar, todavia sin preparar). Los que estan pagando
+    // con Mercado Pago o GoCuotas no cuentan, salvo que lleven mas de 2 horas sin pagar y nadie le haya escrito
+    contar(`SELECT COUNT(*) AS n FROM tienda_pedidos t WHERE estado = 'confirmado' OR (estado = 'pendiente_pago' AND (pago NOT IN ('mp', 'gocuotas')
+      OR (to_jsonb(t.*) ->> 'pago_rechazo') IS NOT NULL OR (creado_en < NOW() - INTERVAL '2 hours' AND (to_jsonb(t.*) ->> 'contactado_en') IS NULL)))`),
     // Reseñas de la tienda esperando que se revisen (tambien van en el globito de Tienda online)
     contar(`SELECT COUNT(*) AS n FROM tienda_resenas WHERE estado = 'pendiente'`),
   ]);
@@ -46,10 +48,17 @@ router.get('/tienda-nuevos', async (req, res) => {
   try {
     const existe = (await pool.query(`SELECT to_regclass('tienda_pedidos') IS NOT NULL AS ok`)).rows[0].ok;
     if (!existe) return res.json({ ultimo: 0, pedidos: [] });
-    const ultimo = parseInt((await pool.query('SELECT COALESCE(MAX(id), 0) AS m FROM tienda_pedidos')).rows[0].m) || 0;
+    const u = (await pool.query(`SELECT COALESCE(MAX(id), 0) AS m, to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.US') AS ahora FROM tienda_pedidos`)).rows[0];
+    const ultimo = parseInt(u.m) || 0;
     const desde = parseInt(req.query.desde);
+    // Los que todavia estan pagando con Mercado Pago o GoCuotas no avisan; avisan cuando el pago entra
+    // (desde_t = hora de la revision anterior: los que se pagaron despues de eso, aunque ya se hayan visto "en proceso")
+    const desdeT = /^\d{4}-\d{2}-\d{2}T[\d:.]+$/.test(String(req.query.desde_t || '')) ? req.query.desde_t : null;
     const r = desde >= 0 ? await pool.query(`SELECT id, codigo, (to_jsonb(tienda_pedidos.*) ->> 'numero') AS numero, nombre, telefono, entrega, local_id, zona, pago, pagado, estado, total, creado_en
-      FROM tienda_pedidos WHERE id > $1 AND estado <> 'cancelado' ORDER BY id LIMIT 20`, [desde]) : { rows: [] };
+      FROM tienda_pedidos WHERE estado <> 'cancelado' AND (
+        (id > $1 AND NOT (estado = 'pendiente_pago' AND pago IN ('mp', 'gocuotas')))
+        OR ($2::timestamp IS NOT NULL AND id <= $1 AND pago IN ('mp', 'gocuotas') AND pagado AND pagado_en > $2::timestamp))
+      ORDER BY id LIMIT 20`, [desde, desdeT]) : { rows: [] };
     const ids = r.rows.map(p => p.id);
     const items = ids.length ? (await pool.query('SELECT * FROM tienda_pedido_items WHERE pedido_id = ANY($1) ORDER BY id', [ids])).rows : [];
     // Reseñas nuevas para revisar (?desde_res=ultimo id visto; sin el, solo el ultimo id)
@@ -61,7 +70,7 @@ router.get('/tienda-nuevos', async (req, res) => {
         FROM tienda_resenas r LEFT JOIN productos p ON p.id = r.producto_id LEFT JOIN clientes c ON c.id = r.cliente_id
         WHERE r.id > $1 AND r.estado = 'pendiente' ORDER BY r.id LIMIT 10`, [desdeRes])).rows;
     }
-    res.json({ ultimo, ultimo_res: ultimoRes, resenas, pedidos: r.rows.map(p => ({ ...p, total: Number(p.total) || 0, items: items.filter(i => i.pedido_id === p.id).map(i => ({ nombre: i.nombre, variante_valor: i.variante_valor, cantidad: i.cantidad, preventa: !!i.preventa })) })) });
+    res.json({ ultimo, ahora: u.ahora, ultimo_res: ultimoRes, resenas, pedidos: r.rows.map(p => ({ ...p, total: Number(p.total) || 0, items: items.filter(i => i.pedido_id === p.id).map(i => ({ nombre: i.nombre, variante_valor: i.variante_valor, cantidad: i.cantidad, preventa: !!i.preventa })) })) });
   } catch (e) { res.json({ ultimo: null, pedidos: [] }); }
 });
 
