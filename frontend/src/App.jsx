@@ -28640,7 +28640,7 @@ function TiendaPublica({ slug }) {
                   <input className="tw-inp" placeholder="Email (opcional)" inputMode="email" autoComplete="email" value={datos.email || ""} onChange={e => setDatos(d => ({ ...d, email: e.target.value }))} />
                   <div id="tw-ck-entrega" className="tw-lbl tw-paso"><span className={"tw-paso-n" + (faltaEntrega || faltaEnvio ? "" : " ok")}>{faltaEntrega || faltaEnvio ? "2" : "✓"}</span>¿Cómo lo recibís?{intentoPedir && (faltaEntrega || faltaEnvio) && <span className="tw-falta-tag">{faltaEntrega ? "Tocá una opción" : "Falta completar"}</span>}</div>
                   {ciudad && <div style={{ fontSize: 13, color: "#666", marginBottom: 8 }}>Comprás en <b>{ciudad.nombre}</b>. {ciudades.length > 1 && <button style={{ background: "none", border: "none", padding: 0, textDecoration: "underline", cursor: "pointer", fontSize: 13 }} onClick={() => setEligeCiudad(true)}>Cambiar</button>}</div>}
-                  {retiroAca.map(l => <button key={l.id} className={"tw-op" + (datos.entrega === "retiro" && datos.local_id === l.id ? " on" : "") + (intentoPedir && faltaEntrega ? " falta" : "")} onClick={() => setDatos(d => ({ ...d, entrega: "retiro", local_id: l.id }))}>📍 <b>Retiro en {l.nombre}</b>{l.direccion ? <div style={{ fontSize: 13, color: "#666" }}>{l.direccion}</div> : null}<div style={{ fontSize: 13, color: "#2d7a4f" }}>Sin costo</div>{tienda.express && tienda.express.abierto && !carrito.some(i => i.preventa) && <div className="tw-express">⚡ Retiro express: lo tenés listo en ~{tienda.express.minutos} min</div>}</button>)}
+                  {retiroAca.map(l => <button key={l.id} className={"tw-op" + (datos.entrega === "retiro" && datos.local_id === l.id ? " on" : "") + (intentoPedir && faltaEntrega ? " falta" : "")} onClick={() => setDatos(d => ({ ...d, entrega: "retiro", local_id: l.id }))}>📍 <b>Retiro en {l.nombre}</b>{l.direccion ? <div style={{ fontSize: 13, color: "#666" }}>{l.direccion}</div> : null}<div style={{ fontSize: 13, color: "#2d7a4f" }}>Sin costo</div>{tienda.express && (tienda.express.locales ? tienda.express.locales.includes(l.id) : tienda.express.abierto) && !carrito.some(i => i.preventa) && <div className="tw-express">⚡ Retiro express: lo tenés listo en ~{tienda.express.minutos} min</div>}</button>)}
                   {envioAca && (
                     <button className={"tw-op" + (datos.entrega === "envio" ? " on" : "") + (intentoPedir && faltaEntrega ? " falta" : "")} onClick={() => setDatos(d => ({ ...d, entrega: "envio", pago: d.pago === "retiro" ? null : d.pago }))}>🛵 <b>Envío a domicilio</b><div style={{ fontSize: 13, color: "#666" }}>{envioGratis ? "¡Gratis por tu compra!" : "El costo depende de la zona"}{gratisDesde && !envioGratis ? " · gratis desde " + fmtTienda(gratisDesde) : ""}</div></button>
                   )}
@@ -29223,12 +29223,17 @@ function CronoExpress({ hasta, minutos, temaPal }) {
   const c = resta < 0 ? tp.red : resta <= 600 ? "#d68910" : tp.green;
   return <span className="tag" role="timer" style={{ background: c + "22", color: c, fontWeight: 900, fontVariantNumeric: "tabular-nums", fontSize: 13 }}>⚡ EXPRESS · {resta < 0 ? "⏰ atrasado " + txt : "preparar en " + txt}</span>;
 }
-// Retiro express: listo en N minutos dentro del horario elegido
-function RetiroExpress({ cfg, temaPal, avisar, onGuardado, it }) {
+// Retiro express: listo en N minutos dentro de los horarios elegidos (varias franjas: mañana y tarde, sabado distinto, por local)
+const DIAS_EXP = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+function RetiroExpress({ cfg, locs, temaPal, avisar, onGuardado, it }) {
   const tp = temaPal || PALETA_CLARA;
   const ini = cfg.express || {};
-  const [k, setK] = useState(() => ({ activo: !!ini.activo, minutos: String(ini.minutos || 30), desde: ini.desde || "10:00", hasta: ini.hasta || "19:30", dias: ini.dias || [1, 2, 3, 4, 5, 6] }));
+  // Si todavia no se prendio, arranca con el horario cortado de ejemplo (mañana y tarde)
+  const iniFr = ini.activo && ini.franjas && ini.franjas.length ? ini.franjas : [{ desde: "10:00", hasta: "13:00", dias: [1, 2, 3, 4, 5, 6], local: 0 }, { desde: "17:00", hasta: "21:00", dias: [1, 2, 3, 4, 5], local: 0 }];
+  const [k, setK] = useState(() => ({ activo: !!ini.activo, minutos: String(ini.minutos || 30), franjas: iniFr.map(f => ({ ...f, local: f.local || 0 })) }));
   const [guardando, setGuardando] = useState(false);
+  const locales = (locs || []).filter(l => l.activo !== false);
+  const setF = (i, cambio) => setK(x => ({ ...x, franjas: x.franjas.map((f, j) => j === i ? { ...f, ...cambio } : f) }));
   const guardar = async () => {
     setGuardando(true);
     try { await API.put("/tienda/express", { ...k, minutos: parseInt(k.minutos) || 30 }); avisar(true, "✓ Guardado"); onGuardado && onGuardado(); }
@@ -29240,14 +29245,24 @@ function RetiroExpress({ cfg, temaPal, avisar, onGuardado, it }) {
       <label style={{ display: "flex", gap: 10, alignItems: "center", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>
         <input type="checkbox" checked={k.activo} onChange={e => setK(x => ({ ...x, activo: e.target.checked }))} style={{ width: 20, height: 20 }} /> Ofrecer retiro express
       </label>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginTop: 12 }}>
-        <div><div className="fl">Listo en (minutos)</div><input className="inp" inputMode="numeric" value={k.minutos} onChange={e => setK(x => ({ ...x, minutos: e.target.value.replace(/[^\d]/g, "") }))} /></div>
-        <div><div className="fl">Desde</div><input className="inp" type="time" value={k.desde} onChange={e => setK(x => ({ ...x, desde: e.target.value }))} /></div>
-        <div><div className="fl">Hasta</div><input className="inp" type="time" value={k.hasta} onChange={e => setK(x => ({ ...x, hasta: e.target.value }))} /></div>
-      </div>
-      <div className="fl" style={{ marginTop: 12 }}>Días</div>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((d, i) => { const n = i + 1, on = k.dias.includes(n); return <button key={n} className={"chip-btn" + (on ? " on" : "")} aria-pressed={on} onClick={() => setK(x => ({ ...x, dias: on ? x.dias.filter(y => y !== n) : [...x.dias, n] }))}>{d}</button>; })}</div>
-      <div className="cli-tip" style={{ fontSize: 12.5, marginTop: 12 }}>En ese horario, al elegir retiro la clienta ve "⚡ Lo tenés listo en ~{k.minutos || 30} min" (solo si llega a prepararse antes del cierre). En <b>Pedidos</b> esos pedidos tienen una cuenta regresiva hasta que tocás "Ya está listo". Si paga online, el tiempo corre desde que entra el pago.</div>
+      <div className="fl" style={{ marginTop: 12 }}>Listo en (minutos)</div>
+      <input className="inp" inputMode="numeric" style={{ maxWidth: 140 }} value={k.minutos} onChange={e => setK(x => ({ ...x, minutos: e.target.value.replace(/[^\d]/g, "") }))} />
+      <div style={{ fontWeight: 900, fontSize: 14, margin: "16px 0 4px" }}>🕐 Horarios</div>
+      <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>Cargá un horario por cada franja: por ejemplo uno de mañana y otro de tarde. Si el sábado abren distinto, agregá otro solo para el sábado.</div>
+      {k.franjas.map((f, i) => (
+        <div key={i} style={{ border: "1px solid " + tp.border, borderRadius: 12, padding: 10, marginBottom: 8 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ fontSize: 13 }}>De</span><input className="inp" type="time" style={{ width: 120 }} value={f.desde} onChange={e => setF(i, { desde: e.target.value })} aria-label="Desde" />
+            <span style={{ fontSize: 13 }}>a</span><input className="inp" type="time" style={{ width: 120 }} value={f.hasta} onChange={e => setF(i, { hasta: e.target.value })} aria-label="Hasta" />
+            {!UN_SOLO_LOCAL && locales.length > 1 && <select className="sel" style={{ width: "auto" }} value={f.local} onChange={e => setF(i, { local: Number(e.target.value) })} aria-label="Local"><option value={0}>Todos los locales</option>{locales.map(l => <option key={l.id} value={l.id}>{l.nombre}</option>)}</select>}
+            {k.franjas.length > 1 && <button className="icon-btn" style={{ marginLeft: "auto" }} aria-label="Sacar este horario" onClick={() => setK(x => ({ ...x, franjas: x.franjas.filter((_, j) => j !== i) }))}>🗑️</button>}
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>{DIAS_EXP.map((d, n) => { const on = f.dias.includes(n + 1); return <button key={n} className={"chip-btn" + (on ? " on" : "")} aria-pressed={on} onClick={() => setF(i, { dias: on ? f.dias.filter(y => y !== n + 1) : [...f.dias, n + 1] })}>{d}</button>; })}</div>
+          {f.desde >= f.hasta && <div style={{ fontSize: 11.5, color: tp.red, marginTop: 4 }}>El "a" tiene que ser después del "de".</div>}
+        </div>
+      ))}
+      {k.franjas.length < 8 && <button className="chip-btn" onClick={() => setK(x => ({ ...x, franjas: [...x.franjas, { desde: "17:00", hasta: "21:00", dias: [1, 2, 3, 4, 5], local: 0 }] }))}>+ Agregar otro horario</button>}
+      <div className="cli-tip" style={{ fontSize: 12.5, marginTop: 12 }}>Dentro de esos horarios, al elegir retiro la clienta ve "⚡ Lo tenés listo en ~{k.minutos || 30} min" (solo si llega a prepararse antes de que cierre esa franja: con 30 min y cierre a las 13:00, hasta las 12:30). En <b>Pedidos</b> esos pedidos tienen una cuenta regresiva hasta que tocás "Ya está listo". Si paga online, el tiempo corre desde que entra el pago.</div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}><button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar"}</button></div>
     </CajaSeccion>
   );
@@ -31232,7 +31247,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         return (
         <div style={{ paddingBottom: 10 }}>
           <MenuSecciones items={SECS_CFG} activa={it.k} onElegir={setSecCfg} temaPal={temaPal} />
-          {it.k === "express" && <RetiroExpress cfg={cfg} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it} />}
+          {it.k === "express" && <RetiroExpress cfg={cfg} locs={locs} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it} />}
           {it.k === "cumple" && <RegaloCumple cfg={cfg} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it} />}
           {it.k === "muestras" && <MuestrasGratis key={JSON.stringify((cfg.muestras || {}).envases || {})} cfg={cfg} locs={locs} productos={productos} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it} />}
           {it.k === "links" && <LinksInstagram key={cfg.slug || ""} cfg={cfg} locs={locs} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it}
