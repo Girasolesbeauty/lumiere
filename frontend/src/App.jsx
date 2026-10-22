@@ -390,6 +390,10 @@ button.tab { font-family: inherit; }
 .ped-fila { display: flex; gap: 12px; align-items: center; padding: 12px 14px; cursor: pointer; text-align: left; }
 .ped-fila:hover { background: ${p.bg}; }
 .ped-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 700; border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
+@keyframes pedLate { 0%, 100% { box-shadow: 0 0 0 0 rgba(192,57,43,.55); } 50% { box-shadow: 0 0 0 7px rgba(192,57,43,0); } }
+.ped-urge { border: 2px solid #c0392b !important; background: rgba(192,57,43,.07) !important; animation: pedLate 1.4s ease-in-out infinite; }
+.ped-urge-aviso { display: block; width: 100%; text-align: left; font: inherit; font-size: 13.5px; color: #fff; background: #c0392b; border: 0; border-radius: 12px; padding: 12px 14px; cursor: pointer; animation: pedLate 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .ped-urge, .ped-urge-aviso { animation: none; } }
 .ped-local { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; color: #fff; border-radius: 8px; padding: 4px 10px; white-space: nowrap; align-self: center; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
 .ped-chip.neutro { background: ${p.bg}; color: ${p.textMuted}; border: 1px solid ${p.border}; }
 .ped-flecha { font-size: 13px; color: ${p.textMuted}; transition: transform .2s; }
@@ -31025,14 +31029,18 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   };
 
   if (!cfg || !pedidos || !productos) return <div className="fade"><div className="skel" style={{ height: 300 }} /></div>;
-  const abiertos = pedidos.filter(p => ["pendiente_pago", "confirmado", "preparado", "en_caja"].includes(p.estado));
+  // En proceso: eligio Mercado Pago o GoCuotas y todavia no termino de pagar (no es un pedido para armar).
+  // Pasadas 2 horas se marca en rojo y late, para escribirle y ofrecerle otro medio de pago
+  const enProceso = (p) => p.estado === "pendiente_pago" && ["mp", "gocuotas"].includes(p.pago) && !p.pago_rechazo;
+  const procesoDemorado = (p) => enProceso(p) && Date.now() - new Date(p.creado_en).getTime() >= 2 * 3600e3;
+  const abiertos = pedidos.filter(p => ["pendiente_pago", "confirmado", "preparado", "en_caja"].includes(p.estado) && !enProceso(p));
   // Etapa de un pedido abierto: nuevo (hay que armarlo), preventa (esperando que llegue), pago (esperando el pago) o listo
-  const etapaPed = (p) => p.estado === "pendiente_pago" ? "pago" : p.estado === "confirmado" ? ((p.items || []).some(i => i.preventa) ? "preventa" : "nuevo") : ["preparado", "en_caja"].includes(p.estado) ? "listo" : null;
+  const etapaPed = (p) => p.estado === "pendiente_pago" ? (enProceso(p) ? "proceso" : "pago") : p.estado === "confirmado" ? ((p.items || []).some(i => i.preventa) ? "preventa" : "nuevo") : ["preparado", "en_caja"].includes(p.estado) ? "listo" : null;
   // Pagos rechazados (Mercado Pago o GoCuotas no lo aprobaron) y vencidos sin pagar, aparte de los cancelados a mano
   const esRechazado = (p) => !p.pagado && p.estado !== "entregado" && (!!p.pago_rechazo || (p.estado === "cancelado" && /^No se pudo crear el pago/.test(p.motivo || "")));
   const esVencido = (p) => p.estado === "cancelado" && !p.pagado && ["Venció sin pagar", "No lo retiró a tiempo"].includes(p.motivo) && !esRechazado(p);
   const esCancelado = (p) => p.estado === "cancelado" && !esRechazado(p) && !esVencido(p);
-  const enFiltro = (p, k) => k === "todos" || (k === "activos" ? abiertos.includes(p) : k.startsWith("g:") ? etapaPed(p) === k.slice(2) : k === "rechazado" ? esRechazado(p) : k === "vencido" ? esVencido(p) : k === "cancelado" ? esCancelado(p) : p.estado === k);
+  const enFiltro = (p, k) => k === "todos" || (k === "activos" ? abiertos.includes(p) : k.startsWith("g:") ? etapaPed(p) === k.slice(2) : k === "proceso" ? enProceso(p) : k === "rechazado" ? esRechazado(p) : k === "vencido" ? esVencido(p) : k === "cancelado" ? esCancelado(p) : p.estado === k);
   const visibles = pedidos.filter(p => enFiltro(p, filtro));
   const nPub = productos.filter(p => p.publicado).length;
   const q = busca.trim().toLowerCase();
@@ -31067,9 +31075,10 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const nNuevos = pedidos.filter(p => p.estado === "confirmado").length;
   const contar = (k) => pedidos.filter(p => enFiltro(p, k)).length;
   const fechaCambio = (p, k) => new Date(k === "rechazado" ? (p.pago_rechazo_en || p.actualizado_en || p.creado_en) : (p.actualizado_en || p.creado_en)).getTime();
-  const nuevosEn = (k) => vistosPed[k] && filtro !== k ? pedidos.filter(p => enFiltro(p, k) && fechaCambio(p, k) > vistosPed[k]).length : 0;
-  const FILTROS_PED = [["activos", "Todo para atender"], ["entregado", "Entregados"], ["rechazado", "❌ Pagos rechazados"], ["vencido", "⌛ Vencidos"], ["cancelado", "Cancelados"], ["todos", "Todos"]];
-  const nuevosTotal = ["rechazado", "vencido", "cancelado"].reduce((t, k) => t + nuevosEn(k), 0);
+  const nuevosEn = (k) => k === "proceso" ? nDemorados : vistosPed[k] && filtro !== k ? pedidos.filter(p => enFiltro(p, k) && fechaCambio(p, k) > vistosPed[k]).length : 0;
+  const nDemorados = pedidos.filter(p => procesoDemorado(p) && !p.contactado_en).length;
+  const FILTROS_PED = [["activos", "Todo para atender"], ["proceso", "🔄 En proceso de pago"], ["entregado", "Entregados"], ["rechazado", "❌ Pagos rechazados"], ["vencido", "⌛ Vencidos"], ["cancelado", "Cancelados"], ["todos", "Todos"]];
+  const nuevosTotal = ["proceso", "rechazado", "vencido", "cancelado"].reduce((t, k) => t + nuevosEn(k), 0);
   // Para atender: agrupados por lo que hay que hacer, en ese orden
   const GRUPOS_PED = [["nuevo", "📥 Nuevos: hay que armarlos", "#2471a3"], ["preventa", "⏳ Preventa: esperando que llegue la mercadería", "#b9770e"], ["pago", "💳 Esperando el pago", "#b7950b"], ["listo", "📦 Listos: esperando que los retiren o salgan", "#8e44ad"]];
 
@@ -31195,6 +31204,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                 // Estado del pago en una etiqueta (y su explicacion, que se ve al abrir)
                 const pago = esRechazado(p) ? { t: "❌ Pago rechazado", sub: motivoRech + (p.estado === "cancelado" ? " · el pedido se canceló" : "") + (p.contactado_en ? "" : " · escribile para que pruebe con otro medio de pago"), c: "#c0392b", fuerte: true }
                   : esVencido(p) ? { t: "⌛ " + (p.motivo === "No lo retiró a tiempo" ? "No lo retiró" : "Venció sin pagar"), sub: "Se canceló solo" + (p.contactado_en ? "" : " · podés escribirle por si todavía lo quiere"), c: "#8a6d00", fuerte: true }
+                  : procesoDemorado(p) ? { t: p.contactado_en ? "✅ Ya le escribimos · sigue sin pagar" : "🚨 Hace más de 2 h sin pagar", sub: "Eligió " + PAGO_TIENDA[p.pago] + " y no terminó el pago" + (p.contactado_en ? "" : " · escribile para ofrecerle otro medio de pago (transferencia o pagar al retirar)"), c: "#c0392b", fuerte: !p.contactado_en }
+                  : enProceso(p) ? { t: "🔄 Pagando con " + PAGO_TIENDA[p.pago], sub: "Eligió pagar online y todavía no terminó. Si en 2 horas no pagó, se pone en rojo para que le escriban", c: "#7f8c8d" }
                   : p.estado === "cancelado" ? (p.pagado ? { t: "⚠️ Cancelado pero pagó", sub: "El pago entró después de cancelarse: devolvele la plata o registrá la venta", c: "#c0392b", fuerte: true } : { t: "Cancelado", sub: p.motivo || "", c: "#95a5a6" })
                   : p.pagado ? { t: "✅ Pagado · " + PAGO_TIENDA[p.pago], sub: "", c: "#1e8e4f" }
                   : p.pago === "retiro" ? { t: "💵 Paga al retirar", sub: "Cobrale " + fmt(p.total) + " cuando lo retire", c: "#b26a00" }
@@ -31212,8 +31223,9 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                 };
                 // El proximo paso, a un toque desde la fila cerrada
                 const paso = cerrado ? null
-                  : esRechazado(p) && !p.contactado_en ? ["💬 Ya le escribimos", () => marcarContactado(p, true)]
-                  : esRechazado(p) && p.estado === "pendiente_pago" && p.pago !== "transferencia" ? ["💵 Pagó por transferencia", pagarTransf]
+                  : (esRechazado(p) || procesoDemorado(p)) && !p.contactado_en ? ["💬 Ya le escribimos", () => marcarContactado(p, true)]
+                  : enProceso(p) && !procesoDemorado(p) ? null
+                  : (esRechazado(p) || procesoDemorado(p)) && p.estado === "pendiente_pago" && p.pago !== "transferencia" ? ["💵 Pagó por transferencia", pagarTransf]
                   : p.estado === "pendiente_pago" && p.pago === "transferencia" ? ["✓ Pago recibido", () => estado(p, "pagado")]
                   : preventa && p.tipo !== "giftcard" ? ["📦 Llegó la preventa", () => llegoPreventa(p)]
                   : p.estado === "confirmado" && p.tipo !== "giftcard" ? ["📦 Ya está listo", () => estado(p, "preparado")]
@@ -31227,7 +31239,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                 const seccion = { border: "1px solid " + temaPal.border, borderRadius: 12, padding: "10px 12px", background: temaPal.bg };
                 const tit = (t) => <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: temaPal.textMuted, marginBottom: 6 }}>{t}</div>;
                 return (
-                  <div key={p.id} className={"card ped-card" + (abierto ? " abierto" : "")} style={{ borderLeft: "5px solid " + e.c, padding: 0, overflow: "hidden" }}>
+                  <div key={p.id} className={"card ped-card" + (abierto ? " abierto" : "") + (procesoDemorado(p) && !p.contactado_en ? " ped-urge" : "")} style={{ borderLeft: "5px solid " + (procesoDemorado(p) ? "#c0392b" : enProceso(p) ? "#95a5a6" : e.c), padding: 0, overflow: "hidden" }}>
                     {/* Fila: lo esencial y el proximo paso. Tocandola se abre el detalle */}
                     <div className="ped-fila" role="button" tabIndex={0} aria-expanded={abierto} onClick={() => setPedAbiertos(l => l.includes(p.id) ? l.filter(x => x !== p.id) : [...l, p.id])} onKeyDown={ev => { if (ev.key === "Enter") ev.currentTarget.click(); }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -31324,8 +31336,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: 12 }}>
                           {!cerrado && <>
                             {p.estado === "pendiente_pago" && p.pago === "transferencia" && <button className="btn btn-p btn-sm" onClick={() => estado(p, "pagado")}>✓ Pago recibido</button>}
-                            {esRechazado(p) && p.estado === "pendiente_pago" && p.pago !== "transferencia" && <button className="btn btn-p btn-sm" onClick={pagarTransf}>💵 Pagó por transferencia</button>}
-                            {esRechazado(p) && p.estado === "pendiente_pago" && p.entrega === "retiro" && <button className="btn btn-g btn-sm" onClick={pagaRetiro}>🏪 Paga al retirar</button>}
+                            {(esRechazado(p) || enProceso(p)) && p.estado === "pendiente_pago" && p.pago !== "transferencia" && <button className="btn btn-p btn-sm" onClick={pagarTransf}>💵 Pagó por transferencia</button>}
+                            {(esRechazado(p) || enProceso(p)) && p.estado === "pendiente_pago" && p.entrega === "retiro" && <button className="btn btn-g btn-sm" onClick={pagaRetiro}>🏪 Paga al retirar</button>}
                             {p.estado === "confirmado" && p.tipo !== "giftcard" && !preventa && <button className="btn btn-p btn-sm" onClick={() => estado(p, "preparado")}>📦 Ya está listo</button>}
                             {preventa && <button className="btn btn-p btn-sm" onClick={() => llegoPreventa(p)} title="Cuando recibiste la orden de ingreso: pasa al stock del local y le avisás">📦 Llegó la preventa</button>}
                             {p.tipo !== "giftcard" && !preventa && (["confirmado", "preparado"].includes(p.estado) || (p.estado === "pendiente_pago" && p.pago === "retiro")) && <button className="btn btn-p btn-sm" onClick={() => aCaja(p)}>💵 {p.pagado ? "Entregar y registrar venta" : "Cobrar en caja"}</button>}
@@ -31347,6 +31359,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             };
             if (filtro === "activos" || filtro.startsWith("g:")) return (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {filtro === "activos" && !buscaPed.trim() && nDemorados > 0 && <button className="ped-urge-aviso" onClick={() => setFiltro("proceso")}>🚨 <b>{nDemorados} {nDemorados === 1 ? "pedido lleva" : "pedidos llevan"} más de 2 horas sin terminar de pagar</b> con Mercado Pago o GoCuotas. Escribiles para ofrecerles otro medio de pago → <u>Ver</u></button>}
                 {GRUPOS_PED.map(([est, titulo, c]) => { const l = visiblesB.filter(p => etapaPed(p) === est); if (!l.length) return null; return (
                   <div key={est}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 0 8px", fontWeight: 900, fontSize: 14, color: c }}>{titulo} <span className="tag" style={{ background: c + "22", color: c, fontWeight: 800 }}>{l.length}</span><span style={{ flex: 1, height: 1, background: c + "44" }} /></div>
@@ -33532,7 +33545,8 @@ function AvisoVentaWeb({ usuario, local, paletaActual }) {
       let visto = null; try { const v = localStorage.getItem(clave); visto = v === null ? null : parseInt(v); } catch (e) {}
       let vistoRes = null; try { const v = localStorage.getItem(claveRes); vistoRes = v === null ? null : parseInt(v); } catch (e) {}
       try {
-        const r = await API.get("/avisos-menu/tienda-nuevos?desde=" + (visto === null || isNaN(visto) ? -1 : visto) + "&desde_res=" + (vistoRes === null || isNaN(vistoRes) ? -1 : vistoRes));
+        let vistoT = null; try { vistoT = localStorage.getItem(clave + "_t"); } catch (e) {}
+        const r = await API.get("/avisos-menu/tienda-nuevos?desde=" + (visto === null || isNaN(visto) ? -1 : visto) + "&desde_res=" + (vistoRes === null || isNaN(vistoRes) ? -1 : vistoRes) + (vistoT ? "&desde_t=" + encodeURIComponent(vistoT) : ""));
         if (!vivo || r.data.ultimo === null) return;
         if (revisaRes && r.data.ultimo_res !== undefined) {
           try { localStorage.setItem(claveRes, String(Math.max(r.data.ultimo_res || 0, vistoRes || 0))); } catch (e) {}
@@ -33545,7 +33559,7 @@ function AvisoVentaWeb({ usuario, local, paletaActual }) {
           }
         }
         const lista = (r.data.pedidos || []).filter(x => esJefeU || Number(x.local_id) === Number(local.id));
-        try { localStorage.setItem(clave, String(Math.max(r.data.ultimo, visto || 0))); } catch (e) {}
+        try { localStorage.setItem(clave, String(Math.max(r.data.ultimo, visto || 0))); if (r.data.ahora) localStorage.setItem(clave + "_t", r.data.ahora); } catch (e) {}
         if (lista.length) {
           setNuevos(n => [...n, ...lista.filter(x => !n.some(y => y.id === x.id))]);
           sonarVenta();
