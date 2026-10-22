@@ -18577,101 +18577,107 @@ function Testers({ localId, usuario, paletaActual }) {
     </div>
   );
 }
-// 🏆 Del mes: la vendedora del mes (ranking que arranca de cero cada mes, sin montos para el equipo)
-// y la clienta del mes (solo la ve la dueña), cada una con su premio
+// 🏆 Clienta del mes: competencia entre clientas (puntos del mes = 1 cada $100 comprados). Ellas ven su puesto en su
+// cuenta de la tienda; al terminar el mes se cierra y cada puesto con premio se lo lleva. Los premios se cambian mes a mes.
 const MESES_DM = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+const puestoTxt = (p) => p.desde === p.hasta ? p.desde + "°" : p.desde + "° a " + p.hasta + "°";
 function DelMes({ usuario, paletaActual }) {
   const tp = paletaActual || PALETA_CLARA;
-  const [periodo, setPeriodo] = useState(null); // null = mes actual
+  const [periodo, setPeriodo] = useState(null);
   const [d, setD] = useState(null);
   const [error, setError] = useState(false);
   const [cfg, setCfg] = useState(null);
   const [msg, setMsg] = useState("");
-  const cargar = () => { setError(false); API.get("/del-mes" + (periodo ? "?anio=" + periodo.anio + "&mes=" + periodo.mes : "")).then(r => { setD(r.data); setCfg(c => c || { premio_vendedora: r.data.premio_vendedora || "", premio_clienta: r.data.premio_clienta || "", criterio_clienta: r.data.criterio_clienta || "monto" }); }).catch(() => setError(true)); };
+  const avisar = (t) => { setMsg(t); setTimeout(() => setMsg(""), 3500); };
+  const cargar = () => { setError(false); API.get("/del-mes" + (periodo ? "?anio=" + periodo.anio + "&mes=" + periodo.mes : "")).then(r => { setD(r.data); setCfg(c => c || { activo: r.data.activo, premios: r.data.premios.length ? r.data.premios.map(p => ({ ...p })) : [{ desde: 1, hasta: 1, premio: "Kit de skincare de regalo", puntos: 0 }, { desde: 2, hasta: 2, premio: "20% OFF en su próxima compra", puntos: 0 }, { desde: 3, hasta: 3, premio: "Muestras de regalo", puntos: 0 }, { desde: 4, hasta: 10, premio: "", puntos: 200 }] }); }).catch(() => setError(true)); };
   useEffect(() => { setD(null); cargar(); }, [periodo && periodo.anio, periodo && periodo.mes]);
-  const mover = (delta) => { const a = d.anio, m = d.mes - 1 + delta, f = new Date(a, m, 1), hoy = new Date(); if (f > new Date(hoy.getFullYear(), hoy.getMonth(), 1)) return; setPeriodo({ anio: f.getFullYear(), mes: f.getMonth() + 1 }); };
-  const entregar = async (tipo, g, si) => {
-    try { await API.post("/del-mes/entregado", { anio: d.anio, mes: d.mes, tipo, ganador_id: g && g.id, nombre: g && g.nombre, entregado: si }); cargar(); } catch (e) { setMsg("No se pudo guardar"); }
+  const mover = (delta) => { const f = new Date(d.anio, d.mes - 1 + delta, 1), hoy = new Date(); if (f > new Date(hoy.getFullYear(), hoy.getMonth(), 1)) return; setPeriodo({ anio: f.getFullYear(), mes: f.getMonth() + 1 }); };
+  const setP = (i, cambio) => setCfg(c => ({ ...c, premios: c.premios.map((p, j) => j === i ? { ...p, ...cambio } : p) }));
+  const guardarCfg = async () => { try { const r = await API.put("/del-mes/config", cfg); setCfg({ activo: r.data.activo, premios: r.data.premios }); avisar("✓ Guardado"); cargar(); } catch (e) { avisar("No se pudo guardar"); } };
+  const cerrar = async () => {
+    if (!window.confirm("¿Cerrar " + MESES_DM[d.mes - 1] + " y repartir los premios?\n\nCada clienta con premio lo va a ver en su cuenta y se le suman los puntos extra. No se puede deshacer.")) return;
+    try { const r = await API.post("/del-mes/cerrar", { anio: d.anio, mes: d.mes }); avisar("✓ Mes cerrado: " + r.data.ganadoras + " ganadoras"); cargar(); } catch (e) { avisar(e.response?.data?.error || "No se pudo cerrar"); }
   };
-  const entregarH = async (h, tipo, g, si) => { try { await API.post("/del-mes/entregado", { anio: h.anio, mes: h.mes, tipo, ganador_id: g && g.id, nombre: g && g.nombre, entregado: si }); cargar(); } catch (e) {} };
-  const guardarCfg = async () => { try { await API.put("/del-mes/config", cfg); setMsg("✓ Premios guardados"); cargar(); setTimeout(() => setMsg(""), 2500); } catch (e) { setMsg("No se pudo guardar"); } };
-  const waClienta = (c, premio) => linkWhatsapp(c.telefono, "¡Hola " + String(c.nombre || "").split(" ")[0] + "! 🌻 Te elegimos como nuestra clienta del mes de " + MESES_DM[d.mes - 1] + " 💛 Gracias por elegirnos siempre." + (premio ? " Te ganaste: " + premio + ". " : " ") + "Pasá por el local cuando quieras a buscar tu regalo 🎁");
+  const entregar = async (g, si) => { try { await API.post("/del-mes/entregado", { anio: d.anio, mes: d.mes, cliente_id: g.cliente_id, entregado: si }); cargar(); } catch (e) {} };
+  const waGanadora = (g) => linkWhatsapp(g.telefono, "¡Hola " + String(g.nombre || "").split(" ")[0] + "! 🌻 ¡Felicitaciones! Quedaste en el puesto " + g.puesto + " de la competencia de " + MESES_DM[d.mes - 1] + " 🏆" + (g.premio ? " Te ganaste: " + g.premio + "." : "") + (g.puntos_extra ? " Ya te sumamos " + g.puntos_extra + " puntos." : "") + (g.premio ? " Pasá por el local a buscarlo 🎁" : ""));
   if (error) return <div className="card"><div className="empty">No se pudo cargar. Probá de nuevo.</div></div>;
-  if (!d) return <div className="skel" style={{ height: 320 }} />;
+  if (!d || !cfg) return <div className="skel" style={{ height: 320 }} />;
   const medalla = ["🥇", "🥈", "🥉"];
-  const yo = d.vendedoras.find(v => v.id === (usuario && usuario.id));
-  const ent = (t) => d.entregas.find(x => x.tipo === t);
-  const ganadora = d.vendedoras[0], clienta = d.clientas[0];
   return (
     <div className="fade" style={{ textAlign: "left" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-        <div style={{ flex: 1 }}><div className="pt">🏆 Del mes</div><div className="ps">Arranca de cero el primer día de cada mes</div></div>
+        <div style={{ flex: 1 }}><div className="pt">🏆 Clienta del mes</div><div className="ps">Competencia entre clientas: cada una ve su puesto en su cuenta de la tienda</div></div>
         <button className="chip-btn" onClick={() => mover(-1)} aria-label="Mes anterior">‹</button>
         <b style={{ textTransform: "capitalize", minWidth: 130, textAlign: "center" }}>{MESES_DM[d.mes - 1]} {d.anio}</b>
         <button className="chip-btn" disabled={d.actual} onClick={() => mover(1)} aria-label="Mes siguiente">›</button>
       </div>
-      <div className="card">
-        <div className="ct">👑 Vendedora del mes</div>
-        {d.premio_vendedora && <div style={{ fontSize: 13.5, marginBottom: 10 }}>🎁 Premio: <b>{d.premio_vendedora}</b></div>}
-        {yo && d.actual && !d.jefe && <div style={{ fontSize: 13, marginBottom: 10, color: tp.textMuted }}>{yo.puesto === 1 ? "🔥 ¡Vas primera! Seguí así." : "Vas en el puesto " + yo.puesto + ". ¡Todavía hay tiempo para subir! 💪"}</div>}
-        {d.vendedoras.length === 0 ? <div className="empty">Todavía no hay ventas este mes.</div> : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {d.vendedoras.map(v => (
-              <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: v.puesto === 1 ? "10px 12px" : "4px 12px", borderRadius: 12, background: v.puesto === 1 ? "linear-gradient(90deg,#fff6d6,#fffdf3)" : "transparent", border: v.puesto === 1 ? "1px solid #f3d77a" : "none" }}>
-                <span style={{ fontSize: v.puesto <= 3 ? 24 : 15, width: 32, textAlign: "center", fontWeight: 800, color: tp.textMuted }}>{medalla[v.puesto - 1] || v.puesto}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 800, fontSize: v.puesto === 1 ? 16 : 14 }}>{v.nombre}{yo && yo.id === v.id ? " (vos)" : ""}</div>
-                  <div style={{ height: 7, borderRadius: 4, background: tp.border, marginTop: 4 }}><div style={{ height: 7, borderRadius: 4, width: v.pct + "%", background: v.puesto === 1 ? "#e0a800" : tp.accent || "#c9a84c", transition: "width .6s" }} /></div>
-                </div>
-                {d.jefe && <span style={{ fontSize: 12.5, color: tp.textMuted, whiteSpace: "nowrap" }}>{v.cant} {v.cant === 1 ? "venta" : "ventas"} · {fmt(v.total)}</span>}
-              </div>
-            ))}
-          </div>
-        )}
-        {!d.actual && ganadora && d.jefe && <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 12, paddingTop: 10, borderTop: "1px solid " + tp.border }}>
-          <span style={{ flex: 1, fontSize: 13 }}>{ent("vendedora") ? "✓ Premio entregado a " + (ent("vendedora").nombre || ganadora.nombre) : "¿Ya le entregaste el premio a " + ganadora.nombre + "?"}</span>
-          <button className={"btn btn-sm " + (ent("vendedora") ? "btn-g" : "btn-p")} onClick={() => entregar("vendedora", ganadora, !ent("vendedora"))}>{ent("vendedora") ? "Desmarcar" : "🎁 Marcar entregado"}</button>
-        </div>}
-      </div>
-      {d.jefe && (
-        <div className="card">
-          <div className="ct">💛 Clienta del mes <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0, color: tp.textMuted }}>· solo lo ves vos</span></div>
-          {!clienta ? <div className="empty">Todavía no hay compras con clienta cargada este mes.</div> : (<>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 12, background: "linear-gradient(90deg,#fff0f6,#fff8ee)", border: "1px solid #f6c9dc" }}>
-              <span style={{ fontSize: 30 }}>🌻</span>
-              <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 900, fontSize: 16 }}>{clienta.nombre}</div><div style={{ fontSize: 12.5, color: tp.textMuted }}>{clienta.cant} {clienta.cant === 1 ? "compra" : "compras"} · {fmt(clienta.total)}{d.criterio_clienta === "compras" ? " · por cantidad de compras" : ""}</div></div>
-            </div>
-            {d.premio_clienta && <div style={{ fontSize: 13.5, margin: "10px 0" }}>🎁 Regalo: <b>{d.premio_clienta}</b></div>}
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-              {clienta.telefono && <a className="btn btn-g btn-sm" style={{ textDecoration: "none" }} href={waClienta(clienta, d.premio_clienta)} target="_blank" rel="noopener">💬 Avisarle por WhatsApp</a>}
-              {!d.actual && <button className={"btn btn-sm " + (ent("clienta") ? "btn-g" : "btn-p")} onClick={() => entregar("clienta", clienta, !ent("clienta"))}>{ent("clienta") ? "✓ Entregado · desmarcar" : "🎁 Marcar entregado"}</button>}
-            </div>
-            <div style={{ fontSize: 11.5, color: tp.textMuted, marginTop: 8 }}>El mensaje no dice cuánto gastó: solo que la eligieron como clienta del mes.{d.actual ? " Se define cuando termina el mes." : ""}</div>
-            {d.clientas.length > 1 && <div style={{ fontSize: 12, color: tp.textMuted, marginTop: 8 }}>Le siguen: {d.clientas.slice(1).map(c => c.nombre).join(", ")}</div>}
-          </>)}
+      {msg && <div className="card" role="status" style={{ padding: "10px 14px", fontSize: 13 }}>{msg}</div>}
+      {!d.actual && !d.cerrado && d.ranking.length > 0 && (
+        <div className="card" style={{ borderLeft: "4px solid #e0a800", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ flex: 1, fontSize: 13.5 }}>🏁 <b>{MESES_DM[d.mes - 1]} ya terminó.</b> Cerralo para repartir los premios: cada ganadora lo ve en su cuenta y se le suman los puntos extra.</span>
+          <button className="btn btn-p" onClick={cerrar}>Cerrar mes y repartir premios</button>
         </div>
       )}
-      {d.historial.some(h => h.vendedora || h.clienta) && (
+      {d.cerrado && (
         <div className="card">
-          <div className="ct">📜 Meses anteriores</div>
-          {d.historial.filter(h => h.vendedora || h.clienta).map(h => (
-            <div key={h.anio + "-" + h.mes} style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "6px 0", borderBottom: "1px solid " + tp.border, fontSize: 13 }}>
-              <b style={{ width: 110, textTransform: "capitalize" }}>{MESES_DM[h.mes - 1]} {h.anio}</b>
-              <span style={{ flex: 1, minWidth: 150 }}>👑 {h.vendedora ? h.vendedora.nombre : "—"}{d.jefe && h.vendedora ? <button className="chip-btn" style={{ marginLeft: 6, fontSize: 11 }} onClick={() => entregarH(h, "vendedora", h.vendedora, !h.vendedora_entregado)}>{h.vendedora_entregado ? "✓ entregado" : "sin entregar"}</button> : null}</span>
-              {d.jefe && <span style={{ flex: 1, minWidth: 150 }}>💛 {h.clienta ? h.clienta.nombre : "—"}{h.clienta ? <button className="chip-btn" style={{ marginLeft: 6, fontSize: 11 }} onClick={() => entregarH(h, "clienta", h.clienta, !h.clienta_entregado)}>{h.clienta_entregado ? "✓ entregado" : "sin entregar"}</button> : null}</span>}
+          <div className="ct">🎉 Ganadoras de {MESES_DM[d.mes - 1]}</div>
+          {d.ganadoras.map(g => (
+            <div key={g.cliente_id} style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "7px 0", borderTop: "1px solid " + tp.border, fontSize: 13 }}>
+              <span style={{ width: 30, fontSize: g.puesto <= 3 ? 20 : 13, textAlign: "center", fontWeight: 800 }}>{medalla[g.puesto - 1] || g.puesto + "°"}</span>
+              <span style={{ flex: "1 1 200px", minWidth: 0 }}><b>{g.nombre}</b><div style={{ fontSize: 12, color: tp.textMuted }}>{[g.premio, g.puntos_extra ? "+" + g.puntos_extra + " puntos (ya sumados)" : null].filter(Boolean).join(" · ")}</div></span>
+              {g.telefono && <a className="btn btn-g btn-sm" style={{ textDecoration: "none" }} href={waGanadora(g)} target="_blank" rel="noopener">💬 Avisarle</a>}
+              {g.premio && <button className={"btn btn-sm " + (g.entregado ? "btn-g" : "btn-p")} onClick={() => entregar(g, !g.entregado)}>{g.entregado ? "✓ Entregado" : "🎁 Marcar entregado"}</button>}
             </div>
           ))}
         </div>
       )}
-      {d.jefe && cfg && (
-        <div className="card">
-          <div className="ct">⚙️ Premios</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 10 }}>
-            <div><div className="fl">Premio para la vendedora del mes</div><input className="inp" maxLength={200} placeholder="Ej: un producto a elección hasta $30.000" value={cfg.premio_vendedora} onChange={e => setCfg(c => ({ ...c, premio_vendedora: e.target.value }))} /></div>
-            <div><div className="fl">Regalo para la clienta del mes</div><input className="inp" maxLength={200} placeholder="Ej: un kit de muestras + 20% en su próxima compra" value={cfg.premio_clienta} onChange={e => setCfg(c => ({ ...c, premio_clienta: e.target.value }))} /></div>
-            <div><div className="fl">Clienta del mes: la que más…</div><select className="sel" value={cfg.criterio_clienta} onChange={e => setCfg(c => ({ ...c, criterio_clienta: e.target.value }))}><option value="monto">compró en plata</option><option value="compras">veces vino a comprar</option></select></div>
+      <div className="card">
+        <div className="ct">{d.actual ? "📊 Cómo va este mes" : "📊 Ranking del mes"} <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0, color: tp.textMuted }}>· {d.participantes} {d.participantes === 1 ? "clienta" : "clientas"}</span></div>
+        {d.ranking.length === 0 ? <div className="empty">Todavía no hay compras con clienta cargada este mes.</div> : (
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead><tr style={{ color: tp.textMuted, fontSize: 11, textAlign: "left" }}><th style={{ padding: 6 }}>Puesto</th><th style={{ padding: 6 }}>Clienta</th><th style={{ padding: 6, textAlign: "right" }}>Puntos del mes</th><th style={{ padding: 6, textAlign: "right" }}>Compras</th><th style={{ padding: 6 }}>Premio</th></tr></thead>
+            <tbody>{d.ranking.map(x => (
+              <tr key={x.id} style={{ borderTop: "1px solid " + tp.border, background: x.puesto === 1 ? "#fff8dc" : "transparent" }}>
+                <td style={{ padding: 6, fontSize: x.puesto <= 3 ? 18 : 13, fontWeight: 800 }}>{medalla[x.puesto - 1] || x.puesto + "°"}</td>
+                <td style={{ padding: 6, fontWeight: 700 }}>{x.nombre}</td>
+                <td style={{ padding: 6, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{x.puntos.toLocaleString("es-AR")}</td>
+                <td style={{ padding: 6, textAlign: "right", color: tp.textMuted }}>{x.compras} · {fmt(x.total)}</td>
+                <td style={{ padding: 6, fontSize: 12 }}>{x.premio ? [x.premio.premio, x.premio.puntos ? "+" + x.premio.puntos + " pts" : null].filter(Boolean).join(" · ") : ""}</td>
+              </tr>))}</tbody>
+          </table>
+        )}
+        <div style={{ fontSize: 11.5, color: tp.textMuted, marginTop: 8 }}>Las clientas ven su puesto, sus puntos del mes y el podio con nombre e inicial. Nunca ven montos ni datos de otras.</div>
+      </div>
+      <div className="card">
+        <div className="ct">🎁 Premios por puesto</div>
+        <label style={{ display: "flex", gap: 10, alignItems: "center", fontWeight: 800, cursor: "pointer", marginBottom: 10 }}>
+          <input type="checkbox" checked={cfg.activo} onChange={e => setCfg(c => ({ ...c, activo: e.target.checked }))} style={{ width: 18, height: 18 }} /> Mostrar la competencia a las clientas en su cuenta de la tienda
+        </label>
+        {cfg.premios.map((p, i) => (
+          <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 6 }}>
+            <span style={{ fontSize: 13 }}>Puesto</span>
+            <input className="inp" style={{ width: 60 }} inputMode="numeric" value={p.desde} onChange={e => setP(i, { desde: e.target.value.replace(/[^\d]/g, "") })} aria-label="Desde el puesto" />
+            <span style={{ fontSize: 13 }}>al</span>
+            <input className="inp" style={{ width: 60 }} inputMode="numeric" value={p.hasta} onChange={e => setP(i, { hasta: e.target.value.replace(/[^\d]/g, "") })} aria-label="Hasta el puesto" />
+            <input className="inp" style={{ flex: "2 1 220px" }} maxLength={120} placeholder="Premio (ej: kit de skincare)" value={p.premio} onChange={e => setP(i, { premio: e.target.value })} aria-label="Premio" />
+            <span style={{ fontSize: 13 }}>+</span>
+            <input className="inp" style={{ width: 80 }} inputMode="numeric" placeholder="0" value={p.puntos || ""} onChange={e => setP(i, { puntos: e.target.value.replace(/[^\d]/g, "") })} aria-label="Puntos extra" />
+            <span style={{ fontSize: 13 }}>puntos</span>
+            <button className="icon-btn" aria-label="Sacar" onClick={() => setCfg(c => ({ ...c, premios: c.premios.filter((_, j) => j !== i) }))}>✕</button>
           </div>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "flex-end", marginTop: 10 }}>{msg && <span style={{ fontSize: 12.5 }}>{msg}</span>}<button className="btn btn-p" onClick={guardarCfg}>Guardar premios</button></div>
+        ))}
+        <button className="chip-btn" onClick={() => setCfg(c => ({ ...c, premios: [...c.premios, { desde: (c.premios.length ? Math.max(...c.premios.map(p => parseInt(p.hasta) || 0)) : 0) + 1, hasta: (c.premios.length ? Math.max(...c.premios.map(p => parseInt(p.hasta) || 0)) : 0) + 1, premio: "", puntos: 0 }] }))}>+ Agregar puesto</button>
+        <div className="cli-tip" style={{ fontSize: 12.5, marginTop: 10 }}>Podés cambiar los premios cuando quieras: se reparten los que estén cargados cuando cerrás el mes. Los puntos extra se suman solos al cerrar; los premios en mano los marcás como entregados.</div>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}><button className="btn btn-p" onClick={guardarCfg}>Guardar</button></div>
+      </div>
+      {d.historial.length > 0 && (
+        <div className="card">
+          <div className="ct">📜 Meses cerrados</div>
+          {d.historial.map(h => (
+            <button key={h.anio + "-" + h.mes} className="btn btn-g btn-sm" style={{ display: "flex", width: "100%", justifyContent: "space-between", marginTop: 4, textAlign: "left" }} onClick={() => setPeriodo({ anio: h.anio, mes: h.mes })}>
+              <span style={{ textTransform: "capitalize" }}><b>{MESES_DM[h.mes - 1]} {h.anio}</b> · 🥇 {h.primera || "—"}</span><span>{h.entregados}/{h.ganadoras} entregados</span>
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -23929,11 +23935,11 @@ const NAV_SECTIONS = [
     { id: "portal", icon: "📱", label: "Portal Cliente", k: "premios diseño portal" },
     { id: "postventa", icon: "💬", label: "Postventa WA", k: "whatsapp mensajes" },
     { id: "cupones", icon: "🏷️", label: "Cupones", k: "descuento codigo" },
-    { id: "promociones", icon: "🎉", label: "Promociones", k: "ofertas 2x1" }] },
+    { id: "promociones", icon: "🎉", label: "Promociones", k: "ofertas 2x1" },
+    { id: "del-mes", icon: "🏆", label: "Clienta del mes", k: "competencia ranking puesto premio clienta del mes mejor clienta" }] },
   { section: "EQUIPO", color: "#2471a3", items: [
     { id: "tareas", icon: "📝", label: "Tareas", k: "pendientes" },
     { id: "comisiones", icon: "💎", label: "Comisiones", k: "vendedoras vendedores equipo desafios premios" },
-    { id: "del-mes", icon: "👑", label: "Del mes", k: "vendedora del mes clienta del mes ranking premio" },
     { id: "productividad", icon: "🏆", label: "Productividad", k: "ranking vendedoras vendedores equipo" }] },
   { section: "FINANZAS", color: "#1f6f8b", items: [
     { id: "finance", icon: "💰", label: "Finanzas", k: "gastos egresos salud equilibrio medallas" },
@@ -24768,6 +24774,17 @@ html:has(.tw){overflow-x:hidden}
 .tw-etq.pack{background:#2f5bd3;color:#fff}
 .tw-express{font-size:12.5px;font-weight:700;color:#b35900;margin-top:3px}
 .tw-express.grande{font-size:14px;font-weight:500;background:#fff4e0;border:1px solid #f5d29a;border-radius:12px;padding:10px 12px;margin:10px 0;color:#7a4300}
+.tw-comp-card{background:linear-gradient(150deg,#fffaf0,#fff);border:1px solid #f1dfb5;border-radius:16px;padding:12px 14px;margin-bottom:12px}
+.tw-comp-card>div>b{font-size:14px}
+.tw-comp-ganaste{background:linear-gradient(90deg,#fff1c9,#ffe3ef);border-radius:12px;padding:9px 12px;font-size:13px;margin-bottom:10px}
+.tw-comp-yo{display:flex;align-items:center;gap:12px;margin:10px 0}
+.tw-comp-yo small{display:block;font-size:12px;color:#7a6a4a}
+.tw-comp-puesto{width:48px;height:48px;border-radius:50%;background:#fff3cf;border:2px solid #f0cf6a;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#8a6a00;flex-shrink:0}
+.tw-comp-podio{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.tw-comp-podio span{background:#f7f1e3;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700}
+.tw-comp-podio span.yo{background:#f0cf6a;color:#4a3800}
+.tw-comp-premios{border-top:1px dashed #ead9b0;padding-top:8px;font-size:12.5px}
+.tw-comp-premios small{display:block;font-size:11px;color:#9a8a6a;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
 .tw-cumple-regalo{text-align:center;background:linear-gradient(140deg,#fff0f6,#fff7e6 60%,#f3edff);border:1.5px solid #f6c9dc;border-radius:18px;padding:16px 14px;margin-bottom:12px;display:flex;flex-direction:column;align-items:center;gap:6px}
 .tw-cumple-regalo>b{font-size:17px}.tw-cumple-regalo>span{font-size:13.5px;color:#5a4a50}.tw-cumple-regalo small{font-size:11.5px;color:#8a7a80}
 .tw-cumple-regalo.usado{font-size:13px;color:#6b5a60;padding:12px}
@@ -27575,6 +27592,9 @@ function TiendaPublica({ slug }) {
           </button>
         );
       })()}
+      {!codigoUrl && logueada && miCuenta && miCuenta.competencia && miCuenta.competencia.ganados.some(g => g.premio && !g.entregado) && (
+        <button className="tw-pedido-chip tw-reponer-chip tw-cumple-chip" onClick={() => setPaso("cuenta")}><span className="tw-pedido-chip-ic" aria-hidden="true">🏆</span><span style={{ flex: 1, textAlign: "left" }}><b>¡Ganaste un premio en la competencia del mes!</b> Tocá para verlo</span><span aria-hidden="true">›</span></button>
+      )}
       {!codigoUrl && codCumple && (() => { const r = miCuenta.regalo_cumple; return (
         <button className="tw-pedido-chip tw-reponer-chip tw-cumple-chip" onClick={() => setPaso("cuenta")}><span className="tw-pedido-chip-ic" aria-hidden="true">🎂</span><span style={{ flex: 1, textAlign: "left" }}>{r.hoy ? "¡Feliz cumple! " : ""}Tenés <b>{r.tipo === "%" ? r.valor + "% OFF" : fmtTienda(r.valor) + " de regalo"}</b> por tu cumple, hasta el {r.vence.slice(8, 10)}/{r.vence.slice(5, 7)}</span><span aria-hidden="true">›</span></button>
       ); })()}
@@ -27917,6 +27937,28 @@ function TiendaPublica({ slug }) {
             <small>También lo podés usar en el local: decí tu DNI en la caja.</small>
           </div>
         ); })()}
+        {miCuenta.competencia && (() => {
+          const k = miCuenta.competencia, MES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+          const med = ["🥇", "🥈", "🥉"], pz = (p) => p.desde === p.hasta ? p.desde + "°" : p.desde + "° a " + p.hasta + "°";
+          return (
+            <div className="tw-comp-card">
+              {k.ganados.filter(g => !g.entregado || g.puntos).slice(0, 2).map(g => (
+                <div key={g.anio + "-" + g.mes} className="tw-comp-ganaste">🎉 <b>¡Quedaste {g.puesto}° en {MES[g.mes - 1]}!</b> {g.premio ? "Ganaste: " + g.premio + "." : ""}{g.puntos ? " Te sumamos " + g.puntos + " puntos." : ""}{g.premio && !g.entregado ? " Pasá por el local a retirarlo 🎁" : ""}</div>
+              ))}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}><b style={{ flex: 1 }}>🏆 Competencia de {MES[k.mes - 1]}</b><small style={{ color: "#8a7a55" }}>{k.participantes} {k.participantes === 1 ? "clienta" : "clientas"}</small></div>
+              {k.puesto ? (
+                <div className="tw-comp-yo">
+                  <span className="tw-comp-puesto">{med[k.puesto - 1] || k.puesto + "°"}</span>
+                  <div><div style={{ fontWeight: 800, fontSize: 15 }}>{k.puesto === 1 ? "¡Vas primera! 👑" : "Vas en el puesto " + k.puesto}</div>
+                    <small>{k.puntos.toLocaleString("es-AR")} puntos este mes{k.faltan ? " · te faltan " + k.faltan.toLocaleString("es-AR") + " para el puesto " + (k.puesto - 1) : ""}</small></div>
+                </div>
+              ) : <p style={{ fontSize: 13, color: "#6b5a40", margin: "8px 0" }}>Todavía no sumaste puntos este mes: con tu próxima compra (en el local o acá) entrás a la competencia ✨</p>}
+              {k.podio.length > 0 && <div className="tw-comp-podio">{k.podio.map(x => <span key={x.puesto} className={x.yo ? "yo" : ""}>{med[x.puesto - 1]} {x.yo ? "Vos" : x.nombre}</span>)}</div>}
+              {k.premios.length > 0 && <div className="tw-comp-premios"><small>Premios al terminar el mes</small>{k.premios.map((p, i) => <div key={i}><b>{pz(p)}</b> {[p.premio, p.puntos ? "+" + p.puntos + " puntos" : null].filter(Boolean).join(" · ")}</div>)}</div>}
+              <small style={{ color: "#9a8a6a", display: "block", marginTop: 6 }}>Sumás 1 punto cada {fmtTienda(100)} de compra. Arranca de cero el 1° de cada mes.</small>
+            </div>
+          );
+        })()}
         {porReponer.length > 0 && (
           <div className="tw-reponer-card">
             <b>🔁 Se te está por terminar</b>
