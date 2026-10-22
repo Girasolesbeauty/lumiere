@@ -12,18 +12,19 @@ router.get('/', async (req, res) => {
   try {
     const cfg = await comp.config();
     const m = await comp.mesDe(req.query.anio, req.query.mes);
-    const [rk, cerradas, hist] = await Promise.all([
+    const [rk, cerradas, hist, sinCli] = await Promise.all([
       comp.ranking(m.desde, m.hasta),
       pool.query(`SELECT g.*, c.nombre, c.telefono FROM competencia_ganadoras g JOIN clientes c ON c.id = g.cliente_id WHERE anio = $1 AND mes = $2 ORDER BY puesto`, [m.anio, m.mes]),
       pool.query(`SELECT g.anio, g.mes, COUNT(*)::int AS ganadoras, COUNT(g.entregado_en)::int AS entregados, MIN(c.nombre) FILTER (WHERE g.puesto = 1) AS primera
         FROM competencia_ganadoras g JOIN clientes c ON c.id = g.cliente_id GROUP BY 1, 2 ORDER BY 1 DESC, 2 DESC LIMIT 12`),
+      comp.sinClienta(m.desde, m.hasta),
     ]);
     res.json({
       ...cfg, anio: m.anio, mes: m.mes, actual: m.actual,
       ranking: rk.slice(0, 50).map(x => ({ ...x, premio: comp.premioDePuesto(cfg.premios, x.puesto) })), participantes: rk.length,
       cerrado: cerradas.rows.length > 0,
       ganadoras: cerradas.rows.map(g => ({ cliente_id: g.cliente_id, nombre: g.nombre, telefono: g.telefono, puesto: g.puesto, puntos_mes: g.puntos_mes, premio: g.premio, puntos_extra: g.puntos_extra, entregado: !!g.entregado_en })),
-      historial: hist.rows,
+      historial: hist.rows, sin_clienta: sinCli,
     });
   } catch (e) { console.error('[clienta del mes]', e.message); res.status(500).json({ error: 'No se pudo armar el ranking' }); }
 });
