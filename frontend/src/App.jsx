@@ -9687,6 +9687,11 @@ function Clientes({ usuario, paletaActual }) {
                 {wa && <a className="btn btn-p btn-sm" href={wa} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>💬 WhatsApp</a>}
                 <button className="btn btn-g btn-sm" onClick={() => abrirEditarCliente(c)}>✏️ Editar datos</button>
                 <button className="btn btn-g btn-sm" onClick={() => abrirMigrar(c)}>➕ Cargar compra anterior</button>
+                {["jefe", "admin", "administrativo"].includes(usuario?.rol) && <button className="btn btn-g btn-sm" title="Abre la tienda online como la ve ella (su cuenta, su rutina, sus avisos). Solo para mirar: no se puede comprar ni cambiar nada." onClick={async () => {
+                  const w = window.open("", "_blank");
+                  try { const r = await API.post("/tienda/ver-como/" + c.id); if (w) w.location.href = window.location.origin + "/?tienda=" + encodeURIComponent(r.data.slug) + "#vista=" + encodeURIComponent(r.data.token); }
+                  catch (e) { if (w) w.close(); alert(e.response?.data?.error || "No se pudo abrir"); }
+                }}>👁️ Ver su cuenta en la tienda</button>}
                 {c.portal_activo && <button className="btn btn-g btn-sm" onClick={() => resetearPortalCliente(c)}>🔑 Resetear clave del portal</button>}
                 {usuario?.rol === "jefe" && <button className="btn btn-g btn-sm" style={{ color: p.red, marginLeft: "auto" }} onClick={() => eliminarCliente(c)}>Eliminar</button>}
               </div>
@@ -24755,6 +24760,8 @@ html:has(.tw){overflow-x:hidden}
 .tw .tw-muestras-ops button{border:1.5px solid #e8c48a;background:#fff;color:#5a3a00 !important;border-radius:999px;padding:7px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
 .tw .tw-muestras-ops button{display:inline-flex;align-items:center;gap:6px}.tw .tw-muestras-ops img{width:22px;height:22px;border-radius:50%;object-fit:cover;margin-left:-6px}
 .tw .tw-muestras-ops button.on{background:#d98b1f;border-color:#d98b1f;color:#fff !important}
+.tw-vista-barra{position:relative;z-index:5;min-height:38px;display:flex;align-items:center;justify-content:center;gap:8px;background:#2a1a45;color:#fff;font-size:13px;padding:0 12px;white-space:nowrap;overflow:hidden}
+.tw .tw-vista-barra button{border:1px solid rgba(255,255,255,.5);background:transparent;color:#fff !important;border-radius:999px;padding:3px 12px;font:inherit;font-size:12px;cursor:pointer;margin-left:6px}
 .tw-pack-avance{margin:0 0 12px;padding:10px 12px;border-radius:12px;background:#f2f7ff;border:1px solid #d6e4fb;font-size:13px;color:#24406e}
 .tw-pack-avance.ok{background:#eaf8ef;border-color:#c5ead3;color:#1f6b40}
 .tw-ficha-pack{font-size:13px;background:#f2f7ff;border:1px solid #d6e4fb;color:#24406e;border-radius:12px;padding:8px 12px;margin:0 0 12px}
@@ -26931,11 +26938,20 @@ function TwRegalos({ r, tienda, modo, setModo, productos, dispo, foto, ciudades,
 
 function TiendaPublica({ slug }) {
   const base = (API.defaults.baseURL || "") + "/tienda-publica/" + encodeURIComponent(slug);
-  const tokenCuenta = () => { try { return localStorage.getItem("tienda_cuenta_" + slug) || ""; } catch (e) { return ""; } };
+  // "Ver como clienta" desde Lumiere: la llave llega en la direccion (#vista=...), queda solo en esta pestaña y no toca la cuenta propia
+  const [vistaTk, setVistaTk] = useState(() => {
+    try {
+      const m = /[#&]vista=([^&]+)/.exec(window.location.hash || "");
+      if (m) { sessionStorage.setItem("tienda_vista_" + slug, decodeURIComponent(m[1])); window.history.replaceState(null, "", window.location.pathname + window.location.search); }
+      return sessionStorage.getItem("tienda_vista_" + slug) || "";
+    } catch (e) { return ""; }
+  });
+  const salirVista = () => { try { sessionStorage.removeItem("tienda_vista_" + slug); } catch (e) {} setVistaTk(""); window.location.reload(); };
+  const tokenCuenta = () => { if (vistaTk) return vistaTk; try { return localStorage.getItem("tienda_cuenta_" + slug) || ""; } catch (e) { return ""; } };
   const pedir = async (ruta, opciones) => {
     const tk = tokenCuenta();
     const r = await fetch(base + ruta, { headers: { "Content-Type": "application/json", ...(tk ? { Authorization: "Bearer " + tk } : {}) }, ...opciones });
-    if (r.status === 401 && tk && ruta.startsWith("/cuenta")) { try { localStorage.removeItem("tienda_cuenta_" + slug); } catch (e) {} setLogueada(false); }
+    if (r.status === 401 && tk && ruta.startsWith("/cuenta")) { try { if (vistaTk) sessionStorage.removeItem("tienda_vista_" + slug); else localStorage.removeItem("tienda_cuenta_" + slug); } catch (e) {} if (vistaTk) setVistaTk(""); setLogueada(false); }
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || "Algo salió mal. Probá de nuevo.");
     return d;
@@ -26990,7 +27006,7 @@ function TiendaPublica({ slug }) {
     return () => { document.removeEventListener("pointerdown", abajo); document.removeEventListener("pointerup", arriba); };
   }, []);
   // Mi cuenta (misma del portal de clientas: DNI + contraseña, con sus puntos)
-  const [logueada, setLogueada] = useState(() => { try { return !!localStorage.getItem("tienda_cuenta_" + slug); } catch (e) { return false; } });
+  const [logueada, setLogueada] = useState(() => { if (vistaTk) return true; try { return !!localStorage.getItem("tienda_cuenta_" + slug); } catch (e) { return false; } });
   // Favoritos: en el navegador y, con cuenta, tambien en Lumiere (se unen al entrar)
   const [favs, setFavs] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_favs_" + slug) || "[]"); } catch (e) { return []; } });
   useEffect(() => { try { localStorage.setItem("tienda_favs_" + slug, JSON.stringify(favs)); } catch (e) {} }, [favs]);
@@ -27811,7 +27827,7 @@ function TiendaPublica({ slug }) {
     } catch (x) { setAvisoCuenta(x.message); }
   };
   const irACuenta = (desde, modo) => { setVolverA(desde); setAvisoCuenta(null); setCanjeHecho(null); setFormCuenta({ modo: modo || "ingresar" }); setPaso("cuenta"); };
-  const salirCuenta = () => { try { localStorage.removeItem("tienda_cuenta_" + slug); } catch (x) {} setLogueada(false); setMiCuenta(null); };
+  const salirCuenta = () => { if (vistaTk) return salirVista(); try { localStorage.removeItem("tienda_cuenta_" + slug); } catch (x) {} setLogueada(false); setMiCuenta(null); };
   const canjear = async (pr) => {
     if (!confirm("¿Canjear " + pr.nombre + " por " + pr.puntos_requeridos + " puntos?")) return;
     try { const r = await pedir("/cuenta/canjear", { method: "POST", body: JSON.stringify({ premio_id: pr.id }) }); setCanjeHecho({ nombre: pr.nombre, codigo: r.codigo, descuento_pct: r.descuento_pct || 0 }); cargarCuenta(); }
@@ -28132,7 +28148,8 @@ function TiendaPublica({ slug }) {
   })();
 
   return (
-    <div className="tw" style={{ "--c": color }}><style>{CSS_TIENDA}</style>
+    <div className={"tw" + (vistaTk ? " en-vista" : "")} style={{ "--c": color }}><style>{CSS_TIENDA}</style>
+      {vistaTk && <div className="tw-vista-barra" role="status">👁️ Estás viendo la tienda como <b>{miCuenta ? String(miCuenta.nombre || "la clienta") : "la clienta"}</b> · solo para mirar<button onClick={salirVista}>Salir</button></div>}
       {cabecera}
       {amigaInfo && <div className="tw-amiga-barra" role="note">💌 <b>{amigaInfo.nombre}</b> te regaló <b>{amigaInfo.pct}% OFF</b> en tu primera compra · se aplica al finalizar</div>}
       {(cats.length > 0 || sectores.length > 0 || reingresados.length > 0 || reels.length > 0 || preventas.length > 0 || favs.length > 0 || tienda.regalos) && (

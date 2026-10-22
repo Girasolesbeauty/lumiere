@@ -7,6 +7,8 @@ const misiones = require('../lib/misiones');
 const gocuotas = require('../lib/gocuotas');
 const { ayudaMP } = require('./mercadopago');
 const QRCode = require('qrcode');
+const jwt = require('jsonwebtoken');
+const { negocioActual } = require('../lib/contexto');
 const { VENTA_VALIDA } = require('../lib/niveles');
 
 // Tienda web: lo que se maneja desde Lumiere (configuracion, productos publicados y pedidos).
@@ -957,6 +959,19 @@ router.put('/regalos', async (req, res) => {
     await pool.query('UPDATE tienda_config SET regalos = $1 WHERE id = 1', [JSON.stringify(r)]);
     res.json({ regalos: r, regalos_hoy: tienda.temaRegaloHoy(r) });
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+});
+// Ver la tienda como la ve una clienta (su cuenta, su rutina, sus avisos), solo para mirar: llave de 30 minutos
+router.post('/ver-como/:clienteId', async (req, res) => {
+  try {
+    if (!esDuena(req)) return res.status(403).json({ error: 'Solo la dueña o encargada' });
+    const c = (await pool.query('SELECT id, nombre FROM clientes WHERE id = $1', [parseInt(req.params.clienteId)])).rows[0];
+    if (!c) return res.status(404).json({ error: 'No encontramos esa clienta' });
+    const cfg = (await pool.query('SELECT slug, activo FROM tienda_config WHERE id = 1')).rows[0];
+    if (!cfg || !cfg.activo || !cfg.slug) return res.status(400).json({ error: 'Primero publicá la tienda online' });
+    const neg = negocioActual();
+    const token = jwt.sign({ id: c.id, tipo: 'cliente', neg: neg && neg.id, vista: true, por: req.usuario && req.usuario.id }, process.env.JWT_SECRET, { expiresIn: '30m' });
+    res.json({ slug: cfg.slug, token, nombre: c.nombre });
+  } catch (e) { console.error('[tienda] ver como:', e.message); res.status(500).json({ error: 'No se pudo abrir' }); }
 });
 router.put('/packs', async (req, res) => {
   try {
