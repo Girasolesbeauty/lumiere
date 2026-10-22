@@ -2,6 +2,36 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
 
+// Stock cruzado: lo que en un local se agoto (o le alcanza para menos de 2 semanas a su ritmo de venta de los
+// ultimos 30 dias) y en el otro hay de sobra. "mandar" = lo que este local le puede mandar al otro; "pedir" = al reves.
+// Cantidad sugerida: lo que el otro vende en 30 dias (al menos 1), sin dejar al que manda con menos de la mitad de lo que tiene.
+// No sugiere lo que ya va en camino.
+const { VENTA_VALIDA } = require('../lib/niveles');
+router.get('/sugeridos', async (req, res) => {
+  try {
+    const yo = Number(req.query.local_id) === 2 ? 2 : 1;
+    const r = await pool.query(`WITH v AS (
+        SELECT vi.producto_id, SUM(vi.cantidad) FILTER (WHERE v.local_id = 1) AS v1, SUM(vi.cantidad) FILTER (WHERE v.local_id = 2) AS v2
+        FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id WHERE ${VENTA_VALIDA} AND v.creado_en >= NOW() - INTERVAL '30 days' GROUP BY 1)
+      SELECT p.id, p.nombre, p.marca, GREATEST(COALESCE(p.stock_rg, 0), 0) AS s1, GREATEST(COALESCE(p.stock_ush, 0), 0) AS s2,
+        COALESCE(p.stock_transito_rg, 0) AS t1, COALESCE(p.stock_transito_ush, 0) AS t2, COALESCE(v.v1, 0)::int AS v1, COALESCE(v.v2, 0)::int AS v2
+      FROM productos p LEFT JOIN v ON v.producto_id = p.id
+      WHERE p.activo = TRUE AND COALESCE(p.tiene_variantes, FALSE) = FALSE AND (COALESCE(p.stock_rg, 0) > 1 OR COALESCE(p.stock_ush, 0) > 1)`);
+    const sugerir = (desde, hacia) => r.rows.map(p => {
+      const sD = Number(p['s' + desde]), sH = Number(p['s' + hacia]), tH = Number(p['t' + hacia]), vH = Number(p['v' + hacia]), vD = Number(p['v' + desde]);
+      // Le falta: agotado (y se vende o se vendio alguna vez en el otro) o no le alcanza para 2 semanas
+      const falta = (sH <= 0 && (vH > 0 || vD > 0)) || (vH > 0 && sH < vH / 2);
+      if (!falta || tH > 0 || sD < 2) return null;
+      const cant = Math.min(Math.max(1, vH - sH), Math.floor(sD / 2));
+      return cant > 0 ? { producto_id: p.id, nombre: p.nombre, marca: p.marca, stock_aca: sD, stock_alla: sH, vendidos_alla: vH, cantidad: cant } : null;
+    }).filter(Boolean).sort((a, b) => (a.stock_alla - b.stock_alla) || (b.vendidos_alla - a.vendidos_alla)).slice(0, 30);
+    res.json({ mandar: sugerir(yo, yo === 1 ? 2 : 1), pedir: sugerir(yo === 1 ? 2 : 1, yo) });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'No se pudo armar la lista' });
+  }
+});
+
 // Historial de traspasos entre locales (opcional: local_id trae los que salieron
 // o entraron a ese local)
 router.get('/', async (req, res) => {
