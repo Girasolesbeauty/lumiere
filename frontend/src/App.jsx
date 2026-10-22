@@ -1372,6 +1372,24 @@ function ResumenSemanal({ p, onCerrar }) {
     </div>
   );
 }
+// Aviso para la dueña si el servidor (Railway) quedo con una version vieja del codigo: las pantallas (Vercel) y el
+// servidor se actualizan por separado; si a los minutos siguen distintos, las funciones nuevas pueden fallar
+const COMMIT_PANTALLAS = typeof __COMMIT__ !== "undefined" ? __COMMIT__ : "";
+function AvisoServidor({ p }) {
+  const [viejo, setViejo] = useState(false);
+  useEffect(() => {
+    if (!COMMIT_PANTALLAS) return;
+    let vivo = true;
+    const revisar = () => API.get("/version").then(r => r.data && r.data.commit && r.data.commit !== COMMIT_PANTALLAS).catch(() => false);
+    revisar().then(distinto => { if (!distinto || !vivo) return; setTimeout(() => revisar().then(d2 => { if (vivo && d2) setViejo(true); }), 4 * 60 * 1000); });
+    return () => { vivo = false; };
+  }, []);
+  if (!viejo) return null;
+  return <div role="alert" style={{ position: "fixed", left: 12, right: 12, bottom: 84, zIndex: 250, maxWidth: 560, margin: "0 auto", background: (p || PALETA_CLARA).card, border: "2px solid #e67e22", borderRadius: 12, padding: "10px 14px", fontSize: 13, boxShadow: "0 8px 24px rgba(0,0,0,.2)", display: "flex", gap: 10, alignItems: "center" }}>
+    <span style={{ flex: 1 }}>⚠️ <b>El servidor no tiene los últimos cambios.</b> Algunas funciones nuevas pueden no guardar. Revisá en Railway que el último "deploy" haya terminado bien (o tocá "Redeploy").</span>
+    <button className="icon-btn" aria-label="Cerrar aviso" onClick={() => setViejo(false)}>✕</button>
+  </div>;
+}
 // Se abre solo una vez por semana (la primera vez que la dueña entra desde el lunes)
 function ResumenSemanalAuto({ usuario, p, negocioId }) {
   const clave = "lumiere_resumen_" + (negocioId || 0) + "_" + (usuario?.id || 0);
@@ -33834,6 +33852,7 @@ function AppWrapper() {
         </main>
         {page !== "pos" && <BarraCelular secciones={NAV_CON_PERMISOS} page={page} setPage={setPage} avisos={avisosMenu} onMas={() => setMenuAbierto(true)} />}
         <AsistenteAyuda usuario={usuario} seccion={page} paletaActual={paletaActual} />
+        {esJefeMenu && <AvisoServidor p={paletaActual} />}
         {esJefeMenu && page !== "pos" && <ResumenSemanalAuto usuario={usuario} p={paletaActual} negocioId={miNegocio?.id} />}
         {puedeVer("tienda-online") && <AvisoVentaWeb usuario={usuario} local={local} paletaActual={paletaActual} />}
       </div>

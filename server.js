@@ -29,6 +29,11 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '1mb' })); // 1mb: el logo del negocio viaja como imagen chica en el pedido
 
+// Que version del codigo esta corriendo (Railway pone el commit): Lumiere la compara con la de las pantallas
+// para avisar si el servidor quedo sin actualizar. Sin sesion: no dice nada mas que eso.
+const INICIADO = new Date().toISOString();
+app.get('/api/version', (req, res) => res.json({ commit: process.env.RAILWAY_GIT_COMMIT_SHA || null, iniciado: INICIADO }));
+
 // Todo /api pide haber iniciado sesion (salvo el login y el portal de clientes)
 app.use('/api', require('./middleware/auth'));
 

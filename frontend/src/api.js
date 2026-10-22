@@ -23,6 +23,10 @@ API.interceptors.response.use((r) => r, (err) => {
     sessionStorage.setItem('lumiere_sesion_vencida', '1');
     window.location.reload();
   }
+  // El servidor no conoce esa direccion (404 sin mensaje propio): casi siempre es que todavia no se actualizo
+  if (err.response?.status === 404 && !(err.response.data && err.response.data.error)) {
+    err.response.data = { error: 'Esta función todavía no está en el servidor: falta que se actualice. Probá de nuevo en unos minutos.' };
+  }
   // Prueba gratis terminada: se avisa en pantalla (el servidor no dejo guardar)
   if (err.response?.status === 402 && err.response?.data?.prueba_vencida) {
     window.dispatchEvent(new CustomEvent('lumiere-prueba-vencida', { detail: err.response.data.error }));
