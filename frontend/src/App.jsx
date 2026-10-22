@@ -18607,7 +18607,10 @@ function DelMes({ usuario, paletaActual }) {
   const [cfg, setCfg] = useState(null);
   const [msg, setMsg] = useState("");
   const avisar = (t) => { setMsg(t); setTimeout(() => setMsg(""), 3500); };
-  const cargar = () => { setError(false); API.get("/del-mes" + (periodo ? "?anio=" + periodo.anio + "&mes=" + periodo.mes : "")).then(r => { setD(r.data); setCfg(c => c || { activo: r.data.activo, premios: r.data.premios.length ? r.data.premios.map(p => ({ ...p })) : [{ desde: 1, hasta: 1, premio: "Kit de skincare de regalo", puntos: 0 }, { desde: 2, hasta: 2, premio: "20% OFF en su próxima compra", puntos: 0 }, { desde: 3, hasta: 3, premio: "Muestras de regalo", puntos: 0 }, { desde: 4, hasta: 10, premio: "", puntos: 200 }] }); }).catch(() => setError(true)); };
+  const cargar = () => { setError(false); API.get("/del-mes" + (periodo ? "?anio=" + periodo.anio + "&mes=" + periodo.mes : "")).then(r => {
+    // Un servidor sin actualizar devuelve otra cosa (sin ranking): se avisa en vez de romper la pantalla
+    if (!r.data || !Array.isArray(r.data.ranking)) { setError("El servidor todavía no tiene esta versión: falta que se actualice (Railway). Probá en unos minutos."); return; }
+    setD(r.data); setCfg(c => c || { activo: r.data.activo, premios: (r.data.premios || []).length ? r.data.premios.map(p => ({ ...p })) : [{ desde: 1, hasta: 1, premio: "Kit de skincare de regalo", puntos: 0 }, { desde: 2, hasta: 2, premio: "20% OFF en su próxima compra", puntos: 0 }, { desde: 3, hasta: 3, premio: "Muestras de regalo", puntos: 0 }, { desde: 4, hasta: 10, premio: "", puntos: 200 }] }); }).catch(e => setError(e.response?.data?.error || "No se pudo cargar. Probá de nuevo.")); };
   useEffect(() => { setD(null); cargar(); }, [periodo && periodo.anio, periodo && periodo.mes]);
   const mover = (delta) => { const f = new Date(d.anio, d.mes - 1 + delta, 1), hoy = new Date(); if (f > new Date(hoy.getFullYear(), hoy.getMonth(), 1)) return; setPeriodo({ anio: f.getFullYear(), mes: f.getMonth() + 1 }); };
   const setP = (i, cambio) => setCfg(c => ({ ...c, premios: c.premios.map((p, j) => j === i ? { ...p, ...cambio } : p) }));
@@ -18618,7 +18621,7 @@ function DelMes({ usuario, paletaActual }) {
   };
   const entregar = async (g, si) => { try { await API.post("/del-mes/entregado", { anio: d.anio, mes: d.mes, cliente_id: g.cliente_id, entregado: si }); cargar(); } catch (e) {} };
   const waGanadora = (g) => linkWhatsapp(g.telefono, "¡Hola " + String(g.nombre || "").split(" ")[0] + "! 🌻 ¡Felicitaciones! Quedaste en el puesto " + g.puesto + " de la competencia de " + MESES_DM[d.mes - 1] + " 🏆" + (g.premio ? " Te ganaste: " + g.premio + "." : "") + (g.puntos_extra ? " Ya te sumamos " + g.puntos_extra + " puntos." : "") + (g.premio ? " Pasá por el local a buscarlo 🎁" : ""));
-  if (error) return <div className="card"><div className="empty">No se pudo cargar. Probá de nuevo.</div></div>;
+  if (error) return <div className="card" style={{ textAlign: "left" }}><div className="ct">🏆 Clienta del mes</div><div style={{ fontSize: 13.5 }}>⚠️ {error}</div><button className="btn btn-g btn-sm" style={{ marginTop: 10 }} onClick={cargar}>Probar de nuevo</button></div>;
   if (!d || !cfg) return <div className="skel" style={{ height: 320 }} />;
   const medalla = ["🥇", "🥈", "🥉"];
   return (
@@ -18664,6 +18667,7 @@ function DelMes({ usuario, paletaActual }) {
               </tr>))}</tbody>
           </table>
         )}
+        {d.sin_clienta && d.sin_clienta.cant > 0 && <div className="cli-tip" style={{ fontSize: 12.5, marginTop: 10 }}>ℹ️ Cuentan todas las compras de {MESES_DM[d.mes - 1]} desde el día 1 (local y tienda online). Hay <b>{d.sin_clienta.cant} {d.sin_clienta.cant === 1 ? "venta" : "ventas"} sin clienta cargada</b> ({fmt(d.sin_clienta.total)}) que no suman a nadie: en la caja, elegí la clienta (por DNI o nombre) antes de cobrar.</div>}
         <div style={{ fontSize: 11.5, color: tp.textMuted, marginTop: 8 }}>Las clientas ven su puesto, sus puntos del mes y el podio con nombre e inicial. Nunca ven montos ni datos de otras.</div>
       </div>
       <div className="card">
