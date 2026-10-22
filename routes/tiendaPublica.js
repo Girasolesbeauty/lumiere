@@ -30,6 +30,11 @@ const demasiados = (ip) => {
   return lista.length > 10;
 };
 
+// Con la llave de "ver como clienta" no se puede comprar, canjear ni cambiar nada
+router.use((req, res, next) => {
+  if (req.method !== 'GET' && esVista(req)) return res.status(403).json({ error: 'Estás viendo la cuenta de una clienta desde Lumiere: acá no se pueden hacer compras ni cambios.' });
+  next();
+});
 router.use('/:slug', async (req, res, next) => {
   try {
     const neg = await tienda.negocioDeSlug(req.params.slug);
@@ -708,6 +713,12 @@ router.post('/:slug/pedidos/:codigo/ruleta', async (req, res) => {
 // sus puntos y premios. La llave (token) dice de que negocio es.
 // La cuenta de la tienda queda abierta un año y se renueva sola cada vez que la clienta entra (ver GET /cuenta)
 const firmar = (req, id) => jwt.sign({ id, tipo: 'cliente', neg: req.negTienda.id }, process.env.JWT_SECRET, { expiresIn: '365d' });
+// "Ver como clienta" (desde Lumiere): llave de 30 minutos marcada vista, que solo deja mirar
+function esVista(req) {
+  const t = String(req.headers.authorization || '').replace(/^Bearer /, '');
+  if (!t) return false;
+  try { return !!jwt.verify(t, process.env.JWT_SECRET).vista; } catch (e) { return false; }
+}
 function clienteDeToken(req) {
   const t = String(req.headers.authorization || '').replace(/^Bearer /, '');
   if (!t) return null;
@@ -886,7 +897,8 @@ router.get('/:slug/cuenta', conCuenta, async (req, res) => {
       return codigo ? { codigo, pct: cfgAmiga.pct, puntos: cfgAmiga.puntos, invitadas: st.n || 0, ganados: st.pts || 0 } : null;
     })() : null;
     // Misiones: primero (si cumplio alguna, acredita los puntos antes de leer sus datos)
-    const misiones = await misionesLib.misionesDeCliente(req.tienda, req.clienteId).catch(e => { console.error('[tienda] misiones:', e.message); return []; });
+    const vista = esVista(req);
+    const misiones = await misionesLib.misionesDeCliente(req.tienda, req.clienteId, vista).catch(e => { console.error('[tienda] misiones:', e.message); return []; });
     const dd = misiones.some(m => m.recien) ? await cuentas.datosDeCliente(req.clienteId) : d;
     const [logros, premios, canjes, pedidos] = await Promise.all([
       logrosLib.logrosDeCliente(req.clienteId, [d.nivel, nivelPorGasto(d.gastado, d.umbrales)].sort((x, y) => NIVELES.indexOf(y) - NIVELES.indexOf(x))[0], marca).catch(e => { console.error('[tienda] logros:', e.message); return []; }),
@@ -905,9 +917,9 @@ router.get('/:slug/cuenta', conCuenta, async (req, res) => {
     });
     // Cada vez que entra se renueva la llave (si ya tiene mas de un dia): mientras use la tienda, no se sale
     let tokenNuevo = null;
-    try { const t = jwt.decode(String(req.headers.authorization || '').replace(/^Bearer /, '')); if (t && t.iat && Date.now() / 1000 - t.iat > 86400) tokenNuevo = firmar(req, req.clienteId); } catch (e) {}
-    const regaloCumple = await tienda.regaloCumple(pool, req.tienda, req.clienteId).catch(e => { console.error('[tienda] cumple:', e.message); return null; });
-    res.json({ ...dd, regalo_cumple: regaloCumple, misiones, compras: (dd.compras || []).slice(0, 15), premios: premios.map(p => ({ ...p, descuento_pct: cuentas.descuentoDePremio(p) })), canjes: canjesInfo, pedidos, logros, amiga, falta_cumple: !((await pool.query('SELECT fecha_nacimiento FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).fecha_nacimiento, perfil_piel: ((await pool.query('SELECT perfil_piel FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).perfil_piel || null, token_nuevo: tokenNuevo });
+    try { const t = jwt.decode(String(req.headers.authorization || '').replace(/^Bearer /, '')); if (t && !t.vista && t.iat && Date.now() / 1000 - t.iat > 86400) tokenNuevo = firmar(req, req.clienteId); } catch (e) {}
+    const regaloCumple = await tienda.regaloCumple(pool, req.tienda, req.clienteId, vista).catch(e => { console.error('[tienda] cumple:', e.message); return null; });
+    res.json({ ...dd, vista: vista || undefined, regalo_cumple: regaloCumple, misiones, compras: (dd.compras || []).slice(0, 15), premios: premios.map(p => ({ ...p, descuento_pct: cuentas.descuentoDePremio(p) })), canjes: canjesInfo, pedidos, logros, amiga, falta_cumple: !((await pool.query('SELECT fecha_nacimiento FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).fecha_nacimiento, perfil_piel: ((await pool.query('SELECT perfil_piel FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).perfil_piel || null, token_nuevo: tokenNuevo });
   } catch (e) { console.error('[tienda] cuenta:', e.message); res.status(500).json({ error: 'No pudimos cargar tu cuenta' }); }
 });
 
