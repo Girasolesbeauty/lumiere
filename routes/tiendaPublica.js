@@ -449,7 +449,7 @@ router.post('/:slug/pedidos', async (req, res) => {
     else if (pago === 'giftcard') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'La gift card no alcanza: elegí cómo pagás el resto (' + '$' + Math.round(total).toLocaleString('es-AR') + ')' }); }
     const codigo = crypto.randomBytes(4).toString('hex').toUpperCase();
     const estado = pago === 'retiro' || pago === 'giftcard' ? 'confirmado' : 'pendiente_pago';
-    const horas = pago === 'mp' || pago === 'gocuotas' ? 2 : Math.min(168, Math.max(1, parseInt(c.horas_reserva) || 24));
+    const horas = pago === 'mp' || pago === 'gocuotas' ? tienda.horasPagoOnline(c) : Math.min(168, Math.max(1, parseInt(c.horas_reserva) || 24));
     // Con preventa, "paga al retirar" no vence hasta que llega (se renueva al marcar "Llegó la preventa")
     const conPreventa = lineas.some(l => l.preventa);
     pedido = (await client.query(`INSERT INTO tienda_pedidos (codigo, cliente_id, nombre, telefono, email, entrega, local_id, direccion, zona, costo_envio, pago, subtotal, total, nota, estado, vence_en, cupon, cupon_tipo, cupon_valor, descuento)
@@ -508,7 +508,8 @@ async function linkDePago(req, c, pedido, { nombre, email, telefono }, volverA, 
         external_reference: 'tienda-' + pedido.codigo,
         payer: { name: nombre, ...(email ? { email } : {}) },
         ...(volver ? { back_urls: { success: volver, pending: volver, failure: volver }, auto_return: 'approved' } : {}),
-        expires: true, expiration_date_to: new Date(Date.now() + 2 * 3600 * 1000).toISOString().replace('Z', '-00:00'),
+        // El link de pago dura lo mismo que el pedido
+        expires: true, expiration_date_to: new Date(pedido.vence_en ? new Date(pedido.vence_en).getTime() : Date.now() + tienda.horasPagoOnline(c) * 3600 * 1000).toISOString().replace('Z', '-00:00'),
       });
       await pool.query('UPDATE tienda_pedidos SET mp_link = $1 WHERE id = $2', [pref.init_point, pedido.id]);
       return pref.init_point;
@@ -581,7 +582,7 @@ router.post('/:slug/giftcards', async (req, res) => {
   try {
     const clienteId = clienteDeToken(req) || await clienteDe(pool, nombre, telefono, email);
     const codigo = crypto.randomBytes(4).toString('hex').toUpperCase();
-    const horas = pago === 'transferencia' ? Math.min(168, Math.max(1, parseInt(c.horas_reserva) || 24)) : 2;
+    const horas = pago === 'transferencia' ? Math.min(168, Math.max(1, parseInt(c.horas_reserva) || 24)) : tienda.horasPagoOnline(c);
     pedido = (await pool.query(`INSERT INTO tienda_pedidos (codigo, cliente_id, nombre, telefono, email, entrega, local_id, pago, subtotal, total, estado, stock_apartado, vence_en, tipo, gc_para, gc_para_tel, gc_mensaje)
       VALUES ($1, $2, $3, $4, $5, 'giftcard', $6, $7, $8, $8, 'pendiente_pago', FALSE, NOW() + ($9 || ' hours')::interval, 'giftcard', $10, $11, $12) RETURNING *`,
       [codigo, clienteId, nombre, telefono, email, localId, pago, monto, String(horas), para, paraTel, mensaje])).rows[0];
