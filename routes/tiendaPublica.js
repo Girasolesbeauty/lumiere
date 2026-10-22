@@ -606,6 +606,11 @@ router.post('/:slug/gocuotas/aviso/:codigo/:firma', express.urlencoded({ extende
     if (!p || p.pago !== 'gocuotas') return res.json({ ok: true });
     const estado = String(b.status || '').toLowerCase();
     const monto = Number(b.amount_in_cents);
+    // Rechazado por GoCuotas: queda anotado (la clienta puede pagar de otra forma si le escriben)
+    if (!p.pagado && ['denied', 'rejected', 'declined', 'cancelled', 'canceled', 'failed', 'expired'].includes(estado)) {
+      await pool.query(`UPDATE tienda_pedidos SET pago_rechazo = $1, pago_rechazo_en = NOW() WHERE id = $2 AND NOT pagado`, ['gc:' + estado, p.id]);
+      return res.json({ ok: true });
+    }
     if (estado !== 'approved' || p.pagado) return res.json({ ok: true });
     if (Number.isFinite(monto) && Math.abs(monto - Math.round(num(p.total) * 100)) > 1) { console.error('[gocuotas] monto distinto en', codigo, monto); return res.json({ ok: true }); }
     const ref = String(b.order_id || '').slice(0, 80) || null, cuotas = parseInt(b.number_of_installments) || null;

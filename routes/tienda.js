@@ -545,6 +545,17 @@ router.get('/pedidos/:id', async (req, res) => {
 
 // Cambiar estado: pago recibido (transferencia), preparado, o cancelar
 // Notas del local en un pedido (cualquiera que maneje pedidos). Borrar: quien la escribio o la dueña
+// "Ya le escribimos a la clienta" (o se deshace)
+router.post('/pedidos/:id/contactado', async (req, res) => {
+  try {
+    const u = req.usuario || {};
+    const por = u.nombre || (u.id ? ((await pool.query('SELECT nombre FROM usuarios WHERE id = $1', [u.id]).catch(() => ({ rows: [] }))).rows[0] || {}).nombre : null);
+    const si = !(req.body && req.body.contactado === false);
+    const r = await pool.query(`UPDATE tienda_pedidos SET contactado_en = ${si ? 'NOW()' : 'NULL'}, contactado_por = $1 WHERE id = $2 RETURNING contactado_en, contactado_por`, [si ? por || 'Local' : null, parseInt(req.params.id)]);
+    if (!r.rows.length) return res.status(404).json({ error: 'No se encontró el pedido' });
+    res.json(r.rows[0]);
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+});
 router.post('/pedidos/:id/notas', async (req, res) => {
   try {
     const texto = String((req.body && req.body.texto) || '').trim().slice(0, 300);
@@ -579,7 +590,16 @@ router.put('/pedidos/:id/estado', async (req, res) => {
     if (estado === 'cancelado') {
       await tienda.cancelar(p.id, String((req.body && req.body.motivo) || 'Cancelado desde Lumiere').slice(0, 200));
     } else if (estado === 'pagado') {
-      await pool.query(`UPDATE tienda_pedidos SET pagado = TRUE, pagado_en = COALESCE(pagado_en, NOW()), estado = CASE WHEN estado = 'pendiente_pago' THEN 'confirmado' ELSE estado END, vence_en = NULL, actualizado_en = NOW() WHERE id = $1`, [p.id]);
+      // Si pago con otro medio (ej: le rechazaron la tarjeta y transfirio), queda ese medio para la caja
+      const otro = ['transferencia', 'mp', 'gocuotas'].includes(req.body && req.body.pago) ? req.body.pago : null;
+      await pool.query(`UPDATE tienda_pedidos SET pagado = TRUE, pagado_en = COALESCE(pagado_en, NOW()), estado = CASE WHEN estado = 'pendiente_pago' THEN 'confirmado' ELSE estado END, vence_en = NULL,
+        pago = COALESCE($2, pago), pago_rechazo = CASE WHEN $2::text IS NULL THEN pago_rechazo ELSE NULL END, actualizado_en = NOW() WHERE id = $1`, [p.id, otro]);
+    } else if (estado === 'paga_retiro') {
+      // Le rechazaron el pago online y queda en pagar en el local al retirarlo (reservado el tiempo de siempre)
+      if (p.pagado) return res.status(400).json({ error: 'Ese pedido ya está pagado' });
+      if (p.entrega !== 'retiro') return res.status(400).json({ error: 'Es con envío: marcá el pago cuando lo cobres' });
+      const horas = Math.min(168, Math.max(1, parseInt(req.tienda && req.tienda.horas_reserva) || parseInt((await pool.query('SELECT horas_reserva FROM tienda_config WHERE id = 1')).rows[0].horas_reserva) || 24));
+      await pool.query(`UPDATE tienda_pedidos SET pago = 'retiro', pago_rechazo = NULL, estado = 'confirmado', vence_en = NOW() + ($2 || ' hours')::interval, actualizado_en = NOW() WHERE id = $1`, [p.id, String(horas)]);
       // Gift card: con el pago se emite en Lumiere y el pedido queda entregado
       if (p.tipo === 'giftcard') await tienda.emitirGiftCard(p.id);
     } else if (p.tipo === 'giftcard') {
