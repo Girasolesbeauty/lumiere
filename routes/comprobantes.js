@@ -7,7 +7,8 @@ const { porNegocio } = require('../lib/contexto');
 // Las fechas son dias argentinos (las ventas se guardan sin zona horaria).
 const AR = (col) => `(((${col}) AT TIME ZONE current_setting('TimeZone')) AT TIME ZONE 'America/Argentina/Buenos_Aires')`;
 // Mismo criterio que el aviso de "facturas pendientes" del POS
-const PENDIENTE = `(v.canal = 'presencial' AND COALESCE(v.es_preventa, FALSE) = FALSE AND COALESCE(v.cae, '') = ''
+// (las preventas entran cuando se entregan: ahi se facturan)
+const PENDIENTE = `(v.canal = 'presencial' AND (COALESCE(v.es_preventa, FALSE) = FALSE OR v.estado_pago = 'confirmada') AND COALESCE(v.cae, '') = ''
   AND COALESCE(v.monto_gift_card, 0) < v.total AND COALESCE(v.estado_facturacion, '') <> 'no_aplica')`;
 
 const hayVentaPagos = porNegocio(null);
@@ -22,6 +23,7 @@ const esFecha = (f) => /^\d{4}-\d{2}-\d{2}$/.test(String(f || ''));
 
 router.get('/', async (req, res) => {
   try {
+    await require('../lib/preventasFactura').asegurar();
     const { desde, hasta, local_id, q, tipo, estado } = req.query;
     const texto = String(q || '').trim().slice(0, 60);
     // Con texto de busqueda se busca en todas las fechas (para encontrar una factura vieja por su numero)
@@ -30,7 +32,9 @@ router.get('/', async (req, res) => {
     const conPagos = await tieneVentaPagos();
     const conNC = !!(await pool.query(`SELECT to_regclass('notas_credito') AS t`)).rows[0].t;
     const params = todasLasFechas ? [] : [desde, hasta];
-    let where = `${todasLasFechas ? 'TRUE' : `${AR('v.creado_en')}::date BETWEEN $1::date AND $2::date`}
+    // Fecha del comprobante: la de la venta; en una preventa, el dia que se entrego (ahi se factura)
+    const FECHA = `COALESCE(CASE WHEN v.es_preventa THEN v.entregado_en END, v.creado_en)`;
+    let where = `${todasLasFechas ? 'TRUE' : `${AR(FECHA)}::date BETWEEN $1::date AND $2::date`}
       AND COALESCE(v.canal, '') <> 'prueba'
       AND (COALESCE(v.cae, '') <> '' OR ${PENDIENTE})`;
     const localNum = parseInt(local_id);
@@ -60,7 +64,7 @@ router.get('/', async (req, res) => {
         v.ultimo_error_facturacion, v.intentos_facturacion,
         ${PENDIENTE} AS pendiente,
         c.nombre AS cliente_nombre, c.cuit_dni, c.telefono AS cliente_telefono, u.nombre AS vendedora_nombre,
-        v.creado_en, to_char(${AR('v.creado_en')}, 'YYYY-MM-DD') AS fecha, to_char(${AR('v.creado_en')}, 'HH24:MI') AS hora,
+        v.creado_en, to_char(${AR(FECHA)}, 'YYYY-MM-DD') AS fecha, to_char(${AR(FECHA)}, 'HH24:MI') AS hora,
         COALESCE((SELECT json_agg(json_build_object('nombre', COALESCE(p.nombre, 'Ajuste'), 'marca', p.marca, 'cantidad', vi.cantidad,
             'precio_unitario', vi.precio_unitario) ORDER BY vi.id)
           FROM venta_items vi LEFT JOIN productos p ON p.id = vi.producto_id WHERE vi.venta_id = v.id), '[]') AS items
@@ -74,7 +78,7 @@ router.get('/', async (req, res) => {
       LEFT JOIN clientes c ON c.id = v.cliente_id
       LEFT JOIN usuarios u ON u.id = v.usuario_id
       WHERE ${where}
-      ORDER BY v.creado_en DESC
+      ORDER BY ${FECHA} DESC
       LIMIT ${todasLasFechas ? 300 : 2000}`, params);
 
     let filas = r.rows;

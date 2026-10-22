@@ -534,6 +534,7 @@ const update = async (req, res) => {
 // Descuenta del STOCK REAL (ya llego al local) y libera la reserva correspondiente.
 // No crea una venta nueva: la preventa pasa a ser la venta confirmada.
 const confirmarEntrega = async (req, res) => {
+  await require('../lib/preventasFactura').asegurar(); // columna entregado_en
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -618,12 +619,16 @@ const confirmarEntrega = async (req, res) => {
     const todos = [...new Set([...anteriores, ...delSaldo].filter(Boolean))];
     if (todos.length) medio_pago_nombre = todos.join(' + ');
 
+    // Al entregarse, la preventa se factura en ARCA por el total (seña + saldo), como una venta normal
+    // (la pantalla la emite enseguida; si ARCA falla, queda en "pendientes de facturar" para reintentar)
     await client.query(
       `UPDATE ventas SET
         estado_pago = 'confirmada',
         medio_pago_id = COALESCE($1, medio_pago_id),
         medio_pago = COALESCE($2, medio_pago),
-        total = $3
+        total = $3,
+        entregado_en = NOW(),
+        estado_facturacion = CASE WHEN COALESCE(cae, '') = '' AND $3 - COALESCE(monto_gift_card, 0) > 0 THEN 'pendiente' ELSE estado_facturacion END
        WHERE id = $4`,
       [medio_pago_id || null, medio_pago_nombre || null, totalFinal, id]
     );

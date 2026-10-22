@@ -111,7 +111,9 @@ const calcularCierre = async (localId, fecha) => {
   const web = await esVentaWeb('v');
   // Con tienda: que esten sus columnas (pagado_en) antes de consultarlas
   if (web !== 'FALSE') await require('../lib/tienda').asegurar();
-  const [ventasR, mediosR, movsR, gcR, webR, cobradosR, extrasR] = await Promise.all([
+  const prevFact = require('../lib/preventasFactura');
+  await prevFact.asegurar(); // columna entregado_en
+  const [ventasR, mediosR, movsR, gcR, webR, cobradosR, extrasR, prevR] = await Promise.all([
     pool.query(`
       SELECT v.id, v.numero_factura, v.total, COALESCE(v.monto_gift_card, 0) AS monto_gift_card,
         v.medio_pago, v.medio_pago_id, COALESCE(v.anulada, FALSE) AS anulada, v.motivo_anulacion,
@@ -165,6 +167,22 @@ const calcularCierre = async (localId, fecha) => {
       FROM tienda_pedidos tp, jsonb_array_elements(CASE WHEN jsonb_typeof(to_jsonb(tp.*) -> 'pagos_extra') = 'array' THEN to_jsonb(tp.*) -> 'pagos_extra' ELSE '[]'::jsonb END) e
       WHERE tp.local_id = $1 AND e ->> 'tipo' IN ('cobro', 'devolucion')
         AND (((e ->> 'fecha')::timestamptz) AT TIME ZONE 'America/Argentina/Buenos_Aires')::date = $2::date`, [localId, fecha]).catch(() => ({ rows: [] })),
+    // Señas y preventas (desde el 22/10/2026): la seña suma el dia que se cobro y el saldo el dia que se entrego,
+    // con sus medios de pago. El efectivo ya esta en los ingresos de la caja ("Seña preventa", "Saldo entrega preventa")
+    pool.query(`
+      SELECT v.id, v.numero_factura, v.total, COALESCE(v.monto_sena, 0) AS sena, COALESCE(v.monto_gift_card, 0) AS gc,
+        v.sena_medio_pago_id, v.sena_medio_pago_nombre, v.medio_pago, v.nombre_preventa, v.cae, c.nombre AS cliente_nombre,
+        (${DIA_AR('v.creado_en')} = $2::date AND COALESCE(v.monto_sena, 0) > 0) AS sena_hoy,
+        (v.estado_pago = 'confirmada' AND v.entregado_en IS NOT NULL AND ${DIA_AR('v.entregado_en')} = $2::date) AS entrega_hoy,
+        ${HORA_AR('v.creado_en')} AS hora_sena, ${HORA_AR('v.entregado_en')} AS hora_entrega,
+        ${conPagos ? `COALESCE((SELECT json_agg(json_build_object('medio_pago_id', vp.medio_pago_id, 'nombre', vp.medio_pago_nombre, 'importe', vp.importe, 'etapa', vp.etapa))
+          FROM venta_pagos vp WHERE vp.venta_id = v.id), '[]')` : `'[]'::json`} AS pagos
+      FROM ventas v LEFT JOIN clientes c ON c.id = v.cliente_id
+      WHERE v.local_id = $1 AND v.es_preventa = TRUE AND COALESCE(v.anulada, FALSE) = FALSE AND COALESCE(v.estado_pago, '') <> 'cancelada'
+        AND $2::date >= DATE '${prevFact.DESDE}'
+        AND ((${DIA_AR('v.creado_en')} = $2::date AND COALESCE(v.monto_sena, 0) > 0)
+          OR (v.estado_pago = 'confirmada' AND v.entregado_en IS NOT NULL AND ${DIA_AR('v.entregado_en')} = $2::date))
+      ORDER BY v.creado_en`, [localId, fecha]).catch((e) => { console.error('[cierre] preventas:', e.message); return { rows: [] }; }),
   ]);
 
   const mediosPorId = {};
@@ -226,6 +244,33 @@ const calcularCierre = async (localId, fecha) => {
     if (ef) ventasEfectivo += imp;
   }
 
+  // Señas y saldos de preventas cobrados este dia (no se suman al efectivo: ya estan en los ingresos de la caja)
+  const preventas = [];
+  let cobradoPreventas = 0;
+  for (const v of prevR.rows) {
+    const pagos = Array.isArray(v.pagos) ? v.pagos.filter(p => num(p.importe) > 0) : [];
+    const agregar = (tipo, importe, medios, hora) => {
+      if (importe <= 0.5) return;
+      const lista = medios.length ? medios : [{ nombre: 'Sin especificar', importe }];
+      lista.forEach(m => sumar(m.nombre, num(m.importe), esEfectivo(m.medio_pago_id, m.nombre), false));
+      preventas.push({ id: v.id, numero_factura: v.numero_factura, cliente_nombre: v.cliente_nombre || v.nombre_preventa, tipo, importe, hora, facturada: !!v.cae,
+        medios: lista.map(m => ({ nombre: m.nombre, importe: num(m.importe) })) });
+      cobradoPreventas += importe; totalVentas += importe;
+    };
+    if (v.sena_hoy) {
+      const deSena = pagos.filter(p => p.etapa === 'sena');
+      agregar(num(v.sena) >= num(v.total) - num(v.gc) - 0.5 ? 'Pago preventa' : 'Seña', num(v.sena),
+        deSena.length ? deSena : [{ medio_pago_id: v.sena_medio_pago_id, nombre: v.sena_medio_pago_nombre, importe: num(v.sena) }], v.hora_sena);
+    }
+    if (v.entrega_hoy) {
+      const saldo = Math.round((num(v.total) - num(v.sena) - num(v.gc)) * 100) / 100;
+      const deSaldo = pagos.filter(p => p.etapa === 'saldo');
+      const ultimo = String(v.medio_pago || '').split(' + ').pop() || null;
+      agregar('Saldo al entregar', saldo, deSaldo.length ? deSaldo : [{ medio_pago_id: null, nombre: ultimo, importe: saldo }], v.hora_entrega);
+      cantidad++;
+    }
+  }
+
   let totalGiftCards = 0, gcEfectivo = 0;
   gcR.rows.forEach(g => {
     totalGiftCards += num(g.importe);
@@ -247,6 +292,7 @@ const calcularCierre = async (localId, fecha) => {
     tienda_sin_caja: webR.rows.map(x => ({ ...x, total: num(x.total) })),
     tienda_cobrados: cobradosR.rows.map(x => ({ ...x, total: num(x.total) })),
     tienda_diferencias: extrasR.rows.map(x => ({ ...x, importe: num(x.importe) })),
+    preventas,
     movimientos: movsR.rows,
     resumen: {
       total_dia: totalVentas + totalGiftCards,
@@ -261,6 +307,7 @@ const calcularCierre = async (localId, fecha) => {
       efectivo_del_dia: efectivoDelDia,
       pendientes_arca: pendientesArca,
       cobrado_online: cobradoOnline,
+      cobrado_preventas: cobradoPreventas,
     },
   };
 };
