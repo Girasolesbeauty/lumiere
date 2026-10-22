@@ -24511,6 +24511,29 @@ html:has(.tw){overflow-x:hidden}
 .tw .tw-muestras-ops button{border:1.5px solid #e8c48a;background:#fff;color:#5a3a00 !important;border-radius:999px;padding:7px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
 .tw .tw-muestras-ops button{display:inline-flex;align-items:center;gap:6px}.tw .tw-muestras-ops img{width:22px;height:22px;border-radius:50%;object-fit:cover;margin-left:-6px}
 .tw .tw-muestras-ops button.on{background:#d98b1f;border-color:#d98b1f;color:#fff !important}
+.tw-reponer-card{background:#fff;border:1px solid #f0e2d0;border-radius:16px;padding:12px 14px;margin-bottom:12px;box-shadow:0 4px 14px rgba(180,120,60,.08)}
+.tw-reponer-card>b{display:block;font-size:14px;margin-bottom:6px}
+.tw-reponer-it{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid #f5ede4}
+.tw-reponer-it img,.tw-reponer-it .tw-mini{width:40px;height:40px;border-radius:10px;object-fit:cover;flex-shrink:0}
+.tw-reponer-n{display:block;font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tw-reponer-it small{display:block;font-size:11.5px;color:#888}
+.tw-reponer-it .tw-btn2{padding:7px 12px;font-size:11px;white-space:nowrap}
+button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color:inherit}
+@media(max-width:760px){button.tw-reponer-chip{width:calc(100% - 28px)}}
+.tw-rutina-card{background:linear-gradient(160deg,#fbf7ff,#fff);border:1px solid #ebe1f6;border-radius:16px;padding:12px 14px;margin-bottom:12px}
+.tw-rutina-card>div>b{font-size:14px}
+.tw-rutina-tabs{display:flex;background:#f1eaf9;border-radius:999px;padding:3px}
+.tw .tw-rutina-tabs button{border:0;background:transparent;border-radius:999px;padding:5px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;color:#5b4a75 !important}
+.tw .tw-rutina-tabs button.on{background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.1);color:#2a1a45 !important}
+.tw-rutina-pasos{list-style:none;margin:10px 0 6px;padding:0}
+.tw-rutina-pasos li{display:flex;gap:10px;padding:7px 0;position:relative}
+.tw-rutina-pasos li:not(:last-child)::after{content:"";position:absolute;left:12px;top:32px;bottom:-4px;width:2px;background:#e6dbf3}
+.tw-rutina-num{width:26px;height:26px;border-radius:50%;background:#7b5bb5;color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;z-index:1}
+.tw-rutina-pasos li.falta .tw-rutina-num{background:#fff;color:#a08cc4;border:2px dashed #c9b8e4}
+.tw-rutina-t{font-size:13px;font-weight:800}
+.tw .tw-rutina-prod{display:block;border:0;background:transparent;padding:1px 0;font:inherit;font-size:13px;color:#333 !important;text-align:left;cursor:pointer;text-decoration:underline;text-decoration-color:#d9cdea;text-underline-offset:3px}
+.tw .tw-rutina-prod:disabled{text-decoration:none;cursor:default}
+.tw .tw-rutina-falta{border:0;background:transparent;padding:1px 0;font:inherit;font-size:12.5px;color:#7b5bb5 !important;font-weight:700;cursor:pointer}
+.tw-rutina-pasos small{display:block;font-size:11px;color:#8a7aa3;margin-top:1px}
 .tw-recompra-card{display:flex;gap:12px;align-items:center;background:linear-gradient(135deg,#fff6ec,#fdeef4);border:1px solid #f3e0d6;border-radius:16px;padding:12px 14px;margin-bottom:12px;animation:twSegPaso .5s ease both}
 .tw-recompra-card b{display:block;font-size:14px}.tw-recompra-card small{display:block;font-size:12px;color:#6b5a55;margin-top:2px;line-height:1.35}
 .tw-recompra-btn{flex-basis:100%;margin-top:8px;font:inherit;font-size:12px;font-weight:800;letter-spacing:.04em;padding:8px 12px;border-radius:999px;border:1px solid #111;background:#fff;color:#111;cursor:pointer}
@@ -25694,6 +25717,21 @@ function SegmentarTienda({ lista, temaPal, avisar, onCerrar, onListo }) {
 // "limpiador" encuentra limpiadores, limpiadoras, gel de limpieza, cleanser, etc.
 const twRaiz = (w) => { let r = w.replace(/(es|s)$/, ""); if (r.length > 5) r = r.replace(/(dor|dora|nte|cion)$/, ""); else if (r.length > 4) r = r.replace(/[ao]$/, ""); return r; };
 const TW_PALABRAS_VACIAS = new Set(["de", "la", "el", "los", "las", "para", "con", "y", "en", "un", "una", "del", "al", "por", "piel", "pieles", "tipo"]);
+// Cuanto dura cada tipo de producto, aproximado (mismo criterio que "Para reponer" en Lumiere: controllers/postventaController.js)
+const TW_DURACIONES = [
+  [/protector solar|proteccion solar|\bfps\b|\bspf\b|sunscreen/, 45, "protector solar"], [/mascarilla|sheet ?mask|\bmask\b|parches?/, 45, "mascarilla"],
+  [/contorno de ojos|eye cream|ojeras/, 90, "contorno de ojos"], [/exfolia|peeling|scrub/, 90, "exfoliante"], [/serum|ampolla|booster|concentrado/, 60, "sérum"],
+  [/tonico|toner|esencia|essence|bruma/, 75, "tónico"], [/limpia|cleanser|espuma|jabon|desmaquill|micelar|balsamo limpiador/, 60, "limpiador"],
+  [/hidratante|crema|moistur|gel crema|emulsion/, 60, "crema"], [/shampoo|acondicionador|mascara capilar|capilar/, 45, "producto capilar"],
+  [/perfume|fragancia|eau de|colonia|body mist|splash/, 120, "perfume"], [/labial|lip|base de maquillaje|corrector|mascara de pesta|rimel|delineador|polvo|rubor/, 120, "maquillaje"],
+];
+const twDuracion = (nombre, categoria) => { const t = twNorm([nombre, categoria].join(" ")); const d = TW_DURACIONES.find(([r]) => r.test(t)); return d ? { dias: d[1], tipo: d[2] } : null; };
+// Rutina de cuidado facial: pasos de mañana y de noche (tipo de producto, titulo, frecuencia)
+const TW_RUTINA_DIA = [["limpiador", "🫧 Limpieza"], ["tonico", "💧 Tónico"], ["serum", "✨ Sérum"], ["ojos", "👁️ Contorno de ojos"], ["hidratante", "🧴 Hidratante"], ["solar", "☀️ Protector solar", "Siempre último, todos los días (aunque esté nublado)"]];
+const TW_RUTINA_NOCHE = [["desmaquillante", "🌙 Desmaquillar"], ["limpiador", "🫧 Limpieza"], ["exfoliante", "🍃 Exfoliante", "2 o 3 veces por semana, no todos los días"], ["tonico", "💧 Tónico"], ["serum", "✨ Sérum"], ["ojos", "👁️ Contorno de ojos"], ["hidratante", "🧴 Hidratante"], ["mascarilla", "🎭 Mascarilla", "1 o 2 veces por semana, en lugar de la crema o antes"]];
+// Sérums de noche (retinoides y ácidos) y de mañana (vitamina C)
+const twMomentoSerum = (e) => { const i = e.ingrediente || []; if (i.some(x => ["retinol", "retinal", "glicolico", "aha", "salicilico"].includes(x))) return "noche"; if (i.includes("vitaminac")) return "dia"; return null; };
+
 // Errores de tipeo: distancia entre dos palabras (letras cambiadas, de mas o de menos), cortando apenas pasa el maximo
 function twDist(a, b, max) {
   if (Math.abs(a.length - b.length) > max) return max + 1;
@@ -26996,6 +27034,25 @@ function TiendaPublica({ slug }) {
   if (!tienda) return <div className="tw" style={{ padding: 20 }}><style>{CSS_TIENDA}</style><div className="tw-skel" style={{ height: 60, marginBottom: 20 }} /><div className="tw-skel" style={{ height: 380 }} /></div>;
   const color = tienda.color || "#c9a84c";
   const lista0 = productos || [];
+  // Con lo que compro la clienta (en el local o aca): lo que se le esta por terminar y su rutina
+  const compradosCuenta = (() => {
+    if (!logueada || !miCuenta) return [];
+    const vistos = new Set(), out = [];
+    (miCuenta.compras || []).forEach(c => (c.items || []).forEach(i => {
+      if (!i.producto_id || vistos.has(i.producto_id)) return; // las compras vienen de la mas nueva a la mas vieja
+      vistos.add(i.producto_id);
+      out.push({ ...i, p: lista0.find(x => x.id === i.producto_id) || null, dias: Math.floor((Date.now() - new Date(c.creado_en).getTime()) / 864e5) });
+    }));
+    return out;
+  })();
+  const porReponer = compradosCuenta.map(i => { const d = twDuracion(i.nombre, i.p && i.p.categoria); return d && i.dias >= d.dias - 7 && i.dias <= d.dias + 30 ? { ...i, dur: d.dias, tipo: d.tipo } : null; }).filter(Boolean);
+  const rutinaCuenta = (() => {
+    const conTipo = compradosCuenta.map(i => ({ ...i, e: i.p ? (i.p._et || twEtiquetas(i.p)) : twEtiquetasAuto({ nombre: i.nombre, categoria: "", descripcion: "" }) }));
+    const paso = (k, momento) => conTipo.filter(i => (i.e.tipo || []).includes(k) && (k !== "serum" || !twMomentoSerum(i.e) || twMomentoSerum(i.e) === momento));
+    const armar = (pasos, momento) => pasos.map(([k, t, frec]) => ({ k, t, frec, prods: paso(k, momento) }));
+    const dia = armar(TW_RUTINA_DIA, "dia"), noche = armar(TW_RUTINA_NOCHE, "noche");
+    return [...dia, ...noche].some(x => x.prods.length) ? { dia, noche } : null;
+  })();
   const foto = (p) => p.foto ? base + "/foto/" + p.id + (p.foto_v ? "?v=" + p.foto_v : "") : null;
   // Lo que se puede vender: el maximo entre los locales posibles para esta compra
   const ciudades = tienda.ciudades || [];
@@ -27226,6 +27283,9 @@ function TiendaPublica({ slug }) {
           </button>
         );
       })()}
+      {!codigoUrl && porReponer.length > 0 && !(miCuenta.pedidos || []).some(x => x.tipo !== "giftcard" && !["entregado", "cancelado"].includes(x.estado)) && (
+        <button className="tw-pedido-chip tw-reponer-chip" onClick={() => setPaso("cuenta")}><span className="tw-pedido-chip-ic" aria-hidden="true">🔁</span><span style={{ flex: 1, textAlign: "left" }}>{porReponer.length === 1 ? <>Tu {porReponer[0].tipo} se está por terminar: <b>¿lo reponés?</b></> : <>Se te están por terminar <b>{porReponer.length} productos</b></>}</span><span aria-hidden="true">›</span></button>
+      )}
       {!codigoUrl && logueada && miCuenta && (() => {
         // Pedido en curso: a un toque de ver cómo va
         const pd = (miCuenta.pedidos || []).find(x => x.tipo !== "giftcard" && !["entregado", "cancelado"].includes(x.estado));
@@ -27550,7 +27610,48 @@ function TiendaPublica({ slug }) {
             <TwSeguimiento estado={pd.estado} entrega={pd.entrega} compacto />
           </a>
         ))}
-        {(() => {
+        {porReponer.length > 0 && (
+          <div className="tw-reponer-card">
+            <b>🔁 Se te está por terminar</b>
+            {porReponer.slice(0, 4).map(i => { const hay = i.p && !agotado(i.p); return (
+              <div key={i.producto_id} className="tw-reponer-it">
+                {i.p && i.p.foto ? <img src={foto(i.p)} alt="" /> : <span className="tw-mini" />}
+                <span style={{ flex: 1, minWidth: 0 }}><span className="tw-reponer-n">{i.nombre}</span><small>Lo compraste hace {i.dias} días · {["crema", "mascarilla"].includes(i.tipo) ? "una" : "un"} {i.tipo} dura ~{Math.round(i.dur / 30) >= 2 ? Math.round(i.dur / 30) + " meses" : i.dur + " días"}</small></span>
+                {hay ? <button className="tw-btn2" onClick={() => recomprar([i])}>Reponer</button> : i.p ? <button className="tw-btn2" onClick={() => { setPaso(null); abrir(i.p); }}>🔔 Avisame</button> : null}
+              </div>); })}
+            {porReponer.filter(i => i.p && !agotado(i.p)).length > 1 && <button className="tw-btn full" style={{ marginTop: 8, padding: "10px", fontSize: 12 }} onClick={() => recomprar(porReponer.filter(i => i.p && !agotado(i.p)))}>Reponer todo</button>}
+          </div>
+        )}
+        {rutinaCuenta && (() => {
+          const momento = formCuenta.rutinaMomento === "noche" ? "noche" : "dia";
+          const pasos = rutinaCuenta[momento].filter(x => x.prods.length || ["limpiador", "hidratante", "solar"].includes(x.k));
+          return (
+            <div className="tw-rutina-card">
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <b style={{ flex: 1 }}>🧴 Tu rutina</b>
+                <div className="tw-rutina-tabs" role="tablist">
+                  <button role="tab" aria-selected={momento === "dia"} className={momento === "dia" ? "on" : ""} onClick={() => setFormCuenta(x => ({ ...x, rutinaMomento: "dia" }))}>☀️ Mañana</button>
+                  <button role="tab" aria-selected={momento === "noche"} className={momento === "noche" ? "on" : ""} onClick={() => setFormCuenta(x => ({ ...x, rutinaMomento: "noche" }))}>🌙 Noche</button>
+                </div>
+              </div>
+              <ol className="tw-rutina-pasos">
+                {pasos.map((x, n) => (
+                  <li key={x.k} className={x.prods.length ? "" : "falta"}>
+                    <span className="tw-rutina-num">{n + 1}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="tw-rutina-t">{x.t}</div>
+                      {x.prods.length ? x.prods.map(i => <button key={i.producto_id} className="tw-rutina-prod" disabled={!i.p} onClick={() => { if (i.p) { setPaso(null); abrir(i.p); } }}>{i.nombre}</button>)
+                        : <button className="tw-rutina-falta" onClick={() => { setPaso(null); irCat("*", { tipo: x.k }); }}>Te falta este paso · ver opciones ›</button>}
+                      {x.frec && <small>{x.frec}</small>}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+              <small style={{ color: "#888" }}>Armada con lo que compraste. Se aplica en este orden: de lo más liviano a lo más denso.</small>
+            </div>
+          );
+        })()}
+        {porReponer.length === 0 && (() => {
           // Ultima compra (en el local o en la tienda): a un toque de volver a pedirla
           const u = (miCuenta.compras || []).find(c => (c.items || []).some(i => i.producto_id));
           if (!u) return null;
