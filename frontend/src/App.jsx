@@ -24511,6 +24511,10 @@ html:has(.tw){overflow-x:hidden}
 .tw .tw-muestras-ops button{border:1.5px solid #e8c48a;background:#fff;color:#5a3a00 !important;border-radius:999px;padding:7px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
 .tw .tw-muestras-ops button{display:inline-flex;align-items:center;gap:6px}.tw .tw-muestras-ops img{width:22px;height:22px;border-radius:50%;object-fit:cover;margin-left:-6px}
 .tw .tw-muestras-ops button.on{background:#d98b1f;border-color:#d98b1f;color:#fff !important}
+.tw-cumple-regalo{text-align:center;background:linear-gradient(140deg,#fff0f6,#fff7e6 60%,#f3edff);border:1.5px solid #f6c9dc;border-radius:18px;padding:16px 14px;margin-bottom:12px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.tw-cumple-regalo>b{font-size:17px}.tw-cumple-regalo>span{font-size:13.5px;color:#5a4a50}.tw-cumple-regalo small{font-size:11.5px;color:#8a7a80}
+.tw-cumple-regalo.usado{font-size:13px;color:#6b5a60;padding:12px}
+button.tw-cumple-chip{background:linear-gradient(90deg,#ffe8f2,#fff4dc)}
 .tw-reponer-card{background:#fff;border:1px solid #f0e2d0;border-radius:16px;padding:12px 14px;margin-bottom:12px;box-shadow:0 4px 14px rgba(180,120,60,.08)}
 .tw-reponer-card>b{display:block;font-size:14px;margin-bottom:6px}
 .tw-reponer-it{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid #f5ede4}
@@ -27018,6 +27022,15 @@ function TiendaPublica({ slug }) {
   // Muestra gratis elegida en el carrito (en compras desde el monto que pone la tienda)
   const [muestra, setMuestra] = useState(() => { try { return localStorage.getItem("tienda_muestra_" + slug) || ""; } catch (e) { return ""; } });
   useEffect(() => { try { localStorage.setItem("tienda_muestra_" + slug, muestra); } catch (e) {} }, [muestra]);
+  // Regalo de cumple: confeti la primera vez que entra cada dia de su semana de cumple
+  const codCumple = miCuenta && miCuenta.regalo_cumple && !miCuenta.regalo_cumple.usado ? miCuenta.regalo_cumple.codigo : null;
+  useEffect(() => {
+    if (!codCumple) return;
+    const k = "tw_cumple_" + slug + "_" + codCumple + "_" + new Date().toDateString();
+    try { if (localStorage.getItem(k)) return; localStorage.setItem(k, "1"); } catch (e) {}
+    const t = setTimeout(() => { twConfeti(110); twSonar.brillo(); }, 900);
+    return () => clearTimeout(t);
+  }, [codCumple]);
   useEffect(() => { try { localStorage.setItem("tienda_comparar_" + slug, JSON.stringify(comparar)); } catch (e) {} }, [comparar]);
   const gratisAntes = useRef(null);
   const subtotalEnvio = carrito.reduce((t, i) => t + i.precio * i.cantidad, 0), desdeEnvio = tienda && tienda.envio && tienda.envio.gratis_desde;
@@ -27283,6 +27296,9 @@ function TiendaPublica({ slug }) {
           </button>
         );
       })()}
+      {!codigoUrl && codCumple && (() => { const r = miCuenta.regalo_cumple; return (
+        <button className="tw-pedido-chip tw-reponer-chip tw-cumple-chip" onClick={() => setPaso("cuenta")}><span className="tw-pedido-chip-ic" aria-hidden="true">🎂</span><span style={{ flex: 1, textAlign: "left" }}>{r.hoy ? "¡Feliz cumple! " : ""}Tenés <b>{r.tipo === "%" ? r.valor + "% OFF" : fmtTienda(r.valor) + " de regalo"}</b> por tu cumple, hasta el {r.vence.slice(8, 10)}/{r.vence.slice(5, 7)}</span><span aria-hidden="true">›</span></button>
+      ); })()}
       {!codigoUrl && porReponer.length > 0 && !(miCuenta.pedidos || []).some(x => x.tipo !== "giftcard" && !["entregado", "cancelado"].includes(x.estado)) && (
         <button className="tw-pedido-chip tw-reponer-chip" onClick={() => setPaso("cuenta")}><span className="tw-pedido-chip-ic" aria-hidden="true">🔁</span><span style={{ flex: 1, textAlign: "left" }}>{porReponer.length === 1 ? <>Tu {porReponer[0].tipo} se está por terminar: <b>¿lo reponés?</b></> : <>Se te están por terminar <b>{porReponer.length} productos</b></>}</span><span aria-hidden="true">›</span></button>
       )}
@@ -27610,6 +27626,16 @@ function TiendaPublica({ slug }) {
             <TwSeguimiento estado={pd.estado} entrega={pd.entrega} compacto />
           </a>
         ))}
+        {miCuenta.regalo_cumple && (() => { const r = miCuenta.regalo_cumple; return r.usado ? <div className="tw-cumple-regalo usado">🎂 Ya usaste tu regalo de cumple. ¡Gracias por festejarlo con nosotras! 💝</div> : (
+          <div className="tw-cumple-regalo">
+            <div style={{ fontSize: 26 }} aria-hidden="true">🎂🎁</div>
+            <b>{r.hoy ? "¡Feliz cumple, " + String(miCuenta.nombre || "").split(" ")[0] + "!" : "¡Se viene tu cumple!"}</b>
+            <span>Te regalamos <b>{r.tipo === "%" ? r.valor + "% OFF" : fmtTienda(r.valor)}</b>{r.minimo ? " en compras desde " + fmtTienda(r.minimo) : ""}. Vale hasta el {r.vence.slice(8, 10)}/{r.vence.slice(5, 7)}.</span>
+            <div className="tw-cupon-cod">{r.codigo}</div>
+            <button className="tw-btn" style={{ padding: "10px 18px", fontSize: 12 }} onClick={() => { setCuponIn(r.codigo); setPaso(carrito.length ? "carrito" : null); }}>Usar ahora</button>
+            <small>También lo podés usar en el local: decí tu DNI en la caja.</small>
+          </div>
+        ); })()}
         {porReponer.length > 0 && (
           <div className="tw-reponer-card">
             <b>🔁 Se te está por terminar</b>
@@ -28897,6 +28923,37 @@ function CajaSeccion({ it, children, temaPal, extra }) {
 }
 
 // Link para la bio de Instagram: por local, WhatsApp, horarios y ubicacion; texto de bienvenida y botones extra
+// Regalo de cumpleaños: cada clienta con cuenta ve su cupon personal en la tienda durante su semana de cumple
+function RegaloCumple({ cfg, temaPal, avisar, onGuardado, it }) {
+  const tp = temaPal || PALETA_CLARA;
+  const ini = cfg.cumple || {};
+  const [k, setK] = useState(() => ({ activo: !!ini.activo, tipo: ini.tipo || "%", valor: ini.valor ? String(ini.valor) : "", antes: String(ini.antes || 0), dias: String(ini.dias || 7), minimo: ini.minimo ? String(ini.minimo) : "" }));
+  const [guardando, setGuardando] = useState(false);
+  const num = (v) => v.replace(/[^\d]/g, "");
+  const guardar = async () => {
+    setGuardando(true);
+    try { await API.put("/tienda/cumple", { ...k, valor: parseFloat(k.valor) || 0, antes: parseInt(k.antes) || 0, dias: parseInt(k.dias) || 7, minimo: parseFloat(k.minimo) || 0 }); avisar(true, "✓ Guardado"); onGuardado && onGuardado(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+    setGuardando(false);
+  };
+  return (
+    <CajaSeccion it={it} temaPal={tp}>
+      <label style={{ display: "flex", gap: 10, alignItems: "center", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>
+        <input type="checkbox" checked={k.activo} onChange={e => setK(x => ({ ...x, activo: e.target.checked }))} style={{ width: 20, height: 20 }} /> Regalarles algo en su cumple
+      </label>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10, marginTop: 12 }}>
+        <div><div className="fl">Regalo</div><div style={{ display: "flex", gap: 6 }}>
+          <select className="sel" value={k.tipo} onChange={e => setK(x => ({ ...x, tipo: e.target.value }))} aria-label="Tipo de regalo"><option value="%">% de descuento</option><option value="$">$ de descuento</option></select>
+          <input className="inp" inputMode="numeric" placeholder={k.tipo === "%" ? "Ej: 15" : "Ej: 5000"} value={k.valor} onChange={e => setK(x => ({ ...x, valor: num(e.target.value) }))} aria-label="Cuánto" /></div></div>
+        <div><div className="fl">Desde cuántos días antes</div><input className="inp" inputMode="numeric" value={k.antes} onChange={e => setK(x => ({ ...x, antes: num(e.target.value) }))} /></div>
+        <div><div className="fl">Cuántos días dura (desde el cumple)</div><input className="inp" inputMode="numeric" value={k.dias} onChange={e => setK(x => ({ ...x, dias: num(e.target.value) }))} /></div>
+        <div><div className="fl">Compra mínima (opcional)</div><input className="inp" inputMode="numeric" placeholder="Sin mínimo" value={k.minimo} onChange={e => setK(x => ({ ...x, minimo: num(e.target.value) }))} /></div>
+      </div>
+      <div className="cli-tip" style={{ fontSize: 12.5, marginTop: 12 }}>Cada clienta con cuenta y cumple cargado ve en la tienda su código personal (con confeti 🎉). Es de un solo uso, solo lo puede usar ella, en la tienda o en el local (con su DNI en la caja).</div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}><button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar"}</button></div>
+    </CajaSeccion>
+  );
+}
 // Muestras gratis: desde un monto de productos, en el carrito la clienta elige una de esta lista.
 // Cada local tiene sus envases (se descuenta uno por pedido y vuelve si se cancela) y cada muestra dice en qué locales hay tester.
 function MuestrasGratis({ cfg, locs, productos, temaPal, avisar, onGuardado, it }) {
@@ -30781,6 +30838,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
           { k: "marca", icono: "🎨", titulo: "Marca y redes", color: "#8e44ad", sub: cfg.logo ? "Con logo" : "Sin logo", ayuda: "Cómo se ve: logo, ícono del celular, nombre, color, redes y frases de arriba." },
           { k: "entrega", icono: "🚚", titulo: "Entrega y pagos", color: "#2471a3", sub: [cfg.retiro_activo && "Retiro", cfg.envio_activo && "Envío"].filter(Boolean).join(" + ") || "Falta elegir", alerta: !cfg.retiro_activo && !cfg.envio_activo, ayuda: "Cómo reciben el pedido y cómo pueden pagar." },
           { k: "links", icono: "🔗", titulo: "Link para Instagram", color: "#d6246e", sub: Object.values((cfg.links && cfg.links.locales) || {}).some(x => x.whatsapp) ? "Listo" : "WhatsApp, horarios y ubicación", ayuda: "Una página para poner en la bio de Instagram: tienda online, gift cards y, por cada local, su WhatsApp, horarios y cómo llegar." },
+          { k: "cumple", icono: "🎂", titulo: "Regalo de cumpleaños", color: "#e84393", sub: cfg.cumple && cfg.cumple.activo ? (cfg.cumple.tipo === "%" ? cfg.cumple.valor + "% OFF" : fmt(cfg.cumple.valor)) : "Apagado", ayuda: "Un cupón personal para cada clienta en su cumple." },
           { k: "muestras", icono: "🎁", titulo: "Muestras gratis", color: "#e67e22", sub: cfg.muestras && cfg.muestras.activo ? "Desde " + fmt(cfg.muestras.desde) + " · " + Object.values(cfg.muestras.envases || {}).reduce((t, v) => t + (parseInt(v) || 0), 0) + " envases" : "Apagadas", alerta: !!(cfg.muestras && cfg.muestras.activo && Object.values(cfg.muestras.envases || {}).some(v => parseInt(v) <= 5)), ayuda: "En compras grandes la clienta elige una muestra de regalo." },
           ...(cfg.preventa ? [{ k: "preventa", icono: "⏳", titulo: "Preventa", color: "#d35400", sub: cfg.preventa.activo ? "Activada" : "Apagada" }] : []),
           ...(cfg.ruleta ? [{ k: "ruleta", icono: "🎡", titulo: "Ruleta de premios", color: "#c0392b", sub: cfg.ruleta.activo ? "Activada" : "Apagada" }] : []),
@@ -30789,6 +30847,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         return (
         <div style={{ paddingBottom: 10 }}>
           <MenuSecciones items={SECS_CFG} activa={it.k} onElegir={setSecCfg} temaPal={temaPal} />
+          {it.k === "cumple" && <RegaloCumple cfg={cfg} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it} />}
           {it.k === "muestras" && <MuestrasGratis key={JSON.stringify((cfg.muestras || {}).envases || {})} cfg={cfg} locs={locs} productos={productos} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it} />}
           {it.k === "links" && <LinksInstagram key={cfg.slug || ""} cfg={cfg} locs={locs} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it}
             link={!cfg.activo || !cfg.slug ? "" : cfg.dominio && cfg.dominioGuardado ? "https://" + cfg.dominio + "/links" : window.location.origin + "/?tienda=" + cfg.slug + "&seccion=links"} />}

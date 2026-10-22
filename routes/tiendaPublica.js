@@ -901,7 +901,8 @@ router.get('/:slug/cuenta', conCuenta, async (req, res) => {
     // Cada vez que entra se renueva la llave (si ya tiene mas de un dia): mientras use la tienda, no se sale
     let tokenNuevo = null;
     try { const t = jwt.decode(String(req.headers.authorization || '').replace(/^Bearer /, '')); if (t && t.iat && Date.now() / 1000 - t.iat > 86400) tokenNuevo = firmar(req, req.clienteId); } catch (e) {}
-    res.json({ ...dd, misiones, compras: (dd.compras || []).slice(0, 15), premios: premios.map(p => ({ ...p, descuento_pct: cuentas.descuentoDePremio(p) })), canjes: canjesInfo, pedidos, logros, amiga, falta_cumple: !((await pool.query('SELECT fecha_nacimiento FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).fecha_nacimiento, perfil_piel: ((await pool.query('SELECT perfil_piel FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).perfil_piel || null, token_nuevo: tokenNuevo });
+    const regaloCumple = await tienda.regaloCumple(pool, req.tienda, req.clienteId).catch(e => { console.error('[tienda] cumple:', e.message); return null; });
+    res.json({ ...dd, regalo_cumple: regaloCumple, misiones, compras: (dd.compras || []).slice(0, 15), premios: premios.map(p => ({ ...p, descuento_pct: cuentas.descuentoDePremio(p) })), canjes: canjesInfo, pedidos, logros, amiga, falta_cumple: !((await pool.query('SELECT fecha_nacimiento FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).fecha_nacimiento, perfil_piel: ((await pool.query('SELECT perfil_piel FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).perfil_piel || null, token_nuevo: tokenNuevo });
   } catch (e) { console.error('[tienda] cuenta:', e.message); res.status(500).json({ error: 'No pudimos cargar tu cuenta' }); }
 });
 
