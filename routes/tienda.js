@@ -987,8 +987,9 @@ router.put('/express', async (req, res) => {
   try {
     if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
     const k = tienda.expressDe({ express: req.body || {} });
-    if (k.activo && k.desde >= k.hasta) return res.status(400).json({ error: 'El horario de cierre tiene que ser después del de apertura' });
-    if (k.activo && !k.dias.length) return res.status(400).json({ error: 'Elegí al menos un día' });
+    if (k.activo && !k.franjas.length) return res.status(400).json({ error: 'Cargá al menos un horario' });
+    if (k.activo && k.franjas.some(f => f.desde >= f.hasta)) return res.status(400).json({ error: 'En cada horario, el "hasta" tiene que ser después del "desde"' });
+    if (k.activo && k.franjas.some(f => !f.dias.length)) return res.status(400).json({ error: 'Elegí al menos un día en cada horario' });
     await pool.query('UPDATE tienda_config SET express = $1 WHERE id = 1', [JSON.stringify(k)]);
     res.json({ express: k });
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }

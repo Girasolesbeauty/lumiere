@@ -115,7 +115,7 @@ router.get('/:slug', async (req, res) => {
       // Logo de la marca para la gift card (blanco sobre el color de la tarjeta)
       logo_marca: Number(req.negTienda.id) === 1 ? { blanco: '/logos/girasoles-logo-blanco.svg', color: '/logos/girasoles-logo.svg' } : null,
       packs: tienda.packsDe(c).filter(p => p.activo).map(({ activo, ...p }) => p),
-      express: (() => { const k = tienda.expressDe(c); return k.activo ? { minutos: k.minutos, abierto: tienda.expressAbierto(k), desde: k.desde, hasta: k.hasta } : null; })(),
+      express: (() => { const k = tienda.expressDe(c); return k.activo ? { minutos: k.minutos, abierto: tienda.expressAbierto(k), locales: [1, 2].filter(l => tienda.expressAbierto(k, l)) } : null; })(),
       muestras: (() => {
         const m = tienda.muestrasDe(c);
         const ops = m.opciones.map(o => ({ nombre: o.nombre, producto_id: o.producto_id, locales: tienda.localesMuestra(m, o) })).filter(o => o.locales.length);
@@ -461,7 +461,7 @@ router.post('/:slug/pedidos', async (req, res) => {
     if (amiga && descAmiga) await client.query('UPDATE tienda_pedidos SET amiga_de = $1, descuento_amiga = $2 WHERE id = $3', [amiga.referente_id, descAmiga, pedido.id]);
     // Retiro express: si ahora se puede prometer y no hay preventa, el pedido guarda los minutos
     const kx = tienda.expressDe(c);
-    if (entrega === 'retiro' && !conPreventa && b.express !== false && tienda.expressAbierto(kx)) await client.query('UPDATE tienda_pedidos SET express_min = $1 WHERE id = $2', [kx.minutos, pedido.id]);
+    if (entrega === 'retiro' && !conPreventa && b.express !== false && tienda.expressAbierto(kx, localId)) await client.query('UPDATE tienda_pedidos SET express_min = $1 WHERE id = $2', [kx.minutos, pedido.id]);
     // Muestra gratis elegida (solo si la compra llega al monto y es una de la lista)
     const mu = tienda.muestrasDe(c);
     const opMu = mu.activo && b.muestra && subtotal >= mu.desde ? mu.opciones.find(o => o.nombre === String(b.muestra)) : null;
