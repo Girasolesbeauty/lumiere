@@ -557,6 +557,23 @@ router.post('/pedidos/:id/contactado', async (req, res) => {
     res.json(r.rows[0]);
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
 });
+// Por que se vencio un pedido (o no lo retiro): motivo de la lista + lo que dijo la clienta. motivo vacio = se borra
+const MOTIVOS_VENC = ['mirando', 'arrepintio', 'pago', 'otro_medio', 'local', 'caro', 'envio', 'sin_respuesta', 'otro'];
+router.post('/pedidos/:id/vencimiento', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const motivo = MOTIVOS_VENC.includes(b.motivo) ? b.motivo : null;
+    const nota = String(b.nota || '').trim().slice(0, 400) || null;
+    if (b.motivo && !motivo) return res.status(400).json({ error: 'Elegí un motivo de la lista' });
+    if (motivo === 'otro' && !nota) return res.status(400).json({ error: 'Contá qué pasó' });
+    const u = req.usuario || {};
+    const por = motivo ? u.nombre || (u.id ? ((await pool.query('SELECT nombre FROM usuarios WHERE id = $1', [u.id]).catch(() => ({ rows: [] }))).rows[0] || {}).nombre : null) || 'Local' : null;
+    const r = await pool.query(`UPDATE tienda_pedidos SET venc_motivo = $1, venc_nota = $2, venc_por = $3, venc_en = ${motivo ? 'NOW()' : 'NULL'} WHERE id = $4
+      RETURNING venc_motivo, venc_nota, venc_por, venc_en`, [motivo, motivo ? nota : null, por, parseInt(req.params.id)]);
+    if (!r.rows.length) return res.status(404).json({ error: 'No se encontró el pedido' });
+    res.json(r.rows[0]);
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+});
 router.post('/pedidos/:id/notas', async (req, res) => {
   try {
     const texto = String((req.body && req.body.texto) || '').trim().slice(0, 300);
