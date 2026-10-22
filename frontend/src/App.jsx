@@ -182,6 +182,9 @@ let ES_JEFE_ACTUAL = false;
 let ES_NEGOCIO_ORIGINAL = false;
 const puedeHacer = (clave) => ES_JEFE_ACTUAL || PERMISOS_ACTUALES.includes(clave);
 const nombreLocal = (id) => NOMBRES_LOCALES[Number(id)] || NOMBRES_LOCALES[1];
+// Un color fuerte por local (para que en los pedidos se note a simple vista de que local es cada uno)
+const COLORES_LOCAL_PED = ["#1f6fb2", "#8e3fb0", "#138a72", "#c0561b", "#b0336a"];
+const colorLocalPed = (id) => COLORES_LOCAL_PED[((Number(id) || 1) - 1) % COLORES_LOCAL_PED.length];
 
 const getBaseCss = (p) => `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -387,6 +390,7 @@ button.tab { font-family: inherit; }
 .ped-fila { display: flex; gap: 12px; align-items: center; padding: 12px 14px; cursor: pointer; text-align: left; }
 .ped-fila:hover { background: ${p.bg}; }
 .ped-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 700; border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
+.ped-local { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; color: #fff; border-radius: 8px; padding: 4px 10px; white-space: nowrap; align-self: center; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
 .ped-chip.neutro { background: ${p.bg}; color: ${p.textMuted}; border: 1px solid ${p.border}; }
 .ped-flecha { font-size: 13px; color: ${p.textMuted}; transition: transform .2s; }
 .ped-card.abierto .ped-flecha { transform: rotate(180deg); }
@@ -31228,6 +31232,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                     <div className="ped-fila" role="button" tabIndex={0} aria-expanded={abierto} onClick={() => setPedAbiertos(l => l.includes(p.id) ? l.filter(x => x !== p.id) : [...l, p.id])} onKeyDown={ev => { if (ev.key === "Enter") ev.currentTarget.click(); }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                          {!UN_SOLO_LOCAL && <span className="ped-local" style={{ background: colorLocalPed(p.local_id) }} title={(p.entrega === "envio" ? "Sale de " : "Es de ") + nombreLocal(p.local_id)}>📍 {nombreLocal(p.local_id)}</span>}
                           <b style={{ fontSize: 15 }}>{p.nombre}</b>
                           <span style={{ fontSize: 12, color: temaPal.textMuted }}>N° {nroPedido(p)} · {hace}</span>
                           {indic.length > 0 && <span style={{ fontSize: 13, letterSpacing: 2 }}>{indic.map(([ic, t]) => <span key={t} title={t} aria-label={t}>{ic}</span>)}</span>}
@@ -31236,7 +31241,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                           {/* El estado ya lo dice el titulo del grupo (Nuevos, Listos...) y "esperando pago"/"cancelado" la etiqueta del pago */}
                           {!agrupado && !["pendiente_pago", "cancelado"].includes(p.estado) && <span className="ped-chip" style={{ color: e.c, background: e.c + "1a" }}>{e.t}</span>}
                           <span className="ped-chip" style={{ color: pago.c, background: pago.c + (pago.fuerte ? "26" : "14"), fontWeight: pago.fuerte ? 900 : 700 }}>{pago.t}</span>
-                          <span className="ped-chip neutro">{p.tipo === "giftcard" ? "🎁 Gift card" : (p.entrega === "retiro" ? "📍 " + nombreLocal(p.local_id) : "🛵 " + (p.zona || "Envío")) + " · " + cant + (cant === 1 ? " producto" : " productos")}</span>
+                          <span className="ped-chip neutro">{p.tipo === "giftcard" ? "🎁 Gift card" : (p.entrega === "retiro" ? (UN_SOLO_LOCAL ? "📍 " + nombreLocal(p.local_id) : "🛍️ Retira en el local") : "🛵 " + (p.zona || "Envío")) + " · " + cant + (cant === 1 ? " producto" : " productos")}</span>
                           {p.express_min && ["confirmado", "pendiente_pago"].includes(p.estado) && <CronoExpress hasta={p.listo_express} minutos={p.express_min} temaPal={temaPal} />}
                         </div>
                       </div>
@@ -31287,7 +31292,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                               {tit("👤 Clienta y entrega")}
                               <div style={{ fontSize: 13, lineHeight: 1.6 }}>
                                 <div><b>{p.nombre}</b>{p.telefono ? " · " + p.telefono : ""}{p.email ? <span style={{ color: temaPal.textMuted }}> · {p.email}</span> : null}</div>
-                                <div>{p.tipo === "giftcard" ? "🎁 Se usa en " + nombreLocal(p.local_id) : p.entrega === "retiro" ? "📍 Retira en " + nombreLocal(p.local_id) : "🛵 " + p.direccion + (p.zona ? " (" + p.zona + ")" : "")}</div>
+                                <div>{p.tipo === "giftcard" ? <>🎁 Se usa en <b style={{ color: colorLocalPed(p.local_id) }}>{nombreLocal(p.local_id)}</b></> : p.entrega === "retiro" ? <>📍 Retira en <b style={{ color: colorLocalPed(p.local_id) }}>{nombreLocal(p.local_id)}</b></> : <>🛵 {p.direccion + (p.zona ? " (" + p.zona + ")" : "")}{!UN_SOLO_LOCAL && <> · sale de <b style={{ color: colorLocalPed(p.local_id) }}>{nombreLocal(p.local_id)}</b></>}</>}</div>
                                 <div style={{ color: temaPal.textMuted }}>💳 {PAGO_TIENDA[p.pago]}{p.pagado ? " · pagado" + (p.pagado_en ? " el " + fh(p.pagado_en) : "") : ""} · hecho el {fh(p.creado_en)}</div>
                                 {p.nota && <div style={{ marginTop: 4, padding: "5px 8px", borderRadius: 8, background: temaPal.card, border: "1px solid " + temaPal.border }}>📝 <i>“{p.nota}”</i> <span style={{ fontSize: 11, color: temaPal.textMuted }}>· escribió la clienta</span></div>}
                                 {p.estado === "cancelado" && p.motivo && <div style={{ fontSize: 12, color: temaPal.textMuted }}>Motivo: {p.motivo}</div>}
