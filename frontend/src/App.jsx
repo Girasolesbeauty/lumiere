@@ -650,6 +650,15 @@ body:has(.pos-overlay) .ayuda-fab { display: none !important; }
 .tw-completa-sub { font-size: 12.5px; color: ${p.textMuted}; margin-top: 3px; line-height: 1.45; max-width: 70ch; }
 .tw-completa-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; margin-top: 12px; }
 .tw-completa-tile { display: flex; align-items: center; gap: 10px; text-align: left; font-family: inherit; cursor: pointer; background: ${p.card}; color: ${p.text}; border: 1px solid ${p.border}; border-radius: 12px; padding: 10px 12px; transition: transform .15s, box-shadow .15s; }
+.tw-completa-tile.on { border-color: ${p.accentText}; box-shadow: 0 0 0 2px ${p.accentText}33; }
+.tw-completa-det { grid-column: 1 / -1; background: ${p.card}; border: 1px solid ${p.border}; border-radius: 12px; padding: 10px 12px; }
+.tw-completa-det-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 13.5px; color: ${p.text}; }
+.tw-completa-lista { max-height: 360px; overflow-y: auto; display: flex; flex-direction: column; }
+.tw-completa-fila { display: flex; align-items: center; gap: 10px; padding: 7px 2px; border-top: 1px solid ${p.border}; }
+.tw-completa-fila:first-child { border-top: 0; }
+.tw-completa-sinfoto { width: 38px; height: 38px; border-radius: 8px; object-fit: cover; flex-shrink: 0; background: ${p.bg}; display: flex; align-items: center; justify-content: center; font-size: 16px; opacity: .9; }
+.tw-completa-fila b { display: block; font-size: 13px; color: ${p.text}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tw-completa-fila small { display: block; font-size: 11.5px; color: ${p.textMuted}; }
 .tw-completa-tile:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(0,0,0,.08); }
 .tw-completa-tile b { display: block; font-size: 13.5px; }
 .tw-completa-tile small { display: block; font-size: 11.5px; color: ${p.textMuted}; margin-top: 2px; }
@@ -30838,6 +30847,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const [limiteProd, setLimiteProd] = useState(150);
   const [filtros, setFiltros] = useState({ marca: "", proveedor: "", categoria: "", foto: "", desc: "", seg: "" });
   const [segmentar, setSegmentar] = useState(null); // productos a segmentar (uno o varios)
+  const [completaVer, setCompletaVer] = useState(null); // "Completá tu tienda": que tarjeta muestra el detalle
   const [qrProd, setQrProd] = useState(null); // { p, qr } QR de un producto (para la etiqueta del local)
   const [cambio, setCambio] = useState(null); // { p, it, q, prod, vars, variante, cant }: cambiar un producto de un pedido
   // Notas del local en un pedido (la clienta no las ve): { id del pedido, texto }
@@ -31181,12 +31191,19 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         const pct = total ? Math.round((1 - faltan / total) * 100) : 100;
         const ir = (f) => { setTab("productos"); setSoloPub(true); setBusca(""); setFiltros({ marca: "", proveedor: "", categoria: "", foto: "", desc: "", seg: "", ...f }); setTimeout(() => { const el = document.getElementById("tw-admin-lista"); el && el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 150); };
         if (!faltan) return <div className="cli-tip" style={{ marginBottom: 12, borderColor: temaPal.green }}>✅ <b>¡Tu tienda está completa!</b> Todos los productos publicados tienen foto, descripción{skin.length ? " y tipo de piel" : ""}.</div>;
+        // Arreglar un producto puntual desde el detalle: abre su ventana (estan en la pestaña Productos)
+        const editar = (fn) => { setTab("productos"); fn(); };
         const tiles = [
-          { n: sinFoto.length, ic: "📷", t: "sin foto", d: "Sin foto casi no se venden", b: "Agregar fotos", f: { foto: "sin" } },
-          { n: sinDesc.length, ic: "📝", t: "sin descripción", d: "Proponé el texto con ✨ y revisalo", b: "Completar", f: { desc: "sin" } },
-          { n: facialSinTipo.length, ic: "🧴", t: "de Facial sin tipo de producto", d: "No entran en el test de rutina: elegí si es limpiador, sérum, crema, protector…", b: "Elegir tipo", f: { categoria: facialSinTipo[0] ? facialSinTipo[0].categoria : "", seg: "tipo:-" } },
-          ...(skin.length ? [{ n: sinPiel.length, ic: "🌿", t: "de skincare sin tipo de piel", d: "No aparecen en los filtros ni en el test de rutina", b: "Elegir tipo de piel", f: { seg: "piel:-" } }] : []),
+          { n: sinFoto.length, l: sinFoto, ic: "📷", t: "sin foto", d: "Sin foto casi no se venden", b: "Agregar fotos", f: { foto: "sin" },
+            accion: esJefeT ? ["🖼 Foto", (p) => editar(() => setGaleria(p))] : null },
+          { n: sinDesc.length, l: sinDesc, ic: "📝", t: "sin descripción", d: "Proponé el texto con ✨ y revisalo", b: "Completar", f: { desc: "sin" },
+            accion: ["✏️ Descripción", (p) => editar(() => setDesc({ id: p.id, nombre: p.nombre, texto: p.descripcion || "" }))] },
+          { n: facialSinTipo.length, l: facialSinTipo, ic: "🧴", t: "de Facial sin tipo de producto", d: "No entran en el test de rutina: elegí si es limpiador, sérum, crema, protector…", b: "Elegir tipo", f: { categoria: facialSinTipo[0] ? facialSinTipo[0].categoria : "", seg: "tipo:-" },
+            accion: ["🏷 Elegir tipo", (p) => editar(() => setSegmentar([p]))] },
+          ...(skin.length ? [{ n: sinPiel.length, l: sinPiel, ic: "🌿", t: "de skincare sin tipo de piel", d: "No aparecen en los filtros ni en el test de rutina", b: "Elegir tipo de piel", f: { seg: "piel:-" },
+            accion: ["🏷 Tipo de piel", (p) => editar(() => setSegmentar([p]))] }] : []),
         ].filter(x => x.n > 0);
+        const abierta = tiles.find(x => x.t === completaVer);
         return (
           <div className="tw-completa" style={{ "--tc": temaPal.card, "--tb": temaPal.border, "--tt": temaPal.text, "--tm": temaPal.textMuted }}>
             <div className="tw-completa-cab">
@@ -31195,11 +31212,32 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             </div>
             <div className="tw-completa-tiles">
               {tiles.map(x => (
-                <button key={x.t} className="tw-completa-tile" onClick={() => ir(x.f)}>
+                <Fragment key={x.t}>
+                <button className={"tw-completa-tile" + (completaVer === x.t ? " on" : "")} aria-expanded={completaVer === x.t} onClick={() => setCompletaVer(v => v === x.t ? null : x.t)}>
                   <span className="tw-completa-ic">{x.ic}</span>
                   <span style={{ flex: 1, minWidth: 0 }}><b>{x.n} {x.n === 1 ? "producto" : "productos"} {x.t}</b><small>{x.d}</small></span>
-                  <span className="tw-completa-btn">{x.b} ›</span>
+                  <span className="tw-completa-btn">{completaVer === x.t ? "Ocultar ▴" : "Ver cuáles ▾"}</span>
                 </button>
+                {/* Detalle, justo debajo de la tarjeta: cuales son, con un boton para arreglar cada uno ahi mismo */}
+                {abierta && abierta.t === x.t && (
+                  <div className="tw-completa-det">
+                  <div className="tw-completa-det-cab">
+                    <span style={{ fontSize: 12.5, color: temaPal.textMuted }}>Tocá el botón de cada uno para completarlo acá mismo</span>
+                    <button className="btn btn-p btn-sm" onClick={() => ir(abierta.f)}>{abierta.b} en la lista ›</button>
+                  </div>
+                  <div className="tw-completa-lista">
+                    {abierta.l.slice(0, 60).map(p => (
+                      <div key={p.id} className="tw-completa-fila">
+                        <span className="tw-completa-sinfoto" aria-hidden="true">{abierta.ic}</span>
+                        <span style={{ flex: 1, minWidth: 0 }}><b>{p.nombre}</b><small>{[p.marca, p.categoria].filter(Boolean).join(" · ") || "Sin marca ni categoría"}</small></span>
+                        {abierta.accion && <button className="chip-btn" style={{ fontSize: 11.5, flexShrink: 0 }} onClick={() => abierta.accion[1](p)}>{abierta.accion[0]}</button>}
+                      </div>
+                    ))}
+                  </div>
+                  {abierta.l.length > 60 && <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 6 }}>Y {abierta.l.length - 60} más: tocá "{abierta.b} en la lista" para verlos todos.</div>}
+                </div>
+                )}
+                </Fragment>
               ))}
             </div>
           </div>
