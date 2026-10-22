@@ -9760,11 +9760,7 @@ function Clientes({ usuario, paletaActual }) {
                 {wa && <a className="btn btn-p btn-sm" href={wa} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>💬 WhatsApp</a>}
                 <button className="btn btn-g btn-sm" onClick={() => abrirEditarCliente(c)}>✏️ Editar datos</button>
                 <button className="btn btn-g btn-sm" onClick={() => abrirMigrar(c)}>➕ Cargar compra anterior</button>
-                {["jefe", "admin", "administrativo"].includes(usuario?.rol) && <button className="btn btn-g btn-sm" title="Abre la tienda online como la ve ella (su cuenta, su rutina, sus avisos). Solo para mirar: no se puede comprar ni cambiar nada." onClick={async () => {
-                  const w = window.open("", "_blank");
-                  try { const r = await API.post("/tienda/ver-como/" + c.id); if (w) w.location.href = window.location.origin + "/?tienda=" + encodeURIComponent(r.data.slug) + "#vista=" + encodeURIComponent(r.data.token); }
-                  catch (e) { if (w) w.close(); alert(e.response?.data?.error || "No se pudo abrir"); }
-                }}>👁️ Ver su cuenta en la tienda</button>}
+                {["jefe", "admin", "administrativo"].includes(usuario?.rol) && <button className="btn btn-g btn-sm" title="Abre la tienda online como la ve ella (su cuenta, su rutina, sus avisos). Solo para mirar: no se puede comprar ni cambiar nada." onClick={() => verCuentaEnTienda(c)}>👁️ Ver su cuenta en la tienda</button>}
                 {c.portal_activo && <button className="btn btn-g btn-sm" onClick={() => resetearPortalCliente(c)}>🔑 Resetear clave del portal</button>}
                 {usuario?.rol === "jefe" && <button className="btn btn-g btn-sm" style={{ color: p.red, marginLeft: "auto" }} onClick={() => eliminarCliente(c)}>Eliminar</button>}
               </div>
@@ -24855,7 +24851,9 @@ html:has(.tw){overflow-x:hidden}
 .tw .tw-muestras-ops button{border:1.5px solid #e8c48a;background:#fff;color:#5a3a00 !important;border-radius:999px;padding:7px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
 .tw .tw-muestras-ops button{display:inline-flex;align-items:center;gap:6px}.tw .tw-muestras-ops img{width:22px;height:22px;border-radius:50%;object-fit:cover;margin-left:-6px}
 .tw .tw-muestras-ops button.on{background:#d98b1f;border-color:#d98b1f;color:#fff !important}
-.tw-vista-barra{position:relative;z-index:5;min-height:38px;display:flex;align-items:center;justify-content:center;gap:8px;background:#2a1a45;color:#fff;font-size:13px;padding:0 12px;white-space:nowrap;overflow:hidden}
+.tw-vista-barra{position:relative;z-index:5;min-height:38px;display:flex;align-items:center;justify-content:center;gap:8px;background:#2a1a45;color:#fff;font-size:13px;padding:6px 12px;line-height:1.35}
+.tw-vista-barra span{flex:0 1 auto;min-width:0;text-align:center}
+.tw .tw-vista-barra button{flex-shrink:0}
 .tw .tw-vista-barra button{border:1px solid rgba(255,255,255,.5);background:transparent;color:#fff !important;border-radius:999px;padding:3px 12px;font:inherit;font-size:12px;cursor:pointer;margin-left:6px}
 .tw-pack-avance{margin:0 0 12px;padding:10px 12px;border-radius:12px;background:#f2f7ff;border:1px solid #d6e4fb;font-size:13px;color:#24406e}
 .tw-pack-avance.ok{background:#eaf8ef;border-color:#c5ead3;color:#1f6b40}
@@ -28418,7 +28416,7 @@ function TiendaPublica({ slug }) {
 
   return (
     <div className={"tw" + (vistaTk ? " en-vista" : "")} style={{ "--c": color }}><style>{CSS_TIENDA}</style>
-      {vistaTk && <div className="tw-vista-barra" role="status">👁️ Estás viendo la tienda como <b>{miCuenta ? String(miCuenta.nombre || "la clienta") : "la clienta"}</b> · solo para mirar<button onClick={salirVista}>Salir</button></div>}
+      {vistaTk && <div className="tw-vista-barra" role="status"><span>👁️ Viendo la tienda como <b>{miCuenta ? String(miCuenta.nombre || "la clienta") : "la clienta"}</b> · solo para mirar</span><button onClick={salirVista}>Salir</button></div>}
       {cabecera}
       {amigaInfo && <div className="tw-amiga-barra" role="note">💌 <b>{amigaInfo.nombre}</b> te regaló <b>{amigaInfo.pct}% OFF</b> en tu primera compra · se aplica al finalizar</div>}
       {(cats.length > 0 || sectores.length > 0 || reingresados.length > 0 || reels.length > 0 || preventas.length > 0 || favs.length > 0 || tienda.regalos) && (
@@ -30014,7 +30012,40 @@ async function iconoCuadrado(archivo) {
     return c.toDataURL("image/png");
   } finally { URL.revokeObjectURL(obj); }
 }
-function ClientasWeb({ temaPal, avisar, urlTienda, nombreTienda, esJefe, slug }) {
+// Abre la tienda online como la ve una clienta (su cuenta, medallas, rutina, avisos), solo para mirar (30 minutos)
+async function verCuentaEnTienda(c) {
+  const w = window.open("", "_blank");
+  try { const r = await API.post("/tienda/ver-como/" + c.id); if (w) w.location.href = window.location.origin + "/?tienda=" + encodeURIComponent(r.data.slug) + "#vista=" + encodeURIComponent(r.data.token); }
+  catch (e) { if (w) w.close(); alert(e.response?.data?.error || "No se pudo abrir"); }
+}
+// Buscar una clienta y ver su cuenta en la tienda (para la dueña o encargada)
+function VerComoClienta({ temaPal }) {
+  const [busca, setBusca] = useState("");
+  const [todas, setTodas] = useState(null);
+  useEffect(() => { if (busca.trim().length >= 2 && !todas) API.get("/clientes").then(r => setTodas(r.data || [])).catch(() => setTodas([])); }, [busca]);
+  const q = normTxt(busca.trim());
+  const res = q.length >= 2 && todas ? todas.filter(c => normTxt([c.nombre, c.cuit_dni, c.telefono, c.email].join(" ")).includes(q))
+    .sort((a, b) => (b.portal_activo ? 1 : 0) - (a.portal_activo ? 1 : 0) || (b.gastado || 0) - (a.gastado || 0)).slice(0, 8) : [];
+  return (
+    <div className="card">
+      <div className="ct" style={{ marginBottom: 4 }}>👁️ Ver la tienda como una clienta</div>
+      <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginBottom: 8 }}>Buscala y abrí su cuenta tal cual la ve ella: medallas, puntos, su rutina, lo que le toca reponer, cupones. Es solo para mirar: no se puede comprar ni cambiar nada, y se cierra sola a los 30 minutos.</div>
+      <input className="inp" placeholder="Nombre, DNI o teléfono de la clienta" value={busca} onChange={e => setBusca(e.target.value)} style={{ width: "100%" }} />
+      {q.length >= 2 && !todas && <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginTop: 8 }}>Buscando…</div>}
+      {q.length >= 2 && todas && !res.length && <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginTop: 8 }}>No encontramos ninguna clienta con eso.</div>}
+      {res.map(c => (
+        <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 2px", borderTop: "1px solid " + temaPal.border, marginTop: 6 }}>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <b style={{ fontSize: 13.5 }}>{c.nombre}</b>
+            <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{[c.cuit_dni && "DNI " + c.cuit_dni, c.compras ? c.compras + (c.compras === 1 ? " compra" : " compras") : "sin compras", c.portal_activo ? "tiene cuenta en la tienda" : null].filter(Boolean).join(" · ")}</div>
+          </span>
+          <button className="btn btn-p btn-sm" style={{ flexShrink: 0 }} onClick={() => verCuentaEnTienda(c)}>👁️ Ver su cuenta</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+function ClientasWeb({ temaPal, avisar, urlTienda, nombreTienda, esJefe, esDuena, slug }) {
   const [d, setD] = useState(null);
   const [msj, setMsj] = useState(null); // editor de mensajes
   const cargar = () => API.get("/tienda/clientas-web").then(r => setD(r.data)).catch(() => setD({ avisos: [], carritos: [], favoritos: [], resumen_fav: {}, mensajes: {}, error: true }));
@@ -30055,6 +30086,7 @@ function ClientasWeb({ temaPal, avisar, urlTienda, nombreTienda, esJefe, slug })
   const ejemplo = { nombre: "Laura", tienda: nombreTienda || "Girasoles", total: fmt(25800), link: urlTienda || "girasolesbeauty.com.ar", productos: "Sérum Vitamina C, Protector solar x2", producto: "Sérum Vitamina C" };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {esDuena && <VerComoClienta temaPal={temaPal} />}
       <div className="card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <div className="ct" style={{ marginBottom: 0 }}>❤️ Análisis de favoritos</div>
@@ -31729,7 +31761,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
       {tab === "rutinas" && esDuenaT && (productos ? <RutinasLocalAdmin cfg={cfg} productos={productos} temaPal={temaPal} avisar={avisar} esJefe={esJefeT} onGuardado={cargarCfg} urlTienda={url} /> : <div className="skel" style={{ height: 200 }} />)}
       {tab === "regalos" && esDuenaT && <RegalosTienda cfg={cfg} pedidos={pedidos} temaPal={temaPal} avisar={avisar} urlTienda={url} esJefe={esJefeT} onGuardado={cargarCfg} />}
       {tab === "resenas" && <ResenasTienda temaPal={temaPal} avisar={avisar} urlTienda={url} nombreTienda={cfg?.titulo} esJefe={esJefeT} alCambiar={setResPend} />}
-      {tab === "clientas" && <ClientasWeb temaPal={temaPal} avisar={avisar} urlTienda={url} nombreTienda={cfg?.titulo} esJefe={esJefeT} slug={cfg?.slug} />}
+      {tab === "clientas" && <ClientasWeb temaPal={temaPal} avisar={avisar} urlTienda={url} nombreTienda={cfg?.titulo} esJefe={esJefeT} esDuena={esDuenaT} slug={cfg?.slug} />}
       {tab === "portada" && esDuenaT && <PortadaTienda productos={productos} temaPal={temaPal} avisar={avisar} alGuardar={cargarProductos} />}
 
       {tab === "config" && esDuenaT && (() => {
