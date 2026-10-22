@@ -30660,6 +30660,10 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
     try { const r = await API.post("/tienda/pedidos/" + notaPed.id + "/notas", { texto: notaPed.texto }); setPedidos(l => l.map(x => x.id === notaPed.id ? { ...x, notas_local: r.data.notas_local } : x)); setNotaPed(null); }
     catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar la nota"); }
   };
+  const marcarContactado = async (p, si) => {
+    try { const r = await API.post("/tienda/pedidos/" + p.id + "/contactado", { contactado: si }); setPedidos(l => l.map(x => x.id === p.id ? { ...x, ...r.data } : x)); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+  };
   const borrarNotaPed = async (p, n) => {
     if (!window.confirm("¿Borrar esta nota?")) return;
     try { const r = await API.delete("/tienda/pedidos/" + p.id + "/notas/" + n.id); setPedidos(l => l.map(x => x.id === p.id ? { ...x, notas_local: r.data.notas_local } : x)); }
@@ -30860,7 +30864,12 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const abiertos = pedidos.filter(p => ["pendiente_pago", "confirmado", "preparado", "en_caja"].includes(p.estado));
   // Etapa de un pedido abierto: nuevo (hay que armarlo), preventa (esperando que llegue), pago (esperando el pago) o listo
   const etapaPed = (p) => p.estado === "pendiente_pago" ? "pago" : p.estado === "confirmado" ? ((p.items || []).some(i => i.preventa) ? "preventa" : "nuevo") : ["preparado", "en_caja"].includes(p.estado) ? "listo" : null;
-  const visibles = pedidos.filter(p => filtro === "todos" || (filtro === "activos" ? abiertos.includes(p) : filtro.startsWith("g:") ? etapaPed(p) === filtro.slice(2) : p.estado === filtro));
+  // Pagos rechazados (Mercado Pago o GoCuotas no lo aprobaron) y vencidos sin pagar, aparte de los cancelados a mano
+  const esRechazado = (p) => !p.pagado && p.estado !== "entregado" && (!!p.pago_rechazo || (p.estado === "cancelado" && /^No se pudo crear el pago/.test(p.motivo || "")));
+  const esVencido = (p) => p.estado === "cancelado" && !p.pagado && ["Venció sin pagar", "No lo retiró a tiempo"].includes(p.motivo) && !esRechazado(p);
+  const esCancelado = (p) => p.estado === "cancelado" && !esRechazado(p) && !esVencido(p);
+  const enFiltro = (p, k) => k === "todos" || (k === "activos" ? abiertos.includes(p) : k.startsWith("g:") ? etapaPed(p) === k.slice(2) : k === "rechazado" ? esRechazado(p) : k === "vencido" ? esVencido(p) : k === "cancelado" ? esCancelado(p) : p.estado === k);
+  const visibles = pedidos.filter(p => enFiltro(p, filtro));
   const nPub = productos.filter(p => p.publicado).length;
   const q = busca.trim().toLowerCase();
   const qN = normTxt(busca);
@@ -30892,7 +30901,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const entregados30 = pedidos.filter(p => p.estado === "entregado" && new Date(p.creado_en).getTime() >= hace30);
   const vendido30 = entregados30.reduce((t, p) => t + Number(p.total || 0), 0);
   const nNuevos = pedidos.filter(p => p.estado === "confirmado").length;
-  const contar = (k) => k === "todos" ? pedidos.length : k === "activos" ? abiertos.length : k.startsWith("g:") ? pedidos.filter(p => etapaPed(p) === k.slice(2)).length : pedidos.filter(p => p.estado === k).length;
+  const contar = (k) => pedidos.filter(p => enFiltro(p, k)).length;
   // Para atender: agrupados por lo que hay que hacer, en ese orden
   const GRUPOS_PED = [["nuevo", "📥 Nuevos: hay que armarlos", "#2471a3"], ["preventa", "⏳ Preventa: esperando que llegue la mercadería", "#b9770e"], ["pago", "💳 Esperando el pago", "#b7950b"], ["listo", "📦 Listos: esperando que los retiren o salgan", "#8e44ad"]];
 
@@ -30990,7 +30999,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                 </button>); })}
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", width: "100%" }}>
-              {[["activos", "Todo para atender"], ["entregado", "Entregados"], ["cancelado", "Cancelados"], ["todos", "Todos"]].map(([k, t]) => <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(k)}>{t} <span style={{ opacity: 0.7 }}>({contar(k)})</span></button>)}
+              {[["activos", "Todo para atender"], ["entregado", "Entregados"], ["rechazado", "❌ Pagos rechazados"], ["vencido", "⌛ Vencidos"], ["cancelado", "Cancelados"], ["todos", "Todos"]].map(([k, t]) => <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(k)}>{t} <span style={{ opacity: 0.7 }}>({contar(k)})</span></button>)}
             </div>
             <input className="inp" style={{ flex: "1 1 220px", marginLeft: "auto" }} placeholder="🔎 Buscar por nombre, N° de pedido, teléfono o producto" value={buscaPed} onChange={e => setBuscaPed(e.target.value)} aria-label="Buscar pedido" />
             {paraEtiquetar.length > 1 && <button className="btn btn-g btn-sm" onClick={() => imprimirEtiquetas(paraEtiquetar)} title="Una etiqueta por cada envío listo para despachar">🏷️ Etiquetas de envío ({paraEtiquetar.length})</button>}
@@ -31000,7 +31009,10 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                 const e = ESTADOS_TIENDA[p.estado] || ESTADOS_TIENDA.confirmado;
                 const cerrado = ["entregado", "cancelado"].includes(p.estado);
                 // Pago: bien distinto si ya esta confirmado o no (franja arriba de la tarjeta)
-                const pago = p.estado === "cancelado" ? (p.pagado ? { t: "⚠️ CANCELADO PERO PAGÓ", sub: "Se canceló por vencido pero el pago de Mercado Pago entró: devolvele la plata o registrá la venta", c: "#c0392b", bg: "#e74c3c" } : null) : p.pagado ? { t: "✅ PAGO CONFIRMADO", sub: PAGO_TIENDA[p.pago] + (p.estado === "entregado" ? "" : " · ya está pagado"), c: "#1e8e4f", bg: "#1e8e4f" }
+                const motivoRech = !p.pago_rechazo ? (p.motivo || "") : p.pago_rechazo.startsWith("mp:") ? "Mercado Pago: " + motivoRechazoMP(p.pago_rechazo.slice(3)) : p.pago_rechazo.startsWith("gc:") ? "GoCuotas no lo aprobó" : p.pago_rechazo;
+                const pago = esRechazado(p) ? { t: "❌ PAGO RECHAZADO", sub: motivoRech + (p.estado === "cancelado" ? " · el pedido se canceló" : "") + (p.contactado_en ? "" : " · escribile para que pruebe con otro medio de pago"), c: "#c0392b", bg: "#e74c3c" }
+                  : esVencido(p) ? { t: "⌛ " + (p.motivo === "No lo retiró a tiempo" ? "NO LO RETIRÓ A TIEMPO" : "VENCIÓ SIN PAGAR"), sub: "Se canceló solo" + (p.contactado_en ? "" : " · podés escribirle por si todavía lo quiere"), c: "#8a6d00", bg: "#d4a017" }
+                  : p.estado === "cancelado" ? (p.pagado ? { t: "⚠️ CANCELADO PERO PAGÓ", sub: "Se canceló por vencido pero el pago de Mercado Pago entró: devolvele la plata o registrá la venta", c: "#c0392b", bg: "#e74c3c" } : null) : p.pagado ? { t: "✅ PAGO CONFIRMADO", sub: PAGO_TIENDA[p.pago] + (p.estado === "entregado" ? "" : " · ya está pagado"), c: "#1e8e4f", bg: "#1e8e4f" }
                   : p.pago === "retiro" ? { t: "💵 SIN PAGAR · paga al retirar", sub: "Cobrale " + fmt(p.total) + " cuando lo retire", c: "#b26a00", bg: "#f39c12" }
                   : { t: "⏳ ESPERANDO EL PAGO", sub: p.pago === "transferencia" ? "Fijate si llegó la transferencia y tocá \"Pago recibido\"" : p.pago === "gocuotas" ? "Todavía no se acreditó el pago de GoCuotas" : "Todavía no se acreditó el pago de Mercado Pago", c: "#c0392b", bg: "#e74c3c" };
                 return (
@@ -31030,6 +31042,9 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                             <button className="btn btn-g btn-sm" onClick={() => setNotaPed(null)}>✕</button>
                           </div>
                         ) : <button className="chip-btn" style={{ fontSize: 11, marginTop: 6 }} onClick={() => setNotaPed({ id: p.id, texto: "" })}>🗒️ Agregar nota</button>}
+                        {p.estado !== "entregado" && (p.contactado_en
+                          ? <div style={{ fontSize: 12, marginTop: 6, color: temaPal.green, fontWeight: 700 }}>✅ Ya le escribimos{p.contactado_por ? " (" + p.contactado_por + ")" : ""} · {new Date(p.contactado_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} <button className="chip-btn" style={{ fontSize: 10.5, marginLeft: 4 }} onClick={() => marcarContactado(p, false)}>deshacer</button></div>
+                          : <button className={esRechazado(p) || esVencido(p) ? "btn btn-p btn-sm" : "chip-btn"} style={{ fontSize: 11, marginTop: 6, marginLeft: 6 }} onClick={() => marcarContactado(p, true)}>💬 Ya le escribimos</button>)}
                         {p.ruleta && <div style={{ fontSize: 12.5, marginTop: 4, fontWeight: 700, color: p.ruleta.tipo === "nada" ? temaPal.textMuted : temaPal.warn }}>🎡 Ruleta: {p.ruleta.tipo === "regalo" ? "ganó " + (/mega/i.test(p.ruleta.texto || "") ? "el 💎 MEGA REGALO" : "un REGALO 🎁") + " — dáselo con el pedido" : p.ruleta.tipo === "cupon" ? "ganó " + p.ruleta.texto + " (cupón " + p.ruleta.cupon + ", se activa al entregar)" : "seguí participando"}</div>}
                         {p.vence_en && (p.estado === "pendiente_pago" || (p.pago === "retiro" && ["confirmado", "preparado"].includes(p.estado))) && <div style={{ fontSize: 11.5, color: temaPal.warn, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                           <span>{p.estado === "pendiente_pago" && p.pago !== "retiro" ? "Si no paga" : "Si no lo retira"}, se cancela solo el {new Date(p.vence_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} y el stock vuelve.</span>
@@ -31061,6 +31076,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                     {!cerrado && (
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                         {p.estado === "pendiente_pago" && p.pago === "transferencia" && <button className="btn btn-p btn-sm" onClick={() => estado(p, "pagado")}>✓ Pago recibido</button>}
+                        {esRechazado(p) && p.estado === "pendiente_pago" && p.pago !== "transferencia" && <button className="btn btn-p btn-sm" onClick={async () => { if (!window.confirm("¿Ya te transfirió? Queda pagado por transferencia.")) return; try { await API.put("/tienda/pedidos/" + p.id + "/estado", { estado: "pagado", pago: "transferencia" }); avisar(true, "✓ Pedido pagado por transferencia"); cargarPedidos(); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); } }}>💵 Pagó por transferencia</button>}
+                        {esRechazado(p) && p.estado === "pendiente_pago" && p.entrega === "retiro" && <button className="btn btn-g btn-sm" onClick={async () => { try { await API.put("/tienda/pedidos/" + p.id + "/estado", { estado: "paga_retiro" }); avisar(true, "✓ Queda para pagar al retirar"); cargarPedidos(); } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); } }}>🏪 Paga al retirar</button>}
                         {p.estado === "confirmado" && p.tipo !== "giftcard" && !p.items.some(i => i.preventa) && <button className="btn btn-p btn-sm" onClick={() => estado(p, "preparado")}>📦 Ya está listo</button>}
                         {["confirmado", "preparado"].includes(p.estado) && p.tipo !== "giftcard" && !p.items.some(i => i.preventa) && <button className="btn btn-g btn-sm" onClick={() => avisarListo(p)}>💬 Avisar que está listo</button>}
                         {p.items.some(i => i.preventa) && <button className="btn btn-p btn-sm" onClick={() => llegoPreventa(p)} title="Cuando recibiste la orden de ingreso: pasa al stock del local y le avisás">📦 Llegó la preventa</button>}
