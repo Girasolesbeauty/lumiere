@@ -7896,7 +7896,21 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
   const [notaRecepcionInput, setNotaRecepcionInput] = useState("");
   const [eliminandoTr, setEliminandoTr] = useState(null); // { tr, motivo, enviando, error }
 
+  // Stock cruzado: lo que al otro local le falta y aca sobra (y al reves)
+  const [sugTr, setSugTr] = useState(null);
+  const [cantSug, setCantSug] = useState({});
+  const cargarSugTr = () => API.get("/traspasos/sugeridos?local_id=" + (localId || 1)).then(r => setSugTr(r.data)).catch(() => setSugTr(null));
+  const mandarSug = async (x) => {
+    const cant = parseInt(cantSug[x.producto_id] ?? x.cantidad) || 0;
+    if (cant < 1) return;
+    if (!window.confirm("¿Mandar " + cant + " de " + x.nombre + " a " + nombreLocal(Number(localId) === 2 ? 1 : 2) + "?\n\nSe descuenta ya de acá y queda en camino hasta que lo reciban.")) return;
+    try {
+      await API.post("/traspasos", { producto_id: x.producto_id, cantidad: cant, local_origen: localId || 1, local_destino: Number(localId) === 2 ? 1 : 2, usuario_id: usuario?.id, usuario_nombre: usuario?.nombre, notas: "Stock cruzado: allá se estaba agotando" });
+      setMensaje("✓ Traspaso enviado"); setTimeout(() => setMensaje(""), 3000); cargarTraspasos();
+    } catch (e) { setMensaje(e.response?.data?.error || "No se pudo crear el traspaso"); }
+  };
   const cargarTraspasos = () => {
+    cargarSugTr();
     setCargandoTraspasos(true);
     API.get("/traspasos?local_id=" + (localId || 1))
       .then(res => setTraspasos(res.data || []))
@@ -8531,6 +8545,12 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
         </div>
       )}
 
+      {!UN_SOLO_LOCAL && sugTr && sugTr.mandar.length > 0 && modo === "productos" && (
+        <div role="status" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 12, padding: "10px 14px", borderRadius: 8, background: "#2471a314", border: "1px solid #2471a3", color: temaPal.text, fontSize: 13 }}>
+          <span>🔄 <b>A {nombreLocal(localDestinoTraspaso)} se le {sugTr.mandar.length === 1 ? "agota 1 producto" : "agotan " + sugTr.mandar.length + " productos"} que acá tenés</b> ({sugTr.mandar.slice(0, 3).map(x => x.nombre).join(", ")}{sugTr.mandar.length > 3 ? "…" : ""}).</span>
+          <button className="btn btn-p btn-sm" onClick={() => irASeccion("traspasos")}>Ver y mandar</button>
+        </div>
+      )}
       {traspasosPorRecibir.length > 0 && (modo === "productos" || modo === "traspasos") && (
         <div role="status" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 12, padding: "10px 14px", borderRadius: 8, background: temaPal.warnDim, border: "1px solid " + temaPal.warn, color: temaPal.text, fontSize: 13 }}>
           <span>🚚 <b>{traspasosPorRecibir.length === 1 ? "Hay 1 traspaso" : "Hay " + traspasosPorRecibir.length + " traspasos"} para recibir en {nombreLocal(localId)}</b> ({traspasosPorRecibir.reduce((s, tr) => s + (parseInt(tr.cantidad) || 0), 0)} u.). Hasta que no confirmes que llegaron, no suman al stock.</span>
@@ -8945,6 +8965,32 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
               {["jefe", "admin"].includes(usuario?.rol) && <button className="btn btn-g btn-sm" onClick={() => setShowEliminarTr(true)} title="Borrar traspasos cargados de más, sin cambiar el stock">🗑 Eliminar traspasos</button>}
             </div>
           </div>
+          {sugTr && (sugTr.mandar.length > 0 || sugTr.pedir.length > 0) && (
+            <div className="card" style={{ marginBottom: 12, borderLeft: "4px solid #2471a3" }}>
+              <div className="ct">🔄 Stock cruzado entre locales</div>
+              {sugTr.mandar.length > 0 && <>
+                <div style={{ fontWeight: 800, fontSize: 13, margin: "4px 0 6px" }}>📤 A {nombreLocal(localDestinoTraspaso)} se le agota y acá tenés</div>
+                {sugTr.mandar.map(x => (
+                  <div key={x.producto_id} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", padding: "6px 0", borderTop: "1px solid " + temaPal.border, fontSize: 12.5 }}>
+                    <div style={{ flex: "1 1 200px", minWidth: 0 }}><b>{x.nombre}</b> <span style={{ color: temaPal.textMuted }}>{x.marca || ""}</span>
+                      <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>Allá: <b style={{ color: x.stock_alla <= 0 ? temaPal.red : temaPal.warn }}>{x.stock_alla <= 0 ? "agotado" : x.stock_alla}</b> · acá: {x.stock_aca}{x.vendidos_alla ? " · allá vendieron " + x.vendidos_alla + " en 30 días" : ""}</div></div>
+                    <input className="inp" type="number" min="1" max={x.stock_aca} style={{ width: 70 }} value={cantSug[x.producto_id] ?? x.cantidad} onChange={e => setCantSug(c => ({ ...c, [x.producto_id]: e.target.value }))} aria-label={"Cantidad de " + x.nombre} />
+                    <button className="btn btn-p btn-sm" onClick={() => mandarSug(x)}>📦 Mandar</button>
+                  </div>
+                ))}
+              </>}
+              {sugTr.pedir.length > 0 && <>
+                <div style={{ fontWeight: 800, fontSize: 13, margin: "12px 0 6px" }}>📥 Acá se te agota y en {nombreLocal(localDestinoTraspaso)} hay</div>
+                {sugTr.pedir.map(x => (
+                  <div key={x.producto_id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "5px 0", borderTop: "1px solid " + temaPal.border, fontSize: 12.5 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}><b>{x.nombre}</b> <span style={{ fontSize: 11.5, color: temaPal.textMuted }}>· acá: {x.stock_alla <= 0 ? "agotado" : x.stock_alla} · allá: {x.stock_aca}</span></div>
+                    <span style={{ fontSize: 12, whiteSpace: "nowrap" }}>pedí {x.cantidad}</span>
+                  </div>
+                ))}
+                <button className="btn btn-g btn-sm" style={{ marginTop: 8 }} onClick={() => { const t = "Hola! ¿Nos mandan de " + nombreLocal(localDestinoTraspaso) + " a " + nombreLocal(localId) + "?\n" + sugTr.pedir.map(x => "• " + x.cantidad + " " + x.nombre).join("\n"); window.open("https://wa.me/?text=" + encodeURIComponent(t), "_blank"); }}>💬 Pedírselo por WhatsApp</button>
+              </>}
+            </div>
+          )}
           {showEliminarTr && <EliminarTraspasos temaPal={temaPal} onCerrar={() => setShowEliminarTr(false)} onListo={(msg) => { setShowEliminarTr(false); setMensaje(msg); setTimeout(() => setMensaje(""), 8000); cargarTraspasos(); cargar(); }} />}
 
           {cargandoTraspasos ? (
