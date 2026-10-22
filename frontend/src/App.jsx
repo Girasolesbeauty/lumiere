@@ -30925,7 +30925,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const [aviso, setAviso] = useState(null);
   const avisar = (ok, texto) => { setAviso({ ok, texto }); setTimeout(() => setAviso(a => (a && a.texto === texto ? null : a)), ok ? 4500 : 10000); };
   const esJefeT = ["jefe", "admin", "administrativo"].includes(usuario?.rol) || puedeHacer("tienda.admin");
-  const esDuenaT = ["jefe", "admin", "administrativo"].includes(usuario?.rol);
+  // Dueña o encargada (las vendedoras, aunque tengan permiso de la tienda, ven solo Pedidos, Productos, Clientas web y Reseñas)
+  const esDuenaT = ["jefe", "admin", "administrativo"].includes(usuario?.rol) || Number(usuario?.rol_id) === 1;
 
   const [locs, setLocs] = useState([]);
   useEffect(() => { API.get("/locales").then(r => setLocs((r.data || []).map(l => ({ ...l, direccion0: l.direccion || "" })))).catch(() => {}); }, []);
@@ -31169,7 +31170,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
           { t: "Para atender", v: abiertos.length, sub: nNuevos ? nNuevos + (nNuevos === 1 ? " nuevo" : " nuevos") + " para preparar" : "al día", c: abiertos.length ? "#d35400" : "#2d7a4f", ir: () => { setTab("pedidos"); setFiltro("activos"); } },
           { t: "Vendido online (30 días)", v: fmt(vendido30), sub: entregados30.length + (entregados30.length === 1 ? " pedido entregado" : " pedidos entregados"), c: "#2d7a4f", ir: () => { setTab("pedidos"); setFiltro("entregado"); } },
           { t: "Productos a la venta", v: nPub, sub: "de " + productos.length + " cargados", c: "#2471a3", ir: () => setTab("productos") },
-          { t: "Tienda", v: cfg.activo ? "Publicada" : "Apagada", sub: cfg.activo ? (cfg.dominio && cfg.dominioGuardado ? cfg.dominio : "con link propio") : "prendela en Configuración", c: cfg.activo ? "#16a085" : "#95a5a6", ir: () => { setTab("config"); setSecCfg("tienda"); } },
+          { t: "Tienda", v: cfg.activo ? "Publicada" : "Apagada", sub: cfg.activo ? (cfg.dominio && cfg.dominioGuardado ? cfg.dominio : "con link propio") : "prendela en Configuración", c: cfg.activo ? "#16a085" : "#95a5a6", ir: () => { if (!esDuenaT) return; setTab("config"); setSecCfg("tienda"); } },
         ].map(k => (
           <button key={k.t} onClick={k.ir} style={{ fontFamily: "inherit", textAlign: "left", cursor: "pointer", background: temaPal.card, color: temaPal.text, border: "1px solid " + temaPal.border, borderLeft: "5px solid " + k.c, borderRadius: 12, padding: "10px 12px" }}>
             <div style={{ fontSize: 11.5, color: temaPal.textMuted, fontWeight: 700 }}>{k.t}</div>
@@ -31244,7 +31245,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         );
       })()}
       <div className="tabs" style={{ marginBottom: 12 }}>
-        {[["pedidos", "📦 Pedidos" + (abiertos.length ? " (" + abiertos.length + ")" : "")], ["productos", "🛍 Productos"], ...(esJefeT ? [["portada", "🏠 Portada y sectores"]] : []), ["clientas", "👥 Clientas web"], ["resenas", "⭐ Reseñas" + (resPend ? " (" + resPend + ")" : "")], ["ofertas", "⚡ Ofertas y combos"], ["rutinas", "💁 Rutinas del local"], ["regalos", "🎁 Regalos"], ["config", "⚙️ Configuración"]].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
+        {[["pedidos", "📦 Pedidos" + (abiertos.length ? " (" + abiertos.length + ")" : "")], ["productos", "🛍 Productos"], ...(esDuenaT ? [["portada", "🏠 Portada y sectores"]] : []), ["clientas", "👥 Clientas web"], ["resenas", "⭐ Reseñas" + (resPend ? " (" + resPend + ")" : "")], ...(esDuenaT ? [["ofertas", "⚡ Ofertas y combos"], ["rutinas", "💁 Rutinas del local"], ["regalos", "🎁 Regalos"], ["config", "⚙️ Configuración"]] : [])].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
       </div>
 
       {tab === "pedidos" && (
@@ -31724,14 +31725,14 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
           </div>
         );
       })()}
-      {tab === "ofertas" && (productos ? <OfertasTienda cfg={cfg} productos={productos} temaPal={temaPal} avisar={avisar} esJefe={esJefeT} onGuardado={cargarCfg} urlTienda={url} /> : <div className="skel" style={{ height: 200 }} />)}
-      {tab === "rutinas" && (productos ? <RutinasLocalAdmin cfg={cfg} productos={productos} temaPal={temaPal} avisar={avisar} esJefe={esJefeT} onGuardado={cargarCfg} urlTienda={url} /> : <div className="skel" style={{ height: 200 }} />)}
-      {tab === "regalos" && <RegalosTienda cfg={cfg} pedidos={pedidos} temaPal={temaPal} avisar={avisar} urlTienda={url} esJefe={esJefeT} onGuardado={cargarCfg} />}
+      {tab === "ofertas" && esDuenaT && (productos ? <OfertasTienda cfg={cfg} productos={productos} temaPal={temaPal} avisar={avisar} esJefe={esJefeT} onGuardado={cargarCfg} urlTienda={url} /> : <div className="skel" style={{ height: 200 }} />)}
+      {tab === "rutinas" && esDuenaT && (productos ? <RutinasLocalAdmin cfg={cfg} productos={productos} temaPal={temaPal} avisar={avisar} esJefe={esJefeT} onGuardado={cargarCfg} urlTienda={url} /> : <div className="skel" style={{ height: 200 }} />)}
+      {tab === "regalos" && esDuenaT && <RegalosTienda cfg={cfg} pedidos={pedidos} temaPal={temaPal} avisar={avisar} urlTienda={url} esJefe={esJefeT} onGuardado={cargarCfg} />}
       {tab === "resenas" && <ResenasTienda temaPal={temaPal} avisar={avisar} urlTienda={url} nombreTienda={cfg?.titulo} esJefe={esJefeT} alCambiar={setResPend} />}
       {tab === "clientas" && <ClientasWeb temaPal={temaPal} avisar={avisar} urlTienda={url} nombreTienda={cfg?.titulo} esJefe={esJefeT} slug={cfg?.slug} />}
-      {tab === "portada" && esJefeT && <PortadaTienda productos={productos} temaPal={temaPal} avisar={avisar} alGuardar={cargarProductos} />}
+      {tab === "portada" && esDuenaT && <PortadaTienda productos={productos} temaPal={temaPal} avisar={avisar} alGuardar={cargarProductos} />}
 
-      {tab === "config" && (() => {
+      {tab === "config" && esDuenaT && (() => {
         const SECS_CFG = [
           { k: "tienda", icono: "🏪", titulo: "Tienda y dirección", color: "#16a085", sub: cfg.activo ? "Publicada" : "Apagada", alerta: !cfg.activo, ayuda: "Prendé o apagá la tienda, elegí su dirección y compartila." },
           { k: "marca", icono: "🎨", titulo: "Marca y redes", color: "#8e44ad", sub: cfg.logo ? "Con logo" : "Sin logo", ayuda: "Cómo se ve: logo, ícono del celular, nombre, color, redes y frases de arriba." },
