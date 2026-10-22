@@ -563,6 +563,8 @@ button.tab { font-family: inherit; }
 .pcel-menu span:first-child { font-size: 24px; }
 /* En el inicio del celular, la Ayuda va como boton chico arriba (el flotante tapaba los botones) */
 body:has(.pcel-grid) .ayuda-fab { display: none !important; }
+/* Con una ventana abierta, el boton de ayuda no tapa sus botones (en el celular quedaba encima de "Guardar") */
+body:has(.pos-overlay) .ayuda-fab { display: none !important; }
 .pcel-chip { display: inline-flex; align-items: center; gap: 7px; border: 1.5px solid ${p.border}; background: ${p.card}; color: ${p.text}; border-radius: 999px; padding: 7px 13px;
   font-family: inherit; font-size: 14px; font-weight: 800; cursor: pointer; box-shadow: 0 2px 8px ${p.shadowSoft}; }
 .pcel-chip span { font-size: 12.5px; font-weight: 700; color: ${p.textMuted}; }
@@ -29982,7 +29984,9 @@ const ESTADOS_TIENDA = {
 };
 // Por que se vencio un pedido (lo anota la vendedora despues de hablar con la clienta)
 const MOTIVOS_VENC_PED = [["mirando", "🛒 Solo estaba mirando / armó el carrito para probar"], ["arrepintio", "🙅 Se arrepintió, ya no lo quiere"], ["pago", "💳 Tuvo problemas para pagar"], ["otro_medio", "🔁 Quería pagar con otro medio"], ["local", "🏪 Lo compró en el local"], ["caro", "💸 Le pareció caro"], ["envio", "🛵 Por el envío o el retiro"], ["sin_respuesta", "📵 No contestó"], ["otro", "✏️ Otro motivo"]];
-const motivoVencTxt = (k) => (MOTIVOS_VENC_PED.find(m => m[0] === k) || [k, k])[1];
+// Por que se cancelo un pedido (los de la lista de vencidos que tambien aplican, mas los propios de una cancelacion)
+const MOTIVOS_CANC_PED = [["clienta", "🙋 La clienta pidió cancelar"], ["arrepintio", "🙅 Se arrepintió, ya no lo quiere"], ["sin_stock", "📦 No teníamos el producto"], ["duplicado", "📑 Pedido repetido o con error"], ["cambio", "🔁 Lo cambió por otro pedido"], ["local", "🏪 Lo compró en el local"], ["otro_medio", "💳 Quería pagar con otro medio"], ["envio", "🛵 Por el envío o el retiro"], ["sin_respuesta", "📵 No contestó"], ["prueba", "🧪 Era una prueba"], ["otro", "✏️ Otro motivo"]];
+const motivoVencTxt = (k) => ([...MOTIVOS_VENC_PED, ...MOTIVOS_CANC_PED].find(m => m[0] === k) || [k, k])[1];
 const PAGO_TIENDA = { mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "Transferencia", retiro: "Paga al retirar", giftcard: "Gift card" };
 
 // ---- Lumiere: clientas de la tienda web (avisos de reposicion, carritos sin terminar, analisis de favoritos) ----
@@ -30838,7 +30842,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const [cambio, setCambio] = useState(null); // { p, it, q, prod, vars, variante, cant }: cambiar un producto de un pedido
   // Notas del local en un pedido (la clienta no las ve): { id del pedido, texto }
   const [notaPed, setNotaPed] = useState(null);
-  const [vencPed, setVencPed] = useState(null); // { id, nombre, motivo, nota }: ventana "¿Por qué se venció?"
+  const [vencPed, setVencPed] = useState(null); // { id, nombre, tipo: "vencido" | "cancelado", motivo, nota }: ventana "¿Por qué se venció / canceló?"
   const [pedAbiertos, setPedAbiertos] = useState([]); // pedidos con el detalle abierto
   // Burbujas rojas de los filtros: lo que paso a rechazado / vencido / cancelado desde la ultima vez que se abrio ese filtro
   // (cada persona en su navegador). La primera vez arranca de cero para no marcar todo lo viejo.
@@ -30860,12 +30864,12 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
     catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar la nota"); }
   };
   const guardarVenc = async () => {
-    if (!vencPed.motivo) return avisar(false, "Elegí por qué se venció");
+    if (!vencPed.motivo) return avisar(false, "Elegí por qué se " + (vencPed.tipo === "cancelado" ? "canceló" : "venció"));
     if (vencPed.motivo === "otro" && !vencPed.nota.trim()) return avisar(false, "Contá qué pasó");
     try { const r = await API.post("/tienda/pedidos/" + vencPed.id + "/vencimiento", { motivo: vencPed.motivo, nota: vencPed.nota }); setPedidos(l => l.map(x => x.id === vencPed.id ? { ...x, ...r.data } : x)); setVencPed(null); avisar(true, "✓ Anotado, gracias"); }
     catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
   };
-  const abrirVenc = (p) => setVencPed({ id: p.id, nombre: p.nombre, motivo: p.venc_motivo || "", nota: p.venc_nota || "" });
+  const abrirVenc = (p, tipo) => setVencPed({ id: p.id, nombre: p.nombre, tipo: tipo || (p.estado === "cancelado" && !["Venció sin pagar", "No lo retiró a tiempo"].includes(p.motivo) ? "cancelado" : "vencido"), motivo: p.venc_motivo || "", nota: p.venc_nota || "" });
   const marcarContactado = async (p, si) => {
     try { const r = await API.post("/tienda/pedidos/" + p.id + "/contactado", { contactado: si }); setPedidos(l => l.map(x => x.id === p.id ? { ...x, ...r.data } : x)); }
     catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
@@ -30924,7 +30928,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
 
   const estado = async (p, est, extra) => {
     if (est === "cancelado" && !confirm("¿Cancelar el pedido " + nroPedido(p) + " de " + p.nombre + "? El stock vuelve al local.")) return;
-    try { await API.put("/tienda/pedidos/" + p.id + "/estado", { estado: est, ...extra }); cargarPedidos(); }
+    try { await API.put("/tienda/pedidos/" + p.id + "/estado", { estado: est, ...extra }); cargarPedidos(); if (est === "cancelado") abrirVenc(p, "cancelado"); }
     catch (e) { avisar(false, e.response?.data?.error || "No se pudo cambiar"); }
   };
   const aCaja = async (p) => {
@@ -31113,11 +31117,12 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const nNuevos = pedidos.filter(p => p.estado === "confirmado").length;
   const contar = (k) => pedidos.filter(p => enFiltro(p, k)).length;
   const fechaCambio = (p, k) => new Date(k === "rechazado" ? (p.pago_rechazo_en || p.actualizado_en || p.creado_en) : (p.actualizado_en || p.creado_en)).getTime();
-  const nuevosEn = (k) => k === "proceso" ? nDemorados : k === "vencido" ? nSinMotivo : vistosPed[k] && filtro !== k ? pedidos.filter(p => enFiltro(p, k) && fechaCambio(p, k) > vistosPed[k]).length : 0;
+  const nuevosEn = (k) => k === "proceso" ? nDemorados : k === "vencido" ? nSinMotivo : k === "cancelado" ? nSinMotivoCanc : vistosPed[k] && filtro !== k ? pedidos.filter(p => enFiltro(p, k) && fechaCambio(p, k) > vistosPed[k]).length : 0;
   const nDemorados = pedidos.filter(p => procesoDemorado(p) && !p.contactado_en).length;
   // Vencidos (ultimos 7 dias) a los que nadie anoto por que se vencieron (lo mas viejo ya no se pide)
-  const faltaVenc = (p) => esVencido(p) && !p.venc_motivo && Date.now() - new Date(p.creado_en).getTime() < 7 * 864e5;
-  const nSinMotivo = pedidos.filter(faltaVenc).length;
+  const faltaVenc = (p) => (esVencido(p) || esCancelado(p)) && !p.venc_motivo && Date.now() - new Date(p.actualizado_en || p.creado_en).getTime() < 7 * 864e5;
+  const nSinMotivo = pedidos.filter(p => faltaVenc(p) && esVencido(p)).length;
+  const nSinMotivoCanc = pedidos.filter(p => faltaVenc(p) && esCancelado(p)).length;
   const FILTROS_PED = [["activos", "Todo para atender"], ["proceso", "🔄 En proceso de pago"], ["entregado", "Entregados"], ["rechazado", "❌ Pagos rechazados"], ["vencido", "⌛ Vencidos"], ["cancelado", "Cancelados"], ["todos", "Todos"]];
   const nuevosTotal = ["proceso", "rechazado", "vencido", "cancelado"].reduce((t, k) => t + nuevosEn(k), 0);
   // Para atender: agrupados por lo que hay que hacer, en ese orden
@@ -31264,7 +31269,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                   catch (er) { avisar(false, er.response?.data?.error || "No se pudo"); }
                 };
                 // El proximo paso, a un toque desde la fila cerrada
-                const paso = faltaVenc(p) ? ["📝 ¿Por qué se venció?", () => abrirVenc(p)]
+                const paso = faltaVenc(p) ? ["📝 ¿Por qué se " + (esCancelado(p) ? "canceló?" : "venció?"), () => abrirVenc(p, esCancelado(p) ? "cancelado" : "vencido")]
                   : cerrado ? null
                   : (esRechazado(p) || procesoDemorado(p)) && !p.contactado_en ? ["💬 Ya le escribimos", () => marcarContactado(p, true)]
                   : enProceso(p) && !procesoDemorado(p) ? null
@@ -31296,7 +31301,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                           {/* El estado ya lo dice el titulo del grupo (Nuevos, Listos...) y "esperando pago"/"cancelado" la etiqueta del pago */}
                           {!agrupado && !["pendiente_pago", "cancelado"].includes(p.estado) && <span className="ped-chip" style={{ color: e.c, background: e.c + "1a" }}>{e.t}</span>}
                           <span className="ped-chip" style={{ color: pago.c, background: pago.c + (pago.fuerte ? "26" : "14"), fontWeight: pago.fuerte ? 900 : 700 }}>{pago.t}</span>
-                          {esVencido(p) && (p.venc_motivo ? <span className="ped-chip neutro" title={p.venc_nota || ""}>{motivoVencTxt(p.venc_motivo)}</span> : faltaVenc(p) ? <span className="ped-chip" style={{ color: "#c0392b", background: "#c0392b1f" }}>❓ Falta anotar por qué</span> : null)}
+                          {(esVencido(p) || esCancelado(p)) && (p.venc_motivo ? <span className="ped-chip neutro" title={p.venc_nota || ""}>{motivoVencTxt(p.venc_motivo)}</span> : faltaVenc(p) ? <span className="ped-chip" style={{ color: "#c0392b", background: "#c0392b1f" }}>❓ Falta anotar por qué</span> : null)}
                           <span className="ped-chip neutro">{p.tipo === "giftcard" ? "🎁 Gift card" : (p.entrega === "retiro" ? (UN_SOLO_LOCAL ? "📍 " + nombreLocal(p.local_id) : "🛍️ Retira en el local") : "🛵 " + (p.zona || "Envío")) + " · " + cant + (cant === 1 ? " producto" : " productos")}</span>
                           {p.express_min && ["confirmado", "pendiente_pago"].includes(p.estado) && <CronoExpress hasta={p.listo_express} minutos={p.express_min} temaPal={temaPal} />}
                         </div>
@@ -31352,12 +31357,12 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                                 <div style={{ color: temaPal.textMuted }}>💳 {PAGO_TIENDA[p.pago]}{p.pagado ? " · pagado" + (p.pagado_en ? " el " + fh(p.pagado_en) : "") : ""} · hecho el {fh(p.creado_en)}</div>
                                 {p.nota && <div style={{ marginTop: 4, padding: "5px 8px", borderRadius: 8, background: temaPal.card, border: "1px solid " + temaPal.border }}>📝 <i>“{p.nota}”</i> <span style={{ fontSize: 11, color: temaPal.textMuted }}>· escribió la clienta</span></div>}
                                 {p.estado === "cancelado" && p.motivo && <div style={{ fontSize: 12, color: temaPal.textMuted }}>Motivo: {p.motivo}</div>}
-                                {esVencido(p) && <div style={{ marginTop: 6, padding: "7px 9px", borderRadius: 8, background: p.venc_motivo ? temaPal.card : "#c0392b14", border: "1px solid " + (p.venc_motivo ? temaPal.border : "#c0392b55") }}>
+                                {(esVencido(p) || esCancelado(p)) && <div style={{ marginTop: 6, padding: "7px 9px", borderRadius: 8, background: p.venc_motivo ? temaPal.card : "#c0392b14", border: "1px solid " + (p.venc_motivo ? temaPal.border : "#c0392b55") }}>
                                   {p.venc_motivo ? <>
-                                    <div><b>¿Por qué se venció?</b> {motivoVencTxt(p.venc_motivo)}</div>
+                                    <div><b>¿Por qué se {esCancelado(p) ? "canceló" : "venció"}?</b> {motivoVencTxt(p.venc_motivo)}</div>
                                     {p.venc_nota && <div>💬 <i>“{p.venc_nota}”</i></div>}
                                     <div style={{ fontSize: 11, color: temaPal.textMuted }}>Anotó {p.venc_por || "el local"}{p.venc_en ? " · " + fh(p.venc_en) : ""} · <button className="chip-btn" style={{ fontSize: 10.5, padding: "1px 7px" }} onClick={() => abrirVenc(p)}>Cambiar</button></div>
-                                  </> : <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}><span style={{ color: "#c0392b", fontWeight: 700 }}>❓ Falta anotar por qué se venció y qué dijo la clienta</span><button className="btn btn-p btn-sm" onClick={() => abrirVenc(p)}>📝 Anotar</button></div>}
+                                  </> : <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}><span style={{ color: "#c0392b", fontWeight: 700 }}>❓ Falta anotar por qué se {esCancelado(p) ? "canceló" : "venció"} y qué dijo la clienta</span><button className="btn btn-p btn-sm" onClick={() => abrirVenc(p)}>📝 Anotar</button></div>}
                                 </div>}
                               </div>
                             </div>
@@ -31411,6 +31416,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             if (filtro === "activos" || filtro.startsWith("g:")) return (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {filtro === "activos" && !buscaPed.trim() && nSinMotivo > 0 && <button className="ped-venc-aviso" onClick={() => setFiltro("vencido")}>📝 <b>{nSinMotivo} {nSinMotivo === 1 ? "pedido vencido" : "pedidos vencidos"} sin anotar por qué.</b> Hablá con la clienta y anotá qué te dijo → <u>Anotar</u></button>}
+                {filtro === "activos" && !buscaPed.trim() && nSinMotivoCanc > 0 && <button className="ped-venc-aviso" onClick={() => setFiltro("cancelado")}>📝 <b>{nSinMotivoCanc} {nSinMotivoCanc === 1 ? "pedido cancelado" : "pedidos cancelados"} sin anotar por qué.</b> Anotá qué pasó y qué dijo la clienta → <u>Anotar</u></button>}
                 {filtro === "activos" && !buscaPed.trim() && nDemorados > 0 && <button className="ped-urge-aviso" onClick={() => setFiltro("proceso")}>🚨 <b>{nDemorados} {nDemorados === 1 ? "pedido lleva" : "pedidos llevan"} más de 2 horas sin terminar de pagar</b> con Mercado Pago o GoCuotas. Escribiles para ofrecerles otro medio de pago → <u>Ver</u></button>}
                 {GRUPOS_PED.map(([est, titulo, c]) => { const l = visiblesB.filter(p => etapaPed(p) === est); if (!l.length) return null; return (
                   <div key={est}>
@@ -31422,15 +31428,16 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             );
             return (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {filtro === "vencido" && (() => {
-                  // Por que se vencen: cuantos de cada motivo (de los que se anotaron)
-                  const anot = pedidos.filter(p => esVencido(p) && p.venc_motivo);
-                  if (!anot.length && !nSinMotivo) return null;
-                  const cuenta = MOTIVOS_VENC_PED.map(([k, t]) => [t, anot.filter(p => p.venc_motivo === k).length]).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]);
+                {(filtro === "vencido" || filtro === "cancelado") && (() => {
+                  // Por que se vencen / se cancelan: cuantos de cada motivo (de los que se anotaron)
+                  const esC = filtro === "cancelado", deTipo = esC ? esCancelado : esVencido, faltan = esC ? nSinMotivoCanc : nSinMotivo;
+                  const anot = pedidos.filter(p => deTipo(p) && p.venc_motivo);
+                  if (!anot.length && !faltan) return null;
+                  const cuenta = (esC ? MOTIVOS_CANC_PED : MOTIVOS_VENC_PED).map(([k, t]) => [t, anot.filter(p => p.venc_motivo === k).length]).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]);
                   return <div className="card" style={{ padding: "10px 12px" }}>
-                    <div style={{ fontWeight: 800, fontSize: 13.5, marginBottom: 6 }}>📊 Por qué se vencen</div>
+                    <div style={{ fontWeight: 800, fontSize: 13.5, marginBottom: 6 }}>📊 Por qué se {esC ? "cancelan" : "vencen"}</div>
                     {cuenta.length ? <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{cuenta.map(([t, n]) => <span key={t} className="ped-chip neutro">{t} · <b>{n}</b></span>)}</div> : <div style={{ fontSize: 12.5, color: temaPal.textMuted }}>Todavía no se anotó ninguno.</div>}
-                    {nSinMotivo > 0 && <div style={{ fontSize: 12.5, color: "#c0392b", fontWeight: 700, marginTop: 6 }}>Faltan anotar {nSinMotivo} (los de los últimos 7 días).</div>}
+                    {faltan > 0 && <div style={{ fontSize: 12.5, color: "#c0392b", fontWeight: 700, marginTop: 6 }}>Faltan anotar {faltan} (los de los últimos 7 días).</div>}
                   </div>;
                 })()}
                 {visiblesB.slice(0, limitePed).map(tarjetaPed)}
@@ -31441,18 +31448,18 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         </>
       )}
 
-      {vencPed && <div className="pos-overlay" onClick={() => setVencPed(null)}>
+      {vencPed && <Ventana className="pos-overlay" onClick={() => setVencPed(null)}>
         <div className="card pop-in" role="dialog" aria-label="Por qué se venció" style={{ width: 520, maxWidth: "95vw", maxHeight: "90vh", overflowY: "auto", background: temaPal.card }} onClick={ev => ev.stopPropagation()}>
-          <div className="ct">📝 ¿Por qué se venció el pedido de {vencPed.nombre}?</div>
+          <div className="ct">📝 ¿Por qué se {vencPed.tipo === "cancelado" ? "canceló" : "venció"} el pedido de {vencPed.nombre}?</div>
           <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginBottom: 10 }}>Escribile a la clienta y anotá qué pasó. Así sabemos por qué se caen las ventas online.</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
-            {MOTIVOS_VENC_PED.map(([k, t]) => <button key={k} type="button" className={"chip-btn" + (vencPed.motivo === k ? " on" : "")} onClick={() => setVencPed(v => ({ ...v, motivo: k }))}>{vencPed.motivo === k ? "✓ " : ""}{t}</button>)}
+            {(vencPed.tipo === "cancelado" ? MOTIVOS_CANC_PED : MOTIVOS_VENC_PED).map(([k, t]) => <button key={k} type="button" className={"chip-btn" + (vencPed.motivo === k ? " on" : "")} onClick={() => setVencPed(v => ({ ...v, motivo: k }))}>{vencPed.motivo === k ? "✓ " : ""}{t}</button>)}
           </div>
           <div className="fl">¿Qué te dijo la clienta?{vencPed.motivo === "otro" ? "" : " (opcional)"}</div>
           <textarea className="inp" rows={3} maxLength={400} style={{ width: "100%", resize: "vertical" }} placeholder="Ej: dijo que solo estaba armando el carrito para ver cuánto le salía" value={vencPed.nota} onChange={ev => setVencPed(v => ({ ...v, nota: ev.target.value }))} />
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}><button className="btn btn-g" onClick={() => setVencPed(null)}>Cancelar</button><button className="btn btn-p" onClick={guardarVenc}>Guardar</button></div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}><button className="btn btn-g" onClick={() => setVencPed(null)}>Ahora no</button><button className="btn btn-p" onClick={guardarVenc}>Guardar</button></div>
         </div>
-      </div>}
+      </Ventana>}
       {tab === "productos" && (
         <div className="card">
           <div style={{ position: "relative", marginBottom: 8 }}>
