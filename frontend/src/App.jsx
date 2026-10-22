@@ -25859,26 +25859,51 @@ const twNorm = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[�
 const TW_PASOS_RUTINA = [["limpiador", "🫧 Limpiador"], ["tonico", "💧 Tónico"], ["serum", "✨ Sérum"], ["hidratante", "🧴 Hidratante"], ["solar", "☀️ Protector solar"]];
 const TW_FILTROS = [
   { k: "tipo", titulo: "Tipo de producto", en: "n", op: [
+    // Facial (el 4to dato es la linea: si no esta, es facial)
     ["limpiador", "Limpiadores", /limpia(dor|dora|dores|doras|nte)?\b|limpieza|cleanser|cleansing|jabon|espuma limpi|gel de limpieza|face ?wash|leche limpiadora|\bfoam\b|espuma facial/],
     ["desmaquillante", "Desmaquillantes", /desmaquill|micelar|micellar|aceite limpiador|balsamo limpiador|make ?up remover/],
     ["tonico", "Tónicos y esencias", /tonico|toner|tonificante|esencia facial|essence|\bbruma\b|\bmist\b/],
     ["serum", "Sérums y ampollas", /\bserum|ampolla|ampoule|concentrado|booster/],
     ["hidratante", "Hidratantes", /hidratante|\bcrema\b|\bcream\b|moistur|gel crema|emulsion|water ?gel|\blotion\b|\blocion\b|sleeping (pack|mask)/],
-    ["solar", "Protectores solares", /protector solar|proteccion solar|pantalla solar|sunscreen|\bsolar\b|\bfps\b|\bspf\b|\bsun ?(cream|stick|screen|block|serum|fluid|milk|gel|essence|cushion|protect)|\buv\b|bloqueador/],
+    ["solar", "Protectores solares", /protector solar|proteccion solar|pantalla solar|sunscreen|\bsolar\b|\bfps\b|\bspf\b|\bsun ?(cream|stick|screen|block|serum|fluid|milk|gel|essence|cushion|protect)|\buv\b|bloqueador/, ["facial", "corporal"]],
     ["ojos", "Contorno de ojos", /contorno de ojos|contorno ojos|\beye ?(cream|serum|gel|stick|patch)|parches? de ojos|ojeras/],
-    ["exfoliante", "Exfoliantes y peelings", /exfolia|peeling|scrub|\bpeel\b/],
+    ["exfoliante", "Exfoliantes y peelings", /exfolia|peeling|scrub|\bpeel\b/, ["facial", "corporal"]],
     ["mascarilla", "Mascarillas", /mascarilla|sheet mask|\bmask\b|mascara facial|parches?\b/],
-    ["labios", "Labios", /labial|labios|\blip\b|lip balm|balsamo labial/],
-    ["corporal", "Cuerpo", /corporal|body|cuerpo|manos|\bpies\b/],
+    ["labios", "Labios", /labial|labios|\blip\b|lip balm|balsamo labial/, ["facial", "maquillaje"]],
+    // Capilar
+    ["shampoo", "Shampoos", /shampoo|champu|champoo|\bchampo\b/, ["capilar"]],
+    ["acondicionador", "Acondicionadores", /acondicionador|conditioner|enjuague/, ["capilar"]],
+    ["mascaracapilar", "Máscaras y baños de crema", /mascara capilar|mascarilla capilar|mascara (para el )?(pelo|cabello)|hair ?mask|bano de crema|\bmask\b|mascarilla|tratamiento (capilar )?intensivo/, ["capilar"]],
+    ["tratacapilar", "Sérums, aceites y ampollas capilares", /\bserum|aceite|\boleo\b|\boil\b|ampolla|ampoule|tonico|locion|elixir|\btonic\b|essence|botox capilar/, ["capilar"]],
+    ["peinado", "Peinado y protectores térmicos", /crema de peinar|crema para peinar|leave[- ]?in|sin enjuague|termoprotector|protector termico|heat protect|styling|\bgel\b|\bcera\b|mousse|espuma|laca|spray (fijador|texturizador)|texturizador|\bcurly\b/, ["capilar"]],
+    ["coloracion", "Coloración y matizadores", /tintura|\btinte\b|coloracion|matizador|bano de color|decolorante|oxidante|\btoner\b/, ["capilar"]],
+    // Corporal
+    ["corporal", "Cremas y aceites corporales", /corporal|\bbody\b(?! ?(mist|splash|wash))|cuerpo|manteca|butter|\bcrema\b|\bcream\b|\blotion\b|\blocion\b|\baceite\b|\boil\b|hidratante|estrias|celulitis|reafirmante/, ["corporal"]],
+    ["ducha", "Geles de ducha y jabones", /gel de ducha|shower|body wash|jabon|\bducha\b|\bbano\b|espuma de bano|sales de bano/, ["corporal"]],
+    ["manos", "Manos, pies y uñas", /\bmanos\b|\bhand\b|\bpies\b|\bfoot\b|\bfeet\b|\bunas\b|cuticul|talones/, ["corporal"]],
+    ["desodorante", "Desodorantes", /desodorante|antitranspirante|deodorant/, ["corporal"]],
+    // Maquillaje
+    ["base", "Bases, BB y cushions", /base de maquillaje|\bbase\b|foundation|bb ?cream|cc ?cream|cushion|skin tint|tinte facial/, ["maquillaje"]],
+    ["corrector", "Correctores", /corrector|concealer/, ["maquillaje"]],
+    ["polvo", "Polvos", /\bpolvos?\b|powder/, ["maquillaje"]],
+    ["rubor", "Rubores, bronceadores e iluminadores", /rubor|blush|bronceador|bronzer|iluminador|highlighter|contour|contorno (facial|en barra|en crema)/, ["maquillaje"]],
+    ["ojosmaq", "Máscaras, delineadores y sombras", /mascara de pestanas|pestanas|rimel|\bmascara\b|delineador|eyeliner|sombras?\b|eyeshadow|\blash/, ["maquillaje"]],
+    ["cejas", "Cejas", /cejas|\bbrow/, ["maquillaje"]],
+    ["labial", "Labiales y gloss", /labial|lipstick|gloss|lip ?tint|tinta|lip (oil|color|stain|liner)|delineador de labios|\blips?\b/, ["maquillaje"]],
+    ["primer", "Primers y fijadores", /primer|pre-?base|fijador|setting/, ["maquillaje"]],
+    ["brochas", "Brochas y esponjas", /brocha|pincel|esponja|beauty ?blender|\bbrush/, ["maquillaje"]],
+    // Perfumes
+    ["perfume", "Perfumes", /perfumes?\b|parfum|eau de|\bedp\b|\bedt\b|colonia|fragancia|cologne/, ["perfume"]],
+    ["bodymist", "Body mist y splash", /body ?mist|body ?splash|\bsplash\b|\bmist\b|\bbruma\b/, ["perfume"]],
   ] },
-  { k: "piel", titulo: "Tipo de piel", en: "t", op: [
+  { k: "piel", titulo: "Tipo de piel", en: "t", lineas: ["facial", "corporal", "maquillaje"], op: [
     ["grasa", "Grasa", /piel(es)? (muy )?grasa|piel(es)? (con tendencia )?(oleosa|acneica)|oily skin|pieles mixtas a grasas|mixta a grasa|normal(es)? a grasa|tendencia grasa/],
     ["seca", "Seca", /piel(es)? (muy )?seca|piel(es)? (deshidratada|desvitalizada)|dry skin|normales? a secas?/],
     ["mixta", "Mixta", /piel(es)? mixta|combination skin|pieles mixtas/],
     ["sensible", "Sensible", /piel(es)? (muy )?(sensible|reactiva|delicada|intolerante)|sensitive skin|sensibilizada/],
     ["normal", "Normal", /piel(es)? normal|normal skin|pieles normales/],
   ] },
-  { k: "necesidad", titulo: "Necesidad", en: "t", op: [
+  { k: "necesidad", titulo: "Necesidad", en: "t", lineas: ["facial", "corporal"], op: [
     ["acne", "Acné e imperfecciones", /acne|acneica|granitos?|imperfecciones|espinillas|puntos negros|comedon|brotes|blemish|anti-?imperfec/],
     ["manchas", "Manchas y tono", /mancha|hiperpigment|despigment|tono (desparejo|irregular|uniforme)|unifica el tono|dark spot|melasma|aclara/],
     ["antiedad", "Arrugas y antiedad", /arruga|anti-?edad|anti-?age|anti-?aging|lineas de expresion|lineas finas|firmeza|flacidez|retinol|colageno|rejuvenec/],
@@ -25887,7 +25912,7 @@ const TW_FILTROS = [
     ["poros", "Poros y brillo", /poros?\b|(exceso de|controla el|anti-?|sin) ?brillos?|oleosidad|sebo\b|sebacea|matific/],
     ["ojeras", "Ojeras y bolsas", /ojeras|bolsas|hinchazon/],
   ] },
-  { k: "ingrediente", titulo: "Ingrediente", en: "t", op: [
+  { k: "ingrediente", titulo: "Ingrediente", en: "t", lineas: ["facial", "corporal", "capilar"], op: [
     ["hialuronico", "Ácido hialurónico", /hialuron|hyaluron/, "Hialurónico"],
     ["niacinamida", "Niacinamida", /niacinamid/, "Niacinamida"],
     ["vitaminac", "Vitamina C", /vitamina c\b|vitamin c\b|vit\.? ?c\b|acido ascorbico|ascorbic/, "Vitamina C"],
@@ -25921,36 +25946,107 @@ const TW_FILTROS = [
     ["escualano", "Escualano", /escual[ae]n|squal[ae]n/, "Escualano"],
     ["pantenol", "Pantenol (vitamina B5)", /pantenol|panthenol|provitamina b5|vitamina b5|\bb5\b/, "Pantenol"],
   ] },
+  { k: "cabello", titulo: "Cabello", en: "t", lineas: ["capilar"], op: [
+    ["graso", "Graso", /(cabellos?|pelos?|cuero cabelludo|raiz|raices) (muy )?(grasos?|grasa|oleosos?|con tendencia grasa)|oily (hair|scalp)/],
+    ["seco", "Seco", /(cabellos?|pelos?|puntas) (muy )?(secos?|resecos?|deshidratados?|opacos?)|dry hair/],
+    ["rulos", "Rulos y ondas", /rulos|rizos|rizados?|ondas|ondulados?|curly|wavy|enrulad/],
+    ["tenido", "Teñido o decolorado", /tenidos?|coloreados?|con color|color tratado|protege el color|color protect|decolorad|rubios?|platinad|canas/],
+    ["danado", "Dañado y quebradizo", /danados?|maltratados?|quebradiz|puntas (abiertas|florecidas)|repar|damaged|repair|\bplex\b|\bbond\b|quimicamente/],
+    ["caida", "Caída y crecimiento", /caida|anti-?caida|crecimiento|fortalec|hair loss|growth|biotina/],
+    ["frizz", "Frizz y alisado", /frizz|encrespa|alisad|keratina|liso\b|lacio/],
+    ["caspa", "Caspa y cuero cabelludo", /caspa|dandruff|cuero cabelludo|picazon|scalp/],
+    ["fino", "Fino y sin volumen", /(cabellos?|pelos?) finos?|volumen|volumin|cuerpo al cabello/],
+  ] },
+  { k: "aroma", titulo: "Familia olfativa", en: "t", lineas: ["perfume"], op: [
+    ["floral", "Floral", /floral|flores|\brosas?\b|jazmin|peonia|gardenia|azahar|lirio|flor de|orquidea|violeta/],
+    ["frutal", "Frutal", /frutal|frutos|frutilla|frambuesa|durazno|manzana|\bperas?\b|cereza|mango|\bcoco\b|maracuya|frutas/],
+    ["dulce", "Dulce / gourmand", /dulce|gourmand|vainilla|caramelo|chocolate|azucar|pralin|\bmiel\b|tonka|algodon de azucar|malvavisco/],
+    ["citrico", "Cítrico", /citric|limon|naranja|bergamota|pomelo|mandarina|\blima\b/],
+    ["amaderado", "Amaderado", /amaderad|madera|sandalo|cedro|pachuli|vetiver|\boud\b/],
+    ["fresco", "Fresco / acuático", /fresc|acuatic|marin[oa]|ocean|menta|\baqua\b|brisa/],
+    ["oriental", "Oriental / especiado", /oriental|especiad|ambar|almizcle|\bmusk\b|incienso|canela|cuero\b/],
+  ] },
+  // Linea del producto: se saca de la categoria y el nombre (si no, por lo que es). Decide que grupos y tipos le corresponden
+  { k: "linea", titulo: "Línea", en: "n", op: [
+    ["facial", "Facial / skincare", /facial|rostro|\bcara\b|skin ?care|\bface\b|cutis/],
+    ["capilar", "Capilar", /capilar|cabello|\bpelo\b|shampoo|champu|acondicionador|conditioner|\bhair\b|cuero cabelludo|keratina|tintura|matizador|crema de peinar|termoprotector|protector termico|leave[- ]?in|bano de crema/],
+    ["corporal", "Corporal", /corporal|\bbody\b(?! ?(mist|splash))|cuerpo|\bmanos\b|hand cream|\bpies\b|\bducha\b|shower|desodorante|antitranspirante|estrias|celulitis|manteca|\bunas\b/],
+    ["maquillaje", "Maquillaje", /maquillaje(?! ?remover)|make ?up(?! ?remover)|base de maquillaje|foundation|corrector|concealer|\bpolvos? (compacto|suelto|traslucido|matificante|fijador|bronceador)|rubor|blush|bronceador|bronzer|iluminador|highlighter|sombras?( de ojos)?\b|eyeshadow|mascara de pestanas|pestanas|rimel|delineador|eyeliner|lipstick|gloss|lip ?tint|labial (mate|liquido|cremoso|en barra|matte)|cejas|\bbrow|primer|pre-?base|fijador de maquillaje|setting spray|cushion|bb ?cream|cc ?cream|brocha|pincel|beauty ?blender/],
+    ["perfume", "Perfumes", /perfumes?\b|parfum|eau de|\bedp\b|\bedt\b|colonia|fragancia|cologne|body ?mist|body ?splash|\bsplash\b/],
+  ] },
 ];
 // "Todo tipo de piel" vale para cualquier tipo de piel
 const TW_TODO_TIPO = /todo tipo de piel|todos los tipos de piel|todas las pieles|all skin types/;
 // Ingredientes destacados (para los sellos de las tarjetas y la ficha)
 const TW_ING_OP = TW_FILTROS.find(f => f.k === "ingrediente").op;
-function twEtiquetasAuto(p) {
+// Lineas de un tipo de producto (sin dato = facial)
+const twLineasTipo = (o) => o[3] || ["facial"];
+const TW_TIPOS_FACIALES = TW_FILTROS[0].op.filter(o => twLineasTipo(o).includes("facial")).map(o => o[0]);
+// lin = linea elegida a mano (manda sobre la automatica)
+function twEtiquetasAuto(p, lin) {
   const nom = twNorm([p.nombre, p.categoria].join(" "));
   const todo = nom + " " + twNorm(p.descripcion);
   const e = {};
   TW_FILTROS.forEach(f => { e[f.k] = f.op.filter(o => o[2].test(f.en === "n" ? nom : todo)).map(o => o[0]); });
+  // Linea: la categoria y el nombre mandan; si no dicen nada y es algo de la rutina facial, es facial
+  if (Array.isArray(lin)) e.linea = lin.slice();
+  else {
+    // "Desmaquillante" no es maquillaje; "protector solar facial y corporal" es las dos cosas
+    if (e.linea.includes("maquillaje") && /desmaquill|make ?up remover/.test(nom) && !/\bbase\b|corrector|rubor|labial|mascara de pestanas/.test(nom)) e.linea = e.linea.filter(x => x !== "maquillaje");
+    if (!e.linea.length && e.tipo.some(t => TW_TIPOS_FACIALES.includes(t) && (t !== "labios" || !e.tipo.includes("labial")))) e.linea = ["facial"];
+    // Sin ninguna pista en el nombre: si lo que tiene es de una sola linea (ej: "gel de ducha"), esa
+    if (!e.linea.length) { const ls = [...new Set(TW_FILTROS[0].op.filter(o => e.tipo.includes(o[0])).flatMap(twLineasTipo))]; if (ls.length === 1) e.linea = ls; }
+  }
+  const lin0 = e.linea;
+  // Cada tipo, grupo y opcion solo si es de su linea (un "hair mask" no es mascarilla facial, una "crema de peinar" no es hidratante)
+  if (lin0.length) {
+    e.tipo = e.tipo.filter(t => twLineasTipo(TW_FILTROS[0].op.find(o => o[0] === t)).some(l => lin0.includes(l)));
+    TW_FILTROS.forEach(f => { if (f.lineas && !f.lineas.some(l => lin0.includes(l))) e[f.k] = []; });
+  } else TW_FILTROS.forEach(f => { if (f.lineas && !f.lineas.includes("facial")) e[f.k] = []; });
+  // En lo capilar, "serum", "aceite" o "tonico" son tratamientos; "mascara" es baño de crema (no se suman a los otros tipos)
+  if (e.tipo.includes("mascaracapilar")) e.tipo = e.tipo.filter(x => x !== "tratacapilar" || /\bserum|aceite|ampolla|\boil\b/.test(nom.replace(/mascara.*$/, "")));
+  if (e.tipo.includes("shampoo") || e.tipo.includes("acondicionador")) e.tipo = e.tipo.filter(x => !["tratacapilar", "peinado", "mascaracapilar"].includes(x) || /\b(y|\+)\b/.test(nom));
+  // En el maquillaje: "base" de un primer o un corrector no es base; "tinta" es labial solo si es de labios
+  if (e.tipo.includes("base") && e.tipo.some(t => ["primer", "corrector", "polvo"].includes(t)) && !/base de maquillaje|foundation|bb ?cream|cc ?cream|cushion/.test(nom)) e.tipo = e.tipo.filter(x => x !== "base");
+  if (e.tipo.includes("labial") && e.tipo.includes("labios")) { const cuidado = /balsamo|lip balm|hidratante labial|exfoliante labial|lip (mask|sleeping|care|scrub)/.test(nom); e.tipo = e.tipo.filter(x => x !== (cuidado ? "labial" : "labios")); }
+  if (e.tipo.includes("ojosmaq") && e.tipo.includes("cejas") && !/pestanas|rimel|delineador|sombra/.test(nom)) e.tipo = e.tipo.filter(x => x !== "ojosmaq");
+  // En lo corporal: el gel de ducha o un desodorante no son tambien "crema corporal"
+  if (e.tipo.includes("corporal") && e.tipo.some(t => ["ducha", "desodorante", "manos", "exfoliante", "solar"].includes(t)) && !/\bcrema\b|\bcream\b|\blocion\b|\blotion\b|manteca|butter/.test(nom)) e.tipo = e.tipo.filter(x => x !== "corporal");
+  // Perfume y body mist: si dice body mist o splash, es eso
+  if (e.tipo.includes("bodymist") && e.tipo.includes("perfume") && /body ?mist|body ?splash|\bsplash\b/.test(nom)) e.tipo = e.tipo.filter(x => x !== "perfume");
   // "Crema" o "cream" en un contorno, un protector, un limpiador o algo corporal no es la crema hidratante de la rutina
-  if (e.tipo.includes("hidratante") && e.tipo.some(t => ["ojos", "solar", "limpiador", "desmaquillante", "corporal", "labios", "mascarilla"].includes(t)) && !/hidratante|moistur/.test(nom)) e.tipo = e.tipo.filter(x => x !== "hidratante");
+  if (e.tipo.includes("hidratante") && e.tipo.some(t => ["ojos", "solar", "limpiador", "desmaquillante", "corporal", "labios", "mascarilla", "base", "corrector", "rubor", "primer"].includes(t)) && !/hidratante|moistur/.test(nom)) e.tipo = e.tipo.filter(x => x !== "hidratante");
   // Un serum, ampolla o tonico "hidratante" no es la crema de la rutina (salvo que diga crema o cream)
   if (e.tipo.includes("hidratante") && e.tipo.some(t => ["serum", "tonico"].includes(t)) && !/\bcrema\b|\bcream\b|moistur/.test(nom)) e.tipo = e.tipo.filter(x => x !== "hidratante");
   // Tipo de piel por la forma del producto, cuando no lo dice: leches y balsamos limpiadores son para piel seca o sensible;
-  // espumas, geles y lo matificante, para piel grasa o mixta
-  if (!e.piel.length && !TW_TODO_TIPO.test(todo)) {
+  // espumas, geles y lo matificante, para piel grasa o mixta (solo en lo facial)
+  if (!e.piel.length && !TW_TODO_TIPO.test(todo) && (!lin0.length || lin0.includes("facial"))) {
     if (/leche (de )?limpieza|leche limpiadora|cleansing milk|balsamo|cleansing balm|crema limpiadora|cleansing cream|nutritiv|\brich\b|barrier|intensiv/.test(todo)) e.piel = ["seca", "sensible", "normal"];
     else if (/\bfoam\b|espuma|gel limpiador|gel de limpieza|matific|mattif|oil[- ]?free|libre de aceite|control (de )?(brillo|grasa|sebo)|sebum|\bbha\b|salicil|water ?gel/.test(todo)) e.piel = ["grasa", "mixta", "normal"];
   }
   // El desmaquillante no es tambien "limpiador" salvo que lo diga el nombre (ej: "gel limpiador y desmaquillante")
   if (e.tipo.includes("desmaquillante") && !/limpiador|limpiadora|cleanser|limpieza/.test(nom)) e.tipo = e.tipo.filter(x => x !== "limpiador");
-  e.todoTipo = TW_TODO_TIPO.test(todo);
+  e.todoTipo = TW_TODO_TIPO.test(todo) && (!lin0.length || lin0.some(l => TW_FILTROS[1].lineas.includes(l)));
   return e;
 }
-// Lo elegido a mano en Lumiere manda sobre lo automatico, grupo por grupo
+// Grupos y opciones que corresponden a las lineas elegidas (sin linea: todo)
+const twGrupoDeLineas = (f, lin) => !lin || !lin.length || !f.lineas || f.lineas.some(l => lin.includes(l));
+const twOpcionDeLineas = (k, o, lin) => k !== "tipo" || !lin || !lin.length || twLineasTipo(o).some(l => lin.includes(l));
+// Lo elegido a mano en un grupo, si sigue valiendo para la linea del producto (null = va lo automatico).
+// Ej: un perfume marcado "Cuerpo" antes de que existieran los perfumes vuelve a lo automatico
+function twManual(m, f, lin) {
+  const v = m[f.k];
+  if (!Array.isArray(v) || !twGrupoDeLineas(f, lin)) return null;
+  if (f.k !== "tipo" || !v.length) return v;
+  const ok = v.filter(x => { const o = f.op.find(y => y[0] === x); return o && twOpcionDeLineas("tipo", o, lin); });
+  return ok.length ? ok : null;
+}
+// Lo elegido a mano en Lumiere manda sobre lo automatico, grupo por grupo (la linea elegida a mano cambia lo automatico del resto)
 function twEtiquetas(p) {
-  const e = twEtiquetasAuto(p), m = p.etiquetas || {};
-  ["tipo", "piel", "necesidad", "ingrediente"].forEach(k => { if (Array.isArray(m[k])) e[k] = m[k].filter(x => x !== "todo"); });
-  if (Array.isArray(m.piel)) e.todoTipo = m.piel.includes("todo");
+  const m = p.etiquetas || {};
+  const e = twEtiquetasAuto(p, Array.isArray(m.linea) ? m.linea : undefined);
+  const lin = e.linea;
+  TW_FILTROS.forEach(f => { const v = twManual(m, f, lin); if (v) e[f.k] = v.filter(x => x !== "todo"); if (f.k === "piel" && v) e.todoTipo = v.includes("todo"); });
   return e;
 }
 // Para elegir a mano: "Todo tipo de piel" es una opcion mas
@@ -25958,24 +26054,38 @@ const twOpcionesGrupo = (k) => { const f = TW_FILTROS.find(x => x.k === k); retu
 const twElegidas = (e, k) => k === "piel" && e.todoTipo ? [...e.piel, "todo"] : e[k];
 const twNombreEtiqueta = (k, v) => (twOpcionesGrupo(k).find(o => o[0] === v) || [v, v])[1];
 
+// Opciones de un grupo para elegir, separadas por linea en el tipo de producto (solo las de las lineas dadas, si hay)
+const twOpcionesPorLinea = (k, lin) => {
+  const ops = twOpcionesGrupo(k);
+  if (k !== "tipo") return [{ t: null, op: ops }];
+  const ls = TW_FILTROS.find(f => f.k === "linea").op.filter(l => !lin || !lin.length || lin.includes(l[0]));
+  const usados = new Set();
+  return ls.map(l => { const op = ops.filter(o => !usados.has(o[0]) && twLineasTipo(o).includes(l[0])); op.forEach(o => usados.add(o[0])); return { t: ls.length > 1 ? l[1] : null, op }; }).filter(g => g.op.length);
+};
+// La linea primero: de ella depende que grupos y tipos se muestran
+const TW_GRUPOS_SEG = [TW_FILTROS.find(f => f.k === "linea"), ...TW_FILTROS.filter(f => f.k !== "linea")];
+
 // Ventana para segmentar en Lumiere: un producto (elegir cada cosa) o varios (sumar o sacar una opcion)
 function SegmentarTienda({ lista, temaPal, avisar, onCerrar, onListo }) {
   const uno = lista.length === 1 ? lista[0] : null;
-  const auto = uno ? twEtiquetasAuto(uno) : null;
-  const efect = uno ? twEtiquetas(uno) : null;
-  const [sel, setSel] = useState(() => uno ? Object.fromEntries(TW_FILTROS.map(f => [f.k, twElegidas(efect, f.k)])) : null);
-  const [aMano, setAMano] = useState(() => uno ? Object.fromEntries(TW_FILTROS.map(f => [f.k, Array.isArray((uno.etiquetas || {})[f.k])])) : null);
+  const [sel, setSel] = useState(() => { if (!uno) return null; const e = twEtiquetas(uno); return Object.fromEntries(TW_FILTROS.map(f => [f.k, twElegidas(e, f.k)])); });
+  const [aMano, setAMano] = useState(() => { if (!uno) return null; const lin = twEtiquetas(uno).linea; return Object.fromEntries(TW_FILTROS.map(f => [f.k, !!twManual(uno.etiquetas || {}, f, lin)])); });
   const [masivo, setMasivo] = useState({ k: "piel", v: "", accion: "sumar" });
   const [guardando, setGuardando] = useState(false);
+  // Lo automatico se recalcula con la linea elegida (si cambia la linea, cambian los tipos y grupos que corresponden)
+  const autoAhora = uno ? twEtiquetasAuto(uno, aMano.linea ? sel.linea : undefined) : null;
+  const valor = (k) => aMano[k] ? sel[k] : twElegidas(autoAhora, k);
+  const linSel = uno ? valor("linea") : null;
   const enviar = async (cambios, msj) => {
     setGuardando(true);
     try { const r = await API.post("/tienda/productos/etiquetas", { cambios }); avisar(true, msj(r.data.cambiados)); onListo(); }
     catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); setGuardando(false); }
   };
   const guardarUno = () => {
-    const et = {}; TW_FILTROS.forEach(f => { if (aMano[f.k]) et[f.k] = sel[f.k]; });
+    const et = {}; TW_FILTROS.forEach(f => { if (aMano[f.k] && twGrupoDeLineas(f, linSel)) et[f.k] = sel[f.k]; });
     enviar([{ id: uno.id, etiquetas: Object.keys(et).length ? et : null }], () => "✓ Guardado");
   };
+  const tocar = (k, v) => { const cur = valor(k); setSel(x => ({ ...x, [k]: cur.includes(v) ? cur.filter(y => y !== v) : [...cur, v] })); setAMano(x => ({ ...x, [k]: true })); };
   const aplicarVarios = () => {
     const { k, v, accion } = masivo;
     const cambios = lista.map(p => {
@@ -25993,20 +26103,22 @@ function SegmentarTienda({ lista, temaPal, avisar, onCerrar, onListo }) {
       <div className="card pop-in" style={{ width: 600, maxWidth: "95vw", maxHeight: "90vh", overflowY: "auto", background: temaPal.card }} onClick={e => e.stopPropagation()}>
         {uno ? <>
           <div className="ct">🏷 Segmentar: {uno.nombre}</div>
-          <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginBottom: 12 }}>Así aparece en los filtros de la tienda y en "Comprá según tu tipo de piel". Lo marcado con <b>automático</b> sale de la descripción; si tocás una opción, queda como lo elegiste vos.</div>
-          {TW_FILTROS.map(f => (
-            <div key={f.k} style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginBottom: 12 }}>Así aparece en los filtros de la tienda. Elegí primero la <b>línea</b> (facial, capilar, corporal, maquillaje o perfumes): según eso se muestran los tipos y grupos que le corresponden. Lo marcado con <b>automático</b> sale del nombre, la categoría y la descripción; si tocás una opción, queda como lo elegiste vos.</div>
+          {TW_GRUPOS_SEG.filter(f => twGrupoDeLineas(f, linSel)).map(f => { const v = valor(f.k), grupos = twOpcionesPorLinea(f.k, linSel), vistos = new Set(grupos.flatMap(g => g.op.map(o => o[0]))), otros = twOpcionesGrupo(f.k).filter(o => v.includes(o[0]) && !vistos.has(o[0])); return (
+            <div key={f.k} style={{ marginBottom: 14, ...(f.k === "linea" ? { paddingBottom: 12, borderBottom: "1px solid " + temaPal.border } : {}) }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
                 <b style={{ fontSize: 13.5 }}>{f.titulo}</b>
                 <span className="tag" style={{ fontSize: 10.5, background: aMano[f.k] ? temaPal.greenDim : temaPal.border, color: aMano[f.k] ? temaPal.green : temaPal.textMuted }}>{aMano[f.k] ? "elegido por vos" : "automático"}</span>
-                {aMano[f.k] && <button type="button" className="chip-btn" style={{ fontSize: 11 }} onClick={() => { setSel(x => ({ ...x, [f.k]: twElegidas(auto, f.k) })); setAMano(x => ({ ...x, [f.k]: false })); }}>↺ Volver a automático</button>}
+                {aMano[f.k] && <button type="button" className="chip-btn" style={{ fontSize: 11 }} onClick={() => setAMano(x => ({ ...x, [f.k]: false }))}>↺ Volver a automático</button>}
               </div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {twOpcionesGrupo(f.k).map(o => chip(sel[f.k].includes(o[0]), () => { setSel(x => ({ ...x, [f.k]: x[f.k].includes(o[0]) ? x[f.k].filter(y => y !== o[0]) : [...x[f.k], o[0]] })); setAMano(x => ({ ...x, [f.k]: true })); }, o[1], o[0]))}
-              </div>
-              {aMano[f.k] && !sel[f.k].length && <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>Sin ninguna: no aparece en este filtro.</div>}
-            </div>
-          ))}
+              {grupos.map((g, i) => <div key={i}>
+                {g.t && <div style={{ fontSize: 11, fontWeight: 700, color: temaPal.textMuted, textTransform: "uppercase", letterSpacing: ".04em", margin: "4px 0" }}>{g.t}</div>}
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{g.op.map(o => chip(v.includes(o[0]), () => tocar(f.k, o[0]), o[1], o[0]))}</div>
+              </div>)}
+              {otros.length > 0 && <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{otros.map(o => chip(true, () => tocar(f.k, o[0]), o[1], o[0]))}</div>}
+              {f.k === "linea" && !v.length && <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>No se pudo saber la línea: elegí una para ver sus tipos y grupos.</div>}
+              {f.k !== "linea" && aMano[f.k] && !v.length && <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>Sin ninguna: no aparece en este filtro.</div>}
+            </div>); })}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 6 }}><button className="btn btn-g" disabled={guardando} onClick={onCerrar}>Cancelar</button><button className="btn btn-p" disabled={guardando} onClick={guardarUno}>{guardando ? "Guardando…" : "Guardar"}</button></div>
         </> : <>
           <div className="ct">🏷 Segmentar {lista.length} productos</div>
@@ -26017,13 +26129,14 @@ function SegmentarTienda({ lista, temaPal, avisar, onCerrar, onListo }) {
           </div>
           <div className="fl">{masivo.accion === "auto" ? "En qué" : "En"}</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-            {TW_FILTROS.map(f => chip(masivo.k === f.k, () => setMasivo(m => ({ ...m, k: f.k, v: "" })), f.titulo, f.k))}
+            {TW_GRUPOS_SEG.map(f => chip(masivo.k === f.k, () => setMasivo(m => ({ ...m, k: f.k, v: "" })), f.titulo, f.k))}
           </div>
           {masivo.accion !== "auto" && <>
             <div className="fl">Opción</div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-              {twOpcionesGrupo(masivo.k).map(o => chip(masivo.v === o[0], () => setMasivo(m => ({ ...m, v: o[0] })), o[1], o[0]))}
-            </div>
+            {twOpcionesPorLinea(masivo.k).map((g, i) => <div key={i}>
+              {g.t && <div style={{ fontSize: 11, fontWeight: 700, color: temaPal.textMuted, textTransform: "uppercase", letterSpacing: ".04em", margin: "4px 0" }}>{g.t}</div>}
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>{g.op.map(o => chip(masivo.v === o[0], () => setMasivo(m => ({ ...m, v: o[0] })), o[1], o[0]))}</div>
+            </div>)}
           </>}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 6 }}>
             <button className="btn btn-g" disabled={guardando} onClick={onCerrar}>Cancelar</button>
@@ -27787,7 +27900,7 @@ function TiendaPublica({ slug }) {
   // Filtros: cada uno cuenta sobre lo que dejan los otros (asi los numeros siempre dan algo)
   const pasaFiltro = (p, k, v) => !v || (p._et[k] || []).includes(v) || (k === "piel" && p._et.todoTipo);
   const pasaOtros = (p, menos) => TW_FILTROS.every(f => f.k === menos || pasaFiltro(p, f.k, filtros[f.k]));
-  const opcionesFiltro = TW_FILTROS.map(f => ({ ...f, op: f.op.map(o => ({ v: o[0], t: o[1], n: base0.filter(p => pasaOtros(p, f.k) && (p._et[f.k] || []).includes(o[0])).length })).filter(o => o.n > 0 || filtros[f.k] === o.v) })).filter(f => f.op.length > 0);
+  const opcionesFiltro = TW_FILTROS.map(f => ({ ...f, op: f.op.map(o => ({ v: o[0], t: o[1], n: base0.filter(p => pasaOtros(p, f.k) && (p._et[f.k] || []).includes(o[0])).length })).filter(o => o.n > 0 || filtros[f.k] === o.v) })).filter(f => f.op.length > (f.k === "linea" && !filtros.linea ? 1 : 0));
   const hayFiltros = TW_FILTROS.some(f => filtros[f.k]);
   const filtrada = base0.filter(p => pasaOtros(p, null));
   const lista0b = q && !orden ? [...filtrada].sort((a, b) => (puntaje.get(b.id) || 0) - (puntaje.get(a.id) || 0)) : ordenar(filtrada);
@@ -27798,7 +27911,7 @@ function TiendaPublica({ slug }) {
   const catSkin = cats.find(c => /facial|rostro/i.test(c)) || cats.find(esSkin) || null;
   // Como Sephora: tipo de piel y necesidad se muestran siempre completos (aunque los productos todavia no tengan descripcion);
   // el tipo de producto solo con lo que hay en la categoria
-  const gruposMenu = (c) => { const base = visibles.filter(p => c === "*" || p.categoria === c); return ["tipo", "piel", "necesidad"].map(k => { const f = TW_FILTROS.find(x => x.k === k); return { k, op: k === "tipo" ? f.op.filter(o => base.some(p => p._et[k].includes(o[0]))) : f.op }; }).filter(g => g.op.length > 0); };
+  const gruposMenu = (c) => { const base = visibles.filter(p => c === "*" || p.categoria === c); return ["tipo", "piel", "necesidad"].map(k => { const f = TW_FILTROS.find(x => x.k === k); return { k, op: k === "tipo" ? f.op.filter(o => TW_TIPOS_FACIALES.includes(o[0]) && base.some(p => p._et[k].includes(o[0]))) : f.op }; }).filter(g => g.op.length > 0); };
   const ofertaP = tienda.ofertas && tienda.ofertas.dia ? visibles.find(p => p.id === tienda.ofertas.dia.producto_id && p.precio_antes) || null : null;
   // Recomendados para su piel (perfil guardado con el test o en su cuenta)
   const paraTuPiel = perfilPiel && perfilPiel.piel ? visibles.filter(p => !agotado(p) && ((p._et.piel || []).includes(perfilPiel.piel) || p._et.todoTipo))
