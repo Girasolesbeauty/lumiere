@@ -25891,10 +25891,18 @@ const TW_FILTROS = [
     ["cejas", "Cejas", /cejas|\bbrow/, ["maquillaje"]],
     ["labial", "Labiales y gloss", /labial|lipstick|gloss|lip ?tint|tinta|lip (oil|color|stain|liner)|delineador de labios|\blips?\b/, ["maquillaje"]],
     ["primer", "Primers y fijadores", /primer|pre-?base|fijador|setting/, ["maquillaje"]],
-    ["brochas", "Brochas y esponjas", /brocha|pincel|esponja|beauty ?blender|\bbrush/, ["maquillaje"]],
+    ["brochas", "Brochas y esponjas", /brocha|pincel|esponja|beauty ?blender|\bbrush/, ["maquillaje", "accesorios"]],
     // Perfumes
     ["perfume", "Perfumes", /perfumes?\b|parfum|eau de|\bedp\b|\bedt\b|colonia|fragancia|cologne/, ["perfume"]],
     ["bodymist", "Body mist y splash", /body ?mist|body ?splash|\bsplash\b|\bmist\b|\bbruma\b/, ["perfume"]],
+    // Accesorios
+    ["cepillos", "Cepillos y peines", /cepillo|peine|desenredante|tangle/, ["accesorios"]],
+    ["accpelo", "Vinchas, broches y colitas", /vincha|diadema|headband|scrunchie|colitas?\b|gomitas?\b|broche|hebilla|\bclips?\b|pinza (de|para) (pelo|cabello)|banda (para|de) (pelo|cabello|skincare)/, ["accesorios"]],
+    ["neceser", "Neceseres y organizadores", /neceser|cosmetiquer|bolso|\bbolsa\b|organizador|estuche|portacosmetic|\bpouch\b|makeup bag/, ["accesorios"]],
+    ["masajeador", "Rodillos, gua sha y masajeadores", /rodillo|roller|gua ?sha|\bjade\b|cuarzo|masajeador|ice ?globe|crio|esferas? de frio/, ["accesorios"]],
+    ["toallas", "Toallas y turbantes", /toallas?\b|turbante|vincha de toalla|microfibra/, ["accesorios"]],
+    ["herramientas", "Limas, pinzas y herramientas", /lima de unas|\blimas?\b|pinza|cortaunas|alicate|encrespador|rizador de pestanas|sacapuntas?|tijera|afeitador|dermaplaning/, ["accesorios"]],
+    ["espejos", "Espejos", /espejo/, ["accesorios"]],
   ] },
   { k: "piel", titulo: "Tipo de piel", en: "t", lineas: ["facial", "corporal", "maquillaje"], op: [
     ["grasa", "Grasa", /piel(es)? (muy )?grasa|piel(es)? (con tendencia )?(oleosa|acneica)|oily skin|pieles mixtas a grasas|mixta a grasa|normal(es)? a grasa|tendencia grasa/],
@@ -25973,6 +25981,7 @@ const TW_FILTROS = [
     ["corporal", "Corporal", /corporal|\bbody\b(?! ?(mist|splash))|cuerpo|\bmanos\b|hand cream|\bpies\b|\bducha\b|shower|desodorante|antitranspirante|estrias|celulitis|manteca|\bunas\b/],
     ["maquillaje", "Maquillaje", /maquillaje(?! ?remover)|make ?up(?! ?remover)|base de maquillaje|foundation|corrector|concealer|\bpolvos? (compacto|suelto|traslucido|matificante|fijador|bronceador)|rubor|blush|bronceador|bronzer|iluminador|highlighter|sombras?( de ojos)?\b|eyeshadow|mascara de pestanas|pestanas|rimel|delineador|eyeliner|lipstick|gloss|lip ?tint|labial (mate|liquido|cremoso|en barra|matte)|cejas|\bbrow|primer|pre-?base|fijador de maquillaje|setting spray|cushion|bb ?cream|cc ?cream|brocha|pincel|beauty ?blender/],
     ["perfume", "Perfumes", /perfumes?\b|parfum|eau de|\bedp\b|\bedt\b|colonia|fragancia|cologne|body ?mist|body ?splash|\bsplash\b/],
+    ["accesorios", "Accesorios", /accesori|neceser|cosmetiquer|bolso|organizador|estuche|vincha|diadema|headband|scrunchie|colitas?\b|gomitas?\b|broche|hebilla|\bclips?\b|cepillo|peine|rodillo|roller|gua ?sha|\bjade\b|cuarzo|masajeador|ice ?globe|espejo|toallas?\b|turbante|brocha|pincel|esponja|beauty ?blender|lima de unas|cortaunas|alicate|encrespador|rizador de pestanas|sacapuntas?|tijera|pinza|dermaplaning/],
   ] },
 ];
 // "Todo tipo de piel" vale para cualquier tipo de piel
@@ -26009,6 +26018,8 @@ function twEtiquetasAuto(p, lin) {
   // En el maquillaje: "base" de un primer o un corrector no es base; "tinta" es labial solo si es de labios
   if (e.tipo.includes("base") && e.tipo.some(t => ["primer", "corrector", "polvo"].includes(t)) && !/base de maquillaje|foundation|bb ?cream|cc ?cream|cushion/.test(nom)) e.tipo = e.tipo.filter(x => x !== "base");
   if (e.tipo.includes("labial") && e.tipo.includes("labios")) { const cuidado = /balsamo|lip balm|hidratante labial|exfoliante labial|lip (mask|sleeping|care|scrub)/.test(nom); e.tipo = e.tipo.filter(x => x !== (cuidado ? "labial" : "labios")); }
+  // Un encrespador o un sacapuntas es una herramienta, no maquillaje de ojos
+  if (e.tipo.includes("herramientas") && /encrespador|rizador|sacapunta|pinza|tijera/.test(nom)) e.tipo = e.tipo.filter(x => x !== "ojosmaq" && x !== "cejas");
   if (e.tipo.includes("ojosmaq") && e.tipo.includes("cejas") && !/pestanas|rimel|delineador|sombra/.test(nom)) e.tipo = e.tipo.filter(x => x !== "ojosmaq");
   // En lo corporal: el gel de ducha o un desodorante no son tambien "crema corporal"
   if (e.tipo.includes("corporal") && e.tipo.some(t => ["ducha", "desodorante", "manos", "exfoliante", "solar"].includes(t)) && !/\bcrema\b|\bcream\b|\blocion\b|\blotion\b|manteca|butter/.test(nom)) e.tipo = e.tipo.filter(x => x !== "corporal");
@@ -26103,7 +26114,7 @@ function SegmentarTienda({ lista, temaPal, avisar, onCerrar, onListo }) {
       <div className="card pop-in" style={{ width: 600, maxWidth: "95vw", maxHeight: "90vh", overflowY: "auto", background: temaPal.card }} onClick={e => e.stopPropagation()}>
         {uno ? <>
           <div className="ct">🏷 Segmentar: {uno.nombre}</div>
-          <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginBottom: 12 }}>Así aparece en los filtros de la tienda. Elegí primero la <b>línea</b> (facial, capilar, corporal, maquillaje o perfumes): según eso se muestran los tipos y grupos que le corresponden. Lo marcado con <b>automático</b> sale del nombre, la categoría y la descripción; si tocás una opción, queda como lo elegiste vos.</div>
+          <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginBottom: 12 }}>Así aparece en los filtros de la tienda. Elegí primero la <b>línea</b> (facial, capilar, corporal, maquillaje, perfumes o accesorios): según eso se muestran los tipos y grupos que le corresponden. Lo marcado con <b>automático</b> sale del nombre, la categoría y la descripción; si tocás una opción, queda como lo elegiste vos.</div>
           {TW_GRUPOS_SEG.filter(f => twGrupoDeLineas(f, linSel)).map(f => { const v = valor(f.k), grupos = twOpcionesPorLinea(f.k, linSel), vistos = new Set(grupos.flatMap(g => g.op.map(o => o[0]))), otros = twOpcionesGrupo(f.k).filter(o => v.includes(o[0]) && !vistos.has(o[0])); return (
             <div key={f.k} style={{ marginBottom: 14, ...(f.k === "linea" ? { paddingBottom: 12, borderBottom: "1px solid " + temaPal.border } : {}) }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
