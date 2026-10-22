@@ -370,7 +370,7 @@ button.tab { font-family: inherit; }
 @keyframes popIn { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
 .pop-in { animation: popIn .24s cubic-bezier(.2,.7,.2,1) backwards; }
 .kbd { display: inline-block; font-size: 10px; font-weight: 700; line-height: 1.4; padding: 0 5px; border: 1px solid ${p.border}; border-bottom-width: 2px; border-radius: 4px; background: ${p.card}; color: ${p.textMuted}; font-family: ui-monospace, Consolas, monospace; vertical-align: middle; }
-.ped-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; width: 100%; }
+.ped-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: 100%; }
 .ped-grid .ped-btn { min-height: 118px; gap: 8px; }
 .ped-grid .ped-btn.on { border-color: var(--c); box-shadow: 0 0 0 2px var(--c), 0 10px 26px -12px var(--c); }
 .ped-grid .ped-btn.on::after { left: 8%; right: 8%; height: 5px; }
@@ -31166,13 +31166,14 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
       {tab === "pedidos" && (
         <>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10, alignItems: "center" }}>
-            {/* Por etapa, en tarjetas grandes como las del inicio. Nuevos lleva globito rojo (sin globito si no hay) */}
+            {/* Por etapa, en tarjetas grandes como las del inicio (y En proceso de pago y Entregados). Nuevos lleva globito rojo (sin globito si no hay) */}
             <div className="ped-grid">
-              {[["g:nuevo", "📥", "Nuevos", "#2471a3"], ["g:preventa", "⏳", "Preventa", "#d35400"], ["g:pago", "💳", "Esperando pago", "#b7950b"], ["g:listo", "📦", "Listos", "#8e44ad"]].map(([k, ic, t, col], i) => { const n = contar(k), on = filtro === k; return (
+              {[["g:nuevo", "📥", "Nuevos", "#2471a3"], ["g:preventa", "⏳", "Preventa", "#d35400"], ["g:pago", "💳", "Esperando pago", "#b7950b"], ["g:listo", "📦", "Listos", "#8e44ad"], ["proceso", "🔄", "En proceso de pago", "#c0392b"], ["entregado", "✅", "Entregados", "#1e8e4f"]].map(([k, ic, t, col], i) => { const n = contar(k), on = filtro === k; return (
                 <button key={k} className={"pcel-btn ped-btn" + (on ? " on" : "")} aria-pressed={on} style={{ "--c": col, animationDelay: (i * 45) + "ms" }} onClick={() => setFiltro(on ? "activos" : k)}>
                   <span className="pcel-ico" aria-hidden="true">{ic}</span>
                   <span className="pcel-txt">{t}</span>
-                  {n > 0 && <span className={"ped-globo" + (k === "g:nuevo" ? " rojo" : "")} aria-label={n + " pedidos"}>{n > 99 ? "99+" : n}</span>}
+                  {/* Entregados sin globito (no es algo para atender); En proceso, rojo solo si hay alguno de mas de 2 horas sin escribirle */}
+                  {n > 0 && k !== "entregado" && <span className={"ped-globo" + (k === "g:nuevo" || (k === "proceso" && nDemorados > 0) ? " rojo" : "")} aria-label={n + " pedidos"}>{n > 99 ? "99+" : n}</span>}
                 </button>); })}
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", width: "100%" }}>
