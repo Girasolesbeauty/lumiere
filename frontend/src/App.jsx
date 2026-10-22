@@ -30012,6 +30012,71 @@ async function iconoCuadrado(archivo) {
     return c.toDataURL("image/png");
   } finally { URL.revokeObjectURL(obj); }
 }
+// Carritos abandonados (en Pedidos, junto a vencidos y cancelados): clientas con cuenta que armaron un carrito y no compraron
+function CarritosAbandonados({ temaPal, carritos, mensajes, slug, nombreTienda, urlTienda, alCambiar }) {
+  const tCarrito = (mensajes && mensajes.carrito) || MSJ_CARRITO;
+  const hace = (f) => { const h = Math.round((Date.now() - new Date(f).getTime()) / 36e5); return h < 1 ? "recién" : h < 24 ? "hace " + h + " h" : "hace " + Math.round(h / 24) + " días"; };
+  const primer = (n) => String(n || "").trim().split(/\s+/)[0] || "";
+  const textoCarrito = (k) => llenarMsj(tCarrito, { nombre: primer(k.nombre), tienda: nombreTienda || "la tienda", total: fmt(k.subtotal), link: urlTienda || "",
+    productos: (k.items || []).map(i => i.nombre + (i.cantidad > 1 ? " x" + i.cantidad : "")).join(", ") });
+  const recordar = async (k) => {
+    window.open(linkWhatsapp(k.telefono, textoCarrito(k)) || ("https://wa.me/?text=" + encodeURIComponent(textoCarrito(k))), "_blank");
+    try { await API.post("/tienda/carritos/" + k.cliente_id + "/recordado"); alCambiar(); } catch (e) {}
+  };
+  if (!carritos) return <div className="card"><div className="skel" style={{ height: 120 }} /></div>;
+  const d = { carritos };
+  return (
+        <div className="card">
+          <div className="ct" style={{ marginBottom: 0 }}>🛒 Carritos abandonados</div>
+          <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "6px 0 8px" }}>Clientas con cuenta que armaron un carrito hace más de una hora y no compraron (últimos 30 días). "Recordarle" abre WhatsApp con tu mensaje (lo cambiás en Clientas web › Editar mensajes).</div>
+          {!d.carritos.length ? <div className="empty">No hay carritos abandonados.</div> : d.carritos.map(k => {
+            const items = k.items || [];
+            const sinStock = items.filter(i => !i.preventa && (i.stock || 0) < (i.cantidad || 1)).length;
+            const unidades = items.reduce((t, i) => t + (parseInt(i.cantidad) || 1), 0);
+            return (
+            <div key={k.cliente_id} style={{ border: "1px solid " + temaPal.border, borderLeft: "4px solid " + (k.recordado_en ? temaPal.border : "#d35400"), borderRadius: 10, padding: "10px 12px", marginTop: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 800, fontSize: 14 }}>{k.nombre}</div>
+                  <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{k.telefono || "sin WhatsApp"} · lo dejó {hace(k.actualizado_en)}{!UN_SOLO_LOCAL ? " · " + nombreLocal(k.local_id || 1) : ""}</div>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontWeight: 900, fontSize: 16 }}>{fmt(k.subtotal)}</div>
+                  <div style={{ fontSize: 11, color: temaPal.textMuted }}>{unidades} {unidades === 1 ? "producto" : "productos"}</div>
+                </div>
+              </div>
+              <div style={{ margin: "8px 0", display: "flex", flexDirection: "column", gap: 6 }}>
+                {items.map((i, n) => {
+                  const falta = !i.preventa && (i.stock || 0) < (i.cantidad || 1);
+                  return (
+                    <div key={n} style={{ display: "grid", gridTemplateColumns: "40px 1fr auto", gap: 10, alignItems: "center", background: temaPal.bg || "transparent", borderRadius: 8, padding: "6px 8px", opacity: falta ? 0.75 : 1 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 8, overflow: "hidden", background: temaPal.border, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
+                        {i.foto && slug ? <img src={(API.defaults.baseURL || "") + "/tienda-publica/" + encodeURIComponent(slug) + "/foto/" + i.producto_id} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.currentTarget.style.display = "none"; }} /> : "🛍️"}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.25, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{i.nombre}</div>
+                        <div style={{ fontSize: 11.5, color: temaPal.textMuted, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                          <span>{i.cantidad} × {fmt(i.precio)}</span>
+                          {i.variante && <span className="tag" style={{ fontSize: 10.5 }}>{i.variante}</span>}
+                          {i.preventa && <span className="tag" style={{ fontSize: 10.5, background: "#ffd23f33", color: temaPal.warn }}>preventa</span>}
+                          {falta && <span className="tag" style={{ fontSize: 10.5, background: temaPal.redDim, color: temaPal.red }}>{(i.stock || 0) > 0 ? "quedan " + i.stock : "sin stock"}</span>}
+                        </div>
+                      </div>
+                      <div style={{ fontWeight: 800, fontSize: 13, whiteSpace: "nowrap" }}>{fmt((parseFloat(i.precio) || 0) * (parseInt(i.cantidad) || 1))}</div>
+                    </div>
+                  );
+                })}
+              </div>
+              {sinStock > 0 && <div style={{ fontSize: 11.5, color: temaPal.warn, marginBottom: 6 }}>⚠️ {sinStock === 1 ? "Un producto ya no tiene" : sinStock + " productos ya no tienen"} stock suficiente: avisale o sugerile otro.</div>}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 11.5, color: k.recordado_en ? temaPal.green : temaPal.textMuted }}>{k.recordado_en ? "✓ Le recordaste " + hace(k.recordado_en) : "Todavía no le escribiste"}</span>
+                {k.telefono && <button className={"btn btn-sm " + (k.recordado_en ? "btn-g" : "btn-p")} onClick={() => recordar(k)}>💬 {k.recordado_en ? "Recordarle de nuevo" : "Recordarle"}</button>}
+              </div>
+            </div>
+          ); })}
+        </div>
+  );
+}
 // Abre la tienda online como la ve una clienta (su cuenta, medallas, rutina, avisos), solo para mirar (30 minutos)
 async function verCuentaEnTienda(c) {
   const w = window.open("", "_blank");
@@ -30119,56 +30184,7 @@ function ClientasWeb({ temaPal, avisar, urlTienda, nombreTienda, esJefe, esDuena
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 12, alignItems: "start" }}>
         <div className="card">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}><div className="ct" style={{ marginBottom: 0 }}>🛒 Carritos abandonados</div>{esJefe && <button className="btn btn-g btn-sm" onClick={() => setMsj({ carrito: tCarrito, aviso: tAviso })}>✏️ Editar mensajes</button>}</div>
-          <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "6px 0 8px" }}>Clientas con cuenta que armaron un carrito hace más de una hora y no compraron (últimos 30 días). "Recordarle" abre WhatsApp con tu mensaje.</div>
-          {!d.carritos.length ? <div className="empty">No hay carritos abandonados.</div> : d.carritos.map(k => {
-            const items = k.items || [];
-            const sinStock = items.filter(i => !i.preventa && (i.stock || 0) < (i.cantidad || 1)).length;
-            const unidades = items.reduce((t, i) => t + (parseInt(i.cantidad) || 1), 0);
-            return (
-            <div key={k.cliente_id} style={{ border: "1px solid " + temaPal.border, borderLeft: "4px solid " + (k.recordado_en ? temaPal.border : "#d35400"), borderRadius: 10, padding: "10px 12px", marginTop: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 800, fontSize: 14 }}>{k.nombre}</div>
-                  <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{k.telefono || "sin WhatsApp"} · lo dejó {hace(k.actualizado_en)}{!UN_SOLO_LOCAL ? " · " + nombreLocal(k.local_id || 1) : ""}</div>
-                </div>
-                <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontWeight: 900, fontSize: 16 }}>{fmt(k.subtotal)}</div>
-                  <div style={{ fontSize: 11, color: temaPal.textMuted }}>{unidades} {unidades === 1 ? "producto" : "productos"}</div>
-                </div>
-              </div>
-              <div style={{ margin: "8px 0", display: "flex", flexDirection: "column", gap: 6 }}>
-                {items.map((i, n) => {
-                  const falta = !i.preventa && (i.stock || 0) < (i.cantidad || 1);
-                  return (
-                    <div key={n} style={{ display: "grid", gridTemplateColumns: "40px 1fr auto", gap: 10, alignItems: "center", background: temaPal.bg || "transparent", borderRadius: 8, padding: "6px 8px", opacity: falta ? 0.75 : 1 }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 8, overflow: "hidden", background: temaPal.border, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
-                        {i.foto && slug ? <img src={(API.defaults.baseURL || "") + "/tienda-publica/" + encodeURIComponent(slug) + "/foto/" + i.producto_id} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.currentTarget.style.display = "none"; }} /> : "🛍️"}
-                      </div>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.25, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{i.nombre}</div>
-                        <div style={{ fontSize: 11.5, color: temaPal.textMuted, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-                          <span>{i.cantidad} × {fmt(i.precio)}</span>
-                          {i.variante && <span className="tag" style={{ fontSize: 10.5 }}>{i.variante}</span>}
-                          {i.preventa && <span className="tag" style={{ fontSize: 10.5, background: "#ffd23f33", color: temaPal.warn }}>preventa</span>}
-                          {falta && <span className="tag" style={{ fontSize: 10.5, background: temaPal.redDim, color: temaPal.red }}>{(i.stock || 0) > 0 ? "quedan " + i.stock : "sin stock"}</span>}
-                        </div>
-                      </div>
-                      <div style={{ fontWeight: 800, fontSize: 13, whiteSpace: "nowrap" }}>{fmt((parseFloat(i.precio) || 0) * (parseInt(i.cantidad) || 1))}</div>
-                    </div>
-                  );
-                })}
-              </div>
-              {sinStock > 0 && <div style={{ fontSize: 11.5, color: temaPal.warn, marginBottom: 6 }}>⚠️ {sinStock === 1 ? "Un producto ya no tiene" : sinStock + " productos ya no tienen"} stock suficiente: avisale o sugerile otro.</div>}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 11.5, color: k.recordado_en ? temaPal.green : temaPal.textMuted }}>{k.recordado_en ? "✓ Le recordaste " + hace(k.recordado_en) : "Todavía no le escribiste"}</span>
-                {k.telefono && <button className={"btn btn-sm " + (k.recordado_en ? "btn-g" : "btn-p")} onClick={() => recordar(k)}>💬 {k.recordado_en ? "Recordarle de nuevo" : "Recordarle"}</button>}
-              </div>
-            </div>
-          ); })}
-        </div>
-        <div className="card">
-          <div className="ct">🔔 Piden que les avisen cuando vuelva</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}><div className="ct" style={{ marginBottom: 0 }}>🔔 Piden que les avisen cuando vuelva</div>{esJefe && <button className="btn btn-g btn-sm" onClick={() => setMsj({ carrito: tCarrito, aviso: tAviso })} title="El de los carritos abandonados (en Pedidos) y el de este aviso">✏️ Editar mensajes</button>}</div>
           <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 8 }}>Dejaron su WhatsApp en un producto agotado. Arriba, los que ya tienen stock: tocá "Avisar" y se abre el WhatsApp con tu mensaje.</div>
           {!grupos.length ? <div className="empty">Nadie pidió aviso todavía.</div> : grupos.map(([id, g]) => (
             <div key={id} style={{ borderTop: "1px solid " + temaPal.border, padding: "8px 0" }}>
@@ -30890,13 +30906,13 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   // (cada persona en su navegador). La primera vez arranca de cero para no marcar todo lo viejo.
   const claveVistos = "lumiere_ped_vistos_" + (usuario?.id || 0);
   const [vistosPed, setVistosPed] = useState(() => {
-    try { const v = JSON.parse(localStorage.getItem(claveVistos) || "null"); if (v) return v; } catch (e) {}
-    const ahora = Date.now(), v = { rechazado: ahora, vencido: ahora, cancelado: ahora };
+    try { const v = JSON.parse(localStorage.getItem(claveVistos) || "null"); if (v) return v.carritos ? v : { ...v, carritos: Date.now() }; } catch (e) {}
+    const ahora = Date.now(), v = { rechazado: ahora, vencido: ahora, cancelado: ahora, carritos: ahora };
     try { localStorage.setItem(claveVistos, JSON.stringify(v)); } catch (e) {}
     return v;
   });
   useEffect(() => {
-    if (!["rechazado", "vencido", "cancelado"].includes(filtro)) return;
+    if (!["rechazado", "vencido", "cancelado", "carritos"].includes(filtro)) return;
     setVistosPed(v => { const n = { ...v, [filtro]: Date.now() }; try { localStorage.setItem(claveVistos, JSON.stringify(n)); } catch (e) {} return n; });
   }, [filtro]);
   const [menuFiltro, setMenuFiltro] = useState(false);
@@ -30964,8 +30980,11 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   useEffect(() => { API.get("/locales").then(r => setLocs((r.data || []).map(l => ({ ...l, direccion0: l.direccion || "" })))).catch(() => {}); }, []);
   const cargarCfg = () => API.get("/tienda/config").then(r => setCfg({ ...r.data, slug: r.data.slug || r.data.slug_sugerido, retiro_locales: r.data.retiro_locales || [1, 2], dominioGuardado: !!r.data.dominio })).catch(() => setCfg({}));
   const cargarPedidos = () => API.get("/tienda/pedidos").then(r => setPedidos(r.data || [])).catch(() => setPedidos([]));
+  // Carritos abandonados (van en Pedidos, con su burbuja)
+  const [carritosAb, setCarritosAb] = useState(null);
+  const cargarCarritos = () => API.get("/tienda/clientas-web").then(r => setCarritosAb({ carritos: r.data.carritos || [], mensajes: r.data.mensajes || {} })).catch(() => setCarritosAb(c => c || { carritos: [], mensajes: {} }));
   const cargarProductos = () => API.get("/tienda/productos").then(r => setProductos(r.data || [])).catch(() => setProductos([]));
-  useEffect(() => { cargarCfg(); cargarPedidos(); cargarProductos(); const t = setInterval(() => { if (!document.hidden) cargarPedidos(); }, 30000); return () => clearInterval(t); }, []);
+  useEffect(() => { cargarCfg(); cargarPedidos(); cargarProductos(); cargarCarritos(); let n = 0; const t = setInterval(() => { if (document.hidden) return; cargarPedidos(); if (++n % 4 === 0) cargarCarritos(); }, 30000); return () => clearInterval(t); }, []);
   const url = cfg && cfg.dominio && cfg.dominioGuardado ? "https://" + cfg.dominio : cfg && cfg.slug ? window.location.origin + "/" + "?tienda=" + cfg.slug : "";
   useEffect(() => { if (cfg && cfg.activo && cfg.slug) API.get("/tienda/qr?url=" + encodeURIComponent(url)).then(r => setQr(r.data.qr)).catch(() => {}); }, [cfg?.activo, cfg?.slug]);
 
@@ -31158,16 +31177,18 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const entregados30 = pedidos.filter(p => p.estado === "entregado" && new Date(p.creado_en).getTime() >= hace30);
   const vendido30 = entregados30.reduce((t, p) => t + Number(p.total || 0), 0);
   const nNuevos = pedidos.filter(p => p.estado === "confirmado").length;
-  const contar = (k) => pedidos.filter(p => enFiltro(p, k)).length;
+  const contar = (k) => k === "carritos" ? ((carritosAb && carritosAb.carritos) || []).length : pedidos.filter(p => enFiltro(p, k)).length;
+  // Carritos nuevos desde la ultima vez que se abrio el filtro (sin contar los que ya se recordaron)
+  const nCarritosNuevos = vistosPed.carritos && filtro !== "carritos" ? ((carritosAb && carritosAb.carritos) || []).filter(k => !k.recordado_en && new Date(k.actualizado_en).getTime() > vistosPed.carritos).length : 0;
   const fechaCambio = (p, k) => new Date(k === "rechazado" ? (p.pago_rechazo_en || p.actualizado_en || p.creado_en) : (p.actualizado_en || p.creado_en)).getTime();
-  const nuevosEn = (k) => k === "proceso" ? nDemorados : k === "vencido" ? nSinMotivo : k === "cancelado" ? nSinMotivoCanc : vistosPed[k] && filtro !== k ? pedidos.filter(p => enFiltro(p, k) && fechaCambio(p, k) > vistosPed[k]).length : 0;
+  const nuevosEn = (k) => k === "carritos" ? nCarritosNuevos : k === "proceso" ? nDemorados : k === "vencido" ? nSinMotivo : k === "cancelado" ? nSinMotivoCanc : vistosPed[k] && filtro !== k ? pedidos.filter(p => enFiltro(p, k) && fechaCambio(p, k) > vistosPed[k]).length : 0;
   const nDemorados = pedidos.filter(p => procesoDemorado(p) && !p.contactado_en).length;
   // Vencidos (ultimos 7 dias) a los que nadie anoto por que se vencieron (lo mas viejo ya no se pide)
   const faltaVenc = (p) => (esVencido(p) || esCancelado(p)) && !p.venc_motivo && Date.now() - new Date(p.actualizado_en || p.creado_en).getTime() < 7 * 864e5;
   const nSinMotivo = pedidos.filter(p => faltaVenc(p) && esVencido(p)).length;
   const nSinMotivoCanc = pedidos.filter(p => faltaVenc(p) && esCancelado(p)).length;
-  const FILTROS_PED = [["activos", "Todo para atender"], ["proceso", "🔄 En proceso de pago"], ["entregado", "Entregados"], ["rechazado", "❌ Pagos rechazados"], ["vencido", "⌛ Vencidos"], ["cancelado", "Cancelados"], ["todos", "Todos"]];
-  const nuevosTotal = ["proceso", "rechazado", "vencido", "cancelado"].reduce((t, k) => t + nuevosEn(k), 0);
+  const FILTROS_PED = [["activos", "Todo para atender"], ["proceso", "🔄 En proceso de pago"], ["entregado", "Entregados"], ["rechazado", "❌ Pagos rechazados"], ["vencido", "⌛ Vencidos"], ["cancelado", "Cancelados"], ["carritos", "🛒 Carritos abandonados"], ["todos", "Todos"]];
+  const nuevosTotal = ["proceso", "rechazado", "vencido", "cancelado", "carritos"].reduce((t, k) => t + nuevosEn(k), 0);
   // Para atender: agrupados por lo que hay que hacer, en ese orden
   const GRUPOS_PED = [["nuevo", "📥 Nuevos: hay que armarlos", "#2471a3"], ["preventa", "⏳ Preventa: esperando que llegue la mercadería", "#b9770e"], ["pago", "💳 Esperando el pago", "#b7950b"], ["listo", "📦 Listos: esperando que los retiren o salgan", "#8e44ad"]];
 
@@ -31311,7 +31332,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             <input className="inp" style={{ flex: "1 1 220px", marginLeft: "auto" }} placeholder="🔎 Buscar por nombre, N° de pedido, teléfono o producto" value={buscaPed} onChange={e => setBuscaPed(e.target.value)} aria-label="Buscar pedido" />
             {paraEtiquetar.length > 1 && <button className="btn btn-g btn-sm" onClick={() => imprimirEtiquetas(paraEtiquetar)} title="Una etiqueta por cada envío listo para despachar">🏷️ Etiquetas de envío ({paraEtiquetar.length})</button>}
           </div>
-          {visiblesB.length === 0 ? <div className="card"><div className="empty">{buscaPed ? "Ningún pedido coincide con la búsqueda." : filtro === "activos" ? "No hay pedidos para atender. Cuando alguien compre en la tienda, aparece acá." : "No hay pedidos en este filtro."}</div></div> : (() => {
+          {visiblesB.length === 0 && filtro !== "carritos" ? <div className="card"><div className="empty">{buscaPed ? "Ningún pedido coincide con la búsqueda." : filtro === "activos" ? "No hay pedidos para atender. Cuando alguien compre en la tienda, aparece acá." : "No hay pedidos en este filtro."}</div></div> : (() => {
             const agrupado = filtro === "activos" || filtro.startsWith("g:");
             const tarjetaPed = (p) => {
                 const e = ESTADOS_TIENDA[p.estado] || ESTADOS_TIENDA.confirmado;
@@ -31484,6 +31505,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                   </div>
                 );
             };
+            if (filtro === "carritos") return <CarritosAbandonados temaPal={temaPal} carritos={carritosAb && carritosAb.carritos} mensajes={carritosAb && carritosAb.mensajes} slug={cfg?.slug} nombreTienda={cfg?.titulo} urlTienda={url} alCambiar={cargarCarritos} />;
             if (filtro === "activos" || filtro.startsWith("g:")) return (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {filtro === "activos" && !buscaPed.trim() && nSinMotivo > 0 && <button className="ped-venc-aviso" onClick={() => setFiltro("vencido")}>📝 <b>{nSinMotivo} {nSinMotivo === 1 ? "pedido vencido" : "pedidos vencidos"} sin anotar por qué.</b> Hablá con la clienta y anotá qué te dijo → <u>Anotar</u></button>}
