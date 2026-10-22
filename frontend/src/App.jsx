@@ -374,6 +374,15 @@ button.tab { font-family: inherit; }
 .ped-globo { position: absolute; top: 10px; right: 12px; min-width: 28px; height: 28px; border-radius: 14px; padding: 0 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 900; background: ${p.bg}; color: ${p.text}; border: 1px solid ${p.border}; }
 .ped-globo.rojo { background: ${p.red}; color: #fff; border-color: transparent; animation: globoLate 2s ease-in-out infinite; }
 .ped-card { transition: box-shadow .2s; margin-bottom: 0; }
+.ped-filtros-chips { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 8px; }
+.ped-filtros-menu { display: none; position: relative; width: 100%; }
+.ped-burbuja { position: absolute; top: -7px; right: -6px; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 10px; background: ${p.red}; color: #fff; font-size: 11px; font-weight: 900; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(231,76,60,.4); animation: globoLate 2s ease-in-out infinite; }
+.ped-burbuja.quieta { position: static; animation: none; margin: 0 6px; }
+.ped-menu-btn { width: 100%; display: flex; align-items: center; gap: 6px; padding: 11px 14px; border-radius: 12px; border: 1px solid ${p.border}; background: ${p.card}; color: ${p.text}; font: inherit; font-size: 14px; cursor: pointer; text-align: left; }
+.ped-menu-lista { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 30; background: ${p.card}; border: 1px solid ${p.border}; border-radius: 12px; box-shadow: 0 10px 28px rgba(0,0,0,.15); overflow: hidden; }
+.ped-menu-lista button { width: 100%; display: flex; align-items: center; gap: 6px; padding: 12px 14px; border: 0; border-bottom: 1px solid ${p.border}; background: transparent; color: ${p.text}; font: inherit; font-size: 14px; cursor: pointer; text-align: left; }
+.ped-menu-lista button.on { background: ${p.bg}; font-weight: 800; }
+@media (max-width: 760px) { .ped-filtros-chips { display: none; } .ped-filtros-menu { display: block; } }
 .ped-card.abierto { box-shadow: 0 6px 22px rgba(0,0,0,.08); }
 .ped-fila { display: flex; gap: 12px; align-items: center; padding: 12px 14px; cursor: pointer; text-align: left; }
 .ped-fila:hover { background: ${p.bg}; }
@@ -30668,6 +30677,20 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   // Notas del local en un pedido (la clienta no las ve): { id del pedido, texto }
   const [notaPed, setNotaPed] = useState(null);
   const [pedAbiertos, setPedAbiertos] = useState([]); // pedidos con el detalle abierto
+  // Burbujas rojas de los filtros: lo que paso a rechazado / vencido / cancelado desde la ultima vez que se abrio ese filtro
+  // (cada persona en su navegador). La primera vez arranca de cero para no marcar todo lo viejo.
+  const claveVistos = "lumiere_ped_vistos_" + (usuario?.id || 0);
+  const [vistosPed, setVistosPed] = useState(() => {
+    try { const v = JSON.parse(localStorage.getItem(claveVistos) || "null"); if (v) return v; } catch (e) {}
+    const ahora = Date.now(), v = { rechazado: ahora, vencido: ahora, cancelado: ahora };
+    try { localStorage.setItem(claveVistos, JSON.stringify(v)); } catch (e) {}
+    return v;
+  });
+  useEffect(() => {
+    if (!["rechazado", "vencido", "cancelado"].includes(filtro)) return;
+    setVistosPed(v => { const n = { ...v, [filtro]: Date.now() }; try { localStorage.setItem(claveVistos, JSON.stringify(n)); } catch (e) {} return n; });
+  }, [filtro]);
+  const [menuFiltro, setMenuFiltro] = useState(false);
   const guardarNotaPed = async () => {
     if (!notaPed || !notaPed.texto.trim()) return;
     try { const r = await API.post("/tienda/pedidos/" + notaPed.id + "/notas", { texto: notaPed.texto }); setPedidos(l => l.map(x => x.id === notaPed.id ? { ...x, notas_local: r.data.notas_local } : x)); setNotaPed(null); }
@@ -30915,6 +30938,10 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const vendido30 = entregados30.reduce((t, p) => t + Number(p.total || 0), 0);
   const nNuevos = pedidos.filter(p => p.estado === "confirmado").length;
   const contar = (k) => pedidos.filter(p => enFiltro(p, k)).length;
+  const fechaCambio = (p, k) => new Date(k === "rechazado" ? (p.pago_rechazo_en || p.actualizado_en || p.creado_en) : (p.actualizado_en || p.creado_en)).getTime();
+  const nuevosEn = (k) => vistosPed[k] && filtro !== k ? pedidos.filter(p => enFiltro(p, k) && fechaCambio(p, k) > vistosPed[k]).length : 0;
+  const FILTROS_PED = [["activos", "Todo para atender"], ["entregado", "Entregados"], ["rechazado", "❌ Pagos rechazados"], ["vencido", "⌛ Vencidos"], ["cancelado", "Cancelados"], ["todos", "Todos"]];
+  const nuevosTotal = ["rechazado", "vencido", "cancelado"].reduce((t, k) => t + nuevosEn(k), 0);
   // Para atender: agrupados por lo que hay que hacer, en ese orden
   const GRUPOS_PED = [["nuevo", "📥 Nuevos: hay que armarlos", "#2471a3"], ["preventa", "⏳ Preventa: esperando que llegue la mercadería", "#b9770e"], ["pago", "💳 Esperando el pago", "#b7950b"], ["listo", "📦 Listos: esperando que los retiren o salgan", "#8e44ad"]];
 
@@ -31012,7 +31039,19 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                 </button>); })}
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", width: "100%" }}>
-              {[["activos", "Todo para atender"], ["entregado", "Entregados"], ["rechazado", "❌ Pagos rechazados"], ["vencido", "⌛ Vencidos"], ["cancelado", "Cancelados"], ["todos", "Todos"]].map(([k, t]) => <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(k)}>{t} <span style={{ opacity: 0.7 }}>({contar(k)})</span></button>)}
+              <div className="ped-filtros-chips">{FILTROS_PED.map(([k, t]) => { const nv = nuevosEn(k); return <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} style={{ position: "relative" }} onClick={() => setFiltro(k)}>{t} <span style={{ opacity: 0.7 }}>({contar(k)})</span>{nv > 0 && <span className="ped-burbuja" aria-label={nv + " nuevos"}>{nv}</span>}</button>; })}</div>
+              {/* En el celular: una barra desplegable en vez de tres filas de botones */}
+              <div className="ped-filtros-menu">
+                <button className="ped-menu-btn" aria-expanded={menuFiltro} onClick={() => setMenuFiltro(m => !m)}>
+                  <span>Ver: <b>{(FILTROS_PED.find(x => x[0] === filtro) || ["", filtro.startsWith("g:") ? "Por etapa" : "Todo para atender"])[1]}</b> ({filtro.startsWith("g:") ? visibles.length : contar(filtro)})</span>
+                  {nuevosTotal > 0 && <span className="ped-burbuja quieta">{nuevosTotal}</span>}
+                  <span aria-hidden="true" style={{ marginLeft: "auto" }}>{menuFiltro ? "▴" : "▾"}</span>
+                </button>
+                {menuFiltro && <div className="ped-menu-lista" role="menu">{FILTROS_PED.map(([k, t]) => { const nv = nuevosEn(k); return (
+                  <button key={k} role="menuitem" className={filtro === k ? "on" : ""} onClick={() => { setFiltro(k); setMenuFiltro(false); }}>
+                    <span style={{ flex: 1 }}>{t}</span>{nv > 0 && <span className="ped-burbuja quieta">{nv} {nv === 1 ? "nuevo" : "nuevos"}</span>}<span style={{ opacity: .6 }}>{contar(k)}</span>
+                  </button>); })}</div>}
+              </div>
             </div>
             <input className="inp" style={{ flex: "1 1 220px", marginLeft: "auto" }} placeholder="🔎 Buscar por nombre, N° de pedido, teléfono o producto" value={buscaPed} onChange={e => setBuscaPed(e.target.value)} aria-label="Buscar pedido" />
             {paraEtiquetar.length > 1 && <button className="btn btn-g btn-sm" onClick={() => imprimirEtiquetas(paraEtiquetar)} title="Una etiqueta por cada envío listo para despachar">🏷️ Etiquetas de envío ({paraEtiquetar.length})</button>}
