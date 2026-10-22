@@ -30653,6 +30653,18 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const [segmentar, setSegmentar] = useState(null); // productos a segmentar (uno o varios)
   const [qrProd, setQrProd] = useState(null); // { p, qr } QR de un producto (para la etiqueta del local)
   const [cambio, setCambio] = useState(null); // { p, it, q, prod, vars, variante, cant }: cambiar un producto de un pedido
+  // Notas del local en un pedido (la clienta no las ve): { id del pedido, texto }
+  const [notaPed, setNotaPed] = useState(null);
+  const guardarNotaPed = async () => {
+    if (!notaPed || !notaPed.texto.trim()) return;
+    try { const r = await API.post("/tienda/pedidos/" + notaPed.id + "/notas", { texto: notaPed.texto }); setPedidos(l => l.map(x => x.id === notaPed.id ? { ...x, notas_local: r.data.notas_local } : x)); setNotaPed(null); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar la nota"); }
+  };
+  const borrarNotaPed = async (p, n) => {
+    if (!window.confirm("¿Borrar esta nota?")) return;
+    try { const r = await API.delete("/tienda/pedidos/" + p.id + "/notas/" + n.id); setPedidos(l => l.map(x => x.id === p.id ? { ...x, notas_local: r.data.notas_local } : x)); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo borrar"); }
+  };
   // Diferencia de un pedido pagado online al que se le cambio un producto: { p, pend, lineas, medioDev }
   const [difPed, setDifPed] = useState(null);
   const [mediosT, setMediosT] = useState([]);
@@ -30738,7 +30750,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         <div class="dir">${escHtml(p.direccion)}</div>
         <div class="zona">${escHtml([p.zona, nombreLocal(p.local_id)].filter(Boolean).join(" · "))}</div>
         <div class="tel">📞 ${escHtml(p.telefono || "")}</div>
-        ${p.nota ? `<div class="nota">📝 ${escHtml(p.nota)}</div>` : ""}
+        ${p.nota || (p.notas_local || []).length ? `<div class="nota">${[p.nota ? "📝 " + escHtml(p.nota) : "", ...(p.notas_local || []).map(n => "🗒️ " + escHtml(n.texto))].filter(Boolean).join("<br>")}</div>` : ""}
         <div class="pie">
           <div><div class="cobro ${cobrar ? "si" : ""}">${cobrar ? "COBRAR " + escHtml(fmt(cobrar)) : "✓ PAGADO"}</div><div class="cont">${cant} ${cant === 1 ? "producto" : "productos"}${p.muestra ? " + muestra" : ""} · ${escHtml(new Date(p.creado_en).toLocaleDateString("es-AR"))}</div></div>
           ${qrs[i] ? `<div class="qr"><img src="${qrs[i]}" alt=""><span>Mapa</span></div>` : ""}
@@ -30767,7 +30779,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const mandarCadete = (p) => {
     const cobrar = cobrarDe(p);
     const txt = ["🛵 *Envío pedido N° " + nroPedido(p) + "*", "👤 " + p.nombre, "📍 " + p.direccion + (p.zona ? " (" + p.zona + ")" : ""), "🗺️ " + mapaDe(p),
-      p.telefono ? "📞 " + p.telefono : null, cobrar ? "💵 *Cobrar " + fmt(cobrar) + "*" : "✓ Ya está pagado", p.nota ? "📝 " + p.nota : null].filter(Boolean).join("\n");
+      p.telefono ? "📞 " + p.telefono : null, cobrar ? "💵 *Cobrar " + fmt(cobrar) + "*" : "✓ Ya está pagado", p.nota ? "📝 " + p.nota : null, ...(p.notas_local || []).map(n => "🗒️ " + n.texto)].filter(Boolean).join("\n");
     window.open("https://wa.me/?text=" + encodeURIComponent(txt), "_blank");
   };
   const avisarListo = (p) => {
@@ -31005,6 +31017,19 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                           {p.tipo === "giftcard" ? "🎁 Gift card · se usa en " + nombreLocal(p.local_id) : p.entrega === "retiro" ? "📍 Retira en " + nombreLocal(p.local_id) : "🛵 Envío a " + p.direccion + " (" + p.zona + ")"} · {PAGO_TIENDA[p.pago]}{p.pagado ? " ✓ pagado" : ""}{p.telefono ? " · " + p.telefono : ""}
                         </div>
                         {p.nota && <div style={{ fontSize: 12.5, marginTop: 2 }}>📝 {p.nota}</div>}
+                        {(p.notas_local || []).map(n => (
+                          <div key={n.id} style={{ fontSize: 12.5, marginTop: 4, padding: "5px 8px", borderRadius: 8, background: "#fff4d6", color: "#5a4300", display: "flex", gap: 6, alignItems: "flex-start" }}>
+                            <span style={{ flex: 1 }}>🗒️ {n.texto} <span style={{ fontSize: 11, opacity: .7 }}>· {n.por || "Local"}, {new Date(n.en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span></span>
+                            {(["jefe", "admin", "administrativo"].includes(usuario?.rol) || Number(n.usuario_id) === Number(usuario?.id)) && <button className="icon-btn" style={{ fontSize: 11, padding: "0 4px" }} aria-label="Borrar nota" onClick={() => borrarNotaPed(p, n)}>✕</button>}
+                          </div>
+                        ))}
+                        {notaPed && notaPed.id === p.id ? (
+                          <div style={{ display: "flex", gap: 6, marginTop: 6, maxWidth: 520 }}>
+                            <input className="inp" autoFocus maxLength={300} placeholder="Ej: depto 3B, timbre roto · prefiere que la llamen" value={notaPed.texto} onChange={e => setNotaPed(x => ({ ...x, texto: e.target.value }))} onKeyDown={e => { if (e.key === "Enter") guardarNotaPed(); if (e.key === "Escape") setNotaPed(null); }} aria-label="Nota del local" />
+                            <button className="btn btn-p btn-sm" onClick={guardarNotaPed}>Guardar</button>
+                            <button className="btn btn-g btn-sm" onClick={() => setNotaPed(null)}>✕</button>
+                          </div>
+                        ) : <button className="chip-btn" style={{ fontSize: 11, marginTop: 6 }} onClick={() => setNotaPed({ id: p.id, texto: "" })}>🗒️ Agregar nota</button>}
                         {p.ruleta && <div style={{ fontSize: 12.5, marginTop: 4, fontWeight: 700, color: p.ruleta.tipo === "nada" ? temaPal.textMuted : temaPal.warn }}>🎡 Ruleta: {p.ruleta.tipo === "regalo" ? "ganó " + (/mega/i.test(p.ruleta.texto || "") ? "el 💎 MEGA REGALO" : "un REGALO 🎁") + " — dáselo con el pedido" : p.ruleta.tipo === "cupon" ? "ganó " + p.ruleta.texto + " (cupón " + p.ruleta.cupon + ", se activa al entregar)" : "seguí participando"}</div>}
                         {p.vence_en && (p.estado === "pendiente_pago" || (p.pago === "retiro" && ["confirmado", "preparado"].includes(p.estado))) && <div style={{ fontSize: 11.5, color: temaPal.warn, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                           <span>{p.estado === "pendiente_pago" && p.pago !== "retiro" ? "Si no paga" : "Si no lo retira"}, se cancela solo el {new Date(p.vence_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} y el stock vuelve.</span>

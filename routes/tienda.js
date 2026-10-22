@@ -8,6 +8,7 @@ const gocuotas = require('../lib/gocuotas');
 const { ayudaMP } = require('./mercadopago');
 const QRCode = require('qrcode');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { negocioActual } = require('../lib/contexto');
 const { VENTA_VALIDA } = require('../lib/niveles');
 
@@ -543,6 +544,32 @@ router.get('/pedidos/:id', async (req, res) => {
 });
 
 // Cambiar estado: pago recibido (transferencia), preparado, o cancelar
+// Notas del local en un pedido (cualquiera que maneje pedidos). Borrar: quien la escribio o la dueña
+router.post('/pedidos/:id/notas', async (req, res) => {
+  try {
+    const texto = String((req.body && req.body.texto) || '').trim().slice(0, 300);
+    if (!texto) return res.status(400).json({ error: 'Escribí la nota' });
+    const u = req.usuario || {};
+    const por = u.nombre || (u.id ? ((await pool.query('SELECT nombre FROM usuarios WHERE id = $1', [u.id]).catch(() => ({ rows: [] }))).rows[0] || {}).nombre : null);
+    const nota = { id: crypto.randomBytes(4).toString('hex'), texto, por: por || null, usuario_id: u.id || null, en: new Date().toISOString() };
+    const r = await pool.query(`UPDATE tienda_pedidos SET notas_local = COALESCE(notas_local, '[]'::jsonb) || $1::jsonb WHERE id = $2 RETURNING notas_local`, [JSON.stringify([nota]), parseInt(req.params.id)]);
+    if (!r.rows.length) return res.status(404).json({ error: 'No se encontró el pedido' });
+    res.json({ notas_local: r.rows[0].notas_local });
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar la nota' }); }
+});
+router.delete('/pedidos/:id/notas/:nota', async (req, res) => {
+  try {
+    const p = (await pool.query('SELECT notas_local FROM tienda_pedidos WHERE id = $1', [parseInt(req.params.id)])).rows[0];
+    if (!p) return res.status(404).json({ error: 'No se encontró el pedido' });
+    const lista = Array.isArray(p.notas_local) ? p.notas_local : [];
+    const n = lista.find(x => x.id === req.params.nota);
+    if (!n) return res.status(404).json({ error: 'Esa nota ya no está' });
+    if (!esDuena(req) && Number(n.usuario_id) !== Number(req.usuario && req.usuario.id)) return res.status(403).json({ error: 'Solo quien la escribió (o la dueña) la puede borrar' });
+    const nuevas = lista.filter(x => x.id !== n.id);
+    await pool.query('UPDATE tienda_pedidos SET notas_local = $1 WHERE id = $2', [nuevas.length ? JSON.stringify(nuevas) : null, parseInt(req.params.id)]);
+    res.json({ notas_local: nuevas });
+  } catch (e) { res.status(500).json({ error: 'No se pudo borrar' }); }
+});
 router.put('/pedidos/:id/estado', async (req, res) => {
   try {
     const estado = String((req.body && req.body.estado) || '');
