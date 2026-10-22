@@ -24511,6 +24511,10 @@ html:has(.tw){overflow-x:hidden}
 .tw .tw-muestras-ops button{border:1.5px solid #e8c48a;background:#fff;color:#5a3a00 !important;border-radius:999px;padding:7px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
 .tw .tw-muestras-ops button{display:inline-flex;align-items:center;gap:6px}.tw .tw-muestras-ops img{width:22px;height:22px;border-radius:50%;object-fit:cover;margin-left:-6px}
 .tw .tw-muestras-ops button.on{background:#d98b1f;border-color:#d98b1f;color:#fff !important}
+.tw-pack-avance{margin:0 0 12px;padding:10px 12px;border-radius:12px;background:#f2f7ff;border:1px solid #d6e4fb;font-size:13px;color:#24406e}
+.tw-pack-avance.ok{background:#eaf8ef;border-color:#c5ead3;color:#1f6b40}
+.tw-ficha-pack{font-size:13px;background:#f2f7ff;border:1px solid #d6e4fb;color:#24406e;border-radius:12px;padding:8px 12px;margin:0 0 12px}
+.tw-etq.pack{background:#2f5bd3;color:#fff}
 .tw-express{font-size:12.5px;font-weight:700;color:#b35900;margin-top:3px}
 .tw-express.grande{font-size:14px;font-weight:500;background:#fff4e0;border:1px solid #f5d29a;border-radius:12px;padding:10px 12px;margin:10px 0;color:#7a4300}
 .tw-cumple-regalo{text-align:center;background:linear-gradient(140deg,#fff0f6,#fff7e6 60%,#f3edff);border:1.5px solid #f6c9dc;border-radius:18px;padding:16px 14px;margin-bottom:12px;display:flex;flex-direction:column;align-items:center;gap:6px}
@@ -25344,7 +25348,7 @@ function twTextoLlega(f) {
   if (dias === 0) return "hoy"; if (dias === 1) return "mañana";
   return "el " + d.toLocaleDateString("es-AR", { weekday: "short" }).replace(".", "") + " " + d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" });
 }
-function TwTarjeta({ p, base, sin, preventa, llega, fav, onFav, onAbrir, onAgregar, cuota }) {
+function TwTarjeta({ p, base, sin, preventa, llega, fav, onFav, onAbrir, onAgregar, cuota, pack }) {
   const [hover, setHover] = useState(false);
   const [hecho, setHecho] = useState(false);
   const imgRef = useRef(null);
@@ -25371,6 +25375,7 @@ function TwTarjeta({ p, base, sin, preventa, llega, fav, onFav, onAbrir, onAgreg
           {p.top && !preventa && !sin && <span className="tw-etq top">🔥 {p.top <= 3 ? "#" + p.top + " más vendido" : "Top ventas"}</span>}
           {p.precio_antes && !preventa && <span className="tw-etq oferta">⚡ Oferta</span>}
           {p.nuevo && !preventa && !p.top && !p.precio_antes && <span className="tw-etq">Nuevo</span>}
+          {pack && !preventa && !sin && <span className="tw-etq pack">🎁 {pack.cantidad}+ = {pack.pct}% OFF</span>}
           {p.video && <span className="tw-etq neg">▶ Video</span>}
         </div>
         {sin ? <div className="tw-agotado"><span>AGOTADO</span><button onClick={e => { e.stopPropagation(); onAbrir(p); }}>🔔 Avisame cuando vuelva</button></div> : (
@@ -25807,7 +25812,7 @@ const twSeccionDeUrl = () => {
     if (q.get("seccion")) return q.get("seccion").toLowerCase();
     if (q.get("tienda")) return null;
     const seg = decodeURIComponent(window.location.pathname.replace(/^\/+|\/+$/g, "")).toLowerCase();
-    return TW_SECC_RUTAS[seg] || /^(c|s|m)\/[^/]+$/.test(seg) ? seg : null;
+    return TW_SECC_RUTAS[seg] || /^(c|s|m|p)\/[^/]+$/.test(seg) ? seg : null;
   } catch (e) { return null; }
 };
 const twProductoDeUrl = () => {
@@ -25889,19 +25894,29 @@ function twPromoDe(promos, p, pago) {
   });
   return mejor;
 }
-function twDescPromos(promos, carrito, usados, combos, pago, catDe) {
-  if (!promos || !promos.length) return { descuento: 0, monto: 0, nombres: [] };
+// Packs: "llevá 3 de esta marca y tenés 15%" (mismo criterio que lib/tienda.js packsDe / descuentoPromos)
+const twEnPack = (pk, id, marca) => pk.productos.includes(id) || (!!marca && pk.marcas.some(m => m.toLowerCase() === String(marca).trim().toLowerCase()));
+const twPackDe = (packs, p) => (packs || []).filter(pk => twEnPack(pk, p.id, p.marca)).sort((a, b) => b.pct - a.pct)[0] || null;
+function twDescPromos(promos, carrito, usados, combos, pago, catDe, packs, marcaDe) {
+  if ((!promos || !promos.length) && (!packs || !packs.length)) return { descuento: 0, monto: 0, nombres: [] };
   const enCombos = {};
   (usados || []).forEach(u => { const cb = (combos || []).find(x => x.id === u.id); if (cb) cb.productos.forEach(id => { enCombos[id] = (enCombos[id] || 0) + u.veces * twCantCombo(cb, id); }); });
-  let descuento = 0, monto = 0; const nombres = new Set();
+  let descuento = 0, monto = 0; const nombres = new Set(), resto = [];
   (carrito || []).filter(l => !l.preventa).forEach(l => {
     const enCombo = Math.min(enCombos[l.producto_id] || 0, l.cantidad);
     enCombos[l.producto_id] = (enCombos[l.producto_id] || 0) - enCombo;
     const u = l.cantidad - enCombo;
     if (u <= 0) return;
     const pr = twPromoDe(promos, { id: l.producto_id, categoria: l.categoria || (catDe ? catDe(l.producto_id) : null) }, pago);
-    if (!pr) return;
+    if (!pr) { resto.push({ l, u }); return; }
     monto += u * l.precio; descuento += u * l.precio * pr.pct / 100; nombres.add(pr.nombre);
+  });
+  const tomadas = new Set();
+  [...(packs || [])].sort((a, b) => b.pct - a.pct).forEach(pk => {
+    const its = resto.filter(x => !tomadas.has(x) && twEnPack(pk, x.l.producto_id, marcaDe ? marcaDe(x.l.producto_id) : null));
+    if (its.reduce((t, x) => t + x.u, 0) < pk.cantidad) return;
+    its.forEach(x => { tomadas.add(x); monto += x.u * x.l.precio; descuento += x.u * x.l.precio * pk.pct / 100; });
+    nombres.add(pk.nombre);
   });
   return { descuento: Math.round(descuento), monto, nombres: [...nombres] };
 }
@@ -26882,6 +26897,7 @@ function TiendaPublica({ slug }) {
     if (TW_SECC_FIJAS[c]) return TW_SECC_FIJAS[c];
     if (c.startsWith("s:")) { const sc = ((tienda && tienda.sectores) || []).find(x => "s:" + x.id === c); return sc ? "s/" + twSlug(sc.nombre) : null; }
     if (c.startsWith("m:")) return "m/" + twSlug(c.slice(2));
+    if (c.startsWith("pack:")) { const pk = ((tienda && tienda.packs) || []).find(x => "pack:" + x.id === c); return pk ? "p/" + twSlug(pk.nombre) : null; }
     return "c/" + twSlug(c);
   };
   const catDeSeg = (sg) => {
@@ -26891,6 +26907,7 @@ function TiendaPublica({ slug }) {
     if (t === "s") { const sc = ((tienda && tienda.sectores) || []).find(x => twSlug(x.nombre) === v); return sc ? "s:" + sc.id : null; }
     if (t === "m") { const m = (productos || []).map(x => x.marca).find(x => x && twSlug(x) === v); return m ? "m:" + m : null; }
     if (t === "c") return (productos || []).map(x => x.categoria).find(x => x && twSlug(x) === v) || null;
+    if (t === "p") { const pk = ((tienda && tienda.packs) || []).find(x => twSlug(x.nombre) === v); return pk ? "pack:" + pk.id : null; }
     return null;
   };
   const urlDe = (sp) => {
@@ -27191,7 +27208,7 @@ function TiendaPublica({ slug }) {
   const montoKits = comboCalc.combos.reduce((t, x) => t + (x.monto || 0), 0);
   const pctKitsPago = pagoElegido && !gcCubre && montoKits > 0 ? (descPagosKits[pagoElegido] || 0) : 0;
   // Promociones de Lumiere para la tienda: esos productos llevan la promo en lugar del descuento por forma de pago (igual que el servidor)
-  const promoCalc = twDescPromos(tienda.promos, carrito, comboCalc.combos, tienda.ofertas && tienda.ofertas.combos, pagoElegido && !gcCubre ? pagoElegido : null, (id) => ((productos || []).find(x => x.id === id) || {}).categoria);
+  const promoCalc = twDescPromos(tienda.promos, carrito, comboCalc.combos, tienda.ofertas && tienda.ofertas.combos, pagoElegido && !gcCubre ? pagoElegido : null, (id) => ((productos || []).find(x => x.id === id) || {}).categoria, tienda.packs, (id) => ((productos || []).find(x => x.id === id) || {}).marca);
   const descPromo = promoCalc.descuento;
   const basePago = Math.max(0, subtotal - descCombo - descuentoCupon - descAmiga - promoCalc.monto);
   const enKitsPago = pctKitsPago ? Math.max(0, Math.min(basePago, montoKits)) : 0;
@@ -27417,14 +27434,15 @@ function TiendaPublica({ slug }) {
   const sectores = (tienda.sectores || []).filter(sc => visibles.some(p => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria)) || combosSector(sc).length > 0);
   const sector = cat.startsWith("s:") ? sectores.find(sc => "s:" + sc.id === cat) : null;
   // Si la seccion elegida quedo vacia (otra ciudad, se agoto todo), se vuelve al inicio
-  if (productos !== null && ((cat === "preventa" && !preventas.length) || (cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat === "regalos" && !tienda.regalos) || (cat && cat !== "*" && !cat.startsWith("s:") && !cat.startsWith("m:") && cat !== "reingreso" && cat !== "videos" && cat !== "regalos" && cat !== "rutina" && cat !== "preventa" && cat !== "favoritos" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2))))) { setTimeout(() => setCat(""), 0); }
+  const packCat = cat.startsWith("pack:") ? (tienda.packs || []).find(pk => pk.id === cat.slice(5)) : null;
+  if (productos !== null && ((cat === "preventa" && !preventas.length) || (cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat === "regalos" && !tienda.regalos) || (cat.startsWith("pack:") && !packCat) || (cat && cat !== "*" && !cat.startsWith("s:") && !cat.startsWith("m:") && !cat.startsWith("pack:") && cat !== "reingreso" && cat !== "videos" && cat !== "regalos" && cat !== "rutina" && cat !== "preventa" && cat !== "favoritos" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2))))) { setTimeout(() => setCat(""), 0); }
   const enSector = (sc, p) => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria);
   const delSector = sector ? visibles.filter(p => enSector(sector, p)) : [];
   const catsSector = sector ? [...new Set(delSector.map(p => p.categoria).filter(Boolean))].sort() : [];
   // Busqueda inteligente: primero lo que coincide en el nombre, despues por tipo, despues por descripcion
   const puntaje = new Map();
   const favLista = favs.map(id => lista0.find(p => p.id === id)).filter(Boolean);
-  const base1 = (cat === "reingreso" ? reingresados : cat === "preventa" ? preventas : cat === "favoritos" ? favLista : q && (!cat || cat === "*") ? lista0 : visibles).filter(p => (!cat || cat === "*" || cat === "reingreso" || cat === "preventa" || cat === "favoritos" || (sector ? enSector(sector, p) && (!subcat || p.categoria === subcat) : cat.startsWith("m:") ? (p.marca || "") === cat.slice(2) : p.categoria === cat)) && (!q || (puntaje.set(p.id, twCoincide(p, q)), puntaje.get(p.id) > 0))
+  const base1 = (cat === "reingreso" ? reingresados : cat === "preventa" ? preventas : cat === "favoritos" ? favLista : q && (!cat || cat === "*") ? lista0 : visibles).filter(p => (!cat || cat === "*" || cat === "reingreso" || cat === "preventa" || cat === "favoritos" || (sector ? enSector(sector, p) && (!subcat || p.categoria === subcat) : cat.startsWith("m:") ? (p.marca || "") === cat.slice(2) : cat.startsWith("pack:") ? !!packCat && twEnPack(packCat, p.id, p.marca) : p.categoria === cat)) && (!q || (puntaje.set(p.id, twCoincide(p, q)), puntaje.get(p.id) > 0))
     // Lo agotado no se ve al navegar; si lo buscan por nombre aparece (al final), para poder pedir "Avisame cuando vuelva"
     && (!q || !agotado(p) || twEnNombre(p, q)));
   // Si hay productos que coinciden por nombre o tipo, no se mezclan los que solo lo mencionan en la descripcion
@@ -27476,7 +27494,7 @@ function TiendaPublica({ slug }) {
   const iSlide = nSlides ? slide % nSlides : 0;
   // Cuotas sin interes de GoCuotas en cada tarjeta (con su descuento si tiene)
   const cuotaDe = (p) => { if (!tienda.pagos || !tienda.pagos.gocuotas) return 0; const pr = twPromoDe(tienda.promos, p, "gocuotas"), pct = pr ? pr.pct : ((tienda.descuentos_pago || {}).gocuotas || 0); return Math.ceil(Math.round(p.precio * (1 - pct / 100)) / 4); };
-  const tarjeta = (p) => <TwTarjeta key={p.id} cuota={cuotaDe(p)} p={p} base={base} sin={agotado(p)} preventa={esPreventa(p)} llega={esPreventa(p) ? llegaDe(p) : null} fav={favs.includes(p.id)} onFav={toggleFav} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
+  const tarjeta = (p) => <TwTarjeta key={p.id} cuota={cuotaDe(p)} pack={twPackDe(tienda.packs, p)} p={p} base={base} sin={agotado(p)} preventa={esPreventa(p)} llega={esPreventa(p) ? llegaDe(p) : null} fav={favs.includes(p.id)} onFav={toggleFav} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
   const enComparar = comparar.map(id => lista0.find(p => p.id === id)).filter(Boolean);
   const toggleComparar = (p) => setComparar(c => c.includes(p.id) ? c.filter(x => x !== p.id) : [...c, p.id].slice(-3));
   const opcionesPago = [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["gocuotas", "💜 GoCuotas", "Hasta 4 cuotas sin interés con tu tarjeta de débito"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar"], ["retiro", "💵 Pago al retirar", "Pagás en el local"]]
@@ -27910,7 +27928,7 @@ function TiendaPublica({ slug }) {
         ) : enLista ? (
           <>
             <div className="tw-lista-cab">
-              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.ingrediente && !filtros.tipo && !filtros.piel && !filtros.necesidad ? "Con " + ((TW_ING_OP.find(o => o[0] === filtros.ingrediente) || ["", ""])[1]) : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : cat === "preventa" ? "⏳ " + tienda.preventa.titulo : cat === "favoritos" ? "❤️ Tus favoritos" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>{sector && !q && lista.length === 0 && combosSector(sector).length > 0 ? combosSector(sector).length + (combosSector(sector).length === 1 ? " kit" : " kits") : lista.length + " " + (lista.length === 1 ? "producto" : "productos")}
+              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.ingrediente && !filtros.tipo && !filtros.piel && !filtros.necesidad ? "Con " + ((TW_ING_OP.find(o => o[0] === filtros.ingrediente) || ["", ""])[1]) : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : packCat ? "🎁 " + packCat.nombre + ": " + packCat.cantidad + " o más = " + packCat.pct + "% OFF" : cat === "preventa" ? "⏳ " + tienda.preventa.titulo : cat === "favoritos" ? "❤️ Tus favoritos" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>{sector && !q && lista.length === 0 && combosSector(sector).length > 0 ? combosSector(sector).length + (combosSector(sector).length === 1 ? " kit" : " kits") : lista.length + " " + (lista.length === 1 ? "producto" : "productos")}
                 {q && <button className="tw-compartir-sec" onClick={() => compartirSeccion("“" + busca.trim() + "”")}>{seccionCopiada ? "✓ Link copiado" : "🔗 Compartir"}</button>}
                 {!q && cat && cat !== "favoritos" && <button className="tw-compartir-sec" onClick={() => compartirSeccion(cat === "preventa" ? tienda.preventa.titulo : sector ? sector.nombre : cat === "*" ? "Todos los productos" : cat === "reingreso" ? reingreso.nombre : cat.startsWith("m:") ? cat.slice(2) : cat)}>{seccionCopiada ? "✓ Link copiado" : "🔗 Compartir"}</button>}</div></div>
               {!(sector && !q && lista.length === 0 && combosSector(sector).length > 0) && <select value={orden} onChange={e => setOrden(e.target.value)} aria-label="Ordenar">{TW_ORDEN.map(([k, t]) => <option key={k} value={k}>Ordenar: {t}</option>)}</select>}
@@ -28217,6 +28235,7 @@ function TiendaPublica({ slug }) {
                     const base = Math.round(ver.precio * (1 - pct / 100));
                     return <div className="tw-cuotas" title="Con tu tarjeta de débito">💜 <b>4 cuotas sin interés</b> de <b>{fmtTienda(Math.ceil(base / 4))}</b> <span>· GoCuotas</span></div>;
                   })()}
+                  {(() => { const pk = !preVer && twPackDe(tienda.packs, ver); return pk ? <div className="tw-ficha-pack">🎁 <b>{pk.nombre}:</b> llevando {pk.cantidad} o más, {pk.pct}% OFF en todos <button className="tw-link" onClick={() => { setVer(null); pk.marcas.length === 1 && !pk.productos.length ? irCat("m:" + pk.marcas[0]) : irCat("pack:" + pk.id); }}>Ver el pack ›</button></div> : null; })()}
                   {(ver._et && (ver._et.ingrediente || []).length > 0) && <div className="tw-ficha-ing"><span>Con</span>{ver._et.ingrediente.map(k => { const o = TW_ING_OP.find(x => x[0] === k); return o ? <button key={k} onClick={() => { setVer(null); irCat("*", { ingrediente: k }); }} title={"Ver todo con " + o[1]}>{o[1]}</button> : null; })}</div>}
                   {preVer && (
                     <div className="tw-preventa-aviso" role="note">
@@ -28300,6 +28319,12 @@ function TiendaPublica({ slug }) {
                       <div className="tw-muestras-ops">{muAca.map(({ nombre: o, producto_id }) => { const pr = producto_id && lista0.find(x => x.id === producto_id); return <button key={o} className={muestraOk === o ? "on" : ""} aria-pressed={muestraOk === o} onClick={() => { setMuestra(m => m === o ? "" : o); if (muestraOk !== o) twSonar.pop(); }}>{pr && pr.foto ? <img src={foto(pr)} alt="" /> : null}{muestraOk === o ? "✓ " : ""}{o}</button>; })}</div>
                     </div>
                   ) : <div className="tw-muestras falta">🎁 Sumá <b>{fmtTienda(mu.desde - subtotal)}</b> más y elegí una <b>muestra gratis</b></div>)}
+                  {(tienda.packs || []).map(pk => {
+                    const u = carrito.filter(i => !i.preventa && twEnPack(pk, i.producto_id, ((productos || []).find(x => x.id === i.producto_id) || {}).marca)).reduce((t, i) => t + i.cantidad, 0);
+                    if (!u) return null;
+                    return u >= pk.cantidad ? <div key={pk.id} className="tw-pack-avance ok">🎉 <b>{pk.nombre}</b>: ya tenés {pk.pct}% OFF en esos productos</div>
+                      : <div key={pk.id} className="tw-pack-avance">🎁 Sumá <b>{pk.cantidad - u} más</b> de <b>{pk.nombre}</b> y te llevás {pk.pct}% OFF <button className="tw-link" onClick={() => { setPaso(null); pk.marcas.length === 1 && !pk.productos.length ? irCat("m:" + pk.marcas[0]) : irCat("pack:" + pk.id); }}>Ver ›</button></div>;
+                  })}
                   {carrito.length === 0 ? <div style={{ textAlign: "center", padding: "50px 0", color: "#666" }}><div style={{ fontSize: 44, lineHeight: 1.3, height: 60, marginBottom: 14 }}>🛍️</div><p style={{ margin: "0 0 14px" }}>Tu carrito está vacío.</p><button className="tw-btn2" onClick={() => setPaso(null)}>Ver productos</button></div> : carrito.map((i, n) => (
                     <div key={i.producto_id + "-" + (i.variante_id || "")} className={"tw-item" + (saliendo.includes(claveIt(i)) ? " sale" : "")} style={{ "--i": Math.min(n, 6) }}>
                       {i.foto ? <img src={base + "/foto/" + i.producto_id} alt="" /> : <div className="tw-mini" />}
@@ -29865,6 +29890,59 @@ function BuscaProductoTienda({ productos, onElegir, placeholder, excluir = [] })
     </div>
   );
 }
+// Packs por marca o productos: "llevá 3 de esta marca y tenés 15%". Sirve para mover marcas que no salen
+function PacksTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado }) {
+  const tp = temaPal || PALETA_CLARA;
+  const [packs, setPacks] = useState(() => (cfg.packs || []).map(p => ({ ...p, q: "" })));
+  const [guardando, setGuardando] = useState(false);
+  const marcas = [...new Set((productos || []).map(p => (p.marca || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const cuentaMarca = (m) => (productos || []).filter(p => (p.marca || "").trim().toLowerCase() === m.toLowerCase()).length;
+  const setP = (i, cambio) => setPacks(l => l.map((p, k) => k === i ? { ...p, ...cambio } : p));
+  const guardar = async () => {
+    setGuardando(true);
+    try { const r = await API.put("/tienda/packs", { packs: packs.map(({ q, ...p }) => p) }); setPacks(r.data.packs.map(p => ({ ...p, q: "" }))); avisar(true, "✓ Packs guardados. Ya se ven en la tienda."); onGuardado && onGuardado(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+    setGuardando(false);
+  };
+  return (
+    <div className="card">
+      <div className="ct">🎁 Packs por marca o productos</div>
+      <div style={{ fontSize: 13, color: tp.textMuted, marginBottom: 10 }}>"Llevando 3 o más de esta marca, 15% OFF en todos". Ideal para marcas que no se mueven. Se aplica solo en la tienda (en el carrito le dice cuánto le falta), no se suma a las promos ni al descuento por forma de pago.</div>
+      {packs.map((p, i) => {
+        const q = normTxt(p.q || ""), res = q ? (productos || []).filter(x => !p.productos.includes(x.id) && normTxt([x.nombre, x.marca].join(" ")).includes(q)).slice(0, 6) : [];
+        return (
+          <div key={p.id || i} style={{ border: "1px solid " + tp.border, borderRadius: 12, padding: 12, marginBottom: 10, opacity: p.activo === false ? .6 : 1 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <label style={{ display: "flex", gap: 6, alignItems: "center", fontWeight: 700, fontSize: 13 }}><input type="checkbox" checked={p.activo !== false} onChange={e => setP(i, { activo: e.target.checked })} /> Activo</label>
+              <input className="inp" style={{ flex: "2 1 200px" }} maxLength={60} placeholder="Nombre (ej: Pack COSRX)" value={p.nombre} onChange={e => setP(i, { nombre: e.target.value })} aria-label="Nombre del pack" />
+              <span style={{ fontSize: 13 }}>Llevando</span><input className="inp" style={{ width: 64 }} inputMode="numeric" value={p.cantidad} onChange={e => setP(i, { cantidad: e.target.value.replace(/[^\d]/g, "") })} aria-label="Cantidad" />
+              <span style={{ fontSize: 13 }}>o más:</span><input className="inp" style={{ width: 64 }} inputMode="numeric" value={p.pct} onChange={e => setP(i, { pct: e.target.value.replace(/[^\d.]/g, "") })} aria-label="Porcentaje" /><span style={{ fontSize: 13 }}>% OFF</span>
+              {esJefe && <button className="icon-btn" aria-label="Borrar pack" onClick={() => setPacks(l => l.filter((_, k) => k !== i))}>🗑️</button>}
+            </div>
+            <div className="fl" style={{ marginTop: 10 }}>Marcas</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              {p.marcas.map(m => <span key={m} className="tag" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>{m}<button className="icon-btn" style={{ padding: 0, fontSize: 11 }} aria-label={"Sacar " + m} onClick={() => setP(i, { marcas: p.marcas.filter(x => x !== m) })}>✕</button></span>)}
+              <select className="sel" value="" onChange={e => e.target.value && setP(i, { marcas: [...p.marcas, e.target.value] })} aria-label="Agregar marca">
+                <option value="">+ Agregar marca</option>
+                {marcas.filter(m => !p.marcas.includes(m)).map(m => <option key={m} value={m}>{m} ({cuentaMarca(m)})</option>)}
+              </select>
+            </div>
+            <div className="fl" style={{ marginTop: 10 }}>Productos sueltos (opcional)</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {p.productos.map(id => { const x = (productos || []).find(y => y.id === id); return <span key={id} className="tag" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>{x ? x.nombre : "#" + id}<button className="icon-btn" style={{ padding: 0, fontSize: 11 }} aria-label="Sacar producto" onClick={() => setP(i, { productos: p.productos.filter(y => y !== id) })}>✕</button></span>; })}
+            </div>
+            <input className="inp" style={{ marginTop: 6 }} placeholder="🔎 Buscar producto para sumar" value={p.q || ""} onChange={e => setP(i, { q: e.target.value })} />
+            {res.map(x => <button key={x.id} className="btn btn-g btn-sm" style={{ display: "block", width: "100%", textAlign: "left", marginTop: 4 }} onClick={() => setP(i, { productos: [...p.productos, x.id], q: "" })}>+ {x.nombre} <span style={{ color: tp.textMuted, fontSize: 11 }}>{x.marca || ""}</span></button>)}
+          </div>
+        );
+      })}
+      {esJefe && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <button className="btn btn-g" onClick={() => setPacks(l => [...l, { id: "", nombre: "", activo: true, marcas: [], productos: [], cantidad: 3, pct: 15, q: "" }])}>+ Nuevo pack</button>
+        <button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar packs"}</button>
+      </div>}
+    </div>
+  );
+}
 function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, urlTienda }) {
   const o0 = cfg.ofertas || { dia: {}, combos: [] };
   const aLocal = (iso) => { if (!iso) return ""; const d = new Date(iso); const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return z.toISOString().slice(0, 16); };
@@ -30019,6 +30097,7 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
       {esJefe && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar ofertas"}</button>
       </div>}
+      <PacksTienda cfg={cfg} productos={productos} temaPal={temaPal} avisar={avisar} esJefe={esJefe} onGuardado={onGuardado} />
       <div className="card">
         <div className="ct">🎯 Misiones con puntos extra</div>
         <div style={{ fontSize: 13, color: temaPal.textMuted, marginBottom: 10 }}>Desafíos con fecha de inicio y fin: la clienta ve su avance en "Mi cuenta" y, cuando la cumple, se le suman los puntos (una sola vez). Cuentan las compras en el local y online con su ficha.</div>

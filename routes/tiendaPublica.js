@@ -109,6 +109,7 @@ router.get('/:slug', async (req, res) => {
       resenas_puntos: (() => { const r = tienda.puntosResenaDe(c); return r.activo && (r.puntos || r.extra_foto) ? { puntos: r.puntos, extra_foto: r.extra_foto } : null; })(),
       // Logo de la marca para la gift card (blanco sobre el color de la tarjeta)
       logo_marca: Number(req.negTienda.id) === 1 ? { blanco: '/logos/girasoles-logo-blanco.svg', color: '/logos/girasoles-logo.svg' } : null,
+      packs: tienda.packsDe(c).filter(p => p.activo).map(({ activo, ...p }) => p),
       express: (() => { const k = tienda.expressDe(c); return k.activo ? { minutos: k.minutos, abierto: tienda.expressAbierto(k), desde: k.desde, hasta: k.hasta } : null; })(),
       muestras: (() => {
         const m = tienda.muestrasDe(c);
@@ -376,7 +377,7 @@ router.post('/:slug/pedidos', async (req, res) => {
     const lineas = [];
     const ofDia = tienda.ofertaDiaActiva(c);
     for (const it of items) {
-      const p = (await client.query(`SELECT p.id, p.nombre, p.precio, p.categoria, COALESCE(tp.publicado, FALSE) AS publicado,
+      const p = (await client.query(`SELECT p.id, p.nombre, p.precio, p.categoria, p.marca, COALESCE(tp.publicado, FALSE) AS publicado,
           COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush, COALESCE(p.stock_transito_rg, 0) AS transito_rg, COALESCE(p.stock_transito_ush, 0) AS transito_ush,
           COALESCE(p.reservado_rg, 0) AS reservado_rg, COALESCE(p.reservado_ush, 0) AS reservado_ush
         FROM productos p LEFT JOIN tienda_productos tp ON tp.producto_id = p.id WHERE p.id = $1 AND p.activo = TRUE AND COALESCE(p.precio, 0) > 0 FOR UPDATE OF p`, [it.producto_id])).rows[0];
@@ -395,7 +396,7 @@ router.post('/:slug/pedidos', async (req, res) => {
       if (stock - ya < it.cantidad) { await client.query('ROLLBACK'); return res.status(409).json({ error: 'No hay stock suficiente de ' + p.nombre + (valor ? ' (' + valor + ')' : '') + (stock - ya > 0 ? ': quedan ' + (stock - ya) : '') + ' en ' + (entrega === 'retiro' ? 'ese local' : 'este momento') }); }
       // Oferta del dia: el precio especial vale mientras dure (no para preventa)
       const precioLinea = ofDia && ofDia.producto_id === p.id && !it.preventa ? ofDia.precio : num(p.precio);
-      lineas.push({ producto_id: p.id, variante_id: it.variante_id, nombre: p.nombre, variante_valor: valor, cantidad: it.cantidad, precio: precioLinea, preventa: it.preventa, categoria: p.categoria });
+      lineas.push({ producto_id: p.id, variante_id: it.variante_id, nombre: p.nombre, variante_valor: valor, cantidad: it.cantidad, precio: precioLinea, preventa: it.preventa, categoria: p.categoria, marca: p.marca });
     }
     const subtotal = Math.round(lineas.reduce((t, l) => t + l.precio * l.cantidad, 0) * 100) / 100;
     if (entrega === 'envio' && c.envio_gratis_desde && subtotal >= c.envio_gratis_desde) costoEnvio = 0;
@@ -426,7 +427,7 @@ router.post('/:slug/pedidos', async (req, res) => {
     }
     // Descuento por la forma de pago elegida (sobre los productos, despues del cupon; no sobre el envio)
     // Promociones de Lumiere marcadas para la tienda: esos productos llevan la promo en lugar del descuento por forma de pago
-    const promo = tienda.descuentoPromos(await tienda.promosTienda(client), lineas, combo.enCombos, pago);
+    const promo = tienda.descuentoPromos(await tienda.promosTienda(client), lineas, combo.enCombos, pago, tienda.packsDe(c));
     const descPromo = promo.descuento;
     const dp = tienda.descuentoPagoTotal(c, pago, Math.max(0, subtotal - descCombo - descuento - descAmiga - promo.monto), combo.combos.reduce((t, x) => t + (x.monto || 0), 0));
     const pctPago = dp.pctKits && !dp.pct ? dp.pctKits : dp.pct;
