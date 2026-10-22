@@ -404,6 +404,10 @@ button.tab { font-family: inherit; }
 .ped-cols { display: grid; grid-template-columns: 1.15fr 1fr; gap: 10px; }
 @media (max-width: 760px) { .ped-cols { grid-template-columns: 1fr; } .ped-fila { flex-wrap: wrap; gap: 8px; padding: 10px 12px; } .ped-fila > div:last-child { width: 100%; justify-content: space-between; } .ped-chip { font-size: 11px; padding: 2px 8px; } .ped-paso { margin-left: auto; } }
 @media (max-width: 760px) { .ped-grid { grid-template-columns: 1fr 1fr; } .ped-grid .ped-btn { min-height: 104px; } }
+/* Clientas web: las secciones en una sola fila, mas chicas */
+.ped-grid.cw-grid { grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); }
+.ped-grid.cw-grid .ped-btn { min-height: 92px; }
+@media (max-width: 760px) { .ped-grid.cw-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; } .ped-grid.cw-grid .ped-btn { min-height: 84px; } .ped-grid.cw-grid .pcel-txt { font-size: 12.5px; } }
 .globo-rojo { display: inline-flex; align-items: center; justify-content: center; min-width: 19px; height: 19px; padding: 0 5px; margin-left: 6px; border-radius: 999px; background: #e74c3c; color: #fff; font-size: 11px; font-weight: 900; line-height: 1; box-shadow: 0 0 0 2px ${p.card}; animation: globoLate 2s ease-in-out infinite; }
 @keyframes globoLate { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
 @media (prefers-reduced-motion: reduce) { .globo-rojo { animation: none; } }
@@ -30113,6 +30117,8 @@ function VerComoClienta({ temaPal }) {
 function ClientasWeb({ temaPal, avisar, urlTienda, nombreTienda, esJefe, esDuena, slug }) {
   const [d, setD] = useState(null);
   const [msj, setMsj] = useState(null); // editor de mensajes
+  const [sec, setSec] = useState(null); // seccion elegida en las tarjetas de arriba
+  const [todosFav, setTodosFav] = useState(false);
   const cargar = () => API.get("/tienda/clientas-web").then(r => setD(r.data)).catch(() => setD({ avisos: [], carritos: [], favoritos: [], resumen_fav: {}, mensajes: {}, error: true }));
   useEffect(() => { cargar(); }, []);
   if (!d) return <div className="card"><div className="skel" style={{ height: 120 }} /></div>;
@@ -30148,11 +30154,26 @@ function ClientasWeb({ temaPal, avisar, urlTienda, nombreTienda, esJefe, esDuena
   });
   const porCat = {}; favs.forEach(f => { const c = f.categoria || "Sin categoría"; porCat[c] = (porCat[c] || 0) + f.n; });
   const cats = Object.entries(porCat).sort((a, b) => b[1] - a[1]).slice(0, 6), maxCat = cats.length ? cats[0][1] : 1;
+  // Secciones (una a la vez, como en Pedidos): por defecto, los avisos si hay alguno para mandar
+  const paraAvisar = grupos.filter(([, g]) => g.rg + g.ush > 0).reduce((t, [, g]) => t + g.lista.length, 0);
+  const SECS = [["aviso", "🔔", "Piden aviso", "#d35400", d.avisos.length, paraAvisar > 0], ["favoritos", "❤️", "Favoritos", "#c0392b", rf.guardados || favs.reduce((t, f) => t + f.n, 0), false],
+    ...(esDuena ? [["vercomo", "👁️", "Ver como clienta", "#8e44ad", 0, false]] : [])];
+  const secAct = sec || (paraAvisar || !favs.length ? "aviso" : "favoritos");
+  const favsVis = todosFav ? favs : favs.slice(0, 15);
   const ejemplo = { nombre: "Laura", tienda: nombreTienda || "Girasoles", total: fmt(25800), link: urlTienda || "girasolesbeauty.com.ar", productos: "Sérum Vitamina C, Protector solar x2", producto: "Sérum Vitamina C" };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      {esDuena && <VerComoClienta temaPal={temaPal} />}
-      <div className="card">
+      <div className="ped-grid cw-grid">
+        {SECS.map(([k, ic, t, col, n, rojo], i) => { const on = secAct === k; return (
+          <button key={k} className={"pcel-btn ped-btn" + (on ? " on" : "")} aria-pressed={on} style={{ "--c": col, animationDelay: (i * 45) + "ms" }} onClick={() => setSec(k)}>
+            <span className="pcel-ico" aria-hidden="true">{ic}</span>
+            <span className="pcel-txt">{t}</span>
+            {n > 0 && <span className={"ped-globo" + (rojo ? " rojo" : "")} aria-label={n + ""}>{n > 99 ? "99+" : n}</span>}
+          </button>); })}
+      </div>
+      {secAct === "aviso" && paraAvisar > 0 && <div className="cli-tip" style={{ borderColor: temaPal.green }}>✅ <b>{paraAvisar === 1 ? "1 clienta espera" : paraAvisar + " clientas esperan"} un producto que ya volvió.</b> Tocá "Avisar" y se abre el WhatsApp con tu mensaje.</div>}
+      {secAct === "vercomo" && esDuena && <VerComoClienta temaPal={temaPal} />}
+      {secAct === "favoritos" && <div className="card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <div className="ct" style={{ marginBottom: 0 }}>❤️ Análisis de favoritos</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -30168,7 +30189,7 @@ function ClientasWeb({ temaPal, avisar, urlTienda, nombreTienda, esJefe, esDuena
           <div style={{ overflowX: "auto" }}>
             <table className="cli-tabla" style={{ width: "100%", fontSize: 13 }}>
               <thead><tr><th style={{ textAlign: "left" }}>Producto</th><th>♥</th><th>7 días</th><th>Compraron</th><th>Stock</th><th style={{ textAlign: "left" }}>Qué hacer</th></tr></thead>
-              <tbody>{favs.map(f => (
+              <tbody>{favsVis.map(f => (
                 <tr key={f.producto_id}>
                   <td><b>{f.nombre}</b><div style={{ fontSize: 11, color: temaPal.textMuted }}>{f.categoria || ""}</div></td>
                   <td style={{ textAlign: "center", fontWeight: 800 }}>{f.n}</td>
@@ -30180,9 +30201,10 @@ function ClientasWeb({ temaPal, avisar, urlTienda, nombreTienda, esJefe, esDuena
               ))}</tbody>
             </table>
           </div>
+          {favs.length > 15 && <button className="btn btn-g btn-sm" style={{ marginTop: 8 }} onClick={() => setTodosFav(v => !v)}>{todosFav ? "Ver menos" : "Ver los " + favs.length + " productos"}</button>}
         </>}
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 12, alignItems: "start" }}>
+      </div>}
+      {secAct === "aviso" && <div>
         <div className="card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}><div className="ct" style={{ marginBottom: 0 }}>🔔 Piden que les avisen cuando vuelva</div>{esJefe && <button className="btn btn-g btn-sm" onClick={() => setMsj({ carrito: tCarrito, aviso: tAviso })} title="El de los carritos abandonados (en Pedidos) y el de este aviso">✏️ Editar mensajes</button>}</div>
           <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 8 }}>Dejaron su WhatsApp en un producto agotado. Arriba, los que ya tienen stock: tocá "Avisar" y se abre el WhatsApp con tu mensaje.</div>
@@ -30200,7 +30222,7 @@ function ClientasWeb({ temaPal, avisar, urlTienda, nombreTienda, esJefe, esDuena
             </div>
           ))}
         </div>
-      </div>
+      </div>}
       {msj && (
         <div className="pos-overlay" onClick={() => setMsj(null)}>
           <div className="card pop-in" style={{ width: 620, maxWidth: "95vw", maxHeight: "90vh", overflowY: "auto", background: temaPal.card }} onClick={e => e.stopPropagation()}>
@@ -31218,7 +31240,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         </div>
       )}
       {!cfg.activo && <div className="cli-tip" style={{ marginBottom: 12 }}>Para empezar: 1) elegí qué productos publicar en <b>Productos</b>, 2) completá <b>Configuración</b> (entrega y pagos) y tildá "Tienda publicada".</div>}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8, marginBottom: 12 }}>
+      {/* Resumen de la tienda: solo en Pedidos (en las otras pestañas no hace falta y empuja todo para abajo) */}
+      {tab === "pedidos" && <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8, marginBottom: 12 }}>
         {[
           { t: "Para atender", v: abiertos.length, sub: nNuevos ? nNuevos + (nNuevos === 1 ? " nuevo" : " nuevos") + " para preparar" : "al día", c: abiertos.length ? "#d35400" : "#2d7a4f", ir: () => { setTab("pedidos"); setFiltro("activos"); } },
           { t: "Vendido online (30 días)", v: fmt(vendido30), sub: entregados30.length + (entregados30.length === 1 ? " pedido entregado" : " pedidos entregados"), c: "#2d7a4f", ir: () => { setTab("pedidos"); setFiltro("entregado"); } },
@@ -31231,9 +31254,9 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             <div style={{ fontSize: 11, color: temaPal.textMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{k.sub}</div>
           </button>
         ))}
-      </div>
+      </div>}
       {/* Completá tu tienda: productos publicados a los que les falta algo para venderse bien */}
-      {productos && nPub > 0 && (() => {
+      {tab === "productos" && productos && nPub > 0 && (() => {
         const pubs = productos.filter(p => p.publicado);
         const SKIN = ["limpiador", "desmaquillante", "tonico", "serum", "hidratante", "solar", "ojos", "exfoliante", "mascarilla"];
         const sinFoto = pubs.filter(p => !p.foto), sinDesc = pubs.filter(p => !(p.descripcion || "").trim());
