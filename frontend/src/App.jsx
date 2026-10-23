@@ -30570,6 +30570,9 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
   const [desdeRot] = useState(() => { try { const x = JSON.parse(sessionStorage.getItem("lumiere_oferta_pre") || "null"); sessionStorage.removeItem("lumiere_oferta_pre"); return x; } catch (e) { return null; } });
   const [dia, setDia] = useState(() => desdeRot ? { ...o0.dia, activo: true, producto_id: desdeRot.producto_id, precio: desdeRot.precio, titulo: (o0.dia && o0.dia.titulo) || "", hastaLocal: aLocal(new Date(Date.now() + 24 * 3600e3).toISOString()) } : ({ ...o0.dia, hastaLocal: aLocal(o0.dia && o0.dia.hasta) }));
   const [combos, setCombos] = useState(() => (o0.combos || []).map(c => ({ ...c })));
+  // Lo guardado de la oferta del dia (para avisar si hay cambios sin guardar: en la tienda se ve recien al guardar)
+  const firmaDia = (x) => [!!(x && x.activo), parseInt(x && x.producto_id) || 0, parseInt(x && x.precio) || 0, x && (x.hastaLocal !== undefined ? x.hastaLocal : aLocal(x.hasta))].join("|");
+  const [diaGuardado, setDiaGuardado] = useState(() => firmaDia(o0.dia || {}));
   const [guardando, setGuardando] = useState(false);
   const [ref, setRef] = useState(() => ({ ...(cfg.referidos || { activo: true, pct: 10, puntos: 500 }) }));
   const [mis, setMis] = useState(() => (cfg.misiones || []).map(m => ({ ...m })));
@@ -30606,7 +30609,7 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
       const body = { dia: { activo: !!dia.activo, producto_id: dia.producto_id || null, precio: parseInt(dia.precio) || 0, hasta: dia.hastaLocal ? new Date(dia.hastaLocal).toISOString() : null, titulo: dia.titulo || "" },
         combos: combos.map(c => ({ id: c.id, nombre: c.nombre, productos: c.productos, cantidades: c.cantidades || {}, kit_id: c.kit_id || null, precio: parseInt(c.precio) || 0, activo: c.activo !== false })) };
       const r = await API.put("/tienda/ofertas", body);
-      setDia({ ...r.data.ofertas.dia, hastaLocal: aLocal(r.data.ofertas.dia.hasta) }); setCombos(r.data.ofertas.combos);
+      setDia({ ...r.data.ofertas.dia, hastaLocal: aLocal(r.data.ofertas.dia.hasta) }); setCombos(r.data.ofertas.combos); setDiaGuardado(firmaDia(r.data.ofertas.dia));
       avisar(true, "✓ Ofertas guardadas"); onGuardado && onGuardado();
     } catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
     setGuardando(false);
@@ -30636,7 +30639,10 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
     setEligiendoKit(false);
     avisar(true, "✓ Kit " + kit.nombre + " cargado como combo: poné el precio y tocá Guardar ofertas" + (Object.keys(cant).length > 6 ? " (se tomaron los primeros 6 productos)" : "") + (sinTienda.length ? ". Ojo: " + sinTienda.length + " producto(s) no están publicados en la tienda" : ""));
   };
-  const avisoDia = !dia.activo ? "Apagada" : !pDia ? "Elegí el producto" : !(parseInt(dia.precio) > 0) ? "Poné el precio de oferta" : !dia.hastaLocal ? "Elegí hasta cuándo dura" : !t.ms ? "Ya terminó" : parseInt(dia.precio) >= parseFloat(pDia.precio) ? "El precio de oferta tiene que ser menor al normal" : null;
+  const avisoDia = !dia.activo ? "Apagada" : !pDia ? "Elegí el producto" : !(parseInt(dia.precio) > 0) ? "Poné el precio de oferta" : !dia.hastaLocal ? "Elegí hasta cuándo dura" : !t.ms ? "Ya terminó" : parseInt(dia.precio) >= parseFloat(pDia.precio) ? "El precio de oferta tiene que ser menor al normal"
+    : !pDia.publicado ? "El producto no está publicado: publicalo en Productos para que se vea"
+    : (parseInt(pDia.stock_rg) || 0) + (parseInt(pDia.stock_ush) || 0) <= 0 ? "El producto no tiene stock: en la tienda no se muestra"
+    : firmaDia(dia) !== diaGuardado ? "Falta guardar: tocá Guardar para que aparezca en la tienda" : null;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {desdeRot && <div className="cli-tip" style={{ margin: 0 }}>♻️ Cargamos <b>{desdeRot.nombre}</b> desde Rotación con {desdeRot.pct}% OFF por 24 horas (sin perder lo que pagaste). Revisá el precio y la duración y tocá <b>Guardar ofertas</b>.</div>}
