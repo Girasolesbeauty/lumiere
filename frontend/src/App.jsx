@@ -654,7 +654,8 @@ body:has(.pos-overlay) .ayuda-fab { display: none !important; }
 .liq-si-no button{font:inherit;cursor:pointer;border:1.5px solid rgba(127,127,127,.35);background:transparent;color:inherit;border-radius:999px;padding:8px 18px;font-weight:800;font-size:14px}
 .liq-si-no button.on{background:#2d7a4f;border-color:#2d7a4f;color:#fff}.liq-si-no button.on.no{background:#c0392b;border-color:#c0392b}
 .liq-si-no.chico button{padding:5px 11px;font-size:12.5px}
-.liq-barra{position:sticky;top:6px;z-index:5;display:flex;gap:6px;flex-wrap:wrap;align-items:center;border:2px solid}
+.liq-barra{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;width:min(640px,calc(100% - 24px));z-index:60;display:flex;gap:6px;flex-wrap:wrap;align-items:center;border:2px solid;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+@media(max-width:760px){.liq-barra{bottom:84px}}
 .liq-medio{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid;border-radius:12px;padding:9px 11px}
 .liq-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 @media(max-width:600px){.liq-kpis{grid-template-columns:1fr 1fr}}
@@ -23997,6 +23998,8 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
   const [com, setCom] = useState(guardado.com || {});
   const [editOf, setEditOf] = useState(null);
   const [marcados, setMarcados] = useState([]);
+  const [avisoMarca, setAvisoMarca] = useState("");
+  useEffect(() => { if (!avisoMarca) return; const t = setTimeout(() => setAvisoMarca(""), 4000); return () => clearTimeout(t); }, [avisoMarca]);
   const [filtro, setFiltro] = useState("todos");
   const [busca, setBusca] = useState("");
   const [verTodos, setVerTodos] = useState(false);
@@ -24004,6 +24007,37 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
   const [aviso, setAviso] = useState("");
   // Lo que se arma queda guardado en este navegador (se puede seguir otro día)
   useEffect(() => { try { localStorage.setItem(CLAVE, JSON.stringify({ cfg, ofertas, asig, costoCuotas, com, dias, local })); } catch (e) {} }, [cfg, ofertas, asig, costoCuotas, com, dias, local]);
+  // El plan se guarda en el sistema y es el mismo para todas (dueña y vendedoras). Al abrir se trae el último;
+  // cada cambio se guarda solo, un segundo después. El local que se está mirando queda en cada navegador.
+  const [sync, setSync] = useState({ cargado: false, por: null, en: null, guardando: false, error: false });
+  const ultimoPlan = useRef("");
+  // Para comparar sin que importe el orden de las claves (la base las devuelve en otro orden)
+  const jsonOrden = (v) => JSON.stringify(v, (k, x) => x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map(y => [y, x[y]])) : x);
+  const aplicarPlan = (pl) => {
+    if (pl.cfg) setCfg(c => ({ ...c, ...pl.cfg }));
+    if (Array.isArray(pl.ofertas)) setOfertas(pl.ofertas);
+    if (pl.asig) setAsig(Object.fromEntries(Object.entries(pl.asig).map(([k, v]) => [k.includes("|") ? k : "0|" + k, v])));
+    if (pl.costoCuotas) setCostoCuotas(pl.costoCuotas);
+    if (pl.com) setCom(pl.com);
+    if (pl.dias) setDias(pl.dias);
+  };
+  const traerPlan = () => API.get("/promociones/plan-liquidacion").then(r => {
+    const pl = r.data.plan;
+    if (pl) { ultimoPlan.current = jsonOrden(pl); aplicarPlan(pl); }
+    setSync({ cargado: true, por: r.data.por, en: r.data.en, guardando: false, error: false });
+  }).catch(() => setSync(x => ({ ...x, cargado: true, error: true })));
+  useEffect(() => { traerPlan(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!sync.cargado) return;
+    const plan = { cfg, ofertas, asig, costoCuotas, com, dias }, txt = jsonOrden(plan);
+    if (txt === ultimoPlan.current) return;
+    const t = setTimeout(() => {
+      setSync(x => ({ ...x, guardando: true }));
+      API.put("/promociones/plan-liquidacion", { plan }).then(r => { ultimoPlan.current = txt; setSync(x => ({ ...x, guardando: false, error: false, por: r.data.por, en: r.data.en })); })
+        .catch(() => setSync(x => ({ ...x, guardando: false, error: true })));
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [sync.cargado, cfg, ofertas, asig, costoCuotas, com, dias]);
   // Ventas y stock del local elegido (o de todos): un producto puede venderse bien en un local y estar quieto en el otro
   useEffect(() => { setRot(null); API.get("/productos/rotacion?dias=" + dias + (local !== "0" ? "&local_id=" + local : "")).then(r => setRot(r.data)).catch(() => setRot({ productos: [], error: true })); }, [dias, local]);
   const activos = (medios || []).filter(m => m.activo !== false);
@@ -24103,6 +24137,11 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
           <span style={{ fontSize: 12.5, color: p.textMuted }}>{fecha(cfg.desde)} al {fecha(cfg.hasta)}</span>
         </div>
         <div className="liq-ayuda" style={{ marginTop: 4 }}>1) Armá tus ofertas · 2) Elegí la oferta de cada producto · 3) Creá las ofertas.</div>
+        <div className="liq-ayuda" style={{ marginTop: 2, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          {!sync.cargado ? "Trayendo el plan…" : sync.error ? <span style={{ color: p.red, opacity: 1, fontWeight: 700 }}>⚠️ No se pudo guardar en el sistema: revisá la conexión</span>
+            : sync.guardando ? "Guardando…" : <span>💾 Guardado en el sistema: lo ven y lo editan todas{sync.por ? " · último cambio de " + String(sync.por).split(" ")[0] + (sync.en ? " " + new Date(sync.en).toLocaleString("es-AR", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" }) : "") : ""}</span>}
+          {sync.cargado && <button className="chip-btn" style={{ padding: "2px 8px", fontSize: 11 }} onClick={traerPlan} title="Traer lo último que guardaron las demás">↻ Actualizar</button>}
+        </div>
         <div className="liq-kpis" style={{ marginTop: 10 }}>
           {[["Ofertas", ofertas.length, "armadas"], ["Productos", conOferta.length, "con oferta de " + lista.length], ["Plata que liberás", $(tot.costo), tot.u + " unidades al costo"], ["Te hacen perder", conPerdida.length, conPerdida.length ? "revisalos" : "ninguno 👌"]].map(([t, v, sub], i) => (
             <div key={t} style={{ ...caja, padding: "8px 10px", borderColor: i === 3 && conPerdida.length ? p.red : p.border }}><div style={{ fontSize: 11, color: p.textMuted, fontWeight: 700 }}>{t}</div><div style={{ fontSize: 18, fontWeight: 900, color: i === 3 && conPerdida.length ? p.red : undefined }}>{v}</div><div style={{ fontSize: 10.5, color: p.textMuted }}>{sub}</div></div>
@@ -24172,12 +24211,14 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
             </div>
             <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12.5, marginTop: 8, color: p.textMuted }}><input type="checkbox" checked={verTodos} onChange={e => setVerTodos(e.target.checked)} /> Mostrar también los que se venden bien (por defecto, solo los lentos y parados)</label>
           </div>
-          {marcados.length > 0 && <div className="card liq-barra" style={{ padding: 10, borderColor: p.accent }}>
-            <b style={{ fontSize: 13 }}>{marcados.length} marcados →</b>
-            {ofertas.map(of => <button key={of.id} className="chip-btn" style={{ borderColor: colorOf(of), color: colorOf(of) }} onClick={() => { asignar(marcados, of.id); setMarcados([]); }}>{nombreOf(of)}</button>)}
-            <button className="chip-btn" onClick={() => { asignar(marcados, null); setMarcados([]); }}>Sin oferta</button>
+          {marcados.length > 0 && <div className="card liq-barra" style={{ padding: 10, borderColor: p.accent, background: p.card || "#fff" }}>
+            <b style={{ fontSize: 13, width: "100%" }}>{marcados.length} {marcados.length === 1 ? "producto marcado" : "productos marcados"}: tocá la oferta para ponérsela a {marcados.length === 1 ? "ese" : "todos"}</b>
+            {ofertas.map(of => <button key={of.id} className="chip-btn" style={{ borderColor: colorOf(of), color: colorOf(of) }} onClick={() => { asignar(marcados, of.id); setAvisoMarca("✓ " + nombreOf(of) + " puesta a " + marcados.length + (marcados.length === 1 ? " producto" : " productos")); setMarcados([]); }}>{nombreOf(of)}</button>)}
+            <button className="chip-btn" onClick={() => { asignar(marcados, null); setAvisoMarca("✓ Sacada la oferta a " + marcados.length + (marcados.length === 1 ? " producto" : " productos")); setMarcados([]); }}>Sin oferta</button>
             <button className="chip-btn" onClick={() => setMarcados([])}>Desmarcar</button>
           </div>}
+          {avisoMarca && <div className="cli-tip" style={{ margin: 0, borderColor: p.green }}>{avisoMarca}</div>}
+          {visibles.length > 0 && <div className="liq-ayuda" style={{ padding: "0 4px", marginTop: 0 }}>💡 Para poner la misma oferta a varios de una vez: marcá sus cuadraditos y elegí la oferta en la barra de abajo.</div>}
           {visibles.length > 0 && <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12.5, padding: "0 4px" }}><input type="checkbox" checked={visibles.every(x => marcados.includes(x.id))} onChange={e => setMarcados(e.target.checked ? [...new Set([...marcados, ...visibles.map(x => x.id)])] : marcados.filter(id => !visibles.some(x => x.id === id)))} /> Marcar todos los de la lista</label>}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{visibles.map(x => { const of = ofDe(x), cs = of && !x.sinCosto ? cuentas(x, of) : []; return (
             <div key={x.id} className="card liq-prod" style={{ borderLeft: "4px solid " + (of ? colorOf(of) : p.border) }}>
@@ -24262,6 +24303,21 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
           <button className="btn btn-p" disabled={creando} onClick={crear}>{creando ? "Creando…" : "⚡ Crear ofertas de " + cfg.nombre}</button>
         </>}
       </div>}
+    </div>
+  );
+}
+// Cyber Monday como sector propio (lo ven y lo editan las vendedoras): el mismo plan que Promociones › Cyber Monday
+function PaginaCyber({ paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const [medios, setMedios] = useState(null);
+  const [mensaje, setMensaje] = useState("");
+  useEffect(() => { API.get("/medios-pago").then(r => setMedios(r.data || [])).catch(() => setMedios([])); }, []);
+  return (
+    <div className="fade">
+      <div className="ph"><div><div className="pt">⚡ Cyber Monday</div><div className="ps">ofertas para vender lo que está quieto</div></div></div>
+      {mensaje && <div className="cli-tip" style={{ margin: "0 0 12px", borderColor: temaPal.green }}>{mensaje}</div>}
+      {medios === null ? <div className="card"><div className="skel" style={{ height: 200 }} /></div>
+        : <PlanLiquidacion temaPal={temaPal} medios={medios} onCreado={() => { setMensaje("✅ ¡Ofertas creadas! Las ves en Promociones."); window.scrollTo({ top: 0, behavior: "smooth" }); setTimeout(() => setMensaje(""), 6000); }} />}
     </div>
   );
 }
@@ -24555,6 +24611,7 @@ const NAV_SECTIONS = [
     { id: "cocina", icon: "👨‍🍳", label: "Cocina", k: "comandas cocina pedidos gastronomia", soloGastro: true },
     { id: "presupuestos", icon: "🧾", label: "Presupuestos", k: "presupuesto cotizacion cotizar whatsapp pdf" },
     { id: "tienda-online", icon: "🛍️", label: "Tienda online", k: "tienda web online pedidos carrito ecommerce publicar catalogo" },
+    { id: "cyber", icon: "⚡", label: "Cyber Monday", k: "ofertas liquidacion black friday productos quietos lentos parados cuotas promociones" },
     { id: "ventas-online", icon: "🌐", label: "Ventas Online", k: "web tienda internet pedidos online" },
     { id: "buscar-precio", icon: "🔎", label: "Buscar Precio", k: "precio consultar" },
     { id: "cambio-devolucion", icon: "🔄", label: "Cambio / Devolución", k: "cambio devolucion" }] },
@@ -34128,7 +34185,8 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
       ["Portal Cliente", [["portal.ver", "Premios y diseño del portal"]]],
       ["Postventa WA", [["postventa.ver", "Mensajes de postventa"]]],
       ["Cupones", [["cupones.ver", "Ver y crear cupones"]]],
-      ["Promociones", [["promociones.ver", "Ver y crear promociones"]]] ] },
+      ["Promociones", [["promociones.ver", "Ver y crear promociones"]]],
+      ["Cyber Monday", [["cyber.ver", "Ver y armar las ofertas del Cyber Monday"]]] ] },
     { grupo: "EQUIPO", secciones: [
       ["Tareas", [["tareas.ver", "Ver sus tareas"]]],
       ["Comisiones", [["comisiones.propias", "Ver comisiones"]]],
@@ -35210,7 +35268,7 @@ function AppWrapper() {
       "finance": "finanzas.flujo", "decisiones": "decisiones.ver", "gerente": "gerente.ver", "comprobantes": "comprobantes.ver",
       "comisiones": "comisiones.propias", "proveedores": "proveedores.ver",
       "calculadoras": "calculadoras.ver", "productividad": "productividad.ver",
-      "cupones": "cupones.ver", "promociones": "promociones.ver", "postventa": "postventa.ver", "portal": "portal.ver",
+      "cupones": "cupones.ver", "promociones": "promociones.ver", "cyber": "cyber.ver", "postventa": "postventa.ver", "portal": "portal.ver",
       "caja": "caja.ver", "caja-respaldo": "caja_respaldo.ver", "cierre": "cierre_caja.ver", "giftcards": "giftcards.ver",
       "usuarios": "usuarios.ver", "config-negocio": "config_negocio.editar",
     };
@@ -35303,6 +35361,7 @@ function AppWrapper() {
     if (id === "productividad") return <Productividad localId={local.id} paletaActual={paletaActual} />;
     if (id === "cupones") return <Cupones localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "promociones") return <Promociones paletaActual={paletaActual} />;
+    if (id === "cyber") return <PaginaCyber paletaActual={paletaActual} />;
     if (id === "fidelizacion") return <Fidelizacion usuario={usuario} paletaActual={paletaActual} />;
     if (id === "tareas") return <Tareas usuario={usuario} localId={local.id} paletaActual={paletaActual} />;
     if (id === "postventa") return <PostventaWA paletaActual={paletaActual} />;

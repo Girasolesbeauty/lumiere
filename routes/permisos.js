@@ -70,6 +70,12 @@ async function asegurarPermisosV2() {
       (VALUES ('salud_stock.ver'), ('valorizacion.ver'), ('historial_ajustes.ver')) v(p) WHERE permiso = 'inventario.ver' ON CONFLICT DO NOTHING`);
     await pool.query(`INSERT INTO permisos_meta (clave) VALUES ('permisos_v6') ON CONFLICT DO NOTHING`);
   }
+  // v7: el sector Cyber Monday (ofertas de liquidacion): lo ven y lo editan todas, tambien las vendedoras
+  const ya7 = await pool.query(`SELECT 1 FROM permisos_meta WHERE clave = 'permisos_v7'`);
+  if (!ya7.rows.length) {
+    await pool.query(`INSERT INTO permisos_usuario (usuario_id, permiso) SELECT id, 'cyber.ver' FROM usuarios ON CONFLICT DO NOTHING`);
+    await pool.query(`INSERT INTO permisos_meta (clave) VALUES ('permisos_v7') ON CONFLICT DO NOTHING`);
+  }
   migrado.set(true);
 }
 
