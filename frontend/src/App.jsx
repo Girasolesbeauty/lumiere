@@ -27401,12 +27401,16 @@ function TwRutina({ productos, dispo, foto, onAgregar, onAbrir, onCompartir, cop
   // Si pidió coreano, al abaratar se abre a todas las marcas: se suman las opciones de la rutina armada sin el filtro coreano
   const abierta = useMemo(() => r.coreano ? twArmarRutina(productos, dispo, { ...r, coreano: false, presupuesto: 0 }) : null, [productos, dispo, r.piel, r.nec, r.pasos, r.coreano]);
   const opsDe = (x) => { const a = abierta && abierta.find(y => y.t === x.t); if (!a) return x.ops; const ids = new Set(x.ops.map(o => o.p.id)); return [...x.ops, ...a.ops.filter(o => !ids.has(o.p.id))].sort((p, q) => q.w - p.w); };
-  const opBarata = (rt, k) => { const x = rt[k], act = x.ops[x.i], otros = rt.filter((_, j) => j !== k).map(y => y.ops[y.i].p.id); return opsDe(x).find(o => o.p.precio < act.p.precio && !otros.includes(o.p.id)) || null; };
+  const opBarata = (rt, k) => { const x = rt[k], act = x.ops[x.i], otros = rt.filter((_, j) => j !== k).map(y => y.ops[y.i].p.id); const ok = (o) => o.p.precio < act.p.precio && !otros.includes(o.p.id), ops = opsDe(x); return (r.coreano && ops.find(o => o.p.coreano && ok(o))) || ops.find(ok) || null; };
   const abaratar = (k) => { setAvisoEco(""); setRutina(rt => rt.map((x, kk) => { if (kk !== k) return x; const o = opBarata(rt, k); if (!o) return x; const ops = opsDe(x); return { ...x, ops, i: ops.indexOf(o) }; })); setAgregada(false); };
   // Toda la rutina más económica: se vuelve a armar con un tope apenas menor (cambia lo que menos le baja la calidad)
   const masEconomica = () => {
-    const nueva = twArmarRutina(productos, dispo, { ...r, coreano: false, presupuesto: Math.max(1, total - 1), soloTipos: rutina.map(x => x.t) });
-    const t2 = nueva.reduce((s, x) => s + x.ops[x.i].p.precio, 0);
+    // Si pidió coreano, primero se intenta solo con coreano (con los mismos pasos); si así no baja, se suman las otras marcas
+    const tot = (rt) => rt.reduce((s, x) => s + x.ops[x.i].p.precio, 0);
+    const pedido = { ...r, presupuesto: Math.max(1, total - 1), soloTipos: rutina.map(x => x.t) };
+    let nueva = twArmarRutina(productos, dispo, pedido);
+    if (r.coreano && (nueva.length < rutina.length || tot(nueva) >= total)) nueva = twArmarRutina(productos, dispo, { ...pedido, coreano: false });
+    const t2 = tot(nueva);
     if (!nueva.length || t2 >= total) { setAvisoEco("Esta ya es la rutina más económica que podemos armar con lo que hay en stock."); return; }
     setRutina(nueva); setR(x => ({ ...x, presupuesto: t2 })); setAgregada(false); setAvisoEco("✓ Te armamos una rutina " + fmtTienda(total - t2) + " más económica." + (r.coreano && nueva.some(x => !x.ops[x.i].p.coreano) ? " Para eso sumamos productos de otras marcas." : ""));
   };
