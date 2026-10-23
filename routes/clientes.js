@@ -4,6 +4,9 @@ const controller = require('../controllers/clientesController');
 
 router.get('/', controller.getAll);
 router.get('/config/niveles', controller.getNiveles);
+router.get('/config/cumple', controller.getCumple);
+router.put('/config/cumple', controller.guardarMensajeCumple);
+router.post('/:id/saludo-cumple', controller.saludoCumple);
 router.put('/config/niveles', controller.guardarNiveles);
 router.get('/portal/resumen', controller.getPortalResumen);
 router.get('/:id/portal-vista', controller.getPortalVista);

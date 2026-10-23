@@ -302,4 +302,45 @@ const getMigracionPuntos = async (req, res) => {
   }
 };
 
-module.exports = { getNiveles, guardarNiveles, getPortalResumen, getPortalVista, getAll, getById, create, update, remove, getHistorial, agregarPuntos, resetearPortal, migrarPuntos, getMigracionPuntos };
+// Cumpleaños: el mensaje de saludo (lo edita el local) y a quienes ya se saludo este año
+const MENSAJE_CUMPLE = '¡Feliz cumple, {nombre}! 🎂 Todo el equipo de {negocio} te desea un día hermoso. Pasá por el local este mes que tenemos un regalito para vos 🎁';
+let cumpleListo = null;
+const asegurarCumple = () => cumpleListo || (cumpleListo = (async () => {
+  await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS mensaje_cumple TEXT');
+  await pool.query(`CREATE TABLE IF NOT EXISTS clientes_saludo_cumple (cliente_id INT NOT NULL, anio INT NOT NULL, por TEXT, en TIMESTAMP NOT NULL DEFAULT NOW(), PRIMARY KEY (cliente_id, anio))`);
+})().catch(e => { cumpleListo = null; throw e; }));
+const anioAR = () => Number(new Date().toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric' }));
+const getCumple = async (req, res) => {
+  try {
+    await asegurarCumple();
+    const c = (await pool.query('SELECT nombre_negocio, mensaje_cumple FROM configuracion_negocio LIMIT 1')).rows[0] || {};
+    const s = await pool.query('SELECT cliente_id, por, en FROM clientes_saludo_cumple WHERE anio = $1', [anioAR()]);
+    res.json({ mensaje: c.mensaje_cumple || MENSAJE_CUMPLE, por_defecto: MENSAJE_CUMPLE, negocio: c.nombre_negocio || '', saludos: s.rows });
+  } catch (error) { console.error(error); res.status(500).json({ error: 'Error al leer los cumpleaños' }); }
+};
+const guardarMensajeCumple = async (req, res) => {
+  try {
+    await asegurarCumple();
+    const m = String((req.body || {}).mensaje || '').trim().slice(0, 600);
+    if (m.length < 5) return res.status(400).json({ error: 'Escribí el mensaje' });
+    await pool.query('UPDATE configuracion_negocio SET mensaje_cumple = $1 WHERE id = 1', [m === MENSAJE_CUMPLE ? null : m]);
+    res.json({ mensaje: m });
+  } catch (error) { console.error(error); res.status(500).json({ error: 'No se pudo guardar el mensaje' }); }
+};
+// Marca (o desmarca) que ya se la saludo este año
+const saludoCumple = async (req, res) => {
+  try {
+    await asegurarCumple();
+    const id = parseInt(req.params.id), anio = anioAR();
+    if ((req.body || {}).saludado === false) {
+      await pool.query('DELETE FROM clientes_saludo_cumple WHERE cliente_id = $1 AND anio = $2', [id, anio]);
+      return res.json({ saludado: false });
+    }
+    const u = req.usuario || {};
+    const por = u.nombre || (u.id ? ((await pool.query('SELECT nombre FROM usuarios WHERE id = $1', [u.id]).catch(() => ({ rows: [] }))).rows[0] || {}).nombre : null) || null;
+    const r = await pool.query(`INSERT INTO clientes_saludo_cumple (cliente_id, anio, por) VALUES ($1, $2, $3) ON CONFLICT (cliente_id, anio) DO UPDATE SET por = EXCLUDED.por, en = NOW() RETURNING cliente_id, por, en`, [id, anio, por]);
+    res.json({ saludado: true, ...r.rows[0] });
+  } catch (error) { console.error(error); res.status(500).json({ error: 'No se pudo guardar' }); }
+};
+
+module.exports = { getCumple, guardarMensajeCumple, saludoCumple, getNiveles, guardarNiveles, getPortalResumen, getPortalVista, getAll, getById, create, update, remove, getHistorial, agregarPuntos, resetearPortal, migrarPuntos, getMigracionPuntos };
