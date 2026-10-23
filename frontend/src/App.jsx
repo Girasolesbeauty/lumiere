@@ -23854,6 +23854,186 @@ function ConfigTicket({ paletaActual }) {
 }
 
 
+// Plan de liquidación (Cyber Monday, Black Friday...): toma los productos lentos y parados de la rotación y, con el costo
+// y la comisión de cada medio de pago, sugiere el descuento: uno que sirve con cualquier medio (sin perder con el más caro
+// que se acepte) y uno extra con efectivo o transferencia. Después crea las promos (y el sector de la tienda) de una vez.
+const LIQ_TRAMOS = [10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70];
+const proximoCyber = () => {
+  const ar = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" }));
+  const iso = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  for (const anio of [ar.getFullYear(), ar.getFullYear() + 1]) {
+    const d = new Date(anio, 10, 1); while (d.getDay() !== 1) d.setDate(d.getDate() + 1);
+    const fin = new Date(d); fin.setDate(fin.getDate() + 2);
+    if (iso(fin) >= iso(ar)) return [iso(d), iso(fin)];
+  }
+  return ["", ""];
+};
+function PlanLiquidacion({ temaPal, medios, onCreado }) {
+  const p = temaPal;
+  const [rot, setRot] = useState(null);
+  const [dias, setDias] = useState(90);
+  const [cfg, setCfg] = useState(() => { const [d, h] = proximoCyber(); return { nombre: "Cyber Monday", desde: d, hasta: h, minimo: "10", otros: "0", en_tienda: true, sector: true }; });
+  const [com, setCom] = useState({}); // comisión por medio (se puede corregir acá para simular)
+  const [acepto, setAcepto] = useState({});
+  const [cambios, setCambios] = useState({}); // id -> { g, e, fuera }
+  const [abierto, setAbierto] = useState(null);
+  const [creando, setCreando] = useState(false);
+  const [aviso, setAviso] = useState("");
+  const [verSinCosto, setVerSinCosto] = useState(false);
+  useEffect(() => { setRot(null); API.get("/productos/rotacion?dias=" + dias).then(r => setRot(r.data)).catch(() => setRot({ productos: [], error: true })); }, [dias]);
+  const activos = (medios || []).filter(m => m.activo !== false);
+  useEffect(() => {
+    setCom(c => { const n = { ...c }; activos.forEach(m => { if (n[m.id] === undefined) n[m.id] = String(parseFloat(m.comision) || 0); }); return n; });
+    setAcepto(a => { const n = { ...a }; activos.forEach(m => { if (n[m.id] === undefined) n[m.id] = true; }); return n; });
+  }, [medios]); // eslint-disable-line react-hooks/exhaustive-deps
+  const $ = (v) => fmt(Math.round(Number(v) || 0)).replace(SIN_CEROS, "");
+  const otros = Math.max(0, parseFloat(cfg.otros) || 0), minimo = Math.max(0, parseFloat(cfg.minimo) || 0);
+  const esCash = (m) => ["efectivo", "transferencia"].includes(String(m.tipo || "").toLowerCase());
+  // Lo que entra de cada $1 de precio con ese medio (si es con interés, la clienta paga el recargo)
+  const neto = (m) => (m.con_interes && parseFloat(m.coeficiente) > 1 ? parseFloat(m.coeficiente) : 1) * (1 - ((parseFloat(com[m.id]) || 0) + otros) / 100);
+  const aceptados = activos.filter(m => acepto[m.id]);
+  const peor = aceptados.length ? aceptados.reduce((a, m) => neto(m) < neto(a) ? m : a) : null;
+  const fPeor = peor ? neto(peor) : 1 - otros / 100;
+  const cashMs = aceptados.filter(esCash);
+  const fCash = cashMs.length ? Math.max(...cashMs.map(neto)) : 1 - otros / 100;
+  const tramo = (x) => LIQ_TRAMOS.filter(t => t <= x).pop() || 0;
+  const dMax = (pr, f) => pr.precio > 0 ? (1 - pr.costo * (1 + minimo / 100) / (pr.precio * f)) * 100 : 0;
+  const hoyMs = Date.now();
+  const quietos = rot ? (rot.productos || []).filter(x => (x.estado === "parado" || x.estado === "lento") && x.stock > 0) : [];
+  const sinCosto = quietos.filter(x => !(x.costo > 0) || !(x.precio > 0));
+  const plan = quietos.filter(x => x.costo > 0 && x.precio > 0).map(x => {
+    const sinVender = x.ultima_venta ? Math.floor((hoyMs - new Date(x.ultima_venta).getTime()) / 864e5) : null;
+    const objetivo = x.estado === "parado" ? (sinVender === null || sinVender > 180 ? 50 : 40) : x.dias_stock > 365 ? 35 : x.dias_stock > 180 ? 30 : 20;
+    const gSug = tramo(Math.min(objetivo, dMax(x, fPeor)));
+    let eSug = tramo(Math.min(objetivo + 10, dMax(x, fCash)));
+    if (!cashMs.length || eSug < gSug + 5) eSug = 0;
+    const c = cambios[x.id] || {};
+    const g = c.g !== undefined ? c.g : gSug, e = c.e !== undefined ? c.e : eSug;
+    const precioG = x.precio * (1 - g / 100), precioE = e ? x.precio * (1 - e / 100) : null;
+    return { ...x, sinVender, objetivo, gSug, eSug, g, e, fuera: !!c.fuera, precioG, precioE,
+      ganG: precioG * fPeor - x.costo, ganE: precioE ? precioE * fCash - x.costo : null };
+  });
+  const enPlan = plan.filter(x => !x.fuera && (x.g > 0 || x.e > 0));
+  const noBaja = plan.filter(x => !x.fuera && !x.g && !x.e);
+  const tot = enPlan.reduce((t, x) => ({ u: t.u + x.stock, costo: t.costo + x.stock * x.costo, ingG: t.ingG + x.stock * x.precioG * fPeor, ingE: t.ingE + x.stock * (x.precioE || x.precioG) * fCash }), { u: 0, costo: 0, ingG: 0, ingE: 0 });
+  const grupos = {}; enPlan.forEach(x => { (grupos[x.g] = grupos[x.g] || []).push(x); });
+  const extras = enPlan.filter(x => x.e > 0);
+  const gTipico = enPlan.length ? [...enPlan].map(x => x.g).sort((a, b) => a - b)[Math.floor(enPlan.length / 2)] : 0;
+  const caros = aceptados.filter(m => !esCash(m) && neto(m) < fCash - 0.08);
+  const setC = (id, k, v) => setCambios(c => ({ ...c, [id]: { ...c[id], [k]: v } }));
+  const crear = async () => {
+    setAviso("");
+    const porPct = (k, pago) => { const m = {}; enPlan.forEach(x => { if (x[k] > 0) (m[x[k]] = m[x[k]] || []).push(x.id); }); return Object.entries(m).map(([pct, productos]) => ({ pct: Number(pct), productos, pago })); };
+    const gr = [...porPct("g", null), ...porPct("e", "efectivo"), ...porPct("e", "transferencia")];
+    if (!gr.length) return setAviso("No hay productos con descuento en el plan");
+    if (!confirm("Se van a crear " + gr.length + " promociones \"" + cfg.nombre + "\" del " + cfg.desde.split("-").reverse().join("/") + " al " + cfg.hasta.split("-").reverse().join("/") + ". Si ya existían las de este evento, se reemplazan. ¿Seguimos?")) return;
+    setCreando(true);
+    try { await API.post("/promociones/liquidacion", { nombre: cfg.nombre, desde: cfg.desde, hasta: cfg.hasta, en_tienda: cfg.en_tienda, sector: cfg.sector, grupos: gr }); onCreado(); }
+    catch (e) { setAviso(e.response?.data?.error || "No se pudieron crear"); }
+    setCreando(false);
+  };
+  if (!rot) return <div className="card"><div className="skel" style={{ height: 200 }} /></div>;
+  const caja = { border: "1px solid " + p.border, borderRadius: 12, padding: 12 };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12, textAlign: "left" }}>
+      <div className="card">
+        <div className="ct">⚡ Ofertas para vender lo que está quieto</div>
+        <div style={{ fontSize: 12.5, color: p.textMuted, lineHeight: 1.5, marginBottom: 10 }}>Tomamos los productos que se venden lento o están parados (con stock) y, con su costo y la comisión de cada medio de pago, te sugerimos cuánto bajarlos <b>sin vender a pérdida</b>. Podés cambiar cualquier número antes de crear las ofertas.</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
+          <div><div className="fl">Nombre del evento</div><input className="inp" maxLength={40} value={cfg.nombre} onChange={e => setCfg(c => ({ ...c, nombre: e.target.value }))} /></div>
+          <div><div className="fl">Desde</div><input className="inp" type="date" value={cfg.desde} onChange={e => setCfg(c => ({ ...c, desde: e.target.value }))} /></div>
+          <div><div className="fl">Hasta</div><input className="inp" type="date" value={cfg.hasta} onChange={e => setCfg(c => ({ ...c, hasta: e.target.value }))} /></div>
+          <div><div className="fl">Ganancia mínima sobre el costo (%)</div><input className="inp" inputMode="decimal" value={cfg.minimo} onChange={e => setCfg(c => ({ ...c, minimo: e.target.value.replace(/[^\d.]/g, "") }))} /></div>
+          <div><div className="fl">Impuestos sobre la venta (%)</div><input className="inp" inputMode="decimal" placeholder="Ej: Ingresos Brutos" value={cfg.otros} onChange={e => setCfg(c => ({ ...c, otros: e.target.value.replace(/[^\d.]/g, "") }))} /></div>
+          <div><div className="fl">Qué es "lento"</div><select className="sel" value={dias} onChange={e => setDias(Number(e.target.value))}>{[60, 90, 180].map(d => <option key={d} value={d}>Mirando los últimos {d} días</option>)}</select></div>
+        </div>
+        <div style={{ fontSize: 11.5, color: p.textMuted, marginTop: 6 }}>Las fechas vienen con el próximo Cyber Monday (lunes a miércoles de la primera semana de noviembre): confirmalas con las fechas oficiales.</div>
+      </div>
+
+      <div className="card">
+        <div className="ct">💳 Medios de pago y comisiones</div>
+        <div style={{ fontSize: 12.5, color: p.textMuted, marginBottom: 8 }}>De cada $100 de venta, cuánto te queda después de la comisión{otros ? " y los impuestos" : ""}. Las comisiones salen de Configuración › Medios de pago: si alguna está en 0 y no es así, corregila acá para hacer la cuenta (y después allá). Destildá los medios que <b>no</b> vas a aceptar con las ofertas.</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {activos.map(m => { const n = neto(m); const malo = caros.includes(m); return (
+            <div key={m.id} style={{ ...caja, padding: "8px 10px", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", opacity: acepto[m.id] ? 1 : .55 }}>
+              <input type="checkbox" checked={!!acepto[m.id]} onChange={e => setAcepto(a => ({ ...a, [m.id]: e.target.checked }))} style={{ width: 18, height: 18 }} aria-label={"Acepto " + m.nombre} />
+              <b style={{ flex: 1, minWidth: 120 }}>{m.nombre}{m.disponible_online ? <span style={{ fontWeight: 600, fontSize: 11, color: p.textMuted }}> · también online</span> : null}</b>
+              <span style={{ fontSize: 12 }}>Comisión <input className="inp" inputMode="decimal" style={{ width: 62, padding: "4px 6px", display: "inline-block" }} value={com[m.id] ?? ""} onChange={e => setCom(c => ({ ...c, [m.id]: e.target.value.replace(/[^\d.]/g, "") }))} aria-label={"Comisión " + m.nombre} /> %</span>
+              <span style={{ fontWeight: 800, minWidth: 92, textAlign: "right", color: malo ? p.red : n >= fCash - 0.001 ? p.green : p.text }}>te quedan {$(100 * n)}</span>
+            </div>); })}
+        </div>
+        {caros.length > 0 && <div className="cli-tip" style={{ margin: "10px 0 0", borderColor: p.warn }}>⚠️ <b>{caros.map(m => m.nombre).join(", ")}</b> {caros.length === 1 ? "te cobra" : "te cobran"} mucho más que el efectivo. El descuento "con cualquier medio" tiene que aguantar al más caro que aceptes, así que si {caros.length === 1 ? "lo destildás" : "los destildás"} (y no los cobrás esos días) las ofertas pueden ser más grandes.</div>}
+      </div>
+
+      <div className="card">
+        <div className="ct">📊 Qué conviene</div>
+        {!enPlan.length ? <div style={{ color: p.textMuted, padding: "10px 0" }}>{quietos.length ? "Con estos costos y comisiones no hay productos que se puedan bajar sin perder." : "No hay productos lentos ni parados con stock. ¡Bien ahí!"}</div> : <>
+          <div style={{ fontSize: 15, lineHeight: 1.5, marginBottom: 10 }}>
+            Conviene hacer <b>alrededor de {gTipico}% OFF con cualquier medio</b>{extras.length ? <> y <b>un descuento extra pagando con {cashMs.map(m => m.nombre.toLowerCase()).join(" o ") || "efectivo o transferencia"}</b> ({extras.length} productos)</> : null}.
+            {peor && <> El tope lo pone <b>{peor.nombre}</b>, que es el medio más caro que aceptás.</>}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8 }}>
+            {[["Productos", enPlan.length, tot.u + " unidades en stock"], ["Plata parada (al costo)", $(tot.costo), "lo que hoy tenés quieto"], ["Si vendés todo", $(tot.ingG), "con el medio más caro"], ["Pagando en efectivo", $(tot.ingE), "con el descuento extra"]].map(([t, v, sub]) => (
+              <div key={t} style={{ ...caja, padding: 10 }}><div style={{ fontSize: 11.5, color: p.textMuted, fontWeight: 700 }}>{t}</div><div style={{ fontSize: 19, fontWeight: 900 }}>{v}</div><div style={{ fontSize: 11, color: p.textMuted }}>{sub}</div></div>
+            ))}
+          </div>
+          <div style={{ fontSize: 12.5, marginTop: 8 }}>Ganancia si se vende todo: <b style={{ color: p.green }}>{$(tot.ingG - tot.costo)}</b> (peor caso) a <b style={{ color: p.green }}>{$(tot.ingE - tot.costo)}</b> (todo en efectivo), y recuperás la plata que tenías parada.</div>
+        </>}
+      </div>
+
+      {Object.entries(grupos).sort((a, b) => b[0] - a[0]).map(([g, l]) => (
+        <div key={g} className="card">
+          <div className="ct" style={{ marginBottom: 6 }}>{Number(g) ? g + "% OFF con cualquier medio" : "Solo con efectivo o transferencia"} <span style={{ fontWeight: 600, fontSize: 12, color: p.textMuted }}>· {l.length} productos</span></div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>{l.map(x => (
+            <div key={x.id} style={{ ...caja, padding: "8px 10px" }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "baseline", cursor: "pointer" }} onClick={() => setAbierto(abierto === x.id ? null : x.id)}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 800, fontSize: 13.5 }}>{x.nombre}</div>
+                  <div style={{ fontSize: 11.5, color: p.textMuted }}>{x.stock} en stock · {x.estado === "parado" ? (x.sinVender === null ? "nunca se vendió" : "sin ventas hace " + x.sinVender + " días") : "stock para " + (x.dias_stock > 999 ? "más de 2 años" : x.dias_stock + " días")}</div>
+                </div>
+                <div style={{ textAlign: "right", fontSize: 12.5, whiteSpace: "nowrap" }}>
+                  <div><s style={{ color: p.textMuted }}>{$(x.precio)}</s> <b>{$(x.precioG)}</b></div>
+                  {x.e > 0 && <div style={{ color: p.green, fontWeight: 800 }}>{$(x.precioE)} efvo/transf ({x.e}%)</div>}
+                  <div style={{ fontSize: 11, color: x.ganG < 0 ? p.red : p.textMuted }}>ganás {$(x.ganG)} c/u</div>
+                </div>
+              </div>
+              {abierto === x.id && (
+                <div style={{ marginTop: 8, borderTop: "1px dashed " + p.border, paddingTop: 8, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", fontSize: 12.5 }}>
+                  <span>Costo {$(x.costo)}</span>
+                  <label>Con cualquier medio <select className="sel" style={{ width: "auto", padding: "4px 6px" }} value={x.g} onChange={e => setC(x.id, "g", Number(e.target.value))}>{[0, ...LIQ_TRAMOS].map(t => <option key={t} value={t}>{t ? t + "%" : "sin descuento"}{t === x.gSug ? " (sugerido)" : ""}</option>)}</select></label>
+                  <label>Efectivo/transf. <select className="sel" style={{ width: "auto", padding: "4px 6px" }} value={x.e} onChange={e => setC(x.id, "e", Number(e.target.value))}>{[0, ...LIQ_TRAMOS].map(t => <option key={t} value={t}>{t ? t + "%" : "sin extra"}{t === x.eSug && t ? " (sugerido)" : ""}</option>)}</select></label>
+                  <button className="chip-btn" onClick={() => setC(x.id, "fuera", true)}>Sacar del plan</button>
+                  {x.ganG < 0 && <span style={{ color: p.red, fontWeight: 700 }}>⚠️ Con {peor ? peor.nombre : "el medio más caro"} vendés a pérdida</span>}
+                  {x.e > 0 && x.ganE < 0 && <span style={{ color: p.red, fontWeight: 700 }}>⚠️ En efectivo vendés a pérdida</span>}
+                </div>
+              )}
+            </div>
+          ))}</div>
+        </div>
+      ))}
+
+      {(noBaja.length > 0 || sinCosto.length > 0 || plan.some(x => x.fuera)) && <div className="card">
+        {noBaja.length > 0 && <><div className="ct" style={{ marginBottom: 4 }}>🚫 No conviene bajarlos ({noBaja.length})</div>
+          <div style={{ fontSize: 12.5, color: p.textMuted, marginBottom: 6 }}>Con el costo que tienen, cualquier descuento de 10% o más te hace perder. Mejor usalos de regalo con compras grandes o armá un kit.</div>
+          <div style={{ fontSize: 12.5 }}>{noBaja.map(x => x.nombre).join(" · ")}</div></>}
+        {plan.some(x => x.fuera) && <><div className="ct" style={{ margin: "12px 0 4px" }}>Sacados del plan</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{plan.filter(x => x.fuera).map(x => <button key={x.id} className="chip-btn" onClick={() => setC(x.id, "fuera", false)}>↩ {x.nombre}</button>)}</div></>}
+        {sinCosto.length > 0 && <><div className="ct" style={{ margin: "12px 0 4px" }}>❓ Sin costo o precio cargado ({sinCosto.length})</div>
+          <div style={{ fontSize: 12.5, color: p.textMuted }}>No podemos saber cuánto bajarlos sin perder. Cargales el costo en Productos y vuelven a aparecer acá. <button className="chip-btn" onClick={() => setVerSinCosto(v => !v)}>{verSinCosto ? "Ocultar" : "Ver cuáles"}</button></div>
+          {verSinCosto && <div style={{ fontSize: 12.5, marginTop: 6 }}>{sinCosto.map(x => x.nombre).join(" · ")}</div>}</>}
+      </div>}
+
+      {enPlan.length > 0 && <div className="card">
+        <div className="ct">✅ Crear las ofertas</div>
+        <label style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6, fontSize: 13.5 }}><input type="checkbox" checked={cfg.en_tienda} onChange={e => setCfg(c => ({ ...c, en_tienda: e.target.checked }))} /> También en la tienda online</label>
+        {cfg.en_tienda && <label style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6, fontSize: 13.5 }}><input type="checkbox" checked={cfg.sector} onChange={e => setCfg(c => ({ ...c, sector: e.target.checked }))} /> Armar el sector "⚡ {cfg.nombre}" en el menú de la tienda (se ve solo esos días)</label>}
+        <div style={{ fontSize: 12, color: p.textMuted, margin: "6px 0 10px", lineHeight: 1.5 }}>Se crean como promociones del {cfg.desde.split("-").reverse().join("/")} al {cfg.hasta.split("-").reverse().join("/")}: el Punto de Venta las aplica solo{cfg.en_tienda ? " y la tienda muestra el precio rebajado" : ""}. El descuento extra se crea para efectivo y para transferencia (no se suma al otro: se aplica el mejor). En la tienda online, efectivo es "pago al retirar".</div>
+        {aviso && <div style={{ color: p.red, fontWeight: 700, marginBottom: 8 }}>{aviso}</div>}
+        <button className="btn btn-p" disabled={creando} onClick={crear}>{creando ? "Creando…" : "⚡ Crear ofertas de " + cfg.nombre}</button>
+      </div>}
+    </div>
+  );
+}
 function Promociones({ paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [promos, setPromos] = useState([]);
@@ -23955,7 +24135,9 @@ function Promociones({ paletaActual }) {
       <div className="tabs">
         <div className={"tab " + (tab === "lista" ? "on" : "")} onClick={() => setTab("lista")}>PROMOCIONES</div>
         <div className={"tab " + (tab === "nueva" ? "on" : "")} onClick={() => setTab("nueva")}>{editando ? "EDITAR" : "NUEVA"}</div>
+        <div className={"tab " + (tab === "liquidar" ? "on" : "")} onClick={() => setTab("liquidar")}>⚡ CYBER MONDAY</div>
       </div>
+      {tab === "liquidar" && <PlanLiquidacion temaPal={temaPal} medios={mediosPago} onCreado={() => { cargar(); setTab("lista"); setMensaje("¡Ofertas creadas! Las ves en la lista."); setTimeout(() => setMensaje(""), 4000); }} />}
 
       {tab === "lista" && (
         <div className="card fade">

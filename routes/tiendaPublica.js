@@ -100,7 +100,7 @@ router.get('/:slug', async (req, res) => {
       redes: linksRedes(c.redes),
       reels_titulo: c.reels_titulo || 'Videos',
       reels: (await pool.query('SELECT id, titulo, tipo, codigo, productos FROM tienda_reels ORDER BY orden, id').catch(() => ({ rows: [] }))).rows,
-      banner: c.banner || [], banners_img: c.banners_img || [], filas: c.filas || [], sectores: c.sectores || [],
+      banner: c.banner || [], banners_img: c.banners_img || [], filas: c.filas || [], sectores: (() => { const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }); return (c.sectores || []).filter(x => !x.desde || (x.desde <= hoy && hoy <= x.hasta)); })(),
       reingreso: c.reingreso_activo ? { nombre: c.reingreso_nombre || 'Nuevamente en stock', dias: c.reingreso_dias || 14 } : null,
       dominio: await tienda.dominioDe(req.negTienda.id).catch(() => null),
       ruleta: (() => { const r = tienda.ruletaDe(c); return r.activo ? { minimo: r.minimo, aviso: r.aviso_carrito } : null; })(),

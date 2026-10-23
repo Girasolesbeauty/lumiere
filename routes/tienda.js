@@ -154,6 +154,8 @@ router.put('/portada', async (req, res) => {
       productos: ids(s.productos, 300),
       // Kits y combos del sector (ids de los combos de Ofertas y combos)
       combos: [...new Set((Array.isArray(s.combos) ? s.combos : []).map(x => String(x || '')).filter(x => /^[a-z0-9]{1,20}$/i.test(x)))].slice(0, 20),
+      // Sector de un evento (ej. Cyber Monday): solo se ve en la tienda entre esas fechas
+      ...(/^\d{4}-\d{2}-\d{2}$/.test(s.desde || '') && /^\d{4}-\d{2}-\d{2}$/.test(s.hasta || '') ? { desde: s.desde, hasta: s.hasta } : {}),
     })).filter(s => s.nombre);
     const DESTINOS = ['producto', 'sector', 'categoria', 'marca', 'reingreso', 'ninguno'];
     const bannersImg = (Array.isArray(b.banners_img) ? b.banners_img : []).slice(0, 10).map(x => ({

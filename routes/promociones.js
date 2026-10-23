@@ -90,4 +90,52 @@ router.delete('/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Liquidación (Cyber Monday, Black Friday...): crea de una vez las promos que armó el plan de Lumiere.
+// grupos: [{ pct, productos: [ids], pago: null | 'efectivo' | 'transferencia' }]. Las promos de un evento se llaman
+// "<evento> · ..." y volver a crearlo reemplaza las anteriores. Opcional: sector en la tienda solo en esas fechas.
+const FECHA = /^\d{4}-\d{2}-\d{2}$/;
+router.post('/liquidacion', async (req, res) => {
+  const b = req.body || {};
+  const nombre = String(b.nombre || '').trim().slice(0, 40);
+  if (nombre.length < 3) return res.status(400).json({ error: 'Ponele un nombre al evento' });
+  if (!FECHA.test(b.desde || '') || !FECHA.test(b.hasta || '') || b.desde > b.hasta) return res.status(400).json({ error: 'Revisá las fechas' });
+  const grupos = (Array.isArray(b.grupos) ? b.grupos : []).map(g => ({
+    pct: Math.round(Math.min(80, Math.max(1, parseFloat(g.pct) || 0))),
+    productos: [...new Set((Array.isArray(g.productos) ? g.productos : []).map(Number).filter(n => Number.isInteger(n) && n > 0))],
+    pago: ['efectivo', 'transferencia'].includes(g.pago) ? g.pago : null,
+  })).filter(g => g.pct && g.productos.length).slice(0, 40);
+  if (!grupos.length) return res.status(400).json({ error: 'No hay productos con descuento' });
+  const enTienda = b.en_tienda !== false;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const viejas = await client.query(`DELETE FROM promociones WHERE nombre LIKE $1 RETURNING id`, [nombre.replace(/[%_\\]/g, '\\$&') + ' · %']);
+    const PAGO_TXT = { efectivo: 'en efectivo', transferencia: 'con transferencia' };
+    for (const g of grupos) {
+      await client.query(`INSERT INTO promociones (nombre, tipo, valor, aplica_a, productos_ids, categorias, mismo_producto, medio_pago_tipo, combinable, fecha_inicio, fecha_fin, activo, en_tienda)
+        VALUES ($1, 'descuento', $2, 'productos', $3, '{}', TRUE, $4, FALSE, $5, $6, TRUE, $7)`,
+        [nombre + ' · ' + g.pct + '% OFF' + (g.pago ? ' ' + PAGO_TXT[g.pago] : ''), g.pct, g.productos, g.pago, b.desde, b.hasta, enTienda]);
+    }
+    let sector = false;
+    if (b.sector && enTienda) {
+      const tienda = require('../lib/tienda');
+      await tienda.asegurar();
+      const todos = [...new Set(grupos.flatMap(g => g.productos))].slice(0, 300);
+      const c = (await client.query('SELECT sectores FROM tienda_config WHERE id = 1')).rows[0];
+      const id = 'liq' + nombre.toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '').slice(0, 14);
+      const otros = ((c && c.sectores) || []).filter(x => x.id !== id);
+      if (otros.length >= 12) throw Object.assign(new Error('La tienda ya tiene 12 sectores: borrá alguno en Portada y sectores'), { status: 400 });
+      const nuevo = { id, nombre: ('⚡ ' + nombre).slice(0, 40), categorias: [], productos: todos, combos: [], desde: b.desde, hasta: b.hasta };
+      await client.query('UPDATE tienda_config SET sectores = $1 WHERE id = 1', [JSON.stringify([nuevo, ...otros])]);
+      sector = true;
+    }
+    await client.query('COMMIT');
+    res.status(201).json({ creadas: grupos.length, reemplazadas: viejas.rows.length, sector });
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[promos] liquidacion:', e.message);
+    res.status(e.status || 500).json({ error: e.status ? e.message : 'No se pudieron crear las ofertas' });
+  } finally { client.release(); }
+});
+
 module.exports = router;
