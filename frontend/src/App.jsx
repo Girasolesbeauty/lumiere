@@ -647,6 +647,14 @@ body:has(.pos-overlay) .ayuda-fab { display: none !important; }
 .pos-tambien-item b { display: block; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pos-tambien-item small { display: block; font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pos-tambien-item:hover { filter: brightness(.97); }
+.cum-msj{border:1px solid;border-radius:12px;padding:11px 13px}
+.cum-prev{margin-top:4px;background:#e7f8ec;color:#1d3b2a;border-radius:10px 10px 10px 2px;padding:9px 12px;font-size:13.5px;white-space:pre-wrap;max-width:420px}
+.cum-fila{display:flex;gap:12px;align-items:center;border:1px solid;border-radius:12px;padding:9px 11px;flex-wrap:wrap}
+.cum-dia{width:48px;height:52px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:none;line-height:1}
+.cum-dia b{font-size:20px}.cum-dia small{font-size:10.5px;text-transform:uppercase;font-weight:800;margin-top:2px;opacity:.8}
+.cum-acc{display:flex;gap:6px;align-items:center;margin-left:auto}
+.cum-link{background:none;border:0;padding:0;font:inherit;color:inherit;text-decoration:underline;cursor:pointer;opacity:.8}
+@media(max-width:600px){.cum-acc{width:100%;justify-content:flex-end}}
 .cli-tip { margin: 10px 14px 0; font-size: 12.5px; line-height: 1.5; padding: 10px 12px; border-radius: 8px; background: ${p.accentDim}; }
 .tw-completa { position: relative; overflow: hidden; margin-bottom: 12px; padding: 16px; border-radius: 14px; background: linear-gradient(135deg, ${p.accentDim}, ${p.card}); border: 1px solid ${p.border}; box-shadow: 0 6px 18px rgba(0,0,0,.06); }
 .tw-completa-cab { display: flex; gap: 14px; align-items: center; }
@@ -9416,6 +9424,99 @@ const SEGMENTOS_CLIENTES = [
   { id: "sincompras", l: "Sin compras", f: c => !c.compras },
 ];
 
+// Cumpleaños: quién cumple (hoy, los próximos días y los que ya pasaron), saludo por WhatsApp con el mensaje
+// del local (editable) y marca de "ya la saludamos" para que no le escriban dos veces
+const MESES_CUMPLE = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+function PanelCumples({ clientes, busqueda, p, onFicha }) {
+  const [cfg, setCfg] = useState(null);
+  const [mes, setMes] = useState(0); // 0 = este mes, 1 = el que viene
+  const [editando, setEditando] = useState(null);
+  const [guardando, setGuardando] = useState(false);
+  const [aviso, setAviso] = useState("");
+  const cargar = () => API.get("/clientes/config/cumple").then(r => setCfg(r.data)).catch(() => setCfg({ mensaje: "", saludos: [], error: true }));
+  useEffect(() => { cargar(); }, []);
+  const ar = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" }));
+  const mesVer = (ar.getMonth() + mes) % 12, hoyDia = ar.getDate();
+  const q = String(busqueda || "").trim().toLowerCase();
+  const lista = clientes.filter(c => c.fecha_nacimiento && new Date(c.fecha_nacimiento).getUTCMonth() === mesVer)
+    .filter(c => !q || [c.nombre, c.telefono, c.cuit_dni].some(x => String(x || "").toLowerCase().includes(q)))
+    .map(c => ({ ...c, dia: new Date(c.fecha_nacimiento).getUTCDate() })).sort((a, b) => a.dia - b.dia || String(a.nombre).localeCompare(String(b.nombre)));
+  const saludos = new Map(((cfg && cfg.saludos) || []).map(x => [x.cliente_id, x]));
+  const grupos = mes ? [["📅 El mes que viene", lista]] : [
+    ["🎉 Hoy", lista.filter(c => c.dia === hoyDia)],
+    ["⏳ Próximos días", lista.filter(c => c.dia > hoyDia)],
+    ["Ya pasaron", lista.filter(c => c.dia < hoyDia)],
+  ];
+  const primer = (n) => String(n || "").trim().split(/[ ,]+/)[0] || "";
+  const texto = (c, m) => llenarMsj(m || (cfg && cfg.mensaje) || "", { nombre: primer(c.nombre), negocio: (cfg && cfg.negocio) || "el local" });
+  const marcar = async (c, si) => {
+    try { await API.post("/clientes/" + c.id + "/saludo-cumple", { saludado: si }); cargar(); } catch (e) { setAviso(e.response?.data?.error || "No se pudo guardar"); }
+  };
+  const saludar = (c) => {
+    window.open(linkWhatsapp(c.telefono, texto(c)) || ("https://wa.me/?text=" + encodeURIComponent(texto(c))), "_blank");
+    if (!saludos.has(c.id)) marcar(c, true);
+  };
+  const guardarMsj = async () => {
+    setGuardando(true); setAviso("");
+    try { await API.put("/clientes/config/cumple", { mensaje: editando }); setEditando(null); cargar(); }
+    catch (e) { setAviso(e.response?.data?.error || "No se pudo guardar"); }
+    setGuardando(false);
+  };
+  const pendientesHoy = mes ? 0 : lista.filter(c => c.dia <= hoyDia && !saludos.has(c.id) && c.telefono).length;
+  const fila = (c) => {
+    const s = saludos.get(c.id), esHoy = !mes && c.dia === hoyDia;
+    return (
+      <div key={c.id} className="cum-fila" style={{ borderColor: esHoy ? "#a970ff" : p.border, background: esHoy ? "rgba(169,112,255,.07)" : "transparent" }}>
+        <div className="cum-dia" style={{ background: esHoy ? "#a970ff" : p.bg || p.border, color: esHoy ? "#fff" : p.text }}><b>{c.dia}</b><small>{MESES_CUMPLE[mesVer].slice(0, 3)}</small></div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 800, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>{c.nombre}<TierBadge tier={c.nivel || "Bronze"} /></div>
+          <div style={{ fontSize: 12, color: p.textMuted }}>{c.telefono || "sin celular cargado"}{c.ultima_compra ? " · última compra " + textoHace(diasDesdeFecha(c.ultima_compra)) : " · todavía no compró"}</div>
+          {s && <div style={{ fontSize: 12, color: p.green, fontWeight: 700, marginTop: 2 }}>✓ Saludada{s.por ? " por " + primer(s.por) : ""} el {new Date(s.en).toLocaleDateString("es-AR", { day: "numeric", month: "numeric" })} <button className="cum-link" onClick={() => marcar(c, false)}>deshacer</button></div>}
+        </div>
+        <div className="cum-acc">
+          {c.telefono && <button className={"btn btn-sm " + (s ? "btn-g" : "btn-p")} onClick={() => saludar(c)}>{s ? "💬 Escribir otra vez" : "🎂 Saludar"}</button>}
+          {!c.telefono && !s && <button className="btn btn-g btn-sm" onClick={() => marcar(c, true)}>✓ Ya la saludé</button>}
+          <button className="chip-btn" onClick={() => onFicha(c)}>Ficha</button>
+        </div>
+      </div>
+    );
+  };
+  return (
+    <div style={{ padding: 14, textAlign: "left" }}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
+        {[[0, "Este mes (" + MESES_CUMPLE[ar.getMonth()] + ")"], [1, "El mes que viene"]].map(([k, t]) => <button key={k} className={"chip-btn" + (mes === k ? " on" : "")} onClick={() => setMes(k)}>{t}</button>)}
+        {pendientesHoy > 0 && <span style={{ fontSize: 12.5, fontWeight: 800, color: "#a970ff" }}>{pendientesHoy === 1 ? "1 clienta para saludar" : pendientesHoy + " clientas para saludar"}</span>}
+      </div>
+      <div className="cum-msj" style={{ borderColor: p.border }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+          <b>✉️ Mensaje de cumpleaños</b>
+          {editando === null && cfg && <button className="chip-btn" onClick={() => setEditando(cfg.mensaje)}>✏️ Cambiar mensaje</button>}
+        </div>
+        {editando === null ? (
+          <div style={{ fontSize: 13.5, marginTop: 6, color: p.textSoft || p.text, whiteSpace: "pre-wrap" }}>{cfg ? texto({ nombre: "Laura" }) : "…"}</div>
+        ) : (<>
+          <textarea className="inp" rows={4} maxLength={600} style={{ marginTop: 8 }} value={editando} onChange={e => setEditando(e.target.value)} aria-label="Mensaje de cumpleaños" />
+          <div style={{ fontSize: 12, color: p.textMuted, marginTop: 4 }}>Tocá para sumar al mensaje: {[["{nombre}", "nombre de la clienta"], ["{negocio}", "nombre del local"]].map(([k, t]) => <button key={k} className="chip-btn" style={{ marginLeft: 4 }} onClick={() => setEditando(m => (m || "") + (/\s$/.test(m || "") || !m ? "" : " ") + k)}>{t}</button>)}</div>
+          <div style={{ fontSize: 12, color: p.textMuted, marginTop: 8 }}>Así le llega a Laura:</div>
+          <div className="cum-prev">{texto({ nombre: "Laura" }, editando)}</div>
+          <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+            <button className="btn btn-p btn-sm" disabled={guardando} onClick={guardarMsj}>{guardando ? "Guardando…" : "Guardar mensaje"}</button>
+            <button className="btn btn-g btn-sm" onClick={() => setEditando(null)}>Cancelar</button>
+            {cfg && editando !== cfg.por_defecto && <button className="btn btn-g btn-sm" onClick={() => setEditando(cfg.por_defecto)}>Volver al mensaje sugerido</button>}
+          </div>
+        </>)}
+        {aviso && <div style={{ color: p.red, fontSize: 12.5, marginTop: 6, fontWeight: 700 }}>{aviso}</div>}
+      </div>
+      {!lista.length ? <div className="empty" style={{ padding: 26 }}>{q ? "Nadie con ese nombre cumple en " + MESES_CUMPLE[mesVer] + "." : "Nadie cumple años en " + MESES_CUMPLE[mesVer] + " (o no tienen la fecha cargada)."}</div>
+        : grupos.filter(([, l]) => l.length).map(([t, l]) => (
+          <div key={t} style={{ marginTop: 14 }}>
+            <div style={{ fontWeight: 900, fontSize: 14, marginBottom: 6, color: t.startsWith("🎉") ? "#a970ff" : t === "Ya pasaron" ? p.textMuted : p.text }}>{t} <span style={{ fontWeight: 600, fontSize: 12, color: p.textMuted }}>· {l.length}</span></div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{l.map(fila)}</div>
+          </div>
+        ))}
+    </div>
+  );
+}
 function Clientes({ usuario, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
   const [tab, setTab] = useState("lista");
@@ -9614,10 +9715,7 @@ function Clientes({ usuario, paletaActual }) {
           {segmento === "recuperar" && lista.length > 0 && (
             <div className="cli-tip">💡 Estos clientes ya te compraron y hace más de 3 meses que no vuelven. Un mensaje por WhatsApp (una novedad, un descuento) suele traerlos de vuelta: tocá 💬 en cada uno.</div>
           )}
-          {segmento === "cumple" && lista.length > 0 && (
-            <div className="cli-tip">🎂 Mandales un saludo y un regalito o descuento por su cumpleaños: es de lo que más fideliza.</div>
-          )}
-          {loading ? <div className="skel" style={{ height: 240, margin: 14 }} /> : lista.length === 0 ? (
+          {segmento === "cumple" ? (loading ? <div className="skel" style={{ height: 240, margin: 14 }} /> : <PanelCumples clientes={clientes} busqueda={busqueda} p={p} onFicha={abrirFicha} />) : loading ? <div className="skel" style={{ height: 240, margin: 14 }} /> : lista.length === 0 ? (
             <div className="empty" style={{ padding: 30 }}>{total === 0 ? "Todavía no hay clientes. Se cargan solos al vender con DNI en el Punto de Venta, o con + Nuevo cliente." : "No hay clientes en este grupo."}</div>
           ) : (
             <div style={{ overflowX: "auto" }}>
