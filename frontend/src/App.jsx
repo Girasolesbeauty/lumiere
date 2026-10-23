@@ -27325,13 +27325,17 @@ const TW_RUT_PASOS = {
 const TW_RUT_NOMBRE = { desmaquillante: "Desmaquillante", limpiador: "Limpiador", tonico: "Tónico o bruma", serum: "Sérum", ojos: "Contorno de ojos", hidratante: "Crema", solar: "Protector solar", mascarilla: "Extra semanal" };
 const TW_RUT_CUANDO = { desmaquillante: "noche", limpiador: "mañana y noche", tonico: "mañana y noche", serum: "mañana y noche", ojos: "mañana y noche", hidratante: "mañana y noche", solar: "mañana", mascarilla: "1 o 2 veces por semana" };
 
+// Kits, sets, combos, dúos: traen varios pasos juntos, así que no se usan como un paso de la rutina
+// (si no, el mismo kit salía de limpiador y de protector). También lo que trae 3 o más pasos de la rutina facial.
+const TW_PASOS_FACIALES = ["limpiador", "desmaquillante", "tonico", "serum", "hidratante", "solar", "ojos", "mascarilla", "exfoliante"];
+const twEsKit = (p) => /\b(kits?|sets?|packs?|combos?|d[uú]o|tr[ií]o|box)\b/i.test(twNorm([p.nombre, p.categoria].join(" "))) || ((p._et || twEtiquetas(p)).tipo || []).filter(t => TW_PASOS_FACIALES.includes(t)).length >= 3;
 function twArmarRutina(productos, dispo, { piel, nec, pasos, presupuesto, coreano }) {
   // Solo productos de la categoria Facial (asi no entran, por ejemplo, ampollas para el pelo como "serum").
   // Si la tienda no tiene esa categoria, se usan todos.
   const faciales = productos.filter(p => /facial|rostro/i.test(p.categoria || ""));
   const base = faciales.length ? faciales : productos;
   // Skincare coreano: solo los productos del proveedor de coreano (BEK)
-  const conStock = base.filter(p => (!coreano || p.coreano) && (p.variantes ? p.variantes.some(v => dispo(p, v) > 0) : dispo(p) > 0));
+  const conStock = base.filter(p => !twEsKit(p) && (!coreano || p.coreano) && (p.variantes ? p.variantes.some(v => dispo(p, v) > 0) : dispo(p) > 0));
   const tipos = TW_RUT_PASOS[pasos] || TW_RUT_PASOS.completa;
   const usados = new Set();
   const puntaje = (p) => {
@@ -28932,7 +28936,7 @@ function TiendaPublica({ slug }) {
     const ya = new Set([...idsCarrito, ...juntos.map(p => p.id)]), pasos = [];
     TW_PASOS_RUTINA.forEach(([t, nombre]) => {
       if (tiposCarrito.has(t)) return;
-      const mejor = conStock.filter(p => !ya.has(p.id) && !esPreventa(p) && ((p._et || twEtiquetas(p)).tipo || []).includes(t)).sort((a, b) => (a.rk || 9999) - (b.rk || 9999) || (b.destacado ? 1 : 0) - (a.destacado ? 1 : 0))[0];
+      const mejor = conStock.filter(p => !ya.has(p.id) && !esPreventa(p) && !twEsKit(p) && ((p._et || twEtiquetas(p)).tipo || []).includes(t)).sort((a, b) => (a.rk || 9999) - (b.rk || 9999) || (b.destacado ? 1 : 0) - (a.destacado ? 1 : 0))[0];
       if (mejor) { ya.add(mejor.id); pasos.push({ ...mejor, _paso: nombre }); }
     });
     return [...juntos, ...pasos].slice(0, 6);
