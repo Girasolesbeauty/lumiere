@@ -25276,6 +25276,9 @@ html:has(.tw){overflow-x:hidden}
 .tw-turnos{display:flex;flex-direction:column;gap:8px;margin-top:8px}
 .tw-turno{border:1px solid #eee;border-radius:14px;padding:11px 13px;background:#fff;font-size:14px}
 .tw-turno b{text-transform:capitalize}.tw-turno .tw-turno-rec{margin-top:6px;background:#f2f8f4;border-radius:10px;padding:8px 10px;color:#2d5a3c;white-space:pre-wrap}
+.tw-rut-btns{display:flex;flex-direction:column;gap:6px;align-items:stretch}
+.tw-rut-eco{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:4px 0 12px}
+.tw-rut-eco-aviso{text-align:center;font-size:13.5px;font-weight:600;color:#2d7a4f;margin:-4px 0 12px}
 .tw-rut-banner{position:relative;overflow:hidden;margin:26px 0 8px;border-radius:24px;padding:30px 34px;display:grid;grid-template-columns:1.4fr 1fr;align-items:center;gap:16px;cursor:pointer;background:radial-gradient(90% 120% at 100% 0%,#fde7ee 0%,transparent 60%),linear-gradient(135deg,#fff8ef,#fbeee6);border:1px solid #f3e2d4;box-shadow:0 14px 34px -20px rgba(176,122,74,.5)}
 .tw-rut-banner h2{font-size:clamp(26px,3.6vw,38px);margin:10px 0 8px;letter-spacing:-.01em;line-height:1.1}
 .tw-rut-banner p{margin:0 0 16px;color:#6b5a50;font-size:15.5px;max-width:42ch;line-height:1.45}
@@ -27382,17 +27385,30 @@ function TwRutina({ productos, dispo, foto, onAgregar, onAbrir, onCompartir, cop
   const [paso, setPaso] = useState(0);
   const [r, setR] = useState(() => ({ piel: (perfil && perfil.piel) || "", nec: (perfil && perfil.nec) || [], pasos: "completa", presupuesto: 0, coreano: false }));
   const hayCoreano = productos.some(p => p.coreano);
-  const PASOS_TEST = ["piel", "nec", ...(hayCoreano ? ["corea"] : []), "pasos", "plata"];
+  // Ya no se pregunta el presupuesto: se arma la rutina ideal y al final se puede abaratar (un paso o toda la rutina)
+  const PASOS_TEST = ["piel", "nec", ...(hayCoreano ? ["corea"] : []), "pasos"];
   const fin = PASOS_TEST.length, actual = PASOS_TEST[paso];
   const [rutina, setRutina] = useState(null);
   const [agregada, setAgregada] = useState(false);
-  const armar = (datos) => { setRutina(twArmarRutina(productos, dispo, datos)); setPaso(fin); setAgregada(false); twSonar.pop(); onPerfil && onPerfil({ piel: datos.piel, nec: datos.nec }); try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) {} };
+  const [avisoEco, setAvisoEco] = useState("");
+  const armar = (datos) => { setAvisoEco(""); setRutina(twArmarRutina(productos, dispo, datos)); setPaso(fin); setAgregada(false); twSonar.pop(); onPerfil && onPerfil({ piel: datos.piel, nec: datos.nec }); try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) {} };
   const sigue = (cambio, auto) => { const n = { ...r, ...cambio }; setR(n); if (auto) setTimeout(() => setPaso(p => p + 1), 180); };
   const necOps = TW_FILTROS.find(f => f.k === "necesidad").op;
   const total = rutina ? rutina.reduce((s, x) => s + x.ops[x.i].p.precio, 0) : 0;
   const cambiar = (k) => setRutina(rt => rt.map((x, kk) => { if (kk !== k) return x; const otros = rt.filter((_, j) => j !== k).map(y => y.ops[y.i].p.id); let i = x.i; for (let n = 0; n < x.ops.length; n++) { i = (i + 1) % x.ops.length; if (!otros.includes(x.ops[i].p.id)) break; } return { ...x, i }; }));
+  // Un paso más barato: la mejor opción (las opciones ya vienen de mejor a peor) que cueste menos y no esté en otro paso
+  const opBarata = (rt, k) => { const x = rt[k], act = x.ops[x.i], otros = rt.filter((_, j) => j !== k).map(y => y.ops[y.i].p.id); return x.ops.findIndex(o => o.p.precio < act.p.precio && !otros.includes(o.p.id)); };
+  const abaratar = (k) => { setAvisoEco(""); setRutina(rt => rt.map((x, kk) => { if (kk !== k) return x; const j = opBarata(rt, k); return j >= 0 ? { ...x, i: j } : x; })); setAgregada(false); };
+  // Toda la rutina más económica: se vuelve a armar con un tope apenas menor (cambia lo que menos le baja la calidad)
+  const masEconomica = () => {
+    const nueva = twArmarRutina(productos, dispo, { ...r, presupuesto: Math.max(1, total - 1) });
+    const t2 = nueva.reduce((s, x) => s + x.ops[x.i].p.precio, 0);
+    if (!nueva.length || t2 >= total) { setAvisoEco("Esta ya es la rutina más económica que podemos armar con lo que hay en stock."); return; }
+    setRutina(nueva); setR(x => ({ ...x, presupuesto: t2 })); setAgregada(false); setAvisoEco("✓ Te armamos una rutina " + fmtTienda(total - t2) + " más económica.");
+  };
+  const volverIdeal = () => { const n = { ...r, presupuesto: 0 }; setR(n); setRutina(twArmarRutina(productos, dispo, n)); setAgregada(false); setAvisoEco(""); };
   const pielTxt = (TW_FILTROS[1].op.find(o => o[0] === r.piel) || ["", ""])[1].toLowerCase();
-  const TITULOS = { piel: "¿Cómo sentís tu piel a media tarde?", nec: "¿Qué te gustaría mejorar?", corea: "¿Querés una rutina de skincare coreano?", pasos: "¿Cuántos pasos querés hacer?", plata: "¿Cuánto querés invertir?" };
+  const TITULOS = { piel: "¿Cómo sentís tu piel a media tarde?", nec: "¿Qué te gustaría mejorar?", corea: "¿Querés una rutina de skincare coreano?", pasos: "¿Cuántos pasos querés hacer?" };
   return (
     <div className="tw-rut">
       {paso < fin ? (
@@ -27419,13 +27435,9 @@ function TwRutina({ productos, dispo, foto, onAgregar, onAbrir, onCompartir, cop
               <span className="tw-rut-num">{ic}</span><span><b>{t}</b><small>{d}</small></span>
             </button>))}</div>}
           {actual === "pasos" && <div className="tw-rut-ops" key="p2">{[["basica", "Básica", "3 pasos", "Limpiador, crema y protector solar"], ["completa", "Completa", "4 pasos", "Limpiador, sérum, crema y protector solar"], ["pro", "Completísima", "6 pasos", "Limpiador, tónico o bruma, sérum, crema, contorno de ojos y protector solar"]].map(([k, t, d, x], i) => (
-            <button key={k} className={"tw-rut-op" + (r.pasos === k ? " on" : "")} style={{ "--i": i }} onClick={() => sigue({ pasos: k }, true)}>
+            <button key={k} className={"tw-rut-op" + (r.pasos === k ? " on" : "")} style={{ "--i": i }} onClick={() => { const n = { ...r, pasos: k, presupuesto: 0 }; setR(n); armar(n); }}>
               <span className="tw-rut-num">{k === "basica" ? "3" : k === "completa" ? "4" : "6"}</span>
               <span><b>{t} <em>{d}</em></b><small>{x}</small></span>
-            </button>))}</div>}
-          {actual === "plata" && <div className="tw-rut-ops" key="p3">{[[150000, "Hasta $150.000"], [250000, "Hasta $250.000"], [400000, "Hasta $400.000"], [0, "Sin límite: lo mejor para mi piel"]].map(([v, t], i) => (
-            <button key={v} className={"tw-rut-op" + (r.presupuesto === v ? " on" : "")} style={{ "--i": i }} onClick={() => { const n = { ...r, presupuesto: v }; setR(n); armar(n); }}>
-              <span className="tw-rut-num">{v ? "$" : "∞"}</span><span><b>{t}</b></span>
             </button>))}</div>}
           {paso > 0 && <button className="tw-rut-atras" onClick={() => setPaso(p => p - 1)}>‹ Volver</button>}
         </div>
@@ -27444,11 +27456,19 @@ function TwRutina({ productos, dispo, foto, onAgregar, onAbrir, onCompartir, cop
                     <b>{o.p.nombre}{o.v ? " · " + o.v.valor : ""}</b>
                     <span>{fmtTienda(o.p.precio)}</span>
                   </div>
-                  {x.ops.length > 1 && <button className="tw-rut-cambiar" onClick={() => cambiar(k)} aria-label="Ver otra opción">↻<span>Otra</span></button>}
+                  <div className="tw-rut-btns">
+                    {x.ops.length > 1 && <button className="tw-rut-cambiar" onClick={() => cambiar(k)} aria-label="Ver otra opción">↻<span>Otra</span></button>}
+                    {opBarata(rutina, k) >= 0 && <button className="tw-rut-cambiar" onClick={() => abaratar(k)} aria-label="Uno más económico">$<span>Más barato</span></button>}
+                  </div>
                 </div>); })}
             </div>
-            {(() => { const falta = (TW_RUT_PASOS[r.pasos] || []).filter(t => !rutina.some(x => x.t === t)); return falta.length ? <div className="tw-rut-falta">{r.presupuesto ? "Para respetar tu presupuesto (o porque no hay stock) no sumamos: " : "Por ahora no tenemos con stock: "}<b>{falta.map(t => TW_RUT_NOMBRE[t].toLowerCase()).join(", ")}</b>. ¡Escribinos y te asesoramos!</div> : null; })()}
+            {(() => { const falta = (TW_RUT_PASOS[r.pasos] || []).filter(t => !rutina.some(x => x.t === t)); return falta.length ? <div className="tw-rut-falta">{r.presupuesto ? "Para que sea más económica (o porque no hay stock) sacamos: " : "Por ahora no tenemos con stock: "}<b>{falta.map(t => TW_RUT_NOMBRE[t].toLowerCase()).join(", ")}</b>. ¡Escribinos y te asesoramos!</div> : null; })()}
             <div className="tw-rut-total"><span>Total de tu rutina</span><b>{fmtTienda(total)}</b></div>
+            <div className="tw-rut-eco">
+              <button className="tw-btn2" onClick={masEconomica}>💸 Quiero una rutina más económica</button>
+              {r.presupuesto > 0 && <button className="tw-btn2" onClick={volverIdeal}>✨ Volver a la rutina ideal</button>}
+            </div>
+            {avisoEco && <div className="tw-rut-eco-aviso" role="status">{avisoEco}</div>}
             <button className={"tw-btn full" + (agregada ? " hecho" : "")} onClick={() => { onAgregar(rutina.map(x => ({ p: x.ops[x.i].p, v: x.ops[x.i].v }))); setAgregada(true); }}>{agregada ? "✓ ¡Rutina agregada al carrito!" : "Agregar mi rutina al carrito (" + rutina.length + ")"}</button>
           </>}
           <div className="tw-rut-acciones">
