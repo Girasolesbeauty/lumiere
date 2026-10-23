@@ -656,6 +656,7 @@ body:has(.pos-overlay) .ayuda-fab { display: none !important; }
 .liq-si-no.chico button{padding:5px 11px;font-size:12.5px}
 .liq-barra{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;width:min(640px,calc(100% - 24px));z-index:60;display:flex;gap:6px;flex-wrap:wrap;align-items:center;border:2px solid;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 @media(max-width:760px){.liq-barra{bottom:84px}}
+.liq-sug{display:flex;justify-content:space-between;gap:8px;width:100%;text-align:left;font:inherit;font-size:13px;background:transparent;border:0;border-bottom:1px solid rgba(127,127,127,.2);padding:8px 10px;cursor:pointer;color:inherit}.liq-sug:hover{background:rgba(127,127,127,.08)}.liq-sug small{opacity:.7}
 .liq-medio{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid;border-radius:12px;padding:9px 11px}
 .liq-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 @media(max-width:600px){.liq-kpis{grid-template-columns:1fr 1fr}}
@@ -3832,10 +3833,30 @@ function POS({ localId, usuario, paletaActual }) {
       if (promo.sin_medio_pago && promo.sin_medio_pago === medioPagoTipoActual) continue;
       if (promo.local_id && Number(promo.local_id) !== Number(localId)) continue;
       let desc = 0;
+      // Descuento por producto (para que, si no se combinan, cada producto tome su mejor promo y no una sola para todo el ticket)
+      const porItem = new Map();
 
       if (promo.tipo === "descuento") {
-        const base = cart.filter(i => itemAplica(promo, i)).reduce((s, i) => s + precioItem(i) * i.qty, 0);
-        if (base > 0) desc = base * (parseFloat(promo.valor) / 100);
+        cart.forEach((i, k) => { if (itemAplica(promo, i)) porItem.set(k, precioItem(i) * i.qty * (parseFloat(promo.valor) / 100)); });
+        desc = [...porItem.values()].reduce((a, b) => a + b, 0);
+      }
+
+      // Combo: llevando todos sus productos (cada uno con su cantidad), valor% sobre esos productos (las veces que se complete)
+      else if (promo.tipo === "combo") {
+        const ids = (promo.productos_ids || []).map(Number), cant = promo.combo_cantidades || {};
+        const enCarrito = (id) => cart.filter(i => Number(i.id) === id && !i.es_kit && !i.es_ajuste).reduce((a, i) => a + i.qty, 0);
+        const veces = ids.length ? Math.min(...ids.map(id => Math.floor(enCarrito(id) / (parseInt(cant[id]) || 1)))) : 0;
+        if (veces > 0) {
+          ids.forEach(id => {
+            let falta = veces * (parseInt(cant[id]) || 1);
+            cart.forEach((i, k) => { if (falta <= 0 || Number(i.id) !== id || i.es_kit || i.es_ajuste) return; const u = Math.min(falta, i.qty); falta -= u; porItem.set(k, (porItem.get(k) || 0) + precioItem(i) * u * (parseFloat(promo.valor) / 100)); });
+          });
+          desc = [...porItem.values()].reduce((a, b) => a + b, 0);
+        } else {
+          // Le falta un solo producto para completar el combo: se avisa para ofrecerlo
+          const faltan = ids.filter(id => enCarrito(id) < (parseInt(cant[id]) || 1));
+          if (faltan.length === 1 && faltan.length < ids.length) avisos.push({ promo: promo.nombre, valor: promo.valor, productoId: faltan[0], combo: true });
+        }
       }
 
       else if (promo.tipo === "monto") {
@@ -3880,22 +3901,24 @@ function POS({ localId, usuario, paletaActual }) {
 
       if (desc > 0) {
         // Regla de combinacion: si NO es combinable, compite; nos quedamos con el mejor set despues.
-        aplicadas.push({ promo, desc, combinable: promo.combinable === true });
+        aplicadas.push({ promo, desc, porItem: porItem.size ? porItem : null, combinable: promo.combinable === true });
       }
     }
 
-    // Combinables se suman siempre. No combinables: solo la mejor entre las no combinables.
+    // Combinables se suman siempre. No combinables: las que son por producto (descuento y combo) dejan a cada producto
+    // con su mejor promo; las demas (por monto, 2x1, cross) compiten enteras. Gana lo que mas descuenta.
     const combinables = aplicadas.filter(a => a.combinable);
     const noComb = aplicadas.filter(a => !a.combinable);
-    let sumaComb = combinables.reduce((s, a) => s + a.desc, 0);
-    let mejorNoComb = noComb.reduce((m, a) => a.desc > m ? a.desc : m, 0);
-    totalDesc = sumaComb + mejorNoComb;
-
+    const sumaComb = combinables.reduce((s, a) => s + a.desc, 0);
+    const mejorItem = new Map();
+    noComb.filter(a => a.porItem).forEach(a => a.porItem.forEach((v, k) => { const m = mejorItem.get(k); if (!m || v > m.v) mejorItem.set(k, { v, a }); }));
+    const sumaPorItem = [...mejorItem.values()].reduce((s, m) => s + m.v, 0);
+    const mejorOtra = noComb.filter(a => !a.porItem).reduce((m, a) => (!m || a.desc > m.desc ? a : m), null);
     const usadas = [...combinables.map(a => a.promo.nombre)];
-    if (mejorNoComb > 0) {
-      const gan = noComb.find(a => a.desc === mejorNoComb);
-      if (gan) usadas.push(gan.promo.nombre);
-    }
+    let mejorNoComb = 0;
+    if (mejorOtra && mejorOtra.desc > sumaPorItem) { mejorNoComb = mejorOtra.desc; usadas.push(mejorOtra.promo.nombre); }
+    else if (sumaPorItem > 0) { mejorNoComb = sumaPorItem; [...new Set([...mejorItem.values()].map(m => m.a.promo.nombre))].forEach(n => usadas.push(n)); }
+    totalDesc = sumaComb + mejorNoComb;
     return { totalDesc, avisos, usadas };
   })();
 
@@ -5468,7 +5491,7 @@ function POS({ localId, usuario, paletaActual }) {
               <div style={{ background: "#2d7a4f", border: "2px solid #1e5637", borderRadius: 8, padding: "12px 14px", marginBottom: 8, fontSize: 13, color: "#fff", fontWeight: 700, boxShadow: "0 2px 8px rgba(45,122,79,0.4)" }}>
                 {promoCalc.avisos.map((a, k) => {
                   const prod = productos.find(p => p.id === parseInt(a.productoId));
-                  return <div key={k} style={{ marginBottom: 4 }}>🎁 Ofrecele: {a.valor}% OFF en {prod ? (prod.nombre || prod.name) : "producto"} ({a.promo})</div>;
+                  return <div key={k} style={{ marginBottom: 4 }}>{a.combo ? <>🎁 Sumando {prod ? (prod.nombre || prod.name) : "un producto"} completa el combo: {a.valor}% OFF ({a.promo})</> : <>🎁 Ofrecele: {a.valor}% OFF en {prod ? (prod.nombre || prod.name) : "producto"} ({a.promo})</>}</div>;
                 })}
               </div>
             )}
@@ -23980,6 +24003,35 @@ function RutinaCuotasConfig({ temaPal, medios, desde, hasta }) {
     </div>
   );
 }
+// Formas de pagar de una oferta o un combo: "N% OFF pagando con..." o "N% OFF + cuotas sin interés"
+function EditorOpcionesLiq({ opciones, onChange, p }) {
+  const caja = { border: "1px solid " + p.border, borderRadius: 12, padding: 12 };
+  const setOp = (i, cambio) => onChange(opciones.map((o, j) => j === i ? { ...o, ...cambio } : o));
+  return (
+    <>
+              {opciones.map((o, i) => (
+        <div key={i} style={{ ...caja, padding: 10 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            {i > 0 && <b style={{ color: p.textMuted }}>o</b>}
+            <span className="liq-si-no chico">
+              <button className={o.tipo === "pct" ? "on" : ""} onClick={() => setOp(i, { tipo: "pct", medios: o.medios && o.medios.length ? o.medios : ["efectivo", "transferencia"] })}>% OFF</button>
+              <button className={o.tipo === "cuotas" ? "on" : ""} onClick={() => setOp(i, { tipo: "cuotas", cuotas: o.cuotas || 3 })}>% OFF + cuotas</button>
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><input className="inp" inputMode="numeric" style={{ width: 62, padding: "5px 7px", fontWeight: 800 }} value={o.pct} onChange={e => setOp(i, { pct: Math.min(80, parseInt(e.target.value.replace(/[^\d]/g, "")) || 0) })} aria-label="Porcentaje" /><b>% OFF</b></span>
+            {opciones.length > 1 && <button className="icon-btn" style={{ marginLeft: "auto" }} aria-label="Sacar esta forma de pago" onClick={() => onChange(opciones.filter((_, j) => j !== i))}>🗑️</button>}
+          </div>
+          {o.tipo === "cuotas" ? (
+            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}><span style={{ fontSize: 13 }}>+</span>{[3, 6, 12].map(n2 => <button key={n2} className={"chip-btn" + (o.cuotas === n2 ? " on" : "")} onClick={() => setOp(i, { cuotas: n2 })}>{n2} cuotas sin interés</button>)}</div>
+          ) : (
+            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}><span style={{ fontSize: 13 }}>pagando con</span>{LIQ_MEDIOS.map(([k, t]) => { const on = (o.medios || []).includes(k), bloq = k === "credito" && opciones.some(x => x.tipo === "cuotas"); return <button key={k} disabled={bloq} title={bloq ? "Con crédito va la opción en cuotas" : ""} className={"chip-btn" + (on ? " on" : "")} onClick={() => setOp(i, { medios: on ? o.medios.filter(m => m !== k) : [...(o.medios || []), k] })}>{t}</button>; })}</div>
+          )}
+          {o.tipo === "pct" && !(o.medios || []).length && <div style={{ color: p.red, fontSize: 12, marginTop: 4 }}>Elegí al menos un medio de pago</div>}
+        </div>
+      ))}
+      {opciones.length < 4 && <div><button className="chip-btn" onClick={() => onChange([...opciones, opciones.some(o => o.tipo === "cuotas") ? { tipo: "pct", pct: 10, medios: ["otros"] } : { tipo: "cuotas", pct: 10, cuotas: 3 }])}>+ Agregar otra forma de pagar</button></div>}
+    </>
+  );
+}
 function PlanLiquidacion({ temaPal, medios, onCreado }) {
   const p = temaPal;
   const CLAVE = "lumiere_plan_liquidacion";
@@ -23989,6 +24041,10 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
   const [dias, setDias] = useState(guardado.dias || 90);
   const [cfg, setCfg] = useState(() => { const [d, h] = proximoCyber(); return { nombre: "Cyber Monday", desde: d, hasta: h, minimo: "10", otros: "0", en_tienda: true, sector: true, ...(guardado.cfg || {}) }; });
   const [ofertas, setOfertas] = useState(guardado.ofertas || LIQ_OFERTAS_INICIO);
+  // Combos: [{ id, nombre, items: [{ id, cant }], opciones, local: "0"|"1"|"2", tienda }]
+  const [combos, setCombos] = useState(guardado.combos || []);
+  const [editCombo, setEditCombo] = useState(null);
+  const [buscaCombo, setBuscaCombo] = useState("");
   // Oferta de cada producto en cada local: "0|id" = todos los locales, "2|id" = solo ese local ("none" = sin oferta ahí)
   const [asig, setAsig] = useState(() => Object.fromEntries(Object.entries(guardado.asig || {}).map(([k, v]) => [k.includes("|") ? k : "0|" + k, v])));
   const LOCS = UN_SOLO_LOCAL ? [] : [1, 2];
@@ -24006,7 +24062,7 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
   const [creando, setCreando] = useState(false);
   const [aviso, setAviso] = useState("");
   // Lo que se arma queda guardado en este navegador (se puede seguir otro día)
-  useEffect(() => { try { localStorage.setItem(CLAVE, JSON.stringify({ cfg, ofertas, asig, costoCuotas, com, dias, local })); } catch (e) {} }, [cfg, ofertas, asig, costoCuotas, com, dias, local]);
+  useEffect(() => { try { localStorage.setItem(CLAVE, JSON.stringify({ cfg, ofertas, asig, costoCuotas, com, dias, local, combos })); } catch (e) {} }, [cfg, ofertas, asig, costoCuotas, com, dias, local, combos]);
   // El plan se guarda en el sistema y es el mismo para todas (dueña y vendedoras). Al abrir se trae el último;
   // cada cambio se guarda solo, un segundo después. El local que se está mirando queda en cada navegador.
   const [sync, setSync] = useState({ cargado: false, por: null, en: null, guardando: false, error: false });
@@ -24020,6 +24076,7 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
     if (pl.costoCuotas) setCostoCuotas(pl.costoCuotas);
     if (pl.com) setCom(pl.com);
     if (pl.dias) setDias(pl.dias);
+    if (Array.isArray(pl.combos)) setCombos(pl.combos);
   };
   const traerPlan = () => API.get("/promociones/plan-liquidacion").then(r => {
     const pl = r.data.plan;
@@ -24029,7 +24086,7 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
   useEffect(() => { traerPlan(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!sync.cargado) return;
-    const plan = { cfg, ofertas, asig, costoCuotas, com, dias }, txt = jsonOrden(plan);
+    const plan = { cfg, ofertas, asig, costoCuotas, com, dias, combos }, txt = jsonOrden(plan);
     if (txt === ultimoPlan.current) return;
     const t = setTimeout(() => {
       setSync(x => ({ ...x, guardando: true }));
@@ -24037,7 +24094,7 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
         .catch(() => setSync(x => ({ ...x, guardando: false, error: true })));
     }, 1000);
     return () => clearTimeout(t);
-  }, [sync.cargado, cfg, ofertas, asig, costoCuotas, com, dias]);
+  }, [sync.cargado, cfg, ofertas, asig, costoCuotas, com, dias, combos]);
   // Ventas y stock del local elegido (o de todos): un producto puede venderse bien en un local y estar quieto en el otro
   useEffect(() => { setRot(null); API.get("/productos/rotacion?dias=" + dias + (local !== "0" ? "&local_id=" + local : "")).then(r => setRot(r.data)).catch(() => setRot({ productos: [], error: true })); }, [dias, local]);
   const activos = (medios || []).filter(m => m.activo !== false);
@@ -24049,7 +24106,7 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
   // Lo que queda de cada $1 con ese medio: el que más cobra de ese tipo
   const fMedio = (k) => { const l = activos.filter(m => tipoDe(m) === k && !m.con_interes); const c = l.length ? Math.max(...l.map(m => parseFloat(com[m.id]) || 0)) : 0; return 1 - (c + otrosImp) / 100; };
   const fOpcion = (o) => o.tipo === "cuotas" ? (costoCuotas[o.cuotas] === undefined || costoCuotas[o.cuotas] === "" ? null : 1 - ((parseFloat(costoCuotas[o.cuotas]) || 0) + otrosImp) / 100) : Math.min(...(o.medios || []).map(fMedio));
-  const cuotasUsadas = [...new Set(ofertas.flatMap(of => of.opciones.filter(o => o.tipo === "cuotas").map(o => o.cuotas)))].sort((a, b) => a - b);
+  const cuotasUsadas = [...new Set([...ofertas, ...combos].flatMap(of => (of.opciones || []).filter(o => o.tipo === "cuotas").map(o => o.cuotas)))].sort((a, b) => a - b);
   const faltaCuotas = cuotasUsadas.filter(n => costoCuotas[n] === undefined || costoCuotas[n] === "");
   const nombreOf = (of) => "Oferta " + (ofertas.indexOf(of) + 1);
   const textoOf = (of) => of.opciones.map(textoOpcionLiq).join(" o ");
@@ -24057,6 +24114,18 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
   // Cuánto gana con cada forma de pago de la oferta (null si falta el costo de las cuotas)
   const cuentas = (x, of) => of.opciones.map(o => { const f = fOpcion(o), precio = x.precio * (1 - o.pct / 100); return { o, precio, gan: f === null ? null : precio * f - x.costo, ok: f === null ? null : precio * f >= x.costo * (1 + minimo / 100) }; });
   const hoyMs = Date.now();
+  // Combos: productos (de toda la lista), precio de lista, costo y lo que queda con cada forma de pagar
+  const prodDe = (id) => (rot && rot.productos || []).find(x => x.id === id);
+  const unidadesCombo = (cb) => (cb.items || []).reduce((t, it) => t + (it.cant || 1), 0);
+  const listaCombo = (cb) => (cb.items || []).reduce((t, it) => t + ((prodDe(it.id) || {}).precio || 0) * (it.cant || 1), 0);
+  const costoCombo = (cb) => (cb.items || []).some(it => !((prodDe(it.id) || {}).costo > 0)) ? null : (cb.items || []).reduce((t, it) => t + prodDe(it.id).costo * (it.cant || 1), 0);
+  const cuentasCombo = (cb) => { const lista = listaCombo(cb), costo = costoCombo(cb); return (cb.opciones || []).map(o => { const f = fOpcion(o), precio = lista * (1 - o.pct / 100); return { o, precio, gan: f === null || costo === null ? null : precio * f - costo, ok: f === null || costo === null ? null : precio * f >= costo * (1 + minimo / 100) }; }); };
+  // En la tienda online el combo tiene un solo precio: el de "cualquier otro medio" si la hay; si no, el descuento más chico (para no perder con Mercado Pago)
+  const pctOnline = (cb) => { const ops = cb.opciones || []; const otros = ops.find(o => o.tipo === "pct" && (o.medios || []).includes("otros")); return otros ? otros.pct : ops.length ? Math.min(...ops.map(o => o.pct)) : 0; };
+  const combosListos = combos.filter(cb => unidadesCombo(cb) >= 2 && (cb.opciones || []).some(o => o.pct > 0 || o.tipo === "cuotas"));
+  const nombreCombo = (cb) => (cb.nombre || "").trim() || "Combo " + (combos.indexOf(cb) + 1);
+  const setCombo = (id, cambio) => setCombos(l => l.map(c => c.id === id ? { ...c, ...cambio } : c));
+  const nuevoCombo = () => { const id = "c" + Date.now().toString(36); setCombos(l => [...l, { id, nombre: "", items: [], opciones: [{ tipo: "pct", pct: 30, medios: ["efectivo", "transferencia"] }, { tipo: "cuotas", pct: 15, cuotas: 3 }], local: "0", tienda: true }]); setEditCombo(id); setBuscaCombo(""); };
   const todos = rot ? (rot.productos || []).filter(x => x.stock > 0) : [];
   // La oferta que vale en la vista elegida: la propia del local o, si no tiene, la de todos los locales
   const valorEn = (id, l) => { const v = asig[l + "|" + id]; return v !== undefined || l === "0" ? v : asig["0|" + id]; };
@@ -24095,13 +24164,12 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
     });
     return out;
   })();
-  const setOpcion = (ofId, i, cambio) => setOfertas(l => l.map(of => of.id !== ofId ? of : { ...of, opciones: of.opciones.map((o, j) => j === i ? { ...o, ...cambio } : o) }));
   const nuevaOferta = () => { const id = "o" + Date.now().toString(36); setOfertas(l => [...l, { id, opciones: [{ tipo: "pct", pct: 20, medios: ["efectivo", "transferencia"] }] }]); setEditOf(id); };
   const borrarOferta = (of) => { if (!confirm("¿Borrar la " + nombreOf(of) + "? Los productos que la tenían quedan sin oferta.")) return; setOfertas(l => l.filter(x => x.id !== of.id)); setAsig(a => Object.fromEntries(Object.entries(a).filter(([, v]) => v !== of.id))); if (editOf === of.id) setEditOf(null); };
   const cantOf = (of) => finales.filter(f => f.of === of.id).length;
   const crear = async () => {
     setAviso("");
-    if (!finales.length) return setAviso("Elegí la oferta de al menos un producto");
+    if (!finales.length && !combosListos.length) return setAviso("Elegí la oferta de al menos un producto o armá un combo");
     const gr = [];
     ofertas.forEach(of => [null, ...LOCS].forEach(loc => {
       const productos = finales.filter(f => f.of === of.id && f.local === loc).map(f => f.id);
@@ -24116,10 +24184,25 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
           : { pct: o.pct, productos, local: loc, pago: k, etiqueta: nombreOf(of) + ": " + o.pct + "% OFF con " + (LIQ_MEDIOS.find(m => m[0] === k) || ["", k])[1].toLowerCase() + enLoc }));
       });
     }));
+    // Combos: una promo por forma de pagar (con sus productos y cantidades), en el local elegido
+    const combosTienda = [];
+    combosListos.forEach(cb => {
+      const productos = cb.items.map(it => it.id), cantidades = Object.fromEntries(cb.items.filter(it => (it.cant || 1) > 1).map(it => [it.id, it.cant]));
+      const loc = cb.local && cb.local !== "0" ? Number(cb.local) : null, enLoc = loc ? " (solo " + nombreLocal(loc) + ")" : "";
+      const tieneCredito = cb.opciones.some(o => o.tipo === "cuotas" || (o.medios || []).includes("credito"));
+      const base = { tipo: "combo", productos, cantidades, local: loc };
+      cb.opciones.forEach(o => {
+        if (!o.pct) return;
+        if (o.tipo === "cuotas") return gr.push({ ...base, pct: o.pct, pago: "credito", cuotas: o.cuotas, etiqueta: "Combo " + nombreCombo(cb) + ": " + textoOpcionLiq(o) + enLoc });
+        (o.medios || []).forEach(k => gr.push(k === "otros" ? { ...base, pct: o.pct, sin: tieneCredito ? "credito" : null, etiqueta: "Combo " + nombreCombo(cb) + ": " + o.pct + "% OFF con cualquier otro medio" + enLoc }
+          : { ...base, pct: o.pct, pago: k, etiqueta: "Combo " + nombreCombo(cb) + ": " + o.pct + "% OFF con " + (LIQ_MEDIOS.find(m => m[0] === k) || ["", k])[1].toLowerCase() + enLoc }));
+      });
+      if (cb.tienda !== false && !loc && pctOnline(cb) > 0) combosTienda.push({ id: cb.id, nombre: nombreCombo(cb), productos, cantidades, precio: Math.round(listaCombo(cb) * (1 - pctOnline(cb) / 100)) });
+    });
     if (!gr.length) return setAviso("Las ofertas elegidas no tienen descuentos");
-    if (!confirm("Se van a crear " + gr.length + " promociones \"" + cfg.nombre + "\" para " + new Set(finales.map(f => f.id)).size + " productos, del " + fecha(cfg.desde) + " al " + fecha(cfg.hasta) + ". Si ya existían las de este evento, se reemplazan. ¿Seguimos?")) return;
+    if (!confirm("Se van a crear " + gr.length + " promociones \"" + cfg.nombre + "\" para " + new Set(finales.map(f => f.id)).size + " productos" + (combosListos.length ? " y " + combosListos.length + (combosListos.length === 1 ? " combo" : " combos") : "") + ", del " + fecha(cfg.desde) + " al " + fecha(cfg.hasta) + ". Si ya existían las de este evento, se reemplazan. ¿Seguimos?")) return;
     setCreando(true);
-    try { await API.post("/promociones/liquidacion", { nombre: cfg.nombre, desde: cfg.desde, hasta: cfg.hasta, en_tienda: cfg.en_tienda, sector: cfg.sector, grupos: gr }); onCreado(); }
+    try { await API.post("/promociones/liquidacion", { nombre: cfg.nombre, desde: cfg.desde, hasta: cfg.hasta, en_tienda: cfg.en_tienda, sector: cfg.sector, grupos: gr, combos_tienda: combosTienda }); onCreado(); }
     catch (e) { setAviso(e.response?.data?.error || "No se pudieron crear"); }
     setCreando(false);
   };
@@ -24128,7 +24211,7 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
   const COLORES = ["#c0392b", "#2471a3", "#8e44ad", "#d35400", "#16a085", "#2d7a4f", "#7f8c8d"];
   const colorOf = (of) => COLORES[ofertas.indexOf(of) % COLORES.length];
   const SECS = [["ofertas", "🏷", "Tus ofertas", "#c0392b", ofertas.length, false], ["productos", "🛍", "Productos", "#8e44ad", conPerdida.length || conOferta.length, conPerdida.length > 0],
-    ["rutina", "🧴", "Rutina en cuotas", "#16a085", 0, false], ["comisiones", "💳", "Comisiones y cuotas", "#2471a3", faltaCuotas.length, true], ["evento", "📅", "Evento y fechas", "#7f8c8d", 0, false], ["crear", "✅", "Crear ofertas", "#2d7a4f", 0, false]];
+    ["rutina", "🧴", "Rutina en cuotas", "#16a085", 0, false], ["combos", "🎁", "Combos", "#d35400", combos.length, false], ["comisiones", "💳", "Comisiones y cuotas", "#2471a3", faltaCuotas.length, true], ["evento", "📅", "Evento y fechas", "#7f8c8d", 0, false], ["crear", "✅", "Crear ofertas", "#2d7a4f", 0, false]];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, textAlign: "left" }}>
       <div className="card liq-res">
@@ -24136,7 +24219,7 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
           <div className="ct" style={{ marginBottom: 0 }}>⚡ {cfg.nombre || "Liquidación"}</div>
           <span style={{ fontSize: 12.5, color: p.textMuted }}>{fecha(cfg.desde)} al {fecha(cfg.hasta)}</span>
         </div>
-        <div className="liq-ayuda" style={{ marginTop: 4 }}>1) Armá tus ofertas · 2) Elegí la oferta de cada producto · 3) Creá las ofertas.</div>
+        <div className="liq-ayuda" style={{ marginTop: 4 }}>1) Armá tus ofertas y elegí la de cada producto · 2) Rutina en cuotas · 3) Combos · 4) Creá las ofertas.</div>
         <div className="liq-ayuda" style={{ marginTop: 2, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           {!sync.cargado ? "Trayendo el plan…" : sync.error ? <span style={{ color: p.red, opacity: 1, fontWeight: 700 }}>⚠️ No se pudo guardar en el sistema: revisá la conexión</span>
             : sync.guardando ? "Guardando…" : <span>💾 Guardado en el sistema: lo ven y lo editan todas{sync.por ? " · último cambio de " + String(sync.por).split(" ")[0] + (sync.en ? " " + new Date(sync.en).toLocaleString("es-AR", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" }) : "") : ""}</span>}
@@ -24163,29 +24246,8 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
               <button className="chip-btn" onClick={() => setEditOf(ed ? null : of.id)}>{ed ? "Listo" : "✏️ Editar"}</button>
             </div>
             {ed && <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
-              {of.opciones.map((o, i) => (
-                <div key={i} style={{ ...caja, padding: 10 }}>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                    {i > 0 && <b style={{ color: p.textMuted }}>o</b>}
-                    <span className="liq-si-no chico">
-                      <button className={o.tipo === "pct" ? "on" : ""} onClick={() => setOpcion(of.id, i, { tipo: "pct", medios: o.medios && o.medios.length ? o.medios : ["efectivo", "transferencia"] })}>% OFF</button>
-                      <button className={o.tipo === "cuotas" ? "on" : ""} onClick={() => setOpcion(of.id, i, { tipo: "cuotas", cuotas: o.cuotas || 3 })}>% OFF + cuotas</button>
-                    </span>
-                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}><input className="inp" inputMode="numeric" style={{ width: 62, padding: "5px 7px", fontWeight: 800 }} value={o.pct} onChange={e => setOpcion(of.id, i, { pct: Math.min(80, parseInt(e.target.value.replace(/[^\d]/g, "")) || 0) })} aria-label="Porcentaje" /><b>% OFF</b></span>
-                    {of.opciones.length > 1 && <button className="icon-btn" style={{ marginLeft: "auto" }} aria-label="Sacar esta forma de pago" onClick={() => setOfertas(l => l.map(x => x.id !== of.id ? x : { ...x, opciones: x.opciones.filter((_, j) => j !== i) }))}>🗑️</button>}
-                  </div>
-                  {o.tipo === "cuotas" ? (
-                    <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}><span style={{ fontSize: 13 }}>+</span>{[3, 6, 12].map(n2 => <button key={n2} className={"chip-btn" + (o.cuotas === n2 ? " on" : "")} onClick={() => setOpcion(of.id, i, { cuotas: n2 })}>{n2} cuotas sin interés</button>)}</div>
-                  ) : (
-                    <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}><span style={{ fontSize: 13 }}>pagando con</span>{LIQ_MEDIOS.map(([k, t]) => { const on = (o.medios || []).includes(k), bloq = k === "credito" && of.opciones.some(x => x.tipo === "cuotas"); return <button key={k} disabled={bloq} title={bloq ? "Con crédito va la opción en cuotas" : ""} className={"chip-btn" + (on ? " on" : "")} onClick={() => setOpcion(of.id, i, { medios: on ? o.medios.filter(m => m !== k) : [...(o.medios || []), k] })}>{t}</button>; })}</div>
-                  )}
-                  {o.tipo === "pct" && !(o.medios || []).length && <div style={{ color: p.red, fontSize: 12, marginTop: 4 }}>Elegí al menos un medio de pago</div>}
-                </div>
-              ))}
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {of.opciones.length < 4 && <button className="chip-btn" onClick={() => setOfertas(l => l.map(x => x.id !== of.id ? x : { ...x, opciones: [...x.opciones, x.opciones.some(o => o.tipo === "cuotas") ? { tipo: "pct", pct: 10, medios: ["otros"] } : { tipo: "cuotas", pct: 10, cuotas: 3 }] }))}>+ Agregar otra forma de pagar</button>}
-                <button className="chip-btn" style={{ color: p.red }} onClick={() => borrarOferta(of)}>Borrar oferta</button>
-              </div>
+              <EditorOpcionesLiq p={p} opciones={of.opciones} onChange={ops => setOfertas(l => l.map(x => x.id !== of.id ? x : { ...x, opciones: ops }))} />
+              <div><button className="chip-btn" style={{ color: p.red }} onClick={() => borrarOferta(of)}>Borrar oferta</button></div>
             </div>}
           </div>); })}
         <button className="btn btn-p" onClick={nuevaOferta}>+ Crear otra oferta</button>
@@ -24270,6 +24332,57 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
         </div>
       </>}
 
+      {sec === "combos" && <>
+        <div className="liq-ayuda" style={{ padding: "0 4px", marginTop: 0 }}>Juntá 2 o más productos y dales una oferta: % OFF, cuotas sin interés o las dos. Se aplica sola cuando la clienta lleva todos los productos del combo (en el local y, si querés, en la tienda online).</div>
+        {combos.map((cb, ci) => { const ed = editCombo === cb.id, lista = listaCombo(cb), costo = costoCombo(cb), cs = cuentasCombo(cb), col = COLORES[(ci + 3) % COLORES.length];
+          const q = buscaCombo.trim().toLowerCase();
+          const sugeridos = q.length >= 2 ? (rot.productos || []).filter(x => !(cb.items || []).some(it => it.id === x.id) && (x.nombre + " " + (x.marca || "")).toLowerCase().includes(q)).slice(0, 8) : [];
+          return (
+          <div key={cb.id} className="card" style={{ borderTop: "4px solid " + col, padding: 12 }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 900, color: col }}>🎁 {nombreCombo(cb)}{cb.local && cb.local !== "0" ? <span style={{ fontWeight: 600, fontSize: 12, color: p.textMuted }}> · solo {nombreLocal(cb.local)}</span> : null}</div>
+                <div style={{ fontSize: 13, marginTop: 2 }}>{(cb.items || []).length ? cb.items.map(it => (it.cant > 1 ? it.cant + "× " : "") + ((prodDe(it.id) || {}).nombre || "Producto")).join(" + ") : <span style={{ color: p.textMuted }}>Todavía sin productos</span>}</div>
+                {lista > 0 && <div style={{ fontSize: 12, color: p.textMuted }}>Precio de lista {$(lista)}{costo !== null ? " · costo " + $(costo) : " · falta el costo de algún producto"}</div>}
+              </div>
+              <button className="chip-btn" onClick={() => { setEditCombo(ed ? null : cb.id); setBuscaCombo(""); }}>{ed ? "Listo" : "✏️ Editar"}</button>
+            </div>
+            {ed && <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
+              <div><div className="fl">Nombre del combo</div><input className="inp" maxLength={50} placeholder="Ej: Dúo limpieza + sérum" value={cb.nombre} onChange={e => setCombo(cb.id, { nombre: e.target.value })} /></div>
+              <div>
+                <div className="fl">Productos del combo</div>
+                {(cb.items || []).map(it => { const pr = prodDe(it.id) || {}; return (
+                  <div key={it.id} className="liq-medio" style={{ borderColor: p.border, marginBottom: 6 }}>
+                    <span style={{ flex: 1, minWidth: 120, fontWeight: 700 }}>{pr.nombre || "Producto"}<span style={{ fontWeight: 500, fontSize: 12, color: p.textMuted }}> · {$(pr.precio)}{pr.stock !== undefined ? " · " + pr.stock + " en stock" : ""}</span></span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <button className="icon-btn" aria-label="Uno menos" onClick={() => setCombo(cb.id, { items: cb.items.map(x => x.id === it.id ? { ...x, cant: Math.max(1, (x.cant || 1) - 1) } : x) })}>−</button>
+                      <b style={{ minWidth: 18, textAlign: "center" }}>{it.cant || 1}</b>
+                      <button className="icon-btn" aria-label="Uno más" onClick={() => setCombo(cb.id, { items: cb.items.map(x => x.id === it.id ? { ...x, cant: Math.min(10, (x.cant || 1) + 1) } : x) })}>+</button>
+                      <button className="icon-btn" aria-label="Sacar del combo" onClick={() => setCombo(cb.id, { items: cb.items.filter(x => x.id !== it.id) })}>🗑️</button>
+                    </span>
+                  </div>); })}
+                {(cb.items || []).length < 6 && <input className="inp" placeholder="Buscá un producto para sumarlo…" value={buscaCombo} onChange={e => setBuscaCombo(e.target.value)} />}
+                {sugeridos.length > 0 && <div style={{ border: "1px solid " + p.border, borderRadius: 10, marginTop: 4, overflow: "hidden" }}>{sugeridos.map(x => (
+                  <button key={x.id} className="liq-sug" onClick={() => { setCombo(cb.id, { items: [...(cb.items || []), { id: x.id, cant: 1 }] }); setBuscaCombo(""); }}>
+                    <span>{x.nombre}{x.marca ? <small> · {x.marca}</small> : null}</span><b>{$(x.precio)}</b>
+                  </button>))}</div>}
+                {unidadesCombo(cb) < 2 && <div className="liq-ayuda" style={{ color: p.warn, opacity: 1 }}>Un combo necesita al menos 2 productos (o 2 del mismo).</div>}
+              </div>
+              <div><div className="fl">Formas de pagar el combo</div><EditorOpcionesLiq p={p} opciones={cb.opciones || []} onChange={ops => setCombo(cb.id, { opciones: ops })} /></div>
+              {LOCS.length > 0 && <div><div className="fl">¿En qué local?</div><div className="liq-si-no chico">{[["0", "Todos"], ...LOCS.map(l => [String(l), nombreLocal(l)])].map(([k, t]) => <button key={k} className={(cb.local || "0") === k ? "on" : ""} onClick={() => setCombo(cb.id, { local: k })}>{t}</button>)}</div></div>}
+              <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13.5 }}><input type="checkbox" checked={cb.tienda !== false} disabled={cb.local && cb.local !== "0"} onChange={e => setCombo(cb.id, { tienda: e.target.checked })} /> También en la tienda online{cb.local && cb.local !== "0" ? " (solo si es para todos los locales)" : lista > 0 && pctOnline(cb) > 0 ? ": a " + $(lista * (1 - pctOnline(cb) / 100)) + " (" + pctOnline(cb) + "% OFF, con cualquier forma de pago)" : ""}</label>
+              <div><button className="chip-btn" style={{ color: p.red }} onClick={() => { if (confirm("¿Borrar el combo " + nombreCombo(cb) + "?")) { setCombos(l => l.filter(x => x.id !== cb.id)); setEditCombo(null); } }}>Borrar combo</button></div>
+            </div>}
+            {lista > 0 && cs.length > 0 && <div className="liq-ops">{cs.map((c, i) => (
+              <div key={i} className="liq-op" style={{ borderColor: c.ok === false ? p.red : p.border }}>
+                <div className="liq-op-t">{textoOpcionLiq(c.o)}</div>
+                <div className="liq-op-p">{c.o.tipo === "cuotas" ? c.o.cuotas + " x " + $(c.precio / c.o.cuotas) : $(c.precio)}</div>
+                <div className="liq-op-s" style={{ fontWeight: 700, color: c.ok === false ? p.red : c.gan === null ? p.warn : p.green }}>{c.gan === null ? (costo === null ? "Falta el costo de algún producto" : "Falta el costo de las cuotas") : c.ok === false ? (c.gan < 0 ? "⚠️ Perdés " + $(-c.gan) : "⚠️ Ganás solo " + $(c.gan)) : "Ganás " + $(c.gan)} por combo</div>
+              </div>))}</div>}
+          </div>); })}
+        <button className="btn btn-p" onClick={nuevoCombo}>+ Armar un combo</button>
+      </>}
+
       {sec === "rutina" && <RutinaCuotasConfig temaPal={p} medios={activos} desde={cfg.desde} hasta={cfg.hasta} />}
 
       {sec === "evento" && <div className="card">
@@ -24287,9 +24400,11 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
 
       {sec === "crear" && <div className="card">
         <div className="ct">✅ Crear las ofertas</div>
-        {!finales.length ? <div style={{ color: p.textMuted }}>Todavía no elegiste la oferta de ningún producto (en "Productos").</div> : <>
+        {!finales.length && !combosListos.length ? <div style={{ color: p.textMuted }}>Todavía no elegiste la oferta de ningún producto (en "Productos").</div> : <>
           {ofertas.filter(of => finales.some(f => f.of === of.id)).map(of => <div key={of.id} style={{ fontSize: 13.5, marginBottom: 8 }}><b style={{ color: colorOf(of) }}>{nombreOf(of)}</b>: {textoOf(of)}
             <div style={{ fontSize: 12.5, color: p.textMuted }}>{[null, ...LOCS].map(l => { const n = finales.filter(f => f.of === of.id && f.local === l).length; return n ? n + " " + (n === 1 ? "producto" : "productos") + " en " + (l ? "solo " + nombreLocal(l) : "todos los locales") : null; }).filter(Boolean).join(" · ")}</div></div>)}
+          {combosListos.map(cb => <div key={cb.id} style={{ fontSize: 13.5, marginBottom: 8 }}><b>🎁 Combo {nombreCombo(cb)}</b>: {cb.opciones.map(textoOpcionLiq).join(" o ")}
+            <div style={{ fontSize: 12.5, color: p.textMuted }}>{cb.items.map(it => (it.cant > 1 ? it.cant + "× " : "") + ((prodDe(it.id) || {}).nombre || "Producto")).join(" + ")} · {cb.local && cb.local !== "0" ? "solo " + nombreLocal(cb.local) : "todos los locales"}{cb.tienda !== false && (!cb.local || cb.local === "0") ? " · también online" : ""}</div></div>)}
           {conPerdida.length > 0 && <div className="cli-tip" style={{ margin: "8px 0", borderColor: p.red }}>⚠️ {conPerdida.length} {conPerdida.length === 1 ? "producto tiene" : "productos tienen"} alguna forma de pago que te hace perder o ganar menos que el mínimo. Revisalos en "Productos" (están en rojo).</div>}
           <label style={{ display: "flex", gap: 8, alignItems: "center", margin: "10px 0 6px", fontSize: 13.5 }}><input type="checkbox" checked={cfg.en_tienda} onChange={e => setCfg(c => ({ ...c, en_tienda: e.target.checked }))} /> También en la tienda online</label>
           {cfg.en_tienda && <label style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6, fontSize: 13.5 }}><input type="checkbox" checked={cfg.sector} onChange={e => setCfg(c => ({ ...c, sector: e.target.checked }))} /> Armar el sector "⚡ {cfg.nombre}" en el menú de la tienda (se ve solo esos días)</label>}
@@ -24396,7 +24511,7 @@ function Promociones({ paletaActual }) {
     try { await API.delete("/promociones/" + p.id); setMensaje("Promo eliminada"); cargar(); setTimeout(() => setMensaje(""), 3000); } catch (e) {}
   };
 
-  const tipoLabel = { descuento: "Descuento % / $", nxm: "NxM (2x1, 3x2...)", cross: "Cross-selling", monto: "Por monto" };
+  const tipoLabel = { descuento: "Descuento % / $", nxm: "NxM (2x1, 3x2...)", cross: "Cross-selling", monto: "Por monto", combo: "Combo" };
   const nombreProd = (id) => productos.find(p => p.id === parseInt(id))?.nombre || "-";
 
   const toggleCat = (cat) => setForm(f => ({ ...f, categorias: f.categorias.includes(cat) ? f.categorias.filter(x => x !== cat) : [...f.categorias, cat] }));
@@ -31625,7 +31740,7 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
     setGuardando(true);
     try {
       const body = { dia: { activo: !!dia.activo, producto_id: dia.producto_id || null, precio: parseInt(dia.precio) || 0, hasta: dia.hastaLocal ? new Date(dia.hastaLocal).toISOString() : null, titulo: dia.titulo || "" },
-        combos: combos.map(c => ({ id: c.id, nombre: c.nombre, productos: c.productos, cantidades: c.cantidades || {}, kit_id: c.kit_id || null, precio: parseInt(c.precio) || 0, activo: c.activo !== false })) };
+        combos: combos.map(c => ({ id: c.id, nombre: c.nombre, productos: c.productos, cantidades: c.cantidades || {}, kit_id: c.kit_id || null, precio: parseInt(c.precio) || 0, activo: c.activo !== false, desde: c.desde || null, hasta: c.hasta || null })) };
       const r = await API.put("/tienda/ofertas", body);
       setDia({ ...r.data.ofertas.dia, hastaLocal: aLocal(r.data.ofertas.dia.hasta) }); setCombos(r.data.ofertas.combos); setDiaGuardado(firmaDia(r.data.ofertas.dia));
       avisar(true, "✓ Ofertas guardadas"); onGuardado && onGuardado();
