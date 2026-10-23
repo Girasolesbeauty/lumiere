@@ -27330,9 +27330,10 @@ const TW_RUT_CUANDO = { desmaquillante: "noche", limpiador: "mañana y noche", t
 const TW_PASOS_FACIALES = ["limpiador", "desmaquillante", "tonico", "serum", "hidratante", "solar", "ojos", "mascarilla", "exfoliante"];
 const twEsKit = (p) => /\b(kits?|sets?|packs?|combos?|d[uú]o|tr[ií]o|box)\b/i.test(twNorm([p.nombre, p.categoria].join(" "))) || ((p._et || twEtiquetas(p)).tipo || []).filter(t => TW_PASOS_FACIALES.includes(t)).length >= 3;
 function twArmarRutina(productos, dispo, { piel, nec, pasos, presupuesto, coreano }) {
-  // Solo productos de la categoria Facial (asi no entran, por ejemplo, ampollas para el pelo como "serum").
-  // Si la tienda no tiene esa categoria, se usan todos.
-  const faciales = productos.filter(p => /facial|rostro/i.test(p.categoria || ""));
+  // Solo lo facial (asi no entran, por ejemplo, ampollas para el pelo como "serum"): la categoria Facial o la linea
+  // "Facial / skincare" de la segmentacion (ej. un cushion con protector, de la categoria Maquillaje, marcado facial).
+  // Si la tienda no tiene nada de eso, se usan todos.
+  const faciales = productos.filter(p => /facial|rostro/i.test(p.categoria || "") || ((p._et || twEtiquetas(p)).linea || []).includes("facial"));
   const base = faciales.length ? faciales : productos;
   // Skincare coreano: solo los productos del proveedor de coreano (BEK)
   const conStock = base.filter(p => !twEsKit(p) && (!coreano || p.coreano) && (p.variantes ? p.variantes.some(v => dispo(p, v) > 0) : dispo(p) > 0));
