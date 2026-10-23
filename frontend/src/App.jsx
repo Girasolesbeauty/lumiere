@@ -294,6 +294,8 @@ ${p.textHalo ? `.main { text-shadow: ${p.textHalo}; } .main .btn, .main .tab.on,
 .fg { margin-bottom: 12px; }
 .fl { font-size: 11px; color: ${p.textMuted}; font-weight: 600; margin-bottom: 6px; }
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; border-bottom: none; }
+/* Tienda online en el celular: las pestañas en una sola fila que se desliza (antes ocupaban 4 renglones) */
+@media (max-width: 760px) { .to-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-left: -4px; margin-right: -4px; padding: 2px 4px 4px; } .to-tabs::-webkit-scrollbar { display: none; } .to-tabs .tab { flex-shrink: 0; } }
 .tab { padding: 6px 16px; font-size: 12px; font-weight: 600; color: ${p.textMuted}; cursor: pointer; border: 1px solid ${p.border}; border-radius: 8px; background: ${p.card}; margin-bottom: 0; transition: all .15s; }
 .tab.on { color: #fff; border-color: ${p.tabOn}; background: ${p.tabOn}; font-weight: 700; }
 .tab:hover { color: ${p.text}; border-color: ${p.tabOn}; }
@@ -30957,7 +30959,10 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const [filtros, setFiltros] = useState({ marca: "", proveedor: "", categoria: "", foto: "", desc: "", seg: "" });
   const [segmentar, setSegmentar] = useState(null); // productos a segmentar (uno o varios)
   const [completaVer, setCompletaVer] = useState(null); // "Completá tu tienda": que tarjeta muestra el detalle
-  const [secP, elegirSecP] = useSeccion("productos", "lista"); // pestaña Productos: lista / completá / etiquetas QR
+  const [secP, elegirSecP] = useSeccion("productos", "lista");
+  const [panelProd, setPanelProd] = useState(null); // lista de productos: "filtros" | "acciones" desplegado
+  // En el celular las pestañas se deslizan: la elegida queda a la vista
+  useEffect(() => { const el = document.querySelector(".to-tabs .tab.on"), c = el && el.parentElement; if (c && c.scrollWidth > c.clientWidth) c.scrollLeft = el.offsetLeft - (c.clientWidth - el.clientWidth) / 2; }, [tab]); // pestaña Productos: lista / completá / etiquetas QR
   const [qrProd, setQrProd] = useState(null); // { p, qr } QR de un producto (para la etiqueta del local)
   const [cambio, setCambio] = useState(null); // { p, it, q, prod, vars, variante, cant }: cambiar un producto de un pedido
   // Notas del local en un pedido (la clienta no las ve): { id del pedido, texto }
@@ -31295,7 +31300,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
           </button>
         ))}
       </div>}
-      <div className="tabs" style={{ marginBottom: 12 }}>
+      <div className="tabs to-tabs" style={{ marginBottom: 12 }}>
         {[["pedidos", "📦 Pedidos" + (abiertos.length ? " (" + abiertos.length + ")" : "")], ["productos", "🛍 Productos"], ...(esDuenaT ? [["portada", "🏠 Portada y sectores"]] : []), ["clientas", "👥 Clientas web"], ["resenas", "⭐ Reseñas" + (resPend ? " (" + resPend + ")" : "")], ...(esDuenaT ? [["ofertas", "⚡ Ofertas y combos"], ["rutinas", "💁 Rutinas del local"], ["regalos", "🎁 Regalos"], ["config", "⚙️ Configuración"]] : [])].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
       </div>
 
@@ -31633,45 +31638,61 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             <input className="inp" style={{ width: "100%", fontSize: 15, padding: "11px 38px 11px 14px" }} placeholder="🔍 Buscar por nombre, marca, categoría, proveedor o código…" value={busca} onChange={e => setBusca(e.target.value)} aria-label="Buscar producto" />
             {busca && <button onClick={() => setBusca("")} aria-label="Borrar búsqueda" style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", border: "none", background: "transparent", fontSize: 16, cursor: "pointer", color: temaPal.textMuted }}>✕</button>}
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
+          {/* Filtros y acciones en dos desplegables (antes era una pared de selectores y botones) */}
+          {(() => {
+            const nFiltros = ["marca", "proveedor", "categoria", "foto", "desc", "seg"].filter(k => filtros[k]).length + (ordenProd ? 1 : 0);
+            const rapido = (on, txt, fn) => <button className={"chip-btn" + (on ? " on" : "")} onClick={fn}>{on ? "✓ " : ""}{txt}</button>;
+            const accion = (ic, t, sub, fn, opts = {}) => <button className={"btn " + (opts.p ? "btn-p" : "btn-g")} disabled={opts.off} onClick={() => { setPanelProd(null); fn(); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", justifyContent: "flex-start", padding: "10px 12px" }}>
+              <span style={{ fontSize: 18 }}>{ic}</span><span style={{ minWidth: 0 }}><b style={{ display: "block", fontSize: 13.5 }}>{t}</b>{sub && <span style={{ display: "block", fontSize: 11.5, opacity: .75, fontWeight: 500 }}>{sub}</span>}</span></button>;
+            const cuales = hayFiltros ? "los " + prodFiltro.length + " que se ven" : "todos";
+            return <>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 8 }}>
+                <button className={"btn btn-sm " + (panelProd === "filtros" ? "btn-p" : "btn-g")} onClick={() => setPanelProd(x => x === "filtros" ? null : "filtros")}>⚙️ Filtros{nFiltros ? " (" + nFiltros + ")" : ""} {panelProd === "filtros" ? "▴" : "▾"}</button>
+                {esJefeT && <button className={"btn btn-sm " + (panelProd === "acciones" ? "btn-p" : "btn-g")} onClick={() => setPanelProd(x => x === "acciones" ? null : "acciones")}>⚡ Acciones {panelProd === "acciones" ? "▴" : "▾"}</button>}
+                <span style={{ fontSize: 12.5, color: temaPal.textMuted, marginLeft: "auto" }}><b style={{ color: temaPal.text }}>{prodFiltro.length}</b> {prodFiltro.length === 1 ? "producto" : "productos"}</span>
+              </div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+                {rapido(soloPub, "Solo publicados", () => setSoloPub(v => !v))}
+                {rapido(filtros.foto === "sin", "Sin foto", () => setFiltros(f => ({ ...f, foto: f.foto === "sin" ? "" : "sin" })))}
+                {rapido(filtros.desc === "sin", "Sin descripción", () => setFiltros(f => ({ ...f, desc: f.desc === "sin" ? "" : "sin" })))}
+                {hayFiltros && <button className="chip-btn" onClick={() => { setFiltros({ marca: "", proveedor: "", categoria: "", foto: "", desc: "", seg: "" }); setBusca(""); setSoloPub(false); setOrdenProd(""); }}>✕ Limpiar</button>}
+              </div>
+              {panelProd === "filtros" && <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 8, marginBottom: 12, padding: 10, borderRadius: 12, border: "1px solid " + temaPal.border, background: temaPal.bg }}>
             {[["marca", "Marca", "Todas las marcas"], ["proveedor", "Proveedor", "Todos los proveedores"], ["categoria", "Categoría", "Todas las categorías"]].map(([k, t, todas]) => (
-              <select key={k} className="sel" aria-label={"Filtrar por " + t.toLowerCase()} style={{ flex: "1 1 160px", maxWidth: 240, fontWeight: filtros[k] ? 700 : 400 }} value={filtros[k]} onChange={e => setFiltros(f => ({ ...f, [k]: e.target.value }))}>
+              <select key={k} className="sel" aria-label={"Filtrar por " + t.toLowerCase()} style={{ fontWeight: filtros[k] ? 700 : 400 }} value={filtros[k]} onChange={e => setFiltros(f => ({ ...f, [k]: e.target.value }))}>
                 <option value="">{todas}</option>
                 {opciones(k).map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             ))}
-            <select className="sel" aria-label="Filtrar por foto" style={{ flex: "0 1 150px", fontWeight: filtros.foto ? 700 : 400 }} value={filtros.foto} onChange={e => setFiltros(f => ({ ...f, foto: e.target.value }))}>
+            <select className="sel" aria-label="Filtrar por foto" style={{ fontWeight: filtros.foto ? 700 : 400 }} value={filtros.foto} onChange={e => setFiltros(f => ({ ...f, foto: e.target.value }))}>
               <option value="">Con y sin foto</option><option value="sin">Sin foto</option><option value="con">Con foto</option>
             </select>
-            <select className="sel" aria-label="Filtrar por descripción" style={{ flex: "0 1 190px", fontWeight: filtros.desc ? 700 : 400 }} value={filtros.desc} onChange={e => setFiltros(f => ({ ...f, desc: e.target.value }))}>
+            <select className="sel" aria-label="Filtrar por descripción" style={{ fontWeight: filtros.desc ? 700 : 400 }} value={filtros.desc} onChange={e => setFiltros(f => ({ ...f, desc: e.target.value }))}>
               <option value="">Con y sin descripción</option><option value="sin">📝 Sin descripción</option><option value="con">Con descripción</option>
             </select>
-            <select className="sel" aria-label="Filtrar por segmento" style={{ flex: "1 1 170px", maxWidth: 240, fontWeight: filtros.seg ? 700 : 400 }} value={filtros.seg} onChange={e => setFiltros(f => ({ ...f, seg: e.target.value }))}>
+            <select className="sel" aria-label="Filtrar por segmento" style={{ fontWeight: filtros.seg ? 700 : 400 }} value={filtros.seg} onChange={e => setFiltros(f => ({ ...f, seg: e.target.value }))}>
               <option value="">Todos los segmentos</option>
               {TW_FILTROS.map(f => <optgroup key={f.k} label={f.titulo}>
                 <option value={f.k + ":-"}>Sin {f.titulo.toLowerCase()}</option>
                 {twOpcionesGrupo(f.k).map(o => <option key={o[0]} value={f.k + ":" + o[0]}>{o[1]}</option>)}
               </optgroup>)}
             </select>
-            <select className="sel" aria-label="Ordenar productos" style={{ flex: "0 1 190px", fontWeight: ordenProd ? 700 : 400 }} value={ordenProd} onChange={e => setOrdenProd(e.target.value)}>
+            <select className="sel" aria-label="Ordenar productos" style={{ fontWeight: ordenProd ? 700 : 400 }} value={ordenProd} onChange={e => setOrdenProd(e.target.value)}>
               <option value="">Orden: publicados primero</option><option value="nuevos">🆕 Más nuevos primero</option><option value="viejos">Más viejos primero</option><option value="az">A – Z</option><option value="precio">Mayor precio</option>
             </select>
-            <button className={"chip-btn" + (soloPub ? " on" : "")} onClick={() => setSoloPub(v => !v)}>Solo publicados</button>
-            {hayFiltros && <button className="chip-btn" onClick={() => { setFiltros({ marca: "", proveedor: "", categoria: "", foto: "", desc: "", seg: "" }); setBusca(""); setSoloPub(false); }}>✕ Limpiar filtros</button>}
-            <span style={{ fontSize: 12, color: temaPal.textMuted }}>{prodFiltro.length} {prodFiltro.length === 1 ? "producto" : "productos"}</span>
-            {esJefeT && <button className="btn btn-g btn-sm" onClick={publicarConFoto} title="Publica de una vez los que tienen foto, precio y stock">📸 Publicar los que tienen foto</button>}
-          </div>
-          {esJefeT && prodFiltro.length > 0 && (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
-              <button className="btn btn-p btn-sm" disabled={prodFiltro.every(p => p.publicado)} onClick={() => publicarVarios(prodFiltro.filter(p => !p.publicado), true)}>☑ Publicar {hayFiltros ? "los que se ven" : "todos"} ({prodFiltro.filter(p => !p.publicado).length})</button>
-              <button className="btn btn-g btn-sm" disabled={!prodFiltro.some(p => p.publicado)} onClick={() => publicarVarios(prodFiltro.filter(p => p.publicado), false)}>☐ Sacar {hayFiltros ? "los que se ven" : "todos"} ({prodFiltro.filter(p => p.publicado).length})</button>
-              <button className="btn btn-g btn-sm" onClick={() => setSegmentar(prodFiltro)} title="Sumar o sacar un tipo de producto, tipo de piel o necesidad a todos los que se ven">🏷 Segmentar {hayFiltros ? "los que se ven" : "todos"} ({prodFiltro.length})</button>
-              <button className="btn btn-g btn-sm" onClick={() => setImportando(true)} title="Desde el archivo de productos de Tiendanube u otra tienda">📥 Traer descripciones de mi tienda anterior</button>
-              {prodFiltro.some(p => !p.foto) && <button className="btn btn-g btn-sm" onClick={() => setBuscaFoto({ cola: prodFiltro.filter(p => !p.foto), i: 0 })}>🔍 Buscar fotos para los que no tienen ({prodFiltro.filter(p => !p.foto).length})</button>}
-              {prodFiltro.length > prodVis.length && <span style={{ fontSize: 11.5, color: temaPal.textMuted }}>Se muestran {prodVis.length} de {prodFiltro.length} (abajo está "Ver más"); los botones toman todos.</span>}
-            </div>
-          )}
-          <div id="tw-admin-lista" style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 8, scrollMarginTop: 12 }}>Tocá el interruptor para publicar o sacar un producto. El precio y el stock son los de Lumiere. La foto es la del producto (se carga en Productos → editar). Marcá ⭐ los que quieras en el banner grande y sumá 🎬 videos para que se luzcan.</div>
+              </div>}
+              {panelProd === "acciones" && esJefeT && <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12, padding: 10, borderRadius: 12, border: "1px solid " + temaPal.border, background: temaPal.bg }}>
+                <div style={{ fontSize: 12, color: temaPal.textMuted }}>Se aplican a {cuales}{prodFiltro.length > prodVis.length ? " (aunque en la lista se muestren de a " + prodVis.length + ")" : ""}. Para elegir cuáles, usá el buscador o los filtros.</div>
+                {accion("☑", "Publicar " + cuales + " (" + prodFiltro.filter(p => !p.publicado).length + ")", "Los que todavía no están en la tienda", () => publicarVarios(prodFiltro.filter(p => !p.publicado), true), { p: true, off: prodFiltro.every(p => p.publicado) })}
+                {accion("📸", "Publicar los que tienen foto", "Todos los que tienen foto, precio y stock", publicarConFoto)}
+                {accion("☐", "Sacar " + cuales + " de la tienda (" + prodFiltro.filter(p => p.publicado).length + ")", null, () => publicarVarios(prodFiltro.filter(p => p.publicado), false), { off: !prodFiltro.some(p => p.publicado) })}
+                {accion("🏷", "Segmentar " + cuales + " (" + prodFiltro.length + ")", "Sumar o sacar línea, tipo, tipo de piel…", () => setSegmentar(prodFiltro), { off: !prodFiltro.length })}
+                {prodFiltro.some(p => !p.foto) && accion("🔍", "Buscar fotos para los que no tienen (" + prodFiltro.filter(p => !p.foto).length + ")", "Te propone fotos de a uno", () => setBuscaFoto({ cola: prodFiltro.filter(p => !p.foto), i: 0 }))}
+                {accion("📥", "Traer descripciones de mi tienda anterior", "Desde el archivo de Tiendanube u otra tienda", () => setImportando(true))}
+              </div>}
+            </>;
+          })()}
+          <div id="tw-admin-lista" style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 8, scrollMarginTop: 12 }}>Tildá un producto para publicarlo o sacarlo. Precio y stock son los de Lumiere.</div>
           {prodVis.map(p => (
             <div key={p.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 0", borderTop: "1px solid " + temaPal.border, flexWrap: "wrap" }}>
               <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", flex: "1 1 240px", minWidth: 0 }}>
