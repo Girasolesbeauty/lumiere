@@ -30177,7 +30177,8 @@ function ClientasWeb({ temaPal, avisar, urlTienda, nombreTienda, esJefe, esDuena
       : conv >= 0.5 && f.n >= 2 ? ["✅", "Se guarda y se compra: buen candidato a destacado", temaPal.green] : null;
     return { ...f, stock, conv, consejo };
   });
-  const porCat = {}; favs.forEach(f => { const c = f.categoria || "Sin categoría"; porCat[c] = (porCat[c] || 0) + f.n; });
+  // Por categoria, sin distinguir mayusculas ("Facial" y "FACIAL" son la misma)
+  const porCat = {}; favs.forEach(f => { const c0 = String(f.categoria || "Sin categoría").trim(), c = c0.charAt(0).toUpperCase() + c0.slice(1).toLowerCase(); porCat[c] = (porCat[c] || 0) + f.n; });
   const cats = Object.entries(porCat).sort((a, b) => b[1] - a[1]).slice(0, 6), maxCat = cats.length ? cats[0][1] : 1;
   // Secciones (una a la vez, como en Pedidos): por defecto, los avisos si hay alguno para mandar
   const paraAvisar = grupos.filter(([, g]) => g.rg + g.ush > 0).reduce((t, [, g]) => t + g.lista.length, 0);
@@ -30211,20 +30212,24 @@ function ClientasWeb({ temaPal, avisar, urlTienda, nombreTienda, esJefe, esDuena
             <div className="fl">Por categoría</div>
             {cats.map(([c, n]) => <div key={c} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, margin: "3px 0" }}><span style={{ width: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c}</span><div style={{ flex: 1, height: 10, background: temaPal.border, borderRadius: 5, overflow: "hidden" }}><div style={{ width: (n / maxCat * 100) + "%", height: "100%", background: "#e0245e", borderRadius: 5 }} /></div><b style={{ width: 28, textAlign: "right" }}>{n}</b></div>)}
           </div>}
-          <div style={{ overflowX: "auto" }}>
-            <table className="cli-tabla" style={{ width: "100%", fontSize: 13 }}>
-              <thead><tr><th style={{ textAlign: "left" }}>Producto</th><th>♥</th><th>7 días</th><th>Compraron</th><th>Stock</th><th style={{ textAlign: "left" }}>Qué hacer</th></tr></thead>
-              <tbody>{favsVis.map(f => (
-                <tr key={f.producto_id}>
-                  <td><b>{f.nombre}</b><div style={{ fontSize: 11, color: temaPal.textMuted }}>{f.categoria || ""}</div></td>
-                  <td style={{ textAlign: "center", fontWeight: 800 }}>{f.n}</td>
-                  <td style={{ textAlign: "center", color: f.n7 ? temaPal.green : temaPal.textMuted }}>{f.n7 ? "+" + f.n7 : "—"}</td>
-                  <td style={{ textAlign: "center" }}>{f.compraron} <span style={{ color: temaPal.textMuted, fontSize: 11 }}>({Math.round(f.conv * 100)}%)</span></td>
-                  <td style={{ textAlign: "center", color: f.stock > 0 ? undefined : temaPal.red, fontWeight: f.stock > 0 ? 400 : 800 }}>{f.stock > 0 ? f.stock : "0"}</td>
-                  <td style={{ fontSize: 12 }}>{f.consejo ? <span style={{ color: f.consejo[2] }}>{f.consejo[0]} {f.consejo[1]}</span> : <span style={{ color: temaPal.textMuted }}>—</span>}</td>
-                </tr>
-              ))}</tbody>
-            </table>
+          {/* Una fila por producto: corazones a la izquierda, nombre, y en chico lo de la semana, cuantas lo compraron y el stock */}
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {favsVis.map(f => (
+              <div key={f.producto_id} style={{ display: "flex", gap: 12, alignItems: "center", padding: "9px 0", borderTop: "1px solid " + temaPal.border }}>
+                <div style={{ width: 46, flexShrink: 0, textAlign: "center", borderRadius: 10, padding: "5px 0", background: "#e74c3c14" }}>
+                  <div style={{ fontSize: 17, fontWeight: 900, color: "#c0392b", lineHeight: 1.1 }}>{f.n}</div><div style={{ fontSize: 10.5, color: "#c0392b" }}>♥</div>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <b style={{ display: "block", fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.nombre}</b>
+                  <div style={{ fontSize: 11.5, color: temaPal.textMuted, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {f.n7 > 0 && <span style={{ color: temaPal.green, fontWeight: 700 }}>+{f.n7} esta semana</span>}
+                    <span>{f.compraron ? f.compraron + " lo " + (f.compraron === 1 ? "compró" : "compraron") + " (" + Math.round(f.conv * 100) + "%)" : "nadie lo compró todavía"}</span>
+                    <span style={f.stock > 0 ? undefined : { color: temaPal.red, fontWeight: 800 }}>{f.stock > 0 ? "stock " + f.stock : "sin stock"}</span>
+                  </div>
+                  {f.consejo && <div style={{ fontSize: 11.5, marginTop: 2, color: f.consejo[2] }}>{f.consejo[0]} {f.consejo[1]}</div>}
+                </div>
+              </div>
+            ))}
           </div>
           {favs.length > 15 && <button className="btn btn-g btn-sm" style={{ marginTop: 8 }} onClick={() => setTodosFav(v => !v)}>{todosFav ? "Ver menos" : "Ver los " + favs.length + " productos"}</button>}
         </>}
