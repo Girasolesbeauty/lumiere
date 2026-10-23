@@ -30662,7 +30662,11 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
           <input className="inp" type="datetime-local" style={{ width: 210 }} value={dia.hastaLocal || ""} disabled={!esJefe} onChange={e => setDia(x => ({ ...x, hastaLocal: e.target.value }))} />
         </div>
         <div className="fg" style={{ marginTop: 10 }}><div className="fl">Título (opcional)</div><input className="inp" placeholder="Oferta del día" maxLength={60} value={dia.titulo || ""} disabled={!esJefe} onChange={e => setDia(x => ({ ...x, titulo: e.target.value }))} /></div>
-        <div style={{ marginTop: 10, fontSize: 13, fontWeight: 700, color: avisoDia ? temaPal.warn : temaPal.green }}>{avisoDia ? "● " + avisoDia : "● Activa · termina en " + (t.d * 24 + t.h) + " h " + t.m + " min"}</div>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", marginTop: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: avisoDia ? temaPal.warn : temaPal.green }}>{avisoDia ? "● " + avisoDia : "● Activa · termina en " + (t.d * 24 + t.h) + " h " + t.m + " min"}</div>
+          {/* Guardar aca mismo (antes el boton estaba abajo de todos los combos y no se encontraba) */}
+          {esJefe && <button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar oferta"}</button>}
+        </div>
       </div>
 
       <div className="card">
