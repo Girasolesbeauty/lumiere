@@ -56,6 +56,34 @@ router.put('/rutina-cuotas', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
 });
 
+// Plan de Cyber Monday (ofertas armadas, producto -> oferta, comisiones, fechas): uno solo por negocio, compartido
+// por todas las que entran al sector (antes quedaba en el navegador de cada una)
+async function asegurarPlan() {
+  await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS plan_liquidacion JSONB');
+  await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS plan_liquidacion_por TEXT');
+  await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS plan_liquidacion_en TIMESTAMP');
+}
+router.get('/plan-liquidacion', async (req, res) => {
+  try {
+    await asegurarPlan();
+    const r = (await pool.query('SELECT plan_liquidacion, plan_liquidacion_por, plan_liquidacion_en FROM configuracion_negocio LIMIT 1')).rows[0] || {};
+    res.json({ plan: r.plan_liquidacion || null, por: r.plan_liquidacion_por || null, en: r.plan_liquidacion_en || null });
+  } catch (e) { res.status(500).json({ error: 'No se pudo leer el plan' }); }
+});
+router.put('/plan-liquidacion', async (req, res) => {
+  try {
+    const plan = (req.body || {}).plan;
+    if (!plan || typeof plan !== 'object' || Array.isArray(plan)) return res.status(400).json({ error: 'Plan inválido' });
+    const txt = JSON.stringify(plan);
+    if (txt.length > 800000) return res.status(400).json({ error: 'El plan es demasiado grande' });
+    await asegurarPlan();
+    const u = req.usuario || {};
+    const por = u.nombre || (u.id ? ((await pool.query('SELECT nombre FROM usuarios WHERE id = $1', [u.id]).catch(() => ({ rows: [] }))).rows[0] || {}).nombre : null) || null;
+    const r = (await pool.query('UPDATE configuracion_negocio SET plan_liquidacion = $1, plan_liquidacion_por = $2, plan_liquidacion_en = NOW() RETURNING plan_liquidacion_por, plan_liquidacion_en', [txt, por])).rows[0] || {};
+    res.json({ ok: true, por: r.plan_liquidacion_por, en: r.plan_liquidacion_en });
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar el plan' }); }
+});
+
 // Listar promociones. ?activas=true&vigentes=true para el POS
 router.get('/', async (req, res) => {
   try {
