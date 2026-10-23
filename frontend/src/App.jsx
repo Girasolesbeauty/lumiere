@@ -3829,6 +3829,7 @@ function POS({ localId, usuario, paletaActual }) {
       // Filtro por medio de pago (si la promo lo exige)
       if (promo.medio_pago_tipo && promo.medio_pago_tipo !== medioPagoTipoActual) continue;
       if (promo.sin_medio_pago && promo.sin_medio_pago === medioPagoTipoActual) continue;
+      if (promo.local_id && Number(promo.local_id) !== Number(localId)) continue;
       let desc = 0;
 
       if (promo.tipo === "descuento") {
@@ -23971,7 +23972,11 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
   const [dias, setDias] = useState(guardado.dias || 90);
   const [cfg, setCfg] = useState(() => { const [d, h] = proximoCyber(); return { nombre: "Cyber Monday", desde: d, hasta: h, minimo: "10", otros: "0", en_tienda: true, sector: true, ...(guardado.cfg || {}) }; });
   const [ofertas, setOfertas] = useState(guardado.ofertas || LIQ_OFERTAS_INICIO);
-  const [asig, setAsig] = useState(guardado.asig || {}); // producto -> id de oferta
+  // Oferta de cada producto en cada local: "0|id" = todos los locales, "2|id" = solo ese local ("none" = sin oferta ahí)
+  const [asig, setAsig] = useState(() => Object.fromEntries(Object.entries(guardado.asig || {}).map(([k, v]) => [k.includes("|") ? k : "0|" + k, v])));
+  const LOCS = UN_SOLO_LOCAL ? [] : [1, 2];
+  const [local, setLocal] = useState(guardado.local && LOCS.includes(Number(guardado.local)) ? String(guardado.local) : "0");
+  const [estado, setEstado] = useState("todos");
   const [costoCuotas, setCostoCuotas] = useState(guardado.costoCuotas || {}); // cuotas -> %
   const [com, setCom] = useState(guardado.com || {});
   const [editOf, setEditOf] = useState(null);
@@ -23982,8 +23987,9 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
   const [creando, setCreando] = useState(false);
   const [aviso, setAviso] = useState("");
   // Lo que se arma queda guardado en este navegador (se puede seguir otro día)
-  useEffect(() => { try { localStorage.setItem(CLAVE, JSON.stringify({ cfg, ofertas, asig, costoCuotas, com, dias })); } catch (e) {} }, [cfg, ofertas, asig, costoCuotas, com, dias]);
-  useEffect(() => { setRot(null); API.get("/productos/rotacion?dias=" + dias).then(r => setRot(r.data)).catch(() => setRot({ productos: [], error: true })); }, [dias]);
+  useEffect(() => { try { localStorage.setItem(CLAVE, JSON.stringify({ cfg, ofertas, asig, costoCuotas, com, dias, local })); } catch (e) {} }, [cfg, ofertas, asig, costoCuotas, com, dias, local]);
+  // Ventas y stock del local elegido (o de todos): un producto puede venderse bien en un local y estar quieto en el otro
+  useEffect(() => { setRot(null); API.get("/productos/rotacion?dias=" + dias + (local !== "0" ? "&local_id=" + local : "")).then(r => setRot(r.data)).catch(() => setRot({ productos: [], error: true })); }, [dias, local]);
   const activos = (medios || []).filter(m => m.activo !== false);
   useEffect(() => { setCom(c => { const n = { ...c }; activos.forEach(m => { if (n[m.id] === undefined) n[m.id] = String(parseFloat(m.comision) || 0); }); return n; }); }, [medios]); // eslint-disable-line react-hooks/exhaustive-deps
   const tipoDe = (m) => { const n = String(m.nombre || "").toLowerCase(); return n.includes("efectivo") ? "efectivo" : n.includes("transfer") ? "transferencia" : /d[eé]bito/.test(n) ? "debito" : /cr[eé]dito|cuota/.test(n) ? "credito" : ["efectivo", "transferencia", "debito", "credito"].includes(String(m.tipo || "").toLowerCase()) ? String(m.tipo).toLowerCase() : "otros"; };
@@ -24002,45 +24008,66 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
   const cuentas = (x, of) => of.opciones.map(o => { const f = fOpcion(o), precio = x.precio * (1 - o.pct / 100); return { o, precio, gan: f === null ? null : precio * f - x.costo, ok: f === null ? null : precio * f >= x.costo * (1 + minimo / 100) }; });
   const hoyMs = Date.now();
   const todos = rot ? (rot.productos || []).filter(x => x.stock > 0) : [];
-  const lista = todos.filter(x => verTodos || x.estado === "parado" || x.estado === "lento" || asig[x.id]).map(x => ({ ...x, sinVender: x.ultima_venta ? Math.floor((hoyMs - new Date(x.ultima_venta).getTime()) / 864e5) : null, sinCosto: !(x.costo > 0) }));
-  const ofDe = (x) => ofertas.find(of => of.id === asig[x.id]) || null;
+  // La oferta que vale en la vista elegida: la propia del local o, si no tiene, la de todos los locales
+  const valorEn = (id, l) => { const v = asig[l + "|" + id]; return v !== undefined || l === "0" ? v : asig["0|" + id]; };
+  const propia = (id) => asig[local + "|" + id] !== undefined;
+  const ofIdDe = (id) => { const v = valorEn(id, local); return v && v !== "none" ? v : null; };
+  const lista = todos.filter(x => verTodos || x.estado === "parado" || x.estado === "lento" || ofIdDe(x.id)).map(x => ({ ...x, sinVender: x.ultima_venta ? Math.floor((hoyMs - new Date(x.ultima_venta).getTime()) / 864e5) : null, sinCosto: !(x.costo > 0) }));
+  const ofDe = (x) => ofertas.find(of => of.id === ofIdDe(x.id)) || null;
   const conOferta = lista.filter(ofDe);
   const conPerdida = conOferta.filter(x => !x.sinCosto && cuentas(x, ofDe(x)).some(c => c.ok === false));
   const tot = conOferta.reduce((t, x) => ({ u: t.u + x.stock, costo: t.costo + x.stock * (x.costo || 0) }), { u: 0, costo: 0 });
-  const asignar = (ids, ofId) => setAsig(a => { const n = { ...a }; ids.forEach(id => { if (ofId) n[id] = ofId; else delete n[id]; }); return n; });
+  // En "todos los locales" sin oferta borra; en un local, "sin oferta" queda marcado (para no heredar la de todos)
+  const asignar = (ids, ofId) => setAsig(a => { const n = { ...a }; ids.forEach(id => { const k = local + "|" + id; if (ofId) n[k] = ofId; else if (local === "0") delete n[k]; else if (a["0|" + id] && a["0|" + id] !== "none") n[k] = "none"; else delete n[k]; }); return n; });
   // Sugerencia: a los parados la oferta más fuerte que no hace perder; a los lentos, la más suave que no hace perder
   const sugerir = () => {
     const orden = [...ofertas].sort((a, b) => fuerza(b) - fuerza(a));
     const n = { ...asig };
-    lista.filter(x => !asig[x.id] && !x.sinCosto && (x.estado === "parado" || x.estado === "lento")).forEach(x => {
+    lista.filter(x => !ofIdDe(x.id) && !propia(x.id) && !x.sinCosto && (x.estado === "parado" || x.estado === "lento")).forEach(x => {
       const sirven = orden.filter(of => cuentas(x, of).every(c => c.ok !== false));
-      if (sirven.length) n[x.id] = (x.estado === "parado" ? sirven[0] : sirven[sirven.length - 1]).id;
+      if (sirven.length) n[local + "|" + x.id] = (x.estado === "parado" ? sirven[0] : sirven[sirven.length - 1]).id;
     });
     setAsig(n);
   };
   const q = busca.trim().toLowerCase();
-  const visibles = lista.filter(x => (filtro === "todos" || (filtro === "sin" ? !asig[x.id] : asig[x.id] === filtro)) && (!q || (x.nombre + " " + (x.marca || "")).toLowerCase().includes(q)));
+  const enEstado = (x) => estado === "todos" || (estado === "bien" ? !["parado", "lento"].includes(x.estado) : x.estado === estado);
+  const visibles = lista.filter(x => enEstado(x) && (filtro === "todos" || (filtro === "sin" ? !ofIdDe(x.id) : ofIdDe(x.id) === filtro)) && (!q || (x.nombre + " " + (x.marca || "")).toLowerCase().includes(q)));
+  // Lo que queda en cada local al crear: oferta por producto y local (si es la misma en todos, una sola promo para todos)
+  const finales = (() => {
+    const ids = [...new Set(Object.keys(asig).map(k => Number(k.split("|")[1])))];
+    const out = [];
+    ids.forEach(id => {
+      const v = (l) => { const x = valorEn(id, l); return x && x !== "none" && ofertas.some(o => o.id === x) ? x : null; };
+      if (!LOCS.length) { if (v("0")) out.push({ id, of: v("0"), local: null }); return; }
+      const porLoc = LOCS.map(l => v(String(l)));
+      if (porLoc.every(x => x === porLoc[0])) { if (porLoc[0]) out.push({ id, of: porLoc[0], local: null }); }
+      else LOCS.forEach((l, i) => { if (porLoc[i]) out.push({ id, of: porLoc[i], local: l }); });
+    });
+    return out;
+  })();
   const setOpcion = (ofId, i, cambio) => setOfertas(l => l.map(of => of.id !== ofId ? of : { ...of, opciones: of.opciones.map((o, j) => j === i ? { ...o, ...cambio } : o) }));
   const nuevaOferta = () => { const id = "o" + Date.now().toString(36); setOfertas(l => [...l, { id, opciones: [{ tipo: "pct", pct: 20, medios: ["efectivo", "transferencia"] }] }]); setEditOf(id); };
   const borrarOferta = (of) => { if (!confirm("¿Borrar la " + nombreOf(of) + "? Los productos que la tenían quedan sin oferta.")) return; setOfertas(l => l.filter(x => x.id !== of.id)); setAsig(a => Object.fromEntries(Object.entries(a).filter(([, v]) => v !== of.id))); if (editOf === of.id) setEditOf(null); };
+  const cantOf = (of) => finales.filter(f => f.of === of.id).length;
   const crear = async () => {
     setAviso("");
-    if (!conOferta.length) return setAviso("Elegí la oferta de al menos un producto");
+    if (!finales.length) return setAviso("Elegí la oferta de al menos un producto");
     const gr = [];
-    ofertas.forEach(of => {
-      const productos = conOferta.filter(x => asig[x.id] === of.id).map(x => x.id);
+    ofertas.forEach(of => [null, ...LOCS].forEach(loc => {
+      const productos = finales.filter(f => f.of === of.id && f.local === loc).map(f => f.id);
       if (!productos.length) return;
+      const enLoc = loc ? " (solo " + nombreLocal(loc) + ")" : "";
       const tieneCredito = of.opciones.some(o => o.tipo === "cuotas" || (o.medios || []).includes("credito"));
       of.opciones.forEach(o => {
         const et = nombreOf(of) + ": " + textoOpcionLiq(o);
         if (!o.pct) return;
-        if (o.tipo === "cuotas") return gr.push({ pct: o.pct, productos, pago: "credito", cuotas: o.cuotas, etiqueta: et });
-        (o.medios || []).forEach(k => gr.push(k === "otros" ? { pct: o.pct, productos, sin: tieneCredito ? "credito" : null, etiqueta: nombreOf(of) + ": " + o.pct + "% OFF con cualquier otro medio" }
-          : { pct: o.pct, productos, pago: k, etiqueta: nombreOf(of) + ": " + o.pct + "% OFF con " + (LIQ_MEDIOS.find(m => m[0] === k) || ["", k])[1].toLowerCase() }));
+        if (o.tipo === "cuotas") return gr.push({ pct: o.pct, productos, pago: "credito", cuotas: o.cuotas, local: loc, etiqueta: et + enLoc });
+        (o.medios || []).forEach(k => gr.push(k === "otros" ? { pct: o.pct, productos, local: loc, sin: tieneCredito ? "credito" : null, etiqueta: nombreOf(of) + ": " + o.pct + "% OFF con cualquier otro medio" + enLoc }
+          : { pct: o.pct, productos, local: loc, pago: k, etiqueta: nombreOf(of) + ": " + o.pct + "% OFF con " + (LIQ_MEDIOS.find(m => m[0] === k) || ["", k])[1].toLowerCase() + enLoc }));
       });
-    });
+    }));
     if (!gr.length) return setAviso("Las ofertas elegidas no tienen descuentos");
-    if (!confirm("Se van a crear " + gr.length + " promociones \"" + cfg.nombre + "\" para " + conOferta.length + " productos, del " + fecha(cfg.desde) + " al " + fecha(cfg.hasta) + ". Si ya existían las de este evento, se reemplazan. ¿Seguimos?")) return;
+    if (!confirm("Se van a crear " + gr.length + " promociones \"" + cfg.nombre + "\" para " + new Set(finales.map(f => f.id)).size + " productos, del " + fecha(cfg.desde) + " al " + fecha(cfg.hasta) + ". Si ya existían las de este evento, se reemplazan. ¿Seguimos?")) return;
     setCreando(true);
     try { await API.post("/promociones/liquidacion", { nombre: cfg.nombre, desde: cfg.desde, hasta: cfg.hasta, en_tienda: cfg.en_tienda, sector: cfg.sector, grupos: gr }); onCreado(); }
     catch (e) { setAviso(e.response?.data?.error || "No se pudieron crear"); }
@@ -24071,7 +24098,7 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
 
       {sec === "ofertas" && <>
         <div className="liq-ayuda" style={{ padding: "0 4px", marginTop: 0 }}>Cada oferta tiene una o más formas de pagar. Ejemplo: "30% OFF con transferencia <b>o</b> 10% OFF + 3 cuotas sin interés". Lo que no esté en la oferta paga precio lleno.</div>
-        {ofertas.map(of => { const ed = editOf === of.id, n = lista.filter(x => asig[x.id] === of.id).length; return (
+        {ofertas.map(of => { const ed = editOf === of.id, n = cantOf(of); return (
           <div key={of.id} className="card" style={{ borderTop: "4px solid " + colorOf(of), padding: 12 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -24111,13 +24138,21 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
 
       {sec === "productos" && <>
         {!ofertas.length ? <div className="card" style={{ color: p.textMuted }}>Primero armá tus ofertas en "Tus ofertas".</div> : <>
+          {LOCS.length > 0 && <div className="card" style={{ padding: 12 }}>
+            <div style={{ fontWeight: 800, fontSize: 13.5, marginBottom: 6 }}>📍 ¿En qué local?</div>
+            <div className="liq-si-no">{[["0", "Todos"], ...LOCS.map(l => [String(l), nombreLocal(l)])].map(([k, t]) => <button key={k} className={local === k ? "on" : ""} onClick={() => { setLocal(k); setMarcados([]); }}>{t}</button>)}</div>
+            <div className="liq-ayuda">{local === "0" ? "Ventas y stock de todos los locales juntos. La oferta que elijas acá vale en todos." : "Ventas y stock solo de " + nombreLocal(local) + ". La oferta que elijas acá vale solo en " + nombreLocal(local) + " (en el local y en la tienda online cuando compran para " + nombreLocal(local) + ")."}</div>
+          </div>}
           <div className="card" style={{ padding: 12 }}>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+              {[["todos", "Todos · " + lista.length], ["parado", "⏸ Parados · " + lista.filter(x => x.estado === "parado").length], ["lento", "🐢 Lentos · " + lista.filter(x => x.estado === "lento").length], ...(verTodos ? [["bien", "✅ Se venden bien · " + lista.filter(x => !["parado", "lento"].includes(x.estado)).length]] : [])].map(([k, t]) => <button key={k} className={"chip-btn" + (estado === k ? " on" : "")} onClick={() => setEstado(k)}>{t}</button>)}
+            </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
               <input className="inp" style={{ flex: 1, minWidth: 170 }} placeholder="Buscar producto o marca…" value={busca} onChange={e => setBusca(e.target.value)} />
               <button className="btn btn-g btn-sm" onClick={sugerir} title="A los parados, la oferta más fuerte que no te hace perder; a los lentos, la más suave">✨ Sugerirme</button>
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
-              {[["todos", "Todos · " + lista.length], ["sin", "Sin oferta · " + lista.filter(x => !asig[x.id]).length], ...ofertas.map(of => [of.id, nombreOf(of) + " · " + lista.filter(x => asig[x.id] === of.id).length])].map(([k, t]) => <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(k)}>{t}</button>)}
+              {[["todos", "Todas"], ["sin", "Sin oferta · " + lista.filter(x => enEstado(x) && !ofIdDe(x.id)).length], ...ofertas.map(of => [of.id, nombreOf(of) + " · " + lista.filter(x => enEstado(x) && ofIdDe(x.id) === of.id).length])].map(([k, t]) => <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(k)}>{t}</button>)}
             </div>
             <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12.5, marginTop: 8, color: p.textMuted }}><input type="checkbox" checked={verTodos} onChange={e => setVerTodos(e.target.checked)} /> Mostrar también los que se venden bien (por defecto, solo los lentos y parados)</label>
           </div>
@@ -24141,6 +24176,8 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
                 <button className={"chip-btn" + (!of ? " on" : "")} onClick={() => asignar([x.id], null)}>Sin oferta</button>
                 {ofertas.map(o2 => <button key={o2.id} className={"chip-btn" + (of === o2 ? " on" : "")} style={of === o2 ? { background: colorOf(o2), borderColor: colorOf(o2), color: "#fff" } : { borderColor: colorOf(o2) }} onClick={() => asignar([x.id], o2.id)}>{nombreOf(o2)}</button>)}
               </div>
+              {local !== "0" && !propia(x.id) && of && <div style={{ fontSize: 11.5, color: p.textMuted, marginTop: 4 }}>Es la que elegiste para todos los locales. Tocá otra para cambiarla solo en {nombreLocal(local)}.</div>}
+              {local === "0" && LOCS.some(l => asig[l + "|" + x.id] !== undefined) && <div style={{ fontSize: 11.5, color: p.accent, fontWeight: 700, marginTop: 4 }}>{LOCS.filter(l => asig[l + "|" + x.id] !== undefined).map(l => { const v = asig[l + "|" + x.id], o2 = ofertas.find(o => o.id === v); return "📍 En " + nombreLocal(l) + ": " + (o2 ? nombreOf(o2) : "sin oferta"); }).join(" · ")}</div>}
               {of && (x.sinCosto ? <div style={{ fontSize: 12, color: p.warn, marginTop: 6 }}>Sin costo cargado: no podemos decirte si perdés plata. Cargalo en Productos.</div> : (
                 <div className="liq-ops">{cs.map((c, i) => (
                   <div key={i} className="liq-op" style={{ borderColor: c.ok === false ? p.red : p.border }}>
@@ -24193,8 +24230,9 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
 
       {sec === "crear" && <div className="card">
         <div className="ct">✅ Crear las ofertas</div>
-        {!conOferta.length ? <div style={{ color: p.textMuted }}>Todavía no elegiste la oferta de ningún producto (en "Productos").</div> : <>
-          {ofertas.filter(of => conOferta.some(x => asig[x.id] === of.id)).map(of => <div key={of.id} style={{ fontSize: 13.5, marginBottom: 6 }}><b style={{ color: colorOf(of) }}>{nombreOf(of)}</b> ({conOferta.filter(x => asig[x.id] === of.id).length} productos): {textoOf(of)}</div>)}
+        {!finales.length ? <div style={{ color: p.textMuted }}>Todavía no elegiste la oferta de ningún producto (en "Productos").</div> : <>
+          {ofertas.filter(of => finales.some(f => f.of === of.id)).map(of => <div key={of.id} style={{ fontSize: 13.5, marginBottom: 8 }}><b style={{ color: colorOf(of) }}>{nombreOf(of)}</b>: {textoOf(of)}
+            <div style={{ fontSize: 12.5, color: p.textMuted }}>{[null, ...LOCS].map(l => { const n = finales.filter(f => f.of === of.id && f.local === l).length; return n ? n + " " + (n === 1 ? "producto" : "productos") + " en " + (l ? "solo " + nombreLocal(l) : "todos los locales") : null; }).filter(Boolean).join(" · ")}</div></div>)}
           {conPerdida.length > 0 && <div className="cli-tip" style={{ margin: "8px 0", borderColor: p.red }}>⚠️ {conPerdida.length} {conPerdida.length === 1 ? "producto tiene" : "productos tienen"} alguna forma de pago que te hace perder o ganar menos que el mínimo. Revisalos en "Productos" (están en rojo).</div>}
           <label style={{ display: "flex", gap: 8, alignItems: "center", margin: "10px 0 6px", fontSize: 13.5 }}><input type="checkbox" checked={cfg.en_tienda} onChange={e => setCfg(c => ({ ...c, en_tienda: e.target.checked }))} /> También en la tienda online</label>
           {cfg.en_tienda && <label style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6, fontSize: 13.5 }}><input type="checkbox" checked={cfg.sector} onChange={e => setCfg(c => ({ ...c, sector: e.target.checked }))} /> Armar el sector "⚡ {cfg.nombre}" en el menú de la tienda (se ve solo esos días)</label>}
@@ -24334,7 +24372,7 @@ function Promociones({ paletaActual }) {
                       {p.tipo === "cross" && ("Llevando " + nombreProd(p.cross_producto_id) + ", " + p.valor + "% en " + nombreProd(p.cross_producto_regalo_id))}
                       {p.tipo === "monto" && ("Gastando +$" + p.monto_minimo + ", " + p.valor + "% off")}
                     </td>
-                    <td style={{ fontSize: 11, color: temaPal.textMuted }}>{p.medio_pago_tipo || (p.sin_medio_pago ? "Todos menos " + p.sin_medio_pago : "Todos")}{p.en_tienda ? <div style={{ fontWeight: 700, color: temaPal.accentText }}>🛍️ + tienda online</div> : null}</td>
+                    <td style={{ fontSize: 11, color: temaPal.textMuted }}>{p.medio_pago_tipo || (p.sin_medio_pago ? "Todos menos " + p.sin_medio_pago : "Todos")}{p.local_id ? <div style={{ fontWeight: 700 }}>📍 Solo {nombreLocal(p.local_id)}</div> : null}{p.en_tienda ? <div style={{ fontWeight: 700, color: temaPal.accentText }}>🛍️ + tienda online</div> : null}</td>
                     <td style={{ fontSize: 10, color: temaPal.textMuted }}>{p.fecha_inicio ? new Date(p.fecha_inicio).toLocaleDateString("es-AR") : "-"} a {p.fecha_fin ? new Date(p.fecha_fin).toLocaleDateString("es-AR") : "sin fin"}</td>
                     <td><Sw on={p.activo} toggle={() => toggle(p)} /></td>
                     <td><div style={{ display: "flex", gap: 4 }}>
@@ -28255,6 +28293,8 @@ function TiendaPublica({ slug }) {
   const ciudades = tienda.ciudades || [];
   const ciudad = ciudades.find(c => c.id === Number(local)) || (ciudades.length === 1 ? ciudades[0] : null);
   const lid = ciudad ? ciudad.id : null;
+  // Promos de Lumiere: las de un solo local valen solo en esa ciudad
+  const promosLid = (tienda && tienda.promos || []).filter(x => !x.local || x.local === lid);
   const retiroAca = ciudad ? tienda.retiro.filter(l => l.id === lid) : tienda.retiro;
   const zonasAca = tienda.envio ? tienda.envio.zonas.filter(z => !lid || z.local === lid) : [];
   const envioAca = zonasAca.length ? { ...tienda.envio, zonas: zonasAca } : null;
@@ -28373,7 +28413,7 @@ function TiendaPublica({ slug }) {
   const montoKits = comboCalc.combos.reduce((t, x) => t + (x.monto || 0), 0);
   const pctKitsPago = pagoElegido && !gcCubre && montoKits > 0 ? (descPagosKits[pagoElegido] || 0) : 0;
   // Promociones de Lumiere para la tienda: esos productos llevan la promo en lugar del descuento por forma de pago (igual que el servidor)
-  const promoCalc = twDescPromos(tienda.promos, carrito, comboCalc.combos, tienda.ofertas && tienda.ofertas.combos, pagoElegido && !gcCubre ? pagoElegido : null, (id) => ((productos || []).find(x => x.id === id) || {}).categoria, tienda.packs, (id) => ((productos || []).find(x => x.id === id) || {}).marca);
+  const promoCalc = twDescPromos(promosLid, carrito, comboCalc.combos, tienda.ofertas && tienda.ofertas.combos, pagoElegido && !gcCubre ? pagoElegido : null, (id) => ((productos || []).find(x => x.id === id) || {}).categoria, tienda.packs, (id) => ((productos || []).find(x => x.id === id) || {}).marca);
   const descPromo = promoCalc.descuento;
   const basePago = Math.max(0, subtotal - descCombo - descuentoCupon - descAmiga - promoCalc.monto);
   const enKitsPago = pctKitsPago ? Math.max(0, Math.min(basePago, montoKits)) : 0;
@@ -29437,13 +29477,13 @@ function TiendaPublica({ slug }) {
                       <button className="tw-btn2" onClick={() => agregarRegalo(its.map(x => ({ p: x, n: twCantCombo(cb, x.id), v: x.variantes ? x.variantes.find(v => dispo(x, v) > 0) : null })))}>Agregar combo</button></div>); })}
                   {(() => {
                     // Promo de Lumiere para este producto (sin medio de pago) o el mejor precio por forma de pago (promo o descuento general)
-                    const promoTodos = twPromoDe(tienda.promos, ver, "__todos__");
+                    const promoTodos = twPromoDe(promosLid, ver, "__todos__");
                     if (promoTodos) return <div className="tw-precio-pago">🏷️ {fmtTienda(Math.round(ver.precio * (1 - promoTodos.pct / 100)))} con la promo {promoTodos.nombre} ({String(promoTodos.pct).replace(".", ",")}% OFF)</div>;
-                    const mejor = Object.keys(tienda.pagos || {}).filter(k => tienda.pagos[k] && (!preVer || k === "mp")).map(k => { const pr = twPromoDe(tienda.promos, ver, k); return [k, pr ? pr.pct : ((tienda.descuentos_pago || {})[k] || 0)]; }).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1])[0];
+                    const mejor = Object.keys(tienda.pagos || {}).filter(k => tienda.pagos[k] && (!preVer || k === "mp")).map(k => { const pr = twPromoDe(promosLid, ver, k); return [k, pr ? pr.pct : ((tienda.descuentos_pago || {})[k] || 0)]; }).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1])[0];
                     return mejor ? <div className="tw-precio-pago">💸 {fmtTienda(Math.round(ver.precio * (1 - mejor[1] / 100)))} pagando con {({ mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia", retiro: "efectivo al retirar" })[mejor[0]]} ({String(mejor[1]).replace(".", ",")}% OFF)</div> : null; })()}
                   {/* Cuotas sin interés con GoCuotas (hasta 4 con débito), con su descuento si tiene. No aplica a preventas (solo Mercado Pago) */}
                   {tienda.pagos && tienda.pagos.gocuotas && !preVer && (() => {
-                    const pr = twPromoDe(tienda.promos, ver, "gocuotas"), pct = pr ? pr.pct : ((tienda.descuentos_pago || {}).gocuotas || 0);
+                    const pr = twPromoDe(promosLid, ver, "gocuotas"), pct = pr ? pr.pct : ((tienda.descuentos_pago || {}).gocuotas || 0);
                     const base = Math.round(ver.precio * (1 - pct / 100));
                     return <div className="tw-cuotas" title="Con tu tarjeta de débito">💜 <b>4 cuotas sin interés</b> de <b>{fmtTienda(Math.ceil(base / 4))}</b> <span>· GoCuotas</span></div>;
                   })()}
