@@ -24582,7 +24582,6 @@ html:has(.tw){overflow-x:hidden}
 .tw-card.pre .tw-card-p{display:inline-block}
 .tw-rv.in .tw-card.pre,.tw-sec.tw-rv.in .tw-fila-in>.tw-card.pre{animation:twPreEntra .9s cubic-bezier(.3,1.5,.5,1) both}
 @keyframes twPreEntra{0%{opacity:0;transform:scale(.85) rotate(-3deg);filter:brightness(1.6) blur(4px)}60%{opacity:1;transform:scale(1.04) rotate(1deg);filter:brightness(1.15)}100%{opacity:1;transform:none;filter:none}}
-.tw-card-cuotas{font-size:11.5px;color:#5b3d8f;margin-top:2px}.tw-card-cuotas b{font-weight:800}
 .tw-card-pre{font-size:12px;color:#8a5a00;font-weight:700;margin-top:2px}
 .tw-nav-pre{color:#ffd23f !important}
 .tw-preventa-cinta{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:repeating-linear-gradient(135deg,#ffd23f 0 14px,#ffc300 14px 28px);color:#2b1d00;border-radius:10px;padding:12px 16px;margin:26px 0 -8px;font-size:14px}
@@ -25707,7 +25706,7 @@ function twTextoLlega(f) {
   if (dias === 0) return "hoy"; if (dias === 1) return "mañana";
   return "el " + d.toLocaleDateString("es-AR", { weekday: "short" }).replace(".", "") + " " + d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" });
 }
-function TwTarjeta({ p, base, sin, preventa, llega, fav, onFav, onAbrir, onAgregar, cuota, pack }) {
+function TwTarjeta({ p, base, sin, preventa, llega, fav, onFav, onAbrir, onAgregar, pack }) {
   const [hover, setHover] = useState(false);
   const [hecho, setHecho] = useState(false);
   const imgRef = useRef(null);
@@ -25747,7 +25746,6 @@ function TwTarjeta({ p, base, sin, preventa, llega, fav, onFav, onAbrir, onAgreg
       <div className="tw-card-n">{p.nombre}</div>
       {p.resenas && <div className="tw-card-est"><TwEstrellas v={p.resenas[0]} size={12} /><span>({p.resenas[1]})</span></div>}
       <div className="tw-card-p">{p.precio_antes ? <><s className="tw-antes">{fmtTienda(p.precio_antes)}</s> <span className="tw-precio-of">{fmtTienda(p.precio)}</span></> : fmtTienda(p.precio)}</div>
-      {cuota > 0 && !preventa && !sin && <div className="tw-card-cuotas">💜 4 cuotas de <b>{fmtTienda(cuota)}</b></div>}
       {preventa && <div className="tw-card-pre">{llega ? <>⏳ Llega aprox. <b>{llega}</b> · ¡reservalo!</> : "⏳ Llega pronto · ¡reservalo antes que se agote!"}</div>}
     </div>
   );
@@ -28002,8 +28000,7 @@ function TiendaPublica({ slug }) {
   const nSlides = destacados.length;
   const iSlide = nSlides ? slide % nSlides : 0;
   // Cuotas sin interes de GoCuotas en cada tarjeta (con su descuento si tiene)
-  const cuotaDe = (p) => { if (!tienda.pagos || !tienda.pagos.gocuotas) return 0; const pr = twPromoDe(tienda.promos, p, "gocuotas"), pct = pr ? pr.pct : ((tienda.descuentos_pago || {}).gocuotas || 0); return Math.ceil(Math.round(p.precio * (1 - pct / 100)) / 4); };
-  const tarjeta = (p) => <TwTarjeta key={p.id} cuota={cuotaDe(p)} pack={twPackDe(tienda.packs, p)} p={p} base={base} sin={agotado(p)} preventa={esPreventa(p)} llega={esPreventa(p) ? llegaDe(p) : null} fav={favs.includes(p.id)} onFav={toggleFav} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
+  const tarjeta = (p) => <TwTarjeta key={p.id} pack={twPackDe(tienda.packs, p)} p={p} base={base} sin={agotado(p)} preventa={esPreventa(p)} llega={esPreventa(p) ? llegaDe(p) : null} fav={favs.includes(p.id)} onFav={toggleFav} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
   const enComparar = comparar.map(id => lista0.find(p => p.id === id)).filter(Boolean);
   const toggleComparar = (p) => setComparar(c => c.includes(p.id) ? c.filter(x => x !== p.id) : [...c, p.id].slice(-3));
   const opcionesPago = [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["gocuotas", "💜 GoCuotas", "Hasta 4 cuotas sin interés con tu tarjeta de débito"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar"], ["retiro", "💵 Pago al retirar", "Pagás en el local"]]
