@@ -115,6 +115,8 @@ router.get('/:slug', async (req, res) => {
       // Logo de la marca para la gift card (blanco sobre el color de la tarjeta)
       logo_marca: Number(req.negTienda.id) === 1 ? { blanco: '/logos/girasoles-logo-blanco.svg', color: '/logos/girasoles-logo.svg' } : null,
       packs: tienda.packsDe(c).filter(p => p.activo).map(({ activo, ...p }) => p),
+      // Rutina en cuotas (aviso en el carrito): solo mientras está vigente
+      rutina_cuotas: await require('./promociones').leerRutinaCuotas().then(r => r.vigente ? { minimo: r.minimo, cuotas: r.cuotas, precio_min: r.precio_min, excluir: r.excluir, online: r.online, hasta: r.hasta } : null).catch(() => null),
       diagnostico: (() => { const k = tienda.diagnosticoDe(c); return k.activo ? { titulo: k.titulo, texto: k.texto, minutos: k.minutos } : null; })(),
       express: (() => { const k = tienda.expressDe(c); return k.activo ? { minutos: k.minutos, abierto: tienda.expressAbierto(k), locales: [1, 2].filter(l => tienda.expressAbierto(k, l)) } : null; })(),
       muestras: (() => {
