@@ -647,6 +647,14 @@ body:has(.pos-overlay) .ayuda-fab { display: none !important; }
 .pos-tambien-item b { display: block; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pos-tambien-item small { display: block; font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pos-tambien-item:hover { filter: brightness(.97); }
+.liq-preg{font-weight:800;font-size:15px;margin:14px 0 8px}.liq-preg:first-of-type{margin-top:4px}
+.liq-ayuda{font-size:12.5px;opacity:.75;margin-top:6px;line-height:1.5}
+.liq-ok{background:rgba(45,122,79,.09);border-radius:10px;padding:10px 12px;font-size:13.5px;line-height:1.5;margin-top:12px}
+.liq-si-no{display:inline-flex;gap:6px;flex-wrap:wrap}
+.liq-si-no button{font:inherit;cursor:pointer;border:1.5px solid rgba(127,127,127,.35);background:transparent;color:inherit;border-radius:999px;padding:8px 18px;font-weight:800;font-size:14px}
+.liq-si-no button.on{background:#2d7a4f;border-color:#2d7a4f;color:#fff}.liq-si-no button.on.no{background:#c0392b;border-color:#c0392b}
+.liq-si-no.chico button{padding:5px 11px;font-size:12.5px}
+.liq-medio{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid;border-radius:12px;padding:9px 11px}
 .liq-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 @media(max-width:600px){.liq-kpis{grid-template-columns:1fr 1fr}}
 .liq-tramos{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
@@ -24056,30 +24064,45 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
       {sec === "medios" && <>
         <div className="card">
           <div className="ct">💳 Cuotas sin interés</div>
-          <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 700, fontSize: 14 }}><input type="checkbox" checked={cfg.cuotas} onChange={e => setCfg(c => ({ ...c, cuotas: e.target.checked }))} style={{ width: 18, height: 18 }} /> Ofrecer también la opción "descuento menor + cuotas sin interés"</label>
+          <div className="liq-preg">¿Vas a ofrecer cuotas sin interés en el Cyber?</div>
+          <div className="liq-si-no">
+            <button className={cfg.cuotas ? "on" : ""} onClick={() => setCfg(c => ({ ...c, cuotas: true }))}>Sí</button>
+            <button className={!cfg.cuotas ? "on" : ""} onClick={() => setCfg(c => ({ ...c, cuotas: false }))}>No</button>
+          </div>
           {cfg.cuotas && <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginTop: 10 }}>
-              <div><div className="fl">Cuotas</div><select className="sel" value={nC} onChange={e => setCfg(c => ({ ...c, cuotas_n: Number(e.target.value) }))}>{[3, 6, 9, 12].map(n => <option key={n} value={n}>{n} cuotas</option>)}</select></div>
-              <div><div className="fl">Te cuesta en total (%)</div><input className="inp" inputMode="decimal" placeholder="Ej: 22" value={cfg.cuotas_costo} onChange={e => setCfg(c => ({ ...c, cuotas_costo: e.target.value.replace(/[^\d.]/g, "") }))} /></div>
-              <div><div className="fl">Solo en productos desde</div><input className="inp" inputMode="numeric" value={cfg.cuotas_desde} onChange={e => setCfg(c => ({ ...c, cuotas_desde: e.target.value.replace(/[^\d]/g, "") }))} /></div>
+            <div className="liq-preg">¿En cuántas cuotas?</div>
+            <div className="liq-si-no">{[3, 6, 12].map(n => <button key={n} className={nC === n ? "on" : ""} onClick={() => setCfg(c => ({ ...c, cuotas_n: n }))}>{n} cuotas</button>)}</div>
+            <div className="liq-preg">¿Cuánto te descuentan por vender en {nC} cuotas sin interés?</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input className="inp" inputMode="decimal" style={{ width: 110, fontSize: 18, fontWeight: 800 }} placeholder="Ej: 22" value={cfg.cuotas_costo} onChange={e => setCfg(c => ({ ...c, cuotas_costo: e.target.value.replace(/[^\d.]/g, "") }))} aria-label="Cuánto te descuentan por las cuotas" />
+              <b style={{ fontSize: 18 }}>%</b>
             </div>
-            {!conCuotas ? <div className="cli-tip" style={{ margin: "10px 0 0", borderColor: p.warn }}>⚠️ Cargá cuánto te cuesta vender en {nC} cuotas sin interés (comisión + costo de financiación). Lo ves en la tabla de tu banco o de Mercado Pago.</div>
-              : <div style={{ fontSize: 12.5, color: p.textMuted, marginTop: 8, lineHeight: 1.5 }}>De cada $100 en {nC} cuotas te quedan <b>{$(100 * fCuotas)}</b>. Por eso, por ejemplo, <b>50% OFF</b> te deja lo mismo que <b>{equivCuotas(50) ? equivCuotas(50) + "% OFF" : "precio lleno"} + {nC} cuotas</b> y <b>30% OFF</b> lo mismo que <b>{equivCuotas(30) === null ? "—" : equivCuotas(30) ? equivCuotas(30) + "% OFF" : "precio lleno"} + {nC} cuotas</b>. Con crédito se aplica la oferta en cuotas (en el local necesitás un medio "Crédito {nC} cuotas" sin recargo); en la tienda online las cuotas sin interés se activan en tu cuenta de Mercado Pago.</div>}
+            <div className="liq-ayuda">Fijate en la tabla de cuotas de tu banco o de Mercado Pago. Ejemplo: si vendés $100.000 en {nC} cuotas y te depositan $78.000, poné <b>22</b>.</div>
+            <div className="liq-preg">¿Desde qué precio ofrecés cuotas?</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}><b style={{ fontSize: 18 }}>$</b><input className="inp" inputMode="numeric" style={{ width: 140, fontSize: 16, fontWeight: 700 }} value={cfg.cuotas_desde} onChange={e => setCfg(c => ({ ...c, cuotas_desde: e.target.value.replace(/[^\d]/g, "") }))} aria-label="Desde qué precio" /></div>
+            <div className="liq-ayuda">En productos baratos la cuota no ayuda a vender: ahí va solo el % OFF.</div>
+            {conCuotas && <div className="liq-ok">✅ Listo. Ejemplo: <b>50% OFF</b> te deja la misma plata que <b>{equivCuotas(50) ? equivCuotas(50) + "% OFF" : "precio lleno"} en {nC} cuotas sin interés</b>. La clienta elige y vos ganás lo mismo.</div>}
           </>}
         </div>
         <div className="card">
-          <div className="ct">💵 Medios de pago y comisiones</div>
-          <div style={{ fontSize: 12.5, color: p.textMuted, marginBottom: 8 }}>De cada $100 de venta, cuánto te queda. Las comisiones salen de Configuración › Medios de pago: si alguna no está bien, corregila acá para hacer la cuenta (y después allá). Destildá los que <b>no</b> vas a aceptar con las ofertas.</div>
+          <div className="ct">💵 Lo que te cobra cada medio de pago</div>
+          <div className="liq-ayuda" style={{ marginTop: 0, marginBottom: 10 }}>Revisá que el % de cada uno sea el que te cobran de verdad (efectivo y transferencia van en 0). Si alguno no lo vas a aceptar durante el Cyber, tocá "No".</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {activos.map(m => { const n = neto(m), malo = caros.includes(m), cuota = conCuotas && esCredito(m); return (
-              <div key={m.id} style={{ ...caja, padding: "8px 10px", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", opacity: acepto[m.id] ? 1 : .55 }}>
-                <input type="checkbox" checked={!!acepto[m.id]} onChange={e => setAcepto(a => ({ ...a, [m.id]: e.target.checked }))} style={{ width: 18, height: 18 }} aria-label={"Acepto " + m.nombre} />
-                <b style={{ flex: 1, minWidth: 120 }}>{m.nombre}{cuota ? <span style={{ fontWeight: 600, fontSize: 11, color: "#2471a3" }}> · va con la oferta en cuotas</span> : m.disponible_online ? <span style={{ fontWeight: 600, fontSize: 11, color: p.textMuted }}> · también online</span> : null}</b>
-                <span style={{ fontSize: 12 }}>Comisión <input className="inp" inputMode="decimal" style={{ width: 62, padding: "4px 6px", display: "inline-block" }} value={com[m.id] ?? ""} onChange={e => setCom(c => ({ ...c, [m.id]: e.target.value.replace(/[^\d.]/g, "") }))} aria-label={"Comisión " + m.nombre} /> %</span>
-                <span style={{ fontWeight: 800, minWidth: 92, textAlign: "right", color: malo ? p.red : n >= fCash - 0.001 ? p.green : p.text }}>te quedan {$(100 * n)}</span>
-              </div>); })}
+            {activos.filter(m => !(conCuotas && esCredito(m))).map(m => (
+              <div key={m.id} className="liq-medio" style={{ borderColor: p.border, opacity: acepto[m.id] ? 1 : .6 }}>
+                <b style={{ flex: 1, minWidth: 110 }}>{m.nombre}</b>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}><input className="inp" inputMode="decimal" style={{ width: 64, padding: "5px 7px", fontWeight: 700 }} value={com[m.id] ?? ""} onChange={e => setCom(c => ({ ...c, [m.id]: e.target.value.replace(/[^\d.]/g, "") }))} aria-label={"Comisión " + m.nombre} />%</span>
+                <span className="liq-si-no chico" title="¿Lo aceptás en el Cyber?">
+                  <button className={acepto[m.id] ? "on" : ""} onClick={() => setAcepto(a => ({ ...a, [m.id]: true }))}>Acepto</button>
+                  <button className={!acepto[m.id] ? "on no" : ""} onClick={() => setAcepto(a => ({ ...a, [m.id]: false }))}>No</button>
+                </span>
+              </div>
+            ))}
+            {conCuotas && activos.some(esCredito) && <div className="liq-ayuda" style={{ marginTop: 2 }}>💳 Las tarjetas de crédito no aparecen acá: van con la oferta en cuotas.</div>}
           </div>
-          {caros.length > 0 && <div className="cli-tip" style={{ margin: "10px 0 0", borderColor: p.warn }}>⚠️ <b>{caros.map(m => m.nombre).join(", ")}</b> {caros.length === 1 ? "te cobra" : "te cobran"} mucho más que el efectivo. El % OFF tiene que aguantar al más caro que aceptes: si {caros.length === 1 ? "lo destildás" : "los destildás"} (y no los cobrás esos días), las ofertas pueden ser más grandes.</div>}
+          {peor && <div className="liq-ok" style={{ marginTop: 12 }}>El que más te cobra es <b>{peor.nombre}</b> ({String(parseFloat(com[peor.id]) || 0).replace(".", ",")}%). Armamos el % OFF pensando en ese, así no perdés plata cobre como cobre.</div>}
+          {caros.length > 0 && <div className="liq-ayuda" style={{ marginTop: 8 }}>💡 Si no aceptás <b>{caros.map(m => m.nombre).join(", ")}</b> esos días (tocá "No"), las ofertas pueden ser más grandes.</div>}
+          <div className="liq-ayuda" style={{ marginTop: 8 }}>Lo que cambies acá es solo para este plan. Para cambiarlo en serio: Configuración › Medios de pago.</div>
         </div>
       </>}
 
