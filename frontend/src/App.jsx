@@ -24520,6 +24520,23 @@ html:has(.tw){overflow-x:hidden}
 .tw-rut-total{display:flex;justify-content:space-between;align-items:baseline;font-size:15px;margin:0 2px 12px}.tw-rut-total b{font-size:22px}
 .tw-rut-acciones{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .tw-rut-nota{font-size:12.5px;color:#999;margin-top:14px}
+.tw-diag-banner{background:radial-gradient(90% 120% at 100% 0%,#e3f1ff 0%,transparent 60%),linear-gradient(135deg,#f6fbff,#eef4fb);border-color:#dde8f3}
+.tw-diag{max-width:760px;margin:0 auto 50px;--r1:#b9785a;--r2:#d99a7c;--r3:#fbeee6}
+.tw-diag .tw-lista-cab h1{line-height:1.15}
+.tw-diag-como{margin-top:14px}
+.tw-diag-dias{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:none}.tw-diag-dias::-webkit-scrollbar{display:none}
+.tw .tw-diag-dias button{font:inherit;cursor:pointer;flex:none;min-width:68px;display:flex;flex-direction:column;align-items:center;gap:1px;border:1.5px solid #e2e2e2;background:#fff;border-radius:16px;padding:9px 8px;color:#333}
+.tw-diag-dias button b{font-size:22px;line-height:1.1}.tw-diag-dias button small{font-size:11px;color:#888;font-weight:700}
+.tw .tw-diag-dias button.on{background:linear-gradient(135deg,var(--r1),var(--r2));border-color:transparent;color:#fff}.tw-diag-dias button.on small{color:#fff}
+.tw-diag-horas{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:8px;margin-top:10px}
+.tw .tw-diag-horas button{font:inherit;cursor:pointer;border:1.5px solid #e2e2e2;background:#fff;border-radius:12px;padding:10px 4px;font-weight:800;font-size:15px;color:#333}
+.tw .tw-diag-horas button.on{background:linear-gradient(135deg,var(--r1),var(--r2));border-color:transparent;color:#fff}
+.tw-diag-sub{font-size:13.5px;font-weight:700;color:#555;margin:14px 0 2px}.tw-diag-sub small{font-weight:500;color:#999}
+.tw-diag-ok{text-align:center;padding:34px 24px}.tw-diag-ok h1{margin:6px 0 10px}.tw-diag-ok p{color:#666;line-height:1.5;max-width:44ch;margin:14px auto 18px}
+.tw-diag-ok-ic{font-size:46px}.tw-diag-ok-cuando{font-size:19px;font-weight:900;text-transform:capitalize}.tw-diag-ok-donde{color:#555;margin-top:4px;font-weight:600}
+.tw-turnos{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.tw-turno{border:1px solid #eee;border-radius:14px;padding:11px 13px;background:#fff;font-size:14px}
+.tw-turno b{text-transform:capitalize}.tw-turno .tw-turno-rec{margin-top:6px;background:#f2f8f4;border-radius:10px;padding:8px 10px;color:#2d5a3c;white-space:pre-wrap}
 .tw-rut-banner{position:relative;overflow:hidden;margin:26px 0 8px;border-radius:24px;padding:30px 34px;display:grid;grid-template-columns:1.4fr 1fr;align-items:center;gap:16px;cursor:pointer;background:radial-gradient(90% 120% at 100% 0%,#fde7ee 0%,transparent 60%),linear-gradient(135deg,#fff8ef,#fbeee6);border:1px solid #f3e2d4;box-shadow:0 14px 34px -20px rgba(176,122,74,.5)}
 .tw-rut-banner h2{font-size:clamp(26px,3.6vw,38px);margin:10px 0 8px;letter-spacing:-.01em;line-height:1.1}
 .tw-rut-banner p{margin:0 0 16px;color:#6b5a50;font-size:15.5px;max-width:42ch;line-height:1.45}
@@ -26294,7 +26311,7 @@ function twSlugs(lista) {
 // Producto que pide la direccion: /nombre-del-producto (dominio propio) o ?producto=... (link de Lumiere)
 // Direccion de cada seccion: /preventa, /regalos, /videos, /favoritos, /todo, /nuevamente-en-stock y, con una
 // letra adelante para no chocar con los productos, /c/categoria, /s/sector, /m/marca (sin dominio: ?seccion=...)
-const TW_SECC_FIJAS = { preventa: "preventa", regalos: "regalos", rutina: "rutina", videos: "videos", favoritos: "favoritos", "*": "todo", reingreso: "nuevamente-en-stock" };
+const TW_SECC_FIJAS = { preventa: "preventa", regalos: "regalos", rutina: "rutina", diagnostico: "diagnostico", videos: "videos", favoritos: "favoritos", "*": "todo", reingreso: "nuevamente-en-stock" };
 const TW_SECC_RUTAS = Object.fromEntries(Object.entries(TW_SECC_FIJAS).map(([k, v]) => [v, k]));
 const twSeccionDeUrl = () => {
   try {
@@ -26734,6 +26751,108 @@ function TwRutinasLocal({ rutinas, productos, foto, dispo, onAgregar, onAbrir, t
   );
 }
 
+// Diagnóstico de piel: banner del inicio y página para reservar el turno (local, día, hora, datos y qué quiere mejorar)
+function TwDiagBanner({ d, onIr }) {
+  return (
+    <section className="tw-rut-banner tw-diag-banner tw-rv" onClick={onIr} role="link" tabIndex={0} onKeyDown={e => { if (e.key === "Enter") onIr(); }}>
+      <div className="tw-rut-banner-txt">
+        <div className="tw-rut-ceja">🗓️ Gratis · {d.minutos} minutos en el local</div>
+        <h2>{d.titulo}</h2>
+        <p>{d.texto}</p>
+        <span className="tw-btn" style={{ display: "inline-flex", width: "auto" }}>Reservar turno</span>
+      </div>
+      <div className="tw-rut-banner-art" aria-hidden="true"><span>🔍</span><span>💆‍♀️</span><span>🧴</span><span>🗓️</span></div>
+    </section>
+  );
+}
+const TW_DIAS_CORTO = ["", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+const fechaTurno = (f, larga) => { const d = new Date(f + "T12:00:00"); return d.toLocaleDateString("es-AR", larga ? { weekday: "long", day: "numeric", month: "long" } : { day: "numeric", month: "numeric" }); };
+function TwDiagnostico({ d, pedir, datos, setDatos, perfil, lid, logueada, whatsapp, onCuenta }) {
+  const [info, setInfo] = useState(null);
+  const [local, setLocal] = useState(null);
+  const [fecha, setFecha] = useState("");
+  const [hora, setHora] = useState("");
+  const [piel, setPiel] = useState((perfil && perfil.piel) || "");
+  const [nec, setNec] = useState((perfil && perfil.nec) || []);
+  const [nota, setNota] = useState("");
+  const [aviso, setAviso] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [listo, setListo] = useState(null);
+  const cargar = (l) => pedir("/diagnostico" + (l ? "?local=" + l : "")).then(x => {
+    setInfo(x);
+    if (!l && x.locales && x.locales.length) { const elegido = x.locales.find(y => y.id === lid) || (x.locales.length === 1 ? x.locales[0] : null); if (elegido) { setLocal(elegido.id); cargar(elegido.id); } }
+    else if (l) { const f = (x.dias || []).find(y => y.fecha === fecha) || (x.dias || [])[0]; setFecha(f ? f.fecha : ""); setHora(""); }
+  }).catch(e => setAviso(e.message));
+  useEffect(() => { cargar(null); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const elegirLocal = (id) => { setLocal(id); setFecha(""); setHora(""); cargar(id); };
+  const pielOps = TW_FILTROS[1].op, necOps = TW_FILTROS.find(f => f.k === "necesidad").op;
+  const chip = (on, onClick, txt, k) => <button key={k} type="button" className={"tw-rg-chip" + (on ? " on" : "")} onClick={onClick}>{txt}</button>;
+  const dia = info && (info.dias || []).find(x => x.fecha === fecha);
+  const reservar = async () => {
+    setAviso("");
+    if (!local) return setAviso("Elegí el local");
+    if (!fecha || !hora) return setAviso("Elegí el día y la hora");
+    if (String(datos.nombre || "").trim().length < 2) return setAviso("Escribí tu nombre");
+    if (String(datos.telefono || "").replace(/[^0-9]/g, "").length < 8) return setAviso("Escribí tu WhatsApp con código de área");
+    setEnviando(true);
+    try {
+      try { localStorage.setItem("tienda_datos", JSON.stringify({ nombre: datos.nombre, telefono: datos.telefono, email: datos.email, direccion: datos.direccion })); } catch (e) {}
+      const r = await pedir("/diagnostico", { method: "POST", body: JSON.stringify({ local_id: local, fecha, hora, nombre: datos.nombre, telefono: datos.telefono, piel: piel || null, nec, nota }) });
+      setListo(r); window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (e) { setAviso(e.message); if (/ocup/i.test(e.message)) cargar(local); }
+    setEnviando(false);
+  };
+  if (listo) return (
+    <div className="tw-diag">
+      <div className="tw-rg-form tw-diag-ok">
+        <div className="tw-diag-ok-ic">✨</div>
+        <h1>¡Te esperamos!</h1>
+        <div className="tw-diag-ok-cuando">{fechaTurno(listo.fecha, true)} · {listo.hora} hs</div>
+        <div className="tw-diag-ok-donde">📍 {listo.local}{listo.direccion ? " · " + listo.direccion : ""}</div>
+        <p>Son unos {listo.minutos} minutos y es gratis. Te vamos a escribir por WhatsApp para confirmarte. Si no podés venir, avisanos así le damos el lugar a otra clienta.</p>
+        {logueada ? <button className="tw-btn2" onClick={onCuenta}>Ver mis turnos</button> : <div className="tw-pre-txt">Creá tu cuenta con este WhatsApp y vas a ver tu turno y lo que te recomendemos.</div>}
+      </div>
+    </div>
+  );
+  return (
+    <div className="tw-diag">
+      <div className="tw-lista-cab"><div><h1>{d.titulo}</h1><div className="tw-pre-txt" style={{ marginTop: 6, maxWidth: 560 }}>{d.texto}</div></div></div>
+      <ul className="tw-rg-como tw-diag-como">
+        <li><span>🔍</span>Te miramos la piel y charlamos qué te molesta</li>
+        <li><span>🧴</span>Te armamos la rutina con lo que necesitás (y nada de más)</li>
+        <li><span>📝</span>Queda guardada en tu perfil para la próxima</li>
+      </ul>
+      <div className="tw-rg-form" style={{ marginTop: 18 }}>
+        {!info ? <div className="tw-skel" style={{ height: 120 }} /> : !(info.locales || []).length ? <div className="tw-rg-aviso">Por ahora no hay turnos. {whatsapp ? "Escribinos por WhatsApp y coordinamos." : ""}</div> : <>
+          {info.locales.length > 1 && <>
+            <div className="tw-rg-paso"><b>1</b> ¿En qué local?</div>
+            <div className="tw-rg-chips">{info.locales.map(l => chip(local === l.id, () => elegirLocal(l.id), "📍 " + l.nombre, l.id))}</div>
+          </>}
+          {local && <>
+            <div className="tw-rg-paso"><b>{info.locales.length > 1 ? 2 : 1}</b> Elegí el día y la hora</div>
+            {info.local_id !== local ? <div className="tw-skel" style={{ height: 60 }} /> : !(info.dias || []).length ? <div className="tw-rg-aviso">No quedan turnos libres en los próximos días. {whatsapp ? "Escribinos por WhatsApp y te buscamos un lugar." : ""}</div> : <>
+              <div className="tw-diag-dias">{info.dias.map(x => <button key={x.fecha} type="button" className={fecha === x.fecha ? "on" : ""} onClick={() => { setFecha(x.fecha); setHora(""); }}><small>{TW_DIAS_CORTO[x.dia]}</small><b>{new Date(x.fecha + "T12:00:00").getDate()}</b><small>{x.horas.length} {x.horas.length === 1 ? "lugar" : "lugares"}</small></button>)}</div>
+              {dia && <div className="tw-diag-horas">{dia.horas.map(h => <button key={h} type="button" className={hora === h ? "on" : ""} onClick={() => setHora(h)}>{h}</button>)}</div>}
+            </>}
+            <div className="tw-rg-paso"><b>{info.locales.length > 1 ? 3 : 2}</b> Contanos de tu piel <small>(si sabés)</small></div>
+            <div className="tw-rg-chips chicos">{pielOps.map(([k, t]) => chip(piel === k, () => setPiel(piel === k ? "" : k), t, k))}</div>
+            <div className="tw-diag-sub">¿Qué te gustaría mejorar? <small>(hasta 3)</small></div>
+            <div className="tw-rg-chips chicos">{necOps.map(([k, t]) => { const on = nec.includes(k); return chip(on, () => setNec(on ? nec.filter(n => n !== k) : nec.length < 3 ? [...nec, k] : nec), t, k); })}</div>
+            <label className="tw-rg-campo"><span>Algo más que nos quieras contar (opcional)</span><textarea rows={2} maxLength={400} value={nota} onChange={e => setNota(e.target.value)} placeholder="Ej: uso protector pero me brilla la frente" /></label>
+            <div className="tw-rg-paso"><b>{info.locales.length > 1 ? 4 : 3}</b> Tus datos</div>
+            <div className="tw-rg-fila2">
+              <label className="tw-rg-campo"><span>Tu nombre</span><input value={datos.nombre || ""} onChange={e => setDatos(x => ({ ...x, nombre: e.target.value }))} autoComplete="name" /></label>
+              <label className="tw-rg-campo"><span>Tu WhatsApp</span><input value={datos.telefono || ""} onChange={e => setDatos(x => ({ ...x, telefono: e.target.value }))} inputMode="tel" autoComplete="tel" placeholder="Ej: 2964 123456" /></label>
+            </div>
+            {aviso && <div className="tw-rg-aviso" role="alert">{aviso}</div>}
+            <button className="tw-rg-comprar" disabled={enviando} onClick={reservar}>{enviando ? "Un segundo…" : hora ? "Reservar " + TW_DIAS_CORTO[dia ? dia.dia : 0].toLowerCase() + " " + fechaTurno(fecha) + " · " + hora + " hs" : "Reservar mi turno"}</button>
+          </>}
+          {!local && aviso && <div className="tw-rg-aviso" role="alert">{aviso}</div>}
+        </>}
+      </div>
+    </div>
+  );
+}
 function TwRutinaBanner({ onIr }) {
   return (
     <section className="tw-rut-banner tw-rv" onClick={onIr} role="link" tabIndex={0} onKeyDown={e => { if (e.key === "Enter") onIr(); }}>
@@ -27951,7 +28070,7 @@ function TiendaPublica({ slug }) {
   const sector = cat.startsWith("s:") ? sectores.find(sc => "s:" + sc.id === cat) : null;
   // Si la seccion elegida quedo vacia (otra ciudad, se agoto todo), se vuelve al inicio
   const packCat = cat.startsWith("pack:") ? (tienda.packs || []).find(pk => pk.id === cat.slice(5)) : null;
-  if (productos !== null && ((cat === "preventa" && !preventas.length) || (cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat === "regalos" && !tienda.regalos) || (cat.startsWith("pack:") && !packCat) || (cat && cat !== "*" && !cat.startsWith("s:") && !cat.startsWith("m:") && !cat.startsWith("pack:") && cat !== "reingreso" && cat !== "videos" && cat !== "regalos" && cat !== "rutina" && cat !== "preventa" && cat !== "favoritos" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2))))) { setTimeout(() => setCat(""), 0); }
+  if (productos !== null && ((cat === "preventa" && !preventas.length) || (cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat === "regalos" && !tienda.regalos) || (cat === "diagnostico" && !tienda.diagnostico) || (cat.startsWith("pack:") && !packCat) || (cat && cat !== "*" && !cat.startsWith("s:") && !cat.startsWith("m:") && !cat.startsWith("pack:") && cat !== "reingreso" && cat !== "videos" && cat !== "regalos" && cat !== "rutina" && cat !== "diagnostico" && cat !== "preventa" && cat !== "favoritos" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2))))) { setTimeout(() => setCat(""), 0); }
   const enSector = (sc, p) => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria);
   const delSector = sector ? visibles.filter(p => enSector(sector, p)) : [];
   const catsSector = sector ? [...new Set(delSector.map(p => p.categoria).filter(Boolean))].sort() : [];
@@ -28289,6 +28408,21 @@ function TiendaPublica({ slug }) {
                 </>
               )}
               {!editando && hayRutina && <button className="tw-link" style={{ marginTop: 6 }} onClick={() => { setPaso(null); irCat("rutina"); }}>✨ {pf.piel ? "Ver mi rutina ideal" : "¿No sabés tu tipo de piel? Hacé el test"}</button>}
+              {!editando && tienda.diagnostico && <button className="tw-link" style={{ marginTop: 6, display: "block" }} onClick={() => { setPaso(null); irCat("diagnostico"); }}>🗓️ Reservá un diagnóstico gratis en el local</button>}
+              {(miCuenta.turnos || []).length > 0 && <>
+                <div className="tw-piel-lbl" style={{ marginTop: 14 }}>Mis turnos de diagnóstico</div>
+                <div className="tw-turnos">{miCuenta.turnos.map(t => {
+                  const viene = ["reservado", "confirmado"].includes(t.estado);
+                  return (
+                    <div key={t.id} className="tw-turno">
+                      <div><b>{fechaTurno(t.fecha, true)}</b> · {t.hora} hs · 📍 {t.local}</div>
+                      <div style={{ color: "#777", fontSize: 12.5, marginTop: 2 }}>{t.estado === "atendido" ? "✓ Fuiste" + (t.atendido_por ? " · te atendió " + t.atendido_por.split(" ")[0] : "") : t.estado === "ausente" ? "No pudiste venir" : t.estado === "confirmado" ? "✓ Confirmado" : "Reservado · te vamos a escribir para confirmarte"}</div>
+                      {t.resultado && <div className="tw-turno-rec"><b style={{ textTransform: "none" }}>Lo que te recomendamos:</b><br />{t.resultado}</div>}
+                      {viene && !miCuenta.vista && <button className="tw-link" style={{ marginTop: 6, color: "#b3261e" }} onClick={() => { if (window.confirm("¿Cancelar el turno?")) pedir("/cuenta/turnos/" + t.id + "/cancelar", { method: "POST" }).then(r => setMiCuenta(m => ({ ...m, turnos: r.turnos }))).catch(e => alert(e.message)); }}>Cancelar turno</button>}
+                    </div>
+                  );
+                })}</div>
+              </>}
             </div>
           );
         })()}
@@ -28444,6 +28578,7 @@ function TiendaPublica({ slug }) {
             {reels.length > 0 && <button className={cat === "videos" && !q ? "on" : ""} onClick={() => irCat("videos")}>{tienda.reels_titulo || "Videos"}</button>}
             {cats.filter(c => c !== catSkin).map(c => <button key={c} className={cat === c && !q ? "on" : ""} onClick={() => irCat(c)}>{c}</button>)}
             {preventas.length > 0 && <button className={"tw-nav-pre" + (cat === "preventa" && !q ? " on" : "")} onClick={() => irCat("preventa")}>⏳ {tienda.preventa.titulo}</button>}
+            {tienda.diagnostico && <button className={cat === "diagnostico" && !q ? "on" : ""} onClick={() => irCat("diagnostico")}>🗓️ Turno de piel gratis</button>}
           </nav>
         </div>
       )}
@@ -28453,9 +28588,13 @@ function TiendaPublica({ slug }) {
         ) : cat === "regalos" && !q && tienda.regalos ? (
           <TwRegalos r={tienda.regalos} tienda={tienda} modo={regModo} setModo={setRegModo} productos={visibles} dispo={dispo} foto={foto} ciudades={ciudades.length ? ciudades : tienda.retiro} lid={lid}
             datos={datos} setDatos={setDatos} pedir={pedir} slug={slug} modoRuta={modoRuta} onAgregar={agregarRegalo} onAbrir={abrir} onCompartir={compartirSeccion} copiado={seccionCopiada} />
+        ) : cat === "diagnostico" && !q && tienda.diagnostico ? (
+          <TwDiagnostico d={tienda.diagnostico} pedir={pedir} datos={datos} setDatos={setDatos} perfil={perfilPiel} lid={lid} logueada={logueada} whatsapp={tienda.whatsapp}
+            onCuenta={() => { setPaso("cuenta"); cargarCuenta(); }} />
         ) : cat === "rutina" && !q ? (<>
           <TwRutina productos={visibles} dispo={dispo} foto={foto} onAgregar={agregarRegalo} onAbrir={abrir} perfil={perfilPiel} onPerfil={guardarPerfilPiel}
             onCompartir={() => compartirSeccion("Encontrá tu rutina")} copiado={seccionCopiada} />
+          {tienda.diagnostico && <div style={{ maxWidth: 760, margin: "0 auto 30px" }}><TwDiagBanner d={tienda.diagnostico} onIr={() => irCat("diagnostico")} /></div>}
           {(tienda.rutinas || []).length > 0 && <div style={{ maxWidth: 760, margin: "0 auto 40px" }}><TwRutinasLocal titulo="💁 O elegí una rutina armada por el local" rutinas={tienda.rutinas} productos={visibles} foto={foto} dispo={dispo} onAgregar={agregarRegalo} onAbrir={abrir} /></div>}
         </>
         ) : cat === "videos" && !q ? (
@@ -28555,6 +28694,7 @@ function TiendaPublica({ slug }) {
             {vistosLista.length >= 2 && <TwFila titulo="👀 Lo viste hace poco" items={vistosLista} render={tarjeta} />}
             {paraTuPiel.length >= 3 && <TwFila titulo={"🌿 Para tu piel " + ((TW_FILTROS[1].op.find(o => o[0] === perfilPiel.piel) || ["", ""])[1] || "").toLowerCase()} sub={<div className="tw-pre-txt">Elegidos según tu perfil de piel{perfilPiel.nec && perfilPiel.nec.length ? " y lo que querés mejorar" : ""}.</div>} items={paraTuPiel} render={tarjeta} />}
             {hayRutina && !paraTuPiel.length && <TwRutinaBanner onIr={() => irCat("rutina")} />}
+            {tienda.diagnostico && <TwDiagBanner d={tienda.diagnostico} onIr={() => irCat("diagnostico")} />}
             {(tienda.rutinas || []).length > 0 && <TwRutinasLocal rutinas={tienda.rutinas} productos={visibles} foto={foto} dispo={dispo} onAgregar={agregarRegalo} onAbrir={abrir} />}
             {preventas.length > 0 && <TwFila clase="tw-pre-bloque" items={preventas.slice(0, 12)} onVerTodo={() => irCat("preventa")} render={tarjeta}
               titulo={<>⏳ {tienda.preventa.titulo}</>}
@@ -29544,6 +29684,65 @@ function RetiroExpress({ cfg, locs, temaPal, avisar, onGuardado, it }) {
     </CajaSeccion>
   );
 }
+// Diagnóstico de piel: horarios en que se dan turnos (mismo editor de franjas que el retiro express), duración y cupo
+function ConfigDiagnostico({ cfg, locs, temaPal, avisar, onGuardado, it, urlTienda }) {
+  const tp = temaPal || PALETA_CLARA;
+  const ini = cfg.diagnostico || {};
+  const iniFr = ini.activo && ini.franjas && ini.franjas.length ? ini.franjas : [{ desde: "10:00", hasta: "12:30", dias: [1, 2, 3, 4, 5, 6], local: 0 }, { desde: "17:00", hasta: "20:00", dias: [1, 2, 3, 4, 5], local: 0 }];
+  const [k, setK] = useState(() => ({ activo: !!ini.activo, minutos: String(ini.minutos || 20), cupo: String(ini.cupo || 1), dias: String(ini.dias || 14), titulo: ini.titulo || "", texto: ini.texto || "", franjas: iniFr.map(f => ({ ...f, local: f.local || 0 })) }));
+  const [guardando, setGuardando] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+  const locales = (locs || []).filter(l => l.activo !== false);
+  const setF = (i, cambio) => setK(x => ({ ...x, franjas: x.franjas.map((f, j) => j === i ? { ...f, ...cambio } : f) }));
+  const num = (v) => v.replace(/[^\d]/g, "");
+  const link = urlTienda ? (urlTienda.includes("?tienda=") ? urlTienda + "&seccion=diagnostico" : urlTienda + "/diagnostico") : "";
+  const guardar = async () => {
+    setGuardando(true);
+    try { await API.put("/tienda/diagnostico", { ...k, minutos: parseInt(k.minutos) || 20, cupo: parseInt(k.cupo) || 1, dias: parseInt(k.dias) || 14 }); avisar(true, "✓ Guardado"); onGuardado && onGuardado(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+    setGuardando(false);
+  };
+  return (
+    <CajaSeccion it={it} temaPal={tp}>
+      <label style={{ display: "flex", gap: 10, alignItems: "center", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>
+        <input type="checkbox" checked={k.activo} onChange={e => setK(x => ({ ...x, activo: e.target.checked }))} style={{ width: 20, height: 20 }} /> Dar turnos de diagnóstico gratis
+      </label>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginTop: 12 }}>
+        <div><div className="fl">Cada turno dura (min)</div><input className="inp" inputMode="numeric" value={k.minutos} onChange={e => setK(x => ({ ...x, minutos: num(e.target.value) }))} /></div>
+        <div><div className="fl">Clientas a la vez</div><input className="inp" inputMode="numeric" value={k.cupo} onChange={e => setK(x => ({ ...x, cupo: num(e.target.value) }))} /></div>
+        <div><div className="fl">Reservar hasta (días)</div><input className="inp" inputMode="numeric" value={k.dias} onChange={e => setK(x => ({ ...x, dias: num(e.target.value) }))} /></div>
+      </div>
+      <div style={{ fontSize: 12, color: tp.textMuted, marginTop: 4 }}>"Clientas a la vez": cuántas vendedoras pueden atender en el mismo horario. Con 1, cada horario se ocupa con una sola clienta.</div>
+      <div style={{ fontWeight: 900, fontSize: 14, margin: "16px 0 4px" }}>🕐 Horarios de turnos</div>
+      <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>Elegí los horarios más tranquilos del local. Podés cargar uno de mañana y otro de tarde, o uno distinto para cada local.</div>
+      {k.franjas.map((f, i) => (
+        <div key={i} style={{ border: "1px solid " + tp.border, borderRadius: 12, padding: 10, marginBottom: 8 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ fontSize: 13 }}>De</span><input className="inp" type="time" style={{ width: 120 }} value={f.desde} onChange={e => setF(i, { desde: e.target.value })} aria-label="Desde" />
+            <span style={{ fontSize: 13 }}>a</span><input className="inp" type="time" style={{ width: 120 }} value={f.hasta} onChange={e => setF(i, { hasta: e.target.value })} aria-label="Hasta" />
+            {!UN_SOLO_LOCAL && locales.length > 1 && <select className="sel" style={{ width: "auto" }} value={f.local} onChange={e => setF(i, { local: Number(e.target.value) })} aria-label="Local"><option value={0}>Todos los locales</option>{locales.map(l => <option key={l.id} value={l.id}>{l.nombre}</option>)}</select>}
+            {k.franjas.length > 1 && <button className="icon-btn" style={{ marginLeft: "auto" }} aria-label="Sacar este horario" onClick={() => setK(x => ({ ...x, franjas: x.franjas.filter((_, j) => j !== i) }))}>🗑️</button>}
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>{DIAS_EXP.map((d, n) => { const on = f.dias.includes(n + 1); return <button key={n} className={"chip-btn" + (on ? " on" : "")} aria-pressed={on} onClick={() => setF(i, { dias: on ? f.dias.filter(y => y !== n + 1) : [...f.dias, n + 1] })}>{d}</button>; })}</div>
+          {f.desde >= f.hasta && <div style={{ fontSize: 11.5, color: tp.red, marginTop: 4 }}>El "a" tiene que ser después del "de".</div>}
+        </div>
+      ))}
+      {k.franjas.length < 8 && <button className="chip-btn" onClick={() => setK(x => ({ ...x, franjas: [...x.franjas, { desde: "17:00", hasta: "20:00", dias: [1, 2, 3, 4, 5], local: 0 }] }))}>+ Agregar otro horario</button>}
+      <div style={{ fontWeight: 900, fontSize: 14, margin: "16px 0 4px" }}>✏️ Cómo se ve en la tienda</div>
+      <div className="fl">Título</div>
+      <input className="inp" maxLength={60} placeholder="Diagnóstico de piel gratis" value={k.titulo} onChange={e => setK(x => ({ ...x, titulo: e.target.value }))} />
+      <div className="fl" style={{ marginTop: 8 }}>Texto</div>
+      <textarea className="inp" rows={2} maxLength={300} placeholder="Reservá unos minutos con una de nuestras chicas: te mira la piel, te arma la rutina y te explica cómo usar cada producto." value={k.texto} onChange={e => setK(x => ({ ...x, texto: e.target.value }))} />
+      {link && ini.activo && <>
+        <div className="fl" style={{ marginTop: 12 }}>Link para compartir (Instagram, WhatsApp)</div>
+        <div style={{ display: "flex", gap: 6 }}><input className="inp" readOnly value={link} onFocus={e => e.target.select()} aria-label="Link de turnos" />
+          <button className="btn btn-g btn-sm" onClick={() => { try { navigator.clipboard.writeText(link); setCopiado(true); setTimeout(() => setCopiado(false), 2000); } catch (e) {} }}>{copiado ? "✓ Copiado" : "Copiar"}</button></div>
+      </>}
+      <div className="cli-tip" style={{ fontSize: 12.5, marginTop: 12 }}>En la tienda aparece en el inicio, en el menú y en el test de rutina. La clienta elige local, día y hora, y cuenta qué le gustaría mejorar. Los turnos los ven las vendedoras en <b>Clientas web › Turnos de piel</b>: le confirman por WhatsApp y, cuando viene, anotan qué le recomendaron (queda en su perfil y ella lo ve en su cuenta).</div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}><button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar"}</button></div>
+    </CajaSeccion>
+  );
+}
 // Regalo de cumpleaños: cada clienta con cuenta ve su cupon personal en la tienda durante su semana de cumple
 function RegaloCumple({ cfg, temaPal, avisar, onGuardado, it }) {
   const tp = temaPal || PALETA_CLARA;
@@ -30174,13 +30373,113 @@ function VerComoClienta({ temaPal }) {
     </div>
   );
 }
+// Turnos de diagnóstico de piel: agenda por día. Confirmar por WhatsApp, y cuando viene: qué piel tiene y qué se le recomendó
+const MSJ_TURNO = "Hola {nombre}! Te escribimos de {tienda} para confirmarte tu turno de diagnóstico de piel el {dia} a las {hora} en {local}. ¿Nos confirmás que venís? 💛";
+const hoyAR = () => { const a = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" })); return a.getFullYear() + "-" + String(a.getMonth() + 1).padStart(2, "0") + "-" + String(a.getDate()).padStart(2, "0"); };
+const pendientesTurnos = (turnos) => { const hoy = hoyAR(); return (turnos || []).filter(t => (t.estado === "reservado" && t.fecha >= hoy) || (["reservado", "confirmado"].includes(t.estado) && t.fecha < hoy)).length; };
+function AgendaTurnos({ turnos, temaPal, avisar, onCambio, nombreTienda }) {
+  const [abierto, setAbierto] = useState(null); // turno que se está anotando
+  const [form, setForm] = useState({});
+  const [verViejos, setVerViejos] = useState(false);
+  const [filtroLocal, setFiltroLocal] = useState(0);
+  const hoy = hoyAR(), manana = (() => { const d = new Date(hoy + "T12:00:00"); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })();
+  const pielOps = TW_FILTROS[1].op, necOps = TW_FILTROS.find(f => f.k === "necesidad").op;
+  const nomPiel = (k) => ((pielOps.find(o => o[0] === k) || ["", k])[1] || "").toLowerCase();
+  const nomNec = (k) => (necOps.find(o => o[0] === k) || ["", k])[1];
+  const locales = [...new Map(turnos.map(t => [t.local_id, t.local])).entries()];
+  const lista = turnos.filter(t => !filtroLocal || t.local_id === filtroLocal);
+  const sinAnotar = lista.filter(t => t.fecha < hoy && ["reservado", "confirmado"].includes(t.estado));
+  const vienen = lista.filter(t => t.fecha >= hoy && t.estado !== "cancelado");
+  const viejos = lista.filter(t => !sinAnotar.includes(t) && !vienen.includes(t));
+  const porDia = {}; vienen.forEach(t => { (porDia[t.fecha] = porDia[t.fecha] || []).push(t); });
+  const cambiar = async (t, datos) => {
+    try { await API.put("/tienda/turnos/" + t.id, datos); onCambio(); setAbierto(null); return true; }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); return false; }
+  };
+  const confirmar = (t) => {
+    const txt = llenarMsj(MSJ_TURNO, { nombre: String(t.nombre || "").trim().split(/\s+/)[0], tienda: nombreTienda || "el local", dia: fechaTurno(t.fecha, true), hora: t.hora, local: t.local || "el local" });
+    window.open(linkWhatsapp(t.telefono, txt) || ("https://wa.me/?text=" + encodeURIComponent(txt)), "_blank");
+    if (t.estado === "reservado") cambiar(t, { estado: "confirmado" });
+  };
+  const abrir = (t) => { setAbierto(t.id); setForm({ piel: t.piel || (t.perfil_piel && t.perfil_piel.piel) || "", nec: t.nec || (t.perfil_piel && t.perfil_piel.nec) || [], resultado: t.resultado || "" }); };
+  const colLoc = (id) => id === 2 ? "#2471a3" : "#c0392b";
+  const fila = (t) => {
+    const pasado = t.fecha < hoy;
+    const est = { reservado: ["Sin confirmar", temaPal.warn], confirmado: ["✓ Confirmado", temaPal.green], atendido: ["✓ Vino", temaPal.green], ausente: ["✗ No vino", temaPal.red], cancelado: ["Cancelado", temaPal.textMuted] }[t.estado] || ["", ""];
+    return (
+      <div key={t.id} style={{ border: "1px solid " + temaPal.border, borderLeft: "4px solid " + colLoc(t.local_id), borderRadius: 10, padding: "9px 11px", background: temaPal.card || "transparent" }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <b style={{ fontSize: 17, minWidth: 50 }}>{t.hora}</b>
+          <b style={{ fontSize: 14.5 }}>{t.nombre}</b>
+          <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", background: colLoc(t.local_id), borderRadius: 999, padding: "2px 8px" }}>📍 {t.local}</span>
+          <span style={{ fontSize: 11.5, fontWeight: 800, color: est[1], marginLeft: "auto" }}>{est[0]}</span>
+        </div>
+        <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginTop: 3, display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {t.piel && <span>🧴 Piel {nomPiel(t.piel)}</span>}
+          {(t.nec || []).length > 0 && <span>· Quiere mejorar: {t.nec.map(nomNec).join(", ")}</span>}
+          {t.telefono && <span>· 📱 {t.telefono}</span>}
+        </div>
+        {t.nota && <div style={{ fontSize: 13, marginTop: 4, fontStyle: "italic" }}>“{t.nota}”</div>}
+        {t.resultado && abierto !== t.id && <div style={{ fontSize: 13, marginTop: 6, background: temaPal.bg || temaPal.border, borderRadius: 8, padding: "6px 9px", whiteSpace: "pre-wrap" }}><b>Le recomendamos:</b> {t.resultado}{t.atendido_por ? " — " + t.atendido_por : ""}</div>}
+        {abierto === t.id ? (
+          <div style={{ marginTop: 8, borderTop: "1px dashed " + temaPal.border, paddingTop: 8 }}>
+            <div className="fl">Tipo de piel</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{pielOps.map(([k, n]) => <button key={k} className={"chip-btn" + (form.piel === k ? " on" : "")} onClick={() => setForm(f => ({ ...f, piel: f.piel === k ? "" : k }))}>{n}</button>)}</div>
+            <div className="fl" style={{ marginTop: 8 }}>Qué quiere mejorar <small>(hasta 3)</small></div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{necOps.map(([k, n]) => { const on = (form.nec || []).includes(k); return <button key={k} className={"chip-btn" + (on ? " on" : "")} onClick={() => setForm(f => ({ ...f, nec: on ? f.nec.filter(x => x !== k) : (f.nec || []).length < 3 ? [...(f.nec || []), k] : f.nec }))}>{n}</button>; })}</div>
+            <div className="fl" style={{ marginTop: 8 }}>¿Qué le recomendaste? <small>(ella lo ve en su cuenta)</small></div>
+            <textarea className="inp" rows={3} maxLength={1000} placeholder="Ej: Mañana: limpiador en gel + sérum niacinamida + protector. Noche: limpiador + hidratante." value={form.resultado} onChange={e => setForm(f => ({ ...f, resultado: e.target.value }))} />
+            <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+              <button className="btn btn-p btn-sm" onClick={() => cambiar(t, { estado: "atendido", piel: form.piel || null, nec: form.nec || [], resultado: form.resultado })}>✓ Guardar · vino</button>
+              <button className="btn btn-g btn-sm" onClick={() => setAbierto(null)}>Cerrar</button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+            {["reservado", "confirmado"].includes(t.estado) && !pasado && <button className="btn btn-g btn-sm" onClick={() => confirmar(t)}>💬 {t.estado === "reservado" ? "Confirmar por WhatsApp" : "WhatsApp"}</button>}
+            {t.estado !== "cancelado" && (t.fecha <= hoy || t.estado === "atendido") && <button className="btn btn-p btn-sm" onClick={() => abrir(t)}>{t.estado === "atendido" ? "✏️ Editar recomendación" : "✓ Vino"}</button>}
+            {["reservado", "confirmado"].includes(t.estado) && t.fecha <= hoy && <button className="btn btn-g btn-sm" onClick={() => cambiar(t, { estado: "ausente" })}>✗ No vino</button>}
+            {["reservado", "confirmado"].includes(t.estado) && <button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={() => { if (confirm("¿Cancelar el turno de " + t.nombre + "? Se libera el horario.")) cambiar(t, { estado: "cancelado" }); }}>Cancelar</button>}
+            {["ausente", "cancelado"].includes(t.estado) && <button className="btn btn-g btn-sm" onClick={() => cambiar(t, { estado: "reservado" })}>↩ Deshacer</button>}
+          </div>
+        )}
+      </div>
+    );
+  };
+  const tituloDia = (f) => f === hoy ? "Hoy" : f === manana ? "Mañana" : fechaTurno(f, true);
+  return (
+    <div className="card">
+      <div className="ct" style={{ marginBottom: 4 }}>🗓️ Turnos de diagnóstico de piel</div>
+      <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 10 }}>Confirmale por WhatsApp un día antes. Cuando viene, tocá "✓ Vino" y anotá qué le recomendaste: queda en su perfil y ella lo ve en su cuenta.</div>
+      {locales.length > 1 && <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+        <button className={"chip-btn" + (!filtroLocal ? " on" : "")} onClick={() => setFiltroLocal(0)}>Todos</button>
+        {locales.map(([id, n]) => <button key={id} className={"chip-btn" + (filtroLocal === id ? " on" : "")} onClick={() => setFiltroLocal(id)}>📍 {n}</button>)}
+      </div>}
+      {sinAnotar.length > 0 && <>
+        <div style={{ fontWeight: 900, color: temaPal.red, margin: "4px 0 6px" }}>⚠️ Falta anotar si vinieron ({sinAnotar.length})</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>{sinAnotar.map(t => <div key={t.id}><div style={{ fontSize: 11.5, color: temaPal.textMuted, marginBottom: 2, textTransform: "capitalize" }}>{fechaTurno(t.fecha, true)}</div>{fila(t)}</div>)}</div>
+      </>}
+      {!vienen.length && !sinAnotar.length && <div style={{ textAlign: "center", color: temaPal.textMuted, padding: "18px 0" }}>No hay turnos por ahora.</div>}
+      {Object.entries(porDia).map(([f, ts]) => (
+        <div key={f} style={{ marginBottom: 12 }}>
+          <div style={{ fontWeight: 900, fontSize: 14.5, margin: "4px 0 6px", textTransform: "capitalize", color: f === hoy ? temaPal.accent : undefined }}>{tituloDia(f)} <span style={{ fontWeight: 600, fontSize: 12, color: temaPal.textMuted }}>· {ts.length} {ts.length === 1 ? "turno" : "turnos"}</span></div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{ts.map(fila)}</div>
+        </div>
+      ))}
+      {viejos.length > 0 && <button className="chip-btn" onClick={() => setVerViejos(v => !v)}>{verViejos ? "Ocultar" : "Ver"} los de la última semana ({viejos.length})</button>}
+      {verViejos && <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>{viejos.map(t => <div key={t.id}><div style={{ fontSize: 11.5, color: temaPal.textMuted, marginBottom: 2, textTransform: "capitalize" }}>{fechaTurno(t.fecha, true)}</div>{fila(t)}</div>)}</div>}
+    </div>
+  );
+}
 function ClientasWeb({ temaPal, avisar, urlTienda, nombreTienda, esJefe, esDuena, slug }) {
   const [d, setD] = useState(null);
   const [msj, setMsj] = useState(null); // editor de mensajes
   const [sec, setSec] = useState(null); // seccion elegida en las tarjetas de arriba
   const [todosFav, setTodosFav] = useState(false);
   const cargar = () => API.get("/tienda/clientas-web").then(r => setD(r.data)).catch(() => setD({ avisos: [], carritos: [], favoritos: [], resumen_fav: {}, mensajes: {}, error: true }));
-  useEffect(() => { cargar(); }, []);
+  const [turnos, setTurnos] = useState([]);
+  const cargarTurnos = () => API.get("/tienda/turnos").then(r => setTurnos(r.data || [])).catch(() => {});
+  useEffect(() => { cargar(); cargarTurnos(); }, []);
   if (!d) return <div className="card"><div className="skel" style={{ height: 120 }} /></div>;
   const tCarrito = (d.mensajes && d.mensajes.carrito) || MSJ_CARRITO, tAviso = (d.mensajes && d.mensajes.aviso) || MSJ_AVISO;
   const hace = (f) => { const h = Math.round((Date.now() - new Date(f).getTime()) / 36e5); return h < 1 ? "recién" : h < 24 ? "hace " + h + " h" : "hace " + Math.round(h / 24) + " días"; };
@@ -30218,8 +30517,9 @@ function ClientasWeb({ temaPal, avisar, urlTienda, nombreTienda, esJefe, esDuena
   // Secciones (una a la vez, como en Pedidos): por defecto, los avisos si hay alguno para mandar
   const paraAvisar = grupos.filter(([, g]) => g.rg + g.ush > 0).reduce((t, [, g]) => t + g.lista.length, 0);
   const SECS = [["aviso", "🔔", "Piden aviso", "#d35400", d.avisos.length, paraAvisar > 0], ["favoritos", "❤️", "Favoritos", "#c0392b", rf.guardados || favs.reduce((t, f) => t + f.n, 0), false],
+    ...(turnos.length ? [["turnos", "🗓️", "Turnos de piel", "#2471a3", pendientesTurnos(turnos), pendientesTurnos(turnos) > 0]] : []),
     ...(esDuena ? [["vercomo", "👁️", "Ver como clienta", "#8e44ad", 0, false]] : [])];
-  const secAct = sec || (paraAvisar || !favs.length ? "aviso" : "favoritos");
+  const secAct = sec || (paraAvisar ? "aviso" : pendientesTurnos(turnos) ? "turnos" : !favs.length ? "aviso" : "favoritos");
   const favsVis = todosFav ? favs : favs.slice(0, 15);
   const ejemplo = { nombre: "Laura", tienda: nombreTienda || "Girasoles", total: fmt(25800), link: urlTienda || "girasolesbeauty.com.ar", productos: "Sérum Vitamina C, Protector solar x2", producto: "Sérum Vitamina C" };
   return (
@@ -30234,6 +30534,7 @@ function ClientasWeb({ temaPal, avisar, urlTienda, nombreTienda, esJefe, esDuena
       </div>
       {secAct === "aviso" && paraAvisar > 0 && <div className="cli-tip" style={{ borderColor: temaPal.green }}>✅ <b>{paraAvisar === 1 ? "1 clienta espera" : paraAvisar + " clientas esperan"} un producto que ya volvió.</b> Tocá "Avisar" y se abre el WhatsApp con tu mensaje.</div>}
       {secAct === "vercomo" && esDuena && <VerComoClienta temaPal={temaPal} />}
+      {secAct === "turnos" && <AgendaTurnos turnos={turnos} temaPal={temaPal} avisar={avisar} onCambio={cargarTurnos} nombreTienda={nombreTienda} />}
       {secAct === "favoritos" && <div className="card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <div className="ct" style={{ marginBottom: 0 }}>❤️ Análisis de favoritos</div>
@@ -31944,6 +32245,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
           { k: "entrega", icono: "🚚", titulo: "Entrega y pagos", color: "#2471a3", sub: [cfg.retiro_activo && "Retiro", cfg.envio_activo && "Envío"].filter(Boolean).join(" + ") || "Falta elegir", alerta: !cfg.retiro_activo && !cfg.envio_activo, ayuda: "Cómo reciben el pedido y cómo pueden pagar." },
           { k: "links", icono: "🔗", titulo: "Link para Instagram", color: "#d6246e", sub: Object.values((cfg.links && cfg.links.locales) || {}).some(x => x.whatsapp) ? "Listo" : "WhatsApp, horarios y ubicación", ayuda: "Una página para poner en la bio de Instagram: tienda online, gift cards y, por cada local, su WhatsApp, horarios y cómo llegar." },
           { k: "express", icono: "⚡", titulo: "Retiro express", color: "#d68910", sub: cfg.express && cfg.express.activo ? "Listo en " + cfg.express.minutos + " min" : "Apagado", ayuda: "Pedidos para retirar listos en pocos minutos." },
+          { k: "diagnostico", icono: "🗓️", titulo: "Diagnóstico de piel", color: "#2471a3", sub: cfg.diagnostico && cfg.diagnostico.activo ? "Turnos de " + cfg.diagnostico.minutos + " min" : "Apagado", ayuda: "Turnos gratis en el local: la vendedora le mira la piel, le arma la rutina y le vende ahí mismo." },
           { k: "cumple", icono: "🎂", titulo: "Regalo de cumpleaños", color: "#e84393", sub: cfg.cumple && cfg.cumple.activo ? (cfg.cumple.tipo === "%" ? cfg.cumple.valor + "% OFF" : fmt(cfg.cumple.valor)) : "Apagado", ayuda: "Un cupón personal para cada clienta en su cumple." },
           { k: "google", icono: "📣", titulo: "Google e Instagram", color: "#4285f4", sub: "Catálogo de productos", ayuda: "Tus productos en Google Shopping (gratis) y en la tienda de Instagram y Facebook." },
           { k: "muestras", icono: "🎁", titulo: "Muestras gratis", color: "#e67e22", sub: cfg.muestras && cfg.muestras.activo ? "Desde " + fmt(cfg.muestras.desde) + " · " + Object.values(cfg.muestras.envases || {}).reduce((t, v) => t + (parseInt(v) || 0), 0) + " envases" : "Apagadas", alerta: !!(cfg.muestras && cfg.muestras.activo && Object.values(cfg.muestras.envases || {}).some(v => parseInt(v) <= 5)), ayuda: "En compras grandes la clienta elige una muestra de regalo." },
@@ -31955,6 +32257,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         <div style={{ paddingBottom: 10 }}>
           <MenuSecciones items={SECS_CFG} activa={it.k} onElegir={setSecCfg} temaPal={temaPal} />
           {it.k === "express" && <RetiroExpress cfg={cfg} locs={locs} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it} />}
+          {it.k === "diagnostico" && <ConfigDiagnostico cfg={cfg} locs={locs} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it} urlTienda={url} />}
           {it.k === "cumple" && <RegaloCumple cfg={cfg} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it} />}
           {it.k === "google" && <CatalogoGoogle cfg={cfg} temaPal={temaPal} avisar={avisar} it={it} />}
           {it.k === "muestras" && <MuestrasGratis key={JSON.stringify((cfg.muestras || {}).envases || {})} cfg={cfg} locs={locs} productos={productos} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it} />}

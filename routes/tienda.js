@@ -40,7 +40,7 @@ router.get('/config', async (req, res) => {
     const neg = (await pool.query('SELECT nombre_negocio FROM configuracion_negocio LIMIT 1').catch(() => ({ rows: [] }))).rows[0] || {};
     const sugerido = String(neg.nombre_negocio || 'mi-tienda').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'mi-tienda';
     const dominio = await tienda.dominioDe(req.negocio ? req.negocio.id : 1).catch(() => null);
-    res.json({ ...c, ruleta: tienda.ruletaDe(c), preventa: tienda.preventaDe(c), misiones: misiones.misionesDe(c), misiones_tipos: misiones.TIPOS, rutinas: tienda.rutinasDe(c), referidos: tienda.referidosDe(c), ofertas: tienda.ofertasDe(c), regalos: tienda.regalosDe(c), links: tienda.linksDe(c), muestras: tienda.muestrasDe(c), cumple: tienda.cumpleDe(c), express: tienda.expressDe(c), packs: tienda.packsDe(c), regalos_hoy: tienda.temaRegaloHoy(tienda.regalosDe(c)), mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
+    res.json({ ...c, ruleta: tienda.ruletaDe(c), preventa: tienda.preventaDe(c), misiones: misiones.misionesDe(c), misiones_tipos: misiones.TIPOS, rutinas: tienda.rutinasDe(c), referidos: tienda.referidosDe(c), ofertas: tienda.ofertasDe(c), regalos: tienda.regalosDe(c), links: tienda.linksDe(c), muestras: tienda.muestrasDe(c), cumple: tienda.cumpleDe(c), express: tienda.expressDe(c), diagnostico: tienda.diagnosticoDe(c), packs: tienda.packsDe(c), regalos_hoy: tienda.temaRegaloHoy(tienda.regalosDe(c)), mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la configuración' }); }
 });
 
@@ -1066,6 +1066,53 @@ router.put('/express', async (req, res) => {
     await pool.query('UPDATE tienda_config SET express = $1 WHERE id = 1', [JSON.stringify(k)]);
     res.json({ express: k });
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+});
+// Diagnostico de piel: horarios, duracion y cupo (la dueña o encargada); la agenda la ven tambien las vendedoras
+router.put('/diagnostico', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    const k = tienda.diagnosticoDe({ diagnostico: req.body || {} });
+    if (k.activo && !k.franjas.length) return res.status(400).json({ error: 'Cargá al menos un horario' });
+    if (k.activo && k.franjas.some(f => f.desde >= f.hasta)) return res.status(400).json({ error: 'En cada horario, el "hasta" tiene que ser después del "desde"' });
+    if (k.activo && k.franjas.some(f => !f.dias.length)) return res.status(400).json({ error: 'Elegí al menos un día en cada horario' });
+    await pool.query('UPDATE tienda_config SET diagnostico = $1 WHERE id = 1', [JSON.stringify(k)]);
+    res.json({ diagnostico: k });
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+});
+const ESTADOS_TURNO = ['reservado', 'confirmado', 'atendido', 'ausente', 'cancelado'];
+const PIELES_T = ['grasa', 'seca', 'mixta', 'sensible', 'normal'];
+const NEC_T = ['acne', 'manchas', 'antiedad', 'rojeces', 'hidratacion', 'poros', 'ojeras'];
+const SQL_TURNOS = `SELECT t.id, t.cliente_id, t.nombre, t.telefono, t.local_id, l.nombre AS local, to_char(t.fecha, 'YYYY-MM-DD') AS fecha, t.hora, t.piel, t.nec, t.nota,
+  t.estado, t.atendido_por, t.resultado, t.confirmado_en, t.creado_en, c.perfil_piel FROM tienda_turnos t LEFT JOIN locales l ON l.id = t.local_id LEFT JOIN clientes c ON c.id = t.cliente_id`;
+// Agenda: desde hace una semana (para anotar lo que quedo pendiente) hasta lo que viene
+router.get('/turnos', async (req, res) => {
+  try {
+    const r = await pool.query(`${SQL_TURNOS} WHERE t.fecha >= CURRENT_DATE - 7 ORDER BY t.fecha, t.hora, t.id`);
+    res.json(r.rows);
+  } catch (e) { res.status(500).json({ error: 'No se pudo cargar la agenda' }); }
+});
+// Confirmar (ya le escribimos), vino / no vino / cancelar, y lo que le recomendaron. El tipo de piel que se anota pasa a su perfil
+router.put('/turnos/:id', async (req, res) => {
+  try {
+    const b = req.body || {}, id = parseInt(req.params.id);
+    const t = (await pool.query('SELECT * FROM tienda_turnos WHERE id = $1', [id])).rows[0];
+    if (!t) return res.status(404).json({ error: 'No encontramos ese turno' });
+    const estado = ESTADOS_TURNO.includes(b.estado) ? b.estado : t.estado;
+    const u = req.usuario || {};
+    const por = u.nombre || (u.id ? ((await pool.query('SELECT nombre FROM usuarios WHERE id = $1', [u.id]).catch(() => ({ rows: [] }))).rows[0] || {}).nombre : null) || 'Local';
+    const piel = b.piel === undefined ? t.piel : (PIELES_T.includes(b.piel) ? b.piel : null);
+    const nec = b.nec === undefined ? t.nec : [...new Set((Array.isArray(b.nec) ? b.nec : []).filter(n => NEC_T.includes(n)))].slice(0, 3);
+    const resultado = b.resultado === undefined ? t.resultado : (String(b.resultado || '').trim().slice(0, 1000) || null);
+    await pool.query(`UPDATE tienda_turnos SET estado = $1, piel = $2, nec = $3, resultado = $4, actualizado_en = NOW(),
+      confirmado_en = CASE WHEN $1 = 'confirmado' AND confirmado_en IS NULL THEN NOW() ELSE confirmado_en END,
+      atendido_por = CASE WHEN $1 = 'atendido' THEN COALESCE(atendido_por, $5) ELSE atendido_por END WHERE id = $6`,
+      [estado, piel, nec && nec.length ? JSON.stringify(nec) : null, resultado, por, id]);
+    if (estado === 'atendido' && t.cliente_id && (piel || (nec && nec.length))) {
+      const antes = ((await pool.query('SELECT perfil_piel FROM clientes WHERE id = $1', [t.cliente_id])).rows[0] || {}).perfil_piel || {};
+      await pool.query('UPDATE clientes SET perfil_piel = $1 WHERE id = $2', [JSON.stringify({ piel: piel || antes.piel || null, nec: nec && nec.length ? nec : (antes.nec || []) }), t.cliente_id]);
+    }
+    res.json((await pool.query(`${SQL_TURNOS} WHERE t.id = $1`, [id])).rows[0]);
+  } catch (e) { console.error('[tienda] turno:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
 });
 router.put('/cumple', async (req, res) => {
   try {

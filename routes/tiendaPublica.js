@@ -115,6 +115,7 @@ router.get('/:slug', async (req, res) => {
       // Logo de la marca para la gift card (blanco sobre el color de la tarjeta)
       logo_marca: Number(req.negTienda.id) === 1 ? { blanco: '/logos/girasoles-logo-blanco.svg', color: '/logos/girasoles-logo.svg' } : null,
       packs: tienda.packsDe(c).filter(p => p.activo).map(({ activo, ...p }) => p),
+      diagnostico: (() => { const k = tienda.diagnosticoDe(c); return k.activo ? { titulo: k.titulo, texto: k.texto, minutos: k.minutos } : null; })(),
       express: (() => { const k = tienda.expressDe(c); return k.activo ? { minutos: k.minutos, abierto: tienda.expressAbierto(k), locales: [1, 2].filter(l => tienda.expressAbierto(k, l)) } : null; })(),
       muestras: (() => {
         const m = tienda.muestrasDe(c);
@@ -940,10 +941,15 @@ router.get('/:slug/cuenta', conCuenta, async (req, res) => {
     try { const t = jwt.decode(String(req.headers.authorization || '').replace(/^Bearer /, '')); if (t && !t.vista && t.iat && Date.now() / 1000 - t.iat > 86400) tokenNuevo = firmar(req, req.clienteId); } catch (e) {}
     const competencia = await require('../lib/competencia').deClienta(req.clienteId).catch(e => { console.error('[tienda] competencia:', e.message); return null; });
     const regaloCumple = await tienda.regaloCumple(pool, req.tienda, req.clienteId, vista).catch(e => { console.error('[tienda] cumple:', e.message); return null; });
-    res.json({ ...dd, vista: vista || undefined, competencia, regalo_cumple: regaloCumple, misiones, compras: (dd.compras || []).slice(0, 15), premios: premios.map(p => ({ ...p, descuento_pct: cuentas.descuentoDePremio(p) })), canjes: canjesInfo, pedidos, logros, amiga, falta_cumple: !((await pool.query('SELECT fecha_nacimiento FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).fecha_nacimiento, perfil_piel: ((await pool.query('SELECT perfil_piel FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).perfil_piel || null, token_nuevo: tokenNuevo });
+    res.json({ ...dd, vista: vista || undefined, competencia, regalo_cumple: regaloCumple, misiones, compras: (dd.compras || []).slice(0, 15), premios: premios.map(p => ({ ...p, descuento_pct: cuentas.descuentoDePremio(p) })), canjes: canjesInfo, pedidos, logros, amiga, falta_cumple: !((await pool.query('SELECT fecha_nacimiento FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).fecha_nacimiento, perfil_piel: ((await pool.query('SELECT perfil_piel FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).perfil_piel || null, turnos: await turnosDeClienta(req.clienteId), token_nuevo: tokenNuevo });
   } catch (e) { console.error('[tienda] cuenta:', e.message); res.status(500).json({ error: 'No pudimos cargar tu cuenta' }); }
 });
 
+// Turnos de diagnostico de la clienta (los que vienen y lo que le recomendaron en los que ya fue)
+async function turnosDeClienta(clienteId) {
+  return (await pool.query(`SELECT t.id, to_char(t.fecha, 'YYYY-MM-DD') AS fecha, t.hora, t.estado, t.resultado, t.atendido_por, l.nombre AS local, l.direccion
+    FROM tienda_turnos t LEFT JOIN locales l ON l.id = t.local_id WHERE t.cliente_id = $1 AND t.estado <> 'cancelado' ORDER BY t.fecha DESC, t.hora DESC LIMIT 10`, [clienteId]).catch(() => ({ rows: [] }))).rows;
+}
 const PIELES = ['grasa', 'seca', 'mixta', 'sensible', 'normal'];
 const NECESIDADES = ['acne', 'manchas', 'antiedad', 'rojeces', 'hidratacion', 'poros', 'ojeras'];
 router.put('/:slug/cuenta/perfil', conCuenta, async (req, res) => {
@@ -953,6 +959,67 @@ router.put('/:slug/cuenta/perfil', conCuenta, async (req, res) => {
     await pool.query('UPDATE clientes SET perfil_piel = $1 WHERE id = $2', [perfil.piel || perfil.nec.length ? JSON.stringify(perfil) : null, req.clienteId]);
     res.json({ perfil_piel: perfil.piel || perfil.nec.length ? perfil : null });
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+});
+
+// Diagnostico de piel: locales con horario y, para el local elegido, los dias y horas libres
+async function localesDiagnostico(k) {
+  const todos = (await pool.query('SELECT id, nombre, direccion FROM locales WHERE COALESCE(activo, TRUE) ORDER BY id').catch(() => ({ rows: [] }))).rows;
+  return todos.filter(l => k.franjas.some(f => !f.local || f.local === l.id));
+}
+router.get('/:slug/diagnostico', async (req, res) => {
+  try {
+    const k = tienda.diagnosticoDe(req.tienda);
+    if (!k.activo) return res.json({ activo: false });
+    const locales = await localesDiagnostico(k);
+    const localId = locales.some(l => l.id === Number(req.query.local)) ? Number(req.query.local) : null;
+    res.json({ activo: true, titulo: k.titulo, texto: k.texto, minutos: k.minutos, locales, local_id: localId, dias: localId ? await tienda.horariosDiagnostico(pool, k, localId) : [] });
+  } catch (e) { console.error('[tienda] diagnostico:', e.message); res.status(500).json({ error: 'No pudimos cargar los horarios' }); }
+});
+router.post('/:slug/diagnostico', async (req, res) => {
+  const ip = req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : req.ip;
+  if (demasiados(ip)) return res.status(429).json({ error: 'Probaste muchas veces seguidas. Esperá unos minutos o escribinos por WhatsApp.' });
+  const k = tienda.diagnosticoDe(req.tienda), b = req.body || {};
+  if (!k.activo) return res.status(400).json({ error: 'Los turnos no están disponibles en este momento' });
+  const nombre = String(b.nombre || '').trim().slice(0, 120), telefono = String(b.telefono || '').trim().slice(0, 40);
+  if (nombre.length < 2) return res.status(400).json({ error: 'Escribí tu nombre' });
+  if (telefono.replace(/[^0-9]/g, '').length < 8) return res.status(400).json({ error: 'Escribí tu WhatsApp (con código de área) para confirmarte el turno' });
+  const localId = Number(b.local_id), fecha = String(b.fecha || ''), hora = String(b.hora || '');
+  if (!(await localesDiagnostico(k)).some(l => l.id === localId)) return res.status(400).json({ error: 'Elegí el local' });
+  const piel = PIELES.includes(b.piel) ? b.piel : null;
+  const nec = [...new Set((Array.isArray(b.nec) ? b.nec : []).filter(n => NECESIDADES.includes(n)))].slice(0, 3);
+  const nota = String(b.nota || '').trim().slice(0, 400) || null;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // Un turno por vez en cada local: asi dos clientas no se quedan con el ultimo lugar del mismo horario
+    await client.query('SELECT pg_advisory_xact_lock(7311, $1)', [localId]);
+    const dias = await tienda.horariosDiagnostico(client, k, localId);
+    if (!dias.some(d => d.fecha === fecha && d.horas.includes(hora))) { await client.query('ROLLBACK'); return res.status(409).json({ error: 'Ese horario se acaba de ocupar. Elegí otro, porfa.', ocupado: true }); }
+    const dig = telefono.replace(/[^0-9]/g, '').slice(-8);
+    const ya = (await client.query(`SELECT to_char(fecha, 'DD/MM') AS f, hora FROM tienda_turnos WHERE RIGHT(REGEXP_REPLACE(telefono, '[^0-9]', '', 'g'), 8) = $1
+      AND estado IN ('reservado', 'confirmado') AND fecha >= CURRENT_DATE LIMIT 1`, [dig])).rows[0];
+    if (ya) { await client.query('ROLLBACK'); return res.status(409).json({ error: `Ya tenés un turno el ${ya.f} a las ${ya.hora}. Si querés cambiarlo, escribinos por WhatsApp.` }); }
+    const clienteId = clienteDeToken(req) || await clienteDe(client, nombre, telefono, null);
+    const t = (await client.query(`INSERT INTO tienda_turnos (cliente_id, nombre, telefono, local_id, fecha, hora, piel, nec, nota) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+      [clienteId, nombre, telefono, localId, fecha, hora, piel, nec.length ? JSON.stringify(nec) : null, nota])).rows[0];
+    // Si todavia no tenia perfil de piel, queda con lo que conto
+    if (piel || nec.length) await client.query(`UPDATE clientes SET perfil_piel = $1 WHERE id = $2 AND perfil_piel IS NULL`, [JSON.stringify({ piel, nec }), clienteId]);
+    await client.query('COMMIT');
+    const l = (await pool.query('SELECT nombre, direccion FROM locales WHERE id = $1', [localId])).rows[0] || {};
+    res.status(201).json({ id: t.id, fecha, hora, minutos: k.minutos, local: l.nombre || '', direccion: l.direccion || '' });
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[tienda] turno:', e.message);
+    res.status(500).json({ error: 'No se pudo reservar. Probá de nuevo.' });
+  } finally { client.release(); }
+});
+// La clienta cancela su turno desde Mi cuenta
+router.post('/:slug/cuenta/turnos/:id/cancelar', conCuenta, async (req, res) => {
+  try {
+    const r = await pool.query(`UPDATE tienda_turnos SET estado = 'cancelado', actualizado_en = NOW() WHERE id = $1 AND cliente_id = $2 AND estado IN ('reservado', 'confirmado') RETURNING id`, [parseInt(req.params.id), req.clienteId]);
+    if (!r.rows.length) return res.status(404).json({ error: 'No encontramos ese turno' });
+    res.json({ turnos: await turnosDeClienta(req.clienteId) });
+  } catch (e) { res.status(500).json({ error: 'No se pudo cancelar' }); }
 });
 
 router.put('/:slug/cuenta/cumple', conCuenta, async (req, res) => {
