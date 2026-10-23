@@ -657,9 +657,9 @@ body:has(.pos-overlay) .ayuda-fab { display: none !important; }
 .liq-medio{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid;border-radius:12px;padding:9px 11px}
 .liq-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 @media(max-width:600px){.liq-kpis{grid-template-columns:1fr 1fr}}
-.liq-tramos{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.liq-tramos{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
 .liq-tramo{font:inherit;cursor:pointer;text-align:left;border:1.5px solid;border-radius:12px;padding:9px 11px;background:transparent;color:inherit;display:flex;flex-direction:column;gap:2px}
-.liq-tramo b{font-size:17px;color:#c0392b}.liq-tramo span{font-size:12px;font-weight:700;color:#2471a3}.liq-tramo small{font-size:11px;opacity:.7}
+.liq-linea{font-size:13px;line-height:1.35}.liq-linea b{font-size:14.5px}.liq-linea small{font-size:11px;opacity:.7}.liq-tramo small{font-size:11px;opacity:.7}
 .liq-tramo.on{background:rgba(192,57,43,.07)}
 .liq-prod{padding:12px}
 .liq-ops{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;margin-top:8px}
@@ -23892,10 +23892,10 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
   const [sec, setSec] = useSeccion("liquidar", "productos");
   const [rot, setRot] = useState(null);
   const [dias, setDias] = useState(90);
-  const [cfg, setCfg] = useState(() => { const [d, h] = proximoCyber(); return { nombre: "Cyber Monday", desde: d, hasta: h, minimo: "10", otros: "0", en_tienda: true, sector: true, cuotas: true, cuotas_n: 6, cuotas_costo: "", cuotas_desde: "30000" }; });
+  const [cfg, setCfg] = useState(() => { const [d, h] = proximoCyber(); return { nombre: "Cyber Monday", desde: d, hasta: h, minimo: "10", otros: "0", en_tienda: true, sector: true, cuotas: true, cuotas_n: 3, cuotas_costo: "", cuotas_desde: "30000" }; });
   const [com, setCom] = useState({}); // comisión por medio (se puede corregir acá para simular)
   const [acepto, setAcepto] = useState({});
-  const [cambios, setCambios] = useState({}); // id -> { g, e, c, fuera }
+  const [cambios, setCambios] = useState({}); // id -> { g, c, o, fuera }
   const [abierto, setAbierto] = useState(null);
   const [filtro, setFiltro] = useState("todos");
   const [busca, setBusca] = useState("");
@@ -23903,69 +23903,78 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
   const [aviso, setAviso] = useState("");
   useEffect(() => { setRot(null); API.get("/productos/rotacion?dias=" + dias).then(r => setRot(r.data)).catch(() => setRot({ productos: [], error: true })); }, [dias]);
   const activos = (medios || []).filter(m => m.activo !== false);
-  const esCredito = (m) => String(m.tipo || "").toLowerCase() === "credito" || /cr[eé]dito|cuota/i.test(m.nombre || "");
-  const esCash = (m) => ["efectivo", "transferencia"].includes(String(m.tipo || "").toLowerCase());
+  // El tipo como lo reconoce el Punto de Venta (por el nombre), que es lo que miran las promos
+  const tipoDe = (m) => { const n = String(m.nombre || "").toLowerCase(); return n.includes("efectivo") ? "efectivo" : n.includes("transfer") ? "transferencia" : /d[eé]bito/.test(n) ? "debito" : /cr[eé]dito|cuota/.test(n) ? "credito" : ["efectivo", "transferencia", "debito", "credito"].includes(String(m.tipo || "").toLowerCase()) ? String(m.tipo).toLowerCase() : "otro"; };
   useEffect(() => {
     setCom(c => { const n = { ...c }; activos.forEach(m => { if (n[m.id] === undefined) n[m.id] = String(parseFloat(m.comision) || 0); }); return n; });
     setAcepto(a => { const n = { ...a }; activos.forEach(m => { if (n[m.id] === undefined) n[m.id] = true; }); return n; });
-    // Costo de las cuotas sin interés: si hay un medio de crédito sin recargo con esas cuotas, arranca con su comisión
-    const csi = activos.find(m => esCredito(m) && !m.con_interes && parseInt(m.cuotas) === 6 && parseFloat(m.comision) > 0);
-    if (csi) setCfg(c => c.cuotas_costo ? c : { ...c, cuotas_costo: String(parseFloat(csi.comision)) });
   }, [medios]); // eslint-disable-line react-hooks/exhaustive-deps
   const $ = (v) => fmt(Math.round(Number(v) || 0)).replace(SIN_CEROS, "");
   const fecha = (f) => (f || "").split("-").reverse().join("/");
+  const pct = (v) => String(v).replace(".", ",");
   const otros = Math.max(0, parseFloat(cfg.otros) || 0), minimo = Math.max(0, parseFloat(cfg.minimo) || 0);
   const costoCuotas = parseFloat(cfg.cuotas_costo);
-  const conCuotas = cfg.cuotas && costoCuotas >= 0 && cfg.cuotas_costo !== "";
+  const conCuotas = cfg.cuotas && cfg.cuotas_costo !== "" && costoCuotas >= 0;
   const nC = cfg.cuotas_n, desdeCuotas = parseFloat(cfg.cuotas_desde) || 0;
-  // Lo que entra de cada $1 de precio con ese medio (si es con interés, la clienta paga el recargo)
   const neto = (m) => (m.con_interes && parseFloat(m.coeficiente) > 1 ? parseFloat(m.coeficiente) : 1) * (1 - ((parseFloat(com[m.id]) || 0) + otros) / 100);
-  // Con cuotas, la tarjeta de crédito va con la oferta en cuotas: el % OFF tiene que aguantar al más caro de los demás
-  const aceptados = activos.filter(m => acepto[m.id] && !(conCuotas && esCredito(m)));
-  const peor = aceptados.length ? aceptados.reduce((a, m) => neto(m) < neto(a) ? m : a) : null;
-  const fPeor = peor ? neto(peor) : 1 - otros / 100;
-  const cashMs = aceptados.filter(esCash);
-  const fCash = cashMs.length ? Math.max(...cashMs.map(neto)) : 1 - otros / 100;
+  // Tres formas de pagar la oferta: la grande (efectivo, transferencia o débito), la de cuotas (crédito) y la de los demás medios
+  const grandes = activos.filter(m => ["efectivo", "transferencia", "debito"].includes(tipoDe(m)));
+  const resto = activos.filter(m => !grandes.includes(m) && !(conCuotas && tipoDe(m) === "credito"));
+  const grandesOk = grandes.filter(m => acepto[m.id]), restoOk = resto.filter(m => acepto[m.id]);
+  // Efectivo y transferencia siempre van con el grande (en la tienda la transferencia existe aunque no sea un medio del local), salvo que se diga "No"
+  const tiposGrandes = ["efectivo", "transferencia", "debito"].filter(t => grandesOk.some(m => tipoDe(m) === t) || (t !== "debito" && !grandes.some(m => tipoDe(m) === t)));
+  const peorDe = (l) => l.length ? l.reduce((a, m) => neto(m) < neto(a) ? m : a) : null;
+  const peorA = peorDe(grandesOk), peorO = peorDe(restoOk);
+  const fA = peorA ? neto(peorA) : 1 - otros / 100;
+  const fMejor = 1 - otros / 100; // efectivo o transferencia, sin comisión
+  const fO = peorO ? neto(peorO) : null;
   const fCuotas = 1 - ((costoCuotas || 0) + otros) / 100;
   const tramo = (x) => LIQ_TRAMOS.filter(t => t <= x).pop() || 0;
   const dMax = (pr, f) => pr.precio > 0 ? (1 - pr.costo * (1 + minimo / 100) / (pr.precio * f)) * 100 : 0;
-  // Descuento con cuotas que te deja lo mismo que el % OFF (redondeado a 5 para abajo: nunca te deja menos)
-  const equivCuotas = (g) => { const y = (1 - (1 - g / 100) * fPeor / fCuotas) * 100; return y < 0 ? null : Math.floor(y / 5 + 1e-9) * 5; };
+  // El descuento que te deja la misma plata que X% con la opción grande (redondeado a 5 para abajo: nunca te deja menos)
+  const equiv = (g, f) => { const y = (1 - (1 - g / 100) * fA / f) * 100; return y < 0 ? 0 : Math.floor(y / 5 + 1e-9) * 5; };
+  const nombresA = tiposGrandes.map(t => ({ efectivo: "efectivo", transferencia: "transferencia", debito: "débito" })[t]);
+  const txtA = nombresA.length ? nombresA.slice(0, -1).join(", ") + (nombresA.length > 1 ? " o " : "") + nombresA[nombresA.length - 1] : "";
   const hoyMs = Date.now();
   const quietos = rot ? (rot.productos || []).filter(x => (x.estado === "parado" || x.estado === "lento") && x.stock > 0) : [];
   const sinCosto = quietos.filter(x => !(x.costo > 0) || !(x.precio > 0));
   const plan = quietos.filter(x => x.costo > 0 && x.precio > 0).map(x => {
     const sinVender = x.ultima_venta ? Math.floor((hoyMs - new Date(x.ultima_venta).getTime()) / 864e5) : null;
     const objetivo = x.estado === "parado" ? (sinVender === null || sinVender > 180 ? 50 : 40) : x.dias_stock > 365 ? 35 : x.dias_stock > 180 ? 30 : 20;
-    const gSug = tramo(Math.min(objetivo, dMax(x, fPeor)));
-    let eSug = tramo(Math.min(objetivo + 10, dMax(x, fCash)));
-    if (!cashMs.length || eSug < gSug + 5) eSug = 0;
+    const gSug = tramo(Math.min(objetivo, dMax(x, fA)));
     const ch = cambios[x.id] || {};
-    const g = ch.g !== undefined ? ch.g : gSug, e = ch.e !== undefined ? ch.e : eSug;
-    const cuotasOk = conCuotas && x.precio >= desdeCuotas;
-    const cSug = cuotasOk && g > 0 ? equivCuotas(g) : null;
+    const g = ch.g !== undefined ? ch.g : gSug;
+    const cuotasOk = conCuotas && x.precio >= desdeCuotas && g > 0;
+    const cSug = cuotasOk ? equiv(g, fCuotas) : null, oSug = fO && g > 0 ? equiv(g, fO) : null;
     const c = !cuotasOk ? null : ch.c !== undefined ? ch.c : cSug;
-    const precioG = x.precio * (1 - g / 100), precioE = e ? x.precio * (1 - e / 100) : null, precioC = c !== null ? x.precio * (1 - c / 100) : null;
-    return { ...x, sinVender, objetivo, gSug, eSug, cSug, g, e, c, fuera: !!ch.fuera, precioG, precioE, precioC,
-      ganG: precioG * fPeor - x.costo, ganE: precioE ? precioE * fCash - x.costo : null, ganC: precioC !== null ? precioC * fCuotas - x.costo : null };
+    const o = !(fO && g > 0) ? null : ch.o !== undefined ? ch.o : oSug;
+    const pA = x.precio * (1 - g / 100), pC = c !== null ? x.precio * (1 - c / 100) : null, pO = o !== null ? x.precio * (1 - o / 100) : null;
+    const gan = { a: pA * fA - x.costo, c: pC !== null ? pC * fCuotas - x.costo : null, o: pO !== null ? pO * fO - x.costo : null };
+    return { ...x, sinVender, gSug, cSug, oSug, g, c, o, fuera: !!ch.fuera, pA, pC, pO, gan, ganMin: Math.min(...[gan.a, gan.c, gan.o].filter(v => v !== null)) };
   });
-  const enPlan = plan.filter(x => !x.fuera && (x.g > 0 || x.e > 0));
-  const noBaja = plan.filter(x => !x.fuera && !x.g && !x.e);
+  const enPlan = plan.filter(x => !x.fuera && x.g > 0);
+  const noBaja = plan.filter(x => !x.fuera && !x.g);
   const fuera = plan.filter(x => x.fuera);
-  const tot = enPlan.reduce((t, x) => ({ u: t.u + x.stock, costo: t.costo + x.stock * x.costo, ingG: t.ingG + x.stock * x.precioG * fPeor, ingE: t.ingE + x.stock * (x.precioE || x.precioG) * fCash }), { u: 0, costo: 0, ingG: 0, ingE: 0 });
-  const tramosUsados = [...new Set(enPlan.map(x => x.g))].sort((a, b) => b - a);
-  const gTipico = enPlan.length ? [...enPlan].map(x => x.g).sort((a, b) => a - b)[Math.floor(enPlan.length / 2)] : 0;
-  const extras = enPlan.filter(x => x.e > 0), conC = enPlan.filter(x => x.c !== null);
-  const caros = aceptados.filter(m => !esCash(m) && neto(m) < fCash - 0.08);
+  const tot = enPlan.reduce((t, x) => ({ u: t.u + x.stock, costo: t.costo + x.stock * x.costo, peor: t.peor + x.stock * (x.costo + x.ganMin), mejor: t.mejor + x.stock * x.pA * fMejor }), { u: 0, costo: 0, peor: 0, mejor: 0 });
+  // Grupos: misma combinación de opciones
+  const claveG = (x) => x.g + "|" + (x.c === null ? "-" : x.c) + "|" + (x.o === null ? "-" : x.o);
+  const gruposMap = {}; enPlan.forEach(x => { (gruposMap[claveG(x)] = gruposMap[claveG(x)] || { g: x.g, c: x.c, o: x.o, l: [] }).l.push(x); });
+  const grupos = Object.entries(gruposMap).sort((a, b) => b[1].g - a[1].g || (b[1].c ?? -1) - (a[1].c ?? -1));
   const setC = (id, k, v) => setCambios(c => ({ ...c, [id]: { ...c[id], [k]: v } }));
   const q = busca.trim().toLowerCase();
-  const visibles = enPlan.filter(x => (filtro === "todos" || String(x.g) === filtro) && (!q || (x.nombre + " " + (x.marca || "")).toLowerCase().includes(q)));
+  const visibles = enPlan.filter(x => (filtro === "todos" || claveG(x) === filtro) && (!q || (x.nombre + " " + (x.marca || "")).toLowerCase().includes(q)));
+  const nombresO = restoOk.map(m => m.nombre).join(", ");
+  const lineas = (g, c, o) => [
+    { ic: "🏷", t: g + "% OFF", s: "con " + (txtA || "efectivo o transferencia"), col: "#c0392b" },
+    c !== null && { ic: "💳", t: (c ? c + "% OFF + " : "Precio lleno en ") + nC + " cuotas sin interés", s: "con tarjeta de crédito", col: "#2471a3" },
+    o !== null && { ic: "📱", t: o ? o + "% OFF" : "Precio lleno", s: "con " + (nombresO || "otros medios"), col: "#8e44ad" },
+  ].filter(Boolean);
   const crear = async () => {
     setAviso("");
-    const agrupar = (lista, k, extra) => { const m = {}; lista.forEach(x => { if (x[k] > 0) (m[x[k]] = m[x[k]] || []).push(x.id); }); return Object.entries(m).map(([pct, productos]) => ({ pct: Number(pct), productos, ...extra })); };
-    // El % OFF de los que tienen opción en cuotas no va con crédito (con crédito va el de cuotas)
-    const gr = [...agrupar(enPlan.filter(x => x.c === null), "g", {}), ...agrupar(enPlan.filter(x => x.c !== null), "g", { sin: "credito" }),
-      ...agrupar(enPlan, "e", { pago: "efectivo" }), ...agrupar(enPlan, "e", { pago: "transferencia" }), ...agrupar(enPlan.filter(x => x.c !== null), "c", { pago: "credito", cuotas: nC })];
+    const agrupar = (lista, k, extra) => { const m = {}; lista.forEach(x => { if (x[k] > 0) (m[x[k]] = m[x[k]] || []).push(x.id); }); return Object.entries(m).map(([v, productos]) => ({ pct: Number(v), productos, ...extra })); };
+    const gr = [...tiposGrandes.flatMap(t => agrupar(enPlan, "g", { pago: t })),
+      ...agrupar(enPlan.filter(x => x.o !== null), "o", conCuotas ? { sin: "credito" } : {}),
+      ...agrupar(enPlan.filter(x => x.c !== null), "c", { pago: "credito", cuotas: nC })];
     if (!gr.length) return setAviso("No hay productos con descuento en el plan");
     if (!confirm("Se van a crear " + gr.length + " promociones \"" + cfg.nombre + "\" del " + fecha(cfg.desde) + " al " + fecha(cfg.hasta) + ". Si ya existían las de este evento, se reemplazan. ¿Seguimos?")) return;
     setCreando(true);
@@ -23975,30 +23984,29 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
   };
   if (!rot) return <div className="card"><div className="skel" style={{ height: 200 }} /></div>;
   const caja = { border: "1px solid " + p.border, borderRadius: 12, padding: 12 };
-  const opcion = (ic, titulo, precio, sub, color) => (
-    <div className="liq-op" style={{ borderColor: color || p.border }}>
-      <div className="liq-op-t">{ic} {titulo}</div>
-      <div className="liq-op-p" style={{ color: color || p.text }}>{precio}</div>
-      {sub && <div className="liq-op-s">{sub}</div>}
+  const filaMedio = (m) => (
+    <div key={m.id} className="liq-medio" style={{ borderColor: p.border, opacity: acepto[m.id] ? 1 : .6 }}>
+      <b style={{ flex: 1, minWidth: 110 }}>{m.nombre}</b>
+      <span style={{ display: "flex", alignItems: "center", gap: 4 }}><input className="inp" inputMode="decimal" style={{ width: 64, padding: "5px 7px", fontWeight: 700 }} value={com[m.id] ?? ""} onChange={e => setCom(c => ({ ...c, [m.id]: e.target.value.replace(/[^\d.]/g, "") }))} aria-label={"Comisión " + m.nombre} />%</span>
+      <span className="liq-si-no chico">
+        <button className={acepto[m.id] ? "on" : ""} onClick={() => setAcepto(a => ({ ...a, [m.id]: true }))}>Acepto</button>
+        <button className={!acepto[m.id] ? "on no" : ""} onClick={() => setAcepto(a => ({ ...a, [m.id]: false }))}>No</button>
+      </span>
     </div>
   );
-  const SECS = [["productos", "🛍", "Productos", "#c0392b", enPlan.length, false], ["medios", "💳", "Pagos y cuotas", "#2471a3", caros.length + (cfg.cuotas && !conCuotas ? 1 : 0), true],
+  const SECS = [["productos", "🛍", "Productos", "#c0392b", enPlan.length, false], ["medios", "💳", "Pagos y cuotas", "#2471a3", cfg.cuotas && !conCuotas ? 1 : 0, true],
     ["evento", "📅", "Evento y fechas", "#8e44ad", 0, false], ["crear", "✅", "Crear ofertas", "#2d7a4f", 0, false]];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, textAlign: "left" }}>
-      {/* Resumen arriba de todo: lo que conviene y cuánto se recupera */}
       <div className="card liq-res">
         <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap", alignItems: "baseline" }}>
           <div className="ct" style={{ marginBottom: 0 }}>⚡ {cfg.nombre || "Liquidación"}</div>
           <span style={{ fontSize: 12.5, color: p.textMuted }}>{fecha(cfg.desde)} al {fecha(cfg.hasta)}</span>
         </div>
         {!enPlan.length ? <div style={{ color: p.textMuted, padding: "8px 0" }}>{quietos.length ? "Con estos costos y comisiones no hay productos que se puedan bajar sin perder." : "No hay productos lentos ni parados con stock. ¡Bien ahí!"}</div> : <>
-          <div style={{ fontSize: 14.5, lineHeight: 1.5, margin: "6px 0 10px" }}>
-            Conviene <b>alrededor de {gTipico}% OFF</b>{conC.length ? <>, <b>o un descuento menor + {nC} cuotas sin interés</b> en los de más de {$(desdeCuotas)}</> : null}{extras.length ? <>, y <b>extra pagando en efectivo o transferencia</b></> : null}.
-            {peor && <span style={{ color: p.textMuted }}> El tope lo pone {peor.nombre}, el medio más caro que aceptás.</span>}
-          </div>
-          <div className="liq-kpis">
-            {[["Productos", enPlan.length, tot.u + " unidades"], ["Plata parada", $(tot.costo), "al costo"], ["Si vendés todo", $(tot.ingG), "peor caso"], ["Ganancia", $(tot.ingG - tot.costo), "hasta " + $(tot.ingE - tot.costo) + " en efectivo"]].map(([t, v, sub]) => (
+          {cfg.cuotas && !conCuotas && <div className="liq-ayuda" style={{ color: p.warn, opacity: 1, fontWeight: 700 }}>⚠️ Falta un dato para armar la opción en cuotas: entrá a "Pagos y cuotas".</div>}
+          <div className="liq-kpis" style={{ marginTop: 10 }}>
+            {[["Productos", enPlan.length, tot.u + " unidades"], ["Plata parada", $(tot.costo), "al costo"], ["Si vendés todo", $(tot.peor), "como mínimo"], ["Ganancia", $(tot.peor - tot.costo), tot.mejor - tot.peor > 1 ? "hasta " + $(tot.mejor - tot.costo) + " en efectivo" : "como mínimo"]].map(([t, v, sub]) => (
               <div key={t} style={{ ...caja, padding: "8px 10px" }}><div style={{ fontSize: 11, color: p.textMuted, fontWeight: 700 }}>{t}</div><div style={{ fontSize: 18, fontWeight: 900 }}>{v}</div><div style={{ fontSize: 10.5, color: p.textMuted }}>{sub}</div></div>
             ))}
           </div>
@@ -24008,20 +24016,21 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
       <TarjetasSecciones items={SECS} activa={sec} onElegir={setSec} />
 
       {sec === "productos" && <>
-        {tramosUsados.length > 0 && <div className="card" style={{ padding: 12 }}>
-          <div style={{ fontWeight: 800, fontSize: 13.5, marginBottom: 8 }}>Las ofertas, por grupo {conCuotas ? <span style={{ fontWeight: 600, color: p.textMuted, fontSize: 12 }}>· cada opción te deja la misma plata</span> : null}</div>
+        {grupos.length > 0 && <div className="card" style={{ padding: 12 }}>
+          <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 2 }}>Las ofertas</div>
+          <div className="liq-ayuda" style={{ marginTop: 0, marginBottom: 10 }}>Cada oferta tiene varias formas de pagar y todas te dejan la misma plata. Tocá una para ver sus productos.</div>
           <div className="liq-tramos">
-            {tramosUsados.map(g => { const n = enPlan.filter(x => x.g === g).length, y = conCuotas && g && enPlan.some(x => x.g === g && x.c !== null) ? equivCuotas(g) : null; return (
-              <button key={g} className={"liq-tramo" + (filtro === String(g) ? " on" : "")} style={{ borderColor: filtro === String(g) ? "#c0392b" : p.border }} onClick={() => setFiltro(filtro === String(g) ? "todos" : String(g))}>
-                <b>{g ? g + "% OFF" : "Solo efectivo/transf."}</b>
-                {y !== null && <span>o {y ? y + "% OFF + " : "precio lleno en "}{nC} cuotas s/i</span>}
-                <small>{n} {n === 1 ? "producto" : "productos"}</small>
-              </button>); })}
+            {grupos.map(([k, gr]) => (
+              <button key={k} className={"liq-tramo" + (filtro === k ? " on" : "")} style={{ borderColor: filtro === k ? "#c0392b" : p.border }} onClick={() => setFiltro(filtro === k ? "todos" : k)}>
+                {lineas(gr.g, gr.c, gr.o).map((l, i) => <div key={i} className="liq-linea"><span style={{ color: l.col }}>{i ? "o " : ""}{l.ic} <b>{l.t}</b></span> <small>{l.s}</small></div>)}
+                <small style={{ marginTop: 4 }}>{gr.l.length} {gr.l.length === 1 ? "producto" : "productos"}</small>
+              </button>
+            ))}
           </div>
         </div>}
         {enPlan.length > 0 && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input className="inp" style={{ flex: 1, minWidth: 180 }} placeholder="Buscar producto o marca…" value={busca} onChange={e => setBusca(e.target.value)} />
-          {filtro !== "todos" && <button className="chip-btn" onClick={() => setFiltro("todos")}>Ver todos los grupos</button>}
+          {filtro !== "todos" && <button className="chip-btn" onClick={() => setFiltro("todos")}>Ver todas las ofertas</button>}
         </div>}
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{visibles.map(x => (
           <div key={x.id} className="card liq-prod">
@@ -24033,17 +24042,24 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
               <button className="chip-btn" onClick={() => setAbierto(abierto === x.id ? null : x.id)}>{abierto === x.id ? "Listo" : "✏️ Cambiar"}</button>
             </div>
             <div className="liq-ops">
-              {x.g > 0 && opcion("🏷", x.g + "% OFF", $(x.precioG), "ganás " + $(x.ganG) + " c/u", "#c0392b")}
-              {x.c !== null && opcion("💳", (x.c ? x.c + "% OFF + " : "") + nC + " cuotas sin interés", nC + " x " + $(x.precioC / nC), "total " + $(x.precioC) + " · ganás " + $(x.ganC) + " c/u", "#2471a3")}
-              {x.e > 0 && opcion("💵", x.e + "% efectivo o transf.", $(x.precioE), "ganás " + $(x.ganE) + " c/u", p.green)}
+              {[["a", x.g + "% OFF", "con " + (txtA || "efectivo o transferencia"), $(x.pA), "#c0392b", "🏷"],
+                x.c !== null && ["c", (x.c ? x.c + "% OFF + " : "") + nC + " cuotas sin interés", "con crédito · total " + $(x.pC), nC + " x " + $(x.pC / nC), "#2471a3", "💳"],
+                x.o !== null && ["o", x.o ? x.o + "% OFF" : "Precio lleno", "con " + (nombresO || "otros medios"), $(x.pO), "#8e44ad", "📱"]].filter(Boolean).map(([k, t, s2, precio, col, ic]) => (
+                <div key={k} className="liq-op" style={{ borderColor: col }}>
+                  <div className="liq-op-t" style={{ color: col }}>{ic} {t}</div>
+                  <div className="liq-op-p">{precio}</div>
+                  <div className="liq-op-s">{s2}</div>
+                  <div className="liq-op-s" style={{ color: x.gan[k] < 0 ? p.red : undefined, fontWeight: 700 }}>ganás {$(x.gan[k])} c/u</div>
+                </div>
+              ))}
             </div>
-            {x.c === null && conCuotas && x.precio < desdeCuotas && <div style={{ fontSize: 11.5, color: p.textMuted, marginTop: 4 }}>Sin cuotas: con un precio tan bajo, la cuota no cambia nada (mejor el % OFF).</div>}
-            {(x.ganG < 0 || (x.ganE !== null && x.ganE < 0) || (x.ganC !== null && x.ganC < 0)) && <div style={{ fontSize: 12, color: p.red, fontWeight: 700, marginTop: 4 }}>⚠️ Con estos números alguna opción vende a pérdida</div>}
+            {x.c === null && conCuotas && x.precio < desdeCuotas && <div style={{ fontSize: 11.5, color: p.textMuted, marginTop: 4 }}>Sin cuotas: es menos de {$(desdeCuotas)} y la cuota no ayuda a vender.</div>}
+            {x.ganMin < 0 && <div style={{ fontSize: 12, color: p.red, fontWeight: 700, marginTop: 4 }}>⚠️ Con estos números alguna opción vende a pérdida</div>}
             {abierto === x.id && (
               <div style={{ marginTop: 8, borderTop: "1px dashed " + p.border, paddingTop: 8, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", fontSize: 12.5 }}>
-                <label>% OFF <select className="sel" style={{ width: "auto", padding: "4px 6px" }} value={x.g} onChange={e => setC(x.id, "g", Number(e.target.value))}>{[0, ...LIQ_TRAMOS].map(t => <option key={t} value={t}>{t ? t + "%" : "sin descuento"}{t === x.gSug ? " (sugerido)" : ""}</option>)}</select></label>
-                {conCuotas && x.precio >= desdeCuotas && <label>Con {nC} cuotas <select className="sel" style={{ width: "auto", padding: "4px 6px" }} value={x.c === null ? "" : x.c} onChange={e => setC(x.id, "c", e.target.value === "" ? null : Number(e.target.value))}><option value="">sin cuotas</option>{[0, 5, ...LIQ_TRAMOS].map(t => <option key={t} value={t}>{t ? t + "%" : "precio lleno"}{t === x.cSug ? " (equivalente)" : ""}</option>)}</select></label>}
-                <label>Efectivo/transf. <select className="sel" style={{ width: "auto", padding: "4px 6px" }} value={x.e} onChange={e => setC(x.id, "e", Number(e.target.value))}>{[0, ...LIQ_TRAMOS].map(t => <option key={t} value={t}>{t ? t + "%" : "sin extra"}{t === x.eSug && t ? " (sugerido)" : ""}</option>)}</select></label>
+                <label>🏷 {txtA || "Efectivo"} <select className="sel" style={{ width: "auto", padding: "4px 6px" }} value={x.g} onChange={e => setC(x.id, "g", Number(e.target.value))}>{[0, ...LIQ_TRAMOS].map(t => <option key={t} value={t}>{t ? t + "%" : "sin descuento"}{t === x.gSug ? " (sugerido)" : ""}</option>)}</select></label>
+                {x.c !== null && <label>💳 Con {nC} cuotas <select className="sel" style={{ width: "auto", padding: "4px 6px" }} value={x.c} onChange={e => setC(x.id, "c", Number(e.target.value))}>{[0, 5, ...LIQ_TRAMOS].map(t => <option key={t} value={t}>{t ? t + "%" : "precio lleno"}{t === x.cSug ? " (misma plata)" : ""}</option>)}</select></label>}
+                {x.o !== null && <label>📱 Otros medios <select className="sel" style={{ width: "auto", padding: "4px 6px" }} value={x.o} onChange={e => setC(x.id, "o", Number(e.target.value))}>{[0, 5, ...LIQ_TRAMOS].map(t => <option key={t} value={t}>{t ? t + "%" : "precio lleno"}{t === x.oSug ? " (misma plata)" : ""}</option>)}</select></label>}
                 <button className="chip-btn" onClick={() => { setC(x.id, "fuera", true); setAbierto(null); }}>Sacar del plan</button>
               </div>
             )}
@@ -24074,36 +24090,29 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
             <div className="liq-si-no">{[3, 6, 12].map(n => <button key={n} className={nC === n ? "on" : ""} onClick={() => setCfg(c => ({ ...c, cuotas_n: n }))}>{n} cuotas</button>)}</div>
             <div className="liq-preg">¿Cuánto te descuentan por vender en {nC} cuotas sin interés?</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <input className="inp" inputMode="decimal" style={{ width: 110, fontSize: 18, fontWeight: 800 }} placeholder="Ej: 22" value={cfg.cuotas_costo} onChange={e => setCfg(c => ({ ...c, cuotas_costo: e.target.value.replace(/[^\d.]/g, "") }))} aria-label="Cuánto te descuentan por las cuotas" />
+              <input className="inp" inputMode="decimal" style={{ width: 110, fontSize: 18, fontWeight: 800 }} placeholder={nC === 3 ? "Ej: 12" : "Ej: 22"} value={cfg.cuotas_costo} onChange={e => setCfg(c => ({ ...c, cuotas_costo: e.target.value.replace(/[^\d.]/g, "") }))} aria-label="Cuánto te descuentan por las cuotas" />
               <b style={{ fontSize: 18 }}>%</b>
             </div>
-            <div className="liq-ayuda">Fijate en la tabla de cuotas de tu banco o de Mercado Pago. Ejemplo: si vendés $100.000 en {nC} cuotas y te depositan $78.000, poné <b>22</b>.</div>
+            <div className="liq-ayuda">Fijate en la tabla de cuotas de tu banco o de Mercado Pago. Ejemplo: si vendés $100.000 en {nC} cuotas y te depositan $88.000, poné <b>12</b>.</div>
             <div className="liq-preg">¿Desde qué precio ofrecés cuotas?</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}><b style={{ fontSize: 18 }}>$</b><input className="inp" inputMode="numeric" style={{ width: 140, fontSize: 16, fontWeight: 700 }} value={cfg.cuotas_desde} onChange={e => setCfg(c => ({ ...c, cuotas_desde: e.target.value.replace(/[^\d]/g, "") }))} aria-label="Desde qué precio" /></div>
             <div className="liq-ayuda">En productos baratos la cuota no ayuda a vender: ahí va solo el % OFF.</div>
-            {conCuotas && <div className="liq-ok">✅ Listo. Ejemplo: <b>50% OFF</b> te deja la misma plata que <b>{equivCuotas(50) ? equivCuotas(50) + "% OFF" : "precio lleno"} en {nC} cuotas sin interés</b>. La clienta elige y vos ganás lo mismo.</div>}
+            {conCuotas && <div className="liq-ok">✅ Listo. Ejemplo: <b>50% OFF</b> con {txtA || "efectivo"} te deja la misma plata que <b>{equiv(50, fCuotas) ? equiv(50, fCuotas) + "% OFF + " : "precio lleno en "}{nC} cuotas sin interés</b>.</div>}
           </>}
         </div>
         <div className="card">
-          <div className="ct">💵 Lo que te cobra cada medio de pago</div>
-          <div className="liq-ayuda" style={{ marginTop: 0, marginBottom: 10 }}>Revisá que el % de cada uno sea el que te cobran de verdad (efectivo y transferencia van en 0). Si alguno no lo vas a aceptar durante el Cyber, tocá "No".</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {activos.filter(m => !(conCuotas && esCredito(m))).map(m => (
-              <div key={m.id} className="liq-medio" style={{ borderColor: p.border, opacity: acepto[m.id] ? 1 : .6 }}>
-                <b style={{ flex: 1, minWidth: 110 }}>{m.nombre}</b>
-                <span style={{ display: "flex", alignItems: "center", gap: 4 }}><input className="inp" inputMode="decimal" style={{ width: 64, padding: "5px 7px", fontWeight: 700 }} value={com[m.id] ?? ""} onChange={e => setCom(c => ({ ...c, [m.id]: e.target.value.replace(/[^\d.]/g, "") }))} aria-label={"Comisión " + m.nombre} />%</span>
-                <span className="liq-si-no chico" title="¿Lo aceptás en el Cyber?">
-                  <button className={acepto[m.id] ? "on" : ""} onClick={() => setAcepto(a => ({ ...a, [m.id]: true }))}>Acepto</button>
-                  <button className={!acepto[m.id] ? "on no" : ""} onClick={() => setAcepto(a => ({ ...a, [m.id]: false }))}>No</button>
-                </span>
-              </div>
-            ))}
-            {conCuotas && activos.some(esCredito) && <div className="liq-ayuda" style={{ marginTop: 2 }}>💳 Las tarjetas de crédito no aparecen acá: van con la oferta en cuotas.</div>}
-          </div>
-          {peor && <div className="liq-ok" style={{ marginTop: 12 }}>El que más te cobra es <b>{peor.nombre}</b> ({String(parseFloat(com[peor.id]) || 0).replace(".", ",")}%). Armamos el % OFF pensando en ese, así no perdés plata cobre como cobre.</div>}
-          {caros.length > 0 && <div className="liq-ayuda" style={{ marginTop: 8 }}>💡 Si no aceptás <b>{caros.map(m => m.nombre).join(", ")}</b> esos días (tocá "No"), las ofertas pueden ser más grandes.</div>}
-          <div className="liq-ayuda" style={{ marginTop: 8 }}>Lo que cambies acá es solo para este plan. Para cambiarlo en serio: Configuración › Medios de pago.</div>
+          <div className="ct">🏷 El descuento más grande</div>
+          <div className="liq-ayuda" style={{ marginTop: 0, marginBottom: 10 }}>Va con estos medios, que son los que menos te cobran. Revisá que el % sea el real (efectivo y transferencia van en 0).</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>{grandes.map(filaMedio)}</div>
+          {!grandes.length && <div className="liq-ayuda">No tenés medios de efectivo, transferencia o débito cargados.</div>}
         </div>
+        {resto.length > 0 && <div className="card">
+          <div className="ct">📱 Otros medios</div>
+          <div className="liq-ayuda" style={{ marginTop: 0, marginBottom: 10 }}>Como te cobran más, con estos el descuento es un poco menor, así ganás lo mismo. Si alguno no lo vas a aceptar, tocá "No".</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>{resto.map(filaMedio)}</div>
+        </div>}
+        {conCuotas && activos.some(m => tipoDe(m) === "credito") && <div className="liq-ayuda" style={{ padding: "0 4px" }}>💳 Las tarjetas de crédito van con la opción en cuotas. En el local necesitás un medio "Crédito {nC} cuotas" sin recargo; en la tienda online las cuotas sin interés se activan en tu cuenta de Mercado Pago.</div>}
+        <div className="liq-ayuda" style={{ padding: "0 4px" }}>Lo que cambies acá es solo para este plan. Para cambiarlo en serio: Configuración › Medios de pago.</div>
       </>}
 
       {sec === "evento" && <div className="card">
@@ -24116,7 +24125,7 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
           <div><div className="fl">Impuestos sobre la venta (%)</div><input className="inp" inputMode="decimal" placeholder="Ej: Ingresos Brutos" value={cfg.otros} onChange={e => setCfg(c => ({ ...c, otros: e.target.value.replace(/[^\d.]/g, "") }))} /></div>
           <div><div className="fl">Qué es "lento"</div><select className="sel" value={dias} onChange={e => setDias(Number(e.target.value))}>{[60, 90, 180].map(d => <option key={d} value={d}>Mirando los últimos {d} días</option>)}</select></div>
         </div>
-        <div style={{ fontSize: 11.5, color: p.textMuted, marginTop: 8, lineHeight: 1.5 }}>Las fechas vienen con el próximo Cyber Monday (lunes a miércoles de la primera semana de noviembre): confirmalas con las fechas oficiales. Tomamos los productos lentos o parados con stock; nunca se sugiere un descuento que deje menos que el costo + la ganancia mínima.</div>
+        <div style={{ fontSize: 11.5, color: p.textMuted, marginTop: 8, lineHeight: 1.5 }}>Las fechas vienen con el próximo Cyber Monday (lunes a miércoles de la primera semana de noviembre): confirmalas con las fechas oficiales. Tomamos los productos lentos o parados con stock; nunca se sugiere un descuento que deje menos que el costo + la ganancia mínima ({pct(minimo)}%).</div>
       </div>}
 
       {sec === "crear" && <div className="card">
@@ -24125,9 +24134,8 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
           <label style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6, fontSize: 13.5 }}><input type="checkbox" checked={cfg.en_tienda} onChange={e => setCfg(c => ({ ...c, en_tienda: e.target.checked }))} /> También en la tienda online</label>
           {cfg.en_tienda && <label style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6, fontSize: 13.5 }}><input type="checkbox" checked={cfg.sector} onChange={e => setCfg(c => ({ ...c, sector: e.target.checked }))} /> Armar el sector "⚡ {cfg.nombre}" en el menú de la tienda (se ve solo esos días)</label>}
           <ul style={{ fontSize: 12.5, color: p.textMuted, margin: "8px 0 12px", paddingLeft: 18, lineHeight: 1.6 }}>
-            <li>Se crean como promociones del {fecha(cfg.desde)} al {fecha(cfg.hasta)}: el Punto de Venta las aplica solo{cfg.en_tienda ? " y la tienda muestra el precio rebajado" : ""}.</li>
-            {conC.length > 0 && <li>En los {conC.length} productos con opción en cuotas, el % OFF va con cualquier medio <b>menos crédito</b>, y con crédito se aplica el descuento de cuotas.</li>}
-            {extras.length > 0 && <li>El extra se crea para efectivo y para transferencia (no se suma al otro: se aplica el mejor). En la tienda, efectivo es "pago al retirar".</li>}
+            <li>Se crean como promociones del {fecha(cfg.desde)} al {fecha(cfg.hasta)} y el Punto de Venta las aplica solo según cómo paga la clienta.</li>
+            <li>En la tienda online: el descuento grande va con transferencia y pago al retirar; con Mercado Pago, el de "otros medios".</li>
             <li>Si ya creaste las de este evento, se reemplazan.</li>
           </ul>
           {aviso && <div style={{ color: p.red, fontWeight: 700, marginBottom: 8 }}>{aviso}</div>}

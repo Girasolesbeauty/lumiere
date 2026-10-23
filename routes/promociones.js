@@ -109,7 +109,7 @@ router.post('/liquidacion', async (req, res) => {
   const grupos = (Array.isArray(b.grupos) ? b.grupos : []).map(g => ({
     pct: Math.round(Math.min(80, Math.max(1, parseFloat(g.pct) || 0))),
     productos: [...new Set((Array.isArray(g.productos) ? g.productos : []).map(Number).filter(n => Number.isInteger(n) && n > 0))],
-    pago: ['efectivo', 'transferencia', 'credito'].includes(g.pago) ? g.pago : null,
+    pago: ['efectivo', 'transferencia', 'debito', 'credito'].includes(g.pago) ? g.pago : null,
     sin: g.sin === 'credito' && !g.pago ? 'credito' : null,
     cuotas: Math.min(24, Math.max(0, parseInt(g.cuotas) || 0)),
   })).filter(g => g.pct && g.productos.length).slice(0, 60);
@@ -119,9 +119,9 @@ router.post('/liquidacion', async (req, res) => {
   try {
     await client.query('BEGIN');
     const viejas = await client.query(`DELETE FROM promociones WHERE nombre LIKE $1 RETURNING id`, [nombre.replace(/[%_\\]/g, '\\$&') + ' · %']);
-    const PAGO_TXT = { efectivo: 'en efectivo', transferencia: 'con transferencia' };
+    const PAGO_TXT = { efectivo: 'en efectivo', transferencia: 'con transferencia', debito: 'con débito' };
     for (const g of grupos) {
-      const txt = g.pago === 'credito' ? ' + ' + (g.cuotas || '') + ' cuotas sin interés (crédito)' : g.pago ? ' ' + PAGO_TXT[g.pago] : g.sin ? ' (menos crédito)' : '';
+      const txt = g.pago === 'credito' ? ' + ' + (g.cuotas || '') + ' cuotas sin interés (crédito)' : g.pago ? ' ' + PAGO_TXT[g.pago] : g.sin ? ' otros medios (menos crédito)' : ' otros medios';
       // La de crédito es solo del local: en la tienda las cuotas las da Mercado Pago
       await client.query(`INSERT INTO promociones (nombre, tipo, valor, aplica_a, productos_ids, categorias, mismo_producto, medio_pago_tipo, sin_medio_pago, combinable, fecha_inicio, fecha_fin, activo, en_tienda)
         VALUES ($1, 'descuento', $2, 'productos', $3, '{}', TRUE, $4, $5, FALSE, $6, $7, TRUE, $8)`,
