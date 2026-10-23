@@ -30968,6 +30968,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const [completaVer, setCompletaVer] = useState(null); // "Completá tu tienda": que tarjeta muestra el detalle
   const [secP, elegirSecP] = useSeccion("productos", "lista");
   const [panelProd, setPanelProd] = useState(null); // lista de productos: "filtros" | "acciones" desplegado
+  const [prodAbierto, setProdAbierto] = useState(null); // producto con el detalle abierto en la lista
   // En el celular las pestañas se deslizan: la elegida queda a la vista
   useEffect(() => { const el = document.querySelector(".to-tabs .tab.on"), c = el && el.parentElement; if (c && c.scrollWidth > c.clientWidth) c.scrollLeft = el.offsetLeft - (c.clientWidth - el.clientWidth) / 2; }, [tab]); // pestaña Productos: lista / completá / etiquetas QR
   const [qrProd, setQrProd] = useState(null); // { p, qr } QR de un producto (para la etiqueta del local)
@@ -31700,27 +31701,41 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             </>;
           })()}
           <div id="tw-admin-lista" style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 8, scrollMarginTop: 12 }}>Tildá un producto para publicarlo o sacarlo. Precio y stock son los de Lumiere.</div>
-          {prodVis.map(p => (
-            <div key={p.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 0", borderTop: "1px solid " + temaPal.border, flexWrap: "wrap" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", flex: "1 1 240px", minWidth: 0 }}>
-                <input type="checkbox" checked={!!p.publicado} disabled={!esJefeT} onChange={e => publicar(p, e.target.checked)} style={{ width: 20, height: 20 }} aria-label={"Publicar " + p.nombre} />
-                <span style={{ minWidth: 0 }}><b>{p.nombre}</b> <span style={{ fontSize: 12, color: temaPal.textMuted }}>{p.marca || ""}</span>
-                  {p.creado_en && (ordenProd === "nuevos" || ordenProd === "viejos" || Date.now() - new Date(p.creado_en) < 30 * 864e5) && <span className="tag" style={{ marginLeft: 6, fontSize: 10.5, background: Date.now() - new Date(p.creado_en) < 30 * 864e5 ? "#16a08522" : temaPal.border, color: Date.now() - new Date(p.creado_en) < 30 * 864e5 ? "#16a085" : temaPal.textMuted, fontWeight: 700 }}>{Date.now() - new Date(p.creado_en) < 30 * 864e5 ? "🆕 " : ""}cargado el {new Date(p.creado_en).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" })}</span>}
-                  <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{fmt(p.precio)} · stock {nombreLocal(1)} {p.stock_rg}{!UN_SOLO_LOCAL ? " · " + nombreLocal(2) + " " + p.stock_ush : ""} · {p.foto ? "📷 con foto" : <span style={{ color: temaPal.warn }}>sin foto</span>}{p.descripcion ? " · con descripción" : ""}{p.video_subido || p.video_url ? " · 🎬 con video" : ""}{p.destacado ? " · ⭐ destacado" : ""}</div>
-                  {(() => { const e = segDe(p); const n = TW_FILTROS.flatMap(f => twElegidas(e, f.k).map(v => twNombreEtiqueta(f.k, v))); return <div style={{ fontSize: 11.5, color: n.length ? temaPal.text : temaPal.textMuted }}>🏷 {n.length ? n.join(" · ") : "sin segmentar"}{p.etiquetas ? <span style={{ color: temaPal.textMuted }}> (elegido por vos)</span> : ""}</div>; })()}</span>
-              </label>
+          {prodVis.map(p => { const abierto = prodAbierto === p.id; const nuevo = p.creado_en && Date.now() - new Date(p.creado_en) < 30 * 864e5; return (
+            <div key={p.id} style={{ borderTop: "1px solid " + temaPal.border, padding: "7px 0" }}>
+              {/* Fila corta: tilde para publicar, nombre, precio y stock, e iconos de lo que tiene. Tocándola se abre el detalle */}
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <input type="checkbox" checked={!!p.publicado} disabled={!esJefeT} onChange={e => publicar(p, e.target.checked)} style={{ width: 20, height: 20, flexShrink: 0 }} aria-label={"Publicar " + p.nombre} />
+                <button type="button" onClick={() => setProdAbierto(abierto ? null : p.id)} aria-expanded={abierto} style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, background: "none", border: 0, padding: 0, font: "inherit", color: "inherit", textAlign: "left", cursor: "pointer" }}>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <b style={{ display: "block", fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.nombre}</b>
+                    <span style={{ display: "block", fontSize: 11.5, color: temaPal.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fmt(p.precio)} · {UN_SOLO_LOCAL ? "stock " + p.stock_rg : nombreLocal(1) + " " + p.stock_rg + " · " + nombreLocal(2) + " " + p.stock_ush}{p.marca ? " · " + p.marca : ""}</span>
+                  </span>
+                  <span style={{ fontSize: 13, letterSpacing: 1, flexShrink: 0, whiteSpace: "nowrap" }} aria-hidden="true">
+                    {!p.foto && <span className="tag" style={{ fontSize: 10, padding: "1px 6px", background: temaPal.redDim, color: temaPal.red, letterSpacing: 0, marginRight: 3 }}>sin foto</span>}{!(p.descripcion || "").trim() && <span className="tag" style={{ fontSize: 10, padding: "1px 6px", background: "#f39c1222", color: temaPal.warn, letterSpacing: 0, marginRight: 3 }}>sin desc.</span>}{p.destacado && <span title="Destacado">⭐</span>}{(p.video_subido || p.video_url) && <span title="Con video">🎬</span>}{nuevo && !p.no_nuevo && <span title="Nuevo">🆕</span>}
+                  </span>
+                  <span style={{ fontSize: 12, color: temaPal.textMuted, flexShrink: 0 }}>{abierto ? "▴" : "▾"}</span>
+                </button>
+              </div>
+              {abierto && <div style={{ margin: "8px 0 4px 30px", display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{p.foto ? "📷 con foto" : <span style={{ color: temaPal.warn }}>📷 sin foto</span>} · {(p.descripcion || "").trim() ? "📝 con descripción" : <span style={{ color: temaPal.warn }}>📝 sin descripción</span>}{p.video_subido || p.video_url ? " · 🎬 con video" : ""}{p.creado_en ? " · cargado el " + new Date(p.creado_en).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" }) : ""}</div>
+                {(() => { const e = segDe(p); const n = TW_FILTROS.flatMap(f => twElegidas(e, f.k).map(v => twNombreEtiqueta(f.k, v))); return <div style={{ fontSize: 11.5, color: n.length ? temaPal.text : temaPal.textMuted }}>🏷 {n.length ? n.join(" · ") : "sin segmentar"}{p.etiquetas ? <span style={{ color: temaPal.textMuted }}> (elegido por vos)</span> : ""}</div>; })()}
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
               {p.publicado && esJefeT && <>
-                <button className={"chip-btn" + (p.destacado ? " on" : "")} onClick={() => destacar(p, !p.destacado)} title="Los destacados van al banner grande de la tienda">⭐ Destacado</button>
-                {p.creado_en && Date.now() - new Date(p.creado_en) < 30 * 864e5 && <button className={"chip-btn" + (p.no_nuevo ? "" : " on")} onClick={() => marcarNuevo(p, !p.no_nuevo)}
-                  title={p.no_nuevo ? "No aparece en Novedades. Tocá para volver a mostrarlo como nuevo." : "Se cargó hace menos de 30 días: sale en Novedades con la etiqueta NUEVO. Tocá para sacarlo."}>{p.no_nuevo ? "🚫 No sale como nuevo" : "✨ Sale como nuevo"}</button>}
-                <button className="btn btn-g btn-sm" onClick={() => setVideo({ id: p.id, nombre: p.nombre, link: p.video_url || "", subido: !!p.video_subido })}>🎬 Video{p.video_url || p.video_subido ? " ✓" : ""}</button>
-                <button className="btn btn-g btn-sm" onClick={() => abrirQR(p)} title="QR para la etiqueta de precio del local">🔳 QR</button>
-                <button className="btn btn-g btn-sm" onClick={() => setDesc({ id: p.id, nombre: p.nombre, texto: p.descripcion || "" })}>✏️ Descripción</button>
-                <button className="btn btn-g btn-sm" onClick={() => setSegmentar([p])} title="Tipo de producto, tipo de piel y necesidad">🏷 Segmentar</button>
-              </>}
-              {esJefeT && <button className="btn btn-g btn-sm" onClick={() => setGaleria(p)} title="Portada y más fotos">🖼 Fotos ({(p.foto ? 1 : 0) + (p.fotos_extra || 0)})</button>}
+                    <button className={"chip-btn" + (p.destacado ? " on" : "")} onClick={() => destacar(p, !p.destacado)} title="Los destacados van al banner grande de la tienda">⭐ Destacado</button>
+                    {p.creado_en && Date.now() - new Date(p.creado_en) < 30 * 864e5 && <button className={"chip-btn" + (p.no_nuevo ? "" : " on")} onClick={() => marcarNuevo(p, !p.no_nuevo)}
+                      title={p.no_nuevo ? "No aparece en Novedades. Tocá para volver a mostrarlo como nuevo." : "Se cargó hace menos de 30 días: sale en Novedades con la etiqueta NUEVO. Tocá para sacarlo."}>{p.no_nuevo ? "🚫 No sale como nuevo" : "✨ Sale como nuevo"}</button>}
+                    <button className="btn btn-g btn-sm" onClick={() => setVideo({ id: p.id, nombre: p.nombre, link: p.video_url || "", subido: !!p.video_subido })}>🎬 Video{p.video_url || p.video_subido ? " ✓" : ""}</button>
+                    <button className="btn btn-g btn-sm" onClick={() => abrirQR(p)} title="QR para la etiqueta de precio del local">🔳 QR</button>
+                    <button className="btn btn-g btn-sm" onClick={() => setDesc({ id: p.id, nombre: p.nombre, texto: p.descripcion || "" })}>✏️ Descripción</button>
+                    <button className="btn btn-g btn-sm" onClick={() => setSegmentar([p])} title="Tipo de producto, tipo de piel y necesidad">🏷 Segmentar</button>
+                  </>}
+                  {esJefeT && <button className="btn btn-g btn-sm" onClick={() => setGaleria(p)} title="Portada y más fotos">🖼 Fotos ({(p.foto ? 1 : 0) + (p.fotos_extra || 0)})</button>}
+                </div>
+                {!p.publicado && <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>Publicalo (tildándolo) para destacarlo, sumarle video o descripción.</div>}
+              </div>}
             </div>
-          ))}
+          ); })}
           {prodFiltro.length > prodVis.length && (
             <div style={{ textAlign: "center", padding: "12px 0 4px" }}>
               <button className="btn btn-g" onClick={() => setLimiteProd(n => n + 150)}>Ver más productos ({prodFiltro.length - prodVis.length} más)</button>
