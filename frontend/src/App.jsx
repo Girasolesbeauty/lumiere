@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, Fragment, Component } from "react";
+﻿import { useState, useEffect, useRef, useMemo, Fragment, Component } from "react";
 import { createPortal } from "react-dom";
 import { getProductos, createVenta, getClientes, getFlujo, getPuntoEquilibrio, agregarEgreso, getResumenFinanzas, getVentas, getAlertasStock, getCupones, createCupon, updateCupon, getRanking, getReglas, createRegla as createReglaWA, updateRegla as updateReglaWA, login, register } from "./api";
 import API from "./api";
@@ -25276,6 +25276,7 @@ html:has(.tw){overflow-x:hidden}
 .tw-turnos{display:flex;flex-direction:column;gap:8px;margin-top:8px}
 .tw-turno{border:1px solid #eee;border-radius:14px;padding:11px 13px;background:#fff;font-size:14px}
 .tw-turno b{text-transform:capitalize}.tw-turno .tw-turno-rec{margin-top:6px;background:#f2f8f4;border-radius:10px;padding:8px 10px;color:#2d5a3c;white-space:pre-wrap}
+.tw-rut-otra{align-self:flex-start;margin-top:3px;font-style:normal;font-size:11px;font-weight:700;color:#7a5a1e;background:#fbf7f2;padding:2px 8px;border-radius:99px}
 .tw-rut-btns{display:flex;flex-direction:column;gap:6px;align-items:stretch}
 .tw-rut-eco{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:4px 0 12px}
 .tw-rut-eco-aviso{text-align:center;font-size:13.5px;font-weight:600;color:#2d7a4f;margin:-4px 0 12px}
@@ -27332,7 +27333,7 @@ const TW_RUT_CUANDO = { desmaquillante: "noche", limpiador: "mañana y noche", t
 // (si no, el mismo kit salía de limpiador y de protector). También lo que trae 3 o más pasos de la rutina facial.
 const TW_PASOS_FACIALES = ["limpiador", "desmaquillante", "tonico", "serum", "hidratante", "solar", "ojos", "mascarilla", "exfoliante"];
 const twEsKit = (p) => /\b(kits?|sets?|packs?|combos?|d[uú]o|tr[ií]o|box)\b/i.test(twNorm([p.nombre, p.categoria].join(" "))) || ((p._et || twEtiquetas(p)).tipo || []).filter(t => TW_PASOS_FACIALES.includes(t)).length >= 3;
-function twArmarRutina(productos, dispo, { piel, nec, pasos, presupuesto, coreano }) {
+function twArmarRutina(productos, dispo, { piel, nec, pasos, presupuesto, coreano, soloTipos }) {
   // Solo lo facial (asi no entran, por ejemplo, ampollas para el pelo como "serum"): la categoria Facial o la linea
   // "Facial / skincare" de la segmentacion (ej. un cushion con protector, de la categoria Maquillaje, marcado facial).
   // Si la tienda no tiene nada de eso, se usan todos.
@@ -27340,7 +27341,7 @@ function twArmarRutina(productos, dispo, { piel, nec, pasos, presupuesto, corean
   const base = faciales.length ? faciales : productos;
   // Skincare coreano: solo los productos del proveedor de coreano (BEK)
   const conStock = base.filter(p => !twEsKit(p) && (!coreano || p.coreano) && (p.variantes ? p.variantes.some(v => dispo(p, v) > 0) : dispo(p) > 0));
-  const tipos = TW_RUT_PASOS[pasos] || TW_RUT_PASOS.completa;
+  const tipos = soloTipos || TW_RUT_PASOS[pasos] || TW_RUT_PASOS.completa;
   const usados = new Set();
   const puntaje = (p) => {
     let w = 1 + (p.rk ? Math.max(0, 40 - p.rk) * 0.12 : 0) + (p.top ? (12 - p.top) * 0.3 : 0) + (p.resenas ? Math.max(0, p.resenas[0] - 3) * 1.2 : 0) + (p.foto ? 0.6 : -0.8) + (p.descripcion ? 0.3 : 0);
@@ -27397,14 +27398,17 @@ function TwRutina({ productos, dispo, foto, onAgregar, onAbrir, onCompartir, cop
   const total = rutina ? rutina.reduce((s, x) => s + x.ops[x.i].p.precio, 0) : 0;
   const cambiar = (k) => setRutina(rt => rt.map((x, kk) => { if (kk !== k) return x; const otros = rt.filter((_, j) => j !== k).map(y => y.ops[y.i].p.id); let i = x.i; for (let n = 0; n < x.ops.length; n++) { i = (i + 1) % x.ops.length; if (!otros.includes(x.ops[i].p.id)) break; } return { ...x, i }; }));
   // Un paso más barato: la mejor opción (las opciones ya vienen de mejor a peor) que cueste menos y no esté en otro paso
-  const opBarata = (rt, k) => { const x = rt[k], act = x.ops[x.i], otros = rt.filter((_, j) => j !== k).map(y => y.ops[y.i].p.id); return x.ops.findIndex(o => o.p.precio < act.p.precio && !otros.includes(o.p.id)); };
-  const abaratar = (k) => { setAvisoEco(""); setRutina(rt => rt.map((x, kk) => { if (kk !== k) return x; const j = opBarata(rt, k); return j >= 0 ? { ...x, i: j } : x; })); setAgregada(false); };
+  // Si pidió coreano, al abaratar se abre a todas las marcas: se suman las opciones de la rutina armada sin el filtro coreano
+  const abierta = useMemo(() => r.coreano ? twArmarRutina(productos, dispo, { ...r, coreano: false, presupuesto: 0 }) : null, [productos, dispo, r.piel, r.nec, r.pasos, r.coreano]);
+  const opsDe = (x) => { const a = abierta && abierta.find(y => y.t === x.t); if (!a) return x.ops; const ids = new Set(x.ops.map(o => o.p.id)); return [...x.ops, ...a.ops.filter(o => !ids.has(o.p.id))].sort((p, q) => q.w - p.w); };
+  const opBarata = (rt, k) => { const x = rt[k], act = x.ops[x.i], otros = rt.filter((_, j) => j !== k).map(y => y.ops[y.i].p.id); return opsDe(x).find(o => o.p.precio < act.p.precio && !otros.includes(o.p.id)) || null; };
+  const abaratar = (k) => { setAvisoEco(""); setRutina(rt => rt.map((x, kk) => { if (kk !== k) return x; const o = opBarata(rt, k); if (!o) return x; const ops = opsDe(x); return { ...x, ops, i: ops.indexOf(o) }; })); setAgregada(false); };
   // Toda la rutina más económica: se vuelve a armar con un tope apenas menor (cambia lo que menos le baja la calidad)
   const masEconomica = () => {
-    const nueva = twArmarRutina(productos, dispo, { ...r, presupuesto: Math.max(1, total - 1) });
+    const nueva = twArmarRutina(productos, dispo, { ...r, coreano: false, presupuesto: Math.max(1, total - 1), soloTipos: rutina.map(x => x.t) });
     const t2 = nueva.reduce((s, x) => s + x.ops[x.i].p.precio, 0);
     if (!nueva.length || t2 >= total) { setAvisoEco("Esta ya es la rutina más económica que podemos armar con lo que hay en stock."); return; }
-    setRutina(nueva); setR(x => ({ ...x, presupuesto: t2 })); setAgregada(false); setAvisoEco("✓ Te armamos una rutina " + fmtTienda(total - t2) + " más económica.");
+    setRutina(nueva); setR(x => ({ ...x, presupuesto: t2 })); setAgregada(false); setAvisoEco("✓ Te armamos una rutina " + fmtTienda(total - t2) + " más económica." + (r.coreano && nueva.some(x => !x.ops[x.i].p.coreano) ? " Para eso sumamos productos de otras marcas." : ""));
   };
   const volverIdeal = () => { const n = { ...r, presupuesto: 0 }; setR(n); setRutina(twArmarRutina(productos, dispo, n)); setAgregada(false); setAvisoEco(""); };
   const pielTxt = (TW_FILTROS[1].op.find(o => o[0] === r.piel) || ["", ""])[1].toLowerCase();
@@ -27455,10 +27459,11 @@ function TwRutina({ productos, dispo, foto, onAgregar, onAbrir, onCompartir, cop
                     {o.p.marca && <small>{o.p.marca}</small>}
                     <b>{o.p.nombre}{o.v ? " · " + o.v.valor : ""}</b>
                     <span>{fmtTienda(o.p.precio)}</span>
+                    {r.coreano && !o.p.coreano && <em className="tw-rut-otra">Alternativa de otra marca</em>}
                   </div>
                   <div className="tw-rut-btns">
                     {x.ops.length > 1 && <button className="tw-rut-cambiar" onClick={() => cambiar(k)} aria-label="Ver otra opción">↻<span>Otra</span></button>}
-                    {opBarata(rutina, k) >= 0 && <button className="tw-rut-cambiar" onClick={() => abaratar(k)} aria-label="Uno más económico">$<span>Más barato</span></button>}
+                    {opBarata(rutina, k) && <button className="tw-rut-cambiar" onClick={() => abaratar(k)} aria-label="Uno más económico">$<span>Más barato</span></button>}
                   </div>
                 </div>); })}
             </div>
