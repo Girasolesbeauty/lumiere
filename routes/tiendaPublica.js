@@ -134,7 +134,7 @@ router.get('/:slug', async (req, res) => {
         const r = tienda.regalosDe(c);
         if (!r.activo || (!r.giftcards && !r.armador)) return null;
         return { giftcards: r.giftcards && (mp || !!c.pago_transferencia || !!c.pago_gocuotas), montos: r.montos, libre: r.libre, minimo: r.minimo, maximo: r.maximo,
-          armador: r.armador, presupuestos: r.presupuestos, titulo: r.titulo, texto: r.texto, ...tienda.temaRegaloHoy(r) };
+          armador: r.armador, presupuestos: r.presupuestos, titulo: r.titulo, texto: r.texto, en_inicio: r.en_inicio, ...tienda.temaRegaloHoy(r) };
       })(),
     });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la tienda' }); }
