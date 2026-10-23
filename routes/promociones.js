@@ -10,6 +10,8 @@ router.use(async (req, res, next) => {
       await pool.query('ALTER TABLE promociones ADD COLUMN IF NOT EXISTS en_tienda BOOLEAN NOT NULL DEFAULT FALSE');
       // "Con cualquier medio menos este" (ej. el % OFF del Cyber no va con crédito: con crédito va la oferta en cuotas)
       await pool.query('ALTER TABLE promociones ADD COLUMN IF NOT EXISTS sin_medio_pago TEXT');
+      // Solo en un local (null = en todos): ej. un producto que en Ushuaia no se mueve
+      await pool.query('ALTER TABLE promociones ADD COLUMN IF NOT EXISTS local_id INT');
       enTiendaLista.set(true);
     } catch (e) {}
   }
@@ -152,6 +154,7 @@ router.post('/liquidacion', async (req, res) => {
     cuotas: Math.min(24, Math.max(0, parseInt(g.cuotas) || 0)),
     // Cómo se llama en la lista de promociones (ej. "Oferta 2: 30% OFF con transferencia")
     etiqueta: String(g.etiqueta || '').replace(/\s+/g, ' ').trim().slice(0, 90),
+    local: parseInt(g.local) > 0 ? parseInt(g.local) : null,
   })).filter(g => g.pct && g.productos.length).slice(0, 120);
   if (!grupos.length) return res.status(400).json({ error: 'No hay productos con descuento' });
   const enTienda = b.en_tienda !== false;
@@ -163,9 +166,9 @@ router.post('/liquidacion', async (req, res) => {
     for (const g of grupos) {
       const txt = g.pago === 'credito' ? ' + ' + (g.cuotas || '') + ' cuotas sin interés (crédito)' : g.pago ? ' ' + PAGO_TXT[g.pago] : g.sin ? ' otros medios (menos crédito)' : ' otros medios';
       // La de crédito es solo del local: en la tienda las cuotas las da Mercado Pago
-      await client.query(`INSERT INTO promociones (nombre, tipo, valor, aplica_a, productos_ids, categorias, mismo_producto, medio_pago_tipo, sin_medio_pago, combinable, fecha_inicio, fecha_fin, activo, en_tienda)
-        VALUES ($1, 'descuento', $2, 'productos', $3, '{}', TRUE, $4, $5, FALSE, $6, $7, TRUE, $8)`,
-        [(nombre + ' · ' + (g.etiqueta || g.pct + '% OFF' + txt)).slice(0, 120), g.pct, g.productos, g.pago, g.sin, b.desde, b.hasta, enTienda && g.pago !== 'credito']);
+      await client.query(`INSERT INTO promociones (nombre, tipo, valor, aplica_a, productos_ids, categorias, mismo_producto, medio_pago_tipo, sin_medio_pago, combinable, fecha_inicio, fecha_fin, activo, en_tienda, local_id)
+        VALUES ($1, 'descuento', $2, 'productos', $3, '{}', TRUE, $4, $5, FALSE, $6, $7, TRUE, $8, $9)`,
+        [(nombre + ' · ' + (g.etiqueta || g.pct + '% OFF' + txt)).slice(0, 120), g.pct, g.productos, g.pago, g.sin, b.desde, b.hasta, enTienda && g.pago !== 'credito', g.local]);
     }
     let sector = false;
     if (b.sector && enTienda) {

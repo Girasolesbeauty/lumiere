@@ -91,7 +91,7 @@ router.get('/:slug', async (req, res) => {
     const mp = c.pago_mp && await mpDisponible();
     const promosT = await tienda.promosTienda();
     res.json({
-      promos: promosT.map(x => ({ nombre: x.nombre, pct: x.pct, aplica_a: x.aplica_a, productos: x.productos, categorias: x.categorias, pago: x.pago })),
+      promos: promosT.map(x => ({ nombre: x.nombre, pct: x.pct, aplica_a: x.aplica_a, productos: x.productos, categorias: x.categorias, pago: x.pago, local: x.local })),
       titulo: c.titulo || neg.nombre_negocio || 'Tienda', mensaje: c.mensaje || '', logo: c.logo || neg.logo_url || null, color: c.color || '#c9a84c', whatsapp: c.whatsapp || null,
       retiro: c.retiro_activo ? locales : [], ciudades,
       envio: c.envio_activo ? { zonas: c.envio_zonas, gratis_desde: c.envio_gratis_desde } : null,
@@ -449,7 +449,8 @@ router.post('/:slug/pedidos', async (req, res) => {
     }
     // Descuento por la forma de pago elegida (sobre los productos, despues del cupon; no sobre el envio)
     // Promociones de Lumiere marcadas para la tienda: esos productos llevan la promo en lugar del descuento por forma de pago
-    const promo = tienda.descuentoPromos(await tienda.promosTienda(client), lineas, combo.enCombos, pago, tienda.packsDe(c));
+    // Las promos de un solo local valen solo para los pedidos de ese local
+    const promo = tienda.descuentoPromos((await tienda.promosTienda(client)).filter(x => !x.local || x.local === Number(localId)), lineas, combo.enCombos, pago, tienda.packsDe(c));
     const descPromo = promo.descuento;
     const dp = tienda.descuentoPagoTotal(c, pago, Math.max(0, subtotal - descCombo - descuento - descAmiga - promo.monto), combo.combos.reduce((t, x) => t + (x.monto || 0), 0));
     const pctPago = dp.pctKits && !dp.pct ? dp.pctKits : dp.pct;
