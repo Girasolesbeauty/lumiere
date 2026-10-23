@@ -9,7 +9,7 @@ const AR = (col) => `(((${col}) AT TIME ZONE current_setting('TimeZone')) AT TIM
 // Mismo criterio que el aviso de "facturas pendientes" del POS
 // (las preventas entran cuando se entregan: ahi se facturan)
 const PENDIENTE = `(v.canal = 'presencial' AND (COALESCE(v.es_preventa, FALSE) = FALSE OR v.estado_pago = 'confirmada') AND COALESCE(v.cae, '') = ''
-  AND COALESCE(v.monto_gift_card, 0) < v.total AND COALESCE(v.estado_facturacion, '') <> 'no_aplica')`;
+  AND COALESCE(v.gc_facturada, v.monto_gift_card, 0) < v.total AND COALESCE(v.estado_facturacion, '') <> 'no_aplica')`;
 
 const hayVentaPagos = porNegocio(null);
 const tieneVentaPagos = async () => {
@@ -23,6 +23,7 @@ const esFecha = (f) => /^\d{4}-\d{2}-\d{2}$/.test(String(f || ''));
 
 router.get('/', async (req, res) => {
   try {
+    await require('../lib/giftCardFactura').asegurar();
     await require('../lib/preventasFactura').asegurar();
     const { desde, hasta, local_id, q, tipo, estado } = req.query;
     const texto = String(q || '').trim().slice(0, 60);
@@ -59,7 +60,7 @@ router.get('/', async (req, res) => {
     }
     const r = await pool.query(`
       SELECT v.id, v.numero_factura, v.tipo_factura, v.punto_venta, v.nro_comprobante, v.cae, v.cae_vto,
-        v.total, COALESCE(v.monto_gift_card, 0) AS monto_gift_card, v.medio_pago, v.local_id, v.canal,
+        v.total, COALESCE(v.monto_gift_card, 0) AS monto_gift_card, COALESCE(v.gc_facturada, v.monto_gift_card, 0) AS gc_facturada, v.medio_pago, v.local_id, v.canal,
         COALESCE(v.anulada, FALSE) AS anulada, v.motivo_anulacion, v.anulada_por,
         v.ultimo_error_facturacion, v.intentos_facturacion,
         ${PENDIENTE} AS pendiente,
@@ -82,9 +83,32 @@ router.get('/', async (req, res) => {
       LIMIT ${todasLasFechas ? 300 : 2000}`, params);
 
     let filas = r.rows;
+    // Ventas de gift cards (modalidad nueva: se facturan al venderlas). Van como un comprobante mas
+    if (tipo !== 'A' && tipo !== 'C') {
+      const gp = todasLasFechas ? [] : [desde, hasta];
+      let gw = `g.factura_al_emitir AND NOT COALESCE(g.es_migracion, FALSE)${todasLasFechas ? '' : ` AND ${AR('COALESCE(g.facturada_en, g.creado_en)')}::date BETWEEN $1::date AND $2::date`}`;
+      if (localNum) { gp.push(localNum); gw += ` AND g.local_id = $${gp.length}`; }
+      if (texto) { gp.push('%' + texto.replace(/[\\%_]/g, '\\$&') + '%'); gw += ` AND (g.codigo ILIKE $${gp.length} OR g.comprador_nombre ILIKE $${gp.length} OR g.beneficiario_nombre ILIKE $${gp.length} OR g.cae ILIKE $${gp.length} OR g.nro_comprobante::text ILIKE $${gp.length})`; }
+      const g = await pool.query(`SELECT g.*, ${AR('COALESCE(g.facturada_en, g.creado_en)')} AS fecha_ar, u.nombre AS vendedora_nombre FROM gift_cards g LEFT JOIN usuarios u ON u.id = g.emitida_por WHERE ${gw} ORDER BY g.id DESC LIMIT 500`, gp);
+      const gcs = g.rows.map(x => {
+        const d = new Date(x.fecha_ar), dd = (n) => String(n).padStart(2, '0');
+        return {
+          id: 'gc-' + x.id, gift_card_id: x.id, es_gift_card: true, numero_factura: x.codigo, tipo_factura: 'B', punto_venta: x.punto_venta, nro_comprobante: x.nro_comprobante,
+          cae: x.cae, cae_vto: x.cae_vto, total: x.monto_inicial, monto_gift_card: 0, gc_facturada: 0, facturado: parseFloat(x.monto_inicial), medio_pago: x.forma_pago || 'Gift card',
+          local_id: x.local_id, canal: 'gift_card', anulada: x.anulada === true, motivo_anulacion: x.motivo_anulacion, ultimo_error_facturacion: x.error_facturacion,
+          intentos_facturacion: x.intentos_facturacion, pendiente: !x.cae && x.anulada !== true, cliente_nombre: x.comprador_nombre || x.beneficiario_nombre, cuit_dni: null,
+          vendedora_nombre: x.vendedora_nombre, creado_en: x.creado_en,
+          fecha: d.getFullYear() + '-' + dd(d.getMonth() + 1) + '-' + dd(d.getDate()), hora: dd(d.getHours()) + ':' + dd(d.getMinutes()),
+          items: [{ nombre: 'Gift card ' + x.codigo + (x.beneficiario_nombre ? ' para ' + x.beneficiario_nombre : ''), cantidad: 1, precio_unitario: x.monto_inicial }],
+          pagos: [], notas_credito: [], total_nc: 0, nc_disponible: 0,
+        };
+      });
+      filas = [...filas, ...gcs].sort((a, b) => (b.fecha + b.hora).localeCompare(a.fecha + a.hora));
+    }
     // Cuanto de cada factura ya se anulo con nota de credito
-    filas.forEach(f => {
-      const facturado = parseFloat(f.total || 0) - parseFloat(f.monto_gift_card || 0);
+    filas.filter(f => !f.es_gift_card).forEach(f => {
+      const facturado = parseFloat(f.total || 0) - parseFloat(f.gc_facturada || 0);
+      f.facturado = facturado;
       f.total_nc = (f.notas_credito || []).reduce((s, n) => s + parseFloat(n.importe || 0), 0);
       f.nc_disponible = f.cae ? Math.max(0, Math.round((facturado - f.total_nc) * 100) / 100) : 0;
     });
@@ -92,7 +116,7 @@ router.get('/', async (req, res) => {
     const emitidos = filas.filter(f => f.cae && !f.anulada);
     const resumen = {
       emitidos: emitidos.length,
-      total_emitido: emitidos.reduce((s, f) => s + parseFloat(f.total || 0), 0),
+      total_emitido: emitidos.reduce((s, f) => s + parseFloat(f.facturado ?? f.total ?? 0), 0),
       pendientes: filas.filter(f => f.pendiente && !f.anulada).length,
       total_pendiente: filas.filter(f => f.pendiente && !f.anulada).reduce((s, f) => s + parseFloat(f.total || 0), 0),
       anulados: filas.filter(f => f.anulada).length,
@@ -101,7 +125,7 @@ router.get('/', async (req, res) => {
       total_nc: filas.reduce((s, f) => s + f.total_nc, 0),
       por_tipo: ['A', 'B', 'C'].map(t => {
         const l = emitidos.filter(f => (f.tipo_factura || 'B') === t);
-        return { tipo: t, cantidad: l.length, total: l.reduce((s, f) => s + parseFloat(f.total || 0), 0) };
+        return { tipo: t, cantidad: l.length, total: l.reduce((s, f) => s + parseFloat(f.facturado ?? f.total ?? 0), 0) };
       }).filter(x => x.cantidad > 0),
     };
     if (estado === 'emitidos') filas = emitidos;

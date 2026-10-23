@@ -112,10 +112,10 @@ const calcularCierre = async (localId, fecha) => {
   // Con tienda: que esten sus columnas (pagado_en) antes de consultarlas
   if (web !== 'FALSE') await require('../lib/tienda').asegurar();
   const prevFact = require('../lib/preventasFactura');
-  await prevFact.asegurar(); // columna entregado_en
+  await prevFact.asegurar(); // columna entregado_en (y gc_facturada)
   const [ventasR, mediosR, movsR, gcR, webR, cobradosR, extrasR, prevR] = await Promise.all([
     pool.query(`
-      SELECT v.id, v.numero_factura, v.total, COALESCE(v.monto_gift_card, 0) AS monto_gift_card,
+      SELECT v.id, v.numero_factura, v.total, COALESCE(v.monto_gift_card, 0) AS monto_gift_card, COALESCE(v.gc_facturada, v.monto_gift_card, 0) AS gc_facturada,
         v.medio_pago, v.medio_pago_id, COALESCE(v.anulada, FALSE) AS anulada, v.motivo_anulacion,
         v.estado_facturacion, v.canal, v.cae, c.nombre AS cliente_nombre, CASE WHEN ${web} THEN 'Tienda web' ELSE u.nombre END AS vendedora_nombre, ${web} AS tienda_web,
         ${web === 'FALSE' ? 'NULL' : `(SELECT TO_CHAR(${DIA_AR('tpw.pagado_en')}, 'YYYY-MM-DD') FROM tienda_pedidos tpw WHERE tpw.venta_id = v.id AND tpw.pagado_en IS NOT NULL
@@ -213,7 +213,7 @@ const calcularCierre = async (localId, fecha) => {
     totalVentas += neto;
     pagadoGiftCard += num(v.monto_gift_card);
     // Mismo criterio que el aviso de facturas pendientes del POS
-    if (v.canal === 'presencial' && !v.cae && num(v.monto_gift_card) < num(v.total) && v.estado_facturacion !== 'no_aplica') { pendientesArca++; v.pendiente_arca = true; }
+    if (v.canal === 'presencial' && !v.cae && num(v.gc_facturada) < num(v.total) && v.estado_facturacion !== 'no_aplica') { pendientesArca++; v.pendiente_arca = true; }
     const pagos = Array.isArray(v.pagos) ? v.pagos.filter(p => num(p.importe) > 0 && !/gift/i.test(p.nombre || '')) : [];
     if (pagos.length > 0) {
       pagos.forEach(p => {
