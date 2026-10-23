@@ -652,7 +652,9 @@ body:has(.pos-overlay) .ayuda-fab { display: none !important; }
 .cum-fila{display:flex;gap:12px;align-items:center;border:1px solid;border-radius:12px;padding:9px 11px;flex-wrap:wrap}
 .cum-dia{width:48px;height:52px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:none;line-height:1}
 .cum-dia b{font-size:20px}.cum-dia small{font-size:10.5px;text-transform:uppercase;font-weight:800;margin-top:2px;opacity:.8}
-.cum-acc{display:flex;gap:6px;align-items:center;margin-left:auto}
+.cum-det{width:100%;border-top:1px dashed;padding-top:8px;margin-top:2px}
+.cum-det-fila{display:flex;gap:8px;font-size:12.5px;padding:2px 0}.cum-det-fila span{flex:1;min-width:0}.cum-det-fila small{opacity:.7}
+.cum-acc{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;align-items:center;margin-left:auto}
 .cum-link{background:none;border:0;padding:0;font:inherit;color:inherit;text-decoration:underline;cursor:pointer;opacity:.8}
 @media(max-width:600px){.cum-acc{width:100%;justify-content:flex-end}}
 .cli-tip { margin: 10px 14px 0; font-size: 12.5px; line-height: 1.5; padding: 10px 12px; border-radius: 8px; background: ${p.accentDim}; }
@@ -9427,22 +9429,63 @@ const SEGMENTOS_CLIENTES = [
 // Cumpleaños: quién cumple (hoy, los próximos días y los que ya pasaron), saludo por WhatsApp con el mensaje
 // del local (editable) y marca de "ya la saludamos" para que no le escriban dos veces
 const MESES_CUMPLE = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+// Lo que compró una clienta: los productos que más lleva y sus últimas compras
+function DetalleComprasCumple({ ventas, p, $ }) {
+  if (!ventas || ventas === "cargando") return <div className="skel" style={{ height: 70, width: "100%", marginTop: 8 }} />;
+  if (!ventas.length) return <div style={{ width: "100%", fontSize: 12.5, color: p.textMuted, marginTop: 6 }}>No encontramos compras en el sistema (puede tener compras viejas cargadas solo como monto).</div>;
+  const prods = {};
+  ventas.forEach(v => (v.items || []).forEach(i => { if (!i || !i.producto) return; const x = prods[i.producto] = prods[i.producto] || { n: 0, plata: 0 }; x.n += Number(i.cantidad) || 0; x.plata += Number(i.subtotal) || (Number(i.precio) || 0) * (Number(i.cantidad) || 0); }));
+  const top = Object.entries(prods).sort((a, b) => b[1].plata - a[1].plata || b[1].n - a[1].n).slice(0, 8);
+  return (
+    <div className="cum-det" style={{ borderColor: p.border }}>
+      <div style={{ fontWeight: 800, fontSize: 12.5, marginBottom: 4 }}>Lo que más lleva</div>
+      {top.map(([n, x]) => <div key={n} className="cum-det-fila"><span>{n}</span><small>x{x.n}</small>{x.plata > 0 && <b>{$(x.plata)}</b>}</div>)}
+      <div style={{ fontWeight: 800, fontSize: 12.5, margin: "10px 0 4px" }}>Últimas compras</div>
+      {ventas.slice(0, 5).map(v => (
+        <div key={v.id} style={{ fontSize: 12.5, marginBottom: 5 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><b>{new Date(v.creado_en).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}</b><b>{$(v.total)}</b></div>
+          <div style={{ color: p.textMuted }}>{(v.items || []).filter(i => i && i.producto).map(i => i.producto + (Number(i.cantidad) > 1 ? " x" + Number(i.cantidad) : "")).join(", ")}</div>
+        </div>
+      ))}
+      {ventas.length > 5 && <div style={{ fontSize: 12, color: p.textMuted }}>…y {ventas.length - 5} compras más (en su ficha están todas).</div>}
+    </div>
+  );
+}
 function PanelCumples({ clientes, busqueda, p, onFicha }) {
   const [cfg, setCfg] = useState(null);
   const [mes, setMes] = useState(0); // 0 = este mes, 1 = el que viene
   const [editando, setEditando] = useState(null);
   const [guardando, setGuardando] = useState(false);
   const [aviso, setAviso] = useState("");
+  // Filtro: todas, o desde un nivel (el nivel sale de todo lo que compró), y orden por día o por lo que gastó
+  const [desde, setDesde] = useState(() => { try { return localStorage.getItem("lumiere_cumple_desde") || "Bronze"; } catch (e) { return "Bronze"; } });
+  const [ordenG, setOrdenG] = useState(false);
+  const [abierta, setAbierta] = useState(null); // clienta con el detalle de compras abierto
+  const [compras, setCompras] = useState({}); // id -> ventas (o "cargando")
+  const elegirDesde = (n) => { setDesde(n); try { localStorage.setItem("lumiere_cumple_desde", n); } catch (e) {} };
+  const verCompras = (c) => {
+    if (abierta === c.id) return setAbierta(null);
+    setAbierta(c.id);
+    if (!compras[c.id]) {
+      setCompras(x => ({ ...x, [c.id]: "cargando" }));
+      API.get("/clientes/" + c.id + "/historial").then(r => setCompras(x => ({ ...x, [c.id]: (r.data || []).filter(v => !v.anulada && v.canal !== "prueba") })))
+        .catch(() => setCompras(x => ({ ...x, [c.id]: [] })));
+    }
+  };
+  const $ = (v) => fmt(Math.round(Number(v) || 0)).replace(SIN_CEROS, "");
   const cargar = () => API.get("/clientes/config/cumple").then(r => setCfg(r.data)).catch(() => setCfg({ mensaje: "", saludos: [], error: true }));
   useEffect(() => { cargar(); }, []);
   const ar = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" }));
   const mesVer = (ar.getMonth() + mes) % 12, hoyDia = ar.getDate();
   const q = String(busqueda || "").trim().toLowerCase();
-  const lista = clientes.filter(c => c.fecha_nacimiento && new Date(c.fecha_nacimiento).getUTCMonth() === mesVer)
-    .filter(c => !q || [c.nombre, c.telefono, c.cuit_dni].some(x => String(x || "").toLowerCase().includes(q)))
-    .map(c => ({ ...c, dia: new Date(c.fecha_nacimiento).getUTCDate() })).sort((a, b) => a.dia - b.dia || String(a.nombre).localeCompare(String(b.nombre)));
+  const delMes = clientes.filter(c => c.fecha_nacimiento && new Date(c.fecha_nacimiento).getUTCMonth() === mesVer)
+    .filter(c => !q || [c.nombre, c.telefono, c.cuit_dni].some(x => String(x || "").toLowerCase().includes(q)));
+  const nivelIdx = (c) => Math.max(0, NIVELES_ORDEN.indexOf(c.nivel || "Bronze"));
+  const lista = delMes.filter(c => nivelIdx(c) >= NIVELES_ORDEN.indexOf(desde))
+    .map(c => { const ant = Number(((cfg && cfg.anteriores) || {})[c.id]) || 0; return { ...c, dia: new Date(c.fecha_nacimiento).getUTCDate(), anteriores: ant, total: (Number(c.gastado) || 0) + ant }; })
+    .sort((a, b) => ordenG ? b.total - a.total : a.dia - b.dia || String(a.nombre).localeCompare(String(b.nombre)));
   const saludos = new Map(((cfg && cfg.saludos) || []).map(x => [x.cliente_id, x]));
-  const grupos = mes ? [["📅 El mes que viene", lista]] : [
+  const grupos = mes || ordenG ? [[mes ? "📅 El mes que viene" : "💰 De la que más gastó a la que menos", lista]] : [
     ["🎉 Hoy", lista.filter(c => c.dia === hoyDia)],
     ["⏳ Próximos días", lista.filter(c => c.dia > hoyDia)],
     ["Ya pasaron", lista.filter(c => c.dia < hoyDia)],
@@ -9470,14 +9513,17 @@ function PanelCumples({ clientes, busqueda, p, onFicha }) {
         <div className="cum-dia" style={{ background: esHoy ? "#a970ff" : p.bg || p.border, color: esHoy ? "#fff" : p.text }}><b>{c.dia}</b><small>{MESES_CUMPLE[mesVer].slice(0, 3)}</small></div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 800, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>{c.nombre}<TierBadge tier={c.nivel || "Bronze"} /></div>
-          <div style={{ fontSize: 12, color: p.textMuted }}>{c.telefono || "sin celular cargado"}{c.ultima_compra ? " · última compra " + textoHace(diasDesdeFecha(c.ultima_compra)) : " · todavía no compró"}</div>
+          <div style={{ fontSize: 13, marginTop: 2 }}>{c.total > 0 ? <><b>Gastó {$(c.total)}</b>{c.compras ? <> en {c.compras} {c.compras === 1 ? "compra" : "compras"} · última {textoHace(diasDesdeFecha(c.ultima_compra))}</> : null}{c.anteriores > 0 && <span style={{ color: p.textMuted }}> (incluye {$(c.anteriores)} de compras anteriores a Lumiere)</span>}</> : <span style={{ color: p.textMuted }}>Todavía no compró</span>}</div>
+          <div style={{ fontSize: 12, color: p.textMuted }}>{c.telefono || "sin celular cargado"}</div>
           {s && <div style={{ fontSize: 12, color: p.green, fontWeight: 700, marginTop: 2 }}>✓ Saludada{s.por ? " por " + primer(s.por) : ""} el {new Date(s.en).toLocaleDateString("es-AR", { day: "numeric", month: "numeric" })} <button className="cum-link" onClick={() => marcar(c, false)}>deshacer</button></div>}
         </div>
         <div className="cum-acc">
           {c.telefono && <button className={"btn btn-sm " + (s ? "btn-g" : "btn-p")} onClick={() => saludar(c)}>{s ? "💬 Escribir otra vez" : "🎂 Saludar"}</button>}
           {!c.telefono && !s && <button className="btn btn-g btn-sm" onClick={() => marcar(c, true)}>✓ Ya la saludé</button>}
+          {c.compras > 0 && <button className={"chip-btn" + (abierta === c.id ? " on" : "")} onClick={() => verCompras(c)}>🛍 Qué compró {abierta === c.id ? "▴" : "▾"}</button>}
           <button className="chip-btn" onClick={() => onFicha(c)}>Ficha</button>
         </div>
+        {abierta === c.id && <DetalleComprasCumple ventas={compras[c.id]} p={p} $={$} />}
       </div>
     );
   };
@@ -9485,7 +9531,15 @@ function PanelCumples({ clientes, busqueda, p, onFicha }) {
     <div style={{ padding: 14, textAlign: "left" }}>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
         {[[0, "Este mes (" + MESES_CUMPLE[ar.getMonth()] + ")"], [1, "El mes que viene"]].map(([k, t]) => <button key={k} className={"chip-btn" + (mes === k ? " on" : "")} onClick={() => setMes(k)}>{t}</button>)}
+        <button className={"chip-btn" + (ordenG ? " on" : "")} onClick={() => setOrdenG(v => !v)}>💰 Ordenar por lo que gastó</button>
         {pendientesHoy > 0 && <span style={{ fontSize: 12.5, fontWeight: 800, color: "#a970ff" }}>{pendientesHoy === 1 ? "1 clienta para saludar" : pendientesHoy + " clientas para saludar"}</span>}
+      </div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
+        <span style={{ fontSize: 12.5, fontWeight: 700, color: p.textMuted }}>Mostrar:</span>
+        {NIVELES_ORDEN.filter(n => n !== "Black" || delMes.some(c => c.nivel === "Black")).map((n, i) => {
+          const cant = delMes.filter(c => nivelIdx(c) >= i).length;
+          return <button key={n} className={"chip-btn" + (desde === n ? " on" : "")} onClick={() => elegirDesde(n)}>{i === 0 ? "Todas" : n + (n === "Black" ? "" : " o más")} · {cant}</button>;
+        })}
       </div>
       <div className="cum-msj" style={{ borderColor: p.border }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
@@ -9507,7 +9561,8 @@ function PanelCumples({ clientes, busqueda, p, onFicha }) {
         </>)}
         {aviso && <div style={{ color: p.red, fontSize: 12.5, marginTop: 6, fontWeight: 700 }}>{aviso}</div>}
       </div>
-      {!lista.length ? <div className="empty" style={{ padding: 26 }}>{q ? "Nadie con ese nombre cumple en " + MESES_CUMPLE[mesVer] + "." : "Nadie cumple años en " + MESES_CUMPLE[mesVer] + " (o no tienen la fecha cargada)."}</div>
+      {!lista.length && delMes.length > 0 ? <div className="empty" style={{ padding: 26 }}>Nadie de nivel {desde} o más cumple en {MESES_CUMPLE[mesVer]}. Probá con otro nivel.</div>
+        : !lista.length ? <div className="empty" style={{ padding: 26 }}>{q ? "Nadie con ese nombre cumple en " + MESES_CUMPLE[mesVer] + "." : "Nadie cumple años en " + MESES_CUMPLE[mesVer] + " (o no tienen la fecha cargada)."}</div>
         : grupos.filter(([, l]) => l.length).map(([t, l]) => (
           <div key={t} style={{ marginTop: 14 }}>
             <div style={{ fontWeight: 900, fontSize: 14, marginBottom: 6, color: t.startsWith("🎉") ? "#a970ff" : t === "Ya pasaron" ? p.textMuted : p.text }}>{t} <span style={{ fontWeight: 600, fontSize: 12, color: p.textMuted }}>· {l.length}</span></div>
