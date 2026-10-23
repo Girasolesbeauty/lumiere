@@ -28493,7 +28493,7 @@ function TiendaPublica({ slug }) {
         ) : (
           <>
             {/* Regalos: en una fecha especial (Dia de la Madre, Navidad...) va arriba de todo; si no, debajo de los banners */}
-            {tienda.regalos && tienda.regalos.tema !== "general" && <TwRegalosHero r={tienda.regalos} tienda={tienda} onGift={() => irRegalos("gift")} onArmar={() => irRegalos("armar")} />}
+            {tienda.regalos && tienda.regalos.en_inicio !== false && tienda.regalos.tema !== "general" && <TwRegalosHero r={tienda.regalos} tienda={tienda} onGift={() => irRegalos("gift")} onArmar={() => irRegalos("armar")} />}
             {/* Kits y combos: arriba de todo (después del banner de la fecha especial, si hay) */}
             {tienda.ofertas && tienda.ofertas.combos.length > 0 && (!tienda.regalos || tienda.regalos.tema !== "general") && <TwCombos pagoKits={pagoKitsMejor} combos={tienda.ofertas.combos} productos={visibles} foto={foto} dispo={dispo} onAgregar={agregarRegalo} onAbrir={abrir} />}
             {bannersImg.length > 0 ? (
@@ -28537,7 +28537,7 @@ function TiendaPublica({ slug }) {
             ) : (
               <div className="tw-hero" style={{ height: 220, display: "flex", alignItems: "center", padding: "0 40px" }}><div><div className="tw-ceja" style={{ color }}>Bienvenida</div><h2 style={{ fontSize: 40, margin: "8px 0" }}>{tienda.titulo}</h2><p style={{ margin: 0 }}>{tienda.mensaje}</p></div></div>
             )}
-            {tienda.regalos && tienda.regalos.tema === "general" && <TwRegalosHero r={tienda.regalos} tienda={tienda} onGift={() => irRegalos("gift")} onArmar={() => irRegalos("armar")} />}
+            {tienda.regalos && tienda.regalos.en_inicio !== false && tienda.regalos.tema === "general" && <TwRegalosHero r={tienda.regalos} tienda={tienda} onGift={() => irRegalos("gift")} onArmar={() => irRegalos("armar")} />}
             {tienda.ofertas && tienda.ofertas.combos.length > 0 && tienda.regalos && tienda.regalos.tema === "general" && <TwCombos pagoKits={pagoKitsMejor} combos={tienda.ofertas.combos} productos={visibles} foto={foto} dispo={dispo} onAgregar={agregarRegalo} onAbrir={abrir} />}
             {/* Novedades: lo que entró en los últimos 30 días, arriba y lo más nuevo primero */}
             <TwFila titulo="✨ Novedades" items={[...conStock.filter(p => p.nuevo)].sort((a, b) => (b.creado || 0) - (a.creado || 0) || b.id - a.id).slice(0, 12)} onVerTodo={() => { setOrden("nuevos"); irCat("*"); }} render={tarjeta} />
@@ -30832,7 +30832,7 @@ function RegalosTienda({ cfg, pedidos, temaPal, avisar, urlTienda, esJefe, onGua
   const guardar = async () => {
     setGuardando(true);
     try {
-      const body = { activo: !!r.activo, giftcards: !!r.giftcards, armador: !!r.armador, libre: !!r.libre, minimo: parseInt(r.minimo) || 0, maximo: parseInt(r.maximo) || 0,
+      const body = { activo: !!r.activo, en_inicio: r.en_inicio !== false, giftcards: !!r.giftcards, armador: !!r.armador, libre: !!r.libre, minimo: parseInt(r.minimo) || 0, maximo: parseInt(r.maximo) || 0,
         montos: numeros(r.montosTxt), presupuestos: numeros(r.presTxt), tema: r.tema, titulo: r.titulo || "", texto: r.texto || "" };
       const x = await API.put("/tienda/regalos", body);
       setR({ ...x.data.regalos, montosTxt: x.data.regalos.montos.join(", "), presTxt: x.data.regalos.presupuestos.join(", ") }); setHoy(x.data.regalos_hoy);
@@ -30860,7 +30860,8 @@ function RegalosTienda({ cfg, pedidos, temaPal, avisar, urlTienda, esJefe, onGua
       </div>
       <div className="card">
         <div className="ct">🎁 Sector "¿Querés hacer un regalo?"</div>
-        {sw("activo", "Mostrar el sector en la tienda", "Botón en el menú y una franja grande en la portada.")}
+        {sw("activo", "Mostrar el sector en la tienda", "Botón dorado en el menú de la tienda.")}
+        {r.activo && <label style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer", marginTop: 10, marginLeft: 26 }}><input type="checkbox" checked={r.en_inicio !== false} disabled={!esJefe} onChange={e => set("en_inicio", e.target.checked)} style={{ marginTop: 3 }} /><span><b>También la franja grande en el inicio</b><div style={{ fontSize: 12, color: temaPal.textMuted }}>Si la sacás, el sector sigue en el menú.</div></span></label>}
         <div style={{ fontSize: 12.5, fontWeight: 800, marginTop: 14 }}>Temática</div>
         <div style={fila}>
           {[["auto", "✨ Automática"], ["madre", "🌻 Día de la Madre"], ["padre", "👔 Día del Padre"], ["navidad", "🎄 Navidad"], ["enamorados", "💘 San Valentín"], ["general", "🎁 General"]].map(([k, n]) => <button key={k} className={"chip-btn" + ((r.tema || "auto") === k ? " on" : "")} disabled={!esJefe} onClick={() => set("tema", k)}>{n}</button>)}
