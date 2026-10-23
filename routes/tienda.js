@@ -520,6 +520,14 @@ async function pedidoCompleto(id) {
   return { ...p, subtotal: num(p.subtotal), total: num(p.total), costo_envio: num(p.costo_envio), monto_online: p.monto_online === null ? null : num(p.monto_online), items: items.map(i => ({ ...i, precio: num(i.precio) })), ruleta };
 }
 
+// Catalogo para Google e Instagram: cuantos productos entran y cuales quedan afuera (lib/catalogo.js)
+router.get('/catalogo', async (req, res) => {
+  try {
+    const l = await require('../lib/catalogo').productos();
+    res.json({ publicados: l.length, incluidos: l.filter(p => p.incluido).length, sin_stock: l.filter(p => p.incluido && p.stock <= 0).length,
+      afuera: l.filter(p => !p.incluido).slice(0, 100).map(p => ({ id: p.id, nombre: p.nombre, motivo: p.motivo })) });
+  } catch (e) { res.status(500).json({ error: 'No se pudo revisar el catálogo' }); }
+});
 router.get('/pedidos', async (req, res) => {
   try {
     // Los de Mercado Pago que siguen "esperando el pago": se le pregunta a Mercado Pago (por si pagaron y cerraron la pagina)
