@@ -18,6 +18,8 @@ router.post('/recalcular-stock-minimo', controller.recalcularStockMinimo);
 const pool = require('../config/database');
 const { VENTA_VALIDA } = require('../lib/niveles');
 const { pasoDe } = require('../lib/logros');
+// Kits, sets y combos traen varios pasos juntos: no se ofrecen como "el paso que le falta"
+const esKit = (p) => /\b(kits?|sets?|packs?|combos?|d[uú]o|tr[ií]o|box)\b/i.test([p.nombre, p.categoria].join(' '));
 router.get('/tambien-llevan', async (req, res) => {
   try {
     const ids = [...new Set(String(req.query.ids || '').split(',').map(x => parseInt(x)).filter(x => x > 0))].slice(0, 20);
@@ -48,7 +50,7 @@ router.get('/tambien-llevan', async (req, res) => {
         const NOMBRE = { solar: 'protector solar', hidratante: 'crema', limpieza: 'limpiador', serum: 'sérum', tonico: 'tónico' };
         for (const t of faltan) {
           if (sug.length >= 4) break;
-          const mejor = cands.filter(c => pasoDe(c) === t && !sug.some(s => s.id === c.id)).sort((a, b) => b.vendidas - a.vendidas)[0];
+          const mejor = cands.filter(c => !esKit(c) && pasoDe(c) === t && !sug.some(s => s.id === c.id)).sort((a, b) => b.vendidas - a.vendidas)[0];
           if (mejor) sug.push({ id: mejor.id, nombre: mejor.nombre, marca: mejor.marca, precio: mejor.precio, stock: mejor.stock, motivo: 'Completa la rutina: le falta ' + NOMBRE[t] });
         }
       }
