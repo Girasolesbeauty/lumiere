@@ -3928,7 +3928,9 @@ function POS({ localId, usuario, paletaActual }) {
   const intereses = total - subtotalConDesc;
   const montoAplicadoGC = giftCardAplicada ? Math.min(parseFloat(giftCardAplicada.saldo), total) : 0;
   // Si la gift card es de migracion (ya facturada en el sistema viejo), esa parte NO se factura de nuevo en ARCA.
-  const montoGCMigracion = (giftCardAplicada && giftCardAplicada.es_migracion) ? montoAplicadoGC : 0;
+  // Lo pagado con gift card que ya se facturó (al venderla, modalidad nueva, o en el sistema anterior): no se factura de nuevo.
+  // Las gift cards vendidas antes del cambio se facturan al canjearlas, como siempre.
+  const montoGCMigracion = (giftCardAplicada && (giftCardAplicada.es_migracion || giftCardAplicada.factura_al_emitir)) ? montoAplicadoGC : 0;
   const totalAFacturar = Math.max(total - montoGCMigracion, 0);
   const restaPagar = Math.max(total - montoAplicadoGC, 0);
 
@@ -4233,6 +4235,9 @@ function POS({ localId, usuario, paletaActual }) {
         sena_medio_pago_nombre: conPagoAhora ? (mediosPago.find(m => m.id === parseInt(senaMedioPagoId))?.nombre || null) : null,
         sena_referencia: conPagoAhora ? (tipoReserva === "sena" ? "Seña " : "Pago preventa ") + nombrePreventa : null,
         monto_gift_card: montoAplicadoGC,
+        // El saldo de la gift card se descuenta en la misma operación que la venta
+        gift_card_id: giftCardAplicada && montoAplicadoGC > 0 ? giftCardAplicada.id : null,
+        gift_card_ya_canjeada: !!(giftCardAplicada && giftCardAplicada.ya_canjeada),
         insumos_usados: (!preventa && insumosPosActivo) ? Object.values(insumosSel).filter(v => v && v !== "ninguna").map(v => parseInt(v)) : [],
         referencia: (mpPago ? "Mercado Pago " + mpPago.payment_id : referenciaVenta) || null,
         usuario_id: usuario?.id || null, usuario_nombre: usuario?.nombre || null,
@@ -4251,7 +4256,7 @@ function POS({ localId, usuario, paletaActual }) {
       // Si la venta salio de un presupuesto, queda marcado como vendido (aunque despues falle ARCA)
       const presuId = (cart.find(i => i.presupuesto_id) || {}).presupuesto_id;
       if (presuId) API.put("/presupuestos/" + presuId + "/vendido", { venta_id: ventaRes.data.id }).catch(() => {});
-      if (giftCardAplicada && montoAplicadoGC > 0 && !giftCardAplicada.ya_canjeada) {
+      if (giftCardAplicada && montoAplicadoGC > 0 && !giftCardAplicada.ya_canjeada && !ventaRes.data.gift_card_canjeada) {
         try {
           await API.post("/gift-cards/" + giftCardAplicada.id + "/canjear", {
             importe: montoAplicadoGC, venta_id: ventaRes.data.id, usuario_id: usuario?.id || null
@@ -4259,8 +4264,8 @@ function POS({ localId, usuario, paletaActual }) {
         } catch (gcErr) {}
       }
       if (!preventa && totalAFacturar <= 0) {
-        // Todo se pago con gift card de migracion: ya se facturo en el sistema anterior, no se factura de nuevo.
-        setMensaje("✅ Venta registrada. No se factura en ARCA (pagada con gift card ya facturada en el sistema anterior).");
+        // Todo se pago con una gift card ya facturada (al venderla, o en el sistema anterior): no se factura de nuevo.
+        setMensaje(giftCardAplicada && giftCardAplicada.factura_al_emitir ? "✅ Canje registrado: salió el stock y se descontó la gift card. No se factura (se facturó al venderla)." : "✅ Venta registrada. No se factura en ARCA (pagada con gift card ya facturada en el sistema anterior).");
         const datosReciboMig = {
           items: cart.filter(i => !String(i.id).startsWith("insumo-")).map(i => ({ nombre: i.nombre || i.name, cantidad: i.qty, precio_unitario: (i.precio || i.price) * (1 - (i.descuento_pct || 0) / 100) })),
           total: total, cliente: clienteSeleccionado?.nombre || null, numero: null
@@ -6037,6 +6042,9 @@ function POS({ localId, usuario, paletaActual }) {
                   <div style={{ fontFamily: "monospace", fontSize: 24, fontWeight: 700, color: "#2d7a4f" }}>{gcEmitidaOk.codigo}</div>
                   <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 4 }}>Saldo: {fmt(parseFloat(gcEmitidaOk.saldo))}</div>
                 </div>
+                {gcEmitidaOk.factura_al_emitir && (gcEmitidaOk.cae
+                  ? <div style={{ fontSize: 12, color: "#2d7a4f", marginBottom: 12, textAlign: "center" }}>✓ Facturada en ARCA · Factura B {String(gcEmitidaOk.punto_venta || 0).padStart(4, "0")}-{String(gcEmitidaOk.nro_comprobante || 0).padStart(8, "0")}</div>
+                  : <div style={{ fontSize: 12, color: temaPal.red, marginBottom: 12, textAlign: "center" }}>⚠️ La gift card está emitida pero ARCA no la facturó todavía ({gcEmitidaOk.error_facturacion || "sin respuesta"}). Se reintenta sola; también podés facturarla desde Comprobantes.</div>)}
                 <button className="btn btn-p" style={{ width: "100%" }} onClick={() => setShowEmitirGC(false)}>Cerrar</button>
               </>
             )}
@@ -13327,7 +13335,13 @@ function GiftCards({ localId, usuario, paletaActual }) {
                   <td style={{ fontSize: 12 }}>{fmt(parseFloat(g.monto_inicial))}</td>
                   <td><span className={"badge " + (parseFloat(g.saldo) === 0 ? "br" : parseFloat(g.saldo) < parseFloat(g.monto_inicial) ? "ba" : "bg")}>{fmt(parseFloat(g.saldo))}</span></td>
                   <td style={{ fontSize: 11, color: p.textMuted }}>{g.cliente_nombre || "-"}</td>
-                  <td style={{ fontSize: 10, color: p.textMuted }}>{new Date(g.creado_en).toLocaleDateString("es-AR")}</td>
+                  <td style={{ fontSize: 10, color: p.textMuted }}>{new Date(g.creado_en).toLocaleDateString("es-AR")}
+                    {/* Factura: las nuevas se facturan al venderlas; las de antes del cambio, al canjearlas */}
+                    <div style={{ marginTop: 3 }}>{g.es_migracion ? <span title="Ya facturada en el sistema anterior">Sistema anterior</span>
+                      : g.factura_al_emitir ? (g.cae ? <span style={{ color: p.green, fontWeight: 700 }} title={"CAE " + g.cae}>✓ Facturada</span>
+                        : <button className="mini-chip" style={{ color: p.red }} title={g.error_facturacion || ""} onClick={async () => { try { await API.post("/gift-cards/" + g.id + "/facturar"); setMensaje("✓ Gift card " + g.codigo + " facturada"); } catch (e) { setMensaje("Error: " + (e.response?.data?.error || "no se pudo facturar")); } cargar(); }}>↻ Facturar</button>)
+                      : <span title="Vendida antes del cambio: se factura cuando se canjea">Se factura al canjear</span>}</div>
+                  </td>
                   <td><div style={{ display: "flex", gap: 4 }}>{!g.anulada && parseFloat(g.saldo) > 0 && <button className="btn btn-p btn-sm" onClick={() => setOnline(g)} title="Mandarla por WhatsApp como gift card online, con mensaje y animación">📲 Enviar online</button>}<button className="btn btn-sm" onClick={() => verMovimientos(g)}>Ver historial</button>{puedeHacer("ventas.anular") && !g.anulada && <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => anularGiftCard(g)}>Anular</button>}</div></td>
                 </tr>
               ))}
@@ -18393,7 +18407,8 @@ function Comprobantes({ localId, usuario, paletaActual }) {
   const reintentar = async (v) => {
     setReintentando(v.id);
     try {
-      await API.post("/arca/reintentar/" + v.id);
+      // La venta de una gift card (modalidad nueva) se factura desde su propia ficha
+      await API.post(v.es_gift_card ? "/gift-cards/" + v.gift_card_id + "/facturar" : "/arca/reintentar/" + v.id);
       avisar("✓ Factura emitida: " + (v.cliente_nombre || "consumidor final") + " · " + fmt(parseFloat(v.total)));
       cargar();
     } catch (e) { avisar("Error: ARCA sigue rechazando la factura — " + (e.response?.data?.error || e.message)); cargar(); }
@@ -18671,6 +18686,7 @@ function Comprobantes({ localId, usuario, paletaActual }) {
                         </td>
                         <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                           <div style={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmt(parseFloat(v.total || 0))}</div>
+                          {v.es_gift_card && <div><span className="tag" title="Venta de una gift card: se factura al venderla">🎁 Gift card</span></div>}
                           {est === "emitido" && <span className="tag tag-ok">✓ CAE</span>}
                           {est === "pendiente" && <span className="tag tag-warn">sin facturar</span>}
                           {est === "anulado" && <span className="tag tag-bad">anulada</span>}

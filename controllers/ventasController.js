@@ -3,6 +3,7 @@ const { esVentaWeb } = require('../lib/tiendaWeb');
 const cuponesLib = require('../lib/cupones');
 const cc = require('../lib/cuentaCorriente');
 const { recalcularNivel } = require('../lib/niveles');
+const gcFactura = require('../lib/giftCardFactura');
 
 // Si una venta del POS se cobro (total o parcialmente) en efectivo, suma ese ingreso
 // automaticamente a la Caja (movimientos_caja_efectivo), para no tener que cargarlo a mano.
@@ -153,6 +154,7 @@ const getById = async (req, res) => {
 const create = async (req, res) => {
   try { await cc.asegurar(); } catch (e) { console.error('[cuenta corriente] tabla:', e.message); }
   if (req.body && req.body.cupon_codigo) await cuponesLib.asegurar();
+  try { await gcFactura.asegurar(); } catch (e) { console.error('[gift cards] columnas:', e.message); }
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -278,7 +280,21 @@ const create = async (req, res) => {
     const numero = 'F-' + String(parseInt(ultimo.rows[0].n) + 1).padStart(4, '0');
 
     // Se calcula reci\u00e9n ac\u00e1 porque depende de 'total', que se define m\u00e1s arriba.
-    const estadoFacturacionInicial = (es_preventa === true || totalGCInicial >= total) ? 'no_aplica' : 'pendiente';
+    // Gift card: el saldo se descuenta aca mismo (en la misma operacion que la venta, asi nunca queda una venta pagada con
+    // gift card sin descontar). Si la gift card ya se facturo al venderla (o es de migracion), esa parte no se factura de nuevo.
+    // Sin gift_card_id (llamadas viejas) se sigue como antes: lo pagado con gift card se toma como ya facturado.
+    const gcId = parseInt(req.body.gift_card_id) || null;
+    let gcUsada = null, gcFacturada = null;
+    if (gcId && totalGCInicial > 0) {
+      gcUsada = (await client.query('SELECT * FROM gift_cards WHERE id = $1 FOR UPDATE', [gcId])).rows[0];
+      if (!gcUsada) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'No encontramos la gift card' }); }
+      if (req.body.gift_card_ya_canjeada !== true) {
+        if (gcUsada.anulada === true || gcUsada.estado !== 'activa') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'La gift card ' + gcUsada.codigo + ' no está activa' }); }
+        if (parseFloat(gcUsada.saldo) + 0.005 < totalGCInicial) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'La gift card ' + gcUsada.codigo + ' tiene $' + parseFloat(gcUsada.saldo).toLocaleString('es-AR') + ' de saldo' }); }
+      }
+      gcFacturada = gcFactura.yaFacturada(gcUsada) ? totalGCInicial : 0;
+    }
+    const estadoFacturacionInicial = (es_preventa === true || (gcFacturada === null ? totalGCInicial : gcFacturada) >= total) ? 'no_aplica' : 'pendiente';
 
     let montoSenaInicial = (es_preventa === true) ? (parseFloat(monto_sena) || 0) : 0;
     // Seña/pago de preventa con uno o varios medios
@@ -301,8 +317,8 @@ const create = async (req, res) => {
         (numero_factura, cliente_id, tipo_factura, subtotal, descuento, total, canal, local_id,
          medio_pago_id, medio_pago, es_preventa, nombre_preventa, estado_pago,
          usuario_id, inicio_venta, duracion_segundos, monto_gift_card, preventa_local, referencia, cupon_id,
-         estado_facturacion, monto_sena, sena_medio_pago_id, sena_medio_pago_nombre, sena_referencia)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25) RETURNING *`,
+         estado_facturacion, monto_sena, sena_medio_pago_id, sena_medio_pago_nombre, sena_referencia, gc_facturada)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26) RETURNING *`,
       [
         numero, cliente_id, tipo_factura, subtotal, descuento_total, total,
         canal || 'presencial', local_id || 1,
@@ -318,12 +334,20 @@ const create = async (req, res) => {
         montoSenaInicial,
         montoSenaInicial > 0 ? (sena_medio_pago_id || null) : null,
         montoSenaInicial > 0 ? (sena_medio_pago_nombre || null) : null,
-        montoSenaInicial > 0 ? (sena_referencia || null) : null
+        montoSenaInicial > 0 ? (sena_referencia || null) : null,
+        gcFacturada
       ]
     );
     if (cuponUsado) await cuponesLib.registrarUso(client, cuponUsado, { cliente_id }, { venta_id: venta.rows[0].id });
 
     const ventaId = venta.rows[0].id;
+
+    if (gcUsada && req.body.gift_card_ya_canjeada !== true) {
+      const nuevoSaldo = Math.round((parseFloat(gcUsada.saldo) - totalGCInicial) * 100) / 100;
+      await client.query('UPDATE gift_cards SET saldo = $1, estado = $2 WHERE id = $3', [nuevoSaldo, nuevoSaldo <= 0 ? 'agotada' : 'activa', gcUsada.id]);
+      await client.query(`INSERT INTO gift_card_movimientos (gift_card_id, tipo, importe, saldo_resultante, venta_id, usuario_id) VALUES ($1, 'canje', $2, $3, $4, $5)`,
+        [gcUsada.id, totalGCInicial, nuevoSaldo, ventaId, usuario_id || null]);
+    }
 
     if (tramosSena.length) {
       await asegurarEtapaPagos();
@@ -475,7 +499,8 @@ const create = async (req, res) => {
     }
 
     await client.query('COMMIT');
-    res.status(201).json(venta.rows[0]);
+    // gift_card_canjeada: el saldo ya se desconto aca (el Punto de Venta no lo vuelve a descontar)
+    res.status(201).json({ ...venta.rows[0], gift_card_canjeada: !!gcUsada && req.body.gift_card_ya_canjeada !== true, facturar: Math.max(0, Math.round((parseFloat(venta.rows[0].total) - (gcFacturada === null ? totalGCInicial : gcFacturada)) * 100) / 100) });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error(error);
@@ -628,7 +653,7 @@ const confirmarEntrega = async (req, res) => {
         medio_pago = COALESCE($2, medio_pago),
         total = $3,
         entregado_en = NOW(),
-        estado_facturacion = CASE WHEN COALESCE(cae, '') = '' AND $3 - COALESCE(monto_gift_card, 0) > 0 THEN 'pendiente' ELSE estado_facturacion END
+        estado_facturacion = CASE WHEN COALESCE(cae, '') = '' AND $3 - COALESCE(gc_facturada, monto_gift_card, 0) > 0 THEN 'pendiente' ELSE estado_facturacion END
        WHERE id = $4`,
       [medio_pago_id || null, medio_pago_nombre || null, totalFinal, id]
     );

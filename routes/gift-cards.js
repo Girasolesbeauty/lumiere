@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
+const gcFactura = require('../lib/giftCardFactura');
 
 // Genera un código único tipo GIFT-A7K2
 function generarCodigo() {
@@ -9,6 +10,9 @@ function generarCodigo() {
   for (let i = 0; i < 4; i++) c += chars[Math.floor(Math.random() * chars.length)];
   return 'GIFT-' + c;
 }
+
+// Columnas de la factura al vender (modalidad nueva)
+router.use(async (req, res, next) => { try { await gcFactura.asegurar(); } catch (e) { console.error('[gift cards] asegurar:', e.message); } next(); });
 
 // Listar gift cards (opcional filtro por estado y local)
 router.get('/', async (req, res) => {
@@ -63,6 +67,7 @@ router.get('/:id/movimientos', async (req, res) => {
 
 // Emitir una nueva gift card
 router.post('/', async (req, res) => {
+  await gcFactura.asegurar();
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -108,18 +113,22 @@ router.post('/', async (req, res) => {
     }
 
     const montoNum = parseFloat(monto);
+    // Modalidad nueva: la venta de la gift card se factura ahora (el canje despues no se factura).
+    // La migracion y los creditos por devolucion no son una venta nueva: no se facturan.
+    const facturaAlEmitir = migracion !== true && es_devolucion !== true;
     const gc = await client.query(
       `INSERT INTO gift_cards
         (codigo, monto_inicial, saldo, beneficiario_nombre, beneficiario_telefono, beneficiario_dni,
-         cliente_id, comprador_nombre, estado, local_id, emitida_por, es_migracion, venta_origen_id, venta_origen_numero)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'activa', $9, $10, $11, $12, $13) RETURNING *`,
+         cliente_id, comprador_nombre, estado, local_id, emitida_por, es_migracion, venta_origen_id, venta_origen_numero, factura_al_emitir, forma_pago)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'activa', $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
       [
         codigo, montoNum, montoNum, beneficiario_nombre,
         beneficiario_telefono || null, beneficiario_dni || null,
         cliente_id || null, comprador_nombre || null, local_id || 1, emitida_por || null,
         migracion === true,
         es_devolucion === true ? ventaOrigenId : null,
-        es_devolucion === true ? venta_origen_numero.trim() : null
+        es_devolucion === true ? venta_origen_numero.trim() : null,
+        facturaAlEmitir, forma_pago || null
       ]
     );
 
@@ -151,7 +160,9 @@ router.post('/', async (req, res) => {
     }
 
     await client.query('COMMIT');
-    res.status(201).json(gc.rows[0]);
+    // Factura en ARCA (si falla, la gift card queda emitida igual y la factura se reintenta)
+    const conFactura = facturaAlEmitir ? await gcFactura.facturar(gc.rows[0].id).catch(() => null) : null;
+    res.status(201).json(conFactura || gc.rows[0]);
   } catch (error) {
     await client.query('ROLLBACK');
     console.error(error);
@@ -159,6 +170,16 @@ router.post('/', async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+// Reintentar la factura de la venta de una gift card (modalidad nueva)
+router.post('/:id/facturar', async (req, res) => {
+  try {
+    const gc = await gcFactura.facturar(parseInt(req.params.id));
+    if (!gc) return res.status(404).json({ error: 'Gift card no encontrada' });
+    if (!gc.cae) return res.status(502).json({ error: 'ARCA no la facturó: ' + (gc.error_facturacion || 'probá de nuevo en un rato'), gift_card: gc });
+    res.json(gc);
+  } catch (e) { res.status(500).json({ error: 'No se pudo facturar' }); }
 });
 
 // Canjear (descontar saldo)

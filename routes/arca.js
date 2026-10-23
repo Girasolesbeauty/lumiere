@@ -268,6 +268,9 @@ async function marcarError(venta_id, mensaje) {
   );
 }
 
+// Columnas de gift cards (gc_facturada) antes de cualquier consulta
+router.use(async (req, res, next) => { try { await require('../lib/giftCardFactura').asegurar(); } catch (e) { console.error('[arca] gift cards:', e.message); } next(); });
+
 router.get('/ultimo-comprobante/:tipo', async (req, res) => {
   try {
     const { tipo } = req.params;
@@ -310,7 +313,7 @@ router.get('/pendientes/count', async (req, res) => {
       `SELECT COUNT(*) FROM ventas
        WHERE canal = 'presencial' AND (es_preventa = FALSE OR estado_pago = 'confirmada')
          AND (cae IS NULL OR cae = '')
-         AND monto_gift_card < total
+         AND COALESCE(gc_facturada, monto_gift_card, 0) < total
          AND estado_facturacion != 'no_aplica'`
     );
     res.json({ pendientes: parseInt(r.rows[0].count) });
@@ -331,7 +334,7 @@ router.get('/pendientes', async (req, res) => {
              LEFT JOIN clientes c ON v.cliente_id = c.id
              WHERE v.canal = 'presencial' AND (v.es_preventa = FALSE OR v.estado_pago = 'confirmada')
                AND (v.cae IS NULL OR v.cae = '')
-               AND v.monto_gift_card < v.total
+               AND COALESCE(v.gc_facturada, v.monto_gift_card, 0) < v.total
                AND v.estado_facturacion != 'no_aplica'`;
     const params = [];
     if (local_id) { params.push(local_id); q += ` AND v.local_id = $${params.length}`; }
@@ -351,7 +354,7 @@ router.post('/reintentar/:venta_id', async (req, res) => {
   try {
     const { venta_id } = req.params;
     const ventaRes = await pool.query(
-      `SELECT v.id, v.tipo_factura, v.total, v.monto_gift_card, c.cuit_dni AS cliente_cuit
+      `SELECT v.id, v.tipo_factura, v.total, COALESCE(v.gc_facturada, v.monto_gift_card, 0) AS gc_facturada, c.cuit_dni AS cliente_cuit
        FROM ventas v
        LEFT JOIN clientes c ON v.cliente_id = c.id
        WHERE v.id = $1`,
@@ -366,7 +369,7 @@ router.post('/reintentar/:venta_id', async (req, res) => {
     const resultado = await intentarEmitirCAE({
       tipo: venta.tipo_factura || 'B',
       items: itemsRes.rows,
-      total: parseFloat(venta.total) - parseFloat(venta.monto_gift_card || 0),
+      total: parseFloat(venta.total) - parseFloat(venta.gc_facturada || 0),
       cliente_cuit: venta.cliente_cuit,
       venta_id: venta.id
     });
@@ -494,13 +497,13 @@ router.post('/nota-credito/:venta_id', async (req, res) => {
     // Una nota de credito a la vez: la numeracion sale del ultimo autorizado en ARCA
     await client.query(`SELECT pg_advisory_xact_lock(hashtext('lumiere_arca_nc'))`);
     const vr = await client.query(
-      `SELECT v.id, v.tipo_factura, v.total, COALESCE(v.monto_gift_card, 0) AS monto_gift_card, v.cae, v.punto_venta, v.nro_comprobante,
+      `SELECT v.id, v.tipo_factura, v.total, COALESCE(v.gc_facturada, v.monto_gift_card, 0) AS gc_facturada, v.cae, v.punto_venta, v.nro_comprobante,
          c.cuit_dni AS cliente_cuit
        FROM ventas v LEFT JOIN clientes c ON c.id = v.cliente_id WHERE v.id = $1 FOR UPDATE OF v`, [ventaId]);
     const venta = vr.rows[0];
     if (!venta) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Venta no encontrada' }); }
     if (!venta.cae || !venta.nro_comprobante) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Esta venta no tiene factura con CAE: no hace falta nota de crédito' }); }
-    const facturado = redondear(parseFloat(venta.total) - parseFloat(venta.monto_gift_card || 0));
+    const facturado = redondear(parseFloat(venta.total) - parseFloat(venta.gc_facturada || 0));
     const previas = await client.query('SELECT COALESCE(SUM(importe), 0) AS s FROM notas_credito WHERE venta_id = $1', [ventaId]);
     const disponible = redondear(facturado - parseFloat(previas.rows[0].s));
     if (disponible <= 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Esta factura ya tiene nota de crédito por el total' }); }
@@ -531,12 +534,12 @@ router.post('/nota-credito/:venta_id', async (req, res) => {
 
 router.post('/reintentar-pendientes', async (req, res) => {
   const pendientes = await pool.query(
-    `SELECT v.id, v.tipo_factura, v.total, v.monto_gift_card, c.cuit_dni AS cliente_cuit
+    `SELECT v.id, v.tipo_factura, v.total, COALESCE(v.gc_facturada, v.monto_gift_card, 0) AS gc_facturada, c.cuit_dni AS cliente_cuit
      FROM ventas v
      LEFT JOIN clientes c ON v.cliente_id = c.id
      WHERE v.canal = 'presencial' AND (v.es_preventa = FALSE OR v.estado_pago = 'confirmada')
        AND (v.cae IS NULL OR v.cae = '')
-       AND v.monto_gift_card < v.total
+       AND COALESCE(v.gc_facturada, v.monto_gift_card, 0) < v.total
        AND v.estado_facturacion != 'no_aplica'
      ORDER BY v.id ASC`
   );
@@ -554,7 +557,7 @@ router.post('/reintentar-pendientes', async (req, res) => {
       const r = await intentarEmitirCAE({
         tipo: venta.tipo_factura || 'B',
         items,
-        total: parseFloat(venta.total) - parseFloat(venta.monto_gift_card || 0),
+        total: parseFloat(venta.total) - parseFloat(venta.gc_facturada || 0),
         cliente_cuit: venta.cliente_cuit,
         venta_id: venta.id
       });
@@ -565,7 +568,17 @@ router.post('/reintentar-pendientes', async (req, res) => {
     }
   }
 
+  // Ventas de gift cards (modalidad nueva) que quedaron sin factura
+  try {
+    const gcFactura = require('../lib/giftCardFactura');
+    for (const g of await gcFactura.pendientes()) {
+      const r = await gcFactura.facturar(g.id);
+      resultados.push({ gift_card_id: g.id, ok: !!(r && r.cae), cae: r && r.cae, error: r && !r.cae ? r.error_facturacion : undefined });
+    }
+  } catch (e) { console.error('[arca] gift cards pendientes:', e.message); }
+
   res.json({ procesadas: resultados.length, resultados });
 });
 
 module.exports = router;
+module.exports.intentarEmitirCAE = intentarEmitirCAE;
