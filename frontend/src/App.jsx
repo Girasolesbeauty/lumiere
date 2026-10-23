@@ -407,7 +407,7 @@ button.tab { font-family: inherit; }
 /* Clientas web: las secciones en una sola fila, mas chicas */
 .ped-grid.cw-grid { grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); }
 .ped-grid.cw-grid .ped-btn { min-height: 92px; }
-@media (max-width: 760px) { .ped-grid.cw-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; } .ped-grid.cw-grid .ped-btn { min-height: 84px; } .ped-grid.cw-grid .pcel-txt { font-size: 12.5px; } }
+@media (max-width: 760px) { .ped-grid.cw-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; } .ped-grid.cw-grid .ped-btn { min-height: 76px; padding: 10px 6px 12px; gap: 5px; } .ped-grid.cw-grid .pcel-txt { font-size: 12px; line-height: 1.2; } .ped-grid.cw-grid .pcel-ico { width: 40px; height: 40px; font-size: 22px; } }
 .globo-rojo { display: inline-flex; align-items: center; justify-content: center; min-width: 19px; height: 19px; padding: 0 5px; margin-left: 6px; border-radius: 999px; background: #e74c3c; color: #fff; font-size: 11px; font-weight: 900; line-height: 1; box-shadow: 0 0 0 2px ${p.card}; animation: globoLate 2s ease-in-out infinite; }
 @keyframes globoLate { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
 @media (prefers-reduced-motion: reduce) { .globo-rojo { animation: none; } }
@@ -30078,6 +30078,25 @@ function CarritosAbandonados({ temaPal, carritos, mensajes, slug, nombreTienda, 
         </div>
   );
 }
+// Tarjetas grandes para elegir que seccion ver (como en Pedidos): una seccion a la vez. items: [clave, icono, titulo, color, numero, rojo]
+function TarjetasSecciones({ items, activa, onElegir }) {
+  return (
+    <div className="ped-grid cw-grid" role="tablist">
+      {items.map(([k, ic, t, col, n, rojo], i) => { const on = activa === k; return (
+        <button key={k} role="tab" aria-selected={on} className={"pcel-btn ped-btn" + (on ? " on" : "")} style={{ "--c": col, animationDelay: (i * 45) + "ms" }} onClick={() => onElegir(k)}>
+          <span className="pcel-ico" aria-hidden="true">{ic}</span>
+          <span className="pcel-txt">{t}</span>
+          {n > 0 && <span className={"ped-globo" + (rojo ? " rojo" : "")}>{n > 99 ? "99+" : n}</span>}
+        </button>); })}
+    </div>
+  );
+}
+// Seccion elegida, recordada en este navegador (cada pestaña con su clave)
+function useSeccion(clave, porDefecto) {
+  const [sec, setSec] = useState(() => { try { return localStorage.getItem("lumiere_sec_" + clave) || porDefecto; } catch (e) { return porDefecto; } });
+  const elegir = (k) => { setSec(k); try { localStorage.setItem("lumiere_sec_" + clave, k); } catch (e) {} };
+  return [sec, elegir];
+}
 // Abre la tienda online como la ve una clienta (su cuenta, medallas, rutina, avisos), solo para mirar (30 minutos)
 async function verCuentaEnTienda(c) {
   const w = window.open("", "_blank");
@@ -30263,6 +30282,7 @@ function ResenasTienda({ temaPal, avisar, urlTienda, nombreTienda, esJefe, alCam
   const [loc, setLoc] = useState(null); // { clientas, proveedores, dias }
   const [prov, setProv] = useState(null); // null = todavia no se eligio (se busca BEK)
   const [dias, setDias] = useState(90);
+  const [secRs, elegirSecRs] = useSeccion("resenas", "resenas");
   const cargarLoc = (pv, ds) => API.get("/tienda/resenas/pedir-local?dias=" + ds + (pv ? "&proveedor=" + pv : "")).then(r => {
     setLoc(r.data);
     // La primera vez se elige solo el proveedor BEK (si esta)
@@ -30300,8 +30320,11 @@ function ResenasTienda({ temaPal, avisar, urlTienda, nombreTienda, esJefe, alCam
   const prom = (() => { const a = d.lista.filter(r => r.estado === "aprobada"); return a.length ? (a.reduce((t, r) => t + r.estrellas, 0) / a.length).toFixed(1).replace(".", ",") : null; })();
   const est = (n) => <span style={{ color: "#f5a623", letterSpacing: 1 }}>{"★".repeat(n)}<span style={{ color: tp.border }}>{"★".repeat(5 - n)}</span></span>;
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-start" }}>
-      <div className="card" style={{ flex: "2 1 520px", minWidth: 0 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <TarjetasSecciones activa={secRs} onElegir={elegirSecRs} items={[
+        ["resenas", "⭐", "Reseñas", "#c9a84c", cuenta("pendiente"), cuenta("pendiente") > 0], ["puntos", "🎁", "Puntos por reseña", "#16a085", 0, false],
+        ["pedir", "💬", "Pedir reseñas", "#2471a3", 0, false]]} />
+      {secRs === "resenas" && <div className="card" style={{ minWidth: 0 }}>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
           <div className="ct" style={{ margin: 0, flex: 1 }}>⭐ Reseñas de las clientas {prom && <span style={{ fontWeight: 600, fontSize: 13, color: tp.textMuted }}>· promedio {prom} ★ ({cuenta("aprobada")} publicadas)</span>}</div>
         </div>
@@ -30330,9 +30353,8 @@ function ResenasTienda({ temaPal, avisar, urlTienda, nombreTienda, esJefe, alCam
             ))}
           </div>
         )}
-      </div>
-      <div style={{ flex: "1 1 320px", minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
-      {pts && <div className="card" style={{ borderTop: "4px solid #c9a84c" }}>
+      </div>}
+      {secRs === "puntos" && pts && <div className="card" style={{ borderTop: "4px solid #c9a84c" }}>
         <label style={{ display: "flex", gap: 10, alignItems: "center", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
           <input type="checkbox" checked={!!pts.activo} onChange={e => setPts(x => ({ ...x, activo: e.target.checked }))} style={{ width: 18, height: 18 }} /> 🎁 Puntos por dejar reseña
         </label>
@@ -30343,7 +30365,7 @@ function ResenasTienda({ temaPal, avisar, urlTienda, nombreTienda, esJefe, alCam
         </div>}
         {esJefe && <button className="btn btn-p btn-sm" style={{ marginTop: 10 }} onClick={guardarPts}>Guardar</button>}
       </div>}
-      <div className="card" style={{ minWidth: 0 }}>
+      {secRs === "pedir" && <div className="card" style={{ minWidth: 0 }}>
         <div className="ct">💬 Pedir reseñas</div>
         <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 10 }}>Como Mercado Libre: mandale un WhatsApp a quien ya compró para que deje su reseña. El link la lleva directo a opinar (si no tiene cuenta, la crea con su DNI y se la reconoce). Además, cuando entra a la tienda con su cuenta, le aparece un cartelito.</div>
         <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
@@ -30392,8 +30414,7 @@ function ResenasTienda({ temaPal, avisar, urlTienda, nombreTienda, esJefe, alCam
           <button className="btn btn-g btn-sm" onClick={() => setMsj(MSJ_RESENA)}>Volver al de siempre</button>
         </div>
         <div style={{ fontSize: 11.5, color: tp.textMuted, marginTop: 8 }}>Así se ve: {llenarMsj(msj || MSJ_RESENA, { nombre: "Sabrina", tienda: nombreTienda || "la tienda", productos: "Crema hidratante", link: link || "(link de tu tienda)" })}</div>
-      </div>
-      </div>
+      </div>}
       {grande && <div onClick={() => setGrande(null)} style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,.85)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "zoom-out", padding: 20 }}><img src={grande} alt="" style={{ maxWidth: "100%", maxHeight: "100%", borderRadius: 8 }} /></div>}
     </div>
   );
@@ -30567,6 +30588,8 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
   const [desdeRot] = useState(() => { try { const x = JSON.parse(sessionStorage.getItem("lumiere_oferta_pre") || "null"); sessionStorage.removeItem("lumiere_oferta_pre"); return x; } catch (e) { return null; } });
   const [dia, setDia] = useState(() => desdeRot ? { ...o0.dia, activo: true, producto_id: desdeRot.producto_id, precio: desdeRot.precio, titulo: (o0.dia && o0.dia.titulo) || "", hastaLocal: aLocal(new Date(Date.now() + 24 * 3600e3).toISOString()) } : ({ ...o0.dia, hastaLocal: aLocal(o0.dia && o0.dia.hasta) }));
   const [combos, setCombos] = useState(() => (o0.combos || []).map(c => ({ ...c })));
+  const [secO0, elegirSecO] = useSeccion("ofertas", "dia");
+  const secO = desdeRot ? "dia" : secO0;
   // Lo guardado de la oferta del dia (para avisar si hay cambios sin guardar: en la tienda se ve recien al guardar)
   const firmaDia = (x) => [!!(x && x.activo), parseInt(x && x.producto_id) || 0, parseInt(x && x.precio) || 0, x && (x.hastaLocal !== undefined ? x.hastaLocal : aLocal(x.hasta))].join("|");
   const [diaGuardado, setDiaGuardado] = useState(() => firmaDia(o0.dia || {}));
@@ -30642,8 +30665,12 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
     : firmaDia(dia) !== diaGuardado ? "Falta guardar: tocá Guardar para que aparezca en la tienda" : null;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <TarjetasSecciones activa={secO} onElegir={elegirSecO} items={[
+        ["dia", "⚡", "Oferta del día", "#c0392b", 0, false], ["combos", "🎁", "Combos", "#8e44ad", combos.length, false],
+        ["packs", "🛍️", "Packs", "#16a085", (cfg.packs || []).length, false], ["misiones", "🎯", "Misiones", "#d68910", mis.length, false],
+        ["amiga", "💌", "Invitá a una amiga", "#e84393", 0, false]]} />
       {desdeRot && <div className="cli-tip" style={{ margin: 0 }}>♻️ Cargamos <b>{desdeRot.nombre}</b> desde Rotación con {desdeRot.pct}% OFF por 24 horas (sin perder lo que pagaste). Revisá el precio y la duración y tocá <b>Guardar ofertas</b>.</div>}
-      <div className="card">
+      {secO === "dia" && <div className="card">
         <div className="ct">⚡ Oferta del día</div>
         <div style={{ fontSize: 13, color: temaPal.textMuted, marginBottom: 10 }}>Un producto a precio especial por tiempo limitado. En la tienda aparece arriba con una cuenta regresiva, y el precio vale solo hasta la hora que elijas.</div>
         <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", marginBottom: 10 }}><input type="checkbox" checked={!!dia.activo} disabled={!esJefe} onChange={e => setDia(x => ({ ...x, activo: e.target.checked }))} /><b>Mostrar la oferta del día</b></label>
@@ -30667,9 +30694,9 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
           {/* Guardar aca mismo (antes el boton estaba abajo de todos los combos y no se encontraba) */}
           {esJefe && <button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar oferta"}</button>}
         </div>
-      </div>
+      </div>}
 
-      <div className="card">
+      {secO === "combos" && <div className="card">
         <div className="ct">🎁 Combos</div>
         <div style={{ fontSize: 13, color: temaPal.textMuted, marginBottom: 10 }}>Varios productos juntos a un precio especial. Aparecen en la portada con un botón para agregarlos de una, y si la clienta tiene todos en el carrito el descuento se aplica solo.</div>
         {combos.length === 0 && <div className="empty" style={{ padding: 12 }}>Todavía no hay combos.</div>}
@@ -30720,12 +30747,12 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
             )}
           </div>
         )}
-      </div>
-      {esJefe && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar ofertas"}</button>
       </div>}
-      <PacksTienda cfg={cfg} productos={productos} temaPal={temaPal} avisar={avisar} esJefe={esJefe} onGuardado={onGuardado} />
-      <div className="card">
+      {secO === "combos" && esJefe && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar combos"}</button>
+      </div>}
+      {secO === "packs" && <PacksTienda cfg={cfg} productos={productos} temaPal={temaPal} avisar={avisar} esJefe={esJefe} onGuardado={onGuardado} />}
+      {secO === "misiones" && <div className="card">
         <div className="ct">🎯 Misiones con puntos extra</div>
         <div style={{ fontSize: 13, color: temaPal.textMuted, marginBottom: 10 }}>Desafíos con fecha de inicio y fin: la clienta ve su avance en "Mi cuenta" y, cuando la cumple, se le suman los puntos (una sola vez). Cuentan las compras en el local y online con su ficha.</div>
         {esJefe && <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}><span style={{ fontSize: 12, color: temaPal.textMuted, alignSelf: "center" }}>Ideas:</span>{plantillasMis.map(pl => <button key={pl.titulo} className="mini-chip" onClick={() => setMis(l => [...l, { ...pl, id: "m" + Date.now().toString(36) + l.length, activo: true }])}>+ {pl.titulo}</button>)}</div>}
@@ -30751,8 +30778,8 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
           <button className="btn btn-g btn-sm" onClick={() => setMis(l => [...l, { id: "m" + Date.now().toString(36), titulo: "", tipo: "compras", meta: 1, puntos: 200, desde: hoyISO(), hasta: enDias(6), activo: true }])}>+ Nueva misión</button>
           <button className="btn btn-g btn-sm" onClick={guardarMis}>Guardar misiones</button>
         </div>}
-      </div>
-      <div className="card">
+      </div>}
+      {secO === "amiga" && <div className="card">
         <div className="ct">💌 Invitá a una amiga</div>
         <div style={{ fontSize: 13, color: temaPal.textMuted, marginBottom: 10 }}>Cada clienta con cuenta tiene su link para invitar (lo ve en "Mi cuenta"). La amiga tiene un descuento en su <b>primera</b> compra y, cuando retira su pedido, la que la invitó suma puntos.</div>
         <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={!!ref.activo} disabled={!esJefe} onChange={e => setRef(x => ({ ...x, activo: e.target.checked }))} /><b>Activar "Invitá a una amiga"</b></label>
@@ -30762,7 +30789,7 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
         </div>
         <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 6 }}>El regalo de amiga no se suma a otro código de descuento.</div>
         {esJefe && <button className="btn btn-g btn-sm" style={{ marginTop: 10 }} onClick={guardarRef}>Guardar</button>}
-      </div>
+      </div>}
       {esJefe && urlTienda && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         {urlTienda && <a className="btn btn-g" href={urlTienda} target="_blank" rel="noopener" style={{ textDecoration: "none" }}>👁 Verlo en la tienda</a>}
       </div>}
@@ -30827,6 +30854,7 @@ function RegalosTienda({ cfg, pedidos, temaPal, avisar, urlTienda, esJefe, onGua
   const [r, setR] = useState(() => ({ ...(cfg.regalos || {}), montosTxt: ((cfg.regalos || {}).montos || []).join(", "), presTxt: ((cfg.regalos || {}).presupuestos || []).join(", ") }));
   const [hoy, setHoy] = useState(cfg.regalos_hoy || null);
   const [guardando, setGuardando] = useState(false);
+  const [secR, elegirSecR] = useSeccion("regalos", "sector");
   const set = (k, v) => setR(x => ({ ...x, [k]: v }));
   const numeros = (txt) => String(txt || "").split(/[,;\s]+/).map(x => parseInt(x.replace(/\D/g, ""))).filter(n => n > 0);
   const guardar = async () => {
@@ -30848,17 +30876,20 @@ function RegalosTienda({ cfg, pedidos, temaPal, avisar, urlTienda, esJefe, onGua
   const sw = (k, txt, sub) => <label style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer", marginTop: 10 }}><input type="checkbox" checked={!!r[k]} disabled={!esJefe} onChange={e => set(k, e.target.checked)} style={{ marginTop: 3 }} /><span><b style={{ fontSize: 13.5 }}>{txt}</b>{sub && <div style={{ fontSize: 12, color: temaPal.textMuted }}>{sub}</div>}</span></label>;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <div className="card" style={{ background: "linear-gradient(135deg," + t.c1 + "," + t.c2 + ")", color: t.texto || "#fff", border: 0 }}>
+      <TarjetasSecciones activa={secR} onElegir={elegirSecR} items={[
+        ["sector", "🎁", "Sector y temática", "#c9a84c", 0, false], ["giftcards", "💳", "Gift cards", "#8e44ad", gcs.filter(p => p.estado === "pendiente_pago").length, false],
+        ["armador", "✨", "Armamos el regalo", "#e84393", 0, false]]} />
+      {secR === "sector" && <div className="card" style={{ background: "linear-gradient(135deg," + t.c1 + "," + t.c2 + ")", color: t.texto || "#fff", border: 0 }}>
         <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", opacity: .9 }}>{t.emoji} Lo que se ve hoy en la tienda</div>
         <div style={{ fontSize: 22, fontWeight: 900, margin: "4px 0" }}>{r.titulo || t.titulo}</div>
         <div style={{ fontSize: 13, opacity: .95 }}>{hoy && hoy.tema !== "general" ? "Temática " + t.nombre + (hoy.faltan !== null && hoy.faltan !== undefined ? (hoy.faltan === 0 ? " · ¡es hoy!" : " · faltan " + hoy.faltan + (hoy.faltan === 1 ? " día" : " días")) : "") + ". Va arriba de todo en la portada." : "Temática general: va debajo de los banners."}{!r.activo ? " (APAGADO: no se ve)" : ""}</div>
         {urlTienda && <a className="btn btn-sm" style={{ marginTop: 10, background: "#fff", color: t.tinta, textDecoration: "none", display: "inline-block" }} href={urlTienda} target="_blank" rel="noopener">👁 Verlo en la tienda</a>}
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
+      </div>}
+      {secR === "giftcards" && <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
         <div className="card" style={{ padding: 12 }}><div style={{ fontSize: 11.5, color: temaPal.textMuted, fontWeight: 700 }}>Gift cards vendidas online</div><div style={{ fontSize: 20, fontWeight: 900 }}>{vendidas.length}</div><div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{fmt(vendidas.reduce((a, p) => a + p.total, 0))} · últimos pedidos</div></div>
         <div className="card" style={{ padding: 12 }}><div style={{ fontSize: 11.5, color: temaPal.textMuted, fontWeight: 700 }}>Esperando el pago</div><div style={{ fontSize: 20, fontWeight: 900 }}>{gcs.filter(p => p.estado === "pendiente_pago").length}</div><div style={{ fontSize: 11.5, color: temaPal.textMuted }}>se ven en Pedidos</div></div>
-      </div>
-      <div className="card">
+      </div>}
+      {secR === "sector" && <div className="card">
         <div className="ct">🎁 Sector "¿Querés hacer un regalo?"</div>
         {sw("activo", "Mostrar el sector en la tienda", "Botón dorado en el menú de la tienda.")}
         {r.activo && <label style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer", marginTop: 10, marginLeft: 26 }}><input type="checkbox" checked={r.en_inicio !== false} disabled={!esJefe} onChange={e => set("en_inicio", e.target.checked)} style={{ marginTop: 3 }} /><span><b>También la franja grande en el inicio</b><div style={{ fontSize: 12, color: temaPal.textMuted }}>Si la sacás, el sector sigue en el menú.</div></span></label>}
@@ -30871,8 +30902,8 @@ function RegalosTienda({ cfg, pedidos, temaPal, avisar, urlTienda, esJefe, onGua
           <div><div className="fl">Título (opcional)</div><input className="inp" maxLength={80} placeholder={t.titulo} value={r.titulo || ""} disabled={!esJefe} onChange={e => set("titulo", e.target.value)} /></div>
           <div><div className="fl">Texto (opcional)</div><input className="inp" maxLength={200} placeholder="Una gift card para que elija lo que más le guste…" value={r.texto || ""} disabled={!esJefe} onChange={e => set("texto", e.target.value)} /></div>
         </div>
-      </div>
-      <div className="card">
+      </div>}
+      {secR === "giftcards" && <div className="card">
         <div className="ct">💳 Gift cards online</div>
         {sw("giftcards", "Vender gift cards en la tienda", "Se pagan online y, cuando se acredita el pago, se crean solas en Ventas → Gift Cards de Lumiere (con su código y saldo). Se canjean en el Punto de Venta como cualquier otra y entran al cierre de caja del local que elige la clienta.")}
         {r.giftcards && !pagos.length && <div className="cli-tip" style={{ marginTop: 8 }}>Para venderlas hace falta un pago online prendido en Configuración (Mercado Pago, GoCuotas o transferencia).</div>}
@@ -30883,12 +30914,12 @@ function RegalosTienda({ cfg, pedidos, temaPal, avisar, urlTienda, esJefe, onGua
           <div><div className="fl">Monto libre: máximo</div><input className="inp" inputMode="numeric" value={r.maximo || ""} disabled={!esJefe || !r.libre} onChange={e => set("maximo", e.target.value.replace(/\D/g, ""))} /></div>
         </div>
         {sw("libre", "Dejar que escriban otro monto")}
-      </div>
-      <div className="card">
+      </div>}
+      {secR === "armador" && <div className="card">
         <div className="ct">✨ Armamos el regalo</div>
         {sw("armador", "Mostrar el armador de regalos", "La clienta dice para quién es, cuánto quiere gastar y qué le gusta; la tienda elige productos con stock entre lo más vendido y mejor puntuado, y los suma al carrito marcado como regalo.")}
         <div style={{ marginTop: 10, maxWidth: 420 }}><div className="fl">Presupuestos para elegir (separados por coma)</div><input className="inp" value={r.presTxt || ""} disabled={!esJefe} onChange={e => set("presTxt", e.target.value)} placeholder="20000, 35000, 50000, 80000" /></div>
-      </div>
+      </div>}
       {esJefe && <div style={{ display: "flex", justifyContent: "flex-end" }}><button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar"}</button></div>}
     </div>
   );
@@ -30926,6 +30957,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const [filtros, setFiltros] = useState({ marca: "", proveedor: "", categoria: "", foto: "", desc: "", seg: "" });
   const [segmentar, setSegmentar] = useState(null); // productos a segmentar (uno o varios)
   const [completaVer, setCompletaVer] = useState(null); // "Completá tu tienda": que tarjeta muestra el detalle
+  const [secP, elegirSecP] = useSeccion("productos", "lista"); // pestaña Productos: lista / completá / etiquetas QR
   const [qrProd, setQrProd] = useState(null); // { p, qr } QR de un producto (para la etiqueta del local)
   const [cambio, setCambio] = useState(null); // { p, it, q, prod, vars, variante, cant }: cambiar un producto de un pedido
   // Notas del local en un pedido (la clienta no las ve): { id del pedido, texto }
@@ -31263,8 +31295,22 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
           </button>
         ))}
       </div>}
+      <div className="tabs" style={{ marginBottom: 12 }}>
+        {[["pedidos", "📦 Pedidos" + (abiertos.length ? " (" + abiertos.length + ")" : "")], ["productos", "🛍 Productos"], ...(esDuenaT ? [["portada", "🏠 Portada y sectores"]] : []), ["clientas", "👥 Clientas web"], ["resenas", "⭐ Reseñas" + (resPend ? " (" + resPend + ")" : "")], ...(esDuenaT ? [["ofertas", "⚡ Ofertas y combos"], ["rutinas", "💁 Rutinas del local"], ["regalos", "🎁 Regalos"], ["config", "⚙️ Configuración"]] : [])].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
+      </div>
+
+      {tab === "productos" && productos && (() => { const pubs = productos.filter(p => p.publicado), falt = pubs.filter(p => !p.foto).length + pubs.filter(p => !(p.descripcion || "").trim()).length; return (
+        <div style={{ marginBottom: 12 }}><TarjetasSecciones activa={secP} onElegir={elegirSecP} items={[
+          ["lista", "🛍", "Productos", "#2471a3", nPub, false], ["completa", "✨", "Completá tu tienda", "#c9a84c", falt, falt > 0], ["qr", "🔳", "Etiquetas con QR", "#2d7a4f", 0, false]]} /></div>); })()}
+      {tab === "productos" && secP === "qr" && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div className="ct">🔳 Etiquetas de precio con QR</div>
+          <div style={{ fontSize: 13, color: temaPal.textMuted, marginBottom: 10 }}>Se imprimen en Productos → Etiquetas, con el estilo que ya usás: tildá "QR de la tienda" y cada etiqueta lleva el código que abre el producto en la tienda online (y su video, si tiene). Para el QR de un solo producto, tocá 🔳 QR en ese producto de la lista.</div>
+          <button className="btn btn-p" onClick={() => { try { sessionStorage.setItem("lumiere_etiquetas_qr", "1"); } catch (e) {} irASeccion("etiquetas"); }}>🏷️ Ir a Etiquetas (con QR)</button>
+        </div>
+      )}
       {/* Completá tu tienda: productos publicados a los que les falta algo para venderse bien */}
-      {tab === "productos" && productos && nPub > 0 && (() => {
+      {tab === "productos" && secP === "completa" && productos && nPub > 0 && (() => {
         const pubs = productos.filter(p => p.publicado);
         const SKIN = ["limpiador", "desmaquillante", "tonico", "serum", "hidratante", "solar", "ojos", "exfoliante", "mascarilla"];
         const sinFoto = pubs.filter(p => !p.foto), sinDesc = pubs.filter(p => !(p.descripcion || "").trim());
@@ -31274,7 +31320,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         const facialSinTipo = pubs.filter(p => /facial|rostro/i.test(p.categoria || "") && !(twEtiquetas(p).tipo || []).length);
         const total = pubs.length * 2 + skin.length + facialSinTipo.length, faltan = sinFoto.length + sinDesc.length + sinPiel.length + facialSinTipo.length;
         const pct = total ? Math.round((1 - faltan / total) * 100) : 100;
-        const ir = (f) => { setTab("productos"); setSoloPub(true); setBusca(""); setFiltros({ marca: "", proveedor: "", categoria: "", foto: "", desc: "", seg: "", ...f }); setTimeout(() => { const el = document.getElementById("tw-admin-lista"); el && el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 150); };
+        const ir = (f) => { setTab("productos"); elegirSecP("lista"); setSoloPub(true); setBusca(""); setFiltros({ marca: "", proveedor: "", categoria: "", foto: "", desc: "", seg: "", ...f }); setTimeout(() => { const el = document.getElementById("tw-admin-lista"); el && el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 150); };
         if (!faltan) return <div className="cli-tip" style={{ marginBottom: 12, borderColor: temaPal.green }}>✅ <b>¡Tu tienda está completa!</b> Todos los productos publicados tienen foto, descripción{skin.length ? " y tipo de piel" : ""}.</div>;
         // Arreglar un producto puntual desde el detalle: abre su ventana (estan en la pestaña Productos)
         const editar = (fn) => { setTab("productos"); fn(); };
@@ -31328,10 +31374,6 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
           </div>
         );
       })()}
-      <div className="tabs" style={{ marginBottom: 12 }}>
-        {[["pedidos", "📦 Pedidos" + (abiertos.length ? " (" + abiertos.length + ")" : "")], ["productos", "🛍 Productos"], ...(esDuenaT ? [["portada", "🏠 Portada y sectores"]] : []), ["clientas", "👥 Clientas web"], ["resenas", "⭐ Reseñas" + (resPend ? " (" + resPend + ")" : "")], ...(esDuenaT ? [["ofertas", "⚡ Ofertas y combos"], ["rutinas", "💁 Rutinas del local"], ["regalos", "🎁 Regalos"], ["config", "⚙️ Configuración"]] : [])].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
-      </div>
-
       {tab === "pedidos" && (
         <>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10, alignItems: "center" }}>
@@ -31585,7 +31627,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         </div>
       </Ventana>}
       {tab === "productos" && (
-        <div className="card">
+        <div className={secP === "lista" ? "card" : ""}>
+          {secP === "lista" && <>
           <div style={{ position: "relative", marginBottom: 8 }}>
             <input className="inp" style={{ width: "100%", fontSize: 15, padding: "11px 38px 11px 14px" }} placeholder="🔍 Buscar por nombre, marca, categoría, proveedor o código…" value={busca} onChange={e => setBusca(e.target.value)} aria-label="Buscar producto" />
             {busca && <button onClick={() => setBusca("")} aria-label="Borrar búsqueda" style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", border: "none", background: "transparent", fontSize: 16, cursor: "pointer", color: temaPal.textMuted }}>✕</button>}
@@ -31618,13 +31661,6 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             <span style={{ fontSize: 12, color: temaPal.textMuted }}>{prodFiltro.length} {prodFiltro.length === 1 ? "producto" : "productos"}</span>
             {esJefeT && <button className="btn btn-g btn-sm" onClick={publicarConFoto} title="Publica de una vez los que tienen foto, precio y stock">📸 Publicar los que tienen foto</button>}
           </div>
-          {prodFiltro.some(p => p.publicado) && (
-            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", margin: "0 0 10px", padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + temaPal.border, background: temaPal.bg || "transparent" }}>
-              <span style={{ fontSize: 22 }}>🔳</span>
-              <div style={{ flex: "1 1 240px", fontSize: 12.5 }}><b>Etiquetas de precio con QR</b><div style={{ color: temaPal.textMuted }}>Se imprimen en Productos → Etiquetas, con el estilo que ya usás: tildá "QR de la tienda online". Al escanear, la clienta ve el producto en la tienda y su video.</div></div>
-              <button className="btn btn-p btn-sm" onClick={() => { try { sessionStorage.setItem("lumiere_etiquetas_qr", "1"); } catch (e) {} irASeccion("etiquetas"); }}>🏷️ Ir a Etiquetas (con QR)</button>
-            </div>
-          )}
           {esJefeT && prodFiltro.length > 0 && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
               <button className="btn btn-p btn-sm" disabled={prodFiltro.every(p => p.publicado)} onClick={() => publicarVarios(prodFiltro.filter(p => !p.publicado), true)}>☑ Publicar {hayFiltros ? "los que se ven" : "todos"} ({prodFiltro.filter(p => !p.publicado).length})</button>
@@ -31663,6 +31699,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               <div style={{ fontSize: 11.5, color: temaPal.textMuted, marginTop: 4 }}>O escribí en el buscador de arriba para ir directo a uno.</div>
             </div>
           )}
+          </>}
           {segmentar && <SegmentarTienda lista={segmentar} temaPal={temaPal} avisar={avisar} onCerrar={() => setSegmentar(null)} onListo={() => { setSegmentar(null); cargarProductos(); }} />}
           {importando && <ImportarDescripciones productos={productos} temaPal={temaPal} avisar={avisar} onCerrar={() => setImportando(false)} onListo={() => { setImportando(false); cargarProductos(); }} />}
           {galeria && <GaleriaFotos producto={galeria} temaPal={temaPal} avisar={avisar} onCerrar={() => { setGaleria(null); cargarProductos(); }} />}
