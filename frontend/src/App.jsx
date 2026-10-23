@@ -26827,6 +26827,8 @@ const TW_ING_OP = TW_FILTROS.find(f => f.k === "ingrediente").op;
 const twLineasTipo = (o) => o[3] || ["facial"];
 const TW_TIPOS_FACIALES = TW_FILTROS[0].op.filter(o => twLineasTipo(o).includes("facial")).map(o => o[0]);
 // lin = linea elegida a mano (manda sobre la automatica)
+// El nombre dice que es una mascarilla facial (no una sleeping mask, que es crema de noche, ni una de labios u ojos)
+const twMascNombre = (nom) => /mascarilla|sheet ?mask|mascara facial|\bmask\b/.test(nom) && !/sleeping (pack|mask)|lip (mask|sleeping)|eye ?mask|capilar|hair ?mask/.test(nom);
 function twEtiquetasAuto(p, lin) {
   const nom = twNorm([p.nombre, p.categoria].join(" "));
   const todo = nom + " " + twNorm(p.descripcion);
@@ -26864,6 +26866,8 @@ function twEtiquetasAuto(p, lin) {
   if (e.tipo.includes("hidratante") && e.tipo.some(t => ["ojos", "solar", "limpiador", "desmaquillante", "corporal", "labios", "mascarilla", "base", "corrector", "rubor", "primer"].includes(t)) && !/hidratante|moistur/.test(nom)) e.tipo = e.tipo.filter(x => x !== "hidratante");
   // Un serum, ampolla o tonico "hidratante" no es la crema de la rutina (salvo que diga crema o cream)
   if (e.tipo.includes("hidratante") && e.tipo.some(t => ["serum", "tonico"].includes(t)) && !/\bcrema\b|\bcream\b|moistur/.test(nom)) e.tipo = e.tipo.filter(x => x !== "hidratante");
+  // Una mascarilla en tela ("ampoule sheet mask", "mascarilla con serum") es mascarilla: el serum o la esencia es lo que trae, no el tipo
+  if (e.tipo.includes("mascarilla") && twMascNombre(nom)) e.tipo = e.tipo.filter(x => !["serum", "tonico"].includes(x));
   // Tipo de piel por la forma del producto, cuando no lo dice: leches y balsamos limpiadores son para piel seca o sensible;
   // espumas, geles y lo matificante, para piel grasa o mixta (solo en lo facial)
   if (!e.piel.length && !TW_TODO_TIPO.test(todo) && (!lin0.length || lin0.includes("facial"))) {
@@ -27352,7 +27356,7 @@ function twArmarRutina(productos, dispo, { piel, nec, pasos, presupuesto, corean
   };
   // Lo que se le puede dar a cada paso: primero lo mejor puntuado
   const aptaPiel = (p) => !piel || !(p._et.piel || []).length || (p._et.piel || []).includes(piel) || p._et.todoTipo;
-  const opciones = tipos.map(t => { const deTipo = conStock.filter(p => (p._et.tipo || []).includes(t)); const aptos = deTipo.filter(aptaPiel); return { t, lista: aptos.length ? aptos : deTipo }; }).map(({ t, lista }) => ({ t, ops: lista.map(p => ({ p, v: p.variantes ? p.variantes.find(v => dispo(p, v) > 0) : null, w: puntaje(p) })).sort((a, b) => b.w - a.w) })).filter(x => x.ops.length);
+  const opciones = tipos.map(t => { const deTipo = conStock.filter(p => (p._et.tipo || []).includes(t) && (t === "mascarilla" || !twMascNombre(twNorm(p.nombre)))); const aptos = deTipo.filter(aptaPiel); return { t, lista: aptos.length ? aptos : deTipo }; }).map(({ t, lista }) => ({ t, ops: lista.map(p => ({ p, v: p.variantes ? p.variantes.find(v => dispo(p, v) > 0) : null, w: puntaje(p) })).sort((a, b) => b.w - a.w) })).filter(x => x.ops.length);
   let pasosR = opciones.map(x => { const ops = x.ops.filter(o => !usados.has(o.p.id)); const o = ops[0] || x.ops[0]; usados.add(o.p.id); return { t: x.t, ops: x.ops, i: x.ops.indexOf(o) }; });
   // Presupuesto: mientras se pase, cambia el paso donde bajar de precio cueste menos puntaje
   const precio = (o) => o.p.precio;
