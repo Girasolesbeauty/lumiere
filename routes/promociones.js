@@ -112,7 +112,9 @@ router.post('/liquidacion', async (req, res) => {
     pago: ['efectivo', 'transferencia', 'debito', 'credito'].includes(g.pago) ? g.pago : null,
     sin: g.sin === 'credito' && !g.pago ? 'credito' : null,
     cuotas: Math.min(24, Math.max(0, parseInt(g.cuotas) || 0)),
-  })).filter(g => g.pct && g.productos.length).slice(0, 60);
+    // Cómo se llama en la lista de promociones (ej. "Oferta 2: 30% OFF con transferencia")
+    etiqueta: String(g.etiqueta || '').replace(/\s+/g, ' ').trim().slice(0, 90),
+  })).filter(g => g.pct && g.productos.length).slice(0, 120);
   if (!grupos.length) return res.status(400).json({ error: 'No hay productos con descuento' });
   const enTienda = b.en_tienda !== false;
   const client = await pool.connect();
@@ -125,7 +127,7 @@ router.post('/liquidacion', async (req, res) => {
       // La de crédito es solo del local: en la tienda las cuotas las da Mercado Pago
       await client.query(`INSERT INTO promociones (nombre, tipo, valor, aplica_a, productos_ids, categorias, mismo_producto, medio_pago_tipo, sin_medio_pago, combinable, fecha_inicio, fecha_fin, activo, en_tienda)
         VALUES ($1, 'descuento', $2, 'productos', $3, '{}', TRUE, $4, $5, FALSE, $6, $7, TRUE, $8)`,
-        [(nombre + ' · ' + g.pct + '% OFF' + txt).slice(0, 120), g.pct, g.productos, g.pago, g.sin, b.desde, b.hasta, enTienda && g.pago !== 'credito']);
+        [(nombre + ' · ' + (g.etiqueta || g.pct + '% OFF' + txt)).slice(0, 120), g.pct, g.productos, g.pago, g.sin, b.desde, b.hasta, enTienda && g.pago !== 'credito']);
     }
     let sector = false;
     if (b.sector && enTienda) {
