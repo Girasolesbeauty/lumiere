@@ -24438,7 +24438,14 @@ html:has(.tw){overflow-x:hidden}
 @media(hover:hover){.tw .tw-kit-btn:hover{background:#fff;color:#111}}
 .tw .tw-kit-btn.hecho{background:#2d7a4f;border-color:#2d7a4f;color:#fff}
 @media(max-width:760px){.tw-combos{display:grid;grid-auto-flow:column;grid-auto-columns:82%;grid-template-columns:none;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding:0 16px;scrollbar-width:none;margin:0 -16px;padding:4px 16px 10px}.tw-combos::-webkit-scrollbar{display:none}.tw-kit{scroll-snap-align:start}.tw-combos>.tw-kit:only-child{grid-auto-columns:100%}}
-@media(max-width:760px){.tw-oferta{grid-template-columns:1fr}.tw-oferta-img{min-height:240px}.tw-oferta-txt{padding:22px 20px}.tw-reloj-c{min-width:54px}.tw-reloj-c b{font-size:24px}}
+/* En el celular, la oferta del dia en formato horizontal y compacto (foto chica a la izquierda) */
+@media(max-width:760px){.tw-oferta{grid-template-columns:118px 1fr;margin:18px 0 6px;border-radius:18px}.tw-oferta-img{min-height:0}.tw-oferta-img .tw-ph{font-size:40px!important}
+.tw-oferta-pct{top:8px;left:8px;font-size:12.5px;padding:4px 8px}.tw-oferta-txt{padding:12px 12px 14px}
+.tw-oferta-ceja{font-size:9.5px;letter-spacing:.08em;padding:4px 9px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tw-oferta .tw-card-m{font-size:10.5px}.tw-oferta h2{font-size:15px;line-height:1.2;margin:3px 0 6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tw-oferta-precios{gap:8px;flex-wrap:wrap}.tw-oferta-precios s{font-size:12.5px}.tw-oferta-precios b{font-size:21px}
+.tw-oferta-termina{font-size:9.5px;margin:8px 0 4px}.tw-oferta .tw-reloj{gap:5px}.tw-oferta .tw-reloj-c{min-width:40px;padding:4px 3px;border-radius:10px}.tw-oferta .tw-reloj-c b{font-size:17px}.tw-oferta .tw-reloj-c small{font-size:8.5px;margin-top:2px}
+.tw-oferta-btns{margin-top:10px!important}.tw-oferta-btns .tw-btn{padding:9px 16px;font-size:11.5px}.tw-oferta-btns .tw-btn2{display:none}}
 .tw-amiga-barra{background:linear-gradient(90deg,#fde7ee,#fff3e6);color:#7a3b4f;text-align:center;font-size:13.5px;padding:9px 16px;border-bottom:1px solid #f6d8e0}
 .tw-amiga-check{font-size:13px;border-radius:10px;padding:9px 11px;margin:0 0 8px;background:#fff6f8;color:#7a3b4f;border:1px dashed #efc2cf}
 .tw-amiga-check.ok{background:#eefaf2;color:#2d7a4f;border-style:solid;border-color:#bfe5cd}.tw-amiga-check.no{background:#f7f7f7;color:#777;border-color:#e3e3e3}
@@ -26454,7 +26461,7 @@ function TwOfertaDia({ p, oferta, foto, onAbrir, onAgregar, sin }) {
         <div className="tw-oferta-precios">{p.precio_antes ? <s>{fmtTienda(p.precio_antes)}</s> : null}<b>{fmtTienda(p.precio)}</b></div>
         <div className="tw-oferta-termina">Termina en</div>
         <TwReloj hasta={oferta.hasta} />
-        <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
+        <div className="tw-oferta-btns" style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
           {sin ? <button className="tw-btn" disabled>Agotado</button> : <button className="tw-btn" onClick={e => p.variantes ? onAbrir(p) : onAgregar(p, e.currentTarget)}>{p.variantes ? "Elegir opción" : "Lo quiero"}</button>}
           <button className="tw-btn2" onClick={() => onAbrir(p)}>Ver más</button>
         </div>
