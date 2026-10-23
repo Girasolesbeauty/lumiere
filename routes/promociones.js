@@ -16,6 +16,44 @@ router.use(async (req, res, next) => {
   next();
 });
 
+// Rutina en cuotas: llevando N productos faciales distintos (sin los tipos excluidos, ej. mascarillas, y desde un precio)
+// se puede pagar en X cuotas sin interés. En el local el Punto de Venta no deja usar ese medio si no se cumple; en la tienda
+// es un aviso en el carrito. Con fechas (desde/hasta, hora argentina).
+const FECHA_R = /^\d{4}-\d{2}-\d{2}$/;
+function rutinaCuotasDe(v) {
+  const k = v && typeof v === 'object' ? v : {};
+  return {
+    activo: !!k.activo,
+    desde: FECHA_R.test(k.desde || '') ? k.desde : '', hasta: FECHA_R.test(k.hasta || '') ? k.hasta : '',
+    minimo: Math.max(2, Math.min(10, parseInt(k.minimo) || 4)),
+    cuotas: [3, 6, 9, 12].includes(parseInt(k.cuotas)) ? parseInt(k.cuotas) : 6,
+    precio_min: Math.max(0, Math.round(parseFloat(k.precio_min) || 0)),
+    excluir: [...new Set((Array.isArray(k.excluir) ? k.excluir : ['mascarilla']).map(x => String(x || '').slice(0, 30)).filter(Boolean))].slice(0, 20),
+    medio_id: parseInt(k.medio_id) || null,
+    online: !!k.online,
+  };
+}
+const hoyAR = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
+const rutinaVigente = (r) => r.activo && (!r.desde || r.desde <= hoyAR()) && (!r.hasta || hoyAR() <= r.hasta);
+async function leerRutinaCuotas(db = pool) {
+  await db.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS promo_rutina JSONB');
+  const r = rutinaCuotasDe(((await db.query('SELECT promo_rutina FROM configuracion_negocio LIMIT 1')).rows[0] || {}).promo_rutina);
+  return { ...r, vigente: rutinaVigente(r) };
+}
+router.get('/rutina-cuotas', async (req, res) => {
+  try { res.json(await leerRutinaCuotas()); } catch (e) { res.status(500).json({ error: 'No se pudo leer' }); }
+});
+router.put('/rutina-cuotas', async (req, res) => {
+  try {
+    const r = rutinaCuotasDe(req.body);
+    if (r.activo && (!r.desde || !r.hasta || r.desde > r.hasta)) return res.status(400).json({ error: 'Revisá las fechas' });
+    if (r.activo && !r.medio_id) return res.status(400).json({ error: 'Elegí con qué medio de pago se cobran las cuotas en el local' });
+    await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS promo_rutina JSONB');
+    await pool.query('UPDATE configuracion_negocio SET promo_rutina = $1', [JSON.stringify(r)]);
+    res.json({ ...r, vigente: rutinaVigente(r) });
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+});
+
 // Listar promociones. ?activas=true&vigentes=true para el POS
 router.get('/', async (req, res) => {
   try {
@@ -152,3 +190,4 @@ router.post('/liquidacion', async (req, res) => {
 });
 
 module.exports = router;
+module.exports.leerRutinaCuotas = leerRutinaCuotas;

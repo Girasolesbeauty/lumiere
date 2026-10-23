@@ -3284,6 +3284,7 @@ function POS({ localId, usuario, paletaActual }) {
   const [pedidoWeb, setPedidoWeb] = useState(null);
   const [tipoDescuento, setTipoDescuento] = useState("%");
   const [medioPagoSel, setMedioPagoSel] = useState(null);
+  const [rutinaCuotas, setRutinaCuotas] = useState(null); // promo "Rutina en cuotas" vigente
   useEffect(() => {
     setCcCliente(null);
     if (medioPagoSel?.tipo !== "cuenta_corriente" || !clienteSeleccionado?.id) return;
@@ -3485,6 +3486,7 @@ function POS({ localId, usuario, paletaActual }) {
     API.get("/insumos/para-pos?local_id=" + (localId || 1)).then(res => { setInsumosPos(res.data?.insumos || []); setInsumosPosActivo(res.data?.activo === true); }).catch(() => { setInsumosPos([]); setInsumosPosActivo(false); });
     API.get("/config-ticket").then(res => { if (res.data) setConfigTicket(res.data); }).catch(() => {});
     API.get("/promociones?activas=true&vigentes=true").then(res => setPromociones(res.data || [])).catch(() => setPromociones([]));
+    API.get("/promociones/rutina-cuotas").then(res => setRutinaCuotas(res.data && res.data.vigente ? res.data : null)).catch(() => setRutinaCuotas(null));
     API.get("/configuracion").then(res => {
       setModoTicket(res.data?.modo_ticket || "imprimir");
       setNombreNegocioPos(res.data?.nombre_negocio || "");
@@ -4126,6 +4128,7 @@ function POS({ localId, usuario, paletaActual }) {
     if (cart.length === 0) return setMensaje("Agrega productos al ticket");
     // En preventa / seña el pago se elige en su propio panel (el selector común está oculto)
     if (!preventa && restaPagar > 0 && !pagoMixto && !medioPagoSel) return setMensaje("Selecciona un medio de pago para la diferencia");
+    if (rutinaBloquea) return setMensaje("⚠️ Las " + rutinaCuotas.cuotas + " cuotas sin interés son solo llevando " + textoReglaRutina(rutinaCuotas) + ". Este ticket tiene " + rutinaPos + ".");
     const usaCC = !preventa && restaPagar > 0 && (pagoMixto ? pagosMixtos.some(p => mediosPago.find(m => m.id === p.medio_pago_id)?.tipo === "cuenta_corriente") : medioPagoSel?.tipo === "cuenta_corriente");
     if (usaCC && !clienteSeleccionado) return setMensaje("⚠️ Para vender en cuenta corriente, elegí el cliente (cargá su DNI)");
     if (!preventa && restaPagar > 0 && !pagoMixto && medioPagoSel?.tipo === "efectivo" && montoRecibidoEfectivo !== "" && parseFloat(montoRecibidoEfectivo) < restaPagar) {
@@ -4637,6 +4640,10 @@ function POS({ localId, usuario, paletaActual }) {
   // Pago en efectivo: se puede redondear el precio de cada producto (cualquier vendedora, con tope:
   // hasta $1.000 o el 3% del precio). Si se cambia a otro medio, vuelven los precios originales.
   const esEfectivoSel = !pagoMixto && !!medioPagoSel && (medioPagoSel.tipo === "efectivo" || /efectivo/i.test(medioPagoSel.nombre || ""));
+  // Rutina en cuotas: el medio de las cuotas sin interés solo se puede usar si el ticket tiene la rutina
+  const rutinaPos = rutinaCuotas ? rutinaCuotasN(cart.filter(i => !i.es_ajuste && !i.es_kit).map(i => ({ id: i.id, precio: i.precio_base || i.precio || i.price, p: i })), rutinaCuotas) : 0;
+  const usaMedioRutina = !!rutinaCuotas && !!rutinaCuotas.medio_id && (pagoMixto ? pagosMixtos.some(x => Number(x.medio_pago_id) === rutinaCuotas.medio_id) : medioPagoSel?.id === rutinaCuotas.medio_id);
+  const rutinaBloquea = !preventa && usaMedioRutina && rutinaPos < rutinaCuotas.minimo;
   const topeRedondeo = (base) => Math.max(1000, Math.round(base * 0.03));
   const opcionesRedondeo = (base) => {
     if (!base) return [];
@@ -5356,6 +5363,12 @@ function POS({ localId, usuario, paletaActual }) {
                       )}
                       {medioPagoSel?.mp_qr && (
                         <div className="pop-in" style={{ fontSize: 11.5, marginTop: 6, padding: "8px 10px", borderRadius: 8, background: temaPal.bg, color: temaPal.text }}>📲 Al tocar <b>Cobrar</b> aparece un QR con el importe: el cliente lo escanea con el celular y paga. La venta se registra sola cuando Mercado Pago la aprueba.</div>
+                      )}
+                      {rutinaCuotas && cart.length > 0 && (rutinaPos > 0 || usaMedioRutina) && (
+                        <div className="pop-in" style={{ fontSize: 12, marginTop: 6, padding: "8px 10px", borderRadius: 8, background: rutinaBloquea ? temaPal.red + "18" : rutinaPos >= rutinaCuotas.minimo ? temaPal.green + "18" : temaPal.bg, color: temaPal.text, border: "1px solid " + (rutinaBloquea ? temaPal.red : rutinaPos >= rutinaCuotas.minimo ? temaPal.green : temaPal.border) }}>
+                          💳 {rutinaPos >= rutinaCuotas.minimo ? <><b>Rutina completa ({rutinaPos}):</b> puede pagar en {rutinaCuotas.cuotas} cuotas sin interés{(mediosPago.find(m => m.id === rutinaCuotas.medio_id) || {}).nombre ? " con " + mediosPago.find(m => m.id === rutinaCuotas.medio_id).nombre : ""}.</>
+                            : <><b>{rutinaPos} de {rutinaCuotas.minimo}</b> para las {rutinaCuotas.cuotas} cuotas sin interés{rutinaBloquea ? <b style={{ color: temaPal.red }}> · todavía no puede usar este medio</b> : ""}. Cuentan {textoReglaRutina(rutinaCuotas)}.</>}
+                        </div>
                       )}
                       {medioPagoSel && (
                         <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 6 }}>Elegido: <b style={{ color: temaPal.text }}>{medioPagoSel.nombre}</b>{medioPagoSel.con_interes ? <span style={{ color: temaPal.red }}> · con interés</span> : ""}</div>
@@ -23896,6 +23909,59 @@ const LIQ_OFERTAS_INICIO = [
 ];
 const textoMediosLiq = (ms) => { const n = LIQ_MEDIOS.filter(([k]) => ms.includes(k)).map(([, t]) => t.toLowerCase()); return n.length ? n.slice(0, -1).join(", ") + (n.length > 1 ? " o " : "") + n[n.length - 1] : "—"; };
 const textoOpcionLiq = (o) => o.tipo === "cuotas" ? (o.pct ? o.pct + "% OFF + " : "") + o.cuotas + " cuotas sin interés" : o.pct + "% OFF con " + textoMediosLiq(o.medios || []);
+// Rutina en cuotas: llevando N productos faciales distintos (sin mascarillas u otros tipos que se elijan, y desde un precio)
+// se puede pagar en X cuotas sin interés. Se guarda en el servidor: lo usan el Punto de Venta y la tienda.
+function RutinaCuotasConfig({ temaPal, medios, desde, hasta }) {
+  const p = temaPal;
+  const [r, setR] = useState(null);
+  const [guardando, setGuardando] = useState(false);
+  const [aviso, setAviso] = useState(null);
+  useEffect(() => { API.get("/promociones/rutina-cuotas").then(x => setR({ ...x.data, desde: x.data.desde || desde, hasta: x.data.hasta || hasta, precio_min: x.data.precio_min ? String(x.data.precio_min) : "" })).catch(() => setR({ activo: false, desde, hasta, minimo: 4, cuotas: 6, precio_min: "", excluir: ["mascarilla"], medio_id: null, online: false })); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!r) return <div className="card"><div className="skel" style={{ height: 160 }} /></div>;
+  const creditos = medios.filter(m => /cr[eé]dito|cuota/i.test(m.nombre || "") || String(m.tipo || "").toLowerCase() === "credito");
+  const tiposFaciales = TW_FILTROS[0].op.filter(o => twLineasTipo(o).includes("facial") && o[0] !== "labios");
+  const guardar = async () => {
+    setGuardando(true); setAviso(null);
+    try { const x = await API.put("/promociones/rutina-cuotas", { ...r, precio_min: parseFloat(r.precio_min) || 0 }); setR(v => ({ ...v, vigente: x.data.vigente })); setAviso({ ok: true, t: "✓ Guardado" + (x.data.activo ? (x.data.vigente ? ": ya está funcionando." : ": empieza el " + x.data.desde.split("-").reverse().join("/") + ".") : "") }); }
+    catch (e) { setAviso({ ok: false, t: e.response?.data?.error || "No se pudo guardar" }); }
+    setGuardando(false);
+  };
+  const set = (k, v) => setR(x => ({ ...x, [k]: v }));
+  const regla = { ...r, precio_min: parseFloat(r.precio_min) || 0 };
+  return (
+    <div className="card">
+      <div className="ct">🧴 Rutina en cuotas sin interés</div>
+      <div className="liq-ayuda" style={{ marginTop: 0 }}>Llevando una rutina facial completa, la clienta puede pagar en cuotas sin interés. En el local, el Punto de Venta no deja cobrar con ese medio si el ticket no tiene la rutina; en la tienda aparece un aviso en el carrito.</div>
+      <div className="liq-preg">¿La activamos?</div>
+      <div className="liq-si-no"><button className={r.activo ? "on" : ""} onClick={() => set("activo", true)}>Sí</button><button className={!r.activo ? "on no" : ""} onClick={() => set("activo", false)}>No</button></div>
+      {r.activo && <>
+        <div className="liq-preg">¿Cuántos productos tiene que llevar?</div>
+        <div className="liq-si-no">{[3, 4, 5, 6].map(n => <button key={n} className={r.minimo === n ? "on" : ""} onClick={() => set("minimo", n)}>{n} o más</button>)}</div>
+        <div className="liq-ayuda">Productos faciales <b>distintos</b>: 4 unidades del mismo sérum cuentan como 1.</div>
+        <div className="liq-preg">¿En cuántas cuotas sin interés?</div>
+        <div className="liq-si-no">{[3, 6, 12].map(n => <button key={n} className={r.cuotas === n ? "on" : ""} onClick={() => set("cuotas", n)}>{n} cuotas</button>)}</div>
+        <div className="liq-preg">¿Qué tipos <u>no</u> cuentan?</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{tiposFaciales.map(([k, t]) => { const on = (r.excluir || []).includes(k); return <button key={k} className={"chip-btn" + (on ? " on" : "")} onClick={() => set("excluir", on ? r.excluir.filter(x => x !== k) : [...(r.excluir || []), k])}>{on ? "✗ " : ""}{t}</button>; })}</div>
+        <div className="liq-ayuda">Marcados con ✗ no suman (por ejemplo, las mascarillas, para que no armen la rutina con cosas baratas).</div>
+        <div className="liq-preg">¿Cada producto tiene que valer al menos…?</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}><b style={{ fontSize: 18 }}>$</b><input className="inp" inputMode="numeric" style={{ width: 150, fontSize: 16, fontWeight: 700 }} placeholder="Ej: 30000" value={r.precio_min} onChange={e => set("precio_min", e.target.value.replace(/[^\d]/g, ""))} aria-label="Precio mínimo por producto" /></div>
+        <div className="liq-ayuda">Los más baratos no cuentan para la rutina. Dejalo vacío para que cuenten todos.</div>
+        <div className="liq-preg">¿Con qué medio se cobran las cuotas en el local?</div>
+        {creditos.length ? <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{creditos.map(m => <button key={m.id} className={"chip-btn" + (r.medio_id === m.id ? " on" : "")} onClick={() => set("medio_id", m.id)}>{m.nombre}</button>)}</div>
+          : <div className="liq-ayuda" style={{ color: p.warn, opacity: 1 }}>No tenés medios de crédito cargados.</div>}
+        <div className="liq-ayuda">Tiene que ser un medio "Crédito {r.cuotas} cuotas" sin recargo (si no lo tenés, crealo en Configuración › Medios de pago).</div>
+        <div className="liq-preg">¿Desde y hasta cuándo?</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><input className="inp" type="date" style={{ width: 170 }} value={r.desde} onChange={e => set("desde", e.target.value)} aria-label="Desde" /><input className="inp" type="date" style={{ width: 170 }} value={r.hasta} onChange={e => set("hasta", e.target.value)} aria-label="Hasta" /></div>
+        <div className="liq-preg">¿También en la tienda online?</div>
+        <div className="liq-si-no"><button className={r.online ? "on" : ""} onClick={() => set("online", true)}>Sí, ya lo activé en Mercado Pago</button><button className={!r.online ? "on" : ""} onClick={() => set("online", false)}>No, solo en el local</button></div>
+        <div className="liq-ayuda">Online las cuotas sin interés las da Mercado Pago desde tu cuenta. Si elegís "solo en el local", en la tienda el aviso dice "pagando en el local".</div>
+        <div className="liq-ok">Así lo ve la clienta: <b>"Llevando {textoReglaRutina(regla)}, pagás en {r.cuotas} cuotas sin interés{!r.online ? " en el local" : ""}."</b></div>
+      </>}
+      {aviso && <div style={{ marginTop: 10, fontWeight: 700, color: aviso.ok ? p.green : p.red }}>{aviso.t}</div>}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}><button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar"}</button></div>
+    </div>
+  );
+}
 function PlanLiquidacion({ temaPal, medios, onCreado }) {
   const p = temaPal;
   const CLAVE = "lumiere_plan_liquidacion";
@@ -23985,7 +24051,7 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
   const COLORES = ["#c0392b", "#2471a3", "#8e44ad", "#d35400", "#16a085", "#2d7a4f", "#7f8c8d"];
   const colorOf = (of) => COLORES[ofertas.indexOf(of) % COLORES.length];
   const SECS = [["ofertas", "🏷", "Tus ofertas", "#c0392b", ofertas.length, false], ["productos", "🛍", "Productos", "#8e44ad", conPerdida.length || conOferta.length, conPerdida.length > 0],
-    ["comisiones", "💳", "Comisiones y cuotas", "#2471a3", faltaCuotas.length, true], ["evento", "📅", "Evento y fechas", "#7f8c8d", 0, false], ["crear", "✅", "Crear ofertas", "#2d7a4f", 0, false]];
+    ["rutina", "🧴", "Rutina en cuotas", "#16a085", 0, false], ["comisiones", "💳", "Comisiones y cuotas", "#2471a3", faltaCuotas.length, true], ["evento", "📅", "Evento y fechas", "#7f8c8d", 0, false], ["crear", "✅", "Crear ofertas", "#2d7a4f", 0, false]];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, textAlign: "left" }}>
       <div className="card liq-res">
@@ -24109,6 +24175,8 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
           <div className="liq-ayuda" style={{ marginTop: 8 }}>"Cualquier otro medio" (Mercado Pago, etc.) se calcula con el que más te cobra. Lo que cambies acá es solo para este plan; para cambiarlo en serio: Configuración › Medios de pago.</div>
         </div>
       </>}
+
+      {sec === "rutina" && <RutinaCuotasConfig temaPal={p} medios={activos} desde={cfg.desde} hasta={cfg.hasta} />}
 
       {sec === "evento" && <div className="card">
         <div className="ct">📅 Evento y fechas</div>
@@ -24694,6 +24762,7 @@ html:has(.tw){overflow-x:hidden}
 .tw-ruleta-premio.nada{background:linear-gradient(135deg,#fff8d6,#ffeaf4)}
 .tw-ruleta-aviso{background:#141414;color:#fff;border-radius:10px;padding:10px 14px;font-size:13.5px;margin:10px 0}
 .tw-ruleta-aviso b{color:#ffd54a}
+.tw-rutcuo{background:#14304a}.tw-rutcuo.llega{background:linear-gradient(135deg,#14304a,#1f5f8b)}
 .tw-ruleta-aviso.llega{background:linear-gradient(135deg,#141414,#3a2c08);animation:twPop .55s cubic-bezier(.3,1.6,.5,1)}
 @keyframes twSalta{0%{transform:scale(.4)}60%{transform:scale(1.35)}100%{transform:scale(1)}}
 .tw-navbar{background:#000}
@@ -26089,6 +26158,26 @@ function TwRuleta({ ruleta, codigo, pedir }) {
       )}
     </>
   );
+}
+// Rutina en cuotas: cuántos productos faciales distintos valen (sin los tipos excluidos, ej. mascarillas, y desde el precio mínimo).
+// prods: [{ id, precio, p }] con el producto (nombre, categoria, etiquetas...) para saber si es facial
+function rutinaCuotasN(prods, r) {
+  if (!r) return 0;
+  const ids = new Set();
+  (prods || []).forEach(x => {
+    if (!x || !x.p || !(Number(x.id) > 0)) return;
+    const e = x.p._et || twEtiquetas(x.p);
+    if (!(e.linea || []).includes("facial") || (e.tipo || []).some(t => (r.excluir || []).includes(t))) return;
+    if ((Number(x.precio) || 0) < (r.precio_min || 0)) return;
+    ids.add(Number(x.id));
+  });
+  return ids.size;
+}
+const textoReglaRutina = (r) => r.minimo + " productos faciales distintos" + ((r.excluir || []).length ? " (sin " + r.excluir.map(t => (TW_FILTROS[0].op.find(o => o[0] === t) || ["", t])[1].toLowerCase()).join(", ") + ")" : "") + (r.precio_min ? ", de " + fmt(r.precio_min).replace(SIN_CEROS, "") + " o más cada uno" : "");
+function TwRutinaCuotasAviso({ n, r }) {
+  const llega = n >= r.minimo, falta = r.minimo - n;
+  return <div className={"tw-ruleta-aviso tw-rutcuo" + (llega ? " llega" : "")} key={llega ? "si" : "no"}>💳 {llega ? <><b>¡Tu rutina de {n} pasos va en {r.cuotas} cuotas sin interés!</b>{!r.online ? " Pagando en el local." : ""}</>
+    : <>{n ? <>Sumá <b>{falta} {falta === 1 ? "producto facial" : "productos faciales"}</b> más</> : <>Llevando <b>{textoReglaRutina(r)}</b></>} y {n ? "pagás" : "pagás"} en <b>{r.cuotas} cuotas sin interés</b>{!r.online ? " en el local" : ""}.{n ? <small style={{ display: "block", opacity: .75, marginTop: 2 }}>Cuentan {textoReglaRutina(r)}.</small> : null}</>}</div>;
 }
 // En el carrito: cuanto falta para girar la ruleta
 function TwRuletaAviso({ monto, minimo }) {
@@ -28496,6 +28585,7 @@ function TiendaPublica({ slug }) {
   // Lo agotado en la ciudad elegida no se muestra; vuelve solo cuando entra stock (con sus sectores y filas)
   const visibles = lista0.filter(p => !agotado(p));
   lista0.forEach(p => { if (!p._et) p._et = twEtiquetas(p); }); // tambien los agotados (aparecen al buscarlos)
+  const rutinaN = tienda.rutina_cuotas ? rutinaCuotasN(carrito.map(i => ({ id: i.producto_id, precio: i.precio, p: lista0.find(x => x.id === i.producto_id) })), tienda.rutina_cuotas) : 0;
   const reingreso = tienda.reingreso;
   const reingresados = reingreso ? visibles.map(p => ({ p, t: p.reingreso ? Math.max(0, ...(lid ? [p.reingreso[lid] || 0] : Object.values(p.reingreso))) : 0 }))
     .filter(x => x.t && Date.now() / 1000 - x.t < reingreso.dias * 86400).sort((a, b) => b.t - a.t).map(x => x.p) : [];
@@ -29483,6 +29573,7 @@ function TiendaPublica({ slug }) {
                   {logueada ? <TwPuntos monto={subtotal} tengo={miCuenta ? (miCuenta.puntos || 0) : null} />
                     : <TwSumaConCuenta monto={subtotal} onIngresar={() => irACuenta("carrito")} onCrear={() => irACuenta("carrito", "crear")} />}
                   {tienda.ruleta && tienda.ruleta.aviso && <TwRuletaAviso monto={subtotal} minimo={tienda.ruleta.minimo} />}
+                  {tienda.rutina_cuotas && <TwRutinaCuotasAviso n={rutinaN} r={tienda.rutina_cuotas} />}
                   {comboCalc.combos.filter(cb => cb.ahorro > 0).map(cb => <div key={"cb" + cb.id} className="tw-linea" style={{ color: "#2d7a4f", fontWeight: 700 }}><span>🎁 Combo {cb.nombre}{cb.veces > 1 ? " ×" + cb.veces : ""}</span><span>−{fmtTienda(cb.ahorro)}</span></div>)}
                   <div className="tw-linea" style={{ fontWeight: 800, fontSize: 18, marginBottom: 12 }}><span>Subtotal</span><span>{fmtTienda(subtotal - descCombo)}</span></div>
                   {problemas.length > 0 && <div style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, marginBottom: 10, fontSize: 13.5 }}>Algunos productos no están disponibles{ciudad ? " en " + ciudad.nombre : ""} en esa cantidad. <button className="tw-btn2" style={{ padding: "6px 12px", fontSize: 11.5, marginTop: 6 }} onClick={ajustarCarrito}>Ajustar a lo disponible</button></div>}
