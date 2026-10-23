@@ -29577,6 +29577,41 @@ function RegaloCumple({ cfg, temaPal, avisar, onGuardado, it }) {
 }
 // Muestras gratis: desde un monto de productos, en el carrito la clienta elige una de esta lista.
 // Cada local tiene sus envases (se descuenta uno por pedido y vuelve si se cancela) y cada muestra dice en qué locales hay tester.
+// Catalogo para Google Shopping e Instagram/Facebook: el link que se pega en Google Merchant Center y en Meta Commerce Manager
+function CatalogoGoogle({ cfg, temaPal, avisar, it }) {
+  const [d, setD] = useState(null);
+  const [verAfuera, setVerAfuera] = useState(false);
+  useEffect(() => { API.get("/tienda/catalogo").then(r => setD(r.data)).catch(() => setD({ error: true })); }, []);
+  const url = String(API.defaults.baseURL || "").replace(/\/$/, "") + "/tienda-publica/" + encodeURIComponent(cfg.slug || "") + "/catalogo.xml";
+  const copiar = async () => { try { await navigator.clipboard.writeText(url); avisar(true, "✓ Link copiado"); } catch (e) { window.prompt("Copiá el link:", url); } };
+  const paso = (n, t, txt) => <div style={{ display: "flex", gap: 10, marginTop: 10 }}><span style={{ width: 24, height: 24, borderRadius: "50%", background: it.color, color: "#fff", fontWeight: 900, fontSize: 12.5, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{n}</span><div style={{ fontSize: 13 }}><b>{t}</b><div style={{ color: temaPal.textMuted, fontSize: 12.5, marginTop: 2 }}>{txt}</div></div></div>;
+  return (
+    <CajaSeccion it={it} temaPal={temaPal}>
+      <div style={{ fontSize: 13, color: temaPal.textMuted }}>Un catálogo con tus productos publicados (foto, precio, stock y link a la tienda) que Google e Instagram leen solos todos los días. Si cambiás un precio o se agota algo, se actualiza solo.</div>
+      {!cfg.activo || !cfg.slug ? <div className="cli-tip" style={{ marginTop: 10 }}>Primero publicá la tienda (en Tienda y dirección).</div> : <>
+        {d && !d.error && <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 8, marginTop: 12 }}>
+          {[["En el catálogo", d.incluidos, temaPal.green], ["Quedan afuera (sin foto)", d.afuera.length, d.afuera.length ? temaPal.warn : temaPal.textMuted], ["Sin stock ahora", d.sin_stock, temaPal.textMuted]].map(([t, v, c]) => <div key={t} style={{ border: "1px solid " + temaPal.border, borderRadius: 10, padding: "8px 10px" }}><div style={{ fontSize: 11.5, color: temaPal.textMuted, fontWeight: 700 }}>{t}</div><div style={{ fontSize: 20, fontWeight: 900, color: c }}>{v}</div></div>)}
+        </div>}
+        {d && !d.error && d.afuera.length > 0 && <div style={{ marginTop: 6 }}><button className="chip-btn" style={{ fontSize: 11.5 }} onClick={() => setVerAfuera(v => !v)}>{verAfuera ? "Ocultar" : "Ver cuáles quedan afuera"}</button>
+          {verAfuera && <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 6 }}>{d.afuera.map(p => p.nombre).join(" · ")}</div>}</div>}
+        <div className="fl" style={{ marginTop: 14 }}>Link del catálogo</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <input className="inp" readOnly value={url} onFocus={e => e.target.select()} style={{ flex: "1 1 260px", fontSize: 12.5 }} />
+          <button className="btn btn-p btn-sm" onClick={copiar}>📋 Copiar</button>
+          <a className="btn btn-g btn-sm" href={url} target="_blank" rel="noopener" style={{ textDecoration: "none" }}>Ver</a>
+        </div>
+        <div style={{ fontWeight: 800, fontSize: 13.5, marginTop: 16 }}>🔎 Google Shopping (gratis)</div>
+        {paso(1, "Entrá a merchants.google.com", "Creá la cuenta con el Gmail de la tienda y cargá tu sitio (" + (cfg.dominio || "tu dominio") + "). Te va a pedir verificarlo: elegí la opción por DNS y lo cargás donde compraste el dominio.")}
+        {paso(2, "Productos → Agregar productos → Desde un archivo", "Elegí \"Recuperación programada\" (o \"Agregar desde una URL\"), pegá el link de arriba y que lo lea todos los días.")}
+        {paso(3, "Listo", "En unos días tus productos aparecen gratis en la pestaña Shopping de Google y en Google Imágenes.")}
+        <div style={{ fontWeight: 800, fontSize: 13.5, marginTop: 16 }}>📸 Instagram y Facebook</div>
+        {paso(1, "Entrá a business.facebook.com/commerce", "Commerce Manager → Catálogo → Fuentes de datos → Agregar artículos → Fuente de datos programada.")}
+        {paso(2, "Pegá el link de arriba", "Elegí que se actualice todos los días. Moneda: ARS.")}
+        {paso(3, "Etiquetá productos", "Con la tienda de Instagram aprobada, podés etiquetar los productos en tus posteos e historias y llevan directo a la ficha de tu tienda.")}
+      </>}
+    </CajaSeccion>
+  );
+}
 function MuestrasGratis({ cfg, locs, productos, temaPal, avisar, onGuardado, it }) {
   const tp = temaPal || PALETA_CLARA;
   const activos = (locs || []).filter(l => l.activo !== false);
@@ -31910,6 +31945,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
           { k: "links", icono: "🔗", titulo: "Link para Instagram", color: "#d6246e", sub: Object.values((cfg.links && cfg.links.locales) || {}).some(x => x.whatsapp) ? "Listo" : "WhatsApp, horarios y ubicación", ayuda: "Una página para poner en la bio de Instagram: tienda online, gift cards y, por cada local, su WhatsApp, horarios y cómo llegar." },
           { k: "express", icono: "⚡", titulo: "Retiro express", color: "#d68910", sub: cfg.express && cfg.express.activo ? "Listo en " + cfg.express.minutos + " min" : "Apagado", ayuda: "Pedidos para retirar listos en pocos minutos." },
           { k: "cumple", icono: "🎂", titulo: "Regalo de cumpleaños", color: "#e84393", sub: cfg.cumple && cfg.cumple.activo ? (cfg.cumple.tipo === "%" ? cfg.cumple.valor + "% OFF" : fmt(cfg.cumple.valor)) : "Apagado", ayuda: "Un cupón personal para cada clienta en su cumple." },
+          { k: "google", icono: "📣", titulo: "Google e Instagram", color: "#4285f4", sub: "Catálogo de productos", ayuda: "Tus productos en Google Shopping (gratis) y en la tienda de Instagram y Facebook." },
           { k: "muestras", icono: "🎁", titulo: "Muestras gratis", color: "#e67e22", sub: cfg.muestras && cfg.muestras.activo ? "Desde " + fmt(cfg.muestras.desde) + " · " + Object.values(cfg.muestras.envases || {}).reduce((t, v) => t + (parseInt(v) || 0), 0) + " envases" : "Apagadas", alerta: !!(cfg.muestras && cfg.muestras.activo && Object.values(cfg.muestras.envases || {}).some(v => parseInt(v) <= 5)), ayuda: "En compras grandes la clienta elige una muestra de regalo." },
           ...(cfg.preventa ? [{ k: "preventa", icono: "⏳", titulo: "Preventa", color: "#d35400", sub: cfg.preventa.activo ? "Activada" : "Apagada" }] : []),
           ...(cfg.ruleta ? [{ k: "ruleta", icono: "🎡", titulo: "Ruleta de premios", color: "#c0392b", sub: cfg.ruleta.activo ? "Activada" : "Apagada" }] : []),
@@ -31920,6 +31956,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
           <MenuSecciones items={SECS_CFG} activa={it.k} onElegir={setSecCfg} temaPal={temaPal} />
           {it.k === "express" && <RetiroExpress cfg={cfg} locs={locs} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it} />}
           {it.k === "cumple" && <RegaloCumple cfg={cfg} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it} />}
+          {it.k === "google" && <CatalogoGoogle cfg={cfg} temaPal={temaPal} avisar={avisar} it={it} />}
           {it.k === "muestras" && <MuestrasGratis key={JSON.stringify((cfg.muestras || {}).envases || {})} cfg={cfg} locs={locs} productos={productos} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it} />}
           {it.k === "links" && <LinksInstagram key={cfg.slug || ""} cfg={cfg} locs={locs} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it}
             link={!cfg.activo || !cfg.slug ? "" : cfg.dominio && cfg.dominioGuardado ? "https://" + cfg.dominio + "/links" : window.location.origin + "/?tienda=" + cfg.slug + "&seccion=links"} />}

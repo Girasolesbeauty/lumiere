@@ -242,6 +242,20 @@ router.get('/:slug/productos', async (req, res) => {
 });
 
 // Foto del producto (solo de productos publicados)
+// Catalogo de productos para Google Shopping e Instagram/Facebook (ver lib/catalogo.js). Lo leen Google y Meta solos.
+router.get('/:slug/catalogo.xml', async (req, res) => {
+  try {
+    const dominio = await tienda.dominioDe(req.negTienda.id).catch(() => null);
+    const slug = req.params.slug;
+    const urlProducto = (p) => dominio ? 'https://' + dominio + '/' + (p ? encodeURIComponent(p.slug) : '')
+      : 'https://lumiere-beta-nine.vercel.app/?tienda=' + encodeURIComponent(slug) + (p ? '&producto=' + encodeURIComponent(p.slug) : '');
+    const local = /^(localhost|127\.)/.test(req.get('host') || '');
+    const base = (local ? req.protocol : 'https') + '://' + req.get('host');
+    const xml = await require('../lib/catalogo').xml({ c: req.tienda, base, slug, urlProducto });
+    res.set('Content-Type', 'application/xml; charset=utf-8').set('Cache-Control', 'public, max-age=900').send(xml);
+  } catch (e) { console.error('[catalogo]', e.message); res.status(500).type('text').send('No se pudo armar el catalogo'); }
+});
+
 router.get('/:slug/foto/:id', async (req, res) => {
   try {
     const r = (await pool.query(`SELECT i.imagen FROM producto_imagenes i JOIN productos p ON p.id = i.producto_id AND p.activo WHERE i.producto_id = $1`, [req.params.id])).rows[0];
