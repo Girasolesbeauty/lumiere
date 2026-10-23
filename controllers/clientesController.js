@@ -315,7 +315,10 @@ const getCumple = async (req, res) => {
     await asegurarCumple();
     const c = (await pool.query('SELECT nombre_negocio, mensaje_cumple FROM configuracion_negocio LIMIT 1')).rows[0] || {};
     const s = await pool.query('SELECT cliente_id, por, en FROM clientes_saludo_cumple WHERE anio = $1', [anioAR()]);
-    res.json({ mensaje: c.mensaje_cumple || MENSAJE_CUMPLE, por_defecto: MENSAJE_CUMPLE, negocio: c.nombre_negocio || '', saludos: s.rows });
+    // Compras viejas cargadas solo como monto (cuentan para el nivel): para mostrar cuánto gastó en total
+    const hayMig = (await pool.query(`SELECT to_regclass('migracion_puntos') AS t`)).rows[0].t;
+    const mig = hayMig ? (await pool.query('SELECT cliente_id, SUM(monto)::float AS monto FROM migracion_puntos GROUP BY 1')).rows : [];
+    res.json({ mensaje: c.mensaje_cumple || MENSAJE_CUMPLE, por_defecto: MENSAJE_CUMPLE, negocio: c.nombre_negocio || '', saludos: s.rows, anteriores: Object.fromEntries(mig.map(m => [m.cliente_id, m.monto])) });
   } catch (error) { console.error(error); res.status(500).json({ error: 'Error al leer los cumpleaños' }); }
 };
 const guardarMensajeCumple = async (req, res) => {
