@@ -81,7 +81,6 @@ const crearControl = async (req, res) => {
       return res.status(409).json({ error: 'Ya hay un control sin terminar en este local (#' + abierto.rows[0].id + '). Terminalo o cancelalo antes de empezar otro.', control_id: abierto.rows[0].id });
     }
     const colStock = localNum === 2 ? 'stock_ush' : 'stock_rg';
-    const colCantidadIngreso = localNum === 2 ? 'cantidad_ush' : 'cantidad_rg';
 
     let filtroValor = null;
     let where = 'WHERE p.activo = TRUE';
@@ -135,17 +134,19 @@ const crearControl = async (req, res) => {
       const vRes = await client.query(
         `SELECT vi.producto_id, COALESCE(SUM(vi.cantidad), 0) AS total
          FROM venta_items vi JOIN ventas v ON vi.venta_id = v.id
-         WHERE vi.producto_id = ANY($1::int[]) AND v.local_id = $2 AND v.creado_en >= $3
+         WHERE vi.producto_id = ANY($1::int[]) AND COALESCE(CASE WHEN v.es_preventa THEN v.preventa_local END, v.local_id, 1) = $2 AND v.creado_en >= $3
            AND COALESCE(v.anulada, FALSE) = FALSE
            AND (COALESCE(v.es_preventa, FALSE) = FALSE OR v.estado_pago = 'confirmada')
          GROUP BY vi.producto_id`, [ids, localNum, periodoDesde]);
       vRes.rows.forEach(r => { vendidoPor[r.producto_id] = parseInt(r.total) || 0; });
     } catch (e) { /* si algo no calza, seguimos con 0 en vez de frenar todo el control */ }
     try {
+      const suf = localNum === 2 ? 'ush' : 'rg';
       const iRes = await client.query(
-        `SELECT oii.producto_id, COALESCE(SUM(oii.${colCantidadIngreso}), 0) AS total
+        `SELECT oii.producto_id, COALESCE(SUM(oii.recibido_${suf}), 0) AS total
          FROM ordenes_ingreso_items oii JOIN ordenes_ingreso oi ON oii.orden_id = oi.id
-         WHERE oii.producto_id = ANY($1::int[]) AND oi.creado_en >= $2
+         WHERE oii.producto_id = ANY($1::int[]) AND COALESCE(oii.revisado_${suf}, FALSE) = TRUE
+           AND COALESCE(oii.fecha_recepcion_${suf}, oi.creado_en) >= $2
          GROUP BY oii.producto_id`, [ids, periodoDesde]);
       iRes.rows.forEach(r => { ingresadoPor[r.producto_id] = parseInt(r.total) || 0; });
     } catch (e) { /* idem: si falla, 0 y seguimos */ }
@@ -275,6 +276,7 @@ const finalizarControl = async (req, res) => {
       // Ajuste por DIFERENCIA sobre el stock de ahora: si se vendio algo despues de contarlo,
       // esa venta se respeta (antes se pisaba el stock con lo contado y se perdia).
       if (ajustar_stock === true && it.stock_contado !== null && it.stock_contado !== undefined && it.diferencia) {
+        const ant = await client.query(`SELECT COALESCE(${colStock}, 0) AS ant FROM productos WHERE id = $1 FOR UPDATE`, [it.producto_id]);
         const upd = await client.query(
           `UPDATE productos SET ${colStock} = GREATEST(0, COALESCE(${colStock}, 0) + $1)
            WHERE id = $2 RETURNING ${colStock} AS nuevo`,
@@ -282,12 +284,13 @@ const finalizarControl = async (req, res) => {
         );
         await client.query('UPDATE productos SET stock = COALESCE(stock_rg, 0) + COALESCE(stock_ush, 0) WHERE id = $1', [it.producto_id]);
         const nuevo = upd.rows[0] ? upd.rows[0].nuevo : null;
+        const anterior = ant.rows[0] ? Number(ant.rows[0].ant) : null;
         try {
           await client.query('SAVEPOINT ajuste');
           await client.query(
             `INSERT INTO ajustes_stock (producto_id, stock_anterior, stock_nuevo, diferencia, motivo, usuario_id, usuario_nombre, local_id)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-            [it.producto_id, nuevo === null ? null : nuevo - it.diferencia, nuevo, it.diferencia, 'Control de inventario #' + id, usuario_id || null, usuario_nombre || null, control.local_id]
+            [it.producto_id, anterior, nuevo, nuevo === null || anterior === null ? it.diferencia : nuevo - anterior, 'Control de inventario #' + id, usuario_id || null, usuario_nombre || null, control.local_id]
           );
           await client.query('RELEASE SAVEPOINT ajuste');
         } catch (e2) { await client.query('ROLLBACK TO SAVEPOINT ajuste'); /* si no existe la tabla ajustes_stock, no frenar el resto */ }
@@ -383,7 +386,6 @@ const informeFaltantes = async (req, res) => {
         ORDER BY (ABS(diferencia) * COALESCE(costo_unitario, 0)) DESC, producto_nombre`, [ids])).rows : [];
 
     const porControl = {};
-    const productos = {};
     const motivos = {};
     let unidades = 0, valor = 0, sinExplicar = 0;
     for (const it of its) {
@@ -392,28 +394,40 @@ const informeFaltantes = async (req, res) => {
       unidades += u; valor += v;
       const m = (it.motivo || '').trim() || 'Sin explicar';
       if (m === 'Sin explicar') sinExplicar++;
-      motivos[m] = motivos[m] || { motivo: m, productos: 0, unidades: 0, valor: 0 };
-      motivos[m].productos++; motivos[m].unidades += u; motivos[m].valor += v;
-      const k = it.producto_id || it.producto_nombre;
-      productos[k] = productos[k] || { producto_id: it.producto_id, nombre: it.producto_nombre, marca: it.producto_marca, veces: 0, unidades: 0, valor: 0, motivos: {} };
-      productos[k].veces++; productos[k].unidades += u; productos[k].valor += v; productos[k].motivos[m] = (productos[k].motivos[m] || 0) + 1;
     }
     // TODO LO QUE FALTA, producto por producto y a costo, sin contar dos veces lo mismo:
     // si un control NO corrigio el stock, el mismo faltante vuelve a aparecer en el control
     // siguiente; en ese caso vale solo el ultimo conteo. Si lo corrigio, cada faltante es una
-    // perdida nueva y se suma.
+    // perdida nueva y se suma. Si un control posterior lo encontro bien, ese faltante ya no esta.
+    // Por eso se miran todos los conteos de esos productos (no solo los faltantes).
     const controlDe = {}; cs.rows.forEach(c => { controlDe[c.id] = c; });
-    const cronologico = its.slice().sort((a, b) => new Date(controlDe[a.control_id].finalizado_en) - new Date(controlDe[b.control_id].finalizado_en));
+    const conFaltante = [...new Set(its.map(it => it.producto_id).filter(Boolean))];
+    const otros = conFaltante.length ? (await pool.query(
+      `SELECT control_id, producto_id, producto_nombre, diferencia, estado FROM controles_inventario_items
+        WHERE control_id = ANY($1::int[]) AND producto_id = ANY($2::int[]) AND estado IN ('correcto', 'sobrante')`, [ids, conFaltante])).rows : [];
+    const cronologico = [...its, ...otros].sort((a, b) => new Date(controlDe[a.control_id].finalizado_en) - new Date(controlDe[b.control_id].finalizado_en));
     const acum = {};
     for (const it of cronologico) {
       const c = controlDe[it.control_id];
       const k = c.local_id + ':' + (it.producto_id || it.producto_nombre);
       const a = acum[k] = acum[k] || { producto_id: it.producto_id, nombre: it.producto_nombre, marca: it.producto_marca, categoria: it.producto_categoria, codigo: it.producto_codigo,
-        local_id: c.local_id, firmes: 0, firmesValor: 0, pend: 0, pendValor: 0, motivos: new Set(), ultimo_control: null };
-      const u = Math.abs(it.diferencia || 0), v = u * parseFloat(it.costo_unitario || 0);
+        local_id: c.local_id, firmes: 0, firmesValor: 0, pend: 0, pendValor: 0, motivos: new Set(), ultimo_control: null,
+        veces: 0, repUnidades: 0, repValor: 0, repMotivos: {}, controles: [] };
+      if (it.estado !== 'faltante') { a.pend = 0; a.pendValor = 0; continue; }
+      const u = Math.abs(it.diferencia || 0), costo = parseFloat(it.costo_unitario || 0), v = u * costo;
+      // Falto de nuevo (una perdida distinta) o es el mismo faltante de un control que no corrigio el stock
+      const nuevas = a.pend > 0 ? Math.max(0, u - a.pend) : u;
+      if (a.pend === 0) a.veces++;
+      a.repUnidades += nuevas; a.repValor += nuevas * costo;
+      const m = (it.motivo || '').trim() || 'Sin explicar';
+      // Por que falto: solo las unidades que faltaron por primera vez (el mismo faltante repetido no se suma de nuevo)
+      motivos[m] = motivos[m] || { motivo: m, productos: 0, unidades: 0, valor: 0 };
+      if (nuevas > 0) { motivos[m].productos++; motivos[m].unidades += nuevas; motivos[m].valor += nuevas * costo; }
+      a.repMotivos[m] = (a.repMotivos[m] || 0) + 1;
+      a.controles.push({ id: c.id, fecha: c.finalizado_en, unidades: u, corrigio: !!c.ajustar_stock });
       if (c.ajustar_stock) { a.firmes += u; a.firmesValor += v; a.pend = 0; a.pendValor = 0; }
       else { a.pend = u; a.pendValor = v; }
-      a.costo_unitario = parseFloat(it.costo_unitario || 0);
+      a.costo_unitario = costo;
       a.ultimo_control = c.finalizado_en;
       if ((it.motivo || '').trim()) a.motivos.add(it.motivo.trim());
     }
@@ -426,15 +440,18 @@ const informeFaltantes = async (req, res) => {
     todoLoQueFalta.forEach(x => { const l = porLocal[x.local_id] = porLocal[x.local_id] || { local_id: x.local_id, productos: 0, unidades: 0, valor: 0 }; l.productos++; l.unidades += x.unidades; l.valor += x.valor; });
     const totalFalta = { productos: todoLoQueFalta.length, unidades: todoLoQueFalta.reduce((s, x) => s + x.unidades, 0), valor: todoLoQueFalta.reduce((s, x) => s + x.valor, 0) };
 
-    const repetidos = Object.values(productos).filter(x => x.veces > 1).sort((a, b) => b.veces - a.veces || b.valor - a.valor).slice(0, 30)
-      .map(x => ({ ...x, motivos: Object.entries(x.motivos).sort((a, b) => b[1] - a[1]).map(([m, n]) => m + (n > 1 ? ' ×' + n : '')).join(', ') }));
+    // Faltan una y otra vez: productos que faltaron en mas de una ocasion DISTINTA (despues de corregir el
+    // stock, o despues de haber estado bien, volvio a faltar). El mismo faltante sin corregir no cuenta dos veces.
+    const repetidos = Object.values(acum).filter(x => x.veces > 1).sort((a, b) => b.veces - a.veces || b.repValor - a.repValor).slice(0, 30)
+      .map(x => ({ producto_id: x.producto_id, nombre: x.nombre, marca: x.marca, local_id: x.local_id, veces: x.veces, unidades: x.repUnidades, valor: x.repValor,
+        controles: x.controles, motivos: Object.entries(x.repMotivos).sort((a, b) => b[1] - a[1]).map(([m, n]) => m + (n > 1 ? ' ×' + n : '')).join(', ') }));
     res.json({
       local_id: local, desde, hasta,
-      resumen: { controles: cs.rows.length, productos_con_faltante: its.length, unidades, valor, sin_explicar: sinExplicar },
+      resumen: { controles: cs.rows.length, productos_con_faltante: Object.values(acum).filter(x => x.veces > 0).length, unidades, valor, sin_explicar: sinExplicar },
       total_falta: totalFalta,
       falta_por_local: Object.values(porLocal).sort((a, b) => a.local_id - b.local_id),
       todo_lo_que_falta: todoLoQueFalta,
-      motivos: Object.values(motivos).sort((a, b) => b.valor - a.valor || b.unidades - a.unidades),
+      motivos: Object.values(motivos).filter(m => m.unidades > 0).sort((a, b) => b.valor - a.valor || b.unidades - a.unidades),
       repetidos,
       controles: cs.rows.map(c => ({ ...c, faltantes: porControl[c.id] || [] })),
     });
@@ -555,7 +572,7 @@ const historiaProducto = async (req, res) => {
              OR COALESCE(detalle->'nuevos', '[]'::jsonb) @> jsonb_build_array(jsonb_build_object('producto_id', $1::int))`, [id]),
       q(`SELECT id, creado_en, COALESCE(local_id, 1) AS local_id, stock_anterior, stock_nuevo, diferencia, motivo, usuario_nombre FROM ajustes_stock WHERE producto_id = $1`, [id]),
       q(`SELECT id, entregado_en, local_entrega_id, entregado_por, campana FROM influencer_regalos WHERE producto_id = $1 AND estado = 'entregado' AND entregado_en IS NOT NULL`, [id]),
-      q(`SELECT c.id, c.local_id, c.finalizado_en, c.ajustar_stock, c.usuario_nombre, i.stock_sistema, i.stock_contado, i.diferencia, i.motivo
+      q(`SELECT c.id, c.local_id, c.finalizado_en, c.ajustar_stock, c.usuario_nombre, i.stock_sistema, i.stock_contado, i.diferencia, i.motivo, i.contado_en
            FROM controles_inventario_items i JOIN controles_inventario c ON c.id = i.control_id
           WHERE i.producto_id = $1 AND c.estado = 'finalizado' AND i.estado <> 'pendiente'`, [id]),
     ]);
@@ -608,7 +625,11 @@ const historiaProducto = async (req, res) => {
       }
       for (const c of controles) {
         if (Number(c.local_id) !== L) continue;
-        mov.push({ fecha: c.finalizado_en, tipo: 'conteo', cantidad: 0, detalle: 'Control #' + c.id + ': el sistema decía ' + c.stock_sistema + ', se contaron ' + c.stock_contado + (c.diferencia ? ' (' + (c.diferencia > 0 ? '+' : '') + c.diferencia + ')' : '') + (c.ajustar_stock ? '' : ' · NO se corrigió el stock') + (c.motivo ? ' · ' + c.motivo : ''), usuario: c.usuario_nombre });
+        // Si lo contado coincidio con el sistema, es un punto de partida seguro (se conto de verdad y daba).
+        // Si hubo diferencia y se corrigio, el punto de partida es el ajuste del control (mas abajo en el orden).
+        const coincide = Number(c.diferencia || 0) === 0 && c.stock_contado !== null;
+        mov.push({ fecha: c.contado_en || c.finalizado_en, tipo: 'conteo', cantidad: 0, detalle: 'Control #' + c.id + ': el sistema decía ' + c.stock_sistema + ', se contaron ' + c.stock_contado + (c.diferencia ? ' (' + (c.diferencia > 0 ? '+' : '') + c.diferencia + ')' : '') + (c.diferencia && !c.ajustar_stock ? ' · NO se corrigió el stock' : '') + (c.motivo ? ' · ' + c.motivo : ''), usuario: c.usuario_nombre,
+          queda: coincide ? Number(c.stock_contado) : null, ancla: coincide });
       }
       mov.sort((a, b) => new Date(a.fecha) - new Date(b.fecha) || (a.ancla ? 1 : 0) - (b.ancla ? 1 : 0));
 
@@ -630,11 +651,14 @@ const historiaProducto = async (req, res) => {
         return { ...m, saldo: inicialImplicito + saldo };
       });
       const esperado = iAncla >= 0 ? saldo : null;
-      const tot = (tipos) => mov.filter(m => tipos.includes(m.tipo)).reduce((s, m) => s + (m.cantidad || 0), 0);
+      // Los totales van desde el punto de partida (asi la cuenta cierra: partida + totales = deberia haber)
+      const desde = iAncla >= 0 ? mov.slice(iAncla + 1) : mov;
+      const tot = (tipos) => desde.filter(m => tipos.includes(m.tipo)).reduce((s, m) => s + (m.cantidad || 0), 0);
       return {
         local_id: L, actual, en_camino: enCamino, en_transito: Number(esUsh ? p.stock_transito_ush : p.stock_transito_rg) || 0,
         totales: { ingresos: tot(['ingreso']), ventas: -tot(['venta']), devoluciones: tot(['devolucion']), cambios: -tot(['cambio']), traspasos: tot(['traspaso']),
-          ajustes: tot(['ajuste', 'reversion']), controles: tot(['control']), regalos: -tot(['regalo']), kits: -tot(['kit']), ventas_anuladas: mov.filter(m => m.tipo === 'venta_anulada').length },
+          ajustes: tot(['ajuste', 'reversion']), controles: tot(['control']), regalos: -tot(['regalo']), kits: -tot(['kit']), ventas_anuladas: desde.filter(m => m.tipo === 'venta_anulada').length },
+        antes_partida: iAncla >= 0 ? iAncla : 0,
         partida: iAncla >= 0 ? { fecha: mov[iAncla].fecha, stock: Number(mov[iAncla].queda), detalle: mov[iAncla].detalle } : null,
         esperado, diferencia: esperado === null ? null : actual - esperado,
         inicial_implicito: inicialImplicito,

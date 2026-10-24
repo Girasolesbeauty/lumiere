@@ -795,6 +795,17 @@ body:has(.pos-overlay) .ayuda-fab { display: none !important; }
 .ci-tipo:hover { transform: translateY(-1px); }
 .ci-tipo.on { border-color: var(--acento); background: var(--acento-dim); }
 .ci-tipo-ico { font-size: 22px; }
+.ci-atajos { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 12px; }
+.ci-atajos .ci-tipo small { color: ${p.textMuted}; font-size: 12px; line-height: 1.4; }
+.ci-cuenta { background: ${p.bg}; border-radius: 10px; padding: 6px 12px; margin: 8px 0; }
+.ci-cuenta-fila { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 6px 0; font-size: 13px; border-bottom: 1px dashed ${p.border}; }
+.ci-cuenta-fila:last-child { border-bottom: none; }
+.ci-cuenta-fila small { display: block; font-size: 11px; color: ${p.textMuted}; }
+.ci-cuenta-fila b { font-size: 15px; white-space: nowrap; }
+.ci-cuenta-fila.total { border-top: 2px solid ${p.text}; border-bottom: none; margin-top: 2px; font-weight: 800; }
+.ci-cuenta-fila.total b { font-size: 18px; }
+.ci-resumen { font-size: 14px; line-height: 1.6; }
+.ci-resumen b { white-space: nowrap; }
 .ci-tipo b { font-size: 14px; }
 .ci-tipo small { font-size: 12px; color: ${p.textMuted}; line-height: 1.4; }
 .ci-det-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
@@ -20162,6 +20173,11 @@ function ControlInventario({ localId, usuario, paletaActual }) {
     const h = hist && !hist.cargando && !hist.error ? hist : null;
     const qh = histBusca.trim().toLowerCase();
     const sugeridos = qh.length >= 2 ? productos.filter(x => [x.nombre, x.marca, x.codigo_barras].some(v => String(v || "").toLowerCase().includes(qh))).slice(0, 8) : [];
+    // Filas de la cuenta (solo lo que se movió): [texto, cantidad con signo, aclaración]
+    const filasCuenta = (t) => [
+      ["Llegaron", t.ingresos, "ingresos de proveedor recibidos"], ["Se vendieron", -t.ventas], ["Devoluciones", t.devoluciones, "volvieron al stock"], ["Se llevaron en cambios", -t.cambios],
+      ["Traspasos entre locales", t.traspasos], ["Ajustes a mano", t.ajustes], ["Correcciones de controles", t.controles], ["Regalos", -t.regalos], ["Kits armados", -t.kits],
+    ].filter(x => x[1]);
     const ICONO = { ingreso: "📦", venta: "🛒", venta_anulada: "↩️", devolucion: "🔄", devolucion_fallada: "🚫", kit: "🎁", cambio: "🔄", traspaso: "🚚", ajuste: "✏️", reversion: "↩️", control: "🔢", conteo: "🔢", regalo: "🎁", reserva: "⏳" };
     return (
       <div className="fade">
@@ -20189,32 +20205,26 @@ function ControlInventario({ localId, usuario, paletaActual }) {
                 return (
                   <div key={l.local_id} className="chart-card">
                     <div className="chart-title">{nombreLocal(l.local_id)}</div>
-                    <div className="plt-datos" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, margin: "8px 0" }}>
-                      <div style={{ background: p.bg, borderRadius: 8, padding: "8px 10px", fontSize: 11 }}><b style={{ display: "block", fontSize: 18 }}>{l.actual}</b>dice el sistema</div>
-                      <div style={{ background: p.bg, borderRadius: 8, padding: "8px 10px", fontSize: 11 }}><b style={{ display: "block", fontSize: 18 }}>{sinPartida ? "—" : l.esperado}</b>debería haber</div>
-                      <div style={{ background: sinPartida ? p.bg : ok ? p.greenDim : p.redDim, borderRadius: 8, padding: "8px 10px", fontSize: 11 }}><b style={{ display: "block", fontSize: 18, color: sinPartida ? p.text : ok ? p.green : p.red }}>{sinPartida ? "—" : ok ? "✓" : (l.diferencia > 0 ? "+" : "") + l.diferencia}</b>{sinPartida ? "sin punto de partida" : ok ? "la cuenta da" : "no coincide"}</div>
+                    {/* La cuenta, como una suma: desde el punto de partida, lo que entró y salió, y lo que da */}
+                    <div className="ci-cuenta">
+                      <div className="ci-cuenta-fila"><span>{sinPartida ? "Stock al empezar (calculado)" : "Punto de partida"}<small>{sinPartida ? "nunca se contó ni se ajustó acá" : new Date(l.partida.fecha).toLocaleDateString("es-AR") + " · " + l.partida.detalle}</small></span><b>{sinPartida ? l.inicial_implicito : l.partida.stock}</b></div>
+                      {filasCuenta(l.totales).map(([t, n, ayuda]) => <div key={t} className="ci-cuenta-fila"><span>{t}{ayuda ? <small>{ayuda}</small> : null}</span><b style={{ color: n > 0 ? p.green : p.red }}>{n > 0 ? "+" : "−"}{Math.abs(n)}</b></div>)}
+                      {filasCuenta(l.totales).length === 0 && <div className="ci-cuenta-fila"><span style={{ color: p.textMuted }}>Desde ahí no hubo movimientos</span><b /></div>}
+                      <div className="ci-cuenta-fila total"><span>Debería haber</span><b>{sinPartida ? l.actual : l.esperado}</b></div>
+                      <div className="ci-cuenta-fila"><span>El sistema dice</span><b style={{ color: sinPartida || ok ? p.text : p.red }}>{l.actual}</b></div>
                     </div>
-                    <div style={{ fontSize: 12.5, lineHeight: 1.6, color: p.textMuted }}>
+                    <div className={"cc-aviso " + (sinPartida ? "" : ok ? "ok" : "bad")} style={{ fontSize: 12.5, lineHeight: 1.55, ...(sinPartida ? { background: p.bg } : {}) }}>
                       {sinPartida
-                        ? <>Nunca se hizo un control ni un ajuste de este producto acá, así que no hay un punto de partida seguro. Sumando todo lo registrado, para que hoy haya {l.actual} tendría que haber arrancado con <b style={{ color: l.inicial_implicito < 0 ? p.red : p.text }}>{l.inicial_implicito}</b>{l.inicial_implicito < 0 ? " (negativo: se vendió más de lo que entró registrado)" : " (el stock inicial que se cargó al crear el producto)"}.</>
-                        : <>Punto de partida: <b style={{ color: p.text }}>{new Date(l.partida.fecha).toLocaleDateString("es-AR")}</b>, quedaron <b style={{ color: p.text }}>{l.partida.stock}</b> ({l.partida.detalle}). Desde ahí se suma y resta todo lo que pasó. {ok ? "El sistema hizo bien las cuentas: si en el local hay otra cantidad, la diferencia es física (se llevó, se rompió, o hay un movimiento que nadie cargó)." : "El número del sistema no sale de sus propios registros: hay un cambio de stock que no quedó anotado."}</>}
+                        ? <>Este producto nunca se contó en un control ni se ajustó acá, así que no hay un punto de partida seguro. {l.inicial_implicito < 0 ? <b>Se vendió más de lo que entró registrado: falta cargar un ingreso o un traspaso.</b> : "Para estar seguros, contalo en el próximo control."}</>
+                        : ok ? <><b>✓ La cuenta da.</b> El sistema sumó y restó bien. Si en el local contás otra cantidad, la diferencia es física: se lo llevaron, se rompió, o hubo un movimiento que nadie cargó en el sistema.</>
+                        : <><b>✗ No coincide por {Math.abs(l.diferencia)}.</b> El stock del sistema cambió {l.diferencia > 0 ? "hacia arriba" : "hacia abajo"} sin que quede anotado por qué. Avisanos para revisarlo.</>}
                     </div>
-                    <div className="cli-chips" style={{ margin: "10px 0" }}>
-                      <span className="tag tag-ok">llegaron {l.totales.ingresos}</span>
-                      <span className="tag tag-bad">se vendieron {l.totales.ventas}</span>
-                      {l.totales.devoluciones > 0 && <span className="tag tag-neutral">devueltos {l.totales.devoluciones}</span>}
-                      {l.totales.cambios > 0 && <span className="tag tag-neutral">cambios −{l.totales.cambios}</span>}
-                      {l.totales.traspasos !== 0 && <span className="tag tag-neutral">traspasos {l.totales.traspasos > 0 ? "+" : ""}{l.totales.traspasos}</span>}
-                      {l.totales.ajustes !== 0 && <span className="tag tag-warn">ajustes a mano {l.totales.ajustes > 0 ? "+" : ""}{l.totales.ajustes}</span>}
-                      {l.totales.controles !== 0 && <span className="tag tag-warn">correcciones de control {l.totales.controles > 0 ? "+" : ""}{l.totales.controles}</span>}
-                      {l.totales.regalos > 0 && <span className="tag tag-neutral">regalos −{l.totales.regalos}</span>}
-                      {l.totales.kits > 0 && <span className="tag tag-neutral">kits −{l.totales.kits}</span>}
-                      {l.en_transito > 0 && <span className="tag tag-neutral">en camino {l.en_transito}</span>}
-                    </div>
+                    {l.en_transito > 0 && <div className="cli-chips" style={{ margin: "8px 0" }}><span className="tag tag-neutral">en camino {l.en_transito}</span></div>}
                     {l.en_camino.length > 0 && <div className="cc-aviso" style={{ background: p.warnDim, color: p.warn, border: "1px solid " + p.warn + "55" }}>Hay {l.en_camino.reduce((a, x) => a + x.cantidad, 0)} unidades de facturas de proveedor que este local todavía no controló: {l.en_camino.map(x => x.cantidad + " (" + x.detalle + ")").join("; ")}. Hasta que no se reciban en Ingresos, no suman al stock.</div>}
                     {l.movimientos.length === 0 ? <div className="cli-vacio">Sin movimientos registrados en este local.</div> : (
                       <div style={{ maxHeight: 420, overflowY: "auto", marginTop: 6 }}>
-                        {l.movimientos.map((m, k) => (
+                        <div style={{ fontSize: 12, fontWeight: 800, color: p.textMuted, margin: "4px 0" }}>{sinPartida ? "Todos los movimientos" : "Movimientos desde el punto de partida"} (el más nuevo arriba)</div>
+                        {(() => { const n = l.movimientos.length - (l.antes_partida || 0); const fila = (m, k) => (
                           <div key={k} className="cli-hist-fila" style={m.partida ? { background: p.accentDim, borderRadius: 8, padding: "6px 8px" } : null}>
                             <div style={{ minWidth: 0 }}>
                               <div style={{ fontSize: 12.5, fontWeight: 600 }}>{ICONO[m.tipo] || "•"} {m.detalle}{m.partida ? " ← punto de partida" : ""}</div>
@@ -20225,7 +20235,10 @@ function ControlInventario({ localId, usuario, paletaActual }) {
                               <div style={{ fontSize: 11, color: p.textMuted }}>{m.saldo === null || m.saldo === undefined ? "" : "quedan " + m.saldo}</div>
                             </div>
                           </div>
-                        ))}
+                        ); return <>
+                          {l.movimientos.slice(0, n).map(fila)}
+                          {n < l.movimientos.length && <details className="ci-inf-control"><summary><span>Ver {l.movimientos.length - n} movimientos anteriores al punto de partida</span></summary>{l.movimientos.slice(n).map((m, k) => fila(m, n + k))}</details>}
+                        </>; })()}
                       </div>
                     )}
                   </div>
@@ -20341,29 +20354,19 @@ function ControlInventario({ localId, usuario, paletaActual }) {
           <div className="chart-card"><div className="cli-vacio">No hay controles terminados en {infLocal === 0 ? "ningún local" : nombreLocal(infLocal)} en este período.</div></div>
         ) : (
           <>
+            <div className="chart-card ci-resumen" style={{ marginBottom: 12 }}>
+              <div className="chart-title" style={{ marginBottom: 4 }}>En pocas palabras</div>
+              {d.total_falta.unidades === 0 ? <>🎉 En {d.resumen.controles === 1 ? "el control" : "los " + d.resumen.controles + " controles"} de {infLocal === 0 ? "los dos locales" : nombreLocal(infLocal)} no falta nada.</> : <>
+                Hoy faltan <b>{d.total_falta.unidades} unidades</b> de {d.total_falta.productos} {d.total_falta.productos === 1 ? "producto" : "productos"} en {infLocal === 0 ? "los dos locales" : nombreLocal(infLocal)}, que valen <b style={{ color: p.red }}>{$(d.total_falta.valor)}</b> a costo ({d.resumen.controles === 1 ? "1 control" : d.resumen.controles + " controles"} en el período).
+                {d.repetidos.length > 0 && <> {d.repetidos.length === 1 ? "1 producto faltó" : d.repetidos.length + " productos faltaron"} <b>más de una vez</b>: revisá esos primero.</>}
+                {d.resumen.sin_explicar > 0 ? <> Hay <b style={{ color: p.red }}>{d.resumen.sin_explicar} sin explicar</b>: pedile a quien contó que diga qué pasó.</> : <> Todos los faltantes tienen explicación.</>}
+              </>}
+            </div>
             <div className="kpi-grid">
               <KpiCard p={p} titulo="Controles" valor={String(d.resumen.controles)} indice={0} sub="terminados en el período" />
               <KpiCard p={p} titulo="💰 Todo lo que falta (a costo)" valor={$(d.total_falta.valor)} color={d.total_falta.valor > 0 ? p.red : p.green} indice={1} sub={d.total_falta.unidades + " unidades en " + d.total_falta.productos + " productos"} />
-              <KpiCard p={p} titulo="Productos con faltante" valor={String(d.resumen.productos_con_faltante)} indice={2} sub={d.repetidos.length ? d.repetidos.length + " se repiten" : "ninguno se repite"} />
+              <KpiCard p={p} titulo="Productos con faltante" valor={String(d.resumen.productos_con_faltante)} indice={2} sub={d.repetidos.length ? d.repetidos.length + " faltaron más de una vez" : "ninguno faltó dos veces"} />
               <KpiCard p={p} titulo="Sin explicar" valor={String(d.resumen.sin_explicar)} color={d.resumen.sin_explicar > 0 ? p.red : p.green} indice={3} sub={d.resumen.sin_explicar > 0 ? "faltantes que nadie explicó" : "todo tiene explicación"} />
-            </div>
-            <div className="ci-det-grid">
-              <div className="chart-card">
-                <div className="chart-title">🧐 Por qué faltó</div>
-                {d.motivos.length === 0 ? <div className="cli-vacio">🎉 No faltó nada.</div> : d.motivos.map(m => (
-                  <div key={m.motivo} style={{ margin: "10px 0" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 13 }}><span style={{ fontWeight: 700, color: m.motivo === "Sin explicar" ? p.red : p.text }}>{m.motivo}</span><span style={{ whiteSpace: "nowrap" }}><b>{$(m.valor)}</b> · {m.unidades} u.</span></div>
-                    <div className="pb" style={{ height: 8, marginTop: 4 }}><div className="pf" style={{ width: Math.max(3, Math.round((m.valor || m.unidades) / maxMotivo * 100)) + "%", background: m.motivo === "Sin explicar" ? p.red : "var(--acento)" }} /></div>
-                  </div>
-                ))}
-              </div>
-              <div className="chart-card">
-                <div className="chart-title">🔁 Faltan una y otra vez</div>
-                <div style={{ fontSize: 12, color: p.textMuted, margin: "4px 0 8px" }}>Productos que faltaron en más de un control. Son los primeros para revisar dónde se guardan y quién los maneja.</div>
-                {d.repetidos.length === 0 ? <div className="cli-vacio">Ningún producto faltó en más de un control.</div> : d.repetidos.slice(0, 8).map(x => (
-                  <div key={x.producto_id || x.nombre} className="cli-hist-fila"><div style={{ minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 700 }}>{x.nombre}</div><div style={{ fontSize: 11, color: p.textMuted }}>{x.veces} controles · {x.unidades} u. · {x.motivos}</div></div><b style={{ color: p.red, whiteSpace: "nowrap" }}>{$(x.valor)}</b></div>
-                ))}
-              </div>
             </div>
             <div className="chart-card" style={{ marginTop: 12 }}>
               <div className="chart-title">💰 Todo lo que falta, a costo</div>
@@ -20383,6 +20386,32 @@ function ControlInventario({ localId, usuario, paletaActual }) {
                   <div className="ci-fila ci-falta" style={{ fontWeight: 800, background: p.bg }}><span>TOTAL</span><span>{d.total_falta.unidades}</span><span /><span style={{ color: p.red }}>{$(d.total_falta.valor)}</span><span /></div>
                 </div>
               )}
+            </div>
+            <div className="ci-det-grid" style={{ marginTop: 12 }}>
+              <div className="chart-card">
+                <div className="chart-title">🔁 Faltan una y otra vez</div>
+                <div style={{ fontSize: 12, color: p.textMuted, margin: "4px 0 8px" }}>Productos que volvieron a faltar después de corregir el stock (o después de haber estado bien). Si un control no corrigió el stock y el siguiente encontró el mismo faltante, cuenta una sola vez. Son los primeros para revisar dónde se guardan y quién los maneja.</div>
+                {d.repetidos.length === 0 ? <div className="cli-vacio">Ningún producto volvió a faltar.</div> : d.repetidos.slice(0, 10).map(x => (
+                  <div key={x.local_id + "-" + (x.producto_id || x.nombre)} className="cli-hist-fila">
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>{x.nombre}</div>
+                      <div style={{ fontSize: 11.5, color: p.textMuted }}>Faltó <b style={{ color: p.text }}>{x.veces} veces</b> · {x.unidades} u. en total{infLocal === 0 ? " · " + nombreLocal(x.local_id) : ""}</div>
+                      <div style={{ fontSize: 11, color: p.textMuted }}>{(x.controles || []).map(c => new Date(c.fecha).toLocaleDateString("es-AR", { day: "numeric", month: "numeric" }) + ": −" + c.unidades).join(" · ")}{x.motivos ? " · " + x.motivos : ""}</div>
+                      {x.producto_id ? <button className="ci-exp-btn" style={{ marginTop: 4 }} onClick={() => abrirHistoria(x.producto_id, "informe")}>Ver historia</button> : null}
+                    </div>
+                    <b style={{ color: p.red, whiteSpace: "nowrap" }}>{$(x.valor)}</b>
+                  </div>
+                ))}
+              </div>
+              <div className="chart-card">
+                <div className="chart-title">🧐 Por qué faltó</div>
+                {d.motivos.length === 0 ? <div className="cli-vacio">🎉 No faltó nada.</div> : d.motivos.map(m => (
+                  <div key={m.motivo} style={{ margin: "10px 0" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 13 }}><span style={{ fontWeight: 700, color: m.motivo === "Sin explicar" ? p.red : p.text }}>{m.motivo}</span><span style={{ whiteSpace: "nowrap" }}><b>{$(m.valor)}</b> · {m.unidades} u.</span></div>
+                    <div className="pb" style={{ height: 8, marginTop: 4 }}><div className="pf" style={{ width: Math.max(3, Math.round((m.valor || m.unidades) / maxMotivo * 100)) + "%", background: m.motivo === "Sin explicar" ? p.red : "var(--acento)" }} /></div>
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="chart-card" style={{ marginTop: 12 }}>
               <div className="chart-title">Cada control</div>
@@ -20567,8 +20596,6 @@ function ControlInventario({ localId, usuario, paletaActual }) {
           <div className="ps">contá lo que hay en el local y compará con lo que dice el sistema</div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn btn-g btn-sm" onClick={abrirDiagnostico}>🔎 Diagnóstico de stock</button>
-          <button className="btn btn-g btn-sm" onClick={abrirInforme}>📄 Informe de faltantes</button>
           <button className="btn btn-g btn-sm" onClick={() => setShowConfig(true)} disabled={!config}>🔔 Avisos</button>
           <button className="btn btn-p btn-sm" onClick={() => enCurso ? abrir(enCurso.id, "conteo") : setNuevo({ tipo: "categoria", valor: "" })}>{enCurso ? "Continuar control" : "+ Nuevo control"}</button>
         </div>
@@ -20607,8 +20634,15 @@ function ControlInventario({ localId, usuario, paletaActual }) {
         </div>
       )}
 
+      {/* Lo que se puede ver, dicho como la pregunta que responde */}
+      <div className="ci-atajos">
+        <button className="ci-tipo" onClick={abrirInforme}><span className="ci-tipo-ico" aria-hidden="true">📄</span><b>¿Qué falta y cuánto vale?</b><small>Todo lo que falta a costo, por qué faltó y qué productos faltan una y otra vez.</small></button>
+        <button className="ci-tipo" onClick={() => { setHistVuelve("lista"); setHist(null); setHistBusca(""); setVista("historia"); window.scrollTo({ top: 0 }); }}><span className="ci-tipo-ico" aria-hidden="true">🧾</span><b>¿Por qué no da el stock de un producto?</b><small>Todo lo que entró y salió de un producto, y cuánto debería haber.</small></button>
+        <button className="ci-tipo" onClick={abrirDiagnostico}><span className="ci-tipo-ico" aria-hidden="true">🔎</span><b>¿Dónde se descuadra el stock?</b><small>Ventas en el otro local, traspasos sin recibir, facturas sin controlar, stock negativo.</small></button>
+      </div>
+
       <div className="chart-card" style={{ marginTop: 12, padding: 0 }}>
-        <div className="chart-title" style={{ padding: "14px 14px 0" }}>Historial</div>
+        <div className="chart-title" style={{ padding: "14px 14px 0" }}>Controles hechos</div>
         {controles === null ? <div className="skel" style={{ height: 120, margin: 14 }} /> : finalizados.length === 0 ? (
           <div className="cli-vacio" style={{ padding: "18px 14px", textAlign: "center" }}>Todavía no terminaste ningún control. El primero te va a mostrar qué tan confiable es el stock del sistema.</div>
         ) : (
