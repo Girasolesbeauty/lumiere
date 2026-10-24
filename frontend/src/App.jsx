@@ -25036,8 +25036,8 @@ html:has(.tw){overflow-x:hidden}
 .tw-nav button:hover::after,.tw-nav button.on::after{transform:scaleX(1)}
 .tw-main{max-width:1280px;margin:0 auto;padding:0 20px 60px}
 .tw-hero{position:relative;margin:20px 0 8px;border-radius:6px;overflow:hidden;height:440px;background:var(--g)}
-.tw-slide{position:absolute;inset:0;display:grid;grid-template-columns:1.05fr 1fr;align-items:center;opacity:0;visibility:hidden;transition:opacity .8s ease,visibility .8s}
-.tw-slide.on{opacity:1;visibility:visible}
+.tw-slide{position:absolute;inset:0;display:grid;grid-template-columns:1.05fr 1fr;align-items:center;opacity:0;visibility:hidden;transition:opacity .8s ease,visibility .8s;pointer-events:none}
+.tw-slide.on{opacity:1;visibility:visible;pointer-events:auto}
 .tw-slide-txt{padding:40px 56px;position:relative;z-index:1}
 .tw-slide .tw-ceja{font-size:12px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--c)}
 .tw-slide h2{font-size:clamp(28px,4.2vw,52px);line-height:1.04;margin:12px 0 10px;font-weight:800;letter-spacing:-.01em}
@@ -28164,6 +28164,7 @@ function TiendaPublica({ slug }) {
   const [buscaUrl, setBuscaUrl] = useState(busca.trim());
   useEffect(() => { const t = setTimeout(() => setBuscaUrl(busca.trim()), 700); return () => clearTimeout(t); }, [busca]);
   const navAtras = useRef(false), catPrev = useRef(null);
+  const histN = useRef((window.history.state && window.history.state.n) || 0); // posicion en el historial (para saber si se fue atras o adelante)
   // Al actualizar vuelve a la misma seccion (categoria, preventa, regalos...), con sus filtros y a la misma altura
   const vistaGuardada = useRef((() => { try { return JSON.parse(sessionStorage.getItem("tienda_vista_" + slug) || "null"); } catch (e) { return null; } })());
   const segInicial = useRef(twSeccionDeUrl());
@@ -28203,6 +28204,19 @@ function TiendaPublica({ slug }) {
     document.addEventListener("pointerdown", abajo, { passive: true });
     document.addEventListener("pointerup", arriba, { passive: true });
     return () => { document.removeEventListener("pointerdown", abajo); document.removeEventListener("pointerup", arriba); };
+  }, []);
+  // Al correr una fila con el dedo, si el dedo se movio no cuenta como toque (antes se abrian productos sin querer)
+  useEffect(() => {
+    let x0 = 0, y0 = 0, movio = false, fin = 0;
+    const ini = (e) => { const t = e.touches && e.touches[0]; if (!t) return; x0 = t.clientX; y0 = t.clientY; movio = false; };
+    const mov = (e) => { const t = e.touches && e.touches[0]; if (t && (Math.abs(t.clientX - x0) > 10 || Math.abs(t.clientY - y0) > 10)) movio = true; };
+    const sol = () => { fin = Date.now(); };
+    const clic = (e) => { if (movio && Date.now() - fin < 400 && e.target.closest && e.target.closest(".tw")) { e.preventDefault(); e.stopPropagation(); movio = false; } };
+    document.addEventListener("touchstart", ini, { passive: true });
+    document.addEventListener("touchmove", mov, { passive: true });
+    document.addEventListener("touchend", sol, { passive: true });
+    document.addEventListener("click", clic, true);
+    return () => { document.removeEventListener("touchstart", ini); document.removeEventListener("touchmove", mov); document.removeEventListener("touchend", sol); document.removeEventListener("click", clic, true); };
   }, []);
   // Mi cuenta (misma del portal de clientas: DNI + contraseña, con sus puntos)
   const [logueada, setLogueada] = useState(() => { if (vistaTk) return true; try { return !!localStorage.getItem("tienda_cuenta_" + slug); } catch (e) { return false; } });
@@ -28425,7 +28439,7 @@ function TiendaPublica({ slug }) {
     const quiere = urlDe(null), ahora = window.location.pathname + window.location.search;
     const nueva = catPrev.current !== null && catPrev.current !== cat && !navAtras.current;
     catPrev.current = cat;
-    if (quiere !== ahora && quiere.replace(/\?$/, "") !== ahora) try { if (nueva) window.history.pushState({ tws: 1 }, "", quiere); else window.history.replaceState(window.history.state, "", quiere); } catch (e) {}
+    if (quiere !== ahora && quiere.replace(/\?$/, "") !== ahora) try { if (nueva) window.history.pushState({ tws: 1, n: ++histN.current }, "", quiere); else window.history.replaceState(window.history.state, "", quiere); } catch (e) {}
   }, [cat, productos, buscaUrl]);
   useEffect(() => {
     if (!abrioDesdeUrl.current) return;
@@ -28433,13 +28447,18 @@ function TiendaPublica({ slug }) {
     const quiere = ver ? slugsRef.current.get(ver.id) || null : null;
     if (actual === quiere) return;
     try {
-      if (quiere && !actual) window.history.pushState({ twp: 1 }, "", urlDe(quiere));
+      if (quiere && !actual) window.history.pushState({ twp: 1, n: ++histN.current }, "", urlDe(quiere));
       else if (!quiere && window.history.state && window.history.state.twp) window.history.back();
       else window.history.replaceState(window.history.state, "", urlDe(quiere));
     } catch (e) {}
   }, [ver && ver.id]);
   useEffect(() => {
-    const atras = () => {
+    const atras = (e) => {
+      // En el iPhone, deslizar desde el borde de la pantalla es "atrás" o "adelante" del navegador. Ir "adelante"
+      // a una ficha que ya se cerró la volvía a abrir sin querer (al correr una fila de costado): eso se ignora.
+      const n = (e && e.state && e.state.n) || 0, adelante = n > histN.current;
+      histN.current = n;
+      if (adelante && e.state && e.state.twp) { try { window.history.back(); } catch (x) {} return; }
       const p = twBuscarPorSlug(productos || [], slugsRef.current, twProductoDeUrl());
       if (p) { abrirFicha(p); return; }
       setVer(null);
