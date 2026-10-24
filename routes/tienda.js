@@ -157,11 +157,13 @@ router.put('/portada', async (req, res) => {
       // Sector de un evento (ej. Cyber Monday): solo se ve en la tienda entre esas fechas
       ...(/^\d{4}-\d{2}-\d{2}$/.test(s.desde || '') && /^\d{4}-\d{2}-\d{2}$/.test(s.hasta || '') ? { desde: s.desde, hasta: s.hasta } : {}),
     })).filter(s => s.nombre);
-    const DESTINOS = ['producto', 'sector', 'categoria', 'marca', 'reingreso', 'ninguno'];
+    const DESTINOS = ['producto', 'productos', 'sector', 'categoria', 'marca', 'reingreso', 'ninguno'];
     const bannersImg = (Array.isArray(b.banners_img) ? b.banners_img : []).slice(0, 10).map(x => ({
       id: idSeccion(x.id), imagen: parseInt(x.imagen) || null, imagen_movil: parseInt(x.imagen_movil) || null,
       titulo: texto(x.titulo, 80), texto: texto(x.texto, 160), boton: texto(x.boton, 30),
-      destino: DESTINOS.includes(x.destino) ? x.destino : 'ninguno', valor: texto(x.valor, 120),
+      destino: DESTINOS.includes(x.destino) ? x.destino : 'ninguno',
+      // Varios productos: ids separados por coma (hasta 12)
+      valor: x.destino === 'productos' ? [...new Set(String(x.valor || '').split(',').map(n => parseInt(n)).filter(n => n > 0))].slice(0, 12).join(',') : texto(x.valor, 120),
     })).filter(x => x.imagen);
     if (filas.some(f => !f.productos.length)) return res.status(400).json({ error: 'Cada fila de la portada necesita al menos un producto' });
     if (sectores.some(s => !s.categorias.length && !s.productos.length && !s.combos.length)) return res.status(400).json({ error: 'Cada sector necesita al menos una categoría, un producto o un kit' });
