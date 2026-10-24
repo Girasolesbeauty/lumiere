@@ -28359,6 +28359,7 @@ function TiendaPublica({ slug }) {
     if (c.startsWith("s:")) { const sc = ((tienda && tienda.sectores) || []).find(x => "s:" + x.id === c); return sc ? "s/" + twSlug(sc.nombre) : null; }
     if (c.startsWith("m:")) return "m/" + twSlug(c.slice(2));
     if (c.startsWith("pack:")) { const pk = ((tienda && tienda.packs) || []).find(x => "pack:" + x.id === c); return pk ? "p/" + twSlug(pk.nombre) : null; }
+    if (c.startsWith("b:")) return "b/" + c.slice(2);
     return "c/" + twSlug(c);
   };
   const catDeSeg = (sg) => {
@@ -28369,6 +28370,7 @@ function TiendaPublica({ slug }) {
     if (t === "m") { const m = (productos || []).map(x => x.marca).find(x => x && twSlug(x) === v); return m ? "m:" + m : null; }
     if (t === "c") return (productos || []).map(x => x.categoria).find(x => x && twSlug(x) === v) || null;
     if (t === "p") { const pk = ((tienda && tienda.packs) || []).find(x => twSlug(x.nombre) === v); return pk ? "pack:" + pk.id : null; }
+    if (t === "b") return ((tienda && tienda.banners_img) || []).some(x => x.id === v && x.destino === "productos") ? "b:" + v : null;
     return null;
   };
   const urlDe = (sp) => {
@@ -28912,14 +28914,17 @@ function TiendaPublica({ slug }) {
   const sector = cat.startsWith("s:") ? sectores.find(sc => "s:" + sc.id === cat) : null;
   // Si la seccion elegida quedo vacia (otra ciudad, se agoto todo), se vuelve al inicio
   const packCat = cat.startsWith("pack:") ? (tienda.packs || []).find(pk => pk.id === cat.slice(5)) : null;
-  if (productos !== null && ((cat === "preventa" && !preventas.length) || (cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat === "regalos" && !tienda.regalos) || (cat === "diagnostico" && !tienda.diagnostico) || (cat.startsWith("pack:") && !packCat) || (cat && cat !== "*" && !cat.startsWith("s:") && !cat.startsWith("m:") && !cat.startsWith("pack:") && cat !== "reingreso" && cat !== "videos" && cat !== "regalos" && cat !== "rutina" && cat !== "diagnostico" && cat !== "preventa" && cat !== "favoritos" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2))))) { setTimeout(() => setCat(""), 0); }
+  // Banner que lleva a varios productos: se muestran esos (en el orden elegido)
+  const idsBanner = (bn) => String(bn.valor || "").split(",").map(Number).filter(Boolean);
+  const bannerCat = cat.startsWith("b:") ? (tienda.banners_img || []).find(bn => bn.id === cat.slice(2) && bn.destino === "productos") : null;
+  if (productos !== null && ((cat.startsWith("b:") && (!bannerCat || !visibles.some(p => idsBanner(bannerCat).includes(p.id)))) || (cat === "preventa" && !preventas.length) || (cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat === "regalos" && !tienda.regalos) || (cat === "diagnostico" && !tienda.diagnostico) || (cat.startsWith("pack:") && !packCat) || (cat && cat !== "*" && !cat.startsWith("s:") && !cat.startsWith("m:") && !cat.startsWith("pack:") && !cat.startsWith("b:") && cat !== "reingreso" && cat !== "videos" && cat !== "regalos" && cat !== "rutina" && cat !== "diagnostico" && cat !== "preventa" && cat !== "favoritos" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2))))) { setTimeout(() => setCat(""), 0); }
   const enSector = (sc, p) => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria);
   const delSector = sector ? visibles.filter(p => enSector(sector, p)) : [];
   const catsSector = sector ? [...new Set(delSector.map(p => p.categoria).filter(Boolean))].sort() : [];
   // Busqueda inteligente: primero lo que coincide en el nombre, despues por tipo, despues por descripcion
   const puntaje = new Map();
   const favLista = favs.map(id => lista0.find(p => p.id === id)).filter(Boolean);
-  const base1 = (cat === "reingreso" ? reingresados : cat === "preventa" ? preventas : cat === "favoritos" ? favLista : q && (!cat || cat === "*") ? lista0 : visibles).filter(p => (!cat || cat === "*" || cat === "reingreso" || cat === "preventa" || cat === "favoritos" || (sector ? enSector(sector, p) && (!subcat || p.categoria === subcat) : cat.startsWith("m:") ? (p.marca || "") === cat.slice(2) : cat.startsWith("pack:") ? !!packCat && twEnPack(packCat, p.id, p.marca) : p.categoria === cat)) && (!q || (puntaje.set(p.id, twCoincide(p, q)), puntaje.get(p.id) > 0))
+  const base1 = (cat === "reingreso" ? reingresados : cat === "preventa" ? preventas : cat === "favoritos" ? favLista : bannerCat ? idsBanner(bannerCat).map(id => visibles.find(p => p.id === id)).filter(Boolean) : q && (!cat || cat === "*") ? lista0 : visibles).filter(p => (!cat || cat === "*" || cat === "reingreso" || cat === "preventa" || cat === "favoritos" || !!bannerCat || (sector ? enSector(sector, p) && (!subcat || p.categoria === subcat) : cat.startsWith("m:") ? (p.marca || "") === cat.slice(2) : cat.startsWith("pack:") ? !!packCat && twEnPack(packCat, p.id, p.marca) : p.categoria === cat)) && (!q || (puntaje.set(p.id, twCoincide(p, q)), puntaje.get(p.id) > 0))
     // Lo agotado no se ve al navegar; si lo buscan por nombre aparece (al final), para poder pedir "Avisame cuando vuelva"
     && (!q || !agotado(p) || twEnNombre(p, q)));
   // Si hay productos que coinciden por nombre o tipo, no se mezclan los que solo lo mencionan en la descripcion
@@ -28956,9 +28961,10 @@ function TiendaPublica({ slug }) {
     return (d.length ? d : conStock.filter(p => p.foto)).slice(0, 8);
   })();
   // Banners con imagen (3 por fila, como Sephora): cada uno lleva a un producto, sector, categoria o marca
-  const bannersImg = (tienda.banners_img || []).filter(bn => bn.imagen && (bn.destino !== "producto" || visibles.some(p => p.id === Number(bn.valor))));
+  const bannersImg = (tienda.banners_img || []).filter(bn => bn.imagen && (bn.destino !== "producto" || visibles.some(p => p.id === Number(bn.valor))) && (bn.destino !== "productos" || visibles.some(p => idsBanner(bn).includes(p.id))));
   const irDestino = (bn) => {
     if (bn.destino === "producto") { const p = visibles.find(x => x.id === Number(bn.valor)); if (p) abrir(p); }
+    else if (bn.destino === "productos") { const ps = idsBanner(bn).map(id => visibles.find(p => p.id === id)).filter(Boolean); if (ps.length === 1) abrir(ps[0]); else if (ps.length) irCat("b:" + bn.id); }
     else if (bn.destino === "sector") irCat("s:" + bn.valor);
     else if (bn.destino === "categoria") irCat(bn.valor);
     else if (bn.destino === "marca") irCat("m:" + bn.valor);
@@ -29466,7 +29472,7 @@ function TiendaPublica({ slug }) {
         ) : enLista ? (
           <>
             <div className="tw-lista-cab">
-              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.ingrediente && !filtros.tipo && !filtros.piel && !filtros.necesidad ? "Con " + ((TW_ING_OP.find(o => o[0] === filtros.ingrediente) || ["", ""])[1]) : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : packCat ? "🎁 " + packCat.nombre + ": " + packCat.cantidad + " o más = " + packCat.pct + "% OFF" : cat === "preventa" ? "⏳ " + tienda.preventa.titulo : cat === "favoritos" ? "❤️ Tus favoritos" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>{sector && !q && lista.length === 0 && combosSector(sector).length > 0 ? combosSector(sector).length + (combosSector(sector).length === 1 ? " kit" : " kits") : lista.length + " " + (lista.length === 1 ? "producto" : "productos")}
+              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.ingrediente && !filtros.tipo && !filtros.piel && !filtros.necesidad ? "Con " + ((TW_ING_OP.find(o => o[0] === filtros.ingrediente) || ["", ""])[1]) : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : packCat ? "🎁 " + packCat.nombre + ": " + packCat.cantidad + " o más = " + packCat.pct + "% OFF" : cat === "preventa" ? "⏳ " + tienda.preventa.titulo : cat === "favoritos" ? "❤️ Tus favoritos" : bannerCat ? (bannerCat.titulo || "Elegidos para vos") : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>{sector && !q && lista.length === 0 && combosSector(sector).length > 0 ? combosSector(sector).length + (combosSector(sector).length === 1 ? " kit" : " kits") : lista.length + " " + (lista.length === 1 ? "producto" : "productos")}
                 {q && <button className="tw-compartir-sec" onClick={() => compartirSeccion("“" + busca.trim() + "”")}>{seccionCopiada ? "✓ Link copiado" : "🔗 Compartir"}</button>}
                 {!q && cat && cat !== "favoritos" && <button className="tw-compartir-sec" onClick={() => compartirSeccion(cat === "preventa" ? tienda.preventa.titulo : sector ? sector.nombre : cat === "*" ? "Todos los productos" : cat === "reingreso" ? reingreso.nombre : cat.startsWith("m:") ? cat.slice(2) : cat)}>{seccionCopiada ? "✓ Link copiado" : "🔗 Compartir"}</button>}</div></div>
               {!(sector && !q && lista.length === 0 && combosSector(sector).length > 0) && <select value={orden} onChange={e => setOrden(e.target.value)} aria-label="Ordenar">{TW_ORDEN.map(([k, t]) => <option key={k} value={k}>Ordenar: {t}</option>)}</select>}
@@ -30994,10 +31000,16 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
               <input className="inp" style={{ marginTop: 6 }} placeholder="Texto (opcional). Ej: Lo último en skincare" value={bn.texto || ""} onChange={e => editar("banners_img", i, { texto: e.target.value })} aria-label="Texto del banner" />
               <div className="fl" style={{ marginTop: 8 }}>¿A dónde lleva?</div>
               <select className="sel" style={{ width: "100%" }} aria-label="A dónde lleva el banner" value={bn.destino || "ninguno"} onChange={e => editar("banners_img", i, { destino: e.target.value, valor: "" })}>
-                <option value="ninguno">A ningún lado</option><option value="producto">A un producto</option><option value="sector">A un sector</option><option value="categoria">A una categoría</option><option value="marca">A una marca</option>{d.reingreso && d.reingreso.activo && <option value="reingreso">A "Nuevamente en stock"</option>}
+                <option value="ninguno">A ningún lado</option><option value="producto">A un producto</option><option value="productos">A varios productos</option><option value="sector">A un sector</option><option value="categoria">A una categoría</option><option value="marca">A una marca</option>{d.reingreso && d.reingreso.activo && <option value="reingreso">A "Nuevamente en stock"</option>}
               </select>
               {bn.destino === "producto" && (bn.valor ? <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 6, fontSize: 13 }}><b style={{ flex: 1 }}>{(productos.find(p => p.id === Number(bn.valor)) || {}).nombre || "Producto"}</b><button className="chip-btn" onClick={() => editar("banners_img", i, { valor: "" })}>Cambiar</button></div>
                 : <div style={{ marginTop: 6 }}><ElegirProductos productos={productos} ya={[]} temaPal={tp} placeholder="Escribí el nombre del producto…" onAgregar={id => editar("banners_img", i, { valor: String(id) })} /></div>)}
+              {bn.destino === "productos" && (() => { const ids = String(bn.valor || "").split(",").map(Number).filter(Boolean); return (
+                <div style={{ marginTop: 6 }}>
+                  {ids.map((id, k) => <div key={id} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4, fontSize: 13 }}><span style={{ color: tp.textMuted }}>{k + 1}.</span><b style={{ flex: 1 }}>{(productos.find(p => p.id === id) || {}).nombre || "Producto"}</b><button className="chip-btn" aria-label="Sacar este producto" onClick={() => editar("banners_img", i, { valor: ids.filter(x => x !== id).join(",") })}>✕</button></div>)}
+                  {ids.length < 12 && <ElegirProductos productos={productos} ya={ids} temaPal={tp} placeholder={ids.length ? "Sumá otro producto…" : "Escribí el nombre del primer producto…"} onAgregar={id => editar("banners_img", i, { valor: [...ids.filter(x => x !== id), id].join(",") })} />}
+                  <div className="dec-ayuda">{ids.length < 2 ? "Elegí 2 o más: al tocar el banner se abre una página con esos productos." : "Al tocar el banner se abre una página con estos " + ids.length + " productos (el título del banner es el título de la página)."}</div>
+                </div>); })()}
               {bn.destino === "sector" && <select className="sel" style={{ width: "100%", marginTop: 6 }} aria-label="Sector" value={bn.valor || ""} onChange={e => editar("banners_img", i, { valor: e.target.value })}><option value="">Elegí el sector…</option>{d.sectores.filter(sc => sc.nombre).map(sc => <option key={sc.id} value={sc.id}>{sc.nombre}</option>)}</select>}
               {bn.destino === "categoria" && <select className="sel" style={{ width: "100%", marginTop: 6 }} aria-label="Categoría" value={bn.valor || ""} onChange={e => editar("banners_img", i, { valor: e.target.value })}><option value="">Elegí la categoría…</option>{cats.map(c => <option key={c} value={c}>{c}</option>)}</select>}
               {bn.destino === "marca" && <select className="sel" style={{ width: "100%", marginTop: 6 }} aria-label="Marca" value={bn.valor || ""} onChange={e => editar("banners_img", i, { valor: e.target.value })}><option value="">Elegí la marca…</option>{marcas.map(c => <option key={c} value={c}>{c}</option>)}</select>}
