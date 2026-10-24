@@ -25537,6 +25537,14 @@ html:has(.tw){overflow-x:hidden}
 .tw-barra-pts i{display:block;height:100%;background:#c9a84c;border-radius:3px;transition:width .8s cubic-bezier(.2,.7,.2,1)}
 .tw-barra-pts.gris{background:#eee}
 .tw-tabs-chicas{margin-top:4px}
+.tw-cuenta-secs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:16px 0 6px;position:sticky;top:-1px;z-index:2;background:#fff;padding:6px 0}
+.tw-cuenta-secs button{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;background:#f6f4f0;border:1.5px solid transparent;border-radius:12px;padding:9px 4px;font-family:inherit;font-size:12px;font-weight:700;color:#555;cursor:pointer;line-height:1.2;text-align:center}
+.tw-cuenta-secs button.on{background:#fff;border-color:var(--n);color:var(--n)}
+.tw-cuenta-secs-ic{font-size:20px}
+.tw-cuenta-secs i{position:absolute;top:4px;right:6px;font-style:normal;background:#c9a84c;color:#111;border-radius:999px;font-size:10.5px;padding:1px 6px;font-weight:800}
+.tw-sec-tit{font-size:13px;font-weight:800;letter-spacing:.02em;margin:18px 0 8px;color:var(--n)}
+.tw-sec-plegado{margin:8px 0;font-size:13px}
+.tw-sec-plegado summary{cursor:pointer;color:#777;font-weight:600;padding:6px 0}
 .tw-est{position:relative;display:inline-block;line-height:1;letter-spacing:1px;vertical-align:-1px;white-space:nowrap}
 .tw-est-base{color:#ddd}
 .tw-est-llena{position:absolute;left:0;top:0;overflow:hidden;color:#f5a623}
@@ -29079,7 +29087,9 @@ function TiendaPublica({ slug }) {
       .sort((a, b) => (a.no - b.no) || (a.puntos_requeridos - b.puntos_requeridos));
     const proximo = premios.filter(pr => !pr.agotado && !pr.fuera_de_mes && pr.falta > 0).sort((a, b) => a.falta - b.falta)[0];
     const codigos = (miCuenta.canjes || []).filter(c => c.cupon && c.cupon.usable);
-    const pestana = formCuenta.pestana || "premios";
+    const SEC_DE = { premios: "puntos", logros: "puntos", codigos: "puntos", resenas: "compras", pedidos: "compras", compras: "compras" };
+    const sec = SEC_DE[formCuenta.pestana] || (["puntos", "compras", "piel"].includes(formCuenta.pestana) ? formCuenta.pestana : "puntos");
+    const verLogros = formCuenta.pestana === "logros" || !!formCuenta.verLogros;
     // Nivel: sale de todo lo que compró (no de los puntos que le quedan); 1 punto = pesos_por_punto de compra
     const NIV = ["Bronze", "Silver", "Gold", "Platinum", "Black"];
     const umbN = miCuenta.umbrales || {}, ppp = miCuenta.pesos_por_punto || 100, gastado = parseFloat(miCuenta.gastado) || 0;
@@ -29092,7 +29102,6 @@ function TiendaPublica({ slug }) {
     const logros = miCuenta.logros || [];
     const logrosOk = logros.filter(l => l.ok);
     const medSel = logros.find(l => l.id === formCuenta.medalla) || null;
-    const tab = (k, t, n) => <button className={pestana === k ? "on" : ""} onClick={() => setFormCuenta(x => ({ ...x, pestana: k }))}>{t}{n ? <span>{n}</span> : null}</button>;
     return (
       <div className="tw-cajon-cuerpo">
         <div className={"tw-puntos-card nivel-" + nivelC.toLowerCase()}>
@@ -29125,6 +29134,80 @@ function TiendaPublica({ slug }) {
             <small>También lo podés usar en el local: decí tu DNI en la caja.</small>
           </div>
         ); })()}
+        {canjeHecho && <div className="tw-cupon tw-cupon-nuevo">
+          <div style={{ fontSize: 13 }}>🎁 <b>¡Canjeaste {canjeHecho.nombre}!</b></div>
+          <div className="tw-cupon-cod">{canjeHecho.codigo}</div>
+          <div style={{ fontSize: 12.5, color: "#555" }}>{canjeHecho.descuento_pct ? "Usalo en tu próxima compra: acá en la tienda (al finalizar la compra) o en el local." : "Mostrá este código en el local para retirar tu premio."}</div>
+          {canjeHecho.descuento_pct > 0 && <button className="tw-btn" style={{ marginTop: 10, padding: "10px 18px", fontSize: 12 }} onClick={() => { setCuponIn(canjeHecho.codigo); setPaso(carrito.length ? "carrito" : null); }}>Usar ahora</button>}
+        </div>}
+        {avisoCuenta && <div role="alert" style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, fontSize: 13.5, fontWeight: 600, marginBottom: 10 }}>{avisoCuenta}</div>}
+        {/* Tres secciones grandes en vez de todo junto: puntos y premios, compras, y la piel */}
+        <div className="tw-cuenta-secs" role="tablist" aria-label="Secciones de mi cuenta">
+          {[["puntos", "🎁", "Puntos y premios", premios.filter(pr => !pr.no).length + codigos.length], ["compras", "🛍️", "Mis compras", misRes ? misRes.para_resenar.length : 0], ["piel", "🌿", "Mi piel", 0]].map(([k, ic, t, n]) => (
+            <button key={k} role="tab" aria-selected={sec === k} className={sec === k ? "on" : ""} onClick={() => setFormCuenta(x => ({ ...x, pestana: k }))}>
+              <span className="tw-cuenta-secs-ic" aria-hidden="true">{ic}</span>{t}{n ? <i>{n}</i> : null}
+            </button>
+          ))}
+        </div>
+        {sec === "puntos" && <>
+        {miCuenta.falta_cumple && (
+          <div className="tw-cumple-card">
+            <b>🎂 ¿Cuándo es tu cumple?</b>
+            <p>Contanos el día y el mes y te esperamos con un regalo en tu mes.</p>
+            <TwCumple value={formCuenta.cumpleTmp || ""} onChange={v => setFormCuenta(x => ({ ...x, cumpleTmp: v }))} />
+            <button className="tw-btn" style={{ padding: "9px 16px", fontSize: 11.5, marginTop: 8 }} disabled={!formCuenta.cumpleTmp} onClick={() => pedir("/cuenta/cumple", { method: "PUT", body: JSON.stringify({ fecha_nacimiento: formCuenta.cumpleTmp }) }).then(() => { setMiCuenta(m => ({ ...m, falta_cumple: false })); setFormCuenta(x => ({ ...x, cumpleTmp: null })); }).catch(e => setAvisoCuenta(e.message))}>Guardar mi cumple</button>
+          </div>
+        )}
+        {(miCuenta.canjes || []).length > 0 && (() => { const filaCod = (c) => {
+          const usable = c.cupon ? c.cupon.usable : c.estado === "pendiente";
+          return (
+            <div key={c.id} className={"tw-cupon" + (usable ? "" : " usado")}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                <b style={{ fontSize: 14 }}>{c.premio_nombre}</b>
+                <span className="tw-cupon-estado">{usable ? (c.cupon ? "Para usar" : "Para retirar") : (c.cupon ? "Usado" : "Entregado")}</span>
+              </div>
+              <div className="tw-cupon-cod">{c.codigo}</div>
+              {c.cupon && usable && <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ fontSize: 12.5, color: "#555" }}>{c.cupon.tipo === "%" ? c.cupon.valor + "% de descuento" : fmtTienda(c.cupon.valor) + " de descuento"}{c.cupon.vence ? " · vence el " + new Date(c.cupon.vence).toLocaleDateString("es-AR") : ""}</span>
+                <button className="tw-btn2" style={{ padding: "6px 12px", fontSize: 11 }} onClick={() => { setCuponIn(c.codigo); setPaso(carrito.length ? "carrito" : null); }}>Usar en mi compra</button>
+              </div>}
+              {!c.cupon && usable && <div style={{ fontSize: 12.5, color: "#555" }}>Mostralo en el local para retirar tu premio.</div>}
+            </div>
+          );
+        }; const usables = miCuenta.canjes.filter(c => c.cupon ? c.cupon.usable : c.estado === "pendiente"), usados = miCuenta.canjes.filter(c => !(c.cupon ? c.cupon.usable : c.estado === "pendiente")); return <>
+          {usables.length > 0 && <><div className="tw-sec-tit">🎟️ Tus códigos para usar</div>{usables.map(filaCod)}</>}
+          {usados.length > 0 && <details className="tw-sec-plegado"><summary>Códigos ya usados ({usados.length})</summary>{usados.map(filaCod)}</details>}
+        </>; })()}
+        <div className="tw-sec-tit">🎁 Canjeá tus puntos</div>
+        {(premios.length === 0 ? <p className="tw-vacio">Todavía no hay premios para canjear.</p> : (
+          <div className="tw-premios">
+            {premios.map(pr => (
+              <div key={pr.id} className={"tw-premio-card" + (pr.no ? "" : " ok")}>
+                <div className="tw-premio-img">{pr.imagen_url ? <img src={pr.imagen_url} alt="" /> : <span>{pr.descuento_pct ? pr.descuento_pct + "%" : "🎁"}</span>}{pr.descuento_pct ? <em>{pr.descuento_pct}% OFF</em> : null}</div>
+                <div className="tw-premio-n">{pr.nombre}</div>
+                <div className="tw-premio-pts">{pr.puntos_requeridos.toLocaleString("es-AR")} pts</div>
+                {pr.no ? <>
+                  <div className="tw-barra-pts gris"><i style={{ width: Math.min(100, pts / pr.puntos_requeridos * 100) + "%" }} /></div>
+                  <div className="tw-premio-falta">{pr.agotado ? "Agotado" : pr.fuera_de_mes ? "Solo en el mes de tu cumple" : "Te faltan " + pr.falta.toLocaleString("es-AR")}</div>
+                </> : <button className="tw-btn full" style={{ padding: "9px 10px", fontSize: 11.5, marginTop: 8 }} onClick={() => canjear(pr)}>Canjear</button>}
+              </div>
+            ))}
+          </div>
+        ))}
+        {(miCuenta.misiones || []).length > 0 && (
+          <div className="tw-misiones">
+            <b className="tw-misiones-tit">🎯 Misiones con puntos extra</b>
+            {miCuenta.misiones.map(m => (
+              <div key={m.id} className={"tw-mision" + (m.lograda ? " ok" : "") + (m.recien ? " recien" : "")}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}><b>{m.titulo}</b><span className="tw-mision-pts">+{m.puntos.toLocaleString("es-AR")} pts</span></div>
+                {m.lograda ? <div className="tw-mision-ok">{m.recien ? "🎉 ¡Misión cumplida! Ya sumaste los puntos" : "✓ Cumplida"}</div> : <>
+                  <div className="tw-barra-pts gris"><i style={{ width: Math.max(4, m.n / m.meta * 100) + "%" }} /></div>
+                  <div className="tw-mision-av"><span>{m.tipo === "monto" ? fmtTienda(m.n) + " de " + fmtTienda(m.meta) : m.n + " de " + m.meta}</span><span>Termina el {String(m.hasta).slice(8, 10)}/{String(m.hasta).slice(5, 7)}</span></div>
+                </>}
+              </div>
+            ))}
+          </div>
+        )}
         {miCuenta.competencia && (() => {
           const k = miCuenta.competencia, MES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
           const med = ["🥇", "🥈", "🥉"], pz = (p) => p.desde === p.hasta ? p.desde + "°" : p.desde + "° a " + p.hasta + "°";
@@ -29147,6 +29230,58 @@ function TiendaPublica({ slug }) {
             </div>
           );
         })()}
+        {logros.length > 0 && (
+          <button className="tw-logros-tira" aria-expanded={verLogros} onClick={() => setFormCuenta(x => ({ ...x, pestana: "puntos", verLogros: !verLogros }))}>
+            <span className="tw-logros-mini">{(logrosOk.length ? logrosOk : logros).slice(-4).map(l => <i key={l.id} className={l.ok ? "" : "off"}>{l.icono}</i>)}</span>
+            <span style={{ flex: 1, textAlign: "left" }}><b>Tus logros</b><small>{logrosOk.length} de {logros.length} medallas</small></span>
+            <TwIcono d={TW_DER} size={16} />
+          </button>
+        )}
+        {verLogros && (
+          <div className="tw-logros-sec">
+            <div className="tw-logros-cab">
+              <b>{logrosOk.length} de {logros.length} medallas</b>
+              <div className="tw-barra-pts gris"><i style={{ width: (logros.length ? logrosOk.length / logros.length * 100 : 0) + "%" }} /></div>
+            </div>
+            {medSel && <div className={"tw-med-detalle" + (medSel.ok ? " ok" : "")} key={medSel.id}>
+              <span className="tw-med-detalle-ic">{medSel.icono}</span>
+              <span style={{ flex: 1, minWidth: 0 }}><b>{medSel.nombre}</b><small>{medSel.desc}</small>
+                <em>{medSel.ok ? "✓ ¡Lo lograste!" : medSel.meta > 1 ? "Vas " + medSel.n + " de " + medSel.meta : "Todavía no"}</em></span>
+            </div>}
+            <div className="tw-logros">
+              {[...logrosOk, ...logros.filter(l => !l.ok)].map((l, i) => (
+                <button key={l.id} className={"tw-medalla" + (l.ok ? " ok" : "") + (medSel && medSel.id === l.id ? " sel" : "")} style={{ "--i": i }}
+                  onClick={() => setFormCuenta(x => ({ ...x, medalla: x.medalla === l.id ? null : l.id }))} aria-label={l.nombre + (l.ok ? ", lograda" : ", bloqueada")}>
+                  <span className="tw-med-disco"><span>{l.icono}</span></span>
+                  <b>{l.nombre}</b>
+                  {l.ok ? <small className="ok">✓ Lograda</small> : l.meta > 1 ? <small>{l.n}/{l.meta}</small> : <small>🔒</small>}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {miCuenta.amiga && (() => {
+          const am = miCuenta.amiga;
+          const link = (tienda.dominio ? "https://" + tienda.dominio + "/" : window.location.origin + window.location.pathname) + "?" + (tienda.dominio ? "" : "tienda=" + encodeURIComponent(slug) + "&") + "amiga=" + am.codigo;
+          const texto = "¡Te regalo " + am.pct + "% OFF en tu primera compra en " + tienda.titulo + "! 💛 Entrá con mi link: " + link;
+          return (
+            <div className="tw-amiga-card">
+              <div className="tw-amiga-card-ic" aria-hidden="true">💌</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <b>Invitá a una amiga</b>
+                <p>Ella tiene <b>{am.pct}% OFF</b> en su primera compra y vos sumás <b>{am.puntos.toLocaleString("es-AR")} puntos</b> cuando la retire.</p>
+                {am.invitadas > 0 && <div className="tw-amiga-stats">🎉 Ya invitaste a {am.invitadas} {am.invitadas === 1 ? "amiga" : "amigas"} · ganaste {am.ganados.toLocaleString("es-AR")} puntos</div>}
+                <div className="tw-amiga-cod"><span>{am.codigo}</span></div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                  <a className="tw-btn" style={{ padding: "9px 14px", fontSize: 11.5, textDecoration: "none" }} href={"https://wa.me/?text=" + encodeURIComponent(texto)} target="_blank" rel="noopener">Mandar por WhatsApp</a>
+                  <button className="tw-btn2" style={{ padding: "9px 14px", fontSize: 11.5 }} onClick={async () => { if (navigator.share) { try { await navigator.share({ title: tienda.titulo, text: texto, url: link }); return; } catch (e) { if (e && e.name === "AbortError") return; } } try { await navigator.clipboard.writeText(link); setCopiado("amiga"); setTimeout(() => setCopiado(null), 2500); } catch (e) { window.prompt("Copiá tu link:", link); } }}>{copiado === "amiga" ? "¡Link copiado!" : "Copiar mi link"}</button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+        </>}
+        {sec === "compras" && <>
         {porReponer.length > 0 && (
           <div className="tw-reponer-card">
             <b>🔁 Se te está por terminar</b>
@@ -29159,35 +29294,6 @@ function TiendaPublica({ slug }) {
             {porReponer.filter(i => i.p && !agotado(i.p)).length > 1 && <button className="tw-btn full" style={{ marginTop: 8, padding: "10px", fontSize: 12 }} onClick={() => recomprar(porReponer.filter(i => i.p && !agotado(i.p)))}>Reponer todo</button>}
           </div>
         )}
-        {rutinaCuenta && (() => {
-          const momento = formCuenta.rutinaMomento === "noche" ? "noche" : "dia";
-          const pasos = rutinaCuenta[momento].filter(x => x.prods.length || ["limpiador", "hidratante", "solar"].includes(x.k));
-          return (
-            <div className="tw-rutina-card">
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <b style={{ flex: 1 }}>🧴 Tu rutina</b>
-                <div className="tw-rutina-tabs" role="tablist">
-                  <button role="tab" aria-selected={momento === "dia"} className={momento === "dia" ? "on" : ""} onClick={() => setFormCuenta(x => ({ ...x, rutinaMomento: "dia" }))}>☀️ Mañana</button>
-                  <button role="tab" aria-selected={momento === "noche"} className={momento === "noche" ? "on" : ""} onClick={() => setFormCuenta(x => ({ ...x, rutinaMomento: "noche" }))}>🌙 Noche</button>
-                </div>
-              </div>
-              <ol className="tw-rutina-pasos">
-                {pasos.map((x, n) => (
-                  <li key={x.k} className={x.prods.length ? "" : "falta"}>
-                    <span className="tw-rutina-num">{n + 1}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="tw-rutina-t">{x.t}</div>
-                      {x.prods.length ? x.prods.map(i => <button key={i.producto_id} className="tw-rutina-prod" disabled={!i.p} onClick={() => { if (i.p) { setPaso(null); abrir(i.p); } }}>{i.nombre}</button>)
-                        : <button className="tw-rutina-falta" onClick={() => { setPaso(null); irCat("*", { tipo: x.k }); }}>Te falta este paso · ver opciones ›</button>}
-                      {x.frec && <small>{x.frec}</small>}
-                    </div>
-                  </li>
-                ))}
-              </ol>
-              <small style={{ color: "#888" }}>Armada con lo que compraste. Se aplica en este orden: de lo más liviano a lo más denso.</small>
-            </div>
-          );
-        })()}
         {porReponer.length === 0 && (() => {
           // Ultima compra (en el local o en la tienda): a un toque de volver a pedirla
           const u = (miCuenta.compras || []).find(c => (c.items || []).some(i => i.producto_id));
@@ -29203,21 +29309,39 @@ function TiendaPublica({ slug }) {
             </div>
           );
         })()}
-        {canjeHecho && <div className="tw-cupon tw-cupon-nuevo">
-          <div style={{ fontSize: 13 }}>🎁 <b>¡Canjeaste {canjeHecho.nombre}!</b></div>
-          <div className="tw-cupon-cod">{canjeHecho.codigo}</div>
-          <div style={{ fontSize: 12.5, color: "#555" }}>{canjeHecho.descuento_pct ? "Usalo en tu próxima compra: acá en la tienda (al finalizar la compra) o en el local." : "Mostrá este código en el local para retirar tu premio."}</div>
-          {canjeHecho.descuento_pct > 0 && <button className="tw-btn" style={{ marginTop: 10, padding: "10px 18px", fontSize: 12 }} onClick={() => { setCuponIn(canjeHecho.codigo); setPaso(carrito.length ? "carrito" : null); }}>Usar ahora</button>}
-        </div>}
-        {avisoCuenta && <div role="alert" style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, fontSize: 13.5, fontWeight: 600, marginBottom: 10 }}>{avisoCuenta}</div>}
-        {miCuenta.falta_cumple && (
-          <div className="tw-cumple-card">
-            <b>🎂 ¿Cuándo es tu cumple?</b>
-            <p>Contanos el día y el mes y te esperamos con un regalo en tu mes.</p>
-            <TwCumple value={formCuenta.cumpleTmp || ""} onChange={v => setFormCuenta(x => ({ ...x, cumpleTmp: v }))} />
-            <button className="tw-btn" style={{ padding: "9px 16px", fontSize: 11.5, marginTop: 8 }} disabled={!formCuenta.cumpleTmp} onClick={() => pedir("/cuenta/cumple", { method: "PUT", body: JSON.stringify({ fecha_nacimiento: formCuenta.cumpleTmp }) }).then(() => { setMiCuenta(m => ({ ...m, falta_cumple: false })); setFormCuenta(x => ({ ...x, cumpleTmp: null })); }).catch(e => setAvisoCuenta(e.message))}>Guardar mi cumple</button>
+        {misRes && (misRes.para_resenar.length > 0 || misRes.mias.length > 0) && <div className="tw-sec-tit">⭐ Reseñas</div>}
+        {misRes && !misRes.para_resenar.length && !misRes.mias.length ? null : (!misRes ? <div className="tw-skel" style={{ height: 100 }} /> : (
+          <div>
+            {misRes.para_resenar.length > 0 ? <>
+              <p style={{ fontSize: 13.5, color: "#555", margin: "4px 0 10px" }}>¿Qué te parecieron? Tu opinión ayuda a otras clientas a elegir 💛</p>
+              {ptsRes && <div className="tw-res-pts" style={{ marginBottom: 10 }}>🎁 <b>{textoPtsRes}</b> por cada reseña que publiquemos</div>}
+              {misRes.para_resenar.map(pr => (
+                <div key={pr.id} className="tw-fila-cuenta" style={{ alignItems: "center" }}>
+                  {pr.foto ? <img src={base + "/foto/" + pr.id} alt="" style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} /> : <span className="tw-mini" style={{ width: 44, height: 44 }} />}
+                  <span style={{ flex: 1, minWidth: 0 }}><b>{pr.nombre}</b></span>
+                  <button className="tw-btn" style={{ padding: "8px 14px", fontSize: 11.5 }} onClick={() => abrirFormRes(pr)}>⭐ Opinar</button>
+                </div>
+              ))}
+            </> : <p className="tw-vacio">{misRes.mias.length ? "¡Ya opinaste de todo lo que compraste! Gracias 💛" : "Cuando compres, acá vas a poder dejar tu reseña de cada producto."}</p>}
+            {misRes.mias.length > 0 && <>
+              <div className="tw-lbl" style={{ marginTop: 18 }}>Tus reseñas</div>
+              {misRes.mias.map(r => (
+                <div key={r.id} className="tw-fila-cuenta" style={{ flexDirection: "column", alignItems: "stretch", gap: 4 }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}><b style={{ flex: 1, minWidth: 0 }}>{r.nombre}</b><span className={"tw-res-estado " + r.estado}>{r.estado === "aprobada" ? "Publicada" : r.estado === "rechazada" ? "No publicada" : "En revisión"}</span>{r.puntos_dados > 0 && <span className="tw-res-estado aprobada">🎁 +{r.puntos_dados} pts</span>}</div>
+                  <TwEstrellas v={r.estrellas} size={13} />
+                  <div style={{ fontSize: 13, color: "#444" }}>{r.texto}</div>
+                  <button className="tw-btn2" style={{ alignSelf: "flex-start", padding: "6px 12px", fontSize: 11, marginTop: 4 }} onClick={() => abrirFormRes({ id: r.producto_id, nombre: r.nombre }, r)}>Editar</button>
+                </div>
+              ))}
+            </>}
           </div>
-        )}
+        ))}
+        {(miCuenta.pedidos || []).length > 0 && <div className="tw-sec-tit">📦 Pedidos online</div>}
+        {((miCuenta.pedidos || []).length === 0 ? null : miCuenta.pedidos.map(pd => <div key={pd.codigo} className="tw-fila-cuenta"><a href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo} style={{ display: "flex", flex: 1, justifyContent: "space-between", gap: 8, color: "inherit", textDecoration: "none", minWidth: 0 }}><span><b>N° {nroPedido(pd)}</b><small>{new Date(pd.creado_en).toLocaleDateString("es-AR")} · {(ESTADOS_PEDIDO_WEB[pd.estado] || ["", ""])[0].split(":")[0]}</small></span><span>{fmtTienda(pd.total)} ›</span></a>{pd.tipo !== "giftcard" && pd.estado === "entregado" && <button className="tw-recompra-btn" onClick={() => recomprarPedido(pd.codigo)}>🔁 Volver a pedir</button>}</div>))}
+        <div className="tw-sec-tit">🧾 Todas tus compras</div>
+        {((miCuenta.compras || []).length === 0 ? <p className="tw-vacio">Todavía no hay compras registradas.</p> : miCuenta.compras.map(c => <div key={c.id} className="tw-fila-cuenta" style={{ flexWrap: "wrap" }}><span style={{ flex: 1, minWidth: 0 }}><b>{new Date(c.creado_en).toLocaleDateString("es-AR")}</b><small>{(c.items || []).map(i => i.cantidad + " × " + i.nombre).join(", ")}</small></span><span>{fmtTienda(c.total)}</span>{(c.items || []).some(i => i.producto_id) && <button className="tw-recompra-btn" onClick={() => recomprar(c.items)}>🔁 Volver a pedir</button>}</div>))}
+        </>}
+        {sec === "piel" && <>
         {(() => {
           const pf = perfilPiel || {}, editando = !!formCuenta.pielTmp, tmp = formCuenta.pielTmp || {};
           const necOps = TW_FILTROS.find(f => f.k === "necesidad").op, pielOps = TW_FILTROS[1].op;
@@ -29260,133 +29384,36 @@ function TiendaPublica({ slug }) {
             </div>
           );
         })()}
-        {miCuenta.amiga && (() => {
-          const am = miCuenta.amiga;
-          const link = (tienda.dominio ? "https://" + tienda.dominio + "/" : window.location.origin + window.location.pathname) + "?" + (tienda.dominio ? "" : "tienda=" + encodeURIComponent(slug) + "&") + "amiga=" + am.codigo;
-          const texto = "¡Te regalo " + am.pct + "% OFF en tu primera compra en " + tienda.titulo + "! 💛 Entrá con mi link: " + link;
+        {rutinaCuenta && (() => {
+          const momento = formCuenta.rutinaMomento === "noche" ? "noche" : "dia";
+          const pasos = rutinaCuenta[momento].filter(x => x.prods.length || ["limpiador", "hidratante", "solar"].includes(x.k));
           return (
-            <div className="tw-amiga-card">
-              <div className="tw-amiga-card-ic" aria-hidden="true">💌</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <b>Invitá a una amiga</b>
-                <p>Ella tiene <b>{am.pct}% OFF</b> en su primera compra y vos sumás <b>{am.puntos.toLocaleString("es-AR")} puntos</b> cuando la retire.</p>
-                {am.invitadas > 0 && <div className="tw-amiga-stats">🎉 Ya invitaste a {am.invitadas} {am.invitadas === 1 ? "amiga" : "amigas"} · ganaste {am.ganados.toLocaleString("es-AR")} puntos</div>}
-                <div className="tw-amiga-cod"><span>{am.codigo}</span></div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-                  <a className="tw-btn" style={{ padding: "9px 14px", fontSize: 11.5, textDecoration: "none" }} href={"https://wa.me/?text=" + encodeURIComponent(texto)} target="_blank" rel="noopener">Mandar por WhatsApp</a>
-                  <button className="tw-btn2" style={{ padding: "9px 14px", fontSize: 11.5 }} onClick={async () => { if (navigator.share) { try { await navigator.share({ title: tienda.titulo, text: texto, url: link }); return; } catch (e) { if (e && e.name === "AbortError") return; } } try { await navigator.clipboard.writeText(link); setCopiado("amiga"); setTimeout(() => setCopiado(null), 2500); } catch (e) { window.prompt("Copiá tu link:", link); } }}>{copiado === "amiga" ? "¡Link copiado!" : "Copiar mi link"}</button>
+            <div className="tw-rutina-card">
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <b style={{ flex: 1 }}>🧴 Tu rutina</b>
+                <div className="tw-rutina-tabs" role="tablist">
+                  <button role="tab" aria-selected={momento === "dia"} className={momento === "dia" ? "on" : ""} onClick={() => setFormCuenta(x => ({ ...x, rutinaMomento: "dia" }))}>☀️ Mañana</button>
+                  <button role="tab" aria-selected={momento === "noche"} className={momento === "noche" ? "on" : ""} onClick={() => setFormCuenta(x => ({ ...x, rutinaMomento: "noche" }))}>🌙 Noche</button>
                 </div>
               </div>
+              <ol className="tw-rutina-pasos">
+                {pasos.map((x, n) => (
+                  <li key={x.k} className={x.prods.length ? "" : "falta"}>
+                    <span className="tw-rutina-num">{n + 1}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="tw-rutina-t">{x.t}</div>
+                      {x.prods.length ? x.prods.map(i => <button key={i.producto_id} className="tw-rutina-prod" disabled={!i.p} onClick={() => { if (i.p) { setPaso(null); abrir(i.p); } }}>{i.nombre}</button>)
+                        : <button className="tw-rutina-falta" onClick={() => { setPaso(null); irCat("*", { tipo: x.k }); }}>Te falta este paso · ver opciones ›</button>}
+                      {x.frec && <small>{x.frec}</small>}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+              <small style={{ color: "#888" }}>Armada con lo que compraste. Se aplica en este orden: de lo más liviano a lo más denso.</small>
             </div>
           );
         })()}
-        {(miCuenta.misiones || []).length > 0 && (
-          <div className="tw-misiones">
-            <b className="tw-misiones-tit">🎯 Misiones con puntos extra</b>
-            {miCuenta.misiones.map(m => (
-              <div key={m.id} className={"tw-mision" + (m.lograda ? " ok" : "") + (m.recien ? " recien" : "")}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}><b>{m.titulo}</b><span className="tw-mision-pts">+{m.puntos.toLocaleString("es-AR")} pts</span></div>
-                {m.lograda ? <div className="tw-mision-ok">{m.recien ? "🎉 ¡Misión cumplida! Ya sumaste los puntos" : "✓ Cumplida"}</div> : <>
-                  <div className="tw-barra-pts gris"><i style={{ width: Math.max(4, m.n / m.meta * 100) + "%" }} /></div>
-                  <div className="tw-mision-av"><span>{m.tipo === "monto" ? fmtTienda(m.n) + " de " + fmtTienda(m.meta) : m.n + " de " + m.meta}</span><span>Termina el {String(m.hasta).slice(8, 10)}/{String(m.hasta).slice(5, 7)}</span></div>
-                </>}
-              </div>
-            ))}
-          </div>
-        )}
-        {logros.length > 0 && pestana !== "logros" && (
-          <button className="tw-logros-tira" onClick={() => setFormCuenta(x => ({ ...x, pestana: "logros" }))}>
-            <span className="tw-logros-mini">{(logrosOk.length ? logrosOk : logros).slice(-4).map(l => <i key={l.id} className={l.ok ? "" : "off"}>{l.icono}</i>)}</span>
-            <span style={{ flex: 1, textAlign: "left" }}><b>Tus logros</b><small>{logrosOk.length} de {logros.length} medallas</small></span>
-            <TwIcono d={TW_DER} size={16} />
-          </button>
-        )}
-        <div className="tw-tabs-cuenta tw-tabs-chicas">
-          {tab("premios", "Premios")}{logros.length > 0 && tab("logros", "Logros")}{tab("codigos", "Mis códigos", codigos.length)}{tab("resenas", "Reseñas", misRes ? misRes.para_resenar.length : 0)}{tab("pedidos", "Pedidos")}{tab("compras", "Compras")}
-        </div>
-        {pestana === "premios" && (premios.length === 0 ? <p className="tw-vacio">Todavía no hay premios para canjear.</p> : (
-          <div className="tw-premios">
-            {premios.map(pr => (
-              <div key={pr.id} className={"tw-premio-card" + (pr.no ? "" : " ok")}>
-                <div className="tw-premio-img">{pr.imagen_url ? <img src={pr.imagen_url} alt="" /> : <span>{pr.descuento_pct ? pr.descuento_pct + "%" : "🎁"}</span>}{pr.descuento_pct ? <em>{pr.descuento_pct}% OFF</em> : null}</div>
-                <div className="tw-premio-n">{pr.nombre}</div>
-                <div className="tw-premio-pts">{pr.puntos_requeridos.toLocaleString("es-AR")} pts</div>
-                {pr.no ? <>
-                  <div className="tw-barra-pts gris"><i style={{ width: Math.min(100, pts / pr.puntos_requeridos * 100) + "%" }} /></div>
-                  <div className="tw-premio-falta">{pr.agotado ? "Agotado" : pr.fuera_de_mes ? "Solo en el mes de tu cumple" : "Te faltan " + pr.falta.toLocaleString("es-AR")}</div>
-                </> : <button className="tw-btn full" style={{ padding: "9px 10px", fontSize: 11.5, marginTop: 8 }} onClick={() => canjear(pr)}>Canjear</button>}
-              </div>
-            ))}
-          </div>
-        ))}
-        {pestana === "logros" && (
-          <div className="tw-logros-sec">
-            <div className="tw-logros-cab">
-              <b>{logrosOk.length} de {logros.length} medallas</b>
-              <div className="tw-barra-pts gris"><i style={{ width: (logros.length ? logrosOk.length / logros.length * 100 : 0) + "%" }} /></div>
-            </div>
-            {medSel && <div className={"tw-med-detalle" + (medSel.ok ? " ok" : "")} key={medSel.id}>
-              <span className="tw-med-detalle-ic">{medSel.icono}</span>
-              <span style={{ flex: 1, minWidth: 0 }}><b>{medSel.nombre}</b><small>{medSel.desc}</small>
-                <em>{medSel.ok ? "✓ ¡Lo lograste!" : medSel.meta > 1 ? "Vas " + medSel.n + " de " + medSel.meta : "Todavía no"}</em></span>
-            </div>}
-            <div className="tw-logros">
-              {[...logrosOk, ...logros.filter(l => !l.ok)].map((l, i) => (
-                <button key={l.id} className={"tw-medalla" + (l.ok ? " ok" : "") + (medSel && medSel.id === l.id ? " sel" : "")} style={{ "--i": i }}
-                  onClick={() => setFormCuenta(x => ({ ...x, medalla: x.medalla === l.id ? null : l.id }))} aria-label={l.nombre + (l.ok ? ", lograda" : ", bloqueada")}>
-                  <span className="tw-med-disco"><span>{l.icono}</span></span>
-                  <b>{l.nombre}</b>
-                  {l.ok ? <small className="ok">✓ Lograda</small> : l.meta > 1 ? <small>{l.n}/{l.meta}</small> : <small>🔒</small>}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        {pestana === "resenas" && (!misRes ? <div className="tw-skel" style={{ height: 100 }} /> : (
-          <div>
-            {misRes.para_resenar.length > 0 ? <>
-              <p style={{ fontSize: 13.5, color: "#555", margin: "4px 0 10px" }}>¿Qué te parecieron? Tu opinión ayuda a otras clientas a elegir 💛</p>
-              {ptsRes && <div className="tw-res-pts" style={{ marginBottom: 10 }}>🎁 <b>{textoPtsRes}</b> por cada reseña que publiquemos</div>}
-              {misRes.para_resenar.map(pr => (
-                <div key={pr.id} className="tw-fila-cuenta" style={{ alignItems: "center" }}>
-                  {pr.foto ? <img src={base + "/foto/" + pr.id} alt="" style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} /> : <span className="tw-mini" style={{ width: 44, height: 44 }} />}
-                  <span style={{ flex: 1, minWidth: 0 }}><b>{pr.nombre}</b></span>
-                  <button className="tw-btn" style={{ padding: "8px 14px", fontSize: 11.5 }} onClick={() => abrirFormRes(pr)}>⭐ Opinar</button>
-                </div>
-              ))}
-            </> : <p className="tw-vacio">{misRes.mias.length ? "¡Ya opinaste de todo lo que compraste! Gracias 💛" : "Cuando compres, acá vas a poder dejar tu reseña de cada producto."}</p>}
-            {misRes.mias.length > 0 && <>
-              <div className="tw-lbl" style={{ marginTop: 18 }}>Tus reseñas</div>
-              {misRes.mias.map(r => (
-                <div key={r.id} className="tw-fila-cuenta" style={{ flexDirection: "column", alignItems: "stretch", gap: 4 }}>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}><b style={{ flex: 1, minWidth: 0 }}>{r.nombre}</b><span className={"tw-res-estado " + r.estado}>{r.estado === "aprobada" ? "Publicada" : r.estado === "rechazada" ? "No publicada" : "En revisión"}</span>{r.puntos_dados > 0 && <span className="tw-res-estado aprobada">🎁 +{r.puntos_dados} pts</span>}</div>
-                  <TwEstrellas v={r.estrellas} size={13} />
-                  <div style={{ fontSize: 13, color: "#444" }}>{r.texto}</div>
-                  <button className="tw-btn2" style={{ alignSelf: "flex-start", padding: "6px 12px", fontSize: 11, marginTop: 4 }} onClick={() => abrirFormRes({ id: r.producto_id, nombre: r.nombre }, r)}>Editar</button>
-                </div>
-              ))}
-            </>}
-          </div>
-        ))}
-        {pestana === "codigos" && ((miCuenta.canjes || []).length === 0 ? <p className="tw-vacio">Cuando canjees un premio, tu código aparece acá.</p> : (miCuenta.canjes || []).map(c => {
-          const usable = c.cupon ? c.cupon.usable : c.estado === "pendiente";
-          return (
-            <div key={c.id} className={"tw-cupon" + (usable ? "" : " usado")}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-                <b style={{ fontSize: 14 }}>{c.premio_nombre}</b>
-                <span className="tw-cupon-estado">{usable ? (c.cupon ? "Para usar" : "Para retirar") : (c.cupon ? "Usado" : "Entregado")}</span>
-              </div>
-              <div className="tw-cupon-cod">{c.codigo}</div>
-              {c.cupon && usable && <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <span style={{ fontSize: 12.5, color: "#555" }}>{c.cupon.tipo === "%" ? c.cupon.valor + "% de descuento" : fmtTienda(c.cupon.valor) + " de descuento"}{c.cupon.vence ? " · vence el " + new Date(c.cupon.vence).toLocaleDateString("es-AR") : ""}</span>
-                <button className="tw-btn2" style={{ padding: "6px 12px", fontSize: 11 }} onClick={() => { setCuponIn(c.codigo); setPaso(carrito.length ? "carrito" : null); }}>Usar en mi compra</button>
-              </div>}
-              {!c.cupon && usable && <div style={{ fontSize: 12.5, color: "#555" }}>Mostralo en el local para retirar tu premio.</div>}
-            </div>
-          );
-        }))}
-        {pestana === "pedidos" && ((miCuenta.pedidos || []).length === 0 ? <p className="tw-vacio">Todavía no hiciste pedidos en la tienda.</p> : miCuenta.pedidos.map(pd => <div key={pd.codigo} className="tw-fila-cuenta"><a href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo} style={{ display: "flex", flex: 1, justifyContent: "space-between", gap: 8, color: "inherit", textDecoration: "none", minWidth: 0 }}><span><b>N° {nroPedido(pd)}</b><small>{new Date(pd.creado_en).toLocaleDateString("es-AR")} · {(ESTADOS_PEDIDO_WEB[pd.estado] || ["", ""])[0].split(":")[0]}</small></span><span>{fmtTienda(pd.total)} ›</span></a>{pd.tipo !== "giftcard" && pd.estado === "entregado" && <button className="tw-recompra-btn" onClick={() => recomprarPedido(pd.codigo)}>🔁 Volver a pedir</button>}</div>))}
-        {pestana === "compras" && ((miCuenta.compras || []).length === 0 ? <p className="tw-vacio">Todavía no hay compras registradas.</p> : miCuenta.compras.map(c => <div key={c.id} className="tw-fila-cuenta" style={{ flexWrap: "wrap" }}><span style={{ flex: 1, minWidth: 0 }}><b>{new Date(c.creado_en).toLocaleDateString("es-AR")}</b><small>{(c.items || []).map(i => i.cantidad + " × " + i.nombre).join(", ")}</small></span><span>{fmtTienda(c.total)}</span>{(c.items || []).some(i => i.producto_id) && <button className="tw-recompra-btn" onClick={() => recomprar(c.items)}>🔁 Volver a pedir</button>}</div>))}
+        </>}
         <button className="tw-btn2" style={{ marginTop: 22 }} onClick={salirCuenta}>Cerrar sesión</button>
       </div>
     );
