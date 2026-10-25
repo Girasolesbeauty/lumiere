@@ -25833,7 +25833,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-pie-link{background:none;border:none;padding:0;color:#fff;font:inherit;cursor:pointer;text-align:left}
 .tw-pie-link:hover{text-decoration:underline}
 .tw-pie-legal{max-width:1280px;margin:0 auto;padding:0 20px 18px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;font-size:12.5px}
-.tw-pie-legal a{color:#bbb;text-decoration:underline}
+.tw-pie .tw-pie-defensa{display:block;margin-top:6px;font-size:10.5px;color:#555;text-decoration:none}
 .tw-pie .tw-pie-arrep{background:#fff;color:#000 !important;border:none;border-radius:999px;padding:8px 16px;font:inherit;font-size:12.5px;font-weight:800;cursor:pointer}
 .tw-pie-df img{height:62px;width:auto;display:block;border-radius:4px;background:#fff}
 .tw-pie .tw-pie-df-txt{display:none;flex-direction:column;align-items:center;justify-content:center;width:62px;height:62px;border-radius:6px;background:#fff;color:#000;font-size:10px;font-weight:900;letter-spacing:.04em;text-align:center;line-height:1.2;text-decoration:none}
@@ -26208,6 +26208,7 @@ const twMultTxt = (m) => m === 3 ? "el triple" : "el doble";
 // "los domingos", "los sábados y domingos"
 const twDiasTxt = (dias) => { const n = (dias || []).map(d => TW_DIAS[d]).map(t => t.endsWith("s") ? t : t + "s"); return "los " + (n.length > 1 ? n.slice(0, -1).join(", ") + " y " + n[n.length - 1] : n[0] || ""); };
 // Pie legal de la tienda: politicas (texto de Lumiere) y boton de arrepentimiento (Res. 424/2020) en una ventana
+const TW_DEFENSA_CONSUMIDOR = "https://www.argentina.gob.ar/produccion/defensadelconsumidor/formulario";
 const TW_LEGALES = { cambios: "Cambios y devoluciones", envios: "Envíos y retiros", faq: "Preguntas frecuentes", privacidad: "Privacidad", arrepentimiento: "Botón de arrepentimiento" };
 function TwLegal({ k, tienda, pedir, onCerrar }) {
   const [f, setF] = useState({ nombre: "", contacto: "", pedido: "", motivo: "" });
@@ -26243,6 +26244,7 @@ function TwLegal({ k, tienda, pedir, onCerrar }) {
               <textarea className="tw-inp" rows={3} placeholder="Comentario (opcional)" value={f.motivo} onChange={e => setF(x => ({ ...x, motivo: e.target.value }))} style={{ fontFamily: "inherit", resize: "vertical" }} />
               {error && <div role="alert" style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, fontSize: 13.5, fontWeight: 600 }}>{error}</div>}
               <button className="tw-btn full" type="submit" disabled={enviando}>{enviando ? "Enviando…" : "Enviar pedido de arrepentimiento"}</button>
+              <a href={TW_DEFENSA_CONSUMIDOR} target="_blank" rel="noopener" style={{ fontSize: 11.5, color: "#999", textAlign: "center", marginTop: 4 }}>Defensa de las y los Consumidores. Para reclamos ingrese aquí</a>
             </form>
           )}
         </div>
@@ -28969,10 +28971,12 @@ function TiendaPublica({ slug }) {
       </div>
       <div className="tw-pie-legal">
         <button onClick={() => setLegal("arrepentimiento")} className="tw-pie-arrep">Botón de arrepentimiento</button>
-        <a href="https://www.argentina.gob.ar/produccion/defensadelconsumidor/formulario" target="_blank" rel="noopener">Defensa de las y los Consumidores. Para reclamos ingrese aquí</a>
         {tienda.legales && tienda.legales.data_fiscal && <a href={tienda.legales.data_fiscal} target="_blank" rel="noopener" className="tw-pie-df" aria-label="Data Fiscal (ARCA)"><img src="https://www.afip.gob.ar/images/f960/DATAWEB.jpg" alt="Data Fiscal" loading="lazy" onError={e => { e.currentTarget.style.display = "none"; e.currentTarget.nextSibling.style.display = "inline-flex"; }} /><span className="tw-pie-df-txt">DATA FISCAL<small>ARCA</small></span></a>}
       </div>
-      <div className="tw-pie-fin">© {new Date().getFullYear()} {tienda.titulo}{!tienda.legales || tienda.legales.firma_lumiere !== false ? " · Tienda hecha con Lumiere" : ""}</div>
+      <div className="tw-pie-fin">© {new Date().getFullYear()} {tienda.titulo}{!tienda.legales || tienda.legales.firma_lumiere !== false ? " · Tienda hecha con Lumiere" : ""}
+        {/* Obligatorio, pero discreto: en la ultima linea del pie y dentro del boton de arrepentimiento */}
+        <a className="tw-pie-defensa" href={TW_DEFENSA_CONSUMIDOR} target="_blank" rel="noopener">Defensa de las y los Consumidores. Para reclamos ingrese aquí</a>
+      </div>
       {legal && <TwLegal k={legal} tienda={tienda} pedir={pedir} onCerrar={() => setLegal(null)} />}
     </footer>
   );
