@@ -25220,6 +25220,7 @@ html:has(.tw){overflow-x:hidden}
 .tw-oferta-termina{font-size:9.5px;margin:8px 0 4px}.tw-oferta .tw-reloj{gap:5px}.tw-oferta .tw-reloj-c{min-width:40px;padding:4px 3px;border-radius:10px}.tw-oferta .tw-reloj-c b{font-size:17px}.tw-oferta .tw-reloj-c small{font-size:8.5px;margin-top:2px}
 .tw-oferta-btns{margin-top:10px!important}.tw-oferta-btns .tw-btn{padding:9px 16px;font-size:11.5px}.tw-oferta-btns .tw-btn2{display:none}}
 .tw-puntosdia-barra{background:linear-gradient(90deg,#fff6d6,#ffeccc);color:#6b4a0c;text-align:center;font-size:13.5px;padding:9px 16px;border-bottom:1px solid #f3dfa6}
+.tw-puntosdia-cuenta{margin-top:8px;font-size:12.5px;background:rgba(255,255,255,.45);border-radius:10px;padding:6px 10px}
 .tw-puntos-x{display:inline-block;margin-left:6px;background:#2a1f14;color:#ffd977;border-radius:999px;font-size:11px;font-weight:800;padding:1px 8px;vertical-align:1px}
 .tw-amiga-barra{background:linear-gradient(90deg,#fde7ee,#fff3e6);color:#7a3b4f;text-align:center;font-size:13.5px;padding:9px 16px;border-bottom:1px solid #f6d8e0}
 .tw-amiga-check{font-size:13px;border-radius:10px;padding:9px 11px;margin:0 0 8px;background:#fff6f8;color:#7a3b4f;border:1px dashed #efc2cf}
@@ -26147,6 +26148,10 @@ const TW_DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes"
 const twDiaAR = () => ({ Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 })[new Intl.DateTimeFormat("en-US", { timeZone: "America/Argentina/Buenos_Aires", weekday: "short" }).format(new Date())];
 const twMultHoy = (pd) => pd && (pd.dias || []).includes(twDiaAR()) ? pd.mult : null;
 const twMultTxt = (m) => m === 3 ? "el triple" : "el doble";
+// "los domingos", "los sábados y domingos"
+const twDiasTxt = (dias) => { const n = (dias || []).map(d => TW_DIAS[d]).map(t => t.endsWith("s") ? t : t + "s"); return "los " + (n.length > 1 ? n.slice(0, -1).join(", ") + " y " + n[n.length - 1] : n[0] || ""); };
+// Mañana es dia de puntos extra (y hoy no): para avisar el dia antes
+const twMultManiana = (pd) => pd && !twMultHoy(pd) && (pd.dias || []).includes((twDiaAR() + 1) % 7) ? pd.mult : null;
 function TwPuntos({ monto, tengo, mult }) {
   const pts = Math.floor(Math.max(0, monto) / 100) * (mult || 1);
   const prev = useRef(pts);
@@ -29140,6 +29145,7 @@ function TiendaPublica({ slug }) {
           <div style={{ fontSize: 13, opacity: .85 }}>Hola, {String(miCuenta.nombre || "").split(" ")[0]} 👋</div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8, margin: "6px 0 2px" }}><span style={{ fontSize: 42, fontWeight: 800, lineHeight: 1 }}>{pts.toLocaleString("es-AR")}</span><span style={{ fontSize: 15, fontWeight: 700 }}>puntos</span>{miCuenta.nivel && <span className="tw-nivel">{nivelC}</span>}</div>
           <div style={{ fontSize: 12.5, opacity: .8 }}>Sumás 1 punto cada {fmtTienda(miCuenta.pesos_por_punto || 100)} de compra</div>
+          {tienda.puntos_dia && <div className="tw-puntosdia-cuenta">🌻 {twMultHoy(tienda.puntos_dia) ? <><b>¡Hoy sumás {twMultTxt(tienda.puntos_dia.mult)}!</b> {twDiasTxt(tienda.puntos_dia.dias).replace(/^l/, "L")} tus compras online suman {twMultTxt(tienda.puntos_dia.mult)} de puntos.</> : <>{twDiasTxt(tienda.puntos_dia.dias).replace(/^l/, "L")} tus compras online suman <b>{twMultTxt(tienda.puntos_dia.mult)} de puntos</b>.</>}</div>}
           {miCuenta.umbrales && (sigNiv ? <div className="tw-niv-prox">
             <div style={{ fontSize: 12.5 }}>Te {faltaNivPts === 1 ? "falta" : "faltan"} <b>{faltaNivPts.toLocaleString("es-AR")} {faltaNivPts === 1 ? "punto" : "puntos"}</b> para ser <b>{sigNiv}</b> <span style={{ opacity: .75 }}>(≈ {fmtTienda(faltaNivPts * ppp)} en compras)</span></div>
             <div className="tw-barra-pts tw-barra-niv"><i style={{ width: pctNiv + "%" }} /></div>
@@ -29455,6 +29461,7 @@ function TiendaPublica({ slug }) {
     <div className={"tw" + (vistaTk ? " en-vista" : "")} style={{ "--c": color }}><style>{CSS_TIENDA}</style>
       {vistaTk && <div className="tw-vista-barra" role="status"><span>👁️ Viendo la tienda como <b>{miCuenta ? String(miCuenta.nombre || "la clienta") : "la clienta"}</b> · solo para mirar</span><button onClick={salirVista}>Salir</button></div>}
       {cabecera}
+      {!amigaInfo && twMultManiana(tienda.puntos_dia) && <div className="tw-puntosdia-barra" role="note">🌻 <b>Mañana es {TW_DIAS[(twDiaAR() + 1) % 7]} de puntos:</b> tus compras online suman <b>{twMultTxt(twMultManiana(tienda.puntos_dia))} de puntos</b>. ¡Armá tu carrito y comprá mañana!</div>}
       {!amigaInfo && twMultHoy(tienda.puntos_dia) && <div className="tw-puntosdia-barra" role="note">🌻 <b>Hoy es {TW_DIAS[twDiaAR()]} de puntos:</b> tus compras online suman <b>{twMultTxt(twMultHoy(tienda.puntos_dia))} de puntos</b>{logueada ? "" : " · entrá con tu cuenta para sumarlos"}</div>}
       {amigaInfo && <div className="tw-amiga-barra" role="note">💌 <b>{amigaInfo.nombre}</b> te regaló <b>{amigaInfo.pct}% OFF</b> en tu primera compra · se aplica al finalizar</div>}
       {(cats.length > 0 || sectores.length > 0 || reingresados.length > 0 || reels.length > 0 || preventas.length > 0 || favs.length > 0 || tienda.regalos) && (
@@ -32045,6 +32052,24 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
         <div className="cli-chips">{["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"].map((t, d) => { const on = (pdia.dias || []).includes(d); return <button key={d} className={"chip-btn" + (on ? " on" : "")} disabled={!esJefe} onClick={() => setPdia(x => ({ ...x, dias: on ? (x.dias || []).filter(y => y !== d) : [...(x.dias || []), d].sort() }))}>{t}</button>; })}</div>
         <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 8 }}>Cuenta el día en que la clienta hace el pedido (de 0 a 24 h), aunque lo retire otro día. Necesita tener cuenta en la tienda para sumar puntos. Ej.: una compra de $40.000 un domingo suma 400 puntos comunes + {(400 * ((Number(pdia.mult) || 2) - 1)).toLocaleString("es-AR")} extra.</div>
         {esJefe && <button className="btn btn-g btn-sm" style={{ marginTop: 10 }} onClick={guardarPdia}>Guardar</button>}
+        {pdia.activo && (pdia.dias || []).length > 0 && (() => {
+          const nombres = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+          const pl = (pdia.dias || []).map(d => nombres[d]).map(t => t.endsWith("s") ? t : t + "s");
+          const dias = pl.length > 1 ? pl.slice(0, -1).join(", ") + " y " + pl[pl.length - 1] : pl[0];
+          const mult = Number(pdia.mult) === 3 ? "EL TRIPLE" : "EL DOBLE";
+          const msj = "🌻 ¡Novedad! Los " + dias + " tus compras en nuestra tienda online suman " + mult + " de puntos ✨\nComprá desde tu casa, sumá más rápido y canjeá premios 🎁" + (urlTienda ? "\n👉 " + urlTienda : "") + "\n(Entrá con tu cuenta para que se carguen a tu nombre)";
+          return (
+            <div style={{ marginTop: 16, borderTop: "1px solid " + temaPal.border, paddingTop: 12 }}>
+              <div className="fl">📣 Avisales a tus clientas</div>
+              <div style={{ fontSize: 12.5, color: temaPal.textMuted, margin: "2px 0 8px" }}>La tienda ya lo avisa sola: el día antes ("Mañana es domingo de puntos"), ese día arriba de todo, en el carrito y en "Mi cuenta". Para que llegue a más clientas, compartí este mensaje en tu historia de Instagram o en tu estado de WhatsApp (mejor el sábado a la tarde y el domingo a la mañana).</div>
+              <div style={{ whiteSpace: "pre-wrap", background: temaPal.bg, borderRadius: 10, padding: 10, fontSize: 13 }}>{msj}</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                <button className="btn btn-g btn-sm" onClick={() => { try { navigator.clipboard.writeText(msj); avisar(true, "✓ Mensaje copiado"); } catch (e) { avisar(false, "No se pudo copiar"); } }}>📋 Copiar mensaje</button>
+                <a className="btn btn-g btn-sm" style={{ textDecoration: "none" }} href={"https://wa.me/?text=" + encodeURIComponent(msj)} target="_blank" rel="noopener">Compartir por WhatsApp</a>
+              </div>
+            </div>
+          );
+        })()}
       </div>}
       {secO === "amiga" && <div className="card">
         <div className="ct">💌 Invitá a una amiga</div>
