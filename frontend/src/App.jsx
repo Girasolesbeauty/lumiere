@@ -32230,8 +32230,12 @@ function RegalosTienda({ cfg, pedidos, temaPal, avisar, urlTienda, esJefe, onGua
       </div>}
       {secR === "sector" && <div className="card">
         <div className="ct">🎁 Sector "¿Querés hacer un regalo?"</div>
-        {sw("activo", "Mostrar el sector en la tienda", "Botón dorado en el menú de la tienda.")}
-        {r.activo && <label style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer", marginTop: 10, marginLeft: 26 }}><input type="checkbox" checked={r.en_inicio !== false} disabled={!esJefe} onChange={e => set("en_inicio", e.target.checked)} style={{ marginTop: 3 }} /><span><b>También la franja grande en el inicio</b><div style={{ fontSize: 12, color: temaPal.textMuted }}>Si la sacás, el sector sigue en el menú.</div></span></label>}
+        {/* Dos opciones al mismo nivel: el boton del menu (prende o apaga todo el sector) y la franja del inicio */}
+        <div style={{ border: "1px solid " + temaPal.border, borderRadius: 12, padding: "10px 14px 12px", marginTop: 10 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 800 }}>¿Dónde se ve?</div>
+          {sw("activo", "En el menú de la tienda (botón dorado \"Gift Cards\")", "Si lo apagás, el sector deja de verse en toda la tienda (menú e inicio).")}
+          <label style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: r.activo ? "pointer" : "default", marginTop: 10, opacity: r.activo ? 1 : .5 }}><input type="checkbox" checked={!!r.activo && r.en_inicio !== false} disabled={!esJefe || !r.activo} onChange={e => set("en_inicio", e.target.checked)} style={{ marginTop: 3 }} /><span><b style={{ fontSize: 13.5 }}>En el inicio de la tienda (la franja grande)</b><div style={{ fontSize: 12, color: temaPal.textMuted }}>{r.activo ? "Apagalo si querés que las Gift Cards estén solo en el menú: la franja deja de verse y el botón del menú sigue." : "Prendé primero el botón del menú."}</div></span></label>
+        </div>
         <div style={{ fontSize: 12.5, fontWeight: 800, marginTop: 14 }}>Temática</div>
         <div style={fila}>
           {[["auto", "✨ Automática"], ["madre", "🌻 Día de la Madre"], ["padre", "👔 Día del Padre"], ["navidad", "🎄 Navidad"], ["enamorados", "💘 San Valentín"], ["general", "🎁 General"]].map(([k, n]) => <button key={k} className={"chip-btn" + ((r.tema || "auto") === k ? " on" : "")} disabled={!esJefe} onClick={() => set("tema", k)}>{n}</button>)}
