@@ -108,6 +108,7 @@ router.get('/:slug', async (req, res) => {
       icono_v: c.icono ? versionIcono(c.icono) : null,
       rutinas: tienda.rutinasDe(c).filter(x => x.activo).map(x => ({ ...x, video: tienda.videoRutina(x.video_url), video_url: undefined })),
       referidos: (() => { const r = tienda.referidosDe(c); return r.activo ? { pct: r.pct, puntos: r.puntos } : null; })(),
+      legales: (() => { const l = tienda.legalesDe(c); return { data_fiscal: l.data_fiscal, paginas: l.paginas, firma_lumiere: l.firma_lumiere }; })(),
       puntos_dia: (() => { const k = tienda.puntosDiaDe(c); return k.activo ? { mult: k.mult, dias: k.dias } : null; })(),
       ofertas: (() => { const o = tienda.ofertasDe(c), d = tienda.ofertaDiaActiva(c); return { dia: d ? { producto_id: d.producto_id, precio: d.precio, hasta: d.hasta, titulo: d.titulo } : null, combos: o.combos.filter(tienda.comboVigente).map(x => ({ id: x.id, nombre: x.nombre, productos: x.productos, cantidades: x.cantidades, precio: x.precio })) }; })(),
       descuentos_pago: (() => { const d = tienda.descuentosPagoDe(c); return Object.fromEntries(Object.entries(d).filter(([, v]) => v > 0)); })(),
@@ -360,6 +361,29 @@ async function clienteDe(db, nombre, telefono, email) {
 }
 
 // Nuevo pedido: valida stock y precios, aparta el stock y (si paga con Mercado Pago) arma el link de pago
+// Boton de arrepentimiento (Res. 424/2020): la clienta pide cancelar una compra sin registrarse ni explicar el motivo.
+// Se le da al instante un codigo de su pedido de arrepentimiento; en Lumiere queda la lista para resolverlos.
+router.post('/:slug/arrepentimiento', async (req, res) => {
+  const ip = req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : req.ip;
+  if (demasiados(ip)) return res.status(429).json({ error: 'Hiciste muchos pedidos seguidos. Esperá unos minutos o escribinos por WhatsApp.' });
+  try {
+    const b = req.body || {};
+    const nombre = String(b.nombre || '').trim().slice(0, 120), contacto = String(b.contacto || '').trim().slice(0, 160);
+    const pedido = String(b.pedido || '').trim().slice(0, 60) || null, motivo = String(b.motivo || '').trim().slice(0, 1000) || null;
+    if (nombre.length < 2) return res.status(400).json({ error: 'Escribí tu nombre' });
+    if (contacto.replace(/\s/g, '').length < 6) return res.status(400).json({ error: 'Escribí tu email o tu WhatsApp, para responderte' });
+    await tienda.asegurar();
+    let codigo = null;
+    for (let i = 0; i < 5 && !codigo; i++) {
+      const c = 'ARR-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+      const r = await pool.query('INSERT INTO tienda_arrepentimientos (codigo, nombre, contacto, pedido, motivo) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (codigo) DO NOTHING RETURNING codigo', [c, nombre, contacto, pedido, motivo]);
+      if (r.rows.length) codigo = c;
+    }
+    if (!codigo) throw new Error('sin codigo');
+    res.json({ codigo, fecha: new Date().toISOString() });
+  } catch (e) { console.error('[tienda] arrepentimiento:', e.message); res.status(500).json({ error: 'No pudimos registrar tu pedido. Probá de nuevo o escribinos por WhatsApp.' }); }
+});
+
 router.post('/:slug/pedidos', async (req, res) => {
   const ip = req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : req.ip;
   if (demasiados(ip)) return res.status(429).json({ error: 'Hiciste muchos pedidos seguidos. Esperá unos minutos o escribinos por WhatsApp.' });

@@ -40,7 +40,7 @@ router.get('/config', async (req, res) => {
     const neg = (await pool.query('SELECT nombre_negocio FROM configuracion_negocio LIMIT 1').catch(() => ({ rows: [] }))).rows[0] || {};
     const sugerido = String(neg.nombre_negocio || 'mi-tienda').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'mi-tienda';
     const dominio = await tienda.dominioDe(req.negocio ? req.negocio.id : 1).catch(() => null);
-    res.json({ ...c, ruleta: tienda.ruletaDe(c), preventa: tienda.preventaDe(c), misiones: misiones.misionesDe(c), misiones_tipos: misiones.TIPOS, rutinas: tienda.rutinasDe(c), referidos: tienda.referidosDe(c), puntos_dia: tienda.puntosDiaDe(c), ofertas: tienda.ofertasDe(c), regalos: tienda.regalosDe(c), links: tienda.linksDe(c), muestras: tienda.muestrasDe(c), cumple: tienda.cumpleDe(c), express: tienda.expressDe(c), diagnostico: tienda.diagnosticoDe(c), packs: tienda.packsDe(c), regalos_hoy: tienda.temaRegaloHoy(tienda.regalosDe(c)), mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
+    res.json({ ...c, ruleta: tienda.ruletaDe(c), preventa: tienda.preventaDe(c), misiones: misiones.misionesDe(c), misiones_tipos: misiones.TIPOS, rutinas: tienda.rutinasDe(c), referidos: tienda.referidosDe(c), puntos_dia: tienda.puntosDiaDe(c), legales: tienda.legalesDe(c), ofertas: tienda.ofertasDe(c), regalos: tienda.regalosDe(c), links: tienda.linksDe(c), muestras: tienda.muestrasDe(c), cumple: tienda.cumpleDe(c), express: tienda.expressDe(c), diagnostico: tienda.diagnosticoDe(c), packs: tienda.packsDe(c), regalos_hoy: tienda.temaRegaloHoy(tienda.regalosDe(c)), mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la configuración' }); }
 });
 
@@ -1127,6 +1127,29 @@ router.put('/turnos/:id', async (req, res) => {
     }
     res.json((await pool.query(`${SQL_TURNOS} WHERE t.id = $1`, [id])).rows[0]);
   } catch (e) { console.error('[tienda] turno:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+});
+router.put('/legales', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
+    const b = req.body || {};
+    if (String(b.data_fiscal || '').trim() && !/^https?:\/\//i.test(String(b.data_fiscal).trim())) return res.status(400).json({ error: 'El link de Data Fiscal tiene que empezar con http:// o https:// (copialo tal cual de ARCA)' });
+    const l = tienda.legalesDe({ legales: b });
+    await pool.query('UPDATE tienda_config SET legales = $1 WHERE id = 1', [JSON.stringify(l)]);
+    res.json({ legales: l });
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+});
+// Pedidos de arrepentimiento (boton de arrepentimiento de la tienda)
+router.get('/arrepentimientos', async (req, res) => {
+  try { await tienda.asegurar(); res.json((await pool.query('SELECT * FROM tienda_arrepentimientos ORDER BY (estado = \'pendiente\') DESC, creado_en DESC LIMIT 200')).rows); }
+  catch (e) { res.status(500).json({ error: 'No se pudieron cargar' }); }
+});
+router.put('/arrepentimientos/:id', async (req, res) => {
+  try {
+    const estado = req.body && req.body.estado === 'pendiente' ? 'pendiente' : 'resuelto';
+    const r = await pool.query(`UPDATE tienda_arrepentimientos SET estado = $1, resuelto_en = CASE WHEN $1 = 'resuelto' THEN NOW() ELSE NULL END WHERE id = $2 RETURNING *`, [estado, parseInt(req.params.id) || 0]);
+    if (!r.rows.length) return res.status(404).json({ error: 'No se encontró' });
+    res.json(r.rows[0]);
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
 });
 router.put('/cumple', async (req, res) => {
   try {
