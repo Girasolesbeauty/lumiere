@@ -25830,6 +25830,22 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-redes{display:flex;gap:10px;margin-bottom:10px}
 .tw-redes a{width:42px;height:42px;border-radius:50%;border:1px solid #444;display:flex;align-items:center;justify-content:center;transition:background .2s,transform .2s}
 .tw-redes a:hover{background:#fff;color:#000 !important;transform:translateY(-2px)}
+.tw-pie-link{background:none;border:none;padding:0;color:#fff;font:inherit;cursor:pointer;text-align:left}
+.tw-pie-link:hover{text-decoration:underline}
+.tw-pie-legal{max-width:1280px;margin:0 auto;padding:0 20px 18px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;font-size:12.5px}
+.tw-pie-legal a{color:#bbb;text-decoration:underline}
+.tw-pie .tw-pie-arrep{background:#fff;color:#000 !important;border:none;border-radius:999px;padding:8px 16px;font:inherit;font-size:12.5px;font-weight:800;cursor:pointer}
+.tw-pie-df img{height:62px;width:auto;display:block;border-radius:4px;background:#fff}
+.tw-pie .tw-pie-df-txt{display:none;flex-direction:column;align-items:center;justify-content:center;width:62px;height:62px;border-radius:6px;background:#fff;color:#000;font-size:10px;font-weight:900;letter-spacing:.04em;text-align:center;line-height:1.2;text-decoration:none}
+.tw-pie-df-txt small{font-size:9px;font-weight:700;color:#555}
+.tw-legal-velo{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center}
+@media (min-width:700px){.tw-legal-velo{align-items:center}}
+.tw-legal{background:#fff;color:#111;width:100%;max-width:560px;max-height:88vh;display:flex;flex-direction:column;border-radius:18px 18px 0 0;animation:twSube .25s ease}
+@media (min-width:700px){.tw-legal{border-radius:18px}}
+.tw-legal-cab{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid #eee}
+.tw-legal-cab h2{margin:0;font-size:18px}
+.tw-legal-cuerpo{padding:16px 18px 22px;overflow-y:auto}
+.tw-legal-texto{white-space:pre-wrap;font-size:14px;line-height:1.65;color:#333}
 .tw-pie-fin{border-top:1px solid #222;text-align:center;font-size:12px;color:#777;padding:16px}
 .tw-cartel{max-width:560px;margin:30px auto;border:1px solid var(--b);border-radius:8px;padding:24px}
 @media(max-width:1000px){.tw-fila-in{grid-auto-columns:calc((100% - 2*14px)/3);gap:14px}}
@@ -26191,6 +26207,49 @@ const twMultHoy = (pd) => pd && (pd.dias || []).includes(twDiaAR()) ? pd.mult : 
 const twMultTxt = (m) => m === 3 ? "el triple" : "el doble";
 // "los domingos", "los sábados y domingos"
 const twDiasTxt = (dias) => { const n = (dias || []).map(d => TW_DIAS[d]).map(t => t.endsWith("s") ? t : t + "s"); return "los " + (n.length > 1 ? n.slice(0, -1).join(", ") + " y " + n[n.length - 1] : n[0] || ""); };
+// Pie legal de la tienda: politicas (texto de Lumiere) y boton de arrepentimiento (Res. 424/2020) en una ventana
+const TW_LEGALES = { cambios: "Cambios y devoluciones", envios: "Envíos y retiros", faq: "Preguntas frecuentes", privacidad: "Privacidad", arrepentimiento: "Botón de arrepentimiento" };
+function TwLegal({ k, tienda, pedir, onCerrar }) {
+  const [f, setF] = useState({ nombre: "", contacto: "", pedido: "", motivo: "" });
+  const [hecho, setHecho] = useState(null);
+  const [error, setError] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  useEffect(() => { const esc = (e) => { if (e.key === "Escape") onCerrar(); }; window.addEventListener("keydown", esc); return () => window.removeEventListener("keydown", esc); }, [onCerrar]);
+  const texto = k !== "arrepentimiento" ? ((tienda.legales && tienda.legales.paginas) || {})[k] || "" : "";
+  const enviar = async (e) => {
+    e.preventDefault(); setError(""); setEnviando(true);
+    try { setHecho(await pedir("/arrepentimiento", { method: "POST", body: JSON.stringify(f) })); } catch (x) { setError(x.message); }
+    setEnviando(false);
+  };
+  return (
+    <div className="tw-legal-velo" onClick={e => e.target === e.currentTarget && onCerrar()}>
+      <div className="tw-legal" role="dialog" aria-modal="true" aria-label={TW_LEGALES[k]}>
+        <div className="tw-legal-cab"><h2>{TW_LEGALES[k]}</h2><button className="tw-ico" onClick={onCerrar} aria-label="Cerrar"><TwIcono d={TW_X} /></button></div>
+        <div className="tw-legal-cuerpo">
+          {k !== "arrepentimiento" ? <div className="tw-legal-texto">{texto}</div> : hecho ? (
+            <div style={{ textAlign: "center" }}>
+              <p style={{ fontSize: 15, marginTop: 4 }}><b>Recibimos tu pedido de arrepentimiento.</b></p>
+              <p style={{ color: "#555", fontSize: 13.5 }}>Este es tu código de identificación. Guardalo: te vamos a escribir para coordinar la devolución.</p>
+              <div className="tw-cupon-cod" style={{ fontSize: 22, margin: "12px auto" }}>{hecho.codigo}</div>
+              <p style={{ color: "#777", fontSize: 12.5 }}>{new Date(hecho.fecha).toLocaleString("es-AR")}</p>
+              <button className="tw-btn" onClick={onCerrar}>Listo</button>
+            </div>
+          ) : (
+            <form onSubmit={enviar} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <p style={{ fontSize: 13.5, color: "#444", lineHeight: 1.55, margin: "0 0 6px" }}>Si compraste online, podés arrepentirte de tu compra dentro de los <b>10 días corridos</b> desde que recibiste el producto, sin dar explicaciones (Ley 24.240, art. 34 y Res. 424/2020). Completá tus datos y te damos al instante un código de tu pedido.</p>
+              <input className="tw-inp" placeholder="Nombre y apellido" autoComplete="name" value={f.nombre} onChange={e => setF(x => ({ ...x, nombre: e.target.value }))} />
+              <input className="tw-inp" placeholder="Email o WhatsApp" autoComplete="email" value={f.contacto} onChange={e => setF(x => ({ ...x, contacto: e.target.value }))} />
+              <input className="tw-inp" placeholder="Número de pedido (si lo tenés)" value={f.pedido} onChange={e => setF(x => ({ ...x, pedido: e.target.value }))} />
+              <textarea className="tw-inp" rows={3} placeholder="Comentario (opcional)" value={f.motivo} onChange={e => setF(x => ({ ...x, motivo: e.target.value }))} style={{ fontFamily: "inherit", resize: "vertical" }} />
+              {error && <div role="alert" style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, fontSize: 13.5, fontWeight: 600 }}>{error}</div>}
+              <button className="tw-btn full" type="submit" disabled={enviando}>{enviando ? "Enviando…" : "Enviar pedido de arrepentimiento"}</button>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 function TwPuntos({ monto, tengo, mult }) {
   const pts = Math.floor(Math.max(0, monto) / 100) * (mult || 1);
   const prev = useRef(pts);
@@ -28312,6 +28371,8 @@ function TiendaPublica({ slug }) {
   const [videoI, setVideoI] = useState(null); // video abierto en grande (numero en la lista), o null
   const toqueMedia = useRef(null);
   const [paso, setPaso] = useState(null); // null | "carrito" | "datos"
+  // Politica o boton de arrepentimiento abierto (tambien con ?legal=arrepentimiento en el link)
+  const [legal, setLegal] = useState(() => { const k = new URLSearchParams(window.location.search).get("legal"); return k && TW_LEGALES[k] ? k : null; });
   const [regModo, setRegModo] = useState(() => (vistaGuardada.current && vistaGuardada.current.regModo) || "gift"); // sector de regalos: "gift" (gift card) o "armar"
   // Se guarda la vista para volver a ella si se actualiza la pagina (solo dura lo que la pestaña)
   useEffect(() => { try { sessionStorage.setItem("tienda_vista_" + slug, JSON.stringify({ cat, seg: segDeCat(cat), subcat, filtros, orden, regModo, y: window.scrollY })); } catch (e) {} }, [cat, subcat, filtros, orden, regModo, productos]);
@@ -28891,6 +28952,10 @@ function TiendaPublica({ slug }) {
       <div className="tw-pie-in">
         <div>{tienda.logo ? <img src={tienda.logo} alt={tienda.titulo} style={{ height: 34, maxWidth: 200, objectFit: "contain", filter: "brightness(0) invert(1)", marginBottom: 12, display: "block" }} /> : <h4>{tienda.titulo}</h4>}{tienda.mensaje || "Gracias por elegirnos."}</div>
         {tienda.retiro.length > 0 && <div><h4>Nuestros locales</h4>{tienda.retiro.map(l => <div key={l.id}>📍 {l.nombre}{l.direccion ? " · " + l.direccion : ""}</div>)}</div>}
+        <div><h4>Ayuda</h4>
+          {Object.entries(TW_LEGALES).filter(([k]) => k !== "arrepentimiento" && tienda.legales && tienda.legales.paginas && tienda.legales.paginas[k]).map(([k, t]) => <div key={k}><button className="tw-pie-link" onClick={() => setLegal(k)}>{t}</button></div>)}
+          <div><button className="tw-pie-link" onClick={() => setLegal("arrepentimiento")}>Botón de arrepentimiento</button></div>
+        </div>
         <div><h4>Formas de pago</h4>{tienda.pagos.mp && <div>Mercado Pago</div>}{tienda.pagos.gocuotas && <div>GoCuotas (cuotas con débito)</div>}{tienda.pagos.transferencia && <div>Transferencia</div>}{tienda.pagos.retiro && <div>En el local, al retirar</div>}</div>
         {(hayWa || Object.keys(tienda.redes || {}).length > 0) && <div><h4>Seguinos</h4>
           <div className="tw-redes">
@@ -28902,7 +28967,13 @@ function TiendaPublica({ slug }) {
           {hayWa && <a href={wa("Hola! Tengo una consulta")} target="_blank" rel="noopener" style={{ fontSize: 13.5 }}>¿Dudas? Escribinos por WhatsApp</a>}
         </div>}
       </div>
-      <div className="tw-pie-fin">© {new Date().getFullYear()} {tienda.titulo} · Tienda hecha con Lumiere</div>
+      <div className="tw-pie-legal">
+        <button onClick={() => setLegal("arrepentimiento")} className="tw-pie-arrep">Botón de arrepentimiento</button>
+        <a href="https://www.argentina.gob.ar/produccion/defensadelconsumidor/formulario" target="_blank" rel="noopener">Defensa de las y los Consumidores. Para reclamos ingrese aquí</a>
+        {tienda.legales && tienda.legales.data_fiscal && <a href={tienda.legales.data_fiscal} target="_blank" rel="noopener" className="tw-pie-df" aria-label="Data Fiscal (ARCA)"><img src="https://www.afip.gob.ar/images/f960/DATAWEB.jpg" alt="Data Fiscal" loading="lazy" onError={e => { e.currentTarget.style.display = "none"; e.currentTarget.nextSibling.style.display = "inline-flex"; }} /><span className="tw-pie-df-txt">DATA FISCAL<small>ARCA</small></span></a>}
+      </div>
+      <div className="tw-pie-fin">© {new Date().getFullYear()} {tienda.titulo}{!tienda.legales || tienda.legales.firma_lumiere !== false ? " · Tienda hecha con Lumiere" : ""}</div>
+      {legal && <TwLegal k={legal} tienda={tienda} pedir={pedir} onCerrar={() => setLegal(null)} />}
     </footer>
   );
 
@@ -30698,6 +30769,74 @@ function ConfigDiagnostico({ cfg, locs, temaPal, avisar, onGuardado, it, urlTien
   );
 }
 // Regalo de cumpleaños: cada clienta con cuenta ve su cupon personal en la tienda durante su semana de cumple
+// Lumiere > Tienda online > Configuracion > Legales y politicas: Data Fiscal (ARCA), textos de las politicas
+// (con borradores para revisar), boton de arrepentimiento y sus pedidos, y la firma "hecha con Lumiere"
+const LEGALES_PAGINAS = [["cambios", "Cambios y devoluciones"], ["envios", "Envíos y retiros"], ["faq", "Preguntas frecuentes"], ["privacidad", "Privacidad"]];
+function borradorLegal(k, cfg, locs) {
+  const n = cfg.titulo || "nuestra tienda";
+  const locales = (locs || []).map(l => l.nombre).filter(Boolean).join(" y ") || "nuestros locales";
+  if (k === "cambios") return "Queremos que estés feliz con tu compra.\n\n• Tenés 30 días desde que recibiste tu pedido para cambiar un producto, en cualquiera de nuestros locales (" + locales + ") o escribiéndonos por WhatsApp.\n• Por higiene y seguridad, los productos de cosmética, skincare y maquillaje se cambian solo si están cerrados, sin uso y con su envoltorio original.\n• Si un producto llegó fallado o no es el que pediste, lo cambiamos sin costo.\n• Para el cambio necesitamos el número de pedido o el ticket de compra.\n\nArrepentimiento de compra: si compraste online, podés arrepentirte dentro de los 10 días corridos desde que recibiste el producto, sin dar explicaciones (Ley 24.240, art. 34). Hacelo desde el \"Botón de arrepentimiento\" al pie de la tienda.";
+  if (k === "envios") return "• Retiro en el local: sin costo en " + locales + ". Te avisamos por WhatsApp cuando tu pedido está listo.\n• Envíos: el costo y las zonas se ven al finalizar la compra, según tu dirección.\n• Despachamos los pedidos dentro de las 24 a 48 horas hábiles de confirmado el pago.\n• Los pedidos hechos un fin de semana o feriado se preparan el siguiente día hábil.\n• Cuando sale tu pedido te avisamos para que estés atenta.";
+  if (k === "faq") return "¿Cómo pago?\nCon los medios de pago que ves al finalizar la compra. También podés pagar al retirar en el local.\n\n¿Cuánto tarda mi pedido?\nPara retirar, te avisamos cuando está listo. Con envío, lo despachamos dentro de las 24 a 48 horas hábiles.\n\n¿Cómo sumo puntos?\nEntrando con tu cuenta antes de comprar. Sumás puntos con cada compra (online y en el local) y los canjeás por premios en \"Mi cuenta\".\n\n¿Puedo cambiar un producto?\nSí, mirá \"Cambios y devoluciones\".\n\n¿No sé qué producto elegir?\nHacé el test \"Encontrá tu rutina\" o escribinos por WhatsApp y te asesoramos.";
+  if (k === "privacidad") return "En " + n + " cuidamos tus datos.\n\n• Usamos tu nombre, DNI, teléfono y email solo para procesar tus compras, sumar tus puntos y avisarte el estado de tus pedidos.\n• No vendemos ni compartimos tus datos con terceros, salvo lo necesario para cobrar (por ejemplo, Mercado Pago) o para hacerte llegar un envío.\n• Podés pedirnos ver, corregir o borrar tus datos cuando quieras escribiéndonos por WhatsApp (Ley 25.326 de Protección de Datos Personales).\n• La Agencia de Acceso a la Información Pública es el órgano de control de la Ley 25.326.";
+  return "";
+}
+function LegalesTienda({ cfg, locs, temaPal, avisar, onGuardado, it }) {
+  const tp = temaPal || PALETA_CLARA;
+  const ini = cfg.legales || {};
+  const [l, setL] = useState(() => ({ data_fiscal: ini.data_fiscal || "", paginas: { ...(ini.paginas || {}) }, firma_lumiere: ini.firma_lumiere !== false }));
+  const [arr, setArr] = useState(null);
+  const [guardando, setGuardando] = useState(false);
+  useEffect(() => { API.get("/tienda/arrepentimientos").then(r => setArr(r.data || [])).catch(() => setArr([])); }, []);
+  const setPag = (k, v) => setL(x => ({ ...x, paginas: { ...x.paginas, [k]: v } }));
+  const guardar = async () => {
+    setGuardando(true);
+    try { const r = await API.put("/tienda/legales", l); setL({ ...r.data.legales, paginas: { ...r.data.legales.paginas } }); avisar(true, "✓ Guardado: ya se ve en la tienda"); onGuardado && onGuardado(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+    setGuardando(false);
+  };
+  const marcar = async (a, estado) => { try { const r = await API.put("/tienda/arrepentimientos/" + a.id, { estado }); setArr(x => x.map(y => y.id === a.id ? r.data : y)); } catch (e) { avisar(false, "No se pudo guardar"); } };
+  const pend = (arr || []).filter(a => a.estado === "pendiente");
+  return (
+    <CajaSeccion it={it} temaPal={tp}>
+      <div className="fl">⚖️ Botón de arrepentimiento</div>
+      <div style={{ fontSize: 12.5, color: tp.textMuted, lineHeight: 1.5 }}>Es obligatorio para vender online (Res. 424/2020). Ya está en el pie de la tienda: la clienta completa sus datos y recibe al instante un código de su pedido. Tenés que responderle y cancelar la compra (tiene 10 días corridos desde que recibió el producto).</div>
+      {arr === null ? <div className="skel" style={{ height: 40, marginTop: 8 }} /> : arr.length === 0 ? <div style={{ fontSize: 12.5, marginTop: 8, color: tp.textMuted }}>No hay pedidos de arrepentimiento.</div> : (
+        <div style={{ marginTop: 8 }}>
+          {pend.length > 0 && <div className="cc-aviso bad" style={{ marginBottom: 8 }}>{pend.length === 1 ? "Hay 1 pedido de arrepentimiento sin resolver." : "Hay " + pend.length + " pedidos de arrepentimiento sin resolver."} Escribile a la clienta y cancelá la compra.</div>}
+          {arr.map(a => (
+            <div key={a.id} style={{ border: "1px solid " + tp.border, borderRadius: 10, padding: "8px 10px", marginBottom: 6, opacity: a.estado === "resuelto" ? .6 : 1 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <b style={{ flex: 1, minWidth: 0 }}>{a.codigo} · {a.nombre}</b>
+                <span className={"tag " + (a.estado === "resuelto" ? "tag-ok" : "tag-bad")}>{a.estado === "resuelto" ? "Resuelto" : "Pendiente"}</span>
+                <button className="btn btn-g btn-sm" onClick={() => marcar(a, a.estado === "resuelto" ? "pendiente" : "resuelto")}>{a.estado === "resuelto" ? "Volver a pendiente" : "✓ Resuelto"}</button>
+              </div>
+              <div style={{ fontSize: 12.5, color: tp.textMuted, marginTop: 3 }}>{new Date(a.creado_en).toLocaleString("es-AR")} · {a.contacto}{a.pedido ? " · Pedido " + a.pedido : ""}</div>
+              {a.motivo && <div style={{ fontSize: 13, marginTop: 4 }}>{a.motivo}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="fl" style={{ marginTop: 18 }}>🧾 Data Fiscal (QR de ARCA)</div>
+      <div style={{ fontSize: 12.5, color: tp.textMuted, lineHeight: 1.5 }}>Obligatorio para vender online. En la web de ARCA entrá con tu clave fiscal a <b>"Data Fiscal"</b>, adherí tu tienda y copiá el link del código QR que te da. Pegalo acá y se muestra el cuadradito de Data Fiscal en el pie de la tienda.</div>
+      <input className="inp" style={{ marginTop: 6 }} placeholder="Ej: http://qr.afip.gob.ar/?code=..." value={l.data_fiscal} onChange={e => setL(x => ({ ...x, data_fiscal: e.target.value.trim() }))} />
+      <div className="fl" style={{ marginTop: 18 }}>📄 Políticas de la tienda</div>
+      <div style={{ fontSize: 12.5, color: tp.textMuted, lineHeight: 1.5 }}>Se ven como links en el pie de la tienda. Te dejamos un borrador en cada una: leelo, cambiá lo que no sea igual en tu negocio (por ejemplo, los días para cambios) y guardá. Si una queda vacía, no se muestra.</div>
+      {LEGALES_PAGINAS.map(([k, t]) => (
+        <div key={k} className="fg" style={{ marginTop: 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}><div className="fl" style={{ margin: 0 }}>{t}</div>
+            <button className="btn btn-g btn-sm" onClick={() => { if (!(l.paginas[k] || "").trim() || window.confirm("¿Reemplazar lo que escribiste por el borrador?")) setPag(k, borradorLegal(k, cfg, locs)); }}>{(l.paginas[k] || "").trim() ? "Volver al borrador" : "✍️ Usar borrador"}</button></div>
+          <textarea className="inp" rows={(l.paginas[k] || "").split("\n").length > 6 ? 9 : 4} style={{ marginTop: 6, fontFamily: "inherit", lineHeight: 1.5 }} placeholder={"Escribí acá tu política de " + t.toLowerCase() + " (o usá el borrador)"} value={l.paginas[k] || ""} onChange={e => setPag(k, e.target.value)} />
+        </div>
+      ))}
+      <label style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer", marginTop: 14 }}>
+        <input type="checkbox" checked={!!l.firma_lumiere} onChange={e => setL(x => ({ ...x, firma_lumiere: e.target.checked }))} style={{ marginTop: 3 }} />
+        <span><b style={{ fontSize: 13.5 }}>Mostrar "Tienda hecha con Lumiere" al pie</b><div style={{ fontSize: 12, color: tp.textMuted }}>Si lo sacás, abajo queda solo el nombre de tu tienda.</div></span>
+      </label>
+      <button className="btn btn-p" style={{ marginTop: 14 }} disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar"}</button>
+    </CajaSeccion>
+  );
+}
 function RegaloCumple({ cfg, temaPal, avisar, onGuardado, it }) {
   const tp = temaPal || PALETA_CLARA;
   const ini = cfg.cumple || {};
@@ -33247,6 +33386,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
           { k: "cumple", icono: "🎂", titulo: "Regalo de cumpleaños", color: "#e84393", sub: cfg.cumple && cfg.cumple.activo ? (cfg.cumple.tipo === "%" ? cfg.cumple.valor + "% OFF" : fmt(cfg.cumple.valor)) : "Apagado", ayuda: "Un cupón personal para cada clienta en su cumple." },
           { k: "google", icono: "📣", titulo: "Google e Instagram", color: "#4285f4", sub: "Catálogo de productos", ayuda: "Tus productos en Google Shopping (gratis) y en la tienda de Instagram y Facebook." },
           { k: "muestras", icono: "🎁", titulo: "Muestras gratis", color: "#e67e22", sub: cfg.muestras && cfg.muestras.activo ? "Desde " + fmt(cfg.muestras.desde) + " · " + Object.values(cfg.muestras.envases || {}).reduce((t, v) => t + (parseInt(v) || 0), 0) + " envases" : "Apagadas", alerta: !!(cfg.muestras && cfg.muestras.activo && Object.values(cfg.muestras.envases || {}).some(v => parseInt(v) <= 5)), ayuda: "En compras grandes la clienta elige una muestra de regalo." },
+          { k: "legales", icono: "⚖️", titulo: "Legales y políticas", color: "#5d6d7e", sub: !cfg.legales || !cfg.legales.data_fiscal ? "Falta Data Fiscal" : Object.keys((cfg.legales && cfg.legales.paginas) || {}).length + " políticas", alerta: !cfg.legales || !cfg.legales.data_fiscal || !Object.keys(cfg.legales.paginas || {}).length, ayuda: "Botón de arrepentimiento, Data Fiscal de ARCA y políticas de cambios, envíos y privacidad." },
           ...(cfg.preventa ? [{ k: "preventa", icono: "⏳", titulo: "Preventa", color: "#d35400", sub: cfg.preventa.activo ? "Activada" : "Apagada" }] : []),
           ...(cfg.ruleta ? [{ k: "ruleta", icono: "🎡", titulo: "Ruleta de premios", color: "#c0392b", sub: cfg.ruleta.activo ? "Activada" : "Apagada" }] : []),
         ];
@@ -33256,6 +33396,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
           <MenuSecciones items={SECS_CFG} activa={it.k} onElegir={setSecCfg} temaPal={temaPal} />
           {it.k === "express" && <RetiroExpress cfg={cfg} locs={locs} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it} />}
           {it.k === "diagnostico" && <ConfigDiagnostico cfg={cfg} locs={locs} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it} urlTienda={url} />}
+          {it.k === "legales" && <LegalesTienda cfg={cfg} locs={locs} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it} />}
           {it.k === "cumple" && <RegaloCumple cfg={cfg} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it} />}
           {it.k === "google" && <CatalogoGoogle cfg={cfg} temaPal={temaPal} avisar={avisar} it={it} />}
           {it.k === "muestras" && <MuestrasGratis key={JSON.stringify((cfg.muestras || {}).envases || {})} cfg={cfg} locs={locs} productos={productos} temaPal={temaPal} avisar={avisar} onGuardado={cargarCfg} it={it} />}
