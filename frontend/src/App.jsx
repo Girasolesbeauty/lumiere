@@ -25240,7 +25240,21 @@ html:has(.tw){overflow-x:hidden}
 .tw-oferta-precios{gap:8px;flex-wrap:wrap}.tw-oferta-precios s{font-size:12.5px}.tw-oferta-precios b{font-size:21px}
 .tw-oferta-termina{font-size:9.5px;margin:8px 0 4px}.tw-oferta .tw-reloj{gap:5px}.tw-oferta .tw-reloj-c{min-width:40px;padding:4px 3px;border-radius:10px}.tw-oferta .tw-reloj-c b{font-size:17px}.tw-oferta .tw-reloj-c small{font-size:8.5px;margin-top:2px}
 .tw-oferta-btns{margin-top:10px!important}.tw-oferta-btns .tw-btn{padding:9px 16px;font-size:11.5px}.tw-oferta-btns .tw-btn2{display:none}}
-.tw-puntosdia-barra{background:linear-gradient(90deg,#fff6d6,#ffeccc);color:#6b4a0c;text-align:center;font-size:13.5px;padding:9px 16px;border-bottom:1px solid #f3dfa6}
+.tw-puntosdia-barra{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(100deg,#f5b72d,#ffe08a 30%,#f7c948 55%,#ffe7a3 75%,#f0a92e);background-size:250% 100%;animation:twPdFondo 6s ease-in-out infinite;color:#3b2506;text-align:center;font-size:14.5px;font-weight:600;line-height:1.35;padding:12px 16px;border-bottom:2px solid #d99a1e;box-shadow:inset 0 -6px 14px rgba(160,90,0,.15)}
+.tw-puntosdia-barra b{font-weight:900}
+.tw-puntosdia-barra::after{content:"";position:absolute;top:0;bottom:0;left:-40%;width:35%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.75),transparent);transform:skewX(-20deg);animation:twPdBrillo 3.2s ease-in-out infinite;pointer-events:none}
+.tw-pd-sol{font-size:22px;display:inline-block;animation:twPdSol 8s linear infinite;flex-shrink:0}
+.tw-pd-chispa{color:#fff;font-size:15px;text-shadow:0 0 6px #fff,0 0 12px #ffd24d;animation:twPdChispa 1.6s ease-in-out infinite;flex-shrink:0}
+.tw-pd-chispa.b{animation-delay:.8s}
+.tw-pd-txt{position:relative;z-index:1}
+.tw-puntosdia-barra.hoy{font-size:15px;padding:14px 16px}
+.tw-puntosdia-barra.hoy .tw-pd-x{display:inline-block;background:#3b2506;color:#ffd977;border-radius:999px;padding:1px 10px;margin:0 2px;font-weight:900;animation:twPdLatido 1.4s ease-in-out infinite}
+@keyframes twPdFondo{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+@keyframes twPdBrillo{0%{left:-40%}60%,100%{left:120%}}
+@keyframes twPdSol{to{transform:rotate(360deg)}}
+@keyframes twPdChispa{0%,100%{opacity:.25;transform:scale(.7)}50%{opacity:1;transform:scale(1.15)}}
+@keyframes twPdLatido{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+@media (prefers-reduced-motion:reduce){.tw-puntosdia-barra,.tw-puntosdia-barra::after,.tw-pd-sol,.tw-pd-chispa,.tw-pd-x{animation:none!important}}
 .tw-puntosdia-cuenta{margin-top:8px;font-size:12.5px;background:rgba(255,255,255,.45);border-radius:10px;padding:6px 10px}
 .tw-puntos-x{display:inline-block;margin-left:6px;background:#2a1f14;color:#ffd977;border-radius:999px;font-size:11px;font-weight:800;padding:1px 8px;vertical-align:1px}
 .tw-amiga-barra{background:linear-gradient(90deg,#fde7ee,#fff3e6);color:#7a3b4f;text-align:center;font-size:13.5px;padding:9px 16px;border-bottom:1px solid #f6d8e0}
@@ -29482,8 +29496,8 @@ function TiendaPublica({ slug }) {
     <div className={"tw" + (vistaTk ? " en-vista" : "")} style={{ "--c": color }}><style>{CSS_TIENDA}</style>
       {vistaTk && <div className="tw-vista-barra" role="status"><span>👁️ Viendo la tienda como <b>{miCuenta ? String(miCuenta.nombre || "la clienta") : "la clienta"}</b> · solo para mirar</span><button onClick={salirVista}>Salir</button></div>}
       {cabecera}
-      {!amigaInfo && twMultManiana(tienda.puntos_dia) && <div className="tw-puntosdia-barra" role="note">🌻 <b>Mañana es {TW_DIAS[(twDiaAR() + 1) % 7]} de puntos:</b> tus compras online suman <b>{twMultTxt(twMultManiana(tienda.puntos_dia))} de puntos</b>. ¡Armá tu carrito y comprá mañana!</div>}
-      {!amigaInfo && twMultHoy(tienda.puntos_dia) && <div className="tw-puntosdia-barra" role="note">🌻 <b>Hoy es {TW_DIAS[twDiaAR()]} de puntos:</b> tus compras online suman <b>{twMultTxt(twMultHoy(tienda.puntos_dia))} de puntos</b>{logueada ? "" : " · entrá con tu cuenta para sumarlos"}</div>}
+      {!amigaInfo && twMultManiana(tienda.puntos_dia) && <div className="tw-puntosdia-barra" role="note"><span className="tw-pd-chispa" aria-hidden="true">✦</span><span className="tw-pd-sol" aria-hidden="true">🌻</span><span className="tw-pd-txt"><b>Mañana es {TW_DIAS[(twDiaAR() + 1) % 7]} de puntos:</b> tus compras online suman <b>{twMultTxt(twMultManiana(tienda.puntos_dia))} de puntos</b>. ¡Armá tu carrito y comprá mañana!</span><span className="tw-pd-chispa b" aria-hidden="true">✦</span></div>}
+      {!amigaInfo && twMultHoy(tienda.puntos_dia) && <div className="tw-puntosdia-barra hoy" role="note"><span className="tw-pd-chispa" aria-hidden="true">✦</span><span className="tw-pd-sol" aria-hidden="true">🌻</span><span className="tw-pd-txt"><b>¡Hoy es {TW_DIAS[twDiaAR()]} de puntos!</b> Tus compras online suman <span className="tw-pd-x">{twMultTxt(twMultHoy(tienda.puntos_dia)).toUpperCase()}</span> de puntos{logueada ? "" : " · entrá con tu cuenta para sumarlos"}</span><span className="tw-pd-chispa b" aria-hidden="true">✦</span></div>}
       {amigaInfo && <div className="tw-amiga-barra" role="note">💌 <b>{amigaInfo.nombre}</b> te regaló <b>{amigaInfo.pct}% OFF</b> en tu primera compra · se aplica al finalizar</div>}
       {(cats.length > 0 || sectores.length > 0 || reingresados.length > 0 || reels.length > 0 || preventas.length > 0 || favs.length > 0 || tienda.regalos) && (
         <div className="tw-navbar">
