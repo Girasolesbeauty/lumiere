@@ -40,7 +40,7 @@ router.get('/config', async (req, res) => {
     const neg = (await pool.query('SELECT nombre_negocio FROM configuracion_negocio LIMIT 1').catch(() => ({ rows: [] }))).rows[0] || {};
     const sugerido = String(neg.nombre_negocio || 'mi-tienda').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'mi-tienda';
     const dominio = await tienda.dominioDe(req.negocio ? req.negocio.id : 1).catch(() => null);
-    res.json({ ...c, ruleta: tienda.ruletaDe(c), preventa: tienda.preventaDe(c), misiones: misiones.misionesDe(c), misiones_tipos: misiones.TIPOS, rutinas: tienda.rutinasDe(c), referidos: tienda.referidosDe(c), ofertas: tienda.ofertasDe(c), regalos: tienda.regalosDe(c), links: tienda.linksDe(c), muestras: tienda.muestrasDe(c), cumple: tienda.cumpleDe(c), express: tienda.expressDe(c), diagnostico: tienda.diagnosticoDe(c), packs: tienda.packsDe(c), regalos_hoy: tienda.temaRegaloHoy(tienda.regalosDe(c)), mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
+    res.json({ ...c, ruleta: tienda.ruletaDe(c), preventa: tienda.preventaDe(c), misiones: misiones.misionesDe(c), misiones_tipos: misiones.TIPOS, rutinas: tienda.rutinasDe(c), referidos: tienda.referidosDe(c), puntos_dia: tienda.puntosDiaDe(c), ofertas: tienda.ofertasDe(c), regalos: tienda.regalosDe(c), links: tienda.linksDe(c), muestras: tienda.muestrasDe(c), cumple: tienda.cumpleDe(c), express: tienda.expressDe(c), diagnostico: tienda.diagnosticoDe(c), packs: tienda.packsDe(c), regalos_hoy: tienda.temaRegaloHoy(tienda.regalosDe(c)), mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la configuración' }); }
 });
 
@@ -978,6 +978,16 @@ router.put('/referidos', async (req, res) => {
     res.json({ referidos: r });
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
 });
+router.put('/puntos-dia', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño, el encargado o quien maneja la tienda' });
+    const b = req.body || {};
+    if (Array.isArray(b.dias) && !b.dias.length && b.activo) return res.status(400).json({ error: 'Elegí al menos un día' });
+    const k = tienda.puntosDiaDe({ puntos_dia: { activo: !!b.activo, mult: b.mult, dias: b.dias } });
+    await pool.query('UPDATE tienda_config SET puntos_dia = $1 WHERE id = 1', [JSON.stringify(k)]);
+    res.json({ puntos_dia: k });
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+});
 router.put('/misiones', async (req, res) => {
   try {
     if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño, el encargado o quien maneja la tienda' });
@@ -1279,6 +1289,7 @@ router.post('/pedidos/:id/cobrado-aparte', async (req, res) => {
     if (ventaId) await client.query(`UPDATE gift_card_movimientos SET venta_id = $1 WHERE id = $2 AND venta_id IS NULL`, [ventaId, p.gc_mov_id || 0]).catch(() => {});
     await client.query(`UPDATE cupones SET activo = TRUE, fecha_vencimiento = CURRENT_DATE + 30 WHERE codigo = (SELECT cupon FROM tienda_ruleta WHERE pedido_id = $1)`, [p.id]).catch(() => {});
     await tienda.premiarReferida(client, p.id).catch(e => console.error('[tienda] premiar amiga:', e.message));
+    await tienda.premiarPuntosDia(client, p.id).catch(e => console.error('[tienda] puntos del dia:', e.message));
     await client.query('COMMIT');
     res.json({ ok: true });
   } catch (e) {
@@ -1299,6 +1310,7 @@ router.put('/pedidos/:id/vendido', async (req, res) => {
     await pool.query(`UPDATE cupones SET activo = TRUE, fecha_vencimiento = CURRENT_DATE + 30 WHERE codigo = (SELECT cupon FROM tienda_ruleta WHERE pedido_id = $1)
       AND EXISTS (SELECT 1 FROM tienda_pedidos WHERE id = $1 AND estado = 'entregado')`, [req.params.id]).catch(() => {});
     await tienda.premiarReferida(pool, parseInt(req.params.id)).catch(e => console.error('[tienda] premiar amiga:', e.message));
+    await tienda.premiarPuntosDia(pool, parseInt(req.params.id)).catch(e => console.error('[tienda] puntos del dia:', e.message));
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'No se pudo marcar como entregado' }); }
 });

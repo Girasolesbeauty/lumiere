@@ -79,6 +79,16 @@ router.post('/venta/:id', async (req, res) => {
         [puntosDevolver, parseFloat(venta.total), venta.cliente_id]
       );
     }
+    // Pedido online de un dia de puntos extra (ej. domingo): tambien se sacan los puntos extra que se le dieron
+    const hayTienda = await client.query(`SELECT to_regclass('tienda_pedidos') AS t, (SELECT 1 FROM information_schema.columns WHERE table_name = 'tienda_pedidos' AND column_name = 'puntos_extra_dados' AND table_schema = ANY(current_schemas(false)) LIMIT 1) AS c`);
+    if (hayTienda.rows[0].t && hayTienda.rows[0].c) {
+      const extras = (await client.query(`SELECT id, cliente_id, puntos_extra_dados FROM tienda_pedidos WHERE venta_id = $1 AND COALESCE(puntos_extra_dados, 0) > 0 FOR UPDATE`, [venta.id])).rows;
+      for (const x of extras) {
+        await client.query('UPDATE tienda_pedidos SET puntos_extra_dados = 0 WHERE id = $1', [x.id]);
+        const cli = x.cliente_id || venta.cliente_id;
+        if (cli) await client.query('UPDATE clientes SET puntos = GREATEST(COALESCE(puntos, 0) - $1, 0) WHERE id = $2', [x.puntos_extra_dados, cli]);
+      }
+    }
 
     const montoGC = parseFloat(venta.monto_gift_card) || 0;
     if (montoGC > 0) {

@@ -108,6 +108,7 @@ router.get('/:slug', async (req, res) => {
       icono_v: c.icono ? versionIcono(c.icono) : null,
       rutinas: tienda.rutinasDe(c).filter(x => x.activo).map(x => ({ ...x, video: tienda.videoRutina(x.video_url), video_url: undefined })),
       referidos: (() => { const r = tienda.referidosDe(c); return r.activo ? { pct: r.pct, puntos: r.puntos } : null; })(),
+      puntos_dia: (() => { const k = tienda.puntosDiaDe(c); return k.activo ? { mult: k.mult, dias: k.dias } : null; })(),
       ofertas: (() => { const o = tienda.ofertasDe(c), d = tienda.ofertaDiaActiva(c); return { dia: d ? { producto_id: d.producto_id, precio: d.precio, hasta: d.hasta, titulo: d.titulo } : null, combos: o.combos.filter(tienda.comboVigente).map(x => ({ id: x.id, nombre: x.nombre, productos: x.productos, cantidades: x.cantidades, precio: x.precio })) }; })(),
       descuentos_pago: (() => { const d = tienda.descuentosPagoDe(c); return Object.fromEntries(Object.entries(d).filter(([, v]) => v > 0)); })(),
       descuentos_pago_kits: (() => { const d = tienda.descuentosPagoKitsDe(c); return Object.fromEntries(Object.entries(d).filter(([, v]) => v > 0)); })(),
@@ -477,6 +478,9 @@ router.post('/:slug/pedidos', async (req, res) => {
     if (descuentoPago) await client.query('UPDATE tienda_pedidos SET descuento_pago = $1, descuento_pago_pct = $2 WHERE id = $3', [descuentoPago, pctPago, pedido.id]);
     if (descPromo) await client.query('UPDATE tienda_pedidos SET descuento_promo = $1, promos = $2 WHERE id = $3', [descPromo, promo.nombres.join(', ').slice(0, 300), pedido.id]);
     if (amiga && descAmiga) await client.query('UPDATE tienda_pedidos SET amiga_de = $1, descuento_amiga = $2 WHERE id = $3', [amiga.referente_id, descAmiga, pedido.id]);
+    // Hoy es dia de puntos extra (ej. domingo): el pedido queda con el x2 / x3 prometido
+    const multHoy = tienda.multPuntosHoy(c);
+    if (multHoy) await client.query('UPDATE tienda_pedidos SET puntos_mult = $1 WHERE id = $2', [multHoy, pedido.id]);
     // Retiro express: si ahora se puede prometer y no hay preventa, el pedido guarda los minutos
     const kx = tienda.expressDe(c);
     if (entrega === 'retiro' && !conPreventa && b.express !== false && tienda.expressAbierto(kx, localId)) await client.query('UPDATE tienda_pedidos SET express_min = $1 WHERE id = $2', [kx.minutos, pedido.id]);

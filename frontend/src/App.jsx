@@ -25219,6 +25219,8 @@ html:has(.tw){overflow-x:hidden}
 .tw-oferta-precios{gap:8px;flex-wrap:wrap}.tw-oferta-precios s{font-size:12.5px}.tw-oferta-precios b{font-size:21px}
 .tw-oferta-termina{font-size:9.5px;margin:8px 0 4px}.tw-oferta .tw-reloj{gap:5px}.tw-oferta .tw-reloj-c{min-width:40px;padding:4px 3px;border-radius:10px}.tw-oferta .tw-reloj-c b{font-size:17px}.tw-oferta .tw-reloj-c small{font-size:8.5px;margin-top:2px}
 .tw-oferta-btns{margin-top:10px!important}.tw-oferta-btns .tw-btn{padding:9px 16px;font-size:11.5px}.tw-oferta-btns .tw-btn2{display:none}}
+.tw-puntosdia-barra{background:linear-gradient(90deg,#fff6d6,#ffeccc);color:#6b4a0c;text-align:center;font-size:13.5px;padding:9px 16px;border-bottom:1px solid #f3dfa6}
+.tw-puntos-x{display:inline-block;margin-left:6px;background:#2a1f14;color:#ffd977;border-radius:999px;font-size:11px;font-weight:800;padding:1px 8px;vertical-align:1px}
 .tw-amiga-barra{background:linear-gradient(90deg,#fde7ee,#fff3e6);color:#7a3b4f;text-align:center;font-size:13.5px;padding:9px 16px;border-bottom:1px solid #f6d8e0}
 .tw-amiga-check{font-size:13px;border-radius:10px;padding:9px 11px;margin:0 0 8px;background:#fff6f8;color:#7a3b4f;border:1px dashed #efc2cf}
 .tw-amiga-check.ok{background:#eefaf2;color:#2d7a4f;border-style:solid;border-color:#bfe5cd}.tw-amiga-check.no{background:#f7f7f7;color:#777;border-color:#e3e3e3}
@@ -26140,8 +26142,13 @@ function TwRueda({ valor, desde = 0, formato = (n) => n, dur = 900 }) {
   return <span className="tw-rueda">{formato(v)}</span>;
 }
 // Puntos que suma la compra (1 cada $100, como en el local): suben rodando y brillan al crecer
-function TwPuntos({ monto, tengo }) {
-  const pts = Math.floor(Math.max(0, monto) / 100);
+// Puntos extra por dia (ej. el doble los domingos): el multiplicador de hoy en Argentina, o null
+const TW_DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+const twDiaAR = () => ({ Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 })[new Intl.DateTimeFormat("en-US", { timeZone: "America/Argentina/Buenos_Aires", weekday: "short" }).format(new Date())];
+const twMultHoy = (pd) => pd && (pd.dias || []).includes(twDiaAR()) ? pd.mult : null;
+const twMultTxt = (m) => m === 3 ? "el triple" : "el doble";
+function TwPuntos({ monto, tengo, mult }) {
+  const pts = Math.floor(Math.max(0, monto) / 100) * (mult || 1);
   const prev = useRef(pts);
   const [brilla, setBrilla] = useState(0);
   const [desde, setDesde] = useState(0);
@@ -26153,17 +26160,17 @@ function TwPuntos({ monto, tengo }) {
   return (
     <div className={"tw-puntos-compra" + (brilla ? " brilla" : "")} key={"b" + brilla}>
       <span className="tw-estrella" aria-hidden="true">✦</span>
-      <span>Con esta compra sumás <b><TwRueda key={brilla} valor={pts} desde={desde} dur={brilla ? 800 : 1100} /> puntos</b>{tengo != null ? <span className="tw-puntos-total"> · quedás con {(tengo + pts).toLocaleString("es-AR")}</span> : null}</span>
+      <span>Con esta compra sumás <b><TwRueda key={brilla} valor={pts} desde={desde} dur={brilla ? 800 : 1100} /> puntos</b>{mult > 1 ? <span className="tw-puntos-x">×{mult} por ser {TW_DIAS[twDiaAR()]}</span> : null}{tengo != null ? <span className="tw-puntos-total"> · quedás con {(tengo + pts).toLocaleString("es-AR")}</span> : null}</span>
     </div>
   );
 }
 // Para quien compra sin entrar a su cuenta: que entre y sume los puntos de la compra
-function TwSumaConCuenta({ monto, onIngresar, onCrear }) {
-  const pts = Math.floor(Math.max(0, monto) / 100);
+function TwSumaConCuenta({ monto, onIngresar, onCrear, mult }) {
+  const pts = Math.floor(Math.max(0, monto) / 100) * (mult || 1);
   if (pts <= 0) return null;
   return (
     <div className="tw-suma-cuenta" role="note">
-      <div className="tw-suma-cuenta-t"><span className="tw-estrella" aria-hidden="true">✦</span> Entrá con tu cuenta y sumá <b><TwRueda valor={pts} desde={0} dur={1100} /> puntos</b> con esta compra</div>
+      <div className="tw-suma-cuenta-t"><span className="tw-estrella" aria-hidden="true">✦</span> Entrá con tu cuenta y sumá <b><TwRueda valor={pts} desde={0} dur={1100} /> puntos</b> con esta compra{mult > 1 ? <span className="tw-puntos-x">×{mult} por ser {TW_DIAS[twDiaAR()]}</span> : null}</div>
       <div className="tw-suma-cuenta-s">Así se cargan a tu nombre y después los canjeás por premios y descuentos.</div>
       <div className="tw-suma-cuenta-b">
         <button className="tw-btn" onClick={onIngresar}>Ingresar</button>
@@ -29448,6 +29455,7 @@ function TiendaPublica({ slug }) {
     <div className={"tw" + (vistaTk ? " en-vista" : "")} style={{ "--c": color }}><style>{CSS_TIENDA}</style>
       {vistaTk && <div className="tw-vista-barra" role="status"><span>👁️ Viendo la tienda como <b>{miCuenta ? String(miCuenta.nombre || "la clienta") : "la clienta"}</b> · solo para mirar</span><button onClick={salirVista}>Salir</button></div>}
       {cabecera}
+      {!amigaInfo && twMultHoy(tienda.puntos_dia) && <div className="tw-puntosdia-barra" role="note">🌻 <b>Hoy es {TW_DIAS[twDiaAR()]} de puntos:</b> tus compras online suman <b>{twMultTxt(twMultHoy(tienda.puntos_dia))} de puntos</b>{logueada ? "" : " · entrá con tu cuenta para sumarlos"}</div>}
       {amigaInfo && <div className="tw-amiga-barra" role="note">💌 <b>{amigaInfo.nombre}</b> te regaló <b>{amigaInfo.pct}% OFF</b> en tu primera compra · se aplica al finalizar</div>}
       {(cats.length > 0 || sectores.length > 0 || reingresados.length > 0 || reels.length > 0 || preventas.length > 0 || favs.length > 0 || tienda.regalos) && (
         <div className="tw-navbar">
@@ -29922,8 +29930,8 @@ function TiendaPublica({ slug }) {
                 </div>
                 {carrito.length > 0 && <div className="tw-cajon-pie">
                   {carrito.some(i => i.preventa) && <div className="tw-preventa-aviso chico"><b>⏳ Tenés productos en PREVENTA</b><span>Todavía no llegaron al local. Te avisamos por WhatsApp cuando lleguen y retirás todo junto.</span></div>}
-                  {logueada ? <TwPuntos monto={subtotal} tengo={miCuenta ? (miCuenta.puntos || 0) : null} />
-                    : <TwSumaConCuenta monto={subtotal} onIngresar={() => irACuenta("carrito")} onCrear={() => irACuenta("carrito", "crear")} />}
+                  {logueada ? <TwPuntos monto={subtotal} tengo={miCuenta ? (miCuenta.puntos || 0) : null} mult={twMultHoy(tienda.puntos_dia)} />
+                    : <TwSumaConCuenta monto={subtotal} mult={twMultHoy(tienda.puntos_dia)} onIngresar={() => irACuenta("carrito")} onCrear={() => irACuenta("carrito", "crear")} />}
                   {tienda.ruleta && tienda.ruleta.aviso && <TwRuletaAviso monto={subtotal} minimo={tienda.ruleta.minimo} />}
                   {tienda.rutina_cuotas && <TwRutinaCuotasAviso n={rutinaN} r={tienda.rutina_cuotas} />}
                   {comboCalc.combos.filter(cb => cb.ahorro > 0).map(cb => <div key={"cb" + cb.id} className="tw-linea" style={{ color: "#2d7a4f", fontWeight: 700 }}><span>🎁 Combo {cb.nombre}{cb.veces > 1 ? " ×" + cb.veces : ""}</span><span>−{fmtTienda(cb.ahorro)}</span></div>)}
@@ -31838,6 +31846,11 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
   const [diaGuardado, setDiaGuardado] = useState(() => firmaDia(o0.dia || {}));
   const [guardando, setGuardando] = useState(false);
   const [ref, setRef] = useState(() => ({ ...(cfg.referidos || { activo: true, pct: 10, puntos: 500 }) }));
+  const [pdia, setPdia] = useState(() => ({ ...(cfg.puntos_dia || { activo: false, mult: 2, dias: [0] }) }));
+  const guardarPdia = async () => {
+    try { const r = await API.put("/tienda/puntos-dia", { activo: !!pdia.activo, mult: pdia.mult, dias: pdia.dias }); setPdia(r.data.puntos_dia); avisar(true, "✓ Guardado"); onGuardado && onGuardado(); }
+    catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+  };
   const [mis, setMis] = useState(() => (cfg.misiones || []).map(m => ({ ...m })));
   const TIPOS_MIS = cfg.misiones_tipos || { resenas: "Dejar reseñas", compras: "Hacer compras", monto: "Comprar por un monto", coreano: "Comprar productos coreanos", categoria: "Comprar de una categoría", online: "Comprar en la tienda online", invitar: "Invitar amigas que compren" };
   const hoyISO = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
@@ -31911,7 +31924,7 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
       <TarjetasSecciones activa={secO} onElegir={elegirSecO} items={[
         ["dia", "⚡", "Oferta del día", "#c0392b", 0, false], ["combos", "🎁", "Combos", "#8e44ad", combos.length, false],
         ["packs", "🛍️", "Packs", "#16a085", (cfg.packs || []).length, false], ["misiones", "🎯", "Misiones", "#d68910", mis.length, false],
-        ["amiga", "💌", "Invitá a una amiga", "#e84393", 0, false]]} />
+        ["amiga", "💌", "Invitá a una amiga", "#e84393", 0, false], ["puntosdia", "🌻", "Puntos extra por día", "#d4a017", pdia.activo ? 1 : 0, false]]} />
       {desdeRot && <div className="cli-tip" style={{ margin: 0 }}>♻️ Cargamos <b>{desdeRot.nombre}</b> desde Rotación con {desdeRot.pct}% OFF por 24 horas (sin perder lo que pagaste). Revisá el precio y la duración y tocá <b>Guardar ofertas</b>.</div>}
       {secO === "dia" && <div className="card">
         <div className="ct">⚡ Oferta del día</div>
@@ -32021,6 +32034,17 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
           <button className="btn btn-g btn-sm" onClick={() => setMis(l => [...l, { id: "m" + Date.now().toString(36), titulo: "", tipo: "compras", meta: 1, puntos: 200, desde: hoyISO(), hasta: enDias(6), activo: true }])}>+ Nueva misión</button>
           <button className="btn btn-g btn-sm" onClick={guardarMis}>Guardar misiones</button>
         </div>}
+      </div>}
+      {secO === "puntosdia" && <div className="card">
+        <div className="ct">🌻 Puntos extra por día</div>
+        <div style={{ fontSize: 13, color: temaPal.textMuted, marginBottom: 10 }}>Las compras de la tienda online hechas esos días suman el doble (o el triple) de puntos. No es un descuento: la clienta los usa en una próxima compra, así que la hace volver. En la tienda se ve un aviso ese día y en el carrito, cuántos puntos suma. Los puntos extra se cargan cuando se entrega el pedido (igual que los comunes) y, si se anula la venta, se sacan.</div>
+        <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={!!pdia.activo} disabled={!esJefe} onChange={e => setPdia(x => ({ ...x, activo: e.target.checked }))} /><b>Activar puntos extra</b></label>
+        <div className="fl" style={{ marginTop: 12 }}>Cuántos puntos</div>
+        <div className="cli-chips">{[[2, "El doble (×2)"], [3, "El triple (×3)"]].map(([m, t]) => <button key={m} className={"chip-btn" + (Number(pdia.mult) === m ? " on" : "")} disabled={!esJefe} onClick={() => setPdia(x => ({ ...x, mult: m }))}>{t}</button>)}</div>
+        <div className="fl" style={{ marginTop: 12 }}>Qué días</div>
+        <div className="cli-chips">{["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"].map((t, d) => { const on = (pdia.dias || []).includes(d); return <button key={d} className={"chip-btn" + (on ? " on" : "")} disabled={!esJefe} onClick={() => setPdia(x => ({ ...x, dias: on ? (x.dias || []).filter(y => y !== d) : [...(x.dias || []), d].sort() }))}>{t}</button>; })}</div>
+        <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 8 }}>Cuenta el día en que la clienta hace el pedido (de 0 a 24 h), aunque lo retire otro día. Necesita tener cuenta en la tienda para sumar puntos. Ej.: una compra de $40.000 un domingo suma 400 puntos comunes + {(400 * ((Number(pdia.mult) || 2) - 1)).toLocaleString("es-AR")} extra.</div>
+        {esJefe && <button className="btn btn-g btn-sm" style={{ marginTop: 10 }} onClick={guardarPdia}>Guardar</button>}
       </div>}
       {secO === "amiga" && <div className="card">
         <div className="ct">💌 Invitá a una amiga</div>
