@@ -1101,6 +1101,7 @@ body:has(.pos-overlay) .ayuda-fab { display: none !important; }
 /* --- Asistente de ayuda --- */
 .ayuda-fab { position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 60; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 13px; font-weight: 800; padding: 11px 16px; border-radius: 999px; border: none; cursor: pointer; background: ${p.accent}; color: #1B2431; box-shadow: 0 6px 20px ${p.shadowCol}; transition: transform .15s ease, box-shadow .15s ease; }
 .ayuda-fab:hover { transform: translateY(-2px); box-shadow: 0 10px 26px ${p.shadowCol}; }
+.main:not(.en-pos) { padding-bottom: 84px; } /* en la compu, que el boton de Ayuda no tape lo ultimo de la pagina */
 .ayuda-fab:focus-visible { outline: 2px solid ${p.text}; outline-offset: 3px; }
 .ayuda-fab.arriba { top: calc(12px + env(safe-area-inset-top, 0px)); bottom: auto; padding: 7px 12px; font-size: 12px; box-shadow: 0 3px 10px ${p.shadowCol}; }
 @media (max-width: 860px) { .ayuda-fab.arriba { top: auto; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); } }
@@ -1254,8 +1255,12 @@ body:has(.pos-overlay) .ayuda-fab { display: none !important; }
   .to-guardar.hay { position: fixed; left: 12px; right: 12px; z-index: 30; background: ${p.card}; border: 1px solid ${p.border}; border-radius: 12px; padding: 8px 10px; box-shadow: 0 6px 20px ${p.shadowCol}; justify-content: space-between !important; flex-wrap: nowrap !important; z-index: 60; }
   body:has(.to-guardar.hay) .ayuda-fab { display: none !important; }
   .to-guardar.hay > span { font-size: 11.5px !important; border: none !important; padding: 0 !important; }
-  .main:not(.en-pos) { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important; }
-  .main:not(.en-pos) ~ .ayuda-fab, body:has(.barra-celu) .ayuda-fab { bottom: calc(70px + env(safe-area-inset-bottom, 0px)); padding: 9px 13px; font-size: 12px; }
+  /* Lugar abajo para la barra del celular y para el boton de Ayuda: lo ultimo de la pagina (ej. "Guardar") siempre se puede subir por encima */
+  .main:not(.en-pos) { padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px)) !important; }
+  .main:not(.en-pos) ~ .ayuda-fab, body:has(.barra-celu) .ayuda-fab { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+  /* En el celular la Ayuda es un circulito "?" (tapa mucho menos que el boton con texto) */
+  .ayuda-fab:not(.arriba) { width: 46px; height: 46px; padding: 0 !important; justify-content: center; font-size: 19px !important; }
+  .ayuda-fab:not(.arriba) .ayuda-fab-txt { display: none; }
   .dash-head { flex-direction: column; align-items: stretch !important; gap: 10px; }
   .dash-head .pt { font-size: 22px !important; }
   .dash-head .ps, .ph .ps { font-size: 11.5px; }
@@ -35057,7 +35062,7 @@ function AsistenteAyuda({ usuario, seccion, paletaActual }) {
     <>
       {!abierto && seccion !== "pos" && (
         <button className="ayuda-fab" onClick={() => setAbierto(true)} aria-label="Abrir la ayuda">
-          <span aria-hidden="true">❓</span> Ayuda
+          <span aria-hidden="true">❓</span><span className="ayuda-fab-txt">Ayuda</span>
         </button>
       )}
       {abierto && (
