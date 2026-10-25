@@ -3,7 +3,8 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
-const { negocioActual } = require('../lib/contexto');
+const { negocioActual, enNegocio } = require('../lib/contexto');
+const negocios = require('../lib/negocios');
 const cuponesLib = require('../lib/cupones');
 const { NIVELES, VENTA_VALIDA, obtenerUmbrales, gastoDeCliente } = require('../lib/niveles');
 
@@ -40,6 +41,18 @@ router.get('/negocio', async (req, res) => {
     if (!original && (!diseno || !diseno.tema || diseno.tema === 'girasoles')) diseno = { ...(diseno || {}), tema: 'claro', fondo: (diseno && diseno.fondo) || 'estilo' };
     res.json({ nombre_negocio: c.nombre_negocio || null, logo_url: c.logo_url || null, diseno });
   } catch (e) { res.json({ nombre_negocio: null, logo_url: null, diseno: null }); }
+});
+
+// Foto de un premio (subida en Lumiere): el link dice de que negocio es. No cambia nunca (cada foto nueva es otra).
+router.get('/premio-imagen/:neg/:id', async (req, res) => {
+  try {
+    const neg = await negocios.negocioPorId(parseInt(req.params.neg) || 1);
+    const fila = await enNegocio({ id: neg.id, schema: neg.schema }, () => pool.query('SELECT mime, datos FROM premios_imagenes WHERE id = $1', [parseInt(req.params.id) || 0]));
+    if (!fila.rows.length) return res.status(404).end();
+    res.set('Content-Type', fila.rows[0].mime);
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    res.send(fila.rows[0].datos);
+  } catch (e) { res.status(404).end(); }
 });
 
 // Imagen de fondo propia del negocio (si cargo una en Portal Cliente -> Diseno)
