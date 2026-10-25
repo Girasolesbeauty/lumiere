@@ -15527,6 +15527,20 @@ function PremiosPortal({ p, avisar }) {
   const [precioCalc, setPrecioCalc] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [verInactivos, setVerInactivos] = useState(false);
+  const [subiendoFoto, setSubiendoFoto] = useState(false);
+  // Foto desde el celular o la compu: se achica (cuadrada de hasta 800 px) y se guarda en el sistema
+  const subirFoto = async (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    setSubiendoFoto(true);
+    try {
+      const { blob } = await achicarImagen(f, 800);
+      const r = await API.post("/fidelizacion/premios/imagen", blob, { headers: { "Content-Type": blob.type } });
+      setForm(x => ({ ...x, imagen_url: String(API.defaults.baseURL || "").replace(/\/+$/, "") + r.data.ruta }));
+    } catch (err) { avisar("Error: " + (err.response?.data?.error || err.message || "no se pudo subir la foto")); }
+    setSubiendoFoto(false);
+  };
 
   const cargar = () => API.get("/fidelizacion/premios?todos=true").then(r => setPremios(r.data || [])).catch(() => setPremios([]));
   useEffect(() => { cargar(); }, []);
@@ -15650,7 +15664,14 @@ function PremiosPortal({ p, avisar }) {
                   <option value="Black">Solo Black</option>
                 </select>
               </div>
-              <div className="fg"><div className="fl">Foto (link, opcional)</div><input className="inp" placeholder="https://..." value={form.imagen_url} onChange={set("imagen_url")} /></div>
+              <div className="fg"><div className="fl">Foto (opcional)</div>
+                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                  {form.imagen_url ? <img src={form.imagen_url} alt="" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 10, border: "1px solid " + p.border }} /> : <span style={{ width: 64, height: 64, borderRadius: 10, background: p.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>🎁</span>}
+                  <label className="btn btn-g btn-sm" style={{ cursor: subiendoFoto ? "wait" : "pointer" }}>{subiendoFoto ? "Subiendo…" : form.imagen_url ? "📷 Cambiar foto" : "📷 Subir foto"}<input type="file" accept="image/*" hidden disabled={subiendoFoto} onChange={subirFoto} /></label>
+                  {form.imagen_url && <button type="button" className="btn btn-g btn-sm" onClick={() => setForm(f => ({ ...f, imagen_url: "" }))}>Sacar</button>}
+                </div>
+                <input className="inp" style={{ marginTop: 6 }} placeholder="…o pegá el link de una foto (https://...)" value={/\/portal\/premio-imagen\//.test(form.imagen_url) ? "" : form.imagen_url} onChange={set("imagen_url")} />
+              </div>
             </div>
             <label className="prem-check"><input type="checkbox" checked={form.solo_mes_cumpleanos} onChange={set("solo_mes_cumpleanos")} /> Solo se puede canjear en el mes de cumpleaños del cliente</label>
             <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
@@ -15678,11 +15699,11 @@ const disenoInicial = () => ({ tema: ES_NEGOCIO_ORIGINAL ? "girasoles" : "claro"
 const temasPortal = () => TEMAS_PORTAL.filter(t => t.id !== "girasoles" || ES_NEGOCIO_ORIGINAL);
 
 // Achica la imagen en el navegador (max 1600px, webp) para que el portal cargue rapido en el celular
-const achicarImagen = (archivo) => new Promise((ok, mal) => {
+const achicarImagen = (archivo, lado = 1600) => new Promise((ok, mal) => {
   const img = new Image();
   const url = URL.createObjectURL(archivo);
   img.onload = () => {
-    const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+    const k = Math.min(1, lado / Math.max(img.width, img.height));
     const c = document.createElement("canvas");
     c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
     c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
