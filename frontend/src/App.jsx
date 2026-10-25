@@ -26185,8 +26185,6 @@ const twMultHoy = (pd) => pd && (pd.dias || []).includes(twDiaAR()) ? pd.mult : 
 const twMultTxt = (m) => m === 3 ? "el triple" : "el doble";
 // "los domingos", "los sábados y domingos"
 const twDiasTxt = (dias) => { const n = (dias || []).map(d => TW_DIAS[d]).map(t => t.endsWith("s") ? t : t + "s"); return "los " + (n.length > 1 ? n.slice(0, -1).join(", ") + " y " + n[n.length - 1] : n[0] || ""); };
-// Mañana es dia de puntos extra (y hoy no): para avisar el dia antes
-const twMultManiana = (pd) => pd && !twMultHoy(pd) && (pd.dias || []).includes((twDiaAR() + 1) % 7) ? pd.mult : null;
 function TwPuntos({ monto, tengo, mult }) {
   const pts = Math.floor(Math.max(0, monto) / 100) * (mult || 1);
   const prev = useRef(pts);
@@ -29496,7 +29494,6 @@ function TiendaPublica({ slug }) {
     <div className={"tw" + (vistaTk ? " en-vista" : "")} style={{ "--c": color }}><style>{CSS_TIENDA}</style>
       {vistaTk && <div className="tw-vista-barra" role="status"><span>👁️ Viendo la tienda como <b>{miCuenta ? String(miCuenta.nombre || "la clienta") : "la clienta"}</b> · solo para mirar</span><button onClick={salirVista}>Salir</button></div>}
       {cabecera}
-      {!amigaInfo && twMultManiana(tienda.puntos_dia) && <div className="tw-puntosdia-barra" role="note"><span className="tw-pd-chispa" aria-hidden="true">✦</span><span className="tw-pd-sol" aria-hidden="true">🌻</span><span className="tw-pd-txt"><b>Mañana es {TW_DIAS[(twDiaAR() + 1) % 7]} de puntos:</b> tus compras online suman <b>{twMultTxt(twMultManiana(tienda.puntos_dia))} de puntos</b>. ¡Armá tu carrito y comprá mañana!</span><span className="tw-pd-chispa b" aria-hidden="true">✦</span></div>}
       {!amigaInfo && twMultHoy(tienda.puntos_dia) && <div className="tw-puntosdia-barra hoy" role="note"><span className="tw-pd-chispa" aria-hidden="true">✦</span><span className="tw-pd-sol" aria-hidden="true">🌻</span><span className="tw-pd-txt"><b>¡Hoy es {TW_DIAS[twDiaAR()]} de puntos!</b> Tus compras online suman <span className="tw-pd-x">{twMultTxt(twMultHoy(tienda.puntos_dia)).toUpperCase()}</span> de puntos{logueada ? "" : " · entrá con tu cuenta para sumarlos"}</span><span className="tw-pd-chispa b" aria-hidden="true">✦</span></div>}
       {amigaInfo && <div className="tw-amiga-barra" role="note">💌 <b>{amigaInfo.nombre}</b> te regaló <b>{amigaInfo.pct}% OFF</b> en tu primera compra · se aplica al finalizar</div>}
       {(cats.length > 0 || sectores.length > 0 || reingresados.length > 0 || reels.length > 0 || preventas.length > 0 || favs.length > 0 || tienda.regalos) && (
@@ -32096,7 +32093,7 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
           return (
             <div style={{ marginTop: 16, borderTop: "1px solid " + temaPal.border, paddingTop: 12 }}>
               <div className="fl">📣 Avisales a tus clientas</div>
-              <div style={{ fontSize: 12.5, color: temaPal.textMuted, margin: "2px 0 8px" }}>La tienda ya lo avisa sola: el día antes ("Mañana es domingo de puntos"), ese día arriba de todo, en el carrito y en "Mi cuenta". Para que llegue a más clientas, compartí este mensaje en tu historia de Instagram o en tu estado de WhatsApp (mejor el sábado a la tarde y el domingo a la mañana).</div>
+              <div style={{ fontSize: 12.5, color: temaPal.textMuted, margin: "2px 0 8px" }}>La tienda ya lo avisa sola ese día: con un cartel arriba de todo, en el carrito y en "Mi cuenta". Para que llegue a más clientas, compartí este mensaje en tu historia de Instagram o en tu estado de WhatsApp el mismo domingo (a la mañana y a la tarde).</div>
               <div style={{ whiteSpace: "pre-wrap", background: temaPal.bg, borderRadius: 10, padding: 10, fontSize: 13 }}>{msj}</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
                 <button className="btn btn-g btn-sm" onClick={() => { try { navigator.clipboard.writeText(msj); avisar(true, "✓ Mensaje copiado"); } catch (e) { avisar(false, "No se pudo copiar"); } }}>📋 Copiar mensaje</button>
