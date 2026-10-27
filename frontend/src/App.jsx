@@ -21898,6 +21898,7 @@ function htmlEtiquetas(items, estilo, tamId, op, limite) {
   const M = 5, G = 2; // margen de la hoja y separación, en mm (como las hojas de etiquetas comunes)
   const cols = t.rollo ? 1 : Math.max(1, Math.floor((210 - 2 * M + G) / (t.w + G)));
   const u = Math.min(t.w, t.h); // unidad para escalar letras según el tamaño
+  const uc = Math.min(t.h, t.w * 0.43); // Cyber: tiene renglones con texto y precio lado a lado, así que también manda el ancho
   const css = `
     @page { size: ${t.rollo ? t.w + "mm " + t.h + "mm" : "A4"}; margin: ${t.rollo ? 0 : M + "mm"}; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -21929,20 +21930,20 @@ function htmlEtiquetas(items, estilo, tamId, op, limite) {
     .hasta { font-size: ${(u * 0.075).toFixed(2)}mm; color: #555; margin-top: 0.5mm; }
     /* Cyber */
     .et.cyber { justify-content: flex-start; padding: 0; border: 0.5mm solid #111; }
-    .cyber .banda { width: 100%; background: #111; color: #fff; font-weight: 900; letter-spacing: 0.1em; font-size: ${(u * 0.11).toFixed(2)}mm; padding: ${(u * 0.03).toFixed(2)}mm 0; }
+    .cyber .banda { width: 100%; background: #111; color: #fff; font-weight: 900; letter-spacing: 0.1em; font-size: ${(uc * 0.11).toFixed(2)}mm; padding: ${(uc * 0.03).toFixed(2)}mm 0; }
     .cyber .pct { background: #7c3aed; color: #fff; border-radius: 99px; padding: 0 1.4mm; margin-left: 1.5mm; letter-spacing: 0.04em; }
-    .cyber .cuerpo { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; padding: ${(u * 0.035).toFixed(2)}mm ${(u * 0.07).toFixed(2)}mm; }
-    .cyber .nom { font-size: ${(u * 0.09).toFixed(2)}mm; }
-    .cyber .sub { font-size: ${(u * 0.07).toFixed(2)}mm; margin-top: 0; }
-    .cyber .antes.cyl { display: flex; align-items: center; justify-content: center; gap: 1.6mm; margin-top: 0.4mm; font-size: ${(u * 0.15).toFixed(2)}mm; line-height: 1; }
+    .cyber .cuerpo { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; padding: ${(uc * 0.035).toFixed(2)}mm ${(uc * 0.07).toFixed(2)}mm; }
+    .cyber .nom { font-size: ${(uc * 0.09).toFixed(2)}mm; }
+    .cyber .sub { font-size: ${(uc * 0.07).toFixed(2)}mm; margin-top: 0; }
+    .cyber .antes.cyl { display: flex; align-items: center; justify-content: center; gap: 1.6mm; margin-top: 0.4mm; font-size: ${(uc * 0.15).toFixed(2)}mm; line-height: 1; }
     .cyber .antes.cyl .lb { font-size: 0.45em; font-weight: 800; letter-spacing: 0.12em; color: #444; }
     .cyber .antes.cyl s { font-size: 1em; font-weight: 800; color: #444; }
-    .cyber .antes.cyl s::after { border-top-color: #d32f2f; border-top-width: ${Math.max(0.45, u * 0.016).toFixed(2)}mm; }
+    .cyber .antes.cyl s::after { border-top-color: #d32f2f; border-top-width: ${Math.max(0.45, uc * 0.016).toFixed(2)}mm; }
     .cyber .ops { width: 100%; margin-top: 0.6mm; border-top: 0.25mm solid #111; }
-    .cyber .op { display: flex; justify-content: space-between; align-items: center; gap: 1.5mm; padding: ${(u * 0.012).toFixed(2)}mm 0; border-bottom: 0.2mm dashed #bbb; }
-    .cyber .ot { font-size: ${(u * 0.072).toFixed(2)}mm; text-align: left; color: #222; line-height: 1.1; }
-    .cyber .op b { font-size: ${(u * 0.13).toFixed(2)}mm; font-weight: 900; white-space: nowrap; letter-spacing: -0.02em; }
-    .cyber .op:first-child b { font-size: ${(u * 0.17).toFixed(2)}mm; }
+    .cyber .op { display: flex; justify-content: space-between; align-items: center; gap: 1.5mm; padding: ${(uc * 0.012).toFixed(2)}mm 0; border-bottom: 0.2mm dashed #bbb; }
+    .cyber .ot { font-size: ${(uc * 0.072).toFixed(2)}mm; text-align: left; color: #222; line-height: 1.1; }
+    .cyber .op b { font-size: ${(uc * 0.13).toFixed(2)}mm; font-weight: 900; white-space: nowrap; letter-spacing: -0.02em; }
+    .cyber .op:first-child b { font-size: ${(uc * 0.17).toFixed(2)}mm; }
     .cyber .hasta { font-size: 1em; color: #555; }
     .cyber .op:last-child { border-bottom: 0; }
     /* Promo */
