@@ -21921,7 +21921,7 @@ function htmlEtiquetas(items, estilo, tamId, op, limite) {
     .oferta .banda { width: 100%; background: #d32f2f; color: #fff; font-weight: 900; letter-spacing: 0.08em; font-size: ${(u * 0.13).toFixed(2)}mm; padding: ${(u * 0.035).toFixed(2)}mm 0; position: relative; }
     .oferta .pct { background: #fff; color: #d32f2f; border-radius: 99px; padding: 0 1.4mm; margin-left: 1.5mm; font-size: 0.9em; }
     .oferta .cuerpo { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; padding: ${(u * 0.05).toFixed(2)}mm; }
-    .antes { font-size: ${(u * 0.1).toFixed(2)}mm; color: #555; } .antes s { text-decoration-thickness: 0.35mm; }
+    .antes { font-size: ${(u * 0.1).toFixed(2)}mm; color: #555; } .antes s { text-decoration: none; position: relative; display: inline-block; color: #222; font-weight: 700; font-size: 1.15em; } .antes s::after { content: ""; position: absolute; left: -4%; right: -4%; top: 52%; border-top: ${Math.max(0.35, u * 0.012).toFixed(2)}mm solid #000; transform: rotate(-6deg); }
     .rojo { color: #d32f2f; }
     .oferta .nom { font-size: ${(u * 0.095).toFixed(2)}mm; }
     .oferta .pre.xl { font-size: ${(u * 0.25).toFixed(2)}mm; }
