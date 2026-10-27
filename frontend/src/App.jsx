@@ -24482,6 +24482,61 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
   );
 }
 // Cyber Monday como sector propio (lo ven y lo editan las vendedoras): el mismo plan que Promociones › Cyber Monday
+// Diseño Cyber de la tienda online: se programa con fechas y antes se puede ver con un link privado
+function CyberTienda({ temaPal }) {
+  const [d, setD] = useState(null);
+  const [f, setF] = useState(null);
+  const [aviso, setAviso] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  useEffect(() => { API.get("/promociones/cyber-tienda").then(r => { setD(r.data); setF({ ...r.data.cyber, chips: (r.data.cyber.chips || []).join(", ") }); }).catch(() => setD(false)); }, []);
+  if (d === false) return null;
+  if (!d || !f) return <div className="card" style={{ marginBottom: 16 }}><div className="skel" style={{ height: 120 }} /></div>;
+  const set = (k, v) => setF(x => ({ ...x, [k]: v }));
+  const guardar = async () => {
+    setGuardando(true);
+    try {
+      const r = await API.put("/promociones/cyber-tienda", { ...f, chips: f.chips.split(",").map(x => x.trim()).filter(Boolean) });
+      setD(x => ({ ...x, cyber: r.data.cyber, en_curso: r.data.en_curso })); setAviso("✅ Guardado");
+    } catch (e) { setAviso("Error: " + (e.response?.data?.error || e.message)); }
+    setGuardando(false); setTimeout(() => setAviso(""), 4000);
+  };
+  const k = d.cyber, slug = d.slug;
+  const link = k.token && slug ? (d.dominio ? "https://" + d.dominio + "/?cyber=" + k.token : window.location.origin + "/?tienda=" + encodeURIComponent(slug) + "&cyber=" + k.token) : "";
+  const fmt = (fh) => { const [a, h] = String(fh).split("T"); const [y, m, dd] = a.split("-"); return dd + "/" + m + " " + h; };
+  const estado = d.en_curso ? ["🟢 En curso: las clientas lo están viendo", temaPal.green] : k.activo ? ["🗓️ Programado: se prende solo el " + fmt(k.desde) + " y se apaga el " + fmt(k.hasta), temaPal.accentText] : ["⚪ Apagado: la tienda se ve normal", temaPal.textMuted];
+  const lbl = { fontSize: 11, textAlign: "left", color: temaPal.textMuted, display: "block", marginBottom: 4 };
+  return (
+    <div className="card" style={{ marginBottom: 16, textAlign: "left" }}>
+      <div className="ct">🛍️ Diseño Cyber en la tienda online</div>
+      <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 12 }}>Portada violeta con cuenta regresiva, botón CYBER en el menú y los productos con descuento marcados con su %. Las clientas solo lo ven entre las fechas que pongas.</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><Sw on={!!f.activo} toggle={() => set("activo", !f.activo)} /><b style={{ fontSize: 13 }}>Programar en la tienda</b></div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: estado[1], marginBottom: 14 }}>{estado[0]}{f.activo !== k.activo ? " · (guardá para aplicar)" : ""}</div>
+      <div className="g2">
+        <div><label style={lbl}>Empieza</label><input className="inp" type="datetime-local" value={f.desde} onChange={e => set("desde", e.target.value)} /></div>
+        <div><label style={lbl}>Termina</label><input className="inp" type="datetime-local" value={f.hasta} onChange={e => set("hasta", e.target.value)} /></div>
+        <div><label style={lbl}>Texto chiquito de arriba</label><input className="inp" value={f.ceja} maxLength={80} onChange={e => set("ceja", e.target.value)} /></div>
+        <div><label style={lbl}>Título grande</label><input className="inp" value={f.titulo} maxLength={40} onChange={e => set("titulo", e.target.value)} /></div>
+        <div style={{ gridColumn: "1 / -1" }}><label style={lbl}>Bajada</label><input className="inp" value={f.subtitulo} maxLength={160} onChange={e => set("subtitulo", e.target.value)} /></div>
+        <div><label style={lbl}>Texto del botón</label><input className="inp" value={f.boton} maxLength={30} onChange={e => set("boton", e.target.value)} /></div>
+        <div><label style={lbl}>Etiquetas (separadas por coma, hasta 4)</label><input className="inp" value={f.chips} onChange={e => set("chips", e.target.value)} /></div>
+      </div>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 14 }}>
+        <button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando..." : "Guardar"}</button>
+        {aviso && <span style={{ fontSize: 12, color: aviso.startsWith("Error") ? "#c0392b" : temaPal.green }}>{aviso}</span>}
+      </div>
+      {link && !d.en_curso && <div className="cli-tip" style={{ marginTop: 16, textAlign: "left" }}>
+        <b>👀 Vista previa privada</b>
+        <div style={{ fontSize: 12, margin: "4px 0 8px" }}>Con este link ves la tienda como va a quedar el primer día (con esos precios). Nadie más lo ve si no le pasás el link. Comprando desde ahí se cobran los precios de hoy.</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <input className="inp" readOnly value={link} style={{ flex: 1, minWidth: 200, fontSize: 11 }} onFocus={e => e.target.select()} />
+          <button className="btn btn-sm" onClick={() => { try { navigator.clipboard.writeText(link); setAviso("✓ Link copiado"); setTimeout(() => setAviso(""), 2500); } catch (e) {} }}>📋 Copiar</button>
+          <a className="btn btn-sm" href={link} target="_blank" rel="noreferrer">Abrir</a>
+        </div>
+        {!d.publicada && <div style={{ fontSize: 11, marginTop: 6, color: temaPal.textMuted }}>Ojo: la tienda online está desactivada, así que el link no va a abrir hasta que la actives.</div>}
+      </div>}
+    </div>
+  );
+}
 function PaginaCyber({ paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [medios, setMedios] = useState(null);
@@ -24491,6 +24546,7 @@ function PaginaCyber({ paletaActual }) {
     <div className="fade">
       <div className="ph"><div><div className="pt">⚡ Cyber Monday</div><div className="ps">ofertas para vender lo que está quieto</div></div></div>
       {mensaje && <div className="cli-tip" style={{ margin: "0 0 12px", borderColor: temaPal.green }}>{mensaje}</div>}
+      <CyberTienda temaPal={temaPal} />
       {medios === null ? <div className="card"><div className="skel" style={{ height: 200 }} /></div>
         : <PlanLiquidacion temaPal={temaPal} medios={medios} onCreado={() => { setMensaje("✅ ¡Ofertas creadas! Las ves en Promociones."); window.scrollTo({ top: 0, behavior: "smooth" }); setTimeout(() => setMensaje(""), 6000); }} />}
     </div>
@@ -25830,6 +25886,26 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-redes{display:flex;gap:10px;margin-bottom:10px}
 .tw-redes a{width:42px;height:42px;border-radius:50%;border:1px solid #444;display:flex;align-items:center;justify-content:center;transition:background .2s,transform .2s}
 .tw-redes a:hover{background:#fff;color:#000 !important;transform:translateY(-2px)}
+.tw-cy-barra{background:#0b0118!important;color:#e9d5ff!important;font-weight:800;letter-spacing:.08em;font-size:12px;white-space:nowrap}.tw-cy-bc{display:none}@media(max-width:520px){.tw-cy-barra{font-size:11px;letter-spacing:.05em}.tw-cy-bl{display:none}.tw-cy-bc{display:inline}}
+.tw-cy-hero{position:relative;overflow:hidden;margin:14px 16px 6px;border-radius:22px;padding:24px 20px 22px;color:#fff;background:radial-gradient(120% 120% at 0% 0%,#3b0a8f 0%,#12002e 45%,#05010f 100%)}
+@media (min-width:900px){.tw-cy-hero{max-width:1240px;margin:20px auto 8px;padding:44px 48px}}
+.tw-cy-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.12) 50%,transparent 65%);background-size:250% 100%;animation:twCyBrillo 4.5s ease-in-out infinite;pointer-events:none}
+@keyframes twCyBrillo{0%{background-position:120% 0}100%{background-position:-120% 0}}
+.tw-cy-ceja{font-size:11px;font-weight:800;letter-spacing:.28em;color:#22d3ee;text-transform:uppercase}
+.tw .tw-cy-tit{font-size:clamp(40px,9vw,72px);line-height:.95;font-weight:900;letter-spacing:-.03em;margin:8px 0 6px;max-width:9ch;background:linear-gradient(90deg,#c084fc,#22d3ee);-webkit-background-clip:text;background-clip:text;color:transparent}
+.tw-cy-sub{font-size:14.5px;opacity:.85;line-height:1.4;max-width:34ch;margin:0}
+.tw-cy-reloj{display:flex;gap:8px;margin:16px 0;max-width:420px}
+.tw-cy-reloj div{flex:1;text-align:center;background:rgba(255,255,255,.08);border:1px solid rgba(192,132,252,.45);border-radius:12px;padding:8px 0 6px}
+.tw-cy-reloj b{display:block;font-size:24px;font-weight:900;font-variant-numeric:tabular-nums}
+.tw-cy-reloj small{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;opacity:.7}
+.tw .tw-cy-btn{position:relative;z-index:1;display:inline-flex;align-items:center;gap:8px;background:#fff;color:#12002e;border:none;border-radius:999px;padding:13px 26px;font:inherit;font-weight:800;font-size:13px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.tw-cy-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
+.tw-cy-chips span{font-size:11.5px;font-weight:700;border:1px solid rgba(192,132,252,.45);border-radius:999px;padding:5px 10px;background:rgba(255,255,255,.08)}
+.tw .tw-nav .tw-cy-nav{background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;border-radius:999px;padding:6px 14px;font-weight:900;letter-spacing:.1em}
+.tw-etq.tw-cy-badge{background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;font-weight:900;border:0}
+.tw-cy-vista{position:fixed;left:12px;right:12px;bottom:12px;z-index:400;background:#12002e;color:#e9d5ff;border:1px solid #7c3aed;border-radius:14px;padding:10px 14px;font-size:12.5px;line-height:1.4;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+@media (min-width:700px){.tw-cy-vista{left:auto;max-width:420px}}
+@media (prefers-reduced-motion:reduce){.tw-cy-hero::after{animation:none}}
 .tw-pie-link{background:none;border:none;padding:0;color:#fff;font:inherit;cursor:pointer;text-align:left}
 .tw-pie-link:hover{text-decoration:underline}
 .tw-pie-legal{max-width:1280px;margin:0 auto;padding:0 20px 18px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;font-size:12.5px}
@@ -26649,7 +26725,7 @@ function twTextoLlega(f) {
   if (dias === 0) return "hoy"; if (dias === 1) return "mañana";
   return "el " + d.toLocaleDateString("es-AR", { weekday: "short" }).replace(".", "") + " " + d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" });
 }
-function TwTarjeta({ p, base, sin, preventa, llega, fav, onFav, onAbrir, onAgregar, pack }) {
+function TwTarjeta({ p, base, sin, preventa, llega, fav, onFav, onAbrir, onAgregar, pack, cyPct, cyGral }) {
   const [hover, setHover] = useState(false);
   const [hecho, setHecho] = useState(false);
   const imgRef = useRef(null);
@@ -26672,10 +26748,11 @@ function TwTarjeta({ p, base, sin, preventa, llega, fav, onFav, onAbrir, onAgreg
         {onFav && <button className={"tw-fav" + (fav ? " on" : "")} key={fav ? "si" : "no"} onClick={e => { e.stopPropagation(); onFav(p); }} aria-label={fav ? "Sacar de favoritos" : "Guardar en favoritos"} aria-pressed={!!fav}><TwIcono d={TW_CORAZON} size={18} /></button>}
         {preventa && <><span className="tw-pre-brillo" aria-hidden="true" /><span className="tw-pre-chispas" aria-hidden="true"><i>✦</i><i>✦</i><i>✧</i><i>✦</i></span></>}
         <div className="tw-etqs">
+          {cyPct > 0 && !preventa && <span className="tw-etq tw-cy-badge">⚡ -{Math.round(cyPct)}%</span>}
           {preventa && <span className="tw-etq pre">✨ Preventa</span>}
-          {p.top && !preventa && !sin && <span className="tw-etq top">🔥 {p.top <= 3 ? "#" + p.top + " más vendido" : "Top ventas"}</span>}
+          {p.top && !preventa && !sin && !cyPct && <span className="tw-etq top">🔥 {p.top <= 3 ? "#" + p.top + " más vendido" : "Top ventas"}</span>}
           {p.precio_antes && !preventa && <span className="tw-etq oferta">⚡ Oferta</span>}
-          {p.nuevo && !preventa && !p.top && !p.precio_antes && <span className="tw-etq">Nuevo</span>}
+          {p.nuevo && !preventa && !p.top && !p.precio_antes && !cyPct && <span className="tw-etq">Nuevo</span>}
           {pack && !preventa && !sin && <span className="tw-etq pack">🎁 {pack.cantidad}+ = {pack.pct}% OFF</span>}
           {p.video && <span className="tw-etq neg">▶ Video</span>}
         </div>
@@ -26688,7 +26765,7 @@ function TwTarjeta({ p, base, sin, preventa, llega, fav, onFav, onAbrir, onAgreg
       {p.marca && <div className="tw-card-m">{p.marca}</div>}
       <div className="tw-card-n">{p.nombre}</div>
       {p.resenas && <div className="tw-card-est"><TwEstrellas v={p.resenas[0]} size={12} /><span>({p.resenas[1]})</span></div>}
-      <div className="tw-card-p">{p.precio_antes ? <><s className="tw-antes">{fmtTienda(p.precio_antes)}</s> <span className="tw-precio-of">{fmtTienda(p.precio)}</span></> : fmtTienda(p.precio)}</div>
+      <div className="tw-card-p">{cyGral > 0 && !p.precio_antes && !preventa ? <><s className="tw-antes">{fmtTienda(p.precio)}</s> <span className="tw-precio-of">{fmtTienda(Math.round(p.precio * (1 - cyGral / 100)))}</span></> : p.precio_antes ? <><s className="tw-antes">{fmtTienda(p.precio_antes)}</s> <span className="tw-precio-of">{fmtTienda(p.precio)}</span></> : fmtTienda(p.precio)}</div>
       {preventa && <div className="tw-card-pre">{llega ? <>⏳ Llega aprox. <b>{llega}</b> · ¡reservalo!</> : "⏳ Llega pronto · ¡reservalo antes que se agote!"}</div>}
     </div>
   );
@@ -27232,7 +27309,7 @@ function twSlugs(lista) {
 // Producto que pide la direccion: /nombre-del-producto (dominio propio) o ?producto=... (link de Lumiere)
 // Direccion de cada seccion: /preventa, /regalos, /videos, /favoritos, /todo, /nuevamente-en-stock y, con una
 // letra adelante para no chocar con los productos, /c/categoria, /s/sector, /m/marca (sin dominio: ?seccion=...)
-const TW_SECC_FIJAS = { preventa: "preventa", regalos: "regalos", rutina: "rutina", diagnostico: "diagnostico", videos: "videos", favoritos: "favoritos", "*": "todo", reingreso: "nuevamente-en-stock" };
+const TW_SECC_FIJAS = { cyber: "cyber", preventa: "preventa", regalos: "regalos", rutina: "rutina", diagnostico: "diagnostico", videos: "videos", favoritos: "favoritos", "*": "todo", reingreso: "nuevamente-en-stock" };
 const TW_SECC_RUTAS = Object.fromEntries(Object.entries(TW_SECC_FIJAS).map(([k, v]) => [v, k]));
 const twSeccionDeUrl = () => {
   try {
@@ -27375,6 +27452,27 @@ function useCuentaRegresiva(hasta) {
   return { ms, d: Math.floor(s / 86400), h: Math.floor(s % 86400 / 3600), m: Math.floor(s % 3600 / 60), s: s % 60 };
 }
 const twDos = (n) => String(n).padStart(2, "0");
+// ===== Modo Cyber Monday de la tienda (estilo "Eléctrico") =====
+// La hora viene de Argentina ('AAAA-MM-DDTHH:MM'); la mejor promo de un producto, con cualquier forma de pago
+const twCyHasta = (fh) => fh ? fh + ":59-03:00" : null;
+const twMejorPct = (promos, p) => (promos || []).reduce((m, x) => { const ok = x.aplica_a === "todo" || (x.aplica_a === "productos" && x.productos.includes(p.id)) || (x.aplica_a === "categorias" && x.categorias.includes(p.categoria)); return ok && x.pct > m ? x.pct : m; }, 0);
+function TwCyberBarra({ cy }) {
+  const t = useCuentaRegresiva(twCyHasta(cy.hasta));
+  return <div className="tw-anuncio tw-cy-barra" aria-live="off"><div><span>{"⚡ "}<span className="tw-cy-bl">CYBER MONDAY</span><span className="tw-cy-bc">CYBER</span>{" · "}{String(cy.titulo || "").toUpperCase()}{t.ms ? <>{" · "}<span className="tw-cy-bl">TERMINA EN </span>{t.d ? t.d + "D " : ""}{twDos(t.h)}:{twDos(t.m)}:{twDos(t.s)}</> : null}</span></div></div>;
+}
+function TwCyberHero({ cy, onVer }) {
+  const t = useCuentaRegresiva(twCyHasta(cy.hasta));
+  return (
+    <section className="tw-cy-hero" aria-label="Cyber Monday">
+      {cy.ceja && <div className="tw-cy-ceja">{cy.ceja}</div>}
+      <h2 className="tw-cy-tit">{cy.titulo}</h2>
+      {cy.subtitulo && <p className="tw-cy-sub">{cy.subtitulo}</p>}
+      {t.ms > 0 && <div className="tw-cy-reloj" role="timer" aria-label="Tiempo que queda">{[[t.d, "días"], [t.h, "horas"], [t.m, "min"], [t.s, "seg"]].map(([n, l]) => <div key={l}><b>{twDos(n)}</b><small>{l}</small></div>)}</div>}
+      <button className="tw-cy-btn" onClick={onVer}>{cy.boton || "Ver ofertas"} →</button>
+      {(cy.chips || []).length > 0 && <div className="tw-cy-chips">{cy.chips.map(c => <span key={c}>{c}</span>)}</div>}
+    </section>
+  );
+}
 function TwReloj({ hasta, chico }) {
   const t = useCuentaRegresiva(hasta);
   if (!t.ms) return <span className="tw-reloj fin">¡Terminó!</span>;
@@ -28268,6 +28366,8 @@ function TiendaPublica({ slug }) {
     return d;
   };
   const params = new URLSearchParams(window.location.search);
+  // Link privado de vista previa del Cyber (?cyber=codigo): queda guardado mientras se navega la tienda
+  const cyberTok = (() => { const q = params.get("cyber"); try { if (q) sessionStorage.setItem("tienda_cyber", q); return q || sessionStorage.getItem("tienda_cyber") || ""; } catch (e) { return q || ""; } })();
   const [tienda, setTienda] = useState(null);
   const [error, setError] = useState("");
   const [productos, setProductos] = useState(null);
@@ -28444,7 +28544,7 @@ function TiendaPublica({ slug }) {
   useEffect(() => {
     // Si el servidor no responde (por ej. mientras se actualiza), se reintenta solo unas veces antes de mostrar el aviso
     const conReintentos = (ruta, n = 0) => pedir(ruta).catch(e => e.red && n < 4 ? new Promise(ok => setTimeout(ok, 2000 * (n + 1))).then(() => conReintentos(ruta, n + 1)) : Promise.reject(e));
-    conReintentos("").then(t => {
+    conReintentos(cyberTok ? "?cyber=" + encodeURIComponent(cyberTok) : "").then(t => {
       setTienda(t); document.title = t.titulo;
       // Icono de la tienda en la pestaña y en el acceso directo (en el dominio propio ya lo pone Vercel)
       if (t.icono_v) {
@@ -28884,7 +28984,8 @@ function TiendaPublica({ slug }) {
 
   const cabecera = (
     <>
-      {anuncios.length > 0 && <div className="tw-anuncio" aria-live="polite"><div key={anuncio}>{anuncios[anuncio % anuncios.length]}</div></div>}
+      {tienda.cyber ? <TwCyberBarra cy={tienda.cyber} /> : anuncios.length > 0 && <div className="tw-anuncio" aria-live="polite"><div key={anuncio}>{anuncios[anuncio % anuncios.length]}</div></div>}
+      {tienda.cyber && tienda.cyber.vista_previa && <div className="tw-cy-vista" role="note">👁 <b>Vista previa del Cyber Monday.</b> Las clientas todavía no lo ven: se prende solo el {tienda.cyber.desde.slice(8, 10)}/{tienda.cyber.desde.slice(5, 7)} a las {tienda.cyber.desde.slice(11)}. Los descuentos son los de ese día; si comprás ahora, se cobra con los precios de hoy.</div>}
       <header className={"tw-cab" + (sombra ? " sombra" : "")}>
         <div className="tw-cab1">
           <button className="tw-marca" onClick={() => { if (codigoUrl) window.location.href = "?tienda=" + encodeURIComponent(slug); else irInicio(); }} aria-label="Inicio">
@@ -29063,14 +29164,14 @@ function TiendaPublica({ slug }) {
   // Banner que lleva a varios productos: se muestran esos (en el orden elegido)
   const idsBanner = (bn) => String(bn.valor || "").split(",").map(Number).filter(Boolean);
   const bannerCat = cat.startsWith("b:") ? (tienda.banners_img || []).find(bn => bn.id === cat.slice(2) && bn.destino === "productos") : null;
-  if (productos !== null && ((cat.startsWith("b:") && (!bannerCat || !visibles.some(p => idsBanner(bannerCat).includes(p.id)))) || (cat === "preventa" && !preventas.length) || (cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat === "regalos" && !tienda.regalos) || (cat === "diagnostico" && !tienda.diagnostico) || (cat.startsWith("pack:") && !packCat) || (cat && cat !== "*" && !cat.startsWith("s:") && !cat.startsWith("m:") && !cat.startsWith("pack:") && !cat.startsWith("b:") && cat !== "reingreso" && cat !== "videos" && cat !== "regalos" && cat !== "rutina" && cat !== "diagnostico" && cat !== "preventa" && cat !== "favoritos" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2))))) { setTimeout(() => setCat(""), 0); }
+  if (productos !== null && ((cat === "cyber" && !tienda.cyber) || (cat.startsWith("b:") && (!bannerCat || !visibles.some(p => idsBanner(bannerCat).includes(p.id)))) || (cat === "preventa" && !preventas.length) || (cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat === "regalos" && !tienda.regalos) || (cat === "diagnostico" && !tienda.diagnostico) || (cat.startsWith("pack:") && !packCat) || (cat && cat !== "*" && cat !== "cyber" && !cat.startsWith("s:") && !cat.startsWith("m:") && !cat.startsWith("pack:") && !cat.startsWith("b:") && cat !== "reingreso" && cat !== "videos" && cat !== "regalos" && cat !== "rutina" && cat !== "diagnostico" && cat !== "preventa" && cat !== "favoritos" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2))))) { setTimeout(() => setCat(""), 0); }
   const enSector = (sc, p) => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria);
   const delSector = sector ? visibles.filter(p => enSector(sector, p)) : [];
   const catsSector = sector ? [...new Set(delSector.map(p => p.categoria).filter(Boolean))].sort() : [];
   // Busqueda inteligente: primero lo que coincide en el nombre, despues por tipo, despues por descripcion
   const puntaje = new Map();
   const favLista = favs.map(id => lista0.find(p => p.id === id)).filter(Boolean);
-  const base1 = (cat === "reingreso" ? reingresados : cat === "preventa" ? preventas : cat === "favoritos" ? favLista : bannerCat ? idsBanner(bannerCat).map(id => visibles.find(p => p.id === id)).filter(Boolean) : q && (!cat || cat === "*") ? lista0 : visibles).filter(p => (!cat || cat === "*" || cat === "reingreso" || cat === "preventa" || cat === "favoritos" || !!bannerCat || (sector ? enSector(sector, p) && (!subcat || p.categoria === subcat) : cat.startsWith("m:") ? (p.marca || "") === cat.slice(2) : cat.startsWith("pack:") ? !!packCat && twEnPack(packCat, p.id, p.marca) : p.categoria === cat)) && (!q || (puntaje.set(p.id, twCoincide(p, q)), puntaje.get(p.id) > 0))
+  const base1 = (cat === "reingreso" ? reingresados : cat === "preventa" ? preventas : cat === "favoritos" ? favLista : bannerCat ? idsBanner(bannerCat).map(id => visibles.find(p => p.id === id)).filter(Boolean) : cat === "cyber" ? visibles.filter(p => twMejorPct(promosLid, p) > 0).sort((a, b) => twMejorPct(promosLid, b) - twMejorPct(promosLid, a)) : q && (!cat || cat === "*") ? lista0 : visibles).filter(p => (!cat || cat === "*" || cat === "reingreso" || cat === "preventa" || cat === "favoritos" || cat === "cyber" || !!bannerCat || (sector ? enSector(sector, p) && (!subcat || p.categoria === subcat) : cat.startsWith("m:") ? (p.marca || "") === cat.slice(2) : cat.startsWith("pack:") ? !!packCat && twEnPack(packCat, p.id, p.marca) : p.categoria === cat)) && (!q || (puntaje.set(p.id, twCoincide(p, q)), puntaje.get(p.id) > 0))
     // Lo agotado no se ve al navegar; si lo buscan por nombre aparece (al final), para poder pedir "Avisame cuando vuelva"
     && (!q || !agotado(p) || twEnNombre(p, q)));
   // Si hay productos que coinciden por nombre o tipo, no se mezclan los que solo lo mencionan en la descripcion
@@ -29122,7 +29223,7 @@ function TiendaPublica({ slug }) {
   const nSlides = destacados.length;
   const iSlide = nSlides ? slide % nSlides : 0;
   // Cuotas sin interes de GoCuotas en cada tarjeta (con su descuento si tiene)
-  const tarjeta = (p) => <TwTarjeta key={p.id} pack={twPackDe(tienda.packs, p)} p={p} base={base} sin={agotado(p)} preventa={esPreventa(p)} llega={esPreventa(p) ? llegaDe(p) : null} fav={favs.includes(p.id)} onFav={toggleFav} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
+  const tarjeta = (p) => <TwTarjeta key={p.id} cyPct={tienda.cyber ? twMejorPct(promosLid, p) : 0} cyGral={tienda.cyber ? twMejorPct(promosLid.filter(x => !x.pago), p) : 0} pack={twPackDe(tienda.packs, p)} p={p} base={base} sin={agotado(p)} preventa={esPreventa(p)} llega={esPreventa(p) ? llegaDe(p) : null} fav={favs.includes(p.id)} onFav={toggleFav} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
   const enComparar = comparar.map(id => lista0.find(p => p.id === id)).filter(Boolean);
   const toggleComparar = (p) => setComparar(c => c.includes(p.id) ? c.filter(x => x !== p.id) : [...c, p.id].slice(-3));
   const opcionesPago = [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["gocuotas", "💜 GoCuotas", "Hasta 4 cuotas sin interés con tu tarjeta de débito"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar"], ["retiro", "💵 Pago al retirar", "Pagás en el local"]]
@@ -29595,6 +29696,7 @@ function TiendaPublica({ slug }) {
         <div className="tw-navbar">
           <nav className="tw-nav" aria-label="Categorías">
             <button className={!enLista ? "on" : ""} onClick={irInicio}>Inicio</button>
+            {tienda.cyber && <button className={"tw-cy-nav" + (cat === "cyber" && !q ? " on" : "")} onClick={() => irCat("cyber")}>CYBER</button>}
             <button className={cat === "*" && !q ? "on" : ""} onClick={() => irCat("*")}>Todo</button>
             {tienda.regalos && (tienda.regalos.giftcards
               ? <button className={"tw-nav-regalo tw-nav-gc" + (cat === "regalos" && !q ? " on" : "")} onClick={() => irRegalos("gift")}><span aria-hidden="true">🎁</span> Gift Cards<i className="tw-nav-gc-chispa" aria-hidden="true">✦</i></button>
@@ -29633,7 +29735,7 @@ function TiendaPublica({ slug }) {
         ) : enLista ? (
           <>
             <div className="tw-lista-cab">
-              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.ingrediente && !filtros.tipo && !filtros.piel && !filtros.necesidad ? "Con " + ((TW_ING_OP.find(o => o[0] === filtros.ingrediente) || ["", ""])[1]) : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : packCat ? "🎁 " + packCat.nombre + ": " + packCat.cantidad + " o más = " + packCat.pct + "% OFF" : cat === "preventa" ? "⏳ " + tienda.preventa.titulo : cat === "favoritos" ? "❤️ Tus favoritos" : bannerCat ? (bannerCat.titulo || "Elegidos para vos") : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>{sector && !q && lista.length === 0 && combosSector(sector).length > 0 ? combosSector(sector).length + (combosSector(sector).length === 1 ? " kit" : " kits") : lista.length + " " + (lista.length === 1 ? "producto" : "productos")}
+              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.ingrediente && !filtros.tipo && !filtros.piel && !filtros.necesidad ? "Con " + ((TW_ING_OP.find(o => o[0] === filtros.ingrediente) || ["", ""])[1]) : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : packCat ? "🎁 " + packCat.nombre + ": " + packCat.cantidad + " o más = " + packCat.pct + "% OFF" : cat === "preventa" ? "⏳ " + tienda.preventa.titulo : cat === "favoritos" ? "❤️ Tus favoritos" : bannerCat ? (bannerCat.titulo || "Elegidos para vos") : cat === "cyber" ? "⚡ Ofertas Cyber" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>{sector && !q && lista.length === 0 && combosSector(sector).length > 0 ? combosSector(sector).length + (combosSector(sector).length === 1 ? " kit" : " kits") : lista.length + " " + (lista.length === 1 ? "producto" : "productos")}
                 {q && <button className="tw-compartir-sec" onClick={() => compartirSeccion("“" + busca.trim() + "”")}>{seccionCopiada ? "✓ Link copiado" : "🔗 Compartir"}</button>}
                 {!q && cat && cat !== "favoritos" && <button className="tw-compartir-sec" onClick={() => compartirSeccion(cat === "preventa" ? tienda.preventa.titulo : sector ? sector.nombre : cat === "*" ? "Todos los productos" : cat === "reingreso" ? reingreso.nombre : cat.startsWith("m:") ? cat.slice(2) : cat)}>{seccionCopiada ? "✓ Link copiado" : "🔗 Compartir"}</button>}</div></div>
               {!(sector && !q && lista.length === 0 && combosSector(sector).length > 0) && <select value={orden} onChange={e => setOrden(e.target.value)} aria-label="Ordenar">{TW_ORDEN.map(([k, t]) => <option key={k} value={k}>Ordenar: {t}</option>)}</select>}
@@ -29668,6 +29770,7 @@ function TiendaPublica({ slug }) {
           <div className="tw-cartel" style={{ textAlign: "center" }}><div style={{ fontSize: 40 }}>✿</div><h2>{tienda.titulo}</h2><p>Pronto vas a encontrar nuestros productos acá.</p></div>
         ) : (
           <>
+            {tienda.cyber && <TwCyberHero cy={tienda.cyber} onVer={() => irCat("cyber")} />}
             {/* Regalos: en una fecha especial (Dia de la Madre, Navidad...) va arriba de todo; si no, debajo de los banners */}
             {tienda.regalos && tienda.regalos.en_inicio !== false && tienda.regalos.tema !== "general" && <TwRegalosHero r={tienda.regalos} tienda={tienda} onGift={() => irRegalos("gift")} onArmar={() => irRegalos("armar")} />}
             {/* Kits y combos: arriba de todo (después del banner de la fecha especial, si hay) */}

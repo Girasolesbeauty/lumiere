@@ -89,8 +89,11 @@ router.get('/:slug', async (req, res) => {
     const ciudades = todos.filter(l => (c.retiro_activo && locales.some(x => x.id === l.id)) || zonas.some(z => z.local === l.id))
       .map(l => ({ id: l.id, nombre: l.nombre, direccion: l.direccion, retiro: !!c.retiro_activo && locales.some(x => x.id === l.id), envio: zonas.some(z => z.local === l.id) }));
     const mp = c.pago_mp && await mpDisponible();
-    const promosT = await tienda.promosTienda();
+    // Cyber: se ve entre sus fechas, o antes con el link privado (?cyber=codigo): ahi las promos son las del primer dia
+    const ky = tienda.cyberDe(c), cyEnCurso = tienda.cyberVigente(ky), cyVista = !cyEnCurso && !!ky.token && String(req.query.cyber || '') === ky.token;
+    const promosT = await tienda.promosTienda(pool, cyVista ? ky.desde.slice(0, 10) : null);
     res.json({
+      cyber: cyEnCurso || cyVista ? { ceja: ky.ceja, titulo: ky.titulo, subtitulo: ky.subtitulo, boton: ky.boton, chips: ky.chips, desde: ky.desde, hasta: ky.hasta, vista_previa: cyVista } : null,
       promos: promosT.map(x => ({ nombre: x.nombre, pct: x.pct, aplica_a: x.aplica_a, productos: x.productos, categorias: x.categorias, pago: x.pago, local: x.local })),
       titulo: c.titulo || neg.nombre_negocio || 'Tienda', mensaje: c.mensaje || '', logo: c.logo || neg.logo_url || null, color: c.color || '#c9a84c', whatsapp: c.whatsapp || null,
       retiro: c.retiro_activo ? locales : [], ciudades,
