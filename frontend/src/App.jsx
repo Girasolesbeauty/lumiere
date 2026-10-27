@@ -21858,6 +21858,20 @@ function htmlUnaEtiqueta(it, estilo, op, ancha) {
       <div class="pre xl rojo">${escHtml(precioEtiqueta(ahora))}</div>
       ${op.hasta ? `<div class="hasta">Válido hasta el ${escHtml(op.hasta.split("-").reverse().slice(0, 2).join("/"))}</div>` : ""}</div>`;
   }
+  // Cyber Monday: precio de lista tachado y el precio con cada forma de pagar de su oferta (lo mismo que cobra el Punto de Venta)
+  if (estilo === "cyber") {
+    const antes = parseFloat(it.precio) || 0, ops = it.opciones || [], max = Math.max(0, ...ops.map(o => o.pct || 0));
+    const filas = ops.map(o => {
+      const tot = Math.round(antes * (1 - (o.pct || 0) / 100));
+      if (o.tipo === "cuotas") return `<div class="op"><span class="ot">${o.cuotas} cuotas sin interés${o.pct ? " · -" + o.pct + "%" : ""}</span><b>${o.cuotas} x ${escHtml(precioEtiqueta(Math.round(tot / o.cuotas)))}</b></div>`;
+      const m = textoMediosLiq(o.medios || []);
+      return `<div class="op"><span class="ot">${escHtml(m.charAt(0).toUpperCase() + m.slice(1))} · -${o.pct}%</span><b>${escHtml(precioEtiqueta(tot))}</b></div>`;
+    }).join("");
+    const fch = (f) => String(f || "").split("-").reverse().slice(0, 2).join("/");
+    return `<div class="banda">${escHtml(op.textoOferta || "CYBER")}${max ? `<span class="pct">${ops.length > 1 ? "HASTA " : ""}-${max}%</span>` : ""}</div>
+      <div class="cuerpo"><div class="nom">${nombre}</div>${marca ? `<div class="sub">${marca}</div>` : ""}
+      <div class="antes">Precio de lista <s>${escHtml(precioEtiqueta(antes))}</s>${op.hasta ? `<span class="hasta"> · ${op.desde ? "del " + escHtml(fch(op.desde)) + " al " : "hasta el "}${escHtml(fch(op.hasta))}</span>` : ""}</div><div class="ops">${filas}</div></div>`;
+  }
   if (estilo === "promo") {
     const pr = PROMOS_ETIQUETA.find(x => x.id === op.promo) || { grande: op.promoTexto || "PROMO", sub: op.promoSub || "" };
     return `<div class="sello">${escHtml(pr.grande)}</div><div class="cuerpo"><div class="psub">${escHtml(pr.sub)}</div>
@@ -21912,6 +21926,21 @@ function htmlEtiquetas(items, estilo, tamId, op, limite) {
     .oferta .nom { font-size: ${(u * 0.095).toFixed(2)}mm; }
     .oferta .pre.xl { font-size: ${(u * 0.25).toFixed(2)}mm; }
     .hasta { font-size: ${(u * 0.075).toFixed(2)}mm; color: #555; margin-top: 0.5mm; }
+    /* Cyber */
+    .et.cyber { justify-content: flex-start; padding: 0; border: 0.5mm solid #111; }
+    .cyber .banda { width: 100%; background: #111; color: #fff; font-weight: 900; letter-spacing: 0.1em; font-size: ${(u * 0.11).toFixed(2)}mm; padding: ${(u * 0.03).toFixed(2)}mm 0; }
+    .cyber .pct { background: #7c3aed; color: #fff; border-radius: 99px; padding: 0 1.4mm; margin-left: 1.5mm; letter-spacing: 0.04em; }
+    .cyber .cuerpo { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; padding: ${(u * 0.035).toFixed(2)}mm ${(u * 0.07).toFixed(2)}mm; }
+    .cyber .nom { font-size: ${(u * 0.09).toFixed(2)}mm; }
+    .cyber .sub { font-size: ${(u * 0.07).toFixed(2)}mm; margin-top: 0; }
+    .cyber .antes { font-size: ${(u * 0.075).toFixed(2)}mm; margin-top: 0.3mm; }
+    .cyber .ops { width: 100%; margin-top: 0.6mm; border-top: 0.25mm solid #111; }
+    .cyber .op { display: flex; justify-content: space-between; align-items: center; gap: 1.5mm; padding: ${(u * 0.012).toFixed(2)}mm 0; border-bottom: 0.2mm dashed #bbb; }
+    .cyber .ot { font-size: ${(u * 0.072).toFixed(2)}mm; text-align: left; color: #222; line-height: 1.1; }
+    .cyber .op b { font-size: ${(u * 0.13).toFixed(2)}mm; font-weight: 900; white-space: nowrap; letter-spacing: -0.02em; }
+    .cyber .op:first-child b { font-size: ${(u * 0.17).toFixed(2)}mm; }
+    .cyber .hasta { font-size: 1em; color: #555; }
+    .cyber .op:last-child { border-bottom: 0; }
     /* Promo */
     .et.promo { flex-direction: row; padding: 0; border: 0.5mm solid #111; }
     .promo .sello { background: #111; color: #ffd400; font-weight: 900; height: 100%; width: 42%; display: flex; align-items: center; justify-content: center; font-size: ${(u * 0.24).toFixed(2)}mm; line-height: 1; padding: 1mm; }
@@ -24092,6 +24121,73 @@ function EditorOpcionesLiq({ opciones, onChange, p }) {
     </>
   );
 }
+// Etiquetas del Cyber: una por producto (o por unidad en stock) con su oferta, y una por combo
+function EtiquetasCyber({ p, lista, titulo, desde, hasta }) {
+  const CL = "lumiere_etiquetas_cyber";
+  const g = (() => { try { return JSON.parse(localStorage.getItem(CL) || "{}"); } catch (e) { return {}; } })();
+  const [tam, setTam] = useState(g.tam || "gondola_alta");
+  const [porStock, setPorStock] = useState(!!g.porStock);
+  const [fuera, setFuera] = useState(() => new Set());
+  const [busca, setBusca] = useState("");
+  useEffect(() => { try { localStorage.setItem(CL, JSON.stringify({ tam, porStock })); } catch (e) {} }, [tam, porStock]);
+  const op = { textoOferta: String(titulo || "Cyber Monday").toUpperCase(), desde, hasta, corte: true, saltear: 0 };
+  const items = lista.filter(e => !fuera.has(e.key)).map(e => ({ ...e, cantidad: porStock && !e.combo ? Math.max(1, e.stock || 1) : 1 }));
+  const total = items.reduce((t, x) => t + x.cantidad, 0);
+  const t = tamanoEtiqueta(tam, {}), cols = t.rollo ? 1 : Math.max(1, Math.floor(202 / (t.w + 2))), filas = t.rollo ? 1 : Math.max(1, Math.floor(289 / (t.h + 2)));
+  const hojas = t.rollo ? 0 : Math.ceil(total / (cols * filas));
+  const escala = t.rollo ? Math.min(1.6, 300 / (t.w * 3.78)) : 0.55;
+  const ejemplo = [{ key: "e", nombre: "Producto de ejemplo", marca: "Marca", precio: 20000, cantidad: 1, opciones: [{ tipo: "pct", pct: 30, medios: ["efectivo", "transferencia"] }, { tipo: "cuotas", pct: 10, cuotas: 3 }] }];
+  const previa = htmlEtiquetas(items.length ? items : ejemplo, "cyber", tam, op, t.rollo ? 3 : cols * filas);
+  const imprimir = () => {
+    if (!total) return;
+    const marco = document.createElement("iframe");
+    marco.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+    document.body.appendChild(marco);
+    const d = marco.contentWindow.document;
+    d.open(); d.write(htmlEtiquetas(items, "cyber", tam, op)); d.close();
+    setTimeout(() => { marco.contentWindow.focus(); marco.contentWindow.print(); setTimeout(() => marco.remove(), 2000); }, 400);
+  };
+  const q = normTxt(busca.trim());
+  const vistos = q ? lista.filter(e => normTxt([e.nombre, e.marca].join(" ")).includes(q)) : lista;
+  const marcar = (keys, si) => setFuera(f => { const n = new Set(f); keys.forEach(k => si ? n.delete(k) : n.add(k)); return n; });
+  if (!lista.length) return <div className="card" style={{ color: p.textMuted }}>Todavía no hay productos con oferta (con stock) en este local. Asignales una oferta en "Productos" y vuelven acá.</div>;
+  return (
+    <div className="card" style={{ padding: 12 }}>
+      <div style={{ fontWeight: 800, fontSize: 14 }}>🖨️ Etiquetas con la oferta de cada producto</div>
+      <div className="liq-ayuda" style={{ marginTop: 2 }}>Cada etiqueta muestra el precio de lista tachado y lo que paga con cada forma de pago de su oferta, igual que cobra el Punto de Venta. Si cambiás una oferta, imprimilas de nuevo.</div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", margin: "10px 0" }}>
+        <div className="fg" style={{ marginBottom: 0, minWidth: 220 }}><div className="fl">Tamaño</div>
+          <select className="sel" value={tam} onChange={e => setTam(e.target.value)}>{TAMANOS_ETIQUETA.filter(x => !x.custom).map(x => <option key={x.id} value={x.id}>{x.nombre}</option>)}</select></div>
+        <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12.5, cursor: "pointer" }}><input type="checkbox" checked={porStock} onChange={e => setPorStock(e.target.checked)} /> Una por cada unidad en stock (para pegar en cada producto)</label>
+        <button className="btn btn-p" disabled={!total} onClick={imprimir}>🖨️ Imprimir {total} etiqueta{total === 1 ? "" : "s"}{hojas ? " · " + hojas + " hoja" + (hojas === 1 ? "" : "s") : ""}</button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
+        <div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6, flexWrap: "wrap" }}>
+            <input className="inp" style={{ flex: 1, minWidth: 150 }} placeholder="Buscar producto o marca…" value={busca} onChange={e => setBusca(e.target.value)} />
+            <button className="chip-btn" onClick={() => marcar(vistos.map(e => e.key), true)}>Todas</button>
+            <button className="chip-btn" onClick={() => marcar(vistos.map(e => e.key), false)}>Ninguna</button>
+          </div>
+          <div style={{ maxHeight: 420, overflowY: "auto", border: "1px solid " + p.border, borderRadius: 10 }}>
+            {vistos.map(e => (
+              <label key={e.key} style={{ display: "flex", gap: 8, alignItems: "center", padding: "7px 10px", borderBottom: "1px solid " + p.border, cursor: "pointer", fontSize: 12.5 }}>
+                <input type="checkbox" checked={!fuera.has(e.key)} onChange={ev => marcar([e.key], ev.target.checked)} />
+                <span style={{ width: 8, height: 8, borderRadius: 99, background: e.color, flexShrink: 0 }} />
+                <span style={{ flex: 1, minWidth: 0 }}><b>{e.combo ? "🎁 " : ""}{e.nombre}</b><div style={{ fontSize: 11, color: p.textMuted }}>{e.grupo}{porStock && !e.combo ? " · " + Math.max(1, e.stock || 1) + " etiqueta" + (Math.max(1, e.stock || 1) === 1 ? "" : "s") : ""}</div></span>
+              </label>))}
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: p.textMuted, marginBottom: 4 }}>{items.length ? "Vista previa de la primera hoja" : "Ejemplo (no elegiste ninguna)"}</div>
+          <div style={{ width: (t.rollo ? t.w * 3.78 + 4 : 210 * 3.78) * escala, height: (t.rollo ? (t.h * 3.78 + 4) * 3 : 297 * 3.78) * escala, margin: "0 auto", background: "#fff", boxShadow: "0 2px 10px rgba(0,0,0,.15)", overflow: "hidden" }}>
+            <iframe title="Vista previa de etiquetas Cyber" srcDoc={previa.replace("<body>", '<body style="padding:' + (t.rollo ? "2px" : "5mm") + '">')}
+              style={{ width: t.rollo ? t.w * 3.78 + 4 : 210 * 3.78, height: t.rollo ? (t.h * 3.78 + 4) * 3 : 297 * 3.78, border: 0, transform: "scale(" + escala + ")", transformOrigin: "0 0", pointerEvents: "none" }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 function PlanLiquidacion({ temaPal, medios, onCreado }) {
   const p = temaPal;
   const CLAVE = "lumiere_plan_liquidacion";
@@ -24271,7 +24367,14 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
   const COLORES = ["#c0392b", "#2471a3", "#8e44ad", "#d35400", "#16a085", "#2d7a4f", "#7f8c8d"];
   const colorOf = (of) => COLORES[ofertas.indexOf(of) % COLORES.length];
   const SECS = [["ofertas", "🏷", "Tus ofertas", "#c0392b", ofertas.length, false], ["productos", "🛍", "Productos", "#8e44ad", conPerdida.length || conOferta.length, conPerdida.length > 0],
-    ["rutina", "🧴", "Rutina en cuotas", "#16a085", 0, false], ["combos", "🎁", "Combos", "#d35400", combos.length, false], ["comisiones", "💳", "Comisiones y cuotas", "#2471a3", faltaCuotas.length, true], ["evento", "📅", "Evento y fechas", "#7f8c8d", 0, false], ["crear", "✅", "Crear ofertas", "#2d7a4f", 0, false]];
+    ["rutina", "🧴", "Rutina en cuotas", "#16a085", 0, false], ["combos", "🎁", "Combos", "#d35400", combos.length, false], ["comisiones", "💳", "Comisiones y cuotas", "#2471a3", faltaCuotas.length, true], ["evento", "📅", "Evento y fechas", "#7f8c8d", 0, false], ["crear", "✅", "Crear ofertas", "#2d7a4f", 0, false], ["etiquetas", "🖨️", "Etiquetas", "#34495e", 0, false]];
+  // Para imprimir: los productos con oferta y stock en el local elegido, y los combos que valen ahí
+  const etiquetasCyber = [
+    ...todos.map(x => ({ x, of: ofertas.find(o => o.id === ofIdDe(x.id)) })).filter(e => e.of)
+      .map(({ x, of }) => ({ key: "p" + x.id, nombre: x.nombre, marca: x.marca, precio: x.precio, stock: x.stock, opciones: of.opciones, color: colorOf(of), grupo: nombreOf(of) + ": " + textoOf(of) })),
+    ...combosListos.filter(cb => local === "0" || !cb.local || cb.local === "0" || cb.local === local)
+      .map(cb => ({ key: "c" + cb.id, combo: true, nombre: nombreCombo(cb), marca: (cb.items || []).map(it => ((it.cant || 1) > 1 ? it.cant + " x " : "") + ((prodDe(it.id) || {}).nombre || "")).join(" + "), precio: listaCombo(cb), opciones: cb.opciones || [], color: "#d35400", grupo: "Combo: " + (cb.opciones || []).map(textoOpcionLiq).join(" o ") })),
+  ];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, textAlign: "left" }}>
       <div className="card liq-res">
@@ -24443,6 +24546,14 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
         <button className="btn btn-p" onClick={nuevoCombo}>+ Armar un combo</button>
       </>}
 
+      {sec === "etiquetas" && <>
+        {LOCS.length > 0 && <div className="card" style={{ padding: 12 }}>
+          <div style={{ fontWeight: 800, fontSize: 13.5, marginBottom: 6 }}>📍 ¿Para qué local?</div>
+          <div className="liq-si-no">{[["0", "Todos"], ...LOCS.map(l => [String(l), nombreLocal(l)])].map(([k, t]) => <button key={k} className={local === k ? "on" : ""} onClick={() => { setLocal(k); setMarcados([]); }}>{t}</button>)}</div>
+          <div className="liq-ayuda">Elegí el local: salen los productos que tienen stock y oferta ahí (con la oferta propia de ese local, si le pusiste una distinta).</div>
+        </div>}
+        {!rot ? <div className="card"><div className="skel" style={{ height: 160 }} /></div> : <EtiquetasCyber p={p} lista={etiquetasCyber} titulo={cfg.nombre} desde={cfg.desde} hasta={cfg.hasta} />}
+      </>}
       {sec === "rutina" && <RutinaCuotasConfig temaPal={p} medios={activos} desde={cfg.desde} hasta={cfg.hasta} />}
 
       {sec === "evento" && <div className="card">
