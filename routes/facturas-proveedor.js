@@ -147,7 +147,8 @@ async function pdfAPaginasImagen(buffer) {
 async function ocrDePaginas(paginas) {
   let texto = '';
   for (const png of paginas) {
-    const { data } = await Tesseract.recognize(png, 'spa');
+    // TESSDATA_PATH (opcional): carpeta con spa.traineddata.gz, para no depender de bajarlo de internet
+    const { data } = await Tesseract.recognize(png, 'spa', process.env.TESSDATA_PATH ? { langPath: process.env.TESSDATA_PATH, gzip: true } : undefined);
     texto += '\n' + data.text;
   }
   return texto;
@@ -160,26 +161,25 @@ async function ocrDePaginas(paginas) {
 // 2) codigo de barras exacto contra el catalogo
 // 3) nombre ya aprendido antes (de facturas anteriores de este proveedor)
 // 4) parecido de nombre (aproximado, el menos confiable -- siempre se revisa antes de confirmar)
-router.post('/parsear', upload.single('archivo'), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'Falta el archivo' });
-    const { proveedor_id } = req.body;
-    const mime = req.file.mimetype || '';
-    const nombreArchivo = (req.file.originalname || '').toLowerCase();
+// Lee un archivo de factura y devuelve { items, total_factura, aviso }. Lo usan /parsear y
+// "Corregir con la factura" de una orden ya creada (routes/ordenes-ingreso.js).
+async function analizarFactura(file, proveedor_id) {
+    const mime = file.mimetype || '';
+    const nombreArchivo = (file.originalname || '').toLowerCase();
 
     let itemsCrudos = [];
     let avisoOcr = null;
     let totalFactura = null;
 
     if (mime === 'application/pdf' || nombreArchivo.endsWith('.pdf')) {
-      const data = await pdfParse(req.file.buffer);
+      const data = await pdfParse(file.buffer);
       itemsCrudos = parsearLineasTexto(data.text);
       totalFactura = totalFacturaTexto(data.text);
       if (itemsCrudos.length === 0) {
         // El PDF no tenia texto legible (factura "dibujada" con tipografia especial).
         // La convertimos pagina por pagina en imagen y la leemos con OCR, igual que una foto.
         try {
-          const paginas = await pdfAPaginasImagen(req.file.buffer);
+          const paginas = await pdfAPaginasImagen(file.buffer);
           const textoOcr = await ocrDePaginas(paginas);
           itemsCrudos = parsearLineasTexto(textoOcr);
           totalFactura = totalFacturaTexto(textoOcr);
@@ -191,20 +191,20 @@ router.post('/parsear', upload.single('archivo'), async (req, res) => {
         }
       }
     } else if (mime.startsWith('image/')) {
-      const { data } = await Tesseract.recognize(req.file.buffer, 'spa');
+      const { data } = await Tesseract.recognize(file.buffer, 'spa');
       itemsCrudos = parsearLineasTexto(data.text);
       totalFactura = totalFacturaTexto(data.text);
     } else if (
       nombreArchivo.endsWith('.xlsx') || nombreArchivo.endsWith('.xls') || nombreArchivo.endsWith('.csv') ||
       mime.includes('sheet') || mime.includes('excel') || mime === 'text/csv'
     ) {
-      itemsCrudos = parsearExcel(req.file.buffer);
+      itemsCrudos = parsearExcel(file.buffer);
     } else {
-      return res.status(400).json({ error: 'Formato no soportado. Subi un PDF, una foto/escaneo, o un Excel/CSV.' });
+      const e = new Error('Formato no soportado. Subi un PDF, una foto/escaneo, o un Excel/CSV.'); e.status = 400; throw e;
     }
 
     if (itemsCrudos.length === 0) {
-      return res.json({ items: [], aviso: avisoOcr || 'No se detecto ningun producto automaticamente en el archivo. Podes cargar la orden a mano.' });
+      return { items: [], total_factura: totalFactura, aviso: avisoOcr || 'No se detecto ningun producto automaticamente en el archivo. Podes cargar la orden a mano.' };
     }
 
     const productosRes = await pool.query('SELECT id, nombre, codigo_barras FROM productos WHERE activo = TRUE');
@@ -269,11 +269,19 @@ router.post('/parsear', upload.single('archivo'), async (req, res) => {
       };
     });
 
-    res.json({ items, total_factura: totalFactura });
+    return { items, total_factura: totalFactura };
+}
+
+router.post('/parsear', upload.single('archivo'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Falta el archivo' });
+    res.json(await analizarFactura(req.file, req.body.proveedor_id));
   } catch (error) {
+    if (error.status) return res.status(error.status).json({ error: error.message });
     console.error(error);
     res.status(500).json({ error: 'Error al procesar la factura: ' + error.message });
   }
 });
 
 module.exports = router;
+module.exports.analizarFactura = analizarFactura;

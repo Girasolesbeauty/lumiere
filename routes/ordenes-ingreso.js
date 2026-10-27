@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
 const { porNegocio } = require('../lib/contexto');
+const multer = require('multer');
+const { analizarFactura } = require('./facturas-proveedor');
+const subirFactura = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 
 // Fecha estimada de ingreso de la orden (la tienda online la muestra en los productos en preventa)
 const conFechaEstimada = porNegocio(false);
@@ -497,6 +500,110 @@ router.get('/reporte/inconsistencias-stock', async (req, res) => {
 });
 
 // Marcar orden como pagada
+// ── Corregir órdenes ya creadas con la factura ─────────────────────────────────────────────
+// Al cargar una factura se crea una orden por local: las dos tienen el mismo proveedor y número
+// de factura ("hermanas"). Se corrigen juntas: costos de la factura y renglones que faltaron.
+async function ordenesHermanas(db, ordenId) {
+  const o = (await db.query('SELECT id, proveedor_id, numero_factura FROM ordenes_ingreso WHERE id = $1', [ordenId])).rows[0];
+  if (!o) return null;
+  if (!String(o.numero_factura || '').trim()) return { orden: o, ids: [o.id] };
+  const r = await db.query('SELECT id FROM ordenes_ingreso WHERE proveedor_id IS NOT DISTINCT FROM $1 AND TRIM(numero_factura) = TRIM($2) ORDER BY id', [o.proveedor_id, o.numero_factura]);
+  return { orden: o, ids: r.rows.map(x => x.id) };
+}
+const totalItems = (items) => Math.round(items.reduce((t, it) => t + (parseFloat(it.costo_unitario) || 0) * (parseInt(it.cantidad_total) || 0), 0) * 100) / 100;
+
+// Paso 1: lee la factura y compara (no cambia nada)
+router.post('/:id/factura-revisar', subirFactura.single('archivo'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Falta el archivo de la factura' });
+    const h = await ordenesHermanas(pool, req.params.id);
+    if (!h) return res.status(404).json({ error: 'Orden no encontrada' });
+    const fac = await analizarFactura(req.file, h.orden.proveedor_id);
+    const items = (await pool.query(`SELECT i.*, COALESCE(p.costo, 0) AS costo_producto FROM ordenes_ingreso_items i
+      LEFT JOIN productos p ON p.id = i.producto_id WHERE i.orden_id = ANY($1) ORDER BY i.orden_id, i.id`, [h.ids])).rows;
+    const porProd = new Map();
+    items.forEach(it => { if (it.producto_id) { if (!porProd.has(it.producto_id)) porProd.set(it.producto_id, []); porProd.get(it.producto_id).push(it); } });
+    const usados = new Set(), cambios = [], faltantes = [];
+    for (const l of fac.items) {
+      const deEse = l.producto_id_sugerido ? (porProd.get(l.producto_id_sugerido) || []).filter(it => !usados.has(it.id)) : [];
+      if (!deEse.length) {
+        faltantes.push({ nombre_crudo: l.nombre_crudo, codigo_interno: l.codigo_interno, codigo_barras: l.codigo_barras, cantidad: l.cantidad, costo_unitario: l.costo_unitario,
+          producto_id: l.producto_id_sugerido, producto_nombre: l.producto_nombre_sugerido, dudoso: l.dudoso });
+        continue;
+      }
+      const cantOrden = deEse.reduce((t, it) => t + (parseInt(it.cantidad_total) || 0), 0);
+      deEse.forEach(it => {
+        usados.add(it.id);
+        cambios.push({ item_id: it.id, orden_id: it.orden_id, producto_id: it.producto_id, producto_nombre: it.producto_nombre, nombre_factura: l.nombre_crudo,
+          cantidad: parseInt(it.cantidad_total) || 0, cantidad_factura: l.cantidad, cantidad_distinta: cantOrden !== l.cantidad,
+          costo_actual: parseFloat(it.costo_unitario) || 0, costo_nuevo: l.costo_unitario, recibido: (it.recibido_rg || 0) + (it.recibido_ush || 0) > 0, dudoso: l.dudoso });
+      });
+    }
+    const sobrantes = items.filter(it => !usados.has(it.id)).map(it => ({ item_id: it.id, orden_id: it.orden_id, producto_nombre: it.producto_nombre, cantidad: parseInt(it.cantidad_total) || 0, costo: parseFloat(it.costo_unitario) || 0 }));
+    const nuevoDe = new Map(cambios.map(c => [c.item_id, c.costo_nuevo]));
+    const ordenes = (await pool.query(`SELECT o.id, o.estado, COALESCE(bool_or(i.cantidad_rg > 0), false) AS rg, COALESCE(bool_or(i.cantidad_ush > 0), false) AS ush
+      FROM ordenes_ingreso o LEFT JOIN ordenes_ingreso_items i ON i.orden_id = o.id WHERE o.id = ANY($1) GROUP BY o.id ORDER BY o.id`, [h.ids])).rows;
+    res.json({
+      numero_factura: h.orden.numero_factura, ordenes, cambios, faltantes, sobrantes, total_factura: fac.total_factura, aviso: fac.aviso || null,
+      total_actual: totalItems(items),
+      total_nuevo: totalItems(items.map(it => nuevoDe.has(it.id) ? { ...it, costo_unitario: nuevoDe.get(it.id) } : it)),
+      total_faltantes: Math.round(faltantes.reduce((t, f) => t + f.costo_unitario * f.cantidad, 0) * 100) / 100,
+    });
+  } catch (error) {
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('[factura-revisar]', error);
+    res.status(500).json({ error: 'No se pudo leer la factura: ' + error.message });
+  }
+});
+
+// Paso 2: aplica lo elegido. cambios: [{ item_id, costo }]; agregar: [{ orden_id, producto_id, cantidad_rg, cantidad_ush, costo, nombre_factura, codigo_factura }]
+// El stock no se toca (salvo lo que se agrega, que queda "en camino"). Si un producto ya se recibió, su costo pasa al producto.
+router.put('/:id/factura-aplicar', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const h = await ordenesHermanas(client, req.params.id);
+    if (!h) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Orden no encontrada' }); }
+    const cambios = Array.isArray(req.body.cambios) ? req.body.cambios : [], agregar = Array.isArray(req.body.agregar) ? req.body.agregar : [];
+    let costos = 0, agregados = 0;
+    for (const c of cambios) {
+      const costo = Math.round((parseFloat(c.costo) || 0) * 100) / 100;
+      if (!(costo > 0)) continue;
+      const r = (await client.query('UPDATE ordenes_ingreso_items SET costo_unitario = $1 WHERE id = $2 AND orden_id = ANY($3) RETURNING producto_id, recibido_rg, recibido_ush', [costo, parseInt(c.item_id), h.ids])).rows[0];
+      if (!r) continue;
+      costos++;
+      if (r.producto_id && (r.recibido_rg || 0) + (r.recibido_ush || 0) > 0) await client.query('UPDATE productos SET costo = $1 WHERE id = $2', [costo, r.producto_id]);
+    }
+    for (const a of agregar) {
+      const ordenId = parseInt(a.orden_id), prodId = parseInt(a.producto_id), rg = Math.max(0, parseInt(a.cantidad_rg) || 0), ush = Math.max(0, parseInt(a.cantidad_ush) || 0);
+      if (!h.ids.includes(ordenId) || !prodId || rg + ush <= 0) continue;
+      const prod = (await client.query('SELECT id, nombre FROM productos WHERE id = $1', [prodId])).rows[0];
+      if (!prod) continue;
+      await client.query(`INSERT INTO ordenes_ingreso_items (orden_id, producto_id, producto_nombre, cantidad_total, cantidad_rg, cantidad_ush, costo_unitario, en_transito_ush)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [ordenId, prod.id, prod.nombre, rg + ush, rg, ush, Math.round((parseFloat(a.costo) || 0) * 100) / 100, ush]);
+      await client.query('UPDATE productos SET stock_transito_rg = COALESCE(stock_transito_rg,0) + $1, stock_transito_ush = COALESCE(stock_transito_ush,0) + $2 WHERE id = $3', [rg, ush, prod.id]);
+      // La orden vuelve a quedar "por recibir" para que el local cuente lo agregado
+      await client.query("UPDATE ordenes_ingreso SET estado = 'pendiente' WHERE id = $1 AND estado = 'recibida'", [ordenId]);
+      if (h.orden.proveedor_id && a.codigo_factura) {
+        await client.query(`INSERT INTO proveedor_producto_alias (proveedor_id, nombre_factura, codigo_factura, producto_id) VALUES ($1, $2, $3, $4)
+          ON CONFLICT (proveedor_id, codigo_factura) WHERE codigo_factura IS NOT NULL DO UPDATE SET producto_id = EXCLUDED.producto_id, nombre_factura = EXCLUDED.nombre_factura`,
+          [h.orden.proveedor_id, a.nombre_factura || a.codigo_factura, String(a.codigo_factura), prod.id]);
+      }
+      agregados++;
+    }
+    await client.query(`UPDATE ordenes_ingreso o SET total = COALESCE((SELECT SUM(costo_unitario * cantidad_total) FROM ordenes_ingreso_items i WHERE i.orden_id = o.id), 0) WHERE o.id = ANY($1)`, [h.ids]);
+    const tot = (await client.query('SELECT id, total FROM ordenes_ingreso WHERE id = ANY($1) ORDER BY id', [h.ids])).rows;
+    await client.query('COMMIT');
+    res.json({ ok: true, costos, agregados, ordenes: tot, total: Math.round(tot.reduce((t, o) => t + (parseFloat(o.total) || 0), 0) * 100) / 100 });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('[factura-aplicar]', error);
+    res.status(500).json({ error: 'No se pudo corregir la orden: ' + error.message });
+  } finally {
+    client.release();
+  }
+});
+
 router.put('/:id/pagar', async (req, res) => {
   try {
     const { cuenta_pago_id, fecha_pago, forma_pago } = req.body;
