@@ -20969,15 +20969,20 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
           codigo_interno: it.codigo_interno || "", codigo_barras: it.codigo_barras || "",
           producto_id: it.producto_id_sugerido || "", producto_nombre: it.producto_nombre_sugerido || "",
           es_alias_conocido: it.es_alias_conocido,
-          // El costo NO sale de la factura -- se usa siempre el que ya esta cargado en el producto.
+          // El costo sale de la factura (total del renglón / cantidad: ya con el descuento del proveedor).
+          // Si la factura no trae precio, se usa el que tiene cargado el producto. Se puede corregir antes de confirmar.
+          costo: it.costo_unitario > 0 ? String(it.costo_unitario) : "", precio_lista: it.precio_lista, descuento_pct: it.descuento_pct, dudoso: !!it.dudoso,
           // Por defecto toda la cantidad detectada va al local 1; se puede repartir antes de confirmar.
           cantidad_rg: it.cantidad, cantidad_ush: 0
         })));
+        setFacturaTotal(res.data.total_factura || null);
       }
     } catch (e) { setMensaje("Error al procesar la factura: " + (e.response?.data?.error || e.message)); }
     setFacturaProcesando(false);
   };
 
+  const [facturaTotal, setFacturaTotal] = useState(null);
+  const costoItemFactura = (it) => { const c = parseFloat(String(it.costo || "").replace(",", ".")); if (c > 0) return c; const prod = productos.find(p => String(p.id) === String(it.producto_id)); return parseFloat(prod?.costo) || 0; };
   const quitarItemFactura = (idx) => setFacturaItems(prev => prev.filter((_, i) => i !== idx));
 
   // Crear un producto nuevo al vuelo (desde la carga de factura o desde "Nueva orden"
@@ -21026,10 +21031,6 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
       return setMensaje(UN_SOLO_LOCAL ? "Cada fila necesita una cantidad." : "Cada fila necesita cantidad para " + nombreLocal(1) + ", " + nombreLocal(2) + ", o ambos.");
     }
     try {
-      const costoDe = (productoId) => {
-        const prod = productos.find(p => String(p.id) === String(productoId));
-        return parseFloat(prod?.costo) || 0;
-      };
 
       const itemsRG = facturaItems
         .filter(it => (parseInt(it.cantidad_rg) || 0) > 0)
@@ -21037,7 +21038,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
           producto_id: it.producto_id, producto_nombre: it.producto_nombre, nombre_factura: it.nombre_crudo,
           codigo_factura: it.codigo_interno || null,
           cantidad_rg: parseInt(it.cantidad_rg) || 0, cantidad_ush: 0,
-          cantidad_total: parseInt(it.cantidad_rg) || 0, costo_unitario: costoDe(it.producto_id)
+          cantidad_total: parseInt(it.cantidad_rg) || 0, costo_unitario: costoItemFactura(it)
         }));
       const itemsUSH = facturaItems
         .filter(it => (parseInt(it.cantidad_ush) || 0) > 0)
@@ -21045,7 +21046,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
           producto_id: it.producto_id, producto_nombre: it.producto_nombre, nombre_factura: it.nombre_crudo,
           codigo_factura: it.codigo_interno || null,
           cantidad_rg: 0, cantidad_ush: parseInt(it.cantidad_ush) || 0,
-          cantidad_total: parseInt(it.cantidad_ush) || 0, costo_unitario: costoDe(it.producto_id)
+          cantidad_total: parseInt(it.cantidad_ush) || 0, costo_unitario: costoItemFactura(it)
         }));
 
       let creadas = 0;
@@ -21414,20 +21415,24 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
             <div className="card">
               <div style={{ fontSize: 11, color: temaPal.textMuted, letterSpacing: ".1em", marginBottom: 4 }}>REVISA LOS PRODUCTOS DETECTADOS</div>
               {!UN_SOLO_LOCAL && Object.keys(repFact).length > 0 && <button className="btn btn-g btn-sm" style={{ float: "right", marginTop: -20 }} onClick={repartirFactura} title="Reparte la cantidad de cada producto entre los locales según el stock y lo que vende cada uno">💡 Repartir todo como recomienda</button>}
-              <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 14 }}>Corregi el producto vinculado donde haga falta, {UN_SOLO_LOCAL ? "y revisá la cantidad. " : <>y reparti la cantidad entre {nombreLocal(1)} y {nombreLocal(2)} (por defecto va todo a {nombreLocal(1)}). </>}El costo se toma del que ya tiene cargado cada producto, no de la factura.</div>
+              <div style={{ fontSize: 11, color: temaPal.textMuted, marginBottom: 14 }}>Corregi el producto vinculado donde haga falta, {UN_SOLO_LOCAL ? "y revisá la cantidad. " : <>y reparti la cantidad entre {nombreLocal(1)} y {nombreLocal(2)} (por defecto va todo a {nombreLocal(1)}). </>}El costo es el de la factura con el descuento del proveedor (podés corregirlo); si la factura no trae precio, se usa el del producto.</div>
               <table>
-                <thead><tr><th>Nombre en la factura</th><th>Codigo</th><th>{UN_SOLO_LOCAL ? "Cantidad" : "Cant. " + nombreLocal(1)}</th>{!UN_SOLO_LOCAL && <th>Cant. {nombreLocal(2)}</th>}<th>Costo (del producto)</th><th>Producto vinculado</th><th></th></tr></thead>
+                <thead><tr><th>Nombre en la factura</th><th>Codigo</th><th>{UN_SOLO_LOCAL ? "Cantidad" : "Cant. " + nombreLocal(1)}</th>{!UN_SOLO_LOCAL && <th>Cant. {nombreLocal(2)}</th>}<th>Costo unit. (factura, con desc.)</th><th>Producto vinculado</th><th></th></tr></thead>
                 <tbody>
                   {facturaItems.map((it, idx) => {
                     const prodVinculado = productos.find(p => String(p.id) === String(it.producto_id));
                     const costoProducto = parseFloat(prodVinculado?.costo) || 0;
                     return (
-                    <tr key={idx}>
+                    <tr key={idx} style={it.dudoso ? { background: temaPal.warnDim || "#f39c1222" } : undefined} title={it.dudoso ? "La cuenta de este renglón no da: revisá cantidad y costo contra la factura" : undefined}>
                       <td style={{ fontSize: 11, color: temaPal.textMuted }}>{it.nombre_crudo}</td>
                       <td style={{ fontSize: 10, color: temaPal.textMuted }}>{it.codigo_interno || "-"}</td>
                       <td><input className="inp" type="number" style={{ width: 60, padding: "4px 6px" }} value={it.cantidad_rg} onChange={e => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, cantidad_rg: parseInt(e.target.value) || 0 } : x))} /></td>
                       {!UN_SOLO_LOCAL && <td><input className="inp" type="number" style={{ width: 60, padding: "4px 6px" }} value={it.cantidad_ush} onChange={e => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, cantidad_ush: parseInt(e.target.value) || 0 } : x))} /></td>}
-                      <td style={{ fontSize: 11, color: it.producto_id ? temaPal.text : temaPal.textMuted }}>{it.producto_id ? fmt(costoProducto) : "-"}</td>
+                      <td>
+                        <input className="inp" inputMode="decimal" style={{ width: 96, padding: "4px 6px" }} placeholder={costoProducto ? String(costoProducto) : "0"} value={it.costo || ""} onChange={e => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, costo: e.target.value.replace(/[^\d.,]/g, "") } : x))} />
+                        <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 2, whiteSpace: "nowrap" }}>{it.precio_lista ? "lista " + fmt(it.precio_lista).replace(SIN_CEROS, "") + (it.descuento_pct ? " −" + it.descuento_pct + "%" : "") : !it.costo ? "sin precio: usa el del producto" : ""}{it.dudoso ? " ⚠️ revisar" : ""}</div>
+                        {prodVinculado && costoProducto > 0 && parseFloat(it.costo) > 0 && Math.abs(costoProducto - parseFloat(it.costo)) / costoProducto > 0.01 && <div style={{ fontSize: 10, color: temaPal.textMuted, whiteSpace: "nowrap" }}>en el producto: {fmt(costoProducto).replace(SIN_CEROS, "")}</div>}
+                      </td>
                       <td>
                         {it.producto_id ? (
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
@@ -21461,6 +21466,21 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
                   })}
                 </tbody>
               </table>
+              {(() => {
+                const suma = facturaItems.reduce((t, it) => t + costoItemFactura(it) * ((parseInt(it.cantidad_rg) || 0) + (parseInt(it.cantidad_ush) || 0)), 0);
+                const unidades = facturaItems.reduce((t, it) => t + (parseInt(it.cantidad_rg) || 0) + (parseInt(it.cantidad_ush) || 0), 0);
+                const dif = facturaTotal ? suma - facturaTotal : 0, ok = !facturaTotal || Math.abs(dif) < 1;
+                const dudosos = facturaItems.filter(it => it.dudoso).length;
+                return (
+                  <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 8, background: ok ? temaPal.greenDim : temaPal.redDim, border: "1px solid " + (ok ? temaPal.green : temaPal.red), fontSize: 12.5 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}><span>Suma de lo detectado ({facturaItems.length} renglones · {unidades} u.)</span><b>{fmt(suma)}</b></div>
+                    {facturaTotal ? <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginTop: 3 }}><span>Total de la factura</span><b>{fmt(facturaTotal)}</b></div> : null}
+                    {facturaTotal && !ok && <div style={{ marginTop: 6, fontWeight: 700, color: temaPal.red }}>Hay una diferencia de {fmt(Math.abs(dif))}: {dif < 0 ? "puede faltar algún renglón de la factura, o una cantidad o costo mal leído." : "puede haber un renglón de más, o una cantidad o costo mal leído."} Revisalo antes de confirmar.</div>}
+                    {facturaTotal && ok && <div style={{ marginTop: 6, fontWeight: 700, color: temaPal.green }}>✓ Coincide con el total de la factura</div>}
+                    {dudosos > 0 && <div style={{ marginTop: 4, fontWeight: 700, color: temaPal.warn }}>⚠️ {dudosos} renglón{dudosos > 1 ? "es" : ""} marcado{dudosos > 1 ? "s" : ""} para revisar (la cuenta no da).</div>}
+                  </div>
+                );
+              })()}
               <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
                 <button className="btn btn-g" onClick={() => { setFacturaItems(null); setFacturaArchivo(null); }}>Cancelar</button>
                 <button className="btn btn-p" onClick={confirmarFactura}>Confirmar y crear orden{facturaItems.some(it => it.cantidad_rg > 0) && facturaItems.some(it => it.cantidad_ush > 0) ? "es" : ""} de ingreso</button>
