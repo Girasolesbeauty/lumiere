@@ -33939,6 +33939,10 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
     setVistosPed(v => { const n = { ...v, [filtro]: Date.now() }; try { localStorage.setItem(claveVistos, JSON.stringify(n)); } catch (e) {} return n; });
   }, [filtro]);
   const [menuFiltro, setMenuFiltro] = useState(false);
+  // Ciudad elegida en Pedidos (0 = todas). Queda guardada en el navegador de cada vendedora
+  const claveLocalPed = "lumiere_ped_local_" + (usuario?.id || 0);
+  const [localPed, setLocalPedS] = useState(() => { try { return parseInt(localStorage.getItem(claveLocalPed)) || 0; } catch (e) { return 0; } });
+  const setLocalPed = (v) => { setLocalPedS(v); try { localStorage.setItem(claveLocalPed, String(v)); } catch (e) {} };
   const guardarNotaPed = async () => {
     if (!notaPed || !notaPed.texto.trim()) return;
     try { const r = await API.post("/tienda/pedidos/" + notaPed.id + "/notas", { texto: notaPed.texto }); setPedidos(l => l.map(x => x.id === notaPed.id ? { ...x, notas_local: r.data.notas_local } : x)); setNotaPed(null); }
@@ -34006,7 +34010,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
     const ant = estPrev.current; estPrev.current = Object.fromEntries(pedidos.map(p => [p.id, p.estado]));
     if (!ant) return;
     const caidos = pedidos.filter(p => p.estado === "cancelado" && ant[p.id] && ant[p.id] !== "cancelado" && !cancPropios.current.includes(p.id));
-    if (caidos.length) avisar(false, (caidos.length === 1 ? "Se canceló el pedido N° " + nroPedido(caidos[0]) + " de " + caidos[0].nombre : "Se cancelaron " + caidos.length + " pedidos") + ". Quedó arriba de todo, en Para revisar.");
+    if (caidos.length) avisar(false, (caidos.length === 1 ? "Se canceló el pedido N° " + nroPedido(caidos[0]) + " de " + caidos[0].nombre + (UN_SOLO_LOCAL ? "" : " (" + nombreLocal(caidos[0].local_id) + ")") : "Se cancelaron " + caidos.length + " pedidos") + ". Quedó arriba de todo, en Para revisar.");
   }, [pedidos]); // eslint-disable-line react-hooks/exhaustive-deps
   const esJefeT = ["jefe", "admin", "administrativo"].includes(usuario?.rol) || puedeHacer("tienda.admin");
   // Dueña o encargada (las vendedoras, aunque tengan permiso de la tienda, ven solo Pedidos, Productos, Clientas web y Reseñas)
@@ -34170,11 +34174,13 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   };
 
   if (!cfg || !pedidos || !productos) return <div className="fade"><div className="skel" style={{ height: 300 }} /></div>;
+  // Filtro por ciudad (Río Grande / Ushuaia): todo lo de Pedidos (tarjetas, contadores y lista) es de la ciudad elegida
+  const pedL = localPed ? pedidos.filter(p => Number(p.local_id) === localPed || (p.tipo === "giftcard" && !p.local_id)) : pedidos;
   // En proceso: eligio Mercado Pago o GoCuotas y todavia no termino de pagar (no es un pedido para armar).
   // Pasadas 2 horas se marca en rojo y late, para escribirle y ofrecerle otro medio de pago
   const enProceso = (p) => p.estado === "pendiente_pago" && ["mp", "gocuotas"].includes(p.pago) && !p.pago_rechazo;
   const procesoDemorado = (p) => enProceso(p) && Date.now() - new Date(p.creado_en).getTime() >= 2 * 3600e3;
-  const abiertos = pedidos.filter(p => ["pendiente_pago", "confirmado", "preparado", "en_caja"].includes(p.estado) && !enProceso(p));
+  const abiertos = pedL.filter(p => ["pendiente_pago", "confirmado", "preparado", "en_caja"].includes(p.estado) && !enProceso(p));
   // Etapa de un pedido abierto: nuevo (hay que armarlo), preventa (esperando que llegue), pago (esperando el pago) o listo
   const etapaPed = (p) => p.estado === "pendiente_pago" ? (enProceso(p) ? "proceso" : "pago") : p.estado === "confirmado" ? ((p.items || []).some(i => i.preventa) ? "preventa" : "nuevo") : ["preparado", "en_caja"].includes(p.estado) ? "listo" : null;
   // Pagos rechazados (Mercado Pago o GoCuotas no lo aprobaron) y vencidos sin pagar, aparte de los cancelados a mano
@@ -34185,7 +34191,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   // toca "Ya lo vi" o anota por qué. Los que pagaron después de cancelarse quedan hasta resolverlos, aunque sean viejos
   const aRevisar = (p) => p.estado === "cancelado" && !p.revisado_en && (p.pagado || (!p.venc_motivo && Date.now() - new Date(p.actualizado_en || p.creado_en).getTime() < 7 * 864e5));
   const enFiltro = (p, k) => k === "todos" || (k === "activos" ? abiertos.includes(p) || aRevisar(p) : k === "g:revisar" ? aRevisar(p) : k.startsWith("g:") ? etapaPed(p) === k.slice(2) : k === "proceso" ? enProceso(p) : k === "rechazado" ? esRechazado(p) : k === "vencido" ? esVencido(p) : k === "cancelado" ? esCancelado(p) : p.estado === k);
-  const visibles = pedidos.filter(p => enFiltro(p, filtro));
+  const visibles = pedL.filter(p => enFiltro(p, filtro));
   const nPub = productos.filter(p => p.publicado).length;
   const q = busca.trim().toLowerCase();
   const qN = normTxt(busca);
@@ -34212,25 +34218,28 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const pasaPed = (p) => !qP || qP.split(" ").every(w => normTxt([p.nombre, p.codigo, p.numero, p.telefono, ...(p.items || []).map(i => i.nombre)].join(" ")).includes(w));
   const visiblesB = visibles.filter(pasaPed);
   // Envios para despachar (pagados o que se cobran al entregar, sin preventa pendiente): todas las etiquetas juntas
-  const paraEtiquetar = pedidos.filter(p => p.entrega === "envio" && p.tipo !== "giftcard" && ["confirmado", "preparado"].includes(p.estado) && !(p.items || []).some(i => i.preventa));
+  const paraEtiquetar = pedL.filter(p => p.entrega === "envio" && p.tipo !== "giftcard" && ["confirmado", "preparado"].includes(p.estado) && !(p.items || []).some(i => i.preventa));
   const hace30 = Date.now() - 30 * 864e5;
-  const entregados30 = pedidos.filter(p => p.estado === "entregado" && new Date(p.creado_en).getTime() >= hace30);
+  const entregados30 = pedL.filter(p => p.estado === "entregado" && new Date(p.creado_en).getTime() >= hace30);
   const vendido30 = entregados30.reduce((t, p) => t + Number(p.total || 0), 0);
-  const nNuevos = pedidos.filter(p => p.estado === "confirmado").length;
-  const contar = (k) => k === "carritos" ? ((carritosAb && carritosAb.carritos) || []).length : pedidos.filter(p => enFiltro(p, k)).length;
+  const nNuevos = pedL.filter(p => p.estado === "confirmado").length;
+  const contar = (k) => k === "carritos" ? ((carritosAb && carritosAb.carritos) || []).length : pedL.filter(p => enFiltro(p, k)).length;
   // Carritos nuevos desde la ultima vez que se abrio el filtro (sin contar los que ya se recordaron)
   const nCarritosNuevos = vistosPed.carritos && filtro !== "carritos" ? ((carritosAb && carritosAb.carritos) || []).filter(k => !k.recordado_en && new Date(k.actualizado_en).getTime() > vistosPed.carritos).length : 0;
   const fechaCambio = (p, k) => new Date(k === "rechazado" ? (p.pago_rechazo_en || p.actualizado_en || p.creado_en) : (p.actualizado_en || p.creado_en)).getTime();
-  const nuevosEn = (k) => k === "carritos" ? nCarritosNuevos : k === "proceso" ? nDemorados : k === "vencido" ? nSinMotivo : k === "cancelado" ? nSinMotivoCanc : vistosPed[k] && filtro !== k ? pedidos.filter(p => enFiltro(p, k) && fechaCambio(p, k) > vistosPed[k]).length : 0;
-  const nDemorados = pedidos.filter(p => procesoDemorado(p) && !p.contactado_en).length;
+  const nuevosEn = (k) => k === "carritos" ? nCarritosNuevos : k === "proceso" ? nDemorados : k === "vencido" ? nSinMotivo : k === "cancelado" ? nSinMotivoCanc : vistosPed[k] && filtro !== k ? pedL.filter(p => enFiltro(p, k) && fechaCambio(p, k) > vistosPed[k]).length : 0;
+  const nDemorados = pedL.filter(p => procesoDemorado(p) && !p.contactado_en).length;
   // Vencidos (ultimos 7 dias) a los que nadie anoto por que se vencieron (lo mas viejo ya no se pide)
   const faltaVenc = (p) => (esVencido(p) || esCancelado(p)) && !p.venc_motivo && Date.now() - new Date(p.actualizado_en || p.creado_en).getTime() < 7 * 864e5;
-  const nSinMotivo = pedidos.filter(p => faltaVenc(p) && esVencido(p)).length;
-  const nSinMotivoCanc = pedidos.filter(p => faltaVenc(p) && esCancelado(p)).length;
+  const nSinMotivo = pedL.filter(p => faltaVenc(p) && esVencido(p)).length;
+  const nSinMotivoCanc = pedL.filter(p => faltaVenc(p) && esCancelado(p)).length;
   const FILTROS_PED = [["activos", "Todo para atender"], ["proceso", "🔄 En proceso de pago"], ["entregado", "Entregados"], ["rechazado", "❌ Pagos rechazados"], ["vencido", "⌛ Vencidos"], ["cancelado", "Cancelados"], ["carritos", "🛒 Carritos abandonados"], ["todos", "Todos"]];
   const nuevosTotal = ["proceso", "rechazado", "vencido", "cancelado", "carritos"].reduce((t, k) => t + nuevosEn(k), 0);
   // Para atender: agrupados por lo que hay que hacer, en ese orden
-  const nRevisar = pedidos.filter(aRevisar).length;
+  const nRevisar = pedL.filter(aRevisar).length;
+  // Para atender por ciudad (para los botones del filtro)
+  const atender = (p) => (["pendiente_pago", "confirmado", "preparado", "en_caja"].includes(p.estado) && !enProceso(p)) || aRevisar(p);
+  const locsPed = UN_SOLO_LOCAL ? [] : (locs.length ? locs : [{ id: 1, nombre: nombreLocal(1) }, { id: 2, nombre: nombreLocal(2) }]).filter(l => l.activo !== false);
   const haceTxt = (f) => { const m = Math.round((Date.now() - new Date(f).getTime()) / 60000); return m < 1 ? "recién" : m < 60 ? "hace " + m + " min" : m < 1440 ? "hace " + Math.round(m / 60) + " h" : m < 2880 ? "ayer" : new Date(f).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }); };
   const GRUPOS_PED = [["revisar", "🔔 Para revisar: se cancelaron, se vencieron o no pasó el pago", "#c0392b"], ["nuevo", "📥 Nuevos: hay que armarlos", "#2471a3"], ["preventa", "⏳ Preventa: esperando que llegue la mercadería", "#b9770e"], ["pago", "💳 Esperando el pago", "#b7950b"], ["listo", "📦 Listos: esperando que los retiren o salgan", "#8e44ad"]];
 
@@ -34360,6 +34369,14 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
       {tab === "pedidos" && (
         <>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10, alignItems: "center" }}>
+            {locsPed.length > 1 && (
+              <div className="seg ped-ciudad" role="group" aria-label="Ciudad" style={{ display: "flex", width: "100%", marginBottom: 2 }}>
+                {[{ id: 0, nombre: "Todas" }, ...locsPed].map(l => { const n = pedidos.filter(p => atender(p) && (!l.id || Number(p.local_id) === Number(l.id))).length; return (
+                  <button key={l.id} className={localPed === Number(l.id) ? "on" : ""} aria-pressed={localPed === Number(l.id)} style={{ flex: 1, fontWeight: 800, padding: "9px 6px", ...(l.id && localPed === Number(l.id) ? { background: colorLocalPed(l.id), color: "#fff", borderColor: colorLocalPed(l.id) } : {}) }} onClick={() => setLocalPed(Number(l.id))}>
+                    {l.id ? "📍 " : ""}{l.nombre} <span style={{ opacity: .75, fontWeight: 600 }}>({n})</span>
+                  </button>); })}
+              </div>
+            )}
             {/* Por etapa, en tarjetas grandes como las del inicio (y En proceso de pago y Entregados). Nuevos lleva globito rojo (sin globito si no hay) */}
             <div className="ped-grid">
               {[...(nRevisar || filtro === "g:revisar" ? [["g:revisar", "🔔", "Para revisar", "#c0392b"]] : []), ["g:nuevo", "📥", "Nuevos", "#2471a3"], ["g:preventa", "⏳", "Preventa", "#d35400"], ["g:pago", "💳", "Esperando pago", "#b7950b"], ["g:listo", "📦", "Listos", "#8e44ad"], ["proceso", "🔄", "En proceso de pago", "#c0392b"], ["entregado", "✅", "Entregados", "#1e8e4f"]].map(([k, ic, t, col], i) => { const n = contar(k), on = filtro === k; return (
