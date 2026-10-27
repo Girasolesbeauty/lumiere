@@ -25388,6 +25388,9 @@ html:has(.tw){overflow-x:hidden}
 .tw-busca input{width:100%;height:42px;border-radius:999px;border:1px solid transparent;background:var(--g);padding:0 16px 0 42px;font-size:15px;font-family:inherit;transition:border-color .2s,background .2s}
 .tw-busca input:focus{outline:none;border-color:var(--n);background:#fff}
 .tw-busca svg{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--m)}
+.tw-busca input{padding-right:46px}
+.tw-busca-x{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:32px;height:32px;border-radius:50%;border:0;background:#d9d9d9;color:#111!important;font-size:14px;font-weight:700;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
+.tw-busca-x:active{background:#bdbdbd}
 .tw-iconos{display:flex;align-items:center;gap:6px;margin-left:auto}
 .tw-ico{position:relative;width:42px;height:42px;border-radius:50%;border:none;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;text-decoration:none}
 .tw-ico:hover{background:var(--g)}
@@ -29534,7 +29537,8 @@ function TiendaPublica({ slug }) {
           </button>
           {!codigoUrl && (
             <label className="tw-busca"><TwIcono d={TW_LUPA} size={18} />
-              <input placeholder="Buscar: limpiador, piel grasa, manchas…" value={busca} onChange={e => { setBusca(e.target.value); if (e.target.value) { setCat(""); setSubcat(""); window.scrollTo({ top: 0 }); } }} aria-label="Buscar" />
+              <input placeholder="Buscar: limpiador, piel grasa, manchas…" value={busca} enterKeyHint="search" onChange={e => { setBusca(e.target.value); if (e.target.value) { setCat(""); setSubcat(""); window.scrollTo({ top: 0 }); } }} aria-label="Buscar" />
+              {busca && <button type="button" className="tw-busca-x" aria-label="Borrar búsqueda" onMouseDown={e => e.preventDefault()} onClick={e => { setBusca(""); const i = e.currentTarget.parentElement.querySelector("input"); if (i) i.focus(); }}>✕</button>}
             </label>
           )}
           <div className="tw-iconos">
