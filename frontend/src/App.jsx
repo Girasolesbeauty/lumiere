@@ -24903,13 +24903,25 @@ function CyberTienda({ temaPal }) {
     setGuardando(false); setTimeout(() => setAviso(""), 4000);
   };
   const k = d.cyber, slug = d.slug;
-  const link = k.token && slug ? (d.dominio ? "https://" + d.dominio + "/?cyber=" + k.token : window.location.origin + "/?tienda=" + encodeURIComponent(slug) + "&cyber=" + k.token) : "";
+  const linkDe = (tok) => tok && slug ? (d.dominio ? "https://" + d.dominio + "/?cyber=" + tok : window.location.origin + "/?tienda=" + encodeURIComponent(slug) + "&cyber=" + tok) : "";
+  const link = linkDe(k.token);
+  // Ver cómo va a quedar: si todavía no hay código de vista previa, se crea guardando lo que ya está (sin cambiar nada)
+  const verComoQueda = async () => {
+    if (d.en_curso) { window.open(linkDe("x").replace(/[?&]cyber=x$/, ""), "_blank"); return; }
+    if (link) { window.open(link, "_blank"); return; }
+    const w = window.open("", "_blank");
+    try { const r = await API.put("/promociones/cyber-tienda", k); setD(x => ({ ...x, cyber: r.data.cyber, en_curso: r.data.en_curso })); const u = linkDe(r.data.cyber.token); if (w && u) w.location.href = u; else if (w) w.close(); }
+    catch (e) { if (w) w.close(); setAviso("Error: " + (e.response?.data?.error || e.message)); }
+  };
   const fmt = (fh) => { const [a, h] = String(fh).split("T"); const [y, m, dd] = a.split("-"); return dd + "/" + m + " " + h; };
   const estado = d.en_curso ? ["🟢 En curso: las clientas lo están viendo", temaPal.green] : k.activo ? ["🗓️ Programado: se prende solo el " + fmt(k.desde) + " y se apaga el " + fmt(k.hasta), temaPal.accentText] : ["⚪ Apagado: la tienda se ve normal", temaPal.textMuted];
   const lbl = { fontSize: 11, textAlign: "left", color: temaPal.textMuted, display: "block", marginBottom: 4 };
   return (
     <div className="card" style={{ marginBottom: 16, textAlign: "left" }}>
-      <div className="ct">🛍️ Diseño Cyber en la tienda online</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div className="ct" style={{ margin: 0 }}>🛍️ Diseño Cyber en la tienda online</div>
+        {slug && <button className="btn btn-p" onClick={verComoQueda} title="Abre la tienda con el diseño Cyber, solo para vos">👀 Ver cómo va a quedar la tienda</button>}
+      </div>
       <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 12 }}>Portada violeta con cuenta regresiva, botón CYBER en el menú y los productos con descuento marcados con su %. Las clientas solo lo ven entre las fechas que pongas.</div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><Sw on={!!f.activo} toggle={() => set("activo", !f.activo)} /><b style={{ fontSize: 13 }}>Programar en la tienda</b></div>
       <div style={{ fontSize: 12, fontWeight: 700, color: estado[1], marginBottom: 14 }}>{estado[0]}{f.activo !== k.activo ? " · (guardá para aplicar)" : ""}</div>
