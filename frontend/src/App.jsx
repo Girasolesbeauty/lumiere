@@ -26345,6 +26345,9 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-hw-btn.sec{background:transparent;color:#fff!important;border:1.5px solid rgba(255,255,255,.55);box-shadow:none;animation:none}
 @keyframes twHwLate{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
 .tw-hw-nav{background:linear-gradient(90deg,#ff7a00,#ffa53c)!important;color:#1a0b00!important;border-radius:99px;font-weight:900!important}
+.tw-nav .tw-hw-nav,.tw-nav .tw-cy-nav{padding:7px 16px!important;margin:4px 0;opacity:1!important;align-self:center;flex-shrink:0;line-height:1.2}
+
+.tw-nav .tw-hw-nav::after,.tw-nav .tw-cy-nav::after{display:none}
 .tw-hw-vista{position:fixed;left:12px;right:12px;bottom:12px;z-index:400;background:#1c0d2e;color:#ffd9b0;border:1px solid #ff7a00;border-radius:14px;padding:10px 14px;font-size:12.5px;line-height:1.4;box-shadow:0 8px 30px rgba(0,0,0,.35)}
 @media (min-width:700px){.tw-hw-vista{left:auto;max-width:420px}}
 .tw-hw-fab{position:fixed;left:14px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:31;border:0;border-radius:99px;padding:10px 16px 10px 10px;display:flex;align-items:center;gap:8px;background:#1c0d2e;color:#ffcf9a!important;font-weight:900;font-size:13px;cursor:pointer;box-shadow:0 8px 26px rgba(28,13,46,.45),0 0 0 2px #ff7a00}
