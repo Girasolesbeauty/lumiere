@@ -26325,6 +26325,76 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-cy-chips span{font-size:11.5px;font-weight:700;border:1px solid rgba(192,132,252,.45);border-radius:999px;padding:5px 10px;background:rgba(255,255,255,.08)}
 .tw .tw-nav .tw-cy-nav{background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;border-radius:999px;padding:6px 14px;font-weight:900;letter-spacing:.1em}
 .tw-etq.tw-cy-badge{background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;font-weight:900;border:0}
+.tw-adv{position:relative;overflow:hidden;margin:14px 12px 10px;border-radius:26px;padding:26px 12px 22px;background:radial-gradient(circle at 50% 0,#1f5a3a 0,#123824 45%,#0b2216 100%);color:#fff;text-align:center;isolation:isolate}
+.tw-adv-luces{position:absolute;inset:0;z-index:-1;background:radial-gradient(circle at 12% 18%,rgba(255,214,102,.35) 0 6px,transparent 7px),radial-gradient(circle at 85% 12%,rgba(255,120,120,.35) 0 5px,transparent 6px),radial-gradient(circle at 70% 70%,rgba(255,214,102,.25) 0 8px,transparent 9px),radial-gradient(circle at 25% 80%,rgba(160,220,255,.25) 0 6px,transparent 7px),radial-gradient(circle at 50% 45%,rgba(255,255,255,.12) 0 10px,transparent 11px);animation:twAdvTitila 3s ease-in-out infinite alternate}
+@keyframes twAdvTitila{from{opacity:.55}to{opacity:1}}
+.tw-adv-nieve{position:absolute;inset:-20px 0 0;z-index:-1;pointer-events:none;background-image:radial-gradient(2px 2px at 20px 30px,#fff,transparent),radial-gradient(2px 2px at 90px 80px,#fff,transparent),radial-gradient(1.5px 1.5px at 160px 20px,#fff,transparent),radial-gradient(2.5px 2.5px at 230px 120px,#fff,transparent),radial-gradient(1.5px 1.5px at 300px 60px,#fff,transparent);background-size:320px 180px;opacity:.7;animation:twAdvNieve 9s linear infinite}
+@keyframes twAdvNieve{from{background-position:0 0}to{background-position:40px 180px}}
+.tw-adv h2{margin:0;font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:900;font-size:34px;line-height:1.05;color:#e53935;text-shadow:0 0 0 #fff,-2px -2px 0 #fff,2px -2px 0 #fff,-2px 2px 0 #fff,2px 2px 0 #fff,0 6px 18px rgba(0,0,0,.45)}
+.tw-adv-bajada{font-size:13.5px;color:#d7f0de;margin:10px auto 16px;max-width:420px;line-height:1.45}
+.tw-adv-tablero{display:flex;flex-direction:column;align-items:center;gap:8px}
+.tw-adv-fila{display:flex;gap:7px;justify-content:center}
+.tw-adv-escena.abre:not(.listo) .tw-adv-tarjeta{position:absolute;left:0;right:0;top:100%}
+.tw-adv-tablero.grilla{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;max-width:400px;margin:0 auto;padding:14px;background:#2e6b4a;border-radius:22px;box-shadow:inset 0 0 0 2px rgba(255,255,255,.12)}
+.tw-adv-caja{position:relative;width:var(--t,52px);height:var(--t,52px);border:0;border-radius:12px;cursor:pointer;background:var(--c);color:var(--tx,#fff)!important;font-weight:900;font-size:17px;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 4px 0 rgba(0,0,0,.25),0 6px 14px rgba(0,0,0,.25);transition:transform .15s;padding:0;-webkit-tap-highlight-color:transparent}
+.tw-adv-tablero.grilla .tw-adv-caja{width:100%;height:auto;aspect-ratio:1}
+.tw-adv-caja::before,.tw-adv-caja::after{content:"";position:absolute;background:rgba(255,255,255,.35);pointer-events:none}
+.tw-adv-caja::before{left:50%;top:0;bottom:0;width:6px;margin-left:-3px}
+.tw-adv-caja::after{top:50%;left:0;right:0;height:6px;margin-top:-3px}
+.tw-adv-caja span{position:relative;z-index:1;line-height:1}
+.tw-adv-caja .ico{font-size:13px;margin-bottom:2px}
+.tw-adv-caja:active{transform:scale(.94)}
+.tw-adv-caja.hoy{animation:twAdvHoy 1.4s ease-in-out infinite;z-index:2}
+@keyframes twAdvHoy{0%,100%{box-shadow:0 4px 0 rgba(0,0,0,.25),0 0 0 3px #ffd54f,0 0 18px 4px rgba(255,213,79,.7);transform:scale(1)}50%{box-shadow:0 4px 0 rgba(0,0,0,.25),0 0 0 3px #fff3c4,0 0 30px 10px rgba(255,213,79,.9);transform:scale(1.08)}}
+.tw-adv-caja .hoy-chip{position:absolute;top:-9px;left:50%;transform:translateX(-50%);z-index:3;background:#ffd54f;color:#3a2a00;font-size:9px;font-weight:900;letter-spacing:.08em;padding:2px 6px;border-radius:99px;white-space:nowrap}
+.tw-adv-caja.abierta{opacity:.78}
+.tw-adv-caja.abierta::before,.tw-adv-caja.abierta::after{display:none}
+.tw-adv-caja.abierta .ico{font-size:20px}
+.tw-adv-caja.bloq{filter:saturate(.8)}
+.tw-adv-caja.bloq .ico{opacity:.9}
+.tw-adv-caja.tiembla{animation:twAdvNo .4s}
+@keyframes twAdvNo{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px) rotate(-4deg)}75%{transform:translateX(5px) rotate(4deg)}}
+.tw-adv-aviso{margin-top:14px;font-size:12.5px;color:#ffe9a8;min-height:18px}
+.tw-adv-vista{position:fixed;left:12px;right:12px;bottom:12px;z-index:400;background:#123824;color:#d7f0de;border:1px solid #ffd54f;border-radius:14px;padding:10px 14px;font-size:12.5px;line-height:1.4;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+@media (min-width:700px){.tw-adv-vista{left:auto;max-width:420px}}
+.tw-adv-nav{background:linear-gradient(90deg,#c62828,#2e7d32)!important;border-radius:99px}
+.tw-adv-modal{position:fixed;inset:0;z-index:600;background:radial-gradient(circle at 50% 40%,rgba(18,56,36,.92),rgba(5,15,10,.96));display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
+.tw-adv-escena{position:relative;width:100%;max-width:440px;text-align:center;color:#fff}
+.tw-adv-rayos{position:absolute;left:50%;top:150px;width:620px;height:620px;margin:-310px 0 0 -310px;border-radius:50%;background:repeating-conic-gradient(from 0deg,rgba(255,224,130,.28) 0 10deg,transparent 10deg 22deg);opacity:0;pointer-events:none;-webkit-mask:radial-gradient(circle,#000 20%,transparent 65%);mask:radial-gradient(circle,#000 20%,transparent 65%)}
+.tw-adv-escena.abre .tw-adv-rayos{animation:twAdvRayos 1.2s ease-out .9s forwards,twAdvGira 14s linear .9s infinite}
+@keyframes twAdvRayos{to{opacity:1}}
+@keyframes twAdvGira{to{transform:rotate(360deg)}}
+.tw-adv-gcaja{position:relative;width:170px;height:150px;margin:60px auto 0}
+.tw-adv-gcuerpo{position:absolute;left:10px;right:10px;bottom:0;height:110px;border-radius:12px;background:var(--c);box-shadow:inset 0 -14px 0 rgba(0,0,0,.15),0 18px 40px rgba(0,0,0,.45)}
+.tw-adv-gcuerpo::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:20px;margin-left:-10px;background:#ffd54f}
+.tw-adv-gtapa{position:absolute;left:0;right:0;top:12px;height:38px;border-radius:10px;background:var(--c);filter:brightness(1.12);box-shadow:0 6px 12px rgba(0,0,0,.3);transform-origin:50% 100%}
+.tw-adv-gtapa::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:20px;margin-left:-10px;background:#ffd54f}
+.tw-adv-gtapa::after{content:"🎀";position:absolute;left:50%;top:-30px;transform:translateX(-50%);font-size:40px}
+.tw-adv-gnum{position:absolute;left:0;right:0;bottom:30px;font-size:42px;font-weight:900;color:var(--tx,#fff);text-shadow:0 2px 0 rgba(0,0,0,.25);z-index:1}
+.tw-adv-escena.abre .tw-adv-gcaja{animation:twAdvSacude .7s ease-in-out .1s 1}
+@keyframes twAdvSacude{0%,100%{transform:rotate(0)}15%{transform:rotate(-6deg) scale(1.03)}30%{transform:rotate(6deg) scale(1.05)}45%{transform:rotate(-5deg)}60%{transform:rotate(4deg) scale(1.06)}80%{transform:rotate(-2deg)}}
+.tw-adv-escena.abre .tw-adv-gtapa{animation:twAdvTapa .7s cubic-bezier(.3,1.4,.5,1) .85s forwards}
+@keyframes twAdvTapa{to{transform:translate(70px,-160px) rotate(38deg);opacity:0}}
+.tw-adv-escena.abre .tw-adv-gcaja{transition:transform .6s,opacity .6s}
+.tw-adv-escena.listo .tw-adv-gcaja{transform:scale(.62) translateY(40px);opacity:.0;height:0;margin-top:0}
+.tw-adv-confeti{position:absolute;left:50%;top:150px;width:0;height:0;pointer-events:none}
+.tw-adv-confeti i{position:absolute;width:9px;height:14px;border-radius:2px;opacity:0;background:var(--k)}
+.tw-adv-escena.abre .tw-adv-confeti i{animation:twAdvConf 1.4s cubic-bezier(.2,.7,.4,1) .95s forwards}
+@keyframes twAdvConf{0%{opacity:1;transform:translate(0,0) rotate(0)}100%{opacity:0;transform:translate(var(--x),var(--y)) rotate(var(--r))}}
+.tw-adv-tarjeta{position:relative;margin:0 auto;background:#fffdf7;color:#1b1b1b;border-radius:24px;padding:22px 18px 18px;box-shadow:0 20px 60px rgba(0,0,0,.5);text-align:center;opacity:0;transform:translateY(60px) scale(.9)}
+.tw-adv-escena.listo .tw-adv-tarjeta{animation:twAdvSube .6s cubic-bezier(.3,1.4,.5,1) forwards}
+@keyframes twAdvSube{to{opacity:1;transform:none}}
+.tw-adv-dia{display:inline-block;background:#c62828;color:#fff;font-weight:900;font-size:12px;letter-spacing:.14em;padding:5px 12px;border-radius:99px}
+.tw-adv-tarjeta .big{font-size:56px;line-height:1.15;margin:8px 0 2px}
+.tw-adv-tarjeta h3{margin:0 0 8px;font-size:24px;font-weight:900;line-height:1.15;color:#123824}
+.tw-adv-tarjeta p{margin:0 0 12px;font-size:14.5px;line-height:1.5;color:#3b3b3b}
+.tw-adv-cod{display:flex;gap:8px;align-items:center;justify-content:center;margin:0 0 12px}
+.tw-adv-cod code{font-size:19px;font-weight:900;letter-spacing:.12em;padding:7px 12px;border-radius:10px;background:#123824;color:#ffd54f}
+.tw-adv-prods{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 10px;margin:0 -6px;text-align:left;scroll-snap-type:x mandatory}
+.tw-adv-prods>*{flex:0 0 150px;scroll-snap-align:start}
+.tw-adv-btn{border:0;border-radius:99px;padding:12px 20px;font-weight:900;font-size:14px;cursor:pointer;background:#c62828;color:#fff!important}
+.tw-adv-btn.sec{background:transparent;color:#123824!important;border:1.5px solid #123824}
+.tw-adv-cerrar{position:absolute;top:-6px;right:0;background:none;border:0;color:#fff!important;font-size:30px;cursor:pointer;z-index:5}
 .tw-hw-barra{background:#120a1f!important;color:#ffb347!important;font-weight:800;letter-spacing:.08em;font-size:12px;white-space:nowrap}
 .tw-hw-hero{position:relative;overflow:hidden;margin:14px 16px 8px;border-radius:24px;padding:30px 22px 26px;background:radial-gradient(circle at 82% 12%,#4a2470 0,#1c0d2e 42%,#0b0612 100%);color:#fff;text-align:left;isolation:isolate}
 .tw-hw-luna{position:absolute;top:16px;right:20px;width:74px;height:74px;border-radius:50%;background:radial-gradient(circle at 36% 34%,#fffbe6,#ffd36b 58%,#e39a2f);box-shadow:0 0 46px 12px rgba(255,180,70,.35);z-index:-1}
@@ -27929,6 +27999,75 @@ function TwCyberBarra({ cy }) {
   return <div className="tw-anuncio tw-cy-barra" aria-live="off"><div><span>{"⚡ "}<span className="tw-cy-bl">CYBER MONDAY</span><span className="tw-cy-bc">CYBER</span>{" · "}{String(cy.titulo || "").toUpperCase()}{t.ms ? <>{" · "}<span className="tw-cy-bl">TERMINA EN </span>{t.d ? t.d + "D " : ""}{twDos(t.h)}:{twDos(t.m)}:{twDos(t.s)}</> : null}</span></div></div>;
 }
 // ── Halloween en la tienda ──
+// ── Calendario de Adviento ──
+const ADV_COLORES = [["#c62828", "#fff"], ["#2e7d32", "#fff"], ["#f6efe2", "#8a1c1c"], ["#e0a526", "#3a2a00"], ["#2a9d8f", "#fff"], ["#1b1b1b", "#ffd54f"]];
+const ADV_FILAS_ARBOL = [[25], [23, 24], [20, 21, 22], [16, 17, 18, 19], [11, 12, 13, 14, 15], [5, 6, 7, 8, 9, 10], [1, 2, 3, 4]];
+const advColor = (n) => ADV_COLORES[(n * 7 + 3) % ADV_COLORES.length];
+function TwAdviento({ adv, slug, visibles, tarjeta }) {
+  const clave = "tienda_adv_" + slug + "_" + adv.anio;
+  const [abiertas, setAbiertas] = useState(() => { try { return JSON.parse(localStorage.getItem(clave) || "[]"); } catch (e) { return []; } });
+  const [abriendo, setAbriendo] = useState(null); // { d, fase }
+  const [aviso, setAviso] = useState("");
+  const [tiembla, setTiembla] = useState(0);
+  const [copiado, setCopiado] = useState(false);
+  const hoy = adv.hoy;
+  const abrir = (d) => {
+    if (d.bloqueado) { setTiembla(d.dia); setAviso("🔒 Esta cajita se abre el " + d.dia + " de diciembre ✨"); setTimeout(() => setTiembla(0), 450); return; }
+    const ya = abiertas.includes(d.dia);
+    setCopiado(false); setAbriendo({ d, fase: ya ? "listo" : "abre" });
+    if (!ya) {
+      const n = [...abiertas, d.dia]; setAbiertas(n); try { localStorage.setItem(clave, JSON.stringify(n)); } catch (e) {}
+      setTimeout(() => setAbriendo(a => a && a.d.dia === d.dia ? { ...a, fase: "abre listo" } : a), 1650);
+    }
+  };
+  useEffect(() => { if (!abriendo) return; const k = (e) => { if (e.key === "Escape") setAbriendo(null); }; window.addEventListener("keydown", k); const o = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { window.removeEventListener("keydown", k); document.body.style.overflow = o; }; }, [!!abriendo]);
+  const tam = "min(52px, calc((100vw - 118px) / 6))";
+  const caja = (n) => {
+    const d = adv.dias[n - 1], [c, tx] = advColor(n), esHoy = n === hoy && !adv.vista_previa, ab = abiertas.includes(n);
+    return (
+      <button key={n} className={"tw-adv-caja" + (esHoy && !ab ? " hoy" : "") + (ab ? " abierta" : "") + (d.bloqueado ? " bloq" : "") + (tiembla === n ? " tiembla" : "")}
+        style={{ "--c": c, "--tx": tx, "--t": tam }} onClick={() => abrir(d)} aria-label={"Día " + n + (d.bloqueado ? " (todavía no)" : "")}>
+        {esHoy && !ab && <b className="hoy-chip">¡HOY!</b>}
+        <span className="ico">{d.bloqueado ? "🔒" : ab ? d.icono : d.icono}</span>
+        {!ab && <span>{n}</span>}
+      </button>);
+  };
+  const sel = abriendo && abriendo.d, [cSel, txSel] = sel ? advColor(sel.dia) : ["", ""];
+  const prods = sel ? (sel.productos || []).map(id => visibles.find(p => p.id === id)).filter(Boolean) : [];
+  const confeti = useMemo(() => Array.from({ length: 26 }, (_, i) => ({ x: Math.round(Math.cos(i / 26 * Math.PI * 2) * (120 + (i % 5) * 30)) + "px", y: Math.round(Math.sin(i / 26 * Math.PI * 2) * (110 + (i % 4) * 30) - 60) + "px", r: (i * 47 % 360) + "deg", k: ["#ffd54f", "#e53935", "#43a047", "#fff", "#26c6da"][i % 5] })), []);
+  return (
+    <section className="tw-adv" id="tw-adviento" aria-label={adv.titulo}>
+      <div className="tw-adv-luces" aria-hidden="true" /><div className="tw-adv-nieve" aria-hidden="true" />
+      <h2>{adv.titulo}</h2>
+      {adv.bajada && <p className="tw-adv-bajada">{adv.bajada}</p>}
+      {adv.estilo === "grilla"
+        ? <div className="tw-adv-tablero grilla">{Array.from({ length: 25 }, (_, i) => caja(i + 1))}</div>
+        : <div className="tw-adv-tablero">{ADV_FILAS_ARBOL.map((f, i) => <div key={i} className="tw-adv-fila">{f.map(caja)}</div>)}</div>}
+      <div className="tw-adv-aviso" role="status">{aviso || (hoy >= 1 && hoy <= 25 && !adv.vista_previa ? (abiertas.includes(hoy) ? "✨ Ya abriste la cajita de hoy. ¡Volvé mañana por otra sorpresa!" : "🎁 Tocá la cajita de hoy para descubrir tu sorpresa") : "")}</div>
+      {sel && createPortal(<div className="tw" style={{ minHeight: 0, background: "transparent" }}>
+        <div className="tw-adv-modal" role="dialog" aria-modal="true" aria-label={"Día " + sel.dia} onClick={() => setAbriendo(null)}>
+          <div className={"tw-adv-escena " + abriendo.fase} onClick={e => e.stopPropagation()}>
+            <button className="tw-adv-cerrar" onClick={() => setAbriendo(null)} aria-label="Cerrar">×</button>
+            <div className="tw-adv-rayos" aria-hidden="true" />
+            <div className="tw-adv-confeti" aria-hidden="true">{confeti.map((k, i) => <i key={i} style={{ "--x": k.x, "--y": k.y, "--r": k.r, "--k": k.k }} />)}</div>
+            {abriendo.fase !== "listo" && <div className="tw-adv-gcaja" style={{ "--c": cSel, "--tx": txSel }}>
+              <div className="tw-adv-gcuerpo" /><div className="tw-adv-gtapa" /><div className="tw-adv-gnum">{sel.dia}</div>
+            </div>}
+            <div className="tw-adv-tarjeta" style={abriendo.fase === "listo" ? { opacity: 1, transform: "none", marginTop: 30 } : undefined}>
+              <span className="tw-adv-dia">DÍA {sel.dia}</span>
+              <div className="big">{sel.icono}</div>
+              <h3>{sel.titulo || "¡Sorpresa!"}</h3>
+              {sel.detalle ? <p>{sel.detalle}</p> : !sel.titulo && <p>Muy pronto vas a ver acá la sorpresa de este día.</p>}
+              {sel.codigo && <div className="tw-adv-cod"><code>{sel.codigo}</code><button className="tw-adv-btn sec" style={{ padding: "8px 12px" }} onClick={() => { try { navigator.clipboard.writeText(sel.codigo); setCopiado(true); } catch (e) {} }}>{copiado ? "✓ Copiado" : "Copiar"}</button></div>}
+              {prods.length > 0 && <div className="tw-adv-prods">{prods.map(tarjeta)}</div>}
+              <button className="tw-adv-btn" onClick={() => setAbriendo(null)}>{sel.dia === hoy ? "¡Gracias! 🎄" : "Cerrar"}</button>
+            </div>
+          </div>
+        </div>
+      </div>, document.body)}
+    </section>
+  );
+}
 function TwHwBarra({ hw }) {
   const t = useCuentaRegresiva(twCyHasta(hw.hasta));
   return <div className="tw-anuncio tw-hw-barra" aria-live="off"><div><span>{"🎃 "}{String(hw.titulo || "").toUpperCase()}{t.ms ? <>{" · TERMINA EN "}{t.d ? t.d + "D " : ""}{twDos(t.h)}:{twDos(t.m)}:{twDos(t.s)}</> : null}</span></div></div>;
@@ -28911,6 +29050,7 @@ function TiendaPublica({ slug }) {
   const params = new URLSearchParams(window.location.search);
   // Link privado de vista previa del Cyber (?cyber=codigo): queda guardado mientras se navega la tienda
   const cyberTok = (() => { const q = params.get("cyber"); try { if (q) sessionStorage.setItem("tienda_cyber", q); return q || sessionStorage.getItem("tienda_cyber") || ""; } catch (e) { return q || ""; } })();
+  const advTok = (() => { const q = params.get("adviento"); try { if (q) sessionStorage.setItem("tienda_adviento", q); return q || sessionStorage.getItem("tienda_adviento") || ""; } catch (e) { return q || ""; } })();
   const hwTok = (() => { const q = params.get("halloween"); try { if (q) sessionStorage.setItem("tienda_halloween", q); return q || sessionStorage.getItem("tienda_halloween") || ""; } catch (e) { return q || ""; } })();
   const [tienda, setTienda] = useState(null);
   const [error, setError] = useState("");
@@ -29092,7 +29232,7 @@ function TiendaPublica({ slug }) {
   useEffect(() => {
     // Si el servidor no responde (por ej. mientras se actualiza), se reintenta solo unas veces antes de mostrar el aviso
     const conReintentos = (ruta, n = 0) => pedir(ruta).catch(e => e.red && n < 4 ? new Promise(ok => setTimeout(ok, 2000 * (n + 1))).then(() => conReintentos(ruta, n + 1)) : Promise.reject(e));
-    const qsVista = [cyberTok && "cyber=" + encodeURIComponent(cyberTok), hwTok && "halloween=" + encodeURIComponent(hwTok)].filter(Boolean).join("&");
+    const qsVista = [cyberTok && "cyber=" + encodeURIComponent(cyberTok), hwTok && "halloween=" + encodeURIComponent(hwTok), advTok && "adviento=" + encodeURIComponent(advTok)].filter(Boolean).join("&");
     conReintentos(qsVista ? "?" + qsVista : "").then(t => {
       setTienda(t); document.title = t.titulo;
       // Icono de la tienda en la pestaña y en el acceso directo (en el dominio propio ya lo pone Vercel)
@@ -29536,6 +29676,7 @@ function TiendaPublica({ slug }) {
   const cabecera = (
     <>
       {tienda.cyber ? <TwCyberBarra cy={tienda.cyber} /> : tienda.halloween ? <TwHwBarra hw={tienda.halloween} /> : anuncios.length > 0 && <div className="tw-anuncio" aria-live="polite"><div key={anuncio}>{anuncios[anuncio % anuncios.length]}</div></div>}
+      {tienda.adviento && tienda.adviento.vista_previa && <div className="tw-adv-vista" role="note">🎄 <b>Vista previa del Calendario de Adviento.</b> Las clientas todavía no lo ven. Acá podés abrir todas las cajitas para probar; en diciembre se abre una por día.</div>}
       {tienda.halloween && tienda.halloween.vista_previa && !(tienda.cyber && tienda.cyber.vista_previa) && <div className="tw-hw-vista" role="note">🎃 <b>Vista previa de Halloween.</b> Las clientas todavía no lo ven: se prende solo el {tienda.halloween.desde.slice(8, 10)}/{tienda.halloween.desde.slice(5, 7)} a las {tienda.halloween.desde.slice(11)}. El juego acá es de prueba (no da premios de verdad).</div>}
       {tienda.cyber && tienda.cyber.vista_previa && <div className="tw-cy-vista" role="note">👁 <b>Vista previa del Cyber Monday.</b> Las clientas todavía no lo ven: se prende solo el {tienda.cyber.desde.slice(8, 10)}/{tienda.cyber.desde.slice(5, 7)} a las {tienda.cyber.desde.slice(11)}. Los descuentos son los de ese día; si comprás ahora, se cobra con los precios de hoy.</div>}
       <header className={"tw-cab" + (sombra ? " sombra" : "")}>
@@ -30253,6 +30394,7 @@ function TiendaPublica({ slug }) {
         <div className="tw-navbar">
           <nav className="tw-nav" aria-label="Categorías">
             <button className={!enLista ? "on" : ""} onClick={irInicio}>Inicio</button>
+            {tienda.adviento && <button className="tw-hw-nav tw-adv-nav" onClick={() => { irCat(""); setTimeout(() => { const el = document.getElementById("tw-adviento"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 150); }}>🎄 ADVIENTO</button>}
             {tienda.halloween && hwLook.length > 0 && <button className={"tw-hw-nav" + (cat === "halloween" && !q ? " on" : "")} onClick={() => irCat("halloween")}>🎃 HALLOWEEN</button>}
             {tienda.cyber && <button className={"tw-cy-nav" + (cat === "cyber" && !q ? " on" : "")} onClick={() => irCat("cyber")}>CYBER</button>}
             <button className={cat === "*" && !q ? "on" : ""} onClick={() => irCat("*")}>Todo</button>
@@ -30328,6 +30470,7 @@ function TiendaPublica({ slug }) {
           <div className="tw-cartel" style={{ textAlign: "center" }}><div style={{ fontSize: 40 }}>✿</div><h2>{tienda.titulo}</h2><p>Pronto vas a encontrar nuestros productos acá.</p></div>
         ) : (
           <>
+            {tienda.adviento && <TwAdviento adv={tienda.adviento} slug={slug} visibles={visibles} tarjeta={tarjeta} />}
             {tienda.cyber && <TwCyberHero cy={tienda.cyber} onVer={() => irCat("cyber")} />}
             {tienda.halloween && !tienda.cyber && <TwHwHero hw={tienda.halloween} hayLook={hwLook.length > 0} onJugar={() => setHwJuego(true)} onVer={() => irCat("halloween")} />}
             {tienda.halloween && <TwFila titulo="🎃 Para tu disfraz" items={hwDisfraz} onVerTodo={() => irCat("halloween")} render={tarjeta} />}
@@ -33229,6 +33372,254 @@ function flyDibujar(ctx, W, H, t, d) {
   return dur;
 }
 // Halloween en la tienda online: fechas, textos, juego "¿Dulce o truco?" (premios) y sector "Tu look de Halloween"
+// ── Calendario de Adviento: carga de los 25 días y video de la cajita abriéndose (para Instagram) ──
+const ADV_COL_LUM = [["#c62828", "#fff"], ["#2e7d32", "#fff"], ["#f6efe2", "#8a1c1c"], ["#e0a526", "#3a2a00"], ["#2a9d8f", "#fff"], ["#1b1b1b", "#ffd54f"]];
+const advColLum = (n) => ADV_COL_LUM[(n * 7 + 3) % ADV_COL_LUM.length];
+const ADV_ARBOL = [[25], [23, 24], [20, 21, 22], [16, 17, 18, 19], [11, 12, 13, 14, 15], [5, 6, 7, 8, 9, 10], [1, 2, 3, 4]];
+const ADV_VID = 9.8;
+function advCajaCanvas(ctx, x, y, w, n, col, tx, opts) {
+  const { tapa = 0, alfa = 1, brillo = 0, emoji = "", u = 1 } = opts || {};
+  ctx.save(); ctx.globalAlpha *= alfa;
+  if (brillo > 0) { ctx.shadowColor = "rgba(255,213,79," + brillo + ")"; ctx.shadowBlur = w * .5; }
+  ctx.fillStyle = col; flyRect(ctx, x, y + w * .18, w, w * .82, w * .12); ctx.fill(); ctx.shadowBlur = 0;
+  ctx.fillStyle = "rgba(0,0,0,.12)"; flyRect(ctx, x, y + w * .86, w, w * .14, w * .08); ctx.fill();
+  ctx.fillStyle = "#ffd54f"; ctx.fillRect(x + w * .44, y + w * .18, w * .12, w * .82);
+  ctx.fillStyle = tx; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = flyFont(900, w * .34); ctx.fillText(String(n), x + w / 2, y + w * .62);
+  // tapa (se va hacia arriba y a la derecha al abrir)
+  if (tapa < 1) {
+    ctx.save(); const tx2 = x + w / 2 + tapa * w * .55, ty2 = y + w * .14 - tapa * w * 1.1;
+    ctx.translate(tx2, ty2); ctx.rotate(tapa * .7); ctx.globalAlpha *= 1 - tapa;
+    ctx.fillStyle = col; ctx.filter = "brightness(1.12)"; flyRect(ctx, -w * .55, -w * .1, w * 1.1, w * .24, w * .08); ctx.fill(); ctx.filter = "none";
+    ctx.fillStyle = "#ffd54f"; ctx.fillRect(-w * .06, -w * .1, w * .12, w * .24);
+    ctx.font = flyFont(400, w * .32); ctx.fillText("🎀", 0, -w * .2);
+    if (emoji) { ctx.font = flyFont(400, w * .16); ctx.fillText(emoji, -w * .34, w * .02); }
+    ctx.restore();
+  }
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; ctx.restore();
+}
+function advDibujarVideo(ctx, W, H, t, d) {
+  const u = W / 1080, dia = d.dia;
+  // fondo verde con luces y nieve
+  const g = ctx.createRadialGradient(W / 2, H * .1, 0, W / 2, H * .4, H * .9); g.addColorStop(0, "#1f5a3a"); g.addColorStop(.5, "#123824"); g.addColorStop(1, "#06140c");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  for (let i = 0; i < 26; i++) {
+    const bx = ((i * 397) % 1000) / 1000 * W, by = ((i * 613) % 1000) / 1000 * H, r = (14 + (i % 5) * 9) * u, a = .1 + .12 * (1 + Math.sin(t * 2 + i)) / 2;
+    const c = ["255,213,79", "229,57,53", "255,255,255", "102,187,106"][i % 4]; const gg = ctx.createRadialGradient(bx, by, 0, bx, by, r); gg.addColorStop(0, "rgba(" + c + "," + a + ")"); gg.addColorStop(1, "rgba(" + c + ",0)");
+    ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(bx, by, r, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.fillStyle = "rgba(255,255,255,.8)";
+  for (let i = 0; i < 60; i++) { const sx = ((i * 211) % 1000) / 1000 * W + Math.sin(t + i) * 12 * u, sy = (((i * 137) % 1000) / 1000 * H + t * (40 + (i % 5) * 18) * u) % H; ctx.beginPath(); ctx.arc(sx, sy, (1.5 + (i % 3)) * u, 0, Math.PI * 2); ctx.fill(); }
+  // encabezado: logo + título
+  let y0 = 70 * u;
+  if (d.logo) { ctx.save(); ctx.beginPath(); ctx.arc(W / 2, y0 + 50 * u, 50 * u, 0, Math.PI * 2); ctx.clip(); const k = Math.max(100 * u / d.logo.width, 100 * u / d.logo.height); ctx.drawImage(d.logo, W / 2 - d.logo.width * k / 2, y0 + 50 * u - d.logo.height * k / 2, d.logo.width * k, d.logo.height * k); ctx.restore(); y0 += 110 * u; }
+  ctx.save(); ctx.textAlign = "center"; ctx.font = "italic 900 " + Math.round(92 * u) + "px Georgia, 'Times New Roman', serif"; ctx.lineJoin = "round";
+  const tl = flyLineas(ctx, d.titulo, W - 120 * u, 2);
+  tl.forEach((l, i) => { const yy = y0 + 90 * u + i * 96 * u; ctx.strokeStyle = "#fff"; ctx.lineWidth = 14 * u; ctx.strokeText(l, W / 2, yy); ctx.fillStyle = "#e53935"; ctx.fillText(l, W / 2, yy); });
+  ctx.restore();
+  const top = y0 + 90 * u + tl.length * 96 * u;
+  // tablero
+  const filas = d.estilo === "grilla" ? [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 15], [16, 17, 18, 19, 20], [21, 22, 23, 24, 25]] : ADV_ARBOL;
+  const maxF = Math.max(...filas.map(f => f.length)), gap = 18 * u, bw = Math.min(140 * u, (W - 120 * u - gap * (maxF - 1)) / maxF);
+  const altoT = filas.length * (bw + gap), yT = top + 40 * u + Math.max(0, (H - top - 260 * u - altoT) / 2);
+  const zoom = flyEaseInOut((t - 1.7) / .9), apertura = flyEase((t - 3.3) / .7), tarjeta = flyEase((t - 4.0) / .8);
+  let selX = W / 2, selY = H / 2;
+  filas.forEach((f, fi) => f.forEach((n, ci) => {
+    const x = W / 2 - (f.length * bw + (f.length - 1) * gap) / 2 + ci * (bw + gap), y = yT + fi * (bw + gap);
+    if (n === dia) { selX = x; selY = y; return; }
+    const ap = flyEase((t - .15 - (n % 25) * .04) / .45); if (ap <= 0) return;
+    const [c, tx] = advColLum(n);
+    ctx.save(); ctx.translate(x + bw / 2, y + bw / 2); ctx.scale(ap, ap); ctx.translate(-(x + bw / 2), -(y + bw / 2));
+    advCajaCanvas(ctx, x, y, bw, n, c, tx, { alfa: 1 - zoom * .85, u });
+    ctx.restore();
+  }));
+  // la cajita del día: brilla, viene al centro, se agranda, se sacude y se abre
+  const [c, tx] = advColLum(dia), ap0 = flyEase((t - .15 - (dia % 25) * .04) / .45);
+  if (ap0 > 0) {
+    const big = 470 * u, cx = W / 2 - big / 2, cy = H * .5 - big * .55 - tarjeta * 330 * u;
+    const w = bw + (big - bw) * zoom, x = selX + (cx - selX) * zoom, y = selY + (cy - selY) * zoom;
+    const sac = t > 2.6 && t < 3.4 ? Math.sin((t - 2.6) * 38) * (1 - (t - 2.6) / .8) * .09 : 0;
+    // rayos de luz detrás
+    if (apertura > 0) {
+      ctx.save(); ctx.translate(x + w / 2, y + w * .3); ctx.rotate(t * .5); ctx.globalAlpha = apertura * (1 - tarjeta * .4);
+      for (let i = 0; i < 18; i++) { ctx.rotate(Math.PI * 2 / 18); const gr = ctx.createLinearGradient(0, 0, 0, -760 * u); gr.addColorStop(0, "rgba(255,224,130,.55)"); gr.addColorStop(1, "rgba(255,224,130,0)"); ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-38 * u, -760 * u); ctx.lineTo(38 * u, -760 * u); ctx.closePath(); ctx.fill(); }
+      ctx.restore();
+    }
+    ctx.save(); ctx.translate(x + w / 2, y + w / 2); ctx.rotate(sac); ctx.scale(ap0, ap0); ctx.translate(-(x + w / 2), -(y + w / 2));
+    advCajaCanvas(ctx, x, y, w, dia, c, tx, { tapa: apertura, brillo: zoom < 1 ? .5 + .4 * Math.sin(t * 6) : .6, emoji: d.icono, alfa: 1 - tarjeta * .9, u });
+    ctx.restore();
+    // confeti
+    if (apertura > 0 && t < 5.4) {
+      for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2, dist = (180 + (i % 6) * 70) * u * flyEase((t - 3.3) / 1.2), px = x + w / 2 + Math.cos(a) * dist, py = y + w * .3 + Math.sin(a) * dist * .8 + Math.pow(Math.max(0, t - 3.6), 2) * 160 * u;
+        ctx.save(); ctx.globalAlpha = Math.max(0, 1 - (t - 3.3) / 2.1); ctx.translate(px, py); ctx.rotate(t * 4 + i); ctx.fillStyle = ["#ffd54f", "#e53935", "#43a047", "#ffffff", "#26c6da"][i % 5]; ctx.fillRect(-7 * u, -11 * u, 14 * u, 22 * u); ctx.restore(); }
+    }
+  }
+  // tarjeta con la sorpresa
+  if (tarjeta > 0) {
+    const cw = W - 140 * u, cx = 70 * u;
+    // alto justo para lo que hay adentro (y centrada en el espacio libre)
+    ctx.font = flyFont(900, 62 * u); const nT = flyLineas(ctx, d.tituloDia || "¡Sorpresa!", cw - 90 * u, 3).length;
+    ctx.font = flyFont(500, 38 * u); const nD = d.detalle ? flyLineas(ctx, d.detalle, cw - 110 * u, 4).length : 0;
+    const nF = d.fotos.filter(Boolean).slice(0, 3).length, fsMax = nF ? Math.min(250 * u, (cw - 120 * u - (nF - 1) * 24 * u) / nF) : 0;
+    const altoC = 70 * u + 130 * u + 90 * u + nT * 72 * u + 20 * u + (nD ? nD * 52 * u + 30 * u : 0) + (d.codigo ? 120 * u : 0) + (nF ? fsMax + 30 * u : 0) + 50 * u;
+    const libre = H - H * .2 - 260 * u, ch = Math.min(libre, altoC);
+    let cy = H * .2 + (libre - ch) / 2 + (1 - tarjeta) * 260 * u;
+    ctx.save(); ctx.globalAlpha = tarjeta; ctx.shadowColor = "rgba(0,0,0,.45)"; ctx.shadowBlur = 50 * u; ctx.fillStyle = "#fffdf7"; flyRect(ctx, cx, cy, cw, ch, 44 * u); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.textAlign = "center"; let yy = cy + 70 * u;
+    ctx.font = flyFont(900, 34 * u); const dt = "DÍA " + dia, dw = ctx.measureText(dt).width + 60 * u; ctx.fillStyle = "#c62828"; flyRect(ctx, W / 2 - dw / 2, yy - 38 * u, dw, 58 * u, 29 * u); ctx.fill(); ctx.fillStyle = "#fff"; ctx.save(); ctx.letterSpacing = (6 * u) + "px"; ctx.fillText(dt, W / 2 + 3 * u, yy + 4 * u); ctx.restore();
+    yy += 130 * u; ctx.font = flyFont(400, 130 * u); ctx.fillText(d.icono || "🎁", W / 2, yy);
+    yy += 90 * u; ctx.fillStyle = "#123824"; ctx.font = flyFont(900, 62 * u);
+    flyLineas(ctx, d.tituloDia || "¡Sorpresa!", cw - 90 * u, 3).forEach((l, i) => ctx.fillText(l, W / 2, yy + i * 72 * u)); yy += flyLineas(ctx, d.tituloDia || "¡Sorpresa!", cw - 90 * u, 3).length * 72 * u + 20 * u;
+    if (d.detalle) { ctx.fillStyle = "#444"; ctx.font = flyFont(500, 38 * u); flyLineas(ctx, d.detalle, cw - 110 * u, 4).forEach((l, i) => ctx.fillText(l, W / 2, yy + i * 52 * u)); yy += flyLineas(ctx, d.detalle, cw - 110 * u, 4).length * 52 * u + 30 * u; }
+    if (d.codigo) { ctx.font = flyFont(900, 46 * u); const cwid = ctx.measureText(d.codigo).width + 80 * u; ctx.fillStyle = "#123824"; flyRect(ctx, W / 2 - cwid / 2, yy - 10 * u, cwid, 84 * u, 18 * u); ctx.fill(); ctx.fillStyle = "#ffd54f"; ctx.save(); ctx.letterSpacing = (8 * u) + "px"; ctx.fillText(d.codigo, W / 2 + 4 * u, yy + 48 * u); ctx.restore(); yy += 120 * u; }
+    const fotos = d.fotos.filter(Boolean).slice(0, 3);
+    if (fotos.length) {
+      const fs = Math.min(250 * u, (cw - 120 * u - (fotos.length - 1) * 24 * u) / fotos.length, cy + ch - yy - 40 * u);
+      if (fs > 80 * u) fotos.forEach((im, i) => {
+        const fx = W / 2 - (fotos.length * fs + (fotos.length - 1) * 24 * u) / 2 + i * (fs + 24 * u), fy = yy + (1 - flyEase((t - 4.6 - i * .15) / .5)) * 60 * u;
+        ctx.save(); ctx.globalAlpha = tarjeta * flyEase((t - 4.6 - i * .15) / .5); ctx.fillStyle = "#f2f2f2"; flyRect(ctx, fx, fy, fs, fs, 24 * u); ctx.fill(); ctx.clip();
+        const k = Math.min(fs / im.width, fs / im.height) * .9; ctx.drawImage(im, fx + fs / 2 - im.width * k / 2, fy + fs / 2 - im.height * k / 2, im.width * k, im.height * k); ctx.restore();
+      });
+    }
+    ctx.restore();
+    // cierre
+    const fin = flyEase((t - 6.2) / .7);
+    if (fin > 0 && d.web) { ctx.save(); ctx.globalAlpha = fin; ctx.textAlign = "center"; ctx.fillStyle = "#fff"; ctx.font = flyFont(600, 40 * u); ctx.fillText("Abrí tu cajita en", W / 2, H - 150 * u); ctx.restore(); ctx.save(); ctx.globalAlpha = fin; ctx.font = flyFont(900, 40 * u); const ww = ctx.measureText(d.web).width + 64 * u; flyPildora(ctx, W / 2 - ww / 2, H - 120 * u, d.web, 40 * u, t); ctx.restore(); }
+  }
+  ctx.textAlign = "left";
+}
+function AdvientoVideo({ d, temaPal, slug, dominio, productos }) {
+  const p = temaPal, base = String(API.defaults.baseURL || "").replace(/\/+$/, "");
+  const [dia, setDia] = useState(1);
+  const [logo, setLogo] = useState(null);
+  const [imgs, setImgs] = useState({});
+  const [grabando, setGrabando] = useState(0);
+  const [video, setVideo] = useState(null);
+  const [error, setError] = useState("");
+  const lienzo = useRef(null), inicio = useRef(performance.now()), grab = useRef(null);
+  useEffect(() => { if (!slug) return; fetch(base + "/tienda-publica/" + encodeURIComponent(slug)).then(r => r.json()).then(t => { if (t.logo) { const im = new Image(); if (!t.logo.startsWith("data:")) im.crossOrigin = "anonymous"; im.onload = () => setLogo(im); im.src = t.logo; } }).catch(() => {}); }, [slug]);
+  const di = d.dias[dia - 1];
+  useEffect(() => { (di.productos || []).slice(0, 3).forEach(id => { if (imgs[id] !== undefined) return; const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => setImgs(m => ({ ...m, [id]: im })); im.onerror = () => setImgs(m => ({ ...m, [id]: null })); im.src = base + "/tienda-publica/" + encodeURIComponent(slug) + "/foto/" + id; }); }, [dia, d]); // eslint-disable-line react-hooks/exhaustive-deps
+  const datos = { dia, titulo: d.titulo, estilo: d.estilo, icono: di.icono, tituloDia: di.titulo, detalle: di.detalle, codigo: di.codigo, logo, fotos: (di.productos || []).slice(0, 3).map(id => imgs[id] || null), web: dominio ? String(dominio).replace(/^https?:\/\//, "") : "Link en la bio" };
+  const dRef = useRef(datos); dRef.current = datos;
+  useEffect(() => {
+    let id; const c = lienzo.current; if (!c) return; const ctx = c.getContext("2d");
+    const paso = () => { let t = (performance.now() - inicio.current) / 1000; if (grab.current) { if (t >= ADV_VID) { grab.current.stop(); grab.current = null; } else setGrabando(Math.max(1, Math.round(t / ADV_VID * 100))); } t = grab.current ? Math.min(t, ADV_VID) : t % (ADV_VID + 1); advDibujarVideo(ctx, c.width, c.height, t, dRef.current); id = requestAnimationFrame(paso); };
+    id = requestAnimationFrame(paso); return () => cancelAnimationFrame(id);
+  }, []);
+  const tipo = () => ["video/mp4;codecs=avc1.640028", "video/mp4;codecs=avc1.42E01E", "video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm"].find(x => window.MediaRecorder && MediaRecorder.isTypeSupported(x));
+  const grabar = () => {
+    const tp = tipo(); if (!tp) return setError("Este navegador no puede grabar video. Probá con Chrome.");
+    setError(""); setVideo(null);
+    let rec; try { rec = new MediaRecorder(lienzo.current.captureStream(30), { mimeType: tp, videoBitsPerSecond: 8000000 }); } catch (e) { return setError("No se pudo grabar: " + e.message); }
+    const partes = []; rec.ondataavailable = e => { if (e.data && e.data.size) partes.push(e.data); };
+    rec.onstop = () => { const blob = new Blob(partes, { type: tp.split(";")[0] }); setVideo({ url: URL.createObjectURL(blob), blob, ext: tp.includes("mp4") ? "mp4" : "webm" }); setGrabando(0); };
+    inicio.current = performance.now(); grab.current = rec; rec.start(250); setGrabando(1);
+  };
+  const nombre = "adviento-dia-" + dia + "." + (video ? video.ext : "mp4");
+  const puedeCompartir = video && navigator.canShare && (() => { try { return navigator.canShare({ files: [new File([video.blob], nombre, { type: video.blob.type })] }); } catch (e) { return false; } })();
+  return (
+    <div style={{ border: "1px solid " + p.border, borderRadius: 12, padding: 12, marginTop: 16 }}>
+      <div style={{ fontWeight: 800, fontSize: 14 }}>🎬 Video del día para Instagram</div>
+      <div style={{ fontSize: 12, color: p.textMuted, margin: "4px 0 10px" }}>La cajita del día se abre y muestra la sorpresa (formato historia/reel). Guardá los cambios del día antes de crear el video.</div>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
+        <div style={{ minWidth: 220, flex: "1 1 220px" }}>
+          <div className="fl">Día</div>
+          <select className="sel" value={dia} onChange={e => { setDia(parseInt(e.target.value)); setVideo(null); inicio.current = performance.now(); }}>
+            {d.dias.map(x => <option key={x.dia} value={x.dia}>Día {x.dia}{x.titulo ? " · " + x.titulo : " · (sin cargar)"}</option>)}
+          </select>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12, alignItems: "flex-start" }}>
+            <button className="btn btn-p" disabled={grabando > 0} onClick={grabar}>{grabando ? "Creando video… " + grabando + "%" : "🎬 Crear video"}</button>
+            {grabando > 0 && <div style={{ fontSize: 11.5, color: p.textMuted }}>Dejá esta pantalla abierta mientras se graba (unos 10 segundos).</div>}
+            {video && <><a className="btn btn-g" href={video.url} download={nombre}>⬇️ Descargar video</a>
+              {puedeCompartir && <button className="btn btn-g" onClick={async () => { try { await navigator.share({ files: [new File([video.blob], nombre, { type: video.blob.type })] }); } catch (e) {} }}>📲 Compartir</button>}
+              {video.ext !== "mp4" && <div style={{ fontSize: 11.5, color: p.warn, maxWidth: 280 }}>Este navegador lo grabó en WEBM; para MP4 crealo desde Chrome actualizado o desde el celular.</div>}</>}
+            {error && <div style={{ fontSize: 12, color: p.red }}>{error}</div>}
+          </div>
+        </div>
+        <canvas ref={lienzo} width={1080} height={1920} style={{ width: 243, height: 432, borderRadius: 14, boxShadow: "0 6px 24px rgba(0,0,0,.25)", background: "#123824" }} />
+      </div>
+    </div>
+  );
+}
+function AdvientoTienda({ temaPal, productos }) {
+  const p = temaPal;
+  const [d, setD] = useState(null);
+  const [f, setF] = useState(null);
+  const [abierto, setAbierto] = useState(null);
+  const [busca, setBusca] = useState("");
+  const [aviso, setAviso] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  useEffect(() => { API.get("/promociones/adviento-tienda").then(r => { setD(r.data); setF(r.data.adviento); }).catch(() => setD(false)); }, []);
+  if (d === false) return <div className="card" style={{ color: p.textMuted }}>No se pudo cargar el calendario.</div>;
+  if (!d || !f) return <div className="card"><div className="skel" style={{ height: 160 }} /></div>;
+  const set = (k, v) => setF(x => ({ ...x, [k]: v }));
+  const setDia = (n, k, v) => setF(x => ({ ...x, dias: x.dias.map(y => y.dia === n ? { ...y, [k]: v } : y) }));
+  const guardar = async () => {
+    setGuardando(true);
+    try { const r = await API.put("/promociones/adviento-tienda", f); setD(x => ({ ...x, adviento: r.data.adviento, hoy: r.data.hoy })); setF(r.data.adviento); setAviso("✅ Guardado"); }
+    catch (e) { setAviso("Error: " + (e.response?.data?.error || e.message)); }
+    setGuardando(false); setTimeout(() => setAviso(""), 4000);
+  };
+  const k = d.adviento, slug = d.slug, enCurso = k.activo && d.hoy >= 1 && d.hoy <= 25;
+  const linkDe = (tok) => slug ? (d.dominio ? "https://" + d.dominio + "/" + (tok ? "?adviento=" + tok : "") : window.location.origin + "/?tienda=" + encodeURIComponent(slug) + (tok ? "&adviento=" + tok : "")) : "";
+  const verComoQueda = async () => {
+    if (k.token) { window.open(linkDe(k.token), "_blank"); return; }
+    const w = window.open("", "_blank");
+    try { const r = await API.put("/promociones/adviento-tienda", k); setD(x => ({ ...x, adviento: r.data.adviento })); if (w) w.location.href = linkDe(r.data.adviento.token); }
+    catch (e) { if (w) w.close(); setAviso("Error: " + (e.response?.data?.error || e.message)); }
+  };
+  const estado = enCurso ? ["🟢 En curso: hoy es el día " + d.hoy, p.green] : k.activo ? (d.hoy >= 26 ? ["⚪ Ya terminó (25/12/" + k.anio + ")", p.textMuted] : ["🗓️ Programado: arranca solo el 1/12/" + k.anio, p.accentText]) : ["⚪ Apagado", p.textMuted];
+  const cargados = f.dias.filter(x => x.titulo).length;
+  const lbl = { fontSize: 11, color: p.textMuted, display: "block", marginBottom: 4 };
+  const q = normTxt(busca);
+  return (
+    <div className="card" style={{ textAlign: "left", marginBottom: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div className="ct" style={{ margin: 0 }}>🎄 Calendario de Adviento</div>
+        {slug && <button className="btn btn-p" onClick={verComoQueda}>👀 Ver cómo va a quedar la tienda</button>}
+      </div>
+      <div style={{ fontSize: 12.5, color: p.textMuted, margin: "6px 0 12px" }}>Del 1 al 25 de diciembre: cada día las clientas abren una cajita en la tienda y descubren la sorpresa (descuento, regalo con la compra, código…). Los días que todavía no llegaron no se pueden espiar.</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><Sw on={!!f.activo} toggle={() => set("activo", !f.activo)} /><b style={{ fontSize: 13 }}>Programar en la tienda</b></div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: estado[1], marginBottom: 14 }}>{estado[0]}{f.activo !== k.activo ? " · (guardá para aplicar)" : ""}</div>
+      <div className="g2">
+        <div><label style={lbl}>Año</label><select className="sel" value={f.anio} onChange={e => set("anio", parseInt(e.target.value))}>{[2026, 2027, 2028].map(a => <option key={a} value={a}>Diciembre {a}</option>)}</select></div>
+        <div><label style={lbl}>Diseño</label><div className="seg" role="group" style={{ display: "flex" }}>{[["arbol", "🎄 Árbol"], ["grilla", "▦ Grilla"]].map(([kk, tt]) => <button key={kk} style={{ flex: 1 }} className={f.estilo === kk ? "on" : ""} onClick={() => set("estilo", kk)}>{tt}</button>)}</div></div>
+        <div><label style={lbl}>Título</label><input className="inp" value={f.titulo} maxLength={40} onChange={e => set("titulo", e.target.value)} /></div>
+        <div><label style={lbl}>Bajada</label><input className="inp" value={f.bajada} maxLength={160} onChange={e => set("bajada", e.target.value)} /></div>
+      </div>
+      <div style={{ fontWeight: 800, fontSize: 13.5, margin: "18px 0 8px" }}>🎁 Las 25 sorpresas <span style={{ fontWeight: 500, color: p.textMuted }}>({cargados} de 25 cargadas)</span></div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {f.dias.map(x => { const ab = abierto === x.dia, [c, tx] = advColLum(x.dia); return (
+          <div key={x.dia} style={{ border: "1px solid " + (ab ? p.accent : p.border), borderRadius: 10 }}>
+            <button onClick={() => { setAbierto(ab ? null : x.dia); setBusca(""); }} style={{ width: "100%", display: "flex", gap: 10, alignItems: "center", padding: "8px 10px", background: "none", border: 0, cursor: "pointer", color: p.text, textAlign: "left" }}>
+              <span style={{ width: 34, height: 34, borderRadius: 8, background: c, color: tx, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{x.dia}</span>
+              <span style={{ fontSize: 18 }}>{x.icono}</span>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: x.titulo ? 700 : 400, color: x.titulo ? p.text : p.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.titulo || "Sin cargar"}{x.codigo ? " · " + x.codigo : ""}{x.productos.length ? " · " + x.productos.length + " prod." : ""}</span>
+              <span style={{ color: p.textMuted }}>{ab ? "▴" : "▾"}</span>
+            </button>
+            {ab && <div style={{ padding: "4px 12px 12px", display: "grid", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "70px 1fr", gap: 8 }}>
+                <div><label style={lbl}>Ícono</label><input className="inp" value={x.icono} maxLength={8} onChange={e => setDia(x.dia, "icono", e.target.value)} style={{ textAlign: "center", fontSize: 18 }} /></div>
+                <div><label style={lbl}>Título (lo primero que ven)</label><input className="inp" value={x.titulo} maxLength={60} placeholder="Ej: 20% OFF en sérums" onChange={e => setDia(x.dia, "titulo", e.target.value)} /></div>
+              </div>
+              <div><label style={lbl}>Detalle</label><textarea className="inp" rows={2} value={x.detalle} maxLength={300} placeholder="Ej: Solo hoy, en todos los sérums de la tienda online. Con tu compra te llevás una muestra de regalo." onChange={e => setDia(x.dia, "detalle", e.target.value)} style={{ width: "100%", resize: "vertical" }} /></div>
+              <div><label style={lbl}>Código (opcional: si el descuento es con cupón, crealo en Cupones con el mismo código y la fecha del día)</label><input className="inp" value={x.codigo} maxLength={20} placeholder="Ej: NAVIDAD12" onChange={e => setDia(x.dia, "codigo", e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ""))} /></div>
+              <div><label style={lbl}>Productos para mostrar ({x.productos.length})</label>
+                <input className="inp" placeholder="Buscar producto para sumar…" value={busca} onChange={e => setBusca(e.target.value)} style={{ width: "100%" }} />
+                {q.length >= 2 && <div style={{ border: "1px solid " + p.border, borderRadius: 8, marginTop: 4 }}>{(productos || []).filter(y => !x.productos.includes(y.id) && normTxt([y.nombre, y.marca, y.categoria].join(" ")).includes(q)).slice(0, 8).map(y => <div key={y.id} onClick={() => { setDia(x.dia, "productos", [...x.productos, y.id]); setBusca(""); }} style={{ padding: "6px 10px", cursor: "pointer", fontSize: 12.5, borderBottom: "1px solid " + p.border }}>+ {y.nombre}{!y.publicado ? <span style={{ color: p.warn }}> · no está publicado</span> : null}</div>)}</div>}
+                {x.productos.map(id => { const y = (productos || []).find(z => z.id === id); return <div key={id} style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12.5, marginTop: 4 }}><span style={{ flex: 1 }}>{y ? y.nombre : "Producto #" + id}</span><button className="chip-btn" style={{ color: p.red }} onClick={() => setDia(x.dia, "productos", x.productos.filter(z => z !== id))}>✕</button></div>; })}
+              </div>
+            </div>}
+          </div>); })}
+      </div>
+      <div style={{ position: "sticky", bottom: 0, background: p.card, padding: "12px 0 4px", display: "flex", gap: 10, alignItems: "center" }}>
+        <button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando..." : "Guardar"}</button>
+        {aviso && <span style={{ fontSize: 12, color: aviso.startsWith("Error") ? p.red : p.green }}>{aviso}</span>}
+      </div>
+      <AdvientoVideo d={f} temaPal={p} slug={slug} dominio={d.dominio} productos={productos} />
+    </div>
+  );
+}
 function HalloweenTienda({ temaPal, productos }) {
   const p = temaPal;
   const [d, setD] = useState(null);
@@ -33840,7 +34231,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         ))}
       </div>}
       <div className="tabs to-tabs" style={{ marginBottom: 12 }}>
-        {[["pedidos", "📦 Pedidos" + (abiertos.length ? " (" + abiertos.length + ")" : "")], ["productos", "🛍 Productos"], ...(esDuenaT ? [["portada", "🏠 Portada y sectores"]] : []), ["clientas", "👥 Clientas web"], ["resenas", "⭐ Reseñas" + (resPend ? " (" + resPend + ")" : "")], ...(esDuenaT ? [["ofertas", "⚡ Ofertas y combos"], ["halloween", "🎃 Halloween"], ["rutinas", "💁 Rutinas del local"], ["regalos", "🎁 Regalos"], ["config", "⚙️ Configuración"]] : [])].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
+        {[["pedidos", "📦 Pedidos" + (abiertos.length ? " (" + abiertos.length + ")" : "")], ["productos", "🛍 Productos"], ...(esDuenaT ? [["portada", "🏠 Portada y sectores"]] : []), ["clientas", "👥 Clientas web"], ["resenas", "⭐ Reseñas" + (resPend ? " (" + resPend + ")" : "")], ...(esDuenaT ? [["ofertas", "⚡ Ofertas y combos"], ["halloween", "🎃 Halloween"], ["adviento", "🎄 Adviento"], ["rutinas", "💁 Rutinas del local"], ["regalos", "🎁 Regalos"], ["config", "⚙️ Configuración"]] : [])].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
       </div>
 
       {tab === "productos" && productos && (() => { const pubs = productos.filter(p => p.publicado), falt = pubs.filter(p => !p.foto).length + pubs.filter(p => !(p.descripcion || "").trim()).length; return (
@@ -33848,6 +34239,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
           ["lista", "🛍", "Productos", "#2471a3", nPub, false], ["completa", "✨", "Completá tu tienda", "#c9a84c", falt, falt > 0], ["qr", "🔳", "Etiquetas con QR", "#2d7a4f", 0, false], ["flyer", "🎬", "Flyer animado", "#e1306c", 0, false]]} /></div>); })()}
       {tab === "productos" && secP === "flyer" && <FlyerPreventa cfg={cfg} temaPal={temaPal} />}
       {tab === "halloween" && esDuenaT && <HalloweenTienda temaPal={temaPal} productos={productos} />}
+      {tab === "adviento" && esDuenaT && <AdvientoTienda temaPal={temaPal} productos={productos} />}
       {tab === "productos" && secP === "qr" && (
         <div className="card" style={{ marginBottom: 12 }}>
           <div className="ct">🔳 Etiquetas de precio con QR</div>
