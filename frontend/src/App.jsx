@@ -33646,7 +33646,8 @@ function AdvientoTienda({ temaPal, productos }) {
     </div>
   );
 }
-function HalloweenTienda({ temaPal, productos }) {
+// soloVer: las vendedoras lo ven (fechas, premios del juego, productos del sector) pero no lo cambian
+function HalloweenTienda({ temaPal, productos, soloVer }) {
   const p = temaPal;
   const [d, setD] = useState(null);
   const [f, setF] = useState(null);
@@ -33657,7 +33658,7 @@ function HalloweenTienda({ temaPal, productos }) {
   useEffect(() => { cargar(); }, []);
   if (d === false) return <div className="card" style={{ color: p.textMuted }}>No se pudo cargar Halloween.</div>;
   if (!d || !f) return <div className="card"><div className="skel" style={{ height: 160 }} /></div>;
-  const set = (k, v) => setF(x => ({ ...x, [k]: v }));
+  const set = (k, v) => { if (!soloVer) setF(x => ({ ...x, [k]: v })); };
   const guardar = async () => {
     setGuardando(true);
     try { const r = await API.put("/promociones/halloween-tienda", f); setD(x => ({ ...x, halloween: r.data.halloween, en_curso: r.data.en_curso })); setF(r.data.halloween); setAviso("✅ Guardado"); }
@@ -33686,16 +33687,16 @@ function HalloweenTienda({ temaPal, productos }) {
       <div style={{ border: "1px solid " + p.border, borderRadius: 12, padding: 12 }}>
         <div style={{ fontWeight: 800, fontSize: 13.5 }}>{titulo} <span style={{ color: p.textMuted, fontWeight: 500 }}>({ids.length})</span></div>
         <div style={{ fontSize: 11.5, color: p.textMuted, marginBottom: 8 }}>{ayuda}</div>
-        <input className="inp" style={{ width: "100%" }} placeholder="Buscar producto para sumar…" value={busca[clave]} onChange={e => setBusca(b => ({ ...b, [clave]: e.target.value }))} />
+        {!soloVer && <input className="inp" style={{ width: "100%" }} placeholder="Buscar producto para sumar…" value={busca[clave]} onChange={e => setBusca(b => ({ ...b, [clave]: e.target.value }))} />}
         {sug.length > 0 && <div style={{ border: "1px solid " + p.border, borderRadius: 8, marginTop: 4 }}>{sug.map(x => <div key={x.id} onClick={() => { set(clave, [...ids, x.id]); setBusca(b => ({ ...b, [clave]: "" })); }} style={{ padding: "6px 10px", cursor: "pointer", fontSize: 12.5, borderBottom: "1px solid " + p.border }}>+ {x.nombre}{x.marca ? <span style={{ color: p.textMuted }}> · {x.marca}</span> : null}{!x.publicado ? <span style={{ color: p.warn }}> · no está publicado</span> : null}</div>)}</div>}
         <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
           {ids.map((id, i) => { const x = nombreProd(id); return (
             <div key={id} style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12.5 }}>
               <span style={{ flex: 1, minWidth: 0 }}>{x ? x.nombre : "Producto #" + id}{x && !x.publicado ? <span style={{ color: p.warn }}> · no está publicado (no se ve)</span> : null}</span>
-              <button className="chip-btn" disabled={i === 0} onClick={() => { const n = [...ids]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; set(clave, n); }} aria-label="Subir">↑</button>
-              <button className="chip-btn" style={{ color: p.red }} onClick={() => set(clave, ids.filter(y => y !== id))} aria-label="Quitar">✕</button>
+              {!soloVer && <button className="chip-btn" disabled={i === 0} onClick={() => { const n = [...ids]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; set(clave, n); }} aria-label="Subir">↑</button>}
+              {!soloVer && <button className="chip-btn" style={{ color: p.red }} onClick={() => set(clave, ids.filter(y => y !== id))} aria-label="Quitar">✕</button>}
             </div>); })}
-          {!ids.length && <div style={{ fontSize: 12, color: p.textMuted }}>Todavía no sumaste productos.</div>}
+          {!ids.length && <div style={{ fontSize: 12, color: p.textMuted }}>{soloVer ? "Todavía no hay productos." : "Todavía no sumaste productos."}</div>}
         </div>
       </div>
     );
@@ -33704,8 +33705,10 @@ function HalloweenTienda({ temaPal, productos }) {
     <div className="card" style={{ textAlign: "left", marginBottom: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         <div className="ct" style={{ margin: 0 }}>🎃 Halloween en la tienda online</div>
-        {slug && <button className="btn btn-p" onClick={verComoQueda}>👀 Ver cómo va a quedar la tienda</button>}
+        {slug && (!soloVer || d.en_curso || k.token) && <button className="btn btn-p" onClick={verComoQueda}>{d.en_curso ? "👀 Ver la tienda" : "👀 Ver cómo va a quedar la tienda"}</button>}
       </div>
+      {soloVer && <div className="cli-tip" style={{ margin: "8px 0 4px" }}>👀 Esto es para que sepas qué ven las clientas: fechas, premios de la calabaza y productos del sector. Solo la dueña o la encargada lo pueden cambiar.</div>}
+      <fieldset disabled={!!soloVer} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, pointerEvents: soloVer ? "none" : undefined }}>
       <div style={{ fontSize: 12.5, color: p.textMuted, margin: "6px 0 12px" }}>Portada negra y naranja con murciélagos, la calabaza "¿Dulce o truco?" para que las clientas ganen un premio (una vez cada una, con su cuenta) y el sector "Tu look de Halloween". Solo se ve entre las fechas que pongas.</div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><Sw on={!!f.activo} toggle={() => set("activo", !f.activo)} /><b style={{ fontSize: 13 }}>Programar en la tienda</b></div>
       <div style={{ fontSize: 12, fontWeight: 700, color: estado[1], marginBottom: 14 }}>{estado[0]}{f.activo !== k.activo ? " · (guardá para aplicar)" : ""}</div>
@@ -33729,9 +33732,9 @@ function HalloweenTienda({ temaPal, productos }) {
               <input className="inp" inputMode="numeric" disabled={x.tipo === "nada"} value={x.tipo === "nada" ? "" : x.valor} onChange={e => setPremio(i, "valor", e.target.value.replace(/\D/g, ""))} placeholder={x.tipo === "cupon" ? "%" : "pts"} />
               <input className="inp" inputMode="numeric" value={x.chance} onChange={e => setPremio(i, "chance", e.target.value.replace(/\D/g, ""))} />
               <span style={{ fontSize: 12, color: p.textMuted }}>{Math.round((parseInt(x.chance) || 0) / totalChance * 100)}%</span>
-              <button className="chip-btn" style={{ color: p.red }} disabled={f.premios.length <= 2} onClick={() => set("premios", f.premios.filter((_, j) => j !== i))} aria-label="Quitar premio">✕</button>
+              {soloVer ? <span /> : <button className="chip-btn" style={{ color: p.red }} disabled={f.premios.length <= 2} onClick={() => set("premios", f.premios.filter((_, j) => j !== i))} aria-label="Quitar premio">✕</button>}
             </div>))}
-          {f.premios.length < 8 && <button className="chip-btn" style={{ marginTop: 8 }} onClick={() => set("premios", [...f.premios, { id: "h" + Date.now().toString(36).slice(-6), texto: "15% OFF", tipo: "cupon", valor: 15, chance: 3 }])}>+ Agregar premio</button>}
+          {f.premios.length < 8 && !soloVer && <button className="chip-btn" style={{ marginTop: 8 }} onClick={() => set("premios", [...f.premios, { id: "h" + Date.now().toString(36).slice(-6), texto: "15% OFF", tipo: "cupon", valor: 15, chance: 3 }])}>+ Agregar premio</button>}
           {d.jugadas && d.jugadas.length > 0 && <div style={{ marginTop: 12, fontSize: 12.5 }}><b>Ya jugaron {d.jugadas.reduce((t, x) => t + x.n, 0)} clientas:</b> {d.jugadas.map(x => x.texto + " (" + x.n + ")").join(" · ")}{d.cupones_usados ? " · " + d.cupones_usados + " cupones ya usados en compras" : ""}</div>}
         </>}
       </div>
@@ -33744,10 +33747,11 @@ function HalloweenTienda({ temaPal, productos }) {
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 16 }}>
+      </fieldset>
+      {!soloVer && <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 16 }}>
         <button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando..." : "Guardar"}</button>
         {aviso && <span style={{ fontSize: 12, color: aviso.startsWith("Error") ? p.red : p.green }}>{aviso}</span>}
-      </div>
+      </div>}
     </div>
   );
 }
@@ -34285,14 +34289,14 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         ))}
       </div>}
       <div className="tabs to-tabs" style={{ marginBottom: 12 }}>
-        {[["pedidos", "📦 Pedidos" + (abiertos.length + nRevisar ? " (" + (abiertos.length + nRevisar) + ")" : "")], ["productos", "🛍 Productos"], ...(esDuenaT ? [["portada", "🏠 Portada y sectores"]] : []), ["clientas", "👥 Clientas web"], ["resenas", "⭐ Reseñas" + (resPend ? " (" + resPend + ")" : "")], ...(esDuenaT ? [["ofertas", "⚡ Ofertas y combos"], ["halloween", "🎃 Halloween"], ["adviento", "🎄 Adviento"], ["rutinas", "💁 Rutinas del local"], ["regalos", "🎁 Regalos"], ["config", "⚙️ Configuración"]] : [])].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
+        {[["pedidos", "📦 Pedidos" + (abiertos.length + nRevisar ? " (" + (abiertos.length + nRevisar) + ")" : "")], ["productos", "🛍 Productos"], ...(esDuenaT ? [["portada", "🏠 Portada y sectores"]] : []), ["clientas", "👥 Clientas web"], ["resenas", "⭐ Reseñas" + (resPend ? " (" + resPend + ")" : "")], ...(esDuenaT ? [["ofertas", "⚡ Ofertas y combos"], ["halloween", "🎃 Halloween"], ["adviento", "🎄 Adviento"], ["rutinas", "💁 Rutinas del local"], ["regalos", "🎁 Regalos"], ["config", "⚙️ Configuración"]] : [["halloween", "🎃 Halloween"]])].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
       </div>
 
       {tab === "productos" && productos && (() => { const pubs = productos.filter(p => p.publicado), falt = pubs.filter(p => !p.foto).length + pubs.filter(p => !(p.descripcion || "").trim()).length; return (
         <div style={{ marginBottom: 12 }}><TarjetasSecciones activa={secP} onElegir={elegirSecP} items={[
           ["lista", "🛍", "Productos", "#2471a3", nPub, false], ["completa", "✨", "Completá tu tienda", "#c9a84c", falt, falt > 0], ["qr", "🔳", "Etiquetas con QR", "#2d7a4f", 0, false], ["flyer", "🎬", "Flyer animado", "#e1306c", 0, false]]} /></div>); })()}
       {tab === "productos" && secP === "flyer" && <FlyerPreventa cfg={cfg} temaPal={temaPal} />}
-      {tab === "halloween" && esDuenaT && <HalloweenTienda temaPal={temaPal} productos={productos} />}
+      {tab === "halloween" && <HalloweenTienda temaPal={temaPal} productos={productos} soloVer={!esDuenaT} />}
       {tab === "adviento" && esDuenaT && <AdvientoTienda temaPal={temaPal} productos={productos} />}
       {tab === "productos" && secP === "qr" && (
         <div className="card" style={{ marginBottom: 12 }}>
