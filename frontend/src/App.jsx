@@ -293,6 +293,10 @@ ${p.textHalo ? `.main { text-shadow: ${p.textHalo}; } .main .btn, .main .tab.on,
 .sel { background: ${p.inpBg}; border: 1px solid ${p.border}; border-radius: 6px; padding: 11px 13px; color: ${p.text}; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400; outline: none; width: 100%; box-shadow: none; }
 .fg { margin-bottom: 12px; }
 .fl { font-size: 11px; color: ${p.textMuted}; font-weight: 600; margin-bottom: 6px; }
+.calc-costo-btn { background: none; border: 0; padding: 0 2px; cursor: pointer; font-size: 13px; line-height: 1; }
+.calc-costo { position: absolute; top: calc(100% + 4px); right: 0; z-index: 60; width: 250px; max-width: 80vw; background: ${p.card}; color: ${p.text}; border: 1px solid ${p.border}; border-radius: 12px; padding: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.18); text-align: left; font-weight: 400; }
+.calc-costo-f { display: block; font-size: 11px; color: ${p.textMuted}; font-weight: 600; margin-bottom: 6px; }
+.calc-costo-f .inp { margin-top: 3px; width: 100%; }
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; border-bottom: none; }
 /* Tienda online en el celular: las pestañas en una sola fila que se desliza (antes ocupaban 4 renglones) */
 @media (max-width: 760px) { .to-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-left: -4px; margin-right: -4px; padding: 2px 4px 4px; } .to-tabs::-webkit-scrollbar { display: none; } .to-tabs .tab { flex-shrink: 0; } }
@@ -8665,7 +8669,7 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
               </div>
               <div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                  <div className="fg"><div className="fl">Costo ($)</div><input className="inp" type="number" placeholder="1200" value={nuevo.costo} onChange={e => setNuevo(p => ({ ...p, costo: e.target.value }))} /></div>
+                  <div className="fg"><div className="fl"><CalcCosto label="Costo ($)" valor={nuevo.costo} onUsar={v => setNuevo(p => ({ ...p, costo: v }))} /></div><input className="inp" type="number" placeholder="1200" value={nuevo.costo} onChange={e => setNuevo(p => ({ ...p, costo: e.target.value }))} /></div>
                   <div className="fg">
                     <div className="fl" style={{ display: "flex", justifyContent: "space-between" }}>
                       <span>Precio *</span>
@@ -13010,6 +13014,35 @@ function PostventaWA({ paletaActual }) {
   );
 }
 
+// Calculadora de costo: del precio de la factura se resta el descuento del proveedor (el % queda guardado en este navegador)
+function CalcCosto({ label, valor, onUsar }) {
+  const [abierta, setAbierta] = useState(false);
+  const [fac, setFac] = useState("");
+  const [pct, setPct] = useState(() => { try { return localStorage.getItem("lumiere_calc_costo_pct") || "5"; } catch (e) { return "5"; } });
+  const [unid, setUnid] = useState("1");
+  const f = parseFloat(String(fac).replace(",", ".")) || 0, d = Math.min(100, Math.max(0, parseFloat(String(pct).replace(",", ".")) || 0)), u = Math.max(1, parseInt(unid) || 1);
+  const costo = Math.round(f * (1 - d / 100) / u * 100) / 100;
+  const usar = () => { if (!costo) return; try { localStorage.setItem("lumiere_calc_costo_pct", String(d)); } catch (e) {} onUsar(String(costo)); setAbierta(false); setFac(""); setUnid("1"); };
+  return (
+    <span style={{ display: "flex", justifyContent: "space-between", alignItems: "center", position: "relative", gap: 6 }}>
+      <span>{label}</span>
+      <button type="button" className="calc-costo-btn" title="Calcular el costo desde el precio de la factura" aria-expanded={abierta} onClick={() => { setAbierta(a => !a); setFac(""); }}>🧮</button>
+      {abierta && <div className="calc-costo pop-in" role="dialog" aria-label="Calcular costo" onClick={e => e.stopPropagation()}>
+        <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 6 }}>🧮 Costo desde la factura</div>
+        <label className="calc-costo-f">Precio en la factura<input className="inp" inputMode="decimal" autoFocus placeholder={valor ? String(valor) : "Ej: 10000"} value={fac} onChange={e => setFac(e.target.value.replace(/[^\d.,]/g, ""))} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); usar(); } if (e.key === "Escape") setAbierta(false); }} /></label>
+        <div style={{ display: "flex", gap: 8 }}>
+          <label className="calc-costo-f" style={{ flex: 1 }}>Descuento %<input className="inp" inputMode="decimal" value={pct} onChange={e => setPct(e.target.value.replace(/[^\d.,]/g, ""))} /></label>
+          <label className="calc-costo-f" style={{ flex: 1 }} title="Si el precio de la factura es por caja o pack">Unidades<input className="inp" inputMode="numeric" value={unid} onChange={e => setUnid(e.target.value.replace(/\D/g, ""))} /></label>
+        </div>
+        <div style={{ fontSize: 12, margin: "4px 0 8px", lineHeight: 1.4 }}>{f ? <>{fmt(f)} − {d}%{u > 1 ? " ÷ " + u + " u." : ""} = <b style={{ fontSize: 15 }}>{fmt(costo)}</b></> : <span style={{ opacity: .7 }}>Escribí el precio de la factura</span>}</div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button type="button" className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => setAbierta(false)}>Cancelar</button>
+          <button type="button" className="btn btn-p btn-sm" style={{ flex: 1 }} disabled={!costo} onClick={usar}>Usar {costo ? fmt(costo) : ""}</button>
+        </div>
+      </div>}
+    </span>
+  );
+}
 function Calculadoras({ usuario, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
   const [calculadoras, setCalculadoras] = useState([]);
@@ -21469,7 +21502,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
             <div style={{ display: "flex", gap: 8 }}>
               <div className="fg" style={{ flex: 1 }}><div className="fl">{UN_SOLO_LOCAL ? "Cantidad" : "Cant. " + nombreLocal(1)}</div><input className="inp" type="number" placeholder="10" value={itemTemp.cantidad_rg} onChange={e => setItemTemp(p => ({ ...p, cantidad_rg: e.target.value, total: "" }))} /></div>
               {!UN_SOLO_LOCAL && <div className="fg" style={{ flex: 1 }}><div className="fl">Cant. {nombreLocal(2)}</div><input className="inp" type="number" placeholder="0" value={itemTemp.cantidad_ush} onChange={e => setItemTemp(p => ({ ...p, cantidad_ush: e.target.value, total: "" }))} /></div>}
-              <div className="fg" style={{ flex: 1 }}><div className="fl">Costo unit. ($)</div><input className="inp" type="number" placeholder="1500" value={itemTemp.costo_unitario} onChange={e => setItemTemp(p => ({ ...p, costo_unitario: e.target.value }))} /></div>
+              <div className="fg" style={{ flex: 1 }}><div className="fl"><CalcCosto label="Costo unit. ($)" valor={itemTemp.costo_unitario} onUsar={v => setItemTemp(p => ({ ...p, costo_unitario: v }))} /></div><input className="inp" type="number" placeholder="1500" value={itemTemp.costo_unitario} onChange={e => setItemTemp(p => ({ ...p, costo_unitario: e.target.value }))} /></div>
             </div>
             <button className="btn btn-sm" style={{ width: "100%" }} onClick={agregarItem}>+ Agregar producto</button>
           </div>
@@ -21638,7 +21671,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
               <div className="fg"><div className="fl">{UN_SOLO_LOCAL ? "Cantidad" : "Cantidad " + nombreLocal(1)}</div><input className="inp" type="number" min="0" value={editItem.rg} onChange={e => setEditItem(x => ({ ...x, rg: e.target.value }))} /></div>
               {!UN_SOLO_LOCAL && <div className="fg"><div className="fl">Cantidad {nombreLocal(2)}</div><input className="inp" type="number" min="0" value={editItem.ush} onChange={e => setEditItem(x => ({ ...x, ush: e.target.value }))} /></div>}
             </div>
-            <div className="fg"><div className="fl">Costo unitario ($)</div><input className="inp" type="number" min="0" value={editItem.costo} onChange={e => setEditItem(x => ({ ...x, costo: e.target.value }))} /></div>
+            <div className="fg"><div className="fl"><CalcCosto label="Costo unitario ($)" valor={editItem.costo} onUsar={v => setEditItem(x => ({ ...x, costo: v }))} /></div><input className="inp" type="number" min="0" value={editItem.costo} onChange={e => setEditItem(x => ({ ...x, costo: e.target.value }))} /></div>
             <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 12 }}>Total: <b style={{ color: temaPal.text }}>{(parseInt(editItem.rg) || 0) + (parseInt(editItem.ush) || 0)} u.</b> · {fmt(((parseInt(editItem.rg) || 0) + (parseInt(editItem.ush) || 0)) * (parseFloat(editItem.costo) || 0))}</div>
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEditItem(null)}>Cancelar</button>
@@ -21662,7 +21695,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
               <div className="fg" style={{ flex: 1 }}><div className="fl">Categoria</div><input className="inp" value={nuevoProdRapido.categoria} onChange={e => setNuevoProdRapido(p => ({ ...p, categoria: e.target.value }))} /></div>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <div className="fg" style={{ flex: 1 }}><div className="fl">Costo ($)</div><input className="inp" type="number" value={nuevoProdRapido.costo} onChange={e => setNuevoProdRapido(p => ({ ...p, costo: e.target.value }))} /></div>
+              <div className="fg" style={{ flex: 1 }}><div className="fl"><CalcCosto label="Costo ($)" valor={nuevoProdRapido.costo} onUsar={v => setNuevoProdRapido(p => ({ ...p, costo: v }))} /></div><input className="inp" type="number" value={nuevoProdRapido.costo} onChange={e => setNuevoProdRapido(p => ({ ...p, costo: e.target.value }))} /></div>
               <div className="fg" style={{ flex: 1 }}><div className="fl">Precio de venta ($)</div><input className="inp" type="number" value={nuevoProdRapido.precio} onChange={e => setNuevoProdRapido(p => ({ ...p, precio: e.target.value }))} /></div>
             </div>
             <div className="fg"><div className="fl">Proveedor</div>
@@ -23770,7 +23803,7 @@ function Insumos({ localId, usuario, paletaActual }) {
               </div>
             </div>
             <div>
-              <div className="fg"><div className="fl">Costo de reposicion ($)</div><input className="inp" type="number" placeholder="0" value={nuevo.costo} onChange={e => setNuevo(p => ({ ...p, costo: e.target.value }))} /></div>
+              <div className="fg"><div className="fl"><CalcCosto label="Costo de reposicion ($)" valor={nuevo.costo} onUsar={v => setNuevo(p => ({ ...p, costo: v }))} /></div><input className="inp" type="number" placeholder="0" value={nuevo.costo} onChange={e => setNuevo(p => ({ ...p, costo: e.target.value }))} /></div>
               <div className="fg"><div className="fl">Precio a cobrarle al cliente ($, opcional)</div><input className="inp" type="number" placeholder="0" value={nuevo.precio_sugerido_cliente} onChange={e => setNuevo(p => ({ ...p, precio_sugerido_cliente: e.target.value }))} />
                 <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 3 }}>Si le ponés algo, en el POS va a aparecer precargado este monto cuando se use este insumo (se puede cambiar en el momento). Si lo dejás en 0, sigue siendo gratis paral cliente.</div>
               </div>
