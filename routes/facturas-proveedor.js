@@ -42,7 +42,9 @@ const similitud = (a, b) => {
 
 // Numero con formato argentino, tolerante a que tenga o no separador de miles:
 // "11057,00", "12.500,00" y "1.048.754,39" matchean todos.
-const NUM = '[\\d.]+,\\d{2}';
+// El OCR a veces mete un espacio despues de la coma ("150316, 60"): se tolera y se limpia al convertir.
+const NUM = '[\\d.]+,\\s?\\d{2}';
+const aNum = (x) => parseFloat(String(x || '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.')) || 0;
 
 // Heuristica de lineas de factura. Prueba primero el formato "con codigo" (codigo interno
 // del proveedor + codigo de barras + cantidad + Un + descripcion + precio + %desc + total,
@@ -60,9 +62,14 @@ const parsearLineasTexto = (texto) => {
     if (m) {
       const cantidad = parseInt(m[3]);
       const nombre = m[4].trim();
-      const costo_unitario = parseFloat(m[5].replace(/\./g, '').replace(',', '.')) || 0;
+      // precio de lista, % de descuento y total del renglon: el costo real es el total / cantidad (ya con el descuento)
+      const lista = aNum(m[5]), desc = aNum(m[6]), total = aNum(m[7]);
+      const esperado = cantidad * lista * (1 - desc / 100);
+      const cuadra = total > 0 && Math.abs(esperado - total) <= Math.max(2, total * 0.01);
+      const costo_unitario = Math.round((cuadra || !lista ? total / cantidad : lista * (1 - desc / 100)) * 100) / 100;
       if (cantidad > 0 && cantidad < 10000 && nombre.length >= 3) {
-        items.push({ codigo_interno: m[1], codigo_barras: m[2], nombre_crudo: nombre, cantidad, costo_unitario });
+        // dudoso: la cuenta del renglon no da (el OCR pudo leer mal la cantidad o un precio) -> revisarlo
+        items.push({ codigo_interno: m[1], codigo_barras: m[2], nombre_crudo: nombre, cantidad, costo_unitario, precio_lista: lista, descuento_pct: desc, total_linea: total, dudoso: !cuadra });
       }
       continue;
     }
@@ -78,6 +85,14 @@ const parsearLineasTexto = (texto) => {
     }
   }
   return items;
+};
+// Total de la factura (para comparar con lo detectado): "SubTotal S/IVA 15094048,40" o "TOTAL C/IVA ... 15094048,40"
+const totalFacturaTexto = (texto) => {
+  const t = String(texto || '');
+  const m = [...t.matchAll(/sub\s*total\s*s\/\s*iva\s*:?\s*\$?\s*([\d.]+,\s?\d{2})/gi)];
+  if (m.length) return aNum(m[m.length - 1][1]);
+  const m2 = [...t.matchAll(/total\s*(?:c\/\s*iva|a pagar|general)?\s*:?\s*\$?\s*([\d.]{4,},\s?\d{2})/gi)];
+  return m2.length ? aNum(m2[m2.length - 1][1]) : null;
 };
 
 // Excel/CSV: busca columnas por nombre parecido (no asume un formato fijo de proveedor)
@@ -154,10 +169,12 @@ router.post('/parsear', upload.single('archivo'), async (req, res) => {
 
     let itemsCrudos = [];
     let avisoOcr = null;
+    let totalFactura = null;
 
     if (mime === 'application/pdf' || nombreArchivo.endsWith('.pdf')) {
       const data = await pdfParse(req.file.buffer);
       itemsCrudos = parsearLineasTexto(data.text);
+      totalFactura = totalFacturaTexto(data.text);
       if (itemsCrudos.length === 0) {
         // El PDF no tenia texto legible (factura "dibujada" con tipografia especial).
         // La convertimos pagina por pagina en imagen y la leemos con OCR, igual que una foto.
@@ -165,6 +182,7 @@ router.post('/parsear', upload.single('archivo'), async (req, res) => {
           const paginas = await pdfAPaginasImagen(req.file.buffer);
           const textoOcr = await ocrDePaginas(paginas);
           itemsCrudos = parsearLineasTexto(textoOcr);
+          totalFactura = totalFacturaTexto(textoOcr);
           if (itemsCrudos.length === 0) {
             avisoOcr = 'Se convirtio la factura a imagen y se leyo con reconocimiento de texto (OCR), pero no se pudieron detectar productos igual. Cargala a mano en "+ Nueva orden".';
           }
@@ -175,6 +193,7 @@ router.post('/parsear', upload.single('archivo'), async (req, res) => {
     } else if (mime.startsWith('image/')) {
       const { data } = await Tesseract.recognize(req.file.buffer, 'spa');
       itemsCrudos = parsearLineasTexto(data.text);
+      totalFactura = totalFacturaTexto(data.text);
     } else if (
       nombreArchivo.endsWith('.xlsx') || nombreArchivo.endsWith('.xls') || nombreArchivo.endsWith('.csv') ||
       mime.includes('sheet') || mime.includes('excel') || mime === 'text/csv'
@@ -240,13 +259,17 @@ router.post('/parsear', upload.single('archivo'), async (req, res) => {
         nombre_crudo: it.nombre_crudo,
         cantidad: it.cantidad,
         costo_unitario: it.costo_unitario,
+        precio_lista: it.precio_lista || null,
+        descuento_pct: it.descuento_pct || 0,
+        total_linea: it.total_linea || null,
+        dudoso: !!it.dudoso,
         producto_id_sugerido: productoIdSugerido,
         producto_nombre_sugerido: productoNombreSugerido,
         es_alias_conocido: esAliasConocido
       };
     });
 
-    res.json({ items });
+    res.json({ items, total_factura: totalFactura });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al procesar la factura: ' + error.message });
