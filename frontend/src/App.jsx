@@ -8622,7 +8622,12 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
       {showPrecios && <ActualizarPrecios productos={productos} proveedores={proveedores} temaPal={temaPal} onCerrar={() => setShowPrecios(false)} onCambio={cargar} />}
 
       {showForm && (
-        <div className="pos-overlay" onClick={() => { setShowForm(false); setEditandoProd(null); }}>
+        <div className="pos-overlay" onClick={() => {
+          // Si ya se cargó algo, preguntar antes de cerrar (tocar afuera sin querer no borra todo)
+          const algo = editandoProd || ["nombre", "marca", "codigo", "categoria", "precio", "costo", "stock", "descripcion"].some(k => String(nuevo[k] || "").trim());
+          if (algo && !window.confirm(editandoProd ? "¿Cerrar sin guardar los cambios?" : "¿Cerrar sin guardar? Se pierde lo que cargaste del producto.")) return;
+          setShowForm(false); setEditandoProd(null);
+        }}>
           <div className="card pop-in" style={{ maxWidth: 680, width: "100%", maxHeight: "92vh", overflowY: "auto", background: temaPal.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <div style={{ fontSize: 16, fontWeight: 800 }}>{editandoProd ? "Editar producto" : "Nuevo producto"}</div>
@@ -36615,6 +36620,17 @@ function AppWrapper() {
       else window.history.pushState({ lp: page }, "", nueva);
     } catch (e) {}
   }, [page]);
+  // Ventanas emergentes (.pos-overlay): se cierran al tocar afuera solo si el toque EMPIEZA afuera.
+  // Si se selecciona texto arrastrando y se suelta fuera del recuadro, el navegador manda un "click" al fondo
+  // y la ventana se cerraba perdiendo lo cargado.
+  useEffect(() => {
+    let inicio = null;
+    const baja = (e) => { inicio = e.target; };
+    const click = (e) => { const t = e.target; if (t && t.classList && t.classList.contains("pos-overlay") && inicio !== t) { e.stopPropagation(); e.preventDefault(); } };
+    document.addEventListener("pointerdown", baja, true);
+    document.addEventListener("click", click, true);
+    return () => { document.removeEventListener("pointerdown", baja, true); document.removeEventListener("click", click, true); };
+  }, []);
   useEffect(() => {
     const atras = () => { const u = paginaDeUrl(); if (u) { if (u.pestana) { try { sessionStorage.setItem("lumiere_tab_" + u.id, u.pestana); } catch (e) {} } setPage(u.id); window.dispatchEvent(new CustomEvent("lumiere-pestana-url")); } };
     window.addEventListener("popstate", atras);
