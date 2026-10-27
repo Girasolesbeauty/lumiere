@@ -32908,6 +32908,31 @@ function flyLineas(ctx, texto, ancho, max) {
   if (out.length > max) { out.length = max; let u = out[max - 1]; while (u.length > 1 && ctx.measureText(u + "…").width > ancho) u = u.slice(0, -1); out[max - 1] = u + "…"; }
   return out;
 }
+// Rebote como la entrada de las tarjetas de preventa de la tienda (twPreEntra): .85 → 1.04 → 1
+const flyRebote = (x) => { x = Math.min(1, Math.max(0, x)); return x < .6 ? .85 + .19 * flyEase(x / .6) : 1.04 - .04 * flyEaseInOut((x - .6) / .4); };
+// Brillo de preventa de la tienda sobre un rectángulo (la foto): aura dorada que late, destello que cruza y chispitas ✦
+function flyBrillo(ctx, x, y, w, h, r, t, u, fase) {
+  const late = (Math.sin((t / 2.4) * Math.PI * 2) + 1) / 2;
+  ctx.save(); ctx.shadowColor = "rgba(255,195,0," + (.35 + .45 * late) + ")"; ctx.shadowBlur = (18 + 50 * late) * u;
+  ctx.strokeStyle = late > .5 ? "#ffc300" : "#ffd23f"; ctx.lineWidth = (7 + 5 * late) * u; flyRect(ctx, x, y, w, h, r); ctx.stroke(); ctx.restore();
+  // destello diagonal (pasa una vez por ciclo de 2.3 s)
+  const c = ((t + fase) % 2.3) / 2.3, k = (c - .2) / .45;
+  if (k > 0 && k < 1) {
+    ctx.save(); flyRect(ctx, x, y, w, h, r); ctx.clip();
+    const cx = x - w * .6 + k * w * 2.2, g = ctx.createLinearGradient(cx - w * .35, y, cx + w * .35, y + h * .5);
+    g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(.42, "rgba(255,255,255,.75)"); g.addColorStop(.55, "rgba(255,236,150,.6)"); g.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = g; ctx.fillRect(x, y, w, h); ctx.restore();
+  }
+  // chispitas (mismas posiciones y demoras que .tw-pre-chispas)
+  [[.86, .14, 18, 0, "✦"], [.12, .78, 13, .6, "✦"], [.92, .46, 15, 1.2, "✧"], [.70, .88, 11, 1.8, "✦"]].forEach(([fx, fy, tam, dem, ch]) => {
+    const q = (((t + fase - dem) % 2.4) + 2.4) % 2.4 / 2.4;
+    const a = q < .4 ? q / .4 : q < .6 ? 1 - (q - .4) * .5 : Math.max(0, .9 * (1 - (q - .6) / .4)), sc = q < .4 ? .3 + .85 * (q / .4) : q < .6 ? 1.15 - .15 * ((q - .4) / .2) : 1 - .7 * ((q - .6) / .4);
+    if (a <= 0.02) return;
+    ctx.save(); ctx.translate(x + w * fx, y + h * fy); ctx.rotate((q < .6 ? q / .6 * 120 : 120 + (q - .6) / .4 * 60) * Math.PI / 180); ctx.scale(sc, sc);
+    ctx.globalAlpha *= a; ctx.fillStyle = "#ffc300"; ctx.shadowColor = "#ffd23f"; ctx.shadowBlur = 22 * u; ctx.font = flyFont(400, tam * 3.4 * u); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(ch, 0, 0); ctx.shadowColor = "#fff"; ctx.shadowBlur = 10 * u; ctx.fillText(ch, 0, 0); ctx.restore();
+  });
+}
 function flyRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
 const flyFont = (peso, px) => peso + " " + Math.round(px) + "px Helvetica, 'Helvetica Neue', Arial, sans-serif";
 function flyPildora(ctx, x, y, texto, px, t) {
@@ -32958,12 +32983,18 @@ function flyDibujar(ctx, W, H, t, d) {
     // Alto de la tarjeta: la foto + lo que ocupa el texto (centrada en el espacio libre)
     const fh0 = Math.min(cw, libre * .62), alto = Math.min(libre, fh0 + (d.precios ? 470 : 380) * u), y0 = top + (libre - alto) / 2;
     ctx.globalAlpha = Math.min(ent, 1 - sal);
+    // Entrada con rebote y un giro chiquito, como en la tienda
+    const rb = flyRebote(lt / .9), giro = (lt < .54 ? -3 + 4 * flyEase(lt / .54) : 1 - flyEaseInOut((lt - .54) / .36)) * Math.PI / 180;
+    ctx.save(); ctx.translate(x0 + cw / 2, y0 + alto / 2); ctx.rotate(lt < .9 ? giro : 0); ctx.scale(rb, rb); ctx.translate(-(x0 + cw / 2), -(y0 + alto / 2));
     ctx.save(); ctx.shadowColor = "rgba(0,0,0,.12)"; ctx.shadowBlur = 40 * u; ctx.shadowOffsetY = 14 * u; ctx.fillStyle = "#fff"; flyRect(ctx, x0, y0, cw, alto, 36 * u); ctx.fill(); ctx.restore();
     const fh = Math.min(fh0, alto - (d.precios ? 470 : 380) * u);
     ctx.save(); flyRect(ctx, x0, y0, cw, fh, 36 * u); ctx.clip(); ctx.fillStyle = "#f4f4f4"; ctx.fillRect(x0, y0, cw, fh);
     if (pr.img) { const z = 1.08 - .08 * flyEase(lt / FLY_PROD), iw = pr.img.width, ih = pr.img.height, esc = Math.min(cw / iw, fh / ih) * z * .92; ctx.drawImage(pr.img, x0 + cw / 2 - iw * esc / 2, y0 + fh / 2 - ih * esc / 2, iw * esc, ih * esc); }
     else { ctx.fillStyle = "#ccc"; ctx.font = flyFont(400, 140 * u); ctx.fillText("✿", x0 + cw / 2, y0 + fh / 2 + 50 * u); }
+    // destello blanco de entrada (el "brightness" de la tienda)
+    if (lt < .6) { ctx.fillStyle = "rgba(255,255,255," + (.6 * (1 - lt / .6)) + ")"; ctx.fillRect(x0, y0, cw, fh); }
     ctx.restore();
+    flyBrillo(ctx, x0, y0, cw, fh, 36 * u, t, u, k * .7);
     ctx.textAlign = "left"; flyPildora(ctx, x0 + 28 * u, y0 + 28 * u, "✨ PREVENTA", 30 * u, t);
     let y = y0 + fh + 70 * u; const xl = x0 + 44 * u, an = cw - 88 * u;
     if (pr.marca) { ctx.fillStyle = "#777"; ctx.font = flyFont(800, 28 * u); ctx.save(); ctx.letterSpacing = (4 * u) + "px"; ctx.fillText(String(pr.marca).toUpperCase(), xl, y); ctx.restore(); y += 58 * u; }
@@ -32971,6 +33002,7 @@ function flyDibujar(ctx, W, H, t, d) {
     flyLineas(ctx, pr.nombre, an, 2).forEach((l, i) => ctx.fillText(l, xl, y + i * 60 * u)); y += (flyLineas(ctx, pr.nombre, an, 2).length) * 60 * u + 34 * u;
     if (d.precios) { ctx.font = flyFont(900, 78 * u); ctx.fillText(pr.precioTxt, xl, y + 40 * u); y += 96 * u; }
     if (pr.llega) { ctx.fillStyle = "#8a5a00"; ctx.font = flyFont(800, 32 * u); ctx.fillText("⏳ Llega aprox. " + pr.llega, xl, y + 10 * u); }
+    ctx.restore();
     ctx.textAlign = "center"; ctx.globalAlpha = 1;
     // Puntitos de avance
     const dx = 26 * u, x1 = W / 2 - (n - 1) * dx / 2;
@@ -32984,8 +33016,10 @@ function flyDibujar(ctx, W, H, t, d) {
       const ang = (i - (m - 1) / 2) * .16, cx = W / 2 + (i - (m - 1) / 2) * 150 * u, cy = H * .36 + Math.abs(i - (m - 1) / 2) * 22 * u;
       ctx.save(); ctx.globalAlpha = a; ctx.translate(cx, cy + (1 - a) * 120 * u); ctx.rotate(ang * a);
       ctx.shadowColor = "rgba(0,0,0,.15)"; ctx.shadowBlur = 24 * u; ctx.fillStyle = "#fff"; flyRect(ctx, -tam / 2, -tam / 2, tam, tam, 28 * u); ctx.fill(); ctx.shadowBlur = 0;
-      flyRect(ctx, -tam / 2 + 10 * u, -tam / 2 + 10 * u, tam - 20 * u, tam - 20 * u, 20 * u); ctx.clip(); ctx.fillStyle = "#f4f4f4"; ctx.fill();
+      ctx.save(); flyRect(ctx, -tam / 2 + 10 * u, -tam / 2 + 10 * u, tam - 20 * u, tam - 20 * u, 20 * u); ctx.clip(); ctx.fillStyle = "#f4f4f4"; ctx.fill();
       const iw = pr.img.width, ih = pr.img.height, esc = Math.min((tam - 20 * u) / iw, (tam - 20 * u) / ih) * .9; ctx.drawImage(pr.img, -iw * esc / 2, -ih * esc / 2, iw * esc, ih * esc); ctx.restore();
+      if (a > .9) flyBrillo(ctx, -tam / 2 + 10 * u, -tam / 2 + 10 * u, tam - 20 * u, tam - 20 * u, 20 * u, t, u * .45, i * .5);
+      ctx.restore();
     });
     const y = H * .58;
     ctx.globalAlpha = b; ctx.fillStyle = "#111"; ctx.font = flyFont(900, 72 * u);
