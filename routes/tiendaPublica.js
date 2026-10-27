@@ -98,7 +98,7 @@ router.get('/:slug', async (req, res) => {
       titulo: c.titulo || neg.nombre_negocio || 'Tienda', mensaje: c.mensaje || '', logo: c.logo || neg.logo_url || null, color: c.color || '#c9a84c', whatsapp: c.whatsapp || null,
       retiro: c.retiro_activo ? locales : [], ciudades,
       envio: c.envio_activo ? { zonas: c.envio_zonas, gratis_desde: c.envio_gratis_desde } : null,
-      pagos: { mp, transferencia: !!c.pago_transferencia, retiro: !!c.pago_retiro, gocuotas: !!c.pago_gocuotas && await gocuotas.conectado() }, horas_reserva: c.horas_reserva,
+      pagos: { mp, transferencia: !!c.pago_transferencia, retiro: !!c.pago_retiro, gocuotas: !!c.pago_gocuotas && await gocuotas.conectado(), gocuotas_minimo: num(c.gocuotas_minimo) || 0 }, horas_reserva: c.horas_reserva,
       anuncios: String(c.anuncios || '').split('\n').filter(Boolean),
       redes: linksRedes(c.redes),
       reels_titulo: c.reels_titulo || 'Videos',
@@ -453,6 +453,11 @@ router.post('/:slug/pedidos', async (req, res) => {
     // Combos: si estan todos los productos de un combo, se descuenta la diferencia
     const combo = tienda.descuentoCombos(c, lineas);
     const descCombo = combo.descuento;
+    // GoCuotas solo desde cierto monto de compra (los productos, sin el envio)
+    if (pago === 'gocuotas' && num(c.gocuotas_minimo) > 0 && subtotal - descCombo < num(c.gocuotas_minimo)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'GoCuotas está disponible en compras desde $' + Math.round(num(c.gocuotas_minimo)).toLocaleString('es-AR') + '. Elegí otra forma de pago.' });
+    }
     let cupon = null;
     const clienteId = clienteDeToken(req) || await clienteDe(client, nombre, telefono, email);
     if (b.cupon) {
@@ -624,6 +629,7 @@ router.post('/:slug/giftcards', async (req, res) => {
   if (telefono.replace(/[^0-9]/g, '').length < 8) return res.status(400).json({ error: 'Escribí tu WhatsApp (con código de área) para avisarte' });
   const pago = ['mp', 'transferencia', 'gocuotas'].includes(b.pago) ? b.pago : null;
   if (!pago || (pago === 'gocuotas' && !(c.pago_gocuotas && await gocuotas.conectado())) || (pago === 'mp' && !(c.pago_mp && await mpDisponible())) || (pago === 'transferencia' && !c.pago_transferencia)) return res.status(400).json({ error: 'Elegí cómo vas a pagar' });
+  if (pago === 'gocuotas' && num(c.gocuotas_minimo) > 0 && monto < num(c.gocuotas_minimo)) return res.status(400).json({ error: 'GoCuotas está disponible en compras desde $' + Math.round(num(c.gocuotas_minimo)).toLocaleString('es-AR') + '. Elegí otra forma de pago.' });
   // Local donde se va a usar (su caja recibe la venta de la gift card)
   const locales = (await pool.query('SELECT id FROM locales WHERE COALESCE(activo, TRUE) ORDER BY id').catch(() => ({ rows: [{ id: 1 }] }))).rows.map(x => x.id);
   const localId = locales.includes(Number(b.local_id)) ? Number(b.local_id) : (locales[0] || 1);
