@@ -28170,6 +28170,7 @@ function TwRegalos({ r, tienda, modo, setModo, productos, dispo, foto, ciudades,
   const comprarGc = async () => {
     setAviso("");
     if (!monto) return setAviso("Elegí el monto de la gift card");
+    if (gc.pago === "gocuotas" && tienda.pagos.gocuotas_minimo && monto < tienda.pagos.gocuotas_minimo) return setAviso("GoCuotas está disponible desde " + fmtTienda(tienda.pagos.gocuotas_minimo) + ": elegí otra forma de pago");
     if (gc.para.trim().length < 2) return setAviso("Escribí para quién es");
     if (String(datos.nombre || "").trim().length < 2) return setAviso("Escribí tu nombre");
     if (String(datos.telefono || "").replace(/\D/g, "").length < 8) return setAviso("Escribí tu WhatsApp (con código de área)");
@@ -28280,7 +28281,7 @@ function TwRegalos({ r, tienda, modo, setModo, productos, dispo, foto, ciudades,
             </div>
             <div className="tw-rg-paso"><b>{ciudades.length > 1 ? 5 : 4}</b> ¿Cómo pagás?</div>
             {pagos.length === 0 ? <div className="tw-rg-aviso">Por ahora no hay pagos online disponibles. Escribinos por WhatsApp.</div> : (
-              <div className="tw-rg-pagos">{pagos.map(([k, n, s]) => <button key={k} type="button" className={gc.pago === k ? "on" : ""} onClick={() => setGc(g => ({ ...g, pago: k }))}><b>{n}</b><small>{s}</small></button>)}</div>
+              <div className="tw-rg-pagos">{pagos.map(([k, n, s]) => { const bajo = k === "gocuotas" && tienda.pagos.gocuotas_minimo && (Number(monto) || 0) < tienda.pagos.gocuotas_minimo; return <button key={k} type="button" disabled={bajo} style={bajo ? { opacity: .5, cursor: "default" } : null} className={gc.pago === k && !bajo ? "on" : ""} onClick={() => setGc(g => ({ ...g, pago: k }))}><b>{n}</b><small>{bajo ? "Desde " + fmtTienda(tienda.pagos.gocuotas_minimo) : s}</small></button>; })}</div>
             )}
             {aviso && <div className="tw-rg-aviso" role="alert">{aviso}</div>}
             <button className="tw-rg-comprar" disabled={enviando || !pagos.length} onClick={comprarGc}>{enviando ? "Un segundo…" : "🎁 Regalar " + (monto ? fmtTienda(monto) : "gift card")}</button>
@@ -28908,7 +28909,9 @@ function TiendaPublica({ slug }) {
   const descPagosKits = tienda.descuentos_pago_kits || {};
   // Con productos en preventa solo se paga con Mercado Pago: otra forma elegida antes no vale
   const carritoPreventa = carrito.some(i => i.preventa);
-  const pagoElegido = datos.pago && (!carritoPreventa || datos.pago === "mp") ? datos.pago : null;
+  // GoCuotas solo en compras desde el minimo que pone la tienda (lo que suman los productos, sin el envio)
+  const gocMin = (tienda.pagos && tienda.pagos.gocuotas_minimo) || 0, gocFalta = gocMin ? Math.max(0, gocMin - (subtotal - descCombo)) : 0;
+  const pagoElegido = datos.pago && (!carritoPreventa || datos.pago === "mp") && !(datos.pago === "gocuotas" && gocFalta > 0) ? datos.pago : null;
   // El mejor descuento de kits entre las formas de pago activas (se muestra en la tarjeta de cada kit)
   const pagoKitsMejor = (() => { const m = Object.entries(descPagosKits).filter(([k, v]) => v > 0 && tienda.pagos && tienda.pagos[k]).sort((a, b) => b[1] - a[1])[0]; return m ? { pct: m[1], nombre: ({ mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia", retiro: "pago al retirar" })[m[0]] } : null; })();
   const pctPago = pagoElegido && !gcCubre ? (descPagos[pagoElegido] || 0) : 0;
@@ -28978,7 +28981,7 @@ function TiendaPublica({ slug }) {
     gratisDesde ? "Envío gratis en compras desde " + fmtTienda(gratisDesde) : tienda.envio ? "Te lo llevamos a tu casa" : null,
     tienda.retiro.length ? "Retirá sin costo en " + tienda.retiro.map(l => l.nombre).join(" y ") : null,
     tienda.pagos.mp ? "Pagá con Mercado Pago: tarjeta, débito o dinero en cuenta" : null,
-    tienda.pagos.gocuotas ? "Hasta 4 cuotas sin interés con débito (GoCuotas)" : null,
+    tienda.pagos.gocuotas ? "Hasta 4 cuotas sin interés con débito (GoCuotas)" + (tienda.pagos.gocuotas_minimo ? " en compras desde " + fmtTienda(tienda.pagos.gocuotas_minimo) : "") : null,
     tienda.pagos.transferencia ? "También podés pagar por transferencia" : null,
   ].filter(Boolean);
 
@@ -30042,6 +30045,8 @@ function TiendaPublica({ slug }) {
                   {tienda.pagos && tienda.pagos.gocuotas && !preVer && (() => {
                     const pr = twPromoDe(promosLid, ver, "gocuotas"), pct = pr ? pr.pct : ((tienda.descuentos_pago || {}).gocuotas || 0);
                     const base = Math.round(ver.precio * (1 - pct / 100));
+                    const gmin = tienda.pagos.gocuotas_minimo || 0;
+                    if (gmin && ver.precio < gmin) return <div className="tw-cuotas" title="Con tu tarjeta de débito">💜 <b>4 cuotas sin interés</b> en compras desde <b>{fmtTienda(gmin)}</b> <span>· GoCuotas</span></div>;
                     return <div className="tw-cuotas" title="Con tu tarjeta de débito">💜 <b>4 cuotas sin interés</b> de <b>{fmtTienda(Math.ceil(base / 4))}</b> <span>· GoCuotas</span></div>;
                   })()}
                   {(() => { const pk = !preVer && twPackDe(tienda.packs, ver); return pk ? <div className="tw-ficha-pack">🎁 <b>{pk.nombre}:</b> llevando {pk.cantidad} o más, {pk.pct}% OFF en todos <button className="tw-link" onClick={() => { setVer(null); pk.marcas.length === 1 && !pk.productos.length ? irCat("m:" + pk.marcas[0]) : irCat("pack:" + pk.id); }}>Ver el pack ›</button></div> : null; })()}
@@ -30217,7 +30222,7 @@ function TiendaPublica({ slug }) {
                   {avisoGc && <div style={{ color: "#c0392b", fontSize: 13, marginTop: 6 }}>{avisoGc}</div>}
                   <div id="tw-ck-pago" className="tw-lbl tw-paso"><span className={"tw-paso-n" + (faltaPago ? "" : " ok")}>{faltaPago ? "3" : "✓"}</span>{gcOk && !gcCubre ? "¿Cómo pagás el resto (" + fmtTienda(totalPagar) + ")?" : "¿Cómo pagás?"}{intentoPedir && faltaPago && <span className="tw-falta-tag">Tocá una opción</span>}</div>
                   {carritoPreventa && !gcCubre && <div className="tw-preventa-aviso chico" style={{ marginBottom: 8 }}><b>💳 La preventa se paga con Mercado Pago</b><span>{tienda.pagos.mp ? "Para reservar productos que todavía no llegaron, el pago es solo con Mercado Pago (tarjeta, débito o dinero en cuenta)." : "Ahora no podemos cobrar con Mercado Pago: escribinos por WhatsApp para reservar tu preventa."}</span></div>}
-                  {gcCubre ? <div className="tw-cupon" style={{ padding: "10px 12px", fontSize: 14 }}>✓ <b>Lo pagás todo con tu gift card.</b> No hace falta otra forma de pago.</div> : opcionesPago.map(([k, t, d]) => <button key={k} className={"tw-op" + (pagoElegido === k ? " on" : "") + (intentoPedir && faltaPago ? " falta" : "")} onClick={() => setDatos(x => ({ ...x, pago: k }))}><b>{t}</b>{descPagos[k] > 0 && <span className="tw-op-off">{String(descPagos[k]).replace(".", ",")}% OFF</span>}{descPagosKits[k] > 0 && montoKits > 0 && <span className="tw-op-off">Kits {String(descPagosKits[k]).replace(".", ",")}% OFF</span>}<div style={{ fontSize: 13, color: "#666" }}>{d}</div></button>)}
+                  {gcCubre ? <div className="tw-cupon" style={{ padding: "10px 12px", fontSize: 14 }}>✓ <b>Lo pagás todo con tu gift card.</b> No hace falta otra forma de pago.</div> : opcionesPago.map(([k, t, d]) => k === "gocuotas" && gocFalta > 0 ? <button key={k} className="tw-op" disabled style={{ opacity: .55, cursor: "default" }}><b>{t}</b><div style={{ fontSize: 13, color: "#666" }}>Disponible en compras desde {fmtTienda(gocMin)} · te faltan {fmtTienda(gocFalta)}</div></button> : <button key={k} className={"tw-op" + (pagoElegido === k ? " on" : "") + (intentoPedir && faltaPago ? " falta" : "")} onClick={() => setDatos(x => ({ ...x, pago: k }))}><b>{t}</b>{descPagos[k] > 0 && <span className="tw-op-off">{String(descPagos[k]).replace(".", ",")}% OFF</span>}{descPagosKits[k] > 0 && montoKits > 0 && <span className="tw-op-off">Kits {String(descPagosKits[k]).replace(".", ",")}% OFF</span>}<div style={{ fontSize: 13, color: "#666" }}>{d}</div></button>)}
                   <div className="tw-lbl">¿Tenés un código de descuento?</div>
                   {cuponOk ? (
                     <div className="tw-cupon" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "10px 12px" }}>
@@ -33630,6 +33635,11 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             <div className="ct" style={{ marginTop: 16 }}>Pagos</div>
             <label style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer" }}><input type="checkbox" checked={!!cfg.pago_mp} onChange={e => set("pago_mp", e.target.checked)} style={{ marginTop: 3 }} /> <span><b>Mercado Pago</b>{!cfg.mp_conectado && <div style={{ fontSize: 11.5, color: temaPal.warn }}>Conectá tu cuenta en Configuración del Negocio → Medios de pago para que aparezca.</div>}</span></label>
             <GoCuotasConfig temaPal={temaPal} avisar={avisar} activo={!!cfg.pago_gocuotas} onActivo={v => set("pago_gocuotas", v)} esJefe={esDuenaT} />
+            {cfg.pago_gocuotas && <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", margin: "6px 0 0 26px", fontSize: 13 }}>
+              <span>Solo en compras desde $</span>
+              <input className="inp" style={{ width: 120 }} inputMode="numeric" placeholder="Ej: 50000" value={cfg.gocuotas_minimo ? String(Math.round(cfg.gocuotas_minimo)) : ""} onChange={e => set("gocuotas_minimo", e.target.value.replace(/\D/g, ""))} />
+              <span style={{ fontSize: 11.5, color: temaPal.textMuted }}>Vacío = en todas las compras. Cuenta lo que suman los productos (sin el envío).</span>
+            </div>}
             {(cfg.pago_mp || cfg.pago_gocuotas) && <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", fontSize: 12.5, marginTop: 10, background: temaPal.bg || "transparent", border: "1px solid " + temaPal.border, borderRadius: 8, padding: "8px 10px" }}>💳 Esperar el pago online <input className="inp" type="number" min="1" max="168" style={{ width: 70 }} value={cfg.horas_pago_online || 24} onChange={e => set("horas_pago_online", e.target.value)} /> horas. <span style={{ color: temaPal.textMuted }}>Si eligió Mercado Pago o GoCuotas y no paga en ese tiempo, el pedido vence y el stock vuelve. Desde el pedido le podés dar más tiempo.</span></div>}
             <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", marginTop: 8 }}><input type="checkbox" checked={!!cfg.pago_transferencia} onChange={e => set("pago_transferencia", e.target.checked)} /> <b>Transferencia</b></label>
             {cfg.pago_transferencia && (
