@@ -21215,6 +21215,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
 
   // ---- datos para la lista ----
   const pendientesMiLocal = ordenes.filter(o => o.estado !== "recibida" && o.estado !== "pagada" && (localActual === "rg" ? o.rg_tiene_items : o.ush_tiene_items));
+  const [buscaTodas, setBuscaTodas] = useState("");
   const porRecibir = pendientesMiLocal.filter(o => !(localActual === "rg" ? o.rg_completo : o.ush_completo));
   const recibidasMiLocal = pendientesMiLocal.filter(o => (localActual === "rg" ? o.rg_completo : o.ush_completo));
   const totalPorRecibir = porRecibir.reduce((s2, o) => s2 + parseFloat(o.total || 0), 0);
@@ -21280,9 +21281,9 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
           <div className="ps">órdenes de compra y recepción · {localNombre}</div>
         </div>
         <div className="dash-actions">
-          {tab !== "lista" && tab !== "recibido" && <button className="btn btn-g btn-sm" onClick={() => { setTab("lista"); setOrdenDetalle(null); setFacturaItems(null); setFacturaArchivo(null); }}>← Volver</button>}
-          {puedeCrear && (tab === "lista" || tab === "recibido") && <button className="btn btn-g btn-sm" onClick={() => setTab("factura")}>📄 Cargar factura</button>}
-          {puedeCrear && (tab === "lista" || tab === "recibido") && <button className="btn btn-p btn-sm" onClick={() => setTab("nueva")}>+ Nueva orden</button>}
+          {tab !== "lista" && tab !== "recibido" && tab !== "todas" && <button className="btn btn-g btn-sm" onClick={() => { setTab("lista"); setOrdenDetalle(null); setFacturaItems(null); setFacturaArchivo(null); }}>← Volver</button>}
+          {puedeCrear && (tab === "lista" || tab === "recibido" || tab === "todas") && <button className="btn btn-g btn-sm" onClick={() => setTab("factura")}>📄 Cargar factura</button>}
+          {puedeCrear && (tab === "lista" || tab === "recibido" || tab === "todas") && <button className="btn btn-p btn-sm" onClick={() => setTab("nueva")}>+ Nueva orden</button>}
         </div>
       </div>
 
@@ -21290,12 +21291,37 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
         <div className="pop-in" role={mensaje.startsWith("Error") ? "alert" : "status"} style={{ background: mensaje.includes("Error") ? temaPal.redDim : temaPal.greenDim, border: "1px solid " + (mensaje.includes("Error") ? temaPal.red : temaPal.green), borderRadius: 8, padding: "10px 16px", marginBottom: 14, fontSize: 13, fontWeight: 600, color: mensaje.includes("Error") ? temaPal.red : temaPal.green }}>{mensaje}</div>
       )}
 
-      {(tab === "lista" || tab === "recibido") && (
+      {(tab === "lista" || tab === "recibido" || tab === "todas") && (
         <div className="tabs" role="tablist">
           <button role="tab" aria-selected={tab === "lista"} className={"tab " + (tab === "lista" ? "on" : "")} onClick={() => setTab("lista")}>📦 POR RECIBIR{porRecibir.length ? " (" + porRecibir.length + ")" : ""}</button>
           <button role="tab" aria-selected={tab === "recibido"} className={"tab " + (tab === "recibido" ? "on" : "")} onClick={() => { setTab("recibido"); cargarRecibido(); }}>✅ STOCK RECIBIDO</button>
+          <button role="tab" aria-selected={tab === "todas"} className={"tab " + (tab === "todas" ? "on" : "")} onClick={() => setTab("todas")}>📋 TODAS LAS ÓRDENES</button>
         </div>
       )}
+
+      {tab === "todas" && (() => {
+        // Todas las órdenes (también las ya recibidas en los dos locales y las pagadas), para entrar a revisarlas o corregirlas
+        const q = normTxt(buscaTodas);
+        const lista = ordenes.filter(o => !q || normTxt([o.proveedor_nombre, o.numero_factura, o.notas].join(" ")).includes(q));
+        const estadoDe = (o) => o.estado === "pagada" ? ["Pagada", temaPal.green] : o.estado === "recibida" || (o.rg_completo && o.ush_completo) ? ["Recibida", temaPal.green] : ["Por recibir", temaPal.warn];
+        return (
+          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: 12, borderBottom: "1px solid " + temaPal.border }}>
+              <input className="inp" style={{ width: "100%" }} placeholder="Buscar por proveedor o número de factura…" value={buscaTodas} onChange={e => setBuscaTodas(e.target.value)} />
+            </div>
+            {!lista.length && <div className="empty">{ordenes.length ? "Ninguna orden coincide con la búsqueda." : "Todavía no hay órdenes."}</div>}
+            {lista.slice(0, 200).map(o => { const [et, col] = estadoDe(o); return (
+              <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderBottom: "1px solid " + temaPal.border, flexWrap: "wrap" }}>
+                <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700 }}>{o.proveedor_nombre || "Sin proveedor"}</div>
+                  <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>Factura {o.numero_factura || "—"} · {fechaCortaOI(o.fecha_factura || o.creado_en)} · {fmt(parseFloat(o.total || 0)).replace(SIN_CEROS, "")}</div>
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 800, color: col, border: "1px solid " + col, borderRadius: 99, padding: "2px 9px" }}>{et}</span>
+                <button className="btn btn-sm btn-p" onClick={() => verDetalle(o)}>✏️ Ver y editar</button>
+              </div>); })}
+          </div>
+        );
+      })()}
 
       {tab === "lista" && (
         loading ? (
@@ -21629,13 +21655,30 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
                       <button className={"btn btn-sm " + (listo ? "btn-g" : "btn-p")} disabled={confirmandoId === it.id} onClick={() => confirmarItem(it)} style={{ minWidth: 92 }}>
                         {confirmandoId === it.id ? "..." : listo ? "Recontar" : "Confirmar"}
                       </button>
-                      <button className="icon-btn" onClick={() => editarItemOrden(it)} aria-label={"Editar " + it.producto_nombre} title="Editar cantidades o costo">✏️</button>
+                      <button className="chip-btn" onClick={() => editarItemOrden(it)} aria-label={"Editar " + it.producto_nombre} title="Editar el producto, las cantidades o el costo">✏️ Editar</button>
                       <button className="icon-btn peligro" onClick={() => eliminarItemOrden(it)} aria-label={"Eliminar " + it.producto_nombre + " de la orden"} title="Sacar de la orden">✕</button>
                     </div>
                   </div>
                 );
               })}
             </div>
+
+            {(() => { const otros = itemsDetalle.filter(it => !delLocal.includes(it)); return otros.length > 0 && (
+              <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 12 }}>
+                <div style={{ padding: "10px 14px", fontSize: 11, fontWeight: 800, letterSpacing: ".08em", color: temaPal.textMuted, borderBottom: "1px solid " + temaPal.border }}>OTROS PRODUCTOS DE ESTA ORDEN (para el otro local)</div>
+                {otros.map(it => (
+                  <div key={it.id} className="oi-item">
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>{it.producto_nombre}</div>
+                      <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 2 }}>{UN_SOLO_LOCAL ? "" : nombreLocal(1) + ": " + (it.cantidad_rg || 0) + " · " + nombreLocal(2) + ": " + (it.cantidad_ush || 0)}{recibidoItem(it) ? " · ✓ ya recibido" : ""}</div>
+                    </div>
+                    <span />
+                    <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
+                      <button className="chip-btn" onClick={() => editarItemOrden(it)} aria-label={"Editar " + it.producto_nombre}>✏️ Editar</button>
+                      <button className="icon-btn peligro" onClick={() => eliminarItemOrden(it)} aria-label={"Eliminar " + it.producto_nombre + " de la orden"} title="Sacar de la orden">✕</button>
+                    </div>
+                  </div>))}
+              </div>); })()}
 
             <div className="card">
               <div className="pc-tit"><span>🎁 ITEM EXTRA (regalo del proveedor, no estaba en la orden)</span></div>
