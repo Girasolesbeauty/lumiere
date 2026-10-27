@@ -65,6 +65,26 @@ async function asegurarPlan() {
   await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS plan_liquidacion_por TEXT');
   await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS plan_liquidacion_en TIMESTAMP');
 }
+// Modo Cyber de la tienda online (lo ven y editan quienes entran a Cyber Monday)
+router.get('/cyber-tienda', async (req, res) => {
+  try {
+    const tienda = require('../lib/tienda');
+    const c = await tienda.leerConfig();
+    const k = tienda.cyberDe(c);
+    res.json({ cyber: k, en_curso: tienda.cyberVigente(k), slug: c.slug || null, publicada: !!c.activo, dominio: await tienda.dominioDe((req.negocio && req.negocio.id) || 1).catch(() => null) });
+  } catch (e) { console.error('[cyber tienda]', e.message); res.status(500).json({ error: 'No se pudo leer' }); }
+});
+router.put('/cyber-tienda', async (req, res) => {
+  try {
+    const tienda = require('../lib/tienda');
+    const c = await tienda.leerConfig();
+    const ant = tienda.cyberDe(c), b = req.body || {};
+    const k = tienda.cyberDe({ cyber: { ...b, token: ant.token || require('crypto').randomBytes(12).toString('hex') } });
+    if (b.desde && b.hasta && k.desde > k.hasta) return res.status(400).json({ error: 'La fecha de fin tiene que ser después de la de inicio' });
+    await pool.query('UPDATE tienda_config SET cyber = $1 WHERE id = 1', [JSON.stringify(k)]);
+    res.json({ cyber: k, en_curso: tienda.cyberVigente(k) });
+  } catch (e) { console.error('[cyber tienda]', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+});
 router.get('/plan-liquidacion', async (req, res) => {
   try {
     await asegurarPlan();
