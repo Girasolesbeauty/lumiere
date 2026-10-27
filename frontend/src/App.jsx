@@ -21108,15 +21108,20 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
 
   // Editar un producto de la orden (cantidades por local y costo) con un formulario
   const [editItem, setEditItem] = useState(null); // { it, rg, ush, costo }
-  const editarItemOrden = (it) => setEditItem({ it, rg: String(it.cantidad_rg || 0), ush: String(it.cantidad_ush || 0), costo: String(it.costo_unitario || 0) });
+  const editarItemOrden = (it) => setEditItem({ it, rg: String(it.cantidad_rg || 0), ush: String(it.cantidad_ush || 0), costo: String(it.costo_unitario || 0), nuevoProd: null, buscando: false, busca: "" });
+  const recibidoItem = (it) => (it.recibido_rg || 0) + (it.recibido_ush || 0) > 0;
   const guardarEdicionItem = async () => {
     const rg = parseInt(editItem.rg) || 0, ush = parseInt(editItem.ush) || 0;
     if (rg < 0 || ush < 0) return setMensaje("Error: las cantidades no pueden ser negativas");
+    const it = editItem.it, yaRecibido = recibidoItem(it);
+    const cambiaDatos = !yaRecibido && (rg !== (it.cantidad_rg || 0) || ush !== (it.cantidad_ush || 0) || (parseFloat(editItem.costo) || 0) !== (parseFloat(it.costo_unitario) || 0));
     try {
-      await API.put("/ordenes-ingreso/" + ordenDetalle.id + "/items/" + editItem.it.id + "/editar", {
+      // Primero el producto (si se eligió otro): mueve lo que falta llegar y lo ya recibido al producto correcto
+      if (editItem.nuevoProd) await API.put("/ordenes-ingreso/" + ordenDetalle.id + "/items/" + it.id + "/cambiar-producto", { producto_id: editItem.nuevoProd.id });
+      if (cambiaDatos) await API.put("/ordenes-ingreso/" + ordenDetalle.id + "/items/" + it.id + "/editar", {
         cantidad_total: rg + ush, cantidad_rg: rg, cantidad_ush: ush, costo_unitario: parseFloat(editItem.costo) || 0
       });
-      setMensaje("✓ " + editItem.it.producto_nombre + " actualizado");
+      setMensaje("✓ " + (editItem.nuevoProd ? it.producto_nombre + " → " + editItem.nuevoProd.nombre : it.producto_nombre + " actualizado"));
       setEditItem(null);
       recargarItems();
     } catch (e) { setMensaje("Error: " + (e?.response?.data?.error || e.message)); }
@@ -21666,13 +21671,37 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
         <div className="pos-overlay" onClick={() => setEditItem(null)}>
           <div className="card pop-in" role="dialog" aria-label={"Editar " + editItem.it.producto_nombre} style={{ width: 400, maxWidth: "95vw", background: temaPal.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 2 }}>Editar producto de la orden</div>
-            <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 14 }}>{editItem.it.producto_nombre}</div>
+            <div className="fg" style={{ marginTop: 10 }}>
+              <div className="fl">Producto</div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", border: "1px solid " + temaPal.border, borderRadius: 10, padding: "8px 10px" }}>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 13 }}>
+                  {editItem.nuevoProd ? <><s style={{ color: temaPal.textMuted }}>{editItem.it.producto_nombre}</s><div style={{ fontWeight: 800, color: temaPal.green }}>→ {editItem.nuevoProd.nombre}{editItem.nuevoProd.marca ? <span style={{ fontWeight: 500, color: temaPal.textMuted }}> · {editItem.nuevoProd.marca}</span> : null}</div></> : <b>{editItem.it.producto_nombre}</b>}
+                </span>
+                {editItem.nuevoProd ? <button className="chip-btn" onClick={() => setEditItem(x => ({ ...x, nuevoProd: null }))}>Deshacer</button>
+                  : <button className="chip-btn" onClick={() => setEditItem(x => ({ ...x, buscando: !x.buscando, busca: "" }))}>🔄 Cambiar</button>}
+              </div>
+              {editItem.buscando && !editItem.nuevoProd && (() => {
+                const q = normTxt(editItem.busca);
+                const res = q.length < 2 ? [] : productos.filter(x => x.id !== editItem.it.producto_id && (normTxt([x.nombre, x.marca].join(" ")).includes(q) || String(x.codigo_barras || "").includes(editItem.busca.trim()))).slice(0, 8);
+                return <div style={{ marginTop: 6 }}>
+                  <input className="inp" autoFocus placeholder="Buscá el producto correcto: nombre, marca o código" value={editItem.busca} onChange={e => setEditItem(x => ({ ...x, busca: e.target.value }))} style={{ width: "100%" }} />
+                  {q.length >= 2 && <div style={{ border: "1px solid " + temaPal.border, borderRadius: 10, marginTop: 4, maxHeight: 220, overflowY: "auto" }}>
+                    {res.length ? res.map(x => <button key={x.id} type="button" onClick={() => setEditItem(e => ({ ...e, nuevoProd: x, buscando: false }))} style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: 0, borderBottom: "1px solid " + temaPal.border, padding: "8px 10px", cursor: "pointer", color: temaPal.text, fontSize: 13 }}>
+                      <b>{x.nombre}</b><div style={{ fontSize: 11, color: temaPal.textMuted }}>{[x.marca, x.codigo_barras].filter(Boolean).join(" · ")}</div></button>)
+                      : <div style={{ padding: 10, fontSize: 12, color: temaPal.textMuted }}>No hay productos con eso.</div>}
+                  </div>}
+                </div>;
+              })()}
+              {editItem.nuevoProd && <div style={{ fontSize: 11.5, color: temaPal.textMuted, marginTop: 6 }}>{recibidoItem(editItem.it) ? "Lo que ya se recibió de esta orden se pasa del stock de \"" + editItem.it.producto_nombre + "\" al de \"" + editItem.nuevoProd.nombre + "\", y lo que falta llegar queda en camino para el nuevo." : "Lo que está en camino pasa al producto nuevo."}</div>}
+            </div>
+            {recibidoItem(editItem.it) ? <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 12 }}>Este producto ya se recibió: las cantidades y el costo no se pueden cambiar, pero sí el producto.</div> : <>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               <div className="fg"><div className="fl">{UN_SOLO_LOCAL ? "Cantidad" : "Cantidad " + nombreLocal(1)}</div><input className="inp" type="number" min="0" value={editItem.rg} onChange={e => setEditItem(x => ({ ...x, rg: e.target.value }))} /></div>
               {!UN_SOLO_LOCAL && <div className="fg"><div className="fl">Cantidad {nombreLocal(2)}</div><input className="inp" type="number" min="0" value={editItem.ush} onChange={e => setEditItem(x => ({ ...x, ush: e.target.value }))} /></div>}
             </div>
             <div className="fg"><div className="fl"><CalcCosto label="Costo unitario ($)" valor={editItem.costo} onUsar={v => setEditItem(x => ({ ...x, costo: v }))} /></div><input className="inp" type="number" min="0" value={editItem.costo} onChange={e => setEditItem(x => ({ ...x, costo: e.target.value }))} /></div>
             <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 12 }}>Total: <b style={{ color: temaPal.text }}>{(parseInt(editItem.rg) || 0) + (parseInt(editItem.ush) || 0)} u.</b> · {fmt(((parseInt(editItem.rg) || 0) + (parseInt(editItem.ush) || 0)) * (parseFloat(editItem.costo) || 0))}</div>
+            </>}
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setEditItem(null)}>Cancelar</button>
               <button className="btn btn-p" style={{ flex: 1 }} onClick={guardarEdicionItem}>Guardar</button>
