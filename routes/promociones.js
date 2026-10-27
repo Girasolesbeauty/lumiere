@@ -85,6 +85,27 @@ router.put('/cyber-tienda', async (req, res) => {
     res.json({ cyber: k, en_curso: tienda.cyberVigente(k) });
   } catch (e) { console.error('[cyber tienda]', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
 });
+// Calendario de Adviento de la tienda online
+router.get('/adviento-tienda', async (req, res) => {
+  try {
+    const tienda = require('../lib/tienda');
+    await tienda.asegurar();
+    const c = await tienda.leerConfig();
+    const a = tienda.advientoDe(c);
+    res.json({ adviento: a, hoy: tienda.advientoHoy(a), slug: c.slug || null, publicada: !!c.activo, dominio: await tienda.dominioDe((req.negocio && req.negocio.id) || 1).catch(() => null), titulo_tienda: c.titulo || null });
+  } catch (e) { console.error('[adviento]', e.message); res.status(500).json({ error: 'No se pudo leer' }); }
+});
+router.put('/adviento-tienda', async (req, res) => {
+  try {
+    const tienda = require('../lib/tienda');
+    await tienda.asegurar();
+    const c = await tienda.leerConfig();
+    const ant = tienda.advientoDe(c);
+    const a = tienda.advientoDe({ adviento: { ...(req.body || {}), token: ant.token || require('crypto').randomBytes(12).toString('hex') } });
+    await pool.query('UPDATE tienda_config SET adviento = $1 WHERE id = 1', [JSON.stringify(a)]);
+    res.json({ adviento: a, hoy: tienda.advientoHoy(a) });
+  } catch (e) { console.error('[adviento]', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+});
 // Halloween en la tienda online (diseño, juego "¿Dulce o truco?" y sector de productos)
 router.get('/halloween-tienda', async (req, res) => {
   try {

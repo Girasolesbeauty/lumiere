@@ -93,8 +93,13 @@ router.get('/:slug', async (req, res) => {
     const ky = tienda.cyberDe(c), cyEnCurso = tienda.cyberVigente(ky), cyVista = !cyEnCurso && !!ky.token && String(req.query.cyber || '') === ky.token;
     const promosT = await tienda.promosTienda(pool, cyVista ? ky.desde.slice(0, 10) : null);
     // Halloween: igual que el Cyber (entre sus fechas, o antes con el link privado ?halloween=codigo)
+    // Calendario de Adviento: en diciembre (1 al 25) o antes con el link privado (?adviento=codigo, se ven todos los días)
+    const adv = tienda.advientoDe(c), advHoy = tienda.advientoHoy(adv), advVista = !!adv.token && String(req.query.adviento || '') === adv.token;
+    const advVer = (adv.activo && advHoy >= 1 && advHoy <= 25) || advVista;
     const hw = tienda.halloweenDe(c), hwEnCurso = tienda.halloweenVigente(hw), hwVista = !hwEnCurso && !!hw.token && String(req.query.halloween || '') === hw.token;
     res.json({
+      adviento: advVer ? { titulo: adv.titulo, bajada: adv.bajada, estilo: adv.estilo, anio: adv.anio, hoy: advVista ? 25 : advHoy, vista_previa: advVista && !(adv.activo && advHoy >= 1 && advHoy <= 25),
+        dias: adv.dias.map(d => d.dia <= (advVista ? 25 : advHoy) ? d : { dia: d.dia, icono: d.icono, bloqueado: true }) } : null,
       halloween: hwEnCurso || hwVista ? { ceja: hw.ceja, titulo: hw.titulo, subtitulo: hw.subtitulo, juego: hw.juego && hw.premios.some(x => x.chance > 0),
         premios: hw.premios.filter(x => x.chance > 0 && x.tipo !== 'nada').map(x => x.texto), disfraz: hw.disfraz, despues: hw.despues, desde: hw.desde, hasta: hw.hasta, vista_previa: hwVista } : null,
       cyber: cyEnCurso || cyVista ? { ceja: ky.ceja, titulo: ky.titulo, subtitulo: ky.subtitulo, boton: ky.boton, chips: ky.chips, desde: ky.desde, hasta: ky.hasta, vista_previa: cyVista } : null,
