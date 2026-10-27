@@ -32927,9 +32927,15 @@ function flyDibujar(ctx, W, H, t, d) {
   });
   // Encabezado: logo + nombre de la tienda
   const cab = 70 * u;
-  if (d.logo) { ctx.save(); ctx.beginPath(); ctx.arc(W / 2, cab + 46 * u, 46 * u, 0, Math.PI * 2); ctx.clip(); ctx.drawImage(d.logo, W / 2 - 46 * u, cab, 92 * u, 92 * u); ctx.restore(); }
+  if (d.logo) {
+    const lh = 92 * u, lw = d.logoRedondo ? lh : Math.min(W * .6, lh * d.logo.width / d.logo.height);
+    ctx.save(); if (d.logoRedondo) { ctx.beginPath(); ctx.arc(W / 2, cab + lh / 2, lh / 2, 0, Math.PI * 2); ctx.clip(); }
+    if (d.logoRedondo) { const k = Math.max(lh / d.logo.width, lh / d.logo.height); ctx.drawImage(d.logo, W / 2 - d.logo.width * k / 2, cab + lh / 2 - d.logo.height * k / 2, d.logo.width * k, d.logo.height * k); }
+    else ctx.drawImage(d.logo, W / 2 - lw / 2, cab, lw, lh);
+    ctx.restore();
+  }
   ctx.fillStyle = "#111"; ctx.textAlign = "center"; ctx.font = flyFont(800, 26 * u);
-  ctx.save(); ctx.letterSpacing = (6 * u) + "px"; ctx.fillText(String(d.titulo || "").toUpperCase(), W / 2 + 3 * u, cab + (d.logo ? 132 : 40) * u); ctx.restore();
+  if (d.conNombre || !d.logo) { ctx.save(); ctx.letterSpacing = (6 * u) + "px"; ctx.fillText(String(d.titulo || "").toUpperCase(), W / 2 + 3 * u, cab + (d.logo ? 132 : 40) * u); ctx.restore(); }
   const top = cab + 170 * u;
   if (t < FLY_INTRO) {
     // Intro: "PREVENTA" grande, barra dorada y bajada
@@ -32999,9 +33005,12 @@ function FlyerPreventa({ cfg, temaPal }) {
   const [ciudad, setCiudad] = useState(0);
   const [elegidos, setElegidos] = useState(null);
   const [formato, setFormato] = useState("historia");
-  const [txt, setTxt] = useState({ titulo1: "Preventa", bajada: "Reservalos antes de que lleguen ✨", cierre: "¡Que no te lo cuenten!", precios: true });
+  const [txt, setTxt] = useState({ titulo1: "Preventa", bajada: "Reservalos antes de que lleguen ✨", cierre: "¡Que no te lo cuenten!", precios: true, conNombre: true });
   const [imgs, setImgs] = useState({});
   const [logo, setLogo] = useState(null);
+  // Logo propio para el flyer (queda guardado en este navegador); si no, el de la tienda
+  const [logoPropio, setLogoPropio] = useState(() => { try { return localStorage.getItem("lumiere_flyer_logo") || ""; } catch (e) { return ""; } });
+  const [logoRedondo, setLogoRedondo] = useState(() => { try { return localStorage.getItem("lumiere_flyer_logo_redondo") !== "0"; } catch (e) { return true; } });
   const [grabando, setGrabando] = useState(0);
   const [video, setVideo] = useState(null);
   const lienzo = useRef(null), inicio = useRef(performance.now()), grab = useRef(null);
@@ -33012,9 +33021,24 @@ function FlyerPreventa({ cfg, temaPal }) {
       .then(([t, ps]) => {
         if (!Array.isArray(ps)) throw new Error((ps && ps.error) || "No se pudieron leer los productos");
         setDatos({ tienda: t, prods: ps });
-        if (t.logo) { const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => setLogo(im); im.src = t.logo; }
       }).catch(e => setError(e.message || "No se pudo leer la tienda"));
   }, [slug]);
+  useEffect(() => {
+    const src = logoPropio || (datos && datos.tienda.logo); setLogo(null); if (!src) return;
+    const im = new Image(); if (!src.startsWith("data:")) im.crossOrigin = "anonymous"; im.onload = () => setLogo(im); im.src = src;
+  }, [logoPropio, datos]);
+  const subirLogo = (f) => {
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => { const im = new Image(); im.onload = () => {
+      // se achica a 400px para guardarlo liviano
+      const k = Math.min(1, 400 / Math.max(im.width, im.height)), c = document.createElement("canvas"); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+      c.getContext("2d").drawImage(im, 0, 0, c.width, c.height); const url = c.toDataURL("image/png");
+      setLogoPropio(url); setVideo(null); try { localStorage.setItem("lumiere_flyer_logo", url); } catch (e) {}
+    }; im.src = rd.result; };
+    rd.readAsDataURL(f);
+  };
+  const quitarLogo = () => { setLogoPropio(""); setVideo(null); try { localStorage.removeItem("lumiere_flyer_logo"); } catch (e) {} };
   const enPreventa = (pr, l) => !pr.variantes && pr.preventa && (pr.preventa[l] || 0) > 0 && !((pr.stock && pr.stock[l]) > 0);
   const lista = datos ? datos.prods.filter(pr => ciudad ? enPreventa(pr, ciudad) : (enPreventa(pr, 1) || enPreventa(pr, 2))) : [];
   useEffect(() => { if (datos && elegidos === null) setElegidos(lista.filter(x => x.foto).slice(0, 6).map(x => x.id)); }, [datos]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -33022,7 +33046,7 @@ function FlyerPreventa({ cfg, temaPal }) {
   useEffect(() => { sel.forEach(pr => { if (!pr.foto || imgs[pr.id]) return; const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => setImgs(m => ({ ...m, [pr.id]: im })); im.src = base + "/tienda-publica/" + encodeURIComponent(slug) + "/foto/" + pr.id + (pr.foto_v ? "?v=" + pr.foto_v : ""); }); }, [elegidos, datos]); // eslint-disable-line react-hooks/exhaustive-deps
   const llegaDe = (pr) => { if (!pr.llega) return null; const f = ciudad ? pr.llega[ciudad] : [pr.llega[1], pr.llega[2]].filter(Boolean).sort()[0]; return twTextoLlega(f); };
   const fechas = sel.map(pr => ciudad ? pr.llega && pr.llega[ciudad] : pr.llega && [pr.llega[1], pr.llega[2]].filter(Boolean).sort()[0]).filter(Boolean).sort();
-  const d = { titulo: datos ? datos.tienda.titulo : "", logo, ...txt, llega: fechas.length ? twTextoLlega(fechas[0]) : null,
+  const d = { titulo: datos ? datos.tienda.titulo : "", logo, logoRedondo, ...txt, llega: fechas.length ? twTextoLlega(fechas[0]) : null,
     web: cfg && cfg.dominio ? cfg.dominio.replace(/^https?:\/\//, "") : "Link en la bio",
     prods: sel.map(pr => ({ nombre: pr.nombre, marca: pr.marca, precioTxt: fmtTienda(pr.precio), llega: llegaDe(pr), img: imgs[pr.id] || null })) };
   const dRef = useRef(d); dRef.current = d;
@@ -33063,6 +33087,15 @@ function FlyerPreventa({ cfg, temaPal }) {
               <div className="seg" role="group" style={{ display: "flex", marginBottom: 10 }}>
                 {[[0, "Todas"], ...ciudades.map(c => [c.id, c.nombre])].map(([k, t]) => <button key={k} style={{ flex: 1 }} className={ciudad === k ? "on" : ""} onClick={() => { setCiudad(k); setVideo(null); }}>{t}</button>)}
               </div></>}
+            <div className="fl">Logo</div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10, fontSize: 12.5 }}>
+              {logo ? <img src={logo.src} alt="" style={{ width: 44, height: 44, objectFit: "contain", borderRadius: logoRedondo ? "50%" : 6, border: "1px solid " + p.border, background: "#fff" }} /> : <span style={{ color: p.textMuted }}>Sin logo</span>}
+              <span style={{ color: p.textMuted }}>{logoPropio ? "Logo subido para el flyer" : "El de la tienda online"}</span>
+              <label className="chip-btn" style={{ cursor: "pointer" }}>📷 Subir otro<input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { subirLogo(e.target.files[0]); e.target.value = ""; }} /></label>
+              {logoPropio && <button className="chip-btn" onClick={quitarLogo}>Usar el de la tienda</button>}
+              <label style={{ display: "flex", gap: 4, alignItems: "center" }}><input type="checkbox" checked={txt.conNombre} onChange={e => setTxt(x => ({ ...x, conNombre: e.target.checked }))} /> Nombre debajo del logo</label>
+              <label style={{ display: "flex", gap: 4, alignItems: "center" }}><input type="checkbox" checked={logoRedondo} onChange={e => { setLogoRedondo(e.target.checked); setVideo(null); try { localStorage.setItem("lumiere_flyer_logo_redondo", e.target.checked ? "1" : "0"); } catch (x) {} }} /> Recortar en círculo</label>
+            </div>
             <div className="fl">Textos</div>
             <input className="inp" style={{ width: "100%", marginBottom: 6 }} value={txt.titulo1} maxLength={14} onChange={e => setTxt(x => ({ ...x, titulo1: e.target.value }))} placeholder="Título (ej: Preventa)" />
             <input className="inp" style={{ width: "100%", marginBottom: 6 }} value={txt.bajada} maxLength={60} onChange={e => setTxt(x => ({ ...x, bajada: e.target.value }))} placeholder="Bajada" />
