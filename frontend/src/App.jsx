@@ -20836,6 +20836,131 @@ function RepartoLocales({ d, total, actual, onUsar, temaPal, chico }) {
   );
 }
 
+// Corregir órdenes ya creadas con el PDF de la factura: costos de la factura (con descuento) y renglones que faltaron.
+// Corrige juntas las órdenes de la misma factura (al cargar una factura se crea una por local).
+function CorregirConFactura({ orden, productos, temaPal, onCerrar, onListo }) {
+  const [archivo, setArchivo] = useState(null);
+  const [leyendo, setLeyendo] = useState(false);
+  const [rev, setRev] = useState(null);
+  const [error, setError] = useState("");
+  const [verTodos, setVerTodos] = useState(false);
+  const [falt, setFalt] = useState([]);
+  const [aplicando, setAplicando] = useState(false);
+  const [hecho, setHecho] = useState(null);
+  const p = temaPal, $ = (n) => fmt(n);
+  const revisar = async () => {
+    if (!archivo) return setError("Elegí el PDF de la factura");
+    setLeyendo(true); setError("");
+    try {
+      const fd = new FormData(); fd.append("archivo", archivo);
+      const r = await API.post("/ordenes-ingreso/" + orden.id + "/factura-revisar", fd, { headers: { "Content-Type": "multipart/form-data" }, timeout: 300000 });
+      const d = r.data, ords = d.ordenes || [];
+      const ordRg = ords.find(o => o.rg) || ords[0], ordUsh = ords.find(o => o.ush && !o.rg);
+      setRev(d);
+      setFalt((d.faltantes || []).map(f => ({ ...f, usar: !!f.producto_id, orden_id: ordRg ? ordRg.id : orden.id, local: ordRg && ordRg.rg ? "rg" : ordUsh ? "ush" : "rg", cant: String(f.cantidad), costo: String(f.costo_unitario || ""), busca: "" })));
+    } catch (e) { setError(e.response?.data?.error || e.message); }
+    setLeyendo(false);
+  };
+  const ords = rev ? rev.ordenes || [] : [];
+  const nombreOrd = (id) => { const o = ords.find(x => x.id === id); return o ? (o.rg && !o.ush ? nombreLocal(1) : o.ush && !o.rg ? nombreLocal(2) : "Orden #" + id) : "Orden #" + id; };
+  const cambian = rev ? rev.cambios.filter(c => Math.abs(c.costo_nuevo - c.costo_actual) >= 0.01 && c.costo_nuevo > 0) : [];
+  const elegidos = falt.filter(f => f.usar && f.producto_id && (parseInt(f.cant) || 0) > 0);
+  const sumaAgregar = elegidos.reduce((t, f) => t + (parseFloat(f.costo) || 0) * (parseInt(f.cant) || 0), 0);
+  const totalFinal = rev ? rev.total_nuevo + sumaAgregar : 0;
+  const coincide = rev && rev.total_factura ? Math.abs(totalFinal - rev.total_factura) < 1 : null;
+  const aplicar = async () => {
+    setAplicando(true); setError("");
+    try {
+      const r = await API.put("/ordenes-ingreso/" + orden.id + "/factura-aplicar", {
+        cambios: cambian.map(c => ({ item_id: c.item_id, costo: c.costo_nuevo })),
+        agregar: elegidos.map(f => ({ orden_id: f.orden_id, producto_id: f.producto_id, cantidad_rg: f.local === "rg" ? parseInt(f.cant) : 0, cantidad_ush: f.local === "ush" ? parseInt(f.cant) : 0, costo: parseFloat(f.costo) || 0, nombre_factura: f.nombre_crudo, codigo_factura: f.codigo_interno })),
+      });
+      setHecho(r.data); onListo && onListo(r.data);
+    } catch (e) { setError(e.response?.data?.error || e.message); }
+    setAplicando(false);
+  };
+  const caja = { border: "1px solid " + p.border, borderRadius: 10, padding: 12, marginTop: 10 };
+  return (
+    <div className="pos-overlay" onClick={() => !leyendo && !aplicando && onCerrar()}>
+      <div className="card pop-in" role="dialog" aria-label="Corregir con la factura" style={{ width: 720, maxWidth: "96vw", maxHeight: "90vh", overflowY: "auto", background: p.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+          <div style={{ fontSize: 16, fontWeight: 800 }}>📄 Corregir con la factura</div>
+          <button className="icon-btn" onClick={onCerrar} aria-label="Cerrar" disabled={leyendo || aplicando}>✕</button>
+        </div>
+        <div style={{ fontSize: 12.5, color: p.textMuted, margin: "4px 0 10px" }}>Subí el PDF de la factura{orden.numero_factura ? " " + orden.numero_factura : ""}. Se comparan los costos y los productos con {ords.length > 1 ? "las " + ords.length + " órdenes de esa factura" : "la orden"}, y vas a ver qué cambia antes de aplicar. <b>El stock no se toca.</b></div>
+
+        {hecho ? <div style={{ ...caja, background: p.greenDim, borderColor: p.green }}>
+          <div style={{ fontWeight: 800, color: p.green }}>✓ Listo</div>
+          <div style={{ fontSize: 13, marginTop: 4 }}>Se corrigieron {hecho.costos} costos{hecho.agregados ? " y se agregaron " + hecho.agregados + " productos (quedan para recibir)" : ""}.</div>
+          <div style={{ fontSize: 13, marginTop: 4 }}>{(hecho.ordenes || []).map(o => nombreOrd(o.id) + ": " + $(o.total)).join(" · ")} · <b>Total {$(hecho.total)}</b></div>
+          <button className="btn btn-p" style={{ marginTop: 10 }} onClick={onCerrar}>Cerrar</button>
+        </div> : !rev ? <div>
+          <input className="inp" type="file" accept=".pdf,.xlsx,.xls,.csv,image/*" onChange={e => setArchivo(e.target.files[0] || null)} style={{ width: "100%" }} />
+          <button className="btn btn-p" style={{ width: "100%", marginTop: 10 }} disabled={leyendo || !archivo} onClick={revisar}>{leyendo ? "Leyendo la factura… (puede tardar hasta un minuto)" : "Revisar"}</button>
+        </div> : <>
+          <div style={{ ...caja, background: coincide === false ? p.redDim : coincide ? p.greenDim : "transparent", borderColor: coincide === false ? p.red : coincide ? p.green : p.border, fontSize: 13 }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}><span>Hoy {ords.length > 1 ? "las órdenes suman" : "la orden suma"}</span><b>{$(rev.total_actual)}</b></div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}><span>Con los costos de la factura</span><b>{$(rev.total_nuevo)}</b></div>
+            {sumaAgregar > 0 && <div style={{ display: "flex", justifyContent: "space-between" }}><span>+ productos que faltaban</span><b>{$(sumaAgregar)}</b></div>}
+            <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid " + p.border, marginTop: 4, paddingTop: 4 }}><span>Queda</span><b style={{ fontSize: 15 }}>{$(totalFinal)}</b></div>
+            {rev.total_factura ? <div style={{ display: "flex", justifyContent: "space-between" }}><span>Total de la factura</span><b>{$(rev.total_factura)}</b></div> : null}
+            {coincide && <div style={{ fontWeight: 800, color: p.green, marginTop: 4 }}>✓ Coincide con la factura</div>}
+            {coincide === false && <div style={{ fontWeight: 800, color: p.red, marginTop: 4 }}>Todavía hay una diferencia de {$(Math.abs(totalFinal - rev.total_factura))}: revisá lo de abajo.</div>}
+          </div>
+
+          <div style={caja}>
+            <div style={{ fontWeight: 800, fontSize: 13.5 }}>💲 Costos que se corrigen ({cambian.length})</div>
+            {!cambian.length ? <div style={{ fontSize: 12.5, color: p.textMuted }}>Los costos ya coinciden con la factura.</div> : <>
+              <div style={{ fontSize: 11.5, color: p.textMuted, marginBottom: 6 }}>Costo de la factura con el descuento del proveedor. En los productos que ya se recibieron también se actualiza el costo del producto.</div>
+              {(verTodos ? cambian : cambian.slice(0, 8)).map(c => <div key={c.item_id} style={{ display: "flex", gap: 8, fontSize: 12.5, padding: "4px 0", borderTop: "1px solid " + p.border, alignItems: "baseline" }}>
+                <span style={{ flex: 1, minWidth: 0 }}>{c.producto_nombre} <span style={{ color: p.textMuted }}>· {c.cantidad} u.{ords.length > 1 ? " · " + nombreOrd(c.orden_id) : ""}{c.recibido ? " · ya recibido" : ""}</span>{c.cantidad_distinta && <span style={{ color: p.warn, fontWeight: 700 }}> · ⚠️ en la factura son {c.cantidad_factura}</span>}</span>
+                <span style={{ whiteSpace: "nowrap" }}><s style={{ color: p.textMuted }}>{$(c.costo_actual)}</s> → <b>{$(c.costo_nuevo)}</b></span>
+              </div>)}
+              {cambian.length > 8 && <button className="chip-btn" style={{ marginTop: 6 }} onClick={() => setVerTodos(v => !v)}>{verTodos ? "Ver menos" : "Ver los " + cambian.length}</button>}
+            </>}
+          </div>
+
+          {falt.length > 0 && <div style={caja}>
+            <div style={{ fontWeight: 800, fontSize: 13.5 }}>➕ Están en la factura pero no en {ords.length > 1 ? "las órdenes" : "la orden"} ({falt.length})</div>
+            <div style={{ fontSize: 11.5, color: p.textMuted, marginBottom: 6 }}>Tildá los que querés sumar: quedan "en camino" para que el local los reciba.</div>
+            {falt.map((f, i) => { const set = (k, v) => setFalt(l => l.map((x, j) => j === i ? { ...x, [k]: v } : x)); const q = normTxt(f.busca); const sug = q.length >= 2 ? productos.filter(x => normTxt([x.nombre, x.marca, x.codigo_barras].join(" ")).includes(q)).slice(0, 6) : []; return (
+              <div key={i} style={{ borderTop: "1px solid " + p.border, padding: "8px 0", fontSize: 12.5 }}>
+                <label style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer" }}>
+                  <input type="checkbox" checked={!!f.usar} disabled={!f.producto_id} onChange={e => set("usar", e.target.checked)} style={{ marginTop: 3 }} />
+                  <span style={{ flex: 1 }}><b>{f.nombre_crudo}</b> <span style={{ color: p.textMuted }}>· {f.cantidad} u. × {$(f.costo_unitario)}{f.codigo_interno ? " · cód. " + f.codigo_interno : ""}</span>
+                    <div style={{ color: f.producto_id ? p.green : p.warn }}>{f.producto_id ? "→ " + f.producto_nombre : "No sé qué producto es: buscalo"} {f.producto_id && <span className="chip-btn" style={{ padding: "0 6px", fontSize: 11 }} onClick={e => { e.preventDefault(); setFalt(l => l.map((x, j) => j === i ? { ...x, producto_id: null, producto_nombre: "", usar: false } : x)); }}>cambiar</span>}</div></span>
+                </label>
+                {!f.producto_id && <div style={{ marginLeft: 24, marginTop: 4 }}>
+                  <input className="inp" placeholder="Buscar producto…" value={f.busca} onChange={e => set("busca", e.target.value)} style={{ width: "100%", maxWidth: 360 }} />
+                  {sug.map(x => <div key={x.id} onClick={() => setFalt(l => l.map((y, j) => j === i ? { ...y, producto_id: x.id, producto_nombre: x.nombre, usar: true, busca: "" } : y))} style={{ cursor: "pointer", padding: "5px 8px", borderBottom: "1px solid " + p.border, maxWidth: 360 }}>{x.nombre}</div>)}
+                </div>}
+                {f.producto_id && f.usar && <div style={{ marginLeft: 24, marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  {ords.length > 1 ? <select className="sel" value={f.orden_id + "|" + f.local} onChange={e => { const [o, l] = e.target.value.split("|"); setFalt(ls => ls.map((x, j) => j === i ? { ...x, orden_id: parseInt(o), local: l } : x)); }} style={{ width: "auto" }}>
+                    {ords.map(o => <option key={o.id} value={o.id + "|" + (o.ush && !o.rg ? "ush" : "rg")}>{nombreOrd(o.id)}</option>)}
+                  </select> : !UN_SOLO_LOCAL && <select className="sel" value={f.local} onChange={e => set("local", e.target.value)} style={{ width: "auto" }}><option value="rg">{nombreLocal(1)}</option><option value="ush">{nombreLocal(2)}</option></select>}
+                  <label style={{ display: "flex", gap: 4, alignItems: "center" }}>Cant. <input className="mini-inp" style={{ width: 60 }} inputMode="numeric" value={f.cant} onChange={e => set("cant", e.target.value.replace(/\D/g, ""))} /></label>
+                  <label style={{ display: "flex", gap: 4, alignItems: "center" }}>Costo <input className="mini-inp" style={{ width: 96 }} inputMode="decimal" value={f.costo} onChange={e => set("costo", e.target.value.replace(/[^\d.]/g, ""))} /></label>
+                </div>}
+              </div>); })}
+          </div>}
+
+          {rev.sobrantes.length > 0 && <div style={caja}>
+            <div style={{ fontWeight: 800, fontSize: 13.5 }}>❔ Están en {ords.length > 1 ? "las órdenes" : "la orden"} pero no los encontré en la factura ({rev.sobrantes.length})</div>
+            <div style={{ fontSize: 11.5, color: p.textMuted, marginBottom: 4 }}>No se tocan. Si alguno no vino, sacalo con la ✕ en la orden.</div>
+            {rev.sobrantes.map(x => <div key={x.item_id} style={{ fontSize: 12.5, padding: "3px 0" }}>{x.producto_nombre} · {x.cantidad} u. × {$(x.costo)}</div>)}
+          </div>}
+
+          {error && <div style={{ color: p.red, fontSize: 12.5, marginTop: 8 }}>{error}</div>}
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button className="btn btn-g" style={{ flex: 1 }} disabled={aplicando} onClick={onCerrar}>Cancelar</button>
+            <button className="btn btn-p" style={{ flex: 2 }} disabled={aplicando || (!cambian.length && !elegidos.length)} onClick={aplicar}>{aplicando ? "Aplicando…" : "Aplicar: " + cambian.length + " costos" + (elegidos.length ? " + " + elegidos.length + " productos" : "")}</button>
+          </div>
+        </>}
+        {!rev && error && <div style={{ color: p.red, fontSize: 12.5, marginTop: 8 }}>{error}</div>}
+      </div>
+    </div>
+  );
+}
 function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const localActual = Number(localId) === 2 ? "ush" : "rg";
@@ -21217,6 +21342,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
   // ---- datos para la lista ----
   const pendientesMiLocal = ordenes.filter(o => o.estado !== "recibida" && o.estado !== "pagada" && (localActual === "rg" ? o.rg_tiene_items : o.ush_tiene_items));
   const [buscaTodas, setBuscaTodas] = useState("");
+  const [corregirFac, setCorregirFac] = useState(false);
   const porRecibir = pendientesMiLocal.filter(o => !(localActual === "rg" ? o.rg_completo : o.ush_completo));
   const recibidasMiLocal = pendientesMiLocal.filter(o => (localActual === "rg" ? o.rg_completo : o.ush_completo));
   const totalPorRecibir = porRecibir.reduce((s2, o) => s2 + parseFloat(o.total || 0), 0);
@@ -21637,6 +21763,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
                 {coinciden > 0 && <button className="btn btn-p btn-sm" disabled={confirmandoTodos} onClick={confirmarCoincidentes}>{confirmandoTodos ? "Confirmando..." : "✓ Confirmar los " + coinciden + " que coinciden"}</button>}
                 {esEncargada && tieneRg && !UN_SOLO_LOCAL && <button className="chip-btn" style={{ color: temaPal.red }} onClick={() => quitarLocalOrden("rg")}>Quitar {nombreLocal(1)}</button>}
                 {esEncargada && tieneUsh && !UN_SOLO_LOCAL && <button className="chip-btn" style={{ color: temaPal.red }} onClick={() => quitarLocalOrden("ush")}>Quitar {nombreLocal(2)}</button>}
+                {puedeCrear && <button className="chip-btn" onClick={() => setCorregirFac(true)}>📄 Corregir con la factura</button>}
                 {esEncargada && <button className="chip-btn" style={{ color: temaPal.red }} onClick={() => eliminarOrden(ordenDetalle.id)}>Eliminar orden</button>}
               </div>
             </div>
@@ -21729,6 +21856,9 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
           </div>
         );
       })()}
+
+      {corregirFac && ordenDetalle && <CorregirConFactura orden={ordenDetalle} productos={productos} temaPal={temaPal} onCerrar={() => setCorregirFac(false)}
+        onListo={(d) => { const o = (d.ordenes || []).find(x => x.id === ordenDetalle.id); if (o) setOrdenDetalle(od => ({ ...od, total: o.total })); recargarItems(); cargar(); }} />}
 
       {editItem && (
         <div className="pos-overlay" onClick={() => setEditItem(null)}>

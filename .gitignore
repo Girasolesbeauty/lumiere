@@ -3,3 +3,6 @@
 node_modules/
 .env
 .env
+
+# Idioma que baja el OCR de facturas (Tesseract) al usarlo
+*.traineddata
