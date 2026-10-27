@@ -24407,6 +24407,36 @@ function EtiquetasCyber({ p, lista, titulo, desde, hasta }) {
     d.open(); d.write(htmlEtiquetas(items, "cyber", tam, op)); d.close();
     setTimeout(() => { marco.contentWindow.focus(); marco.contentWindow.print(); setTimeout(() => marco.remove(), 2000); }, 400);
   };
+  // Guardar como PDF: cada hoja se dibuja igual que al imprimir y se arma un PDF (A4, o una etiqueta por página en rollo)
+  const [pdf, setPdf] = useState("");
+  const guardarPdf = async () => {
+    if (!total || pdf) return;
+    setPdf("Preparando…");
+    let marco;
+    try {
+      const [{ jsPDF }, { default: html2canvas }] = await Promise.all([import("jspdf"), import("html2canvas")]);
+      const sueltas = items.flatMap(it => Array.from({ length: it.cantidad }, () => ({ ...it, cantidad: 1 })));
+      const porHoja = t.rollo ? 1 : cols * filas, paginas = [];
+      for (let i = 0; i < sueltas.length; i += porHoja) paginas.push(sueltas.slice(i, i + porHoja));
+      const anchoMm = t.rollo ? t.w : 210, altoMm = t.rollo ? t.h : 297, px = (mm) => Math.round(mm * 96 / 25.4);
+      const doc = new jsPDF({ unit: "mm", format: t.rollo ? [t.w, t.h] : "a4", orientation: t.rollo && t.w > t.h ? "landscape" : "portrait", compress: true });
+      marco = document.createElement("iframe");
+      marco.style.cssText = "position:fixed;left:-10000px;top:0;width:" + px(anchoMm) + "px;height:" + px(altoMm) + "px;border:0;";
+      document.body.appendChild(marco);
+      for (let i = 0; i < paginas.length; i++) {
+        setPdf("Armando hoja " + (i + 1) + " de " + paginas.length + "…");
+        const dd = marco.contentWindow.document;
+        dd.open(); dd.write(htmlEtiquetas(paginas[i], "cyber", tam, op).replace("<body>", '<body style="padding:' + (t.rollo ? "0" : "5mm") + ';width:' + px(anchoMm) + 'px;height:' + px(altoMm) + 'px;box-sizing:border-box;overflow:hidden">')); dd.close();
+        await new Promise(res => setTimeout(res, 120));
+        const lienzo = await html2canvas(dd.body, { scale: 300 / 96, backgroundColor: "#ffffff", width: px(anchoMm), height: px(altoMm), windowWidth: px(anchoMm), windowHeight: px(altoMm), logging: false });
+        if (i) doc.addPage(t.rollo ? [t.w, t.h] : "a4", t.rollo && t.w > t.h ? "landscape" : "portrait");
+        doc.addImage(lienzo.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, anchoMm, altoMm, undefined, "FAST");
+      }
+      doc.save("etiquetas-" + String(titulo || "cyber").toLowerCase().replace(/[^a-z0-9]+/g, "-") + ".pdf");
+      setPdf("");
+    } catch (e) { setPdf(""); alert("No se pudo armar el PDF: " + (e.message || e)); }
+    if (marco) marco.remove();
+  };
   const q = normTxt(busca.trim());
   const vistos = q ? lista.filter(e => normTxt([e.nombre, e.marca].join(" ")).includes(q)) : lista;
   const marcar = (keys, si) => setFuera(f => { const n = new Set(f); keys.forEach(k => si ? n.delete(k) : n.add(k)); return n; });
@@ -24420,6 +24450,7 @@ function EtiquetasCyber({ p, lista, titulo, desde, hasta }) {
           <select className="sel" value={tam} onChange={e => setTam(e.target.value)}>{TAMANOS_ETIQUETA.filter(x => !x.custom).map(x => <option key={x.id} value={x.id}>{x.nombre}</option>)}</select></div>
         <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12.5, cursor: "pointer" }}><input type="checkbox" checked={porStock} onChange={e => setPorStock(e.target.checked)} /> Una por cada unidad en stock (para pegar en cada producto)</label>
         <button className="btn btn-p" disabled={!total} onClick={imprimir}>🖨️ Imprimir {total} etiqueta{total === 1 ? "" : "s"}{hojas ? " · " + hojas + " hoja" + (hojas === 1 ? "" : "s") : ""}</button>
+        <button className="btn btn-g" disabled={!total || !!pdf} onClick={guardarPdf}>{pdf || "📄 Guardar PDF"}</button>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
         <div>
