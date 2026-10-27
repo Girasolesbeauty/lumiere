@@ -21869,8 +21869,9 @@ function htmlUnaEtiqueta(it, estilo, op, ancha) {
     }).join("");
     const fch = (f) => String(f || "").split("-").reverse().slice(0, 2).join("/");
     return `<div class="banda">${escHtml(op.textoOferta || "CYBER")}${max ? `<span class="pct">${ops.length > 1 ? "HASTA " : ""}-${max}%</span>` : ""}</div>
-      <div class="cuerpo"><div class="nom">${nombre}</div>${marca ? `<div class="sub">${marca}</div>` : ""}
-      <div class="antes">Precio de lista <s>${escHtml(precioEtiqueta(antes))}</s>${op.hasta ? `<span class="hasta"> · ${op.desde ? "del " + escHtml(fch(op.desde)) + " al " : "hasta el "}${escHtml(fch(op.hasta))}</span>` : ""}</div><div class="ops">${filas}</div></div>`;
+      <div class="cuerpo"><div class="nom">${nombre}</div>
+      ${marca || op.hasta ? `<div class="sub">${[marca, op.hasta ? (op.desde ? "del " + escHtml(fch(op.desde)) + " al " : "hasta el ") + escHtml(fch(op.hasta)) : ""].filter(Boolean).join(" · ")}</div>` : ""}
+      <div class="antes cyl"><span class="lb">ANTES</span><s>${escHtml(precioEtiqueta(antes))}</s></div><div class="ops">${filas}</div></div>`;
   }
   if (estilo === "promo") {
     const pr = PROMOS_ETIQUETA.find(x => x.id === op.promo) || { grande: op.promoTexto || "PROMO", sub: op.promoSub || "" };
@@ -21933,7 +21934,10 @@ function htmlEtiquetas(items, estilo, tamId, op, limite) {
     .cyber .cuerpo { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; padding: ${(u * 0.035).toFixed(2)}mm ${(u * 0.07).toFixed(2)}mm; }
     .cyber .nom { font-size: ${(u * 0.09).toFixed(2)}mm; }
     .cyber .sub { font-size: ${(u * 0.07).toFixed(2)}mm; margin-top: 0; }
-    .cyber .antes { font-size: ${(u * 0.075).toFixed(2)}mm; margin-top: 0.3mm; }
+    .cyber .antes.cyl { display: flex; align-items: center; justify-content: center; gap: 1.6mm; margin-top: 0.4mm; font-size: ${(u * 0.15).toFixed(2)}mm; line-height: 1; }
+    .cyber .antes.cyl .lb { font-size: 0.45em; font-weight: 800; letter-spacing: 0.12em; color: #444; }
+    .cyber .antes.cyl s { font-size: 1em; font-weight: 800; color: #444; }
+    .cyber .antes.cyl s::after { border-top-color: #d32f2f; border-top-width: ${Math.max(0.45, u * 0.016).toFixed(2)}mm; }
     .cyber .ops { width: 100%; margin-top: 0.6mm; border-top: 0.25mm solid #111; }
     .cyber .op { display: flex; justify-content: space-between; align-items: center; gap: 1.5mm; padding: ${(u * 0.012).toFixed(2)}mm 0; border-bottom: 0.2mm dashed #bbb; }
     .cyber .ot { font-size: ${(u * 0.072).toFixed(2)}mm; text-align: left; color: #222; line-height: 1.1; }
