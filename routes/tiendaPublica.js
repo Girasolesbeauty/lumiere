@@ -92,7 +92,11 @@ router.get('/:slug', async (req, res) => {
     // Cyber: se ve entre sus fechas, o antes con el link privado (?cyber=codigo): ahi las promos son las del primer dia
     const ky = tienda.cyberDe(c), cyEnCurso = tienda.cyberVigente(ky), cyVista = !cyEnCurso && !!ky.token && String(req.query.cyber || '') === ky.token;
     const promosT = await tienda.promosTienda(pool, cyVista ? ky.desde.slice(0, 10) : null);
+    // Halloween: igual que el Cyber (entre sus fechas, o antes con el link privado ?halloween=codigo)
+    const hw = tienda.halloweenDe(c), hwEnCurso = tienda.halloweenVigente(hw), hwVista = !hwEnCurso && !!hw.token && String(req.query.halloween || '') === hw.token;
     res.json({
+      halloween: hwEnCurso || hwVista ? { ceja: hw.ceja, titulo: hw.titulo, subtitulo: hw.subtitulo, juego: hw.juego && hw.premios.some(x => x.chance > 0),
+        premios: hw.premios.filter(x => x.chance > 0 && x.tipo !== 'nada').map(x => x.texto), disfraz: hw.disfraz, despues: hw.despues, desde: hw.desde, hasta: hw.hasta, vista_previa: hwVista } : null,
       cyber: cyEnCurso || cyVista ? { ceja: ky.ceja, titulo: ky.titulo, subtitulo: ky.subtitulo, boton: ky.boton, chips: ky.chips, desde: ky.desde, hasta: ky.hasta, vista_previa: cyVista } : null,
       promos: promosT.map(x => ({ nombre: x.nombre, pct: x.pct, aplica_a: x.aplica_a, productos: x.productos, categorias: x.categorias, pago: x.pago, local: x.local })),
       titulo: c.titulo || neg.nombre_negocio || 'Tienda', mensaje: c.mensaje || '', logo: c.logo || neg.logo_url || null, color: c.color || '#c9a84c', whatsapp: c.whatsapp || null,
@@ -789,6 +793,60 @@ const conCuenta = (req, res, next) => { const id = clienteDeToken(req); if (!id)
 const digitos = (x) => cuentas.soloNumeros(x).slice(-8);
 // Mismo telefono aunque se escriba con 0, 15 o sin codigo de area: se comparan los ultimos 6 numeros
 const mismoTelefono = (a, b) => cuentas.soloNumeros(a).length >= 8 && cuentas.soloNumeros(b).length >= 8 && cuentas.soloNumeros(a).slice(-6) === cuentas.soloNumeros(b).slice(-6);
+
+// ── Halloween: "¿Dulce o truco?" ──────────────────────────────────────────────────────────────
+// Una vez por clienta (con su cuenta) por temporada. Premios: cupón personal (vale hasta el fin de Halloween), puntos o "truco".
+// En la vista previa (link privado, antes de las fechas) se juega "de mentira": no se guarda ni se da nada.
+const temporadaHw = (hw) => 'hw-' + hw.desde.slice(0, 10);
+router.get('/:slug/halloween/mio', conCuenta, async (req, res) => {
+  try {
+    const hw = tienda.halloweenDe(req.tienda);
+    const r = (await pool.query('SELECT premio_id, texto, tipo, valor, cupon FROM tienda_halloween WHERE cliente_id = $1 AND temporada = $2', [req.clienteId, temporadaHw(hw)]).catch(() => ({ rows: [] }))).rows[0];
+    res.json({ jugado: !!r, premio: r ? { id: r.premio_id, texto: r.texto, tipo: r.tipo, valor: num(r.valor), cupon: r.cupon } : null, hasta: hw.hasta });
+  } catch (e) { res.status(500).json({ error: 'No se pudo leer' }); }
+});
+router.post('/:slug/halloween/jugar', conCuenta, async (req, res) => {
+  const hw = tienda.halloweenDe(req.tienda);
+  const enCurso = tienda.halloweenVigente(hw), vista = !enCurso && !!hw.token && String((req.body || {}).vista || '') === hw.token;
+  if (!hw.juego || (!enCurso && !vista)) return res.status(400).json({ error: 'El juego de Halloween no está activo' });
+  if (vista) { const p = tienda.elegirPremio(hw.premios); return res.json({ id: p.id, texto: p.texto, tipo: p.tipo, valor: p.valor, cupon: p.tipo === 'cupon' ? 'HW-PRUEBA' : null, prueba: true, hasta: hw.hasta }); }
+  const tablasCupon = await cuponesLib.asegurar();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext('tienda_halloween'), $1)`, [req.clienteId]);
+    const temp = temporadaHw(hw);
+    const ya = (await client.query('SELECT premio_id, texto, tipo, valor, cupon FROM tienda_halloween WHERE cliente_id = $1 AND temporada = $2', [req.clienteId, temp])).rows[0];
+    if (ya) { await client.query('ROLLBACK'); return res.json({ id: ya.premio_id, texto: ya.texto, tipo: ya.tipo, valor: num(ya.valor), cupon: ya.cupon, ya: true, hasta: hw.hasta }); }
+    const premio = tienda.elegirPremio(hw.premios);
+    let cupon = null;
+    if (premio.tipo === 'cupon') {
+      const vence = hw.hasta.slice(0, 10);
+      for (let i = 0; i < 5 && !cupon; i++) {
+        const cod = 'HW-' + crypto.randomBytes(3).toString('hex').toUpperCase().slice(0, 5);
+        const ok = await client.query(`INSERT INTO cupones (codigo, descripcion, tipo, valor, canal, max_usos, fecha_vencimiento, activo)
+          SELECT $1::text, $2::text, '%', $3, 'Halloween tienda', 1, $4::date, TRUE WHERE NOT EXISTS (SELECT 1 FROM cupones WHERE codigo = $1::text) RETURNING codigo`,
+          [cod, '¿Dulce o truco? (Halloween): ' + premio.texto, premio.valor, vence]);
+        if (ok.rows.length) cupon = cod;
+      }
+      if (!cupon) throw new Error('no se pudo crear el cupon');
+      // Solo lo puede usar ella
+      if (tablasCupon) {
+        const d = await cuponesLib.duenoPara(client, { cliente_id: req.clienteId });
+        await client.query('UPDATE cupones SET cliente_id = $1, dueno_dni = $2, dueno_tel = $3 WHERE codigo = $4', [d.cliente_id, d.dueno_dni, d.dueno_tel, cupon]);
+      }
+    } else if (premio.tipo === 'puntos') {
+      await client.query('UPDATE clientes SET puntos = COALESCE(puntos, 0) + $1 WHERE id = $2', [premio.valor, req.clienteId]);
+    }
+    await client.query('INSERT INTO tienda_halloween (cliente_id, temporada, premio_id, texto, tipo, valor, cupon) VALUES ($1, $2, $3, $4, $5, $6, $7)', [req.clienteId, temp, premio.id, premio.texto, premio.tipo, premio.valor, cupon]);
+    await client.query('COMMIT');
+    res.json({ id: premio.id, texto: premio.texto, tipo: premio.tipo, valor: premio.valor, cupon, hasta: hw.hasta });
+  } catch (e) {
+    try { await client.query('ROLLBACK'); } catch (x) {}
+    console.error('[tienda publica] halloween:', e.message);
+    res.status(500).json({ error: 'No se pudo jugar. Probá de nuevo.' });
+  } finally { client.release(); }
+});
 
 router.post('/:slug/cuenta/ingresar', async (req, res) => {
   try {

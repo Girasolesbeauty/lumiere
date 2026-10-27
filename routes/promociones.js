@@ -85,6 +85,31 @@ router.put('/cyber-tienda', async (req, res) => {
     res.json({ cyber: k, en_curso: tienda.cyberVigente(k) });
   } catch (e) { console.error('[cyber tienda]', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
 });
+// Halloween en la tienda online (diseño, juego "¿Dulce o truco?" y sector de productos)
+router.get('/halloween-tienda', async (req, res) => {
+  try {
+    const tienda = require('../lib/tienda');
+    await tienda.asegurar();
+    const c = await tienda.leerConfig();
+    const h = tienda.halloweenDe(c);
+    const jugadas = (await pool.query(`SELECT texto, tipo, COUNT(*)::int AS n FROM tienda_halloween WHERE temporada = $1 GROUP BY texto, tipo ORDER BY n DESC`, ['hw-' + h.desde.slice(0, 10)]).catch(() => ({ rows: [] }))).rows;
+    const usados = (await pool.query(`SELECT COUNT(*)::int AS n FROM tienda_halloween th JOIN cupones cu ON cu.codigo = th.cupon WHERE th.temporada = $1 AND COALESCE(cu.usos, 0) > 0`, ['hw-' + h.desde.slice(0, 10)]).catch(() => ({ rows: [{ n: 0 }] }))).rows[0].n;
+    res.json({ halloween: h, en_curso: tienda.halloweenVigente(h), slug: c.slug || null, publicada: !!c.activo, dominio: await tienda.dominioDe((req.negocio && req.negocio.id) || 1).catch(() => null), jugadas, cupones_usados: usados });
+  } catch (e) { console.error('[halloween tienda]', e.message); res.status(500).json({ error: 'No se pudo leer' }); }
+});
+router.put('/halloween-tienda', async (req, res) => {
+  try {
+    const tienda = require('../lib/tienda');
+    await tienda.asegurar();
+    const c = await tienda.leerConfig();
+    const ant = tienda.halloweenDe(c), b = req.body || {};
+    const h = tienda.halloweenDe({ halloween: { ...b, token: ant.token || require('crypto').randomBytes(12).toString('hex') } });
+    if (h.desde > h.hasta) return res.status(400).json({ error: 'La fecha de fin tiene que ser después de la de inicio' });
+    if (h.juego && !h.premios.some(x => x.chance > 0)) return res.status(400).json({ error: 'Poné chances a los premios del juego' });
+    await pool.query('UPDATE tienda_config SET halloween = $1 WHERE id = 1', [JSON.stringify(h)]);
+    res.json({ halloween: h, en_curso: tienda.halloweenVigente(h) });
+  } catch (e) { console.error('[halloween tienda]', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+});
 router.get('/plan-liquidacion', async (req, res) => {
   try {
     await asegurarPlan();

@@ -26317,6 +26317,49 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-cy-chips span{font-size:11.5px;font-weight:700;border:1px solid rgba(192,132,252,.45);border-radius:999px;padding:5px 10px;background:rgba(255,255,255,.08)}
 .tw .tw-nav .tw-cy-nav{background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;border-radius:999px;padding:6px 14px;font-weight:900;letter-spacing:.1em}
 .tw-etq.tw-cy-badge{background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;font-weight:900;border:0}
+.tw-hw-barra{background:#120a1f!important;color:#ffb347!important;font-weight:800;letter-spacing:.08em;font-size:12px;white-space:nowrap}
+.tw-hw-hero{position:relative;overflow:hidden;margin:14px 16px 8px;border-radius:24px;padding:30px 22px 26px;background:radial-gradient(circle at 82% 12%,#4a2470 0,#1c0d2e 42%,#0b0612 100%);color:#fff;text-align:left;isolation:isolate}
+.tw-hw-luna{position:absolute;top:16px;right:20px;width:74px;height:74px;border-radius:50%;background:radial-gradient(circle at 36% 34%,#fffbe6,#ffd36b 58%,#e39a2f);box-shadow:0 0 46px 12px rgba(255,180,70,.35);z-index:-1}
+.tw-hw-tela{position:absolute;top:0;left:0;width:120px;height:120px;opacity:.28;z-index:-1}
+.tw-hw-murc{position:absolute;inset:0;pointer-events:none;z-index:-1}
+.tw-hw-murc i{position:absolute;font-style:normal;left:-40px;animation:twMurc 9s linear infinite;filter:drop-shadow(0 0 4px rgba(0,0,0,.6))}
+.tw-hw-murc i:nth-child(1){top:22%;font-size:22px}
+.tw-hw-murc i:nth-child(2){top:48%;font-size:16px;animation-duration:12s;animation-delay:3s}
+.tw-hw-murc i:nth-child(3){top:12%;font-size:13px;animation-duration:10s;animation-delay:6s}
+@keyframes twMurc{0%{transform:translate(0,0) scaleX(1)}25%{transform:translate(28vw,-14px)}50%{transform:translate(56vw,10px)}75%{transform:translate(84vw,-10px)}100%{transform:translate(118vw,4px)}}
+.tw-hw-ceja{font-size:11px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:#ffb347;margin-bottom:10px;max-width:72%}
+.tw-hw-tit{font-size:42px;font-weight:900;line-height:1.02;letter-spacing:-.01em;background:linear-gradient(90deg,#ff7a00,#ffcf7a,#ff7a00);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:twLiquido 3.2s linear infinite;margin:0 0 10px}
+.tw-hw-sub{font-size:15px;line-height:1.45;color:#e8dcf5;margin:0 0 16px;max-width:520px}
+.tw-hw-gana{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 18px}
+.tw-hw-gana span{font-size:12px;font-weight:800;padding:5px 10px;border-radius:99px;background:rgba(255,154,60,.14);border:1px solid rgba(255,154,60,.45);color:#ffcf9a}
+.tw-hw-btns{display:flex;flex-wrap:wrap;gap:10px}
+.tw-hw-btn{border:0;border-radius:99px;padding:13px 20px;font-weight:900;font-size:14px;letter-spacing:.04em;cursor:pointer;background:linear-gradient(90deg,#ff7a00,#ffa53c);color:#1a0b00!important;box-shadow:0 6px 22px rgba(255,122,0,.45);animation:twHwLate 1.8s ease-in-out infinite}
+.tw-hw-btn.sec{background:transparent;color:#fff!important;border:1.5px solid rgba(255,255,255,.55);box-shadow:none;animation:none}
+@keyframes twHwLate{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+.tw-hw-nav{background:linear-gradient(90deg,#ff7a00,#ffa53c)!important;color:#1a0b00!important;border-radius:99px;font-weight:900!important}
+.tw-hw-vista{position:fixed;left:12px;right:12px;bottom:12px;z-index:400;background:#1c0d2e;color:#ffd9b0;border:1px solid #ff7a00;border-radius:14px;padding:10px 14px;font-size:12.5px;line-height:1.4;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+@media (min-width:700px){.tw-hw-vista{left:auto;max-width:420px}}
+.tw-hw-fab{position:fixed;left:14px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:31;border:0;border-radius:99px;padding:10px 16px 10px 10px;display:flex;align-items:center;gap:8px;background:#1c0d2e;color:#ffcf9a!important;font-weight:900;font-size:13px;cursor:pointer;box-shadow:0 8px 26px rgba(28,13,46,.45),0 0 0 2px #ff7a00}
+.tw-hw-fab b{font-size:30px;line-height:1;display:inline-block;animation:twHwSalta 1.6s ease-in-out infinite}
+@keyframes twHwSalta{0%,100%{transform:translateY(0) rotate(0)}30%{transform:translateY(-6px) rotate(-8deg)}60%{transform:translateY(0) rotate(6deg)}}
+.tw-hw-modal{position:fixed;inset:0;z-index:500;background:rgba(8,4,14,.72);display:flex;align-items:center;justify-content:center;padding:16px}
+.tw-hw-caja{position:relative;width:100%;max-width:420px;border-radius:26px;padding:26px 22px 22px;background:radial-gradient(circle at 80% 0,#4a2470 0,#1c0d2e 50%,#0b0612 100%);color:#fff;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5);animation:twHwAbre .45s cubic-bezier(.3,1.5,.5,1) both;overflow:hidden}
+@keyframes twHwAbre{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
+.tw-hw-caja h3{margin:4px 0 6px;font-size:26px;font-weight:900;color:#ffb347}
+.tw-hw-caja p{margin:0 0 14px;color:#e8dcf5;font-size:14px;line-height:1.45}
+.tw-hw-cerrar{position:absolute;top:10px;right:12px;background:none;border:0;color:#fff!important;font-size:22px;cursor:pointer;opacity:.8}
+.tw-hw-calabazas{display:flex;justify-content:center;gap:14px;margin:12px 0 16px}
+.tw-hw-calabazas button{background:none;border:0;font-size:56px;line-height:1.15;cursor:pointer;filter:drop-shadow(0 0 14px rgba(255,122,0,.55));transition:transform .2s}
+.tw-hw-calabazas button:nth-child(1){animation:twHwSalta 1.6s ease-in-out infinite}
+.tw-hw-calabazas button:nth-child(2){animation:twHwSalta 1.6s ease-in-out .25s infinite}
+.tw-hw-calabazas button:nth-child(3){animation:twHwSalta 1.6s ease-in-out .5s infinite}
+.tw-hw-calabazas button:hover{transform:scale(1.15)}
+.tw-hw-tiembla{font-size:86px;line-height:1.15;display:inline-block;animation:twHwTiembla .12s linear infinite;filter:drop-shadow(0 0 22px rgba(255,122,0,.8))}
+@keyframes twHwTiembla{0%{transform:rotate(-8deg) scale(1)}50%{transform:rotate(8deg) scale(1.06)}100%{transform:rotate(-8deg) scale(1)}}
+.tw-hw-premio{font-size:80px;line-height:1.15;display:inline-block;margin-bottom:6px;animation:twHwAbre .6s cubic-bezier(.3,1.6,.5,1) both}
+.tw-hw-cod{display:flex;gap:8px;align-items:center;justify-content:center;margin:6px 0 10px}
+.tw-hw-cod code{font-size:22px;font-weight:900;letter-spacing:.12em;padding:8px 14px;border-radius:12px;background:#fff;color:#1c0d2e}
+.tw-hw-chica{font-size:12px!important;color:#cdb9e6!important}
 .tw-cy-vista{position:fixed;left:12px;right:12px;bottom:12px;z-index:400;background:#12002e;color:#e9d5ff;border:1px solid #7c3aed;border-radius:14px;padding:10px 14px;font-size:12.5px;line-height:1.4;box-shadow:0 8px 24px rgba(0,0,0,.35)}
 @media (min-width:700px){.tw-cy-vista{left:auto;max-width:420px}}
 @media (prefers-reduced-motion:reduce){.tw-cy-hero::after{animation:none}}
@@ -27723,7 +27766,7 @@ function twSlugs(lista) {
 // Producto que pide la direccion: /nombre-del-producto (dominio propio) o ?producto=... (link de Lumiere)
 // Direccion de cada seccion: /preventa, /regalos, /videos, /favoritos, /todo, /nuevamente-en-stock y, con una
 // letra adelante para no chocar con los productos, /c/categoria, /s/sector, /m/marca (sin dominio: ?seccion=...)
-const TW_SECC_FIJAS = { cyber: "cyber", preventa: "preventa", regalos: "regalos", rutina: "rutina", diagnostico: "diagnostico", videos: "videos", favoritos: "favoritos", "*": "todo", reingreso: "nuevamente-en-stock" };
+const TW_SECC_FIJAS = { halloween: "halloween", cyber: "cyber", preventa: "preventa", regalos: "regalos", rutina: "rutina", diagnostico: "diagnostico", videos: "videos", favoritos: "favoritos", "*": "todo", reingreso: "nuevamente-en-stock" };
 const TW_SECC_RUTAS = Object.fromEntries(Object.entries(TW_SECC_FIJAS).map(([k, v]) => [v, k]));
 const twSeccionDeUrl = () => {
   try {
@@ -27873,6 +27916,80 @@ const twMejorPct = (promos, p) => (promos || []).reduce((m, x) => { const ok = x
 function TwCyberBarra({ cy }) {
   const t = useCuentaRegresiva(twCyHasta(cy.hasta));
   return <div className="tw-anuncio tw-cy-barra" aria-live="off"><div><span>{"⚡ "}<span className="tw-cy-bl">CYBER MONDAY</span><span className="tw-cy-bc">CYBER</span>{" · "}{String(cy.titulo || "").toUpperCase()}{t.ms ? <>{" · "}<span className="tw-cy-bl">TERMINA EN </span>{t.d ? t.d + "D " : ""}{twDos(t.h)}:{twDos(t.m)}:{twDos(t.s)}</> : null}</span></div></div>;
+}
+// ── Halloween en la tienda ──
+function TwHwBarra({ hw }) {
+  const t = useCuentaRegresiva(twCyHasta(hw.hasta));
+  return <div className="tw-anuncio tw-hw-barra" aria-live="off"><div><span>{"🎃 "}{String(hw.titulo || "").toUpperCase()}{t.ms ? <>{" · TERMINA EN "}{t.d ? t.d + "D " : ""}{twDos(t.h)}:{twDos(t.m)}:{twDos(t.s)}</> : null}</span></div></div>;
+}
+function TwHwHero({ hw, onJugar, onVer, hayLook }) {
+  return (
+    <section className="tw-hw-hero" aria-label="Halloween">
+      <span className="tw-hw-luna" aria-hidden="true" />
+      <svg className="tw-hw-tela" viewBox="0 0 100 100" aria-hidden="true" fill="none" stroke="#fff" strokeWidth=".8"><path d="M0 0 L100 100 M0 0 L60 100 M0 0 L100 60 M0 0 L25 100 M0 0 L100 25" /><path d="M0 18 Q14 16 18 0 M0 36 Q30 32 36 0 M0 56 Q46 50 56 0 M0 78 Q66 70 78 0" /></svg>
+      <div className="tw-hw-murc" aria-hidden="true"><i>🦇</i><i>🦇</i><i>🦇</i></div>
+      {hw.ceja && <div className="tw-hw-ceja">{hw.ceja}</div>}
+      <h2 className="tw-hw-tit">{hw.titulo}</h2>
+      {hw.subtitulo && <p className="tw-hw-sub">{hw.subtitulo}</p>}
+      {hw.juego && hw.premios && hw.premios.length > 0 && <div className="tw-hw-gana" aria-label="Premios">{hw.premios.slice(0, 4).map((x, i) => <span key={i}>🍬 {x}</span>)}</div>}
+      <div className="tw-hw-btns">
+        {hw.juego && <button className="tw-hw-btn" onClick={onJugar}>🎃 Abrí tu calabaza</button>}
+        {hayLook && <button className="tw-hw-btn sec" onClick={onVer}>Tu look de Halloween</button>}
+      </div>
+    </section>
+  );
+}
+// "¿Dulce o truco?": elegir una calabaza → premio (una vez por clienta, con su cuenta)
+function TwDulceTruco({ hw, logueada, mio, onCerrar, onIngresar, onJugar, onVerLook }) {
+  const [estado, setEstado] = useState(mio ? "listo" : "elegir");
+  const [premio, setPremio] = useState(mio || null);
+  const [error, setError] = useState("");
+  const [copiado, setCopiado] = useState(false);
+  const jugar = async () => {
+    setEstado("jugando"); setError("");
+    const inicio = Date.now();
+    try { const p = await onJugar(); await new Promise(r => setTimeout(r, Math.max(0, 1400 - (Date.now() - inicio)))); setPremio(p); setEstado("listo"); }
+    catch (e) { setError(e.message || "No se pudo jugar"); setEstado("elegir"); }
+  };
+  const hasta = hw.hasta ? hw.hasta.slice(8, 10) + "/" + hw.hasta.slice(5, 7) : "";
+  return (
+    <div className="tw-hw-modal" role="dialog" aria-modal="true" aria-label="¿Dulce o truco?" onClick={onCerrar}>
+      <div className="tw-hw-caja" onClick={e => e.stopPropagation()}>
+        <button className="tw-hw-cerrar" onClick={onCerrar} aria-label="Cerrar">×</button>
+        {!logueada ? <>
+          <div style={{ fontSize: 60, lineHeight: 1.15, marginBottom: 6 }}>🎃</div>
+          <h3>¿Dulce o truco?</h3>
+          <p>Para abrir tu calabaza necesitás tu cuenta de la tienda. Es gratis, y además sumás puntos con cada compra.</p>
+          <button className="tw-hw-btn" onClick={onIngresar}>Ingresar o crear mi cuenta</button>
+        </> : estado === "elegir" ? <>
+          <h3>¿Dulce o truco?</h3>
+          <p>Elegí una calabaza: adentro hay un premio… o un truco 👻</p>
+          <div className="tw-hw-calabazas">{[0, 1, 2].map(i => <button key={i} onClick={jugar} aria-label={"Calabaza " + (i + 1)}>🎃</button>)}</div>
+          {error && <p style={{ color: "#ffb4a8" }}>{error}</p>}
+          <p className="tw-hw-chica">Una calabaza por clienta{hasta ? " · hasta el " + hasta : ""}</p>
+        </> : estado === "jugando" ? <>
+          <div className="tw-hw-tiembla">🎃</div>
+          <p style={{ marginTop: 14 }}>Abriendo tu calabaza…</p>
+        </> : premio && <>
+          <div className="tw-hw-premio">{premio.tipo === "nada" ? "👻" : premio.tipo === "puntos" ? "✨" : "🍬"}</div>
+          <h3>{premio.tipo === "nada" ? "¡Truco!" : "¡Dulce!"}</h3>
+          {premio.tipo === "cupon" && <>
+            <p>Ganaste <b>{premio.texto}</b> para tu compra en la tienda online. Usá este código al pagar:</p>
+            <div className="tw-hw-cod"><code>{premio.cupon}</code><button className="tw-hw-btn sec" style={{ padding: "8px 12px" }} onClick={() => { try { navigator.clipboard.writeText(premio.cupon); setCopiado(true); } catch (e) {} }}>{copiado ? "✓" : "Copiar"}</button></div>
+            <p className="tw-hw-chica">Es solo para vos (con tu cuenta){hasta ? " y vale hasta el " + hasta : ""}.</p>
+          </>}
+          {premio.tipo === "puntos" && <p>Sumaste <b>{premio.texto}</b> a tu cuenta. Canjealos por premios cuando quieras.</p>}
+          {premio.tipo === "nada" && <p>Esta vez la calabaza estaba vacía… ¡pero mirá todo lo que preparamos para tu look de Halloween!</p>}
+          {premio.ya && <p className="tw-hw-chica">Ya habías abierto tu calabaza: este es tu premio.</p>}
+          {premio.prueba && <p className="tw-hw-chica">(Vista previa: no se guardó ni se dio nada)</p>}
+          <div className="tw-hw-btns" style={{ justifyContent: "center", marginTop: 8 }}>
+            {onVerLook && <button className="tw-hw-btn" onClick={onVerLook}>Ver tu look de Halloween</button>}
+            <button className="tw-hw-btn sec" onClick={onCerrar}>Seguir mirando</button>
+          </div>
+        </>}
+      </div>
+    </div>
+  );
 }
 function TwCyberHero({ cy, onVer }) {
   const t = useCuentaRegresiva(twCyHasta(cy.hasta));
@@ -28783,6 +28900,7 @@ function TiendaPublica({ slug }) {
   const params = new URLSearchParams(window.location.search);
   // Link privado de vista previa del Cyber (?cyber=codigo): queda guardado mientras se navega la tienda
   const cyberTok = (() => { const q = params.get("cyber"); try { if (q) sessionStorage.setItem("tienda_cyber", q); return q || sessionStorage.getItem("tienda_cyber") || ""; } catch (e) { return q || ""; } })();
+  const hwTok = (() => { const q = params.get("halloween"); try { if (q) sessionStorage.setItem("tienda_halloween", q); return q || sessionStorage.getItem("tienda_halloween") || ""; } catch (e) { return q || ""; } })();
   const [tienda, setTienda] = useState(null);
   const [error, setError] = useState("");
   const [productos, setProductos] = useState(null);
@@ -28858,6 +28976,9 @@ function TiendaPublica({ slug }) {
   const [aviso1, setAviso1] = useState(null); // { id, nombre, telefono, enviando, error }
   const [avisados, setAvisados] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_avisados_" + slug) || "[]"); } catch (e) { return []; } });
   const [miCuenta, setMiCuenta] = useState(null);
+  // Halloween: cartel del juego "¿Dulce o truco?" y lo que ya ganó esta clienta
+  const [hwJuego, setHwJuego] = useState(false);
+  const [hwMio, setHwMio] = useState(null);
   const [formCuenta, setFormCuenta] = useState({ modo: "ingresar" });
   // Al crear la cuenta: se fija si el DNI ya esta en Lumiere (clienta del local), si ya tiene cuenta o si es nueva
   const [infoDni, setInfoDni] = useState(null);
@@ -28901,6 +29022,7 @@ function TiendaPublica({ slug }) {
   }, []);
 
   useEffect(() => { if (paso !== "cuenta") { setVolverA(null); setMotivoCuenta(""); } }, [paso]);
+  useEffect(() => { if (!logueada || !tienda || !tienda.halloween || !tienda.halloween.juego || tienda.halloween.vista_previa) return; pedir("/halloween/mio").then(r => setHwMio(r.premio || null)).catch(() => {}); }, [logueada, !!(tienda && tienda.halloween)]); // eslint-disable-line react-hooks/exhaustive-deps
   // Reseñas: las del producto abierto, lo que la clienta puede reseñar y el formulario
   const [resVer, setResVer] = useState(null); // { id, d }
   const [misRes, setMisRes] = useState(null); // { para_resenar, mias }
@@ -28959,7 +29081,8 @@ function TiendaPublica({ slug }) {
   useEffect(() => {
     // Si el servidor no responde (por ej. mientras se actualiza), se reintenta solo unas veces antes de mostrar el aviso
     const conReintentos = (ruta, n = 0) => pedir(ruta).catch(e => e.red && n < 4 ? new Promise(ok => setTimeout(ok, 2000 * (n + 1))).then(() => conReintentos(ruta, n + 1)) : Promise.reject(e));
-    conReintentos(cyberTok ? "?cyber=" + encodeURIComponent(cyberTok) : "").then(t => {
+    const qsVista = [cyberTok && "cyber=" + encodeURIComponent(cyberTok), hwTok && "halloween=" + encodeURIComponent(hwTok)].filter(Boolean).join("&");
+    conReintentos(qsVista ? "?" + qsVista : "").then(t => {
       setTienda(t); document.title = t.titulo;
       // Icono de la tienda en la pestaña y en el acceso directo (en el dominio propio ya lo pone Vercel)
       if (t.icono_v) {
@@ -29401,7 +29524,8 @@ function TiendaPublica({ slug }) {
 
   const cabecera = (
     <>
-      {tienda.cyber ? <TwCyberBarra cy={tienda.cyber} /> : anuncios.length > 0 && <div className="tw-anuncio" aria-live="polite"><div key={anuncio}>{anuncios[anuncio % anuncios.length]}</div></div>}
+      {tienda.cyber ? <TwCyberBarra cy={tienda.cyber} /> : tienda.halloween ? <TwHwBarra hw={tienda.halloween} /> : anuncios.length > 0 && <div className="tw-anuncio" aria-live="polite"><div key={anuncio}>{anuncios[anuncio % anuncios.length]}</div></div>}
+      {tienda.halloween && tienda.halloween.vista_previa && !(tienda.cyber && tienda.cyber.vista_previa) && <div className="tw-hw-vista" role="note">🎃 <b>Vista previa de Halloween.</b> Las clientas todavía no lo ven: se prende solo el {tienda.halloween.desde.slice(8, 10)}/{tienda.halloween.desde.slice(5, 7)} a las {tienda.halloween.desde.slice(11)}. El juego acá es de prueba (no da premios de verdad).</div>}
       {tienda.cyber && tienda.cyber.vista_previa && <div className="tw-cy-vista" role="note">👁 <b>Vista previa del Cyber Monday.</b> Las clientas todavía no lo ven: se prende solo el {tienda.cyber.desde.slice(8, 10)}/{tienda.cyber.desde.slice(5, 7)} a las {tienda.cyber.desde.slice(11)}. Los descuentos son los de ese día; si comprás ahora, se cobra con los precios de hoy.</div>}
       <header className={"tw-cab" + (sombra ? " sombra" : "")}>
         <div className="tw-cab1">
@@ -29565,6 +29689,10 @@ function TiendaPublica({ slug }) {
     .filter(x => x.t && Date.now() / 1000 - x.t < reingreso.dias * 86400).sort((a, b) => b.t - a.t).map(x => x.p) : [];
   const cats = [...new Set(visibles.map(p => p.categoria).filter(Boolean))].sort();
   const preventas = tienda.preventa ? visibles.filter(esPreventa) : [];
+  // Halloween: "Para tu disfraz" y "Después de la fiesta" (en el orden elegido en Lumiere)
+  const hwDe = (ids) => (ids || []).map(id => visibles.find(p => p.id === id)).filter(Boolean);
+  const hwDisfraz = tienda.halloween ? hwDe(tienda.halloween.disfraz) : [], hwDespues = tienda.halloween ? hwDe(tienda.halloween.despues) : [];
+  const hwLook = [...hwDisfraz, ...hwDespues.filter(p => !hwDisfraz.includes(p))];
   // Lo mas vendido del mes (calculado en el servidor) y lo que la clienta miro hace poco
   const masVendidos = visibles.filter(p => p.top && !esPreventa(p)).sort((a, b) => a.top - b.top);
   const vistosLista = vistos.map(id => visibles.find(p => p.id === id)).filter(Boolean).slice(0, 12);
@@ -29581,14 +29709,14 @@ function TiendaPublica({ slug }) {
   // Banner que lleva a varios productos: se muestran esos (en el orden elegido)
   const idsBanner = (bn) => String(bn.valor || "").split(",").map(Number).filter(Boolean);
   const bannerCat = cat.startsWith("b:") ? (tienda.banners_img || []).find(bn => bn.id === cat.slice(2) && bn.destino === "productos") : null;
-  if (productos !== null && ((cat === "cyber" && !tienda.cyber) || (cat.startsWith("b:") && (!bannerCat || !visibles.some(p => idsBanner(bannerCat).includes(p.id)))) || (cat === "preventa" && !preventas.length) || (cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat === "regalos" && !tienda.regalos) || (cat === "diagnostico" && !tienda.diagnostico) || (cat.startsWith("pack:") && !packCat) || (cat && cat !== "*" && cat !== "cyber" && !cat.startsWith("s:") && !cat.startsWith("m:") && !cat.startsWith("pack:") && !cat.startsWith("b:") && cat !== "reingreso" && cat !== "videos" && cat !== "regalos" && cat !== "rutina" && cat !== "diagnostico" && cat !== "preventa" && cat !== "favoritos" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2))))) { setTimeout(() => setCat(""), 0); }
+  if (productos !== null && ((cat === "cyber" && !tienda.cyber) || (cat === "halloween" && !tienda.halloween) || (cat.startsWith("b:") && (!bannerCat || !visibles.some(p => idsBanner(bannerCat).includes(p.id)))) || (cat === "preventa" && !preventas.length) || (cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat === "regalos" && !tienda.regalos) || (cat === "diagnostico" && !tienda.diagnostico) || (cat.startsWith("pack:") && !packCat) || (cat && cat !== "*" && cat !== "cyber" && cat !== "halloween" && !cat.startsWith("s:") && !cat.startsWith("m:") && !cat.startsWith("pack:") && !cat.startsWith("b:") && cat !== "reingreso" && cat !== "videos" && cat !== "regalos" && cat !== "rutina" && cat !== "diagnostico" && cat !== "preventa" && cat !== "favoritos" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2))))) { setTimeout(() => setCat(""), 0); }
   const enSector = (sc, p) => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria);
   const delSector = sector ? visibles.filter(p => enSector(sector, p)) : [];
   const catsSector = sector ? [...new Set(delSector.map(p => p.categoria).filter(Boolean))].sort() : [];
   // Busqueda inteligente: primero lo que coincide en el nombre, despues por tipo, despues por descripcion
   const puntaje = new Map();
   const favLista = favs.map(id => lista0.find(p => p.id === id)).filter(Boolean);
-  const base1 = (cat === "reingreso" ? reingresados : cat === "preventa" ? preventas : cat === "favoritos" ? favLista : bannerCat ? idsBanner(bannerCat).map(id => visibles.find(p => p.id === id)).filter(Boolean) : cat === "cyber" ? visibles.filter(p => twMejorPct(promosLid, p) > 0).sort((a, b) => twMejorPct(promosLid, b) - twMejorPct(promosLid, a)) : q && (!cat || cat === "*") ? lista0 : visibles).filter(p => (!cat || cat === "*" || cat === "reingreso" || cat === "preventa" || cat === "favoritos" || cat === "cyber" || !!bannerCat || (sector ? enSector(sector, p) && (!subcat || p.categoria === subcat) : cat.startsWith("m:") ? (p.marca || "") === cat.slice(2) : cat.startsWith("pack:") ? !!packCat && twEnPack(packCat, p.id, p.marca) : p.categoria === cat)) && (!q || (puntaje.set(p.id, twCoincide(p, q)), puntaje.get(p.id) > 0))
+  const base1 = (cat === "reingreso" ? reingresados : cat === "preventa" ? preventas : cat === "favoritos" ? favLista : bannerCat ? idsBanner(bannerCat).map(id => visibles.find(p => p.id === id)).filter(Boolean) : cat === "halloween" ? hwLook : cat === "cyber" ? visibles.filter(p => twMejorPct(promosLid, p) > 0).sort((a, b) => twMejorPct(promosLid, b) - twMejorPct(promosLid, a)) : q && (!cat || cat === "*") ? lista0 : visibles).filter(p => (!cat || cat === "*" || cat === "reingreso" || cat === "preventa" || cat === "favoritos" || cat === "cyber" || cat === "halloween" || !!bannerCat || (sector ? enSector(sector, p) && (!subcat || p.categoria === subcat) : cat.startsWith("m:") ? (p.marca || "") === cat.slice(2) : cat.startsWith("pack:") ? !!packCat && twEnPack(packCat, p.id, p.marca) : p.categoria === cat)) && (!q || (puntaje.set(p.id, twCoincide(p, q)), puntaje.get(p.id) > 0))
     // Lo agotado no se ve al navegar; si lo buscan por nombre aparece (al final), para poder pedir "Avisame cuando vuelva"
     && (!q || !agotado(p) || twEnNombre(p, q)));
   // Si hay productos que coinciden por nombre o tipo, no se mezclan los que solo lo mencionan en la descripcion
@@ -30113,6 +30241,7 @@ function TiendaPublica({ slug }) {
         <div className="tw-navbar">
           <nav className="tw-nav" aria-label="Categorías">
             <button className={!enLista ? "on" : ""} onClick={irInicio}>Inicio</button>
+            {tienda.halloween && hwLook.length > 0 && <button className={"tw-hw-nav" + (cat === "halloween" && !q ? " on" : "")} onClick={() => irCat("halloween")}>🎃 HALLOWEEN</button>}
             {tienda.cyber && <button className={"tw-cy-nav" + (cat === "cyber" && !q ? " on" : "")} onClick={() => irCat("cyber")}>CYBER</button>}
             <button className={cat === "*" && !q ? "on" : ""} onClick={() => irCat("*")}>Todo</button>
             {tienda.regalos && (tienda.regalos.giftcards
@@ -30152,7 +30281,7 @@ function TiendaPublica({ slug }) {
         ) : enLista ? (
           <>
             <div className="tw-lista-cab">
-              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.ingrediente && !filtros.tipo && !filtros.piel && !filtros.necesidad ? "Con " + ((TW_ING_OP.find(o => o[0] === filtros.ingrediente) || ["", ""])[1]) : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : packCat ? "🎁 " + packCat.nombre + ": " + packCat.cantidad + " o más = " + packCat.pct + "% OFF" : cat === "preventa" ? "⏳ " + tienda.preventa.titulo : cat === "favoritos" ? "❤️ Tus favoritos" : bannerCat ? (bannerCat.titulo || "Elegidos para vos") : cat === "cyber" ? "⚡ Ofertas Cyber" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>{sector && !q && lista.length === 0 && combosSector(sector).length > 0 ? combosSector(sector).length + (combosSector(sector).length === 1 ? " kit" : " kits") : lista.length + " " + (lista.length === 1 ? "producto" : "productos")}
+              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.ingrediente && !filtros.tipo && !filtros.piel && !filtros.necesidad ? "Con " + ((TW_ING_OP.find(o => o[0] === filtros.ingrediente) || ["", ""])[1]) : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : packCat ? "🎁 " + packCat.nombre + ": " + packCat.cantidad + " o más = " + packCat.pct + "% OFF" : cat === "preventa" ? "⏳ " + tienda.preventa.titulo : cat === "favoritos" ? "❤️ Tus favoritos" : bannerCat ? (bannerCat.titulo || "Elegidos para vos") : cat === "halloween" ? "🎃 Tu look de Halloween" : cat === "cyber" ? "⚡ Ofertas Cyber" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>{sector && !q && lista.length === 0 && combosSector(sector).length > 0 ? combosSector(sector).length + (combosSector(sector).length === 1 ? " kit" : " kits") : lista.length + " " + (lista.length === 1 ? "producto" : "productos")}
                 {q && <button className="tw-compartir-sec" onClick={() => compartirSeccion("“" + busca.trim() + "”")}>{seccionCopiada ? "✓ Link copiado" : "🔗 Compartir"}</button>}
                 {!q && cat && cat !== "favoritos" && <button className="tw-compartir-sec" onClick={() => compartirSeccion(cat === "preventa" ? tienda.preventa.titulo : sector ? sector.nombre : cat === "*" ? "Todos los productos" : cat === "reingreso" ? reingreso.nombre : cat.startsWith("m:") ? cat.slice(2) : cat)}>{seccionCopiada ? "✓ Link copiado" : "🔗 Compartir"}</button>}</div></div>
               {!(sector && !q && lista.length === 0 && combosSector(sector).length > 0) && <select value={orden} onChange={e => setOrden(e.target.value)} aria-label="Ordenar">{TW_ORDEN.map(([k, t]) => <option key={k} value={k}>Ordenar: {t}</option>)}</select>}
@@ -30188,6 +30317,9 @@ function TiendaPublica({ slug }) {
         ) : (
           <>
             {tienda.cyber && <TwCyberHero cy={tienda.cyber} onVer={() => irCat("cyber")} />}
+            {tienda.halloween && !tienda.cyber && <TwHwHero hw={tienda.halloween} hayLook={hwLook.length > 0} onJugar={() => setHwJuego(true)} onVer={() => irCat("halloween")} />}
+            {tienda.halloween && <TwFila titulo="🎃 Para tu disfraz" items={hwDisfraz} onVerTodo={() => irCat("halloween")} render={tarjeta} />}
+            {tienda.halloween && <TwFila titulo="🧖 Después de la fiesta" sub={<div className="tw-pre-txt">Para sacarte todo el maquillaje y cuidar tu piel</div>} items={hwDespues} onVerTodo={() => irCat("halloween")} render={tarjeta} />}
             {/* Regalos: en una fecha especial (Dia de la Madre, Navidad...) va arriba de todo; si no, debajo de los banners */}
             {tienda.regalos && tienda.regalos.en_inicio !== false && tienda.regalos.tema !== "general" && <TwRegalosHero r={tienda.regalos} tienda={tienda} onGift={() => irRegalos("gift")} onArmar={() => irRegalos("armar")} />}
             {/* Kits y combos: arriba de todo (después del banner de la fecha especial, si hay) */}
@@ -30270,6 +30402,16 @@ function TiendaPublica({ slug }) {
         )}
       </main>
       {pie}
+
+      {/* Halloween: calabaza flotante para jugar "¿Dulce o truco?" */}
+      {tienda.halloween && tienda.halloween.juego && !paso && !ver && !hwJuego && (
+        <button className="tw-hw-fab" onClick={() => setHwJuego(true)} aria-label="Jugar ¿Dulce o truco?"><b aria-hidden="true">🎃</b>{hwMio ? "Tu premio" : "¿Dulce o truco?"}</button>
+      )}
+      {hwJuego && tienda.halloween && <TwDulceTruco hw={tienda.halloween} logueada={logueada} mio={hwMio && !tienda.halloween.vista_previa ? { ...hwMio, ya: true } : null}
+        onCerrar={() => setHwJuego(false)}
+        onIngresar={() => { setHwJuego(false); setVer(null); setAvisoCuenta(null); setCanjeHecho(null); setFormCuenta({ modo: "ingresar" }); setPaso("cuenta"); setTimeout(() => setMotivoCuenta("Ingresá o creá tu cuenta para abrir tu calabaza de Halloween 🎃"), 0); }}
+        onJugar={async () => { const r = await pedir("/halloween/jugar", { method: "POST", body: JSON.stringify({ vista: hwTok }) }); if (!r.prueba) setHwMio(r); return r; }}
+        onVerLook={hwLook.length > 0 ? () => { setHwJuego(false); irCat("halloween"); } : null} />}
 
       {/* WhatsApp flotante: siempre a mano, al del local de la ciudad elegida */}
       {hayWa && !paso && !ver && !formRes && (
@@ -33074,6 +33216,112 @@ function flyDibujar(ctx, W, H, t, d) {
   ctx.textAlign = "left";
   return dur;
 }
+// Halloween en la tienda online: fechas, textos, juego "¿Dulce o truco?" (premios) y sector "Tu look de Halloween"
+function HalloweenTienda({ temaPal, productos }) {
+  const p = temaPal;
+  const [d, setD] = useState(null);
+  const [f, setF] = useState(null);
+  const [aviso, setAviso] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [busca, setBusca] = useState({ disfraz: "", despues: "" });
+  const cargar = () => API.get("/promociones/halloween-tienda").then(r => { setD(r.data); setF(r.data.halloween); }).catch(() => setD(false));
+  useEffect(() => { cargar(); }, []);
+  if (d === false) return <div className="card" style={{ color: p.textMuted }}>No se pudo cargar Halloween.</div>;
+  if (!d || !f) return <div className="card"><div className="skel" style={{ height: 160 }} /></div>;
+  const set = (k, v) => setF(x => ({ ...x, [k]: v }));
+  const guardar = async () => {
+    setGuardando(true);
+    try { const r = await API.put("/promociones/halloween-tienda", f); setD(x => ({ ...x, halloween: r.data.halloween, en_curso: r.data.en_curso })); setF(r.data.halloween); setAviso("✅ Guardado"); }
+    catch (e) { setAviso("Error: " + (e.response?.data?.error || e.message)); }
+    setGuardando(false); setTimeout(() => setAviso(""), 4000);
+  };
+  const k = d.halloween, slug = d.slug;
+  const linkDe = (tok) => slug ? (d.dominio ? "https://" + d.dominio + "/" + (tok ? "?halloween=" + tok : "") : window.location.origin + "/?tienda=" + encodeURIComponent(slug) + (tok ? "&halloween=" + tok : "")) : "";
+  const verComoQueda = async () => {
+    if (d.en_curso) { window.open(linkDe(""), "_blank"); return; }
+    if (k.token) { window.open(linkDe(k.token), "_blank"); return; }
+    const w = window.open("", "_blank");
+    try { const r = await API.put("/promociones/halloween-tienda", k); setD(x => ({ ...x, halloween: r.data.halloween })); if (w) w.location.href = linkDe(r.data.halloween.token); }
+    catch (e) { if (w) w.close(); setAviso("Error: " + (e.response?.data?.error || e.message)); }
+  };
+  const fmtF = (fh) => { const [a, h] = String(fh).split("T"); const [, m, dd] = a.split("-"); return dd + "/" + m + " " + h; };
+  const estado = d.en_curso ? ["🟢 En curso: las clientas lo están viendo", p.green] : k.activo ? ["🗓️ Programado: se prende solo el " + fmtF(k.desde) + " y se apaga el " + fmtF(k.hasta), p.accentText] : ["⚪ Apagado: la tienda se ve normal", p.textMuted];
+  const lbl = { fontSize: 11, color: p.textMuted, display: "block", marginBottom: 4 };
+  const totalChance = f.premios.reduce((t, x) => t + (parseInt(x.chance) || 0), 0) || 1;
+  const setPremio = (i, campo, v) => set("premios", f.premios.map((x, j) => j === i ? { ...x, [campo]: v } : x));
+  const nombreProd = (id) => (productos || []).find(x => x.id === id);
+  const lista = (clave, titulo, ayuda) => {
+    const q = normTxt(busca[clave]); const ids = f[clave] || [];
+    const sug = q.length >= 2 ? (productos || []).filter(x => !ids.includes(x.id) && normTxt([x.nombre, x.marca, x.categoria].join(" ")).includes(q)).slice(0, 8) : [];
+    return (
+      <div style={{ border: "1px solid " + p.border, borderRadius: 12, padding: 12 }}>
+        <div style={{ fontWeight: 800, fontSize: 13.5 }}>{titulo} <span style={{ color: p.textMuted, fontWeight: 500 }}>({ids.length})</span></div>
+        <div style={{ fontSize: 11.5, color: p.textMuted, marginBottom: 8 }}>{ayuda}</div>
+        <input className="inp" style={{ width: "100%" }} placeholder="Buscar producto para sumar…" value={busca[clave]} onChange={e => setBusca(b => ({ ...b, [clave]: e.target.value }))} />
+        {sug.length > 0 && <div style={{ border: "1px solid " + p.border, borderRadius: 8, marginTop: 4 }}>{sug.map(x => <div key={x.id} onClick={() => { set(clave, [...ids, x.id]); setBusca(b => ({ ...b, [clave]: "" })); }} style={{ padding: "6px 10px", cursor: "pointer", fontSize: 12.5, borderBottom: "1px solid " + p.border }}>+ {x.nombre}{x.marca ? <span style={{ color: p.textMuted }}> · {x.marca}</span> : null}{!x.publicado ? <span style={{ color: p.warn }}> · no está publicado</span> : null}</div>)}</div>}
+        <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+          {ids.map((id, i) => { const x = nombreProd(id); return (
+            <div key={id} style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12.5 }}>
+              <span style={{ flex: 1, minWidth: 0 }}>{x ? x.nombre : "Producto #" + id}{x && !x.publicado ? <span style={{ color: p.warn }}> · no está publicado (no se ve)</span> : null}</span>
+              <button className="chip-btn" disabled={i === 0} onClick={() => { const n = [...ids]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; set(clave, n); }} aria-label="Subir">↑</button>
+              <button className="chip-btn" style={{ color: p.red }} onClick={() => set(clave, ids.filter(y => y !== id))} aria-label="Quitar">✕</button>
+            </div>); })}
+          {!ids.length && <div style={{ fontSize: 12, color: p.textMuted }}>Todavía no sumaste productos.</div>}
+        </div>
+      </div>
+    );
+  };
+  return (
+    <div className="card" style={{ textAlign: "left", marginBottom: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div className="ct" style={{ margin: 0 }}>🎃 Halloween en la tienda online</div>
+        {slug && <button className="btn btn-p" onClick={verComoQueda}>👀 Ver cómo va a quedar la tienda</button>}
+      </div>
+      <div style={{ fontSize: 12.5, color: p.textMuted, margin: "6px 0 12px" }}>Portada negra y naranja con murciélagos, la calabaza "¿Dulce o truco?" para que las clientas ganen un premio (una vez cada una, con su cuenta) y el sector "Tu look de Halloween". Solo se ve entre las fechas que pongas.</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><Sw on={!!f.activo} toggle={() => set("activo", !f.activo)} /><b style={{ fontSize: 13 }}>Programar en la tienda</b></div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: estado[1], marginBottom: 14 }}>{estado[0]}{f.activo !== k.activo ? " · (guardá para aplicar)" : ""}</div>
+      <div className="g2">
+        <div><label style={lbl}>Empieza</label><input className="inp" type="datetime-local" value={f.desde} onChange={e => set("desde", e.target.value)} /></div>
+        <div><label style={lbl}>Termina</label><input className="inp" type="datetime-local" value={f.hasta} onChange={e => set("hasta", e.target.value)} /></div>
+        <div><label style={lbl}>Texto chiquito de arriba</label><input className="inp" value={f.ceja} maxLength={80} onChange={e => set("ceja", e.target.value)} /></div>
+        <div><label style={lbl}>Título grande</label><input className="inp" value={f.titulo} maxLength={40} onChange={e => set("titulo", e.target.value)} /></div>
+        <div style={{ gridColumn: "1 / -1" }}><label style={lbl}>Bajada</label><input className="inp" value={f.subtitulo} maxLength={160} onChange={e => set("subtitulo", e.target.value)} /></div>
+      </div>
+
+      <div style={{ marginTop: 18, border: "1px solid " + p.border, borderRadius: 12, padding: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Sw on={!!f.juego} toggle={() => set("juego", !f.juego)} /><b style={{ fontSize: 13.5 }}>🎃 Juego "¿Dulce o truco?"</b></div>
+        <div style={{ fontSize: 11.5, color: p.textMuted, margin: "6px 0 10px" }}>Cada clienta abre una calabaza una sola vez (tiene que entrar con su cuenta). Los cupones son solo para ella y valen hasta que termina Halloween. Los puntos se suman a su cuenta al instante.</div>
+        {f.juego && <>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(110px,1.4fr) minmax(110px,1fr) 80px 90px 60px 30px", gap: 6, fontSize: 11, color: p.textMuted, fontWeight: 700 }}><span>Se ve como</span><span>Premio</span><span>Valor</span><span>Chance</span><span>%</span><span /></div>
+          {f.premios.map((x, i) => (
+            <div key={i} style={{ display: "grid", gridTemplateColumns: "minmax(110px,1.4fr) minmax(110px,1fr) 80px 90px 60px 30px", gap: 6, alignItems: "center", marginTop: 6 }}>
+              <input className="inp" value={x.texto} maxLength={24} onChange={e => setPremio(i, "texto", e.target.value)} />
+              <select className="sel" value={x.tipo} onChange={e => setPremio(i, "tipo", e.target.value)}><option value="cupon">% de descuento</option><option value="puntos">Puntos</option><option value="nada">Truco (nada)</option></select>
+              <input className="inp" inputMode="numeric" disabled={x.tipo === "nada"} value={x.tipo === "nada" ? "" : x.valor} onChange={e => setPremio(i, "valor", e.target.value.replace(/\D/g, ""))} placeholder={x.tipo === "cupon" ? "%" : "pts"} />
+              <input className="inp" inputMode="numeric" value={x.chance} onChange={e => setPremio(i, "chance", e.target.value.replace(/\D/g, ""))} />
+              <span style={{ fontSize: 12, color: p.textMuted }}>{Math.round((parseInt(x.chance) || 0) / totalChance * 100)}%</span>
+              <button className="chip-btn" style={{ color: p.red }} disabled={f.premios.length <= 2} onClick={() => set("premios", f.premios.filter((_, j) => j !== i))} aria-label="Quitar premio">✕</button>
+            </div>))}
+          {f.premios.length < 8 && <button className="chip-btn" style={{ marginTop: 8 }} onClick={() => set("premios", [...f.premios, { id: "h" + Date.now().toString(36).slice(-6), texto: "15% OFF", tipo: "cupon", valor: 15, chance: 3 }])}>+ Agregar premio</button>}
+          {d.jugadas && d.jugadas.length > 0 && <div style={{ marginTop: 12, fontSize: 12.5 }}><b>Ya jugaron {d.jugadas.reduce((t, x) => t + x.n, 0)} clientas:</b> {d.jugadas.map(x => x.texto + " (" + x.n + ")").join(" · ")}{d.cupones_usados ? " · " + d.cupones_usados + " cupones ya usados en compras" : ""}</div>}
+        </>}
+      </div>
+
+      <div style={{ marginTop: 18 }}>
+        <div style={{ fontWeight: 800, fontSize: 13.5, marginBottom: 8 }}>💄 Sector "Tu look de Halloween"</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
+          {lista("disfraz", "🎃 Para tu disfraz", "Labiales oscuros, delineadores, sombras, glitter…")}
+          {lista("despues", "🧖 Después de la fiesta", "Para sacarse el maquillaje y cuidar la piel: aceites y bálsamos limpiadores, agua micelar, mascarillas, parches…")}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 16 }}>
+        <button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando..." : "Guardar"}</button>
+        {aviso && <span style={{ fontSize: 12, color: aviso.startsWith("Error") ? p.red : p.green }}>{aviso}</span>}
+      </div>
+    </div>
+  );
+}
 function FlyerPreventa({ cfg, temaPal }) {
   const p = temaPal, slug = cfg && (cfg.slug || cfg.slug_sugerido);
   const base = String(API.defaults.baseURL || "").replace(/\/+$/, "");
@@ -33580,13 +33828,14 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         ))}
       </div>}
       <div className="tabs to-tabs" style={{ marginBottom: 12 }}>
-        {[["pedidos", "📦 Pedidos" + (abiertos.length ? " (" + abiertos.length + ")" : "")], ["productos", "🛍 Productos"], ...(esDuenaT ? [["portada", "🏠 Portada y sectores"]] : []), ["clientas", "👥 Clientas web"], ["resenas", "⭐ Reseñas" + (resPend ? " (" + resPend + ")" : "")], ...(esDuenaT ? [["ofertas", "⚡ Ofertas y combos"], ["rutinas", "💁 Rutinas del local"], ["regalos", "🎁 Regalos"], ["config", "⚙️ Configuración"]] : [])].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
+        {[["pedidos", "📦 Pedidos" + (abiertos.length ? " (" + abiertos.length + ")" : "")], ["productos", "🛍 Productos"], ...(esDuenaT ? [["portada", "🏠 Portada y sectores"]] : []), ["clientas", "👥 Clientas web"], ["resenas", "⭐ Reseñas" + (resPend ? " (" + resPend + ")" : "")], ...(esDuenaT ? [["ofertas", "⚡ Ofertas y combos"], ["halloween", "🎃 Halloween"], ["rutinas", "💁 Rutinas del local"], ["regalos", "🎁 Regalos"], ["config", "⚙️ Configuración"]] : [])].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
       </div>
 
       {tab === "productos" && productos && (() => { const pubs = productos.filter(p => p.publicado), falt = pubs.filter(p => !p.foto).length + pubs.filter(p => !(p.descripcion || "").trim()).length; return (
         <div style={{ marginBottom: 12 }}><TarjetasSecciones activa={secP} onElegir={elegirSecP} items={[
           ["lista", "🛍", "Productos", "#2471a3", nPub, false], ["completa", "✨", "Completá tu tienda", "#c9a84c", falt, falt > 0], ["qr", "🔳", "Etiquetas con QR", "#2d7a4f", 0, false], ["flyer", "🎬", "Flyer animado", "#e1306c", 0, false]]} /></div>); })()}
       {tab === "productos" && secP === "flyer" && <FlyerPreventa cfg={cfg} temaPal={temaPal} />}
+      {tab === "halloween" && esDuenaT && <HalloweenTienda temaPal={temaPal} productos={productos} />}
       {tab === "productos" && secP === "qr" && (
         <div className="card" style={{ marginBottom: 12 }}>
           <div className="ct">🔳 Etiquetas de precio con QR</div>
