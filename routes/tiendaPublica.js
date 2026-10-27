@@ -98,7 +98,7 @@ router.get('/:slug', async (req, res) => {
     const advVer = (adv.activo && advHoy >= 1 && advHoy <= 25) || advVista;
     const hw = tienda.halloweenDe(c), hwEnCurso = tienda.halloweenVigente(hw), hwVista = !hwEnCurso && !!hw.token && String(req.query.halloween || '') === hw.token;
     res.json({
-      adviento: advVer ? { titulo: adv.titulo, bajada: adv.bajada, estilo: adv.estilo, anio: adv.anio, hoy: advVista ? 25 : advHoy, vista_previa: advVista && !(adv.activo && advHoy >= 1 && advHoy <= 25),
+      adviento: advVer ? { titulo: adv.titulo, bajada: adv.bajada, anio: adv.anio, hoy: advVista ? 25 : advHoy, vista_previa: advVista && !(adv.activo && advHoy >= 1 && advHoy <= 25),
         dias: adv.dias.map(d => d.dia <= (advVista ? 25 : advHoy) ? d : { dia: d.dia, icono: d.icono, bloqueado: true }) } : null,
       halloween: hwEnCurso || hwVista ? { ceja: hw.ceja, titulo: hw.titulo, subtitulo: hw.subtitulo, juego: hw.juego && hw.premios.some(x => x.chance > 0),
         premios: hw.premios.filter(x => x.chance > 0 && x.tipo !== 'nada').map(x => x.texto), disfraz: hw.disfraz, despues: hw.despues, desde: hw.desde, hasta: hw.hasta, vista_previa: hwVista } : null,
