@@ -352,6 +352,8 @@ router.post('/:ordenId/item-extra', async (req, res) => {
         );
       }
     }
+    // Si el extra trae costo (no es un regalo), también actualiza el costo del producto
+    if (producto_id && parseFloat(costo_unitario) > 0) await client.query('UPDATE productos SET costo = $1 WHERE id = $2', [parseFloat(costo_unitario), producto_id]);
     await client.query('COMMIT');
     res.json({ ok: true });
   } catch (error) {
@@ -416,6 +418,11 @@ router.put('/:ordenId/items/:itemId/recibir', async (req, res) => {
           [diffUsh, item.producto_id]
         );
       }
+    }
+
+    // Al recibir, el costo de la factura pasa a ser el costo del producto (el de la última compra)
+    if (item.producto_id && cant > 0 && parseFloat(item.costo_unitario) > 0) {
+      await client.query('UPDATE productos SET costo = $1 WHERE id = $2', [item.costo_unitario, item.producto_id]);
     }
 
     const itemsRes = await client.query('SELECT * FROM ordenes_ingreso_items WHERE orden_id = $1', [req.params.ordenId]);
