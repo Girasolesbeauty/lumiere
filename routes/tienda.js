@@ -570,6 +570,17 @@ router.post('/pedidos/:id/contactado', async (req, res) => {
     res.json(r.rows[0]);
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
 });
+// "Ya lo vi": un pedido que se cayo (cancelado, vencido, pago rechazado) sale de "Para revisar" (o vuelve, con revisado: false)
+router.post('/pedidos/:id/revisado', async (req, res) => {
+  try {
+    const u = req.usuario || {};
+    const por = u.nombre || (u.id ? ((await pool.query('SELECT nombre FROM usuarios WHERE id = $1', [u.id]).catch(() => ({ rows: [] }))).rows[0] || {}).nombre : null);
+    const si = !(req.body && req.body.revisado === false);
+    const r = await pool.query(`UPDATE tienda_pedidos SET revisado_en = ${si ? 'NOW()' : 'NULL'}, revisado_por = $1 WHERE id = $2 RETURNING revisado_en, revisado_por`, [si ? por || 'Local' : null, parseInt(req.params.id)]);
+    if (!r.rows.length) return res.status(404).json({ error: 'No se encontró el pedido' });
+    res.json(r.rows[0]);
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+});
 // Por que se vencio o se cancelo un pedido: motivo de la lista + lo que dijo la clienta. motivo vacio = se borra
 const MOTIVOS_VENC = ['mirando', 'arrepintio', 'pago', 'otro_medio', 'local', 'caro', 'envio', 'sin_respuesta', 'otro', 'clienta', 'sin_stock', 'duplicado', 'cambio', 'prueba'];
 router.post('/pedidos/:id/vencimiento', async (req, res) => {
@@ -620,6 +631,9 @@ router.put('/pedidos/:id/estado', async (req, res) => {
     if (['entregado', 'cancelado'].includes(p.estado)) return res.status(400).json({ error: 'Ese pedido ya está cerrado' });
     if (estado === 'cancelado') {
       await tienda.cancelar(p.id, String((req.body && req.body.motivo) || 'Cancelado desde Lumiere').slice(0, 200));
+      const u = req.usuario || {};
+      const por = u.nombre || (u.id ? ((await pool.query('SELECT nombre FROM usuarios WHERE id = $1', [u.id]).catch(() => ({ rows: [] }))).rows[0] || {}).nombre : null);
+      await pool.query('UPDATE tienda_pedidos SET cancelado_por = $1 WHERE id = $2', [por || 'Local', p.id]).catch(() => {});
     } else if (estado === 'pagado') {
       // Si pago con otro medio (ej: le rechazaron la tarjeta y transfirio), queda ese medio para la caja
       const otro = ['transferencia', 'mp', 'gocuotas'].includes(req.body && req.body.pago) ? req.body.pago : null;

@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
   const contar = async (sql, params = []) => {
     try { const r = await pool.query(sql, params); return parseInt(r.rows[0].n) || 0; } catch (e) { return 0; }
   };
-  const [portal, pedidos, compras, tareas, control, ajustes, traspasos, tienda, resenas] = await Promise.all([
+  const [portal, pedidos, compras, tareas, control, ajustes, traspasos, tienda, resenas, revisar] = await Promise.all([
     // Premios canjeados en el portal que falta entregar
     contar(`SELECT COUNT(*) AS n FROM canjes_premios WHERE estado = 'pendiente'`),
     // Pedidos de clientes cuya mercaderia ya llego a este local y todavia no se avisaron
@@ -37,8 +37,11 @@ router.get('/', async (req, res) => {
       OR (to_jsonb(t.*) ->> 'pago_rechazo') IS NOT NULL OR (creado_en < NOW() - INTERVAL '2 hours' AND (to_jsonb(t.*) ->> 'contactado_en') IS NULL)))`),
     // Reseñas de la tienda esperando que se revisen (tambien van en el globito de Tienda online)
     contar(`SELECT COUNT(*) AS n FROM tienda_resenas WHERE estado = 'pendiente'`),
+    // Pedidos de la tienda que se cayeron (cancelados, vencidos, pago rechazado) y nadie del local miro todavia
+    contar(`SELECT COUNT(*) AS n FROM tienda_pedidos t WHERE estado = 'cancelado' AND (to_jsonb(t.*) ->> 'revisado_en') IS NULL
+      AND (pagado OR ((to_jsonb(t.*) ->> 'venc_motivo') IS NULL AND COALESCE(actualizado_en, creado_en) > NOW() - INTERVAL '7 days'))`),
   ]);
-  res.json({ portal, pedidos, compras, tareas, 'control-inv': control, ajustes_pendientes: ajustes, traspasos_por_recibir: traspasos, 'tienda-online': tienda + resenas, resenas_pendientes: resenas });
+  res.json({ portal, pedidos, compras, tareas, 'control-inv': control, ajustes_pendientes: ajustes, traspasos_por_recibir: traspasos, 'tienda-online': tienda + resenas + revisar, resenas_pendientes: resenas });
 });
 
 // Ventas nuevas de la tienda web (para la ventana con sonido de Lumiere). ?desde=ultimo id visto.
