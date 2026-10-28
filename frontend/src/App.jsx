@@ -28629,6 +28629,8 @@ const HW_CARAMELOS = [
   // chupetín
   (k) => <g><rect x="-2" y="6" width="4" height="22" rx="2" fill="#f4e9d8" /><circle r="13" fill={k} /><path d="M0 0 m-9 0 a9 9 0 1 0 18 0 a6 6 0 1 0 -12 0 a3 3 0 1 0 6 0" fill="none" stroke="#fff" strokeWidth="2.5" /></g>,
 ];
+// Cara tallada de la calabaza del ¡DULCE!: ojos, nariz y sonrisa con dientes
+const HW_CARA = "M-29 -10 L-17 -32 L-5 -10 Z M5 -10 L17 -32 L29 -10 Z M-6 4 L0 -6 L6 4 Z M-33 12 Q0 46 33 12 Q22 19 13 18 L10 26 L4 19 Q0 19.5 -4 19 L-10 26 L-13 18 Q-22 19 -33 12 Z";
 function TwHwDulce({ premio }) {
   const caramelos = useMemo(() => Array.from({ length: 26 }, (_, i) => {
     const a = -Math.PI / 2 + (i / 26 - .5) * Math.PI * 1.5, dist = 140 + (i * 37) % 160;
@@ -28638,17 +28640,18 @@ function TwHwDulce({ premio }) {
   return createPortal(<div className="tw" style={{ minHeight: 0, background: "transparent" }}>
     <div className="tw-hw-dulce" role="alert" aria-label={"¡Dulce! " + valor}>
       <div className="rayos" aria-hidden="true" />
+      <div className="lluvia" aria-hidden="true">{caramelos.map((c, i) => <svg key={i} viewBox="-30 -30 60 60" style={{ "--x": c.x, "--up": c.up, "--y": c.y, "--r": c.r, animationDelay: c.del }}>{HW_CARAMELOS[c.tipo](c.k)}</svg>)}</div>
       <svg className="calabaza" viewBox="-70 -80 140 140" aria-hidden="true">
-        <defs><radialGradient id="twHwAdentro"><stop offset="0" stopColor="#fff6c8" /><stop offset=".5" stopColor="#ffd34d" /><stop offset="1" stopColor="#ff7a00" /></radialGradient></defs>
+        <defs><radialGradient id="twHwAdentro" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="40"><stop offset="0" stopColor="#fffbe0" /><stop offset=".6" stopColor="#ffe27a" /><stop offset="1" stopColor="#ffc233" /></radialGradient></defs>
         <g className="cuerpo">
           <ellipse cx="-30" cy="0" rx="34" ry="48" fill="#d9590a" /><ellipse cx="30" cy="0" rx="34" ry="48" fill="#d9590a" /><ellipse rx="40" ry="52" fill="#f07a1e" /><ellipse rx="16" ry="50" fill="#f58a2c" />
-          <path d="M-30 -14 l12 -18 l12 18 Z M6 -14 l12 -18 l12 18 Z M-34 14 q34 30 68 0 l-9 8 l-8 -6 l-9 8 l-8 -6 l-9 8 l-8 -6 l-9 8 Z" fill="url(#twHwAdentro)" />
+          <path d={HW_CARA} fill="none" stroke="#ffb020" strokeOpacity=".35" strokeWidth="9" strokeLinejoin="round" />
+          <path d={HW_CARA} fill="url(#twHwAdentro)" stroke="#4a1a00" strokeWidth="3.5" strokeLinejoin="round" />
         </g>
         <g className="tapa"><path d="M-36 -40 Q0 -62 36 -40 Q0 -48 -36 -40 Z" fill="#c94f08" /><path d="M-4 -52 q2 -14 12 -18 l3 4 q-8 4 -9 14 Z" fill="#3d5a1e" /></g>
         <radialGradient id="twHwLuzSale"><stop offset="0" stopColor="#fff6c8" stopOpacity=".95" /><stop offset=".45" stopColor="#ffd34d" stopOpacity=".55" /><stop offset="1" stopColor="#ff9a1f" stopOpacity="0" /></radialGradient>
         <ellipse className="luz" cx="0" cy="-50" rx="46" ry="30" fill="url(#twHwLuzSale)" />
       </svg>
-      <div className="lluvia" aria-hidden="true">{caramelos.map((c, i) => <svg key={i} viewBox="-30 -30 60 60" style={{ "--x": c.x, "--up": c.up, "--y": c.y, "--r": c.r, animationDelay: c.del }}>{HW_CARAMELOS[c.tipo](c.k)}</svg>)}</div>
       <div className="texto"><div className="dulce">¡DULCE!</div><div className="valor">{valor}</div></div>
     </div>
   </div>, document.body);
