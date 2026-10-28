@@ -4051,13 +4051,25 @@ function POS({ localId, usuario, paletaActual }) {
   };
 
 
+  // Halloween: juntar varios códigos de la calabaza de la clienta (hasta el tope; solo efectivo o transferencia)
+  const juntarCuponesHw = async (codigos) => {
+    try {
+      const r = (await API.get("/cupones/juntar-hw?codigos=" + encodeURIComponent(codigos.join(",")) + (clienteSeleccionado?.id ? "&cliente_id=" + clienteSeleccionado.id : ""))).data;
+      setCupon(r.codigos.join(" + "));
+      setCuponAplicado({ tipo: "%", valor: r.pct, hw_codigos: r.codigos, suma: r.suma, tope: r.tope });
+      setMensaje("🎃 Códigos juntados: " + r.pct + "%" + (r.suma > r.pct ? " (suman " + r.suma + "%, el tope es " + r.tope + "%)" : "") + ". Cobrá solo en efectivo o transferencia");
+    } catch (er) { setCuponAplicado(null); setMensaje("⚠️ " + (er.response?.data?.error || "No se pudieron juntar los códigos")); }
+    setTimeout(() => setMensaje(""), 6000);
+  };
   const aplicarCupon = async (codigoParam) => {
     const codigo = codigoParam !== undefined ? codigoParam : cupon;
     if (!codigo) return;
+    const varios = String(codigo).split(/[\s,+]+/).filter(Boolean);
+    if (varios.length > 1) return juntarCuponesHw(varios);
     try {
       // Se valida en el servidor con la clienta elegida (cupones personales y "uno por clienta")
-      let c = null, motivo = "";
-      try { c = (await API.get("/cupones/" + encodeURIComponent(codigo.toUpperCase()) + "/validar?monto=0" + (clienteSeleccionado?.id ? "&cliente_id=" + clienteSeleccionado.id : ""))).data.cupon; }
+      let c = null, motivo = "", dataCupon = null;
+      try { dataCupon = (await API.get("/cupones/" + encodeURIComponent(codigo.toUpperCase()) + "/validar?monto=0" + (clienteSeleccionado?.id ? "&cliente_id=" + clienteSeleccionado.id : ""))).data; c = dataCupon.cupon; }
       catch (er) { motivo = er.response?.data?.error || ""; }
       if (motivo && !/no encontrado/i.test(motivo)) { setCuponAplicado(null); setMensaje("⚠️ " + motivo); setTimeout(() => setMensaje(""), 5000); return; }
       if (c) {
@@ -4067,7 +4079,8 @@ function POS({ localId, usuario, paletaActual }) {
           valor_condicional: c.valor_condicional !== null && c.valor_condicional !== undefined ? parseFloat(c.valor_condicional) : null,
           regalo_producto_nombre: c.regalo_producto_nombre || null,
           regalo_monto_minimo: c.regalo_monto_minimo !== null && c.regalo_monto_minimo !== undefined ? parseFloat(c.regalo_monto_minimo) : null,
-          descuento_monto_minimo: c.descuento_monto_minimo !== null && c.descuento_monto_minimo !== undefined ? parseFloat(c.descuento_monto_minimo) : null
+          descuento_monto_minimo: c.descuento_monto_minimo !== null && c.descuento_monto_minimo !== undefined ? parseFloat(c.descuento_monto_minimo) : null,
+          hw_otros: dataCupon.hw_otros && dataCupon.hw_otros.length ? dataCupon.hw_otros : null, hw_tope: dataCupon.hw_tope || 30, codigo: c.codigo
         });
         setMensaje("Cupon aplicado!");
       }
@@ -4253,6 +4266,11 @@ function POS({ localId, usuario, paletaActual }) {
       if (pagoPreventa > total + 0.5) return setMensaje("⚠️ Lo que paga ahora no puede ser mayor al total (" + fmt(total) + ")");
       if (pagoPreventa > 0 && (senaPagos ? senaPagos.some(l => parseFloat(l.importe) > 0 && !l.medio_pago_id) : !senaMedioPagoId)) return setMensaje("⚠️ Elegí con qué medio de pago pagó" + (senaPagos ? " (en cada línea)" : ""));
     }
+    // Códigos de Halloween juntados: solo efectivo o transferencia
+    if (cuponAplicado && cuponAplicado.hw_codigos && restaPagar > 0) {
+      const ids = pagoMixto && pagosMixtos.length > 0 ? pagosMixtos.map(p => p.medio_pago_id) : [medioPagoSel?.id];
+      if (ids.some(id => { const m = mediosPago.find(x => Number(x.id) === Number(id)); return !m || !["efectivo", "transferencia"].includes(m.tipo); })) return setMensaje("⚠️ Con los códigos de Halloween juntados se cobra solo en efectivo o transferencia");
+    }
     // Mercado Pago (QR): primero se cobra con el QR y recien cuando se aprueba se registra la venta
     if (!preventa && !pagoMixto && restaPagar > 0 && medioPagoSel?.mp_qr) {
       const yaPago = mpPagoRef.current;
@@ -4267,7 +4285,8 @@ function POS({ localId, usuario, paletaActual }) {
       const ventaRes = await createVenta({
         cliente_id: clienteSeleccionado?.id || null,
         tipo_factura: tipoFac, items, canal: "presencial",
-        cupon_codigo: cupon || null, local_id: localId || 1,
+        cupon_codigo: cuponAplicado && cuponAplicado.hw_codigos ? cuponAplicado.hw_codigos[0] : (cupon || null), local_id: localId || 1,
+        cupones_hw: cuponAplicado && cuponAplicado.hw_codigos ? cuponAplicado.hw_codigos.slice(1) : undefined,
         medio_pago_id: pagoMixto && pagosMixtos.length > 0 ? (pagosMixtos[0].medio_pago_id || null) : (medioPagoSel?.id || null),
         medio_pago_nombre: pagoMixto && pagosMixtos.length > 0 ? pagosMixtos.map(p => p.medio_pago_nombre).join(" + ") : (restaPagar > 0 ? medioPagoSel?.nombre : "Gift Card"),
         pagos: pagoMixto && pagosMixtos.length > 0 ? pagosMixtos : undefined,
@@ -5311,6 +5330,14 @@ function POS({ localId, usuario, paletaActual }) {
                   )}
                   {cuponAplicado && !cuponCumpleMinimo && (
                     <div style={{ fontSize: 11, color: temaPal.warn, marginTop: 6 }}>El cupón pide una compra mínima de {fmt(cuponAplicado.descuento_monto_minimo)} (faltan {fmt(Math.max(cuponAplicado.descuento_monto_minimo - subtotalBase, 0))})</div>
+                  )}
+                  {cuponAplicado && cuponAplicado.hw_otros && (
+                    <button className="btn btn-s" style={{ marginTop: 6, fontSize: 12, padding: "5px 10px", borderColor: "#e67e22", color: "#b45309" }} onClick={() => juntarCuponesHw([cuponAplicado.codigo, ...cuponAplicado.hw_otros.map(x => x.codigo)])}>
+                      🎃 Tiene {cuponAplicado.hw_otros.length === 1 ? "otro código" : cuponAplicado.hw_otros.length + " códigos más"} de Halloween: juntarlos ({Math.min(cuponAplicado.valor + cuponAplicado.hw_otros.reduce((t, x) => t + x.valor, 0), cuponAplicado.hw_tope)}%, solo efectivo o transferencia)
+                    </button>
+                  )}
+                  {cuponAplicado && cuponAplicado.hw_codigos && (
+                    <div style={{ fontSize: 11, color: temaPal.warn, marginTop: 6, fontWeight: 700 }}>🎃 Códigos de Halloween juntados ({cuponAplicado.suma > cuponAplicado.valor ? "suman " + cuponAplicado.suma + "%, tope " + cuponAplicado.tope + "%" : cuponAplicado.valor + "%"}): cobrar solo en efectivo o transferencia</div>
                   )}
                   {cuponAplicado && cuponAplicado.solo_contado && (
                     <div style={{ fontSize: 11, color: temaPal.warn, marginTop: 6, fontWeight: 700 }}>💵 Este cupón vale solo pagando con efectivo, débito, transferencia o crédito en 1 cuota</div>

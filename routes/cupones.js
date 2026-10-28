@@ -3,6 +3,7 @@ const router = express.Router();
 const controller = require('../controllers/cuponesController');
 
 router.get('/', controller.getAll);
+router.get('/juntar-hw', controller.juntarHw);
 router.get('/:codigo/validar', controller.validar);
 router.post('/', controller.create);
 router.put('/:id', controller.update);
