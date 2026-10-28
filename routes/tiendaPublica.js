@@ -858,7 +858,7 @@ const mismoTelefono = (a, b) => cuentas.soloNumeros(a).length >= 8 && cuentas.so
 // de Halloween), puntos, regalo con la compra o "truco".
 // En la vista previa (link privado, antes de las fechas) se juega "de mentira": no se guarda ni se da nada.
 const temporadaHw = (hw) => 'hw-' + hw.desde.slice(0, 10);
-const HW_AMIGAS_MAX = 3;
+const HW_AMIGAS_MAX = 2;
 const premioHw = (r, hw) => ({ id: r.premio_id, texto: r.texto, tipo: r.tipo, valor: num(r.valor), cupon: r.cupon, regalo: r.regalo || null, usado: !!r.pedido_id,
   contado: r.tipo === 'cupon' && !!(hw.premios.find(x => x.id === r.premio_id) || {}).contado, cupon_usado: !!r.cupon_usado });
 async function calabazasHw(db, clienteId, hw) {
@@ -894,7 +894,9 @@ router.post('/:slug/halloween/jugar', conCuenta, async (req, res) => {
     const temp = temporadaHw(hw);
     const k = await calabazasHw(client, req.clienteId, hw);
     if (k.quedan <= 0) { await client.query('ROLLBACK'); return res.json({ ...premioHw(k.jugadas[k.jugadas.length - 1], hw), ya: true, quedan: 0, hasta: hw.hasta }); }
-    const premio = tienda.elegirPremio(hw.premios);
+    // Nunca junta más del tope en códigos sin usar: si un descuento lo pasaría, esa calabaza no lo puede dar
+    const libre = k.jugadas.filter(x => x.tipo === 'cupon' && !x.cupon_usado).reduce((t, x) => t + num(x.valor), 0);
+    const premio = tienda.elegirPremio(hw.premios, hw.premios.filter(x => x.tipo === 'cupon' && libre + x.valor > hw.tope).map(x => x.id));
     let cupon = null;
     if (premio.tipo === 'cupon') {
       const vence = hw.hasta.slice(0, 10);
