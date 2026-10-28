@@ -101,7 +101,7 @@ router.get('/:slug', async (req, res) => {
       adviento: advVer ? { titulo: adv.titulo, bajada: adv.bajada, anio: adv.anio, hoy: advVista ? 25 : advHoy, vista_previa: advVista && !(adv.activo && advHoy >= 1 && advHoy <= 25),
         dias: adv.dias.map(d => d.dia <= (advVista ? 25 : advHoy) ? d : { dia: d.dia, icono: d.icono, bloqueado: true }) } : null,
       halloween: hwEnCurso || hwVista ? { ceja: hw.ceja, titulo: hw.titulo, musica: hw.musica, subtitulo: hw.subtitulo, juego: hw.juego && hw.premios.some(x => x.chance > 0),
-        premios: hw.premios.filter(x => x.chance > 0 && x.tipo !== 'nada').map(x => x.texto + (x.contado ? '*' : '')), disfraz: hw.disfraz, despues: hw.despues, desde: hw.desde, hasta: hw.hasta, vista_previa: hwVista } : null,
+        premios: hw.premios.filter(x => x.chance > 0 && x.tipo !== 'nada').map(x => x.texto + (x.contado ? '*' : '')), tope: hw.tope, disfraz: hw.disfraz, despues: hw.despues, desde: hw.desde, hasta: hw.hasta, vista_previa: hwVista } : null,
       cyber: cyEnCurso || cyVista ? { ceja: ky.ceja, titulo: ky.titulo, subtitulo: ky.subtitulo, boton: ky.boton, chips: ky.chips, desde: ky.desde, hasta: ky.hasta, vista_previa: cyVista } : null,
       promos: promosT.map(x => ({ nombre: x.nombre, pct: x.pct, aplica_a: x.aplica_a, productos: x.productos, categorias: x.categorias, pago: x.pago, local: x.local })),
       titulo: c.titulo || neg.nombre_negocio || 'Tienda', mensaje: c.mensaje || '', logo: c.logo || neg.logo_url || null, color: c.color || '#c9a84c', whatsapp: c.whatsapp || null,
@@ -316,6 +316,35 @@ router.get('/:slug/video/:id', async (req, res) => {
   } catch (e) { res.status(404).end(); }
 });
 
+// Halloween: juntar varios códigos de la calabaza en una compra. Tienen que ser todos de "¿Dulce o truco?" (% y de ella);
+// se suman hasta el tope (ej. 30%) y solo se paga con transferencia o en efectivo al retirar.
+async function juntarCuponesHw(db, codigos, base, bloquear, quien, pago, hw) {
+  const lista = [...new Set(codigos.map(x => String(x || '').trim().toUpperCase()).filter(Boolean))].slice(0, 10);
+  if (lista.length < 2) return { error: 'Elegí al menos dos códigos de Halloween para juntarlos' };
+  if (pago && !['transferencia', 'retiro'].includes(pago)) return { error: 'Para juntar tus códigos de Halloween pagá con transferencia o en efectivo al retirar' };
+  const todos = [];
+  for (const cod of lista) {
+    const r = await tienda.revisarCupon(db, cod, base, bloquear, quien, pago);
+    if (!r || r.error) return { error: cod + ': ' + ((r && r.error) || 'código inválido') };
+    if (r._cupon.canal !== 'Halloween tienda' || r.tipo !== '%') return { error: 'Solo se pueden juntar los códigos de la calabaza de Halloween' };
+    todos.push(r);
+  }
+  const suma = todos.reduce((t, x) => t + x.valor, 0), pct = Math.min(suma, hw.tope);
+  return { codigos: lista, suma, pct, tope: hw.tope, descuento: Math.round(Math.min(base, base * pct / 100) * 100) / 100, extras: todos.slice(1) };
+}
+router.get('/:slug/cupones-hw', async (req, res) => {
+  try {
+    const k = 'cupon:' + (req.ip || '');
+    if (cuentas.bloqueado(k)) return res.status(429).json({ error: 'Demasiados intentos. Esperá unos minutos.' });
+    const cid = clienteDeToken(req);
+    if (!cid) return res.status(401).json({ error: 'Ingresá a tu cuenta para usar tus códigos', sesion: true });
+    await cuponesLib.asegurar();
+    const j = await juntarCuponesHw(pool, String(req.query.codigos || '').split(','), Math.max(0, parseFloat(req.query.monto) || 0), false, { cliente_id: cid }, null, tienda.halloweenDe(req.tienda));
+    if (j.error) { cuentas.sumarIntento(k); return res.status(400).json({ error: j.error }); }
+    res.json({ codigos: j.codigos, suma: j.suma, pct: j.pct, tope: j.tope, descuento: j.descuento });
+  } catch (e) { res.status(500).json({ error: 'No se pudieron revisar los códigos' }); }
+});
+
 // Probar un codigo de descuento antes de comprar
 router.get('/:slug/cupon/:codigo', async (req, res) => {
   try {
@@ -472,8 +501,16 @@ router.post('/:slug/pedidos', async (req, res) => {
     if (b.cupon) {
       cupon = await tienda.revisarCupon(client, b.cupon, subtotal - descCombo, true, { cliente_id: clienteId, telefono }, pago);
       if (cupon && cupon.error) { await client.query('ROLLBACK'); return res.status(400).json({ error: cupon.error }); }
-      if (cupon) await client.query('UPDATE cupones SET usos = COALESCE(usos, 0) + 1 WHERE codigo = $1', [cupon.codigo]);
     }
+    // Halloween: varios códigos de la calabaza juntos (hasta el tope, solo con transferencia o efectivo al retirar)
+    let hwJunta = null;
+    if (cupon && Array.isArray(b.cupones_hw) && b.cupones_hw.length) {
+      const j = await juntarCuponesHw(client, [cupon.codigo, ...b.cupones_hw], subtotal - descCombo, true, { cliente_id: clienteId, telefono }, pago, tienda.halloweenDe(c));
+      if (j.error) { await client.query('ROLLBACK'); return res.status(400).json({ error: j.error }); }
+      for (const x of j.extras) await client.query('UPDATE cupones SET usos = COALESCE(usos, 0) + 1 WHERE codigo = $1', [x.codigo]);
+      cupon.valor = j.pct; cupon.descuento = j.descuento; hwJunta = j;
+    }
+    if (cupon) await client.query('UPDATE cupones SET usos = COALESCE(usos, 0) + 1 WHERE codigo = $1', [cupon.codigo]);
     const descuento = cupon ? cupon.descuento : 0;
     // Regalo de amiga (primera compra; no se suma a un cupon)
     let amiga = null, descAmiga = 0;
@@ -496,7 +533,8 @@ router.post('/:slug/pedidos', async (req, res) => {
     const descPromo = promo.descuento;
     const dp = tienda.descuentoPagoTotal(c, pago, Math.max(0, subtotal - descCombo - descuento - descAmiga - promo.monto), combo.combos.reduce((t, x) => t + (x.monto || 0), 0));
     const pctPago = dp.pctKits && !dp.pct ? dp.pctKits : dp.pct;
-    const descuentoPago = dp.descuento;
+    // Juntando códigos de Halloween, el descuento por forma de pago también entra en el tope
+    const descuentoPago = hwJunta ? Math.min(dp.descuento, Math.max(0, Math.round((subtotal - descCombo) * hwJunta.tope / 100 - descuento))) : dp.descuento;
     let total = Math.round((subtotal - descCombo - descuento - descAmiga - descPromo - descuentoPago + costoEnvio) * 100) / 100;
     // Gift card: paga lo que alcance (se descuenta ahora; si el pedido se cancela, vuelve)
     if (gc) {
@@ -518,6 +556,7 @@ router.post('/:slug/pedidos', async (req, res) => {
        cupon ? cupon.codigo : null, cupon ? cupon.tipo : null, cupon ? cupon.valor : null, descuento, conPreventa])).rows[0];
     if (descuentoPago) await client.query('UPDATE tienda_pedidos SET descuento_pago = $1, descuento_pago_pct = $2 WHERE id = $3', [descuentoPago, pctPago, pedido.id]);
     if (descPromo) await client.query('UPDATE tienda_pedidos SET descuento_promo = $1, promos = $2 WHERE id = $3', [descPromo, promo.nombres.join(', ').slice(0, 300), pedido.id]);
+    if (hwJunta) await client.query('UPDATE tienda_pedidos SET cupones_extra = $1, cupon_efectivo = TRUE WHERE id = $2', [hwJunta.extras.map(x => x.codigo), pedido.id]);
     if (cupon && cupon.solo_contado) { await client.query('UPDATE tienda_pedidos SET cupon_contado = TRUE WHERE id = $1', [pedido.id]); pedido.cupon_contado = true; }
     if (amiga && descAmiga) await client.query('UPDATE tienda_pedidos SET amiga_de = $1, descuento_amiga = $2 WHERE id = $3', [amiga.referente_id, descAmiga, pedido.id]);
     // Hoy es dia de puntos extra (ej. domingo): el pedido queda con el x2 / x3 prometido
@@ -554,6 +593,7 @@ router.post('/:slug/pedidos', async (req, res) => {
         [pedido.id, l.producto_id, l.variante_id, l.nombre, l.variante_valor, l.cantidad, l.precio, !!l.preventa]);
     }
     if (cupon) await cuponesLib.registrarUso(client, cupon._cupon, { cliente_id: clienteId, telefono }, { pedido_id: pedido.id });
+    for (const x of (hwJunta ? hwJunta.extras : [])) await cuponesLib.registrarUso(client, x._cupon, { cliente_id: clienteId, telefono }, { pedido_id: pedido.id });
     await tienda.moverStock(client, pedido, -1);
     await tienda.reservarPreventa(client, pedido, +1);
     if (clienteId) await client.query('DELETE FROM tienda_carritos WHERE cliente_id = $1', [clienteId]);
@@ -820,10 +860,11 @@ const mismoTelefono = (a, b) => cuentas.soloNumeros(a).length >= 8 && cuentas.so
 const temporadaHw = (hw) => 'hw-' + hw.desde.slice(0, 10);
 const HW_AMIGAS_MAX = 3;
 const premioHw = (r, hw) => ({ id: r.premio_id, texto: r.texto, tipo: r.tipo, valor: num(r.valor), cupon: r.cupon, regalo: r.regalo || null, usado: !!r.pedido_id,
-  contado: r.tipo === 'cupon' && !!(hw.premios.find(x => x.id === r.premio_id) || {}).contado });
+  contado: r.tipo === 'cupon' && !!(hw.premios.find(x => x.id === r.premio_id) || {}).contado, cupon_usado: !!r.cupon_usado });
 async function calabazasHw(db, clienteId, hw) {
   const temp = temporadaHw(hw);
-  const jugadas = (await db.query('SELECT premio_id, texto, tipo, valor, cupon, regalo, pedido_id FROM tienda_halloween WHERE cliente_id = $1 AND temporada = $2 ORDER BY id', [clienteId, temp])).rows;
+  const jugadas = (await db.query(`SELECT th.premio_id, th.texto, th.tipo, th.valor, th.cupon, th.regalo, th.pedido_id, COALESCE(cu.usos, 0) > 0 AS cupon_usado
+    FROM tienda_halloween th LEFT JOIN cupones cu ON cu.codigo = th.cupon WHERE th.cliente_id = $1 AND th.temporada = $2 ORDER BY th.id`, [clienteId, temp])).rows;
   const compras = (await db.query(`SELECT COUNT(*)::int AS n FROM tienda_pedidos WHERE cliente_id = $1 AND creado_en >= $2::timestamptz AND estado NOT IN ('cancelado', 'pendiente_pago')`,
     [clienteId, new Date(tienda.msAR(hw.desde)).toISOString()])).rows[0].n;
   const amigas = (await db.query('SELECT COUNT(*)::int AS n FROM tienda_hw_amigas WHERE referente_id = $1 AND temporada = $2', [clienteId, temp])).rows[0].n;

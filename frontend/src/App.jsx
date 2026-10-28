@@ -30196,7 +30196,11 @@ function TiendaPublica({ slug }) {
   // GoCuotas solo en compras desde el minimo que pone la tienda (lo que suman los productos, sin el envio)
   const gocMin = (tienda.pagos && tienda.pagos.gocuotas_minimo) || 0, gocFalta = gocMin ? Math.max(0, gocMin - (subtotal - descCombo)) : 0;
   const cuponContado = !!(cuponOk && cuponOk.solo_contado); // cupón "solo contado": sin cuotas (no GoCuotas; Mercado Pago en 1 pago)
-  const pagoElegido = datos.pago && (!carritoPreventa || datos.pago === "mp") && !(datos.pago === "gocuotas" && (gocFalta > 0 || cuponContado)) ? datos.pago : null;
+  const hwJunta = !!(cuponOk && cuponOk.hw_codigos); // códigos de Halloween juntados: solo transferencia o efectivo al retirar
+  const pagoNo = (k) => (k === "gocuotas" && (gocFalta > 0 || cuponContado)) || (hwJunta && (k === "mp" || k === "gocuotas"));
+  const pagoElegido = datos.pago && (!carritoPreventa || datos.pago === "mp") && !pagoNo(datos.pago) ? datos.pago : null;
+  // Sus códigos de Halloween sin usar (para juntarlos en esta compra)
+  const hwCodigos = logueada && hwInfo && tienda.halloween ? (hwInfo.premios || []).filter(x => x.tipo === "cupon" && x.cupon && !x.cupon_usado) : [];
   // El mejor descuento de kits entre las formas de pago activas (se muestra en la tarjeta de cada kit)
   const pagoKitsMejor = (() => { const m = Object.entries(descPagosKits).filter(([k, v]) => v > 0 && tienda.pagos && tienda.pagos[k]).sort((a, b) => b[1] - a[1])[0]; return m ? { pct: m[1], nombre: ({ mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia", retiro: "pago al retirar" })[m[0]] } : null; })();
   const pctPago = pagoElegido && !gcCubre ? (descPagos[pagoElegido] || 0) : 0;
@@ -30208,7 +30212,9 @@ function TiendaPublica({ slug }) {
   const descPromo = promoCalc.descuento;
   const basePago = Math.max(0, subtotal - descCombo - descuentoCupon - descAmiga - promoCalc.monto);
   const enKitsPago = pctKitsPago ? Math.max(0, Math.min(basePago, montoKits)) : 0;
-  const descuentoPago = Math.round(enKitsPago * pctKitsPago / 100 + (basePago - enKitsPago) * pctPago / 100);
+  const descuentoPago0 = Math.round(enKitsPago * pctKitsPago / 100 + (basePago - enKitsPago) * pctPago / 100);
+  // Juntando códigos de Halloween, el descuento por forma de pago también entra en el tope (igual que el servidor)
+  const descuentoPago = hwJunta ? Math.min(descuentoPago0, Math.max(0, Math.round(baseCupon * cuponOk.tope / 100 - descuentoCupon))) : descuentoPago0;
   const totalConDesc = subtotal - descCombo - descuentoCupon - descAmiga - descPromo - descuentoPago + costoEnvio;
   const gcUsa = gcOk ? Math.min(gcOk.saldo, totalConDesc) : 0;
   const totalPagar = Math.max(0, totalConDesc - gcUsa);
@@ -30226,12 +30232,23 @@ function TiendaPublica({ slug }) {
     try { const r = await pedir("/cupon/" + encodeURIComponent(c) + "?monto=" + subtotal + (datos.telefono ? "&tel=" + encodeURIComponent(datos.telefono) : "")); setCuponOk(r); setCuponIn(r.codigo); twSonar.brillo(); twVibrar([8, 30, 8]); }
     catch (e) { setCuponOk(null); setAvisoCupon(e.message); }
   };
+  // Halloween: junta todos sus códigos de la calabaza sin usar (se suman hasta el tope)
+  const juntarHw = async () => {
+    setAvisoCupon("");
+    try {
+      const r = await pedir("/cupones-hw?codigos=" + encodeURIComponent(hwCodigos.map(x => x.cupon).join(",")) + "&monto=" + subtotal);
+      setCuponOk({ codigo: r.codigos.join(" + "), tipo: "%", valor: r.pct, suma: r.suma, tope: r.tope, descuento: r.descuento, hw_codigos: r.codigos }); setCuponIn("");
+      if (datos.pago === "mp" || datos.pago === "gocuotas") setDatos(x => ({ ...x, pago: null }));
+      twSonar.brillo(); twVibrar([8, 30, 8]);
+    } catch (e) { setAvisoCupon(e.message); }
+  };
   const confirmar = async () => {
     setAviso(""); setEnviando(true);
     try { localStorage.setItem("tienda_datos", JSON.stringify({ nombre: datos.nombre, telefono: datos.telefono, email: datos.email, direccion: datos.direccion })); } catch (e) {}
     try {
-      const r = await pedir("/pedidos", { method: "POST", body: JSON.stringify({ ...datos, pago: gcCubre ? "giftcard" : pagoElegido, giftcard: gcOk ? gcOk.codigo : null, local_id: lid, items: carrito, cupon: cuponOk ? cuponOk.codigo : null, amiga: descAmiga ? amigaCod : null, muestra: muestraOk, volver_a: window.location.href }) });
+      const r = await pedir("/pedidos", { method: "POST", body: JSON.stringify({ ...datos, pago: gcCubre ? "giftcard" : pagoElegido, giftcard: gcOk ? gcOk.codigo : null, local_id: lid, items: carrito, cupon: cuponOk ? (cuponOk.hw_codigos ? cuponOk.hw_codigos[0] : cuponOk.codigo) : null, cupones_hw: cuponOk && cuponOk.hw_codigos ? cuponOk.hw_codigos.slice(1) : undefined, amiga: descAmiga ? amigaCod : null, muestra: muestraOk, volver_a: window.location.href }) });
       setCarrito([]); setCuponOk(null); setCuponIn(""); setGcOk(null); setGcIn("");
+      if (tienda.halloween && logueada) cargarHw();
       if (descAmiga) { try { localStorage.removeItem("tw_amiga_" + slug); } catch (e) {} }
       if (r.link_pago) { window.location.href = r.link_pago; return; }
       window.location.href = (modoRuta ? "/" : window.location.pathname) + "?tienda=" + encodeURIComponent(slug) + "&pedido=" + r.codigo;
@@ -31544,11 +31561,11 @@ function TiendaPublica({ slug }) {
                   {avisoGc && <div style={{ color: "#c0392b", fontSize: 13, marginTop: 6 }}>{avisoGc}</div>}
                   <div id="tw-ck-pago" className="tw-lbl tw-paso"><span className={"tw-paso-n" + (faltaPago ? "" : " ok")}>{faltaPago ? "3" : "✓"}</span>{gcOk && !gcCubre ? "¿Cómo pagás el resto (" + fmtTienda(totalPagar) + ")?" : "¿Cómo pagás?"}{intentoPedir && faltaPago && <span className="tw-falta-tag">Tocá una opción</span>}</div>
                   {carritoPreventa && !gcCubre && <div className="tw-preventa-aviso chico" style={{ marginBottom: 8 }}><b>💳 La preventa se paga con Mercado Pago</b><span>{tienda.pagos.mp ? "Para reservar productos que todavía no llegaron, el pago es solo con Mercado Pago (tarjeta, débito o dinero en cuenta)." : "Ahora no podemos cobrar con Mercado Pago: escribinos por WhatsApp para reservar tu preventa."}</span></div>}
-                  {gcCubre ? <div className="tw-cupon" style={{ padding: "10px 12px", fontSize: 14 }}>✓ <b>Lo pagás todo con tu gift card.</b> No hace falta otra forma de pago.</div> : opcionesPago.map(([k, t, d]) => k === "gocuotas" && (gocFalta > 0 || cuponContado) ? <button key={k} className="tw-op" disabled style={{ opacity: .55, cursor: "default" }}><b>{t}</b><div style={{ fontSize: 13, color: "#666" }}>{cuponContado ? "Tu cupón " + cuponOk.codigo + " vale sin cuotas" : <>Disponible en compras desde {fmtTienda(gocMin)} · te faltan {fmtTienda(gocFalta)}</>}</div></button> : <button key={k} className={"tw-op" + (pagoElegido === k ? " on" : "") + (intentoPedir && faltaPago ? " falta" : "")} onClick={() => setDatos(x => ({ ...x, pago: k }))}><b>{t}</b>{descPagos[k] > 0 && <span className="tw-op-off">{String(descPagos[k]).replace(".", ",")}% OFF</span>}{descPagosKits[k] > 0 && montoKits > 0 && <span className="tw-op-off">Kits {String(descPagosKits[k]).replace(".", ",")}% OFF</span>}<div style={{ fontSize: 13, color: "#666" }}>{cuponContado && k === "mp" ? "En 1 pago (débito, crédito o dinero en cuenta), por tu cupón" : cuponContado && k === "retiro" ? "Efectivo, débito o crédito en 1 cuota, por tu cupón" : d}</div></button>)}
+                  {gcCubre ? <div className="tw-cupon" style={{ padding: "10px 12px", fontSize: 14 }}>✓ <b>Lo pagás todo con tu gift card.</b> No hace falta otra forma de pago.</div> : opcionesPago.map(([k, t, d]) => pagoNo(k) ? <button key={k} className="tw-op" disabled style={{ opacity: .55, cursor: "default" }}><b>{t}</b><div style={{ fontSize: 13, color: "#666" }}>{hwJunta ? "Juntando tus códigos de Halloween pagás con transferencia o en efectivo" : cuponContado ? "Tu cupón " + cuponOk.codigo + " vale sin cuotas" : <>Disponible en compras desde {fmtTienda(gocMin)} · te faltan {fmtTienda(gocFalta)}</>}</div></button> : <button key={k} className={"tw-op" + (pagoElegido === k ? " on" : "") + (intentoPedir && faltaPago ? " falta" : "")} onClick={() => setDatos(x => ({ ...x, pago: k }))}><b>{t}</b>{descPagos[k] > 0 && !hwJunta && <span className="tw-op-off">{String(descPagos[k]).replace(".", ",")}% OFF</span>}{descPagosKits[k] > 0 && montoKits > 0 && <span className="tw-op-off">Kits {String(descPagosKits[k]).replace(".", ",")}% OFF</span>}<div style={{ fontSize: 13, color: "#666" }}>{cuponContado && k === "mp" ? "En 1 pago (débito, crédito o dinero en cuenta), por tu cupón" : hwJunta && k === "retiro" ? "En efectivo en el local, por juntar tus códigos" : cuponContado && k === "retiro" ? "Efectivo, débito o crédito en 1 cuota, por tu cupón" : d}</div></button>)}
                   <div className="tw-lbl">¿Tenés un código de descuento?</div>
                   {cuponOk ? (
                     <div className="tw-cupon" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "10px 12px" }}>
-                      <span style={{ fontSize: 13.5 }}>✓ <b>{cuponOk.codigo}</b> · {cuponOk.tipo === "%" ? cuponOk.valor + "% off" : fmtTienda(cuponOk.valor) + " off"}{cuponOk.solo_contado && <small style={{ display: "block", fontSize: 12, color: "#8a5a00", marginTop: 2 }}>💵 Pagando con transferencia, efectivo, débito o crédito en 1 cuota</small>}</span>
+                      <span style={{ fontSize: 13.5 }}>✓ <b>{cuponOk.codigo}</b> · {cuponOk.tipo === "%" ? cuponOk.valor + "% off" : fmtTienda(cuponOk.valor) + " off"}{cuponOk.solo_contado && <small style={{ display: "block", fontSize: 12, color: "#8a5a00", marginTop: 2 }}>💵 Pagando con transferencia, efectivo, débito o crédito en 1 cuota</small>}{cuponOk.hw_codigos && <small style={{ display: "block", fontSize: 12, color: "#8a5a00", marginTop: 2 }}>🎃 {cuponOk.suma > cuponOk.pct ? "Suman " + cuponOk.suma + "%, hasta " + cuponOk.tope + "% en total" : "Hasta " + cuponOk.tope + "% en total"} · solo transferencia o efectivo</small>}</span>
                       <button className="tw-btn2" style={{ padding: "5px 10px", fontSize: 11 }} onClick={() => { setCuponOk(null); setCuponIn(""); }}>Quitar</button>
                     </div>
                   ) : (
@@ -31558,6 +31575,7 @@ function TiendaPublica({ slug }) {
                     </div>
                   )}
                   {avisoCupon && <div style={{ color: "#c0392b", fontSize: 13, marginTop: 6 }}>{avisoCupon}</div>}
+                  {hwCodigos.length >= 2 && !hwJunta && <button className="tw-var" style={{ marginTop: 8, marginRight: 6, borderColor: "#ff7a00", color: "#b45309", fontWeight: 800 }} onClick={juntarHw}>🎃 Juntar mis {hwCodigos.length} códigos de Halloween ({Math.min(hwCodigos.reduce((t, x) => t + x.valor, 0), (tienda.halloween && tienda.halloween.tope) || 30)}% OFF)</button>}
                   {!cuponOk && logueada && miCuenta && (miCuenta.canjes || []).filter(c => c.cupon && c.cupon.usable).map(c => <button key={c.codigo} className="tw-var" style={{ marginTop: 8, marginRight: 6 }} onClick={() => aplicarCupon(c.codigo)}>🎁 Usar {c.codigo} ({c.cupon.tipo === "%" ? c.cupon.valor + "%" : fmtTienda(c.cupon.valor)} off)</button>)}
                   <textarea className="tw-inp" rows={2} placeholder="¿Algo que quieras aclarar? (opcional)" value={datos.nota || ""} onChange={e => setDatos(d => ({ ...d, nota: e.target.value }))} style={{ marginTop: 8 }} />
                   {aviso && <div role="alert" style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, marginTop: 10, fontSize: 14, fontWeight: 600 }}>{aviso}</div>}
@@ -34400,7 +34418,9 @@ function HalloweenTienda({ temaPal, productos, soloVer }) {
             {x.tipo === "regalo" && <input className="inp" style={{ width: "100%", marginTop: 4 }} value={x.regalo || ""} maxLength={80} placeholder="¿Qué regalo? Ej: neceser con muestras (se le avisa a la vendedora en el pedido)" onChange={e => setPremio(i, "regalo", e.target.value)} />}
           </Fragment>))}
           {f.premios.length < 8 && !soloVer && <button className="chip-btn" style={{ marginTop: 8 }} onClick={() => set("premios", [...f.premios, { id: "h" + Date.now().toString(36).slice(-6), texto: "15% OFF", tipo: "cupon", valor: 15, chance: 3 }])}>+ Agregar premio</button>}
-          {d.jugadas && d.jugadas.length > 0 && <div style={{ marginTop: 12, fontSize: 12.5 }}><b>Ya jugaron {d.jugadas.reduce((t, x) => t + x.n, 0)} clientas:</b> {d.jugadas.map(x => x.texto + " (" + x.n + ")").join(" · ")}{d.cupones_usados ? " · " + d.cupones_usados + " cupones ya usados en compras" : ""}</div>}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 12, fontSize: 12.5 }}><b>Tope al juntar códigos en una compra:</b><input className="inp" inputMode="numeric" style={{ width: 70 }} value={f.tope === undefined ? 30 : f.tope} onChange={e => set("tope", e.target.value.replace(/\D/g, "").slice(0, 2))} /> %</div>
+          <div style={{ fontSize: 11.5, color: p.textMuted, marginTop: 4 }}>La clienta puede juntar sus códigos de descuento de la calabaza en una compra: se suman hasta este tope (contando el descuento por forma de pago) y solo paga con transferencia o en efectivo al retirar.</div>
+          {d.jugadas && d.jugadas.length > 0 && <div style={{ marginTop: 12, fontSize: 12.5 }}><b>Ya se abrieron {d.jugadas.reduce((t, x) => t + x.n, 0)} calabazas:</b> {d.jugadas.map(x => x.texto + " (" + x.n + ")").join(" · ")}{d.cupones_usados ? " · " + d.cupones_usados + " cupones ya usados en compras" : ""}</div>}
         </>}
       </div>
 
@@ -35115,7 +35135,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                   : p.estado === "en_caja" ? ["Ir a la caja", () => { try { sessionStorage.setItem("lumiere_pos_tienda", String(p.id)); } catch (er) {} irASeccion("pos"); }]
                   : null;
                 const indic = [
-                  (p.nota || (p.notas_local || []).length) && ["🗒️", "Tiene notas"], p.muestra && ["🎁", "Lleva muestra gratis"], p.adviento_regalo && ["🎄", "Lleva regalo del calendario"], p.hw_regalo && ["🎃", "Lleva el premio de Halloween"], p.cupon_contado && ["💵", "Cupón solo contado: cobrar en efectivo, débito, transferencia o crédito en 1 cuota"], p.ruleta && p.ruleta.tipo !== "nada" && ["🎡", "Ganó en la ruleta"],
+                  (p.nota || (p.notas_local || []).length) && ["🗒️", "Tiene notas"], p.muestra && ["🎁", "Lleva muestra gratis"], p.adviento_regalo && ["🎄", "Lleva regalo del calendario"], p.hw_regalo && ["🎃", "Lleva el premio de Halloween"], p.cupon_contado && ["💵", "Cupón solo contado: cobrar en efectivo, débito, transferencia o crédito en 1 cuota"], p.cupon_efectivo && ["🎃", "Juntó códigos de Halloween: solo transferencia o efectivo"], p.ruleta && p.ruleta.tipo !== "nada" && ["🎡", "Ganó en la ruleta"],
                   preventa && ["⏳", "Tiene preventa"], Math.abs(p.pendiente || 0) >= 1 && p.estado !== "cancelado" && ["💰", "Diferencia por un cambio"], p.contactado_en && p.estado !== "entregado" && ["✅", "Ya le escribimos"],
                 ].filter(Boolean);
                 const seccion = { border: "1px solid " + temaPal.border, borderRadius: 12, padding: "10px 12px", background: temaPal.bg };
@@ -35171,6 +35191,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                             ))}
                             {p.muestra && <div style={{ fontSize: 12.5, fontWeight: 700, color: "#d35400", marginTop: 4 }}>🎁 + Muestra gratis: {p.muestra}</div>}
                             {p.adviento_regalo && <div style={{ fontSize: 12.5, fontWeight: 700, color: "#1e7a46", marginTop: 4 }}>🎄 + Regalo del calendario · {p.adviento_regalo}</div>}
+                            {p.cupon_efectivo && <div style={{ fontSize: 12.5, fontWeight: 700, color: "#b45309", marginTop: 4 }}>🎃 Juntó códigos de Halloween ({[p.cupon, ...(p.cupones_extra || [])].join(" + ")}){p.pago === "retiro" && !p.pagado ? ": cobrar solo en efectivo" : ""}</div>}
                             {p.cupon_contado && !p.pagado && <div style={{ fontSize: 12.5, fontWeight: 700, color: "#b45309", marginTop: 4 }}>💵 Cupón {p.cupon} solo contado: cobrar en efectivo, débito, transferencia o crédito en 1 cuota</div>}
                             {p.hw_regalo && <div style={{ fontSize: 12.5, fontWeight: 700, color: "#d35400", marginTop: 4 }}>🎃 + Premio de Halloween (ganado en la calabaza) · {p.hw_regalo}</div>}
                             {p.ruleta && <div style={{ fontSize: 12.5, marginTop: 4, fontWeight: 700, color: p.ruleta.tipo === "nada" ? temaPal.textMuted : temaPal.warn }}>🎡 Ruleta: {p.ruleta.tipo === "regalo" ? "ganó " + (/mega/i.test(p.ruleta.texto || "") ? "el 💎 MEGA REGALO" : "un REGALO 🎁") + " — dáselo con el pedido" : p.ruleta.tipo === "cupon" ? "ganó " + p.ruleta.texto + " (cupón " + p.ruleta.cupon + ", se activa al entregar)" : "seguí participando"}</div>}
