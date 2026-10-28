@@ -26511,6 +26511,27 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-hw-intro-pie .tw-hw-btn{width:100%;padding:15px;font-size:16px}
 .tw-hw-intro-pie .salto{border:0;background:none;color:rgba(255,255,255,.75)!important;font:inherit;font-size:14px;padding:8px;cursor:pointer}
 .tw-hw-intro .tw-hw-cerrar{position:absolute;top:calc(14px + env(safe-area-inset-top));right:14px;z-index:3}
+.tw-hw-dulce{position:fixed;inset:0;z-index:900;overflow:hidden;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 55%,#4a1d6e,#1a0a2b 60%,#0b0612);animation:twAdvIn .25s ease-out}
+.tw-hw-dulce .rayos{position:absolute;left:50%;top:56%;width:900px;height:900px;margin:-450px 0 0 -450px;border-radius:50%;background:repeating-conic-gradient(from 0deg,rgba(255,200,80,.35) 0 8deg,transparent 8deg 20deg);-webkit-mask:radial-gradient(circle,#000 10%,transparent 62%);mask:radial-gradient(circle,#000 10%,transparent 62%);opacity:0;animation:twHwRayosIn .6s ease-out .5s forwards,twAdvGira 12s linear .5s infinite}
+@keyframes twHwRayosIn{to{opacity:1}}
+.tw-hw-dulce .calabaza{position:absolute;top:56%;left:50%;width:min(62vw,280px);height:auto;transform:translate(-50%,-50%);overflow:visible}
+.tw-hw-dulce .cuerpo{transform-box:fill-box;transform-origin:50% 100%;animation:twHwTiemblaC .09s linear 5,twHwRebota .5s cubic-bezier(.3,1.6,.5,1) .5s}
+@keyframes twHwTiemblaC{0%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}100%{transform:rotate(0)}}
+@keyframes twHwRebota{0%{transform:scale(1.15,.85)}100%{transform:none}}
+.tw-hw-dulce .tapa{transform-box:fill-box;transform-origin:50% 100%;animation:twHwTapa .9s cubic-bezier(.2,.8,.4,1) .45s forwards}
+@keyframes twHwTapa{0%{transform:none;opacity:1}100%{transform:translate(70px,-170px) rotate(65deg);opacity:0}}
+.tw-hw-dulce .luz{opacity:0;filter:blur(3px);animation:twHwLuzC .5s ease-out .5s forwards}
+@keyframes twHwLuzC{to{opacity:1;transform:scale(1.4,2)}}
+.tw-hw-dulce .lluvia svg{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;opacity:0;animation:twHwCaramelo 1.6s cubic-bezier(.25,.6,.5,1) forwards}
+@keyframes twHwCaramelo{0%{opacity:1;transform:translate(0,0) rotate(0) scale(.4)}40%{opacity:1;transform:translate(calc(var(--x) * .6),var(--up)) rotate(calc(var(--r) * .5)) scale(1.1)}100%{opacity:0;transform:translate(var(--x),var(--y)) rotate(var(--r)) scale(1)}}
+.tw-hw-dulce .texto{position:absolute;top:10vh;left:0;right:0;text-align:center;padding:0 18px}
+.tw-hw-dulce .dulce{font-weight:900;font-size:clamp(56px,17vw,100px);line-height:1;color:#ff9a1f;text-shadow:0 0 30px rgba(255,150,30,.8),0 6px 0 #5a1a6e;opacity:0;animation:twHwTruco .5s cubic-bezier(.3,1.6,.5,1) .9s forwards}
+.tw-hw-dulce .valor{display:inline-block;margin-top:14px;padding:10px 20px;border-radius:99px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,214,120,.6);font-weight:900;font-size:clamp(22px,7vw,34px);color:#fff;text-shadow:0 0 16px rgba(255,214,120,.9);opacity:0;animation:twHwTruco .5s cubic-bezier(.3,1.6,.5,1) 1.3s forwards}
+.tw-hw-puntos{font-weight:900;font-size:44px;line-height:1.1;color:#ffd34d;text-shadow:0 0 18px rgba(255,200,60,.6);margin:2px 0 8px}
+.tw-hw-puntos small{font-size:20px;color:#ffb347}
+.tw-hw-cod.brilla code{position:relative;overflow:hidden}
+.tw-hw-cod.brilla code::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.65) 50%,transparent 70%);transform:translateX(-120%);animation:twHwBrilloCod 2.2s ease-in-out .3s infinite}
+@keyframes twHwBrilloCod{0%{transform:translateX(-120%)}60%,100%{transform:translateX(120%)}}
 .tw-hw-susto{position:fixed;inset:0;z-index:900;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;animation:twHwFlash .5s steps(1,end) .2s 2}
 @keyframes twHwFlash{0%{background:#000}25%{background:#5a0012}50%{background:#000}75%{background:#1d3a00}}
 .tw-hw-susto .fantasma{position:absolute;width:min(70vw,360px);height:auto;filter:drop-shadow(0 0 30px rgba(220,200,255,.7));transform:scale(.05);opacity:0;animation:twHwBoo .45s cubic-bezier(.2,1.6,.4,1) .15s forwards,twHwSacude .08s linear .6s 12}
@@ -26804,6 +26825,13 @@ const twSonar = {
   campana() { const c = twSonidoOn() && twCtx(); if (!c) return; [[1046, 0], [1568, 0.12], [2093, 0.24]].forEach(([f, d]) => { twTono(c, { f1: f, dur: 1.1, vol: 0.09, cuando: d }); twTono(c, { f1: f * 2.01, dur: 0.6, vol: 0.02, cuando: d }); }); },
 };
 const twVibrar = (ms) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} };
+// Premio de la calabaza: "pop" de la tapa, arpegio mágico y destellos
+function twDulce() {
+  const c = twSonidoOn() && twCtx(); if (!c) return;
+  twTono(c, { f1: 300, f2: 900, dur: .12, vol: .2 });
+  [523, 659, 784, 1047, 1319].forEach((f, i) => { twTono(c, { f1: f, dur: .5, vol: .07, cuando: .35 + i * .09, tipo: "triangle" }); twTono(c, { f1: f * 2, dur: .3, vol: .02, cuando: .35 + i * .09 }); });
+  [2093, 2637, 3136, 2349, 2794].forEach((f, i) => twTono(c, { f1: f, dur: .25, vol: .025, cuando: .95 + i * .11 }));
+}
 // Música de Halloween de fondo: "En la gruta del rey de la montaña" (Grieg, dominio público) en pizzicato misterioso,
 // con bajo y un zumbido grave. Se genera en el navegador (sin archivos) y suena despacito; arranca con un toque de la clienta
 const HW_TEMA = [[59, 1], [61, 1], [62, 1], [64, 1], [66, 1], [62, 1], [66, 2], [65, 1], [61, 1], [65, 2], [64, 1], [60, 1], [64, 2],
@@ -28463,7 +28491,9 @@ function TwDulceTruco({ hw, logueada, mio, onCerrar, onIngresar, onJugar, onVerL
       const p = await onJugar(); await new Promise(r => setTimeout(r, Math.max(0, 1400 - (Date.now() - inicio)))); setPremio(p);
       // TRUCO recién salido: primero el susto (con sonido) y después el mensaje
       if (p.tipo === "nada" && !p.ya && !twMenosMovimiento()) { setEstado("susto"); twSusto(); twVibrar([90, 40, 160]); setTimeout(() => setEstado("listo"), 2300); }
-      else { setEstado("listo"); if (p.tipo !== "nada") twSonar.brillo(); }
+      // DULCE recién salido: la calabaza se abre y explota en caramelos; después el premio
+      else if (!p.ya && !twMenosMovimiento()) { setEstado("dulce"); twDulce(); twVibrar([40, 30, 60]); setTimeout(() => setEstado("listo"), 2700); }
+      else { setEstado("listo"); twSonar.brillo(); }
     }
     catch (e) { setError(e.message || "No se pudo jugar"); setEstado("elegir"); }
   };
@@ -28483,7 +28513,7 @@ function TwDulceTruco({ hw, logueada, mio, onCerrar, onIngresar, onJugar, onVerL
           <div className="tw-hw-calabazas">{[0, 1, 2].map(i => <button key={i} onClick={jugar} aria-label={"Calabaza " + (i + 1)}>🎃</button>)}</div>
           {error && <p style={{ color: "#ffb4a8" }}>{error}</p>}
           <p className="tw-hw-chica">Una calabaza por clienta{hasta ? " · hasta el " + hasta : ""}</p>
-        </> : estado === "susto" ? <TwHwSusto /> : estado === "jugando" ? <>
+        </> : estado === "susto" ? <TwHwSusto /> : estado === "dulce" ? <TwHwDulce premio={premio} /> : estado === "jugando" ? <>
           <div className="tw-hw-tiembla">🎃</div>
           <p style={{ marginTop: 14 }}>Abriendo tu calabaza…</p>
         </> : premio && <>
@@ -28491,10 +28521,13 @@ function TwDulceTruco({ hw, logueada, mio, onCerrar, onIngresar, onJugar, onVerL
           <h3>{premio.tipo === "nada" ? "¡Truco!" : "¡Dulce!"}</h3>
           {premio.tipo === "cupon" && <>
             <p>Ganaste <b>{premio.texto}</b> para tu compra en la tienda online. Usá este código al pagar:</p>
-            <div className="tw-hw-cod"><code>{premio.cupon}</code><button className="tw-hw-btn sec" style={{ padding: "8px 12px" }} onClick={() => { try { navigator.clipboard.writeText(premio.cupon); setCopiado(true); } catch (e) {} }}>{copiado ? "✓" : "Copiar"}</button></div>
+            <div className="tw-hw-cod brilla"><code>{premio.cupon}</code><button className="tw-hw-btn sec" style={{ padding: "8px 12px" }} onClick={() => { try { navigator.clipboard.writeText(premio.cupon); setCopiado(true); } catch (e) {} }}>{copiado ? "✓" : "Copiar"}</button></div>
             <p className="tw-hw-chica">Es solo para vos (con tu cuenta){hasta ? " y vale hasta el " + hasta : ""}.</p>
           </>}
-          {premio.tipo === "puntos" && <p>Sumaste <b>{premio.texto}</b> a tu cuenta. Canjealos por premios cuando quieras.</p>}
+          {premio.tipo === "puntos" && <>
+            <div className="tw-hw-puntos">+<TwHwCuenta hasta={premio.valor} /> <small>puntos</small></div>
+            <p>Ya están en tu cuenta. Canjealos por premios cuando quieras.</p>
+          </>}
           {premio.tipo === "regalo" && <>
             <p>Ganaste <b>{premio.regalo || premio.texto}</b> de regalo con tu compra online. {premio.usado ? "Ya va en tu pedido." : "Se suma solo a tu próximo pedido" + (premio.valor ? " desde " + "$" + Math.round(premio.valor).toLocaleString("es-AR") : "") + "."}</p>
             <p className="tw-hw-chica">Entrá con tu cuenta al comprar{hasta ? " · vale hasta el " + hasta : ""}.</p>
@@ -28561,6 +28594,44 @@ function TwHwIntro({ hw, slug, hayLook, onJugar, onVer }) {
         {hayLook && <button className={"tw-hw-btn" + (hw.juego ? " sec" : "")} onClick={() => cerrar(onVer)}>Ver tu look de Halloween</button>}
         <button className="salto" onClick={() => cerrar()}>Entrar a la tienda</button>
       </div>
+    </div>
+  </div>, document.body);
+}
+// Número que sube de 0 al valor (para los puntos ganados)
+function TwHwCuenta({ hasta }) {
+  const [n, setN] = useState(0);
+  useEffect(() => { let id, t0 = performance.now(); const f = (t) => { const k = Math.min(1, (t - t0) / 1100); setN(Math.round(hasta * (1 - Math.pow(1 - k, 3)))); if (k < 1) id = requestAnimationFrame(f); }; id = requestAnimationFrame(f); return () => cancelAnimationFrame(id); }, [hasta]);
+  return <b>{n.toLocaleString("es-AR")}</b>;
+}
+// ¡DULCE!: la calabaza tiembla, salta la tapa, sale luz con rayos dorados y una lluvia de caramelos; después el premio en grande
+const HW_CARAMELOS = [
+  // caramelo envuelto
+  (k) => <g><path d="M-14 -6 L-24 -12 L-22 0 L-24 12 L-14 6 Z M14 -6 L24 -12 L22 0 L24 12 L14 6 Z" fill={k} /><ellipse rx="15" ry="10" fill={k} /><path d="M-6 -9 L-2 9 M4 -9 L8 9" stroke="#fff" strokeWidth="3" opacity=".7" /></g>,
+  // caramelo de maíz
+  () => <g><path d="M0 -16 L13 14 Q0 19 -13 14 Z" fill="#ffd23f" /><path d="M-8 2 L8 2 L13 14 Q0 19 -13 14 Z" fill="#ff7a00" /><path d="M0 -16 L5 -4 L-5 -4 Z" fill="#fff" /></g>,
+  // chupetín
+  (k) => <g><rect x="-2" y="6" width="4" height="22" rx="2" fill="#f4e9d8" /><circle r="13" fill={k} /><path d="M0 0 m-9 0 a9 9 0 1 0 18 0 a6 6 0 1 0 -12 0 a3 3 0 1 0 6 0" fill="none" stroke="#fff" strokeWidth="2.5" /></g>,
+];
+function TwHwDulce({ premio }) {
+  const caramelos = useMemo(() => Array.from({ length: 26 }, (_, i) => {
+    const a = -Math.PI / 2 + (i / 26 - .5) * Math.PI * 1.5, dist = 140 + (i * 37) % 160;
+    return { x: Math.round(Math.cos(a) * dist) + "px", up: Math.round(-160 - (i * 53) % 140) + "px", y: Math.round(260 + (i * 41) % 200) + "px", r: ((i % 2 ? 1 : -1) * (300 + (i * 71) % 400)) + "deg", del: (.5 + (i % 6) * .04) + "s", tipo: i % 3, k: ["#9b4dff", "#ff7a00", "#3ddc84", "#ff4d8d", "#ffd23f"][i % 5] };
+  }), []);
+  const valor = premio.tipo === "puntos" ? "+" + Number(premio.valor || 0).toLocaleString("es-AR") + " puntos" : premio.tipo === "regalo" ? "🎁 " + (premio.regalo || premio.texto) : premio.texto;
+  return createPortal(<div className="tw" style={{ minHeight: 0, background: "transparent" }}>
+    <div className="tw-hw-dulce" role="alert" aria-label={"¡Dulce! " + valor}>
+      <div className="rayos" aria-hidden="true" />
+      <svg className="calabaza" viewBox="-70 -80 140 140" aria-hidden="true">
+        <defs><radialGradient id="twHwAdentro"><stop offset="0" stopColor="#fff6c8" /><stop offset=".5" stopColor="#ffd34d" /><stop offset="1" stopColor="#ff7a00" /></radialGradient></defs>
+        <g className="cuerpo">
+          <ellipse cx="-30" cy="0" rx="34" ry="48" fill="#d9590a" /><ellipse cx="30" cy="0" rx="34" ry="48" fill="#d9590a" /><ellipse rx="40" ry="52" fill="#f07a1e" /><ellipse rx="16" ry="50" fill="#f58a2c" />
+          <path d="M-30 -14 l12 -18 l12 18 Z M6 -14 l12 -18 l12 18 Z M-34 14 q34 30 68 0 l-9 8 l-8 -6 l-9 8 l-8 -6 l-9 8 l-8 -6 l-9 8 Z" fill="url(#twHwAdentro)" />
+        </g>
+        <g className="tapa"><path d="M-36 -40 Q0 -62 36 -40 Q0 -48 -36 -40 Z" fill="#c94f08" /><path d="M-4 -52 q2 -14 12 -18 l3 4 q-8 4 -9 14 Z" fill="#3d5a1e" /></g>
+        <ellipse className="luz" cx="0" cy="-44" rx="30" ry="8" fill="#fff3b0" />
+      </svg>
+      <div className="lluvia" aria-hidden="true">{caramelos.map((c, i) => <svg key={i} viewBox="-30 -30 60 60" style={{ "--x": c.x, "--up": c.up, "--y": c.y, "--r": c.r, animationDelay: c.del }}>{HW_CARAMELOS[c.tipo](c.k)}</svg>)}</div>
+      <div className="texto"><div className="dulce">¡DULCE!</div><div className="valor">{valor}</div></div>
     </div>
   </div>, document.body);
 }
