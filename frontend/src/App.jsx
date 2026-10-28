@@ -26335,14 +26335,12 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-nieve{position:absolute;inset:0;pointer-events:none;z-index:3;overflow:hidden}
 .tw-adv-nieve i{position:absolute;top:-10px;width:var(--s);height:var(--s);border-radius:50%;background:#fff;opacity:var(--o);animation:twAdvNieve var(--d) linear var(--del) infinite}
 @keyframes twAdvNieve{to{transform:translate(var(--x),1100px)}}
-.tw-adv-ciudad{position:relative;width:100%;max-width:420px;margin:6px auto 0;aspect-ratio:360/700}
+.tw-adv-ciudad{position:relative;width:100%;max-width:420px;margin:6px auto 0;aspect-ratio:360/560}
 .tw-adv-ciudad>svg{position:absolute;inset:0;width:100%;height:100%;display:block}
 .tw-adv-titila{animation:twAdvTit 3.2s ease-in-out infinite}
 @keyframes twAdvTit{0%,100%{opacity:.55}50%{opacity:.15}}
 .tw-adv-faro{animation:twAdvFaro 2.4s ease-in-out infinite;transform-origin:center;transform-box:fill-box}
 @keyframes twAdvFaro{0%,100%{opacity:.55;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}
-.tw-adv-guirn{animation:twAdvGuirn 2.8s ease-in-out infinite}
-@keyframes twAdvGuirn{0%,100%{opacity:1}50%{opacity:.55}}
 .tw-adv-v{position:absolute;padding:0;border:1px solid rgba(201,164,90,.7);border-radius:2px;background:linear-gradient(180deg,#1b2a4a,#111c33);cursor:pointer;-webkit-tap-highlight-color:transparent;display:flex;align-items:flex-end;justify-content:center;overflow:visible;transition:background .4s,box-shadow .4s;color:#d9bf7f}
 .tw-adv-v::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(201,164,90,.35)}
 .tw-adv-v b{position:relative;font-weight:600;font-size:12px;line-height:1;margin-bottom:4px;font-family:"TwJS",sans-serif}
@@ -28053,6 +28051,8 @@ function TwCyberBarra({ cy }) {
 // abajo) y, adelante, el árbol de luces de Rockefeller, que brilla más cuantas más ventanas se encienden. Lienzo de 360x700
 const ADV_PISOS = [[1], [2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12, 13], [14, 15, 16, 17], [18, 19, 20, 21], [22, 23, 24, 25]];
 const ADV_VW = 38, ADV_VH = 36, ADV_VG = 10, ADV_Y0 = 150;
+// Alto de la escena en la tienda (termina en la entrada del edificio; el árbol solo va en la bienvenida y en el video)
+const ADV_ALTO = 560;
 const ADV_VENT = (() => { const v = {}; ADV_PISOS.forEach((f, i) => { const y = ADV_Y0 + i * (ADV_VH + ADV_VG), x0 = 180 - (f.length * ADV_VW + (f.length - 1) * ADV_VG) / 2; f.forEach((n, j) => { v[n] = { x: x0 + j * (ADV_VW + ADV_VG), y }; }); }); return v; })();
 // Cuerpos del edificio (se escalona cada vez que cambia la cantidad de ventanas por piso)
 const ADV_CUERPOS = (() => {
@@ -28082,10 +28082,10 @@ const ADV_GUIRN = (() => {
 })();
 const advEstrella = (r) => { let d = ""; for (let i = 0; i < 24; i++) { const a = -Math.PI / 2 + i * Math.PI / 12, rr = i % 2 ? r * .27 : (i % 4 === 0 ? r : r * .62); d += (i ? "L" : "M") + (Math.cos(a) * rr).toFixed(1) + " " + (Math.sin(a) * rr).toFixed(1); } return d + "Z"; };
 // La ciudad de fondo, el edificio y el árbol (las ventanas van arriba, como botones)
-function TwAdvCiudad({ prendidas }) {
-  const brillo = prendidas / 25, nLuz = Math.round(brillo * 40);
+function TwAdvCiudad() {
+  const A = ADV_ALTO;
   return (
-    <svg viewBox="0 0 360 700" aria-hidden="true">
+    <svg viewBox={"0 0 360 " + A} aria-hidden="true">
       <defs>
         <radialGradient id="twAdvGlow"><stop offset="0" stopColor="#fff8e1" /><stop offset=".35" stopColor="#ffd98a" /><stop offset="1" stopColor="#ffb84d" stopOpacity="0" /></radialGradient>
         <linearGradient id="twAdvEst" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff6da" /><stop offset="1" stopColor="#e2b75c" /></linearGradient>
@@ -28094,9 +28094,9 @@ function TwAdvCiudad({ prendidas }) {
       <circle cx="306" cy="74" r="44" fill="url(#twAdvLuna)" />
       <circle cx="306" cy="74" r="17" fill="#fff6dc" opacity=".92" />
       {ADV_SKY.map(([x, w, h, k], i) => <g key={i}>
-        <rect x={x} y={700 - h} width={w} height={h} fill={k ? "#0e1833" : "#0a1226"} />
-        {i % 5 === 2 && <rect x={x + w / 2 - 2} y={700 - h - 18} width="4" height="18" fill="#0e1833" />}
-        {Array.from({ length: Math.floor(h / 12) }, (_, r) => Array.from({ length: Math.floor((w - 6) / 7) }, (_, c) => ((r * 7 + c * 13 + i * 5) % 9) < 2 && <rect key={r + "-" + c} className={(r + c + i) % 4 === 0 ? "tw-adv-titila" : undefined} style={{ animationDelay: ((r * 3 + c + i) % 9) * .4 + "s" }} x={x + 4 + c * 7} y={700 - h + 8 + r * 12} width="3" height="4" fill="#ffd98a" opacity=".5" />))}
+        <rect x={x} y={A - h} width={w} height={h} fill={k ? "#0e1833" : "#0a1226"} />
+        {i % 5 === 2 && <rect x={x + w / 2 - 2} y={A - h - 18} width="4" height="18" fill="#0e1833" />}
+        {Array.from({ length: Math.floor(h / 12) }, (_, r) => Array.from({ length: Math.floor((w - 6) / 7) }, (_, c) => ((r * 7 + c * 13 + i * 5) % 9) < 2 && <rect key={r + "-" + c} className={(r + c + i) % 4 === 0 ? "tw-adv-titila" : undefined} style={{ animationDelay: ((r * 3 + c + i) % 9) * .4 + "s" }} x={x + 4 + c * 7} y={A - h + 8 + r * 12} width="3" height="4" fill="#ffd98a" opacity=".5" />))}
       </g>)}
       {/* aguja con faro */}
       <path d={"M171 " + ADV_CUERPOS[0].y + " L180 70 L189 " + ADV_CUERPOS[0].y + " Z"} fill="#0b0b0e" stroke="#c9a45a" strokeWidth="1" />
@@ -28110,20 +28110,11 @@ function TwAdvCiudad({ prendidas }) {
         <line x1={180 - k.w / 2 + 5} y1={k.y + 4} x2={180 - k.w / 2 + 5} y2={k.y + k.h} stroke="#c9a45a" strokeWidth=".7" opacity=".55" />
         <line x1={180 + k.w / 2 - 5} y1={k.y + 4} x2={180 + k.w / 2 - 5} y2={k.y + k.h} stroke="#c9a45a" strokeWidth=".7" opacity=".55" />
       </g>)}
-      {/* zócalo: bandas doradas */}
-      {[530, 546].map(y => <line key={y} x1={180 - ADV_CUERPOS[ADV_CUERPOS.length - 1].w / 2 + 5} y1={y} x2={180 + ADV_CUERPOS[ADV_CUERPOS.length - 1].w / 2 - 5} y2={y} stroke="#c9a45a" strokeWidth=".7" opacity=".5" />)}
-      {/* árbol de luces adelante */}
-      <ellipse cx="180" cy="694" rx="150" ry="14" fill="#ffd98a" opacity={.06 + brillo * .14} />
-      <ellipse cx="180" cy="625" rx="92" ry="92" fill="url(#twAdvGlow)" opacity={.08 + brillo * .3} />
-      {Array.from({ length: 17 }, (_, i) => { const bx = ADV_ARB.x - ADV_ARB.ancho + i * ADV_ARB.ancho * 2 / 16; return <line key={i} x1="180" y1={ADV_ARB.top + 8} x2={bx} y2={ADV_ARB.base - 4} stroke="#e8c77a" strokeWidth=".5" opacity={.25 + brillo * .3} />; })}
-      <path d={ADV_GUIRN.d} fill="none" stroke="#f3d38c" strokeWidth=".9" opacity={.35 + brillo * .35} />
-      {ADV_GUIRN.luces.map((p, k) => { const on = k < nLuz, r = 2 + (p.z + 1) * .6; return on
-        ? <g key={k} className="tw-adv-guirn" style={{ animationDelay: (k % 7) * .35 + "s" }}><circle cx={p.x} cy={p.y} r={r * 3.2} fill="url(#twAdvGlow)" /><circle cx={p.x} cy={p.y} r={r} fill="#fff4d0" /></g>
-        : <circle key={k} cx={p.x} cy={p.y} r={r * .8} fill="#e8c77a" opacity=".35" />; })}
-      <g transform={"translate(180 " + ADV_ARB.top + ")"}>
-        <circle r={16 + brillo * 18} fill="url(#twAdvGlow)" opacity={.45 + brillo * .55} />
-        <path d={advEstrella(13 + brillo * 3)} fill="url(#twAdvEst)" stroke="#e2b75c" strokeWidth=".6" opacity={.6 + brillo * .4} />
-      </g>
+      {/* planta baja: bandas doradas y la entrada iluminada */}
+      {[526, 538].map(y => <line key={y} x1={180 - ADV_CUERPOS[ADV_CUERPOS.length - 1].w / 2 + 5} y1={y} x2={180 + ADV_CUERPOS[ADV_CUERPOS.length - 1].w / 2 - 5} y2={y} stroke="#c9a45a" strokeWidth=".7" opacity=".5" />)}
+      <ellipse cx="180" cy={A} rx="60" ry="22" fill="url(#twAdvGlow)" opacity=".35" />
+      <path d={"M164 " + A + " V" + (A - 14) + " a16 16 0 0 1 32 0 V" + A + " Z"} fill="#f5c065" opacity=".85" stroke="#c9a45a" strokeWidth="1.2" />
+      <line x1="180" y1={A - 29} x2="180" y2={A} stroke="#8a5a14" strokeWidth=".8" opacity=".6" />
     </svg>
   );
 }
@@ -28249,12 +28240,12 @@ function TwAdviento({ adv, slug, visibles, tarjeta }) {
       <h2>{advTitulo(adv.titulo)}</h2>
       {adv.bajada && <p className="tw-adv-bajada">{adv.bajada}</p>}
       <div className="tw-adv-ciudad">
-        <TwAdvCiudad prendidas={prendidas} />
+        <TwAdvCiudad />
         {adv.dias.map(d => {
           const n = d.dia, v = ADV_VENT[n], esHoy = n === hoy && !adv.vista_previa, ab = abiertas.includes(n);
           return (
             <button key={n} data-dia={n} className={"tw-adv-v" + (ab ? " prendida" : d.bloqueado ? " bloq" : " listo") + (esHoy && !ab ? " hoy" : "") + (tiembla === n ? " tiembla" : "")}
-              style={{ left: (v.x / 360 * 100) + "%", top: (v.y / 700 * 100) + "%", width: (ADV_VW / 360 * 100) + "%", height: (ADV_VH / 700 * 100) + "%" }}
+              style={{ left: (v.x / 360 * 100) + "%", top: (v.y / ADV_ALTO * 100) + "%", width: (ADV_VW / 360 * 100) + "%", height: (ADV_VH / ADV_ALTO * 100) + "%" }}
               onClick={() => abrir(d)} aria-label={"Día " + n + (d.bloqueado ? " (todavía no)" : ab ? " (abierta)" : "")}>
               {ab && <i>{d.icono}</i>}<b>{n}</b>
               {esHoy && !ab && <span className="hoy-chip">HOY</span>}
