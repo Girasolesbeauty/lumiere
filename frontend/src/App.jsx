@@ -26504,7 +26504,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-hw-intro-txt .ceja{font-size:12px;font-weight:800;letter-spacing:.32em;text-transform:uppercase;color:#ffb347;opacity:0;animation:twAdvTxt .8s ease-out .4s forwards}
 .tw-hw-intro-txt h2{margin:10px 0 0;font-size:clamp(44px,13vw,72px);font-weight:900;line-height:1;color:#ff7a00;text-shadow:0 0 26px rgba(255,110,0,.55),0 5px 0 #3a0a4a;opacity:0;animation:twAdvTxt .9s ease-out .7s forwards,twHwFlota 3s ease-in-out 1.6s infinite}
 @keyframes twHwFlota{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-6px) rotate(1deg)}}
-.tw-hw-intro-txt p{margin:12px auto 0;max-width:380px;font-size:15px;line-height:1.45;color:#e8dcf5;opacity:0;animation:twAdvTxt .8s ease-out 1.1s forwards}
+.tw-hw-intro-txt p{display:inline-block;margin:14px auto 0;max-width:380px;padding:9px 16px;border-radius:16px;background:rgba(13,4,24,.72);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);font-size:15px;line-height:1.45;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);opacity:0;animation:twAdvTxt .8s ease-out 1.1s forwards}
 .tw-hw-intro-pie{position:relative;z-index:2;width:100%;max-width:460px;margin:0 auto;padding:40px 22px calc(26px + env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(13,4,24,0),rgba(13,4,24,.85) 40%);opacity:0;animation:twAdvTxt .7s ease-out 2.1s forwards;display:flex;flex-direction:column;gap:10px}
 .tw-hw-intro-pie .tw-hw-btn{width:100%;padding:15px;font-size:16px}
 .tw-hw-intro-pie .salto{border:0;background:none;color:rgba(255,255,255,.75)!important;font:inherit;font-size:14px;padding:8px;cursor:pointer}
@@ -28475,7 +28475,7 @@ function TwHwIntro({ hw, slug, hayLook, onJugar, onVer }) {
           <radialGradient id="twHwLuz"><stop offset="0" stopColor="#ffd34d" /><stop offset="1" stopColor="#ff7a00" stopOpacity="0" /></radialGradient>
           <radialGradient id="twHwLunaG"><stop offset=".6" stopColor="#ffe9b0" stopOpacity=".35" /><stop offset="1" stopColor="#ffe9b0" stopOpacity="0" /></radialGradient>
         </defs>
-        <g className="luna"><circle cx="180" cy="330" r="150" fill="url(#twHwLunaG)" /><circle cx="180" cy="330" r="96" fill="#ffeec2" /><circle cx="150" cy="300" r="14" fill="#f3dc9e" /><circle cx="210" cy="352" r="20" fill="#f3dc9e" /><circle cx="196" cy="296" r="8" fill="#f3dc9e" /></g>
+        <g className="luna"><circle cx="180" cy="370" r="150" fill="url(#twHwLunaG)" /><circle cx="180" cy="370" r="96" fill="#ffeec2" /><circle cx="150" cy="340" r="14" fill="#f3dc9e" /><circle cx="210" cy="392" r="20" fill="#f3dc9e" /><circle cx="196" cy="336" r="8" fill="#f3dc9e" /></g>
         {[0, 1, 2, 3, 4].map(i => <g key={i} className="vuela" style={{ animationDelay: (-i * 1.1) + "s", animationDuration: (4.5 + i * .7) + "s" }}><g transform={"translate(0 " + (220 + i * 34) + ") scale(" + (1.2 + (i % 3) * .5) + ")"}><path className="ala" d={HW_MURC} fill="#12051f" /></g></g>)}
         <g className="pueblo" fill="#0b0612">
           <path d="M0 700 V560 l30 -40 l30 40 V520 h14 v-30 h10 v30 h16 V700 Z" />
