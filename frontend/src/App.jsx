@@ -26459,6 +26459,8 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-nav .tw-hw-nav::after,.tw-nav .tw-cy-nav::after{display:none}
 .tw-hw-vista{position:fixed;left:12px;right:12px;bottom:12px;z-index:400;background:#1c0d2e;color:#ffd9b0;border:1px solid #ff7a00;border-radius:14px;padding:10px 14px;font-size:12.5px;line-height:1.4;box-shadow:0 8px 30px rgba(0,0,0,.35)}
 @media (min-width:700px){.tw-hw-vista{left:auto;max-width:420px}}
+.tw-hw-musica{position:fixed;left:14px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:31;width:44px;height:44px;border-radius:50%;border:2px solid #ff7a00;background:#1c0d2e;color:#fff!important;font-size:19px;line-height:1;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.3)}
+.tw-hw-musica.on{animation:twHwLate 1.2s ease-in-out infinite}
 .tw-hw-fab{position:fixed;left:14px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:31;border:0;border-radius:99px;padding:10px 16px 10px 10px;display:flex;align-items:center;gap:8px;background:#1c0d2e;color:#ffcf9a!important;font-weight:900;font-size:13px;cursor:pointer;box-shadow:0 8px 26px rgba(28,13,46,.45),0 0 0 2px #ff7a00}
 .tw-hw-fab b{font-size:30px;line-height:1;display:inline-block;animation:twHwSalta 1.6s ease-in-out infinite}
 @keyframes twHwSalta{0%,100%{transform:translateY(0) rotate(0)}30%{transform:translateY(-6px) rotate(-8deg)}60%{transform:translateY(0) rotate(6deg)}}
@@ -26802,6 +26804,68 @@ const twSonar = {
   campana() { const c = twSonidoOn() && twCtx(); if (!c) return; [[1046, 0], [1568, 0.12], [2093, 0.24]].forEach(([f, d]) => { twTono(c, { f1: f, dur: 1.1, vol: 0.09, cuando: d }); twTono(c, { f1: f * 2.01, dur: 0.6, vol: 0.02, cuando: d }); }); },
 };
 const twVibrar = (ms) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} };
+// Música de Halloween de fondo: "En la gruta del rey de la montaña" (Grieg, dominio público) en pizzicato misterioso,
+// con bajo y un zumbido grave. Se genera en el navegador (sin archivos) y suena despacito; arranca con un toque de la clienta
+const HW_TEMA = [[59, 1], [61, 1], [62, 1], [64, 1], [66, 1], [62, 1], [66, 2], [65, 1], [61, 1], [65, 2], [64, 1], [60, 1], [64, 2],
+  [59, 1], [61, 1], [62, 1], [64, 1], [66, 1], [62, 1], [66, 1], [71, 1], [69, 1], [66, 1], [62, 1], [66, 1], [69, 4]];
+const twHwMusica = {
+  on: false, master: null, timer: null, prox: 0, i: 0, vuelta: 0,
+  nota(c, midi, cuando, dur, vol, tipo) {
+    const f = 440 * Math.pow(2, (midi - 69) / 12), o = c.createOscillator(), g = c.createGain();
+    o.type = tipo; o.frequency.setValueAtTime(f, cuando);
+    g.gain.setValueAtTime(0.0001, cuando); g.gain.exponentialRampToValueAtTime(vol, cuando + .01); g.gain.exponentialRampToValueAtTime(0.0001, cuando + dur);
+    o.connect(g).connect(this.master); o.start(cuando); o.stop(cuando + dur + .05);
+  },
+  arrancar() {
+    if (this.on) return;
+    const c = twCtx(); if (!c) return;
+    this.on = true; this.master = c.createGain(); this.master.gain.setValueAtTime(0.0001, c.currentTime); this.master.gain.exponentialRampToValueAtTime(1, c.currentTime + 1.5); this.master.connect(c.destination);
+    // zumbido grave con temblor
+    const d = c.createOscillator(), dg = c.createGain(), lfo = c.createOscillator(), lg = c.createGain();
+    d.type = "sine"; d.frequency.value = 61.7; dg.gain.value = .018; lfo.frequency.value = .25; lg.gain.value = .01;
+    lfo.connect(lg).connect(dg.gain); d.connect(dg).connect(this.master); d.start(); lfo.start(); this.dron = [d, lfo];
+    this.prox = c.currentTime + .3; this.i = 0; this.vuelta = 0;
+    const paso = () => {
+      if (!this.on) return;
+      if (!twSonidoOn()) { this.parar(); return; }
+      const ocho = Math.max(.17, .26 - this.vuelta * .02); // cada vuelta un poco más rápido, como en la obra
+      while (this.prox < c.currentTime + .8) {
+        const [n, dur] = HW_TEMA[this.i], sube = this.vuelta % 2 ? 5 : 0;
+        this.nota(c, n + sube, this.prox, Math.min(.5, dur * ocho * .9), .05, "triangle");
+        this.nota(c, n + sube - 12, this.prox, Math.min(.4, dur * ocho * .8), .025, "sine");
+        if (this.i % 2 === 0) this.nota(c, (this.i % 4 === 0 ? 47 : 42) + sube, this.prox, .22, .06, "triangle");
+        this.prox += dur * ocho; this.i++;
+        if (this.i >= HW_TEMA.length) { this.i = 0; this.vuelta = (this.vuelta + 1) % 4; this.prox += ocho * 2; }
+      }
+    };
+    paso(); this.timer = setInterval(paso, 200);
+  },
+  parar() {
+    if (!this.on) return;
+    this.on = false; clearInterval(this.timer);
+    const c = twCtx(), m = this.master, dron = this.dron;
+    try { m.gain.cancelScheduledValues(c.currentTime); m.gain.setValueAtTime(m.gain.value || .5, c.currentTime); m.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + .4); setTimeout(() => { try { dron.forEach(o => o.stop()); m.disconnect(); } catch (e) {} }, 500); } catch (e) {}
+  },
+};
+const twHwMusicaQuiere = () => { try { return localStorage.getItem("tienda_musica") !== "0"; } catch (e) { return true; } };
+// Botón 🎵 para prender/apagar la música (se acuerda en el celular) y arranque con el primer toque en la página
+function TwHwMusica() {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const primer = () => { if (twHwMusicaQuiere() && twSonidoOn()) { twHwMusica.arrancar(); setOn(twHwMusica.on); } };
+    window.addEventListener("pointerdown", primer, { once: true, capture: true });
+    const vis = () => { if (document.hidden) { if (twHwMusica.on) { twHwMusica.parar(); twHwMusica.pausada = true; } } else if (twHwMusica.pausada) { twHwMusica.pausada = false; twHwMusica.arrancar(); } setOn(twHwMusica.on); };
+    document.addEventListener("visibilitychange", vis);
+    const t = setInterval(() => setOn(twHwMusica.on), 1000);
+    return () => { window.removeEventListener("pointerdown", primer, { capture: true }); document.removeEventListener("visibilitychange", vis); clearInterval(t); twHwMusica.parar(); };
+  }, []);
+  const cambiar = (e) => {
+    e.stopPropagation();
+    if (twHwMusica.on) { twHwMusica.parar(); try { localStorage.setItem("tienda_musica", "0"); } catch (x) {} setOn(false); }
+    else { try { localStorage.setItem("tienda_musica", "1"); localStorage.setItem("tienda_sonido", "1"); } catch (x) {} twHwMusica.arrancar(); setOn(true); }
+  };
+  return <button className={"tw-hw-musica" + (on ? " on" : "")} onPointerDown={e => e.stopPropagation()} onClick={cambiar} aria-label={on ? "Apagar la música de Halloween" : "Prender la música de Halloween"} aria-pressed={on}>{on ? "🎵" : "🔇"}</button>;
+}
 // Susto de Halloween (cuando sale TRUCO): golpe de ruido, chillido que cae, acorde disonante y una risita de bruja
 function twSusto() {
   const c = twSonidoOn() && twCtx(); if (!c) return;
@@ -30939,6 +31003,7 @@ function TiendaPublica({ slug }) {
       {tienda.halloween && tienda.halloween.juego && !paso && !ver && !hwJuego && (
         <button className="tw-hw-fab" onClick={() => setHwJuego(true)} aria-label="Jugar ¿Dulce o truco?"><b aria-hidden="true">🎃</b>{hwMio ? "Tu premio" : "¿Dulce o truco?"}</button>
       )}
+      {tienda.halloween && tienda.halloween.musica && <TwHwMusica />}
       {tienda.halloween && !tienda.cyber && <TwHwIntro hw={tienda.halloween} slug={slug} hayLook={hwLook.length > 0} onJugar={() => setHwJuego(true)} onVer={() => irCat("halloween")} />}
       {hwJuego && tienda.halloween && <TwDulceTruco hw={tienda.halloween} logueada={logueada} mio={hwMio && !tienda.halloween.vista_previa ? { ...hwMio, ya: true } : null}
         onCerrar={() => setHwJuego(false)}
@@ -34155,6 +34220,8 @@ function HalloweenTienda({ temaPal, productos, soloVer }) {
         <div style={{ gridColumn: "1 / -1" }}><label style={lbl}>Bajada</label><input className="inp" value={f.subtitulo} maxLength={160} onChange={e => set("subtitulo", e.target.value)} /></div>
       </div>
 
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 16 }}><Sw on={f.musica !== false} toggle={() => set("musica", f.musica === false)} /><b style={{ fontSize: 13.5 }}>🎵 Música de fondo en la tienda</b></div>
+      <div style={{ fontSize: 11.5, color: p.textMuted, margin: "4px 0 0" }}>"En la gruta del rey de la montaña" (Grieg, sin derechos de autor), despacito. Arranca cuando la clienta toca algo en la página y ella la puede apagar con el botón 🎵.</div>
       <div style={{ marginTop: 18, border: "1px solid " + p.border, borderRadius: 12, padding: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Sw on={!!f.juego} toggle={() => set("juego", !f.juego)} /><b style={{ fontSize: 13.5 }}>🎃 Juego "¿Dulce o truco?"</b></div>
         <div style={{ fontSize: 11.5, color: p.textMuted, margin: "6px 0 10px" }}>Cada clienta abre una calabaza una sola vez (tiene que entrar con su cuenta). Los cupones son solo para ella y valen hasta que termina Halloween. Los puntos se suman a su cuenta al instante.</div>
