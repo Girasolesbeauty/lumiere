@@ -26463,6 +26463,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-hw-musica.on{animation:twHwLate 1.2s ease-in-out infinite}
 .tw-hw-fab{position:fixed;left:14px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:31;border:0;border-radius:99px;padding:10px 16px 10px 10px;display:flex;align-items:center;gap:8px;background:#1c0d2e;color:#ffcf9a!important;font-weight:900;font-size:13px;cursor:pointer;box-shadow:0 8px 26px rgba(28,13,46,.45),0 0 0 2px #ff7a00}
 .tw-hw-fab b{font-size:30px;line-height:1;display:inline-block;animation:twHwSalta 1.6s ease-in-out infinite}
+@keyframes twHwSalta{0%,100%{transform:translateY(0) rotate(0)}30%{transform:translateY(-6px) rotate(-8deg)}60%{transform:translateY(0) rotate(6deg)}}
 .tw-hw-modal{position:fixed;inset:0;z-index:500;background:rgba(8,4,14,.72);display:flex;align-items:center;justify-content:center;padding:16px}
 .tw-hw-caja{position:relative;width:100%;max-width:420px;border-radius:26px;padding:26px 22px 22px;background:radial-gradient(circle at 80% 0,#4a2470 0,#1c0d2e 50%,#0b0612 100%);color:#fff;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5);animation:twHwAbre .45s cubic-bezier(.3,1.5,.5,1) both;overflow:hidden}
 @keyframes twHwAbre{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
@@ -26519,7 +26520,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 @keyframes twHwRebota{0%{transform:scale(1.15,.85)}100%{transform:none}}
 .tw-hw-dulce .tapa{transform-box:fill-box;transform-origin:50% 100%;animation:twHwTapa .9s cubic-bezier(.2,.8,.4,1) .45s forwards}
 @keyframes twHwTapa{0%{transform:none;opacity:1}100%{transform:translate(70px,-170px) rotate(65deg);opacity:0}}
-.tw-hw-dulce .luz{opacity:0;filter:blur(3px);animation:twHwLuzC .5s ease-out .5s forwards}
+.tw-hw-dulce .luz{opacity:0;transform-box:fill-box;transform-origin:50% 100%;animation:twHwLuzC .6s ease-out .5s forwards}
 @keyframes twHwLuzC{to{opacity:1;transform:scale(1.4,2)}}
 .tw-hw-dulce .lluvia svg{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;opacity:0;animation:twHwCaramelo 1.6s cubic-bezier(.25,.6,.5,1) forwards}
 @keyframes twHwCaramelo{0%{opacity:1;transform:translate(0,0) rotate(0) scale(.4)}40%{opacity:1;transform:translate(calc(var(--x) * .6),var(--up)) rotate(calc(var(--r) * .5)) scale(1.1)}100%{opacity:0;transform:translate(var(--x),var(--y)) rotate(var(--r)) scale(1)}}
@@ -28644,7 +28645,8 @@ function TwHwDulce({ premio }) {
           <path d="M-30 -14 l12 -18 l12 18 Z M6 -14 l12 -18 l12 18 Z M-34 14 q34 30 68 0 l-9 8 l-8 -6 l-9 8 l-8 -6 l-9 8 l-8 -6 l-9 8 Z" fill="url(#twHwAdentro)" />
         </g>
         <g className="tapa"><path d="M-36 -40 Q0 -62 36 -40 Q0 -48 -36 -40 Z" fill="#c94f08" /><path d="M-4 -52 q2 -14 12 -18 l3 4 q-8 4 -9 14 Z" fill="#3d5a1e" /></g>
-        <ellipse className="luz" cx="0" cy="-44" rx="30" ry="8" fill="#fff3b0" />
+        <radialGradient id="twHwLuzSale"><stop offset="0" stopColor="#fff6c8" stopOpacity=".95" /><stop offset=".45" stopColor="#ffd34d" stopOpacity=".55" /><stop offset="1" stopColor="#ff9a1f" stopOpacity="0" /></radialGradient>
+        <ellipse className="luz" cx="0" cy="-50" rx="46" ry="30" fill="url(#twHwLuzSale)" />
       </svg>
       <div className="lluvia" aria-hidden="true">{caramelos.map((c, i) => <svg key={i} viewBox="-30 -30 60 60" style={{ "--x": c.x, "--up": c.up, "--y": c.y, "--r": c.r, animationDelay: c.del }}>{HW_CARAMELOS[c.tipo](c.k)}</svg>)}</div>
       <div className="texto"><div className="dulce">¡DULCE!</div><div className="valor">{valor}</div></div>
