@@ -535,7 +535,7 @@ router.post('/:slug/pedidos', async (req, res) => {
     // Halloween: si ganó "regalo con tu compra" en la calabaza (y todavía no lo usó), va en este pedido (hasta que termina Halloween)
     const hwR = tienda.halloweenDe(c);
     if (clienteId && tienda.halloweenVigente(hwR)) {
-      const g = (await client.query(`UPDATE tienda_halloween SET pedido_id = $1 WHERE cliente_id = $2 AND temporada = $3 AND tipo = 'regalo' AND pedido_id IS NULL AND valor <= $4 RETURNING regalo, texto`,
+      const g = (await client.query(`UPDATE tienda_halloween SET pedido_id = $1 WHERE id = (SELECT id FROM tienda_halloween WHERE cliente_id = $2 AND temporada = $3 AND tipo = 'regalo' AND pedido_id IS NULL AND valor <= $4 ORDER BY id LIMIT 1) RETURNING regalo, texto`,
         [pedido.id, clienteId, temporadaHw(hwR), subtotal]).catch(() => ({ rows: [] }))).rows[0];
       if (g) await client.query('UPDATE tienda_pedidos SET hw_regalo = $1 WHERE id = $2', [g.regalo || g.texto, pedido.id]);
     }
@@ -810,15 +810,31 @@ const digitos = (x) => cuentas.soloNumeros(x).slice(-8);
 const mismoTelefono = (a, b) => cuentas.soloNumeros(a).length >= 8 && cuentas.soloNumeros(b).length >= 8 && cuentas.soloNumeros(a).slice(-6) === cuentas.soloNumeros(b).slice(-6);
 
 // ── Halloween: "¿Dulce o truco?" ──────────────────────────────────────────────────────────────
-// Una vez por clienta (con su cuenta) por temporada. Premios: cupón personal (vale hasta el fin de Halloween), puntos o "truco".
+// Una calabaza por clienta (con su cuenta) por temporada, más una extra por cada compra online hecha durante Halloween
+// y por cada amiga que crea su cuenta con su link (hasta HW_AMIGAS_MAX). Premios: cupón personal (vale hasta el fin
+// de Halloween), puntos, regalo con la compra o "truco".
 // En la vista previa (link privado, antes de las fechas) se juega "de mentira": no se guarda ni se da nada.
 const temporadaHw = (hw) => 'hw-' + hw.desde.slice(0, 10);
+const HW_AMIGAS_MAX = 3;
+const premioHw = (r) => ({ id: r.premio_id, texto: r.texto, tipo: r.tipo, valor: num(r.valor), cupon: r.cupon, regalo: r.regalo || null, usado: !!r.pedido_id });
+async function calabazasHw(db, clienteId, hw) {
+  const temp = temporadaHw(hw);
+  const jugadas = (await db.query('SELECT premio_id, texto, tipo, valor, cupon, regalo, pedido_id FROM tienda_halloween WHERE cliente_id = $1 AND temporada = $2 ORDER BY id', [clienteId, temp])).rows;
+  const compras = (await db.query(`SELECT COUNT(*)::int AS n FROM tienda_pedidos WHERE cliente_id = $1 AND creado_en >= $2::timestamptz AND estado NOT IN ('cancelado', 'pendiente_pago')`,
+    [clienteId, new Date(tienda.msAR(hw.desde)).toISOString()])).rows[0].n;
+  const amigas = (await db.query('SELECT COUNT(*)::int AS n FROM tienda_hw_amigas WHERE referente_id = $1 AND temporada = $2', [clienteId, temp])).rows[0].n;
+  const total = 1 + compras + Math.min(amigas, HW_AMIGAS_MAX);
+  return { jugadas, compras, amigas, amigas_max: HW_AMIGAS_MAX, quedan: Math.max(0, total - jugadas.length) };
+}
 router.get('/:slug/halloween/mio', conCuenta, async (req, res) => {
   try {
     const hw = tienda.halloweenDe(req.tienda);
-    const r = (await pool.query('SELECT premio_id, texto, tipo, valor, cupon, regalo, pedido_id FROM tienda_halloween WHERE cliente_id = $1 AND temporada = $2', [req.clienteId, temporadaHw(hw)]).catch(() => ({ rows: [] }))).rows[0];
-    res.json({ jugado: !!r, premio: r ? { id: r.premio_id, texto: r.texto, tipo: r.tipo, valor: num(r.valor), cupon: r.cupon, regalo: r.regalo || null, usado: !!r.pedido_id } : null, hasta: hw.hasta });
-  } catch (e) { res.status(500).json({ error: 'No se pudo leer' }); }
+    const k = await calabazasHw(pool, req.clienteId, hw);
+    // El premio "principal": un regalo que todavía no usó (va solo en su próximo pedido) o el último que sacó
+    const r = k.jugadas.find(x => x.tipo === 'regalo' && !x.pedido_id) || k.jugadas[k.jugadas.length - 1];
+    const codigo = await tienda.codigoAmiga(pool, req.clienteId).catch(() => null);
+    res.json({ jugado: !!r, premio: r ? premioHw(r) : null, premios: k.jugadas.map(premioHw), quedan: k.quedan, compras: k.compras, amigas: k.amigas, amigas_max: k.amigas_max, codigo, hasta: hw.hasta });
+  } catch (e) { console.error('[tienda publica] halloween mio:', e.message); res.status(500).json({ error: 'No se pudo leer' }); }
 });
 router.post('/:slug/halloween/jugar', conCuenta, async (req, res) => {
   const hw = tienda.halloweenDe(req.tienda);
@@ -831,8 +847,8 @@ router.post('/:slug/halloween/jugar', conCuenta, async (req, res) => {
     await client.query('BEGIN');
     await client.query(`SELECT pg_advisory_xact_lock(hashtext('tienda_halloween'), $1)`, [req.clienteId]);
     const temp = temporadaHw(hw);
-    const ya = (await client.query('SELECT premio_id, texto, tipo, valor, cupon, regalo, pedido_id FROM tienda_halloween WHERE cliente_id = $1 AND temporada = $2', [req.clienteId, temp])).rows[0];
-    if (ya) { await client.query('ROLLBACK'); return res.json({ id: ya.premio_id, texto: ya.texto, tipo: ya.tipo, valor: num(ya.valor), cupon: ya.cupon, regalo: ya.regalo || null, usado: !!ya.pedido_id, ya: true, hasta: hw.hasta }); }
+    const k = await calabazasHw(client, req.clienteId, hw);
+    if (k.quedan <= 0) { await client.query('ROLLBACK'); return res.json({ ...premioHw(k.jugadas[k.jugadas.length - 1]), ya: true, quedan: 0, hasta: hw.hasta }); }
     const premio = tienda.elegirPremio(hw.premios);
     let cupon = null;
     if (premio.tipo === 'cupon') {
@@ -855,7 +871,7 @@ router.post('/:slug/halloween/jugar', conCuenta, async (req, res) => {
     }
     await client.query('INSERT INTO tienda_halloween (cliente_id, temporada, premio_id, texto, tipo, valor, cupon, regalo) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [req.clienteId, temp, premio.id, premio.texto, premio.tipo, premio.valor, cupon, premio.tipo === 'regalo' ? premio.regalo || premio.texto : null]);
     await client.query('COMMIT');
-    res.json({ id: premio.id, texto: premio.texto, tipo: premio.tipo, valor: premio.valor, cupon, regalo: premio.tipo === 'regalo' ? premio.regalo || premio.texto : null, hasta: hw.hasta });
+    res.json({ id: premio.id, texto: premio.texto, tipo: premio.tipo, valor: premio.valor, cupon, regalo: premio.tipo === 'regalo' ? premio.regalo || premio.texto : null, quedan: k.quedan - 1, hasta: hw.hasta });
   } catch (e) {
     try { await client.query('ROLLBACK'); } catch (x) {}
     console.error('[tienda publica] halloween:', e.message);
@@ -958,6 +974,12 @@ router.post('/:slug/cuenta/crear', async (req, res) => {
       }
     }
     cuentas.intentos.delete(k);
+    // Halloween: si llegó con el link de una amiga, a la amiga le toca otra calabaza
+    const hwA = String(b.hw_amiga || '').trim().slice(0, 30), hw = tienda.halloweenDe(req.tienda);
+    if (hwA && hw.juego && tienda.halloweenVigente(hw)) {
+      const ref = (await pool.query('SELECT id FROM clientes WHERE UPPER(codigo_amiga) = UPPER($1)', [hwA]).catch(() => ({ rows: [] }))).rows[0];
+      if (ref && ref.id !== c.id) await pool.query('INSERT INTO tienda_hw_amigas (temporada, referente_id, invitada_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [temporadaHw(hw), ref.id, c.id]).catch(() => {});
+    }
     const f = (await pool.query('SELECT nombre, telefono, email FROM clientes WHERE id = $1', [c.id])).rows[0];
     res.status(201).json({ token: firmar(req, c.id), cliente: f });
   } catch (e) { console.error('[tienda] crear cuenta:', e.message); if (!res.headersSent) res.status(500).json({ error: 'No pudimos crear la cuenta. Probá de nuevo.' }); }
