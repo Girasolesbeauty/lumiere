@@ -26532,14 +26532,24 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-hw-cod.brilla code{position:relative;overflow:hidden}
 .tw-hw-cod.brilla code::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.65) 50%,transparent 70%);transform:translateX(-120%);animation:twHwBrilloCod 2.2s ease-in-out .3s infinite}
 @keyframes twHwBrilloCod{0%{transform:translateX(-120%)}60%,100%{transform:translateX(120%)}}
-.tw-hw-susto{position:fixed;inset:0;z-index:900;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;animation:twHwFlash .5s steps(1,end) .2s 2}
-@keyframes twHwFlash{0%{background:#000}25%{background:#5a0012}50%{background:#000}75%{background:#1d3a00}}
-.tw-hw-susto .fantasma{position:absolute;width:min(70vw,360px);height:auto;filter:drop-shadow(0 0 30px rgba(220,200,255,.7));transform:scale(.05);opacity:0;animation:twHwBoo .45s cubic-bezier(.2,1.6,.4,1) .15s forwards,twHwSacude .08s linear .6s 12}
-@keyframes twHwBoo{to{transform:scale(1.25);opacity:1}}
-@keyframes twHwSacude{0%{translate:-6px 3px}50%{translate:6px -3px}100%{translate:0 0}}
-.tw-hw-susto .murcs svg{position:absolute;left:50%;top:50%;width:70px;height:35px;margin:-17px 0 0 -35px;opacity:0;animation:twHwVuela 1.1s ease-in forwards}
-@keyframes twHwVuela{0%{opacity:1;transform:translate(0,0) rotate(0) scale(.3)}100%{opacity:1;transform:translate(var(--x),var(--y)) rotate(var(--r)) scale(1.6)}}
-.tw-hw-susto .truco{position:absolute;bottom:12vh;left:0;right:0;text-align:center;font-weight:900;font-size:clamp(52px,16vw,96px);letter-spacing:.04em;color:#ff7a00;text-shadow:0 0 24px rgba(255,90,0,.8),0 6px 0 #5a0012;opacity:0;animation:twHwTruco .5s cubic-bezier(.3,1.6,.5,1) 1s forwards}
+.tw-hw-susto{position:fixed;inset:0;z-index:900;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center}
+.tw-hw-susto .estatica{position:absolute;inset:-50%;background:repeating-radial-gradient(circle at 17% 32%,rgba(255,255,255,.09) 0 1px,transparent 1px 3px),repeating-linear-gradient(0deg,rgba(255,255,255,.06) 0 1px,transparent 1px 3px);opacity:.9;animation:twHwEstatica .12s steps(3) infinite,twHwEstaticaOff .3s ease-out 1.6s forwards}
+@keyframes twHwEstatica{0%{transform:translate(0,0)}33%{transform:translate(-3%,2%)}66%{transform:translate(2%,-3%)}100%{transform:translate(-1%,1%)}}
+@keyframes twHwEstaticaOff{to{opacity:.25}}
+.tw-hw-susto .monja{position:absolute;width:min(78vw,380px);aspect-ratio:200/260;opacity:0;transform:scale(.35);filter:blur(3px) brightness(.6);animation:twHwAcerca .55s ease-in .1s forwards,twHwSalta .18s cubic-bezier(.2,1.8,.4,1) .65s forwards,twHwTiembla2 .07s linear .83s 14}
+@keyframes twHwAcerca{to{opacity:.85;transform:scale(.5);filter:blur(1.5px) brightness(.75)}}
+@keyframes twHwSalta{from{transform:scale(.5)}to{opacity:1;transform:scale(1.6);filter:none}}
+@keyframes twHwTiembla2{0%{translate:-7px 4px}50%{translate:6px -5px}100%{translate:0 0}}
+.tw-hw-susto .monja svg{position:absolute;inset:0;width:100%;height:100%}
+.tw-hw-susto .monja .r,.tw-hw-susto .monja .c{opacity:0;mix-blend-mode:screen;animation:twHwGlitch .5s steps(4) .65s 3}
+.tw-hw-susto .monja .r{filter:sepia(1) saturate(9) hue-rotate(-50deg)}
+.tw-hw-susto .monja .c{filter:sepia(1) saturate(6) hue-rotate(140deg);animation-delay:.7s}
+@keyframes twHwGlitch{0%{opacity:.8;transform:translate(-9px,2px)}25%{opacity:0}50%{opacity:.7;transform:translate(8px,-3px)}75%{opacity:0}100%{opacity:.6;transform:translate(-4px,0)}}
+.tw-hw-susto .brillo{animation:twHwOjo .9s steps(2) infinite}
+@keyframes twHwOjo{50%{opacity:.2}}
+.tw-hw-susto .vineta{position:absolute;inset:0;background:radial-gradient(circle at 50% 45%,transparent 35%,rgba(0,0,0,.9) 78%);pointer-events:none;animation:twHwParpadeo .9s steps(1,end) .65s 2}
+@keyframes twHwParpadeo{0%{background-color:transparent}20%{background-color:rgba(120,0,0,.35)}40%{background-color:transparent}60%{background-color:rgba(255,255,255,.15)}80%{background-color:transparent}}
+.tw-hw-susto .truco{position:absolute;bottom:9vh;left:0;right:0;text-align:center;font-weight:900;font-size:clamp(52px,16vw,96px);letter-spacing:.06em;color:#b3000f;text-shadow:0 0 18px rgba(200,0,20,.8),0 4px 0 #2a0005;opacity:0;animation:twHwTruco .45s cubic-bezier(.3,1.6,.5,1) 1.45s forwards}
 @keyframes twHwTruco{from{opacity:0;transform:scale(2.2)}to{opacity:1;transform:none}}
 .tw-hw-premio{font-size:80px;line-height:1.15;display:inline-block;margin-bottom:6px;animation:twHwAbre .6s cubic-bezier(.3,1.6,.5,1) both}
 .tw-hw-cod{display:flex;gap:8px;align-items:center;justify-content:center;margin:6px 0 10px}
@@ -26897,15 +26907,19 @@ function TwHwMusica() {
 // Susto de Halloween (cuando sale TRUCO): golpe de ruido, chillido que cae, acorde disonante y una risita de bruja
 function twSusto() {
   const c = twSonidoOn() && twCtx(); if (!c) return;
-  try {
-    const n = c.createBuffer(1, Math.floor(c.sampleRate * .45), c.sampleRate), d = n.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2);
-    const src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(); src.buffer = n; f.type = "bandpass"; f.frequency.value = 900; g.gain.value = .45;
-    src.connect(f).connect(g).connect(c.destination); src.start();
-  } catch (e) {}
-  twTono(c, { f1: 1500, f2: 90, dur: 1.1, vol: .1, tipo: "sawtooth" });
-  [233, 247, 277].forEach(f => twTono(c, { f1: f, f2: f * .94, dur: 1.4, vol: .03, tipo: "square", cuando: .15 }));
-  [0, .17, .34, .51, .68].forEach((d, i) => twTono(c, { f1: 640 - i * 25, f2: 430 - i * 25, dur: .13, vol: .06, tipo: "triangle", cuando: 1.05 + d }));
+  const ruido = (cuando, dur, vol, frec) => { try {
+    const n = c.createBuffer(1, Math.floor(c.sampleRate * dur), c.sampleRate), d = n.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 1.5);
+    const src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(); src.buffer = n; f.type = "bandpass"; f.frequency.value = frec; g.gain.value = vol;
+    src.connect(f).connect(g).connect(c.destination); src.start(c.currentTime + cuando);
+  } catch (e) {} };
+  ruido(0, .6, .12, 2500); // estática mientras se acerca
+  [523, 554, 587].forEach(f => twTono(c, { f1: f, f2: f * .97, dur: .6, vol: .025, tipo: "sine" })); // nota tensa
+  // el golpe cuando salta (a los .65 s): golpe grave, ruido fuerte y grito desafinado que cae
+  twTono(c, { f1: 90, f2: 40, dur: .5, vol: .35, tipo: "sine", cuando: .65 });
+  ruido(.65, .5, .5, 1200);
+  [1180, 1250, 1330, 1410].forEach((f, i) => twTono(c, { f1: f, f2: f * .55, dur: 1.1, vol: .05, tipo: "sawtooth", cuando: .65 + i * .01 }));
+  [233, 247, 262].forEach(f => twTono(c, { f1: f, f2: f * .9, dur: 1.3, vol: .03, tipo: "square", cuando: .7 }));
 }
 
 // La foto del producto vuela en curva hasta la bolsa, que la "traga" con un rebote
@@ -28638,14 +28652,37 @@ function TwHwDulce({ premio }) {
 // Susto de TRUCO: se apaga todo, un fantasma salta a la pantalla, salen murciélagos y aparece "¡TRUCO!" chorreando
 const HW_MURC = "M0 6 C4 0 8 2 10 4 C11 1 13 1 14 4 C16 2 20 0 24 6 C20 5 18 8 17 10 C15 8 13 8 12 10 C11 8 9 8 7 10 C6 8 4 5 0 6 Z";
 function TwHwSusto() {
+  const cara = <>
+        <defs>
+          <radialGradient id="twHwCara" cx="50%" cy="42%" r="62%"><stop offset="0" stopColor="#d9d4c7" /><stop offset=".55" stopColor="#a39f91" /><stop offset="1" stopColor="#3f3d36" /></radialGradient>
+          <radialGradient id="twHwCuenca"><stop offset="0" stopColor="#000" /><stop offset=".55" stopColor="#080706" /><stop offset="1" stopColor="#2a2824" stopOpacity="0" /></radialGradient>
+          <radialGradient id="twHwMejilla"><stop offset="0" stopColor="#1a1915" stopOpacity=".55" /><stop offset="1" stopColor="#1a1915" stopOpacity="0" /></radialGradient>
+        </defs>
+        <path d="M100 2 C38 2 6 52 4 124 L0 260 H200 L196 124 C194 52 162 2 100 2 Z" fill="#050308" />
+        <path d="M100 30 C56 30 38 70 38 116 C38 172 68 212 100 216 C132 212 162 172 162 116 C162 70 144 30 100 30 Z" fill="#e6e1d6" />
+        <path d="M100 44 C66 44 52 76 52 114 C52 160 74 198 100 204 C126 198 148 160 148 114 C148 76 134 44 100 44 Z" fill="url(#twHwCara)" />
+        <path d="M54 64 Q100 50 146 64 L146 76 Q100 62 54 76 Z" fill="#e6e1d6" />
+        <ellipse cx="66" cy="150" rx="16" ry="24" fill="url(#twHwMejilla)" /><ellipse cx="134" cy="150" rx="16" ry="24" fill="url(#twHwMejilla)" />
+        <ellipse cx="78" cy="108" rx="25" ry="27" fill="url(#twHwCuenca)" /><ellipse cx="122" cy="108" rx="25" ry="27" fill="url(#twHwCuenca)" />
+        <ellipse cx="78" cy="108" rx="12" ry="15" fill="#000" /><ellipse cx="122" cy="108" rx="12" ry="15" fill="#000" />
+        <circle className="brillo" cx="80" cy="105" r="2" fill="#e8e2b0" /><circle className="brillo" cx="124" cy="105" r="2" fill="#e8e2b0" />
+        <path d="M71 124 C68 142 74 152 69 172" stroke="#070707" strokeWidth="4" fill="none" strokeLinecap="round" /><path d="M128 124 C131 140 125 154 131 166" stroke="#070707" strokeWidth="4" fill="none" strokeLinecap="round" />
+        <path d="M58 94 Q78 80 98 96 M102 96 Q122 80 142 94" stroke="#24221e" strokeWidth="3" fill="none" />
+        <path d="M95 128 l3 9 M105 128 l-3 9" stroke="#24221e" strokeWidth="2.5" strokeLinecap="round" />
+        <path d="M80 152 Q100 142 120 152 Q119 192 100 200 Q81 192 80 152 Z" fill="#030202" />
+        <path d="M82 153 l3 10 l3 -9 l3 12 l3 -12 l3 13 l3 -13 l3 13 l3 -12 l3 12 l3 -9 l3 9 Z" fill="#cfc8b4" />
+        <path d="M86 190 l3 -9 l3 8 l3 -10 l3 10 l3 -10 l3 9 l3 -8 l3 8 Z" fill="#b3ab95" />
+        <path d="M118 52 l-8 22 l6 6 l-10 18 M58 136 l14 10 l-4 10 l10 8 M142 146 l-10 6 l4 12" stroke="#34312b" strokeWidth="1.4" fill="none" />
+  </>;
   return createPortal(<div className="tw" style={{ minHeight: 0, background: "transparent" }}>
     <div className="tw-hw-susto" role="alert" aria-label="¡Truco!">
-      <svg className="fantasma" viewBox="0 0 100 100" aria-hidden="true">
-        <path d="M50 6 C24 6 12 28 12 54 V94 l10 -8 l9 8 l10 -8 l9 8 l9 -8 l10 8 l9 -8 V54 C88 28 76 6 50 6 Z" fill="#f4f1ff" />
-        <ellipse cx="37" cy="42" rx="7" ry="11" fill="#12051f" /><ellipse cx="63" cy="42" rx="7" ry="11" fill="#12051f" />
-        <ellipse cx="50" cy="68" rx="9" ry="13" fill="#12051f" />
-      </svg>
-      <div className="murcs" aria-hidden="true">{Array.from({ length: 12 }, (_, i) => { const a = i / 12 * Math.PI * 2; return <svg key={i} viewBox="0 0 24 12" style={{ "--x": Math.round(Math.cos(a) * 60) + "vw", "--y": Math.round(Math.sin(a) * 60) + "vh", "--r": Math.round(Math.cos(a) * 30) + "deg", animationDelay: (.35 + (i % 4) * .06) + "s" }}><path d={HW_MURC} fill="#0b0612" /></svg>; })}</div>
+      <div className="estatica" aria-hidden="true" />
+      <div className="monja" aria-hidden="true">
+        <svg className="r" viewBox="0 0 200 260">{cara}</svg>
+        <svg className="c" viewBox="0 0 200 260">{cara}</svg>
+        <svg className="base" viewBox="0 0 200 260">{cara}</svg>
+      </div>
+      <div className="vineta" aria-hidden="true" />
       <div className="truco">¡TRUCO!</div>
     </div>
   </div>, document.body);
