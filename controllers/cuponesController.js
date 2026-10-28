@@ -74,15 +74,38 @@ const validar = async (req, res) => {
       }
     }
 
+    // Halloween: si la clienta tiene otros códigos de la calabaza sin usar, la caja ofrece juntarlos
+    let hw_otros = [];
+    if (cupon.canal === 'Halloween tienda' && cupon.cliente_id) {
+      hw_otros = (await pool.query(`SELECT codigo, valor FROM cupones WHERE canal = 'Halloween tienda' AND tipo = '%' AND activo AND cliente_id = $1 AND id <> $2
+        AND (max_usos IS NULL OR COALESCE(usos, 0) < max_usos) AND (fecha_vencimiento IS NULL OR fecha_vencimiento >= (NOW() AT TIME ZONE 'America/Argentina/Buenos_Aires')::date) ORDER BY id`,
+        [cupon.cliente_id, cupon.id]).catch(() => ({ rows: [] }))).rows.map(r => ({ codigo: r.codigo, valor: parseFloat(r.valor) }));
+    }
     res.json({
       valido: true,
       cupon,
-      descuento: descuento.toFixed(2)
+      descuento: descuento.toFixed(2),
+      hw_otros,
+      hw_tope: hw_otros.length ? await topeHw() : undefined
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al validar cupon' });
   }
+};
+
+// Tope al juntar códigos de Halloween (lo que se configuró para la tienda; 30% si no hay)
+async function topeHw() {
+  try { const t = require('../lib/tienda'); return t.halloweenDe(await t.leerConfig()).tope; } catch (e) { return 30; }
+}
+// Halloween: juntar varios códigos de la calabaza de la clienta en una venta de la caja
+const juntarHw = async (req, res) => {
+  try {
+    await cuponesLib.asegurar();
+    const j = await cuponesLib.juntarHw(pool, String(req.query.codigos || '').split(/[\s,+]+/), { cliente_id: parseInt(req.query.cliente_id) || null }, await topeHw());
+    if (j.error) return res.status(400).json({ error: j.error });
+    res.json({ codigos: j.codigos, suma: j.suma, pct: j.pct, tope: j.tope });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'No se pudieron revisar los códigos' }); }
 };
 
 // Crear cupon
@@ -160,4 +183,4 @@ const remove = async (req, res) => {
   }
 };
 
-module.exports = { getAll, validar, create, update, remove };
+module.exports = { getAll, validar, create, update, remove, juntarHw, topeHw };

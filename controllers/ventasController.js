@@ -238,7 +238,22 @@ const create = async (req, res) => {
     // no corresponde facturar ahora en ARCA.
     const totalGCInicial = parseFloat(monto_gift_card) || 0;
 
-    if (cupon_codigo) {
+    // Halloween: varios códigos de la calabaza juntos (hasta el tope; solo efectivo o transferencia)
+    let hwJunta = null;
+    if (cupon_codigo && Array.isArray(req.body.cupones_hw) && req.body.cupones_hw.length) {
+      hwJunta = await cuponesLib.juntarHw(client, [cupon_codigo, ...req.body.cupones_hw], { cliente_id }, await require('./cuponesController').topeHw(), true);
+      if (hwJunta.error) { await client.query('ROLLBACK'); return res.status(400).json({ error: hwJunta.error }); }
+      const ids = Array.isArray(pagos) && pagos.length ? pagos.map(p => p.medio_pago_id) : [medio_pago_id];
+      if ((subtotal * (1 - hwJunta.pct / 100)) - (parseFloat(monto_gift_card) || 0) > 0.009 && !(await cuponesLib.soloEfectivoOTransf(client, ids))) {
+        await client.query('ROLLBACK'); return res.status(400).json({ error: 'Para juntar códigos de Halloween se paga solo con efectivo o transferencia' });
+      }
+    }
+    if (hwJunta) {
+      const c = hwJunta.cupones[0];
+      cuponUsado = c; cuponId = c.id;
+      descuento_total = subtotal * (hwJunta.pct / 100);
+      for (const x of hwJunta.cupones) await client.query('UPDATE cupones SET usos = COALESCE(usos, 0) + 1 WHERE id = $1', [x.id]);
+    } else if (cupon_codigo) {
       const cupon = await client.query(
         'SELECT * FROM cupones WHERE codigo = $1 AND activo = TRUE', [cupon_codigo]
       );
@@ -345,6 +360,10 @@ const create = async (req, res) => {
       ]
     );
     if (cuponUsado) await cuponesLib.registrarUso(client, cuponUsado, { cliente_id }, { venta_id: venta.rows[0].id });
+    if (hwJunta) {
+      for (const x of hwJunta.cupones.slice(1)) await cuponesLib.registrarUso(client, x, { cliente_id }, { venta_id: venta.rows[0].id });
+      await client.query('UPDATE ventas SET cupones_extra = $1 WHERE id = $2', [hwJunta.codigos.slice(1), venta.rows[0].id]).catch(() => {});
+    }
 
     const ventaId = venta.rows[0].id;
 
