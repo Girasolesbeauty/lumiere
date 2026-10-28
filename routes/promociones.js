@@ -102,6 +102,11 @@ router.put('/adviento-tienda', async (req, res) => {
     const c = await tienda.leerConfig();
     const ant = tienda.advientoDe(c);
     const a = tienda.advientoDe({ adviento: { ...(req.body || {}), token: ant.token || require('crypto').randomBytes(12).toString('hex') } });
+    const falta = a.dias.find(d => tienda.advientoFalta(d));
+    if (falta) return res.status(400).json({ error: 'Día ' + falta.dia + ': ' + tienda.advientoFalta(falta), dia: falta.dia });
+    // Primero los cupones y descuentos (si un código ya existe no se guarda nada)
+    const sync = await tienda.sincronizarAdviento(a);
+    if (sync.error) return res.status(400).json({ error: sync.error });
     await pool.query('UPDATE tienda_config SET adviento = $1 WHERE id = 1', [JSON.stringify(a)]);
     res.json({ adviento: a, hoy: tienda.advientoHoy(a) });
   } catch (e) { console.error('[adviento]', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
@@ -158,7 +163,7 @@ router.get('/', async (req, res) => {
     const { activas, vigentes } = req.query;
     let q = 'SELECT * FROM promociones WHERE 1=1';
     if (activas === 'true') q += ' AND activo = TRUE';
-    if (vigentes === 'true') q += " AND (fecha_inicio IS NULL OR fecha_inicio <= CURRENT_DATE) AND (fecha_fin IS NULL OR fecha_fin >= CURRENT_DATE)";
+    if (vigentes === 'true') q += " AND (fecha_inicio IS NULL OR fecha_inicio <= (NOW() AT TIME ZONE 'America/Argentina/Buenos_Aires')::date) AND (fecha_fin IS NULL OR fecha_fin >= (NOW() AT TIME ZONE 'America/Argentina/Buenos_Aires')::date)";
     q += ' ORDER BY creado_en DESC';
     const r = await pool.query(q);
     res.json(r.rows);

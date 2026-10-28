@@ -26392,6 +26392,8 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-tarjeta h3{margin:0 0 8px;font-size:24px;font-weight:700;line-height:1.15;color:#1a1410}
 .tw-adv-tarjeta p{margin:0 0 12px;font-size:14.5px;line-height:1.5;color:#3b3b3b;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}
 .tw-adv-cod{display:flex;gap:8px;align-items:center;justify-content:center;margin:0 0 12px}
+.tw-adv-info{display:inline-block;margin:0 auto 12px;padding:7px 14px;border-radius:999px;background:#fff3d6;color:#6b4a00;font-size:13px;font-weight:700;line-height:1.35;max-width:100%}
+.tw-adv-info.paso{background:#eee;color:#777}
 .tw-adv-cod code{font-size:19px;font-weight:900;letter-spacing:.12em;padding:7px 12px;border-radius:10px;background:#1a1410;color:#f7e3a3}
 .tw-adv-prods{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 10px;margin:0 -6px;text-align:left;scroll-snap-type:x mandatory;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}
 .tw-adv-prods>*{flex:0 0 150px;scroll-snap-align:start}
@@ -28013,6 +28015,18 @@ const ADV_POS = (() => {
 })();
 const ADV_CABLE = (() => { let d = "M" + (ADV_POS[1].x - 30) + " " + (ADV_POS[1].y - 8) + " Q" + (ADV_POS[1].x - 15) + " " + (ADV_POS[1].y + 4) + " " + ADV_POS[1].x + " " + ADV_POS[1].y; for (let n = 2; n <= 25; n++) { const a = ADV_POS[n - 1], b = ADV_POS[n], mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2 + 16; d += " Q" + mx + " " + my + " " + b.x + " " + b.y; } return d + " L180 40"; })();
 const advRot = (n) => ((n * 37) % 11) - 5;
+// Cómo se usa la sorpresa de un día (o que ya pasó): { t, paso }
+const advPlata = (n) => "$" + Math.round(n).toLocaleString("es-AR");
+function advInfo(d, hoy, vista) {
+  const pasado = !vista && d.dia < hoy, fecha = d.dia + "/12";
+  if (d.tipo === "codigo" && d.codigo && d.pct) {
+    if (pasado && d.vale !== "navidad") return { t: "⌛ Este código era solo del " + fecha, paso: true };
+    return { t: "🎟️ " + d.pct + "% OFF usando el código en el carrito · " + (d.vale === "navidad" && d.dia < 25 ? "vale hasta Navidad" : "solo el " + fecha) + (d.minimo ? " · compras desde " + advPlata(d.minimo) : "") + (d.uno ? " · una vez por clienta" : "") };
+  }
+  if (d.tipo === "descuento" && d.pct) return pasado ? { t: "⌛ Este descuento era solo del " + fecha, paso: true } : { t: "🏷️ " + d.pct + "% OFF ya aplicado en estos productos, solo el " + fecha };
+  if (d.tipo === "regalo" && d.regalo) return pasado ? { t: "⌛ Este regalo era de las compras del " + fecha, paso: true } : { t: "🎁 Comprando el " + fecha + " te llevás de regalo: " + d.regalo + (d.minimo ? " (compras desde " + advPlata(d.minimo) + ")" : "") };
+  return null;
+}
 function TwAdviento({ adv, slug, visibles, tarjeta }) {
   const clave = "tienda_adv_" + slug + "_" + adv.anio;
   const [abiertas, setAbiertas] = useState(() => { try { return JSON.parse(localStorage.getItem(clave) || "[]"); } catch (e) { return []; } });
@@ -28072,7 +28086,8 @@ function TwAdviento({ adv, slug, visibles, tarjeta }) {
               <div className="big">{sel.icono}</div>
               <h3>{sel.titulo || "¡Sorpresa!"}</h3>
               {sel.detalle ? <p>{sel.detalle}</p> : !sel.titulo && <p>Muy pronto vas a ver acá la sorpresa de este día.</p>}
-              {sel.codigo && <div className="tw-adv-cod"><code>{sel.codigo}</code><button className="tw-adv-btn sec" style={{ padding: "8px 12px" }} onClick={() => { try { navigator.clipboard.writeText(sel.codigo); setCopiado(true); } catch (e) {} }}>{copiado ? "✓ Copiado" : "Copiar"}</button></div>}
+              {advInfo(sel, hoy, adv.vista_previa) && <div className={"tw-adv-info" + (advInfo(sel, hoy, adv.vista_previa).paso ? " paso" : "")}>{advInfo(sel, hoy, adv.vista_previa).t}</div>}
+              {sel.codigo && sel.tipo === "codigo" && !(advInfo(sel, hoy, adv.vista_previa) || {}).paso && <div className="tw-adv-cod"><code>{sel.codigo}</code><button className="tw-adv-btn sec" style={{ padding: "8px 12px" }} onClick={() => { try { navigator.clipboard.writeText(sel.codigo); setCopiado(true); } catch (e) {} }}>{copiado ? "✓ Copiado" : "Copiar"}</button></div>}
               {prods.length > 0 && <div className="tw-adv-prods">{prods.map(tarjeta)}</div>}
               <button className="tw-adv-btn" onClick={() => setAbriendo(null)}>{sel.dia === hoy ? "¡Gracias! 🎄" : "Cerrar"}</button>
             </div>
@@ -29830,6 +29845,7 @@ function TiendaPublica({ slug }) {
               {pedido.items.some(i => i.preventa) && !["cancelado", "entregado"].includes(pedido.estado) && <div className="tw-preventa-aviso"><b>⏳ Esperando que llegue tu preventa</b><span>Algunos productos todavía no llegaron al local. Te avisamos por WhatsApp apenas estén para que retires todo junto.</span></div>}
               {pedido.items.map((i, k) => <div key={k} className="tw-linea"><span>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""}{i.preventa ? <span className="tw-item-pre" style={{ display: "inline-block", marginLeft: 6 }}>⏳ preventa</span> : null}</span><span>{fmtTienda(i.precio * i.cantidad)}</span></div>)}
               {pedido.muestra && <div className="tw-linea" style={{ color: "#8a4b00" }}><span>🎁 Muestra gratis: {pedido.muestra}</span><span>$0</span></div>}
+              {pedido.adviento_regalo && <div className="tw-linea" style={{ color: "#8a4b00" }}><span>🎄 Regalo del calendario ({pedido.adviento_regalo})</span><span>$0</span></div>}
               {pedido.descuento > 0 && <div className="tw-linea" style={{ color: "#2d7a4f" }}><span>Descuento{pedido.cupon ? " (" + pedido.cupon + ")" : ""}</span><span>−{fmtTienda(pedido.descuento)}</span></div>}
               {pedido.gc_usado && <div className="tw-linea" style={{ color: "#2d7a4f" }}><span>🎁 Pagado con gift card ({pedido.gc_usado.codigo})</span><span>−{fmtTienda(pedido.gc_usado.monto)}</span></div>}
               {pedido.costo_envio > 0 && <div className="tw-linea"><span>Envío</span><span>{fmtTienda(pedido.costo_envio)}</span></div>}
@@ -30852,6 +30868,10 @@ function TiendaPublica({ slug }) {
                     <button className="tw-pide-x" aria-label="Cerrar aviso" onClick={() => setRecompraAviso(null)}>✕</button>
                   </div>}
                   {gratisDesde > 0 && carrito.length > 0 && <TwBarraEnvio subtotal={subtotal} gratisDesde={gratisDesde} />}
+                  {/* Calendario de Adviento: si la sorpresa de hoy es un regalo con la compra */}
+                  {carrito.length > 0 && (() => { const a = tienda.adviento, dh = a && !a.vista_previa && a.hoy >= 1 && a.hoy <= 25 ? a.dias[a.hoy - 1] : null; if (!dh || dh.tipo !== "regalo" || !dh.regalo) return null; return subtotal >= (dh.minimo || 0)
+                    ? <div className="tw-muestras"><b>🎄 Regalo del calendario de hoy:</b> con esta compra te llevás {dh.regalo}</div>
+                    : <div className="tw-muestras falta">🎄 Sumá <b>{fmtTienda(dh.minimo - subtotal)}</b> más y te llevás de regalo <b>{dh.regalo}</b> (calendario de hoy)</div>; })()}
                   {muAca.length > 0 && carrito.length > 0 && (ganaMuestra ? (
                     <div className="tw-muestras">
                       <b>🎁 ¡Te ganaste una muestra gratis! Elegí cuál querés:</b>
@@ -33568,6 +33588,13 @@ function AdvientoVideo({ d, temaPal, slug, dominio, productos }) {
     </div>
   );
 }
+// Tipos de sorpresa del calendario: [clave, botón, explicación]
+const ADV_TIPOS_LUM = [
+  ["codigo", "🎟️ Código de descuento", "El cupón se crea solo en Cupones y vale ese día (o hasta Navidad), en la tienda online y en los locales."],
+  ["descuento", "🏷️ Descuento en productos", "Ese día los productos elegidos tienen el % de descuento solos (precio tachado en la tienda), también en la caja de los locales."],
+  ["regalo", "🎁 Regalo con la compra", "Los pedidos de ese día (desde el mínimo) llevan un aviso para que la vendedora agregue el regalo."],
+  ["mensaje", "💌 Solo mensaje", "Un saludo, un tip o un anuncio (por ejemplo un sorteo): no cambia precios."],
+];
 function AdvientoTienda({ temaPal, productos }) {
   const p = temaPal;
   const [d, setD] = useState(null);
@@ -33584,8 +33611,8 @@ function AdvientoTienda({ temaPal, productos }) {
   const guardar = async () => {
     setGuardando(true);
     try { const r = await API.put("/promociones/adviento-tienda", f); setD(x => ({ ...x, adviento: r.data.adviento, hoy: r.data.hoy })); setF(r.data.adviento); setAviso("✅ Guardado"); }
-    catch (e) { setAviso("Error: " + (e.response?.data?.error || e.message)); }
-    setGuardando(false); setTimeout(() => setAviso(""), 4000);
+    catch (e) { setAviso("Error: " + (e.response?.data?.error || e.message)); if (e.response?.data?.dia) setAbierto(e.response.data.dia); }
+    setGuardando(false); setTimeout(() => setAviso(""), 8000);
   };
   const k = d.adviento, slug = d.slug, enCurso = k.activo && d.hoy >= 1 && d.hoy <= 25;
   const linkDe = (tok) => slug ? (d.dominio ? "https://" + d.dominio + "/" + (tok ? "?adviento=" + tok : "") : window.location.origin + "/?tienda=" + encodeURIComponent(slug) + (tok ? "&adviento=" + tok : "")) : "";
@@ -33620,7 +33647,7 @@ function AdvientoTienda({ temaPal, productos }) {
             <button onClick={() => { setAbierto(ab ? null : x.dia); setBusca(""); }} style={{ width: "100%", display: "flex", gap: 10, alignItems: "center", padding: "8px 10px", background: "none", border: 0, cursor: "pointer", color: p.text, textAlign: "left" }}>
               <span style={{ width: 30, height: 34, borderRadius: "50% 50% 46% 46%", background: "radial-gradient(circle at 40% 35%, #fffbe8, " + c + " 60%)", boxShadow: "0 0 10px " + c, color: "#3a1d00", fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{x.dia}</span>
               <span style={{ fontSize: 18 }}>{x.icono}</span>
-              <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: x.titulo ? 700 : 400, color: x.titulo ? p.text : p.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.titulo || "Sin cargar"}{x.codigo ? " · " + x.codigo : ""}{x.productos.length ? " · " + x.productos.length + " prod." : ""}</span>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: x.titulo ? 700 : 400, color: x.titulo ? p.text : p.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.titulo || "Sin cargar"}{x.titulo ? " · " + (x.tipo === "codigo" ? "🎟️ " + (x.codigo || "sin código") + (x.pct ? " " + x.pct + "%" : "") : x.tipo === "descuento" ? "🏷️ " + (x.pct || "?") + "% en " + x.productos.length + " prod." : x.tipo === "regalo" ? "🎁 regalo" : "💌 mensaje") : ""}</span>
               <span style={{ color: p.textMuted }}>{ab ? "▴" : "▾"}</span>
             </button>
             {ab && <div style={{ padding: "4px 12px 12px", display: "grid", gap: 8 }}>
@@ -33629,8 +33656,25 @@ function AdvientoTienda({ temaPal, productos }) {
                 <div><label style={lbl}>Título (lo primero que ven)</label><input className="inp" value={x.titulo} maxLength={60} placeholder="Ej: 20% OFF en sérums" onChange={e => setDia(x.dia, "titulo", e.target.value)} /></div>
               </div>
               <div><label style={lbl}>Detalle</label><textarea className="inp" rows={2} value={x.detalle} maxLength={300} placeholder="Ej: Solo hoy, en todos los sérums de la tienda online. Con tu compra te llevás una muestra de regalo." onChange={e => setDia(x.dia, "detalle", e.target.value)} style={{ width: "100%", resize: "vertical" }} /></div>
-              <div><label style={lbl}>Código (opcional: si el descuento es con cupón, crealo en Cupones con el mismo código y la fecha del día)</label><input className="inp" value={x.codigo} maxLength={20} placeholder="Ej: NAVIDAD12" onChange={e => setDia(x.dia, "codigo", e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ""))} /></div>
-              <div><label style={lbl}>Productos para mostrar ({x.productos.length})</label>
+              <div><label style={lbl}>¿Qué es la sorpresa?</label>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{ADV_TIPOS_LUM.map(([kk, tt]) => <button key={kk} type="button" className={"chip-btn" + (x.tipo === kk ? " on" : "")} onClick={() => setDia(x.dia, "tipo", kk)}>{tt}</button>)}</div>
+                <div style={{ fontSize: 11.5, color: p.textMuted, marginTop: 4 }}>{(ADV_TIPOS_LUM.find(t => t[0] === x.tipo) || ["", "", ""])[2]}</div>
+              </div>
+              {x.tipo === "codigo" && <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
+                <div><label style={lbl}>Código</label><input className="inp" value={x.codigo} maxLength={20} placeholder={"Ej: NAVIDAD" + x.dia} onChange={e => setDia(x.dia, "codigo", e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ""))} /></div>
+                <div><label style={lbl}>% de descuento</label><input className="inp" inputMode="numeric" value={x.pct || ""} placeholder="Ej: 15" onChange={e => setDia(x.dia, "pct", Math.min(90, parseInt(e.target.value.replace(/\D/g, "")) || 0))} /></div>
+                <div><label style={lbl}>Compra mínima (opcional)</label><input className="inp" inputMode="numeric" value={x.minimo || ""} placeholder="Sin mínimo" onChange={e => setDia(x.dia, "minimo", parseInt(e.target.value.replace(/\D/g, "")) || 0)} /></div>
+                <div><label style={lbl}>Vale</label><select className="sel" value={x.vale} onChange={e => setDia(x.dia, "vale", e.target.value)}><option value="dia">Solo el {x.dia}/12</option>{x.dia < 25 && <option value="navidad">Del {x.dia}/12 hasta Navidad</option>}</select></div>
+                <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12.5, gridColumn: "1 / -1" }}><input type="checkbox" checked={x.uno} onChange={e => setDia(x.dia, "uno", e.target.checked)} /> Una vez por clienta</label>
+              </div>}
+              {x.tipo === "descuento" && <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
+                <div><label style={lbl}>% de descuento en los productos de abajo</label><input className="inp" inputMode="numeric" value={x.pct || ""} placeholder="Ej: 20" onChange={e => setDia(x.dia, "pct", Math.min(90, parseInt(e.target.value.replace(/\D/g, "")) || 0))} /></div>
+              </div>}
+              {x.tipo === "regalo" && <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
+                <div style={{ gridColumn: "span 2" }}><label style={lbl}>¿Qué se llevan de regalo?</label><input className="inp" value={x.regalo} maxLength={120} placeholder="Ej: un neceser navideño" onChange={e => setDia(x.dia, "regalo", e.target.value)} /></div>
+                <div><label style={lbl}>Con compras desde (opcional)</label><input className="inp" inputMode="numeric" value={x.minimo || ""} placeholder="Cualquier compra" onChange={e => setDia(x.dia, "minimo", parseInt(e.target.value.replace(/\D/g, "")) || 0)} /></div>
+              </div>}
+              <div><label style={lbl}>{x.tipo === "descuento" ? "Productos con el descuento" : "Productos para mostrar"} ({x.productos.length})</label>
                 <input className="inp" placeholder="Buscar producto para sumar…" value={busca} onChange={e => setBusca(e.target.value)} style={{ width: "100%" }} />
                 {q.length >= 2 && <div style={{ border: "1px solid " + p.border, borderRadius: 8, marginTop: 4 }}>{(productos || []).filter(y => !x.productos.includes(y.id) && normTxt([y.nombre, y.marca, y.categoria].join(" ")).includes(q)).slice(0, 8).map(y => <div key={y.id} onClick={() => { setDia(x.dia, "productos", [...x.productos, y.id]); setBusca(""); }} style={{ padding: "6px 10px", cursor: "pointer", fontSize: 12.5, borderBottom: "1px solid " + p.border }}>+ {y.nombre}{!y.publicado ? <span style={{ color: p.warn }}> · no está publicado</span> : null}</div>)}</div>}
                 {x.productos.map(id => { const y = (productos || []).find(z => z.id === id); return <div key={id} style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12.5, marginTop: 4 }}><span style={{ flex: 1 }}>{y ? y.nombre : "Producto #" + id}</span><button className="chip-btn" style={{ color: p.red }} onClick={() => setDia(x.dia, "productos", x.productos.filter(z => z !== id))}>✕</button></div>; })}
@@ -34073,7 +34117,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         <div class="tel">📞 ${escHtml(p.telefono || "")}</div>
         ${p.nota || (p.notas_local || []).length ? `<div class="nota">${[p.nota ? "📝 " + escHtml(p.nota) : "", ...(p.notas_local || []).map(n => "🗒️ " + escHtml(n.texto))].filter(Boolean).join("<br>")}</div>` : ""}
         <div class="pie">
-          <div><div class="cobro ${cobrar ? "si" : ""}">${cobrar ? "COBRAR " + escHtml(fmt(cobrar)) : "✓ PAGADO"}</div><div class="cont">${cant} ${cant === 1 ? "producto" : "productos"}${p.muestra ? " + muestra" : ""} · ${escHtml(new Date(p.creado_en).toLocaleDateString("es-AR"))}</div></div>
+          <div><div class="cobro ${cobrar ? "si" : ""}">${cobrar ? "COBRAR " + escHtml(fmt(cobrar)) : "✓ PAGADO"}</div><div class="cont">${cant} ${cant === 1 ? "producto" : "productos"}${p.muestra ? " + muestra" : ""}${p.adviento_regalo ? " + regalo calendario" : ""} · ${escHtml(new Date(p.creado_en).toLocaleDateString("es-AR"))}</div></div>
           ${qrs[i] ? `<div class="qr"><img src="${qrs[i]}" alt=""><span>Mapa</span></div>` : ""}
         </div>
       </section>`;
@@ -34450,7 +34494,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                   : p.estado === "en_caja" ? ["Ir a la caja", () => { try { sessionStorage.setItem("lumiere_pos_tienda", String(p.id)); } catch (er) {} irASeccion("pos"); }]
                   : null;
                 const indic = [
-                  (p.nota || (p.notas_local || []).length) && ["🗒️", "Tiene notas"], p.muestra && ["🎁", "Lleva muestra gratis"], p.ruleta && p.ruleta.tipo !== "nada" && ["🎡", "Ganó en la ruleta"],
+                  (p.nota || (p.notas_local || []).length) && ["🗒️", "Tiene notas"], p.muestra && ["🎁", "Lleva muestra gratis"], p.adviento_regalo && ["🎄", "Lleva regalo del calendario"], p.ruleta && p.ruleta.tipo !== "nada" && ["🎡", "Ganó en la ruleta"],
                   preventa && ["⏳", "Tiene preventa"], Math.abs(p.pendiente || 0) >= 1 && p.estado !== "cancelado" && ["💰", "Diferencia por un cambio"], p.contactado_en && p.estado !== "entregado" && ["✅", "Ya le escribimos"],
                 ].filter(Boolean);
                 const seccion = { border: "1px solid " + temaPal.border, borderRadius: 12, padding: "10px 12px", background: temaPal.bg };
@@ -34505,6 +34549,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                               </div>
                             ))}
                             {p.muestra && <div style={{ fontSize: 12.5, fontWeight: 700, color: "#d35400", marginTop: 4 }}>🎁 + Muestra gratis: {p.muestra}</div>}
+                            {p.adviento_regalo && <div style={{ fontSize: 12.5, fontWeight: 700, color: "#1e7a46", marginTop: 4 }}>🎄 + Regalo del calendario · {p.adviento_regalo}</div>}
                             {p.ruleta && <div style={{ fontSize: 12.5, marginTop: 4, fontWeight: 700, color: p.ruleta.tipo === "nada" ? temaPal.textMuted : temaPal.warn }}>🎡 Ruleta: {p.ruleta.tipo === "regalo" ? "ganó " + (/mega/i.test(p.ruleta.texto || "") ? "el 💎 MEGA REGALO" : "un REGALO 🎁") + " — dáselo con el pedido" : p.ruleta.tipo === "cupon" ? "ganó " + p.ruleta.texto + " (cupón " + p.ruleta.cupon + ", se activa al entregar)" : "seguí participando"}</div>}
                             {(p.cambios || []).map((c, k) => <div key={"c" + k} style={{ fontSize: 12, color: temaPal.textMuted }}>🔁 Cambió {c.de} por <b style={{ color: temaPal.text }}>{c.a}</b>{c.diferencia ? " · diferencia " + (c.diferencia > 0 ? "+" : "−") + fmt(Math.abs(c.diferencia)) : " · mismo precio"}</div>)}
                             <div style={{ borderTop: "1px dashed " + temaPal.border, marginTop: 8, paddingTop: 6, fontSize: 12.5, lineHeight: 1.6 }}>
