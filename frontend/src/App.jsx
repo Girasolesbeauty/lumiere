@@ -26465,7 +26465,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-hw-fab b{font-size:30px;line-height:1;display:inline-block;animation:twHwSalta 1.6s ease-in-out infinite}
 @keyframes twHwSalta{0%,100%{transform:translateY(0) rotate(0)}30%{transform:translateY(-6px) rotate(-8deg)}60%{transform:translateY(0) rotate(6deg)}}
 .tw-hw-modal{position:fixed;inset:0;z-index:500;background:rgba(8,4,14,.72);display:flex;align-items:center;justify-content:center;padding:16px}
-.tw-hw-caja{position:relative;width:100%;max-width:420px;border-radius:26px;padding:26px 22px 22px;background:radial-gradient(circle at 80% 0,#4a2470 0,#1c0d2e 50%,#0b0612 100%);color:#fff;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5);animation:twHwAbre .45s cubic-bezier(.3,1.5,.5,1) both;overflow:hidden}
+.tw-hw-caja{position:relative;width:100%;max-width:420px;border-radius:26px;padding:26px 22px 22px;background:radial-gradient(circle at 80% 0,#4a2470 0,#1c0d2e 50%,#0b0612 100%);color:#fff;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5);animation:twHwAbre .45s cubic-bezier(.3,1.5,.5,1) both;overflow:hidden;max-height:calc(100dvh - 32px);overflow-y:auto}
 @keyframes twHwAbre{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
 .tw-hw-caja h3{margin:4px 0 6px;font-size:26px;font-weight:900;color:#ffb347}
 .tw-hw-caja p{margin:0 0 14px;color:#e8dcf5;font-size:14px;line-height:1.45}
@@ -26556,6 +26556,10 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-hw-cod{display:flex;gap:8px;align-items:center;justify-content:center;margin:6px 0 10px}
 .tw-hw-cod code{font-size:22px;font-weight:900;letter-spacing:.12em;padding:8px 14px;border-radius:12px;background:#fff;color:#1c0d2e}
 .tw-hw-chica{font-size:12px!important;color:#cdb9e6!important}
+.tw-hw-otra,.tw-hw-mis{margin:10px 0 4px;padding:12px 14px;border-radius:16px;background:rgba(255,154,60,.1);border:1px dashed rgba(255,154,60,.55);font-size:13px;line-height:1.45;color:#f3e6ff;text-align:left}
+.tw-hw-otra b,.tw-hw-mis b{display:block;color:#ffb347;font-size:14px;margin-bottom:4px}
+.tw-hw-otra .tw-hw-chica{margin-top:6px}
+.tw-hw-mis{border-style:solid;border-color:rgba(255,255,255,.18);background:rgba(255,255,255,.06)}
 .tw-cy-vista{position:fixed;left:12px;right:12px;bottom:12px;z-index:400;background:#12002e;color:#e9d5ff;border:1px solid #7c3aed;border-radius:14px;padding:10px 14px;font-size:12.5px;line-height:1.4;box-shadow:0 8px 24px rgba(0,0,0,.35)}
 @media (min-width:700px){.tw-cy-vista{left:auto;max-width:420px}}
 @media (prefers-reduced-motion:reduce){.tw-cy-hero::after{animation:none}}
@@ -28496,7 +28500,29 @@ function TwHwHero({ hw, onJugar, onVer, hayLook }) {
   );
 }
 // "¿Dulce o truco?": elegir una calabaza → premio (una vez por clienta, con su cuenta)
-function TwDulceTruco({ hw, logueada, mio, onCerrar, onIngresar, onJugar, onVerLook }) {
+// Cómo conseguir otra calabaza: comprando online o invitando amigas con su link (cuando crean su cuenta)
+function TwHwOtra({ info, link }) {
+  const [copiado, setCopiado] = useState(false);
+  const faltanAmigas = info.amigas < info.amigas_max;
+  const msj = "🎃 ¡Entrá a la tienda con mi link, creá tu cuenta y abrí tu calabaza de Halloween! Hay descuentos, puntos y regalos: " + link;
+  const compartir = async () => {
+    try { if (navigator.share) { await navigator.share({ text: msj }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
+    window.open("https://wa.me/?text=" + encodeURIComponent(msj), "_blank", "noopener");
+  };
+  return (
+    <div className="tw-hw-otra">
+      <b>¿Querés otra calabaza? 🎃</b>
+      <div>🛍️ Por cada compra en la tienda online te damos una más.</div>
+      {link && faltanAmigas && <div>👯 Invitá a una amiga: cuando crea su cuenta con tu link, abrís otra{info.amigas_max ? " (hasta " + info.amigas_max + ")" : ""}.</div>}
+      {link && faltanAmigas && <div className="tw-hw-btns" style={{ justifyContent: "center", marginTop: 8 }}>
+        <button className="tw-hw-btn" style={{ padding: "10px 16px" }} onClick={compartir}>Invitar a una amiga</button>
+        <button className="tw-hw-btn sec" style={{ padding: "10px 16px" }} onClick={() => { try { navigator.clipboard.writeText(link); setCopiado(true); } catch (e) {} }}>{copiado ? "✓ Copiado" : "Copiar link"}</button>
+      </div>}
+      {info.amigas > 0 && <div className="tw-hw-chica">Ya se sumaron {info.amigas} amiga{info.amigas === 1 ? "" : "s"} con tu link 💜</div>}
+    </div>
+  );
+}
+function TwDulceTruco({ hw, logueada, mio, info, link, onCerrar, onIngresar, onJugar, onVerLook }) {
   const [estado, setEstado] = useState(mio ? "listo" : "elegir");
   const [premio, setPremio] = useState(mio || null);
   const [error, setError] = useState("");
@@ -28525,11 +28551,11 @@ function TwDulceTruco({ hw, logueada, mio, onCerrar, onIngresar, onJugar, onVerL
           <p>Para abrir tu calabaza necesitás tu cuenta de la tienda. Es gratis, y además sumás puntos con cada compra.</p>
           <button className="tw-hw-btn" onClick={onIngresar}>Ingresar o crear mi cuenta</button>
         </> : estado === "elegir" ? <>
-          <h3>¿Dulce o truco?</h3>
+          <h3>{premio ? "¡Otra calabaza!" : "¿Dulce o truco?"}</h3>
           <p>Elegí una calabaza: adentro hay un premio… o un truco 👻</p>
           <div className="tw-hw-calabazas">{[0, 1, 2].map(i => <button key={i} onClick={jugar} aria-label={"Calabaza " + (i + 1)}>🎃</button>)}</div>
           {error && <p style={{ color: "#ffb4a8" }}>{error}</p>}
-          <p className="tw-hw-chica">Una calabaza por clienta{hasta ? " · hasta el " + hasta : ""}</p>
+          <p className="tw-hw-chica">{info && info.quedan > 1 ? "Tenés " + info.quedan + " calabazas para abrir" : "Una calabaza por clienta, y otra por cada compra"}{hasta ? " · hasta el " + hasta : ""}</p>
         </> : estado === "susto" ? <TwHwSusto /> : estado === "dulce" ? <TwHwDulce premio={premio} /> : estado === "jugando" ? <>
           <div className="tw-hw-tiembla">🎃</div>
           <p style={{ marginTop: 14 }}>Abriendo tu calabaza…</p>
@@ -28550,8 +28576,15 @@ function TwDulceTruco({ hw, logueada, mio, onCerrar, onIngresar, onJugar, onVerL
             <p className="tw-hw-chica">Entrá con tu cuenta al comprar{hasta ? " · vale hasta el " + hasta : ""}.</p>
           </>}
           {premio.tipo === "nada" && <p>Esta vez la calabaza estaba vacía… ¡pero mirá todo lo que preparamos para tu look de Halloween!</p>}
-          {premio.ya && <p className="tw-hw-chica">Ya habías abierto tu calabaza: este es tu premio.</p>}
+          {premio.ya && !(info && info.quedan > 0) && <p className="tw-hw-chica">Ya abriste tu calabaza: este es tu premio.</p>}
           {premio.prueba && <p className="tw-hw-chica">(Vista previa: no se guardó ni se dio nada)</p>}
+          {info && info.premios && info.premios.length > 1 && <div className="tw-hw-mis">
+            <b>Tus premios de Halloween</b>
+            {info.premios.filter(x => x.tipo !== "nada").map((x, i) => <div key={i}>{x.tipo === "cupon" ? "🍬 " + x.texto + " · código " + x.cupon : x.tipo === "puntos" ? "✨ " + x.texto : "🎁 " + (x.regalo || x.texto) + (x.usado ? " (ya va en tu pedido)" : "")}</div>)}
+            {info.premios.every(x => x.tipo === "nada") && <div>👻 Por ahora, solo trucos… ¡seguí probando!</div>}
+          </div>}
+          {info && info.quedan > 0 && <button className="tw-hw-btn" style={{ margin: "6px 0 4px" }} onClick={() => { setCopiado(false); setEstado("elegir"); }}>🎃 ¡Tenés {info.quedan === 1 ? "otra calabaza" : info.quedan + " calabazas más"}! Abrila</button>}
+          {info && info.quedan === 0 && !premio.prueba && <TwHwOtra info={info} link={link} />}
           <div className="tw-hw-btns" style={{ justifyContent: "center", marginTop: 8 }}>
             {onVerLook && <button className="tw-hw-btn" onClick={onVerLook}>Ver tu look de Halloween</button>}
             <button className="tw-hw-btn sec" onClick={onCerrar}>Seguir mirando</button>
@@ -29686,6 +29719,8 @@ function TiendaPublica({ slug }) {
   // Halloween: cartel del juego "¿Dulce o truco?" y lo que ya ganó esta clienta
   const [hwJuego, setHwJuego] = useState(false);
   const [hwMio, setHwMio] = useState(null);
+  const [hwInfo, setHwInfo] = useState(null); // calabazas que le quedan, sus premios y su link para invitar amigas
+  const cargarHw = () => pedir("/halloween/mio").then(r => { setHwMio(r.premio || null); setHwInfo(r); }).catch(() => {});
   const [formCuenta, setFormCuenta] = useState({ modo: "ingresar" });
   // Al crear la cuenta: se fija si el DNI ya esta en Lumiere (clienta del local), si ya tiene cuenta o si es nueva
   const [infoDni, setInfoDni] = useState(null);
@@ -29729,7 +29764,7 @@ function TiendaPublica({ slug }) {
   }, []);
 
   useEffect(() => { if (paso !== "cuenta") { setVolverA(null); setMotivoCuenta(""); } }, [paso]);
-  useEffect(() => { if (!logueada || !tienda || !tienda.halloween || !tienda.halloween.juego || tienda.halloween.vista_previa) return; pedir("/halloween/mio").then(r => setHwMio(r.premio || null)).catch(() => {}); }, [logueada, !!(tienda && tienda.halloween)]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!logueada || !tienda || !tienda.halloween || !tienda.halloween.juego || tienda.halloween.vista_previa) return; cargarHw(); }, [logueada, !!(tienda && tienda.halloween)]); // eslint-disable-line react-hooks/exhaustive-deps
   // Reseñas: las del producto abierto, lo que la clienta puede reseñar y el formulario
   const [resVer, setResVer] = useState(null); // { id, d }
   const [misRes, setMisRes] = useState(null); // { para_resenar, mias }
@@ -29966,7 +30001,7 @@ function TiendaPublica({ slug }) {
   }, [codigoUrl]);
 
   // Invitá a una amiga: el codigo llega en el link (?amiga=SABRINA-4K7Q) y se guarda hasta que compre
-  const [amigaCod, setAmigaCod] = useState(() => { try { const q = new URLSearchParams(window.location.search).get("amiga"); if (q) { localStorage.setItem("tw_amiga_" + slug, q.toUpperCase().slice(0, 30)); return q.toUpperCase().slice(0, 30); } return localStorage.getItem("tw_amiga_" + slug) || null; } catch (e) { return null; } });
+  const [amigaCod, setAmigaCod] = useState(() => { try { const q = new URLSearchParams(window.location.search).get("amiga"); if (q) { localStorage.setItem("tw_amiga_" + slug, q.toUpperCase().slice(0, 30)); localStorage.setItem("tw_hw_amiga_" + slug, q.toUpperCase().slice(0, 30)); return q.toUpperCase().slice(0, 30); } return localStorage.getItem("tw_amiga_" + slug) || null; } catch (e) { return null; } });
   const [amigaInfo, setAmigaInfo] = useState(null);
   const [amigaOk, setAmigaOk] = useState(null);
   useEffect(() => {
@@ -30545,7 +30580,7 @@ function TiendaPublica({ slug }) {
       if (infoDni && infoDni.estado === "con_cuenta") { setAvisoCuenta("Ese DNI ya tiene cuenta: ingresá con tu contraseña."); return; }
     }
     try {
-      const r = await pedir("/cuenta/" + (f.modo === "crear" ? "crear" : "ingresar"), { method: "POST", body: JSON.stringify({ ...f, local_id: lid }) });
+      const r = await pedir("/cuenta/" + (f.modo === "crear" ? "crear" : "ingresar"), { method: "POST", body: JSON.stringify({ ...f, local_id: lid, hw_amiga: f.modo === "crear" ? (() => { try { return localStorage.getItem("tw_hw_amiga_" + slug) || undefined; } catch (e) { return undefined; } })() : undefined }) });
       try { localStorage.setItem("tienda_cuenta_" + slug, r.token); } catch (x) {}
       setFormCuenta(x => ({ modo: "ingresar", pestana: x.pestana })); setLogueada(true);
       if (volverA) { setPaso(volverA); setVolverA(null); twSonar.brillo(); }
@@ -31119,14 +31154,15 @@ function TiendaPublica({ slug }) {
 
       {/* Halloween: calabaza flotante para jugar "¿Dulce o truco?" */}
       {tienda.halloween && tienda.halloween.juego && !paso && !ver && !hwJuego && (
-        <button className="tw-hw-fab" onClick={() => setHwJuego(true)} aria-label="Jugar ¿Dulce o truco?"><b aria-hidden="true">🎃</b>{hwMio ? "Tu premio" : "¿Dulce o truco?"}</button>
+        <button className="tw-hw-fab" onClick={() => { setHwJuego(true); if (logueada && !tienda.halloween.vista_previa) cargarHw(); }} aria-label="Jugar ¿Dulce o truco?"><b aria-hidden="true">🎃</b>{hwMio ? (hwInfo && hwInfo.quedan > 0 ? "¡Otra calabaza!" : "Tu premio") : "¿Dulce o truco?"}</button>
       )}
       {tienda.halloween && tienda.halloween.musica && <TwHwMusica />}
       {tienda.halloween && !tienda.cyber && <TwHwIntro hw={tienda.halloween} slug={slug} hayLook={hwLook.length > 0} onJugar={() => setHwJuego(true)} onVer={() => irCat("halloween")} />}
-      {hwJuego && tienda.halloween && <TwDulceTruco hw={tienda.halloween} logueada={logueada} mio={hwMio && !tienda.halloween.vista_previa ? { ...hwMio, ya: true } : null}
+      {hwJuego && tienda.halloween && <TwDulceTruco hw={tienda.halloween} logueada={logueada} mio={hwMio && !tienda.halloween.vista_previa ? { ...hwMio, ya: true } : null} info={tienda.halloween.vista_previa ? null : hwInfo}
+        link={hwInfo && hwInfo.codigo ? (tienda.dominio ? "https://" + tienda.dominio + "/" : window.location.origin + window.location.pathname) + "?" + (tienda.dominio ? "" : "tienda=" + encodeURIComponent(slug) + "&") + "amiga=" + hwInfo.codigo : null}
         onCerrar={() => setHwJuego(false)}
         onIngresar={() => { setHwJuego(false); setVer(null); setAvisoCuenta(null); setCanjeHecho(null); setFormCuenta({ modo: "ingresar" }); setPaso("cuenta"); setTimeout(() => setMotivoCuenta("Ingresá o creá tu cuenta para abrir tu calabaza de Halloween 🎃"), 0); }}
-        onJugar={async () => { const r = await pedir("/halloween/jugar", { method: "POST", body: JSON.stringify({ vista: hwTok }) }); if (!r.prueba) setHwMio(r); return r; }}
+        onJugar={async () => { const r = await pedir("/halloween/jugar", { method: "POST", body: JSON.stringify({ vista: hwTok }) }); if (!r.prueba) { setHwMio(r); cargarHw(); } return r; }}
         onVerLook={hwLook.length > 0 ? () => { setHwJuego(false); irCat("halloween"); } : null} />}
 
       {/* WhatsApp flotante: siempre a mano, al del local de la ciudad elegida */}
