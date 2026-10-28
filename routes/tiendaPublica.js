@@ -532,6 +532,13 @@ router.post('/:slug/pedidos', async (req, res) => {
     // Calendario de Adviento: si la sorpresa de hoy es un regalo con la compra (y llega al mínimo), queda anotado para la vendedora
     const advR = tienda.advientoDe(c), advD = tienda.advientoHoy(advR), regHoy = advR.activo && advD >= 1 && advD <= 25 ? advR.dias[advD - 1] : null;
     if (regHoy && regHoy.tipo === 'regalo' && regHoy.regalo && subtotal >= regHoy.minimo) await client.query('UPDATE tienda_pedidos SET adviento_regalo = $1 WHERE id = $2', ['Día ' + advD + ': ' + regHoy.regalo, pedido.id]);
+    // Halloween: si ganó "regalo con tu compra" en la calabaza (y todavía no lo usó), va en este pedido (hasta que termina Halloween)
+    const hwR = tienda.halloweenDe(c);
+    if (clienteId && tienda.halloweenVigente(hwR)) {
+      const g = (await client.query(`UPDATE tienda_halloween SET pedido_id = $1 WHERE cliente_id = $2 AND temporada = $3 AND tipo = 'regalo' AND pedido_id IS NULL AND valor <= $4 RETURNING regalo, texto`,
+        [pedido.id, clienteId, temporadaHw(hwR), subtotal]).catch(() => ({ rows: [] }))).rows[0];
+      if (g) await client.query('UPDATE tienda_pedidos SET hw_regalo = $1 WHERE id = $2', [g.regalo || g.texto, pedido.id]);
+    }
     if (combo.combos.length) await client.query('UPDATE tienda_pedidos SET descuento_combo = $1, combos = $2 WHERE id = $3', [descCombo, combo.combos.map(x => x.nombre + (x.veces > 1 ? ' x' + x.veces : '')).join(', '), pedido.id]);
     if (gc && gcUsa > 0) {
       const nuevo = Math.round((gc.saldo - gcUsa) * 100) / 100;
@@ -713,7 +720,7 @@ router.get('/:slug/pedidos/:codigo', async (req, res) => {
     res.json({
       ruleta: await estadoRuleta(req.tienda, p),
       codigo: p.codigo, numero: p.numero || null, estado: p.estado, pagado: p.pagado, pago: p.pago, entrega: p.entrega, local_id: p.local_id || 1, local: loc || null, direccion: p.direccion, zona: p.zona,
-      subtotal: num(p.subtotal), costo_envio: num(p.costo_envio), descuento: num(p.descuento), descuento_amiga: num(p.descuento_amiga), descuento_combo: num(p.descuento_combo), combos: p.combos || null, muestra: p.muestra || null, adviento_regalo: p.adviento_regalo || null, express_min: p.express_min || null, listo_express: tienda.listoExpress(p), descuento_pago: num(p.descuento_pago), descuento_pago_pct: p.descuento_pago_pct === null ? null : num(p.descuento_pago_pct), cupon: p.cupon || null, total: num(p.total), items, link_pago: p.estado === 'pendiente_pago' ? p.mp_link : null,
+      subtotal: num(p.subtotal), costo_envio: num(p.costo_envio), descuento: num(p.descuento), descuento_amiga: num(p.descuento_amiga), descuento_combo: num(p.descuento_combo), combos: p.combos || null, muestra: p.muestra || null, adviento_regalo: p.adviento_regalo || null, hw_regalo: p.hw_regalo || null, express_min: p.express_min || null, listo_express: tienda.listoExpress(p), descuento_pago: num(p.descuento_pago), descuento_pago_pct: p.descuento_pago_pct === null ? null : num(p.descuento_pago_pct), cupon: p.cupon || null, total: num(p.total), items, link_pago: p.estado === 'pendiente_pago' ? p.mp_link : null,
       vence_en: p.vence_en, transferencia: p.pago === 'transferencia' && !p.pagado ? (req.tienda.transferencia_datos || '') : null, creado_en: p.creado_en,
       gc_usado: num(p.gc_usado_monto) > 0 ? { codigo: p.gc_usado_codigo, monto: num(p.gc_usado_monto) } : null,
       giftcard: p.tipo === 'giftcard' ? { para: p.gc_para, mensaje: p.gc_mensaje, para_telefono: p.gc_para_tel, codigo: p.gc_codigo || null, firma: p.gc_codigo ? tienda.firmaRegalo(p.gc_codigo) : null, monto: num(p.total), de: p.nombre } : null,
@@ -809,23 +816,23 @@ const temporadaHw = (hw) => 'hw-' + hw.desde.slice(0, 10);
 router.get('/:slug/halloween/mio', conCuenta, async (req, res) => {
   try {
     const hw = tienda.halloweenDe(req.tienda);
-    const r = (await pool.query('SELECT premio_id, texto, tipo, valor, cupon FROM tienda_halloween WHERE cliente_id = $1 AND temporada = $2', [req.clienteId, temporadaHw(hw)]).catch(() => ({ rows: [] }))).rows[0];
-    res.json({ jugado: !!r, premio: r ? { id: r.premio_id, texto: r.texto, tipo: r.tipo, valor: num(r.valor), cupon: r.cupon } : null, hasta: hw.hasta });
+    const r = (await pool.query('SELECT premio_id, texto, tipo, valor, cupon, regalo, pedido_id FROM tienda_halloween WHERE cliente_id = $1 AND temporada = $2', [req.clienteId, temporadaHw(hw)]).catch(() => ({ rows: [] }))).rows[0];
+    res.json({ jugado: !!r, premio: r ? { id: r.premio_id, texto: r.texto, tipo: r.tipo, valor: num(r.valor), cupon: r.cupon, regalo: r.regalo || null, usado: !!r.pedido_id } : null, hasta: hw.hasta });
   } catch (e) { res.status(500).json({ error: 'No se pudo leer' }); }
 });
 router.post('/:slug/halloween/jugar', conCuenta, async (req, res) => {
   const hw = tienda.halloweenDe(req.tienda);
   const enCurso = tienda.halloweenVigente(hw), vista = !enCurso && !!hw.token && String((req.body || {}).vista || '') === hw.token;
   if (!hw.juego || (!enCurso && !vista)) return res.status(400).json({ error: 'El juego de Halloween no está activo' });
-  if (vista) { const p = tienda.elegirPremio(hw.premios); return res.json({ id: p.id, texto: p.texto, tipo: p.tipo, valor: p.valor, cupon: p.tipo === 'cupon' ? 'HW-PRUEBA' : null, prueba: true, hasta: hw.hasta }); }
+  if (vista) { const p = tienda.elegirPremio(hw.premios); return res.json({ id: p.id, texto: p.texto, tipo: p.tipo, valor: p.valor, cupon: p.tipo === 'cupon' ? 'HW-PRUEBA' : null, regalo: p.regalo || null, prueba: true, hasta: hw.hasta }); }
   const tablasCupon = await cuponesLib.asegurar();
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     await client.query(`SELECT pg_advisory_xact_lock(hashtext('tienda_halloween'), $1)`, [req.clienteId]);
     const temp = temporadaHw(hw);
-    const ya = (await client.query('SELECT premio_id, texto, tipo, valor, cupon FROM tienda_halloween WHERE cliente_id = $1 AND temporada = $2', [req.clienteId, temp])).rows[0];
-    if (ya) { await client.query('ROLLBACK'); return res.json({ id: ya.premio_id, texto: ya.texto, tipo: ya.tipo, valor: num(ya.valor), cupon: ya.cupon, ya: true, hasta: hw.hasta }); }
+    const ya = (await client.query('SELECT premio_id, texto, tipo, valor, cupon, regalo, pedido_id FROM tienda_halloween WHERE cliente_id = $1 AND temporada = $2', [req.clienteId, temp])).rows[0];
+    if (ya) { await client.query('ROLLBACK'); return res.json({ id: ya.premio_id, texto: ya.texto, tipo: ya.tipo, valor: num(ya.valor), cupon: ya.cupon, regalo: ya.regalo || null, usado: !!ya.pedido_id, ya: true, hasta: hw.hasta }); }
     const premio = tienda.elegirPremio(hw.premios);
     let cupon = null;
     if (premio.tipo === 'cupon') {
@@ -846,9 +853,9 @@ router.post('/:slug/halloween/jugar', conCuenta, async (req, res) => {
     } else if (premio.tipo === 'puntos') {
       await client.query('UPDATE clientes SET puntos = COALESCE(puntos, 0) + $1 WHERE id = $2', [premio.valor, req.clienteId]);
     }
-    await client.query('INSERT INTO tienda_halloween (cliente_id, temporada, premio_id, texto, tipo, valor, cupon) VALUES ($1, $2, $3, $4, $5, $6, $7)', [req.clienteId, temp, premio.id, premio.texto, premio.tipo, premio.valor, cupon]);
+    await client.query('INSERT INTO tienda_halloween (cliente_id, temporada, premio_id, texto, tipo, valor, cupon, regalo) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [req.clienteId, temp, premio.id, premio.texto, premio.tipo, premio.valor, cupon, premio.tipo === 'regalo' ? premio.regalo || premio.texto : null]);
     await client.query('COMMIT');
-    res.json({ id: premio.id, texto: premio.texto, tipo: premio.tipo, valor: premio.valor, cupon, hasta: hw.hasta });
+    res.json({ id: premio.id, texto: premio.texto, tipo: premio.tipo, valor: premio.valor, cupon, regalo: premio.tipo === 'regalo' ? premio.regalo || premio.texto : null, hasta: hw.hasta });
   } catch (e) {
     try { await client.query('ROLLBACK'); } catch (x) {}
     console.error('[tienda publica] halloween:', e.message);

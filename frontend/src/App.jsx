@@ -26476,6 +26476,48 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-hw-calabazas button:hover{transform:scale(1.15)}
 .tw-hw-tiembla{font-size:86px;line-height:1.15;display:inline-block;animation:twHwTiembla .12s linear infinite;filter:drop-shadow(0 0 22px rgba(255,122,0,.8))}
 @keyframes twHwTiembla{0%{transform:rotate(-8deg) scale(1)}50%{transform:rotate(8deg) scale(1.06)}100%{transform:rotate(-8deg) scale(1)}}
+.tw-hw-fila .tw-card-img{animation:twHwBrillo 3.2s ease-in-out infinite}
+@keyframes twHwBrillo{0%,100%{box-shadow:0 0 0 1.5px rgba(255,122,0,.28)}50%{box-shadow:0 0 0 1.5px rgba(255,140,0,.65),0 0 18px rgba(140,60,200,.45)}}
+.tw-hw-fila .tw-card-img::before{content:"";position:absolute;left:0;bottom:0;width:44%;height:44%;background:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22 fill=%22none%22 stroke=%22%234a3560%22 stroke-width=%221.6%22%3E%3Cpath d=%22M0 100 L100 0 M0 100 L60 0 M0 100 L100 40 M0 100 L25 0 M0 100 L100 75%22/%3E%3Cpath d=%22M0 76 Q14 82 20 80 Q26 92 24 100 M0 52 Q26 60 38 62 Q50 82 48 100 M0 28 Q38 38 56 44 Q72 74 72 100 M0 6 Q50 16 74 26 Q94 66 96 100%22/%3E%3C/svg%3E") no-repeat 0 100%/100% 100%;opacity:.45;pointer-events:none;z-index:2;filter:drop-shadow(0 0 1px rgba(0,0,0,.4))}
+.tw-hw-fila .tw-card-img::after{content:"";position:absolute;left:58%;top:0;width:16px;height:30%;pointer-events:none;z-index:2;background:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 30 26%22%3E%3Cg stroke=%22%231a0b24%22 stroke-width=%222%22 stroke-linecap=%22round%22 fill=%22none%22%3E%3Cpath d=%22M10 12 L3 6 M10 14 L1 14 M10 16 L3 22 M11 18 L6 25 M20 12 L27 6 M20 14 L29 14 M20 16 L27 22 M19 18 L24 25%22/%3E%3C/g%3E%3Cellipse cx=%2215%22 cy=%2215%22 rx=%226%22 ry=%227%22 fill=%22%231a0b24%22/%3E%3Ccircle cx=%2215%22 cy=%227%22 r=%224%22 fill=%22%231a0b24%22/%3E%3Ccircle cx=%2213.5%22 cy=%227%22 r=%221%22 fill=%22%23ff7a00%22/%3E%3Ccircle cx=%2216.5%22 cy=%227%22 r=%221%22 fill=%22%23ff7a00%22/%3E%3C/svg%3E") no-repeat 50% 100%/16px 14px,linear-gradient(#3a2a44,#3a2a44) no-repeat 50% 0/1px calc(100% - 10px);transform-origin:50% 0;animation:twHwArana 3.6s ease-in-out infinite}
+.tw-hw-fila .tw-card:nth-child(2n) .tw-card-img::after,.tw-hw-fila > :nth-child(2n) .tw-card-img::after{animation-delay:-1.4s;left:34%}
+.tw-hw-fila .tw-card:nth-child(3n) .tw-card-img::after,.tw-hw-fila > :nth-child(3n) .tw-card-img::after{animation-delay:-2.3s}
+@keyframes twHwArana{0%,100%{height:22%;transform:rotate(-4deg)}50%{height:40%;transform:rotate(4deg)}}
+.tw-hw-fila .tw-sec-t h3::after{content:"";display:inline-block;width:28px;height:14px;margin-left:8px;vertical-align:middle;background:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 12%22%3E%3Cpath d=%22M0 6 C4 0 8 2 10 4 C11 1 13 1 14 4 C16 2 20 0 24 6 C20 5 18 8 17 10 C15 8 13 8 12 10 C11 8 9 8 7 10 C6 8 4 5 0 6 Z%22 fill=%22%232a1240%22/%3E%3C/svg%3E") no-repeat center/contain;animation:twHwAleteo .22s ease-in-out infinite alternate}
+@keyframes twHwAleteo{from{transform:scaleY(1) translateY(0)}to{transform:scaleY(.45) translateY(-3px)}}
+@media (prefers-reduced-motion:reduce){.tw-hw-fila .tw-card-img,.tw-hw-fila .tw-card-img::after,.tw-hw-fila .tw-sec-t h3::after{animation:none}}
+.tw-hw-intro{position:fixed;inset:0;z-index:650;overflow:hidden;background:linear-gradient(180deg,#0d0418 0%,#2a0f45 55%,#4a1d5c 100%);color:#fff;text-align:center;display:flex;flex-direction:column;justify-content:flex-end;animation:twAdvIn .5s ease-out}
+.tw-hw-intro.sale{animation:twAdvOut .45s ease-in forwards}
+.tw-hw-intro>svg{position:absolute;left:50%;bottom:0;height:100%;width:auto;min-width:100%;transform:translateX(-50%)}
+.tw-hw-intro .luna{animation:twHwLuna 1.6s cubic-bezier(.2,.8,.3,1) both}
+@keyframes twHwLuna{from{transform:translateY(160px)}to{transform:none}}
+.tw-hw-intro .pueblo{animation:twAdvSube2 1.3s cubic-bezier(.2,.8,.3,1) .2s both}
+.tw-hw-intro .vuela{animation:twHwCruza 5.5s linear infinite}
+@keyframes twHwCruza{from{transform:translate(-80px,40px)}to{transform:translate(460px,-60px)}}
+.tw-hw-intro .ala{transform-box:fill-box;transform-origin:center;animation:twHwAleteo .2s ease-in-out infinite alternate}
+.tw-hw-intro .cara{opacity:0;animation:twHwPrende .9s steps(1,end) forwards,twHwVela 1.4s ease-in-out 2.6s infinite}
+@keyframes twHwPrende{0%{opacity:0}20%{opacity:1}35%{opacity:.1}55%,100%{opacity:1}}
+@keyframes twHwVela{0%,100%{opacity:1}50%{opacity:.7}}
+.tw-hw-intro .niebla{animation:twHwNiebla 9s ease-in-out infinite alternate}
+@keyframes twHwNiebla{from{transform:translateX(-30px)}to{transform:translateX(30px)}}
+.tw-hw-intro-txt{position:absolute;left:0;right:0;top:8vh;padding:0 22px;z-index:2}
+.tw-hw-intro-txt .ceja{font-size:12px;font-weight:800;letter-spacing:.32em;text-transform:uppercase;color:#ffb347;opacity:0;animation:twAdvTxt .8s ease-out .4s forwards}
+.tw-hw-intro-txt h2{margin:10px 0 0;font-size:clamp(44px,13vw,72px);font-weight:900;line-height:1;color:#ff7a00;text-shadow:0 0 26px rgba(255,110,0,.55),0 5px 0 #3a0a4a;opacity:0;animation:twAdvTxt .9s ease-out .7s forwards,twHwFlota 3s ease-in-out 1.6s infinite}
+@keyframes twHwFlota{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-6px) rotate(1deg)}}
+.tw-hw-intro-txt p{margin:12px auto 0;max-width:380px;font-size:15px;line-height:1.45;color:#e8dcf5;opacity:0;animation:twAdvTxt .8s ease-out 1.1s forwards}
+.tw-hw-intro-pie{position:relative;z-index:2;width:100%;max-width:460px;margin:0 auto;padding:40px 22px calc(26px + env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(13,4,24,0),rgba(13,4,24,.85) 40%);opacity:0;animation:twAdvTxt .7s ease-out 2.1s forwards;display:flex;flex-direction:column;gap:10px}
+.tw-hw-intro-pie .tw-hw-btn{width:100%;padding:15px;font-size:16px}
+.tw-hw-intro-pie .salto{border:0;background:none;color:rgba(255,255,255,.75)!important;font:inherit;font-size:14px;padding:8px;cursor:pointer}
+.tw-hw-intro .tw-hw-cerrar{position:absolute;top:calc(14px + env(safe-area-inset-top));right:14px;z-index:3}
+.tw-hw-susto{position:fixed;inset:0;z-index:900;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;animation:twHwFlash .5s steps(1,end) .2s 2}
+@keyframes twHwFlash{0%{background:#000}25%{background:#5a0012}50%{background:#000}75%{background:#1d3a00}}
+.tw-hw-susto .fantasma{position:absolute;width:min(70vw,360px);height:auto;filter:drop-shadow(0 0 30px rgba(220,200,255,.7));transform:scale(.05);opacity:0;animation:twHwBoo .45s cubic-bezier(.2,1.6,.4,1) .15s forwards,twHwSacude .08s linear .6s 12}
+@keyframes twHwBoo{to{transform:scale(1.25);opacity:1}}
+@keyframes twHwSacude{0%{translate:-6px 3px}50%{translate:6px -3px}100%{translate:0 0}}
+.tw-hw-susto .murcs svg{position:absolute;left:50%;top:50%;width:70px;height:35px;margin:-17px 0 0 -35px;opacity:0;animation:twHwVuela 1.1s ease-in forwards}
+@keyframes twHwVuela{0%{opacity:1;transform:translate(0,0) rotate(0) scale(.3)}100%{opacity:1;transform:translate(var(--x),var(--y)) rotate(var(--r)) scale(1.6)}}
+.tw-hw-susto .truco{position:absolute;bottom:12vh;left:0;right:0;text-align:center;font-weight:900;font-size:clamp(52px,16vw,96px);letter-spacing:.04em;color:#ff7a00;text-shadow:0 0 24px rgba(255,90,0,.8),0 6px 0 #5a0012;opacity:0;animation:twHwTruco .5s cubic-bezier(.3,1.6,.5,1) 1s forwards}
+@keyframes twHwTruco{from{opacity:0;transform:scale(2.2)}to{opacity:1;transform:none}}
 .tw-hw-premio{font-size:80px;line-height:1.15;display:inline-block;margin-bottom:6px;animation:twHwAbre .6s cubic-bezier(.3,1.6,.5,1) both}
 .tw-hw-cod{display:flex;gap:8px;align-items:center;justify-content:center;margin:6px 0 10px}
 .tw-hw-cod code{font-size:22px;font-weight:900;letter-spacing:.12em;padding:8px 14px;border-radius:12px;background:#fff;color:#1c0d2e}
@@ -26760,6 +26802,19 @@ const twSonar = {
   campana() { const c = twSonidoOn() && twCtx(); if (!c) return; [[1046, 0], [1568, 0.12], [2093, 0.24]].forEach(([f, d]) => { twTono(c, { f1: f, dur: 1.1, vol: 0.09, cuando: d }); twTono(c, { f1: f * 2.01, dur: 0.6, vol: 0.02, cuando: d }); }); },
 };
 const twVibrar = (ms) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} };
+// Susto de Halloween (cuando sale TRUCO): golpe de ruido, chillido que cae, acorde disonante y una risita de bruja
+function twSusto() {
+  const c = twSonidoOn() && twCtx(); if (!c) return;
+  try {
+    const n = c.createBuffer(1, Math.floor(c.sampleRate * .45), c.sampleRate), d = n.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2);
+    const src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(); src.buffer = n; f.type = "bandpass"; f.frequency.value = 900; g.gain.value = .45;
+    src.connect(f).connect(g).connect(c.destination); src.start();
+  } catch (e) {}
+  twTono(c, { f1: 1500, f2: 90, dur: 1.1, vol: .1, tipo: "sawtooth" });
+  [233, 247, 277].forEach(f => twTono(c, { f1: f, f2: f * .94, dur: 1.4, vol: .03, tipo: "square", cuando: .15 }));
+  [0, .17, .34, .51, .68].forEach((d, i) => twTono(c, { f1: 640 - i * 25, f2: 430 - i * 25, dur: .13, vol: .06, tipo: "triangle", cuando: 1.05 + d }));
+}
 
 // La foto del producto vuela en curva hasta la bolsa, que la "traga" con un rebote
 function twVolarABolsa(desdeEl, src, alLlegar) {
@@ -28338,9 +28393,14 @@ function TwDulceTruco({ hw, logueada, mio, onCerrar, onIngresar, onJugar, onVerL
   const [error, setError] = useState("");
   const [copiado, setCopiado] = useState(false);
   const jugar = async () => {
-    setEstado("jugando"); setError("");
+    setEstado("jugando"); setError(""); twSonar.tic(true);
     const inicio = Date.now();
-    try { const p = await onJugar(); await new Promise(r => setTimeout(r, Math.max(0, 1400 - (Date.now() - inicio)))); setPremio(p); setEstado("listo"); }
+    try {
+      const p = await onJugar(); await new Promise(r => setTimeout(r, Math.max(0, 1400 - (Date.now() - inicio)))); setPremio(p);
+      // TRUCO recién salido: primero el susto (con sonido) y después el mensaje
+      if (p.tipo === "nada" && !p.ya && !twMenosMovimiento()) { setEstado("susto"); twSusto(); twVibrar([90, 40, 160]); setTimeout(() => setEstado("listo"), 2300); }
+      else { setEstado("listo"); if (p.tipo !== "nada") twSonar.brillo(); }
+    }
     catch (e) { setError(e.message || "No se pudo jugar"); setEstado("elegir"); }
   };
   const hasta = hw.hasta ? hw.hasta.slice(8, 10) + "/" + hw.hasta.slice(5, 7) : "";
@@ -28359,11 +28419,11 @@ function TwDulceTruco({ hw, logueada, mio, onCerrar, onIngresar, onJugar, onVerL
           <div className="tw-hw-calabazas">{[0, 1, 2].map(i => <button key={i} onClick={jugar} aria-label={"Calabaza " + (i + 1)}>🎃</button>)}</div>
           {error && <p style={{ color: "#ffb4a8" }}>{error}</p>}
           <p className="tw-hw-chica">Una calabaza por clienta{hasta ? " · hasta el " + hasta : ""}</p>
-        </> : estado === "jugando" ? <>
+        </> : estado === "susto" ? <TwHwSusto /> : estado === "jugando" ? <>
           <div className="tw-hw-tiembla">🎃</div>
           <p style={{ marginTop: 14 }}>Abriendo tu calabaza…</p>
         </> : premio && <>
-          <div className="tw-hw-premio">{premio.tipo === "nada" ? "👻" : premio.tipo === "puntos" ? "✨" : "🍬"}</div>
+          <div className="tw-hw-premio">{premio.tipo === "nada" ? "👻" : premio.tipo === "puntos" ? "✨" : premio.tipo === "regalo" ? "🎁" : "🍬"}</div>
           <h3>{premio.tipo === "nada" ? "¡Truco!" : "¡Dulce!"}</h3>
           {premio.tipo === "cupon" && <>
             <p>Ganaste <b>{premio.texto}</b> para tu compra en la tienda online. Usá este código al pagar:</p>
@@ -28371,6 +28431,10 @@ function TwDulceTruco({ hw, logueada, mio, onCerrar, onIngresar, onJugar, onVerL
             <p className="tw-hw-chica">Es solo para vos (con tu cuenta){hasta ? " y vale hasta el " + hasta : ""}.</p>
           </>}
           {premio.tipo === "puntos" && <p>Sumaste <b>{premio.texto}</b> a tu cuenta. Canjealos por premios cuando quieras.</p>}
+          {premio.tipo === "regalo" && <>
+            <p>Ganaste <b>{premio.regalo || premio.texto}</b> de regalo con tu compra online. {premio.usado ? "Ya va en tu pedido." : "Se suma solo a tu próximo pedido" + (premio.valor ? " desde " + "$" + Math.round(premio.valor).toLocaleString("es-AR") : "") + "."}</p>
+            <p className="tw-hw-chica">Entrá con tu cuenta al comprar{hasta ? " · vale hasta el " + hasta : ""}.</p>
+          </>}
           {premio.tipo === "nada" && <p>Esta vez la calabaza estaba vacía… ¡pero mirá todo lo que preparamos para tu look de Halloween!</p>}
           {premio.ya && <p className="tw-hw-chica">Ya habías abierto tu calabaza: este es tu premio.</p>}
           {premio.prueba && <p className="tw-hw-chica">(Vista previa: no se guardó ni se dio nada)</p>}
@@ -28382,6 +28446,74 @@ function TwDulceTruco({ hw, logueada, mio, onCerrar, onIngresar, onJugar, onVerL
       </div>
     </div>
   );
+}
+// Bienvenida de Halloween al entrar (una vez por día en cada celular; en la vista previa, una vez por visita): sale la luna llena,
+// cruzan murciélagos, se prenden las calabazas del pueblo embrujado y aparece el título
+const advHoyAR = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+function TwHwIntro({ hw, slug, hayLook, onJugar, onVer }) {
+  const clave = "tienda_hw_intro_" + slug + "_" + advHoyAR();
+  const [ver, setVer] = useState(() => {
+    try { const q = new URLSearchParams(window.location.search); if (["pid", "pedido", "qr", "gc", "regalo", "resenar"].some(k => q.get(k))) return false; } catch (e) {}
+    try { return !(hw.vista_previa ? sessionStorage : localStorage).getItem(clave); } catch (e) { return true; }
+  });
+  const [sale, setSale] = useState(false);
+  const cerrar = (luego) => { try { (hw.vista_previa ? sessionStorage : localStorage).setItem(clave, "1"); } catch (e) {} setSale(true); setTimeout(() => { setVer(false); if (luego) luego(); }, 420); };
+  useEffect(() => { if (!ver) return; const o = document.body.style.overflow; document.body.style.overflow = "hidden"; const k = (e) => { if (e.key === "Escape") cerrar(); }; window.addEventListener("keydown", k); return () => { document.body.style.overflow = o; window.removeEventListener("keydown", k); }; }, [ver]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!ver) return null;
+  const calabaza = (x, y, r, del) => <g key={x} transform={"translate(" + x + " " + y + ")"}>
+    <ellipse rx={r * 1.25} ry={r} fill="#e86a10" /><ellipse rx={r * .55} ry={r} fill="#f07a1e" /><path d={"M-3 " + (-r) + " q2 -10 8 -12"} stroke="#3d5a1e" strokeWidth="4" fill="none" strokeLinecap="round" />
+    <g className="cara" style={{ animationDelay: del + "s" }}>
+      <circle r={r * 1.6} fill="url(#twHwLuz)" opacity=".55" />
+      <path d={"M" + (-r * .62) + " " + (-r * .15) + " l" + (r * .22) + " " + (-r * .38) + " l" + (r * .22) + " " + (r * .38) + " Z M" + (r * .18) + " " + (-r * .15) + " l" + (r * .22) + " " + (-r * .38) + " l" + (r * .22) + " " + (r * .38) + " Z"} fill="#ffe27a" />
+      <path d={"M" + (-r * .7) + " " + (r * .2) + " q" + (r * .7) + " " + (r * .7) + " " + (r * 1.4) + " 0 l-" + (r * .22) + " " + (r * .16) + " l-" + (r * .22) + " -" + (r * .14) + " l-" + (r * .26) + " " + (r * .16) + " l-" + (r * .26) + " -" + (r * .16) + " l-" + (r * .22) + " " + (r * .14) + " Z"} fill="#ffe27a" />
+    </g>
+  </g>;
+  return createPortal(<div className="tw" style={{ minHeight: 0, background: "transparent" }}>
+    <div className={"tw-hw-intro" + (sale ? " sale" : "")} role="dialog" aria-modal="true" aria-label={hw.titulo}>
+      <svg viewBox="0 0 360 700" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+        <defs>
+          <radialGradient id="twHwLuz"><stop offset="0" stopColor="#ffd34d" /><stop offset="1" stopColor="#ff7a00" stopOpacity="0" /></radialGradient>
+          <radialGradient id="twHwLunaG"><stop offset=".6" stopColor="#ffe9b0" stopOpacity=".35" /><stop offset="1" stopColor="#ffe9b0" stopOpacity="0" /></radialGradient>
+        </defs>
+        <g className="luna"><circle cx="180" cy="330" r="150" fill="url(#twHwLunaG)" /><circle cx="180" cy="330" r="96" fill="#ffeec2" /><circle cx="150" cy="300" r="14" fill="#f3dc9e" /><circle cx="210" cy="352" r="20" fill="#f3dc9e" /><circle cx="196" cy="296" r="8" fill="#f3dc9e" /></g>
+        {[0, 1, 2, 3, 4].map(i => <g key={i} className="vuela" style={{ animationDelay: (-i * 1.1) + "s", animationDuration: (4.5 + i * .7) + "s" }}><g transform={"translate(0 " + (220 + i * 34) + ") scale(" + (1.2 + (i % 3) * .5) + ")"}><path className="ala" d={HW_MURC} fill="#12051f" /></g></g>)}
+        <g className="pueblo" fill="#0b0612">
+          <path d="M0 700 V560 l30 -40 l30 40 V520 h14 v-30 h10 v30 h16 V700 Z" />
+          <path d="M96 700 V540 l26 -34 l26 34 V700 Z" />
+          <path d="M150 700 V470 l12 -10 V400 l8 -40 l8 40 v60 l12 10 V700 Z" />
+          <path d="M196 700 V560 l40 -50 l40 50 V700 Z" />
+          <path d="M276 700 V530 h12 v-26 l18 -22 l18 22 v26 h14 V700 Z" />
+          <path d="M318 520 C326 480 334 470 352 456 M330 486 C318 470 316 460 320 444 M340 470 C350 452 360 448 368 446" stroke="#0b0612" strokeWidth="5" fill="none" strokeLinecap="round" />
+          <path d="M340 700 V520 h8 V700 Z" />
+          {[[66, 586], [118, 580], [168, 500], [232, 590], [300, 560]].map(([x, y], i) => <rect key={i} x={x} y={y} width="8" height="11" fill="#ffb347" opacity=".75" className="cara" style={{ animationDelay: (.6 + i * .15) + "s" }} />)}
+        </g>
+        <ellipse className="niebla" cx="180" cy="690" rx="260" ry="34" fill="#c9b6e8" opacity=".14" />
+        {calabaza(70, 668, 22, .9)}{calabaza(180, 676, 30, 1.2)}{calabaza(292, 668, 22, 1.5)}
+      </svg>
+      <button className="tw-hw-cerrar" onClick={() => cerrar()} aria-label="Cerrar">×</button>
+      <div className="tw-hw-intro-txt"><div className="ceja">{hw.ceja}</div><h2>{hw.titulo}</h2>{hw.subtitulo && <p>{hw.subtitulo}</p>}</div>
+      <div className="tw-hw-intro-pie">
+        {hw.juego && <button className="tw-hw-btn" onClick={() => { twSonar.tic(true); cerrar(onJugar); }}>🎃 Abrir mi calabaza</button>}
+        {hayLook && <button className={"tw-hw-btn" + (hw.juego ? " sec" : "")} onClick={() => cerrar(onVer)}>Ver tu look de Halloween</button>}
+        <button className="salto" onClick={() => cerrar()}>Entrar a la tienda</button>
+      </div>
+    </div>
+  </div>, document.body);
+}
+// Susto de TRUCO: se apaga todo, un fantasma salta a la pantalla, salen murciélagos y aparece "¡TRUCO!" chorreando
+const HW_MURC = "M0 6 C4 0 8 2 10 4 C11 1 13 1 14 4 C16 2 20 0 24 6 C20 5 18 8 17 10 C15 8 13 8 12 10 C11 8 9 8 7 10 C6 8 4 5 0 6 Z";
+function TwHwSusto() {
+  return createPortal(<div className="tw" style={{ minHeight: 0, background: "transparent" }}>
+    <div className="tw-hw-susto" role="alert" aria-label="¡Truco!">
+      <svg className="fantasma" viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M50 6 C24 6 12 28 12 54 V94 l10 -8 l9 8 l10 -8 l9 8 l9 -8 l10 8 l9 -8 V54 C88 28 76 6 50 6 Z" fill="#f4f1ff" />
+        <ellipse cx="37" cy="42" rx="7" ry="11" fill="#12051f" /><ellipse cx="63" cy="42" rx="7" ry="11" fill="#12051f" />
+        <ellipse cx="50" cy="68" rx="9" ry="13" fill="#12051f" />
+      </svg>
+      <div className="murcs" aria-hidden="true">{Array.from({ length: 12 }, (_, i) => { const a = i / 12 * Math.PI * 2; return <svg key={i} viewBox="0 0 24 12" style={{ "--x": Math.round(Math.cos(a) * 60) + "vw", "--y": Math.round(Math.sin(a) * 60) + "vh", "--r": Math.round(Math.cos(a) * 30) + "deg", animationDelay: (.35 + (i % 4) * .06) + "s" }}><path d={HW_MURC} fill="#0b0612" /></svg>; })}</div>
+      <div className="truco">¡TRUCO!</div>
+    </div>
+  </div>, document.body);
 }
 function TwCyberHero({ cy, onVer }) {
   const t = useCuentaRegresiva(twCyHasta(cy.hasta));
@@ -30060,6 +30192,7 @@ function TiendaPublica({ slug }) {
               {pedido.items.map((i, k) => <div key={k} className="tw-linea"><span>{i.cantidad} × {i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""}{i.preventa ? <span className="tw-item-pre" style={{ display: "inline-block", marginLeft: 6 }}>⏳ preventa</span> : null}</span><span>{fmtTienda(i.precio * i.cantidad)}</span></div>)}
               {pedido.muestra && <div className="tw-linea" style={{ color: "#8a4b00" }}><span>🎁 Muestra gratis: {pedido.muestra}</span><span>$0</span></div>}
               {pedido.adviento_regalo && <div className="tw-linea" style={{ color: "#8a4b00" }}><span>🎄 Regalo del calendario ({pedido.adviento_regalo})</span><span>$0</span></div>}
+              {pedido.hw_regalo && <div className="tw-linea" style={{ color: "#8a4b00" }}><span>🎃 Premio de Halloween: {pedido.hw_regalo}</span><span>$0</span></div>}
               {pedido.descuento > 0 && <div className="tw-linea" style={{ color: "#2d7a4f" }}><span>Descuento{pedido.cupon ? " (" + pedido.cupon + ")" : ""}</span><span>−{fmtTienda(pedido.descuento)}</span></div>}
               {pedido.gc_usado && <div className="tw-linea" style={{ color: "#2d7a4f" }}><span>🎁 Pagado con gift card ({pedido.gc_usado.codigo})</span><span>−{fmtTienda(pedido.gc_usado.monto)}</span></div>}
               {pedido.costo_envio > 0 && <div className="tw-linea"><span>Envío</span><span>{fmtTienda(pedido.costo_envio)}</span></div>}
@@ -30708,7 +30841,7 @@ function TiendaPublica({ slug }) {
             )}
             {sector && !q && !subcat && combosSector(sector).length > 0 && <TwCombos pagoKits={pagoKitsMejor} titulo="Kits y combos" combos={combosSector(sector)} productos={visibles} foto={foto} dispo={dispo} onAgregar={agregarRegalo} onAbrir={abrir} />}
             {lista.length === 0 && sector && combosSector(sector).length > 0 ? null : lista.length === 0 ? <div style={{ textAlign: "center", color: "#888", margin: "50px 0" }}><p>{cat === "favoritos" && !q && !hayFiltros ? "Todavía no guardaste favoritos. Tocá el ♡ en los productos que te gusten y los encontrás acá." : hayFiltros ? "No hay productos con esos filtros." : "No encontramos productos con esa búsqueda."}</p>{hayFiltros && <button className="tw-btn2" style={{ display: "inline-flex", width: "auto", padding: "0 22px" }} onClick={() => setFiltros({})}>Ver todos</button>}</div>
-              : <div className="tw-grid">{lista.map((p, i) => <div key={p.id} className="tw-rv" style={{ "--i": i % 4 }}>{tarjeta(p)}</div>)}</div>}
+              : <div className={"tw-grid" + (cat === "halloween" ? " tw-hw-fila" : "")}>{lista.map((p, i) => <div key={p.id} className="tw-rv" style={{ "--i": i % 4 }}>{tarjeta(p)}</div>)}</div>}
           </>
         ) : visibles.length === 0 ? (
           <div className="tw-cartel" style={{ textAlign: "center" }}><div style={{ fontSize: 40 }}>✿</div><h2>{tienda.titulo}</h2><p>Pronto vas a encontrar nuestros productos acá.</p></div>
@@ -30717,8 +30850,8 @@ function TiendaPublica({ slug }) {
             {tienda.adviento && <TwAdviento adv={tienda.adviento} slug={slug} visibles={visibles} tarjeta={tarjeta} />}
             {tienda.cyber && <TwCyberHero cy={tienda.cyber} onVer={() => irCat("cyber")} />}
             {tienda.halloween && !tienda.cyber && <TwHwHero hw={tienda.halloween} hayLook={hwLook.length > 0} onJugar={() => setHwJuego(true)} onVer={() => irCat("halloween")} />}
-            {tienda.halloween && <TwFila titulo="🎃 Para tu disfraz" items={hwDisfraz} onVerTodo={() => irCat("halloween")} render={tarjeta} />}
-            {tienda.halloween && <TwFila titulo="🧖 Después de la fiesta" sub={<div className="tw-pre-txt">Para sacarte todo el maquillaje y cuidar tu piel</div>} items={hwDespues} onVerTodo={() => irCat("halloween")} render={tarjeta} />}
+            {tienda.halloween && <TwFila clase="tw-hw-fila" titulo="🎃 Para tu disfraz" items={hwDisfraz} onVerTodo={() => irCat("halloween")} render={tarjeta} />}
+            {tienda.halloween && <TwFila clase="tw-hw-fila" titulo="🧖 Después de la fiesta" sub={<div className="tw-pre-txt">Para sacarte todo el maquillaje y cuidar tu piel</div>} items={hwDespues} onVerTodo={() => irCat("halloween")} render={tarjeta} />}
             {/* Regalos: en una fecha especial (Dia de la Madre, Navidad...) va arriba de todo; si no, debajo de los banners */}
             {tienda.regalos && tienda.regalos.en_inicio !== false && tienda.regalos.tema !== "general" && <TwRegalosHero r={tienda.regalos} tienda={tienda} onGift={() => irRegalos("gift")} onArmar={() => irRegalos("armar")} />}
             {/* Kits y combos: arriba de todo (después del banner de la fecha especial, si hay) */}
@@ -30806,6 +30939,7 @@ function TiendaPublica({ slug }) {
       {tienda.halloween && tienda.halloween.juego && !paso && !ver && !hwJuego && (
         <button className="tw-hw-fab" onClick={() => setHwJuego(true)} aria-label="Jugar ¿Dulce o truco?"><b aria-hidden="true">🎃</b>{hwMio ? "Tu premio" : "¿Dulce o truco?"}</button>
       )}
+      {tienda.halloween && !tienda.cyber && <TwHwIntro hw={tienda.halloween} slug={slug} hayLook={hwLook.length > 0} onJugar={() => setHwJuego(true)} onVer={() => irCat("halloween")} />}
       {hwJuego && tienda.halloween && <TwDulceTruco hw={tienda.halloween} logueada={logueada} mio={hwMio && !tienda.halloween.vista_previa ? { ...hwMio, ya: true } : null}
         onCerrar={() => setHwJuego(false)}
         onIngresar={() => { setHwJuego(false); setVer(null); setAvisoCuenta(null); setCanjeHecho(null); setFormCuenta({ modo: "ingresar" }); setPaso("cuenta"); setTimeout(() => setMotivoCuenta("Ingresá o creá tu cuenta para abrir tu calabaza de Halloween 🎃"), 0); }}
@@ -31082,6 +31216,10 @@ function TiendaPublica({ slug }) {
                     <button className="tw-pide-x" aria-label="Cerrar aviso" onClick={() => setRecompraAviso(null)}>✕</button>
                   </div>}
                   {gratisDesde > 0 && carrito.length > 0 && <TwBarraEnvio subtotal={subtotal} gratisDesde={gratisDesde} />}
+                  {/* Halloween: ganó "regalo con tu compra" en la calabaza y todavía no lo usó */}
+                  {carrito.length > 0 && tienda.halloween && hwMio && hwMio.tipo === "regalo" && !hwMio.usado && (subtotal >= (hwMio.valor || 0)
+                    ? <div className="tw-muestras"><b>🎃 Tu premio de Halloween:</b> {hwMio.regalo || hwMio.texto} de regalo con esta compra</div>
+                    : <div className="tw-muestras falta">🎃 Sumá <b>{fmtTienda(hwMio.valor - subtotal)}</b> más y te llevás tu premio de Halloween: <b>{hwMio.regalo || hwMio.texto}</b></div>)}
                   {/* Calendario de Adviento: si la sorpresa de hoy es un regalo con la compra */}
                   {carrito.length > 0 && (() => { const a = tienda.adviento, dh = a && !a.vista_previa && a.hoy >= 1 && a.hoy <= 25 ? a.dias[a.hoy - 1] : null; if (!dh || dh.tipo !== "regalo" || !dh.regalo) return null; return subtotal >= (dh.minimo || 0)
                     ? <div className="tw-muestras"><b>🎄 Regalo del calendario de hoy:</b> con esta compra te llevás {dh.regalo}</div>
@@ -34022,15 +34160,17 @@ function HalloweenTienda({ temaPal, productos, soloVer }) {
         <div style={{ fontSize: 11.5, color: p.textMuted, margin: "6px 0 10px" }}>Cada clienta abre una calabaza una sola vez (tiene que entrar con su cuenta). Los cupones son solo para ella y valen hasta que termina Halloween. Los puntos se suman a su cuenta al instante.</div>
         {f.juego && <>
           <div style={{ display: "grid", gridTemplateColumns: "minmax(110px,1.4fr) minmax(110px,1fr) 80px 90px 60px 30px", gap: 6, fontSize: 11, color: p.textMuted, fontWeight: 700 }}><span>Se ve como</span><span>Premio</span><span>Valor</span><span>Chance</span><span>%</span><span /></div>
-          {f.premios.map((x, i) => (
-            <div key={i} style={{ display: "grid", gridTemplateColumns: "minmax(110px,1.4fr) minmax(110px,1fr) 80px 90px 60px 30px", gap: 6, alignItems: "center", marginTop: 6 }}>
+          {f.premios.map((x, i) => (<Fragment key={i}>
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(110px,1.4fr) minmax(110px,1fr) 80px 90px 60px 30px", gap: 6, alignItems: "center", marginTop: 6 }}>
               <input className="inp" value={x.texto} maxLength={24} onChange={e => setPremio(i, "texto", e.target.value)} />
-              <select className="sel" value={x.tipo} onChange={e => setPremio(i, "tipo", e.target.value)}><option value="cupon">% de descuento</option><option value="puntos">Puntos</option><option value="nada">Truco (nada)</option></select>
-              <input className="inp" inputMode="numeric" disabled={x.tipo === "nada"} value={x.tipo === "nada" ? "" : x.valor} onChange={e => setPremio(i, "valor", e.target.value.replace(/\D/g, ""))} placeholder={x.tipo === "cupon" ? "%" : "pts"} />
+              <select className="sel" value={x.tipo} onChange={e => setPremio(i, "tipo", e.target.value)}><option value="cupon">% de descuento</option><option value="puntos">Puntos</option><option value="regalo">Regalo con la compra</option><option value="nada">Truco (nada)</option></select>
+              <input className="inp" inputMode="numeric" disabled={x.tipo === "nada"} value={x.tipo === "nada" ? "" : x.valor} onChange={e => setPremio(i, "valor", e.target.value.replace(/\D/g, ""))} placeholder={x.tipo === "cupon" ? "%" : x.tipo === "regalo" ? "Desde $" : "pts"} title={x.tipo === "regalo" ? "Compra mínima para llevarse el regalo (vacío = cualquier compra)" : undefined} />
               <input className="inp" inputMode="numeric" value={x.chance} onChange={e => setPremio(i, "chance", e.target.value.replace(/\D/g, ""))} />
               <span style={{ fontSize: 12, color: p.textMuted }}>{Math.round((parseInt(x.chance) || 0) / totalChance * 100)}%</span>
               {soloVer ? <span /> : <button className="chip-btn" style={{ color: p.red }} disabled={f.premios.length <= 2} onClick={() => set("premios", f.premios.filter((_, j) => j !== i))} aria-label="Quitar premio">✕</button>}
-            </div>))}
+            </div>
+            {x.tipo === "regalo" && <input className="inp" style={{ width: "100%", marginTop: 4 }} value={x.regalo || ""} maxLength={80} placeholder="¿Qué regalo? Ej: neceser con muestras (se le avisa a la vendedora en el pedido)" onChange={e => setPremio(i, "regalo", e.target.value)} />}
+          </Fragment>))}
           {f.premios.length < 8 && !soloVer && <button className="chip-btn" style={{ marginTop: 8 }} onClick={() => set("premios", [...f.premios, { id: "h" + Date.now().toString(36).slice(-6), texto: "15% OFF", tipo: "cupon", valor: 15, chance: 3 }])}>+ Agregar premio</button>}
           {d.jugadas && d.jugadas.length > 0 && <div style={{ marginTop: 12, fontSize: 12.5 }}><b>Ya jugaron {d.jugadas.reduce((t, x) => t + x.n, 0)} clientas:</b> {d.jugadas.map(x => x.texto + " (" + x.n + ")").join(" · ")}{d.cupones_usados ? " · " + d.cupones_usados + " cupones ya usados en compras" : ""}</div>}
         </>}
@@ -34370,7 +34510,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         <div class="tel">📞 ${escHtml(p.telefono || "")}</div>
         ${p.nota || (p.notas_local || []).length ? `<div class="nota">${[p.nota ? "📝 " + escHtml(p.nota) : "", ...(p.notas_local || []).map(n => "🗒️ " + escHtml(n.texto))].filter(Boolean).join("<br>")}</div>` : ""}
         <div class="pie">
-          <div><div class="cobro ${cobrar ? "si" : ""}">${cobrar ? "COBRAR " + escHtml(fmt(cobrar)) : "✓ PAGADO"}</div><div class="cont">${cant} ${cant === 1 ? "producto" : "productos"}${p.muestra ? " + muestra" : ""}${p.adviento_regalo ? " + regalo calendario" : ""} · ${escHtml(new Date(p.creado_en).toLocaleDateString("es-AR"))}</div></div>
+          <div><div class="cobro ${cobrar ? "si" : ""}">${cobrar ? "COBRAR " + escHtml(fmt(cobrar)) : "✓ PAGADO"}</div><div class="cont">${cant} ${cant === 1 ? "producto" : "productos"}${p.muestra ? " + muestra" : ""}${p.adviento_regalo ? " + regalo calendario" : ""}${p.hw_regalo ? " + premio Halloween" : ""} · ${escHtml(new Date(p.creado_en).toLocaleDateString("es-AR"))}</div></div>
           ${qrs[i] ? `<div class="qr"><img src="${qrs[i]}" alt=""><span>Mapa</span></div>` : ""}
         </div>
       </section>`;
@@ -34747,7 +34887,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                   : p.estado === "en_caja" ? ["Ir a la caja", () => { try { sessionStorage.setItem("lumiere_pos_tienda", String(p.id)); } catch (er) {} irASeccion("pos"); }]
                   : null;
                 const indic = [
-                  (p.nota || (p.notas_local || []).length) && ["🗒️", "Tiene notas"], p.muestra && ["🎁", "Lleva muestra gratis"], p.adviento_regalo && ["🎄", "Lleva regalo del calendario"], p.ruleta && p.ruleta.tipo !== "nada" && ["🎡", "Ganó en la ruleta"],
+                  (p.nota || (p.notas_local || []).length) && ["🗒️", "Tiene notas"], p.muestra && ["🎁", "Lleva muestra gratis"], p.adviento_regalo && ["🎄", "Lleva regalo del calendario"], p.hw_regalo && ["🎃", "Lleva el premio de Halloween"], p.ruleta && p.ruleta.tipo !== "nada" && ["🎡", "Ganó en la ruleta"],
                   preventa && ["⏳", "Tiene preventa"], Math.abs(p.pendiente || 0) >= 1 && p.estado !== "cancelado" && ["💰", "Diferencia por un cambio"], p.contactado_en && p.estado !== "entregado" && ["✅", "Ya le escribimos"],
                 ].filter(Boolean);
                 const seccion = { border: "1px solid " + temaPal.border, borderRadius: 12, padding: "10px 12px", background: temaPal.bg };
@@ -34803,6 +34943,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                             ))}
                             {p.muestra && <div style={{ fontSize: 12.5, fontWeight: 700, color: "#d35400", marginTop: 4 }}>🎁 + Muestra gratis: {p.muestra}</div>}
                             {p.adviento_regalo && <div style={{ fontSize: 12.5, fontWeight: 700, color: "#1e7a46", marginTop: 4 }}>🎄 + Regalo del calendario · {p.adviento_regalo}</div>}
+                            {p.hw_regalo && <div style={{ fontSize: 12.5, fontWeight: 700, color: "#d35400", marginTop: 4 }}>🎃 + Premio de Halloween (ganado en la calabaza) · {p.hw_regalo}</div>}
                             {p.ruleta && <div style={{ fontSize: 12.5, marginTop: 4, fontWeight: 700, color: p.ruleta.tipo === "nada" ? temaPal.textMuted : temaPal.warn }}>🎡 Ruleta: {p.ruleta.tipo === "regalo" ? "ganó " + (/mega/i.test(p.ruleta.texto || "") ? "el 💎 MEGA REGALO" : "un REGALO 🎁") + " — dáselo con el pedido" : p.ruleta.tipo === "cupon" ? "ganó " + p.ruleta.texto + " (cupón " + p.ruleta.cupon + ", se activa al entregar)" : "seguí participando"}</div>}
                             {(p.cambios || []).map((c, k) => <div key={"c" + k} style={{ fontSize: 12, color: temaPal.textMuted }}>🔁 Cambió {c.de} por <b style={{ color: temaPal.text }}>{c.a}</b>{c.diferencia ? " · diferencia " + (c.diferencia > 0 ? "+" : "−") + fmt(Math.abs(c.diferencia)) : " · mismo precio"}</div>)}
                             <div style={{ borderTop: "1px dashed " + temaPal.border, marginTop: 8, paddingTop: 6, fontSize: 12.5, lineHeight: 1.6 }}>
