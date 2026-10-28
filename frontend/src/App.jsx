@@ -28524,7 +28524,7 @@ function TwHwHero({ hw, onJugar, onVer, hayLook }) {
       <h2 className="tw-hw-tit">{hw.titulo}</h2>
       {hw.subtitulo && <p className="tw-hw-sub">{hw.subtitulo}</p>}
       {hw.juego && hw.premios && hw.premios.length > 0 && <div className="tw-hw-gana" aria-label="Premios">{hw.premios.map((x, i) => <span key={i}>{/regalo/i.test(x) ? "🎁" : "🍬"} {x}</span>)}</div>}
-      {hw.juego && <div className="tw-hw-junta">🍬 + 🍬 = 🤩 <b>¡Los códigos se juntan!</b> Abrí más calabazas y sumá hasta {hw.tope || 30}% OFF en una sola compra</div>}
+      {hw.juego && <div className="tw-hw-junta">🍬 + 🍬 = 🤩 <b>¡Los códigos se juntan!</b> Abrí más calabazas y sumá hasta {hw.tope || 30}% OFF en una sola compra, online o en el local</div>}
       {hw.juego && hw.premios && hw.premios.some(x => x.endsWith("*")) && <p className="tw-hw-chica" style={{ margin: "-8px 0 16px" }}>* Pagando con transferencia, efectivo, débito o crédito en 1 cuota</p>}
       <div className="tw-hw-btns">
         {hw.juego && <button className="tw-hw-btn" onClick={onJugar}>🎃 Abrí tu calabaza</button>}
@@ -28598,7 +28598,7 @@ function TwDulceTruco({ hw, logueada, mio, info, link, onCerrar, onIngresar, onJ
           <div className="tw-hw-premio">{premio.tipo === "nada" ? "👻" : premio.tipo === "puntos" ? "✨" : premio.tipo === "regalo" ? "🎁" : "🍬"}</div>
           <h3>{premio.tipo === "nada" ? "¡Truco!" : "¡Dulce!"}</h3>
           {premio.tipo === "cupon" && <>
-            <p>Ganaste <b>{premio.texto}</b> para tu compra en la tienda online. Usá este código al pagar:</p>
+            <p>Ganaste <b>{premio.texto}</b> para tu compra en la tienda online o en nuestros locales. Usá este código al pagar (en el local, mostralo en caja):</p>
             <div className="tw-hw-cod brilla"><code>{premio.cupon}</code><button className="tw-hw-btn sec" style={{ padding: "8px 12px" }} onClick={() => { try { navigator.clipboard.writeText(premio.cupon); setCopiado(true); } catch (e) {} }}>{copiado ? "✓" : "Copiar"}</button></div>
             <p className="tw-hw-chica">Es solo para vos (con tu cuenta){hasta ? " y vale hasta el " + hasta : ""}.</p>
             {premio.contado && <p className="tw-hw-chica">💵 Vale pagando con transferencia, efectivo, débito o crédito en 1 cuota.</p>}
