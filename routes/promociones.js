@@ -120,7 +120,12 @@ router.get('/halloween-tienda', async (req, res) => {
     const h = tienda.halloweenDe(c);
     const jugadas = (await pool.query(`SELECT texto, tipo, COUNT(*)::int AS n FROM tienda_halloween WHERE temporada = $1 GROUP BY texto, tipo ORDER BY n DESC`, ['hw-' + h.desde.slice(0, 10)]).catch(() => ({ rows: [] }))).rows;
     const usados = (await pool.query(`SELECT COUNT(*)::int AS n FROM tienda_halloween th JOIN cupones cu ON cu.codigo = th.cupon WHERE th.temporada = $1 AND COALESCE(cu.usos, 0) > 0`, ['hw-' + h.desde.slice(0, 10)]).catch(() => ({ rows: [{ n: 0 }] }))).rows[0].n;
-    res.json({ halloween: h, en_curso: tienda.halloweenVigente(h), slug: c.slug || null, publicada: !!c.activo, dominio: await tienda.dominioDe((req.negocio && req.negocio.id) || 1).catch(() => null), jugadas, cupones_usados: usados });
+    // Quiénes abrieron calabazas: cada clienta con sus premios (y si ya usó cada código)
+    const quienes = (await pool.query(`SELECT th.cliente_id, cl.nombre, cl.telefono, MAX(th.creado_en) AS ultima,
+        json_agg(json_build_object('texto', th.texto, 'tipo', th.tipo, 'cupon', th.cupon, 'regalo', th.regalo, 'usado', COALESCE(cu.usos, 0) > 0 OR th.pedido_id IS NOT NULL) ORDER BY th.id) AS premios
+      FROM tienda_halloween th LEFT JOIN clientes cl ON cl.id = th.cliente_id LEFT JOIN cupones cu ON cu.codigo = th.cupon
+      WHERE th.temporada = $1 GROUP BY th.cliente_id, cl.nombre, cl.telefono ORDER BY MAX(th.creado_en) DESC LIMIT 500`, ['hw-' + h.desde.slice(0, 10)]).catch(() => ({ rows: [] }))).rows;
+    res.json({ halloween: h, en_curso: tienda.halloweenVigente(h), slug: c.slug || null, publicada: !!c.activo, dominio: await tienda.dominioDe((req.negocio && req.negocio.id) || 1).catch(() => null), jugadas, cupones_usados: usados, quienes });
   } catch (e) { console.error('[halloween tienda]', e.message); res.status(500).json({ error: 'No se pudo leer' }); }
 });
 router.put('/halloween-tienda', async (req, res) => {

@@ -26586,6 +26586,8 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-hw-cod{display:flex;gap:8px;align-items:center;justify-content:center;margin:6px 0 10px}
 .tw-hw-cod code{font-size:22px;font-weight:900;letter-spacing:.12em;padding:8px 14px;border-radius:12px;background:#fff;color:#1c0d2e}
 .tw-hw-chica{font-size:12px!important;color:#cdb9e6!important}
+.tw-hw-junta{margin:-6px 0 18px;padding:10px 14px;border-radius:14px;background:linear-gradient(90deg,rgba(255,122,0,.22),rgba(155,77,255,.22));border:1px solid rgba(255,179,71,.6);color:#fff;font-size:13.5px;line-height:1.4;max-width:520px;animation:twHwLate 2.4s ease-in-out infinite}
+.tw-hw-junta b{color:#ffcf7a}
 .tw-hw-otra,.tw-hw-mis{margin:10px 0 4px;padding:12px 14px;border-radius:16px;background:rgba(255,154,60,.1);border:1px dashed rgba(255,154,60,.55);font-size:13px;line-height:1.45;color:#f3e6ff;text-align:left}
 .tw-hw-otra b,.tw-hw-mis b{display:block;color:#ffb347;font-size:14px;margin-bottom:4px}
 .tw-hw-otra .tw-hw-chica{margin-top:6px}
@@ -28522,6 +28524,7 @@ function TwHwHero({ hw, onJugar, onVer, hayLook }) {
       <h2 className="tw-hw-tit">{hw.titulo}</h2>
       {hw.subtitulo && <p className="tw-hw-sub">{hw.subtitulo}</p>}
       {hw.juego && hw.premios && hw.premios.length > 0 && <div className="tw-hw-gana" aria-label="Premios">{hw.premios.map((x, i) => <span key={i}>{/regalo/i.test(x) ? "🎁" : "🍬"} {x}</span>)}</div>}
+      {hw.juego && <div className="tw-hw-junta">🍬 + 🍬 = 🤩 <b>¡Los códigos se juntan!</b> Abrí más calabazas y sumá hasta {hw.tope || 30}% OFF en una sola compra</div>}
       {hw.juego && hw.premios && hw.premios.some(x => x.endsWith("*")) && <p className="tw-hw-chica" style={{ margin: "-8px 0 16px" }}>* Pagando con transferencia, efectivo, débito o crédito en 1 cuota</p>}
       <div className="tw-hw-btns">
         {hw.juego && <button className="tw-hw-btn" onClick={onJugar}>🎃 Abrí tu calabaza</button>}
@@ -28532,10 +28535,10 @@ function TwHwHero({ hw, onJugar, onVer, hayLook }) {
 }
 // "¿Dulce o truco?": elegir una calabaza → premio (una vez por clienta, con su cuenta)
 // Cómo conseguir otra calabaza: comprando online o invitando amigas con su link (cuando crean su cuenta)
-function TwHwOtra({ info, link }) {
+function TwHwOtra({ info, link, tope }) {
   const [copiado, setCopiado] = useState(false);
   const faltanAmigas = info.amigas < info.amigas_max;
-  const msj = "🎃 ¡Entrá a la tienda con mi link, creá tu cuenta y abrí tu calabaza de Halloween! Hay descuentos, puntos y regalos: " + link;
+  const msj = "🎃 ¡Entrá a la tienda con mi link, creá tu cuenta y abrí tu calabaza de Halloween! Hay descuentos, puntos y regalos, y los códigos se juntan hasta " + (tope || 30) + "% OFF 😍 " + link;
   const compartir = async () => {
     try { if (navigator.share) { await navigator.share({ text: msj }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
     window.open("https://wa.me/?text=" + encodeURIComponent(msj), "_blank", "noopener");
@@ -28543,6 +28546,7 @@ function TwHwOtra({ info, link }) {
   return (
     <div className="tw-hw-otra">
       <b>¿Querés otra calabaza? 🎃</b>
+      <div>🍬 Tus códigos se juntan: sumá hasta {tope || 30}% OFF en una compra.</div>
       <div>🛍️ Por cada compra en la tienda online te damos una más.</div>
       {link && faltanAmigas && <div>👯 Invitá a una amiga: cuando crea su cuenta con tu link, abrís otra{info.amigas_max ? " (hasta " + info.amigas_max + ")" : ""}.</div>}
       {link && faltanAmigas && <div className="tw-hw-btns" style={{ justifyContent: "center", marginTop: 8 }}>
@@ -28598,6 +28602,7 @@ function TwDulceTruco({ hw, logueada, mio, info, link, onCerrar, onIngresar, onJ
             <div className="tw-hw-cod brilla"><code>{premio.cupon}</code><button className="tw-hw-btn sec" style={{ padding: "8px 12px" }} onClick={() => { try { navigator.clipboard.writeText(premio.cupon); setCopiado(true); } catch (e) {} }}>{copiado ? "✓" : "Copiar"}</button></div>
             <p className="tw-hw-chica">Es solo para vos (con tu cuenta){hasta ? " y vale hasta el " + hasta : ""}.</p>
             {premio.contado && <p className="tw-hw-chica">💵 Vale pagando con transferencia, efectivo, débito o crédito en 1 cuota.</p>}
+            <p className="tw-hw-chica" style={{ color: "#ffcf7a" }}>🍬 + 🍬 ¡Tus códigos se juntan! Abrí más calabazas y usalos todos juntos: hasta {hw.tope || 30}% OFF en una compra.</p>
           </>}
           {premio.tipo === "puntos" && <>
             <div className="tw-hw-puntos">+<TwHwCuenta hasta={premio.valor} /> <small>puntos</small></div>
@@ -28616,13 +28621,41 @@ function TwDulceTruco({ hw, logueada, mio, info, link, onCerrar, onIngresar, onJ
             {info.premios.every(x => x.tipo === "nada") && <div>👻 Por ahora, solo trucos… ¡seguí probando!</div>}
           </div>}
           {info && info.quedan > 0 && <button className="tw-hw-btn" style={{ margin: "6px 0 4px" }} onClick={() => { setCopiado(false); setEstado("elegir"); }}>🎃 ¡Tenés {info.quedan === 1 ? "otra calabaza" : info.quedan + " calabazas más"}! Abrila</button>}
-          {info && info.quedan === 0 && !premio.prueba && <TwHwOtra info={info} link={link} />}
+          {info && info.quedan === 0 && !premio.prueba && <TwHwOtra info={info} link={link} tope={hw.tope} />}
           <div className="tw-hw-btns" style={{ justifyContent: "center", marginTop: 8 }}>
             {onVerLook && <button className="tw-hw-btn" onClick={onVerLook}>Ver tu look de Halloween</button>}
             <button className="tw-hw-btn sec" onClick={onCerrar}>Seguir mirando</button>
           </div>
         </>}
       </div>
+    </div>
+  );
+}
+// Lumiere: quiénes abrieron calabazas y qué ganó cada una (y si ya usó el código o el regalo)
+function HwQuienes({ lista, p }) {
+  const [abierto, setAbierto] = useState(false);
+  const [q, setQ] = useState("");
+  const norm = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const ver = lista.filter(c => !q || norm(c.nombre).includes(norm(q)) || (c.premios || []).some(x => norm(x.cupon).includes(norm(q))));
+  const total = lista.reduce((t, c) => t + (c.premios || []).length, 0);
+  return (
+    <div style={{ marginTop: 14, border: "1px solid " + p.border, borderRadius: 12, padding: 10 }}>
+      <button className="chip-btn" style={{ fontWeight: 800, whiteSpace: "normal", textAlign: "left", maxWidth: "100%" }} onClick={() => setAbierto(!abierto)}>{abierto ? "▾" : "▸"} 👀 Quiénes abrieron calabazas ({lista.length} {lista.length === 1 ? "clienta" : "clientas"} · {total} {total === 1 ? "calabaza" : "calabazas"})</button>
+      {abierto && <>
+        <input className="inp" style={{ width: "100%", margin: "10px 0 6px" }} placeholder="Buscar por nombre o código…" value={q} onChange={e => setQ(e.target.value)} />
+        <div style={{ maxHeight: 420, overflowY: "auto" }}>
+          {ver.map(c => (
+            <div key={c.cliente_id} style={{ padding: "8px 2px", borderBottom: "1px solid " + p.border, fontSize: 12.5 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><b>{c.nombre || "Clienta " + c.cliente_id}</b><span style={{ color: p.textMuted, whiteSpace: "nowrap" }}>{new Date(c.ultima).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span></div>
+              {c.telefono && <div style={{ color: p.textMuted, fontSize: 11.5 }}>{c.telefono}</div>}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>{(c.premios || []).map((x, i) => (
+                <span key={i} style={{ fontSize: 11.5, padding: "2px 8px", borderRadius: 99, border: "1px solid " + p.border, opacity: x.usado ? .6 : 1 }}>
+                  {x.tipo === "nada" ? "👻 Truco" : x.tipo === "puntos" ? "✨ " + x.texto : x.tipo === "regalo" ? "🎁 " + (x.regalo || x.texto) : "🍬 " + x.texto + (x.cupon ? " · " + x.cupon : "")}{x.usado ? " ✓ usado" : ""}
+                </span>))}</div>
+            </div>))}
+          {ver.length === 0 && <div style={{ fontSize: 12.5, color: p.textMuted, padding: 8 }}>No hay coincidencias</div>}
+        </div>
+      </>}
     </div>
   );
 }
@@ -34451,7 +34484,8 @@ function HalloweenTienda({ temaPal, productos, soloVer }) {
           {f.premios.length < 8 && !soloVer && <button className="chip-btn" style={{ marginTop: 8 }} onClick={() => set("premios", [...f.premios, { id: "h" + Date.now().toString(36).slice(-6), texto: "15% OFF", tipo: "cupon", valor: 15, chance: 3 }])}>+ Agregar premio</button>}
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 12, fontSize: 12.5 }}><b>Tope al juntar códigos en una compra:</b><input className="inp" inputMode="numeric" style={{ width: 70 }} value={f.tope === undefined ? 30 : f.tope} onChange={e => set("tope", e.target.value.replace(/\D/g, "").slice(0, 2))} /> %</div>
           <div style={{ fontSize: 11.5, color: p.textMuted, marginTop: 4 }}>La clienta puede juntar sus códigos de descuento de la calabaza en una compra: se suman hasta este tope (contando el descuento por forma de pago) y solo paga con transferencia o en efectivo al retirar.</div>
-          {d.jugadas && d.jugadas.length > 0 && <div style={{ marginTop: 12, fontSize: 12.5 }}><b>Ya se abrieron {d.jugadas.reduce((t, x) => t + x.n, 0)} calabazas:</b> {d.jugadas.map(x => x.texto + " (" + x.n + ")").join(" · ")}{d.cupones_usados ? " · " + d.cupones_usados + " cupones ya usados en compras" : ""}</div>}
+          {d.quienes && d.quienes.length > 0 && <HwQuienes lista={d.quienes} p={p} />}
+          {d.jugadas && d.jugadas.length > 0 && <div style={{ marginTop: 12, fontSize: 12.5 }}><b>{(n => n === 1 ? "Ya se abrió 1 calabaza" : "Ya se abrieron " + n + " calabazas")(d.jugadas.reduce((t, x) => t + x.n, 0))}:</b> {d.jugadas.map(x => x.texto + " (" + x.n + ")").join(" · ")}{d.cupones_usados ? " · " + d.cupones_usados + " cupones ya usados en compras" : ""}</div>}
         </>}
       </div>
 
