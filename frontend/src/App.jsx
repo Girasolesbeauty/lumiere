@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useMemo, Fragment, Component } from "react";
+﻿import { useState, useEffect, useLayoutEffect, useRef, useMemo, Fragment, Component } from "react";
 import { createPortal } from "react-dom";
 import { getProductos, createVenta, getClientes, getFlujo, getPuntoEquilibrio, agregarEgreso, getResumenFinanzas, getVentas, getAlertasStock, getCupones, createCupon, updateCupon, getRanking, getReglas, createRegla as createReglaWA, updateRegla as updateReglaWA, login, register } from "./api";
 import API from "./api";
@@ -26366,33 +26366,41 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-modal{position:fixed;inset:0;z-index:600;background:radial-gradient(circle at 50% 35%,rgba(22,34,64,.96),rgba(4,7,15,.98));display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;font-family:"TwJS","Helvetica Neue",Helvetica,Arial,sans-serif}
 .tw-adv-escena{position:relative;width:100%;max-width:440px;text-align:center;color:#fff}
 .tw-adv-cerrar{position:absolute;top:-6px;right:0;z-index:5;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.12);color:#fff!important;font-size:24px;line-height:1;cursor:pointer}
-.tw-adv-rayos{position:absolute;left:50%;top:130px;width:640px;height:640px;margin:-320px 0 0 -320px;border-radius:50%;background:repeating-conic-gradient(from 0deg,rgba(255,224,150,.26) 0 9deg,transparent 9deg 22deg);opacity:0;pointer-events:none;-webkit-mask:radial-gradient(circle,#000 22%,transparent 68%);mask:radial-gradient(circle,#000 22%,transparent 68%)}
-.tw-adv-escena.abre .tw-adv-rayos{animation:twAdvRayos 1s ease-out 1.15s forwards,twAdvGira 16s linear 1.15s infinite}
+.tw-adv-rayos{position:absolute;left:50%;top:190px;width:640px;height:640px;margin:-320px 0 0 -320px;border-radius:50%;background:repeating-conic-gradient(from 0deg,rgba(255,224,150,.26) 0 9deg,transparent 9deg 22deg);opacity:0;pointer-events:none;-webkit-mask:radial-gradient(circle,#000 22%,transparent 68%);mask:radial-gradient(circle,#000 22%,transparent 68%)}
+.tw-adv-escena.abre .tw-adv-rayos{animation:twAdvRayos 1s ease-out 4.2s forwards,twAdvGira 16s linear 4.2s infinite}
 @keyframes twAdvRayos{to{opacity:1}}
 @keyframes twAdvGira{to{transform:rotate(360deg)}}
-.tw-adv-gv{position:relative;width:170px;height:160px;margin:56px auto 0;border:3px solid #c9a45a;border-radius:4px;background:#0f1a31;box-shadow:0 0 0 6px #0b0b0e,0 0 0 7px #c9a45a;perspective:500px}
-.tw-adv-gv .luz{position:absolute;inset:0;background:radial-gradient(circle at 50% 45%,#fffbe8,#ffd98a 45%,#f0a43c);opacity:0}
-.tw-adv-gv .hoja{position:absolute;top:0;bottom:0;width:50%;background:linear-gradient(180deg,#22345c,#14223f);border:1px solid rgba(201,164,90,.6);display:flex;align-items:center;transition:transform .7s cubic-bezier(.3,.9,.4,1)}
-.tw-adv-gv .hoja.i{left:0;transform-origin:0 50%;justify-content:flex-end}
-.tw-adv-gv .hoja.d{right:0;transform-origin:100% 50%;justify-content:flex-start}
-.tw-adv-gv .hoja b{font-family:"TwPF",Georgia,serif;font-style:italic;font-weight:500;font-size:46px;color:#e8cf8f;line-height:1}
-.tw-adv-gv .hoja.i b{transform:translateX(50%)}
-.tw-adv-gv .hoja.d b{transform:translateX(-50%);clip-path:inset(0 0 0 50%)}
-.tw-adv-gv .hoja.i b{clip-path:inset(0 50% 0 0)}
-.tw-adv-escena.abre .tw-adv-gv .luz{animation:twAdvLuzV .9s steps(1,end) .15s forwards}
-@keyframes twAdvLuzV{0%{opacity:.9}18%{opacity:0}34%{opacity:.8}48%{opacity:.1}64%,100%{opacity:1}}
-.tw-adv-escena.abre .tw-adv-gv{animation:twAdvGlowV 1s ease-out .75s forwards}
-@keyframes twAdvGlowV{to{box-shadow:0 0 0 6px #0b0b0e,0 0 0 7px #c9a45a,0 0 50px 18px rgba(255,200,110,.6)}}
-.tw-adv-escena.abre .tw-adv-gv .hoja.i{animation:twAdvHojaI .8s cubic-bezier(.3,.9,.4,1) 1.05s forwards}
-.tw-adv-escena.abre .tw-adv-gv .hoja.d{animation:twAdvHojaD .8s cubic-bezier(.3,.9,.4,1) 1.05s forwards}
-@keyframes twAdvHojaI{to{transform:rotateY(-105deg)}}
-@keyframes twAdvHojaD{to{transform:rotateY(105deg)}}
-.tw-adv-escena.abre .tw-adv-gv .hoja b{animation:twAdvFuera .25s ease-out 1s forwards}
-@keyframes twAdvFuera{to{opacity:0}}
-.tw-adv-escena.listo .tw-adv-gv{display:none}
-.tw-adv-confeti{position:absolute;left:50%;top:140px;width:0;height:0;pointer-events:none}
+.tw-adv-confeti{position:absolute;left:50%;top:190px;width:0;height:0;pointer-events:none}
 .tw-adv-confeti i{position:absolute;width:7px;height:7px;border-radius:50%;opacity:0;background:var(--k);box-shadow:0 0 6px var(--k)}
-.tw-adv-escena.abre .tw-adv-confeti i{animation:twAdvConf 1.5s cubic-bezier(.2,.7,.4,1) 1.15s forwards}
+.tw-adv-escena.abre .tw-adv-confeti i{animation:twAdvConf 1.5s cubic-bezier(.2,.7,.4,1) 4.2s forwards}
+.tw-adv-modal{animation:twAdvIn .45s ease-out}
+.tw-adv-zv{position:relative;width:min(300px,82vw);aspect-ratio:300/280;margin:50px auto 0;border:3px solid #c9a45a;border-radius:4px;background:#0f1a31;box-shadow:0 0 0 7px #0b0b0e,0 0 0 8px #c9a45a,0 0 40px 10px rgba(255,200,110,0);overflow:hidden;transform-origin:50% 50%}
+.tw-adv-zv svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.tw-adv-escena.abre .tw-adv-zv{animation:twAdvZvGlow .8s ease-out .75s forwards}
+@keyframes twAdvZvGlow{to{box-shadow:0 0 0 7px #0b0b0e,0 0 0 8px #c9a45a,0 0 50px 16px rgba(255,200,110,.5)}}
+.tw-adv-zv .apagado{opacity:1}
+.tw-adv-escena.abre .tw-adv-zv .apagado{animation:twAdvLuzOn .5s steps(1,end) .75s forwards}
+@keyframes twAdvLuzOn{0%{opacity:0}25%{opacity:1}45%{opacity:0}65%{opacity:.8}80%,100%{opacity:0}}
+.tw-adv-zv .santa{transform:translateX(-175px)}
+.tw-adv-escena.abre .tw-adv-zv .santa{animation:twAdvSanta 2.9s linear .95s forwards}
+@keyframes twAdvSanta{0%{transform:translateX(-175px)}38%{transform:translateX(28px)}58%{transform:translateX(28px)}100%{transform:translateX(330px)}}
+.tw-adv-escena.abre .tw-adv-zv .bob{animation:twAdvBob .42s ease-in-out .95s infinite alternate}
+@keyframes twAdvBob{to{transform:translateY(-4px)}}
+.tw-adv-zv .agacha{transform-origin:78px 178px}
+.tw-adv-escena.abre .tw-adv-zv .agacha{animation:twAdvAgacha 2.9s ease-in-out .95s forwards}
+@keyframes twAdvAgacha{0%,38%{transform:none}45%,52%{transform:rotate(16deg) translateY(3px)}59%,100%{transform:none}}
+.tw-adv-escena.abre .tw-adv-zv .pie.a{animation:twAdvPaso .42s ease-in-out .95s infinite alternate}
+.tw-adv-escena.abre .tw-adv-zv .pie.b{animation:twAdvPaso .42s ease-in-out .53s infinite alternate-reverse}
+@keyframes twAdvPaso{from{transform:rotate(-18deg)}to{transform:rotate(18deg)}}
+.tw-adv-zv .reg{opacity:0;transform-origin:220px 262px}
+.tw-adv-escena.abre .tw-adv-zv .reg{animation:twAdvPop2 .4s cubic-bezier(.3,1.6,.5,1) 2.3s forwards}
+@keyframes twAdvPop2{from{opacity:0;transform:scale(.3)}to{opacity:1;transform:none}}
+.tw-adv-escena.abre .tw-adv-zv .persiana{animation:twAdvSube3 .7s cubic-bezier(.5,0,.3,1) 3.9s forwards}
+@keyframes twAdvSube3{to{transform:translateY(-270px)}}
+.tw-adv-zv .regalo-real{transform-origin:220px 250px;opacity:0}
+.tw-adv-escena.abre .tw-adv-zv .regalo-real{animation:twAdvPop2 .5s cubic-bezier(.3,1.6,.5,1) 4.1s forwards}
+.tw-adv-saltar{position:absolute;left:50%;transform:translateX(-50%);top:calc(50px + min(300px,82vw)*280/300 + 26px);border:0;background:rgba(255,255,255,.1);color:rgba(255,255,255,.8)!important;font:inherit;font-size:13px;letter-spacing:.08em;padding:8px 16px;border-radius:99px;cursor:pointer}
+.tw-adv-escena.listo .tw-adv-zv,.tw-adv-escena.listo .tw-adv-saltar{display:none}
 @keyframes twAdvConf{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--x),var(--y)) scale(.4)}}
 .tw-adv-tarjeta{position:relative;margin:0 auto;background:#fffaf0;color:#1b1b1b;border-radius:22px;padding:22px 18px 18px;box-shadow:0 0 0 1px #e8cf8f,0 0 0 6px rgba(232,207,143,.18),0 24px 70px rgba(0,0,0,.6);text-align:center;opacity:0;transform:translateY(60px) scale(.92)}
 .tw-adv-escena.abre:not(.listo) .tw-adv-tarjeta{position:absolute;left:0;right:0;top:100%}
@@ -28122,6 +28130,63 @@ function TwAdvCiudad({ prendidas }) {
 // Copos de nieve (HTML, para que caigan con CSS)
 const ADV_NIEVE = Array.from({ length: 46 }, (_, i) => ({ l: ((i * 137) % 100) + "%", s: (1 + (i % 3)) + "px", o: .35 + (i % 4) * .15, d: (9 + (i % 6) * 2.2) + "s", del: (-(i * 1.7) % 14) + "s", x: ((i % 5) - 2) * 18 + "px" }));
 const TwAdvNieve = () => <div className="tw-adv-nieve" aria-hidden="true">{ADV_NIEVE.map((k, i) => <i key={i} style={{ left: k.l, "--s": k.s, "--o": k.o, "--d": k.d, "--del": k.del, "--x": k.x }} />)}</div>;
+// Silueta de Papá Noel caminando hacia la derecha (caja de 120x180, los pies en y=178) y del regalo
+const ADV_SANTA = {
+  cuerpo: [
+    "M52 76 C40 60 8 62 4 92 C0 120 26 130 44 122 C54 114 58 92 52 76 Z", // bolsa
+    "M48 74 C50 64 58 62 62 68 L57 72 C56 68 53 68 52 74 Z", // nudo de la bolsa
+    "M42 114 C40 88 56 74 78 74 C102 74 114 92 112 116 C110 138 96 150 76 150 C56 150 44 136 42 114 Z", // panza
+    "M59 41 C58 22 72 11 87 15 C94 18 97 28 96 41 Z", // gorro
+    "M67 23 C54 13 39 19 33 34 L40 38 C44 28 54 25 65 30 Z", // punta del gorro
+    "M53 36 h46 a5.5 5.5 0 0 1 0 11 h-46 a5.5 5.5 0 0 1 0 -11 Z", // borde del gorro
+    "M62 54 C70 60 86 58 98 58 C108 60 110 70 104 76 C108 82 104 92 96 94 C92 102 82 104 76 98 C66 94 60 80 60 64 Z", // barba
+    "M60 80 C52 77 46 72 47 64 L55 62 C56 68 60 72 66 74 Z", // brazo con la bolsa
+    "M98 92 C110 102 113 116 107 124 L100 122 C103 115 101 106 93 99 Z", // brazo
+  ],
+  circulos: [[36, 38, 7.5], [75, 52, 15], [93, 54, 5.6], [105, 126, 7]],
+  pierna: "M-7 0 h14 v22 h-14 Z M-9 20 h19 c7 0 10 3 10 8 v4 h-29 Z",
+  caderas: [[66, 146], [86, 146]],
+};
+const ADV_REGALO = "M0 18 h40 v30 h-40 Z M-3 10 h46 v9 h-46 Z M20 10 C12 -3 1 1 8 10 Z M20 10 C28 -3 39 1 32 10 Z";
+// La ventana vista de cerca (300x280): el cuarto con la luz prendida y la persiana con la sombra de Papá Noel que entra,
+// deja el regalo y se va; después sube la persiana y aparece el regalo del día
+function TwAdvCuarto({ icono }) {
+  return (
+    <svg viewBox="0 0 300 280" aria-hidden="true">
+      <defs>
+        <linearGradient id="twAdvPared" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffe9bd" /><stop offset="1" stopColor="#f2b75e" /></linearGradient>
+        <linearGradient id="twAdvPers" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff2d2" /><stop offset="1" stopColor="#f4c678" /></linearGradient>
+        <radialGradient id="twAdvGlowC"><stop offset="0" stopColor="#fff8e1" /><stop offset=".4" stopColor="#ffd98a" /><stop offset="1" stopColor="#ffb84d" stopOpacity="0" /></radialGradient>
+        <filter id="twAdvSombra" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="1.5" /></filter>
+      </defs>
+      {/* el cuarto */}
+      <rect width="300" height="280" fill="url(#twAdvPared)" />
+      <rect y="238" width="300" height="42" fill="#c98b3a" />
+      <path d="M0 238 H300" stroke="#a86f2a" strokeWidth="2" />
+      <path d="M20 28 Q80 48 150 30 Q220 48 280 28" fill="none" stroke="#2e5a32" strokeWidth="5" strokeLinecap="round" />
+      {[40, 80, 120, 180, 220, 260].map((x, i) => <circle key={i} cx={x} cy={i % 2 ? 40 : 38} r="3" fill={["#ff5252", "#ffd54f", "#69f0ae"][i % 3]} />)}
+      <path d="M46 238 L80 150 L114 238 Z M56 200 L80 130 L104 200 Z M64 165 L80 112 L96 165 Z" fill="#2e5a32" />
+      <rect x="74" y="236" width="12" height="4" fill="#5a3a1a" />
+      <g className="regalo-real"><circle cx="220" cy="225" r="50" fill="url(#twAdvGlowC)" /><text x="220" y="252" textAnchor="middle" fontSize="56">{icono || "🎁"}</text></g>
+      {/* la persiana iluminada, con las sombras */}
+      <g className="persiana">
+        <rect width="300" height="280" fill="url(#twAdvPers)" />
+        {Array.from({ length: 14 }, (_, i) => <line key={i} x1="0" x2="300" y1={i * 20} y2={i * 20} stroke="#d9a650" opacity=".28" />)}
+        <g filter="url(#twAdvSombra)" fill="#2b1608" opacity=".8">
+          <g transform="translate(0 34)"><g className="santa"><g className="bob"><g transform="scale(1.28)"><g className="agacha">
+            {ADV_SANTA.cuerpo.map((d, i) => <path key={i} d={d} />)}
+            {ADV_SANTA.circulos.map(([x, y, r], i) => <circle key={i} cx={x} cy={y} r={r} />)}
+            {ADV_SANTA.caderas.map(([x, y], i) => <g key={i} transform={"translate(" + x + " " + y + ")"}><g className={"pie " + (i ? "b" : "a")}><path d={ADV_SANTA.pierna} /></g></g>)}
+          </g></g></g></g></g>
+          <g className="reg"><path transform="translate(200 218)" d={ADV_REGALO} /></g>
+        </g>
+        <rect y="272" width="300" height="8" fill="#c9a45a" />
+      </g>
+      {/* luz apagada al principio (se prende titilando) */}
+      <rect className="apagado" width="300" height="280" fill="#0f1a31" />
+    </svg>
+  );
+}
 // El título con la última palabra en dorado ("Calendario de <b>Adviento</b>")
 const advTitulo = (t) => { const p = String(t || "").trim().split(/\s+/); if (p.length < 2) return t; const u = p.pop(); return <>{p.join(" ")} <b>{u}</b></>; };
 // Cómo se usa la sorpresa de un día (o que ya pasó): { t, paso }
@@ -28144,15 +28209,28 @@ function TwAdviento({ adv, slug, visibles, tarjeta }) {
   const [tiembla, setTiembla] = useState(0);
   const [copiado, setCopiado] = useState(false);
   const hoy = adv.hoy;
+  const timers = useRef([]);
+  const marcar = (dia) => setAbiertas(l => { if (l.includes(dia)) return l; const n = [...l, dia]; try { localStorage.setItem(clave, JSON.stringify(n)); } catch (e) {} return n; });
   const abrir = (d) => {
     if (d.bloqueado) { setTiembla(d.dia); setAviso("🔒 Esta ventana se enciende el " + d.dia + " de diciembre ✨"); setTimeout(() => setTiembla(0), 450); return; }
     const ya = abiertas.includes(d.dia);
-    setCopiado(false); setAbriendo({ d, fase: ya ? "listo" : "abre" });
-    if (!ya) {
-      setTimeout(() => setAbriendo(a => a && a.d.dia === d.dia ? { ...a, fase: "abre listo" } : a), 1900);
-      setTimeout(() => setAbiertas(l => { if (l.includes(d.dia)) return l; const n = [...l, d.dia]; try { localStorage.setItem(clave, JSON.stringify(n)); } catch (e) {} return n; }), 1300);
-    }
+    // Desde dónde arranca el zoom: la ventana del edificio
+    const b = document.querySelector('.tw-adv-v[data-dia="' + d.dia + '"]'), r = b ? b.getBoundingClientRect() : null;
+    setCopiado(false); setAbriendo({ d, fase: ya ? "listo" : "abre", r });
+    timers.current.forEach(clearTimeout);
+    if (!ya) timers.current = [
+      setTimeout(() => marcar(d.dia), 4000),
+      setTimeout(() => setAbriendo(a => a && a.d.dia === d.dia ? { ...a, fase: "abre listo" } : a), 5400),
+    ];
   };
+  const saltar = () => { timers.current.forEach(clearTimeout); if (abriendo) { marcar(abriendo.d.dia); setAbriendo(a => a && { ...a, fase: "listo" }); } };
+  const zv = useRef(null);
+  useLayoutEffect(() => {
+    const el = zv.current, r = abriendo && abriendo.r;
+    if (!el || !r || !el.animate || abriendo.fase !== "abre") return;
+    const f = el.getBoundingClientRect(), dx = r.left + r.width / 2 - (f.left + f.width / 2), dy = r.top + r.height / 2 - (f.top + f.height / 2);
+    el.animate([{ transform: "translate(" + dx + "px," + dy + "px) scale(" + (r.width / f.width) + ")" }, { transform: "none" }], { duration: 750, easing: "cubic-bezier(.3,.8,.3,1)" });
+  }, [abriendo && abriendo.d.dia, abriendo && abriendo.r]); // eslint-disable-line react-hooks/exhaustive-deps
   // "Descubrir la sorpresa" desde la animación de bienvenida: baja al calendario y abre la ventana de hoy
   const abrirRef = useRef(abrir); abrirRef.current = abrir;
   useEffect(() => {
@@ -28175,7 +28253,7 @@ function TwAdviento({ adv, slug, visibles, tarjeta }) {
         {adv.dias.map(d => {
           const n = d.dia, v = ADV_VENT[n], esHoy = n === hoy && !adv.vista_previa, ab = abiertas.includes(n);
           return (
-            <button key={n} className={"tw-adv-v" + (ab ? " prendida" : d.bloqueado ? " bloq" : " listo") + (esHoy && !ab ? " hoy" : "") + (tiembla === n ? " tiembla" : "")}
+            <button key={n} data-dia={n} className={"tw-adv-v" + (ab ? " prendida" : d.bloqueado ? " bloq" : " listo") + (esHoy && !ab ? " hoy" : "") + (tiembla === n ? " tiembla" : "")}
               style={{ left: (v.x / 360 * 100) + "%", top: (v.y / 700 * 100) + "%", width: (ADV_VW / 360 * 100) + "%", height: (ADV_VH / 700 * 100) + "%" }}
               onClick={() => abrir(d)} aria-label={"Día " + n + (d.bloqueado ? " (todavía no)" : ab ? " (abierta)" : "")}>
               {ab && <i>{d.icono}</i>}<b>{n}</b>
@@ -28186,13 +28264,14 @@ function TwAdviento({ adv, slug, visibles, tarjeta }) {
       <div className="tw-adv-cuenta">✦ {prendidas} de 25 ventanas encendidas ✦</div>
       <div className="tw-adv-aviso" role="status">{aviso || (hoy >= 1 && hoy <= 25 && !adv.vista_previa ? (abiertas.includes(hoy) ? "Ya encendiste la ventana de hoy. ¡Volvé mañana por otra sorpresa!" : "Tocá la ventana de hoy para encenderla y descubrir tu sorpresa") : "")}</div>
       {sel && createPortal(<div className="tw" style={{ minHeight: 0, background: "transparent" }}>
-        <div className="tw-adv-modal" role="dialog" aria-modal="true" aria-label={"Día " + sel.dia} onClick={() => setAbriendo(null)}>
+        <div className="tw-adv-modal" role="dialog" aria-modal="true" aria-label={"Día " + sel.dia} onClick={() => { timers.current.forEach(clearTimeout); if (abriendo.fase === "abre") marcar(sel.dia); setAbriendo(null); }}>
           <TwAdvNieve />
           <div className={"tw-adv-escena " + abriendo.fase} onClick={e => e.stopPropagation()}>
             <button className="tw-adv-cerrar" onClick={() => setAbriendo(null)} aria-label="Cerrar">×</button>
             <div className="tw-adv-rayos" aria-hidden="true" />
             <div className="tw-adv-confeti" aria-hidden="true">{confeti.map((k, i) => <i key={i} style={{ "--x": k.x, "--y": k.y, "--k": k.k }} />)}</div>
-            {abriendo.fase !== "listo" && <div className="tw-adv-gv" aria-hidden="true"><span className="luz" /><span className="hoja i"><b>{sel.dia}</b></span><span className="hoja d"><b>{sel.dia}</b></span></div>}
+            {abriendo.fase !== "listo" && <div className="tw-adv-zv" ref={zv}><TwAdvCuarto icono={sel.icono} /></div>}
+            {abriendo.fase === "abre" && <button className="tw-adv-saltar" onClick={saltar}>Saltar ›</button>}
             <div className="tw-adv-tarjeta" style={abriendo.fase === "listo" ? { opacity: 1, transform: "none", marginTop: 30 } : undefined}>
               <span className="tw-adv-dia">DÍA {sel.dia}</span>
               <div className="big">{sel.icono}</div>
@@ -33563,7 +33642,7 @@ function flyDibujar(ctx, W, H, t, d) {
 }
 // Halloween en la tienda online: fechas, textos, juego "¿Dulce o truco?" (premios) y sector "Tu look de Halloween"
 // ── Calendario de Adviento: carga de los 25 días y video de la ventana del día encendiéndose (para Instagram) ──
-const ADV_VID = 9.8;
+const ADV_VID = 12.4;
 const ADV_FUENTES = [["TwPF", "url(https://fonts.gstatic.com/s/playfairdisplay/v40/nuFRD-vYSZviVYUb_rj3ij__anPXDTnCjmHKM4nYO7KN_pqTXtHA-Q.woff2)", { style: "italic", weight: "500" }], ["TwJS", "url(https://fonts.gstatic.com/s/josefinsans/v34/Qw3aZQNVED7rKGKxtqIqX5EUDXx4.woff2)", { weight: "400 700" }]];
 const advFont = (peso, px) => peso + " " + Math.round(px) + "px TwJS, 'Helvetica Neue', Helvetica, Arial, sans-serif";
 const advSerif = (px) => "italic 500 " + Math.round(px) + "px TwPF, Georgia, serif";
@@ -33622,12 +33701,51 @@ function advCiudadCanvas(ctx, W, H, ox, oy, s, prendidas, t) {
   advGlowCanvas(ctx, X(180), Y(A.top), (16 + brillo * 18) * s, .45 + brillo * .55);
   ctx.save(); ctx.translate(X(180), Y(A.top)); ctx.scale(s, s); const ge = ctx.createLinearGradient(0, -16, 0, 16); ge.addColorStop(0, "#fff6da"); ge.addColorStop(1, "#e2b75c"); ctx.fillStyle = ge; ctx.globalAlpha = .6 + brillo * .4; ctx.fill(new Path2D(advEstrella(13 + brillo * 3))); ctx.restore();
 }
+// Interpola por tramos: puntos [[avance, valor], ...] con avance de 0 a 1
+const advTramos = (p, pts) => { if (p <= pts[0][0]) return pts[0][1]; for (let i = 1; i < pts.length; i++) if (p <= pts[i][0]) { const [a, va] = pts[i - 1], [b, vb] = pts[i]; return va + (vb - va) * (p - a) / (b - a); } return pts[pts.length - 1][1]; };
+// La ventana de cerca (lienzo de 300x280 en x, y, w, h): el cuarto, la persiana con la sombra de Papá Noel (camina de 3.5 a 6.4 s)
+function advCuartoCanvas(ctx, x, y, w, h, t, o) {
+  const k = w / 300;
+  ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); ctx.translate(x, y); ctx.scale(k, k);
+  const gp = ctx.createLinearGradient(0, 0, 0, 280); gp.addColorStop(0, "#ffe9bd"); gp.addColorStop(1, "#f2b75e"); ctx.fillStyle = gp; ctx.fillRect(0, 0, 300, 280);
+  ctx.fillStyle = "#c98b3a"; ctx.fillRect(0, 238, 300, 42);
+  ctx.strokeStyle = "#2e5a32"; ctx.lineWidth = 5; ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(20, 28); ctx.quadraticCurveTo(80, 48, 150, 30); ctx.quadraticCurveTo(220, 48, 280, 28); ctx.stroke();
+  [40, 80, 120, 180, 220, 260].forEach((cx, i) => { ctx.fillStyle = ["#ff5252", "#ffd54f", "#69f0ae"][i % 3]; ctx.beginPath(); ctx.arc(cx, i % 2 ? 40 : 38, 3, 0, Math.PI * 2); ctx.fill(); });
+  ctx.fillStyle = "#2e5a32"; ctx.fill(new Path2D("M46 238 L80 150 L114 238 Z M56 200 L80 130 L104 200 Z M64 165 L80 112 L96 165 Z"));
+  if (o.aparece > 0) { ctx.save(); ctx.globalAlpha *= o.aparece; const g = ctx.createRadialGradient(220, 225, 0, 220, 225, 50); g.addColorStop(0, "rgba(255,248,225,1)"); g.addColorStop(.4, "rgba(255,217,138,.9)"); g.addColorStop(1, "rgba(255,184,77,0)"); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(220, 225, 50, 0, Math.PI * 2); ctx.fill();
+    ctx.translate(220, 236); const e = .4 + .6 * o.aparece; ctx.scale(e, e); ctx.textAlign = "center"; ctx.font = flyFont(400, 56); ctx.fillText(o.icono || "🎁", 0, 16); ctx.restore(); }
+  // persiana (sube al final) con las sombras
+  if (o.sube < 1) {
+    ctx.save(); ctx.translate(0, -270 * o.sube);
+    const gs = ctx.createLinearGradient(0, 0, 0, 280); gs.addColorStop(0, "#fff2d2"); gs.addColorStop(1, "#f4c678"); ctx.fillStyle = gs; ctx.fillRect(0, 0, 300, 280);
+    ctx.strokeStyle = "rgba(217,166,80,.28)"; ctx.lineWidth = 1; for (let i = 1; i < 14; i++) { ctx.beginPath(); ctx.moveTo(0, i * 20); ctx.lineTo(300, i * 20); ctx.stroke(); }
+    const p = Math.max(0, Math.min(1, (t - 3.5) / 2.9));
+    ctx.save(); ctx.filter = "blur(" + (1.5 * k).toFixed(1) + "px)"; ctx.fillStyle = "rgba(43,22,8,.8)";
+    if (t > 3.5) {
+      const sx = advTramos(p, [[0, -175], [.38, 28], [.58, 28], [1, 330]]), bob = p < 1 ? -4 * Math.abs(Math.sin((t - 3.5) * Math.PI / .42)) : 0;
+      const ag = advTramos(p, [[0, 0], [.38, 0], [.45, 16], [.52, 16], [.59, 0], [1, 0]]), paso = 18 * Math.sin((t - 3.5) * Math.PI / .42);
+      ctx.save(); ctx.translate(sx, 34 + bob); ctx.scale(1.28, 1.28);
+      ctx.translate(78, 178); ctx.rotate(ag * Math.PI / 180); ctx.translate(-78, -178 + ag / 16 * 3);
+      ADV_SANTA.cuerpo.forEach(dd => ctx.fill(new Path2D(dd)));
+      ADV_SANTA.circulos.forEach(([cx, cy, r]) => { ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); });
+      ADV_SANTA.caderas.forEach(([hx, hy], i) => { ctx.save(); ctx.translate(hx, hy); ctx.rotate((i ? -paso : paso) * Math.PI / 180); ctx.fill(new Path2D(ADV_SANTA.pierna)); ctx.restore(); });
+      ctx.restore();
+    }
+    const reg = flyEase((p - .47) / .06);
+    if (reg > 0) { ctx.save(); ctx.translate(220, 262); ctx.scale(reg, reg); ctx.translate(-20, -44); ctx.fill(new Path2D(ADV_REGALO)); ctx.restore(); }
+    ctx.restore();
+    ctx.fillStyle = "#c9a45a"; ctx.fillRect(0, 272, 300, 8);
+    ctx.restore();
+  }
+  if (!o.luz) { ctx.fillStyle = "#0f1a31"; ctx.fillRect(0, 0, 300, 280); }
+  ctx.restore();
+}
 function advDibujarVideo(ctx, W, H, t, d) {
   const u = W / 1080, dia = d.dia;
   const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#060a16"); g.addColorStop(.55, "#0c1630"); g.addColorStop(1, "#1b2442");
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   advGlowCanvas(ctx, W * .85, 170 * u, 110 * u, .12); ctx.fillStyle = "rgba(255,246,220,.92)"; ctx.beginPath(); ctx.arc(W * .85, 170 * u, 46 * u, 0, Math.PI * 2); ctx.fill();
-  const zoom = flyEaseInOut((t - 2.2) / .8), tarjeta = flyEase((t - 4.6) / .8);
+  const zoom = flyEaseInOut((t - 2.2) / .8), tarjeta = flyEase((t - 7.6) / .8);
   // encabezado: logo + "New York Christmas" + título
   let y0 = 80 * u;
   ctx.save(); ctx.globalAlpha = flyEase(t / .6) * (1 - zoom * .6);
@@ -33640,37 +33758,30 @@ function advDibujarVideo(ctx, W, H, t, d) {
   const top = y0 + 150 * u + (tl.length - 1) * 118 * u + 40 * u, s = Math.min((W - 80 * u) / 360, (H - top) / 700), ox = W / 2 - 180 * s, oy = H - 700 * s;
   const prendeV = (n) => n < dia ? flyEase((t - .5 - n * .06) / .25) : 0;
   let encendidas = 0; for (let n = 1; n < dia; n++) encendidas += prendeV(n);
-  const flick = [1, 0, 1, 0, 0, 1, 0, 1, 1, 1], tf = (t - 3.0) / .08, luzHoy = t < 3.0 ? 0 : tf >= flick.length ? 1 : flick[Math.floor(tf)];
-  advCiudadCanvas(ctx, W, H, ox, oy, s, encendidas + (t > 3.8 ? 1 : 0), t);
+  const flick = [1, 0, 0, 1, 0, 1, 1, 1], tf = (t - 3.0) / .07, luzHoy = t < 3.0 ? 0 : tf >= flick.length ? 1 : flick[Math.floor(tf)];
+  advCiudadCanvas(ctx, W, H, ox, oy, s, encendidas + (t > 6.8 ? 1 : 0), t);
   for (let n = 1; n <= 25; n++) { if (n === dia) continue; const v = ADV_VENT[n]; advVentanaCanvas(ctx, ox + v.x * s, oy + v.y * s, ADV_VW * s, ADV_VH * s, n, prendeV(n), { icono: d.iconos && d.iconos[n - 1], k: s }); }
   const vh = ADV_VENT[dia], pul = t > 1.4 && t < 2.6 ? (.5 + .5 * Math.sin((t - 1.4) * 9)) : 0;
   if (zoom <= 0) advVentanaCanvas(ctx, ox + vh.x * s, oy + vh.y * s, ADV_VW * s, ADV_VH * s, dia, 0, { pulso: pul, k: s });
-  // se oscurece la ciudad y la ventana de hoy viene al centro, titila y se abre
+  // se oscurece la ciudad y la ventana de hoy viene al centro: se prende la luz, pasa Papá Noel (su sombra en la persiana),
+  // deja el regalo y se va; sube la persiana y aparece el regalo del día
   if (zoom > 0) {
     ctx.fillStyle = "rgba(4,7,15," + (zoom * .72) + ")"; ctx.fillRect(0, 0, W, H);
-    const bw = 520 * u, bh = 490 * u, bx = W / 2 - bw / 2, by = H * .4 - bh / 2 - tarjeta * 380 * u;
+    const bw = 840 * u, bh = 784 * u, bx = W / 2 - bw / 2, by = H * .42 - bh / 2 - tarjeta * 380 * u;
     const x = ox + vh.x * s + (bx - ox - vh.x * s) * zoom, y = oy + vh.y * s + (by - oy - vh.y * s) * zoom, w = ADV_VW * s + (bw - ADV_VW * s) * zoom, h = ADV_VH * s + (bh - ADV_VH * s) * zoom;
-    const abre = flyEaseInOut((t - 3.8) / .7), rayo = flyEase((t - 3.9) / .6);
+    const sube = flyEaseInOut((t - 6.5) / .7), rayo = flyEase((t - 6.8) / .6), aparece = flyEase((t - 6.7) / .5);
     ctx.save(); ctx.globalAlpha = 1 - tarjeta;
-    if (rayo > 0) { ctx.save(); ctx.translate(x + w / 2, y + h / 2); ctx.rotate(t * .35); ctx.globalAlpha = rayo * (1 - tarjeta * .5);
-      for (let i = 0; i < 18; i++) { ctx.rotate(Math.PI * 2 / 18); const gr = ctx.createLinearGradient(0, 0, 0, -880 * u); gr.addColorStop(0, "rgba(255,224,150,.5)"); gr.addColorStop(1, "rgba(255,224,150,0)"); ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-44 * u, -880 * u); ctx.lineTo(44 * u, -880 * u); ctx.closePath(); ctx.fill(); }
+    if (rayo > 0) { ctx.save(); ctx.translate(x + w / 2, y + h / 2); ctx.rotate(t * .35); ctx.globalAlpha *= rayo * .9;
+      for (let i = 0; i < 18; i++) { ctx.rotate(Math.PI * 2 / 18); const gr = ctx.createLinearGradient(0, 0, 0, -980 * u); gr.addColorStop(0, "rgba(255,224,150,.5)"); gr.addColorStop(1, "rgba(255,224,150,0)"); ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-48 * u, -980 * u); ctx.lineTo(48 * u, -980 * u); ctx.closePath(); ctx.fill(); }
       ctx.restore(); }
     // marco art déco
-    ctx.fillStyle = "#0b0b0e"; ctx.fillRect(x - w * .07, y - w * .07, w * 1.14, h + w * .14); ctx.strokeStyle = "#c9a45a"; ctx.lineWidth = Math.max(2, w * .012); ctx.strokeRect(x - w * .07, y - w * .07, w * 1.14, h + w * .14);
-    if (luzHoy) { ctx.save(); ctx.shadowColor = "rgba(255,200,110,.9)"; ctx.shadowBlur = w * .35; const gl = ctx.createRadialGradient(x + w / 2, y + h * .45, 0, x + w / 2, y + h / 2, w * .75); gl.addColorStop(0, "#fffbe8"); gl.addColorStop(.45, "#ffd98a"); gl.addColorStop(1, "#f0a43c"); ctx.fillStyle = gl; ctx.fillRect(x, y, w, h); ctx.restore();
-      if (abre > .3 && d.icono) { ctx.save(); ctx.globalAlpha *= (abre - .3) / .7; ctx.textAlign = "center"; ctx.font = flyFont(400, h * .45); ctx.fillText(d.icono, x + w / 2, y + h * .66); ctx.restore(); } }
-    else { ctx.fillStyle = "#0f1a31"; ctx.fillRect(x, y, w, h); }
-    // las dos hojas de la ventana se abren
-    const hw = w / 2 * (1 - abre * .88);
-    [[x, 1], [x + w - hw, -1]].forEach(([hx, lado]) => {
-      if (hw <= 1) return;
-      const go = ctx.createLinearGradient(0, y, 0, y + h); go.addColorStop(0, "#22345c"); go.addColorStop(1, "#14223f"); ctx.fillStyle = go; ctx.fillRect(hx, y, hw, h);
-      ctx.strokeStyle = "rgba(201,164,90,.7)"; ctx.lineWidth = Math.max(1, w * .006); ctx.strokeRect(hx, y, hw, h);
-      if (abre < .05) { ctx.save(); ctx.beginPath(); ctx.rect(hx, y, hw, h); ctx.clip(); ctx.textAlign = "center"; ctx.fillStyle = "#e8cf8f"; ctx.font = advSerif(h * .42); ctx.fillText(String(dia), x + w / 2, y + h * .64); ctx.restore(); }
-    });
+    const m = w * .035;
+    ctx.fillStyle = "#0b0b0e"; ctx.fillRect(x - m, y - m, w + 2 * m, h + 2 * m); ctx.strokeStyle = "#c9a45a"; ctx.lineWidth = Math.max(2, w * .01); ctx.strokeRect(x - m, y - m, w + 2 * m, h + 2 * m);
+    if (luzHoy) { ctx.save(); ctx.shadowColor = "rgba(255,200,110,.7)"; ctx.shadowBlur = w * .25; ctx.fillStyle = "#000"; ctx.fillRect(x, y, w, h); ctx.restore(); }
+    advCuartoCanvas(ctx, x, y, w, h, t, { luz: luzHoy, sube, aparece, icono: d.icono, u });
     ctx.restore();
-    if (rayo > 0 && t < 6.2) for (let i = 0; i < 46; i++) { const a = i / 46 * Math.PI * 2, dist = (240 + (i % 6) * 70) * u * flyEase((t - 3.9) / 1.3), px = x + w / 2 + Math.cos(a) * dist, py = y + h / 2 + Math.sin(a) * dist * .85 + Math.pow(Math.max(0, t - 4.2), 2) * 120 * u;
-      ctx.save(); ctx.globalAlpha = Math.max(0, 1 - (t - 3.9) / 2.3); advGlowCanvas(ctx, px, py, 16 * u, 1); ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(px, py, 4 * u, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+    if (rayo > 0 && t < 9) for (let i = 0; i < 46; i++) { const a = i / 46 * Math.PI * 2, dist = (300 + (i % 6) * 70) * u * flyEase((t - 6.8) / 1.3), px = x + w / 2 + Math.cos(a) * dist, py = y + h / 2 + Math.sin(a) * dist * .85 + Math.pow(Math.max(0, t - 7.1), 2) * 120 * u;
+      ctx.save(); ctx.globalAlpha = Math.max(0, 1 - (t - 6.8) / 2.3); advGlowCanvas(ctx, px, py, 16 * u, 1); ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(px, py, 4 * u, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
   }
   // nieve
   ctx.fillStyle = "rgba(255,255,255,.75)";
@@ -33697,13 +33808,13 @@ function advDibujarVideo(ctx, W, H, t, d) {
     if (fotos.length) {
       const fs = Math.min(250 * u, (cw - 120 * u - (fotos.length - 1) * 24 * u) / fotos.length, cy + ch - yy - 40 * u);
       if (fs > 80 * u) fotos.forEach((im, i) => {
-        const fx = W / 2 - (fotos.length * fs + (fotos.length - 1) * 24 * u) / 2 + i * (fs + 24 * u), fy = yy + (1 - flyEase((t - 5.0 - i * .15) / .5)) * 60 * u;
-        ctx.save(); ctx.globalAlpha = tarjeta * flyEase((t - 5.0 - i * .15) / .5); ctx.fillStyle = "#f4eee4"; flyRect(ctx, fx, fy, fs, fs, 24 * u); ctx.fill(); ctx.clip();
+        const fx = W / 2 - (fotos.length * fs + (fotos.length - 1) * 24 * u) / 2 + i * (fs + 24 * u), fy = yy + (1 - flyEase((t - 8.0 - i * .15) / .5)) * 60 * u;
+        ctx.save(); ctx.globalAlpha = tarjeta * flyEase((t - 8.0 - i * .15) / .5); ctx.fillStyle = "#f4eee4"; flyRect(ctx, fx, fy, fs, fs, 24 * u); ctx.fill(); ctx.clip();
         const k = Math.min(fs / im.width, fs / im.height) * .9; ctx.drawImage(im, fx + fs / 2 - im.width * k / 2, fy + fs / 2 - im.height * k / 2, im.width * k, im.height * k); ctx.restore();
       });
     }
     ctx.restore();
-    const fin = flyEase((t - 6.4) / .7);
+    const fin = flyEase((t - 9.4) / .7);
     if (fin > 0 && d.web) { ctx.save(); ctx.globalAlpha = fin; ctx.textAlign = "center"; ctx.fillStyle = "#e8cf8f"; ctx.font = advFont(600, 38 * u); ctx.fillText("Encendé tu ventana en", W / 2, H - 150 * u); ctx.restore(); ctx.save(); ctx.globalAlpha = fin; ctx.font = flyFont(900, 40 * u); const ww = ctx.measureText(d.web).width + 64 * u; flyPildora(ctx, W / 2 - ww / 2, H - 120 * u, d.web, 40 * u, t); ctx.restore(); }
   }
   ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
