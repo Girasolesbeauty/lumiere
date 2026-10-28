@@ -34446,7 +34446,6 @@ function HalloweenTienda({ temaPal, productos, soloVer }) {
               <span className="c-pc" style={{ fontSize: 12, color: p.textMuted }}>{Math.round((parseInt(x.chance) || 0) / totalChance * 100)}%</span>
               {soloVer ? <span className="c-x" /> : <button className="chip-btn c-x" style={{ color: p.red }} disabled={f.premios.length <= 2} onClick={() => set("premios", f.premios.filter((_, j) => j !== i))} aria-label="Quitar premio">✕</button>}
             </div>
-            {x.tipo === "cupon" && <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, marginTop: 2, cursor: "pointer" }}><input type="checkbox" checked={!!x.contado} onChange={e => setPremio(i, "contado", e.target.checked)} />💵 Solo contado: vale pagando con transferencia, efectivo, débito o crédito en 1 cuota</label>}
             {x.tipo === "regalo" && <input className="inp" style={{ width: "100%", marginTop: 4 }} value={x.regalo || ""} maxLength={80} placeholder="¿Qué regalo? Ej: neceser con muestras (se le avisa a la vendedora en el pedido)" onChange={e => setPremio(i, "regalo", e.target.value)} />}
           </Fragment>))}
           {f.premios.length < 8 && !soloVer && <button className="chip-btn" style={{ marginTop: 8 }} onClick={() => set("premios", [...f.premios, { id: "h" + Date.now().toString(36).slice(-6), texto: "15% OFF", tipo: "cupon", valor: 15, chance: 3 }])}>+ Agregar premio</button>}
