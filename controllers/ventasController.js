@@ -247,6 +247,12 @@ const create = async (req, res) => {
         // Cupon personal (lo gano una clienta) o "uno por clienta": se revisa con la clienta elegida
         const deOtra = await cuponesLib.revisarClienta(client, c, { cliente_id }, 'caja');
         if (deOtra) { await client.query('ROLLBACK'); return res.status(400).json({ error: deOtra }); }
+        // Cupon "solo contado": no vale pagando en cuotas
+        if (c.solo_contado) {
+          const ids = (Array.isArray(pagos) && pagos.length ? pagos.map(p => parseInt(p.medio_pago_id)) : [parseInt(medio_pago_id)]).filter(n => n > 0);
+          const enCuotas = ids.length ? (await client.query('SELECT 1 FROM medios_pago WHERE id = ANY($1::int[]) AND (COALESCE(cuotas, 1) > 1 OR con_interes) LIMIT 1', [ids])).rows.length > 0 : false;
+          if (enCuotas) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'El cupón ' + c.codigo + ' vale solo pagando con efectivo, débito, transferencia o crédito en 1 cuota' }); }
+        }
         cuponUsado = c;
         cuponId = c.id;
         // Si el cupon exige un monto minimo de compra para el descuento, y no se llega,
