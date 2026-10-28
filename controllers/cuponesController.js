@@ -50,15 +50,14 @@ const validar = async (req, res) => {
 
     const cupon = result.rows[0];
     await cuponesLib.asegurar();
+    const fechas = cuponesLib.fechasCupon(cupon);
+    if (fechas) return res.status(400).json({ valido: false, error: fechas });
     // Personal o "uno por clienta": se revisa con la clienta elegida en la caja
     const deOtra = await cuponesLib.revisarClienta(pool, cupon, { cliente_id: parseInt(req.query.cliente_id) || null }, 'caja');
     if (deOtra) return res.status(400).json({ valido: false, error: deOtra });
     delete cupon.dueno_dni; delete cupon.dueno_tel;
 
     // Verificar vencimiento
-    if (cupon.fecha_vencimiento && new Date(cupon.fecha_vencimiento) < new Date()) {
-      return res.status(400).json({ valido: false, error: 'Cupon vencido' });
-    }
 
     // Verificar max usos
     if (cupon.max_usos && cupon.usos >= cupon.max_usos) {

@@ -529,6 +529,9 @@ router.post('/:slug/pedidos', async (req, res) => {
     const mu = tienda.muestrasDe(c);
     const opMu = mu.activo && b.muestra && subtotal >= mu.desde ? mu.opciones.find(o => o.nombre === String(b.muestra)) : null;
     if (opMu && tienda.localesMuestra(mu, opMu).includes(Number(localId)) && await tienda.moverEnvase(client, localId, -1)) await client.query('UPDATE tienda_pedidos SET muestra = $1 WHERE id = $2', [opMu.nombre, pedido.id]);
+    // Calendario de Adviento: si la sorpresa de hoy es un regalo con la compra (y llega al mínimo), queda anotado para la vendedora
+    const advR = tienda.advientoDe(c), advD = tienda.advientoHoy(advR), regHoy = advR.activo && advD >= 1 && advD <= 25 ? advR.dias[advD - 1] : null;
+    if (regHoy && regHoy.tipo === 'regalo' && regHoy.regalo && subtotal >= regHoy.minimo) await client.query('UPDATE tienda_pedidos SET adviento_regalo = $1 WHERE id = $2', ['Día ' + advD + ': ' + regHoy.regalo, pedido.id]);
     if (combo.combos.length) await client.query('UPDATE tienda_pedidos SET descuento_combo = $1, combos = $2 WHERE id = $3', [descCombo, combo.combos.map(x => x.nombre + (x.veces > 1 ? ' x' + x.veces : '')).join(', '), pedido.id]);
     if (gc && gcUsa > 0) {
       const nuevo = Math.round((gc.saldo - gcUsa) * 100) / 100;
@@ -710,7 +713,7 @@ router.get('/:slug/pedidos/:codigo', async (req, res) => {
     res.json({
       ruleta: await estadoRuleta(req.tienda, p),
       codigo: p.codigo, numero: p.numero || null, estado: p.estado, pagado: p.pagado, pago: p.pago, entrega: p.entrega, local_id: p.local_id || 1, local: loc || null, direccion: p.direccion, zona: p.zona,
-      subtotal: num(p.subtotal), costo_envio: num(p.costo_envio), descuento: num(p.descuento), descuento_amiga: num(p.descuento_amiga), descuento_combo: num(p.descuento_combo), combos: p.combos || null, muestra: p.muestra || null, express_min: p.express_min || null, listo_express: tienda.listoExpress(p), descuento_pago: num(p.descuento_pago), descuento_pago_pct: p.descuento_pago_pct === null ? null : num(p.descuento_pago_pct), cupon: p.cupon || null, total: num(p.total), items, link_pago: p.estado === 'pendiente_pago' ? p.mp_link : null,
+      subtotal: num(p.subtotal), costo_envio: num(p.costo_envio), descuento: num(p.descuento), descuento_amiga: num(p.descuento_amiga), descuento_combo: num(p.descuento_combo), combos: p.combos || null, muestra: p.muestra || null, adviento_regalo: p.adviento_regalo || null, express_min: p.express_min || null, listo_express: tienda.listoExpress(p), descuento_pago: num(p.descuento_pago), descuento_pago_pct: p.descuento_pago_pct === null ? null : num(p.descuento_pago_pct), cupon: p.cupon || null, total: num(p.total), items, link_pago: p.estado === 'pendiente_pago' ? p.mp_link : null,
       vence_en: p.vence_en, transferencia: p.pago === 'transferencia' && !p.pagado ? (req.tienda.transferencia_datos || '') : null, creado_en: p.creado_en,
       gc_usado: num(p.gc_usado_monto) > 0 ? { codigo: p.gc_usado_codigo, monto: num(p.gc_usado_monto) } : null,
       giftcard: p.tipo === 'giftcard' ? { para: p.gc_para, mensaje: p.gc_mensaje, para_telefono: p.gc_para_tel, codigo: p.gc_codigo || null, firma: p.gc_codigo ? tienda.firmaRegalo(p.gc_codigo) : null, monto: num(p.total), de: p.nombre } : null,
@@ -1032,11 +1035,11 @@ router.get('/:slug/cuenta', conCuenta, async (req, res) => {
     ]);
     // Los canjes que son codigos de descuento: si todavia se pueden usar
     const cods = canjes.map(c => c.codigo).filter(Boolean);
-    const cups = cods.length ? (await pool.query('SELECT codigo, tipo, valor, fecha_vencimiento, usos, max_usos, activo FROM cupones WHERE codigo = ANY($1)', [cods]).catch(() => ({ rows: [] }))).rows : [];
+    const cups = cods.length ? (await pool.query('SELECT codigo, tipo, valor, fecha_vencimiento, valido_desde, usos, max_usos, activo FROM cupones WHERE codigo = ANY($1)', [cods]).catch(() => ({ rows: [] }))).rows : [];
     const canjesInfo = canjes.slice(0, 20).map(c => {
       const cu = cups.find(x => x.codigo === c.codigo);
       if (!cu) return c;
-      const usable = cu.activo && !(cu.max_usos && (cu.usos || 0) >= cu.max_usos) && !(cu.fecha_vencimiento && new Date(cu.fecha_vencimiento) < new Date(new Date().toDateString()));
+      const usable = cu.activo && !(cu.max_usos && (cu.usos || 0) >= cu.max_usos) && !cuponesLib.fechasCupon(cu);
       return { ...c, cupon: { tipo: cu.tipo === '%' ? '%' : '$', valor: parseFloat(cu.valor) || 0, vence: cu.fecha_vencimiento, usable } };
     });
     // Cada vez que entra se renueva la llave (si ya tiene mas de un dia): mientras use la tienda, no se sale
