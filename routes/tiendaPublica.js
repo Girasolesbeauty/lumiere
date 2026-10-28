@@ -101,7 +101,7 @@ router.get('/:slug', async (req, res) => {
       adviento: advVer ? { titulo: adv.titulo, bajada: adv.bajada, anio: adv.anio, hoy: advVista ? 25 : advHoy, vista_previa: advVista && !(adv.activo && advHoy >= 1 && advHoy <= 25),
         dias: adv.dias.map(d => d.dia <= (advVista ? 25 : advHoy) ? d : { dia: d.dia, icono: d.icono, bloqueado: true }) } : null,
       halloween: hwEnCurso || hwVista ? { ceja: hw.ceja, titulo: hw.titulo, musica: hw.musica, subtitulo: hw.subtitulo, juego: hw.juego && hw.premios.some(x => x.chance > 0),
-        premios: hw.premios.filter(x => x.chance > 0 && x.tipo !== 'nada').map(x => x.texto), disfraz: hw.disfraz, despues: hw.despues, desde: hw.desde, hasta: hw.hasta, vista_previa: hwVista } : null,
+        premios: hw.premios.filter(x => x.chance > 0 && x.tipo !== 'nada').map(x => x.texto + (x.contado ? '*' : '')), disfraz: hw.disfraz, despues: hw.despues, desde: hw.desde, hasta: hw.hasta, vista_previa: hwVista } : null,
       cyber: cyEnCurso || cyVista ? { ceja: ky.ceja, titulo: ky.titulo, subtitulo: ky.subtitulo, boton: ky.boton, chips: ky.chips, desde: ky.desde, hasta: ky.hasta, vista_previa: cyVista } : null,
       promos: promosT.map(x => ({ nombre: x.nombre, pct: x.pct, aplica_a: x.aplica_a, productos: x.productos, categorias: x.categorias, pago: x.pago, local: x.local })),
       titulo: c.titulo || neg.nombre_negocio || 'Tienda', mensaje: c.mensaje || '', logo: c.logo || neg.logo_url || null, color: c.color || '#c9a84c', whatsapp: c.whatsapp || null,
@@ -322,7 +322,7 @@ router.get('/:slug/cupon/:codigo', async (req, res) => {
     const k = 'cupon:' + (req.ip || '');
     if (cuentas.bloqueado(k)) return res.status(429).json({ error: 'Demasiados intentos. Esperá unos minutos.' });
     await cuponesLib.asegurar();
-    const r = await tienda.revisarCupon(pool, req.params.codigo, Math.max(0, parseFloat(req.query.monto) || 0), false, { cliente_id: clienteDeToken(req), telefono: req.query.tel });
+    const r = await tienda.revisarCupon(pool, req.params.codigo, Math.max(0, parseFloat(req.query.monto) || 0), false, { cliente_id: clienteDeToken(req), telefono: req.query.tel }, String(req.query.pago || ''));
     if (!r || r.error) { cuentas.sumarIntento(k); return res.status(400).json({ error: (r && r.error) || 'Código inválido' }); }
     const { _cupon, ...publico } = r; // los datos de la duena del cupon no salen del servidor
     res.json(publico);
@@ -470,7 +470,7 @@ router.post('/:slug/pedidos', async (req, res) => {
     let cupon = null;
     const clienteId = clienteDeToken(req) || await clienteDe(client, nombre, telefono, email);
     if (b.cupon) {
-      cupon = await tienda.revisarCupon(client, b.cupon, subtotal - descCombo, true, { cliente_id: clienteId, telefono });
+      cupon = await tienda.revisarCupon(client, b.cupon, subtotal - descCombo, true, { cliente_id: clienteId, telefono }, pago);
       if (cupon && cupon.error) { await client.query('ROLLBACK'); return res.status(400).json({ error: cupon.error }); }
       if (cupon) await client.query('UPDATE cupones SET usos = COALESCE(usos, 0) + 1 WHERE codigo = $1', [cupon.codigo]);
     }
@@ -518,6 +518,7 @@ router.post('/:slug/pedidos', async (req, res) => {
        cupon ? cupon.codigo : null, cupon ? cupon.tipo : null, cupon ? cupon.valor : null, descuento, conPreventa])).rows[0];
     if (descuentoPago) await client.query('UPDATE tienda_pedidos SET descuento_pago = $1, descuento_pago_pct = $2 WHERE id = $3', [descuentoPago, pctPago, pedido.id]);
     if (descPromo) await client.query('UPDATE tienda_pedidos SET descuento_promo = $1, promos = $2 WHERE id = $3', [descPromo, promo.nombres.join(', ').slice(0, 300), pedido.id]);
+    if (cupon && cupon.solo_contado) { await client.query('UPDATE tienda_pedidos SET cupon_contado = TRUE WHERE id = $1', [pedido.id]); pedido.cupon_contado = true; }
     if (amiga && descAmiga) await client.query('UPDATE tienda_pedidos SET amiga_de = $1, descuento_amiga = $2 WHERE id = $3', [amiga.referente_id, descAmiga, pedido.id]);
     // Hoy es dia de puntos extra (ej. domingo): el pedido queda con el x2 / x3 prometido
     const multHoy = tienda.multPuntosHoy(c);
@@ -579,6 +580,8 @@ async function linkDePago(req, c, pedido, { nombre, email, telefono }, volverA, 
       const pref = await ayudaMP.mp(tok, 'POST', '/checkout/preferences', {
         items: [{ id: 'pedido-' + pedido.codigo, title: titulo, description: descripcion, category_id: 'others', quantity: 1, unit_price: num(pedido.total), currency_id: 'ARS' }],
         external_reference: 'tienda-' + pedido.codigo,
+        // Cupón "solo contado": en Mercado Pago se paga en 1 cuota
+        ...(pedido.cupon_contado ? { payment_methods: { installments: 1 } } : {}),
         payer: { name: nombre, ...(email ? { email } : {}) },
         ...(volver ? { back_urls: { success: volver, pending: volver, failure: volver }, auto_return: 'approved' } : {}),
         // El link de pago dura lo mismo que el pedido
@@ -816,7 +819,8 @@ const mismoTelefono = (a, b) => cuentas.soloNumeros(a).length >= 8 && cuentas.so
 // En la vista previa (link privado, antes de las fechas) se juega "de mentira": no se guarda ni se da nada.
 const temporadaHw = (hw) => 'hw-' + hw.desde.slice(0, 10);
 const HW_AMIGAS_MAX = 3;
-const premioHw = (r) => ({ id: r.premio_id, texto: r.texto, tipo: r.tipo, valor: num(r.valor), cupon: r.cupon, regalo: r.regalo || null, usado: !!r.pedido_id });
+const premioHw = (r, hw) => ({ id: r.premio_id, texto: r.texto, tipo: r.tipo, valor: num(r.valor), cupon: r.cupon, regalo: r.regalo || null, usado: !!r.pedido_id,
+  contado: r.tipo === 'cupon' && !!(hw.premios.find(x => x.id === r.premio_id) || {}).contado });
 async function calabazasHw(db, clienteId, hw) {
   const temp = temporadaHw(hw);
   const jugadas = (await db.query('SELECT premio_id, texto, tipo, valor, cupon, regalo, pedido_id FROM tienda_halloween WHERE cliente_id = $1 AND temporada = $2 ORDER BY id', [clienteId, temp])).rows;
@@ -833,14 +837,14 @@ router.get('/:slug/halloween/mio', conCuenta, async (req, res) => {
     // El premio "principal": un regalo que todavía no usó (va solo en su próximo pedido) o el último que sacó
     const r = k.jugadas.find(x => x.tipo === 'regalo' && !x.pedido_id) || k.jugadas[k.jugadas.length - 1];
     const codigo = await tienda.codigoAmiga(pool, req.clienteId).catch(() => null);
-    res.json({ jugado: !!r, premio: r ? premioHw(r) : null, premios: k.jugadas.map(premioHw), quedan: k.quedan, compras: k.compras, amigas: k.amigas, amigas_max: k.amigas_max, codigo, hasta: hw.hasta });
+    res.json({ jugado: !!r, premio: r ? premioHw(r, hw) : null, premios: k.jugadas.map(x => premioHw(x, hw)), quedan: k.quedan, compras: k.compras, amigas: k.amigas, amigas_max: k.amigas_max, codigo, hasta: hw.hasta });
   } catch (e) { console.error('[tienda publica] halloween mio:', e.message); res.status(500).json({ error: 'No se pudo leer' }); }
 });
 router.post('/:slug/halloween/jugar', conCuenta, async (req, res) => {
   const hw = tienda.halloweenDe(req.tienda);
   const enCurso = tienda.halloweenVigente(hw), vista = !enCurso && !!hw.token && String((req.body || {}).vista || '') === hw.token;
   if (!hw.juego || (!enCurso && !vista)) return res.status(400).json({ error: 'El juego de Halloween no está activo' });
-  if (vista) { const p = tienda.elegirPremio(hw.premios); return res.json({ id: p.id, texto: p.texto, tipo: p.tipo, valor: p.valor, cupon: p.tipo === 'cupon' ? 'HW-PRUEBA' : null, regalo: p.regalo || null, prueba: true, hasta: hw.hasta }); }
+  if (vista) { const p = tienda.elegirPremio(hw.premios); return res.json({ id: p.id, texto: p.texto, tipo: p.tipo, valor: p.valor, cupon: p.tipo === 'cupon' ? 'HW-PRUEBA' : null, regalo: p.regalo || null, contado: !!p.contado, prueba: true, hasta: hw.hasta }); }
   const tablasCupon = await cuponesLib.asegurar();
   const client = await pool.connect();
   try {
@@ -848,7 +852,7 @@ router.post('/:slug/halloween/jugar', conCuenta, async (req, res) => {
     await client.query(`SELECT pg_advisory_xact_lock(hashtext('tienda_halloween'), $1)`, [req.clienteId]);
     const temp = temporadaHw(hw);
     const k = await calabazasHw(client, req.clienteId, hw);
-    if (k.quedan <= 0) { await client.query('ROLLBACK'); return res.json({ ...premioHw(k.jugadas[k.jugadas.length - 1]), ya: true, quedan: 0, hasta: hw.hasta }); }
+    if (k.quedan <= 0) { await client.query('ROLLBACK'); return res.json({ ...premioHw(k.jugadas[k.jugadas.length - 1], hw), ya: true, quedan: 0, hasta: hw.hasta }); }
     const premio = tienda.elegirPremio(hw.premios);
     let cupon = null;
     if (premio.tipo === 'cupon') {
@@ -864,14 +868,14 @@ router.post('/:slug/halloween/jugar', conCuenta, async (req, res) => {
       // Solo lo puede usar ella
       if (tablasCupon) {
         const d = await cuponesLib.duenoPara(client, { cliente_id: req.clienteId });
-        await client.query('UPDATE cupones SET cliente_id = $1, dueno_dni = $2, dueno_tel = $3 WHERE codigo = $4', [d.cliente_id, d.dueno_dni, d.dueno_tel, cupon]);
+        await client.query('UPDATE cupones SET cliente_id = $1, dueno_dni = $2, dueno_tel = $3, solo_contado = $5 WHERE codigo = $4', [d.cliente_id, d.dueno_dni, d.dueno_tel, cupon, !!premio.contado]);
       }
     } else if (premio.tipo === 'puntos') {
       await client.query('UPDATE clientes SET puntos = COALESCE(puntos, 0) + $1 WHERE id = $2', [premio.valor, req.clienteId]);
     }
     await client.query('INSERT INTO tienda_halloween (cliente_id, temporada, premio_id, texto, tipo, valor, cupon, regalo) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [req.clienteId, temp, premio.id, premio.texto, premio.tipo, premio.valor, cupon, premio.tipo === 'regalo' ? premio.regalo || premio.texto : null]);
     await client.query('COMMIT');
-    res.json({ id: premio.id, texto: premio.texto, tipo: premio.tipo, valor: premio.valor, cupon, regalo: premio.tipo === 'regalo' ? premio.regalo || premio.texto : null, quedan: k.quedan - 1, hasta: hw.hasta });
+    res.json({ id: premio.id, texto: premio.texto, tipo: premio.tipo, valor: premio.valor, cupon, regalo: premio.tipo === 'regalo' ? premio.regalo || premio.texto : null, contado: !!premio.contado, quedan: k.quedan - 1, hasta: hw.hasta });
   } catch (e) {
     try { await client.query('ROLLBACK'); } catch (x) {}
     console.error('[tienda publica] halloween:', e.message);
