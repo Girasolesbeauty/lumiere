@@ -1193,4 +1193,108 @@ const getComparativaMeses = async (req, res) => {
   }
 };
 
-module.exports = { getBaseDecisiones, getMedallas, getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };
+
+// ===================== Informe del mes (para descargar) =====================
+// Todo lo del mes en un solo pedido, comparado con el mes anterior: facturación, ingresos y egresos (con su %),
+// sueldos y comisiones, vendedoras, ticket promedio, locales, canales, medios de pago, productos, marcas y clientas.
+// Si el mes está en curso, la facturación también se compara con los mismos días del mes anterior.
+const getInformeMes = async (req, res) => {
+  try {
+    if (!['jefe', 'admin', 'administrativo'].includes(req.usuario && req.usuario.rol)) return res.status(403).json({ error: 'Solo la dueña o encargada' });
+    const { mes, anio } = mesAnio(req.query);
+    const localNum = normalizarLocalId(req.query.local_id);
+    const mesAnt = mes === 1 ? 12 : mes - 1, anioAnt = mes === 1 ? anio - 1 : anio;
+    const hoyAR = (await pool.query(`SELECT EXTRACT(DAY FROM ${AR('NOW()')})::int AS d, EXTRACT(MONTH FROM ${AR('NOW()')})::int AS m, EXTRACT(YEAR FROM ${AR('NOW()')})::int AS a`)).rows[0];
+    const enCurso = hoyAR.m === mes && hoyAR.a === anio;
+    const diasMes = new Date(anio, mes, 0).getDate();
+    const L = (alias, i) => localNum !== null ? ` AND ${alias}.local_id = $${i}` : '';
+    const P = (extra = []) => localNum !== null ? [...extra, localNum] : extra;
+    const q = async (sql, params) => { try { return (await pool.query(sql, params)).rows; } catch (e) { console.error('[informe mes]', e.message); return []; } };
+    const VV = VENTA_VALIDA('v');
+
+    const [est, estAnt, dias, diasAnt, locales, vendedoras, vendAnt, topProd, topMarcas, medios, clientas, sueldosRows, comisionesEq, web, cmvR, mismosDias] = await Promise.all([
+      calcularFlujoEstructurado(mes, anio, req.query.local_id),
+      calcularFlujoEstructurado(mesAnt, anioAnt, req.query.local_id),
+      q(`SELECT EXTRACT(DAY FROM ${AR('v.creado_en')})::int AS d, SUM(v.total) AS total, COUNT(*) AS cant FROM ventas v
+         WHERE ${VV} AND ${EN_MES('v.creado_en', 1, 2)}${L('v', 3)} GROUP BY 1 ORDER BY 1`, P([mes, anio])),
+      q(`SELECT EXTRACT(DAY FROM ${AR('v.creado_en')})::int AS d, SUM(v.total) AS total FROM ventas v
+         WHERE ${VV} AND ${EN_MES('v.creado_en', 1, 2)}${L('v', 3)} GROUP BY 1 ORDER BY 1`, P([mesAnt, anioAnt])),
+      q(`SELECT l.id, l.nombre,
+           COALESCE(SUM(v.total) FILTER (WHERE ${EN_MES('v.creado_en', 1, 2)}), 0) AS total, COUNT(v.id) FILTER (WHERE ${EN_MES('v.creado_en', 1, 2)}) AS cant,
+           COALESCE(SUM(v.total) FILTER (WHERE ${EN_MES('v.creado_en', 3, 4)}), 0) AS total_ant
+         FROM locales l LEFT JOIN ventas v ON v.local_id = l.id AND ${VV}
+         WHERE COALESCE(l.activo, TRUE)${localNum !== null ? ' AND l.id = $5' : ''} GROUP BY l.id, l.nombre ORDER BY l.id`, P([mes, anio, mesAnt, anioAnt])),
+      q(`SELECT u.id, u.nombre, COUNT(*) AS cant, SUM(v.total) AS total FROM ventas v JOIN usuarios u ON u.id = v.usuario_id
+         WHERE ${VV} AND ${EN_MES('v.creado_en', 1, 2)}${L('v', 3)} GROUP BY u.id, u.nombre ORDER BY 4 DESC LIMIT 8`, P([mes, anio])),
+      q(`SELECT u.id, SUM(v.total) AS total, COUNT(*) AS cant FROM ventas v JOIN usuarios u ON u.id = v.usuario_id
+         WHERE ${VV} AND ${EN_MES('v.creado_en', 1, 2)}${L('v', 3)} GROUP BY u.id`, P([mesAnt, anioAnt])),
+      q(`SELECT p.id, p.nombre, p.marca, SUM(vi.cantidad)::int AS unidades, COALESCE(SUM(vi.cantidad * vi.precio_unitario), 0) AS total
+         FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id JOIN productos p ON p.id = vi.producto_id
+         WHERE ${VV} AND ${EN_MES('v.creado_en', 1, 2)}${L('v', 3)} GROUP BY p.id ORDER BY 4 DESC, 5 DESC LIMIT 5`, P([mes, anio])),
+      q(`SELECT COALESCE(NULLIF(TRIM(p.marca), ''), 'Sin marca') AS marca, COALESCE(SUM(vi.cantidad * vi.precio_unitario), 0) AS total, SUM(vi.cantidad)::int AS unidades
+         FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id JOIN productos p ON p.id = vi.producto_id
+         WHERE ${VV} AND ${EN_MES('v.creado_en', 1, 2)}${L('v', 3)} GROUP BY 1 ORDER BY 2 DESC LIMIT 5`, P([mes, anio])),
+      calcularComisionesMedios(mes, anio, localNum).catch(() => ({ detalle: [] })),
+      q(`SELECT
+           (SELECT COUNT(*) FROM clientes c WHERE ${EN_MES('c.creado_en', 1, 2)}) AS nuevas,
+           (SELECT COUNT(*) FROM clientes c WHERE ${EN_MES('c.creado_en', 3, 4)}) AS nuevas_ant,
+           (SELECT COUNT(DISTINCT v.cliente_id) FROM ventas v WHERE ${VV} AND v.cliente_id IS NOT NULL AND ${EN_MES('v.creado_en', 1, 2)}${L('v', 5)}) AS compraron,
+           (SELECT COUNT(DISTINCT v.cliente_id) FROM ventas v WHERE ${VV} AND v.cliente_id IS NOT NULL AND ${EN_MES('v.creado_en', 1, 2)}${L('v', 5)}
+              AND EXISTS (SELECT 1 FROM ventas v2 WHERE v2.cliente_id = v.cliente_id AND COALESCE(v2.anulada, FALSE) = FALSE AND v2.creado_en < date_trunc('month', make_date($2::int, $1::int, 1)))) AS volvieron`,
+        P([mes, anio, mesAnt, anioAnt])),
+      // Sueldos: los egresos de tipo "sueldo" del mes, juntados por concepto (como se cargaron: "Sueldo Vero", "Aguinaldo Mara"…)
+      q(`SELECT INITCAP(TRIM(REGEXP_REPLACE(m.concepto, '\s+', ' ', 'g'))) AS quien, SUM(m.importe) AS total, COUNT(*) AS pagos
+         FROM movimientos_caja m LEFT JOIN categorias_costo cc ON cc.id = m.categoria_id
+         WHERE m.tipo = 'E' AND ${NO_ANULADO('m')} AND (cc.tipo = 'sueldo' OR (m.categoria_id IS NULL AND m.concepto ILIKE '%sueldo%'))
+           AND m.concepto NOT ILIKE '%comisi%' AND ${EN_MES('m.creado_en', 1, 2)}${localNum !== null ? ' AND (m.local_id = $3 OR m.local_id IS NULL)' : ''}
+         GROUP BY 1 ORDER BY 2 DESC LIMIT 15`, P([mes, anio])),
+      // Comisiones que ganó el equipo de cada local en el mes
+      q(`SELECT l.id, l.nombre, COALESCE(SUM(c.comision_ganada), 0) AS ganada, COALESCE(SUM(c.comision_ganada) FILTER (WHERE c.pagada), 0) AS pagada
+         FROM locales l JOIN comisiones c ON c.local_id = l.id
+         WHERE EXTRACT(MONTH FROM c.fecha) = $1 AND EXTRACT(YEAR FROM c.fecha) = $2${localNum !== null ? ' AND l.id = $3' : ''}
+         GROUP BY l.id, l.nombre HAVING SUM(c.comision_ganada) > 0 ORDER BY l.id`, P([mes, anio])),
+      q(`SELECT COUNT(*) FILTER (WHERE ${EN_MES('t.creado_en', 1, 2)}) AS cant, COALESCE(SUM(t.total) FILTER (WHERE ${EN_MES('t.creado_en', 1, 2)}), 0) AS total,
+           COUNT(*) FILTER (WHERE ${EN_MES('t.creado_en', 3, 4)}) AS cant_ant
+         FROM tienda_pedidos t WHERE t.estado NOT IN ('cancelado', 'pendiente_pago')${L('t', 5)}`, P([mes, anio, mesAnt, anioAnt])),
+      q(`SELECT COALESCE(SUM(vi.cantidad * COALESCE(p.costo, 0)), 0) AS cmv, COALESCE(SUM(vi.cantidad * vi.precio_unitario), 0) AS ventas
+         FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id JOIN productos p ON p.id = vi.producto_id
+         WHERE ${VV} AND ${EN_MES('v.creado_en', 1, 2)}${L('v', 3)}`, P([mes, anio])),
+      // Mes en curso: lo vendido el mes anterior hasta el mismo día
+      enCurso ? q(`SELECT COALESCE(SUM(v.total), 0) AS total, COUNT(*) AS cant FROM ventas v
+         WHERE ${VV} AND ${EN_MES('v.creado_en', 1, 2)} AND EXTRACT(DAY FROM ${AR('v.creado_en')}) <= $3${L('v', 4)}`, P([mesAnt, anioAnt, hoyAR.d])) : Promise.resolve(null),
+    ]);
+
+    const ventas = est.total_ventas, ventasAnt = estAnt.total_ventas, cant = est.cantidad_ventas, cantAnt = estAnt.cantidad_ventas;
+    const GRUPOS = [['variables', 'Mercadería y gastos variables'], ['fijos', 'Gastos fijos'], ['sueldos', 'Sueldos y comisiones'], ['admin', 'Administrativos y marketing'], ['impuestos', 'Impuestos'], ['comisiones_medios_pago', 'Comisiones de tarjetas y apps']];
+    const egresos = GRUPOS.map(([k, nombre]) => ({ k, nombre, total: est[k].total, total_ant: estAnt[k].total, detalle: Object.entries(est[k].detalle).map(([n, v]) => ({ n, v })).sort((a, b) => b.v - a.v).slice(0, 4) })).filter(g => g.total > 0 || g.total_ant > 0);
+    const porDia = Array.from({ length: diasMes }, (_, i) => { const r = dias.find(x => x.d === i + 1), a = diasAnt.find(x => x.d === i + 1); return { d: i + 1, total: num(r && r.total), ant: num(a && a.total) }; });
+    const mejorDia = porDia.reduce((m, x) => (x.total > (m ? m.total : 0) ? x : m), null);
+    const vAnt = Object.fromEntries(vendAnt.map(x => [x.id, { total: num(x.total), cant: num(x.cant) }]));
+    const c = clientas[0] || {}, w = web[0] || {}, cm = cmvR[0] || {};
+    res.json({
+      mes, anio, mes_ant: mesAnt, anio_ant: anioAnt, en_curso: enCurso, dia_hoy: enCurso ? hoyAR.d : null, dias_mes: diasMes,
+      local_id: localNum,
+      ventas: { total: ventas, total_ant: ventasAnt, cant, cant_ant: cantAnt, ticket: cant ? ventas / cant : 0, ticket_ant: cantAnt ? ventasAnt / cantAnt : 0,
+        mismos_dias_ant: mismosDias && mismosDias[0] ? { total: num(mismosDias[0].total), cant: num(mismosDias[0].cant) } : null },
+      ingresos: est.ingresos.total, ingresos_ant: estAnt.ingresos.total, ingresos_detalle: est.ingresos.detalle,
+      egresos_total: est.total_egresos, egresos_total_ant: estAnt.total_egresos, egresos,
+      neto: est.resultado_neto, neto_ant: estAnt.resultado_neto, sin_categoria: est.sin_categoria,
+      por_dia: porDia, mejor_dia: mejorDia && mejorDia.total > 0 ? mejorDia : null,
+      locales: locales.map(l => ({ id: l.id, nombre: l.nombre, total: num(l.total), total_ant: num(l.total_ant), cant: num(l.cant) })),
+      vendedoras: vendedoras.map(v => ({ nombre: v.nombre, total: num(v.total), cant: num(v.cant), ticket: num(v.cant) ? num(v.total) / num(v.cant) : 0, total_ant: (vAnt[v.id] || {}).total || 0 })),
+      sueldos: sueldosRows.map(r => ({ quien: r.quien, total: num(r.total), pagos: num(r.pagos) })),
+      comisiones_equipo: comisionesEq.map(r => ({ local: r.nombre, ganada: num(r.ganada), pagada: num(r.pagada) })),
+      top_productos: topProd.map(r => ({ nombre: r.nombre, marca: r.marca, unidades: num(r.unidades), total: num(r.total) })),
+      top_marcas: topMarcas.map(r => ({ marca: r.marca, total: num(r.total), unidades: num(r.unidades) })),
+      medios: (medios.detalle || []).map(d => ({ medio: d.medio, monto: d.monto, ventas: d.ventas })).slice(0, 6),
+      clientas: { nuevas: num(c.nuevas), nuevas_ant: num(c.nuevas_ant), compraron: num(c.compraron), volvieron: num(c.volvieron) },
+      web: { cant: num(w.cant), total: num(w.total), cant_ant: num(w.cant_ant) },
+      margen: num(cm.ventas) > 0 ? { pct: (num(cm.ventas) - num(cm.cmv)) / num(cm.ventas) * 100, ganancia_bruta: num(cm.ventas) - num(cm.cmv) } : null,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'No se pudo armar el informe: ' + error.message });
+  }
+};
+
+module.exports = { getInformeMes, getBaseDecisiones, getMedallas, getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };
