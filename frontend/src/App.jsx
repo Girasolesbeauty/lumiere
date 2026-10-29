@@ -10106,6 +10106,341 @@ const GRUPOS_EGRESO = [
   { k: "comisiones_medios_pago", l: "Comisiones de medios de pago", c: "#8e44ad", ayuda: "lo que cobran tarjetas y plataformas" },
 ];
 
+// ===================== Informe del mes (para descargar como imagen o PDF) =====================
+// Pensado para alguien que no quiere leer: números grandes, flechas de suba/baja, colores y gráficos simples.
+// Tiene sus propios colores (no los del tema) para que la imagen descargada se vea igual siempre.
+const INF_CSS = `
+.inf-wrap{display:flex;flex-direction:column;align-items:center;gap:12px}
+.inf-acc{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.inf{width:100%;max-width:760px;text-align:left;background:#fff8ef;color:#2a2238;border-radius:26px;overflow:hidden;font-family:inherit;box-shadow:0 10px 40px rgba(60,30,90,.15)}
+.inf *{box-sizing:border-box}
+.inf-top{position:relative;padding:26px 24px 30px;color:#fff;background:linear-gradient(135deg,#5b2a86 0%,#a03c8c 55%,#f08a4b 100%);overflow:hidden}
+.inf-top:after{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,.12)}
+.inf-top .neg{font-size:13px;letter-spacing:.18em;text-transform:uppercase;opacity:.85;font-weight:800}
+.inf-top h1{margin:6px 0 2px;font-size:34px;line-height:1.05;font-weight:900;color:#fff}
+.inf-top .sub{font-size:14px;opacity:.9}
+.inf-hero{margin:-18px 16px 0;position:relative;z-index:1;background:#fff;border-radius:22px;padding:18px 18px 16px;text-align:center;box-shadow:0 8px 24px rgba(90,40,120,.14)}
+.inf-hero .lbl{font-size:14px;font-weight:800;color:#7a6c8f}
+.inf-hero .big{font-size:44px;font-weight:900;line-height:1.1;color:#2a2238;margin:2px 0 8px;letter-spacing:-.01em}
+.inf-flecha{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:99px;font-weight:900;font-size:16px}
+.inf-flecha.up{background:#dff6e8;color:#13804a}.inf-flecha.down{background:#fde3e1;color:#c0392b}.inf-flecha.eq{background:#eee8f4;color:#6b5a80}
+.inf-hero .vs{font-size:12.5px;color:#7a6c8f;margin-top:6px}
+.inf-sec{padding:18px 16px 4px}
+.inf-h{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:900;margin:0 0 10px;color:#3b2754}
+.inf-h span{font-size:24px}
+.inf-g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.inf-g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.inf-card{background:#fff;border-radius:18px;padding:14px 12px;box-shadow:0 3px 12px rgba(90,40,120,.08);min-width:0}
+.inf-kpi{text-align:center}
+.inf-kpi .e{font-size:30px;line-height:1}
+.inf-kpi .n{font-size:22px;font-weight:900;margin:6px 0 2px;word-break:break-word}
+.inf-kpi .t{font-size:12px;color:#7a6c8f;font-weight:700}
+.inf-kpi .inf-flecha{font-size:12.5px;padding:3px 9px;margin-top:6px}
+.inf-barra{height:28px;border-radius:99px;overflow:hidden;display:flex;background:#eee6f5}
+.inf-barra > div{height:100%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:12.5px;white-space:nowrap;overflow:hidden}
+.inf-frase{font-size:15px;line-height:1.4;text-align:center;margin:10px 4px 2px}
+.inf-frase b{font-size:18px}
+.inf-ley{display:flex;flex-direction:column;gap:7px;min-width:0;flex:1}
+.inf-ley div{display:flex;align-items:center;gap:8px;font-size:13px;min-width:0}
+.inf-ley i{width:14px;height:14px;border-radius:4px;flex:none}
+.inf-ley .nm{flex:1;min-width:0;line-height:1.25}
+.inf-ley b{font-size:14px}
+.inf-rank{display:flex;flex-direction:column;gap:8px}
+.inf-rank .f{display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:center;gap:8px;font-size:14px}
+.inf-rank .m{font-size:22px;text-align:center}
+.inf-rank .bar{height:10px;border-radius:99px;background:linear-gradient(90deg,#f08a4b,#a03c8c);margin-top:4px}
+.inf-rank .nm{font-weight:800;line-height:1.25}
+.inf-rank small{color:#7a6c8f;font-size:11.5px}
+.inf-reina{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,#fff3c4,#ffe08a);border-radius:20px;padding:14px 16px;margin-bottom:12px}
+.inf-reina .c{font-size:48px;line-height:1}
+.inf-reina .nm{font-size:22px;font-weight:900}
+.inf-reina .d{font-size:13px;color:#6b5320;font-weight:700}
+.inf-dias{display:flex;align-items:flex-end;gap:2px;height:120px;padding:0 2px}
+.inf-dias .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;position:relative}
+.inf-dias .b{width:100%;border-radius:4px 4px 0 0;background:#c9b6e4}
+.inf-dias .b.top{background:linear-gradient(180deg,#f08a4b,#a03c8c)}
+.inf-dias .a{position:absolute;left:15%;right:15%;height:3px;border-radius:2px;background:#2a2238;opacity:.28}
+.inf-dias-x{display:flex;justify-content:space-between;font-size:10.5px;color:#7a6c8f;margin-top:4px}
+.inf-chip{display:inline-flex;align-items:center;gap:6px;background:#f2eaf9;border-radius:99px;padding:5px 11px;font-size:12.5px;font-weight:800;color:#5b2a86}
+.inf-lista{display:flex;flex-direction:column;gap:6px}
+.inf-lista .f{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:8px 10px;background:#fbf7ff;border-radius:12px}
+.inf-lista .f{flex-wrap:wrap;align-items:center}
+.inf-lista .f span:first-child{min-width:0;flex:1 1 140px}
+.inf-lista .f b{white-space:nowrap}
+.inf-conc{display:flex;flex-direction:column;gap:8px}
+.inf-conc div{display:flex;gap:10px;align-items:flex-start;background:#fff;border-radius:14px;padding:10px 12px;font-size:14.5px;line-height:1.35;box-shadow:0 2px 8px rgba(90,40,120,.06)}
+.inf-conc div span{font-size:22px;line-height:1}
+.inf-pie{text-align:center;font-size:11.5px;color:#9a8cad;padding:16px 10px 20px}
+.inf-gauge{display:flex;align-items:center;gap:14px}
+@media (max-width:520px){.inf-top h1{font-size:28px}.inf-hero .big{font-size:36px}.inf-g3{gap:6px}.inf-kpi .n{font-size:17px}.inf-kpi .e{font-size:24px}.inf-g2{grid-template-columns:minmax(0,1fr)}}
+`;
+const INF_COLORES = ["#a03c8c", "#f08a4b", "#5b2a86", "#2bb3a3", "#f2c14e", "#e2557a", "#6c8ef5"];
+const infPlata = (n) => "$" + Math.round(n || 0).toLocaleString("es-AR");
+const infCorto = (n) => { const a = Math.abs(n || 0); return a >= 1e6 ? "$" + (n / 1e6).toLocaleString("es-AR", { maximumFractionDigits: 1 }) + " M" : a >= 1e4 ? "$" + Math.round(n / 1e3).toLocaleString("es-AR") + " mil" : infPlata(n); };
+const infVar = (a, b) => (b > 0 ? (a - b) / b * 100 : null);
+function InfFlecha({ v, invertir, chico }) {
+  if (v === null || v === undefined || !isFinite(v)) return <span className="inf-flecha eq" style={chico ? { fontSize: 12 } : null}>{chico ? "—" : "— sin dato anterior"}</span>;
+  const r = Math.round(v), bueno = invertir ? r < 0 : r > 0;
+  if (r === 0) return <span className="inf-flecha eq">= igual</span>;
+  return <span className={"inf-flecha " + (bueno ? "up" : "down")}>{r > 0 ? "▲" : "▼"} {Math.abs(r)}%</span>;
+}
+function InfDona({ partes, total, centro, sub }) {
+  const R = 52, C = 2 * Math.PI * R;
+  let acc = 0;
+  return (
+    <svg viewBox="0 0 140 140" width="140" height="140" style={{ flex: "none" }}>
+      <circle cx="70" cy="70" r={R} fill="none" stroke="#eee6f5" strokeWidth="22" />
+      {partes.map((x, i) => { const f = total > 0 ? x.v / total : 0; const el = <circle key={i} cx="70" cy="70" r={R} fill="none" stroke={x.c} strokeWidth="22" strokeDasharray={(f * C) + " " + C} strokeDashoffset={-acc * C} transform="rotate(-90 70 70)" />; acc += f; return el; })}
+      <text x="70" y="68" textAnchor="middle" fontSize="20" fontWeight="900" fill="#2a2238">{centro}</text>
+      <text x="70" y="86" textAnchor="middle" fontSize="10.5" fontWeight="700" fill="#7a6c8f">{sub}</text>
+    </svg>
+  );
+}
+function InformeMes({ mes, anio, local, nombreLocalTxt }) {
+  const [d, setD] = useState(null);
+  const [error, setError] = useState("");
+  const [negocio, setNegocio] = useState("");
+  const [bajando, setBajando] = useState("");
+  const ref = useRef(null);
+  useEffect(() => { API.get("/configuracion").then(r => setNegocio(r.data?.nombre_negocio || "")).catch(() => {}); }, []);
+  useEffect(() => {
+    setD(null); setError("");
+    API.get("/finanzas/informe-mes", { params: { mes, anio, local_id: local === "consolidado" ? undefined : local } })
+      .then(r => setD(r.data)).catch(e => setError(e.response?.data?.error || "No se pudo armar el informe"));
+  }, [mes, anio, local]);
+  const nombreArchivo = "informe-" + MESES_NOMBRE[mes - 1].toLowerCase() + "-" + anio;
+  const capturar = async () => {
+    const { default: html2canvas } = await import("html2canvas");
+    return html2canvas(ref.current, { scale: Math.max(2, Math.min(3, 1400 / ref.current.offsetWidth)), backgroundColor: "#fff8ef", logging: false, useCORS: true });
+  };
+  const bajarImagen = async () => {
+    setBajando("img");
+    try {
+      const c = await capturar();
+      const a = document.createElement("a"); a.href = c.toDataURL("image/png"); a.download = nombreArchivo + ".png"; a.click();
+    } catch (e) { setError("No se pudo descargar la imagen"); }
+    setBajando("");
+  };
+  const bajarPdf = async () => {
+    setBajando("pdf");
+    try {
+      const [c, { jsPDF }] = await Promise.all([capturar(), import("jspdf")]);
+      // Una sola hoja larga, del ancho de una A4, para que se lea entero sin cortes
+      const ancho = 210, alto = c.height * ancho / c.width;
+      const pdf = new jsPDF({ unit: "mm", format: [ancho, alto] });
+      pdf.addImage(c.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, ancho, alto);
+      pdf.save(nombreArchivo + ".pdf");
+    } catch (e) { setError("No se pudo descargar el PDF"); }
+    setBajando("");
+  };
+  if (error) return <div className="cc-aviso bad" role="alert">{error}</div>;
+  if (!d) return <div className="skel" style={{ height: 600, maxWidth: 760, margin: "0 auto", borderRadius: 26 }} />;
+
+  const mesTxt = MESES_NOMBRE[d.mes - 1], antTxt = MESES_NOMBRE[d.mes_ant - 1].toLowerCase();
+  const v = d.ventas;
+  // Mes en curso: la facturación se compara con los mismos días del mes anterior (si no, siempre "baja")
+  const baseFact = d.en_curso && v.mismos_dias_ant ? v.mismos_dias_ant.total : v.total_ant;
+  const varFact = infVar(v.total, baseFact);
+  const varTicket = infVar(v.ticket, v.ticket_ant);
+  const varCant = infVar(v.cant, d.en_curso && v.mismos_dias_ant ? v.mismos_dias_ant.cant : v.cant_ant);
+  const pctGasto = d.ingresos > 0 ? Math.min(100, Math.round(d.egresos_total / d.ingresos * 100)) : 0;
+  const queda = d.ingresos > 0 ? Math.max(0, 100 - pctGasto) : 0;
+  const partesEg = d.egresos.map((g, i) => ({ n: g.nombre, v: g.total, c: INF_COLORES[i % INF_COLORES.length], ant: g.total_ant })).filter(x => x.v > 0);
+  const maxDia = Math.max(1, ...d.por_dia.map(x => Math.max(x.total, x.ant)));
+  const diasVer = d.en_curso ? d.por_dia.slice(0, d.dia_hoy) : d.por_dia;
+  const maxVend = Math.max(1, ...d.vendedoras.map(x => x.total));
+  const reina = d.vendedoras[0];
+  const canales = Object.entries(d.ingresos_detalle || {}).filter(([n]) => /^Ventas/i.test(n)).map(([n, val], i) => ({ n, v: val, c: INF_COLORES[(i + 3) % INF_COLORES.length] })).filter(x => x.v > 0);
+  const totalCan = canales.reduce((t, x) => t + x.v, 0);
+  const totalMed = d.medios.reduce((t, x) => t + x.monto, 0);
+  const maxLocal = Math.max(1, ...d.locales.map(x => Math.max(x.total, x.total_ant)));
+  const fidel = d.clientas.compraron > 0 ? Math.round(d.clientas.volvieron / d.clientas.compraron * 100) : null;
+  const medalla = (i) => ["🥇", "🥈", "🥉"][i] || "⭐";
+
+  // Lo más importante en frases cortas
+  const conc = [];
+  if (varFact !== null) conc.push(varFact >= 0 ? ["🎉", "Vendiste " + Math.round(varFact) + "% más que en " + antTxt + (d.en_curso ? " (mismos días)" : "") + "."] : ["📉", "Vendiste " + Math.abs(Math.round(varFact)) + "% menos que en " + antTxt + (d.en_curso ? " (mismos días)" : "") + "."]);
+  if (d.ingresos > 0) conc.push(d.neto >= 0 ? ["💰", "De cada $100 que entraron, te quedaron $" + queda + " después de pagar todo."] : ["⚠️", "Este mes se gastó más de lo que entró: faltaron " + infPlata(-d.neto) + "."]);
+  if (varTicket !== null && Math.abs(varTicket) >= 3) conc.push(varTicket > 0 ? ["🛍️", "Cada clienta gastó en promedio " + Math.round(varTicket) + "% más que en " + antTxt + "."] : ["🛍️", "El ticket promedio bajó " + Math.abs(Math.round(varTicket)) + "%: sumá productos complementarios en caja."]);
+  const subeGasto = partesEg.map(x => ({ ...x, var: infVar(x.v, x.ant) })).filter(x => x.var !== null && x.var > 20 && x.v > d.egresos_total * 0.1).sort((a, b) => b.var - a.var)[0];
+  if (subeGasto) conc.push(["🔎", "Ojo: lo gastado en «" + subeGasto.n + "» creció " + Math.round(subeGasto.var) + "% respecto de " + antTxt + "."]);
+  if (reina) conc.push(["👑", reina.nombre.split(" ")[0] + " fue la que más vendió: " + infCorto(reina.total) + "."]);
+  if (d.top_productos[0]) conc.push(["⭐", "Lo más vendido: " + d.top_productos[0].nombre + " (" + d.top_productos[0].unidades + " u.)."]);
+  if (d.sin_categoria > 0) conc.push(["📝", "Hay " + d.sin_categoria + " gasto" + (d.sin_categoria === 1 ? "" : "s") + " sin categoría: categorizalos para que el informe sea exacto."]);
+
+  return (
+    <div className="inf-wrap">
+      <style>{INF_CSS}</style>
+      <div className="inf-acc">
+        <button className="btn btn-p" onClick={bajarImagen} disabled={!!bajando}>{bajando === "img" ? "Preparando…" : "📲 Descargar imagen"}</button>
+        <button className="btn btn-s" onClick={bajarPdf} disabled={!!bajando}>{bajando === "pdf" ? "Preparando…" : "📄 Descargar PDF"}</button>
+      </div>
+      <div className="inf" ref={ref}>
+        <div className="inf-top">
+          <div className="neg">{negocio || "Tu negocio"}{nombreLocalTxt ? " · " + nombreLocalTxt : ""}</div>
+          <h1>📊 Así nos fue en {mesTxt}</h1>
+          <div className="sub">{d.en_curso ? "Mes en curso: del 1 al " + d.dia_hoy + " de " + mesTxt.toLowerCase() + " " + d.anio : mesTxt + " " + d.anio + " · comparado con " + antTxt}</div>
+        </div>
+
+        <div className="inf-hero">
+          <div className="lbl">💵 FACTURAMOS</div>
+          <div className="big">{infPlata(v.total)}</div>
+          <InfFlecha v={varFact} />
+          <div className="vs">{d.en_curso && v.mismos_dias_ant ? "vs " + infPlata(v.mismos_dias_ant.total) + " del 1 al " + d.dia_hoy + " de " + antTxt : "vs " + infPlata(v.total_ant) + " en " + antTxt}</div>
+        </div>
+
+        <div className="inf-sec">
+          <div className="inf-g3">
+            <div className="inf-card inf-kpi"><div className="e">🧾</div><div className="n">{v.cant.toLocaleString("es-AR")}</div><div className="t">ventas</div><InfFlecha v={varCant} chico /></div>
+            <div className="inf-card inf-kpi"><div className="e">🛍️</div><div className="n">{infPlata(v.ticket)}</div><div className="t">ticket promedio</div><InfFlecha v={varTicket} chico /></div>
+            <div className="inf-card inf-kpi"><div className="e">{d.neto >= 0 ? "💰" : "⚠️"}</div><div className="n" style={{ color: d.neto >= 0 ? "#13804a" : "#c0392b" }}>{infCorto(d.neto)}</div><div className="t">{d.neto >= 0 ? "nos quedó" : "faltó"}</div><InfFlecha v={d.neto_ant > 0 ? infVar(d.neto, d.neto_ant) : null} chico /></div>
+          </div>
+          <div style={{ fontSize: 12, color: "#7a6c8f", textAlign: "center", marginTop: 6 }}>Ticket promedio de {antTxt}: {infPlata(v.ticket_ant)}</div>
+        </div>
+
+        <div className="inf-sec">
+          <div className="inf-h"><span>⚖️</span>Lo que entró y lo que salió</div>
+          <div className="inf-card">
+            <div className="inf-g2" style={{ gridTemplateColumns: "1fr 1fr", marginBottom: 10 }}>
+              <div style={{ textAlign: "center" }}><div style={{ fontSize: 12.5, fontWeight: 800, color: "#13804a" }}>⬆️ ENTRÓ</div><div style={{ fontSize: 22, fontWeight: 900 }}>{infCorto(d.ingresos)}</div></div>
+              <div style={{ textAlign: "center" }}><div style={{ fontSize: 12.5, fontWeight: 800, color: "#c0392b" }}>⬇️ SALIÓ</div><div style={{ fontSize: 22, fontWeight: 900 }}>{infCorto(d.egresos_total)}</div></div>
+            </div>
+            <div className="inf-barra">
+              {pctGasto > 0 && <div style={{ width: pctGasto + "%", background: "linear-gradient(90deg,#e2557a,#c0392b)" }}>{pctGasto >= 12 ? pctGasto + "% gastos" : ""}</div>}
+              {queda > 0 && <div style={{ width: queda + "%", background: "linear-gradient(90deg,#2bb3a3,#13804a)" }}>{queda >= 12 ? queda + "% queda" : ""}</div>}
+            </div>
+            <div className="inf-frase">{d.ingresos > 0 ? <>De cada <b>$100</b> que entraron, <b style={{ color: "#c0392b" }}>${pctGasto}</b> se fueron en gastos y <b style={{ color: "#13804a" }}>${queda}</b> quedaron 💚</> : "Todavía no hay ingresos este mes"}</div>
+          </div>
+        </div>
+
+        {partesEg.length > 0 && <div className="inf-sec">
+          <div className="inf-h"><span>🧩</span>¿En qué se fue la plata?</div>
+          <div className="inf-card" style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+            <InfDona partes={partesEg} total={d.egresos_total} centro={infCorto(d.egresos_total)} sub="de gastos" />
+            <div className="inf-ley">
+              {partesEg.map((x, i) => <div key={i}><i style={{ background: x.c }} /><span className="nm">{x.n}</span><b>{Math.round(x.v / d.egresos_total * 100)}%</b></div>)}
+            </div>
+          </div>
+          <div className="inf-lista" style={{ marginTop: 8 }}>
+            {partesEg.map((x, i) => <div className="f" key={i}><span>{x.n}</span><b>{infPlata(x.v)} <InfFlecha v={infVar(x.v, x.ant)} invertir chico /></b></div>)}
+          </div>
+        </div>}
+
+        {(reina || d.vendedoras.length > 0) && <div className="inf-sec">
+          <div className="inf-h"><span>👑</span>La que más vendió</div>
+          {reina && <div className="inf-reina">
+            <div className="c">👑</div>
+            <div style={{ minWidth: 0 }}>
+              <div className="nm">{reina.nombre}</div>
+              <div className="d">{infPlata(reina.total)} · {reina.cant} ventas · ticket {infPlata(reina.ticket)}</div>
+              {reina.total_ant > 0 && <div style={{ marginTop: 4 }}><InfFlecha v={infVar(reina.total, reina.total_ant)} chico /></div>}
+            </div>
+          </div>}
+          {d.vendedoras.length > 1 && <div className="inf-card inf-rank">
+            {d.vendedoras.map((x, i) => (
+              <div className="f" key={i}>
+                <div className="m">{medalla(i)}</div>
+                <div style={{ minWidth: 0 }}><div className="nm">{x.nombre}</div><div className="bar" style={{ width: Math.max(4, x.total / maxVend * 100) + "%" }} /><small>{x.cant} ventas · ticket {infPlata(x.ticket)}</small></div>
+                <b>{infCorto(x.total)}</b>
+              </div>))}
+          </div>}
+        </div>}
+
+        {(d.sueldos.length > 0 || d.comisiones_equipo.length > 0) && <div className="inf-sec">
+          <div className="inf-h"><span>💸</span>Sueldos y comisiones</div>
+          <div className="inf-lista">
+            {d.sueldos.map((x, i) => <div className="f" key={"s" + i}><span>👩‍💼 {x.quien}</span><b>{infPlata(x.total)}</b></div>)}
+            {d.comisiones_equipo.map((x, i) => <div className="f" key={"c" + i}><span>🎯 Comisiones equipo {x.local}</span><b>{infPlata(x.ganada)}{x.pagada < x.ganada ? <small style={{ color: "#b45309", fontWeight: 700 }}> · falta pagar {infPlata(x.ganada - x.pagada)}</small> : null}</b></div>)}
+          </div>
+        </div>}
+
+        <div className="inf-sec">
+          <div className="inf-h"><span>📈</span>Ventas día por día</div>
+          <div className="inf-card">
+            <div className="inf-dias">
+              {diasVer.map(x => (
+                <div className="col" key={x.d} title={x.d + ": " + infPlata(x.total)}>
+                  <div className={"b" + (d.mejor_dia && x.d === d.mejor_dia.d ? " top" : "")} style={{ height: (x.total / maxDia * 100) + "%" }} />
+                  {x.ant > 0 && <div className="a" style={{ bottom: (x.ant / maxDia * 100) + "%" }} />}
+                </div>))}
+            </div>
+            <div className="inf-dias-x"><span>día 1</span><span>día {diasVer.length}</span></div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginTop: 10 }}>
+              {d.mejor_dia && <span className="inf-chip">🏆 Mejor día: {d.mejor_dia.d} de {mesTxt.toLowerCase()} · {infCorto(d.mejor_dia.total)}</span>}
+              <span className="inf-chip" style={{ background: "#f4f1f7", color: "#6b5a80" }}>▬ rayita = mismo día de {antTxt}</span>
+            </div>
+          </div>
+        </div>
+
+        {(d.locales.length > 1 || canales.length > 1) && <div className="inf-sec">
+          <div className="inf-g2">
+            {d.locales.length > 1 && <div className="inf-card">
+              <div className="inf-h" style={{ fontSize: 16 }}><span>🏪</span>Por local</div>
+              {d.locales.map((l, i) => (
+                <div key={l.id} style={{ marginBottom: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, fontWeight: 800 }}><span>{l.nombre}</span><span>{infCorto(l.total)}</span></div>
+                  <div style={{ height: 14, borderRadius: 99, background: "#eee6f5", marginTop: 4 }}><div style={{ height: "100%", borderRadius: 99, width: Math.max(3, l.total / maxLocal * 100) + "%", background: INF_COLORES[i] }} /></div>
+                  <div style={{ marginTop: 4 }}><InfFlecha v={infVar(l.total, l.total_ant)} chico /></div>
+                </div>))}
+            </div>}
+            {canales.length > 1 && <div className="inf-card">
+              <div className="inf-h" style={{ fontSize: 16 }}><span>🌐</span>Local vs online</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <InfDona partes={canales} total={totalCan} centro={Math.round((canales.find(x => /web|online/i.test(x.n)) || { v: 0 }).v / totalCan * 100) + "%"} sub="online" />
+                <div className="inf-ley">{canales.map((x, i) => <div key={i}><i style={{ background: x.c }} /><span className="nm">{x.n.replace(/^Ventas (en el |de la )?/i, "")}</span><b>{Math.round(x.v / totalCan * 100)}%</b></div>)}</div>
+              </div>
+            </div>}
+          </div>
+        </div>}
+
+        {d.medios.length > 0 && <div className="inf-sec">
+          <div className="inf-h"><span>💳</span>¿Cómo nos pagaron?</div>
+          <div className="inf-card">
+            {d.medios.map((m, i) => { const pc = totalMed > 0 ? Math.round(m.monto / totalMed * 100) : 0; return (
+              <div key={i} style={{ marginBottom: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5 }}><span style={{ fontWeight: 700 }}>{m.medio}</span><b>{pc}%</b></div>
+                <div style={{ height: 12, borderRadius: 99, background: "#eee6f5", marginTop: 3 }}><div style={{ height: "100%", borderRadius: 99, width: Math.max(2, pc) + "%", background: INF_COLORES[i % INF_COLORES.length] }} /></div>
+              </div>); })}
+          </div>
+        </div>}
+
+        {(d.top_productos.length > 0 || d.top_marcas.length > 0) && <div className="inf-sec">
+          <div className="inf-g2">
+            {d.top_productos.length > 0 && <div className="inf-card">
+              <div className="inf-h" style={{ fontSize: 16 }}><span>⭐</span>Lo más vendido</div>
+              <div className="inf-rank">{d.top_productos.map((x, i) => <div className="f" key={i}><div className="m" style={{ fontSize: 18 }}>{medalla(i)}</div><div className="nm" style={{ fontSize: 13 }}>{x.nombre}</div><b style={{ fontSize: 13 }}>{x.unidades} u.</b></div>)}</div>
+            </div>}
+            {d.top_marcas.length > 0 && <div className="inf-card">
+              <div className="inf-h" style={{ fontSize: 16 }}><span>🏷️</span>Marcas que más vendieron</div>
+              <div className="inf-rank">{d.top_marcas.map((x, i) => <div className="f" key={i}><div className="m" style={{ fontSize: 18 }}>{medalla(i)}</div><div className="nm" style={{ fontSize: 13 }}>{x.marca}</div><b style={{ fontSize: 13 }}>{infCorto(x.total)}</b></div>)}</div>
+            </div>}
+          </div>
+        </div>}
+
+        <div className="inf-sec">
+          <div className="inf-h"><span>👩</span>Clientas</div>
+          <div className="inf-g3">
+            <div className="inf-card inf-kpi"><div className="e">🆕</div><div className="n">{d.clientas.nuevas}</div><div className="t">clientas nuevas</div><InfFlecha v={infVar(d.clientas.nuevas, d.clientas.nuevas_ant)} chico /></div>
+            <div className="inf-card inf-kpi"><div className="e">🔁</div><div className="n">{fidel !== null ? fidel + "%" : "—"}</div><div className="t">volvieron a comprar</div></div>
+            <div className="inf-card inf-kpi"><div className="e">🌐</div><div className="n">{d.web.cant}</div><div className="t">pedidos online</div><InfFlecha v={infVar(d.web.cant, d.web.cant_ant)} chico /></div>
+          </div>
+          {d.margen && <div className="inf-card inf-gauge" style={{ marginTop: 10 }}>
+            <InfDona partes={[{ v: Math.max(0, d.margen.pct), c: "#2bb3a3" }]} total={100} centro={Math.round(d.margen.pct) + "%"} sub="margen" />
+            <div style={{ fontSize: 14, lineHeight: 1.4 }}>📦 Sobre lo que costó la mercadería, cada <b>$100</b> vendidos dejaron <b style={{ color: "#13804a" }}>${Math.round(d.margen.pct)}</b> de ganancia bruta (antes de gastos).</div>
+          </div>}
+        </div>
+
+        {conc.length > 0 && <div className="inf-sec">
+          <div className="inf-h"><span>💡</span>En pocas palabras</div>
+          <div className="inf-conc">{conc.map(([e, t], i) => <div key={i}><span>{e}</span>{t}</div>)}</div>
+        </div>}
+
+        <div className="inf-pie">Hecho con Lumiere · {new Date().toLocaleDateString("es-AR")}</div>
+      </div>
+    </div>
+  );
+}
+
 function Finanzas({ localId, usuario, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
   const hoy = new Date();
@@ -10369,8 +10704,8 @@ function Finanzas({ localId, usuario, paletaActual }) {
 
   const tabs = [
     ["resumen", "Resumen"], ["movimientos", "Movimientos"], ["resultados", "Estado de resultados"],
-    ["comparar", "Comparar"], ["porlocal", "Costos por local"], ["equilibrio", "Punto de equilibrio"],
-  ].filter(([k]) => !(UN_SOLO_LOCAL && k === "porlocal"));
+    ["comparar", "Comparar"], ["porlocal", "Costos por local"], ["equilibrio", "Punto de equilibrio"], ["informe", "📊 Informe del mes"],
+  ].filter(([k]) => !(UN_SOLO_LOCAL && k === "porlocal") && (k !== "informe" || esJefe));
 
   return (
     <div className="fade">
@@ -10422,6 +10757,9 @@ function Finanzas({ localId, usuario, paletaActual }) {
           <button key={k} role="tab" aria-selected={tab === k} className={"tab " + (tab === k ? "on" : "")} onClick={() => setTab(k)}>{l}</button>
         ))}
       </div>
+
+      {/* ============ INFORME DEL MES (para descargar) ============ */}
+      {tab === "informe" && <InformeMes mes={mesFiltro} anio={anioFiltro} local={tabLocal === "consolidado" ? "consolidado" : (tabLocal === "rg" ? 1 : 2)} nombreLocalTxt={tabLocal !== "consolidado" ? nombreLocal(tabLocal === "rg" ? 1 : 2) : ""} />}
 
       {/* ============ RESUMEN ============ */}
       {tab === "resumen" && (
