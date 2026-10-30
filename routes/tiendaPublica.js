@@ -102,7 +102,7 @@ router.get('/:slug', async (req, res) => {
         dias: adv.dias.map(d => d.dia <= (advVista ? 25 : advHoy) ? d : { dia: d.dia, icono: d.icono, bloqueado: true }) } : null,
       halloween: hwEnCurso || hwVista ? { ceja: hw.ceja, titulo: hw.titulo, musica: hw.musica, subtitulo: hw.subtitulo, juego: hw.juego && hw.premios.some(x => x.chance > 0),
         premios: hw.premios.filter(x => x.chance > 0 && x.tipo !== 'nada').map(x => x.texto + (x.contado ? '*' : '')), tope: hw.tope, disfraz: hw.disfraz, despues: hw.despues, desde: hw.desde, hasta: hw.hasta, vista_previa: hwVista } : null,
-      cyber: cyEnCurso || cyVista ? { ceja: ky.ceja, titulo: ky.titulo, subtitulo: ky.subtitulo, boton: ky.boton, chips: ky.chips, desde: ky.desde, hasta: ky.hasta, vista_previa: cyVista } : null,
+      cyber: cyEnCurso || cyVista ? { ceja: ky.ceja, titulo: ky.titulo, subtitulo: ky.subtitulo, boton: ky.boton, chips: ky.chips, marcas_primero: ky.marcas_primero, desde: ky.desde, hasta: ky.hasta, vista_previa: cyVista } : null,
       promos: promosT.map(x => ({ nombre: x.nombre, pct: x.pct, aplica_a: x.aplica_a, productos: x.productos, categorias: x.categorias, pago: x.pago, local: x.local })),
       titulo: c.titulo || neg.nombre_negocio || 'Tienda', mensaje: c.mensaje || '', logo: c.logo || neg.logo_url || null, color: c.color || '#c9a84c', whatsapp: c.whatsapp || null,
       retiro: c.retiro_activo ? locales : [], ciudades,
