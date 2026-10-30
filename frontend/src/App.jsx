@@ -25424,6 +25424,222 @@ function CyberTienda({ temaPal }) {
     </div>
   );
 }
+// ===== Videos de Cyber Monday para Instagram (reel 1080x1920) =====
+// Los productos con descuento del Cyber (las promos creadas en "Crear ofertas"), con el precio con descuento y las cuotas
+// sin interés de los locales. Mismo estilo que la tarjeta del Cyber de la tienda: neón violeta/celeste, piso que avanza, chispas.
+const CY_INTRO = 2.4, CY_PROD = 3.2, CY_FIN = 3;
+const CY_FUENTE = ["CyM", "url(https://fonts.gstatic.com/s/montserrat/v31/JTUSjIg1_i6t8kCHKm459Wlhyw.woff2)", { weight: "100 900" }];
+const cyF = (peso, px) => peso + " " + Math.round(px) + "px CyM, 'Arial Black', Arial, sans-serif";
+const cyPlata = (n) => "$" + Math.round(n || 0).toLocaleString("es-AR");
+const cyDurVideo = (n) => CY_INTRO + Math.max(1, n) * CY_PROD + CY_FIN;
+// Ofertas de cada producto según las promos (por medio de pago) que siguen vigentes o están por empezar
+function cyOfertasProductos(promos, productos) {
+  const hoy = isoLocal(new Date()), m = new Map();
+  (promos || []).filter(pr => pr.activo !== false && pr.tipo === "descuento" && pr.aplica_a === "productos" && parseFloat(pr.valor) > 0 && (!pr.fecha_fin || String(pr.fecha_fin).slice(0, 10) >= hoy)).forEach(pr => {
+    const pct = parseFloat(pr.valor), cuotas = parseInt((String(pr.nombre || "").match(/(\d+)\s*cuotas/) || [])[1]) || 0;
+    (pr.productos_ids || []).map(Number).forEach(id => {
+      const o = m.get(id) || { transf: 0, efec: 0, otros: 0, cred: null };
+      if (pr.medio_pago_tipo === "transferencia") o.transf = Math.max(o.transf, pct);
+      else if (pr.medio_pago_tipo === "efectivo") o.efec = Math.max(o.efec, pct);
+      else if (pr.medio_pago_tipo === "credito") { if (cuotas > 1 && (!o.cred || cuotas > o.cred.cuotas || (cuotas === o.cred.cuotas && pct > o.cred.pct))) o.cred = { pct, cuotas }; }
+      else if (!pr.medio_pago_tipo) o.otros = Math.max(o.otros, pct);
+      m.set(id, o);
+    });
+  });
+  return (productos || []).filter(p => m.has(Number(p.id)) && (p.precio || 0) > 0).map(p => {
+    const o = m.get(Number(p.id)), mejor = Math.max(o.transf, o.efec, o.otros, o.cred ? o.cred.pct : 0);
+    const medio = mejor === o.transf ? "con transferencia" : mejor === o.efec ? "en efectivo" : mejor === o.otros ? "con todos los medios" : "con tarjeta de crédito";
+    return { id: Number(p.id), nombre: p.nombre || p.name || "", marca: p.marca || p.brand || "", precio: Number(p.precio || p.price || 0), mejor, medio, cred: o.cred };
+  }).filter(x => x.mejor > 0).sort((a, b) => (b.cred ? 1 : 0) - (a.cred ? 1 : 0) || b.mejor - a.mejor);
+}
+function cyDegrade(ctx, x0, x1, t) {
+  const g = ctx.createLinearGradient(x0, 0, x1, 0), k = (t * .25) % 1, cols = ["#c084fc", "#22d3ee", "#f0abfc", "#c084fc"];
+  for (let i = 0; i <= 6; i++) { const pos = (i / 6 + k) % 1; g.addColorStop(pos, cols[i % 3]); }
+  return g;
+}
+function cyRayo(ctx, x, y, h, a) {
+  const k = h / 100; ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = "#facc15"; ctx.shadowColor = "#facc15"; ctx.shadowBlur = 24 * k;
+  ctx.beginPath(); ctx.moveTo(x + 36 * k, y + 2 * k); ctx.lineTo(x + 8 * k, y + 56 * k); ctx.lineTo(x + 28 * k, y + 56 * k); ctx.lineTo(x + 20 * k, y + 98 * k); ctx.lineTo(x + 54 * k, y + 38 * k); ctx.lineTo(x + 33 * k, y + 38 * k); ctx.closePath(); ctx.fill(); ctx.restore();
+}
+function cyFondo(ctx, W, H, t, u) {
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, H * 1.25); g.addColorStop(0, "#3b0a8f"); g.addColorStop(.45, "#12002e"); g.addColorStop(1, "#05010f");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // luces que se mueven
+  [[.15 + .12 * Math.sin(t * .6), .12 + .06 * Math.cos(t * .5), "124,58,237", .55], [.85 - .1 * Math.sin(t * .5), .72 + .06 * Math.sin(t * .7), "6,182,212", .38]].forEach(([x, y, c, a]) => {
+    const r = 520 * u, gg = ctx.createRadialGradient(x * W, y * H, 0, x * W, y * H, r); gg.addColorStop(0, "rgba(" + c + "," + a + ")"); gg.addColorStop(1, "rgba(" + c + ",0)"); ctx.fillStyle = gg; ctx.fillRect(0, 0, W, H);
+  });
+  // piso de neón que avanza
+  const hz = H * .7, fin = H; ctx.save(); ctx.beginPath(); ctx.rect(0, hz, W, fin - hz); ctx.clip();
+  const off = (t * 1.1) % 1;
+  for (let i = 0; i < 14; i++) { const z = (i + off) / 14, y = hz + (fin - hz) * z * z; ctx.strokeStyle = "rgba(34,211,238," + (.55 * z) + ")"; ctx.lineWidth = (1 + 2 * z) * u; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  const gv = ctx.createLinearGradient(0, hz, 0, fin); gv.addColorStop(0, "rgba(192,132,252,0)"); gv.addColorStop(.35, "rgba(192,132,252,.3)"); gv.addColorStop(1, "rgba(192,132,252,.45)");
+  for (let i = -12; i <= 12; i++) { ctx.strokeStyle = gv; ctx.lineWidth = 2 * u; ctx.beginPath(); ctx.moveTo(W / 2 + i * 14 * u, hz); ctx.lineTo(W / 2 + i * 190 * u, fin); ctx.stroke(); }
+  ctx.restore();
+  // chispas
+  for (let i = 0; i < 34; i++) { const x = ((i * 337) % 1000) / 1000 * W, y = ((i * 571) % 1000) / 1000 * H * .9, a = Math.max(0, Math.sin(t * 2.2 + i * 1.7)); if (a < .05) continue; ctx.fillStyle = "rgba(255,255,255," + a + ")"; ctx.shadowColor = "#c084fc"; ctx.shadowBlur = 14 * u; ctx.beginPath(); ctx.arc(x, y, (2 + 3 * a) * u, 0, Math.PI * 2); ctx.fill(); }
+  ctx.shadowBlur = 0;
+}
+function cyBrilloPasa(ctx, W, H, t, u) {
+  const k = (t % 3.5) / 3.5, x = -W * .6 + k * W * 2.2; ctx.save(); ctx.globalCompositeOperation = "lighter";
+  const g = ctx.createLinearGradient(x - 220 * u, 0, x + 220 * u, H * .25); g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(.5, "rgba(255,255,255,.10)"); g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore();
+}
+function cyPildora(ctx, cx, y, w, h, t, u, l1, l2) {
+  const pul = 1 + .03 * Math.sin(t * 5.5); ctx.save(); ctx.translate(cx, y + h / 2); ctx.scale(pul, pul); ctx.translate(-cx, -(y + h / 2));
+  const g = ctx.createLinearGradient(cx - w / 2, y, cx + w / 2, y + h); g.addColorStop(0, "#7c3aed"); g.addColorStop(1, "#06b6d4");
+  ctx.shadowColor = "rgba(124,58,237,.8)"; ctx.shadowBlur = 40 * u; ctx.fillStyle = g; flyRect(ctx, cx - w / 2, y, w, h, 28 * u); ctx.fill(); ctx.shadowBlur = 0;
+  ctx.save(); flyRect(ctx, cx - w / 2, y, w, h, 28 * u); ctx.clip(); const k = (t % 2.2) / 2.2, bx = cx - w / 2 - 200 * u + k * (w + 400 * u); const b = ctx.createLinearGradient(bx - 90 * u, 0, bx + 90 * u, 0); b.addColorStop(0, "rgba(255,255,255,0)"); b.addColorStop(.5, "rgba(255,255,255,.35)"); b.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = b; ctx.fillRect(cx - w / 2, y, w, h); ctx.restore();
+  ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const cabe = (peso, px, txt) => { let f = px; ctx.font = cyF(peso, f); while (f > 18 * u && ctx.measureText(txt).width > w - 60 * u) { f -= 2 * u; ctx.font = cyF(peso, f); } };
+  cabe(900, 50 * u, l1); ctx.fillText(l1, cx, y + (l2 ? h * .36 : h / 2));
+  if (l2) { cabe(700, 36 * u, l2); ctx.globalAlpha = .95; ctx.fillText(l2, cx, y + h * .72); }
+  ctx.restore(); ctx.textBaseline = "alphabetic";
+}
+function cyDibujarVideo(ctx, W, H, t, d) {
+  const u = W / 1080, n = Math.max(1, d.prods.length), total = cyDurVideo(n);
+  cyFondo(ctx, W, H, t, u);
+  ctx.textAlign = "center";
+  // encabezado fijo durante los productos
+  const enProds = t >= CY_INTRO && t < CY_INTRO + n * CY_PROD;
+  if (enProds || t >= CY_INTRO - .3) {
+    const a = Math.min(flyEase((t - CY_INTRO + .3) / .5), 1 - flyEase((t - (CY_INTRO + n * CY_PROD) + .2) / .4));
+    if (a > 0) { ctx.save(); ctx.globalAlpha = a; ctx.font = cyF(900, 74 * u); ctx.fillStyle = cyDegrade(ctx, W * .2, W * .8, t); ctx.shadowColor = "rgba(192,132,252,.6)"; ctx.shadowBlur = 30 * u; ctx.fillText("CYBER MONDAY", W / 2 + 30 * u, 170 * u); ctx.restore(); cyRayo(ctx, W / 2 - 330 * u, 100 * u, 86 * u, a * (Math.sin(t * 9) > -.6 ? 1 : .35));
+      ctx.save(); ctx.globalAlpha = a * .9; ctx.font = cyF(700, 28 * u); ctx.fillStyle = "#22d3ee"; ctx.letterSpacing = (8 * u) + "px"; ctx.fillText((d.marca || "").toUpperCase(), W / 2, 226 * u); ctx.restore(); }
+  }
+  // 1) intro: rayo + CYBER MONDAY + HASTA X% OFF
+  if (t < CY_INTRO + .2) {
+    const a = 1 - flyEase((t - CY_INTRO + .3) / .45), e = flyEase(t / .7);
+    ctx.save(); ctx.globalAlpha = a;
+    cyRayo(ctx, W / 2 - 75 * u, H * .2 - 40 * u * (1 - e), 230 * u, e * (Math.sin(t * 12) > -.5 ? 1 : .3));
+    ctx.translate(W / 2, H * .44); const sc = .6 + .4 * flyEase((t - .15) / .6); ctx.scale(sc, sc);
+    ctx.font = cyF(900, 190 * u); ctx.fillStyle = cyDegrade(ctx, -W * .4, W * .4, t); ctx.shadowColor = "rgba(192,132,252,.7)"; ctx.shadowBlur = 50 * u;
+    ctx.fillText("CYBER", 0, 0); ctx.fillText("MONDAY", 0, 175 * u); ctx.restore();
+    if (d.maxPct > 0) { const e2 = flyEase((t - .7) / .5); ctx.save(); ctx.globalAlpha = a * e2; cyPildora(ctx, W / 2, H * .6 + 60 * u * (1 - e2), 640 * u, 130 * u, t, u, "HASTA " + Math.round(d.maxPct) + "% OFF"); ctx.restore(); }
+    const e3 = flyEase((t - 1.1) / .5); ctx.save(); ctx.globalAlpha = a * e3; ctx.fillStyle = "#fff"; ctx.font = cyF(700, 42 * u); ctx.fillText(d.cuotas ? "💳 Descuento + cuotas sin interés" : "Online y en nuestros locales", W / 2, H * .72); ctx.restore();
+  }
+  // 2) un producto por vez
+  for (let i = 0; i < n; i++) {
+    const p = d.prods[i]; if (!p) continue; const t0 = CY_INTRO + i * CY_PROD, lt = t - t0; if (lt < -.1 || lt > CY_PROD + .1) continue;
+    const ent = flyEase(lt / .55), sal = flyEaseInOut((lt - (CY_PROD - .4)) / .4), dx = (1 - ent) * W * .9 - sal * W * .9, rot = ((1 - ent) * 10 - sal * 10) * Math.PI / 180;
+    const cw = 680 * u, cx = W / 2 + dx, cy = 690 * u + Math.sin(t * 2.4) * 12 * u;
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot - .03 + Math.sin(t * 1.6) * .012);
+    ctx.shadowColor = "rgba(34,211,238,.45)"; ctx.shadowBlur = 60 * u; ctx.fillStyle = "#fff"; flyRect(ctx, -cw / 2, -cw / 2, cw, cw, 44 * u); ctx.fill(); ctx.shadowBlur = 0;
+    if (p.img) { ctx.save(); flyRect(ctx, -cw / 2, -cw / 2, cw, cw, 44 * u); ctx.clip(); const k = Math.min((cw - 60 * u) / p.img.width, (cw - 60 * u) / p.img.height); ctx.drawImage(p.img, -p.img.width * k / 2, -p.img.height * k / 2, p.img.width * k, p.img.height * k); ctx.restore(); }
+    else { ctx.fillStyle = "#ede9fe"; flyRect(ctx, -cw / 2 + 20 * u, -cw / 2 + 20 * u, cw - 40 * u, cw - 40 * u, 30 * u); ctx.fill(); ctx.fillStyle = "#7c3aed"; ctx.font = cyF(900, 150 * u); ctx.textBaseline = "middle"; ctx.fillText(String(p.nombre).split(/\s+/).slice(0, 2).map(w => w[0] || "").join("").toUpperCase(), 0, 0); ctx.textBaseline = "alphabetic"; }
+    // cartel -N%
+    const pb = flyEase((lt - .45) / .35), bs = pb * (1 + .06 * Math.sin(t * 7)); ctx.save(); ctx.translate(cw / 2 - 40 * u, -cw / 2 + 40 * u); ctx.rotate(.18); ctx.scale(bs, bs);
+    const gb = ctx.createLinearGradient(-110 * u, -110 * u, 110 * u, 110 * u); gb.addColorStop(0, "#7c3aed"); gb.addColorStop(1, "#06b6d4"); ctx.fillStyle = gb; ctx.shadowColor = "rgba(124,58,237,.8)"; ctx.shadowBlur = 30 * u; ctx.beginPath(); ctx.arc(0, 0, 112 * u, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.fillStyle = "#fff"; ctx.textBaseline = "middle"; ctx.font = cyF(900, 74 * u); ctx.fillText("-" + Math.round(p.mejor) + "%", 0, -6 * u); ctx.font = cyF(800, 26 * u); ctx.fillText("OFF", 0, 50 * u); ctx.textBaseline = "alphabetic"; ctx.restore();
+    ctx.restore();
+    // textos
+    const tx = (k) => { const e = flyEase((lt - .35 - k * .12) / .45); return { a: e * (1 - sal), dy: (1 - e) * 40 * u }; };
+    let y = 1150 * u; ctx.textAlign = "center";
+    let o = tx(0); ctx.save(); ctx.globalAlpha = o.a; if (p.marca) { ctx.fillStyle = "#22d3ee"; ctx.font = cyF(800, 32 * u); ctx.letterSpacing = (6 * u) + "px"; ctx.fillText(p.marca.toUpperCase(), W / 2, y + o.dy); } ctx.restore();
+    o = tx(1); ctx.save(); ctx.globalAlpha = o.a; ctx.fillStyle = "#fff"; ctx.font = cyF(800, 56 * u); const ls = flyLineas(ctx, p.nombre, W - 140 * u, 2); ls.forEach((l, j) => ctx.fillText(l, W / 2, y + 72 * u + j * 64 * u + o.dy)); ctx.restore();
+    y += 72 * u + ls.length * 64 * u + 20 * u;
+    o = tx(2); ctx.save(); ctx.globalAlpha = o.a; ctx.font = cyF(700, 40 * u); ctx.fillStyle = "rgba(255,255,255,.55)"; const sp = cyPlata(p.precio), sw = ctx.measureText(sp).width; ctx.fillText(sp, W / 2, y + o.dy); ctx.strokeStyle = "rgba(255,255,255,.7)"; ctx.lineWidth = 4 * u; ctx.beginPath(); ctx.moveTo(W / 2 - sw / 2 - 6 * u, y - 13 * u + o.dy); ctx.lineTo(W / 2 + sw / 2 + 6 * u, y - 13 * u + o.dy); ctx.stroke(); ctx.restore();
+    o = tx(3); ctx.save(); ctx.globalAlpha = o.a; ctx.font = cyF(900, 118 * u); ctx.fillStyle = cyDegrade(ctx, W * .15, W * .85, t); ctx.shadowColor = "rgba(34,211,238,.5)"; ctx.shadowBlur = 30 * u; ctx.fillText(cyPlata(p.precio * (1 - p.mejor / 100)), W / 2, y + 120 * u + o.dy); ctx.shadowBlur = 0; ctx.fillStyle = "#fff"; ctx.font = cyF(700, 34 * u); ctx.fillText(p.medio, W / 2, y + 172 * u + o.dy); ctx.restore();
+    o = tx(4); if (p.cred) { ctx.save(); ctx.globalAlpha = o.a; const pc = p.precio * (1 - p.cred.pct / 100); cyPildora(ctx, W / 2, y + 220 * u + o.dy, 900 * u, 150 * u, t, u, "💳 " + (p.cred.pct > 0 ? Math.round(p.cred.pct) + "% OFF + " : "") + p.cred.cuotas + " cuotas sin interés", p.cred.cuotas + " de " + cyPlata(Math.ceil(pc / p.cred.cuotas)) + " · en nuestros locales"); ctx.restore(); }
+    // puntitos de avance
+    if (n > 1) { for (let j = 0; j < n; j++) { ctx.fillStyle = j === i ? "#22d3ee" : "rgba(255,255,255,.3)"; ctx.beginPath(); ctx.arc(W / 2 + (j - (n - 1) / 2) * 34 * u, H - 90 * u, (j === i ? 9 : 6) * u, 0, Math.PI * 2); ctx.fill(); } }
+  }
+  // 3) cierre
+  const tf = t - (CY_INTRO + n * CY_PROD);
+  if (tf > -.1) {
+    const e = (k) => flyEase((tf - k) / .5);
+    ctx.save(); ctx.globalAlpha = e(0); cyRayo(ctx, W / 2 - 60 * u, 300 * u, 180 * u, Math.sin(t * 10) > -.5 ? 1 : .3); ctx.font = cyF(900, 120 * u); ctx.fillStyle = cyDegrade(ctx, W * .1, W * .9, t); ctx.shadowColor = "rgba(192,132,252,.7)"; ctx.shadowBlur = 40 * u; ctx.fillText("¡Te esperamos!", W / 2, 640 * u + (1 - e(0)) * 50 * u); ctx.restore();
+    ctx.save(); ctx.globalAlpha = e(.25); ctx.fillStyle = "#fff"; ctx.font = cyF(700, 46 * u); ctx.fillText("📍 En nuestros locales y online", W / 2, 760 * u); ctx.restore();
+    if (d.cuotas) { ctx.save(); ctx.globalAlpha = e(.45); cyPildora(ctx, W / 2, 850 * u, 880 * u, 150 * u, t, u, "💳 Descuento + cuotas sin interés", "pagando en nuestros locales"); ctx.restore(); }
+    ctx.save(); ctx.globalAlpha = e(.65); const by = 1080 * u, bw = 640 * u, bh = 120 * u; ctx.fillStyle = "#fff"; ctx.shadowColor = "rgba(34,211,238,.7)"; ctx.shadowBlur = 40 * u; flyRect(ctx, W / 2 - bw / 2, by, bw, bh, bh / 2); ctx.fill(); ctx.shadowBlur = 0; ctx.fillStyle = "#12002e"; ctx.font = cyF(900, 44 * u); ctx.textBaseline = "middle"; ctx.letterSpacing = (4 * u) + "px"; ctx.fillText("COMPRÁ AHORA  →", W / 2 + Math.sin(t * 6) * 4 * u, by + bh / 2); ctx.textBaseline = "alphabetic"; ctx.restore();
+    ctx.save(); ctx.globalAlpha = e(.8); ctx.fillStyle = "#fff"; ctx.font = cyF(800, 40 * u); ctx.fillText(d.web, W / 2, 1290 * u); ctx.restore();
+  }
+  cyBrilloPasa(ctx, W, H, t, u);
+  ctx.textAlign = "left";
+  return total;
+}
+function CyberVideos({ temaPal }) {
+  const p = temaPal, base = String(API.defaults.baseURL || "").replace(/\/+$/, "");
+  const [datos, setDatos] = useState(null);
+  const [elegidos, setElegidos] = useState([]);
+  const [busca, setBusca] = useState("");
+  const [imgs, setImgs] = useState({});
+  const [grabando, setGrabando] = useState(0);
+  const [video, setVideo] = useState(null);
+  const [error, setError] = useState("");
+  const lienzo = useRef(null), inicio = useRef(performance.now()), grab = useRef(null);
+  useEffect(() => {
+    Promise.all([API.get("/promociones?activas=true"), API.get("/productos"), API.get("/promociones/cyber-tienda").catch(() => ({ data: {} }))]).then(async ([pr, prod, cy]) => {
+      const lista = cyOfertasProductos(pr.data, prod.data);
+      // nombre de la tienda (va abajo de "CYBER MONDAY")
+      const tit = cy.data.slug ? await fetch(base + "/tienda-publica/" + encodeURIComponent(cy.data.slug)).then(r => r.json()).then(t => t.titulo || "").catch(() => "") : "";
+      setDatos({ lista, slug: cy.data.slug, dominio: cy.data.dominio, tienda: tit });
+      setElegidos(lista.slice(0, 4).map(x => x.id));
+    }).catch(() => setDatos({ lista: [], error: true }));
+    if (window.FontFace && document.fonts && ![...document.fonts].some(f => f.family === CY_FUENTE[0])) { const ff = new FontFace(...CY_FUENTE); ff.load().then(x => document.fonts.add(x)).catch(() => {}); }
+  }, []);
+  useEffect(() => {
+    if (!datos || !datos.slug) return;
+    elegidos.forEach(id => { if (imgs[id] !== undefined) return; const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => setImgs(m => ({ ...m, [id]: im })); im.onerror = () => setImgs(m => ({ ...m, [id]: null })); im.src = base + "/tienda-publica/" + encodeURIComponent(datos.slug) + "/foto/" + id; });
+  }, [elegidos, datos]); // eslint-disable-line react-hooks/exhaustive-deps
+  const prods = datos ? elegidos.map(id => datos.lista.find(x => x.id === id)).filter(Boolean).map(x => ({ ...x, img: imgs[x.id] || null })) : [];
+  const d = { prods, maxPct: datos ? Math.max(0, ...datos.lista.map(x => x.mejor)) : 0, cuotas: prods.some(x => x.cred), marca: datos ? datos.tienda : "", web: datos && datos.dominio ? String(datos.dominio).replace(/^https?:\/\//, "") : "Link en la bio" };
+  const dRef = useRef(d); dRef.current = d;
+  const dur = cyDurVideo(prods.length);
+  useEffect(() => {
+    let id; const c = lienzo.current; if (!c) return; const ctx = c.getContext("2d");
+    const paso = () => { const D = cyDurVideo(dRef.current.prods.length); let t = (performance.now() - inicio.current) / 1000; if (grab.current) { if (t >= D) { grab.current.stop(); grab.current = null; } else setGrabando(Math.max(1, Math.round(t / D * 100))); } t = grab.current ? Math.min(t, D) : t % (D + .6); cyDibujarVideo(ctx, c.width, c.height, t, dRef.current); id = requestAnimationFrame(paso); };
+    id = requestAnimationFrame(paso); return () => cancelAnimationFrame(id);
+  }, [datos]);
+  const tipo = () => ["video/mp4;codecs=avc1.640028", "video/mp4;codecs=avc1.42E01E", "video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm"].find(x => window.MediaRecorder && MediaRecorder.isTypeSupported(x));
+  const grabar = () => {
+    if (!prods.length) return setError("Elegí al menos un producto");
+    const tp = tipo(); if (!tp) return setError("Este navegador no puede grabar video. Probá con Chrome.");
+    setError(""); setVideo(null);
+    let rec; try { rec = new MediaRecorder(lienzo.current.captureStream(30), { mimeType: tp, videoBitsPerSecond: 10000000 }); } catch (e) { return setError("No se pudo grabar: " + e.message); }
+    const partes = []; rec.ondataavailable = e => { if (e.data && e.data.size) partes.push(e.data); };
+    rec.onstop = () => { const blob = new Blob(partes, { type: tp.split(";")[0] }); setVideo({ url: URL.createObjectURL(blob), blob, ext: tp.includes("mp4") ? "mp4" : "webm" }); setGrabando(0); };
+    inicio.current = performance.now(); grab.current = rec; rec.start(250); setGrabando(1);
+  };
+  const alternar = (id) => { setVideo(null); setElegidos(l => l.includes(id) ? l.filter(x => x !== id) : l.length >= 6 ? l : [...l, id]); inicio.current = performance.now(); };
+  const nombre = "cyber-monday-reel." + (video ? video.ext : "mp4");
+  const puedeCompartir = video && navigator.canShare && (() => { try { return navigator.canShare({ files: [new File([video.blob], nombre, { type: video.blob.type })] }); } catch (e) { return false; } })();
+  const q = busca.trim().toLowerCase();
+  const visibles = datos ? datos.lista.filter(x => !q || (x.nombre + " " + x.marca).toLowerCase().includes(q)).slice(0, 80) : [];
+  return (
+    <div className="card" style={{ marginBottom: 14, textAlign: "left" }}>
+      <div className="ct">🎬 Videos para Instagram (reel)</div>
+      <div style={{ fontSize: 12.5, color: p.textMuted, margin: "2px 0 12px" }}>Elegí hasta 6 productos con descuento: el video los muestra uno por uno con su precio del Cyber y las cuotas sin interés de los locales, con el mismo estilo que la tarjeta de la tienda. Sale en tamaño reel (1080×1920).</div>
+      {datos === null ? <div className="skel" style={{ height: 160 }} />
+        : !datos.lista.length ? <div className="cli-tip">Todavía no hay productos con descuento del Cyber. Armá las ofertas y apretá "⚡ Crear ofertas de Cyber Monday": después aparecen acá.</div>
+        : <div style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "flex-start" }}>
+          <div style={{ flex: "1 1 300px", minWidth: 0 }}>
+            <input className="inp" placeholder="Buscar producto o marca…" value={busca} onChange={e => setBusca(e.target.value)} style={{ marginBottom: 8 }} />
+            <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 6 }}>{elegidos.length} de 6 elegidos · el video dura {Math.round(dur)} segundos</div>
+            <div style={{ maxHeight: 340, overflowY: "auto", border: "1px solid " + p.border, borderRadius: 10 }}>
+              {visibles.map(x => { const on = elegidos.includes(x.id); return (
+                <label key={x.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 10px", borderBottom: "1px solid " + p.border, cursor: "pointer", background: on ? p.accent + "14" : "transparent", opacity: !on && elegidos.length >= 6 ? .5 : 1 }}>
+                  <input type="checkbox" checked={on} disabled={!on && elegidos.length >= 6} onChange={() => alternar(x.id)} />
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: "block", fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.nombre}</span>
+                    <span style={{ fontSize: 11.5, color: p.textMuted }}>{x.marca ? x.marca + " · " : ""}-{Math.round(x.mejor)}% {x.medio}{x.cred ? " · 💳 " + x.cred.cuotas + " cuotas" : ""}</span>
+                  </span>
+                </label>); })}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12, alignItems: "flex-start" }}>
+              <button className="btn btn-p" disabled={grabando > 0 || !prods.length} onClick={grabar}>{grabando ? "Creando video… " + grabando + "%" : "🎬 Crear video"}</button>
+              {grabando > 0 && <div style={{ fontSize: 11.5, color: p.textMuted }}>Dejá esta pantalla abierta mientras se graba (unos {Math.round(dur)} segundos).</div>}
+              {video && <><a className="btn btn-g" href={video.url} download={nombre}>⬇️ Descargar video</a>
+                {puedeCompartir && <button className="btn btn-g" onClick={async () => { try { await navigator.share({ files: [new File([video.blob], nombre, { type: video.blob.type })] }); } catch (e) {} }}>📲 Compartir</button>}
+                {video.ext !== "mp4" && <div style={{ fontSize: 11.5, color: p.warn, maxWidth: 300 }}>Este navegador lo grabó en WEBM; para MP4 (el que acepta Instagram) crealo desde Chrome actualizado o desde el celular.</div>}</>}
+              {error && <div style={{ fontSize: 12, color: p.red }}>{error}</div>}
+              {prods.some(x => !x.img) && Object.keys(imgs).length >= elegidos.length && <div style={{ fontSize: 11.5, color: p.textMuted, maxWidth: 320 }}>Los productos sin foto en la tienda online salen con sus iniciales.</div>}
+            </div>
+          </div>
+          <canvas ref={lienzo} width={1080} height={1920} style={{ width: 243, height: 432, borderRadius: 14, boxShadow: "0 6px 24px rgba(0,0,0,.25)", background: "#12002e" }} />
+        </div>}
+    </div>
+  );
+}
 function PaginaCyber({ paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [medios, setMedios] = useState(null);
@@ -25434,6 +25650,7 @@ function PaginaCyber({ paletaActual }) {
       <div className="ph"><div><div className="pt">⚡ Cyber Monday</div><div className="ps">ofertas para vender lo que está quieto</div></div></div>
       {mensaje && <div className="cli-tip" style={{ margin: "0 0 12px", borderColor: temaPal.green }}>{mensaje}</div>}
       <CyberTienda temaPal={temaPal} />
+      <CyberVideos temaPal={temaPal} />
       {medios === null ? <div className="card"><div className="skel" style={{ height: 200 }} /></div>
         : <PlanLiquidacion temaPal={temaPal} medios={medios} onCreado={() => { setMensaje("✅ ¡Ofertas creadas! Las ves en Promociones."); window.scrollTo({ top: 0, behavior: "smooth" }); setTimeout(() => setMensaje(""), 6000); }} />}
     </div>
