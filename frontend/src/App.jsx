@@ -27257,6 +27257,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 @keyframes twAdvIn{from{opacity:0}to{opacity:1}}
 @keyframes twAdvOut{to{opacity:0;transform:scale(1.04)}}
 .tw-adv-intro>svg{position:absolute;left:50%;bottom:0;height:100%;width:auto;min-width:100%;transform:translateX(-50%)}
+@media (min-aspect-ratio:4/5){.tw-adv-intro>svg{min-width:0;height:100%}.tw-adv-intro::before{content:"";position:absolute;left:0;right:0;bottom:0;height:42%;background:linear-gradient(180deg,rgba(10,18,38,0),#0a1226 70%);pointer-events:none}}
 .tw-adv-intro .sky1{animation:twAdvSube2 1.4s cubic-bezier(.2,.8,.3,1) both}
 .tw-adv-intro .sky2{animation:twAdvSube2 1.4s cubic-bezier(.2,.8,.3,1) .15s both}
 @keyframes twAdvSube2{from{transform:translateY(180px)}to{transform:none}}
@@ -27305,6 +27306,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 @media (min-width:700px){.tw-hw-vista{left:auto;max-width:420px}}
 .tw-hw-musica{position:fixed;left:14px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:31;width:44px;height:44px;border-radius:50%;border:2px solid #ff7a00;background:#1c0d2e;color:#fff!important;font-size:19px;line-height:1;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.3)}
 .tw-hw-musica.on{animation:twHwLate 1.2s ease-in-out infinite}
+.tw-hw-musica.tw-adv-musica{border-color:#d9bf7f;background:linear-gradient(160deg,#b91c1c,#7a1414);box-shadow:0 6px 18px rgba(122,20,20,.35)}
 .tw-hw-fab{position:fixed;left:14px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:31;border:0;border-radius:99px;padding:10px 16px 10px 10px;display:flex;align-items:center;gap:8px;background:#1c0d2e;color:#ffcf9a!important;font-weight:900;font-size:13px;cursor:pointer;box-shadow:0 8px 26px rgba(28,13,46,.45),0 0 0 2px #ff7a00}
 .tw-hw-fab b{font-size:30px;line-height:1;display:inline-block;animation:twHwSalta 1.6s ease-in-out infinite}
 @keyframes twHwSalta{0%,100%{transform:translateY(0) rotate(0)}30%{transform:translateY(-6px) rotate(-8deg)}60%{transform:translateY(0) rotate(6deg)}}
@@ -27754,6 +27756,91 @@ function TwHwMusica() {
     else { try { localStorage.setItem("tienda_musica", "1"); localStorage.setItem("tienda_sonido", "1"); } catch (x) {} twHwMusica.arrancar(); setOn(true); }
   };
   return <button className={"tw-hw-musica" + (on ? " on" : "")} onPointerDown={e => e.stopPropagation()} onClick={cambiar} aria-label={on ? "Apagar la música de Halloween" : "Prender la música de Halloween"} aria-pressed={on}>{on ? "🎵" : "🔇"}</button>;
+}
+// Música navideña del calendario de Adviento: villancicos de dominio público (Jingle Bells, We Wish You a Merry Christmas,
+// Deck the Halls y Noche de Paz), uno distinto según el día, en cajita de música con campanitas. Se genera en el navegador
+// (sin archivos ni canciones con derechos) y suena despacito; arranca con el primer toque de la clienta
+const ADV_TEMAS = [
+  // Jingle Bells (James Lord Pierpont, 1857)
+  { ritmo: .3, cascabel: true, notas: [[64, 1], [64, 1], [64, 2], [64, 1], [64, 1], [64, 2], [64, 1], [67, 1], [60, 1.5], [62, .5], [64, 4],
+    [65, 1], [65, 1], [65, 1.5], [65, .5], [65, 1], [64, 1], [64, 1], [64, .5], [64, .5], [64, 1], [62, 1], [62, 1], [64, 1], [62, 2], [67, 2],
+    [64, 1], [64, 1], [64, 2], [64, 1], [64, 1], [64, 2], [64, 1], [67, 1], [60, 1.5], [62, .5], [64, 4],
+    [65, 1], [65, 1], [65, 1.5], [65, .5], [65, 1], [64, 1], [64, 1], [64, .5], [64, .5], [67, 1], [67, 1], [65, 1], [62, 1], [60, 4]] },
+  // We Wish You a Merry Christmas (tradicional inglés)
+  { ritmo: .36, notas: [[67, 1], [72, 1], [72, .5], [74, .5], [72, .5], [71, .5], [69, 1], [69, 1], [69, 1], [74, 1], [74, .5], [76, .5], [74, .5], [72, .5], [71, 1], [67, 1],
+    [67, 1], [76, 1], [76, .5], [77, .5], [76, .5], [74, .5], [72, 1], [69, 1], [67, .5], [67, .5], [69, 1], [74, 1], [71, 1], [72, 3]] },
+  // Deck the Halls (tradicional galés)
+  { ritmo: .32, notas: [[67, 1.5], [65, .5], [64, 1], [62, 1], [60, 1], [62, 1], [64, 1], [60, 1], [62, .5], [64, .5], [65, .5], [62, .5], [64, 1.5], [62, .5], [60, 1], [59, 1], [60, 2],
+    [67, 1.5], [65, .5], [64, 1], [62, 1], [60, 1], [62, 1], [64, 1], [60, 1], [62, .5], [64, .5], [65, .5], [62, .5], [64, 1.5], [62, .5], [60, 1], [59, 1], [60, 3]] },
+  // Noche de Paz (Franz Gruber, 1818)
+  { ritmo: .42, lento: true, notas: [[67, 1.5], [69, .5], [67, 1], [64, 3], [67, 1.5], [69, .5], [67, 1], [64, 3], [74, 2], [74, 1], [71, 3], [72, 2], [72, 1], [67, 3],
+    [69, 2], [69, 1], [72, 1.5], [71, .5], [69, 1], [67, 1.5], [69, .5], [67, 1], [64, 3], [69, 2], [69, 1], [72, 1.5], [71, .5], [69, 1], [67, 1.5], [69, .5], [67, 1], [64, 3],
+    [74, 2], [74, 1], [77, 1.5], [74, .5], [71, 1], [72, 3], [76, 3], [72, 1], [67, 1], [64, 1], [67, 1.5], [65, .5], [62, 1], [60, 5]] },
+];
+const twAdvMusica = {
+  on: false, master: null, timer: null, prox: 0, i: 0, tema: 0,
+  nota(c, midi, cuando, dur, vol) {
+    // cajita de música: seno con un armónico brillante y caída rápida
+    const f = 440 * Math.pow(2, (midi - 69) / 12);
+    [[1, "sine", vol], [2, "triangle", vol * .22], [4, "sine", vol * .06]].forEach(([k, tipo, v]) => {
+      const o = c.createOscillator(), g = c.createGain(); o.type = tipo; o.frequency.setValueAtTime(f * k, cuando);
+      g.gain.setValueAtTime(0.0001, cuando); g.gain.exponentialRampToValueAtTime(v, cuando + .008); g.gain.exponentialRampToValueAtTime(0.0001, cuando + Math.max(.35, dur * 1.6));
+      o.connect(g).connect(this.master); o.start(cuando); o.stop(cuando + Math.max(.4, dur * 1.6) + .05);
+    });
+  },
+  cascabel(c, cuando, vol) {
+    try {
+      const n = c.createBuffer(1, Math.floor(c.sampleRate * .12), c.sampleRate), d = n.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3);
+      const src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(); src.buffer = n; f.type = "highpass"; f.frequency.value = 6500; g.gain.value = vol;
+      src.connect(f).connect(g).connect(this.master); src.start(cuando);
+    } catch (e) {}
+  },
+  arrancar(dia) {
+    if (this.on) return;
+    const c = twCtx(); if (!c) return;
+    this.on = true; this.master = c.createGain(); this.master.gain.setValueAtTime(0.0001, c.currentTime); this.master.gain.exponentialRampToValueAtTime(1, c.currentTime + 1.2); this.master.connect(c.destination);
+    if (dia) this.tema = (Math.max(1, dia) - 1) % ADV_TEMAS.length;
+    this.prox = c.currentTime + .3; this.i = 0;
+    const paso = () => {
+      if (!this.on) return;
+      if (!twSonidoOn()) { this.parar(); return; }
+      while (this.prox < c.currentTime + .8) {
+        const T = ADV_TEMAS[this.tema], [n, dur] = T.notas[this.i], seg = dur * T.ritmo;
+        this.nota(c, n + 12, this.prox, seg, T.lento ? .045 : .05);
+        if (this.i % 2 === 0) this.nota(c, (this.i % 4 === 0 ? 48 : 55), this.prox, seg * 1.5, .022); // bajo suave: do y sol
+        if (T.cascabel) { this.cascabel(c, this.prox, .05); if (dur >= 1) this.cascabel(c, this.prox + seg / 2, .03); }
+        if (Math.random() < .08) this.nota(c, 96 + [0, 4, 7][Math.floor(Math.random() * 3)], this.prox + seg / 2, .3, .012); // destellos
+        this.prox += seg; this.i++;
+        if (this.i >= T.notas.length) { this.i = 0; this.tema = (this.tema + 1) % ADV_TEMAS.length; this.prox += 1.2; }
+      }
+    };
+    paso(); this.timer = setInterval(paso, 200);
+  },
+  parar() {
+    if (!this.on) return;
+    this.on = false; clearInterval(this.timer);
+    const c = twCtx(), m = this.master;
+    try { m.gain.cancelScheduledValues(c.currentTime); m.gain.setValueAtTime(m.gain.value || .5, c.currentTime); m.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + .4); setTimeout(() => { try { m.disconnect(); } catch (e) {} }, 600); } catch (e) {}
+  },
+};
+// Botón 🎵 de la música navideña (mismo criterio que el de Halloween: se acuerda en el celular, arranca con el primer toque)
+function TwAdvMusica({ dia }) {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const primer = () => { if (twHwMusicaQuiere() && twSonidoOn()) { twAdvMusica.arrancar(dia); setOn(twAdvMusica.on); } };
+    window.addEventListener("pointerdown", primer, { once: true, capture: true });
+    const vis = () => { if (document.hidden) { if (twAdvMusica.on) { twAdvMusica.parar(); twAdvMusica.pausada = true; } } else if (twAdvMusica.pausada) { twAdvMusica.pausada = false; twAdvMusica.arrancar(); } setOn(twAdvMusica.on); };
+    document.addEventListener("visibilitychange", vis);
+    const t = setInterval(() => setOn(twAdvMusica.on), 1000);
+    return () => { window.removeEventListener("pointerdown", primer, { capture: true }); document.removeEventListener("visibilitychange", vis); clearInterval(t); twAdvMusica.parar(); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const cambiar = (e) => {
+    e.stopPropagation();
+    if (twAdvMusica.on) { twAdvMusica.parar(); try { localStorage.setItem("tienda_musica", "0"); } catch (x) {} setOn(false); }
+    else { try { localStorage.setItem("tienda_musica", "1"); localStorage.setItem("tienda_sonido", "1"); } catch (x) {} twAdvMusica.arrancar(dia); setOn(true); }
+  };
+  return <button className={"tw-hw-musica tw-adv-musica" + (on ? " on" : "")} onPointerDown={e => e.stopPropagation()} onClick={cambiar} aria-label={on ? "Apagar la música navideña" : "Prender la música navideña"} aria-pressed={on}>{on ? "🎵" : "🔇"}</button>;
 }
 // Susto de Halloween (cuando sale TRUCO): golpe de ruido, chillido que cae, acorde disonante y una risita de bruja
 function twSusto() {
@@ -32158,6 +32245,7 @@ function TiendaPublica({ slug }) {
         <button className="tw-hw-fab" onClick={() => { setHwJuego(true); if (logueada && !tienda.halloween.vista_previa) cargarHw(); }} aria-label="Jugar ¿Dulce o truco?"><b aria-hidden="true">🎃</b>{hwMio ? (tienda.halloween.juego && hwInfo && hwInfo.quedan > 0 ? "¡Otra calabaza!" : "Tu premio") : "¿Dulce o truco?"}</button>
       )}
       {tienda.halloween && tienda.halloween.musica && !tienda.cyber && <TwHwMusica />}
+      {tienda.adviento && tienda.adviento.musica !== false && !tienda.halloween && <TwAdvMusica dia={tienda.adviento.hoy} />}
       {tienda.halloween && !tienda.cyber && <TwHwIntro hw={tienda.halloween} slug={slug} hayLook={hwLook.length > 0} onJugar={() => setHwJuego(true)} onVer={() => irCat("halloween")} />}
       {hwJuego && tienda.halloween && <TwDulceTruco hw={tienda.halloween} logueada={logueada} mio={hwMio && !tienda.halloween.vista_previa ? { ...hwMio, ya: true } : null} info={tienda.halloween.vista_previa ? null : hwInfo}
         link={hwInfo && hwInfo.codigo ? (tienda.dominio ? "https://" + tienda.dominio + "/" : window.location.origin + window.location.pathname) + "?" + (tienda.dominio ? "" : "tienda=" + encodeURIComponent(slug) + "&") + "amiga=" + hwInfo.codigo : null}
@@ -35239,6 +35327,7 @@ function AdvientoTienda({ temaPal, productos }) {
       </div>
       <div style={{ fontSize: 12.5, color: p.textMuted, margin: "6px 0 12px" }}>Del 1 al 25 de diciembre: cada día se enciende una ventana del edificio en la tienda (Navidad en Nueva York): las clientas la tocan y descubren la sorpresa (descuento, regalo con la compra, código…). Los días que todavía no llegaron no se pueden espiar.</div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><Sw on={!!f.activo} toggle={() => set("activo", !f.activo)} /><b style={{ fontSize: 13 }}>Programar en la tienda</b></div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><Sw on={f.musica !== false} toggle={() => set("musica", f.musica === false)} /><b style={{ fontSize: 13 }}>🎵 Música navideña de fondo</b><span style={{ fontSize: 11.5, color: temaPal.textMuted }}>villancicos sin derechos (Jingle Bells, Noche de Paz…); la clienta la puede apagar</span></div>
       <div style={{ fontSize: 12, fontWeight: 700, color: estado[1], marginBottom: 14 }}>{estado[0]}{f.activo !== k.activo ? " · (guardá para aplicar)" : ""}</div>
       <div className="g2">
         <div><label style={lbl}>Año</label><select className="sel" value={f.anio} onChange={e => set("anio", parseInt(e.target.value))}>{[2026, 2027, 2028].map(a => <option key={a} value={a}>Diciembre {a}</option>)}</select></div>

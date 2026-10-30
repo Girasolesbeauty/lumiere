@@ -102,7 +102,7 @@ router.get('/:slug', async (req, res) => {
       AND (fecha_inicio IS NULL OR fecha_inicio <= (NOW() AT TIME ZONE 'America/Argentina/Buenos_Aires')::date) AND (fecha_fin IS NULL OR fecha_fin >= (NOW() AT TIME ZONE 'America/Argentina/Buenos_Aires')::date)`)
       .then(r => Object.fromEntries(r.rows.map(x => [[...(x.productos_ids || [])].map(Number).sort((a, b) => a - b).join(','), Math.min(24, parseInt((String(x.nombre).match(/(\d+)\s*cuotas/) || [])[1]) || 0)]).filter(([, n]) => n > 1))).catch(() => ({}));
     res.json({
-      adviento: advVer ? { titulo: adv.titulo, bajada: adv.bajada, anio: adv.anio, hoy: advVista ? 25 : advHoy, vista_previa: advVista && !(adv.activo && advHoy >= 1 && advHoy <= 25),
+      adviento: advVer ? { titulo: adv.titulo, bajada: adv.bajada, anio: adv.anio, musica: adv.musica, hoy: advVista ? 25 : advHoy, vista_previa: advVista && !(adv.activo && advHoy >= 1 && advHoy <= 25),
         dias: adv.dias.map(d => d.dia <= (advVista ? 25 : advHoy) ? d : { dia: d.dia, icono: d.icono, bloqueado: true }) } : null,
       halloween: hwEnCurso || hwVista ? { ceja: hw.ceja, titulo: hw.titulo, musica: hw.musica, subtitulo: hw.subtitulo, juego: hw.juego && hw.premios.some(x => x.chance > 0),
         premios: hw.premios.filter(x => x.chance > 0 && x.tipo !== 'nada').map(x => x.texto + (x.contado ? '*' : '')), tope: hw.tope, disfraz: hw.disfraz, despues: hw.despues, desde: hw.desde, hasta: hw.hasta, vista_previa: hwVista } : null,
