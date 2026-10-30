@@ -289,10 +289,11 @@ router.post('/liquidacion', async (req, res) => {
       const pref = 'cy' + nombre.toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '').slice(0, 6);
       const c = (await client.query('SELECT ofertas FROM tienda_config WHERE id = 1')).rows[0] || {};
       const o = tiendaLib.ofertasDe(c);
-      const nuevos = b.combos_tienda.slice(0, 12).map((x, i) => ({ id: (pref + String(x.id || i).replace(/[^a-z0-9]/gi, '')).slice(0, 20), nombre: String(x.nombre || 'Combo').slice(0, 60),
+      const nuevos = b.combos_tienda.slice(0, 40).map((x, i) => ({ id: (pref + String(x.id || i).replace(/[^a-z0-9]/gi, '')).slice(0, 20), nombre: String(x.nombre || 'Combo').slice(0, 60),
         productos: x.productos, cantidades: x.cantidades || {}, precio: Math.round(parseFloat(x.precio) || 0), activo: true, desde: b.desde, hasta: b.hasta }));
       const otros = o.combos.filter(x => !String(x.id).startsWith(pref));
-      const todos = tiendaLib.ofertasDe({ ofertas: { dia: o.dia, combos: [...otros, ...nuevos] } });
+      // Los del evento van primero: si hay muchos combos guardados, los que se pierden son los viejos
+      const todos = tiendaLib.ofertasDe({ ofertas: { dia: o.dia, combos: [...nuevos, ...otros] } });
       await client.query('UPDATE tienda_config SET ofertas = $1 WHERE id = 1', [JSON.stringify({ ...(c.ofertas || {}), dia: (c.ofertas || {}).dia || o.dia, combos: todos.combos })]);
       combosTienda = todos.combos.filter(x => String(x.id).startsWith(pref)).length;
     }
