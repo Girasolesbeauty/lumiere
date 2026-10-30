@@ -27760,23 +27760,87 @@ function TwHwMusica() {
 // Música navideña del calendario de Adviento: villancicos de dominio público (Jingle Bells, We Wish You a Merry Christmas,
 // Deck the Halls y Noche de Paz), uno distinto según el día, en cajita de música con campanitas. Se genera en el navegador
 // (sin archivos ni canciones con derechos) y suena despacito; arranca con el primer toque de la clienta
-const ADV_TEMAS = [
-  // Jingle Bells (James Lord Pierpont, 1857)
-  { ritmo: .3, cascabel: true, notas: [[64, 1], [64, 1], [64, 2], [64, 1], [64, 1], [64, 2], [64, 1], [67, 1], [60, 1.5], [62, .5], [64, 4],
+const ADV_TEMAS = {
+  jingle: { nombre: "Jingle Bells (J. L. Pierpont, 1857)", ritmo: .3, cascabel: true, notas: [[64, 1], [64, 1], [64, 2], [64, 1], [64, 1], [64, 2], [64, 1], [67, 1], [60, 1.5], [62, .5], [64, 4],
     [65, 1], [65, 1], [65, 1.5], [65, .5], [65, 1], [64, 1], [64, 1], [64, .5], [64, .5], [64, 1], [62, 1], [62, 1], [64, 1], [62, 2], [67, 2],
     [64, 1], [64, 1], [64, 2], [64, 1], [64, 1], [64, 2], [64, 1], [67, 1], [60, 1.5], [62, .5], [64, 4],
     [65, 1], [65, 1], [65, 1.5], [65, .5], [65, 1], [64, 1], [64, 1], [64, .5], [64, .5], [67, 1], [67, 1], [65, 1], [62, 1], [60, 4]] },
-  // We Wish You a Merry Christmas (tradicional inglés)
-  { ritmo: .36, notas: [[67, 1], [72, 1], [72, .5], [74, .5], [72, .5], [71, .5], [69, 1], [69, 1], [69, 1], [74, 1], [74, .5], [76, .5], [74, .5], [72, .5], [71, 1], [67, 1],
+  wewish: { nombre: "We Wish You a Merry Christmas (tradicional)", ritmo: .36, notas: [[67, 1], [72, 1], [72, .5], [74, .5], [72, .5], [71, .5], [69, 1], [69, 1], [69, 1], [74, 1], [74, .5], [76, .5], [74, .5], [72, .5], [71, 1], [67, 1],
     [67, 1], [76, 1], [76, .5], [77, .5], [76, .5], [74, .5], [72, 1], [69, 1], [67, .5], [67, .5], [69, 1], [74, 1], [71, 1], [72, 3]] },
-  // Deck the Halls (tradicional galés)
-  { ritmo: .32, notas: [[67, 1.5], [65, .5], [64, 1], [62, 1], [60, 1], [62, 1], [64, 1], [60, 1], [62, .5], [64, .5], [65, .5], [62, .5], [64, 1.5], [62, .5], [60, 1], [59, 1], [60, 2],
+  deck: { nombre: "Deck the Halls (tradicional galés)", ritmo: .32, notas: [[67, 1.5], [65, .5], [64, 1], [62, 1], [60, 1], [62, 1], [64, 1], [60, 1], [62, .5], [64, .5], [65, .5], [62, .5], [64, 1.5], [62, .5], [60, 1], [59, 1], [60, 2],
     [67, 1.5], [65, .5], [64, 1], [62, 1], [60, 1], [62, 1], [64, 1], [60, 1], [62, .5], [64, .5], [65, .5], [62, .5], [64, 1.5], [62, .5], [60, 1], [59, 1], [60, 3]] },
-  // Noche de Paz (Franz Gruber, 1818)
-  { ritmo: .42, lento: true, notas: [[67, 1.5], [69, .5], [67, 1], [64, 3], [67, 1.5], [69, .5], [67, 1], [64, 3], [74, 2], [74, 1], [71, 3], [72, 2], [72, 1], [67, 3],
+  nochepaz: { nombre: "Noche de Paz (F. Gruber, 1818)", ritmo: .42, lento: true, notas: [[67, 1.5], [69, .5], [67, 1], [64, 3], [67, 1.5], [69, .5], [67, 1], [64, 3], [74, 2], [74, 1], [71, 3], [72, 2], [72, 1], [67, 3],
     [69, 2], [69, 1], [72, 1.5], [71, .5], [69, 1], [67, 1.5], [69, .5], [67, 1], [64, 3], [69, 2], [69, 1], [72, 1.5], [71, .5], [69, 1], [67, 1.5], [69, .5], [67, 1], [64, 3],
     [74, 2], [74, 1], [77, 1.5], [74, .5], [71, 1], [72, 3], [76, 3], [72, 1], [67, 1], [64, 1], [67, 1.5], [65, .5], [62, 1], [60, 5]] },
-];
+  campanas: { nombre: "Carol of the Bells (M. Leontovych, 1914)", ritmo: .3, cascabel: true, notas: [
+    [70, 1], [69, .5], [70, .5], [67, 1], [70, 1], [69, .5], [70, .5], [67, 1], [70, 1], [69, .5], [70, .5], [67, 1], [70, 1], [69, .5], [70, .5], [67, 1],
+    [74, 1], [72, .5], [74, .5], [70, 1], [74, 1], [72, .5], [74, .5], [70, 1], [75, 1], [74, .5], [75, .5], [72, 1], [75, 1], [74, .5], [75, .5], [72, 1],
+    [79, .5], [79, .5], [79, .5], [77, .5], [75, .5], [74, .5], [72, .5], [72, .5], [72, .5], [70, .5], [69, .5], [67, .5], [69, .5], [69, .5], [69, .5], [70, .5], [69, .5], [67, .5], [66, 1], [67, 2],
+    [70, 1], [69, .5], [70, .5], [67, 1], [70, 1], [69, .5], [70, .5], [67, 3]] },
+  danubio: { nombre: "El Danubio azul (J. Strauss, 1866)", ritmo: .3, oct: 0, notas: [[62, 1], [62, 1], [66, 1], [69, 1], [69, 2], [81, 1], [81, 2], [78, 1], [78, 2],
+    [62, 1], [62, 1], [66, 1], [69, 1], [69, 2], [81, 1], [81, 2], [79, 1], [79, 2], [61, 1], [61, 1], [64, 1], [71, 1], [71, 2], [83, 1], [83, 2], [79, 1], [79, 2],
+    [61, 1], [61, 1], [64, 1], [71, 1], [71, 2], [83, 1], [83, 2], [78, 1], [78, 3]] },
+  tannenbaum: { nombre: "Oh árbol de Navidad (tradicional alemán)", ritmo: .4, notas: [[55, 1], [60, .75], [60, .25], [60, 1.5], [62, .5], [64, .75], [64, .25], [64, 1.5], [64, .5], [62, .5], [64, .5], [65, 1], [59, 1], [62, 1], [60, 2],
+    [55, 1], [60, .75], [60, .25], [60, 1.5], [62, .5], [64, .75], [64, .25], [64, 1.5], [64, .5], [62, .5], [64, .5], [65, 1], [59, 1], [62, 1], [60, 3]] },
+  godrest: { nombre: "God Rest Ye Merry Gentlemen (tradicional inglés)", ritmo: .3, notas: [[57, 1], [57, 1], [64, 1], [64, 1], [62, 1], [60, 1], [59, 1], [57, 1], [55, 1], [57, 1], [59, 1], [60, 1], [62, 1], [64, 3],
+    [57, 1], [57, 1], [64, 1], [64, 1], [62, 1], [60, 1], [59, 1], [57, 1], [55, 1], [57, 1], [59, 1], [60, 1], [62, 1], [64, 3],
+    [64, 1], [65, 1], [64, 1], [64, 1], [62, 1], [60, 1], [59, 1], [57, 1], [60, .5], [59, .5], [57, 1], [64, 2], [62, 1], [60, 1], [59, 1], [57, 1], [55, 1], [57, 3]] },
+  greensleeves: { nombre: "Greensleeves (tradicional inglés, siglo XVI)", ritmo: .34, lento: true, notas: [[69, .5], [72, 1], [74, .5], [76, .75], [77, .25], [76, .5], [74, 1], [71, .5], [67, .75], [69, .25], [71, .5],
+    [72, 1], [69, .5], [69, .75], [68, .25], [69, .5], [71, 1], [68, .5], [64, 1], [69, .5], [72, 1], [74, .5], [76, .75], [77, .25], [76, .5], [74, 1], [71, .5], [67, .75], [69, .25], [71, .5],
+    [72, .75], [71, .25], [69, .5], [68, .75], [66, .25], [68, .5], [69, 1.5], [69, 1]] },
+  adeste: { nombre: "Venid, fieles / Adeste Fideles (J. F. Wade, s. XVIII)", ritmo: .36, notas: [[67, 1], [67, 2], [62, 1], [67, 1], [69, 2], [62, 2], [71, 1], [69, 1], [71, 1], [72, 1], [71, 2], [69, 1], [67, 1],
+    [67, 2], [66, 1], [64, 1], [66, 1], [67, 1], [69, 1], [71, 1], [66, 2], [64, 1.5], [62, .5], [62, 3]] },
+  hark: { nombre: "Hark! The Herald Angels Sing (F. Mendelssohn, 1840)", ritmo: .34, notas: [[60, 1], [65, 1], [65, 1.5], [64, .5], [65, 1], [69, 1], [69, 1], [67, 1], [72, 1], [72, 1], [72, 1.5], [70, .5], [69, 1], [67, 1], [69, 2],
+    [60, 1], [65, 1], [65, 1.5], [64, .5], [65, 1], [69, 1], [69, 1], [67, 1], [72, 1], [67, 1], [67, 1.5], [64, .5], [64, 1], [62, 1], [60, 2]] },
+  joy: { nombre: "Al mundo paz / Joy to the World (G. F. Händel – L. Mason, 1839)", ritmo: .32, notas: [[72, 1], [71, .75], [69, .25], [67, 1.5], [65, .5], [64, 1], [62, 1], [60, 2], [67, .5], [69, 1.5], [69, .5], [71, 1.5], [71, .5], [72, 3],
+    [72, .5], [72, .5], [71, .5], [69, .5], [67, .5], [67, .75], [65, .25], [64, .5], [72, .5], [72, .5], [71, .5], [69, .5], [67, .5], [67, .75], [65, .25], [64, .5],
+    [72, 1], [69, .5], [67, .75], [65, .25], [64, .5], [65, .5], [64, 1], [62, 1], [60, 3]] },
+  gloria: { nombre: "Angels We Have Heard on High / Gloria (tradicional francés)", ritmo: .32, notas: [[64, 1], [64, 1], [64, 1], [67, 1], [67, 1.5], [65, .5], [64, 2], [64, 1], [62, 1], [64, 1], [67, 1], [64, 1.5], [62, .5], [60, 2],
+    [67, 1.5], [69, .5], [67, .5], [65, .5], [64, .5], [65, .5], [67, 1.5], [65, .5], [64, .5], [62, .5], [64, 1.5], [62, .5], [60, .5], [59, .5], [60, 1.5], [59, .5], [57, .5], [59, .5],
+    [62, 1], [55, 1], [60, 1], [62, 1], [64, 1.5], [62, .5], [60, 3]] },
+  noel: { nombre: "The First Noel (tradicional inglés)", ritmo: .32, notas: [[64, .5], [62, .5], [60, 1.5], [62, .5], [64, .5], [65, .5], [67, 2], [69, .5], [71, .5], [72, 1], [71, 1], [69, 1], [67, 2],
+    [69, .5], [71, .5], [72, 1], [71, 1], [69, 1], [67, 1], [69, 1], [71, 1], [72, 1], [67, 1], [65, 1], [64, 2],
+    [64, .5], [62, .5], [60, 1.5], [62, .5], [64, .5], [65, .5], [67, 2], [72, .5], [71, .5], [69, 2], [69, 1], [67, 3]] },
+  auld: { nombre: "Auld Lang Syne (tradicional escocés)", ritmo: .36, notas: [[55, 1], [60, 1.5], [60, .5], [60, 1], [64, 1], [62, 1.5], [60, .5], [62, 1], [64, .5], [62, .5], [60, 1.5], [60, .5], [64, 1], [67, 1], [69, 3],
+    [69, 1], [67, 1.5], [64, .5], [64, 1], [60, 1], [62, 1.5], [60, .5], [62, 1], [64, .5], [62, .5], [60, 1.5], [57, .5], [57, 1], [55, 1], [60, 3],
+    [69, 1], [67, 1.5], [64, .5], [64, 1], [60, 1], [62, 1.5], [60, .5], [62, 1], [69, 1], [67, 1.5], [64, .5], [64, 1], [67, 1], [69, 3],
+    [72, 1], [67, 1.5], [64, .5], [64, 1], [60, 1], [62, 1.5], [60, .5], [62, 1], [64, .5], [62, .5], [60, 1.5], [57, .5], [57, 1], [55, 1], [60, 3]] },
+  palillos: { nombre: "Chopsticks / Los palillos (E. Allen, 1877)", ritmo: .26, oct: 0, notas: [
+    ...Array(6).fill([65, .5, 67]), ...Array(6).fill([64, .5, 67]), ...Array(4).fill([62, .5, 71]), [60, .5, 72], [60, .5, 72],
+    ...Array(6).fill([65, .5, 67]), ...Array(6).fill([64, .5, 67]), ...Array(4).fill([62, .5, 71]), [64, .5, 72], [62, .5, 71], [60, 1.5, 72]] },
+  america: { nombre: "America the Beautiful (S. A. Ward, 1882)", ritmo: .34, notas: [[67, 1], [67, 1.5], [64, .5], [64, 1], [67, 1], [67, 1.5], [62, .5], [62, 1], [64, 1], [65, 1], [67, 1], [69, 1], [71, 1], [67, 3],
+    [67, 1], [67, 1.5], [64, .5], [64, 1], [67, 1], [67, 1.5], [62, .5], [62, 1], [74, 1], [73, 1], [74, 1], [76, 1], [71, 1], [74, 3],
+    [72, 1], [72, 1.5], [69, .5], [69, 1], [72, 1], [72, 1.5], [67, .5], [67, 1], [67, 1], [69, 1], [72, 1], [67, 1], [74, 1], [72, 3]] },
+};
+// Cada escena de la ventana es de una película navideña (casi todas de Nueva York): para la temática del día y su música
+// [película, momento de la película, idea para la temática del día, tema musical]
+const ADV_PELIS = {
+  arbol: ["Mi pobre angelito 2: Perdido en Nueva York (1992)", "Kevin pide su deseo frente al árbol del Rockefeller Center", "Día \"deseo de Navidad\": que elijan su producto soñado (wishlist) o un regalo para pedir", "adeste"],
+  patines: ["Elf (2003)", "Buddy y Jovie patinan en la pista del Rockefeller Center", "Día \"glow de invierno\": cuidado para piel seca por el frío", "danubio"],
+  empire: ["Algo para recordar (1957)", "La cita en lo alto del Empire State (la que homenajea Sintonía de amor)", "Día de citas: maquillaje y perfumes para una salida especial", "joy"],
+  taxi: ["Los fantasmas de Scrooge (1988)", "El Fantasma de la Navidad Pasada maneja un taxi de Nueva York", "Día \"pasado, presente y futuro\": rutina antiage (prevenir y reparar)", "godrest"],
+  bolsas: ["Dash & Lily (Netflix, 2020)", "La búsqueda de pistas por las tiendas de Nueva York", "Día de compras: armado de regalos y gift cards", "deck"],
+  chocolate: ["Serendipity (2001)", "El chocolate frío en el café Serendipity 3", "Día dulce: productos con aroma a chocolate, vainilla o dulces (bálsamos, cremas de cuerpo)", "greensleeves"],
+  tortolas: ["Mi pobre angelito 2: Perdido en Nueva York (1992)", "Kevin le regala una de las dos tórtolas a la señora de las palomas", "Día de amigas: 2x1 o \"uno para vos y otro para regalar\"", "campanas"],
+  cascanueces: ["El Cascanueces (ballet del New York City Ballet; película de 2018)", "La Nochebuena junto al árbol, cuando el cascanueces cobra vida", "Día de bailarina: brillos, iluminadores y uñas", "tannenbaum"],
+  mitones: ["Serendipity (2001)", "Los guantes negros y el patinaje en Central Park", "Día de manos: cremas de manos, cutículas y esmaltes", "danubio"],
+  globo: ["Eloise en Navidad (2003)", "La Navidad de Eloise en el Hotel Plaza", "Día de nenas o de mini tamaños (kits de viaje, minis para el árbol)", "deck"],
+  baston: ["Elf (2003)", "Buddy y su desayuno de caramelos y bastones", "Día \"dulce\" de labios: bálsamos, glosses y tintas", "jingle"],
+  carta: ["Milagro en la calle 34 (1947 y 1994)", "Las cartas a Papá Noel que llegan al juzgado", "Día \"carta a Papá Noel\": que armen y compartan su lista de deseos", "wewish"],
+  campana: ["¡Qué bello es vivir! (1946)", "\"Cada vez que suena una campana, un ángel recibe sus alas\"", "Día solidario o de gratitud: regalo extra o donación por compra", "hark"],
+  boleto: ["El Expreso Polar (2004)", "El boleto dorado y el cascabel de Papá Noel", "Día del boleto dorado: un premio sorpresa para una compra al azar", "jingle"],
+  corona: ["Un hombre de familia (2000)", "La Navidad de Jack en la casa de Nueva Jersey, del otro lado del río", "Día en familia: regalos para mamá, hermanas y la casa (aromas, velas)", "gloria"],
+  farol: ["Mi pobre angelito 2: Perdido en Nueva York (1992)", "Kevin en Central Park de noche con la señora de las palomas", "Día de rutina de noche: limpieza, sérum y crema de noche", "noel"],
+  gorro: ["Milagro en la calle 34 (1947 y 1994)", "Kris Kringle, el Papá Noel de las tiendas Macy's", "Día de Papá Noel: regalo con la compra", "wewish"],
+  libertad: ["Los Cazafantasmas 2 (1989)", "La Estatua de la Libertad camina por Nueva York en Año Nuevo", "Día verde: productos con centella, té verde y pepino", "america"],
+  puente: ["Kate y Leopold (2001)", "Leopold cruza desde 1876 por el Puente de Brooklyn", "Día \"clásicos que vuelven\": los más vendidos de siempre", "greensleeves"],
+  pretzel: ["Cuando Harry conoció a Sally (1989)", "Las caminatas por Nueva York y la fiesta de Año Nuevo", "Día de antojos: lo que más compran juntas (combos)", "auld"],
+  piano: ["Quisiera ser grande (1988)", "El piano gigante de la juguetería FAO Schwarz", "Día de juego: ruleta, trivia o \"tocá y descubrí\" en las historias", "palillos"],
+  carteles: ["Realmente amor (2003)", "Los carteles en la puerta mientras suena \"Noche de paz\"", "Día de mensajes: tarjeta escrita a mano en cada pedido", "nochepaz"],
+  medias: ["Mi pobre angelito (1990)", "La casa de los McCallister decorada para Navidad", "Día de las medias: mini productos para llenar las medias navideñas", "campanas"],
+  brindis: ["¡Qué bello es vivir! (1946)", "El brindis final por George, \"el hombre más rico del pueblo\"", "Día de brindis: maquillaje de fiesta y glow para Nochebuena", "auld"],
+  trineo: ["Elf (2003)", "El trineo de Papá Noel vuela sobre Central Park", "¡Navidad! Gracias y sorpresa final para todas", "jingle"],
+};
 const twAdvMusica = {
   on: false, master: null, timer: null, prox: 0, i: 0, tema: 0,
   nota(c, midi, cuando, dur, vol) {
@@ -27796,23 +27860,30 @@ const twAdvMusica = {
       src.connect(f).connect(g).connect(this.master); src.start(cuando);
     } catch (e) {}
   },
-  arrancar(dia) {
+  arrancar(tema) {
     if (this.on) return;
     const c = twCtx(); if (!c) return;
     this.on = true; this.master = c.createGain(); this.master.gain.setValueAtTime(0.0001, c.currentTime); this.master.gain.exponentialRampToValueAtTime(1, c.currentTime + 1.2); this.master.connect(c.destination);
-    if (dia) this.tema = (Math.max(1, dia) - 1) % ADV_TEMAS.length;
+    // el tema del día (según la película de su ventana); después de cada vuelta, otro villancico y vuelve al del día
+    if (tema && ADV_TEMAS[tema]) this.delDia = tema;
+    this.tema = this.delDia || "jingle"; this.vueltas = 0;
     this.prox = c.currentTime + .3; this.i = 0;
     const paso = () => {
       if (!this.on) return;
       if (!twSonidoOn()) { this.parar(); return; }
       while (this.prox < c.currentTime + .8) {
-        const T = ADV_TEMAS[this.tema], [n, dur] = T.notas[this.i], seg = dur * T.ritmo;
-        this.nota(c, n + 12, this.prox, seg, T.lento ? .045 : .05);
+        const T = ADV_TEMAS[this.tema], [n, dur, n2] = T.notas[this.i], seg = dur * T.ritmo, oct = T.oct === undefined ? 12 : T.oct;
+        this.nota(c, n + oct, this.prox, seg, T.lento ? .045 : .05);
+        if (n2) this.nota(c, n2 + oct, this.prox, seg, .04);
         if (this.i % 2 === 0) this.nota(c, (this.i % 4 === 0 ? 48 : 55), this.prox, seg * 1.5, .022); // bajo suave: do y sol
         if (T.cascabel) { this.cascabel(c, this.prox, .05); if (dur >= 1) this.cascabel(c, this.prox + seg / 2, .03); }
         if (Math.random() < .08) this.nota(c, 96 + [0, 4, 7][Math.floor(Math.random() * 3)], this.prox + seg / 2, .3, .012); // destellos
         this.prox += seg; this.i++;
-        if (this.i >= T.notas.length) { this.i = 0; this.tema = (this.tema + 1) % ADV_TEMAS.length; this.prox += 1.2; }
+        if (this.i >= T.notas.length) {
+          this.i = 0; this.vueltas++; this.prox += 1.2;
+          const otros = Object.keys(ADV_TEMAS).filter(k => k !== this.delDia);
+          this.tema = this.vueltas % 2 === 0 ? this.delDia || "jingle" : otros[Math.floor(Math.random() * otros.length)];
+        }
       }
     };
     paso(); this.timer = setInterval(paso, 200);
@@ -27824,8 +27895,9 @@ const twAdvMusica = {
     try { m.gain.cancelScheduledValues(c.currentTime); m.gain.setValueAtTime(m.gain.value || .5, c.currentTime); m.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + .4); setTimeout(() => { try { m.disconnect(); } catch (e) {} }, 600); } catch (e) {}
   },
 };
-// Botón 🎵 de la música navideña (mismo criterio que el de Halloween: se acuerda en el celular, arranca con el primer toque)
-function TwAdvMusica({ dia }) {
+// Botón 🎵 de la música navideña (mismo criterio que el de Halloween: se acuerda en el celular, arranca con el primer toque).
+// tema: la música de la película del día
+function TwAdvMusica({ tema: dia }) {
   const [on, setOn] = useState(false);
   useEffect(() => {
     const primer = () => { if (twHwMusicaQuiere() && twSonidoOn()) { twAdvMusica.arrancar(dia); setOn(twAdvMusica.on); } };
@@ -32245,7 +32317,7 @@ function TiendaPublica({ slug }) {
         <button className="tw-hw-fab" onClick={() => { setHwJuego(true); if (logueada && !tienda.halloween.vista_previa) cargarHw(); }} aria-label="Jugar ¿Dulce o truco?"><b aria-hidden="true">🎃</b>{hwMio ? (tienda.halloween.juego && hwInfo && hwInfo.quedan > 0 ? "¡Otra calabaza!" : "Tu premio") : "¿Dulce o truco?"}</button>
       )}
       {tienda.halloween && tienda.halloween.musica && !tienda.cyber && <TwHwMusica />}
-      {tienda.adviento && tienda.adviento.musica !== false && !tienda.halloween && <TwAdvMusica dia={tienda.adviento.hoy} />}
+      {tienda.adviento && tienda.adviento.musica !== false && !tienda.halloween && <TwAdvMusica tema={(() => { const a = tienda.adviento, d = (a.dias || []).find(x => x.dia === a.hoy), k = (d && advEscenaDe(d.icono)) || ADV_ESCENA_DIA[(a.hoy || 1) - 1]; return (ADV_PELIS[k] || [])[3] || "jingle"; })()} />}
       {tienda.halloween && !tienda.cyber && <TwHwIntro hw={tienda.halloween} slug={slug} hayLook={hwLook.length > 0} onJugar={() => setHwJuego(true)} onVer={() => irCat("halloween")} />}
       {hwJuego && tienda.halloween && <TwDulceTruco hw={tienda.halloween} logueada={logueada} mio={hwMio && !tienda.halloween.vista_previa ? { ...hwMio, ya: true } : null} info={tienda.halloween.vista_previa ? null : hwInfo}
         link={hwInfo && hwInfo.codigo ? (tienda.dominio ? "https://" + tienda.dominio + "/" : window.location.origin + window.location.pathname) + "?" + (tienda.dominio ? "" : "tienda=" + encodeURIComponent(slug) + "&") + "amiga=" + hwInfo.codigo : null}
@@ -35341,11 +35413,17 @@ function AdvientoTienda({ temaPal, productos }) {
             <button onClick={() => { setAbierto(ab ? null : x.dia); setBusca(""); }} style={{ width: "100%", display: "flex", gap: 10, alignItems: "center", padding: "8px 10px", background: "none", border: 0, cursor: "pointer", color: p.text, textAlign: "left" }}>
               <span style={{ width: 32, height: 32, borderRadius: 3, background: x.titulo ? "linear-gradient(180deg, #fff3cf, #f5c065 70%, #e7a440)" : "linear-gradient(180deg, #22345c, #14223f)", border: "1.5px solid #c9a45a", color: x.titulo ? "#6a3d00" : "#e8cf8f", fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{x.dia}</span>
               <span style={{ width: 26, height: 26, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}><TwAdvIcono icono={x.icono} style={{ width: "100%", height: "100%" }} /></span>
-              <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: x.titulo ? 700 : 400, color: x.titulo ? p.text : p.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.titulo || "Sin cargar"}{x.titulo ? " · " + (x.tipo === "codigo" ? "🎟️ " + (x.codigo || "sin código") + (x.pct ? " " + x.pct + "%" : "") : x.tipo === "descuento" ? "🏷️ " + (x.pct || "?") + "% en " + x.productos.length + " prod." : x.tipo === "regalo" ? "🎁 regalo" : "💌 mensaje") : ""}</span>
+              <span style={{ flex: 1, minWidth: 0 }}><span style={{ display: "block", fontSize: 13, fontWeight: x.titulo ? 700 : 400, color: x.titulo ? p.text : p.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.titulo || "Sin cargar"}{x.titulo ? " · " + (x.tipo === "codigo" ? "🎟️ " + (x.codigo || "sin código") + (x.pct ? " " + x.pct + "%" : "") : x.tipo === "descuento" ? "🏷️ " + (x.pct || "?") + "% en " + x.productos.length + " prod." : x.tipo === "regalo" ? "🎁 regalo" : "💌 mensaje") : ""}</span>{ADV_PELIS[advEscenaDe(x.icono)] && <span style={{ display: "block", fontSize: 11.5, color: p.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>🎬 {ADV_PELIS[advEscenaDe(x.icono)][0]}</span>}</span>
               <span style={{ color: p.textMuted }}>{ab ? "▴" : "▾"}</span>
             </button>
             {ab && <div style={{ padding: "4px 12px 12px", display: "grid", gap: 8 }}>
               <div><label style={lbl}>Título (lo primero que ven)</label><input className="inp" value={x.titulo} maxLength={60} placeholder="Ej: 20% OFF en sérums" onChange={e => setDia(x.dia, "titulo", e.target.value)} /></div>
+              {(() => { const pe = ADV_PELIS[advEscenaDe(x.icono)]; return pe ? (
+                <div style={{ background: "#fff8e6", border: "1px solid #f0d98c", borderRadius: 8, padding: "8px 10px", fontSize: 12.5, lineHeight: 1.45, color: "#4a3a12" }}>
+                  <div>🎬 <b>{pe[0]}</b> · {pe[1]}</div>
+                  <div style={{ marginTop: 3 }}>💡 <b>Idea para el día:</b> {pe[2]}</div>
+                  <div style={{ marginTop: 3 }}>🎵 <b>Música en la tienda:</b> {ADV_TEMAS[pe[3]].nombre}</div>
+                </div>) : null; })()}
               <div><label style={lbl}>Lo que se ve en la ventana: {advEscenaDe(x.icono) ? ADV_ESCENAS[advEscenaDe(x.icono)][0] : "emoji propio"}</label>
                 <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                   {ADV_ESCENA_DIA.map(k => <button key={k} type="button" title={ADV_ESCENAS[k][0]} aria-label={ADV_ESCENAS[k][0]} aria-pressed={x.icono === "nyc:" + k} onClick={() => setDia(x.dia, "icono", "nyc:" + k)} style={{ width: 40, height: 40, padding: 4, borderRadius: 6, cursor: "pointer", border: x.icono === "nyc:" + k ? "2px solid #b8892e" : "1px solid " + p.border, background: "linear-gradient(180deg, #fff3cf, #f5c065)" }}><TwAdvIcono icono={"nyc:" + k} style={{ width: "100%", height: "100%" }} /></button>)}
