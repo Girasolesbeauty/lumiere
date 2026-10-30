@@ -3318,6 +3318,8 @@ function POS({ localId, usuario, paletaActual }) {
   const [tipoDescuento, setTipoDescuento] = useState("%");
   const [medioPagoSel, setMedioPagoSel] = useState(null);
   const [rutinaCuotas, setRutinaCuotas] = useState(null); // promo "Rutina en cuotas" vigente
+  // Las promos se vuelven a leer cada 10 minutos: las que se crean o cambian (o empiezan a medianoche) llegan sin recargar
+  useEffect(() => { const t = setInterval(() => API.get("/promociones?activas=true").then(r => setPromociones(r.data || [])).catch(() => {}), 10 * 60 * 1000); return () => clearInterval(t); }, []);
   useEffect(() => {
     setCcCliente(null);
     if (medioPagoSel?.tipo !== "cuenta_corriente" || !clienteSeleccionado?.id) return;
@@ -3521,7 +3523,7 @@ function POS({ localId, usuario, paletaActual }) {
     API.get("/medios-pago").then(res => setMediosPago(res.data)).catch(() => setMediosPago([]));
     API.get("/insumos/para-pos?local_id=" + (localId || 1)).then(res => { setInsumosPos(res.data?.insumos || []); setInsumosPosActivo(res.data?.activo === true); }).catch(() => { setInsumosPos([]); setInsumosPosActivo(false); });
     API.get("/config-ticket").then(res => { if (res.data) setConfigTicket(res.data); }).catch(() => {});
-    API.get("/promociones?activas=true&vigentes=true").then(res => setPromociones(res.data || [])).catch(() => setPromociones([]));
+    API.get("/promociones?activas=true").then(res => setPromociones(res.data || [])).catch(() => setPromociones([]));
     API.get("/promociones/rutina-cuotas").then(res => setRutinaCuotas(res.data && res.data.vigente ? res.data : null)).catch(() => setRutinaCuotas(null));
     API.get("/configuracion").then(res => {
       setModoTicket(res.data?.modo_ticket || "imprimir");
@@ -3834,26 +3836,37 @@ function POS({ localId, usuario, paletaActual }) {
 
   // ===== MOTOR DE PROMOCIONES =====
   // Determina el "tipo" de medio de pago elegido (para promos condicionadas)
-  const medioPagoTipoActual = (() => {
-    if (!medioPagoSel) return null;
-    const n = (medioPagoSel.nombre || "").toLowerCase();
+  // Por el nombre (hay "Transferencia" cargada con tipo efectivo); si el nombre no dice nada, por el tipo del medio
+  // (ej. "Tarjeta Naranja" de tipo crédito)
+  const medioTipoDe = (m) => {
+    if (!m) return null;
+    const n = (m.nombre || "").toLowerCase();
     if (n.includes("efectivo")) return "efectivo";
     if (n.includes("transfer")) return "transferencia";
     if (n.includes("debito") || n.includes("débito")) return "debito";
     if (n.includes("credito") || n.includes("crédito") || n.includes("cuota")) return "credito";
-    return null;
-  })();
+    return ["efectivo", "debito", "credito"].includes(m.tipo) ? m.tipo : null;
+  };
+  // Pago dividido: las promos de un medio valen solo si todas las partes son de ese medio (antes tomaba el medio que
+  // se había elegido antes de dividir: ej. 30% de transferencia pagando una parte con crédito)
+  const mediosMixtos = pagoMixto ? pagosMixtos.map(x => mediosPago.find(m => m.id === x.medio_pago_id)).filter(Boolean) : [];
+  const tiposMixtos = mediosMixtos.map(medioTipoDe);
+  const medioPagoTipoActual = pagoMixto ? (tiposMixtos.length && tiposMixtos.every(t => t && t === tiposMixtos[0]) ? tiposMixtos[0] : tiposMixtos.length ? "mixto" : null) : medioTipoDe(medioPagoSel);
+  const medioCuotasRef = pagoMixto ? (mediosMixtos.length === 1 ? mediosMixtos[0] : null) : medioPagoSel;
 
   // Promos con crédito del plan de ofertas: "10% OFF + 3 cuotas sin interés" vale solo con el medio de 3 cuotas
   // (no con "Plan 5 cuotas") y "con crédito en 1 pago" solo con crédito en 1 pago
   const cuotasDeMedio = (m) => m ? (parseInt(m.cuotas) > 1 ? parseInt(m.cuotas) : parseInt((String(m.nombre || "").match(/(\d+)\s*cuotas/i) || [])[1]) || 1) : 0;
   const promoCuotasOk = (promo) => {
-    if (promo.medio_pago_tipo !== "credito" || !medioPagoSel) return true;
-    const n = parseInt((String(promo.nombre || "").match(/(\d+)\s*cuotas/i) || [])[1]) || 0, m = cuotasDeMedio(medioPagoSel);
+    if (promo.medio_pago_tipo !== "credito") return true;
+    if (!medioCuotasRef) return false;
+    const n = parseInt((String(promo.nombre || "").match(/(\d+)\s*cuotas/i) || [])[1]) || 0, m = cuotasDeMedio(medioCuotasRef);
     if (n > 1) return m === n;
     if (/1 pago/i.test(promo.nombre || "")) return m <= 1;
     return true;
   };
+  const hoyAR = new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+  const promoVigenteHoy = (pr) => (!pr.fecha_inicio || String(pr.fecha_inicio).slice(0, 10) <= hoyAR) && (!pr.fecha_fin || String(pr.fecha_fin).slice(0, 10) >= hoyAR);
   const precioItem = (i) => (i.precio || i.price || 0) * (1 - (i.descuento_pct || 0) / 100);
   const itemAplica = (promo, i) => {
     if (promo.aplica_a === "todo") return true;
@@ -3875,7 +3888,9 @@ function POS({ localId, usuario, paletaActual }) {
       // Filtro por medio de pago (si la promo lo exige)
       if (promo.medio_pago_tipo && promo.medio_pago_tipo !== medioPagoTipoActual) continue;
       if (!promoCuotasOk(promo)) continue;
-      if (promo.sin_medio_pago && promo.sin_medio_pago === medioPagoTipoActual) continue;
+      if (promo.sin_medio_pago && (promo.sin_medio_pago === medioPagoTipoActual || tiposMixtos.includes(promo.sin_medio_pago))) continue;
+      // Fechas: se revisan acá también (si el Punto de Venta queda abierto de un día para otro, no sigue aplicando una promo vencida)
+      if (!promoVigenteHoy(promo)) continue;
       if (promo.local_id && Number(promo.local_id) !== Number(localId)) continue;
       let desc = 0;
       // Descuento por producto (para que, si no se combinan, cada producto tome su mejor promo y no una sola para todo el ticket)
