@@ -24898,6 +24898,9 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
     if (pl.dias) setDias(pl.dias);
     if (Array.isArray(pl.combos)) setCombos(pl.combos);
   };
+  // Firma de lo que se manda al crear las ofertas: si cambia después de crearlas, hay cambios sin aplicar
+  const firmaPlan = jsonOrden({ ofertas, asig, combos, d: cfg.desde, h: cfg.hasta, n: cfg.nombre, t: cfg.en_tienda, s: cfg.sector });
+  const sinAplicar = !!cfg.creado && cfg.creado !== firmaPlan;
   const traerPlan = () => API.get("/promociones/plan-liquidacion").then(r => {
     const pl = r.data.plan;
     if (pl) { ultimoPlan.current = jsonOrden(pl); aplicarPlan(pl); }
@@ -25018,12 +25021,12 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
           : { ...base, pct: o.pct, pago: k, etiqueta: "Combo " + nombreCombo(cb) + ": " + o.pct + "% OFF con " + (LIQ_MEDIOS.find(m => m[0] === k) || ["", k])[1].toLowerCase() + enLoc }));
       });
       if (cb.tienda === false) sinTienda.push(nombreCombo(cb) + " (no está marcado para la tienda)"); else if (loc) sinTienda.push(nombreCombo(cb) + " (es de un solo local)"); else if (!(pctOnline(cb) > 0)) sinTienda.push(nombreCombo(cb) + " (no tiene descuento para la tienda online)");
-      if (cb.tienda !== false && !loc && pctOnline(cb) > 0) combosTienda.push({ id: cb.id, nombre: nombreCombo(cb), productos, cantidades, precio: Math.round(listaCombo(cb) * (1 - pctOnline(cb) / 100)) });
+      if (cb.tienda !== false && !loc && pctOnline(cb) > 0) combosTienda.push({ id: cb.id, nombre: nombreCombo(cb), productos, cantidades, precio: Math.round(listaCombo(cb) * (1 - pctOnline(cb) / 100)), cuotas: Math.max(0, ...(cb.opciones || []).filter(o => o.tipo === "cuotas").map(o => o.cuotas || 0)) });
     });
     if (!gr.length) return setAviso("Las ofertas elegidas no tienen descuentos");
     if (!confirm("Se van a crear " + gr.length + " promociones \"" + cfg.nombre + "\" para " + new Set(finales.map(f => f.id)).size + " productos" + (combosListos.length ? " y " + combosListos.length + (combosListos.length === 1 ? " combo" : " combos") : "") + ", del " + fecha(cfg.desde) + " al " + fecha(cfg.hasta) + ". Si ya existían las de este evento, se reemplazan." + (cfg.en_tienda && combosListos.length ? "\n\nEn la tienda online van " + combosTienda.length + " de " + combosListos.length + " combos." + (sinTienda.length ? " No van: " + sinTienda.join(", ") + "." : "") : "") + "\n\n¿Seguimos?")) return;
     setCreando(true);
-    try { await API.post("/promociones/liquidacion", { nombre: cfg.nombre, desde: cfg.desde, hasta: cfg.hasta, en_tienda: cfg.en_tienda, sector: cfg.sector, grupos: gr, combos_tienda: combosTienda }); onCreado(); }
+    try { await API.post("/promociones/liquidacion", { nombre: cfg.nombre, desde: cfg.desde, hasta: cfg.hasta, en_tienda: cfg.en_tienda, sector: cfg.sector, grupos: gr, combos_tienda: combosTienda }); setCfg(c => ({ ...c, creado: firmaPlan })); onCreado(); }
     catch (e) { setAviso(e.response?.data?.error || "No se pudieron crear"); }
     setCreando(false);
   };
@@ -25042,6 +25045,10 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
   ];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, textAlign: "left" }}>
+      {sinAplicar && <div className="card" style={{ borderColor: p.red, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <span style={{ flex: "1 1 240px", fontSize: 13.5 }}>⚠️ <b>Hiciste cambios que todavía no se aplicaron.</b> La tienda online y la caja siguen con las ofertas de la última vez: tocá "Crear ofertas" para actualizarlas.</span>
+        <button className="btn btn-p" onClick={() => setSec("crear")}>Ir a crear ofertas</button>
+      </div>}
       <div className="card liq-res">
         <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap", alignItems: "baseline" }}>
           <div className="ct" style={{ marginBottom: 0 }}>⚡ {cfg.nombre || "Liquidación"}</div>
@@ -26061,6 +26068,12 @@ html:has(.tw){overflow-x:hidden}
 @media(hover:hover){.tw .tw-kit:hover .tw-kit-foto{transform:rotate(0) translateY(-2px)}}
 .tw-kit-foto i{position:absolute;left:-6px;bottom:-6px;z-index:2;font-style:normal;font-size:11px;font-weight:800;background:#111;color:#fff;border-radius:999px;padding:2px 7px;border:2px solid #fff}
 .tw-kit-resto{margin-left:8px;font-size:13px;font-weight:800;color:#8a6d2f;background:#fff;border-radius:999px;padding:5px 9px;box-shadow:0 4px 10px -6px rgba(60,40,10,.4)}
+.tw-kit-items{font-size:12.5px;color:#777;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tw-kit-precios{margin-top:auto;padding-top:8px;display:flex;flex-direction:column;gap:2px}
+.tw-kit-lista-p{font-size:12px;color:#aaa}
+.tw-kit-transf{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}.tw-kit-transf b{font-size:24px;font-weight:900;letter-spacing:-.01em;color:#1f8a4c}.tw-kit-transf span{font-size:12.5px;font-weight:800;color:#1f8a4c}
+.tw-kit-otros{font-size:13px;font-weight:700;color:#444;line-height:1.35}
+.tw-kit-txt .tw-kit-btn{margin-top:10px;width:100%}
 .tw-kit-pct{position:absolute;top:12px;left:12px;z-index:2;background:#111;color:#fff;font-size:12px;font-weight:800;letter-spacing:.02em;border-radius:999px;padding:4px 10px}
 .tw-kit-txt{display:flex;flex-direction:column;gap:6px;padding:16px 18px 18px;flex:1}
 .tw-kit-ceja{font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#a8842f}
@@ -27875,7 +27888,7 @@ function twTextoLlega(f) {
   if (dias === 0) return "hoy"; if (dias === 1) return "mañana";
   return "el " + d.toLocaleDateString("es-AR", { weekday: "short" }).replace(".", "") + " " + d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" });
 }
-function TwTarjeta({ p, base, sin, preventa, llega, fav, onFav, onAbrir, onAgregar, pack, cyPct, cyGral, cyPago }) {
+function TwTarjeta({ p, base, sin, preventa, llega, fav, onFav, onAbrir, onAgregar, pack, cyPct, cyGral, cyTransf, cyEfec, goc }) {
   const [hover, setHover] = useState(false);
   const [hecho, setHecho] = useState(false);
   const imgRef = useRef(null);
@@ -27915,11 +27928,13 @@ function TwTarjeta({ p, base, sin, preventa, llega, fav, onFav, onAbrir, onAgreg
       {p.marca && <div className="tw-card-m">{p.marca}</div>}
       <div className="tw-card-n">{p.nombre}</div>
       {p.resenas && <div className="tw-card-est"><TwEstrellas v={p.resenas[0]} size={12} /><span>({p.resenas[1]})</span></div>}
-      {/* Cyber: precio de lista tachado y lo que queda; si el mejor descuento es con un medio de pago, se aclara cuál */}
-      <div className="tw-card-p">{cyGral > 0 && !p.precio_antes && !preventa ? <><s className="tw-antes">{fmtTienda(p.precio)}</s> <span className="tw-precio-of">{fmtTienda(Math.round(p.precio * (1 - cyGral / 100)))}</span>
-        {cyPct > cyGral && cyPago && <div className="tw-card-pago">{fmtTienda(Math.round(p.precio * (1 - cyPct / 100)))} {TW_PAGO_TXT[cyPago] || ""}</div>}</>
-        : cyPct > 0 && !p.precio_antes && !preventa ? <><s className="tw-antes">{fmtTienda(p.precio)}</s> <span className="tw-precio-of">{fmtTienda(Math.round(p.precio * (1 - cyPct / 100)))}</span>{cyPago && <div className="tw-card-pago">{TW_PAGO_TXT[cyPago] || ""}</div>}</>
-        : p.precio_antes ? <><s className="tw-antes">{fmtTienda(p.precio_antes)}</s> <span className="tw-precio-of">{fmtTienda(p.precio)}</span></> : fmtTienda(p.precio)}</div>
+      {/* Cyber: precio de lista tachado y el precio con descuento (con cualquier medio, o si no el mejor). Abajo, lo que queda
+          con transferencia (o en efectivo) si es menos; si no hay descuento extra, las cuotas sin interés de GoCuotas */}
+      {(() => { if (!(cyPct > 0) || p.precio_antes || preventa) return null; const pr = (pct) => Math.round(p.precio * (1 - pct / 100)), main = cyGral > 0 ? cyGral : cyPct;
+        const extra = cyTransf > main ? <div className="tw-card-pago">{fmtTienda(pr(cyTransf))} con transferencia</div> : cyEfec > main ? <div className="tw-card-pago">{fmtTienda(pr(cyEfec))} en efectivo</div>
+          : goc && pr(main) >= goc.min ? <div className="tw-card-pago">4 cuotas sin interés de {fmtTienda(Math.ceil(pr(main) / 4))}</div> : null;
+        return <div className="tw-card-p"><s className="tw-antes">{fmtTienda(p.precio)}</s> <span className="tw-precio-of">{fmtTienda(pr(main))}</span>{main === cyTransf && !(cyGral > 0) ? <div className="tw-card-pago">con transferencia</div> : main === cyEfec && !(cyGral > 0) ? <div className="tw-card-pago">en efectivo</div> : extra}</div>; })()}
+      {!(cyPct > 0 && !p.precio_antes && !preventa) && <div className="tw-card-p">{p.precio_antes ? <><s className="tw-antes">{fmtTienda(p.precio_antes)}</s> <span className="tw-precio-of">{fmtTienda(p.precio)}</span></> : fmtTienda(p.precio)}</div>}
       {preventa && <div className="tw-card-pre">{llega ? <>⏳ Llega aprox. <b>{llega}</b> · ¡reservalo!</> : "⏳ Llega pronto · ¡reservalo antes que se agote!"}</div>}
     </div>
   );
@@ -28609,9 +28624,8 @@ const twDos = (n) => String(n).padStart(2, "0");
 // ===== Modo Cyber Monday de la tienda (estilo "Eléctrico") =====
 // La hora viene de Argentina ('AAAA-MM-DDTHH:MM'); la mejor promo de un producto, con cualquier forma de pago
 const twCyHasta = (fh) => fh ? fh + ":59-03:00" : null;
-// Con qué medio de pago vale la mejor promo de un producto (null = con cualquiera)
-const twMejorPago = (promos, p) => { let m = null; (promos || []).forEach(x => { const ok = x.aplica_a === "todo" || (x.aplica_a === "productos" && x.productos.includes(p.id)) || (x.aplica_a === "categorias" && x.categorias.includes(p.categoria)); if (ok && (!m || x.pct > m.pct)) m = x; }); return m ? m.pago || null : null; };
-const TW_PAGO_TXT = { transferencia: "con transferencia", retiro: "en efectivo al retirar" };
+// Mejor % de un producto pagando con ese medio (cuentan las promos de ese medio y las que valen con cualquiera)
+const twPctCon = (promos, p, pago) => twMejorPct((promos || []).filter(x => !x.pago || x.pago === pago), p);
 const twMejorPct = (promos, p) => (promos || []).reduce((m, x) => { const ok = x.aplica_a === "todo" || (x.aplica_a === "productos" && x.productos.includes(p.id)) || (x.aplica_a === "categorias" && x.categorias.includes(p.categoria)); return ok && x.pct > m ? x.pct : m; }, 0);
 function TwCyberBarra({ cy }) {
   const t = useCuentaRegresiva(twCyHasta(cy.hasta));
@@ -29312,15 +29326,11 @@ function TwCombos({ combos, productos, foto, onAgregar, onAbrir, dispo, titulo, 
           const suma = c.items.reduce((s, p) => s + p.precio * twCantCombo(c, p.id), 0);
           const precioC = c.precio > 0 ? Math.min(c.precio, suma) : suma, ahorro = Math.max(0, suma - precioC);
           const pct = ahorro > 0 ? Math.round(ahorro / suma * 100) : 0;
-          const unidades = c.items.reduce((s, p) => s + twCantCombo(c, p.id), 0);
           const fotos = c.items.slice(0, 4), resto = c.items.length - fotos.length;
-          const visibles = c.items.slice(0, 3), masItems = c.items.length - visibles.length;
           const agregar = () => { onAgregar(c.items.map(p => ({ p, n: twCantCombo(c, p.id), v: p.variantes ? p.variantes.find(v => dispo(p, v) >= twCantCombo(c, p.id)) : null }))); setHecho(c.id); setTimeout(() => setHecho(null), 2500); };
           return (
             <article key={c.id} className="tw-combo tw-kit" style={{ "--i": k }}>
               <div className={"tw-kit-arte n" + fotos.length}>
-                {pct > 0 && <span className="tw-kit-pct">−{pct}%</span>}
-                {pagoKits && <span className="tw-kit-pct-pago">💸 {String(pagoKits.pct).replace(".", ",")}% OFF<small>con {pagoKits.nombre}</small></span>}
                 {fotos.map((p, i) => (
                   <button key={p.id} className="tw-kit-foto" style={{ "--j": i }} onClick={() => onAbrir(p)} aria-label={"Ver " + p.nombre}>
                     {p.foto ? <img src={foto(p)} alt="" loading="lazy" /> : <span className="tw-ph" style={{ fontSize: 24 }}>✿</span>}
@@ -29329,28 +29339,21 @@ function TwCombos({ combos, productos, foto, onAgregar, onAbrir, dispo, titulo, 
                 ))}
                 {resto > 0 && <span className="tw-kit-resto">+{resto}</span>}
               </div>
+              {/* Lo importante a la vista: el precio con transferencia y, abajo, el de otros medios con su % y las cuotas */}
               <div className="tw-kit-txt">
-                <span className="tw-kit-ceja">Kit · {unidades} producto{unidades === 1 ? "" : "s"}</span>
                 <h4 className="tw-combo-n">{c.nombre}</h4>
-                <ul className="tw-kit-lista">
-                  {visibles.map(p => <li key={p.id}><button onClick={() => onAbrir(p)}>{twCantCombo(c, p.id) > 1 && <b>{twCantCombo(c, p.id)}×</b>}{p.nombre}</button></li>)}
-                  {masItems > 0 && <li className="mas">y {masItems} más</li>}
-                </ul>
-                {pagoKits && (
-                  <div className="tw-kit-pago">
-                    <span className="tw-kit-pago-ico" aria-hidden="true">💸</span>
-                    <span className="tw-kit-pago-txt"><small>Pagando con {pagoKits.nombre}</small><b>{fmtTienda(Math.round(precioC * (1 - pagoKits.pct / 100)))}</b></span>
-                    <span className="tw-kit-pago-off">−{String(pagoKits.pct).replace(".", ",")}%</span>
-                  </div>
-                )}
-                <div className={"tw-kit-pie" + (pagoKits ? " con-pago" : "")}>
-                  <div className="tw-kit-precio">
-                    {pagoKits && <small className="tw-kit-precio-otro">Con otros medios</small>}
-                    <b>{fmtTienda(precioC)}</b>
-                    {ahorro > 0 && <span><s>{fmtTienda(suma)}</s> · ahorrás {fmtTienda(ahorro)}</span>}
-                  </div>
-                  <button className={"tw-kit-btn" + (hecho === c.id ? " hecho" : "")} onClick={agregar} aria-label={"Agregar el kit " + c.nombre + " al carrito"}>{hecho === c.id ? "✓ Listo" : "Agregar"}</button>
+                <div className="tw-kit-items">{c.items.map(p => (twCantCombo(c, p.id) > 1 ? twCantCombo(c, p.id) + "× " : "") + p.nombre).join(" + ")}</div>
+                <div className="tw-kit-precios">
+                  {ahorro > 0 && <s className="tw-kit-lista-p">{fmtTienda(suma)}</s>}
+                  {pagoKits ? <>
+                    <div className="tw-kit-transf"><b>{fmtTienda(Math.round(precioC * (1 - pagoKits.pct / 100)))}</b><span>con {pagoKits.nombre}</span></div>
+                    <div className="tw-kit-otros">{fmtTienda(precioC)}{pct > 0 ? " · " + pct + "% OFF" : ""}{c.cuotas > 1 ? " + " + c.cuotas + " cuotas sin interés" : " con otros medios"}</div>
+                  </> : <>
+                    <div className="tw-kit-transf"><b>{fmtTienda(precioC)}</b>{pct > 0 && <span>{pct}% OFF</span>}</div>
+                    {c.cuotas > 1 && <div className="tw-kit-otros">{c.cuotas} cuotas sin interés de {fmtTienda(Math.ceil(precioC / c.cuotas))}</div>}
+                  </>}
                 </div>
+                <button className={"tw-kit-btn" + (hecho === c.id ? " hecho" : "")} onClick={agregar} aria-label={"Agregar el kit " + c.nombre + " al carrito"}>{hecho === c.id ? "✓ Listo" : "Agregar"}</button>
               </div>
             </article>
           );
@@ -31060,7 +31063,7 @@ function TiendaPublica({ slug }) {
   const nSlides = destacados.length;
   const iSlide = nSlides ? slide % nSlides : 0;
   // Cuotas sin interes de GoCuotas en cada tarjeta (con su descuento si tiene)
-  const tarjeta = (p) => <TwTarjeta key={p.id} cyPct={tienda.cyber ? twMejorPct(promosLid, p) : 0} cyGral={tienda.cyber ? twMejorPct(promosLid.filter(x => !x.pago), p) : 0} cyPago={tienda.cyber ? twMejorPago(promosLid, p) : null} pack={twPackDe(tienda.packs, p)} p={p} base={base} sin={agotado(p)} preventa={esPreventa(p)} llega={esPreventa(p) ? llegaDe(p) : null} fav={favs.includes(p.id)} onFav={toggleFav} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
+  const tarjeta = (p) => <TwTarjeta key={p.id} cyPct={tienda.cyber ? twMejorPct(promosLid, p) : 0} cyGral={tienda.cyber ? twMejorPct(promosLid.filter(x => !x.pago), p) : 0} cyTransf={tienda.cyber ? twPctCon(promosLid, p, "transferencia") : 0} cyEfec={tienda.cyber ? twPctCon(promosLid, p, "retiro") : 0} goc={tienda.pagos && tienda.pagos.gocuotas ? { min: tienda.pagos.gocuotas_minimo || 0 } : null} pack={twPackDe(tienda.packs, p)} p={p} base={base} sin={agotado(p)} preventa={esPreventa(p)} llega={esPreventa(p) ? llegaDe(p) : null} fav={favs.includes(p.id)} onFav={toggleFav} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
   const enComparar = comparar.map(id => lista0.find(p => p.id === id)).filter(Boolean);
   const toggleComparar = (p) => setComparar(c => c.includes(p.id) ? c.filter(x => x !== p.id) : [...c, p.id].slice(-3));
   const opcionesPago = [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["gocuotas", "💜 GoCuotas", "Hasta 4 cuotas sin interés con tu tarjeta de débito"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar"], ["retiro", "💵 Pago al retirar", "Pagás en el local"]]

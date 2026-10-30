@@ -122,7 +122,7 @@ router.get('/:slug', async (req, res) => {
       referidos: (() => { const r = tienda.referidosDe(c); return r.activo ? { pct: r.pct, puntos: r.puntos } : null; })(),
       legales: (() => { const l = tienda.legalesDe(c); return { data_fiscal: l.data_fiscal, paginas: l.paginas, firma_lumiere: l.firma_lumiere }; })(),
       puntos_dia: (() => { const k = tienda.puntosDiaDe(c); return k.activo ? { mult: k.mult, dias: k.dias } : null; })(),
-      ofertas: (() => { const o = tienda.ofertasDe(c), d = tienda.ofertaDiaActiva(c); return { dia: d ? { producto_id: d.producto_id, precio: d.precio, hasta: d.hasta, titulo: d.titulo } : null, combos: o.combos.filter(tienda.comboVigente).map(x => ({ id: x.id, nombre: x.nombre, productos: x.productos, cantidades: x.cantidades, precio: x.precio })) }; })(),
+      ofertas: (() => { const o = tienda.ofertasDe(c), d = tienda.ofertaDiaActiva(c); return { dia: d ? { producto_id: d.producto_id, precio: d.precio, hasta: d.hasta, titulo: d.titulo } : null, combos: o.combos.filter(tienda.comboVigente).map(x => ({ id: x.id, nombre: x.nombre, productos: x.productos, cantidades: x.cantidades, precio: x.precio, cuotas: x.cuotas || 0 })) }; })(),
       descuentos_pago: (() => { const d = tienda.descuentosPagoDe(c); return Object.fromEntries(Object.entries(d).filter(([, v]) => v > 0)); })(),
       descuentos_pago_kits: (() => { const d = tienda.descuentosPagoKitsDe(c); return Object.fromEntries(Object.entries(d).filter(([, v]) => v > 0)); })(),
       resenas_puntos: (() => { const r = tienda.puntosResenaDe(c); return r.activo && (r.puntos || r.extra_foto) ? { puntos: r.puntos, extra_foto: r.extra_foto } : null; })(),
