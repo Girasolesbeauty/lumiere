@@ -25435,9 +25435,10 @@ const cyDurVideo = (n) => CY_INTRO + Math.max(1, n) * CY_PROD + CY_FIN;
 // Ofertas de cada producto según las promos (por medio de pago) que siguen vigentes o están por empezar
 function cyOfertasProductos(promos, productos) {
   const hoy = isoLocal(new Date()), m = new Map();
-  (promos || []).filter(pr => pr.activo !== false && pr.tipo === "descuento" && pr.aplica_a === "productos" && parseFloat(pr.valor) > 0 && (!pr.fecha_fin || String(pr.fecha_fin).slice(0, 10) >= hoy)).forEach(pr => {
+  (promos || []).filter(pr => pr.activo !== false && pr.tipo === "descuento" && (pr.aplica_a === "productos" || pr.aplica_a === "categorias") && parseFloat(pr.valor) > 0 && (!pr.fecha_fin || String(pr.fecha_fin).slice(0, 10) >= hoy)).forEach(pr => {
     const pct = parseFloat(pr.valor), cuotas = parseInt((String(pr.nombre || "").match(/(\d+)\s*cuotas/) || [])[1]) || 0;
-    (pr.productos_ids || []).map(Number).forEach(id => {
+    const ids = pr.aplica_a === "categorias" ? (productos || []).filter(x => (pr.categorias || []).includes(x.categoria)).map(x => Number(x.id)) : (pr.productos_ids || []).map(Number);
+    ids.forEach(id => {
       const o = m.get(id) || { transf: 0, efec: 0, otros: 0, cred: null };
       if (pr.medio_pago_tipo === "transferencia") o.transf = Math.max(o.transf, pct);
       else if (pr.medio_pago_tipo === "efectivo") o.efec = Math.max(o.efec, pct);
@@ -25451,6 +25452,25 @@ function cyOfertasProductos(promos, productos) {
     const medio = mejor === o.transf ? "con transferencia" : mejor === o.efec ? "en efectivo" : mejor === o.otros ? "con todos los medios" : "con tarjeta de crédito";
     return { id: Number(p.id), nombre: p.nombre || p.name || "", marca: p.marca || p.brand || "", precio: Number(p.precio || p.price || 0), mejor, medio, cred: o.cred };
   }).filter(x => x.mejor > 0).sort((a, b) => (b.cred ? 1 : 0) - (a.cred ? 1 : 0) || b.mejor - a.mejor);
+}
+// Combos del Cyber (promos tipo combo, una por forma de pagar): se agrupan por productos y cantidades
+const cyMedioTxt = (o) => { const mejor = Math.max(o.transf, o.efec, o.otros, o.cred ? o.cred.pct : 0); return { mejor, medio: mejor === o.transf ? "con transferencia" : mejor === o.efec ? "en efectivo" : mejor === o.otros ? "con todos los medios" : "con tarjeta de crédito" }; };
+function cyOfertasCombos(promos, productos) {
+  const hoy = isoLocal(new Date()), m = new Map();
+  (promos || []).filter(pr => pr.activo !== false && pr.tipo === "combo" && parseFloat(pr.valor) > 0 && (!pr.fecha_fin || String(pr.fecha_fin).slice(0, 10) >= hoy)).forEach(pr => {
+    const ids = (pr.productos_ids || []).map(Number), cant = pr.combo_cantidades || {};
+    const items = ids.map(id => ({ p: (productos || []).find(x => Number(x.id) === id), n: parseInt(cant[id]) || 1 }));
+    if (!ids.length || items.some(it => !it.p)) return;
+    const k = "c:" + ids.join(",") + "|" + JSON.stringify(cant), pct = parseFloat(pr.valor), cuotas = parseInt((String(pr.nombre || "").match(/(\d+)\s*cuotas/) || [])[1]) || 0;
+    const c = m.get(k) || { id: k, combo: true, nombre: String(pr.nombre || "").replace(/^.* · /, "").replace(/^Combo /, "").replace(/:.*$/, "") || "Combo", items, transf: 0, efec: 0, otros: 0, cred: null };
+    if (pr.medio_pago_tipo === "transferencia") c.transf = Math.max(c.transf, pct);
+    else if (pr.medio_pago_tipo === "efectivo") c.efec = Math.max(c.efec, pct);
+    else if (pr.medio_pago_tipo === "credito") { if (cuotas > 1 && (!c.cred || cuotas > c.cred.cuotas)) c.cred = { pct, cuotas }; }
+    else if (!pr.medio_pago_tipo) c.otros = Math.max(c.otros, pct);
+    m.set(k, c);
+  });
+  return [...m.values()].map(c => ({ id: c.id, combo: true, nombre: c.nombre, marca: "", items: c.items.map(it => ({ id: Number(it.p.id), nombre: it.p.nombre || it.p.name || "", n: it.n })),
+    precio: c.items.reduce((a, it) => a + Number(it.p.precio || it.p.price || 0) * it.n, 0), cred: c.cred, ...cyMedioTxt(c) })).filter(x => x.mejor > 0 && x.precio > 0);
 }
 function cyDegrade(ctx, x0, x1, t) {
   const g = ctx.createLinearGradient(x0, 0, x1, 0), k = (t * .25) % 1, cols = ["#c084fc", "#22d3ee", "#f0abfc", "#c084fc"];
@@ -25524,7 +25544,14 @@ function cyDibujarVideo(ctx, W, H, t, d) {
     const cw = 680 * u, cx = W / 2 + dx, cy = 690 * u + Math.sin(t * 2.4) * 12 * u;
     ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot - .03 + Math.sin(t * 1.6) * .012);
     ctx.shadowColor = "rgba(34,211,238,.45)"; ctx.shadowBlur = 60 * u; ctx.fillStyle = "#fff"; flyRect(ctx, -cw / 2, -cw / 2, cw, cw, 44 * u); ctx.fill(); ctx.shadowBlur = 0;
-    if (p.img) { ctx.save(); flyRect(ctx, -cw / 2, -cw / 2, cw, cw, 44 * u); ctx.clip(); const k = Math.min((cw - 60 * u) / p.img.width, (cw - 60 * u) / p.img.height); ctx.drawImage(p.img, -p.img.width * k / 2, -p.img.height * k / 2, p.img.width * k, p.img.height * k); ctx.restore(); }
+    const fotoEn = (im, x, y, w, h) => { const k = Math.min((w - 30 * u) / im.width, (h - 30 * u) / im.height); ctx.drawImage(im, x + w / 2 - im.width * k / 2, y + h / 2 - im.height * k / 2, im.width * k, im.height * k); };
+    if (p.combo) {
+      // mosaico con las fotos de los productos del combo
+      const fs = (p.imgs || []).slice(0, 4), nf = fs.length, x0 = -cw / 2 + 24 * u, y0 = -cw / 2 + 24 * u, ww = cw - 48 * u;
+      const celdas = nf <= 1 ? [[0, 0, 1, 1]] : nf === 2 ? [[0, 0, .5, 1], [.5, 0, .5, 1]] : nf === 3 ? [[0, 0, .5, 1], [.5, 0, .5, .5], [.5, .5, .5, .5]] : [[0, 0, .5, .5], [.5, 0, .5, .5], [0, .5, .5, .5], [.5, .5, .5, .5]];
+      celdas.forEach(([cx0, cy0, cw0, ch0], j) => { const x = x0 + cx0 * ww, y = y0 + cy0 * ww, w = cw0 * ww, h = ch0 * ww; ctx.fillStyle = j % 2 ? "#f5f3ff" : "#faf5ff"; flyRect(ctx, x + 4 * u, y + 4 * u, w - 8 * u, h - 8 * u, 24 * u); ctx.fill(); const im = fs[j]; if (im) fotoEn(im, x, y, w, h); else { ctx.fillStyle = "#7c3aed"; ctx.font = cyF(900, 64 * u); ctx.textBaseline = "middle"; ctx.fillText(String((p.items[j] || {}).nombre || "").split(/\s+/).slice(0, 2).map(w => w[0] || "").join("").toUpperCase(), x + w / 2, y + h / 2); ctx.textBaseline = "alphabetic"; } });
+    }
+    else if (p.img) { ctx.save(); flyRect(ctx, -cw / 2, -cw / 2, cw, cw, 44 * u); ctx.clip(); fotoEn(p.img, -cw / 2 + 15 * u, -cw / 2 + 15 * u, cw - 30 * u, cw - 30 * u); ctx.restore(); }
     else { ctx.fillStyle = "#ede9fe"; flyRect(ctx, -cw / 2 + 20 * u, -cw / 2 + 20 * u, cw - 40 * u, cw - 40 * u, 30 * u); ctx.fill(); ctx.fillStyle = "#7c3aed"; ctx.font = cyF(900, 150 * u); ctx.textBaseline = "middle"; ctx.fillText(String(p.nombre).split(/\s+/).slice(0, 2).map(w => w[0] || "").join("").toUpperCase(), 0, 0); ctx.textBaseline = "alphabetic"; }
     // cartel -N%
     const pb = flyEase((lt - .45) / .35), bs = pb * (1 + .06 * Math.sin(t * 7)); ctx.save(); ctx.translate(cw / 2 - 40 * u, -cw / 2 + 40 * u); ctx.rotate(.18); ctx.scale(bs, bs);
@@ -25534,9 +25561,10 @@ function cyDibujarVideo(ctx, W, H, t, d) {
     // textos
     const tx = (k) => { const e = flyEase((lt - .35 - k * .12) / .45); return { a: e * (1 - sal), dy: (1 - e) * 40 * u }; };
     let y = 1150 * u; ctx.textAlign = "center";
-    let o = tx(0); ctx.save(); ctx.globalAlpha = o.a; if (p.marca) { ctx.fillStyle = "#22d3ee"; ctx.font = cyF(800, 32 * u); ctx.letterSpacing = (6 * u) + "px"; ctx.fillText(p.marca.toUpperCase(), W / 2, y + o.dy); } ctx.restore();
+    let o = tx(0); ctx.save(); ctx.globalAlpha = o.a; const ceja = p.combo ? "🎁 COMBO" : p.marca; if (ceja) { ctx.fillStyle = "#22d3ee"; ctx.font = cyF(800, 32 * u); ctx.letterSpacing = (6 * u) + "px"; ctx.fillText(ceja.toUpperCase(), W / 2, y + o.dy); } ctx.restore();
     o = tx(1); ctx.save(); ctx.globalAlpha = o.a; ctx.fillStyle = "#fff"; ctx.font = cyF(800, 56 * u); const ls = flyLineas(ctx, p.nombre, W - 140 * u, 2); ls.forEach((l, j) => ctx.fillText(l, W / 2, y + 72 * u + j * 64 * u + o.dy)); ctx.restore();
     y += 72 * u + ls.length * 64 * u + 20 * u;
+    if (p.combo) { ctx.save(); ctx.globalAlpha = o.a * .85; ctx.fillStyle = "#e9d5ff"; ctx.font = cyF(600, 32 * u); const li = flyLineas(ctx, p.items.map(it => (it.n > 1 ? it.n + "× " : "") + it.nombre).join(" + "), W - 160 * u, 2); li.forEach((l, j) => ctx.fillText(l, W / 2, y + j * 40 * u + o.dy)); ctx.restore(); y += li.length * 40 * u + 16 * u; }
     o = tx(2); ctx.save(); ctx.globalAlpha = o.a; ctx.font = cyF(700, 40 * u); ctx.fillStyle = "rgba(255,255,255,.55)"; const sp = cyPlata(p.precio), sw = ctx.measureText(sp).width; ctx.fillText(sp, W / 2, y + o.dy); ctx.strokeStyle = "rgba(255,255,255,.7)"; ctx.lineWidth = 4 * u; ctx.beginPath(); ctx.moveTo(W / 2 - sw / 2 - 6 * u, y - 13 * u + o.dy); ctx.lineTo(W / 2 + sw / 2 + 6 * u, y - 13 * u + o.dy); ctx.stroke(); ctx.restore();
     o = tx(3); ctx.save(); ctx.globalAlpha = o.a; ctx.font = cyF(900, 118 * u); ctx.fillStyle = cyDegrade(ctx, W * .15, W * .85, t); ctx.shadowColor = "rgba(34,211,238,.5)"; ctx.shadowBlur = 30 * u; ctx.fillText(cyPlata(p.precio * (1 - p.mejor / 100)), W / 2, y + 120 * u + o.dy); ctx.shadowBlur = 0; ctx.fillStyle = "#fff"; ctx.font = cyF(700, 34 * u); ctx.fillText(p.medio, W / 2, y + 172 * u + o.dy); ctx.restore();
     o = tx(4); if (p.cred) { ctx.save(); ctx.globalAlpha = o.a; const pc = p.precio * (1 - p.cred.pct / 100); cyPildora(ctx, W / 2, y + 220 * u + o.dy, 900 * u, 150 * u, t, u, "💳 " + (p.cred.pct > 0 ? Math.round(p.cred.pct) + "% OFF + " : "") + p.cred.cuotas + " cuotas sin interés", p.cred.cuotas + " de " + cyPlata(Math.ceil(pc / p.cred.cuotas)) + " · en nuestros locales"); ctx.restore(); }
@@ -25569,7 +25597,7 @@ function CyberVideos({ temaPal }) {
   const lienzo = useRef(null), inicio = useRef(performance.now()), grab = useRef(null);
   useEffect(() => {
     Promise.all([API.get("/promociones?activas=true"), API.get("/productos"), API.get("/promociones/cyber-tienda").catch(() => ({ data: {} }))]).then(async ([pr, prod, cy]) => {
-      const lista = cyOfertasProductos(pr.data, prod.data);
+      const lista = [...cyOfertasCombos(pr.data, prod.data), ...cyOfertasProductos(pr.data, prod.data)];
       // nombre de la tienda (va abajo de "CYBER MONDAY")
       const tit = cy.data.slug ? await fetch(base + "/tienda-publica/" + encodeURIComponent(cy.data.slug)).then(r => r.json()).then(t => t.titulo || "").catch(() => "") : "";
       setDatos({ lista, slug: cy.data.slug, dominio: cy.data.dominio, tienda: tit });
@@ -25579,9 +25607,10 @@ function CyberVideos({ temaPal }) {
   }, []);
   useEffect(() => {
     if (!datos || !datos.slug) return;
-    elegidos.forEach(id => { if (imgs[id] !== undefined) return; const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => setImgs(m => ({ ...m, [id]: im })); im.onerror = () => setImgs(m => ({ ...m, [id]: null })); im.src = base + "/tienda-publica/" + encodeURIComponent(datos.slug) + "/foto/" + id; });
+    const ids = [...new Set(elegidos.flatMap(id => { const x = datos.lista.find(y => y.id === id); return x && x.combo ? x.items.slice(0, 4).map(it => it.id) : [id]; }))];
+    ids.forEach(id => { if (imgs[id] !== undefined) return; const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => setImgs(m => ({ ...m, [id]: im })); im.onerror = () => setImgs(m => ({ ...m, [id]: null })); im.src = base + "/tienda-publica/" + encodeURIComponent(datos.slug) + "/foto/" + id; });
   }, [elegidos, datos]); // eslint-disable-line react-hooks/exhaustive-deps
-  const prods = datos ? elegidos.map(id => datos.lista.find(x => x.id === id)).filter(Boolean).map(x => ({ ...x, img: imgs[x.id] || null })) : [];
+  const prods = datos ? elegidos.map(id => datos.lista.find(x => x.id === id)).filter(Boolean).map(x => x.combo ? { ...x, imgs: x.items.slice(0, 4).map(it => imgs[it.id] || null) } : { ...x, img: imgs[x.id] || null }) : [];
   const d = { prods, maxPct: datos ? Math.max(0, ...datos.lista.map(x => x.mejor)) : 0, cuotas: prods.some(x => x.cred), marca: datos ? datos.tienda : "", web: datos && datos.dominio ? String(datos.dominio).replace(/^https?:\/\//, "") : "Link en la bio" };
   const dRef = useRef(d); dRef.current = d;
   const dur = cyDurVideo(prods.length);
@@ -25604,7 +25633,10 @@ function CyberVideos({ temaPal }) {
   const nombre = "cyber-monday-reel." + (video ? video.ext : "mp4");
   const puedeCompartir = video && navigator.canShare && (() => { try { return navigator.canShare({ files: [new File([video.blob], nombre, { type: video.blob.type })] }); } catch (e) { return false; } })();
   const q = busca.trim().toLowerCase();
-  const visibles = datos ? datos.lista.filter(x => !q || (x.nombre + " " + x.marca).toLowerCase().includes(q)).slice(0, 80) : [];
+  const [verTodos, setVerTodos] = useState(false);
+  const filtrados = datos ? datos.lista.filter(x => !q || (x.nombre + " " + x.marca + " " + (x.items || []).map(it => it.nombre).join(" ")).toLowerCase().includes(q)) : [];
+  const visibles = verTodos || q ? filtrados : filtrados.slice(0, 150);
+  const nCombos = datos ? datos.lista.filter(x => x.combo).length : 0;
   return (
     <div className="card" style={{ marginBottom: 14, textAlign: "left" }}>
       <div className="ct">🎬 Videos para Instagram (reel)</div>
@@ -25614,16 +25646,17 @@ function CyberVideos({ temaPal }) {
         : <div style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "flex-start" }}>
           <div style={{ flex: "1 1 300px", minWidth: 0 }}>
             <input className="inp" placeholder="Buscar producto o marca…" value={busca} onChange={e => setBusca(e.target.value)} style={{ marginBottom: 8 }} />
-            <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 6 }}>{elegidos.length} de 6 elegidos · el video dura {Math.round(dur)} segundos</div>
+            <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 6 }}>{datos.lista.length - nCombos} productos{nCombos ? " y " + nCombos + (nCombos === 1 ? " combo" : " combos") : ""} con descuento · {elegidos.length} de 6 elegidos · el video dura {Math.round(dur)} segundos</div>
             <div style={{ maxHeight: 340, overflowY: "auto", border: "1px solid " + p.border, borderRadius: 10 }}>
               {visibles.map(x => { const on = elegidos.includes(x.id); return (
                 <label key={x.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 10px", borderBottom: "1px solid " + p.border, cursor: "pointer", background: on ? p.accent + "14" : "transparent", opacity: !on && elegidos.length >= 6 ? .5 : 1 }}>
                   <input type="checkbox" checked={on} disabled={!on && elegidos.length >= 6} onChange={() => alternar(x.id)} />
                   <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ display: "block", fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.nombre}</span>
-                    <span style={{ fontSize: 11.5, color: p.textMuted }}>{x.marca ? x.marca + " · " : ""}-{Math.round(x.mejor)}% {x.medio}{x.cred ? " · 💳 " + x.cred.cuotas + " cuotas" : ""}</span>
+                    <span style={{ display: "block", fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.combo ? "🎁 Combo " : ""}{x.nombre}</span>
+                    <span style={{ fontSize: 11.5, color: p.textMuted }}>{x.combo ? x.items.length + " productos · " : x.marca ? x.marca + " · " : ""}-{Math.round(x.mejor)}% {x.medio}{x.cred ? " · 💳 " + x.cred.cuotas + " cuotas" : ""}</span>
                   </span>
                 </label>); })}
+              {!verTodos && !q && filtrados.length > visibles.length && <button className="chip-btn" style={{ margin: 8 }} onClick={() => setVerTodos(true)}>Ver los {filtrados.length - visibles.length} que faltan</button>}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12, alignItems: "flex-start" }}>
               <button className="btn btn-p" disabled={grabando > 0 || !prods.length} onClick={grabar}>{grabando ? "Creando video… " + grabando + "%" : "🎬 Crear video"}</button>
@@ -25632,7 +25665,7 @@ function CyberVideos({ temaPal }) {
                 {puedeCompartir && <button className="btn btn-g" onClick={async () => { try { await navigator.share({ files: [new File([video.blob], nombre, { type: video.blob.type })] }); } catch (e) {} }}>📲 Compartir</button>}
                 {video.ext !== "mp4" && <div style={{ fontSize: 11.5, color: p.warn, maxWidth: 300 }}>Este navegador lo grabó en WEBM; para MP4 (el que acepta Instagram) crealo desde Chrome actualizado o desde el celular.</div>}</>}
               {error && <div style={{ fontSize: 12, color: p.red }}>{error}</div>}
-              {prods.some(x => !x.img) && Object.keys(imgs).length >= elegidos.length && <div style={{ fontSize: 11.5, color: p.textMuted, maxWidth: 320 }}>Los productos sin foto en la tienda online salen con sus iniciales.</div>}
+              {prods.some(x => x.combo ? x.imgs.some(im => !im) : !x.img) && elegidos.every(id => { const x = datos.lista.find(y => y.id === id); return !x || (x.combo ? x.items.slice(0, 4).every(it => imgs[it.id] !== undefined) : imgs[id] !== undefined); }) && <div style={{ fontSize: 11.5, color: p.textMuted, maxWidth: 320 }}>Los productos sin foto en la tienda online salen con sus iniciales.</div>}
             </div>
           </div>
           <canvas ref={lienzo} width={1080} height={1920} style={{ width: 243, height: 432, borderRadius: 14, boxShadow: "0 6px 24px rgba(0,0,0,.25)", background: "#12002e" }} />
