@@ -26753,20 +26753,67 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-redes a{width:42px;height:42px;border-radius:50%;border:1px solid #444;display:flex;align-items:center;justify-content:center;transition:background .2s,transform .2s}
 .tw-redes a:hover{background:#fff;color:#000 !important;transform:translateY(-2px)}
 .tw-cy-barra{background:#0b0118!important;color:#e9d5ff!important;font-weight:800;letter-spacing:.08em;font-size:12px;white-space:nowrap}.tw-cy-bc{display:none}@media(max-width:520px){.tw-cy-barra{font-size:11px;letter-spacing:.05em}.tw-cy-bl{display:none}.tw-cy-bc{display:inline}}
-.tw-cy-hero{position:relative;overflow:hidden;margin:14px 16px 6px;border-radius:22px;padding:24px 20px 22px;color:#fff;background:radial-gradient(120% 120% at 0% 0%,#3b0a8f 0%,#12002e 45%,#05010f 100%)}
-@media (min-width:900px){.tw-cy-hero{max-width:1240px;margin:20px auto 8px;padding:44px 48px}}
-.tw-cy-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.12) 50%,transparent 65%);background-size:250% 100%;animation:twCyBrillo 4.5s ease-in-out infinite;pointer-events:none}
+.tw-cy-hero{position:relative;overflow:hidden;isolation:isolate;margin:14px 16px 6px;border-radius:24px;padding:26px 20px 22px;color:#fff;background:radial-gradient(120% 120% at 0% 0%,#3b0a8f 0%,#12002e 48%,#05010f 100%);box-shadow:0 18px 50px rgba(59,10,143,.28)}
+.tw-cy-hero::after{content:"";position:absolute;inset:0;z-index:3;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.10) 50%,transparent 65%);background-size:250% 100%;animation:twCyBrillo 5s ease-in-out infinite;pointer-events:none}
 @keyframes twCyBrillo{0%{background-position:120% 0}100%{background-position:-120% 0}}
-.tw-cy-ceja{font-size:11px;font-weight:800;letter-spacing:.28em;color:#22d3ee;text-transform:uppercase}
-.tw .tw-cy-tit{font-size:clamp(40px,9vw,72px);line-height:.95;font-weight:900;letter-spacing:-.03em;margin:8px 0 6px;max-width:9ch;background:linear-gradient(90deg,#c084fc,#22d3ee);-webkit-background-clip:text;background-clip:text;color:transparent}
-.tw-cy-sub{font-size:14.5px;opacity:.85;line-height:1.4;max-width:34ch;margin:0}
-.tw-cy-reloj{display:flex;gap:8px;margin:16px 0;max-width:420px}
-.tw-cy-reloj div{flex:1;text-align:center;background:rgba(255,255,255,.08);border:1px solid rgba(192,132,252,.45);border-radius:12px;padding:8px 0 6px}
-.tw-cy-reloj b{display:block;font-size:24px;font-weight:900;font-variant-numeric:tabular-nums}
+.tw-cy-fondo{position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+.tw-cy-fondo i{position:absolute;border-radius:50%;filter:blur(50px);opacity:.55}
+.tw-cy-fondo .o1{width:260px;height:260px;background:#7c3aed;left:-60px;top:-80px;animation:twCyOrbe 9s ease-in-out infinite alternate}
+.tw-cy-fondo .o2{width:240px;height:240px;background:#06b6d4;right:-70px;bottom:-90px;opacity:.4;animation:twCyOrbe 11s ease-in-out infinite alternate-reverse}
+@keyframes twCyOrbe{to{transform:translate(70px,40px) scale(1.25)}}
+.tw-cy-piso{position:absolute;left:-50%;right:-50%;bottom:-2px;height:46%;background-image:linear-gradient(rgba(34,211,238,.55) 1px,transparent 1px),linear-gradient(90deg,rgba(192,132,252,.5) 1px,transparent 1px);background-size:44px 44px;transform:perspective(260px) rotateX(62deg);transform-origin:50% 100%;animation:twCyPiso 1.6s linear infinite;-webkit-mask-image:linear-gradient(transparent,#000 70%);mask-image:linear-gradient(transparent,#000 70%);opacity:.45}
+@keyframes twCyPiso{to{background-position:0 44px}}
+.tw-cy-fondo b{position:absolute;left:var(--x);top:var(--y);width:3px;height:3px;border-radius:50%;background:#fff;box-shadow:0 0 8px #c084fc;animation:twCyChispa 2.8s ease-in-out var(--d) infinite;opacity:0}
+@keyframes twCyChispa{50%{opacity:1;transform:scale(1.6)}}
+.tw-cy-izq{position:relative;z-index:2}
+@media (max-width:520px){.tw-cy-ceja{letter-spacing:.14em;font-size:10px;border-radius:12px;line-height:1.5}}
+.tw-cy-ceja{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:800;letter-spacing:.28em;color:#22d3ee;text-transform:uppercase;border:1px solid rgba(34,211,238,.4);border-radius:999px;padding:5px 12px 5px 10px;background:rgba(34,211,238,.08)}
+.tw-cy-vivo{flex-shrink:0;width:8px;height:8px;border-radius:50%;background:#22d3ee;box-shadow:0 0 0 0 rgba(34,211,238,.7);animation:twCyVivo 1.6s infinite}
+@keyframes twCyVivo{70%{box-shadow:0 0 0 9px rgba(34,211,238,0)}100%{box-shadow:0 0 0 0 rgba(34,211,238,0)}}
+.tw .tw-cy-tit{font-size:clamp(42px,10vw,84px);line-height:.92;font-weight:900;letter-spacing:-.035em;margin:12px 0 8px;max-width:9ch;background:linear-gradient(90deg,#c084fc,#22d3ee,#f0abfc,#c084fc);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:twCyTit 6s linear infinite;filter:drop-shadow(0 0 18px rgba(192,132,252,.35))}
+@keyframes twCyTit{to{background-position:300% 0}}
+.tw-cy-hasta{display:inline-flex;align-items:baseline;gap:6px;margin:4px 0 10px;padding:6px 16px;border-radius:14px;background:linear-gradient(135deg,#7c3aed,#06b6d4);box-shadow:0 0 0 0 rgba(124,58,237,.6);animation:twCyLate 2.2s ease-in-out infinite;transform-origin:left center}
+.tw-cy-hasta b{font-size:34px;font-weight:900;line-height:1;letter-spacing:-.02em}
+.tw-cy-hasta small{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.92}
+@keyframes twCyLate{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(124,58,237,.55)}50%{transform:scale(1.05);box-shadow:0 0 0 12px rgba(124,58,237,0)}}
+.tw-cy-sub{font-size:14.5px;opacity:.88;line-height:1.45;max-width:38ch;margin:0}
+.tw-cy-reloj{display:flex;gap:8px;margin:16px 0;max-width:400px}
+.tw-cy-reloj div{flex:1;text-align:center;background:rgba(255,255,255,.07);border:1px solid rgba(192,132,252,.45);border-radius:12px;padding:8px 0 6px;backdrop-filter:blur(4px);overflow:hidden}
+.tw-cy-reloj b{display:block;font-size:24px;font-weight:900;font-variant-numeric:tabular-nums;animation:twCyNum .45s cubic-bezier(.2,.8,.3,1.2)}
+@keyframes twCyNum{from{transform:translateY(-60%);opacity:0}}
 .tw-cy-reloj small{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;opacity:.7}
-.tw .tw-cy-btn{position:relative;z-index:1;display:inline-flex;align-items:center;gap:8px;background:#fff;color:#12002e;border:none;border-radius:999px;padding:13px 26px;font:inherit;font-weight:800;font-size:13px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.tw .tw-cy-btn{position:relative;z-index:1;display:inline-flex;align-items:center;gap:10px;background:#fff;color:#12002e;border:none;border-radius:999px;padding:14px 28px;font:inherit;font-weight:900;font-size:13px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;box-shadow:0 0 24px rgba(34,211,238,.45);transition:transform .2s}
+.tw .tw-cy-btn:hover{transform:translateY(-2px)}
+.tw-cy-btn span{display:inline-block;animation:twCyFlecha 1.2s ease-in-out infinite}
+@keyframes twCyFlecha{50%{transform:translateX(5px)}}
 .tw-cy-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
 .tw-cy-chips span{font-size:11.5px;font-weight:700;border:1px solid rgba(192,132,252,.45);border-radius:999px;padding:5px 10px;background:rgba(255,255,255,.08)}
+.tw-cy-der{display:none}
+.tw-cy-cinta{position:relative;z-index:2;margin:10px -20px -4px;padding:10px 0 4px;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+.tw-cy-cinta>div{display:flex;gap:10px;width:max-content;animation:twCyCinta 28s linear infinite}
+.tw-cy-cinta button,.tw-cy-flot{position:relative;border:0;padding:0;cursor:pointer;background:#fff;border-radius:16px;overflow:visible}
+.tw-cy-cinta button{width:84px;height:84px;flex-shrink:0;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.tw-cy-cinta img,.tw-cy-flot img{width:100%;height:100%;object-fit:contain;border-radius:inherit;padding:6px;box-sizing:border-box;display:block}
+.tw-cy-cinta em,.tw-cy-flot em{position:absolute;top:-7px;right:-7px;font-style:normal;font-size:11px;font-weight:900;color:#fff;background:linear-gradient(135deg,#7c3aed,#06b6d4);border-radius:999px;padding:3px 7px;box-shadow:0 2px 8px rgba(0,0,0,.35)}
+@keyframes twCyCinta{to{transform:translateX(-50%)}}
+@media (min-width:900px){
+  .tw-cy-hero{max-width:1240px;margin:20px auto 8px;padding:52px 56px;min-height:380px;box-sizing:border-box}
+  .tw-cy-hero.con-fotos{display:grid;grid-template-columns:1.05fr 1fr;align-items:center;gap:20px}
+  .tw-cy-hero.con-fotos .tw-cy-cinta{display:none}
+  .tw-cy-der{display:block;position:relative;height:340px;z-index:2}
+  .tw-cy-rayo{position:absolute;left:50%;top:50%;width:150px;transform:translate(-50%,-50%);fill:#c084fc;opacity:.22;filter:drop-shadow(0 0 30px #c084fc);animation:twCyRayo 2.6s ease-in-out infinite}
+  @keyframes twCyRayo{0%,100%{opacity:.16}45%{opacity:.16}50%{opacity:.5}55%{opacity:.2}60%{opacity:.45}}
+  .tw-cy-flot{position:absolute;width:150px;height:150px;box-shadow:0 18px 40px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.4);animation:twCyFlota 5s ease-in-out infinite;transition:transform .25s}
+  .tw-cy-flot:hover{animation-play-state:paused;transform:scale(1.08) rotate(0deg)!important;z-index:5}
+  .tw-cy-flot em{font-size:14px;padding:5px 10px;top:-10px;right:-10px}
+  .tw-cy-flot.f0{left:30%;top:22%;width:190px;height:190px;--r:-3deg;z-index:3}
+  .tw-cy-flot.f1{left:2%;top:4%;--r:-9deg;animation-delay:-1.2s}
+  .tw-cy-flot.f2{right:2%;top:0;--r:8deg;animation-delay:-2.4s}
+  .tw-cy-flot.f3{left:6%;bottom:0;width:130px;height:130px;--r:7deg;animation-delay:-3.1s}
+  .tw-cy-flot.f4{right:6%;bottom:4%;width:130px;height:130px;--r:-6deg;animation-delay:-.6s}
+  @keyframes twCyFlota{0%,100%{transform:translateY(0) rotate(var(--r,0deg))}50%{transform:translateY(-14px) rotate(calc(var(--r,0deg) * -.4))}}
+  .tw-cy-reloj b{font-size:30px}
+}
 .tw .tw-nav .tw-cy-nav{background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;border-radius:999px;padding:6px 14px;font-weight:900;letter-spacing:.1em}
 .tw-etq.tw-cy-badge{background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;font-weight:900;border:0}
 @font-face{font-family:"TwPF";font-display:swap;font-style:italic;font-weight:500;src:url(https://fonts.gstatic.com/s/playfairdisplay/v40/nuFRD-vYSZviVYUb_rj3ij__anPXDTnCjmHKM4nYO7KN_pqTXtHA-Q.woff2) format("woff2")}
@@ -27035,7 +27082,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-hw-mis{border-style:solid;border-color:rgba(255,255,255,.18);background:rgba(255,255,255,.06)}
 .tw-cy-vista{position:fixed;left:12px;right:12px;bottom:12px;z-index:400;background:#12002e;color:#e9d5ff;border:1px solid #7c3aed;border-radius:14px;padding:10px 14px;font-size:12.5px;line-height:1.4;box-shadow:0 8px 24px rgba(0,0,0,.35)}
 @media (min-width:700px){.tw-cy-vista{left:auto;max-width:420px}}
-@media (prefers-reduced-motion:reduce){.tw-cy-hero::after{animation:none}}
+@media (prefers-reduced-motion:reduce){.tw-cy-hero::after,.tw-cy-hero *{animation:none!important}}
 .tw-pie-link{background:none;border:none;padding:0;color:#fff;font:inherit;cursor:pointer;text-align:left}
 .tw-pie-link:hover{text-decoration:underline}
 .tw-pie-legal{max-width:1280px;margin:0 auto;padding:0 20px 18px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;font-size:12.5px}
@@ -29321,16 +29368,30 @@ function TwHwSusto() {
     </div>
   </div>, document.body);
 }
-function TwCyberHero({ cy, onVer }) {
+// Tarjeta del Cyber en la portada: texto + reloj a la izquierda y, en compu, las fotos de las ofertas flotando a la derecha
+// (en el celular pasan en una cinta). Fondo con piso de neón que avanza, luces que se mueven y chispas.
+function TwCyberHero({ cy, onVer, prods = [], foto, maxPct = 0 }) {
   const t = useCuentaRegresiva(twCyHasta(cy.hasta));
+  const flot = prods.slice(0, 5), cinta = prods.length >= 4 ? [...prods, ...prods] : [];
   return (
-    <section className="tw-cy-hero" aria-label="Cyber Monday">
-      {cy.ceja && <div className="tw-cy-ceja">{cy.ceja}</div>}
-      <h2 className="tw-cy-tit">{cy.titulo}</h2>
-      {cy.subtitulo && <p className="tw-cy-sub">{cy.subtitulo}</p>}
-      {t.ms > 0 && <div className="tw-cy-reloj" role="timer" aria-label="Tiempo que queda">{[[t.d, "días"], [t.h, "horas"], [t.m, "min"], [t.s, "seg"]].map(([n, l]) => <div key={l}><b>{twDos(n)}</b><small>{l}</small></div>)}</div>}
-      <button className="tw-cy-btn" onClick={onVer}>{cy.boton || "Ver ofertas"} →</button>
-      {(cy.chips || []).length > 0 && <div className="tw-cy-chips">{cy.chips.map(c => <span key={c}>{c}</span>)}</div>}
+    <section className={"tw-cy-hero" + (flot.length >= 3 ? " con-fotos" : "")} aria-label="Cyber Monday">
+      <div className="tw-cy-fondo" aria-hidden="true"><i className="o1" /><i className="o2" /><div className="tw-cy-piso" />
+        {Array.from({ length: 14 }, (_, k) => <b key={k} style={{ "--x": ((k * 37) % 100) + "%", "--y": ((k * 53) % 70) + "%", "--d": (k % 5) * .7 + "s" }} />)}
+      </div>
+      <div className="tw-cy-izq">
+        {cy.ceja && <div className="tw-cy-ceja"><span className="tw-cy-vivo" />{cy.ceja}</div>}
+        <h2 className="tw-cy-tit">{cy.titulo}</h2>
+        {maxPct >= 10 && !/%/.test(cy.titulo || "") && <div className="tw-cy-hasta"><small>hasta</small><b>{Math.round(maxPct)}%</b><small>OFF</small></div>}
+        {cy.subtitulo && <p className="tw-cy-sub">{cy.subtitulo}</p>}
+        {t.ms > 0 && <div className="tw-cy-reloj" role="timer" aria-label="Tiempo que queda">{[[t.d, "días"], [t.h, "horas"], [t.m, "min"], [t.s, "seg"]].map(([n, l]) => <div key={l}><b key={n}>{twDos(n)}</b><small>{l}</small></div>)}</div>}
+        <button className="tw-cy-btn" onClick={onVer}>{cy.boton || "Ver ofertas"} <span aria-hidden="true">→</span></button>
+        {(cy.chips || []).length > 0 && <div className="tw-cy-chips">{cy.chips.map(c => <span key={c}>{c}</span>)}</div>}
+      </div>
+      {flot.length >= 3 && <div className="tw-cy-der" aria-hidden="true">
+        <svg className="tw-cy-rayo" viewBox="0 0 60 100"><path d="M36 2 L8 56 H28 L20 98 L54 38 H33 Z" /></svg>
+        {flot.map((p, k) => <button key={p.id} tabIndex={-1} className={"tw-cy-flot f" + k} onClick={onVer}><img src={foto(p)} alt="" loading="lazy" />{p.cyPct > 0 && <em>-{Math.round(p.cyPct)}%</em>}</button>)}
+      </div>}
+      {cinta.length > 0 && <div className="tw-cy-cinta" aria-hidden="true"><div>{cinta.map((p, k) => <button key={k} tabIndex={-1} onClick={onVer}><img src={foto(p)} alt="" loading="lazy" />{p.cyPct > 0 && <em>-{Math.round(p.cyPct)}%</em>}</button>)}</div></div>}
     </section>
   );
 }
@@ -30394,11 +30455,9 @@ function TiendaPublica({ slug }) {
   const [intentoPedir, setIntentoPedir] = useState(false);
   const [toast, setToast] = useState(null);
   const [salto, setSalto] = useState(0);
-  const [slide, setSlide] = useState(0);
   const [anuncio, setAnuncio] = useState(0);
   const [sombra, setSombra] = useState(false);
   const [pedido, setPedido] = useState(null);
-  const toque = useRef(null);
   const tilesRef = useRef(null);
   const codigoUrl = params.get("pedido");
 
@@ -30559,7 +30618,6 @@ function TiendaPublica({ slug }) {
   useEffect(() => { if (logueada) cargarCuenta(); }, [logueada]);
   useEffect(() => { if (paso === "datos" && cuponIn && !cuponOk) aplicarCupon(cuponIn); }, [paso]);
   // Banner y tira de anuncios pasan solos
-  useEffect(() => { const t = setInterval(() => setSlide(s => s + 1), 5500); return () => clearInterval(t); }, [slide]);
   useEffect(() => { const t = setInterval(() => setAnuncio(a => a + 1), 4000); return () => clearInterval(t); }, []);
   // Las secciones aparecen suavemente al bajar
   useEffect(() => {
@@ -31116,9 +31174,11 @@ function TiendaPublica({ slug }) {
   };
   const moverTiles = (d) => { const el = tilesRef.current; if (el) el.scrollBy({ left: d * el.clientWidth, behavior: "smooth" }); };
   const reel = (r) => <TwReel key={r.id} r={r} base={base} prods={(r.productos || []).map(id => visibles.find(p => p.id === id)).filter(Boolean)} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
+  // Fotos de las ofertas para la tarjeta del Cyber (las primeras, en el mismo orden que "Ver todas las ofertas") y el mayor descuento
+  const cyHeroTodos = tienda.cyber ? visibles.map(p => ({ ...p, cyPct: twMejorPct(promosLid, p) })).filter(p => p.cyPct > 0) : [];
+  const cyHeroProds = cyHeroTodos.filter(p => p.foto && !agotado(p)).sort((a, b) => cyMarca(a) - cyMarca(b) || (a.rk || 1e9) - (b.rk || 1e9) || b.cyPct - a.cyPct).slice(0, 10);
+  const cyHeroMax = cyHeroTodos.reduce((m, p) => Math.max(m, p.cyPct), 0);
   const filasPortada = (tienda.filas || []).map(f => ({ ...f, items: f.productos.map(id => lista0.find(p => p.id === id)).filter(p => p && !agotado(p)) })).filter(f => f.items.length);
-  const nSlides = destacados.length;
-  const iSlide = nSlides ? slide % nSlides : 0;
   // Cuotas sin interes de GoCuotas en cada tarjeta (con su descuento si tiene)
   const tarjeta = (p) => <TwTarjeta key={p.id} cyPct={tienda.cyber ? twMejorPct(promosLid, p) : 0} cyGral={tienda.cyber ? twMejorPct(promosLid.filter(x => !x.pago), p) : 0} cyTransf={tienda.cyber ? twPctCon(promosLid, p, "transferencia") : 0} cyEfec={tienda.cyber ? twPctCon(promosLid, p, "retiro") : 0} goc={tienda.pagos && tienda.pagos.gocuotas ? { min: tienda.pagos.gocuotas_minimo || 0 } : null} pack={twPackDe(tienda.packs, p)} p={p} base={base} sin={agotado(p)} preventa={esPreventa(p)} llega={esPreventa(p) ? llegaDe(p) : null} fav={favs.includes(p.id)} onFav={toggleFav} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
   const enComparar = comparar.map(id => lista0.find(p => p.id === id)).filter(Boolean);
@@ -31670,7 +31730,7 @@ function TiendaPublica({ slug }) {
         ) : (
           <>
             {tienda.adviento && <TwAdviento adv={tienda.adviento} slug={slug} visibles={visibles} tarjeta={tarjeta} />}
-            {tienda.cyber && <TwCyberHero cy={tienda.cyber} onVer={() => irCat("cyber")} />}
+            {tienda.cyber && <TwCyberHero cy={tienda.cyber} onVer={() => irCat("cyber")} foto={foto} prods={cyHeroProds} maxPct={cyHeroMax} />}
             {tienda.halloween && !tienda.cyber && <TwHwHero hw={tienda.halloween} hayLook={hwLook.length > 0} onJugar={() => setHwJuego(true)} onVer={() => irCat("halloween")} />}
             {tienda.halloween && <TwFila clase="tw-hw-fila" titulo="🎃 Para tu disfraz" items={hwDisfraz} onVerTodo={() => irCat("halloween")} render={tarjeta} />}
             {tienda.halloween && <TwFila clase="tw-hw-fila" titulo="🧖 Después de la fiesta" sub={<div className="tw-pre-txt">Para sacarte todo el maquillaje y cuidar tu piel</div>} items={hwDespues} onVerTodo={() => irCat("halloween")} render={tarjeta} />}
@@ -31697,34 +31757,13 @@ function TiendaPublica({ slug }) {
                 </div>
                 {bannersImg.length > 3 && <button className="tw-flecha" style={{ right: -14 }} onClick={() => moverTiles(1)} aria-label="Siguientes"><TwIcono d={TW_DER} /></button>}
               </section>
-            ) : nSlides > 0 ? (
-              <div className="tw-hero" onTouchStart={e => { toque.current = e.touches[0].clientX; }} onTouchEnd={e => { const d = e.changedTouches[0].clientX - (toque.current || 0); if (Math.abs(d) > 40) setSlide(s => Math.max(0, s + (d < 0 ? 1 : -1 + nSlides))); }}>
-                {destacados.map((p, i) => (
-                  <div key={p.id} className={"tw-slide" + (i === iSlide ? " on" : "")} aria-hidden={i !== iSlide}>
-                    <div className="tw-slide-txt">
-                      <div className="tw-ceja">{p.nuevo ? "Nuevo" : p.marca || "Destacado"}</div>
-                      <h2>{p.nombre}</h2>
-                      <p>{p.descripcion ? p.descripcion.split("\n")[0].slice(0, 120) : (p.marca ? p.marca + " · " : "") + fmtTienda(p.precio)}</p>
-                      <div><button className="tw-btn" tabIndex={i === iSlide ? 0 : -1} onClick={() => abrir(p)}>Comprar · {fmtTienda(p.precio)}</button></div>
-                    </div>
-                    <div className="tw-slide-img"><div className="tw-circulo" />{p.foto ? <img src={foto(p)} alt="" /> : <span className="tw-ph" style={{ fontSize: 90 }}>✿</span>}</div>
-                  </div>
-                ))}
-                {nSlides > 1 && <>
-                  <div className="tw-puntos">{destacados.map((p, i) => <button key={p.id + "-" + (i === iSlide ? slide : "x")} className={i === iSlide ? "on" : ""} onClick={() => setSlide(i)} aria-label={"Ver " + p.nombre} />)}</div>
-                  <button className="tw-flecha" style={{ left: 16 }} onClick={() => setSlide(s => s - 1 + nSlides)} aria-label="Anterior"><TwIcono d={TW_IZQ} /></button>
-                  <button className="tw-flecha" style={{ right: 16 }} onClick={() => setSlide(s => s + 1)} aria-label="Siguiente"><TwIcono d={TW_DER} /></button>
-                </>}
-              </div>
-            ) : (
-              <div className="tw-hero" style={{ height: 220, display: "flex", alignItems: "center", padding: "0 40px" }}><div><div className="tw-ceja" style={{ color }}>Bienvenida</div><h2 style={{ fontSize: 40, margin: "8px 0" }}>{tienda.titulo}</h2><p style={{ margin: 0 }}>{tienda.mensaje}</p></div></div>
-            )}
+            ) : null}
             {tienda.regalos && tienda.regalos.en_inicio !== false && tienda.regalos.tema === "general" && <TwRegalosHero r={tienda.regalos} tienda={tienda} onGift={() => irRegalos("gift")} onArmar={() => irRegalos("armar")} />}
             {tienda.ofertas && tienda.ofertas.combos.length > 0 && tienda.regalos && tienda.regalos.tema === "general" && <TwCombos pagoKits={pagoKitsMejor} combos={combosOrden(tienda.ofertas.combos)} productos={visibles} foto={foto} dispo={dispo} onAgregar={agregarRegalo} onAbrir={abrir} />}
             {/* Novedades: lo que entró en los últimos 30 días, arriba y lo más nuevo primero */}
             <TwFila titulo="✨ Novedades" items={[...conStock.filter(p => p.nuevo)].sort((a, b) => (b.creado || 0) - (a.creado || 0) || b.id - a.id).slice(0, 12)} onVerTodo={() => { setOrden("nuevos"); irCat("*"); }} render={tarjeta} />
             {ofertaP && <TwOfertaDia p={ofertaP} oferta={tienda.ofertas.dia} foto={foto} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} sin={agotado(ofertaP)} />}
-            {bannersImg.length > 0 && <TwFila titulo="Destacados" items={destacados} render={tarjeta} />}
+            <TwFila titulo="Destacados" items={destacados} render={tarjeta} />
             {vistosLista.length >= 2 && <TwFila titulo="👀 Lo viste hace poco" items={vistosLista} render={tarjeta} />}
             {paraTuPiel.length >= 3 && <TwFila titulo={"🌿 Para tu piel " + ((TW_FILTROS[1].op.find(o => o[0] === perfilPiel.piel) || ["", ""])[1] || "").toLowerCase()} sub={<div className="tw-pre-txt">Elegidos según tu perfil de piel{perfilPiel.nec && perfilPiel.nec.length ? " y lo que querés mejorar" : ""}.</div>} items={paraTuPiel} render={tarjeta} />}
             {hayRutina && !paraTuPiel.length && <TwRutinaBanner onIr={() => irCat("rutina")} />}
