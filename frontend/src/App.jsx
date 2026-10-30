@@ -25243,6 +25243,11 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
           {conPerdida.length > 0 && <div className="cli-tip" style={{ margin: "8px 0", borderColor: p.red }}>⚠️ {conPerdida.length} {conPerdida.length === 1 ? "producto tiene" : "productos tienen"} alguna forma de pago que te hace perder o ganar menos que el mínimo. Revisalos en "Productos" (están en rojo).</div>}
           <label style={{ display: "flex", gap: 8, alignItems: "center", margin: "10px 0 6px", fontSize: 13.5 }}><input type="checkbox" checked={cfg.en_tienda} onChange={e => setCfg(c => ({ ...c, en_tienda: e.target.checked }))} /> También en la tienda online</label>
           {cfg.en_tienda && <label style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6, fontSize: 13.5 }}><input type="checkbox" checked={cfg.sector} onChange={e => setCfg(c => ({ ...c, sector: e.target.checked }))} /> Armar el sector "⚡ {cfg.nombre}" en el menú de la tienda (se ve solo esos días)</label>}
+          {/* Si el evento arranca más adelante, se puede adelantar a hoy con un toque (ej. para empezar antes el Cyber) */}
+          {cfg.desde > isoLocal(new Date()) && <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", background: p.accentDim || "#fff6e0", border: "1px solid " + p.border, borderRadius: 10, padding: "10px 12px", margin: "8px 0" }}>
+            <span style={{ fontSize: 13.5, flex: "1 1 220px" }}>📅 Estas ofertas empiezan el <b>{fecha(cfg.desde)}</b>. ¿Querés que empiecen hoy?</span>
+            <button className="btn btn-s" onClick={() => setCfg(c => ({ ...c, desde: isoLocal(new Date()), hasta: c.hasta < isoLocal(new Date()) ? isoLocal(new Date()) : c.hasta }))}>Empezar hoy</button>
+          </div>}
           <ul style={{ fontSize: 12.5, color: p.textMuted, margin: "8px 0 12px", paddingLeft: 18, lineHeight: 1.6 }}>
             <li>Se crean como promociones del {fecha(cfg.desde)} al {fecha(cfg.hasta)}; el Punto de Venta aplica sola la que corresponde según cómo paga la clienta.</li>
             <li>Las cuotas sin interés: en el local necesitás un medio "Crédito N cuotas" sin recargo; en la tienda online se activan en tu cuenta de Mercado Pago.</li>
