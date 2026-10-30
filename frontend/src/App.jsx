@@ -27152,11 +27152,11 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-nieve{position:absolute;inset:0;pointer-events:none;z-index:3;overflow:hidden}
 .tw-adv-nieve i{position:absolute;top:-10px;width:var(--s);height:var(--s);border-radius:50%;background:#fff;opacity:var(--o);animation:twAdvNieve var(--d) linear var(--del) infinite}
 @keyframes twAdvNieve{to{transform:translate(var(--x),1100px)}}
-.tw-adv-ciudad{position:relative;width:100%;max-width:420px;margin:6px auto 0;aspect-ratio:360/644;transform-style:preserve-3d;animation:twAdv3d 9s ease-in-out infinite alternate;--hund:inset 0 4px 5px rgba(0,0,0,.55),inset 3px 0 4px rgba(0,0,0,.3),0 2px 0 #d8b46a,0 4px 4px rgba(0,0,0,.4)}
+.tw-adv-ciudad{position:relative;width:100%;max-width:420px;margin:6px auto 0;aspect-ratio:360/644;transform-style:flat;animation:twAdv3d 9s ease-in-out infinite alternate;--hund:inset 0 4px 5px rgba(0,0,0,.55),inset 3px 0 4px rgba(0,0,0,.3),0 2px 0 #d8b46a,0 4px 4px rgba(0,0,0,.4)}
 @keyframes twAdv3d{from{transform:perspective(1100px) rotateY(-6deg) rotateX(3deg)}to{transform:perspective(1100px) rotateY(6deg) rotateX(1deg)}}
 .tw-adv-ciudad.mueve{animation:none;transform:perspective(1100px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transition:transform .25s ease-out}
-.tw-adv-ciudad::before{content:"";position:absolute;left:6%;right:6%;bottom:-16px;height:30px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.5),transparent);transform:translateZ(-60px);pointer-events:none}
-.tw-adv-v .hj{position:absolute;top:-1px;bottom:-1px;width:50%;background:linear-gradient(180deg,#5a4183,#2b2050);border:1px solid rgba(255,224,138,.7);box-shadow:inset 0 0 0 2px rgba(255,224,138,.12);pointer-events:none;z-index:2}
+.tw-adv-ciudad::before{content:"";position:absolute;left:6%;right:6%;bottom:-16px;height:30px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.5),transparent);pointer-events:none}
+.tw-adv-v .hj{position:absolute;top:-1px;bottom:-1px;width:50%;-webkit-backface-visibility:visible;backface-visibility:visible;will-change:transform;background:linear-gradient(180deg,#5a4183,#2b2050);border:1px solid rgba(255,224,138,.7);box-shadow:inset 0 0 0 2px rgba(255,224,138,.12);pointer-events:none;z-index:2}
 .tw-adv-v .hj::after{content:"";position:absolute;left:22%;right:22%;top:12%;height:34%;border:1px solid rgba(255,224,138,.5);background:rgba(255,226,160,.25)}
 .tw-adv-v .hj.l{left:-1px;transform-origin:left center;transform:perspective(70px) rotateY(-70deg)}
 .tw-adv-v .hj.r{right:-1px;transform-origin:right center;transform:perspective(70px) rotateY(70deg)}
@@ -27204,6 +27204,15 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-v.pent{border-radius:24px 24px 3px 3px;border-width:1.5px;border-color:#ffe08a}
 .tw-adv-v.pent b{font-size:19px;font-family:"TwPF",Georgia,serif;font-style:italic}
 .tw-adv-v.pent.prendida b{font-size:9px}
+.tw-adv-v.pent .hj.l{border-radius:24px 0 0 3px;transform:perspective(220px) rotateY(-74deg)}
+.tw-adv-v.pent .hj.r{border-radius:0 24px 3px 0;transform:perspective(220px) rotateY(74deg)}
+.tw-adv-v.pent .hj::after{left:26%;right:26%;top:16%;height:30%;border-radius:10px 10px 0 0}
+.tw-adv-v.pent.recien .hj.l{animation:twAdvHjLp .9s cubic-bezier(.3,1.4,.5,1)}
+.tw-adv-v.pent.recien .hj.r{animation:twAdvHjRp .9s cubic-bezier(.3,1.4,.5,1)}
+@keyframes twAdvHjLp{from{transform:perspective(220px) rotateY(0)}}
+@keyframes twAdvHjRp{from{transform:perspective(220px) rotateY(0)}}
+.tw-adv-v.pent.prendida .ic{top:46%;width:82%;height:68%}
+.tw-adv-v.pent.prendida{border-radius:24px 24px 3px 3px;overflow:visible}
 .tw-adv-v.pent:not(.prendida){background:linear-gradient(180deg,#5b3f8f,#2b2050)}
 .tw-adv-v.hoy{border-color:#fff3cf;animation:twAdvHoyV 1.4s ease-in-out infinite}
 @keyframes twAdvHoyV{0%,100%{box-shadow:var(--hund),0 0 0 2px #fff3cf,0 0 16px 5px rgba(255,59,78,.7)}25%{box-shadow:var(--hund),0 0 0 2px #fff3cf,0 0 20px 7px rgba(255,210,63,.85)}50%{box-shadow:var(--hund),0 0 0 2px #fff3cf,0 0 16px 5px rgba(51,209,122,.75)}75%{box-shadow:var(--hund),0 0 0 2px #fff3cf,0 0 20px 7px rgba(63,169,255,.8)}}
