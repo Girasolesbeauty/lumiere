@@ -502,14 +502,19 @@ router.post('/:slug/pedidos', async (req, res) => {
     }
     let cupon = null;
     const clienteId = clienteDeToken(req) || await clienteDe(client, nombre, telefono, email);
+    // Los cupones (y el regalo de amiga) no valen en productos con oferta: ni en los combos ni en los que tienen una promo
+    // (ej. Cyber Monday), pague como pague. Se calculan solo sobre el resto.
+    const promosPedido = (await tienda.promosTienda(client)).filter(x => !x.local || x.local === Number(localId));
+    const baseCupon = tienda.baseCupon(promosPedido, lineas, combo.enCombos);
     if (b.cupon) {
-      cupon = await tienda.revisarCupon(client, b.cupon, subtotal - descCombo, true, { cliente_id: clienteId, telefono }, pago);
+      if (baseCupon <= 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Los cupones no se pueden usar en productos en oferta. Sacá el código para seguir.' }); }
+      cupon = await tienda.revisarCupon(client, b.cupon, baseCupon, true, { cliente_id: clienteId, telefono }, pago);
       if (cupon && cupon.error) { await client.query('ROLLBACK'); return res.status(400).json({ error: cupon.error }); }
     }
     // Halloween: varios códigos de la calabaza juntos (hasta el tope, solo con transferencia o efectivo al retirar)
     let hwJunta = null;
     if (cupon && Array.isArray(b.cupones_hw) && b.cupones_hw.length) {
-      const j = await juntarCuponesHw(client, [cupon.codigo, ...b.cupones_hw], subtotal - descCombo, true, { cliente_id: clienteId, telefono }, pago, tienda.halloweenDe(c));
+      const j = await juntarCuponesHw(client, [cupon.codigo, ...b.cupones_hw], baseCupon, true, { cliente_id: clienteId, telefono }, pago, tienda.halloweenDe(c));
       if (j.error) { await client.query('ROLLBACK'); return res.status(400).json({ error: j.error }); }
       for (const x of j.extras) await client.query('UPDATE cupones SET usos = COALESCE(usos, 0) + 1 WHERE codigo = $1', [x.codigo]);
       cupon.valor = j.pct; cupon.descuento = j.descuento; hwJunta = j;
@@ -521,7 +526,7 @@ router.post('/:slug/pedidos', async (req, res) => {
     if (b.amiga && !cupon) {
       amiga = await tienda.amigaParaUsar(client, c, b.amiga, telefono, clienteId);
       if (amiga && amiga.error) amiga = null;
-      else if (amiga) descAmiga = Math.round((subtotal - descCombo) * amiga.pct / 100);
+      else if (amiga) descAmiga = Math.round(baseCupon * amiga.pct / 100);
     }
     // Gift card: si cubre todo, no hace falta otra forma de pago (ni corre su descuento)
     let gc = null, gcUsa = 0;
@@ -533,7 +538,7 @@ router.post('/:slug/pedidos', async (req, res) => {
     // Descuento por la forma de pago elegida (sobre los productos, despues del cupon; no sobre el envio)
     // Promociones de Lumiere marcadas para la tienda: esos productos llevan la promo en lugar del descuento por forma de pago
     // Las promos de un solo local valen solo para los pedidos de ese local
-    const promo = tienda.descuentoPromos((await tienda.promosTienda(client)).filter(x => !x.local || x.local === Number(localId)), lineas, combo.enCombos, pago, tienda.packsDe(c));
+    const promo = tienda.descuentoPromos(promosPedido, lineas, combo.enCombos, pago, tienda.packsDe(c));
     const descPromo = promo.descuento;
     const dp = tienda.descuentoPagoTotal(c, pago, Math.max(0, subtotal - descCombo - descuento - descAmiga - promo.monto), combo.combos.reduce((t, x) => t + (x.monto || 0), 0));
     const pctPago = dp.pctKits && !dp.pct ? dp.pctKits : dp.pct;

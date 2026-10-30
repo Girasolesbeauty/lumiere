@@ -3986,9 +3986,25 @@ function POS({ localId, usuario, paletaActual }) {
   const subtotalBase = cart.reduce((s, i) => s + (i.precio || i.price) * i.qty * (1 - (i.descuento_pct || 0) / 100), 0);
   const medioPagoTextoActual = (pagoMixto && pagosMixtos.length > 0 ? pagosMixtos.map(p => p.medio_pago_nombre).join(" + ") : (medioPagoSel?.nombre || "")).toLowerCase();
   const cuponCumpleCondicion = !!(cuponAplicado && cuponAplicado.condicion_medio_pago && cuponAplicado.valor_condicional !== null && cuponAplicado.valor_condicional !== undefined && medioPagoTextoActual.includes(String(cuponAplicado.condicion_medio_pago).toLowerCase()));
-  const cuponCumpleMinimo = !!(cuponAplicado && (!cuponAplicado.descuento_monto_minimo || subtotalBase >= cuponAplicado.descuento_monto_minimo));
+  // Los cupones no valen en productos con oferta (una promo vigente de este local, con cualquier medio de pago, o un combo
+  // completo): se calculan solo sobre el resto del ticket
+  const conOfertaPos = (() => {
+    const k = new Set();
+    if (cart.some(i => i.tienda_pedido)) return k;
+    promociones.filter(pr => promoVigenteHoy(pr) && (!pr.local_id || Number(pr.local_id) === Number(localId))).forEach(pr => {
+      if (pr.tipo === "descuento") cart.forEach((i, j) => { if (itemAplica(pr, i)) k.add(j); });
+      else if (pr.tipo === "combo") {
+        const ids = (pr.productos_ids || []).map(Number), cant = pr.combo_cantidades || {};
+        const hay = (id) => cart.filter(i => Number(i.id) === id && !i.es_kit && !i.es_ajuste).reduce((a, i) => a + i.qty, 0);
+        if (ids.length && ids.every(id => hay(id) >= (parseInt(cant[id]) || 1))) cart.forEach((i, j) => { if (ids.includes(Number(i.id))) k.add(j); });
+      }
+    });
+    return k;
+  })();
+  const baseCuponPos = cart.reduce((s2, i, j) => s2 + (conOfertaPos.has(j) ? 0 : (i.precio || i.price) * i.qty * (1 - (i.descuento_pct || 0) / 100)), 0);
+  const cuponCumpleMinimo = !!(cuponAplicado && (!cuponAplicado.descuento_monto_minimo || baseCuponPos >= cuponAplicado.descuento_monto_minimo));
   const valorCuponAplicado = cuponAplicado ? (cuponCumpleCondicion ? cuponAplicado.valor_condicional : cuponAplicado.valor) : 0;
-  const descuentoCupon = (cuponAplicado && cuponCumpleMinimo) ? (cuponAplicado.tipo === "%" ? subtotalBase * (valorCuponAplicado / 100) : valorCuponAplicado) : 0;
+  const descuentoCupon = (cuponAplicado && cuponCumpleMinimo) ? Math.min(baseCuponPos, cuponAplicado.tipo === "%" ? baseCuponPos * (valorCuponAplicado / 100) : valorCuponAplicado) : 0;
   const descuentoManualCalc = descuentoManual ? (tipoDescuento === "%" ? subtotalBase * (parseFloat(descuentoManual) / 100) : parseFloat(descuentoManual)) : 0;
   const descuentoPromos = promoCalc.totalDesc;
   const descuento = descuentoCupon + descuentoManualCalc + descuentoPromos;
@@ -5380,8 +5396,11 @@ function POS({ localId, usuario, paletaActual }) {
                       )}
                     </div>
                   )}
+                  {cuponAplicado && conOfertaPos.size > 0 && (
+                    <div style={{ fontSize: 11.5, color: temaPal.warn, marginTop: 6 }}>{baseCuponPos > 0 ? "ℹ️ El cupón se aplica solo a los productos sin oferta (los que están en oferta o combo no suman cupón)." : "⚠️ Los cupones no se usan en productos en oferta: este ticket no tiene productos sin oferta, el cupón no descuenta nada."}</div>
+                  )}
                   {cuponAplicado && !cuponCumpleMinimo && (
-                    <div style={{ fontSize: 11, color: temaPal.warn, marginTop: 6 }}>El cupón pide una compra mínima de {fmt(cuponAplicado.descuento_monto_minimo)} (faltan {fmt(Math.max(cuponAplicado.descuento_monto_minimo - subtotalBase, 0))})</div>
+                    <div style={{ fontSize: 11, color: temaPal.warn, marginTop: 6 }}>El cupón pide una compra mínima de {fmt(cuponAplicado.descuento_monto_minimo)} en productos sin oferta (faltan {fmt(Math.max(cuponAplicado.descuento_monto_minimo - baseCuponPos, 0))})</div>
                   )}
                   {cuponAplicado && cuponAplicado.hw_otros && (
                     <button className="btn btn-s" style={{ marginTop: 6, fontSize: 12, padding: "5px 10px", borderColor: "#e67e22", color: "#b45309" }} onClick={() => juntarCuponesHw([cuponAplicado.codigo, ...cuponAplicado.hw_otros.map(x => x.codigo)])}>
@@ -28980,6 +28999,23 @@ function twPromoDe(promos, p, pago) {
 // Packs: "llevá 3 de esta marca y tenés 15%" (mismo criterio que lib/tienda.js packsDe / descuentoPromos)
 const twEnPack = (pk, id, marca) => pk.productos.includes(id) || (!!marca && pk.marcas.some(m => m.toLowerCase() === String(marca).trim().toLowerCase()));
 const twPackDe = (packs, p) => (packs || []).filter(pk => twEnPack(pk, p.id, p.marca)).sort((a, b) => b.pct - a.pct)[0] || null;
+// Base de los cupones: lo que suman los productos sin oferta (sin las unidades de los combos ni las de productos con
+// promo, pague como pague). Mismo cálculo que el servidor (baseCupon en lib/tienda.js)
+function twBaseCupon(promos, carrito, usados, combos, catDe) {
+  const enCombos = {};
+  (usados || []).forEach(u => { const cb = (combos || []).find(x => x.id === u.id); if (cb) cb.productos.forEach(id => { enCombos[id] = (enCombos[id] || 0) + u.veces * twCantCombo(cb, id); }); });
+  let base = 0;
+  (carrito || []).forEach(l => {
+    const enCombo = Math.min(enCombos[l.producto_id] || 0, l.cantidad);
+    enCombos[l.producto_id] = (enCombos[l.producto_id] || 0) - enCombo;
+    const u = l.cantidad - enCombo;
+    if (u <= 0) return;
+    const p = { id: l.producto_id, categoria: l.categoria || (catDe ? catDe(l.producto_id) : null) };
+    if (!l.preventa && (twPromoDe(promos, p, "transferencia") || twPromoDe(promos, p, "retiro"))) return;
+    base += u * l.precio;
+  });
+  return Math.round(base * 100) / 100;
+}
 function twDescPromos(promos, carrito, usados, combos, pago, catDe, packs, marcaDe) {
   if ((!promos || !promos.length) && (!packs || !packs.length)) return { descuento: 0, monto: 0, nombres: [] };
   const enCombos = {};
@@ -31124,7 +31160,8 @@ function TiendaPublica({ slug }) {
   // Combos (el servidor lo vuelve a calcular)
   const comboCalc = twDescCombos(tienda.ofertas && tienda.ofertas.combos, carrito);
   const descCombo = comboCalc.descuento;
-  const baseCupon = subtotal - descCombo;
+  // Los cupones no valen en productos con oferta (combos ni promos como las del Cyber): se calculan sobre el resto
+  const baseCupon = twBaseCupon(promosLid, carrito, comboCalc.combos, tienda.ofertas && tienda.ofertas.combos, (id) => ((productos || []).find(x => x.id === id) || {}).categoria);
   const descuentoCupon = cuponOk ? Math.round(Math.min(baseCupon, cuponOk.tipo === "%" ? baseCupon * cuponOk.valor / 100 : cuponOk.valor)) : 0;
   const descAmiga = amigaOk && amigaOk.ok && !cuponOk ? Math.round(baseCupon * amigaOk.pct / 100) : 0;
   // Descuento por forma de pago (configurado en Lumiere; el servidor lo vuelve a calcular)
@@ -31170,14 +31207,15 @@ function TiendaPublica({ slug }) {
     const c = String(cod || cuponIn).trim();
     if (!c) return;
     setAvisoCupon("");
-    try { const r = await pedir("/cupon/" + encodeURIComponent(c) + "?monto=" + subtotal + (datos.telefono ? "&tel=" + encodeURIComponent(datos.telefono) : "")); setCuponOk(r); setCuponIn(r.codigo); twSonar.brillo(); twVibrar([8, 30, 8]); }
+    if (baseCupon <= 0) { setCuponOk(null); return setAvisoCupon("Los cupones no se pueden usar en productos en oferta. Este carrito tiene solo productos con oferta."); }
+    try { const r = await pedir("/cupon/" + encodeURIComponent(c) + "?monto=" + baseCupon + (datos.telefono ? "&tel=" + encodeURIComponent(datos.telefono) : "")); setCuponOk(r); setCuponIn(r.codigo); twSonar.brillo(); twVibrar([8, 30, 8]); }
     catch (e) { setCuponOk(null); setAvisoCupon(e.message); }
   };
   // Halloween: junta todos sus códigos de la calabaza sin usar (se suman hasta el tope)
   const juntarHw = async () => {
     setAvisoCupon("");
     try {
-      const r = await pedir("/cupones-hw?codigos=" + encodeURIComponent(hwCodigos.map(x => x.cupon).join(",")) + "&monto=" + subtotal);
+      const r = await pedir("/cupones-hw?codigos=" + encodeURIComponent(hwCodigos.map(x => x.cupon).join(",")) + "&monto=" + baseCupon);
       setCuponOk({ codigo: r.codigos.join(" + "), tipo: "%", valor: r.pct, suma: r.suma, tope: r.tope, descuento: r.descuento, hw_codigos: r.codigos }); setCuponIn("");
       if (datos.pago === "mp" || datos.pago === "gocuotas") setDatos(x => ({ ...x, pago: null }));
       twSonar.brillo(); twVibrar([8, 30, 8]);
@@ -32515,6 +32553,7 @@ function TiendaPublica({ slug }) {
                     </div>
                   )}
                   {avisoCupon && <div style={{ color: "#c0392b", fontSize: 13, marginTop: 6 }}>{avisoCupon}</div>}
+                  {cuponOk && baseCupon < subtotal - descCombo && <div style={{ color: "#8a6d1a", fontSize: 12.5, marginTop: 6 }}>{baseCupon > 0 ? "ℹ️ El código se aplica solo a los productos sin oferta: los que están en oferta o en un combo ya tienen su descuento." : "⚠️ Los cupones no se pueden usar en productos en oferta: sacá el código para seguir."}</div>}
                   {hwCodigos.length >= 2 && !hwJunta && <button className="tw-var" style={{ marginTop: 8, marginRight: 6, borderColor: "#ff7a00", color: "#b45309", fontWeight: 800 }} onClick={juntarHw}>🎃 Juntar mis {hwCodigos.length} códigos de Halloween ({Math.min(hwCodigos.reduce((t, x) => t + x.valor, 0), (tienda.halloween && tienda.halloween.tope) || 30)}% OFF)</button>}
                   {!cuponOk && logueada && miCuenta && (miCuenta.canjes || []).filter(c => c.cupon && c.cupon.usable).map(c => <button key={c.codigo} className="tw-var" style={{ marginTop: 8, marginRight: 6 }} onClick={() => aplicarCupon(c.codigo)}>🎁 Usar {c.codigo} ({c.cupon.tipo === "%" ? c.cupon.valor + "%" : fmtTienda(c.cupon.valor)} off)</button>)}
                   <textarea className="tw-inp" rows={2} placeholder="¿Algo que quieras aclarar? (opcional)" value={datos.nota || ""} onChange={e => setDatos(d => ({ ...d, nota: e.target.value }))} style={{ marginTop: 8 }} />
