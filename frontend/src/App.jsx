@@ -497,6 +497,10 @@ button.tab { font-family: inherit; }
 .pos-movil-hoja .pos-col-2 { overflow: visible !important; }
 .pos-movil-hoja .pos-col-2 > div { overflow: visible !important; flex: none !important; }
 @media (min-width: 861px) { .main .pos-movil-pie { left: 230px; } .main.comprimido .pos-movil-pie { left: 64px; } }
+.pos-cat-barra { display: none; }
+.pos-combo-toast { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 95; background: ${p.green}; color: #fff; font-size: 14px; font-weight: 700; padding: 11px 18px; border-radius: 999px; box-shadow: 0 8px 24px rgba(0,0,0,.25); white-space: nowrap; max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis; animation: drawerEntra .25s ease-out; }
+@media (min-width: 1101px) { .pos-combo-toast { bottom: 24px; } }
+@media (max-width: 1100px) { .pos-cat-barra { display: flex; justify-content: center; align-items: center; gap: 8px; position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 94; border: 0; border-radius: 14px; padding: 14px 16px; font: inherit; font-size: 15px; font-weight: 800; color: #fff; background: ${p.accent === "#fff" ? "#1B2431" : "#2d7a4f"}; box-shadow: 0 8px 24px rgba(0,0,0,.3); cursor: pointer; } .pos-cat { padding-bottom: 70px; } }
 @media (max-width: 1100px) { .pos-cat { grid-template-columns: 1fr; height: auto; } .pos-cat.pos-tactil { grid-template-columns: 1fr; } .pos-cat-cats.vertical { flex-direction: row; overflow-x: auto; } .pos-cat-scroll { max-height: 60vh; } }
 @media (max-width: 700px) { .pos-modo-txt { display: none; } }
 /* --- Items del carrito del POS --- */
@@ -3385,6 +3389,9 @@ function POS({ localId, usuario, paletaActual }) {
   const [catalogoCat, setCatalogoCat] = useState("");
   const [catalogoSoloStock, setCatalogoSoloStock] = useState(false);
   const [catalogoLimite, setCatalogoLimite] = useState(120);
+  const [comboAgregado, setComboAgregado] = useState(null);
+  const comboTimer = useRef(null);
+  const carritoCatRef = useRef(null);
   const [imagenesProd, setImagenesProd] = useState({});
   const [cobroMovilAbierto, setCobroMovilAbierto] = useState(false);
   // Modo clasico: el panel de cobro (con el DNI) se muestra recien al tocar "Continuar"
@@ -5589,6 +5596,7 @@ function POS({ localId, usuario, paletaActual }) {
     if (!qCat) return true;
     return ((x.nombre || x.name || "") + " " + (x.marca || x.brand || "") + " " + (x.codigo_barras || x.codigo || "")).toLowerCase().includes(qCat);
   }).sort((a, b) => (imagenesProd[b.id] ? 1 : 0) - (imagenesProd[a.id] ? 1 : 0) || String(a.nombre || "").localeCompare(String(b.nombre || ""))).slice(0, catalogoLimite);
+  const cantEnCarrito = (id) => cart.filter(i => i.id === id).reduce((s2, i) => s2 + i.qty, 0);
   // Combos vigentes (promos tipo combo de este local), agrupados: hay una promo por cada forma de pagar del mismo combo
   const combosPos = (() => {
     const m = new Map();
@@ -5608,10 +5616,13 @@ function POS({ localId, usuario, paletaActual }) {
       return { ...c, suma, mejor };
     }).filter(c => !qCat || (c.nombre + " " + c.items.map(it => it.p.nombre || it.p.name || "").join(" ")).toLowerCase().includes(qCat));
   })();
+  const verCarritoCat = () => { const el = carritoCatRef.current; if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); };
   const agregarCombo = (c) => {
     const sinStock = c.items.filter(it => !it.p.tiene_variantes && (it.p.disponible !== undefined ? it.p.disponible : (it.p.stock || 0)) < it.n);
     if (sinStock.length) return mostrarAvisoEscaneo("Sin stock para el combo: " + sinStock.map(it => it.p.nombre || it.p.name).join(", "));
     c.items.filter(it => !it.p.tiene_variantes).forEach(it => { for (let k = 0; k < it.n; k++) add(it.p); });
+    // Aviso: en el celular el carrito queda abajo de todo y no se ve que se sumó
+    setComboAgregado(c.nombre); clearTimeout(comboTimer.current); comboTimer.current = setTimeout(() => setComboAgregado(null), 2600);
     const conVar = c.items.filter(it => it.p.tiene_variantes);
     if (conVar.length) {
       abrirSelectorVariante(conVar[0].p);
@@ -5619,12 +5630,13 @@ function POS({ localId, usuario, paletaActual }) {
     }
   };
   const combosGridJSX = combosPos.map(c => (
-    <button key={"combo" + c.k} className="pos-tile" onClick={() => agregarCombo(c)} title={c.nombre + " — " + c.opciones.map(o => o.txt).join(" · ")}>
+    <button key={"combo" + c.k} className={"pos-tile" + (c.items.every(it => cantEnCarrito(it.p.id) >= it.n) ? " en-carrito" : "")} onClick={() => agregarCombo(c)} title={c.nombre + " — " + c.opciones.map(o => o.txt).join(" · ")}>
       <div className="pos-tile-img" style={{ background: "transparent" }}>
         <div className={"pos-combo-arte n" + Math.min(c.items.length, 4)} style={{ position: "absolute", inset: 0 }}>
           {c.items.slice(0, 4).map(it => <span key={it.p.id} style={imagenesProd[it.p.id] ? { backgroundImage: "url(" + imagenesProd[it.p.id] + ")" } : { background: colorTile(it.p.categoria || it.p.nombre) }}>{!imagenesProd[it.p.id] && inicialesProd(it.p.nombre || it.p.name)}</span>)}
         </div>
         {c.mejor.pct > 0 && <span className="pos-combo-off">⚡ -{Math.round(c.mejor.pct)}%</span>}
+        {c.items.every(it => cantEnCarrito(it.p.id) >= it.n) && <span className="pos-tile-cant">✓</span>}
       </div>
       <div className="pos-tile-info">
         <div className="pos-tile-nombre">🎁 {c.nombre}</div>
@@ -5635,7 +5647,6 @@ function POS({ localId, usuario, paletaActual }) {
       </div>
     </button>
   ));
-  const cantEnCarrito = (id) => cart.filter(i => i.id === id).reduce((s2, i) => s2 + i.qty, 0);
 
   const catalogoGridJSX = (grande) => (
     <div className={"pos-cat-grid" + (grande ? " grande" : "")}>
@@ -5830,7 +5841,9 @@ function POS({ localId, usuario, paletaActual }) {
             {modoVista === "catalogo" && categoriasJSX(false)}
             <div className="pos-cat-scroll">{catalogoGridJSX(modoVista === "tactil")}</div>
           </div>
-          <div className="pos-cat-der">
+          {comboAgregado && <div className="pos-combo-toast" role="status">✓ Se agregó el combo <b>{comboAgregado}</b></div>}
+          {cart.length > 0 && <button className="pos-cat-barra" onClick={verCarritoCat}>🛒 Ver carrito ({cart.reduce((a, i) => a + i.qty, 0)}) · {fmt(total).replace(SIN_CEROS, "")} <span aria-hidden="true">↓</span></button>}
+          <div className="pos-cat-der" ref={carritoCatRef}>
             <div className="pos-cat-carrito">{carritoJSX}</div>
             <div className="pc-sec pos-cat-resumen">
               {clienteSeleccionado && (
