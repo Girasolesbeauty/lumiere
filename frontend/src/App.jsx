@@ -26695,7 +26695,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-etq.tw-cy-badge{background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;font-weight:900;border:0}
 @font-face{font-family:"TwPF";font-display:swap;font-style:italic;font-weight:500;src:url(https://fonts.gstatic.com/s/playfairdisplay/v40/nuFRD-vYSZviVYUb_rj3ij__anPXDTnCjmHKM4nYO7KN_pqTXtHA-Q.woff2) format("woff2")}
 @font-face{font-family:"TwJS";font-display:swap;font-weight:400 700;src:url(https://fonts.gstatic.com/s/josefinsans/v34/Qw3aZQNVED7rKGKxtqIqX5EUDXx4.woff2) format("woff2")}
-.tw-adv{position:relative;overflow:hidden;margin:14px 12px 10px;border-radius:26px;padding:26px 0 18px;background:linear-gradient(180deg,#060a16 0%,#0c1630 55%,#1b2442 100%);color:#fff;text-align:center;isolation:isolate;font-family:"TwJS","Helvetica Neue",Helvetica,Arial,sans-serif}
+.tw-adv{position:relative;overflow:hidden;margin:14px 12px 10px;border-radius:26px;padding:26px 0 18px;background:linear-gradient(180deg,#0f0c2e 0%,#241a52 40%,#4a2768 78%,#7a3466 100%);color:#fff;text-align:center;isolation:isolate;font-family:"TwJS","Helvetica Neue",Helvetica,Arial,sans-serif}
 .tw-adv-ceja{font-size:10.5px;font-weight:600;letter-spacing:.38em;text-transform:uppercase;color:#d9bf7f;padding:0 14px}
 .tw-adv h2{margin:8px 14px 0;font-family:"TwPF",Georgia,serif;font-style:italic;font-weight:500;font-size:40px;line-height:1.02;color:#fff;text-shadow:0 0 22px rgba(255,214,140,.35)}
 .tw-adv h2 b{font-weight:500;color:#e8cf8f}
@@ -26704,20 +26704,30 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-nieve i{position:absolute;top:-10px;width:var(--s);height:var(--s);border-radius:50%;background:#fff;opacity:var(--o);animation:twAdvNieve var(--d) linear var(--del) infinite}
 @keyframes twAdvNieve{to{transform:translate(var(--x),1100px)}}
 .tw-adv-ciudad{position:relative;width:100%;max-width:420px;margin:6px auto 0;aspect-ratio:360/560}
-.tw-adv-ciudad>svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.tw-adv-ciudad>svg,.tw-adv-fach,.tw-adv-fach svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.tw-adv-fach .a1{animation:twAdvTw 1.6s ease-in-out infinite}.tw-adv-fach .a2{animation:twAdvTw 1.6s ease-in-out .55s infinite}.tw-adv-fach .a3{animation:twAdvTw 1.6s ease-in-out 1.1s infinite}
+@keyframes twAdvTw{0%,100%{opacity:1}50%{opacity:.3}}
+.tw-adv-fach .afEst{transform-box:fill-box;transform-origin:center;animation:twAdvDest 2.6s ease-in-out infinite}
+@keyframes twAdvDest{0%,100%{transform:scale(1) rotate(0);opacity:1}50%{transform:scale(.72) rotate(22deg);opacity:.75}}
+.tw-adv-fach .afLat{transform-box:fill-box;transform-origin:center;animation:twAdvFaro 2.4s ease-in-out infinite}
+.tw-adv-fach .afBand{transform-box:fill-box;transform-origin:0 50%;animation:twAdvBand 2.2s ease-in-out infinite}
+@keyframes twAdvBand{0%,100%{transform:skewY(0)}50%{transform:skewY(-6deg) scaleX(.94)}}
+@media (prefers-reduced-motion:reduce){.tw-adv-fach *{animation:none!important}}
 .tw-adv-titila{animation:twAdvTit 3.2s ease-in-out infinite}
 @keyframes twAdvTit{0%,100%{opacity:.55}50%{opacity:.15}}
 .tw-adv-faro{animation:twAdvFaro 2.4s ease-in-out infinite;transform-origin:center;transform-box:fill-box}
 @keyframes twAdvFaro{0%,100%{opacity:.55;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}
-.tw-adv-v{position:absolute;padding:0;border:1px solid rgba(201,164,90,.7);border-radius:2px;background:linear-gradient(180deg,#1b2a4a,#111c33);cursor:pointer;-webkit-tap-highlight-color:transparent;display:flex;align-items:flex-end;justify-content:center;overflow:visible;transition:background .4s,box-shadow .4s;color:#d9bf7f}
-.tw-adv-v::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(201,164,90,.35)}
-.tw-adv-v b{position:relative;font-weight:600;font-size:12px;line-height:1;margin-bottom:4px;font-family:"TwJS",sans-serif}
-.tw-adv-v.listo{background:linear-gradient(180deg,#22345c,#162544)}
+.tw-adv-v{position:absolute;padding:0;border:1px solid rgba(255,224,138,.55);border-radius:2px;background:linear-gradient(180deg,#3a2a5c,#211a3d);cursor:pointer;-webkit-tap-highlight-color:transparent;display:flex;align-items:flex-end;justify-content:center;overflow:visible;transition:background .4s,box-shadow .4s;color:#d9bf7f}
+.tw-adv-v::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(255,224,138,.35)}
+.tw-adv-v::after{content:"";position:absolute;left:0;right:0;top:38%;height:1px;background:rgba(255,224,138,.3)}
+.tw-adv-v.prendida::after{background:rgba(140,80,0,.18)}
+.tw-adv-v b{position:relative;z-index:1;color:#ffe7a8;font-weight:700;font-size:14px;line-height:1;margin-bottom:4px;font-family:"TwJS",sans-serif}
+.tw-adv-v.listo{background:linear-gradient(180deg,#4a3470,#2b2050)}
 .tw-adv-v.prendida{border-color:#ffe2a0;background:linear-gradient(180deg,#fff3cf,#f5c065 70%,#e7a440);box-shadow:0 0 12px 3px rgba(255,200,110,.55),0 0 30px 8px rgba(255,190,90,.25);color:#6a3d00}
 .tw-adv-v.prendida::before{background:rgba(140,80,0,.25)}
 .tw-adv-v.prendida .ic{position:absolute;top:44%;left:50%;transform:translate(-50%,-50%);width:74%;height:74%;display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1}
 .tw-adv-tarjeta .big .tw-adv-esc{width:96px;height:96px}
-.tw-adv-v.prendida b{position:absolute;right:2px;bottom:1px;font-size:8px;margin:0;opacity:.7}
+.tw-adv-v.prendida b{position:absolute;right:2px;bottom:1px;font-size:8px;margin:0;opacity:.7;color:#6a3d00}
 .tw-adv-v.hoy{border-color:#fff3cf;animation:twAdvHoyV 1.4s ease-in-out infinite}
 @keyframes twAdvHoyV{0%,100%{box-shadow:0 0 0 1px rgba(255,243,207,.6),0 0 8px 2px rgba(255,214,120,.35)}50%{box-shadow:0 0 0 2px #fff3cf,0 0 22px 7px rgba(255,214,120,.85)}}
 .tw-adv-v.hoy b{color:#fff}
@@ -28576,20 +28586,15 @@ function TwCyberBarra({ cy }) {
   return <div className="tw-anuncio tw-cy-barra" aria-live="off"><div><span>{"⚡ "}<span className="tw-cy-bl">CYBER MONDAY</span><span className="tw-cy-bc">CYBER</span>{" · "}{String(cy.titulo || "").toUpperCase()}{t.ms ? <>{" · "}<span className="tw-cy-bl">TERMINA EN </span>{t.d ? t.d + "D " : ""}{twDos(t.h)}:{twDos(t.m)}:{twDos(t.s)}</> : null}</span></div></div>;
 }
 // ── Halloween en la tienda ──
-// ── Calendario de Adviento: árbol de lucecitas (cada día se prende una) ──
-// ── Calendario de Adviento "Navidad en Nueva York": un rascacielos art déco con una ventana por día (de arriba hacia
-// abajo) y, adelante, el árbol de luces de Rockefeller, que brilla más cuantas más ventanas se encienden. Lienzo de 360x700
-const ADV_PISOS = [[1], [2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12, 13], [14, 15, 16, 17], [18, 19, 20, 21], [22, 23, 24, 25]];
-const ADV_VW = 38, ADV_VH = 36, ADV_VG = 10, ADV_Y0 = 150;
-// Alto de la escena en la tienda (termina en la entrada del edificio; el árbol solo va en la bienvenida y en el video)
+// ── Calendario de Adviento "Navidad en Nueva York": la fachada de un edificio clásico de la Quinta Avenida, toda
+// iluminada (ventanas con marco de lucecitas y toldo rojo, estrellas de luz, guirnaldas con focos de colores, coronas
+// con moño y una entrada con alfombra roja). Una ventana por día: 5 pisos de 5 ventanas, de arriba hacia abajo.
+// Lienzo de 360 de ancho: la fachada ocupa de 0 a 560 y en el video el árbol de Rockefeller va adelante (hasta 700)
+const ADV_LUCES = ["#ff3b4e", "#ffd23f", "#33d17a", "#3fa9ff", "#ff7ad9", "#ff9f1c"];
+const ADV_VW = 44, ADV_VH = 48, ADV_VX0 = 38, ADV_VDX = 60, ADV_VY0 = 132, ADV_VDY = 74;
+// Alto de la escena en la tienda (termina en la vereda; el árbol solo va en la bienvenida y en el video)
 const ADV_ALTO = 560;
-const ADV_VENT = (() => { const v = {}; ADV_PISOS.forEach((f, i) => { const y = ADV_Y0 + i * (ADV_VH + ADV_VG), x0 = 180 - (f.length * ADV_VW + (f.length - 1) * ADV_VG) / 2; f.forEach((n, j) => { v[n] = { x: x0 + j * (ADV_VW + ADV_VG), y }; }); }); return v; })();
-// Cuerpos del edificio (se escalona cada vez que cambia la cantidad de ventanas por piso)
-const ADV_CUERPOS = (() => {
-  const c = [];
-  ADV_PISOS.forEach((f, i) => { const y = ADV_Y0 + i * (ADV_VH + ADV_VG) - 12; if (!c.length || c[c.length - 1].n !== f.length) c.push({ n: f.length, y, w: f.length * ADV_VW + (f.length - 1) * ADV_VG + (f.length >= 4 ? 40 : 28) }); });
-  return c.map((k, i) => ({ ...k, h: (i + 1 < c.length ? c[i + 1].y : 700) - k.y }));
-})();
+const ADV_VENT = (() => { const v = {}; for (let n = 1; n <= 25; n++) v[n] = { x: ADV_VX0 + ((n - 1) % 5) * ADV_VDX, y: ADV_VY0 + Math.floor((n - 1) / 5) * ADV_VDY }; return v; })();
 // Edificios de atrás (izquierda y derecha) con ventanitas: [x, ancho, alto, capa]
 const ADV_SKY = (() => {
   const l = []; let x = -8, i = 0;
@@ -28611,41 +28616,105 @@ const ADV_GUIRN = (() => {
   return { d, luces };
 })();
 const advEstrella = (r) => { let d = ""; for (let i = 0; i < 24; i++) { const a = -Math.PI / 2 + i * Math.PI / 12, rr = i % 2 ? r * .27 : (i % 4 === 0 ? r : r * .62); d += (i ? "L" : "M") + (Math.cos(a) * rr).toFixed(1) + " " + (Math.sin(a) * rr).toFixed(1); } return d + "Z"; };
-// La ciudad de fondo, el edificio y el árbol (las ventanas van arriba, como botones)
+// Estrella de luz de 8 puntas (las de la fachada)
+const advDestello = (cx, cy, r) => { let d = ""; for (let i = 0; i < 16; i++) { const a = -Math.PI / 2 + i * Math.PI / 8, rr = i % 2 ? r * .28 : (i % 4 === 0 ? r : r * .7); d += (i ? "L" : "M") + (cx + Math.cos(a) * rr).toFixed(1) + " " + (cy + Math.sin(a) * rr).toFixed(1); } return d + "Z"; };
+// La fachada como SVG (texto fijo, sin datos de nadie): se usa en la tienda y, como imagen, en el video.
+// Las clases a1/a2/a3 hacen titilar las luces en la tienda (en el video quedan quietas)
+const ADV_FACHADA_SVG = (() => {
+  const L = ADV_LUCES, r1 = (n) => Math.round(n * 10) / 10;
+  let s = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 560" preserveAspectRatio="xMidYMid meet"><defs>' +
+    '<linearGradient id="afPiedra" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a99272"/><stop offset=".5" stop-color="#cdb791"/><stop offset="1" stop-color="#ead5ad"/></linearGradient>' +
+    '<linearGradient id="afTecho" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2445"/><stop offset="1" stop-color="#4b3f69"/></linearGradient>' +
+    '<linearGradient id="afVid" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3d1"/><stop offset=".6" stop-color="#ffc766"/><stop offset="1" stop-color="#ff9a3c"/></linearGradient>' +
+    '<linearGradient id="afPuerta" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe7a8"/><stop offset="1" stop-color="#ff8a3d"/></linearGradient>' +
+    '<linearGradient id="afToldo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff4a5a"/><stop offset="1" stop-color="#b3132a"/></linearGradient>' +
+    '<radialGradient id="afBr"><stop offset="0" stop-color="#fff6d8" stop-opacity=".95"/><stop offset=".35" stop-color="#ffd56b" stop-opacity=".55"/><stop offset="1" stop-color="#ffb84d" stop-opacity="0"/></radialGradient>' +
+    L.map((c, i) => '<radialGradient id="afL' + i + '"><stop offset="0" stop-color="#fff" stop-opacity=".95"/><stop offset=".28" stop-color="' + c + '" stop-opacity=".85"/><stop offset="1" stop-color="' + c + '" stop-opacity="0"/></radialGradient>').join("") +
+    '</defs>';
+  // Un foquito de color con su brillo
+  const foco = (x, y, k, r = 1.9) => '<g class="a' + (1 + (k % 3)) + '"><circle cx="' + r1(x) + '" cy="' + r1(y) + '" r="' + (r * 2.8) + '" fill="url(#afL' + (k % L.length) + ')"/><circle cx="' + r1(x) + '" cy="' + r1(y) + '" r="' + r + '" fill="' + L[k % L.length] + '"/></g>';
+  // Tira recta de lucecitas de colores (tres líneas punteadas desfasadas, una por color)
+  const tira = (x1, y1, x2, y2, paso = 6, ancho = 2.4) => '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="#ffd98a" stroke-width="6" opacity=".16"/>' +
+    [0, 1, 2].map(j => '<line class="a' + (j + 1) + '" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + L[(j * 2) % L.length] + '" stroke-width="' + ancho + '" stroke-linecap="round" stroke-dasharray="0 ' + (paso * 3) + '" stroke-dashoffset="' + (-j * paso) + '"/>').join("");
+  // Guirnalda verde en ondas, con focos de colores
+  const guirnalda = (y, x1, x2, tramo, caida, grosor, conFocos) => {
+    let d = "M" + x1 + " " + y, k = 0, focos = "";
+    for (let x = x1; x < x2 - 1; x += tramo) { const xe = Math.min(x2, x + tramo); d += " Q" + r1((x + xe) / 2) + " " + (y + caida * 2) + " " + r1(xe) + " " + y; if (conFocos) { focos += foco(x + tramo * .25, y + caida * .75, k++) + foco((x + xe) / 2, y + caida, k++) + foco(x + tramo * .75, y + caida * .75, k++); } }
+    return '<path d="' + d + '" fill="none" stroke="#174d2c" stroke-width="' + grosor + '" stroke-linecap="round"/><path d="' + d + '" fill="none" stroke="#2f8a4c" stroke-width="' + (grosor * .45) + '" stroke-dasharray="2 3" stroke-linecap="round"/>' + focos;
+  };
+  // Toldo rojo con festón
+  const toldo = (x, y, w, h) => { let d = "M" + x + " " + (y + h - 3) + " L" + (x + 3) + " " + y + " L" + (x + w - 3) + " " + y + " L" + (x + w) + " " + (y + h - 3); const n = Math.max(3, Math.round(w / 9)); for (let i = n - 1; i >= 0; i--) d += " A" + r1(w / n / 2) + " 3 0 0 1 " + r1(x + i * w / n) + " " + (y + h - 3); return '<path d="' + d + 'Z" fill="url(#afToldo)" stroke="#7d0c1c" stroke-width=".6"/><line x1="' + (x + 3) + '" y1="' + (y + 1.5) + '" x2="' + (x + w - 3) + '" y2="' + (y + 1.5) + '" stroke="#ffd98a" stroke-width=".8" opacity=".7"/>'; };
+  // Corona verde con moño rojo y lucecitas
+  const corona = (cx, cy, r) => '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="#174d2c" stroke-width="' + (r * .62) + '"/><circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="#2f8a4c" stroke-width="' + (r * .3) + '" stroke-dasharray="1.5 2"/>' +
+    [0, 1, 2, 3, 4, 5].map(i => { const a = i / 6 * Math.PI * 2; return foco(cx + Math.cos(a) * r, cy + Math.sin(a) * r, i, r * .2); }).join("") +
+    '<path d="M' + cx + ' ' + (cy + r) + ' l' + (-r * .8) + ' ' + (-r * .45) + ' v' + (r * .9) + 'Z M' + cx + ' ' + (cy + r) + ' l' + (r * .8) + ' ' + (-r * .45) + ' v' + (r * .9) + 'Z" fill="#e01b34"/><path d="M' + cx + ' ' + (cy + r) + ' l' + (-r * .35) + ' ' + (r * .95) + ' M' + cx + ' ' + (cy + r) + ' l' + (r * .35) + ' ' + (r * .95) + '" stroke="#e01b34" stroke-width="' + (r * .22) + '"/><circle cx="' + cx + '" cy="' + (cy + r) + '" r="' + (r * .2) + '" fill="#a50f25"/>';
+  // Arbolito con lucecitas
+  const arbolito = (cx, base, h, w) => '<path d="M' + cx + ' ' + (base - h) + ' L' + (cx + w / 2) + ' ' + base + ' L' + (cx - w / 2) + ' ' + base + 'Z" fill="#1d5e34"/><path d="M' + cx + ' ' + (base - h) + ' L' + (cx + w / 2) + ' ' + base + ' L' + cx + ' ' + base + 'Z" fill="#164a29"/>' +
+    [[.3, -.1], [.45, .2], [.6, -.25], [.7, .25], [.82, -.05], [.88, .35], [.9, -.38]].map(([f, o], i) => foco(cx + o * w * f, base - h + h * f, i + 2, 1.3)).join("") +
+    '<path class="a2" d="' + advDestello(cx, base - h - 1, 4) + '" fill="#ffe08a"/>';
+
+  // Edificios del fondo: uno alto tipo Empire State, con la punta de colores
+  s += '<g opacity=".95"><path d="M54 70 V22 H60 V8 H64 V-4 H66 V8 H70 V22 H76 V70Z" fill="#241d47"/><rect x="62" y="10" width="6" height="3" fill="#ff3b4e" class="a1"/><rect x="62" y="15" width="6" height="3" fill="#33d17a" class="a2"/><circle cx="65" cy="-4" r="4" fill="url(#afL0)" class="a3"/></g>';
+  s += '<path d="M268 70 V30 H300 V70Z" fill="#1d1840"/><path d="M276 30 V18 H292 V30Z" fill="#1d1840"/>' + [0, 1, 2].map(i => '<rect x="' + (272 + i * 9) + '" y="38" width="3" height="4" fill="#ffd98a" opacity=".6"/>').join("");
+  // Costados (edificios vecinos)
+  [[-2, 22], [338, 24]].forEach(([x, w], j) => { s += '<rect x="' + x + '" y="40" width="' + w + '" height="520" fill="#1a1538"/>'; for (let y = 52, k = j; y < 540; y += 16, k++) s += '<rect x="' + (x + 6) + '" y="' + y + '" width="' + (w - 12) + '" height="8" rx="1" fill="' + (k % 3 === 0 ? "#2a2250" : k % 3 === 1 ? "#ffcf6e" : "#ffe9b8") + '"/>' + (k % 4 === 2 ? '<line class="a' + (1 + (k % 3)) + '" x1="' + (x + 6) + '" y1="' + (y - 2) + '" x2="' + (x + w - 6) + '" y2="' + (y - 2) + '" stroke="' + L[k % L.length] + '" stroke-width="2" stroke-linecap="round" stroke-dasharray="0 4"/>' : ""); });
+  // Techo mansarda con buhardillas, banderas y una gran estrella de luz arriba
+  s += '<path d="M24 96 L40 58 H320 L336 96Z" fill="url(#afTecho)"/>';
+  [92, 180, 268].forEach(x => { s += '<path d="M' + (x - 13) + ' 96 V74 L' + x + ' 62 L' + (x + 13) + ' 74 V96Z" fill="#cdb791"/><rect x="' + (x - 7) + '" y="74" width="14" height="18" rx="7" fill="url(#afVid)"/><path d="M' + (x - 7) + ' 83 H' + (x + 7) + ' M' + x + ' 74 V92" stroke="#8a6a3a" stroke-width=".8"/>'; });
+  [[44, 1], [316, -1]].forEach(([x, k]) => { s += '<line x1="' + x + '" y1="60" x2="' + x + '" y2="22" stroke="#d8c08a" stroke-width="1.2"/><path class="afBand" d="M' + x + ' 23 q' + (k * 9) + ' -3 ' + (k * 18) + ' 1 v11 q' + (-k * 9) + ' -4 ' + (-k * 18) + ' -1Z" fill="#d61e33"/>'; });
+  s += tira(40, 58, 320, 58, 6) + tira(40, 58, 24, 96, 6) + tira(320, 58, 336, 96, 6);
+  s += '<circle class="afLat" cx="180" cy="34" r="30" fill="url(#afBr)"/><path class="afEst" d="' + advDestello(180, 34, 15) + '" fill="#fff1b8" stroke="#ffcf5a" stroke-width=".8"/>';
+  // Cornisa con lucecitas de colores y carámbanos de luz
+  s += '<rect x="14" y="94" width="332" height="11" fill="#c2a97f"/><rect x="14" y="94" width="332" height="2.5" fill="#e6d2a7"/>' + tira(16, 100, 344, 100, 5, 2.6);
+  for (let x = 20; x < 342; x += 6) s += '<line class="a' + (1 + (x % 3)) + '" x1="' + x + '" y1="106" x2="' + x + '" y2="' + (108 + (x * 7) % 6) + '" stroke="#cfeaff" stroke-width="1.1" stroke-linecap="round" opacity=".85"/>';
+  // Cuerpo de piedra, esquinas y pisos
+  s += '<rect x="20" y="105" width="320" height="455" fill="url(#afPiedra)"/>';
+  for (let y = 110; y < 486; y += 14) s += '<rect x="20" y="' + y + '" width="' + (y % 28 === 26 ? 12 : 8) + '" height="10" fill="#b39c78" opacity=".55"/><rect x="' + (340 - (y % 28 === 26 ? 12 : 8)) + '" y="' + y + '" width="' + (y % 28 === 26 ? 12 : 8) + '" height="10" fill="#b39c78" opacity=".55"/>';
+  s += tira(23, 108, 23, 486, 6, 2.2) + tira(337, 108, 337, 486, 6, 2.2);
+  for (let f = 0; f < 5; f++) {
+    const y = ADV_VY0 + f * ADV_VDY;
+    if (f > 0) s += '<rect x="20" y="' + (y - 20) + '" width="320" height="3" fill="#a48c69" opacity=".55"/>' + guirnalda(y - 20, 26, 334, 28, 3, 3.6, true);
+    for (let c = 0; c < 5; c++) {
+      const x = ADV_VX0 + c * ADV_VDX;
+      // marco de piedra, toldo y marco de lucecitas doradas
+      s += '<rect x="' + (x - 4) + '" y="' + (y - 2) + '" width="' + (ADV_VW + 8) + '" height="' + (ADV_VH + 6) + '" fill="#9c8564" opacity=".5"/>' + toldo(x - 4, y - 13, ADV_VW + 8, 11) +
+        '<rect x="' + (x - 3) + '" y="' + (y - 2) + '" width="' + (ADV_VW + 6) + '" height="' + (ADV_VH + 5) + '" fill="none" stroke="#ffb84d" stroke-width="6" opacity=".22"/>' +
+        '<rect class="a' + (1 + ((c + f) % 3)) + '" x="' + (x - 3) + '" y="' + (y - 2) + '" width="' + (ADV_VW + 6) + '" height="' + (ADV_VH + 5) + '" fill="none" stroke="#ffe08a" stroke-width="2.3" stroke-linecap="round" stroke-dasharray="0 4.6"/>' +
+        '<rect x="' + (x - 6) + '" y="' + (y + ADV_VH + 3) + '" width="' + (ADV_VW + 12) + '" height="3" fill="#e6d2a7"/>';
+      // estrellas de luz entre ventanas
+      if (c < 4) { const sx = x + ADV_VW + 8, sy = y + 18 + ((c + f) % 2) * 14, col = ["#ffe08a", "#fff6dd", "#ff9ad5", "#9fd8ff"][(c + f) % 4]; s += '<circle class="a' + (1 + (c % 3)) + '" cx="' + sx + '" cy="' + sy + '" r="11" fill="url(#afBr)" opacity=".8"/><path class="afEst" style="animation-delay:' + ((c * 3 + f) % 7) * .3 + 's" d="' + advDestello(sx, sy, 7) + '" fill="' + col + '"/>'; }
+    }
+    s += corona(29, y + 24, 5) + corona(331, y + 24, 5);
+  }
+  // Planta baja: gran guirnalda con bolas doradas y moños, vidrieras con regalos, entrada con alfombra roja
+  s += '<rect x="20" y="482" width="320" height="78" fill="#e9d4aa"/>';
+  for (let y = 494; y < 560; y += 10) s += '<line x1="20" y1="' + y + '" x2="340" y2="' + y + '" stroke="#c8b087" stroke-width=".8"/>';
+  [[30, 50], [88, 50], [222, 50], [280, 50]].forEach(([x, w], i) => {
+    s += '<rect x="' + (x - 2) + '" y="504" width="' + (w + 4) + '" height="50" fill="#7d0c1c"/><rect x="' + x + '" y="506" width="' + w + '" height="46" fill="url(#afVid)"/>' + toldo(x - 4, 494, w + 8, 12);
+    [[6, 14, 0], [20, 20, 3], [34, 12, 1]].forEach(([dx, h, k]) => { s += '<rect x="' + (x + dx) + '" y="' + (552 - h) + '" width="' + (h * .9) + '" height="' + h + '" fill="' + L[(k + i) % L.length] + '"/><rect x="' + (x + dx + h * .38) + '" y="' + (552 - h) + '" width="' + (h * .14) + '" height="' + h + '" fill="#fff6dd" opacity=".9"/>'; });
+    s += '<rect class="a' + (1 + (i % 3)) + '" x="' + (x - 1) + '" y="505" width="' + (w + 2) + '" height="48" fill="none" stroke="#fff3c4" stroke-width="2" stroke-linecap="round" stroke-dasharray="0 4"/>';
+  });
+  s += '<path d="M152 552 V520 A28 28 0 0 1 208 520 V552Z" fill="#7d0c1c"/><path d="M156 552 V521 A24 24 0 0 1 204 521 V552Z" fill="url(#afPuerta)"/><path d="M180 497 V552 M156 528 H204" stroke="#a5672a" stroke-width="1" opacity=".6"/>' +
+    '<path class="a2" d="M152 552 V520 A28 28 0 0 1 208 520 V552" fill="none" stroke="#fff3c4" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="0 4.5"/>' +
+    '<path d="M150 552 H210 L218 560 H142Z" fill="#c4122f"/><path d="M146 556 H214" stroke="#8d0c22" stroke-width=".8"/>' +
+    arbolito(140, 554, 40, 20) + arbolito(220, 554, 40, 20) + corona(180, 502, 8.5);
+  s += guirnalda(484, 18, 342, 40, 5, 8, false);
+  for (let x = 18; x < 342; x += 40) s += '<circle cx="' + (x + 20) + '" cy="' + 494 + '" r="2.8" fill="#f5c84c"/><circle cx="' + (x + 20) + '" cy="' + 493 + '" r="1" fill="#fff6d8"/><path d="M' + x + ' 484 l-4 -3 v6Z M' + x + ' 484 l4 -3 v6Z" fill="#e01b34"/>' + foco(x + 10, 489, x / 40 | 0) + foco(x + 30, 489, (x / 40 | 0) + 3);
+  return s + '</svg>';
+})();
+// La ciudad de fondo y la fachada (las ventanas van arriba, como botones)
 function TwAdvCiudad() {
   const A = ADV_ALTO;
   return (
-    <svg viewBox={"0 0 360 " + A} aria-hidden="true">
-      <defs>
-        <radialGradient id="twAdvGlow"><stop offset="0" stopColor="#fff8e1" /><stop offset=".35" stopColor="#ffd98a" /><stop offset="1" stopColor="#ffb84d" stopOpacity="0" /></radialGradient>
-        <linearGradient id="twAdvEst" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff6da" /><stop offset="1" stopColor="#e2b75c" /></linearGradient>
-      </defs>
-      <radialGradient id="twAdvLuna"><stop offset="0" stopColor="#fff3cf" stopOpacity=".35" /><stop offset="1" stopColor="#fff3cf" stopOpacity="0" /></radialGradient>
-      <circle cx="306" cy="74" r="44" fill="url(#twAdvLuna)" />
-      <circle cx="306" cy="74" r="17" fill="#fff6dc" opacity=".92" />
-      {ADV_SKY.map(([x, w, h, k], i) => <g key={i}>
-        <rect x={x} y={A - h} width={w} height={h} fill={k ? "#0e1833" : "#0a1226"} />
-        {i % 5 === 2 && <rect x={x + w / 2 - 2} y={A - h - 18} width="4" height="18" fill="#0e1833" />}
-        {Array.from({ length: Math.floor(h / 12) }, (_, r) => Array.from({ length: Math.floor((w - 6) / 7) }, (_, c) => ((r * 7 + c * 13 + i * 5) % 9) < 2 && <rect key={r + "-" + c} className={(r + c + i) % 4 === 0 ? "tw-adv-titila" : undefined} style={{ animationDelay: ((r * 3 + c + i) % 9) * .4 + "s" }} x={x + 4 + c * 7} y={A - h + 8 + r * 12} width="3" height="4" fill="#ffd98a" opacity=".5" />))}
-      </g>)}
-      {/* aguja con faro */}
-      <path d={"M171 " + ADV_CUERPOS[0].y + " L180 70 L189 " + ADV_CUERPOS[0].y + " Z"} fill="#0b0b0e" stroke="#c9a45a" strokeWidth="1" />
-      {[0, 1, 2, 3].map(i => <line key={i} x1={172 + i * 2.2} y1={ADV_CUERPOS[0].y - 14 - i * 14} x2={188 - i * 2.2} y2={ADV_CUERPOS[0].y - 14 - i * 14} stroke="#c9a45a" strokeWidth=".7" />)}
-      <line x1="180" y1="70" x2="180" y2="50" stroke="#c9a45a" strokeWidth="1.4" />
-      <circle className="tw-adv-faro" cx="180" cy="47" r="13" fill="url(#twAdvGlow)" />
-      <circle cx="180" cy="47" r="2.6" fill="#fff" />
-      {ADV_CUERPOS.map((k, i) => <g key={i}>
-        <rect x={180 - k.w / 2} y={k.y} width={k.w} height={k.h + 1} fill="#0b0b0e" />
-        <rect x={180 - k.w / 2 - 3} y={k.y - 3} width={k.w + 6} height="4" fill="#0b0b0e" stroke="#c9a45a" strokeWidth="1" />
-        <line x1={180 - k.w / 2 + 5} y1={k.y + 4} x2={180 - k.w / 2 + 5} y2={k.y + k.h} stroke="#c9a45a" strokeWidth=".7" opacity=".55" />
-        <line x1={180 + k.w / 2 - 5} y1={k.y + 4} x2={180 + k.w / 2 - 5} y2={k.y + k.h} stroke="#c9a45a" strokeWidth=".7" opacity=".55" />
-      </g>)}
-      {/* planta baja: bandas doradas y la entrada iluminada */}
-      {[526, 538].map(y => <line key={y} x1={180 - ADV_CUERPOS[ADV_CUERPOS.length - 1].w / 2 + 5} y1={y} x2={180 + ADV_CUERPOS[ADV_CUERPOS.length - 1].w / 2 - 5} y2={y} stroke="#c9a45a" strokeWidth=".7" opacity=".5" />)}
-      <ellipse cx="180" cy={A} rx="60" ry="22" fill="url(#twAdvGlow)" opacity=".35" />
-      <path d={"M164 " + A + " V" + (A - 14) + " a16 16 0 0 1 32 0 V" + A + " Z"} fill="#f5c065" opacity=".85" stroke="#c9a45a" strokeWidth="1.2" />
-      <line x1="180" y1={A - 29} x2="180" y2={A} stroke="#8a5a14" strokeWidth=".8" opacity=".6" />
-    </svg>
+    <>
+      <svg viewBox={"0 0 360 " + A} aria-hidden="true">
+        <radialGradient id="twAdvLuna"><stop offset="0" stopColor="#fff3cf" stopOpacity=".4" /><stop offset="1" stopColor="#fff3cf" stopOpacity="0" /></radialGradient>
+        <circle cx="318" cy="30" r="34" fill="url(#twAdvLuna)" />
+        <circle cx="318" cy="30" r="13" fill="#fff6dc" opacity=".92" />
+        {ADV_SKY.map(([x, w, h, k], i) => <rect key={i} x={x} y={A - h} width={w} height={h} fill={k ? "#221b48" : "#1a1538"} />)}
+      </svg>
+      <div className="tw-adv-fach" aria-hidden="true" dangerouslySetInnerHTML={{ __html: ADV_FACHADA_SVG }} />
+    </>
   );
 }
 // Copos de nieve (HTML, para que caigan con CSS)
@@ -34415,7 +34484,7 @@ function advVentanaCanvas(ctx, x, y, w, h, n, prendida, opts) {
   const { pulso = 0, icono = "", alfa = 1, k = 1 } = opts || {};
   ctx.save(); ctx.globalAlpha *= alfa;
   if (prendida > 0 || pulso > 0) { ctx.save(); ctx.shadowColor = "rgba(255,200,110," + Math.max(prendida * .8, pulso) + ")"; ctx.shadowBlur = w * (.6 + pulso * .5); ctx.fillStyle = "#000"; ctx.fillRect(x, y, w, h); ctx.restore(); }
-  const go = ctx.createLinearGradient(0, y, 0, y + h); go.addColorStop(0, "#22345c"); go.addColorStop(1, "#14223f"); ctx.fillStyle = go; ctx.fillRect(x, y, w, h);
+  const go = ctx.createLinearGradient(0, y, 0, y + h); go.addColorStop(0, "#3a2a5c"); go.addColorStop(1, "#211a3d"); ctx.fillStyle = go; ctx.fillRect(x, y, w, h);
   if (prendida > 0) { ctx.save(); ctx.globalAlpha *= prendida; const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, "#fff3cf"); g.addColorStop(.7, "#f5c065"); g.addColorStop(1, "#e7a440"); ctx.fillStyle = g; ctx.fillRect(x, y, w, h); ctx.restore(); }
   ctx.strokeStyle = prendida > .5 ? "#ffe2a0" : pulso > 0 ? "rgba(255,243,207," + (.6 + pulso * .4) + ")" : "rgba(201,164,90,.75)"; ctx.lineWidth = Math.max(1, k * (pulso > 0 ? 2 : 1)); ctx.strokeRect(x, y, w, h);
   ctx.strokeStyle = prendida > .5 ? "rgba(140,80,0,.25)" : "rgba(201,164,90,.35)"; ctx.lineWidth = Math.max(1, k * .8); ctx.beginPath(); ctx.moveTo(x + w / 2, y); ctx.lineTo(x + w / 2, y + h); ctx.stroke();
@@ -34424,28 +34493,23 @@ function advVentanaCanvas(ctx, x, y, w, h, n, prendida, opts) {
   else { ctx.font = advFont(600, h * .34); ctx.fillStyle = prendida > .5 ? "#6a3d00" : pulso > 0 ? "#fff" : "#d9bf7f"; ctx.fillText(String(n), x + w / 2, y + h - h * .12); }
   ctx.restore();
 }
-// Ciudad, edificio y árbol en (ox, oy) con escala s (lienzo de 360x700). prendidas: cuántas ventanas (puede ser con coma)
+// La fachada como imagen para el lienzo (se carga una vez)
+let ADV_FACH_IMG = null;
+const advFachadaImg = () => { if (!ADV_FACH_IMG && typeof Image !== "undefined") { ADV_FACH_IMG = new Image(); ADV_FACH_IMG.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(ADV_FACHADA_SVG); } return ADV_FACH_IMG; };
+// Ciudad, fachada y árbol en (ox, oy) con escala s (lienzo de 360x700). prendidas: cuántas ventanas (puede ser con coma)
 function advCiudadCanvas(ctx, W, H, ox, oy, s, prendidas, t) {
   const brillo = Math.min(1, prendidas / 25), X = (v) => ox + v * s, Y = (v) => oy + v * s;
   // edificios de atrás, a todo lo ancho
   const kx = W / 360;
   ADV_SKY.forEach(([x, w, h, k], i) => {
-    ctx.fillStyle = k ? "#0e1833" : "#0a1226"; ctx.fillRect(x * kx, H - h * s, w * kx, h * s);
+    ctx.fillStyle = k ? "#221b48" : "#1a1538"; ctx.fillRect(x * kx, H - h * s, w * kx, h * s);
     ctx.fillStyle = "#ffd98a";
     for (let r = 0; r < Math.floor(h / 12); r++) for (let c = 0; c < Math.floor((w - 6) / 7); c++) if (((r * 7 + c * 13 + i * 5) % 9) < 2) { ctx.globalAlpha = (r + c + i) % 4 === 0 ? .15 + .4 * (1 + Math.sin(t * 2 + r + c)) / 2 : .5; ctx.fillRect((x + 4 + c * 7) * kx, H - h * s + (8 + r * 12) * s, 3 * kx, 4 * s); }
     ctx.globalAlpha = 1;
   });
-  // aguja y faro
-  const c0 = ADV_CUERPOS[0];
-  ctx.fillStyle = "#0b0b0e"; ctx.strokeStyle = "#c9a45a"; ctx.lineWidth = s;
-  ctx.beginPath(); ctx.moveTo(X(171), Y(c0.y)); ctx.lineTo(X(180), Y(70)); ctx.lineTo(X(189), Y(c0.y)); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(X(180), Y(70)); ctx.lineTo(X(180), Y(50)); ctx.stroke();
-  advGlowCanvas(ctx, X(180), Y(47), 13 * s * (.9 + .25 * Math.sin(t * 2.6)), .9); ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(X(180), Y(47), 2.6 * s, 0, Math.PI * 2); ctx.fill();
-  ADV_CUERPOS.forEach(k => {
-    ctx.fillStyle = "#0b0b0e"; ctx.fillRect(X(180 - k.w / 2), Y(k.y), k.w * s, (k.h + 1) * s);
-    ctx.fillRect(X(180 - k.w / 2 - 3), Y(k.y - 3), (k.w + 6) * s, 4 * s); ctx.strokeStyle = "#c9a45a"; ctx.lineWidth = s; ctx.strokeRect(X(180 - k.w / 2 - 3), Y(k.y - 3), (k.w + 6) * s, 4 * s);
-    ctx.globalAlpha = .55; ctx.lineWidth = .7 * s; ctx.beginPath(); ctx.moveTo(X(180 - k.w / 2 + 5), Y(k.y + 4)); ctx.lineTo(X(180 - k.w / 2 + 5), Y(k.y + k.h)); ctx.moveTo(X(180 + k.w / 2 - 5), Y(k.y + 4)); ctx.lineTo(X(180 + k.w / 2 - 5), Y(k.y + k.h)); ctx.stroke(); ctx.globalAlpha = 1;
-  });
+  // la fachada iluminada (la misma de la tienda)
+  const fach = advFachadaImg();
+  if (fach && fach.complete && fach.naturalWidth) ctx.drawImage(fach, ox, oy, 360 * s, 560 * s);
   // árbol de luces
   const A = ADV_ARB;
   advGlowCanvas(ctx, X(180), Y(625), 92 * s, .1 + brillo * .3);
@@ -34454,7 +34518,7 @@ function advCiudadCanvas(ctx, W, H, ox, oy, s, prendidas, t) {
   ctx.globalAlpha = .35 + brillo * .35; ctx.strokeStyle = "#f3d38c"; ctx.lineWidth = .9 * s; ctx.save(); ctx.translate(ox, oy); ctx.scale(s, s); ctx.lineWidth = .9; ctx.stroke(new Path2D(ADV_GUIRN.d)); ctx.restore(); ctx.globalAlpha = 1;
   const nLuz = brillo * 40;
   ADV_GUIRN.luces.forEach((p, k) => { const on = Math.max(0, Math.min(1, nLuz - k)), r = (2 + (p.z + 1) * .6) * s;
-    if (on > 0) { advGlowCanvas(ctx, X(p.x), Y(p.y), r * 3.2, on * (.75 + .25 * Math.sin(t * 2.2 + k))); ctx.fillStyle = "#fff4d0"; ctx.globalAlpha = on; ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), r, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; }
+    if (on > 0) { advGlowCanvas(ctx, X(p.x), Y(p.y), r * 3.2, on * (.75 + .25 * Math.sin(t * 2.2 + k))); ctx.fillStyle = ADV_LUCES[k % ADV_LUCES.length]; ctx.globalAlpha = on; ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), r, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; }
     if (on < 1) { ctx.fillStyle = "#e8c77a"; ctx.globalAlpha = .35 * (1 - on); ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), r * .8, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; } });
   advGlowCanvas(ctx, X(180), Y(A.top), (16 + brillo * 18) * s, .45 + brillo * .55);
   ctx.save(); ctx.translate(X(180), Y(A.top)); ctx.scale(s, s); const ge = ctx.createLinearGradient(0, -16, 0, 16); ge.addColorStop(0, "#fff6da"); ge.addColorStop(1, "#e2b75c"); ctx.fillStyle = ge; ctx.globalAlpha = .6 + brillo * .4; ctx.fill(new Path2D(advEstrella(13 + brillo * 3))); ctx.restore();
@@ -34485,7 +34549,7 @@ function advVentanaGrandeCanvas(ctx, x, y, w, h, o) {
 }
 function advDibujarVideo(ctx, W, H, t, d) {
   const u = W / 1080, dia = d.dia;
-  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#060a16"); g.addColorStop(.55, "#0c1630"); g.addColorStop(1, "#1b2442");
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#0f0c2e"); g.addColorStop(.45, "#241a52"); g.addColorStop(.8, "#4a2768"); g.addColorStop(1, "#7a3466");
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   advGlowCanvas(ctx, W * .85, 170 * u, 110 * u, .12); ctx.fillStyle = "rgba(255,246,220,.92)"; ctx.beginPath(); ctx.arc(W * .85, 170 * u, 46 * u, 0, Math.PI * 2); ctx.fill();
   const zoom = flyEaseInOut((t - 2.2) / .8), tarjeta = flyEase((t - 5.2) / .8);
@@ -34576,7 +34640,7 @@ function AdvientoVideo({ d, temaPal, slug, dominio, productos }) {
   useEffect(() => { (di.productos || []).slice(0, 3).forEach(id => { if (imgs[id] !== undefined) return; const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => setImgs(m => ({ ...m, [id]: im })); im.onerror = () => setImgs(m => ({ ...m, [id]: null })); im.src = base + "/tienda-publica/" + encodeURIComponent(slug) + "/foto/" + id; }); }, [dia, d]); // eslint-disable-line react-hooks/exhaustive-deps
   const datos = { dia, titulo: d.titulo, iconos: d.dias.map(x => x.icono), icono: di.icono, tituloDia: di.titulo, detalle: di.detalle, codigo: di.codigo, logo, fotos: (di.productos || []).slice(0, 3).map(id => imgs[id] || null), web: dominio ? String(dominio).replace(/^https?:\/\//, "") : "Link en la bio" };
   const dRef = useRef(datos); dRef.current = datos;
-  useEffect(() => { if (!window.FontFace || !document.fonts) return; ADV_FUENTES.forEach(([fam, src, o]) => { if ([...document.fonts].some(f => f.family === fam)) return; const ff = new FontFace(fam, src, o); ff.load().then(x => document.fonts.add(x)).catch(() => {}); }); }, []);
+  useEffect(() => { advFachadaImg(); if (!window.FontFace || !document.fonts) return; ADV_FUENTES.forEach(([fam, src, o]) => { if ([...document.fonts].some(f => f.family === fam)) return; const ff = new FontFace(fam, src, o); ff.load().then(x => document.fonts.add(x)).catch(() => {}); }); }, []);
   useEffect(() => {
     let id; const c = lienzo.current; if (!c) return; const ctx = c.getContext("2d");
     const paso = () => { let t = (performance.now() - inicio.current) / 1000; if (grab.current) { if (t >= ADV_VID) { grab.current.stop(); grab.current = null; } else setGrabando(Math.max(1, Math.round(t / ADV_VID * 100))); } t = grab.current ? Math.min(t, ADV_VID) : t % (ADV_VID + 1); advDibujarVideo(ctx, c.width, c.height, t, dRef.current); id = requestAnimationFrame(paso); };
