@@ -457,6 +457,13 @@ button.tab { font-family: inherit; }
 .pos-tile-info { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 3px; flex: 1; }
 .pos-tile-nombre { font-size: 12px; font-weight: 700; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .pos-tile-precio { font-size: 14px; font-weight: 900; color: ${p.accentText}; font-variant-numeric: tabular-nums; margin-top: auto; }
+.pos-combo-arte { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: ${p.border}; }
+.pos-combo-arte.n1 { grid-template-columns: 1fr; }
+.pos-combo-arte > span { background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; color: ${p.textMuted}; }
+.pos-combo-arte.n2 > span, .pos-combo-arte.n3 > span:first-child { grid-row: span 2; }
+.pos-combo-off { position: absolute; top: 6px; left: 6px; font-size: 12px; font-weight: 900; color: #fff; background: linear-gradient(135deg,#7c3aed,#06b6d4); border-radius: 5px; padding: 3px 7px; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
+.pos-combo-lista { font-size: 11px; color: ${p.textMuted}; text-decoration: line-through; }
+.pos-combo-medio { font-size: 10.5px; color: ${p.textMuted}; font-weight: 600; line-height: 1.25; }
 .pos-tactil .pos-tile-nombre { font-size: 14px; }
 .pos-tactil .pos-tile-precio { font-size: 17px; }
 .pos-tactil .chip-btn { font-size: 14px; padding: 12px 14px; }
@@ -5582,12 +5589,60 @@ function POS({ localId, usuario, paletaActual }) {
     if (!qCat) return true;
     return ((x.nombre || x.name || "") + " " + (x.marca || x.brand || "") + " " + (x.codigo_barras || x.codigo || "")).toLowerCase().includes(qCat);
   }).sort((a, b) => (imagenesProd[b.id] ? 1 : 0) - (imagenesProd[a.id] ? 1 : 0) || String(a.nombre || "").localeCompare(String(b.nombre || ""))).slice(0, catalogoLimite);
+  // Combos vigentes (promos tipo combo de este local), agrupados: hay una promo por cada forma de pagar del mismo combo
+  const combosPos = (() => {
+    const m = new Map();
+    promociones.filter(pr => pr.tipo === "combo" && (!pr.local_id || Number(pr.local_id) === Number(localId))).forEach(pr => {
+      const ids = (pr.productos_ids || []).map(Number), cant = pr.combo_cantidades || {};
+      const k = ids.join(",") + "|" + JSON.stringify(cant);
+      const items = ids.map(id => ({ p: productos.find(x => Number(x.id) === id), n: parseInt(cant[id]) || 1 }));
+      if (!ids.length || items.some(it => !it.p)) return;
+      const nom = String(pr.nombre || "").replace(/^.* · /, "").replace(/^Combo /, "").replace(/:.*$/, "") || "Combo";
+      const c = m.get(k) || { k, nombre: nom, items, opciones: [] };
+      c.opciones.push({ pct: parseFloat(pr.valor) || 0, medio: pr.medio_pago_tipo, txt: String(pr.nombre || "").replace(/^.*: /, "") });
+      m.set(k, c);
+    });
+    return [...m.values()].map(c => {
+      const suma = c.items.reduce((s2, it) => s2 + (it.p.precio || it.p.price || 0) * it.n, 0);
+      const mejor = c.opciones.reduce((a, b) => (b.pct > a.pct ? b : a), c.opciones[0]);
+      return { ...c, suma, mejor };
+    }).filter(c => !qCat || (c.nombre + " " + c.items.map(it => it.p.nombre || it.p.name || "").join(" ")).toLowerCase().includes(qCat));
+  })();
+  const agregarCombo = (c) => {
+    const sinStock = c.items.filter(it => !it.p.tiene_variantes && (it.p.disponible !== undefined ? it.p.disponible : (it.p.stock || 0)) < it.n);
+    if (sinStock.length) return mostrarAvisoEscaneo("Sin stock para el combo: " + sinStock.map(it => it.p.nombre || it.p.name).join(", "));
+    c.items.filter(it => !it.p.tiene_variantes).forEach(it => { for (let k = 0; k < it.n; k++) add(it.p); });
+    const conVar = c.items.filter(it => it.p.tiene_variantes);
+    if (conVar.length) {
+      abrirSelectorVariante(conVar[0].p);
+      if (conVar.length > 1 || conVar[0].n > 1) mostrarAvisoEscaneo("Elegí el tono/variante de: " + conVar.map(it => (it.n > 1 ? it.n + "× " : "") + (it.p.nombre || it.p.name)).join(", "));
+    }
+  };
+  const combosGridJSX = combosPos.map(c => (
+    <button key={"combo" + c.k} className="pos-tile" onClick={() => agregarCombo(c)} title={c.nombre + " — " + c.opciones.map(o => o.txt).join(" · ")}>
+      <div className="pos-tile-img" style={{ background: "transparent" }}>
+        <div className={"pos-combo-arte n" + Math.min(c.items.length, 4)} style={{ position: "absolute", inset: 0 }}>
+          {c.items.slice(0, 4).map(it => <span key={it.p.id} style={imagenesProd[it.p.id] ? { backgroundImage: "url(" + imagenesProd[it.p.id] + ")" } : { background: colorTile(it.p.categoria || it.p.nombre) }}>{!imagenesProd[it.p.id] && inicialesProd(it.p.nombre || it.p.name)}</span>)}
+        </div>
+        {c.mejor.pct > 0 && <span className="pos-combo-off">⚡ -{Math.round(c.mejor.pct)}%</span>}
+      </div>
+      <div className="pos-tile-info">
+        <div className="pos-tile-nombre">🎁 {c.nombre}</div>
+        <div className="pos-combo-medio">{c.items.map(it => (it.n > 1 ? it.n + "× " : "") + (it.p.nombre || it.p.name)).join(" + ")}</div>
+        {c.mejor.pct > 0 && <div className="pos-combo-lista">{fmt(c.suma).replace(SIN_CEROS, "")}</div>}
+        <div className="pos-tile-precio">{fmt(Math.round(c.suma * (1 - c.mejor.pct / 100))).replace(SIN_CEROS, "")}</div>
+        <div className="pos-combo-medio">{c.opciones.map(o => o.txt).join(" · ")}</div>
+      </div>
+    </button>
+  ));
   const cantEnCarrito = (id) => cart.filter(i => i.id === id).reduce((s2, i) => s2 + i.qty, 0);
 
   const catalogoGridJSX = (grande) => (
     <div className={"pos-cat-grid" + (grande ? " grande" : "")}>
-      {productosCatalogo.length === 0 && <div className="empty" style={{ gridColumn: "1 / -1" }}>No hay productos {qCat ? "con \"" + busqueda + "\"" : "en esta categoría"}.</div>}
-      {productosCatalogo.map(x => {
+      {(catalogoCat === "__combos" || !catalogoCat) && combosGridJSX}
+      {catalogoCat === "__combos" && !combosPos.length && <div className="empty" style={{ gridColumn: "1 / -1" }}>No hay combos vigentes{qCat ? " con \"" + busqueda + "\"" : ""}.</div>}
+      {catalogoCat !== "__combos" && productosCatalogo.length === 0 && <div className="empty" style={{ gridColumn: "1 / -1" }}>No hay productos {qCat ? "con \"" + busqueda + "\"" : "en esta categoría"}.</div>}
+      {catalogoCat !== "__combos" && productosCatalogo.map(x => {
         const disp = x.es_kit ? 1 : (x.disponible !== undefined ? x.disponible : (x.stock || 0));
         const sinSt = disp <= 0 && !(x.transito_local > 0) && !x.es_kit;
         const enCarro = cantEnCarrito(x.id);
@@ -5606,14 +5661,14 @@ function POS({ localId, usuario, paletaActual }) {
           </button>
         );
       })}
-      {productosCatalogo.length >= catalogoLimite && (
+      {catalogoCat !== "__combos" && productosCatalogo.length >= catalogoLimite && (
         <button className="chip-btn" style={{ gridColumn: "1 / -1", justifySelf: "center", padding: "10px 18px" }} onClick={() => setCatalogoLimite(l => l + 120)}>Ver más productos</button>
       )}
     </div>
   );
   const categoriasJSX = (vertical) => (
     <div className={"pos-cat-cats" + (vertical ? " vertical" : "")} role="tablist" aria-label="Categorías">
-      {[["", "Todo"], ...categoriasCatalogo.map(c => [c, c]), ...(hayKits ? [["__kits", "🎁 Kits"]] : [])].map(([id, l]) => (
+      {[["", "Todo"], ...(combosPos.length || catalogoCat === "__combos" ? [["__combos", "⚡ Combos"]] : []), ...categoriasCatalogo.map(c => [c, c]), ...(hayKits ? [["__kits", "🎁 Kits"]] : [])].map(([id, l]) => (
         <button key={id || "todo"} role="tab" aria-selected={catalogoCat === id} className={"chip-btn" + (catalogoCat === id ? " on" : "")} onClick={() => { setCatalogoCat(id); setCatalogoLimite(120); }}>{l}</button>
       ))}
     </div>
