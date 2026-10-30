@@ -92,7 +92,10 @@ router.get('/adviento-tienda', async (req, res) => {
     await tienda.asegurar();
     const c = await tienda.leerConfig();
     const a = tienda.advientoDe(c);
-    res.json({ adviento: a, hoy: tienda.advientoHoy(a), slug: c.slug || null, publicada: !!c.activo, dominio: await tienda.dominioDe((req.negocio && req.negocio.id) || 1).catch(() => null), titulo_tienda: c.titulo || null });
+    // Álbum de sellos: cuántos tiene cada clienta (las que entran al sorteo, primero)
+    const sellos = (await pool.query(`SELECT s.cliente_id, COUNT(*)::int AS sellos, MAX(c.nombre) AS nombre, MAX(c.telefono) AS telefono
+      FROM tienda_adv_sellos s LEFT JOIN clientes c ON c.id = s.cliente_id WHERE s.anio = $1 GROUP BY s.cliente_id ORDER BY COUNT(*) DESC, MAX(s.creado_en) LIMIT 300`, [a.anio]).catch(() => ({ rows: [] }))).rows;
+    res.json({ adviento: a, hoy: tienda.advientoHoy(a), slug: c.slug || null, publicada: !!c.activo, dominio: await tienda.dominioDe((req.negocio && req.negocio.id) || 1).catch(() => null), titulo_tienda: c.titulo || null, sellos });
   } catch (e) { console.error('[adviento]', e.message); res.status(500).json({ error: 'No se pudo leer' }); }
 });
 router.put('/adviento-tienda', async (req, res) => {

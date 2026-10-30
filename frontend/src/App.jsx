@@ -27210,6 +27210,56 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-v.bloq{opacity:.6}
 .tw-adv-v.tiembla{animation:twAdvNoV .4s}
 @keyframes twAdvNoV{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.tw-adv-prog{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.tw-adv-prog .np{animation:twAdvAparece 1.2s ease-out both;filter:drop-shadow(0 1px 1px rgba(80,100,140,.4))}
+@keyframes twAdvAparece{from{opacity:0;transform:translateY(-4px)}}
+.tw-adv-prog .cortina{animation:twAdvAparece 1s ease-out calc(var(--k) * .15s) both}
+.tw-adv-prog .cl{animation:twAdvTw 1.4s ease-in-out infinite}.tw-adv-prog .cl.c1{animation-delay:.45s}.tw-adv-prog .cl.c2{animation-delay:.9s}
+.tw-adv-prog .arbolesluz{animation:twAdvFaro 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.tw-adv-prog .final rect{animation:twAdvTw 2s ease-in-out infinite}
+.tw-adv-prog .fuego{opacity:0;transform-box:fill-box;transform-origin:center;animation:twAdvFuego 2.1s ease-out var(--d) infinite}
+@keyframes twAdvFuego{0%{opacity:0;transform:scale(.2)}10%{opacity:1}70%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.15)}}
+.tw-adv-vuela{position:absolute;left:0;top:1%;width:46%;z-index:3;pointer-events:none;animation:twAdvVuela 7s linear forwards}
+.tw-adv-trineo{width:100%;height:auto;display:block;filter:drop-shadow(0 0 6px rgba(255,214,140,.7))}
+.tw-adv-trineo .nariz{animation:twAdvTw .8s ease-in-out infinite}
+@keyframes twAdvVuela{0%{transform:translate(-110%,40px) rotate(-6deg)}50%{transform:translate(70%,-6px) rotate(-2deg)}100%{transform:translate(240%,30px) rotate(5deg)}}
+.tw-adv-estrella{position:absolute;z-index:6;width:56px;height:56px;margin:-28px 0 0 -28px;border:0;background:none;padding:0;cursor:pointer;animation:twAdvCae 3.2s ease-in forwards;-webkit-tap-highlight-color:transparent}
+.tw-adv-estrella i{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px;border-radius:50%;background:#fff;box-shadow:0 0 10px 4px #fff3c4,0 0 24px 10px rgba(255,214,140,.7)}
+.tw-adv-estrella i::after{content:"";position:absolute;right:8px;top:50%;width:90px;height:3px;margin-top:-1.5px;transform-origin:right center;transform:rotate(-24deg);background:linear-gradient(90deg,transparent,rgba(255,243,196,.95));border-radius:2px}
+@keyframes twAdvCae{0%{opacity:0;transform:translate(0,0)}10%{opacity:1}85%{opacity:1}100%{opacity:0;transform:translate(170px,75px)}}
+.tw-adv-deseo{position:absolute;left:50%;top:22%;z-index:7;width:min(320px,86%);transform:translateX(-50%);background:rgba(12,22,48,.94);border:1px solid #e8cf8f;border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:5px;box-shadow:0 0 30px rgba(255,214,140,.45);animation:twAdvDeseo .5s cubic-bezier(.3,1.4,.5,1)}
+.tw-adv-deseo b{color:#ffd98a;font-size:15px}.tw-adv-deseo span{font-size:14px;line-height:1.4}.tw-adv-deseo small{font-size:12.5px;color:#e8cf8f}
+@keyframes twAdvDeseo{from{opacity:0;transform:translateX(-50%) scale(.6)}}
+.tw-adv-nevada{position:absolute;inset:0;z-index:5;pointer-events:none;overflow:hidden}
+.tw-adv-nevada i{position:absolute;top:-12px;width:var(--s);height:var(--s);border-radius:50%;background:#fff;box-shadow:0 0 4px #fff;animation:twAdvNieve var(--d) linear var(--del) 3}
+.tw-adv-tips{font-size:11.5px;color:rgba(255,255,255,.62);margin-top:6px;padding:0 14px}
+.tw-adv-tips .pc{display:none}
+@media (hover:hover) and (pointer:fine){.tw-adv-tips .cel{display:none}.tw-adv-tips .pc{display:inline}}
+.tw-adv-album{margin:14px 14px 4px;padding:14px 12px 10px;border-radius:18px;background:rgba(12,22,48,.55);border:1px solid rgba(232,207,143,.45);text-align:center}
+.tw-adv-album .tit{font-size:13px;font-weight:600;letter-spacing:.08em;color:#e8cf8f}.tw-adv-album .tit b{color:#fff;margin-left:6px}
+.tw-adv-album .sellos{display:grid;grid-template-columns:repeat(9,1fr);gap:6px;margin:12px auto 4px;max-width:360px}
+@media (min-width:520px){.tw-adv-album .sellos{grid-template-columns:repeat(13,1fr);max-width:520px}}
+.tw-adv-album .se{aspect-ratio:1;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;color:rgba(255,255,255,.45);border:1.5px dashed rgba(232,207,143,.35)}
+.tw-adv-album .se.si{border:0;background:radial-gradient(circle at 35% 30%,#fff3c4,#e9c46a 50%,#a8761f);box-shadow:0 0 0 2px rgba(168,118,31,.4),0 2px 6px rgba(0,0,0,.35);transform:rotate(-8deg);padding:3px;animation:twAdvSelloIn .5s cubic-bezier(.3,1.6,.5,1)}
+.tw-adv-album .se.si .tw-adv-esc{width:100%;height:100%}
+.tw-adv-album .se.hoy{color:#fff;border-color:#ffd98a;animation:twAdvHoySe 1.4s ease-in-out infinite}
+.tw-adv-album .se.perdido{opacity:.45}
+@keyframes twAdvSelloIn{from{transform:scale(2) rotate(-30deg);opacity:0}}
+@keyframes twAdvHoySe{50%{box-shadow:0 0 10px 2px rgba(255,214,140,.7)}}
+.tw-adv-album .barra{position:relative;height:6px;border-radius:99px;background:rgba(255,255,255,.15);margin:26px 26px 36px}
+.tw-adv-album .barra i{position:absolute;left:0;top:0;bottom:0;border-radius:inherit;background:linear-gradient(90deg,#b8892e,#ffd98a);transition:width .8s}
+.tw-adv-album .barra em{position:absolute;top:50%;transform:translate(-50%,-50%);font-style:normal;display:flex;flex-direction:column;align-items:center}
+.tw-adv-album .barra em b{width:20px;height:20px;border-radius:50%;background:#1b2550;border:1.5px solid #e8cf8f;font-size:9.5px;display:flex;align-items:center;justify-content:center;color:#e8cf8f}
+.tw-adv-album .barra em.ok b{background:#ffd98a;color:#3a2600}
+.tw-adv-album .barra em small{position:absolute;top:22px;white-space:nowrap;font-size:10px;color:#e8cf8f}
+.tw-adv-album p{font-size:12.5px;line-height:1.45;color:rgba(255,255,255,.85);margin:0}
+.tw-adv-album p.demo{margin-top:6px;font-size:11px;color:rgba(255,255,255,.55)}
+.tw .tw-adv-link{border:0;background:none;padding:0;color:#ffd98a!important;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer}
+.tw-adv-sellado{display:flex;gap:10px;align-items:center;text-align:left;margin:0 0 12px;padding:10px 12px;border-radius:14px;background:#fff3d6;border:1px solid #e8cf8f;animation:twAdvSelloIn .6s cubic-bezier(.3,1.6,.5,1) both}
+.tw-adv-sellado .st{flex:0 0 48px;height:48px;border-radius:50%;padding:5px;background:radial-gradient(circle at 35% 30%,#fff3c4,#e9c46a 50%,#a8761f);box-shadow:0 0 0 3px rgba(168,118,31,.35);transform:rotate(-10deg);display:flex}
+.tw-adv-sellado .st .tw-adv-esc{width:100%;height:100%}
+.tw-adv-sellado b{display:block;color:#0c1630;font-size:14px}.tw-adv-sellado span{font-size:12.5px;color:#6b4a00}
+@media (prefers-reduced-motion:reduce){.tw-adv-vuela,.tw-adv-estrella,.tw-adv-prog *,.tw-adv-nevada i{animation:none!important}.tw-adv-vuela,.tw-adv-nevada{display:none}}
 .tw-adv-cuenta{font-size:11px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#e8cf8f;margin-top:10px;padding:0 10px}
 .tw-adv-aviso{margin-top:6px;font-size:13px;color:rgba(255,255,255,.8);min-height:18px;padding:0 14px}
 .tw-adv-vista{position:fixed;left:12px;right:12px;bottom:12px;z-index:400;background:#0c1630;color:#f3e7cf;border:1px solid #e8cf8f;border-radius:14px;padding:10px 14px;font-size:12.5px;line-height:1.4;box-shadow:0 8px 30px rgba(0,0,0,.35)}
@@ -29482,7 +29532,88 @@ function advInfo(d, hoy, vista) {
   if (d.tipo === "regalo" && d.regalo) return pasado ? { t: "⌛ Este regalo era de las compras del " + fecha, paso: true } : { t: "🎁 Comprando el " + fecha + " te llevás de regalo: " + d.regalo + (d.minimo ? " (compras desde " + advPlata(d.minimo) + ")" : "") };
   return null;
 }
-function TwAdviento({ adv, slug, visibles, tarjeta }) {
+// ── Magia del Adviento ──
+// Sonidos (campanitas, el sello que se rompe, las puertas, el trineo, la nevada) y vibración del celular
+const twAdvSon = {
+  ruido(c, cuando, dur, vol, frec, tipo = "highpass") { try {
+    const n = c.createBuffer(1, Math.floor(c.sampleRate * dur), c.sampleRate), d = n.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.5);
+    const src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(); src.buffer = n; f.type = tipo; f.frequency.value = frec; g.gain.value = vol;
+    src.connect(f).connect(g).connect(c.destination); src.start(c.currentTime + cuando);
+  } catch (e) {} },
+  campanita() { const c = twSonidoOn() && twCtx(); if (!c) return; twTono(c, { f1: 2093, dur: .5, vol: .05 }); twTono(c, { f1: 3136, dur: .3, vol: .015 }); twVibrar(8); },
+  abrir() {
+    const c = twSonidoOn() && twCtx(); if (!c) return;
+    [1046, 1318, 1568].forEach((f, i) => twTono(c, { f1: f, dur: .25, vol: .02, cuando: .75 + i * .08 })); // se prende la luz
+    this.ruido(c, 1.15, .12, .16, 2500, "bandpass"); setTimeout(() => twVibrar(15), 1150); // se rompe el sello
+    [1046, 1318, 1568, 2093, 2637, 3136, 4186].forEach((f, i) => { twTono(c, { f1: f, dur: .9, vol: .045, cuando: 1.45 + i * .06 }); twTono(c, { f1: f * 2.01, dur: .4, vol: .01, cuando: 1.45 + i * .06 }); });
+    this.ruido(c, 1.45, .9, .05, 5000); setTimeout(() => twVibrar([10, 30, 10]), 1450); // las puertas y el brillo
+  },
+  sello() { const c = twSonidoOn() && twCtx(); if (!c) return; twTono(c, { f1: 140, f2: 60, dur: .25, vol: .18 }); [1568, 2093, 2637].forEach((f, i) => twTono(c, { f1: f, dur: .4, vol: .05, cuando: .12 + i * .08 })); twVibrar([25, 40, 25]); },
+  estrella() { const c = twSonidoOn() && twCtx(); if (!c) return; [2093, 2349, 2637, 3136, 3520, 4186].forEach((f, i) => twTono(c, { f1: f, dur: .5, vol: .04, cuando: i * .05 })); twVibrar(12); },
+  trineo() { const c = twSonidoOn() && twCtx(); if (!c) return; for (let i = 0; i < 14; i++) this.ruido(c, i * .16 + (i % 2) * .05, .1, .07 - i * .003, 6500); },
+  nevada() { const c = twSonidoOn() && twCtx(); if (!c) return; this.ruido(c, 0, 1.4, .06, 900, "lowpass"); [1568, 1976, 2349, 3136].forEach((f, i) => twTono(c, { f1: f, dur: .8, vol: .025, cuando: .2 + i * .15 })); twVibrar([20, 60, 20]); },
+};
+// Nevada fuerte (sacudiendo el celular, o doble clic en la compu): como un globo de nieve
+const ADV_NEVADA = Array.from({ length: 70 }, (_, i) => ({ l: ((i * 37) % 100) + "%", s: (3 + (i % 4) * 1.5) + "px", d: (1.6 + (i % 5) * .35) + "s", del: (-(i % 9) * .22) + "s", x: (((i * 53) % 60) - 30) + "px" }));
+const TwAdvNevada = () => <div className="tw-adv-nevada" aria-hidden="true">{ADV_NEVADA.map((k, i) => <i key={i} style={{ left: k.l, "--s": k.s, "--d": k.d, "--del": k.del, "--x": k.x }} />)}</div>;
+// El edificio se va llenando: con cada ventana encendida, más nieve en el techo y los toldos, más cortinas de luces
+// entre las ventanas, y el 25 todo dorado con fuegos artificiales
+function TwAdvProgreso({ n }) {
+  const nieve = (d) => <path d={d} fill="#fff" />;
+  const toldos = [0, 1, 2, 3, 4].filter(f => n >= 8 + f * 2);
+  const cortinas = [28, 90, 150, 210, 270, 332].slice(0, Math.min(6, Math.floor(n / 4)));
+  return (
+    <svg className="tw-adv-prog" viewBox="0 0 360 560" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      {n >= 3 && <g className="np">{nieve("M38 60 Q60 50 80 58 Q100 50 120 58 Q140 51 160 58 Q180 49 200 58 Q220 51 240 58 Q260 50 280 58 Q300 51 322 60 L322 63 L38 63Z")}{[92, 180, 268].map(x => <path key={x} d={"M" + (x - 14) + " 75 L" + x + " 60 L" + (x + 14) + " 75 Q" + x + " 70 " + (x - 14) + " 75Z"} fill="#fff" />)}</g>}
+      {n >= 6 && <g className="np">{nieve("M14 95 Q30 89 46 94 Q66 88 86 94 Q106 89 126 94 Q146 88 166 94 Q186 89 206 94 Q226 88 246 94 Q266 89 286 94 Q306 88 326 94 Q338 90 346 95 L346 98 L14 98Z")}{[30, 70, 118, 166, 214, 262, 304, 338].map(x => <path key={x} d={"M" + (x - 3) + " 97 Q" + x + " 106 " + (x + 3) + " 97Z"} fill="#fff" />)}</g>}
+      {toldos.map(f => { const y = ADV_VY0 + f * ADV_VDY - 13; return <g key={f} className="np">{[0, 1, 2, 3, 4].map(c => { const x = ADV_VX0 + c * ADV_VDX - 4, w = ADV_VW + 8; return <path key={c} d={"M" + x + " " + (y + 1) + " Q" + (x + w * .25) + " " + (y - 5) + " " + (x + w * .5) + " " + (y - 1) + " Q" + (x + w * .75) + " " + (y - 6) + " " + (x + w) + " " + (y + 1) + "Z"} fill="#fff" />; })}</g>; })}
+      {cortinas.map((x, k) => <g key={x} className="cortina" style={{ "--k": k }}><line x1={x} y1="108" x2={x} y2="486" stroke="#3b2f1f" strokeWidth=".6" opacity=".6" />
+        {Array.from({ length: 19 }, (_, i) => <circle key={i} className={"cl c" + ((i + k) % 3)} cx={x + (i % 2 ? 1.2 : -1.2)} cy={114 + i * 20} r="2.1" fill={ADV_LUCES[(i + k * 2) % ADV_LUCES.length]} />)}</g>)}
+      {n >= 18 && <g className="arbolesluz"><circle cx="140" cy="530" r="26" fill="url(#twAdvProgGl)" /><circle cx="220" cy="530" r="26" fill="url(#twAdvProgGl)" /></g>}
+      {n >= 25 && <g className="final"><rect x="10" y="40" width="340" height="520" rx="8" fill="none" stroke="#ffd98a" strokeWidth="3" opacity=".7" />
+        {[[70, 30], [290, 26], [180, 14]].map(([x, y], i) => <g key={i} transform={"translate(" + x + " " + y + ")"}><g className="fuego" style={{ "--d": i * .7 + "s" }}>{Array.from({ length: 12 }, (_, j) => { const a = j / 12 * Math.PI * 2; return <line key={j} x1="0" y1="0" x2={Math.cos(a) * 18} y2={Math.sin(a) * 18} stroke={ADV_LUCES[(j + i) % ADV_LUCES.length]} strokeWidth="1.6" strokeLinecap="round" />; })}</g></g>)}</g>}
+      <defs><radialGradient id="twAdvProgGl"><stop offset="0" stopColor="#fff3c4" stopOpacity=".9" /><stop offset="1" stopColor="#ffcf5a" stopOpacity="0" /></radialGradient></defs>
+    </svg>
+  );
+}
+// Papá Noel en trineo cruzando el cielo (al abrir la ventana de hoy y cada tanto)
+const TwAdvTrineo = () => (
+  <svg className="tw-adv-trineo" viewBox="0 0 160 40" aria-hidden="true">
+    <path d="M2 30 Q40 34 80 31" fill="none" stroke="#ffe7a8" strokeWidth="1" strokeDasharray="1 4" opacity=".8" />
+    {[0, 1, 2].map(i => <g key={i} transform={"translate(" + (92 + i * 21) + " 14)"} fill="#2a1c10"><ellipse cx="8" cy="9" rx="8" ry="4" /><path d="M14 7 l5 -6 l2 1 l-4 6Z" /><path d="M18 1 l-2 -5 M18 1 l2 -5 M19 0 l4 -3" stroke="#2a1c10" strokeWidth="1" /><path d="M2 12 l-2 7 M5 12 l1 7 M11 12 l-1 7 M14 11 l3 7" stroke="#2a1c10" strokeWidth="1.3" />{i === 2 && <circle cx="21" cy="3" r="1.6" fill="#ff3b4e" className="nariz" />}</g>)}
+    <path d="M60 26 H96" stroke="#d8b46a" strokeWidth=".8" />
+    <g transform="translate(58 10)"><path d="M0 18 Q-4 18 -3 22 H30 Q36 22 37 16" fill="none" stroke="#d8b46a" strokeWidth="1.6" /><path d="M2 6 H28 L30 16 H0Z" fill="#b91c1c" /><circle cx="12" cy="0" r="4" fill="#f5d0b5" /><path d="M8 -2 Q12 -12 18 -3Z" fill="#b91c1c" /><circle cx="18" cy="-3" r="1.4" fill="#fff" /><path d="M8 4 Q12 9 16 4" fill="#fff" /><rect x="19" y="0" width="9" height="7" rx="1" fill="#2f7d4f" /></g>
+  </svg>
+);
+const ADV_DESEOS = ["Que esta Navidad tu piel brille tanto como esta estrella ✨", "Deseo pedido: una rutina que te haga sentir linda todos los días 💫", "Que lo que más querés esté debajo del árbol 🎁", "Una estrella para vos: que el año que viene sea tu año 🌟", "Deseo concedido: más tiempo para vos y tu skincare 🧖‍♀️"];
+// Álbum de sellos: los 25 días; cada ventana abierta el mismo día deja un sello dorado. Premios al llegar a N sellos y sorteo
+function TwAdvAlbum({ adv, mio, logueada, onIngresar, demo }) {
+  const k = adv.constancia; if (!k || !k.activo) return null;
+  const sellos = mio ? mio.sellos : demo || [], n = sellos.length, hoy = adv.hoy;
+  // Metas (puntos y sorteo; si caen en el mismo número de sellos, van juntas) y la próxima que todavía se puede lograr
+  // con los días que quedan
+  const metas = [];
+  [...k.hitos.map(h => ({ dias: h.dias, pts: h.puntos })), ...(k.sorteo_dias ? [{ dias: k.sorteo_dias, sorteo: true }] : [])].sort((a, b) => a.dias - b.dias).forEach(m => {
+    const x = metas.find(y => y.dias === m.dias); if (x) Object.assign(x, m.pts ? { pts: m.pts } : { sorteo: true }); else metas.push({ ...m });
+  });
+  metas.forEach(m => { m.t = [m.pts ? m.pts.toLocaleString("es-AR") + " pts" : "", m.sorteo ? "sorteo" : ""].filter(Boolean).join(" + "); m.largo = [m.pts ? "ganar " + m.pts.toLocaleString("es-AR") + " puntos" : "", m.sorteo ? "entrar al sorteo de " + (k.sorteo_premio || "Navidad") : ""].filter(Boolean).join(" y "); });
+  const alcanzable = n + Math.max(0, 25 - hoy) + (hoy >= 1 && hoy <= 25 && !sellos.includes(hoy) ? 1 : 0);
+  const prox = metas.find(m => m.dias > n && m.dias <= alcanzable);
+  return (
+    <div className="tw-adv-album">
+      <div className="tit">🎖️ Tu álbum de sellos <b>{n}/25</b></div>
+      <div className="sellos">{Array.from({ length: 25 }, (_, i) => { const d = i + 1, si = sellos.includes(d); return <span key={d} className={"se" + (si ? " si" : d === hoy && !adv.vista_previa ? " hoy" : d < hoy ? " perdido" : "")} title={"Día " + d}>{si ? <TwAdvIcono icono={(adv.dias[i] || {}).icono} /> : d}</span>; })}</div>
+      <div className="barra"><i style={{ width: (n / 25 * 100) + "%" }} />{metas.map(m => <em key={m.dias + m.t} className={n >= m.dias ? "ok" : ""} style={{ left: (m.dias / 25 * 100) + "%" }}><b>{m.dias}</b><small>{m.t}</small></em>)}</div>
+      <p>{!logueada ? <>Abrí la ventana <b>el mismo día</b> y juntá sellos: {k.hitos.map(h => h.dias + " sellos = " + h.puntos.toLocaleString("es-AR") + " puntos").join(" · ")}{k.sorteo_dias ? " · con " + k.sorteo_dias + " entrás al sorteo de " + (k.sorteo_premio || "Navidad") : ""}. <button className="tw-adv-link" onClick={onIngresar}>Ingresá a tu cuenta para juntarlos</button></>
+        : prox ? <>Te {prox.dias - n === 1 ? "falta 1 sello" : "faltan " + (prox.dias - n) + " sellos"} para {prox.largo}. ¡Volvé mañana! 🌟</>
+        : metas.some(m => m.dias > n) ? <>Seguí abriendo la ventana de cada día: cada una trae su sorpresa 🌟</>
+        : <>¡Lo lograste! {k.sorteo_dias && n >= k.sorteo_dias ? "Ya estás participando del sorteo de " + (k.sorteo_premio || "Navidad") + " 🎉" : "🎉"}</>}</p>
+      {demo && <p className="demo">Vista previa: los sellos se suman de verdad desde el 1 de diciembre, con la cuenta de la clienta.</p>}
+    </div>
+  );
+}
+function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {} }) {
   const clave = "tienda_adv_" + slug + "_" + adv.anio;
   const [abiertas, setAbiertas] = useState(() => { try { return JSON.parse(localStorage.getItem(clave) || "[]"); } catch (e) { return []; } });
   const [abriendo, setAbriendo] = useState(null); // { d, fase }
@@ -29491,19 +29622,64 @@ function TwAdviento({ adv, slug, visibles, tarjeta }) {
   const [copiado, setCopiado] = useState(false);
   const hoy = adv.hoy;
   const timers = useRef([]);
+  const ciudadRef = useRef(null);
+  const [encendido, setEncendido] = useState(false);
+  // Álbum de sellos (con cuenta), trineo, estrella fugaz y nevada
+  const [mio, setMio] = useState(null);
+  const [premioSello, setPremioSello] = useState(null); // { nuevo, premios } del sello de hoy
+  const [trineo, setTrineo] = useState(0);
+  const [estrella, setEstrella] = useState(null); // { k, x, y }
+  const [deseo, setDeseo] = useState(null);
+  const [nevada, setNevada] = useState(0);
+  const vigente = hoy >= 1 && hoy <= 25 && !adv.vista_previa;
+  useEffect(() => { if (cuenta.logueada && vigente && cuenta.pedir) cuenta.pedir("/adviento/mio").then(setMio).catch(() => {}); else setMio(null); }, [cuenta.logueada]); // eslint-disable-line react-hooks/exhaustive-deps
   const marcar = (dia) => setAbiertas(l => { if (l.includes(dia)) return l; const n = [...l, dia]; try { localStorage.setItem(clave, JSON.stringify(n)); } catch (e) {} return n; });
   const abrir = (d) => {
+    twAdvSon.campanita(); pedirMovimiento();
     if (d.bloqueado) { setTiembla(d.dia); setAviso("🔒 Esta ventana se enciende el " + d.dia + " de diciembre ✨"); setTimeout(() => setTiembla(0), 450); return; }
     const ya = abiertas.includes(d.dia);
     // Desde dónde arranca el zoom: la ventana del edificio
     const b = document.querySelector('.tw-adv-v[data-dia="' + d.dia + '"]'), r = b ? b.getBoundingClientRect() : null;
     setCopiado(false); setAbriendo({ d, fase: ya ? "listo" : "abre", r });
     timers.current.forEach(clearTimeout);
+    if (!ya) twAdvSon.abrir();
+    // El sello del día (solo la ventana de hoy, el mismo día, con cuenta)
+    setPremioSello(null);
+    if (d.dia === hoy && vigente && cuenta.logueada && cuenta.pedir && adv.constancia && adv.constancia.activo && !(mio && mio.sellos.includes(d.dia)))
+      cuenta.pedir("/adviento/sello", { method: "POST", body: JSON.stringify({ dia: d.dia }) }).then(r => { setMio(r); if (r.nuevo) { setPremioSello(r); setTimeout(() => twAdvSon.sello(), ya ? 300 : 3100); } }).catch(() => {});
     if (!ya) timers.current = [
       setTimeout(() => { marcar(d.dia); setRecien(d.dia); }, 2000),
       setTimeout(() => setAbriendo(a => a && a.d.dia === d.dia ? { ...a, fase: "abre listo" } : a), 3000),
     ];
   };
+  const cerrarDia = () => { timers.current.forEach(clearTimeout); if (abriendo && abriendo.fase === "abre") marcar(abriendo.d.dia); const eraHoy = abriendo && abriendo.d.dia === hoy; setAbriendo(null); if (eraHoy) setTimeout(() => { setTrineo(Date.now()); twAdvSon.trineo(); }, 500); };
+  // iOS pide permiso para leer el movimiento (para la nevada al sacudir): se pide con el primer toque
+  const permisoMov = useRef(false);
+  const pedirMovimiento = () => { if (permisoMov.current) return; permisoMov.current = true; try { if (window.DeviceMotionEvent && typeof DeviceMotionEvent.requestPermission === "function") DeviceMotionEvent.requestPermission().catch(() => {}); } catch (e) {} };
+  const nevar = () => { setNevada(Date.now()); twAdvSon.nevada(); };
+  // Sacudir el celular: nevada fuerte
+  useEffect(() => {
+    let ult = null, t0 = 0;
+    const f = (e) => { const a = e.accelerationIncludingGravity; if (!a || a.x === null) return; if (ult) { const d = Math.abs(a.x - ult.x) + Math.abs(a.y - ult.y) + Math.abs(a.z - ult.z); if (d > 28 && Date.now() - t0 > 5000) { t0 = Date.now(); nevar(); } } ult = { x: a.x, y: a.y, z: a.z }; };
+    window.addEventListener("devicemotion", f); return () => window.removeEventListener("devicemotion", f);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Estrellas fugaces que se pueden tocar (cada 18 a 40 segundos, cuando el edificio está a la vista) y el trineo cada tanto
+  useEffect(() => {
+    if (!encendido) return;
+    let vivo = true, t1, t2;
+    const otra = () => { t1 = setTimeout(() => { if (!vivo) return; if (!document.hidden) setEstrella({ k: Date.now(), x: 8 + Math.random() * 50, y: 3 + Math.random() * 14 }); otra(); }, 18000 + Math.random() * 22000); };
+    const sleigh = () => { t2 = setTimeout(() => { if (!vivo) return; if (!document.hidden) setTrineo(Date.now()); sleigh(); }, 55000 + Math.random() * 30000); };
+    t1 = setTimeout(() => { if (vivo) setEstrella({ k: Date.now(), x: 20, y: 6 }); otra(); }, 6000); sleigh();
+    return () => { vivo = false; clearTimeout(t1); clearTimeout(t2); };
+  }, [encendido]);
+  const tocarEstrella = () => {
+    setEstrella(null); twAdvSon.estrella();
+    const msg = ADV_DESEOS[Math.floor(Math.random() * ADV_DESEOS.length)];
+    if (vigente && cuenta.logueada && cuenta.pedir && adv.estrella_puntos > 0) cuenta.pedir("/adviento/estrella", { method: "POST" }).then(r => setDeseo({ msg, extra: r.puntos > 0 ? "Sumaste " + r.puntos + " puntos ⭐" : "Hoy ya pediste tu deseo con puntos: volvé mañana por otra estrella" })).catch(() => setDeseo({ msg }));
+    else setDeseo({ msg, extra: adv.estrella_puntos > 0 ? (vigente ? "Ingresá a tu cuenta y cada día tu primera estrella te suma " + adv.estrella_puntos + " puntos" : "Desde el 1 de diciembre, con cuenta, la primera estrella de cada día suma " + adv.estrella_puntos + " puntos") : "" });
+  };
+  useEffect(() => { if (!deseo) return; const t = setTimeout(() => setDeseo(null), 6500); return () => clearTimeout(t); }, [deseo]);
+  useEffect(() => { if (!nevada) return; const t = setTimeout(() => setNevada(0), 6000); return () => clearTimeout(t); }, [nevada]);
   const saltar = () => { timers.current.forEach(clearTimeout); if (abriendo) { marcar(abriendo.d.dia); setAbriendo(a => a && { ...a, fase: "listo" }); } };
   const zv = useRef(null);
   useLayoutEffect(() => {
@@ -29518,12 +29694,10 @@ function TwAdviento({ adv, slug, visibles, tarjeta }) {
     const f = () => { const el = document.getElementById("tw-adviento"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); const d = adv.dias[hoy - 1]; if (d && !d.bloqueado) setTimeout(() => abrirRef.current(d), 650); };
     window.addEventListener("tw-adv-hoy", f); return () => window.removeEventListener("tw-adv-hoy", f);
   }, [hoy, adv]);
-  useEffect(() => { if (!abriendo) return; const k = (e) => { if (e.key === "Escape") setAbriendo(null); }; window.addEventListener("keydown", k); const o = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { window.removeEventListener("keydown", k); document.body.style.overflow = o; }; }, [!!abriendo]);
+  useEffect(() => { if (!abriendo) return; const k = (e) => { if (e.key === "Escape") cerrarDia(); }; window.addEventListener("keydown", k); const o = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { window.removeEventListener("keydown", k); document.body.style.overflow = o; }; }, [!!abriendo]);
   const confeti = useMemo(() => Array.from({ length: 44 }, (_, i) => ({ x: Math.round(Math.cos(i / 44 * Math.PI * 2) * (100 + (i % 5) * 38)) + "px", y: Math.round(Math.sin(i / 44 * Math.PI * 2) * (90 + (i % 4) * 38) - 30) + "px", k: [...ADV_LUCES, "#fff", "#ffe9a8"][i % 8], r: ((i * 97) % 540 - 270) + "deg", f: i % 3 })), []);
   const prendidas = abiertas.filter(n => n >= 1 && n <= 25).length;
   // Cuando el edificio aparece en pantalla, se encienden las luces piso por piso (de abajo hacia arriba)
-  const ciudadRef = useRef(null);
-  const [encendido, setEncendido] = useState(false);
   useEffect(() => {
     const el = ciudadRef.current; if (!el) return;
     if (!window.IntersectionObserver) { setEncendido(true); return; }
@@ -29542,8 +29716,11 @@ function TwAdviento({ adv, slug, visibles, tarjeta }) {
       {adv.bajada && <p className="tw-adv-bajada">{adv.bajada}</p>}
       <div className={"tw-adv-ciudad" + (encendido ? " on" : "")} ref={ciudadRef}
         onPointerMove={e => { if (e.pointerType !== "mouse") return; const r = e.currentTarget.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5; e.currentTarget.classList.add("mueve"); e.currentTarget.style.setProperty("--ry", (x * 14).toFixed(2) + "deg"); e.currentTarget.style.setProperty("--rx", (-y * 10).toFixed(2) + "deg"); }}
-        onPointerLeave={e => { e.currentTarget.classList.remove("mueve"); }}>
+        onPointerLeave={e => { e.currentTarget.classList.remove("mueve"); }} onDoubleClick={nevar}>
         <TwAdvCiudad />
+        <TwAdvProgreso n={prendidas} />
+        {trineo > 0 && <div key={trineo} className="tw-adv-vuela" onAnimationEnd={() => setTrineo(0)}><TwAdvTrineo /></div>}
+        {estrella && <button key={estrella.k} className="tw-adv-estrella" style={{ left: estrella.x + "%", top: estrella.y + "%" }} onClick={tocarEstrella} onAnimationEnd={() => setEstrella(null)} aria-label="Estrella fugaz: tocala y pedí un deseo"><i /></button>}
         {adv.dias.map(d => {
           const n = d.dia, v = ADV_VENT[n], esHoy = n === hoy && !adv.vista_previa, ab = abiertas.includes(n);
           return (
@@ -29556,13 +29733,17 @@ function TwAdviento({ adv, slug, visibles, tarjeta }) {
             </button>);
         })}
       </div>
+      {nevada > 0 && <TwAdvNevada key={nevada} />}
+      {deseo && <div className="tw-adv-deseo" role="status" onClick={() => setDeseo(null)}><b>🌠 ¡Pediste un deseo!</b><span>{deseo.msg}</span>{deseo.extra && <small>{deseo.extra}</small>}</div>}
       <div className="tw-adv-cuenta">✦ {prendidas} de 25 ventanas encendidas ✦</div>
+      <div className="tw-adv-tips">🌠 Tocá las estrellas fugaces · ❄️ <span className="cel">Sacudí el celular</span><span className="pc">Doble clic en el edificio</span> para que nieve</div>
+      <TwAdvAlbum adv={adv} mio={mio} logueada={cuenta.logueada} onIngresar={() => cuenta.ingresar && cuenta.ingresar()} demo={adv.vista_previa ? abiertas : null} />
       <div className="tw-adv-aviso" role="status">{aviso || (hoy >= 1 && hoy <= 25 && !adv.vista_previa ? (abiertas.includes(hoy) ? "Ya encendiste la ventana de hoy. ¡Volvé mañana por otra sorpresa!" : "Tocá la ventana de hoy para encenderla y descubrir tu sorpresa") : "")}</div>
       {sel && createPortal(<div className="tw" style={{ minHeight: 0, background: "transparent" }}>
-        <div className="tw-adv-modal" role="dialog" aria-modal="true" aria-label={"Día " + sel.dia} onClick={() => { timers.current.forEach(clearTimeout); if (abriendo.fase === "abre") marcar(sel.dia); setAbriendo(null); }}>
+        <div className="tw-adv-modal" role="dialog" aria-modal="true" aria-label={"Día " + sel.dia} onClick={cerrarDia}>
           <TwAdvNieve />
           <div className={"tw-adv-escena " + abriendo.fase} onClick={e => e.stopPropagation()}>
-            <button className="tw-adv-cerrar" onClick={() => setAbriendo(null)} aria-label="Cerrar">×</button>
+            <button className="tw-adv-cerrar" onClick={cerrarDia} aria-label="Cerrar">×</button>
             <div className="tw-adv-rayos" aria-hidden="true" />
             <div className="tw-adv-confeti" aria-hidden="true">{confeti.map((k, i) => <i key={i} className={"f" + k.f} style={{ "--x": k.x, "--y": k.y, "--k": k.k, "--r": k.r }} />)}</div>
             {abriendo.fase !== "listo" && <div className="tw-adv-zv" ref={zv}><TwAdvVentanaGrande d={sel} /></div>}
@@ -29575,7 +29756,9 @@ function TwAdviento({ adv, slug, visibles, tarjeta }) {
               {advInfo(sel, hoy, adv.vista_previa) && <div className={"tw-adv-info" + (advInfo(sel, hoy, adv.vista_previa).paso ? " paso" : "")}>{advInfo(sel, hoy, adv.vista_previa).t}</div>}
               {sel.codigo && sel.tipo === "codigo" && !(advInfo(sel, hoy, adv.vista_previa) || {}).paso && <div className="tw-adv-cod"><code>{sel.codigo}</code><button className="tw-adv-btn sec" style={{ padding: "8px 12px" }} onClick={() => { try { navigator.clipboard.writeText(sel.codigo); setCopiado(true); } catch (e) {} }}>{copiado ? "✓ Copiado" : "Copiar"}</button></div>}
               {prods.length > 0 && <div className="tw-adv-prods">{prods.map(tarjeta)}</div>}
-              <button className="tw-adv-btn" onClick={() => setAbriendo(null)}>{sel.dia === hoy ? "¡Gracias! ✨" : "Cerrar"}</button>
+              {premioSello && sel.dia === hoy && <div className="tw-adv-sellado"><span className="st"><TwAdvIcono icono={sel.icono} /></span><div><b>¡Sumaste el sello del día {sel.dia}!</b>{premioSello.premios && premioSello.premios.length ? <span>🎉 Ganaste {premioSello.premios.reduce((t, h) => t + h.puntos, 0).toLocaleString("es-AR")} puntos por juntar {premioSello.premios[premioSello.premios.length - 1].dias} {premioSello.premios[premioSello.premios.length - 1].dias === 1 ? "sello" : "sellos"}</span> : <span>Llevás {(premioSello.sellos || []).length} de 25 en tu álbum</span>}</div></div>}
+              {!cuenta.logueada && sel.dia === hoy && vigente && adv.constancia && adv.constancia.activo && <div className="tw-adv-info">🎖️ <button className="tw-adv-link" style={{ color: "inherit" }} onClick={() => { cerrarDia(); cuenta.ingresar && cuenta.ingresar(); }}>Ingresá a tu cuenta</button> para guardar el sello de hoy en tu álbum</div>}
+              <button className="tw-adv-btn" onClick={cerrarDia}>{sel.dia === hoy ? "¡Gracias! ✨" : "Cerrar"}</button>
             </div>
           </div>
         </div>
@@ -32286,7 +32469,7 @@ function TiendaPublica({ slug }) {
           <div className="tw-cartel" style={{ textAlign: "center" }}><div style={{ fontSize: 40 }}>✿</div><h2>{tienda.titulo}</h2><p>Pronto vas a encontrar nuestros productos acá.</p></div>
         ) : (
           <>
-            {tienda.adviento && <TwAdviento adv={tienda.adviento} slug={slug} visibles={visibles} tarjeta={tarjeta} />}
+            {tienda.adviento && <TwAdviento adv={tienda.adviento} slug={slug} visibles={visibles} tarjeta={tarjeta} cuenta={{ logueada, pedir, ingresar: () => { setPaso("cuenta"); setTimeout(() => setMotivoCuenta("Ingresá a tu cuenta para juntar los sellos del Calendario de Adviento"), 50); } }} />}
             {tienda.cyber && <TwCyberHero cy={tienda.cyber} onVer={() => irCat("cyber")} foto={foto} prods={cyHeroProds} maxPct={cyHeroMax} />}
             {tienda.halloween && !tienda.cyber && <TwHwHero hw={tienda.halloween} hayLook={hwLook.length > 0} onJugar={() => setHwJuego(true)} onVer={() => irCat("halloween")} />}
             {tienda.halloween && <TwFila clase="tw-hw-fila" titulo="🎃 Para tu disfraz" items={hwDisfraz} onVerTodo={() => irCat("halloween")} render={tarjeta} />}
@@ -35402,6 +35585,23 @@ const ADV_TIPOS_LUM = [
   ["regalo", "🎁 Regalo con la compra", "Los pedidos de ese día (desde el mínimo) llevan un aviso para que la vendedora agregue el regalo."],
   ["mensaje", "💌 Solo mensaje", "Un saludo, un tip o un anuncio (por ejemplo un sorteo): no cambia precios."],
 ];
+// Quiénes juntan sellos del Adviento y sorteo entre las que llegaron a la cantidad del sorteo
+function AdvSorteo({ sellos, dias, premio, temaPal: p }) {
+  const [ganadora, setGanadora] = useState(null);
+  const [ver, setVer] = useState(false);
+  const entran = sellos.filter(x => dias > 0 && x.sellos >= dias);
+  if (!sellos.length) return <div style={{ fontSize: 12, color: p.textMuted, marginTop: 10 }}>Todavía ninguna clienta juntó sellos.</div>;
+  return (
+    <div style={{ marginTop: 10, fontSize: 13 }}>
+      <div><b>{sellos.length}</b> {sellos.length === 1 ? "clienta junta" : "clientas juntan"} sellos{dias > 0 ? " · " + entran.length + " ya " + (entran.length === 1 ? "entra" : "entran") + " al sorteo" : ""} <button className="chip-btn" style={{ marginLeft: 6 }} onClick={() => setVer(v => !v)}>{ver ? "Ocultar" : "Ver quiénes"}</button></div>
+      {ver && <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid " + p.border, borderRadius: 8, marginTop: 6 }}>{sellos.map(x => <div key={x.cliente_id} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "6px 10px", borderBottom: "1px solid " + p.border, background: dias > 0 && x.sellos >= dias ? p.accent + "14" : "transparent" }}><span>{x.nombre || "Clienta #" + x.cliente_id}{x.telefono ? " · " + x.telefono : ""}</span><b>{x.sellos} 🎖️</b></div>)}</div>}
+      {dias > 0 && entran.length > 0 && <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <button className="btn btn-p" onClick={() => setGanadora(entran[Math.floor(Math.random() * entran.length)])}>🎲 Sortear {premio ? "\"" + premio + "\"" : ""}</button>
+        {ganadora && <span style={{ fontWeight: 700 }}>🎉 Ganó <b>{ganadora.nombre || "Clienta #" + ganadora.cliente_id}</b>{ganadora.telefono ? <> · <a href={"https://wa.me/" + String(ganadora.telefono).replace(/\D/g, "")} target="_blank" rel="noreferrer">escribirle por WhatsApp</a></> : ""}</span>}
+      </div>}
+    </div>
+  );
+}
 function AdvientoTienda({ temaPal, productos }) {
   const p = temaPal;
   const [d, setD] = useState(null);
@@ -35442,6 +35642,17 @@ function AdvientoTienda({ temaPal, productos }) {
       <div style={{ fontSize: 12.5, color: p.textMuted, margin: "6px 0 12px" }}>Del 1 al 25 de diciembre: cada día se enciende una ventana del edificio en la tienda (Navidad en Nueva York): las clientas la tocan y descubren la sorpresa (descuento, regalo con la compra, código…). Los días que todavía no llegaron no se pueden espiar.</div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><Sw on={!!f.activo} toggle={() => set("activo", !f.activo)} /><b style={{ fontSize: 13 }}>Programar en la tienda</b></div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><Sw on={f.musica !== false} toggle={() => set("musica", f.musica === false)} /><b style={{ fontSize: 13 }}>🎵 Música navideña de fondo</b><span style={{ fontSize: 11.5, color: temaPal.textMuted }}>villancicos sin derechos (Jingle Bells, Noche de Paz…); la clienta la puede apagar</span></div>
+      <div style={{ border: "1px solid " + p.border, borderRadius: 10, padding: 12, margin: "8px 0 10px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Sw on={!f.constancia || f.constancia.activo !== false} toggle={() => set("constancia", { ...(f.constancia || {}), activo: f.constancia && f.constancia.activo === false })} /><b style={{ fontSize: 13 }}>🎖️ Álbum de sellos (premio por constancia)</b></div>
+        <div style={{ fontSize: 12, color: p.textMuted, margin: "6px 0 8px", lineHeight: 1.45 }}>Cada clienta con cuenta suma un sello cuando abre la ventana <b>el mismo día</b> (no se pueden abrir días pasados para sumar). Al llegar a la cantidad de sellos gana los puntos solos; con los sellos del sorteo entra al sorteo de Navidad.</div>
+        {(!f.constancia || f.constancia.activo !== false) && <div style={{ display: "grid", gap: 6 }}>
+          {[0, 1].map(i => { const h = ((f.constancia && f.constancia.hitos) || [{ dias: 10, puntos: 300 }, { dias: 20, puntos: 700 }])[i] || { dias: "", puntos: "" }; const setH = (k, v) => set("constancia", { ...(f.constancia || {}), hitos: [0, 1].map(j => j === i ? { ...h, [k]: v } : (((f.constancia && f.constancia.hitos) || [{ dias: 10, puntos: 300 }, { dias: 20, puntos: 700 }])[j] || { dias: "", puntos: "" })) });
+            return <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, flexWrap: "wrap" }}>Con <input className="inp" style={{ width: 64 }} inputMode="numeric" value={h.dias} onChange={e => setH("dias", e.target.value.replace(/\D/g, ""))} /> sellos gana <input className="inp" style={{ width: 90 }} inputMode="numeric" value={h.puntos} onChange={e => setH("puntos", e.target.value.replace(/\D/g, ""))} /> puntos</div>; })}
+          <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, flexWrap: "wrap" }}>Con <input className="inp" style={{ width: 64 }} inputMode="numeric" value={f.constancia && f.constancia.sorteo_dias !== undefined ? f.constancia.sorteo_dias : 20} onChange={e => set("constancia", { ...(f.constancia || {}), sorteo_dias: e.target.value.replace(/\D/g, "") })} /> sellos entra al sorteo de <input className="inp" style={{ flex: "1 1 200px" }} maxLength={100} value={f.constancia && f.constancia.sorteo_premio !== undefined ? f.constancia.sorteo_premio : "Un kit sorpresa de skincare"} onChange={e => set("constancia", { ...(f.constancia || {}), sorteo_premio: e.target.value })} /></div>
+        </div>}
+        <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, marginTop: 10, flexWrap: "wrap" }}>🌠 Estrella fugaz: la primera del día suma <input className="inp" style={{ width: 70 }} inputMode="numeric" value={f.estrella_puntos !== undefined ? f.estrella_puntos : 20} onChange={e => set("estrella_puntos", e.target.value.replace(/\D/g, ""))} /> puntos <span style={{ color: p.textMuted, fontSize: 12 }}>(0 = solo el deseo, sin puntos)</span></div>
+        <AdvSorteo sellos={d.sellos || []} dias={f.constancia && f.constancia.sorteo_dias !== undefined ? parseInt(f.constancia.sorteo_dias) || 0 : 20} premio={f.constancia && f.constancia.sorteo_premio} temaPal={p} />
+      </div>
       <div style={{ fontSize: 12, fontWeight: 700, color: estado[1], marginBottom: 14 }}>{estado[0]}{f.activo !== k.activo ? " · (guardá para aplicar)" : ""}</div>
       <div className="g2">
         <div><label style={lbl}>Año</label><select className="sel" value={f.anio} onChange={e => set("anio", parseInt(e.target.value))}>{[2026, 2027, 2028].map(a => <option key={a} value={a}>Diciembre {a}</option>)}</select></div>

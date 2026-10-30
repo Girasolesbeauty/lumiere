@@ -102,7 +102,7 @@ router.get('/:slug', async (req, res) => {
       AND (fecha_inicio IS NULL OR fecha_inicio <= (NOW() AT TIME ZONE 'America/Argentina/Buenos_Aires')::date) AND (fecha_fin IS NULL OR fecha_fin >= (NOW() AT TIME ZONE 'America/Argentina/Buenos_Aires')::date)`)
       .then(r => Object.fromEntries(r.rows.map(x => [[...(x.productos_ids || [])].map(Number).sort((a, b) => a - b).join(','), Math.min(24, parseInt((String(x.nombre).match(/(\d+)\s*cuotas/) || [])[1]) || 0)]).filter(([, n]) => n > 1))).catch(() => ({}));
     res.json({
-      adviento: advVer ? { titulo: adv.titulo, bajada: adv.bajada, anio: adv.anio, musica: adv.musica, hoy: advVista ? 25 : advHoy, vista_previa: advVista && !(adv.activo && advHoy >= 1 && advHoy <= 25),
+      adviento: advVer ? { titulo: adv.titulo, bajada: adv.bajada, anio: adv.anio, musica: adv.musica, constancia: adv.constancia, estrella_puntos: adv.estrella_puntos, hoy: advVista ? 25 : advHoy, vista_previa: advVista && !(adv.activo && advHoy >= 1 && advHoy <= 25),
         dias: adv.dias.map(d => d.dia <= (advVista ? 25 : advHoy) ? d : { dia: d.dia, icono: d.icono, bloqueado: true }) } : null,
       halloween: hwEnCurso || hwVista ? { ceja: hw.ceja, titulo: hw.titulo, musica: hw.musica, subtitulo: hw.subtitulo, juego: hw.juego && hw.premios.some(x => x.chance > 0),
         premios: hw.premios.filter(x => x.chance > 0 && x.tipo !== 'nada').map(x => x.texto + (x.contado ? '*' : '')), tope: hw.tope, disfraz: hw.disfraz, despues: hw.despues, desde: hw.desde, hasta: hw.hasta, vista_previa: hwVista } : null,
@@ -880,6 +880,48 @@ async function calabazasHw(db, clienteId, hw) {
   const total = 1 + compras + Math.min(amigas, HW_AMIGAS_MAX);
   return { jugadas, compras, amigas, amigas_max: HW_AMIGAS_MAX, quedan: Math.max(0, total - jugadas.length) };
 }
+// Calendario de Adviento con cuenta: álbum de sellos (solo cuenta la ventana de hoy, abierta hoy), premios por constancia
+// (puntos al llegar a N sellos) y estrella fugaz (puntos una vez por día)
+const advVigente = (c) => { const a = tienda.advientoDe(c), hoy = tienda.advientoHoy(a); return { a, hoy, ok: a.activo && hoy >= 1 && hoy <= 25 }; };
+const hoyAR = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
+async function advMio(db, clienteId, a) {
+  const [s, h, e] = await Promise.all([
+    db.query('SELECT dia FROM tienda_adv_sellos WHERE cliente_id = $1 AND anio = $2 ORDER BY dia', [clienteId, a.anio]),
+    db.query('SELECT dias, puntos FROM tienda_adv_hitos WHERE cliente_id = $1 AND anio = $2 ORDER BY dias', [clienteId, a.anio]),
+    db.query('SELECT 1 FROM tienda_adv_estrellas WHERE cliente_id = $1 AND fecha = $2', [clienteId, hoyAR()]),
+  ]);
+  return { sellos: s.rows.map(x => x.dia), ganados: h.rows, estrella_hoy: e.rows.length > 0 };
+}
+router.get('/:slug/adviento/mio', conCuenta, async (req, res) => {
+  try { await tienda.asegurar(); const { a } = advVigente(req.tienda); res.json(await advMio(pool, req.clienteId, a)); }
+  catch (e) { res.status(500).json({ error: 'No se pudo leer tu álbum' }); }
+});
+router.post('/:slug/adviento/sello', conCuenta, async (req, res) => {
+  try {
+    await tienda.asegurar();
+    const { a, hoy, ok } = advVigente(req.tienda);
+    if (!ok || !a.constancia.activo) return res.status(400).json({ error: 'El álbum de sellos no está activo' });
+    if (parseInt((req.body || {}).dia) !== hoy) return res.status(400).json({ error: 'Solo se sella la ventana de hoy' });
+    const nuevo = (await pool.query('INSERT INTO tienda_adv_sellos (cliente_id, anio, dia) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING dia', [req.clienteId, a.anio, hoy])).rows.length > 0;
+    const total = parseInt((await pool.query('SELECT COUNT(*) AS n FROM tienda_adv_sellos WHERE cliente_id = $1 AND anio = $2', [req.clienteId, a.anio])).rows[0].n) || 0;
+    const premios = [];
+    for (const h of a.constancia.hitos.filter(x => x.dias <= total)) {
+      const r = await pool.query('INSERT INTO tienda_adv_hitos (cliente_id, anio, dias, puntos) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING RETURNING dias', [req.clienteId, a.anio, h.dias, h.puntos]);
+      if (r.rows.length) { await pool.query('UPDATE clientes SET puntos = COALESCE(puntos, 0) + $1 WHERE id = $2', [h.puntos, req.clienteId]); premios.push(h); }
+    }
+    res.json({ nuevo, premios, ...(await advMio(pool, req.clienteId, a)) });
+  } catch (e) { console.error('[adviento sello]', e.message); res.status(500).json({ error: 'No se pudo sumar el sello' }); }
+});
+router.post('/:slug/adviento/estrella', conCuenta, async (req, res) => {
+  try {
+    await tienda.asegurar();
+    const { a, ok } = advVigente(req.tienda);
+    if (!ok) return res.status(400).json({ error: 'El calendario no está activo' });
+    const r = await pool.query('INSERT INTO tienda_adv_estrellas (cliente_id, fecha, puntos) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING puntos', [req.clienteId, hoyAR(), a.estrella_puntos]);
+    if (r.rows.length && a.estrella_puntos > 0) await pool.query('UPDATE clientes SET puntos = COALESCE(puntos, 0) + $1 WHERE id = $2', [a.estrella_puntos, req.clienteId]);
+    res.json({ puntos: r.rows.length ? a.estrella_puntos : 0, ya: !r.rows.length });
+  } catch (e) { console.error('[adviento estrella]', e.message); res.status(500).json({ error: 'No se pudo pedir el deseo' }); }
+});
 router.get('/:slug/halloween/mio', conCuenta, async (req, res) => {
   try {
     const hw = tienda.halloweenDe(req.tienda);
