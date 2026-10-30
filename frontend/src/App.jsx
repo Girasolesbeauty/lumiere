@@ -31333,7 +31333,19 @@ function TiendaPublica({ slug }) {
                 <div style={{ background: "#f6f6f6", borderRadius: 6, padding: 14, marginBottom: 14, fontSize: 15 }}>
                   <b>Transferí {fmtTienda(pedido.total)} a:</b>
                   <div style={{ whiteSpace: "pre-wrap", margin: "6px 0", fontFamily: "ui-monospace,monospace" }}>{pedido.transferencia}</div>
-                  <div style={{ fontSize: 13, color: "#666" }}>Mandanos el comprobante por WhatsApp.{pedido.giftcard ? " Cuando lo confirmemos, vas a ver acá el código de la gift card." : pedido.vence_en ? " Te guardamos los productos hasta el " + new Date(pedido.vence_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) + "." : ""}</div>
+                  <div style={{ fontSize: 13, color: "#666" }}>Mandanos el comprobante por WhatsApp.{pedido.giftcard ? " Cuando lo confirmemos, vas a ver acá el código de la gift card." : ""}</div>
+                  {/* Plazo para pagar: que quede claro que la fecha es para transferir, no para usar el pedido (una clienta entendió que
+                      aunque pagara, el pedido se cancelaba ese día) */}
+                  {!pedido.giftcard && pedido.vence_en && !pedido.pagado && pedido.estado === "pendiente_pago" && (() => {
+                    const hs = pedido.creado_en ? Math.round((new Date(pedido.vence_en) - new Date(pedido.creado_en)) / 3600000) : 0;
+                    return (
+                      <div style={{ background: "#fff8e1", border: "1px solid #f1dc9a", borderRadius: 8, padding: "10px 12px", marginTop: 10, fontSize: 13.5, lineHeight: 1.45, color: "#333" }}>
+                        <div>⏰ <b>Tenés tiempo de transferir hasta el {new Date(pedido.vence_en).toLocaleString("es-AR", { weekday: "long", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false })}</b>{hs > 0 ? " (" + hs + " horas desde tu compra)" : ""}.</div>
+                        <div style={{ marginTop: 6 }}>✅ <b>Apenas nos llega el pago, tu pedido queda confirmado</b> y ya no se cancela, aunque pase esa fecha.</div>
+                        <div style={{ marginTop: 6, color: "#666" }}>Si no recibimos la transferencia antes de ese horario, el pedido se cancela solo y los productos vuelven a la venta.</div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
               {pedido.pago === "retiro" && pedido.vence_en && !["cancelado", "entregado"].includes(pedido.estado) && (
@@ -31463,7 +31475,7 @@ function TiendaPublica({ slug }) {
   const tarjeta = (p) => <TwTarjeta key={p.id} cyPct={tienda.cyber ? twMejorPct(promosLid, p) : 0} cyGral={tienda.cyber ? twMejorPct(promosLid.filter(x => !x.pago), p) : 0} cyTransf={tienda.cyber ? twPctCon(promosLid, p, "transferencia") : 0} cyEfec={tienda.cyber ? twPctCon(promosLid, p, "retiro") : 0} goc={tienda.pagos && tienda.pagos.gocuotas ? { min: tienda.pagos.gocuotas_minimo || 0 } : null} pack={twPackDe(tienda.packs, p)} p={p} base={base} sin={agotado(p)} preventa={esPreventa(p)} llega={esPreventa(p) ? llegaDe(p) : null} fav={favs.includes(p.id)} onFav={toggleFav} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} />;
   const enComparar = comparar.map(id => lista0.find(p => p.id === id)).filter(Boolean);
   const toggleComparar = (p) => setComparar(c => c.includes(p.id) ? c.filter(x => x !== p.id) : [...c, p.id].slice(-3));
-  const opcionesPago = [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["gocuotas", "💜 GoCuotas", "Hasta 4 cuotas sin interés con tu tarjeta de débito"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar"], ["retiro", "💵 Pago al retirar", "Pagás en el local"]]
+  const opcionesPago = [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["gocuotas", "💜 GoCuotas", "Hasta 4 cuotas sin interés con tu tarjeta de débito"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar · tenés " + (parseInt(tienda.horas_reserva) || 24) + " h para transferir"], ["retiro", "💵 Pago al retirar", "Pagás en el local"]]
     .filter(([k]) => tienda.pagos[k] && !(k === "retiro" && datos.entrega === "envio") && (!carritoPreventa || k === "mp"));
   const listoParaPedir = lid && datos.nombre && datos.telefono && datos.entrega && (pagoElegido || gcCubre) && (datos.entrega === "retiro" ? retiroAca.length > 0 : (zona && datos.direccion));
   const faltaDatos = !datos.nombre || !datos.telefono;
