@@ -97,6 +97,10 @@ router.get('/:slug', async (req, res) => {
     const adv = tienda.advientoDe(c), advHoy = tienda.advientoHoy(adv), advVista = !!adv.token && String(req.query.adviento || '') === adv.token;
     const advVer = (adv.activo && advHoy >= 1 && advHoy <= 25) || advVista;
     const hw = tienda.halloweenDe(c), hwEnCurso = tienda.halloweenVigente(hw), hwVista = !hwEnCurso && !!hw.token && String(req.query.halloween || '') === hw.token;
+    // Cuotas sin interés de cada producto del plan de ofertas (promo con crédito: "N% OFF + 3 cuotas sin interés"): { id: cuotas }
+    const cuotasProd = await pool.query(`SELECT productos_ids, nombre, local_id FROM promociones WHERE tipo = 'descuento' AND medio_pago_tipo = 'credito' AND activo AND aplica_a = 'productos'
+      AND (fecha_inicio IS NULL OR fecha_inicio <= COALESCE($1::date, (NOW() AT TIME ZONE 'America/Argentina/Buenos_Aires')::date)) AND (fecha_fin IS NULL OR fecha_fin >= COALESCE($1::date, (NOW() AT TIME ZONE 'America/Argentina/Buenos_Aires')::date))`, [cyVista ? ky.desde.slice(0, 10) : null])
+      .then(r => { const m = {}; r.rows.forEach(x => { const n = Math.min(24, parseInt((String(x.nombre).match(/(\d+)\s*cuotas/) || [])[1]) || 0); if (n > 1) (x.productos_ids || []).forEach(id => { m[id] = Math.max(m[id] || 0, n); }); }); return m; }).catch(() => ({}));
     // Cuotas sin interés de cada combo: las de su promo con crédito en el local (para combos creados antes de guardarlas en el combo)
     const cuotasCombos = await pool.query(`SELECT productos_ids, nombre FROM promociones WHERE tipo = 'combo' AND medio_pago_tipo = 'credito' AND activo AND local_id IS NULL
       AND (fecha_inicio IS NULL OR fecha_inicio <= (NOW() AT TIME ZONE 'America/Argentina/Buenos_Aires')::date) AND (fecha_fin IS NULL OR fecha_fin >= (NOW() AT TIME ZONE 'America/Argentina/Buenos_Aires')::date)`)
@@ -107,6 +111,7 @@ router.get('/:slug', async (req, res) => {
       halloween: hwEnCurso || hwVista ? { ceja: hw.ceja, titulo: hw.titulo, musica: hw.musica, subtitulo: hw.subtitulo, juego: hw.juego && hw.premios.some(x => x.chance > 0),
         premios: hw.premios.filter(x => x.chance > 0 && x.tipo !== 'nada').map(x => x.texto + (x.contado ? '*' : '')), tope: hw.tope, disfraz: hw.disfraz, despues: hw.despues, desde: hw.desde, hasta: hw.hasta, vista_previa: hwVista } : null,
       cyber: cyEnCurso || cyVista ? { ceja: ky.ceja, titulo: ky.titulo, subtitulo: ky.subtitulo, boton: ky.boton, chips: ky.chips, marcas_primero: ky.marcas_primero, desde: ky.desde, hasta: ky.hasta, vista_previa: cyVista } : null,
+      cuotas_prod: cuotasProd,
       promos: promosT.map(x => ({ nombre: x.nombre, pct: x.pct, aplica_a: x.aplica_a, productos: x.productos, categorias: x.categorias, pago: x.pago, local: x.local })),
       titulo: c.titulo || neg.nombre_negocio || 'Tienda', mensaje: c.mensaje || '', logo: c.logo || neg.logo_url || null, color: c.color || '#c9a84c', whatsapp: c.whatsapp || null,
       retiro: c.retiro_activo ? locales : [], ciudades,
